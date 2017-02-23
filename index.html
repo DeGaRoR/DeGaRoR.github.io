@@ -1278,8 +1278,10 @@ function backToChoice() {
 	document.getElementById('LevelChooser').hidden = false;
 }
 function showMenu() {
+	state.previousTimePace = state.timePace;
 	document.getElementById('inGameMenu').hidden = false;
 	pauseGame();
+	setSpeedIndicator(state.previousTimePace);
 	
 }
 function hideMenu() {
@@ -1325,8 +1327,8 @@ function setTheme() {
 	document.getElementById("body").style.background = "linear-gradient(" + config.backgroundColors1[state.themeID] + "," + config.backgroundColors2[state.themeID] + ")";
 	document.getElementById("speedIndicator").style.color = config.textColors[state.themeID];
 }
-function setSpeedIndicator() {
-	document.getElementById("speedIndicator").innerHTML = state.timePace + "x";
+function setSpeedIndicator(speed) {
+	document.getElementById("speedIndicator").innerHTML = speed + "x";
 }
 function startGame(level) {
 	// hide the level choice UI and show the game div
@@ -1346,38 +1348,23 @@ function startGame(level) {
 	animate();
 }
 function changeSpeed(increment) {
-	if ((state.timePace == 1 && increment < 0) || (state.timePace == 5 && increment >0)) {
+	// do not go lower than 1x and higher than 5x
+	if ((state.previousTimePace == 1 && increment < 0) || (state.previousTimePace == 5 && increment >0)) {
 		//do nothing
 	}
 	else {
-		state.previousTimePace = state.timePace;
-		state.timePace = state.timePace + increment;
-		if (state.timePace == 0) {
-			document.getElementById("speedIndicator").innerHTML = "||"
-		}
-		else {
-			setSpeedIndicator();
-		}
+		// manipulate only the variable previousTimePace - set it to timePace on hide menu
+		state.previousTimePace = state.previousTimePace + increment;
+		setSpeedIndicator(state.previousTimePace);
 	}
 }
 function pauseGame() {
-	state.previousTimePace = state.timePace;
 	state.timePace = 0;
-	document.getElementById("speedIndicator").innerHTML = "||";
 }
 function unPauseGame() {
 	state.timePace = state.previousTimePace;
-	setSpeedIndicator();
 }
-function pauseUnPause() {
-	
-	if (state.timePace==0) {
-		unPauseGame();
-	}
-	else {
-		pauseGame();
-	}
-}
+
 function changeTheme() {
 	if (state.themeID < config.backgroundColors1.length - 1) {
 		state.themeID += 1;
