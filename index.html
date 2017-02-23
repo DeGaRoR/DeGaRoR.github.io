@@ -134,7 +134,7 @@
 				margin: auto;
 			}
 			.confirmBox {
-				background-color: rgba(0, 0, 0, 0.8);
+				background-color: rgba(0, 0, 0, 0.9);
 			}
 			.outer {
 				display: table;
@@ -241,14 +241,14 @@
 						<button id="backToChoice" class="button menuCenter buttonInGameMenu" onclick="ShowConfirmReturnHome()">
 							<i class="fa fa-home" aria-hidden="true"></i> Select level
 						</button>
-						<button class="button menuCenter buttonInGameMenu" onclick="hideMenu(); reStart()">
+						<button class="button menuCenter buttonInGameMenu" onclick="ShowConfirmRestart()">
 							<i class="fa fa-refresh" aria-hidden="true"></i> Restart
 						</button>
 					</div>
 				</div>	
 			</div>
 		</span>
-		<span id="confirmBox" class="inGameMenu confirmBox" hidden>
+		<span id="confirmBoxReturnHome" class="inGameMenu confirmBox" hidden>
 			<div id="buttonsContainer" class="buttonsContainer">
 				<div id="buttonsContainer2" class="buttonsContainer2">
 					<div id="buttonsContainer3" class="buttonsContainer3">
@@ -257,6 +257,21 @@
 							<i class="fa fa-home" aria-hidden="true"></i> Yes
 						</button>
 						<button id="backToChoiceNo" class="button menuCenter buttonConfirm" onclick="hideConfirmReturnHome()">
+							<i class="fa fa-home" aria-hidden="true"></i> No
+						</button>
+					</div>
+				</div>	
+			</div>
+		</span>
+		<span id="confirmBoxRestart" class="inGameMenu confirmBox" hidden>
+			<div id="buttonsContainer" class="buttonsContainer">
+				<div id="buttonsContainer2" class="buttonsContainer2">
+					<div id="buttonsContainer3" class="buttonsContainer3">
+						Are you sure? <br> All progress will be lost... <br> <br>
+						<button id="backToChoiceYes" class="button menuCenter buttonConfirm" onclick="hideMenu(); reStart(); hideConfirmRestart()">
+							<i class="fa fa-home" aria-hidden="true"></i> Yes
+						</button>
+						<button id="backToChoiceNo" class="button menuCenter buttonConfirm" onclick="hideConfirmRestart()">
 							<i class="fa fa-home" aria-hidden="true"></i> No
 						</button>
 					</div>
@@ -1295,10 +1310,16 @@ function getInitialState() {
 }
 
 function ShowConfirmReturnHome() {
-	document.getElementById('confirmBox').hidden = false;
+	document.getElementById('confirmBoxReturnHome').hidden = false;
 }
 function hideConfirmReturnHome() {
-	document.getElementById('confirmBox').hidden = true;
+	document.getElementById('confirmBoxReturnHome').hidden = true;
+}
+function ShowConfirmRestart() {
+	document.getElementById('confirmBoxRestart').hidden = false;
+}
+function hideConfirmRestart() {
+	document.getElementById('confirmBoxRestart').hidden = true;
 }
 
 function backToChoice() {
