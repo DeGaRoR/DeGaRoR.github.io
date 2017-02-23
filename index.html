@@ -1603,11 +1603,13 @@ function drawBase(base) {
 	// draw the new image
 	if (base.ownership != config.players[0] && base.conquership == 100) {
 		var imgBase = null;
+		var imgSize = null;
 		// cap the level to 3, afterwards draw base type 3 always
 		if (base.levelCurrent >= 3) {level = 2}
 		else {level = base.levelCurrent-1;}
-		imgBase = base.ownership.imgBase[level]
-		config.ctx.drawImage(imgBase, base.x-base.ownership.baseSize[level]/2, base.y-base.ownership.baseSize[level]/2, base.ownership.baseSize[level], base.ownership.baseSize[level]);
+		imgBase = base.ownership.imgBase[level];
+		imgSize = base.ownership.baseSize[level];
+		config.ctx.drawImage(imgBase, base.x-imgSize/2, base.y-imgSize/2, imgSize, imgSize);
 	}
 	// draw the base a bit larger if it has just spawned - this gives a pulse
 	if (base.hasJustSpawned == true) { baseSize = config.defaultBaseSize + config.pulseSizeIncrease; }
@@ -1634,6 +1636,7 @@ function drawBase(base) {
 	config.ctx.stroke();
 	
 	// actually draw the base
+	// Draw a vector base only for bases with no ownership
 	if (base.ownership == config.players[0] || base.conquership != 100) {
 		config.ctx.beginPath();
 		config.ctx.arc(base.x, base.y, baseSize, 0, Math.PI * 2);
