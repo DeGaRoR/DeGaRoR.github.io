@@ -171,10 +171,13 @@
 				//border-radius: 4px;
 				padding-top: 20px;
 				padding-bottom: 20px;
+				color: white;
 			}
 			.buttonInGameMenu {
 				width: 200px;
-				
+			}
+			.buttonConfirm {
+				width: 100px;
 			}
 		</style>
 		<script src="https://use.fontawesome.com/b7c5ba548a.js"></script>
@@ -231,11 +234,26 @@
 						<button class="button menuCenter buttonInGameMenu" onclick="hideMenu()">
 							<i class="fa fa-arrow-left" aria-hidden="true"></i> Back to game
 						</button>
-						<button id="backToChoice" class="button menuCenter buttonInGameMenu" onclick="hideMenu(); backToChoice()">
+						<button id="backToChoice" class="button menuCenter buttonInGameMenu" onclick="ShowConfirmReturnHome()">
 							<i class="fa fa-home" aria-hidden="true"></i> Select level
 						</button>
 						<button class="button menuCenter buttonInGameMenu" onclick="hideMenu(); reStart()">
 							<i class="fa fa-refresh" aria-hidden="true"></i> Restart
+						</button>
+					</div>
+				</div>	
+			</div>
+		</span>
+		<span id="confirmBox" class="inGameMenu" hidden>
+			<div id="buttonsContainer" class="buttonsContainer">
+				<div id="buttonsContainer2" class="buttonsContainer2">
+					<div id="buttonsContainer3" class="buttonsContainer3">
+						Are you sure? <br> All progress will be lost... <br> <br>
+						<button id="backToChoiceYes" class="button menuCenter buttonConfirm" onclick="hideMenu(); backToChoice(); hideConfirmReturnHome()">
+							<i class="fa fa-home" aria-hidden="true"></i> Yes
+						</button> <br>
+						<button id="backToChoiceNo" class="button menuCenter buttonConfirm" onclick="hideConfirmReturnHome()">
+							<i class="fa fa-home" aria-hidden="true"></i> No
 						</button>
 					</div>
 				</div>	
@@ -1272,6 +1290,13 @@ function getInitialState() {
 	};
 }
 
+function ShowConfirmReturnHome() {
+	document.getElementById('confirmBox').hidden = false;
+}
+function hideConfirmReturnHome() {
+	document.getElementById('confirmBox').hidden = true;
+}
+
 function backToChoice() {
 	state.abandon = true;
 	document.getElementById('gameUI').hidden = true;
@@ -1312,21 +1337,13 @@ function placeCanvas() {
 	drawSpace.style.marginLeft = (window.innerWidth - drawSpace.width) /2;
 	
 }
-function getArtworkBase() {
-	return {
-		cell3D_S: document.getElementById("cell3D_S"),
-	}
-}
+
 
 function reStart() {
 	startGame(config.level);
 }
 
-function setTheme() {
-	//document.getElementById("body").style.backgroundColor = config.backgroundColors1[state.themeID];
-	document.getElementById("body").style.background = "linear-gradient(" + config.backgroundColors1[state.themeID] + "," + config.backgroundColors2[state.themeID] + ")";
-	document.getElementById("speedIndicator").style.color = config.textColors[state.themeID];
-}
+
 function setSpeedIndicator(speed) {
 	document.getElementById("speedIndicator").innerHTML = speed + "x";
 }
@@ -1339,7 +1356,6 @@ function startGame(level) {
 	// Initialize the config and state
 	config = getConfig(level);
 	state = getInitialState();
-	artworkBase = getArtworkBase();
 	// Write the current speed
 	setSpeedIndicator();
 	// Complete the base definition and initializes them
@@ -1363,16 +1379,6 @@ function pauseGame() {
 }
 function unPauseGame() {
 	state.timePace = state.previousTimePace;
-}
-
-function changeTheme() {
-	if (state.themeID < config.backgroundColors1.length - 1) {
-		state.themeID += 1;
-	}
-	else {
-		state.themeID = 0;
-	}
-	setTheme();
 }
 
 function releaseSelection() {
