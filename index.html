@@ -4,8 +4,8 @@
 		<meta name="theme-color" content="#101010" />
 		<style>
 			body {
-				background-image: url("Resources/Background/Clouds_trans.png");
-				background-size: 100% 100%;
+				background-image: url("Resources/Background/Clouds_trans_tile.png");
+				//background-size: 100% 100%;
 				//opacity: 0.6;
 				background-color: #181818;
 				overflow-y: hidden;
@@ -415,7 +415,7 @@ function reCalc() {
     selectionBox.style.height = y4 - y3 + 'px';
 }
 
-var ondown = function(x, y) {
+function ondown(x,y) {
     selectionBox.hidden = 0;
     x_init = x;
     y_init = y;
@@ -423,12 +423,12 @@ var ondown = function(x, y) {
 	y2 = y;
     reCalc();
 };
-var onmove = function(x, y) {
+function onmove(x,y) {
     x2 = x;
     y2 = y;
     reCalc();
 };
-var onup = function(x, y) {
+function onup(x,y) {
     selectionBox.hidden = 1;
     x_final = x;
     y_final = y;
