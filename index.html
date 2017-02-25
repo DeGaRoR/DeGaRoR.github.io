@@ -288,7 +288,7 @@
 	</div>
 
 	<!--<div id="infoField"></div>-->
-	<body id="body" onresize="placeCanvas()">
+	<body id="body">
 		<!--<script src="game.js"></script>-->
 		<script>
 		/* feature and bug list
@@ -328,6 +328,7 @@ window.onload = function() {
 	window.onresize = function() {
 		background_canvas.width = window.innerWidth-2;
 		background_canvas.height = window.innerHeight;
+		placeCanvas();
 	};
 	// variables
 	var nLargeObjects = 20;
@@ -399,7 +400,6 @@ window.onload = function() {
 		backround_ctx.clearRect(0, 0, background_canvas.width, background_canvas.height);
 
 		for (var i=0; i<objects.length; i++) {
-		
 			object = objects[i];
 			var y_min = 0 - object.img.height;
 			var x_min = 0 - object.img.width;
@@ -410,11 +410,6 @@ window.onload = function() {
 			else if (object.y < y_min) {object.y = y_max;}
 			else if (object.x > x_max) {object.x = x_min}
 			else if (object.y > y_max) {object.y = y_min}
-			//backround_ctx.beginPath();
-			//backround_ctx.arc(object.x, object.y, 2, 0, Math.PI * 2);
-			//backround_ctx.closePath();
-			//backround_ctx.fillStyle = "red";
-			//backround_ctx.fill();
 			// image
 			object.y += globalSpeed*object.speed*Math.sin(object.theta);
 			object.x += globalSpeed*object.speed*Math.cos(object.theta);
@@ -426,6 +421,9 @@ window.onload = function() {
 			backround_ctx.drawImage(object.img, x_center, y_center, w, h);
 		}
 	}	
+}
+function setBackground() {
+	
 }
 // click events_______________________________________________________________________________________
 
@@ -1343,27 +1341,19 @@ function hideMenu() {
 }
 
 function placeCanvas() {
-	// Size the canvas
-	var buttons = document.getElementById('buttons');
-	
-	//console.log(buttons);
-	//console.log(buttons.clientHeight);
+	// Center the canvas using margins - so the click events are not confused...
+	drawSpace.style.marginLeft = (window.innerWidth - drawSpace.width) /2;
+}
+function sizeMainCanvas() {
 	if (window.innerWidth > window.innerHeight) {
-
-		
-		
-		drawSpace.height = window.innerHeight;//- buttons.clientHeight;
+		drawSpace.height = window.innerHeight;
 		drawSpace.width = drawSpace.height;
-
 		//drawSpace.style.paddingLeft = 100;
 	}
 	else {
 		drawSpace.width = window.innerWidth-8;
 		drawSpace.height = drawSpace.width;
 	}
-	// Center the canvas using margins - so the click events are not confused...
-	drawSpace.style.marginLeft = (window.innerWidth - drawSpace.width) /2;
-	
 }
 
 
@@ -1380,6 +1370,7 @@ function startGame(level) {
 	document.getElementById('LevelChooser').hidden = true;
 	document.getElementById('gameUI').hidden = false;
 	// determine canvas size and position
+	sizeMainCanvas();
 	placeCanvas();
 	// Initialize the config and state
 	config = getConfig(level);
