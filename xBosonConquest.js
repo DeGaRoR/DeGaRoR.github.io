@@ -225,7 +225,7 @@ function setSpeedIndicator(speed) {
 // Game menu controls
 //==============================================
 //
-function reStart() {startGame(config.level);}
+function reStart() {state.abandon = true; cancelAnimationFrame(reqID); startGame(config.level);}
 function pauseGame() {state.timePace = 0;}
 function unPauseGame() {state.timePace = state.previousTimePace;}
 function changeSpeed(increment) {
@@ -987,7 +987,7 @@ function getBasesFromRepo(players, canvas, selectedLevel) {
 			y: 0.5 * h,
 			levelCurrent: 1,
 			levelMax: 2,
-			initUnits: 4,
+			initUnits: 200,
 		}
 		bases.push(base1);
 		var base2 = {
@@ -1593,6 +1593,7 @@ function findClosestAttacker(object) {
 //==============================================
 //
 function animate(time) {
+	console.log(time);
 	// Behaviour at the end of the game
 	if (state.gameWon == true) {
 		console.log("Get out of the animate function since game won declared");
@@ -1612,7 +1613,7 @@ function animate(time) {
 	}
     // request another animation frame (always first call)
 	// requestAnimationFrame pauses when the windows loses focus. If undesired, use setInterval instead
-    requestAnimationFrame(animate);
+    reqID = requestAnimationFrame(animate);
 	
 	//var time = date.now();
 	var timeDiff = time - state.prevTime;
