@@ -95,12 +95,6 @@
 			}
 			.menuCenter {
 				text-align: center;
-				
-				//position: absolute;
-				//top: 50%;
-				//bottom: 25%
-				//left: 25%;
-				//right: 25%;
 			}
 			.title {
 				max-width:100%;
@@ -135,23 +129,6 @@
 			}
 			.confirmBox {
 				background-color: rgba(0, 0, 0, 0.9);
-			}
-			.outer {
-				display: table;
-				position: absolute;
-				height: 100%;
-				width: 100%;
-			}
-
-			.middle {
-				display: table-cell;
-				vertical-align: middle;
-			}
-
-			.inner {
-				margin-left: auto;
-				margin-right: auto; 
-				width: /*whatever width you want*/;
 			}
 			.buttonsContainer {
 				display: table;
@@ -291,15 +268,95 @@
 	<body id="body">
 		<!--<script src="game.js"></script>-->
 		<script>
-
-
-window.onload = function() {
-	setBackground();	
+//
+//==============================================
+// Events
+//==============================================
+//
+window.onload = function() {setBackground()};
+window.onresize = function() {sizeBgCanvas(); placeCanvas()};
+//
+//==============================================
+// Mouse and selection
+//==============================================
+//
+var selectionBox = document.getElementById('selectionBox'), x_init = 0, y_init = 0, x2 = 0, y2 = 0, x_final = 0, y_final = 0;
+onmousedown = function(e) { ondown(e.clientX, e.clientY); };
+onmousemove = function(e) { onmove(e.clientX, e.clientY); };
+onmouseup = function(e) { onup(e.clientX, e.clientY); };
+ontouchstart = function(e) { ondown(e.changedTouches["0"].clientX, e.changedTouches["0"].clientY);};
+ontouchend = function(e) { onup(e.changedTouches["0"].clientX, e.changedTouches["0"].clientY); };
+ontouchmove = function(e) { onmove(e.changedTouches["0"].clientX, e.changedTouches["0"].clientY); };
+function reCalc() {
+    var x3 = Math.min(x_init,x2);
+    var x4 = Math.max(x_init,x2);
+    var y3 = Math.min(y_init,y2);
+    var y4 = Math.max(y_init,y2);
+    selectionBox.style.left = x3 + 'px';
+    selectionBox.style.top = y3 + 'px';
+    selectionBox.style.width = x4 - x3 + 'px';
+    selectionBox.style.height = y4 - y3 + 'px';
 }
-window.onresize = function() {
-	sizeBgCanvas();
-	placeCanvas();
+function ondown(x,y) {
+    selectionBox.hidden = 0;
+    x_init = x;
+    y_init = y;
+	x2 = x;
+	y2 = y;
+    reCalc();
 };
+function onmove(x,y) {
+    x2 = x;
+    y2 = y;
+    reCalc();
+};
+function onup(x,y) {
+    selectionBox.hidden = 1;
+    x_final = x;
+    y_final = y;
+	// correction of coordinates for canvas position
+	x_init_canvas = x_init - drawSpace.offsetLeft +8;
+	y_init_canvas = y_init - drawSpace.offsetTop+8;
+	x_final_canvas = x_final - drawSpace.offsetLeft+8;
+	y_final_canvas = y_final - drawSpace.offsetTop+8;
+	//alert(x_final + " " + y_final + " " + x_init + " " + y_init);
+    if (distance(x_final, y_final, x_init, y_init) < config.clickTol) {
+    	//alert("this looks like a click");
+		setTargetOnClick(x_final_canvas,y_final_canvas);
+		releaseSelection();
+    }
+    else {
+    	//alert("This looks like a selection");
+		// note that the release selection could be implemented as part of hthe selection function
+		releaseSelection();
+		selectObjectsInRectangle(x_final_canvas, y_final_canvas, x_init_canvas, y_init_canvas);
+    }
+};
+function releaseSelection() {
+	for (var i = 0; i < state.objects.length; i++) {
+        var object = state.objects[i];
+		object.isSelected = false;
+    }
+}
+function selectObjectsInRectangle(x_final, y_final, x_init, y_init){
+	var x_top_left = Math.min(x_final,x_init);
+	var y_top_left = Math.min(y_final,y_init);
+	var x_bottom_right = Math.max(x_final,x_init);
+	var y_bottom_right = Math.max(y_final,y_init);
+	for (var i = 0; i < state.objects.length; i++) {
+        var object = state.objects[i];
+		if (object.controlType == 0 && object.hasBeenHit == false) {
+			if (object.x >= x_top_left && object.x <= x_bottom_right && object.y >= y_top_left && object.y <= y_bottom_right) {
+				object.isSelected = true;
+			}
+		}
+    }
+}
+//
+//==============================================
+// Background
+//==============================================
+//
 function getBgConfig() {
 	return {
 		background_canvas: document.getElementById('background_canvas'),
@@ -386,9 +443,12 @@ function animateBackground() {
 		bgConfig.background_ctx.drawImage(object.img, x_center, y_center, w, h);
 	}
 }
-function getRandom(min, max) {
-	return Math.random() * (max - min) + min;
-}
+//
+//==============================================
+// Utils
+//==============================================
+//
+function getRandom(min, max) {return Math.random() * (max - min) + min;}
 function selectRandom3(x,y,z) {
 	var selected = Math.round(getRandom(1,3));
 	if (selected == 1){
@@ -401,63 +461,59 @@ function selectRandom3(x,y,z) {
 		return z
 	}
 }
-// click events_______________________________________________________________________________________
-
-var selectionBox = document.getElementById('selectionBox'), x_init = 0, y_init = 0, x2 = 0, y2 = 0, x_final = 0, y_final = 0;
-function reCalc() {
-    var x3 = Math.min(x_init,x2);
-    var x4 = Math.max(x_init,x2);
-    var y3 = Math.min(y_init,y2);
-    var y4 = Math.max(y_init,y2);
-    selectionBox.style.left = x3 + 'px';
-    selectionBox.style.top = y3 + 'px';
-    selectionBox.style.width = x4 - x3 + 'px';
-    selectionBox.style.height = y4 - y3 + 'px';
+function distance(x1, y1, x2, y2) { return Math.sqrt(Math.pow(x1-x2, 2)+Math.pow(y1-y2,2)) }
+//
+//==============================================
+// Game UI
+//==============================================
+//
+function ShowConfirmReturnHome() {document.getElementById('confirmBoxReturnHome').hidden = false;}
+function hideConfirmReturnHome() {document.getElementById('confirmBoxReturnHome').hidden = true;}
+function ShowConfirmRestart() {document.getElementById('confirmBoxRestart').hidden = false;}
+function hideConfirmRestart() {document.getElementById('confirmBoxRestart').hidden = true;}
+function backToChoice() {
+	state.abandon = true;
+	document.getElementById('gameUI').hidden = true;
+	document.getElementById('LevelChooser').hidden = false;
 }
-
-function ondown(x,y) {
-    selectionBox.hidden = 0;
-    x_init = x;
-    y_init = y;
-	x2 = x;
-	y2 = y;
-    reCalc();
-};
-function onmove(x,y) {
-    x2 = x;
-    y2 = y;
-    reCalc();
-};
-function onup(x,y) {
-    selectionBox.hidden = 1;
-    x_final = x;
-    y_final = y;
-	// correction of coordinates for canvas position
-	x_init_canvas = x_init - drawSpace.offsetLeft +8;
-	y_init_canvas = y_init - drawSpace.offsetTop+8;
-	x_final_canvas = x_final - drawSpace.offsetLeft+8;
-	y_final_canvas = y_final - drawSpace.offsetTop+8;
-	//alert(x_final + " " + y_final + " " + x_init + " " + y_init);
-    if (distance(x_final, y_final, x_init, y_init) < config.clickTol) {
-    	//alert("this looks like a click");
-		setTargetOnClick(x_final_canvas,y_final_canvas);
-		releaseSelection();
-    }
-    else {
-    	//alert("This looks like a selection");
-		// note that the release selection could be implemented as part of hthe selection function
-		releaseSelection();
-		selectObjectsInRectangle(x_final_canvas, y_final_canvas, x_init_canvas, y_init_canvas);
-    }
-};
-
-onmousedown = function(e) { ondown(e.clientX, e.clientY); };
-onmousemove = function(e) { onmove(e.clientX, e.clientY); };
-onmouseup = function(e) { onup(e.clientX, e.clientY); };
-ontouchstart = function(e) { ondown(e.changedTouches["0"].clientX, e.changedTouches["0"].clientY);};
-ontouchend = function(e) { onup(e.changedTouches["0"].clientX, e.changedTouches["0"].clientY); };
-ontouchmove = function(e) { onmove(e.changedTouches["0"].clientX, e.changedTouches["0"].clientY); };
-
+function showMenu() {
+	state.previousTimePace = state.timePace;
+	document.getElementById('inGameMenu').hidden = false;
+	pauseGame();
+	setSpeedIndicator(state.previousTimePace);
+	
+}
+function hideMenu() {
+	document.getElementById('inGameMenu').hidden = true;
+	unPauseGame();
+}
+function setSpeedIndicator(speed) {
+	document.getElementById("speedIndicator").innerHTML = speed + "x";
+}
+//
+//==============================================
+// Game menu controls
+//==============================================
+//
+function reStart() {startGame(config.level);}
+function pauseGame() {state.timePace = 0;}
+function unPauseGame() {state.timePace = state.previousTimePace;}
+function changeSpeed(increment) {
+	// do not go lower than 1x and higher than 5x
+	if ((state.previousTimePace == 1 && increment < 0) || (state.previousTimePace == 5 && increment >0)) {
+		//do nothing
+	}
+	else {
+		// manipulate only the variable previousTimePace - set it to timePace on hide menu
+		state.previousTimePace = state.previousTimePace + increment;
+		setSpeedIndicator(state.previousTimePace);
+	}
+}
+//
+//==============================================
+// Game initialization
+//==============================================
+//
 function initializePlayers() {
 	var players = [];
 	var cell3D_S = document.getElementById("cell3D_S");
@@ -504,7 +560,7 @@ function initializePlayers() {
 
 	return players;
 }
-function newInitializeBases(players, canvas, selectedLevel) {
+function getBasesFromRepo(players, canvas, selectedLevel) {
 	var bases = [];
 	var w = canvas.width;
 	var h = canvas.height;
@@ -1216,10 +1272,6 @@ function newInitializeBases(players, canvas, selectedLevel) {
 	}
 	return bases;
 }
-
-
-// config and states
-
 function getConfig(selectedLevel) {
 	var canvas = document.getElementById("drawSpace");
 	var players = initializePlayers();
@@ -1235,7 +1287,7 @@ function getConfig(selectedLevel) {
 		canvas: canvas,
 		ctx: canvas.getContext("2d"),
 		// players and bases
-		bases: newInitializeBases(players, canvas, selectedLevel),
+		bases: getBasesFromRepo(players, canvas, selectedLevel),
 		players: players,
 		// timings
 		turnLength: 25,
@@ -1263,8 +1315,6 @@ function getConfig(selectedLevel) {
 		textColors: 		["white", 	"#181818",	"#181818",	"#181818",	"#181818",	"#181818"],
 	}
 }
-
-
 function getInitialState() {
 	//var timePace = 2;
 	//var spawnRate = 2000/timePace;
@@ -1285,29 +1335,6 @@ function getInitialState() {
 		previousTimePace:1,
 	};
 }
-
-function ShowConfirmReturnHome() {document.getElementById('confirmBoxReturnHome').hidden = false;}
-function hideConfirmReturnHome() {document.getElementById('confirmBoxReturnHome').hidden = true;}
-function ShowConfirmRestart() {document.getElementById('confirmBoxRestart').hidden = false;}
-function hideConfirmRestart() {document.getElementById('confirmBoxRestart').hidden = true;}
-
-function backToChoice() {
-	state.abandon = true;
-	document.getElementById('gameUI').hidden = true;
-	document.getElementById('LevelChooser').hidden = false;
-}
-function showMenu() {
-	state.previousTimePace = state.timePace;
-	document.getElementById('inGameMenu').hidden = false;
-	pauseGame();
-	setSpeedIndicator(state.previousTimePace);
-	
-}
-function hideMenu() {
-	document.getElementById('inGameMenu').hidden = true;
-	unPauseGame();
-}
-
 function placeCanvas() {
 	// Center the canvas using margins - so the click events are not confused...
 	drawSpace.style.marginLeft = (window.innerWidth - drawSpace.width) /2;
@@ -1322,16 +1349,6 @@ function sizeMainCanvas() {
 		drawSpace.width = window.innerWidth-8;
 		drawSpace.height = drawSpace.width;
 	}
-}
-
-
-function reStart() {
-	startGame(config.level);
-}
-
-
-function setSpeedIndicator(speed) {
-	document.getElementById("speedIndicator").innerHTML = speed + "x";
 }
 function startGame(level) {
 	// hide the level choice UI and show the game div
@@ -1349,52 +1366,6 @@ function startGame(level) {
 	initializeBases();
 	// Off we go
 	animate();
-}
-function changeSpeed(increment) {
-	// do not go lower than 1x and higher than 5x
-	if ((state.previousTimePace == 1 && increment < 0) || (state.previousTimePace == 5 && increment >0)) {
-		//do nothing
-	}
-	else {
-		// manipulate only the variable previousTimePace - set it to timePace on hide menu
-		state.previousTimePace = state.previousTimePace + increment;
-		setSpeedIndicator(state.previousTimePace);
-	}
-}
-function pauseGame() {
-	state.timePace = 0;
-}
-function unPauseGame() {
-	state.timePace = state.previousTimePace;
-}
-
-function releaseSelection() {
-	for (var i = 0; i < state.objects.length; i++) {
-        var object = state.objects[i];
-		object.isSelected = false;
-    }
-}
-function selectObjectsInRectangle(x_final, y_final, x_init, y_init){
-	//alert("Started select function, received params " + x_final + "," + y_final + "," + x_init + "," + y_init);
-	// the "-8" is there for correcting for browser margin - try to clean that later
-	var x_top_left = Math.min(x_final,x_init);
-	var y_top_left = Math.min(y_final,y_init);
-	var x_bottom_right = Math.max(x_final,x_init);
-	var y_bottom_right = Math.max(y_final,y_init);
-	//alert("computed the following params for top left, bottom right: " + x_top_left + "," + y_top_left + "," + x_bottom_right + "," + y_bottom_right);
-	for (var i = 0; i < state.objects.length; i++) {
-        var object = state.objects[i];
-		if (object.controlType == 0 && object.hasBeenHit == false) {
-			//alert("identified object " + i + " as controlled by human");
-			//alert("object x: " + object.x + ",y: " + object.y);
-			//alert("object x: " + object.x + ",y: " + object.y + "x,y top left: " + x_top_left + "," + y_top_left + "x,y bottom right" + x_bottom_right + "," + y_bottom_right);
-			if (object.x >= x_top_left && object.x <= x_bottom_right && object.y >= y_top_left && object.y <= y_bottom_right) {
-				object.isSelected = true;
-				//alert("detected within the selection");
-			}
-		}
-		//alert("Completed a loop through object");
-    }
 }
 function initializeBases() { // this function fills all base properties based on ownership
 //initialisation of the variables of the bases according to ownership
@@ -1423,99 +1394,11 @@ function initializeBases() { // this function fills all base properties based on
 		}
 	}
 }
-function setTargetOnClick(x,y) {
-	// correction 8 px of margin from the browser - try to clean that later
-	//var x = event.pageX - 8;
-	//var y = event.pageY - 8;
-	x = x-8;
-	y = y-8;
-	var clickedBaseID = isClickOnBase(x,y);
-	var base = config.bases[clickedBaseID];
-	// loop through objects for giving them new target coordinates
-	for (var i = 0; i < state.objects.length; i++) {
-		var object = state.objects[i];
-		
-		// only do that for objects controlled by human and currently selected
-		if (object.controlType == 0 && object.hasBeenHit == false && object.isSelected == true) 
-		{
-			object.defensiveMode = false;
-			// if clicked on a base, set coordinates to base center
-			if (clickedBaseID != -1) {
-				//alert("clicked on base with ID " + clickedBaseID);
-				object.targetY = base.y;
-				object.targetX = base.x;
-			}
-			// otherwise set to mouse coordinates
-			else {
-				// introduce some randomness for not having all units on a single spot
-				object.targetY = y + Math.random()*config.radiusRandom - Math.random()*config.radiusRandom;
-				object.targetX = x + Math.random()*config.radiusRandom - Math.random()*config.radiusRandom;
-			}
-		}
-	}
-}
-function isOnBase (object) { // this function returns the ID of the clicked base, or -1 if not clicked
-	var baseID = -1;
-	for (var b = 0; b < config.bases.length; b++) {
-		var base = config.bases[b];
-		if (distance(object.x, object.y, base.x, base.y) < config.defaultBaseSize && object.targetX == base.x && object.targetY == base.y) {
-			baseID = b;
-		}
-	//alert("click X: " + objectX + " ,Y: " + objectY + "base X: " + base.x + ", Y: " + base.y + "selected base: " + base.colour + " statement: " + statement);
-	}
-return baseID;
-}
-function isClickOnBase (x,y) {
-	var baseID = -1;
-	for (var b = 0; b < config.bases.length; b++) {
-		var base = config.bases[b];
-		if (distance(x, y, base.x, base.y) < config.baseClickTol) {
-			baseID = b;
-		}
-	//alert("click X: " + objectX + " ,Y: " + objectY + "base X: " + base.x + ", Y: " + base.y + "selected base: " + base.colour + " statement: " + statement);
-	}
-return baseID;
-}
-function spawnUnit(base) {
-// go through the spawning loop as many times as there are levelCurrent
-for (var i = 0; i < base.levelCurrent; i++) {
-	
-    // create the new object
-    var object = {
-		// start by inheriting a few properties from the mother base
-		ownership: base.ownership,
-        colour: base.colour,
-        x: base.x,
-        y: base.y,
-		targetX: base.x,
-		targetY: base.y,
-		controlType: base.controlType,
-        // choose a direction for spawning
-        // theta: Math.random() * 2* Math.PI,
-		// initialize the hasBeenHit property
-		hasBeenHit: false,
-		isSelected: false,
-		defensiveMode: true,
-		motherBase: base,
-		isDefending: false,
-		isHidden: false,
-    }
-	//console.log("spawning new " + object.colour + " object with coordinates " + object.x + ", " + object.y);
-	setTargetAroundBase(object, base)
-    // add the new object to the objects[] array
-    state.objects.push(object);
-    }
-}
-function setTargetAroundBase(object, base) {
-	randomDist =  config.baseMinDist + (config.baseMaxDist-config.baseMinDist)*Math.random();
-	randomAngle = Math.random() * 2* Math.PI;
-	object.targetY = base.y + randomDist * Math.sin(randomAngle);
-	object.targetX = base.x + randomDist * Math.cos(randomAngle);
-	object.defensiveMode = true;
-	object.motherBase = base;
-}
-//function distance(x1, y1, x2, y2) { return (Math.abs(x1-x2) + Math.abs(y1-y2))}
-function distance(x1, y1, x2, y2) { return Math.sqrt(Math.pow(x1-x2, 2)+Math.pow(y1-y2,2)) }
+//
+//==============================================
+// Draw
+//==============================================
+//
 function drawUnit(object) {
 	if (object.hasBeenHit == false) {
 		if (object.isSelected == false) {
@@ -1672,6 +1555,224 @@ function drawBase(base) {
 	*/
 
 }
+//
+//==============================================
+// AI
+//==============================================
+//
+function randomAI(player) {
+	//console.log(player.playerColour + " uses randomAI");
+	for (var i=0; i<config.bases.length; i++) {
+		base = config.bases[i];
+		// for all bases owned by player
+		if (base.colour == player.playerColour) {
+			if (base.levelCurrent < base.levelMax) {
+				if (Math.random() >= 0.5) {
+					//console.log(player.playerColour + " decides to upgrade base " + i);
+					upgrade(base);
+				}
+				else if (Math.random() >= 0.5) {
+					//console.log(player.playerColour + " decides to stay idle");
+				}
+				else {
+					//console.log(player.playerColour + " decides to move its unit from base " + i + " to other base");
+					// move all soldiers to a base closer to the enemy
+					moveToRandomNeighbour(base);
+				}
+			}
+			else {
+				if (Math.random() >= 0.5) {
+					//console.log(player.playerColour + " decides to move its unit from base " + i + " to other base");
+					// move all soldiers to a base closer to the enemy
+					moveToRandomNeighbour(base);
+				}
+				else {//console.log(player.playerColour + "decides to stay idle");
+				}
+			}
+		}
+	}
+}
+function moveToRandomNeighbour(base) {
+	// get the array of candidate neighbours
+	var neighbours = findNeighboursCloserToEnnemy(base);
+	var choosedNeighbourID = Math.round(Math.random() * (neighbours.length-1))
+	var choosedNeighbour = neighbours[choosedNeighbourID];
+	//console.log(choosedNeighbour.id);
+	for (j = 0; j < state.objects.length; j++) {
+		object = state.objects[j];
+		// take all the objects having this base as motherbase
+		if (object.motherBase == base) {
+			//console.log("line 676, choosed neighbour is base " + choosedNeighbour.id + ". Position in neighbours vecotr is " + choosedNeighbourID);
+			setTarget(object, choosedNeighbour);
+			object.defensiveMode = false;
+		}
+	}
+}
+function upgrade(base) {
+	// first, count the units currently defending the base
+	var nDefenders = 0;
+	for (var i=0; i<state.objects.length; i++) {
+		var object = state.objects[i];
+		if (object.motherBase == base && object.defensiveMode == true) {
+			nDefenders = nDefenders + 1;
+		}
+	}
+	// if enough units to upgrade the base, then select the exact amount required and upgrade
+	if (nDefenders >= (config.maxUpgradePoints - base.upgradePoints)) {
+		var nUpgraders = 0;
+		for (var i=0; i<state.objects.length; i++) {
+			var object = state.objects[i];
+			if (object.motherBase == base && object.defensiveMode == true && nUpgraders < (config.maxUpgradePoints - base.upgradePoints)) {
+				//console.log("line 697");
+				setTarget(object, base);
+				nUpgraders = nUpgraders + 1;
+			}
+		}
+	}
+	else {//console.log("Not enough units to upgrade base");
+	}
+	
+}
+function findNeighboursCloserToEnnemy(base) { // returns an array of neighbours which are closer to the ennemy than "base"
+	var neighbours = [];
+	for (var i = 0; i < config.bases.length; i++) {
+		var otherBase = config.bases[i];
+		var minDistToEnnemyFromOther = minDistToEnnemy(base.ownership, otherBase);
+		var minDistToEnnemyFromThis = minDistToEnnemy(base.ownership, base);
+		// if it is another base
+		if (otherBase != base) {
+			// if other base close enough for being a neighbour
+			if (distance(base.x, base.y, otherBase.x, otherBase.y) <= config.neighbourDistance) {
+				// and the other base is closer to the ennemy
+				if (minDistToEnnemyFromOther <= minDistToEnnemyFromThis) {
+					// add the base the the vector of neighbours
+					neighbours.push(otherBase);
+				}
+			}
+		}
+	}
+	return neighbours;
+}
+function minDistToEnnemy(player, base) { // returns the minimum distance from "base" to an ennemy of "player"
+	// make sure to consider when there is no enemy anymore
+	var distToOther = null;
+	var minDist = null;
+	// Loop through bases
+	for (var i=0 ; i < config.bases.length ; i++) {
+		var otherBase = config.bases[i];
+		// if base not owned by the player
+		// AND the base is not unconquered
+		// then it is an enemy base
+		if (otherBase.ownership != player && otherBase.ownership != config.players[0]) {
+			// compute the distance between the base and the ennemy base
+			distToOther = distance(base.x, base.y, otherBase.x, otherBase.y);
+			// if this distance is shorter than the previous one, replace it
+			if (distToOther < minDist || minDist == null) {
+				minDist = distToOther;
+			}
+		}
+	}
+	if (minDist == null) {minDist = 0; console.log("looks like there is no more enemies, so no minimum distance to enemy to calculate");}
+	return minDist;
+}
+//
+//==============================================
+// Core game
+//==============================================
+//
+function setTargetOnClick(x,y) {
+	// correction 8 px of margin from the browser - try to clean that later
+	x = x-8;
+	y = y-8;
+	var clickedBaseID = isClickOnBase(x,y);
+	var base = config.bases[clickedBaseID];
+	// loop through objects for giving them new target coordinates
+	for (var i = 0; i < state.objects.length; i++) {
+		var object = state.objects[i];
+		
+		// only do that for objects controlled by human and currently selected
+		if (object.controlType == 0 && object.hasBeenHit == false && object.isSelected == true) 
+		{
+			object.defensiveMode = false;
+			// if clicked on a base, set coordinates to base center
+			if (clickedBaseID != -1) {
+				//alert("clicked on base with ID " + clickedBaseID);
+				object.targetY = base.y;
+				object.targetX = base.x;
+			}
+			// otherwise set to mouse coordinates
+			else {
+				// introduce some randomness for not having all units on a single spot
+				object.targetY = y + Math.random()*config.radiusRandom - Math.random()*config.radiusRandom;
+				object.targetX = x + Math.random()*config.radiusRandom - Math.random()*config.radiusRandom;
+			}
+		}
+	}
+}
+function setTargetAroundBase(object, base) {
+	randomDist =  config.baseMinDist + (config.baseMaxDist-config.baseMinDist)*Math.random();
+	randomAngle = Math.random() * 2* Math.PI;
+	object.targetY = base.y + randomDist * Math.sin(randomAngle);
+	object.targetX = base.x + randomDist * Math.cos(randomAngle);
+	object.defensiveMode = true;
+	object.motherBase = base;
+}
+function setTarget(object, target) {
+	object.targetX = target.x;
+	object.targetY = target.y;
+}
+function isOnBase (object) { // this function returns the ID of the clicked base, or -1 if not clicked
+	var baseID = -1;
+	for (var b = 0; b < config.bases.length; b++) {
+		var base = config.bases[b];
+		if (distance(object.x, object.y, base.x, base.y) < config.defaultBaseSize && object.targetX == base.x && object.targetY == base.y) {
+			baseID = b;
+		}
+	//alert("click X: " + objectX + " ,Y: " + objectY + "base X: " + base.x + ", Y: " + base.y + "selected base: " + base.colour + " statement: " + statement);
+	}
+return baseID;
+}
+function isClickOnBase (x,y) {
+	var baseID = -1;
+	for (var b = 0; b < config.bases.length; b++) {
+		var base = config.bases[b];
+		if (distance(x, y, base.x, base.y) < config.baseClickTol) {
+			baseID = b;
+		}
+	//alert("click X: " + objectX + " ,Y: " + objectY + "base X: " + base.x + ", Y: " + base.y + "selected base: " + base.colour + " statement: " + statement);
+	}
+return baseID;
+}
+function spawnUnit(base) {
+// go through the spawning loop as many times as there are levelCurrent
+for (var i = 0; i < base.levelCurrent; i++) {
+	
+    // create the new object
+    var object = {
+		// start by inheriting a few properties from the mother base
+		ownership: base.ownership,
+        colour: base.colour,
+        x: base.x,
+        y: base.y,
+		targetX: base.x,
+		targetY: base.y,
+		controlType: base.controlType,
+        // choose a direction for spawning
+        // theta: Math.random() * 2* Math.PI,
+		// initialize the hasBeenHit property
+		hasBeenHit: false,
+		isSelected: false,
+		defensiveMode: true,
+		motherBase: base,
+		isDefending: false,
+		isHidden: false,
+    }
+	//console.log("spawning new " + object.colour + " object with coordinates " + object.x + ", " + object.y);
+	setTargetAroundBase(object, base)
+    // add the new object to the objects[] array
+    state.objects.push(object);
+    }
+}
 function goToCoordinates(object, timeDiff) {
 // compute r and theta
 		//var distFromCoord = distance(object.x, object.y, object.targetX, object.targetY);
@@ -1756,125 +1857,11 @@ function findClosestAttacker(object) {
 	}
 	return attacker;
 }
-function setTarget(object, target) {
-	object.targetX = target.x;
-	object.targetY = target.y;
-}
-function randomAI(player) {
-	//console.log(player.playerColour + " uses randomAI");
-	for (var i=0; i<config.bases.length; i++) {
-		base = config.bases[i];
-		// for all bases owned by player
-		if (base.colour == player.playerColour) {
-			if (base.levelCurrent < base.levelMax) {
-				if (Math.random() >= 0.5) {
-					//console.log(player.playerColour + " decides to upgrade base " + i);
-					upgrade(base);
-				}
-				else if (Math.random() >= 0.5) {
-					//console.log(player.playerColour + " decides to stay idle");
-				}
-				else {
-					//console.log(player.playerColour + " decides to move its unit from base " + i + " to other base");
-					// move all soldiers to a base closer to the enemy
-					moveToRandomNeighbour(base);
-				}
-			}
-			else {
-				if (Math.random() >= 0.5) {
-					//console.log(player.playerColour + " decides to move its unit from base " + i + " to other base");
-					// move all soldiers to a base closer to the enemy
-					moveToRandomNeighbour(base);
-				}
-				else {//console.log(player.playerColour + "decides to stay idle");
-				}
-			}
-		}
-	}
-}
-function moveToRandomNeighbour(base) {
-	// get the array of candidate neighbours
-	var neighbours = findNeighboursCloserToEnnemy(base);
-	var choosedNeighbourID = Math.round(Math.random() * (neighbours.length-1))
-	var choosedNeighbour = neighbours[choosedNeighbourID];
-	//console.log(choosedNeighbour.id);
-	for (j = 0; j < state.objects.length; j++) {
-		object = state.objects[j];
-		// take all the objects having this base as motherbase
-		if (object.motherBase == base) {
-			//console.log("line 676, choosed neighbour is base " + choosedNeighbour.id + ". Position in neighbours vecotr is " + choosedNeighbourID);
-			setTarget(object, choosedNeighbour);
-			object.defensiveMode = false;
-		}
-	}
-}
-function upgrade(base) {
-	// first, count the units currently defending the base
-	var nDefenders = 0;
-	for (var i=0; i<state.objects.length; i++) {
-		var object = state.objects[i];
-		if (object.motherBase == base && object.defensiveMode == true) {
-			nDefenders = nDefenders + 1;
-		}
-	}
-	// if enough units to upgrade the base, then select the exact amount required and upgrade
-	if (nDefenders >= (config.maxUpgradePoints - base.upgradePoints)) {
-		var nUpgraders = 0;
-		for (var i=0; i<state.objects.length; i++) {
-			var object = state.objects[i];
-			if (object.motherBase == base && object.defensiveMode == true && nUpgraders < (config.maxUpgradePoints - base.upgradePoints)) {
-				//console.log("line 697");
-				setTarget(object, base);
-				nUpgraders = nUpgraders + 1;
-			}
-		}
-	}
-	else {//console.log("Not enough units to upgrade base");
-	}
-	
-}
-function findNeighboursCloserToEnnemy(base) {
-	var neighbours = [];
-	for (var i = 0; i < config.bases.length; i++) {
-		var otherBase = config.bases[i];
-		var minDistToEnnemyFromOther = minDistToEnnemy(base.ownership, otherBase);
-		var minDistToEnnemyFromThis = minDistToEnnemy(base.ownership, base);
-		// if it is another base
-		if (otherBase != base) {
-			// if other base close enough for being a neighbour
-			if (distance(base.x, base.y, otherBase.x, otherBase.y) <= config.neighbourDistance) {
-				// and the other base is closer to the ennemy
-				if (minDistToEnnemyFromOther <= minDistToEnnemyFromThis) {
-					// add the base the the vector of neighbours
-					neighbours.push(otherBase);
-				}
-			}
-		}
-	}
-	return neighbours;
-}
-function minDistToEnnemy(player, base) {
-	// make sure to consider when there is no enemy anymore
-	var distToOther = null;
-	var minDist = null;
-	// Loop through bases
-	for (var i=0 ; i < config.bases.length ; i++) {
-		var otherBase = config.bases[i];
-		// if base not owned by the player
-		// AND the base is not unconquered
-		// then it is an enemy base
-		if (otherBase.ownership != player && otherBase.ownership != config.players[0]) {
-			// compute the distance between the base and the ennemy base
-			distToOther = distance(base.x, base.y, otherBase.x, otherBase.y);
-			// if this distance is shorter than the previous one, replace it
-			if (distToOther < minDist || minDist == null) {
-				minDist = distToOther;
-			}
-		}
-	}
-	if (minDist == null) {minDist = 0; console.log("looks like there is no more enemies, so no minimum distance to enemy to calculate");}
-	return minDist;
-}
+//
+//==============================================
+// Main
+//==============================================
+//
 function animate(time) {
 	// Behaviour at the end of the game
 	if (state.gameWon == true) {
