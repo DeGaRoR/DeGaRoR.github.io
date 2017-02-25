@@ -291,81 +291,45 @@
 	<body id="body">
 		<!--<script src="game.js"></script>-->
 		<script>
-		/* feature and bug list
-1. Once a base has been upgraded, re-dispatch the units rather than have them continue to upgrade
-2. Restrict the defense to a given perimeter
-10. randomAI should move to another sun if sure it can do something with it
-11. The healing should be an AI decision per turn, not a continuous thing
-12. randomAI should move only to bases closer to ennemy
-14. the objects can move outside the canvas
-15. If canvas is centered, mouse events gets scerwed up
-16. Use of offset X works better than eventX for getting rid of the 8px correction
-17. Sizing to screen size
-18. Bases definition: simplify - auto multiply by canvas size and auto add 100 units
-19. Better AI
-20. Better presentation
-21. Use material design colors
-22. Generate color variation for the units
-23. Give some relief to the units and bases
-24. Use pre-rendering - important!
-25. Get the statements out of the for loops by assigning variables first
-26. Experimental: use pixel manipuation: http://stackoverflow.com/questions/23468218/draw-10-000-objects-on-canvas-javascript
-27. Expand canvas further for avoiding clicking outside of the canvas / selection
-28. Auto size canvas
-29. add music
-30. add right click to deselct
-31. Better victory screen
-*/
 
-// all the background is contained in the window onload function
 
 window.onload = function() {
-	var background_canvas = document.getElementById('background_canvas');
-	var backround_ctx = background_canvas.getContext('2d');
-	// size background_canvas
-	background_canvas.width = window.innerWidth-2;
-	background_canvas.height = window.innerHeight;
-	window.onresize = function() {
-		background_canvas.width = window.innerWidth-2;
-		background_canvas.height = window.innerHeight;
-		placeCanvas();
-	};
-	// variables
-	var nLargeObjects = 20;
-	var nSmallObjects = 20;
-	var largeObjects = [];
-	var smallObjects = [];
-	var objects = [];
-	var globalSpeed = 0.5;
-	
-	var small_object_L = document.getElementById("small_object_L");
-	var small_object_M = document.getElementById("small_object_M");
-	var small_object_S = document.getElementById("small_object_S");
-	var big_object_1 = document.getElementById("big_object_1");
-	var big_object_2 = document.getElementById("big_object_2");
-	var big_object_3 = document.getElementById("big_object_3");
-	//console.log(big_object_2);
-	// functions
-	function getRandom(min, max) {
-		return Math.random() * (max - min) + min;
+	setBackground();	
+}
+window.onresize = function() {
+	sizeBgCanvas();
+	placeCanvas();
+};
+function getBgConfig() {
+	return {
+		background_canvas: document.getElementById('background_canvas'),
+		background_ctx: document.getElementById('background_canvas').getContext('2d'),
+		nLargeObjects: 20,
+		nSmallObjects : 20,
+		bgObjects : [],
+		globalSpeed : 0.5,
+		small_object_L : document.getElementById("small_object_L"),
+		small_object_M : document.getElementById("small_object_M"),
+		small_object_S : document.getElementById("small_object_S"),
+		big_object_1 : document.getElementById("big_object_1"),
+		big_object_2 : document.getElementById("big_object_2"),
+		big_object_3 : document.getElementById("big_object_3"),
 	}
-	function selectRandom3(x,y,z) {
-		var selected = Math.round(getRandom(1,3));
-		if (selected == 1){
-			return x
-		}
-		else if (selected == 2) {
-			return y
-		}
-		else if (selected == 3) {
-			return z
-		}
-	}
+}
+function sizeBgCanvas() {
+	bgConfig.background_canvas.width = window.innerWidth-2;
+	bgConfig.background_canvas.height = window.innerHeight;
+}
+function setBackground() {
+	// Get the configuration in a proper object, no global or local scope
+	bgConfig = getBgConfig();
+	// size canvas
+	sizeBgCanvas();
 	// create large objects
-	for (var i=0; i<nLargeObjects;i++) {
-		var imgL = selectRandom3(big_object_1, big_object_2, big_object_3);
-		var x_init = getRandom(0, background_canvas.width);
-		var y_init = getRandom(0, background_canvas.height);
+	for (var i=0; i<bgConfig.nLargeObjects;i++) {
+		var imgL = selectRandom3(bgConfig.big_object_1, bgConfig.big_object_2, bgConfig.big_object_3);
+		var x_init = getRandom(0, bgConfig.background_canvas.width);
+		var y_init = getRandom(0, bgConfig.background_canvas.height);
 		var theta = getRandom(0, Math.PI*2);
 		var speed = getRandom(0.1,0.5);
 		var largeObject = {
@@ -375,13 +339,13 @@ window.onload = function() {
 			theta: theta,
 			speed: speed,
 		}
-		objects.push(largeObject);
+		bgConfig.bgObjects.push(largeObject);
 	}
 	// Create small objects
-	for (var i=0; i<nSmallObjects;i++) {
-		var imgS = selectRandom3(small_object_L, small_object_M, small_object_S);
-		var x_init = getRandom(0, background_canvas.width);
-		var y_init = getRandom(0, background_canvas.height);
+	for (var i=0; i<bgConfig.nSmallObjects;i++) {
+		var imgS = selectRandom3(bgConfig.small_object_L, bgConfig.small_object_M, bgConfig.small_object_S);
+		var x_init = getRandom(0, bgConfig.background_canvas.width);
+		var y_init = getRandom(0, bgConfig.background_canvas.height);
 		var theta = getRandom(0, Math.PI*2);
 		var speed = getRandom(0.5,1);
 		var smallObject = {
@@ -391,39 +355,51 @@ window.onload = function() {
 			theta: theta,
 			speed: speed,
 		}
-		objects.push(smallObject);
+		bgConfig.bgObjects.push(smallObject);
 	}
 	animateBackground();
-	function animateBackground() {
-		requestAnimationFrame(animateBackground);
-		// render objects
-		backround_ctx.clearRect(0, 0, background_canvas.width, background_canvas.height);
-
-		for (var i=0; i<objects.length; i++) {
-			object = objects[i];
-			var y_min = 0 - object.img.height;
-			var x_min = 0 - object.img.width;
-			var x_max = background_canvas.width;
-			var y_max = background_canvas.height;
-			// detect and re-initialize objects outside of canvas
-			if (object.x < x_min) {object.x = x_max;}
-			else if (object.y < y_min) {object.y = y_max;}
-			else if (object.x > x_max) {object.x = x_min}
-			else if (object.y > y_max) {object.y = y_min}
-			// image
-			object.y += globalSpeed*object.speed*Math.sin(object.theta);
-			object.x += globalSpeed*object.speed*Math.cos(object.theta);
-			var y_center = object.y;
-			var x_center = object.x;
-			//y_center =1;
-			var w = object.img.width;
-			var h = w;
-			backround_ctx.drawImage(object.img, x_center, y_center, w, h);
-		}
-	}	
 }
-function setBackground() {
-	
+function animateBackground() {
+	requestAnimationFrame(animateBackground);
+	// render objects
+	bgConfig.background_ctx.clearRect(0, 0, bgConfig.background_canvas.width, bgConfig.background_canvas.height);
+	for (var i=0; i<bgConfig.bgObjects.length; i++) {
+		object = bgConfig.bgObjects[i];
+		// Get the boundaries where the object image is completely hidden
+		var y_min = 0 - object.img.height;
+		var x_min = 0 - object.img.width;
+		var x_max = bgConfig.background_canvas.width;
+		var y_max = bgConfig.background_canvas.height;
+		// detect and re-initialize objects outside of canvas
+		if 		(object.x < x_min) {object.x = x_max}
+		else if (object.y < y_min) {object.y = y_max}
+		else if (object.x > x_max) {object.x = x_min}
+		else if (object.y > y_max) {object.y = y_min}
+		// refresh position of objects
+		object.y += bgConfig.globalSpeed*object.speed*Math.sin(object.theta);
+		object.x += bgConfig.globalSpeed*object.speed*Math.cos(object.theta);
+		// Draw the objects
+		var y_center = object.y;
+		var x_center = object.x;
+		var w = object.img.width;
+		var h = w;
+		bgConfig.background_ctx.drawImage(object.img, x_center, y_center, w, h);
+	}
+}
+function getRandom(min, max) {
+	return Math.random() * (max - min) + min;
+}
+function selectRandom3(x,y,z) {
+	var selected = Math.round(getRandom(1,3));
+	if (selected == 1){
+		return x
+	}
+	else if (selected == 2) {
+		return y
+	}
+	else if (selected == 3) {
+		return z
+	}
 }
 // click events_______________________________________________________________________________________
 
@@ -1310,18 +1286,10 @@ function getInitialState() {
 	};
 }
 
-function ShowConfirmReturnHome() {
-	document.getElementById('confirmBoxReturnHome').hidden = false;
-}
-function hideConfirmReturnHome() {
-	document.getElementById('confirmBoxReturnHome').hidden = true;
-}
-function ShowConfirmRestart() {
-	document.getElementById('confirmBoxRestart').hidden = false;
-}
-function hideConfirmRestart() {
-	document.getElementById('confirmBoxRestart').hidden = true;
-}
+function ShowConfirmReturnHome() {document.getElementById('confirmBoxReturnHome').hidden = false;}
+function hideConfirmReturnHome() {document.getElementById('confirmBoxReturnHome').hidden = true;}
+function ShowConfirmRestart() {document.getElementById('confirmBoxRestart').hidden = false;}
+function hideConfirmRestart() {document.getElementById('confirmBoxRestart').hidden = true;}
 
 function backToChoice() {
 	state.abandon = true;
@@ -1792,7 +1760,6 @@ function setTarget(object, target) {
 	object.targetX = target.x;
 	object.targetY = target.y;
 }
-// AI functions from here
 function randomAI(player) {
 	//console.log(player.playerColour + " uses randomAI");
 	for (var i=0; i<config.bases.length; i++) {
