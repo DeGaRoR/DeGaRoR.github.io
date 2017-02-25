@@ -1040,9 +1040,7 @@ function getConfig(selectedLevel) {
 		minConquership: 100,
 		maxHealth: 100,
 		maxUpgradePoints: 100,
-		backgroundColors1: 	["#181818", "white",	"#97FEA5",	"#C7EEFE",	"#D4BEFE",	"#FEAFD5"],
-		backgroundColors2:	["#404040", "#E8E8E8",	"#97FED9",	"#C7D3FE",	"#F5BEFE",	"#FEB0AF"],
-		textColors: 		["white", 	"#181818",	"#181818",	"#181818",	"#181818",	"#181818"],
+
 	}
 }
 function getInitialState() {
@@ -1063,6 +1061,9 @@ function getInitialState() {
 		themeID: 0,
 		abandon: false,
 		previousTimePace:1,
+		// timer
+		levelStartTime: null,
+		levelFinishTime: null,
 	};
 }
 function placeCanvas() {
@@ -1094,6 +1095,8 @@ function startGame(level) {
 	setSpeedIndicator();
 	// Complete the base definition and initializes them
 	initializeBases();
+	// Record the starting time
+	state.levelStartTime = Date.now();
 	// Off we go
 	animate();
 }
@@ -1593,12 +1596,13 @@ function findClosestAttacker(object) {
 //==============================================
 //
 function animate(time) {
-	console.log(time);
 	// Behaviour at the end of the game
 	if (state.gameWon == true) {
+		state.levelFinishTime = Date.now();
+		var gameTime = state.levelFinishTime-state.levelStartTime;
 		console.log("Get out of the animate function since game won declared");
-		var minutesWon = Math.floor(time/60000);
-		var secondsWon = Math.round((time/1000) - (60 * minutesWon));
+		var minutesWon = Math.floor(gameTime/60000);
+		var secondsWon = Math.round((gameTime/1000) - (60 * minutesWon));
 		config.ctx.clearRect(0, 0, config.canvas.width, config.canvas.height);
 		config.ctx.fillStyle = state.playerAlive.playerColour;
 		config.ctx.font = "30px Arial";
