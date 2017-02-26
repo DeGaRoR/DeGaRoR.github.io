@@ -1,482 +1,485 @@
-var levels = [
-	//new level
-	{	name: "Cog",
-		bases:[
-				{
-					ownership: 0,
-					x: 0.5,
-					y: 0.3,
-					levelMax: 2,
-					},
-				{
-					ownership: 0,
-					x: 0.775,
-					y: 0.2,
-					levelMax: 2,
-					},
-				{
-					ownership: 1,
-					x: 0.9,
-					y: 0.425,
-					levelMax: 2,
-					},
-				{
-					ownership: 0,
-					x: 0.675,
-					y: 0.6,
-					levelMax: 2,
-					},
-				{
-					ownership: 0,
-					x: 0.625,
-					y: 0.875,
-					levelMax: 2,
-					},
-				{
-					ownership: 2,
-					x: 0.375,
-					y: 0.875,
-					levelMax: 2,
-					},
-				{
-					ownership: 0,
-					x: 0.325,
-					y: 0.6,
-					levelMax: 2,
-					},
-				{
-					ownership: 0,
-					x: 0.1,
-					y: 0.425,
-					levelMax: 2,
-					},
-				{
-					ownership: 3,
-					x: 0.225,
-					y: 0.2,
-					levelMax: 2,
-					},
-				{
-					ownership: 0,
-					x: 0.5,
-					y: 0.5,
-					levelMax: 1,
-					},
-			]			
-	},
-	//new level
-	{	name: "Circle",
-		bases:[
-				{
-					ownership: 0,
-					x: 0.5,
-					y: 0.1,
-					levelMax: 1,
-					},
-				{
-					ownership: 0,
-					x: 0.7,
-					y: 0.15,
-					levelMax: 2,
-					},
-				{
-					ownership: 0,
-					x: 0.85,
-					y: 0.3,
-					levelMax: 1,
-					},
-				{
-					ownership: 3,
-					x: 0.9,
-					y: 0.5,
-					levelMax: 3,
-					},
-				{
-					ownership: 0,
-					x: 0.85,
-					y: 0.7,
-					levelMax: 1,
-					},
-				{
-					ownership: 0,
-					x: 0.7,
-					y: 0.85,
-					levelMax: 2,
-					},
-				{
-					ownership: 0,
-					x: 0.5,
-					y: 0.9,
-					levelMax: 1,
-					},
-				{
-					ownership: 2,
-					x: 0.3,
-					y: 0.85,
-					levelMax: 3,
-					},
-				{
-					ownership: 0,
-					x: 0.15,
-					y: 0.7,
-					levelMax: 1,
-					},
-				{
-					ownership: 0,
-					x: 0.1,
-					y: 0.5,
-					levelMax: 2,
-					},
-				{
-					ownership: 0,
-					x: 0.15,
-					y: 0.3,
-					levelMax: 1,
-					},
-				{
-					ownership: 1,
-					x: 0.3,
-					y: 0.15,
-					levelMax: 3,
-					},
-			]
-	},
-	{	name: "Triangle",
-		bases:[
-				{
-					ownership: 1,
-					x: 0.125,
-					y: 0.125,
-					levelMax: 2,
-					},
-				{
-					ownership: 0,
-					x: 0.375,
-					y: 0.125,
-					levelMax: 1,
-				},
-				{
-					ownership: 0, // 0 means not owned
-					x: 0.625,
-					y: 0.125,
-					levelMax: 1,
-				},
-				{
-					ownership: 2, // 0 means not owned
-					x: 0.875,
-					y: 0.125,
-					levelMax: 2,
-				},
-				{
-					ownership: 0, // 0 means not owned
-					x: 0.25,
-					y: 0.375,
-					levelMax: 1,
-				},
-				{
-					ownership: 0, // 0 means not owned
-					x: 0.5,
-					y: 0.375,
-					levelMax: 3,
-				},
-				{
-					ownership: 0, // 0 means not owned
-					x: 0.75,
-					y: 0.375,
-					levelMax: 1,
-				},
-				{
-					ownership: 0, // 0 means not owned
-					x: 0.375,
-					y: 0.625,
-					levelMax: 1,
-				},
-				{
-					ownership: 0, // 0 means not owned
-					x: 0.625,
-					y: 0.625,
-					levelMax: 1,
-				},
-				{
-					ownership: 3, // 0 means not owned
-					x: 0.5,
-					y: 0.875,
-					levelMax: 2,
-				},
-			]
-	},
-	{	name: "A level",
-		bases:[
-				{
-					ownership: 1,
-					x: 0.9455,
-					y: 0.5,
-					levelMax: 1,
-				},
-				{
-					ownership: 0,
-					x: 0.72275,
-					y: 0.11419,
-					levelMax: 1,
-				},
-				{
-					ownership: 2,
-					x: 0.27725,
-					y: 0.11419,
-					levelMax: 1,
-				},
-				{
-					ownership: 0,
-					x: 0.0545,
-					y: 0.5,
-					levelMax: 1,
-				},
-				{
-					ownership: 3,
-					x: 0.27725,
-					y: 0.88581,
-					levelMax: 1,
-				},
-				{
-					ownership: 0,
-					x: 0.72275,
-					y: 0.88581,
-					levelMax: 1,
-				},
-				{
-					ownership: 0,
-					x: 0.797,
-					y: 0.5,
-					levelMax: 2,
-				},
-				{
-					ownership: 0,
-					x: 0.6485,
-					y: 0.24279,
-					levelMax: 2,
-				},
-				{
-					ownership: 0,
-					x: 0.3515,
-					y: 0.24279,
-					levelMax: 2,
-				},
-				{
-					ownership: 0,
-					x: 0.203,
-					y: 0.5,
-					levelMax: 2,
-				},
-				{
-					ownership: 0,
-					x: 0.3515,
-					y: 0.75721,
-					levelMax: 2,
-				},
-				{
-					ownership: 0,
-					x: 0.6485,
-					y: 0.75721,
-					levelMax: 2,
-				},
-				{
-					ownership: 0,
-					x: 0.6485,
-					y: 0.5,
-					levelMax: 2,
-				},
-				{
-					ownership: 0,
-					x: 0.57425,
-					y: 0.3714,
-					levelMax: 2,
-				},
-				{
-					ownership: 0,
-					x: 0.42575,
-					y: 0.3714,
-					levelMax: 2,
-				},
-				{
-					ownership: 0,
-					x: 0.3515,
-					y: 0.5,
-					levelMax: 2,
-				},
-				{
-					ownership: 0,
-					x: 0.42575,
-					y: 0.6286,
-					levelMax: 2,
-				},
-				{
-					ownership: 0,
-					x: 0.57425,
-					y: 0.6286,
-					levelMax: 2,
-				},
-				{
-					ownership: 0,
-					x: 0.5,
-					y: 0.5,
-					levelMax: 3,
-				},
-			]
-	},
-	{	name: "A level",
-		bases:[
-				{
-					ownership: 1,
-					x: 0.797,
-					y: 0.5,
-					levelMax: 3,
-				},
-				{
-					ownership: 0,
-					x: 0.6485,
-					y: 0.24279,
-					levelMax: 3,
-				},
-				{
-					ownership: 2,
-					x: 0.3515,
-					y: 0.24279,
-					levelMax: 3,
-				},
-				{
-					ownership: 0,
-					x: 0.203,
-					y: 0.5,
-					levelMax: 3,
-				},
-				{
-					ownership: 3,
-					x: 0.3515,
-					y: 0.75721,
-					levelMax: 3,
-				},
-				{
-					ownership: 0,
-					x: 0.6485,
-					y: 0.75721,
-					levelMax: 3,
-				},
-			]
-	},
-	{	name: "A level",
-		bases:[
-				{
-					ownership: 1,
-					x: 0.1,
-					y: 0.5,
-					levelMax: 5,
-				},
-				{
-					ownership: 2,
-					x: 0.85,
-					y: 0.93301,
-					levelMax: 5,
-				},
-				{
-					ownership: 3,
-					x: 0.85,
-					y: 0.06699,
-					levelMax: 5,
-				},
-				{
-					ownership: 0,
-					x: 0.2875,
-					y: 0.60825,
-					levelMax: 1,
-				},
-				{
-					ownership: 0,
-					x: 0.475,
-					y: 0.71651,
-					levelMax: 2,
-				},
-				{
-					ownership: 0,
-					x: 0.6625,
-					y: 0.82476,
-					levelMax: 1,
-				},
-				{
-					ownership: 0,
-					x: 0.85,
-					y: 0.71651,
-					levelMax: 1,
-				},
-				{
-					ownership: 0,
-					x: 0.85,
-					y: 0.5,
-					levelMax: 2,
-				},
-				{
-					ownership: 0,
-					x: 0.85,
-					y: 0.28349,
-					levelMax: 1,
-				},
-				{
-					ownership: 0,
-					x: 0.6625,
-					y: 0.17524,
-					levelMax: 1,
-				},
-				{
-					ownership: 0,
-					x: 0.475,
-					y: 0.28349,
-					levelMax: 2,
-				},
-				{
-					ownership: 0,
-					x: 0.2875,
-					y: 0.39175,
-					levelMax: 1,
-				},
-				{
-					ownership: 0,
-					x: 0.35,
-					y: 0.5,
-					levelMax: 1,
-				},
-				{
-					ownership: 0,
-					x: 0.725,
-					y: 0.71651,
-					levelMax: 1,
-				},
-				{
-					ownership: 0,
-					x: 0.725,
-					y: 0.28349,
-					levelMax: 1,
-				},
-				{
-					ownership: 0,
-					x: 0.6,
-					y: 0.5,
-					levelMax: 2,
-				},
+function getLevels() {
+	var levels = [
+		//new level
+		{	name: "Cog",
+			bases:[
+					{
+						ownership: 0,
+						x: 0.5,
+						y: 0.3,
+						levelMax: 2,
+						},
+					{
+						ownership: 0,
+						x: 0.775,
+						y: 0.2,
+						levelMax: 2,
+						},
+					{
+						ownership: 1,
+						x: 0.9,
+						y: 0.425,
+						levelMax: 2,
+						},
+					{
+						ownership: 0,
+						x: 0.675,
+						y: 0.6,
+						levelMax: 2,
+						},
+					{
+						ownership: 0,
+						x: 0.625,
+						y: 0.875,
+						levelMax: 2,
+						},
+					{
+						ownership: 2,
+						x: 0.375,
+						y: 0.875,
+						levelMax: 2,
+						},
+					{
+						ownership: 0,
+						x: 0.325,
+						y: 0.6,
+						levelMax: 2,
+						},
+					{
+						ownership: 0,
+						x: 0.1,
+						y: 0.425,
+						levelMax: 2,
+						},
+					{
+						ownership: 3,
+						x: 0.225,
+						y: 0.2,
+						levelMax: 2,
+						},
+					{
+						ownership: 0,
+						x: 0.5,
+						y: 0.5,
+						levelMax: 1,
+						},
+				]			
+		},
+		//new level
+		{	name: "Circle",
+			bases:[
+					{
+						ownership: 0,
+						x: 0.5,
+						y: 0.1,
+						levelMax: 1,
+						},
+					{
+						ownership: 0,
+						x: 0.7,
+						y: 0.15,
+						levelMax: 2,
+						},
+					{
+						ownership: 0,
+						x: 0.85,
+						y: 0.3,
+						levelMax: 1,
+						},
+					{
+						ownership: 3,
+						x: 0.9,
+						y: 0.5,
+						levelMax: 3,
+						},
+					{
+						ownership: 0,
+						x: 0.85,
+						y: 0.7,
+						levelMax: 1,
+						},
+					{
+						ownership: 0,
+						x: 0.7,
+						y: 0.85,
+						levelMax: 2,
+						},
+					{
+						ownership: 0,
+						x: 0.5,
+						y: 0.9,
+						levelMax: 1,
+						},
+					{
+						ownership: 2,
+						x: 0.3,
+						y: 0.85,
+						levelMax: 3,
+						},
+					{
+						ownership: 0,
+						x: 0.15,
+						y: 0.7,
+						levelMax: 1,
+						},
+					{
+						ownership: 0,
+						x: 0.1,
+						y: 0.5,
+						levelMax: 2,
+						},
+					{
+						ownership: 0,
+						x: 0.15,
+						y: 0.3,
+						levelMax: 1,
+						},
+					{
+						ownership: 1,
+						x: 0.3,
+						y: 0.15,
+						levelMax: 3,
+						},
 				]
-	},
-	{	name: "Test Level",
-		bases:[
-				{
-					ownership: 1,
-					x: 0.3,
-					y: 0.5,
-					levelMax: 2,
-				},
-				{
-					ownership: 2,
-					x: 0.6,
-					y: 0.5,
-					levelMax: 2,
-				},
-			]
-	},
-]
+		},
+		{	name: "Triangle",
+			bases:[
+					{
+						ownership: 1,
+						x: 0.125,
+						y: 0.125,
+						levelMax: 2,
+						},
+					{
+						ownership: 0,
+						x: 0.375,
+						y: 0.125,
+						levelMax: 1,
+					},
+					{
+						ownership: 0, // 0 means not owned
+						x: 0.625,
+						y: 0.125,
+						levelMax: 1,
+					},
+					{
+						ownership: 2, // 0 means not owned
+						x: 0.875,
+						y: 0.125,
+						levelMax: 2,
+					},
+					{
+						ownership: 0, // 0 means not owned
+						x: 0.25,
+						y: 0.375,
+						levelMax: 1,
+					},
+					{
+						ownership: 0, // 0 means not owned
+						x: 0.5,
+						y: 0.375,
+						levelMax: 3,
+					},
+					{
+						ownership: 0, // 0 means not owned
+						x: 0.75,
+						y: 0.375,
+						levelMax: 1,
+					},
+					{
+						ownership: 0, // 0 means not owned
+						x: 0.375,
+						y: 0.625,
+						levelMax: 1,
+					},
+					{
+						ownership: 0, // 0 means not owned
+						x: 0.625,
+						y: 0.625,
+						levelMax: 1,
+					},
+					{
+						ownership: 3, // 0 means not owned
+						x: 0.5,
+						y: 0.875,
+						levelMax: 2,
+					},
+				]
+		},
+		{	name: "A level",
+			bases:[
+					{
+						ownership: 1,
+						x: 0.9455,
+						y: 0.5,
+						levelMax: 1,
+					},
+					{
+						ownership: 0,
+						x: 0.72275,
+						y: 0.11419,
+						levelMax: 1,
+					},
+					{
+						ownership: 2,
+						x: 0.27725,
+						y: 0.11419,
+						levelMax: 1,
+					},
+					{
+						ownership: 0,
+						x: 0.0545,
+						y: 0.5,
+						levelMax: 1,
+					},
+					{
+						ownership: 3,
+						x: 0.27725,
+						y: 0.88581,
+						levelMax: 1,
+					},
+					{
+						ownership: 0,
+						x: 0.72275,
+						y: 0.88581,
+						levelMax: 1,
+					},
+					{
+						ownership: 0,
+						x: 0.797,
+						y: 0.5,
+						levelMax: 2,
+					},
+					{
+						ownership: 0,
+						x: 0.6485,
+						y: 0.24279,
+						levelMax: 2,
+					},
+					{
+						ownership: 0,
+						x: 0.3515,
+						y: 0.24279,
+						levelMax: 2,
+					},
+					{
+						ownership: 0,
+						x: 0.203,
+						y: 0.5,
+						levelMax: 2,
+					},
+					{
+						ownership: 0,
+						x: 0.3515,
+						y: 0.75721,
+						levelMax: 2,
+					},
+					{
+						ownership: 0,
+						x: 0.6485,
+						y: 0.75721,
+						levelMax: 2,
+					},
+					{
+						ownership: 0,
+						x: 0.6485,
+						y: 0.5,
+						levelMax: 2,
+					},
+					{
+						ownership: 0,
+						x: 0.57425,
+						y: 0.3714,
+						levelMax: 2,
+					},
+					{
+						ownership: 0,
+						x: 0.42575,
+						y: 0.3714,
+						levelMax: 2,
+					},
+					{
+						ownership: 0,
+						x: 0.3515,
+						y: 0.5,
+						levelMax: 2,
+					},
+					{
+						ownership: 0,
+						x: 0.42575,
+						y: 0.6286,
+						levelMax: 2,
+					},
+					{
+						ownership: 0,
+						x: 0.57425,
+						y: 0.6286,
+						levelMax: 2,
+					},
+					{
+						ownership: 0,
+						x: 0.5,
+						y: 0.5,
+						levelMax: 3,
+					},
+				]
+		},
+		{	name: "A level",
+			bases:[
+					{
+						ownership: 1,
+						x: 0.797,
+						y: 0.5,
+						levelMax: 3,
+					},
+					{
+						ownership: 0,
+						x: 0.6485,
+						y: 0.24279,
+						levelMax: 3,
+					},
+					{
+						ownership: 2,
+						x: 0.3515,
+						y: 0.24279,
+						levelMax: 3,
+					},
+					{
+						ownership: 0,
+						x: 0.203,
+						y: 0.5,
+						levelMax: 3,
+					},
+					{
+						ownership: 3,
+						x: 0.3515,
+						y: 0.75721,
+						levelMax: 3,
+					},
+					{
+						ownership: 0,
+						x: 0.6485,
+						y: 0.75721,
+						levelMax: 3,
+					},
+				]
+		},
+		{	name: "A level",
+			bases:[
+					{
+						ownership: 1,
+						x: 0.1,
+						y: 0.5,
+						levelMax: 5,
+					},
+					{
+						ownership: 2,
+						x: 0.85,
+						y: 0.93301,
+						levelMax: 5,
+					},
+					{
+						ownership: 3,
+						x: 0.85,
+						y: 0.06699,
+						levelMax: 5,
+					},
+					{
+						ownership: 0,
+						x: 0.2875,
+						y: 0.60825,
+						levelMax: 1,
+					},
+					{
+						ownership: 0,
+						x: 0.475,
+						y: 0.71651,
+						levelMax: 2,
+					},
+					{
+						ownership: 0,
+						x: 0.6625,
+						y: 0.82476,
+						levelMax: 1,
+					},
+					{
+						ownership: 0,
+						x: 0.85,
+						y: 0.71651,
+						levelMax: 1,
+					},
+					{
+						ownership: 0,
+						x: 0.85,
+						y: 0.5,
+						levelMax: 2,
+					},
+					{
+						ownership: 0,
+						x: 0.85,
+						y: 0.28349,
+						levelMax: 1,
+					},
+					{
+						ownership: 0,
+						x: 0.6625,
+						y: 0.17524,
+						levelMax: 1,
+					},
+					{
+						ownership: 0,
+						x: 0.475,
+						y: 0.28349,
+						levelMax: 2,
+					},
+					{
+						ownership: 0,
+						x: 0.2875,
+						y: 0.39175,
+						levelMax: 1,
+					},
+					{
+						ownership: 0,
+						x: 0.35,
+						y: 0.5,
+						levelMax: 1,
+					},
+					{
+						ownership: 0,
+						x: 0.725,
+						y: 0.71651,
+						levelMax: 1,
+					},
+					{
+						ownership: 0,
+						x: 0.725,
+						y: 0.28349,
+						levelMax: 1,
+					},
+					{
+						ownership: 0,
+						x: 0.6,
+						y: 0.5,
+						levelMax: 2,
+					},
+					]
+		},
+		{	name: "Test Level",
+			bases:[
+					{
+						ownership: 1,
+						x: 0.3,
+						y: 0.5,
+						levelMax: 2,
+					},
+					{
+						ownership: 2,
+						x: 0.6,
+						y: 0.5,
+						levelMax: 2,
+					},
+				]
+		},
+	];
+return levels;
+}

@@ -288,25 +288,39 @@ function initializePlayers() {
 
 	return players;
 }
-function getBasesFromRepo_new(players, canvas, selectedLevel) {
-	var bases = [];
+function getBases(players, canvas, selectedLevel, maxHealth, minConquership) {
+	var newBases = [];
 	var w = canvas.width;
 	var h = canvas.height;
-	console.log(selectedLevel);
+	var levels = getLevels();
 	// push the bases from the selected level into the bases vector
 	for (i=0; i<levels[selectedLevel-1].bases.length; i++) {
-		bases.push(levels[selectedLevel-1].bases[i]);
+		newBases[i]=levels[selectedLevel-1].bases[i];
 		// transform some parameters to make them aware of the context, such as the canavas and the lisqt of players
-		var newBase = bases[i];
+		var newBase = newBases[i];
 		newBase.x = newBase.x * w;
 		newBase.y = newBase.y * h;
 		newBase.ownership = players[newBase.ownership];
 		// initialize some parameters
 		newBase.levelCurrent = 1;
-		if (newBase.ownership != players[0]) {newBase.initUnits = 100;}
-		else {newBase.initUnits = 0;}
+		newBase.lastSpawn = -1;
+		newBase.upgradePoints = 0;
+		newBase.isUnderAttack = false;
+		newBase.health = maxHealth;
+		newBase.colour = newBase.ownership.playerColour;
+		newBase.id = i;
+		if (newBase.ownership != players[0]) {
+			newBase.initUnits = 100;
+			newBase.controlType = newBase.ownership.controlType;
+			newBase.conquership = minConquership;
+		}
+		else {
+			newBase.initUnits = 0;
+			newBase.controlType = 2;
+			newBase.conquership = 0;
+			}
 	}
-	return bases;
+	return newBases;
 }
 function getConfig(selectedLevel) {
 	var canvas = document.getElementById("drawSpace");
@@ -314,8 +328,11 @@ function getConfig(selectedLevel) {
 	var defaultBaseSize = 32;
 	var levelSizeIncrease = 12;
 	var defaultUnitSize = 3;
-	var baseMinDist = defaultBaseSize + levelSizeIncrease * 2 + defaultUnitSize + 2 // minimum distance from the base after spawning
-	var baseMaxDist = baseMinDist + 20 // max distance from the base after spawning
+	var baseMinDist = defaultBaseSize + levelSizeIncrease * 2 + defaultUnitSize + 2; // minimum distance from the base after spawning
+	var baseMaxDist = baseMinDist + 20; // max distance from the base after spawning
+	var maxHealth = 100;
+	var minConquership = 100;
+	var bases = getBases(players, canvas, selectedLevel, maxHealth, minConquership);
 	
 	return {
 		level: selectedLevel,
@@ -323,7 +340,7 @@ function getConfig(selectedLevel) {
 		canvas: canvas,
 		ctx: canvas.getContext("2d"),
 		// players and bases
-		bases: getBasesFromRepo_new(players, canvas, selectedLevel),
+		bases: bases,
 		players: players,
 		// timings
 		turnLength: 25,
@@ -343,8 +360,8 @@ function getConfig(selectedLevel) {
 		clickTol: 20, // for declaring a click rather than a rectangle selection
 		baseClickTol: 3 * defaultBaseSize,
 		// base values
-		minConquership: 100,
-		maxHealth: 100,
+		minConquership: minConquership,
+		maxHealth: maxHealth,
 		maxUpgradePoints: 100,
 
 	}
@@ -400,36 +417,21 @@ function startGame(level) {
 	// Write the current speed
 	setSpeedIndicator();
 	// Complete the base definition and initializes them
-	initializeBases();
+	spawnInitialUnits();
 	// Record the starting time
 	state.levelStartTime = Date.now();
 	// Off we go
 	animate();
 }
-function initializeBases() { // this function fills all base properties based on ownership
-//initialisation of the variables of the bases according to ownership
-// loop through bases
+function spawnInitialUnits() {
 	for (var i = 0; i < config.bases.length; i++) {
 		var base = config.bases[i];
-		base.lastSpawn = -1;
-		base.upgradePoints = 0;
-		base.isUnderAttack = false;
-		base.health = config.maxHealth;
-		base.colour = base.ownership.playerColour;
-		base.id = i;
-		// if base is owned, inherit player properties
+		// if base is owned
 		if (base.ownership != config.players[0]) {
-			base.controlType = base.ownership.controlType;
-			base.conquership = config.minConquership;
 			// spawn initial units
 			for (j=0; j < base.initUnits/base.levelCurrent; j++) {
 				spawnUnit(base);
 			}
-		}
-		// if base is not owned, set colour to grey
-		else {
-			base.controlType = 2;
-			base.conquership = 0;
 		}
 	}
 }
