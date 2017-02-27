@@ -4,7 +4,7 @@
 //==============================================
 //
 window.onload = function() {setBackground()};
-window.onresize = function() {sizeBgCanvas(); placeCanvas()};
+window.onresize = function() {sizeBgCanvas(); placeCanvas(drawSpace); placeCanvas(canvasBases);};
 //
 //==============================================
 // Mouse and selection
@@ -324,6 +324,7 @@ function getBases(players, canvas, selectedLevel, maxHealth, minConquership) {
 }
 function getConfig(selectedLevel) {
 	var canvas = document.getElementById("drawSpace");
+	var canvasBases = document.getElementById("canvasBases");
 	var players = initializePlayers();
 	var defaultBaseSize = 32;
 	var levelSizeIncrease = 12;
@@ -338,7 +339,9 @@ function getConfig(selectedLevel) {
 		level: selectedLevel,
 		// canvas manipulation
 		canvas: canvas,
+		canvasBases: canvasBases,
 		ctx: canvas.getContext("2d"),
+		ctxBases: canvasBases.getContext("2d"),
 		// players and bases
 		bases: bases,
 		players: players,
@@ -387,21 +390,22 @@ function getInitialState() {
 		// timer
 		levelStartTime: null,
 		levelFinishTime: null,
+		refreshBasesCanvas: true,
 	};
 }
-function placeCanvas() {
+function placeCanvas(canvas) {
 	// Center the canvas using margins - so the click events are not confused...
-	drawSpace.style.marginLeft = (window.innerWidth - drawSpace.width) /2;
+	canvas.style.marginLeft = (window.innerWidth - drawSpace.width) /2;
 }
-function sizeMainCanvas() {
+function sizeMainCanvas(canvas) {
 	if (window.innerWidth > window.innerHeight) {
-		drawSpace.height = window.innerHeight;
-		drawSpace.width = drawSpace.height;
+		canvas.height = window.innerHeight;
+		canvas.width = canvas.height;
 		//drawSpace.style.paddingLeft = 100;
 	}
 	else {
-		drawSpace.width = window.innerWidth-8;
-		drawSpace.height = drawSpace.width;
+		canvas.width = window.innerWidth-8;
+		canvas.height = canvas.width;
 	}
 }
 function startGame(level) {
@@ -409,8 +413,10 @@ function startGame(level) {
 	document.getElementById('LevelChooser').hidden = true;
 	document.getElementById('gameUI').hidden = false;
 	// determine canvas size and position
-	sizeMainCanvas();
-	placeCanvas();
+	sizeMainCanvas(drawSpace);
+	placeCanvas(drawSpace);
+	sizeMainCanvas(canvasBases);
+	placeCanvas(canvasBases);
 	// Initialize the config and state
 	config = getConfig(level);
 	state = getInitialState();
@@ -526,7 +532,7 @@ function drawBase(base) {
 		else {level = base.levelCurrent-1;}
 		imgBase = base.ownership.imgBase[level];
 		imgSize = base.ownership.baseSize[level];
-		config.ctx.drawImage(imgBase, base.x-imgSize/2, base.y-imgSize/2, imgSize, imgSize);
+		config.ctxBases.drawImage(imgBase, base.x-imgSize/2, base.y-imgSize/2, imgSize, imgSize);
 	}
 	// draw the base a bit larger if it has just spawned - this gives a pulse
 	if (base.hasJustSpawned == true) { baseSize = config.defaultBaseSize + config.pulseSizeIncrease; }
@@ -536,14 +542,48 @@ function drawBase(base) {
 
 	// MAX LEVEL: draw circles around the bases showing their maximum level
 	for (var i = base.levelCurrent; i < base.levelMax; i++) {
-		config.ctx.beginPath();
-		config.ctx.arc(base.x, base.y, config.defaultBaseSize + i * config.levelSizeIncrease, 0, Math.PI * 2);
+		config.ctxBases.beginPath();
+		config.ctxBases.arc(base.x, base.y, config.defaultBaseSize + i * config.levelSizeIncrease, 0, Math.PI * 2);
+		config.ctxBases.strokeStyle = 'rgba(255,255,255,0.4)';
+		config.ctxBases.lineWidth = 3;
+		config.ctxBases.stroke();
 		//config.ctx.closePath();
-		config.ctx.strokeStyle = 'rgba(255,255,255,0.4)';
-		config.ctx.lineWidth = 3;
-		config.ctx.stroke();
 	}
 	
+	// actually draw the base
+	// Draw a vector base only for bases with no ownership
+	if (base.ownership == config.players[0] || base.conquership != 100) {
+		config.ctxBases.beginPath();
+		config.ctxBases.arc(base.x, base.y, baseSize, 0, Math.PI * 2);
+		config.ctxBases.closePath();
+		config.ctxBases.strokeStyle = "black";
+		config.ctxBases.lineWidth = 1;
+		config.ctxBases.fillStyle = 'rgba(150,150,150,0.4)';
+		config.ctxBases.fill();
+	}//config.ctx.stroke();
+
+	// NEIGHBOUR DISTANCE: draw a circle showing the max distance for declaring a neighbour
+	/*
+	config.ctx.beginPath();
+	config.ctx.arc(base.x, base.y, config.neighbourDistance, 0, Math.PI * 2);
+	//config.ctx.closePath();
+	config.ctx.strokeStyle = "LightGrey";
+	config.ctx.setLineDash([3,3]);
+	config.ctx.lineWidth = 1;
+	config.ctx.stroke();
+	config.ctx.setLineDash([]);
+	*/
+
+}
+function drawBaseIndicator(base) {
+	var baseSize = 0;
+	var level = null;
+
+	// draw the base a bit larger if it has just spawned - this gives a pulse
+	baseSize = config.defaultBaseSize;
+	// size the bases according to their current level
+	baseSize = baseSize + (base.levelCurrent - 1) * config.levelSizeIncrease;
+
 	// UPGRADE status: show current upgrade status
 	config.ctx.beginPath();
 	config.ctx.arc(base.x, base.y, config.defaultBaseSize + base.levelCurrent * config.levelSizeIncrease, 0, Math.PI * 2 * base.upgradePoints/config.maxUpgradePoints);
@@ -551,19 +591,6 @@ function drawBase(base) {
 	config.ctx.strokeStyle = base.ownership.playerColour;
 	config.ctx.lineWidth = 3;
 	config.ctx.stroke();
-	
-	// actually draw the base
-	// Draw a vector base only for bases with no ownership
-	if (base.ownership == config.players[0] || base.conquership != 100) {
-		config.ctx.beginPath();
-		config.ctx.arc(base.x, base.y, baseSize, 0, Math.PI * 2);
-		config.ctx.closePath();
-		config.ctx.strokeStyle = "black";
-		config.ctx.lineWidth = 1;
-		//config.ctx.stroke();
-		config.ctx.fillStyle = 'rgba(150,150,150,0.4)';
-		config.ctx.fill();
-	}
 
 	// CONQUERSHIP: draw a circle around the base representing the conquership
 	if (base.conquership < config.minConquership) {
@@ -583,18 +610,6 @@ function drawBase(base) {
 		config.ctx.lineWidth = 3;
 		config.ctx.stroke();
 	}
-	// NEIGHBOUR DISTANCE: draw a circle showing the max distance for declaring a neighbour
-	/*
-	config.ctx.beginPath();
-	config.ctx.arc(base.x, base.y, config.neighbourDistance, 0, Math.PI * 2);
-	//config.ctx.closePath();
-	config.ctx.strokeStyle = "LightGrey";
-	config.ctx.setLineDash([3,3]);
-	config.ctx.lineWidth = 1;
-	config.ctx.stroke();
-	config.ctx.setLineDash([]);
-	*/
-
 }
 //
 //==============================================
@@ -882,6 +897,7 @@ function updateBaseProperties(base) {
 		//base.health = 0;
 		//base.conquership = 0;
 	}
+	state.refreshBasesCanvas = true;
 }
 function findClosestAttacker(object) {
 	var prevDist = null;
@@ -947,8 +963,8 @@ function animate(time) {
     // clear the canvas so all objects can be 
     // redrawn in new positions
     config.ctx.clearRect(0, 0, config.canvas.width, config.canvas.height);
-
-	// loop through bases
+	
+	// logic loop through bases
 	for (var i = 0; i < config.bases.length; i++) {
         var attackersNum = 0;
 		var base = config.bases[i];
@@ -967,17 +983,20 @@ function animate(time) {
 		if (base.upgradePoints == config.maxUpgradePoints) {
 			base.levelCurrent = base.levelCurrent + 1;
 			base.upgradePoints = 0;
+			state.refreshBasesCanvas = true;
 			//console.log("Base " + i + ", owned by " + base.colour + " has upgraded to " + base.levelCurrent);
 		}
 		// Base death
 		// if base health or conquership reaches 0, set it to not owned
-		if (base.health == 0 || base.conquership == 0) {
+		// !!! issue here - this condition will trigger for all unowned bases, not only the ones that become 0 !!! Not the intent
+		if (base.health == 0 || (base.conquership == 0 && base.ownership != config.players[0])) {
 			base.ownership = config.players[0];
 			base.conquership = 0;
 			base.health = config.maxHealth;
 			base.levelCurrent = 1;
 			base.upgradePoints = 0;
 			updateBaseProperties(base);
+			state.refreshBasesCanvas = true;
 		}
 		// spawn the units
 		// if the base is owned and conquered by someone
@@ -993,9 +1012,22 @@ function animate(time) {
 				}
 			}
 		}
-		// draw the base
-		drawBase(base);
+		drawBaseIndicator(base);
     }
+	// bases drawing loop
+	// if need to re-render, clear the canvas first
+	if (state.refreshBasesCanvas == true) {
+		config.ctxBases.clearRect(0, 0, config.canvasBases.width, config.canvasBases.height);
+		// loop through bases and render them all
+		for (var i = 0; i < config.bases.length; i++) {
+			var base = config.bases[i];
+			drawBase(base);
+		}
+		// Job done, reset the need to re-render to false and let the logics loop evaluate if necessary next time
+		state.refreshBasesCanvas = false;
+		console.log("canvasBases refresh");
+	}
+
     // loop through units
 	// main loop containing logics
     for (var i = 0; i < state.objects.length; i++) {

@@ -13,9 +13,18 @@ html {
 #drawSpace {
 	//z-index: 10;
 	position: absolute;
-	//top: 0px;
+	top: 0px;
 	left: 0px;
 	//border: 1px dotted gray;
+	//pointer-events:none;
+}
+#canvasBases {
+	//z-index: 5;
+	position: absolute;
+	top: 0px;
+	left: 0px;
+	//border: 1px dotted gray;
+	//border: 1px solid red;
 	//pointer-events:none;
 }
 #selectionBox {
