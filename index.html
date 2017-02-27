@@ -37,7 +37,7 @@
 	</div>
 	<div id="gameUI" hidden>
 		<span id="buttons" class="buttonsMenuInGame">
-			<button id="inGameMenuButton" class="button" onclick="showMenu()">
+			<button id="inGameMenuButton" class="button" onclick="releaseSelection();showMenu()">
 				<i class="fa fa-bars" aria-hidden="true"></i>
 			</button>
 
@@ -91,12 +91,16 @@
 				</div>	
 			</div>
 		</span>
+		<div id="bases" style="z-index:9">
+			<canvas id="canvasBases"></canvas>
+		</div>
 		<div id="mainCanvas" style="z-index:10">
 			<div id="selectionBox" hidden></div>
 			<canvas id="drawSpace"></canvas>
 		</div>
 	</div>
 	<body id="body">
+		<script src="XBC_levels.js"></script>
 		<script src="xBosonConquest.js"></script>
 	</body>
 </html>
