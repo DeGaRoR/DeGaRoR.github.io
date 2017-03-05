@@ -464,6 +464,82 @@ function getLevels() {
 					},
 					]
 		},
+		{	name: "Parallel",
+			bases:[
+					{
+						ownership: 2,
+						x: 0.2,
+						y: 0.2,
+						levelMax: 2,
+					},
+					{
+						ownership: 1,
+						x: 0.2,
+						y: 0.4,
+						levelMax: 2,
+					},
+					{
+						ownership: 3,
+						x: 0.2,
+						y: 0.6,
+						levelMax: 2,
+					},
+					{
+						ownership: 0,
+						x: 0.4,
+						y: 0.3,
+						levelMax: 1,
+					},
+					{
+						ownership: 0,
+						x: 0.4,
+						y: 0.5,
+						levelMax: 1,
+					},
+					{
+						ownership: 0,
+						x: 0.4,
+						y: 0.7,
+						levelMax: 1,
+					},
+					{
+						ownership: 0,
+						x: 0.6,
+						y: 0.4,
+						levelMax: 1,
+					},
+					{
+						ownership: 0,
+						x: 0.6,
+						y: 0.6,
+						levelMax: 1,
+					},
+					{
+						ownership: 0,
+						x: 0.6,
+						y: 0.8,
+						levelMax: 1,
+					},
+					{
+						ownership: 0,
+						x: 0.8,
+						y: 0.5,
+						levelMax: 2,
+					},
+					{
+						ownership: 0,
+						x: 0.8,
+						y: 0.7,
+						levelMax: 2,
+					},
+					{
+						ownership: 0,
+						x: 0.8,
+						y: 0.9,
+						levelMax: 2,
+					},
+				]
+		},
 		{	name: "Test Level",
 			bases:[
 					{
