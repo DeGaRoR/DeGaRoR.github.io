@@ -598,6 +598,64 @@ function getLevels() {
 					},
 				]
 		},
+		{	name: "Squezed",
+			bases:[
+					{
+						ownership: 1,
+						x: 0.5,
+						y: 0.5,
+						levelMax: 3,
+					},
+					{
+						ownership: 0,
+						x: 0.5,
+						y: 0.65,
+						levelMax: 1,
+					},
+					{
+						ownership: 0,
+						x: 0.5,
+						y: 0.35,
+						levelMax: 1,
+					},
+					{
+						ownership: 2,
+						x: 0.1,
+						y: 0.1,
+						levelMax: 2,
+					},
+					{
+						ownership: 0,
+						x: 0.1,
+						y: 0.25,
+						levelMax: 1,
+					},
+					{
+						ownership: 0,
+						x: 0.25,
+						y: 0.1,
+						levelMax: 1,
+					},
+					{
+						ownership: 3,
+						x: 0.9,
+						y: 0.9,
+						levelMax: 2,
+					},
+					{
+						ownership: 0,
+						x: 0.75,
+						y: 0.9,
+						levelMax: 1,
+					},
+					{
+						ownership: 0,
+						x: 0.9,
+						y: 0.75,
+						levelMax: 1,
+					},
+				]
+		},
 		{	name: "Test Level",
 			bases:[
 					{
