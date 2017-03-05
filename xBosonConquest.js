@@ -564,7 +564,7 @@ function drawBase(base) {
 	}//config.ctx.stroke();
 
 	// NEIGHBOUR DISTANCE: draw a circle showing the max distance for declaring a neighbour
-	
+	/*
 	config.ctxBases.beginPath();
 	config.ctxBases.arc(base.x, base.y, config.neighbourDistance, 0, Math.PI * 2);
 	//config.ctx.closePath();
@@ -573,7 +573,7 @@ function drawBase(base) {
 	config.ctxBases.lineWidth = 1;
 	config.ctxBases.stroke();
 	config.ctxBases.setLineDash([]);
-	
+	*/
 
 }
 function drawBaseIndicator(base) {
