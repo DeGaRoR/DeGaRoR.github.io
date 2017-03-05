@@ -564,16 +564,16 @@ function drawBase(base) {
 	}//config.ctx.stroke();
 
 	// NEIGHBOUR DISTANCE: draw a circle showing the max distance for declaring a neighbour
-	/*
-	config.ctx.beginPath();
-	config.ctx.arc(base.x, base.y, config.neighbourDistance, 0, Math.PI * 2);
+	
+	config.ctxBases.beginPath();
+	config.ctxBases.arc(base.x, base.y, config.neighbourDistance, 0, Math.PI * 2);
 	//config.ctx.closePath();
-	config.ctx.strokeStyle = "LightGrey";
-	config.ctx.setLineDash([3,3]);
-	config.ctx.lineWidth = 1;
-	config.ctx.stroke();
-	config.ctx.setLineDash([]);
-	*/
+	config.ctxBases.strokeStyle = "LightGrey";
+	config.ctxBases.setLineDash([3,3]);
+	config.ctxBases.lineWidth = 1;
+	config.ctxBases.stroke();
+	config.ctxBases.setLineDash([]);
+	
 
 }
 function drawBaseIndicator(base) {

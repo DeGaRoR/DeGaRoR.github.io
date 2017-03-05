@@ -609,13 +609,13 @@ function getLevels() {
 					{
 						ownership: 0,
 						x: 0.5,
-						y: 0.65,
+						y: 0.75,
 						levelMax: 1,
 					},
 					{
 						ownership: 0,
 						x: 0.5,
-						y: 0.35,
+						y: 0.25,
 						levelMax: 1,
 					},
 					{
