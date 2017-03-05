@@ -244,7 +244,7 @@ function changeSpeed(increment) {
 // Game initialization
 //==============================================
 //
-function initializePlayers() {
+function initializePlayers(sizeFactor) {
 	var players = [];
 	var cell3D_S = document.getElementById("cell3D_S");
 	var cell3D_M = document.getElementById("cell3D_M");
@@ -266,7 +266,7 @@ function initializePlayers() {
 		playerColour: "#00BCC5",
 		controlType: 0, // 0 for human, 1 for CPU, 2 for none
 		imgBase: [cell3D_S,cell3D_M,cell3D_L],
-		baseSize: [150,200,256],
+		baseSize: [150 * sizeFactor,200 * sizeFactor,256 * sizeFactor],
 	}
 	players.push(player1);
 	var player2 = {
@@ -274,7 +274,7 @@ function initializePlayers() {
 		playerColour: "#A0F500",
 		controlType: 1,
 		imgBase: [fungus3D_S,fungus3D_M,fungus3D_L],
-		baseSize: [256,300,350],
+		baseSize: [256 * sizeFactor,300 * sizeFactor,350 * sizeFactor],
 	}
 	players.push(player2);
 	var player3 = {
@@ -282,7 +282,7 @@ function initializePlayers() {
 		playerColour: "#FF0700",
 		controlType: 1,
 		imgBase: [virus3D_S,virus3D_M,virus3D_L],
-		baseSize: [150,200,256],
+		baseSize: [150 * sizeFactor,200 * sizeFactor,256 * sizeFactor],
 	}
 	players.push(player3);
 
@@ -325,12 +325,13 @@ function getBases(players, canvas, selectedLevel, maxHealth, minConquership) {
 function getConfig(selectedLevel) {
 	var canvas = document.getElementById("drawSpace");
 	var canvasBases = document.getElementById("canvasBases");
-	var players = initializePlayers();
-	var defaultBaseSize = 32;
-	var levelSizeIncrease = 12;
-	var defaultUnitSize = 3;
-	var baseMinDist = defaultBaseSize + levelSizeIncrease * 2 + defaultUnitSize + 2; // minimum distance from the base after spawning
-	var baseMaxDist = baseMinDist + 20; // max distance from the base after spawning
+	var sizeFactor = 0.75;
+	var players = initializePlayers(sizeFactor);
+	var defaultBaseSize = 32 * sizeFactor;
+	var levelSizeIncrease = 12 * sizeFactor;
+	var defaultUnitSize = 3 * sizeFactor;
+	var baseMinDist = (defaultBaseSize + levelSizeIncrease * 2 + defaultUnitSize + 2); // minimum distance from the base after spawning
+	var baseMaxDist = (baseMinDist + 20); // max distance from the base after spawning
 	var maxHealth = 100;
 	var minConquership = 100;
 	var bases = getBases(players, canvas, selectedLevel, maxHealth, minConquership);
