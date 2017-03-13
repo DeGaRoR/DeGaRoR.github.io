@@ -192,6 +192,7 @@ function selectRandom3(x,y,z) {
 	}
 }
 function distance(x1, y1, x2, y2) { return Math.sqrt(Math.pow(x1-x2, 2)+Math.pow(y1-y2,2)) }
+function distanceNY(x1, y1, x2, y2) { return (Math.abs(x1-x2) + Math.abs(y1-y2)) }
 //
 //==============================================
 // Game UI
@@ -855,7 +856,7 @@ function checkCollision (object) {
 	for (var j = 0; j < nObjects; j++) {
 		var collider = state.objects[j];
 		if (collider.colour !== object.colour && collider.hasBeenHit == false && object.hasBeenHit == false) {
-			var dist = distance(object.x, object.y, collider.x, collider.y);
+			var dist = distanceNY(object.x, object.y, collider.x, collider.y);
 			if (dist < config.collisionTol) {
 				killUnit(object);
 				killUnit(collider);
