@@ -851,32 +851,16 @@ function goToCoordinates(object, timeDiff) {
 		}
 }
 function checkCollision (object) {
-	for (var j = 0; j < state.objects.length; j++) {
+	var nObjects = state.objects.length;
+	for (var j = 0; j < nObjects; j++) {
 		var collider = state.objects[j];
-		var dist = distance(object.x, object.y, collider.x, collider.y);
-		var justHid = false;
-		// if there is someone
-		if (dist < config.collisionTol && collider.hasBeenHit == false && object.hasBeenHit == false) {
-			// if object not already hit & the other is an ennemy & the ennemy has not already been hit
-			if (collider.colour !== object.colour) {
+		if (collider.colour !== object.colour && collider.hasBeenHit == false && object.hasBeenHit == false) {
+			var dist = distance(object.x, object.y, collider.x, collider.y);
+			if (dist < config.collisionTol) {
 				killUnit(object);
 				killUnit(collider);
 			}
-			// behaviour if the object is a friend
-			/*
-			else {
-				//if (collider.isHidden == false) {
-					object.isHidden = true;
-					justHid = true;
-				//}
-			}
-			*/
-			
 		}
-		//else {object.isHidden = false;}
-	}
-	if (justHid == false) {
-		object.isHidden = false;
 	}
 }
 function killUnit(object) {
