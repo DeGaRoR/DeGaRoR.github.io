@@ -5,6 +5,9 @@
 //
 window.onload = function() {setBackground()};
 window.onresize = function() {sizeBgCanvas(); placeCanvas(drawSpace); placeCanvas(canvasBases);};
+var persistData = {
+	timePace: 1
+}
 //
 //==============================================
 // Mouse and selection
@@ -203,6 +206,7 @@ function hideConfirmReturnHome() {document.getElementById('confirmBoxReturnHome'
 function ShowConfirmRestart() {document.getElementById('confirmBoxRestart').hidden = false;}
 function hideConfirmRestart() {document.getElementById('confirmBoxRestart').hidden = true;}
 function backToChoice() {
+	persistData.timePace = state.timePace;
 	state.abandon = true;
 	document.getElementById('gameUI').hidden = true;
 	document.getElementById('LevelChooser').hidden = false;
@@ -226,7 +230,7 @@ function setSpeedIndicator(speed) {
 // Game menu controls
 //==============================================
 //
-function reStart() {state.abandon = true; cancelAnimationFrame(reqID); startGame(config.level);}
+function reStart() {persistData.timePace = state.timePace; state.abandon = true; cancelAnimationFrame(reqID); startGame(config.level);}
 function pauseGame() {state.timePace = 0;}
 function unPauseGame() {state.timePace = state.previousTimePace;}
 function changeSpeed(increment) {
@@ -410,7 +414,9 @@ function sizeMainCanvas(canvas) {
 		canvas.height = canvas.width;
 	}
 }
+
 function startGame(level) {
+	
 	// hide the level choice UI and show the game div
 	document.getElementById('LevelChooser').hidden = true;
 	document.getElementById('gameUI').hidden = false;
@@ -422,6 +428,7 @@ function startGame(level) {
 	// Initialize the config and state
 	config = getConfig(level);
 	state = getInitialState();
+	state.timePace = persistData.timePace;
 	// Write the current speed
 	setSpeedIndicator();
 	// Complete the base definition and initializes them
