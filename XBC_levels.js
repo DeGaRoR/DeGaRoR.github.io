@@ -598,7 +598,7 @@ function getLevels() {
 					},
 				]
 		},
-		{	name: "Squezed",
+		{	name: "Squeezed",
 			bases:[
 					{
 						ownership: 1,
@@ -653,6 +653,262 @@ function getLevels() {
 						x: 0.9,
 						y: 0.75,
 						levelMax: 1,
+					},
+				]
+		},
+		{	name: "Unfair triangle",
+			bases:[
+					{
+						ownership: 1,
+						x: 0.1,
+						y: 0.5,
+						levelMax: 1,
+					},
+					{
+						ownership: 0,
+						x: 0.3,
+						y: 0.6,
+						levelMax: 1,
+					},
+					{
+						ownership: 0,
+						x: 0.3,
+						y: 0.4,
+						levelMax: 1,
+					},
+					{
+						ownership: 2,
+						x: 0.9,
+						y: 0.9,
+						levelMax: 2,
+					},
+					{
+						ownership: 0,
+						x: 0.7,
+						y: 0.8,
+						levelMax: 2,
+					},
+					{
+						ownership: 0,
+						x: 0.9,
+						y: 0.7,
+						levelMax: 2,
+					},
+					{
+						ownership: 3,
+						x: 0.9,
+						y: 0.1,
+						levelMax: 2,
+					},
+					{
+						ownership: 0,
+						x: 0.9,
+						y: 0.3,
+						levelMax: 2,
+					},
+					{
+						ownership: 0,
+						x: 0.7,
+						y: 0.2,
+						levelMax: 2,
+					},
+				]
+		},
+		{	name: "Circle mildly unfair",
+			bases:[
+					{
+						ownership: 1,
+						x: 0.5,
+						y: 0.9,
+						levelMax: 2,
+					},
+					{
+						ownership: 0,
+						x: 0.75712,
+						y: 0.80642,
+						levelMax: 1,
+					},
+					{
+						ownership: 0,
+						x: 0.24288,
+						y: 0.80642,
+						levelMax: 1,
+					},
+					{
+						ownership: 2,
+						x: 0.15359,
+						y: 0.3,
+						levelMax: 3,
+					},
+					{
+						ownership: 0,
+						x: 0.10608,
+						y: 0.56946,
+						levelMax: 2,
+					},
+					{
+						ownership: 0,
+						x: 0.36319,
+						y: 0.12412,
+						levelMax: 2,
+					},
+					{
+						ownership: 3,
+						x: 0.84641,
+						y: 0.3,
+						levelMax: 3,
+					},
+					{
+						ownership: 0,
+						x: 0.89392,
+						y: 0.56946,
+						levelMax: 2,
+					},
+					{
+						ownership: 0,
+						x: 0.63681,
+						y: 0.12412,
+						levelMax: 2,
+					},
+				]
+		},
+		{	name: "Rotated squares",
+			bases:[
+					{
+						ownership: 1,
+						x: 0.5,
+						y: 0.91213,
+						levelMax: 1,
+					},
+					{
+						ownership: 0,
+						x: 0.71213,
+						y: 0.7,
+						levelMax: 1,
+					},
+					{
+						ownership: 0,
+						x: 0.5,
+						y: 0.48787,
+						levelMax: 1,
+					},
+					{
+						ownership: 0,
+						x: 0.28787,
+						y: 0.7,
+						levelMax: 1,
+					},
+					{
+						ownership: 2,
+						x: 0.1,
+						y: 0.1,
+						levelMax: 1,
+					},
+					{
+						ownership: 0,
+						x: 0.4,
+						y: 0.1,
+						levelMax: 2,
+					},
+					{
+						ownership: 0,
+						x: 0.4,
+						y: 0.4,
+						levelMax: 1,
+					},
+					{
+						ownership: 0,
+						x: 0.1,
+						y: 0.4,
+						levelMax: 2,
+					},
+					{
+						ownership: 0,
+						x: 0.1,
+						y: 0.4,
+						levelMax: 2,
+					},
+					{
+						ownership: 3,
+						x: 0.9,
+						y: 0.1,
+						levelMax: 1,
+					},
+					{
+						ownership: 0,
+						x: 0.9,
+						y: 0.4,
+						levelMax: 2,
+					},
+					{
+						ownership: 0,
+						x: 0.6,
+						y: 0.4,
+						levelMax: 1,
+					},
+					{
+						ownership: 0,
+						x: 0.6,
+						y: 0.1,
+						levelMax: 2,
+					},
+				]
+		},
+		{	name: "Gem mildly unfair",
+			bases:[
+					{
+						ownership: 	1,
+						x: 			0.5,
+						y: 			0.9,
+						levelMax: 	1,
+					},
+					{
+						ownership: 	0,
+						x: 			0.36667,
+						y: 			0.63333,
+						levelMax: 	1,
+					},
+					{
+						ownership: 	0,
+						x: 			0.63333,
+						y: 			0.63333,
+						levelMax: 	1,
+					},
+					{
+						ownership: 	2,
+						x: 			0.1,
+						y: 			0.1,
+						levelMax: 	3,
+					},
+					{
+						ownership: 	0,
+						x: 			0.36667,
+						y: 			0.1,
+						levelMax: 	1,
+					},
+					{
+						ownership: 	0,
+						x: 			0.23333,
+						y: 			0.36667,
+						levelMax: 	1,
+					},
+					{
+						ownership: 	3,
+						x: 			0.9,
+						y: 			0.1,
+						levelMax: 	3,
+					},
+					{
+						ownership: 	0,
+						x: 			0.63333,
+						y: 			0.1,
+						levelMax: 	1,
+					},
+					{
+						ownership: 	0,
+						x: 			0.5,
+						y: 			0.36667,
+						levelMax: 	3,
 					},
 				]
 		},
