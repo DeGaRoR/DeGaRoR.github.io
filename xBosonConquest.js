@@ -101,23 +101,37 @@ function getBgConfig() {
 		small_object_L : document.getElementById("small_object_L"),
 		small_object_M : document.getElementById("small_object_M"),
 		small_object_S : document.getElementById("small_object_S"),
-		big_object_1 : document.getElementById("big_object_1"),
-		big_object_2 : document.getElementById("big_object_2"),
-		big_object_3 : document.getElementById("big_object_3"),
+		big_object_1 : 	[	
+							document.getElementById("big_object_1"),
+							document.getElementById("big_object_1_r")
+						],
+		big_object_2 : 	[	
+							document.getElementById("big_object_2"),
+							document.getElementById("big_object_2_r")
+						],
+		big_object_3 : 	[	
+							document.getElementById("big_object_3"),
+							document.getElementById("big_object_3_r")
+						],
+		bgColor : 		[	
+							"#59f1ff",
+							"#cf8f89"
+						],
 	}
 }
 function sizeBgCanvas() {
 	bgConfig.background_canvas.width = window.innerWidth-2;
 	bgConfig.background_canvas.height = window.innerHeight;
 }
-function setBackground() {
+function setBackground(currentLevel) {
+	currentLevel = currentLevel || 1;
 	// Get the configuration in a proper object, no global or local scope
 	bgConfig = getBgConfig();
 	// size canvas
 	sizeBgCanvas();
 	// create large objects
 	for (var i=0; i<bgConfig.nLargeObjects;i++) {
-		var imgL = selectRandom3(bgConfig.big_object_1, bgConfig.big_object_2, bgConfig.big_object_3);
+		var imgL = selectRandom3(bgConfig.big_object_1[currentLevel-1], bgConfig.big_object_2[currentLevel-1], bgConfig.big_object_3[currentLevel-1]);
 		var x_init = getRandom(0, bgConfig.background_canvas.width);
 		var y_init = getRandom(0, bgConfig.background_canvas.height);
 		var theta = getRandom(0, Math.PI*2);
@@ -150,7 +164,7 @@ function setBackground() {
 	animateBackground();
 }
 function animateBackground() {
-	requestAnimationFrame(animateBackground);
+	bgReqID = requestAnimationFrame(animateBackground);
 	// render objects
 	bgConfig.background_ctx.clearRect(0, 0, bgConfig.background_canvas.width, bgConfig.background_canvas.height);
 	for (var i=0; i<bgConfig.bgObjects.length; i++) {
@@ -232,6 +246,11 @@ function showNextLevels(currentLevel) {
 	console.log(currentDivName);
 	document.getElementById(currentDivName).hidden = true;
 	document.getElementById(nextDivName).hidden = false;
+	// change the color theme
+	
+	cancelAnimationFrame(bgReqID);
+	setBackground(nextLevel);
+	document.body.style.backgroundColor = bgConfig.bgColor[nextLevel-1];
 }
 function showPreviousLevels(currentLevel) {
 	var prevLevel = currentLevel - 1;
@@ -240,6 +259,11 @@ function showPreviousLevels(currentLevel) {
 	console.log(currentDivName);
 	document.getElementById(currentDivName).hidden = true;
 	document.getElementById(prevDivName).hidden = false;
+	// change the color theme
+	
+	cancelAnimationFrame(bgReqID);
+	setBackground(prevLevel);
+	document.body.style.backgroundColor = bgConfig.bgColor[prevLevel-1];
 }
 //
 //==============================================
