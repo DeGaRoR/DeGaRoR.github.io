@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+	<head>
+
+	</head>
+	<body>
+		<p><button id="lvl01" onclick="setMeRed('level01')" type="button">1</button></p>
+		<p><button id="lvl02" onclick="setMeRed('level02')" type="button">2</button></p>
+		<p><button id="lvl03" onclick="setMeRed('level03')" type="button">3</button></p>
+		<p><button onclick="reset()" type="button">Reset</button></p>
+		<div id="result"></div>
+		<script>
+		setColorsRight();
+		function setColorsRight() {
+			for (i=1; i<4; i++) {
+				var level = "level0" + i;
+				var levelButton = "lvl0" + i;
+				if (localStorage[level] == "1") {
+					document.getElementById(levelButton).style.color = "red";
+				}
+				else {
+					document.getElementById(levelButton).style.color = "black";
+				}
+			}
+		}
+		function reset() {
+			for (i=1; i<4; i++) {
+				var level = "level0" + i;
+				localStorage[level] = 0;
+			}
+			setColorsRight();
+		}
+		function setMeRed(level) {
+			//localStorage.level01 = "1";
+			localStorage[level] = "1";
+			setColorsRight();
+		}
+
+		</script>
+	</body>
+</html>
