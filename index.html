@@ -27,16 +27,40 @@
 	</div>
 	<div id="LevelChooser" class="menuCenter buttonsMenu">
 		<img class="title" id="Title" 		src="Resources\Title.png"> <br>
-		<button class="buttonMain" onclick="startGame(10)">10</button> 
-		<button class="buttonMain" onclick="startGame(11)">11</button> 
-		<button class="buttonMain" onclick="startGame(12)">12</button> <br>
-		<button class="buttonMain" onclick="startGame(13)">13</button> 
-		<button class="buttonMain" onclick="startGame(5)">5</button> 
-		<button class="buttonMain" onclick="startGame(6)">6</button> <br>
-		<button class="buttonMain" onclick="startGame(7)">7</button>
-		<button class="buttonMain" onclick="startGame(8)">8</button>
-		<button class="buttonMain" onclick="startGame(9)">9</button> <br>
-		<button class="buttonMain" onclick="startGame(14)">TEST</button>
+		<div id="levelsButtons01" class="menuCenter buttonsMenu">
+			<button class="buttonMain" onclick="startGame(1)">1</button> 
+			<button class="buttonMain" onclick="startGame(2)">2</button> 
+			<button class="buttonMain" onclick="startGame(3)">3</button> <br>
+			<button class="buttonMain buttonNextPrev buttonMainInactive" onclick="">
+				<i class="fa fa-arrow-circle-left" aria-hidden="true"></i>
+			</button>
+			<button class="buttonMain" onclick="startGame(4)">4</button> 
+			<button class="buttonMain" onclick="startGame(5)">5</button> 
+			<button class="buttonMain" onclick="startGame(6)">6</button> 
+			<button class="buttonMain buttonNextPrev" onclick="showNextLevels(1)">
+				<i class="fa fa-arrow-circle-right" aria-hidden="true"></i>
+			</button> <br>
+			<button class="buttonMain" onclick="startGame(7)">7</button>
+			<button class="buttonMain" onclick="startGame(8)">8</button>
+			<button class="buttonMain" onclick="startGame(9)">9</button> <br>
+		</div>
+			<div id="levelsButtons02" class="menuCenter buttonsMenu" hidden>
+			<button class="buttonMain" onclick="startGame(10)">10</button> 
+			<button class="buttonMain" onclick="startGame(11)">11</button> 
+			<button class="buttonMain" onclick="startGame(12)">12</button> <br>
+			<button class="buttonMain buttonNextPrev" onclick="showPreviousLevels(2)">
+				<i class="fa fa-arrow-circle-left" aria-hidden="true"></i>
+			</button> 
+			<button class="buttonMain" onclick="startGame(13)">13</button> 
+			<button class="buttonMain buttonMainInactive" onclick="">14</button> 
+			<button class="buttonMain buttonMainInactive" onclick="">15</button> 
+			<button class="buttonMain buttonNextPrev buttonMainInactive" onclick="" >
+				<i class="fa fa-arrow-circle-right" aria-hidden="true"></i>
+			</button> <br>
+			<button class="buttonMain buttonMainInactive" onclick="">16</button>
+			<button class="buttonMain buttonMainInactive" onclick="">17</button>
+			<button class="buttonMain buttonMainInactive" onclick="">18</button> <br>
+		</div>
 	</div>
 	<div id="gameUI" hidden>
 		<span id="buttons" class="buttonsMenuInGame">

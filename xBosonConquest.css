@@ -50,11 +50,11 @@ levelChooser {
 	background-color: rgba(0, 0, 0, 0.2);
 	border: 1px solid rgba(255, 255, 255, 0.2);
 	color: white;
-	padding: 50px 50px;
+	padding: 30px 40px;
 	text-align: center;
 	text-decoration: none;
 	display: inline-block;
-	font-size: 16px;
+	font-size: 50px;
 	margin: 4px 2px;
 	cursor: pointer;
 	border-radius: 4px;
@@ -63,7 +63,14 @@ levelChooser {
 }
 .buttonMain:active {
 	background-color: rgba(200, 200, 200, 0.2);
-}			
+}	
+.buttonMainInactive {
+	color: dimGray;
+}	
+.buttonNextPrev {
+	background-color: rgba(0, 0, 0, 0);
+	border: 1px solid rgba(255, 255, 255, 0);
+}		
 .button {
 	//z-index: 1;
 	background-color: rgba(0, 0, 0, 0.2);
@@ -149,7 +156,7 @@ levelChooser {
 .buttonsContainer3 {
 	margin-left: auto;
 	margin-right: auto; 
-	width: 250px;
+	width: 260px;
 	//background-color: rgba(0, 0, 0, 0.2);
 	//border: 1px solid rgba(255, 255, 255, 0.2);
 	//border-radius: 4px;

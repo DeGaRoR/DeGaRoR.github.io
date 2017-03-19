@@ -225,6 +225,22 @@ function hideMenu() {
 function setSpeedIndicator(speed) {
 	document.getElementById("speedIndicator").innerHTML = speed + "x";
 }
+function showNextLevels(currentLevel) {
+	var nextLevel = currentLevel + 1;
+	var currentDivName = "levelsButtons0" + currentLevel.toString();
+	var nextDivName = "levelsButtons0" + nextLevel.toString();
+	console.log(currentDivName);
+	document.getElementById(currentDivName).hidden = true;
+	document.getElementById(nextDivName).hidden = false;
+}
+function showPreviousLevels(currentLevel) {
+	var prevLevel = currentLevel - 1;
+	var currentDivName = "levelsButtons0" + currentLevel.toString();
+	var prevDivName = "levelsButtons0" + prevLevel.toString();
+	console.log(currentDivName);
+	document.getElementById(currentDivName).hidden = true;
+	document.getElementById(prevDivName).hidden = false;
+}
 //
 //==============================================
 // Game menu controls
