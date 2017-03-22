@@ -83,11 +83,12 @@ levelChooser {
 	text-align: center;
 	text-decoration: none;
 	display: inline-block;
-	font-size: 16px;
+	font-size: 50px;
 	margin: 4px 2px;
 	cursor: pointer;
 	border-radius: 4px;
 	position: relative;
+	
 }
 .button:active {
 	background-color: rgba(200, 200, 200, 0.2);
@@ -101,11 +102,12 @@ levelChooser {
 	text-align: center;
 	text-decoration: none;
 	display: inline-block;
-	font-size: 16px;
+	font-size: 50px;
 	margin: 0px 2px;
 	border-radius: 4px;
-	width: 32px;
+	//width: 32px;
 	//cursor: pointer;
+	font-family:verdana;
 }
 .menuCenter {
 	text-align: center;
@@ -159,18 +161,20 @@ levelChooser {
 .buttonsContainer3 {
 	margin-left: auto;
 	margin-right: auto; 
-	width: 260px;
+	width: 500px;
 	//background-color: rgba(0, 0, 0, 0.2);
 	//border: 1px solid rgba(255, 255, 255, 0.2);
 	//border-radius: 4px;
 	padding-top: 20px;
 	padding-bottom: 20px;
 	color: white;
+	font-family:verdana;
+	font-size: 30px;
 }
 .buttonInGameMenu {
 	width: 200px;
 }
 .buttonConfirm {
-	width: 100px;
+	width: 200px;
 	background-color: rgba(20, 20, 20, 1);
 }

@@ -216,11 +216,18 @@ function distanceNY(x1, y1, x2, y2) { return (Math.abs(x1-x2) + Math.abs(y1-y2))
 //==============================================
 //
 function setButtonIndicators() {
+	// test local storage support
+	if (typeof(Storage) !== "undefined") {
+		console.log("localStorage supported");
+	} else {
+		console.log("localStorage NOT supported");
+	}
+	
 	var nLevels = 14;
 	//localStorage.clear();
 	// if no local storage yet (first time)
 	if (typeof localStorage.firstTime == 'undefined') {
-		console.log("no local storage defined yet - defining now");
+		console.log("no local storage defined yet - Initializing");
 		localStorage.firstTime = 'false';
 		for (i=1; i< nLevels+1; i++) {
 			var level = "level" + i;
@@ -246,15 +253,6 @@ function setButtonIndicators() {
 		else {
 			document.getElementById(levelButton).style.color = "white";
 		}
-		//document.getElementById(levelButton).style.color = "red";
-		/*
-		if (localStorage[level] == "1") {
-			document.getElementById(levelButton).style.color = "red";
-		}
-		else {
-			document.getElementById(levelButton).style.color = "black";
-		}
-		*/
 	}
 }
 function ShowConfirmReturnHome() {document.getElementById('confirmBoxReturnHome').hidden = false;}
