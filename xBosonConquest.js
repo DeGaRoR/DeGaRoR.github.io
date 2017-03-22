@@ -3,7 +3,7 @@
 // Events
 //==============================================
 //
-window.onload = function() {setBackground()};
+window.onload = function() {setBackground();setButtonIndicators();};
 window.onresize = function() {sizeBgCanvas(); placeCanvas(drawSpace); placeCanvas(canvasBases);};
 var persistData = {
 	timePace: 1
@@ -215,6 +215,48 @@ function distanceNY(x1, y1, x2, y2) { return (Math.abs(x1-x2) + Math.abs(y1-y2))
 // Game UI
 //==============================================
 //
+function setButtonIndicators() {
+	var nLevels = 14;
+	//localStorage.clear();
+	// if no local storage yet (first time)
+	if (typeof localStorage.firstTime == 'undefined') {
+		console.log("no local storage defined yet - defining now");
+		localStorage.firstTime = 'false';
+		for (i=1; i< nLevels+1; i++) {
+			var level = "level" + i;
+			// initialize localStorage for all levels
+			localStorage[level] = 0;
+		}
+	}
+	else {
+		console.log("local storage exists");
+		for (i=1; i<= nLevels; i++) {
+			var level = "level" + i;
+			// visualize the current state of level completion
+			console.log("Level "+i+" status: "+localStorage[level]);
+		}
+	}
+	// color buttons as per completion status
+	for (i=1; i<= nLevels; i++) {
+		var level = "level" + i;
+		var levelButton = "btnLevel" + i;
+		if (localStorage[level] == "1") {
+			document.getElementById(levelButton).style.color = "green";
+		}
+		else {
+			document.getElementById(levelButton).style.color = "white";
+		}
+		//document.getElementById(levelButton).style.color = "red";
+		/*
+		if (localStorage[level] == "1") {
+			document.getElementById(levelButton).style.color = "red";
+		}
+		else {
+			document.getElementById(levelButton).style.color = "black";
+		}
+		*/
+	}
+}
 function ShowConfirmReturnHome() {document.getElementById('confirmBoxReturnHome').hidden = false;}
 function hideConfirmReturnHome() {document.getElementById('confirmBoxReturnHome').hidden = true;}
 function ShowConfirmRestart() {document.getElementById('confirmBoxRestart').hidden = false;}
@@ -222,6 +264,7 @@ function hideConfirmRestart() {document.getElementById('confirmBoxRestart').hidd
 function backToChoice() {
 	persistData.timePace = state.timePace;
 	state.abandon = true;
+	setButtonIndicators();
 	document.getElementById('gameUI').hidden = true;
 	document.getElementById('LevelChooser').hidden = false;
 }
@@ -967,6 +1010,10 @@ function animate(time) {
 		config.ctx.textBaseline = "middle";
 		//config.ctx.fillText(base.levelCurrent, base.x, base.y);
 		config.ctx.fillText("Victory for " + state.playerAlive.playerName + " in " + minutesWon + " min, " + secondsWon + " sec", config.canvas.width/2, config.canvas.height/2);
+		var lsLevel = "level" + config.level;
+		localStorage[lsLevel] = "1";
+		console.log("level "+config.level+" completed")
+		console.log(lsLevel);
 		return;
 	}
 	if (state.abandon == true) {
