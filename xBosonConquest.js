@@ -52,18 +52,20 @@ function onup(x,y) {
 	y_init_canvas = y_init - drawSpace.offsetTop+8;
 	x_final_canvas = x_final - drawSpace.offsetLeft+8;
 	y_final_canvas = y_final - drawSpace.offsetTop+8;
+	if (typeof(config) !== 'undefined') {
 	//alert(x_final + " " + y_final + " " + x_init + " " + y_init);
-    if (distance(x_final, y_final, x_init, y_init) < config.clickTol) {
-    	//alert("this looks like a click");
-		setTargetOnClick(x_final_canvas,y_final_canvas);
-		releaseSelection();
-    }
-    else {
-    	//alert("This looks like a selection");
-		// note that the release selection could be implemented as part of hthe selection function
-		releaseSelection();
-		selectObjectsInRectangle(x_final_canvas, y_final_canvas, x_init_canvas, y_init_canvas);
-    }
+		if (distance(x_final, y_final, x_init, y_init) < config.clickTol) {
+			//alert("this looks like a click");
+			setTargetOnClick(x_final_canvas,y_final_canvas);
+			releaseSelection();
+		}
+		else {
+			//alert("This looks like a selection");
+			// note that the release selection could be implemented as part of hthe selection function
+			releaseSelection();
+			selectObjectsInRectangle(x_final_canvas, y_final_canvas, x_init_canvas, y_init_canvas);
+		}
+	}
 };
 function releaseSelection() {
 	for (var i = 0; i < state.objects.length; i++) {
@@ -640,7 +642,7 @@ function drawBase(base) {
 		//config.ctx.closePath();
 	}
 	
-	// actually draw the base
+
 	// Draw a vector base only for bases with no ownership
 	if (base.ownership == config.players[0] || base.conquership != 100) {
 		config.ctxBases.beginPath();
@@ -648,7 +650,7 @@ function drawBase(base) {
 		config.ctxBases.closePath();
 		config.ctxBases.strokeStyle = "black";
 		config.ctxBases.lineWidth = 1;
-		config.ctxBases.fillStyle = 'rgba(150,150,150,0.4)';
+		config.ctxBases.fillStyle = 'rgba(250,250,250,0.4)';
 		config.ctxBases.fill();
 	}//config.ctx.stroke();
 
@@ -740,6 +742,137 @@ function randomAI(player) {
 		}
 	}
 }
+function releasedAI(player) {
+	// for each base owned by player
+	for (var i=0; i<config.bases.length; i++) {
+		base = config.bases[i];
+		// get the numbers of defenders
+		var defendersNum = getDefendersNum(base);
+		// get the neighbours in a vector
+		var neighbours = getNeighbours(base);
+		var ennemyNeighbours = getEnnemyNeighbours(neighbours);
+		var emptyNeighbours = getEmptyNeighbours(neighbours);
+		// if base is owned by the player
+		if (base.colour == player.playerColour) {
+			// if adjacent to an ennemy
+			if (ennemyNeighbours.length > 0) {
+				var weakestEnnemy = findWeakest(ennemyNeighbours);
+				// If large number of units compared to weakest
+				if (defendersNum > getDefendersNum(weakestEnnemy) + weakestEnnemy.health) {
+					// attack weakest ennemy with all available soldiers
+					attack(base, weakest,0);
+				}
+				// if enough units to conquer an empty sun and there are empty suns
+				else if (defendersNum > config.minConquership && emptyNeighbours.length > 0) {
+					// if base is not fully upgraded
+					if (base.levelCurrent < base.levelMax) {
+						var chance = Math.random();
+						// 40% chance: conquer empty sun
+						if (chance < 0.4) {
+							// conquer empty neighbour farthest from ennemy
+						}
+						// or upgrade
+						else {
+							upgrade(base);
+						}
+					}
+				}
+				else if (defendersNum > config.minConquership) {
+					// attack random ennemy with few units
+				}
+			}
+			// not adjacent to ennemy sun
+			else {
+				// if empty suns around
+				if (emptyNeighbours.length > 0) {
+					var chance = Math.random();
+					if (chance < 0.25) {
+						upgrade(base);
+					}
+					else {
+						// S colonize an empty sun farthest from ennemy
+					}
+				}
+				// if enough units to upgrade
+				else if (defendersNum >= maxUpgradePoints && base.levelCurrent < base.levelMax) {
+					upgrade(base);
+				}
+				else {
+					// move all soldiers to friendly base closer to ennemy
+				}
+			}
+		}
+	}
+}
+function getEnnemyNeighbours(neighbours) {
+	var ennemyNeighbours = [];
+	for (var j=0; j<neighbours.length; j++) {
+		var otherBase = neighbours[j]
+		if (otherBase.ownership != base.ownership && otherBase.ownership != config.players[0]) {
+			ennemyNeighbours.push(otherBase);
+		}
+	}
+	return ennemyNeighbours;
+}
+function getEmptyNeighbours(neighbours) {
+	var emptyNeighbours = [];
+	for (var j=0; j<neighbours.length; j++) {
+		var otherBase = neighbours[j]
+		if (otherBase.ownership == config.players[0]) {
+			emptyNeighbours.push(otherBase);
+		}
+	}
+	return emptyNeighbours;
+}
+function attack(sourceBase, targetBase, nUnits) {
+	// Loop thoruhg all objects
+	for (j = 0; j < state.objects.length; j++) {
+		var nUnitsSent = 0;
+		var object = state.objects[j];
+		// take all the objects having sourceBase as motherbase
+		if (object.motherBase == sourceBase) {
+			// send the units to the targets if "attack with all units command (nUnits = 0)" or not reached nUnits yet
+			if (nUnits == 0 || nUnitsSent < nUnits) {
+				setTarget(object, targetBase);
+				object.defensiveMode = false;
+				nUnitsSent += 1;
+			}
+		}
+	}
+}
+function findWeakest(ennemyNeighbours) {
+	// for every ennemy sun
+	var weakest = ennemyNeighbour[0];
+	for (var j=0; j<ennemyNeighbours.length; j++) {
+		ennemyNeighbour = ennemyNeighbours[j];
+		if (getDefendersNum(ennemyNeighbour) < getDefendersNum(weakest)) {
+			weakest = ennemyNeighbour;
+		}
+	}
+	return weakest;
+}
+function findFarthestFromEnnemy(player, basesArray) {
+	var farthest = basesArray[0];
+	for (var i=0; i<basesArray.length; i++) {
+		var otherBase = basesArray[i];
+		var distToEnnemy = minDistToEnnemy(player, otherBase);
+		if (distToEnnemy > minDistToEnnemy(player, farthest)) {
+			farthest = otherBase;
+		}
+	}
+	return farthest;
+}
+function findClosestToEnnemy(player, basesArray) {
+	var closest = basesArray[0];
+	for (var i=0; i<basesArray.length; i++) {
+		var otherBase = basesArray[i];
+		var distToEnnemy = minDistToEnnemy(player, otherBase);
+		if (distToEnnemy < minDistToEnnemy(player, closest)) {
+			closest = otherBase;
+		}
+	}
+	return closest;
+}
 function getDefendersNum(base) {
 	var nObjects = state.objects.length;
 	var defendersNum = 0;
@@ -796,7 +929,7 @@ function upgrade(base) {
 	
 }
 function findNeighboursCloserToEnnemy(base) { // returns an array of neighbours which are closer to the ennemy than "base"
-	var neighbours = [];
+	var neighboursCloserToEnnemy = [];
 	for (var i = 0; i < config.bases.length; i++) {
 		var otherBase = config.bases[i];
 		var minDistToEnnemyFromOther = minDistToEnnemy(base.ownership, otherBase);
@@ -808,8 +941,22 @@ function findNeighboursCloserToEnnemy(base) { // returns an array of neighbours 
 				// and the other base is closer to the ennemy
 				if (minDistToEnnemyFromOther <= minDistToEnnemyFromThis) {
 					// add the base the the vector of neighbours
-					neighbours.push(otherBase);
+					neighboursCloserToEnnemy.push(otherBase);
 				}
+			}
+		}
+	}
+	return neighboursCloserToEnnemy;
+}
+function getNeighbours(base) { // returns an array of neighbours which are closer to the ennemy than "base"
+	var neighbours = [];
+	for (var i = 0; i < config.bases.length; i++) {
+		var otherBase = config.bases[i];
+		// if it is another base
+		if (otherBase != base) {
+			// if other base close enough for being a neighbour
+			if (distance(base.x, base.y, otherBase.x, otherBase.y) <= config.neighbourDistance) {
+					neighbours.push(otherBase);
 			}
 		}
 	}
