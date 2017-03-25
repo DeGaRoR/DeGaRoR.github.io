@@ -442,7 +442,7 @@ function getConfig(selectedLevel) {
 		baseMaxDist: baseMaxDist,
 		pulseSizeIncrease: 1,
 		radiusRandom: 15,
-		neighbourDistance: Math.round(canvas.width/3),
+		neighbourDistance: Math.round(canvas.width/2),
 		imgBaseSize: 256,
 		// tolerances
 		collisionTol: 6, // tolerance for declaring collision
@@ -653,16 +653,16 @@ function drawBase(base) {
 	}//config.ctx.stroke();
 
 	// NEIGHBOUR DISTANCE: draw a circle showing the max distance for declaring a neighbour
-	/*
-	config.ctxBases.beginPath();
+	
+	/* config.ctxBases.beginPath();
 	config.ctxBases.arc(base.x, base.y, config.neighbourDistance, 0, Math.PI * 2);
 	//config.ctx.closePath();
 	config.ctxBases.strokeStyle = "LightGrey";
 	config.ctxBases.setLineDash([3,3]);
 	config.ctxBases.lineWidth = 1;
 	config.ctxBases.stroke();
-	config.ctxBases.setLineDash([]);
-	*/
+	config.ctxBases.setLineDash([]); */
+	
 
 }
 function drawBaseIndicator(base) {
@@ -710,6 +710,8 @@ function randomAI(player) {
 	//console.log(player.playerColour + " uses randomAI");
 	for (var i=0; i<config.bases.length; i++) {
 		base = config.bases[i];
+		var defendersNum = getDefendersNum(base);
+		
 		// for all bases owned by player
 		if (base.colour == player.playerColour) {
 			if (base.levelCurrent < base.levelMax) {
@@ -737,6 +739,20 @@ function randomAI(player) {
 			}
 		}
 	}
+}
+function getDefendersNum(base) {
+	var nObjects = state.objects.length;
+	var defendersNum = 0;
+	if (base.ownership != config.players[0]) {
+		for (var i = 0; i < nObjects; i++) {
+			object = state.objects[i];
+			if (object.defensiveMode == true && object.motherBase == base && base.ownership != config.players[0]) {
+				defendersNum += 1;
+			}
+		}
+		console.log("Base of player "+base.ownership.playerName+" has "+defendersNum+" defenders");
+	}
+	return defendersNum;
 }
 function moveToRandomNeighbour(base) {
 	// get the array of candidate neighbours
