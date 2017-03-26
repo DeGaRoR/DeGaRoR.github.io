@@ -6,7 +6,8 @@
 window.onload = function() {setBackground();setButtonIndicators();};
 window.onresize = function() {sizeBgCanvas(); placeCanvas(drawSpace); placeCanvas(canvasBases);};
 var persistData = {
-	timePace: 5
+	timePace: 3,
+	nLevels: 16,
 }
 //
 //==============================================
@@ -225,7 +226,7 @@ function setButtonIndicators() {
 		console.log("localStorage NOT supported");
 	}
 	
-	var nLevels = 14;
+	var nLevels = persistData.nLevels;
 	//localStorage.clear();
 	// if no local storage yet (first time)
 	if (typeof localStorage.firstTime == 'undefined') {
@@ -920,17 +921,20 @@ function findFarthestFromEnnemy(player, basesArray) {
 	return farthest;
 }
 function findClosestToEnnemy(player, basesArray, base) {
-	var closest = basesArray[0];
-	for (var i=0; i<basesArray.length; i++) {
-		var otherBase = basesArray[i];
-		var distToEnnemy = minDistToEnnemy(player, otherBase);
-		if (distToEnnemy < minDistToEnnemy(player, closest)) {
-			closest = otherBase;
+	if (basesArray.length != 0 && typeof(basesArray) != 'undefined') {
+		var closest = basesArray[0];
+		for (var i=0; i<basesArray.length; i++) {
+			var otherBase = basesArray[i];
+			var distToEnnemy = minDistToEnnemy(player, otherBase);
+			if (distToEnnemy < minDistToEnnemy(player, closest)) {
+				closest = otherBase;
+			}
+		}
+		if (minDistToEnnemy(player, closest) >= minDistToEnnemy(player, base)) {
+			closest = base;
 		}
 	}
-	if (minDistToEnnemy(player, closest) >= minDistToEnnemy(player, base)) {
-		closest = base;
-	}
+	else {closest = base;}
 	return closest;
 }
 function getDefendersNum(base) {
