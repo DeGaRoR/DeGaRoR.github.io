@@ -1009,7 +1009,7 @@ function getLevels() {
 					},
 				]
 		},
-		{	name: "Test Level",
+		{	name: "Drop on top",
 			bases:[
 					{
 						ownership: 	1	,
@@ -1056,32 +1056,36 @@ function getLevels() {
 					},
 				]
 		},
+		{	name: "Twisted square mild unfair",
+			bases:[
+					{ownership: 1,x: 0.5,y: 0.9,levelMax: 1,},
+					{ownership: 0,x: 0.5,y: 0.6,levelMax: 1,},
+					{ownership: 0,x: 0.3,y: 0.4,levelMax: 1,},
+					{ownership: 0,x: 0.5,y: 0.2,levelMax: 1,},
+					{ownership: 0,x: 0.7,y: 0.4,levelMax: 1,},
+					{ownership: 2,x: 0.1,y: 0.1,levelMax: 2,},
+					{ownership: 3,x: 0.9,y: 0.1,levelMax: 2,},	
+				]
+		},
+		{	name: "Initial handicap",
+			bases:[
+					{ownership: 1,x: 0.5,y: 0.9,levelMax: 2,},
+					{ownership: 0,x: 0.24,y: 0.8,levelMax: 1,},
+					{ownership: 0,x: 0.106,y: 0.57,levelMax: 1,},
+					{ownership: 0,x: 0.757,y: 0.8,levelMax: 1,},
+					{ownership: 0,x: 0.89,y: 0.57,levelMax: 1,},
+					{ownership: 2,x: 0.846,y: 0.3,levelMax: 2,},
+					{ownership: 2,x: 0.636,y: 0.124,levelMax: 1,},
+					{ownership: 3,x: 0.15,y: 0.3,levelMax: 2,},	
+					{ownership: 3,x: 0.363,y: 0.124,levelMax: 1,},
+				]
+		},
 		{	name: "Test Level",
 			bases:[
-					{
-						ownership: 	1	,
-						x: 			0.3	,
-						y: 			0.3	,
-						levelMax: 	2	,
-					},
-					{
-						ownership: 	1	,
-						x: 			0.3	,
-						y: 			0.5	,
-						levelMax: 	2	,
-					},
-					{
-						ownership: 	1	,
-						x: 			0.3	,
-						y: 			0.8	,
-						levelMax: 	2	,
-					},
-					{
-						ownership: 	2	,
-						x: 			0.6	,
-						y: 			0.5	,
-						levelMax: 	2	,
-					},
+					{ownership: 1,x: 0.3,y: 0.3,levelMax: 2,},
+					{ownership: 1,x: 0.3,y: 0.5,levelMax: 2,},
+					{ownership: 1,x: 0.3,y: 0.7,levelMax: 2,},
+					{ownership: 2,x: 0.6,y: 0.5,levelMax: 1,},	
 				]
 		},
 	];

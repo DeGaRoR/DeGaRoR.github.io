@@ -7,7 +7,7 @@ window.onload = function() {setBackground();setButtonIndicators();};
 window.onresize = function() {sizeBgCanvas(); placeCanvas(drawSpace); placeCanvas(canvasBases);};
 var persistData = {
 	timePace: 3,
-	nLevels: 16,
+	nLevels: 18,
 }
 //
 //==============================================
@@ -106,19 +106,23 @@ function getBgConfig() {
 		small_object_S : document.getElementById("small_object_S"),
 		big_object_1 : 	[	
 							document.getElementById("big_object_1"),
-							document.getElementById("big_object_1_r")
+							document.getElementById("big_object_1_r"),
+							document.getElementById("big_object_1_b"),
 						],
 		big_object_2 : 	[	
 							document.getElementById("big_object_2"),
-							document.getElementById("big_object_2_r")
+							document.getElementById("big_object_2_r"),
+							document.getElementById("big_object_2_b"),
 						],
 		big_object_3 : 	[	
 							document.getElementById("big_object_3"),
-							document.getElementById("big_object_3_r")
+							document.getElementById("big_object_3_r"),
+							document.getElementById("big_object_3_b"),
 						],
 		bgColor : 		[	
 							"#59f1ff",
-							"#cf8f89"
+							"#cf8f89",
+							"#0052b9",
 						],
 	}
 }
