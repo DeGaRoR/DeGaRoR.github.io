@@ -6,7 +6,7 @@
 window.onload = function() {setBackground();setButtonIndicators();};
 window.onresize = function() {sizeBgCanvas(); placeCanvas(drawSpace); placeCanvas(canvasBases);};
 var persistData = {
-	timePace: 1
+	timePace: 5
 }
 //
 //==============================================
@@ -353,6 +353,7 @@ function initializePlayers(sizeFactor) {
 		playerName: "Plasma Cells",
 		playerColour: "#00BCC5",
 		controlType: 0, // 0 for human, 1 for CPU, 2 for none
+		AIType: 1, // 0 for random AI, 1 for released AI
 		imgBase: [cell3D_S,cell3D_M,cell3D_L],
 		baseSize: [150 * sizeFactor,200 * sizeFactor,256 * sizeFactor],
 	}
@@ -361,6 +362,7 @@ function initializePlayers(sizeFactor) {
 		playerName: "Fungus",
 		playerColour: "#A0F500",
 		controlType: 1,
+		AIType: 1, // 0 for random AI, 1 for released AI
 		imgBase: [fungus3D_S,fungus3D_M,fungus3D_L],
 		baseSize: [256 * sizeFactor,300 * sizeFactor,350 * sizeFactor],
 	}
@@ -369,6 +371,7 @@ function initializePlayers(sizeFactor) {
 		playerName: "Virus",
 		playerColour: "#FF0700",
 		controlType: 1,
+		AIType: 1, // 0 for random AI, 1 for released AI
 		imgBase: [virus3D_S,virus3D_M,virus3D_L],
 		baseSize: [150 * sizeFactor,200 * sizeFactor,256 * sizeFactor],
 	}
@@ -435,7 +438,7 @@ function getConfig(selectedLevel) {
 		bases: bases,
 		players: players,
 		// timings
-		turnLength: 25,
+		turnLength: 25, // pace for calling the AI - corresponds to time for producing N units from a level 1 base
 		// sizes
 		defaultBaseSize: defaultBaseSize,
 		levelSizeIncrease: levelSizeIncrease,
@@ -751,7 +754,7 @@ function releasedAI(player) {
 		// get the neighbours in a vector
 		var neighbours = getNeighbours(base);
 		var ennemyNeighbours = getEnnemyNeighbours(neighbours, base);
-		var emptyNeighbours = getEmptyNeighbours(neighbours);
+		var emptyNeighbours = getEmptyNeighbours(neighbours, base);
 		var friendlyNeighbours = getFriendlyNeighbours(neighbours, base);
 		// if base is owned by the player
 		if (base.colour == player.playerColour) {
@@ -761,8 +764,8 @@ function releasedAI(player) {
 				console.log("Adjacent to ennemy");
 				var weakestEnnemy = findWeakest(ennemyNeighbours);
 				// If large number of units compared to weakest
-				if (defendersNum > getDefendersNum(weakestEnnemy) + weakestEnnemy.health) {
-					console.log("Can crush its weakest ennemy - do it!");
+				if (defendersNum > getDefendersNum(weakestEnnemy) + weakestEnnemy.health + weakestEnnemy.conquership) {
+					console.log("%cCan crush its weakest ennemy - do it!",'color:red');
 					// attack weakest ennemy with all available soldiers
 					attack(base, weakestEnnemy,0);
 				}
@@ -774,18 +777,18 @@ function releasedAI(player) {
 						var chance = Math.random();
 						// 40% chance: conquer empty sun
 						if (chance < 0.4) {
-							console.log("Let's conquer it!");
+							console.log("%cLet's conquer it!",'color:blue');
 							// conquer empty neighbour farthest from ennemy
 							var target = findFarthestFromEnnemy(player, emptyNeighbours);
 							attack(base, target, target.levelMax * config.minConquership);
 						}
 						// or upgrade
 						else if (base.levelCurrent < base.levelMax) {
-							console.log("Let's rather upgrade");
+							console.log("%cLet's rather upgrade",'color:green');
 							upgrade(base);
 						}
 						else {
-							console.log("Let's conquer it!");
+							console.log("%cLet's conquer it!",'color:blue');
 							// conquer empty neighbour farthest from ennemy
 							var target = findFarthestFromEnnemy(player, emptyNeighbours);
 							attack(base, target, target.levelMax * config.minConquership);
@@ -794,10 +797,11 @@ function releasedAI(player) {
 				}
 				else if (defendersNum > config.minConquership) {
 					// attack random ennemy with few units
-					console.log("Let's harass a neighbour gently");
-					attack(base, ennemyNeighbours[0], defendersNum/2);
+					console.log("%cLet's harass a neighbour gently",'color:orange');
+					attack(base, ennemyNeighbours[0], Math.round(defendersNum/3));
+					//attack(base, ennemyNeighbours[0], 5);
 				}
-				else {console.log("Wait - not much to do now");}
+				else {console.log('%cWait - not much to do now','color:grey');}
 			}
 			// not adjacent to ennemy sun
 			else {
@@ -807,31 +811,40 @@ function releasedAI(player) {
 					console.log("Empty suns around");
 					var chance = Math.random();
 					if (chance < 0.25) {
-						console.log("Let's upgrade first");
+						console.log("%cLet's upgrade first",'color:green');
 						upgrade(base);
 					}
 					else {
 						// S colonize an empty sun farthest from ennemy
 						var target = findFarthestFromEnnemy(player, emptyNeighbours);
 						attack(base, target, target.levelMax * config.minConquership);
-						console.log("Conquer the sun farthest from the ennemy");
+						console.log("%cConquer the sun farthest from the ennemy",'color:blue');
 					}
 				}
 				// if enough units to upgrade
 				else if (defendersNum >= config.maxUpgradePoints && base.levelCurrent < base.levelMax) {
-					console.log("No adajacent empty suns - But I can upgrade");
+					console.log("%cNo adjacent empty suns - But I can upgrade",'color:green');
 					upgrade(base);
 				}
 				else {
-					var chance = Math.random();
-					if (chance < 0.25) {
-					// move all soldiers to friendly base closer to ennemy
-					console.log("Let's reinforce another base");
-					var target = findClosestToEnnemy(player, friendlyNeighbours, base);
-					attack(base, target, 0);
+					// if it can upgrade further
+					if (base.levelCurrent < base.levelMax) {
+						var chance = Math.random();
+						if (chance < 0.25) {
+						// move all soldiers to friendly base closer to ennemy
+						console.log("%cLet's reinforce another base",'color:purple');
+						var target = findClosestToEnnemy(player, friendlyNeighbours, base);
+						attack(base, target, 0);
+						}
+						else {
+							console.log("%cWait a little more",'color:grey');
+						}
 					}
 					else {
-						console.log("Wait a little more");
+						// move all soldiers to friendly base closer to ennemy
+						console.log("%cLet's reinforce another base",'color:purple');
+						var target = findClosestToEnnemy(player, friendlyNeighbours, base);
+						attack(base, target, 0);
 					}
 				}
 			}
@@ -848,11 +861,11 @@ function getEnnemyNeighbours(neighbours, base) {
 	}
 	return ennemyNeighbours;
 }
-function getEmptyNeighbours(neighbours) {
+function getEmptyNeighbours(neighbours, base) {
 	var emptyNeighbours = [];
 	for (var j=0; j<neighbours.length; j++) {
 		var otherBase = neighbours[j]
-		if (otherBase.ownership == config.players[0]) {
+		if (otherBase.ownership == config.players[0] || (otherBase.ownership == base.ownership && otherBase.conquership < config.minConquership)) {
 			emptyNeighbours.push(otherBase);
 		}
 	}
@@ -870,8 +883,8 @@ function getFriendlyNeighbours(neighbours, base) {
 }
 function attack(sourceBase, targetBase, nUnits) {
 	// Loop thoruhg all objects
+	var nUnitsSent = 0;
 	for (j = 0; j < state.objects.length; j++) {
-		var nUnitsSent = 0;
 		var object = state.objects[j];
 		// take all the objects having sourceBase as motherbase
 		if (object.motherBase == sourceBase) {
@@ -879,7 +892,7 @@ function attack(sourceBase, targetBase, nUnits) {
 			if (nUnits == 0 || nUnitsSent < nUnits) {
 				setTarget(object, targetBase);
 				object.defensiveMode = false;
-				nUnitsSent += 1;
+				nUnitsSent = nUnitsSent+1;
 			}
 		}
 	}
@@ -889,7 +902,7 @@ function findWeakest(ennemyNeighbours) {
 	var weakest = ennemyNeighbours[0];
 	for (var j=0; j<ennemyNeighbours.length; j++) {
 		ennemyNeighbour = ennemyNeighbours[j];
-		if (getDefendersNum(ennemyNeighbour) < getDefendersNum(weakest)) {
+		if (getDefendersNum(ennemyNeighbour) + ennemyNeighbour.conquership + ennemyNeighbour.health < getDefendersNum(weakest) + weakest.conquership + weakest.health) {
 			weakest = ennemyNeighbour;
 		}
 	}
@@ -915,9 +928,9 @@ function findClosestToEnnemy(player, basesArray, base) {
 			closest = otherBase;
 		}
 	}
-	//if (minDistToEnnemy(player, closest) >= minDistToEnnemy(player, base)) {
-	//	closest = base;
-	//}
+	if (minDistToEnnemy(player, closest) >= minDistToEnnemy(player, base)) {
+		closest = base;
+	}
 	return closest;
 }
 function getDefendersNum(base) {
@@ -1219,9 +1232,10 @@ function animate(time) {
 		//config.ctx.fillText(base.levelCurrent, base.x, base.y);
 		config.ctx.fillText("Victory for " + state.playerAlive.playerName + " in " + minutesWon + " min, " + secondsWon + " sec", config.canvas.width/2, config.canvas.height/2);
 		var lsLevel = "level" + config.level;
-		localStorage[lsLevel] = "1";
-		console.log("level "+config.level+" completed")
-		console.log(lsLevel);
+		if (state.playerAlive.controlType == 0) {
+			localStorage[lsLevel] = "1";
+			console.log("level "+config.level+" completed")
+		}
 		return;
 	}
 	if (state.abandon == true) {
@@ -1243,8 +1257,9 @@ function animate(time) {
 			player = config.players[p];
 			if (player.controlType == 1) {
 				console.log("call AI move for player " + player.playerName + "===============================");
-				//randomAI(player);
-				releasedAI(player);
+				if (player.AIType == 0) {randomAI(player); console.log("random AI");}
+				else if (player.AIType == 1) {releasedAI(player); console.log("released AI");}
+				else {releasedAI(player);}
 			}
 		}
 		state.lastTurn = time;
@@ -1315,7 +1330,7 @@ function animate(time) {
 		}
 		// Job done, reset the need to re-render to false and let the logics loop evaluate if necessary next time
 		state.refreshBasesCanvas = false;
-		console.log("canvasBases refresh");
+		//console.log("canvasBases refresh");
 	}
 
     // loop through units
