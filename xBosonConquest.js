@@ -750,61 +750,95 @@ function releasedAI(player) {
 		var defendersNum = getDefendersNum(base);
 		// get the neighbours in a vector
 		var neighbours = getNeighbours(base);
-		var ennemyNeighbours = getEnnemyNeighbours(neighbours);
+		var ennemyNeighbours = getEnnemyNeighbours(neighbours, base);
 		var emptyNeighbours = getEmptyNeighbours(neighbours);
+		var friendlyNeighbours = getFriendlyNeighbours(neighbours, base);
 		// if base is owned by the player
 		if (base.colour == player.playerColour) {
+			console.log("treating base "+i+" for AI________________________________________");
 			// if adjacent to an ennemy
 			if (ennemyNeighbours.length > 0) {
+				console.log("Adjacent to ennemy");
 				var weakestEnnemy = findWeakest(ennemyNeighbours);
 				// If large number of units compared to weakest
 				if (defendersNum > getDefendersNum(weakestEnnemy) + weakestEnnemy.health) {
+					console.log("Can crush its weakest ennemy - do it!");
 					// attack weakest ennemy with all available soldiers
-					attack(base, weakest,0);
+					attack(base, weakestEnnemy,0);
 				}
 				// if enough units to conquer an empty sun and there are empty suns
 				else if (defendersNum > config.minConquership && emptyNeighbours.length > 0) {
+					console.log("Not superior enough to attack, but empty suns can be conquered");
 					// if base is not fully upgraded
-					if (base.levelCurrent < base.levelMax) {
+					
 						var chance = Math.random();
 						// 40% chance: conquer empty sun
 						if (chance < 0.4) {
+							console.log("Let's conquer it!");
 							// conquer empty neighbour farthest from ennemy
+							var target = findFarthestFromEnnemy(player, emptyNeighbours);
+							attack(base, target, target.levelMax * config.minConquership);
 						}
 						// or upgrade
-						else {
+						else if (base.levelCurrent < base.levelMax) {
+							console.log("Let's rather upgrade");
 							upgrade(base);
 						}
-					}
+						else {
+							console.log("Let's conquer it!");
+							// conquer empty neighbour farthest from ennemy
+							var target = findFarthestFromEnnemy(player, emptyNeighbours);
+							attack(base, target, target.levelMax * config.minConquership);
+						}
+					
 				}
 				else if (defendersNum > config.minConquership) {
 					// attack random ennemy with few units
+					console.log("Let's harass a neighbour gently");
+					attack(base, ennemyNeighbours[0], defendersNum/2);
 				}
+				else {console.log("Wait - not much to do now");}
 			}
 			// not adjacent to ennemy sun
 			else {
+				console.log("Not adjacent to ennemy");
 				// if empty suns around
-				if (emptyNeighbours.length > 0) {
+				if (emptyNeighbours.length > 0 && defendersNum > config.minConquership) {
+					console.log("Empty suns around");
 					var chance = Math.random();
 					if (chance < 0.25) {
+						console.log("Let's upgrade first");
 						upgrade(base);
 					}
 					else {
 						// S colonize an empty sun farthest from ennemy
+						var target = findFarthestFromEnnemy(player, emptyNeighbours);
+						attack(base, target, target.levelMax * config.minConquership);
+						console.log("Conquer the sun farthest from the ennemy");
 					}
 				}
 				// if enough units to upgrade
-				else if (defendersNum >= maxUpgradePoints && base.levelCurrent < base.levelMax) {
+				else if (defendersNum >= config.maxUpgradePoints && base.levelCurrent < base.levelMax) {
+					console.log("No adajacent empty suns - But I can upgrade");
 					upgrade(base);
 				}
 				else {
+					var chance = Math.random();
+					if (chance < 0.25) {
 					// move all soldiers to friendly base closer to ennemy
+					console.log("Let's reinforce another base");
+					var target = findClosestToEnnemy(player, friendlyNeighbours, base);
+					attack(base, target, 0);
+					}
+					else {
+						console.log("Wait a little more");
+					}
 				}
 			}
 		}
 	}
 }
-function getEnnemyNeighbours(neighbours) {
+function getEnnemyNeighbours(neighbours, base) {
 	var ennemyNeighbours = [];
 	for (var j=0; j<neighbours.length; j++) {
 		var otherBase = neighbours[j]
@@ -824,6 +858,16 @@ function getEmptyNeighbours(neighbours) {
 	}
 	return emptyNeighbours;
 }
+function getFriendlyNeighbours(neighbours, base) {
+	var friendlyNeighbours = [];
+	for (var j=0; j<neighbours.length; j++) {
+		var otherBase = neighbours[j];
+		if (otherBase.ownership == base.ownership) {
+			friendlyNeighbours.push(otherBase);
+		}
+	}
+	return friendlyNeighbours;
+}
 function attack(sourceBase, targetBase, nUnits) {
 	// Loop thoruhg all objects
 	for (j = 0; j < state.objects.length; j++) {
@@ -842,7 +886,7 @@ function attack(sourceBase, targetBase, nUnits) {
 }
 function findWeakest(ennemyNeighbours) {
 	// for every ennemy sun
-	var weakest = ennemyNeighbour[0];
+	var weakest = ennemyNeighbours[0];
 	for (var j=0; j<ennemyNeighbours.length; j++) {
 		ennemyNeighbour = ennemyNeighbours[j];
 		if (getDefendersNum(ennemyNeighbour) < getDefendersNum(weakest)) {
@@ -862,7 +906,7 @@ function findFarthestFromEnnemy(player, basesArray) {
 	}
 	return farthest;
 }
-function findClosestToEnnemy(player, basesArray) {
+function findClosestToEnnemy(player, basesArray, base) {
 	var closest = basesArray[0];
 	for (var i=0; i<basesArray.length; i++) {
 		var otherBase = basesArray[i];
@@ -871,6 +915,9 @@ function findClosestToEnnemy(player, basesArray) {
 			closest = otherBase;
 		}
 	}
+	//if (minDistToEnnemy(player, closest) >= minDistToEnnemy(player, base)) {
+	//	closest = base;
+	//}
 	return closest;
 }
 function getDefendersNum(base) {
@@ -883,7 +930,7 @@ function getDefendersNum(base) {
 				defendersNum += 1;
 			}
 		}
-		console.log("Base of player "+base.ownership.playerName+" has "+defendersNum+" defenders");
+		//console.log("Base of player "+base.ownership.playerName+" has "+defendersNum+" defenders");
 	}
 	return defendersNum;
 }
@@ -924,7 +971,7 @@ function upgrade(base) {
 			}
 		}
 	}
-	else {//console.log("Not enough units to upgrade base");
+	else {console.log("Not enough units to upgrade base");
 	}
 	
 }
@@ -1191,11 +1238,13 @@ function animate(time) {
 
 	// Call the AI when it is time
 	if (time > state.lastTurn + config.turnLength * state.spawnRate()) {
+		console.log("New AI round ////////////////////////////////////////////");
 		for (var p = 1; p < config.players.length; p++) {
 			player = config.players[p];
 			if (player.controlType == 1) {
-				//console.log("call AI move for player " + player.playerColour);
-				randomAI(player);
+				console.log("call AI move for player " + player.playerName + "===============================");
+				//randomAI(player);
+				releasedAI(player);
 			}
 		}
 		state.lastTurn = time;
