@@ -7,7 +7,7 @@ window.onload = function() {setBackground();setButtonIndicators();};
 window.onresize = function() {sizeBgCanvas(); placeCanvas(drawSpace); placeCanvas(canvasBases);};
 var persistData = {
 	timePace: 3,
-	nLevels: 18,
+	nLevels: 27,
 }
 //
 //==============================================
