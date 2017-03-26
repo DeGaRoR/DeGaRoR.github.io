@@ -1080,11 +1080,133 @@ function getLevels() {
 					{ownership: 3,x: 0.363,y: 0.124,levelMax: 1,},
 				]
 		},
+		{	name: "1-1 wave",
+			bases:[
+					{ownership: 1,x: 0.1,y: 0.5,levelMax: 2,},
+					{ownership: 0,x: 0.23,y: 0.3,levelMax: 1,},
+					{ownership: 0,x: 0.36,y: 0.3,levelMax: 1,},
+					{ownership: 0,x: 0.5,y: 0.5,levelMax: 2,},
+					{ownership: 0,x: 0.633,y: 0.7,levelMax: 1,},
+					{ownership: 0,x: 0.76,y: 0.7,levelMax: 1,},
+					{ownership: 3,x: 0.9,y: 0.5,levelMax: 2,},	
+				]
+		},
+		{	name: "1-1 squares",
+			bases:[
+					{ownership: 1,x: 0.15,y: 0.85,levelMax: 1,},
+					{ownership: 0,x: 0.85,y: 0.85,levelMax: 3,},
+					{ownership: 2,x: 0.85,y: 0.15,levelMax: 1,},
+					{ownership: 0,x: 0.15,y: 0.15,levelMax: 3,},
+					{ownership: 0,x: 0.3,y: 0.7,levelMax: 1,},
+					{ownership: 0,x: 0.7,y: 0.7,levelMax: 1,},
+					{ownership: 0,x: 0.7,y: 0.3,levelMax: 1,},
+					{ownership: 0,x: 0.3,y: 0.3,levelMax: 1,},
+					{ownership: 0,x: 0.5,y: 0.5,levelMax: 2,},	
+				]
+		},
+		{	name: "1-1 minimal",
+			bases:[
+					{ownership: 0,x: 0.15,y: 0.7,levelMax: 2,},
+					{ownership: 0,x: 0.85,y: 0.7,levelMax: 2,},
+					{ownership: 0,x: 0.85,y: 0.3,levelMax: 2,},
+					{ownership: 0,x: 0.15,y: 0.3,levelMax: 2,},
+					{ownership: 1,x: 0.35,y: 0.5,levelMax: 1,},
+					{ownership: 3,x: 0.65,y: 0.5,levelMax: 1,},
+				]
+		},
+		{	name: "1-1 cross",
+			bases:[
+					{ownership: 0,x: 0.1,y: 0.5,levelMax: 1,},
+					{ownership: 1,x: 0.3,y: 0.5,levelMax: 2,},
+					{ownership: 0,x: 0.5,y: 0.5,levelMax: 1,},
+					{ownership: 3,x: 0.7,y: 0.5,levelMax: 2,},
+					{ownership: 0,x: 0.9,y: 0.5,levelMax: 1,},
+					{ownership: 0,x: 0.5,y: 0.9,levelMax: 1,},
+					{ownership: 0,x: 0.5,y: 0.7,levelMax: 1,},
+					{ownership: 0,x: 0.5,y: 0.3,levelMax: 1,},
+					{ownership: 0,x: 0.5,y: 0.1,levelMax: 1,},
+				]
+		},
+		{	name: "1-1 diamond core",
+			bases:[
+					{ownership: 1,x: 0.1,y: 0.5,levelMax: 1,},
+					{ownership: 3,x: 0.9,y: 0.5,levelMax: 1,},
+					{ownership: 0,x: 0.5,y: 0.5,levelMax: 2,},
+
+					{ownership: 0,x: 0.3,y: 0.65,levelMax: 1,},
+					{ownership: 0,x: 0.5,y: 0.8,levelMax: 1,},
+					{ownership: 0,x: 0.7,y: 0.65,levelMax: 1,},
+					{ownership: 0,x: 0.3,y: 0.35,levelMax: 1,},
+					{ownership: 0,x: 0.5,y: 0.2,levelMax: 1,},
+					{ownership: 0,x: 0.7,y: 0.35,levelMax: 1,},
+				]
+		},
+		{	name: "1-1 diamond no core",
+			bases:[
+					{ownership: 1,x: 0.1,y: 0.5,levelMax: 1,},
+					{ownership: 3,x: 0.9,y: 0.5,levelMax: 1,},
+
+					{ownership: 0,x: 0.3,y: 0.65,levelMax: 1,},
+					{ownership: 0,x: 0.5,y: 0.8,levelMax: 2,},
+					{ownership: 0,x: 0.7,y: 0.65,levelMax: 1,},
+					{ownership: 0,x: 0.3,y: 0.35,levelMax: 1,},
+					{ownership: 0,x: 0.5,y: 0.2,levelMax: 2,},
+					{ownership: 0,x: 0.7,y: 0.35,levelMax: 1,},
+				]
+		},
+		{	name: "1-1 ranks",
+			bases:[
+					{ownership: 0,x: 0.5,y: 0.5,levelMax: 3,},
+					
+					{ownership: 1,x: 0.2,y: 0.5,levelMax: 1,},
+					{ownership: 0,x: 0.2,y: 0.9,levelMax: 1,},
+					{ownership: 0,x: 0.2,y: 0.7,levelMax: 1,},
+					{ownership: 0,x: 0.2,y: 0.3,levelMax: 1,},
+					{ownership: 0,x: 0.2,y: 0.1,levelMax: 1,},
+					
+					{ownership: 3,x: 0.8,y: 0.5,levelMax: 1,},
+					{ownership: 0,x: 0.8,y: 0.9,levelMax: 1,},
+					{ownership: 0,x: 0.8,y: 0.7,levelMax: 1,},
+					{ownership: 0,x: 0.8,y: 0.3,levelMax: 1,},
+					{ownership: 0,x: 0.8,y: 0.1,levelMax: 1,},
+				]
+		},
+		{	name: "1-1 front lines",
+			bases:[
+					{ownership: 1,x: 0.2,y: 0.5,levelMax: 2,},
+					{ownership: 3,x: 0.8,y: 0.5,levelMax: 2,},
+					
+					{ownership: 0,x: 0.4,y: 0.5,levelMax: 1,},
+					{ownership: 0,x: 0.4,y: 0.7,levelMax: 1,},
+					{ownership: 0,x: 0.4,y: 0.3,levelMax: 1,},
+					
+					{ownership: 0,x: 0.6,y: 0.5,levelMax: 1,},
+					{ownership: 0,x: 0.6,y: 0.7,levelMax: 1,},
+					{ownership: 0,x: 0.6,y: 0.3,levelMax: 1,},
+				]
+		},
+		{	name: "1-1 squares + 2",
+			bases:[
+					{ownership: 0,x: 0.15,y: 0.85,levelMax: 2,},
+					{ownership: 0,x: 0.85,y: 0.85,levelMax: 2,},
+					{ownership: 0,x: 0.85,y: 0.15,levelMax: 2,},
+					{ownership: 0,x: 0.15,y: 0.15,levelMax: 2,},
+					
+					{ownership: 0,x: 0.3,y: 0.7,levelMax: 1,},
+					{ownership: 0,x: 0.7,y: 0.7,levelMax: 1,},
+					{ownership: 0,x: 0.7,y: 0.3,levelMax: 1,},
+					{ownership: 0,x: 0.3,y: 0.3,levelMax: 1,},
+					
+					{ownership: 0,x: 0.5,y: 0.5,levelMax: 2,},	
+					
+					{ownership: 1,x: 0.15,y: 0.5,levelMax: 1,},
+					{ownership: 3,x: 0.85,y: 0.5,levelMax: 1,},
+				]
+		},
 		{	name: "Test Level",
 			bases:[
 					{ownership: 1,x: 0.3,y: 0.3,levelMax: 2,},
-					{ownership: 1,x: 0.3,y: 0.5,levelMax: 2,},
-					{ownership: 1,x: 0.3,y: 0.7,levelMax: 2,},
+					{ownership: 0,x: 0.3,y: 0.5,levelMax: 1,},
 					{ownership: 2,x: 0.6,y: 0.5,levelMax: 1,},	
 				]
 		},
