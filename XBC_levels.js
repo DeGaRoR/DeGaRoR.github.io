@@ -909,6 +909,12 @@ function getLevels() {
 						y: 			0.36667,
 						levelMax: 	3,
 					},
+					{
+						ownership: 	0,
+						x: 			0.76667,
+						y: 			0.36667,
+						levelMax: 	1,
+					},
 				]
 		},
 		{	name: "Test Level",
