@@ -892,7 +892,7 @@ function attack(sourceBase, targetBase, nUnits) {
 	for (j = 0; j < state.objects.length; j++) {
 		var object = state.objects[j];
 		// take all the objects having sourceBase as motherbase
-		if (object.motherBase == sourceBase) {
+		if (object.motherBase == sourceBase && object.defensiveMode == true) {
 			// send the units to the targets if "attack with all units command (nUnits = 0)" or not reached nUnits yet
 			if (nUnits == 0 || nUnitsSent < nUnits) {
 				setTarget(object, targetBase);
