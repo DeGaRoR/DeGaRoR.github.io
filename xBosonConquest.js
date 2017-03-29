@@ -443,7 +443,7 @@ function getConfig(selectedLevel) {
 		bases: bases,
 		players: players,
 		// timings
-		turnLength: 25, // pace for calling the AI - corresponds to time for producing N units from a level 1 base
+		turnLength: 5, // pace for calling the AI - corresponds to time for producing N units from a level 1 base
 		// sizes
 		defaultBaseSize: defaultBaseSize,
 		levelSizeIncrease: levelSizeIncrease,
