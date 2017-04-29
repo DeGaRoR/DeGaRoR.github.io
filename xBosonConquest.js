@@ -1227,23 +1227,38 @@ function findClosestAttacker(object) {
 function animate(time) {
 	// Behaviour at the end of the game
 	if (state.gameWon == true) {
+		// compute game time
 		state.levelFinishTime = Date.now();
 		var gameTime = state.levelFinishTime-state.levelStartTime;
 		console.log("Get out of the animate function since game won declared");
 		var minutesWon = Math.floor(gameTime/60000);
 		var secondsWon = Math.round((gameTime/1000) - (60 * minutesWon));
+		// clear canvas
 		config.ctx.clearRect(0, 0, config.canvas.width, config.canvas.height);
+		// fill canvas with win message
 		config.ctx.fillStyle = state.playerAlive.playerColour;
 		config.ctx.font = "30px Arial";
 		config.ctx.textAlign = "center";
 		config.ctx.textBaseline = "middle";
 		//config.ctx.fillText(base.levelCurrent, base.x, base.y);
 		config.ctx.fillText("Victory for " + state.playerAlive.playerName + " in " + minutesWon + " min, " + secondsWon + " sec", config.canvas.width/2, config.canvas.height/2);
+		//HTML part______
+		// Update the behaviour of the next level button
+		var nextLevelButton = document.getElementById('nextLevelButton');
+		nextLevelButton.onclick = function() {
+			document.getElementById('nextLevelMenu').hidden = true;
+			startGame(config.level+1);
+		};
+		// Display HTML element with "home" and "next level" buttons
+		document.getElementById('nextLevelMenu').hidden = false;
+		// Local storage part ________
+		// Update localStorage to indicate that the level is won
 		var lsLevel = "level" + config.level;
 		if (state.playerAlive.controlType == 0) {
 			localStorage[lsLevel] = "1";
 			console.log("level "+config.level+" completed")
 		}
+		// exit animate function
 		return;
 	}
 	if (state.abandon == true) {
