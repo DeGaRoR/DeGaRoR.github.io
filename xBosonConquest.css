@@ -186,7 +186,7 @@ levelChooser {
 	font-size: 50px;
 }
 #loadingScreen{
-	background-color: rgba(0, 0, 0, 1);
+	background-color: black;
 	position: absolute;
 	text-align: center;
 	z-index:9999;
