@@ -1247,7 +1247,13 @@ function animate(time) {
 		var nextLevelButton = document.getElementById('nextLevelButton');
 		nextLevelButton.onclick = function() {
 			document.getElementById('nextLevelMenu').hidden = true;
-			startGame(config.level+1);
+			if (config.level < persistData.nLevels) {
+				startGame(config.level+1);
+			}
+			else {
+				alert("This was the last level");
+				backToChoice();
+			}
 		};
 		// Display HTML element with "home" and "next level" buttons
 		document.getElementById('nextLevelMenu').hidden = false;

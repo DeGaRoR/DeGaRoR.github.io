@@ -1206,7 +1206,8 @@ function getLevels() {
 		{	name: "Test Level",
 			bases:[
 					{ownership: 1,x: 0.3,y: 0.3,levelMax: 2,},
-					{ownership: 0,x: 0.3,y: 0.5,levelMax: 1,},
+					{ownership: 1,x: 0.3,y: 0.5,levelMax: 1,},
+					{ownership: 1,x: 0.3,y: 0.7,levelMax: 1,},
 					{ownership: 2,x: 0.6,y: 0.5,levelMax: 1,},	
 				]
 		},

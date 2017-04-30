@@ -172,9 +172,14 @@ levelChooser {
 	font-size: 30px;
 }
 .buttonInGameMenu {
-	width: 200px;
+	width: 400px;
 }
 .buttonConfirm {
 	width: 200px;
 	background-color: rgba(20, 20, 20, 1);
+}
+.winMessage{
+	color: white;
+	font-family:verdana;
+	font-size: 50px;
 }
