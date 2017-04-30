@@ -7,6 +7,7 @@
 		<link rel="stylesheet" href="font-awesome/css/font-awesome.min.css">
 		<link rel="stylesheet" type="text/css" href="xBosonConquest.css">
 	</head>
+	<div id="loadingScreen">This is a loading screen</div>
 	<div id="buffer" hidden>
 		<img id="small_object_L" 	src="Resources\Background\small_object_L.png" 			width="32" 	height="32" 	>
 		<img id="small_object_M" 	src="Resources\Background\small_object_M.png" 			width="16" 	height="16" 	>
@@ -30,64 +31,65 @@
 		<img id="virus3D_M" 		src="Resources\Bases\virus3D_M.png" 					width="256" height="256" 	>
 		<img id="virus3D_L" 		src="Resources\Bases\virus3D_L.png" 					width="256" height="256" 	>
 	</div>
-	<div id="background" style="z-index:0">
-		<canvas id="background_canvas" ></canvas>
-	</div>
-	<div id="LevelChooser" class="menuCenter buttonsMenu">
-		<img class="title" id="Title" 		src="Resources\Title.png"> <br>
-		<div id="levelsButtons01" class="menuCenter buttonsMenu">
-			<button id="btnLevel1" class="buttonMain" onclick="startGame(1)">1</button> 
-			<button id="btnLevel2" class="buttonMain" onclick="startGame(2)">2</button> 
-			<button id="btnLevel3" class="buttonMain" onclick="startGame(3)">3</button> <br>
-			<button class="buttonMain buttonNextPrev buttonMainInactive" onclick="">
-				<i class="fa fa-chevron-left" aria-hidden="true"></i>
-			</button>
-			<button id="btnLevel4" class="buttonMain" onclick="startGame(4)">4</button> 
-			<button id="btnLevel5" class="buttonMain" onclick="startGame(5)">5</button> 
-			<button id="btnLevel6" class="buttonMain" onclick="startGame(6)">6</button> 
-			<button class="buttonMain buttonNextPrev" onclick="showNextLevels(1)">
-				<i class="fa fa-chevron-right" aria-hidden="true"></i>
-			</button> <br>
-			<button id="btnLevel7" class="buttonMain" onclick="startGame(7)">7</button>
-			<button id="btnLevel8" class="buttonMain" onclick="startGame(8)">8</button>
-			<button id="btnLevel9" class="buttonMain" onclick="startGame(9)">9</button> <br>
+	<div id="visibleElements" hidden>
+		<div id="background" style="z-index:0">
+			<canvas id="background_canvas" ></canvas>
 		</div>
-		<div id="levelsButtons02" class="menuCenter buttonsMenu" hidden>
-			<button id="btnLevel10" class="buttonMain" onclick="startGame(10)">10</button> 
-			<button id="btnLevel11" class="buttonMain" onclick="startGame(11)">11</button> 
-			<button id="btnLevel12" class="buttonMain" onclick="startGame(12)">12</button> <br>
-			<button class="buttonMain buttonNextPrev" onclick="showPreviousLevels(2)">
-				<i class="fa fa-chevron-left" aria-hidden="true"></i>
-			</button> 
-			<button id="btnLevel13" class="buttonMain" onclick="startGame(13)">13</button> 
-			<button id="btnLevel14" class="buttonMain" onclick="startGame(14)">14</button> 
-			<button id="btnLevel15" class="buttonMain" onclick="startGame(15)">15</button> 
-			<button class="buttonMain buttonNextPrev" onclick="showNextLevels(2)" >
-				<i class="fa fa-chevron-right" aria-hidden="true"></i>
-			</button> <br>
-			<button id="btnLevel16" class="buttonMain" onclick="startGame(16)">16</button>
-			<button id="btnLevel17" class="buttonMain" onclick="startGame(17)">17</button>
-			<button id="btnLevel18" class="buttonMain" onclick="startGame(18)">18</button> <br>
+		<div id="LevelChooser" class="menuCenter buttonsMenu">
+			<img class="title" id="Title" 		src="Resources\Title.png"> <br>
+			<div id="levelsButtons01" class="menuCenter buttonsMenu">
+				<button id="btnLevel1" class="buttonMain" onclick="startGame(1)">1</button> 
+				<button id="btnLevel2" class="buttonMain" onclick="startGame(2)">2</button> 
+				<button id="btnLevel3" class="buttonMain" onclick="startGame(3)">3</button> <br>
+				<button class="buttonMain buttonNextPrev buttonMainInactive" onclick="">
+					<i class="fa fa-chevron-left" aria-hidden="true"></i>
+				</button>
+				<button id="btnLevel4" class="buttonMain" onclick="startGame(4)">4</button> 
+				<button id="btnLevel5" class="buttonMain" onclick="startGame(5)">5</button> 
+				<button id="btnLevel6" class="buttonMain" onclick="startGame(6)">6</button> 
+				<button class="buttonMain buttonNextPrev" onclick="showNextLevels(1)">
+					<i class="fa fa-chevron-right" aria-hidden="true"></i>
+				</button> <br>
+				<button id="btnLevel7" class="buttonMain" onclick="startGame(7)">7</button>
+				<button id="btnLevel8" class="buttonMain" onclick="startGame(8)">8</button>
+				<button id="btnLevel9" class="buttonMain" onclick="startGame(9)">9</button> <br>
+			</div>
+			<div id="levelsButtons02" class="menuCenter buttonsMenu" hidden>
+				<button id="btnLevel10" class="buttonMain" onclick="startGame(10)">10</button> 
+				<button id="btnLevel11" class="buttonMain" onclick="startGame(11)">11</button> 
+				<button id="btnLevel12" class="buttonMain" onclick="startGame(12)">12</button> <br>
+				<button class="buttonMain buttonNextPrev" onclick="showPreviousLevels(2)">
+					<i class="fa fa-chevron-left" aria-hidden="true"></i>
+				</button> 
+				<button id="btnLevel13" class="buttonMain" onclick="startGame(13)">13</button> 
+				<button id="btnLevel14" class="buttonMain" onclick="startGame(14)">14</button> 
+				<button id="btnLevel15" class="buttonMain" onclick="startGame(15)">15</button> 
+				<button class="buttonMain buttonNextPrev" onclick="showNextLevels(2)" >
+					<i class="fa fa-chevron-right" aria-hidden="true"></i>
+				</button> <br>
+				<button id="btnLevel16" class="buttonMain" onclick="startGame(16)">16</button>
+				<button id="btnLevel17" class="buttonMain" onclick="startGame(17)">17</button>
+				<button id="btnLevel18" class="buttonMain" onclick="startGame(18)">18</button> <br>
+			</div>
+			<div id="levelsButtons03" class="menuCenter buttonsMenu" hidden>
+				<button id="btnLevel19" class="buttonMain" onclick="startGame(19)">19</button> 
+				<button id="btnLevel20" class="buttonMain" onclick="startGame(20)">20</button> 
+				<button id="btnLevel21" class="buttonMain" onclick="startGame(21)">21</button> <br>
+				<button class="buttonMain buttonNextPrev" onclick="showPreviousLevels(3)">
+					<i class="fa fa-chevron-left" aria-hidden="true"></i>
+				</button> 
+				<button id="btnLevel22" class="buttonMain" onclick="startGame(22)">22</button> 
+				<button id="btnLevel23" class="buttonMain" onclick="startGame(23)">23</button> 
+				<button id="btnLevel24" class="buttonMain" onclick="startGame(24)">24</button> 
+				<button class="buttonMain buttonNextPrev buttonMainInactive" onclick="" >
+					<i class="fa fa-chevron-right" aria-hidden="true"></i>
+				</button> <br>
+				<button id="btnLevel25" class="buttonMain" onclick="startGame(25)">25</button>
+				<button id="btnLevel26" class="buttonMain" onclick="startGame(26)">26</button>
+				<button id="btnLevel27" class="buttonMain" onclick="startGame(28)">27</button> <br>
+			</div>
 		</div>
-		<div id="levelsButtons03" class="menuCenter buttonsMenu" hidden>
-			<button id="btnLevel19" class="buttonMain" onclick="startGame(19)">19</button> 
-			<button id="btnLevel20" class="buttonMain" onclick="startGame(20)">20</button> 
-			<button id="btnLevel21" class="buttonMain" onclick="startGame(21)">21</button> <br>
-			<button class="buttonMain buttonNextPrev" onclick="showPreviousLevels(3)">
-				<i class="fa fa-chevron-left" aria-hidden="true"></i>
-			</button> 
-			<button id="btnLevel22" class="buttonMain" onclick="startGame(22)">22</button> 
-			<button id="btnLevel23" class="buttonMain" onclick="startGame(23)">23</button> 
-			<button id="btnLevel24" class="buttonMain" onclick="startGame(24)">24</button> 
-			<button class="buttonMain buttonNextPrev buttonMainInactive" onclick="" >
-				<i class="fa fa-chevron-right" aria-hidden="true"></i>
-			</button> <br>
-			<button id="btnLevel25" class="buttonMain" onclick="startGame(25)">25</button>
-			<button id="btnLevel26" class="buttonMain" onclick="startGame(26)">26</button>
-			<button id="btnLevel27" class="buttonMain" onclick="startGame(28)">27</button> <br>
-		</div>
-	</div>
-	<div id="gameUI" hidden>
+		<div id="gameUI" hidden>
 		<span id="buttons" class="buttonsMenuInGame">
 			<button id="inGameMenuButton" class="button" style="font-size: 25px" onclick="releaseSelection();showMenu()">
 				<i class="fa fa-bars" aria-hidden="true"></i>
@@ -174,7 +176,17 @@
 			<canvas id="drawSpace"></canvas>
 		</div>
 	</div>
+	</div>
 	<body id="body">
+		<script>
+		document.onreadystatechange = function () {
+			var state = document.readyState
+			if (state == 'complete') {
+				 document.getElementById('loadingScreen').hidden = true;
+				 document.getElementById('visibleElements').hidden = false;
+		  }
+		}
+		</script>
 		<script src="XBC_levels.js"></script>
 		<script src="xBosonConquest.js"></script>
 	</body>
