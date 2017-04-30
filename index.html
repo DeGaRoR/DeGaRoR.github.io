@@ -84,7 +84,7 @@
 			</button> <br>
 			<button id="btnLevel25" class="buttonMain" onclick="startGame(25)">25</button>
 			<button id="btnLevel26" class="buttonMain" onclick="startGame(26)">26</button>
-			<button id="btnLevel27" class="buttonMain" onclick="startGame(27)">27</button> <br>
+			<button id="btnLevel27" class="buttonMain" onclick="startGame(28)">27</button> <br>
 		</div>
 	</div>
 	<div id="gameUI" hidden>
@@ -129,10 +129,12 @@
 					<div id="buttonsContainer3" class="buttonsContainer3">
 						<div id="winnerPicture" class="menuCenter winMessage">
 							<img id="cell3D_L" src="Resources\Bases\cell3D_L.png" width="256" height="256">
-							<br>
-							Victory!
-							<br>
 						</div>
+						<br>
+						<div id="winnerMessage" class="menuCenter winMessage">
+							Victory! Hope this updates...
+						</div>
+						<br>
 						<button id="nextLevelButton" class="button menuCenter buttonInGameMenu" onclick="document.getElementById('nextLevelMenu').hidden = true; backToChoice();">
 							<i class="fa fa-arrow-right" aria-hidden="true"></i>
 							<br>

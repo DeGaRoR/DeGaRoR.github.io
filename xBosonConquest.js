@@ -1235,13 +1235,8 @@ function animate(time) {
 		var secondsWon = Math.round((gameTime/1000) - (60 * minutesWon));
 		// clear canvas
 		config.ctx.clearRect(0, 0, config.canvas.width, config.canvas.height);
-		// fill canvas with win message
-		config.ctx.fillStyle = state.playerAlive.playerColour;
-		config.ctx.font = "30px Arial";
-		config.ctx.textAlign = "center";
-		config.ctx.textBaseline = "middle";
-		//config.ctx.fillText(base.levelCurrent, base.x, base.y);
-		config.ctx.fillText("Victory for " + state.playerAlive.playerName + " in " + minutesWon + " min, " + secondsWon + " sec", config.canvas.width/2, config.canvas.height/2);
+		// Update timePace
+		persistData.timePace = state.timePace;
 		//HTML part______
 		// Update the behaviour of the next level button
 		var nextLevelButton = document.getElementById('nextLevelButton');
@@ -1255,6 +1250,9 @@ function animate(time) {
 				backToChoice();
 			}
 		};
+		// Update the HTML message
+		var winnerMessage = document.getElementById('winnerMessage');
+		winnerMessage.innerHTML = "Victory for " + state.playerAlive.playerName + " in " + minutesWon + " min, " + secondsWon + " sec"
 		// Display HTML element with "home" and "next level" buttons
 		document.getElementById('nextLevelMenu').hidden = false;
 		// Local storage part ________
