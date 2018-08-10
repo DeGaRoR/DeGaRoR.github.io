@@ -1,23 +1,6 @@
 document.addEventListener('DOMContentLoaded', function() {
-    var elems = document.querySelectorAll('.sidenav');
-    var instances = M.Sidenav.init(elems);
-  });
-  
-    document.addEventListener('DOMContentLoaded', function() {
-    var elems = document.querySelectorAll('.modal');
-    var instances = M.Modal.init(elems);
-  });
- 
-//document.addEventListener('DOMContentLoaded', function() {
-//   var elems = document.querySelectorAll('.fixed-action-btn');
-//   var instances = M.FloatingActionButton.init(elems);
-// });
- 
- //function createCard() {
-//	var newDiv = document.createElement("DIV");
-//	newDiv.innerHTML = " <div class=\"row\">	<div class=\"col s12 m5\">      <div class=\"card-panel teal\">        <span class=\"white-text\">I am a very simple card.        </span>      </div>    </div>  </div>	";
- //   document.body.appendChild(newDiv);
- //}
+M.AutoInit();
+});
  
   function createCard(cardType) {
 	var newDiv = document.createElement("DIV");
@@ -45,11 +28,8 @@ document.addEventListener('DOMContentLoaded', function() {
     $(this).closest(".cardToDelete").remove();
 });
  }
- 
-// document.getElementById("addCard").addEventListener("click", function(){
-//    createCard();
-//});
 
+// delete a card
 $('.closeBtn').on('click', function(){
     $(this).closest(".cardToDelete").remove();
 });
