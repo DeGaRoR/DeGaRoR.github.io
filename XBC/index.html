@@ -1,0 +1,201 @@
+<!DOCcolour html>
+<html>
+	<head>
+	
+		<!-- <meta name="viewport" content="width=device-width, initial-scale=1.0"> -->
+		<meta name="theme-color" content="#101010" />
+		<link rel="stylesheet" href="font-awesome/css/font-awesome.min.css">
+		<link rel="stylesheet" type="text/css" href="xBosonConquest.css">
+	</head>
+	<div id="loadingScreen">
+			<div id="buttonsContainer" class="buttonsContainer">
+				<div id="buttonsContainer2" class="buttonsContainer2">
+					<div id="buttonsContainer3" class="buttonsContainer3">
+						<img id="loading-image" src="Resources\loading\ellipsis.svg" alt="Loading..." />
+					</div>
+				</div>	
+			</div>
+	</div>
+	<div id="buffer" hidden>
+		<img id="small_object_L" 	src="Resources\Background\small_object_L.png" 			width="32" 	height="32" 	>
+		<img id="small_object_M" 	src="Resources\Background\small_object_M.png" 			width="16" 	height="16" 	>
+		<img id="small_object_S" 	src="Resources\Background\small_object_S.png" 			width="16" 	height="16" 	>
+		<img id="big_object_1" 		src="Resources\Background\big_object_1.png" 			width="512" height="512" 	>
+		<img id="big_object_2" 		src="Resources\Background\big_object_2.png" 			width="256" height="256" 	>
+		<img id="big_object_3" 		src="Resources\Background\big_object_3.png" 			width="512" height="512" 	>
+		<img id="big_object_1_r" 		src="Resources\Background\big_object_1_r.png" 			width="512" height="512" 	>
+		<img id="big_object_2_r" 		src="Resources\Background\big_object_2_r.png" 			width="256" height="256" 	>
+		<img id="big_object_3_r" 		src="Resources\Background\big_object_3_r.png" 			width="512" height="512" 	>		
+		<img id="big_object_1_b" 		src="Resources\Background\big_object_1_b.png" 			width="512" height="512" 	>
+		<img id="big_object_2_b" 		src="Resources\Background\big_object_2_b.png" 			width="256" height="256" 	>
+		<img id="big_object_3_b" 		src="Resources\Background\big_object_3_b.png" 			width="512" height="512" 	>		
+		<img id="cell3D_S" 			src="Resources\Bases\cell3D_S.png" 						width="256" height="256" 	>
+		<img id="cell3D_M" 			src="Resources\Bases\cell3D_M.png" 						width="256" height="256" 	>
+		<img id="cell3D_L" 			src="Resources\Bases\cell3D_L.png" 						width="256" height="256" 	>
+		<img id="fungus3D_S" 		src="Resources\Bases\fungus3D_S.png" 					width="256" height="256" 	>
+		<img id="fungus3D_M" 		src="Resources\Bases\fungus3D_M.png" 					width="256" height="256" 	>
+		<img id="fungus3D_L" 		src="Resources\Bases\fungus3D_L.png" 					width="256" height="256" 	>
+		<img id="virus3D_S" 		src="Resources\Bases\virus3D_S.png" 					width="256" height="256" 	>
+		<img id="virus3D_M" 		src="Resources\Bases\virus3D_M.png" 					width="256" height="256" 	>
+		<img id="virus3D_L" 		src="Resources\Bases\virus3D_L.png" 					width="256" height="256" 	>
+	</div>
+	<div id="visibleElements" hidden>
+		<div id="background" style="z-index:0">
+			<canvas id="background_canvas" ></canvas>
+		</div>
+		<div id="LevelChooser" class="menuCenter buttonsMenu">
+			<img class="title" id="Title" 		src="Resources\Title.png"> <br>
+			<div id="levelsButtons01" class="menuCenter buttonsMenu">
+				<button id="btnLevel1" class="buttonMain" onclick="startGame(1)">1</button> 
+				<button id="btnLevel2" class="buttonMain" onclick="startGame(2)">2</button> 
+				<button id="btnLevel3" class="buttonMain" onclick="startGame(3)">3</button> <br>
+				<button class="buttonMain buttonNextPrev buttonMainInactive" onclick="">
+					<i class="fa fa-chevron-left" aria-hidden="true"></i>
+				</button>
+				<button id="btnLevel4" class="buttonMain" onclick="startGame(4)">4</button> 
+				<button id="btnLevel5" class="buttonMain" onclick="startGame(5)">5</button> 
+				<button id="btnLevel6" class="buttonMain" onclick="startGame(6)">6</button> 
+				<button class="buttonMain buttonNextPrev" onclick="showNextLevels(1)">
+					<i class="fa fa-chevron-right" aria-hidden="true"></i>
+				</button> <br>
+				<button id="btnLevel7" class="buttonMain" onclick="startGame(7)">7</button>
+				<button id="btnLevel8" class="buttonMain" onclick="startGame(8)">8</button>
+				<button id="btnLevel9" class="buttonMain" onclick="startGame(9)">9</button> <br>
+			</div>
+			<div id="levelsButtons02" class="menuCenter buttonsMenu" hidden>
+				<button id="btnLevel10" class="buttonMain" onclick="startGame(10)">10</button> 
+				<button id="btnLevel11" class="buttonMain" onclick="startGame(11)">11</button> 
+				<button id="btnLevel12" class="buttonMain" onclick="startGame(12)">12</button> <br>
+				<button class="buttonMain buttonNextPrev" onclick="showPreviousLevels(2)">
+					<i class="fa fa-chevron-left" aria-hidden="true"></i>
+				</button> 
+				<button id="btnLevel13" class="buttonMain" onclick="startGame(13)">13</button> 
+				<button id="btnLevel14" class="buttonMain" onclick="startGame(14)">14</button> 
+				<button id="btnLevel15" class="buttonMain" onclick="startGame(15)">15</button> 
+				<button class="buttonMain buttonNextPrev" onclick="showNextLevels(2)" >
+					<i class="fa fa-chevron-right" aria-hidden="true"></i>
+				</button> <br>
+				<button id="btnLevel16" class="buttonMain" onclick="startGame(16)">16</button>
+				<button id="btnLevel17" class="buttonMain" onclick="startGame(17)">17</button>
+				<button id="btnLevel18" class="buttonMain" onclick="startGame(18)">18</button> <br>
+			</div>
+			<div id="levelsButtons03" class="menuCenter buttonsMenu" hidden>
+				<button id="btnLevel19" class="buttonMain" onclick="startGame(19)">19</button> 
+				<button id="btnLevel20" class="buttonMain" onclick="startGame(20)">20</button> 
+				<button id="btnLevel21" class="buttonMain" onclick="startGame(21)">21</button> <br>
+				<button class="buttonMain buttonNextPrev" onclick="showPreviousLevels(3)">
+					<i class="fa fa-chevron-left" aria-hidden="true"></i>
+				</button> 
+				<button id="btnLevel22" class="buttonMain" onclick="startGame(22)">22</button> 
+				<button id="btnLevel23" class="buttonMain" onclick="startGame(23)">23</button> 
+				<button id="btnLevel24" class="buttonMain" onclick="startGame(24)">24</button> 
+				<button class="buttonMain buttonNextPrev buttonMainInactive" onclick="" >
+					<i class="fa fa-chevron-right" aria-hidden="true"></i>
+				</button> <br>
+				<button id="btnLevel25" class="buttonMain" onclick="startGame(25)">25</button>
+				<button id="btnLevel26" class="buttonMain" onclick="startGame(26)">26</button>
+				<button id="btnLevel27" class="buttonMain" onclick="startGame(28)">27</button> <br>
+			</div>
+		</div>
+		<div id="gameUI" hidden>
+		<span id="buttons" class="buttonsMenuInGame">
+			<button id="inGameMenuButton" class="button" style="font-size: 25px" onclick="releaseSelection();showMenu()">
+				<i class="fa fa-bars" aria-hidden="true"></i>
+			</button>
+
+		</span>
+		<span id="inGameMenu" class="inGameMenu" hidden>
+			<div id="buttonsContainer" class="buttonsContainer">
+				<div id="buttonsContainer2" class="buttonsContainer2">
+					<div id="buttonsContainer3" class="buttonsContainer3">
+						<button class="button" onclick="changeSpeed(-1)">
+							<i class="fa fa-minus" aria-hidden="true"></i>
+						</button> 
+						<span class = "indicator" id="speedIndicator" >1x</span> 
+						<button class="button" onclick="changeSpeed(1)">
+							<i class="fa fa-plus" aria-hidden="true"></i>
+						</button>
+						<br>
+						<br>
+						<br>
+						<button class="button menuCenter buttonInGameMenu" onclick="hideMenu()">
+							<i class="fa fa-arrow-left" aria-hidden="true"></i>
+						</button> 
+						<br>
+						<button id="backToChoice" class="button menuCenter buttonInGameMenu" onclick="ShowConfirmReturnHome()">
+							<i class="fa fa-home" aria-hidden="true"></i>
+						</button>
+						<br>
+						<button class="button menuCenter buttonInGameMenu" onclick="ShowConfirmRestart()">
+							<i class="fa fa-refresh" aria-hidden="true"></i>
+						</button>
+					</div>
+				</div>	
+			</div>
+		</span>
+		<span id="nextLevelMenu" class="inGameMenu" hidden>
+			<div id="buttonsContainer" class="buttonsContainer">
+				<div id="buttonsContainer2" class="buttonsContainer2">
+					<div id="buttonsContainer3" class="buttonsContainer3">
+						<div id="winnerPicture" class="menuCenter winMessage">
+							<img id="cell3D_L" src="Resources\Bases\cell3D_L.png" width="256" height="256">
+						</div>
+						<br>
+						<div id="winnerMessage" class="menuCenter winMessage">
+							Victory! Hope this updates...
+						</div>
+						<br>
+						<button id="nextLevelButton" class="button menuCenter buttonInGameMenu" onclick="document.getElementById('nextLevelMenu').hidden = true; backToChoice();">
+							<i class="fa fa-arrow-right" aria-hidden="true"></i>
+							<br>
+							Next Level
+						</button> 
+					</div>
+				</div>	
+			</div>
+		</span>
+		<span id="confirmBoxReturnHome" class="inGameMenu confirmBox" hidden>
+			<div id="buttonsContainer" class="buttonsContainer">
+				<div id="buttonsContainer2" class="buttonsContainer2">
+					<div id="buttonsContainer3" class="buttonsContainer3">
+						Are you sure? <br> All progress will be lost... <br> <br>
+						<button id="backToChoiceYes" class="button menuCenter buttonConfirm" onclick="hideMenu(); backToChoice(); hideConfirmReturnHome()">Yes</button>
+						<button id="backToChoiceNo" class="button menuCenter buttonConfirm" onclick="hideConfirmReturnHome()">No</button>
+					</div>
+				</div>	
+			</div>
+		</span>
+		<span id="confirmBoxRestart" class="inGameMenu confirmBox" hidden>
+			<div id="buttonsContainer" class="buttonsContainer">
+				<div id="buttonsContainer2" class="buttonsContainer2">
+					<div id="buttonsContainer3" class="buttonsContainer3">
+						Are you sure? <br> All progress will be lost... <br> <br>
+						<button id="backToChoiceYes" class="button menuCenter buttonConfirm" onclick="hideMenu(); reStart(); hideConfirmRestart()">Yes</button>
+						<button id="backToChoiceNo" class="button menuCenter buttonConfirm" onclick="hideConfirmRestart()">No</button>
+					</div>
+				</div>	
+			</div>
+		</span>
+		<div id="bases" style="z-index:9">
+			<canvas id="canvasBases"></canvas>
+		</div>
+		<div id="mainCanvas" style="z-index:10">
+			<div id="selectionBox" hidden></div>
+			<canvas id="drawSpace"></canvas>
+		</div>
+	</div>
+	</div>
+	<body id="body">
+		<script>
+		document.onreadystatechange = function () {
+			var state = document.readyState
+			if (state == 'complete') {
+				 document.getElementById('loadingScreen').hidden = true;
+				 document.getElementById('visibleElements').hidden = false;
+		  }
+		}
+		</script>
+		<script src="XBC_levels.js"></script>
+		<script src="xBosonConquest.js"></script>
+	</body>
+</html>
