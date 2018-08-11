@@ -12,124 +12,100 @@
     </head>
 
     <body>
-<!--
-	<div class="navbar-fixed">
-		<nav class="nav-extended">
-			<div class="nav-wrapper">
-			  <a href="#" class="brand-logo">Logo</a>
-			  <a href="#" data-target="mobile-demo" class="sidenav-trigger"><i class="material-icons">menu</i></a>
-			  <ul id="nav-mobile" class="right hide-on-med-and-down">
-				<li><a href="sass.html">Sass</a></li>
-				<li><a href="badges.html">Components</a></li>
-				<li><a href="collapsible.html">JavaScript</a></li>
-			  </ul>
-			</div>
-			<div class="nav-content">
-			  <ul class="tabs tabs-transparent">
-				<li class="tab"><a href="#test1">Test 1</a></li>
-				<li class="tab"><a class="active" href="#test2">Test 2</a></li>
-				<li class="tab disabled"><a href="#test3">Disabled Tab</a></li>
-				<li class="tab"><a href="#test4">Test 4</a></li>
-			  </ul>
-			</div>
-		  </nav>
-</div>
--->
-<div class="navbar-fixed">
-		<nav>
-			<div class="nav-wrapper">
-			  <a href="#" class="brand-logo">Logo</a>
-			  <a href="#" data-target="mobile-demo" class="sidenav-trigger"><i class="material-icons">menu</i></a>
-			  <ul id="nav-mobile" class="right hide-on-med-and-down">
-				<li><a href="sass.html">Sass</a></li>
-				<li><a href="badges.html">Components</a></li>
-				<li><a href="collapsible.html">JavaScript</a></li>
-			  </ul>
-			</div>
+<!-- Navbar -->
+		<div class="navbar-fixed">
+			<nav>
+				<div class="nav-wrapper">
+				  <a href="#" class="brand-logo">Logo</a>
+				  <a href="#" data-target="mobile-demo" class="sidenav-trigger"><i class="material-icons">menu</i></a>
+				  <ul id="nav-mobile" class="right hide-on-med-and-down">
+					<li><a href="sass.html">Sass</a></li>
+					<li><a href="badges.html">Components</a></li>
+					<li><a href="collapsible.html">JavaScript</a></li>
+				  </ul>
+				</div>
 
-		  </nav>
-</div>
-
-		  <ul class="sidenav" id="mobile-demo">
+			</nav>
+		</div>
+<!-- Side nav -->
+		<ul class="sidenav" id="mobile-demo">
 			<li><a href="sass.html">Sass</a></li>
 			<li><a href="badges.html">Components</a></li>
 			<li><a href="collapsible.html">JavaScript</a></li>
-		  </ul>
-<div>
-
- <div class="row">
-    <div class="col s12">
-      <ul class="tabs">
-        <li class="tab col s3"><a href="#test1">Test 1</a></li>
-        <li class="tab col s3"><a class="active" href="#test2">Test 2</a></li>
-        <li class="tab col s3 disabled"><a href="#test3">Disabled Tab</a></li>
-        <li class="tab col s3"><a href="#test4">Test 4</a></li>
-		<li class="tab col s3"><a href="#test1">Test 1</a></li>
-        <li class="tab col s3"><a class="active" href="#test2">Test 2</a></li>
-        <li class="tab col s3 disabled"><a href="#test3">Disabled Tab</a></li>
-        <li class="tab col s3"><a href="#test4">Test 4</a></li>
-      </ul>
-    </div>
-  </div>
-  
-</div>	  
-	   <div id="cardArea" class="row">
-		<div class="col s12 m6 l3 xl3 cardToDelete">
-		  <div class="card">
-			<div class="card-image">
-			  <img src="images/warehouse.jpg">
-			  <span class="card-title">Warehouse</span>
-			  <a class="btn-floating halfway-fab waves-effect waves-light red closeBtn"><i class="material-icons">delete</i></a>
+		</ul>
+<!-- Tabs -->
+		<div>
+			<div class="row">
+				<div class="col s12">
+					<ul class="tabs">
+						<li class="tab col s3"><a class="active" onclick="displayScreen('facilityScreen')">Facilities</a></li>
+						<li class="tab col s3"><a onclick="displayScreen('jobsScreen')">Jobs</a></li>
+					</ul>
+				</div>
 			</div>
-			<div class="card-content">
-			  <p>Warehouse to store raw materials</p>
-			</div>
-			<div class="card-action">
-
-				<a class="btn-floating waves-effect waves-light red"><i class="material-icons">remove</i></a>
-				<a class="btn-floating waves-effect waves-light blue"><i class="material-icons">add</i></a>
+		</div>
+ <!-- Facilities screen -->
+		<div id="facilityScreen" class="TGEscreen">
+	 <!-- Facility cards -->  
+		   <div id="cardArea" class="row">
+			<div class="col s12 m6 l3 xl3 cardToDelete">
+			  <div class="card">
+				<div class="card-image">
+				  <img src="images/warehouse.jpg">
+				  <span class="card-title">Warehouse</span>
+				  <a class="btn-floating halfway-fab waves-effect waves-light red closeBtn"><i class="material-icons">delete</i></a>
+				</div>
+				<div class="card-content">
+				  <p>Warehouse to store raw materials</p>
+				</div>
+				<div class="card-action">
+					<a class="btn-floating waves-effect waves-light red"><i class="material-icons">remove</i></a>
+					<a class="btn-floating waves-effect waves-light blue"><i class="material-icons">add</i></a>
+				</div>
+			  </div>
 			</div>
 		  </div>
-		</div>
-	  </div>
-	  
-		<div id="addCard" class="fixed-action-btn">
-		  <!-- <a class="btn-floating btn-large red" href="#modal1" onclick="createCard()"> -->
-		  <a class="btn-floating btn-large red modal-trigger" href="#modal1">
-			<i class="large material-icons">add</i>
-		  </a>
-		</div>
+	<!-- add card button -->
+			<div id="addCard" class="fixed-action-btn">
+			  <!-- <a class="btn-floating btn-large red" href="#modal1" onclick="createCard()"> -->
+			  <a class="btn-floating btn-large red modal-trigger" href="#modal1">
+				<i class="large material-icons">add</i>
+			  </a>
+			</div>
 
-
-  <!-- Modal Structure -->
-  <div id="modal1" class="modal">
-    <div class="modal-content">
- <ul class="collection">
-    <a class="collection-item avatar modal-close" onclick="createCard('warehouse')">
-      <img src="images/warehouse.jpg" alt="" class="circle">
-      <span class="title">Warehouse</span>
-      <p>Warehouse <br>
-         wood: 5 steel: 5
-      </p>
-    </a>
-    <a class="collection-item avatar modal-close" onclick="createCard('trees')">
-      <img src="images/trees.jpg" alt="" class="circle">
-      <span class="title">Sawmill</span>
-      <p>Sawmill <br>
-         wood: 0 steel: 5
-      </p>
-    <a class="collection-item avatar modal-close" onclick="createCard('oil')">
-      <img src="images/oil.jpg" alt="" class="circle">
-      <span class="title">Oil rig</span>
-      <p>Oil rig <br>
-         wood: 20 steel: 500
-      </p>
-    </a>
-  </ul>
-    </div>
-
-  </div>		
-
+	<!-- Facility selection menu -->
+			<div id="modal1" class="modal">
+				<div class="modal-content">
+					<ul class="collection">
+						<a class="collection-item avatar modal-close" onclick="createCard('warehouse')">
+						  <img src="images/warehouse.jpg" alt="" class="circle">
+						  <span class="title">Warehouse</span>
+						  <p>Warehouse <br>
+							 wood: 5 steel: 5
+						  </p>
+						</a>
+						<a class="collection-item avatar modal-close" onclick="createCard('trees')">
+						  <img src="images/trees.jpg" alt="" class="circle">
+						  <span class="title">Sawmill</span>
+						  <p>Sawmill <br>
+							 wood: 0 steel: 5
+						  </p>
+						</a> 
+						<a class="collection-item avatar modal-close" onclick="createCard('oil')">
+						  <img src="images/oil.jpg" alt="" class="circle">
+						  <span class="title">Oil rig</span>
+						  <p>Oil rig <br>
+							 wood: 20 steel: 500
+						  </p>
+						</a>
+					</ul>
+				</div>
+			</div>
+		</div>	
+	 <!-- jobs screen -->
+	 <div id="jobsScreen" class="TGEscreen" hidden>
+		<p>Job screen</p>
+	 </div>
 	<!--JavaScript at end of body for optimized loading-->
       <script type="text/javascript" src="js/godEngineer.js"></script>
 	  <script type="text/javascript" src="js/materialize.min.js"></script>

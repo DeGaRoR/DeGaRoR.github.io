@@ -33,3 +33,8 @@ M.AutoInit();
 $('.closeBtn').on('click', function(){
     $(this).closest(".cardToDelete").remove();
 });
+
+function displayScreen(screenID) {
+	$('.TGEscreen').hide();
+	$('#'+screenID+'').show();
+}
