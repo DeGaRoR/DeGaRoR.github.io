@@ -66,13 +66,17 @@ function makeUL(array) {
         var item = document.createElement('li');
 		item.className = 'collection-item avatar'
         
-		// create the thumbnail
+		// create and append the thumbnail
 		var thumb = document.createElement('IMG');
 		thumb.src = array[i].photo;
 		thumb.className = "circle"
-		
-		//append the thumbnail
 		 item.appendChild(thumb);
+		// create and append the the gender logo
+		
+		var genderLogo = document.createElement('i');
+		if (array[i].gender == 'Male') {genderLogo.className = "fas fa-mars fa-2x secondary-content"} else {genderLogo.className = "fas fa-venus fa-2x secondary-content"}
+		item.appendChild(genderLogo);
+		
 		// append the text content
         item.appendChild(document.createTextNode(array[i].name));
 
