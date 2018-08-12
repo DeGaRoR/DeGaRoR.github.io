@@ -38,3 +38,70 @@ function displayScreen(screenID) {
 	$('.TGEscreen').hide();
 	$('#'+screenID+'').show();
 }
+
+function getInitialState() {
+	return {
+		people: [
+			{name: "denis", gender: "Male",age: "32"},
+			{name: "asal", gender: "Female",age: "28"},
+			//{name: "harry", gender: "Male",age: "15"},
+		]
+	}
+}
+var state = getInitialState();
+
+function makeUL(array) {
+    // Create the list element:
+    var list = document.createElement('ul');
+	list.className = "collection";
+
+    for (var i = 0; i < array.length; i++) {
+        // Create the list item:
+        var item = document.createElement('li');
+		item.className = 'collection-item avatar'
+        
+		// create the thumbnail
+		var thumb = document.createElement('IMG');
+		thumb.src = 'images/'+array[i].name+'.jpg'
+		thumb.className = "circle"
+		
+		//append the thumbnail
+		 item.appendChild(thumb);
+		// append the text content
+        item.appendChild(document.createTextNode(array[i].name));
+
+        // Add it to the list:
+        list.appendChild(item);
+    }
+
+    // Finally, return the constructed list:
+    return list;
+}
+
+// Add the contents of options[0] to #jobsScreen:
+function generatePeopleDOM(divID) {
+	document.getElementById(divID).appendChild(makeUL(state.people));
+}
+
+function clearPeopleDOM(divID) {
+	var myNode = document.getElementById(divID);
+	while (myNode.firstChild) {
+		myNode.removeChild(myNode.firstChild);
+	}
+}
+
+function addPerson_BE() {
+	var newPerson = {name: "harry", gender: "Male",age: "15"};
+	state.people.push(newPerson);
+}
+
+function addAndRefresh(divID) {
+	addPerson_BE();
+	refreshPeopleList_FE();
+}
+
+function refreshPeopleList_FE() {
+	divID = 'peopleListArea';
+	clearPeopleDOM(divID);
+	generatePeopleDOM(divID);
+}

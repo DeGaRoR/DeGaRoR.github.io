@@ -103,8 +103,14 @@
 			</div>
 		</div>	
 	 <!-- jobs screen -->
-	 <div id="jobsScreen" class="TGEscreen" hidden>
+	 <div id="jobsScreen" class="TGEscreen container" hidden>
 		<p>Job screen</p>
+		<a class="waves-effect waves-light btn" onclick="generatePeopleDOM('peopleListArea')">Render list</a>
+		<a class="waves-effect waves-light btn" onclick="clearPeopleDOM('peopleListArea')">Delete render</a>
+		<a class="waves-effect waves-light btn" onclick="addPerson()">add Harry to the back-end list</a>
+		<a class="waves-effect waves-light btn" onclick="addAndRefresh('peopleListArea')">add Harry and refresh render</a>
+		<div id="peopleListArea">
+		</div>
 	 </div>
 	<!--JavaScript at end of body for optimized loading-->
       <script type="text/javascript" src="js/godEngineer.js"></script>
