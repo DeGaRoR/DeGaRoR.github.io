@@ -34,52 +34,98 @@ $('.closeBtn').on('click', function(){
     $(this).closest(".cardToDelete").remove();
 });
 
+//$('.deletePerson').click(function(){ console.log('Delete me'); return false; });
+
 function displayScreen(screenID) {
 	$('.TGEscreen').hide();
 	$('#'+screenID+'').show();
 }
 function getRandomPeopleAttributes() {
 	return {
-		firstNamesMale: ['Jean-François','Jean-Pierre','Jean-Philippe','Jean-Paul','Jean-Marcel','Kevin','Killian','Mohammed','Ashton','Brad','Harrison','Bonaventure','Desire','Yunic','Dartagnan'],
+		firstNamesMale: ['Jean-Michel','Jean-Pierre','Jean-Philippe','Jean-Paul','Jean-Marcel','Kevin','Killian','Mohammed','Ashton','Brad','Harrison','Bonaventure','Desire','Yunic','Dartagnan'],
 		firstNamesFemale: ['Fatima','Barbara','Monica','Priscilia','Stephanie','Kelly','Nicole','Morgan','Jessica','Cindy','Kloe','Kim','Britney','Shakira','Beberly','Merica','Appaloosa','Melanomia','Heaven Lee'],
 		lastNames: ['Bjornsonn','Al Belgiki','Dupont','Dugenou','Smith','Gaywad','Trump','Buttz','Ballz','Goodfornothing','Retard','Primitive','Kumar','Singh','Buzzbuzz','Nutgrabber','Ballbuster','Bieber','Van Damme','Van Varenberg','Daerdenne','Bin Batman','Neanderthal','Cromagnon','Uga-uga'],
 	}
 }
+
 function getInitialState() {
 	return {
 		people: [
-			{name: "denis", gender: "Male",age: "32", photo: "images/denis.jpg"},
-			{name: "asal", gender: "Female",age: "28", photo: "images/asal.jpg"},
-			//{name: "harry", gender: "Male",age: "15", photo: "images/harry.jpg"},
+			{name: "denis", gender: "Male",age: "32", photo: "images/denis.jpg", diplomas : [0,1,2]},
+			{name: "asal", gender: "Female",age: "28", photo: "images/asal.jpg", diplomas : [0,1,2,3]}
 		]
 	}
 }
-var state = getInitialState();
 
-function makeUL(array) {
+function getConfig() {
+	return {
+		diplomaList: [
+			{name: 'Basic', icon: 'fas fa-gavel', color: '#9e9e9e'},
+			{name: 'Engineer 1', icon: 'fas fa-wrench', color: '#b87333'},
+			{name: 'Engineer 2', icon: 'fas fa-wrench', color: '#C0C0C0'},
+			{name: 'Engineer 3', icon: 'fas fa-wrench', color: '#FFDF00'},
+		]
+	}
+}
+
+
+function makeUL(peopleArray) {
     // Create the list element:
     var list = document.createElement('ul');
 	list.className = "collection";
 
-    for (var i = 0; i < array.length; i++) {
+    for (var i = 0; i < peopleArray.length; i++) {
         // Create the list item:
         var item = document.createElement('li');
 		item.className = 'collection-item avatar'
         
 		// create and append the thumbnail
 		var thumb = document.createElement('IMG');
-		thumb.src = array[i].photo;
+		thumb.src = peopleArray[i].photo;
 		thumb.className = "circle"
-		 item.appendChild(thumb);
-		// create and append the the gender logo
+		item.appendChild(thumb);
+
 		
+		// Create the title
+		var title = document.createElement('span');
+		title.className = 'title';
+		title.appendChild(document.createTextNode(peopleArray[i].name + ' '));
+		// gender logo
 		var genderLogo = document.createElement('i');
-		if (array[i].gender == 'Male') {genderLogo.className = "fas fa-mars fa-2x secondary-content"} else {genderLogo.className = "fas fa-venus fa-2x secondary-content"}
-		item.appendChild(genderLogo);
+		if (peopleArray[i].gender == 'Male') {genderLogo.className = "fas fa-mars"} else {genderLogo.className = "fas fa-venus"}
+		title.appendChild(genderLogo);
+		item.appendChild(title);
+		
+		// create and append the second line content
+		var secondLineContent = document.createElement('p');
+			
+			// badges education
+			// for all entries in diploma
+			for (var j = 0; j < peopleArray[i].diplomas.length; j++) {
+				diploma = config.diplomaList[peopleArray[i].diplomas[j]]
+				console.log('Iteration '+j+' of loop over diplomas of '+peopleArray[i].name+' found '+diploma.name);
+				var diplomaLogo = document.createElement('i');
+				diplomaLogo.className = diploma.icon;
+				diplomaLogo.style.color = diploma.color;
+				secondLineContent.appendChild(diplomaLogo);
+			}
+		item.appendChild(secondLineContent);
 		
 		// append the text content
-        item.appendChild(document.createTextNode(array[i].name));
+        //item.appendChild(document.createTextNode(peopleArray[i].name));
 
+		// append the delete icon
+		var linkDelete = document.createElement('a');
+		linkDelete.className = 'secondary-content deletePerson';
+		linkDelete.href = '#!'
+		//linkDelete.onclick = "test"
+		linkDelete.addEventListener("click", test, false);
+		var deleteIcon = document.createElement('i');
+		deleteIcon.className = 'material-icons';
+		deleteIcon.appendChild(document.createTextNode('delete'))
+		linkDelete.appendChild(deleteIcon);
+		item.appendChild(linkDelete);
+		
         // Add it to the list:
         list.appendChild(item);
     }
@@ -120,7 +166,6 @@ function addRandomPerson_BE() {
 		// pick a random first name
 		randomIndex = Math.round(Math.random()*(randomPeopleAttributes.firstNamesMale.length-1));
 		var firstName = randomPeopleAttributes.firstNamesMale[randomIndex];
-		
 	} else {
 		var gender = 'Female'
 		// pick a random picture in the images
@@ -131,7 +176,7 @@ function addRandomPerson_BE() {
 		var firstName = randomPeopleAttributes.firstNamesFemale[randomIndex];
 	}
 
-	var newPerson = {name: firstName + ' ' +lastName, gender: gender,age: "15", photo: imgName};
+	var newPerson = {name: firstName + ' ' +lastName, gender: gender,age: "15", photo: imgName, diplomas : [0]};
 	state.people.push(newPerson);
 }
 
@@ -145,3 +190,12 @@ function refreshPeopleList_FE() {
 	clearPeopleDOM(divID);
 	generatePeopleDOM(divID);
 }
+
+function test() {
+	alert('Yeah you clicked');
+}
+
+// initialization
+var state = getInitialState();
+var config = getConfig();
+generatePeopleDOM('peopleListArea');
