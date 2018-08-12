@@ -51,19 +51,51 @@ function getRandomPeopleAttributes() {
 function getInitialState() {
 	return {
 		people: [
-			{name: "denis", gender: "Male",age: "32", photo: "images/denis.jpg", diplomas : [0,1,2]},
-			{name: "asal", gender: "Female",age: "28", photo: "images/asal.jpg", diplomas : [0,1,2,3]}
+			{name: "denis", gender: "Male",age: "32", photo: "images/denis.jpg", diplomas : [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14]},
+			{name: "asal", gender: "Female",age: "28", photo: "images/asal.jpg", diplomas : [2,5,8,11,14]}
 		]
 	}
 }
 
-function getConfig() {
+/* function getConfig() {
 	return {
 		diplomaList: [
-			{name: 'Basic', icon: 'fas fa-gavel', color: '#9e9e9e'},
+			{name: 'Level 1', icon: 'fas fa-graduation-cap', color: '#b87333'},
+			{name: 'Level 2', icon: 'fas fa-graduation-cap', color: '#C0C0C0'},
+			{name: 'Level 3', icon: 'fas fa-graduation-cap', color: '#FFDF00'},
 			{name: 'Engineer 1', icon: 'fas fa-wrench', color: '#b87333'},
 			{name: 'Engineer 2', icon: 'fas fa-wrench', color: '#C0C0C0'},
 			{name: 'Engineer 3', icon: 'fas fa-wrench', color: '#FFDF00'},
+			{name: 'Doctor 1', icon: 'fas fa-stethoscope', color: '#b87333'},
+			{name: 'Doctor 2', icon: 'fas fa-stethoscope', color: '#C0C0C0'},
+			{name: 'Doctor 3', icon: 'fas fa-stethoscope', color: '#FFDF00'},
+			{name: 'Hunter 1', icon: 'fab fa-grunt', color: '#b87333'},
+			{name: 'Hunter 2', icon: 'fab fa-grunt', color: '#C0C0C0'},
+			{name: 'Hunter 3', icon: 'fab fa-grunt', color: '#FFDF00'},
+
+		]
+	}
+} */
+
+function getConfig() {
+	return {
+		diplomaList: [
+			{name: 'Level 1', icon: 'fas fa-graduation-cap', color: '#b87333'},
+			{name: 'Level 2', icon: 'fas fa-graduation-cap', color: '#C0C0C0'},
+			{name: 'Level 3', icon: 'fas fa-graduation-cap', color: '#FFDF00'},
+			{name: 'Engineer 1', icon: 'fas fa-wrench', color: '#b87333'},
+			{name: 'Engineer 2', icon: 'fas fa-wrench', color: '#C0C0C0'},
+			{name: 'Engineer 3', icon: 'fas fa-wrench', color: '#FFDF00'},
+			{name: 'Doctor 1', icon: 'fas fa-briefcase-medical', color: '#b87333'},
+			{name: 'Doctor 2', icon: 'fas fa-briefcase-medical', color: '#C0C0C0'},
+			{name: 'Doctor 3', icon: 'fas fa-briefcase-medical', color: '#FFDF00'},
+			{name: 'Food 1', icon: 'fas fa-utensils', color: '#b87333'},
+			{name: 'Food 2', icon: 'fas fa-utensils', color: '#C0C0C0'},
+			{name: 'Food 3', icon: 'fas fa-utensils', color: '#FFDF00'},
+			{name: 'Warrior 1', icon: 'fas fa-shield-alt', color: '#b87333'},
+			{name: 'Warrior 2', icon: 'fas fa-shield-alt', color: '#C0C0C0'},
+			{name: 'Warrior 3', icon: 'fas fa-shield-alt', color: '#FFDF00'},
+
 		]
 	}
 }
@@ -73,7 +105,8 @@ function makeUL(peopleArray) {
     // Create the list element:
     var list = document.createElement('ul');
 	list.className = "collection";
-
+	
+	// for each person
     for (var i = 0; i < peopleArray.length; i++) {
         // Create the list item:
         var item = document.createElement('li');
@@ -98,7 +131,8 @@ function makeUL(peopleArray) {
 		
 		// create and append the second line content
 		var secondLineContent = document.createElement('p');
-			
+		// sort the list of detained diplomas alphabetically, so the icons align
+		peopleArray[i].diplomas.sort(function(a, b){return a - b});	
 			// badges education
 			// for all entries in diploma
 			for (var j = 0; j < peopleArray[i].diplomas.length; j++) {
@@ -108,6 +142,7 @@ function makeUL(peopleArray) {
 				diplomaLogo.className = diploma.icon;
 				diplomaLogo.style.color = diploma.color;
 				secondLineContent.appendChild(diplomaLogo);
+				secondLineContent.appendChild(document.createTextNode(" "))
 			}
 		item.appendChild(secondLineContent);
 		
