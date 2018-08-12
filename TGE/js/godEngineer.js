@@ -38,13 +38,19 @@ function displayScreen(screenID) {
 	$('.TGEscreen').hide();
 	$('#'+screenID+'').show();
 }
-
+function getRandomPeopleAttributes() {
+	return {
+		firstNamesMale: ['Jean-François','Jean-Pierre','Jean-Philippe','Jean-Paul','Jean-Marcel','Kevin','Killian','Mohammed','Ashton','Brad','Harrison','Bonaventure','Desire','Yunic','Dartagnan'],
+		firstNamesFemale: ['Fatima','Barbara','Monica','Priscilia','Stephanie','Kelly','Nicole','Morgan','Jessica','Cindy','Kloe','Kim','Britney','Shakira','Beberly','Merica','Appaloosa','Melanomia','Heaven Lee'],
+		lastNames: ['Bjornsonn','Al Belgiki','Dupont','Dugenou','Smith','Gaywad','Trump','Buttz','Ballz','Goodfornothing','Retard','Primitive','Kumar','Singh','Buzzbuzz','Nutgrabber','Ballbuster','Bieber','Van Damme','Van Varenberg','Daerdenne','Bin Batman','Neanderthal','Cromagnon','Uga-uga'],
+	}
+}
 function getInitialState() {
 	return {
 		people: [
-			{name: "denis", gender: "Male",age: "32"},
-			{name: "asal", gender: "Female",age: "28"},
-			//{name: "harry", gender: "Male",age: "15"},
+			{name: "denis", gender: "Male",age: "32", photo: "images/denis.jpg"},
+			{name: "asal", gender: "Female",age: "28", photo: "images/asal.jpg"},
+			//{name: "harry", gender: "Male",age: "15", photo: "images/harry.jpg"},
 		]
 	}
 }
@@ -62,7 +68,7 @@ function makeUL(array) {
         
 		// create the thumbnail
 		var thumb = document.createElement('IMG');
-		thumb.src = 'images/'+array[i].name+'.jpg'
+		thumb.src = array[i].photo;
 		thumb.className = "circle"
 		
 		//append the thumbnail
@@ -95,8 +101,38 @@ function addPerson_BE() {
 	state.people.push(newPerson);
 }
 
+function addRandomPerson_BE() {
+	// get the list of random names
+	var randomPeopleAttributes = getRandomPeopleAttributes();
+	// pick a random last name
+	var randomIndex = Math.round(Math.random()*(randomPeopleAttributes.lastNames.length-1))
+	var lastName = randomPeopleAttributes.lastNames[randomIndex]	
+	// decide whether the person is male or female
+	if (Math.random() > 0.5) {
+		var gender = 'Male'
+		// pick a random picture in the images
+		randomIndex = Math.round(Math.random()*65)+1
+		var imgName='images/People/Males/image-'+randomIndex+'.jpg'
+		// pick a random first name
+		randomIndex = Math.round(Math.random()*(randomPeopleAttributes.firstNamesMale.length-1));
+		var firstName = randomPeopleAttributes.firstNamesMale[randomIndex];
+		
+	} else {
+		var gender = 'Female'
+		// pick a random picture in the images
+		randomIndex = Math.round(Math.random()*65)+1
+		var imgName='images/People/Females/image-'+randomIndex+'.jpg'
+		// pick a random first name
+		randomIndex = Math.round(Math.random()*(randomPeopleAttributes.firstNamesFemale.length-1));
+		var firstName = randomPeopleAttributes.firstNamesFemale[randomIndex];
+	}
+
+	var newPerson = {name: firstName + ' ' +lastName, gender: gender,age: "15", photo: imgName};
+	state.people.push(newPerson);
+}
+
 function addAndRefresh(divID) {
-	addPerson_BE();
+	addRandomPerson_BE();
 	refreshPeopleList_FE();
 }
 

@@ -39,7 +39,7 @@
 				<div class="col s12">
 					<ul class="tabs">
 						<li class="tab col s3"><a class="active" onclick="displayScreen('facilityScreen')">Facilities</a></li>
-						<li class="tab col s3"><a onclick="displayScreen('jobsScreen')">Jobs</a></li>
+						<li class="tab col s3"><a onclick="displayScreen('peopleScreen')">People</a></li>
 					</ul>
 				</div>
 			</div>
@@ -103,12 +103,8 @@
 			</div>
 		</div>	
 	 <!-- jobs screen -->
-	 <div id="jobsScreen" class="TGEscreen container" hidden>
-		<p>Job screen</p>
-		<a class="waves-effect waves-light btn" onclick="generatePeopleDOM('peopleListArea')">Render list</a>
-		<a class="waves-effect waves-light btn" onclick="clearPeopleDOM('peopleListArea')">Delete render</a>
-		<a class="waves-effect waves-light btn" onclick="addPerson()">add Harry to the back-end list</a>
-		<a class="waves-effect waves-light btn" onclick="addAndRefresh('peopleListArea')">add Harry and refresh render</a>
+	 <div id="peopleScreen" class="TGEscreen container" hidden>
+		<a class="waves-effect waves-light btn" onclick="addAndRefresh('peopleListArea')">add random and refresh render</a>
 		<div id="peopleListArea">
 		</div>
 	 </div>
