@@ -78,39 +78,41 @@ function makeUL(peopleArray) {
 	
 	// for each person
     for (var i = 0; i < peopleArray.length; i++) {
-        // Create the list item:
+        var person = peopleArray[i];
+		// Create the list item:
         var item = document.createElement('li');
 		item.className = 'collection-item avatar'
         
 		// create and append the thumbnail
 		var thumb = document.createElement('IMG');
-		thumb.src = peopleArray[i].photo;
+		thumb.src = person.photo;
 		thumb.className = "circle"
 		item.appendChild(thumb);
 
 		
-		// Create the title
+		// Create the title with person's name
 		var title = document.createElement('span');
 		title.className = 'title';
-		title.appendChild(document.createTextNode(peopleArray[i].name + ' '));
+		title.appendChild(document.createTextNode(person.name + ' '));
+		
 		// gender logo
 		var genderLogo = document.createElement('i');
-		if (peopleArray[i].gender == 'Male') {genderLogo.className = "fas fa-mars"} else {genderLogo.className = "fas fa-venus"}
+		if (person.gender == 'Male') {genderLogo.className = "fas fa-mars"} else {genderLogo.className = "fas fa-venus"}
 		title.appendChild(genderLogo);
 		item.appendChild(title);
 		
 		// create and append the second line content
 		var secondLineContent = document.createElement('p');
-		// sort the list of detained diplomaList alphabetically, so the icons align
-		peopleArray[i].diplomaList.sort(function(a, b){return a - b});	
+			// sort the list of detained diplomaList alphabetically, so the icons align
+			//person.diplomaList.sort(function(a, b){return a - b});	
 			// badges education
 			// for all entries in diploma
-			for (var j = 0; j < peopleArray[i].diplomaList.length; j++) {
-				diplomaType = config.diplomaTypeList[peopleArray[i].diplomaList[j].diplomaTypeID]
-				console.log('Iteration '+j+' of loop over diplomaList of '+peopleArray[i].name+' found '+diplomaType.name+' level'+peopleArray[i].diplomaList[j].diplomaLevel+' corresponding to color '+diplomaType.color[peopleArray[i].diplomaList[j].diplomaLevel]);
+			for (var j = 0; j < person.diplomaList.length; j++) {
+				diplomaType = config.diplomaTypeList[person.diplomaList[j].diplomaTypeID]
+				//console.log('Iteration '+j+' of loop over diplomaList of '+person.name+' found '+diplomaType.name+' level'+person.diplomaList[j].diplomaLevel+' corresponding to color '+diplomaType.color[person.diplomaList[j].diplomaLevel]);
 				var diplomaLogo = document.createElement('i');
 				diplomaLogo.className = diplomaType.icon;
-				diplomaLogo.style.color = diplomaType.color[peopleArray[i].diplomaList[j].diplomaLevel];
+				diplomaLogo.style.color = diplomaType.color[person.diplomaList[j].diplomaLevel];
 				secondLineContent.appendChild(diplomaLogo);
 				// insert a space after each logo
 				secondLineContent.appendChild(document.createTextNode(" "))
@@ -118,7 +120,7 @@ function makeUL(peopleArray) {
 		item.appendChild(secondLineContent);
 		
 		// append the text content
-        //item.appendChild(document.createTextNode(peopleArray[i].name));
+        //item.appendChild(document.createTextNode(person.name));
 
 		// append the delete icon
 		var linkDelete = document.createElement('a');
