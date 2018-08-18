@@ -2,54 +2,7 @@ document.addEventListener('DOMContentLoaded', function() {
 M.AutoInit();
 });
  
- function createCard(cardType) {
-	var cardArea = document.getElementById("cardArea");
-	var newCardContainer = document.createElement("DIV");
-	newCardContainer.className = "col s12 m6 l3 xl3 cardToDelete";
-		// Create the card div
-		var newCard = document.createElement("DIV");
-		newCard.className = 'card';
-			// Create the header (image, title)
-			var cardHeader = document.createElement("DIV");
-			cardHeader.className = 'card-image';
-				var cardImage = document.createElement("IMG");
-				cardImage.src = 'images/facilities/mine_m.jpg';
-				var cardTitle = document.createElement("SPAN");
-				cardTitle.className = 'card-title';
-				cardTitle.appendChild(document.createTextNode("Facilty type"))
-			cardHeader.appendChild(cardImage);
-			cardHeader.appendChild(cardTitle);
-			// Create the description
-			var cardDescription = document.createElement("DIV");
-			cardDescription.className = 'card-content';
-			cardDescription.appendChild(document.createTextNode("A description"))
-			// Create the actions (worker controls)
-			var cardActions = document.createElement("DIV");
-			cardActions.className = 'card-action';
-				var buttonRemove = document.createElement("a");
-				buttonRemove.className = 'btn-floating waves-effect waves-light red';
-					var removeIcon = document.createElement("i");
-					removeIcon.className = 'material-icons';
-					removeIcon.innerHTML = "remove";
-				buttonRemove.appendChild(removeIcon);
-				var buttonAdd = document.createElement("a");
-				buttonAdd.className = 'btn-floating waves-effect waves-light red';
-					var addIcon = document.createElement("i");
-					addIcon.className = 'material-icons';
-					addIcon.innerHTML = "add";
-				buttonAdd.appendChild(addIcon);
-			cardActions.appendChild(buttonRemove);
-			cardActions.appendChild(buttonAdd);
-		// append header, description and worker controls to the card div
-		newCard.appendChild(cardHeader);
-		newCard.appendChild(cardDescription);
-		newCard.appendChild(cardActions);
-	newCardContainer.appendChild(newCard);	
-	//Append the card div to newCardContainer
-	cardArea.appendChild(newCardContainer);
- }
- 
- function createCardOld(cardType) {
+  function createCard(cardType) {
 	var newDiv = document.createElement("DIV");
 	newDiv.className = "col s12 m6 l3 xl3 cardToDelete";
 	newDiv.innerHTML = `
@@ -315,7 +268,7 @@ function makeBaseFacilityTypeList(baseFacilityTypeList) {
 		title.appendChild(document.createTextNode(facilityType.name));
 		item.appendChild(title);
 		
-		// create and append the second line content (cost)
+		// create and append the second line content
 		var secondLineContent = document.createElement('p');
 		//var secondLineText = "Wood: "+facilityType.cost[0]+" Stone: "+facilityType.cost[1]+" Metal: "+facilityType.cost[2]
 		secondLineContent.appendChild(document.createTextNode("Cost: "))
@@ -329,23 +282,28 @@ function makeBaseFacilityTypeList(baseFacilityTypeList) {
 		}
 		item.appendChild(secondLineContent);
 		
-		// create and append the third line content (prod)
+		// create and append the third line content
 		var thirdLineContent = document.createElement('p');
 		//var secondLineText = "Wood: "+facilityType.cost[0]+" Stone: "+facilityType.cost[1]+" Metal: "+facilityType.cost[2]
 		thirdLineContent.appendChild(document.createTextNode("Prod: "+facilityType.prodPerPeoplePerTurn+" "))
 		var outputLogo = document.createElement('i');
-		outputLogo.className = config.refinedResourceTypeList[facilityType.outputRefinedResource].icon;
-		thirdLineContent.appendChild(outputLogo);
+		resourceLogo.className = config.refinedResourceTypeList[facilityType.outputRefinedResource].icon;
+		thirdLineContent.appendChild(resourceLogo);
 		item.appendChild(thirdLineContent);
-		
-		// create and append the fourth line content  (build time)
-		var fourthLineContent = document.createElement('p');
-		//var secondLineText = "Wood: "+facilityType.cost[0]+" Stone: "+facilityType.cost[1]+" Metal: "+facilityType.cost[2]
-		fourthLineContent.appendChild(document.createTextNode("Build time: "+facilityType.buildTime+" "))
-		var outputLogo = document.createElement('i');
-		outputLogo.className = 'far fa-clock';
-		fourthLineContent.appendChild(outputLogo);
-		item.appendChild(fourthLineContent);
+
+		/*
+		// append the delete icon
+		var linkDelete = document.createElement('a');
+		linkDelete.className = 'secondary-content';
+		linkDelete.href = '#!'
+		//linkDelete.onclick = "test"
+		linkDelete.addEventListener("click", test, false);
+		var deleteIcon = document.createElement('i');
+		deleteIcon.className = 'material-icons';
+		deleteIcon.appendChild(document.createTextNode('delete'))
+		linkDelete.appendChild(deleteIcon);
+		item.appendChild(linkDelete);
+		*/
         // Add it to the list:
         list.appendChild(item);
     }
