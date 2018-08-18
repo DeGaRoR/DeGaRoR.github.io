@@ -2,7 +2,9 @@ document.addEventListener('DOMContentLoaded', function() {
 M.AutoInit();
 });
  
- function createCard(cardType) {
+ function createCard(facilityTypeID) {
+	//console.log("Received facilityTypeID "+facilityTypeID);
+	var facilityType = config.baseFacilityTypeList[facilityTypeID];
 	var cardArea = document.getElementById("cardArea");
 	var newCardContainer = document.createElement("DIV");
 	newCardContainer.className = "col s12 m6 l3 xl3 cardToDelete";
@@ -13,10 +15,10 @@ M.AutoInit();
 			var cardHeader = document.createElement("DIV");
 			cardHeader.className = 'card-image';
 				var cardImage = document.createElement("IMG");
-				cardImage.src = 'images/facilities/mine_m.jpg';
+				cardImage.src = facilityType.img;
 				var cardTitle = document.createElement("SPAN");
 				cardTitle.className = 'card-title';
-				cardTitle.appendChild(document.createTextNode("Facilty type"))
+				cardTitle.appendChild(document.createTextNode(facilityType.name))
 			cardHeader.appendChild(cardImage);
 			cardHeader.appendChild(cardTitle);
 			// Create the description
@@ -48,33 +50,6 @@ M.AutoInit();
 	//Append the card div to newCardContainer
 	cardArea.appendChild(newCardContainer);
  }
- 
- function createCardOld(cardType) {
-	var newDiv = document.createElement("DIV");
-	newDiv.className = "col s12 m6 l3 xl3 cardToDelete";
-	newDiv.innerHTML = `
-		   <div class="card">
-			<div class="card-image">
-			  <img src="images/`+cardType+`.jpg">
-			  <span class="card-title">`+cardType+`</span>
-			  <a class="btn-floating halfway-fab waves-effect waves-light red closeBtn"><i class="material-icons">delete</i></a>
-			</div>
-			<div class="card-content">
-			  <p>`+cardType+`</p>
-			</div>
-			<div class="card-action">
-
-				<a class="btn-floating waves-effect waves-light red"><i class="material-icons">remove</i></a>
-				<a class="btn-floating waves-effect waves-light blue"><i class="material-icons">add</i></a>
-			</div>
-		  </div>
-	`;
-	cardArea = document.getElementById("cardArea");
-    cardArea.appendChild(newDiv);
-	$('.closeBtn').on('click', function(){
-    $(this).closest(".cardToDelete").remove();
-});
- }
 
 // delete a card
 $('.closeBtn').on('click', function(){
@@ -105,7 +80,10 @@ function getInitialState() {
 		// refinedResources is a vector whose positions correspond to the positions in refinedResourceTypeList
 		// Wood, Stone, Metal, Food
 		refinedResources: [50,30,20,100],
-		rawResources: [125,50,30,500]
+		rawResources: [125,50,30,500],
+		facilities: [
+			{facilityTypeID: 0, facilityID: 0, facilityStatus: 0, employees: []}
+		]
 	}
 }
 
@@ -121,10 +99,10 @@ function getInitialState() {
 		],
 		baseFacilityTypeList: [
 			// Cost[Wood,Stone,Metal]
-			{name: "Logging Cabin", cost: [2,1,0], buildTime: 1, peopleCapacity: 10, prodPerPeoplePerTurn: 1, consPerPeoplePerTurn: 1, inputRawResource: 0, outputRefinedResource: 0, thumb: "images/facilities/loggingCabin_s.jpg"},
-			{name: "Quarry", cost: [5,0,2], buildTime: 2, peopleCapacity: 10, prodPerPeoplePerTurn: 1, consPerPeoplePerTurn: 1, inputRawResource: 1, outputRefinedResource: 1, thumb: "images/facilities/quarry_s.jpg"},
-			{name: "Mine", cost: [10,5,5], buildTime: 3, peopleCapacity: 10, prodPerPeoplePerTurn: 1, consPerPeoplePerTurn: 1, inputRawResource: 2, outputRefinedResource: 2, thumb: "images/facilities/mine_s.jpg"},
-			{name: "Food processing", cost: [1,1,1], buildTime: 1, peopleCapacity: 10, prodPerPeoplePerTurn: 1, consPerPeoplePerTurn: 1, inputRawResource: 3, outputRefinedResource: 3, thumb: "images/facilities/foodProcessing_s.jpg"}
+			{name: "Logging Cabin", cost: [2,1,0], buildTime: 1, peopleCapacity: 10, prodPerPeoplePerTurn: 1, consPerPeoplePerTurn: 1, inputRawResource: 0, outputRefinedResource: 0, thumb: "images/facilities/loggingCabin_s.jpg", img: "images/facilities/loggingCabin_m.jpg"},
+			{name: "Quarry", cost: [5,0,2], buildTime: 2, peopleCapacity: 10, prodPerPeoplePerTurn: 1, consPerPeoplePerTurn: 1, inputRawResource: 1, outputRefinedResource: 1, thumb: "images/facilities/quarry_s.jpg", img: "images/facilities/quarry_m.jpg"},
+			{name: "Mine", cost: [10,5,5], buildTime: 3, peopleCapacity: 10, prodPerPeoplePerTurn: 1, consPerPeoplePerTurn: 1, inputRawResource: 2, outputRefinedResource: 2, thumb: "images/facilities/mine_s.jpg", img: "images/facilities/mine_m.jpg"},
+			{name: "Food processing", cost: [1,1,1], buildTime: 1, peopleCapacity: 10, prodPerPeoplePerTurn: 1, consPerPeoplePerTurn: 1, inputRawResource: 3, outputRefinedResource: 3, thumb: "images/facilities/foodProcessing_s.jpg", img: "images/facilities/foodProcessing_m.jpg"}
 		],
 		specialFacilityTypeList: [
 			{name: "House"},
@@ -217,7 +195,6 @@ function makePeopleList(peopleArray) {
     return list;
 }
 
-// Add the contents of options[0] to #jobsScreen:
 function generatePeopleDOM(divID) {
 	document.getElementById(divID).appendChild(makePeopleList(state.people));
 }
@@ -280,11 +257,49 @@ function test() {
 }
 
 function refreshGlobalIndicators() {
-	document.getElementById("woodIndicator").innerHTML = state.rawResources[0];
-	document.getElementById("stoneIndicator").innerHTML = state.rawResources[1];
-	document.getElementById("metalIndicator").innerHTML = state.rawResources[2];
-	document.getElementById("foodIndicator").innerHTML = state.rawResources[3];
+	document.getElementById("woodIndicator").innerHTML = state.refinedResources[0];
+	document.getElementById("stoneIndicator").innerHTML = state.refinedResources[1];
+	document.getElementById("metalIndicator").innerHTML = state.refinedResources[2];
+	document.getElementById("foodIndicator").innerHTML = state.refinedResources[3];
 	document.getElementById("peopleIndicator").innerHTML = state.people.length;
+}
+
+function buildFacility(facilityTypeID) {
+	addFacility_BE(facilityTypeID);
+	refreshFacilityList_FE()
+	//createCard(facilityTypeID);
+}
+function addFacility_BE(facilityTypeID) {
+	// figure out the highest facilityID within the list of facilities to increment
+	var goAhead = false;
+	var maxID = 0;
+	for (var i = 0; i < state.facilities.length; i++) {
+		if (state.facilities[i].facilityID>maxID) {maxID = state.facilities[i].facilityID}
+	}
+
+	// substract the cost of the building from the refined resources if there is enough
+	for (var i = 0; i < 3; i++) {
+		console.log("There are "+state.refinedResources[i]+" of "+config.refinedResourceTypeList[i].name+". The building costs "+config.baseFacilityTypeList[facilityTypeID].cost[i] )
+		
+		state.refinedResources[i] = state.refinedResources[i] - config.baseFacilityTypeList[facilityTypeID].cost[i];
+		console.log("After substraction, I have "+state.refinedResources[i]+" of "+config.refinedResourceTypeList[i].name);
+	}
+	// create the new facility object and push it to the facility vector
+	var newFacility = {facilityTypeID: facilityTypeID, facilityID: maxID+1, facilityStatus: 0, employees: []}
+	state.facilities.push(newFacility);
+}
+function refreshFacilityList_FE() {
+	divID = 'cardArea';
+	clearDOM(divID);
+	generateFacilityDOM(divID);
+	refreshGlobalIndicators();
+}
+
+function generateFacilityDOM(divID) {
+	//create a card for each facility
+	for (var i = 0; i < state.facilities.length; i++) {
+		createCard(state.facilities[i].facilityTypeID)
+	}
 }
 
 function generateFacilityModal(divID) {
@@ -301,7 +316,9 @@ function makeBaseFacilityTypeList(baseFacilityTypeList) {
 		// Create the list item:
         var item = document.createElement('a');
 		item.className = 'collection-item avatar modal-close';
-		item.onclick=function(){createCard('oil');};
+		console.log("Creating list item for facility type ID "+i);
+		item.originalIndex = i;
+		item.onclick=function(){buildFacility(this.originalIndex);};
         
 		// create and append the thumbnail
 		var thumb = document.createElement('IMG');
@@ -358,4 +375,5 @@ var state = getInitialState();
 var config = getConfig();
 generatePeopleDOM('peopleListArea');
 generateFacilityModal('modalFacilitiesContent');
+generateFacilityDOM('cardArea')
 refreshGlobalIndicators();

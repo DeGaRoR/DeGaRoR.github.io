@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-  <html>
+ <html>
     <head>
       <!--Import Google Icon Font-->
       <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
@@ -14,29 +14,29 @@
     </head>
 
     <body>
-<!-- Navbar -->
+		<!-- Navbar -->
 		<div class="navbar-fixed">
 			<nav>
 				<div class="nav-wrapper red lighten-2">
-				  <a href="#!" class="right" onclick="test()"><i class="fas fa-chevron-circle-right"></i>&nbsp</a>
+				  <a href="#!" class="right" onclick="test()"><i class="fas fa-chevron-circle-right"></i>&nbsp </a>
 				  <a href="#!" data-target="mobile-demo" class="sidenav-trigger show-on-medium-and-up"><i class="material-icons">menu</i></a>
 				  <div id="globalIndicators" class="center-align">
-					<i class="fas fa-tree fa-sm hide-on-med-and-up"></i>&nbsp<i class="fas fa-tree hide-on-small-only"></i><span id="woodIndicator"></span>&nbsp
-					<i class="fas fa-cubes fa-sm hide-on-med-and-up"></i>&nbsp<i class="fas fa-cubes hide-on-small-only"></i><span id="stoneIndicator"></span>&nbsp
-					<i class="fas fa-magnet fa-sm hide-on-med-and-up"></i>&nbsp<i class="fas fa-magnet hide-on-small-only"></i><span id="metalIndicator"></span>&nbsp
-					<i class="fas fa-utensils fa-sm hide-on-med-and-up"></i>&nbsp<i class="fas fa-utensils hide-on-small-only"></i><span id="foodIndicator"></span>&nbsp
-					<i class="fas fa-users fa-sm hide-on-med-and-up"></i>&nbsp<i class="fas fa-users hide-on-small-only"></i><span id="peopleIndicator"></span>
+					<i class="fas fa-tree fa-sm hide-on-med-and-up"></i>&nbsp <i class="fas fa-tree hide-on-small-only"></i><span id="woodIndicator"></span>&nbsp
+					<i class="fas fa-cubes fa-sm hide-on-med-and-up"></i>&nbsp <i class="fas fa-cubes hide-on-small-only"></i><span id="stoneIndicator"></span>&nbsp
+					<i class="fas fa-magnet fa-sm hide-on-med-and-up"></i>&nbsp <i class="fas fa-magnet hide-on-small-only"></i><span id="metalIndicator"></span>&nbsp
+					<i class="fas fa-utensils fa-sm hide-on-med-and-up"></i>&nbsp <i class="fas fa-utensils hide-on-small-only"></i><span id="foodIndicator"></span>&nbsp
+					<i class="fas fa-users fa-sm hide-on-med-and-up"></i>&nbsp <i class="fas fa-users hide-on-small-only"></i><span id="peopleIndicator"></span>
 				  </div>
 				</div>
 			</nav>
 		</div>
-<!-- Side nav -->
+		<!-- Side nav -->
 		<ul class="sidenav" id="mobile-demo">
 			<li><a href="#!" onclick="test()">Item 1</a></li>
 			<li><a href="#!" onclick="test()">Item 2</a></li>
 			<li><a href="#!" onclick="test()">Item 3</a></li>
 		</ul>
-<!-- Tabs -->
+		<!-- Tabs -->
 		<div>
 			<div class="row">
 				<div class="col s12">
@@ -47,53 +47,37 @@
 				</div>
 			</div>
 		</div>
- <!-- Facilities screen -->
+		<!-- Facilities screen -->
 		<div id="facilityScreen" class="TGEscreen">
-	 <!-- Screen estate -->  
-		   <div id="cardArea" class="row">
-			<div class="col s12 m6 l3 xl3 cardToDelete">
-			  <div class="card">
-				<div class="card-image">
-				  <img src="images/warehouse.jpg">
-				  <span class="card-title">Warehouse</span>
-				  <a class="btn-floating halfway-fab waves-effect waves-light red closeBtn"><i class="material-icons">delete</i></a>
-				</div>
-				<div class="card-content">
-				  <p>Warehouse to store raw materials</p>
-				</div>
-				<div class="card-action">
-					<a class="btn-floating waves-effect waves-light red"><i class="material-icons">remove</i></a>
-					<a class="btn-floating waves-effect waves-light blue"><i class="material-icons">add</i></a>
-				</div>
-			  </div>
+			<!-- Screen estate -->  
+			<div id="cardArea" class="row">
 			</div>
-		  </div>
-	<!-- add card button -->
+			<!-- add card button -->
 			<div id="addCard" class="fixed-action-btn">
 			  <a class="btn-floating btn-large red modal-trigger" href="#modalFacilities">
 				<i class="large material-icons">add</i>
 			  </a>
 			</div>
-	<!-- Facility selection menu -->
+			<!-- Facility selection menu -->
 			<div id="modalFacilities" class="modal">
 				<div id="modalFacilitiesContent" class="modal-content">
 				</div>
 			</div>
 		</div>	
-	 <!-- jobs screen -->
-	 <div id="peopleScreen" class="TGEscreen container" hidden>
-		<!-- screen estate -->
-		<div id="peopleListArea">
+		<!-- jobs screen -->
+		<div id="peopleScreen" class="TGEscreen container" hidden>
+			<!-- screen estate -->
+			<div id="peopleListArea">
+			</div>
+			<!-- add card button -->
+			<div id="addPeople" class="fixed-action-btn">
+			  <a class="btn-floating btn-large red" href="#!" onclick="addAndRefresh('peopleListArea')">
+				<i class="large material-icons">add</i>
+			  </a>
+			</div>
 		</div>
-		<!-- add card button -->
-		<div id="addPeople" class="fixed-action-btn">
-		  <a class="btn-floating btn-large red" href="#!" onclick="addAndRefresh('peopleListArea')">
-			<i class="large material-icons">add</i>
-		  </a>
-		</div>
-	 </div>
-	<!--JavaScript at end of body for optimized loading-->
-      <script type="text/javascript" src="js/godEngineer.js"></script>
-	  <script type="text/javascript" src="js/materialize.min.js"></script>
+		<!--JavaScript at end of body for optimized loading-->
+		<script type="text/javascript" src="js/godEngineer.js"></script>
+		<script type="text/javascript" src="js/materialize.min.js"></script>
     </body>
-  </html>
+ </html>
