@@ -33,7 +33,7 @@ M.AutoInit();
 					removeIcon.innerHTML = "remove";
 				buttonRemove.appendChild(removeIcon);
 				var buttonAdd = document.createElement("a");
-				buttonAdd.className = 'btn-floating waves-effect waves-light red';
+				buttonAdd.className = 'btn-floating waves-effect waves-light blue';
 					var addIcon = document.createElement("i");
 					addIcon.className = 'material-icons';
 					addIcon.innerHTML = "add";
