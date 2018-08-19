@@ -411,18 +411,24 @@ function generateMap() {
 		newRow.className = "row";
 		for (var j=0; j<144; j++) {
 			var newCell = document.createElement("a");
-			newCell.className = "col s1 TGEmapCellTest";
+			newCell.className = "col s1 TGEmapCellTest btn modal-trigger";
 			newCell.innerHTML = j;
 			newCell.originalIndex = j;
-			newCell.onclick = function(){testMap(this.originalIndex);};
+			newCell.href="#modalMap"
+			newCell.onclick = function(){refreshModalMap(this.originalIndex);};
 			newRow.appendChild(newCell);
 		}
 		mapArea.appendChild(newRow);
 	//}
 	
 }
-function testMap(message) {
-	alert(message);
+function refreshModalMap(cellID) {
+	//alert(cellID);
+	clearDOM('modalMapContent');
+	var newContent = document.createElement("p");
+	newContent.appendChild(document.createTextNode(cellID));
+	var modalMapContent = document.getElementById('modalMapContent');
+	modalMapContent.appendChild(newContent);
 }
 
 //============================== 
