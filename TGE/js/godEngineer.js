@@ -270,23 +270,36 @@ function buildFacility(facilityTypeID) {
 	//createCard(facilityTypeID);
 }
 function addFacility_BE(facilityTypeID) {
-	// figure out the highest facilityID within the list of facilities to increment
-	var goAhead = false;
+	
+	var goAhead = true;
 	var maxID = 0;
+	// figure out the highest facilityID within the list of facilities to increment by looping over the existing facilities
 	for (var i = 0; i < state.facilities.length; i++) {
 		if (state.facilities[i].facilityID>maxID) {maxID = state.facilities[i].facilityID}
 	}
-
-	// substract the cost of the building from the refined resources if there is enough
+	// check whether there is enough resources to build
 	for (var i = 0; i < 3; i++) {
 		console.log("There are "+state.refinedResources[i]+" of "+config.refinedResourceTypeList[i].name+". The building costs "+config.baseFacilityTypeList[facilityTypeID].cost[i] )
-		
-		state.refinedResources[i] = state.refinedResources[i] - config.baseFacilityTypeList[facilityTypeID].cost[i];
-		console.log("After substraction, I have "+state.refinedResources[i]+" of "+config.refinedResourceTypeList[i].name);
+		if (state.refinedResources[i]>=config.baseFacilityTypeList[facilityTypeID].cost[i]) {
+			console.log("After substraction, I have "+state.refinedResources[i]+" of "+config.refinedResourceTypeList[i].name);
+			
+		} else {
+			console.log("Not enough resources of type "+config.refinedResourceTypeList[i].name)
+			goAhead = false;
+			M.toast({html: 'Not enough '+config.refinedResourceTypeList[i].name+' for '+config.baseFacilityTypeList[facilityTypeID].name+"!"});
+		}
 	}
-	// create the new facility object and push it to the facility vector
-	var newFacility = {facilityTypeID: facilityTypeID, facilityID: maxID+1, facilityStatus: 0, employees: []}
-	state.facilities.push(newFacility);
+	// if enough resources available
+	// create the new facility object and push it to the facility vector 
+	// substract the cost of the building from the refined resources
+	if (goAhead) {
+		for (var i = 0; i < 3; i++) {
+			state.refinedResources[i] = state.refinedResources[i] - config.baseFacilityTypeList[facilityTypeID].cost[i];
+		}
+		var newFacility = {facilityTypeID: facilityTypeID, facilityID: maxID+1, facilityStatus: 0, employees: []}
+		state.facilities.push(newFacility);
+	}
+
 }
 function refreshFacilityList_FE() {
 	divID = 'cardArea';
