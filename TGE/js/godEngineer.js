@@ -28,10 +28,10 @@ function getConfig() {
 		],
 		baseFacilityTypeList: [
 			// Cost[Wood,Stone,Metal]
-			{name: "Logging Cabin", cost: [2,1,0], buildTime: 1, peopleCapacity: 10, prodPerPeoplePerTurn: 1, consPerPeoplePerTurn: 1, inputRawResource: 0, outputRefinedResource: 0, thumb: "images/facilities/loggingCabin_s.jpg", img: "images/facilities/loggingCabin_m.jpg"},
-			{name: "Quarry", cost: [5,0,2], buildTime: 2, peopleCapacity: 10, prodPerPeoplePerTurn: 1, consPerPeoplePerTurn: 1, inputRawResource: 1, outputRefinedResource: 1, thumb: "images/facilities/quarry_s.jpg", img: "images/facilities/quarry_m.jpg"},
-			{name: "Mine", cost: [10,5,5], buildTime: 3, peopleCapacity: 10, prodPerPeoplePerTurn: 1, consPerPeoplePerTurn: 1, inputRawResource: 2, outputRefinedResource: 2, thumb: "images/facilities/mine_s.jpg", img: "images/facilities/mine_m.jpg"},
-			{name: "Food processing", cost: [1,1,1], buildTime: 1, peopleCapacity: 10, prodPerPeoplePerTurn: 1, consPerPeoplePerTurn: 1, inputRawResource: 3, outputRefinedResource: 3, thumb: "images/facilities/foodProcessing_s.jpg", img: "images/facilities/foodProcessing_m.jpg"}
+			{name: "Logging Cabin", cost: [2,1,0], buildTime: 1, peopleCapacity: 10, prodPerPeoplePerTurn: 1, consPerPeoplePerTurn: 1, inputRawResource: 0, outputRefinedResource: 0, thumb: "images/facilities/loggingCabin_s.jpg", img: "images/facilities/loggingCabin_m.jpg", requiredDiplomaToBuild: {diplomaTypeID:1,diplomaLevel:0},requiredDiplomaToWork:{diplomaTypeID:1,diplomaLevel:0}},
+			{name: "Quarry", cost: [5,0,2], buildTime: 2, peopleCapacity: 10, prodPerPeoplePerTurn: 1, consPerPeoplePerTurn: 1, inputRawResource: 1, outputRefinedResource: 1, thumb: "images/facilities/quarry_s.jpg", img: "images/facilities/quarry_m.jpg", requiredDiplomaToBuild: {diplomaTypeID:1,diplomaLevel:0},requiredDiplomaToWork:{diplomaTypeID:1,diplomaLevel:0}},
+			{name: "Mine", cost: [10,5,5], buildTime: 3, peopleCapacity: 10, prodPerPeoplePerTurn: 1, consPerPeoplePerTurn: 1, inputRawResource: 2, outputRefinedResource: 2, thumb: "images/facilities/mine_s.jpg", img: "images/facilities/mine_m.jpg", requiredDiplomaToBuild: {diplomaTypeID:1,diplomaLevel:0},requiredDiplomaToWork:{diplomaTypeID:1,diplomaLevel:0}},
+			{name: "Food processing", cost: [1,1,1], buildTime: 1, peopleCapacity: 10, prodPerPeoplePerTurn: 1, consPerPeoplePerTurn: 1, inputRawResource: 3, outputRefinedResource: 3, thumb: "images/facilities/foodProcessing_s.jpg", img: "images/facilities/foodProcessing_m.jpg", requiredDiplomaToBuild: {diplomaTypeID:1,diplomaLevel:0},requiredDiplomaToWork:{diplomaTypeID:1,diplomaLevel:0}}
 		],
 		specialFacilityTypeList: [
 			{name: "House"},
@@ -83,6 +83,25 @@ function refreshGlobalIndicators() {
 //============================== 
 //People
 //============================== 
+function filterPeopleArrayOnDiploma(peopleArray, requiredDiploma) {
+	console.log("Starting filtering people list. We're looking for diploma of type "+requiredDiploma.diplomaTypeID+" and level "+requiredDiploma.diplomaLevel+" or higher");
+	var filteredPeopleArray = [];
+	// for each person
+	for (var i = 0; i < peopleArray.length; i++) {
+		var compliant = false;
+		var person = peopleArray[i];
+		console.log("Looking at "+person.name);
+		for (var j = 0; j < person.diplomaList.length; j++) {
+			console.log("Looking at diploma of type "+person.diplomaList[j].diplomaTypeID+" and level "+person.diplomaList[j].diplomaLevel)
+			if (person.diplomaList[j].diplomaTypeID == requiredDiploma.diplomaTypeID && person.diplomaList[j].diplomaLevel >=  requiredDiploma.diplomaLevel) {
+				compliant = true;
+				console.log("It is matching!");
+			}
+		}
+		if (compliant) {filteredPeopleArray.push(person); console.log("Adding "+person.name+" to the filtered list")};
+	}
+	return filteredPeopleArray;
+}
 function makePeopleList(peopleArray) {
     // Create the list element:
     var list = document.createElement('ul');
