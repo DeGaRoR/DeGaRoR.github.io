@@ -391,7 +391,8 @@ function makeBaseFacilityTypeUL(baseFacilityTypeList) {
 		outputLogo.className = 'far fa-clock';
 		fourthLineContent.appendChild(outputLogo);
 		item.appendChild(fourthLineContent);
-        // Add it to the list:
+        
+		// Add it to the list:
         list.appendChild(item);
     }
 
