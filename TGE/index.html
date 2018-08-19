@@ -5,6 +5,8 @@
       <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
       <!--Import materialize.css-->
       <link type="text/css" rel="stylesheet" href="css/materialize.min.css"  media="screen,projection"/>
+	  <!--Import TGE.css-->
+      <link type="text/css" rel="stylesheet" href="css/TGE.css"  media="screen,projection"/>
 	  <!-- Import font awesome -->
 	  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.2.0/css/all.css" integrity="sha384-hWVjflwFxL6sNzntih27bfxkr27PmbbK/iSvJ+a4+0owXq79v+lsFkW54bOGbiDQ" crossorigin="anonymous">
 	  <!--Import jQuery-->
@@ -43,6 +45,7 @@
 					<ul class="tabs">
 						<li class="tab col s3"><a class="active" onclick="displayScreen('facilityScreen')">Facilities</a></li>
 						<li class="tab col s3"><a onclick="displayScreen('peopleScreen')">People</a></li>
+						<li class="tab col s3"><a onclick="displayScreen('mapScreen')">Map</a></li>
 					</ul>
 				</div>
 			</div>
@@ -64,7 +67,7 @@
 				</div>
 			</div>
 		</div>	
-		<!-- jobs screen -->
+		<!-- people screen -->
 		<div id="peopleScreen" class="TGEscreen container" hidden>
 			<!-- screen estate -->
 			<div id="peopleListArea">
@@ -74,6 +77,12 @@
 			  <a class="btn-floating btn-large red" href="#!" onclick="addAndRefresh('peopleListArea')">
 				<i class="large material-icons">add</i>
 			  </a>
+			</div>
+		</div>
+		<!-- map screen -->
+		<div id="mapScreen" class="TGEscreen container" hidden>
+			<!-- screen estate -->
+			<div id="mapArea">
 			</div>
 		</div>
 		<!--JavaScript at end of body for optimized loading-->

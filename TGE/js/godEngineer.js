@@ -399,7 +399,32 @@ function makeBaseFacilityTypeUL(baseFacilityTypeList) {
     // Finally, return the constructed list:
     return list;
 }
- 
+//============================== 
+//Map
+//============================== 
+function generateMap() {
+	console.log("Generation of map started");
+	mapArea=document.getElementById("mapArea");
+
+	//for (var i=0; i<12; i++) {
+		newRow = document.createElement("DIV");
+		newRow.className = "row";
+		for (var j=0; j<144; j++) {
+			var newCell = document.createElement("a");
+			newCell.className = "col s1 TGEmapCellTest";
+			newCell.innerHTML = j;
+			newCell.originalIndex = j;
+			newCell.onclick = function(){testMap(this.originalIndex);};
+			newRow.appendChild(newCell);
+		}
+		mapArea.appendChild(newRow);
+	//}
+	
+}
+function testMap(message) {
+	alert(message);
+}
+
 //============================== 
 //Misc
 //============================== 
@@ -425,3 +450,4 @@ generatePeopleDOM('peopleListArea');
 generateFacilityModal('modalFacilitiesContent');
 generateFacilityDOM('cardArea')
 refreshGlobalIndicators();
+generateMap();
