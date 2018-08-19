@@ -12,7 +12,7 @@ function getInitialState() {
 		refinedResources: [3,3,8,10],
 		rawResources: [125,50,30,500],
 		facilities: [
-			{facilityTypeID: 0, facilityID: 0, facilityStatus: 0, employees: []}
+			{facilityTypeID: 0, facilityID: 0, facilityStatus: 1, employees: [], turnsTillConstruction: 0}
 		]
 	}
 }
@@ -48,7 +48,8 @@ function getConfig() {
 			{name: "Stone", icon: 'fas fa-cubes'},
 			{name: "Metal", icon: 'fas fa-magnet'},
 			{name: "Food", icon: 'fas fa-utensils'}
-		]
+		],
+		facilityStatusList: ["In construction","Operating","Disabled"]
 	}
 }
 function getRandomPeopleAttributes() {
@@ -200,9 +201,17 @@ function refreshPeopleList_FE() {
 //============================== 
 //Facilities
 //============================== 
-function makeFacilityCard(facilityTypeID) {
-	//console.log("Received facilityTypeID "+facilityTypeID);
-	var facilityType = config.baseFacilityTypeList[facilityTypeID];
+function indexFromFacilityID(facilityID) {
+	var index = -1;
+	for (var i = 0; i < state.facilities.length; i++) {
+		if(facilityID == state.facilities[i].facilityID) {index = i}
+	}
+	return index;
+}
+function makeFacilityCard(facilityID) {
+	//console.log("Received facilityID "+facilityID);
+	var facility = state.facilities[indexFromFacilityID(facilityID)];
+	var facilityType = config.baseFacilityTypeList[facility.facilityTypeID];
 	var cardArea = document.getElementById("cardArea");
 	var newCardContainer = document.createElement("DIV");
 	newCardContainer.className = "col s12 m6 l3 xl3 cardToDelete";
@@ -221,8 +230,12 @@ function makeFacilityCard(facilityTypeID) {
 			cardHeader.appendChild(cardTitle);
 			// Create the description
 			var cardDescription = document.createElement("DIV");
-			cardDescription.className = 'card-content';
-			cardDescription.appendChild(document.createTextNode("A description"))
+			cardDescription.appendChild(document.createTextNode(config.facilityStatusList[facility.facilityStatus]))
+			switch(facility.facilityStatus) {
+				case 0: cardDescription.className = 'card-content orange-text'; cardDescription.appendChild(document.createTextNode(" "+facility.turnsTillConstruction+" turn(s) remaining")); break; // orange text if in construction
+				case 1: cardDescription.className = 'card-content green-text'; break; // Green text if operating
+				case 2: cardDescription.className = 'card-content red-text';//red text if disabled
+			}
 			// Create the actions (worker controls)
 			var cardActions = document.createElement("DIV");
 			cardActions.className = 'card-action';
@@ -275,13 +288,13 @@ function addFacility_BE(facilityTypeID) {
 		}
 	}
 	// if enough resources available
-	// create the new facility object and push it to the facility vector 
-	// substract the cost of the building from the refined resources
 	if (goAhead) {
+		// substract the cost of the building from the refined resources
 		for (var i = 0; i < 3; i++) {
 			state.refinedResources[i] = state.refinedResources[i] - config.baseFacilityTypeList[facilityTypeID].cost[i];
 		}
-		var newFacility = {facilityTypeID: facilityTypeID, facilityID: maxID+1, facilityStatus: 0, employees: []}
+		// create the new facility object and push it to the facility vector 
+		var newFacility = {facilityTypeID: facilityTypeID, facilityID: maxID+1, facilityStatus: 0, employees: [], turnsTillConstruction: config.baseFacilityTypeList[facilityTypeID].buildTime}
 		state.facilities.push(newFacility);
 	}
 
@@ -295,7 +308,7 @@ function refreshFacilityList_FE() {
 function generateFacilityDOM(divID) {
 	//create a card for each facility
 	for (var i = 0; i < state.facilities.length; i++) {
-		makeFacilityCard(state.facilities[i].facilityTypeID)
+		makeFacilityCard(state.facilities[i].facilityID)
 	}
 }
 function generateFacilityModal(divID) {
