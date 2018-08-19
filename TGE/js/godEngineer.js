@@ -1,76 +1,6 @@
-document.addEventListener('DOMContentLoaded', function() {
-M.AutoInit();
-});
- 
- function createCard(facilityTypeID) {
-	//console.log("Received facilityTypeID "+facilityTypeID);
-	var facilityType = config.baseFacilityTypeList[facilityTypeID];
-	var cardArea = document.getElementById("cardArea");
-	var newCardContainer = document.createElement("DIV");
-	newCardContainer.className = "col s12 m6 l3 xl3 cardToDelete";
-		// Create the card div
-		var newCard = document.createElement("DIV");
-		newCard.className = 'card';
-			// Create the header (image, title)
-			var cardHeader = document.createElement("DIV");
-			cardHeader.className = 'card-image';
-				var cardImage = document.createElement("IMG");
-				cardImage.src = facilityType.img;
-				var cardTitle = document.createElement("SPAN");
-				cardTitle.className = 'card-title';
-				cardTitle.appendChild(document.createTextNode(facilityType.name))
-			cardHeader.appendChild(cardImage);
-			cardHeader.appendChild(cardTitle);
-			// Create the description
-			var cardDescription = document.createElement("DIV");
-			cardDescription.className = 'card-content';
-			cardDescription.appendChild(document.createTextNode("A description"))
-			// Create the actions (worker controls)
-			var cardActions = document.createElement("DIV");
-			cardActions.className = 'card-action';
-				var buttonRemove = document.createElement("a");
-				buttonRemove.className = 'btn-floating waves-effect waves-light red';
-					var removeIcon = document.createElement("i");
-					removeIcon.className = 'material-icons';
-					removeIcon.innerHTML = "remove";
-				buttonRemove.appendChild(removeIcon);
-				var buttonAdd = document.createElement("a");
-				buttonAdd.className = 'btn-floating waves-effect waves-light blue';
-					var addIcon = document.createElement("i");
-					addIcon.className = 'material-icons';
-					addIcon.innerHTML = "add";
-				buttonAdd.appendChild(addIcon);
-			cardActions.appendChild(buttonRemove);
-			cardActions.appendChild(buttonAdd);
-		// append header, description and worker controls to the card div
-		newCard.appendChild(cardHeader);
-		newCard.appendChild(cardDescription);
-		newCard.appendChild(cardActions);
-	newCardContainer.appendChild(newCard);	
-	//Append the card div to newCardContainer
-	cardArea.appendChild(newCardContainer);
- }
-
-// delete a card
-$('.closeBtn').on('click', function(){
-    $(this).closest(".cardToDelete").remove();
-});
-
-//$('.deletePerson').click(function(){ console.log('Delete me'); return false; });
-
-function displayScreen(screenID) {
-	// function to hide all screen divs and show the one passed as a parameter
-	$('.TGEscreen').hide();
-	$('#'+screenID+'').show();
-}
-function getRandomPeopleAttributes() {
-	return {
-		firstNamesMale: ['Jean-Michel','Jean-Pierre','Jean-Philippe','Jean-Paul','Jean-Marcel','Kevin','Killian','Mohammed','Ashton','Brad','Harrison','Bonaventure','Desire','Yunic','Dartagnan'],
-		firstNamesFemale: ['Fatima','Barbara','Monica','Priscilia','Stephanie','Kelly','Nicole','Morgan','Jessica','Cindy','Kloe','Kim','Britney','Shakira','Beberly','Merica','Appaloosa','Melanomia','Heaven Lee'],
-		lastNames: ['Bjornsonn','Al Belgiki','Dupont','Dugenou','Smith','Gaywad','Trump','Buttz','Ballz','Goodfornothing','Retard','Primitive','Kumar','Singh','Buzzbuzz','Nutgrabber','Ballbuster','Bieber','Van Damme','Van Varenberg','Daerdenne','Bin Batman','Neanderthal','Cromagnon','Uga-uga'],
-	}
-}
-
+//============================== 
+//Config and initial state
+//============================== 
 function getInitialState() {
 	return {
 		people: [
@@ -79,15 +9,14 @@ function getInitialState() {
 		],
 		// refinedResources is a vector whose positions correspond to the positions in refinedResourceTypeList
 		// Wood, Stone, Metal, Food
-		refinedResources: [50,30,20,100],
+		refinedResources: [3,3,8,10],
 		rawResources: [125,50,30,500],
 		facilities: [
 			{facilityTypeID: 0, facilityID: 0, facilityStatus: 0, employees: []}
 		]
 	}
 }
-
- function getConfig() {
+function getConfig() {
 	var medalColorList = ['#b87333','#C0C0C0','#FFDF00'];
 	return {
 		diplomaTypeList: [
@@ -122,8 +51,37 @@ function getInitialState() {
 		]
 	}
 }
-
-
+function getRandomPeopleAttributes() {
+	return {
+		firstNamesMale: ['Jean-Michel','Jean-Pierre','Jean-Philippe','Jean-Paul','Jean-Marcel','Kevin','Killian','Mohammed','Ashton','Brad','Harrison','Bonaventure','Desire','Yunic','Dartagnan'],
+		firstNamesFemale: ['Fatima','Barbara','Monica','Priscilia','Stephanie','Kelly','Nicole','Morgan','Jessica','Cindy','Kloe','Kim','Britney','Shakira','Beberly','Merica','Appaloosa','Melanomia','Heaven Lee'],
+		lastNames: ['Bjornsonn','Al Belgiki','Dupont','Dugenou','Smith','Gaywad','Trump','Buttz','Ballz','Goodfornothing','Retard','Primitive','Kumar','Singh','Buzzbuzz','Nutgrabber','Ballbuster','Bieber','Van Damme','Van Varenberg','Daerdenne','Bin Batman','Neanderthal','Cromagnon','Uga-uga'],
+	}
+}
+//============================== 
+//UI general functions
+//============================== 
+function displayScreen(screenID) {
+	// function to hide all screen divs and show the one passed as a parameter
+	$('.TGEscreen').hide();
+	$('#'+screenID+'').show();
+}
+function clearDOM(divID) {
+	var myNode = document.getElementById(divID);
+	while (myNode.firstChild) {
+		myNode.removeChild(myNode.firstChild);
+	}
+}
+function refreshGlobalIndicators() {
+	document.getElementById("woodIndicator").innerHTML = state.refinedResources[0];
+	document.getElementById("stoneIndicator").innerHTML = state.refinedResources[1];
+	document.getElementById("metalIndicator").innerHTML = state.refinedResources[2];
+	document.getElementById("foodIndicator").innerHTML = state.refinedResources[3];
+	document.getElementById("peopleIndicator").innerHTML = state.people.length;
+}
+//============================== 
+//People
+//============================== 
 function makePeopleList(peopleArray) {
     // Create the list element:
     var list = document.createElement('ul');
@@ -194,23 +152,13 @@ function makePeopleList(peopleArray) {
     // Finally, return the constructed list:
     return list;
 }
-
 function generatePeopleDOM(divID) {
 	document.getElementById(divID).appendChild(makePeopleList(state.people));
 }
-
-function clearDOM(divID) {
-	var myNode = document.getElementById(divID);
-	while (myNode.firstChild) {
-		myNode.removeChild(myNode.firstChild);
-	}
-}
-
 function addPerson_BE() {
 	var newPerson = {name: "harry", gender: "Male",age: "15"};
 	state.people.push(newPerson);
 }
-
 function addRandomPerson_BE() {
 	// get the list of random names
 	var randomPeopleAttributes = getRandomPeopleAttributes();
@@ -239,35 +187,72 @@ function addRandomPerson_BE() {
 	var newPerson = {name: firstName + ' ' +lastName, gender: gender,age: "15", photo: imgName, diplomaList : [{diplomaTypeID: 0, diplomaLevel:0}]};
 	state.people.push(newPerson);
 }
-
 function addAndRefresh(divID) {
 	addRandomPerson_BE();
 	refreshPeopleList_FE();
 }
-
 function refreshPeopleList_FE() {
 	divID = 'peopleListArea';
 	clearDOM(divID);
 	generatePeopleDOM(divID);
 	refreshGlobalIndicators();
 }
-
-function test() {
-	alert('Yeah you clicked');
-}
-
-function refreshGlobalIndicators() {
-	document.getElementById("woodIndicator").innerHTML = state.refinedResources[0];
-	document.getElementById("stoneIndicator").innerHTML = state.refinedResources[1];
-	document.getElementById("metalIndicator").innerHTML = state.refinedResources[2];
-	document.getElementById("foodIndicator").innerHTML = state.refinedResources[3];
-	document.getElementById("peopleIndicator").innerHTML = state.people.length;
-}
-
+//============================== 
+//Facilities
+//============================== 
+function makeFacilityCard(facilityTypeID) {
+	//console.log("Received facilityTypeID "+facilityTypeID);
+	var facilityType = config.baseFacilityTypeList[facilityTypeID];
+	var cardArea = document.getElementById("cardArea");
+	var newCardContainer = document.createElement("DIV");
+	newCardContainer.className = "col s12 m6 l3 xl3 cardToDelete";
+		// Create the card div
+		var newCard = document.createElement("DIV");
+		newCard.className = 'card';
+			// Create the header (image, title)
+			var cardHeader = document.createElement("DIV");
+			cardHeader.className = 'card-image';
+				var cardImage = document.createElement("IMG");
+				cardImage.src = facilityType.img;
+				var cardTitle = document.createElement("SPAN");
+				cardTitle.className = 'card-title';
+				cardTitle.appendChild(document.createTextNode(facilityType.name))
+			cardHeader.appendChild(cardImage);
+			cardHeader.appendChild(cardTitle);
+			// Create the description
+			var cardDescription = document.createElement("DIV");
+			cardDescription.className = 'card-content';
+			cardDescription.appendChild(document.createTextNode("A description"))
+			// Create the actions (worker controls)
+			var cardActions = document.createElement("DIV");
+			cardActions.className = 'card-action';
+				var buttonRemove = document.createElement("a");
+				buttonRemove.className = 'btn-floating waves-effect waves-light red';
+					var removeIcon = document.createElement("i");
+					removeIcon.className = 'material-icons';
+					removeIcon.innerHTML = "remove";
+				buttonRemove.appendChild(removeIcon);
+				var buttonAdd = document.createElement("a");
+				buttonAdd.className = 'btn-floating waves-effect waves-light blue';
+					var addIcon = document.createElement("i");
+					addIcon.className = 'material-icons';
+					addIcon.innerHTML = "add";
+				buttonAdd.appendChild(addIcon);
+			cardActions.appendChild(buttonRemove);
+			cardActions.appendChild(buttonAdd);
+		// append header, description and worker controls to the card div
+		newCard.appendChild(cardHeader);
+		newCard.appendChild(cardDescription);
+		newCard.appendChild(cardActions);
+	// Append the nex card content to the new card container
+	newCardContainer.appendChild(newCard);	
+	//Append the card div to newCardContainer
+	cardArea.appendChild(newCardContainer);
+ }
 function buildFacility(facilityTypeID) {
 	addFacility_BE(facilityTypeID);
 	refreshFacilityList_FE()
-	//createCard(facilityTypeID);
+	//makeFacilityCard(facilityTypeID);
 }
 function addFacility_BE(facilityTypeID) {
 	
@@ -307,18 +292,16 @@ function refreshFacilityList_FE() {
 	generateFacilityDOM(divID);
 	refreshGlobalIndicators();
 }
-
 function generateFacilityDOM(divID) {
 	//create a card for each facility
 	for (var i = 0; i < state.facilities.length; i++) {
-		createCard(state.facilities[i].facilityTypeID)
+		makeFacilityCard(state.facilities[i].facilityTypeID)
 	}
 }
-
 function generateFacilityModal(divID) {
-	document.getElementById(divID).appendChild(makeBaseFacilityTypeList(config.baseFacilityTypeList));
+	document.getElementById(divID).appendChild(makeBaseFacilityTypeUL(config.baseFacilityTypeList));
 }
-function makeBaseFacilityTypeList(baseFacilityTypeList) {
+function makeBaseFacilityTypeUL(baseFacilityTypeList) {
 	// Create the list element:
     var list = document.createElement('ul');
 	list.className = "collection";
@@ -383,7 +366,26 @@ function makeBaseFacilityTypeList(baseFacilityTypeList) {
     // Finally, return the constructed list:
     return list;
 }
-// initialization
+ 
+//============================== 
+//Misc
+//============================== 
+
+// delete a card
+$('.closeBtn').on('click', function(){
+    $(this).closest(".cardToDelete").remove();
+});
+function test() {
+	alert('Yeah you clicked');
+}
+
+//============================== 
+//initialization
+//============================== 
+// initialisation of all materialize components
+document.addEventListener('DOMContentLoaded', function() {
+M.AutoInit();
+});
 var state = getInitialState();
 var config = getConfig();
 generatePeopleDOM('peopleListArea');
