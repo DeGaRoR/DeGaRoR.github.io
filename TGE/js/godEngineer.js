@@ -13,7 +13,8 @@ function getInitialState() {
 		rawResources: [125,50,30,500],
 		facilities: [
 			{facilityTypeID: 0, facilityID: 0, facilityStatus: 1, employees: [], turnsTillConstruction: 0}
-		]
+		],
+		mapTiles: []
 	}
 }
 function getConfig() {
@@ -49,7 +50,23 @@ function getConfig() {
 			{name: "Metal", icon: 'fas fa-magnet'},
 			{name: "Food", icon: 'fas fa-utensils'}
 		],
-		facilityStatusList: ["In construction","Operating","Disabled"]
+		facilityStatusList: ["In construction","Operating","Disabled"],
+		mapSettings: {
+			sizeX: 12,
+			sizeY: 12,
+			villageTypes: [
+				{ID: 0, name: 'None', amount: 0, icon:''},
+				{ID: 1, name: 'Home', amount: 1, icon:'fas fa-home'},
+				{ID: 2, name: 'Small Village', amount: 4, icon:'fas fa-user'},
+				{ID: 3, name: 'Large Village', amount: 3, icon:'fas fa-users'}
+			],
+			terrainBlocks: [
+				{ID: 0, name: 'water', color:'blue lighten-3', icon: 'fas fa-tint', probability: 0.3},
+				{ID: 1, name: 'mountain', color:'grey lighten-1', icon:'fas fa-snowflake', probability: 0.1},
+				{ID: 2, name: 'forest', color: 'green lighten-3', icon:'fas fa-tree', probability: 0.2},
+				{ID: 3, name: 'plains', color: 'green lighten-5', icon:'', probability: 0.4}
+			]
+		}
 	}
 }
 function getRandomPeopleAttributes() {
@@ -403,30 +420,65 @@ function makeBaseFacilityTypeUL(baseFacilityTypeList) {
 //Map
 //============================== 
 function generateMap() {
-	console.log("Generation of map started");
-	mapArea=document.getElementById("mapArea");
+	generateMapTiles();
+	generateMapDOM()
+}
+function generateMapTiles() {
+	var sizeX = config.mapSettings.sizeX;
+	var sizeY = config.mapSettings.sizeY;
+	for (var i=0; i<sizeX; i++) {
+		for (var j=0; j<sizeY; j++) {
+			var newTile = {};
+			newTile.ID = (i*sizeX)+j;
+			newTile.x = i;
+			newTile.y = j;
+			// assign a terrain type based on probability
+			var random = Math.random();
+			if (random <= config.mapSettings.terrainBlocks[0].probability) {newTile.terrainType = config.mapSettings.terrainBlocks[0].ID}
+			else if (random > config.mapSettings.terrainBlocks[0].probability && random <= config.mapSettings.terrainBlocks[0].probability+config.mapSettings.terrainBlocks[1].probability) {newTile.terrainType = config.mapSettings.terrainBlocks[1].ID}
+			else if (random > config.mapSettings.terrainBlocks[0].probability+config.mapSettings.terrainBlocks[1].probability && random <= config.mapSettings.terrainBlocks[0].probability+config.mapSettings.terrainBlocks[1].probability+config.mapSettings.terrainBlocks[2].probability) {newTile.terrainType = config.mapSettings.terrainBlocks[2].ID}
+			else {newTile.terrainType = config.mapSettings.terrainBlocks[3].ID}
+			state.mapTiles.push(newTile);
+		}
+	}
+}
 
-	//for (var i=0; i<12; i++) {
-		newRow = document.createElement("DIV");
-		newRow.className = "row";
-		for (var j=0; j<144; j++) {
+function generateMapDOM() {
+	console.log("Generation of map started");
+	var mapArea=document.getElementById("mapArea");
+	var newRow = document.createElement("DIV");
+	newRow.className = "row";
+	for (var i=0; i<state.mapTiles.length; i++) {
 			var newCell = document.createElement("a");
-			newCell.className = "col s1 TGEmapCellTest btn modal-trigger";
-			newCell.innerHTML = j;
-			newCell.originalIndex = j;
+			var tile = state.mapTiles[i]
+			newCell.className = "TGEmapCellTest col s1  btn modal-trigger "+config.mapSettings.terrainBlocks[tile.terrainType].color;
+			newCell.originalIndex = tile.ID;
+			//newCell.innerHTML = tile.ID;
 			newCell.href="#modalMap"
 			newCell.onclick = function(){refreshModalMap(this.originalIndex);};
+			// add icon
+			//var icon = document.createElement("i");
+			//icon.className = config.mapSettings.terrainBlocks[tile.terrainType].icon;
+			//newCell.appendChild(icon);
 			newRow.appendChild(newCell);
-		}
-		mapArea.appendChild(newRow);
-	//}
-	
+	}
+	mapArea.appendChild(newRow);
 }
 function refreshModalMap(cellID) {
 	//alert(cellID);
 	clearDOM('modalMapContent');
 	var newContent = document.createElement("p");
 	newContent.appendChild(document.createTextNode(cellID));
+	// add icon
+	var icon = document.createElement("i");
+	icon.className = config.mapSettings.terrainBlocks[state.mapTiles[cellID].terrainType].icon;
+	newContent.appendChild(icon);
+	// add button
+	var buttonGo = document.createElement("a");
+	buttonGo.className = 'waves-effect waves-light btn';
+	buttonGo.innerHTML = 'Go there!'
+	newContent.appendChild(buttonGo);
+	// add new content to modal
 	var modalMapContent = document.getElementById('modalMapContent');
 	modalMapContent.appendChild(newContent);
 }
