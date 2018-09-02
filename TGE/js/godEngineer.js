@@ -14,7 +14,9 @@ function getInitialState() {
 		facilities: [
 			{facilityTypeID: 0, facilityID: 0, facilityStatus: 1, employees: [], turnsTillConstruction: 0}
 		],
-		mapTiles: []
+		mapTiles: [],
+		villages: [],
+		explorerTeams: [{ID:1, cellID: 70, icon: 'fas fa-binoculars', remainingMoves:1, maxMoves:1}]
 	}
 }
 function getConfig() {
@@ -57,8 +59,8 @@ function getConfig() {
 			villageTypes: [
 				{ID: 0, name: 'None', amount: 0, icon:''},
 				{ID: 1, name: 'Home', amount: 1, icon:'fas fa-home'},
-				{ID: 2, name: 'Small Village', amount: 20, icon:'fas fa-user'},
-				{ID: 3, name: 'Large Village', amount: 3, icon:'fas fa-users'}
+				{ID: 2, name: 'Small Village', amount: 15, icon:'fas fa-users'},
+				{ID: 3, name: 'Large Village', amount: 5, icon:'fas fa-gopuram'}
 			],
 			terrainBlocks: [
 				{ID: 0, name: 'water', color:'blue lighten-3', icon: 'fas fa-tint', probability: 0.15, picture:'images/tiles/water_m.jpg'},
@@ -421,7 +423,9 @@ function makeBaseFacilityTypeUL(baseFacilityTypeList) {
 //============================== 
 function generateMap() {
 	generateMapTiles();
-	generateMapDOM()
+	setExplorerPosition(0,homePosition())
+	placeExplorersOnTile();
+	generateMapDOM();
 }
 function generateMapTiles() {
 	var sizeX = config.mapSettings.sizeX;
@@ -465,6 +469,11 @@ function generateMapTiles() {
 			if (i>sizeX/3 && j>sizeY/3 && nHomes <1 && newTile.terrainType == config.mapSettings.terrainBlocks[3].ID) {
 				newTile.isHome = true;
 				nHomes = nHomes + 1;
+				// add an entry to villages
+				var newVillage = {};
+				newVillage.type = 1;
+				newVillage.cellID = newTile.ID;
+				state.villages.push(newVillage);
 			}
 			// distribute the small villages
 			// check if there is a smallVillage planned there
@@ -475,6 +484,11 @@ function generateMapTiles() {
 						// put a village there
 						newTile.isSmallVillage = true;
 						nSmallVillages = nSmallVillages + 1;
+						// add an entry to villages
+						var newVillage = {};
+						newVillage.type = 2;
+						newVillage.cellID = newTile.ID;
+						state.villages.push(newVillage);
 					} else {
 						// otherwise shift the coordinates to the next cell
 						smallVillage[k] = smallVillage[k] + 1;
@@ -490,6 +504,11 @@ function generateMapTiles() {
 						// put a village there
 						newTile.isLargeVillage = true;
 						nLargeVillages = nLargeVillages + 1;
+						// add an entry to villages
+						var newVillage = {};
+						newVillage.type = 3;
+						newVillage.cellID = newTile.ID;
+						state.villages.push(newVillage);
 					} else {
 						// otherwise shift the coordinates to the next cell
 						largeVillage[k] = largeVillage[k] + 1;
@@ -500,7 +519,13 @@ function generateMapTiles() {
 		}
 	}
 }
-
+function homePosition() {
+	var villagePos = 0;
+	for (i=0; i<state.villages.length;i++) {
+		if (state.villages[i].type == 1) {villagePos=state.villages[i].cellID}
+	}
+	return villagePos;
+}
 function generateMapDOM() {
 	console.log("Generation of map started");
 	var mapArea=document.getElementById("mapArea");
@@ -509,31 +534,66 @@ function generateMapDOM() {
 	for (var i=0; i<state.mapTiles.length; i++) {
 			var newCell = document.createElement("a");
 			var tile = state.mapTiles[i]
-			newCell.className = "TGEmapCellTest col s1  btn modal-trigger black-text "+config.mapSettings.terrainBlocks[tile.terrainType].color;
+			//newCell.className = "TGEmapCellTest col s1  btn modal-trigger black-text "+config.mapSettings.terrainBlocks[tile.terrainType].color;
+			newCell.className = "TGEmapCellTest col s1  btn black-text "+config.mapSettings.terrainBlocks[tile.terrainType].color;
 			newCell.originalIndex = tile.ID;
-			//newCell.innerHTML = tile.ID;
-			newCell.href="#modalMap"
-			newCell.onclick = function(){refreshModalMap(this.originalIndex);};
+			// modal map - re-activate later
+			//newCell.href="#modalMap"
+			//newCell.onclick = function(){refreshModalMap(this.originalIndex);};
+			
+			// new test with explorers
+			newCell.onclick = function(){cellSelect(this.originalIndex);};
+			
+			// add icon container
+			var iconContainer = document.createElement("DIV");
+			iconContainer.className = 'TGEmapIconContainer';
 			// add icon
 			if (tile.isHome == true) {
 				var icon = document.createElement("i");
-				icon.className = config.mapSettings.villageTypes[1].icon+' deep-orange-text';
-				newCell.appendChild(icon);
+				icon.className = config.mapSettings.villageTypes[1].icon+' teal-text TGEmapIconBackground';
+				iconContainer.appendChild(icon);
 			}
 			if (tile.isSmallVillage == true) {
 				var icon = document.createElement("i");
-				icon.className = config.mapSettings.villageTypes[2].icon+' deep-orange-text text-lighten-3';
-				newCell.appendChild(icon);
+				icon.className = config.mapSettings.villageTypes[2].icon+' teal-text text-lighten-3 TGEmapIconBackground';
+				iconContainer.appendChild(icon);
 			}
 			if (tile.isLargeVillage == true) {
 				var icon = document.createElement("i");
-				icon.className = config.mapSettings.villageTypes[3].icon+' deep-orange-text text-lighten-2';
-				newCell.appendChild(icon);
+				icon.className = config.mapSettings.villageTypes[3].icon+' teal-text text-lighten-2 TGEmapIconBackground';
+				iconContainer.appendChild(icon);
 			}
+			if (tile.hasExplorers == true) {
+				var icon = document.createElement("i");
+				icon.className = 'fas fa-user deep-orange-text text-lighten-1 TGEmapIconForeground';
+				iconContainer.appendChild(icon);
+			}
+			newCell.appendChild(iconContainer);
 			newRow.appendChild(newCell);
 	}
 	mapArea.appendChild(newRow);
 }
+function cellSelect(cellID) {
+	//alert('works')
+	console.log('clicked cell '+cellID);
+}
+function setExplorerPosition(explorerID,cellID) {
+	state.explorerTeams[explorerID].cellID = cellID;
+}
+function placeExplorersOnTile() {
+	console.log('Looking for explorers');
+	for (var i=0; i<state.mapTiles.length; i++) {
+		state.mapTiles[i].hasExplorers = false;
+		for (var j=0; j<state.explorerTeams.length; j++) {
+			if (state.mapTiles[i].ID == state.explorerTeams[j].cellID) {
+				console.log('found explorers on tile '+state.mapTiles[i].ID)
+				state.mapTiles[i].hasExplorers = true;
+			}
+		}
+		
+	}
+}
+
 function refreshModalMap(cellID) {
 	//alert(cellID);
 	// clear Everything first
@@ -556,12 +616,13 @@ function refreshModalMap(cellID) {
 	//create the content
 	var newContent = document.createElement("div");
 	newContent.className = 'card-content';
-	
 	// add icon
 	var icon = document.createElement("i");
 	icon.className = config.mapSettings.terrainBlocks[state.mapTiles[cellID].terrainType].icon;
 	newContent.appendChild(icon);
+	// add text
 	newContent.appendChild(document.createTextNode('Grid ID: '+cellID));
+	
 	// action section
 	var action = document.createElement("div");
 	action.className = 'card-action';
