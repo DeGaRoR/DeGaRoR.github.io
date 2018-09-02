@@ -522,7 +522,7 @@ function generateMapDOM() {
 			}
 			if (tile.isSmallVillage == true) {
 				var icon = document.createElement("i");
-				icon.className = config.mapSettings.villageTypes[2].icon+' deep-orange-text text-lighten-4';
+				icon.className = config.mapSettings.villageTypes[2].icon+' deep-orange-text text-lighten-3';
 				newCell.appendChild(icon);
 			}
 			if (tile.isLargeVillage == true) {
