@@ -11,19 +11,11 @@
 	padding-left: 0px;
 	box-shadow: 6px 4px 20px 0px #6f6f6f;
 	padding: 0 .05rem !important;
+	transition: border 0.3s;
 }
 
-.TGEmapCellTest:active {
-	/* border:1px solid #eee; */
-	/*margin:7px 0;*/
-	text-align:center;
-	line-height:35px;
-	width: 100%;
-	padding-bottom: 100%;
-	font-size:10px;
-	background-color:tomato !important;
-	color:white;
-	padding-left: 0px;
-	box-shadow: 6px 4px 20px 0px #6f6f6f;
-	padding: 0 .05rem !important;
+
+.TGEmapCellTest:hover{
+	/* background-color:blue !important; */
+	border:4px solid #f9a825;
 }

@@ -536,7 +536,11 @@ function generateMapDOM() {
 }
 function refreshModalMap(cellID) {
 	//alert(cellID);
+	// Everything first
 	clearDOM('modalMapContent');
+	// Create a title
+	var title = document.createElement("h1");
+	title.innerHTML = config.mapSettings.terrainBlocks[state.mapTiles[cellID].terrainType].name;
 	var newContent = document.createElement("p");
 	newContent.appendChild(document.createTextNode(cellID));
 	// add icon
@@ -550,6 +554,7 @@ function refreshModalMap(cellID) {
 	newContent.appendChild(buttonGo);
 	// add new content to modal
 	var modalMapContent = document.getElementById('modalMapContent');
+	modalMapContent.appendChild(title);
 	modalMapContent.appendChild(newContent);
 }
 
