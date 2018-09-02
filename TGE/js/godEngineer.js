@@ -61,7 +61,7 @@ function getConfig() {
 				{ID: 3, name: 'Large Village', amount: 3, icon:'fas fa-users'}
 			],
 			terrainBlocks: [
-				{ID: 0, name: 'water', color:'blue lighten-3', icon: 'fas fa-tint', probability: 0.3},
+				{ID: 0, name: 'water', color:'blue lighten-3', icon: 'fas fa-tint', probability: 0.15},
 				{ID: 1, name: 'mountain', color:'grey lighten-1', icon:'fas fa-snowflake', probability: 0.1},
 				{ID: 2, name: 'forest', color: 'green lighten-3', icon:'fas fa-tree', probability: 0.2},
 				{ID: 3, name: 'plains', color: 'green lighten-5', icon:'', probability: 0.4}
@@ -426,18 +426,76 @@ function generateMap() {
 function generateMapTiles() {
 	var sizeX = config.mapSettings.sizeX;
 	var sizeY = config.mapSettings.sizeY;
+	var nHomes = 0;
+	var nSmallVillages = 0;
+	var nLargeVillages = 0;
+	var smallVillage = [];
+	var largeVillage = [];
+	// give coordinates to small villages
+	for (var i=0; i<config.mapSettings.villageTypes[2].amount; i++) {
+		smallVillage[i] = Math.round(Math.random()*((sizeX*sizeY)-1)*0.9);
+		if (i>0 && smallVillage[i]==smallVillage[i-1]) {
+			smallVillage[i] = smallVillage[i] + 1;
+		}
+	}
+	// give coordinates to large villages
+	for (var i=0; i<config.mapSettings.villageTypes[2].amount; i++) {
+		largeVillage[i] = Math.round(Math.random()*((sizeX*sizeY)-1)*0.9);
+		if (i>0 && largeVillage[i]==largeVillage[i-1]) {
+			largeVillage[i] = largeVillage[i] + 1;
+		}
+	}
 	for (var i=0; i<sizeX; i++) {
 		for (var j=0; j<sizeY; j++) {
 			var newTile = {};
 			newTile.ID = (i*sizeX)+j;
 			newTile.x = i;
 			newTile.y = j;
+			newTile.isHome = false;
+			newTile.isSmallVillage = false;
+			newTile.isLargeVillage = false;
 			// assign a terrain type based on probability
 			var random = Math.random();
 			if (random <= config.mapSettings.terrainBlocks[0].probability) {newTile.terrainType = config.mapSettings.terrainBlocks[0].ID}
 			else if (random > config.mapSettings.terrainBlocks[0].probability && random <= config.mapSettings.terrainBlocks[0].probability+config.mapSettings.terrainBlocks[1].probability) {newTile.terrainType = config.mapSettings.terrainBlocks[1].ID}
 			else if (random > config.mapSettings.terrainBlocks[0].probability+config.mapSettings.terrainBlocks[1].probability && random <= config.mapSettings.terrainBlocks[0].probability+config.mapSettings.terrainBlocks[1].probability+config.mapSettings.terrainBlocks[2].probability) {newTile.terrainType = config.mapSettings.terrainBlocks[2].ID}
 			else {newTile.terrainType = config.mapSettings.terrainBlocks[3].ID}
+			
+			// drop home in the middle of the map, on a plain tile
+			if (i>sizeX/3 && j>sizeY/3 && nHomes <1 && newTile.terrainType == config.mapSettings.terrainBlocks[3].ID) {
+				newTile.isHome = true;
+				nHomes = nHomes + 1;
+			}
+			// distribute the small villages
+			// check if there is a smallVillage planned there
+			for (var k = 0; k<smallVillage.length; k++) {
+				if (smallVillage[k]==newTile.ID) {
+					// if plains + the tile is not home
+					if (newTile.terrainType == config.mapSettings.terrainBlocks[3].ID && newTile.isHome == false) {
+						// put a village there
+						newTile.isSmallVillage = true;
+						nSmallVillages = nSmallVillages + 1;
+					} else {
+						// otherwise shift the coordinates to the next cell
+						smallVillage[k] = smallVillage[k] + 1;
+					}
+				}
+			}
+			// distribute the large villages
+			// check if there is a large villages planned there
+			for (var k = 0; k<largeVillage.length; k++) {
+				if (largeVillage[k]==newTile.ID) {
+					// if plains + the tile is not home
+					if (newTile.terrainType == config.mapSettings.terrainBlocks[3].ID && newTile.isHome == false && newTile.isSmallVillage == false) {
+						// put a village there
+						newTile.isLargeVillage = true;
+						nLargeVillages = nLargeVillages + 1;
+					} else {
+						// otherwise shift the coordinates to the next cell
+						largeVillage[k] = largeVillage[k] + 1;
+					}
+				}
+			}
 			state.mapTiles.push(newTile);
 		}
 	}
@@ -451,15 +509,27 @@ function generateMapDOM() {
 	for (var i=0; i<state.mapTiles.length; i++) {
 			var newCell = document.createElement("a");
 			var tile = state.mapTiles[i]
-			newCell.className = "TGEmapCellTest col s1  btn modal-trigger "+config.mapSettings.terrainBlocks[tile.terrainType].color;
+			newCell.className = "TGEmapCellTest col s1  btn modal-trigger black-text "+config.mapSettings.terrainBlocks[tile.terrainType].color;
 			newCell.originalIndex = tile.ID;
 			//newCell.innerHTML = tile.ID;
 			newCell.href="#modalMap"
 			newCell.onclick = function(){refreshModalMap(this.originalIndex);};
 			// add icon
-			//var icon = document.createElement("i");
-			//icon.className = config.mapSettings.terrainBlocks[tile.terrainType].icon;
-			//newCell.appendChild(icon);
+			if (tile.isHome == true) {
+				var icon = document.createElement("i");
+				icon.className = config.mapSettings.villageTypes[1].icon+' deep-orange-text';
+				newCell.appendChild(icon);
+			}
+			if (tile.isSmallVillage == true) {
+				var icon = document.createElement("i");
+				icon.className = config.mapSettings.villageTypes[2].icon+' deep-orange-text text-lighten-4';
+				newCell.appendChild(icon);
+			}
+			if (tile.isLargeVillage == true) {
+				var icon = document.createElement("i");
+				icon.className = config.mapSettings.villageTypes[3].icon+' deep-orange-text text-lighten-2';
+				newCell.appendChild(icon);
+			}
 			newRow.appendChild(newCell);
 	}
 	mapArea.appendChild(newRow);
