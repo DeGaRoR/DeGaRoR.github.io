@@ -16,7 +16,10 @@ function getInitialState() {
 		],
 		mapTiles: [],
 		villages: [],
-		explorerTeams: [{ID:1, cellID: 70, icon: 'fas fa-binoculars', remainingMoves:1, maxMoves:1}]
+		explorerTeams: [
+			{ID:0, cellID: 70, icon: 'fas fa-binoculars', remainingMoves:1, maxMoves:1},
+			{ID:1, cellID: 70, icon: 'fas fa-binoculars', remainingMoves:1, maxMoves:1},
+			]
 	}
 }
 function getConfig() {
@@ -424,7 +427,6 @@ function makeBaseFacilityTypeUL(baseFacilityTypeList) {
 function generateMap() {
 	generateMapTiles();
 	setExplorerPosition(0,homePosition())
-	placeExplorersOnTile();
 	generateMapDOM();
 }
 function generateMapTiles() {
@@ -571,7 +573,8 @@ function generateMapDOM() {
 			}
 			if (tile.hasExplorers > -1) {
 				var icon = document.createElement("i");
-				icon.className = 'fas fa-user deep-orange-text text-lighten-1 TGEmapIconForeground';
+				icon.className = 'fas fa-user TGEmapIconForeground';
+				if (state.explorerTeams[tile.hasExplorers].remainingMoves>0) {icon.className = icon.className+' deep-orange-text'} else {icon.className = icon.className+' deep-orange-text text-lighten-3'}
 				iconContainer.appendChild(icon);
 			}
 			
@@ -580,8 +583,13 @@ function generateMapDOM() {
 	}
 	mapArea.appendChild(newRow);
 }
+function resetReachable() {
+	// set all the reachable properties to false
+	for (i=0;i<state.mapTiles.length;i++) {
+		state.mapTiles[i].reachable = -1;
+	}
+}
 function cellSelect(cellID) {
-	//alert('works')
 	console.log('clicked cell '+cellID);
 	cell = state.mapTiles[cellID];
 	var reRender = false;
@@ -592,15 +600,16 @@ function cellSelect(cellID) {
 		var modal = document.getElementById('modalMap');
 		var instance = M.Modal.getInstance(modal);
 		instance.open();
-	}
+	} else {
 	
 	// set all the reachable properties to false
 	for (i=0;i<state.mapTiles.length;i++) {
 		if(state.mapTiles[i].reachable > -1) {reRender = true};
 		state.mapTiles[i].reachable = -1;
 	}
+	}
 	// if explorer team on the cell, put the ID of the explorer team in the reachable property of the reachable neighbouring cells
-	if (cell.hasExplorers > -1) {
+	if (cell.hasExplorers > -1 && state.explorerTeams[cell.hasExplorers].remainingMoves > 0) {
 		if (cellID > 11) {if(state.mapTiles[cellID-12].terrainType > 1) {state.mapTiles[cellID-12].reachable = cell.hasExplorers}} //cell up
 		if (cellID < 132) {if(state.mapTiles[cellID+12].terrainType > 1) {state.mapTiles[cellID+12].reachable = cell.hasExplorers}} //cell down
 		if (cell.x > 0) {if(state.mapTiles[cellID-1].terrainType > 1) {state.mapTiles[cellID-1].reachable = cell.hasExplorers}} //cell left
@@ -612,6 +621,7 @@ function cellSelect(cellID) {
 }
 function setExplorerPosition(explorerID,cellID) {
 	state.explorerTeams[explorerID].cellID = cellID;
+	placeExplorersOnTile();
 }
 function placeExplorersOnTile() {
 	console.log('Looking for explorers');
@@ -663,6 +673,18 @@ function refreshModalMap(cellID) {
 	var buttonGo = document.createElement("a");
 	buttonGo.className = 'waves-effect waves-light btn';
 	buttonGo.innerHTML = 'Go there!'
+	buttonGo.originalIndex = cellID;
+	buttonGo.onclick=function(){
+			//console.log('Assigning action to move button for explorer '+state.mapTiles[this.originalIndex].reachable)
+			setExplorerPosition(state.mapTiles[this.originalIndex].reachable,cellID);
+			// decrease remaining moves
+			state.explorerTeams[state.mapTiles[this.originalIndex].reachable].remainingMoves = state.explorerTeams[state.mapTiles[this.originalIndex].reachable].remainingMoves - 1
+			resetReachable();
+			var modal = document.getElementById('modalMap');
+			var instance = M.Modal.getInstance(modal);
+			instance.close();
+			generateMapDOM();
+		};
 	action.appendChild(buttonGo);
 	
 	// append all to a card section
