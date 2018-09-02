@@ -527,6 +527,8 @@ function homePosition() {
 	return villagePos;
 }
 function generateMapDOM() {
+	// clear everything first
+	clearDOM('mapArea');
 	console.log("Generation of map started");
 	var mapArea=document.getElementById("mapArea");
 	var newRow = document.createElement("DIV");
@@ -536,6 +538,10 @@ function generateMapDOM() {
 			var tile = state.mapTiles[i]
 			//newCell.className = "TGEmapCellTest col s1  btn modal-trigger black-text "+config.mapSettings.terrainBlocks[tile.terrainType].color;
 			newCell.className = "TGEmapCellTest col s1  btn black-text "+config.mapSettings.terrainBlocks[tile.terrainType].color;
+			if (tile.reachable > -1) {
+				newCell.className = 'glowing '+newCell.className;
+				//newCell.href="#modalMap"
+			};
 			newCell.originalIndex = tile.ID;
 			// modal map - re-activate later
 			//newCell.href="#modalMap"
@@ -563,11 +569,12 @@ function generateMapDOM() {
 				icon.className = config.mapSettings.villageTypes[3].icon+' teal-text text-lighten-2 TGEmapIconBackground';
 				iconContainer.appendChild(icon);
 			}
-			if (tile.hasExplorers == true) {
+			if (tile.hasExplorers > -1) {
 				var icon = document.createElement("i");
 				icon.className = 'fas fa-user deep-orange-text text-lighten-1 TGEmapIconForeground';
 				iconContainer.appendChild(icon);
 			}
+			
 			newCell.appendChild(iconContainer);
 			newRow.appendChild(newCell);
 	}
@@ -576,6 +583,32 @@ function generateMapDOM() {
 function cellSelect(cellID) {
 	//alert('works')
 	console.log('clicked cell '+cellID);
+	cell = state.mapTiles[cellID];
+	var reRender = false;
+	// if the cell is reachable
+	if (state.mapTiles[cellID].reachable > -1) {
+		//alert('Explorer will move');
+		refreshModalMap(cellID);
+		var modal = document.getElementById('modalMap');
+		var instance = M.Modal.getInstance(modal);
+		instance.open();
+	}
+	
+	// set all the reachable properties to false
+	for (i=0;i<state.mapTiles.length;i++) {
+		if(state.mapTiles[i].reachable > -1) {reRender = true};
+		state.mapTiles[i].reachable = -1;
+	}
+	// if explorer team on the cell, put the ID of the explorer team in the reachable property of the reachable neighbouring cells
+	if (cell.hasExplorers > -1) {
+		if (cellID > 11) {if(state.mapTiles[cellID-12].terrainType > 1) {state.mapTiles[cellID-12].reachable = cell.hasExplorers}} //cell up
+		if (cellID < 132) {if(state.mapTiles[cellID+12].terrainType > 1) {state.mapTiles[cellID+12].reachable = cell.hasExplorers}} //cell down
+		if (cell.x > 0) {if(state.mapTiles[cellID-1].terrainType > 1) {state.mapTiles[cellID-1].reachable = cell.hasExplorers}} //cell left
+		if (cell.y < 11) {if(state.mapTiles[cellID+1].terrainType > 1) {state.mapTiles[cellID+1].reachable = cell.hasExplorers}} //cell right
+	reRender = true;
+	}
+	// re-render the map
+	if (reRender) {generateMapDOM();};
 }
 function setExplorerPosition(explorerID,cellID) {
 	state.explorerTeams[explorerID].cellID = cellID;
@@ -583,11 +616,11 @@ function setExplorerPosition(explorerID,cellID) {
 function placeExplorersOnTile() {
 	console.log('Looking for explorers');
 	for (var i=0; i<state.mapTiles.length; i++) {
-		state.mapTiles[i].hasExplorers = false;
+		state.mapTiles[i].hasExplorers = -1;
 		for (var j=0; j<state.explorerTeams.length; j++) {
 			if (state.mapTiles[i].ID == state.explorerTeams[j].cellID) {
 				console.log('found explorers on tile '+state.mapTiles[i].ID)
-				state.mapTiles[i].hasExplorers = true;
+				state.mapTiles[i].hasExplorers = j;
 			}
 		}
 		
