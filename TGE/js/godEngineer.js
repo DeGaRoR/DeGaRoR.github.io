@@ -57,14 +57,14 @@ function getConfig() {
 			villageTypes: [
 				{ID: 0, name: 'None', amount: 0, icon:''},
 				{ID: 1, name: 'Home', amount: 1, icon:'fas fa-home'},
-				{ID: 2, name: 'Small Village', amount: 4, icon:'fas fa-user'},
+				{ID: 2, name: 'Small Village', amount: 20, icon:'fas fa-user'},
 				{ID: 3, name: 'Large Village', amount: 3, icon:'fas fa-users'}
 			],
 			terrainBlocks: [
-				{ID: 0, name: 'water', color:'blue lighten-3', icon: 'fas fa-tint', probability: 0.15},
-				{ID: 1, name: 'mountain', color:'grey lighten-1', icon:'fas fa-snowflake', probability: 0.1},
-				{ID: 2, name: 'forest', color: 'green lighten-3', icon:'fas fa-tree', probability: 0.2},
-				{ID: 3, name: 'plains', color: 'green lighten-5', icon:'', probability: 0.4}
+				{ID: 0, name: 'water', color:'blue lighten-3', icon: 'fas fa-tint', probability: 0.15, picture:'images/tiles/water_m.jpg'},
+				{ID: 1, name: 'mountain', color:'grey lighten-1', icon:'fas fa-snowflake', probability: 0.1, picture:'images/tiles/mountain_m.jpg'},
+				{ID: 2, name: 'forest', color: 'green lighten-3', icon:'fas fa-tree', probability: 0.2, picture:'images/tiles/forest_m.jpg'},
+				{ID: 3, name: 'plains', color: 'green lighten-5', icon:'', probability: 0.4, picture:'images/tiles/plains_m.jpg'}
 			]
 		}
 	}
@@ -439,7 +439,7 @@ function generateMapTiles() {
 		}
 	}
 	// give coordinates to large villages
-	for (var i=0; i<config.mapSettings.villageTypes[2].amount; i++) {
+	for (var i=0; i<config.mapSettings.villageTypes[3].amount; i++) {
 		largeVillage[i] = Math.round(Math.random()*((sizeX*sizeY)-1)*0.9);
 		if (i>0 && largeVillage[i]==largeVillage[i-1]) {
 			largeVillage[i] = largeVillage[i] + 1;
@@ -536,26 +536,51 @@ function generateMapDOM() {
 }
 function refreshModalMap(cellID) {
 	//alert(cellID);
-	// Everything first
+	// clear Everything first
 	clearDOM('modalMapContent');
+	
+	//create the image section
+	var pictureSection = document.createElement("div");
+	pictureSection.className = 'card-image';
+	// add the picture
+	var picture = document.createElement("IMG");
+	//picture.src = 'images/tiles/forest_m.jpg'
+	picture.src = config.mapSettings.terrainBlocks[state.mapTiles[cellID].terrainType].picture;
+	pictureSection.appendChild(picture);
 	// Create a title
-	var title = document.createElement("h1");
+	var title = document.createElement("span");
+	title.className = 'card-title'
 	title.innerHTML = config.mapSettings.terrainBlocks[state.mapTiles[cellID].terrainType].name;
-	var newContent = document.createElement("p");
-	newContent.appendChild(document.createTextNode(cellID));
+	pictureSection.appendChild(title);
+	
+	//create the content
+	var newContent = document.createElement("div");
+	newContent.className = 'card-content';
+	
 	// add icon
 	var icon = document.createElement("i");
 	icon.className = config.mapSettings.terrainBlocks[state.mapTiles[cellID].terrainType].icon;
 	newContent.appendChild(icon);
+	newContent.appendChild(document.createTextNode('Grid ID: '+cellID));
+	// action section
+	var action = document.createElement("div");
+	action.className = 'card-action';
 	// add button
 	var buttonGo = document.createElement("a");
 	buttonGo.className = 'waves-effect waves-light btn';
 	buttonGo.innerHTML = 'Go there!'
-	newContent.appendChild(buttonGo);
-	// add new content to modal
+	action.appendChild(buttonGo);
+	
+	// append all to a card section
+	var card = document.createElement("div");
+	card.className = 'card';
+	card.appendChild(pictureSection);
+	card.appendChild(newContent);
+	card.appendChild(action);
+	
+	// add card to modal
 	var modalMapContent = document.getElementById('modalMapContent');
-	modalMapContent.appendChild(title);
-	modalMapContent.appendChild(newContent);
+	modalMapContent.appendChild(card);
 }
 
 //============================== 
