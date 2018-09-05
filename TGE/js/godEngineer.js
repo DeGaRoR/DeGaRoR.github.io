@@ -61,9 +61,9 @@ function getConfig() {
 			sizeY: 12,
 			villageTypes: [
 				{ID: 0, name: 'None', amount: 0, icon:''},
-				{ID: 1, name: 'Home', amount: 1, icon:'fas fa-home'},
-				{ID: 2, name: 'Small Village', amount: 15, icon:'fas fa-users'},
-				{ID: 3, name: 'Large Village', amount: 5, icon:'fas fa-gopuram'}
+				{ID: 1, name: 'Home', amount: 1, icon:'fas fa-home teal-text TGEmapIconBackground'},
+				{ID: 2, name: 'Small Village', amount: 15, icon:'fas fa-users teal-text text-lighten-3 TGEmapIconBackground'},
+				{ID: 3, name: 'Large Village', amount: 5, icon:'fas fa-gopuram teal-text text-lighten-2 TGEmapIconBackground'}
 			],
 			terrainBlocks: [
 				{ID: 0, name: 'water', color:'blue lighten-3', icon: 'fas fa-tint', probability: 0.15, picture:'images/tiles/water_m.jpg'},
@@ -457,9 +457,7 @@ function generateMapTiles() {
 			newTile.ID = (i*sizeX)+j;
 			newTile.x = i;
 			newTile.y = j;
-			newTile.isHome = false;
-			newTile.isSmallVillage = false;
-			newTile.isLargeVillage = false;
+			newTile.villageType = 0;
 			// assign a terrain type based on probability
 			var random = Math.random();
 			if (random <= config.mapSettings.terrainBlocks[0].probability) {newTile.terrainType = config.mapSettings.terrainBlocks[0].ID}
@@ -469,7 +467,7 @@ function generateMapTiles() {
 			
 			// drop home in the middle of the map, on a plain tile
 			if (i>sizeX/3 && j>sizeY/3 && nHomes <1 && newTile.terrainType == config.mapSettings.terrainBlocks[3].ID) {
-				newTile.isHome = true;
+				newTile.villageType = 1;
 				nHomes = nHomes + 1;
 				// add an entry to villages
 				var newVillage = {};
@@ -482,9 +480,9 @@ function generateMapTiles() {
 			for (var k = 0; k<smallVillage.length; k++) {
 				if (smallVillage[k]==newTile.ID) {
 					// if plains + the tile is not home
-					if (newTile.terrainType == config.mapSettings.terrainBlocks[3].ID && newTile.isHome == false) {
+					if (newTile.terrainType == config.mapSettings.terrainBlocks[3].ID && newTile.villageType != 1) {
 						// put a village there
-						newTile.isSmallVillage = true;
+						newTile.villageType = 2;
 						nSmallVillages = nSmallVillages + 1;
 						// add an entry to villages
 						var newVillage = {};
@@ -502,9 +500,10 @@ function generateMapTiles() {
 			for (var k = 0; k<largeVillage.length; k++) {
 				if (largeVillage[k]==newTile.ID) {
 					// if plains + the tile is not home
-					if (newTile.terrainType == config.mapSettings.terrainBlocks[3].ID && newTile.isHome == false && newTile.isSmallVillage == false) {
+					if (newTile.terrainType == config.mapSettings.terrainBlocks[3].ID && newTile.villageType != 1 && newTile.villageType != 2) {
 						// put a village there
-						newTile.isLargeVillage = true;
+						//newTile.isLargeVillage = true;
+						newTile.villageType = 3;
 						nLargeVillages = nLargeVillages + 1;
 						// add an entry to villages
 						var newVillage = {};
@@ -556,19 +555,9 @@ function generateMapDOM() {
 			var iconContainer = document.createElement("DIV");
 			iconContainer.className = 'TGEmapIconContainer';
 			// add icon
-			if (tile.isHome == true) {
+			if (tile.villageType > 0) {
 				var icon = document.createElement("i");
-				icon.className = config.mapSettings.villageTypes[1].icon+' teal-text TGEmapIconBackground';
-				iconContainer.appendChild(icon);
-			}
-			if (tile.isSmallVillage == true) {
-				var icon = document.createElement("i");
-				icon.className = config.mapSettings.villageTypes[2].icon+' teal-text text-lighten-3 TGEmapIconBackground';
-				iconContainer.appendChild(icon);
-			}
-			if (tile.isLargeVillage == true) {
-				var icon = document.createElement("i");
-				icon.className = config.mapSettings.villageTypes[3].icon+' teal-text text-lighten-2 TGEmapIconBackground';
+				icon.className = config.mapSettings.villageTypes[tile.villageType].icon;
 				iconContainer.appendChild(icon);
 			}
 			if (tile.hasExplorers > -1) {
@@ -638,54 +627,55 @@ function placeExplorersOnTile() {
 }
 
 function refreshModalMap(cellID) {
-	//alert(cellID);
 	// clear Everything first
 	clearDOM('modalMapContent');
 	
 	//create the image section
 	var pictureSection = document.createElement("div");
 	pictureSection.className = 'card-image';
-	// add the picture
-	var picture = document.createElement("IMG");
-	//picture.src = 'images/tiles/forest_m.jpg'
-	picture.src = config.mapSettings.terrainBlocks[state.mapTiles[cellID].terrainType].picture;
-	pictureSection.appendChild(picture);
-	// Create a title
-	var title = document.createElement("span");
-	title.className = 'card-title'
-	title.innerHTML = config.mapSettings.terrainBlocks[state.mapTiles[cellID].terrainType].name;
-	pictureSection.appendChild(title);
-	
+		// add the picture
+		var picture = document.createElement("IMG");
+		//if (state.mapTiles[cellID].)
+		picture.src = config.mapSettings.terrainBlocks[state.mapTiles[cellID].terrainType].picture;
+		pictureSection.appendChild(picture);
+		// Create a title
+		var title = document.createElement("span");
+		title.className = 'card-title'
+		title.innerHTML = config.mapSettings.terrainBlocks[state.mapTiles[cellID].terrainType].name;
+		pictureSection.appendChild(title);
 	//create the content
 	var newContent = document.createElement("div");
 	newContent.className = 'card-content';
-	// add icon
-	var icon = document.createElement("i");
-	icon.className = config.mapSettings.terrainBlocks[state.mapTiles[cellID].terrainType].icon;
-	newContent.appendChild(icon);
-	// add text
-	newContent.appendChild(document.createTextNode('Grid ID: '+cellID));
+		// add icon
+		var icon = document.createElement("i");
+		icon.className = config.mapSettings.terrainBlocks[state.mapTiles[cellID].terrainType].icon;
+		newContent.appendChild(icon);
+		// add description
+		newContent.appendChild(document.createTextNode('Grid ID: '+cellID));
 	
 	// action section
 	var action = document.createElement("div");
 	action.className = 'card-action';
-	// add button
-	var buttonGo = document.createElement("a");
-	buttonGo.className = 'waves-effect waves-light btn';
-	buttonGo.innerHTML = 'Go there!'
-	buttonGo.originalIndex = cellID;
-	buttonGo.onclick=function(){
-			//console.log('Assigning action to move button for explorer '+state.mapTiles[this.originalIndex].reachable)
-			setExplorerPosition(state.mapTiles[this.originalIndex].reachable,cellID);
-			// decrease remaining moves
-			state.explorerTeams[state.mapTiles[this.originalIndex].reachable].remainingMoves = state.explorerTeams[state.mapTiles[this.originalIndex].reachable].remainingMoves - 1
-			resetReachable();
-			var modal = document.getElementById('modalMap');
-			var instance = M.Modal.getInstance(modal);
-			instance.close();
-			generateMapDOM();
-		};
-	action.appendChild(buttonGo);
+		// add button
+		var buttonGo = document.createElement("a");
+		buttonGo.className = 'waves-effect waves-light btn';
+		buttonGo.innerHTML = 'Go there!'
+		buttonGo.originalIndex = cellID;
+		buttonGo.onclick=function(){
+				//console.log('Assigning action to move button for explorer '+state.mapTiles[this.originalIndex].reachable)
+				setExplorerPosition(state.mapTiles[this.originalIndex].reachable,cellID);
+				// decrease remaining moves
+				state.explorerTeams[state.mapTiles[this.originalIndex].reachable].remainingMoves = state.explorerTeams[state.mapTiles[this.originalIndex].reachable].remainingMoves - 1
+				// reset the reachble properties and therefore the glowing effect
+				resetReachable();
+				// close the modal
+				var modal = document.getElementById('modalMap');
+				var instance = M.Modal.getInstance(modal);
+				instance.close();
+				// Regenerate the map DOM
+				generateMapDOM();
+			};
+		action.appendChild(buttonGo);
 	
 	// append all to a card section
 	var card = document.createElement("div");
