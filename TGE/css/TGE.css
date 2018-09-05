@@ -51,7 +51,7 @@
 }
 
 body {
-	background:linear-gradient(180deg, #fddcaf, #c8eceb, #cef0d5);
+	background:linear-gradient(180deg, #696f9b, #ccd9d9, #fff2ea);
 	background-size: 600% 600%;
 	animation: AnimationName 30s ease infinite;
 	background-attachment: fixed;
