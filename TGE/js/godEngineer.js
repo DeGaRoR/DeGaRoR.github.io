@@ -17,8 +17,9 @@ function getInitialState() {
 		mapTiles: [],
 		villages: [],
 		explorerTeams: [
-			{ID:0, cellID: 70, icon: 'fas fa-binoculars', remainingMoves:1, maxMoves:1},
-			{ID:1, cellID: 70, icon: 'fas fa-binoculars', remainingMoves:1, maxMoves:1},
+		//terrainCapability is the minimum terrain type it can move to - 0 means all terrains, 1 means all terrains but water, 2 means forest and plains, 3 means plains only
+			{ID:0, cellID: 70, icon: 'fas fa-binoculars', remainingMoves:1, maxMoves:1, terrainCapability: 2},
+			{ID:1, cellID: 70, icon: 'fas fa-binoculars', remainingMoves:1, maxMoves:1, terrainCapability: 0},
 			]
 	}
 }
@@ -61,11 +62,12 @@ function getConfig() {
 			sizeY: 12,
 			villageTypes: [
 				{ID: 0, name: 'None', amount: 0, icon:''},
-				{ID: 1, name: 'Home', amount: 1, icon:'fas fa-home teal-text TGEmapIconBackground'},
-				{ID: 2, name: 'Small Village', amount: 15, icon:'fas fa-users teal-text text-lighten-3 TGEmapIconBackground'},
-				{ID: 3, name: 'Large Village', amount: 5, icon:'fas fa-gopuram teal-text text-lighten-2 TGEmapIconBackground'}
+				{ID: 1, name: 'Home', amount: 1, icon:'fas fa-home teal-text', picture: 'images/tiles/smallVillage_m.jpg'},
+				{ID: 2, name: 'Small Village', amount: 15, icon:'fas fa-users teal-text text-lighten-3', picture: 'images/tiles/smallVillage_m.jpg'},
+				{ID: 3, name: 'Large Village', amount: 5, icon:'fas fa-gopuram teal-text text-lighten-2', picture: 'images/tiles/largeVillage_m.jpg'}
 			],
 			terrainBlocks: [
+				// define in decreasing "difficulty order" to use in the explorer capability
 				{ID: 0, name: 'water', color:'blue lighten-3', icon: 'fas fa-tint', probability: 0.15, picture:'images/tiles/water_m.jpg'},
 				{ID: 1, name: 'mountain', color:'grey lighten-1', icon:'fas fa-snowflake', probability: 0.1, picture:'images/tiles/mountain_m.jpg'},
 				{ID: 2, name: 'forest', color: 'green lighten-3', icon:'fas fa-tree', probability: 0.2, picture:'images/tiles/forest_m.jpg'},
@@ -537,17 +539,12 @@ function generateMapDOM() {
 	for (var i=0; i<state.mapTiles.length; i++) {
 			var newCell = document.createElement("a");
 			var tile = state.mapTiles[i]
-			//newCell.className = "TGEmapCellTest col s1  btn modal-trigger black-text "+config.mapSettings.terrainBlocks[tile.terrainType].color;
+
 			newCell.className = "TGEmapCellTest col s1  btn black-text "+config.mapSettings.terrainBlocks[tile.terrainType].color;
 			if (tile.reachable > -1) {
 				newCell.className = 'glowing '+newCell.className;
-				//newCell.href="#modalMap"
 			};
 			newCell.originalIndex = tile.ID;
-			// modal map - re-activate later
-			//newCell.href="#modalMap"
-			//newCell.onclick = function(){refreshModalMap(this.originalIndex);};
-			
 			// new test with explorers
 			newCell.onclick = function(){cellSelect(this.originalIndex);};
 			
@@ -557,7 +554,7 @@ function generateMapDOM() {
 			// add icon
 			if (tile.villageType > 0) {
 				var icon = document.createElement("i");
-				icon.className = config.mapSettings.villageTypes[tile.villageType].icon;
+				icon.className = config.mapSettings.villageTypes[tile.villageType].icon+' TGEmapIconBackground';
 				iconContainer.appendChild(icon);
 			}
 			if (tile.hasExplorers > -1) {
@@ -584,26 +581,25 @@ function cellSelect(cellID) {
 	var reRender = false;
 	// if the cell is reachable
 	if (state.mapTiles[cellID].reachable > -1) {
-		//alert('Explorer will move');
+		//open the modal with associated actions
 		refreshModalMap(cellID);
 		var modal = document.getElementById('modalMap');
 		var instance = M.Modal.getInstance(modal);
 		instance.open();
 	} else {
-	
-	// set all the reachable properties to false
-	for (i=0;i<state.mapTiles.length;i++) {
-		if(state.mapTiles[i].reachable > -1) {reRender = true};
-		state.mapTiles[i].reachable = -1;
-	}
+		// set all the reachable properties to false
+		for (i=0;i<state.mapTiles.length;i++) {
+			if(state.mapTiles[i].reachable > -1) {reRender = true};
+			state.mapTiles[i].reachable = -1;
+		}
 	}
 	// if explorer team on the cell, put the ID of the explorer team in the reachable property of the reachable neighbouring cells
 	if (cell.hasExplorers > -1 && state.explorerTeams[cell.hasExplorers].remainingMoves > 0) {
-		if (cellID > 11) {if(state.mapTiles[cellID-12].terrainType > 1) {state.mapTiles[cellID-12].reachable = cell.hasExplorers}} //cell up
-		if (cellID < 132) {if(state.mapTiles[cellID+12].terrainType > 1) {state.mapTiles[cellID+12].reachable = cell.hasExplorers}} //cell down
-		if (cell.x > 0) {if(state.mapTiles[cellID-1].terrainType > 1) {state.mapTiles[cellID-1].reachable = cell.hasExplorers}} //cell left
-		if (cell.y < 11) {if(state.mapTiles[cellID+1].terrainType > 1) {state.mapTiles[cellID+1].reachable = cell.hasExplorers}} //cell right
-	reRender = true;
+		if (cellID > 11) 	{if(state.mapTiles[cellID-12].terrainType >= state.explorerTeams[cell.hasExplorers].terrainCapability) 	{state.mapTiles[cellID-12].reachable = cell.hasExplorers}} //cell up
+		if (cellID < 132) 	{if(state.mapTiles[cellID+12].terrainType >= state.explorerTeams[cell.hasExplorers].terrainCapability) 	{state.mapTiles[cellID+12].reachable = cell.hasExplorers}} //cell down
+		if (cell.x > 0) 	{if(state.mapTiles[cellID-1].terrainType >= state.explorerTeams[cell.hasExplorers].terrainCapability) 	{state.mapTiles[cellID-1].reachable = cell.hasExplorers}} //cell left
+		if (cell.y < 11) 	{if(state.mapTiles[cellID+1].terrainType >= state.explorerTeams[cell.hasExplorers].terrainCapability) 	{state.mapTiles[cellID+1].reachable = cell.hasExplorers}} //cell right
+		reRender = true;
 	}
 	// re-render the map
 	if (reRender) {generateMapDOM();};
@@ -630,52 +626,44 @@ function refreshModalMap(cellID) {
 	// clear Everything first
 	clearDOM('modalMapContent');
 	
+	// check whether this is a village or an empty tile
+	var tileType = '';
+	if (state.mapTiles[cellID].villageType >0) {tileType = config.mapSettings.villageTypes[state.mapTiles[cellID].villageType]} 
+	else {tileType = config.mapSettings.terrainBlocks[state.mapTiles[cellID].terrainType]}
+	
 	//create the image section
 	var pictureSection = document.createElement("div");
 	pictureSection.className = 'card-image';
 		// add the picture
 		var picture = document.createElement("IMG");
-		//if (state.mapTiles[cellID].)
-		picture.src = config.mapSettings.terrainBlocks[state.mapTiles[cellID].terrainType].picture;
+		picture.src = tileType.picture;
 		pictureSection.appendChild(picture);
 		// Create a title
 		var title = document.createElement("span");
 		title.className = 'card-title'
-		title.innerHTML = config.mapSettings.terrainBlocks[state.mapTiles[cellID].terrainType].name;
-		pictureSection.appendChild(title);
+		title.innerHTML = tileType.name;		
+	pictureSection.appendChild(title);
+	
 	//create the content
 	var newContent = document.createElement("div");
 	newContent.className = 'card-content';
 		// add icon
 		var icon = document.createElement("i");
-		icon.className = config.mapSettings.terrainBlocks[state.mapTiles[cellID].terrainType].icon;
+		icon.className = tileType.icon;
 		newContent.appendChild(icon);
 		// add description
-		newContent.appendChild(document.createTextNode('Grid ID: '+cellID));
+	newContent.appendChild(document.createTextNode('Grid ID: '+cellID));
 	
 	// action section
 	var action = document.createElement("div");
 	action.className = 'card-action';
-		// add button
+		// add move button
 		var buttonGo = document.createElement("a");
 		buttonGo.className = 'waves-effect waves-light btn';
 		buttonGo.innerHTML = 'Go there!'
-		buttonGo.originalIndex = cellID;
-		buttonGo.onclick=function(){
-				//console.log('Assigning action to move button for explorer '+state.mapTiles[this.originalIndex].reachable)
-				setExplorerPosition(state.mapTiles[this.originalIndex].reachable,cellID);
-				// decrease remaining moves
-				state.explorerTeams[state.mapTiles[this.originalIndex].reachable].remainingMoves = state.explorerTeams[state.mapTiles[this.originalIndex].reachable].remainingMoves - 1
-				// reset the reachble properties and therefore the glowing effect
-				resetReachable();
-				// close the modal
-				var modal = document.getElementById('modalMap');
-				var instance = M.Modal.getInstance(modal);
-				instance.close();
-				// Regenerate the map DOM
-				generateMapDOM();
-			};
-		action.appendChild(buttonGo);
+		buttonGo.targetCell = cellID;
+		buttonGo.onclick=function(){moveExplorer(this.targetCell)};
+	action.appendChild(buttonGo);
 	
 	// append all to a card section
 	var card = document.createElement("div");
@@ -688,7 +676,19 @@ function refreshModalMap(cellID) {
 	var modalMapContent = document.getElementById('modalMapContent');
 	modalMapContent.appendChild(card);
 }
-
+function moveExplorer(targetCellID) {
+	setExplorerPosition(state.mapTiles[targetCellID].reachable,targetCellID);
+	// decrease remaining moves
+	state.explorerTeams[state.mapTiles[targetCellID].reachable].remainingMoves = state.explorerTeams[state.mapTiles[targetCellID].reachable].remainingMoves - 1
+	// reset the reachable properties and therefore the glowing effect
+	resetReachable();
+	// close the modal
+	var modal = document.getElementById('modalMap');
+	var instance = M.Modal.getInstance(modal);
+	instance.close();
+	// Regenerate the map DOM
+	generateMapDOM();
+}
 //============================== 
 //Misc
 //============================== 
