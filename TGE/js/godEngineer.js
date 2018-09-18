@@ -657,13 +657,51 @@ function refreshModalMap(cellID) {
 	// action section
 	var action = document.createElement("div");
 	action.className = 'card-action';
-		// add move button
+	if (state.mapTiles[cellID].villageType ==0) {
+			// add move button
 		var buttonGo = document.createElement("a");
-		buttonGo.className = 'waves-effect waves-light btn';
-		buttonGo.innerHTML = 'Go there!'
-		buttonGo.targetCell = cellID;
-		buttonGo.onclick=function(){moveExplorer(this.targetCell)};
-	action.appendChild(buttonGo);
+			buttonGo.className = 'waves-effect waves-light btn';
+			buttonGo.innerHTML = 'Go there!';
+			buttonGo.targetCell = cellID;
+			buttonGo.onclick=function(){moveExplorer(this.targetCell)};
+		var sectionGo = document.createElement("DIV")
+			sectionGo.className = 'buttonContainerTGE'
+			sectionGo.appendChild(buttonGo)
+		action.appendChild(sectionGo);
+	} else {
+		// add attack button
+		var buttonAttack = document.createElement("a");
+			buttonAttack.className = 'waves-effect waves-light btn';
+			buttonAttack.innerHTML = 'Attack!';
+			buttonAttack.targetCell = cellID;
+			buttonAttack.onclick=function(){attack(this.targetCell)};
+			var sectionAttack = document.createElement("DIV")
+			sectionAttack.className = 'buttonContainerTGE'
+			sectionAttack.appendChild(buttonAttack);
+		// add pretend god button
+		var buttonGod = document.createElement("a");
+			buttonGod.className = 'waves-effect waves-light btn';
+			buttonGod.innerHTML = 'I am a god';
+			buttonGod.targetCell = cellID;
+			buttonGod.onclick=function(){pretendGod(this.targetCell)};
+		var sectionGod = document.createElement("DIV")
+			sectionGod.className = 'buttonContainerTGE'
+			sectionGod.appendChild(buttonGod)
+		// add come in peace button
+		var buttonPeace = document.createElement("a");
+			buttonPeace.className = 'waves-effect waves-light btn';
+			buttonPeace.innerHTML = 'I come in peace';
+			buttonPeace.targetCell = cellID;
+			buttonPeace.onclick=function(){comeInPeace(this.targetCell)};
+			var sectionPeace = document.createElement("DIV")
+			sectionPeace.className = 'buttonContainerTGE'
+			sectionPeace.appendChild(buttonPeace)
+		// append to the action section
+		action.appendChild(sectionAttack);
+		action.appendChild(sectionGod);
+		action.appendChild(sectionPeace);
+	}
+	
 	
 	// append all to a card section
 	var card = document.createElement("div");
@@ -676,6 +714,10 @@ function refreshModalMap(cellID) {
 	var modalMapContent = document.getElementById('modalMapContent');
 	modalMapContent.appendChild(card);
 }
+function attack(targetCellID) {console.log('Attacking cell '+targetCellID)}
+function pretendGod(targetCellID) {console.log('Pretending that you are a god towards cell '+targetCellID)}
+function comeInPeace(targetCellID) {console.log('Presenting yourself as peaceful to cell '+targetCellID)}
+
 function moveExplorer(targetCellID) {
 	setExplorerPosition(state.mapTiles[targetCellID].reachable,targetCellID);
 	// decrease remaining moves

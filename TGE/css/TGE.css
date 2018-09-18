@@ -51,9 +51,9 @@
 }
 
 body {
-	background:linear-gradient(180deg, #696f9b, #ccd9d9, #fff2ea);
+	background:linear-gradient(180deg, #ccd9d9, #fff2ea);
 	background-size: 600% 600%;
-	animation: AnimationName 30s ease infinite;
+	/* animation: AnimationName 30s ease infinite; */
 	background-attachment: fixed;
 }
 
@@ -63,4 +63,23 @@ body {
     0%{background-position:0% 83%}
     50%{background-position:100% 18%}
     100%{background-position:0% 83%}
+}
+
+.buttonContainerTGE {
+	text-align: center;
+	margin-top: 5px;
+}
+
+.btnTGE {
+   margin: auto;
+  width: 50%;
+  border: none;
+  border-radius: 2px;
+  display: inline-block;
+  height: 36px;
+  line-height: 36px;
+  padding: 0 16px;
+  text-transform: uppercase;
+  vertical-align: middle;
+  -webkit-tap-highlight-color: transparent;
 }
