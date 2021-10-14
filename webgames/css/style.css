@@ -63,3 +63,7 @@ footer.page-footer {
         width: 400px;
         margin: -75px 0 0 -100px;
     }
+.titleShadow{
+	color: white; 
+	text-shadow: 0px 0px 4px black;
+}
