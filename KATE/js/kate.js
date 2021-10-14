@@ -16,7 +16,6 @@ function getConfig() {
 		}
 	} 
 
-	
 //============================== 
 //DOM manipulation
 //============================== 	
@@ -52,7 +51,7 @@ function printCard(cardID) {
 		toggleCardTransitioner();}
 	// apply the newly loaded image as background cover
 	img.src = config.cardDeck[cardIndex].cardIMG;
-	document.body.style.background = "#f3f3f3 url('"+config.cardDeck[cardIndex].cardIMG+"') no-repeat center bottom fixed";
+	document.body.style.background = "#f3f3f3 url('"+config.cardDeck[cardIndex].cardIMG+"') no-repeat center center fixed";
 	document.body.style.backgroundSize = "cover";
 	
 	//================= update the content of the modal=======================
@@ -82,6 +81,7 @@ function printCard(cardID) {
 		modalContent.appendChild(action);
 		modalContent.appendChild(document.createTextNode(" "));
 	}
+
 }
 
 function toggleCardTransitioner() {
