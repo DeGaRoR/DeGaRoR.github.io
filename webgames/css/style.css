@@ -89,3 +89,42 @@ span.badgeDG.new {
   background-color: #7b1fa2;
   border-radius: 2px;
 }
+
+.collapse{
+  cursor: pointer;
+}
+
+.collapse + input{
+  display: none; /* hide the checkboxes */
+}
+.collapse + input + div{
+  display:none;
+}
+.collapse + input:checked + div{
+  display:block;
+}
+
+#content {
+  position: absolute; 
+  left: 0; 
+  right: 0; 
+  margin-left: auto; 
+  margin-right: auto; 
+  width: 10px; /* Need a specific value to work */
+}
+.thumb {
+	width:50px;
+	height:50px;
+	opacity: 0.4;
+	object-fit: cover;
+	background: orange;
+	border-radius: 5px;
+	object-position:top;
+	overflow:hidden;
+}
+.thumb:hover {
+	opacity:1;
+}
+.thumb:active {
+	opacity:1;
+}
