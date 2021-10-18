@@ -74,8 +74,8 @@ span.badgeDG {
   /*margin-left: 14px;*/
   text-align: center;
   font-size: 1rem;
-  line-height: 22px;
-  height: 22px;
+  line-height: 40px;
+  height: 40px;
   color: #757575;
   /*float: right;*/
   -webkit-box-sizing: border-box;
@@ -84,9 +84,23 @@ span.badgeDG {
 
 span.badgeDG.new {
   font-weight: 300;
-  font-size: 0.8rem;
+  font-size: 1.5rem;
   color: #fff;
   background-color: #7b1fa2;
+  border-radius: 2px;
+}
+span.badgeDG.new.platform {
+  font-weight: 300;
+  font-size: 1.5rem;
+  color: #fff;
+  background-color: #7b1fa2; /*purple*/
+  border-radius: 2px;
+}
+span.badgeDG.new.genre {
+  font-weight: 300;
+  font-size: 1.5rem;
+  color: #fff;
+  background-color: #F57C00; /*Orange*/
   border-radius: 2px;
 }
 
@@ -112,9 +126,23 @@ span.badgeDG.new {
   margin-right: auto; 
   width: 10px; /* Need a specific value to work */
 }
+.carouselLabel{
+	padding:3px;
+}
 .thumb {
 	width:50px;
 	height:50px;
+	box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
+	opacity: 0.4;
+	object-fit: cover;
+	border-radius: 5px;
+	object-position:top;
+	overflow:hidden;
+	
+}
+.imgGallery {
+	width:500px;
+	height:700px;
 	opacity: 0.4;
 	object-fit: cover;
 	background: orange;
@@ -122,9 +150,97 @@ span.badgeDG.new {
 	object-position:top;
 	overflow:hidden;
 }
+
 .thumb:hover {
 	opacity:1;
 }
 .thumb:active {
 	opacity:1;
 }
+
+progress[value] {
+  /* Reset the default appearance */
+  -webkit-appearance: none;
+   appearance: none;
+
+  width: 80%;
+  height: 40px;
+  padding: 6px;
+}
+progress[value]::-webkit-progress-bar {
+  background-color: gray;
+  border-radius: 2px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.25) inset;
+}
+
+progress[value]::-webkit-progress-value {
+  background-image:
+	   /* -webkit-linear-gradient(-45deg, 
+	                           transparent 33%, rgba(0, 0, 0, .1) 33%, 
+	                           rgba(0,0, 0, .1) 66%, transparent 66%), */
+	   -webkit-linear-gradient(top, 
+	                           rgba(255, 255, 255, .25), 
+	                           rgba(0, 0, 0, .25)),
+	   -webkit-linear-gradient(left, #7B1FA2, #F57C00);
+
+    border-radius: 2px; 
+    background-size: 35px 40px, 100% 100%, 100% 100%;
+}
+.progressText {
+	padding-top: 3px;
+	height: 40px; 
+	width:40px; 
+	position: absolute; 
+	
+	/*background-color: white;*/
+	margin: auto;
+	width: 50%;
+	  font-weight: 300;
+  font-size: 1.5rem;
+  color: #fff;
+}
+
+p {
+	text-align: justify;
+	color: #A0A0A0;
+}
+
+.roadmapImg {
+	box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
+}
+
+.helper {
+    display: inline-block;
+    height: 100%;
+    vertical-align: middle;
+}
+
+.textRoadmap {
+    padding-right:	10px;
+	padding-left:	10px;
+	padding-bottom:	10px;
+	padding-top:	 0px;
+  }
+
+@media only screen and (min-width: 540px) {
+  .textRoadmap {
+    padding-right:	25px;
+	padding-left:	25px;
+	padding-bottom:	25px;
+	padding-top:	 0px;
+  }
+}
+
+img.responsive-imgDG,
+video.responsive-videoDG {
+  max-width: 100%;
+  height: auto;
+}
+@media only screen and (min-width: 540px) {
+	img.responsive-imgDG,
+	video.responsive-videoDG {
+		max-width: 70%;
+		height: auto;
+}
+}
+

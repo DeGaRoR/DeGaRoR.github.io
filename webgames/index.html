@@ -14,13 +14,21 @@
   <body>
     <nav class="grey darken-4" role="navigation">
       <div class="nav-wrapper container">
-        <a id="logo-container" href="#" class="white-text flow-text"><i class="fas fa-paw"></i> Pugface Production</a>
+	  <img src="resources/topolPixelArt_NB_dark.png" style="height:50px; padding-bottom:10px;" class="helper circle"  >
+        <a id="logo-container" href="#" class="white-text flow-text" style="padding-top:3px;"> Pugface Production</a>
         <ul class="right hide-on-med-and-down white-text">
-          <li><a href="#support">Support</a></li>
-          <li><a href="#team">About</a></li>
-          <li><a href="#gallery">Gallery</a></li>
-		  <li><a href="#roadmap">More games</a></li>
+          <li><a class="white-text" href="#support">Support</a></li>
+          <li><a class="white-text" href="#team">About</a></li>
+          <li><a class="white-text" href="#gallery">Gallery</a></li>
+		  <li><a class="white-text" href="#roadmap">More games</a></li>
         </ul>
+		<ul id="nav-mobile" class="sidenav">
+		  <li><a class="" href="#support">Support</a></li>
+          <li><a class="" href="#team">About</a></li>
+          <li><a class="" href="#gallery">Gallery</a></li>
+		  <li><a class="" href="#roadmap">More games</a></li>
+		</ul>
+      <a href="#" data-target="nav-mobile" class="sidenav-trigger white-text"><i class="material-icons">menu</i></a>
       </div>
     </nav>
     <div id="index-banner" class="parallax-container valign-wrapper">
@@ -54,7 +62,7 @@
                   Overall, we want to build a better world for you and for ourselves, with <span class="orange-text"> <b>more freedom, happiness and friends!</b></span>
                 </p>
 				<div class="row center">
-					<img src="resources/topol.jpg" height="200px" class="circle">
+					<img src="resources/topol2.JPG" height="200px" class="circle">
 				</div>
                 <div class="row center">
                   <h3>
@@ -104,7 +112,7 @@
             <div class="icon-block">
               <img class="responsive-img" src="resources/patreon.JPG"></img>
               <br><br>
-              <div class="col s12 m6" style="padding-bottom: 2px"><span href="" id="support-button" class="col s12 btn-large waves-effect waves-light purple darken-2"><i class="fab fa-patreon"></i> Become a Patron</span> </div>
+              <div class="col s12 m6" style="padding-bottom: 2px"><span href="" id="support-button" class="col s12 btn-large waves-effect waves-light purple darken-2"><i class="fab fa-patreon"></i> Patron</span> </div>
               <div class="col s12 m6"><a href="" id="coffee-button" class="col s12 btn-large waves-effect waves-light purple darken-2"><i class="fas fa-coffee"></i> Buy us a coffee</a> </div>
             </div>
           </div>
@@ -129,7 +137,7 @@
               <div class="row center">
                 <h3 class="header col s12 light white-text">We have big projects for more casual games...  </h3>
                 <br><br>
-                <p class="white-text">...and also introducing 3D and VR in our games. <br>Your opinion and support matter! Check our new games ideas and vote or support us if you're feeling generous</p>
+                <p class="center">...and also introducing 3D and VR in our games. <br>Your opinion and support matter! Check our new games ideas and vote or support us if you're feeling generous</p>
               </div>
               <div class="row center">
                 <div class="col s12 m6" style="padding-bottom: 2px"><a href="#roadmap" id="vote-button" class="col s12 btn-large waves-effect waves-light purple darken-2"><i class="material-icons">thumb_up</i> Vote for your favorite game</a> </div>
@@ -241,7 +249,7 @@
               </div>
             </div>
           </div>
-          <div class="col s12 m4 l3">
+          <!-- <div class="col s12 m4 l3">
             <div class="card">
               <div class="card-image waves-effect waves-block waves-light">
                 <img class="activator" src="gallery/gallery06.jpg">
@@ -255,7 +263,7 @@
                 <p class="white-text">Who do you think recycles your air and pee in space, so you can survive? There we go...</p>
               </div>
             </div>
-          </div>
+          </div> -->
         </div>
       </div>
 	  </div>
@@ -271,8 +279,11 @@
     </div>
 	
 	<div id="roadmapDetails">
-		<div class="section scrollspy grey darken-4 white-test">
+		<div class="section scrollspy grey darken-4 white-text">
 			<div class="container">
+			
+			
+			
 				<div id="game1" class="card grey darken-3 white-text"> <!-- game card --> 
 					<div class="row center"> <!-- title -->
 						<div class="col s12">
@@ -280,69 +291,136 @@
 						</div>
 					</div>
 					<div class="row">
-						<div id="test" class="col s12 m6 center"> <!-- image // Ratio image 5/7, max_width 500 px-->
-							
-							
-							
-								<label for="_1" ><img class="thumb" src="resources/TGE.jpg" ></label>
-								<label for="_2" ><img class="thumb" src="resources/TGE2.jpg" ></label>
-								<label for="_3" ><img class="thumb" src="resources/TGE3.jpg" ></label>
-								<label for="_4" ><img class="thumb" src="resources/TGE4.jpg" ></label>
-								<label for="_5" ><img class="thumb" src="resources/TGE5.jpg" ></label>
-								
-								
+						<div id="carousel" class="col s12 m6 center"> <!-- image // Ratio image 5/7, max_width 500 px-->
+							<!-- all the thumbnails go here, they will be cropped to square dimensions with top anchor -->
+								<div style="padding-bottom: 20px;">
+									<label class="carouselLabel" for="_1" ><img class="thumb" src="resources/TGE4.jpg" ></label>
+									<label class="carouselLabel" for="_2" ><img class="thumb" src="resources/TGE2.JPG" ></label>
+									<label class="carouselLabel" for="_3" ><img class="thumb" src="resources/TGE3.JPG" ></label>
+									<label class="carouselLabel" for="_4" ><img class="thumb" src="resources/TGE.JPG" ></label>
+									<label class="carouselLabel" for="_5" ><img class="thumb" src="resources/TGE5.JPG" ></label>
+								</div>
+							<!-- All full-size images go here. There is no resizing for keeping the images responsive, limit the width to 500px -->
 								<div class="collapse"></div>
 								<input id="_1" type="radio" name="c1" checked> 
-								<div><img class="responsive-img" src="resources/TGE.jpg" ></div>
+								<div><img class="responsive-imgDG roadmapImg" src="resources/TGE4.JPG" ></div>
 
-								
 								<div class="collapse"></div>
 								<input id="_2" type="radio" name="c1">
-								<div><img class="responsive-img" src="resources/TGE2.JPG" ></div>
+								<div><img class="responsive-imgDG roadmapImg" src="resources/TGE2.JPG" ></div>
 								
 								<div class="collapse"></div>
 								<input id="_3" type="radio" name="c1">
-								<div><img class="responsive-img" src="resources/TGE3.JPG" ></div>
+								<div><img class="responsive-imgDG roadmapImg" src="resources/TGE3.JPG" ></div>
 								
 								<div class="collapse"></div>
 								<input id="_4" type="radio" name="c1">
-								<div><img class="responsive-img" src="resources/TGE4.JPG" ></div>
+								<div><img class="responsive-imgDG roadmapImg" src="resources/TGE.jpg" ></div>
 								
 								<div class="collapse"></div>
 								<input id="_5" type="radio" name="c1">
-								<div><img class="responsive-img" src="resources/TGE5.JPG" ></div>
-								
-
-							
-							
+								<div><img class="responsive-imgDG roadmapImg" src="resources/TGE5.JPG" ></div>
 						</div>
 						<div class="col s12 m6"> <!-- decription -->
-							<div id="header" class="center">
-								<div>
-									Genre: 
-									<span class="new badgeDG">RTS</span>
-									<span class="new badgeDG">Casual</span>
+							<div class="center" > <!-- badges and progress -->
+									<span class="new badgeDG genre">RTS</span>
+									<span class="new badgeDG genre">Casual</span>
 									<br>
-									Platform: 
-									<span class="new badgeDG">Mobile</span>
-									<span class="new badgeDG">Computer</span>
-									<br>Status: 30%
+									<span class="new badgeDG platform">Mobile</span>
+									<span class="new badgeDG platform">Computer</span>
+									<br>
+									<div class="progressText" >30%</div>
+									<progress max="100" value="30"></progress>
+							</div>
+							<div class="textRoadmap"> <!-- description and call to action -->
+								<h5>Pitch</h5>
+								<p class="left grey-text text-lighten-1" style="text-align: justify;"> You are a well-educated person, holding vast knowledge of modern technology. No luck though, after being striken by lightning (or whatever floats your boat), you wake up in -10,000 BC. That's gonna be tough holidays! After the few first days miserably trying to find your way around, you decide tthat it is actually a great opportunity. With your current knowledge, you can bring great enlightment to the world. Or you can conquer and dominate. Or you can just pretend you're god, maybe that's gonna fly. Beware though, the inhabitants might not be as harmless as you think, and not everyone welcomes enlightment.</p>
+								<h5>Game mechanics</h5>
+								<p class="left grey-text text-lighten-1" style="text-align: justify;">The game is essentially a mini-4x, with a survival aspect. You handle difficult moral choices which have significant impact on the evolution of the game. The unique mechanism is that you will have to choose whether you want to exploit your existing knowledge for perfroming tasks on your own, or spend your time training your prehistoric citizens so your model scales up eventually.</p>
+								<div> <!-- buttons -->
+									<div class="col s12 m6" style="padding-bottom: 2px"><span href="" id="support-button" class="col s12 btn-large waves-effect waves-light purple darken-2"><i class="fab fa-patreon"></i> Patron</span> </div>
+									<div class="col s12 m6"><a href="#testpoll" id="vote-button" class="col s12 btn-large waves-effect waves-light purple darken-2"><i class="material-icons">thumb_up</i> Vote</a> </div>
 								</div>
-							</div>
-							<h5>Pitch</h5>
-							<p class="left"> You are a well-educated person, holding vast knowledge of modern technology. No luck though, after being striken by lightning (or whatever floats your boat), you wake up in -10,000 BC. That's gonna be tough holidays! After the few first days miserably trying to find your way around, you decide tthat it is actually a great opportunity. With your current knowledge, you can bring great enlightment to the world. Or you can conquer and dominate. Or you can just pretend you're god, maybe that's gonna fly. Beware though, the inhabitants might not be as harmless as you think, and not everyone welcomes enlightment.</p>
-							<h5>Game mechanics</h5>
-							<p>The game is essentially a mini-4x, with a survival aspect. You handle difficult moral choices which have significant impact on the evolution of the game. The unique mechanism is that you will have to choose whether you want to exploit your existing knowledge for perfroming tasks on your own, or spend your time training your prehistoric citizens so your model scales up eventually.</p>
-							<div> <!-- buttons -->
-								<div class="col s12 m6" style="padding-bottom: 2px"><span href="" id="support-button" class="col s12 btn-large waves-effect waves-light purple darken-2"><i class="fab fa-patreon"></i> Become a Patron</span> </div>
-								<div class="col s12 m6"><a href="" id="coffee-button" class="col s12 btn-large waves-effect waves-light purple darken-2"><i class="fas fa-coffee"></i> Buy us a coffee</a> </div>
-							</div>
-							<div>
-							   &nbsp;
+								<div>
+								   &nbsp;
+								</div>
 							</div>
 						</div>
 					</div>
-				</div>
+				</div> <!-- Game card stops here -->
+				
+				<div id="game2" class="card grey darken-3 white-text"> <!-- game card --> 
+					<div class="row center"> <!-- title -->
+						<div class="col s12">
+							<h3>Metal Star 2080</h3>
+						</div>
+					</div>
+					<div class="row">
+						<div id="carousel" class="col s12 m6 center"> <!-- image // Ratio image 5/7, max_width 500 px-->
+							<!-- all the thumbnails go here, they will be cropped to square dimensions with top anchor -->
+								<div style="padding-bottom: 20px;">
+									<label class="carouselLabel" for="_11" ><img class="thumb" src="resources/space01.jpg" ></label>
+									<label class="carouselLabel" for="_12" ><img class="thumb" src="resources/space02.jpg" ></label>
+									<label class="carouselLabel" for="_13" ><img class="thumb" src="resources/space03.jpg" ></label>
+									<label class="carouselLabel" for="_14" ><img class="thumb" src="resources/space04.jpg" ></label>
+									<label class="carouselLabel" for="_15" ><img class="thumb" src="resources/space05.jpg" ></label>
+									<label class="carouselLabel" for="_16" ><img class="thumb" src="resources/space06.jpg" ></label>
+								</div>
+							<!-- All full-size images go here. There is no resizing for keeping the images responsive, limit the width to 500px -->
+								<div class="collapse"></div>
+								<input id="_11" type="radio" name="c2" checked> 
+								<div><img class="responsive-imgDG roadmapImg" src="resources/space01.jpg" ></div>
+
+								<div class="collapse"></div>
+								<input id="_12" type="radio" name="c2">
+								<div><img class="responsive-imgDG roadmapImg" src="resources/space02.jpg" ></div>
+								
+								<div class="collapse"></div>
+								<input id="_13" type="radio" name="c2">
+								<div><img class="responsive-imgDG roadmapImg" src="resources/space03.jpg" ></div>
+								
+								<div class="collapse"></div>
+								<input id="_14" type="radio" name="c2">
+								<div><img class="responsive-imgDG roadmapImg" src="resources/space04.jpg" ></div>
+								
+								<div class="collapse"></div>
+								<input id="_15" type="radio" name="c2">
+								<div><img class="responsive-imgDG roadmapImg" src="resources/space05.jpg" ></div>
+								
+								<div class="collapse"></div>
+								<input id="_16" type="radio" name="c2">
+								<div><img class="responsive-imgDG roadmapImg" src="resources/space06.jpg" ></div>
+						</div>
+						<div class="col s12 m6"> <!-- decription -->
+							<div class="center" > <!-- badges and progress -->
+									<span class="new badgeDG genre">Exploration</span>
+									<span class="new badgeDG genre">Survival</span>
+									<span class="new badgeDG genre">Space</span>
+									<br>
+									<span class="new badgeDG platform">Virtual Reality</span>
+									<span class="new badgeDG platform">Computer</span>
+									<br>
+									<div class="progressText" >5%</div>
+									<progress max="100" value="5"></progress>
+							</div>
+							<div class="textRoadmap"> <!-- description and call to action -->
+								<h5>Pitch</h5>
+								<p class="left grey-text text-lighten-1" style="text-align: justify;"> You start in a space walk, inspecting the loading of your cargo ship from a mid-sized space station. You operate the massive ship towards its destination. It quickly appears that there are troubles with some isolated plant nearby. you are sent for inspection in a small ship. Over there, the situation is worse than expected; the plant is damaged and the repair ship cannot access it. it is time for another VR space walk, and who knows what you will find lurking there?</p>
+								<h5>Game mechanics</h5>
+								<p class="left grey-text text-lighten-1" style="text-align: justify;">Metal Star 2080 concentrates on VR to provide an immersive, intense space experience. Operating the space suit through carefully managing trust is essential. The detailled 3d models of ships and space stations allow for great exploration. A system of mini-missions guides the player in the scenario, intended to last a couple of hours.</p>
+								<div> <!-- buttons -->
+									<div class="col s12 m6" style="padding-bottom: 2px"><span href="" id="support-button" class="col s12 btn-large waves-effect waves-light purple darken-2"><i class="fab fa-patreon"></i> Patron</span> </div>
+									<div class="col s12 m6"><a href="#testpoll" id="vote-button" class="col s12 btn-large waves-effect waves-light purple darken-2"><i class="material-icons">thumb_up</i> Vote</a> </div>
+								</div>
+								<div>
+								   &nbsp;
+								</div>
+							</div>
+						</div>
+					</div>
+				</div> <!-- Game card stops here -->				
+			
+			
 			</div>
 		</div>
 	</div>
