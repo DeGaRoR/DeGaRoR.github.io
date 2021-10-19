@@ -6,7 +6,18 @@
 		<meta name="theme-color" content="#101010" />
 		<link rel="stylesheet" href="font-awesome/css/font-awesome.min.css">
 		<link rel="stylesheet" type="text/css" href="xBosonConquest.css">
+		
+		    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>NewCo</title>
+    <!-- CSS  -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link href="css/materialize.css" type="text/css" rel="stylesheet" media="screen,projection"/>
+    <link href="css/style.css" type="text/css" rel="stylesheet" media="screen,projection"/>
+		
+		
 	</head>
+<body id="body">
 	<div id="loadingScreen">
 			<div id="buttonsContainer" class="buttonsContainer">
 				<div id="buttonsContainer2" class="buttonsContainer2">
@@ -179,13 +190,15 @@
 		<div id="bases" style="z-index:9">
 			<canvas id="canvasBases"></canvas>
 		</div>
-		<div id="mainCanvas" style="z-index:10">
-			<div id="selectionBox" hidden></div>
-			<canvas id="drawSpace"></canvas>
+		<div class="row">
+			<div id="mainCanvas" style="z-index:10">
+				<div id="selectionBox" hidden></div>
+				<canvas id="drawSpace"></canvas>
+			</div>
 		</div>
 	</div>
 	</div>
-	<body id="body">
+	
 		<script>
 		document.onreadystatechange = function () {
 			var state = document.readyState

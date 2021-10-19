@@ -4,7 +4,13 @@
 //==============================================
 //
 window.onload = function() {setBackground();setButtonIndicators();};
-//window.onresize = function() {sizeBgCanvas(); placeCanvas(drawSpace); placeCanvas(canvasBases);};
+window.onresize = function() {sizeBgCanvas(); placeCanvas(drawSpace); placeCanvas(canvasBases);};
+ window.addEventListener("touchmove", function(event) {
+       let target = event.target;
+       if (target.id === "drawspace") {
+           event.preventDefault();
+       }
+ });
 var persistData = {
 	timePace: 5,
 	nLevels: 27,
