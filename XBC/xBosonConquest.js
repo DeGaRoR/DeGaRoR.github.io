@@ -5,9 +5,9 @@
 //
 window.onload = function() {setBackground();setButtonIndicators();};
 window.onresize = function() {sizeBgCanvas(); placeCanvas(drawSpace); placeCanvas(canvasBases);};
- window.addEventListener("touchmove", function(event) {
+window.addEventListener("touchmove", function(event) {
        let target = event.target;
-       if (target.id === "drawspace") {
+       if (target.id === "body") {
            event.preventDefault();
        }
  });
