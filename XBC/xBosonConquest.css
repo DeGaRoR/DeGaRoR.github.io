@@ -10,6 +10,7 @@ body {
 	
 	//overflow-y: hidden;
 	//background: linear-gradient(white,black);
+	overscroll-behavior: contain;
 }
 html {
 	margin-top: 0 px;
