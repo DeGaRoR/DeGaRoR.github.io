@@ -380,7 +380,7 @@ function initializePlayers(sizeFactor) {
 	players.push(player2);
 	var player3 = {
 		playerName: "Virus",
-		playerColour: "#FF0700",
+		playerColour: "#FF0700",//"#FF0700",
 		controlType: 1,
 		AIType: 1, // 0 for random AI, 1 for released AI
 		imgBase: [virus3D_S,virus3D_M,virus3D_L],
@@ -714,7 +714,7 @@ function drawBaseIndicator(base) {
 		config.ctx.beginPath();
 		config.ctx.arc(base.x, base.y, baseSize + 1, 0, Math.PI * 2 * (base.health/config.maxHealth));
 		//config.ctx.closePath();
-		config.ctx.strokeStyle = "red";
+		config.ctx.strokeStyle = "#F57C00";
 		config.ctx.lineWidth = 3;
 		config.ctx.stroke();
 	}
