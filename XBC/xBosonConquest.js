@@ -503,12 +503,14 @@ function placeCanvas(canvas) {
 function sizeMainCanvas(canvas) {
 	if (window.innerWidth > window.innerHeight) {
 		canvas.height = window.innerHeight;
-		canvas.width = canvas.height;
+		//canvas.width = canvas.height;
+		canvas.width = window.innerWidth;
 		//drawSpace.style.paddingLeft = 100;
 	}
 	else {
 		canvas.width = window.innerWidth-8;
-		canvas.height = canvas.width;
+		//canvas.height = canvas.width;
+		canvas.height = window.innerHeight;
 	}
 }
 
