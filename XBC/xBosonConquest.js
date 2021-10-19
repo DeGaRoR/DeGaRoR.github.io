@@ -356,7 +356,7 @@ function initializePlayers(sizeFactor) {
 	players.push(playerNone);
 	var player1 = {
 		playerName: "Plasma Cells",
-		playerColour: "#00BCC5",
+		playerColour: "#7b1fa2", //"#00BCC5" original colour
 		controlType: 0, // 0 for human, 1 for CPU, 2 for none
 		AIType: 1, // 0 for random AI, 1 for released AI
 		imgBase: [cell3D_S,cell3D_M,cell3D_L],
