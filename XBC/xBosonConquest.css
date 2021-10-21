@@ -175,7 +175,7 @@ levelChooser {
 	font-size: 30px;
 }
 .buttonInGameMenu {
-	width: 400px;
+	width: 200px;
 }
 .buttonConfirm {
 	width: 200px;
@@ -198,4 +198,11 @@ levelChooser {
 	//display: table;
 	margin: auto;
 	color: white;
+}
+
+.transparent {
+	background-color: rgba(0, 0, 0, 0.2);
+}
+.bigger {
+	transform: scale(2);
 }

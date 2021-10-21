@@ -3,66 +3,16 @@ function getLevels() {
 		//new level
 		{	name: "Cog",
 			bases:[
-					{
-						ownership: 0,
-						x: 0.5,
-						y: 0.3,
-						levelMax: 2,
-						},
-					{
-						ownership: 0,
-						x: 0.775,
-						y: 0.2,
-						levelMax: 2,
-						},
-					{
-						ownership: 1,
-						x: 0.9,
-						y: 0.425,
-						levelMax: 2,
-						},
-					{
-						ownership: 0,
-						x: 0.675,
-						y: 0.6,
-						levelMax: 2,
-						},
-					{
-						ownership: 0,
-						x: 0.625,
-						y: 0.875,
-						levelMax: 2,
-						},
-					{
-						ownership: 2,
-						x: 0.375,
-						y: 0.875,
-						levelMax: 2,
-						},
-					{
-						ownership: 0,
-						x: 0.325,
-						y: 0.6,
-						levelMax: 2,
-						},
-					{
-						ownership: 0,
-						x: 0.1,
-						y: 0.425,
-						levelMax: 2,
-						},
-					{
-						ownership: 3,
-						x: 0.225,
-						y: 0.2,
-						levelMax: 2,
-						},
-					{
-						ownership: 0,
-						x: 0.5,
-						y: 0.5,
-						levelMax: 1,
-						},
+					{ownership: 0,x: 0.5,y: 0.3,levelMax: 2,},
+					{ownership: 0,x: 0.775,y: 0.2,levelMax: 2,},
+					{ownership: 1,x: 0.9,y: 0.425,levelMax: 2,},
+					{ownership: 0,x: 0.675,y: 0.6,levelMax: 2,},
+					{ownership: 0,x: 0.625,y: 0.875,levelMax: 2,},
+					{ownership: 2,x: 0.375,y: 0.875,levelMax: 2,},
+					{ownership: 0,x: 0.325,y: 0.6,levelMax: 2,},
+					{ownership: 0,x: 0.1,y: 0.425,levelMax: 2,},
+					{ownership: 3,x: 0.225,y: 0.2,levelMax: 2,},
+					{ownership: 0,x: 0.5,y: 0.5,levelMax: 1,},
 				]			
 		},
 		{	name: "Circle",
@@ -1212,5 +1162,14 @@ function getLevels() {
 				]
 		},
 	];
+	
+//allow for more margins
+for (var i = 0; i < levels.length; i++) {
+	var shrinkWidth=0.8;
+	var level = levels[i];
+	for (var j = 0; j < level.bases.length; j++) {
+		levels[i].bases[j].x=level.bases[j].x*shrinkWidth+(1-shrinkWidth)/2
+	}
+}
 return levels;
 }

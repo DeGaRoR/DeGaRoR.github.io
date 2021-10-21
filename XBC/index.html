@@ -8,8 +8,8 @@
 		<link rel="stylesheet" type="text/css" href="xBosonConquest.css">
 		
 	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
-    <meta name="viewport" content="width=device-width, initial-scale=0.5"/>
-    <title>NewCo</title>
+    <meta name="viewport" content="width=device-width, initial-scale=0.7"/>
+    <title>X Boson Conquest</title>
     <!-- CSS  -->
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <link href="css/materialize.css" type="text/css" rel="stylesheet" media="screen,projection"/>
@@ -109,12 +109,44 @@
 			</div>
 		</div>
 		<div id="gameUI" hidden>
-		<span id="buttons" class="buttonsMenuInGame">
+<!-- 		<span id="buttons" class="buttonsMenuInGame">
 			<button id="inGameMenuButton" class="button" style="font-size: 25px" onclick="releaseSelection();showMenu()">
 				<i class="fa fa-bars" aria-hidden="true"></i>
 			</button>
-
-		</span>
+		</span> -->
+		
+		
+		<span class="fixed-action-btn click-to-toggle direction-top direction-right" style="position: absolute; left: 24px; top:24px; height:0px; width:0px">
+            <a id="main-btn" href="javascript:releaseSelection();showMenu()" class="btn-floating btn-large transparent">
+              <i class="material-icons">menu</i>
+            </a>
+            <ul>
+              <li>
+                <a href="javascript:showMenu()" class="btn-floating transparent" style="opacity: 0; transform: scale(0.4) translateY(0px) translateX(40px);">
+                  <i class="material-icons">volume_off</i>
+                </a>
+              </li>
+			  
+ <!--              <li>
+                <a href="javascript:showMenu()" class="btn-floating transparent" style="opacity: 0; transform: scale(0.4) translateY(0px) translateX(40px);">
+                  <i class="material-icons">volume_mute</i>
+                </a>
+              </li> -->
+			  
+			  <li>
+                <a href="javascript:showMenu();ShowConfirmRestart()" class="btn-floating transparent" style="opacity: 0; transform: scale(0.4) translateY(0px) translateX(40px);">
+                  <i class="fa fa-refresh" aria-hidden="true"></i>
+                </a>
+              </li>
+			  
+			  <li>
+                <a href="javascript:ShowConfirmReturnHome(); showMenu();" class="btn-floating transparent" style="opacity: 0; transform: scale(0.4) translateY(0px) translateX(40px);">
+                  <i class="fa fa-home" aria-hidden="true"></i>
+                </a>
+              </li>
+			  
+            </ul>
+          </span>
 		<span id="inGameMenu" class="inGameMenu" hidden>
 			<div id="buttonsContainer" class="buttonsContainer">
 				<div id="buttonsContainer2" class="buttonsContainer2">
@@ -144,6 +176,7 @@
 				</div>	
 			</div>
 		</span>
+
 		<span id="nextLevelMenu" class="inGameMenu" hidden>
 			<div id="buttonsContainer" class="buttonsContainer">
 				<div id="buttonsContainer2" class="buttonsContainer2">
@@ -198,7 +231,6 @@
 		</div>
 	</div>
 	</div>
-	
 		<script>
 		document.onreadystatechange = function () {
 			var state = document.readyState
@@ -208,7 +240,11 @@
 		  }
 		}
 		</script>
+
 		<script src="XBC_levels.js"></script>
 		<script src="xBosonConquest.js"></script>
+		<script type="text/javascript" src="js/materialize.min.js"></script>
+		<script src="materializeInit.js"></script>
+		
 	</body>
 </html>

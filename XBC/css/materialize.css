@@ -5365,7 +5365,7 @@ button.btn-floating {
   height: 100%;
   left: auto;
   /*width 100% only goes to width of button container */
-  width: 500px;
+  width: 250px;
 }
 
 .fixed-action-btn.direction-left ul li, .fixed-action-btn.direction-right ul li {

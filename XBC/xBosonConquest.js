@@ -14,6 +14,9 @@ window.addEventListener("touchmove", function(event) {
 var persistData = {
 	timePace: 5,
 	nLevels: 27,
+	initialScale: 0.7,
+	marginCanvasHeight: 0,
+	marginCanvasWidth: 0,
 }
 //
 //==============================================
@@ -133,8 +136,8 @@ function getBgConfig() {
 	}
 }
 function sizeBgCanvas() {
-	bgConfig.background_canvas.width = window.innerWidth-2;
-	bgConfig.background_canvas.height = window.innerHeight;
+	bgConfig.background_canvas.width = getWidth()-2;
+	bgConfig.background_canvas.height = getHeight();
 }
 function setBackground(currentLevel) {
 	currentLevel = currentLevel || 1;
@@ -280,10 +283,14 @@ function backToChoice() {
 	document.getElementById('LevelChooser').hidden = false;
 }
 function showMenu() {
+	if (state.gamePaused) {unPauseGame(); state.gamePaused = false;}
+	else {
 	state.previousTimePace = state.timePace;
-	document.getElementById('inGameMenu').hidden = false;
+	//document.getElementById('inGameMenu').hidden = false;
 	pauseGame();
+	state.gamePaused = true;
 	setSpeedIndicator(state.previousTimePace);
+	}
 	
 }
 function hideMenu() {
@@ -494,25 +501,31 @@ function getInitialState() {
 		levelStartTime: null,
 		levelFinishTime: null,
 		refreshBasesCanvas: true,
+		gamePaused:false,
 	};
 }
 function placeCanvas(canvas) {
 	// Center the canvas using margins - so the click events are not confused...
-	canvas.style.marginLeft = (window.innerWidth - drawSpace.width) /2;
+	canvas.style.marginLeft = persistData.marginCanvasWidth/2;
 }
 function sizeMainCanvas(canvas) {
-	if (window.innerWidth > window.innerHeight) {
-		canvas.height = window.innerHeight-20;
-		//canvas.width = canvas.height;
-		canvas.width = window.innerWidth-20;
-		//drawSpace.style.paddingLeft = 100;
-	}
-	else {
-		canvas.width = window.innerWidth-8-20;
-		//canvas.height = canvas.width;
-		canvas.height = window.innerHeight-20;
-	}
+	canvas.height = getHeight()-persistData.marginCanvasHeight;
+	canvas.width = getWidth()-persistData.marginCanvasWidth;
 }
+
+function getHeight() {
+	windowHeight = window.innerHeight;
+	screenHeight = (screen.height/persistData.initialScale);
+	if (screenHeight<windowHeight) {height=screenHeight;} else {height=windowHeight};
+	return(height);
+}
+function getWidth() {
+	windowWidth = window.innerWidth;
+	screenWidth = (screen.width/persistData.initialScale);
+	if (screenWidth<windowWidth) {width=screenWidth;} else {width=windowWidth};
+	return(width);
+}
+
 
 function startGame(level) {
 	
