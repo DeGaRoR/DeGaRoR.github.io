@@ -24,12 +24,12 @@ var persistData = {
 //==============================================
 //
 var selectionBox = document.getElementById('selectionBox'), x_init = 0, y_init = 0, x2 = 0, y2 = 0, x_final = 0, y_final = 0;
-onmousedown = function(e) { ondown(e.clientX, e.clientY); };
-onmousemove = function(e) { onmove(e.clientX, e.clientY); };
-onmouseup = function(e) { onup(e.clientX, e.clientY); };
-ontouchstart = function(e) { ondown(e.changedTouches["0"].clientX, e.changedTouches["0"].clientY);};
-ontouchend = function(e) { onup(e.changedTouches["0"].clientX, e.changedTouches["0"].clientY); };
-ontouchmove = function(e) { onmove(e.changedTouches["0"].clientX, e.changedTouches["0"].clientY); };
+drawSpace.onmousedown = function(e) { ondown(e.clientX, e.clientY); };
+drawSpace.onmousemove = function(e) { onmove(e.clientX, e.clientY); };
+drawSpace.onmouseup = function(e) { onup(e.clientX, e.clientY); };
+drawSpace.ontouchstart = function(e) { ondown(e.changedTouches["0"].clientX, e.changedTouches["0"].clientY);};
+drawSpace.ontouchend = function(e) { onup(e.changedTouches["0"].clientX, e.changedTouches["0"].clientY); };
+drawSpace.ontouchmove = function(e) { onmove(e.changedTouches["0"].clientX, e.changedTouches["0"].clientY); };
 function reCalc() {
     var x3 = Math.min(x_init,x2);
     var x4 = Math.max(x_init,x2);
@@ -66,6 +66,7 @@ function onup(x,y) {
 	//alert(x_final + " " + y_final + " " + x_init + " " + y_init);
 		if (distance(x_final, y_final, x_init, y_init) < config.clickTol) {
 			//alert("this looks like a click");
+			
 			setTargetOnClick(x_final_canvas,y_final_canvas);
 			releaseSelection();
 		}
