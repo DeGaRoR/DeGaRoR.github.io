@@ -12,6 +12,14 @@ body {
 	//background: linear-gradient(white,black);
 	overscroll-behavior: contain;
 }
+
+/* @media only screen and (orientation:landscape) {
+  body {
+
+	transform: rotate(90deg);
+  }
+} */
+
 html {
 	margin-top: 0 px;
 	margin-left: 0 px;
@@ -53,8 +61,8 @@ levelChooser {
 }
 .buttonMain {
 	z-index: 1;
-	background-color: rgba(0, 0, 0, 0.2);
-	border: 1px solid rgba(255, 255, 255, 0.2);
+	background-color: rgba(255, 255, 255, 0.2);
+	border: 0px solid rgba(255, 255, 255, 0.2);
 	color: white;
 	padding: 30px 40px;
 	text-align: center;
@@ -66,6 +74,7 @@ levelChooser {
 	border-radius: 4px;
 	//position: absolute;
 	//top: 50%;
+	box-shadow: rgba(50, 50, 93, 0.25) 0px 13px 27px -5px, rgba(0, 0, 0, 0.3) 0px 8px 16px -8px;
 }
 .buttonMain:active {
 	background-color: rgba(200, 200, 200, 0.2);
@@ -75,8 +84,17 @@ levelChooser {
 }	
 .buttonNextPrev {
 	background-color: rgba(0, 0, 0, 0);
-	border: 1px solid rgba(255, 255, 255, 0);
-}		
+	border: 0px solid rgba(255, 255, 255, 0);
+	z-index: 1;
+	color: white;
+	padding: 30px 40px;
+	text-align: center;
+	text-decoration: none;
+	display: inline-block;
+	font-size: 50px;
+	margin: 4px 2px;
+	cursor: pointer;
+}
 .button {
 	//z-index: 1;
 	background-color: rgba(0, 0, 0, 0.2);
@@ -116,8 +134,9 @@ levelChooser {
 	text-align: center;
 }
 .title {
-	max-width:100%;
+	max-width:300px;
 	max-height:100%;
+	padding-top: 50px;
 }
 #background_canvas {
 	//z-index: 0;
@@ -205,4 +224,19 @@ levelChooser {
 }
 .bigger {
 	transform: scale(2);
+}
+.demoDiv {
+	//background-color:red;
+	//font-size:22;
+}
+.levelGroupTitle{
+	font-size:30px;
+	color:white;
+	
+}
+.shadowed{
+	box-shadow: rgba(50, 50, 93, 0.25) 0px 13px 27px -5px, rgba(0, 0, 0, 0.3) 0px 8px 16px -8px;
+}
+.levelsContainer{
+	border: 1px solid black;
 }
