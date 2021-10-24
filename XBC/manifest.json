@@ -1,0 +1,14 @@
+{
+  "short_name": "XBC",
+  "name": "X Boson COnquest",
+  "icons": [
+    {
+      "src": "XBC_ICO.png",
+      "sizes": "100x100",
+      "type": "image/png"
+    }
+  ],
+  "start_url": "/index.html",
+  "display": "fullscreen",
+  "orientation": "portrait"
+}
