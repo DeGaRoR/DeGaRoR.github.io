@@ -265,10 +265,18 @@ function setButtonIndicators() {
 		var level = "level" + i;
 		var levelButton = "btnLevel" + i;
 		if (localStorage[level] == "1") {
-			document.getElementById(levelButton).style.color = "green";
+			//document.getElementById(levelButton).style.color = "green";
+			// new code for updating the little stars
+			var c = document.getElementById(levelButton).childNodes;
+			//console.log("Button for level "+i+" has "+c.length+" child nodes")
+			if (c.length>0) { // remove later, just to make sure the buttons not yet having their stars are OK
+				c[3].childNodes[1].innerHTML = "<i class='fas fa-star yellow-text'>"; // first star
+				c[3].childNodes[3].innerHTML = "<i class='far fa-star'>"; // second star
+				c[3].childNodes[5].innerHTML = "<i class='far fa-star'>"; // third star
+			}
 		}
 		else {
-			document.getElementById(levelButton).style.color = "white";
+			//document.getElementById(levelButton).style.color = "white";
 		}
 	}
 }

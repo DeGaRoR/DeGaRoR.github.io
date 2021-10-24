@@ -15,6 +15,7 @@
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <link href="css/materialize.css" type="text/css" rel="stylesheet" media="screen,projection"/>
     <link href="css/style.css" type="text/css" rel="stylesheet" media="screen,projection"/>
+	<link href="fontawesome2021/css/all.css" rel="stylesheet"> <!--load all styles -->
 		
 		
 	</head>
@@ -56,29 +57,111 @@
 			<canvas id="background_canvas" ></canvas>
 		</div>
 		<div id="LevelChooser" class="menuCenter buttonsMenu">
-			<img class="title" id="Title" 		src="Resources\Title.png"> <br>
+			<img class="title" id="Title" 		src="Resources\titleBanner2_SD.png"> <br>
 			<div class="container ">
 				<div id="levelsButtons01" class="menuCenter buttonsMenu">
-					<div class="row">
-						<div class="col s12 "><button class="buttonNextPrev grey-text"><i class="fa fa-chevron-up" aria-hidden="true"></i></button></div>
-					</div>
 						<div class="row">
 							<div class="col s12 levelGroupTitle">Easy</div>
 						</div>
 						<div class="row">
-							<div class="col s4 m2 offset-m3 demoDiv"> <button id="btnLevel1" class="buttonMain" onclick="startGame(1)">1</button> </div>
-							<div class="col s4 m2 demoDiv"> <button id="btnLevel2" class="buttonMain" onclick="startGame(2)">2</button>  </div>
-							<div class="col s4 m2 demoDiv"> <button id="btnLevel3" class="buttonMain" onclick="startGame(3)">3</button> </div>
+							<div class="col s12 ">
+								<button class="buttonNextPrev grey-text"><i class="fa fa-chevron-up" aria-hidden="true"></i></button></div>
 						</div>
 						<div class="row">
-							<div class="col s4 m2 offset-m3 demoDiv"> <button id="btnLevel4" class="buttonMain" onclick="startGame(4)">4</button> </div>
-							<div class="col s4 m2 demoDiv"> <button id="btnLevel5" class="buttonMain" onclick="startGame(5)">5</button>  </div>
-							<div class="col s4 m2 demoDiv"> <button id="btnLevel6" class="buttonMain" onclick="startGame(6)">6</button> </div>
+							<div class="col s4 m2 offset-m3 demoDiv"> 
+								<button id="btnLevel1" class="buttonMain" onclick="startGame(1)">
+									<div class="row">1</div>
+									<div class="row starIcon">
+										<div class="col s4"><i class="far fa-star"></i></div>
+										<div class="col s4"><i class="far fa-star"></i></div>
+										<div class="col s4"><i class="far fa-star"></i></div>
+									</div>
+								</button>  
+							</div>
+							<div class="col s4 m2 demoDiv"> 
+								<button id="btnLevel2" class="buttonMain" onclick="startGame(2)">
+									<div class="row">2</div>
+									<div class="row starIcon">
+										<div class="col s4"><i class="far fa-star"></i></div>
+										<div class="col s4"><i class="far fa-star"></i></div>
+										<div class="col s4"><i class="far fa-star"></i></div>
+									</div>
+								</button>  
+							</div>
+							<div class="col s4 m2 demoDiv"> 
+								<button id="btnLevel3" class="buttonMain" onclick="startGame(3)">
+									<div class="row">3</div>
+									<div class="row starIcon">
+										<div class="col s4"><i class="far fa-star"></i></div>
+										<div class="col s4"><i class="far fa-star"></i></div>
+										<div class="col s4"><i class="far fa-star"></i></div>
+									</div>
+								</button> 
+							</div>
 						</div>
 						<div class="row">
-							<div class="col s4 m2 offset-m3 demoDiv"> <button id="btnLevel7" class="buttonMain" onclick="startGame(7)">7</button> </div>
-							<div class="col s4 m2 demoDiv"> <button id="btnLevel8" class="buttonMain" onclick="startGame(8)">8</button>  </div>
-							<div class="col s4 m2 demoDiv"> <button id="btnLevel9" class="buttonMain" onclick="startGame(9)">9</button> </div>
+							<div class="col s4 m2 offset-m3 demoDiv"> 
+								<button id="btnLevel4" class="buttonMain" onclick="startGame(4)">
+									<div class="row">4</div>
+									<div class="row starIcon">
+										<div class="col s4"><i class="far fa-star"></i></div>
+										<div class="col s4"><i class="far fa-star"></i></div>
+										<div class="col s4"><i class="far fa-star"></i></div>
+									</div>
+								</button>  
+							</div>
+							<div class="col s4 m2 demoDiv"> 
+								<button id="btnLevel5" class="buttonMain" onclick="startGame(5)">
+									<div class="row">5</div>
+									<div class="row starIcon">
+										<div class="col s4"><i class="far fa-star"></i></div>
+										<div class="col s4"><i class="far fa-star"></i></div>
+										<div class="col s4"><i class="far fa-star"></i></div>
+									</div>
+								</button>  
+							</div>
+							<div class="col s4 m2 demoDiv"> 
+								<button id="btnLevel6" class="buttonMain" onclick="startGame(6)">
+									<div class="row">6</div>
+									<div class="row starIcon">
+										<div class="col s4"><i class="far fa-star"></i></div>
+										<div class="col s4"><i class="far fa-star"></i></div>
+										<div class="col s4"><i class="far fa-star"></i></div>
+									</div>
+								</button>  
+							</div>
+						</div>
+						<div class="row">
+							<div class="col s4 m2 offset-m3 demoDiv"> 
+								<button id="btnLevel7" class="buttonMain" onclick="startGame(7)">
+									<div class="row">7</div>
+									<div class="row starIcon">
+										<div class="col s4"><i class="far fa-star"></i></div>
+										<div class="col s4"><i class="far fa-star"></i></div>
+										<div class="col s4"><i class="far fa-star"></i></div>
+									</div>
+								</button>  
+							</div>
+							<div class="col s4 m2 demoDiv"> 
+								<button id="btnLevel8" class="buttonMain" onclick="startGame(8)">
+									<div class="row">8</div>
+									<div class="row starIcon">
+										<div class="col s4"><i class="far fa-star"></i></div>
+										<div class="col s4"><i class="far fa-star"></i></div>
+										<div class="col s4"><i class="far fa-star"></i></div>
+									</div>
+								</button>  
+							</div>
+							<div class="col s4 m2 demoDiv"> 
+								<button id="btnLevel9" class="buttonMain" onclick="startGame(9)">
+									<div class="row">9</div>
+									<div class="row starIcon">
+										<div class="col s4"><i class="far fa-star"></i></div>
+										<div class="col s4"><i class="far fa-star"></i></div>
+										<div class="col s4"><i class="far fa-star"></i></div>
+									</div>
+								</button>  
+							</div>
 						</div>
 					<div class="row">
 						<div class="col s12 "><button class="buttonNextPrev" onclick="showNextLevels(1)"><i class="fa fa-chevron-down" aria-hidden="true"></i></button></div>
@@ -93,19 +176,100 @@
 						<div class="col s12 levelGroupTitle">Medium</div>
 					</div>
 					<div class="row">
-						<div class="col s4 m2 offset-m3 demoDiv"> <button id="btnLevel10" class="buttonMain" onclick="startGame(10)">10</button> </div>
-						<div class="col s4 m2 demoDiv"> <button id="btnLevel11" class="buttonMain" onclick="startGame(11)">11</button>  </div>
-						<div class="col s4 m2 demoDiv"> <button id="btnLevel12" class="buttonMain" onclick="startGame(12)">12</button> </div>
+						<div class="col s4 m2 offset-m3 demoDiv"> 
+								<button id="btnLevel10" class="buttonMain" onclick="startGame(10)">
+									<div class="row">10</div>
+									<div class="row starIcon">
+										<div class="col s4"><i class="far fa-star"></i></div>
+										<div class="col s4"><i class="far fa-star"></i></div>
+										<div class="col s4"><i class="far fa-star"></i></div>
+									</div>
+								</button>
+						</div>
+						<div class="col s4 m2 demoDiv"> 
+								<button id="btnLevel11" class="buttonMain" onclick="startGame(11)">
+									<div class="row">11</div>
+									<div class="row starIcon">
+										<div class="col s4"><i class="far fa-star"></i></div>
+										<div class="col s4"><i class="far fa-star"></i></div>
+										<div class="col s4"><i class="far fa-star"></i></div>
+									</div>
+								</button>
+						</div>
+						<div class="col s4 m2 demoDiv"> 
+								<button id="btnLevel12" class="buttonMain" onclick="startGame(12)">
+									<div class="row">12</div>
+									<div class="row starIcon">
+										<div class="col s4"><i class="far fa-star"></i></div>
+										<div class="col s4"><i class="far fa-star"></i></div>
+										<div class="col s4"><i class="far fa-star"></i></div>
+									</div>
+								</button>						
+						</div>
 					</div>
 					<div class="row">
-						<div class="col s4 m2 offset-m3 demoDiv"> <button id="btnLevel13" class="buttonMain" onclick="startGame(13)">13</button> </div>
-						<div class="col s4 m2 demoDiv"> <button id="btnLevel14" class="buttonMain" onclick="startGame(14)">14</button>  </div>
-						<div class="col s4 m2 demoDiv"> <button id="btnLevel15" class="buttonMain" onclick="startGame(15)">15</button> </div>
+						<div class="col s4 m2 offset-m3 demoDiv"> 
+								<button id="btnLevel13" class="buttonMain" onclick="startGame(13)">
+									<div class="row">13</div>
+									<div class="row starIcon">
+										<div class="col s4"><i class="far fa-star"></i></div>
+										<div class="col s4"><i class="far fa-star"></i></div>
+										<div class="col s4"><i class="far fa-star"></i></div>
+									</div>
+								</button>
+						</div>
+						<div class="col s4 m2 demoDiv"> 
+								<button id="btnLevel14" class="buttonMain" onclick="startGame(14)">
+									<div class="row">14</div>
+									<div class="row starIcon">
+										<div class="col s4"><i class="far fa-star"></i></div>
+										<div class="col s4"><i class="far fa-star"></i></div>
+										<div class="col s4"><i class="far fa-star"></i></div>
+									</div>
+								</button>
+						</div>
+						<div class="col s4 m2 demoDiv"> 
+								<button id="btnLevel15" class="buttonMain" onclick="startGame(15)">
+									<div class="row">15</div>
+									<div class="row starIcon">
+										<div class="col s4"><i class="far fa-star"></i></div>
+										<div class="col s4"><i class="far fa-star"></i></div>
+										<div class="col s4"><i class="far fa-star"></i></div>
+									</div>
+								</button>
+						</div>
 					</div>
 					<div class="row">
-						<div class="col s4 m2 offset-m3 demoDiv"> <button id="btnLevel16" class="buttonMain" onclick="startGame(16)">16</button> </div>
-						<div class="col s4 m2 demoDiv"> <button id="btnLevel17" class="buttonMain" onclick="startGame(17)">17</button>  </div>
-						<div class="col s4 m2 demoDiv"> <button id="btnLevel18" class="buttonMain" onclick="startGame(18)">18</button> </div>
+						<div class="col s4 m2 offset-m3 demoDiv"> 
+								<button id="btnLevel16" class="buttonMain" onclick="startGame(16)">
+									<div class="row">16</div>
+									<div class="row starIcon">
+										<div class="col s4"><i class="far fa-star"></i></div>
+										<div class="col s4"><i class="far fa-star"></i></div>
+										<div class="col s4"><i class="far fa-star"></i></div>
+									</div>
+								</button>
+						</div>
+						<div class="col s4 m2 demoDiv"> 
+								<button id="btnLevel17" class="buttonMain" onclick="startGame(17)">
+									<div class="row">17</div>
+									<div class="row starIcon">
+										<div class="col s4"><i class="far fa-star"></i></div>
+										<div class="col s4"><i class="far fa-star"></i></div>
+										<div class="col s4"><i class="far fa-star"></i></div>
+									</div>
+								</button>
+						</div>
+						<div class="col s4 m2 demoDiv"> 
+								<button id="btnLevel18" class="buttonMain" onclick="startGame(18)">
+									<div class="row">18</div>
+									<div class="row starIcon">
+										<div class="col s4"><i class="far fa-star"></i></div>
+										<div class="col s4"><i class="far fa-star"></i></div>
+										<div class="col s4"><i class="far fa-star"></i></div>
+									</div>
+								</button>
+						</div>
 					</div>
 					<div class="row">
 						<div class="col s12 "><button class="buttonNextPrev" onclick="showNextLevels(2)"><i class="fa fa-chevron-down" aria-hidden="true"></i></button></div>
@@ -120,19 +284,100 @@
 						<div class="col s12 levelGroupTitle">Hard</div>
 					</div>
 					<div class="row">
-						<div class="col s4 m2 offset-m3 demoDiv"> <button id="btnLevel19" class="buttonMain" onclick="startGame(19)">19</button> </div>
-						<div class="col s4 m2 demoDiv"> <button id="btnLevel20" class="buttonMain" onclick="startGame(20)">20</button>  </div>
-						<div class="col s4 m2 demoDiv"> <button id="btnLevel21" class="buttonMain" onclick="startGame(21)">21</button> </div>
+						<div class="col s4 m2 offset-m3 demoDiv"> 
+								<button id="btnLevel19" class="buttonMain" onclick="startGame(19)">
+									<div class="row">19</div>
+									<div class="row starIcon">
+										<div class="col s4"><i class="far fa-star"></i></div>
+										<div class="col s4"><i class="far fa-star"></i></div>
+										<div class="col s4"><i class="far fa-star"></i></div>
+									</div>
+								</button>
+						</div>
+						<div class="col s4 m2 demoDiv"> 
+								<button id="btnLevel20" class="buttonMain" onclick="startGame(20)">
+									<div class="row">20</div>
+									<div class="row starIcon">
+										<div class="col s4"><i class="far fa-star"></i></div>
+										<div class="col s4"><i class="far fa-star"></i></div>
+										<div class="col s4"><i class="far fa-star"></i></div>
+									</div>
+								</button>
+						</div>
+						<div class="col s4 m2 demoDiv"> 
+								<button id="btnLevel21" class="buttonMain" onclick="startGame(21)">
+									<div class="row">21</div>
+									<div class="row starIcon">
+										<div class="col s4"><i class="far fa-star"></i></div>
+										<div class="col s4"><i class="far fa-star"></i></div>
+										<div class="col s4"><i class="far fa-star"></i></div>
+									</div>
+								</button>
+						</div>
 					</div>
 					<div class="row">
-						<div class="col s4 m2 offset-m3 demoDiv"> <button id="btnLevel22" class="buttonMain" onclick="startGame(22)">22</button> </div>
-						<div class="col s4 m2 demoDiv"> <button id="btnLevel23" class="buttonMain" onclick="startGame(23)">23</button>  </div>
-						<div class="col s4 m2 demoDiv"> <button id="btnLevel24" class="buttonMain" onclick="startGame(24)">24</button> </div>
+						<div class="col s4 m2 offset-m3 demoDiv"> 
+								<button id="btnLevel22" class="buttonMain" onclick="startGame(22)">
+									<div class="row">22</div>
+									<div class="row starIcon">
+										<div class="col s4"><i class="far fa-star"></i></div>
+										<div class="col s4"><i class="far fa-star"></i></div>
+										<div class="col s4"><i class="far fa-star"></i></div>
+									</div>
+								</button>
+						</div>
+						<div class="col s4 m2 demoDiv"> 
+								<button id="btnLevel23" class="buttonMain" onclick="startGame(23)">
+									<div class="row">23</div>
+									<div class="row starIcon">
+										<div class="col s4"><i class="far fa-star"></i></div>
+										<div class="col s4"><i class="far fa-star"></i></div>
+										<div class="col s4"><i class="far fa-star"></i></div>
+									</div>
+								</button>
+						</div>
+						<div class="col s4 m2 demoDiv"> 
+								<button id="btnLevel24" class="buttonMain" onclick="startGame(24)">
+									<div class="row">24</div>
+									<div class="row starIcon">
+										<div class="col s4"><i class="far fa-star"></i></div>
+										<div class="col s4"><i class="far fa-star"></i></div>
+										<div class="col s4"><i class="far fa-star"></i></div>
+									</div>
+								</button>
+						</div>
 					</div>
 					<div class="row">
-						<div class="col s4 m2 offset-m3 demoDiv"> <button id="btnLevel25" class="buttonMain" onclick="startGame(25)">25</button> </div>
-						<div class="col s4 m2 demoDiv"> <button id="btnLevel26" class="buttonMain" onclick="startGame(26)">26</button>  </div>
-						<div class="col s4 m2 demoDiv"> <button id="btnLevel27" class="buttonMain" onclick="startGame(27)">27</button> </div>
+						<div class="col s4 m2 offset-m3 demoDiv"> 
+								<button id="btnLevel25" class="buttonMain" onclick="startGame(25)">
+									<div class="row">25</div>
+									<div class="row starIcon">
+										<div class="col s4"><i class="far fa-star"></i></div>
+										<div class="col s4"><i class="far fa-star"></i></div>
+										<div class="col s4"><i class="far fa-star"></i></div>
+									</div>
+								</button>
+						</div>
+						<div class="col s4 m2 demoDiv"> 
+								<button id="btnLevel26" class="buttonMain" onclick="startGame(26)">
+									<div class="row">26</div>
+									<div class="row starIcon">
+										<div class="col s4"><i class="far fa-star"></i></div>
+										<div class="col s4"><i class="far fa-star"></i></div>
+										<div class="col s4"><i class="far fa-star"></i></div>
+									</div>
+								</button>
+						</div>
+						<div class="col s4 m2 demoDiv"> 
+								<button id="btnLevel27" class="buttonMain" onclick="startGame(27)">
+									<div class="row">27</div>
+									<div class="row starIcon">
+										<div class="col s4"><i class="far fa-star"></i></div>
+										<div class="col s4"><i class="far fa-star"></i></div>
+										<div class="col s4"><i class="far fa-star"></i></div>
+									</div>
+								</button>
+						</div>
 					</div>
 					<div class="row">
 						<div class="col s12 "><button class="buttonNextPrev grey-text" onclick=""><i class="fa fa-chevron-down" aria-hidden="true"></i></button></div>
