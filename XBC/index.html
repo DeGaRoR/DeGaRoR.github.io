@@ -59,7 +59,7 @@
 			<canvas id="background_canvas" ></canvas>
 		</div>
 		<div id="LevelChooser" class="menuCenter buttonsMenu">
-			<img alt="X Boson Conquest" class="title" id="Title" 		src="Resources\titleBanner2_SD.png"> <br>
+			<img alt="X Boson Conquest" class="title" id="Title" 		src="Resources\titleBanner2_SD.webp"> <br>
 			<div class="container ">
 				<div id="levelsButtons01" class="menuCenter buttonsMenu">
 						<div class="row">
@@ -525,6 +525,19 @@
 		<script src="xBosonConquest.js"></script>
 		<script type="text/javascript" src="js/materialize.min.js"></script>
 		<script src="materializeInit.js"></script>
+		<script>
+			if ('serviceWorker' in navigator) {
+			  window.addEventListener('load', function() {
+				navigator.serviceWorker.register('/sw.js').then(function(registration) {
+				  // Registration was successful
+				  console.log('ServiceWorker registration successful with scope: ', registration.scope);
+				}, function(err) {
+				  // registration failed :(
+				  console.log('ServiceWorker registration failed: ', err);
+				});
+			  });
+			}
+		</script>
 		
 	</body>
 </html>
