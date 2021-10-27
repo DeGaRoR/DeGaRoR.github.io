@@ -3,12 +3,35 @@
   "name": "X Boson Conquest",
   "icons": [
     {
-      "src": "XBC_ICO.png",
-      "sizes": "100x100",
+      "src": "/resources/ico/XBC_ICO_32.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    },
+	{
+      "src": "/resources/ico/XBC_ICO_64.png",
+      "sizes": "64x64",
+      "type": "image/png"
+    },
+	{
+      "src": "/resources/ico/XBC_ICO_128.png",
+      "sizes": "128x128",
+      "type": "image/png"
+    },
+	{
+      "src": "/resources/ico/XBC_ICO_256.png",
+      "sizes": "256x256",
+      "type": "image/png"
+    },
+	{
+      "src": "/resources/ico/XBC_ICO_512.png",
+      "sizes": "512x512",
       "type": "image/png"
     }
   ],
   "start_url": "/XBC/index.html",
   "display": "fullscreen",
-  "orientation": "portrait"
+  "orientation": "portrait",
+  "background_color": "#101010",
+  "theme_color": "#101010",
+  "description": "You’re a mighty cell and you have to defend against ever expanding virus and fungii. Demonstrate your real-time strategy skills with this minimalistic yet challenging game.",
 }
