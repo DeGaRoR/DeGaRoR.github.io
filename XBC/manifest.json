@@ -3,27 +3,27 @@
   "name": "X Boson Conquest",
   "icons": [
     {
-      "src": "/resources/ico/XBC_ICO_32.png",
+      "src": "/XBC/resources/ico/XBC_ICO_32.png",
       "sizes": "32x32",
       "type": "image/png"
     },
 	{
-      "src": "/resources/ico/XBC_ICO_64.png",
+      "src": "/XBC/resources/ico/XBC_ICO_64.png",
       "sizes": "64x64",
       "type": "image/png"
     },
 	{
-      "src": "/resources/ico/XBC_ICO_128.png",
+      "src": "/XBC/resources/ico/XBC_ICO_128.png",
       "sizes": "128x128",
       "type": "image/png"
     },
 	{
-      "src": "/resources/ico/XBC_ICO_256.png",
+      "src": "/XBC/resources/ico/XBC_ICO_256.png",
       "sizes": "256x256",
       "type": "image/png"
     },
 	{
-      "src": "/resources/ico/XBC_ICO_512.png",
+      "src": "/XBC/resources/ico/XBC_ICO_512.png",
       "sizes": "512x512",
       "type": "image/png"
     }
