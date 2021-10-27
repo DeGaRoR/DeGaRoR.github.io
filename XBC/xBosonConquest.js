@@ -14,7 +14,7 @@ window.addEventListener("touchmove", function(event) {
 var persistData = {
 	timePace: 5,
 	nLevels: 27,
-	initialScale: 0.7,
+	initialScale: 1,
 	marginCanvasHeight: 0,
 	marginCanvasWidth: 0,
 }
@@ -443,7 +443,12 @@ function getBases(players, canvas, selectedLevel, maxHealth, minConquership) {
 function getConfig(selectedLevel) {
 	var canvas = document.getElementById("drawSpace");
 	var canvasBases = document.getElementById("canvasBases");
-	var sizeFactor = 0.75;
+	//adapt the size factor as a function of screen size
+	var sizeFactor = 0.5;
+	var innerWidth = window.innerWidth;
+	if (innerWidth < 600) {sizeFactor=0.5;}
+	else {sizeFactor=1;};
+	
 	var players = initializePlayers(sizeFactor);
 	var defaultBaseSize = 32 * sizeFactor;
 	var levelSizeIncrease = 12 * sizeFactor;
