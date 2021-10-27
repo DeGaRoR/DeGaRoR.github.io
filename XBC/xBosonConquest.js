@@ -482,7 +482,7 @@ function getConfig(selectedLevel) {
 		baseMaxDist: baseMaxDist,
 		pulseSizeIncrease: 1,
 		radiusRandom: 15,
-		neighbourDistance: Math.round(canvas.width+canvas.height),
+		neighbourDistance: Math.round(canvas.height/2),
 		imgBaseSize: 256,
 		// tolerances
 		collisionTol: 6, // tolerance for declaring collision
