@@ -444,10 +444,13 @@ function getConfig(selectedLevel) {
 	var canvas = document.getElementById("drawSpace");
 	var canvasBases = document.getElementById("canvasBases");
 	//adapt the size factor as a function of screen size
-	var sizeFactor = 0.5;
+	var sizeFactor = 1;
+	var sizeFactorSmallScreens = 0.5;
+	var sizeFactorBigScreens = 1;
+	var smallScreenSize = 600;
 	var innerWidth = window.innerWidth;
-	if (innerWidth < 600) {sizeFactor=0.5;}
-	else {sizeFactor=1;};
+	if (innerWidth < smallScreenSize) {sizeFactor=sizeFactorSmallScreens;}
+	else {sizeFactor=sizeFactorBigScreens;};
 	
 	var players = initializePlayers(sizeFactor);
 	var defaultBaseSize = 32 * sizeFactor;
