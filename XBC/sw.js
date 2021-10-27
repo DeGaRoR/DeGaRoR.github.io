@@ -39,7 +39,12 @@ var urlsToCache = [
   '/XBC/Resources/ico/XBC_ICO_64.png',
   '/XBC/Resources/ico/XBC_ICO_128.png',
   '/XBC/Resources/ico/XBC_ICO_256.png',
-  '/XBC/Resources/ico/XBC_ICO_512.png'
+  '/XBC/Resources/ico/XBC_ICO_512.png',
+  '/XBC/Resources/ico/maskable_icon_x48.png',
+  '/XBC/Resources/ico/maskable_icon_x72.png',
+  '/XBC/Resources/ico/maskable_icon_x96.png',
+  '/XBC/Resources/ico/maskable_icon_x128.png',
+  '/XBC/Resources/ico/maskable_icon_x192.png'
   
 ];
 
