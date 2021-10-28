@@ -1,6 +1,82 @@
 function getLevels() {
 	var levels = [
 		//new level
+		{ name: "Easy 1 - basicControls",
+			bases:[
+			{ownership: 1,x: 0.35,y: 0.25,levelMax: 1,},
+			{ownership: 2,x: 0.5,y: 0.75,levelMax: 1,},
+			{ownership: 1,x: 0.65,y: 0.25,levelMax: 1,},
+			]
+		},
+		{ name: "Easy 2 - Conquer",
+			bases:[
+			{ownership: 1,x: 0.25,y: 0.15,levelMax: 1,},
+			{ownership: 1,x: 0.5,y: 0.15,levelMax: 1,},
+			{ownership: 1,x: 0.75,y: 0.15,levelMax: 1,},
+			{ownership: 0,x: 0.25,y: 0.3,levelMax: 1,},
+			{ownership: 0,x: 0.5,y: 0.3,levelMax: 1,},
+			{ownership: 0,x: 0.75,y: 0.3,levelMax: 1,},
+			{ownership: 0,x: 0.5,y: 0.7,levelMax: 1,},
+			{ownership: 2,x: 0.33,y: 0.85,levelMax: 1,},
+			{ownership: 2,x: 0.66,y: 0.85,levelMax: 1,},
+			]
+		},
+		{ name: "Easy 3 - Upgrade",
+			bases:[
+			{ownership: 1,x: 0.5,y: 0.25,levelMax: 3,},
+			{ownership: 2,x: 0.5,y: 0.75,levelMax: 1,},
+			]
+		},
+		{ name: "Easy 4 - Ennemies",
+			bases:[
+			{ownership: 0,x: 0.2,y: 0.2,levelMax: 1,},
+			{ownership: 1,x: 0.5,y: 0.2,levelMax: 2,},
+			{ownership: 0,x: 0.8,y: 0.2,levelMax: 1,},
+			{ownership: 0,x: 0.5,y: 0.4,levelMax: 1,},
+			{ownership: 0,x: 0.5,y: 0.6,levelMax: 1,},
+			{ownership: 2,x: 0.2,y: 0.8,levelMax: 1,},
+			{ownership: 0,x: 0.5,y: 0.8,levelMax: 2,},
+			{ownership: 3,x: 0.8,y: 0.8,levelMax: 1,},
+			]
+		},
+		{	name: "Easy 5",
+			bases:[
+					{ownership: 1,x: 0.5,y: 0.2,levelMax: 1,},
+					{ownership: 2,x: 0.5,y: 0.8,levelMax: 1,},
+				]			
+		},
+		{	name: "Easy 6",
+			bases:[
+					{ownership: 1,x: 0.5,y: 0.2,levelMax: 1,},
+					{ownership: 2,x: 0.5,y: 0.8,levelMax: 1,},
+				]			
+		},
+		{	name: "Easy 7",
+			bases:[
+					{ownership: 1,x: 0.5,y: 0.2,levelMax: 1,},
+					{ownership: 2,x: 0.5,y: 0.8,levelMax: 1,},
+				]			
+		},
+		{ name: "Easy 8 - Julien hello world",
+			bases:[
+				{ownership: 1,x: 0.3,y: 0.2,levelMax: 1,},
+				{ownership: 1,x: 0.7,y: 0.2,levelMax: 1,},
+				{ownership: 0,x: 0.3,y: 0.4,levelMax: 3,},
+				{ownership: 0,x: 0.5,y: 0.4,levelMax: 3,},
+				{ownership: 0,x: 0.7,y: 0.4,levelMax: 3,},
+				{ownership: 0,x: 0.4,y: 0.65,levelMax: 1,},
+				{ownership: 0,x: 0.6,y: 0.65,levelMax: 1,},
+				{ownership: 2,x: 0.4,y: 0.85,levelMax: 1,},
+				{ownership: 2,x: 0.6,y: 0.85,levelMax: 1,},
+			]
+		},
+		{	name: "Easy 9",
+			bases:[
+					{ownership: 1,x: 0.5,y: 0.2,levelMax: 1,},
+					{ownership: 2,x: 0.5,y: 0.8,levelMax: 1,},
+				]			
+		},
+		
 		{	name: "Normal Cog",
 			bases:[
 					{ownership: 0,x: 0.5,y: 0.3,levelMax: 2,},
@@ -47,10 +123,8 @@ function getLevels() {
 		},
 		{	name: "Normal A level",
 			bases:[
-					//{ownership: 1,x: 0.9455,y: 0.5,levelMax: 1,},
 					{ownership: 0,x: 0.72275,y: 0.11419,levelMax: 1,},
 					{ownership: 2,x: 0.27725,y: 0.11419,levelMax: 1,},
-					//{ownership: 0,x: 0.0545,y: 0.5,levelMax: 1,	},
 					{ownership: 1,x: 0.27725,y: 0.88581,levelMax: 1,},
 					{ownership: 0,x: 0.72275,y: 0.88581,levelMax: 1,},
 					{ownership: 3,x: 0.797,y: 0.5,levelMax: 2,},
@@ -59,12 +133,6 @@ function getLevels() {
 					{ownership: 0,x: 0.203,y: 0.5,levelMax: 2,},
 					{ownership: 0,x: 0.3515,y: 0.75721,levelMax: 2,},
 					{ownership: 0,x: 0.6485,y: 0.75721,levelMax: 2,},
-					//{ownership: 0,x: 0.6485,y: 0.5,levelMax: 2,},
-					//{ownership: 0,x: 0.57425,y: 0.3714,levelMax: 2,},
-					//{ownership: 0,x: 0.42575,y: 0.3714,levelMax: 2,	},
-					//{ownership: 0,x: 0.3515,y: 0.5,levelMax: 2,},
-					//{ownership: 0,x: 0.42575,y: 0.6286,levelMax: 2,},
-					//{ownership: 0,x: 0.57425,y: 0.6286,levelMax: 2,},
 					{ownership: 0,x: 0.5,y: 0.5,levelMax: 3,},
 				]
 		},
@@ -93,8 +161,6 @@ function getLevels() {
 					{ownership: 0,x: 0.475,y: 0.28349,levelMax: 2,},
 					{ownership: 0,x: 0.2875,y: 0.39175,levelMax: 1,},
 					{ownership: 0,x: 0.35,y: 0.5,levelMax: 1,},
-					//{ownership: 0,x: 0.725,y: 0.71651,levelMax: 1,},
-					//{ownership: 0,x: 0.725,y: 0.28349,levelMax: 1,},
 					{ownership: 0,x: 0.6,y: 0.5,levelMax: 2,},
 					]
 		},
