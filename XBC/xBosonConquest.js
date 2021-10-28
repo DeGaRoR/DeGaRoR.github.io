@@ -266,23 +266,21 @@ function setButtonIndicators() {
 	for (i=1; i<= nLevels; i++) {
 		var level = "level" + i;
 		var levelButton = "btnLevel" + i;
+		var c = document.getElementById(levelButton).childNodes;
 		if (localStorage[level] == "1") {
-			var c = document.getElementById(levelButton).childNodes;
 			c[3].childNodes[1].innerHTML = "<i class='fas fa-star yellow-text'>"; // first star
 			c[3].childNodes[3].innerHTML = "<i class='far fa-star'>"; // second star
 			c[3].childNodes[5].innerHTML = "<i class='far fa-star'>"; // third star
 		}
 		else if (localStorage[level] == "2") {
-			var c = document.getElementById(levelButton).childNodes;
 			c[3].childNodes[1].innerHTML = "<i class='fas fa-star yellow-text'>"; // first star
 			c[3].childNodes[3].innerHTML = "<i class='fas fa-star yellow-text'>"; // second star
 			c[3].childNodes[5].innerHTML = "<i class='far fa-star'>"; // third star
 		}
 		else if (localStorage[level] == "3") {
-			var c = document.getElementById(levelButton).childNodes;
 			c[3].childNodes[1].innerHTML = "<i class='fas fa-star yellow-text'>"; // first star
 			c[3].childNodes[3].innerHTML = "<i class='fas fa-star yellow-text'>"; // second star
-			c[3].childNodes[5].innerHTML = "<i class='fas fa-star yellow-text'>"; // third star
+			c[3].childNodes[5].innerHTML = "<i class='fas fa-star yellow-text'>"; // third star	
 		}
 		else {
 			//document.getElementById(levelButton).style.color = "white";
@@ -1299,18 +1297,27 @@ function animate(time) {
 		};
 		// Update the HTML message
 		var winnerMessage = document.getElementById('winnerMessage');
-		winnerMessage.innerHTML = "Victory for " + state.playerAlive.playerName + " in " + minutesWon + " min, " + secondsWon + " sec"
+		winnerMessage.innerHTML = "Victory for " + state.playerAlive.playerName + " <br> " + minutesWon + " min, " + secondsWon + " sec"
 		// Display HTML element with "home" and "next level" buttons
 		document.getElementById('nextLevelMenu').hidden = false;
 		// Local storage part ________
 		// Update localStorage to indicate that the level is won
 		var lsLevel = "level" + config.level;
 		var score = "0";
+		var starsWinMenu=document.getElementById("starsWinMenu");
 		if (state.playerAlive.controlType == 0) {
-			console.log("In the winning loop with game Time "+gameTime);
-			if (gameTime < 120000) {score = "3"; console.log("Less than 2 min");}
-			else if (gameTime < 300000) {score = "2"; console.log("Less than 5 min");}
-			else {score = "1"; console.log("More than 5 min");}
+			if (gameTime < 120000) {
+				score = "3"; 
+				starsWinMenu.innerHTML="<div class='col s4'><i class='fas fa-star yellow-text'></i></div><div class='col s4'><i class='fas fa-star yellow-text'></i></div><div class='col s4'><i class='fas fa-star yellow-text'></i></div>"
+			}
+			else if (gameTime < 300000) {
+				score = "2"; 
+				starsWinMenu.innerHTML="<div class='col s4'><i class='fas fa-star yellow-text'></i></div><div class='col s4'><i class='fas fa-star yellow-text'></i></div><div class='col s4'><i class='far fa-star'></i></div>"
+			}
+			else {
+				score = "1"; 
+				starsWinMenu.innerHTML="<div class='col s4'><i class='fas fa-star yellow-text'></i></div><div class='col s4'><i class='far fa-star'></i></div><div class='col s4'><i class='far fa-star'></i></div>"
+			}
 			localStorage[lsLevel] = score;
 			console.log("level "+config.level+" completed")
 		}

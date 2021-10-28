@@ -19,6 +19,7 @@
     <link href="css/materialize.css" type="text/css" rel="stylesheet" media="screen,projection"/>
     <link href="css/style.css" type="text/css" rel="stylesheet" media="screen,projection"/>
 	<link href="fontawesome2021/css/all.css" rel="stylesheet"> <!--load all styles -->
+	<link href="animDemo.css" rel="stylesheet">
 	<link rel="manifest" href="manifest.json">
 		
 		
@@ -564,25 +565,52 @@
 			</div>
 		</span>
 
-		<span id="nextLevelMenu" class="inGameMenu" hidden>
-			<div id="buttonsContainer" class="buttonsContainer">
-				<div id="buttonsContainer2" class="buttonsContainer2">
-					<div id="buttonsContainer3" class="buttonsContainer3">
-						<div id="winnerPicture" class="menuCenter winMessage">
-							<img alt="icon" id="cell3D_L" src="Resources\Bases\cell3D_L.webp" width="256" height="256">
+		<span id="nextLevelMenu" class="inGameMenu center white-text" hidden>
+			<div class="container">
+				<div class="row center">
+					<!-- <div id="winnerPicture" class="col s12"><img alt="icon" id="cell3D_L" src="Resources\Bases\cell3D_L.webp" width="256" height="256"></div> -->
+					<div class="card square-card">
+						<div class="down">
+						  <div class="up">
+							<div class="squeeze">
+							  <div class="rotate-in">
+								<div class="rotate-out">
+								  <div class=""><img src="Resources\Bases\cell3D_L.webp" height="100px" width="100px"></div>
+								</div>
+							  </div>
+							</div>
+						  </div>
 						</div>
-						<br>
-						<div id="winnerMessage" class="menuCenter winMessage">
-							Victory! Hope this updates...
-						</div>
-						<br>
-						<button id="nextLevelButton" class="button menuCenter buttonInGameMenu" onclick="document.getElementById('nextLevelMenu').hidden = true; backToChoice();">
+					  </div>
+				</div>
+				<div class="row">
+					<div id="winnerMessage" class="flow-text">
+						Victory! Hope this updates...
+					</div>
+				</div>
+				<div class="row center">
+					<div id="starsWinMenu" class="starIconWin" style="width:50%; margin:auto;">
+						<div class="col s4"><i class="far fa-star"></i></div>
+						<div class="col s4"><i class="far fa-star"></i></div>
+						<div class="col s4"><i class="far fa-star"></i></div>
+					</div>
+				</div>
+				<div class="row">
+					<div class="col s6">
+						<button id="homeButton" class="buttonMain col s12" style="padding-top:20px;padding-bottom:20px;" onclick="document.getElementById('nextLevelMenu').hidden = true; backToChoice();">
+							<i class="fa fa-home" aria-hidden="true"></i>
+							<br>
+							Home
+						</button> 
+					</div>
+					<div class="col s6">
+						<button id="nextLevelButton" class="buttonMain col s12 " style="padding-top:20px;padding-bottom:20px;" onclick="document.getElementById('nextLevelMenu').hidden = true; backToChoice();">
 							<i class="fa fa-arrow-right" aria-hidden="true"></i>
 							<br>
 							Next Level
 						</button> 
 					</div>
-				</div>	
+				</div>
 			</div>
 		</span>
 		<span id="confirmBoxReturnHome" class="inGameMenu confirmBox" hidden>

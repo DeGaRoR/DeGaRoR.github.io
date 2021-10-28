@@ -263,14 +263,32 @@ levelChooser {
 .starIcon {
 	font-size:50px;
 }
+.starIconWin {
+	font-size:50px;
+}
+
 @media only screen and (min-width: 0px) {
   .starIcon {
     font-size: 12px;
   }
 }
+@media only screen and (min-width: 0px) {
+    .starIconWin {
+    font-size: 20px;
+  }
+}
+
 @media only screen and (min-width: 900px) {
   .starIcon {
     font-size: 20px;
+  }
+
+}
+
+@media only screen and (min-width: 900px) {
+
+  .starIconWin {
+    font-size: 30px;
   }
 }
 
@@ -283,4 +301,8 @@ levelChooser {
   .row {
     margin-bottom: 20px;
   }
+}
+.eventMenuButton{
+	padding-top:20px;
+	padding-bottom:20px;
 }
