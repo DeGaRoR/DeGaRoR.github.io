@@ -47,24 +47,24 @@ function getLevels() {
 		},
 		{	name: "Normal A level",
 			bases:[
-					{ownership: 1,x: 0.9455,y: 0.5,levelMax: 1,},
+					//{ownership: 1,x: 0.9455,y: 0.5,levelMax: 1,},
 					{ownership: 0,x: 0.72275,y: 0.11419,levelMax: 1,},
 					{ownership: 2,x: 0.27725,y: 0.11419,levelMax: 1,},
-					{ownership: 0,x: 0.0545,y: 0.5,levelMax: 1,	},
-					{ownership: 3,x: 0.27725,y: 0.88581,levelMax: 1,},
+					//{ownership: 0,x: 0.0545,y: 0.5,levelMax: 1,	},
+					{ownership: 1,x: 0.27725,y: 0.88581,levelMax: 1,},
 					{ownership: 0,x: 0.72275,y: 0.88581,levelMax: 1,},
-					{ownership: 0,x: 0.797,y: 0.5,levelMax: 2,},
+					{ownership: 3,x: 0.797,y: 0.5,levelMax: 2,},
 					{ownership: 0,x: 0.6485,y: 0.24279,levelMax: 2,},
 					{ownership: 0,x: 0.3515,y: 0.24279,levelMax: 2,},
 					{ownership: 0,x: 0.203,y: 0.5,levelMax: 2,},
 					{ownership: 0,x: 0.3515,y: 0.75721,levelMax: 2,},
 					{ownership: 0,x: 0.6485,y: 0.75721,levelMax: 2,},
-					{ownership: 0,x: 0.6485,y: 0.5,levelMax: 2,},
-					{ownership: 0,x: 0.57425,y: 0.3714,levelMax: 2,},
-					{ownership: 0,x: 0.42575,y: 0.3714,levelMax: 2,	},
-					{ownership: 0,x: 0.3515,y: 0.5,levelMax: 2,},
-					{ownership: 0,x: 0.42575,y: 0.6286,levelMax: 2,},
-					{ownership: 0,x: 0.57425,y: 0.6286,levelMax: 2,},
+					//{ownership: 0,x: 0.6485,y: 0.5,levelMax: 2,},
+					//{ownership: 0,x: 0.57425,y: 0.3714,levelMax: 2,},
+					//{ownership: 0,x: 0.42575,y: 0.3714,levelMax: 2,	},
+					//{ownership: 0,x: 0.3515,y: 0.5,levelMax: 2,},
+					//{ownership: 0,x: 0.42575,y: 0.6286,levelMax: 2,},
+					//{ownership: 0,x: 0.57425,y: 0.6286,levelMax: 2,},
 					{ownership: 0,x: 0.5,y: 0.5,levelMax: 3,},
 				]
 		},
@@ -80,9 +80,9 @@ function getLevels() {
 		},
 		{	name: "Normal A level",
 			bases:[
-					{ownership: 1,x: 0.1,y: 0.5,levelMax: 5,},
-					{ownership: 2,x: 0.85,y: 0.93301,levelMax: 5,},
-					{ownership: 3,x: 0.85,y: 0.06699,levelMax: 5,},
+					{ownership: 1,x: 0.1,y: 0.5,levelMax: 3,},
+					{ownership: 2,x: 0.85,y: 0.93301,levelMax: 3,},
+					{ownership: 3,x: 0.85,y: 0.06699,levelMax: 3,},
 					{ownership: 0,x: 0.2875,y: 0.60825,levelMax: 1,},
 					{ownership: 0,x: 0.475,y: 0.71651,levelMax: 2,},
 					{ownership: 0,x: 0.6625,y: 0.82476,levelMax: 1,},
@@ -93,8 +93,8 @@ function getLevels() {
 					{ownership: 0,x: 0.475,y: 0.28349,levelMax: 2,},
 					{ownership: 0,x: 0.2875,y: 0.39175,levelMax: 1,},
 					{ownership: 0,x: 0.35,y: 0.5,levelMax: 1,},
-					{ownership: 0,x: 0.725,y: 0.71651,levelMax: 1,},
-					{ownership: 0,x: 0.725,y: 0.28349,levelMax: 1,},
+					//{ownership: 0,x: 0.725,y: 0.71651,levelMax: 1,},
+					//{ownership: 0,x: 0.725,y: 0.28349,levelMax: 1,},
 					{ownership: 0,x: 0.6,y: 0.5,levelMax: 2,},
 					]
 		},
@@ -116,15 +116,15 @@ function getLevels() {
 		},
 		{	name: "Normal Cross",
 			bases:[
-					{ownership: 1,x: 0.5,y: 0.5,levelMax: 3,},
-					{ownership: 0,x: 0.325,y: 0.45,levelMax: 1,},
-					{ownership: 0,x: 0.225,y: 0.55,levelMax: 1,},
-					{ownership: 0,x: 0.5,y: 0.7,levelMax: 1,},
-					{ownership: 0,x: 0.5,y: 0.3,levelMax: 1,},
-					{ownership: 0,x: 0.675,y: 0.55,levelMax: 1,	},
-					{ownership: 0,x: 0.775,y: 0.45,levelMax: 1,},
-					{ownership: 2,x: 0.1,y: 0.5,levelMax: 2,},
-					{ownership: 3,x: 0.9,y: 0.5,levelMax: 2,},
+					{ownership: 1,y: 0.5,	x: 0.5,levelMax: 3,},
+					{ownership: 0,y: 0.325,	x: 0.45,levelMax: 1,},
+					{ownership: 0,y: 0.225,	x: 0.55,levelMax: 1,},
+					{ownership: 0,y: 0.5,	x: 0.9,levelMax: 1,},
+					{ownership: 0,y: 0.5,	x: 0.1,levelMax: 1,},
+					{ownership: 0,y: 0.675,	x: 0.55,levelMax: 1,	},
+					{ownership: 0,y: 0.775,	x: 0.45,levelMax: 1,},
+					{ownership: 2,y: 0.1,	x: 0.5,levelMax: 2,},
+					{ownership: 3,y: 0.9,	x: 0.5,levelMax: 2,},
 				]
 		},
 		{	name: "Normal Squeezed",
@@ -134,9 +134,9 @@ function getLevels() {
 					{ownership: 0,x: 0.5,y: 0.25,levelMax: 1,},
 					{ownership: 2,x: 0.1,y: 0.1,levelMax: 2,},
 					{ownership: 0,x: 0.1,y: 0.25,levelMax: 1,},
-					{ownership: 0,x: 0.25,y: 0.1,levelMax: 1,},
+					{ownership: 0,x: 0.5,y: 0.1,levelMax: 1,},
 					{ownership: 3,x: 0.9,y: 0.9,levelMax: 2,},
-					{ownership: 0,x: 0.75,y: 0.9,levelMax: 1,},
+					{ownership: 0,x: 0.5,y: 0.9,levelMax: 1,},
 					{ownership: 0,x: 0.9,y: 0.75,levelMax: 1,},
 				]
 		},
@@ -256,13 +256,13 @@ function getLevels() {
 		},
 		{	name: "1-1 wave",
 			bases:[
-					{ownership: 1,x: 0.1,y: 0.5,levelMax: 2,},
-					{ownership: 0,x: 0.23,y: 0.3,levelMax: 1,},
-					{ownership: 0,x: 0.36,y: 0.3,levelMax: 1,},
-					{ownership: 0,x: 0.5,y: 0.5,levelMax: 2,},
-					{ownership: 0,x: 0.633,y: 0.7,levelMax: 1,},
-					{ownership: 0,x: 0.76,y: 0.7,levelMax: 1,},
-					{ownership: 3,x: 0.9,y: 0.5,levelMax: 2,},	
+					{ownership: 1,y: 0.1,	x: 0.5,levelMax: 2,},
+					{ownership: 0,y: 0.1,	x: 0.3,levelMax: 1,},
+					{ownership: 0,y: 0.36,	x: 0.3,levelMax: 1,},
+					{ownership: 0,y: 0.5,	x: 0.5,levelMax: 2,},
+					{ownership: 0,y: 0.633,	x: 0.7,levelMax: 1,},
+					{ownership: 0,y: 0.9,	x: 0.7,levelMax: 1,},
+					{ownership: 3,y: 0.9,	x: 0.5,levelMax: 2,},	
 				]
 		},
 		{	name: "1-1 squares",
@@ -280,12 +280,12 @@ function getLevels() {
 		},
 		{	name: "1-1 minimal",
 			bases:[
-					{ownership: 0,x: 0.15,y: 0.7,levelMax: 2,},
-					{ownership: 0,x: 0.85,y: 0.7,levelMax: 2,},
-					{ownership: 0,x: 0.85,y: 0.3,levelMax: 2,},
-					{ownership: 0,x: 0.15,y: 0.3,levelMax: 2,},
-					{ownership: 1,x: 0.35,y: 0.5,levelMax: 1,},
-					{ownership: 3,x: 0.65,y: 0.5,levelMax: 1,},
+					{ownership: 0,y: 0.15,x: 0.7,levelMax: 2,},
+					{ownership: 0,y: 0.85,x: 0.7,levelMax: 2,},
+					{ownership: 0,y: 0.85,x: 0.3,levelMax: 2,},
+					{ownership: 0,y: 0.15,x: 0.3,levelMax: 2,},
+					{ownership: 1,y: 0.35,x: 0.5,levelMax: 1,},
+					{ownership: 3,y: 0.65,x: 0.5,levelMax: 1,},
 				]
 		},
 		{	name: "1-1 cross",
@@ -347,16 +347,14 @@ function getLevels() {
 		},
 		{	name: "1-1 front lines",
 			bases:[
-					{ownership: 1,x: 0.2,y: 0.5,levelMax: 2,},
-					{ownership: 3,x: 0.8,y: 0.5,levelMax: 2,},
-					
-					{ownership: 0,x: 0.4,y: 0.5,levelMax: 1,},
-					{ownership: 0,x: 0.4,y: 0.7,levelMax: 1,},
-					{ownership: 0,x: 0.4,y: 0.3,levelMax: 1,},
-					
-					{ownership: 0,x: 0.6,y: 0.5,levelMax: 1,},
-					{ownership: 0,x: 0.6,y: 0.7,levelMax: 1,},
-					{ownership: 0,x: 0.6,y: 0.3,levelMax: 1,},
+					{ownership: 1,y: 0.2,x: 0.5,levelMax: 2,},
+					{ownership: 3,y: 0.8,x: 0.5,levelMax: 2,},
+					{ownership: 0,y: 0.4,x: 0.5,levelMax: 1,},
+					{ownership: 0,y: 0.4,x: 0.9,levelMax: 1,},
+					{ownership: 0,y: 0.4,x: 0.1,levelMax: 1,},
+					{ownership: 0,y: 0.6,x: 0.5,levelMax: 1,},
+					{ownership: 0,y: 0.6,x: 0.9,levelMax: 1,},
+					{ownership: 0,y: 0.6,x: 0.1,levelMax: 1,},
 				]
 		},
 		{	name: "1-1 squares + 2",
@@ -392,8 +390,8 @@ for (var i = 0; i < levels.length; i++) {
 	// indicate margins as a percentage
 	var marginLeft = 0.1;
 	var marginRight = 0.1;
-	var marginTop = 0.1;
-	var marginBottom = 0.1;
+	var marginTop = 0.05;
+	var marginBottom = 0.02;
 	
 	var shrinkWidth=(1-marginLeft-marginRight);
 	var shrinkHeight=(1-marginTop-marginBottom);
