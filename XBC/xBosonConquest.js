@@ -131,10 +131,10 @@ function getBgConfig() {
 							document.getElementById("big_object_3_y"),
 						],
 		bgColor : 		[	
-							"#59f1ff",
-							"#cf8f89",
-							"#0052b9",
-							"#FFD800",
+							"#59f1ff",//pale blue
+							"#cf8f89",//red
+							"#0052b9",//dark blue
+							"#A9D800",//green
 						],
 	}
 }
@@ -267,15 +267,22 @@ function setButtonIndicators() {
 		var level = "level" + i;
 		var levelButton = "btnLevel" + i;
 		if (localStorage[level] == "1") {
-			//document.getElementById(levelButton).style.color = "green";
-			// new code for updating the little stars
 			var c = document.getElementById(levelButton).childNodes;
-			//console.log("Button for level "+i+" has "+c.length+" child nodes")
-			if (c.length>0) { // remove later, just to make sure the buttons not yet having their stars are OK
-				c[3].childNodes[1].innerHTML = "<i class='fas fa-star yellow-text'>"; // first star
-				c[3].childNodes[3].innerHTML = "<i class='far fa-star'>"; // second star
-				c[3].childNodes[5].innerHTML = "<i class='far fa-star'>"; // third star
-			}
+			c[3].childNodes[1].innerHTML = "<i class='fas fa-star yellow-text'>"; // first star
+			c[3].childNodes[3].innerHTML = "<i class='far fa-star'>"; // second star
+			c[3].childNodes[5].innerHTML = "<i class='far fa-star'>"; // third star
+		}
+		else if (localStorage[level] == "2") {
+			var c = document.getElementById(levelButton).childNodes;
+			c[3].childNodes[1].innerHTML = "<i class='fas fa-star yellow-text'>"; // first star
+			c[3].childNodes[3].innerHTML = "<i class='fas fa-star yellow-text'>"; // second star
+			c[3].childNodes[5].innerHTML = "<i class='far fa-star'>"; // third star
+		}
+		else if (localStorage[level] == "3") {
+			var c = document.getElementById(levelButton).childNodes;
+			c[3].childNodes[1].innerHTML = "<i class='fas fa-star yellow-text'>"; // first star
+			c[3].childNodes[3].innerHTML = "<i class='fas fa-star yellow-text'>"; // second star
+			c[3].childNodes[5].innerHTML = "<i class='fas fa-star yellow-text'>"; // third star
 		}
 		else {
 			//document.getElementById(levelButton).style.color = "white";
@@ -1298,8 +1305,13 @@ function animate(time) {
 		// Local storage part ________
 		// Update localStorage to indicate that the level is won
 		var lsLevel = "level" + config.level;
+		var score = "0";
 		if (state.playerAlive.controlType == 0) {
-			localStorage[lsLevel] = "1";
+			console.log("In the winning loop with game Time "+gameTime);
+			if (gameTime < 120000) {score = "3"; console.log("Less than 2 min");}
+			else if (gameTime < 300000) {score = "2"; console.log("Less than 5 min");}
+			else {score = "1"; console.log("More than 5 min");}
+			localStorage[lsLevel] = score;
 			console.log("level "+config.level+" completed")
 		}
 		// exit animate function
