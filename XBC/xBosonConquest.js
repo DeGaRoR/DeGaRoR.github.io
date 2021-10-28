@@ -15,8 +15,6 @@ var persistData = {
 	timePace: 5,
 	nLevels: 27,
 	initialScale: 1,
-	marginCanvasHeight: 0,
-	marginCanvasWidth: 0,
 }
 //
 //==============================================
@@ -137,8 +135,8 @@ function getBgConfig() {
 	}
 }
 function sizeBgCanvas() {
-	bgConfig.background_canvas.width = getWidth()-2;
-	bgConfig.background_canvas.height = getHeight();
+	bgConfig.background_canvas.width = window.innerWidth-2;
+	bgConfig.background_canvas.height = window.innerHeight;
 }
 function setBackground(currentLevel) {
 	currentLevel = currentLevel || 1;
@@ -526,8 +524,8 @@ function placeCanvas(canvas) {
 	canvas.style.marginLeft = persistData.marginCanvasWidth/2;
 }
 function sizeMainCanvas(canvas) {
-	canvas.height = getHeight()-persistData.marginCanvasHeight;
-	canvas.width = getWidth()-persistData.marginCanvasWidth;
+	canvas.height = window.innerHeight;
+	canvas.width = window.innerWidth;
 }
 
 function getHeight() {
