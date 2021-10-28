@@ -389,10 +389,19 @@ function getLevels() {
 	
 //allow for more margins
 for (var i = 0; i < levels.length; i++) {
-	var shrinkWidth=0.8;
+	// indicate margins as a percentage
+	var marginLeft = 0.1;
+	var marginRight = 0.1;
+	var marginTop = 0.1;
+	var marginBottom = 0.1;
+	
+	var shrinkWidth=(1-marginLeft-marginRight);
+	var shrinkHeight=(1-marginTop-marginBottom);
+	
 	var level = levels[i];
 	for (var j = 0; j < level.bases.length; j++) {
-		levels[i].bases[j].x=level.bases[j].x*shrinkWidth+(1-shrinkWidth)/2
+		levels[i].bases[j].x=level.bases[j].x*shrinkWidth+marginLeft;
+		levels[i].bases[j].y=level.bases[j].y*shrinkHeight+marginTop;
 	}
 }
 return levels;
