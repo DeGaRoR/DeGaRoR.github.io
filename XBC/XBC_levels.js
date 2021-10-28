@@ -27,7 +27,20 @@ function getLevels() {
 			{ownership: 2,x: 0.5,y: 0.75,levelMax: 1,},
 			]
 		},
-		{ name: "Easy 4 - Ennemies",
+		{	name: "Easy 4 - No go zone / Julien",	
+			bases:[
+					{ownership: 1,y: 0.5,	x: 0.35,levelMax: 1,},
+					{ownership: 1,y: 0.5,	x: 0.5,levelMax: 1,},
+					{ownership: 1,y: 0.5,	x: 0.65,levelMax: 2,},
+					{ownership: 2,y: 0.25,	x: 0.50,levelMax: 2,},
+					{ownership: 3,y: 0.75,	x: 0.50,levelMax: 2,},
+					{ownership: 0,y: 0.35,	x: 0.40,levelMax: 1,},
+					{ownership: 0,y: 0.35,	x: 0.60,levelMax: 1,},
+					{ownership: 0,y: 0.60,	x: 0.40,levelMax: 1,},
+					{ownership: 0,y: 0.60,	x: 0.60,levelMax: 1,},					
+				]	
+		},
+		{ name: "Easy 5 - Ennemies",
 			bases:[
 			{ownership: 0,x: 0.2,y: 0.2,levelMax: 1,},
 			{ownership: 1,x: 0.5,y: 0.2,levelMax: 2,},
@@ -39,23 +52,28 @@ function getLevels() {
 			{ownership: 3,x: 0.8,y: 0.8,levelMax: 1,},
 			]
 		},
-		{	name: "Easy 5",
+		{	name: "Easy 6 - Wide open",
 			bases:[
-					{ownership: 1,x: 0.5,y: 0.2,levelMax: 1,},
-					{ownership: 2,x: 0.5,y: 0.8,levelMax: 1,},
-				]			
+					{ownership: 1,x: 0.20,y: 0.30,levelMax: 1,},
+					{ownership: 1,x: 0.4,y: 0.20,levelMax: 1,},
+					{ownership: 2,x: 0.7,y: 0.75,levelMax: 1,},
+					{ownership: 0,x: 0.45,y: 0.45,levelMax: 2,},
+					{ownership: 0,x: 0.55,y: 0.25,levelMax: 1,},	
+					{ownership: 0,x: 0.30,y: 0.55,levelMax: 1,},
+					{ownership: 0,x: 0.70,y: 0.45,levelMax: 1,},
+					{ownership: 0,x: 0.45,y: 0.70,levelMax: 1,},
+				]	
 		},
-		{	name: "Easy 6",
+		{	name: "Easy 7 - Satellize",
 			bases:[
-					{ownership: 1,x: 0.5,y: 0.2,levelMax: 1,},
-					{ownership: 2,x: 0.5,y: 0.8,levelMax: 1,},
-				]			
-		},
-		{	name: "Easy 7",
-			bases:[
-					{ownership: 1,x: 0.5,y: 0.2,levelMax: 1,},
-					{ownership: 2,x: 0.5,y: 0.8,levelMax: 1,},
-				]			
+					{ownership: 1,x: 0.25,y: 0.25,levelMax: 2,},
+					{ownership: 1,x: 0.75,y: 0.75,levelMax: 2,},
+					{ownership: 2,x: 0.50,y: 0.5,levelMax: 2,},
+					{ownership: 0,x: 0.35,y: 0.40,levelMax: 1,},
+					{ownership: 0,x: 0.35,y: 0.7,levelMax: 1,},
+					{ownership: 0,x: 0.65,y: 0.40,levelMax: 1,},
+					{ownership: 0,x: 0.65,y: 0.70,levelMax: 1,},
+				]	
 		},
 		{ name: "Easy 8 - Julien hello world",
 			bases:[
@@ -70,10 +88,14 @@ function getLevels() {
 				{ownership: 2,x: 0.6,y: 0.85,levelMax: 1,},
 			]
 		},
-		{	name: "Easy 9",
+		{	name: "Easy 9 - Mining",
 			bases:[
-					{ownership: 1,x: 0.5,y: 0.2,levelMax: 1,},
-					{ownership: 2,x: 0.5,y: 0.8,levelMax: 1,},
+					{ownership: 1,x: 0.25,y: 0.55,levelMax: 2,},
+					{ownership: 2,x: 0.75,y: 0.3,levelMax: 1,},
+					{ownership: 0,x: 0.6,y: 0.4,levelMax: 1,},
+					{ownership: 0,x: 0.40,y: 0.75,levelMax: 2,},
+					{ownership: 0,x: 0.55,y: 0.60,levelMax: 2,},
+					{ownership: 0,x: 0.40,y: 0.30,levelMax: 2,},
 				]			
 		},
 		
