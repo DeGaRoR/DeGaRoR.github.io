@@ -526,6 +526,8 @@ function getInitialState() {
 		levelFinishTime: null,
 		refreshBasesCanvas: true,
 		gamePaused:false,
+		currentLevel: 0,
+		tutoMessagesSeen: [0,0,0,0,0,0,0,0,0,0]
 	};
 }
 function placeCanvas(canvas) {
@@ -571,6 +573,8 @@ function startGame(level) {
 	spawnInitialUnits();
 	// Record the starting time
 	state.levelStartTime = Date.now();
+	// Put the level in state to access later
+	state.currentLevel = level;
 	// Off we go
 	animate();
 }
@@ -808,37 +812,37 @@ function releasedAI(player) {
 		var friendlyNeighbours = getFriendlyNeighbours(neighbours, base);
 		// if base is owned by the player
 		if (base.colour == player.playerColour) {
-			console.log("treating base "+i+" for AI________________________________________");
+			//console.log("treating base "+i+" for AI________________________________________");
 			// if adjacent to an ennemy
 			if (ennemyNeighbours.length > 0) {
-				console.log("Adjacent to ennemy");
+				//console.log("Adjacent to ennemy");
 				var weakestEnnemy = findWeakest(ennemyNeighbours);
 				// If large number of units compared to weakest
 				if (defendersNum > getDefendersNum(weakestEnnemy) + weakestEnnemy.health + weakestEnnemy.conquership) {
-					console.log("%cCan crush its weakest ennemy - do it!",'color:red');
+					//console.log("%cCan crush its weakest ennemy - do it!",'color:red');
 					// attack weakest ennemy with all available soldiers
 					attack(base, weakestEnnemy,0);
 				}
 				// if enough units to conquer an empty sun and there are empty suns
 				else if (defendersNum > config.minConquership && emptyNeighbours.length > 0) {
-					console.log("Not superior enough to attack, but empty suns can be conquered");
+					//console.log("Not superior enough to attack, but empty suns can be conquered");
 					// if base is not fully upgraded
 					
 						var chance = Math.random();
 						// 40% chance: conquer empty sun
 						if (chance < 0.4) {
-							console.log("%cLet's conquer it!",'color:blue');
+							//console.log("%cLet's conquer it!",'color:blue');
 							// conquer empty neighbour farthest from ennemy
 							var target = findFarthestFromEnnemy(player, emptyNeighbours);
 							attack(base, target, target.levelMax * config.minConquership);
 						}
 						// or upgrade
 						else if (base.levelCurrent < base.levelMax) {
-							console.log("%cLet's rather upgrade",'color:green');
+							//console.log("%cLet's rather upgrade",'color:green');
 							upgrade(base);
 						}
 						else {
-							console.log("%cLet's conquer it!",'color:blue');
+							//console.log("%cLet's conquer it!",'color:blue');
 							// conquer empty neighbour farthest from ennemy
 							var target = findFarthestFromEnnemy(player, emptyNeighbours);
 							attack(base, target, target.levelMax * config.minConquership);
@@ -847,33 +851,35 @@ function releasedAI(player) {
 				}
 				else if (defendersNum > config.minConquership) {
 					// attack random ennemy with few units
-					console.log("%cLet's harass a neighbour gently",'color:orange');
+					//console.log("%cLet's harass a neighbour gently",'color:orange');
 					attack(base, ennemyNeighbours[0], Math.round(defendersNum/3));
 					//attack(base, ennemyNeighbours[0], 5);
 				}
-				else {console.log('%cWait - not much to do now','color:grey');}
+				else {
+				//console.log('%cWait - not much to do now','color:grey');
+				}
 			}
 			// not adjacent to ennemy sun
 			else {
-				console.log("Not adjacent to ennemy");
+				//console.log("Not adjacent to ennemy");
 				// if empty suns around
 				if (emptyNeighbours.length > 0 && defendersNum > config.minConquership) {
-					console.log("Empty suns around");
+					//console.log("Empty suns around");
 					var chance = Math.random();
 					if (chance < 0.25) {
-						console.log("%cLet's upgrade first",'color:green');
+						//console.log("%cLet's upgrade first",'color:green');
 						upgrade(base);
 					}
 					else {
 						// S colonize an empty sun farthest from ennemy
 						var target = findFarthestFromEnnemy(player, emptyNeighbours);
 						attack(base, target, target.levelMax * config.minConquership);
-						console.log("%cConquer the sun farthest from the ennemy",'color:blue');
+						//console.log("%cConquer the sun farthest from the ennemy",'color:blue');
 					}
 				}
 				// if enough units to upgrade
 				else if (defendersNum >= config.maxUpgradePoints && base.levelCurrent < base.levelMax) {
-					console.log("%cNo adjacent empty suns - But I can upgrade",'color:green');
+					//console.log("%cNo adjacent empty suns - But I can upgrade",'color:green');
 					upgrade(base);
 				}
 				else {
@@ -882,12 +888,12 @@ function releasedAI(player) {
 						var chance = Math.random();
 						if (chance < 0.25) {
 						// move all soldiers to friendly base closer to ennemy
-						console.log("%cLet's reinforce another base",'color:purple');
+						//console.log("%cLet's reinforce another base",'color:purple');
 						var target = findClosestToEnnemy(player, friendlyNeighbours, base);
 						attack(base, target, 0);
 						}
 						else {
-							console.log("%cWait a little more",'color:grey');
+							//console.log("%cWait a little more",'color:grey');
 						}
 					}
 					else {
@@ -1264,6 +1270,45 @@ function findClosestAttacker(object) {
 	}
 	return attacker;
 }
+
+//
+//==============================================
+// Tutorial
+//==============================================
+//
+function showTutorial(level, elapsedTime) {
+	//console.log("tuto function invoked");
+	if(level == 1) {
+		sendTuto(level,1,elapsedTime,1000,3000,'Hello and Welcome to X Boson Conquest');
+		sendTuto(level,2,elapsedTime,3000,5000,'You are the blue cells',0,"Resources/Bases/cell3D_S.webp");
+		sendTuto(level,3,elapsedTime,5000,5000,'The fungus is your enemy',0,"Resources/Bases/fungus3D_S.webp");
+		sendTuto(level,4,elapsedTime,9000,5000,'Cells produce units<br>With enough units, you can crush your enemy');
+		sendTuto(level,5,elapsedTime,15000,30000,'Select units by dragging your finger or mouse<br>Send them towards the enemy by clicking on the virus<br>Swipe this message away if it stands in your way',1,"Resources/tuto/XBCTuto01.mp4");
+	}
+	if(level == 2) {
+		sendTuto(level,1,elapsedTime,1000,2000,'OK, you got the hang of it!');
+		sendTuto(level,2,elapsedTime,3000,5000,'Now, you should conquer other cells');
+		sendTuto(level,3,elapsedTime,5000,25000,'Send your units towards the empty cells nearby.<br>Swipe this away if it is in your way.',1,"Resources/tuto/XBCTuto02.mp4");
+		sendTuto(level,4,elapsedTime,20000,10000,'Cells can resist 100 attackers.<br> An orange circle appears around damaged cells.<br>Send units towards damaged cells to heal them');
+		sendTuto(level,5,elapsedTime,35000,5000,'Ennemy units cancel each other out');
+		//sendTuto(level,6,elapsedTime,28000,25000,'You can now crush your enemy!');
+		sendTuto(level,7,elapsedTime,30000,25000,'When you have more cells than your enemy,<br>time is in your favour.<br>Accumulate units, then destroy your enemy!');
+		sendTuto(level,8,elapsedTime,60000,50000,'You do not have to conquer all cells to win,<br> you should just be the only one remaining');
+	}
+}
+function sendTuto(level,msgNum,elapsedTime,timeToTrigger,duration,tutoContent, videoEnabled, imgSrc){
+	if(elapsedTime>timeToTrigger && state.tutoMessagesSeen[msgNum-1]!=1) {
+			//console.log("first tuto message, cool");
+			if (imgSrc && videoEnabled!=1) {tutoContent = tutoContent+'<img src='+imgSrc+' width="100" height="100">'};
+			if (imgSrc && videoEnabled==1) {tutoContent = tutoContent+'<video width="auto" height="200" style="padding:5px" autoplay loop><source src='+imgSrc+' type="video/mp4"></video>'};
+			toastOptions = {
+				html : tutoContent,
+				displayLength : duration,
+				};
+			M.toast(toastOptions);
+			state.tutoMessagesSeen[msgNum-1]=1;
+		}
+}
 //
 //==============================================
 // Main
@@ -1272,6 +1317,8 @@ function findClosestAttacker(object) {
 function animate(time) {
 	// Behaviour at the end of the game
 	if (state.gameWon == true) {
+		//Dismiss all tuto toasts
+		M.Toast.dismissAll();
 		// compute game time
 		state.levelFinishTime = Date.now();
 		var gameTime = state.levelFinishTime-state.levelStartTime;
@@ -1325,6 +1372,8 @@ function animate(time) {
 		return;
 	}
 	if (state.abandon == true) {
+		//Dismiss all tuto toasts
+		M.Toast.dismissAll();
 		return;
 	}
     // request another animation frame (always first call)
@@ -1333,18 +1382,27 @@ function animate(time) {
 	
 	//var time = date.now();
 	var timeDiff = time - state.prevTime;
-
+	
+	currentTime = Date.now();
+	var elapsedTime = currentTime - state.levelStartTime;
+	//call the tutorial
+	showTutorial(state.currentLevel, elapsedTime);
+	
+	
+	// Initialize new objects vector
 	var newObjects = [];
 
 	// Call the AI when it is time
 	if (time > state.lastTurn + config.turnLength * state.spawnRate()) {
-		console.log("New AI round ////////////////////////////////////////////");
+		//console.log("New AI round ////////////////////////////////////////////");
 		for (var p = 1; p < config.players.length; p++) {
 			player = config.players[p];
 			if (player.controlType == 1) {
-				console.log("call AI move for player " + player.playerName + "===============================");
+				//console.log("call AI move for player " + player.playerName + "===============================");
 				if (player.AIType == 0) {randomAI(player); console.log("random AI");}
-				else if (player.AIType == 1) {releasedAI(player); console.log("released AI");}
+				else if (player.AIType == 1) {releasedAI(player); 
+				//console.log("released AI");
+				}
 				else {releasedAI(player);}
 			}
 		}
