@@ -306,3 +306,19 @@ levelChooser {
 	padding-top:20px;
 	padding-bottom:20px;
 }
+#TitleMobile{
+	display:none;
+}
+#TitlePC{
+	display:none;
+}
+@media only screen and (min-width: 900px) {
+	#TitlePC{
+		display:inline;
+	}
+}
+@media only screen and (max-width: 900px) {
+	#TitleMobile{
+		display:inline;
+	}
+}

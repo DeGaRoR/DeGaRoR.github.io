@@ -1279,18 +1279,18 @@ function findClosestAttacker(object) {
 function showTutorial(level, elapsedTime) {
 	//console.log("tuto function invoked");
 	if(level == 1) {
-		sendTuto(level,1,elapsedTime,1000,3000,'Hello and Welcome to X Boson Conquest');
-		sendTuto(level,2,elapsedTime,3000,5000,'You are the blue cells',0,"Resources/Bases/cell3D_S.webp");
-		sendTuto(level,3,elapsedTime,5000,5000,'The fungus is your enemy',0,"Resources/Bases/fungus3D_S.webp");
-		sendTuto(level,4,elapsedTime,9000,5000,'Cells produce units<br>With enough units, you can crush your enemy');
-		sendTuto(level,5,elapsedTime,15000,30000,'Select units by dragging your finger or mouse<br>Send them towards the enemy by clicking on the virus<br>Swipe this message away if it stands in your way',1,"Resources/tuto/XBCTuto01.mp4");
+		//sendTuto(level,1,elapsedTime,1000,3000,'Hello and Welcome to X Boson Conquest');
+		sendTuto(level,2,elapsedTime,1000,5000,'You are the blue cells',0,"Resources/Bases/cell3D_S.webp");
+		sendTuto(level,3,elapsedTime,7000,5000,'The fungus is your enemy',0,"Resources/Bases/fungus3D_S.webp");
+		//sendTuto(level,4,elapsedTime,9000,5000,'Cells produce units<br>With enough units, you can crush your enemy');
+		sendTuto(level,5,elapsedTime,15000,30000,'Drag your finger or mouse to select<br>Click on the fungus to attack<br>Swipe this message away',1,"Resources/tuto/XBCTuto01.mp4");
 	}
 	if(level == 2) {
-		sendTuto(level,1,elapsedTime,1000,2000,'OK, you got the hang of it!');
-		sendTuto(level,2,elapsedTime,3000,5000,'Now, you should conquer other cells');
-		sendTuto(level,3,elapsedTime,5000,25000,'Send your units towards the empty cells nearby.<br>Swipe this away if it is in your way.',1,"Resources/tuto/XBCTuto02.mp4");
-		sendTuto(level,4,elapsedTime,20000,10000,'Cells can resist 100 attackers.<br> An orange circle appears around damaged cells.<br>Send units towards damaged cells to heal them');
-		sendTuto(level,5,elapsedTime,35000,5000,'Ennemy units cancel each other out');
+		//sendTuto(level,1,elapsedTime,1000,2000,'OK, you got the hang of it!');
+		sendTuto(level,2,elapsedTime,1000,3000,'Well done!<br>Now, you should conquer other cells');
+		sendTuto(level,3,elapsedTime,4000,25000,'Conquer the empty cells.<br>Swipe this away.',1,"Resources/tuto/XBCTuto02.mp4");
+		sendTuto(level,4,elapsedTime,20000,10000,'An orange circle appears around damaged cells.<br>Send units to heal them');
+		//sendTuto(level,5,elapsedTime,35000,5000,'Ennemy units cancel each other out');
 		//sendTuto(level,6,elapsedTime,28000,25000,'You can now crush your enemy!');
 		sendTuto(level,7,elapsedTime,30000,25000,'When you have more cells than your enemy,<br>time is in your favour.<br>Accumulate units, then destroy your enemy!');
 		sendTuto(level,8,elapsedTime,60000,50000,'You do not have to conquer all cells to win,<br> you should just be the only one remaining');
