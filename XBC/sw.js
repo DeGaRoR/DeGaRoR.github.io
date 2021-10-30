@@ -2,6 +2,8 @@ var CACHE_NAME = 'my-site-cache-v1';
 var urlsToCache = [
   '/XBC/',
   '/XBC/index.html',
+  '/XBC/XBC_ICO.png',
+  '/XBC/animDemo.css',
   '/XBC/font-awesome/css/font-awesome.min.css',
   '/XBC/xBosonConquest.css',
   '/XBC/css/materialize.css',
@@ -48,7 +50,8 @@ var urlsToCache = [
   '/XBC/Resources/ico/maskable_icon_x96.png',
   '/XBC/Resources/ico/maskable_icon_x128.png',
   '/XBC/Resources/ico/maskable_icon_x192.png',
-  '/XBC/Resources/tuto/XBCTuto01.mp4'
+  '/XBC/Resources/tuto/XBCTuto01.mp4',
+  '/XBC/Resources/tuto/XBCTuto02.mp4'
   
 ];
 
