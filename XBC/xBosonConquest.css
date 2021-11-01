@@ -322,3 +322,16 @@ levelChooser {
 		display:inline;
 	}
 }
+.indicatorBar{
+	color:rgba(0,0,0,0);
+	position: absolute; 
+	right: 24px;
+	text-align:right;
+	height:10px;
+	max-width:250px;
+	box-shadow: rgba(0, 0, 0, 0.15) 0px 2px 8px;
+	border-radius: 5px;
+}
+.colorCell{background-color:#7b1fa2;}
+.colorVirus{background-color:#FF0700;}
+.colorFungus{background-color:#A0F500;}

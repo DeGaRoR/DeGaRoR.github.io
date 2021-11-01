@@ -500,6 +500,7 @@ function getConfig(selectedLevel) {
 		minConquership: minConquership,
 		maxHealth: maxHealth,
 		maxUpgradePoints: 100,
+		indicatorBarSizeFactor: 0.2,
 
 	}
 }
@@ -1171,6 +1172,15 @@ function isClickOnBase (x,y) {
 	}
 return baseID;
 }
+function countUnits(player) {
+	var count = 0;
+	for (var i = 0; i < state.objects.length; i++) {
+		if (state.objects[i].ownership == player) {
+			count=count+1;
+		}
+	}
+	return count;
+}
 function spawnUnit(base) {
 // go through the spawning loop as many times as there are levelCurrent
 for (var i = 0; i < base.levelCurrent; i++) {
@@ -1592,6 +1602,12 @@ function animate(time) {
 		//config.ctx.stroke();
 		config.ctx.fill();
     }
+	// update the indicator bars
+	document.getElementById('indicatorBarCell').style.width		=(countUnits(config.players[1])*config.indicatorBarSizeFactor)+'px';
+	document.getElementById('indicatorBarFungus').style.width	=(countUnits(config.players[2])*config.indicatorBarSizeFactor)+'px';
+	document.getElementById('indicatorBarVirus').style.width	=(countUnits(config.players[3])*config.indicatorBarSizeFactor)+'px';
+	
+	
 	// victory condition
 	var nAlive = 0;
 	var nBases = 0;
