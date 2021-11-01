@@ -1305,11 +1305,28 @@ function showTutorial(level, elapsedTime) {
 		sendTuto(level,7,elapsedTime,30000,25000,'When you have more cells than your enemy,<br>time is in your favour.<br>Accumulate units, then destroy your enemy!');
 		sendTuto(level,8,elapsedTime,60000,50000,'You do not have to conquer all cells to win,<br> you should just be the only one remaining');
 	}
+	if(level == 3) {
+		//sendTuto(level,1,elapsedTime,1000,2000,'OK, you got the hang of it!');
+		sendTuto(level,2,elapsedTime,1000,3000,"You're killing it!<br>Let's upgrade some cells now");
+		sendTuto(level,3,elapsedTime,4000,8000,'Upgradeable bases are marked with circles<br>indicating the maximum level',0,"Resources/tuto/basesUpgrade.webp");
+		sendTuto(level,4,elapsedTime,12000,6000,'Send your units towards your base to upgrade it');
+		sendTuto(level,5,elapsedTime,19000,6000,'The circles around the base show the completion of the upgrade');
+		sendTuto(level,6,elapsedTime,26000,10000,'Upgraded cells produce faster,<br>but they are not more resistant than basic cells');
+		//sendTuto(level,6,elapsedTime,28000,25000,'You can now crush your enemy!');
+		sendTuto(level,7,elapsedTime,40000,25000,'When you have higher level cells than your enemy,<br>time is in your favour.<br>Accumulate units, then destroy your enemy!');
+		//sendTuto(level,8,elapsedTime,60000,50000,'You do not have to conquer all cells to win,<br> you should just be the only one remaining');
+	}
+		if(level == 4) {
+		//sendTuto(level,1,elapsedTime,1000,2000,'OK, you got the hang of it!');
+		sendTuto(level,2,elapsedTime,1000,3000,"You're almost ready!<br> Let's see what you can do against 2 opponents");
+		sendTuto(level,3,elapsedTime,4000,8000,"Use the learnings of the previous lessons to defeat them both!");
+		sendTuto(level,4,elapsedTime,13000,6000,'The levels will become increasingly difficult after this<br>Have fun!');
+	}
 }
 function sendTuto(level,msgNum,elapsedTime,timeToTrigger,duration,tutoContent, videoEnabled, imgSrc){
 	if(elapsedTime>timeToTrigger && state.tutoMessagesSeen[msgNum-1]!=1) {
 			//console.log("first tuto message, cool");
-			if (imgSrc && videoEnabled!=1) {tutoContent = tutoContent+'<img src='+imgSrc+' width="100" height="100">'};
+			if (imgSrc && videoEnabled!=1) {tutoContent = tutoContent+'<img src='+imgSrc+' width="100" height="100" style="padding:5px"> '};
 			if (imgSrc && videoEnabled==1) {tutoContent = tutoContent+'<video width="auto" height="200" style="padding:5px" autoplay loop><source src='+imgSrc+' type="video/mp4"></video>'};
 			toastOptions = {
 				html : tutoContent,

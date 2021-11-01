@@ -51,7 +51,8 @@ var urlsToCache = [
   '/XBC/Resources/ico/maskable_icon_x128.png',
   '/XBC/Resources/ico/maskable_icon_x192.png',
   '/XBC/Resources/tuto/XBCTuto01.mp4',
-  '/XBC/Resources/tuto/XBCTuto02.mp4'
+  '/XBC/Resources/tuto/XBCTuto02.mp4',
+  '/XBC/Resources/tuto/basesUpgrade.webp'
   
 ];
 
