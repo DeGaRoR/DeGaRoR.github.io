@@ -489,7 +489,7 @@ function getConfig(selectedLevel) {
 		baseMaxDist: baseMaxDist,
 		pulseSizeIncrease: 1,
 		radiusRandom: 15,
-		neighbourDistance: Math.round(canvas.height/2),
+		neighbourDistance: Math.round(Math.max(canvas.height, canvas.width)/2),
 		imgBaseSize: 256,
 		// tolerances
 		collisionTol: 6, // tolerance for declaring collision
@@ -1365,8 +1365,7 @@ function animate(time) {
 				score = "1"; 
 				starsWinMenu.innerHTML="<div class='col s4'><i class='fas fa-star yellow-text'></i></div><div class='col s4'><i class='far fa-star'></i></div><div class='col s4'><i class='far fa-star'></i></div>"
 			}
-			localStorage[lsLevel] = score;
-			console.log("level "+config.level+" completed")
+			if (parseInt(localStorage[lsLevel], 10)<score) {localStorage[lsLevel] = score;}
 		}
 		// exit animate function
 		return;
