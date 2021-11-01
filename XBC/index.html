@@ -590,7 +590,7 @@
 							<div class="squeeze">
 							  <div class="rotate-in">
 								<div class="rotate-out">
-								  <div class=""><img src="Resources\Bases\cell3D_L.webp" height="100px" width="100px"></div>
+								  <div class=""><img id="imageWinner" src="Resources\Bases\cell3D_L.webp" height="100px" width="100px"></div>
 								</div>
 							  </div>
 							</div>
@@ -610,7 +610,7 @@
 						<div class="col s4"><i class="far fa-star"></i></div>
 					</div>
 				</div>
-				<div class="row">
+				<div id="optionsWinner" class="row">
 					<div class="col s6">
 						<button id="homeButton" class="buttonMain col s12" style="padding-top:20px;padding-bottom:20px;" onclick="document.getElementById('nextLevelMenu').hidden = true; backToChoice();">
 							<i class="fa fa-home" aria-hidden="true"></i>
@@ -623,6 +623,15 @@
 							<i class="fa fa-arrow-right" aria-hidden="true"></i>
 							<br>
 							Next Level
+						</button> 
+					</div>
+				</div>
+				<div id="optionsLooser" class="row" hidden>
+					<div class="col s12">
+						<button id="homeButton" class="buttonMain col s12" style="padding-top:20px;padding-bottom:20px;" onclick="document.getElementById('nextLevelMenu').hidden = true; backToChoice();">
+							<i class="fa fa-home" aria-hidden="true"></i>
+							<br>
+							Home
 						</button> 
 					</div>
 				</div>

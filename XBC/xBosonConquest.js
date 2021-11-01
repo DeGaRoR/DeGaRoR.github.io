@@ -1339,6 +1339,8 @@ function animate(time) {
 		config.ctx.clearRect(0, 0, config.canvas.width, config.canvas.height);
 		// Update timePace
 		persistData.timePace = state.timePace;
+		
+		
 		//HTML part______
 		// Update the behaviour of the next level button
 		var nextLevelButton = document.getElementById('nextLevelButton');
@@ -1355,8 +1357,22 @@ function animate(time) {
 		// Update the HTML message
 		var winnerMessage = document.getElementById('winnerMessage');
 		winnerMessage.innerHTML = "Victory for " + state.playerAlive.playerName + " <br> " + minutesWon + " min, " + secondsWon + " sec"
+		document.getElementById('imageWinner').src=state.playerAlive.imgBase[2].src;
 		// Display HTML element with "home" and "next level" buttons
 		document.getElementById('nextLevelMenu').hidden = false;
+		// If the human player is the winner, show the next level button and ratings. Otherwise, only show the home button
+		if (state.playerAlive==config.players[1]) {
+			document.getElementById('starsWinMenu').hidden = false;
+			document.getElementById('optionsWinner').hidden = false;
+			document.getElementById('optionsLooser').hidden = true;
+		}
+		else {
+			document.getElementById('starsWinMenu').hidden = true;
+			document.getElementById('optionsWinner').hidden = true;
+			document.getElementById('optionsLooser').hidden = false;
+		}
+		
+		
 		// Local storage part ________
 		// Update localStorage to indicate that the level is won
 		var lsLevel = "level" + config.level;
