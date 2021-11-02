@@ -63,17 +63,21 @@ levelChooser {
 	z-index: 1;
 	background-color: rgba(255, 255, 255, 0.2);
 	border: 0px solid rgba(255, 255, 255, 0.2);
-	color: white;
+	//color: rgb(122 0 241 / 60%);
 	padding: 10px;
 	text-align: center;
 	text-decoration: none;
 	display: inline-block;
-	
+	//font-family: 'Arial black' ;
+	color: rgb(255 255 255);
+
+    text-shadow: 2px 2px 0px rgba(0,0,0,0.6);
+
 	cursor: pointer;
-	border-radius: 6px;
+	border-radius: 3px;
 	//position: absolute;
 	//top: 50%;
-	box-shadow: rgba(50, 50, 93, 0.25) 0px 13px 27px -5px, rgba(0, 0, 0, 0.3) 0px 8px 16px -8px;
+	box-shadow: rgba(0, 0, 0, 0.6) 4px 4px 1px 0px;
 }
 @media only screen and (min-width: 0px) {
 	.buttonMain{
@@ -321,6 +325,7 @@ levelChooser {
 @media only screen and (min-width: 900px) {
 	#TitlePC{
 		display:inline;
+		//box-shadow: rgba(0, 0, 0, 0.15) 0px 2px 8px;
 	}
 }
 @media only screen and (max-width: 900px) {
@@ -344,7 +349,7 @@ levelChooser {
 .lockIcon{
 	position:absolute;
 	font-size:23px;
-	color:#7b1fa2;
+	color:rgb(143 35 223)
 }
 @media only screen and (min-width: 900px) {
 	.lockIcon{
