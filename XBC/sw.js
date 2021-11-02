@@ -1,4 +1,4 @@
-var CACHE_NAME = 'my-site-cache-v2';
+var CACHE_NAME = 'Cache XBC PWA v3';
 var urlsToCache = [
   '/XBC/',
   '/XBC/index.html',
@@ -67,7 +67,7 @@ self.addEventListener('install', function(event) {
   );
 });
 
-self.addEventListener('fetch', function(event) {
+/* self.addEventListener('fetch', function(event) {
   event.respondWith(
     caches.match(event.request)
       .then(function(response) {
@@ -99,4 +99,14 @@ self.addEventListener('fetch', function(event) {
         );
       })
     );
+}); */
+
+self.addEventListener('fetch', (event) => {
+  event.respondWith(async function() {
+    try {
+      return await fetch(event.request);
+    } catch (err) {
+      return caches.match(event.request);
+    }
+  }());
 });
