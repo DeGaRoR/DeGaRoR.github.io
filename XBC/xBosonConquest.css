@@ -344,7 +344,7 @@ levelChooser {
 .lockIcon{
 	position:absolute;
 	font-size:23px;
-	color:green;
+	color:#7b1fa2;
 }
 @media only screen and (min-width: 900px) {
 	.lockIcon{
