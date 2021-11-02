@@ -103,6 +103,7 @@ levelChooser {
 	font-size: 50px;
 	cursor: pointer;
 }
+
 .button {
 	//z-index: 1;
 	background-color: rgba(0, 0, 0, 0.2);
@@ -241,6 +242,11 @@ levelChooser {
 .transparent {
 	background-color: rgba(0, 0, 0, 0.2);
 }
+.invisible {
+	background-color: rgba(0, 0, 0, 0);
+	color: rgba(0, 0, 0, 0);
+	cursor: pointer;
+}
 .bigger {
 	transform: scale(2);
 }
@@ -335,3 +341,13 @@ levelChooser {
 .colorCell{background-color:#7b1fa2;}
 .colorVirus{background-color:#FF0700;}
 .colorFungus{background-color:#A0F500;}
+.lockIcon{
+	position:absolute;
+	font-size:23px;
+	color:#7b1fa2;
+}
+@media only screen and (min-width: 900px) {
+	.lockIcon{
+		font-size:36px;
+	}
+}

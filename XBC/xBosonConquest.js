@@ -3,7 +3,12 @@
 // Events
 //==============================================
 //
-window.onload = function() {setBackground();setButtonIndicators();};
+window.onload = function() {
+	setBackground();
+	checkStorage();
+	//setButtonIndicators();
+	buildLevelsMenu();
+	};
 window.onresize = function() {sizeBgCanvas(); placeCanvas(drawSpace); placeCanvas(canvasBases);};
 window.addEventListener("touchmove", function(event) {
        let target = event.target;
@@ -117,11 +122,23 @@ function getBgConfig() {
 							document.getElementById("big_object_1_r"),
 							document.getElementById("big_object_1_b"),
 							document.getElementById("big_object_1_y"),
+							document.getElementById("big_object_1_y"),
+							document.getElementById("big_object_1_y"),
+							document.getElementById("big_object_1_y"),
+							document.getElementById("big_object_1_y"),
+							document.getElementById("big_object_1_y"),
+							document.getElementById("big_object_1_y"),
 						],
 		big_object_2 : 	[	
 							document.getElementById("big_object_2"),
 							document.getElementById("big_object_2_r"),
 							document.getElementById("big_object_2_b"),
+							document.getElementById("big_object_2_y"),
+							document.getElementById("big_object_2_y"),
+							document.getElementById("big_object_2_y"),
+							document.getElementById("big_object_2_y"),
+							document.getElementById("big_object_2_y"),
+							document.getElementById("big_object_2_y"),
 							document.getElementById("big_object_2_y"),
 						],
 		big_object_3 : 	[	
@@ -129,11 +146,23 @@ function getBgConfig() {
 							document.getElementById("big_object_3_r"),
 							document.getElementById("big_object_3_b"),
 							document.getElementById("big_object_3_y"),
+							document.getElementById("big_object_3_y"),
+							document.getElementById("big_object_3_y"),
+							document.getElementById("big_object_3_y"),
+							document.getElementById("big_object_3_y"),
+							document.getElementById("big_object_3_y"),
+							document.getElementById("big_object_3_y"),
 						],
 		bgColor : 		[	
 							"#59f1ff",//pale blue
 							"#cf8f89",//red
 							"#0052b9",//dark blue
+							"#A9D800",//green
+							"#A9D800",//green
+							"#A9D800",//green
+							"#A9D800",//green
+							"#A9D800",//green
+							"#A9D800",//green
 							"#A9D800",//green
 						],
 	}
@@ -234,7 +263,8 @@ function distanceNY(x1, y1, x2, y2) { return (Math.abs(x1-x2) + Math.abs(y1-y2))
 // Game UI
 //==============================================
 //
-function setButtonIndicators() {
+function checkStorage() {
+	var storageVersionNumber = 1;
 	// test local storage support
 	if (typeof(Storage) !== "undefined") {
 		console.log("localStorage supported");
@@ -242,50 +272,35 @@ function setButtonIndicators() {
 		console.log("localStorage NOT supported");
 	}
 	
-	var nLevels = persistData.nLevels;
 	//localStorage.clear();
 	// if no local storage yet (first time)
 	if (typeof localStorage.firstTime == 'undefined') {
 		console.log("no local storage defined yet - Initializing");
+		initializeLocalStorage(storageVersionNumber);
+		}
+	
+	else {
+		console.log("local storage exists");
+		// if this is an old version
+		if (typeof localStorage.storageVersionNumber == 'undefined' || localStorage.storageVersionNumber<storageVersionNumber) {
+			M.toast({html : '<div style="font-size : 40px; padding:10px; "><i class="fas fa-grin-beam-sweat"></i></div><div>An older version has been detected. Your previous scores are not valid anymore and have been deleted, sorry :/</div>',displayLength : 10000});
+			localStorage.clear();
+			initializeLocalStorage(storageVersionNumber);
+		}
+		else {console.log("Versions of the scoring system match, enjoy your previous ratings!");}
+	}
+}
+function initializeLocalStorage(storageVersionNumber) {
+		var levels = getLevels();
+		var nLevels = levels.length;
 		localStorage.firstTime = 'false';
+		// record the storage version number, so we can version control later and remove invalid scores
+		localStorage.storageVersionNumber=storageVersionNumber;
 		for (i=1; i< nLevels+1; i++) {
 			var level = "level" + i;
 			// initialize localStorage for all levels
 			localStorage[level] = 0;
 		}
-	}
-	else {
-		console.log("local storage exists");
-		for (i=1; i<= nLevels; i++) {
-			var level = "level" + i;
-			// visualize the current state of level completion
-			console.log("Level "+i+" status: "+localStorage[level]);
-		}
-	}
-	// color buttons as per completion status
-	for (i=1; i<= nLevels; i++) {
-		var level = "level" + i;
-		var levelButton = "btnLevel" + i;
-		var c = document.getElementById(levelButton).childNodes;
-		if (localStorage[level] == "1") {
-			c[3].childNodes[1].innerHTML = "<i class='fas fa-star yellow-text'>"; // first star
-			c[3].childNodes[3].innerHTML = "<i class='far fa-star'>"; // second star
-			c[3].childNodes[5].innerHTML = "<i class='far fa-star'>"; // third star
-		}
-		else if (localStorage[level] == "2") {
-			c[3].childNodes[1].innerHTML = "<i class='fas fa-star yellow-text'>"; // first star
-			c[3].childNodes[3].innerHTML = "<i class='fas fa-star yellow-text'>"; // second star
-			c[3].childNodes[5].innerHTML = "<i class='far fa-star'>"; // third star
-		}
-		else if (localStorage[level] == "3") {
-			c[3].childNodes[1].innerHTML = "<i class='fas fa-star yellow-text'>"; // first star
-			c[3].childNodes[3].innerHTML = "<i class='fas fa-star yellow-text'>"; // second star
-			c[3].childNodes[5].innerHTML = "<i class='fas fa-star yellow-text'>"; // third star	
-		}
-		else {
-			//document.getElementById(levelButton).style.color = "white";
-		}
-	}
 }
 function ShowConfirmReturnHome() {document.getElementById('confirmBoxReturnHome').hidden = false;}
 function hideConfirmReturnHome() {document.getElementById('confirmBoxReturnHome').hidden = true;}
@@ -293,8 +308,10 @@ function ShowConfirmRestart() {document.getElementById('confirmBoxRestart').hidd
 function hideConfirmRestart() {document.getElementById('confirmBoxRestart').hidden = true;}
 function backToChoice() {
 	persistData.timePace = state.timePace;
+	level=config.level;
 	state.abandon = true;
-	setButtonIndicators();
+	//setButtonIndicators();
+	buildLevelsMenu(Math.ceil(level/9));
 	document.getElementById('gameUI').hidden = true;
 	document.getElementById('LevelChooser').hidden = false;
 }
@@ -361,6 +378,230 @@ function changeSpeed(increment) {
 		setSpeedIndicator(state.previousTimePace);
 	}
 }
+//
+//==============================================
+// Main menu
+//==============================================
+//
+function buildLevelsMenu(sectionToShow) { //This function builds the levels menu automatically from the levels file
+	// If invoked with no arguments, show the section 1 by default
+	if (!sectionToShow) {sectionToShow=1; console.log("Build menu invoked without arguments, initializing on level 1")} else {console.log("Build menu and displaying section "+sectionToShow)}
+	
+	console.log("Starting building the levels menu");
+	var nLevelsPerSection = 9;
+	var nLevelsPerRow = 3;
+	var lastLevelBuilt = 0;
+	// Get the vector with the levels
+	var levels = getLevels();
+	var nLevels = levels.length
+	// Determine how many sections of nine levels are required based on the vector length
+	var nSections = Math.ceil(nLevels/nLevelsPerSection);
+	console.log("Found "+nLevels+" levels. Attempting to create "+nSections+" sections of "+nLevelsPerSection+" levels");
+	
+	
+	//Get the div holding the section
+	var sectionDiv=document.getElementById("levelContent");
+	// Clear it first
+	sectionDiv.innerHTML='';
+	// Loop through all sections
+	for (var i=1;i<nSections+1;i++) {
+		//=====================
+		// Add the first section
+		//=====================
+		var newSection = document.createElement("DIV");
+		newSection.id = "levelsButtons0"+i;
+		newSection.classList.add("menuCenter");
+		newSection.classList.add("buttonsMenu");
+		if (i!=sectionToShow) {newSection.hidden=true;}
+		sectionDiv.appendChild(newSection);
+		//-----------------
+		// Previous button
+		//-----------------
+		// Add a row
+		var newRow = document.createElement("DIV");
+		newRow.classList.add("row");
+		newSection.appendChild(newRow);
+		// Add an s12 column
+		var newCol = document.createElement("DIV");
+		newCol.classList.add("col");
+		newCol.classList.add("s12");
+		newRow.appendChild(newCol);
+		// Add the previous button
+		var newButton = document.createElement("BUTTON");
+		newButton.classList.add("buttonNextPrev");
+		newButton.ariaLabel = "Towards easier levels";
+		//Do not put an action on the first one
+		if(i>1) {newButton.setAttribute('onclick','showPreviousLevels('+i+')');}
+		else {newButton.classList.add("invisible");}
+		newCol.appendChild(newButton);
+		// Add the button icon
+		var newI = document.createElement("I");
+		newI.classList.add("fa");
+		newI.classList.add("fa-chevron-up");
+		newI.ariaHidden=true;
+		newButton.appendChild(newI);
+		//-----------------
+		// Group Title
+		//-----------------
+		// Add a row
+		var newRow = document.createElement("DIV");
+		newRow.classList.add("row");
+		newSection.appendChild(newRow);
+		// Add an s12 column
+		var newCol = document.createElement("DIV");
+		newCol.classList.add("col");
+		newCol.classList.add("s12");
+		newCol.classList.add("levelGroupTitle");
+		newCol.innerHTML="Title to be changed";
+		newRow.appendChild(newCol);
+		//-----------------
+		// Level buttons
+		//-----------------
+		// Build 3 rows
+		for (var j=0;j<3;j++) {
+			// do not do anything if we reached the last level
+			
+			// Add a row
+			var newRow = document.createElement("DIV");
+			newRow.classList.add("row");
+			newSection.appendChild(newRow);
+			// Build 3 columns inside each row
+			for (var k=0;k<3;k++) {
+				if (lastLevelBuilt == nLevels) {break}
+				var currentLevel = lastLevelBuilt+1;
+				// Add the column to host the button
+				var newCol = document.createElement("DIV");
+				newCol.classList.add("col");
+				newCol.classList.add("s4");
+				newCol.classList.add("m2");
+				if (k==0) {newCol.classList.add("offset-m3");}
+				newCol.classList.add("demoDiv");
+				newRow.appendChild(newCol);
+				// Add the button
+				var newButton = document.createElement("BUTTON");
+				newButton.id="btnLevel"+currentLevel;
+				newButton.classList.add("buttonMain");
+				newButton.setAttribute('onclick','startGame('+currentLevel+')')
+				newCol.appendChild(newButton);
+				// Add the lock if needed
+				var statusLevelLock=getStatusLevelLock();
+				if (statusLevelLock[currentLevel] == 1) {
+					var newDiv=document.createElement("DIV");
+					newDiv.classList.add("lockIcon");
+					newDiv.id="lock";
+					newButton.appendChild(newDiv);
+					var newI=document.createElement("I");
+					newI.classList.add("fas");
+					newI.classList.add("fa-lock");
+					newDiv.appendChild(newI)
+				}
+				// Add the button text
+				var newDiv=document.createElement("DIV");
+				newDiv.classList.add("row");
+				newDiv.innerHTML = currentLevel;
+				newButton.appendChild(newDiv);
+				// Add the stars
+				var newDiv=document.createElement("DIV");
+				newDiv.classList.add("row");
+				newDiv.classList.add("starIcon");
+				newButton.appendChild(newDiv);
+
+
+				// Create the elements empty star, full star and the receiving columns, 3 times
+				var starFull=[];
+				var starEmpty=[];
+				var divStar=[];
+				for (l=1;l<4;l++) {
+					starFull[l] = document.createElement("I");
+					starFull[l].classList.add("fas");
+					starFull[l].classList.add("fa-star");
+					starFull[l].classList.add("yellow-text");
+					
+					starEmpty[l] = document.createElement("I");
+					starEmpty[l].classList.add("far");
+					starEmpty[l].classList.add("fa-star");
+					
+					divStar[l] = document.createElement("DIV")
+					divStar[l].classList.add("col");
+					divStar[l].classList.add("s4");
+					
+					newDiv.appendChild(divStar[l]);
+				}
+				// Fill in the stars according to recorded game state
+				var level = "level" + currentLevel;
+				if (localStorage[level] == "1") 		{divStar[1].appendChild(starFull[1]);	divStar[2].appendChild(starEmpty[2]);	divStar[3].appendChild(starEmpty[3]);	}
+				else if (localStorage[level] == "2") 	{divStar[1].appendChild(starFull[1]);	divStar[2].appendChild(starFull[2]);	divStar[3].appendChild(starEmpty[3]);	}
+				else if (localStorage[level] == "3") 	{divStar[1].appendChild(starFull[1]);	divStar[2].appendChild(starFull[2]);	divStar[3].appendChild(starFull[3]);	}
+				else 									{divStar[1].appendChild(starEmpty[1]);	divStar[2].appendChild(starEmpty[2]);	divStar[3].appendChild(starEmpty[3]);	}
+				
+				
+				// Record the last level built
+				lastLevelBuilt=currentLevel;
+			}
+		}
+		//-----------------
+		// Next button
+		//-----------------
+		// Only add the button if this is not the last section
+		if (i<nSections) {
+		// Add a row
+			var newRow = document.createElement("DIV");
+			newRow.classList.add("row");
+			newSection.appendChild(newRow);
+			// Add an s12 column
+			var newCol = document.createElement("DIV");
+			newCol.classList.add("col");
+			newCol.classList.add("s12");
+			newRow.appendChild(newCol);
+			// Add the previous button
+			var newButton = document.createElement("BUTTON");
+			newButton.classList.add("buttonNextPrev");
+			newButton.ariaLabel = "Towards harder levels";
+			newButton.setAttribute('onclick','showNextLevels('+i+')')
+			newCol.appendChild(newButton);
+			// Add the button icon
+			var newI = document.createElement("I");
+			newI.classList.add("fa");
+			newI.classList.add("fa-chevron-down");
+			newI.ariaHidden=true;
+			newButton.appendChild(newI);
+		}
+		
+	}
+	
+	
+}
+
+function doNothing() {}
+function getStatusLevel(levelNumber) {
+	//Parse the content of the local storage into a proper vector
+	var levels=getLevels();
+	var nLevels=levels.length;
+	var statusLevel=[]
+	for (var i=1;i<=nLevels;i++) {
+		var storageKey="level"+i;
+		statusLevel[i]=localStorage[storageKey];
+	}
+	if(levelNumber) {return statusLevel[levelNumber];}
+	else return statusLevel;
+	
+}
+function getStatusLevelLock() {
+	var levels=getLevels();
+	var nLevels=levels.length;
+	var statusLevelLock=[]
+	var statusLevel=getStatusLevel();
+	for (var i=1;i<=nLevels;i++) {
+			// if the previous level is won, unlock the next one
+			if (statusLevel[i-1] > 0) {statusLevelLock[i]=0;}
+			// in any other case, lock the level
+			else {statusLevelLock[i]=1;}
+		}
+	// Ensure that level 1 is unlocked in any case
+	statusLevelLock[1]=0;
+	return statusLevelLock;
+}
+
 //
 //==============================================
 // Game initialization
@@ -555,29 +796,39 @@ function getWidth() {
 
 
 function startGame(level) {
-	
-	// hide the level choice UI and show the game div
-	document.getElementById('LevelChooser').hidden = true;
-	document.getElementById('gameUI').hidden = false;
-	// determine canvas size and position
-	sizeMainCanvas(drawSpace);
-	placeCanvas(drawSpace);
-	sizeMainCanvas(canvasBases);
-	placeCanvas(canvasBases);
-	// Initialize the config and state
-	config = getConfig(level);
-	state = getInitialState();
-	state.timePace = persistData.timePace;
-	// Write the current speed
-	setSpeedIndicator();
-	// Complete the base definition and initializes them
-	spawnInitialUnits();
-	// Record the starting time
-	state.levelStartTime = Date.now();
-	// Put the level in state to access later
-	state.currentLevel = level;
-	// Off we go
-	animate();
+	// Check if the level is unlocked first
+	var statusLevelLock=getStatusLevelLock();
+	if (statusLevelLock[level] == 0) {
+		// hide the level choice UI and show the game div
+		document.getElementById('LevelChooser').hidden = true;
+		document.getElementById('gameUI').hidden = false;
+		// determine canvas size and position
+		sizeMainCanvas(drawSpace);
+		placeCanvas(drawSpace);
+		sizeMainCanvas(canvasBases);
+		placeCanvas(canvasBases);
+		// Initialize the config and state
+		config = getConfig(level);
+		state = getInitialState();
+		state.timePace = persistData.timePace;
+		// Write the current speed
+		setSpeedIndicator();
+		// Complete the base definition and initializes them
+		spawnInitialUnits();
+		// Record the starting time
+		state.levelStartTime = Date.now();
+		// Put the level in state to access later
+		state.currentLevel = level;
+		// Off we go
+		animate();
+	}
+	else {
+		//Dismiss existing toasts before, otherwise deranged clickers will fill the screen
+		M.Toast.dismissAll();
+		M.toast({html : '<div style="font-size : 40px; padding:10px; color:orange;"><i class="fas fa-lock"></i></div><div>Win the previous level with at least 1 star to unlock this one</div>',displayLength : 3000});
+		 
+		//buildLevelsMenu();
+	}
 }
 function spawnInitialUnits() {
 	for (var i = 0; i < config.bases.length; i++) {
@@ -1410,6 +1661,9 @@ function animate(time) {
 			}
 			if (parseInt(localStorage[lsLevel], 10)<score) {localStorage[lsLevel] = score;}
 		}
+		// Re-build the menu to correctly show the achievements
+		buildLevelsMenu(Math.ceil(config.level/9));
+		
 		// exit animate function
 		return;
 	}
