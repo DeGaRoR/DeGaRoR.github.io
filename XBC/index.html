@@ -2,271 +2,198 @@
 <!DOCTYPE html>
 <html lang="en">
 	<head>
-	
-		<!-- <meta name="viewport" content="width=device-width, initial-scale=1.0"> -->
+		<title>X Boson Conquest</title>
+		<!-- meta  -->
 		<meta name="theme-color" content="#101010" />
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+		<meta name="viewport" content="width=device-width, initial-scale=1"/>
+		<meta name="description" content="X Boson Conquest is a real-time strategy game. It runs as Progressive Web App, add it to your home screen">
+		<!-- CSS  -->
+		<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+		<link href="css/materialize.css" type="text/css" rel="stylesheet" media="screen,projection"/>
+		<link href="css/style.css" type="text/css" rel="stylesheet" media="screen,projection"/>
+		<link href="fontawesome2021/css/all.css" rel="stylesheet"> <!--load all styles -->
+		<link href="animDemo.css" rel="stylesheet">
 		<link rel="stylesheet" href="font-awesome/css/font-awesome.min.css">
 		<link rel="stylesheet" type="text/css" href="xBosonConquest.css">
-	
-	<link rel="apple-touch-icon" href="/Resources/ico/maskable_icon_x192.png">
-	
-	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
-    <meta name="viewport" content="width=device-width, initial-scale=1"/>
-	<meta name="description" content="X Boson Conquest is a real-time strategy game. It runs as Progressive Web App, add it to your home screen">
-    <title>X Boson Conquest</title>
-    <!-- CSS  -->
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-    <link href="css/materialize.css" type="text/css" rel="stylesheet" media="screen,projection"/>
-    <link href="css/style.css" type="text/css" rel="stylesheet" media="screen,projection"/>
-	<link href="fontawesome2021/css/all.css" rel="stylesheet"> <!--load all styles -->
-	<link href="animDemo.css" rel="stylesheet">
-	<link rel="manifest" href="manifest.json">
-		
-		
+		<!-- PWA  -->
+		<link rel="apple-touch-icon" href="/Resources/ico/maskable_icon_x192.png">
+		<link rel="manifest" href="manifest.json">
 	</head>
-<body id="body">
-	<div id="loadingScreen">
-			<div id="buttonsContainer" class="buttonsContainer">
-				<div id="buttonsContainer2" class="buttonsContainer2">
-					<div id="buttonsContainer3" class="buttonsContainer3">
-						<img alt="icon" id="loading-image" src="Resources\loading\ellipsis.svg" alt="Loading..." />
-					</div>
-				</div>	
-			</div>
-	</div>
-	<div id="buffer" hidden>
-		<img alt="icon" id="small_object_L" 		src="Resources\Background\small_object_L.png" 			width="32" 	height="32" 	>
-		<img alt="icon" id="small_object_M" 		src="Resources\Background\small_object_M.png" 			width="16" 	height="16" 	>
-		<img alt="icon" id="small_object_S" 		src="Resources\Background\small_object_S.png" 			width="16" 	height="16" 	>
-		<img alt="icon" id="big_object_1" 			src="Resources\Background\big_object_1.png" 			width="256" height="256" 	>
-		<img alt="icon" id="big_object_2" 			src="Resources\Background\big_object_2.png" 			width="256" height="256" 	>
-		<img alt="icon" id="big_object_3" 			src="Resources\Background\big_object_3.png" 			width="256" height="256" 	>
-		<img alt="icon" id="big_object_1_r" 		src="Resources\Background\big_object_1_r.png" 			width="256" height="256" 	>
-		<img alt="icon" id="big_object_2_r" 		src="Resources\Background\big_object_2_r.png" 			width="256" height="256" 	>
-		<img alt="icon" id="big_object_3_r" 		src="Resources\Background\big_object_3_r.png" 			width="256" height="256" 	>		
-		<img alt="icon" id="big_object_1_b" 		src="Resources\Background\big_object_1_b.png" 			width="256" height="256" 	>
-		<img alt="icon" id="big_object_2_b" 		src="Resources\Background\big_object_2_b.png" 			width="256" height="256" 	>
-		<img alt="icon" id="big_object_3_b" 		src="Resources\Background\big_object_3_b.png" 			width="256" height="256" 	>
-		<img alt="icon" id="big_object_1_y" 		src="Resources\Background\big_object_1_y.png" 			width="256" height="256" 	>
-		<img alt="icon" id="big_object_2_y" 		src="Resources\Background\big_object_2_y.png" 			width="256" height="256" 	>
-		<img alt="icon" id="big_object_3_y" 		src="Resources\Background\big_object_3_y.png" 			width="256" height="256" 	>
-		<img alt="icon" id="cell3D_S" 				src="Resources\Bases\cell3D_S.webp" 						width="256" height="256" 	>
-		<img alt="icon" id="cell3D_M" 				src="Resources\Bases\cell3D_M.webp" 						width="256" height="256" 	>
-		<img alt="icon" id="cell3D_L" 				src="Resources\Bases\cell3D_L.webp" 						width="256" height="256" 	>
-		<img alt="icon" id="fungus3D_S" 			src="Resources\Bases\fungus3D_S.webp" 					width="256" height="256" 	>
-		<img alt="icon" id="fungus3D_M" 			src="Resources\Bases\fungus3D_M.webp" 					width="256" height="256" 	>
-		<img alt="icon" id="fungus3D_L" 			src="Resources\Bases\fungus3D_L.webp" 					width="256" height="256" 	>
-		<img alt="icon" id="virus3D_S" 				src="Resources\Bases\virus3D_S.webp" 					width="256" height="256" 	>
-		<img alt="icon" id="virus3D_M" 				src="Resources\Bases\virus3D_M.webp" 					width="256" height="256" 	>
-		<img alt="icon" id="virus3D_L" 				src="Resources\Bases\virus3D_L.webp" 					width="256" height="256" 	>
-		<img alt="icon" id="titleJidev" 			src="Resources\newTitleJidev01.webp" 					width="1000" height="142" 	>
-		<img alt="icon" id="titleJidevMobile" 			src="Resources\newTitleJidev01_mobile.webp" 					width="518" height="275" 	>
-		
-		<img alt="icon" id="tutoPictureBases" 			src="Resources/tuto/basesUpgrade.webp" 					width="73" height="73" 	>
-		
-		<video width="248" height="472"><source src="Resources/tuto/XBCTuto01.mp4" type="video/mp4"></video> 
-		<video width="248" height="472"><source src="Resources/tuto/XBCTuto01.mp4" type="video/mp4"></video> 
-	</div>
-	<div id="visibleElements" hidden>
-		<div id="background" style="z-index:0">
-			<canvas id="background_canvas" ></canvas>
-		</div>
-		<div id="LevelChooser" class="menuCenter buttonsMenu">
-			<img alt="X Boson Conquest" class="title responsive-img" id="TitlePC" src="Resources\newTitleJidev01.webp" width="1000" height="142" style="padding-left:20px; padding-right: 20px;"> <br>
-			<img alt="X Boson Conquest" class="title responsive-img" id="TitleMobile" src="Resources\newTitleJidev01_mobile.webp" width="518" height="275" style="padding-left:20px; padding-right: 20px;"> <br>
-	
-			
-			<!-- <div class="lockIcon" id="lock"><i class="fas fa-lock"></i></div> //// to be included as part of the level buttons-->
-			<div id="levelContent" class="container ">
-				
-			</div>
-		</div>
-		<div id="gameUI" hidden>
-<!-- 		<span id="buttons" class="buttonsMenuInGame">
-			<button id="inGameMenuButton" class="button" style="font-size: 25px" onclick="releaseSelection();showMenu()">
-				<i class="fa fa-bars" aria-hidden="true"></i>
-			</button>
-		</span> -->
-		
-		
-		<span id="Action button menu" class="fixed-action-btn click-to-toggle direction-top direction-right" style="position: absolute; left: 24px; top:24px; height:0px; width:0px">
-            <a id="main-btn" href="javascript:releaseSelection();showMenu()" class="btn-floating btn-large transparent">
-              <i class="material-icons">menu</i>
-            </a>
-            <ul>
-              <li>
-                <a href="javascript:showMenu()" class="btn-floating transparent" style="opacity: 0; transform: scale(0.4) translateY(0px) translateX(40px);">
-                  <i class="material-icons">volume_off</i>
-                </a>
-              </li>
-			  
-			  
-			  <li>
-                <a href="javascript:showMenu();ShowConfirmRestart()" class="btn-floating transparent" style="opacity: 0; transform: scale(0.4) translateY(0px) translateX(40px);">
-                  <i class="fa fa-refresh" aria-hidden="true"></i>
-                </a>
-              </li>
-			  
-			  <li>
-                <a href="javascript:ShowConfirmReturnHome(); showMenu();" class="btn-floating transparent" style="opacity: 0; transform: scale(0.4) translateY(0px) translateX(40px);">
-                  <i class="fa fa-home" aria-hidden="true"></i>
-                </a>
-              </li>
-			  
-            </ul>
-          </span>
-		  
-		<div id="indicatorBarCell" 		class="indicatorBar colorCell" 		style="top:24px; width:100px;"	>.</div>
-		<div id="indicatorBarFungus" 	class="indicatorBar colorFungus" 	style="top:36px; width:50px;"	>.</div>
-		<div id="indicatorBarVirus" 	class="indicatorBar colorVirus" 	style="top:48px; width:150px;"	>.</div>
-		  
-		  <!-- <div id="indicators" style="position: absolute; right: 24px; top:24px; text-align:right;"></div> -->
-		<span id="inGameMenu" class="inGameMenu" hidden>
-			<div id="buttonsContainer" class="buttonsContainer">
-				<div id="buttonsContainer2" class="buttonsContainer2">
-					<div id="buttonsContainer3" class="buttonsContainer3">
-						<button class="button" onclick="changeSpeed(-1)">
-							<i class="fa fa-minus" aria-hidden="true"></i>
-						</button> 
-						<span class = "indicator" id="speedIndicator" >1x</span> 
-						<button class="button" onclick="changeSpeed(1)">
-							<i class="fa fa-plus" aria-hidden="true"></i>
-						</button>
-						<br>
-						<br>
-						<br>
-						<button class="button menuCenter buttonInGameMenu" onclick="hideMenu()">
-							<i class="fa fa-arrow-left" aria-hidden="true"></i>
-						</button> 
-						<br>
-						<button id="backToChoice" class="button menuCenter buttonInGameMenu" onclick="ShowConfirmReturnHome()">
-							<i class="fa fa-home" aria-hidden="true"></i>
-						</button>
-						<br>
-						<button class="button menuCenter buttonInGameMenu" onclick="ShowConfirmRestart()">
-							<i class="fa fa-refresh" aria-hidden="true"></i>
-						</button>
-					</div>
-				</div>	
-			</div>
-		</span>
-
-		<span id="nextLevelMenu" class="inGameMenu center white-text" hidden>
-			<div class="container">
-				<div class="row center">
-					<!-- <div id="winnerPicture" class="col s12"><img alt="icon" id="cell3D_L" src="Resources\Bases\cell3D_L.webp" width="256" height="256"></div> -->
-					<div class="card square-card">
-						<div class="down">
-						  <div class="up">
-							<div class="squeeze">
-							  <div class="rotate-in">
-								<div class="rotate-out">
-								  <div class=""><img id="imageWinner" src="Resources\Bases\cell3D_L.webp" height="100px" width="100px"></div>
-								</div>
-							  </div>
-							</div>
-						  </div>
+	<body id="body">
+		<div id="loadingScreen">
+				<div id="buttonsContainer" class="buttonsContainer">
+					<div id="buttonsContainer2" class="buttonsContainer2">
+						<div id="buttonsContainer3" class="buttonsContainer3">
+							<img alt="icon" id="loading-image" src="Resources\loading\ellipsis.svg" alt="Loading..." />
 						</div>
-					  </div>
+					</div>	
 				</div>
-				<div class="row">
-					<div id="winnerMessage" class="flow-text">
-						Victory! Hope this updates...
-					</div>
-				</div>
-				<div class="row center">
-					<div id="starsWinMenu" class="starIconWin" style="width:50%; margin:auto;">
-						<div class="col s4"><i class="far fa-star"></i></div>
-						<div class="col s4"><i class="far fa-star"></i></div>
-						<div class="col s4"><i class="far fa-star"></i></div>
-					</div>
-				</div>
-				<div id="optionsWinner" class="row">
-					<div class="col s6">
-						<button id="homeButton" class="buttonMain col s12" style="padding-top:20px;padding-bottom:20px;" onclick="document.getElementById('nextLevelMenu').hidden = true; backToChoice();">
-							<i class="fa fa-home" aria-hidden="true"></i>
-							<br>
-							Home
-						</button> 
-					</div>
-					<div class="col s6">
-						<button id="nextLevelButton" class="buttonMain col s12 " style="padding-top:20px;padding-bottom:20px;" onclick="document.getElementById('nextLevelMenu').hidden = true; backToChoice();">
-							<i class="fa fa-arrow-right" aria-hidden="true"></i>
-							<br>
-							Next Level
-						</button> 
-					</div>
-				</div>
-				<div id="optionsLooser" class="row" hidden>
-					<div class="col s12">
-						<button id="homeButton" class="buttonMain col s12" style="padding-top:20px;padding-bottom:20px;" onclick="document.getElementById('nextLevelMenu').hidden = true; backToChoice();">
-							<i class="fa fa-home" aria-hidden="true"></i>
-							<br>
-							Home
-						</button> 
-					</div>
-				</div>
-			</div>
-		</span>
-		<span id="confirmBoxReturnHome" class="inGameMenu confirmBox" hidden>
-			<div id="buttonsContainer" class="buttonsContainer">
-				<div id="buttonsContainer2" class="buttonsContainer2">
-					<div id="buttonsContainer3" class="buttonsContainer3">
-						Are you sure? <br> All progress will be lost... <br> <br>
-						<button id="backToChoiceYes" class="button menuCenter buttonConfirm" onclick="hideMenu(); backToChoice(); hideConfirmReturnHome()">Yes</button>
-						<button id="backToChoiceNo" class="button menuCenter buttonConfirm" onclick="hideConfirmReturnHome()">No</button>
-					</div>
-				</div>	
-			</div>
-		</span>
-		<span id="confirmBoxRestart" class="inGameMenu confirmBox" hidden>
-			<div id="buttonsContainer" class="buttonsContainer">
-				<div id="buttonsContainer2" class="buttonsContainer2">
-					<div id="buttonsContainer3" class="buttonsContainer3">
-						Are you sure? <br> All progress will be lost... <br> <br>
-						<button id="backToChoiceYes" class="button menuCenter buttonConfirm" onclick="hideMenu(); reStart(); hideConfirmRestart()">Yes</button>
-						<button id="backToChoiceNo" class="button menuCenter buttonConfirm" onclick="hideConfirmRestart()">No</button>
-					</div>
-				</div>	
-			</div>
-		</span>
-		<div id="bases" style="z-index:9">
-			<canvas id="canvasBases"></canvas>
 		</div>
-
-			<div id="mainCanvas" style="z-index:10">
-				<div id="selectionBox" hidden></div>
-				<canvas id="drawSpace"></canvas>
-
+		<div id="buffer" hidden>
+			<img alt="icon" id="small_object_L" 		src="Resources\Background\small_object_L.png" 			width="32" 	height="32" 	>
+			<img alt="icon" id="small_object_M" 		src="Resources\Background\small_object_M.png" 			width="16" 	height="16" 	>
+			<img alt="icon" id="small_object_S" 		src="Resources\Background\small_object_S.png" 			width="16" 	height="16" 	>
+			<img alt="icon" id="big_object_1" 			src="Resources\Background\big_object_1.png" 			width="256" height="256" 	>
+			<img alt="icon" id="big_object_2" 			src="Resources\Background\big_object_2.png" 			width="256" height="256" 	>
+			<img alt="icon" id="big_object_3" 			src="Resources\Background\big_object_3.png" 			width="256" height="256" 	>
+			<img alt="icon" id="big_object_1_r" 		src="Resources\Background\big_object_1_r.png" 			width="256" height="256" 	>
+			<img alt="icon" id="big_object_2_r" 		src="Resources\Background\big_object_2_r.png" 			width="256" height="256" 	>
+			<img alt="icon" id="big_object_3_r" 		src="Resources\Background\big_object_3_r.png" 			width="256" height="256" 	>		
+			<img alt="icon" id="big_object_1_b" 		src="Resources\Background\big_object_1_b.png" 			width="256" height="256" 	>
+			<img alt="icon" id="big_object_2_b" 		src="Resources\Background\big_object_2_b.png" 			width="256" height="256" 	>
+			<img alt="icon" id="big_object_3_b" 		src="Resources\Background\big_object_3_b.png" 			width="256" height="256" 	>
+			<img alt="icon" id="big_object_1_y" 		src="Resources\Background\big_object_1_y.png" 			width="256" height="256" 	>
+			<img alt="icon" id="big_object_2_y" 		src="Resources\Background\big_object_2_y.png" 			width="256" height="256" 	>
+			<img alt="icon" id="big_object_3_y" 		src="Resources\Background\big_object_3_y.png" 			width="256" height="256" 	>
+			<img alt="icon" id="cell3D_S" 				src="Resources\Bases\cell3D_S.webp" 						width="256" height="256" 	>
+			<img alt="icon" id="cell3D_M" 				src="Resources\Bases\cell3D_M.webp" 						width="256" height="256" 	>
+			<img alt="icon" id="cell3D_L" 				src="Resources\Bases\cell3D_L.webp" 						width="256" height="256" 	>
+			<img alt="icon" id="fungus3D_S" 			src="Resources\Bases\fungus3D_S.webp" 					width="256" height="256" 	>
+			<img alt="icon" id="fungus3D_M" 			src="Resources\Bases\fungus3D_M.webp" 					width="256" height="256" 	>
+			<img alt="icon" id="fungus3D_L" 			src="Resources\Bases\fungus3D_L.webp" 					width="256" height="256" 	>
+			<img alt="icon" id="virus3D_S" 				src="Resources\Bases\virus3D_S.webp" 					width="256" height="256" 	>
+			<img alt="icon" id="virus3D_M" 				src="Resources\Bases\virus3D_M.webp" 					width="256" height="256" 	>
+			<img alt="icon" id="virus3D_L" 				src="Resources\Bases\virus3D_L.webp" 					width="256" height="256" 	>
+			<img alt="icon" id="titleJidev" 			src="Resources\newTitleJidev01.webp" 					width="1000" height="142" 	>
+			<img alt="icon" id="titleJidevMobile" 			src="Resources\newTitleJidev01_mobile.webp" 					width="518" height="275" 	>
+			<img alt="icon" id="tutoPictureBases" 			src="Resources/tuto/basesUpgrade.webp" 					width="73" height="73" 	>
+			<video width="248" height="472"><source src="Resources/tuto/XBCTuto01.mp4" type="video/mp4"></video> 
+			<video width="248" height="472"><source src="Resources/tuto/XBCTuto01.mp4" type="video/mp4"></video> 
 		</div>
-	</div>
-	</div>
-		<script>
-		document.onreadystatechange = function () {
-			var state = document.readyState
-			if (state == 'complete') {
-				 document.getElementById('loadingScreen').hidden = true;
-				 document.getElementById('visibleElements').hidden = false;
-		  }
-		}
-		</script>
-
+		<div id="visibleElements" hidden>
+			<div id="background" style="z-index:0">
+				<canvas id="background_canvas" ></canvas>
+			</div>
+			<div id="LevelChooser" class="menuCenter buttonsMenu">
+				<img alt="X Boson Conquest" class="title responsive-img" id="TitlePC" src="Resources\newTitleJidev01.webp" width="1000" height="142" style="padding-left:20px; padding-right: 20px;"> <br>
+				<img alt="X Boson Conquest" class="title responsive-img" id="TitleMobile" src="Resources\newTitleJidev01_mobile.webp" width="518" height="275" style="padding-left:20px; padding-right: 20px;"> <br>
+				<div id="levelContent" class="container "></div>
+			</div>
+			<div id="gameUI" hidden>
+				<span id="Action button menu" class="fixed-action-btn click-to-toggle direction-top direction-right" style="position: absolute; left: 24px; top:24px; height:0px; width:0px">
+					<a id="main-btn" href="javascript:releaseSelection();showMenu()" class="btn-floating btn-large transparent"><i class="material-icons">menu</i></a>
+					<ul>
+						<li><a href="javascript:showMenu()" class="btn-floating transparent" style="opacity: 0; transform: scale(0.4) translateY(0px) translateX(40px);"><i class="material-icons">volume_off</i></a></li>
+						<li><a href="javascript:showMenu();ShowConfirmRestart()" class="btn-floating transparent" style="opacity: 0; transform: scale(0.4) translateY(0px) translateX(40px);"><i class="fa fa-refresh" aria-hidden="true"></i></a></li>
+						<li><a href="javascript:ShowConfirmReturnHome(); showMenu();" class="btn-floating transparent" style="opacity: 0; transform: scale(0.4) translateY(0px) translateX(40px);"><i class="fa fa-home" aria-hidden="true"></i></a></li>					
+					</ul>
+				</span>		
+				<div id="indicatorBarCell" 		class="indicatorBar colorCell" 		style="top:24px; width:100px;"	>.</div>
+				<div id="indicatorBarFungus" 	class="indicatorBar colorFungus" 	style="top:36px; width:50px;"	>.</div>
+				<div id="indicatorBarVirus" 	class="indicatorBar colorVirus" 	style="top:48px; width:150px;"	>.</div>
+				<span id="nextLevelMenu" class="inGameMenu center white-text" hidden>
+					<div class="container">
+						<div id="winnerPicture" class="row center">
+							<!-- <div id="winnerPicture" class="col s12"><img alt="icon" id="cell3D_L" src="Resources\Bases\cell3D_L.webp" width="256" height="256"></div> -->
+							<div class="card square-card">
+								<div class="down">
+								<div class="up">
+									<div class="squeeze">
+									<div class="rotate-in">
+										<div class="rotate-out">
+										<div class=""><img id="imageWinner" src="Resources\Bases\cell3D_L.webp" height="100px" width="100px"></div>
+										</div>
+									</div>
+									</div>
+								</div>
+								</div>
+							</div>
+						</div>
+						<div id="winnerMessageContainer" class="row">
+							<div id="winnerMessage" class="flow-text">
+								Victory! Hope this updates...
+							</div>
+						</div>
+						<div id="starsWinMenuContainer" class="row center">
+							<div id="starsWinMenu" class="starIconWin" style="width:50%; margin:auto;">
+								<div class="col s4"><i class="far fa-star"></i></div>
+								<div class="col s4"><i class="far fa-star"></i></div>
+								<div class="col s4"><i class="far fa-star"></i></div>
+							</div>
+						</div>
+						<div id="optionsWinner" class="row">
+							<div class="col s6">
+								<button id="homeButton" class="buttonMain col s12" style="padding-top:20px;padding-bottom:20px;" onclick="document.getElementById('nextLevelMenu').hidden = true; backToChoice();">
+									<i class="fa fa-home" aria-hidden="true"></i>
+									<br>
+									Home
+								</button> 
+							</div>
+							<div class="col s6">
+								<button id="nextLevelButton" class="buttonMain col s12 " style="padding-top:20px;padding-bottom:20px;" onclick="document.getElementById('nextLevelMenu').hidden = true; backToChoice();">
+									<i class="fa fa-arrow-right" aria-hidden="true"></i>
+									<br>
+									Next Level
+								</button> 
+							</div>
+						</div>
+						<div id="optionsLooser" class="row" hidden>
+							<div class="col s12">
+								<button id="homeButton" class="buttonMain col s12" style="padding-top:20px;padding-bottom:20px;" onclick="document.getElementById('nextLevelMenu').hidden = true; backToChoice();">
+									<i class="fa fa-home" aria-hidden="true"></i>
+									<br>
+									Home
+								</button> 
+							</div>
+						</div>
+					</div>
+				</span>
+				<span id="confirmBoxReturnHome" class="inGameMenu confirmBox" hidden>
+					<div id="buttonsContainer" class="buttonsContainer">
+						<div id="buttonsContainer2" class="buttonsContainer2">
+							<div id="buttonsContainer3" class="buttonsContainer3">
+								Are you sure? <br> All progress will be lost... <br> <br>
+								<button id="backToChoiceYes" class="button menuCenter buttonConfirm" onclick="hideMenu(); backToChoice(); hideConfirmReturnHome()">Yes</button>
+								<button id="backToChoiceNo" class="button menuCenter buttonConfirm" onclick="hideConfirmReturnHome()">No</button>
+							</div>
+						</div>	
+					</div>
+				</span>
+				<span id="confirmBoxRestart" class="inGameMenu confirmBox" hidden>
+					<div id="buttonsContainer" class="buttonsContainer">
+						<div id="buttonsContainer2" class="buttonsContainer2">
+							<div id="buttonsContainer3" class="buttonsContainer3">
+								Are you sure? <br> All progress will be lost... <br> <br>
+								<button id="backToChoiceYes" class="button menuCenter buttonConfirm" onclick="hideMenu(); reStart(); hideConfirmRestart()">Yes</button>
+								<button id="backToChoiceNo" class="button menuCenter buttonConfirm" onclick="hideConfirmRestart()">No</button>
+							</div>
+						</div>	
+					</div>
+				</span>
+				<div id="bases" style="z-index:9"><canvas id="canvasBases"></canvas></div>
+				<div id="mainCanvas" style="z-index:10">
+					<div id="selectionBox" hidden></div>
+					<canvas id="drawSpace"></canvas>
+				</div>
+			</div>
+		</div>
+		<!-- Scripts -->
 		<script src="XBC_levels.js"></script>
 		<script src="xBosonConquest.js"></script>
 		<script type="text/javascript" src="js/materialize.min.js"></script>
 		<script src="materializeInit.js"></script>
 		<script>
 			if ('serviceWorker' in navigator) {
-			  window.addEventListener('load', function() {
+			window.addEventListener('load', function() {
 				navigator.serviceWorker.register('/XBC/sw.js').then(function(registration) {
-				  // Registration was successful
-				  console.log('ServiceWorker registration successful with scope: ', registration.scope);
+				// Registration was successful
+				console.log('ServiceWorker registration successful with scope: ', registration.scope);
 				}, function(err) {
-				  // registration failed :(
-				  console.log('ServiceWorker registration failed: ', err);
+				// registration failed :(
+				console.log('ServiceWorker registration failed: ', err);
 				});
-			  });
+			});
 			}
+		</script>
+		<script>
+		document.onreadystatechange = function () {
+			var state = document.readyState
+			if (state == 'complete') {
+				document.getElementById('loadingScreen').hidden = true;
+				document.getElementById('visibleElements').hidden = false;
+		}
+		}
 		</script>
 		
 	</body>

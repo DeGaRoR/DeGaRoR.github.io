@@ -327,11 +327,11 @@ function showMenu() {
 	
 }
 function hideMenu() {
-	document.getElementById('inGameMenu').hidden = true;
+	//document.getElementById('inGameMenu').hidden = true;
 	unPauseGame();
 }
 function setSpeedIndicator(speed) {
-	document.getElementById("speedIndicator").innerHTML = speed + "x";
+	//document.getElementById("speedIndicator").innerHTML = speed + "x";
 }
 function showNextLevels(currentLevel) {
 	var nextLevel = currentLevel + 1;
@@ -383,7 +383,25 @@ function changeSpeed(increment) {
 // Main menu
 //==============================================
 //
+function getConfigMenu() {
+	configMenu={
+		arrowUpClass1:"fa",
+		arrowUpClass2:"fa-chevron-up",
+		arrowDownClass1:"fa",
+		arrowDownClass2:"fa-chevron-down",
+		lockClass1:"fas",
+		lockClass2:"fa-lock",
+		starEmptyClass1:"far",
+		starEmptyClass2:"fa-star",
+		starFullClass1:"fas",
+		starFullClass2:"fa-star",
+		starFullClass3:"yellow-text",
+		titleSections: ["Easy","Medium","Hard","VS","tempSection5","tempSection6","tempSection7","tempSection8","tempSection9","tempSection10"],
+	};
+	return configMenu;
+}
 function buildLevelsMenu(sectionToShow) { //This function builds the levels menu automatically from the levels file
+	var configMenu=getConfigMenu();
 	// If invoked with no arguments, show the section 1 by default
 	if (!sectionToShow) {sectionToShow=1; console.log("Build menu invoked without arguments, initializing on level 1")} else {console.log("Build menu and displaying section "+sectionToShow)}
 	
@@ -436,8 +454,8 @@ function buildLevelsMenu(sectionToShow) { //This function builds the levels menu
 		newCol.appendChild(newButton);
 		// Add the button icon
 		var newI = document.createElement("I");
-		newI.classList.add("fa");
-		newI.classList.add("fa-chevron-up");
+		newI.classList.add(configMenu.arrowUpClass1);
+		newI.classList.add(configMenu.arrowUpClass2);
 		newI.ariaHidden=true;
 		newButton.appendChild(newI);
 		//-----------------
@@ -452,7 +470,7 @@ function buildLevelsMenu(sectionToShow) { //This function builds the levels menu
 		newCol.classList.add("col");
 		newCol.classList.add("s12");
 		newCol.classList.add("levelGroupTitle");
-		newCol.innerHTML="Title to be changed";
+		newCol.innerHTML=configMenu.titleSections[i-1];
 		newRow.appendChild(newCol);
 		//-----------------
 		// Level buttons
@@ -491,8 +509,8 @@ function buildLevelsMenu(sectionToShow) { //This function builds the levels menu
 					newDiv.id="lock";
 					newButton.appendChild(newDiv);
 					var newI=document.createElement("I");
-					newI.classList.add("fas");
-					newI.classList.add("fa-lock");
+					newI.classList.add(configMenu.lockClass1);
+					newI.classList.add(configMenu.lockClass2);
 					newDiv.appendChild(newI)
 				}
 				// Add the button text
@@ -513,13 +531,13 @@ function buildLevelsMenu(sectionToShow) { //This function builds the levels menu
 				var divStar=[];
 				for (l=1;l<4;l++) {
 					starFull[l] = document.createElement("I");
-					starFull[l].classList.add("fas");
-					starFull[l].classList.add("fa-star");
-					starFull[l].classList.add("yellow-text");
+					starFull[l].classList.add(configMenu.starFullClass1);
+					starFull[l].classList.add(configMenu.starFullClass2);
+					starFull[l].classList.add(configMenu.starFullClass3);
 					
 					starEmpty[l] = document.createElement("I");
-					starEmpty[l].classList.add("far");
-					starEmpty[l].classList.add("fa-star");
+					starEmpty[l].classList.add(configMenu.starEmptyClass1);
+					starEmpty[l].classList.add(configMenu.starEmptyClass2);
 					
 					divStar[l] = document.createElement("DIV")
 					divStar[l].classList.add("col");
@@ -561,8 +579,8 @@ function buildLevelsMenu(sectionToShow) { //This function builds the levels menu
 			newCol.appendChild(newButton);
 			// Add the button icon
 			var newI = document.createElement("I");
-			newI.classList.add("fa");
-			newI.classList.add("fa-chevron-down");
+			newI.classList.add(configMenu.arrowDownClass1);
+			newI.classList.add(configMenu.arrowDownClass2);
 			newI.ariaHidden=true;
 			newButton.appendChild(newI);
 		}
