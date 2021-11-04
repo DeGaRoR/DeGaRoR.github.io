@@ -818,7 +818,7 @@ function startGame(level) {
 	var statusLevelLock=getStatusLevelLock();
 	if (statusLevelLock[level] == 0) {
 		// Send a Google analytics event
-		gtag("event", "level_start", {level_name: level});
+		gtag("event", "level_start", {level_name: String("level")});
 		console.log("sending event to google analytics");
 		// hide the level choice UI and show the game div
 		document.getElementById('LevelChooser').hidden = true;
@@ -1616,6 +1616,7 @@ function sendTuto(level,msgNum,elapsedTime,timeToTrigger,duration,tutoContent, v
 function animate(time) {
 	// Behaviour at the end of the game
 	if (state.gameWon == true) {
+		
 		//Dismiss all tuto toasts
 		M.Toast.dismissAll();
 		// compute game time
@@ -1654,11 +1655,19 @@ function animate(time) {
 			document.getElementById('starsWinMenu').hidden = false;
 			document.getElementById('optionsWinner').hidden = false;
 			document.getElementById('optionsLooser').hidden = true;
+			gtag("event", "level_end", {
+				level_name: String(config.level),
+				success: true,
+			});
 		}
 		else {
 			document.getElementById('starsWinMenu').hidden = true;
 			document.getElementById('optionsWinner').hidden = true;
 			document.getElementById('optionsLooser').hidden = false;
+			gtag("event", "level_end", {
+				level_name: String(config.level),
+				success: false,
+			});
 		}
 		
 		
@@ -1689,6 +1698,10 @@ function animate(time) {
 		return;
 	}
 	if (state.abandon == true) {
+		gtag("event", "level_end", {
+			level_name: String(config.level),
+			success: false,
+		});
 		//Dismiss all tuto toasts
 		M.Toast.dismissAll();
 		return;
