@@ -1655,18 +1655,16 @@ function animate(time) {
 			document.getElementById('starsWinMenu').hidden = false;
 			document.getElementById('optionsWinner').hidden = false;
 			document.getElementById('optionsLooser').hidden = true;
-			gtag("event", "level_end", {
+			gtag("event", "level_success", {
 				level_name: String(config.level),
-				success: true,
 			});
 		}
 		else {
 			document.getElementById('starsWinMenu').hidden = true;
 			document.getElementById('optionsWinner').hidden = true;
 			document.getElementById('optionsLooser').hidden = false;
-			gtag("event", "level_end", {
+			gtag("event", "level_loss", {
 				level_name: String(config.level),
-				success: false,
 			});
 		}
 		
@@ -1698,9 +1696,8 @@ function animate(time) {
 		return;
 	}
 	if (state.abandon == true) {
-		gtag("event", "level_end", {
+		gtag("event", "level_abandon", {
 			level_name: String(config.level),
-			success: false,
 		});
 		//Dismiss all tuto toasts
 		M.Toast.dismissAll();
