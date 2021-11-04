@@ -817,6 +817,9 @@ function startGame(level) {
 	// Check if the level is unlocked first
 	var statusLevelLock=getStatusLevelLock();
 	if (statusLevelLock[level] == 0) {
+		// Send a Google analytics event
+		gtag("event", "level_start", {level_name: level});
+		console.log("sending event to google analytics");
 		// hide the level choice UI and show the game div
 		document.getElementById('LevelChooser').hidden = true;
 		document.getElementById('gameUI').hidden = false;
