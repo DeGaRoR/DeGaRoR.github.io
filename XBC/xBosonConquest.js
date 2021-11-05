@@ -1626,7 +1626,6 @@ function sendTuto(level,msgNum,elapsedTime,timeToTrigger,duration,tutoContent, v
 function animate(time) {
 	// Behaviour at the end of the game
 	if (state.gameWon == true) {
-		
 		//Dismiss all tuto toasts
 		M.Toast.dismissAll();
 		// compute game time
