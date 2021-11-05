@@ -70,6 +70,7 @@
 			<video width="248" height="472"><source src="Resources/tuto/XBCTuto01.mp4" type="video/mp4"></video> 
 			<video width="248" height="472"><source src="Resources/tuto/XBCTuto01.mp4" type="video/mp4"></video> 
 		</div>
+		<div id="tsparticles"></div>
 		<div id="visibleElements" hidden>
 			<div id="background" style="z-index:0">
 				<canvas id="background_canvas" ></canvas>
@@ -100,7 +101,9 @@
 						</div>	
 					</div>
 				</span>
+				
 				<span id="nextLevelMenu" class="inGameMenu center white-text" hidden>
+					
 					<div class="container">
 						<div id="winnerPicture" class="row center">
 							<!-- <div id="winnerPicture" class="col s12"><img alt="icon" id="cell3D_L" src="Resources\Bases\cell3D_L.webp" width="256" height="256"></div> -->
@@ -191,6 +194,9 @@
 		<script src="xBosonConquest.js"></script>
 		<script type="text/javascript" src="js/materialize.min.js"></script>
 		<script src="materializeInit.js"></script>
+		<script src="tsparticles/tsparticles.min.js"></script>
+		<script src="confettis.js"></script>
+		
 		<script>
 			if ('serviceWorker' in navigator) {
 			window.addEventListener('load', function() {
@@ -210,6 +216,7 @@
 			if (state == 'complete') {
 				document.getElementById('loadingScreen').hidden = true;
 				document.getElementById('visibleElements').hidden = false;
+				document.getElementById('tsparticles').hidden = true;
 		}
 		}
 		</script>

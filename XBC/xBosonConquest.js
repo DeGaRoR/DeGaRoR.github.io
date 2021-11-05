@@ -119,9 +119,9 @@ function getBgConfig() {
 		small_object_S : document.getElementById("small_object_S"),
 		big_object_1 : 	[	
 							document.getElementById("big_object_1"),
+							document.getElementById("big_object_1_y"),
 							document.getElementById("big_object_1_r"),
 							document.getElementById("big_object_1_b"),
-							document.getElementById("big_object_1_y"),
 							document.getElementById("big_object_1_y"),
 							document.getElementById("big_object_1_y"),
 							document.getElementById("big_object_1_y"),
@@ -131,9 +131,9 @@ function getBgConfig() {
 						],
 		big_object_2 : 	[	
 							document.getElementById("big_object_2"),
+							document.getElementById("big_object_2_y"),
 							document.getElementById("big_object_2_r"),
 							document.getElementById("big_object_2_b"),
-							document.getElementById("big_object_2_y"),
 							document.getElementById("big_object_2_y"),
 							document.getElementById("big_object_2_y"),
 							document.getElementById("big_object_2_y"),
@@ -143,9 +143,9 @@ function getBgConfig() {
 						],
 		big_object_3 : 	[	
 							document.getElementById("big_object_3"),
+							document.getElementById("big_object_3_y"),
 							document.getElementById("big_object_3_r"),
 							document.getElementById("big_object_3_b"),
-							document.getElementById("big_object_3_y"),
 							document.getElementById("big_object_3_y"),
 							document.getElementById("big_object_3_y"),
 							document.getElementById("big_object_3_y"),
@@ -155,9 +155,9 @@ function getBgConfig() {
 						],
 		bgColor : 		[	
 							"#59f1ff",//pale blue
+							"#A9D800",//green
 							"#cf8f89",//red
 							"#0052b9",//dark blue
-							"#A9D800",//green
 							"#A9D800",//green
 							"#A9D800",//green
 							"#A9D800",//green
@@ -171,15 +171,16 @@ function sizeBgCanvas() {
 	bgConfig.background_canvas.width = window.innerWidth-2;
 	bgConfig.background_canvas.height = window.innerHeight;
 }
-function setBackground(currentLevel) {
-	currentLevel = currentLevel || 1;
+function setBackground(section) {
+	
+	section = section || 1;
 	// Get the configuration in a proper object, no global or local scope
 	bgConfig = getBgConfig();
 	// size canvas
 	sizeBgCanvas();
 	// create large objects
 	for (var i=0; i<bgConfig.nLargeObjects;i++) {
-		var imgL = selectRandom3(bgConfig.big_object_1[currentLevel-1], bgConfig.big_object_2[currentLevel-1], bgConfig.big_object_3[currentLevel-1]);
+		var imgL = selectRandom3(bgConfig.big_object_1[section-1], bgConfig.big_object_2[section-1], bgConfig.big_object_3[section-1]);
 		var x_init = getRandom(0, bgConfig.background_canvas.width);
 		var y_init = getRandom(0, bgConfig.background_canvas.height);
 		var theta = getRandom(0, Math.PI*2);
@@ -210,6 +211,8 @@ function setBackground(currentLevel) {
 		bgConfig.bgObjects.push(smallObject);
 	}
 	animateBackground();
+	// Change the satic background color
+	document.body.style.backgroundColor = bgConfig.bgColor[section-1];
 }
 function animateBackground() {
 	bgReqID = requestAnimationFrame(animateBackground);
@@ -314,6 +317,7 @@ function backToChoice() {
 	buildLevelsMenu(Math.ceil(level/9));
 	document.getElementById('gameUI').hidden = true;
 	document.getElementById('LevelChooser').hidden = false;
+	document.getElementById('tsparticles').hidden = true;
 }
 function showMenu() {
 	var pauseBackground = document.getElementById("pauseBackground");
@@ -346,11 +350,9 @@ function showNextLevels(currentLevel) {
 	console.log(currentDivName);
 	document.getElementById(currentDivName).hidden = true;
 	document.getElementById(nextDivName).hidden = false;
-	// change the color theme
 	
 	cancelAnimationFrame(bgReqID);
 	setBackground(nextLevel);
-	document.body.style.backgroundColor = bgConfig.bgColor[nextLevel-1];
 }
 function showPreviousLevels(currentLevel) {
 	var prevLevel = currentLevel - 1;
@@ -359,11 +361,9 @@ function showPreviousLevels(currentLevel) {
 	console.log(currentDivName);
 	document.getElementById(currentDivName).hidden = true;
 	document.getElementById(prevDivName).hidden = false;
-	// change the color theme
 	
 	cancelAnimationFrame(bgReqID);
 	setBackground(prevLevel);
-	document.body.style.backgroundColor = bgConfig.bgColor[prevLevel-1];
 }
 //
 //==============================================
@@ -825,7 +825,11 @@ function startGame(level) {
 	if (statusLevelLock[level] == 0) {
 		// Send a Google analytics event
 		gtag("event", "level_start", {level_name: String("level")});
-		//console.log("sending event to google analytics");
+		// Set the correct background
+		var section = Math.ceil(level/9);
+		cancelAnimationFrame(bgReqID);
+		setBackground(section);
+		
 		// hide the level choice UI and show the game div
 		document.getElementById('LevelChooser').hidden = true;
 		document.getElementById('gameUI').hidden = false;
@@ -1644,6 +1648,7 @@ function animate(time) {
 		var nextLevelButton = document.getElementById('nextLevelButton');
 		nextLevelButton.onclick = function() {
 			document.getElementById('nextLevelMenu').hidden = true;
+			document.getElementById('tsparticles').hidden = true;
 			if (config.level < nLevels) {
 				startGame(config.level+1);
 			}
@@ -1658,6 +1663,7 @@ function animate(time) {
 		document.getElementById('imageWinner').src=state.playerAlive.imgBase[2].src;
 		// Display HTML element with "home" and "next level" buttons
 		document.getElementById('nextLevelMenu').hidden = false;
+		document.getElementById('tsparticles').hidden = false;
 		// If the human player is the winner, show the next level button and ratings. Otherwise, only show the home button
 		if (state.playerAlive==config.players[1]) {
 			document.getElementById('starsWinMenu').hidden = false;
