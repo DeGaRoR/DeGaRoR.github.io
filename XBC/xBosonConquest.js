@@ -17,7 +17,7 @@ window.addEventListener("touchmove", function(event) {
        }
  });
 var persistData = {
-	timePace: 5,
+	timePace: 10,
 	nLevels: 36,
 	initialScale: 1,
 }
@@ -316,13 +316,19 @@ function backToChoice() {
 	document.getElementById('LevelChooser').hidden = false;
 }
 function showMenu() {
-	if (state.gamePaused) {unPauseGame(); state.gamePaused = false;}
+	var pauseBackground = document.getElementById("pauseBackground");
+	if (state.gamePaused) {
+		unPauseGame(); 
+		state.gamePaused = false;
+		pauseBackground.hidden=true;
+	}
 	else {
-	state.previousTimePace = state.timePace;
-	//document.getElementById('inGameMenu').hidden = false;
-	pauseGame();
-	state.gamePaused = true;
-	setSpeedIndicator(state.previousTimePace);
+		state.previousTimePace = state.timePace;
+		//document.getElementById('inGameMenu').hidden = false;
+		pauseGame();
+		state.gamePaused = true;
+		setSpeedIndicator(state.previousTimePace);
+		pauseBackground.hidden=false;
 	}
 	
 }
@@ -385,10 +391,10 @@ function changeSpeed(increment) {
 //
 function getConfigMenu() {
 	configMenu={
-		arrowUpClass1:"fa",
-		arrowUpClass2:"fa-chevron-up",
-		arrowDownClass1:"fa",
-		arrowDownClass2:"fa-chevron-down",
+		arrowUpClass1:"fas",
+		arrowUpClass2:"fa-arrow-up",
+		arrowDownClass1:"fas",
+		arrowDownClass2:"fa-arrow-down",
 		lockClass1:"fas",
 		lockClass2:"fa-lock",
 		starEmptyClass1:"far",
@@ -819,7 +825,7 @@ function startGame(level) {
 	if (statusLevelLock[level] == 0) {
 		// Send a Google analytics event
 		gtag("event", "level_start", {level_name: String("level")});
-		console.log("sending event to google analytics");
+		//console.log("sending event to google analytics");
 		// hide the level choice UI and show the game div
 		document.getElementById('LevelChooser').hidden = true;
 		document.getElementById('gameUI').hidden = false;
@@ -1630,13 +1636,15 @@ function animate(time) {
 		// Update timePace
 		persistData.timePace = state.timePace;
 		
-		
+		// Get the list of levels
+		var levels=getLevels();
+		var nLevels=levels.length;
 		//HTML part______
 		// Update the behaviour of the next level button
 		var nextLevelButton = document.getElementById('nextLevelButton');
 		nextLevelButton.onclick = function() {
 			document.getElementById('nextLevelMenu').hidden = true;
-			if (config.level < persistData.nLevels) {
+			if (config.level < nLevels) {
 				startGame(config.level+1);
 			}
 			else {
