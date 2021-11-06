@@ -1,4 +1,4 @@
-var CACHE_NAME = 'Cache XBC PWA v3';
+var CACHE_NAME = 'Cache XBC PWA v4';
 var urlsToCache = [
   '/XBC/',
   '/XBC/index.html',
@@ -40,6 +40,11 @@ var urlsToCache = [
   '/XBC/xBosonConquest.js',
   '/XBC/js/materialize.min.js',
   '/XBC/materializeInit.js',
+  '/XBC/fireworks.js',
+  '/XBC/confettis.js',
+  '/XBC/levelEditor.js',
+  '/XBC/levelEditor.css',
+  '/XBC/levelEditor.html',
   '/XBC/Resources/ico/XBC_ICO_32.png',
   '/XBC/Resources/ico/XBC_ICO_64.png',
   '/XBC/Resources/ico/XBC_ICO_128.png',
@@ -52,7 +57,12 @@ var urlsToCache = [
   '/XBC/Resources/ico/maskable_icon_x192.png',
   '/XBC/Resources/tuto/XBCTuto01.mp4',
   '/XBC/Resources/tuto/XBCTuto02.mp4',
-  '/XBC/Resources/tuto/basesUpgrade.webp'
+  '/XBC/Resources/tuto/basesUpgrade.webp',
+  '/XBC/fonts/Gamer.eot',
+  '/XBC/fonts/Gamer.woff2',
+  '/XBC/fonts/Gamer.woff',
+  '/XBC/fonts/Gamer.svg',
+  '/XBC/tsparticles/tsparticles.min.js'
   
 ];
 
