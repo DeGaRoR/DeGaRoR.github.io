@@ -6,7 +6,14 @@ window.onload = function() {
 		console.log("started");
 		startLevelEditor();
 	};
-	
+// initialisation of  materialize components
+document.addEventListener('DOMContentLoaded', function() {
+    var elems = document.querySelectorAll('.modal');
+    var options = {opacity:0,onCloseStart: function() { clearSelectionLE(); }}
+    var instances = M.Modal.init(elems, options);
+});	
+
+
 //
 //==============================================
 // Mouse and selection
@@ -22,7 +29,7 @@ drawSpaceLE.ontouchmove = function(e) { onmoveLE(e.changedTouches["0"].clientX, 
 
 function ondownLE(x,y) {
     //selectionBox.hidden = 0;
-	console.log("On down detected");
+	//console.log("On down detected");
     x_init = x;
     y_init = y;
 	x2 = x;
@@ -33,7 +40,7 @@ function onmoveLE(x,y) {
     y2 = y;
 };
 function onupLE(x,y) {
-	console.log("On up detected");
+	//console.log("On up detected");
     //selectionBox.hidden = 1;
     x_final = x;
     y_final = y;
@@ -51,20 +58,37 @@ function onupLE(x,y) {
 			console.log("this looks like a click at normalized coordinates x="+x_norm.toFixed(2)+", y="+y_norm.toFixed(2));
 			// test if the click is on an existing base
 			var clickOnBase=isClickOnBase(x_final,y_final);
-			if (clickOnBase) {console.log("Clicked on base "+clickOnBase)}
-			else {
-				drawBaseLE(x_final,y_final);
-				newBase={x_final:x_final, x_norm:x_norm,y_final:y_final,y_norm,y_norm};
+			if (clickOnBase) {//behaviour if clicking on an existing base
+				console.log("Clicked on base "+clickOnBase);
+				showModalBaseProperties(clickOnBase);
+				// clear selected status of all bases first
+				clearSelectionLE();
+				// Update the selection flag
+				config.bases[clickOnBase-1].baseIsSelected = true;
+				reDrawBases(config.bases);
+			}
+			else {//behaviour if clicking anywhere else on the canvas
+				newBase={x_final:x_final, x_norm:x_norm,y_final:y_final,y_norm:y_norm,baseIsSelected:false,ownership:0,levelMax:1};
 				config.bases.push(newBase);
+				clearSelectionLE();
+				
+				
 			}
 		}
 		else {
-			console.log("This looks like a selection");
+			//console.log("This looks like a selection");
 		}
 	
 };
+function clearSelectionLE() {
+	//console.log("clear selection invoked");
+	for (var i=0; i<config.bases.length;i++) {
+		config.bases[i].baseIsSelected = false;
+	}
+	reDrawBases(config.bases);
+}
 function isClickOnBase(x,y) {
-	console.log("test if click is on base")
+	//console.log("test if click is on base")
 	var response =0;
 	var tolerance = 160*config.sizeFactor;
 	for (var i=0; i<config.bases.length;i++) {
@@ -72,11 +96,96 @@ function isClickOnBase(x,y) {
 	}
 	return response;
 }
+
 //
 //==============================================
 // Level Editor UI + string composer
 //==============================================
 //
+function setOwnership(baseID,ownership) {
+	config.bases[baseID].ownership = ownership;
+	updateBaseModalContent(baseID+1);
+	reDrawBases(config.bases);
+}
+function setLevelMax(baseID,levelMax) {
+	config.bases[baseID].levelMax = levelMax;
+	updateBaseModalContent(baseID+1);
+	reDrawBases(config.bases);
+}
+function updateBaseModalContent(baseID) {
+	var titleTXT="Properties of base "+baseID;
+	var ownershipTXT="Owner of the base: ";
+	var maxLevelTXT="Maximum reachable level: ";
+	var modalContent = document.getElementById("modalContentLE")
+	// clear the existing content
+	clearDOM('modalContentLE');
+	// create title
+	var title = document.createElement("h4");
+	title.appendChild(document.createTextNode(titleTXT));
+	// Create div for ownership
+	var divOwnership = document.createElement("DIV");
+	divOwnership.appendChild(document.createTextNode(ownershipTXT));
+	// Create 4 buttons corresponding to players
+	for (var i=0;i<4;i++) {
+		var btnPlayer = document.createElement("BUTTON");
+		btnPlayer.style.backgroundColor = config.players[i].playerColour;
+		btnPlayer.innerHTML = config.players[i].playerName;
+		//btnPlayer.setAttribute('onclick','setOwnership(baseID-1,i)');
+		btnPlayer.targetBase = baseID-1;
+		btnPlayer.ownership=i;
+		btnPlayer.onclick=function(){setOwnership(this.targetBase,this.ownership)}
+		btnPlayer.style.width = '20 px';
+		btnPlayer.style.height = '20 px';
+		btnPlayer.style.margin='0px 10px 0px 10px';
+		// Thick border to show currently selected owner
+		if (i == config.bases[baseID-1].ownership) {btnPlayer.style.border = "thick solid #00FF00"}
+		// Append the button
+		divOwnership.appendChild(btnPlayer)
+	}
+	// create the section for the lmax level
+	var maxLevel = document.createElement("DIV");
+	maxLevel.appendChild(document.createTextNode(maxLevelTXT));
+	// Create 3 buttons for the levels
+	for (var i=0;i<3;i++) {
+		var btnLevel = document.createElement("BUTTON");
+		btnLevel.style.backgroundColor = "#FFFFFF";
+		btnLevel.innerHTML = i+1;
+		//btnLevel.setAttribute('onclick','setOwnership(baseID-1,i)');
+		btnLevel.targetBase = baseID-1;
+		btnLevel.levelMax=i+1;
+		btnLevel.onclick=function(){setLevelMax(this.targetBase,this.levelMax)}
+		btnLevel.style.width = '20 px';
+		btnLevel.style.height = '20 px';
+		btnLevel.style.margin='0px 10px 0px 10px';
+		// Thick border to show currently selected owner
+		if (i == config.bases[baseID-1].levelMax-1) {btnLevel.style.border = "thick solid #00FF00"}
+		// Append the button
+		maxLevel.appendChild(btnLevel);
+	}
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	// Append to modal content
+	modalContent.appendChild(title);
+	modalContent.appendChild(divOwnership);
+	modalContent.appendChild(maxLevel);
+}
+function showModalBaseProperties(baseID) {
+	// Get the modal into an instance
+	var elem = document.getElementById("modalBaseProperties");
+	var instance = M.Modal.getInstance(elem);
+	// Update the modal content
+	updateBaseModalContent(baseID);
+	// open the modal
+	instance.open();
+}
 function showHideStringBases(bool) {
 	string = getStringContent();
 	document.getElementById("exportText").innerHTML=string;
@@ -93,10 +202,25 @@ function showHideStringBases(bool) {
 		document.getElementById("exportString").hidden=true;
 	}
 }
+
+function clearDOM(divID) {
+	var myNode = document.getElementById(divID);
+	while (myNode.firstChild) {
+		myNode.removeChild(myNode.firstChild);
+	}
+}
+
+
+//
+//==============================================
+// Output functions
+//==============================================
+//
+
 function getStringContent() { // get the string content
 	var string='{name:"Custom Level",<br>&nbsp;&nbsp;bases:[<br>';
 	for (var i=0; i<config.bases.length;i++) {
-		string = string + "&nbsp;&nbsp;&nbsp;&nbsp;{ownership:0,x:"+config.bases[i].x_norm.toFixed(2)+",y:"+config.bases[i].y_norm.toFixed(2)+",levelMax:1},<br>"
+		string = string + "&nbsp;&nbsp;&nbsp;&nbsp;{ownership:"+config.bases[i].ownership+",x:"+config.bases[i].x_norm.toFixed(2)+",y:"+config.bases[i].y_norm.toFixed(2)+",levelMax:"+config.bases[i].levelMax+"},<br>"
 	}
 	string = string +"&nbsp;&nbsp;]<br>},"
 	return string;
@@ -105,16 +229,17 @@ function getCustomLevel() { //function to get the bases as an object, like those
 	var bases= [];
 	for (var i=0; i<config.bases.length;i++) {
 		newBase = {
-			ownership: 1,
+			ownership: config.bases[i].ownership,
 			x: config.bases[i].x_norm.toFixed(2),
 			y: config.bases[i].y_norm.toFixed(2),
-			levelMax: 1
+			levelMax: config.bases[i].levelMax
 		}
 		bases.push[newBase];
 	}
 	var customLevel = {name: "Custom Level",bases:bases};
 	return customLevel;
 }
+
 //
 //==============================================
 // Config & state
@@ -227,23 +352,33 @@ function drawCanvasLE() {
 	config.ctx.fill();
 	config.ctx.closePath();
 }
-function drawBaseLE(x,y) {
-	// Draw a dashed line showing the maximum area
-	for (var i = 4; i < 5; i++) {
-		config.ctxBases.beginPath();
-		config.ctxBases.setLineDash([5, 3]);
-		config.ctxBases.arc(x, y, config.defaultBaseSize + i * config.levelSizeIncrease, 0, Math.PI * 2);
-		config.ctxBases.strokeStyle = 'rgba(255,255,255,0.4)';
-		config.ctxBases.lineWidth = 3;
-		config.ctxBases.stroke();
-		config.ctxBases.closePath();
+function reDrawBases(bases) {
+	// clear the canvas so all objects can be 
+    // redrawn in new positions
+	var width=window.innerWidth;
+	var height = window.innerHeight;
+    config.ctxBases.clearRect(0, 0, width, height);
+	// Draw everybase within the base vector
+	for (var i=0; i<bases.length;i++) {
+		drawBaseLE(bases[i]);
 	}
-	// Draw 3 circles around the base for now, like they're all level 3
-	for (var i = 1; i < 4; i++) {
+}
+function drawBaseLE(base) {
+	var colorSelected = 'rgba(255,255,0,1)';
+	var colorDefault = 'rgba(255,255,255,1)';
+	var colorPlayer = config.players[base.ownership].playerColour;
+
+
+		config.ctxBases.strokeStyle = colorPlayer;
+		config.ctxBases.fillStyle = colorPlayer;
+
+	
+
+	// Draw circles around bases according to max level
+	for (var i = 1; i < base.levelMax; i++) {
 		config.ctxBases.beginPath();
 		config.ctxBases.setLineDash([0]);
-		config.ctxBases.arc(x, y, config.defaultBaseSize + i * config.levelSizeIncrease, 0, Math.PI * 2);
-		config.ctxBases.strokeStyle = 'rgba(255,255,255,0.4)';
+		config.ctxBases.arc(base.x_final, base.y_final, config.defaultBaseSize + i * config.levelSizeIncrease, 0, Math.PI * 2);
 		config.ctxBases.lineWidth = 3;
 		config.ctxBases.stroke();
 		config.ctxBases.closePath();
@@ -252,12 +387,79 @@ function drawBaseLE(x,y) {
 	// Draw the plain base center
 
 		config.ctxBases.beginPath();
-		config.ctxBases.arc(x, y, config.defaultBaseSize, 0, Math.PI * 2);
+		config.ctxBases.arc(base.x_final, base.y_final, config.defaultBaseSize, 0, Math.PI * 2);
+		config.ctxBases.closePath();
+		config.ctxBases.lineWidth = 1;
+		config.ctxBases.fill();
+	
+	if (base.baseIsSelected) {
+		config.ctxBases.strokeStyle = colorSelected;
+		config.ctxBases.fillStyle = colorSelected;
+	}
+		// Draw a dashed line showing the maximum area
+	for (var i = 4; i < 5; i++) {
+		config.ctxBases.beginPath();
+		config.ctxBases.setLineDash([5, 3]);
+		config.ctxBases.arc(base.x_final, base.y_final, config.defaultBaseSize + i * config.levelSizeIncrease, 0, Math.PI * 2);
+		
+		config.ctxBases.lineWidth = 3;
+		config.ctxBases.stroke();
+		config.ctxBases.closePath();
+	}
+}
+function drawBase(base) {
+	var baseSize = 0;
+	var level = null;
+	// draw the new image
+	if (base.ownership != config.players[0] && base.conquership == 100) {
+		var imgBase = null;
+		var imgSize = null;
+		// cap the level to 3, afterwards draw base type 3 always
+		if (base.levelCurrent >= 3) {level = 2}
+		else {level = base.levelCurrent-1;}
+		imgBase = base.ownership.imgBase[level];
+		imgSize = base.ownership.baseSize[level];
+		config.ctxBases.drawImage(imgBase, base.x-imgSize/2, base.y-imgSize/2, imgSize, imgSize);
+	}
+	// draw the base a bit larger if it has just spawned - this gives a pulse
+	if (base.hasJustSpawned == true) { baseSize = config.defaultBaseSize + config.pulseSizeIncrease; }
+	else { baseSize = config.defaultBaseSize; }
+	// size the bases according to their current level
+	baseSize = baseSize + (base.levelCurrent - 1) * config.levelSizeIncrease;
+
+	// MAX LEVEL: draw circles around the bases showing their maximum level
+	for (var i = base.levelCurrent; i < base.levelMax; i++) {
+		config.ctxBases.beginPath();
+		config.ctxBases.arc(base.x, base.y, config.defaultBaseSize + i * config.levelSizeIncrease, 0, Math.PI * 2);
+		config.ctxBases.strokeStyle = 'rgba(255,255,255,0.4)';
+		config.ctxBases.lineWidth = 3;
+		config.ctxBases.stroke();
+		//config.ctx.closePath();
+	}
+	
+
+	// Draw a vector base only for bases with no ownership
+	if (base.ownership == config.players[0] || base.conquership != 100) {
+		config.ctxBases.beginPath();
+		config.ctxBases.arc(base.x, base.y, baseSize, 0, Math.PI * 2);
 		config.ctxBases.closePath();
 		config.ctxBases.strokeStyle = "black";
 		config.ctxBases.lineWidth = 1;
 		config.ctxBases.fillStyle = 'rgba(250,250,250,0.4)';
 		config.ctxBases.fill();
+	}//config.ctx.stroke();
+
+	// NEIGHBOUR DISTANCE: draw a circle showing the max distance for declaring a neighbour
+	
+	/* config.ctxBases.beginPath();
+	config.ctxBases.arc(base.x, base.y, config.neighbourDistance, 0, Math.PI * 2);
+	//config.ctx.closePath();
+	config.ctxBases.strokeStyle = "LightGrey";
+	config.ctxBases.setLineDash([3,3]);
+	config.ctxBases.lineWidth = 1;
+	config.ctxBases.stroke();
+	config.ctxBases.setLineDash([]); */
+	
 
 }
 //
@@ -279,7 +481,7 @@ function initializePlayers(sizeFactor) {
 	var virus3D_L = document.getElementById("virus3D_L");
 	var playerNone = {
 		playerName: "none",
-		playerColour: "grey",
+		playerColour: 'rgba(255,255,255,0.4)',
 		controlType: 2,
 	}
 	players.push(playerNone);

@@ -38,11 +38,19 @@
 		<div id="basesLE" style="z-index:0"><canvas id="canvasBasesLE"></canvas></div>
 		<div id="mainCanvasLE" style="z-index:-1"><canvas id="drawSpaceLE"></canvas></div>
 		<button id="buttonShowString" onClick='showHideStringBases(true)' style="z-index:21; height:20px; width:100px; position: fixed; top:30px; left:30px; ">Export level</button>
+		  <!-- Modal Structure -->
+		  <div id="modalBaseProperties" class="modal bottom-sheet">
+			<div id="modalContentLE" class="modal-content">
+			  <h4>Modal Header</h4>
+			  <p>A bunch of text</p>
+			</div>
+			<div class="modal-footer">
+			  <a href="#!" class="modal-close waves-effect waves-green btn-flat">Apply</a>
+			</div>
+		  </div>
 		
-		<script src='levelEditor.js'></script>
 		<script type="text/javascript" src="js/materialize.min.js"></script>
-		<script src="materializeInit.js"></script>
-		  <script src="https://code.jquery.com/jquery-1.12.4.js"></script>
-  <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+		<!-- <script src="materializeInit.js"></script> -->
+		<script src='levelEditor.js'></script>
 	</body>
 </html>

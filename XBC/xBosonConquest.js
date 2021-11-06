@@ -701,9 +701,19 @@ function getBases(players, canvas, selectedLevel, maxHealth, minConquership) {
 	var w = canvas.width;
 	var h = canvas.height;
 	var levels = getLevels();
+	// ability to start from the level editor directly with a little trick
+	if (selectedLevel == 0) {
+		// Bases = output from the editor
+		customLevel=getCustomLevel();
+		bases = customLevel.bases;
+	}
+	else { var bases = levels[selectedLevel-1].bases;}
+	
+	
+	
 	// push the bases from the selected level into the bases vector
-	for (i=0; i<levels[selectedLevel-1].bases.length; i++) {
-		newBases[i]=levels[selectedLevel-1].bases[i];
+	for (i=0; i<bases.length; i++) {
+		newBases[i]=bases[i];
 		// transform some parameters to make them aware of the context, such as the canavas and the lisqt of players
 		var newBase = newBases[i];
 		newBase.x = newBase.x * w;
