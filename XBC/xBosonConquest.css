@@ -44,7 +44,24 @@ html {
 	//border: 1px dotted gray;
 	//pointer-events:none;
 }
+#drawSpaceLE {
+	//z-index: 10;
+	position: absolute;
+	top: 0px;
+	left: 0px;
+	//border: 1px dotted gray;
+	//pointer-events:none;
+}
 #canvasBases {
+	//z-index: 5;
+	position: absolute;
+	top: 0px;
+	left: 0px;
+	//border: 1px dotted gray;
+	//border: 1px solid red;
+	//pointer-events:none;
+}
+#canvasBasesLE {
 	//z-index: 5;
 	position: absolute;
 	top: 0px;
@@ -235,6 +252,7 @@ levelChooser {
 .buttonConfirm {
 	width: 200px;
 	background-color: rgba(20, 20, 20, 1);
+	font-family:'Gamer';
 	font-family:'Gamer';
 }
 .winMessage{
