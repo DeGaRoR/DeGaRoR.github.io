@@ -1,5 +1,17 @@
+@font-face {
+    font-family: 'Gamer';
+    src: url('fonts/Gamer.eot');
+    src: url('fonts/Gamer.eot?#iefix') format('embedded-opentype'),
+        url('fonts/Gamer.woff2') format('woff2'),
+        url('fonts/Gamer.woff') format('woff'),
+        url('fonts/Gamer.svg#Gamer') format('svg');
+    font-weight: 500;
+    font-style: normal;
+    font-display: swap;
+}
+
 body {
-		margin-top: 0 px;
+	margin-top: 0 px;
 	margin-left: 0 px;
 	background-image: url("Resources/Background/Clouds_trans_tile_black.png");
 	//background-size: 100% 100%;
@@ -7,7 +19,7 @@ body {
 	//background-color: #181818;
 	background-color: #59f1ff;
 	//background-color: #cf8f89;
-	
+	font-family:'Verdana';
 	overflow: hidden;
 	//background: linear-gradient(white,black);
 	overscroll-behavior: contain;
@@ -68,7 +80,7 @@ levelChooser {
 	text-align: center;
 	text-decoration: none;
 	display: inline-block;
-	//font-family: 'Arial black' ;
+	font-family: 'Gamer' ;
 	color: rgb(255 255 255);
 
     //text-shadow: 2px 2px 0px rgba(0,0,0,0.6);
@@ -81,12 +93,12 @@ levelChooser {
 }
 @media only screen and (min-width: 0px) {
 	.buttonMain{
-		font-size: 25px;
+		font-size: 35px; //25px with normal font
 	}
 }
 @media only screen and (min-width: 900px) {
 	.buttonMain{
-		font-size: 40px;
+		font-size: 55px; //40 px with normal font
 	}
 }
 	
@@ -214,7 +226,7 @@ levelChooser {
 	padding-top: 20px;
 	padding-bottom: 20px;
 	color: white;
-	font-family:verdana;
+	font-family:'Gamer';
 	font-size: 30px;
 }
 .buttonInGameMenu {
@@ -226,8 +238,18 @@ levelChooser {
 }
 .winMessage{
 	color: white;
-	font-family:verdana;
-	font-size: 50px;
+	font-family:'Gamer';
+}
+@media only screen and (min-width: 0px) {
+  .winMessage {
+    font-size: 40px;
+  }
+}
+@media only screen and (min-width: 900px) {
+  .winMessage {
+    font-size: 70px;
+
+  }
 }
 #loadingScreen{
 	background-color: black;

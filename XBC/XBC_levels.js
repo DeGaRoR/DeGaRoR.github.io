@@ -471,6 +471,29 @@ function getLevels() {
 					{ownership: 2,x: 0.6,y: 0.5,levelMax: 1,},	
 				]
 		},
+		{name:"Custom Level",
+		  bases:[
+			{ownership:1,x:0.30,y:0.20,levelMax:1},
+			{ownership:0,x:0.60,y:0.20,levelMax:1},
+			{ownership:0,x:0.15,y:0.40,levelMax:2},
+			{ownership:0,x:0.41,y:0.40,levelMax:1},
+			{ownership:0,x:0.64,y:0.40,levelMax:1},
+			{ownership:0,x:0.89,y:0.40,levelMax:1},
+			{ownership:0,x:0.52,y:0.56,levelMax:1},
+			{ownership:2,x:0.53,y:0.70,levelMax:1},
+			{ownership:0,x:0.22,y:0.85,levelMax:2},
+			{ownership:0,x:0.79,y:0.85,levelMax:1},
+			{ownership:0,x:0.77,y:0.27,levelMax:1},
+			{ownership:0,x:0.49,y:0.30,levelMax:1},
+			{ownership:0,x:0.23,y:0.31,levelMax:2},
+			{ownership:3,x:0.27,y:0.55,levelMax:1},
+			{ownership:0,x:0.76,y:0.53,levelMax:2},
+			{ownership:0,x:0.78,y:0.66,levelMax:1},
+			{ownership:0,x:0.23,y:0.68,levelMax:1},
+			{ownership:0,x:0.50,y:0.84,levelMax:1},
+			{ownership:0,x:0.83,y:0.14,levelMax:1},
+		  ]
+		},
 	];
 	
 //allow for more margins

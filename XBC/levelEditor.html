@@ -1,0 +1,48 @@
+<!DOCcolour html>
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>X Boson Conquest</title>
+		<!-- meta  -->
+		<meta name="theme-color" content="#101010" />
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+		<meta name="viewport" content="width=device-width, initial-scale=1"/>
+		<meta name="description" content="X Boson Conquest is a real-time strategy game. It runs as Progressive Web App, add it to your home screen">
+		<!-- CSS  -->
+		<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+		<link href="css/materialize.css" type="text/css" rel="stylesheet" media="screen,projection"/>
+		<link href="css/style.css" type="text/css" rel="stylesheet" media="screen,projection"/>
+		<link href="fontawesome2021/css/all.css" rel="stylesheet"> <!--load all styles -->
+		<link href="animDemo.css" rel="stylesheet">
+		<link rel="stylesheet" href="font-awesome/css/font-awesome.min.css">
+		<link rel="stylesheet" type="text/css" href="xBosonConquest.css">
+		<link rel="stylesheet" type="text/css" href="levelEditor.css">
+		<!-- PWA  -->
+		<link rel="apple-touch-icon" href="/Resources/ico/maskable_icon_x192.png">
+		<link rel="manifest" href="manifest.json">
+		<!-- Global site tag (gtag.js) - Google Analytics -->
+		<script async src="https://www.googletagmanager.com/gtag/js?id=G-Z7D6NBG0J9"></script>
+		<script>
+		  window.dataLayer = window.dataLayer || [];
+		  function gtag(){dataLayer.push(arguments);}
+		  gtag('js', new Date());
+
+		  gtag('config', 'G-Z7D6NBG0J9');
+		</script>
+	</head>
+	<body id="body">
+		<div id="exportString" hidden> 
+			<div id="exportText">Hey hey hey buddy buddy<br>{0.255566,0.78888}<br></div>
+			<button id="buttonHideString" onClick='showHideStringBases(false)' style="z-index:21;">Back to editor</button>
+		</div>
+		<div id="bases" style="z-index:0"><canvas id="canvasBases"></canvas></div>
+		<div id="mainCanvas" style="z-index:-1"><canvas id="drawSpace"></canvas></div>
+		<button id="buttonShowString" onClick='showHideStringBases(true)' style="z-index:21; height:20px; width:100px; position: fixed; top:30px; left:30px; ">Export level</button>
+		
+		<script src='levelEditor.js'></script>
+		<script type="text/javascript" src="js/materialize.min.js"></script>
+		<script src="materializeInit.js"></script>
+		  <script src="https://code.jquery.com/jquery-1.12.4.js"></script>
+  <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+	</body>
+</html>

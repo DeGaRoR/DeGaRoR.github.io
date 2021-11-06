@@ -590,6 +590,24 @@ function buildLevelsMenu(sectionToShow) { //This function builds the levels menu
 			newI.ariaHidden=true;
 			newButton.appendChild(newI);
 		}
+/* 		// Add the button for level editor beta
+		// Add a row
+			var newRow = document.createElement("DIV");
+			newRow.classList.add("row");
+			newSection.appendChild(newRow);
+			// Add an s12 column
+			var newCol = document.createElement("DIV");
+			newCol.classList.add("col");
+			newCol.classList.add("s12");
+			newRow.appendChild(newCol);
+			
+		var newA=document.createElement("A");
+		newA.classList.add(waves-effect);
+		newA.classList.add(waves-light);
+		newA.classList.add(btn);
+		//newA.href="levelEditor.html";
+		newA.innerHTML="Level editor (alpha)";
+		newCol.appendChild(newA); */
 		
 	}
 	
