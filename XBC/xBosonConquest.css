@@ -235,6 +235,7 @@ levelChooser {
 .buttonConfirm {
 	width: 200px;
 	background-color: rgba(20, 20, 20, 1);
+	font-family:'Gamer';
 }
 .winMessage{
 	color: white;
@@ -389,4 +390,9 @@ levelChooser {
 	height: 100%;
 	//display: table;
 	margin: auto;
+}
+.alphaBtn {
+	position:fixed;
+	top:10px;
+	left:10px;
 }

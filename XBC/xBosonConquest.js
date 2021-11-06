@@ -836,7 +836,36 @@ function getWidth() {
 	return(width);
 }
 
+function startGameLE(level) {
 
+		// Set the correct background
+		cancelAnimationFrame(bgReqID);
+		setBackground(1);
+		
+		// hide the level choice UI and show the game div
+		document.getElementById('LevelChooser').hidden = true;
+		//document.getElementById('levelEditor').hidden = true;
+		document.getElementById('gameUI').hidden = false;
+		// determine canvas size and position
+		sizeMainCanvas(drawSpace);
+		placeCanvas(drawSpace);
+		sizeMainCanvas(canvasBases);
+		placeCanvas(canvasBases);
+		// Initialize the config and state
+		config = getConfig(level);
+		state = getInitialState();
+		state.timePace = persistData.timePace;
+		// Write the current speed
+		setSpeedIndicator();
+		// Complete the base definition and initializes them
+		spawnInitialUnits();
+		// Record the starting time
+		state.levelStartTime = Date.now();
+		// Put the level in state to access later
+		state.currentLevel = level;
+		// Off we go
+		animate();
+	}
 function startGame(level) {
 	// Check if the level is unlocked first
 	var statusLevelLock=getStatusLevelLock();
