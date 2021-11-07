@@ -23,9 +23,9 @@ document.addEventListener('DOMContentLoaded', function() {
 drawSpaceLE.onmousedown = function(e) { ondownLE(e.clientX, e.clientY); };
 drawSpaceLE.onmousemove = function(e) { onmoveLE(e.clientX, e.clientY); };
 drawSpaceLE.onmouseup = function(e) { onupLE(e.clientX, e.clientY); };
-drawSpaceLE.ontouchstart = function(e) { ondownLE(e.changedTouches["0"].clientX, e.changedTouches["0"].clientY);};
-drawSpaceLE.ontouchend = function(e) { onupLE(e.changedTouches["0"].clientX, e.changedTouches["0"].clientY); };
-drawSpaceLE.ontouchmove = function(e) { onmoveLE(e.changedTouches["0"].clientX, e.changedTouches["0"].clientY); };
+//drawSpaceLE.ontouchstart = function(e) { ondownLE(e.changedTouches["0"].clientX, e.changedTouches["0"].clientY);};
+//drawSpaceLE.ontouchend = function(e) { onupLE(e.changedTouches["0"].clientX, e.changedTouches["0"].clientY); };
+//drawSpaceLE.ontouchmove = function(e) { onmoveLE(e.changedTouches["0"].clientX, e.changedTouches["0"].clientY); };
 
 function ondownLE(x,y) {
     //selectionBox.hidden = 0;
