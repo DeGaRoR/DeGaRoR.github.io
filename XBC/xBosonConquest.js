@@ -8,6 +8,8 @@ window.onload = function() {
 	checkStorage();
 	//setButtonIndicators();
 	buildLevelsMenu();
+	checkCustomLevelButton();
+	
 	};
 window.onresize = function() {sizeBgCanvas(); placeCanvas(drawSpace); placeCanvas(canvasBases);};
 window.addEventListener("touchmove", function(event) {
@@ -389,6 +391,10 @@ function changeSpeed(increment) {
 // Main menu
 //==============================================
 //
+function checkCustomLevelButton() {
+	if (typeof(localStorage.customLevel) !== "undefined")  {document.getElementById('playCustomLevel').style.display='fixed';}
+	else {document.getElementById('playCustomLevel').style.display='none';}
+}
 function getConfigMenu() {
 	configMenu={
 		arrowUpClass1:"fas",
@@ -407,6 +413,10 @@ function getConfigMenu() {
 	return configMenu;
 }
 function buildLevelsMenu(sectionToShow) { //This function builds the levels menu automatically from the levels file
+	// We are in the normal game, so let's hide the hacky restart button for custom levels
+	document.getElementById("restartLE").style.display = 'none';
+	document.getElementById("restartNormal").style.display = 'inline';
+	//
 	var configMenu=getConfigMenu();
 	// If invoked with no arguments, show the section 1 by default
 	if (!sectionToShow) {sectionToShow=1; console.log("Build menu invoked without arguments, initializing on level 1")} else {console.log("Build menu and displaying section "+sectionToShow)}
@@ -696,6 +706,14 @@ function initializePlayers(sizeFactor) {
 
 	return players;
 }
+function loadCustomLevel() {
+	if (localStorage.customLevel) {
+		var text = localStorage.getItem("customLevel");
+		var obj = JSON.parse(text);
+		return obj;
+	}
+	else {alert("No custom levels saved")}
+}
 function getBases(players, canvas, selectedLevel, maxHealth, minConquership) {
 	var newBases = [];
 	var w = canvas.width;
@@ -704,7 +722,7 @@ function getBases(players, canvas, selectedLevel, maxHealth, minConquership) {
 	// ability to start from the level editor directly with a little trick
 	if (selectedLevel == 0) {
 		// Bases = output from the editor
-		customLevel=getCustomLevel();
+		customLevel=loadCustomLevel();
 		bases = customLevel.bases;
 	}
 	else { var bases = levels[selectedLevel-1].bases;}
@@ -847,7 +865,9 @@ function getWidth() {
 }
 
 function startGameLE(level) {
-
+		// Set the correct buttons with right behaviours for the in game menu
+		document.getElementById("restartLE").style.display = 'inline';
+		document.getElementById("restartNormal").style.display = 'none';
 		// Set the correct background
 		cancelAnimationFrame(bgReqID);
 		setBackground(1);

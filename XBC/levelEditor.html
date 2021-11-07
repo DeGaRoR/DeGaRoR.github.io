@@ -31,13 +31,26 @@
 		</script>
 	</head>
 	<body id="body">
+		<div class="row" style="margin-top:20px">
+			<div class="col s4" >
+				<a id="homeButton" href="index.html" class="waves-effect waves-light btn colorCell">Back home</a>
+			</div>
+			<div class="col s4">
+				<a href="#" onclick="showHideStringBases(true);" class="waves-effect waves-light btn colorCell">Edit/Export</a>
+			</div>
+			<div class="col s4">
+				<a href="#" onclick="saveCustomLevel();" class="waves-effect waves-light btn colorCell">Save it</a>
+			</div>
+		</div>
+		
+
 		<div id="exportString" hidden> 
-			<div id="exportText">Hey hey hey buddy buddy<br>{0.255566,0.78888}<br></div>
-			<button id="buttonHideString" onClick='showHideStringBases(false)' style="z-index:21;">Back to editor</button>
+			<div id="exportText" class="exportText">Hey hey hey buddy buddy<br>{0.255566,0.78888}<br></div>
+			
 		</div>
 		<div id="basesLE" style="z-index:0"><canvas id="canvasBasesLE"></canvas></div>
 		<div id="mainCanvasLE" style="z-index:-1"><canvas id="drawSpaceLE"></canvas></div>
-		<button id="buttonShowString" onClick='showHideStringBases(true)' style="z-index:21; height:20px; width:100px; position: fixed; top:30px; left:30px; ">Export level</button>
+		
 		  <!-- Modal Structure -->
 		  <div id="modalBaseProperties" class="modal bottom-sheet">
 			<div id="modalContentLE" class="modal-content">

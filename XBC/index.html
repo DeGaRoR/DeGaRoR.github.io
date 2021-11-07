@@ -70,6 +70,7 @@
 			<video width="248" height="472"><source src="Resources/tuto/XBCTuto01.mp4" type="video/mp4"></video> 
 			<video width="248" height="472"><source src="Resources/tuto/XBCTuto01.mp4" type="video/mp4"></video> 
 		</div>
+		
 		<div id="tsparticles"></div>
 		<div id="visibleElements" hidden>
 			<div id="background" style="z-index:0">
@@ -78,7 +79,8 @@
 			<div id="LevelChooser" class="menuCenter buttonsMenu">
 				<img alt="X Boson Conquest" class="title responsive-img" id="TitlePC" src="Resources\newTitleJidev01.webp" width="1000" height="142" style="padding-left:20px; padding-right: 20px;"> <br>
 				<img alt="X Boson Conquest" class="title responsive-img" id="TitleMobile" src="Resources\newTitleJidev01_mobile.webp" width="518" height="275" style="padding-left:20px; padding-right: 20px;"> <br>
-				<a href="levelEditor.html" class="waves-effect waves-light btn alphaBtn colorCell">Level editor</a>
+				<a id="levelEditorButton" href="levelEditor.html" class="waves-effect waves-light btn alphaBtn colorCell">Level editor</a>
+				<a id="playCustomLevel" href="#" onclick="startGameLE(0);" class="waves-effect waves-light btn alphaBtnR colorCell" hidden>Play Custom Level</a>
 				<div id="levelContent" class="container "></div>
 			</div>
 			<div id="gameUI" hidden>
@@ -86,7 +88,8 @@
 					<a id="main-btn" href="javascript:releaseSelection();showMenu()" class="btn-floating btn-large transparent"><i class="material-icons">menu</i></a>
 					<ul>
 						<li><a href="javascript:showMenu()" class="btn-floating transparent" style="opacity: 0; transform: scale(0.4) translateY(0px) translateX(40px);"><i class="material-icons">volume_off</i></a></li>
-						<li><a href="javascript:showMenu();ShowConfirmRestart()" class="btn-floating transparent" style="opacity: 0; transform: scale(0.4) translateY(0px) translateX(40px);"><i class="fa fa-refresh" aria-hidden="true"></i></a></li>
+						<li id="restartNormal"><a  href="javascript:showMenu();ShowConfirmRestart()" class="btn-floating transparent" style="opacity: 0; transform: scale(0.4) translateY(0px) translateX(40px);"><i class="fa fa-refresh" aria-hidden="true"></i></a></li>
+						<li id="restartLE" ><a href="javascript:showMenu();startGameLE(0);" class="btn-floating transparent" style="opacity: 0; transform: scale(0.4) translateY(0px) translateX(40px);"><i class="fa fa-refresh" aria-hidden="true"></i></a></li>
 						<li><a href="javascript:ShowConfirmReturnHome(); showMenu();" class="btn-floating transparent" style="opacity: 0; transform: scale(0.4) translateY(0px) translateX(40px);"><i class="fa fa-home" aria-hidden="true"></i></a></li>					
 					</ul>
 				</span>	
@@ -193,6 +196,7 @@
 		<!-- Scripts -->
 		<script src="XBC_levels.js"></script>
 		<script src="xBosonConquest.js"></script>
+		
 		<script type="text/javascript" src="js/materialize.min.js"></script>
 		<script src="materializeInit.js"></script>
 		<script src="tsparticles/tsparticles.min.js"></script>

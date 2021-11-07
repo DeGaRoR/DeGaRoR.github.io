@@ -189,16 +189,14 @@ function showModalBaseProperties(baseID) {
 function showHideStringBases(bool) {
 	string = getStringContent();
 	document.getElementById("exportText").innerHTML=string;
-	if (bool) {
+	if (document.getElementById("basesLE").hidden==false) {
 		document.getElementById("basesLE").hidden=true;
 		document.getElementById("mainCanvasLE").hidden=true;
-		document.getElementById("buttonShowString").hidden=true;
 		document.getElementById("exportString").hidden=false;
 	}
 	else{
 		document.getElementById("basesLE").hidden=false;
 		document.getElementById("mainCanvasLE").hidden=false;
-		document.getElementById("buttonShowString").hidden=false;
 		document.getElementById("exportString").hidden=true;
 	}
 }
@@ -225,20 +223,43 @@ function getStringContent() { // get the string content
 	string = string +"&nbsp;&nbsp;]<br>},"
 	return string;
 }
-function getCustomLevel() { //function to get the bases as an object, like those in the normal bases vector
-	var bases= [];
+function getStringContentNoFormat() { // get the string content
+	var string='{name:"Custom Level",bases:[';
 	for (var i=0; i<config.bases.length;i++) {
-		newBase = {
+		string = string + "{ownership:"+config.bases[i].ownership+",x:"+config.bases[i].x_norm.toFixed(2)+",y:"+config.bases[i].y_norm.toFixed(2)+",levelMax:"+config.bases[i].levelMax+"},"
+	}
+	string = string +"]},"
+	return string;
+}
+function getCustomLevelAsString() {
+	var customLevel = getCustomLevel();
+	// Storing data:
+	const myJSON = JSON.stringify(customLevel);
+	return myJSON;
+	// Retrieving data:
+	//let text = localStorage.getItem("testJSON");
+	//let obj = JSON.parse(text);
+	//document.getElementById("demo").innerHTML = obj.name;
+};
+function getCustomLevel() { //function to get the bases as an object, like those in the normal bases vector
+	var bases = [];
+	for (var i=0; i<config.bases.length;i++) {
+		var newBase = {
 			ownership: config.bases[i].ownership,
 			x: config.bases[i].x_norm.toFixed(2),
 			y: config.bases[i].y_norm.toFixed(2),
 			levelMax: config.bases[i].levelMax
 		}
-		bases.push[newBase];
+		bases.push(newBase);
 	}
 	var customLevel = {name: "Custom Level",bases:bases};
 	return customLevel;
 }
+function saveCustomLevel() {
+	levelString=getCustomLevelAsString();
+	localStorage.customLevel = levelString;
+}
+
 
 //
 //==============================================
@@ -310,6 +331,10 @@ function getInitialStateLE() {
 function drawCanvasLE() {
 	var width=window.innerWidth;
 	var height = window.innerHeight;
+	
+	//------------------------
+	// draw grid
+	//------------------------
 	var nGrad = 10;
 	// Get the vertical lines
 	for (var i=0; i<nGrad;i++) {
@@ -329,7 +354,9 @@ function drawCanvasLE() {
 		config.ctx.stroke();
 		config.ctx.closePath();
 	};
+	//------------------------
 	// draw stay out rectangles
+	//------------------------
 	config.ctx.fillStyle = 'rgba(255,0,0,0.5)';
 	//top
 	config.ctx.beginPath();
@@ -350,6 +377,31 @@ function drawCanvasLE() {
 	config.ctx.beginPath();
 	config.ctx.rect((nGrad-1)*width/nGrad, height/nGrad, width/nGrad, (nGrad-2)*height/nGrad);
 	config.ctx.fill();
+	config.ctx.closePath();
+	//------------------------
+	// draw circles
+	//------------------------
+	config.ctx.beginPath();
+	config.ctx.setLineDash([0]);
+	//config.ctx.arc(width/2, height/2, config.defaultBaseSize + i * config.levelSizeIncrease, 0, Math.PI * 2);
+	config.ctx.ellipse(width/2, height/2, 0.8*width/2, 0.8*height/2, 0, 0, Math.PI * 2);
+	config.ctx.ellipse(width/2, height/2, 0.4*width/2, 0.4*height/2, 0, 0, Math.PI * 2);
+	//config.ctx.lineWidth = 3;
+	config.ctx.stroke();
+	config.ctx.closePath();
+	//------------------------
+	// diagonals
+	//------------------------
+	config.ctx.beginPath();
+	config.ctx.moveTo(0, 0);
+	config.ctx.lineTo(width, height);
+	config.ctx.stroke();
+	config.ctx.closePath();
+	
+	config.ctx.beginPath();
+	config.ctx.moveTo(width, 0);
+	config.ctx.lineTo(0, height);
+	config.ctx.stroke();
 	config.ctx.closePath();
 }
 function reDrawBases(bases) {
