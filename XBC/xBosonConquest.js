@@ -3,13 +3,21 @@
 // Events
 //==============================================
 //
+document.onreadystatechange = function () {
+	var state = document.readyState
+	if (state == 'complete') {
+		document.getElementById('loadingScreen').hidden = true;
+		document.getElementById('visibleElements').hidden = false;
+		document.getElementById('tsparticles').hidden = true;
+	}
+};
 window.onload = function() {
 	setBackground();
 	checkStorage();
 	//setButtonIndicators();
 	buildLevelsMenu();
 	checkCustomLevelButton();
-	
+	showOnly("masterMenu");
 	};
 window.onresize = function() {sizeBgCanvas(); placeCanvas(drawSpace); placeCanvas(canvasBases);};
 window.addEventListener("touchmove", function(event) {
@@ -268,6 +276,20 @@ function distanceNY(x1, y1, x2, y2) { return (Math.abs(x1-x2) + Math.abs(y1-y2))
 // Game UI
 //==============================================
 //
+function showOnly(DOMelemID) {
+	// List all full screen sections that can be shown stand-alone, within the "visible elements" div
+	var sectionList=[
+		"masterMenu",
+		"LevelChooser",
+		"gameUI",
+		"levelEditor",
+		"credits"
+	];
+	for (var i=0;i<sectionList.length;i++) {
+		if (DOMelemID == sectionList[i]) {document.getElementById(sectionList[i]).hidden=false;}
+		else {document.getElementById(sectionList[i]).hidden=true;}
+	}
+}
 function checkStorage() {
 	var storageVersionNumber = 1;
 	// test local storage support

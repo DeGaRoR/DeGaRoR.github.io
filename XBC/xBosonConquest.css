@@ -118,6 +118,61 @@ levelChooser {
 		font-size: 55px; //40 px with normal font
 	}
 }
+.buttonSecond {
+	z-index: 20;
+	background-color: rgba(255, 255, 255, 0.2);
+	border: 0px solid rgba(255, 255, 255, 0.2);
+	padding: 5px;
+	text-align: center;
+	text-decoration: none;
+	display: inline-block;
+	font-family: 'Gamer' ;
+	color: rgb(255 255 255);
+	cursor: pointer;
+	border-radius: 3px;
+	box-shadow: rgba(0, 0, 0, 0.6) 4px 4px 1px 0px;
+	line-height:40px;
+}
+@media only screen and (min-width: 0px) {
+	.buttonSecond{
+		font-size: 25px; //25px with normal font
+	}
+}
+@media only screen and (min-width: 900px) {
+	.buttonSecond{
+		font-size: 40px; //40 px with normal font
+	}
+}
+.buttonTitle {
+	z-index: 20;
+	background-color: rgba(255, 255, 255, 0.2);
+	border: 0px solid rgba(255, 255, 255, 0.2);
+	//color: rgb(122 0 241 / 60%);
+	padding: 10px;
+	text-align: center;
+	text-decoration: none;
+	display: inline-block;
+	font-family: 'Gamer' ;
+	color: rgb(255 255 255);
+
+    //text-shadow: 2px 2px 0px rgba(0,0,0,0.6);
+
+	cursor: pointer;
+	border-radius: 3px;
+	//position: absolute;
+	//top: 50%;
+	box-shadow: rgba(0, 0, 0, 0.6) 4px 4px 1px 0px;
+}
+@media only screen and (min-width: 0px) {
+	.buttonTitle{
+		font-size: 70px; //25px with normal font
+	}
+}
+@media only screen and (min-width: 900px) {
+	.buttonTitle{
+		font-size: 120px; //40 px with normal font
+	}
+}
 	
 .buttonMain:active {
 	background-color: rgba(200, 200, 200, 0.2);
@@ -134,6 +189,16 @@ levelChooser {
 	text-decoration: none;
 	display: inline-block;
 	font-size: 50px;
+	cursor: pointer;
+}
+.buttonBack {
+	background-color: rgba(0, 0, 0, 0);
+	border: 0px solid rgba(255, 255, 255, 0);
+	z-index: 1;
+	color: white;
+	text-align: center;
+	text-decoration: none;
+	font-size: 30px;
 	cursor: pointer;
 }
 
@@ -314,13 +379,25 @@ levelChooser {
 .starIcon {
 	font-size:50px;
 }
-.starIconWin {
-	font-size:50px;
-}
 
 @media only screen and (min-width: 0px) {
   .starIcon {
     font-size: 12px;
+  }
+}
+
+@media only screen and (min-width: 900px) {
+  .starIcon {
+    font-size: 20px;
+  }
+}
+.starIconWin {
+	font-size:50px;
+}
+@media only screen and (min-width: 900px) {
+
+  .starIconWin {
+    font-size: 30px;
   }
 }
 @media only screen and (min-width: 0px) {
@@ -328,20 +405,21 @@ levelChooser {
     font-size: 20px;
   }
 }
-
-@media only screen and (min-width: 900px) {
-  .starIcon {
-    font-size: 20px;
-  }
-
+.starIconMain {
+	font-size:50px;
 }
-
 @media only screen and (min-width: 900px) {
 
-  .starIconWin {
-    font-size: 30px;
+  .starIconMain {
+    font-size: 60px;
   }
 }
+@media only screen and (min-width: 0px) {
+    .starIconMain {
+    font-size: 40px;
+  }
+}
+
 
 @media only screen and (min-width: 0px) {
   .row {
@@ -387,6 +465,9 @@ levelChooser {
 .colorCell{background-color:#7b1fa2;}
 .colorVirus{background-color:#FF0700;}
 .colorFungus{background-color:#A0F500;}
+.colorTextCell{color:#7b1fa2;}
+.colorTextVirus{color:#FF0700;}
+.colorTextFungus{color:#A0F500;}
 .lockIcon{
 	position:absolute;
 	font-size:23px;
@@ -411,13 +492,13 @@ levelChooser {
 }
 .alphaBtn {
 	position:fixed;
-	top:10px;
+	top:0px;
 	left:10px;
 	z-index:22;
 }
 .alphaBtnR {
 	position:fixed;
-	top:10px;
+	top:5px;
 	right:10px;
 	z-index:22;
 }
@@ -435,4 +516,19 @@ levelChooser {
     border-radius: 5px;
     padding: 10px;
     box-shadow: rgba(0, 0, 0, 0.6) 2px 2px 2px;
+}
+.scoreMainMenu {
+	font-family:'Gamer';
+	font-size:50px;
+	line-height:10px;
+	margin-bottom:10px;
+	//color:white;
+}
+.XBCfooter{
+	position:fixed;
+	bottom:0px;
+	width:100%;
+	background-color: #ffffff50;
+	height:50px;
+	font-size:10px;
 }
