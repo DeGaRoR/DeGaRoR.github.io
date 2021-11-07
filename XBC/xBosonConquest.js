@@ -307,6 +307,15 @@ function initializeLocalStorage(storageVersionNumber) {
 			localStorage[level] = 0;
 		}
 }
+function unlockAll() {
+		var levels = getLevels();
+		var nLevels = levels.length;
+		for (i=1; i< nLevels+1; i++) {
+			var level = "level" + i;
+			// initialize localStorage for all levels
+			localStorage[level] = 3;
+		}
+}
 function ShowConfirmReturnHome() {document.getElementById('confirmBoxReturnHome').hidden = false;}
 function hideConfirmReturnHome() {document.getElementById('confirmBoxReturnHome').hidden = true;}
 function ShowConfirmRestart() {document.getElementById('confirmBoxRestart').hidden = false;}
@@ -714,6 +723,7 @@ function loadCustomLevel() {
 	}
 	else {alert("No custom levels saved")}
 }
+
 function getBases(players, canvas, selectedLevel, maxHealth, minConquership) {
 	var newBases = [];
 	var w = canvas.width;

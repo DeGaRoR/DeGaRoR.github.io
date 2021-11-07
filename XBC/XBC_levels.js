@@ -471,7 +471,7 @@ function getLevels() {
 					{ownership: 2,x: 0.6,y: 0.5,levelMax: 1,},	
 				]
 		},
-		{name:"Custom Level",
+		{name:"Easy - plenty of stuff everywhere",
 		  bases:[
 			{ownership:1,x:0.30,y:0.20,levelMax:1},
 			{ownership:0,x:0.60,y:0.20,levelMax:1},
@@ -494,7 +494,7 @@ function getLevels() {
 			{ownership:0,x:0.83,y:0.14,levelMax:1},
 		  ]
 		},
-		{name:"Custom Level",
+		{name:"Normal - There's a big central cake, and some stuff around",
 		  bases:[
 			{ownership:0,x:0.36,y:0.36,levelMax:1},
 			{ownership:0,x:0.64,y:0.36,levelMax:1},
@@ -507,7 +507,7 @@ function getLevels() {
 		  ]
 		},
 		{
-    name: "Custom Level",
+    name: "Normal - There's a big central cake, and not much else",
     bases: [
         {
             ownership: 1,
@@ -534,7 +534,16 @@ function getLevels() {
             levelMax: 3
         }
     ]
-}
+},
+{name:"Hard - Simple but violent!",
+  bases:[
+    {ownership:1,x:0.50,y:0.50,levelMax:1},
+    {ownership:0,x:0.30,y:0.20,levelMax:2},
+    {ownership:3,x:0.70,y:0.20,levelMax:1},
+    {ownership:2,x:0.30,y:0.80,levelMax:1},
+    {ownership:0,x:0.70,y:0.80,levelMax:2},
+  ]
+},
 	];
 	
 //allow for more margins
