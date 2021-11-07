@@ -231,23 +231,16 @@ function getStringContentNoFormat() { // get the string content
 	string = string +"]},"
 	return string;
 }
-function getCustomLevelAsString() {
-	var customLevel = getCustomLevel();
-	// Storing data:
-	const myJSON = JSON.stringify(customLevel);
-	return myJSON;
-	// Retrieving data:
-	//let text = localStorage.getItem("testJSON");
-	//let obj = JSON.parse(text);
-	//document.getElementById("demo").innerHTML = obj.name;
-};
+
 function getCustomLevel() { //function to get the bases as an object, like those in the normal bases vector
 	var bases = [];
 	for (var i=0; i<config.bases.length;i++) {
+		xTrunc = Math.round(config.bases[i].x_norm*100)/100;
+		yTrunc = Math.round(config.bases[i].y_norm*100)/100;
 		var newBase = {
 			ownership: config.bases[i].ownership,
-			x: config.bases[i].x_norm.toFixed(2),
-			y: config.bases[i].y_norm.toFixed(2),
+			x: xTrunc,
+			y: yTrunc,
 			levelMax: config.bases[i].levelMax
 		}
 		bases.push(newBase);
@@ -256,8 +249,9 @@ function getCustomLevel() { //function to get the bases as an object, like those
 	return customLevel;
 }
 function saveCustomLevel() {
-	levelString=getCustomLevelAsString();
-	localStorage.customLevel = levelString;
+	var customLevel = getCustomLevel();
+	const myJSON = JSON.stringify(customLevel);
+	localStorage.customLevel = myJSON;
 }
 
 
@@ -266,7 +260,10 @@ function saveCustomLevel() {
 // Config & state
 //==============================================
 //
-
+function clearBases() {
+	config.bases=[];
+	reDrawBases(config.bases);
+}
 
 function startLevelEditor() {
 	config=getConfigLE();
@@ -276,6 +273,36 @@ function startLevelEditor() {
 	config.canvasBases.width = window.innerWidth-2;
 	config.canvasBases.height = window.innerHeight;
 	drawCanvasLE();
+	// Check if there is an existing custom level
+	if (typeof(localStorage.customLevel) !== "undefined")  {// if it exists
+		// replace the content of the level editor base vector with this one
+		// Get the custom level as an object
+		customLevel=loadCustomLevel();
+		// Map the properties
+		for (var i=0;i<customLevel.bases.length;i++) {
+			var newBase= {
+				x_final:customLevel.bases[i].x*window.innerWidth,
+				x_norm :customLevel.bases[i].x,
+				y_final:customLevel.bases[i].y*window.innerHeight,
+				y_norm :customLevel.bases[i].y,
+				baseIsSelected:false,
+				ownership:customLevel.bases[i].ownership,
+				levelMax:customLevel.bases[i].levelMax
+			}
+			// push the new object into the base vector
+			config.bases.push(newBase);
+		}
+	} 
+	else {} // if it does not
+	reDrawBases(config.bases);
+}
+function loadCustomLevel() {
+	if (localStorage.customLevel) {
+		var text = localStorage.getItem("customLevel");
+		var obj = JSON.parse(text);
+		return obj;
+	}
+	else {alert("No custom levels saved")}
 }
 function getConfigLE() {
 	// Get the canvas elements
@@ -411,9 +438,9 @@ function reDrawBases(bases) {
 	var height = window.innerHeight;
     config.ctxBases.clearRect(0, 0, width, height);
 	// Draw everybase within the base vector
-	for (var i=0; i<bases.length;i++) {
-		drawBaseLE(bases[i]);
-	}
+		for (var i=0; i<bases.length;i++) {
+			drawBaseLE(bases[i]);
+		}
 }
 function drawBaseLE(base) {
 	var colorSelected = 'rgba(255,255,0,1)';
