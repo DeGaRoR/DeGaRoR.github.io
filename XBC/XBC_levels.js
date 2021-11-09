@@ -506,8 +506,7 @@ function getLevels() {
 			{ownership:3,x:0.80,y:0.80,levelMax:2},
 		  ]
 		},
-		{
-    name: "Normal - There's a big central cake, and not much else",
+		{name: "Normal - There's a big central cake, and not much else",
     bases: [
         {
             ownership: 1,
@@ -619,6 +618,36 @@ function getLevels() {
     {ownership:3,x:0.54,y:0.61,levelMax:1},
     {ownership:1,x:0.80,y:0.20,levelMax:2},
     {ownership:1,x:0.20,y:0.80,levelMax:2},
+  ]
+},
+{name:"Normal Outsider",
+  bases:[
+    {ownership:0,x:0.50,y:0.50,levelMax:3},
+    {ownership:3,x:0.50,y:0.30,levelMax:2},
+    {ownership:2,x:0.50,y:0.70,levelMax:2},
+    {ownership:2,x:0.33,y:0.60,levelMax:1},
+    {ownership:3,x:0.33,y:0.40,levelMax:1},
+    {ownership:3,x:0.67,y:0.40,levelMax:1},
+    {ownership:2,x:0.67,y:0.60,levelMax:1},
+    {ownership:1,x:0.22,y:0.22,levelMax:1},
+    {ownership:1,x:0.78,y:0.22,levelMax:2},
+    {ownership:1,x:0.78,y:0.78,levelMax:1},
+    {ownership:0,x:0.22,y:0.78,levelMax:2},
+  ]
+},
+{name:"Hard outsider",
+  bases:[
+    {ownership:0,x:0.50,y:0.50,levelMax:3},
+    {ownership:3,x:0.50,y:0.30,levelMax:2},
+    {ownership:2,x:0.50,y:0.70,levelMax:2},
+    {ownership:2,x:0.33,y:0.60,levelMax:1},
+    {ownership:3,x:0.33,y:0.40,levelMax:1},
+    {ownership:3,x:0.67,y:0.40,levelMax:1},
+    {ownership:2,x:0.67,y:0.60,levelMax:1},
+    {ownership:1,x:0.22,y:0.22,levelMax:1},
+    {ownership:0,x:0.78,y:0.22,levelMax:2},
+    {ownership:1,x:0.78,y:0.78,levelMax:1},
+    {ownership:0,x:0.22,y:0.78,levelMax:2},
   ]
 },
 	];
