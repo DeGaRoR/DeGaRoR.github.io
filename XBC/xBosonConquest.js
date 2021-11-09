@@ -17,7 +17,7 @@ window.onload = function() {
 	//setButtonIndicators();
 	buildLevelsMenu();
 	checkCustomLevelButton();
-	showOnly("masterMenu");
+	showMasterMenu();
 	};
 window.onresize = function() {sizeBgCanvas(); placeCanvas(drawSpace); placeCanvas(canvasBases);};
 window.addEventListener("touchmove", function(event) {
@@ -30,6 +30,41 @@ var persistData = {
 	timePace: 10,
 	nLevels: 36,
 	initialScale: 1,
+}
+
+//
+//==============================================
+// Master Menu
+//==============================================
+//
+
+function updateIndicatorsMasterMenu() {
+	// calculate the sums first
+	var levels = getLevels();
+	var nLevels = levels.length;
+	var sumStars = 0;
+	var statusLevelLock = getStatusLevelLock();
+	var sumLocks = 0;
+	for (i=1; i< nLevels+1; i++) {
+		var level = "level" + i;
+		// initialize localStorage for all levels
+		if(localStorage[level]) {sumStars = sumStars + parseInt(localStorage[level])};
+		sumLocks = sumLocks + statusLevelLock[i];
+	}
+	var sumUnlocked = nLevels-sumLocks
+	var stringStars = sumStars+"/"+nLevels*3;
+	var stringLocks = sumUnlocked+"/"+nLevels;
+	
+	console.log("Stars: "+sumStars+"/"+nLevels*3+", locks: "+sumLocks+"/"+nLevels);
+	// put the correct sums into the html elements
+	var divScoreStars = document.getElementById("sumStars");
+	var divScoreLocks = document.getElementById("sumUnlocked");
+	divScoreStars.innerHTML=stringStars;
+	divScoreLocks.innerHTML=stringLocks;
+}
+function showMasterMenu() {
+	updateIndicatorsMasterMenu();
+	showOnly('masterMenu');
 }
 //
 //==============================================
@@ -419,7 +454,7 @@ function changeSpeed(increment) {
 }
 //
 //==============================================
-// Main menu
+// Levels menu
 //==============================================
 //
 function checkCustomLevelButton() {
