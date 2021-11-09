@@ -113,7 +113,7 @@ levelChooser {
 		font-size: 35px; //25px with normal font
 	}
 }
-@media only screen and (min-width: 900px) {
+@media only screen and (min-width: 992px) {
 	.buttonMain{
 		font-size: 55px; //40 px with normal font
 	}
@@ -138,7 +138,7 @@ levelChooser {
 		font-size: 25px; //25px with normal font
 	}
 }
-@media only screen and (min-width: 900px) {
+@media only screen and (min-width: 992px) {
 	.buttonSecond{
 		font-size: 40px; //40 px with normal font
 	}
@@ -168,9 +168,9 @@ levelChooser {
 		font-size: 70px; //25px with normal font
 	}
 }
-@media only screen and (min-width: 900px) {
+@media only screen and (min-width: 992px) {
 	.buttonTitle{
-		font-size: 120px; //40 px with normal font
+		font-size: 100px; //40 px with normal font
 	}
 }
 	
@@ -250,7 +250,7 @@ levelChooser {
 		padding-top: 10px;
 	}
 }
-@media only screen and (min-width: 900px) {
+@media only screen and (min-width: 992px) {
 	.title{
 		padding-top: 50px;
 	}
@@ -329,7 +329,7 @@ levelChooser {
     font-size: 40px;
   }
 }
-@media only screen and (min-width: 900px) {
+@media only screen and (min-width: 992px) {
   .winMessage {
     font-size: 70px;
 
@@ -386,7 +386,7 @@ levelChooser {
   }
 }
 
-@media only screen and (min-width: 900px) {
+@media only screen and (min-width: 992px) {
   .starIcon {
     font-size: 20px;
   }
@@ -394,7 +394,7 @@ levelChooser {
 .starIconWin {
 	font-size:50px;
 }
-@media only screen and (min-width: 900px) {
+@media only screen and (min-width: 992px) {
 
   .starIconWin {
     font-size: 30px;
@@ -408,7 +408,7 @@ levelChooser {
 .starIconMain {
 	font-size:50px;
 }
-@media only screen and (min-width: 900px) {
+@media only screen and (min-width: 992px) {
 
   .starIconMain {
     font-size: 60px;
@@ -419,6 +419,12 @@ levelChooser {
     font-size: 40px;
   }
 }
+@media only screen and (max-width: 992px) and (min-aspect-ratio: 1/1) {
+	.starIconMain {
+		display:none;
+	}
+}
+
 
 
 @media only screen and (min-width: 0px) {
@@ -426,7 +432,7 @@ levelChooser {
     margin-bottom: 12px;
   }
 }
-@media only screen and (min-width: 900px) {
+@media only screen and (min-width: 992px) {
   .row {
     margin-bottom: 20px;
   }
@@ -441,17 +447,26 @@ levelChooser {
 #TitlePC{
 	display:none;
 }
-@media only screen and (min-width: 900px) {
+
+@media only screen and (min-width: 992px) {
 	#TitlePC{
 		display:inline;
 		//box-shadow: rgba(0, 0, 0, 0.15) 0px 2px 8px;
 	}
 }
-@media only screen and (max-width: 900px) {
+
+@media only screen and (max-width: 992px) and (max-aspect-ratio: 1/2) {
 	#TitleMobile{
 		display:inline;
 	}
 }
+
+@media only screen and (max-width: 992px) and (min-aspect-ratio: 1/2) {
+	#TitlePC{
+		display:inline;
+	}
+}
+
 .indicatorBar{
 	color:rgba(0,0,0,0);
 	position: absolute; 
@@ -473,7 +488,7 @@ levelChooser {
 	font-size:23px;
 	color:rgb(143 35 223)
 }
-@media only screen and (min-width: 900px) {
+@media only screen and (min-width: 992px) {
 	.lockIcon{
 		font-size:36px;
 	}
@@ -524,11 +539,29 @@ levelChooser {
 	margin-bottom:10px;
 	//color:white;
 }
+@media only screen and (max-width: 992px) and (min-aspect-ratio: 1/1) {
+	.scoreMainMenu {
+	display:none;
+	}
+}
 .XBCfooter{
 	position:fixed;
 	bottom:0px;
 	width:100%;
 	background-color: #ffffff50;
-	height:50px;
+	height:40px;
 	font-size:10px;
+}
+.hideOnSmallLandscape{}
+@media only screen and (max-width: 992px) and (min-aspect-ratio: 1/1) {
+	.hideOnSmallLandscape{display:none;}
+}
+.scaleOnSmallLandscape{
+	transform: scale(1);
+}
+@media only screen and (max-width: 992px) and (min-aspect-ratio: 1/1) {
+	.scaleOnSmallLandscape{
+	transform: scale(0.75);
+	transform-origin: top center;
+}
 }

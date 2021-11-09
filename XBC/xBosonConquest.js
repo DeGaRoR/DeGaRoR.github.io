@@ -508,7 +508,7 @@ function buildLevelsMenu(sectionToShow) { //This function builds the levels menu
 		//-----------------
 		// Group Title
 		//-----------------
-		// Add a row
+/* 		// Add a row
 		var newRow = document.createElement("DIV");
 		newRow.classList.add("row");
 		newSection.appendChild(newRow);
@@ -518,7 +518,7 @@ function buildLevelsMenu(sectionToShow) { //This function builds the levels menu
 		newCol.classList.add("s12");
 		newCol.classList.add("levelGroupTitle");
 		newCol.innerHTML=configMenu.titleSections[i-1];
-		newRow.appendChild(newCol);
+		newRow.appendChild(newCol); */
 		//-----------------
 		// Level buttons
 		//-----------------

@@ -31,7 +31,7 @@
 		</script>
 	</head>
 	<body id="body">
-		<div class="row" style="margin-top:20px">
+		<div id="controlsLE" class="row" style="margin-top:20px">
 			<div class="col s3" >
 				<a id="homeButton" href="index.html" class="waves-effect waves-light btn colorCell">Home</a>
 			</div>
@@ -46,25 +46,17 @@
 			</div>
 			
 		</div>
-		
-
 		<div id="exportString" hidden> 
 			<div id="exportText" class="exportText">Hey hey hey buddy buddy<br>{0.255566,0.78888}<br></div>
 			
 		</div>
 		<div id="basesLE" style="z-index:0"><canvas id="canvasBasesLE"></canvas></div>
 		<div id="mainCanvasLE" style="z-index:-1"><canvas id="drawSpaceLE"></canvas></div>
-		
-		  <!-- Modal Structure -->
-		  <div id="modalBaseProperties" class="modal bottom-sheet">
+		<!-- Modal Structure -->
+		<div id="modalBaseProperties" class="modal bottom-sheet">
 			<div id="modalContentLE" class="modal-content">
-			  <h4>Modal Header</h4>
-			  <p>A bunch of text</p>
 			</div>
-			<div class="modal-footer">
-			  <a href="#!" class="modal-close waves-effect waves-green btn-flat">Apply</a>
-			</div>
-		  </div>
+		</div>
 		
 		<script type="text/javascript" src="js/materialize.min.js"></script>
 		<!-- <script src="materializeInit.js"></script> -->
