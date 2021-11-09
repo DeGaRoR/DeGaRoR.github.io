@@ -132,11 +132,11 @@ function getBgConfig() {
 							document.getElementById("big_object_1_y"),
 							document.getElementById("big_object_1_r"),
 							document.getElementById("big_object_1_b"),
-							document.getElementById("big_object_1_y"),
-							document.getElementById("big_object_1_y"),
-							document.getElementById("big_object_1_y"),
-							document.getElementById("big_object_1_y"),
-							document.getElementById("big_object_1_y"),
+							document.getElementById("big_object_1_b"),
+							document.getElementById("big_object_1_r"),
+							document.getElementById("big_object_1_r"),
+							document.getElementById("big_object_1_b"),
+							document.getElementById("big_object_1_r"),
 							document.getElementById("big_object_1_y"),
 						],
 		big_object_2 : 	[	
@@ -144,11 +144,11 @@ function getBgConfig() {
 							document.getElementById("big_object_2_y"),
 							document.getElementById("big_object_2_r"),
 							document.getElementById("big_object_2_b"),
-							document.getElementById("big_object_2_y"),
-							document.getElementById("big_object_2_y"),
-							document.getElementById("big_object_2_y"),
-							document.getElementById("big_object_2_y"),
-							document.getElementById("big_object_2_y"),
+							document.getElementById("big_object_2_b"),
+							document.getElementById("big_object_2_r"),
+							document.getElementById("big_object_2_r"),
+							document.getElementById("big_object_2"),
+							document.getElementById("big_object_2_r"),
 							document.getElementById("big_object_2_y"),
 						],
 		big_object_3 : 	[	
@@ -156,11 +156,11 @@ function getBgConfig() {
 							document.getElementById("big_object_3_y"),
 							document.getElementById("big_object_3_r"),
 							document.getElementById("big_object_3_b"),
-							document.getElementById("big_object_3_y"),
-							document.getElementById("big_object_3_y"),
-							document.getElementById("big_object_3_y"),
-							document.getElementById("big_object_3_y"),
-							document.getElementById("big_object_3_y"),
+							document.getElementById("big_object_3_b"),
+							document.getElementById("big_object_3_r"),
+							document.getElementById("big_object_3_r"),
+							document.getElementById("big_object_3_b"),
+							document.getElementById("big_object_3_r"),
 							document.getElementById("big_object_3_y"),
 						],
 		bgColor : 		[	
@@ -168,12 +168,12 @@ function getBgConfig() {
 							"#A9D800",//green
 							"#cf8f89",//red
 							"#0052b9",//dark blue
-							"#A9D800",//green
-							"#A9D800",//green
-							"#A9D800",//green
-							"#A9D800",//green
-							"#A9D800",//green
-							"#A9D800",//green
+							"#C760FF",//purple
+							"#FFA357",//orange
+							"#91004A",//pink
+							"#4B0075",//dark purple
+							"#B87B00",//drak orange
+							"#225E29",//dark green
 						],
 	}
 }
