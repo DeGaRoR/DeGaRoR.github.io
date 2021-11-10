@@ -368,7 +368,8 @@ function showOnly(DOMelemID) {
 	}
 }
 function checkStorage() {
-	var storageVersionNumber = 1;
+	// Version 2 on 10/11/2021 with 99 levels ordered from easy to hard
+	var storageVersionNumber = 2;
 	// test local storage support
 	if (typeof(Storage) !== "undefined") {
 		console.log("localStorage supported");
