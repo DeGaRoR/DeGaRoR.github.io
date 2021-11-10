@@ -1401,10 +1401,10 @@ function getLevels() {
 },
 {name:"Hard - boss stuff",
   bases:[
-    {ownership:4,x:0.50,y:0.40,levelMax:3},
+
     {ownership:0,x:0.30,y:0.30,levelMax:2},
     {ownership:0,x:0.70,y:0.30,levelMax:2},
-    {ownership:0,x:0.50,y:0.20,levelMax:1},
+    {ownership:4,x:0.50,y:0.20,levelMax:3},
     {ownership:4,x:0.20,y:0.20,levelMax:1},
     {ownership:4,x:0.80,y:0.20,levelMax:1},
     {ownership:0,x:0.50,y:0.60,levelMax:1},
@@ -1427,23 +1427,46 @@ function getLevels() {
   ]
 },
 	];
-	
-//allow for more margins
+// define the infringement zones / margins (normalized)
+var marginLeft = 0.1;
+var marginRight = 0.1;
+var marginTop = 0.05;
+var marginBottom = 0.02;
+var safetyMultiplierForCheck = 1.5; // bases can still be too close, even if within the margins. Multiply these when checking, but keep as is to apply the transformation
+var shrinkWidth=(1-marginLeft-marginRight);
+var shrinkHeight=(1-marginTop-marginBottom);
+//test if there is a base within the restricted zone. If yes, just scale back the whole level to fit within the margins
+// loop through all levels
 for (var i = 0; i < levels.length; i++) {
-	// indicate margins as a percentage
-	var marginLeft = 0.05;
-	var marginRight = 0.05;
-	var marginTop = 0.05;
-	var marginBottom = 0.02;
-	
-	var shrinkWidth=(1-marginLeft-marginRight);
-	var shrinkHeight=(1-marginTop-marginBottom);
-	
 	var level = levels[i];
+	var levelInInfraction = false;
+	// First loop to check whether there are bases outside of the relevant bounds
 	for (var j = 0; j < level.bases.length; j++) {
-		levels[i].bases[j].x=level.bases[j].x*shrinkWidth+marginLeft;
-		levels[i].bases[j].y=level.bases[j].y*shrinkHeight+marginTop;
+		var base = level.bases[j];
+		if (base.x<marginLeft*safetyMultiplierForCheck || base.x>(1-(marginRight*safetyMultiplierForCheck)) || base.y<marginTop*safetyMultiplierForCheck || base.y>(1-(marginBottom*safetyMultiplierForCheck))) {
+			levelInInfraction=true; 
+			//console.log("Found infraction for level "+(i+1))
+		}
+	}
+	// Only apply the margin correction for the levels in infraction
+	if (levelInInfraction) {
+		for (var j = 0; j < level.bases.length; j++) {
+			var base = level.bases[j];
+			base.x=base.x*shrinkWidth+marginLeft;
+			base.y=base.y*shrinkHeight+marginTop;
+		}
 	}
 }
-return levels;
+// reorder the levels
+var reorderedLevels = []
+// the mapping is generated from the GSheet in the drive
+var levelMapping = [
+	0,1,2,3,4,5,6,7,8,37,61,65,85,77,72,73,57,53,49,90,82,83,86,87,95,96,36,27,28,29,30,31,32,33,34,35,38,50,54,58,62,66,41,75,9,10,11,12,12,12,15,16,17,39,46,78,59,48,91,74,63,51,67,18,19,20,21,22,23,24,25,26,40,42,43,44,45,47,55,84,76,92,93,79,69,56,60,64,68,70,80,81,88,52,88,71,94,97,98
+];
+// Loop through all levels to remap them
+for (var i = 0; i < levels.length; i++) {
+	reorderedLevels[i]=levels[levelMapping[i]];
+};
+
+return reorderedLevels;
 }

@@ -37,7 +37,26 @@ var persistData = {
 // Master Menu
 //==============================================
 //
-
+function donateAction() {
+	gtag("event", "donation_intent", {});
+	alert("Very nice of you, but we have not yet set a payment system :/ Thanks in any case!");
+	
+}
+function showCredits() {
+	gtag("event", "show_credits", {});
+	showOnly('credits');
+}
+function goToPugface() {
+	gtag("event", "visit_pugface", {
+		source:'more games button'
+	});
+}
+function shareXBC() {
+	gtag("event", "intent_to_share", {
+		source: 'Master menu'
+	});
+	alert("We have not yet implemented the sharing system (either...), but you would help us by using your browser integrated share button");
+}
 function updateIndicatorsMasterMenu() {
 	// calculate the sums first
 	var levels = getLevels();
@@ -67,6 +86,7 @@ function showMasterMenu() {
 	showOnly('masterMenu');
 }
 function showLevelEditor() {
+	gtag("event", "levelEditor_start", {});
 	showOnly('levelEditor');
 	startLevelEditor();
 	
@@ -319,6 +339,15 @@ function selectRandom3(x,y,z) {
 }
 function distance(x1, y1, x2, y2) { return Math.sqrt(Math.pow(x1-x2, 2)+Math.pow(y1-y2,2)) }
 function distanceNY(x1, y1, x2, y2) { return (Math.abs(x1-x2) + Math.abs(y1-y2)) }
+function getLevelNames() {
+	var levels=getLevels();
+	var nLevels = levels.length;
+	var levelNames = [];
+	for (var i=0;i<nLevels;i++) {
+		levelNames[i]=levels[i].name;
+	}
+	return levelNames;
+}
 //
 //==============================================
 // Game UI
