@@ -18,6 +18,7 @@ window.onload = function() {
 	buildLevelsMenu();
 	//checkCustomLevelButton();
 	showMasterMenu();
+	initializeHack();
 	};
 window.onresize = function() {sizeBgCanvas(); placeCanvas(drawSpace); placeCanvas(canvasBases);};
 window.addEventListener("touchmove", function(event) {
@@ -26,6 +27,23 @@ window.addEventListener("touchmove", function(event) {
            event.preventDefault();
        }
  });
+ function initializeHack() {
+var button = document.getElementById('unlockIcon');
+   var count = 0;
+   var threshold = 50;
+
+   button.addEventListener('click', function(e) {
+       e.preventDefault();
+       count++;
+  
+       if(count == threshold){
+           alert("Who told you to click on the lock like a maniac? You maniac. Enjoy the unlocked levels. Maniac.");
+		   unlockAll();
+		   count=0;
+       }
+    }, false); 
+ }
+ 
 var persistData = {
 	timePace: 10,
 	nLevels: 36,
@@ -518,6 +536,7 @@ function getConfigMenu() {
 		starFullClass2:"fa-star",
 		starFullClass3:"yellow-text",
 		titleSections: ["Easy","Medium","Hard","VS","tempSection5","tempSection6","tempSection7","tempSection8","tempSection9","tempSection10"],
+		hackyClicksRequired:20
 	};
 	return configMenu;
 }
