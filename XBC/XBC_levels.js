@@ -1323,7 +1323,7 @@ function getLevels() {
 },
 {name:"Hard Zorro",
   bases:[
-    {ownership:4,x:0.19,y:0.20,levelMax:2},
+    {ownership:3,x:0.19,y:0.20,levelMax:2},
     {ownership:0,x:0.50,y:0.20,levelMax:1},
     {ownership:0,x:0.79,y:0.20,levelMax:1},
     {ownership:0,x:0.70,y:0.30,levelMax:1},
@@ -1397,6 +1397,33 @@ function getLevels() {
     {ownership:3,x:0.80,y:0.80,levelMax:1},
     {ownership:4,x:0.20,y:0.80,levelMax:1},
     {ownership:0,x:0.50,y:0.50,levelMax:3},
+  ]
+},
+{name:"Hard - boss stuff",
+  bases:[
+    {ownership:4,x:0.50,y:0.40,levelMax:3},
+    {ownership:0,x:0.30,y:0.30,levelMax:2},
+    {ownership:0,x:0.70,y:0.30,levelMax:2},
+    {ownership:0,x:0.50,y:0.20,levelMax:1},
+    {ownership:4,x:0.20,y:0.20,levelMax:1},
+    {ownership:4,x:0.80,y:0.20,levelMax:1},
+    {ownership:0,x:0.50,y:0.60,levelMax:1},
+    {ownership:0,x:0.30,y:0.70,levelMax:1},
+    {ownership:0,x:0.70,y:0.70,levelMax:1},
+    {ownership:0,x:0.50,y:0.80,levelMax:2},
+    {ownership:1,x:0.80,y:0.80,levelMax:1},
+    {ownership:1,x:0.20,y:0.80,levelMax:1},
+  ]
+},
+{name:"Extreme - survive this!",
+  bases:[
+    {ownership:1,x:0.50,y:0.50,levelMax:1},
+    {ownership:0,x:0.30,y:0.30,levelMax:2},
+    {ownership:2,x:0.30,y:0.20,levelMax:1},
+    {ownership:0,x:0.70,y:0.30,levelMax:2},
+    {ownership:3,x:0.70,y:0.20,levelMax:1},
+    {ownership:0,x:0.50,y:0.70,levelMax:2},
+    {ownership:4,x:0.50,y:0.80,levelMax:1},
   ]
 },
 	];
