@@ -19,6 +19,7 @@ window.onload = function() {
 	//checkCustomLevelButton();
 	showMasterMenu();
 	initializeHack();
+	playMusicMasterMenu();
 	};
 window.onresize = function() {sizeBgCanvas(); placeCanvas(drawSpace); placeCanvas(canvasBases);};
 window.addEventListener("touchmove", function(event) {
@@ -49,7 +50,99 @@ var persistData = {
 	nLevels: 36,
 	initialScale: 1,
 }
+//
+//==============================================
+// Music and sounds
+//==============================================
+//
+function playMusicMasterMenu() {
+	var music = document.getElementById('musicMenu');
+	var promise = music.play();
 
+	if (promise !== undefined) {
+	  promise.then(_ => {
+		// Autoplay started!
+		console.log("Autoplay started!");
+		music.muted=false;
+	  }).catch(error => {
+		// Autoplay not allowed!
+		// Mute music and try to play again
+		console.log("Autoplay not allowed! Mute music and try to play again");
+		music.muted = true;
+		music.play();
+
+		// Show something in the UI that the video is muted
+	  });
+	}
+}
+function playMusicGameMenu() {
+	var music = document.getElementById('musicGame');
+	var promise = music.play();
+
+	if (promise !== undefined) {
+	  promise.then(_ => {
+		// Autoplay started!
+		console.log("Autoplay started!");
+		music.muted=false;
+	  }).catch(error => {
+		// Autoplay not allowed!
+		// Mute music and try to play again
+		console.log("Autoplay not allowed! Mute music and try to play again");
+		music.muted = true;
+		music.play();
+
+		// Show something in the UI that the video is muted
+	  });
+	}
+}
+function stopMusicGame() {
+	var musicGame = document.getElementById('musicGame');
+	musicGame.pause();
+}
+function stopMusicMenu() {
+	var musicMenu = document.getElementById('musicMenu');
+	musicMenu.pause();
+}
+//
+//==============================================
+// Navigation between different sections
+//==============================================
+//
+
+function showMasterMenu() {
+	updateIndicatorsMasterMenu();
+	stopMusicGame();
+	playMusicMasterMenu();
+	showOnly('masterMenu');
+}
+function showLevelEditor() {
+	gtag("event", "levelEditor_start", {});
+	showOnly('levelEditor');
+	startLevelEditor();
+}
+function showLevelChooser() {
+	stopMusicGame();
+	playMusicMasterMenu();
+	showOnly('LevelChooser');
+}
+function showCredits() {
+	gtag("event", "show_credits", {});
+	showOnly('credits');
+}
+function showOnly(DOMelemID) {
+	// List all full screen sections that can be shown stand-alone, within the "visible elements" div
+	var sectionList=[
+		"masterMenu",
+		"LevelChooser",
+		"gameUI",
+		"levelEditor",
+		"credits"
+	];
+	for (var i=0;i<sectionList.length;i++) {
+		if (DOMelemID == sectionList[i]) {document.getElementById(sectionList[i]).hidden=false;}
+		else {document.getElementById(sectionList[i]).hidden=true;}
+	}
+}
 //
 //==============================================
 // Master Menu
@@ -60,10 +153,7 @@ function donateAction() {
 	alert("Very nice of you, but we have not yet set a payment system :/ Thanks in any case!");
 	
 }
-function showCredits() {
-	gtag("event", "show_credits", {});
-	showOnly('credits');
-}
+
 function goToPugface() {
 	gtag("event", "visit_pugface", {
 		source:'more games button'
@@ -99,16 +189,7 @@ function updateIndicatorsMasterMenu() {
 	divScoreStars.innerHTML=stringStars;
 	divScoreLocks.innerHTML=stringLocks;
 }
-function showMasterMenu() {
-	updateIndicatorsMasterMenu();
-	showOnly('masterMenu');
-}
-function showLevelEditor() {
-	gtag("event", "levelEditor_start", {});
-	showOnly('levelEditor');
-	startLevelEditor();
-	
-}
+
 //
 //==============================================
 // Mouse and selection
@@ -371,20 +452,7 @@ function getLevelNames() {
 // Game UI
 //==============================================
 //
-function showOnly(DOMelemID) {
-	// List all full screen sections that can be shown stand-alone, within the "visible elements" div
-	var sectionList=[
-		"masterMenu",
-		"LevelChooser",
-		"gameUI",
-		"levelEditor",
-		"credits"
-	];
-	for (var i=0;i<sectionList.length;i++) {
-		if (DOMelemID == sectionList[i]) {document.getElementById(sectionList[i]).hidden=false;}
-		else {document.getElementById(sectionList[i]).hidden=true;}
-	}
-}
+
 function checkStorage() {
 	// Version 2 on 10/11/2021 with 99 levels ordered from easy to hard
 	var storageVersionNumber = 2;
@@ -444,9 +512,9 @@ function backToChoice() {
 	state.abandon = true;
 	//setButtonIndicators();
 	buildLevelsMenu(Math.ceil(level/9));
-	document.getElementById('gameUI').hidden = true;
-	document.getElementById('LevelChooser').hidden = false;
 	document.getElementById('tsparticles').hidden = true;
+	showLevelChooser();
+	
 }
 function showMenu() {
 	var pauseBackground = document.getElementById("pauseBackground");
@@ -1050,6 +1118,11 @@ function startGame(level) {
 	if (statusLevelLock[level] == 0) {
 		// Send a Google analytics event
 		gtag("event", "level_start", {level_name: String("level")});
+		// Stop the menu music
+		stopMusicMenu();
+		// Start the game music
+		playMusicGameMenu();
+		
 		// Set the correct background
 		var section = Math.ceil(level/9);
 		cancelAnimationFrame(bgReqID);
@@ -2435,6 +2508,8 @@ function animate(time) {
 		});
 		//Dismiss all tuto toasts
 		M.Toast.dismissAll();
+		// Stop the game music
+		stopMusicGame();
 		return;
 	}
     // request another animation frame (always first call)

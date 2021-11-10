@@ -565,3 +565,8 @@ levelChooser {
 	transform-origin: top center;
 }
 }
+.buttonVolumeMenu{
+	position: fixed;
+	right:0px;
+	margin:10px;
+}

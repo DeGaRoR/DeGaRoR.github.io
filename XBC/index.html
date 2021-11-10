@@ -78,11 +78,15 @@
 		</div>
 		
 		<div id="tsparticles"></div>
+		<audio id="musicMenu" loop><source src="music/musicMenu.mp3" type="audio/mpeg">&nbsp;</audio>
+		<audio id="musicGame" loop><source src="music/musicGame.mp3" type="audio/mpeg">&nbsp;</audio>
 		<div id="visibleElements" hidden>
 			<div id="background" style="z-index:0">
 				<canvas id="background_canvas" ></canvas>
 			</div>
 			<div id="masterMenu" class="center buttonsMenu ">
+				
+				<a id="buttonVolumeMenu" onclick="playMusicMasterMenu();" class="btn-floating btn-large waves-effect waves-light colorCell buttonVolumeMenu"><i class="material-icons">volume_off</i></a>
 				<div class="scaleOnSmallLandscape">
 					<!-- Title -->
 					<div class="row">
@@ -100,7 +104,7 @@
 							<div id="sumUnlocked" class="col s6 xl3 scoreMainMenu colorTextCell">23/99</div>
 						</div>
 						<!-- Game controls -->
-						<div class="row" style="margin-top:10px"><a id="playButton" href="#" onclick="showOnly('LevelChooser')" class="buttonTitle col s8 offset-s2 xl4 offset-xl4">PLAY</a></div> <!-- apply pulse class maybe -->
+						<div class="row" style="margin-top:10px"><a id="playButton" href="#" onclick="showLevelChooser();" class="buttonTitle col s8 offset-s2 xl4 offset-xl4">PLAY</a></div> <!-- apply pulse class maybe -->
 						<div class="row" ><a id="LEButton" href="#" onclick="showLevelEditor();" class="buttonSecond col s6 offset-s3 xl2 offset-xl5">LEVEL EDITOR</a></div>
 						<DIV class="row">&nbsp;</div>
 						<!-- Call to action -->
