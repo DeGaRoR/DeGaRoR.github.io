@@ -16,6 +16,7 @@
 		<link href="animDemo.css" rel="stylesheet">
 		<link rel="stylesheet" href="font-awesome/css/font-awesome.min.css">
 		<link rel="stylesheet" type="text/css" href="xBosonConquest.css">
+		<link rel="stylesheet" type="text/css" href="levelEditor.css">
 		<!-- PWA  -->
 		<link rel="apple-touch-icon" href="/Resources/ico/maskable_icon_x192.png">
 		<link rel="manifest" href="manifest.json">
@@ -64,6 +65,12 @@
 			<img alt="icon" id="virus3D_S" 				src="Resources\Bases\virus3D_S.webp" 					width="256" height="256" 	>
 			<img alt="icon" id="virus3D_M" 				src="Resources\Bases\virus3D_M.webp" 					width="256" height="256" 	>
 			<img alt="icon" id="virus3D_L" 				src="Resources\Bases\virus3D_L.webp" 					width="256" height="256" 	>
+			<img alt="icon" id="phage3D_S" 				src="Resources\Bases\phage3D_S.webp" 					width="512" height="512" 	>
+			<img alt="icon" id="phage3D_M" 				src="Resources\Bases\phage3D_M.webp" 					width="512" height="512" 	>
+			<img alt="icon" id="phage3D_L" 				src="Resources\Bases\phage3D_L.webp" 					width="512" height="512" 	>
+			
+			
+			<img alt="icon" id="phage" 				src="Resources\Bases\phage_boss.webp" 					width="512" height="512" 	>
 			<img alt="icon" id="titleJidev" 			src="Resources\newTitleJidev01.webp" 					width="1000" height="142" 	>
 			<img alt="icon" id="titleJidevMobile" 			src="Resources\newTitleJidev01_mobile.webp" 					width="518" height="275" 	>
 			<img alt="icon" id="tutoPictureBases" 			src="Resources/tuto/basesUpgrade.webp" 					width="73" height="73" 	>
@@ -95,7 +102,7 @@
 						</div>
 						<!-- Game controls -->
 						<div class="row" style="margin-top:10px"><a id="playButton" href="#" onclick="showOnly('LevelChooser')" class="buttonTitle col s8 offset-s2 xl4 offset-xl4">PLAY</a></div> <!-- apply pulse class maybe -->
-						<div class="row" ><a id="LEButton" href="levelEditor.html" onclick="showOnly('levelEditor')" class="buttonSecond col s6 offset-s3 xl2 offset-xl5">LEVEL EDITOR</a></div>
+						<div class="row" ><a id="LEButton" href="#" onclick="showLevelEditor();" class="buttonSecond col s6 offset-s3 xl2 offset-xl5">LEVEL EDITOR</a></div>
 						<DIV class="row">&nbsp;</div>
 						<!-- Call to action -->
 						<div class="row"><div class=" col s12 l6 offset-l3 "><a id="coffeeButton" href="#" onclick='alert("Very nice of you, but we have not yet set a payment system :/ Thanks in any case!")' class="buttonSecond col s12"><i class="fas fa-mug-hot"></i>&nbsp;&nbsp;BUY US A COFFEE</a></div></div>
@@ -128,7 +135,6 @@
 				<div class="hideOnSmallLandscape"><img alt="X Boson Conquest" class="title responsive-img" id="TitlePC" src="Resources\newTitleJidev01.webp" width="1000" height="142" style="padding-left:20px; padding-right: 20px;"></div>
 				<img alt="X Boson Conquest" class="title responsive-img" id="TitleMobile" src="Resources\newTitleJidev01_mobile.webp" width="518" height="275" style="padding-left:20px; padding-right: 20px;">
 				<a id="backToMasterMenuButton" href="#" onclick="showMasterMenu();" class="buttonBack alphaBtn colorTextCell"><i class="fas fa-home"></i></a>
-				<a id="playCustomLevel" href="#" onclick="startGameLE(0);" class="waves-effect waves-light btn alphaBtnR colorCell" hidden>Play Custom Level</a>
 				<div id="levelContent" class="container"></div>
 				
 			</div>
@@ -139,7 +145,8 @@
 						<li><a href="javascript:showMenu()" class="btn-floating transparent" style="opacity: 0; transform: scale(0.4) translateY(0px) translateX(40px);"><i class="material-icons">volume_off</i></a></li>
 						<li id="restartNormal"><a  href="javascript:showMenu();ShowConfirmRestart()" class="btn-floating transparent" style="opacity: 0; transform: scale(0.4) translateY(0px) translateX(40px);"><i class="fa fa-refresh" aria-hidden="true"></i></a></li>
 						<li id="restartLE" ><a href="javascript:showMenu();startGameLE(0);" class="btn-floating transparent" style="opacity: 0; transform: scale(0.4) translateY(0px) translateX(40px);"><i class="fa fa-refresh" aria-hidden="true"></i></a></li>
-						<li><a href="javascript:ShowConfirmReturnHome(); showMenu();" class="btn-floating transparent" style="opacity: 0; transform: scale(0.4) translateY(0px) translateX(40px);"><i class="fa fa-home" aria-hidden="true"></i></a></li>					
+						<li id="homeNormal"><a href="javascript:ShowConfirmReturnHome(); showMenu();" class="btn-floating transparent" style="opacity: 0; transform: scale(0.4) translateY(0px) translateX(40px);"><i class="fa fa-home" aria-hidden="true"></i></a></li>	
+						<li id="homeLE"><a href="#" onclick="showMenu(); backToChoice(); showLevelEditor();" class="btn-floating transparent" style="opacity: 0; transform: scale(0.4) translateY(0px) translateX(40px);"><i class="fa fa-home" aria-hidden="true"></i></a></li>						
 					</ul>
 				</span>	
 				<div id="indicatorBarCell" 		class="indicatorBar colorCell" 		style="top:24px; width:100px;"	>.</div>
@@ -241,8 +248,34 @@
 					<canvas id="drawSpace"></canvas>
 				</div>
 			</div>
-			<div ID="levelEditor" class="container buttonsMenu">
-				<br><br><br>I am the level editor, or at least I will eventually be it...
+			<div ID="levelEditor" class="">
+				<div id="controlsLE" class="row" style="margin-top:20px; z-index:10;">
+					<!-- <div class="col s3" >
+						<a id="homeButton" href="index.html" class="waves-effect waves-light btn colorCell">Home</a>
+					</div> -->
+					<div class="col s3 offset-s3">
+						<a href="#" onclick="clearBases();" class="waves-effect waves-light btn red" style="z-index:10;">Clear</a>
+					</div>
+					<div class="col s3">
+						<a href="#" onclick="showHideStringBases(true);" class="waves-effect waves-light btn colorCell" style="z-index:10;">String</a>
+					</div>
+					<div class="col s3">
+						<a href="#" onclick="saveCustomLevel();showOnly('gameUI');startGameLE(0);" class="waves-effect waves-light btn colorCell" style="z-index:10;">Play</a>
+					</div>
+				
+				</div>
+				<div id="exportString" hidden> 
+					<div id="exportText" class="exportText">Hey hey hey buddy buddy<br>{0.255566,0.78888}<br></div>
+					
+				</div>
+				<div id="basesLE" style="z-index:0"><canvas id="canvasBasesLE"></canvas></div>
+				<div id="mainCanvasLE" style="z-index:-1"><canvas id="drawSpaceLE"></canvas></div>
+				<!-- Modal Structure -->
+				<div id="modalBaseProperties" class="modal bottom-sheet">
+					<div id="modalContentLE" class="modal-content">
+					</div>
+				</div>
+				
 				<a id="backToMasterMenuButton" href="#" onclick="showMasterMenu();" class="buttonBack alphaBtn colorTextCell">
 					<i class="fas fa-home"></i>
 				</a>
@@ -253,7 +286,6 @@
 		<!-- Scripts -->
 		<script src="XBC_levels.js"></script>
 		<script src="xBosonConquest.js"></script>
-		
 		<script type="text/javascript" src="js/materialize.min.js"></script>
 		<script src="materializeInit.js"></script>
 		<script src="tsparticles/tsparticles.min.js"></script>

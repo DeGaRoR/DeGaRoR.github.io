@@ -62,7 +62,11 @@ var urlsToCache = [
   '/XBC/fonts/Gamer.woff2',
   '/XBC/fonts/Gamer.woff',
   '/XBC/fonts/Gamer.svg',
-  '/XBC/tsparticles/tsparticles.min.js'
+  '/XBC/tsparticles/tsparticles.min.js',
+  '/XBC/Resources/Bases/phage_boss.webp',
+  '/XBC/Resources/Bases/phage3D_S.webp',
+  '/XBC/Resources/Bases/phage3D_M.webp',
+  '/XBC/Resources/Bases/phage3D_L.webp'
   
 ];
 

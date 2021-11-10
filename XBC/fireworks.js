@@ -23,7 +23,7 @@ tsParticles.load("tsparticles", {
       delay: 0.1
     },
     rate: {
-      delay: 0.15,
+      delay: 0.3,
       quantity: 1
     },
     size: {
@@ -45,7 +45,7 @@ tsParticles.load("tsparticles", {
         count: 1,
         factor: { value: 1 / 3 },
         rate: {
-          value: 100
+          value: 20
         },
         particles: {
           stroke: {

@@ -2,10 +2,9 @@
 // Events
 //==============================================
 //
-window.onload = function() {
-		console.log("started");
+/* window.onload = function() {
 		startLevelEditor();
-	};
+	}; */
 // initialisation of  materialize components
 document.addEventListener('DOMContentLoaded', function() {
     var elems = document.querySelectorAll('.modal');
@@ -57,7 +56,7 @@ function onupLE(x,y) {
 			var y_norm = y_final/window.innerHeight;
 			console.log("this looks like a click at normalized coordinates x="+x_norm.toFixed(2)+", y="+y_norm.toFixed(2));
 			// test if the click is on an existing base
-			var clickOnBase=isClickOnBase(x_final,y_final);
+			var clickOnBase=isClickOnBaseLE(x_final,y_final);
 			if (clickOnBase) {//behaviour if clicking on an existing base
 				console.log("Clicked on base "+clickOnBase);
 				showModalBaseProperties(clickOnBase);
@@ -87,7 +86,7 @@ function clearSelectionLE() {
 	}
 	reDrawBases(config.bases);
 }
-function isClickOnBase(x,y) {
+function isClickOnBaseLE(x,y) {
 	//console.log("test if click is on base")
 	var response =0;
 	var tolerance = 160*config.sizeFactor;
@@ -296,14 +295,15 @@ function startLevelEditor() {
 	else {} // if it does not
 	reDrawBases(config.bases);
 }
-function loadCustomLevel() {
+/* function loadCustomLevel() {
 	if (localStorage.customLevel) {
 		var text = localStorage.getItem("customLevel");
 		var obj = JSON.parse(text);
 		return obj;
 	}
 	else {alert("No custom levels saved")}
-}
+} */
+
 function getConfigLE() {
 	// Get the canvas elements
 	var canvas = document.getElementById("drawSpaceLE");
@@ -486,7 +486,7 @@ function drawBaseLE(base) {
 		config.ctxBases.closePath();
 	}
 }
-function drawBase(base) {
+/* function drawBase(base) {
 	var baseSize = 0;
 	var level = null;
 	// draw the new image
@@ -540,59 +540,4 @@ function drawBase(base) {
 	config.ctxBases.setLineDash([]); */
 	
 
-}
-//
-//==============================================
-// Common funtions with core game
-//==============================================
-//
-
-function initializePlayers(sizeFactor) {
-	var players = [];
-	var cell3D_S = document.getElementById("cell3D_S");
-	var cell3D_M = document.getElementById("cell3D_M");
-	var cell3D_L = document.getElementById("cell3D_L");
-	var fungus3D_S = document.getElementById("fungus3D_S");
-	var fungus3D_M = document.getElementById("fungus3D_M");
-	var fungus3D_L = document.getElementById("fungus3D_L");
-	var virus3D_S = document.getElementById("virus3D_S");
-	var virus3D_M = document.getElementById("virus3D_M");
-	var virus3D_L = document.getElementById("virus3D_L");
-	var playerNone = {
-		playerName: "none",
-		playerColour: 'rgba(255,255,255,0.4)',
-		controlType: 2,
-	}
-	players.push(playerNone);
-	var player1 = {
-		playerName: "Plasma Cells",
-		playerColour: "#7b1fa2", //"#00BCC5" original colour
-		controlType: 0, // 0 for human, 1 for CPU, 2 for none
-		AIType: 1, // 0 for random AI, 1 for released AI
-		imgBase: [cell3D_S,cell3D_M,cell3D_L],
-		baseSize: [150 * sizeFactor,200 * sizeFactor,256 * sizeFactor],
-	}
-	players.push(player1);
-	var player2 = {
-		playerName: "Fungus",
-		playerColour: "#A0F500",
-		controlType: 1,
-		AIType: 1, // 0 for random AI, 1 for released AI
-		imgBase: [fungus3D_S,fungus3D_M,fungus3D_L],
-		baseSize: [256 * sizeFactor,300 * sizeFactor,350 * sizeFactor],
-	}
-	players.push(player2);
-	var player3 = {
-		playerName: "Virus",
-		playerColour: "#FF0700",//"#FF0700",
-		controlType: 1,
-		AIType: 1, // 0 for random AI, 1 for released AI
-		imgBase: [virus3D_S,virus3D_M,virus3D_L],
-		baseSize: [150 * sizeFactor,200 * sizeFactor,256 * sizeFactor],
-	}
-	players.push(player3);
-
-	return players;
-}
-
-function distance(x1, y1, x2, y2) { return Math.sqrt(Math.pow(x1-x2, 2)+Math.pow(y1-y2,2)) }
+} */
