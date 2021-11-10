@@ -1390,6 +1390,15 @@ function getLevels() {
     {ownership:0,x:0.70,y:0.70,levelMax:1},
   ]
 },
+{name:"normal - first foursome",
+  bases:[
+    {ownership:1,x:0.20,y:0.20,levelMax:1},
+    {ownership:2,x:0.80,y:0.20,levelMax:1},
+    {ownership:3,x:0.80,y:0.80,levelMax:1},
+    {ownership:4,x:0.20,y:0.80,levelMax:1},
+    {ownership:0,x:0.50,y:0.50,levelMax:3},
+  ]
+},
 	];
 	
 //allow for more margins
