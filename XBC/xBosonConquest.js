@@ -19,7 +19,8 @@ window.onload = function() {
 	//checkCustomLevelButton();
 	showMasterMenu();
 	initializeHack();
-	playMusicMasterMenu();
+	//playMusic('musicMenu');
+	document.getElementById('buttonVolumeMainMenu').style.display="none" // hide the volume control on first load, since autoplay is disabled anyways. We will show it later when the user has interacted
 	};
 window.onresize = function() {sizeBgCanvas(); placeCanvas(drawSpace); placeCanvas(canvasBases);};
 window.addEventListener("touchmove", function(event) {
@@ -29,7 +30,7 @@ window.addEventListener("touchmove", function(event) {
        }
  });
  function initializeHack() {
-var button = document.getElementById('unlockIcon');
+	var button = document.getElementById('unlockIcon');
    var count = 0;
    var threshold = 50;
 
@@ -38,7 +39,7 @@ var button = document.getElementById('unlockIcon');
        count++;
   
        if(count == threshold){
-           alert("Who told you to click on the lock like a maniac? You maniac. Enjoy the unlocked levels. Maniac.");
+           alert("Who told you to click on the lock like a maniac? Enjoy the unlocked levels, you maniac.");
 		   unlockAll();
 		   count=0;
        }
@@ -47,62 +48,66 @@ var button = document.getElementById('unlockIcon');
  
 var persistData = {
 	timePace: 10,
-	nLevels: 36,
 	initialScale: 1,
+	mutedOverall : false
 }
 //
 //==============================================
 // Music and sounds
 //==============================================
 //
-function playMusicMasterMenu() {
-	var music = document.getElementById('musicMenu');
-	var promise = music.play();
+function playMusic(audioElem) {
+	// Play only if not intentionally muted
+	if (!persistData.mutedOverall) {
+		var audioElemList = ['musicMenu','musicGame'];
+		var music = document.getElementById(audioElem);
+		// stop all the musics but the one
+		for (var i=0;i<audioElemList.length;i++) {
+			if (audioElem == audioElemList[i]) {var promise = music.play();}
+			else {stopMusic(audioElemList[i]);}
+		}
+		if (promise !== undefined) {
+		  promise.then(_ => {
+			// Play succeeded
+			console.log("Play succeeded");
+			music.muted=false;
+		  }).catch(error => {
+			// Autoplay not allowed!
+			// Mute music and try to play again
+			console.log("Autoplay not allowed! Mute music and try to play again");
+			//music.muted = true;
+			//music.play();
 
-	if (promise !== undefined) {
-	  promise.then(_ => {
-		// Autoplay started!
-		console.log("Autoplay started!");
-		music.muted=false;
-	  }).catch(error => {
-		// Autoplay not allowed!
-		// Mute music and try to play again
-		console.log("Autoplay not allowed! Mute music and try to play again");
-		music.muted = true;
-		music.play();
-
-		// Show something in the UI that the video is muted
-	  });
+			// Show something in the UI that the video is muted
+		  });
+		}
 	}
 }
-function playMusicGameMenu() {
-	var music = document.getElementById('musicGame');
-	var promise = music.play();
 
-	if (promise !== undefined) {
-	  promise.then(_ => {
-		// Autoplay started!
-		console.log("Autoplay started!");
-		music.muted=false;
-	  }).catch(error => {
-		// Autoplay not allowed!
-		// Mute music and try to play again
-		console.log("Autoplay not allowed! Mute music and try to play again");
-		music.muted = true;
-		music.play();
-
-		// Show something in the UI that the video is muted
-	  });
+function stopMusic(audioElem) {
+	var music = document.getElementById(audioElem);
+	music.pause();
+}
+function muteUnMute(audioElem) {
+	var myAudio = document.getElementById(audioElem);
+	// check if it is playing, stop if it is
+	if (myAudio.duration > 0 && !myAudio.paused) {stopMusic(audioElem); persistData.mutedOverall=true;setVolumeButtonIcon(true)} 
+	// and play if it is not
+	else {persistData.mutedOverall=false; playMusic(audioElem);setVolumeButtonIcon(false)}
+}
+function setVolumeButtonIcon(mutedStatus) {
+	//choose the correct icons according to status
+	if (mutedStatus) {var appropriateIcon='<i class="material-icons">volume_up</i>'}
+	else {var appropriateIcon='<i class="material-icons">volume_off</i>'}
+	// Loop through all buttons with a certain class
+	var volumeButtons = document.getElementsByClassName("buttonVolumeMenu");
+	for (var i = 0; i < volumeButtons.length; i++) {
+	   volumeButtons.item(i).innerHTML=appropriateIcon;
 	}
+	// Also update the ingame menu element
+	document.getElementById('musicButtonInGame').innerHTML = appropriateIcon;
 }
-function stopMusicGame() {
-	var musicGame = document.getElementById('musicGame');
-	musicGame.pause();
-}
-function stopMusicMenu() {
-	var musicMenu = document.getElementById('musicMenu');
-	musicMenu.pause();
-}
+
 //
 //==============================================
 // Navigation between different sections
@@ -111,23 +116,25 @@ function stopMusicMenu() {
 
 function showMasterMenu() {
 	updateIndicatorsMasterMenu();
-	stopMusicGame();
-	playMusicMasterMenu();
+	playMusic('musicMenu');
 	showOnly('masterMenu');
+	document.getElementById('buttonVolumeMainMenu').style.display="inline";
 }
 function showLevelEditor() {
 	gtag("event", "levelEditor_start", {});
 	showOnly('levelEditor');
+	playMusic('musicMenu');
 	startLevelEditor();
 }
 function showLevelChooser() {
-	stopMusicGame();
-	playMusicMasterMenu();
+	playMusic('musicMenu');
 	showOnly('LevelChooser');
+
 }
 function showCredits() {
 	gtag("event", "show_credits", {});
 	showOnly('credits');
+
 }
 function showOnly(DOMelemID) {
 	// List all full screen sections that can be shown stand-alone, within the "visible elements" div
@@ -143,6 +150,7 @@ function showOnly(DOMelemID) {
 		else {document.getElementById(sectionList[i]).hidden=true;}
 	}
 }
+
 //
 //==============================================
 // Master Menu
@@ -1087,6 +1095,8 @@ function startGameLE(level) {
 		// Set the correct background
 		cancelAnimationFrame(bgReqID);
 		setBackground(1);
+		// Start the game music
+		playMusic('musicGame');
 		
 		// hide the level choice UI and show the game div
 		document.getElementById('LevelChooser').hidden = true;
@@ -1118,10 +1128,8 @@ function startGame(level) {
 	if (statusLevelLock[level] == 0) {
 		// Send a Google analytics event
 		gtag("event", "level_start", {level_name: String("level")});
-		// Stop the menu music
-		stopMusicMenu();
 		// Start the game music
-		playMusicGameMenu();
+		playMusic('musicGame');
 		
 		// Set the correct background
 		var section = Math.ceil(level/9);
@@ -2508,8 +2516,7 @@ function animate(time) {
 		});
 		//Dismiss all tuto toasts
 		M.Toast.dismissAll();
-		// Stop the game music
-		stopMusicGame();
+
 		return;
 	}
     // request another animation frame (always first call)

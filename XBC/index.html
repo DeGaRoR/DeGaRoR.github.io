@@ -81,71 +81,75 @@
 		<audio id="musicMenu" loop><source src="music/musicMenu.mp3" type="audio/mpeg">&nbsp;</audio>
 		<audio id="musicGame" loop><source src="music/musicGame.mp3" type="audio/mpeg">&nbsp;</audio>
 		<div id="visibleElements" hidden>
+			<div class="center buttonsMenu"></div>
 			<div id="background" style="z-index:0">
 				<canvas id="background_canvas" ></canvas>
 			</div>
-			<div id="masterMenu" class="center buttonsMenu ">
-				
-				<a id="buttonVolumeMenu" onclick="playMusicMasterMenu();" class="btn-floating btn-large waves-effect waves-light colorCell buttonVolumeMenu"><i class="material-icons">volume_off</i></a>
-				<div class="scaleOnSmallLandscape">
-					<!-- Title -->
-					<div class="row">
-						<img alt="X Boson Conquest" class="title responsive-img" id="TitlePC" src="Resources\newTitleJidev01.webp" width="1000" height="142" style="padding-left:20px; padding-right: 20px;">
-						<img alt="X Boson Conquest" class="title responsive-img" id="TitleMobile" src="Resources\newTitleJidev01_mobile.webp" width="518" height="275" style="padding-left:20px; padding-right: 20px;">
-					</div>
-					<div class="container">
-						<!-- Progression and incentive -->
-						<div class="row hideOnSmallLandscape">
-							<div class="col s6 xl3 offset-xl3 starIconMain yellow-text" style="line-height:0px"><i class="fas fa-star"></i></div>
-							<div id="unlockIcon" class="col s6 xl3 starIconMain colorTextCell" style="line-height:0px"><i class="fas fa-unlock-alt"></i></div>
-						</div>
-						<div class="row hideOnSmallLandscape">
-							<div id="sumStars" class="col s6 xl3 offset-xl3 scoreMainMenu yellow-text">26/297</div>
-							<div id="sumUnlocked" class="col s6 xl3 scoreMainMenu colorTextCell">23/99</div>
-						</div>
-						<!-- Game controls -->
-						<div class="row" style="margin-top:10px"><a id="playButton" href="#" onclick="showLevelChooser();" class="buttonTitle col s8 offset-s2 xl4 offset-xl4">PLAY</a></div> <!-- apply pulse class maybe -->
-						<div class="row" ><a id="LEButton" href="#" onclick="showLevelEditor();" class="buttonSecond col s6 offset-s3 xl2 offset-xl5">LEVEL EDITOR</a></div>
-						<DIV class="row">&nbsp;</div>
-						<!-- Call to action -->
-						<div class="row"><div class=" col s12 l6 offset-l3 "><a id="coffeeButton" href="#" onclick="donateAction();" class="buttonSecond col s12"><i class="fas fa-mug-hot"></i>&nbsp;&nbsp;BUY US A COFFEE</a></div></div>
+
+				<div id="masterMenu" class="center buttonsMenu ">
+					<a id="buttonVolumeMainMenu" href="#" onclick="muteUnMute('musicMenu');" class="btn-floating btn-large waves-effect waves-light colorCell buttonVolumeMenu" style="z-index:10"><i class="material-icons">volume_off</i></a>
+					
+					<div class="scaleOnSmallLandscape">
+						<!-- Title -->
 						<div class="row">
-							
-							<div class="col s4 xl2 offset-xl3"><a id="creditsButton" href="#" onclick="showCredits();" class="buttonSecond col s12">CREDITS</a></div>
-							<div class="col s4 xl2"><a id="pugfaceButton" href="https://degaror.github.io/webgames" onclick="goToPugface();" class="buttonSecond col s12">MORE <i class="fas fa-gamepad"></i></a></div>
-							<div class="col s4 xl2"><a id="shareButton" href="#" onclick='shareXBC();' class="buttonSecond col s12"><i class="fas fa-share-alt"></i></a></div>
+							<img alt="X Boson Conquest" class="title responsive-img" id="TitlePC" src="Resources\newTitleJidev01.webp" width="1000" height="142" style="padding-left:20px; padding-right: 20px;">
+							<img alt="X Boson Conquest" class="title responsive-img" id="TitleMobile" src="Resources\newTitleJidev01_mobile.webp" width="518" height="275" style="padding-left:20px; padding-right: 20px;">
+						</div>
+						<div class="container">
+							<!-- Progression and incentive -->
+							<div class="row hideOnSmallLandscape">
+								<div class="col s6 xl3 offset-xl3 starIconMain yellow-text" style="line-height:0px"><i class="fas fa-star"></i></div>
+								<div id="unlockIcon" class="col s6 xl3 starIconMain colorTextCell" style="line-height:0px"><i class="fas fa-unlock-alt"></i></div>
+							</div>
+							<div class="row hideOnSmallLandscape">
+								<div id="sumStars" class="col s6 xl3 offset-xl3 scoreMainMenu yellow-text">26/297</div>
+								<div id="sumUnlocked" class="col s6 xl3 scoreMainMenu colorTextCell">23/99</div>
+							</div>
+							<!-- Game controls -->
+							<div class="row" style="margin-top:10px"><a id="playButton" href="#" onclick="showLevelChooser();" class="buttonTitle col s8 offset-s2 xl4 offset-xl4">PLAY</a></div> <!-- apply pulse class maybe -->
+							<div class="row" ><a id="LEButton" href="#" onclick="showLevelEditor();" class="buttonSecond col s6 offset-s3 xl2 offset-xl5">LEVEL EDITOR</a></div>
+							<DIV class="row">&nbsp;</div>
+							<!-- Call to action -->
+							<div class="row"><div class=" col s12 l6 offset-l3 "><a id="coffeeButton" href="#" onclick="donateAction();" class="buttonSecond col s12"><i class="fas fa-mug-hot"></i>&nbsp;&nbsp;BUY US A COFFEE</a></div></div>
+							<div class="row">
+								
+								<div class="col s4 xl2 offset-xl3"><a id="creditsButton" href="#" onclick="showCredits();" class="buttonSecond col s12">CREDITS</a></div>
+								<div class="col s4 xl2"><a id="pugfaceButton" href="https://degaror.github.io/webgames" onclick="goToPugface();" class="buttonSecond col s12">MORE <i class="fas fa-gamepad"></i></a></div>
+								<div class="col s4 xl2"><a id="shareButton" href="#" onclick='shareXBC();' class="buttonSecond col s12"><i class="fas fa-share-alt"></i></a></div>
+							</div>
 						</div>
 					</div>
-				</div>
-				<!-- Footer -->
-				<div class="row">
-				<div class="XBCfooter">
-					<div class="col s6" style="padding:5px;">
-					  <img src="Resources/ico/topolPixelArt_NB_dark.png" style="height:25px;" class="helper circle" href="https://degaror.github.io/webgames" >
-					  by Pugface Productions
+					<!-- Footer -->
+					<div class="row">
+					<div class="XBCfooter">
+						<div class="col s6" style="padding:5px;">
+						  <img src="Resources/ico/topolPixelArt_NB_dark.png" style="height:25px;" class="helper circle" href="https://degaror.github.io/webgames" >
+						  by Pugface Productions
+						</div>
+						<div class="col s6" style="font-size:25px">
+						  <a href="https://www.facebook.com/Pugface-Productions-100502542430633" class="blue-text"><i class="fab fa-facebook" style="color: #4267B2"></i></a>
+						  <a href="#!" class="blue-text"><i class="fab fa-instagram" style="color: #000000"></i></a>
+						  <a href="#!" class="blue-text"><i class="fab fa-youtube" style="color: #FF0000"></i></a>
+						  <a href="#!" class="blue-text"><i class="fab fa-twitch" style="color: #6441A4"></i></a>
+						  <a href="#!" class="blue-text"><i class="fab fa-twitter" style="color: #1DA1F2" ></i></a>
+						</div>
 					</div>
-					<div class="col s6" style="font-size:25px">
-					  <a href="https://www.facebook.com/Pugface-Productions-100502542430633" class="blue-text"><i class="fab fa-facebook" style="color: #4267B2"></i></a>
-					  <a href="#!" class="blue-text"><i class="fab fa-instagram" style="color: #000000"></i></a>
-					  <a href="#!" class="blue-text"><i class="fab fa-youtube" style="color: #FF0000"></i></a>
-					  <a href="#!" class="blue-text"><i class="fab fa-twitch" style="color: #6441A4"></i></a>
-					  <a href="#!" class="blue-text"><i class="fab fa-twitter" style="color: #1DA1F2" ></i></a>
 					</div>
 				</div>
+				<div id="LevelChooser" class="menuCenter buttonsMenu scaleOnSmallLandscape">
+					<a id="buttonVolumeMenu" href="#" onclick="muteUnMute('musicMenu');" class="btn-floating btn-large waves-effect waves-light colorCell buttonVolumeMenu" style="z-index:10"><i class="material-icons">volume_off</i></a>
+					<div class="hideOnSmallLandscape"><img alt="X Boson Conquest" class="title responsive-img" id="TitlePC" src="Resources\newTitleJidev01.webp" width="1000" height="142" style="padding-left:20px; padding-right: 20px;"></div>
+					<img alt="X Boson Conquest" class="title responsive-img" id="TitleMobile" src="Resources\newTitleJidev01_mobile.webp" width="518" height="275" style="padding-left:20px; padding-right: 20px;">
+					<a id="backToMasterMenuButton" href="#" onclick="showMasterMenu();" class="buttonBack alphaBtn colorTextCell"><i class="fas fa-home"></i></a>
+					<div id="levelContent" class="container"></div>
+					
 				</div>
-			</div>
-			<div id="LevelChooser" class="menuCenter buttonsMenu scaleOnSmallLandscape">
-				<div class="hideOnSmallLandscape"><img alt="X Boson Conquest" class="title responsive-img" id="TitlePC" src="Resources\newTitleJidev01.webp" width="1000" height="142" style="padding-left:20px; padding-right: 20px;"></div>
-				<img alt="X Boson Conquest" class="title responsive-img" id="TitleMobile" src="Resources\newTitleJidev01_mobile.webp" width="518" height="275" style="padding-left:20px; padding-right: 20px;">
-				<a id="backToMasterMenuButton" href="#" onclick="showMasterMenu();" class="buttonBack alphaBtn colorTextCell"><i class="fas fa-home"></i></a>
-				<div id="levelContent" class="container"></div>
-				
-			</div>
+
 			<div id="gameUI" hidden>
 				<span id="Action button menu" class="fixed-action-btn click-to-toggle direction-top direction-right" style="position: absolute; left: 24px; top:24px; height:0px; width:0px">
 					<a id="main-btn" href="javascript:releaseSelection();showMenu()" class="btn-floating btn-large transparent"><i class="material-icons">menu</i></a>
 					<ul>
-						<li><a href="javascript:showMenu()" class="btn-floating transparent" style="opacity: 0; transform: scale(0.4) translateY(0px) translateX(40px);"><i class="material-icons">volume_off</i></a></li>
+						<li><a id="musicButtonInGame" href="#" onclick="showMenu(); muteUnMute('musicGame');" class="btn-floating transparent" style="opacity: 0; transform: scale(0.4) translateY(0px) translateX(40px);"><i class="material-icons">volume_off</i></a></li>
 						<li id="restartNormal"><a  href="javascript:showMenu();ShowConfirmRestart()" class="btn-floating transparent" style="opacity: 0; transform: scale(0.4) translateY(0px) translateX(40px);"><i class="fa fa-refresh" aria-hidden="true"></i></a></li>
 						<li id="restartLE" ><a href="javascript:showMenu();startGameLE(0);" class="btn-floating transparent" style="opacity: 0; transform: scale(0.4) translateY(0px) translateX(40px);"><i class="fa fa-refresh" aria-hidden="true"></i></a></li>
 						<li id="homeNormal"><a href="javascript:ShowConfirmReturnHome(); showMenu();" class="btn-floating transparent" style="opacity: 0; transform: scale(0.4) translateY(0px) translateX(40px);"><i class="fa fa-home" aria-hidden="true"></i></a></li>	
@@ -168,9 +172,8 @@
 				<span id="nextLevelMenu" class="inGameMenu center white-text" hidden>
 					
 					<div class="container">
-						<div id="winnerPicture" class="row center">
-							<!-- <div id="winnerPicture" class="col s12"><img alt="icon" id="cell3D_L" src="Resources\Bases\cell3D_L.webp" width="256" height="256"></div> -->
-							<div class="card square-card">
+						<div id="winnerPicture" class="center">
+							<div class="cardCool square-card">
 								<div class="down">
 								<div class="up">
 									<div class="squeeze">
@@ -252,6 +255,7 @@
 				</div>
 			</div>
 			<div ID="levelEditor" class="">
+				
 				<div id="controlsLE" class="row" style="margin-top:20px; z-index:10;">
 					<!-- <div class="col s3" >
 						<a id="homeButton" href="index.html" class="waves-effect waves-light btn colorCell">Home</a>
@@ -283,7 +287,12 @@
 					<i class="fas fa-home"></i>
 				</a>
 			</div>
-			<div ID="credits" class="container buttonsMenu"><br><br><br>All the credits in the world<a id="backToMasterMenuButton" href="#" onclick="showMasterMenu();" class="buttonBack alphaBtn colorTextCell"><i class="fas fa-home"></i></a></div>
+			<div ID="credits" class="container buttonsMenu">
+				<a id="buttonVolumeMenu" href="#" onclick="muteUnMute('musicMenu');" class="btn-floating btn-large waves-effect waves-light colorCell buttonVolumeMenu"><i class="material-icons">volume_off</i></a>
+				<br><br><br>All the credits in the world
+				<a id="backToMasterMenuButton" href="#" onclick="showMasterMenu();" class="buttonBack alphaBtn colorTextCell"><i class="fas fa-home"></i></a>
+				
+			</div>
 			
 		</div>
 		<!-- Scripts -->

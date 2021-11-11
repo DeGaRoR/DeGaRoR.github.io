@@ -5244,7 +5244,7 @@ small {
 
 .btn:focus, .btn-large:focus, .btn-small:focus,
 .btn-floating:focus {
-  background-color: #1d7d74;
+
 }
 
 .btn, .btn-large, .btn-small {
@@ -5259,7 +5259,7 @@ small {
 }
 
 .btn:hover, .btn-large:hover, .btn-small:hover {
-  background-color: #2bbbad;
+
 }
 
 .btn-floating {
@@ -5281,7 +5281,7 @@ small {
 }
 
 .btn-floating:hover {
-  background-color: #26a69a;
+
 }
 
 .btn-floating:before {
@@ -5365,7 +5365,7 @@ button.btn-floating {
   height: 100%;
   left: auto;
   /*width 100% only goes to width of button container */
-  width: 250px;
+  width: 220px;
 }
 
 .fixed-action-btn.direction-left ul li, .fixed-action-btn.direction-right ul li {

@@ -13,16 +13,16 @@
   grid-template-columns: repeat(auto-fill, minmax(23rem, 1fr));
   margin: 0 auto;
   max-width: 100%;
-  padding: 2rem;
+  padding: 0rem;
   width: 55rem;
 }
 
-.card {
+.cardCool {
   align-items: center;
   //border-radius: 0.25rem;
   box-shadow: 0px 0px 0px rgba(0, 0, 0, 0);
   display: flex;
-  height: 23rem;
+  height: 19rem;
   justify-content: center;
   position: relative;
   width: 100%;
