@@ -323,16 +323,18 @@ levelChooser {
 .winMessage{
 	color: white;
 	font-family:'Gamer';
-	line-height:25px;
+	
 }
 @media only screen and (min-width: 0px) {
   .winMessage {
     font-size: 40px;
+	line-height:25px;
   }
 }
 @media only screen and (min-width: 992px) {
   .winMessage {
     font-size: 70px;
+	line-height:50px;
 
   }
 }
