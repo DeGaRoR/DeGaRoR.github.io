@@ -1,0 +1,9 @@
+body {
+	background: black;
+}
+#canvas1 {
+	position:absolute;
+	border: 3px solid white;
+	width:1200 px;
+	height:700 px;
+}
