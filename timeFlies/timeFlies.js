@@ -90,19 +90,17 @@ var bulletSpeed = 10;
 var weaponOffsetX = 200;
 var weaponOffsetY = 50;
 var ennemies = [];
+var frames = 0;
+
 function createEnnemies() {
 	
 	var ennemiesSpeed = -3;
 	var img = 0;
 	
-	/* var newEnnemy={x: 1000, y:50, speed : -3,img: img};
-	ennemies.push(newEnnemy); */
-	var newEnnemy={x: 3000, y:70, speed : -3,img: img};
-	ennemies.push(newEnnemy);
-	var newEnnemy={x: -100, y:350, speed : 2,img: img};
-	ennemies.push(newEnnemy);
-	var newEnnemy={x: -1000, y:100, speed : 6,img: img};
-	ennemies.push(newEnnemy);
+	for (var i=0; i<20;i++) {
+		var newEnnemy={x: 1000+700*i, y:300+Math.random()*200-Math.random()*200, speed : -(Math.random()+1),img: img, speedY:2*Math.random()-1};
+		ennemies.push(newEnnemy);
+	}
 	
 	// update the images according to speed
 	var ennemyPic = document.getElementById("ennemy");
@@ -115,6 +113,9 @@ function createEnnemies() {
 }
 function drawPlayer(x,y) {
 	var planePlayer = document.getElementById("planePlayer");
+	// Make it shake
+	//y = y+(frames*0.5) % 5;
+	
 	ctx.drawImage(planePlayer,x,y,264,204);
 }
 function createBullet() {
@@ -139,16 +140,22 @@ function updateBullets() {
 function drawEnnemies() {
 	
 	for (var i=0; i<ennemies.length; i++) {
-		ctx.drawImage(ennemies[i].img,ennemies[i].x,ennemies[i].y,264,204);
+		var ennemy=ennemies[i];
+		if (ennemy.x > -250 && ennemy.x<CANVAS_WIDTH+10) {
+			ctx.drawImage(ennemies[i].img,ennemies[i].x,ennemies[i].y,264,204);
+		}
 	}
 };
 function updateEnnemies() {
 	for (var i=0; i<ennemies.length; i++) {
 		ennemies[i].x=ennemies[i].x+ennemies[i].speed;
+		if (ennemies[i].y<30 || ennemies[i].y>450) {ennemies[i].speedY=-ennemies[i].speedY}
+		ennemies[i].y = ennemies[i].y+ennemies[i].speedY;
 	}
 };
 
 function animate() {
+	frames++;
 	ctx.clearRect(0,0,CANVAS_WIDTH, CANVAS_HEIGHT);
 	backgroundObjects.forEach(object => {
 		object.update();
@@ -167,6 +174,7 @@ function animate() {
 	requestAnimationFrame(animate);
 }
 function startGame() {
+	
 	createEnnemies();
 	animate();
 	}
