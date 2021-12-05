@@ -287,10 +287,61 @@
 					<i class="fas fa-home"></i>
 				</a>
 			</div>
-			<div ID="credits" class="container buttonsMenu">
-				<a id="buttonVolumeMenu" href="#" onclick="muteUnMute('musicMenu');" class="btn-floating btn-large waves-effect waves-light colorCell buttonVolumeMenu"><i class="material-icons">volume_off</i></a>
-				<br><br><br>All the credits in the world
-				<a id="backToMasterMenuButton" href="#" onclick="showMasterMenu();" class="buttonBack alphaBtn colorTextCell"><i class="fas fa-home"></i></a>
+			<div ID="credits" class="buttonsMenu">
+				<!-- <a id="buttonVolumeMenu" href="#" onclick="muteUnMute('musicMenu');" class="btn-floating btn-large waves-effect waves-light colorCell buttonVolumeMenu"><i class="material-icons">volume_off</i></a>
+				<a id="backToMasterMenuButton" href="#" onclick="showMasterMenu();" class="buttonBack alphaBtn colorTextCell"><i class="fas fa-home"></i></a> -->
+				<div class="headerResources row">&nbsp;
+						
+					<a id="backToMasterMenuButton" href="#" onclick="showMasterMenu();" class="col s2 headerIcon colorTextCell" style="text-align:left;">
+						<i class="fas fa-home"></i>
+					</a>
+					
+					<span class="center col s8">
+						<i class="fas fa-star yellow-text"></i>
+						<span class="headerText yellow-text">200</span>
+					
+						<image id="getCoin" src="Resources\icons\coinDG.svg" style="height:20px; padding-top:6px; transform:scale(1.6);">
+						<span class="headerText gold-text">2.52k</span>
+					</span>
+					
+					
+					<a id="buttonVolumeMainMenu" href="#" onclick="muteUnMute('musicMenu');" class="headerIcon colorTextCell buttonVolumeMenu col s2" style="z-index:10"><i class="material-icons">volume_off</i></a>
+				</div>
+				<div id="achievements" class="container">
+					<div class="row center">
+						<div id="prototypeAchievement" class="achievement col s12 l6 offset-l3">
+							<div id="icon" class="col s2" style="padding: 0px;">
+								<div class="achievementIconContainerTrans">
+									<i class="fas fa-star achievementIcon white-text textShadowed"></i>
+								</div>
+							</div>
+							<div id="progress" class= "col s6" style="padding:0px;">
+								<div class="progressText">NUMBER OF STARS<br>20/50</div>
+									
+								<div>
+									<progress max="100" value="50"></progress>
+								</div>
+							</div>
+							<!-- <div id="achievementLevel" class= "col s2">
+								
+								<div class="achievementIconContainerTrans">
+									<div class="ribbonText">20</div>
+									<image id="ribbon" class="textShadowed" src="Resources\icons\ribbonWhite.svg">	
+								</div>
+							</div> -->
+							<div id="getReward" class= "col s4" style="">
+								<div class="achievementIconContainer btn-floating pulse">
+									<div class="coinText">50</div>
+									<image id="getCoin" src="Resources\icons\coinDG.svg" height="40px">	
+								</div>
+							</div>
+						</div>
+					</div>
+					<div id="prototypeAchievement" class="achievement">
+						&nbsp;
+					</div>
+					
+				</div>
 				
 			</div>
 			

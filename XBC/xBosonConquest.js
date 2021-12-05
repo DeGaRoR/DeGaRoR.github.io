@@ -611,7 +611,7 @@ function getConfigMenu() {
 		starFullClass1:"fas",
 		starFullClass2:"fa-star",
 		starFullClass3:"yellow-text",
-		titleSections: ["Easy","Medium","Hard","VS","tempSection5","tempSection6","tempSection7","tempSection8","tempSection9","tempSection10"],
+		titleSections: ["TIER 1 / HELLO WORLD","TIER 2 / ","TIER 3","TIER 4","TIER 5","TIER 6","TIER 7","TIER 8","TIER 9","TIER 10","TIER 11"],
 		hackyClicksRequired:20
 	};
 	return configMenu;
@@ -683,7 +683,7 @@ function buildLevelsMenu(sectionToShow) { //This function builds the levels menu
 		//-----------------
 		// Group Title
 		//-----------------
-/* 		// Add a row
+ 		// Add a row
 		var newRow = document.createElement("DIV");
 		newRow.classList.add("row");
 		newSection.appendChild(newRow);
@@ -693,7 +693,7 @@ function buildLevelsMenu(sectionToShow) { //This function builds the levels menu
 		newCol.classList.add("s12");
 		newCol.classList.add("levelGroupTitle");
 		newCol.innerHTML=configMenu.titleSections[i-1];
-		newRow.appendChild(newCol); */
+		newRow.appendChild(newCol); 
 		//-----------------
 		// Level buttons
 		//-----------------

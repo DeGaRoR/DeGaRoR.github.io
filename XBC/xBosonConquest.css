@@ -370,7 +370,9 @@ levelChooser {
 .levelGroupTitle{
 	font-size:30px;
 	color:white;
-	display:none;
+	//display:none;
+	font-family: 'Gamer';
+	line-height:5px;
 }
 .shadowed{
 	box-shadow: rgba(50, 50, 93, 0.25) 0px 13px 27px -5px, rgba(0, 0, 0, 0.3) 0px 8px 16px -8px;
@@ -572,4 +574,141 @@ levelChooser {
 	position: fixed;
 	right:0px;
 	margin:10px;
+}
+
+
+.achievement {
+	//background-color: #b87979;
+    border-radius: 5px;	
+    margin-top: 20px;
+	
+	background-color: rgba(255, 255, 255, 0.2);
+	border: 0px solid rgba(255, 255, 255, 0.2);
+	color: rgb(255 255 255);
+	box-shadow: rgba(0, 0, 0, 0.6) 4px 4px 1px 0px;
+	
+}
+
+.achievementIconContainer {
+	height: 40px ; 
+	width: 80px ; 
+	background-color: white; 
+	margin:auto ;
+	margin-bottom: 9px;
+	margin-top: 5px;
+	border-radius: 5px;
+	box-shadow: rgba(0, 0, 0, 0.6) 4px 4px 1px 0px;
+	text-align:right;
+	padding-left:5px;
+}
+.achievementIconContainerTrans {
+	height: 40px ; 
+	width: 40px ; 
+	//background-color: white; 
+	margin:auto ;
+	margin-bottom: 9px;
+	margin-top: 5px;
+	//border-radius: 5px;
+	//box-shadow: rgba(0, 0, 0, 0.6) 4px 4px 1px 0px;
+}
+
+.achievementIcon {
+	margin:auto;
+	font-size: 30px;
+	padding: 3px;
+}
+
+progress[value] {
+  /* Reset the default appearance */
+  -webkit-appearance: none;
+   appearance: none;
+
+  width: 100%;
+  height: 35px;
+
+}
+progress[value]::-webkit-progress-bar {
+  background-color: gray;
+  border-radius: 5px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.25) inset;
+}
+
+progress[value]::-webkit-progress-value {
+  background-image:
+	   /* -webkit-linear-gradient(-45deg, 
+	                           transparent 33%, rgba(0, 0, 0, .1) 33%, 
+	                           rgba(0,0, 0, .1) 66%, transparent 66%), */
+	   -webkit-linear-gradient(top, 
+	                           rgba(255, 255, 255, .25), 
+	                           rgba(0, 0, 0, .25)),
+	   -webkit-linear-gradient(left,  #ffe300ff, #ebc100ff);
+
+    border-radius: 2px; 
+    background-size: 30px 35px, 100% 100%, 100% 100%;
+}
+progress {
+  text-align: center;
+  margin-top: 15px;
+    padding: 6px;
+}
+progress:before {
+	position: absolute;
+	//content: attr(value)'%';
+	font-weight: 300;
+	font-size: 1.5rem;
+	color: #fff;
+}
+
+.ribbonText {
+	position: absolute;
+	color: black;
+    padding-top : 7px ;
+    padding-left : 10px;
+    font-size: 15px;
+}
+.coinText {
+	position: absolute;
+	padding-top : 0px ;
+    padding-left : 10px;
+	color: black;
+    font-size: 15px;
+}
+.progressText{
+	position:absolute;
+	color:white;
+	font-size:20px;
+	font-family: 'Gamer' ;
+	text-align: left;
+	white-space: nowrap;
+	line-height:20px;
+	padding-left:10px;
+}
+.boxShadowed {
+	box-shadow: rgba(0, 0, 0, 0.6) 4px 4px 1px 0px;
+}
+.textShadowed {
+	text-shadow: 4px 4px 1px rgba(0,0,0,0.6);
+}
+.headerResources {
+	height:40px;
+	padding-top:5px;
+	background-color: rgba(10, 10, 10, 0.8);
+	border: 0px solid rgba(255, 255, 255, 0.2);
+	color: rgb(255 255 255);
+	
+	
+}
+.headerIcon {
+	font-size: 20px;
+	
+}
+.headerText {
+	font-size: 30px;
+	font-size: 30px;
+	line-height:20px;
+	font-family:'Gamer';
+	
+}
+.gold-text {
+	color: #ebc100ff;
 }
