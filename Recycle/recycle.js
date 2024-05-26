@@ -22,12 +22,17 @@ function buildAssetRelations(){
 function stepTime() {
 
 	// initialize the hasMoved property for all garbage
-	var j = 0;
-	while (j<state.garbageArray.length){
-		state.garbageArray[j].hasMoved = false;
-		j++
-	}
-	//loop through the elements
+	resetHasMoved();
+	//loop through the elements and apply their respective actions
+	applyElementAction();
+	// Update the HTML info section
+	updateInfo();
+	//draw the canvas
+	draw();
+	highlight(state.cellSelected[0],state.cellSelected[1]);
+}
+
+function applyElementAction(){
 	var i=0;
 	while (i<config.elementsArray.length) {
 		var asset = config.elementsArray[i];
@@ -63,12 +68,17 @@ function stepTime() {
 	}
 	// replace the garbage vector with the newly constructed one
 	state.garbageArray = garbageArrayTemp;
-	//console.log(state.processedGarbageArray);
-	//countYellow = countGarbage(state.processedGarbageArray,"color","yellow");
-	//console.log(countYellow);
-	updateInfo();
-	draw();
 }
+
+function resetHasMoved(){
+	var j = 0;
+	while (j<state.garbageArray.length){
+		state.garbageArray[j].hasMoved = false;
+		j++
+	}
+}
+
+
 function updateInfo() {
 	// Get the appropriate DIV and clean it
 	var infoSection = document.getElementById("info");
@@ -141,6 +151,36 @@ function getAssetOnCellID(x,y){
 	}
 };
 
+//mouse click
+function ondown(x,y) {
+	
+	// figure out the cell clicked on
+	// correct the input to account for margin - do better
+	margin_y=16;
+	margin_x=9;
+	x_corr=x-margin_x;
+	y_corr=y-margin_y;
+	cell_x=Math.floor(x_corr/config.grid_space);
+	cell_y=Math.floor(y_corr/config.grid_space);
+	// check that the cell exists within the game zone
+	if (cell_x<config.grid_x && cell_y<config.grid_y) {
+		highlight(cell_x,cell_y);
+		assetID=getAssetOnCellID(cell_x,cell_y);
+		console.log("click detected on cell ",cell_x, cell_y," with assetID ",assetID);
+	}
+	else {console.log("Click outside playzone")}
+}
+function onup(x,y) {}
+function onmove(x,y) {}
+onmousedown = function(e) { ondown(e.clientX, e.clientY); };
+onmousemove = function(e) { onmove(e.clientX, e.clientY); };
+onmouseup = function(e) { onup(e.clientX, e.clientY); };
+ontouchstart = function(e) { ondown(e.changedTouches["0"].clientX, e.changedTouches["0"].clientY);};
+ontouchend = function(e) { onup(e.changedTouches["0"].clientX, e.changedTouches["0"].clientY); };
+ontouchmove = function(e) { onmove(e.changedTouches["0"].clientX, e.changedTouches["0"].clientY); };
+
+
+
 // rendering
 function draw() {
 	var c = document.getElementById("myCanvas");
@@ -163,8 +203,8 @@ function draw() {
 		ctx.stroke();
 		j++;
 	}
-	//draw the elements
 	
+	//draw the elements
 	while (k < config.elementsArray.length) {
 		asset = config.elementsArray[k];
 		ctx.fillStyle = asset.color;
@@ -196,9 +236,20 @@ function draw() {
 		//ctx.drawImage(img, config.elementsArray[k].coord_x*config.grid_space, config.elementsArray[k].coord_y*config.grid_space, config.grid_space, config.grid_space);
 		l++;
 	}
-	//test
 
 	
+}
+function highlight(cell_x,cell_y) {
+	// redraw the canvas without highlights first
+	draw();
+	
+	if (cell_x<config.grid_x && cell_y<config.grid_y) {
+		var c = document.getElementById("myCanvas");
+		var ctx = c.getContext("2d");
+		ctx.fillStyle = "rgb(255 0 0 / 20%)";
+		ctx.fillRect(cell_x*config.grid_space, cell_y*config.grid_space, config.grid_space, config.grid_space);
+		state.cellSelected=[cell_x,cell_y];
+	}
 }
 
 // config functions
@@ -214,8 +265,8 @@ function getConfig() {
 	assetType = generateAssetTypes();
 	elementsArray = generateElements(assetType);
 	return {
-		grid_x: 12,
-		grid_y: 7,
+		grid_x: 15,
+		grid_y: 15,
 		grid_space: 50,
 		elementsArray: elementsArray,
 		assetType: assetType
@@ -225,6 +276,7 @@ function getInitialState() {
 	return {
 		garbageArray : [],
 		processedGarbageArray : [],
+		cellSelected: []
 	}
 }
 function generateAssetTypes() {
