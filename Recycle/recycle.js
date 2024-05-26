@@ -1,3 +1,10 @@
+onmousedown = function(e) { ondown(e.clientX, e.clientY); };
+onmousemove = function(e) { onmove(e.clientX, e.clientY); };  
+onmouseup = function(e) { onup(e.clientX, e.clientY); };
+ontouchstart = function(e) { ondown(e.changedTouches["0"].clientX, e.changedTouches["0"].clientY);};
+ontouchend = function(e) { onup(e.changedTouches["0"].clientX, e.changedTouches["0"].clientY); };
+ontouchmove = function(e) { onmove(e.changedTouches["0"].clientX, e.changedTouches["0"].clientY); };
+
 startGame();
 
 // Core functions
@@ -11,10 +18,12 @@ function buildAssetRelations(){
 	var i=0;
 	while (i<config.elementsArray.length) {
 		var asset = config.elementsArray[i];
+		if (asset.toDelete == "false") {
 		x_out = asset.coord_x + asset.output[0][0];
 		y_out = asset.coord_y + asset.output[0][1];;
 		asset.output_cell[0] = getAssetOnCellID(x_out,y_out);
 		console.log("Asset of type " + asset.type + " has as output asset ID " + asset.output_cell[0])
+		}
 		i++;
 	}
 };
@@ -34,21 +43,23 @@ function stepTime() {
 
 function applyElementAction(){
 	var i=0;
+	// loop through all the elements
 	while (i<config.elementsArray.length) {
 		var asset = config.elementsArray[i];
-		// generate garbage at the start
-		if (asset.type == "start") {
-			generateGarbage(asset);
-		};
-		//loop over the garbage and apply appropriate action to its garbage
-		j = 0;
-		while (j<state.garbageArray.length) {
-			garbage = state.garbageArray[j];
-			// if garbage is located on asset, apply the asset action to it
-			if (garbage.onAssetID == i && garbage.hasMoved == false){asset.action(garbage);	}
-			j++;
+		if (asset.toDelete == "false") {
+			// generate garbage at the start
+			if (asset.type == "start") {
+				generateGarbage(asset);
+			};
+			//loop over the garbage and apply appropriate action to its garbage
+			j = 0;
+			while (j<state.garbageArray.length) {
+				garbage = state.garbageArray[j];
+				// if garbage is located on asset, apply the asset action to it
+				if (garbage.onAssetID == i && garbage.hasMoved == false){asset.action(garbage);	}
+				j++;
+			}
 		}
-
 		i++;
 	}
 	//build a new garbageVector only with the elements that are not to be deleted
@@ -60,7 +71,6 @@ function applyElementAction(){
 			garbageArrayTemp.push(garbage)
 		} 
 		else {
-			//state.processedGarbageArray.push(garbage);
 			// push the garbage into the stock vector of its end element
 			config.elementsArray[garbage.onAssetID].stock.push(garbage);
 		};
@@ -118,6 +128,61 @@ function updateInfo() {
 		i++;
 	};
 }
+
+function updateInfoElement(elementID) {
+	// Get the appropriate DIV and clean it
+	var infoSection = document.getElementById("info");
+	infoSection.innerHTML = "";
+	// create an element in any case
+	var para = document.createElement("p");
+	// Action in case the cell is empty
+	if (elementID<0) {
+		var node = document.createTextNode("This area is free for construction");
+		para.appendChild(node);
+	}
+	// In case the cell is occupied by an element
+	else {
+		var asset = config.elementsArray[elementID];
+		// print generic info for all elements
+		if (asset.toDelete == "false") {
+			var paraGeneric = document.createElement("p");
+			var nodeGeneric = document.createTextNode("Asset type "+asset.type+" with ID "+asset.ID);
+			paraGeneric.appendChild(nodeGeneric);
+			para.appendChild(paraGeneric);
+			// For elements of type container
+			if (asset.type == "end") {
+				// compute and print the total garbage count
+				var totCount = asset.stock.length;
+				var node = document.createTextNode("Container "+asset.ID+" contains "+totCount+" pieces of garbage: ");
+				para.appendChild(node);
+				// compute and print the detailed garbage count
+				// create a list container
+				var ul = document.createElement("ul");
+				var distinctColor = selectDistinctProperty(asset.stock,"color")
+				for (l=0;l<distinctColor.length;l++) {
+					var count = countGarbage(asset.stock,"color",distinctColor[l])
+					var proportion = count/totCount;
+					var li = document.createElement("li");
+					var detailNode = document.createTextNode(count+" pieces of "+distinctColor[l]+" garbage ("+100*proportion+"%)");
+					li.appendChild(detailNode);
+					ul.appendChild(li);
+					para.appendChild(ul);
+				}
+			}
+		}
+	}
+	infoSection.appendChild(para);
+
+}
+
+function updateActionsElement(elementID) {
+	var buildSection = document.getElementById("buildSection");
+	var deleteSection = document.getElementById("deleteSection");
+	var equipment = config.elementsArray[elementID];
+	if (elementID<0 || equipment.toDelete == "true") {buildSection.hidden = false; deleteSection.hidden=true;}
+	else {buildSection.hidden = true; deleteSection.hidden=false;}
+}
+
 // utilities
 
 function selectDistinctProperty(vector,property){
@@ -144,11 +209,13 @@ function countGarbage(vector,property,value){
 };
 function getAssetOnCellID(x,y){
 	var i=0;
+	var elementOnCell = -1;
 	while (i<config.elementsArray.length) {
 		var asset = config.elementsArray[i];
-		if (asset.coord_x == x && asset.coord_y == y) {return i} 
+		if (asset.coord_x == x && asset.coord_y == y) {elementOnCell = i} 
 		i++;
 	}
+	return (elementOnCell);
 };
 
 //mouse click
@@ -156,30 +223,38 @@ function ondown(x,y) {
 	
 	// figure out the cell clicked on
 	// correct the input to account for margin - do better
-	margin_y=16;
-	margin_x=9;
+	var bounds = document.getElementById("myCanvas").getBoundingClientRect();
+	var x_rel = x - bounds.left;
+    var y_rel = y - bounds.top;
+/* 	margin_y=config.y0;
+	margin_x=config.x0;
 	x_corr=x-margin_x;
-	y_corr=y-margin_y;
-	cell_x=Math.floor(x_corr/config.grid_space);
-	cell_y=Math.floor(y_corr/config.grid_space);
+	y_corr=y-margin_y; */
+	cell_x=Math.floor(x_rel/config.grid_space);
+	cell_y=Math.floor(y_rel/config.grid_space);
 	// check that the cell exists within the game zone
 	if (cell_x<config.grid_x && cell_y<config.grid_y) {
 		highlight(cell_x,cell_y);
+		state.cellSelected=[cell_x,cell_y];
 		assetID=getAssetOnCellID(cell_x,cell_y);
-		console.log("click detected on cell ",cell_x, cell_y," with assetID ",assetID);
+		// if there is an element on the cell
+		updateInfoElement(assetID);
+		updateActionsElement(assetID);
+		
+		console.log(x,y,"click detected on cell ",cell_x, cell_y," with assetID ",assetID);
 	}
 	else {console.log("Click outside playzone")}
 }
 function onup(x,y) {}
 function onmove(x,y) {}
-onmousedown = function(e) { ondown(e.clientX, e.clientY); };
-onmousemove = function(e) { onmove(e.clientX, e.clientY); };
-onmouseup = function(e) { onup(e.clientX, e.clientY); };
-ontouchstart = function(e) { ondown(e.changedTouches["0"].clientX, e.changedTouches["0"].clientY);};
-ontouchend = function(e) { onup(e.changedTouches["0"].clientX, e.changedTouches["0"].clientY); };
-ontouchmove = function(e) { onmove(e.changedTouches["0"].clientX, e.changedTouches["0"].clientY); };
 
 
+function relativeCoords ( event ) {
+  var bounds = document.getElementById("myCanvas").getBoundingClientRect();
+  var x = event.clientX - bounds.left;
+  var y = event.clientY - bounds.top;
+  return {x: x, y: y};
+}
 
 // rendering
 function draw() {
@@ -207,17 +282,18 @@ function draw() {
 	//draw the elements
 	while (k < config.elementsArray.length) {
 		asset = config.elementsArray[k];
-		ctx.fillStyle = asset.color;
-		ctx.fillRect(asset.coord_x*config.grid_space, asset.coord_y*config.grid_space, config.grid_space, config.grid_space);
-		img = document.getElementById(asset.type);
-		ctx.drawImage(img, asset.coord_x*config.grid_space, asset.coord_y*config.grid_space, config.grid_space, config.grid_space);
-		
-		ctx.font = "14px Arial";
-		ctx.fillStyle = "black";
-		ctx.textAlign = "center";
-		ctx.textBaseline = "middle"
-		ctx.fillText(asset.ID, config.elementsArray[k].coord_x*config.grid_space+config.grid_space/2, config.elementsArray[k].coord_y*config.grid_space+config.grid_space/2);
-		
+		if (asset.toDelete == "false") {
+			ctx.fillStyle = asset.color;
+			ctx.fillRect(asset.coord_x*config.grid_space, asset.coord_y*config.grid_space, config.grid_space, config.grid_space);
+			img = document.getElementById(asset.type);
+			ctx.drawImage(img, asset.coord_x*config.grid_space, asset.coord_y*config.grid_space, config.grid_space, config.grid_space);
+			
+			ctx.font = "14px Arial";
+			ctx.fillStyle = "black";
+			ctx.textAlign = "center";
+			ctx.textBaseline = "middle"
+			ctx.fillText(asset.ID, config.elementsArray[k].coord_x*config.grid_space+config.grid_space/2, config.elementsArray[k].coord_y*config.grid_space+config.grid_space/2);
+		}
 		k++;
 	}
 	
@@ -248,7 +324,7 @@ function highlight(cell_x,cell_y) {
 		var ctx = c.getContext("2d");
 		ctx.fillStyle = "rgb(255 0 0 / 20%)";
 		ctx.fillRect(cell_x*config.grid_space, cell_y*config.grid_space, config.grid_space, config.grid_space);
-		state.cellSelected=[cell_x,cell_y];
+
 	}
 }
 
@@ -265,9 +341,11 @@ function getConfig() {
 	assetType = generateAssetTypes();
 	elementsArray = generateElements(assetType);
 	return {
-		grid_x: 15,
-		grid_y: 15,
+		grid_x: 10,
+		grid_y: 16,
 		grid_space: 50,
+		x0:0,
+		y0:56,
 		elementsArray: elementsArray,
 		assetType: assetType
 	}
@@ -419,12 +497,81 @@ function generateElements(assetTypeArray) {
 		asset.action = assetTypeArray[asset.typeID].action;
 		asset.output_cell = [];
 		asset.stock = [];
+		asset.toDelete="false";
 		
 		i++;
 	}
 	
 	return elementsArray;
 }
+
+function buildOnSelectedCell(elementType) {
+	// get the coordinates of the selected cell
+	cell_x=state.cellSelected[0];
+	cell_y=state.cellSelected[1];
+	// Check whether the cell is free or not
+	var cellFree=false;
+	if (getAssetOnCellID(cell_x,cell_y)<0) {cellFree=true}
+	if (getAssetOnCellID(cell_x,cell_y)>=0) {
+		if (config.elementsArray[getAssetOnCellID(cell_x,cell_y)].toDelete == "true") {
+			cellFree=true;
+		}
+	}
+	if (cellFree=true) {
+		// Push the element in the array
+		config.elementsArray.push(generateProceduralElement(elementType,cell_x,cell_y));
+		// assign the full property set
+		asset = config.elementsArray[elementsArray.length-1];
+			asset.ID = config.elementsArray.length-1;
+			asset.name = config.assetType[asset.typeID].name;
+			asset.input = config.assetType[asset.typeID].input;
+			asset.output = config.assetType[asset.typeID].output;
+			asset.type = config.assetType[asset.typeID].name;
+			asset.color = config.assetType[asset.typeID].color;
+			asset.action = config.assetType[asset.typeID].action;
+			asset.output_cell = [];
+			asset.stock = [];
+			asset.toDelete="false";
+		// recompute the relationships
+		buildAssetRelations();
+		draw();
+	}
+	else {console.log("Impossible to build as there is already a piece of equipment here")}
+}
+
+function deleteElementOnSelectedCell() {
+	// get the coordinates of the selected cell
+	x=state.cellSelected[0];
+	y=state.cellSelected[1];
+	// check that there is an existing element
+	assetID = getAssetOnCellID(x,y);
+	if (assetID>=0) {
+		asset = config.elementsArray[assetID];
+		//mark element as to be deleted
+		asset.toDelete="true";
+	}
+/* 	//build a new elementsArray only with the elements that are not to be deleted
+	var elementsArrayTemp = [];
+	j = 0;
+	while (j<config.elementsArray.length) {
+		equipment = config.elementsArray[j];
+		if (equipment.toDelete == false) {
+			elementsArrayTemp.push(equipment)
+		} 
+		else {
+			// push the garbage into the stock vector of its end element
+			//config.elementsArray[garbage.onAssetID].stock.push(garbage);
+		};
+		j++;
+	}
+	// replace the garbage vector with the newly constructed one
+	config.elementsArray = elementsArrayTemp; */
+	
+	// recompute the relationships
+		buildAssetRelations();
+		draw();
+}
+
 function generateGarbage(asset) {
 
 	var random1X = Math.random();
