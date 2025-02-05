@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pac-Man Game</title>
+  <style>
+    body { 
+      margin: 0; 
+      display: flex; 
+      justify-content: center; 
+      align-items: center; 
+      height: 100vh; 
+      background-color: black;
+    }
+    canvas { 
+      border: 2px solid white; 
+    }
+    h1 {
+      color: white;
+      position: absolute;
+      top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Pac-Man Game</h1>
+  <canvas id="gameCanvas" width="400" height="400"></canvas>
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    const gridSize = 20;
+    const boardSize = 20;
+    const pacManSpeed = 0.1; // Doubled speed
+    const pacManRadius = gridSize / 2;
+
+    let pacManX = 10;
+    let pacManY = 10;
+    let pacManDirection = 'right';
+    let score = 0;
+    const totalFood = 10; // Number of food pieces
+    let food = [];
+    let message = '';
+    let messageTimeout;
+
+    const walls = [
+      { x: 4, y: 5, width: 12, height: 1 },
+      { x: 2, y: 3, width: 1, height: 14 },
+      { x: 6, y: 9, width: 8, height: 1 },
+      { x: 14, y: 5, width: 1, height: 10 },
+      { x: 10, y: 14, width: 6, height: 1 }
+    ];
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'ArrowUp') pacManDirection = 'up';
+      if (e.key === 'ArrowDown') pacManDirection = 'down';
+      if (e.key === 'ArrowLeft') pacManDirection = 'left';
+      if (e.key === 'ArrowRight') pacManDirection = 'right';
+    });
+
+    function drawPacMan() {
+      const mouthAngle = 0.2 * Math.PI; 
+      let startAngle, endAngle;
+
+      switch (pacManDirection) {
+        case 'right':
+          startAngle = mouthAngle;
+          endAngle = 2 * Math.PI - mouthAngle;
+          break;
+        case 'left':
+          startAngle = Math.PI + mouthAngle;
+          endAngle = Math.PI - mouthAngle;
+          break;
+        case 'up':
+          startAngle = 1.5 * Math.PI + mouthAngle;
+          endAngle = 1.5 * Math.PI - mouthAngle;
+          break;
+        case 'down':
+          startAngle = 0.5 * Math.PI + mouthAngle;
+          endAngle = 0.5 * Math.PI - mouthAngle;
+          break;
+      }
+
+      ctx.beginPath();
+      ctx.arc(
+        pacManX * gridSize + pacManRadius,
+        pacManY * gridSize + pacManRadius,
+        pacManRadius,
+        startAngle,
+        endAngle
+      );
+      ctx.lineTo(pacManX * gridSize + pacManRadius, pacManY * gridSize + pacManRadius);
+      ctx.fillStyle = 'yellow';
+      ctx.fill();
+      ctx.closePath();
+    }
+
+    function drawFood() {
+      ctx.fillStyle = 'red';
+      for (const f of food) {
+        ctx.beginPath();
+        ctx.arc(f.x * gridSize + pacManRadius, f.y * gridSize + pacManRadius, pacManRadius / 2, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.closePath();
+      }
+    }
+
+    function drawWalls() {
+      ctx.fillStyle = 'blue';
+      for (const wall of walls) {
+        ctx.fillRect(wall.x * gridSize, wall.y * gridSize, wall.width * gridSize, wall.height * gridSize);
+      }
+    }
+
+    function checkCollision() {
+      for (const wall of walls) {
+        const pacManRect = { x: pacManX, y: pacManY, width: 0, height: 0 };
+        const wallRect = { x: wall.x, y: wall.y, width: wall.width, height: wall.height };
+
+        if (pacManRect.x < wallRect.x + wallRect.width &&
+          pacManRect.x + pacManRect.width > wallRect.x &&
+          pacManRect.y < wallRect.y + wallRect.height &&
+          pacManRect.y + pacManRect.height > wallRect.y) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+function checkFoodCollision() {
+  const pacManCenterX = pacManX * gridSize + pacManRadius;
+  const pacManCenterY = pacManY * gridSize + pacManRadius;
+
+  return food.findIndex(f => {
+    const foodCenterX = f.x * gridSize + pacManRadius;
+    const foodCenterY = f.y * gridSize + pacManRadius;
+    const distance = Math.sqrt(
+      Math.pow(pacManCenterX - foodCenterX, 2) + Math.pow(pacManCenterY - foodCenterY, 2)
+    );
+    return distance < pacManRadius; // Collision occurs if within Pac-Man's radius
+  });
+}
+
+    function spawnFood() {
+      while (food.length < totalFood) {
+        const x = Math.floor(Math.random() * boardSize);
+        const y = Math.floor(Math.random() * boardSize);
+        if (!walls.some(w => x >= w.x && x < w.x + w.width && y >= w.y && y < w.y + w.height) &&
+            !food.some(f => f.x === x && f.y === y)) {
+          food.push({ x, y });
+        }
+      }
+    }
+
+    function updateGame() {
+      if (pacManDirection === 'up') pacManY -= pacManSpeed;
+      if (pacManDirection === 'down') pacManY += pacManSpeed;
+      if (pacManDirection === 'left') pacManX -= pacManSpeed;
+      if (pacManDirection === 'right') pacManX += pacManSpeed;
+
+      pacManX = (pacManX + boardSize) % boardSize;
+      pacManY = (pacManY + boardSize) % boardSize;
+
+      if (checkCollision()) {
+        resetGame();
+        message = 'You hit a wall! Game Over!';
+        clearTimeout(messageTimeout);
+        messageTimeout = setTimeout(() => message = '', 2000);
+      }
+
+      const foodIndex = checkFoodCollision();
+      if (foodIndex !== -1) {
+        food.splice(foodIndex, 1);
+        score++;
+        if (food.length === 0) {
+          message = 'You win!';
+          clearTimeout(messageTimeout);
+          messageTimeout = setTimeout(() => resetGame(), 3000);
+        }
+      }
+    }
+
+	function generateMaze() {
+  const maze = Array.from({ length: boardSize }, () => Array(boardSize).fill(1)); // 1 = wall, 0 = path
+  const directions = [
+    { x: 0, y: -2 }, // Up
+    { x: 0, y: 2 },  // Down
+    { x: -2, y: 0 }, // Left
+    { x: 2, y: 0 },  // Right
+  ];
+
+  function shuffleArray(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [array[i], array[j]] = [array[j], array[i]];
+    }
+  }
+
+  function carveMaze(x, y) {
+    maze[y][x] = 0; // Mark as a path
+    shuffleArray(directions); // Randomize direction order for organic paths
+
+    for (const dir of directions) {
+      const nx = x + dir.x;
+      const ny = y + dir.y;
+
+      // Check if the new position is within bounds and surrounded by walls
+      if (
+        ny > 0 && ny < boardSize - 1 &&
+        nx > 0 && nx < boardSize - 1 &&
+        maze[ny][nx] === 1
+      ) {
+        // Carve a path between the current cell and the neighbor
+        maze[y + dir.y / 2][x + dir.x / 2] = 0;
+        carveMaze(nx, ny);
+      }
+    }
+  }
+
+  carveMaze(1, 1); // Start carving from (1, 1)
+
+  // Ensure Pac-Man's starting area is clear
+  maze[pacManY][pacManX] = 0;
+  maze[pacManY + 1][pacManX] = 0;
+  maze[pacManY][pacManX + 1] = 0;
+
+  return maze;
+}
+
+function generateWallsFromMaze(maze) {
+  walls.length = 0; // Clear existing walls
+  for (let y = 0; y < boardSize; y++) {
+    for (let x = 0; x < boardSize; x++) {
+      if (maze[y][x] === 1) {
+        walls.push({ x, y, width: 1, height: 1 });
+      }
+    }
+  }
+}
+
+function resetGame() {
+  pacManX = 10;
+  pacManY = 10;
+  pacManDirection = 'right';
+  score = 0;
+  food = [];
+  const maze = generateMaze(); // Generate a new maze
+  generateWallsFromMaze(maze); // Convert maze to wall objects
+  spawnFood();
+  message = '';
+}
+
+
+    function drawScore() {
+      ctx.fillStyle = 'white';
+      ctx.font = '20px Arial';
+      ctx.fillText(`Score: ${score}`, 10, 20);
+    }
+
+    function drawMessage() {
+      ctx.fillStyle = 'white';
+      ctx.font = '20px Arial';
+      ctx.fillText(message, 10, canvas.height - 20);
+    }
+
+    function clearCanvas() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+    function gameLoop() {
+      clearCanvas();
+      drawWalls();
+      drawFood();
+      drawPacMan();
+      updateGame();
+      drawScore();
+      drawMessage();
+      setTimeout(gameLoop, 1000 / 15);
+    }
+
+    spawnFood();
+    gameLoop();
+  </script>
+</body>
+</html>
