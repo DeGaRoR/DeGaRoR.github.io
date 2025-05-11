@@ -1,0 +1,14 @@
+LTspice 24.1.1 for Windows
+Circuit: D:\Dev\DeGaRoR.github.io\LTspice\helloWorld.cir
+Start Time: Wed Feb  5 15:30:49 2025
+solver = Normal
+Maximum thread count: 24
+tnom = 27
+temp = 27
+method = trap
+Direct Newton iteration for .op point succeeded.
+Total elapsed time: 0.027 seconds.
+
+Files loaded:
+D:\Dev\DeGaRoR.github.io\LTspice\helloWorld.cir
+

@@ -47,14 +47,17 @@ RTC_DS1307 rtc;
 DHT dht(PIN_DHT, DHTTYPE);
 
 void setup() {
-    // Initializing protocols
     Serial.begin(115200);
     Wire.begin();
-    initRTC();
     lcd.begin(16, 2);
+    lcd.clear();
     dht.begin();
-    // Pin mode setup
+
     pinMode(PIN_BUTTON, INPUT_PULLUP);
+    pinMode(PIN_SD_CS, OUTPUT);
+    digitalWrite(PIN_SD_CS, HIGH); // Prevent boot crash
+
+    initRTC();
 }
 
 void loop() {
@@ -183,11 +186,10 @@ void checkPageButton() {
 }
 
 void initRTC() {
-  if (!rtc.begin()) {
-        Serial.println("Couldn't find RTC.");
-        while (1);
-    } else {
-        Serial.println("RTC found.");
+    if (!rtc.begin()) {
+        Serial.println("Couldn't find RTC. Restarting...");
+        delay(5000); // Allow debugging
+        ESP.restart(); // Restart the ESP instead of locking up
     }
 
     DateTime now = rtc.now();

@@ -1,0 +1,8 @@
+* RC Low-Pass Filter Netlist
+
+V1 N001 0 AC 1 SIN(0 1 1k)  ; AC source with 1V amplitude, 1kHz sine wave
+R1 N001 N002 10k            ; 10kΩ resistor
+C1 N002 0 1u                ; 1µF capacitor
+.tran 10m                   ; Transient analysis (10ms)
+.ac dec 10 10 100k          ; AC sweep (10Hz to 100kHz)
+.end

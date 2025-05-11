@@ -1,0 +1,4 @@
+(sym_lib_table
+  (version 0)
+  (lib (name "helloWorld-eagle-import")(type "KiCad")(uri "${KIPRJMOD}/helloWorld-eagle-import.kicad_sym")(options "")(descr ""))
+)

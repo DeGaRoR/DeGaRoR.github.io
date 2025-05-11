@@ -1,0 +1,6 @@
+* Low-Pass Filter Netlist
+V1 N001 0 DC 5
+R1 N001 N002 10k
+C1 N002 0 1u
+.tran 1m
+.end
