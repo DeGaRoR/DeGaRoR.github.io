@@ -1,0 +1,817 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>POC Flowsheet (SVG)</title>
+  <style>
+    :root { --bg:#0f1115; --panel:#161a22; --ink:#e7eaf0; --muted:#9aa3b2; --grid:#273042; --accent:#78a6ff; --danger:#ff6b6b; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background: var(--bg); color: var(--ink); }
+    .app { display:grid; grid-template-columns: 320px 1fr; height: 100vh; }
+    .sidebar { background: var(--panel); padding: 14px; border-right: 1px solid #232a3a; overflow:auto; }
+    h1 { font-size: 16px; margin: 0 0 10px; }
+    .muted { color: var(--muted); font-size: 12px; line-height: 1.35; }
+    .tools { display:flex; gap:8px; margin: 10px 0 14px; flex-wrap: wrap; }
+    button {
+      border: 1px solid #2a3550; background: #111521; color: var(--ink);
+      padding: 8px 10px; border-radius: 10px; cursor: pointer; font-size: 13px;
+    }
+    button:hover { border-color: #3a4a71; }
+    button.primary { border-color: #2f64ff; }
+    button.danger { border-color: #ff6b6b; color: #ffb3b3; }
+    .palette { display:grid; gap:8px; margin-top: 10px; }
+    .card {
+      border: 1px solid #232a3a; background: #0f1420; border-radius: 12px;
+      padding: 10px; display:flex; justify-content: space-between; align-items: center;
+    }
+    .card .name { font-weight: 600; font-size: 13px; }
+    .card .tag { font-size: 11px; color: var(--muted); }
+    .card button { padding: 6px 8px; border-radius: 10px; }
+    .main { position:relative; overflow:hidden; }
+    .hud {
+      position:absolute; left: 12px; top: 12px; background: rgba(10,12,18,0.75);
+      border: 1px solid rgba(40,52,80,0.7); border-radius: 12px; padding: 10px 12px;
+      backdrop-filter: blur(8px); font-size: 12px;
+    }
+    .hud kbd {
+      background: #111522; border: 1px solid #2a3550; border-bottom-color: #1b2336;
+      padding: 2px 6px; border-radius: 6px; font-size: 11px;
+    }
+    .modal {
+      position: absolute; inset: 0; display:none; align-items:center; justify-content:center;
+      background: rgba(0,0,0,0.5);
+    }
+    .modal.open { display:flex; }
+    .dialog {
+      width: min(720px, 92vw);
+      background: #0f1420; border: 1px solid #2a3550; border-radius: 14px;
+      padding: 12px;
+    }
+    .dialog header { display:flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    textarea {
+      width: 100%; height: 320px; resize: vertical;
+      background: #0b0f18; color: var(--ink);
+      border: 1px solid #2a3550; border-radius: 12px; padding: 10px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+    }
+    .row { display:flex; gap:8px; justify-content:flex-end; margin-top: 10px; flex-wrap: wrap; }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <h1>POC Flowsheet (SVG)</h1>
+    <div class="muted">
+      • Place des unités sur une grille, connecte des ports, exporte/import JSON.<br/>
+      • C’est volontairement simple : pas de solveur, juste l’éditeur.<br/>
+      • Tout est dans <b>un seul fichier</b> pour un démarrage rapide.
+    </div>
+
+    <div class="tools">
+      <button id="btnModePlace" class="primary">Mode : Placer</button>
+      <button id="btnModeConnect">Mode : Connecter</button>
+      <button id="btnSave">Save JSON</button>
+      <button id="btnLoad">Load JSON</button>
+      <button id="btnClear" class="danger">Clear</button>
+    </div>
+
+    <div class="muted">
+      Unité sélectionnée : <span id="selInfo">—</span>
+    </div>
+
+    <div class="palette" id="palette"></div>
+  </aside>
+
+  <main class="main">
+    <div class="hud">
+      <div><b>Contrôles</b></div>
+      <div>• Clic grille : placer l’unité choisie</div>
+      <div>• Mode Connect : clic port A puis port B</div>
+      <div>• Sélection : clic unité — Supprimer : <kbd>Delete</kbd></div>
+      <div>• Annuler connect : <kbd>Esc</kbd></div>
+    </div>
+
+    <svg id="svg" width="100%" height="100%" aria-label="flowsheet editor"></svg>
+
+    <div class="modal" id="modal">
+      <div class="dialog">
+        <header>
+          <div id="modalTitle" style="font-weight:700">JSON</div>
+          <button id="btnCloseModal">Fermer</button>
+        </header>
+        <textarea id="jsonArea" spellcheck="false"></textarea>
+        <div class="row">
+          <button id="btnApplyLoad" class="primary">Appliquer (Load)</button>
+          <button id="btnCopy">Copier</button>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+(() => {
+  "use strict";
+
+  // -----------------------------
+  // 1) Constantes & utilitaires
+  // -----------------------------
+  const GRID_W = 26;        // cellules en X
+  const GRID_H = 18;        // cellules en Y
+  const CELL = 48;          // px par cellule (base)
+  const PORT_R = 5;         // rayon visuel des ports
+  const SVG_NS = "http://www.w3.org/2000/svg";
+
+  const keyXY = (x,y) => `${x},${y}`;
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const uid = (() => { let n = 0; return () => `u_${++n}_${Math.random().toString(16).slice(2,8)}`; })();
+
+  function el(name, attrs = {}, parent) {
+    const n = document.createElementNS(SVG_NS, name);
+    for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, String(v));
+    if (parent) parent.appendChild(n);
+    return n;
+  }
+
+  function screenToSvgPoint(svg, clientX, clientY) {
+    const pt = svg.createSVGPoint();
+    pt.x = clientX; pt.y = clientY;
+    const ctm = svg.getScreenCTM();
+    if (!ctm) return { x: 0, y: 0 };
+    const inv = ctm.inverse();
+    const p = pt.matrixTransform(inv);
+    return { x: p.x, y: p.y };
+  }
+
+  function snapToCell(px, py) {
+    const x = Math.floor(px / CELL);
+    const y = Math.floor(py / CELL);
+    return { x, y };
+  }
+
+  // -----------------------------
+  // 2) Définitions d’unités (librairie)
+  // -----------------------------
+  // Convention port:
+  // - id unique dans l'unité (ex: "in0", "out0")
+  // - dir: "in" | "out"
+  // - ox, oy: position relative en [0..1] dans le rectangle
+  // - domain: ici on met juste "material" ou "energy" (extensible)
+  const UnitDefs = [
+    {
+      defId: "tank_source",
+      name: "Tank Source",
+      tag: "Source (débit imposé)",
+      footprint: { w: 1, h: 1 },
+      color: "#2d6cdf",
+      ports: [
+        { id: "out0", dir: "out", ox: 1.0, oy: 0.5, domain: "material" },
+      ],
+      defaultParams: { product: "H2", flow_kg_s: 0.01, T_C: 10, P_Pa: 90000 }
+    },
+    {
+      defId: "tank_sink",
+      name: "Tank Sink",
+      tag: "Puits / stockage",
+      footprint: { w: 1, h: 1 },
+      color: "#3aa76d",
+      ports: [
+        { id: "in0", dir: "in", ox: 0.0, oy: 0.5, domain: "material" },
+      ],
+      defaultParams: { product: "H2O", capacity_kg: 1000 }
+    },
+    {
+      defId: "pipe",
+      name: "Pipe",
+      tag: "Transit (v0 pass-through)",
+      footprint: { w: 1, h: 1 },
+      color: "#7b879a",
+      ports: [
+        { id: "in0", dir: "in",  ox: 0.0, oy: 0.5, domain: "material" },
+        { id: "out0", dir: "out", ox: 1.0, oy: 0.5, domain: "material" },
+      ],
+      defaultParams: { dp_Pa: 0 }
+    },
+    {
+      defId: "burner_h2",
+      name: "Burner H₂",
+      tag: "Chaleur (H2 + O2)",
+      footprint: { w: 1, h: 1 },
+      color: "#c2572a",
+      ports: [
+        { id: "in_fuel", dir: "in",  ox: 0.0, oy: 0.35, domain: "material" },
+        { id: "in_ox",   dir: "in",  ox: 0.0, oy: 0.65, domain: "material" },
+        { id: "out_flue",dir: "out", ox: 1.0, oy: 0.50, domain: "material" },
+      ],
+      defaultParams: { eta: 0.7, LHV_kJ_kg: 120000 }
+    },
+    {
+      defId: "hx",
+      name: "Heat Exchanger",
+      tag: "Double-flux (v0)",
+      footprint: { w: 1, h: 1 },
+      color: "#8457e5",
+      ports: [
+        { id: "hot_in",  dir: "in",  ox: 0.0, oy: 0.35, domain: "material" },
+        { id: "hot_out", dir: "out", ox: 1.0, oy: 0.35, domain: "material" },
+        { id: "cold_in", dir: "in",  ox: 0.0, oy: 0.65, domain: "material" },
+        { id: "cold_out",dir: "out", ox: 1.0, oy: 0.65, domain: "material" },
+      ],
+      defaultParams: { UA_kW_K: 1.0 }
+    }
+  ];
+
+  const UnitDefById = new Map(UnitDefs.map(d => [d.defId, d]));
+
+  // -----------------------------
+  // 3) Modèle (Core minimal)
+  // -----------------------------
+  const model = {
+    grid: { w: GRID_W, h: GRID_H, cellPx: CELL },
+    units: [],          // UnitInstance[]
+    connections: [],    // {from:{unitId,portId}, to:{unitId,portId}}
+    occupancy: new Map(), // "x,y" -> unitId
+  };
+
+  // UI state
+  const ui = {
+    mode: "place",                 // "place" | "connect"
+    selectedDefId: UnitDefs[0].defId,
+    selectedUnitId: null,
+    pendingPort: null,             // { unitId, portId }
+  };
+
+  function canPlaceAt(def, x, y) {
+    if (x < 0 || y < 0) return false;
+    if (x + def.footprint.w > GRID_W) return false;
+    if (y + def.footprint.h > GRID_H) return false;
+    for (let dy = 0; dy < def.footprint.h; dy++) {
+      for (let dx = 0; dx < def.footprint.w; dx++) {
+        if (model.occupancy.has(keyXY(x+dx, y+dy))) return false;
+      }
+    }
+    return true;
+  }
+
+  function occupy(def, unitId, x, y) {
+    for (let dy = 0; dy < def.footprint.h; dy++) {
+      for (let dx = 0; dx < def.footprint.w; dx++) {
+        model.occupancy.set(keyXY(x+dx, y+dy), unitId);
+      }
+    }
+  }
+
+  function unoccupy(def, unitId, x, y) {
+    for (let dy = 0; dy < def.footprint.h; dy++) {
+      for (let dx = 0; dx < def.footprint.w; dx++) {
+        const k = keyXY(x+dx, y+dy);
+        if (model.occupancy.get(k) === unitId) model.occupancy.delete(k);
+      }
+    }
+  }
+
+  function addUnit(defId, x, y) {
+    const def = UnitDefById.get(defId);
+    if (!def) return null;
+    if (!canPlaceAt(def, x, y)) return null;
+
+    const unit = {
+      id: uid(),
+      defId,
+      x, y,
+      rot: 0,
+      params: structuredClone(def.defaultParams),
+      state: {} // runtime state later
+    };
+    model.units.push(unit);
+    occupy(def, unit.id, x, y);
+    ui.selectedUnitId = unit.id;
+    return unit;
+  }
+
+  function removeUnit(unitId) {
+    const idx = model.units.findIndex(u => u.id === unitId);
+    if (idx < 0) return;
+    const u = model.units[idx];
+    const def = UnitDefById.get(u.defId);
+    unoccupy(def, u.id, u.x, u.y);
+
+    // Remove related connections
+    model.connections = model.connections.filter(c => c.from.unitId !== unitId && c.to.unitId !== unitId);
+
+    model.units.splice(idx, 1);
+    if (ui.selectedUnitId === unitId) ui.selectedUnitId = null;
+    if (ui.pendingPort && ui.pendingPort.unitId === unitId) ui.pendingPort = null;
+  }
+
+  function findUnitAtCell(x, y) {
+    const unitId = model.occupancy.get(keyXY(x, y));
+    if (!unitId) return null;
+    return model.units.find(u => u.id === unitId) || null;
+  }
+
+  function portWorldPos(unit, port) {
+    const def = UnitDefById.get(unit.defId);
+    const w = def.footprint.w * CELL;
+    const h = def.footprint.h * CELL;
+    return {
+      x: unit.x * CELL + port.ox * w,
+      y: unit.y * CELL + port.oy * h
+    };
+  }
+
+  function isPortCompatible(a, b) {
+    // simple rules v0:
+    // - domains must match
+    // - directions must be out -> in
+    if (!a || !b) return false;
+    if (a.domain !== b.domain) return false;
+    if (a.dir !== "out") return false;
+    if (b.dir !== "in") return false;
+    return true;
+  }
+
+  function connectionExists(from, to) {
+    return model.connections.some(c =>
+      c.from.unitId === from.unitId && c.from.portId === from.portId &&
+      c.to.unitId === to.unitId && c.to.portId === to.portId
+    );
+  }
+
+  // -----------------------------
+  // 4) UI: Palette + SVG rendering
+  // -----------------------------
+  const paletteEl = document.getElementById("palette");
+  const selInfoEl = document.getElementById("selInfo");
+
+  const btnModePlace = document.getElementById("btnModePlace");
+  const btnModeConnect = document.getElementById("btnModeConnect");
+  const btnSave = document.getElementById("btnSave");
+  const btnLoad = document.getElementById("btnLoad");
+  const btnClear = document.getElementById("btnClear");
+
+  const modal = document.getElementById("modal");
+  const modalTitle = document.getElementById("modalTitle");
+  const jsonArea = document.getElementById("jsonArea");
+  const btnCloseModal = document.getElementById("btnCloseModal");
+  const btnApplyLoad = document.getElementById("btnApplyLoad");
+  const btnCopy = document.getElementById("btnCopy");
+
+  function setMode(mode) {
+    ui.mode = mode;
+    ui.pendingPort = null;
+    btnModePlace.classList.toggle("primary", mode === "place");
+    btnModeConnect.classList.toggle("primary", mode === "connect");
+    render();
+  }
+
+  function openModal(title, text) {
+    modalTitle.textContent = title;
+    jsonArea.value = text ?? "";
+    modal.classList.add("open");
+    jsonArea.focus();
+    jsonArea.select();
+  }
+
+  function closeModal() {
+    modal.classList.remove("open");
+  }
+
+  function buildPalette() {
+    paletteEl.innerHTML = "";
+    for (const def of UnitDefs) {
+      const row = document.createElement("div");
+      row.className = "card";
+      const left = document.createElement("div");
+      const name = document.createElement("div");
+      name.className = "name";
+      name.textContent = def.name;
+      const tag = document.createElement("div");
+      tag.className = "tag";
+      tag.textContent = def.tag;
+      left.appendChild(name);
+      left.appendChild(tag);
+
+      const b = document.createElement("button");
+      b.textContent = "Choisir";
+      b.onclick = () => {
+        ui.selectedDefId = def.defId;
+        setMode("place");
+        render();
+      };
+
+      row.appendChild(left);
+      row.appendChild(b);
+      paletteEl.appendChild(row);
+    }
+  }
+
+  const svg = document.getElementById("svg");
+  // ViewBox fixe (responsive). On peut ajouter pan/zoom plus tard.
+  svg.setAttribute("viewBox", `0 0 ${GRID_W*CELL} ${GRID_H*CELL}`);
+  svg.style.background = "transparent";
+
+  let gRoot, gGrid, gConnections, gUnits, gOverlay;
+
+  function ensureSvgLayers() {
+    svg.innerHTML = "";
+    gRoot = el("g", {}, svg);
+    gGrid = el("g", { "shape-rendering": "crispEdges" }, gRoot);
+    gConnections = el("g", {}, gRoot);
+    gUnits = el("g", {}, gRoot);
+    gOverlay = el("g", {}, gRoot);
+  }
+
+  function drawGrid() {
+    gGrid.innerHTML = "";
+    const w = GRID_W * CELL;
+    const h = GRID_H * CELL;
+
+    // Background rect
+    el("rect", { x: 0, y: 0, width: w, height: h, fill: "#0b0f18" }, gGrid);
+
+    // Lines
+    for (let x = 0; x <= GRID_W; x++) {
+      el("line", {
+        x1: x*CELL, y1: 0, x2: x*CELL, y2: h,
+        stroke: "#273042", "stroke-width": 1
+      }, gGrid);
+    }
+    for (let y = 0; y <= GRID_H; y++) {
+      el("line", {
+        x1: 0, y1: y*CELL, x2: w, y2: y*CELL,
+        stroke: "#273042", "stroke-width": 1
+      }, gGrid);
+    }
+  }
+
+  function drawConnections() {
+    gConnections.innerHTML = "";
+
+    // Pending connection preview
+    if (ui.mode === "connect" && ui.pendingPort) {
+      const fromUnit = model.units.find(u => u.id === ui.pendingPort.unitId);
+      if (fromUnit) {
+        const fromDef = UnitDefById.get(fromUnit.defId);
+        const fromPort = fromDef.ports.find(p => p.id === ui.pendingPort.portId);
+        if (fromPort) {
+          const p0 = portWorldPos(fromUnit, fromPort);
+          // Cursor position will be updated via pointermove (overlay)
+          // Here: just draw short stub; full preview is in overlay handler.
+          el("circle", { cx: p0.x, cy: p0.y, r: 6, fill: "rgba(120,166,255,0.25)", stroke: "#78a6ff" }, gConnections);
+        }
+      }
+    }
+
+    for (const c of model.connections) {
+      const uA = model.units.find(u => u.id === c.from.unitId);
+      const uB = model.units.find(u => u.id === c.to.unitId);
+      if (!uA || !uB) continue;
+
+      const dA = UnitDefById.get(uA.defId);
+      const dB = UnitDefById.get(uB.defId);
+      const pA = dA.ports.find(p => p.id === c.from.portId);
+      const pB = dB.ports.find(p => p.id === c.to.portId);
+      if (!pA || !pB) continue;
+
+      const a = portWorldPos(uA, pA);
+      const b = portWorldPos(uB, pB);
+
+      // Simple cubic for readability
+      const dx = Math.max(40, Math.abs(b.x - a.x) * 0.5);
+      const path = `M ${a.x} ${a.y} C ${a.x + dx} ${a.y}, ${b.x - dx} ${b.y}, ${b.x} ${b.y}`;
+
+      el("path", {
+        d: path,
+        fill: "none",
+        stroke: "#78a6ff",
+        "stroke-width": 2
+      }, gConnections);
+
+      el("circle", { cx: a.x, cy: a.y, r: 3, fill: "#78a6ff" }, gConnections);
+      el("circle", { cx: b.x, cy: b.y, r: 3, fill: "#78a6ff" }, gConnections);
+    }
+  }
+
+  function drawUnits() {
+    gUnits.innerHTML = "";
+
+    for (const u of model.units) {
+      const def = UnitDefById.get(u.defId);
+      const x = u.x * CELL;
+      const y = u.y * CELL;
+      const w = def.footprint.w * CELL;
+      const h = def.footprint.h * CELL;
+
+      const isSelected = (u.id === ui.selectedUnitId);
+
+      const group = el("g", { "data-unit-id": u.id }, gUnits);
+
+      // Unit body
+      el("rect", {
+        x, y, width: w, height: h,
+        rx: 10, ry: 10,
+        fill: def.color,
+        opacity: isSelected ? 0.95 : 0.80,
+        stroke: isSelected ? "#ffdd57" : "rgba(0,0,0,0.25)",
+        "stroke-width": isSelected ? 2 : 1
+      }, group);
+
+      // Label
+      el("text", {
+        x: x + w/2, y: y + h/2,
+        "text-anchor": "middle",
+        "dominant-baseline": "middle",
+        fill: "#0b0f18",
+        "font-size": 12,
+        "font-weight": 700
+      }, group).textContent = def.name.split(" ")[0];
+
+      // Ports
+      for (const p of def.ports) {
+        const pos = portWorldPos(u, p);
+        const fill = (ui.mode === "connect" && ui.pendingPort && ui.pendingPort.unitId === u.id && ui.pendingPort.portId === p.id)
+          ? "rgba(255,221,87,0.9)"
+          : (p.dir === "in" ? "rgba(0,0,0,0.55)" : "rgba(255,255,255,0.65)");
+
+        const stroke = (p.dir === "in") ? "rgba(255,255,255,0.25)" : "rgba(0,0,0,0.25)";
+
+        const portEl = el("circle", {
+          cx: pos.x, cy: pos.y, r: PORT_R,
+          fill, stroke, "stroke-width": 1.5,
+          cursor: ui.mode === "connect" ? "pointer" : "default",
+          "data-port-unit": u.id,
+          "data-port-id": p.id
+        }, group);
+
+        // tiny direction hint
+        el("circle", {
+          cx: pos.x + (p.dir === "out" ? 3 : -3),
+          cy: pos.y, r: 1.5,
+          fill: (p.dir === "out" ? "#0b0f18" : "#ffffff")
+        }, group);
+
+        portEl.addEventListener("pointerdown", (evt) => {
+          evt.stopPropagation();
+          onPortClick(u.id, p.id);
+        });
+      }
+
+      // Selection
+      group.addEventListener("pointerdown", (evt) => {
+        // if clicking on port, port handler stops propagation
+        evt.stopPropagation();
+        ui.selectedUnitId = u.id;
+        render();
+      });
+    }
+  }
+
+  function updateSidebarSelection() {
+    const u = model.units.find(x => x.id === ui.selectedUnitId);
+    if (!u) {
+      selInfoEl.textContent = "—";
+      return;
+    }
+    const def = UnitDefById.get(u.defId);
+    selInfoEl.textContent = `${def.name} @ (${u.x},${u.y})`;
+  }
+
+  function render() {
+    ensureSvgLayers();
+    drawGrid();
+    drawConnections();
+    drawUnits();
+    updateSidebarSelection();
+  }
+
+  // -----------------------------
+  // 5) Interactions
+  // -----------------------------
+  let lastPointerSvg = { x: 0, y: 0 };
+
+  svg.addEventListener("pointermove", (evt) => {
+    lastPointerSvg = screenToSvgPoint(svg, evt.clientX, evt.clientY);
+    // Draw preview connection in overlay
+    gOverlay.innerHTML = "";
+    if (ui.mode === "connect" && ui.pendingPort) {
+      const fromUnit = model.units.find(u => u.id === ui.pendingPort.unitId);
+      if (!fromUnit) return;
+      const fromDef = UnitDefById.get(fromUnit.defId);
+      const fromPort = fromDef.ports.find(p => p.id === ui.pendingPort.portId);
+      if (!fromPort) return;
+      const a = portWorldPos(fromUnit, fromPort);
+      const b = { x: lastPointerSvg.x, y: lastPointerSvg.y };
+      const dx = Math.max(40, Math.abs(b.x - a.x) * 0.5);
+      const d = `M ${a.x} ${a.y} C ${a.x + dx} ${a.y}, ${b.x - dx} ${b.y}, ${b.x} ${b.y}`;
+      el("path", { d, fill:"none", stroke:"rgba(120,166,255,0.6)", "stroke-width":2, "stroke-dasharray":"6 6" }, gOverlay);
+    }
+  });
+
+  svg.addEventListener("pointerdown", (evt) => {
+    // clicking on background: either place unit or clear selection
+    const p = screenToSvgPoint(svg, evt.clientX, evt.clientY);
+    const { x, y } = snapToCell(p.x, p.y);
+
+    if (x < 0 || y < 0 || x >= GRID_W || y >= GRID_H) return;
+
+    if (ui.mode === "place") {
+      // if a unit exists here -> select it
+      const hit = findUnitAtCell(x, y);
+      if (hit) {
+        ui.selectedUnitId = hit.id;
+        render();
+        return;
+      }
+      const u = addUnit(ui.selectedDefId, x, y);
+      if (!u) {
+        // small visual "deny"
+        flashCell(x, y);
+      }
+      render();
+      return;
+    }
+
+    // connect mode: click empty background cancels pending port
+    if (ui.mode === "connect") {
+      ui.pendingPort = null;
+      render();
+    }
+  });
+
+  function flashCell(cx, cy) {
+    // quick overlay feedback: red cell
+    gOverlay.innerHTML = "";
+    el("rect", {
+      x: cx*CELL, y: cy*CELL, width: CELL, height: CELL,
+      fill: "rgba(255,107,107,0.25)", stroke: "rgba(255,107,107,0.8)"
+    }, gOverlay);
+    setTimeout(() => { gOverlay.innerHTML = ""; }, 180);
+  }
+
+  function onPortClick(unitId, portId) {
+    if (ui.mode !== "connect") return;
+
+    const u = model.units.find(x => x.id === unitId);
+    if (!u) return;
+    const def = UnitDefById.get(u.defId);
+    const p = def.ports.find(pp => pp.id === portId);
+    if (!p) return;
+
+    // First click: must be OUT to start a connection
+    if (!ui.pendingPort) {
+      if (p.dir !== "out") {
+        // require OUT as start
+        return;
+      }
+      ui.pendingPort = { unitId, portId };
+      render();
+      return;
+    }
+
+    // Second click: try to connect pending OUT -> this IN
+    const uA = model.units.find(x => x.id === ui.pendingPort.unitId);
+    if (!uA) { ui.pendingPort = null; render(); return; }
+    const dA = UnitDefById.get(uA.defId);
+    const pA = dA.ports.find(pp => pp.id === ui.pendingPort.portId);
+
+    // prevent self connect / duplicates
+    if (ui.pendingPort.unitId === unitId && ui.pendingPort.portId === portId) return;
+
+    if (!isPortCompatible(pA, p)) {
+      // incompatible, keep pending (allows trying another target)
+      return;
+    }
+
+    const from = { unitId: ui.pendingPort.unitId, portId: ui.pendingPort.portId };
+    const to   = { unitId, portId };
+
+    if (!connectionExists(from, to)) {
+      model.connections.push({ from, to });
+    }
+    ui.pendingPort = null;
+    render();
+  }
+
+  // Keyboard shortcuts
+  window.addEventListener("keydown", (evt) => {
+    if (evt.key === "Escape") {
+      ui.pendingPort = null;
+      render();
+      return;
+    }
+    if (evt.key === "Delete" || evt.key === "Backspace") {
+      if (ui.selectedUnitId) {
+        removeUnit(ui.selectedUnitId);
+        render();
+      }
+      return;
+    }
+  });
+
+  // Buttons
+  btnModePlace.onclick = () => setMode("place");
+  btnModeConnect.onclick = () => setMode("connect");
+
+  btnSave.onclick = () => {
+    const payload = {
+      version: 1,
+      grid: model.grid,
+      units: model.units,
+      connections: model.connections
+    };
+    openModal("Save JSON", JSON.stringify(payload, null, 2));
+  };
+
+  btnLoad.onclick = () => {
+    openModal("Load JSON", "");
+  };
+
+  btnClear.onclick = () => {
+    model.units = [];
+    model.connections = [];
+    model.occupancy = new Map();
+    ui.selectedUnitId = null;
+    ui.pendingPort = null;
+    render();
+  };
+
+  btnCloseModal.onclick = closeModal;
+
+  btnCopy.onclick = async () => {
+    try { await navigator.clipboard.writeText(jsonArea.value); }
+    catch { /* ignore */ }
+  };
+
+  btnApplyLoad.onclick = () => {
+    try {
+      const obj = JSON.parse(jsonArea.value);
+      if (!obj || obj.version !== 1) throw new Error("Bad version");
+      if (!obj.grid || !obj.units || !obj.connections) throw new Error("Bad payload");
+
+      // Rebuild model safely
+      model.units = [];
+      model.connections = [];
+      model.occupancy = new Map();
+      ui.selectedUnitId = null;
+      ui.pendingPort = null;
+
+      // Validate + place units
+      for (const u of obj.units) {
+        const def = UnitDefById.get(u.defId);
+        if (!def) continue;
+        const x = clamp(Math.floor(u.x), 0, GRID_W-1);
+        const y = clamp(Math.floor(u.y), 0, GRID_H-1);
+        if (!canPlaceAt(def, x, y)) continue;
+
+        const unit = {
+          id: u.id || uid(),
+          defId: u.defId,
+          x, y,
+          rot: u.rot || 0,
+          params: u.params || structuredClone(def.defaultParams),
+          state: u.state || {}
+        };
+        model.units.push(unit);
+        occupy(def, unit.id, unit.x, unit.y);
+      }
+
+      // Validate connections
+      for (const c of obj.connections) {
+        if (!c?.from || !c?.to) continue;
+        const uA = model.units.find(u => u.id === c.from.unitId);
+        const uB = model.units.find(u => u.id === c.to.unitId);
+        if (!uA || !uB) continue;
+
+        const dA = UnitDefById.get(uA.defId);
+        const dB = UnitDefById.get(uB.defId);
+        const pA = dA.ports.find(p => p.id === c.from.portId);
+        const pB = dB.ports.find(p => p.id === c.to.portId);
+        if (!pA || !pB) continue;
+        if (!isPortCompatible(pA, pB)) continue;
+
+        const from = { unitId: c.from.unitId, portId: c.from.portId };
+        const to   = { unitId: c.to.unitId, portId: c.to.portId };
+        if (!connectionExists(from, to)) model.connections.push({ from, to });
+      }
+
+      closeModal();
+      render();
+    } catch (e) {
+      alert("JSON invalide ou incompatible.\n" + (e?.message || e));
+    }
+  };
+
+  // -----------------------------
+  // 6) Init
+  // -----------------------------
+  buildPalette();
+  setMode("place");
+  render();
+
+})();
+</script>
+</body>
+</html>
