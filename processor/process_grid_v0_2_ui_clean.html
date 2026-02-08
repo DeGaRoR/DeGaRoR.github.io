@@ -1,0 +1,1356 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Process Grid — v0.2 UI</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background:#0f1115; color:#e7e7e7; overflow:hidden; }
+
+    /* Layout */
+    .app { height:100vh; display:grid; grid-template-columns: 1fr 360px; }
+    .canvasWrap { position:relative; }
+    #svg { width:100%; height:100%; display:block;
+      background: radial-gradient(1200px 700px at 40% 30%, #141a26 0%, #0f1115 55%, #0b0d12 100%);
+      touch-action:none;
+    }
+    .rightPanel {
+      border-left:1px solid #2a2f3a;
+      background:#0b0e14cc;
+      backdrop-filter: blur(10px);
+      overflow:auto;
+      padding:14px;
+    }
+    .rightPanel h2 { margin:0 0 10px; font-size:14px; letter-spacing:0.3px; }
+    .card { border:1px solid #2a2f3a; border-radius:14px; padding:12px; background:#0b0e14aa; }
+    .card + .card { margin-top:10px; }
+
+    /* Top bar */
+    .topbar {
+      position:absolute; left:10px; top:10px; z-index:5;
+      display:flex; gap:10px; align-items:center;
+      background:#0b0e14cc; border:1px solid #2a2f3a; border-radius:14px; padding:8px 10px;
+      backdrop-filter: blur(10px);
+    }
+    .btn {
+      display:inline-flex; align-items:center; gap:8px;
+      background:#1c222e; color:#e7e7e7; border:1px solid #2a2f3a;
+      border-radius:12px; padding:9px 12px; cursor:pointer; font-weight:700;
+      user-select:none;
+    }
+    .btn:hover { border-color:#475068; }
+    .btn.primary { background:#2563eb; border-color:#2563eb; }
+    .btn.primary:hover { filter: brightness(1.05); }
+    .btn.ghost { background:transparent; }
+    .pill { padding:2px 8px; border-radius:999px; border:1px solid #2a2f3a; opacity:.9; font-size:12px; }
+    .kbd { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; background:#111522; border:1px solid #2a2f3a; padding:1px 6px; border-radius:6px; font-size:12px; }
+
+    /* Menus */
+    .menuWrap { position:relative; }
+    .menu {
+      position:absolute; top:46px; left:0;
+      min-width: 230px;
+      background:#0b0e14f2;
+      border:1px solid #2a2f3a; border-radius:14px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+      padding:8px;
+      display:none;
+      z-index:10;
+    }
+    .menu.open { display:block; }
+    .menu .item {
+      display:flex; justify-content:space-between; align-items:center;
+      padding:10px 10px;
+      border-radius:10px;
+      cursor:pointer;
+      font-size:13px;
+    }
+    .menu .item:hover { background:#1b2230; }
+    .menu .item .hint { opacity:0.75; font-size:12px; }
+    .menu .sep { height:1px; background:#2a2f3a; margin:6px 4px; }
+
+    /* Unit library drawer */
+    .drawer {
+      position:absolute; left:10px; top:64px; z-index:6;
+      width: 260px; max-height: calc(100vh - 84px);
+      border:1px solid #2a2f3a; border-radius:16px;
+      background:#0b0e14cc;
+      backdrop-filter: blur(10px);
+      overflow:auto;
+      padding:10px;
+      display:none;
+    }
+    .drawer.open { display:block; }
+    .drawer h3 { margin:6px 6px 8px; font-size:13px; opacity:0.9; }
+    .unitGrid { display:grid; grid-template-columns: 1fr 1fr; gap:8px; padding:6px; }
+    .unitCard {
+      border:1px solid #2a2f3a; border-radius:14px;
+      background:#0f1420;
+      padding:10px;
+      cursor:grab;
+      user-select:none;
+    }
+    .unitCard:active { cursor:grabbing; }
+    .unitCard .name { font-size:12px; font-weight:800; }
+    .unitCard .desc { font-size:11px; opacity:0.75; margin-top:4px; line-height:1.2; }
+    .swatch { width:10px; height:10px; border-radius:999px; display:inline-block; margin-right:6px; vertical-align:middle; }
+
+    /* Form */
+    .row { display:grid; grid-template-columns: 1fr 140px; gap:10px; align-items:center; margin:10px 0; }
+    .row label { font-size:12px; opacity:.9; }
+    input, select, textarea {
+      width:100%; background:#0b0e14; color:#e7e7e7; border:1px solid #2a2f3a; border-radius:12px;
+      padding:8px 10px; font-size:12px;
+    }
+    textarea { min-height:120px; resize:vertical; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .small { font-size:12px; opacity:0.85; line-height:1.35; }
+    .status { white-space:pre-wrap; font-size:12px; opacity:0.9; }
+
+    /* Simple viz */
+    .bar { height:10px; border:1px solid #2a2f3a; border-radius:999px; overflow:hidden; background:#0b0e14; }
+    .bar > div { height:100%; width:0%; background:#60a5fa; }
+    .kv { display:flex; justify-content:space-between; font-size:12px; margin:6px 0; gap:10px; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+    /* New styles for improved properties panel */
+    .propSection { margin-top:16px; }
+    .propSection:first-child { margin-top:8px; }
+    .sectionHeader {
+      font-size:11px;
+      font-weight:800;
+      text-transform:uppercase;
+      letter-spacing:0.5px;
+      opacity:0.6;
+      margin-bottom:8px;
+      padding-bottom:4px;
+      border-bottom:1px solid #2a2f3a;
+    }
+    .propGrid {
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:8px;
+      margin-bottom:8px;
+    }
+    .propItem {
+      background:#0f1420;
+      border:1px solid #2a2f3a;
+      border-radius:10px;
+      padding:8px 10px;
+    }
+    .propLabel {
+      font-size:10px;
+      opacity:0.7;
+      margin-bottom:2px;
+      text-transform:uppercase;
+      letter-spacing:0.3px;
+    }
+    .propValue {
+      font-size:14px;
+      font-weight:700;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+    .propUnit {
+      font-size:11px;
+      opacity:0.6;
+      margin-left:3px;
+    }
+    .compBadge {
+      display:inline-block;
+      background:#1c222e;
+      border:1px solid #2a2f3a;
+      border-radius:8px;
+      padding:4px 8px;
+      font-size:11px;
+      margin:4px 4px 4px 0;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+    .compBadge .spec { font-weight:700; }
+    .compBadge .pct { opacity:0.7; margin-left:4px; }
+  </style>
+</head>
+<body>
+<div class="app">
+  <div class="canvasWrap">
+    <div class="topbar">
+      <button class="btn primary" id="btnRun">▶ Run</button>
+
+      <div class="menuWrap">
+        <button class="btn" id="btnMenu">☰ Menu</button>
+        <div class="menu" id="menuMain">
+          <div class="item" id="mToggleLibrary">Unit library <span class="hint">drag & drop</span></div>
+          <div class="item" id="mToggleModels">Models <span class="hint">on demand</span></div>
+          <div class="sep"></div>
+          <div class="item" id="mRotate">Rotate <span class="hint">R</span></div>
+          <div class="item" id="mDelete">Delete <span class="hint">Del</span></div>
+          <div class="item" id="mClear">Clear scene</div>
+        </div>
+      </div>
+
+      <div class="menuWrap">
+        <button class="btn" id="btnFile">💾 File</button>
+        <div class="menu" id="menuFile">
+          <div class="item" id="mExport">Export JSON</div>
+          <div class="item" id="mImport">Import JSON</div>
+        </div>
+      </div>
+
+      <span class="pill" id="pillMode">Mode: Placement</span>
+      <span class="pill" id="pillSel">Selection: —</span>
+      <span class="pill" id="pillConn">Stream: —</span>
+    </div>
+
+    <div class="drawer" id="drawerLibrary">
+      <h3>Unit library</h3>
+      <div class="small">Drag a unit onto the canvas. Click a unit to edit. <span class="kbd">Shift</span>+drag to pan · Wheel to zoom</div>
+      <div class="unitGrid" id="unitGrid"></div>
+    </div>
+
+    <div class="drawer" id="drawerModels">
+      <h3>Models</h3>
+      <div class="small">Choose physics kernels. Hidden by default to keep the UI clean.</div>
+      <div class="card" id="modelsPanel"></div>
+    </div>
+
+    <svg id="svg" xmlns="http://www.w3.org/2000/svg" aria-label="process grid">
+      <defs>
+        <symbol id="ico-source" viewBox="0 0 64 64">
+          <circle cx="20" cy="32" r="10" fill="none" stroke="currentColor" stroke-width="4"/>
+          <path d="M32 32h22" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+          <path d="M46 24l8 8-8 8" fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/>
+        </symbol>
+        <symbol id="ico-sink" viewBox="0 0 64 64">
+          <path d="M12 18h40" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+          <path d="M18 18v26c0 8 6 14 14 14s14-6 14-14V18" fill="none" stroke="currentColor" stroke-width="4"/>
+          <path d="M26 30h12" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+        </symbol>
+        <symbol id="ico-hx" viewBox="0 0 64 64">
+          <path d="M10 20h44" stroke="currentColor" stroke-width="4"/>
+          <path d="M10 44h44" stroke="currentColor" stroke-width="4"/>
+          <path d="M16 20c8 8 8 16 0 24" fill="none" stroke="currentColor" stroke-width="4"/>
+          <path d="M48 20c-8 8-8 16 0 24" fill="none" stroke="currentColor" stroke-width="4"/>
+          <path d="M32 6v12" stroke="currentColor" stroke-width="4"/>
+          <path d="M26 14h12" stroke="currentColor" stroke-width="4"/>
+        </symbol>
+        <symbol id="ico-power" viewBox="0 0 64 64">
+          <path d="M36 6 16 36h16l-4 22 20-30H32z" fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/>
+        </symbol>
+        <symbol id="ico-pipe" viewBox="0 0 64 64">
+          <path d="M10 32h44" stroke="currentColor" stroke-width="6" stroke-linecap="round"/>
+          <path d="M42 24l12 8-12 8" fill="none" stroke="currentColor" stroke-width="6" stroke-linejoin="round"/>
+        </symbol>
+      </defs>
+    </svg>
+  </div>
+
+  <aside class="rightPanel">
+    <h2>Properties</h2>
+
+    <div class="card" id="propHeader">
+      <div class="small" id="propSummary">Click a unit or a stream to inspect.</div>
+      <div class="small" style="margin-top:8px;"><b>Run</b> recomputes the whole graph (successive substitution loop handling).</div>
+    </div>
+
+    <div class="card" id="propEditor"></div>
+
+    <div class="card">
+      <div class="small"><b>Export / Import</b> (JSON)</div>
+      <textarea id="io" spellcheck="false"></textarea>
+      <div class="small" style="margin-top:8px;">
+        Tip: export includes active model selections.
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="small"><b>Status</b></div>
+      <div class="status" id="status">Ready.</div>
+    </div>
+  </aside>
+</div>
+
+<script>
+/* =========================
+   Constants & types
+   ========================= */
+const PortDir = { IN:0, OUT:1 };
+const StreamType = { GAS:0, LIQ:1, ENERGY:2 };
+
+/* =========================
+   Utilities
+   ========================= */
+function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
+function compToString(comp){
+  if(!comp) return '';
+  const arr=Object.entries(comp).filter(([,f])=>f>1e-6).map(([s,f])=>`${s}:${(f*100).toFixed(1)}%`);
+  return arr.join(' ');
+}
+function formatStream(s){
+  if(!s) return '—';
+  if(s.type===StreamType.ENERGY) return `⚡ Q=${s.QkW.toFixed(1)} kW`;
+  if(s.type===StreamType.LIQ) return `Liq m=${s.mDot.toFixed(4)} kg/s T=${s.T.toFixed(1)}°C P=${(s.P/100000).toFixed(2)} bar`;
+  if(s.type===StreamType.GAS) return `Gas n=${s.nDot.toFixed(3)} mol/s T=${s.T.toFixed(1)}°C P=${(s.P/100000).toFixed(2)} bar comp=${compToString(s.comp)}`;
+  return JSON.stringify(s);
+}
+
+/* =========================
+   Model Registry (plug-in architecture)
+   ========================= */
+class ModelRegistry {
+  constructor() {
+    this.catalog = {
+      pvt_gas: new Map(),
+      thermo: new Map(),
+      water_psat: new Map(),
+      humidity: new Map(),
+      reaction: new Map(),
+      hx: new Map(),
+      pressure_drop: new Map(),
+    };
+    this.active = {
+      pvt_gas: null,
+      thermo: null,
+      water_psat: null,
+      humidity: null,
+      reaction: null,
+      hx: null,
+      pressure_drop: null,
+    };
+  }
+  register(kind, model) {
+    if (!this.catalog[kind]) throw new Error(`Unknown model kind: ${kind}`);
+    if (!model?.id) throw new Error("Model must have id");
+    this.catalog[kind].set(model.id, model);
+    if (!this.active[kind]) this.active[kind] = model.id;
+  }
+  get(kind, id) {
+    const m = this.catalog[kind];
+    if (!m) return null;
+    return m.get(id) || null;
+  }
+  list(kind) {
+    const m = this.catalog[kind];
+    if (!m) return [];
+    return Array.from(m.values());
+  }
+  setActive(kind, id) {
+    this.active[kind] = id;
+  }
+  getActive(kind) {
+    return this.get(kind, this.active[kind]);
+  }
+}
+const models = new ModelRegistry();
+
+/* =========================
+   Real-gas PVT (ideal vs. advanced)
+   ========================= */
+models.register('pvt_gas', {
+  id: 'ideal',
+  name: 'Ideal gas',
+  desc: 'PV = nRT (constant cp/cv)',
+  cpMolar(species, T, P) { return 29.1; },
+  density(species, T, P) { const R=8.314; return P/(R*(T+273.15)); },
+  enthalpy(species, T, P) { return this.cpMolar(species,T,P)*(T); },
+});
+
+/* =========================
+   Thermo (enthalpy / heat capacity)
+   ========================= */
+models.register('thermo', {
+  id: 'constant_cp',
+  name: 'Constant Cp',
+  desc: 'Shomate-like fit for each species (simplified)',
+  cpMolar(species, T) { return 29.1; },
+  enthalpyMolar(species, T) { return this.cpMolar(species, T)*T; }
+});
+
+/* =========================
+   Water saturation pressure
+   ========================= */
+models.register('water_psat', {
+  id: 'antoine',
+  name: 'Antoine eq.',
+  desc: 'log10(Psat)=A-B/(C+T) (water)',
+  Psat(T) {
+    const A=8.07131, B=1730.63, C=233.426;
+    return Math.pow(10, A - B/(C+T))*133.322;
+  }
+});
+
+/* =========================
+   Humidity & condensation
+   ========================= */
+models.register('humidity', {
+  id: 'simple',
+  name: 'Simple phi',
+  desc: 'Relative humidity (ideal)',
+  relativeHumidity(PH2O, T) {
+    const Psat = models.getActive('water_psat').Psat(T);
+    return PH2O / Psat;
+  },
+  condensate(comp, nDot, T, P) {
+    const xH2O = comp.H2O || 0;
+    const PH2O = xH2O * P;
+    const Psat = models.getActive('water_psat').Psat(T);
+    if (PH2O <= Psat) return { nCondensed: 0, compOut: comp };
+    const excess = PH2O - Psat;
+    const nCondensed = (excess / P) * nDot;
+    const newTotal = nDot - nCondensed;
+    const compOut = {};
+    for (const sp in comp) {
+      if (sp === 'H2O') {
+        compOut[sp] = ((comp[sp] * nDot) - nCondensed) / newTotal;
+      } else {
+        compOut[sp] = comp[sp] * nDot / newTotal;
+      }
+    }
+    return { nCondensed, compOut };
+  }
+});
+
+/* =========================
+   Heat exchanger
+   ========================= */
+models.register('hx', {
+  id: 'cop_cooling',
+  name: 'COP cooling',
+  desc: 'COP = Q_cooling / W_electric',
+  coolingPower(QkW_electric, COP) { return QkW_electric * COP; }
+});
+
+/* =========================
+   Pressure drop
+   ========================= */
+models.register('pressure_drop', {
+  id: 'none',
+  name: 'No ΔP',
+  desc: 'P_out = P_in',
+  deltaPFraction() { return 0; }
+});
+
+/* =========================
+   Unit definitions
+   ========================= */
+class UnitRegistry {
+  static _defs = new Map();
+  static register(defId, spec) {
+    const def = {
+      defId, name:spec.name, w:spec.w||1, h:spec.h||1, color:spec.color||'#666',
+      ports:spec.ports||[], tick:spec.tick||null
+    };
+    this._defs.set(defId, def);
+  }
+  static get(id){ return this._defs.get(id); }
+  static list(){ return Array.from(this._defs.values()); }
+}
+
+UnitRegistry.register('source_gas', {
+  name:'Gas source', w:2, h:2, color:'#10b981',
+  ports:[{portId:'out', dir:PortDir.OUT, kind:'gas', x:2, y:1}],
+  tick(u,ports,par){ ports.out={type:StreamType.GAS,nDot:par.nDot,T:par.T,P:par.P,comp:{[par.species]:1.0}}; }
+});
+
+UnitRegistry.register('source_power', {
+  name:'Power', w:1, h:1, color:'#eab308',
+  ports:[{portId:'out', dir:PortDir.OUT, kind:'energy', x:1, y:0.5}],
+  tick(u,ports,par){ ports.out={type:StreamType.ENERGY,QkW:par.QkW}; }
+});
+
+UnitRegistry.register('hx_cop', {
+  name:'HX (COP)', w:3, h:2, color:'#3b82f6',
+  ports:[
+    {portId:'mat_in',  dir:PortDir.IN,  kind:'gas', x:0, y:1},
+    {portId:'power',   dir:PortDir.IN,  kind:'energy', x:1.5, y:0},
+    {portId:'mat_out', dir:PortDir.OUT, kind:'gas', x:3, y:1}
+  ],
+  tick(u,ports,par){
+    const sIn=ports.mat_in, sP=ports.power;
+    if(!sIn||!sP) return;
+    const hx=models.getActive('hx');
+    const Qcool=hx.coolingPower(sP.QkW, par.COP);
+    const pvt=models.getActive('pvt_gas');
+    const thermo=models.getActive('thermo');
+    const cp=thermo.cpMolar('H2', sIn.T);
+    const dT=Qcool*1000/(sIn.nDot*cp);
+    let Tout=sIn.T - dT;
+    if(Tout<par.TminClamp) Tout=par.TminClamp;
+    const hum=models.getActive('humidity');
+    const res=hum.condensate(sIn.comp, sIn.nDot, Tout, sIn.P);
+    const nOut=sIn.nDot - res.nCondensed;
+    u.last={Qcool,dT,Tout,nCondensed:res.nCondensed};
+    ports.mat_out={type:StreamType.GAS, nDot:nOut, T:Tout, P:sIn.P, comp:res.compOut};
+  }
+});
+
+UnitRegistry.register('sink', {
+  name:'Sink', w:2, h:2, color:'#6366f1',
+  ports:[{portId:'mat_in', dir:PortDir.IN, kind:'gas', x:0, y:1}],
+  tick(u,ports,par){ /* do nothing */ }
+});
+
+/* =========================
+   Scene state
+   ========================= */
+class Scene {
+  constructor() {
+    this.gridW=22; this.gridH=14; this.tile=48;
+    this.units=new Map();
+    this.connections=[];
+    this._idCounter=0;
+    this.runtime={ unitData:new Map(), lastSolve:{ok:true,iterations:0,warnings:[]} };
+  }
+
+  placeUnit(defId, x, y) {
+    const def=UnitRegistry.get(defId);
+    if(!def) return null;
+    if(x<0||y<0||x+def.w>this.gridW||y+def.h>this.gridH) return null;
+    if(this._collision(x, y, def.w, def.h, null)) return null;
+    const id=`${defId}-${++this._idCounter}`;
+    const unit={id,defId,x,y,rot:0,params:{}};
+    switch(defId){
+      case 'source_gas': unit.params={species:'H2',T:25,P:101325,nDot:1.0}; break;
+      case 'source_power': unit.params={QkW:10}; break;
+      case 'hx_cop': unit.params={COP:2.5, TminClamp:-50}; break;
+    }
+    this.units.set(id, unit);
+    return id;
+  }
+
+  deleteUnit(id) {
+    this.units.delete(id);
+    this.connections=this.connections.filter(c=>c.from.unitId!==id && c.to.unitId!==id);
+  }
+
+  moveUnit(id, nx, ny) {
+    const u=this.units.get(id); if(!u) return;
+    const def=UnitRegistry.get(u.defId);
+    if(nx<0||ny<0||nx+def.w>this.gridW||ny+def.h>this.gridH){ u.x=clamp(nx,0,this.gridW-def.w); u.y=clamp(ny,0,this.gridH-def.h); return; }
+    if(this._collision(nx,ny,def.w,def.h,id)){ return; }
+    u.x=nx; u.y=ny;
+  }
+
+  rotateUnit(id) {
+    const u=this.units.get(id); if(!u) return;
+    u.rot=(u.rot+1)%4;
+  }
+
+  unitAt(x,y) {
+    for(const [id,u] of this.units){
+      const def=UnitRegistry.get(u.defId);
+      if(x>=u.x && x<u.x+def.w && y>=u.y && y<u.y+def.h) return u;
+    }
+    return null;
+  }
+
+  _collision(x,y,w,h,skipId){
+    for(const [id,u] of this.units){
+      if(id===skipId) continue;
+      const def=UnitRegistry.get(u.defId);
+      const ox=u.x, oy=u.y, ow=def.w, oh=def.h;
+      if(!(x+w<=ox || ox+ow<=x || y+h<=oy || oy+oh<=y)) return true;
+    }
+    return false;
+  }
+
+  connect(from,to){
+    const existing=this.connections.find(c=>c.to.unitId===to.unitId && c.to.portId===to.portId);
+    if(existing) return null;
+    const uFrom=this.units.get(from.unitId), uTo=this.units.get(to.unitId);
+    if(!uFrom || !uTo) return null;
+    const defFrom=UnitRegistry.get(uFrom.defId), defTo=UnitRegistry.get(uTo.defId);
+    const pFrom=defFrom.ports.find(p=>p.portId===from.portId);
+    const pTo=defTo.ports.find(p=>p.portId===to.portId);
+    if(!pFrom||!pTo) return null;
+    if(pFrom.kind!==pTo.kind) return null;
+    const id=`conn-${++this._idCounter}`;
+    this.connections.push({id,from,to});
+    return id;
+  }
+
+  exportJSON(){
+    const data={version:7,grid:{w:this.gridW,h:this.gridH,tile:this.tile},units:[],connections:[],modelsActive:models.active};
+    for(const u of this.units.values()) data.units.push({id:u.id,defId:u.defId,x:u.x,y:u.y,rot:u.rot,params:u.params});
+    data.connections=[...this.connections];
+    return JSON.stringify(data,null,2);
+  }
+
+  importJSON(str){
+    const data=JSON.parse(str);
+    this.gridW=data.grid.w; this.gridH=data.grid.h; this.tile=data.grid.tile;
+    this.units.clear(); this.connections=[];
+    for(const u of data.units) this.units.set(u.id, u);
+    this.connections=data.connections||[];
+    if(data.modelsActive){
+      for(const k in data.modelsActive) models.setActive(k, data.modelsActive[k]);
+    }
+  }
+}
+
+const scene=new Scene();
+
+/* =========================
+   Solver
+   ========================= */
+function solveScene(scene){
+  const MAX_ITER=20; let iter=0; let changed=true;
+  scene.runtime.unitData.clear();
+  for(const [id,u] of scene.units){
+    scene.runtime.unitData.set(id, {ports:{},last:{},errors:[]});
+  }
+  while(changed && iter<MAX_ITER){
+    changed=false; iter++;
+    for(const [id,u] of scene.units){
+      const def=UnitRegistry.get(u.defId); if(!def.tick) continue;
+      const ud=scene.runtime.unitData.get(id);
+      const inPorts={};
+      for(const p of def.ports){
+        if(p.dir===PortDir.IN){
+          const conn=scene.connections.find(c=>c.to.unitId===id && c.to.portId===p.portId);
+          if(conn){
+            const fromUD=scene.runtime.unitData.get(conn.from.unitId);
+            inPorts[p.portId]=fromUD?.ports?.[conn.from.portId]||null;
+          } else {
+            inPorts[p.portId]=null;
+          }
+        }
+      }
+      const oldJSON=JSON.stringify(ud.ports);
+      def.tick(u, inPorts, u.params);
+      for(const p of def.ports) if(p.dir===PortDir.OUT) ud.ports[p.portId]=inPorts[p.portId];
+      const newJSON=JSON.stringify(ud.ports);
+      if(oldJSON!==newJSON) changed=true;
+      ud.last=u.last||{};
+    }
+  }
+  const ok=!changed || iter<MAX_ITER;
+  const warnings=[];
+  if(!ok) warnings.push('Max iterations (loop not converged)');
+  scene.runtime.lastSolve={ok,iterations:iter,warnings};
+}
+
+/* =========================
+   UI state
+   ========================= */
+const ui={
+  view:{x:0,y:0,w:scene.gridW*scene.tile,h:scene.gridH*scene.tile},
+  selectedUnitId:null,
+  selectedConnId:null,
+  pendingFrom:null,
+  isPanning:false,
+  panStart:null,
+  isDraggingUnit:false,
+  dragUnitId:null,
+  dragOffset:null,
+  dragDefId:null,
+  _mouseWorld:{x:0,y:0}
+};
+
+/* =========================
+   DOM
+   ========================= */
+const svg=document.getElementById('svg');
+const ioEl=document.getElementById('io');
+const statusEl=document.getElementById('status');
+const propSummary=document.getElementById('propSummary');
+const propEditor=document.getElementById('propEditor');
+const unitGrid=document.getElementById('unitGrid');
+const btnRun=document.getElementById('btnRun');
+const btnMenu=document.getElementById('btnMenu');
+const btnFile=document.getElementById('btnFile');
+const menuMain=document.getElementById('menuMain');
+const menuFile=document.getElementById('menuFile');
+const drawerLibrary=document.getElementById('drawerLibrary');
+const drawerModels=document.getElementById('drawerModels');
+const modelsPanelEl=document.getElementById('modelsPanel');
+const pillMode=document.getElementById('pillMode');
+const pillSel=document.getElementById('pillSel');
+const pillConn=document.getElementById('pillConn');
+
+function setStatus(s){ statusEl.textContent=s; }
+function closeMenus(){ menuMain.classList.remove('open'); menuFile.classList.remove('open'); }
+function toggle(el){ el.classList.toggle('open'); }
+
+function updatePills(){
+  pillMode.textContent = ui.pendingFrom ? 'Mode: Connect' : 'Mode: Placement';
+  pillSel.textContent = ui.selectedUnitId ? `Selection: ${ui.selectedUnitId.slice(0,8)}` : 'Selection: —';
+  pillConn.textContent = ui.selectedConnId ? `Stream: ${ui.selectedConnId.slice(0,8)}` : 'Stream: —';
+}
+
+/* =========================
+   SVG helpers
+   ========================= */
+function svgEl(tag,attrs){
+  const e=document.createElementNS('http://www.w3.org/2000/svg',tag);
+  for(const [k,v] of Object.entries(attrs)) e.setAttribute(k,String(v));
+  return e;
+}
+function clearSVG(){
+  while(svg.childNodes.length>1) svg.removeChild(svg.lastChild);
+}
+function screenToWorld(sx,sy){
+  const r=svg.getBoundingClientRect();
+  const nx=(sx-r.left)/r.width, ny=(sy-r.top)/r.height;
+  return {x:ui.view.x+nx*ui.view.w, y:ui.view.y+ny*ui.view.h};
+}
+function worldToCell(wx,wy){
+  return {x:Math.floor(wx/scene.tile), y:Math.floor(wy/scene.tile)};
+}
+function setViewBox(){
+  svg.setAttribute('viewBox', `${ui.view.x} ${ui.view.y} ${ui.view.w} ${ui.view.h}`);
+}
+
+/* =========================
+   Rendering
+   ========================= */
+function drawGrid(){
+  const g=svgEl('g',{id:'grid'});
+  const x1=ui.view.x, y1=ui.view.y, x2=ui.view.x+ui.view.w, y2=ui.view.y+ui.view.h;
+  const t=scene.tile;
+  for(let cx=0;cx<scene.gridW;cx++){
+    const wx=cx*t;
+    if(wx<x1||wx>x2) continue;
+    g.appendChild(svgEl('line',{x1:wx,y1:y1,x2:wx,y2:y2,stroke:'#1e293b',opacity:0.4,'stroke-width':1}));
+  }
+  for(let cy=0;cy<scene.gridH;cy++){
+    const wy=cy*t;
+    if(wy<y1||wy>y2) continue;
+    g.appendChild(svgEl('line',{x1:x1,y1:wy,x2:x2,y2:wy,stroke:'#1e293b',opacity:0.4,'stroke-width':1}));
+  }
+  svg.appendChild(g);
+}
+
+function drawConnections(){
+  const g=svgEl('g',{id:'connections'});
+  for(const c of scene.connections){
+    const fromU=scene.units.get(c.from.unitId), toU=scene.units.get(c.to.unitId);
+    if(!fromU||!toU) continue;
+    const fromDef=UnitRegistry.get(fromU.defId), toDef=UnitRegistry.get(toU.defId);
+    const fromPort=fromDef.ports.find(p=>p.portId===c.from.portId);
+    const toPort=toDef.ports.find(p=>p.portId===c.to.portId);
+    if(!fromPort||!toPort) continue;
+    const fx=(fromU.x+fromPort.x)*scene.tile, fy=(fromU.y+fromPort.y)*scene.tile;
+    const tx=(toU.x+toPort.x)*scene.tile, ty=(toU.y+toPort.y)*scene.tile;
+    const mid=((fx+tx)/2).toFixed(1);
+    const path=svgEl('path',{
+      d:`M${fx},${fy} C${mid},${fy} ${mid},${ty} ${tx},${ty}`,
+      fill:'none', stroke:(ui.selectedConnId===c.id?'#60a5fa':'#475569'), 'stroke-width':3, cursor:'pointer'
+    });
+    path.addEventListener('pointerdown',(ev)=>{
+      ev.stopPropagation();
+      ui.selectedConnId=c.id; ui.selectedUnitId=null;
+      updatePills(); updatePropertiesPanel(); render();
+    });
+    g.appendChild(path);
+  }
+  if(ui.pendingFrom){
+    const u=scene.units.get(ui.pendingFrom.unitId);
+    if(u){
+      const def=UnitRegistry.get(u.defId);
+      const port=def.ports.find(p=>p.portId===ui.pendingFrom.portId);
+      if(port){
+        const fx=(u.x+port.x)*scene.tile, fy=(u.y+port.y)*scene.tile;
+        const mx=ui._mouseWorld.x, my=ui._mouseWorld.y;
+        const mid=((fx+mx)/2).toFixed(1);
+        g.appendChild(svgEl('path',{d:`M${fx},${fy} C${mid},${fy} ${mid},${my} ${mx},${my}`,fill:'none',stroke:'#60a5fa','stroke-width':3,'stroke-dasharray':'5,5'}));
+      }
+    }
+  }
+  svg.appendChild(g);
+}
+
+function drawUnits(){
+  const g=svgEl('g',{id:'units'});
+  for(const [id,u] of scene.units){
+    const def=UnitRegistry.get(u.defId);
+    const wx=u.x*scene.tile, wy=u.y*scene.tile, ww=def.w*scene.tile, wh=def.h*scene.tile;
+    const group=svgEl('g',{});
+    const rect=svgEl('rect',{x:wx,y:wy,width:ww,height:wh,rx:8,
+      fill:def.color,stroke:(ui.selectedUnitId===id?'#60a5fa':'#1e293b'),'stroke-width':3,cursor:'grab'});
+    group.appendChild(rect);
+
+    rect.addEventListener('pointerdown',(ev)=>{
+      ev.stopPropagation();
+      if(ui.pendingFrom) return;
+      ui.selectedUnitId=id; ui.selectedConnId=null;
+      ui.isDraggingUnit=true; ui.dragUnitId=id;
+      const m=screenToWorld(ev.clientX,ev.clientY);
+      ui.dragOffset={dx:m.x - u.x*scene.tile, dy:m.y - u.y*scene.tile};
+      updatePills(); updatePropertiesPanel(); render();
+    });
+
+    const ico=svgEl('use',{href:`#ico-${def.defId.split('_')[0]}`,x:wx+ww/2-16,y:wy+wh/2-16,width:32,height:32,fill:'#fff',opacity:0.75,'pointer-events':'none'});
+    group.appendChild(ico);
+
+    const label=svgEl('text',{x:wx+ww/2,y:wy+wh+14,'text-anchor':'middle','font-size':10,'font-weight':700,fill:'#e7e7e7',opacity:0.9,'pointer-events':'none'});
+    label.textContent = def.name;
+    group.appendChild(label);
+
+    for(const p of def.ports){
+      const wp={x:(u.x+p.x)*scene.tile, y:(u.y+p.y)*scene.tile};
+      const portId=p.portId, unitId=u.id;
+      const circle=svgEl('circle',{cx:wp.x,cy:wp.y,r:8,fill:(p.dir===PortDir.OUT?'#f7fafc':'#1e293b'),stroke:'#475569','stroke-width':2,cursor:'pointer'});
+      circle.addEventListener('pointerdown',(ev)=>{
+        ev.stopPropagation();
+        const port=p;
+        if(port.dir===PortDir.OUT && !ui.pendingFrom){
+          ui.selectedUnitId=null;
+          ui.pendingFrom={unitId,portId};
+          ui.selectedConnId=null;
+          setStatus('Connect: click a compatible IN port.');
+          updatePills(); render(); return;
+        }
+        if(port.dir===PortDir.IN && ui.pendingFrom){
+          const id=scene.connect(ui.pendingFrom,{unitId,portId});
+          setStatus(id?'Connection added.':'Connection refused (IN already connected / wrong type).');
+          ui.pendingFrom=null; updatePills(); updatePropertiesPanel(); render();
+        }
+      });
+
+      group.appendChild(circle);
+
+      const tt=svgEl('text',{x:wp.x,y:wp.y+0.5,'text-anchor':'middle','dominant-baseline':'middle','font-size':9,'font-weight':900,
+        fill:(p.dir===PortDir.OUT?'#f7fafc':'#0b0e14'),opacity:0.9,'pointer-events':'none'});
+      tt.textContent = (p.kind==='energy') ? '⚡' : (p.dir===PortDir.OUT ? '→' : '←');
+      group.appendChild(tt);
+    }
+
+    g.appendChild(group);
+  }
+  svg.appendChild(g);
+}
+
+function render(){
+  clearSVG();
+  setViewBox();
+  drawGrid();
+  drawConnections();
+  drawUnits();
+}
+
+/* =========================
+   Unit library (drag & drop)
+   ========================= */
+function buildUnitLibrary(){
+  unitGrid.innerHTML='';
+  for(const def of UnitRegistry.list()){
+    const card=document.createElement('div');
+    card.className='unitCard';
+    card.draggable=true;
+    card.dataset.defId=def.defId;
+    card.innerHTML = `<div class="name"><span class="swatch" style="background:${def.color}"></span>${def.name}</div>
+                      <div class="desc">${def.defId}</div>`;
+    card.addEventListener('dragstart',(ev)=>{
+      ui.dragDefId = def.defId;
+      ev.dataTransfer.setData('text/plain', def.defId);
+      ev.dataTransfer.effectAllowed = 'copy';
+    });
+    unitGrid.appendChild(card);
+  }
+}
+
+/* =========================
+   Models panel (hidden by default)
+   ========================= */
+function buildModelsPanel(){
+  modelsPanelEl.innerHTML='';
+  function addDropdown(kind, label){
+    const row=document.createElement('div'); row.className='row';
+    const lab=document.createElement('label'); lab.textContent=label;
+    const sel=document.createElement('select');
+    for(const m of models.list(kind)){
+      const opt=document.createElement('option');
+      opt.value=m.id;
+      opt.textContent=m.name;
+      opt.title=m.desc || '';
+      sel.appendChild(opt);
+    }
+    sel.value=models.active[kind];
+    sel.addEventListener('change',()=>{
+      models.setActive(kind, sel.value);
+      setStatus(`Model changed: ${label} → ${sel.options[sel.selectedIndex].text}`);
+      solveScene(scene);
+      updatePropertiesPanel();
+      render();
+    });
+    row.appendChild(lab); row.appendChild(sel);
+    modelsPanelEl.appendChild(row);
+  }
+  addDropdown('pvt_gas', 'PVT gas');
+  addDropdown('thermo', 'Thermo');
+  addDropdown('water_psat', 'Psat(H2O)');
+  addDropdown('humidity', 'Humidity/cond.');
+  addDropdown('hx', 'Heat exchanger');
+  addDropdown('pressure_drop', 'ΔP');
+}
+
+/* =========================
+   Properties panel
+   ========================= */
+function el(tag, attrs={}, children=[]){
+  const e=document.createElement(tag);
+  for(const [k,v] of Object.entries(attrs)) {
+    if(k==='class') e.className=v;
+    else if(k==='html') e.innerHTML=v;
+    else e.setAttribute(k, v);
+  }
+  for(const c of children) e.appendChild(c);
+  return e;
+}
+
+function addNumberEditor(container, label, get, set, step=0.1){
+  const row=el('div',{class:'row'});
+  row.appendChild(el('label',{html:label}));
+  const inp=el('input',{type:'number', step:String(step)});
+  inp.value = String(get() ?? '');
+  inp.addEventListener('input',()=>{ set(Number(inp.value)); });
+  row.appendChild(inp);
+  container.appendChild(row);
+}
+
+function addSelectEditor(container, label, get, set, options){
+  const row=el('div',{class:'row'});
+  row.appendChild(el('label',{html:label}));
+  const sel=el('select',{});
+  for(const [val,txt] of options){
+    const opt=document.createElement('option'); opt.value=val; opt.textContent=txt;
+    sel.appendChild(opt);
+  }
+  sel.value = get();
+  sel.addEventListener('change',()=>{ set(sel.value); updatePropertiesPanel(); });
+  row.appendChild(sel);
+  container.appendChild(row);
+}
+
+function renderStreamProperties(container, s) {
+  if (!s) {
+    container.appendChild(el('div', {class:'small', html:'No data available'}));
+    return;
+  }
+
+  // Create property grid for T, P, flowrate
+  const propGrid = el('div', {class:'propGrid'});
+  
+  if (s.type === StreamType.GAS) {
+    // Temperature
+    propGrid.appendChild(el('div', {class:'propItem'}, [
+      el('div', {class:'propLabel', html:'Temperature'}),
+      el('div', {class:'propValue', html:`${s.T.toFixed(1)}<span class="propUnit">°C</span>`})
+    ]));
+    
+    // Pressure
+    propGrid.appendChild(el('div', {class:'propItem'}, [
+      el('div', {class:'propLabel', html:'Pressure'}),
+      el('div', {class:'propValue', html:`${(s.P/100000).toFixed(2)}<span class="propUnit">bar</span>`})
+    ]));
+    
+    // Molar flow
+    propGrid.appendChild(el('div', {class:'propItem'}, [
+      el('div', {class:'propLabel', html:'Molar Flow'}),
+      el('div', {class:'propValue', html:`${s.nDot.toFixed(3)}<span class="propUnit">mol/s</span>`})
+    ]));
+    
+    // Add composition
+    const comp = s.comp || {};
+    const keys = Object.keys(comp).filter(k => comp[k] > 1e-6).sort((a,b) => comp[b] - comp[a]);
+    if (keys.length) {
+      const compSection = el('div', {style:'margin-top:12px;'});
+      compSection.appendChild(el('div', {class:'propLabel', html:'Composition', style:'margin-bottom:6px;'}));
+      const compWrap = el('div', {style:'display:flex; flex-wrap:wrap;'});
+      for (const k of keys) {
+        const frac = comp[k] || 0;
+        const badge = el('div', {class:'compBadge'});
+        badge.innerHTML = `<span class="spec">${k}</span><span class="pct">${(100*frac).toFixed(1)}%</span>`;
+        compWrap.appendChild(badge);
+      }
+      compSection.appendChild(compWrap);
+      propGrid.appendChild(compSection);
+    }
+  } else if (s.type === StreamType.LIQ) {
+    // Temperature
+    propGrid.appendChild(el('div', {class:'propItem'}, [
+      el('div', {class:'propLabel', html:'Temperature'}),
+      el('div', {class:'propValue', html:`${s.T.toFixed(1)}<span class="propUnit">°C</span>`})
+    ]));
+    
+    // Pressure
+    propGrid.appendChild(el('div', {class:'propItem'}, [
+      el('div', {class:'propLabel', html:'Pressure'}),
+      el('div', {class:'propValue', html:`${(s.P/100000).toFixed(2)}<span class="propUnit">bar</span>`})
+    ]));
+    
+    // Mass flow
+    propGrid.appendChild(el('div', {class:'propItem'}, [
+      el('div', {class:'propLabel', html:'Mass Flow'}),
+      el('div', {class:'propValue', html:`${s.mDot.toFixed(4)}<span class="propUnit">kg/s</span>`})
+    ]));
+  } else if (s.type === StreamType.ENERGY) {
+    // Power
+    propGrid.appendChild(el('div', {class:'propItem'}, [
+      el('div', {class:'propLabel', html:'Power'}),
+      el('div', {class:'propValue', html:`${s.QkW.toFixed(1)}<span class="propUnit">kW</span>`})
+    ]));
+    
+    // Visual bar
+    const bar = el('div', {class:'bar', style:'margin-top:8px;'});
+    const fill = el('div', {});
+    fill.style.width = `${clamp((s.QkW||0)/100, 0, 1)*100}%`;
+    bar.appendChild(fill);
+    propGrid.appendChild(bar);
+    propGrid.appendChild(el('div', {class:'kv', style:'font-size:10px; opacity:0.6; margin-top:4px;', html:`<span>0</span><span>100+ kW</span>`}));
+  }
+  
+  container.appendChild(propGrid);
+}
+
+function updatePropertiesPanel(){
+  propEditor.innerHTML='';
+  if(ui.selectedUnitId){
+    const u=scene.units.get(ui.selectedUnitId);
+    if(!u){ ui.selectedUnitId=null; return updatePropertiesPanel(); }
+    const def=UnitRegistry.get(u.defId);
+    propSummary.textContent = `Unit: ${def.name} (${u.id.slice(0,8)})`;
+    const wrap=el('div',{});
+    wrap.appendChild(el('div',{class:'small',html:`<b>${def.defId}</b> · size ${def.w}×${def.h}`}));
+
+    // Parameters section
+    const paramsSection = el('div', {class:'propSection'});
+    paramsSection.appendChild(el('div', {class:'sectionHeader', html:'Parameters'}));
+    
+    // Editors based on unit type
+    if(u.defId==='source_gas'){
+      addSelectEditor(paramsSection, 'Species', ()=>u.params.species, v=>u.params.species=v, [['H2','H₂'],['O2','O₂'],['H2O','H₂O(v)'],['N2','N₂'],['CO2','CO₂'],['Ar','Ar'],['CO','CO'],['CH4','CH₄']]);
+      addNumberEditor(paramsSection, 'P (Pa)', ()=>u.params.P, v=>u.params.P=v, 1000);
+      addNumberEditor(paramsSection, 'T (°C)', ()=>u.params.T, v=>u.params.T=v, 1);
+      addNumberEditor(paramsSection, 'ṅ (mol/s)', ()=>u.params.nDot, v=>u.params.nDot=v, 0.1);
+    }
+    if(u.defId==='source_power'){
+      addNumberEditor(paramsSection, 'Power (kW)', ()=>u.params.QkW, v=>u.params.QkW=v, 1);
+    }
+    if(u.defId==='hx_cop'){
+      addNumberEditor(paramsSection, 'COP (-)', ()=>u.params.COP, v=>u.params.COP=v, 0.1);
+      addNumberEditor(paramsSection, 'Tmin clamp (°C)', ()=>u.params.TminClamp, v=>u.params.TminClamp=v, 1);
+    }
+    
+    wrap.appendChild(paramsSection);
+
+    // Properties / Output section
+    const ud=scene.runtime.unitData.get(u.id);
+    const propsSection = el('div', {class:'propSection'});
+    propsSection.appendChild(el('div', {class:'sectionHeader', html:'Properties'}));
+
+    if(!ud){
+      propsSection.appendChild(el('div',{class:'small',html:'Not computed yet — press Run'}));
+    } else {
+      for(const p of def.ports){
+        if(p.dir!==PortDir.OUT) continue;
+        const s=ud.ports[p.portId];
+        const portBox = el('div', {style:'margin-bottom:12px;'});
+        portBox.appendChild(el('div', {class:'small', style:'font-weight:700; margin-bottom:6px;', html:`${p.portId}`}));
+        renderStreamProperties(portBox, s);
+        propsSection.appendChild(portBox);
+      }
+      
+      // Unit-specific additional data
+      if(ud.last && Object.keys(ud.last).length){
+        const additionalBox = el('div', {style:'margin-top:12px; padding-top:12px; border-top:1px solid #2a2f3a;'});
+        additionalBox.appendChild(el('div', {class:'small', style:'font-weight:700; margin-bottom:6px;', html:'Additional Data'}));
+        const dataGrid = el('div', {class:'propGrid'});
+        for (const [key, value] of Object.entries(ud.last)) {
+          dataGrid.appendChild(el('div', {class:'propItem'}, [
+            el('div', {class:'propLabel', html:key}),
+            el('div', {class:'propValue', style:'font-size:12px;', html:typeof value === 'number' ? value.toFixed(3) : String(value)})
+          ]));
+        }
+        additionalBox.appendChild(dataGrid);
+        propsSection.appendChild(additionalBox);
+      }
+      
+      if(ud.errors?.length){
+        propsSection.appendChild(el('div',{class:'small',style:'color:#ef4444; margin-top:8px;',html:`⚠ Errors: ${ud.errors.join('; ')}`}));
+      }
+    }
+
+    wrap.appendChild(propsSection);
+    propEditor.appendChild(wrap);
+    return;
+  }
+
+  if(ui.selectedConnId){
+    const c = scene.connections.find(x=>x.id===ui.selectedConnId);
+    if(!c){ ui.selectedConnId=null; updatePills(); return updatePropertiesPanel(); }
+    propSummary.textContent = `Stream: ${c.id.slice(0,8)}`;
+    
+    const box=el('div',{});
+    box.appendChild(el('div',{class:'small', style:'margin-bottom:12px;',html:`From: <b>${c.from.unitId.slice(0,6)}.${c.from.portId}</b><br>To: <b>${c.to.unitId.slice(0,6)}.${c.to.portId}</b>`}));
+    
+    const propsSection = el('div', {class:'propSection'});
+    propsSection.appendChild(el('div', {class:'sectionHeader', html:'Properties'}));
+    
+    const fromUD=scene.runtime.unitData.get(c.from.unitId);
+    const s=fromUD?.ports?.[c.from.portId] || null;
+    renderStreamProperties(propsSection, s);
+    
+    box.appendChild(propsSection);
+    propEditor.appendChild(box);
+    return;
+  }
+
+  propSummary.textContent = 'Click a unit or a stream to inspect.';
+  propEditor.appendChild(el('div',{class:'small',html:'Nothing selected.'}));
+}
+
+function escapeHtml(str){
+  return String(str).replace(/[&<>"']/g, s=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[s]));
+}
+
+/* =========================
+   Run + status
+   ========================= */
+function describeSolve(){
+  const ls=scene.runtime.lastSolve;
+  if(!scene.units.size) return 'Empty scene.';
+  let txt = ls.ok ? `✅ Converged in ${ls.iterations} iteration(s)\n` : (`⚠ ${ls.warnings.join(' | ')}\n`);
+  txt += `Units: ${scene.units.size} · Connections: ${scene.connections.length}\n`;
+  txt += `Models: ` + Object.entries(models.active).map(([k,v])=>`${k}:${v}`).join(' · ');
+  return txt;
+}
+
+/* =========================
+   Events
+   ========================= */
+function deselectAll(){
+  ui.selectedUnitId=null;
+  ui.selectedConnId=null;
+  ui.pendingFrom=null;
+  updatePills();
+  updatePropertiesPanel();
+  render();
+}
+
+svg.addEventListener('pointerdown',(ev)=>{
+  closeMenus();
+  // drop pending connect if click empty
+  if(ev.shiftKey){
+    ui.isPanning=true;
+    ui.panStart={x:ev.clientX,y:ev.clientY,view:{...ui.view}};
+    svg.setPointerCapture(ev.pointerId);
+    return;
+  }
+
+  const w=screenToWorld(ev.clientX,ev.clientY);
+  const cell=worldToCell(w.x,w.y);
+  if(cell.x<0||cell.y<0||cell.x>=scene.gridW||cell.y>=scene.gridH) return;
+
+  const existing=scene.unitAt(cell.x,cell.y);
+  if(!existing){
+    // If we are in connect mode, cancel
+    if(ui.pendingFrom){ ui.pendingFrom=null; setStatus('Connect cancelled.'); updatePills(); render(); return; }
+    // Clicking empty space deselects
+    ui.selectedUnitId=null; ui.selectedConnId=null;
+    updatePills(); updatePropertiesPanel(); render();
+  }
+});
+
+svg.addEventListener('pointermove',(ev)=>{
+  ui._mouseWorld=screenToWorld(ev.clientX,ev.clientY);
+
+  if(ui.isPanning && ui.panStart){
+    const dx=ev.clientX-ui.panStart.x, dy=ev.clientY-ui.panStart.y;
+    const rect=svg.getBoundingClientRect();
+    const wx=dx/rect.width*ui.panStart.view.w;
+    const wy=dy/rect.height*ui.panStart.view.h;
+    ui.view.x=ui.panStart.view.x-wx;
+    ui.view.y=ui.panStart.view.y-wy;
+    render();
+    return;
+  }
+
+  // Unit move drag
+  if(ui.isDraggingUnit && ui.dragUnitId && ui.dragOffset){
+    const u=scene.units.get(ui.dragUnitId);
+    if(u){
+      const def=UnitRegistry.get(u.defId);
+      const wpos=ui._mouseWorld;
+      const nx = Math.round((wpos.x - ui.dragOffset.dx)/scene.tile);
+      const ny = Math.round((wpos.y - ui.dragOffset.dy)/scene.tile);
+      // Clamp into grid bounds for top-left
+      const cx = clamp(nx, 0, scene.gridW - def.w);
+      const cy = clamp(ny, 0, scene.gridH - def.h);
+      // Move (collision-aware)
+      scene.moveUnit(u.id, cx, cy);
+      render();
+    }
+    return;
+  }
+
+  if(ui.pendingFrom) render();
+});
+
+svg.addEventListener('pointerup',()=>{
+  ui.isPanning=false; ui.panStart=null;
+
+  if(ui.isDraggingUnit){
+    ui.isDraggingUnit=false;
+    ui.dragUnitId=null;
+    ui.dragOffset=null;
+    updatePills();
+    updatePropertiesPanel();
+    render();
+  }
+});
+
+svg.addEventListener('wheel',(ev)=>{
+  ev.preventDefault();
+  const z=(ev.deltaY<0)?0.9:1.1;
+  const m=screenToWorld(ev.clientX,ev.clientY);
+  const v=ui.view;
+  const newW=v.w*z, newH=v.h*z;
+  const rx=(m.x-v.x)/v.w, ry=(m.y-v.y)/v.h;
+  v.x=m.x-rx*newW; v.y=m.y-ry*newH; v.w=newW; v.h=newH;
+  render();
+},{passive:false});
+
+// HTML5 drag/drop from unit library onto SVG
+svg.addEventListener('dragover',(ev)=>{
+  ev.preventDefault();
+  ev.dataTransfer.dropEffect='copy';
+});
+svg.addEventListener('drop',(ev)=>{
+  ev.preventDefault();
+  const defId = ev.dataTransfer.getData('text/plain') || ui.dragDefId;
+  if(!defId) return;
+  const w=screenToWorld(ev.clientX,ev.clientY);
+  const cell=worldToCell(w.x,w.y);
+  const def=UnitRegistry.get(defId);
+  if(!def) return;
+  const x = clamp(cell.x, 0, scene.gridW - def.w);
+  const y = clamp(cell.y, 0, scene.gridH - def.h);
+  const id = scene.placeUnit(defId, x, y);
+  if(!id){ setStatus('Cannot place here (collision/out of grid).'); return; }
+  ui.selectedUnitId=id;
+  ui.selectedConnId=null;
+  ui.pendingFrom=null;
+  setStatus(`Placed: ${def.name}`);
+  updatePills(); updatePropertiesPanel(); render();
+});
+
+// Keyboard shortcuts
+window.addEventListener('keydown',(ev)=>{
+  if(ev.key==='Escape'){ ui.pendingFrom=null; closeMenus(); setStatus('Cancelled.'); updatePills(); render(); }
+  if(ev.key.toLowerCase()==='r') rotateSelected();
+  if(ev.key==='Delete' || ev.key==='Backspace') deleteSelected();
+});
+
+function rotateSelected(){ if(!ui.selectedUnitId) return; scene.rotateUnit(ui.selectedUnitId); render(); updatePropertiesPanel(); }
+function deleteSelected(){ if(!ui.selectedUnitId) return; scene.deleteUnit(ui.selectedUnitId); ui.selectedUnitId=null; updatePills(); updatePropertiesPanel(); render(); }
+
+/* =========================
+   Buttons / menus
+   ========================= */
+btnRun.addEventListener('click',()=>{
+  solveScene(scene);
+  setStatus(describeSolve());
+  updatePropertiesPanel();
+  render();
+});
+
+btnMenu.addEventListener('click',(ev)=>{
+  ev.stopPropagation();
+  menuFile.classList.remove('open');
+  toggle(menuMain);
+});
+btnFile.addEventListener('click',(ev)=>{
+  ev.stopPropagation();
+  menuMain.classList.remove('open');
+  toggle(menuFile);
+});
+
+document.addEventListener('pointerdown', (ev)=>{
+  // click outside menus closes
+  const t = ev.target;
+  if(!(t.closest && (t.closest('.menuWrap') || t.closest('.menu')))){
+    closeMenus();
+  }
+});
+
+document.getElementById('mToggleLibrary').addEventListener('click',()=>{
+  drawerLibrary.classList.toggle('open');
+  drawerModels.classList.remove('open');
+  closeMenus();
+});
+document.getElementById('mToggleModels').addEventListener('click',()=>{
+  drawerModels.classList.toggle('open');
+  drawerLibrary.classList.remove('open');
+  closeMenus();
+});
+document.getElementById('mRotate').addEventListener('click',()=>{ rotateSelected(); closeMenus(); });
+document.getElementById('mDelete').addEventListener('click',()=>{ deleteSelected(); closeMenus(); });
+document.getElementById('mClear').addEventListener('click',()=>{
+  scene.importJSON(JSON.stringify({version:7,grid:{w:22,h:14,tile:48},units:[],connections:[],modelsActive:models.active}));
+  deselectAll();
+  setStatus('Scene cleared.');
+  closeMenus();
+});
+
+document.getElementById('mExport').addEventListener('click',()=>{
+  ioEl.value=scene.exportJSON();
+  setStatus('Export OK.');
+  closeMenus();
+});
+document.getElementById('mImport').addEventListener('click',()=>{
+  try{
+    scene.importJSON(ioEl.value);
+    buildModelsPanel();
+    deselectAll();
+    setStatus('Import OK.');
+  } catch(e){
+    setStatus('Import failed: '+e.message);
+  }
+  closeMenus();
+});
+
+/* =========================
+   Demo (simple)
+   ========================= */
+function loadDemo(){
+  scene.importJSON(JSON.stringify({
+    version:7,
+    grid:{w:22,h:14,tile:48},
+    units:[
+      { id:'src-g-1', defId:'source_gas', x:2, y:4, rot:0, params:{species:'H2',P:200000,T:80,nDot:2.0}},
+      { id:'src-p-1', defId:'source_power', x:2, y:2, rot:0, params:{QkW:10}},
+      { id:'hx-1', defId:'hx_cop', x:6, y:4, rot:0, params:{COP:2.5, TminClamp:-50}},
+      { id:'sink-1', defId:'sink', x:11, y:4, rot:0, params:{}},
+    ],
+    connections:[
+      { id:'c1', from:{unitId:'src-g-1',portId:'out'}, to:{unitId:'hx-1',portId:'mat_in'}},
+      { id:'c2', from:{unitId:'src-p-1',portId:'out'}, to:{unitId:'hx-1',portId:'power'}},
+      { id:'c3', from:{unitId:'hx-1',portId:'mat_out'}, to:{unitId:'sink-1',portId:'mat_in'}},
+    ],
+    modelsActive: models.active
+  }));
+
+  ui.selectedUnitId=null;
+  ui.selectedConnId=null;
+  ui.pendingFrom=null;
+  solveScene(scene);
+  setStatus(describeSolve() + "\nDemo loaded.");
+  updatePills();
+  updatePropertiesPanel();
+  render();
+}
+
+/* =========================
+   Init
+   ========================= */
+buildUnitLibrary();
+buildModelsPanel();
+setViewBox();
+updatePills();
+updatePropertiesPanel();
+render();
+loadDemo();
+</script>
+</body>
+</html>
