@@ -1,0 +1,5158 @@
+<!doctype html>
+<!--
+  ═══════════════════════════════════════════════════════════════════════════
+  PROCESS GRID v0.7.1
+  ═══════════════════════════════════════════════════════════════════════════
+  
+  A web-based process simulation and flowsheet design tool.
+  
+  ARCHITECTURE OVERVIEW:
+  ─────────────────────────────────────────────────────────────────────────
+  
+  1. COMPONENT SYSTEM
+     - ComponentRegistry: Stores chemical components with physical properties
+     - Properties: MW, Tc, Pc, Tb, ω, Antoine coefficients
+     - Components: H2O, O2, H2, N2, Ar, CH4
+  
+  2. MODEL REGISTRY
+     - Extensible physics kernel system
+     - Model types: pvt_gas, pvt_liquid, thermo, vle, flash, units
+     - Active model selection persisted with scene
+     - Unit systems: SI, SI (bar), Imperial
+  
+  3. STREAM TYPES
+     - MATERIAL: T, P, n (molar flows), phase, vaporFraction
+     - HEAT: QkW
+     - MECHANICAL: WkW
+     - ELECTRICAL: QkW
+  
+  4. UNIT OPERATIONS
+     - Category-based organization with color coding
+     - Extensible registry pattern
+     - Current units: Source, Sink
+     - Parameters automatically converted between unit systems
+  
+  5. THERMODYNAMICS
+     - Flash calculations: TP flash with Rachford-Rice algorithm
+     - VLE: Raoult's Law (ideal) with K-values
+     - Antoine equation for vapor pressure
+     - Phase constraints: V (vapor), L (liquid), VL (flash)
+  
+  6. SOLVER
+     - Successive substitution with topological ordering
+     - Automatic flash calculation on material streams
+     - Stream type validation
+     - Convergence checking
+  
+  7. UI ARCHITECTURE
+     - Modal dialogs for Components, Models, Units
+     - Grouped property display with unit conversions
+     - Collapsible sections for organization
+     - Real-time parameter updates with unit conversion
+  
+  8. DATA PERSISTENCE
+     - JSON import/export
+     - Active model settings saved with scene
+     - Unit system preferences included
+  
+  INTERNAL UNITS (SI):
+  ─────────────────────────────────────────────────────────────────────────
+  - Temperature: K
+  - Pressure: Pa
+  - Molar flow: mol/s
+  - Mass flow: kg/s
+  - Volume flow: m³/s
+  
+  All conversions handled transparently via unit system models.
+  
+  ═══════════════════════════════════════════════════════════════════════════
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Process Grid — v0.7.1</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body { 
+      margin: 0; 
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; 
+      background: #0f1115; 
+      color: #e7e7e7; 
+      overflow: hidden; 
+    }
+
+    /* ===== LAYOUT ===== */
+    .app { 
+      height: 100vh; 
+      display: grid; 
+      grid-template-columns: 1fr 360px; 
+    }
+    
+    .canvasWrap { 
+      position: relative; 
+    }
+    
+    #svg { 
+      width: 100%; 
+      height: 100%; 
+      display: block;
+      background: radial-gradient(1200px 700px at 40% 30%, #141a26 0%, #0f1115 55%, #0b0d12 100%);
+      touch-action: none;
+    }
+    
+    .rightPanel {
+      border-left: 1px solid #2a2f3a;
+      background: #0b0e14cc;
+      backdrop-filter: blur(10px);
+      overflow: auto;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .rightPanel h2 { 
+      margin: 0 0 10px; 
+      font-size: 14px; 
+      letter-spacing: 0.3px; 
+    }
+    
+    .card { 
+      border: 1px solid #2a2f3a; 
+      border-radius: 14px; 
+      padding: 12px; 
+      background: #0b0e14aa; 
+    }
+    
+    .card + .card { 
+      margin-top: 10px; 
+    }
+
+    /* ===== TOP BAR ===== */
+    .topbar {
+      position: absolute; 
+      left: 10px; 
+      top: 10px; 
+      z-index: 5;
+      display: flex; 
+      gap: 10px; 
+      align-items: center;
+      background: #0b0e14cc; 
+      border: 1px solid #2a2f3a; 
+      border-radius: 14px; 
+      padding: 8px 10px;
+      backdrop-filter: blur(10px);
+    }
+    
+    .btn {
+      display: inline-flex; 
+      align-items: center; 
+      gap: 8px;
+      background: #1c222e; 
+      color: #e7e7e7; 
+      border: 1px solid #2a2f3a;
+      border-radius: 12px; 
+      padding: 9px 12px; 
+      cursor: pointer; 
+      font-weight: 700;
+      user-select: none;
+    }
+    
+    .btn:hover { 
+      border-color: #475068; 
+    }
+    
+    .btn.primary { 
+      background: #2563eb; 
+      border-color: #2563eb; 
+    }
+    
+    .btn.primary:hover { 
+      filter: brightness(1.05); 
+    }
+    
+    /* ===== STATUS INDICATOR ===== */
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      border: 2px solid;
+      transition: all 0.3s ease;
+    }
+    
+    .status-indicator.idle {
+      background: #1e293b22;
+      border-color: #475569;
+      color: #94a3b8;
+    }
+    
+    .status-indicator.running {
+      background: #3b82f622;
+      border-color: #3b82f6;
+      color: #60a5fa;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+    
+    .status-indicator.success {
+      background: #22c55e22;
+      border-color: #22c55e;
+      color: #4ade80;
+    }
+    
+    .status-indicator.warning {
+      background: #fbbf2422;
+      border-color: #fbbf24;
+      color: #fbbf24;
+    }
+    
+    .status-indicator.error {
+      background: #f9731622;
+      border-color: #f97316;
+      color: #f97316;
+    }
+    
+    .status-indicator.critical {
+      background: #ef444422;
+      border-color: #ef4444;
+      color: #ef4444;
+      animation: shake 0.5s ease-in-out;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+    
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-4px); }
+      75% { transform: translateX(4px); }
+    }
+    
+    .status-icon {
+      font-size: 16px;
+      line-height: 1;
+    }
+    
+    .status-text {
+      white-space: nowrap;
+    }
+    
+    .status-help {
+      background: transparent;
+      border: 1px solid currentColor;
+      color: inherit;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      padding: 0;
+      margin-left: 4px;
+      opacity: 0.8;
+      transition: opacity 0.2s;
+    }
+    
+    .status-help:hover {
+      opacity: 1;
+      background: currentColor;
+      color: #0b0e14;
+    }
+    
+    .pill { 
+      padding: 2px 8px; 
+      border-radius: 999px; 
+      border: 1px solid #2a2f3a; 
+      opacity: .9; 
+      font-size: 12px; 
+    }
+
+    /* ===== MENUS ===== */
+    .menuWrap { 
+      position: relative; 
+    }
+    
+    .menu {
+      position: absolute; 
+      top: 46px; 
+      left: 0;
+      min-width: 230px;
+      background: #0b0e14f2;
+      border: 1px solid #2a2f3a; 
+      border-radius: 14px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+      padding: 8px;
+      display: none;
+      z-index: 10;
+    }
+    
+    .menu.open { 
+      display: block; 
+    }
+    
+    .menu .item {
+      display: flex; 
+      justify-content: space-between; 
+      align-items: center;
+      padding: 10px 10px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    
+    .menu .item:hover { 
+      background: #1b2230; 
+    }
+    
+    .menu .item .hint { 
+      opacity: 0.75; 
+      font-size: 12px; 
+    }
+    
+    .menu .sep { 
+      height: 1px; 
+      background: #2a2f3a; 
+      margin: 6px 4px; 
+    }
+
+    /* ===== MODELS DRAWER ===== */
+    /* ===== MODALS ===== */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.7);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(4px);
+    }
+    
+    .modal.open {
+      display: flex;
+    }
+    
+    .modalContent {
+      background: #0b0e14;
+      border: 1px solid #2a2f3a;
+      border-radius: 16px;
+      padding: 24px;
+      width: 90%;
+      max-width: 800px;
+      max-height: 80vh;
+      overflow-y: auto;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+      position: relative;
+    }
+    
+    .modalContent h3 {
+      margin: 0 0 8px 0;
+      font-size: 18px;
+      font-weight: 700;
+    }
+    
+    .modalClose {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: transparent;
+      border: none;
+      color: #e7e7e7;
+      font-size: 24px;
+      cursor: pointer;
+      opacity: 0.6;
+      padding: 4px 8px;
+      line-height: 1;
+    }
+    
+    .modalClose:hover {
+      opacity: 1;
+    }
+
+    /* ===== FORM CONTROLS ===== */
+    .row { 
+      display: grid; 
+      grid-template-columns: 1fr 140px; 
+      gap: 10px; 
+      align-items: center; 
+      margin: 10px 0; 
+    }
+    
+    .row label { 
+      font-size: 12px; 
+      opacity: .9; 
+    }
+    
+    input, select, textarea {
+      width: 100%; 
+      background: #0b0e14; 
+      color: #e7e7e7; 
+      border: 1px solid #2a2f3a; 
+      border-radius: 12px;
+      padding: 8px 10px; 
+      font-size: 12px;
+    }
+    
+    .small { 
+      font-size: 12px; 
+      opacity: 0.85; 
+      line-height: 1.35; 
+    }
+    
+    .status { 
+      white-space: pre-wrap; 
+      font-size: 12px; 
+      opacity: 0.9; 
+    }
+
+    /* ===== VISUALIZATIONS ===== */
+    .bar { 
+      height: 10px; 
+      border: 1px solid #2a2f3a; 
+      border-radius: 999px; 
+      overflow: hidden; 
+      background: #0b0e14; 
+    }
+    
+    .bar > div { 
+      height: 100%; 
+      width: 0%; 
+      background: #60a5fa; 
+    }
+    
+    .kv { 
+      display: flex; 
+      justify-content: space-between; 
+      font-size: 12px; 
+      margin: 6px 0; 
+      gap: 10px; 
+    }
+    
+    .mono { 
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace; 
+    }
+    
+    .swatch { 
+      width: 10px; 
+      height: 10px; 
+      border-radius: 999px; 
+      display: inline-block; 
+      margin-right: 6px; 
+      vertical-align: middle; 
+    }
+
+    /* ===== PROPERTIES PANEL ===== */
+    .unitHeader {
+      margin-bottom: 16px;
+    }
+    
+    .unitTitle {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .unitTitle input {
+      flex: 1;
+      background: transparent;
+      border: 1px solid transparent;
+      padding: 4px 8px;
+      font-size: 16px;
+      font-weight: 700;
+      color: #e7e7e7;
+      border-radius: 6px;
+    }
+    
+    .unitTitle input:hover {
+      background: #1c222e;
+      border-color: #2a2f3a;
+    }
+    
+    .unitTitle input:focus {
+      background: #1c222e;
+      border-color: #60a5fa;
+      outline: none;
+    }
+    
+    .unitSubtitle {
+      font-size: 12px;
+      opacity: 0.6;
+    }
+    
+    /* Bordered sections (Parameters, Properties) */
+    .borderedSection {
+      border: 1px solid #2a2f3a;
+      border-radius: 12px;
+      padding: 12px;
+      background: transparent;
+      margin-bottom: 10px;
+    }
+    
+    .sectionHeader {
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      opacity: 0.8;
+      margin-bottom: 12px;
+      padding: 0;
+      cursor: pointer;
+      user-select: none;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .sectionHeader:hover {
+      opacity: 1;
+    }
+    
+    .sectionToggle {
+      font-size: 10px;
+      opacity: 0.5;
+      transition: transform 0.2s;
+    }
+    
+    .sectionToggle.collapsed {
+      transform: rotate(-90deg);
+    }
+    
+    .sectionContent {
+      max-height: 2000px;
+      overflow: hidden;
+      transition: max-height 0.3s ease-out;
+    }
+    
+    .sectionContent.collapsed {
+      max-height: 0;
+    }
+    
+    /* Subsections (Details inside Properties) */
+    .subSection {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid #2a2f3a;
+    }
+    
+    .subSectionHeader {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      opacity: 0.6;
+      margin-bottom: 8px;
+      cursor: pointer;
+      user-select: none;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .subSectionHeader:hover {
+      opacity: 0.8;
+    }
+    
+    .subSectionToggle {
+      font-size: 9px;
+      opacity: 0.5;
+      transition: transform 0.2s;
+    }
+    
+    .subSectionToggle.collapsed {
+      transform: rotate(-90deg);
+    }
+    
+    .subSectionContent {
+      max-height: 2000px;
+      overflow: hidden;
+      transition: max-height 0.3s ease-out;
+    }
+    
+    .subSectionContent.collapsed {
+      max-height: 0;
+    }
+    
+    .propGrid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    
+    .propItem {
+      background: #0f1420;
+      border: 1px solid #2a2f3a;
+      border-radius: 10px;
+      padding: 8px 10px;
+    }
+    
+    .propLabel {
+      font-size: 10px;
+      opacity: 0.7;
+      margin-bottom: 2px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    
+    .propValue {
+      font-size: 14px;
+      font-weight: 700;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+    
+    .propUnit {
+      font-size: 11px;
+      opacity: 0.6;
+      margin-left: 3px;
+    }
+    
+    .compBadge {
+      display: inline-block;
+      background: #1c222e;
+      border: 1px solid #2a2f3a;
+      border-radius: 8px;
+      padding: 4px 8px;
+      font-size: 11px;
+      margin: 4px 4px 4px 0;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+    
+    .compBadge .spec { 
+      font-weight: 700; 
+    }
+    
+    .compBadge .pct { 
+      opacity: 0.7; 
+      margin-left: 4px; 
+    }
+
+    /* ===== CONTROLS SECTION ===== */
+    .controlsSection {
+      margin-top: auto;
+      padding-top: 14px;
+      border-top: 1px solid #2a2f3a;
+    }
+    
+    .controlsGrid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px 12px;
+      font-size: 11px;
+      line-height: 1.5;
+    }
+    
+    .controlsGrid b {
+      font-weight: 600;
+      opacity: 0.9;
+    }
+
+    /* ===== UNIT LIBRARY IN RIGHT PANEL ===== */
+    .unitLibraryGrid { 
+      display: grid; 
+      grid-template-columns: 1fr 1fr; 
+      gap: 10px; 
+    }
+    
+    .unitLibraryCard {
+      border: 1px solid #2a2f3a;
+      border-radius: 12px;
+      background: #0f1420;
+      padding: 12px;
+      cursor: grab;
+      transition: all 0.2s;
+      user-select: none;
+    }
+    
+    .unitLibraryCard:active {
+      cursor: grabbing;
+    }
+    
+    .unitLibraryCard:hover {
+      border-color: #475068;
+      background: #1c222e;
+    }
+    
+    .unitLibraryCard .name { 
+      font-size: 12px; 
+      font-weight: 800; 
+      margin-bottom: 4px; 
+    }
+    
+    .unitLibraryCard .desc { 
+      font-size: 11px; 
+      opacity: 0.75; 
+      line-height: 1.2; 
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <div class="canvasWrap">
+    <!-- Top toolbar -->
+    <div class="topbar">
+      <button class="btn primary" id="btnRun">▶ Run</button>
+      <button class="btn" id="btnAdd" style="background:#dc2626; border-color:#dc2626; color:#fff;">+ Add Unit</button>
+      
+      <!-- Status Indicator -->
+      <div id="statusIndicator" class="status-indicator" style="display:none;">
+        <div class="status-icon"></div>
+        <div class="status-text"></div>
+        <button class="status-help" title="Diagnosis">?</button>
+      </div>
+
+      <div class="menuWrap">
+        <button class="btn" id="btnMenu">☰ Menu</button>
+        <div class="menu" id="menuMain">
+          <div class="item" id="mComponents">Components <span class="hint">view</span></div>
+          <div class="item" id="mModels">Models <span class="hint">physics</span></div>
+          <div class="item" id="mUnits">Units <span class="hint">display</span></div>
+          <div class="sep"></div>
+          <div class="item" id="mLoadDemo">Load demo</div>
+          <div class="item" id="mClear">Clear scene</div>
+        </div>
+      </div>
+
+      <div class="menuWrap">
+        <button class="btn" id="btnFile">💾 File</button>
+        <div class="menu" id="menuFile">
+          <div class="item" id="mExport">Export JSON</div>
+          <div class="item" id="mImport">Import JSON</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Models modal -->
+    <div class="modal" id="modalModels">
+      <div class="modalContent">
+        <button class="modalClose" onclick="document.getElementById('modalModels').classList.remove('open')">×</button>
+        <h3>Models</h3>
+        <div class="small">Choose physics kernels for calculations.</div>
+        <div class="card" id="modelsPanel" style="margin-top:10px;"></div>
+      </div>
+    </div>
+
+    <!-- Units modal -->
+    <div class="modal" id="modalUnits">
+      <div class="modalContent">
+        <button class="modalClose" onclick="document.getElementById('modalUnits').classList.remove('open')">×</button>
+        <h3>Unit System</h3>
+        <div class="small">Choose display units for all properties.</div>
+        <div class="card" id="unitsPanel" style="margin-top:10px;"></div>
+      </div>
+    </div>
+
+    <!-- Components modal -->
+    <div class="modal" id="modalComponents">
+      <div class="modalContent">
+        <button class="modalClose" onclick="document.getElementById('modalComponents').classList.remove('open')">×</button>
+        <h3>Components</h3>
+        <div class="small">Available chemical components in the simulation.</div>
+        <div class="card" id="componentsPanel" style="margin-top:10px; max-height:60vh; overflow-y:auto;"></div>
+      </div>
+    </div>
+
+    <!-- Main SVG canvas -->
+    <svg id="svg" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" aria-label="process grid">
+      <defs>
+        <!-- Material Source -->
+        <symbol id="ico-source" viewBox="0 0 64 64">
+          <circle cx="20" cy="32" r="10" fill="none" stroke="currentColor" stroke-width="4"/>
+          <path d="M32 32h22" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+          <path d="M46 24l8 8-8 8" fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/>
+        </symbol>
+        
+        <!-- Sink -->
+        <symbol id="ico-sink" viewBox="0 0 64 64">
+          <path d="M12 18h40" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+          <path d="M18 18v26c0 8 6 14 14 14s14-6 14-14V18" fill="none" stroke="currentColor" stroke-width="4"/>
+          <path d="M26 30h12" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+        </symbol>
+        
+        <!-- Electrical Source (Lightning/Grid) -->
+        <symbol id="ico-electrical" viewBox="0 0 64 64">
+          <path d="M36 6 16 36h16l-4 22 20-30H32z" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+        </symbol>
+        
+        <!-- Mechanical Source (Gear/Shaft) -->
+        <symbol id="ico-mechanical" viewBox="0 0 64 64">
+          <circle cx="32" cy="32" r="14" fill="none" stroke="currentColor" stroke-width="4"/>
+          <circle cx="32" cy="32" r="6" fill="currentColor"/>
+          <path d="M32 10v8M32 46v8M10 32h8M46 32h8M18 18l6 6M40 40l6 6M18 46l6-6M40 24l6-6" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+        </symbol>
+        
+        <!-- Motor (Circle with M) -->
+        <symbol id="ico-motor" viewBox="0 0 64 64">
+          <circle cx="32" cy="32" r="22" fill="none" stroke="currentColor" stroke-width="4"/>
+          <text x="32" y="42" text-anchor="middle" font-size="32" font-weight="bold" fill="currentColor">M</text>
+        </symbol>
+        
+        <!-- Pump (Triangle with impeller) -->
+        <symbol id="ico-pump" viewBox="0 0 64 64">
+          <path d="M10 16 L54 32 L10 48 Z" fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/>
+          <path d="M20 32 A8 8 0 0 1 28 24" fill="none" stroke="currentColor" stroke-width="3"/>
+          <path d="M20 32 A8 8 0 0 0 28 40" fill="none" stroke="currentColor" stroke-width="3"/>
+          <path d="M35 32 A6 6 0 0 1 41 26" fill="none" stroke="currentColor" stroke-width="2.5"/>
+          <path d="M35 32 A6 6 0 0 0 41 38" fill="none" stroke="currentColor" stroke-width="2.5"/>
+        </symbol>
+        
+        <!-- Compressor (Circle with turbine blades) -->
+        <symbol id="ico-compressor" viewBox="0 0 64 64">
+          <circle cx="32" cy="32" r="22" fill="none" stroke="currentColor" stroke-width="4"/>
+          <!-- Turbine blades -->
+          <path d="M32 10 L32 22 M32 54 L32 42 M10 32 L22 32 M54 32 L42 32" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+          <path d="M16 16 L24 24 M48 48 L40 40 M16 48 L24 40 M48 16 L40 24" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+          <circle cx="32" cy="32" r="8" fill="currentColor"/>
+        </symbol>
+        
+        <!-- Valve (Bowtie) -->
+        <symbol id="ico-valve" viewBox="0 0 64 64">
+          <path d="M8 32 L32 12 L32 52 L8 32 Z" fill="currentColor" opacity="0.8"/>
+          <path d="M56 32 L32 12 L32 52 L56 32 Z" fill="currentColor" opacity="0.8"/>
+          <path d="M8 32 L32 12 L32 52 L8 32 Z M56 32 L32 12 L32 52 L56 32 Z" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/>
+        </symbol>
+        
+        <!-- Heat Exchanger -->
+        <symbol id="ico-hx" viewBox="0 0 64 64">
+          <path d="M10 20h44" stroke="currentColor" stroke-width="4"/>
+          <path d="M10 44h44" stroke="currentColor" stroke-width="4"/>
+          <path d="M16 20c8 8 8 16 0 24" fill="none" stroke="currentColor" stroke-width="4"/>
+          <path d="M48 20c-8 8-8 16 0 24" fill="none" stroke="currentColor" stroke-width="4"/>
+          <path d="M32 6v12" stroke="currentColor" stroke-width="4"/>
+          <path d="M26 14h12" stroke="currentColor" stroke-width="4"/>
+        </symbol>
+        
+        <!-- Single Stream Heater/Cooler -->
+        <symbol id="ico-heater" viewBox="0 0 64 64">
+          <rect x="14" y="20" width="36" height="24" fill="none" stroke="currentColor" stroke-width="4" rx="4"/>
+          <path d="M20 32 Q26 26, 32 32 T44 32" fill="none" stroke="currentColor" stroke-width="3"/>
+          <path d="M32 6 L32 20" stroke="currentColor" stroke-width="4"/>
+          <path d="M26 10 L32 6 L38 10" fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/>
+        </symbol>
+        
+        <!-- Two-Stream Heat Exchanger -->
+        <symbol id="ico-hex" viewBox="0 0 64 64">
+          <circle cx="32" cy="32" r="20" fill="none" stroke="currentColor" stroke-width="4"/>
+          <!-- Hot stream (vertical) -->
+          <path d="M20 8 L20 24" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+          <path d="M20 40 L20 56" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+          <!-- Cold stream (vertical) -->
+          <path d="M44 56 L44 40" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+          <path d="M44 24 L44 8" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+          <!-- Arrows -->
+          <path d="M16 20 L20 24 L24 20" fill="none" stroke="currentColor" stroke-width="3"/>
+          <path d="M40 12 L44 8 L48 12" fill="none" stroke="currentColor" stroke-width="3"/>
+        </symbol>
+        
+        <!-- Generic pipe/flow (fallback) -->
+        <symbol id="ico-pipe" viewBox="0 0 64 64">
+          <path d="M10 32h44" stroke="currentColor" stroke-width="6" stroke-linecap="round"/>
+          <path d="M42 24l12 8-12 8" fill="none" stroke="currentColor" stroke-width="6" stroke-linejoin="round"/>
+        </symbol>
+      </defs>
+    </svg>
+  </div>
+
+  <!-- Right panel for properties and unit library -->
+  <aside class="rightPanel">
+    <div class="card" id="propEditor"></div>
+
+    <!-- Controls section at bottom -->
+    <div class="controlsSection">
+      <div class="controlsGrid">
+        <div><b>Pan:</b> Middle mouse / Shift + drag</div>
+        <div><b>Zoom:</b> Mouse wheel</div>
+        <div><b>Rotate:</b> R key</div>
+        <div><b>Delete:</b> Del key</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Hidden textarea for import/export operations -->
+  <textarea id="io" style="display:none;"></textarea>
+</div>
+
+<script>
+"use strict";
+
+/* =========================
+   CONSTANTS & ENUMS
+   ========================= */
+const PortDir = { IN: 0, OUT: 1 };
+const StreamType = { 
+  MATERIAL: 0,  // Grey
+  HEAT: 1,      // Yellow/orange
+  MECHANICAL: 2, // Purple
+  ELECTRICAL: 3  // Green
+};
+
+// Stream visual properties
+const StreamVisuals = {
+  [StreamType.MATERIAL]: { 
+    color: '#94a3b8', 
+    portColor: '#94a3b8' 
+  },
+  [StreamType.HEAT]: { 
+    color: '#fbbf24', 
+    portColor: '#fbbf24' 
+  },
+  [StreamType.MECHANICAL]: { 
+    color: '#a855f7', 
+    portColor: '#a855f7' 
+  },
+  [StreamType.ELECTRICAL]: { 
+    color: '#22c55e', 
+    portColor: '#22c55e' 
+  }
+};
+
+/* =========================
+   COMPONENT REGISTRY
+   Chemical components with physical properties
+   ========================= */
+class ComponentRegistry {
+  static _components = new Map();
+
+  static register(formula, spec) {
+    const comp = {
+      formula,                    // Chemical formula
+      name: spec.name,           // Common name
+      CAS: spec.CAS || null,     // CAS registry number
+      MW: spec.MW,               // Molecular weight (g/mol)
+      Tc: spec.Tc,               // Critical temperature (K)
+      Pc: spec.Pc,               // Critical pressure (Pa)
+      omega: spec.omega || 0,    // Acentric factor
+      Tb: spec.Tb,               // Normal boiling point (K)
+      antoine: spec.antoine      // Antoine coefficients {A, B, C} for log10(Psat/Pa) = A - B/(T[K] + C)
+    };
+    this._components.set(formula, comp);
+  }
+
+  static get(formula) {
+    return this._components.get(formula);
+  }
+
+  static list() {
+    return Array.from(this._components.values());
+  }
+
+  static exists(formula) {
+    return this._components.has(formula);
+  }
+}
+
+// Register initial components
+// Antoine equation: log10(Psat[Pa]) = A - B/(T[K] + C)
+
+ComponentRegistry.register('H2O', {
+  name: 'Water',
+  CAS: '7732-18-5',
+  MW: 18.015,
+  Tc: 647.1,
+  Pc: 22064000,
+  omega: 0.344,
+  Tb: 373.15,
+  // Antoine coefficients for water (valid 1-100°C range, extended)
+  // log10(Psat[mmHg]) = A - B/(C + T[°C])
+  // Need to convert: Psat[Pa] = Psat[mmHg] * 133.322
+  // Using extended Antoine for wider temperature range
+  antoine: { A: 8.07131, B: 1730.63, C: 233.426 } // Gives mmHg, converted in vaporPressure()
+});
+
+ComponentRegistry.register('O2', {
+  name: 'Oxygen',
+  CAS: '7782-44-7',
+  MW: 31.999,
+  Tc: 154.6,
+  Pc: 5043000,
+  omega: 0.022,
+  Tb: 90.2,
+  // Antoine: log10(Psat[mmHg]) = A - B/(C + T[°C])
+  antoine: { A: 6.69147, B: 319.013, C: 266.7 }
+});
+
+ComponentRegistry.register('H2', {
+  name: 'Hydrogen',
+  CAS: '1333-74-0',
+  MW: 2.016,
+  Tc: 33.2,
+  Pc: 1297000,
+  omega: -0.216,
+  Tb: 20.4,
+  // Antoine: log10(Psat[mmHg]) = A - B/(C + T[°C])
+  antoine: { A: 5.00395, B: 56.0, C: 258.0 }
+});
+
+ComponentRegistry.register('N2', {
+  name: 'Nitrogen',
+  CAS: '7727-37-9',
+  MW: 28.014,
+  Tc: 126.2,
+  Pc: 3396000,
+  omega: 0.037,
+  Tb: 77.4,
+  // Antoine: log10(Psat[mmHg]) = A - B/(C + T[°C])
+  antoine: { A: 6.49457, B: 255.68, C: 266.55 }
+});
+
+ComponentRegistry.register('Ar', {
+  name: 'Argon',
+  CAS: '7440-37-1',
+  MW: 39.948,
+  Tc: 150.9,
+  Pc: 4898000,
+  omega: -0.002,
+  Tb: 87.3,
+  // Antoine: log10(Psat[mmHg]) = A - B/(C + T[°C])
+  antoine: { A: 6.61562, B: 304.226, C: 267.31 }
+});
+
+ComponentRegistry.register('CH4', {
+  name: 'Methane',
+  CAS: '74-82-8',
+  MW: 16.043,
+  Tc: 190.6,
+  Pc: 4599000,
+  omega: 0.011,
+  Tb: 111.7,
+  // Antoine: log10(Psat[mmHg]) = A - B/(C + T[°C])
+  antoine: { A: 6.61184, B: 389.93, C: 266.0 }
+});
+
+/* =========================
+   UTILITY FUNCTIONS
+   ========================= */
+function clamp(v, min, max) { 
+  return Math.max(min, Math.min(max, v)); 
+}
+
+function compToString(comp) {
+  if (!comp) return '';
+  const arr = Object.entries(comp)
+    .filter(([, f]) => f > 1e-6)
+    .map(([s, f]) => `${s}:${(f * 100).toFixed(1)}%`);
+  return arr.join(' ');
+}
+
+function formatStream(s) {
+  if (!s) return '—';
+  if (s.type === StreamType.ELECTRICAL) 
+    return `⚡ Q=${s.QkW.toFixed(1)} kW`;
+  if (s.type === StreamType.HEAT) 
+    return `Heat Q=${s.QkW.toFixed(1)} kW`;
+  if (s.type === StreamType.MECHANICAL) 
+    return `Work W=${s.WkW.toFixed(1)} kW`;
+  if (s.type === StreamType.MATERIAL) {
+    if (s.phase === 'gas')
+      return `Gas n=${s.nDot.toFixed(3)} mol/s T=${s.T.toFixed(1)}°C P=${(s.P / 100000).toFixed(2)} bar`;
+    if (s.phase === 'liquid')
+      return `Liq m=${s.mDot.toFixed(4)} kg/s T=${s.T.toFixed(1)}°C P=${(s.P / 100000).toFixed(2)} bar`;
+  }
+  return JSON.stringify(s);
+}
+
+// Validation: Ensure stream type matches port type
+function validateStreamType(stream, portType) {
+  if (!stream) return false;
+  if (stream.type !== portType) {
+    console.error(`Stream type mismatch: stream.type=${stream.type}, portType=${portType}`);
+    return false;
+  }
+  return true;
+}
+
+/* =========================
+   MODEL REGISTRY
+   Physics kernels for thermodynamics, PVT, etc.
+   ========================= */
+class ModelRegistry {
+  constructor() {
+    this.catalog = {
+      pvt_gas: new Map(),
+      pvt_liquid: new Map(),
+      thermo: new Map(),
+      water_psat: new Map(),
+      humidity: new Map(),
+      reaction: new Map(),
+      hx: new Map(),
+      pressure_drop: new Map(),
+      vle: new Map(),           // Vapor-liquid equilibrium
+      flash: new Map(),         // Flash calculation algorithms
+      units: new Map(),         // Unit system for display
+    };
+    this.active = {
+      pvt_gas: null,
+      pvt_liquid: null,
+      thermo: null,
+      water_psat: null,
+      humidity: null,
+      reaction: null,
+      hx: null,
+      pressure_drop: null,
+      vle: null,
+      flash: null,
+      units: null,
+    };
+  }
+
+  register(kind, model) {
+    if (!this.catalog[kind]) throw new Error(`Unknown model kind: ${kind}`);
+    if (!model?.id) throw new Error("Model must have id");
+    this.catalog[kind].set(model.id, model);
+    if (!this.active[kind]) this.active[kind] = model.id;
+  }
+
+  get(kind, id) {
+    const m = this.catalog[kind];
+    if (!m) return null;
+    return m.get(id) || null;
+  }
+
+  list(kind) {
+    const m = this.catalog[kind];
+    if (!m) return [];
+    return Array.from(m.values());
+  }
+
+  setActive(kind, id) {
+    this.active[kind] = id;
+  }
+
+  getActive(kind) {
+    return this.get(kind, this.active[kind]);
+  }
+}
+
+const models = new ModelRegistry();
+
+/* =========================
+   THERMO MODEL INTERFACE
+   Single entry point for ALL thermodynamic calculations
+   
+   INTERNAL CONVENTION:
+   - All temperatures in Kelvin (K)
+   - All pressures in Pascal (Pa)
+   - UI conversions happen ONLY at display/edit boundaries
+   
+   REFERENCE STATES:
+   - Enthalpy: Ideal gas at 298.15 K, 101325 Pa
+   - Entropy: (not yet implemented)
+   ========================= */
+
+class ThermoAdapter {
+  /**
+   * Get component property (molecular weight, critical properties, etc.)
+   * @param {string} comp - Component formula (e.g., 'H2O')
+   * @param {string} prop - Property name: 'MW', 'Tc', 'Pc', 'omega', etc.
+   * @returns {number} Property value
+   */
+  getComponentProp(comp, prop) {
+    const compData = ComponentRegistry.get(comp);
+    if (!compData) {
+      console.warn(`Component ${comp} not found`);
+      return null;
+    }
+    return compData[prop];
+  }
+  
+  /**
+   * Molar heat capacity at constant pressure
+   * @param {string} comp - Component formula
+   * @param {number} T_K - Temperature in Kelvin
+   * @param {number} P_Pa - Pressure in Pascal
+   * @returns {number} Cp in J/(mol·K)
+   */
+  cpMolar(comp, T_K, P_Pa) {
+    const thermoModel = models.getActive('thermo');
+    if (!thermoModel) {
+      console.warn('No active thermo model');
+      return 0;
+    }
+    return thermoModel.Cp(comp, T_K, P_Pa);
+  }
+  
+  /**
+   * Molar enthalpy (reference: ideal gas at 298.15 K, 101325 Pa)
+   * @param {string} comp - Component formula
+   * @param {number} T_K - Temperature in Kelvin
+   * @param {number} P_Pa - Pressure in Pascal
+   * @param {string} phaseHint - Optional: 'V', 'L', or null for auto
+   * @returns {number} H in J/mol
+   */
+  hMolar(comp, T_K, P_Pa, phaseHint = null) {
+    // Stub for now - integrate heat capacity from reference state
+    const Tref = 298.15;  // K
+    const Cp_avg = this.cpMolar(comp, (T_K + Tref)/2, P_Pa);
+    return Cp_avg * (T_K - Tref);  // Simple linear approximation
+  }
+  
+  /**
+   * Density
+   * @param {string} comp - Component formula
+   * @param {number} T_K - Temperature in Kelvin
+   * @param {number} P_Pa - Pressure in Pascal
+   * @param {string} phaseHint - 'V' for vapor, 'L' for liquid
+   * @returns {number} Density in kg/m³
+   */
+  density(comp, T_K, P_Pa, phaseHint) {
+    if (phaseHint === 'L') {
+      const pvtLiq = models.getActive('pvt_liquid');
+      if (!pvtLiq) return 1000;  // Default fallback
+      return pvtLiq.density(comp, T_K, P_Pa);
+    } else if (phaseHint === 'V') {
+      // Ideal gas: ρ = P*MW/(R*T)
+      const MW = this.getComponentProp(comp, 'MW');  // g/mol
+      const R = 8.314;  // J/(mol·K)
+      return (P_Pa * MW / 1000) / (R * T_K);  // kg/m³
+    }
+    return null;
+  }
+  
+  /**
+   * Temperature-Pressure flash calculation
+   * Determines phase state and composition
+   * @param {Object} stream - {T: K, P: Pa, n: {comp: mol/s}}
+   * @returns {Object} {phase: 'V'|'L'|'VL', beta: vaporFraction, x: {liquidMoleFrac}, y: {vaporMoleFrac}, nL: {mol/s}, nV: {mol/s}}
+   */
+  tpFlash(stream) {
+    const T_K = stream.T;
+    const P_Pa = stream.P;
+    const n = stream.n;
+    
+    // Get phase constraint if provided
+    const phaseConstraint = stream.phaseConstraint || 'VL';
+    
+    // For single components, use Antoine/saturation pressure
+    const comps = Object.keys(n);
+    if (comps.length === 1) {
+      const comp = comps[0];
+      const Psat = this.saturationPressure(comp, T_K);
+      
+      if (phaseConstraint === 'V' || P_Pa < Psat * 0.95) {
+        // Vapor phase
+        return {
+          phase: 'V',
+          beta: 1.0,
+          vaporFraction: 1.0,
+          x: {},
+          y: { [comp]: 1.0 },
+          nL: {},
+          nV: { [comp]: n[comp] }
+        };
+      } else if (phaseConstraint === 'L' || P_Pa > Psat * 1.05) {
+        // Liquid phase
+        return {
+          phase: 'L',
+          beta: 0.0,
+          vaporFraction: 0.0,
+          x: { [comp]: 1.0 },
+          y: {},
+          nL: { [comp]: n[comp] },
+          nV: {}
+        };
+      } else {
+        // Two-phase
+        // Simple: assume 50% at saturation for now (can be enhanced)
+        const nTotal = n[comp];
+        return {
+          phase: 'VL',
+          beta: 0.5,
+          vaporFraction: 0.5,
+          x: { [comp]: 1.0 },
+          y: { [comp]: 1.0 },
+          nL: { [comp]: nTotal * 0.5 },
+          nV: { [comp]: nTotal * 0.5 }
+        };
+      }
+    }
+    
+    // Multi-component: simplified (can be enhanced with Rachford-Rice)
+    // For now, use phase constraint or simple heuristic
+    if (phaseConstraint === 'V') {
+      const nTotal = Object.values(n).reduce((a,b)=>a+b,0);
+      return {
+        phase: 'V',
+        beta: 1.0,
+        vaporFraction: 1.0,
+        x: {},
+        y: Object.fromEntries(comps.map(c => [c, n[c] / nTotal])),
+        nL: {},
+        nV: { ...n }
+      };
+    } else if (phaseConstraint === 'L') {
+      const nTotal = Object.values(n).reduce((a,b)=>a+b,0);
+      return {
+        phase: 'L',
+        beta: 0.0,
+        vaporFraction: 0.0,
+        x: Object.fromEntries(comps.map(c => [c, n[c] / nTotal])),
+        y: {},
+        nL: { ...n },
+        nV: {}
+      };
+    }
+    
+    // Default: assume single phase based on heuristic
+    const nTotal = Object.values(n).reduce((a,b)=>a+b,0);
+    return {
+      phase: 'V',  // Default to vapor
+      beta: 1.0,
+      vaporFraction: 1.0,
+      x: {},
+      y: Object.fromEntries(comps.map(c => [c, n[c] / nTotal])),
+      nL: {},
+      nV: { ...n }
+    };
+  }
+  
+  /**
+   * Pressure-Enthalpy flash calculation
+   * @param {Object} stream - {P: Pa, n: {comp: mol/s}}
+   * @param {number} H_target_Jps - Target enthalpy in J/s
+   * @returns {Object} Same as tpFlash plus T_K
+   */
+  phFlash(stream, H_target_Jps) {
+    // Stub: iterative T search to match enthalpy
+    // For now, return a simplified result
+    console.warn('phFlash not fully implemented - using stub');
+    return {
+      ...this.tpFlash(stream),
+      T_K: stream.T || 298.15
+    };
+  }
+  
+  /**
+   * Saturation pressure (Antoine equation)
+   * @param {string} comp - Component formula
+   * @param {number} T_K - Temperature in Kelvin
+   * @returns {number} Psat in Pascal
+   */
+  saturationPressure(comp, T_K) {
+    // Antoine: log10(Psat_mmHg) = A - B/(C + T_C)
+    // For water: A=8.07131, B=1730.63, C=233.426
+    const antoine = {
+      'H2O': { A: 8.07131, B: 1730.63, C: 233.426 },
+      'H2': { A: 6.0, B: 50, C: 0 },  // Placeholder
+      'O2': { A: 6.5, B: 300, C: -20 },  // Placeholder
+      'N2': { A: 6.5, B: 250, C: -25 }   // Placeholder
+    };
+    
+    const params = antoine[comp] || { A: 7, B: 1000, C: 200 };
+    const T_C = T_K - 273.15;
+    const log10_Psat_mmHg = params.A - params.B / (params.C + T_C);
+    const Psat_mmHg = Math.pow(10, log10_Psat_mmHg);
+    return Psat_mmHg * 133.322;  // mmHg to Pa
+  }
+  
+  /**
+   * Stream heat capacity (mixture)
+   * @param {Object} stream - {T: K, P: Pa, n: {comp: mol/s}}
+   * @returns {number} Total heat capacity in kW/K
+   */
+  streamCp(stream) {
+    let Cp_total_kW_K = 0;
+    for (const [comp, n_mols] of Object.entries(stream.n)) {
+      const Cp_J_molK = this.cpMolar(comp, stream.T, stream.P);
+      Cp_total_kW_K += n_mols * Cp_J_molK / 1000;
+    }
+    return Cp_total_kW_K;
+  }
+  
+  /**
+   * Stream mass flow (mixture)
+   * @param {Object} stream - {n: {comp: mol/s}}
+   * @returns {number} Total mass flow in kg/s
+   */
+  streamMassFlow(stream) {
+    let m_total_kgs = 0;
+    for (const [comp, n_mols] of Object.entries(stream.n)) {
+      const MW = this.getComponentProp(comp, 'MW');  // g/mol
+      m_total_kgs += n_mols * MW / 1000;  // kg/s
+    }
+    return m_total_kgs;
+  }
+}
+
+// Global thermo adapter instance
+const thermo = new ThermoAdapter();
+
+/* =========================
+   MODEL IMPLEMENTATIONS
+   ========================= */
+
+// PVT Models (Pressure-Volume-Temperature)
+models.register('pvt_gas', {
+  id: 'ideal',
+  name: 'Ideal gas',
+  desc: 'PV = nRT (constant cp/cv)',
+  cpMolar(species, T, P) { return 29.1; },
+  density(species, T, P) { 
+    const R = 8.314; 
+    return P / (R * (T + 273.15)); 
+  },
+  enthalpy(species, T, P) { 
+    return this.cpMolar(species, T, P) * T; 
+  },
+});
+
+// Thermodynamics Models
+models.register('thermo', {
+  id: 'constant_cp',
+  name: 'Constant Cp',
+  desc: 'Simplified constant heat capacity',
+  
+  cpMolar(species, T) {
+    // Ideal gas heat capacity at 298K (J/mol/K)
+    const cpValues = {
+      H2O: 33.6,
+      O2: 29.4,
+      H2: 28.8,
+      N2: 29.1,
+      Ar: 20.8,
+      CH4: 35.7
+    };
+    return cpValues[species] || 29.1;
+  },
+  
+  enthalpyMolar(species, T) {
+    // Simplified enthalpy relative to 298.15 K (J/mol)
+    return this.cpMolar(species, T) * (T - 298.15);
+  }
+});
+
+// Water Saturation Pressure
+models.register('water_psat', {
+  id: 'antoine',
+  name: 'Antoine eq.',
+  desc: 'log10(Psat)=A-B/(C+T) (water)',
+  Psat(T) {
+    const A = 8.07131, B = 1730.63, C = 233.426;
+    return Math.pow(10, A - B / (C + T)) * 133.322;
+  }
+});
+
+// Humidity & Condensation
+models.register('humidity', {
+  id: 'simple',
+  name: 'Simple phi',
+  desc: 'Relative humidity (ideal)',
+  relativeHumidity(PH2O, T) {
+    const Psat = models.getActive('water_psat').Psat(T);
+    return PH2O / Psat;
+  },
+  condensate(comp, nDot, T, P) {
+    const xH2O = comp.H2O || 0;
+    const PH2O = xH2O * P;
+    const Psat = models.getActive('water_psat').Psat(T);
+    if (PH2O <= Psat) return { nCondensed: 0, compOut: comp };
+    
+    const excess = PH2O - Psat;
+    const nCondensed = (excess / P) * nDot;
+    const newTotal = nDot - nCondensed;
+    const compOut = {};
+    for (const sp in comp) {
+      if (sp === 'H2O') {
+        compOut[sp] = ((comp[sp] * nDot) - nCondensed) / newTotal;
+      } else {
+        compOut[sp] = comp[sp] * nDot / newTotal;
+      }
+    }
+    return { nCondensed, compOut };
+  }
+});
+
+// Heat Exchanger
+models.register('hx', {
+  id: 'cop_cooling',
+  name: 'COP cooling',
+  desc: 'COP = Q_cooling / W_electric',
+  coolingPower(QkW_electric, COP) { 
+    return QkW_electric * COP; 
+  }
+});
+
+// Pressure Drop
+models.register('pressure_drop', {
+  id: 'none',
+  name: 'No ΔP',
+  desc: 'P_out = P_in',
+  deltaPFraction() { return 0; }
+});
+
+// Liquid PVT
+models.register('pvt_liquid', {
+  id: 'incompressible',
+  name: 'Incompressible',
+  desc: 'Constant density liquid',
+  density(component, T, P) {
+    // Simple liquid density correlation (kg/m³)
+    // Using rough approximations for now
+    const densities = {
+      H2O: 1000,
+      O2: 1141,
+      H2: 71,
+      N2: 807,
+      Ar: 1394,
+      CH4: 423
+    };
+    return densities[component] || 1000;
+  },
+  enthalpy(component, T, P) {
+    // Simplified liquid enthalpy (J/mol)
+    const comp = ComponentRegistry.get(component);
+    if (!comp) return 0;
+    const cpLiq = 75; // J/(mol·K) - simplified constant
+    return cpLiq * (T - 298.15); // Relative to 298.15 K
+  }
+});
+
+// Vapor-Liquid Equilibrium
+models.register('vle', {
+  id: 'raoult',
+  name: 'Raoult\'s Law',
+  desc: 'Ideal VLE: yi*P = xi*Psat',
+  
+  vaporPressure(component, T) {
+    // Antoine equation: log10(Psat[mmHg]) = A - B/(C + T[°C])
+    const comp = ComponentRegistry.get(component);
+    if (!comp || !comp.antoine) return 0;
+    const { A, B, C } = comp.antoine;
+    
+    // Convert T from K to °C for Antoine equation
+    const Tc = T - 273.15;
+    const logP = A - B / (C + Tc);
+    const PsatMmHg = Math.pow(10, logP);
+    
+    // Convert mmHg to Pa
+    return PsatMmHg * 133.322;
+  },
+  
+  equilibriumK(component, T, P) {
+    // K-value: K_i = y_i / x_i = Psat_i / P (Raoult's Law)
+    const Psat = this.vaporPressure(component, T);
+    return Psat / P;
+  }
+});
+
+// Flash Calculations
+models.register('flash', {
+  id: 'successive_substitution',
+  name: 'Successive Substitution',
+  desc: 'Iterative TP flash with Rachford-Rice',
+  
+  tpFlash(T, P, n, phaseConstraint = 'VL') {
+    // TP Flash: Given T, P, and moles {component: mol}, calculate phase split
+    // Returns: { phase: 'V'|'L'|'VL', beta: vaporFraction, nV: {...}, nL: {...} }
+    
+    const vle = models.getActive('vle');
+    const components = Object.keys(n);
+    const nTotal = Object.values(n).reduce((sum, val) => sum + val, 0);
+    
+    if (nTotal < 1e-12) {
+      return { phase: 'V', beta: 1.0, nV: {}, nL: {} };
+    }
+    
+    // Mole fractions
+    const z = {};
+    for (const comp of components) {
+      z[comp] = n[comp] / nTotal;
+    }
+    
+    // Handle phase constraints
+    if (phaseConstraint === 'V') {
+      return { phase: 'V', beta: 1.0, nV: { ...n }, nL: {} };
+    }
+    if (phaseConstraint === 'L') {
+      return { phase: 'L', beta: 0.0, nV: {}, nL: { ...n } };
+    }
+    
+    // Calculate K-values
+    const K = {};
+    for (const comp of components) {
+      K[comp] = vle.equilibriumK(comp, T, P);
+    }
+    
+    // Rachford-Rice equation to find beta (vapor fraction)
+    // f(beta) = sum[ z_i*(K_i - 1) / (1 + beta*(K_i - 1)) ] = 0
+    
+    const rachfordRice = (beta) => {
+      let sum = 0;
+      for (const comp of components) {
+        sum += z[comp] * (K[comp] - 1) / (1 + beta * (K[comp] - 1));
+      }
+      return sum;
+    };
+    
+    // Check if single phase
+    const rr0 = rachfordRice(0);
+    const rr1 = rachfordRice(1);
+    
+    if (rr0 < 0) {
+      // All liquid
+      return { phase: 'L', beta: 0.0, nV: {}, nL: { ...n } };
+    }
+    if (rr1 > 0) {
+      // All vapor
+      return { phase: 'V', beta: 1.0, nV: { ...n }, nL: {} };
+    }
+    
+    // Two-phase: solve for beta using successive substitution
+    let beta = 0.5;
+    for (let iter = 0; iter < 50; iter++) {
+      const fb = rachfordRice(beta);
+      
+      // Derivative: df/dbeta
+      let dfdb = 0;
+      for (const comp of components) {
+        const denom = 1 + beta * (K[comp] - 1);
+        dfdb -= z[comp] * (K[comp] - 1) * (K[comp] - 1) / (denom * denom);
+      }
+      
+      // Newton step
+      const betaNew = beta - fb / dfdb;
+      const betaClamped = Math.max(0, Math.min(1, betaNew));
+      
+      if (Math.abs(betaClamped - beta) < 1e-8) {
+        beta = betaClamped;
+        break;
+      }
+      beta = betaClamped;
+    }
+    
+    // Calculate phase compositions
+    const nV = {};
+    const nL = {};
+    
+    for (const comp of components) {
+      const denom = 1 + beta * (K[comp] - 1);
+      nL[comp] = n[comp] / denom;
+      nV[comp] = K[comp] * nL[comp];
+    }
+    
+    return { phase: 'VL', beta, nV, nL };
+  }
+});
+
+// Unit Systems
+// Unit Systems - SI (bar) is default
+models.register('units', {
+  id: 'SI_bar',
+  name: 'SI (bar)',
+  desc: 'Temperature (°C), Pressure (bar), Flow (mol/h, kg/h, m³/h)',
+  
+  temperature: { from: (K) => K - 273.15, to: (C) => C + 273.15, symbol: '°C', decimals: 1 },
+  pressure: { from: (Pa) => Pa / 100000, to: (bar) => bar * 100000, symbol: 'bar', decimals: 3 },
+  molarFlow: { from: (mols) => mols * 3600, to: (molh) => molh / 3600, symbol: 'mol/h', decimals: 1 },
+  massFlow: { from: (kgs) => kgs * 3600, to: (kgh) => kgh / 3600, symbol: 'kg/h', decimals: 2 },
+  volumeFlow: { from: (m3s) => m3s * 3600, to: (m3h) => m3h / 3600, symbol: 'm³/h', decimals: 2 }
+});
+
+models.register('units', {
+  id: 'SI',
+  name: 'SI Units',
+  desc: 'Temperature (K), Pressure (Pa), Flow (mol/s, kg/s, m³/s)',
+  
+  temperature: { from: (K) => K, to: (K) => K, symbol: 'K', decimals: 2 },
+  pressure: { from: (Pa) => Pa, to: (Pa) => Pa, symbol: 'Pa', decimals: 0 },
+  molarFlow: { from: (mols) => mols, to: (mols) => mols, symbol: 'mol/s', decimals: 3 },
+  massFlow: { from: (kgs) => kgs, to: (kgs) => kgs, symbol: 'kg/s', decimals: 4 },
+  volumeFlow: { from: (m3s) => m3s, to: (m3s) => m3s, symbol: 'm³/s', decimals: 4 }
+});
+
+models.register('units', {
+  id: 'Imperial',
+  name: 'Imperial Units',
+  desc: 'Temperature (°F), Pressure (psi), Flow (lbmol/h, lb/h, ft³/h)',
+  
+  temperature: { 
+    from: (K) => (K - 273.15) * 9/5 + 32, 
+    to: (F) => (F - 32) * 5/9 + 273.15, 
+    symbol: '°F', 
+    decimals: 1 
+  },
+  pressure: { 
+    from: (Pa) => Pa / 6894.76, 
+    to: (psi) => psi * 6894.76, 
+    symbol: 'psi', 
+    decimals: 2 
+  },
+  molarFlow: { 
+    from: (mols) => mols * 3600 / 453.592, 
+    to: (lbmolh) => lbmolh * 453.592 / 3600, 
+    symbol: 'lbmol/h', 
+    decimals: 1 
+  },
+  massFlow: { 
+    from: (kgs) => kgs * 3600 * 2.20462, 
+    to: (lbh) => lbh / 2.20462 / 3600, 
+    symbol: 'lb/h', 
+    decimals: 1 
+  },
+  volumeFlow: { 
+    from: (m3s) => m3s * 3600 * 35.3147, 
+    to: (ft3h) => ft3h / 35.3147 / 3600, 
+    symbol: 'ft³/h', 
+    decimals: 1 
+  }
+});
+
+/* =========================
+   ERROR SEVERITY SYSTEM
+   Categorizes operational errors by damage level
+   ========================= */
+const ErrorSeverity = {
+  MINOR: { 
+    icon: '⚠️', 
+    color: '#fbbf24', 
+    prefix: 'WARNING',
+    level: 1
+  },
+  MAJOR: { 
+    icon: '🔧', 
+    color: '#f97316', 
+    prefix: 'MAJOR DAMAGE',
+    level: 2
+  },
+  CATASTROPHIC: { 
+    icon: '💥', 
+    color: '#ef4444', 
+    prefix: 'CATASTROPHIC',
+    level: 3
+  }
+};
+
+/* =========================
+   ERROR CATALOG & DIAGNOSIS
+   Natural language explanations for common failures
+   ========================= */
+const ErrorCatalog = {
+  // Catastrophic failures
+  'compressor.*liquid': {
+    severity: ErrorSeverity.CATASTROPHIC,
+    title: 'Compressor Destroyed',
+    explanation: 'Compressors are designed to handle gases, not liquids. When liquid enters a compressor, it cannot be compressed and causes immediate mechanical failure. Think of it like trying to compress water in a sealed cylinder - the incompressible liquid will destroy the compression mechanism.',
+    causes: [
+      'Upstream condenser or cooler dropped temperature below dew point',
+      'Feed stream is liquid or two-phase with high liquid fraction',
+      'Insufficient separation before compression',
+      'Temperature control failure upstream'
+    ],
+    fixes: [
+      'Add a knockout drum or separator before the compressor',
+      'Ensure feed temperature is above dew point',
+      'Check flash calculation results - inlet should show vapor phase',
+      'Add heating if stream is too cold'
+    ]
+  },
+  
+  // Major damage
+  'pump.*cavitation.*vapor': {
+    severity: ErrorSeverity.MAJOR,
+    title: 'Pump Cavitation',
+    explanation: 'Pumps are designed for liquids and cannot handle vapor. When vapor enters a pump, cavitation occurs - the formation and collapse of vapor bubbles that physically damage the pump impeller. This causes vibration, noise, reduced efficiency, and mechanical wear.',
+    causes: [
+      'Feed stream is vapor or two-phase with high vapor fraction',
+      'Upstream heater raised temperature above bubble point',
+      'Pressure drop upstream caused flashing',
+      'Insufficient NPSH (Net Positive Suction Head)'
+    ],
+    fixes: [
+      'Ensure feed is subcooled liquid',
+      'Add cooling if stream is too hot',
+      'Check flash results - inlet should show liquid phase',
+      'Increase system pressure or decrease temperature'
+    ]
+  },
+  
+  // Configuration warnings
+  'power.*overload': {
+    severity: ErrorSeverity.MINOR,
+    title: 'Power Source Overload',
+    explanation: 'The electrical or mechanical power demand exceeds the available capacity from the power source. The connected equipment cannot operate properly without sufficient power supply.',
+    causes: [
+      'Power source capacity too small for connected load',
+      'Too many units connected to single power source',
+      'Compression ratio or pressure rise too high',
+      'Motor efficiency losses not accounted for'
+    ],
+    fixes: [
+      'Increase power source max capacity',
+      'Add additional power sources',
+      'Reduce compression ratio or pressure rise',
+      'Check motor efficiency parameter'
+    ]
+  },
+  
+  'no.*input': {
+    severity: ErrorSeverity.MINOR,
+    title: 'Missing Input Connection',
+    explanation: 'This unit requires an input stream but none is connected. Process equipment needs material or power feeds to operate.',
+    causes: [
+      'Unit was just added and not yet connected',
+      'Connection was deleted',
+      'Upstream unit missing or disconnected'
+    ],
+    fixes: [
+      'Connect an appropriate input stream',
+      'Add upstream source or equipment',
+      'Check unit ports match stream types (material, power, etc.)'
+    ]
+  },
+  
+  'no.*output': {
+    severity: ErrorSeverity.MINOR,
+    title: 'No Output Connection',
+    explanation: 'This unit has no outlet stream. While not necessarily an error, process streams typically need destinations.',
+    causes: [
+      'Unit was just added and not yet connected',
+      'Downstream equipment missing',
+      'This is an endpoint (sink) and this is normal'
+    ],
+    fixes: [
+      'Add downstream equipment or sink',
+      'Connect outlet to next process step',
+      'If this is intentional, no action needed'
+    ]
+  },
+  
+  'temperature.*cross': {
+    severity: ErrorSeverity.MAJOR,
+    title: 'Heat Exchanger Temperature Cross',
+    explanation: 'In a heat exchanger, the hot stream cannot exit colder than the cold stream inlet (and vice versa). This violates the second law of thermodynamics and indicates impossible heat transfer.',
+    causes: [
+      'Specified outlet temperatures are thermodynamically infeasible',
+      'Approach temperature is too small or negative',
+      'Heat capacity imbalance too extreme',
+      'Stream flow rates or properties changed'
+    ],
+    fixes: [
+      'Increase approach temperature (typically 5-20K)',
+      'Adjust hot or cold outlet temperature targets',
+      'Check stream flow rates and heat capacities',
+      'Use effectiveness mode instead of fixed outlet temps'
+    ]
+  },
+  
+  'thermodynamic.*violation.*heat': {
+    severity: ErrorSeverity.CATASTROPHIC,
+    title: 'Thermodynamic Violation in Heat Transfer',
+    explanation: 'Heat is flowing in the wrong direction! The hot stream is gaining heat or the cold stream is losing heat. This violates the second law of thermodynamics and is physically impossible.',
+    causes: [
+      'Outlet temperature set higher than inlet for hot stream',
+      'Outlet temperature set lower than inlet for cold stream',
+      'Severe numerical error in calculation',
+      'Wrong stream assignment (hot/cold swapped)'
+    ],
+    fixes: [
+      'Check that hot inlet > hot outlet',
+      'Check that cold outlet > cold inlet',
+      'Verify stream connections are correct',
+      'Use approach temperature mode for automatic calculation'
+    ]
+  }
+};
+
+// Diagnose errors from scene state
+function diagnoseErrors(scene) {
+  const diagnostics = [];
+  
+  for (const [id, u] of scene.units) {
+    const def = UnitRegistry.get(u.defId);
+    const ud = scene.runtime.unitData.get(id);
+    
+    // Check for unit-level errors
+    if (ud?.last?.error) {
+      const errorMsg = ud.last.error.message.toLowerCase();
+      
+      // Match against catalog
+      for (const [pattern, info] of Object.entries(ErrorCatalog)) {
+        const regex = new RegExp(pattern, 'i');
+        if (regex.test(errorMsg)) {
+          diagnostics.push({
+            unitId: id,
+            unitName: u.name || def.name,
+            ...info,
+            originalMessage: ud.last.error.message
+          });
+          break;
+        }
+      }
+    }
+    
+    // Check for missing connections
+    if (def.ports && def.ports.length > 0) {
+      // Check inputs
+      const inputPorts = def.ports.filter(p => p.dir === PortDir.IN);
+      const outputPorts = def.ports.filter(p => p.dir === PortDir.OUT);
+      
+      for (const port of inputPorts) {
+        const hasConnection = scene.connections.some(
+          c => c.to.unitId === id && c.to.portId === port.portId
+        );
+        if (!hasConnection && def.defId !== 'source' && def.defId !== 'source_electrical' && def.defId !== 'source_mechanical') {
+          diagnostics.push({
+            unitId: id,
+            unitName: u.name || def.name,
+            ...ErrorCatalog['no.*input'],
+            originalMessage: `No input connected to ${port.portId}`
+          });
+        }
+      }
+      
+      // Check outputs (warning only, not critical)
+      for (const port of outputPorts) {
+        const hasConnection = scene.connections.some(
+          c => c.from.unitId === id && c.from.portId === port.portId
+        );
+        if (!hasConnection && def.defId !== 'sink') {
+          // This is less critical, only add if there are no other errors for this unit
+          const hasOtherError = diagnostics.some(d => d.unitId === id);
+          if (!hasOtherError) {
+            diagnostics.push({
+              unitId: id,
+              unitName: u.name || def.name,
+              ...ErrorCatalog['no.*output'],
+              originalMessage: `No output connected from ${port.portId}`
+            });
+          }
+        }
+      }
+    }
+  }
+  
+  return diagnostics;
+}
+
+/* =========================
+   UNIT CATEGORIES
+   Categories for organizing units with color coding
+   ========================= */
+const UnitCategories = {
+  // Material sources
+  SOURCE: { name: 'Sources', color: '#10b981' },      // Green
+  
+  // Material sinks  
+  SINK: { name: 'Sinks', color: '#6366f1' },          // Indigo
+  
+  // Power sources
+  POWER_SOURCE: { name: 'Power Sources', color: '#eab308' },  // Yellow
+  
+  // Power conversion
+  POWER_CONVERSION: { name: 'Power Conversion', color: '#f59e0b' }, // Orange
+  
+  // Pressure change equipment
+  PRESSURE: { name: 'Pressure Change', color: '#8b5cf6' }, // Purple
+  
+  // Heat exchangers
+  HEAT_EXCHANGER: { name: 'Heat Exchangers', color: '#3b82f6' }, // Blue
+  
+  // Separators
+  SEPARATOR: { name: 'Separators', color: '#ec4899' }, // Pink
+  
+  // Reactors
+  REACTOR: { name: 'Reactors', color: '#ef4444' },    // Red
+  
+  // Test units
+  TEST: { name: 'Test Units', color: '#64748b' }      // Slate
+};
+
+/* =========================
+   UNIT REGISTRY
+   Defines available unit operations
+   
+   STREAM TYPE SYSTEM:
+   -------------------
+   Each port MUST have a 'type' field that matches one of:
+   - StreamType.MATERIAL  (for gas/liquid material streams)
+   - StreamType.HEAT      (for heat transfer)
+   - StreamType.MECHANICAL (for mechanical work)
+   - StreamType.ELECTRICAL (for electrical power)
+   
+   Port definition format:
+   { portId: 'unique_id', dir: PortDir.IN/OUT, type: StreamType.XXX, x: pos_x, y: pos_y }
+   
+   Stream object MUST have matching 'type' field:
+   - MATERIAL: { type: StreamType.MATERIAL, phase: 'gas'/'liquid', T, P, nDot/mDot, comp }
+   - HEAT: { type: StreamType.HEAT, QkW }
+   - MECHANICAL: { type: StreamType.MECHANICAL, WkW }
+   - ELECTRICAL: { type: StreamType.ELECTRICAL, QkW }
+   
+   Connections are only allowed between ports of the SAME type.
+   The solver validates that streams produced match their port types.
+   
+   CATEGORY SYSTEM:
+   ---------------
+   Each unit belongs to a category from UnitCategories.
+   Units in the same category share the same color.
+   Category is displayed in the properties panel.
+   ========================= */
+class UnitRegistry {
+  static _defs = new Map();
+
+  static register(defId, spec) {
+    const category = spec.category || UnitCategories.UTILITY;
+    const def = {
+      defId,
+      name: spec.name,
+      category: category.name,
+      w: Math.max(2, spec.w || 2),  // Minimum 2x2 for better readability
+      h: Math.max(2, spec.h || 2),
+      color: category.color, // Color comes from category
+      ports: spec.ports || [],
+      tick: spec.tick || null
+    };
+    this._defs.set(defId, def);
+  }
+
+  static get(id) { 
+    return this._defs.get(id); 
+  }
+
+  static list() { 
+    return Array.from(this._defs.values()); 
+  }
+  
+  static listByCategory() {
+    const byCategory = {};
+    for (const def of this._defs.values()) {
+      const cat = def.category;
+      if (!byCategory[cat]) byCategory[cat] = [];
+      byCategory[cat].push(def);
+    }
+    return byCategory;
+  }
+}
+
+// Source - Generic material stream source
+UnitRegistry.register('source', {
+  name: 'Source',
+  category: UnitCategories.SOURCE,
+  w: 2,
+  h: 2,
+  ports: [{ portId: 'out', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 1 }],
+  tick(u, ports, par) {
+    // Create material stream with molar composition
+    const n = {};
+    n[par.species] = par.nDot;
+    
+    ports.out = {
+      type: StreamType.MATERIAL,
+      T: par.T + 273.15,  // Convert °C to K
+      P: par.P,           // Already in Pa
+      n: n,               // mol/s for each component
+      phaseConstraint: par.phaseConstraint || 'VL' // User-controlled phase constraint
+    };
+  }
+});
+
+// Sink - Stream terminator
+UnitRegistry.register('sink', {
+  name: 'Sink',
+  category: UnitCategories.SINK,
+  w: 2,
+  h: 2,
+  ports: [{ portId: 'in', dir: PortDir.IN, type: StreamType.MATERIAL, x: 0, y: 1 }],
+  tick(u, ports, par) { 
+    // Store incoming stream info for display
+    if (ports.in) {
+      u.last = {
+        stream: { ...ports.in }
+      };
+    }
+  }
+});
+
+// Electrical Source - Infinite bus up to max capacity
+UnitRegistry.register('source_electrical', {
+  name: 'Electrical Source',
+  category: UnitCategories.POWER_SOURCE,
+  w: 2,
+  h: 2,
+  ports: [{ portId: 'out', dir: PortDir.OUT, type: StreamType.ELECTRICAL, x: 2, y: 1 }],
+  tick(u, ports, par) {
+    // Power sources respond to demand (calculated in solver)
+    // Output stream created by solver after aggregating all consumers
+    ports.out = {
+      type: StreamType.ELECTRICAL,
+      available: par.maxPower || 1000,
+      demand: 0  // Will be updated by solver
+    };
+  }
+});
+
+// Mechanical Source - For testing/standalone mechanical systems
+UnitRegistry.register('source_mechanical', {
+  name: 'Mechanical Source',
+  category: UnitCategories.POWER_SOURCE,
+  w: 2,
+  h: 2,
+  ports: [{ portId: 'out', dir: PortDir.OUT, type: StreamType.MECHANICAL, x: 2, y: 1 }],
+  tick(u, ports, par) {
+    ports.out = {
+      type: StreamType.MECHANICAL,
+      available: par.maxPower || 1000,
+      demand: 0
+    };
+  }
+});
+
+// Electric Motor - Converts electrical to mechanical power
+UnitRegistry.register('motor', {
+  name: 'Electric Motor',
+  category: UnitCategories.POWER_CONVERSION,
+  w: 2,
+  h: 2,
+  ports: [
+    { portId: 'elec_in', dir: PortDir.IN, type: StreamType.ELECTRICAL, x: 0, y: 1 },
+    { portId: 'mech_out', dir: PortDir.OUT, type: StreamType.MECHANICAL, x: 2, y: 1 }
+  ],
+  tick(u, ports, par) {
+    const elecIn = ports.elec_in;
+    if (!elecIn) return;
+    
+    const eta = par.eta || 0.92;
+    const Wmech = elecIn.available * eta;
+    
+    u.last = {
+      W_elec: elecIn.available,
+      W_mech: Wmech,
+      eta: eta,
+      efficiency_pct: (eta * 100).toFixed(1)
+    };
+    
+    ports.mech_out = {
+      type: StreamType.MECHANICAL,
+      available: Wmech,
+      demand: 0
+    };
+  }
+});
+
+// Valve - Isenthalpic pressure reduction
+UnitRegistry.register('valve', {
+  name: 'Valve',
+  category: UnitCategories.PRESSURE,
+  w: 2,
+  h: 2,
+  ports: [
+    { portId: 'in', dir: PortDir.IN, type: StreamType.MATERIAL, x: 0, y: 1 },
+    { portId: 'out', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 1 }
+  ],
+  tick(u, ports, par) {
+    const sIn = ports.in;
+    if (!sIn) return;
+    
+    const Pout = par.Pout || 101325;
+    
+    // Check for pressure increase (valve can't do this)
+    if (Pout > sIn.P) {
+      u.last = {
+        error: {
+          severity: ErrorSeverity.MINOR,
+          message: 'Outlet pressure higher than inlet - valve cannot increase pressure'
+        }
+      };
+      return;
+    }
+    
+    // Isenthalpic expansion (H_in = H_out)
+    // For ideal gas: Temperature drops slightly
+    // For real calculation, would need enthalpy balance
+    // Simplified: T approximately constant for small ΔP
+    
+    ports.out = {
+      type: StreamType.MATERIAL,
+      T: sIn.T,  // Simplified (should calculate Joule-Thomson effect)
+      P: Pout,
+      n: { ...sIn.n },
+      phaseConstraint: 'VL'  // Allow flash after expansion
+    };
+    
+    u.last = {
+      Pin: sIn.P,
+      Pout: Pout,
+      deltaP: sIn.P - Pout,
+      ratio: (sIn.P / Pout).toFixed(2)
+    };
+  }
+});
+
+// Pump - Raises liquid pressure
+UnitRegistry.register('pump', {
+  name: 'Pump',
+  category: UnitCategories.PRESSURE,
+  w: 2,
+  h: 2,
+  ports: [
+    { portId: 'mat_in', dir: PortDir.IN, type: StreamType.MATERIAL, x: 0, y: 1 },
+    { portId: 'power_in', dir: PortDir.IN, type: StreamType.MECHANICAL, x: 1, y: 0 },
+    { portId: 'mat_out', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 1 }
+  ],
+  tick(u, ports, par) {
+    const sIn = ports.mat_in;
+    const sPower = ports.power_in;
+    if (!sIn) return;
+    
+    const Pout = par.Pout || (sIn.P + 500000);  // Default +5 bar
+    const eta = par.eta || 0.70;
+    
+    // CRITICAL: Check for vapor (pumps need liquid!)
+    if (sIn.phase === 'V' || (sIn.phase === 'VL' && sIn.vaporFraction > 0.1)) {
+      u.last = {
+        error: {
+          severity: ErrorSeverity.MAJOR,
+          message: 'Pump cavitation - vapor or two-phase at inlet (pump requires liquid)'
+        }
+      };
+      return;
+    }
+    
+    // Incompressible liquid assumption
+    // W = V * ΔP / η
+    // V = m / ρ
+    
+    // Calculate liquid volume flow using thermo adapter
+    let V_m3s = 0;
+    
+    for (const [comp, n] of Object.entries(sIn.n)) {
+      const rho = thermo.density(comp, sIn.T, sIn.P, 'L');  // kg/m³
+      const MW = thermo.getComponentProp(comp, 'MW');       // g/mol
+      const m_kgs = n * (MW / 1000);                        // kg/s
+      V_m3s += m_kgs / rho;                                 // m³/s
+    }
+    
+    const deltaP = Pout - sIn.P;
+    const W_hydraulic = V_m3s * deltaP / 1000;  // kW
+    const W_shaft = W_hydraulic / eta;  // kW
+    
+    // Check if enough power available
+    if (sPower && W_shaft > sPower.available) {
+      u.last = {
+        error: {
+          severity: ErrorSeverity.MINOR,
+          message: `Insufficient power: need ${W_shaft.toFixed(1)} kW, available ${sPower.available.toFixed(1)} kW`
+        }
+      };
+      return;
+    }
+    
+    // Store power demand for source to see
+    u.powerDemand = W_shaft;
+    
+    ports.mat_out = {
+      type: StreamType.MATERIAL,
+      T: sIn.T,  // Negligible temperature rise in liquids
+      P: Pout,
+      n: { ...sIn.n },
+      phaseConstraint: 'L'  // Keep as liquid
+    };
+    
+    u.last = {
+      Pin: sIn.P,
+      Pout: Pout,
+      deltaP: deltaP,
+      V_m3s: V_m3s * 3600,  // m³/h for display
+      W_hydraulic: W_hydraulic,
+      W_shaft: W_shaft,
+      eta: eta,
+      eta_pct: (eta * 100).toFixed(0)
+    };
+  }
+});
+
+// Compressor - Raises gas pressure
+UnitRegistry.register('compressor', {
+  name: 'Compressor',
+  category: UnitCategories.PRESSURE,
+  w: 2,
+  h: 2,
+  ports: [
+    { portId: 'mat_in', dir: PortDir.IN, type: StreamType.MATERIAL, x: 0, y: 1 },
+    { portId: 'power_in', dir: PortDir.IN, type: StreamType.MECHANICAL, x: 1, y: 0 },
+    { portId: 'mat_out', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 1 }
+  ],
+  tick(u, ports, par) {
+    const sIn = ports.mat_in;
+    const sPower = ports.power_in;
+    if (!sIn) return;
+    
+    const Pout = par.Pout || (sIn.P * 2);  // Default 2× compression
+    const eta = par.eta || 0.75;
+    
+    // CRITICAL: Check for liquid (compressors destroy with liquid!)
+    if (sIn.phase === 'L' || (sIn.phase === 'VL' && sIn.vaporFraction < 0.9)) {
+      u.last = {
+        error: {
+          severity: ErrorSeverity.CATASTROPHIC,
+          message: 'Compressor destroyed by liquid ingestion (compressor requires vapor)'
+        }
+      };
+      return;
+    }
+    
+    // Simplified polytropic compression
+    // For ideal gas: W = n * cp * (T_out - T_in)
+    // Using isentropic relation: T_out/T_in = (P_out/P_in)^((γ-1)/γ)
+    
+    const nTotal = Object.values(sIn.n).reduce((sum, val) => sum + val, 0);
+    
+    // Estimate gamma (cp/cv) for mixture
+    // Approximations: Monatomic: 1.67, Diatomic: 1.4, Polyatomic: 1.3
+    const gammaMap = {
+      'H2O': 1.33,  // Polyatomic (triatomic)
+      'H2': 1.41,   // Diatomic
+      'O2': 1.40,   // Diatomic
+      'N2': 1.40,   // Diatomic
+      'Ar': 1.67,   // Monatomic
+      'CH4': 1.31   // Polyatomic
+    };
+    
+    // Molar-weighted average gamma
+    let gammaMix = 0;
+    for (const [comp, n] of Object.entries(sIn.n)) {
+      const xi = n / nTotal;
+      gammaMix += xi * (gammaMap[comp] || 1.4);
+    }
+    
+    const ratio = Pout / sIn.P;
+    
+    // Isentropic temperature rise
+    const T_out_isentropic = sIn.T * Math.pow(ratio, (gammaMix - 1) / gammaMix);
+    
+    // Get mixture heat capacity
+    const thermo = models.getActive('thermo');
+    let cpMix = 0;
+    for (const [comp, n] of Object.entries(sIn.n)) {
+      const xi = n / nTotal;
+      cpMix += xi * thermo.cpMolar(comp, sIn.T);
+    }
+    
+    // Isentropic work
+    const W_isentropic = nTotal * cpMix * (T_out_isentropic - sIn.T) / 1000;  // kW
+    
+    // Actual work (with efficiency)
+    const W_shaft = W_isentropic / eta;
+    
+    // Actual outlet temperature (polytropic)
+    const T_out_actual = sIn.T + (T_out_isentropic - sIn.T) / eta;
+    
+    // Check if enough power available
+    if (sPower && W_shaft > sPower.available) {
+      u.last = {
+        error: {
+          severity: ErrorSeverity.MINOR,
+          message: `Insufficient power: need ${W_shaft.toFixed(1)} kW, available ${sPower.available.toFixed(1)} kW`
+        }
+      };
+      return;
+    }
+    
+    // Store power demand
+    u.powerDemand = W_shaft;
+    
+    ports.mat_out = {
+      type: StreamType.MATERIAL,
+      T: T_out_actual,
+      P: Pout,
+      n: { ...sIn.n },
+      phaseConstraint: 'V'  // Keep as vapor
+    };
+    
+    u.last = {
+      Pin: sIn.P,
+      Pout: Pout,
+      ratio: ratio.toFixed(2),
+      Tin: sIn.T - 273.15,
+      Tout: T_out_actual - 273.15,
+      deltaT: (T_out_actual - sIn.T).toFixed(1),
+      W_isentropic: W_isentropic,
+      W_shaft: W_shaft,
+      eta: eta,
+      eta_pct: (eta * 100).toFixed(0)
+    };
+  }
+});
+
+// Heater/Cooler - Single stream heat exchanger with external heat source
+UnitRegistry.register('heater', {
+  name: 'Heater/Cooler',
+  category: UnitCategories.HEAT_EXCHANGER,
+  w: 2,
+  h: 2,
+  ports: [
+    { portId: 'mat_in', dir: PortDir.IN, type: StreamType.MATERIAL, x: 0, y: 1 },
+    { portId: 'heat_in', dir: PortDir.IN, type: StreamType.HEAT, x: 1, y: 0 },
+    { portId: 'mat_out', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 1 }
+  ],
+  tick(u, ports, par) {
+    const sIn = ports.mat_in;
+    const sHeat = ports.heat_in;
+    if (!sIn) return;
+    
+    // User can specify either heat duty or target outlet temperature
+    const Q_heat = par.Q_heat || 0;  // kW (positive = heating, negative = cooling)
+    const T_target = par.T_out ? (par.T_out + 273.15) : null;  // Convert °C to K if specified
+    
+    // Calculate heat capacity and mass flows using thermo adapter
+    const totalHeatCapacity = thermo.streamCp(sIn);       // kW/K
+    const totalMassFlow = thermo.streamMassFlow(sIn);      // kg/s
+    
+    // Calculate outlet temperature
+    let T_out, Q_actual;
+    
+    if (T_target !== null) {
+      // Target temperature specified
+      T_out = T_target;
+      Q_actual = totalHeatCapacity * (T_out - sIn.T);
+    } else {
+      // Heat duty specified
+      Q_actual = Q_heat;
+      T_out = sIn.T + Q_actual / totalHeatCapacity;
+    }
+    
+    // Check for phase change warnings
+    const compNames = Object.keys(sIn.n);
+    let phaseWarning = null;
+    
+    // Simple check: if temperature change is large, warn about possible phase change
+    const deltaT = Math.abs(T_out - sIn.T);
+    if (deltaT > 50) {
+      phaseWarning = 'Large temperature change - check for phase transitions';
+    }
+    
+    // Output stream
+    ports.mat_out = {
+      type: StreamType.MATERIAL,
+      T: T_out,
+      P: sIn.P,  // Assume negligible pressure drop
+      n: { ...sIn.n },
+      phaseConstraint: sIn.phaseConstraint || 'VL'
+    };
+    
+    // Heat stream output (for display)
+    ports.heat_in = {
+      type: StreamType.HEAT,
+      available: sHeat ? sHeat.available : 10000,
+      demand: Math.abs(Q_actual)
+    };
+    
+    u.last = {
+      T_in: sIn.T,
+      T_out: T_out,
+      deltaT: T_out - sIn.T,
+      Q: Q_actual,
+      massFlow: totalMassFlow,
+      duty_kW: Q_actual.toFixed(2),
+      warning: phaseWarning
+    };
+  }
+});
+
+// Two-Stream Heat Exchanger
+UnitRegistry.register('hex', {
+  name: 'Heat Exchanger',
+  category: UnitCategories.HEAT_EXCHANGER,
+  w: 2,
+  h: 2,
+  ports: [
+    // Hot side (horizontal)
+    { portId: 'hot_in', dir: PortDir.IN, type: StreamType.MATERIAL, x: 0, y: 1 },
+    { portId: 'hot_out', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 1 },
+    // Cold side (vertical)
+    { portId: 'cold_in', dir: PortDir.IN, type: StreamType.MATERIAL, x: 1, y: 0 },
+    { portId: 'cold_out', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 1, y: 2 }
+  ],
+  tick(u, ports, par) {
+    const sHot = ports.hot_in;
+    const sCold = ports.cold_in;
+    if (!sHot || !sCold) return;
+    
+    // User can specify approach temperature or outlet temperatures
+    const T_approach = par.T_approach !== undefined ? par.T_approach : 10;  // K (default 10K minimum)
+    const T_hot_out_target = par.T_hot_out ? (par.T_hot_out + 273.15) : null;
+    const T_cold_out_target = par.T_cold_out ? (par.T_cold_out + 273.15) : null;
+    
+    // Calculate heat capacities for both streams using thermo adapter
+    const Cp_hot = thermo.streamCp(sHot);    // kW/K
+    const Cp_cold = thermo.streamCp(sCold);  // kW/K
+    
+    // Determine outlet temperatures
+    let T_hot_out, T_cold_out, Q;
+    
+    if (T_hot_out_target !== null) {
+      // Hot outlet specified
+      T_hot_out = T_hot_out_target;
+      Q = Cp_hot * (sHot.T - T_hot_out);
+      T_cold_out = sCold.T + Q / Cp_cold;
+    } else if (T_cold_out_target !== null) {
+      // Cold outlet specified
+      T_cold_out = T_cold_out_target;
+      Q = Cp_cold * (T_cold_out - sCold.T);
+      T_hot_out = sHot.T - Q / Cp_hot;
+    } else {
+      // Use approach temperature - maximize heat transfer
+      // Limited by: (1) hot stream can't go below cold_in + approach
+      //             (2) cold stream can't go above hot_in - approach
+      
+      const T_hot_min = sCold.T + T_approach;
+      const T_cold_max = sHot.T - T_approach;
+      
+      // Heat transfer limited by smaller heat capacity
+      if (Cp_hot < Cp_cold) {
+        // Hot stream limiting
+        T_hot_out = Math.max(T_hot_min, sHot.T - (sHot.T - sCold.T) * 0.8);
+        Q = Cp_hot * (sHot.T - T_hot_out);
+        T_cold_out = sCold.T + Q / Cp_cold;
+      } else {
+        // Cold stream limiting
+        T_cold_out = Math.min(T_cold_max, sCold.T + (sHot.T - sCold.T) * 0.8);
+        Q = Cp_cold * (T_cold_out - sCold.T);
+        T_hot_out = sHot.T - Q / Cp_hot;
+      }
+    }
+    
+    // Feasibility checks
+    let error = null;
+    
+    if (T_hot_out < sCold.T + T_approach) {
+      error = {
+        severity: ErrorSeverity.MAJOR,
+        message: `Temperature cross: Hot outlet (${(T_hot_out-273.15).toFixed(1)}°C) below cold inlet + approach`
+      };
+    }
+    
+    if (T_cold_out > sHot.T - T_approach) {
+      error = {
+        severity: ErrorSeverity.MAJOR,
+        message: `Temperature cross: Cold outlet (${(T_cold_out-273.15).toFixed(1)}°C) above hot inlet - approach`
+      };
+    }
+    
+    if (T_hot_out > sHot.T) {
+      error = {
+        severity: ErrorSeverity.CATASTROPHIC,
+        message: 'Thermodynamic violation: Hot stream gaining heat!'
+      };
+    }
+    
+    if (T_cold_out < sCold.T) {
+      error = {
+        severity: ErrorSeverity.CATASTROPHIC,
+        message: 'Thermodynamic violation: Cold stream losing heat!'
+      };
+    }
+    
+    if (error) {
+      u.last = { error };
+      return;
+    }
+    
+    // Output streams
+    ports.hot_out = {
+      type: StreamType.MATERIAL,
+      T: T_hot_out,
+      P: sHot.P,  // Assume negligible pressure drop
+      n: { ...sHot.n },
+      phaseConstraint: sHot.phaseConstraint || 'VL'
+    };
+    
+    ports.cold_out = {
+      type: StreamType.MATERIAL,
+      T: T_cold_out,
+      P: sCold.P,
+      n: { ...sCold.n },
+      phaseConstraint: sCold.phaseConstraint || 'VL'
+    };
+    
+    // Calculate effectiveness
+    const Q_max = Math.min(Cp_hot, Cp_cold) * (sHot.T - sCold.T);
+    const effectiveness = (Q / Q_max * 100).toFixed(1);
+    
+    u.last = {
+      T_hot_in: sHot.T,
+      T_hot_out: T_hot_out,
+      T_cold_in: sCold.T,
+      T_cold_out: T_cold_out,
+      Q: Q,
+      effectiveness: effectiveness,
+      approach: Math.min(T_hot_out - sCold.T, sHot.T - T_cold_out)
+    };
+  }
+});
+
+/* =========================
+   SCENE CLASS
+   Manages the process flowsheet state
+   ========================= */
+class Scene {
+  constructor() {
+    // Grid properties (kept for backwards compatibility in export/import)
+    this.gridW = 22;
+    this.gridH = 14;
+    this.tile = 48; // Size of one grid cell in world units
+    
+    // Scene data
+    this.units = new Map();
+    this.connections = [];
+    this._idCounter = 0;
+    
+    // Runtime calculation results
+    this.runtime = {
+      unitData: new Map(),
+      lastSolve: { ok: true, iterations: 0, warnings: [] }
+    };
+  }
+
+  placeUnit(defId, x, y) {
+    const def = UnitRegistry.get(defId);
+    if (!def) return null;
+    
+    // Check collision with existing units
+    if (this._collision(x, y, def.w, def.h, null)) return null;
+    
+    // Create new unit with default parameters
+    const id = `${defId}-${++this._idCounter}`;
+    const unit = { 
+      id, 
+      defId, 
+      name: `${def.name} ${this._idCounter}`, // Default name
+      x, 
+      y, 
+      rot: 0, 
+      params: {} 
+    };
+    
+    // Set default parameters based on unit type
+    switch (defId) {
+      case 'source_gas':
+        unit.params = { species: 'H2', T: 25, P: 101325, nDot: 1.0 };
+        break;
+      case 'source_power':
+        unit.params = { QkW: 10 };
+        break;
+      case 'hx_cop':
+        unit.params = { COP: 2.5, TminClamp: -50 };
+        break;
+    }
+    
+    this.units.set(id, unit);
+    return id;
+  }
+
+  deleteUnit(id) {
+    this.units.delete(id);
+    // Remove all connections involving this unit
+    this.connections = this.connections.filter(
+      c => c.from.unitId !== id && c.to.unitId !== id
+    );
+  }
+
+  moveUnit(id, nx, ny) {
+    const u = this.units.get(id);
+    if (!u) return;
+    
+    const def = UnitRegistry.get(u.defId);
+    
+    // Check collision at new position
+    if (this._collision(nx, ny, def.w, def.h, id)) return;
+    
+    u.x = nx;
+    u.y = ny;
+  }
+
+  rotateUnit(id) {
+    const u = this.units.get(id);
+    if (!u) return;
+    u.rot = (u.rot + 1) % 4;
+  }
+
+  unitAt(x, y) {
+    for (const [id, u] of this.units) {
+      const def = UnitRegistry.get(u.defId);
+      if (x >= u.x && x < u.x + def.w && y >= u.y && y < u.y + def.h) {
+        return u;
+      }
+    }
+    return null;
+  }
+
+  _collision(x, y, w, h, skipId) {
+    for (const [id, u] of this.units) {
+      if (id === skipId) continue;
+      
+      const def = UnitRegistry.get(u.defId);
+      const ox = u.x, oy = u.y, ow = def.w, oh = def.h;
+      
+      // AABB collision detection
+      if (!(x + w <= ox || ox + ow <= x || y + h <= oy || oy + oh <= y)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  connect(from, to) {
+    // Check if target IN port already has a connection (always 1-to-1 for inputs)
+    const existingToPort = this.connections.find(
+      c => c.to.unitId === to.unitId && c.to.portId === to.portId
+    );
+    if (existingToPort) return null;
+
+    // Validate units exist
+    const uFrom = this.units.get(from.unitId);
+    const uTo = this.units.get(to.unitId);
+    if (!uFrom || !uTo) return null;
+
+    // Validate ports exist and are compatible
+    const defFrom = UnitRegistry.get(uFrom.defId);
+    const defTo = UnitRegistry.get(uTo.defId);
+    const pFrom = defFrom.ports.find(p => p.portId === from.portId);
+    const pTo = defTo.ports.find(p => p.portId === to.portId);
+    if (!pFrom || !pTo) return null;
+    if (pFrom.type !== pTo.type) return null; // Check stream type compatibility
+
+    // Check source OUT port connections based on stream type
+    const existingFromPort = this.connections.find(
+      c => c.from.unitId === from.unitId && c.from.portId === from.portId
+    );
+    
+    // For MATERIAL streams: strict 1-to-1 (physical splitting not allowed)
+    if (pFrom.type === StreamType.MATERIAL && existingFromPort) {
+      return null;
+    }
+    
+    // For POWER streams (ELECTRICAL, MECHANICAL): allow multiple outputs from source
+    // This models electrical bus / mechanical shaft sharing
+    // Input ports still limited to one connection (checked above)
+
+    // Create connection
+    const id = `conn-${++this._idCounter}`;
+    this.connections.push({ id, from, to });
+    return id;
+  }
+
+  exportJSON() {
+    const data = {
+      version: 7,
+      grid: { w: this.gridW, h: this.gridH, tile: this.tile },
+      units: [],
+      connections: [],
+      modelsActive: models.active
+    };
+    
+    for (const u of this.units.values()) {
+      data.units.push({
+        id: u.id,
+        defId: u.defId,
+        name: u.name,
+        x: u.x,
+        y: u.y,
+        rot: u.rot,
+        params: u.params
+      });
+    }
+    
+    data.connections = [...this.connections];
+    return JSON.stringify(data, null, 2);
+  }
+
+  importJSON(str) {
+    const data = JSON.parse(str);
+    this.gridW = data.grid.w;
+    this.gridH = data.grid.h;
+    this.tile = data.grid.tile;
+    
+    this.units.clear();
+    this.connections = [];
+    
+    for (const u of data.units) {
+      this.units.set(u.id, u);
+    }
+    
+    this.connections = data.connections || [];
+    
+    if (data.modelsActive) {
+      for (const k in data.modelsActive) {
+        models.setActive(k, data.modelsActive[k]);
+      }
+    }
+  }
+}
+
+const scene = new Scene();
+
+/* =========================
+   SOLVER
+   Successive substitution for flowsheet calculations
+   ========================= */
+function solveScene(scene) {
+  const MAX_ITER = 20;
+  let iter = 0;
+  let changed = true;
+
+  // Initialize runtime data for all units
+  scene.runtime.unitData.clear();
+  for (const [id, u] of scene.units) {
+    scene.runtime.unitData.set(id, {
+      ports: {},
+      last: {},
+      errors: []
+    });
+  }
+
+  // Iterative successive substitution
+  while (changed && iter < MAX_ITER) {
+    changed = false;
+    iter++;
+
+    for (const [id, u] of scene.units) {
+      const def = UnitRegistry.get(u.defId);
+      if (!def.tick) continue;
+
+      const ud = scene.runtime.unitData.get(id);
+      const inPorts = {};
+
+      // Gather input streams from connections
+      for (const p of def.ports) {
+        if (p.dir === PortDir.IN) {
+          const conn = scene.connections.find(
+            c => c.to.unitId === id && c.to.portId === p.portId
+          );
+          if (conn) {
+            const fromUD = scene.runtime.unitData.get(conn.from.unitId);
+            inPorts[p.portId] = fromUD?.ports?.[conn.from.portId] || null;
+          } else {
+            inPorts[p.portId] = null;
+          }
+        }
+      }
+
+      // Store old state to detect changes
+      const oldJSON = JSON.stringify(ud.ports);
+
+      // Execute unit calculation
+      def.tick(u, inPorts, u.params);
+
+      // Perform flash calculations on output material streams
+      const flash = models.getActive('flash');
+      if (flash) {
+        for (const p of def.ports) {
+          if (p.dir === PortDir.OUT && p.type === StreamType.MATERIAL) {
+            const stream = inPorts[p.portId];
+            if (stream && stream.n) {
+              try {
+                const result = flash.tpFlash(
+                  stream.T,
+                  stream.P,
+                  stream.n,
+                  stream.phaseConstraint || 'VL'
+                );
+                
+                // Augment stream with flash results
+                stream.phase = result.phase;
+                stream.vaporFraction = result.beta;
+                stream.nV = result.nV;
+                stream.nL = result.nL;
+              } catch (err) {
+                ud.errors.push(`Flash failed on ${p.portId}: ${err.message}`);
+              }
+            }
+          }
+        }
+      }
+
+      // Store output streams and validate types
+      for (const p of def.ports) {
+        if (p.dir === PortDir.OUT) {
+          const stream = inPorts[p.portId];
+          ud.ports[p.portId] = stream;
+          
+          // Validate stream type matches port type
+          if (stream && !validateStreamType(stream, p.type)) {
+            ud.errors.push(`Port ${p.portId}: stream type mismatch`);
+          }
+        }
+      }
+
+      // Check if anything changed
+      const newJSON = JSON.stringify(ud.ports);
+      if (oldJSON !== newJSON) changed = true;
+
+      // Store unit-specific calculation results
+      ud.last = u.last || {};
+    }
+  }
+
+  // Post-processing: Aggregate power demand at sources
+  
+  // First pass: Mark all units with their power demand
+  for (const [id, u] of scene.units) {
+    const ud = scene.runtime.unitData.get(id);
+    // Store powerDemand from unit calculations into runtime data
+    if (u.powerDemand !== undefined) {
+      ud.powerDemand = u.powerDemand;
+    } else {
+      ud.powerDemand = 0;
+    }
+  }
+  
+  // Second pass: Propagate demand through power conversion units (like motors)
+  for (const [id, u] of scene.units) {
+    const def = UnitRegistry.get(u.defId);
+    const ud = scene.runtime.unitData.get(id);
+    
+    if (def.category === UnitCategories.POWER_CONVERSION.name) {
+      
+      // Find what's connected to output
+      const outConns = scene.connections.filter(c => c.from.unitId === id);
+      let downstreamDemand = 0;
+      
+      for (const conn of outConns) {
+        const consumerUD = scene.runtime.unitData.get(conn.to.unitId);
+        if (consumerUD) {
+          downstreamDemand += consumerUD.powerDemand || 0;
+        }
+      }
+      
+      // For motor: input demand = output demand / efficiency
+      if (u.defId === 'motor') {
+        const eta = u.params.eta || 0.92;
+        ud.powerDemand = downstreamDemand / eta;
+        
+        // Store to ud.last for UI display
+        ud.last.powerDemand_kW = ud.powerDemand;
+        ud.last.downstreamDemand_kW = downstreamDemand;
+        
+        // Update output stream demand
+        for (const p of def.ports) {
+          if (p.dir === PortDir.OUT && ud.ports[p.portId]) {
+            ud.ports[p.portId].demand = downstreamDemand;
+          }
+        }
+      }
+    }
+  }
+  
+  // Third pass: Aggregate at power sources
+  for (const [id, u] of scene.units) {
+    const def = UnitRegistry.get(u.defId);
+    if (def.category === UnitCategories.POWER_SOURCE.name) {
+      const ud = scene.runtime.unitData.get(id);
+      
+      // Find all consumers connected to this power source
+      const outgoingConns = scene.connections.filter(
+        c => c.from.unitId === id
+      );
+      
+      let totalDemand = 0;
+      for (const conn of outgoingConns) {
+        const consumerUD = scene.runtime.unitData.get(conn.to.unitId);
+        if (consumerUD) {
+          totalDemand += consumerUD.powerDemand || 0;
+        }
+      }
+      
+      const maxPower = u.params.maxPower || 1000;
+      
+      // Update output stream with demand
+      for (const p of def.ports) {
+        if (p.dir === PortDir.OUT && ud.ports[p.portId]) {
+          ud.ports[p.portId].demand = totalDemand;
+        }
+      }
+      
+      // Check for overload
+      if (totalDemand > maxPower) {
+        ud.last.error = {
+          severity: ErrorSeverity.MINOR,
+          message: `Power overload: ${totalDemand.toFixed(0)} kW demand exceeds ${maxPower} kW capacity`
+        };
+      }
+      
+      // Store demand info for display
+      ud.last.totalDemand = totalDemand;
+      ud.last.maxPower = maxPower;
+      ud.last.utilizationPct = (totalDemand / maxPower * 100).toFixed(1);
+    }
+  }
+
+  // Store solve results
+  const ok = !changed || iter < MAX_ITER;
+  const warnings = [];
+  if (!ok) warnings.push('Max iterations reached - loop may not have converged');
+  
+  scene.runtime.lastSolve = { ok, iterations: iter, warnings };
+  
+  // Diagnose errors and determine overall status
+  const diagnostics = diagnoseErrors(scene);
+  scene.runtime.diagnostics = diagnostics;
+  
+  // Determine worst severity level
+  let maxSeverity = ErrorSeverity.MINOR.level;
+  let hasErrors = diagnostics.length > 0;
+  
+  if (hasErrors) {
+    maxSeverity = Math.max(...diagnostics.map(d => d.severity.level));
+  }
+  
+  return { ok, diagnostics, maxSeverity, hasErrors };
+}
+
+// Update status indicator
+function updateStatusIndicator(solveResult) {
+  const indicator = document.getElementById('statusIndicator');
+  const icon = indicator.querySelector('.status-icon');
+  const text = indicator.querySelector('.status-text');
+  const helpBtn = indicator.querySelector('.status-help');
+  
+  if (!solveResult) {
+    // Not run yet
+    indicator.style.display = 'none';
+    return;
+  }
+  
+  indicator.style.display = 'flex';
+  
+  // Remove all status classes
+  indicator.className = 'status-indicator';
+  
+  if (!solveResult.ok) {
+    // Convergence failure
+    indicator.classList.add('critical');
+    icon.textContent = '💥';
+    text.textContent = 'Convergence Failed';
+    helpBtn.style.display = 'flex';
+  } else if (!solveResult.hasErrors) {
+    // Success
+    indicator.classList.add('success');
+    icon.textContent = '✓';
+    text.textContent = 'All Systems Operational';
+    helpBtn.style.display = 'none';
+  } else {
+    // Has errors - determine severity
+    const maxLevel = solveResult.maxSeverity;
+    
+    if (maxLevel >= ErrorSeverity.CATASTROPHIC.level) {
+      indicator.classList.add('critical');
+      icon.textContent = '💥';
+      text.textContent = 'Catastrophic Failure';
+    } else if (maxLevel >= ErrorSeverity.MAJOR.level) {
+      indicator.classList.add('error');
+      icon.textContent = '🔧';
+      text.textContent = 'Equipment Damage';
+    } else {
+      indicator.classList.add('warning');
+      icon.textContent = '⚠️';
+      text.textContent = 'Configuration Issues';
+    }
+    
+    helpBtn.style.display = 'flex';
+  }
+}
+
+// Show diagnosis dialog
+function showDiagnosisDialog() {
+  const diagnostics = scene.runtime.diagnostics || [];
+  
+  if (diagnostics.length === 0) {
+    alert('No issues detected in the current simulation.');
+    return;
+  }
+  
+  // Create modal dialog
+  const modal = document.createElement('div');
+  modal.style.cssText = `
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.8);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  `;
+  
+  const dialog = document.createElement('div');
+  dialog.style.cssText = `
+    background: #1a1f2e;
+    border: 2px solid #2a2f3a;
+    border-radius: 16px;
+    max-width: 700px;
+    width: 100%;
+    max-height: 80vh;
+    overflow-y: auto;
+    padding: 24px;
+    color: #e7e7e7;
+  `;
+  
+  // Header
+  const header = document.createElement('div');
+  header.style.cssText = `
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 2px solid #2a2f3a;
+  `;
+  header.textContent = `🔍 Diagnosis Report (${diagnostics.length} issue${diagnostics.length > 1 ? 's' : ''})`;
+  dialog.appendChild(header);
+  
+  // Group diagnostics by severity
+  const critical = diagnostics.filter(d => d.severity.level === ErrorSeverity.CATASTROPHIC.level);
+  const major = diagnostics.filter(d => d.severity.level === ErrorSeverity.MAJOR.level);
+  const minor = diagnostics.filter(d => d.severity.level === ErrorSeverity.MINOR.level);
+  
+  const groups = [
+    { name: 'CATASTROPHIC FAILURES', items: critical, color: '#ef4444', icon: '💥' },
+    { name: 'MAJOR DAMAGE', items: major, color: '#f97316', icon: '🔧' },
+    { name: 'WARNINGS', items: minor, color: '#fbbf24', icon: '⚠️' }
+  ];
+  
+  for (const group of groups) {
+    if (group.items.length === 0) continue;
+    
+    const groupHeader = document.createElement('div');
+    groupHeader.style.cssText = `
+      font-size: 14px;
+      font-weight: 700;
+      color: ${group.color};
+      margin: 20px 0 12px 0;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    `;
+    groupHeader.textContent = `${group.icon} ${group.name}`;
+    dialog.appendChild(groupHeader);
+    
+    for (const diag of group.items) {
+      const issueBox = document.createElement('div');
+      issueBox.style.cssText = `
+        background: ${group.color}11;
+        border: 2px solid ${group.color};
+        border-radius: 12px;
+        padding: 16px;
+        margin-bottom: 12px;
+      `;
+      
+      // Unit name
+      const unitName = document.createElement('div');
+      unitName.style.cssText = `
+        font-weight: 700;
+        font-size: 15px;
+        margin-bottom: 8px;
+        color: ${group.color};
+      `;
+      unitName.textContent = `${diag.unitName}`;
+      issueBox.appendChild(unitName);
+      
+      // Title
+      const title = document.createElement('div');
+      title.style.cssText = `
+        font-weight: 600;
+        font-size: 14px;
+        margin-bottom: 8px;
+      `;
+      title.textContent = diag.title;
+      issueBox.appendChild(title);
+      
+      // Explanation
+      const explanation = document.createElement('div');
+      explanation.style.cssText = `
+        font-size: 13px;
+        line-height: 1.5;
+        opacity: 0.9;
+        margin-bottom: 12px;
+      `;
+      explanation.textContent = diag.explanation;
+      issueBox.appendChild(explanation);
+      
+      // Causes
+      if (diag.causes && diag.causes.length > 0) {
+        const causesTitle = document.createElement('div');
+        causesTitle.style.cssText = `
+          font-weight: 600;
+          font-size: 12px;
+          margin: 12px 0 6px 0;
+          opacity: 0.8;
+        `;
+        causesTitle.textContent = 'POSSIBLE CAUSES:';
+        issueBox.appendChild(causesTitle);
+        
+        const causesList = document.createElement('ul');
+        causesList.style.cssText = `
+          margin: 0;
+          padding-left: 20px;
+          font-size: 12px;
+          line-height: 1.6;
+          opacity: 0.8;
+        `;
+        for (const cause of diag.causes) {
+          const li = document.createElement('li');
+          li.textContent = cause;
+          causesList.appendChild(li);
+        }
+        issueBox.appendChild(causesList);
+      }
+      
+      // Fixes
+      if (diag.fixes && diag.fixes.length > 0) {
+        const fixesTitle = document.createElement('div');
+        fixesTitle.style.cssText = `
+          font-weight: 600;
+          font-size: 12px;
+          margin: 12px 0 6px 0;
+          color: #22c55e;
+        `;
+        fixesTitle.textContent = '✓ SUGGESTED FIXES:';
+        issueBox.appendChild(fixesTitle);
+        
+        const fixesList = document.createElement('ul');
+        fixesList.style.cssText = `
+          margin: 0;
+          padding-left: 20px;
+          font-size: 12px;
+          line-height: 1.6;
+          color: #4ade80;
+        `;
+        for (const fix of diag.fixes) {
+          const li = document.createElement('li');
+          li.textContent = fix;
+          fixesList.appendChild(li);
+        }
+        issueBox.appendChild(fixesList);
+      }
+      
+      dialog.appendChild(issueBox);
+    }
+  }
+  
+  // Close button
+  const closeBtn = document.createElement('button');
+  closeBtn.textContent = 'Close';
+  closeBtn.className = 'btn primary';
+  closeBtn.style.cssText = `
+    margin-top: 20px;
+    width: 100%;
+  `;
+  closeBtn.onclick = () => modal.remove();
+  dialog.appendChild(closeBtn);
+  
+  modal.appendChild(dialog);
+  modal.onclick = (e) => {
+    if (e.target === modal) modal.remove();
+  };
+  
+  document.body.appendChild(modal);
+}
+
+/* =========================
+   UI STATE
+   ========================= */
+const ui = {
+  view: { x: 0, y: 0, w: 1056, h: 672 }, // Updated dynamically by setViewBox
+  selectedUnitId: null,
+  selectedConnId: null,
+  pendingFrom: null, // Connection mode: {unitId, portId}
+  isPanning: false,
+  panStart: null,
+  isDraggingUnit: false,
+  dragUnitId: null,
+  dragOffset: null, // {cellX, cellY} offset in grid units
+  dragDefId: null,
+  isHTML5Dragging: false, // Track HTML5 drag from library
+  _mouseWorld: { x: 0, y: 0 }
+};
+
+/* =========================
+   DOM REFERENCES
+   ========================= */
+const svg = document.getElementById('svg');
+const ioEl = document.getElementById('io');
+const propEditor = document.getElementById('propEditor');
+const btnRun = document.getElementById('btnRun');
+const btnAdd = document.getElementById('btnAdd');
+const btnMenu = document.getElementById('btnMenu');
+const btnFile = document.getElementById('btnFile');
+const menuMain = document.getElementById('menuMain');
+const menuFile = document.getElementById('menuFile');
+const modalModels = document.getElementById('modalModels');
+const modalUnits = document.getElementById('modalUnits');
+const modalComponents = document.getElementById('modalComponents');
+const modelsPanelEl = document.getElementById('modelsPanel');
+
+// Status is now managed within propEditor
+let statusSection = null;
+let statusContent = null;
+
+/* =========================
+   STREAM CALCULATIONS
+   Helper functions for stream property calculations
+   ========================= */
+function calculateStreamFlowrates(stream) {
+  if (!stream || stream.type !== StreamType.MATERIAL) return null;
+  
+  // Total molar flowrate
+  const nTotal = Object.values(stream.n || {}).reduce((sum, val) => sum + val, 0);
+  
+  // Mass flowrate (kg/s) using thermo adapter
+  const mTotal = thermo.streamMassFlow(stream);
+  
+  // Volumetric flowrate (m³/s)
+  // For gas phase: use ideal gas law PV = nRT
+  // For liquid phase: use liquid density
+  // For two-phase: weighted average
+  let vTotal = 0;
+  const R = 8.314; // J/(mol·K)
+  
+  if (stream.phase === 'V') {
+    // All vapor: V = nRT/P
+    vTotal = (nTotal * R * stream.T) / stream.P;
+  } else if (stream.phase === 'L') {
+    // All liquid: use liquid densities via thermo adapter
+    for (const [comp, n] of Object.entries(stream.n || {})) {
+      const rho = thermo.density(comp, stream.T, stream.P, 'L'); // kg/m³
+      const MW = thermo.getComponentProp(comp, 'MW');            // g/mol
+      const m = n * (MW / 1000);                                 // kg/s
+      vTotal += m / rho;                                         // m³/s
+    }
+  } else if (stream.phase === 'VL' && stream.nV && stream.nL) {
+    // Two-phase: calculate both phases separately
+    const nV = Object.values(stream.nV).reduce((sum, val) => sum + val, 0);
+    const nL = Object.values(stream.nL).reduce((sum, val) => sum + val, 0);
+    
+    // Vapor volume
+    const vV = (nV * R * stream.T) / stream.P;
+    
+    // Liquid volume using thermo adapter
+    let vL = 0;
+    for (const [comp, n] of Object.entries(stream.nL || {})) {
+      const rho = thermo.density(comp, stream.T, stream.P, 'L');  // kg/m³
+      const MW = thermo.getComponentProp(comp, 'MW');             // g/mol
+      const m = n * (MW / 1000);                                  // kg/s
+      vL += m / rho;                                              // m³/s
+    }
+    
+    vTotal = vV + vL;
+  }
+  
+  return { nTotal, mTotal, vTotal };
+}
+
+/* =========================
+   UI HELPER FUNCTIONS
+   ========================= */
+function setStatus(s) {
+  // Create status section if it doesn't exist
+  if (!statusSection) {
+    const result = createCollapsibleSection('STATUS', false);
+    statusSection = result.section;
+    statusContent = result.content;
+    
+    // Append after propEditor card in the right panel
+    const rightPanel = propEditor.parentNode;
+    const controlsEl = rightPanel.querySelector('.controlsSection');
+    if (controlsEl) {
+      rightPanel.insertBefore(statusSection, controlsEl);
+    } else {
+      rightPanel.appendChild(statusSection);
+    }
+  }
+  
+  // Update status text
+  statusContent.innerHTML = `<div class="status" style="padding:8px 0; white-space:pre-wrap; font-size:12px; opacity:0.9;">${s}</div>`;
+  
+  // Auto-expand on update
+  const toggle = statusSection.querySelector('.sectionToggle');
+  if (toggle && toggle.classList.contains('collapsed')) {
+    toggle.classList.remove('collapsed');
+    statusContent.classList.remove('collapsed');
+  }
+}
+
+function closeMenus() {
+  menuMain.classList.remove('open');
+  menuFile.classList.remove('open');
+}
+
+function toggle(el) {
+  el.classList.toggle('open');
+}
+
+/* =========================
+   SVG HELPERS
+   ========================= */
+function svgEl(tag, attrs) {
+  const e = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    e.setAttribute(k, String(v));
+  }
+  return e;
+}
+
+function clearSVG() {
+  // Remove all children except <defs>
+  // Find and preserve the defs element
+  const defs = svg.querySelector('defs');
+  
+  // Remove all children
+  while (svg.firstChild) {
+    svg.removeChild(svg.firstChild);
+  }
+  
+  // Re-add defs if it existed
+  if (defs) {
+    svg.appendChild(defs);
+  }
+}
+
+function screenToWorld(sx, sy) {
+  const r = svg.getBoundingClientRect();
+  const nx = (sx - r.left) / r.width;
+  const ny = (sy - r.top) / r.height;
+  return {
+    x: ui.view.x + nx * ui.view.w,
+    y: ui.view.y + ny * ui.view.h
+  };
+}
+
+function worldToCell(wx, wy) {
+  return {
+    x: Math.floor(wx / scene.tile),
+    y: Math.floor(wy / scene.tile)
+  };
+}
+
+function setViewBox() {
+  const rect = svg.getBoundingClientRect();
+  const aspectRatio = rect.width / rect.height;
+  
+  // Initialize view dimensions if needed
+  if (!ui.view.w || !ui.view.h) {
+    const baseHeight = 672;
+    ui.view.w = baseHeight * aspectRatio;
+    ui.view.h = baseHeight;
+  }
+  
+  svg.setAttribute('viewBox', `${ui.view.x} ${ui.view.y} ${ui.view.w} ${ui.view.h}`);
+}
+
+/* =========================
+   PORT EDGE DETECTION
+   Determines which edge of a unit a port is on
+   ========================= */
+function getPortEdge(port, unitDef) {
+  const tolerance = 0.1; // Small tolerance for edge detection
+  
+  // Check if port is on left edge
+  if (port.x <= tolerance) return 'left';
+  
+  // Check if port is on right edge
+  if (port.x >= unitDef.w - tolerance) return 'right';
+  
+  // Check if port is on top edge
+  if (port.y <= tolerance) return 'top';
+  
+  // Check if port is on bottom edge
+  if (port.y >= unitDef.h - tolerance) return 'bottom';
+  
+  // Fallback: determine by which edge is closest
+  const distToLeft = port.x;
+  const distToRight = unitDef.w - port.x;
+  const distToTop = port.y;
+  const distToBottom = unitDef.h - port.y;
+  
+  const minDist = Math.min(distToLeft, distToRight, distToTop, distToBottom);
+  
+  if (minDist === distToLeft) return 'left';
+  if (minDist === distToRight) return 'right';
+  if (minDist === distToTop) return 'top';
+  return 'bottom';
+}
+
+/* =========================
+   RENDERING
+   ========================= */
+function drawGrid() {
+  const g = svgEl('g', { id: 'grid' });
+  const x1 = ui.view.x, y1 = ui.view.y;
+  const x2 = ui.view.x + ui.view.w, y2 = ui.view.y + ui.view.h;
+  const t = scene.tile;
+  
+  // Calculate visible grid range
+  const startX = Math.floor(x1 / t) * t;
+  const endX = Math.ceil(x2 / t) * t;
+  const startY = Math.floor(y1 / t) * t;
+  const endY = Math.ceil(y2 / t) * t;
+  
+  // Draw vertical lines
+  for (let wx = startX; wx <= endX; wx += t) {
+    g.appendChild(svgEl('line', {
+      x1: wx, y1: startY,
+      x2: wx, y2: endY,
+      stroke: '#1e293b',
+      opacity: 0.4,
+      'stroke-width': 1
+    }));
+  }
+  
+  // Draw horizontal lines
+  for (let wy = startY; wy <= endY; wy += t) {
+    g.appendChild(svgEl('line', {
+      x1: startX, y1: wy,
+      x2: endX, y2: wy,
+      stroke: '#1e293b',
+      opacity: 0.4,
+      'stroke-width': 1
+    }));
+  }
+  
+  svg.appendChild(g);
+}
+
+function drawConnections() {
+  const g = svgEl('g', { id: 'connections' });
+  
+  // Draw existing connections
+  for (const c of scene.connections) {
+    const fromU = scene.units.get(c.from.unitId);
+    const toU = scene.units.get(c.to.unitId);
+    if (!fromU || !toU) continue;
+
+    const fromDef = UnitRegistry.get(fromU.defId);
+    const toDef = UnitRegistry.get(toU.defId);
+    const fromPort = fromDef.ports.find(p => p.portId === c.from.portId);
+    const toPort = toDef.ports.find(p => p.portId === c.to.portId);
+    if (!fromPort || !toPort) continue;
+
+    const fx = (fromU.x + fromPort.x) * scene.tile;
+    const fy = (fromU.y + fromPort.y) * scene.tile;
+    const tx = (toU.x + toPort.x) * scene.tile;
+    const ty = (toU.y + toPort.y) * scene.tile;
+    
+    // Determine port edges for proper curve orientation
+    const fromEdge = getPortEdge(fromPort, fromDef);
+    const toEdge = getPortEdge(toPort, toDef);
+    
+    // Calculate control points perpendicular to each port's edge
+    const controlOffset = 60; // Distance for control points
+    
+    let c1x, c1y, c2x, c2y;
+    
+    // From port control point (perpendicular to its edge)
+    if (fromEdge === 'left') {
+      c1x = fx - controlOffset;
+      c1y = fy;
+    } else if (fromEdge === 'right') {
+      c1x = fx + controlOffset;
+      c1y = fy;
+    } else if (fromEdge === 'top') {
+      c1x = fx;
+      c1y = fy - controlOffset;
+    } else { // bottom
+      c1x = fx;
+      c1y = fy + controlOffset;
+    }
+    
+    // To port control point (perpendicular to its edge)
+    if (toEdge === 'left') {
+      c2x = tx - controlOffset;
+      c2y = ty;
+    } else if (toEdge === 'right') {
+      c2x = tx + controlOffset;
+      c2y = ty;
+    } else if (toEdge === 'top') {
+      c2x = tx;
+      c2y = ty - controlOffset;
+    } else { // bottom
+      c2x = tx;
+      c2y = ty + controlOffset;
+    }
+    
+    const pathD = `M${fx},${fy} C${c1x},${c1y} ${c2x},${c2y} ${tx},${ty}`;
+
+    // Get visual properties for this stream type
+    const visuals = StreamVisuals[fromPort.type];
+    const isSelected = ui.selectedConnId === c.id;
+    
+    // Power streams (electrical/mechanical) use dashed lines
+    const isPowerStream = fromPort.type === StreamType.ELECTRICAL || 
+                          fromPort.type === StreamType.MECHANICAL;
+
+    const path = svgEl('path', {
+      d: pathD,
+      fill: 'none',
+      stroke: isSelected ? '#60a5fa' : visuals.color,
+      'stroke-width': isSelected ? 4 : 3,
+      'stroke-dasharray': isPowerStream ? '8,4' : 'none',
+      cursor: 'pointer'
+    });
+
+    path.addEventListener('pointerdown', (ev) => {
+      ev.stopPropagation();
+      ui.selectedConnId = c.id;
+      ui.selectedUnitId = null;
+      updatePropertiesPanel();
+      render();
+    });
+
+    g.appendChild(path);
+  }
+
+  // Draw pending connection (during connection mode)
+  if (ui.pendingFrom) {
+    const u = scene.units.get(ui.pendingFrom.unitId);
+    if (u) {
+      const def = UnitRegistry.get(u.defId);
+      const port = def.ports.find(p => p.portId === ui.pendingFrom.portId);
+      if (port) {
+        const fx = (u.x + port.x) * scene.tile;
+        const fy = (u.y + port.y) * scene.tile;
+        const mx = ui._mouseWorld.x;
+        const my = ui._mouseWorld.y;
+        
+        const portEdge = getPortEdge(port, def);
+        const controlOffset = 60;
+        
+        let c1x, c1y;
+        if (portEdge === 'left') {
+          c1x = fx - controlOffset;
+          c1y = fy;
+        } else if (portEdge === 'right') {
+          c1x = fx + controlOffset;
+          c1y = fy;
+        } else if (portEdge === 'top') {
+          c1x = fx;
+          c1y = fy - controlOffset;
+        } else { // bottom
+          c1x = fx;
+          c1y = fy + controlOffset;
+        }
+        
+        const pathD = `M${fx},${fy} C${c1x},${c1y} ${mx},${my} ${mx},${my}`;
+        
+        const visuals = StreamVisuals[port.type];
+        
+        g.appendChild(svgEl('path', {
+          d: pathD,
+          fill: 'none',
+          stroke: visuals.color,
+          'stroke-width': 3,
+          opacity: 0.7
+        }));
+      }
+    }
+  }
+
+  svg.appendChild(g);
+}
+
+function drawUnits() {
+  const g = svgEl('g', { id: 'units' });
+  
+  for (const [id, u] of scene.units) {
+    const def = UnitRegistry.get(u.defId);
+    const wx = u.x * scene.tile;
+    const wy = u.y * scene.tile;
+    const ww = def.w * scene.tile;
+    const wh = def.h * scene.tile;
+    
+    const group = svgEl('g', {});
+    
+    // Unit rectangle
+    const rect = svgEl('rect', {
+      x: wx, y: wy,
+      width: ww, height: wh,
+      rx: 8,
+      fill: def.color,
+      stroke: ui.selectedUnitId === id ? '#60a5fa' : '#1e293b',
+      'stroke-width': 3,
+      cursor: 'grab'
+    });
+
+    rect.addEventListener('pointerdown', (ev) => {
+      ev.stopPropagation();
+      if (ui.pendingFrom) return;
+      
+      // Don't start dragging existing units during HTML5 drag from library
+      if (ui.isHTML5Dragging) return;
+      
+      ui.selectedUnitId = id;
+      ui.selectedConnId = null;
+      ui.isDraggingUnit = true;
+      ui.dragUnitId = id;
+      
+      const m = screenToWorld(ev.clientX, ev.clientY);
+      // Store offset in grid cell units
+      ui.dragOffset = {
+        cellX: (m.x / scene.tile) - u.x,
+        cellY: (m.y / scene.tile) - u.y
+      };
+      
+      
+      updatePropertiesPanel();
+      render();
+    });
+
+    group.appendChild(rect);
+
+    // Unit icon - map defId to icon name with proper precedence
+    let iconName = def.defId;
+    if (def.defId === 'source_electrical') {
+      iconName = 'electrical';
+    } else if (def.defId === 'source_mechanical') {
+      iconName = 'mechanical';
+    } else if (def.defId === 'source') {
+      iconName = 'source';
+    }
+    // Other units use their defId directly (pump, compressor, valve, motor, sink, heater, hex)
+    
+    const ico = svgEl('use', {
+      x: wx + ww / 2 - 16,
+      y: wy + wh / 2 - 16,
+      width: 32,
+      height: 32,
+      fill: '#fff',
+      opacity: 0.75,
+      'pointer-events': 'none'
+    });
+    
+    // Set href with both methods for compatibility
+    ico.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', `#ico-${iconName}`);
+    ico.setAttribute('href', `#ico-${iconName}`);
+    
+    group.appendChild(ico);
+
+    // Unit label (using actual unit name)
+    const label = svgEl('text', {
+      x: wx + ww / 2,
+      y: wy + wh + 14,
+      'text-anchor': 'middle',
+      'font-size': 10,
+      'font-weight': 700,
+      fill: '#e7e7e7',
+      opacity: 0.9,
+      'pointer-events': 'none',
+      'data-unit-id': id  // Add data attribute for updates
+    });
+    label.textContent = u.name || def.name;
+    group.appendChild(label);
+
+    // Ports
+    for (const p of def.ports) {
+      const wp = {
+        x: (u.x + p.x) * scene.tile,
+        y: (u.y + p.y) * scene.tile
+      };
+      const portId = p.portId;
+      const unitId = u.id;
+      
+      // Get color for this stream type
+      const portVisuals = StreamVisuals[p.type];
+
+      // Port circle with color coding
+      const circle = svgEl('circle', {
+        cx: wp.x,
+        cy: wp.y,
+        r: 10,
+        fill: p.dir === PortDir.OUT ? portVisuals.portColor : '#1e293b',
+        stroke: portVisuals.portColor,
+        'stroke-width': 2.5,
+        cursor: 'pointer'
+      });
+
+      circle.addEventListener('pointerdown', (ev) => {
+        ev.stopPropagation();
+        const port = p;
+        
+        if (port.dir === PortDir.OUT && !ui.pendingFrom) {
+          // Start connection mode
+          ui.selectedUnitId = null;
+          ui.pendingFrom = { unitId, portId };
+          ui.selectedConnId = null;
+          setStatus('Connect: click a compatible IN port.');
+          render();
+          return;
+        }
+        
+        if (port.dir === PortDir.IN && ui.pendingFrom) {
+          // Complete connection
+          const id = scene.connect(ui.pendingFrom, { unitId, portId });
+          setStatus(id 
+            ? 'Connection added.' 
+            : 'Connection refused: port already connected or incompatible type.');
+          ui.pendingFrom = null;
+          updatePropertiesPanel();
+          render();
+        }
+      });
+
+      group.appendChild(circle);
+
+      // Directional arrow - orient based on which edge the port is on
+      const portEdge = getPortEdge(p, def);
+      
+      if (p.dir === PortDir.OUT) {
+        // OUT port: arrow points OUTWARD from unit (away from center)
+        let arrowPath;
+        if (portEdge === 'top') {
+          // Points UP (away from unit)
+          arrowPath = `M${wp.x - 3},${wp.y + 2} L${wp.x + 3},${wp.y + 2} L${wp.x},${wp.y - 4} Z`;
+        } else if (portEdge === 'bottom') {
+          // Points DOWN (away from unit)
+          arrowPath = `M${wp.x - 3},${wp.y - 2} L${wp.x + 3},${wp.y - 2} L${wp.x},${wp.y + 4} Z`;
+        } else if (portEdge === 'right') {
+          // Points RIGHT (away from unit) - REVERSED
+          arrowPath = `M${wp.x - 2},${wp.y - 3} L${wp.x - 2},${wp.y + 3} L${wp.x + 4},${wp.y} Z`;
+        } else { // left
+          // Points LEFT (away from unit) - REVERSED
+          arrowPath = `M${wp.x + 2},${wp.y - 3} L${wp.x + 2},${wp.y + 3} L${wp.x - 4},${wp.y} Z`;
+        }
+        const arrow = svgEl('path', {
+          d: arrowPath,
+          fill: '#0b0e14',
+          'pointer-events': 'none'
+        });
+        group.appendChild(arrow);
+      } else {
+        // IN port: arrow points INWARD to unit (toward center)
+        let arrowPath;
+        if (portEdge === 'top') {
+          // Points DOWN (into unit)
+          arrowPath = `M${wp.x - 3},${wp.y - 2} L${wp.x + 3},${wp.y - 2} L${wp.x},${wp.y + 4} Z`;
+        } else if (portEdge === 'bottom') {
+          // Points UP (into unit)
+          arrowPath = `M${wp.x - 3},${wp.y + 2} L${wp.x + 3},${wp.y + 2} L${wp.x},${wp.y - 4} Z`;
+        } else if (portEdge === 'right') {
+          // Points LEFT (into unit)
+          arrowPath = `M${wp.x - 4},${wp.y} L${wp.x + 2},${wp.y - 3} L${wp.x + 2},${wp.y + 3} Z`;
+        } else { // left
+          // Points RIGHT (into unit)
+          arrowPath = `M${wp.x + 4},${wp.y} L${wp.x - 2},${wp.y - 3} L${wp.x - 2},${wp.y + 3} Z`;
+        }
+        const arrow = svgEl('path', {
+          d: arrowPath,
+          fill: portVisuals.portColor,
+          'pointer-events': 'none'
+        });
+        group.appendChild(arrow);
+      }
+    }
+
+    g.appendChild(group);
+  }
+  
+  svg.appendChild(g);
+}
+
+function render() {
+  clearSVG();
+  setViewBox();
+  drawGrid();
+  drawConnections();
+  drawUnits();
+}
+
+/* =========================
+   UNIT LIBRARY
+   Displayed in right panel when "Add Unit" is clicked
+   ========================= */
+function showUnitLibrary() {
+  propEditor.innerHTML = '';
+  
+  // Title
+  const titleDiv = el('div', { 
+    class: 'unitTitle', 
+    style: 'cursor:default;',
+    html: 'Add Unit' 
+  });
+  propEditor.appendChild(titleDiv);
+  
+  // Subtitle
+  const subtitleDiv = el('div', { 
+    class: 'unitSubtitle', 
+    html: 'Drag a unit onto the canvas' 
+  });
+  propEditor.appendChild(subtitleDiv);
+  
+  // Organize units by category
+  const byCategory = UnitRegistry.listByCategory();
+  
+  for (const [categoryName, units] of Object.entries(byCategory)) {
+    // Category header
+    const catHeader = el('div', {
+      style: 'margin-top:16px; margin-bottom:8px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; opacity:0.7;'
+    });
+    catHeader.textContent = categoryName;
+    propEditor.appendChild(catHeader);
+    
+    // Units grid for this category
+    const grid = el('div', { 
+      class: 'unitLibraryGrid'
+    });
+    
+    for (const def of units) {
+      const card = document.createElement('div');
+      card.className = 'unitLibraryCard';
+      card.draggable = true;
+      card.innerHTML = `
+        <div class="name">
+          <span class="swatch" style="background:${def.color}"></span>${def.name}
+        </div>
+        <div class="desc">${def.defId}</div>
+      `;
+      
+      card.addEventListener('dragstart', (ev) => {
+        ui.dragDefId = def.defId;
+        ui.isHTML5Dragging = true;
+        ev.dataTransfer.setData('text/plain', def.defId);
+        ev.dataTransfer.effectAllowed = 'copy';
+      });
+      
+      grid.appendChild(card);
+    }
+    
+    propEditor.appendChild(grid);
+  }
+}
+
+/* =========================
+   UNITS PANEL
+   ========================= */
+function buildUnitsPanel() {
+  const panel = document.getElementById('unitsPanel');
+  panel.innerHTML = '';
+  
+  const unitsList = models.list('units');
+  const activeId = models.active.units;
+  
+  for (const sys of unitsList) {
+    const card = el('div', {
+      class: 'modelCard',
+      style: `cursor:pointer; padding:12px; margin-bottom:8px; border:1px solid ${sys.id === activeId ? '#3b82f6' : '#2a2f3a'}; border-radius:8px; background:${sys.id === activeId ? '#3b82f611' : 'transparent'};`
+    });
+    
+    card.innerHTML = `
+      <div style="font-weight:700; margin-bottom:4px;">${sys.name}</div>
+      <div class="small">${sys.desc}</div>
+    `;
+    
+    card.addEventListener('click', () => {
+      models.setActive('units', sys.id);
+      buildUnitsPanel();
+      updatePropertiesPanel();
+      render();
+    });
+    
+    panel.appendChild(card);
+  }
+}
+
+/* =========================
+   COMPONENTS PANEL
+   ========================= */
+function buildComponentsPanel() {
+  const panel = document.getElementById('componentsPanel');
+  panel.innerHTML = '';
+  
+  // Create table
+  const table = el('table', { 
+    style: 'width:100%; border-collapse:collapse; font-size:11px;' 
+  });
+  
+  // Header
+  const thead = el('thead', {});
+  const headerRow = el('tr', {});
+  ['Formula', 'Name', 'MW', 'Tc (K)', 'Pc (bar)', 'Tb (K)'].forEach(text => {
+    const th = el('th', { 
+      style: 'text-align:left; padding:6px 4px; border-bottom:1px solid #2a2f3a; font-weight:700; opacity:0.8;' 
+    });
+    th.textContent = text;
+    headerRow.appendChild(th);
+  });
+  thead.appendChild(headerRow);
+  table.appendChild(thead);
+  
+  // Body
+  const tbody = el('tbody', {});
+  for (const comp of ComponentRegistry.list()) {
+    const row = el('tr', { 
+      style: 'border-bottom:1px solid #2a2f3a22;' 
+    });
+    
+    const cells = [
+      { text: comp.formula, bold: true },
+      { text: comp.name },
+      { text: comp.MW.toFixed(3) },
+      { text: comp.Tc.toFixed(1) },
+      { text: (comp.Pc / 100000).toFixed(2) },
+      { text: comp.Tb.toFixed(1) }
+    ];
+    
+    cells.forEach(({ text, bold }) => {
+      const td = el('td', { 
+        style: `padding:6px 4px; ${bold ? 'font-weight:700; font-family:ui-monospace, monospace;' : ''}` 
+      });
+      td.textContent = text;
+      row.appendChild(td);
+    });
+    
+    tbody.appendChild(row);
+  }
+  table.appendChild(tbody);
+  
+  panel.appendChild(table);
+}
+
+/* =========================
+   MODELS PANEL
+   ========================= */
+function buildModelsPanel() {
+  modelsPanelEl.innerHTML = '';
+  
+  function addDropdown(kind, label) {
+    const row = document.createElement('div');
+    row.className = 'row';
+    
+    const lab = document.createElement('label');
+    lab.textContent = label;
+    
+    const sel = document.createElement('select');
+    for (const m of models.list(kind)) {
+      const opt = document.createElement('option');
+      opt.value = m.id;
+      opt.textContent = m.name;
+      opt.title = m.desc || '';
+      sel.appendChild(opt);
+    }
+    sel.value = models.active[kind];
+    
+    sel.addEventListener('change', () => {
+      models.setActive(kind, sel.value);
+      setStatus(`Model changed: ${label} → ${sel.options[sel.selectedIndex].text}`);
+      solveScene(scene);
+      updatePropertiesPanel();
+      render();
+    });
+    
+    row.appendChild(lab);
+    row.appendChild(sel);
+    modelsPanelEl.appendChild(row);
+  }
+  
+  addDropdown('pvt_gas', 'PVT gas');
+  addDropdown('thermo', 'Thermo');
+  addDropdown('water_psat', 'Psat(H2O)');
+  addDropdown('humidity', 'Humidity/cond.');
+  addDropdown('hx', 'Heat exchanger');
+  addDropdown('pressure_drop', 'ΔP');
+}
+
+/* =========================
+   PROPERTIES PANEL
+   ========================= */
+function el(tag, attrs = {}, children = []) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === 'class') e.className = v;
+    else if (k === 'html') e.innerHTML = v;
+    else e.setAttribute(k, v);
+  }
+  for (const c of children) e.appendChild(c);
+  return e;
+}
+
+function addNumberEditor(container, label, get, set, step = 0.1) {
+  const row = el('div', { class: 'row' });
+  row.appendChild(el('label', { html: label }));
+  
+  const inp = el('input', { type: 'number', step: String(step) });
+  inp.value = String(get() ?? '');
+  inp.addEventListener('input', () => { set(Number(inp.value)); });
+  
+  row.appendChild(inp);
+  container.appendChild(row);
+}
+
+function addSelectEditor(container, label, get, set, options) {
+  const row = el('div', { class: 'row' });
+  row.appendChild(el('label', { html: label }));
+  
+  const sel = el('select', {});
+  for (const [val, txt] of options) {
+    const opt = document.createElement('option');
+    opt.value = val;
+    opt.textContent = txt;
+    sel.appendChild(opt);
+  }
+  sel.value = get();
+  sel.addEventListener('change', () => {
+    set(sel.value);
+    updatePropertiesPanel();
+  });
+  
+  row.appendChild(sel);
+  container.appendChild(row);
+}
+
+function createCollapsibleSection(title, isOpen = true) {
+  const section = el('div', { class: 'borderedSection' });
+  
+  const header = el('div', { class: 'sectionHeader' });
+  header.innerHTML = `
+    <span>${title}</span>
+    <span class="sectionToggle ${isOpen ? '' : 'collapsed'}">▼</span>
+  `;
+  
+  const content = el('div', { 
+    class: `sectionContent ${isOpen ? '' : 'collapsed'}` 
+  });
+  
+  header.addEventListener('click', () => {
+    const toggle = header.querySelector('.sectionToggle');
+    toggle.classList.toggle('collapsed');
+    content.classList.toggle('collapsed');
+  });
+  
+  section.appendChild(header);
+  section.appendChild(content);
+  
+  return { section, content };
+}
+
+function createCollapsibleSubSection(title, isOpen = true) {
+  const section = el('div', { class: 'subSection' });
+  
+  const header = el('div', { class: 'subSectionHeader' });
+  header.innerHTML = `
+    <span>${title}</span>
+    <span class="subSectionToggle ${isOpen ? '' : 'collapsed'}">▼</span>
+  `;
+  
+  const content = el('div', { 
+    class: `subSectionContent ${isOpen ? '' : 'collapsed'}` 
+  });
+  
+  header.addEventListener('click', () => {
+    const toggle = header.querySelector('.subSectionToggle');
+    toggle.classList.toggle('collapsed');
+    content.classList.toggle('collapsed');
+  });
+  
+  section.appendChild(header);
+  section.appendChild(content);
+  
+  return { section, content };
+}
+
+function renderStreamProperties(container, s) {
+  if (!s) {
+    container.appendChild(el('div', { 
+      class: 'small', 
+      html: 'No data available' 
+    }));
+    return;
+  }
+
+  const unitSys = models.getActive('units');
+  const propGrid = el('div', { class: 'propGrid' });
+  
+  if (s.type === StreamType.MATERIAL) {
+    // GROUP 1: Temperature & Pressure
+    propGrid.appendChild(el('div', { 
+      style: 'grid-column:1/-1; margin-top:4px; margin-bottom:6px; font-size:11px; font-weight:700; opacity:0.7; text-transform:uppercase; letter-spacing:0.5px;',
+      html: 'Conditions'
+    }));
+    
+    propGrid.appendChild(el('div', { class: 'propItem' }, [
+      el('div', { class: 'propLabel', html: 'Temperature' }),
+      el('div', { 
+        class: 'propValue', 
+        html: `${unitSys.temperature.from(s.T).toFixed(unitSys.temperature.decimals)}<span class="propUnit">${unitSys.temperature.symbol}</span>` 
+      })
+    ]));
+    
+    propGrid.appendChild(el('div', { class: 'propItem' }, [
+      el('div', { class: 'propLabel', html: 'Pressure' }),
+      el('div', { 
+        class: 'propValue', 
+        html: `${unitSys.pressure.from(s.P).toFixed(unitSys.pressure.decimals)}<span class="propUnit">${unitSys.pressure.symbol}</span>` 
+      })
+    ]));
+    
+    // GROUP 2: Phase & Composition
+    propGrid.appendChild(el('div', { 
+      style: 'grid-column:1/-1; margin-top:12px; margin-bottom:6px; font-size:11px; font-weight:700; opacity:0.7; text-transform:uppercase; letter-spacing:0.5px;',
+      html: 'Phase & Composition'
+    }));
+    
+    const phaseText = s.phase === 'V' ? 'Vapor' : 
+                      s.phase === 'L' ? 'Liquid' : 
+                      s.phase === 'VL' ? `Two-Phase (β=${s.vaporFraction.toFixed(3)})` : 
+                      'Unknown';
+    propGrid.appendChild(el('div', { class: 'propItem' }, [
+      el('div', { class: 'propLabel', html: 'Phase' }),
+      el('div', { 
+        class: 'propValue', 
+        style: 'font-size:12px;',
+        html: phaseText
+      })
+    ]));
+    
+    // Calculate flowrates
+    const flowrates = calculateStreamFlowrates(s);
+    
+    // Composition
+    const components = Object.keys(s.n || {})
+      .filter(k => s.n[k] > 1e-9)
+      .sort((a, b) => s.n[b] - s.n[a]);
+      
+    if (components.length) {
+      const compSection = el('div', { style: 'grid-column:1/-1; margin-top:6px;' });
+      compSection.appendChild(el('div', { 
+        class: 'propLabel', 
+        html: 'Components', 
+        style: 'margin-bottom:6px;' 
+      }));
+      
+      const compWrap = el('div', { style: 'display:flex; flex-wrap:wrap; gap:4px;' });
+      for (const comp of components) {
+        const n = s.n[comp];
+        const molFrac = flowrates.nTotal > 0 ? (n / flowrates.nTotal) : 0;
+        const badge = el('div', { class: 'compBadge' });
+        badge.innerHTML = `<span class="spec">${comp}</span><span class="pct">${(100 * molFrac).toFixed(1)}%</span>`;
+        compWrap.appendChild(badge);
+      }
+      compSection.appendChild(compWrap);
+      propGrid.appendChild(compSection);
+    }
+    
+    // GROUP 3: Flowrates
+    propGrid.appendChild(el('div', { 
+      style: 'grid-column:1/-1; margin-top:12px; margin-bottom:6px; font-size:11px; font-weight:700; opacity:0.7; text-transform:uppercase; letter-spacing:0.5px;',
+      html: 'Flowrates'
+    }));
+    
+    propGrid.appendChild(el('div', { class: 'propItem' }, [
+      el('div', { class: 'propLabel', html: 'Molar' }),
+      el('div', { 
+        class: 'propValue', 
+        html: `${unitSys.molarFlow.from(flowrates.nTotal).toFixed(unitSys.molarFlow.decimals)}<span class="propUnit">${unitSys.molarFlow.symbol}</span>` 
+      })
+    ]));
+    
+    propGrid.appendChild(el('div', { class: 'propItem' }, [
+      el('div', { class: 'propLabel', html: 'Mass' }),
+      el('div', { 
+        class: 'propValue', 
+        html: `${unitSys.massFlow.from(flowrates.mTotal).toFixed(unitSys.massFlow.decimals)}<span class="propUnit">${unitSys.massFlow.symbol}</span>` 
+      })
+    ]));
+    
+    propGrid.appendChild(el('div', { class: 'propItem' }, [
+      el('div', { class: 'propLabel', html: 'Volumetric' }),
+      el('div', { 
+        class: 'propValue', 
+        html: `${unitSys.volumeFlow.from(flowrates.vTotal).toFixed(unitSys.volumeFlow.decimals)}<span class="propUnit">${unitSys.volumeFlow.symbol}</span>` 
+      })
+    ]));
+    
+  } else if (s.type === StreamType.ELECTRICAL || s.type === StreamType.MECHANICAL) {
+    // Power streams show available capacity and current demand
+    propGrid.appendChild(el('div', { class: 'propItem' }, [
+      el('div', { class: 'propLabel', html: 'Available' }),
+      el('div', { 
+        class: 'propValue', 
+        html: `${(s.available || 0).toFixed(1)}<span class="propUnit">kW</span>` 
+      })
+    ]));
+    
+    if (s.demand !== undefined) {
+      propGrid.appendChild(el('div', { class: 'propItem' }, [
+        el('div', { class: 'propLabel', html: 'Demand' }),
+        el('div', { 
+          class: 'propValue', 
+          html: `${s.demand.toFixed(1)}<span class="propUnit">kW</span>` 
+        })
+      ]));
+      
+      // Utilization bar
+      const util = s.available > 0 ? (s.demand / s.available) : 0;
+      const bar = el('div', { class: 'bar', style: 'margin-top:8px;' });
+      const fill = el('div', {});
+      fill.style.width = `${clamp(util, 0, 1) * 100}%`;
+      fill.style.background = util > 1.0 ? '#ef4444' : util > 0.8 ? '#f97316' : '#22c55e';
+      bar.appendChild(fill);
+      propGrid.appendChild(bar);
+      propGrid.appendChild(el('div', { 
+        class: 'kv', 
+        style: 'font-size:10px; opacity:0.6; margin-top:4px;', 
+        html: `<span>0%</span><span>${(util * 100).toFixed(0)}%</span><span>100%</span>` 
+      }));
+    }
+  } else if (s.type === StreamType.HEAT) {
+    // Heat (legacy - keep simple display)
+    propGrid.appendChild(el('div', { class: 'propItem' }, [
+      el('div', { class: 'propLabel', html: 'Power' }),
+      el('div', { 
+        class: 'propValue', 
+        html: `${(s.QkW || 0).toFixed(1)}<span class="propUnit">kW</span>` 
+      })
+    ]));
+  }
+  
+  container.appendChild(propGrid);
+}
+
+function updatePropertiesPanel() {
+  propEditor.innerHTML = '';
+  
+  // UNIT SELECTED
+  if (ui.selectedUnitId) {
+    const u = scene.units.get(ui.selectedUnitId);
+    if (!u) {
+      ui.selectedUnitId = null;
+      return updatePropertiesPanel();
+    }
+    
+    const def = UnitRegistry.get(u.defId);
+    
+    // Header (no border): Unit name + type + category
+    const headerDiv = el('div', { class: 'unitHeader' });
+    
+    const titleDiv = el('div', { class: 'unitTitle' });
+    const nameInput = el('input', { 
+      type: 'text', 
+      value: u.name || `${def.name} ${u.id.slice(-2)}` 
+    });
+    nameInput.addEventListener('input', () => {
+      u.name = nameInput.value;
+      // Update label on canvas immediately
+      const label = svg.querySelector(`[data-unit-id="${u.id}"]`);
+      if (label) label.textContent = u.name;
+    });
+    nameInput.addEventListener('blur', () => {
+      if (!nameInput.value.trim()) {
+        u.name = `${def.name} ${u.id.slice(-2)}`;
+        nameInput.value = u.name;
+      }
+    });
+    titleDiv.appendChild(nameInput);
+    headerDiv.appendChild(titleDiv);
+    
+    const subtitleDiv = el('div', { 
+      class: 'unitSubtitle', 
+      html: `${def.defId} · <span style="color:${def.color}">${def.category}</span>` 
+    });
+    headerDiv.appendChild(subtitleDiv);
+    
+    propEditor.appendChild(headerDiv);
+
+    // Bordered Section 1: Parameters (only for units with editable parameters)
+    if (u.defId === 'source') {
+      const paramsSection = createCollapsibleSection('Parameters', true);
+      const unitSys = models.getActive('units');
+      
+      // Build species dropdown from ComponentRegistry
+      const speciesOptions = ComponentRegistry.list().map(comp => 
+        [comp.formula, comp.formula]  // Display formula, value is formula
+      );
+      
+      addSelectEditor(paramsSection.content, 'Species', 
+        () => u.params.species, 
+        v => u.params.species = v, 
+        speciesOptions
+      );
+      
+      // Pressure with unit conversion
+      addNumberEditor(paramsSection.content, `P (${unitSys.pressure.symbol})`, 
+        () => unitSys.pressure.from(u.params.P), 
+        v => u.params.P = unitSys.pressure.to(v), 
+        unitSys.pressure.decimals === 0 ? 1000 : 0.1
+      );
+      
+      // Temperature with unit conversion
+      addNumberEditor(paramsSection.content, `T (${unitSys.temperature.symbol})`, 
+        () => unitSys.temperature.from(u.params.T + 273.15), 
+        v => u.params.T = unitSys.temperature.to(v) - 273.15, 
+        1
+      );
+      
+      // Molar flow with unit conversion
+      addNumberEditor(paramsSection.content, `ṅ (${unitSys.molarFlow.symbol})`, 
+        () => unitSys.molarFlow.from(u.params.nDot), 
+        v => u.params.nDot = unitSys.molarFlow.to(v), 
+        0.1
+      );
+      
+      // Phase constraint
+      if (!u.params.phaseConstraint) u.params.phaseConstraint = 'VL';
+      addSelectEditor(paramsSection.content, 'Phase', 
+        () => u.params.phaseConstraint, 
+        v => u.params.phaseConstraint = v, 
+        [['V', 'Vapor only'], ['L', 'Liquid only'], ['VL', 'Vapor-Liquid (flash)']]
+      );
+      
+      propEditor.appendChild(paramsSection.section);
+    }
+    
+    if (u.defId === 'source_electrical' || u.defId === 'source_mechanical') {
+      const paramsSection = createCollapsibleSection('Parameters', true);
+      
+      if (!u.params.maxPower) u.params.maxPower = 1000;
+      addNumberEditor(paramsSection.content, 'Max Power (kW)', 
+        () => u.params.maxPower, 
+        v => u.params.maxPower = v, 
+        10
+      );
+      
+      propEditor.appendChild(paramsSection.section);
+    }
+    
+    if (u.defId === 'motor') {
+      const paramsSection = createCollapsibleSection('Parameters', true);
+      
+      if (!u.params.eta) u.params.eta = 0.92;
+      addNumberEditor(paramsSection.content, 'Efficiency (-)', 
+        () => u.params.eta, 
+        v => u.params.eta = v, 
+        0.01
+      );
+      
+      propEditor.appendChild(paramsSection.section);
+    }
+    
+    if (u.defId === 'valve') {
+      const paramsSection = createCollapsibleSection('Parameters', true);
+      const unitSys = models.getActive('units');
+      
+      if (!u.params.Pout) u.params.Pout = 101325;
+      addNumberEditor(paramsSection.content, `P outlet (${unitSys.pressure.symbol})`, 
+        () => unitSys.pressure.from(u.params.Pout), 
+        v => u.params.Pout = unitSys.pressure.to(v), 
+        unitSys.pressure.decimals === 0 ? 1000 : 0.1
+      );
+      
+      propEditor.appendChild(paramsSection.section);
+    }
+    
+    if (u.defId === 'pump') {
+      const paramsSection = createCollapsibleSection('Parameters', true);
+      const unitSys = models.getActive('units');
+      
+      if (!u.params.Pout) u.params.Pout = 500000;
+      addNumberEditor(paramsSection.content, `P outlet (${unitSys.pressure.symbol})`, 
+        () => unitSys.pressure.from(u.params.Pout), 
+        v => u.params.Pout = unitSys.pressure.to(v), 
+        unitSys.pressure.decimals === 0 ? 1000 : 0.1
+      );
+      
+      if (!u.params.eta) u.params.eta = 0.70;
+      addNumberEditor(paramsSection.content, 'Efficiency (-)', 
+        () => u.params.eta, 
+        v => u.params.eta = v, 
+        0.01
+      );
+      
+      propEditor.appendChild(paramsSection.section);
+    }
+    
+    if (u.defId === 'compressor') {
+      const paramsSection = createCollapsibleSection('Parameters', true);
+      const unitSys = models.getActive('units');
+      
+      if (!u.params.Pout) u.params.Pout = 200000;
+      addNumberEditor(paramsSection.content, `P outlet (${unitSys.pressure.symbol})`, 
+        () => unitSys.pressure.from(u.params.Pout), 
+        v => u.params.Pout = unitSys.pressure.to(v), 
+        unitSys.pressure.decimals === 0 ? 1000 : 0.1
+      );
+      
+      if (!u.params.eta) u.params.eta = 0.75;
+      addNumberEditor(paramsSection.content, 'Efficiency (-)', 
+        () => u.params.eta, 
+        v => u.params.eta = v, 
+        0.01
+      );
+      
+      propEditor.appendChild(paramsSection.section);
+    }
+    
+    // Heater/Cooler parameters
+    if (u.defId === 'heater') {
+      const paramsSection = createCollapsibleSection('Parameters', true);
+      const unitSys = models.getActive('units');
+      
+      // Choice: specify heat duty OR outlet temperature
+      const modeLabel = el('div', { 
+        class: 'small', 
+        style: 'margin-bottom:8px; opacity:0.8;',
+        html: 'Specify either heat duty or outlet temperature:'
+      });
+      paramsSection.content.appendChild(modeLabel);
+      
+      if (u.params.Q_heat === undefined) u.params.Q_heat = 0;
+      addNumberEditor(paramsSection.content, 'Heat Duty (kW)', 
+        () => u.params.Q_heat, 
+        v => { u.params.Q_heat = v; u.params.T_out = undefined; },
+        1
+      );
+      
+      addNumberEditor(paramsSection.content, `T outlet (${unitSys.temperature.symbol})`, 
+        () => u.params.T_out !== undefined ? unitSys.temperature.from(u.params.T_out + 273.15) : '', 
+        v => { u.params.T_out = unitSys.temperature.to(v) - 273.15; u.params.Q_heat = 0; },
+        1
+      );
+      
+      propEditor.appendChild(paramsSection.section);
+    }
+    
+    // Two-Stream Heat Exchanger parameters
+    if (u.defId === 'hex') {
+      const paramsSection = createCollapsibleSection('Parameters', true);
+      const unitSys = models.getActive('units');
+      
+      const modeLabel = el('div', { 
+        class: 'small', 
+        style: 'margin-bottom:8px; opacity:0.8;',
+        html: 'Specify approach temp OR one outlet temperature:'
+      });
+      paramsSection.content.appendChild(modeLabel);
+      
+      if (u.params.T_approach === undefined) u.params.T_approach = 10;
+      addNumberEditor(paramsSection.content, 'Approach ΔT (K)', 
+        () => u.params.T_approach, 
+        v => { u.params.T_approach = v; u.params.T_hot_out = undefined; u.params.T_cold_out = undefined; },
+        1
+      );
+      
+      addNumberEditor(paramsSection.content, `T hot out (${unitSys.temperature.symbol})`, 
+        () => u.params.T_hot_out !== undefined ? unitSys.temperature.from(u.params.T_hot_out + 273.15) : '', 
+        v => { u.params.T_hot_out = unitSys.temperature.to(v) - 273.15; u.params.T_approach = 0; u.params.T_cold_out = undefined; },
+        1
+      );
+      
+      addNumberEditor(paramsSection.content, `T cold out (${unitSys.temperature.symbol})`, 
+        () => u.params.T_cold_out !== undefined ? unitSys.temperature.from(u.params.T_cold_out + 273.15) : '', 
+        v => { u.params.T_cold_out = unitSys.temperature.to(v) - 273.15; u.params.T_approach = 0; u.params.T_hot_out = undefined; },
+        1
+      );
+      
+      propEditor.appendChild(paramsSection.section);
+    }
+
+    // Bordered Section 2: Properties
+    const ud = scene.runtime.unitData.get(u.id);
+    const propsSection = createCollapsibleSection('Properties', true);
+
+    if (!ud) {
+      propsSection.content.appendChild(el('div', { 
+        class: 'small', 
+        style: 'padding: 8px 0; opacity:0.6;',
+        html: 'Not computed yet — press Run' 
+      }));
+    } else if (u.defId === 'sink') {
+      // For sink, show incoming stream properties in Properties section
+      if (ud.last && ud.last.stream) {
+        renderStreamProperties(propsSection.content, ud.last.stream);
+      } else {
+        propsSection.content.appendChild(el('div', { 
+          class: 'small', 
+          style: 'padding: 8px 0; opacity:0.6;',
+          html: 'No incoming stream' 
+        }));
+      }
+    } else {
+      // Check for unit-level errors first (like phase violations)
+      if (ud.last && ud.last.error) {
+        const err = ud.last.error;
+        const sev = err.severity || ErrorSeverity.MINOR;
+        
+        propsSection.content.appendChild(el('div', { 
+          style: `padding:12px; margin-bottom:12px; background:${sev.color}22; border:2px solid ${sev.color}; border-radius:8px;`, 
+        }, [
+          el('div', { 
+            style: `font-size:14px; font-weight:700; color:${sev.color}; margin-bottom:4px;`,
+            html: `${sev.icon} ${sev.prefix}`
+          }),
+          el('div', { 
+            style: 'font-size:13px; opacity:0.9;',
+            html: err.message
+          })
+        ]));
+      }
+      
+      // Special display for power-consuming equipment
+      if ((u.defId === 'compressor' || u.defId === 'pump') && ud.last && ud.last.W_shaft !== undefined) {
+        const powerBox = el('div', { style: 'margin-bottom:16px; padding:12px; background:#1e293b; border-radius:8px;' });
+        
+        const titleDiv = el('div', { 
+          class: 'small', 
+          style: 'font-weight:700; margin-bottom:8px; opacity:0.8; text-transform:uppercase;', 
+          html: '⚡ Power Consumption' 
+        });
+        powerBox.appendChild(titleDiv);
+        
+        const dataGrid = el('div', { class: 'propGrid' });
+        
+        // Shaft power (required)
+        dataGrid.appendChild(el('div', { class: 'propItem' }, [
+          el('div', { class: 'propLabel', html: 'Shaft Power' }),
+          el('div', { 
+            class: 'propValue', 
+            html: `${ud.last.W_shaft.toFixed(2)}<span class="propUnit">kW</span>` 
+          })
+        ]));
+        
+        // Hydraulic/Isentropic power
+        if (ud.last.W_hydraulic !== undefined) {
+          dataGrid.appendChild(el('div', { class: 'propItem' }, [
+            el('div', { class: 'propLabel', html: 'Hydraulic' }),
+            el('div', { 
+              class: 'propValue', 
+              html: `${ud.last.W_hydraulic.toFixed(2)}<span class="propUnit">kW</span>` 
+            })
+          ]));
+        } else if (ud.last.W_isentropic !== undefined) {
+          dataGrid.appendChild(el('div', { class: 'propItem' }, [
+            el('div', { class: 'propLabel', html: 'Isentropic' }),
+            el('div', { 
+              class: 'propValue', 
+              html: `${ud.last.W_isentropic.toFixed(2)}<span class="propUnit">kW</span>` 
+            })
+          ]));
+        }
+        
+        // Efficiency
+        if (ud.last.eta !== undefined) {
+          dataGrid.appendChild(el('div', { class: 'propItem' }, [
+            el('div', { class: 'propLabel', html: 'Efficiency' }),
+            el('div', { 
+              class: 'propValue', 
+              html: `${(ud.last.eta * 100).toFixed(0)}<span class="propUnit">%</span>` 
+            })
+          ]));
+        }
+        
+        powerBox.appendChild(dataGrid);
+        propsSection.content.appendChild(powerBox);
+      }
+      
+      // Output ports
+      for (const p of def.ports) {
+        if (p.dir !== PortDir.OUT) continue;
+        const s = ud.ports[p.portId];
+        const portBox = el('div', { style: 'margin-bottom:12px;' });
+        portBox.appendChild(el('div', { 
+          class: 'small', 
+          style: 'font-weight:700; margin-bottom:6px; opacity:0.8;', 
+          html: `${p.portId}` 
+        }));
+        renderStreamProperties(portBox, s);
+        propsSection.content.appendChild(portBox);
+      }
+      
+      // General errors from solver
+      if (ud.errors?.length) {
+        propsSection.content.appendChild(el('div', { 
+          class: 'small', 
+          style: 'color:#ef4444; margin-top:8px; padding:8px; background:#7f1d1d22; border-radius:8px;', 
+          html: `⚠ ${ud.errors.join('; ')}` 
+        }));
+      }
+      
+      // Subsection: Details (inside Properties, closed by default)
+      if (ud.last && Object.keys(ud.last).length) {
+        const detailsSubSection = createCollapsibleSubSection('Details', false);
+        
+        const dataGrid = el('div', { class: 'propGrid' });
+        for (const [key, value] of Object.entries(ud.last)) {
+          // Skip error object (already displayed above)
+          if (key === 'error') continue;
+          
+          dataGrid.appendChild(el('div', { class: 'propItem' }, [
+            el('div', { class: 'propLabel', html: key }),
+            el('div', { 
+              class: 'propValue', 
+              style: 'font-size:12px;', 
+              html: typeof value === 'number' ? value.toFixed(3) : String(value) 
+            })
+          ]));
+        }
+        detailsSubSection.content.appendChild(dataGrid);
+        propsSection.content.appendChild(detailsSubSection.section);
+      }
+    }
+
+    propEditor.appendChild(propsSection.section);
+    return;
+  }
+
+  // STREAM SELECTED
+  if (ui.selectedConnId) {
+    const c = scene.connections.find(x => x.id === ui.selectedConnId);
+    if (!c) {
+      ui.selectedConnId = null;
+      return updatePropertiesPanel();
+    }
+    
+    const fromU = scene.units.get(c.from.unitId);
+    const toU = scene.units.get(c.to.unitId);
+    
+    // Header (no border): Stream title
+    const headerDiv = el('div', { class: 'unitHeader' });
+    
+    const titleDiv = el('div', { 
+      class: 'unitTitle', 
+      style: 'cursor:default;',
+      html: 'Stream' 
+    });
+    headerDiv.appendChild(titleDiv);
+    
+    const subtitleDiv = el('div', { 
+      class: 'unitSubtitle', 
+      html: `${fromU?.name || '?'} → ${toU?.name || '?'}` 
+    });
+    headerDiv.appendChild(subtitleDiv);
+    
+    propEditor.appendChild(headerDiv);
+    
+    // Bordered Section: Properties
+    const propsSection = createCollapsibleSection('Properties', true);
+    
+    const fromUD = scene.runtime.unitData.get(c.from.unitId);
+    const s = fromUD?.ports?.[c.from.portId] || null;
+    renderStreamProperties(propsSection.content, s);
+    
+    propEditor.appendChild(propsSection.section);
+    return;
+  }
+
+  // NOTHING SELECTED
+  const emptyDiv = el('div', { 
+    class: 'small', 
+    style: 'padding:40px 20px; text-align:center; opacity:0.5;',
+    html: 'Click a unit or stream to inspect' 
+  });
+  propEditor.appendChild(emptyDiv);
+}
+
+function describeSolve() {
+  const ls = scene.runtime.lastSolve;
+  if (!scene.units.size) return 'Empty scene.';
+  
+  let txt = ls.ok 
+    ? `✅ Converged in ${ls.iterations} iteration(s)\n` 
+    : `⚠ ${ls.warnings.join(' | ')}\n`;
+  txt += `Units: ${scene.units.size} · Connections: ${scene.connections.length}\n`;
+  txt += `Models: ` + Object.entries(models.active)
+    .map(([k, v]) => `${k}:${v}`)
+    .join(' · ');
+  return txt;
+}
+
+/* =========================
+   EVENT HANDLERS
+   ========================= */
+function deselectAll() {
+  ui.selectedUnitId = null;
+  ui.selectedConnId = null;
+  ui.pendingFrom = null;
+  updatePropertiesPanel();
+  render();
+}
+
+function rotateSelected() {
+  if (!ui.selectedUnitId) return;
+  scene.rotateUnit(ui.selectedUnitId);
+  render();
+  updatePropertiesPanel();
+}
+
+function deleteSelected() {
+  if (ui.selectedUnitId) {
+    scene.deleteUnit(ui.selectedUnitId);
+    ui.selectedUnitId = null;
+    updatePropertiesPanel();
+    render();
+  } else if (ui.selectedConnId) {
+    // Delete stream
+    scene.connections = scene.connections.filter(c => c.id !== ui.selectedConnId);
+    ui.selectedConnId = null;
+    updatePropertiesPanel();
+    render();
+  }
+}
+
+// SVG Events
+svg.addEventListener('pointerdown', (ev) => {
+  closeMenus();
+  
+  // Pan mode: Shift+click OR middle mouse button
+  if (ev.shiftKey || ev.button === 1) {
+    ev.preventDefault(); // Prevent default middle-click behavior
+    ui.isPanning = true;
+    ui.panStart = { 
+      x: ev.clientX, 
+      y: ev.clientY, 
+      view: { ...ui.view } 
+    };
+    svg.setPointerCapture(ev.pointerId);
+    return;
+  }
+
+  const w = screenToWorld(ev.clientX, ev.clientY);
+  const cell = worldToCell(w.x, w.y);
+  const existing = scene.unitAt(cell.x, cell.y);
+  
+  if (!existing) {
+    if (ui.pendingFrom) {
+      ui.pendingFrom = null;
+      setStatus('Connect cancelled.');
+      
+      render();
+      return;
+    }
+    ui.selectedUnitId = null;
+    ui.selectedConnId = null;
+    
+    updatePropertiesPanel();
+    render();
+  }
+});
+
+svg.addEventListener('pointermove', (ev) => {
+  ui._mouseWorld = screenToWorld(ev.clientX, ev.clientY);
+
+  // Panning
+  if (ui.isPanning && ui.panStart) {
+    const dx = ev.clientX - ui.panStart.x;
+    const dy = ev.clientY - ui.panStart.y;
+    const rect = svg.getBoundingClientRect();
+    const wx = dx / rect.width * ui.panStart.view.w;
+    const wy = dy / rect.height * ui.panStart.view.h;
+    ui.view.x = ui.panStart.view.x - wx;
+    ui.view.y = ui.panStart.view.y - wy;
+    render();
+    return;
+  }
+
+  // Unit dragging
+  if (ui.isDraggingUnit && ui.dragUnitId && ui.dragOffset) {
+    const u = scene.units.get(ui.dragUnitId);
+    if (u) {
+      const wpos = ui._mouseWorld;
+      const cellX = (wpos.x / scene.tile) - ui.dragOffset.cellX;
+      const cellY = (wpos.y / scene.tile) - ui.dragOffset.cellY;
+      const nx = Math.round(cellX);
+      const ny = Math.round(cellY);
+      scene.moveUnit(u.id, nx, ny);
+      render();
+    }
+    return;
+  }
+
+  // Redraw pending connection
+  if (ui.pendingFrom) render();
+});
+
+svg.addEventListener('pointerup', () => {
+  ui.isPanning = false;
+  ui.panStart = null;
+
+  if (ui.isDraggingUnit) {
+    ui.isDraggingUnit = false;
+    ui.dragUnitId = null;
+    ui.dragOffset = null;
+    
+    updatePropertiesPanel();
+    render();
+  }
+});
+
+svg.addEventListener('wheel', (ev) => {
+  ev.preventDefault();
+  const z = (ev.deltaY < 0) ? 0.9 : 1.1;
+  const m = screenToWorld(ev.clientX, ev.clientY);
+  const v = ui.view;
+  const newW = v.w * z;
+  const newH = v.h * z;
+  const rx = (m.x - v.x) / v.w;
+  const ry = (m.y - v.y) / v.h;
+  v.x = m.x - rx * newW;
+  v.y = m.y - ry * newH;
+  v.w = newW;
+  v.h = newH;
+  render();
+}, { passive: false });
+
+// Drag & drop from unit library
+svg.addEventListener('dragover', (ev) => {
+  ev.preventDefault();
+  ev.dataTransfer.dropEffect = 'copy';
+});
+
+svg.addEventListener('dragleave', (ev) => {
+  // Clear flag if drag leaves the canvas without dropping
+  if (ev.target === svg) {
+    ui.isHTML5Dragging = false;
+  }
+});
+
+svg.addEventListener('drop', (ev) => {
+  ev.preventDefault();
+  const defId = ev.dataTransfer.getData('text/plain') || ui.dragDefId;
+  if (!defId) return;
+  
+  const w = screenToWorld(ev.clientX, ev.clientY);
+  const cell = worldToCell(w.x, w.y);
+  const id = scene.placeUnit(defId, cell.x, cell.y);
+  
+  if (!id) {
+    setStatus('Cannot place here (collision).');
+    ui.dragDefId = null;
+    ui.isHTML5Dragging = false;
+    return;
+  }
+  
+  ui.selectedUnitId = id;
+  ui.selectedConnId = null;
+  ui.pendingFrom = null;
+  ui.dragDefId = null;
+  ui.isHTML5Dragging = false;
+  setStatus(`Placed: ${UnitRegistry.get(defId).name}`);
+  
+  updatePropertiesPanel();
+  render();
+});
+
+// Keyboard shortcuts
+window.addEventListener('keydown', (ev) => {
+  if (ev.key === 'Escape') {
+    ui.pendingFrom = null;
+    closeMenus();
+    setStatus('Cancelled.');
+    
+    render();
+  }
+  if (ev.key.toLowerCase() === 'r') rotateSelected();
+  if (ev.key === 'Delete') deleteSelected();
+});
+
+/* =========================
+   BUTTONS & MENUS
+   ========================= */
+btnRun.addEventListener('click', () => {
+  const solveResult = solveScene(scene);
+  setStatus(describeSolve());
+  updateStatusIndicator(solveResult);
+  updatePropertiesPanel();
+  render();
+});
+
+// Status indicator help button
+const statusHelp = document.querySelector('.status-help');
+if (statusHelp) {
+  statusHelp.addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    showDiagnosisDialog();
+  });
+}
+
+btnAdd.addEventListener('click', () => {
+  ui.selectedUnitId = null;
+  ui.selectedConnId = null;
+  showUnitLibrary();
+  
+  render();
+});
+
+// Status card toggle
+btnMenu.addEventListener('click', (ev) => {
+  ev.stopPropagation();
+  menuFile.classList.remove('open');
+  toggle(menuMain);
+});
+
+btnFile.addEventListener('click', (ev) => {
+  ev.stopPropagation();
+  menuMain.classList.remove('open');
+  toggle(menuFile);
+});
+
+document.addEventListener('pointerdown', (ev) => {
+  const t = ev.target;
+  if (!(t.closest && (t.closest('.menuWrap') || t.closest('.menu')))) {
+    closeMenus();
+  }
+});
+
+document.getElementById('mComponents').addEventListener('click', () => {
+  buildComponentsPanel();
+  modalComponents.classList.add('open');
+  closeMenus();
+});
+
+document.getElementById('mModels').addEventListener('click', () => {
+  modalModels.classList.add('open');
+  closeMenus();
+});
+
+document.getElementById('mUnits').addEventListener('click', () => {
+  buildUnitsPanel();
+  modalUnits.classList.add('open');
+  closeMenus();
+});
+
+// Close modals when clicking outside
+modalModels.addEventListener('click', (ev) => {
+  if (ev.target === modalModels) {
+    modalModels.classList.remove('open');
+  }
+});
+
+modalUnits.addEventListener('click', (ev) => {
+  if (ev.target === modalUnits) {
+    modalUnits.classList.remove('open');
+  }
+});
+
+modalComponents.addEventListener('click', (ev) => {
+  if (ev.target === modalComponents) {
+    modalComponents.classList.remove('open');
+  }
+});
+
+document.getElementById('mLoadDemo').addEventListener('click', () => {
+  if (confirm('Load demo? This will replace the current scene.')) {
+    loadDemo();
+  }
+  closeMenus();
+});
+
+document.getElementById('mClear').addEventListener('click', () => {
+  if (confirm('Clear the entire scene? This cannot be undone.')) {
+    scene.importJSON(JSON.stringify({
+      version: 7,
+      grid: { w: 22, h: 14, tile: 48 },
+      units: [],
+      connections: [],
+      modelsActive: models.active
+    }));
+    deselectAll();
+    setStatus('Scene cleared.');
+  }
+  closeMenus();
+});
+
+document.getElementById('mExport').addEventListener('click', () => {
+  ioEl.value = scene.exportJSON();
+  navigator.clipboard.writeText(ioEl.value)
+    .then(() => {
+      setStatus('Export copied to clipboard!');
+    })
+    .catch(() => {
+      setStatus('Export: ' + ioEl.value);
+    });
+  closeMenus();
+});
+
+document.getElementById('mImport').addEventListener('click', () => {
+  const jsonStr = prompt('Paste JSON data:');
+  if (!jsonStr) return;
+  
+  try {
+    scene.importJSON(jsonStr);
+    buildModelsPanel();
+    deselectAll();
+    setStatus('Import OK.');
+  } catch (e) {
+    setStatus('Import failed: ' + e.message);
+  }
+  closeMenus();
+});
+
+/* =========================
+   DEMO
+   ========================= */
+function loadDemo() {
+  scene.importJSON(JSON.stringify({
+    version: 7,
+    grid: { w: 22, h: 14, tile: 48 },
+    units: [
+      // Material source
+      { id: 'src-1', defId: 'source', name: 'H2O Feed', x: 2, y: 6, rot: 0, 
+        params: { species: 'H2O', P: 101325, T: 125, nDot: 1.0, phaseConstraint: 'VL' } },
+      
+      // Power chain
+      { id: 'elec-1', defId: 'source_electrical', name: 'Grid', x: 2, y: 2, rot: 0, 
+        params: { maxPower: 100 } },
+      { id: 'motor-1', defId: 'motor', name: 'Motor', x: 6, y: 2, rot: 0, 
+        params: { eta: 0.92 } },
+      
+      // Compressor
+      { id: 'comp-1', defId: 'compressor', name: 'Compressor', x: 10, y: 4, rot: 0, 
+        params: { Pout: 500000, eta: 0.75 } },
+      
+      // Sink
+      { id: 'sink-1', defId: 'sink', name: 'Product', x: 15, y: 6, rot: 0, 
+        params: {} },
+    ],
+    connections: [
+      // Material flow: source → compressor → sink
+      { id: 'c1', from: { unitId: 'src-1', portId: 'out' }, 
+        to: { unitId: 'comp-1', portId: 'mat_in' } },
+      { id: 'c2', from: { unitId: 'comp-1', portId: 'mat_out' }, 
+        to: { unitId: 'sink-1', portId: 'in' } },
+      
+      // Power flow: grid → motor → compressor
+      { id: 'c3', from: { unitId: 'elec-1', portId: 'out' }, 
+        to: { unitId: 'motor-1', portId: 'elec_in' } },
+      { id: 'c4', from: { unitId: 'motor-1', portId: 'mech_out' }, 
+        to: { unitId: 'comp-1', portId: 'power_in' } },
+    ],
+    modelsActive: models.active
+  }));
+
+  ui.selectedUnitId = null;
+  ui.selectedConnId = null;
+  ui.pendingFrom = null;
+  const solveResult = solveScene(scene);
+  setStatus(describeSolve() + "\nDemo loaded: Power system with compressor.");
+  updateStatusIndicator(solveResult);
+  
+  updatePropertiesPanel();
+  render();
+}
+
+/* =========================
+   INITIALIZATION
+   ========================= */
+buildModelsPanel();
+
+// Initialize viewport and handle window resize
+window.addEventListener('resize', () => {
+  setViewBox();
+  render();
+});
+
+setViewBox();
+
+updatePropertiesPanel();
+render();
+loadDemo();
+</script>
+</body>
+</html>
