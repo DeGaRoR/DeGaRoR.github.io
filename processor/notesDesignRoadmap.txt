@@ -1,0 +1,6 @@
+Conditions:
+Atmosphere: O₂: 21%, CO₂: 8%, N₂: 70%, Ar: 1%, unbreathable
+Liquid H2O available
+CH4 and H2 vents nearby
+
+
