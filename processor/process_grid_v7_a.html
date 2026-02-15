@@ -84,16 +84,6 @@
   These invariants MUST be preserved by any modification to this codebase.
   Violating any of them is a regression, regardless of the feature being added.
 
-  CONSERVATION LAWS:
-    NNG-L1  Mass balance rigorously closed.  Every non-boundary unit must
-            conserve total mass (kg/s in = kg/s out).  The balance is global
-            (total mass), not per-species — reactions change composition but
-            conserve total mass by stoichiometric design.
-    NNG-L2  Energy balance rigorously closed.  Every non-boundary unit must
-            satisfy E_in = E_out (material enthalpy + work/heat streams).
-            Residuals > 100 W are flagged.  Reactors include heat of reaction
-            via formation enthalpies — energy is never created or destroyed.
-
   ARCHITECTURE:
     NNG-A1  Single-file HTML.  All code lives in this file.  No external JS
             files, no build step.  CDN imports (e.g. for icon fonts) are the
@@ -105,41 +95,12 @@
             Solver, PG.*).  No DOM setup, no visual assertions.
     NNG-A4  Export surface.  Anything that tests or external code needs access
             to must be exported on the global `PG` object.
-    NNG-A5  Registry pattern for all database-type content.  Each domain of
-            extensible data has its own registry class with static register/get:
-              ComponentRegistry  — chemical species and their properties
-              ModelRegistry      — thermodynamic model packages (by kind)
-              UnitRegistry       — process unit definitions (defId → tick/ports)
-            Future registries (e.g. ReactionRegistry) follow the same pattern:
-            static _map, static register(id, spec), static get(id), static all().
 
-  UNITS & CONVENTIONS:
-    NNG-U1  Absolutely consistent and unique physical units in the calculation
-            engine.  SI base units internally: Pa, K, mol/s, W (=J/s), J/mol,
-            J/(mol·K), kg/m³.  No mixed-unit formulas.  User-facing params may
-            use kW, bar, °C — converted at the tick boundary, never inside core.
-    NNG-U2  All units registered via UnitRegistry.register({ defId, ports, tick }).
-            No ad-hoc unit implementations outside the registry.
-    NNG-U3  All thermodynamic calculations go through ThermoAdapter.  No direct
-            Antoine/Cp/flash/enthalpy formulas in unit tick functions.
-    NNG-U4  Thermodynamic models are ThermoPackage subclasses managed by
-            ModelRegistry.  A package is a coherent, self-consistent set of
-            methods (Cp, H, satP, density, flash).  The active package is set
-            globally via ThermoAdapter.setPackage().  Units never call package
-            methods directly — always through ThermoAdapter.
-    NNG-U5  Error severity: CATASTROPHIC (unit faulted, solver stops), MAJOR
-            (wrong result, continue), MINOR (informational).  Severity objects
-            have numeric .level field for programmatic comparison.
-
-  STREAMS & VALIDATION:
-    NNG-M1  STREAM_CONTRACTS is the single source of truth for all stream
-            schemas.  Validation code references this object, not ad-hoc rules.
-    NNG-M2  Two-phase validation: pre-flash checks tick output (spec-aware),
-            post-flash checks resolved streams (T must exist for material).
-    NNG-M3  Material streams: spec inferred from fields (H_target_Jps → ph_flash,
-            T → fully).  No explicit `spec` field on streams.
-    NNG-M4  Power streams: field names are capacity/actual/demand/curtailmentFactor.
-            No _W suffix.  `available` is a deprecated alias for `capacity`.
+  TESTING:
+    NNG-T1  All existing tests must pass after any change.  No exceptions.
+    NNG-T2  New features must include tests.  Minimum: one positive-path test,
+            one error/edge-case test.
+    NNG-T3  Tests must be deterministic.  No random inputs, no timing deps.
 
   SOLVER:
     NNG-S1  Solver step ordering is fixed:
@@ -155,18 +116,25 @@
             Steps B-E) → actual (set by solver, ≤ capacity) → curtailmentFactor
             (actual/demand).  Consumers read input.actual, not input.capacity.
 
-  DATA COMPLETENESS:
-    NNG-D1  A species used in any stream must exist in ComponentRegistry with
-            all properties required by the active ThermoPackage (at minimum:
-            MW, Tc, Pc, Tb, antoine, cpig).  Missing properties → CATASTROPHIC.
-    NNG-D2  A reaction used by a reactor must reference only species present in
-            ComponentRegistry.  All referenced species must have formation
-            enthalpy data (Hf_298) for energy balance.  Stoichiometry must be
-            mass-balanced (Σ ν_i × MW_i = 0).  These are checked at registration
-            time, not at runtime.
-    NNG-D3  No unit may produce a species not already defined in ComponentRegistry.
-            Reactor products, mixer outputs, splitter outputs — all species must
-            be pre-registered.  Violations are CATASTROPHIC.
+  STREAMS:
+    NNG-M1  STREAM_CONTRACTS is the single source of truth for all stream
+            schemas.  Validation code references this object, not ad-hoc rules.
+    NNG-M2  Two-phase validation: pre-flash checks tick output (spec-aware),
+            post-flash checks resolved streams (T must exist for material).
+    NNG-M3  Material streams: spec inferred from fields (H_target_Jps → ph_flash,
+            T → fully).  No explicit `spec` field on streams.
+    NNG-M4  Power streams: field names are capacity/actual/demand/curtailmentFactor.
+            No _W suffix.  `available` is a deprecated alias for `capacity`.
+
+  UNITS & CONVENTIONS:
+    NNG-U1  SI base units internally: Pa, K, mol/s, W (=J/s), J/(mol·K).
+            User-facing params may use kW, bar, °C — converted at tick boundary.
+    NNG-U2  All units registered via UnitRegistry.register({ defId, ports, tick }).
+            No ad-hoc unit implementations outside the registry.
+    NNG-U3  All thermodynamic calculations go through ThermoAdapter.  No direct
+            Antoine/Cp/flash formulas in unit tick functions.
+    NNG-U4  Error severity: CATASTROPHIC (unit faulted), MAJOR (wrong, continue),
+            MINOR (informational).  Severity objects have numeric .level field.
 
   COMPATIBILITY:
     NNG-C1  Old save files must still load.  importJSON handles version migration.
@@ -175,12 +143,6 @@
     NNG-C3  No gameplay physics changes in structural refactors.  If a refactor
             would change any computed value (temperature, pressure, power, flow),
             it is a functional change and must be explicitly documented and tested.
-
-  TESTING:
-    NNG-T1  All existing tests must pass after any change.  No exceptions.
-    NNG-T2  New features must include tests.  Minimum: one positive-path test,
-            one error/edge-case test.
-    NNG-T3  Tests must be deterministic.  No random inputs, no timing deps.
 
   ─── v6.4.0 ───────────────────────────────────────────────────────────────
   Power stream semantic clarification.
