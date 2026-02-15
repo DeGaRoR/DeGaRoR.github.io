@@ -15531,16 +15531,14 @@ function runTests() {
       elecDef.tick = origElecTick;
     }
 
-    // ── Test C: material source with T deleted → solver ok:false ──
-    // NOTE: setting T=NaN is caught and healed by validateStreamFlows (line ~3784)
-    // which runs before validateUnitPorts.  Deleting T entirely bypasses that healer.
+    // ── Test C: material source with NaN T → solver ok:false ──
     t.clearScene();
     const srcDef2 = UnitRegistry.get('source');
     const origTick2 = srcDef2.tick;
 
     srcDef2.tick = function(u, ports, par, ctx) {
       origTick2.call(this, u, ports, par, ctx);
-      delete ports.out.T;  // Corrupt: remove T entirely (no H_target_Jps either)
+      ports.out.T = NaN;  // Corrupt: NaN temperature
     };
 
     try {
@@ -15549,13 +15547,13 @@ function runTests() {
       t.wire(src, 'out', snk, 'in');
 
       const r = t.solveRaw();
-      t.assertOK(r.ok === false, 'Solver ok=false when T deleted');
+      t.assertOK(r.ok === false, 'Solver ok=false when T=NaN');
 
       const srcUD = t.ud(src);
       const hasTErr = srcUD.errors.some(e =>
-        typeof e === 'object' && e.code === 'MATERIAL_NO_T_OR_H'
+        typeof e === 'object' && e.code === 'MATERIAL_T_NAN'
       );
-      t.assertOK(hasTErr, 'ud.errors includes MATERIAL_NO_T_OR_H');
+      t.assertOK(hasTErr, 'ud.errors includes MATERIAL_T_NAN');
     } finally {
       srcDef2.tick = origTick2;
     }
