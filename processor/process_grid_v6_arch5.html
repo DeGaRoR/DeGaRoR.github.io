@@ -44,33 +44,28 @@
    Fix: Steps B/D/E now detect scratch value changes (powerDemand_W,
    directCurtailment, actualDraw_W) and set changed=true to prevent
    premature convergence when power demand propagation lags port stability.
-
-  ─── v6.2.0 ───────────────────────────────────────────────────────────────
-  Stream documentation alignment & runtime validation:
-   Part 1 — Documentation:
-    - Architecture overview: MATERIAL stream schema with all fields documented
-    - UnitRegistry docs: replaced stale 'gas'/'liquid' + QkW/WkW with actual
-      runtime schema ('V'|'L'|'VL', capacity/actual/demand/curtailmentFactor)
-    - Clarified 'available' as deprecated alias for capacity
-   Part 2 — Validation functions:
-    - validateStream(stream, {portType, unitId, portId}) → Issue[]
-      Checks MATERIAL (P, n, T/H_target_Jps, phase, vaporFraction) and
-      ELECTRICAL/MECHANICAL/HEAT (capacity, actual, demand, curtailmentFactor)
-    - validateUnitPorts(unitData, unit, def) → Issue[]
-      Validates all output ports of a unit after tick
-    - Severity escalation: NaN/missing → CATASTROPHIC, out-of-range → MAJOR/MINOR
-   Part 3 — Solver integration:
-    - validateUnitPorts called after every unit tick, before convergence check
-    - CATASTROPHIC violations set unitFaulted=true → solver returns ok:false
-    - Issues attached to ud.errors with structured {severity, message, code}
-   Tests: Section Z (Tests 100–101)
-    - Test 100: Pure validator — 20+ assertions covering missing/NaN/invalid fields
-    - Test 101: Integration — monkeypatched source (delete P), source_electrical
-      (NaN actual), source (NaN T) all produce ok:false + correct error codes
   ═══════════════════════════════════════════════════════════════════════════
   
   A web-based process simulation and flowsheet design tool.
   
+  ─── v6.2.0 ───────────────────────────────────────────────────────────────
+  XSS surface elimination: ban untrusted innerHTML + UI sanitization tests.
+   html: usages reduced 197 → ~70 (remaining are safe value+unit patterns).
+   innerHTML assignments reduced 16 → 9 (clears, el() handler, statics).
+   Untrusted paths fixed:
+    - addNumberEditor / addSelectEditor: html: label → text: label
+    - Component table: formula, name, phase298, MW, Tc, Pc, ω, Tb → text:
+    - Unit catalog card, units panel card: innerHTML → DOM construction
+    - Validation header: innerHTML with formula/name → DOM construction
+    - Stream header, unit subtitle: html with user names → text: / DOM
+    - Heat warnings, portId display: html → text:
+    - System balance table (item.name): html → balanceRow() helper
+    - Antoine & Cp coefficients, cpLiq: innerHTML → DOM construction
+    - 100 static labels: html: 'X' → text: 'X' (batch)
+   New: balanceRow(style, label, detail, value) safe DOM builder.
+   New security tests 8–10: el(text:), addNumberEditor, balanceRow
+    all verified against <img onerror="window.__xss=1"> payload.
+
   ARCHITECTURE OVERVIEW:
   ─────────────────────────────────────────────────────────────────────────
   
@@ -86,25 +81,16 @@
      - Unit systems: SI, SI (bar), Imperial
   
   3. STREAM TYPES
-     - MATERIAL: { type, T, P, n, phase, vaporFraction, beta, x, y, nV, nL,
-                    Hdot_J_s, H_target_Jps?, phaseConstraint? }
-         T: temperature in Kelvin (always absolute)
-         P: pressure in Pascals
-         n: { species: mol/s } — molar flow map
-         phase: 'V' | 'L' | 'VL'  (set by flash calculation)
-         vaporFraction / beta: 0..1
-         H_target_Jps: when set, triggers PH flash (solver finds T)
-     - HEAT:       { type, capacity, actual, demand } — all values in W (watts)
-     - MECHANICAL: { type, capacity, actual, demand } — all values in W (watts)
-     - ELECTRICAL: { type, capacity, actual, demand, curtailmentFactor }
-                   — all values in W; curtailmentFactor 0..1
-
-     Non-material stream semantics (v4.1.0, updated v6.2):
-       capacity            = max the source can provide (set by producer)
-       actual              = power actually transferred after demand resolution
-       demand              = power the consumer wants (propagated backward)
-       curtailmentFactor   = actual/demand, clamped 0..1 (set by hub or Steps D/E)
-       available           = DEPRECATED alias for capacity — do not use in new code
+     - MATERIAL: T, P, n (molar flows), phase, vaporFraction
+     - HEAT: {capacity, actual, demand} in W (watts)
+     - MECHANICAL: {capacity, actual, demand} in W (watts)
+     - ELECTRICAL: {capacity, actual, demand, curtailmentFactor} in W (watts)
+     
+     Non-material stream semantics (v4.1.0):
+       capacity = maximum the source can provide (set by producer)
+       actual   = power actually transferred after demand resolution
+       demand   = power the consumer wants (propagated backward)
+       available = deprecated alias for capacity (read-only)
   
   4. UNIT OPERATIONS
      - Category-based organization with color coding
@@ -121,9 +107,8 @@
   6. SOLVER
      - Successive substitution with topological ordering
      - Automatic flash calculation on material streams
-     - Stream type validation + structural stream validation (v6.2)
+     - Stream type validation
      - Convergence checking
-     - Post-tick validateStream() catches NaN/missing/out-of-range fields
   
   7. UI ARCHITECTURE
      - Modal dialogs for Components, Models, Units
@@ -3815,222 +3800,9 @@ function validateFlashResult(result, context) {
 }
 
 /* =========================
-   [v6.2] STREAM STRUCTURAL VALIDATION
-   Validates that a stream object has the required fields for its type,
-   with correct types and sane ranges.  Returns Issue[] where each issue is:
-     { severity: ErrorSeverity.X, message: string, code: string }
-   Lightweight — called after every tick, so no allocations on the happy path.
+   ERROR CATALOG & DIAGNOSIS
+   Natural language explanations for common failures
    ========================= */
-
-const VALID_PHASES = new Set(['V', 'L', 'VL']);
-const POWER_STREAM_TOL = 1.0;   // 1 W tolerance for actual <= capacity check
-
-/**
- * Validate a single stream object against its expected port type.
- * @param {Object}  stream   - The stream object to validate
- * @param {Object}  ctx      - { portType, unitId, portId }
- * @returns {Array} issues   - Array of { severity, message, code } (empty = clean)
- */
-function validateStream(stream, ctx) {
-  const issues = [];
-  if (!stream) return issues;
-
-  const label = `${ctx.unitId || '?'}:${ctx.portId || '?'}`;
-
-  // ── Type field ──
-  if (stream.type === undefined || stream.type === null) {
-    issues.push({ severity: ErrorSeverity.CATASTROPHIC,
-      message: `${label}: stream missing 'type' field`,
-      code: 'STREAM_NO_TYPE' });
-    return issues;  // Cannot validate further without type
-  }
-  if (stream.type !== ctx.portType) {
-    issues.push({ severity: ErrorSeverity.CATASTROPHIC,
-      message: `${label}: stream.type=${stream.type} but portType=${ctx.portType}`,
-      code: 'STREAM_TYPE_MISMATCH' });
-    return issues;
-  }
-
-  // ── MATERIAL stream validation ──
-  if (stream.type === StreamType.MATERIAL) {
-
-    // P: required, finite, > 0
-    if (stream.P === undefined || stream.P === null) {
-      issues.push({ severity: ErrorSeverity.CATASTROPHIC,
-        message: `${label}: material stream missing P`,
-        code: 'MATERIAL_NO_P' });
-    } else if (!isFiniteNum(stream.P)) {
-      issues.push({ severity: ErrorSeverity.CATASTROPHIC,
-        message: `${label}: P = ${stream.P} (non-finite)`,
-        code: 'MATERIAL_P_NAN' });
-    } else if (stream.P <= 0) {
-      issues.push({ severity: ErrorSeverity.MAJOR,
-        message: `${label}: P = ${stream.P} Pa (must be > 0)`,
-        code: 'MATERIAL_P_NONPOSITIVE' });
-    }
-
-    // n: required, object, all values finite >= 0
-    if (!stream.n || typeof stream.n !== 'object') {
-      issues.push({ severity: ErrorSeverity.CATASTROPHIC,
-        message: `${label}: material stream missing or invalid 'n' (molar flows)`,
-        code: 'MATERIAL_NO_N' });
-    } else {
-      for (const [comp, val] of Object.entries(stream.n)) {
-        if (!isFiniteNum(val)) {
-          issues.push({ severity: ErrorSeverity.CATASTROPHIC,
-            message: `${label}: n["${comp}"] = ${val} (non-finite)`,
-            code: 'MATERIAL_N_NAN' });
-        } else if (val < 0) {
-          issues.push({ severity: ErrorSeverity.MAJOR,
-            message: `${label}: n["${comp}"] = ${val} (negative flow)`,
-            code: 'MATERIAL_N_NEGATIVE' });
-        }
-      }
-    }
-
-    // T or H_target_Jps: at least one must be present and finite
-    const hasT = stream.T !== undefined && stream.T !== null;
-    const hasH = stream.H_target_Jps !== undefined && stream.H_target_Jps !== null;
-    if (!hasT && !hasH) {
-      issues.push({ severity: ErrorSeverity.CATASTROPHIC,
-        message: `${label}: material stream has neither T nor H_target_Jps`,
-        code: 'MATERIAL_NO_T_OR_H' });
-    } else if (hasT) {
-      if (!isFiniteNum(stream.T)) {
-        issues.push({ severity: ErrorSeverity.CATASTROPHIC,
-          message: `${label}: T = ${stream.T} (non-finite)`,
-          code: 'MATERIAL_T_NAN' });
-      } else if (stream.T < 1 || stream.T > 5000) {
-        issues.push({ severity: ErrorSeverity.MAJOR,
-          message: `${label}: T = ${stream.T} K (outside 1..5000 K bounds)`,
-          code: 'MATERIAL_T_RANGE' });
-      }
-    }
-    if (hasH && !isFiniteNum(stream.H_target_Jps)) {
-      issues.push({ severity: ErrorSeverity.CATASTROPHIC,
-        message: `${label}: H_target_Jps = ${stream.H_target_Jps} (non-finite)`,
-        code: 'MATERIAL_H_NAN' });
-    }
-
-    // phase: if present, must be valid
-    if (stream.phase !== undefined && !VALID_PHASES.has(stream.phase)) {
-      issues.push({ severity: ErrorSeverity.MAJOR,
-        message: `${label}: phase = '${stream.phase}' (must be 'V', 'L', or 'VL')`,
-        code: 'MATERIAL_PHASE_INVALID' });
-    }
-
-    // vaporFraction: if present, must be finite 0..1
-    if (stream.vaporFraction !== undefined) {
-      if (!isFiniteNum(stream.vaporFraction)) {
-        issues.push({ severity: ErrorSeverity.MAJOR,
-          message: `${label}: vaporFraction = ${stream.vaporFraction} (non-finite)`,
-          code: 'MATERIAL_VF_NAN' });
-      } else if (stream.vaporFraction < -1e-9 || stream.vaporFraction > 1 + 1e-9) {
-        issues.push({ severity: ErrorSeverity.MINOR,
-          message: `${label}: vaporFraction = ${stream.vaporFraction} (outside 0..1)`,
-          code: 'MATERIAL_VF_RANGE' });
-      }
-    }
-
-  // ── ELECTRICAL / MECHANICAL / HEAT stream validation ──
-  } else if (stream.type === StreamType.ELECTRICAL ||
-             stream.type === StreamType.MECHANICAL ||
-             stream.type === StreamType.HEAT) {
-
-    const typeName = stream.type === StreamType.ELECTRICAL ? 'electrical'
-                   : stream.type === StreamType.MECHANICAL ? 'mechanical' : 'heat';
-
-    // capacity: finite >= 0 (Infinity allowed for unconstrained sources)
-    if (stream.capacity !== undefined) {
-      if (typeof stream.capacity !== 'number' || isNaN(stream.capacity)) {
-        issues.push({ severity: ErrorSeverity.CATASTROPHIC,
-          message: `${label}: ${typeName} capacity = ${stream.capacity} (NaN)`,
-          code: 'POWER_CAPACITY_NAN' });
-      } else if (stream.capacity < 0) {
-        issues.push({ severity: ErrorSeverity.MAJOR,
-          message: `${label}: ${typeName} capacity = ${stream.capacity} W (negative)`,
-          code: 'POWER_CAPACITY_NEGATIVE' });
-      }
-      // Infinity is allowed — represents unconstrained source
-    }
-
-    // actual: required, finite >= 0
-    if (stream.actual === undefined || stream.actual === null) {
-      issues.push({ severity: ErrorSeverity.CATASTROPHIC,
-        message: `${label}: ${typeName} stream missing 'actual'`,
-        code: 'POWER_NO_ACTUAL' });
-    } else if (!isFiniteNum(stream.actual)) {
-      issues.push({ severity: ErrorSeverity.CATASTROPHIC,
-        message: `${label}: ${typeName} actual = ${stream.actual} (non-finite)`,
-        code: 'POWER_ACTUAL_NAN' });
-    } else if (stream.actual < 0) {
-      issues.push({ severity: ErrorSeverity.MAJOR,
-        message: `${label}: ${typeName} actual = ${stream.actual} W (negative)`,
-        code: 'POWER_ACTUAL_NEGATIVE' });
-    }
-
-    // demand: finite or Infinity (Infinity allowed for sink semantics)
-    if (stream.demand !== undefined) {
-      if (typeof stream.demand !== 'number' || isNaN(stream.demand)) {
-        issues.push({ severity: ErrorSeverity.MAJOR,
-          message: `${label}: ${typeName} demand = ${stream.demand} (NaN)`,
-          code: 'POWER_DEMAND_NAN' });
-      }
-      // Infinity and negative demand are allowed (backward propagation)
-    }
-
-    // curtailmentFactor: if present, finite 0..1
-    if (stream.curtailmentFactor !== undefined) {
-      if (!isFiniteNum(stream.curtailmentFactor)) {
-        issues.push({ severity: ErrorSeverity.MAJOR,
-          message: `${label}: curtailmentFactor = ${stream.curtailmentFactor} (non-finite)`,
-          code: 'POWER_CF_NAN' });
-      } else if (stream.curtailmentFactor < -1e-9 || stream.curtailmentFactor > 1 + 1e-9) {
-        issues.push({ severity: ErrorSeverity.MINOR,
-          message: `${label}: curtailmentFactor = ${stream.curtailmentFactor} (outside 0..1)`,
-          code: 'POWER_CF_RANGE' });
-      }
-    }
-
-    // Cross-check: actual <= capacity + tolerance (when both finite)
-    if (isFiniteNum(stream.actual) && isFiniteNum(stream.capacity)) {
-      if (stream.actual > stream.capacity + POWER_STREAM_TOL) {
-        issues.push({ severity: ErrorSeverity.MINOR,
-          message: `${label}: ${typeName} actual (${stream.actual.toFixed(1)} W) > capacity (${stream.capacity.toFixed(1)} W)`,
-          code: 'POWER_ACTUAL_EXCEEDS_CAPACITY' });
-      }
-    }
-  }
-
-  return issues;
-}
-
-/**
- * Validate all output ports of a unit after its tick has run.
- * @param {Object} unitData  - ud from scene.runtime.unitData
- * @param {Object} unit      - u from scene.units
- * @param {Object} def       - UnitRegistry definition
- * @returns {Array} issues   - Combined issues from all ports
- */
-function validateUnitPorts(unitData, unit, def) {
-  const issues = [];
-  const unitId = unit?.name || def?.defId || '?';
-  for (const p of def.ports) {
-    if (p.dir !== PortDir.OUT) continue;
-    const stream = unitData.ports[p.portId];
-    if (!stream) continue;  // Null/undefined output = no stream produced (valid for optional ports)
-    const portIssues = validateStream(stream, {
-      portType: p.type,
-      unitId: unitId,
-      portId: p.portId
-    });
-    for (const issue of portIssues) {
-      issue.portId = p.portId;
-      issues.push(issue);
-    }
-  }
-  return issues;
-}
 const ErrorCatalog = {
   // Catastrophic failures
   'compressor.*liquid': {
@@ -4315,22 +4087,10 @@ const UnitCategories = {
    { portId: 'unique_id', dir: PortDir.IN/OUT, type: StreamType.XXX, x: pos_x, y: pos_y }
    
    Stream object MUST have matching 'type' field:
-   - MATERIAL:   { type: StreamType.MATERIAL, T, P, n:{species:mol_s},
-                    phase?:'V'|'L'|'VL', vaporFraction?, beta?,
-                    H_target_Jps?, phaseConstraint?:'V'|'L'|'VL' }
-       T in Kelvin, P in Pascals, n values in mol/s.
-       phase/vaporFraction/beta are set by flash calculation (not by tick).
-       If H_target_Jps is set, PH flash is used instead of TP flash.
-   - HEAT:       { type: StreamType.HEAT,       capacity, actual, demand }
-   - MECHANICAL: { type: StreamType.MECHANICAL,  capacity, actual, demand }
-   - ELECTRICAL: { type: StreamType.ELECTRICAL,  capacity, actual, demand,
-                    curtailmentFactor?, available? }
-       All power values in Watts (W).
-       capacity  = max source output (W).
-       actual    = power delivered after demand resolution (W).
-       demand    = consumer request propagated backward (W).
-       curtailmentFactor = actual/demand clamped 0..1 (set by hub/Steps D-E).
-       available = DEPRECATED alias for capacity — do not use in new code.
+   - MATERIAL: { type: StreamType.MATERIAL, phase: 'gas'/'liquid', T, P, nDot/mDot, comp }
+   - HEAT: { type: StreamType.HEAT, QkW }
+   - MECHANICAL: { type: StreamType.MECHANICAL, WkW }
+   - ELECTRICAL: { type: StreamType.ELECTRICAL, QkW }
    
    Connections are only allowed between ports of the SAME type.
    The solver validates that streams produced match their port types.
@@ -7499,22 +7259,6 @@ function solveScene(scene, options = {}) {
         }
       }
 
-      // [v6.2] Structural stream validation — catch malformed outputs early.
-      // Runs after every tick; issues are attached to ud.errors with severity.
-      // CATASTROPHIC violations (NaN, missing fields) flag the unit as faulted
-      // so the solver can return ok:false.
-      // NOTE: Must run AFTER ud.ports is populated but before convergence check.
-      // ud.last.error is written here but ud.errors is the durable store.
-      {
-        const streamIssues = validateUnitPorts(ud, u, def);
-        for (const issue of streamIssues) {
-          ud.errors.push(issue);
-          if (issue.severity.level >= ErrorSeverity.CATASTROPHIC.level) {
-            unitFaulted = true;
-          }
-        }
-      }
-
       // Check if anything changed (forward computation only)
       // Exclude 'demand' field from comparison — it's a backward annotation
       // written by post-processing, not a forward computation result.
@@ -7524,19 +7268,6 @@ function solveScene(scene, options = {}) {
 
       // Store unit-specific calculation results
       ud.last = u.last || {};
-
-      // [v6.2] If stream validation found CATASTROPHIC issues, attach to ud.last.error
-      // (must come after ud.last is assigned from u.last)
-      {
-        const catIssue = ud.errors.find(e => {
-          if (typeof e !== 'object' || !e.severity || !e.code) return false;
-          if (e.severity.level < ErrorSeverity.CATASTROPHIC.level) return false;
-          return e.code.startsWith('MATERIAL_') || e.code.startsWith('POWER_') || e.code.startsWith('STREAM_');
-        });
-        if (catIssue) {
-          ud.last.error = { severity: catIssue.severity, message: catIssue.message };
-        }
-      }
 
       // [v5.5.1] Validate key numeric outputs in u.last — catch NaN/Infinity
       // from thermo work calculations before they propagate to UI/downstream.
@@ -9200,14 +8931,14 @@ function showUnitLibrary() {
   const titleDiv = el('div', { 
     class: 'unitTitle', 
     style: 'cursor:default;',
-    html: 'Add Unit' 
+    text: 'Add Unit' 
   });
   propEditor.appendChild(titleDiv);
   
   // Subtitle
   const subtitleDiv = el('div', { 
     class: 'unitSubtitle', 
-    html: 'Drag a unit onto the canvas' 
+    text: 'Drag a unit onto the canvas' 
   });
   propEditor.appendChild(subtitleDiv);
   
@@ -9231,12 +8962,13 @@ function showUnitLibrary() {
       const card = document.createElement('div');
       card.className = 'unitLibraryCard';
       card.draggable = true;
-      card.innerHTML = `
-        <div class="name">
-          <span class="swatch" style="background:${def.color}"></span>${def.name}
-        </div>
-        <div class="desc">${def.defId}</div>
-      `;
+      // [v6.2] XSS: def.name/defId — built safely via DOM
+      const nameDiv = el('div', { class: 'name' });
+      const swatch = el('span', { class: 'swatch', style: `background:${def.color}` });
+      nameDiv.appendChild(swatch);
+      nameDiv.appendChild(document.createTextNode(def.name));
+      card.appendChild(nameDiv);
+      card.appendChild(el('div', { class: 'desc', text: def.defId }));
       
       card.addEventListener('dragstart', (ev) => {
         ui.dragDefId = def.defId;
@@ -9268,10 +9000,9 @@ function buildUnitsPanel() {
       style: `cursor:pointer; padding:12px; margin-bottom:8px; border:1px solid ${sys.id === activeId ? '#3b82f6' : '#2a2f3a'}; border-radius:8px; background:${sys.id === activeId ? '#3b82f611' : 'transparent'};`
     });
     
-    card.innerHTML = `
-      <div style="font-weight:700; margin-bottom:4px;">${sys.name}</div>
-      <div class="small">${sys.desc}</div>
-    `;
+    // [v6.2] XSS: sys.name/desc from model registry
+    card.appendChild(el('div', { style: 'font-weight:700; margin-bottom:4px;', text: sys.name }));
+    card.appendChild(el('div', { class: 'small', text: sys.desc }));
     
     card.addEventListener('click', () => {
       models.setActive('units', sys.id);
@@ -9495,7 +9226,7 @@ function buildComponentsPanel() {
   const validationBtn = el('button', {
     class: 'btn',
     style: 'margin-bottom: 12px; width: 100%;',
-    html: '🔍 Validate Component Database'
+    text: '🔍 Validate Component Database'
   });
   
   validationBtn.addEventListener('click', () => {
@@ -9531,7 +9262,7 @@ function buildComponentsPanel() {
   for (const label of headerCells) {
     headerRow.appendChild(el('th', {
       style: 'padding:8px; text-align:left; border-bottom:2px solid #2a2f3a; font-weight:700; font-size:11px; text-transform:uppercase; letter-spacing:0.5px;',
-      html: label
+      text: label
     }));
   }
   thead.appendChild(headerRow);
@@ -9555,56 +9286,56 @@ function buildComponentsPanel() {
     // Formula (bold)
     row.appendChild(el('td', {
       style: 'padding:10px 8px; font-weight:700; color:#60a5fa;',
-      html: comp.formula
+      text: comp.formula   // [v6.2] XSS: imported JSON field
     }));
     
     // Name
     row.appendChild(el('td', {
       style: 'padding:10px 8px;',
-      html: comp.name
+      text: comp.name      // [v6.2] XSS: imported JSON field
     }));
     
     // MW
     row.appendChild(el('td', {
       style: 'padding:10px 8px; font-family:monospace;',
-      html: comp.MW.toFixed(3)
+      text: comp.MW.toFixed(3)
     }));
     
     // Tc
     row.appendChild(el('td', {
       style: 'padding:10px 8px; font-family:monospace;',
-      html: comp.Tc.toFixed(1) + ' K'
+      text: comp.Tc.toFixed(1) + ' K'
     }));
     
     // Pc
     row.appendChild(el('td', {
       style: 'padding:10px 8px; font-family:monospace;',
-      html: (comp.Pc / 100000).toFixed(2) + ' bar'
+      text: (comp.Pc / 100000).toFixed(2) + ' bar'
     }));
     
     // omega
     row.appendChild(el('td', {
       style: 'padding:10px 8px; font-family:monospace;',
-      html: comp.omega.toFixed(3)
+      text: comp.omega.toFixed(3)
     }));
     
     // Tb
     row.appendChild(el('td', {
       style: 'padding:10px 8px; font-family:monospace;',
-      html: comp.Tb.toFixed(1) + ' K'
+      text: comp.Tb.toFixed(1) + ' K'
     }));
     
     // Phase at 298K
     row.appendChild(el('td', {
       style: 'padding:10px 8px;',
-      html: comp.phase298
+      text: comp.phase298     // [v6.2] XSS: imported JSON field
     }));
     
     // Details button
     const detailsBtn = el('button', {
       class: 'btn',
       style: 'padding:4px 8px; font-size:11px; margin:0;',
-      html: 'View'
+      text: 'View'
     });
     
     detailsBtn.addEventListener('click', (e) => {
@@ -9799,11 +9530,13 @@ function showComponentDetails(comp) {
         font-size: 12px;
       `;
       
-      coeffs.innerHTML = `
-        <div><strong>A:</strong> ${range.A.toFixed(5)}</div>
-        <div><strong>B:</strong> ${range.B.toFixed(2)}</div>
-        <div><strong>C:</strong> ${range.C.toFixed(2)}</div>
-      `;
+      // [v6.2] XSS: coefficients from imported data — built safely
+      for (const [key, val] of [['A', range.A.toFixed(5)], ['B', range.B.toFixed(2)], ['C', range.C.toFixed(2)]]) {
+        const d = el('div');
+        d.appendChild(el('strong', { text: key + ':' }));
+        d.appendChild(document.createTextNode(' ' + val));
+        coeffs.appendChild(d);
+      }
       antoineSection.appendChild(coeffs);
       
       if (range.Tmin || range.Tmax) {
@@ -9860,13 +9593,15 @@ function showComponentDetails(comp) {
       font-size: 12px;
     `;
     
-    coeffs.innerHTML = `
-      <div><strong>A:</strong> ${comp.cpig.A}</div>
-      <div><strong>B:</strong> ${comp.cpig.B}</div>
-      <div><strong>C:</strong> ${comp.cpig.C}</div>
-      <div><strong>D:</strong> ${comp.cpig.D}</div>
-      ${comp.cpig.E !== undefined ? `<div><strong>E:</strong> ${comp.cpig.E}</div>` : ''}
-    `;
+    // [v6.2] XSS: coefficients from imported data — built safely
+    const cpCoeffs = [['A', comp.cpig.A], ['B', comp.cpig.B], ['C', comp.cpig.C], ['D', comp.cpig.D]];
+    if (comp.cpig.E !== undefined) cpCoeffs.push(['E', comp.cpig.E]);
+    for (const [key, val] of cpCoeffs) {
+      const d = el('div');
+      d.appendChild(el('strong', { text: key + ':' }));
+      d.appendChild(document.createTextNode(' ' + val));
+      coeffs.appendChild(d);
+    }
     cpSection.appendChild(coeffs);
     
     dialog.appendChild(cpSection);
@@ -9883,7 +9618,10 @@ function showComponentDetails(comp) {
       font-family: monospace;
       font-size: 12px;
     `;
-    cpLiqSection.innerHTML = `<strong>Liquid Cp:</strong> ${typeof comp.cpLiq === 'number' ? comp.cpLiq.toFixed(1) + ' J/(mol·K)' : JSON.stringify(comp.cpLiq)}`;
+    cpLiqSection.appendChild(el('strong', { text: 'Liquid Cp: ' }));
+    cpLiqSection.appendChild(document.createTextNode(
+      typeof comp.cpLiq === 'number' ? comp.cpLiq.toFixed(1) + ' J/(mol·K)' : JSON.stringify(comp.cpLiq)
+    ));
     dialog.appendChild(cpLiqSection);
   }
   
@@ -9996,13 +9734,15 @@ function showValidationReport(results) {
       align-items: center;
       gap: 8px;
     `;
-    compHeader.innerHTML = `
-      <span style="color: ${result.valid ? '#22c55e' : '#ef4444'};">
-        ${result.valid ? '✓' : '✗'}
-      </span>
-      <span style="color: #60a5fa;">${formula}</span>
-      <span style="opacity: 0.7;">— ${ComponentRegistry.get(formula).name}</span>
-    `;
+    // [v6.2] XSS: formula and component name from registry/import
+    compHeader.appendChild(el('span', { 
+      style: `color: ${result.valid ? '#22c55e' : '#ef4444'};`, 
+      text: result.valid ? '✓' : '✗' 
+    }));
+    compHeader.appendChild(document.createTextNode(' '));
+    compHeader.appendChild(el('span', { style: 'color: #60a5fa;', text: formula }));
+    compHeader.appendChild(document.createTextNode(' '));
+    compHeader.appendChild(el('span', { style: 'opacity: 0.7;', text: '— ' + ComponentRegistry.get(formula).name }));
     compSection.appendChild(compHeader);
     
     // Errors
@@ -10133,11 +9873,19 @@ function escapeHtml(s) {
     .replace(/'/g, '&#39;');
 }
 
+// [v6.2] XSS POLICY:
+// • Default rule: all dynamic text must use el(..., {text: ...}) or textContent.
+// • {html: ...} is allowed ONLY for trusted static markup containing no
+//   user/imported content.  Remaining html: usages are value+unit patterns
+//   (e.g. `${num.toFixed(2)}<span class="propUnit">kW</span>`) where both
+//   parts are provably safe: numbers via .toFixed() and hardcoded unit symbols.
+// • Any place needing mixed formatting with untrusted data must build child
+//   nodes (el('span',{text:...})) instead of concatenating HTML strings.
 function el(tag, attrs = {}, children = []) {
   const e = document.createElement(tag);
   for (const [k, v] of Object.entries(attrs)) {
     if (k === 'class') e.className = v;
-    else if (k === 'html') e.innerHTML = v;       // trusted markup only
+    else if (k === 'html') e.innerHTML = v;       // trusted markup only — see policy above
     else if (k === 'text') e.textContent = v;      // [v5.4.1] safe text (no HTML parsing)
     else e.setAttribute(k, v);
   }
@@ -10145,9 +9893,20 @@ function el(tag, attrs = {}, children = []) {
   return e;
 }
 
+// [v6.2] Safe balance-row builder — avoids innerHTML with untrusted item.name / species.
+function balanceRow(style, label, detail, value) {
+  const row = el('div', { style });
+  const left = el('span');
+  left.appendChild(document.createTextNode(label + ' '));
+  if (detail) left.appendChild(el('span', { style: 'opacity:0.5; font-size:10px', text: detail }));
+  row.appendChild(left);
+  row.appendChild(el('span', { style: 'font-weight:600', text: value }));
+  return row;
+}
+
 function addNumberEditor(container, label, get, set, step = 0.1) {
   const row = el('div', { class: 'row' });
-  row.appendChild(el('label', { html: label }));
+  row.appendChild(el('label', { text: label }));  // [v6.2] XSS: caller-provided
   
   const inp = el('input', { type: 'number', step: String(step) });
   inp.value = String(get() ?? '');
@@ -10159,7 +9918,7 @@ function addNumberEditor(container, label, get, set, step = 0.1) {
 
 function addSelectEditor(container, label, get, set, options) {
   const row = el('div', { class: 'row' });
-  row.appendChild(el('label', { html: label }));
+  row.appendChild(el('label', { text: label }));  // [v6.2] XSS: caller-provided
   
   const sel = el('select', {});
   for (const [val, txt] of options) {
@@ -10238,7 +9997,7 @@ function renderStreamProperties(container, s) {
   if (!s) {
     container.appendChild(el('div', { 
       class: 'small', 
-      html: 'No data available' 
+      text: 'No data available' 
     }));
     return;
   }
@@ -10250,11 +10009,11 @@ function renderStreamProperties(container, s) {
     // GROUP 1: Temperature & Pressure
     propGrid.appendChild(el('div', { 
       style: 'grid-column:1/-1; margin-top:4px; margin-bottom:6px; font-size:11px; font-weight:700; opacity:0.7; text-transform:uppercase; letter-spacing:0.5px;',
-      html: 'Conditions'
+      text: 'Conditions'
     }));
     
     propGrid.appendChild(el('div', { class: 'propItem' }, [
-      el('div', { class: 'propLabel', html: 'Temperature' }),
+      el('div', { class: 'propLabel', text: 'Temperature' }),
       el('div', { 
         class: 'propValue', 
         html: `${unitSys.temperature.from(s.T).toFixed(unitSys.temperature.decimals)}<span class="propUnit">${unitSys.temperature.symbol}</span>` 
@@ -10262,7 +10021,7 @@ function renderStreamProperties(container, s) {
     ]));
     
     propGrid.appendChild(el('div', { class: 'propItem' }, [
-      el('div', { class: 'propLabel', html: 'Pressure' }),
+      el('div', { class: 'propLabel', text: 'Pressure' }),
       el('div', { 
         class: 'propValue', 
         html: `${unitSys.pressure.from(s.P).toFixed(unitSys.pressure.decimals)}<span class="propUnit">${unitSys.pressure.symbol}</span>` 
@@ -10272,7 +10031,7 @@ function renderStreamProperties(container, s) {
     // GROUP 2: Phase & Composition
     propGrid.appendChild(el('div', { 
       style: 'grid-column:1/-1; margin-top:12px; margin-bottom:6px; font-size:11px; font-weight:700; opacity:0.7; text-transform:uppercase; letter-spacing:0.5px;',
-      html: 'Phase & Composition'
+      text: 'Phase & Composition'
     }));
     
     const phaseText = s.phase === 'V' ? 'Vapor' : 
@@ -10280,11 +10039,11 @@ function renderStreamProperties(container, s) {
                       s.phase === 'VL' ? `Two-Phase (β=${s.vaporFraction.toFixed(3)})` : 
                       'Unknown';
     propGrid.appendChild(el('div', { class: 'propItem' }, [
-      el('div', { class: 'propLabel', html: 'Phase' }),
+      el('div', { class: 'propLabel', text: 'Phase' }),
       el('div', { 
         class: 'propValue', 
         style: 'font-size:12px;',
-        html: phaseText
+        text: phaseText
       })
     ]));
     
@@ -10300,7 +10059,7 @@ function renderStreamProperties(container, s) {
       const compSection = el('div', { style: 'grid-column:1/-1; margin-top:6px;' });
       compSection.appendChild(el('div', { 
         class: 'propLabel', 
-        html: 'Components', 
+        text: 'Components', 
         style: 'margin-bottom:6px;' 
       }));
       
@@ -10322,11 +10081,11 @@ function renderStreamProperties(container, s) {
     // GROUP 3: Flowrates
     propGrid.appendChild(el('div', { 
       style: 'grid-column:1/-1; margin-top:12px; margin-bottom:6px; font-size:11px; font-weight:700; opacity:0.7; text-transform:uppercase; letter-spacing:0.5px;',
-      html: 'Flowrates'
+      text: 'Flowrates'
     }));
     
     propGrid.appendChild(el('div', { class: 'propItem' }, [
-      el('div', { class: 'propLabel', html: 'Molar' }),
+      el('div', { class: 'propLabel', text: 'Molar' }),
       el('div', { 
         class: 'propValue', 
         html: `${unitSys.molarFlow.from(flowrates.nTotal).toFixed(unitSys.molarFlow.decimals)}<span class="propUnit">${unitSys.molarFlow.symbol}</span>` 
@@ -10334,7 +10093,7 @@ function renderStreamProperties(container, s) {
     ]));
     
     propGrid.appendChild(el('div', { class: 'propItem' }, [
-      el('div', { class: 'propLabel', html: 'Mass' }),
+      el('div', { class: 'propLabel', text: 'Mass' }),
       el('div', { 
         class: 'propValue', 
         html: `${unitSys.massFlow.from(flowrates.mTotal).toFixed(unitSys.massFlow.decimals)}<span class="propUnit">${unitSys.massFlow.symbol}</span>` 
@@ -10342,7 +10101,7 @@ function renderStreamProperties(container, s) {
     ]));
     
     propGrid.appendChild(el('div', { class: 'propItem' }, [
-      el('div', { class: 'propLabel', html: 'Volumetric' }),
+      el('div', { class: 'propLabel', text: 'Volumetric' }),
       el('div', { 
         class: 'propValue', 
         html: `${unitSys.volumeFlow.from(flowrates.vTotal).toFixed(unitSys.volumeFlow.decimals)}<span class="propUnit">${unitSys.volumeFlow.symbol}</span>` 
@@ -10353,12 +10112,12 @@ function renderStreamProperties(container, s) {
     if (s.hMolarMix !== undefined || s.Hdot_J_s !== undefined) {
       propGrid.appendChild(el('div', { 
         style: 'grid-column:1/-1; margin-top:12px; margin-bottom:6px; font-size:11px; font-weight:700; opacity:0.7; text-transform:uppercase; letter-spacing:0.5px;',
-        html: 'Energy (Enthalpy)'
+        text: 'Energy (Enthalpy)'
       }));
       
       if (s.hMolarMix !== undefined) {
         propGrid.appendChild(el('div', { class: 'propItem' }, [
-          el('div', { class: 'propLabel', html: 'Molar Enthalpy' }),
+          el('div', { class: 'propLabel', text: 'Molar Enthalpy' }),
           el('div', { 
             class: 'propValue', 
             html: `${formatEnthalpy_kJmol(s.hMolarMix)}<span class="propUnit">kJ/mol</span>` 
@@ -10368,7 +10127,7 @@ function renderStreamProperties(container, s) {
       
       if (s.Hdot_J_s !== undefined) {
         propGrid.appendChild(el('div', { class: 'propItem' }, [
-          el('div', { class: 'propLabel', html: 'Enthalpy Flow' }),
+          el('div', { class: 'propLabel', text: 'Enthalpy Flow' }),
           el('div', { 
             class: 'propValue', 
             html: `${formatPower_kW(s.Hdot_J_s)}<span class="propUnit">kW</span>` 
@@ -10383,7 +10142,7 @@ function renderStreamProperties(container, s) {
     const actual_W = s.actual ?? s.available ?? 0;
     
     propGrid.appendChild(el('div', { class: 'propItem' }, [
-      el('div', { class: 'propLabel', html: 'Capacity' }),
+      el('div', { class: 'propLabel', text: 'Capacity' }),
       el('div', { 
         class: 'propValue', 
         html: `${(capacity_W/1000).toFixed(1)}<span class="propUnit">kW</span>` 
@@ -10393,7 +10152,7 @@ function renderStreamProperties(container, s) {
     // Show actual if it differs from capacity (demand-limited)
     if (Math.abs(actual_W - capacity_W) > 1) {
       propGrid.appendChild(el('div', { class: 'propItem' }, [
-        el('div', { class: 'propLabel', html: 'Actual' }),
+        el('div', { class: 'propLabel', text: 'Actual' }),
         el('div', { 
           class: 'propValue', 
           style: actual_W < capacity_W - 1 ? 'color:#fbbf24' : '',
@@ -10404,7 +10163,7 @@ function renderStreamProperties(container, s) {
     
     if (s.demand !== undefined) {
       propGrid.appendChild(el('div', { class: 'propItem' }, [
-        el('div', { class: 'propLabel', html: 'Demand' }),
+        el('div', { class: 'propLabel', text: 'Demand' }),
         el('div', { 
           class: 'propValue', 
           html: `${(s.demand/1000).toFixed(1)}<span class="propUnit">kW</span>` 
@@ -10431,7 +10190,7 @@ function renderStreamProperties(container, s) {
     const actual_W = s.actual ?? s.available ?? 0;
     
     propGrid.appendChild(el('div', { class: 'propItem' }, [
-      el('div', { class: 'propLabel', html: 'Capacity' }),
+      el('div', { class: 'propLabel', text: 'Capacity' }),
       el('div', { 
         class: 'propValue', 
         html: `${(capacity_W/1000).toFixed(1)}<span class="propUnit">kW</span>` 
@@ -10441,7 +10200,7 @@ function renderStreamProperties(container, s) {
     // Show actual if it differs from capacity
     if (Math.abs(actual_W - capacity_W) > 1) {
       propGrid.appendChild(el('div', { class: 'propItem' }, [
-        el('div', { class: 'propLabel', html: 'Actual' }),
+        el('div', { class: 'propLabel', text: 'Actual' }),
         el('div', { 
           class: 'propValue', 
           style: actual_W < capacity_W - 1 ? 'color:#fbbf24' : '',
@@ -10452,7 +10211,7 @@ function renderStreamProperties(container, s) {
     
     if (s.demand !== undefined && s.demand > 0) {
       propGrid.appendChild(el('div', { class: 'propItem' }, [
-        el('div', { class: 'propLabel', html: 'Demand' }),
+        el('div', { class: 'propLabel', text: 'Demand' }),
         el('div', { 
           class: 'propValue', 
           html: `${(s.demand/1000).toFixed(1)}<span class="propUnit">kW</span>` 
@@ -10664,10 +10423,10 @@ function updatePropertiesPanel() {
     titleDiv.appendChild(nameInput);
     headerDiv.appendChild(titleDiv);
     
-    const subtitleDiv = el('div', { 
-      class: 'unitSubtitle', 
-      html: `${def.defId} · <span style="color:${def.color}">${def.category}</span>` 
-    });
+    // [v6.2] XSS: def.defId/category — built safely via DOM
+    const subtitleDiv = el('div', { class: 'unitSubtitle' });
+    subtitleDiv.appendChild(document.createTextNode(def.defId + ' · '));
+    subtitleDiv.appendChild(el('span', { style: `color:${def.color}`, text: def.category }));
     headerDiv.appendChild(subtitleDiv);
     
     propEditor.appendChild(headerDiv);
@@ -10752,7 +10511,7 @@ function updatePropertiesPanel() {
       // Resistance heater — efficiency is always 1.00 (1st law), display only
       u.params.eta = 1.00;
       const etaRow = el('div', { class: 'propItem' }, [
-        el('div', { class: 'propLabel', html: 'Efficiency (-)' }),
+        el('div', { class: 'propLabel', text: 'Efficiency (-)' }),
         el('div', { class: 'propValue', style: 'opacity:0.6;', html: '1.00 <span style="font-size:10px; opacity:0.7;">(fixed)</span>' })
       ]);
       paramsSection.content.appendChild(etaRow);
@@ -10875,7 +10634,7 @@ function updatePropertiesPanel() {
       const modeLabel = el('div', { 
         class: 'small', 
         style: 'margin-bottom:8px; opacity:0.8;',
-        html: 'Modes: approach temp (default) · outlet temp setpoint · UA/NTU (set via params)'
+        text: 'Modes: approach temp (default) · outlet temp setpoint · UA/NTU (set via params)'
       });
       paramsSection.content.appendChild(modeLabel);
       
@@ -10922,7 +10681,7 @@ function updatePropertiesPanel() {
       propsSection.content.appendChild(el('div', { 
         class: 'small', 
         style: 'padding: 8px 0; opacity:0.6;',
-        html: 'Not computed yet — press Run' 
+        text: 'Not computed yet — press Run' 
       }));
     } else if (u.defId === 'sink') {
       // For sink, show incoming stream properties in Properties section
@@ -10932,7 +10691,7 @@ function updatePropertiesPanel() {
         propsSection.content.appendChild(el('div', { 
           class: 'small', 
           style: 'padding: 8px 0; opacity:0.6;',
-          html: 'No incoming stream' 
+          text: 'No incoming stream' 
         }));
       }
     } else {
@@ -10962,7 +10721,7 @@ function updatePropertiesPanel() {
         hxBox.appendChild(el('div', { 
           class: 'small', 
           style: 'font-weight:700; margin-bottom:8px; opacity:0.8; text-transform:uppercase;', 
-          html: '🔄 Heat Exchange' 
+          text: '🔄 Heat Exchange' 
         }));
         const dg = el('div', { class: 'propGrid' });
 
@@ -10974,23 +10733,23 @@ function updatePropertiesPanel() {
         const fmtT = (T_K) => `${unitSys.temperature.from(T_K).toFixed(1)}<span class="propUnit">${unitSys.temperature.symbol}</span>`;
 
         dg.appendChild(el('div', { class: 'propItem' }, [
-          el('div', { class: 'propLabel', html: 'T hot in' }),
+          el('div', { class: 'propLabel', text: 'T hot in' }),
           el('div', { class: 'propValue', html: fmtT(Thi) })
         ]));
         dg.appendChild(el('div', { class: 'propItem' }, [
-          el('div', { class: 'propLabel', html: 'T hot out' }),
+          el('div', { class: 'propLabel', text: 'T hot out' }),
           el('div', { class: 'propValue', html: fmtT(Tho) })
         ]));
         dg.appendChild(el('div', { class: 'propItem' }, [
-          el('div', { class: 'propLabel', html: 'T cold in' }),
+          el('div', { class: 'propLabel', text: 'T cold in' }),
           el('div', { class: 'propValue', html: fmtT(Tci) })
         ]));
         dg.appendChild(el('div', { class: 'propItem' }, [
-          el('div', { class: 'propLabel', html: 'T cold out' }),
+          el('div', { class: 'propLabel', text: 'T cold out' }),
           el('div', { class: 'propValue', html: fmtT(Tco) })
         ]));
         dg.appendChild(el('div', { class: 'propItem' }, [
-          el('div', { class: 'propLabel', html: 'Duty' }),
+          el('div', { class: 'propLabel', text: 'Duty' }),
           el('div', { class: 'propValue', html: `${ud.last.Q.toFixed(2)}<span class="propUnit">kW</span>` })
         ]));
 
@@ -10998,14 +10757,14 @@ function updatePropertiesPanel() {
         if (pinch !== undefined) {
           const pinchColor = ud.last.hxCross ? '#ef4444' : (pinch < 5 ? '#f97316' : '#6ee7b7');
           dg.appendChild(el('div', { class: 'propItem' }, [
-            el('div', { class: 'propLabel', html: 'ΔT min (pinch)' }),
+            el('div', { class: 'propLabel', text: 'ΔT min (pinch)' }),
             el('div', { class: 'propValue', style: `color:${pinchColor};`, html: `${pinch.toFixed(2)}<span class="propUnit">K</span>` })
           ]));
         }
 
         if (ud.last.effectiveness && ud.last.effectiveness !== 'N/A') {
           dg.appendChild(el('div', { class: 'propItem' }, [
-            el('div', { class: 'propLabel', html: 'Effectiveness' }),
+            el('div', { class: 'propLabel', text: 'Effectiveness' }),
             el('div', { class: 'propValue', html: `${ud.last.effectiveness}<span class="propUnit">%</span>` })
           ]));
         }
@@ -11033,7 +10792,7 @@ function updatePropertiesPanel() {
         powerBox.appendChild(el('div', { 
           class: 'small', 
           style: 'font-weight:700; margin-bottom:8px; opacity:0.8; text-transform:uppercase;', 
-          html: '⚡ Power & Pressure' 
+          text: '⚡ Power & Pressure' 
         }));
         
         const dataGrid = el('div', { class: 'propGrid' });
@@ -11044,11 +10803,11 @@ function updatePropertiesPanel() {
           const Pact = unitSys.pressure.from(ud.last.Pout_actual);
           const isCurt = ud.last.curtailed;
           dataGrid.appendChild(el('div', { class: 'propItem' }, [
-            el('div', { class: 'propLabel', html: 'P setpoint' }),
+            el('div', { class: 'propLabel', text: 'P setpoint' }),
             el('div', { class: 'propValue', html: `${Pset.toFixed(unitSys.pressure.decimals)}<span class="propUnit">${unitSys.pressure.symbol}</span>` })
           ]));
           dataGrid.appendChild(el('div', { class: 'propItem' }, [
-            el('div', { class: 'propLabel', html: 'P actual' }),
+            el('div', { class: 'propLabel', text: 'P actual' }),
             el('div', { class: 'propValue', style: isCurt ? 'color:#f97316;' : '', 
               html: `${Pact.toFixed(unitSys.pressure.decimals)}<span class="propUnit">${unitSys.pressure.symbol}</span>` })
           ]));
@@ -11056,14 +10815,14 @@ function updatePropertiesPanel() {
         
         // Shaft power actual (W → kW)
         dataGrid.appendChild(el('div', { class: 'propItem' }, [
-          el('div', { class: 'propLabel', html: 'Shaft power' }),
+          el('div', { class: 'propLabel', text: 'Shaft power' }),
           el('div', { class: 'propValue', html: `${(ud.last.W_shaft/1000).toFixed(2)}<span class="propUnit">kW</span>` })
         ]));
         
         // Shaft power setpoint if curtailed
         if (ud.last.curtailed && ud.last.W_shaft_setpoint !== undefined) {
           dataGrid.appendChild(el('div', { class: 'propItem' }, [
-            el('div', { class: 'propLabel', html: 'Shaft needed' }),
+            el('div', { class: 'propLabel', text: 'Shaft needed' }),
             el('div', { class: 'propValue', style: 'color:#f97316;', 
               html: `${(ud.last.W_shaft_setpoint/1000).toFixed(2)}<span class="propUnit">kW</span>` })
           ]));
@@ -11072,12 +10831,12 @@ function updatePropertiesPanel() {
         // Hydraulic/Isentropic power
         if (ud.last.W_hydraulic !== undefined) {
           dataGrid.appendChild(el('div', { class: 'propItem' }, [
-            el('div', { class: 'propLabel', html: 'Hydraulic' }),
+            el('div', { class: 'propLabel', text: 'Hydraulic' }),
             el('div', { class: 'propValue', html: `${(ud.last.W_hydraulic/1000).toFixed(2)}<span class="propUnit">kW</span>` })
           ]));
         } else if (ud.last.W_isentropic !== undefined) {
           dataGrid.appendChild(el('div', { class: 'propItem' }, [
-            el('div', { class: 'propLabel', html: 'Isentropic' }),
+            el('div', { class: 'propLabel', text: 'Isentropic' }),
             el('div', { class: 'propValue', html: `${(ud.last.W_isentropic/1000).toFixed(2)}<span class="propUnit">kW</span>` })
           ]));
         }
@@ -11085,7 +10844,7 @@ function updatePropertiesPanel() {
         // Efficiency
         if (ud.last.eta !== undefined) {
           dataGrid.appendChild(el('div', { class: 'propItem' }, [
-            el('div', { class: 'propLabel', html: 'Efficiency' }),
+            el('div', { class: 'propLabel', text: 'Efficiency' }),
             el('div', { class: 'propValue', html: `${(ud.last.eta * 100).toFixed(0)}<span class="propUnit">%</span>` })
           ]));
         }
@@ -11101,14 +10860,14 @@ function updatePropertiesPanel() {
         heatBox.appendChild(el('div', { 
           class: 'small', 
           style: 'font-weight:700; margin-bottom:8px; opacity:0.8; text-transform:uppercase;', 
-          html: '🔥 Heat Duty' 
+          text: '🔥 Heat Duty' 
         }));
         
         const dataGrid = el('div', { class: 'propGrid' });
         
         // T setpoint
         dataGrid.appendChild(el('div', { class: 'propItem' }, [
-          el('div', { class: 'propLabel', html: 'T setpoint' }),
+          el('div', { class: 'propLabel', text: 'T setpoint' }),
           el('div', { class: 'propValue', 
             html: `${unitSys.temperature.from(ud.last.T_setpoint_K).toFixed(1)}<span class="propUnit">${unitSys.temperature.symbol}</span>` 
           })
@@ -11122,7 +10881,7 @@ function updatePropertiesPanel() {
           const deviation = Math.abs(T_actual_disp - T_set_disp);
           const devColor = deviation > 1 ? '#f97316' : '#22c55e';
           dataGrid.appendChild(el('div', { class: 'propItem' }, [
-            el('div', { class: 'propLabel', html: 'T actual' }),
+            el('div', { class: 'propLabel', text: 'T actual' }),
             el('div', { class: 'propValue', style: `color:${devColor};`,
               html: `${T_actual_disp.toFixed(1)}<span class="propUnit">${unitSys.temperature.symbol}</span>` 
             })
@@ -11131,13 +10890,13 @@ function updatePropertiesPanel() {
         
         // Q demand vs actual (internal W → display kW)
         dataGrid.appendChild(el('div', { class: 'propItem' }, [
-          el('div', { class: 'propLabel', html: 'Q demand' }),
+          el('div', { class: 'propLabel', text: 'Q demand' }),
           el('div', { class: 'propValue', 
             html: `${(ud.last.Q_demand_W/1000).toFixed(2)}<span class="propUnit">kW</span>` 
           })
         ]));
         dataGrid.appendChild(el('div', { class: 'propItem' }, [
-          el('div', { class: 'propLabel', html: 'Q actual' }),
+          el('div', { class: 'propLabel', text: 'Q actual' }),
           el('div', { class: 'propValue', 
             style: ud.last.supplyLimited ? 'color:#f97316;' : '',
             html: `${(ud.last.Q_actual_W/1000).toFixed(2)}<span class="propUnit">kW</span>` 
@@ -11154,28 +10913,28 @@ function updatePropertiesPanel() {
         convBox.appendChild(el('div', { 
           class: 'small', 
           style: 'font-weight:700; margin-bottom:8px; opacity:0.8; text-transform:uppercase;', 
-          html: '⚡ Power Conversion' 
+          text: '⚡ Power Conversion' 
         }));
         const dataGrid = el('div', { class: 'propGrid' });
         dataGrid.appendChild(el('div', { class: 'propItem' }, [
-          el('div', { class: 'propLabel', html: 'Electrical in' }),
+          el('div', { class: 'propLabel', text: 'Electrical in' }),
           el('div', { class: 'propValue', html: `${(ud.last.W_elec_W/1000).toFixed(2)}<span class="propUnit">kW</span>` })
         ]));
         dataGrid.appendChild(el('div', { class: 'propItem' }, [
-          el('div', { class: 'propLabel', html: 'Mechanical out' }),
+          el('div', { class: 'propLabel', text: 'Mechanical out' }),
           el('div', { class: 'propValue', html: `${(ud.last.W_mech_W/1000).toFixed(2)}<span class="propUnit">kW</span>` })
         ]));
         dataGrid.appendChild(el('div', { class: 'propItem' }, [
-          el('div', { class: 'propLabel', html: 'Heat loss' }),
+          el('div', { class: 'propLabel', text: 'Heat loss' }),
           el('div', { class: 'propValue', style: 'color:#f97316;', html: `${((ud.last.Q_loss_W||0)/1000).toFixed(2)}<span class="propUnit">kW</span>` })
         ]));
         dataGrid.appendChild(el('div', { class: 'propItem' }, [
-          el('div', { class: 'propLabel', html: 'Efficiency' }),
+          el('div', { class: 'propLabel', text: 'Efficiency' }),
           el('div', { class: 'propValue', html: `${ud.last.efficiency_pct}<span class="propUnit">%</span>` })
         ]));
         convBox.appendChild(dataGrid);
         if (ud.last.heatOutWarning) {
-          convBox.appendChild(el('div', { style: 'margin-top:8px; padding:6px 8px; background:#78350f; border-radius:4px; font-size:11px; color:#fbbf24;', html: '⚠ ' + ud.last.heatOutWarning.message }));
+          convBox.appendChild(el('div', { style: 'margin-top:8px; padding:6px 8px; background:#78350f; border-radius:4px; font-size:11px; color:#fbbf24;', text: '⚠ ' + ud.last.heatOutWarning.message }));
         }
         propsSection.content.appendChild(convBox);
       }
@@ -11186,21 +10945,21 @@ function updatePropertiesPanel() {
         convBox.appendChild(el('div', { 
           class: 'small', 
           style: 'font-weight:700; margin-bottom:8px; opacity:0.8; text-transform:uppercase;', 
-          html: '⚡ Power → Heat' 
+          text: '⚡ Power → Heat' 
         }));
         const dataGrid = el('div', { class: 'propGrid' });
         const Welec = (ud.last.W_elec_actual_W || 0) / 1000;
         const Qheat = (ud.last.Q_available_W || 0) / 1000;
         dataGrid.appendChild(el('div', { class: 'propItem' }, [
-          el('div', { class: 'propLabel', html: 'Electrical in' }),
+          el('div', { class: 'propLabel', text: 'Electrical in' }),
           el('div', { class: 'propValue', html: `${Welec.toFixed(2)}<span class="propUnit">kW</span>` })
         ]));
         dataGrid.appendChild(el('div', { class: 'propItem' }, [
-          el('div', { class: 'propLabel', html: 'Heat out' }),
+          el('div', { class: 'propLabel', text: 'Heat out' }),
           el('div', { class: 'propValue', html: `${Qheat.toFixed(2)}<span class="propUnit">kW</span>` })
         ]));
         dataGrid.appendChild(el('div', { class: 'propItem' }, [
-          el('div', { class: 'propLabel', html: 'Efficiency' }),
+          el('div', { class: 'propLabel', text: 'Efficiency' }),
           el('div', { class: 'propValue', html: `${ud.last.efficiency_pct}<span class="propUnit">%</span>` })
         ]));
         convBox.appendChild(dataGrid);
@@ -11213,7 +10972,7 @@ function updatePropertiesPanel() {
         hubBox.appendChild(el('div', { 
           class: 'small', 
           style: 'font-weight:700; margin-bottom:8px; opacity:0.8; text-transform:uppercase;', 
-          html: '⚡ Power Balance' 
+          text: '⚡ Power Balance' 
         }));
         const dataGrid = el('div', { class: 'propGrid' });
         const fields = [
@@ -11228,7 +10987,7 @@ function updatePropertiesPanel() {
           if (val === undefined) continue;
           const isHighlight = label === 'Total demand' && ud.last.curtailmentFactor < 1;
           dataGrid.appendChild(el('div', { class: 'propItem' }, [
-            el('div', { class: 'propLabel', html: label }),
+            el('div', { class: 'propLabel', text: label }),
             el('div', { class: 'propValue', style: isHighlight ? 'color:#f97316;' : '',
               html: `${(val/1000).toFixed(2)}<span class="propUnit">${unit}</span>` })
           ]));
@@ -11237,7 +10996,7 @@ function updatePropertiesPanel() {
         const cf = ud.last.curtailmentFactor ?? 1;
         const cfColor = cf < 1 ? '#f97316' : '#22c55e';
         dataGrid.appendChild(el('div', { class: 'propItem' }, [
-          el('div', { class: 'propLabel', html: 'Curtailment' }),
+          el('div', { class: 'propLabel', text: 'Curtailment' }),
           el('div', { class: 'propValue', style: `color:${cfColor};`,
             html: `${(cf * 100).toFixed(1)}<span class="propUnit">%</span>` })
         ]));
@@ -11251,17 +11010,17 @@ function updatePropertiesPanel() {
         hBox.appendChild(el('div', { 
           class: 'small', 
           style: 'font-weight:700; margin-bottom:8px; opacity:0.8; text-transform:uppercase;', 
-          html: '🔥 Heat Absorbed' 
+          text: '🔥 Heat Absorbed' 
         }));
         const dataGrid = el('div', { class: 'propGrid' });
         dataGrid.appendChild(el('div', { class: 'propItem' }, [
-          el('div', { class: 'propLabel', html: 'Total' }),
+          el('div', { class: 'propLabel', text: 'Total' }),
           el('div', { class: 'propValue', html: `${((ud.last.absorbed_W || 0)/1000).toFixed(2)}<span class="propUnit">kW</span>` })
         ]));
         if ((ud.last.sourceCount || 0) > 1) {
           dataGrid.appendChild(el('div', { class: 'propItem' }, [
-            el('div', { class: 'propLabel', html: 'Sources' }),
-            el('div', { class: 'propValue', html: `${ud.last.sourceCount}` })
+            el('div', { class: 'propLabel', text: 'Sources' }),
+            el('div', { class: 'propValue', text: `${ud.last.sourceCount}` })
           ]));
         }
         hBox.appendChild(dataGrid);
@@ -11274,11 +11033,11 @@ function updatePropertiesPanel() {
         eBox.appendChild(el('div', { 
           class: 'small', 
           style: 'font-weight:700; margin-bottom:8px; opacity:0.8; text-transform:uppercase;', 
-          html: '⚡ Electrical Load' 
+          text: '⚡ Electrical Load' 
         }));
         const dataGrid = el('div', { class: 'propGrid' });
         dataGrid.appendChild(el('div', { class: 'propItem' }, [
-          el('div', { class: 'propLabel', html: 'Absorbed' }),
+          el('div', { class: 'propLabel', text: 'Absorbed' }),
           el('div', { class: 'propValue', html: `${((ud.last.absorbed_W || 0)/1000).toFixed(2)}<span class="propUnit">kW</span>` })
         ]));
         eBox.appendChild(dataGrid);
@@ -11291,11 +11050,11 @@ function updatePropertiesPanel() {
         bBox.appendChild(el('div', { 
           class: 'small', 
           style: 'font-weight:700; margin-bottom:8px; opacity:0.8; text-transform:uppercase;', 
-          html: '🔋 Battery Status' 
+          text: '🔋 Battery Status' 
         }));
         const dataGrid = el('div', { class: 'propGrid' });
         dataGrid.appendChild(el('div', { class: 'propItem' }, [
-          el('div', { class: 'propLabel', html: 'Capacity' }),
+          el('div', { class: 'propLabel', text: 'Capacity' }),
           el('div', { class: 'propValue', html: `${((ud.last.maxPower_W || 0)/1000).toFixed(2)}<span class="propUnit">kW</span>` })
         ]));
         const outPort = ud.ports?.out;
@@ -11304,20 +11063,20 @@ function updatePropertiesPanel() {
         // Show actual draw if it differs from capacity
         if (Math.abs(bActual - (ud.last.maxPower_W || 0)) > 1) {
           dataGrid.appendChild(el('div', { class: 'propItem' }, [
-            el('div', { class: 'propLabel', html: 'Actual' }),
+            el('div', { class: 'propLabel', text: 'Actual' }),
             el('div', { class: 'propValue', style: 'color:#fbbf24;',
               html: `${(bActual/1000).toFixed(2)}<span class="propUnit">kW</span>` })
           ]));
         }
         const shortage = ud.last.shortage_W;
         dataGrid.appendChild(el('div', { class: 'propItem' }, [
-          el('div', { class: 'propLabel', html: 'Demand' }),
+          el('div', { class: 'propLabel', text: 'Demand' }),
           el('div', { class: 'propValue', style: shortage ? 'color:#f97316;' : '',
             html: `${(demand/1000).toFixed(2)}<span class="propUnit">kW</span>` })
         ]));
         if (shortage) {
           dataGrid.appendChild(el('div', { class: 'propItem' }, [
-            el('div', { class: 'propLabel', html: 'Shortage' }),
+            el('div', { class: 'propLabel', text: 'Shortage' }),
             el('div', { class: 'propValue', style: 'color:#ef4444;',
               html: `${(shortage/1000).toFixed(2)}<span class="propUnit">kW</span>` })
           ]));
@@ -11332,18 +11091,18 @@ function updatePropertiesPanel() {
         sBox.appendChild(el('div', { 
           class: 'small', 
           style: 'font-weight:700; margin-bottom:8px; opacity:0.8; text-transform:uppercase;', 
-          html: '⚡ Power Source' 
+          text: '⚡ Power Source' 
         }));
         const dataGrid = el('div', { class: 'propGrid' });
         dataGrid.appendChild(el('div', { class: 'propItem' }, [
-          el('div', { class: 'propLabel', html: 'Capacity' }),
+          el('div', { class: 'propLabel', text: 'Capacity' }),
           el('div', { class: 'propValue', html: `${((ud.last.maxPower_W || 0)/1000).toFixed(2)}<span class="propUnit">kW</span>` })
         ]));
         const srcPort = ud.ports?.out;
         const srcActual = srcPort?.actual ?? srcPort?.available ?? 0;
         if (Math.abs(srcActual - (ud.last.maxPower_W || 0)) > 1) {
           dataGrid.appendChild(el('div', { class: 'propItem' }, [
-            el('div', { class: 'propLabel', html: 'Actual' }),
+            el('div', { class: 'propLabel', text: 'Actual' }),
             el('div', { class: 'propValue', style: 'color:#fbbf24;',
               html: `${(srcActual/1000).toFixed(2)}<span class="propUnit">kW</span>` })
           ]));
@@ -11359,7 +11118,7 @@ function updatePropertiesPanel() {
         tBox.appendChild(el('div', { 
           class: 'small', 
           style: 'font-weight:700; margin-bottom:8px; opacity:0.8; text-transform:uppercase;', 
-          html: '⚙️ Turbine Performance' 
+          text: '⚙️ Turbine Performance' 
         }));
         const dataGrid = el('div', { class: 'propGrid' });
         
@@ -11367,38 +11126,38 @@ function updatePropertiesPanel() {
         if (ud.last.Pin !== undefined) {
           const Pdisp = unitSys.pressure.from(ud.last.Pin);
           dataGrid.appendChild(el('div', { class: 'propItem' }, [
-            el('div', { class: 'propLabel', html: 'P inlet' }),
+            el('div', { class: 'propLabel', text: 'P inlet' }),
             el('div', { class: 'propValue', html: `${Pdisp.toFixed(unitSys.pressure.decimals)}<span class="propUnit">${unitSys.pressure.symbol}</span>` })
           ]));
         }
         if (ud.last.Pout_actual !== undefined) {
           const Pdisp = unitSys.pressure.from(ud.last.Pout_actual);
           dataGrid.appendChild(el('div', { class: 'propItem' }, [
-            el('div', { class: 'propLabel', html: 'P outlet' }),
+            el('div', { class: 'propLabel', text: 'P outlet' }),
             el('div', { class: 'propValue', html: `${Pdisp.toFixed(unitSys.pressure.decimals)}<span class="propUnit">${unitSys.pressure.symbol}</span>` })
           ]));
         }
         if (ud.last.ratio !== undefined) {
           dataGrid.appendChild(el('div', { class: 'propItem' }, [
-            el('div', { class: 'propLabel', html: 'Expansion ratio' }),
-            el('div', { class: 'propValue', html: `${ud.last.ratio}` })
+            el('div', { class: 'propLabel', text: 'Expansion ratio' }),
+            el('div', { class: 'propValue', text: `${ud.last.ratio}` })
           ]));
         }
         
         // Work output
         dataGrid.appendChild(el('div', { class: 'propItem' }, [
-          el('div', { class: 'propLabel', html: 'Shaft output' }),
+          el('div', { class: 'propLabel', text: 'Shaft output' }),
           el('div', { class: 'propValue', html: `${(ud.last.W_shaft/1000).toFixed(2)}<span class="propUnit">kW</span>` })
         ]));
         if (ud.last.W_isentropic !== undefined) {
           dataGrid.appendChild(el('div', { class: 'propItem' }, [
-            el('div', { class: 'propLabel', html: 'Isentropic' }),
+            el('div', { class: 'propLabel', text: 'Isentropic' }),
             el('div', { class: 'propValue', html: `${(ud.last.W_isentropic/1000).toFixed(2)}<span class="propUnit">kW</span>` })
           ]));
         }
         if (ud.last.eta !== undefined) {
           dataGrid.appendChild(el('div', { class: 'propItem' }, [
-            el('div', { class: 'propLabel', html: 'Efficiency' }),
+            el('div', { class: 'propLabel', text: 'Efficiency' }),
             el('div', { class: 'propValue', html: `${(ud.last.eta * 100).toFixed(0)}<span class="propUnit">%</span>` })
           ]));
         }
@@ -11413,28 +11172,28 @@ function updatePropertiesPanel() {
         gBox.appendChild(el('div', { 
           class: 'small', 
           style: 'font-weight:700; margin-bottom:8px; opacity:0.8; text-transform:uppercase;', 
-          html: '⚡ Power Generation' 
+          text: '⚡ Power Generation' 
         }));
         const dataGrid = el('div', { class: 'propGrid' });
         dataGrid.appendChild(el('div', { class: 'propItem' }, [
-          el('div', { class: 'propLabel', html: 'Mechanical in' }),
+          el('div', { class: 'propLabel', text: 'Mechanical in' }),
           el('div', { class: 'propValue', html: `${(ud.last.W_mech_W/1000).toFixed(2)}<span class="propUnit">kW</span>` })
         ]));
         dataGrid.appendChild(el('div', { class: 'propItem' }, [
-          el('div', { class: 'propLabel', html: 'Electrical out' }),
+          el('div', { class: 'propLabel', text: 'Electrical out' }),
           el('div', { class: 'propValue', html: `${(ud.last.W_elec_W/1000).toFixed(2)}<span class="propUnit">kW</span>` })
         ]));
         dataGrid.appendChild(el('div', { class: 'propItem' }, [
-          el('div', { class: 'propLabel', html: 'Heat loss' }),
+          el('div', { class: 'propLabel', text: 'Heat loss' }),
           el('div', { class: 'propValue', style: 'color:#f97316;', html: `${((ud.last.Q_loss_W||0)/1000).toFixed(2)}<span class="propUnit">kW</span>` })
         ]));
         dataGrid.appendChild(el('div', { class: 'propItem' }, [
-          el('div', { class: 'propLabel', html: 'Efficiency' }),
+          el('div', { class: 'propLabel', text: 'Efficiency' }),
           el('div', { class: 'propValue', html: `${ud.last.efficiency_pct}<span class="propUnit">%</span>` })
         ]));
         gBox.appendChild(dataGrid);
         if (ud.last.heatOutWarning) {
-          gBox.appendChild(el('div', { style: 'margin-top:8px; padding:6px 8px; background:#78350f; border-radius:4px; font-size:11px; color:#fbbf24;', html: '⚠ ' + ud.last.heatOutWarning.message }));
+          gBox.appendChild(el('div', { style: 'margin-top:8px; padding:6px 8px; background:#78350f; border-radius:4px; font-size:11px; color:#fbbf24;', text: '⚠ ' + ud.last.heatOutWarning.message }));
         }
         propsSection.content.appendChild(gBox);
       }
@@ -11446,28 +11205,28 @@ function updatePropertiesPanel() {
         sepBox.appendChild(el('div', { 
           class: 'small', 
           style: 'font-weight:700; margin-bottom:8px; opacity:0.8; text-transform:uppercase;', 
-          html: '🔬 Phase Split' 
+          text: '🔬 Phase Split' 
         }));
         const dataGrid = el('div', { class: 'propGrid' });
         
         dataGrid.appendChild(el('div', { class: 'propItem' }, [
-          el('div', { class: 'propLabel', html: 'Inlet phase' }),
-          el('div', { class: 'propValue', html: ud.last.phase === 'VL' ? 'Two-Phase' : ud.last.phase === 'V' ? 'Vapor' : 'Liquid' })
+          el('div', { class: 'propLabel', text: 'Inlet phase' }),
+          el('div', { class: 'propValue', text: ud.last.phase === 'VL' ? 'Two-Phase' : ud.last.phase === 'V' ? 'Vapor' : 'Liquid' })
         ]));
         
         if (ud.last.beta !== null && ud.last.beta !== undefined) {
           dataGrid.appendChild(el('div', { class: 'propItem' }, [
-            el('div', { class: 'propLabel', html: 'Vapor fraction' }),
+            el('div', { class: 'propLabel', text: 'Vapor fraction' }),
             el('div', { class: 'propValue', html: `${(ud.last.beta * 100).toFixed(1)}<span class="propUnit">%</span>` })
           ]));
         }
         
         dataGrid.appendChild(el('div', { class: 'propItem' }, [
-          el('div', { class: 'propLabel', html: 'Vapor flow' }),
+          el('div', { class: 'propLabel', text: 'Vapor flow' }),
           el('div', { class: 'propValue', html: `${ud.last.nV_total.toFixed(3)}<span class="propUnit">mol/s</span>` })
         ]));
         dataGrid.appendChild(el('div', { class: 'propItem' }, [
-          el('div', { class: 'propLabel', html: 'Liquid flow' }),
+          el('div', { class: 'propLabel', text: 'Liquid flow' }),
           el('div', { class: 'propValue', html: `${ud.last.nL_total.toFixed(3)}<span class="propUnit">mol/s</span>` })
         ]));
         
@@ -11501,7 +11260,7 @@ function updatePropertiesPanel() {
         portBox.appendChild(el('div', { 
           class: 'small', 
           style: 'font-weight:700; margin-bottom:6px; opacity:0.8;', 
-          html: `${p.portId}` 
+          text: p.portId    // [v6.2] XSS: portId from registry
         }));
         renderStreamProperties(portBox, s);
         propsSection.content.appendChild(portBox);
@@ -11562,13 +11321,13 @@ function updatePropertiesPanel() {
     const titleDiv = el('div', { 
       class: 'unitTitle', 
       style: 'cursor:default;',
-      html: 'Stream' 
+      text: 'Stream' 
     });
     headerDiv.appendChild(titleDiv);
     
     const subtitleDiv = el('div', { 
       class: 'unitSubtitle', 
-      html: `${fromU?.name || '?'} → ${toU?.name || '?'}` 
+      text: `${fromU?.name || '?'} → ${toU?.name || '?'}`  // [v6.2] XSS: user-editable names
     });
     headerDiv.appendChild(subtitleDiv);
     
@@ -11592,7 +11351,7 @@ function updatePropertiesPanel() {
     const emptyDiv = el('div', { 
       class: 'small', 
       style: 'padding:40px 20px; text-align:center; opacity:0.5;',
-      html: 'Click a unit or stream to inspect' 
+      text: 'Click a unit or stream to inspect' 
     });
     propEditor.appendChild(emptyDiv);
     return;
@@ -11601,11 +11360,11 @@ function updatePropertiesPanel() {
   // ── Header ──
   const headerDiv = el('div', { class: 'unitHeader' });
   headerDiv.appendChild(el('div', { class: 'unitTitle' }, [
-    el('span', { html: 'System Balance' })
+    el('span', { text: 'System Balance' })
   ]));
   headerDiv.appendChild(el('div', { 
     class: 'unitSubtitle', 
-    html: 'Flowsheet boundary audit' 
+    text: 'Flowsheet boundary audit' 
   }));
   propEditor.appendChild(headerDiv);
 
@@ -11617,27 +11376,29 @@ function updatePropertiesPanel() {
     const massClosed = balance.mass.closed;
     mc.appendChild(el('div', { 
       style: `margin-bottom:10px; padding:6px 10px; border-radius:6px; font-size:12px; font-weight:600; text-align:center; background:${massClosed ? '#064e3b' : '#7f1d1d'}; color:${massClosed ? '#6ee7b7' : '#fca5a5'};`,
-      html: massClosed ? '✓ Mass balance closed' : `✗ Mass balance violation: Δ = ${(balance.mass.balance * 1000).toFixed(4)} g/s`
+      text: massClosed ? '✓ Mass balance closed' : `✗ Mass balance violation: Δ = ${(balance.mass.balance * 1000).toFixed(4)} g/s`
     }));
 
     const tbl = el('div', { style: 'font-size:11px; font-family:monospace;' });
 
     // Inputs
-    tbl.appendChild(el('div', { style: 'font-weight:700; opacity:0.7; padding:4px 0; text-transform:uppercase; font-size:10px;', html: '→ Mass In' }));
+    tbl.appendChild(el('div', { style: 'font-weight:700; opacity:0.7; padding:4px 0; text-transform:uppercase; font-size:10px;', text: '→ Mass In' }));
     for (const item of balance.mass.inItems) {
       const detail = Object.entries(item.detail).map(([sp, n]) => `${sp}: ${n.toFixed(3)}`).join(', ');
-      tbl.appendChild(el('div', { style: 'display:flex; justify-content:space-between; padding:2px 0;', html:
-        `<span>${item.name} <span style="opacity:0.5; font-size:10px">(${detail} mol/s)</span></span><span style="font-weight:600">${(item.mass_kgps * 1000).toFixed(3)} g/s</span>`
-      }));
+      tbl.appendChild(balanceRow(
+        'display:flex; justify-content:space-between; padding:2px 0;',
+        item.name, `(${detail} mol/s)`, `${(item.mass_kgps * 1000).toFixed(3)} g/s`
+      ));
     }
 
     // Outputs
-    tbl.appendChild(el('div', { style: 'font-weight:700; opacity:0.7; padding:6px 0 4px; text-transform:uppercase; font-size:10px; border-top:1px solid #334155; margin-top:4px;', html: '← Mass Out' }));
+    tbl.appendChild(el('div', { style: 'font-weight:700; opacity:0.7; padding:6px 0 4px; text-transform:uppercase; font-size:10px; border-top:1px solid #334155; margin-top:4px;', text: '← Mass Out' }));
     for (const item of balance.mass.outItems) {
       const detail = Object.entries(item.detail).map(([sp, n]) => `${sp}: ${n.toFixed(3)}`).join(', ');
-      tbl.appendChild(el('div', { style: 'display:flex; justify-content:space-between; padding:2px 0;', html:
-        `<span>${item.name} <span style="opacity:0.5; font-size:10px">(${detail} mol/s)</span></span><span style="font-weight:600">${(item.mass_kgps * 1000).toFixed(3)} g/s</span>`
-      }));
+      tbl.appendChild(balanceRow(
+        'display:flex; justify-content:space-between; padding:2px 0;',
+        item.name, `(${detail} mol/s)`, `${(item.mass_kgps * 1000).toFixed(3)} g/s`
+      ));
     }
 
     // Totals
@@ -11664,19 +11425,20 @@ function updatePropertiesPanel() {
     const enClosed = balance.energy.closed;
     ec.appendChild(el('div', { 
       style: `margin-bottom:10px; padding:6px 10px; border-radius:6px; font-size:12px; font-weight:600; text-align:center; background:${enClosed ? '#064e3b' : '#7f1d1d'}; color:${enClosed ? '#6ee7b7' : '#fca5a5'};`,
-      html: enClosed ? '✓ Energy balance closed' : `✗ Energy balance error: ${(balance.energy.relError * 100).toFixed(2)}%`
+      text: enClosed ? '✓ Energy balance closed' : `✗ Energy balance error: ${(balance.energy.relError * 100).toFixed(2)}%`
     }));
 
     // ── Inputs ──
-    ec.appendChild(el('div', { style: 'font-weight:700; font-size:11px; margin:8px 0 4px; opacity:0.7; text-transform:uppercase;', html: '→ Energy In' }));
+    ec.appendChild(el('div', { style: 'font-weight:700; font-size:11px; margin:8px 0 4px; opacity:0.7; text-transform:uppercase;', text: '→ Energy In' }));
     const inTbl = el('div', { style: 'font-size:11px; font-family:monospace; margin-bottom:8px;' });
     const typeColors = { material: '#60a5fa', electrical: '#facc15', mechanical: '#a78bfa', heat: '#f97316', dissipated: '#fb923c' };
     const typeLabels = { material: 'Enthalpy', electrical: 'Electrical', mechanical: 'Mechanical', heat: 'Heat', dissipated: 'Dissipated' };
     for (const item of balance.energy.in.items) {
       const c = typeColors[item.type] || '#e2e8f0';
-      inTbl.appendChild(el('div', { style: `display:flex; justify-content:space-between; padding:2px 0; color:${c};`, html:
-        `<span>${item.name} <span style="opacity:0.6">(${typeLabels[item.type]})</span></span><span>${(item.value/1000).toFixed(2)} kW</span>`
-      }));
+      inTbl.appendChild(balanceRow(
+        `display:flex; justify-content:space-between; padding:2px 0; color:${c};`,
+        item.name, `(${typeLabels[item.type]})`, `${(item.value/1000).toFixed(2)} kW`
+      ));
     }
     // Subtotals by type
     inTbl.appendChild(el('div', { style: 'border-top:1px solid #334155; margin-top:4px; padding-top:4px;' }));
@@ -11695,13 +11457,14 @@ function updatePropertiesPanel() {
     ec.appendChild(inTbl);
 
     // ── Outputs ──
-    ec.appendChild(el('div', { style: 'font-weight:700; font-size:11px; margin:8px 0 4px; opacity:0.7; text-transform:uppercase;', html: '← Energy Out' }));
+    ec.appendChild(el('div', { style: 'font-weight:700; font-size:11px; margin:8px 0 4px; opacity:0.7; text-transform:uppercase;', text: '← Energy Out' }));
     const outTbl = el('div', { style: 'font-size:11px; font-family:monospace; margin-bottom:8px;' });
     for (const item of balance.energy.out.items) {
       const c = typeColors[item.type] || '#e2e8f0';
-      outTbl.appendChild(el('div', { style: `display:flex; justify-content:space-between; padding:2px 0; color:${c};`, html:
-        `<span>${item.name} <span style="opacity:0.6">(${typeLabels[item.type]})</span></span><span>${(item.value/1000).toFixed(2)} kW</span>`
-      }));
+      outTbl.appendChild(balanceRow(
+        `display:flex; justify-content:space-between; padding:2px 0; color:${c};`,
+        item.name, `(${typeLabels[item.type]})`, `${(item.value/1000).toFixed(2)} kW`
+      ));
     }
     outTbl.appendChild(el('div', { style: 'border-top:1px solid #334155; margin-top:4px; padding-top:4px;' }));
     for (const type of ['material', 'electrical', 'mechanical', 'heat', 'dissipated']) {
@@ -15368,198 +15131,6 @@ function runTests() {
   });
 
   // ═══════════════════════════════════════════════════════════════════════
-  // SECTION Z: Stream Validation (Tests 100–101)
-  // [v6.2] validateStream / validateUnitPorts — pure unit tests and
-  // integration tests via monkeypatched ticks.
-  // ═══════════════════════════════════════════════════════════════════════
-
-  test('validateStream — pure validator rules', t => {
-    // ── MATERIAL: missing P ──
-    const matNoP = { type: StreamType.MATERIAL, T: 300, n: { H2O: 1 } };
-    const r1 = validateStream(matNoP, { portType: StreamType.MATERIAL, unitId: 'test', portId: 'out' });
-    t.assertOK(r1.length > 0, 'Missing P → issues');
-    t.assertOK(r1.some(i => i.code === 'MATERIAL_NO_P'), 'code=MATERIAL_NO_P');
-    t.assertOK(r1.some(i => i.severity.level >= ErrorSeverity.CATASTROPHIC.level), 'Missing P severity=CATASTROPHIC');
-
-    // ── MATERIAL: NaN P ──
-    const matNanP = { type: StreamType.MATERIAL, T: 300, P: NaN, n: { H2O: 1 } };
-    const r1b = validateStream(matNanP, { portType: StreamType.MATERIAL, unitId: 'test', portId: 'out' });
-    t.assertOK(r1b.some(i => i.code === 'MATERIAL_P_NAN'), 'NaN P detected');
-
-    // ── MATERIAL: negative P ──
-    const matNegP = { type: StreamType.MATERIAL, T: 300, P: -100, n: { H2O: 1 } };
-    const r1c = validateStream(matNegP, { portType: StreamType.MATERIAL, unitId: 'test', portId: 'out' });
-    t.assertOK(r1c.some(i => i.code === 'MATERIAL_P_NONPOSITIVE'), 'Negative P → MAJOR');
-
-    // ── MATERIAL: missing n ──
-    const matNoN = { type: StreamType.MATERIAL, T: 300, P: 101325 };
-    const r1d = validateStream(matNoN, { portType: StreamType.MATERIAL, unitId: 'test', portId: 'out' });
-    t.assertOK(r1d.some(i => i.code === 'MATERIAL_NO_N'), 'Missing n detected');
-
-    // ── MATERIAL: NaN in molar flow ──
-    const matNanN = { type: StreamType.MATERIAL, T: 300, P: 101325, n: { H2O: NaN } };
-    const r1e = validateStream(matNanN, { portType: StreamType.MATERIAL, unitId: 'test', portId: 'out' });
-    t.assertOK(r1e.some(i => i.code === 'MATERIAL_N_NAN'), 'NaN molar flow detected');
-
-    // ── MATERIAL: no T and no H_target_Jps ──
-    const matNoT = { type: StreamType.MATERIAL, P: 101325, n: { H2O: 1 } };
-    const r1f = validateStream(matNoT, { portType: StreamType.MATERIAL, unitId: 'test', portId: 'out' });
-    t.assertOK(r1f.some(i => i.code === 'MATERIAL_NO_T_OR_H'), 'No T or H → CATASTROPHIC');
-
-    // ── MATERIAL: invalid phase ──
-    const matBadPhase = { type: StreamType.MATERIAL, T: 300, P: 101325, n: { H2O: 1 }, phase: 'gas' };
-    const r2 = validateStream(matBadPhase, { portType: StreamType.MATERIAL, unitId: 'test', portId: 'out' });
-    t.assertOK(r2.some(i => i.code === 'MATERIAL_PHASE_INVALID'), "phase='gas' → invalid");
-    t.assertOK(r2.some(i => i.severity.level >= ErrorSeverity.MAJOR.level), 'Bad phase severity >= MAJOR');
-
-    // ── MATERIAL: valid stream (should produce 0 issues) ──
-    const matGood = { type: StreamType.MATERIAL, T: 373.15, P: 101325, n: { H2O: 10 } };
-    const r2b = validateStream(matGood, { portType: StreamType.MATERIAL, unitId: 'test', portId: 'out' });
-    t.assertOK(r2b.length === 0, 'Valid material → 0 issues');
-
-    // ── MATERIAL: H_target_Jps instead of T (valid for PH flash) ──
-    const matPH = { type: StreamType.MATERIAL, P: 101325, n: { H2O: 10 }, H_target_Jps: -50000 };
-    const r2c = validateStream(matPH, { portType: StreamType.MATERIAL, unitId: 'test', portId: 'out' });
-    t.assertOK(r2c.length === 0, 'H_target_Jps without T → 0 issues');
-
-    // ── ELECTRICAL: NaN actual ──
-    const elecNaN = { type: StreamType.ELECTRICAL, capacity: 1000, actual: NaN, demand: 500 };
-    const r3 = validateStream(elecNaN, { portType: StreamType.ELECTRICAL, unitId: 'test', portId: 'out' });
-    t.assertOK(r3.some(i => i.code === 'POWER_ACTUAL_NAN'), 'NaN actual detected');
-    t.assertOK(r3.some(i => i.severity.level >= ErrorSeverity.CATASTROPHIC.level), 'NaN actual severity=CATASTROPHIC');
-
-    // ── ELECTRICAL: missing actual ──
-    const elecNoAct = { type: StreamType.ELECTRICAL, capacity: 1000 };
-    const r3b = validateStream(elecNoAct, { portType: StreamType.ELECTRICAL, unitId: 'test', portId: 'out' });
-    t.assertOK(r3b.some(i => i.code === 'POWER_NO_ACTUAL'), 'Missing actual detected');
-
-    // ── ELECTRICAL: valid stream ──
-    const elecGood = { type: StreamType.ELECTRICAL, capacity: 1000, actual: 800, demand: 900, curtailmentFactor: 0.89 };
-    const r3c = validateStream(elecGood, { portType: StreamType.ELECTRICAL, unitId: 'test', portId: 'out' });
-    t.assertOK(r3c.length === 0, 'Valid electrical → 0 issues');
-
-    // ── ELECTRICAL: actual > capacity ──
-    const elecOver = { type: StreamType.ELECTRICAL, capacity: 1000, actual: 1500, demand: 1500 };
-    const r3d = validateStream(elecOver, { portType: StreamType.ELECTRICAL, unitId: 'test', portId: 'out' });
-    t.assertOK(r3d.some(i => i.code === 'POWER_ACTUAL_EXCEEDS_CAPACITY'), 'actual > capacity detected');
-
-    // ── HEAT: negative capacity ──
-    const heatNeg = { type: StreamType.HEAT, capacity: -100, actual: 0 };
-    const r4 = validateStream(heatNeg, { portType: StreamType.HEAT, unitId: 'test', portId: 'out' });
-    t.assertOK(r4.some(i => i.code === 'POWER_CAPACITY_NEGATIVE'), 'Negative capacity detected');
-
-    // ── Type mismatch ──
-    const mismatch = { type: StreamType.HEAT, capacity: 100, actual: 50 };
-    const r5 = validateStream(mismatch, { portType: StreamType.ELECTRICAL, unitId: 'test', portId: 'out' });
-    t.assertOK(r5.some(i => i.code === 'STREAM_TYPE_MISMATCH'), 'Type mismatch detected');
-
-    // ── Null stream → empty issues ──
-    const r6 = validateStream(null, { portType: StreamType.MATERIAL, unitId: 'test', portId: 'out' });
-    t.assertOK(r6.length === 0, 'Null stream → 0 issues');
-  });
-
-  test('validateStream — solver integration with monkeypatched ticks', t => {
-    // ── Test A: material source with deleted P → solver ok:false ──
-    const srcDef = UnitRegistry.get('source');
-    const origTick = srcDef.tick;
-
-    // Monkeypatch: call original tick, then corrupt P
-    srcDef.tick = function(u, ports, par, ctx) {
-      origTick.call(this, u, ports, par, ctx);
-      delete ports.out.P;  // Corrupt: remove P
-    };
-
-    try {
-      const src = t.place('source', 0, 0, { species:'H2O', nDot:10, T:373.15, P:101325, phaseConstraint:'V' });
-      const snk = t.place('sink', 3, 0);
-      t.wire(src, 'out', snk, 'in');
-
-      const r = t.solveRaw();
-      t.assertOK(r.ok === false, 'Solver ok=false when P missing');
-
-      // Check that validation error is present on unit
-      const srcUD = t.ud(src);
-      const hasValErr = srcUD.errors.some(e =>
-        (typeof e === 'object' && e.code === 'MATERIAL_NO_P')
-      );
-      t.assertOK(hasValErr, 'ud.errors includes MATERIAL_NO_P');
-
-      // Should be CATASTROPHIC
-      const hasCatastrophic = srcUD.errors.some(e =>
-        typeof e === 'object' && e.severity &&
-        e.severity.level >= ErrorSeverity.CATASTROPHIC.level
-      );
-      t.assertOK(hasCatastrophic, 'Severity >= CATASTROPHIC');
-
-      // ud.last.error should be set
-      t.assertOK(srcUD.last?.error, 'ud.last.error is set');
-    } finally {
-      // Always restore original tick
-      srcDef.tick = origTick;
-    }
-
-    // ── Test B: electrical source with NaN actual → solver ok:false ──
-    t.clearScene();
-    const elecDef = UnitRegistry.get('source_electrical');
-    const origElecTick = elecDef.tick;
-
-    elecDef.tick = function(u, ports, par, ctx) {
-      origElecTick.call(this, u, ports, par, ctx);
-      ports.out.actual = NaN;  // Corrupt: NaN actual
-    };
-
-    try {
-      const srcE = t.place('source_electrical', 0, 0, { maxPower: 100 });
-      const mot = t.place('motor', 3, 0, { eta: 0.95 });
-      const srcW = t.place('source', 6, -3, { species:'H2O', nDot:10, T:298.15, P:100000, phaseConstraint:'L' });
-      const pmp = t.place('pump', 9, 0, { Pout:500000, eta:0.75 });
-      const snk = t.place('sink', 12, 0);
-      t.wire(srcE, 'out', mot, 'elec_in');
-      t.wire(mot, 'mech_out', pmp, 'power_in');
-      t.wire(srcW, 'out', pmp, 'mat_in');
-      t.wire(pmp, 'mat_out', snk, 'in');
-
-      const r = t.solveRaw();
-      t.assertOK(r.ok === false, 'Solver ok=false when actual=NaN');
-
-      const srcEUD = t.ud(srcE);
-      const hasActualErr = srcEUD.errors.some(e =>
-        typeof e === 'object' && e.code === 'POWER_ACTUAL_NAN'
-      );
-      t.assertOK(hasActualErr, 'ud.errors includes POWER_ACTUAL_NAN');
-    } finally {
-      elecDef.tick = origElecTick;
-    }
-
-    // ── Test C: material source with NaN T → solver ok:false ──
-    t.clearScene();
-    const srcDef2 = UnitRegistry.get('source');
-    const origTick2 = srcDef2.tick;
-
-    srcDef2.tick = function(u, ports, par, ctx) {
-      origTick2.call(this, u, ports, par, ctx);
-      ports.out.T = NaN;  // Corrupt: NaN temperature
-    };
-
-    try {
-      const src = t.place('source', 0, 0, { species:'H2O', nDot:10, T:373.15, P:101325, phaseConstraint:'V' });
-      const snk = t.place('sink', 3, 0);
-      t.wire(src, 'out', snk, 'in');
-
-      const r = t.solveRaw();
-      t.assertOK(r.ok === false, 'Solver ok=false when T=NaN');
-
-      const srcUD = t.ud(src);
-      const hasTErr = srcUD.errors.some(e =>
-        typeof e === 'object' && e.code === 'MATERIAL_T_NAN'
-      );
-      t.assertOK(hasTErr, 'ud.errors includes MATERIAL_T_NAN');
-    } finally {
-      srcDef2.tick = origTick2;
-    }
-  });
-
-  // ═══════════════════════════════════════════════════════════════════════
   // RUNNER
   // ═══════════════════════════════════════════════════════════════════════
 
@@ -15630,8 +15201,6 @@ PG.ImportLimits = ImportLimits;
 PG.isFiniteNum = isFiniteNum;
 PG.toFiniteOrNull = toFiniteOrNull;
 PG.validateStreamFlows = validateStreamFlows;
-PG.validateStream = validateStream;         // [v6.2] structural stream validator
-PG.validateUnitPorts = validateUnitPorts;    // [v6.2] per-unit port validator
 
 </script>
 
@@ -15771,6 +15340,45 @@ window.runSecurityTests = function() {
     assert('Import status: no IMG element',
       !statusContent.querySelector('img'));
   }
+
+  // ── [v6.2] Test 8: el(text:) treats HTML as literal text, not markup ──
+  window.__xss = undefined;
+  const xssPayload = '<img src=x onerror="window.__xss=1">X';
+  const safeNode = el('div', { text: xssPayload });
+  document.body.appendChild(safeNode);
+  assert('el(text:) no IMG element created',
+    safeNode.querySelector('img') === null);
+  assert('el(text:) literal <img in textContent',
+    safeNode.textContent.includes('<img'));
+  assert('el(text:) onerror did not fire',
+    window.__xss === undefined);
+  safeNode.remove();
+
+  // ── [v6.2] Test 9: addNumberEditor does not parse label as HTML ──
+  window.__xss = undefined;
+  const testContainer = el('div');
+  document.body.appendChild(testContainer);
+  addNumberEditor(testContainer, xssPayload, () => 42, () => {});
+  assert('addNumberEditor: no IMG element from hostile label',
+    testContainer.querySelector('img') === null);
+  assert('addNumberEditor: onerror did not fire',
+    window.__xss === undefined);
+  assert('addNumberEditor: literal <img in label text',
+    testContainer.textContent.includes('<img'));
+  testContainer.remove();
+
+  // ── [v6.2] Test 10: balanceRow does not parse name as HTML ──
+  window.__xss = undefined;
+  const bRow = balanceRow('display:flex;', xssPayload, '(detail)', '42 g/s');
+  document.body.appendChild(bRow);
+  assert('balanceRow: no IMG element from hostile name',
+    bRow.querySelector('img') === null);
+  assert('balanceRow: onerror did not fire',
+    window.__xss === undefined);
+  assert('balanceRow: literal <img in textContent',
+    bRow.textContent.includes('<img'));
+  bRow.remove();
+  window.__xss = undefined;
 
   // Cleanup: remove test unit, deselect, restore
   scene.runtime.unitData.delete(hostileUnit);
