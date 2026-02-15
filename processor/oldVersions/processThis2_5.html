@@ -1,20 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v8.6.0
-
-  ─── v8.6.0 ───────────────────────────────────────────────────────────────
-  UI polish — icons, property panels, default parameters.
-  SVG icons: reactor_adiabatic (rounded rect + flow arrows),
-  source_multi (multi-dot source + arrow).
-  Default params: source_multi (dry air), reactor_adiabatic (R_H2_COMB, fixed 50%).
-  Property panel: source_multi (composition editor with add/remove species,
-  T, P, phase). reactor_adiabatic (reaction selector, mode toggle,
-  conversion/alpha/T_eval editors, P_out). Reactor results display with
-  status, mode info, extent bar, equilibrium diagnostics.
-  Units appear in palette automatically via UnitRegistry.listByCategory().
-  NNG: NNG-V1/V2.
-  Tests: no new automated tests (UI-only changes); all 126 existing pass.
+  processThis v8.5.0
 
   ─── v8.5.0 ───────────────────────────────────────────────────────────────
   Reactor K(T) equilibrium-lite mode + demo scene reactor.
@@ -410,7 +397,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>processThis — v8.6.0</title>
+  <title>processThis — v8.5.0</title>
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
@@ -1370,23 +1357,6 @@
           <circle cx="32" cy="32" r="18" fill="none" stroke="currentColor" stroke-width="3"/>
           <!-- G letter -->
           <text x="32" y="38" text-anchor="middle" font-size="22" font-weight="700" fill="currentColor">G</text>
-        </symbol>
-
-        <!-- Source (Mix) — multi-component source [v8.6.0] -->
-        <symbol id="ico-source_multi" viewBox="0 0 64 64">
-          <circle cx="18" cy="32" r="10" fill="none" stroke="currentColor" stroke-width="3"/>
-          <circle cx="18" cy="32" r="3" fill="currentColor"/>
-          <circle cx="18" cy="24" r="2" fill="currentColor" opacity="0.6"/>
-          <circle cx="18" cy="40" r="2" fill="currentColor" opacity="0.6"/>
-          <path d="M30 32h22" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
-          <path d="M44 24l8 8-8 8" fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/>
-        </symbol>
-
-        <!-- Reactor (Adiabatic) [v8.6.0] -->
-        <symbol id="ico-reactor_adiabatic" viewBox="0 0 64 64">
-          <rect x="14" y="8" width="36" height="48" rx="6" fill="none" stroke="currentColor" stroke-width="4"/>
-          <path d="M26 24l6 8-6 8" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round" opacity="0.8"/>
-          <path d="M34 24l6 8-6 8" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round" opacity="0.8"/>
         </symbol>
       </defs>
     </svg>
@@ -7124,13 +7094,6 @@ class Scene {
       case 'splitter':
         unit.params = { splitPct: 50 };   // 50/50 split
         break;
-      // ── Reactions [v8.6.0] ──
-      case 'source_multi':
-        unit.params = { n: { N2: 0.78, O2: 0.21, Ar: 0.01 }, T: 298.15, P: 101325, phaseConstraint: 'V' };
-        break;
-      case 'reactor_adiabatic':
-        unit.params = { reactionId: 'R_H2_COMB', mode: 'fixed', conversion: 0.5 };
-        break;
       // ── Units with no params: sink, sink_electrical, sink_heat,
       //    power_hub, mixer, flash_drum — empty params is correct ──
     }
@@ -11933,108 +11896,6 @@ function updatePropertiesPanel() {
       propEditor.appendChild(paramsSection.section);
     }
 
-    // [v8.6.0] Source (Mix) parameter editor
-    if (u.defId === 'source_multi') {
-      const paramsSection = createCollapsibleSection('Parameters', true);
-      const unitSys = models.getActive('units');
-
-      // Composition: one number editor per species
-      if (!u.params.n) u.params.n = { N2: 0.78, O2: 0.21, Ar: 0.01 };
-      const compBox = el('div', { style: 'margin-bottom:8px;' });
-      compBox.appendChild(el('div', { class: 'small', style: 'font-weight:700; opacity:0.7; margin-bottom:4px;', html: 'Composition (mol/s)' }));
-      // List existing species
-      for (const sp of Object.keys(u.params.n)) {
-        const row = el('div', { class: 'row', style: 'display:flex; align-items:center; gap:4px;' });
-        row.appendChild(el('label', { html: sp, style: 'min-width:40px;' }));
-        const inp = el('input', { type: 'number', step: '0.01', style: 'flex:1;' });
-        inp.value = u.params.n[sp];
-        const spCapture = sp;
-        inp.addEventListener('input', () => {
-          const v = Number(inp.value);
-          if (v > 0) u.params.n[spCapture] = v;
-          else delete u.params.n[spCapture];
-        });
-        row.appendChild(inp);
-        compBox.appendChild(row);
-      }
-      // Add-species dropdown
-      const allSpecies = ComponentRegistry.list().map(c => c.formula).filter(f => !(f in u.params.n));
-      if (allSpecies.length > 0) {
-        const addRow = el('div', { class: 'row', style: 'margin-top:4px;' });
-        const addSel = el('select', {});
-        addSel.appendChild(el('option', { value: '', html: '+ Add species...' }));
-        for (const sp of allSpecies) {
-          addSel.appendChild(el('option', { value: sp, html: sp }));
-        }
-        addSel.addEventListener('change', () => {
-          if (addSel.value) {
-            u.params.n[addSel.value] = 1.0;
-            updatePropertiesPanel();
-          }
-        });
-        addRow.appendChild(addSel);
-        compBox.appendChild(addRow);
-      }
-      paramsSection.content.appendChild(compBox);
-
-      // T, P, phase
-      addNumberEditor(paramsSection.content, `T (${unitSys.temperature.symbol})`,
-        () => unitSys.temperature.from(u.params.T ?? 298.15),
-        v => u.params.T = unitSys.temperature.to(v), 1);
-      addNumberEditor(paramsSection.content, `P (${unitSys.pressure.symbol})`,
-        () => unitSys.pressure.from(u.params.P ?? 101325),
-        v => u.params.P = unitSys.pressure.to(v),
-        unitSys.pressure.decimals === 0 ? 1000 : 0.1);
-      addSelectEditor(paramsSection.content, 'Phase',
-        () => u.params.phaseConstraint || 'V',
-        v => u.params.phaseConstraint = v,
-        [['V', 'Vapor only'], ['L', 'Liquid only'], ['VL', 'Vapor-Liquid']]);
-
-      propEditor.appendChild(paramsSection.section);
-    }
-
-    // [v8.6.0] Reactor (Adiabatic) parameter editor
-    if (u.defId === 'reactor_adiabatic') {
-      const paramsSection = createCollapsibleSection('Parameters', true);
-      const unitSys = models.getActive('units');
-
-      // Reaction selector
-      const rxnOptions = ReactionRegistry.all().map(r => [r.id, `${r.name} (${r.equation})`]);
-      if (rxnOptions.length === 0) rxnOptions.push(['', '— No reactions registered —']);
-      addSelectEditor(paramsSection.content, 'Reaction',
-        () => u.params.reactionId || '',
-        v => u.params.reactionId = v,
-        rxnOptions);
-
-      // Mode selector
-      addSelectEditor(paramsSection.content, 'Mode',
-        () => u.params.mode || 'fixed',
-        v => { u.params.mode = v; updatePropertiesPanel(); },
-        [['fixed', 'Fixed Conversion'], ['equilibrium', 'Equilibrium K(T)']]);
-
-      // Mode-dependent parameters
-      if ((u.params.mode || 'fixed') === 'fixed') {
-        addNumberEditor(paramsSection.content, 'Conversion (0–1)',
-          () => u.params.conversion ?? 0.5,
-          v => u.params.conversion = Math.max(0, Math.min(1, v)), 0.05);
-      } else {
-        addNumberEditor(paramsSection.content, 'Alpha (0–1)',
-          () => u.params.alpha ?? 1.0,
-          v => u.params.alpha = Math.max(0, Math.min(1, v)), 0.05);
-        addNumberEditor(paramsSection.content, `T_eval override (${unitSys.temperature.symbol})`,
-          () => u.params.T_eval_override ? unitSys.temperature.from(u.params.T_eval_override) : '',
-          v => u.params.T_eval_override = v ? unitSys.temperature.to(v) : undefined, 1);
-      }
-
-      // Optional P_out
-      addNumberEditor(paramsSection.content, `P_out (${unitSys.pressure.symbol}, blank=inlet)`,
-        () => u.params.P_out ? unitSys.pressure.from(u.params.P_out) : '',
-        v => u.params.P_out = v ? unitSys.pressure.to(v) : undefined,
-        unitSys.pressure.decimals === 0 ? 1000 : 0.1);
-
-      propEditor.appendChild(paramsSection.section);
-    }
-
     // Bordered Section 2: Properties
     const ud = scene.runtime.unitData.get(u.id);
     const propsSection = createCollapsibleSection('Properties', true);
@@ -12558,82 +12419,6 @@ function updatePropertiesPanel() {
           gBox.appendChild(el('div', { style: 'margin-top:8px; padding:6px 8px; background:#78350f; border-radius:4px; font-size:11px; color:#fbbf24;', html: '⚠ ' + ud.last.heatOutWarning.message }));
         }
         propsSection.content.appendChild(gBox);
-      }
-      
-      // [v8.6.0] Reactor results display
-      if (u.defId === 'reactor_adiabatic' && ud.last && ud.last.status) {
-        const unitSys = models.getActive('units');
-        const rxBox = el('div', { style: 'margin-bottom:16px; padding:12px; background:#1e293b; border-radius:8px;' });
-        const statusColor = ud.last.status === 'active' ? '#22c55e' : ud.last.status === 'inactive' ? '#f59e0b' : '#ef4444';
-        rxBox.appendChild(el('div', {
-          class: 'small',
-          style: 'font-weight:700; margin-bottom:8px; opacity:0.8; text-transform:uppercase;',
-          html: `⚗️ Reactor — <span style="color:${statusColor}">${ud.last.status}</span>`
-        }));
-        const dataGrid = el('div', { class: 'propGrid' });
-
-        // Reaction info
-        const rxn = ud.last.reactionId ? ReactionRegistry.get(ud.last.reactionId) : null;
-        if (rxn) {
-          dataGrid.appendChild(el('div', { class: 'propItem' }, [
-            el('div', { class: 'propLabel', html: 'Reaction' }),
-            el('div', { class: 'propValue', html: rxn.equation })
-          ]));
-        }
-
-        dataGrid.appendChild(el('div', { class: 'propItem' }, [
-          el('div', { class: 'propLabel', html: 'Mode' }),
-          el('div', { class: 'propValue', html: ud.last.mode === 'equilibrium' ? 'K(T) Equilibrium' : 'Fixed Conversion' })
-        ]));
-
-        if (ud.last.status === 'active') {
-          // Extent info
-          if (ud.last.mode === 'equilibrium') {
-            dataGrid.appendChild(el('div', { class: 'propItem' }, [
-              el('div', { class: 'propLabel', html: 'ln K' }),
-              el('div', { class: 'propValue', html: `${ud.last.ln_K?.toFixed(1)}` })
-            ]));
-            dataGrid.appendChild(el('div', { class: 'propItem' }, [
-              el('div', { class: 'propLabel', html: 'T_eval' }),
-              el('div', { class: 'propValue', html: `${unitSys.temperature.from(ud.last.T_eval)?.toFixed(1)}<span class="propUnit">${unitSys.temperature.symbol}</span>` })
-            ]));
-            dataGrid.appendChild(el('div', { class: 'propItem' }, [
-              el('div', { class: 'propLabel', html: 'Alpha' }),
-              el('div', { class: 'propValue', html: `${ud.last.alpha?.toFixed(2)}` })
-            ]));
-          } else {
-            dataGrid.appendChild(el('div', { class: 'propItem' }, [
-              el('div', { class: 'propLabel', html: 'Conversion' }),
-              el('div', { class: 'propValue', html: `${((ud.last.conversion ?? 0) * 100).toFixed(1)}<span class="propUnit">%</span>` })
-            ]));
-          }
-
-          // Extent and energy (common to both modes)
-          dataGrid.appendChild(el('div', { class: 'propItem' }, [
-            el('div', { class: 'propLabel', html: 'ξ / ξ_max' }),
-            el('div', { class: 'propValue', html: `${ud.last.xi?.toFixed(4)} / ${ud.last.xi_max?.toFixed(4)}<span class="propUnit">mol/s</span>` })
-          ]));
-          // Conversion bar
-          const convPct = ud.last.xi_max > 0 ? (ud.last.xi / ud.last.xi_max * 100) : 0;
-          const bar = el('div', { style: 'margin-top:6px; display:flex; border-radius:4px; overflow:hidden; background:#334155; height:8px;' });
-          bar.appendChild(el('div', { style: `width:${convPct}%; background:${statusColor}; height:8px;` }));
-          dataGrid.appendChild(bar);
-          dataGrid.appendChild(el('div', {
-            class: 'kv',
-            style: 'font-size:10px; opacity:0.6; margin-top:2px;',
-            html: `<span style="color:${statusColor}">${convPct.toFixed(1)}% of max extent</span>`
-          }));
-        }
-
-        if (ud.last.status === 'inactive' && ud.last.reason) {
-          dataGrid.appendChild(el('div', { class: 'propItem' }, [
-            el('div', { class: 'propLabel', html: 'Reason' }),
-            el('div', { class: 'propValue', style: 'font-size:11px; opacity:0.8;', html: ud.last.reason })
-          ]));
-        }
-
-        rxBox.appendChild(dataGrid);
-        propsSection.content.appendChild(rxBox);
       }
       
       // Special display for LV separator (phase split)
