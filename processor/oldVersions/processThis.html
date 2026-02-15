@@ -1,7 +1,31 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v8.4.0
+  processThis v8.6.0
+
+  ─── v8.6.0 ───────────────────────────────────────────────────────────────
+  UI polish — icons, property panels, default parameters.
+  SVG icons: reactor_adiabatic (rounded rect + flow arrows),
+  source_multi (multi-dot source + arrow).
+  Default params: source_multi (dry air), reactor_adiabatic (R_H2_COMB, fixed 50%).
+  Property panel: source_multi (composition editor with add/remove species,
+  T, P, phase). reactor_adiabatic (reaction selector, mode toggle,
+  conversion/alpha/T_eval editors, P_out). Reactor results display with
+  status, mode info, extent bar, equilibrium diagnostics.
+  Units appear in palette automatically via UnitRegistry.listByCategory().
+  NNG: NNG-V1/V2.
+  Tests: no new automated tests (UI-only changes); all 126 existing pass.
+
+  ─── v8.5.0 ───────────────────────────────────────────────────────────────
+  Reactor K(T) equilibrium-lite mode + demo scene reactor.
+  Mode B: van 't Hoff K(T) = exp(-ΔH°/RT + ΔS°/R), bisection for ξ_eq
+  where ln Q(ξ) = ln K. Alpha parameter scales ξ = alpha × ξ_eq.
+  T_eval = T_in by default, with optional T_eval_override.
+  For H₂ combustion at 800K: ln K ≈ 62, near-complete conversion.
+  Demo scene updated with H₂/Air → Combustor (equilibrium) → Flue Gas.
+  NNG: NNG-L2 (equilibrium via K), NNG-T2 (3 new tests), NNG-V1/V2.
+  Tests: Section AF (Tests 124–126) — K(T) products favored, alpha scaling,
+  T_eval override. All with energy balance verification.
 
   ─── v8.4.0 ───────────────────────────────────────────────────────────────
   Adiabatic reactor unit — fixed conversion mode.
@@ -386,7 +410,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>processThis — v8.4.0</title>
+  <title>processThis — v8.6.0</title>
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
@@ -1346,6 +1370,23 @@
           <circle cx="32" cy="32" r="18" fill="none" stroke="currentColor" stroke-width="3"/>
           <!-- G letter -->
           <text x="32" y="38" text-anchor="middle" font-size="22" font-weight="700" fill="currentColor">G</text>
+        </symbol>
+
+        <!-- Source (Mix) — multi-component source [v8.6.0] -->
+        <symbol id="ico-source_multi" viewBox="0 0 64 64">
+          <circle cx="18" cy="32" r="10" fill="none" stroke="currentColor" stroke-width="3"/>
+          <circle cx="18" cy="32" r="3" fill="currentColor"/>
+          <circle cx="18" cy="24" r="2" fill="currentColor" opacity="0.6"/>
+          <circle cx="18" cy="40" r="2" fill="currentColor" opacity="0.6"/>
+          <path d="M30 32h22" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+          <path d="M44 24l8 8-8 8" fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/>
+        </symbol>
+
+        <!-- Reactor (Adiabatic) [v8.6.0] -->
+        <symbol id="ico-reactor_adiabatic" viewBox="0 0 64 64">
+          <rect x="14" y="8" width="36" height="48" rx="6" fill="none" stroke="currentColor" stroke-width="4"/>
+          <path d="M26 24l6 8-6 8" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round" opacity="0.8"/>
+          <path d="M34 24l6 8-6 8" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round" opacity="0.8"/>
         </symbol>
       </defs>
     </svg>
@@ -6835,10 +6876,108 @@ UnitRegistry.register('reactor_adiabatic', {
       return;
     }
 
-    // ── STEP 3: Compute extent ──
+    // ── STEP 3: Compute extent (mode-dependent) ──
     const mode = par.mode || 'fixed';
-    const conversion = clamp(par.conversion ?? 0, 0, 1);
-    const xi = conversion * xi_max;
+    let xi;
+
+    if (mode === 'equilibrium') {
+      // ── Mode B: K(T) Equilibrium-Lite (§6.4, DESIGN v2.4) ──
+      // Verify entropy data available for all stoich species
+      let entropyOK = true;
+      for (const sp of Object.keys(stoich)) {
+        const comp = ComponentRegistry.get(sp);
+        if (comp.s0_JmolK === null || comp.s0_JmolK === undefined) {
+          entropyOK = false;
+          break;
+        }
+      }
+      if (!entropyOK) {
+        u.last = { error: { severity: ErrorSeverity.MAJOR,
+          message: 'K(T) mode requires s0_JmolK for all species in reaction' },
+          reactionId: par.reactionId, mode, status: 'error' };
+        ports.mat_out = { type: StreamType.MATERIAL, T: sIn.T, P: P_out,
+          n: { ...sIn.n }, phaseConstraint: sIn.phaseConstraint || 'V' };
+        return;
+      }
+
+      // Compute ΔH° and ΔS° from NIST standard data
+      const R = 8.314;  // J/(mol·K)
+      let dH0 = 0, dS0 = 0;
+      for (const [sp, nu] of Object.entries(stoich)) {
+        const comp = ComponentRegistry.get(sp);
+        dH0 += nu * comp.hf0_Jmol;
+        dS0 += nu * comp.s0_JmolK;
+      }
+
+      // ln K(T) = -ΔH°/(R·T) + ΔS°/R  (van 't Hoff with constant ΔH°/ΔS°)
+      const T_eval = par.T_eval_override ?? sIn.T;
+      const ln_K = -dH0 / (R * T_eval) + dS0 / R;
+
+      // Bisection: find ξ_eq where ln_Q(ξ) = ln_K
+      const eps = xi_max * 1e-10;
+      const P_std = 1e5;  // Pa
+
+      // Function: ln_Q(ξ) - ln_K
+      const calcResidual = (xi_try) => {
+        let n_tot = 0;
+        const n_i = {};
+        // Compute all flows at this extent (including inerts)
+        for (const sp of Object.keys(sIn.n)) {
+          n_i[sp] = (sIn.n[sp] || 0) + (stoich[sp] || 0) * xi_try;
+          if (n_i[sp] < 1e-30) n_i[sp] = 1e-30;  // guard for ln
+          n_tot += n_i[sp];
+        }
+        // Add any product species not in inlet
+        for (const sp of Object.keys(stoich)) {
+          if (!(sp in n_i)) {
+            n_i[sp] = (stoich[sp] || 0) * xi_try;
+            if (n_i[sp] < 1e-30) n_i[sp] = 1e-30;
+            n_tot += n_i[sp];
+          }
+        }
+
+        // ln Q = Σ νᵢ × ln(yᵢ × P/P_std)
+        let ln_Q = 0;
+        for (const [sp, nu] of Object.entries(stoich)) {
+          const y_i = n_i[sp] / n_tot;
+          ln_Q += nu * Math.log(y_i * sIn.P / P_std);
+        }
+        return ln_Q - ln_K;
+      };
+
+      // Bisection on [eps, xi_max - eps]
+      let lo = eps, hi = xi_max - eps;
+      const f_lo = calcResidual(lo);
+      const f_hi = calcResidual(hi);
+      let xi_eq;
+
+      if (f_lo >= 0) {
+        // Even at minimum extent, Q ≥ K → reactants favored
+        xi_eq = 0;
+      } else if (f_hi <= 0) {
+        // Even at maximum extent, Q ≤ K → products overwhelmingly favored
+        xi_eq = xi_max;
+      } else {
+        // Bisect
+        for (let iter = 0; iter < 60; iter++) {
+          const mid = (lo + hi) / 2;
+          const f_mid = calcResidual(mid);
+          if (f_mid < 0) { lo = mid; } else { hi = mid; }
+          if (hi - lo < eps) break;
+        }
+        xi_eq = (lo + hi) / 2;
+      }
+
+      const alpha = clamp(par.alpha ?? 1.0, 0, 1);
+      xi = alpha * xi_eq;
+
+      // Extra diagnostics for Mode B
+      u._eqDiag = { dH0, dS0, T_eval, ln_K, xi_eq, alpha };
+    } else {
+      // ── Mode A: Fixed Conversion ──
+      const conversion = clamp(par.conversion ?? 0, 0, 1);
+      xi = conversion * xi_max;
+    }
 
     // ── STEP 4: Outlet molar flows ──
     const n_out = { ...sIn.n };  // preserves inerts
@@ -6867,12 +7006,21 @@ UnitRegistry.register('reactor_adiabatic', {
     u.last = {
       reactionId: par.reactionId,
       mode: mode,
-      conversion: conversion,
       xi: xi,
       xi_max: xi_max,
       status: 'active',
       H_in_kW: (H_in_Jps / 1000).toFixed(2)
     };
+    if (mode === 'equilibrium' && u._eqDiag) {
+      u.last.ln_K = u._eqDiag.ln_K;
+      u.last.xi_eq = u._eqDiag.xi_eq;
+      u.last.alpha = u._eqDiag.alpha;
+      u.last.T_eval = u._eqDiag.T_eval;
+      u.last.dH0 = u._eqDiag.dH0;
+      u.last.dS0 = u._eqDiag.dS0;
+    } else {
+      u.last.conversion = clamp(par.conversion ?? 0, 0, 1);
+    }
   }
 });
 
@@ -6975,6 +7123,13 @@ class Scene {
       // ── Topology ──
       case 'splitter':
         unit.params = { splitPct: 50 };   // 50/50 split
+        break;
+      // ── Reactions [v8.6.0] ──
+      case 'source_multi':
+        unit.params = { n: { N2: 0.78, O2: 0.21, Ar: 0.01 }, T: 298.15, P: 101325, phaseConstraint: 'V' };
+        break;
+      case 'reactor_adiabatic':
+        unit.params = { reactionId: 'R_H2_COMB', mode: 'fixed', conversion: 0.5 };
         break;
       // ── Units with no params: sink, sink_electrical, sink_heat,
       //    power_hub, mixer, flash_drum — empty params is correct ──
@@ -11381,7 +11536,7 @@ function computeSystemBalance(scene) {
     const uName = u.name || def.name;
 
     // ── Material source → IN ──
-    if (u.defId === 'source') {
+    if (u.defId === 'source' || u.defId === 'source_multi') {
       const s = ud.ports?.out;
       if (s && s.n) {
         const m = streamMass_kgps(s);
@@ -11775,6 +11930,108 @@ function updatePropertiesPanel() {
         1
       );
       
+      propEditor.appendChild(paramsSection.section);
+    }
+
+    // [v8.6.0] Source (Mix) parameter editor
+    if (u.defId === 'source_multi') {
+      const paramsSection = createCollapsibleSection('Parameters', true);
+      const unitSys = models.getActive('units');
+
+      // Composition: one number editor per species
+      if (!u.params.n) u.params.n = { N2: 0.78, O2: 0.21, Ar: 0.01 };
+      const compBox = el('div', { style: 'margin-bottom:8px;' });
+      compBox.appendChild(el('div', { class: 'small', style: 'font-weight:700; opacity:0.7; margin-bottom:4px;', html: 'Composition (mol/s)' }));
+      // List existing species
+      for (const sp of Object.keys(u.params.n)) {
+        const row = el('div', { class: 'row', style: 'display:flex; align-items:center; gap:4px;' });
+        row.appendChild(el('label', { html: sp, style: 'min-width:40px;' }));
+        const inp = el('input', { type: 'number', step: '0.01', style: 'flex:1;' });
+        inp.value = u.params.n[sp];
+        const spCapture = sp;
+        inp.addEventListener('input', () => {
+          const v = Number(inp.value);
+          if (v > 0) u.params.n[spCapture] = v;
+          else delete u.params.n[spCapture];
+        });
+        row.appendChild(inp);
+        compBox.appendChild(row);
+      }
+      // Add-species dropdown
+      const allSpecies = ComponentRegistry.list().map(c => c.formula).filter(f => !(f in u.params.n));
+      if (allSpecies.length > 0) {
+        const addRow = el('div', { class: 'row', style: 'margin-top:4px;' });
+        const addSel = el('select', {});
+        addSel.appendChild(el('option', { value: '', html: '+ Add species...' }));
+        for (const sp of allSpecies) {
+          addSel.appendChild(el('option', { value: sp, html: sp }));
+        }
+        addSel.addEventListener('change', () => {
+          if (addSel.value) {
+            u.params.n[addSel.value] = 1.0;
+            updatePropertiesPanel();
+          }
+        });
+        addRow.appendChild(addSel);
+        compBox.appendChild(addRow);
+      }
+      paramsSection.content.appendChild(compBox);
+
+      // T, P, phase
+      addNumberEditor(paramsSection.content, `T (${unitSys.temperature.symbol})`,
+        () => unitSys.temperature.from(u.params.T ?? 298.15),
+        v => u.params.T = unitSys.temperature.to(v), 1);
+      addNumberEditor(paramsSection.content, `P (${unitSys.pressure.symbol})`,
+        () => unitSys.pressure.from(u.params.P ?? 101325),
+        v => u.params.P = unitSys.pressure.to(v),
+        unitSys.pressure.decimals === 0 ? 1000 : 0.1);
+      addSelectEditor(paramsSection.content, 'Phase',
+        () => u.params.phaseConstraint || 'V',
+        v => u.params.phaseConstraint = v,
+        [['V', 'Vapor only'], ['L', 'Liquid only'], ['VL', 'Vapor-Liquid']]);
+
+      propEditor.appendChild(paramsSection.section);
+    }
+
+    // [v8.6.0] Reactor (Adiabatic) parameter editor
+    if (u.defId === 'reactor_adiabatic') {
+      const paramsSection = createCollapsibleSection('Parameters', true);
+      const unitSys = models.getActive('units');
+
+      // Reaction selector
+      const rxnOptions = ReactionRegistry.all().map(r => [r.id, `${r.name} (${r.equation})`]);
+      if (rxnOptions.length === 0) rxnOptions.push(['', '— No reactions registered —']);
+      addSelectEditor(paramsSection.content, 'Reaction',
+        () => u.params.reactionId || '',
+        v => u.params.reactionId = v,
+        rxnOptions);
+
+      // Mode selector
+      addSelectEditor(paramsSection.content, 'Mode',
+        () => u.params.mode || 'fixed',
+        v => { u.params.mode = v; updatePropertiesPanel(); },
+        [['fixed', 'Fixed Conversion'], ['equilibrium', 'Equilibrium K(T)']]);
+
+      // Mode-dependent parameters
+      if ((u.params.mode || 'fixed') === 'fixed') {
+        addNumberEditor(paramsSection.content, 'Conversion (0–1)',
+          () => u.params.conversion ?? 0.5,
+          v => u.params.conversion = Math.max(0, Math.min(1, v)), 0.05);
+      } else {
+        addNumberEditor(paramsSection.content, 'Alpha (0–1)',
+          () => u.params.alpha ?? 1.0,
+          v => u.params.alpha = Math.max(0, Math.min(1, v)), 0.05);
+        addNumberEditor(paramsSection.content, `T_eval override (${unitSys.temperature.symbol})`,
+          () => u.params.T_eval_override ? unitSys.temperature.from(u.params.T_eval_override) : '',
+          v => u.params.T_eval_override = v ? unitSys.temperature.to(v) : undefined, 1);
+      }
+
+      // Optional P_out
+      addNumberEditor(paramsSection.content, `P_out (${unitSys.pressure.symbol}, blank=inlet)`,
+        () => u.params.P_out ? unitSys.pressure.from(u.params.P_out) : '',
+        v => u.params.P_out = v ? unitSys.pressure.to(v) : undefined,
+        unitSys.pressure.decimals === 0 ? 1000 : 0.1);
+
       propEditor.appendChild(paramsSection.section);
     }
 
@@ -12301,6 +12558,82 @@ function updatePropertiesPanel() {
           gBox.appendChild(el('div', { style: 'margin-top:8px; padding:6px 8px; background:#78350f; border-radius:4px; font-size:11px; color:#fbbf24;', html: '⚠ ' + ud.last.heatOutWarning.message }));
         }
         propsSection.content.appendChild(gBox);
+      }
+      
+      // [v8.6.0] Reactor results display
+      if (u.defId === 'reactor_adiabatic' && ud.last && ud.last.status) {
+        const unitSys = models.getActive('units');
+        const rxBox = el('div', { style: 'margin-bottom:16px; padding:12px; background:#1e293b; border-radius:8px;' });
+        const statusColor = ud.last.status === 'active' ? '#22c55e' : ud.last.status === 'inactive' ? '#f59e0b' : '#ef4444';
+        rxBox.appendChild(el('div', {
+          class: 'small',
+          style: 'font-weight:700; margin-bottom:8px; opacity:0.8; text-transform:uppercase;',
+          html: `⚗️ Reactor — <span style="color:${statusColor}">${ud.last.status}</span>`
+        }));
+        const dataGrid = el('div', { class: 'propGrid' });
+
+        // Reaction info
+        const rxn = ud.last.reactionId ? ReactionRegistry.get(ud.last.reactionId) : null;
+        if (rxn) {
+          dataGrid.appendChild(el('div', { class: 'propItem' }, [
+            el('div', { class: 'propLabel', html: 'Reaction' }),
+            el('div', { class: 'propValue', html: rxn.equation })
+          ]));
+        }
+
+        dataGrid.appendChild(el('div', { class: 'propItem' }, [
+          el('div', { class: 'propLabel', html: 'Mode' }),
+          el('div', { class: 'propValue', html: ud.last.mode === 'equilibrium' ? 'K(T) Equilibrium' : 'Fixed Conversion' })
+        ]));
+
+        if (ud.last.status === 'active') {
+          // Extent info
+          if (ud.last.mode === 'equilibrium') {
+            dataGrid.appendChild(el('div', { class: 'propItem' }, [
+              el('div', { class: 'propLabel', html: 'ln K' }),
+              el('div', { class: 'propValue', html: `${ud.last.ln_K?.toFixed(1)}` })
+            ]));
+            dataGrid.appendChild(el('div', { class: 'propItem' }, [
+              el('div', { class: 'propLabel', html: 'T_eval' }),
+              el('div', { class: 'propValue', html: `${unitSys.temperature.from(ud.last.T_eval)?.toFixed(1)}<span class="propUnit">${unitSys.temperature.symbol}</span>` })
+            ]));
+            dataGrid.appendChild(el('div', { class: 'propItem' }, [
+              el('div', { class: 'propLabel', html: 'Alpha' }),
+              el('div', { class: 'propValue', html: `${ud.last.alpha?.toFixed(2)}` })
+            ]));
+          } else {
+            dataGrid.appendChild(el('div', { class: 'propItem' }, [
+              el('div', { class: 'propLabel', html: 'Conversion' }),
+              el('div', { class: 'propValue', html: `${((ud.last.conversion ?? 0) * 100).toFixed(1)}<span class="propUnit">%</span>` })
+            ]));
+          }
+
+          // Extent and energy (common to both modes)
+          dataGrid.appendChild(el('div', { class: 'propItem' }, [
+            el('div', { class: 'propLabel', html: 'ξ / ξ_max' }),
+            el('div', { class: 'propValue', html: `${ud.last.xi?.toFixed(4)} / ${ud.last.xi_max?.toFixed(4)}<span class="propUnit">mol/s</span>` })
+          ]));
+          // Conversion bar
+          const convPct = ud.last.xi_max > 0 ? (ud.last.xi / ud.last.xi_max * 100) : 0;
+          const bar = el('div', { style: 'margin-top:6px; display:flex; border-radius:4px; overflow:hidden; background:#334155; height:8px;' });
+          bar.appendChild(el('div', { style: `width:${convPct}%; background:${statusColor}; height:8px;` }));
+          dataGrid.appendChild(bar);
+          dataGrid.appendChild(el('div', {
+            class: 'kv',
+            style: 'font-size:10px; opacity:0.6; margin-top:2px;',
+            html: `<span style="color:${statusColor}">${convPct.toFixed(1)}% of max extent</span>`
+          }));
+        }
+
+        if (ud.last.status === 'inactive' && ud.last.reason) {
+          dataGrid.appendChild(el('div', { class: 'propItem' }, [
+            el('div', { class: 'propLabel', html: 'Reason' }),
+            el('div', { class: 'propValue', style: 'font-size:11px; opacity:0.8;', html: ud.last.reason })
+          ]));
+        }
+
+        rxBox.appendChild(dataGrid);
+        propsSection.content.appendChild(rxBox);
       }
       
       // Special display for LV separator (phase split)
@@ -12986,7 +13319,7 @@ document.getElementById('processNameInput').addEventListener('input', (e) => {
 function loadDemo() {
   scene.importJSON(JSON.stringify({
     version: 12,  // [v6.0.0] T params in K
-    grid: { w: 24, h: 18, tile: 48 },
+    grid: { w: 24, h: 22, tile: 48 },
     units: [
       // ── Power Sources ──
       { id: 'pwr-a', defId: 'source_electrical', name: 'Grid', x: 0, y: 4, rot: 0, 
@@ -13035,6 +13368,14 @@ function loadDemo() {
         params: { T_out: 353.15 } },
       { id: 'snk-b', defId: 'sink', name: 'Hot H2O', x: 20, y: 12, rot: 0, 
         params: {} },
+      
+      // ── Construct C: H₂ Combustion Reactor [v8.5.0] ──
+      { id: 'src-rx', defId: 'source_multi', name: 'H₂/Air Feed', x: 0, y: 16, rot: 0,
+        params: { n: { H2: 2, O2: 1, N2: 8 }, T: 800, P: 200000, phaseConstraint: 'V' } },
+      { id: 'reactor', defId: 'reactor_adiabatic', name: 'Combustor', x: 4, y: 16, rot: 0,
+        params: { reactionId: 'R_H2_COMB', mode: 'equilibrium', alpha: 1.0 } },
+      { id: 'snk-rx', defId: 'sink', name: 'Flue Gas', x: 8, y: 16, rot: 0,
+        params: {} },
     ],
     connections: [
       // Sources → Hub (all on elec_in)
@@ -13082,6 +13423,12 @@ function loadDemo() {
         to: { unitId: 'hsink-loss', portId: 'in' } },
       { id: 'q2', from: { unitId: 'gen', portId: 'heat_out' }, 
         to: { unitId: 'hsink-loss', portId: 'in' } },
+      
+      // Reactor chain: H₂/Air → Combustor → Flue Gas
+      { id: 'rx1', from: { unitId: 'src-rx', portId: 'out' },
+        to: { unitId: 'reactor', portId: 'mat_in' } },
+      { id: 'rx2', from: { unitId: 'reactor', portId: 'mat_out' },
+        to: { unitId: 'snk-rx', portId: 'in' } },
     ],
     modelsActive: models.active
   }));
@@ -13092,7 +13439,7 @@ function loadDemo() {
   scene.processName = 'Demo Process';
   document.getElementById('processNameInput').value = scene.processName;
   const solveResult = solveScene(scene);
-  setStatus(describeSolve() + "\nDemo: 3 sources (grid + battery + turbine/gen) → hub → compressor + heater.");
+  setStatus(describeSolve() + "\nDemo: power grid (3 sources → hub → compressor + heater) + H₂ combustion reactor.");
   updateStatusIndicator(solveResult);
   
   updatePropertiesPanel();
@@ -17174,6 +17521,117 @@ function runTests() {
     }
     t.assertClose(mb, 0, 0.01, 'Σ νᵢ×MW_i ≈ 0');
     t.assertClose(mb, rxn._massBalance, 1e-10, 'Matches stored value');
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // SECTION AF: Reactor K(T) Equilibrium Mode (Tests 124–126)
+  // [v8.5.0] Verify equilibrium extent, alpha scaling, T_eval override
+  // ═══════════════════════════════════════════════════════════════════════
+
+  test('Reactor K(T) — products strongly favored at 800K', t => {
+    // H₂ combustion: ln K(800) ≈ 62 → K >> 1 → ξ_eq ≈ ξ_max
+    const src = t.place('source_multi', 0, 0, {
+      n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
+    });
+    const rx = t.place('reactor_adiabatic', 4, 0, {
+      reactionId: 'R_H2_COMB', mode: 'equilibrium', alpha: 1.0
+    });
+    const snk = t.place('sink', 8, 0);
+    t.wire(src, 'out', rx, 'mat_in');
+    t.wire(rx, 'mat_out', snk, 'in');
+    t.solve();
+
+    const out = t.port(rx, 'mat_out');
+    const srcOut = t.port(src, 'out');
+    const rxLast = t.ud(rx).last;
+
+    // K(T) overwhelmingly favors products → near-complete conversion
+    t.assertOK(rxLast.status === 'active', 'Status: active');
+    t.assertOK(rxLast.mode === 'equilibrium', 'Mode: equilibrium');
+    t.assertOK(rxLast.ln_K > 50, 'ln K > 50 (overwhelmingly favored)',
+      `ln_K=${rxLast.ln_K?.toFixed(1)}`);
+    t.assertOK(rxLast.xi_eq > 0.999 * rxLast.xi_max,
+      'ξ_eq ≈ ξ_max', `ratio=${(rxLast.xi_eq/rxLast.xi_max).toFixed(6)}`);
+
+    // Composition: nearly complete conversion
+    t.assertOK(!out.n.H2 || out.n.H2 < 0.01, 'H2 ≈ 0');
+    t.assertOK(!out.n.O2 || out.n.O2 < 0.01, 'O2 ≈ 0');
+    t.assertClose(out.n.H2O, 2, 0.05, 'H2O ≈ 2');
+
+    // Energy balance
+    if (srcOut?.Hdot_J_s !== undefined && out.Hdot_J_s !== undefined) {
+      t.assertClose(Math.abs(out.Hdot_J_s - srcOut.Hdot_J_s), 0, 200, 'ΔH adiabatic');
+    }
+  });
+
+  test('Reactor K(T) — alpha scaling', t => {
+    // alpha = 0.5 → ξ ≈ 0.5 × ξ_eq
+    const src = t.place('source_multi', 0, 0, {
+      n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
+    });
+    const rx = t.place('reactor_adiabatic', 4, 0, {
+      reactionId: 'R_H2_COMB', mode: 'equilibrium', alpha: 0.5
+    });
+    const snk = t.place('sink', 8, 0);
+    t.wire(src, 'out', rx, 'mat_in');
+    t.wire(rx, 'mat_out', snk, 'in');
+    t.solve();
+
+    const out = t.port(rx, 'mat_out');
+    const srcOut = t.port(src, 'out');
+    const rxLast = t.ud(rx).last;
+
+    // Alpha = 0.5: ξ should be about half of ξ_eq
+    t.assertClose(rxLast.alpha, 0.5, 0.001, 'Alpha = 0.5');
+    t.assertClose(rxLast.xi, 0.5 * rxLast.xi_eq, 0.001, 'ξ = 0.5 × ξ_eq');
+
+    // Intermediate composition
+    t.assertClose(out.n.H2, 1.0, 0.05, 'H2 ≈ 1.0 (half consumed)');
+    t.assertClose(out.n.O2, 0.5, 0.05, 'O2 ≈ 0.5');
+    t.assertClose(out.n.H2O, 1.0, 0.05, 'H2O ≈ 1.0');
+
+    // Energy balance
+    if (srcOut?.Hdot_J_s !== undefined && out.Hdot_J_s !== undefined) {
+      t.assertClose(Math.abs(out.Hdot_J_s - srcOut.Hdot_J_s), 0, 200, 'ΔH adiabatic');
+    }
+
+    // Mass balance
+    const m_in  = streamMass_kgps(srcOut);
+    const m_out = streamMass_kgps(out);
+    t.assertClose(m_out, m_in, m_in * 0.001, 'Mass balance');
+  });
+
+  test('Reactor K(T) — T_eval override', t => {
+    // T_eval_override = 500K (different from T_in = 800K)
+    // At 500K, ln_K is even larger → same near-complete conversion
+    // But the point is T_eval ≠ T_in, and energy balance still holds
+    const src = t.place('source_multi', 0, 0, {
+      n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
+    });
+    const rx = t.place('reactor_adiabatic', 4, 0, {
+      reactionId: 'R_H2_COMB', mode: 'equilibrium', alpha: 1.0,
+      T_eval_override: 500
+    });
+    const snk = t.place('sink', 8, 0);
+    t.wire(src, 'out', rx, 'mat_in');
+    t.wire(rx, 'mat_out', snk, 'in');
+    t.solve();
+
+    const out = t.port(rx, 'mat_out');
+    const srcOut = t.port(src, 'out');
+    const rxLast = t.ud(rx).last;
+
+    // T_eval should be the override value
+    t.assertClose(rxLast.T_eval, 500, 0.1, 'T_eval = 500K (override)');
+
+    // ln_K at 500K: should be different (larger) than at 800K
+    // ln K(500) = 483652/(8.314×500) − 88.842/8.314 ≈ 116.3 − 10.7 ≈ 105.7
+    t.assertOK(rxLast.ln_K > 100, 'ln K(500K) > 100', rxLast.ln_K?.toFixed(1));
+
+    // Energy balance still holds (adiabatic)
+    if (srcOut?.Hdot_J_s !== undefined && out.Hdot_J_s !== undefined) {
+      t.assertClose(Math.abs(out.Hdot_J_s - srcOut.Hdot_J_s), 0, 200, 'ΔH adiabatic');
+    }
   });
 
   // ═══════════════════════════════════════════════════════════════════════

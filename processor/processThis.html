@@ -1,7 +1,16 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v8.6.0
+  processThis v8.6.1
+
+  ─── v8.6.1 ───────────────────────────────────────────────────────────────
+  Bugfix: computeSystemBalance() did not recognise source_multi as a
+  boundary source — only checked defId === 'source'. Added source_multi.
+  New tests (Section AG, Tests 127–128): cross-validate balance report
+  against engine port streams. Test 127: reactor scene (source_multi →
+  reactor → sink) — report mass/energy totals must match engine calculations.
+  Test 128: mixed sources (source + source_multi) — both must appear in
+  report inputs. These would have caught the original bug automatically.
 
   ─── v8.6.0 ───────────────────────────────────────────────────────────────
   UI polish — icons, property panels, default parameters.
@@ -410,7 +419,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>processThis — v8.6.0</title>
+  <title>processThis — v8.6.1</title>
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
@@ -11536,7 +11545,7 @@ function computeSystemBalance(scene) {
     const uName = u.name || def.name;
 
     // ── Material source → IN ──
-    if (u.defId === 'source') {
+    if (u.defId === 'source' || u.defId === 'source_multi') {
       const s = ud.ports?.out;
       if (s && s.n) {
         const m = streamMass_kgps(s);
@@ -17632,6 +17641,118 @@ function runTests() {
     if (srcOut?.Hdot_J_s !== undefined && out.Hdot_J_s !== undefined) {
       t.assertClose(Math.abs(out.Hdot_J_s - srcOut.Hdot_J_s), 0, 200, 'ΔH adiabatic');
     }
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // SECTION AG: Balance Report Cross-Validation (Tests 127–128)
+  // [v8.6.1] Verify computeSystemBalance() report matches internal engine.
+  // The report is the primary human-facing trust surface — if it disagrees
+  // with the engine, users lose confidence even if the engine is correct.
+  // ═══════════════════════════════════════════════════════════════════════
+
+  test('Balance report — reactor scene matches engine', t => {
+    // Build: source_multi → reactor → sink  (the exact topology that was broken)
+    const src = t.place('source_multi', 0, 0, {
+      n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
+    });
+    const rx = t.place('reactor_adiabatic', 4, 0, {
+      reactionId: 'R_H2_COMB', mode: 'fixed', conversion: 1.0
+    });
+    const snk = t.place('sink', 8, 0);
+    t.wire(src, 'out', rx, 'mat_in');
+    t.wire(rx, 'mat_out', snk, 'in');
+    t.solve();
+
+    const bal = computeSystemBalance(scene);
+    t.assertOK(bal, 'Balance computed');
+
+    // ── Independent mass calculation from port streams ──
+    const srcStream = t.port(src, 'out');
+    const snkStream = t.port(snk, 'in') || t.ud(snk)?.ports?.in || t.ud(snk)?.last?.stream;
+    const m_in_engine  = streamMass_kgps(srcStream);
+    const m_out_engine = streamMass_kgps(snkStream);
+
+    // Report must list exactly 1 source and 1 sink
+    t.assertClose(bal.mass.inItems.length, 1, 0, 'Report: 1 mass input (source_multi)');
+    t.assertClose(bal.mass.outItems.length, 1, 0, 'Report: 1 mass output (sink)');
+
+    // Report totals must match engine calculation within 1 mg/s
+    t.assertClose(bal.mass.totalIn, m_in_engine, 1e-6, 'Report mass_in = engine mass_in');
+    t.assertClose(bal.mass.totalOut, m_out_engine, 1e-6, 'Report mass_out = engine mass_out');
+
+    // Engine says mass is conserved (stoichiometry) — report must agree within MW rounding
+    t.assertClose(m_in_engine, m_out_engine, m_in_engine * 0.001, 'Engine: mass conserved');
+    t.assertClose(bal.mass.balance, m_in_engine - m_out_engine, 1e-9,
+      'Report residual = engine residual');
+
+    // Report closed flag must be consistent with its own tolerance
+    const massTol = Math.max(bal.mass.totalIn, bal.mass.totalOut) * 1e-6 + 1e-10;
+    const expectClosed = Math.abs(bal.mass.balance) < massTol;
+    t.assertOK(bal.mass.closed === expectClosed,
+      `mass.closed consistent (residual=${(bal.mass.balance*1e6).toFixed(3)} µkg/s, tol=${(massTol*1e6).toFixed(3)} µkg/s)`);
+
+    // ── Independent energy calculation from port streams ──
+    const H_in_engine  = srcStream.Hdot_J_s ?? thermo.getHdot_Jps(srcStream);
+    const H_out_engine = snkStream.Hdot_J_s ?? thermo.getHdot_Jps(snkStream);
+
+    // Report energy totals must match engine
+    t.assertClose(bal.energy.in.material, H_in_engine, 10, 'Report H_in = engine H_in');
+    t.assertClose(bal.energy.out.material, H_out_engine, 10, 'Report H_out = engine H_out');
+
+    // Adiabatic reactor: H_in = H_out — report must reflect this
+    t.assertClose(bal.energy.balance, 0, 200, 'Report: energy residual ≈ 0');
+    t.assertOK(bal.energy.closed, 'Report: energy.closed = true');
+  });
+
+  test('Balance report — mixed sources (source + source_multi) all counted', t => {
+    // If either source type is missed, the balance blows up.
+    // Build: source(N2) → sink1, source_multi(H2+O2+N2) → reactor → sink2
+    const srcN2 = t.place('source', 0, 0, { species: 'N2', nDot: 5, T: 300, P: 100000, phaseConstraint: 'V' });
+    const snk1  = t.place('sink', 4, 0);
+    t.wire(srcN2, 'out', snk1, 'in');
+
+    const srcMix = t.place('source_multi', 0, 4, {
+      n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
+    });
+    const rx  = t.place('reactor_adiabatic', 4, 4, {
+      reactionId: 'R_H2_COMB', mode: 'fixed', conversion: 1.0
+    });
+    const snk2 = t.place('sink', 8, 4);
+    t.wire(srcMix, 'out', rx, 'mat_in');
+    t.wire(rx, 'mat_out', snk2, 'in');
+    t.solve();
+
+    const bal = computeSystemBalance(scene);
+    t.assertOK(bal, 'Balance computed');
+
+    // Must see BOTH source streams as inputs
+    t.assertClose(bal.mass.inItems.length, 2, 0, 'Report: 2 mass inputs (source + source_multi)');
+    t.assertClose(bal.mass.outItems.length, 2, 0, 'Report: 2 mass outputs (2 sinks)');
+
+    // Independent mass totals
+    const m_srcN2  = streamMass_kgps(t.port(srcN2, 'out'));
+    const m_srcMix = streamMass_kgps(t.port(srcMix, 'out'));
+    const m_snk1   = streamMass_kgps(t.port(snk1, 'in') || t.ud(snk1)?.ports?.in || t.ud(snk1)?.last?.stream);
+    const m_snk2   = streamMass_kgps(t.port(snk2, 'in') || t.ud(snk2)?.ports?.in || t.ud(snk2)?.last?.stream);
+
+    const m_in_total  = m_srcN2 + m_srcMix;
+    const m_out_total = m_snk1 + m_snk2;
+
+    t.assertClose(bal.mass.totalIn, m_in_total, 1e-6, 'Report totalIn = engine sum');
+    t.assertClose(bal.mass.totalOut, m_out_total, 1e-6, 'Report totalOut = engine sum');
+
+    // Report residual must match engine residual
+    const engineResidual = m_in_total - m_out_total;
+    t.assertClose(bal.mass.balance, engineResidual, 1e-9, 'Report residual = engine residual');
+
+    // Report closed flag must be self-consistent
+    const massTol = Math.max(bal.mass.totalIn, bal.mass.totalOut) * 1e-6 + 1e-10;
+    const expectClosed = Math.abs(bal.mass.balance) < massTol;
+    t.assertOK(bal.mass.closed === expectClosed, 'mass.closed self-consistent');
+
+    // Energy closure across both sub-processes
+    t.assertOK(bal.energy.closed, 'energy.closed = true');
+    t.assertClose(bal.energy.balance, 0, 200, 'Energy residual < 200 W');
   });
 
   // ═══════════════════════════════════════════════════════════════════════
