@@ -833,6 +833,67 @@
       padding: 8px 10px; 
       font-size: 12px;
     }
+
+    /* [v8.6.3] Slider + number input combo for reactor parameters */
+    .sliderCombo {
+      display: grid;
+      grid-template-columns: 1fr 56px;
+      gap: 6px;
+      align-items: center;
+    }
+    .sliderCombo input[type=range] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 6px;
+      border-radius: 3px;
+      background: #1e293b;
+      border: none;
+      padding: 0;
+      outline: none;
+    }
+    .sliderCombo input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #60a5fa;
+      cursor: pointer;
+      border: 2px solid #93c5fd;
+    }
+    .sliderCombo input[type=range]::-moz-range-thumb {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #60a5fa;
+      cursor: pointer;
+      border: 2px solid #93c5fd;
+    }
+    .sliderCombo input[type=number] {
+      width: 56px;
+      text-align: center;
+      padding: 4px 2px;
+      font-size: 11px;
+      border-radius: 8px;
+    }
+
+    /* Reaction equation display */
+    .rxnEquation {
+      font-size: 14px;
+      font-weight: 500;
+      letter-spacing: 0.3px;
+      padding: 10px 12px;
+      background: #0f172a;
+      border: 1px solid #1e293b;
+      border-radius: 8px;
+      text-align: center;
+      line-height: 1.5;
+      margin: 6px 0 10px;
+    }
+    .rxnEquation .coeff { color: #93c5fd; font-weight: 600; }
+    .rxnEquation .species { color: #e2e8f0; }
+    .rxnEquation .arrow { color: #64748b; padding: 0 6px; }
+    .rxnEquation .plus { color: #64748b; padding: 0 4px; }
     
     .small { 
       font-size: 12px; 
@@ -11224,6 +11285,61 @@ function addSelectEditor(container, label, get, set, options) {
   container.appendChild(row);
 }
 
+// [v8.6.3] Slider + number input combo for bounded parameters (0–1)
+function addSliderEditor(container, label, get, set, min = 0, max = 1, step = 0.01) {
+  const row = el('div', { class: 'row' });
+  row.appendChild(el('label', { html: label }));
+
+  const combo = el('div', { class: 'sliderCombo' });
+  const range = el('input', { type: 'range', min: String(min), max: String(max), step: String(step) });
+  const num = el('input', { type: 'number', min: String(min), max: String(max), step: String(step) });
+
+  const val = get() ?? min;
+  range.value = String(val);
+  num.value = String(val);
+
+  range.addEventListener('input', () => {
+    const v = Math.max(min, Math.min(max, Number(range.value)));
+    num.value = String(v);
+    set(v);
+  });
+  num.addEventListener('input', () => {
+    const v = Math.max(min, Math.min(max, Number(num.value)));
+    range.value = String(v);
+    set(v);
+  });
+
+  combo.appendChild(range);
+  combo.appendChild(num);
+  row.appendChild(combo);
+  container.appendChild(row);
+}
+
+// [v8.6.3] Format reaction equation with styled spans
+// Input: plain text like "2 H₂ + O₂ → 2 H₂O"
+// Output: HTML with .coeff, .species, .arrow, .plus classes
+function formatReactionHTML(equation) {
+  if (!equation) return '';
+  // Split on arrow (→ or ->)
+  const sides = equation.split(/\s*(→|->)\s*/);
+  if (sides.length < 3) return equation;  // fallback
+
+  function formatSide(side) {
+    // Split on ' + '
+    return side.split(/\s*\+\s*/).map(term => {
+      term = term.trim();
+      // Match optional leading coefficient + species
+      const m = term.match(/^(\d+)\s+(.+)$/);
+      if (m) {
+        return `<span class="coeff">${m[1]}</span>\u2009<span class="species">${m[2]}</span>`;
+      }
+      return `<span class="species">${term}</span>`;
+    }).join('<span class="plus"> + </span>');
+  }
+
+  return formatSide(sides[0]) + '<span class="arrow"> → </span>' + formatSide(sides[2]);
+}
+
 function createCollapsibleSection(title, isOpen = true) {
   const section = el('div', { class: 'borderedSection' });
   
@@ -12022,18 +12138,26 @@ function updatePropertiesPanel() {
       propEditor.appendChild(paramsSection.section);
     }
 
-    // [v8.6.0] Reactor (Adiabatic) parameter editor
+    // [v8.6.0/v8.6.3] Reactor (Adiabatic) parameter editor
     if (u.defId === 'reactor_adiabatic') {
       const paramsSection = createCollapsibleSection('Parameters', true);
       const unitSys = models.getActive('units');
 
-      // Reaction selector
-      const rxnOptions = ReactionRegistry.all().map(r => [r.id, `${r.name} (${r.equation})`]);
+      // Reaction selector — dropdown shows reaction names only
+      const allRxns = ReactionRegistry.all();
+      const rxnOptions = allRxns.map(r => [r.id, r.name]);
       if (rxnOptions.length === 0) rxnOptions.push(['', '— No reactions registered —']);
       addSelectEditor(paramsSection.content, 'Reaction',
         () => u.params.reactionId || '',
         v => u.params.reactionId = v,
         rxnOptions);
+
+      // Display selected reaction equation in styled block
+      const selRxn = u.params.reactionId ? ReactionRegistry.get(u.params.reactionId) : null;
+      if (selRxn) {
+        const eqDiv = el('div', { class: 'rxnEquation', html: formatReactionHTML(selRxn.equation) });
+        paramsSection.content.appendChild(eqDiv);
+      }
 
       // Mode selector
       addSelectEditor(paramsSection.content, 'Mode',
@@ -12043,23 +12167,22 @@ function updatePropertiesPanel() {
 
       // Mode-dependent parameters
       if ((u.params.mode || 'fixed') === 'fixed') {
-        addNumberEditor(paramsSection.content, 'Conversion (0–1)',
+        addSliderEditor(paramsSection.content, 'Conversion',
           () => u.params.conversion ?? 0.5,
-          v => u.params.conversion = Math.max(0, Math.min(1, v)), 0.05);
+          v => u.params.conversion = v, 0, 1, 0.01);
       } else {
-        addNumberEditor(paramsSection.content, 'Alpha (0–1)',
+        addSliderEditor(paramsSection.content, 'Alpha',
           () => u.params.alpha ?? 1.0,
-          v => u.params.alpha = Math.max(0, Math.min(1, v)), 0.05);
-        addNumberEditor(paramsSection.content, `T_eval override (${unitSys.temperature.symbol})`,
+          v => u.params.alpha = v, 0, 1, 0.01);
+        addNumberEditor(paramsSection.content, `T_eval (${unitSys.temperature.symbol})`,
           () => u.params.T_eval_override ? unitSys.temperature.from(u.params.T_eval_override) : '',
           v => u.params.T_eval_override = v ? unitSys.temperature.to(v) : undefined, 1);
+        paramsSection.content.appendChild(el('div', {
+          class: 'small',
+          style: 'margin:-4px 0 8px; opacity:0.5; font-size:10px; line-height:1.3;',
+          html: 'Temperature at which K is evaluated. Leave blank to use inlet T.'
+        }));
       }
-
-      // Optional P_out
-      addNumberEditor(paramsSection.content, `P_out (${unitSys.pressure.symbol}, blank=inlet)`,
-        () => u.params.P_out ? unitSys.pressure.from(u.params.P_out) : '',
-        v => u.params.P_out = v ? unitSys.pressure.to(v) : undefined,
-        unitSys.pressure.decimals === 0 ? 1000 : 0.1);
 
       propEditor.appendChild(paramsSection.section);
     }
@@ -12604,10 +12727,8 @@ function updatePropertiesPanel() {
         // Reaction info
         const rxn = ud.last.reactionId ? ReactionRegistry.get(ud.last.reactionId) : null;
         if (rxn) {
-          dataGrid.appendChild(el('div', { class: 'propItem' }, [
-            el('div', { class: 'propLabel', html: 'Reaction' }),
-            el('div', { class: 'propValue', html: rxn.equation })
-          ]));
+          const eqDiv = el('div', { class: 'rxnEquation', html: formatReactionHTML(rxn.equation) });
+          rxBox.appendChild(eqDiv);
         }
 
         dataGrid.appendChild(el('div', { class: 'propItem' }, [
@@ -12623,7 +12744,7 @@ function updatePropertiesPanel() {
               el('div', { class: 'propValue', html: `${ud.last.ln_K?.toFixed(1)}` })
             ]));
             dataGrid.appendChild(el('div', { class: 'propItem' }, [
-              el('div', { class: 'propLabel', html: 'T_eval' }),
+              el('div', { class: 'propLabel', html: 'T<sub>eval</sub>' }),
               el('div', { class: 'propValue', html: `${unitSys.temperature.from(ud.last.T_eval)?.toFixed(1)}<span class="propUnit">${unitSys.temperature.symbol}</span>` })
             ]));
             dataGrid.appendChild(el('div', { class: 'propItem' }, [
@@ -12639,7 +12760,7 @@ function updatePropertiesPanel() {
 
           // Extent and energy (common to both modes)
           dataGrid.appendChild(el('div', { class: 'propItem' }, [
-            el('div', { class: 'propLabel', html: 'ξ / ξ_max' }),
+            el('div', { class: 'propLabel', html: 'ξ / ξ<sub>max</sub>' }),
             el('div', { class: 'propValue', html: `${ud.last.xi?.toFixed(4)} / ${ud.last.xi_max?.toFixed(4)}<span class="propUnit">mol/s</span>` })
           ]));
           // Conversion bar
