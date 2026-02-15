@@ -39,11 +39,6 @@
    as their fallback when no hub allocation exists.
    Hub path (Step C) is unchanged — hub-connected sources skip Steps D/E.
    New tests: Section Y (Tests 98–99) — electrical + battery fanout conservation.
-   Guard: Infinity demand from sinks (heatDemand/powerDemand=Infinity) no longer
-   produces curtailmentFactor=0 (cap/∞). isFinite check falls back to 1.0.
-   Fix: Steps B/D/E now detect scratch value changes (powerDemand_W,
-   directCurtailment, actualDraw_W) and set changed=true to prevent
-   premature convergence when power demand propagation lags port stability.
   ═══════════════════════════════════════════════════════════════════════════
   
   A web-based process simulation and flowsheet design tool.
@@ -7414,12 +7409,7 @@ function solveScene(scene, options = {}) {
           _ud.last.W_mech_demand_W = downstreamDemand;
           _ud.last.W_elec_demand_W = _ud.powerDemand;
           // [v5.4.0] Carry forward via RuntimeContext scratch (was _u._powerDemand_W)
-          const _ms = runtimeCtx.scratch(_id);
-          // [v6.1] Detect scratch change → force another iteration if demand shifted
-          if (_ms.powerDemand_W !== undefined && Math.abs(_ms.powerDemand_W - _ud.powerDemand) > 0.01) {
-            changed = true;
-          }
-          _ms.powerDemand_W = _ud.powerDemand;
+          runtimeCtx.scratch(_id).powerDemand_W = _ud.powerDemand;
           
           for (const p of _def.ports) {
             if (p.dir === PortDir.OUT && _ud.ports[p.portId]) {
@@ -7439,14 +7429,7 @@ function solveScene(scene, options = {}) {
           _ud.last.Q_heat_demand_W = downstreamHeat;
           _ud.last.W_elec_demand_W = _ud.powerDemand;
           // [v5.4.0] Carry forward via RuntimeContext scratch (was _u._powerDemand_W)
-          const _ehs = runtimeCtx.scratch(_id);
-          // [v6.1] Detect scratch change → force another iteration if demand shifted
-          if (_ehs.powerDemand_W !== undefined &&
-              isFinite(_ud.powerDemand) && isFinite(_ehs.powerDemand_W) &&
-              Math.abs(_ehs.powerDemand_W - _ud.powerDemand) > 0.01) {
-            changed = true;
-          }
-          _ehs.powerDemand_W = _ud.powerDemand;
+          runtimeCtx.scratch(_id).powerDemand_W = _ud.powerDemand;
           
           for (const p of _def.ports) {
             if (p.dir === PortDir.OUT && _ud.ports[p.portId]) {
@@ -7627,10 +7610,8 @@ function solveScene(scene, options = {}) {
       const maxPower_W = _ud.ports.out?.capacity ?? _ud.ports.out?.available ?? 0;
       
       // [v6.1] Direct-bus curtailment: compute factor for fanout conservation
-      // Guard: Infinity demand (from sinks) must not produce factor=0;
-      // let myCap_W in the consumer tick handle the limiting instead.
       const actualDraw_W = Math.min(downstreamDemand_W, maxPower_W);
-      const curtailmentFactor = (downstreamDemand_W > 0 && isFinite(downstreamDemand_W))
+      const curtailmentFactor = downstreamDemand_W > 0
         ? Math.max(0, Math.min(1, actualDraw_W / downstreamDemand_W))
         : 1.0;
 
@@ -7641,11 +7622,6 @@ function solveScene(scene, options = {}) {
       }
       // [v5.4.0] Write to RuntimeContext scratch (was _u._hub*)
       const bs = runtimeCtx.scratch(_id);
-      // [v6.1] Detect scratch change → force another iteration
-      if ((bs.actualDraw_W !== undefined && Math.abs(bs.actualDraw_W - actualDraw_W) > 0.01) ||
-          (bs.directCurtailment !== undefined && Math.abs(bs.directCurtailment - curtailmentFactor) > 1e-8)) {
-        changed = true;
-      }
       bs.hubDemand_W = downstreamDemand_W;
       bs.actualDraw_W = actualDraw_W;
       bs.directCurtailment = curtailmentFactor;  // [v6.1] consumed by battery tick
@@ -7690,9 +7666,7 @@ function solveScene(scene, options = {}) {
       const actualDraw_W = Math.min(downstreamDemand_W, capacity_W);
       
       // [v6.1] Direct-bus curtailment: compute factor for fanout conservation
-      // Guard: Infinity demand (from sinks) must not produce factor=0;
-      // let myCap_W in the consumer tick handle the limiting instead.
-      const curtailmentFactor = (downstreamDemand_W > 0 && isFinite(downstreamDemand_W))
+      const curtailmentFactor = downstreamDemand_W > 0
         ? Math.max(0, Math.min(1, actualDraw_W / downstreamDemand_W))
         : 1.0;
 
@@ -7703,11 +7677,6 @@ function solveScene(scene, options = {}) {
       }
       // [v5.4.0] Write to RuntimeContext scratch (was _u._actualDraw_W)
       const _es = runtimeCtx.scratch(_id);
-      // [v6.1] Detect scratch change → force another iteration
-      if ((_es.actualDraw_W !== undefined && Math.abs(_es.actualDraw_W - actualDraw_W) > 0.01) ||
-          (_es.directCurtailment !== undefined && Math.abs(_es.directCurtailment - curtailmentFactor) > 1e-8)) {
-        changed = true;
-      }
       _es.actualDraw_W = actualDraw_W;
       _es.directCurtailment = curtailmentFactor;  // [v6.1] consumed by source tick
     }
