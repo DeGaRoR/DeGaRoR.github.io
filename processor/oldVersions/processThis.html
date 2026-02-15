@@ -1,7 +1,18 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v8.6.3
+  processThis v8.7.0
+
+  ─── v8.7.0 ───────────────────────────────────────────────────────────────
+  Reaction Library viewer: new "Reactions" entry in ☰ Menu alongside
+  Components, Models, Units.  Summary view shows all registered reactions
+  as cards with styled equations, temperature/pressure windows.  Detail
+  view (click any card): stoichiometry table with per-species MW, mass
+  balance verification, operating window, ΔH°₂₉₈ display, and an
+  equilibrium K(T) table at representative temperatures with
+  product/reactant favourability.  Validation button checks all reactions.
+  Reactor UI polish: conversion/alpha sliders, styled equation display,
+  P_out hidden (dP=0 until pressure path revamp), T_eval help text.
 
   ─── v8.6.3 ───────────────────────────────────────────────────────────────
   MW precision: all 8 species upgraded from 3dp to 5dp (IUPAC 2021 standard
@@ -437,7 +448,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>processThis — v8.6.3</title>
+  <title>processThis — v8.7.0</title>
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
@@ -1211,6 +1222,7 @@
         <button class="btn" id="btnMenu">☰ Menu</button>
         <div class="menu" id="menuMain">
           <div class="item" id="mComponents">Components <span class="hint">view</span></div>
+          <div class="item" id="mReactions">Reactions <span class="hint">library</span></div>
           <div class="item" id="mModels">Models <span class="hint">packages</span></div>
           <div class="item" id="mUnits">Units <span class="hint">display</span></div>
           <div class="sep"></div>
@@ -1257,6 +1269,16 @@
         <h3>Components</h3>
         <div class="small">Available chemical components in the simulation.</div>
         <div class="card" id="componentsPanel" style="margin-top:10px; max-height:60vh; overflow-y:auto;"></div>
+      </div>
+    </div>
+
+    <!-- Reactions modal -->
+    <div class="modal" id="modalReactions">
+      <div class="modalContent">
+        <button class="modalClose" onclick="document.getElementById('modalReactions').classList.remove('open')">×</button>
+        <h3>Reaction Library</h3>
+        <div class="small">Registered chemical reactions available for reactor units.</div>
+        <div class="card" id="reactionsPanel" style="margin-top:10px; max-height:60vh; overflow-y:auto;"></div>
       </div>
     </div>
 
@@ -2094,7 +2116,7 @@ class ReactionRegistry {
         if (!comp) errors.push(`Species '${sp}' no longer in ComponentRegistry`);
         else mb += nu * comp.MW;
       }
-      if (Math.abs(mb) >= 0.01) errors.push(`Mass imbalance = ${mb.toFixed(4)}`);
+      if (Math.abs(mb) >= 0.001) errors.push(`Mass imbalance = ${mb.toExponential(2)}`);
       results[id] = { valid: errors.length === 0, errors };
     }
     return results;
@@ -9740,8 +9762,10 @@ const menuFile = document.getElementById('menuFile');
 const modalModels = document.getElementById('modalModels');
 const modalUnits = document.getElementById('modalUnits');
 const modalComponents = document.getElementById('modalComponents');
+const modalReactions = document.getElementById('modalReactions');
 const modelsPanelEl = document.getElementById('modelsPanel');
 const componentsPanelEl = document.getElementById('componentsPanel');
+const reactionsPanelEl = document.getElementById('reactionsPanel');
 
 // Status is now managed within propEditor
 let statusSection = null;
@@ -11010,6 +11034,402 @@ function showComponentDetails(comp) {
     if (e.target === modal) modal.remove();
   };
   
+  document.body.appendChild(modal);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// [v8.7.0] REACTIONS PANEL — Registry viewer for reaction library
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function buildReactionsPanel() {
+  reactionsPanelEl.innerHTML = '';
+
+  const reactions = ReactionRegistry.all();
+
+  if (reactions.length === 0) {
+    reactionsPanelEl.innerHTML = '<div style="padding:20px; opacity:0.6;">No reactions registered</div>';
+    return;
+  }
+
+  // Validation button (consistent with Components panel)
+  const validationBtn = el('button', {
+    class: 'btn',
+    style: 'margin-bottom: 12px; width: 100%;',
+    html: '🔍 Validate Reaction Database'
+  });
+  validationBtn.addEventListener('click', () => {
+    const results = ReactionRegistry.validateAll();
+    showReactionValidationReport(results);
+  });
+  reactionsPanelEl.appendChild(validationBtn);
+
+  // Reaction cards
+  for (const rxn of reactions) {
+    const card = document.createElement('div');
+    card.style.cssText = `
+      background: #0f1419;
+      border: 1px solid #2a2f3a;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 10px;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+    `;
+    card.addEventListener('mouseenter', () => { card.style.borderColor = '#4a90d9'; card.style.background = '#0d1520'; });
+    card.addEventListener('mouseleave', () => { card.style.borderColor = '#2a2f3a'; card.style.background = '#0f1419'; });
+    card.addEventListener('click', () => showReactionDetails(rxn));
+
+    // Header: ID + Name
+    const header = document.createElement('div');
+    header.style.cssText = 'display:flex; align-items:baseline; gap:10px; margin-bottom:10px;';
+    header.innerHTML = `<span style="font-weight:700; color:#60a5fa; font-size:13px;">${rxn.id}</span>`
+      + `<span style="font-size:12px; opacity:0.7;">${rxn.name}</span>`;
+    card.appendChild(header);
+
+    // Equation (styled)
+    const eqDiv = document.createElement('div');
+    eqDiv.className = 'rxnEquation';
+    eqDiv.innerHTML = formatReactionHTML(rxn.equation);
+    card.appendChild(eqDiv);
+
+    // Quick info row
+    const info = document.createElement('div');
+    info.style.cssText = 'display:flex; gap:16px; font-size:11px; opacity:0.6; margin-top:8px;';
+    info.innerHTML = `<span>T: ${rxn.Tmin_K}–${rxn.Tmax_K} K</span>`
+      + `<span>P: ${(rxn.Pmin_Pa/1e5).toFixed(1)}–${(rxn.Pmax_Pa/1e5).toFixed(0)} bar</span>`
+      + `<span>${rxn.reversible ? 'Reversible' : 'Irreversible'}</span>`;
+    card.appendChild(info);
+
+    reactionsPanelEl.appendChild(card);
+  }
+}
+
+function showReactionDetails(rxn) {
+  // Overlay modal (same pattern as showComponentDetails)
+  const modal = document.createElement('div');
+  modal.style.cssText = `
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.8);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  `;
+
+  const dialog = document.createElement('div');
+  dialog.style.cssText = `
+    background: #1a1f2e;
+    border: 2px solid #2a2f3a;
+    border-radius: 16px;
+    max-width: 700px;
+    width: 100%;
+    max-height: 80vh;
+    overflow-y: auto;
+    padding: 24px;
+    color: #e7e7e7;
+  `;
+
+  // ── Header ──
+  const header = document.createElement('div');
+  header.style.cssText = 'font-size:20px; font-weight:700; margin-bottom:4px; color:#60a5fa;';
+  header.textContent = rxn.name;
+  dialog.appendChild(header);
+
+  const idLine = document.createElement('div');
+  idLine.style.cssText = 'font-size:12px; opacity:0.5; margin-bottom:16px; font-family:monospace;';
+  idLine.textContent = rxn.id;
+  dialog.appendChild(idLine);
+
+  // ── Equation (large, styled) ──
+  const eqDiv = document.createElement('div');
+  eqDiv.className = 'rxnEquation';
+  eqDiv.style.fontSize = '16px';
+  eqDiv.style.padding = '14px 16px';
+  eqDiv.style.marginBottom = '20px';
+  eqDiv.innerHTML = formatReactionHTML(rxn.equation);
+  dialog.appendChild(eqDiv);
+
+  // ── Stoichiometry table ──
+  const stoichSection = document.createElement('div');
+  stoichSection.style.cssText = `
+    background: #0f1419;
+    padding: 16px;
+    border-radius: 8px;
+    border: 1px solid #2a2f3a;
+    margin-bottom: 16px;
+  `;
+
+  const stoichTitle = document.createElement('div');
+  stoichTitle.style.cssText = 'font-size:13px; font-weight:700; margin-bottom:10px; color:#fbbf24;';
+  stoichTitle.textContent = 'Stoichiometry';
+  stoichSection.appendChild(stoichTitle);
+
+  const stoichTable = el('table', { style: 'width:100%; border-collapse:collapse; font-size:12px;' });
+  const stHead = el('tr', { style: 'border-bottom:2px solid #2a2f3a;' });
+  ['Species', 'ν', 'Role', 'MW (g/mol)'].forEach(h => {
+    stHead.appendChild(el('th', {
+      style: 'padding:6px 8px; text-align:left; font-weight:700; font-size:11px; text-transform:uppercase; letter-spacing:0.5px; opacity:0.7;',
+      html: h
+    }));
+  });
+  stoichTable.appendChild(stHead);
+
+  let massIn = 0, massOut = 0;
+  for (const [sp, nu] of Object.entries(rxn.stoich)) {
+    const comp = ComponentRegistry.get(sp);
+    const mw = comp ? comp.MW : 0;
+    const role = nu < 0 ? 'Reactant' : 'Product';
+    const roleColor = nu < 0 ? '#f87171' : '#4ade80';
+    if (nu < 0) massIn += Math.abs(nu) * mw;
+    else massOut += nu * mw;
+
+    const row = el('tr', { style: 'border-bottom:1px solid #2a2f3a22;' });
+    row.appendChild(el('td', { style: 'padding:6px 8px; font-weight:600;', html: sp }));
+    row.appendChild(el('td', { style: 'padding:6px 8px; font-family:monospace;', html: nu > 0 ? `+${nu}` : String(nu) }));
+    row.appendChild(el('td', { style: `padding:6px 8px; color:${roleColor};`, html: role }));
+    row.appendChild(el('td', { style: 'padding:6px 8px; font-family:monospace;', html: mw.toFixed(5) }));
+    stoichTable.appendChild(row);
+  }
+
+  // Mass balance row
+  const mbRow = el('tr', { style: 'border-top:2px solid #2a2f3a;' });
+  mbRow.appendChild(el('td', { style: 'padding:6px 8px; font-weight:700; opacity:0.7;', html: 'Mass balance', colspan: '3' }));
+  const mbVal = Math.abs(rxn._massBalance);
+  const mbColor = mbVal < 1e-10 ? '#4ade80' : mbVal < 0.001 ? '#fbbf24' : '#ef4444';
+  mbRow.appendChild(el('td', { style: `padding:6px 8px; font-family:monospace; color:${mbColor};`, html: `Δ = ${rxn._massBalance.toExponential(2)} g/mol` }));
+  stoichTable.appendChild(mbRow);
+
+  stoichSection.appendChild(stoichTable);
+  dialog.appendChild(stoichSection);
+
+  // ── Operating Window ──
+  const windowSection = document.createElement('div');
+  windowSection.style.cssText = `
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 16px;
+  `;
+
+  function windowCard(label, value, unit) {
+    const card = document.createElement('div');
+    card.style.cssText = `
+      background: #0f1419;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid #2a2f3a;
+    `;
+    const lbl = document.createElement('div');
+    lbl.style.cssText = 'font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; opacity:0.7; margin-bottom:6px;';
+    lbl.textContent = label;
+    card.appendChild(lbl);
+    const val = document.createElement('div');
+    val.style.cssText = 'font-size:15px; font-family:monospace;';
+    val.textContent = value + ' ' + unit;
+    card.appendChild(val);
+    return card;
+  }
+
+  windowSection.appendChild(windowCard('Temperature Range', `${rxn.Tmin_K} – ${rxn.Tmax_K}`, 'K'));
+  windowSection.appendChild(windowCard('Pressure Range', `${(rxn.Pmin_Pa/1e5).toFixed(1)} – ${(rxn.Pmax_Pa/1e5).toFixed(0)}`, 'bar'));
+  windowSection.appendChild(windowCard('Reversible', rxn.reversible ? 'Yes' : 'No', ''));
+
+  // Thermodynamic data (ΔH° and ΔS° computed from species)
+  let dH0 = 0, dS0 = 0, thermoOk = true;
+  for (const [sp, nu] of Object.entries(rxn.stoich)) {
+    const comp = ComponentRegistry.get(sp);
+    if (comp && comp.hf0_Jmol !== undefined && comp.s0_JmolK !== undefined) {
+      dH0 += nu * comp.hf0_Jmol;
+      dS0 += nu * comp.s0_JmolK;
+    } else {
+      thermoOk = false;
+    }
+  }
+  if (thermoOk) {
+    const dH_kJ = (dH0 / 1000).toFixed(1);
+    windowSection.appendChild(windowCard('ΔH°₂₉₈', dH_kJ, 'kJ/mol'));
+  }
+
+  dialog.appendChild(windowSection);
+
+  // ── Equilibrium K(T) preview ──
+  if (thermoOk) {
+    const kSection = document.createElement('div');
+    kSection.style.cssText = `
+      background: #0f1419;
+      padding: 16px;
+      border-radius: 8px;
+      border: 1px solid #2a2f3a;
+      margin-bottom: 16px;
+    `;
+
+    const kTitle = document.createElement('div');
+    kTitle.style.cssText = 'font-size:13px; font-weight:700; margin-bottom:8px; color:#22c55e;';
+    kTitle.textContent = 'Equilibrium Constant K(T)';
+    kSection.appendChild(kTitle);
+
+    const kEq = document.createElement('div');
+    kEq.style.cssText = 'font-family:monospace; font-size:12px; margin-bottom:12px; padding:8px; background:#1e293b; border-radius:4px;';
+    kEq.textContent = 'ln K(T) = −ΔH°/(R·T) + ΔS°/R';
+    kSection.appendChild(kEq);
+
+    // Table of K at several temperatures
+    const R = 8.314;
+    const temps = [300, 500, 800, 1000, 1500, 2000].filter(T => T >= rxn.Tmin_K && T <= rxn.Tmax_K);
+    if (temps.length > 0) {
+      const kTable = el('table', { style: 'width:100%; border-collapse:collapse; font-size:12px;' });
+      const kHead = el('tr', { style: 'border-bottom:2px solid #2a2f3a;' });
+      ['T (K)', 'ln K', 'K', 'Favours'].forEach(h => {
+        kHead.appendChild(el('th', {
+          style: 'padding:6px 8px; text-align:left; font-weight:700; font-size:11px; text-transform:uppercase; letter-spacing:0.5px; opacity:0.7;',
+          html: h
+        }));
+      });
+      kTable.appendChild(kHead);
+
+      for (const T of temps) {
+        const lnK = -dH0 / (R * T) + dS0 / R;
+        const K = Math.exp(Math.min(lnK, 300));  // cap to avoid Infinity display
+        const favour = lnK > 2 ? 'Products' : lnK < -2 ? 'Reactants' : 'Mixed';
+        const fColour = lnK > 2 ? '#4ade80' : lnK < -2 ? '#f87171' : '#fbbf24';
+
+        const row = el('tr', { style: 'border-bottom:1px solid #2a2f3a22;' });
+        row.appendChild(el('td', { style: 'padding:6px 8px; font-family:monospace;', html: String(T) }));
+        row.appendChild(el('td', { style: 'padding:6px 8px; font-family:monospace;', html: lnK.toFixed(1) }));
+        row.appendChild(el('td', { style: 'padding:6px 8px; font-family:monospace;', html: K > 1e10 ? K.toExponential(1) : K < 1e-4 ? K.toExponential(1) : K.toFixed(2) }));
+        row.appendChild(el('td', { style: `padding:6px 8px; color:${fColour};`, html: favour }));
+        kTable.appendChild(row);
+      }
+      kSection.appendChild(kTable);
+    }
+
+    // ΔH°/ΔS° values
+    const thermoInfo = document.createElement('div');
+    thermoInfo.style.cssText = 'display:flex; gap:16px; font-size:11px; opacity:0.6; margin-top:10px; font-family:monospace;';
+    thermoInfo.innerHTML = `<span>ΔH° = ${(dH0/1000).toFixed(1)} kJ/mol</span><span>ΔS° = ${dS0.toFixed(2)} J/(mol·K)</span>`;
+    kSection.appendChild(thermoInfo);
+
+    dialog.appendChild(kSection);
+  }
+
+  // ── Notes ──
+  if (rxn.notes) {
+    const notesSection = document.createElement('div');
+    notesSection.style.cssText = `
+      background: #0f1419;
+      padding: 16px;
+      border-radius: 8px;
+      border: 1px solid #2a2f3a;
+      margin-bottom: 16px;
+      font-size: 12px;
+      line-height: 1.5;
+      opacity: 0.8;
+    `;
+    const notesTitle = document.createElement('div');
+    notesTitle.style.cssText = 'font-size:13px; font-weight:700; margin-bottom:8px; color:#94a3b8;';
+    notesTitle.textContent = 'Notes';
+    notesSection.appendChild(notesTitle);
+    notesSection.appendChild(document.createTextNode(rxn.notes));
+    dialog.appendChild(notesSection);
+  }
+
+  // ── References ──
+  if (rxn.references && rxn.references.length > 0) {
+    const refSection = document.createElement('div');
+    refSection.style.cssText = `
+      background: #0f1419;
+      padding: 16px;
+      border-radius: 8px;
+      border: 1px solid #2a2f3a;
+      margin-bottom: 16px;
+      font-size: 12px;
+      opacity: 0.7;
+    `;
+    const refTitle = document.createElement('div');
+    refTitle.style.cssText = 'font-size:13px; font-weight:700; margin-bottom:8px; color:#94a3b8;';
+    refTitle.textContent = 'References';
+    refSection.appendChild(refTitle);
+    for (const ref of rxn.references) {
+      const refLine = document.createElement('div');
+      refLine.style.marginBottom = '4px';
+      refLine.textContent = ref.source + (ref.detail ? ': ' + ref.detail : '');
+      refSection.appendChild(refLine);
+    }
+    dialog.appendChild(refSection);
+  }
+
+  // ── Close button ──
+  const closeBtn = document.createElement('button');
+  closeBtn.textContent = 'Close';
+  closeBtn.className = 'btn primary';
+  closeBtn.style.cssText = 'margin-top: 20px; width: 100%;';
+  closeBtn.onclick = () => modal.remove();
+  dialog.appendChild(closeBtn);
+
+  modal.appendChild(dialog);
+  modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+  document.body.appendChild(modal);
+}
+
+function showReactionValidationReport(results) {
+  const modal = document.createElement('div');
+  modal.style.cssText = `
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.8);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  `;
+
+  const dialog = document.createElement('div');
+  dialog.style.cssText = `
+    background: #1a1f2e;
+    border: 2px solid #2a2f3a;
+    border-radius: 16px;
+    max-width: 600px;
+    width: 100%;
+    max-height: 80vh;
+    overflow-y: auto;
+    padding: 24px;
+    color: #e7e7e7;
+  `;
+
+  const allValid = Object.values(results).every(r => r.valid);
+  dialog.innerHTML = `<div style="font-size:20px; font-weight:700; margin-bottom:16px;">${allValid ? '✅' : '⚠️'} Reaction Validation</div>`;
+
+  for (const [id, result] of Object.entries(results)) {
+    const rxn = ReactionRegistry.get(id);
+    const row = document.createElement('div');
+    row.style.cssText = `
+      padding: 10px 12px;
+      border-radius: 8px;
+      margin-bottom: 6px;
+      background: ${result.valid ? '#0f1419' : '#1c1008'};
+      border: 1px solid ${result.valid ? '#2a2f3a' : '#92400e'};
+      font-size: 12px;
+    `;
+    row.innerHTML = `<span style="font-weight:700; color:${result.valid ? '#4ade80' : '#fbbf24'};">${result.valid ? '✓' : '✗'} ${id}</span>`
+      + `<span style="opacity:0.6; margin-left:10px;">${rxn?.name || ''}</span>`;
+    if (!result.valid) {
+      row.innerHTML += `<div style="margin-top:4px; color:#fbbf24; font-size:11px;">${result.errors.join('; ')}</div>`;
+    }
+    dialog.appendChild(row);
+  }
+
+  const closeBtn = document.createElement('button');
+  closeBtn.textContent = 'Close';
+  closeBtn.className = 'btn primary';
+  closeBtn.style.cssText = 'margin-top: 20px; width: 100%;';
+  closeBtn.onclick = () => modal.remove();
+  dialog.appendChild(closeBtn);
+
+  modal.appendChild(dialog);
+  modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
   document.body.appendChild(modal);
 }
 
@@ -13329,6 +13749,12 @@ document.getElementById('mComponents').addEventListener('click', () => {
   closeMenus();
 });
 
+document.getElementById('mReactions').addEventListener('click', () => {
+  buildReactionsPanel();
+  modalReactions.classList.add('open');
+  closeMenus();
+});
+
 document.getElementById('mModels').addEventListener('click', () => {
   buildModelsPanel();  // Rebuild to reflect current state
   modalModels.classList.add('open');
@@ -13357,6 +13783,12 @@ modalUnits.addEventListener('click', (ev) => {
 modalComponents.addEventListener('click', (ev) => {
   if (ev.target === modalComponents) {
     modalComponents.classList.remove('open');
+  }
+});
+
+modalReactions.addEventListener('click', (ev) => {
+  if (ev.target === modalReactions) {
+    modalReactions.classList.remove('open');
   }
 });
 
