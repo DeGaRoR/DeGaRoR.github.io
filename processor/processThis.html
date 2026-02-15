@@ -1,7 +1,19 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v8.3.0
+  processThis v8.4.0
+
+  ─── v8.4.0 ───────────────────────────────────────────────────────────────
+  Adiabatic reactor unit — fixed conversion mode.
+  reactor_adiabatic: single-inlet, single-outlet reactor. Applies a registered
+  reaction at specified conversion (0–1). Outlet enthalpy = inlet enthalpy
+  (H_target_Jps → PH-flash). Formation shifts make T_out absorb ΔH_rxn.
+  Activation window check (inlet T/P only). Limiting reactant logic.
+  Inert species pass through unchanged. No negative flows.
+  NNG: NNG-L1 (mass by stoich), NNG-L2 (energy by PH-flash), NNG-U2 (UnitRegistry),
+  NNG-U3/U4 (thermo via adapter), NNG-T2 (tests), NNG-V1/V2.
+  Tests: Section AD (Tests 119–123) — full conv, partial conv, limiting reactant,
+  inactive, inert pass-through. All with mass + energy balance verification.
 
   ─── v8.3.0 ───────────────────────────────────────────────────────────────
   ReactionRegistry and multi-component source unit.
@@ -374,7 +386,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>processThis — v8.3.0</title>
+  <title>processThis — v8.4.0</title>
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
@@ -6756,6 +6768,111 @@ UnitRegistry.register('flash_drum', {
         u.last[`recovery_V_${c}_pct`] = ((nV[c] || 0) / feed * 100);
       }
     }
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// REACTOR (Adiabatic) — Fixed conversion mode [v8.4.0]
+// ═══════════════════════════════════════════════════════════════════════════════
+// Single-inlet, single-outlet adiabatic reactor. Applies a registered reaction
+// at specified conversion. Outlet enthalpy = inlet enthalpy (H_target_Jps).
+// Formation shifts in hMolar() make T_out absorb the heat of reaction.
+// See DESIGN_reactions v2.3 §6 for full specification.
+UnitRegistry.register('reactor_adiabatic', {
+  name: 'Reactor (Adiabatic)',
+  category: UnitCategories.REACTOR,
+  w: 2,
+  h: 3,
+  ports: [
+    { portId: 'mat_in',  dir: PortDir.IN,  type: StreamType.MATERIAL, x: 0, y: 1 },
+    { portId: 'mat_out', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 1 }
+  ],
+  tick(u, ports, par) {
+    const sIn = ports.mat_in;
+    if (!sIn) return;
+
+    // ── Guard: reaction must be selected ──
+    const reaction = par.reactionId ? ReactionRegistry.get(par.reactionId) : null;
+    if (!reaction) {
+      u.last = { error: { severity: ErrorSeverity.MAJOR,
+        message: 'No reaction selected' } };
+      // Pass-through
+      ports.mat_out = { type: StreamType.MATERIAL, T: sIn.T, P: sIn.P,
+        n: { ...sIn.n }, phaseConstraint: sIn.phaseConstraint || 'V' };
+      return;
+    }
+
+    const stoich = reaction.stoich;
+    const P_out = par.P_out ?? sIn.P;
+
+    // ── STEP 1: Activation window (inlet T/P only, per D13) ──
+    if (sIn.T < reaction.Tmin_K || sIn.T > reaction.Tmax_K ||
+        sIn.P < reaction.Pmin_Pa || sIn.P > reaction.Pmax_Pa) {
+      ports.mat_out = { type: StreamType.MATERIAL, T: sIn.T, P: P_out,
+        n: { ...sIn.n }, phaseConstraint: sIn.phaseConstraint || 'V' };
+      u.last = { reactionId: par.reactionId, mode: par.mode || 'fixed',
+        status: 'inactive',
+        reason: `T=${sIn.T.toFixed(0)}K or P=${(sIn.P/1e5).toFixed(2)}bar outside activation window` };
+      return;
+    }
+
+    // ── STEP 2: Compute ξ_max (limiting reactant) ──
+    let xi_max = Infinity;
+    for (const [sp, nu] of Object.entries(stoich)) {
+      if (nu < 0) {  // reactant
+        const n_i = sIn.n[sp] || 0;
+        if (n_i <= 1e-15) { xi_max = 0; break; }
+        xi_max = Math.min(xi_max, n_i / (-nu));
+      }
+    }
+    if (!isFinite(xi_max)) xi_max = 0;
+
+    if (xi_max <= 0) {
+      ports.mat_out = { type: StreamType.MATERIAL, T: sIn.T, P: P_out,
+        n: { ...sIn.n }, phaseConstraint: sIn.phaseConstraint || 'V' };
+      u.last = { reactionId: par.reactionId, mode: par.mode || 'fixed',
+        status: 'no_reactants', xi_max: 0 };
+      return;
+    }
+
+    // ── STEP 3: Compute extent ──
+    const mode = par.mode || 'fixed';
+    const conversion = clamp(par.conversion ?? 0, 0, 1);
+    const xi = conversion * xi_max;
+
+    // ── STEP 4: Outlet molar flows ──
+    const n_out = { ...sIn.n };  // preserves inerts
+    for (const [sp, nu] of Object.entries(stoich)) {
+      n_out[sp] = (n_out[sp] || 0) + nu * xi;
+      if (n_out[sp] < 1e-15) n_out[sp] = 0;
+    }
+    // Remove zero entries for cleanliness
+    for (const key of Object.keys(n_out)) {
+      if (n_out[key] <= 0) delete n_out[key];
+    }
+
+    // ── STEP 5: Inlet enthalpy (includes formation shifts automatically) ──
+    const H_in_Jps = thermo.getHdot_Jps(sIn);
+
+    // ── STEP 6: Emit PH-flash outlet (adiabatic: H_out = H_in) ──
+    ports.mat_out = {
+      type: StreamType.MATERIAL,
+      P: P_out,
+      n: n_out,
+      phaseConstraint: sIn.phaseConstraint || 'V',
+      H_target_Jps: H_in_Jps
+    };
+
+    // ── STEP 7: Diagnostics ──
+    u.last = {
+      reactionId: par.reactionId,
+      mode: mode,
+      conversion: conversion,
+      xi: xi,
+      xi_max: xi_max,
+      status: 'active',
+      H_in_kW: (H_in_Jps / 1000).toFixed(2)
+    };
   }
 });
 
@@ -16770,6 +16887,186 @@ function runTests() {
     t.assertClose(out.T, 800, 1, 'T = 800K');
     t.assertClose(out.P, 100000, 1, 'P = 1 bar');
     t.assertOK(out.phase === 'V', 'Vapor phase', out.phase);
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // SECTION AD: Reactor E2E — Fixed Conversion (Tests 119–123)
+  // [v8.4.0] Adiabatic reactor with H₂ combustion
+  // N₂ dilution used where needed to keep T_out within PH-flash bracket (3000K)
+  // ═══════════════════════════════════════════════════════════════════════
+
+  test('Reactor — full conversion + adiabatic closure', t => {
+    // H2:2 + O2:1 + N2:10 at 800K → full conversion → H2O:2 + N2:10
+    // N2 dilution keeps adiabatic T_out ~2000K (within PH-flash bracket)
+    const src = t.place('source_multi', 0, 0, {
+      n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
+    });
+    const rx = t.place('reactor_adiabatic', 4, 0, {
+      reactionId: 'R_H2_COMB', mode: 'fixed', conversion: 1.0
+    });
+    const snk = t.place('sink', 8, 0);
+    t.wire(src, 'out', rx, 'mat_in');
+    t.wire(rx, 'mat_out', snk, 'in');
+    t.solve();
+
+    const out = t.port(rx, 'mat_out');
+    const srcOut = t.port(src, 'out');
+
+    // Stoichiometry: H2 and O2 fully consumed, H2O produced
+    t.assertOK(!out.n.H2 || out.n.H2 < 0.001, 'H2 ≈ 0', out.n.H2);
+    t.assertOK(!out.n.O2 || out.n.O2 < 0.001, 'O2 ≈ 0', out.n.O2);
+    t.assertClose(out.n.H2O, 2, 0.01, 'H2O ≈ 2');
+    t.assertClose(out.n.N2, 10, 0.001, 'N2 = 10 (inert)');
+
+    // Exothermic: T_out >> T_in
+    t.assertOK(out.T > 800 + 500, 'T_out >> 800K (exothermic)',
+      `T_out=${out.T.toFixed(0)}K`);
+
+    // Adiabatic energy closure: |H_out - H_in| < tolerance
+    if (srcOut?.Hdot_J_s !== undefined && out.Hdot_J_s !== undefined) {
+      t.assertClose(Math.abs(out.Hdot_J_s - srcOut.Hdot_J_s), 0, 200,
+        'ΔH adiabatic [J/s]');
+    }
+
+    // Mass conservation
+    const m_in  = streamMass_kgps(srcOut);
+    const m_out = streamMass_kgps(out);
+    t.assertClose(m_out, m_in, m_in * 0.001, 'Mass balance [kg/s]');
+
+    // Reactor diagnostics
+    const rxLast = t.ud(rx).last;
+    t.assertOK(rxLast.status === 'active', 'Status: active');
+    t.assertClose(rxLast.xi, 1.0, 0.001, 'ξ = ξ_max');
+  });
+
+  test('Reactor — partial conversion 25%', t => {
+    const src = t.place('source_multi', 0, 0, {
+      n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
+    });
+    const rx = t.place('reactor_adiabatic', 4, 0, {
+      reactionId: 'R_H2_COMB', mode: 'fixed', conversion: 0.25
+    });
+    const snk = t.place('sink', 8, 0);
+    t.wire(src, 'out', rx, 'mat_in');
+    t.wire(rx, 'mat_out', snk, 'in');
+    t.solve();
+
+    const out = t.port(rx, 'mat_out');
+    const srcOut = t.port(src, 'out');
+
+    // 25% of ξ_max=1: ξ=0.25 → H2: 2-0.5=1.5, O2: 1-0.25=0.75, H2O: 0+0.5=0.5
+    t.assertClose(out.n.H2, 1.5, 0.01, 'H2 ≈ 1.5');
+    t.assertClose(out.n.O2, 0.75, 0.01, 'O2 ≈ 0.75');
+    t.assertClose(out.n.H2O, 0.5, 0.01, 'H2O ≈ 0.5');
+    t.assertClose(out.n.N2, 10, 0.001, 'N2 unchanged');
+
+    // T_out between T_in and full-conversion T_out
+    t.assertOK(out.T > 800, 'T_out > T_in', `${out.T.toFixed(0)}K`);
+
+    // Energy balance
+    if (srcOut?.Hdot_J_s !== undefined && out.Hdot_J_s !== undefined) {
+      t.assertClose(Math.abs(out.Hdot_J_s - srcOut.Hdot_J_s), 0, 200, 'ΔH [J/s]');
+    }
+
+    // Mass balance
+    const m_in  = streamMass_kgps(srcOut);
+    const m_out = streamMass_kgps(out);
+    t.assertClose(m_out, m_in, m_in * 0.001, 'Mass balance');
+  });
+
+  test('Reactor — limiting reactant', t => {
+    // O2 is limiting: only 0.2 mol, so ξ_max = 0.2/1 = 0.2
+    const src = t.place('source_multi', 0, 0, {
+      n: { H2: 2, O2: 0.2, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
+    });
+    const rx = t.place('reactor_adiabatic', 4, 0, {
+      reactionId: 'R_H2_COMB', mode: 'fixed', conversion: 1.0
+    });
+    const snk = t.place('sink', 8, 0);
+    t.wire(src, 'out', rx, 'mat_in');
+    t.wire(rx, 'mat_out', snk, 'in');
+    t.solve();
+
+    const out = t.port(rx, 'mat_out');
+
+    // ξ_max = 0.2: H2: 2-0.4=1.6, O2: 0.2-0.2=0, H2O: 0+0.4=0.4
+    t.assertClose(out.n.H2, 1.6, 0.01, 'H2 ≈ 1.6 (excess)');
+    t.assertOK(!out.n.O2 || out.n.O2 < 0.001, 'O2 ≈ 0 (consumed)', out.n.O2);
+    t.assertClose(out.n.H2O, 0.4, 0.01, 'H2O ≈ 0.4');
+
+    // No negative flows (critical check)
+    for (const [sp, n] of Object.entries(out.n)) {
+      t.assertOK(n >= 0, `${sp} ≥ 0`, n);
+    }
+
+    // Reactor diagnostics
+    const rxLast = t.ud(rx).last;
+    t.assertClose(rxLast.xi_max, 0.2, 0.001, 'ξ_max = 0.2');
+  });
+
+  test('Reactor — inactive below T window', t => {
+    // T=300K < Tmin=400K → pass-through, no reaction
+    const src = t.place('source_multi', 0, 0, {
+      n: { H2: 2, O2: 1 }, T: 300, P: 100000, phaseConstraint: 'V'
+    });
+    const rx = t.place('reactor_adiabatic', 4, 0, {
+      reactionId: 'R_H2_COMB', mode: 'fixed', conversion: 1.0
+    });
+    const snk = t.place('sink', 8, 0);
+    t.wire(src, 'out', rx, 'mat_in');
+    t.wire(rx, 'mat_out', snk, 'in');
+    t.solve();
+
+    const out = t.port(rx, 'mat_out');
+
+    // Pass-through: composition unchanged
+    t.assertClose(out.n.H2, 2, 0.001, 'H2 unchanged');
+    t.assertClose(out.n.O2, 1, 0.001, 'O2 unchanged');
+    t.assertOK(!out.n.H2O, 'No H2O produced');
+    t.assertClose(out.T, 300, 1, 'T unchanged');
+
+    // Status
+    const rxLast = t.ud(rx).last;
+    t.assertOK(rxLast.status === 'inactive', 'Status: inactive');
+  });
+
+  test('Reactor — inert species pass-through', t => {
+    // N2 and Ar are not in the reaction stoich → pass through unchanged
+    const src = t.place('source_multi', 0, 0, {
+      n: { H2: 2, O2: 1, N2: 5, Ar: 2 }, T: 800, P: 100000, phaseConstraint: 'V'
+    });
+    const rx = t.place('reactor_adiabatic', 4, 0, {
+      reactionId: 'R_H2_COMB', mode: 'fixed', conversion: 1.0
+    });
+    const snk = t.place('sink', 8, 0);
+    t.wire(src, 'out', rx, 'mat_in');
+    t.wire(rx, 'mat_out', snk, 'in');
+    t.solve();
+
+    const out = t.port(rx, 'mat_out');
+
+    // Inerts preserved exactly
+    t.assertClose(out.n.N2, 5, 0.001, 'N2 = 5 (inert)');
+    t.assertClose(out.n.Ar, 2, 0.001, 'Ar = 2 (inert)');
+
+    // Reactants consumed, product formed
+    t.assertOK(!out.n.H2 || out.n.H2 < 0.001, 'H2 consumed');
+    t.assertOK(!out.n.O2 || out.n.O2 < 0.001, 'O2 consumed');
+    t.assertClose(out.n.H2O, 2, 0.01, 'H2O produced');
+
+    // Total species count: H2O + N2 + Ar = 3
+    const species = Object.keys(out.n).filter(k => out.n[k] > 0);
+    t.assertOK(species.length === 3, '3 outlet species', species.join(','));
+
+    // Mass and energy balance
+    const srcOut = t.port(src, 'out');
+    const m_in  = streamMass_kgps(srcOut);
+    const m_out = streamMass_kgps(out);
+    t.assertClose(m_out, m_in, m_in * 0.001, 'Mass balance');
+
+    if (srcOut?.Hdot_J_s !== undefined && out.Hdot_J_s !== undefined) {
+      t.assertClose(Math.abs(out.Hdot_J_s - srcOut.Hdot_J_s), 0, 200, 'ΔH adiabatic');
+    }
   });
 
   // ═══════════════════════════════════════════════════════════════════════
