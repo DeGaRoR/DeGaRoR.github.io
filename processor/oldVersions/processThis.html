@@ -1,7 +1,21 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v8.8.0
+  processThis v8.9.0
+
+  ─── v8.9.0 ───────────────────────────────────────────────────────────────
+  Phase 3: Physically correct isothermal equilibrium reactor.
+  reactor_equilibrium rewritten: K evaluated at T_eval, outlet exits at
+  T_eval (isothermal), Q_duty = H_out − H_in emitted on new heat_out
+  port. No PH-flash needed (outlet T known).  WIP flag removed.
+  ReactionRegistry: precompute _dH0_Jmol, _dS0_JmolK, _delta_nu,
+  _thermoComplete at registration. New static lnK(id, T) helper.
+  Reactor tick no longer touches ComponentRegistry (clean layering).
+  Reaction Library viewer uses precomputed registry data and lnK().
+  UI: WIP banner removed, T_eval promoted to primary parameter,
+  Q_duty displayed with heating/cooling indicator and kW value.
+  Unconnected heat_out warning extended to reactor_equilibrium.
+  VL inlet guard added (same policy as adiabatic reactor).
 
   ─── v8.8.0 ───────────────────────────────────────────────────────────────
   Reactor refactor per code review.  Phase 1: equilibrium code moved to
@@ -458,7 +472,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>processThis — v8.8.0</title>
+  <title>processThis — v8.9.0</title>
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
@@ -1509,9 +1523,9 @@
           <path d="M34 24l6 8-6 8" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round" opacity="0.8"/>
         </symbol>
 
-        <!-- Reactor (Equilibrium) WIP [v8.8.0] — ⇌ arrows -->
+        <!-- Reactor (Equilibrium) [v8.9.0] — ⇌ arrows -->
         <symbol id="ico-reactor_equilibrium" viewBox="0 0 64 64">
-          <rect x="14" y="8" width="36" height="48" rx="6" fill="none" stroke="currentColor" stroke-width="4" stroke-dasharray="6 3"/>
+          <rect x="14" y="8" width="36" height="48" rx="6" fill="none" stroke="currentColor" stroke-width="4"/>
           <path d="M22 26h20" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
           <path d="M36 22l6 4-6 4" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/>
           <path d="M22 38h20" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
@@ -2100,6 +2114,21 @@ class ReactionRegistry {
     }
 
     // Store validated reaction
+    // [v8.9.0] Precompute reaction thermodynamics at registration time
+    let _dH0_Jmol = null, _dS0_JmolK = null, _delta_nu = 0, _thermoComplete = true;
+    for (const [sp, nu] of Object.entries(stoich)) {
+      const comp = ComponentRegistry.get(sp);
+      _delta_nu += nu;
+      if (comp.hf0_Jmol !== undefined && comp.hf0_Jmol !== null &&
+          comp.s0_JmolK !== undefined && comp.s0_JmolK !== null) {
+        _dH0_Jmol = (_dH0_Jmol ?? 0) + nu * comp.hf0_Jmol;
+        _dS0_JmolK = (_dS0_JmolK ?? 0) + nu * comp.s0_JmolK;
+      } else {
+        _thermoComplete = false;
+      }
+    }
+    if (!_thermoComplete) { _dH0_Jmol = null; _dS0_JmolK = null; }
+
     const reaction = {
       id,
       name:       spec.name || id,
@@ -2112,7 +2141,11 @@ class ReactionRegistry {
       Pmax_Pa:    spec.Pmax_Pa,
       notes:      spec.notes || '',
       references: spec.references || [],
-      _massBalance: massBalance   // stored for diagnostics
+      _massBalance: massBalance,       // stored for diagnostics
+      _dH0_Jmol,                       // [v8.9.0] standard enthalpy of reaction (J/mol)
+      _dS0_JmolK,                      // [v8.9.0] standard entropy of reaction (J/(mol·K))
+      _delta_nu,                        // [v8.9.0] Σ νᵢ (mole change, for pressure effects)
+      _thermoComplete                   // [v8.9.0] true if all species have hf0/s0 data
     };
 
     ReactionRegistry._map.set(id, Object.freeze(reaction));
@@ -2123,6 +2156,13 @@ class ReactionRegistry {
   static exists(id)  { return ReactionRegistry._map.has(id); }
   static all()       { return Array.from(ReactionRegistry._map.values()); }
   static list()      { return ReactionRegistry.all(); }
+
+  // [v8.9.0] van 't Hoff equilibrium constant: ln K(T) = -ΔH°/(R·T) + ΔS°/R
+  static lnK(id, T_K) {
+    const rxn = ReactionRegistry._map.get(id);
+    if (!rxn || !rxn._thermoComplete) return null;
+    return -rxn._dH0_Jmol / (8.314 * T_K) + rxn._dS0_JmolK / 8.314;
+  }
 
   static validateAll() {
     const results = {};
@@ -7050,24 +7090,24 @@ UnitRegistry.register('reactor_adiabatic', {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// REACTOR (Equilibrium) — K(T) equilibrium extent [v8.8.0] WIP STUB
+// REACTOR (Equilibrium) — Isothermal K(T) equilibrium [v8.9.0]
 // ═══════════════════════════════════════════════════════════════════════════════
-// ⚠ WIP: Evaluates K at T_eval (default T_in) but applies adiabatic energy
-// closure at T_out.  Physically inconsistent for reactions where K varies
-// significantly with temperature.  Will be replaced with isothermal energy
-// contract + heat_out port in a future version.
+// Single-inlet, single-outlet isothermal equilibrium reactor.
+// Evaluates K at T_eval (default T_in), finds ξ_eq by bisection, applies
+// alpha scaling.  Outlet exits at T_eval.  Heat duty Q = H_out − H_in
+// is emitted on heat_out port.  dP = 0.
 //
-// Moved from reactor_adiabatic equilibrium mode to preserve working code
-// while the adiabatic reactor is cleaned up to fixed-conversion only.
+// Physically consistent: K and outlet T are the same temperature.
+// See DESIGN_reactor_refactor_v1.md §3 for full specification.
 UnitRegistry.register('reactor_equilibrium', {
   name: 'Reactor (Equilibrium)',
   category: UnitCategories.REACTOR,
-  _wip: true,   // [v8.8.0] marks unit as work-in-progress
   w: 2,
   h: 3,
   ports: [
     { portId: 'mat_in',  dir: PortDir.IN,  type: StreamType.MATERIAL, x: 0, y: 1 },
-    { portId: 'mat_out', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 1 }
+    { portId: 'mat_out', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 1 },
+    { portId: 'heat_out', dir: PortDir.OUT, type: StreamType.HEAT, x: 1, y: 3 }
   ],
   tick(u, ports, par) {
     const sIn = ports.mat_in;
@@ -7083,16 +7123,36 @@ UnitRegistry.register('reactor_equilibrium', {
       return;
     }
 
+    // ── Guard: VL/L inlet not supported ──
+    const pc = sIn.phaseConstraint || 'V';
+    if (pc === 'L' || pc === 'VL') {
+      u.last = { error: { severity: ErrorSeverity.MAJOR,
+        message: `Gas-phase reactor requires vapor inlet (got ${pc}). Use a flash drum or heater upstream to vaporize.` } };
+      ports.mat_out = { type: StreamType.MATERIAL, T: sIn.T, P: sIn.P,
+        n: { ...sIn.n }, phaseConstraint: pc };
+      return;
+    }
+
     const stoich = reaction.stoich;
 
     // ── Activation window (inlet T/P) ──
     if (sIn.T < reaction.Tmin_K || sIn.T > reaction.Tmax_K ||
         sIn.P < reaction.Pmin_Pa || sIn.P > reaction.Pmax_Pa) {
       ports.mat_out = { type: StreamType.MATERIAL, T: sIn.T, P: sIn.P,
-        n: { ...sIn.n }, phaseConstraint: sIn.phaseConstraint || 'V' };
+        n: { ...sIn.n }, phaseConstraint: pc };
       u.last = { reactionId: par.reactionId,
         status: 'inactive',
         reason: `T=${sIn.T.toFixed(0)}K or P=${(sIn.P/1e5).toFixed(2)}bar outside activation window` };
+      return;
+    }
+
+    // ── Guard: thermo data required for K(T) ──
+    if (!reaction._thermoComplete) {
+      u.last = { error: { severity: ErrorSeverity.MAJOR,
+        message: 'K(T) requires hf0_Jmol and s0_JmolK for all species in reaction' },
+        reactionId: par.reactionId, status: 'error' };
+      ports.mat_out = { type: StreamType.MATERIAL, T: sIn.T, P: sIn.P,
+        n: { ...sIn.n }, phaseConstraint: pc };
       return;
     }
 
@@ -7109,44 +7169,18 @@ UnitRegistry.register('reactor_equilibrium', {
 
     if (xi_max <= 0) {
       ports.mat_out = { type: StreamType.MATERIAL, T: sIn.T, P: sIn.P,
-        n: { ...sIn.n }, phaseConstraint: sIn.phaseConstraint || 'V' };
+        n: { ...sIn.n }, phaseConstraint: pc };
       u.last = { reactionId: par.reactionId, status: 'no_reactants', xi_max: 0 };
       return;
     }
 
-    // ── K(T) Equilibrium ──
-    // Verify entropy data available
-    let entropyOK = true;
-    for (const sp of Object.keys(stoich)) {
-      const comp = ComponentRegistry.get(sp);
-      if (comp.s0_JmolK === null || comp.s0_JmolK === undefined) {
-        entropyOK = false;
-        break;
-      }
-    }
-    if (!entropyOK) {
-      u.last = { error: { severity: ErrorSeverity.MAJOR,
-        message: 'K(T) mode requires s0_JmolK for all species in reaction' },
-        reactionId: par.reactionId, status: 'error' };
-      ports.mat_out = { type: StreamType.MATERIAL, T: sIn.T, P: sIn.P,
-        n: { ...sIn.n }, phaseConstraint: sIn.phaseConstraint || 'V' };
-      return;
-    }
-
-    // Compute ΔH° and ΔS° from NIST standard data
-    const R = 8.314;
-    let dH0 = 0, dS0 = 0;
-    for (const [sp, nu] of Object.entries(stoich)) {
-      const comp = ComponentRegistry.get(sp);
-      dH0 += nu * comp.hf0_Jmol;
-      dS0 += nu * comp.s0_JmolK;
-    }
-
-    // ln K(T) = -ΔH°/(R·T) + ΔS°/R
+    // ── T_eval: isothermal reactor temperature ──
     const T_eval = par.T_eval_override ?? sIn.T;
-    const ln_K = -dH0 / (R * T_eval) + dS0 / R;
 
-    // Bisection: find ξ_eq where ln_Q(ξ) = ln_K
+    // ── K(T_eval) via precomputed registry data ──
+    const ln_K = ReactionRegistry.lnK(par.reactionId, T_eval);
+
+    // ── Bisection: find ξ_eq where ln_Q(ξ) = ln_K ──
     const eps = xi_max * 1e-10;
     const P_std = 1e5;
 
@@ -7205,14 +7239,29 @@ UnitRegistry.register('reactor_equilibrium', {
       if (n_out[key] <= 0) delete n_out[key];
     }
 
-    // ── Adiabatic energy closure (WIP: inconsistent with K at T_eval) ──
-    const H_in_Jps = thermo.getHdot_Jps(sIn);
+    // ── Isothermal outlet: T_out = T_eval (physically consistent) ──
     ports.mat_out = {
       type: StreamType.MATERIAL,
+      T: T_eval,
       P: sIn.P,
       n: n_out,
-      phaseConstraint: sIn.phaseConstraint || 'V',
-      H_target_Jps: H_in_Jps
+      phaseConstraint: pc
+    };
+
+    // ── Q_duty: heat required to maintain isothermal operation ──
+    const H_in_Jps = thermo.getHdot_Jps(sIn);
+    const outProxy = { type: StreamType.MATERIAL, T: T_eval, P: sIn.P, n: n_out,
+      phaseConstraint: pc };
+    const H_out_Jps = thermo.getHdot_Jps(outProxy);
+    const Q_duty_W = H_out_Jps - H_in_Jps;  // +ve = needs heating, −ve = needs cooling
+
+    // ── Heat port: emit |Q_duty| ──
+    ports.heat_out = {
+      type: StreamType.HEAT,
+      capacity: Math.abs(Q_duty_W),
+      actual: Math.abs(Q_duty_W),
+      available: Math.abs(Q_duty_W),
+      demand: 0
     };
 
     // ── Diagnostics ──
@@ -7222,7 +7271,12 @@ UnitRegistry.register('reactor_equilibrium', {
       xi, xi_max,
       status: 'active',
       H_in_kW: (H_in_Jps / 1000).toFixed(2),
-      ln_K, xi_eq, alpha, T_eval, dH0, dS0
+      H_out_kW: (H_out_Jps / 1000).toFixed(2),
+      Q_duty_W,
+      Q_duty_sign: Q_duty_W >= 0 ? 'heating' : 'cooling',
+      ln_K, xi_eq, alpha, T_eval,
+      dH0: reaction._dH0_Jmol,
+      dS0: reaction._dS0_JmolK
     };
   }
 });
@@ -9325,11 +9379,11 @@ function solveScene(scene, options = {}) {
     }
   }
   
-  // [v4.6.0] Unconnected heat_out warning for power converters.
-  // Motor and generator have heat loss ports that should ideally be connected
+  // [v4.6.0] Unconnected heat_out warning for power converters and equilibrium reactor.
+  // Units with heat loss/duty ports that should ideally be connected
   // to a heat sink for closed energy balance. Warn if left floating.
   for (const [id, u] of scene.units) {
-    if (u.defId !== 'motor' && u.defId !== 'generator') continue;
+    if (u.defId !== 'motor' && u.defId !== 'generator' && u.defId !== 'reactor_equilibrium') continue;
     const ud = scene.runtime.unitData.get(id);
     const Q_loss = ud.ports?.heat_out?.actual ?? 0;
     if (Q_loss < 0.01) continue;  // No loss to dissipate → no warning needed
@@ -9338,9 +9392,10 @@ function solveScene(scene, options = {}) {
     );
     if (!hasHeatConn) {
       if (!ud.last) ud.last = {};
+      const heatLabel = u.defId === 'reactor_equilibrium' ? 'Heat duty' : 'Heat loss';
       ud.last.heatOutWarning = {
         severity: ErrorSeverity.MINOR,
-        message: `Heat loss port unconnected — ${(Q_loss/1000).toFixed(2)} kW dissipated to environment (connect to heat sink for closed energy balance)`
+        message: `${heatLabel} port unconnected — ${(Q_loss/1000).toFixed(2)} kW dissipated to environment (connect to heat sink for closed energy balance)`
       };
     }
   }
@@ -11333,20 +11388,14 @@ function showReactionDetails(rxn) {
   windowSection.appendChild(windowCard('Pressure Range', `${(rxn.Pmin_Pa/1e5).toFixed(1)} – ${(rxn.Pmax_Pa/1e5).toFixed(0)}`, 'bar'));
   windowSection.appendChild(windowCard('Reversible', rxn.reversible ? 'Yes' : 'No', ''));
 
-  // Thermodynamic data (ΔH° and ΔS° computed from species)
-  let dH0 = 0, dS0 = 0, thermoOk = true;
-  for (const [sp, nu] of Object.entries(rxn.stoich)) {
-    const comp = ComponentRegistry.get(sp);
-    if (comp && comp.hf0_Jmol !== undefined && comp.s0_JmolK !== undefined) {
-      dH0 += nu * comp.hf0_Jmol;
-      dS0 += nu * comp.s0_JmolK;
-    } else {
-      thermoOk = false;
-    }
-  }
+  // [v8.9.0] Thermodynamic data from precomputed registry fields
+  const thermoOk = rxn._thermoComplete;
+  const dH0 = rxn._dH0_Jmol;
+  const dS0 = rxn._dS0_JmolK;
   if (thermoOk) {
     const dH_kJ = (dH0 / 1000).toFixed(1);
     windowSection.appendChild(windowCard('ΔH°₂₉₈', dH_kJ, 'kJ/mol'));
+    windowSection.appendChild(windowCard('Δν', String(rxn._delta_nu), 'mol'));
   }
 
   dialog.appendChild(windowSection);
@@ -11373,7 +11422,6 @@ function showReactionDetails(rxn) {
     kSection.appendChild(kEq);
 
     // Table of K at several temperatures
-    const R = 8.314;
     const temps = [300, 500, 800, 1000, 1500, 2000].filter(T => T >= rxn.Tmin_K && T <= rxn.Tmax_K);
     if (temps.length > 0) {
       const kTable = el('table', { style: 'width:100%; border-collapse:collapse; font-size:12px;' });
@@ -11387,7 +11435,7 @@ function showReactionDetails(rxn) {
       kTable.appendChild(kHead);
 
       for (const T of temps) {
-        const lnK = -dH0 / (R * T) + dS0 / R;
+        const lnK = ReactionRegistry.lnK(rxn.id, T);
         const K = Math.exp(Math.min(lnK, 300));  // cap to avoid Infinity display
         const favour = lnK > 2 ? 'Products' : lnK < -2 ? 'Reactants' : 'Mixed';
         const fColour = lnK > 2 ? '#4ade80' : lnK < -2 ? '#f87171' : '#fbbf24';
@@ -12682,16 +12730,10 @@ function updatePropertiesPanel() {
       propEditor.appendChild(paramsSection.section);
     }
 
-    // [v8.8.0] Reactor (Equilibrium) — WIP stub
+    // [v8.9.0] Reactor (Equilibrium) — isothermal K(T)
     if (u.defId === 'reactor_equilibrium') {
       const paramsSection = createCollapsibleSection('Parameters', true);
       const unitSys = models.getActive('units');
-
-      // WIP banner
-      paramsSection.content.appendChild(el('div', {
-        style: 'padding:10px 12px; margin-bottom:12px; background:#92400e22; border:1px solid #92400e; border-radius:8px; font-size:11px; line-height:1.4;',
-        html: '⚠️ <strong>WIP</strong> — Equilibrium evaluated at T<sub>eval</sub>, but energy closure is adiabatic (at T<sub>out</sub>). Physically inconsistent for reactions where K varies significantly with temperature.'
-      }));
 
       // Reaction selector
       const allRxns = ReactionRegistry.all();
@@ -12708,20 +12750,20 @@ function updatePropertiesPanel() {
         paramsSection.content.appendChild(el('div', { class: 'rxnEquation', html: formatReactionHTML(selRxn.equation) }));
       }
 
-      // Alpha slider
-      addSliderEditor(paramsSection.content, 'Alpha',
-        () => u.params.alpha ?? 1.0,
-        v => u.params.alpha = v, 0, 1, 0.01);
-
-      // T_eval
+      // T_eval — primary parameter for isothermal reactor
       addNumberEditor(paramsSection.content, `T<sub>eval</sub> (${unitSys.temperature.symbol})`,
         () => u.params.T_eval_override ? unitSys.temperature.from(u.params.T_eval_override) : '',
         v => u.params.T_eval_override = v ? unitSys.temperature.to(v) : undefined, 1);
       paramsSection.content.appendChild(el('div', {
         class: 'small',
         style: 'margin:-4px 0 8px; opacity:0.5; font-size:10px; line-height:1.3;',
-        html: 'Temperature at which K is evaluated. Leave blank to use inlet T.'
+        html: 'Isothermal reactor temperature. K is evaluated at this T. Leave blank to use inlet T.'
       }));
+
+      // Alpha slider
+      addSliderEditor(paramsSection.content, 'Alpha (approach to equilibrium)',
+        () => u.params.alpha ?? 1.0,
+        v => u.params.alpha = v, 0, 1, 0.01);
 
       propEditor.appendChild(paramsSection.section);
     }
@@ -13257,7 +13299,7 @@ function updatePropertiesPanel() {
         const unitSys = models.getActive('units');
         const rxBox = el('div', { style: 'margin-bottom:16px; padding:12px; background:#1e293b; border-radius:8px;' });
         const statusColor = ud.last.status === 'active' ? '#22c55e' : ud.last.status === 'inactive' ? '#f59e0b' : '#ef4444';
-        const typeLabel = u.defId === 'reactor_equilibrium' ? 'Reactor (Eq.) WIP' : 'Reactor';
+        const typeLabel = u.defId === 'reactor_equilibrium' ? 'Reactor (Eq.)' : 'Reactor';
         rxBox.appendChild(el('div', {
           class: 'small',
           style: 'font-weight:700; margin-bottom:8px; opacity:0.8; text-transform:uppercase;',
@@ -13279,7 +13321,7 @@ function updatePropertiesPanel() {
               el('div', { class: 'propValue', html: `${ud.last.ln_K?.toFixed(1)}` })
             ]));
             dataGrid.appendChild(el('div', { class: 'propItem' }, [
-              el('div', { class: 'propLabel', html: 'T<sub>eval</sub>' }),
+              el('div', { class: 'propLabel', html: 'T<sub>eval</sub> (isothermal)' }),
               el('div', { class: 'propValue', html: `${unitSys.temperature.from(ud.last.T_eval)?.toFixed(1)}<span class="propUnit">${unitSys.temperature.symbol}</span>` })
             ]));
             dataGrid.appendChild(el('div', { class: 'propItem' }, [
@@ -13307,6 +13349,19 @@ function updatePropertiesPanel() {
             style: 'font-size:10px; opacity:0.6; margin-top:2px;',
             html: `<span style="color:${statusColor}">${convPct.toFixed(1)}% of max extent</span>`
           }));
+
+          // [v8.9.0] Q_duty for equilibrium reactor (isothermal)
+          if (ud.last.Q_duty_W !== undefined) {
+            const Q_kW = (ud.last.Q_duty_W / 1000);
+            const qSign = ud.last.Q_duty_sign;
+            const qColor = qSign === 'cooling' ? '#60a5fa' : '#f97316';
+            const qLabel = qSign === 'cooling' ? '❄ Cooling duty' : '🔥 Heating duty';
+            dataGrid.appendChild(el('div', { class: 'propItem' }, [
+              el('div', { class: 'propLabel', html: qLabel }),
+              el('div', { class: 'propValue', style: `color:${qColor};`,
+                html: `${Math.abs(Q_kW).toFixed(2)}<span class="propUnit">kW</span>` })
+            ]));
+          }
         }
 
         if (ud.last.status === 'inactive' && ud.last.reason) {
