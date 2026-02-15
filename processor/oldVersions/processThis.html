@@ -16,6 +16,10 @@
   Q_duty displayed with heating/cooling indicator and kW value.
   Unconnected heat_out warning extended to reactor_equilibrium.
   VL inlet guard added (same policy as adiabatic reactor).
+  Tests (Section AF rewritten, 124–130): isothermal T_out, Q_duty sign,
+  energy closure (H_in + Q = H_out), heat_out in system balance,
+  ReactionRegistry precomputed thermo + lnK(), VL guard. +4 net new
+  tests (131→135), +28 checks (935→963). All pass.
 
   ─── v8.8.0 ───────────────────────────────────────────────────────────────
   Reactor refactor per code review.  Phase 1: equilibrium code moved to
@@ -18275,14 +18279,20 @@ function runTests() {
   });
 
   // ═══════════════════════════════════════════════════════════════════════
-  // SECTION AF: Reactor Equilibrium WIP (Tests 124–126)
-  // [v8.8.0] Moved from reactor_adiabatic. Tests validate the WIP stub's
-  // behavior (K at T_eval + adiabatic closure). Will be updated when the
-  // energy contract changes to isothermal in a future version.
+  // SECTION AF: Reactor Equilibrium — Isothermal K(T) (Tests 124–130)
+  // [v8.9.0] Rewritten for isothermal energy contract.
+  //   124–126: Rewritten from WIP adiabatic closure to isothermal T_out = T_eval
+  //   127: Q_duty energy closure (Q = H_out − H_in)
+  //   128: Heat port in system balance (dissipated when unconnected)
+  //   129: ReactionRegistry precomputed thermo + lnK() helper
+  //   130: VL inlet guard
+  // Pressure-dependence test deferred: H₂ combustion K is too large to
+  // show visible ξ shift. Add when a moderate-K reaction is registered.
   // ═══════════════════════════════════════════════════════════════════════
 
-  test('Reactor Eq. WIP — products strongly favored at 800K', t => {
+  test('Reactor Eq. — products strongly favored, isothermal at T_in', t => {
     // H₂ combustion: ln K(800) ≈ 62 → K >> 1 → ξ_eq ≈ ξ_max
+    // Isothermal: T_out = T_eval = T_in = 800K, Q_duty < 0 (cooling needed)
     const src = t.place('source_multi', 0, 0, {
       n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
     });
@@ -18295,10 +18305,9 @@ function runTests() {
     t.solve();
 
     const out = t.port(rx, 'mat_out');
-    const srcOut = t.port(src, 'out');
     const rxLast = t.ud(rx).last;
 
-    // K(T) overwhelmingly favors products → near-complete conversion
+    // Equilibrium solver
     t.assertOK(rxLast.status === 'active', 'Status: active');
     t.assertOK(rxLast.mode === 'equilibrium', 'Mode: equilibrium');
     t.assertOK(rxLast.ln_K > 50, 'ln K > 50 (overwhelmingly favored)',
@@ -18311,14 +18320,18 @@ function runTests() {
     t.assertOK(!out.n.O2 || out.n.O2 < 0.01, 'O2 ≈ 0');
     t.assertClose(out.n.H2O, 2, 0.05, 'H2O ≈ 2');
 
-    // Energy balance
-    if (srcOut?.Hdot_J_s !== undefined && out.Hdot_J_s !== undefined) {
-      t.assertClose(Math.abs(out.Hdot_J_s - srcOut.Hdot_J_s), 0, 200, 'ΔH adiabatic');
-    }
+    // Isothermal: T_out = T_eval = T_in
+    t.assertClose(out.T, 800, 0.1, 'T_out = 800K (isothermal at T_in)');
+    t.assertClose(rxLast.T_eval, 800, 0.1, 'T_eval = T_in = 800K');
+
+    // Q_duty: exothermic reaction held at T_in → must release heat (Q_duty < 0)
+    t.assertOK(rxLast.Q_duty_W < 0, 'Q_duty < 0 (cooling needed)',
+      `Q_duty=${(rxLast.Q_duty_W/1000).toFixed(1)} kW`);
+    t.assertOK(rxLast.Q_duty_sign === 'cooling', 'Sign label: cooling');
   });
 
-  test('Reactor Eq. WIP — alpha scaling', t => {
-    // alpha = 0.5 → ξ ≈ 0.5 × ξ_eq
+  test('Reactor Eq. — alpha scaling', t => {
+    // alpha = 0.5 → ξ ≈ 0.5 × ξ_eq, isothermal T_out = T_in
     const src = t.place('source_multi', 0, 0, {
       n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
     });
@@ -18334,7 +18347,7 @@ function runTests() {
     const srcOut = t.port(src, 'out');
     const rxLast = t.ud(rx).last;
 
-    // Alpha = 0.5: ξ should be about half of ξ_eq
+    // Alpha scaling
     t.assertClose(rxLast.alpha, 0.5, 0.001, 'Alpha = 0.5');
     t.assertClose(rxLast.xi, 0.5 * rxLast.xi_eq, 0.001, 'ξ = 0.5 × ξ_eq');
 
@@ -18343,21 +18356,18 @@ function runTests() {
     t.assertClose(out.n.O2, 0.5, 0.05, 'O2 ≈ 0.5');
     t.assertClose(out.n.H2O, 1.0, 0.05, 'H2O ≈ 1.0');
 
-    // Energy balance
-    if (srcOut?.Hdot_J_s !== undefined && out.Hdot_J_s !== undefined) {
-      t.assertClose(Math.abs(out.Hdot_J_s - srcOut.Hdot_J_s), 0, 200, 'ΔH adiabatic');
-    }
+    // Isothermal: T_out = T_in
+    t.assertClose(out.T, 800, 0.1, 'T_out = 800K (isothermal)');
 
-    // Mass balance
+    // Mass balance (reaction preserves mass)
     const m_in  = streamMass_kgps(srcOut);
     const m_out = streamMass_kgps(out);
     t.assertClose(m_out, m_in, m_in * 0.001, 'Mass balance');
   });
 
-  test('Reactor Eq. WIP — T_eval override', t => {
+  test('Reactor Eq. — T_eval override changes K and T_out', t => {
     // T_eval_override = 500K (different from T_in = 800K)
-    // At 500K, ln_K is even larger → same near-complete conversion
-    // But the point is T_eval ≠ T_in, and energy balance still holds
+    // Isothermal: T_out = 500K (not T_in), ln_K changes
     const src = t.place('source_multi', 0, 0, {
       n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
     });
@@ -18371,24 +18381,159 @@ function runTests() {
     t.solve();
 
     const out = t.port(rx, 'mat_out');
-    const srcOut = t.port(src, 'out');
     const rxLast = t.ud(rx).last;
 
-    // T_eval should be the override value
+    // T_eval and T_out should both be the override value
     t.assertClose(rxLast.T_eval, 500, 0.1, 'T_eval = 500K (override)');
+    t.assertClose(out.T, 500, 0.1, 'T_out = 500K (isothermal at T_eval)');
 
-    // ln_K at 500K: should be different (larger) than at 800K
-    // ln K(500) = 483652/(8.314×500) − 88.842/8.314 ≈ 116.3 − 10.7 ≈ 105.7
+    // ln_K at 500K should be larger than at 800K (more exothermic drive)
     t.assertOK(rxLast.ln_K > 100, 'ln K(500K) > 100', rxLast.ln_K?.toFixed(1));
 
-    // Energy balance still holds (adiabatic)
-    if (srcOut?.Hdot_J_s !== undefined && out.Hdot_J_s !== undefined) {
-      t.assertClose(Math.abs(out.Hdot_J_s - srcOut.Hdot_J_s), 0, 200, 'ΔH adiabatic');
+    // Q_duty should be different from T_eval=T_in case because outlet is
+    // cooled from 800K inlet to 500K + reaction heat release
+    t.assertOK(rxLast.Q_duty_W !== undefined, 'Q_duty computed');
+  });
+
+  test('Reactor Eq. — Q_duty energy closure', t => {
+    // Verify: Q_duty = H_out − H_in  (definition)
+    // H_in + Q_duty should equal H_out within tolerance
+    const src = t.place('source_multi', 0, 0, {
+      n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
+    });
+    const rx = t.place('reactor_equilibrium', 4, 0, {
+      reactionId: 'R_H2_COMB', alpha: 1.0
+    });
+    const snk = t.place('sink', 8, 0);
+    t.wire(src, 'out', rx, 'mat_in');
+    t.wire(rx, 'mat_out', snk, 'in');
+    t.solve();
+
+    const srcOut = t.port(src, 'out');
+    const out = t.port(rx, 'mat_out');
+    const rxLast = t.ud(rx).last;
+    const ud = t.ud(rx);
+
+    // H_in and H_out from resolved streams (solver-computed Hdot_J_s)
+    const H_in = srcOut.Hdot_J_s;
+    const H_out = out.Hdot_J_s;
+    t.assertOK(isFinite(H_in), 'H_in is finite');
+    t.assertOK(isFinite(H_out), 'H_out is finite');
+
+    // Q_duty = H_out − H_in (from tick)
+    const Q_duty = rxLast.Q_duty_W;
+    t.assertOK(isFinite(Q_duty), 'Q_duty is finite');
+
+    // Closure: H_out = H_in + Q_duty → H_out − H_in − Q_duty ≈ 0
+    const residual = H_out - H_in - Q_duty;
+    const scale = Math.max(Math.abs(H_in), Math.abs(H_out), 1);
+    t.assertClose(residual, 0, scale * 1e-6,
+      'Energy closure: H_out − H_in = Q_duty',
+      `residual=${residual.toFixed(2)} W, scale=${scale.toFixed(0)} W`);
+
+    // Heat port should emit |Q_duty|
+    const heatPort = ud.ports?.heat_out;
+    t.assertOK(heatPort, 'heat_out port exists');
+    t.assertClose(heatPort.actual, Math.abs(Q_duty), 1,
+      'heat_out.actual = |Q_duty|');
+  });
+
+  test('Reactor Eq. — heat_out in system balance (dissipated)', t => {
+    // Unconnected heat_out → appears as dissipated energy in balance
+    const src = t.place('source_multi', 0, 0, {
+      n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
+    });
+    const rx = t.place('reactor_equilibrium', 4, 0, {
+      reactionId: 'R_H2_COMB', alpha: 1.0
+    });
+    const snk = t.place('sink', 8, 0);
+    t.wire(src, 'out', rx, 'mat_in');
+    t.wire(rx, 'mat_out', snk, 'in');
+    // heat_out intentionally NOT connected
+    t.solve();
+
+    const rxLast = t.ud(rx).last;
+    const Q_abs = Math.abs(rxLast.Q_duty_W);
+
+    const bal = computeSystemBalance(scene);
+    t.assertOK(bal, 'Balance computed');
+
+    // Dissipated energy should include the reactor heat duty
+    t.assertOK(bal.energy.out.dissipated > 0, 'Dissipated > 0');
+    // Find the reactor's dissipated item
+    const rxDissipated = bal.energy.out.items.find(
+      i => i.type === 'dissipated' && i.name.includes('Equilibrium'));
+    t.assertOK(rxDissipated, 'Reactor dissipated entry found in balance');
+    t.assertClose(rxDissipated.value, Q_abs, Q_abs * 0.01,
+      'Dissipated amount ≈ |Q_duty|');
+
+    // System energy balance should still close (within tolerance)
+    // E_in = H_in(material), E_out = H_out(material) + dissipated
+    const eTol = Math.max(Math.abs(bal.energy.totalIn), Math.abs(bal.energy.totalOut)) * 0.001;
+    t.assertClose(bal.energy.balance, 0, Math.max(eTol, 100),
+      'System energy balance closes');
+  });
+
+  test('ReactionRegistry — precomputed thermo and lnK()', t => {
+    // [v8.9.0] Verify precomputed thermodynamic properties
+    const rxn = ReactionRegistry.get('R_H2_COMB');
+
+    // _thermoComplete should be true (all species have hf0/s0)
+    t.assertOK(rxn._thermoComplete, '_thermoComplete = true');
+
+    // _dH0_Jmol: independent calculation
+    let dH0_check = 0, dS0_check = 0, dnu_check = 0;
+    for (const [sp, nu] of Object.entries(rxn.stoich)) {
+      const comp = ComponentRegistry.get(sp);
+      dH0_check += nu * comp.hf0_Jmol;
+      dS0_check += nu * comp.s0_JmolK;
+      dnu_check += nu;
     }
+    t.assertClose(rxn._dH0_Jmol, dH0_check, 0.1, '_dH0_Jmol matches manual calc');
+    t.assertClose(rxn._dS0_JmolK, dS0_check, 0.001, '_dS0_JmolK matches manual calc');
+    t.assertClose(rxn._delta_nu, dnu_check, 0.001, '_delta_nu matches manual calc');
+
+    // H₂ combustion: Δν = 2 − 2 − 1 = −1
+    t.assertClose(rxn._delta_nu, -1, 0.001, 'Δν = −1 for 2H₂ + O₂ → 2H₂O');
+
+    // lnK() helper
+    const lnK_800 = ReactionRegistry.lnK('R_H2_COMB', 800);
+    const lnK_manual = -dH0_check / (8.314 * 800) + dS0_check / 8.314;
+    t.assertClose(lnK_800, lnK_manual, 0.001, 'lnK(800) matches manual calc');
+    t.assertOK(lnK_800 > 50, 'lnK(800) > 50');
+
+    // lnK at different T should change monotonically for exothermic rxn
+    const lnK_500 = ReactionRegistry.lnK('R_H2_COMB', 500);
+    t.assertOK(lnK_500 > lnK_800, 'lnK(500) > lnK(800) for exothermic rxn');
+  });
+
+  test('Reactor Eq. — VL inlet rejected', t => {
+    // Same guard as adiabatic reactor
+    const src = t.place('source_multi', 0, 0, {
+      n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'VL'
+    });
+    const rx = t.place('reactor_equilibrium', 4, 0, {
+      reactionId: 'R_H2_COMB', alpha: 1.0
+    });
+    const snk = t.place('sink', 8, 0);
+    t.wire(src, 'out', rx, 'mat_in');
+    t.wire(rx, 'mat_out', snk, 'in');
+    t.solve();
+
+    const rxLast = t.ud(rx).last;
+    t.assertOK(rxLast?.error, 'Error emitted for VL inlet');
+    t.assertOK(rxLast?.error?.severity === ErrorSeverity.MAJOR, 'Severity = MAJOR');
+    t.assertOK(rxLast.error.message.includes('vapor'), 'Message mentions vapor requirement');
+
+    // Pass-through: outlet composition unchanged
+    const out = t.port(rx, 'mat_out');
+    const srcOut = t.port(src, 'out');
+    t.assertClose(out.n.H2, srcOut.n.H2, 0.001, 'H2 passed through');
+    t.assertClose(out.n.O2, srcOut.n.O2, 0.001, 'O2 passed through');
   });
 
   // ═══════════════════════════════════════════════════════════════════════
-  // SECTION AF.2: Reactor Adiabatic Guards (Tests 127–128) [v8.8.0]
+  // SECTION AF.2: Reactor Adiabatic Guards (Tests 131–132) [v8.8.0]
   // ═══════════════════════════════════════════════════════════════════════
 
   test('Reactor adiabatic — VL inlet rejected', t => {
@@ -18441,7 +18586,7 @@ function runTests() {
   });
 
   // ═══════════════════════════════════════════════════════════════════════
-  // SECTION AG: Balance Report Cross-Validation (Tests 129–131)
+  // SECTION AG: Balance Report Cross-Validation (Tests 133–135)
   // [v8.6.1] Verify computeSystemBalance() report matches internal engine.
   // The report is the primary human-facing trust surface — if it disagrees
   // with the engine, users lose confidence even if the engine is correct.
