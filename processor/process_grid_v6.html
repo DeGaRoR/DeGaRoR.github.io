@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  PROCESS GRID v6.0.0
+  PROCESS GRID v6.0.1
 
   ─── v6.0.0 ───────────────────────────────────────────────────────────────
   Phase 0 Sanitization (from code review):
@@ -18,6 +18,13 @@
                Cannot be selected until implementation is complete.
    [S-05]     (Already fixed in v5.4.2 — try-catch around tick calls.)
    Export version bumped to 9 (T params in K).
+
+  ─── v6.0.1 ───────────────────────────────────────────────────────────────
+  Fix remaining °C→K conversion misses in test code:
+   - hexRig() helper: T_hot_out and T_cold_out params (Tests 83-84)
+   - buildRecycleRig() default T_out=150 → 423.15 (Tests 91-92)
+   - Exception containment test heater T_out (Test 95)
+   - Graph recycle test heater T_out (Test 93)
   ═══════════════════════════════════════════════════════════════════════════
   
   A web-based process simulation and flowsheet design tool.
@@ -93,7 +100,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Process Grid — v6.0.0</title>
+  <title>Process Grid — v6.0.1</title>
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
@@ -14337,7 +14344,7 @@ function runTests() {
   }
 
   test('HEX Regression: Setpoint T_hot_out', t => {
-    const last = hexRig(t, { T_hot_out: 80 });
+    const last = hexRig(t, { T_hot_out: 353.15 });  // 80°C in K
     t.assertOK(last && !last.error, 'No error');
     t.assertOK(last.mode === 'T_hot_out', 'Mode');
     // Hot outlet must be at setpoint (PH flash resolves to ~353.15K)
@@ -14352,7 +14359,7 @@ function runTests() {
   });
 
   test('HEX Regression: Setpoint T_cold_out', t => {
-    const last = hexRig(t, { T_cold_out: 120 });
+    const last = hexRig(t, { T_cold_out: 393.15 });  // 120°C in K
     t.assertOK(last && !last.error, 'No error');
     t.assertOK(last.mode === 'T_cold_out', 'Mode');
     // Cold outlet at setpoint (~393.15K)
@@ -14446,7 +14453,7 @@ function runTests() {
     // The cycle is: mixer → hex → splitter → mixer  → one SCC with 3 members
     const src  = t.place('source', 0, 0, { species:'N2', nDot:1, T:298.15, P:200000, phaseConstraint:'V' });
     const mix  = t.place('mixer', 4, 0);
-    const htr  = t.place('heater', 8, 0, { T_out: 100 });
+    const htr  = t.place('heater', 8, 0, { T_out: 373.15 });  // 100°C in K
     const spl  = t.place('splitter', 12, 0, { splitPct: 80 });
     const snk  = t.place('sink', 16, 0);
 
@@ -14532,7 +14539,7 @@ function runTests() {
   //                     ↑                          │ out2 (recycle)
   //                     └──────────────────────────┘
   // Returns unit IDs for assertions.
-  function buildRecycleRig(t, { splitPct = 70, T_out = 150 } = {}) {
+  function buildRecycleRig(t, { splitPct = 70, T_out = 423.15 } = {}) {  // [v6.0.1] T_out in K (150°C)
     const src = t.place('source', 0, 0, { species:'N2', nDot:1, T:373.15, P:200000, phaseConstraint:'V' });
     const mix = t.place('mixer', 4, 0);
     const htr = t.place('heater', 8, 0, { T_out });
@@ -14725,7 +14732,7 @@ function runTests() {
     t.wire(thr, 'out', snk1, 'in');
 
     const src2 = t.place('source', 0, 4, { species:'H2O', nDot:5, T:298.15, P:101325, phaseConstraint:'L' });
-    const htr  = t.place('heater', 3, 4, { T_out: 80 });
+    const htr  = t.place('heater', 3, 4, { T_out: 353.15 });  // 80°C in K
     const snk2 = t.place('sink', 6, 4);
     t.wire(src2, 'out', htr, 'mat_in');
     t.wire(htr, 'mat_out', snk2, 'in');
