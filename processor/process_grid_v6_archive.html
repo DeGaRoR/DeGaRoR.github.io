@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  PROCESS GRID v6.1.0
+  PROCESS GRID v6.0.1
 
   ─── v6.0.0 ───────────────────────────────────────────────────────────────
   Phase 0 Sanitization (from code review):
@@ -25,20 +25,6 @@
    - buildRecycleRig() default T_out=150 → 423.15 (Tests 91-92)
    - Exception containment test heater T_out (Test 95)
    - Graph recycle test heater T_out (Test 93)
-
-  ─── v6.1.0 ───────────────────────────────────────────────────────────────
-  Direct-bus curtailment for non-hub power fanout:
-   When a single source_electrical, battery, or source_mechanical fans out
-   to multiple consumers WITHOUT a power_hub, total consumer draw could
-   exceed source capacity (each consumer drew up to bus `actual` independently).
-   Fix: Steps D/E now compute curtailmentFactor = actual/demand (clamped 0..1)
-   and write it to both the port object and RuntimeContext scratch.  Source
-   ticks (battery, source_electrical, source_mechanical) read directCurtailment
-   from scratch and include it in the freshly created port each iteration.
-   Consumers (motor, electric_heater) already read elecIn.curtailmentFactor
-   as their fallback when no hub allocation exists.
-   Hub path (Step C) is unchanged — hub-connected sources skip Steps D/E.
-   New tests: Section Y (Tests 98–99) — electrical + battery fanout conservation.
   ═══════════════════════════════════════════════════════════════════════════
   
   A web-based process simulation and flowsheet design tool.
@@ -114,7 +100,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Process Grid — v6.1.0</title>
+  <title>Process Grid — v6.0.1</title>
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
@@ -4215,8 +4201,7 @@ UnitRegistry.register('battery', {
       capacity: maxPower_W,
       actual: actualDraw_W,
       available: maxPower_W,  // deprecated alias for capacity
-      demand: s.hubDemand_W || 0,
-      curtailmentFactor: s.directCurtailment ?? 1.0  // [v6.1] direct-bus curtailment
+      demand: s.hubDemand_W || 0
     };
     u.last = {
       maxPower_W: maxPower_W,
@@ -4245,8 +4230,7 @@ UnitRegistry.register('source_electrical', {
       capacity: maxPower_W,
       actual: actualDraw_W,
       available: maxPower_W,  // deprecated alias for capacity
-      demand: s.hubDemand_W !== undefined ? s.hubDemand_W : maxPower_W,
-      curtailmentFactor: s.directCurtailment ?? 1.0  // [v6.1] direct-bus curtailment
+      demand: s.hubDemand_W !== undefined ? s.hubDemand_W : maxPower_W
     };
     u.last = {
       maxPower_W: maxPower_W,
@@ -4596,16 +4580,14 @@ UnitRegistry.register('source_mechanical', {
   w: 2,
   h: 2,
   ports: [{ portId: 'out', dir: PortDir.OUT, type: StreamType.MECHANICAL, x: 2, y: 1 }],
-  tick(u, ports, par, ctx) {
+  tick(u, ports, par) {
     const maxPower_W = (par.maxPower || 1000) * 1000;
-    const s = ctx ? ctx.scratch : {};
     ports.out = {
       type: StreamType.MECHANICAL,
       capacity: maxPower_W,
-      actual: s.actualDraw_W ?? maxPower_W,  // Refined by Step E
+      actual: u._actualDraw_W ?? maxPower_W,  // Refined by Step E
       available: maxPower_W,  // deprecated alias
-      demand: 0,
-      curtailmentFactor: s.directCurtailment ?? 1.0  // [v6.1] direct-bus curtailment
+      demand: 0
     };
   }
 });
@@ -7609,22 +7591,14 @@ function solveScene(scene, options = {}) {
       
       const maxPower_W = _ud.ports.out?.capacity ?? _ud.ports.out?.available ?? 0;
       
-      // [v6.1] Direct-bus curtailment: compute factor for fanout conservation
-      const actualDraw_W = Math.min(downstreamDemand_W, maxPower_W);
-      const curtailmentFactor = downstreamDemand_W > 0
-        ? Math.max(0, Math.min(1, actualDraw_W / downstreamDemand_W))
-        : 1.0;
-
       if (_ud.ports.out) {
         _ud.ports.out.demand = downstreamDemand_W;
-        _ud.ports.out.actual = actualDraw_W;
-        _ud.ports.out.curtailmentFactor = curtailmentFactor;
+        _ud.ports.out.actual = Math.min(downstreamDemand_W, maxPower_W);
       }
       // [v5.4.0] Write to RuntimeContext scratch (was _u._hub*)
       const bs = runtimeCtx.scratch(_id);
       bs.hubDemand_W = downstreamDemand_W;
-      bs.actualDraw_W = actualDraw_W;
-      bs.directCurtailment = curtailmentFactor;  // [v6.1] consumed by battery tick
+      bs.actualDraw_W = Math.min(downstreamDemand_W, maxPower_W);
       
       // Report shortage if demand exceeds capacity
       if (downstreamDemand_W > maxPower_W + 1) {
@@ -7665,20 +7639,12 @@ function solveScene(scene, options = {}) {
       const capacity_W = _ud.ports[outPortId]?.capacity ?? _ud.ports[outPortId]?.available ?? 0;
       const actualDraw_W = Math.min(downstreamDemand_W, capacity_W);
       
-      // [v6.1] Direct-bus curtailment: compute factor for fanout conservation
-      const curtailmentFactor = downstreamDemand_W > 0
-        ? Math.max(0, Math.min(1, actualDraw_W / downstreamDemand_W))
-        : 1.0;
-
       if (_ud.ports[outPortId]) {
         _ud.ports[outPortId].demand = downstreamDemand_W;
         _ud.ports[outPortId].actual = actualDraw_W;
-        _ud.ports[outPortId].curtailmentFactor = curtailmentFactor;
       }
       // [v5.4.0] Write to RuntimeContext scratch (was _u._actualDraw_W)
-      const _es = runtimeCtx.scratch(_id);
-      _es.actualDraw_W = actualDraw_W;
-      _es.directCurtailment = curtailmentFactor;  // [v6.1] consumed by source tick
+      runtimeCtx.scratch(_id).actualDraw_W = actualDraw_W;
     }
 
   // ── Post-loop processing (only needs final converged values) ──
@@ -14918,134 +14884,6 @@ function runTests() {
     const outPort = t.port(str, 'out');
     t.assertOK(outPort?.n?.N2 === 5, 'String "5.0" coerced to 5', `${outPort?.n?.N2}`);
     t.assertOK(outPort?.n?.H2O === 0, 'String "abc" zeroed', `${outPort?.n?.H2O}`);
-  });
-
-  // ═══════════════════════════════════════════════════════════════════════
-  // SECTION Y: Direct-Bus Curtailment Conservation (Tests 98–99)
-  // [v6.1] When a single power source fans out to multiple consumers
-  // WITHOUT a power hub, curtailmentFactor must enforce conservation:
-  // Σ consumer draws ≤ source actual.
-  // ═══════════════════════════════════════════════════════════════════════
-
-  test('Direct electrical fanout curtails correctly', t => {
-    // Topology (no hub):
-    //   srcE ──┬──▶ motor1 ──▶ pump1 ◀── srcW1 (H2O)  ──▶ snk1
-    //          └──▶ motor2 ──▶ pump2 ◀── srcW2 (H2O)  ──▶ snk2
-    // Each pump wants ~1180 kW shaft → ~1242 kW elec → total ~2484 kW > 1500 kW cap
-
-    const srcE = t.place('source_electrical', 0, 0, { maxPower: 1500 });  // 1500 kW
-
-    const mot1 = t.place('motor', 4, 0, { eta: 0.95 });
-    const mot2 = t.place('motor', 4, 4, { eta: 0.95 });
-
-    const srcW1 = t.place('source', 8, -2, { species:'H2O', nDot:10000, T:298.15, P:100000, phaseConstraint:'L' });
-    const srcW2 = t.place('source', 8, 2,  { species:'H2O', nDot:10000, T:298.15, P:100000, phaseConstraint:'L' });
-
-    const pmp1 = t.place('pump', 12, 0, { Pout:5000000, eta:0.75 });
-    const pmp2 = t.place('pump', 12, 4, { Pout:5000000, eta:0.75 });
-
-    const snk1 = t.place('sink', 16, 0);
-    const snk2 = t.place('sink', 16, 4);
-
-    // Electrical fanout: one source → two motors
-    t.wire(srcE, 'out', mot1, 'elec_in');
-    t.wire(srcE, 'out', mot2, 'elec_in');
-
-    // Mechanical: motor → pump
-    t.wire(mot1, 'mech_out', pmp1, 'power_in');
-    t.wire(mot2, 'mech_out', pmp2, 'power_in');
-
-    // Material: water → pump → sink
-    t.wire(srcW1, 'out', pmp1, 'mat_in');
-    t.wire(srcW2, 'out', pmp2, 'mat_in');
-    t.wire(pmp1, 'mat_out', snk1, 'in');
-    t.wire(pmp2, 'mat_out', snk2, 'in');
-
-    const r = t.solveRaw();
-    t.assertOK(r !== undefined, 'Solve completed');
-
-    // Source out port checks
-    const srcOut = t.port(srcE, 'out');
-    t.assertClose(srcOut.actual, 1500000, 100, 'Source actual = 1500 kW');
-    t.assertOK(srcOut.curtailmentFactor !== undefined, 'curtailmentFactor defined');
-    t.assertOK(srcOut.curtailmentFactor < 1.0, 'curtailmentFactor < 1 (overloaded)',
-      `cf=${srcOut.curtailmentFactor?.toFixed(4)}`);
-    t.assertOK(srcOut.curtailmentFactor > 0, 'curtailmentFactor > 0');
-
-    // Conservation: sum of motor electrical draws ≈ source actual
-    const m1 = t.ud(mot1)?.last;
-    const m2 = t.ud(mot2)?.last;
-    const totalDraw = (m1?.W_elec_W || 0) + (m2?.W_elec_W || 0);
-    t.assertClose(totalDraw, srcOut.actual, srcOut.actual * 0.001,
-      'Σ motor draws ≈ source actual');
-
-    // Both motors curtailed (each < its demand)
-    const m1demand = t.scratch(mot1)?.powerDemand_W || 0;
-    const m2demand = t.scratch(mot2)?.powerDemand_W || 0;
-    t.assertOK(m1?.W_elec_W < m1demand || m1demand === 0,
-      'Motor1 curtailed', `draw=${m1?.W_elec_W?.toFixed(0)} demand=${m1demand?.toFixed(0)}`);
-    t.assertOK(m2?.W_elec_W < m2demand || m2demand === 0,
-      'Motor2 curtailed', `draw=${m2?.W_elec_W?.toFixed(0)} demand=${m2demand?.toFixed(0)}`);
-
-    // No NaN or negative power anywhere
-    t.assertOK(isFinite(totalDraw) && totalDraw >= 0, 'No NaN/negative draw');
-    t.assertOK(isFinite(srcOut.curtailmentFactor), 'curtailmentFactor finite');
-  });
-
-  test('Direct battery fanout also curtails', t => {
-    // Same topology but with battery instead of source_electrical
-    const bat = t.place('battery', 0, 0, { maxPower: 1500 });  // 1500 kW
-
-    const mot1 = t.place('motor', 4, 0, { eta: 0.95 });
-    const mot2 = t.place('motor', 4, 4, { eta: 0.95 });
-
-    const srcW1 = t.place('source', 8, -2, { species:'H2O', nDot:10000, T:298.15, P:100000, phaseConstraint:'L' });
-    const srcW2 = t.place('source', 8, 2,  { species:'H2O', nDot:10000, T:298.15, P:100000, phaseConstraint:'L' });
-
-    const pmp1 = t.place('pump', 12, 0, { Pout:5000000, eta:0.75 });
-    const pmp2 = t.place('pump', 12, 4, { Pout:5000000, eta:0.75 });
-
-    const snk1 = t.place('sink', 16, 0);
-    const snk2 = t.place('sink', 16, 4);
-
-    // Electrical fanout: one battery → two motors (no hub)
-    t.wire(bat, 'out', mot1, 'elec_in');
-    t.wire(bat, 'out', mot2, 'elec_in');
-
-    t.wire(mot1, 'mech_out', pmp1, 'power_in');
-    t.wire(mot2, 'mech_out', pmp2, 'power_in');
-
-    t.wire(srcW1, 'out', pmp1, 'mat_in');
-    t.wire(srcW2, 'out', pmp2, 'mat_in');
-    t.wire(pmp1, 'mat_out', snk1, 'in');
-    t.wire(pmp2, 'mat_out', snk2, 'in');
-
-    const r = t.solveRaw();
-    t.assertOK(r !== undefined, 'Solve completed');
-
-    // Battery out port checks
-    const batOut = t.port(bat, 'out');
-    t.assertClose(batOut.actual, 1500000, 100, 'Battery actual = 1500 kW');
-    t.assertOK(batOut.curtailmentFactor !== undefined, 'curtailmentFactor defined');
-    t.assertOK(batOut.curtailmentFactor < 1.0, 'curtailmentFactor < 1',
-      `cf=${batOut.curtailmentFactor?.toFixed(4)}`);
-
-    // Conservation: sum of motor electrical draws ≈ battery actual
-    const m1 = t.ud(mot1)?.last;
-    const m2 = t.ud(mot2)?.last;
-    const totalDraw = (m1?.W_elec_W || 0) + (m2?.W_elec_W || 0);
-    t.assertClose(totalDraw, batOut.actual, batOut.actual * 0.001,
-      'Σ motor draws ≈ battery actual');
-
-    // Both motors curtailed
-    t.assertOK(m1?.W_elec_W < 1500000 * 0.95, 'Motor1 < full capacity',
-      `${m1?.W_elec_W?.toFixed(0)} W`);
-    t.assertOK(m2?.W_elec_W < 1500000 * 0.95, 'Motor2 < full capacity',
-      `${m2?.W_elec_W?.toFixed(0)} W`);
-
-    // No NaN or negative power
-    t.assertOK(isFinite(totalDraw) && totalDraw >= 0, 'No NaN/negative draw');
-    t.assertOK(isFinite(batOut.curtailmentFactor), 'curtailmentFactor finite');
   });
 
   // ═══════════════════════════════════════════════════════════════════════
