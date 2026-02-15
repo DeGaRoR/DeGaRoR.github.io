@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  PROCESS GRID v6.3.0
+  PROCESS GRID v6.2.0
 
   ─── v6.0.0 ───────────────────────────────────────────────────────────────
   Phase 0 Sanitization (from code review):
@@ -67,38 +67,6 @@
     - Test 100: Pure validator — 20+ assertions covering missing/NaN/invalid fields
     - Test 101: Integration — monkeypatched source (delete P), source_electrical
       (NaN actual), source (NaN T) all produce ok:false + correct error codes
-
-  ─── v6.3.0 ───────────────────────────────────────────────────────────────
-  Stream contracts: centralized schema, two-phase validation, PH flash guarantee.
-   A) STREAM_CONTRACTS — frozen schema object (single source of truth):
-    - MATERIAL.preFlash.fully:    required {P, T, n}
-    - MATERIAL.preFlash.ph_flash: required {P, n, H_target_Jps}
-    - MATERIAL.postFlash:         required {P, T, n} (T resolved by flash)
-    - POWER:                      required {actual}, optional {capacity, demand, curtailmentFactor}
-    - POWER.aliases:              {available → capacity} (deprecated)
-    - T bounds raised to [1..6000] K to accommodate high-temperature processes
-   B) New functions:
-    - inferMaterialSpec(stream) → 'fully' | 'ph_flash' | null
-    - normalizeNonMaterialStream(stream) — resolves 'available' → 'capacity'
-    - validateMaterialPreFlash(stream, ctx) → Issue[]  (pre-flash contract)
-    - validateStream now checks post-flash T resolution guarantee:
-      H_target_Jps present but T missing → MATERIAL_PH_UNRESOLVED (CATASTROPHIC)
-   C) Solver integration:
-    - Pre-flash: validateMaterialPreFlash runs after validateStreamFlows,
-      before flash loop — catches malformed tick output with spec-aware messages
-    - Flash loop: PH flash T resolution guarantee — if phFlash fails to
-      produce finite T, CATASTROPHIC error with MATERIAL_PH_UNRESOLVED code
-    - Post-flash: validateUnitPorts normalizes power streams, then validates
-      all output ports against post-flash contracts
-   D) Documentation: architecture overview, UnitRegistry docs, solver docs
-      all reference STREAM_CONTRACTS schema
-   Tests: Section Z expanded to 6 tests (100–105):
-    - 100: STREAM_CONTRACTS schema, inferMaterialSpec, normalizeNonMaterialStream
-    - 101: validateMaterialPreFlash — fully/ph_flash/neither/badP/badH/badT/negN
-    - 102: validateStream post-flash — resolved/PH-unresolved/noT/power streams
-    - 103: PH flash resolution — heater outputs H_target_Jps, downstream sees T
-    - 104: Solver integration — monkeypatched delete P, NaN actual, delete T
-    - 105: Non-material normalization in solver — available → capacity
   ═══════════════════════════════════════════════════════════════════════════
   
   A web-based process simulation and flowsheet design tool.
@@ -153,14 +121,9 @@
   6. SOLVER
      - Successive substitution with topological ordering
      - Automatic flash calculation on material streams
-     - Two-phase stream validation (v6.3):
-       Pre-flash:  validateMaterialPreFlash() checks tick output against
-                   STREAM_CONTRACTS.MATERIAL.preFlash (fully / ph_flash)
-       Post-flash: validateStream() checks resolved stream against
-                   STREAM_CONTRACTS.MATERIAL.postFlash + STREAM_CONTRACTS.POWER
-     - PH flash T resolution guarantee: solver ensures H_target_Jps streams
-       get T resolved before downstream consumption
+     - Stream type validation + structural stream validation (v6.2)
      - Convergence checking
+     - Post-tick validateStream() catches NaN/missing/out-of-range fields
   
   7. UI ARCHITECTURE
      - Modal dialogs for Components, Models, Units
@@ -189,7 +152,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Process Grid — v6.3.0</title>
+  <title>Process Grid — v6.2.0</title>
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
@@ -3851,210 +3814,22 @@ function validateFlashResult(result, context) {
   return errs;
 }
 
-/* ═══════════════════════════════════════════════════════════════════════════
-   [v6.3] STREAM CONTRACTS & VALIDATION
-   ═══════════════════════════════════════════════════════════════════════════
-   Single source of truth for all stream schemas.  Every validation function
-   below references STREAM_CONTRACTS, never local ad-hoc rules.
-
-   Two validation phases in the solver loop:
-     PRE-FLASH  — validateMaterialPreFlash():
-       After tick, before flash.  Infers spec ('fully' | 'ph_flash') and
-       checks that the tick produced the right fields for that spec.
-     POST-FLASH — validateStream() → validateUnitPorts():
-       After flash + port storage.  Verifies the stream is fully resolved
-       (T present, phase set) and power streams are well-formed.
-
-   Issue = { severity: ErrorSeverity.X, message: string, code: string }
-   ═══════════════════════════════════════════════════════════════════════════ */
-
-// ── Contract definitions ─────────────────────────────────────────────────
-// Field-rule keys:
-//   finite            = typeof number && isFinite
-//   finite_positive   = finite && > 0
-//   finite_nonneg     = finite && >= 0
-//   finite_or_inf     = typeof number && (isFinite || +Infinity)
-//   finite_nonneg_or_inf = finite_nonneg || +Infinity
-//   finite_in_range   = finite && within [T_MIN_K..T_MAX_K]
-//   molar_map         = non-null object with all values finite >= 0
-//   phase_enum        = one of 'V','L','VL'
-//   unit_fraction     = finite in [0..1]
-
-const STREAM_CONTRACTS = Object.freeze({
-  // ── MATERIAL streams ──────────────────────────────────────────────────
-  MATERIAL: Object.freeze({
-    T_MIN_K: 1,
-    T_MAX_K: 6000,
-    // Pre-flash: unit tick outputs one of two specs.
-    // Inferred from fields — no explicit 'spec' field required on the stream.
-    preFlash: Object.freeze({
-      fully: Object.freeze({
-        doc: 'TP-specified: tick provides T, solver runs TP flash',
-        required: { P: 'finite_positive', T: 'finite_in_range', n: 'molar_map' },
-        optional: { phaseConstraint: 'phase_enum' }
-      }),
-      ph_flash: Object.freeze({
-        doc: 'PH-specified: tick provides H_target_Jps, solver runs PH flash to find T',
-        required: { P: 'finite_positive', n: 'molar_map', H_target_Jps: 'finite' },
-        optional: { T: 'finite_in_range', phaseConstraint: 'phase_enum' }
-      })
-    }),
-    // Post-flash: solver guarantees T has been resolved.
-    postFlash: Object.freeze({
-      required: { P: 'finite_positive', T: 'finite_in_range', n: 'molar_map' },
-      optional: { phase: 'phase_enum', vaporFraction: 'unit_fraction',
-                  beta: 'unit_fraction', Hdot_J_s: 'finite', H_target_Jps: 'finite' }
-    })
-  }),
-
-  // ── Non-material (power) streams ──────────────────────────────────────
-  // Applies to ELECTRICAL, MECHANICAL, HEAT.
-  // Field names are in watts (W) — no _W suffix (matches all existing unit ticks).
-  POWER: Object.freeze({
-    required: { actual: 'finite_nonneg' },
-    optional: { capacity: 'finite_nonneg_or_inf', demand: 'finite_or_inf',
-                curtailmentFactor: 'unit_fraction' },
-    aliases: Object.freeze({ available: 'capacity' }),
-    tolerance: { actual_vs_capacity: 1.0 }  // W
-  })
-});
+/* =========================
+   [v6.2] STREAM STRUCTURAL VALIDATION
+   Validates that a stream object has the required fields for its type,
+   with correct types and sane ranges.  Returns Issue[] where each issue is:
+     { severity: ErrorSeverity.X, message: string, code: string }
+   Lightweight — called after every tick, so no allocations on the happy path.
+   ========================= */
 
 const VALID_PHASES = new Set(['V', 'L', 'VL']);
-
-// ── Spec inference ───────────────────────────────────────────────────────
-
-/**
- * Infer the material stream specification from its fields.
- * @param {Object} stream - material stream object
- * @returns {'fully'|'ph_flash'|null} null if neither T nor H_target_Jps present
- */
-function inferMaterialSpec(stream) {
-  if (!stream) return null;
-  const hasT = stream.T !== undefined && stream.T !== null;
-  const hasH = stream.H_target_Jps !== undefined && stream.H_target_Jps !== null;
-  if (hasH) return 'ph_flash';   // H_target_Jps takes precedence (flash loop convention)
-  if (hasT) return 'fully';
-  return null;                    // Neither present → error
-}
-
-// ── Non-material normalization ───────────────────────────────────────────
+const POWER_STREAM_TOL = 1.0;   // 1 W tolerance for actual <= capacity check
 
 /**
- * Normalize a non-material (power) stream in place.
- * Resolves the deprecated 'available' alias → 'capacity'.
- * @param {Object} stream - power stream (mutated in place)
- * @returns {Object} the same stream, normalized
- */
-function normalizeNonMaterialStream(stream) {
-  if (!stream) return stream;
-  // Resolve deprecated alias: available → capacity
-  if (stream.capacity === undefined && stream.available !== undefined) {
-    stream.capacity = stream.available;
-  }
-  return stream;
-}
-
-// ── Pre-flash validation (runs after tick, before flash) ─────────────────
-
-/**
- * Validate a material stream against its inferred pre-flash contract.
- * Called between tick and flash so the validator sees the tick's raw output.
- * Does NOT check phase/vaporFraction (those come from flash).
- * @param {Object} stream - material stream from tick
- * @param {Object} ctx    - { unitId, portId }
- * @returns {Array} issues
- */
-function validateMaterialPreFlash(stream, ctx) {
-  const issues = [];
-  if (!stream) return issues;
-  const label = `${ctx.unitId || '?'}:${ctx.portId || '?'}`;
-  const C = STREAM_CONTRACTS.MATERIAL;
-
-  // ── Infer spec ──
-  const spec = inferMaterialSpec(stream);
-
-  if (spec === null) {
-    issues.push({ severity: ErrorSeverity.CATASTROPHIC,
-      message: `${label}: material stream has neither T nor H_target_Jps — tick must set one`,
-      code: 'MATERIAL_NO_THERMAL_SPEC' });
-    // Continue to check P, n even without thermal spec
-  }
-
-  // ── P: always required ──
-  if (stream.P === undefined || stream.P === null) {
-    issues.push({ severity: ErrorSeverity.CATASTROPHIC,
-      message: `${label}: material stream missing P`,
-      code: 'MATERIAL_NO_P' });
-  } else if (!isFiniteNum(stream.P)) {
-    issues.push({ severity: ErrorSeverity.CATASTROPHIC,
-      message: `${label}: P = ${stream.P} (non-finite)`,
-      code: 'MATERIAL_P_NAN' });
-  } else if (stream.P <= 0) {
-    issues.push({ severity: ErrorSeverity.MAJOR,
-      message: `${label}: P = ${stream.P} Pa (must be > 0)`,
-      code: 'MATERIAL_P_NONPOSITIVE' });
-  }
-
-  // ── n: always required ──
-  if (!stream.n || typeof stream.n !== 'object') {
-    issues.push({ severity: ErrorSeverity.CATASTROPHIC,
-      message: `${label}: material stream missing or invalid 'n' (molar flows)`,
-      code: 'MATERIAL_NO_N' });
-  } else {
-    for (const [comp, val] of Object.entries(stream.n)) {
-      if (!isFiniteNum(val)) {
-        issues.push({ severity: ErrorSeverity.CATASTROPHIC,
-          message: `${label}: n["${comp}"] = ${val} (non-finite)`,
-          code: 'MATERIAL_N_NAN' });
-      } else if (val < 0) {
-        issues.push({ severity: ErrorSeverity.MAJOR,
-          message: `${label}: n["${comp}"] = ${val} (negative flow)`,
-          code: 'MATERIAL_N_NEGATIVE' });
-      }
-    }
-  }
-
-  // ── Spec-specific validation ──
-  if (spec === 'fully') {
-    if (!isFiniteNum(stream.T)) {
-      issues.push({ severity: ErrorSeverity.CATASTROPHIC,
-        message: `${label}: spec=fully but T = ${stream.T} (non-finite)`,
-        code: 'MATERIAL_T_NAN' });
-    } else if (stream.T < C.T_MIN_K || stream.T > C.T_MAX_K) {
-      issues.push({ severity: ErrorSeverity.MAJOR,
-        message: `${label}: T = ${stream.T} K (outside ${C.T_MIN_K}..${C.T_MAX_K} K bounds)`,
-        code: 'MATERIAL_T_RANGE' });
-    }
-  }
-
-  if (spec === 'ph_flash') {
-    if (!isFiniteNum(stream.H_target_Jps)) {
-      issues.push({ severity: ErrorSeverity.CATASTROPHIC,
-        message: `${label}: spec=ph_flash but H_target_Jps = ${stream.H_target_Jps} (non-finite)`,
-        code: 'MATERIAL_H_NAN' });
-    }
-    // T is optional for ph_flash spec — if present and finite, validate range
-    if (stream.T !== undefined && stream.T !== null && isFiniteNum(stream.T)) {
-      if (stream.T < C.T_MIN_K || stream.T > C.T_MAX_K) {
-        issues.push({ severity: ErrorSeverity.MINOR,
-          message: `${label}: ph_flash with advisory T = ${stream.T} K (outside bounds)`,
-          code: 'MATERIAL_T_RANGE' });
-      }
-    }
-  }
-
-  return issues;
-}
-
-// ── Post-flash validation (runs after flash + port storage) ──────────────
-
-/**
- * Validate a fully resolved stream against its post-flash contract.
- * For MATERIAL: T must now exist (solver guarantees PH flash resolved it).
- * For POWER:    capacity/actual/demand must be well-formed.
- * @param {Object} stream - stream object to validate
- * @param {Object} ctx    - { portType, unitId, portId }
- * @returns {Array} issues
+ * Validate a single stream object against its expected port type.
+ * @param {Object}  stream   - The stream object to validate
+ * @param {Object}  ctx      - { portType, unitId, portId }
+ * @returns {Array} issues   - Array of { severity, message, code } (empty = clean)
  */
 function validateStream(stream, ctx) {
   const issues = [];
@@ -4067,7 +3842,7 @@ function validateStream(stream, ctx) {
     issues.push({ severity: ErrorSeverity.CATASTROPHIC,
       message: `${label}: stream missing 'type' field`,
       code: 'STREAM_NO_TYPE' });
-    return issues;
+    return issues;  // Cannot validate further without type
   }
   if (stream.type !== ctx.portType) {
     issues.push({ severity: ErrorSeverity.CATASTROPHIC,
@@ -4076,9 +3851,8 @@ function validateStream(stream, ctx) {
     return issues;
   }
 
-  // ═══════════ MATERIAL (post-flash) ═══════════
+  // ── MATERIAL stream validation ──
   if (stream.type === StreamType.MATERIAL) {
-    const C = STREAM_CONTRACTS.MATERIAL;
 
     // P: required, finite, > 0
     if (stream.P === undefined || stream.P === null) {
@@ -4095,7 +3869,7 @@ function validateStream(stream, ctx) {
         code: 'MATERIAL_P_NONPOSITIVE' });
     }
 
-    // n: required
+    // n: required, object, all values finite >= 0
     if (!stream.n || typeof stream.n !== 'object') {
       issues.push({ severity: ErrorSeverity.CATASTROPHIC,
         message: `${label}: material stream missing or invalid 'n' (molar flows)`,
@@ -4114,32 +3888,26 @@ function validateStream(stream, ctx) {
       }
     }
 
-    // T: REQUIRED post-flash (solver must have resolved it via TP or PH flash)
+    // T or H_target_Jps: at least one must be present and finite
     const hasT = stream.T !== undefined && stream.T !== null;
     const hasH = stream.H_target_Jps !== undefined && stream.H_target_Jps !== null;
-    if (!hasT) {
-      // Post-flash, T must always be present.
-      // If it's missing, either the tick forgot T or PH flash failed silently.
+    if (!hasT && !hasH) {
       issues.push({ severity: ErrorSeverity.CATASTROPHIC,
-        message: hasH
-          ? `${label}: PH flash did not resolve T (H_target_Jps=${stream.H_target_Jps} present but T missing)`
-          : `${label}: material stream has no T after flash — tick must set T or H_target_Jps`,
-        code: hasH ? 'MATERIAL_PH_UNRESOLVED' : 'MATERIAL_NO_T_OR_H' });
-    } else {
+        message: `${label}: material stream has neither T nor H_target_Jps`,
+        code: 'MATERIAL_NO_T_OR_H' });
+    } else if (hasT) {
       if (!isFiniteNum(stream.T)) {
         issues.push({ severity: ErrorSeverity.CATASTROPHIC,
           message: `${label}: T = ${stream.T} (non-finite)`,
           code: 'MATERIAL_T_NAN' });
-      } else if (stream.T < C.T_MIN_K || stream.T > C.T_MAX_K) {
+      } else if (stream.T < 1 || stream.T > 5000) {
         issues.push({ severity: ErrorSeverity.MAJOR,
-          message: `${label}: T = ${stream.T} K (outside ${C.T_MIN_K}..${C.T_MAX_K} K bounds)`,
+          message: `${label}: T = ${stream.T} K (outside 1..5000 K bounds)`,
           code: 'MATERIAL_T_RANGE' });
       }
     }
-
-    // H_target_Jps: if present, must be finite (informational post-flash)
     if (hasH && !isFiniteNum(stream.H_target_Jps)) {
-      issues.push({ severity: ErrorSeverity.MAJOR,
+      issues.push({ severity: ErrorSeverity.CATASTROPHIC,
         message: `${label}: H_target_Jps = ${stream.H_target_Jps} (non-finite)`,
         code: 'MATERIAL_H_NAN' });
     }
@@ -4164,14 +3932,13 @@ function validateStream(stream, ctx) {
       }
     }
 
-  // ═══════════ POWER (electrical / mechanical / heat) ═══════════
+  // ── ELECTRICAL / MECHANICAL / HEAT stream validation ──
   } else if (stream.type === StreamType.ELECTRICAL ||
              stream.type === StreamType.MECHANICAL ||
              stream.type === StreamType.HEAT) {
 
     const typeName = stream.type === StreamType.ELECTRICAL ? 'electrical'
                    : stream.type === StreamType.MECHANICAL ? 'mechanical' : 'heat';
-    const tol = STREAM_CONTRACTS.POWER.tolerance.actual_vs_capacity;
 
     // capacity: finite >= 0 (Infinity allowed for unconstrained sources)
     if (stream.capacity !== undefined) {
@@ -4184,6 +3951,7 @@ function validateStream(stream, ctx) {
           message: `${label}: ${typeName} capacity = ${stream.capacity} W (negative)`,
           code: 'POWER_CAPACITY_NEGATIVE' });
       }
+      // Infinity is allowed — represents unconstrained source
     }
 
     // actual: required, finite >= 0
@@ -4208,6 +3976,7 @@ function validateStream(stream, ctx) {
           message: `${label}: ${typeName} demand = ${stream.demand} (NaN)`,
           code: 'POWER_DEMAND_NAN' });
       }
+      // Infinity and negative demand are allowed (backward propagation)
     }
 
     // curtailmentFactor: if present, finite 0..1
@@ -4223,9 +3992,9 @@ function validateStream(stream, ctx) {
       }
     }
 
-    // Cross-check: actual <= capacity + tolerance
+    // Cross-check: actual <= capacity + tolerance (when both finite)
     if (isFiniteNum(stream.actual) && isFiniteNum(stream.capacity)) {
-      if (stream.actual > stream.capacity + tol) {
+      if (stream.actual > stream.capacity + POWER_STREAM_TOL) {
         issues.push({ severity: ErrorSeverity.MINOR,
           message: `${label}: ${typeName} actual (${stream.actual.toFixed(1)} W) > capacity (${stream.capacity.toFixed(1)} W)`,
           code: 'POWER_ACTUAL_EXCEEDS_CAPACITY' });
@@ -4236,11 +4005,8 @@ function validateStream(stream, ctx) {
   return issues;
 }
 
-// ── Per-unit wrapper ─────────────────────────────────────────────────────
-
 /**
- * Validate all output ports of a unit after flash + port storage.
- * Normalizes non-material streams, then validates against post-flash contract.
+ * Validate all output ports of a unit after its tick has run.
  * @param {Object} unitData  - ud from scene.runtime.unitData
  * @param {Object} unit      - u from scene.units
  * @param {Object} def       - UnitRegistry definition
@@ -4252,11 +4018,7 @@ function validateUnitPorts(unitData, unit, def) {
   for (const p of def.ports) {
     if (p.dir !== PortDir.OUT) continue;
     const stream = unitData.ports[p.portId];
-    if (!stream) continue;  // Null/undefined = no stream produced (valid for optional ports)
-    // Normalize power streams (resolve deprecated 'available' alias)
-    if (stream.type !== StreamType.MATERIAL) {
-      normalizeNonMaterialStream(stream);
-    }
+    if (!stream) continue;  // Null/undefined output = no stream produced (valid for optional ports)
     const portIssues = validateStream(stream, {
       portType: p.type,
       unitId: unitId,
@@ -4552,27 +4314,23 @@ const UnitCategories = {
    Port definition format:
    { portId: 'unique_id', dir: PortDir.IN/OUT, type: StreamType.XXX, x: pos_x, y: pos_y }
    
-   Stream object MUST have matching 'type' field.
-   Full schema: see STREAM_CONTRACTS (frozen object, single source of truth).
-
-   MATERIAL streams — tick produces one of two specs (inferred by inferMaterialSpec):
-   1. spec='fully'    { type, T, P, n, phaseConstraint? }
-      T in Kelvin, P in Pascals, n:{species:mol_s}.
-      Solver runs TP flash → adds phase, vaporFraction, beta, nV, nL.
-   2. spec='ph_flash'  { type, P, n, H_target_Jps, phaseConstraint? }
-      Solver runs PH flash → resolves T, then sets phase/vaporFraction/etc.
-      T is GUARANTEED to be finite after flash (solver checks this).
-
-   POWER streams (HEAT, MECHANICAL, ELECTRICAL):
-   - HEAT:       { type, capacity, actual, demand }
-   - MECHANICAL: { type, capacity, actual, demand }
-   - ELECTRICAL: { type, capacity, actual, demand, curtailmentFactor? }
-       All values in Watts (W).
-       capacity  = max source output.  actual = power delivered.
-       demand    = consumer request propagated backward.
-       curtailmentFactor = actual/demand, clamped 0..1 (set by hub/Steps D-E).
-       available = DEPRECATED alias for capacity — normalizeNonMaterialStream()
-                   resolves it. Do not use in new code.
+   Stream object MUST have matching 'type' field:
+   - MATERIAL:   { type: StreamType.MATERIAL, T, P, n:{species:mol_s},
+                    phase?:'V'|'L'|'VL', vaporFraction?, beta?,
+                    H_target_Jps?, phaseConstraint?:'V'|'L'|'VL' }
+       T in Kelvin, P in Pascals, n values in mol/s.
+       phase/vaporFraction/beta are set by flash calculation (not by tick).
+       If H_target_Jps is set, PH flash is used instead of TP flash.
+   - HEAT:       { type: StreamType.HEAT,       capacity, actual, demand }
+   - MECHANICAL: { type: StreamType.MECHANICAL,  capacity, actual, demand }
+   - ELECTRICAL: { type: StreamType.ELECTRICAL,  capacity, actual, demand,
+                    curtailmentFactor?, available? }
+       All power values in Watts (W).
+       capacity  = max source output (W).
+       actual    = power delivered after demand resolution (W).
+       demand    = consumer request propagated backward (W).
+       curtailmentFactor = actual/demand clamped 0..1 (set by hub/Steps D-E).
+       available = DEPRECATED alias for capacity — do not use in new code.
    
    Connections are only allowed between ports of the SAME type.
    The solver validates that streams produced match their port types.
@@ -7649,27 +7407,6 @@ function solveScene(scene, options = {}) {
         }
       }
 
-      // [v6.3] Pre-flash contract validation — check tick output against
-      // STREAM_CONTRACTS before flash attempts.  Catches missing T/H_target_Jps,
-      // bad P, invalid n entries.  Power streams validated post-flash.
-      for (const p of def.ports) {
-        if (p.dir === PortDir.OUT && p.type === StreamType.MATERIAL) {
-          const stream = inPorts[p.portId];
-          if (stream) {
-            const preIssues = validateMaterialPreFlash(stream, {
-              unitId: u.name || id,
-              portId: p.portId
-            });
-            for (const issue of preIssues) {
-              ud.errors.push(issue);
-              if (issue.severity.level >= ErrorSeverity.CATASTROPHIC.level) {
-                unitFaulted = true;
-              }
-            }
-          }
-        }
-      }
-
       // Perform flash calculations through thermo adapter (single entrypoint)
       // Choose flash method based on stream specification
       for (const p of def.ports) {
@@ -7700,14 +7437,6 @@ function solveScene(scene, options = {}) {
                 
                 // Write back solved temperature
                 stream.T = result.T_K;
-                
-                // [v6.3] PH flash T resolution guarantee
-                if (!isFiniteNum(stream.T)) {
-                  ud.errors.push({ severity: ErrorSeverity.CATASTROPHIC,
-                    message: `${p.portId}: PH flash failed to resolve T (H_target=${(stream.H_target_Jps/1000).toFixed(1)} kW, got T=${stream.T})`,
-                    code: 'MATERIAL_PH_UNRESOLVED' });
-                  unitFaulted = true;
-                }
                 
               } else {
                 // TP FLASH: Temperature is specified
@@ -7770,10 +7499,12 @@ function solveScene(scene, options = {}) {
         }
       }
 
-      // [v6.3] Post-flash structural validation — verify all output ports are
-      // fully resolved.  For MATERIAL: T must now exist (PH flash writes it).
-      // For POWER: normalizes 'available' alias, checks actual/capacity/demand.
-      // CATASTROPHIC violations flag the unit as faulted → solver returns ok:false.
+      // [v6.2] Structural stream validation — catch malformed outputs early.
+      // Runs after every tick; issues are attached to ud.errors with severity.
+      // CATASTROPHIC violations (NaN, missing fields) flag the unit as faulted
+      // so the solver can return ok:false.
+      // NOTE: Must run AFTER ud.ports is populated but before convergence check.
+      // ud.last.error is written here but ud.errors is the durable store.
       {
         const streamIssues = validateUnitPorts(ud, u, def);
         for (const issue of streamIssues) {
@@ -7794,7 +7525,7 @@ function solveScene(scene, options = {}) {
       // Store unit-specific calculation results
       ud.last = u.last || {};
 
-      // [v6.3] If stream validation found CATASTROPHIC issues, attach to ud.last.error
+      // [v6.2] If stream validation found CATASTROPHIC issues, attach to ud.last.error
       // (must come after ud.last is assigned from u.last)
       {
         const catIssue = ud.errors.find(e => {
@@ -15637,182 +15368,146 @@ function runTests() {
   });
 
   // ═══════════════════════════════════════════════════════════════════════
-  // SECTION Z: Stream Contracts & Validation (Tests 100–105)
-  // [v6.3] STREAM_CONTRACTS, inferMaterialSpec, normalizeNonMaterialStream,
-  // validateMaterialPreFlash, validateStream (post-flash), validateUnitPorts.
+  // SECTION Z: Stream Validation (Tests 100–101)
+  // [v6.2] validateStream / validateUnitPorts — pure unit tests and
+  // integration tests via monkeypatched ticks.
   // ═══════════════════════════════════════════════════════════════════════
 
-  test('STREAM_CONTRACTS schema + inferMaterialSpec + normalizeNonMaterialStream', t => {
-    // ── STREAM_CONTRACTS exists and is frozen ──
-    t.assertOK(STREAM_CONTRACTS, 'STREAM_CONTRACTS exists');
-    t.assertOK(Object.isFrozen(STREAM_CONTRACTS), 'STREAM_CONTRACTS is frozen');
-    t.assertOK(STREAM_CONTRACTS.MATERIAL.T_MIN_K === 1, 'T_MIN_K = 1');
-    t.assertOK(STREAM_CONTRACTS.MATERIAL.T_MAX_K === 6000, 'T_MAX_K = 6000');
-    t.assertOK(STREAM_CONTRACTS.MATERIAL.preFlash.fully, 'preFlash.fully contract exists');
-    t.assertOK(STREAM_CONTRACTS.MATERIAL.preFlash.ph_flash, 'preFlash.ph_flash contract exists');
-    t.assertOK(STREAM_CONTRACTS.MATERIAL.postFlash, 'postFlash contract exists');
-    t.assertOK(STREAM_CONTRACTS.POWER.required.actual, 'POWER requires actual');
-    t.assertOK(STREAM_CONTRACTS.POWER.aliases.available === 'capacity', 'available → capacity alias');
+  test('validateStream — pure validator rules', t => {
+    // ── MATERIAL: missing P ──
+    const matNoP = { type: StreamType.MATERIAL, T: 300, n: { H2O: 1 } };
+    const r1 = validateStream(matNoP, { portType: StreamType.MATERIAL, unitId: 'test', portId: 'out' });
+    t.assertOK(r1.length > 0, 'Missing P → issues');
+    t.assertOK(r1.some(i => i.code === 'MATERIAL_NO_P'), 'code=MATERIAL_NO_P');
+    t.assertOK(r1.some(i => i.severity.level >= ErrorSeverity.CATASTROPHIC.level), 'Missing P severity=CATASTROPHIC');
 
-    // ── inferMaterialSpec ──
-    t.assertOK(inferMaterialSpec({ T: 300 }) === 'fully', 'T only → fully');
-    t.assertOK(inferMaterialSpec({ H_target_Jps: -5000 }) === 'ph_flash', 'H only → ph_flash');
-    t.assertOK(inferMaterialSpec({ T: 300, H_target_Jps: -5000 }) === 'ph_flash', 'Both → ph_flash (H precedence)');
-    t.assertOK(inferMaterialSpec({}) === null, 'Neither → null');
-    t.assertOK(inferMaterialSpec(null) === null, 'null stream → null');
+    // ── MATERIAL: NaN P ──
+    const matNanP = { type: StreamType.MATERIAL, T: 300, P: NaN, n: { H2O: 1 } };
+    const r1b = validateStream(matNanP, { portType: StreamType.MATERIAL, unitId: 'test', portId: 'out' });
+    t.assertOK(r1b.some(i => i.code === 'MATERIAL_P_NAN'), 'NaN P detected');
 
-    // ── normalizeNonMaterialStream ──
-    const legacy = { type: StreamType.ELECTRICAL, available: 1000, actual: 800, demand: 900 };
-    normalizeNonMaterialStream(legacy);
-    t.assertOK(legacy.capacity === 1000, 'available normalized to capacity');
-    t.assertOK(legacy.available === 1000, 'available preserved');
+    // ── MATERIAL: negative P ──
+    const matNegP = { type: StreamType.MATERIAL, T: 300, P: -100, n: { H2O: 1 } };
+    const r1c = validateStream(matNegP, { portType: StreamType.MATERIAL, unitId: 'test', portId: 'out' });
+    t.assertOK(r1c.some(i => i.code === 'MATERIAL_P_NONPOSITIVE'), 'Negative P → MAJOR');
 
-    // Doesn't overwrite existing capacity
-    const modern = { type: StreamType.ELECTRICAL, capacity: 2000, available: 1000, actual: 800 };
-    normalizeNonMaterialStream(modern);
-    t.assertOK(modern.capacity === 2000, 'Existing capacity not overwritten');
+    // ── MATERIAL: missing n ──
+    const matNoN = { type: StreamType.MATERIAL, T: 300, P: 101325 };
+    const r1d = validateStream(matNoN, { portType: StreamType.MATERIAL, unitId: 'test', portId: 'out' });
+    t.assertOK(r1d.some(i => i.code === 'MATERIAL_NO_N'), 'Missing n detected');
 
-    // Null safe
-    t.assertOK(normalizeNonMaterialStream(null) === null, 'null safe');
-  });
+    // ── MATERIAL: NaN in molar flow ──
+    const matNanN = { type: StreamType.MATERIAL, T: 300, P: 101325, n: { H2O: NaN } };
+    const r1e = validateStream(matNanN, { portType: StreamType.MATERIAL, unitId: 'test', portId: 'out' });
+    t.assertOK(r1e.some(i => i.code === 'MATERIAL_N_NAN'), 'NaN molar flow detected');
 
-  test('validateMaterialPreFlash — pre-flash contract checks', t => {
-    const ctx = { unitId: 'test', portId: 'out' };
+    // ── MATERIAL: no T and no H_target_Jps ──
+    const matNoT = { type: StreamType.MATERIAL, P: 101325, n: { H2O: 1 } };
+    const r1f = validateStream(matNoT, { portType: StreamType.MATERIAL, unitId: 'test', portId: 'out' });
+    t.assertOK(r1f.some(i => i.code === 'MATERIAL_NO_T_OR_H'), 'No T or H → CATASTROPHIC');
 
-    // ── Fully specified: valid ──
-    const fullyGood = { type: StreamType.MATERIAL, T: 373.15, P: 101325, n: { H2O: 10 } };
-    t.assertOK(validateMaterialPreFlash(fullyGood, ctx).length === 0, 'Valid fully → 0 issues');
+    // ── MATERIAL: invalid phase ──
+    const matBadPhase = { type: StreamType.MATERIAL, T: 300, P: 101325, n: { H2O: 1 }, phase: 'gas' };
+    const r2 = validateStream(matBadPhase, { portType: StreamType.MATERIAL, unitId: 'test', portId: 'out' });
+    t.assertOK(r2.some(i => i.code === 'MATERIAL_PHASE_INVALID'), "phase='gas' → invalid");
+    t.assertOK(r2.some(i => i.severity.level >= ErrorSeverity.MAJOR.level), 'Bad phase severity >= MAJOR');
 
-    // ── PH flash: valid ──
-    const phGood = { type: StreamType.MATERIAL, P: 101325, n: { H2O: 10 }, H_target_Jps: -50000 };
-    t.assertOK(validateMaterialPreFlash(phGood, ctx).length === 0, 'Valid ph_flash → 0 issues');
+    // ── MATERIAL: valid stream (should produce 0 issues) ──
+    const matGood = { type: StreamType.MATERIAL, T: 373.15, P: 101325, n: { H2O: 10 } };
+    const r2b = validateStream(matGood, { portType: StreamType.MATERIAL, unitId: 'test', portId: 'out' });
+    t.assertOK(r2b.length === 0, 'Valid material → 0 issues');
 
-    // ── Neither T nor H → CATASTROPHIC ──
-    const noSpec = { type: StreamType.MATERIAL, P: 101325, n: { H2O: 1 } };
-    const r1 = validateMaterialPreFlash(noSpec, ctx);
-    t.assertOK(r1.some(i => i.code === 'MATERIAL_NO_THERMAL_SPEC'), 'No T or H → MATERIAL_NO_THERMAL_SPEC');
-    t.assertOK(r1.some(i => i.severity.level >= ErrorSeverity.CATASTROPHIC.level), 'No spec severity=CATASTROPHIC');
-
-    // ── Missing P ──
-    const noP = { type: StreamType.MATERIAL, T: 300, n: { H2O: 1 } };
-    const r2 = validateMaterialPreFlash(noP, ctx);
-    t.assertOK(r2.some(i => i.code === 'MATERIAL_NO_P'), 'Missing P detected pre-flash');
-
-    // ── NaN H_target_Jps ──
-    const nanH = { type: StreamType.MATERIAL, P: 101325, n: { H2O: 1 }, H_target_Jps: NaN };
-    const r3 = validateMaterialPreFlash(nanH, ctx);
-    t.assertOK(r3.some(i => i.code === 'MATERIAL_H_NAN'), 'NaN H_target_Jps detected');
-
-    // ── T out of range for fully spec ──
-    const bigT = { type: StreamType.MATERIAL, T: 7000, P: 101325, n: { H2O: 1 } };
-    const r4 = validateMaterialPreFlash(bigT, ctx);
-    t.assertOK(r4.some(i => i.code === 'MATERIAL_T_RANGE'), 'T > 6000 → range error');
-
-    // ── Negative n ──
-    const negN = { type: StreamType.MATERIAL, T: 300, P: 101325, n: { H2O: -5 } };
-    const r5 = validateMaterialPreFlash(negN, ctx);
-    t.assertOK(r5.some(i => i.code === 'MATERIAL_N_NEGATIVE'), 'Negative n pre-flash');
-  });
-
-  test('validateStream post-flash — resolved stream contracts', t => {
-    const ctx = (pt) => ({ portType: pt, unitId: 'test', portId: 'out' });
-
-    // ── Fully resolved material: valid ──
-    const matGood = { type: StreamType.MATERIAL, T: 373.15, P: 101325, n: { H2O: 10 }, phase: 'L' };
-    t.assertOK(validateStream(matGood, ctx(StreamType.MATERIAL)).length === 0, 'Resolved material → 0 issues');
-
-    // ── PH flash resolved (has both T and H_target_Jps post-flash): valid ──
-    const matPHresolved = { type: StreamType.MATERIAL, T: 373.15, P: 101325, n: { H2O: 10 }, H_target_Jps: -50000, phase: 'L' };
-    t.assertOK(validateStream(matPHresolved, ctx(StreamType.MATERIAL)).length === 0, 'PH-resolved → 0 issues');
-
-    // ── PH flash UNRESOLVED (H_target_Jps present, T missing post-flash) → CATASTROPHIC ──
-    const matPHfail = { type: StreamType.MATERIAL, P: 101325, n: { H2O: 10 }, H_target_Jps: -50000 };
-    const r1 = validateStream(matPHfail, ctx(StreamType.MATERIAL));
-    t.assertOK(r1.some(i => i.code === 'MATERIAL_PH_UNRESOLVED'), 'PH unresolved → MATERIAL_PH_UNRESOLVED');
-    t.assertOK(r1.some(i => i.severity.level >= ErrorSeverity.CATASTROPHIC.level), 'PH unresolved severity=CATASTROPHIC');
-
-    // ── No T, no H (post-flash) → CATASTROPHIC with NO_T_OR_H code ──
-    const matBare = { type: StreamType.MATERIAL, P: 101325, n: { H2O: 1 } };
-    const r2 = validateStream(matBare, ctx(StreamType.MATERIAL));
-    t.assertOK(r2.some(i => i.code === 'MATERIAL_NO_T_OR_H'), 'No T or H post-flash');
-
-    // ── Missing P ──
-    const noP = { type: StreamType.MATERIAL, T: 300, n: { H2O: 1 } };
-    t.assertOK(validateStream(noP, ctx(StreamType.MATERIAL)).some(i => i.code === 'MATERIAL_NO_P'), 'Missing P post-flash');
-
-    // ── Invalid phase ──
-    const badPhase = { type: StreamType.MATERIAL, T: 300, P: 101325, n: { H2O: 1 }, phase: 'gas' };
-    t.assertOK(validateStream(badPhase, ctx(StreamType.MATERIAL)).some(i => i.code === 'MATERIAL_PHASE_INVALID'), "phase='gas' invalid");
-
-    // ── ELECTRICAL: valid ──
-    const elecGood = { type: StreamType.ELECTRICAL, capacity: 1000, actual: 800, demand: 900, curtailmentFactor: 0.89 };
-    t.assertOK(validateStream(elecGood, ctx(StreamType.ELECTRICAL)).length === 0, 'Valid electrical → 0 issues');
+    // ── MATERIAL: H_target_Jps instead of T (valid for PH flash) ──
+    const matPH = { type: StreamType.MATERIAL, P: 101325, n: { H2O: 10 }, H_target_Jps: -50000 };
+    const r2c = validateStream(matPH, { portType: StreamType.MATERIAL, unitId: 'test', portId: 'out' });
+    t.assertOK(r2c.length === 0, 'H_target_Jps without T → 0 issues');
 
     // ── ELECTRICAL: NaN actual ──
     const elecNaN = { type: StreamType.ELECTRICAL, capacity: 1000, actual: NaN, demand: 500 };
-    t.assertOK(validateStream(elecNaN, ctx(StreamType.ELECTRICAL)).some(i => i.code === 'POWER_ACTUAL_NAN'), 'NaN actual');
+    const r3 = validateStream(elecNaN, { portType: StreamType.ELECTRICAL, unitId: 'test', portId: 'out' });
+    t.assertOK(r3.some(i => i.code === 'POWER_ACTUAL_NAN'), 'NaN actual detected');
+    t.assertOK(r3.some(i => i.severity.level >= ErrorSeverity.CATASTROPHIC.level), 'NaN actual severity=CATASTROPHIC');
 
     // ── ELECTRICAL: missing actual ──
     const elecNoAct = { type: StreamType.ELECTRICAL, capacity: 1000 };
-    t.assertOK(validateStream(elecNoAct, ctx(StreamType.ELECTRICAL)).some(i => i.code === 'POWER_NO_ACTUAL'), 'Missing actual');
+    const r3b = validateStream(elecNoAct, { portType: StreamType.ELECTRICAL, unitId: 'test', portId: 'out' });
+    t.assertOK(r3b.some(i => i.code === 'POWER_NO_ACTUAL'), 'Missing actual detected');
+
+    // ── ELECTRICAL: valid stream ──
+    const elecGood = { type: StreamType.ELECTRICAL, capacity: 1000, actual: 800, demand: 900, curtailmentFactor: 0.89 };
+    const r3c = validateStream(elecGood, { portType: StreamType.ELECTRICAL, unitId: 'test', portId: 'out' });
+    t.assertOK(r3c.length === 0, 'Valid electrical → 0 issues');
+
+    // ── ELECTRICAL: actual > capacity ──
+    const elecOver = { type: StreamType.ELECTRICAL, capacity: 1000, actual: 1500, demand: 1500 };
+    const r3d = validateStream(elecOver, { portType: StreamType.ELECTRICAL, unitId: 'test', portId: 'out' });
+    t.assertOK(r3d.some(i => i.code === 'POWER_ACTUAL_EXCEEDS_CAPACITY'), 'actual > capacity detected');
+
+    // ── HEAT: negative capacity ──
+    const heatNeg = { type: StreamType.HEAT, capacity: -100, actual: 0 };
+    const r4 = validateStream(heatNeg, { portType: StreamType.HEAT, unitId: 'test', portId: 'out' });
+    t.assertOK(r4.some(i => i.code === 'POWER_CAPACITY_NEGATIVE'), 'Negative capacity detected');
 
     // ── Type mismatch ──
     const mismatch = { type: StreamType.HEAT, capacity: 100, actual: 50 };
-    t.assertOK(validateStream(mismatch, ctx(StreamType.ELECTRICAL)).some(i => i.code === 'STREAM_TYPE_MISMATCH'), 'Type mismatch');
+    const r5 = validateStream(mismatch, { portType: StreamType.ELECTRICAL, unitId: 'test', portId: 'out' });
+    t.assertOK(r5.some(i => i.code === 'STREAM_TYPE_MISMATCH'), 'Type mismatch detected');
 
-    // ── Null stream → 0 issues ──
-    t.assertOK(validateStream(null, ctx(StreamType.MATERIAL)).length === 0, 'Null → 0 issues');
+    // ── Null stream → empty issues ──
+    const r6 = validateStream(null, { portType: StreamType.MATERIAL, unitId: 'test', portId: 'out' });
+    t.assertOK(r6.length === 0, 'Null stream → 0 issues');
   });
 
-  test('PH flash resolution — heater output gets T resolved by solver', t => {
-    // Heater outputs { P, n, H_target_Jps } (no T).
-    // Solver must PH-flash it → downstream sees T finite.
-    const src = t.place('source', 0, 0, { species:'H2O', nDot:1, T:363.15, P:101325, phaseConstraint:'VL' });
-    const htr = t.place('heater', 3, 0, { T_out: 383.15 });
-    const snk = t.place('sink', 6, 0);
-    t.wire(src, 'out', htr, 'mat_in');
-    t.wire(htr, 'mat_out', snk, 'in');
-    t.solve();
-
-    const htrOut = t.port(htr, 'mat_out');
-    t.assertOK(htrOut, 'Heater output exists');
-    t.assertOK(htrOut.H_target_Jps !== undefined, 'H_target_Jps present (set by tick)');
-    t.assertOK(isFiniteNum(htrOut.T), 'T resolved by PH flash', `T=${htrOut.T?.toFixed(1)}`);
-    t.assertOK(htrOut.phase !== undefined, 'Phase resolved');
-    t.assertOK(VALID_PHASES.has(htrOut.phase), 'Phase valid');
-
-    // Downstream sink should see the resolved stream
-    const sinkIn = t.port(snk, 'in');
-    t.assertOK(sinkIn && isFiniteNum(sinkIn.T), 'Downstream sees resolved T');
-  });
-
-  test('Solver integration — monkeypatched ticks catch pre-flash + post-flash errors', t => {
-    // ── Test A: delete P (caught by pre-flash) → solver ok:false ──
+  test('validateStream — solver integration with monkeypatched ticks', t => {
+    // ── Test A: material source with deleted P → solver ok:false ──
     const srcDef = UnitRegistry.get('source');
     const origTick = srcDef.tick;
 
+    // Monkeypatch: call original tick, then corrupt P
     srcDef.tick = function(u, ports, par, ctx) {
       origTick.call(this, u, ports, par, ctx);
-      delete ports.out.P;
+      delete ports.out.P;  // Corrupt: remove P
     };
+
     try {
       const src = t.place('source', 0, 0, { species:'H2O', nDot:10, T:373.15, P:101325, phaseConstraint:'V' });
       const snk = t.place('sink', 3, 0);
       t.wire(src, 'out', snk, 'in');
-      const r = t.solveRaw();
-      t.assertOK(r.ok === false, 'A: Solver fails when P missing');
-      t.assertOK(t.ud(src).errors.some(e => typeof e === 'object' && e.code === 'MATERIAL_NO_P'), 'A: MATERIAL_NO_P in errors');
-      t.assertOK(t.ud(src).last?.error, 'A: ud.last.error set');
-    } finally { srcDef.tick = origTick; }
 
-    // ── Test B: NaN actual on electrical (caught by post-flash) → solver ok:false ──
+      const r = t.solveRaw();
+      t.assertOK(r.ok === false, 'Solver ok=false when P missing');
+
+      // Check that validation error is present on unit
+      const srcUD = t.ud(src);
+      const hasValErr = srcUD.errors.some(e =>
+        (typeof e === 'object' && e.code === 'MATERIAL_NO_P')
+      );
+      t.assertOK(hasValErr, 'ud.errors includes MATERIAL_NO_P');
+
+      // Should be CATASTROPHIC
+      const hasCatastrophic = srcUD.errors.some(e =>
+        typeof e === 'object' && e.severity &&
+        e.severity.level >= ErrorSeverity.CATASTROPHIC.level
+      );
+      t.assertOK(hasCatastrophic, 'Severity >= CATASTROPHIC');
+
+      // ud.last.error should be set
+      t.assertOK(srcUD.last?.error, 'ud.last.error is set');
+    } finally {
+      // Always restore original tick
+      srcDef.tick = origTick;
+    }
+
+    // ── Test B: electrical source with NaN actual → solver ok:false ──
     t.clearScene();
     const elecDef = UnitRegistry.get('source_electrical');
     const origElecTick = elecDef.tick;
+
     elecDef.tick = function(u, ports, par, ctx) {
       origElecTick.call(this, u, ports, par, ctx);
-      ports.out.actual = NaN;
+      ports.out.actual = NaN;  // Corrupt: NaN actual
     };
+
     try {
       const srcE = t.place('source_electrical', 0, 0, { maxPower: 100 });
       const mot = t.place('motor', 3, 0, { eta: 0.95 });
@@ -15823,47 +15518,46 @@ function runTests() {
       t.wire(mot, 'mech_out', pmp, 'power_in');
       t.wire(srcW, 'out', pmp, 'mat_in');
       t.wire(pmp, 'mat_out', snk, 'in');
-      const r = t.solveRaw();
-      t.assertOK(r.ok === false, 'B: Solver fails when actual=NaN');
-      t.assertOK(t.ud(srcE).errors.some(e => typeof e === 'object' && e.code === 'POWER_ACTUAL_NAN'), 'B: POWER_ACTUAL_NAN in errors');
-    } finally { elecDef.tick = origElecTick; }
 
-    // ── Test C: delete T (pre-flash catches as NO_THERMAL_SPEC) → solver ok:false ──
+      const r = t.solveRaw();
+      t.assertOK(r.ok === false, 'Solver ok=false when actual=NaN');
+
+      const srcEUD = t.ud(srcE);
+      const hasActualErr = srcEUD.errors.some(e =>
+        typeof e === 'object' && e.code === 'POWER_ACTUAL_NAN'
+      );
+      t.assertOK(hasActualErr, 'ud.errors includes POWER_ACTUAL_NAN');
+    } finally {
+      elecDef.tick = origElecTick;
+    }
+
+    // ── Test C: material source with T deleted → solver ok:false ──
+    // NOTE: setting T=NaN is caught and healed by validateStreamFlows (line ~3784)
+    // which runs before validateUnitPorts.  Deleting T entirely bypasses that healer.
     t.clearScene();
     const srcDef2 = UnitRegistry.get('source');
     const origTick2 = srcDef2.tick;
+
     srcDef2.tick = function(u, ports, par, ctx) {
       origTick2.call(this, u, ports, par, ctx);
-      delete ports.out.T;
+      delete ports.out.T;  // Corrupt: remove T entirely (no H_target_Jps either)
     };
+
     try {
       const src = t.place('source', 0, 0, { species:'H2O', nDot:10, T:373.15, P:101325, phaseConstraint:'V' });
       const snk = t.place('sink', 3, 0);
       t.wire(src, 'out', snk, 'in');
-      const r = t.solveRaw();
-      t.assertOK(r.ok === false, 'C: Solver fails when T deleted');
-      t.assertOK(t.ud(src).errors.some(e =>
-        typeof e === 'object' && e.code === 'MATERIAL_NO_THERMAL_SPEC'
-      ), 'C: MATERIAL_NO_THERMAL_SPEC in errors');
-    } finally { srcDef2.tick = origTick2; }
-  });
 
-  test('Non-material normalization in solver — available aliased to capacity', t => {
-    // source_electrical already sets both capacity and available.
-    // Verify after solve the port has capacity = available (normalization ran).
-    const src = t.place('source_electrical', 0, 0, { maxPower: 50 });
-    const snk = t.place('sink_electrical', 3, 0);
-    t.wire(src, 'out', snk, 'in');
-    t.solve();
-    const out = t.port(src, 'out');
-    t.assertOK(out, 'Electrical source port exists');
-    t.assertOK(out.capacity !== undefined, 'capacity present');
-    t.assertOK(out.actual !== undefined, 'actual present');
-    t.assertOK(out.capacity >= 0 || out.capacity === Infinity, 'capacity >= 0');
-    t.assertOK(isFiniteNum(out.actual) && out.actual >= 0, 'actual finite >= 0');
-    // Verify normalization: if available was set, capacity should match
-    if (out.available !== undefined) {
-      t.assertOK(out.capacity !== undefined, 'available → capacity normalized');
+      const r = t.solveRaw();
+      t.assertOK(r.ok === false, 'Solver ok=false when T deleted');
+
+      const srcUD = t.ud(src);
+      const hasTErr = srcUD.errors.some(e =>
+        typeof e === 'object' && e.code === 'MATERIAL_NO_T_OR_H'
+      );
+      t.assertOK(hasTErr, 'ud.errors includes MATERIAL_NO_T_OR_H');
+    } finally {
+      srcDef2.tick = origTick2;
     }
   });
 
@@ -15938,12 +15632,8 @@ PG.ImportLimits = ImportLimits;
 PG.isFiniteNum = isFiniteNum;
 PG.toFiniteOrNull = toFiniteOrNull;
 PG.validateStreamFlows = validateStreamFlows;
-PG.validateStream = validateStream;                    // [v6.3] post-flash stream validator
-PG.validateUnitPorts = validateUnitPorts;               // [v6.3] per-unit port validator
-PG.validateMaterialPreFlash = validateMaterialPreFlash; // [v6.3] pre-flash contract check
-PG.inferMaterialSpec = inferMaterialSpec;               // [v6.3] 'fully' | 'ph_flash' inference
-PG.normalizeNonMaterialStream = normalizeNonMaterialStream; // [v6.3] available → capacity
-PG.STREAM_CONTRACTS = STREAM_CONTRACTS;                // [v6.3] centralized schema definitions
+PG.validateStream = validateStream;         // [v6.2] structural stream validator
+PG.validateUnitPorts = validateUnitPorts;    // [v6.2] per-unit port validator
 
 </script>
 
