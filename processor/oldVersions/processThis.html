@@ -1,7 +1,18 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v8.1.0
+  processThis v8.2.0
+
+  ─── v8.2.0 ───────────────────────────────────────────────────────────────
+  Formation enthalpy shift in ThermoAdapter.hMolar().
+  hMolar() now returns h_phys + chemShift, where chemShift is a per-component
+  constant aligning the enthalpy reference to NIST standard formation values.
+  chemShift(comp) = hf0_Jmol(comp) − h_phys(comp, 298.15K, 1e5Pa, 'V').
+  For species without hf0_Jmol, chemShift = 0 (legacy behavior preserved).
+  Cache added (_chemShiftCache) with invalidation on setPackage().
+  Mathematical proof (§2.3 DESIGN v2.1): zero impact on non-reactive flowsheets.
+  NNG: NNG-L2 (energy with reactions), NNG-U3 (thermo via adapter), NNG-T1/T2.
+  Tests: Section AB (Tests 111–113) — alignment, regression, reaction enthalpy.
 
   ─── v8.1.0 ───────────────────────────────────────────────────────────────
   Component thermochemical data enrichment.
@@ -352,7 +363,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>processThis — v8.1.0</title>
+  <title>processThis — v8.2.0</title>
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
@@ -2315,6 +2326,7 @@ class ThermoAdapter {
       throw new Error('ThermoAdapter requires a ThermoPackage instance');
     }
     this._pkg = pkg;
+    this._chemShiftCache = {};  // [v8.2.0] Formation enthalpy shift cache
   }
   
   /** Proxy _warnedRanges to active package (used by saturationTemperature and tests) */
@@ -2327,6 +2339,7 @@ class ThermoAdapter {
       throw new Error('setPackage requires a ThermoPackage instance');
     }
     this._pkg.clearCaches();
+    this._chemShiftCache = {};  // [v8.2.0] Invalidate — shift depends on package's h_phys
     this._pkg = pkg;
   }
   
@@ -2379,9 +2392,31 @@ class ThermoAdapter {
     return this._pkg.cpMolar(comp, T_K, P_Pa, phaseHint);
   }
   
-  /** Molar enthalpy [J/mol] — delegated to active thermo package */
+  /** Molar enthalpy [J/mol] — physical enthalpy + formation shift (§2, DESIGN v2.1)
+   *  The shift is a per-component constant that aligns the enthalpy reference to
+   *  standard formation enthalpies (NIST, gas, 298.15 K, 1 bar).  For components
+   *  without hf0_Jmol the shift is zero, preserving legacy behavior exactly.
+   *  See §2.3 for the proof that this is zero-impact on non-reactive flowsheets. */
   hMolar(comp, T_K, P_Pa, phaseHint = null) {
-    return this._pkg.hMolar(comp, T_K, P_Pa, phaseHint);
+    return this._pkg.hMolar(comp, T_K, P_Pa, phaseHint) + this._getChemShift(comp);
+  }
+
+  /** Formation enthalpy shift [J/mol] — cached per component.
+   *  chemShift = hf0_Jmol − h_phys(298.15 K, 1e5 Pa, 'V')
+   *  so that hMolar(comp, 298.15, 1e5, 'V') === hf0_Jmol at standard state. */
+  _getChemShift(comp) {
+    if (this._chemShiftCache[comp] !== undefined) {
+      return this._chemShiftCache[comp];
+    }
+    const compData = ComponentRegistry.get(comp);
+    if (!compData || compData.hf0_Jmol === undefined || compData.hf0_Jmol === null) {
+      this._chemShiftCache[comp] = 0;
+      return 0;
+    }
+    const h_phys_ref = this._pkg.hMolar(comp, 298.15, 1e5, 'V');
+    const shift = compData.hf0_Jmol - h_phys_ref;
+    this._chemShiftCache[comp] = shift;
+    return shift;
   }
   
     /**
@@ -16458,6 +16493,66 @@ function runTests() {
       t.assertOK(!hf0Warn, `${formula}: no hf0 warning`);
       t.assertOK(!s0Warn, `${formula}: no s0 warning`);
     }
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // SECTION AB: Formation Enthalpy Shift (Tests 111–113)
+  // [v8.2.0] Verify chemShift aligns hMolar to formation enthalpies,
+  //          non-reactive regression, and reaction enthalpy sanity.
+  // ═══════════════════════════════════════════════════════════════════════
+
+  test('Formation enthalpy alignment at standard state', t => {
+    // §2.2: hMolar(comp, 298.15, 1e5, 'V') must equal hf0_Jmol
+    // Tolerance ±500 J/mol to allow for Cp correlation imprecision at T_ref
+    t.assertClose(thermo.hMolar('H2O', 298.15, 1e5, 'V'), -241826, 500, 'H2O hMolar@298 ≈ hf0');
+    t.assertClose(thermo.hMolar('H2',  298.15, 1e5, 'V'), 0,       500, 'H2 hMolar@298 ≈ 0');
+    t.assertClose(thermo.hMolar('O2',  298.15, 1e5, 'V'), 0,       500, 'O2 hMolar@298 ≈ 0');
+    t.assertClose(thermo.hMolar('N2',  298.15, 1e5, 'V'), 0,       500, 'N2 hMolar@298 ≈ 0');
+    t.assertClose(thermo.hMolar('CH4', 298.15, 1e5, 'V'), -74870,  500, 'CH4 hMolar@298 ≈ hf0');
+    t.assertClose(thermo.hMolar('CO2', 298.15, 1e5, 'V'), -393510, 500, 'CO2 hMolar@298 ≈ hf0');
+    t.assertClose(thermo.hMolar('Ar',  298.15, 1e5, 'V'), 0,       500, 'Ar hMolar@298 ≈ 0');
+    t.assertClose(thermo.hMolar('He',  298.15, 1e5, 'V'), 0,       500, 'He hMolar@298 ≈ 0');
+
+    // Shifted values at higher T must still be reasonable
+    // H2O at 500K gas: hf0 + Cp_ig integrated from 298→500 ≈ −241826 + ~6800 ≈ −235000
+    const h_h2o_500 = thermo.hMolar('H2O', 500, 1e5, 'V');
+    t.assertOK(h_h2o_500 > -241826, 'H2O@500K > H2O@298K (gas Cp > 0)');
+    t.assertOK(h_h2o_500 < -220000, 'H2O@500K still negative (formation dominated)');
+  });
+
+  test('Non-reactive invariance — Water Throttling Flash regression', t => {
+    // §2.3 proof: formation shift has zero effect on non-reactive flowsheets.
+    // This is an exact mirror of Test 1. All assertions must hold identically.
+    const src = t.place('source', 0, 0, { species:'H2O', nDot:10, T:473.15, P:2000000, phaseConstraint:'L' });
+    const vlv = t.place('valve', 3, 0, { Pout:200000 });
+    const snk = t.place('sink', 6, 0);
+    t.wire(src,'out', vlv,'in'); t.wire(vlv,'out', snk,'in');
+    t.solve();
+    const out = t.port(vlv, 'out');
+    const srcOut = t.port(src, 'out');
+    t.assertClose(out.T, 393.475, 0.2, 'T [K]');
+    t.assertClose(out.beta || 0, 0.150650, 0.002, 'beta');
+    t.assertClose(out.nV?.H2O || 0, 1.506502, 0.02, 'nV[H2O]');
+    t.assertClose(out.nL?.H2O || 0, 8.493498, 0.02, 'nL[H2O]');
+    t.assertOK(out.phase === 'VL', 'Phase = VL', out.phase);
+    if (srcOut?.Hdot_J_s !== undefined && out.Hdot_J_s !== undefined) {
+      t.assertClose(Math.abs(out.Hdot_J_s - srcOut.Hdot_J_s), 0, 10, 'ΔH [J/s]');
+    }
+  });
+
+  test('Reaction enthalpy sanity — H2 combustion ΔH°', t => {
+    // ΔH°_rxn = Σ νᵢ × hMolar(i, 298.15, 1e5, 'V')
+    // For 2H₂ + O₂ → 2H₂O:  2×hf0(H2O) − 2×hf0(H2) − 1×hf0(O2)
+    // Expected: 2×(−241826) − 0 − 0 = −483652 J/mol-rxn
+    const stoich = { H2: -2, O2: -1, H2O: 2 };
+    let dH_rxn = 0;
+    for (const [sp, nu] of Object.entries(stoich)) {
+      dH_rxn += nu * thermo.hMolar(sp, 298.15, 1e5, 'V');
+    }
+    t.assertClose(dH_rxn, -483652, 2000, 'ΔH°_rxn [J/mol-rxn]');
+
+    // Also verify it's exothermic (negative)
+    t.assertOK(dH_rxn < 0, 'Exothermic (ΔH < 0)', dH_rxn.toFixed(0));
   });
 
   // ═══════════════════════════════════════════════════════════════════════

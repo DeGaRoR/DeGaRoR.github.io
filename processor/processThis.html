@@ -1,7 +1,18 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v8.2.0
+  processThis v8.3.0
+
+  ─── v8.3.0 ───────────────────────────────────────────────────────────────
+  ReactionRegistry and multi-component source unit.
+  ReactionRegistry: static class (NNG-A5) with register(), get(), all(),
+  exists(), validateAll(). Full validation at registration time (NNG-D2):
+  species existence, hf0 completeness, mass balance, window validity.
+  First reaction: R_H2_COMB (2 H₂ + O₂ → 2 H₂O).
+  source_multi: emits user-defined composition. Default: dry air (N2/O2/Ar).
+  NNG: NNG-A5, NNG-D2, NNG-L1 (mass balance at registration), NNG-T2, NNG-V1/V2.
+  Tests: Section AC (Tests 114–115, source_multi), Section AE (Tests 116–118,
+  registry validation, bad reactions, mass balance).
 
   ─── v8.2.0 ───────────────────────────────────────────────────────────────
   Formation enthalpy shift in ThermoAdapter.hMolar().
@@ -363,7 +374,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>processThis — v8.2.0</title>
+  <title>processThis — v8.3.0</title>
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
@@ -1838,6 +1849,130 @@ function validateStreamType(stream, portType) {
   }
   return true;
 }
+
+/* =========================
+   REACTION REGISTRY
+   [v8.3.0] Validated reaction definitions for reactor units.
+   Pattern: static class following NNG-A5 (cf. ComponentRegistry).
+   All validation at registration time (NNG-D2) — runtime errors eliminated by design.
+   ========================= */
+class ReactionRegistry {
+  static _map = new Map();
+
+  /**
+   * Register a reaction. Validates completely at registration time.
+   * Throws on any validation failure (NNG-D2: CATASTROPHIC at startup, not runtime).
+   */
+  static register(id, spec) {
+    // 1. Uniqueness
+    if (ReactionRegistry._map.has(id)) {
+      throw new Error(`ReactionRegistry: duplicate id '${id}'`);
+    }
+
+    // 2. Species existence + 3. Formation enthalpy completeness
+    const stoich = spec.stoich;
+    if (!stoich || typeof stoich !== 'object' || Object.keys(stoich).length === 0) {
+      throw new Error(`ReactionRegistry '${id}': stoich must be a non-empty object`);
+    }
+    for (const sp of Object.keys(stoich)) {
+      const comp = ComponentRegistry.get(sp);
+      if (!comp) {
+        throw new Error(`ReactionRegistry '${id}': species '${sp}' not in ComponentRegistry`);
+      }
+      if (comp.hf0_Jmol === null || comp.hf0_Jmol === undefined) {
+        throw new Error(`ReactionRegistry '${id}': species '${sp}' missing hf0_Jmol (required for energy balance)`);
+      }
+    }
+
+    // 4. Stoichiometric structure
+    const hasReactant = Object.values(stoich).some(v => v < 0);
+    const hasProduct  = Object.values(stoich).some(v => v > 0);
+    if (!hasReactant) throw new Error(`ReactionRegistry '${id}': no reactants (need at least one νᵢ < 0)`);
+    if (!hasProduct)  throw new Error(`ReactionRegistry '${id}': no products (need at least one νᵢ > 0)`);
+
+    // 5. Mass balance: |Σ νᵢ × MW_i| < 0.01 g/mol
+    let massBalance = 0;
+    for (const [sp, nu] of Object.entries(stoich)) {
+      massBalance += nu * ComponentRegistry.get(sp).MW;
+    }
+    if (Math.abs(massBalance) >= 0.01) {
+      throw new Error(`ReactionRegistry '${id}': mass imbalance = ${massBalance.toFixed(4)} g/mol (must be < 0.01)`);
+    }
+
+    // 6. Window validity
+    if (spec.Tmin_K >= spec.Tmax_K) {
+      throw new Error(`ReactionRegistry '${id}': Tmin_K (${spec.Tmin_K}) must be < Tmax_K (${spec.Tmax_K})`);
+    }
+    if (spec.Pmin_Pa >= spec.Pmax_Pa) {
+      throw new Error(`ReactionRegistry '${id}': Pmin_Pa (${spec.Pmin_Pa}) must be < Pmax_Pa (${spec.Pmax_Pa})`);
+    }
+
+    // 7. Entropy completeness (warning only for reversible reactions)
+    if (spec.reversible !== false) {
+      for (const sp of Object.keys(stoich)) {
+        const comp = ComponentRegistry.get(sp);
+        if (comp.s0_JmolK === null || comp.s0_JmolK === undefined) {
+          console.warn(`ReactionRegistry '${id}': species '${sp}' missing s0_JmolK — K(T) equilibrium mode unavailable`);
+        }
+      }
+    }
+
+    // Store validated reaction
+    const reaction = {
+      id,
+      name:       spec.name || id,
+      equation:   spec.equation || '',
+      stoich:     { ...stoich },
+      reversible: spec.reversible !== false,  // default true
+      Tmin_K:     spec.Tmin_K,
+      Tmax_K:     spec.Tmax_K,
+      Pmin_Pa:    spec.Pmin_Pa,
+      Pmax_Pa:    spec.Pmax_Pa,
+      notes:      spec.notes || '',
+      references: spec.references || [],
+      _massBalance: massBalance   // stored for diagnostics
+    };
+
+    ReactionRegistry._map.set(id, Object.freeze(reaction));
+    return reaction;
+  }
+
+  static get(id)     { return ReactionRegistry._map.get(id); }
+  static exists(id)  { return ReactionRegistry._map.has(id); }
+  static all()       { return Array.from(ReactionRegistry._map.values()); }
+  static list()      { return ReactionRegistry.all(); }
+
+  static validateAll() {
+    const results = {};
+    for (const [id, rxn] of ReactionRegistry._map) {
+      const errors = [];
+      // Re-check mass balance
+      let mb = 0;
+      for (const [sp, nu] of Object.entries(rxn.stoich)) {
+        const comp = ComponentRegistry.get(sp);
+        if (!comp) errors.push(`Species '${sp}' no longer in ComponentRegistry`);
+        else mb += nu * comp.MW;
+      }
+      if (Math.abs(mb) >= 0.01) errors.push(`Mass imbalance = ${mb.toFixed(4)}`);
+      results[id] = { valid: errors.length === 0, errors };
+    }
+    return results;
+  }
+}
+
+// ── First reaction: Hydrogen Combustion ──
+ReactionRegistry.register('R_H2_COMB', {
+  name: 'Hydrogen Combustion',
+  equation: '2 H₂ + O₂ → 2 H₂O',
+  stoich: { H2: -2, O2: -1, H2O: 2 },
+  reversible: true,
+  Tmin_K: 400,
+  Tmax_K: 3000,
+  Pmin_Pa: 50000,       // 0.5 bar
+  Pmax_Pa: 5000000,     // 50 bar
+  notes: 'Strongly exothermic. K >> 1 at all practical temperatures.',
+  references: [{ source: 'NIST', detail: 'Formation enthalpies/entropies from NIST Chemistry WebBook' }]
+});
 
 /* =========================
    MODEL REGISTRY
@@ -4955,6 +5090,45 @@ UnitRegistry.register('source', {
       P: par.P,           // Already in Pa
       n: n,               // mol/s for each component
       phaseConstraint: par.phaseConstraint || 'V' // User-controlled phase constraint
+    };
+  }
+});
+
+// Source (Mix) - Multi-component material stream source [v8.3.0]
+// Default: dry air (N2 78%, O2 21%, Ar 1% at 1 mol/s total)
+UnitRegistry.register('source_multi', {
+  name: 'Source (Mix)',
+  category: UnitCategories.SOURCE,
+  w: 2,
+  h: 2,
+  ports: [{ portId: 'out', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 1 }],
+  tick(u, ports, par) {
+    const n = par.n || { N2: 0.78, O2: 0.21, Ar: 0.01 };
+
+    // Validate all species exist in ComponentRegistry
+    for (const comp of Object.keys(n)) {
+      if (!ComponentRegistry.exists(comp)) {
+        u.last = { error: { severity: ErrorSeverity.CATASTROPHIC,
+          message: `Unknown species '${comp}' in composition` } };
+        return;
+      }
+    }
+
+    let T_K = par.T ?? 298.15;
+    if (T_K < 1) {
+      u.last = { ...(u.last || {}), warning: `Temperature clamped to 1 K` };
+      T_K = 1;
+    } else if (T_K > 5000) {
+      u.last = { ...(u.last || {}), warning: `Temperature clamped to 5000 K` };
+      T_K = 5000;
+    }
+
+    ports.out = {
+      type: StreamType.MATERIAL,
+      T: T_K,
+      P: par.P ?? 101325,
+      n: { ...n },
+      phaseConstraint: par.phaseConstraint || 'V'
     };
   }
 });
@@ -8868,6 +9042,7 @@ const PG = {
 
   // ── Registries ──
   ComponentRegistry,
+  ReactionRegistry,
   UnitRegistry,
   ModelRegistry,
   models,
@@ -16553,6 +16728,155 @@ function runTests() {
 
     // Also verify it's exothermic (negative)
     t.assertOK(dH_rxn < 0, 'Exothermic (ΔH < 0)', dH_rxn.toFixed(0));
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // SECTION AC: Multi-Component Source (Tests 114–115)
+  // [v8.3.0] Verify source_multi emits correct compositions and flashes
+  // ═══════════════════════════════════════════════════════════════════════
+
+  test('Source (Mix) — air default composition', t => {
+    const src = t.place('source_multi', 0, 0, { T: 298.15, P: 101325, phaseConstraint: 'V' });
+    const snk = t.place('sink', 4, 0);
+    t.wire(src, 'out', snk, 'in');
+    t.solve();
+    const out = t.port(src, 'out');
+
+    // Default air: N2 0.78, O2 0.21, Ar 0.01
+    t.assertOK(out.n !== undefined, 'Stream has composition');
+    t.assertClose(out.n.N2, 0.78, 0.001, 'N2 flow');
+    t.assertClose(out.n.O2, 0.21, 0.001, 'O2 flow');
+    t.assertClose(out.n.Ar, 0.01, 0.001, 'Ar flow');
+    t.assertClose(out.T, 298.15, 1, 'T [K]');
+    t.assertClose(out.P, 101325, 1, 'P [Pa]');
+
+    // Total flow ≈ 1 mol/s
+    const total = Object.values(out.n).reduce((s, v) => s + v, 0);
+    t.assertClose(total, 1.0, 0.001, 'Total flow [mol/s]');
+  });
+
+  test('Source (Mix) — custom H2/O2 at 800K', t => {
+    const src = t.place('source_multi', 0, 0, {
+      n: { H2: 2, O2: 1 }, T: 800, P: 100000, phaseConstraint: 'V'
+    });
+    const snk = t.place('sink', 4, 0);
+    t.wire(src, 'out', snk, 'in');
+    t.solve();
+    const out = t.port(src, 'out');
+
+    t.assertClose(out.n.H2, 2, 0.001, 'H2 flow');
+    t.assertClose(out.n.O2, 1, 0.001, 'O2 flow');
+    t.assertOK(!out.n.N2, 'No N2 in custom comp');
+    t.assertClose(out.T, 800, 1, 'T = 800K');
+    t.assertClose(out.P, 100000, 1, 'P = 1 bar');
+    t.assertOK(out.phase === 'V', 'Vapor phase', out.phase);
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // SECTION AE: ReactionRegistry Validation (Tests 116–118)
+  // [v8.3.0] Verify registration, validation, and mass balance
+  // ═══════════════════════════════════════════════════════════════════════
+
+  test('ReactionRegistry — valid registration and retrieval', t => {
+    // R_H2_COMB should already be registered at startup
+    t.assertOK(ReactionRegistry.exists('R_H2_COMB'), 'R_H2_COMB exists');
+
+    const rxn = ReactionRegistry.get('R_H2_COMB');
+    t.assertOK(rxn !== undefined, 'get() returns reaction');
+    t.assertOK(rxn.id === 'R_H2_COMB', 'id preserved');
+    t.assertOK(rxn.name === 'Hydrogen Combustion', 'name preserved');
+    t.assertOK(rxn.stoich.H2 === -2, 'H2 ν = -2');
+    t.assertOK(rxn.stoich.O2 === -1, 'O2 ν = -1');
+    t.assertOK(rxn.stoich.H2O === 2, 'H2O ν = +2');
+    t.assertOK(rxn.reversible === true, 'reversible');
+    t.assertClose(rxn.Tmin_K, 400, 0, 'Tmin');
+    t.assertClose(rxn.Tmax_K, 3000, 0, 'Tmax');
+
+    // all() and list() include it
+    const allRxns = ReactionRegistry.all();
+    t.assertOK(allRxns.length >= 1, 'all() has entries');
+    t.assertOK(allRxns.some(r => r.id === 'R_H2_COMB'), 'all() includes R_H2_COMB');
+    t.assertOK(ReactionRegistry.list().length === allRxns.length, 'list() === all()');
+
+    // validateAll passes
+    const vr = ReactionRegistry.validateAll();
+    t.assertOK(vr['R_H2_COMB'].valid, 'validateAll: R_H2_COMB valid');
+  });
+
+  test('ReactionRegistry — validation rejects bad reactions', t => {
+    // Each bad registration must throw. We catch and verify.
+    let threw;
+
+    // Unknown species
+    threw = false;
+    try { ReactionRegistry.register('BAD1', {
+      stoich: { H2: -1, UNOBTANIUM: 1 },
+      Tmin_K: 100, Tmax_K: 500, Pmin_Pa: 1e4, Pmax_Pa: 1e6
+    }); } catch(e) { threw = true; }
+    t.assertOK(threw, 'Throws on unknown species');
+
+    // Mass imbalance (1 H2 → 1 H2O violates mass)
+    threw = false;
+    try { ReactionRegistry.register('BAD2', {
+      stoich: { H2: -1, H2O: 1 },
+      Tmin_K: 100, Tmax_K: 500, Pmin_Pa: 1e4, Pmax_Pa: 1e6
+    }); } catch(e) { threw = true; }
+    t.assertOK(threw, 'Throws on mass imbalance');
+
+    // No reactants (all positive)
+    threw = false;
+    try { ReactionRegistry.register('BAD3', {
+      stoich: { H2: 1, O2: 1 },
+      Tmin_K: 100, Tmax_K: 500, Pmin_Pa: 1e4, Pmax_Pa: 1e6
+    }); } catch(e) { threw = true; }
+    t.assertOK(threw, 'Throws on no reactants');
+
+    // No products (all negative)
+    threw = false;
+    try { ReactionRegistry.register('BAD4', {
+      stoich: { H2: -1, O2: -1 },
+      Tmin_K: 100, Tmax_K: 500, Pmin_Pa: 1e4, Pmax_Pa: 1e6
+    }); } catch(e) { threw = true; }
+    t.assertOK(threw, 'Throws on no products');
+
+    // Bad T window (Tmin > Tmax)
+    threw = false;
+    try { ReactionRegistry.register('BAD5', {
+      stoich: { H2: -2, O2: -1, H2O: 2 },
+      Tmin_K: 500, Tmax_K: 100, Pmin_Pa: 1e4, Pmax_Pa: 1e6
+    }); } catch(e) { threw = true; }
+    t.assertOK(threw, 'Throws on Tmin > Tmax');
+
+    // Bad P window (Pmin > Pmax)
+    threw = false;
+    try { ReactionRegistry.register('BAD6', {
+      stoich: { H2: -2, O2: -1, H2O: 2 },
+      Tmin_K: 100, Tmax_K: 500, Pmin_Pa: 1e6, Pmax_Pa: 1e4
+    }); } catch(e) { threw = true; }
+    t.assertOK(threw, 'Throws on Pmin > Pmax');
+
+    // Duplicate ID
+    threw = false;
+    try { ReactionRegistry.register('R_H2_COMB', {
+      stoich: { H2: -2, O2: -1, H2O: 2 },
+      Tmin_K: 100, Tmax_K: 500, Pmin_Pa: 1e4, Pmax_Pa: 1e6
+    }); } catch(e) { threw = true; }
+    t.assertOK(threw, 'Throws on duplicate id');
+  });
+
+  test('ReactionRegistry — mass balance computation', t => {
+    // Verify stored mass balance for H2 combustion
+    const rxn = ReactionRegistry.get('R_H2_COMB');
+    t.assertOK(Math.abs(rxn._massBalance) < 0.01,
+      'Mass balance < 0.01 g/mol', rxn._massBalance.toFixed(4));
+
+    // Independent calculation: 2×(-2.016) + 1×(-31.999) + 2×(18.015) = -0.001
+    let mb = 0;
+    for (const [sp, nu] of Object.entries(rxn.stoich)) {
+      mb += nu * ComponentRegistry.get(sp).MW;
+    }
+    t.assertClose(mb, 0, 0.01, 'Σ νᵢ×MW_i ≈ 0');
+    t.assertClose(mb, rxn._massBalance, 1e-10, 'Matches stored value');
   });
 
   // ═══════════════════════════════════════════════════════════════════════
