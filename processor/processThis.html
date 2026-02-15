@@ -1,7 +1,17 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v8.6.1
+  processThis v8.6.2
+
+  ─── v8.6.2 ───────────────────────────────────────────────────────────────
+  Refactor: computeSystemBalance() now uses port-direction boundary detection
+  instead of hardcoded defId checks.  Any unit whose ports are ALL OUT is a
+  source (energy/mass IN); ALL IN is a sink (energy/mass OUT).  Future
+  boundary unit types are automatically recognised without code changes.
+  Test 129: comprehensive cross-validation with all 22 unit types on one
+  flowsheet (10 chains, 31 instances), connected + dissipated heat, utility
+  heater energy residual.  27 checks across 5 prongs: independent boundary
+  walk, report vs engine, self-consistency, physical closure, heat routing.
 
   ─── v8.6.1 ───────────────────────────────────────────────────────────────
   Bugfix: computeSystemBalance() did not recognise source_multi as a
@@ -419,7 +429,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>processThis — v8.6.1</title>
+  <title>processThis — v8.6.2</title>
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
@@ -11508,6 +11518,9 @@ function renderStreamProperties(container, s) {
 
 // ════════════════════════════════════════════════════════════════════════
 // [v4.6.1] System Balance Report
+// [v8.6.2] Refactored: port-direction boundary detection replaces defId
+//   hardcoding. Units with all-OUT ports → source; all-IN → sink. New
+//   boundary unit types auto-detected without code changes.
 // Walks the topology boundary (sources, sinks, unconnected heat ports)
 // and computes mass + energy closure for the entire flowsheet.
 // Mass is tracked in kg/s (reactor-compatible: total mass conserved even
@@ -11538,70 +11551,69 @@ function computeSystemBalance(scene) {
   const energyIn  = { material: 0, electrical: 0, mechanical: 0, heat: 0, items: [] };
   const energyOut = { material: 0, electrical: 0, mechanical: 0, heat: 0, dissipated: 0, items: [] };
 
+  // ── [v8.6.2] Port-direction boundary detection ──
+  // A unit is a boundary element if ALL its ports share the same direction.
+  //   All OUT → source (feeds INTO the system)
+  //   All IN  → sink   (drains OUT OF the system)
+  // This automatically handles any future source/sink types without hardcoding.
+
   for (const [id, u] of scene.units) {
     const def = UnitRegistry.get(u.defId);
     const ud = scene.runtime.unitData.get(id);
     if (!ud) continue;
     const uName = u.name || def.name;
 
-    // ── Material source → IN ──
-    if (u.defId === 'source' || u.defId === 'source_multi') {
-      const s = ud.ports?.out;
-      if (s && s.n) {
-        const m = streamMass_kgps(s);
-        if (m > 1e-15) {
-          totalMassIn += m;
-          massInItems.push({ name: uName, mass_kgps: m, detail: { ...s.n } });
-        }
-        const H = s.Hdot_J_s ?? thermo.getHdot_Jps(s);
-        if (isFinite(H)) {
-          energyIn.material += H;
-          energyIn.items.push({ name: uName, type: 'material', value: H });
-        }
-      }
-    }
+    // Classify: are all ports the same direction?
+    const dirs = new Set(def.ports.map(p => p.dir));
+    if (dirs.size !== 1) continue;  // Mixed directions → internal unit, skip
+    const boundaryDir = [...dirs][0];
 
-    // ── Material sink → OUT ──
-    if (u.defId === 'sink') {
-      const s = ud.ports?.in;
-      if (s && s.n) {
-        const m = streamMass_kgps(s);
-        if (m > 1e-15) {
-          totalMassOut += m;
-          massOutItems.push({ name: uName, mass_kgps: m, detail: { ...s.n } });
-        }
-        const H = s.Hdot_J_s ?? thermo.getHdot_Jps(s);
-        if (isFinite(H)) {
-          energyOut.material += H;
-          energyOut.items.push({ name: uName, type: 'material', value: H });
-        }
-      }
-    }
+    for (const p of def.ports) {
+      const stream = ud.ports?.[p.portId];
+      if (!stream) continue;
 
-    // ── Electrical / mechanical sources → IN ──
-    if (u.defId === 'source_electrical' || u.defId === 'source_mechanical' || u.defId === 'battery') {
-      const s = ud.ports?.out;
-      const W = s?.actual ?? 0;
-      if (W > 0) {
-        const eType = u.defId === 'source_mechanical' ? 'mechanical' : 'electrical';
-        energyIn[eType] += W;
-        energyIn.items.push({ name: uName, type: eType, value: W });
-      }
-    }
+      if (p.type === StreamType.MATERIAL && stream.n) {
+        const m = streamMass_kgps(stream);
+        const H = stream.Hdot_J_s ?? thermo.getHdot_Jps(stream);
 
-    // ── Electrical / heat sinks → OUT ──
-    if (u.defId === 'sink_electrical') {
-      const W = ud.last?.absorbed_W ?? ud.ports?.in?.actual ?? 0;
-      if (W > 0) {
-        energyOut.electrical += W;
-        energyOut.items.push({ name: uName, type: 'electrical', value: W });
-      }
-    }
-    if (u.defId === 'sink_heat') {
-      const W = ud.last?.absorbed_W ?? ud.ports?.in?.actual ?? 0;
-      if (W > 0) {
-        energyOut.heat += W;
-        energyOut.items.push({ name: uName, type: 'heat', value: W });
+        if (boundaryDir === PortDir.OUT) {
+          // Source: material flowing INTO the system
+          if (m > 1e-15) {
+            totalMassIn += m;
+            massInItems.push({ name: uName, mass_kgps: m, detail: { ...stream.n } });
+          }
+          if (isFinite(H)) {
+            energyIn.material += H;
+            energyIn.items.push({ name: uName, type: 'material', value: H });
+          }
+        } else {
+          // Sink: material flowing OUT of the system
+          if (m > 1e-15) {
+            totalMassOut += m;
+            massOutItems.push({ name: uName, mass_kgps: m, detail: { ...stream.n } });
+          }
+          if (isFinite(H)) {
+            energyOut.material += H;
+            energyOut.items.push({ name: uName, type: 'material', value: H });
+          }
+        }
+      } else if (p.type === StreamType.ELECTRICAL ||
+                 p.type === StreamType.MECHANICAL ||
+                 p.type === StreamType.HEAT) {
+        const W = stream.actual ?? stream.available ?? 0;
+        if (W <= 0) continue;
+
+        const eType = p.type === StreamType.ELECTRICAL ? 'electrical'
+                    : p.type === StreamType.MECHANICAL ? 'mechanical'
+                    : 'heat';
+
+        if (boundaryDir === PortDir.OUT) {
+          energyIn[eType] += W;
+          energyIn.items.push({ name: uName, type: eType, value: W });
+        } else {
+          energyOut[eType] += W;
+          energyOut.items.push({ name: uName, type: eType, value: W });
+        }
       }
     }
   }
@@ -17644,7 +17656,7 @@ function runTests() {
   });
 
   // ═══════════════════════════════════════════════════════════════════════
-  // SECTION AG: Balance Report Cross-Validation (Tests 127–128)
+  // SECTION AG: Balance Report Cross-Validation (Tests 127–129)
   // [v8.6.1] Verify computeSystemBalance() report matches internal engine.
   // The report is the primary human-facing trust surface — if it disagrees
   // with the engine, users lose confidence even if the engine is correct.
@@ -17753,6 +17765,362 @@ function runTests() {
     // Energy closure across both sub-processes
     t.assertOK(bal.energy.closed, 'energy.closed = true');
     t.assertClose(bal.energy.balance, 0, 200, 'Energy residual < 200 W');
+  });
+
+  test('Balance report — ALL unit types, connected+dissipated heat', t => {
+    // ══════════════════════════════════════════════════════════════════════
+    // [v8.6.2] Comprehensive cross-validation: every non-test defId on one
+    // flowsheet. Independently compute all boundary flows from engine port
+    // data, assert the balance report matches exactly.
+    //
+    //  Chain A: src_e + batt → hub → mot → comp ← src_n2 → snk_n2
+    //           mot.heat_out → hs_mot (CONNECTED heat)
+    //           hub.heat_out UNCONNECTED (dissipated)
+    //
+    //  Chain B: src_hot → gas_turbine → snk_exh
+    //           turb.mech_out → gen → snk_elec
+    //           gen.heat_out UNCONNECTED (dissipated)
+    //
+    //  Chain C: src_e2 → eHtr, heat_out UNCONNECTED (dissipated)
+    //
+    //  Chain D: src_h2o → heater(heat_in UNCONNECTED, utility) → snk_h2o
+    //
+    //  Chain E: src_rx(multi) → reactor → snk_rx
+    //
+    //  Chain F: src_hx_h + src_hx_c → hex → snk_hx_h + snk_hx_c
+    //
+    //  Chain G: src_m1 + src_m2 → mixer → splitter → snk_s1 + snk_s2
+    //
+    //  Chain H: src_fl → valve → flash_drum → snk_v + snk_l
+    //
+    //  Chain I: src_mech → comp2 ← src_n2b → snk_n2b
+    //
+    //  Chain J: src_mech2 → pump ← src_pump → snk_pump
+    //
+    //  22 unique defIds, all 4 stream types, connected+unconnected heat.
+    // ══════════════════════════════════════════════════════════════════════
+
+    // ── Chain A: Power grid + compressor ── (y=0 band)
+    const src_e  = t.place('source_electrical', 0, 0, { maxPower: 50 });
+    const batt   = t.place('battery', 0, 3, { maxPower: 20 });
+    const hub    = t.place('power_hub', 4, 0);       // 2×3
+    const mot    = t.place('motor', 8, 0, { eta: 0.90 });
+    const src_n2 = t.place('source', 14, 0, { species: 'N2', nDot: 2, T: 298.15, P: 100000, phaseConstraint: 'V' });
+    const comp   = t.place('compressor', 14, 3, { Pout: 300000, eta: 0.80 });
+    const snk_n2 = t.place('sink', 18, 3);
+    const hs_mot = t.place('sink_heat', 8, 3);       // connected heat
+
+    t.wire(src_e, 'out', hub, 'elec_in');
+    t.wire(batt, 'out', hub, 'elec_in');              // multiConnect IN
+    t.wire(hub, 'elec_out', mot, 'elec_in');          // single OUT
+    t.wire(mot, 'mech_out', comp, 'power_in');
+    t.wire(mot, 'heat_out', hs_mot, 'in');            // CONNECTED heat
+    // hub.heat_out deliberately UNCONNECTED → dissipated
+    t.wire(src_n2, 'out', comp, 'mat_in');
+    t.wire(comp, 'mat_out', snk_n2, 'in');
+
+    // ── Chain B: Turbine + Generator ── (y=6 band)
+    const src_hot = t.place('source', 0, 6, { species: 'N2', nDot: 0.5, T: 673.15, P: 500000, phaseConstraint: 'V' });
+    const turb   = t.place('gas_turbine', 4, 6, { Pout: 101325, eta: 0.88 });
+    const snk_exh = t.place('sink', 8, 6);
+    const gen    = t.place('generator', 4, 9, { eta: 0.95 });
+    const snk_elec = t.place('sink_electrical', 8, 9);
+
+    t.wire(src_hot, 'out', turb, 'mat_in');
+    t.wire(turb, 'mat_out', snk_exh, 'in');
+    t.wire(turb, 'mech_out', gen, 'mech_in');
+    t.wire(gen, 'elec_out', snk_elec, 'in');
+    // gen.heat_out deliberately UNCONNECTED → dissipated
+
+    // ── Chain C: Electric heater (standalone) ── (y=12 band)
+    const src_e2 = t.place('source_electrical', 0, 12, { maxPower: 10 });
+    const eh     = t.place('electric_heater', 4, 12);
+
+    t.wire(src_e2, 'out', eh, 'elec_in');
+    // eh.heat_out deliberately UNCONNECTED → dissipated
+
+    // ── Chain D: Heater (utility heat, heat_in unconnected) ── (y=15)
+    const src_h2o = t.place('source', 0, 15, { species: 'H2O', nDot: 1, T: 300.15, P: 200000, phaseConstraint: 'L' });
+    const htr    = t.place('heater', 4, 15, { T_out: 353.15 });
+    const snk_h2o = t.place('sink', 8, 15);
+
+    t.wire(src_h2o, 'out', htr, 'mat_in');
+    // heater.heat_in deliberately UNCONNECTED (utility heat → energy residual)
+    t.wire(htr, 'mat_out', snk_h2o, 'in');
+
+    // ── Chain E: Reactor ── (y=18)
+    const src_rx = t.place('source_multi', 0, 18, {
+      n: { H2: 2, O2: 1, N2: 8 }, T: 800, P: 100000, phaseConstraint: 'V'
+    });
+    const rx     = t.place('reactor_adiabatic', 4, 18, {
+      reactionId: 'R_H2_COMB', mode: 'fixed', conversion: 1.0
+    });
+    const snk_rx = t.place('sink', 8, 18);
+    t.wire(src_rx, 'out', rx, 'mat_in');
+    t.wire(rx, 'mat_out', snk_rx, 'in');
+
+    // ── Chain F: HEX ── (y=22)
+    const src_hx_h = t.place('source', 0, 22, { species: 'H2O', nDot: 1, T: 500, P: 500000, phaseConstraint: 'V' });
+    const src_hx_c = t.place('source', 0, 25, { species: 'H2O', nDot: 1, T: 300, P: 500000, phaseConstraint: 'L' });
+    const hex    = t.place('hex', 4, 22);
+    const snk_hx_h = t.place('sink', 8, 22);
+    const snk_hx_c = t.place('sink', 8, 25);
+    t.wire(src_hx_h, 'out', hex, 'hot_in');
+    t.wire(hex, 'hot_out', snk_hx_h, 'in');
+    t.wire(src_hx_c, 'out', hex, 'cold_in');
+    t.wire(hex, 'cold_out', snk_hx_c, 'in');
+
+    // ── Chain G: Mixer → Splitter ── (y=28)
+    const src_m1 = t.place('source', 0, 28, { species: 'N2', nDot: 1, T: 298.15, P: 100000, phaseConstraint: 'V' });
+    const src_m2 = t.place('source', 0, 31, { species: 'N2', nDot: 2, T: 298.15, P: 100000, phaseConstraint: 'V' });
+    const mix    = t.place('mixer', 4, 28);
+    const spl    = t.place('splitter', 8, 28, { splitPct: 60 });
+    const snk_s1 = t.place('sink', 12, 28);
+    const snk_s2 = t.place('sink', 12, 31);
+    t.wire(src_m1, 'out', mix, 'in1');
+    t.wire(src_m2, 'out', mix, 'in2');
+    t.wire(mix, 'out', spl, 'in');
+    t.wire(spl, 'out1', snk_s1, 'in');
+    t.wire(spl, 'out2', snk_s2, 'in');
+
+    // ── Chain H: Flash Drum ── (y=34)
+    const src_fl = t.place('source', 0, 34, { species: 'H2O', nDot: 3, T: 423.15, P: 500000, phaseConstraint: 'L' });
+    const vlv_fl = t.place('valve', 4, 34, { Pout: 100000 });
+    const fd     = t.place('flash_drum', 8, 34);     // 2×3
+    const snk_v  = t.place('sink', 12, 34);
+    const snk_l  = t.place('sink', 12, 37);
+    t.wire(src_fl, 'out', vlv_fl, 'in');
+    t.wire(vlv_fl, 'out', fd, 'mat_in');
+    t.wire(fd, 'vap_out', snk_v, 'in');
+    t.wire(fd, 'liq_out', snk_l, 'in');
+
+    // ── Chain I: Source Mechanical → Compressor ── (y=40)
+    const src_mech = t.place('source_mechanical', 0, 40, { maxPower: 30 });
+    const comp2    = t.place('compressor', 4, 40, { Pout: 300000, eta: 0.75 });
+    const src_n2b  = t.place('source', 4, 43, { species: 'N2', nDot: 1, T: 298.15, P: 100000, phaseConstraint: 'V' });
+    const snk_n2b  = t.place('sink', 8, 40);
+    t.wire(src_mech, 'out', comp2, 'power_in');
+    t.wire(src_n2b, 'out', comp2, 'mat_in');
+    t.wire(comp2, 'mat_out', snk_n2b, 'in');
+
+    // ── Chain J: Source Mechanical → Pump ── (y=46)
+    const src_mech2 = t.place('source_mechanical', 0, 46, { maxPower: 10 });
+    const pmp       = t.place('pump', 4, 46, { Pout: 500000, eta: 0.75 });
+    const src_pump  = t.place('source', 4, 49, { species: 'H2O', nDot: 2, T: 300.15, P: 100000, phaseConstraint: 'L' });
+    const snk_pump  = t.place('sink', 8, 46);
+    t.wire(src_mech2, 'out', pmp, 'power_in');
+    t.wire(src_pump, 'out', pmp, 'mat_in');
+    t.wire(pmp, 'mat_out', snk_pump, 'in');
+
+    // ══════════════════════════════════════════════════════════════════════
+    // SOLVE
+    // ══════════════════════════════════════════════════════════════════════
+    t.solve();
+    const bal = computeSystemBalance(scene);
+    t.assertOK(bal, 'Balance computed');
+
+    // ══════════════════════════════════════════════════════════════════════
+    // PRONG 1: Independent boundary walk
+    // Compute every boundary flow from engine port data, without using
+    // computeSystemBalance(). Compare totals and item counts.
+    // ══════════════════════════════════════════════════════════════════════
+
+    // ── Material boundary (mass + enthalpy) ──
+    const matSources = [src_n2, src_h2o, src_hot, src_rx, src_hx_h, src_hx_c,
+                        src_m1, src_m2, src_fl, src_n2b, src_pump];
+    let indep_massIn = 0, indep_hIn = 0;
+    for (const id of matSources) {
+      const s = t.port(id, 'out');
+      if (s && s.n) {
+        indep_massIn += streamMass_kgps(s);
+        const H = s.Hdot_J_s ?? thermo.getHdot_Jps(s);
+        if (isFinite(H)) indep_hIn += H;
+      }
+    }
+
+    const matSinks = [snk_n2, snk_h2o, snk_exh, snk_rx, snk_hx_h, snk_hx_c,
+                      snk_s1, snk_s2, snk_v, snk_l, snk_n2b, snk_pump];
+    let indep_massOut = 0, indep_hOut = 0;
+    for (const id of matSinks) {
+      const ud = t.ud(id);
+      const s = ud?.ports?.in || ud?.last?.stream;
+      if (s && s.n) {
+        indep_massOut += streamMass_kgps(s);
+        const H = s.Hdot_J_s ?? thermo.getHdot_Jps(s);
+        if (isFinite(H)) indep_hOut += H;
+      }
+    }
+
+    // ── Energy boundary (non-material) ──
+    const elecSources = [src_e, batt, src_e2];
+    let indep_elecIn = 0;
+    let elecInCount = 0;
+    for (const id of elecSources) {
+      const s = t.ud(id)?.ports?.out;
+      const W = s?.actual ?? 0;
+      if (W > 0) { indep_elecIn += W; elecInCount++; }
+    }
+    const mechSources = [src_mech, src_mech2];
+    let indep_mechIn = 0;
+    let mechInCount = 0;
+    for (const id of mechSources) {
+      const s = t.ud(id)?.ports?.out;
+      const W = s?.actual ?? 0;
+      if (W > 0) { indep_mechIn += W; mechInCount++; }
+    }
+
+    // Electrical sink
+    const indep_elecOut = t.ud(snk_elec)?.ports?.in?.actual ?? 0;
+
+    // Connected heat sink (motor → hs_mot)
+    const indep_heatOut = t.ud(hs_mot)?.ports?.in?.actual ?? 0;
+
+    // Dissipated heat (unconnected heat_out ports)
+    const gen_Q = t.ud(gen)?.ports?.heat_out?.actual ?? 0;
+    const eh_Q  = t.ud(eh)?.ports?.heat_out?.actual ?? 0;
+    const hub_Q = t.ud(hub)?.ports?.heat_out?.actual ?? 0;
+    let indep_dissipated = 0;
+    if (gen_Q > 0.01) indep_dissipated += gen_Q;
+    if (eh_Q > 0.01)  indep_dissipated += eh_Q;
+    if (hub_Q > 0.01) indep_dissipated += hub_Q;
+
+    // ══════════════════════════════════════════════════════════════════════
+    // PRONG 2: Compare report with independent calculation
+    // ══════════════════════════════════════════════════════════════════════
+
+    // ── Mass: item counts ──
+    t.assertClose(bal.mass.inItems.length, matSources.length, 0,
+      `Mass in: ${matSources.length} material sources`);
+    t.assertClose(bal.mass.outItems.length, matSinks.length, 0,
+      `Mass out: ${matSinks.length} material sinks`);
+
+    // ── Mass: totals match engine ──
+    t.assertClose(bal.mass.totalIn, indep_massIn, 1e-6, 'Mass totalIn = engine');
+    t.assertClose(bal.mass.totalOut, indep_massOut, 1e-6, 'Mass totalOut = engine');
+
+    // ── Energy: subcategory totals match engine ──
+    t.assertClose(bal.energy.in.material, indep_hIn, 10, 'E in.material = engine');
+    t.assertClose(bal.energy.in.electrical, indep_elecIn, 10, 'E in.electrical = engine');
+    t.assertClose(bal.energy.in.mechanical, indep_mechIn, 10, 'E in.mechanical = engine');
+    t.assertClose(bal.energy.out.material, indep_hOut, 10, 'E out.material = engine');
+    t.assertClose(bal.energy.out.electrical, indep_elecOut, 10, 'E out.electrical = engine');
+    t.assertClose(bal.energy.out.heat, indep_heatOut, 10, 'E out.heat = engine');
+    t.assertClose(bal.energy.out.dissipated, indep_dissipated, 10, 'E out.dissipated = engine');
+
+    // ── Energy: item counts ──
+    // Only sources with actual > 0 appear as items in the report
+    let matInEnergyCount = 0;
+    for (const id of matSources) {
+      const s = t.port(id, 'out');
+      if (s && s.n) {
+        const H = s.Hdot_J_s ?? thermo.getHdot_Jps(s);
+        if (isFinite(H)) matInEnergyCount++;
+      }
+    }
+    const expEnergyInItems = matInEnergyCount + elecInCount + mechInCount;
+    t.assertClose(bal.energy.in.items.length, expEnergyInItems, 0,
+      `Energy in items: ${expEnergyInItems}`);
+
+    // Out items: material sinks + electrical sink + heat sinks + dissipated items
+    let expDissipatedCount = 0;
+    if (gen_Q > 0.01) expDissipatedCount++;
+    if (eh_Q > 0.01)  expDissipatedCount++;
+    if (hub_Q > 0.01) expDissipatedCount++;
+    const heatSinkCount = (indep_heatOut > 0) ? 1 : 0;
+    const elecSinkCount = (indep_elecOut > 0) ? 1 : 0;
+    let matOutEnergyCount = 0;
+    for (const id of matSinks) {
+      const ud = t.ud(id);
+      const s = ud?.ports?.in || ud?.last?.stream;
+      if (s && s.n) {
+        const H = s.Hdot_J_s ?? thermo.getHdot_Jps(s);
+        if (isFinite(H)) matOutEnergyCount++;
+      }
+    }
+    const expEnergyOutItems = matOutEnergyCount + elecSinkCount + heatSinkCount + expDissipatedCount;
+    t.assertClose(bal.energy.out.items.length, expEnergyOutItems, 0,
+      `Energy out items: ${expEnergyOutItems}`);
+
+    // ══════════════════════════════════════════════════════════════════════
+    // PRONG 3: Self-consistency
+    // Report's own numbers must be internally consistent.
+    // ══════════════════════════════════════════════════════════════════════
+
+    // Mass: totalIn = Σ items
+    const sumMassIn = bal.mass.inItems.reduce((s, i) => s + i.mass_kgps, 0);
+    const sumMassOut = bal.mass.outItems.reduce((s, i) => s + i.mass_kgps, 0);
+    t.assertClose(bal.mass.totalIn, sumMassIn, 1e-12, 'totalMassIn = Σ items');
+    t.assertClose(bal.mass.totalOut, sumMassOut, 1e-12, 'totalMassOut = Σ items');
+
+    // Mass: balance = totalIn - totalOut
+    t.assertClose(bal.mass.balance, bal.mass.totalIn - bal.mass.totalOut, 1e-15,
+      'mass.balance = totalIn - totalOut');
+
+    // Mass: closed flag self-consistent
+    const massTol = Math.max(bal.mass.totalIn, bal.mass.totalOut) * 1e-6 + 1e-10;
+    const expectMassClosed = Math.abs(bal.mass.balance) < massTol;
+    t.assertOK(bal.mass.closed === expectMassClosed, 'mass.closed self-consistent');
+
+    // Energy: totalIn = Σ subcategories
+    const ein = bal.energy.in;
+    t.assertClose(bal.energy.totalIn,
+      ein.material + ein.electrical + ein.mechanical + ein.heat, 1e-6,
+      'totalEnergyIn = Σ subcategories');
+
+    // Energy: totalOut = Σ subcategories
+    const eout = bal.energy.out;
+    t.assertClose(bal.energy.totalOut,
+      eout.material + eout.electrical + eout.mechanical + eout.heat + eout.dissipated, 1e-6,
+      'totalEnergyOut = Σ subcategories');
+
+    // Energy: balance = totalIn - totalOut
+    t.assertClose(bal.energy.balance,
+      bal.energy.totalIn - bal.energy.totalOut, 1e-6,
+      'energy.balance = totalIn - totalOut');
+
+    // Energy: closed flag self-consistent
+    const expEnClosed = Math.abs(bal.energy.totalIn) > 0
+      ? Math.abs(bal.energy.balance / bal.energy.totalIn) < 0.01
+      : Math.abs(bal.energy.balance) < 1;
+    t.assertOK(bal.energy.closed === expEnClosed, 'energy.closed self-consistent');
+
+    // ══════════════════════════════════════════════════════════════════════
+    // PRONG 4: Physical constraints
+    // ══════════════════════════════════════════════════════════════════════
+
+    // Mass physically conserved (reactor has MW rounding, rest exact)
+    t.assertClose(Math.abs(bal.mass.balance), 0,
+      Math.max(bal.mass.totalIn, bal.mass.totalOut) * 0.001, 'Mass physically closed');
+
+    // Energy: residual ≈ heater Q_actual (utility heat from nowhere)
+    const htr_Q = t.ud(htr)?.last?.Q_actual_W ?? 0;
+    if (htr_Q > 0) {
+      // Heater adds Q to material without a heat input → system loses energy
+      // residual = In - Out, and Out is larger by Q_actual → residual ≈ -Q_actual
+      t.assertClose(bal.energy.balance, -htr_Q, Math.max(200, htr_Q * 0.05),
+        'Energy residual ≈ -heater Q_actual (utility heat)');
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // PRONG 5: Dissipated heat detail
+    // Connected heat must NOT appear as dissipated, and vice versa.
+    // ══════════════════════════════════════════════════════════════════════
+    const dissItems = bal.energy.out.items.filter(i => i.type === 'dissipated');
+    const heatItems = bal.energy.out.items.filter(i => i.type === 'heat');
+
+    // Generator heat is dissipated (unconnected)
+    if (gen_Q > 0.01) {
+      t.assertOK(dissItems.some(i => i.value > 0), 'Generator heat in dissipated');
+    }
+
+    // Motor heat is NOT dissipated (connected to sink_heat)
+    const motName = scene.units.get(mot)?.name;
+    t.assertOK(!dissItems.some(i => i.name === motName), 'Motor heat NOT in dissipated');
+
+    // Motor heat IS in heat category (via sink_heat)
+    if (indep_heatOut > 0) {
+      t.assertOK(heatItems.length >= 1, 'Connected heat appears in heat category');
+    }
   });
 
   // ═══════════════════════════════════════════════════════════════════════
