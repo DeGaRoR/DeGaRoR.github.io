@@ -1,7 +1,15 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v8.6.2
+  processThis v8.6.3
+
+  ─── v8.6.3 ───────────────────────────────────────────────────────────────
+  MW precision: all 8 species upgraded from 3dp to 5dp (IUPAC 2021 standard
+  atomic weights).  H₂ combustion stoichiometric mass balance now closes to
+  IEEE 754 machine precision (was 0.001 g/mol at 3dp).  Reactor mass
+  imbalance warning eliminated.  ReactionRegistry gate tightened from
+  0.01 → 0.001 g/mol.  Two test MW references fixed (read from registry
+  instead of hardcoded literals).
 
   ─── v8.6.2 ───────────────────────────────────────────────────────────────
   Refactor: computeSystemBalance() now uses port-direction boundary detection
@@ -429,7 +437,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>processThis — v8.6.2</title>
+  <title>processThis — v8.6.3</title>
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
@@ -1690,7 +1698,7 @@ class ComponentRegistry {
 ComponentRegistry.register('H2O', {
   name: 'Water',
   CAS: '7732-18-5',
-  MW: 18.015,
+  MW: 18.01528,   // [v8.6.3] IUPAC 2021: 2×1.00794 + 15.99940
   Tc: 647.1,
   Pc: 22064000,
   omega: 0.344,
@@ -1717,7 +1725,7 @@ ComponentRegistry.register('H2O', {
 ComponentRegistry.register('O2', {
   name: 'Oxygen',
   CAS: '7782-44-7',
-  MW: 31.999,
+  MW: 31.99880,   // [v8.6.3] IUPAC 2021: 2×15.99940
   Tc: 154.6,
   Pc: 5043000,
   omega: 0.022,
@@ -1740,7 +1748,7 @@ ComponentRegistry.register('O2', {
 ComponentRegistry.register('H2', {
   name: 'Hydrogen',
   CAS: '1333-74-0',
-  MW: 2.016,
+  MW: 2.01588,    // [v8.6.3] IUPAC 2021: 2×1.00794
   Tc: 33.2,
   Pc: 1297000,
   omega: -0.216,
@@ -1763,7 +1771,7 @@ ComponentRegistry.register('H2', {
 ComponentRegistry.register('N2', {
   name: 'Nitrogen',
   CAS: '7727-37-9',
-  MW: 28.014,
+  MW: 28.01340,   // [v8.6.3] IUPAC 2021: 2×14.00670
   Tc: 126.2,
   Pc: 3396000,
   omega: 0.037,
@@ -1786,7 +1794,7 @@ ComponentRegistry.register('N2', {
 ComponentRegistry.register('Ar', {
   name: 'Argon',
   CAS: '7440-37-1',
-  MW: 39.948,
+  MW: 39.94800,   // [v8.6.3] IUPAC 2021 (monoisotopic)
   Tc: 150.9,
   Pc: 4898000,
   omega: -0.002,
@@ -1809,7 +1817,7 @@ ComponentRegistry.register('Ar', {
 ComponentRegistry.register('CH4', {
   name: 'Methane',
   CAS: '74-82-8',
-  MW: 16.043,
+  MW: 16.04276,   // [v8.6.3] IUPAC 2021: 12.01100 + 4×1.00794
   Tc: 190.6,
   Pc: 4599000,
   omega: 0.011,
@@ -1832,7 +1840,7 @@ ComponentRegistry.register('CH4', {
 ComponentRegistry.register('He', {
   name: 'Helium',
   CAS: '7440-59-7',
-  MW: 4.003,
+  MW: 4.00260,    // [v8.6.3] IUPAC 2021
   Tc: 5.19,
   Pc: 227000,
   omega: -0.390,
@@ -1856,7 +1864,7 @@ ComponentRegistry.register('He', {
 ComponentRegistry.register('CO2', {
   name: 'Carbon Dioxide',
   CAS: '124-38-9',
-  MW: 44.010,
+  MW: 44.00980,   // [v8.6.3] IUPAC 2021: 12.01100 + 2×15.99940
   Tc: 304.1,
   Pc: 7377000,
   omega: 0.228,
@@ -1962,13 +1970,13 @@ class ReactionRegistry {
     if (!hasReactant) throw new Error(`ReactionRegistry '${id}': no reactants (need at least one νᵢ < 0)`);
     if (!hasProduct)  throw new Error(`ReactionRegistry '${id}': no products (need at least one νᵢ > 0)`);
 
-    // 5. Mass balance: |Σ νᵢ × MW_i| < 0.01 g/mol
+    // 5. Mass balance: |Σ νᵢ × MW_i| < 0.001 g/mol  [v8.6.3: tightened from 0.01]
     let massBalance = 0;
     for (const [sp, nu] of Object.entries(stoich)) {
       massBalance += nu * ComponentRegistry.get(sp).MW;
     }
-    if (Math.abs(massBalance) >= 0.01) {
-      throw new Error(`ReactionRegistry '${id}': mass imbalance = ${massBalance.toFixed(4)} g/mol (must be < 0.01)`);
+    if (Math.abs(massBalance) >= 0.001) {
+      throw new Error(`ReactionRegistry '${id}': mass imbalance = ${massBalance.toFixed(6)} g/mol (must be < 0.001)`);
     }
 
     // 6. Window validity
@@ -13819,7 +13827,7 @@ function runTests() {
     t.assertOK(comps.every(c => ComponentRegistry.get(c)?.rhoLiq !== undefined), 'All rhoLiq present');
     t.assertOK(comps.every(c => thermo.density(c, 298, 101325, 'L') === expected[c]), 'density(L) correct');
     const rhoV = thermo.density('N2', 300, 101325, 'V');
-    t.assertClose(rhoV, (101325 * 28.014/1000) / (8.314 * 300), 0.01, 'density(V) ideal');
+    t.assertClose(rhoV, (101325 * ComponentRegistry.get('N2').MW / 1000) / (8.314 * 300), 0.01, 'density(V) ideal');
   });
 
   test('Cp Polynomial Clamping', t => {
@@ -15204,11 +15212,11 @@ function runTests() {
     t.assertOK(bal, 'Balance computed');
 
     // ── Reference mass flows (kg/s) ──
-    // N2:  5 mol/s × 28.014 g/mol / 1000 = 0.14007 kg/s
-    // O2:  2 mol/s × 31.998 g/mol / 1000 = 0.063996 kg/s
-    // H2O: 3 mol/s × 18.015 g/mol / 1000 = 0.054045 kg/s
-    // Total: 0.258111 kg/s
-    const expectedTotal_kgps = (5 * 28.014 + 2 * 31.998 + 3 * 18.015) / 1000;
+    // [v8.6.3] Read MW from registry to track precision automatically
+    const MW_N2 = ComponentRegistry.get('N2').MW;
+    const MW_O2 = ComponentRegistry.get('O2').MW;
+    const MW_H2O = ComponentRegistry.get('H2O').MW;
+    const expectedTotal_kgps = (5 * MW_N2 + 2 * MW_O2 + 3 * MW_H2O) / 1000;
 
     // Verify inputs: 3 source streams
     t.assertClose(bal.mass.inItems.length, 3, 0, '3 mass inputs');
@@ -15532,8 +15540,8 @@ function runTests() {
     const compErrs = t.ud(comp).errors.filter(e => typeof e === 'string' && e.includes('Mass imbalance'));
     t.assertClose(compErrs.length, 0, 0, 'Compressor: 0 mass errors');
 
-    // Reference: 3 mol/s N2 (28.014 g/mol) + 1 mol/s O2 (31.998 g/mol)
-    const expectedMass = (3 * 28.014 + 1 * 31.998) / 1000;  // kg/s
+    // Reference: 3 mol/s N2 + 1 mol/s O2 — [v8.6.3] read MW from registry
+    const expectedMass = (3 * ComponentRegistry.get('N2').MW + 1 * ComponentRegistry.get('O2').MW) / 1000;  // kg/s
     t.assertClose(m_mix_out, expectedMass, 1e-4, `Total mass = ${(expectedMass*1000).toFixed(1)} g/s`);
   });
 
@@ -17532,15 +17540,15 @@ function runTests() {
   test('ReactionRegistry — mass balance computation', t => {
     // Verify stored mass balance for H2 combustion
     const rxn = ReactionRegistry.get('R_H2_COMB');
-    t.assertOK(Math.abs(rxn._massBalance) < 0.01,
-      'Mass balance < 0.01 g/mol', rxn._massBalance.toFixed(4));
+    t.assertOK(Math.abs(rxn._massBalance) < 0.001,
+      'Mass balance < 0.001 g/mol', rxn._massBalance.toExponential(4));
 
-    // Independent calculation: 2×(-2.016) + 1×(-31.999) + 2×(18.015) = -0.001
+    // Independent calculation — with 5dp MW, should be ~0 (IEEE 754)
     let mb = 0;
     for (const [sp, nu] of Object.entries(rxn.stoich)) {
       mb += nu * ComponentRegistry.get(sp).MW;
     }
-    t.assertClose(mb, 0, 0.01, 'Σ νᵢ×MW_i ≈ 0');
+    t.assertClose(mb, 0, 1e-10, 'Σ νᵢ×MW_i ≈ 0');
     t.assertClose(mb, rxn._massBalance, 1e-10, 'Matches stored value');
   });
 
