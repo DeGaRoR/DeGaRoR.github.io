@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  PROCESS GRID v6.4.0
+  PROCESS GRID v6.3.0
 
   ─── v6.0.0 ───────────────────────────────────────────────────────────────
   Phase 0 Sanitization (from code review):
@@ -67,27 +67,6 @@
     - Test 100: Pure validator — 20+ assertions covering missing/NaN/invalid fields
     - Test 101: Integration — monkeypatched source (delete P), source_electrical
       (NaN actual), source (NaN T) all produce ok:false + correct error codes
-
-  ─── v6.4.0 ───────────────────────────────────────────────────────────────
-  Power stream semantic clarification.
-
-  - STREAM_CONTRACTS.POWER expanded with lifecycle/semantic model:
-    capacity (equipment rating), demand (solver dispatch target), actual (physical flow),
-    curtailmentFactor (actual/demand ratio).  Documents producer vs consumer semantics.
-  - Battery documentation: fixed contradictory doc blocks — merged into single accurate
-    description (dispatchable via solver Steps C/D, tick itself is stateless).
-  - normalizeNonMaterialStream: now derives curtailmentFactor from actual/demand when missing.
-  - validateStream: new POWER_ACTUAL_GT_DEMAND cross-check (MINOR) for overdispatch.
-  - Tests 106-109: power semantic model verification (direct fanout canonical keys,
-    hub allocation conservation, normalization completeness, converge-to-zero regression).
-    - 106: Direct fanout — capacity/actual/demand/curtailmentFactor present,
-           actual ≤ capacity, actual ≤ demand, cf ≈ actual/demand, Σ draws ≈ source
-    - 107: Hub allocation — per-consumer dispatch sums ≈ hub actual,
-           battery fills gap, both consumers get power
-    - 108: normalizeNonMaterialStream completeness — legacy available→capacity,
-           cf derivation, zero-demand guard, infinity guard, overdispatch detection
-    - 109: No-converge-to-zero regression — source→motor→pump with both
-           source_electrical and battery variants; asserts non-zero power flow
 
   ─── v6.3.0 ───────────────────────────────────────────────────────────────
   Stream contracts: centralized schema, two-phase validation, PH flash guarantee.
@@ -181,8 +160,6 @@
                    STREAM_CONTRACTS.MATERIAL.postFlash + STREAM_CONTRACTS.POWER
      - PH flash T resolution guarantee: solver ensures H_target_Jps streams
        get T resolved before downstream consumption
-     - Power stream lifecycle (v6.4): STREAM_CONTRACTS.POWER.lifecycle documents
-       capacity → demand → actual → curtailmentFactor flow through solver Steps B-E
      - Convergence checking
   
   7. UI ARCHITECTURE
@@ -212,7 +189,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Process Grid — v6.4.0</title>
+  <title>Process Grid — v6.3.0</title>
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
@@ -3933,55 +3910,7 @@ const STREAM_CONTRACTS = Object.freeze({
   // ── Non-material (power) streams ──────────────────────────────────────
   // Applies to ELECTRICAL, MECHANICAL, HEAT.
   // Field names are in watts (W) — no _W suffix (matches all existing unit ticks).
-  //
-  // ── SEMANTIC LIFECYCLE ──
-  //   capacity  — Equipment rating / upper bound.  Set by the unit tick from params
-  //               (e.g. par.maxPower * 1000) or computed from upstream (e.g. motor
-  //               mech_out.capacity = elecCapacity * η).  Constant per iteration.
-  //               May be Infinity for unconstrained sources/sinks.
-  //
-  //   demand    — Solver-computed dispatch target for this port.
-  //               For producers (source/battery): total downstream demand as
-  //               aggregated by Steps D/E (direct bus) or Step C (hub).
-  //               For converter outputs (motor mech_out, heater heat_out): set by
-  //               Step B from downstream consumer demand, propagated through η.
-  //               Not set by the unit tick — written by solver post-processing.
-  //
-  //   actual    — What physically flows.  Satisfies: actual ≤ capacity.
-  //               For producers: min(demand, capacity) — the source can't exceed
-  //               its rating.  Written by solver Steps C/D/E.
-  //               For converter outputs: computed from input actual × η.
-  //               Written by the unit tick (using curtailed input).
-  //
-  //   curtailmentFactor — Ratio actual / demand when demand > 0; else 1.0.
-  //               Measures how much demand was curtailed by capacity limits.
-  //               < 1 means overloaded (demand > capacity).
-  //               Written by solver Steps D/E (direct bus) or Step C (hub).
-  //               Consumers read this to scale their draw proportionally.
-  //
-  //   available — DEPRECATED alias for capacity.  Normalized to capacity by
-  //               normalizeNonMaterialStream().  May appear in older unit ticks.
-  //
-  // ── PRODUCER vs CONSUMER ──
-  //   Producers (source_electrical, battery, source_mechanical):
-  //     tick sets capacity + actual (default: capacity).
-  //     Solver overwrites actual, demand, curtailmentFactor.
-  //   Consumers (motor, electric_heater):
-  //     Read input port's actual + curtailmentFactor.
-  //     Store desired draw as unitData.powerDemand (NOT on port).
-  //     Write output port capacity/actual from input × η.
-  //   Hub (power_hub):
-  //     Aggregates producer capacity, consumer demand.
-  //     Allocates per-consumer via allocatePower().
-  //     Writes elec_out capacity/actual/demand/curtailmentFactor.
   POWER: Object.freeze({
-    doc: 'Applies to ELECTRICAL, MECHANICAL, HEAT. All values in watts (W).',
-    lifecycle: Object.freeze({
-      capacity:          'Equipment rating. Set by tick. May be Infinity.',
-      demand:            'Solver dispatch target. Written by Steps B-E. Not set by tick.',
-      actual:            'Physical flow. actual ≤ capacity. Written by solver (producers) or tick (converters).',
-      curtailmentFactor: 'actual / demand. Written by solver. 1.0 = no curtailment.'
-    }),
     required: { actual: 'finite_nonneg' },
     optional: { capacity: 'finite_nonneg_or_inf', demand: 'finite_or_inf',
                 curtailmentFactor: 'unit_fraction' },
@@ -4021,12 +3950,6 @@ function normalizeNonMaterialStream(stream) {
   // Resolve deprecated alias: available → capacity
   if (stream.capacity === undefined && stream.available !== undefined) {
     stream.capacity = stream.available;
-  }
-  // [v6.4] Derive curtailmentFactor from actual / demand when missing
-  if (stream.curtailmentFactor === undefined &&
-      typeof stream.actual === 'number' && isFinite(stream.actual) &&
-      typeof stream.demand === 'number' && stream.demand > 0 && isFinite(stream.demand)) {
-    stream.curtailmentFactor = Math.max(0, Math.min(1, stream.actual / stream.demand));
   }
   return stream;
 }
@@ -4306,17 +4229,6 @@ function validateStream(stream, ctx) {
         issues.push({ severity: ErrorSeverity.MINOR,
           message: `${label}: ${typeName} actual (${stream.actual.toFixed(1)} W) > capacity (${stream.capacity.toFixed(1)} W)`,
           code: 'POWER_ACTUAL_EXCEEDS_CAPACITY' });
-      }
-    }
-
-    // [v6.4] Cross-check: actual <= demand + tolerance (overdispatch)
-    // Only check when demand is finite and positive — Infinity demand (from sinks)
-    // is expected and means "take whatever is available".
-    if (isFiniteNum(stream.actual) && isFiniteNum(stream.demand) && stream.demand >= 0) {
-      if (stream.actual > stream.demand + tol) {
-        issues.push({ severity: ErrorSeverity.MINOR,
-          message: `${label}: ${typeName} actual (${stream.actual.toFixed(1)} W) > demand (${stream.demand.toFixed(1)} W)`,
-          code: 'POWER_ACTUAL_GT_DEMAND' });
       }
     }
   }
@@ -4656,17 +4568,11 @@ const UnitCategories = {
    - MECHANICAL: { type, capacity, actual, demand }
    - ELECTRICAL: { type, capacity, actual, demand, curtailmentFactor? }
        All values in Watts (W).
-       capacity  = equipment rating / upper bound. Set by tick. Constant per iteration.
-       demand    = solver dispatch target. Written by Steps B-E (not by tick).
-                   For producers: total downstream demand. For converters: propagated through η.
-       actual    = what physically flows. Satisfies actual ≤ capacity.
-                   Producers: min(demand, capacity). Converters: input.actual × η.
-       curtailmentFactor = actual/demand when demand > 0, else 1.0. Clamped 0..1.
-                   Set by hub (Step C) or direct bus (Steps D/E).
-                   Consumers read this to scale their draw proportionally.
+       capacity  = max source output.  actual = power delivered.
+       demand    = consumer request propagated backward.
+       curtailmentFactor = actual/demand, clamped 0..1 (set by hub/Steps D-E).
        available = DEPRECATED alias for capacity — normalizeNonMaterialStream()
                    resolves it. Do not use in new code.
-   See STREAM_CONTRACTS.POWER.lifecycle for the full semantic model.
    
    Connections are only allowed between ports of the SAME type.
    The solver validates that streams produced match their port types.
@@ -4765,37 +4671,40 @@ UnitRegistry.register('sink', {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// BATTERY — Dispatchable electrical source (discharge only, for now)
+// BATTERY — Electrical energy storage (discharge only, for now)
 // ═══════════════════════════════════════════════════════════════════════════════
 // 
 // ┌─────────────────────────────────────────────────────────────────────────────┐
 // │ PURPOSE                                                                    │
 // │   Provides electrical power up to its rated capacity.                      │
-// │   The tick itself is stateless — it reads solver scratch and outputs       │
-// │   accordingly.  Dispatch logic lives in the solver post-processing:        │
-// │     • Hub path (Step C): hub decides battery draw based on gap between     │
-// │       fixed supply and total demand.  Writes hubDemand_W + actualDraw_W    │
-// │       to scratch.                                                          │
-// │     • Direct path (Step D): solver sums downstream powerDemand and caps    │
-// │       at capacity.  Writes actualDraw_W + directCurtailment to scratch.    │
+// │   Behaviorally identical to a fixed-output generator: outputs its max      │
+// │   capacity on every tick. The downstream system (hub or direct consumer)   │
+// │   decides how much to actually draw.                                       │
 // │                                                                            │
 // │ PORTS                                                                      │
-// │   out (ELECTRICAL, OUT) — power output in W                                │
+// │   out (ELECTRICAL, OUT) — available power in W                             │
 // │                                                                            │
 // │ PARAMETERS                                                                 │
 // │   maxPower [kW] — rated discharge capacity (default: 1000 kW)             │
 // │                                                                            │
-// │ PORT FIELDS (after solver)                                                 │
-// │   capacity          — maxPower × 1000 (fixed equipment rating)            │
-// │   actual            — what flows (= min(downstream demand, capacity))     │
-// │   demand            — downstream demand written by solver Steps C/D       │
-// │   curtailmentFactor — actual / demand (< 1 when overloaded)              │
+// │ DESIGN NOTES                                                               │
+// │   • The battery has NO demand-response logic. It is a dumb source.         │
+// │   • When connected to a Power Hub, the hub controls dispatch:              │
+// │     firm sources are drawn first, batteries fill the gap.                  │
+// │   • When connected directly to a consumer (no hub), the consumer           │
+// │     takes what it needs; excess capacity is simply unused.                 │
+// │   • Charge management (SOC, charge/discharge cycles) is deferred to a     │
+// │     future version. Currently the battery can only discharge.              │
 // │                                                                            │
-// │ NOTES                                                                      │
-// │   • Charge management (SOC, charge/discharge cycles) deferred.            │
-// │   • Currently discharge only.                                              │
-// │   • All internal values in W (J/s). par.maxPower is kW (user-facing).     │
+// │ INTERNAL UNITS                                                             │
+// │   All internal values in W (J/s). par.maxPower is in kW (user-facing).    │
 // └─────────────────────────────────────────────────────────────────────────────┘
+// ═══════════════════════════════════════════════════════════════════════════════
+// BATTERY — Demand-based electrical source (dispatchable)
+// ═══════════════════════════════════════════════════════════════════════════════
+// Produces up to maxPower on demand. Two modes:
+//   Direct: reads downstream powerDemand, reports shortage if demand > capacity.
+//   Hub:    hub writes regulated demand via ctx.scratch.hubDemand_W (never exceeds capacity).
 UnitRegistry.register('battery', {
   name: 'Battery',
   category: UnitCategories.POWER_MANAGEMENT,
@@ -15744,12 +15653,6 @@ function runTests() {
     t.assertOK(STREAM_CONTRACTS.MATERIAL.postFlash, 'postFlash contract exists');
     t.assertOK(STREAM_CONTRACTS.POWER.required.actual, 'POWER requires actual');
     t.assertOK(STREAM_CONTRACTS.POWER.aliases.available === 'capacity', 'available → capacity alias');
-    // [v6.4] Lifecycle semantic model
-    t.assertOK(STREAM_CONTRACTS.POWER.lifecycle, 'POWER.lifecycle exists');
-    t.assertOK(STREAM_CONTRACTS.POWER.lifecycle.capacity, 'lifecycle.capacity defined');
-    t.assertOK(STREAM_CONTRACTS.POWER.lifecycle.demand, 'lifecycle.demand defined');
-    t.assertOK(STREAM_CONTRACTS.POWER.lifecycle.actual, 'lifecycle.actual defined');
-    t.assertOK(STREAM_CONTRACTS.POWER.lifecycle.curtailmentFactor, 'lifecycle.curtailmentFactor defined');
 
     // ── inferMaterialSpec ──
     t.assertOK(inferMaterialSpec({ T: 300 }) === 'fully', 'T only → fully');
@@ -15962,273 +15865,6 @@ function runTests() {
     if (out.available !== undefined) {
       t.assertOK(out.capacity !== undefined, 'available → capacity normalized');
     }
-  });
-
-  // ═══════════════════════════════════════════════════════════════════════
-  // [v6.4] Tests 106–109: Power stream semantic model
-  // ═══════════════════════════════════════════════════════════════════════
-
-  test('Power semantic model — direct fanout canonical keys', t => {
-    // Verify that after solve, all power ports carry the full canonical set:
-    //   capacity, actual, demand, curtailmentFactor
-    // and that the semantic invariants hold:
-    //   actual ≤ capacity
-    //   actual ≤ demand (when demand finite)
-    //   curtailmentFactor ≈ actual/demand (when demand finite > 0)
-    //   Σ consumer draws ≈ source actual
-
-    const srcE = t.place('source_electrical', 0, 0, { maxPower: 1500 });  // 1500 kW
-    const mot1 = t.place('motor', 4, 0, { eta: 0.95 });
-    const mot2 = t.place('motor', 4, 4, { eta: 0.95 });
-
-    const srcW1 = t.place('source', 8, -2, { species:'H2O', nDot:10000, T:298.15, P:100000, phaseConstraint:'L' });
-    const srcW2 = t.place('source', 8, 2,  { species:'H2O', nDot:10000, T:298.15, P:100000, phaseConstraint:'L' });
-
-    const pmp1 = t.place('pump', 12, 0, { Pout:5000000, eta:0.75 });
-    const pmp2 = t.place('pump', 12, 4, { Pout:5000000, eta:0.75 });
-
-    const snk1 = t.place('sink', 16, 0);
-    const snk2 = t.place('sink', 16, 4);
-
-    t.wire(srcE, 'out', mot1, 'elec_in');
-    t.wire(srcE, 'out', mot2, 'elec_in');
-    t.wire(mot1, 'mech_out', pmp1, 'power_in');
-    t.wire(mot2, 'mech_out', pmp2, 'power_in');
-    t.wire(srcW1, 'out', pmp1, 'mat_in');
-    t.wire(srcW2, 'out', pmp2, 'mat_in');
-    t.wire(pmp1, 'mat_out', snk1, 'in');
-    t.wire(pmp2, 'mat_out', snk2, 'in');
-
-    t.solve();
-
-    // ── Source out: canonical keys present ──
-    const srcOut = t.port(srcE, 'out');
-    t.assertOK(srcOut, 'Source out port exists');
-    t.assertOK(srcOut.capacity !== undefined, 'Source: capacity present');
-    t.assertOK(srcOut.actual !== undefined, 'Source: actual present');
-    t.assertOK(srcOut.demand !== undefined, 'Source: demand present');
-    t.assertOK(srcOut.curtailmentFactor !== undefined, 'Source: curtailmentFactor present');
-
-    // ── Semantic invariants on source ──
-    t.assertOK(srcOut.actual <= srcOut.capacity + 1,
-      'Source: actual ≤ capacity', `actual=${srcOut.actual} cap=${srcOut.capacity}`);
-    if (isFinite(srcOut.demand) && srcOut.demand >= 0) {
-      t.assertOK(srcOut.actual <= srcOut.demand + 1,
-        'Source: actual ≤ demand', `actual=${srcOut.actual} demand=${srcOut.demand}`);
-    }
-    if (isFinite(srcOut.demand) && srcOut.demand > 0) {
-      const expectedCF = srcOut.actual / srcOut.demand;
-      t.assertClose(srcOut.curtailmentFactor, expectedCF, 0.001,
-        'Source: cf ≈ actual/demand');
-    }
-
-    // ── Motor mech_out: canonical keys ──
-    const m1out = t.port(mot1, 'mech_out');
-    t.assertOK(m1out, 'Motor1 mech_out exists');
-    t.assertOK(m1out.capacity !== undefined, 'Motor1 mech: capacity present');
-    t.assertOK(m1out.actual !== undefined, 'Motor1 mech: actual present');
-    t.assertOK(isFinite(m1out.actual) && m1out.actual >= 0, 'Motor1 mech: actual finite >= 0');
-
-    // ── Conservation: Σ motor draws ≈ source actual ──
-    const m1 = t.ud(mot1)?.last;
-    const m2 = t.ud(mot2)?.last;
-    const totalDraw = (m1?.W_elec_W || 0) + (m2?.W_elec_W || 0);
-    t.assertClose(totalDraw, srcOut.actual, srcOut.actual * 0.01,
-      'Σ motor elec draws ≈ source actual');
-
-    // ── STREAM_CONTRACTS.POWER.lifecycle exists ──
-    t.assertOK(STREAM_CONTRACTS.POWER.lifecycle, 'POWER.lifecycle exists');
-    t.assertOK(STREAM_CONTRACTS.POWER.lifecycle.capacity, 'lifecycle.capacity documented');
-    t.assertOK(STREAM_CONTRACTS.POWER.lifecycle.demand, 'lifecycle.demand documented');
-    t.assertOK(STREAM_CONTRACTS.POWER.lifecycle.actual, 'lifecycle.actual documented');
-    t.assertOK(STREAM_CONTRACTS.POWER.lifecycle.curtailmentFactor, 'lifecycle.curtailmentFactor documented');
-  });
-
-  test('Hub allocation — per-consumer dispatch conservation', t => {
-    // Hub with one fixed source + one battery, two consumers of different size.
-    // Verify: Σ consumer allocated ≈ hub elec_out actual,
-    //         hub demand = Σ consumer demands,
-    //         battery fills gap between fixed supply and demand.
-
-    const srcE = t.place('source_electrical', 0, 0, { maxPower: 500 });   // 500 kW
-    const bat  = t.place('battery', 0, 4, { maxPower: 300 });             // 300 kW
-    const hub  = t.place('power_hub', 4, 2);
-
-    // Two motors with different downstream loads
-    const mot1 = t.place('motor', 8, 0, { eta: 0.95 });
-    const mot2 = t.place('motor', 8, 4, { eta: 0.95 });
-
-    const srcW1 = t.place('source', 12, -2, { species:'H2O', nDot:5000, T:298.15, P:100000, phaseConstraint:'L' });
-    const srcW2 = t.place('source', 12, 2,  { species:'H2O', nDot:3000, T:298.15, P:100000, phaseConstraint:'L' });
-
-    const pmp1 = t.place('pump', 16, 0, { Pout:3000000, eta:0.75 });
-    const pmp2 = t.place('pump', 16, 4, { Pout:2000000, eta:0.75 });
-
-    const snk1 = t.place('sink', 20, 0);
-    const snk2 = t.place('sink', 20, 4);
-
-    // Wire sources → hub
-    t.wire(srcE, 'out', hub, 'elec_in');
-    t.wire(bat, 'out', hub, 'elec_in');
-    // Wire hub → motors
-    t.wire(hub, 'elec_out', mot1, 'elec_in');
-    t.wire(hub, 'elec_out', mot2, 'elec_in');
-    // Wire motors → pumps → sinks
-    t.wire(mot1, 'mech_out', pmp1, 'power_in');
-    t.wire(mot2, 'mech_out', pmp2, 'power_in');
-    t.wire(srcW1, 'out', pmp1, 'mat_in');
-    t.wire(srcW2, 'out', pmp2, 'mat_in');
-    t.wire(pmp1, 'mat_out', snk1, 'in');
-    t.wire(pmp2, 'mat_out', snk2, 'in');
-
-    t.solve();
-
-    // ── Hub diagnostics ──
-    const hubUD = t.ud(hub);
-    t.assertOK(hubUD, 'Hub unitData exists');
-    const hubLast = hubUD.last;
-    t.assertOK(hubLast.fixedSupply_W > 0, 'Hub: fixedSupply > 0');
-    t.assertOK(hubLast.totalDemand_W > 0, 'Hub: totalDemand > 0');
-    t.assertOK(hubLast.totalSupply_W > 0, 'Hub: totalSupply > 0');
-
-    // ── Hub elec_out canonical keys ──
-    const hubOut = t.port(hub, 'elec_out');
-    t.assertOK(hubOut, 'Hub elec_out exists');
-    t.assertOK(hubOut.capacity !== undefined, 'Hub out: capacity present');
-    t.assertOK(hubOut.actual !== undefined, 'Hub out: actual present');
-    t.assertOK(hubOut.demand !== undefined, 'Hub out: demand present');
-    t.assertOK(hubOut.curtailmentFactor !== undefined, 'Hub out: curtailmentFactor present');
-
-    // ── Conservation: hub actual = fixedSupply + batteryDraw ──
-    t.assertClose(hubOut.actual, hubLast.fixedSupply_W + hubLast.batteryDraw_W, 100,
-      'Hub actual = fixed + battery draw');
-
-    // ── Per-consumer allocation sums ──
-    const alloc = hubLast.consumerAllocation;
-    if (alloc) {
-      let sumAlloc = 0;
-      for (const key of Object.keys(alloc)) {
-        sumAlloc += alloc[key].allocated_W || 0;
-      }
-      t.assertClose(sumAlloc, hubOut.actual, hubOut.actual * 0.01,
-        'Σ consumer allocations ≈ hub actual');
-    }
-
-    // ── Battery fills gap (not full capacity when demand is lower) ──
-    const gap = Math.max(0, hubLast.totalDemand_W - hubLast.fixedSupply_W);
-    t.assertClose(hubLast.batteryDraw_W, Math.min(gap, hubLast.batteryMax_W), 100,
-      'Battery draw = min(gap, batteryMax)');
-
-    // ── Both motors got power ──
-    const m1 = t.ud(mot1)?.last;
-    const m2 = t.ud(mot2)?.last;
-    t.assertOK(m1 && m1.W_elec_W > 0, 'Motor1 drew power');
-    t.assertOK(m2 && m2.W_elec_W > 0, 'Motor2 drew power');
-  });
-
-  test('normalizeNonMaterialStream — complete normalization', t => {
-    // ── Legacy form: only 'available', no capacity ──
-    const leg1 = { type: StreamType.ELECTRICAL, available: 5000, actual: 3000, demand: 4000 };
-    normalizeNonMaterialStream(leg1);
-    t.assertOK(leg1.capacity === 5000, 'Legacy: available → capacity');
-    t.assertOK(leg1.curtailmentFactor !== undefined, 'Legacy: curtailmentFactor derived');
-    t.assertClose(leg1.curtailmentFactor, 3000/4000, 0.001, 'Legacy: cf = actual/demand');
-
-    // ── Modern form: capacity already set, no curtailmentFactor ──
-    const mod1 = { type: StreamType.MECHANICAL, capacity: 10000, actual: 8000, demand: 8000 };
-    normalizeNonMaterialStream(mod1);
-    t.assertOK(mod1.capacity === 10000, 'Modern: capacity unchanged');
-    t.assertClose(mod1.curtailmentFactor, 1.0, 0.001, 'Modern: cf derived as 1.0 (no curtailment)');
-
-    // ── Zero demand: curtailmentFactor NOT derived (divide by zero guard) ──
-    const zeroDemand = { type: StreamType.HEAT, capacity: 5000, actual: 0, demand: 0 };
-    normalizeNonMaterialStream(zeroDemand);
-    t.assertOK(zeroDemand.curtailmentFactor === undefined, 'Zero demand: cf not derived (guard)');
-
-    // ── Existing curtailmentFactor preserved ──
-    const withCF = { type: StreamType.ELECTRICAL, capacity: 5000, actual: 3000, demand: 4000, curtailmentFactor: 0.8 };
-    normalizeNonMaterialStream(withCF);
-    t.assertOK(withCF.curtailmentFactor === 0.8, 'Existing cf not overwritten');
-
-    // ── Infinite demand: cf NOT derived (guard for sink semantics) ──
-    const infDemand = { type: StreamType.ELECTRICAL, capacity: 5000, actual: 5000, demand: Infinity };
-    normalizeNonMaterialStream(infDemand);
-    t.assertOK(infDemand.curtailmentFactor === undefined, 'Infinite demand: cf not derived (guard)');
-
-    // ── Missing both available and capacity: neither set ──
-    const bare = { type: StreamType.ELECTRICAL, actual: 1000 };
-    normalizeNonMaterialStream(bare);
-    t.assertOK(bare.capacity === undefined, 'Bare: no capacity fabricated');
-
-    // ── validateStream cross-check: actual > demand ──
-    const overDispatch = { type: StreamType.ELECTRICAL, capacity: 10000, actual: 5000, demand: 3000 };
-    const issues = validateStream(overDispatch, { unitId: 'test', portId: 'out', portType: StreamType.ELECTRICAL });
-    t.assertOK(issues.some(i => i.code === 'POWER_ACTUAL_GT_DEMAND'),
-      'Overdispatch detected: actual > demand');
-  });
-
-  test('No converge-to-zero regression — motors draw non-zero power', t => {
-    // Guards against the pathological case where iterative solver converges
-    // to zero power everywhere because demand starts at 0 and never gets updated.
-    // The fix (v6.1+) uses demand from Step B and scratch change detection.
-
-    // Simple topology: source → motor → pump → sink (water)
-    const srcE = t.place('source_electrical', 0, 0, { maxPower: 2000 });
-    const mot  = t.place('motor', 4, 0, { eta: 0.95 });
-    const srcW = t.place('source', 8, -2, { species:'H2O', nDot:5000, T:298.15, P:100000, phaseConstraint:'L' });
-    const pmp  = t.place('pump', 8, 0, { Pout:3000000, eta:0.75 });
-    const snk  = t.place('sink', 12, 0);
-
-    t.wire(srcE, 'out', mot, 'elec_in');
-    t.wire(mot, 'mech_out', pmp, 'power_in');
-    t.wire(srcW, 'out', pmp, 'mat_in');
-    t.wire(pmp, 'mat_out', snk, 'in');
-
-    const r = t.solveRaw();
-    t.assertOK(r && r.ok, 'Solve converged ok');
-
-    // Motor must have drawn non-zero power
-    const motLast = t.ud(mot)?.last;
-    t.assertOK(motLast, 'Motor last exists');
-    t.assertOK(motLast.W_elec_W > 0, 'Motor drew > 0 W electrical',
-      `W_elec_W=${motLast.W_elec_W?.toFixed(0)}`);
-    t.assertOK(motLast.W_mech_W > 0, 'Motor produced > 0 W mechanical',
-      `W_mech_W=${motLast.W_mech_W?.toFixed(0)}`);
-
-    // Source actual must be non-zero
-    const srcOut = t.port(srcE, 'out');
-    t.assertOK(srcOut.actual > 0, 'Source actual > 0',
-      `actual=${srcOut.actual?.toFixed(0)}`);
-
-    // Pump must have received power
-    const pmpLast = t.ud(pmp)?.last;
-    t.assertOK(pmpLast, 'Pump last exists');
-    t.assertOK(pmpLast.W_shaft_W > 0 || pmpLast.W_shaft > 0,
-      'Pump used > 0 W shaft power');
-
-    // Battery variant: same test with battery instead of source_electrical
-    t.clearScene();
-    const bat  = t.place('battery', 0, 0, { maxPower: 2000 });
-    const mot2 = t.place('motor', 4, 0, { eta: 0.95 });
-    const srcW2 = t.place('source', 8, -2, { species:'H2O', nDot:5000, T:298.15, P:100000, phaseConstraint:'L' });
-    const pmp2  = t.place('pump', 8, 0, { Pout:3000000, eta:0.75 });
-    const snk2  = t.place('sink', 12, 0);
-
-    t.wire(bat, 'out', mot2, 'elec_in');
-    t.wire(mot2, 'mech_out', pmp2, 'power_in');
-    t.wire(srcW2, 'out', pmp2, 'mat_in');
-    t.wire(pmp2, 'mat_out', snk2, 'in');
-
-    const r2 = t.solveRaw();
-    t.assertOK(r2 && r2.ok, 'Battery variant: solve ok');
-
-    const mot2Last = t.ud(mot2)?.last;
-    t.assertOK(mot2Last && mot2Last.W_elec_W > 0,
-      'Battery variant: motor drew > 0 W', `W_elec_W=${mot2Last?.W_elec_W?.toFixed(0)}`);
-
-    const batOut = t.port(bat, 'out');
-    t.assertOK(batOut.actual > 0, 'Battery actual > 0',
-      `actual=${batOut.actual?.toFixed(0)}`);
   });
 
   // ═══════════════════════════════════════════════════════════════════════
