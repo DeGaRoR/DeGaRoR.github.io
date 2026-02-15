@@ -7659,6 +7659,7 @@ function solveScene(scene, options = {}) {
         };
       }
     }
+  }
     
     // Step E: Actual computation for direct-connected non-battery sources
     // (source_electrical, source_mechanical not connected to a hub)
@@ -7710,8 +7711,6 @@ function solveScene(scene, options = {}) {
       _es.actualDraw_W = actualDraw_W;
       _es.directCurtailment = curtailmentFactor;  // [v6.1] consumed by source tick
     }
-
-  }  // end while (changed && iter < MAX_ITER)
 
   // ── Post-loop processing (only needs final converged values) ──
 
