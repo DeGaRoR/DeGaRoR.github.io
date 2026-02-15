@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  PROCESS GRID v6.2.0
+  PROCESS GRID v6.1.0
 
   ─── v6.0.0 ───────────────────────────────────────────────────────────────
   Phase 0 Sanitization (from code review):
@@ -48,24 +48,6 @@
   
   A web-based process simulation and flowsheet design tool.
   
-  ─── v6.2.0 ───────────────────────────────────────────────────────────────
-  XSS surface elimination: ban untrusted innerHTML + UI sanitization tests.
-   html: usages reduced 197 → ~70 (remaining are safe value+unit patterns).
-   innerHTML assignments reduced 16 → 9 (clears, el() handler, statics).
-   Untrusted paths fixed:
-    - addNumberEditor / addSelectEditor: html: label → text: label
-    - Component table: formula, name, phase298, MW, Tc, Pc, ω, Tb → text:
-    - Unit catalog card, units panel card: innerHTML → DOM construction
-    - Validation header: innerHTML with formula/name → DOM construction
-    - Stream header, unit subtitle: html with user names → text: / DOM
-    - Heat warnings, portId display: html → text:
-    - System balance table (item.name): html → balanceRow() helper
-    - Antoine & Cp coefficients, cpLiq: innerHTML → DOM construction
-    - 100 static labels: html: 'X' → text: 'X' (batch)
-   New: balanceRow(style, label, detail, value) safe DOM builder.
-   New security tests 8–10: el(text:), addNumberEditor, balanceRow
-    all verified against <img onerror="window.__xss=1"> payload.
-
   ARCHITECTURE OVERVIEW:
   ─────────────────────────────────────────────────────────────────────────
   
@@ -137,7 +119,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Process Grid — v6.2.0</title>
+  <title>Process Grid — v6.1.0</title>
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
@@ -8931,14 +8913,14 @@ function showUnitLibrary() {
   const titleDiv = el('div', { 
     class: 'unitTitle', 
     style: 'cursor:default;',
-    text: 'Add Unit' 
+    html: 'Add Unit' 
   });
   propEditor.appendChild(titleDiv);
   
   // Subtitle
   const subtitleDiv = el('div', { 
     class: 'unitSubtitle', 
-    text: 'Drag a unit onto the canvas' 
+    html: 'Drag a unit onto the canvas' 
   });
   propEditor.appendChild(subtitleDiv);
   
@@ -8962,13 +8944,12 @@ function showUnitLibrary() {
       const card = document.createElement('div');
       card.className = 'unitLibraryCard';
       card.draggable = true;
-      // [v6.2] XSS: def.name/defId — built safely via DOM
-      const nameDiv = el('div', { class: 'name' });
-      const swatch = el('span', { class: 'swatch', style: `background:${def.color}` });
-      nameDiv.appendChild(swatch);
-      nameDiv.appendChild(document.createTextNode(def.name));
-      card.appendChild(nameDiv);
-      card.appendChild(el('div', { class: 'desc', text: def.defId }));
+      card.innerHTML = `
+        <div class="name">
+          <span class="swatch" style="background:${def.color}"></span>${def.name}
+        </div>
+        <div class="desc">${def.defId}</div>
+      `;
       
       card.addEventListener('dragstart', (ev) => {
         ui.dragDefId = def.defId;
@@ -9000,9 +8981,10 @@ function buildUnitsPanel() {
       style: `cursor:pointer; padding:12px; margin-bottom:8px; border:1px solid ${sys.id === activeId ? '#3b82f6' : '#2a2f3a'}; border-radius:8px; background:${sys.id === activeId ? '#3b82f611' : 'transparent'};`
     });
     
-    // [v6.2] XSS: sys.name/desc from model registry
-    card.appendChild(el('div', { style: 'font-weight:700; margin-bottom:4px;', text: sys.name }));
-    card.appendChild(el('div', { class: 'small', text: sys.desc }));
+    card.innerHTML = `
+      <div style="font-weight:700; margin-bottom:4px;">${sys.name}</div>
+      <div class="small">${sys.desc}</div>
+    `;
     
     card.addEventListener('click', () => {
       models.setActive('units', sys.id);
@@ -9226,7 +9208,7 @@ function buildComponentsPanel() {
   const validationBtn = el('button', {
     class: 'btn',
     style: 'margin-bottom: 12px; width: 100%;',
-    text: '🔍 Validate Component Database'
+    html: '🔍 Validate Component Database'
   });
   
   validationBtn.addEventListener('click', () => {
@@ -9262,7 +9244,7 @@ function buildComponentsPanel() {
   for (const label of headerCells) {
     headerRow.appendChild(el('th', {
       style: 'padding:8px; text-align:left; border-bottom:2px solid #2a2f3a; font-weight:700; font-size:11px; text-transform:uppercase; letter-spacing:0.5px;',
-      text: label
+      html: label
     }));
   }
   thead.appendChild(headerRow);
@@ -9286,56 +9268,56 @@ function buildComponentsPanel() {
     // Formula (bold)
     row.appendChild(el('td', {
       style: 'padding:10px 8px; font-weight:700; color:#60a5fa;',
-      text: comp.formula   // [v6.2] XSS: imported JSON field
+      html: comp.formula
     }));
     
     // Name
     row.appendChild(el('td', {
       style: 'padding:10px 8px;',
-      text: comp.name      // [v6.2] XSS: imported JSON field
+      html: comp.name
     }));
     
     // MW
     row.appendChild(el('td', {
       style: 'padding:10px 8px; font-family:monospace;',
-      text: comp.MW.toFixed(3)
+      html: comp.MW.toFixed(3)
     }));
     
     // Tc
     row.appendChild(el('td', {
       style: 'padding:10px 8px; font-family:monospace;',
-      text: comp.Tc.toFixed(1) + ' K'
+      html: comp.Tc.toFixed(1) + ' K'
     }));
     
     // Pc
     row.appendChild(el('td', {
       style: 'padding:10px 8px; font-family:monospace;',
-      text: (comp.Pc / 100000).toFixed(2) + ' bar'
+      html: (comp.Pc / 100000).toFixed(2) + ' bar'
     }));
     
     // omega
     row.appendChild(el('td', {
       style: 'padding:10px 8px; font-family:monospace;',
-      text: comp.omega.toFixed(3)
+      html: comp.omega.toFixed(3)
     }));
     
     // Tb
     row.appendChild(el('td', {
       style: 'padding:10px 8px; font-family:monospace;',
-      text: comp.Tb.toFixed(1) + ' K'
+      html: comp.Tb.toFixed(1) + ' K'
     }));
     
     // Phase at 298K
     row.appendChild(el('td', {
       style: 'padding:10px 8px;',
-      text: comp.phase298     // [v6.2] XSS: imported JSON field
+      html: comp.phase298
     }));
     
     // Details button
     const detailsBtn = el('button', {
       class: 'btn',
       style: 'padding:4px 8px; font-size:11px; margin:0;',
-      text: 'View'
+      html: 'View'
     });
     
     detailsBtn.addEventListener('click', (e) => {
@@ -9530,13 +9512,11 @@ function showComponentDetails(comp) {
         font-size: 12px;
       `;
       
-      // [v6.2] XSS: coefficients from imported data — built safely
-      for (const [key, val] of [['A', range.A.toFixed(5)], ['B', range.B.toFixed(2)], ['C', range.C.toFixed(2)]]) {
-        const d = el('div');
-        d.appendChild(el('strong', { text: key + ':' }));
-        d.appendChild(document.createTextNode(' ' + val));
-        coeffs.appendChild(d);
-      }
+      coeffs.innerHTML = `
+        <div><strong>A:</strong> ${range.A.toFixed(5)}</div>
+        <div><strong>B:</strong> ${range.B.toFixed(2)}</div>
+        <div><strong>C:</strong> ${range.C.toFixed(2)}</div>
+      `;
       antoineSection.appendChild(coeffs);
       
       if (range.Tmin || range.Tmax) {
@@ -9593,15 +9573,13 @@ function showComponentDetails(comp) {
       font-size: 12px;
     `;
     
-    // [v6.2] XSS: coefficients from imported data — built safely
-    const cpCoeffs = [['A', comp.cpig.A], ['B', comp.cpig.B], ['C', comp.cpig.C], ['D', comp.cpig.D]];
-    if (comp.cpig.E !== undefined) cpCoeffs.push(['E', comp.cpig.E]);
-    for (const [key, val] of cpCoeffs) {
-      const d = el('div');
-      d.appendChild(el('strong', { text: key + ':' }));
-      d.appendChild(document.createTextNode(' ' + val));
-      coeffs.appendChild(d);
-    }
+    coeffs.innerHTML = `
+      <div><strong>A:</strong> ${comp.cpig.A}</div>
+      <div><strong>B:</strong> ${comp.cpig.B}</div>
+      <div><strong>C:</strong> ${comp.cpig.C}</div>
+      <div><strong>D:</strong> ${comp.cpig.D}</div>
+      ${comp.cpig.E !== undefined ? `<div><strong>E:</strong> ${comp.cpig.E}</div>` : ''}
+    `;
     cpSection.appendChild(coeffs);
     
     dialog.appendChild(cpSection);
@@ -9618,10 +9596,7 @@ function showComponentDetails(comp) {
       font-family: monospace;
       font-size: 12px;
     `;
-    cpLiqSection.appendChild(el('strong', { text: 'Liquid Cp: ' }));
-    cpLiqSection.appendChild(document.createTextNode(
-      typeof comp.cpLiq === 'number' ? comp.cpLiq.toFixed(1) + ' J/(mol·K)' : JSON.stringify(comp.cpLiq)
-    ));
+    cpLiqSection.innerHTML = `<strong>Liquid Cp:</strong> ${typeof comp.cpLiq === 'number' ? comp.cpLiq.toFixed(1) + ' J/(mol·K)' : JSON.stringify(comp.cpLiq)}`;
     dialog.appendChild(cpLiqSection);
   }
   
@@ -9734,15 +9709,13 @@ function showValidationReport(results) {
       align-items: center;
       gap: 8px;
     `;
-    // [v6.2] XSS: formula and component name from registry/import
-    compHeader.appendChild(el('span', { 
-      style: `color: ${result.valid ? '#22c55e' : '#ef4444'};`, 
-      text: result.valid ? '✓' : '✗' 
-    }));
-    compHeader.appendChild(document.createTextNode(' '));
-    compHeader.appendChild(el('span', { style: 'color: #60a5fa;', text: formula }));
-    compHeader.appendChild(document.createTextNode(' '));
-    compHeader.appendChild(el('span', { style: 'opacity: 0.7;', text: '— ' + ComponentRegistry.get(formula).name }));
+    compHeader.innerHTML = `
+      <span style="color: ${result.valid ? '#22c55e' : '#ef4444'};">
+        ${result.valid ? '✓' : '✗'}
+      </span>
+      <span style="color: #60a5fa;">${formula}</span>
+      <span style="opacity: 0.7;">— ${ComponentRegistry.get(formula).name}</span>
+    `;
     compSection.appendChild(compHeader);
     
     // Errors
@@ -9873,19 +9846,11 @@ function escapeHtml(s) {
     .replace(/'/g, '&#39;');
 }
 
-// [v6.2] XSS POLICY:
-// • Default rule: all dynamic text must use el(..., {text: ...}) or textContent.
-// • {html: ...} is allowed ONLY for trusted static markup containing no
-//   user/imported content.  Remaining html: usages are value+unit patterns
-//   (e.g. `${num.toFixed(2)}<span class="propUnit">kW</span>`) where both
-//   parts are provably safe: numbers via .toFixed() and hardcoded unit symbols.
-// • Any place needing mixed formatting with untrusted data must build child
-//   nodes (el('span',{text:...})) instead of concatenating HTML strings.
 function el(tag, attrs = {}, children = []) {
   const e = document.createElement(tag);
   for (const [k, v] of Object.entries(attrs)) {
     if (k === 'class') e.className = v;
-    else if (k === 'html') e.innerHTML = v;       // trusted markup only — see policy above
+    else if (k === 'html') e.innerHTML = v;       // trusted markup only
     else if (k === 'text') e.textContent = v;      // [v5.4.1] safe text (no HTML parsing)
     else e.setAttribute(k, v);
   }
@@ -9893,20 +9858,9 @@ function el(tag, attrs = {}, children = []) {
   return e;
 }
 
-// [v6.2] Safe balance-row builder — avoids innerHTML with untrusted item.name / species.
-function balanceRow(style, label, detail, value) {
-  const row = el('div', { style });
-  const left = el('span');
-  left.appendChild(document.createTextNode(label + ' '));
-  if (detail) left.appendChild(el('span', { style: 'opacity:0.5; font-size:10px', text: detail }));
-  row.appendChild(left);
-  row.appendChild(el('span', { style: 'font-weight:600', text: value }));
-  return row;
-}
-
 function addNumberEditor(container, label, get, set, step = 0.1) {
   const row = el('div', { class: 'row' });
-  row.appendChild(el('label', { text: label }));  // [v6.2] XSS: caller-provided
+  row.appendChild(el('label', { html: label }));
   
   const inp = el('input', { type: 'number', step: String(step) });
   inp.value = String(get() ?? '');
@@ -9918,7 +9872,7 @@ function addNumberEditor(container, label, get, set, step = 0.1) {
 
 function addSelectEditor(container, label, get, set, options) {
   const row = el('div', { class: 'row' });
-  row.appendChild(el('label', { text: label }));  // [v6.2] XSS: caller-provided
+  row.appendChild(el('label', { html: label }));
   
   const sel = el('select', {});
   for (const [val, txt] of options) {
@@ -9997,7 +9951,7 @@ function renderStreamProperties(container, s) {
   if (!s) {
     container.appendChild(el('div', { 
       class: 'small', 
-      text: 'No data available' 
+      html: 'No data available' 
     }));
     return;
   }
@@ -10009,11 +9963,11 @@ function renderStreamProperties(container, s) {
     // GROUP 1: Temperature & Pressure
     propGrid.appendChild(el('div', { 
       style: 'grid-column:1/-1; margin-top:4px; margin-bottom:6px; font-size:11px; font-weight:700; opacity:0.7; text-transform:uppercase; letter-spacing:0.5px;',
-      text: 'Conditions'
+      html: 'Conditions'
     }));
     
     propGrid.appendChild(el('div', { class: 'propItem' }, [
-      el('div', { class: 'propLabel', text: 'Temperature' }),
+      el('div', { class: 'propLabel', html: 'Temperature' }),
       el('div', { 
         class: 'propValue', 
         html: `${unitSys.temperature.from(s.T).toFixed(unitSys.temperature.decimals)}<span class="propUnit">${unitSys.temperature.symbol}</span>` 
@@ -10021,7 +9975,7 @@ function renderStreamProperties(container, s) {
     ]));
     
     propGrid.appendChild(el('div', { class: 'propItem' }, [
-      el('div', { class: 'propLabel', text: 'Pressure' }),
+      el('div', { class: 'propLabel', html: 'Pressure' }),
       el('div', { 
         class: 'propValue', 
         html: `${unitSys.pressure.from(s.P).toFixed(unitSys.pressure.decimals)}<span class="propUnit">${unitSys.pressure.symbol}</span>` 
@@ -10031,7 +9985,7 @@ function renderStreamProperties(container, s) {
     // GROUP 2: Phase & Composition
     propGrid.appendChild(el('div', { 
       style: 'grid-column:1/-1; margin-top:12px; margin-bottom:6px; font-size:11px; font-weight:700; opacity:0.7; text-transform:uppercase; letter-spacing:0.5px;',
-      text: 'Phase & Composition'
+      html: 'Phase & Composition'
     }));
     
     const phaseText = s.phase === 'V' ? 'Vapor' : 
@@ -10039,11 +9993,11 @@ function renderStreamProperties(container, s) {
                       s.phase === 'VL' ? `Two-Phase (β=${s.vaporFraction.toFixed(3)})` : 
                       'Unknown';
     propGrid.appendChild(el('div', { class: 'propItem' }, [
-      el('div', { class: 'propLabel', text: 'Phase' }),
+      el('div', { class: 'propLabel', html: 'Phase' }),
       el('div', { 
         class: 'propValue', 
         style: 'font-size:12px;',
-        text: phaseText
+        html: phaseText
       })
     ]));
     
@@ -10059,7 +10013,7 @@ function renderStreamProperties(container, s) {
       const compSection = el('div', { style: 'grid-column:1/-1; margin-top:6px;' });
       compSection.appendChild(el('div', { 
         class: 'propLabel', 
-        text: 'Components', 
+        html: 'Components', 
         style: 'margin-bottom:6px;' 
       }));
       
@@ -10081,11 +10035,11 @@ function renderStreamProperties(container, s) {
     // GROUP 3: Flowrates
     propGrid.appendChild(el('div', { 
       style: 'grid-column:1/-1; margin-top:12px; margin-bottom:6px; font-size:11px; font-weight:700; opacity:0.7; text-transform:uppercase; letter-spacing:0.5px;',
-      text: 'Flowrates'
+      html: 'Flowrates'
     }));
     
     propGrid.appendChild(el('div', { class: 'propItem' }, [
-      el('div', { class: 'propLabel', text: 'Molar' }),
+      el('div', { class: 'propLabel', html: 'Molar' }),
       el('div', { 
         class: 'propValue', 
         html: `${unitSys.molarFlow.from(flowrates.nTotal).toFixed(unitSys.molarFlow.decimals)}<span class="propUnit">${unitSys.molarFlow.symbol}</span>` 
@@ -10093,7 +10047,7 @@ function renderStreamProperties(container, s) {
     ]));
     
     propGrid.appendChild(el('div', { class: 'propItem' }, [
-      el('div', { class: 'propLabel', text: 'Mass' }),
+      el('div', { class: 'propLabel', html: 'Mass' }),
       el('div', { 
         class: 'propValue', 
         html: `${unitSys.massFlow.from(flowrates.mTotal).toFixed(unitSys.massFlow.decimals)}<span class="propUnit">${unitSys.massFlow.symbol}</span>` 
@@ -10101,7 +10055,7 @@ function renderStreamProperties(container, s) {
     ]));
     
     propGrid.appendChild(el('div', { class: 'propItem' }, [
-      el('div', { class: 'propLabel', text: 'Volumetric' }),
+      el('div', { class: 'propLabel', html: 'Volumetric' }),
       el('div', { 
         class: 'propValue', 
         html: `${unitSys.volumeFlow.from(flowrates.vTotal).toFixed(unitSys.volumeFlow.decimals)}<span class="propUnit">${unitSys.volumeFlow.symbol}</span>` 
@@ -10112,12 +10066,12 @@ function renderStreamProperties(container, s) {
     if (s.hMolarMix !== undefined || s.Hdot_J_s !== undefined) {
       propGrid.appendChild(el('div', { 
         style: 'grid-column:1/-1; margin-top:12px; margin-bottom:6px; font-size:11px; font-weight:700; opacity:0.7; text-transform:uppercase; letter-spacing:0.5px;',
-        text: 'Energy (Enthalpy)'
+        html: 'Energy (Enthalpy)'
       }));
       
       if (s.hMolarMix !== undefined) {
         propGrid.appendChild(el('div', { class: 'propItem' }, [
-          el('div', { class: 'propLabel', text: 'Molar Enthalpy' }),
+          el('div', { class: 'propLabel', html: 'Molar Enthalpy' }),
           el('div', { 
             class: 'propValue', 
             html: `${formatEnthalpy_kJmol(s.hMolarMix)}<span class="propUnit">kJ/mol</span>` 
@@ -10127,7 +10081,7 @@ function renderStreamProperties(container, s) {
       
       if (s.Hdot_J_s !== undefined) {
         propGrid.appendChild(el('div', { class: 'propItem' }, [
-          el('div', { class: 'propLabel', text: 'Enthalpy Flow' }),
+          el('div', { class: 'propLabel', html: 'Enthalpy Flow' }),
           el('div', { 
             class: 'propValue', 
             html: `${formatPower_kW(s.Hdot_J_s)}<span class="propUnit">kW</span>` 
@@ -10142,7 +10096,7 @@ function renderStreamProperties(container, s) {
     const actual_W = s.actual ?? s.available ?? 0;
     
     propGrid.appendChild(el('div', { class: 'propItem' }, [
-      el('div', { class: 'propLabel', text: 'Capacity' }),
+      el('div', { class: 'propLabel', html: 'Capacity' }),
       el('div', { 
         class: 'propValue', 
         html: `${(capacity_W/1000).toFixed(1)}<span class="propUnit">kW</span>` 
@@ -10152,7 +10106,7 @@ function renderStreamProperties(container, s) {
     // Show actual if it differs from capacity (demand-limited)
     if (Math.abs(actual_W - capacity_W) > 1) {
       propGrid.appendChild(el('div', { class: 'propItem' }, [
-        el('div', { class: 'propLabel', text: 'Actual' }),
+        el('div', { class: 'propLabel', html: 'Actual' }),
         el('div', { 
           class: 'propValue', 
           style: actual_W < capacity_W - 1 ? 'color:#fbbf24' : '',
@@ -10163,7 +10117,7 @@ function renderStreamProperties(container, s) {
     
     if (s.demand !== undefined) {
       propGrid.appendChild(el('div', { class: 'propItem' }, [
-        el('div', { class: 'propLabel', text: 'Demand' }),
+        el('div', { class: 'propLabel', html: 'Demand' }),
         el('div', { 
           class: 'propValue', 
           html: `${(s.demand/1000).toFixed(1)}<span class="propUnit">kW</span>` 
@@ -10190,7 +10144,7 @@ function renderStreamProperties(container, s) {
     const actual_W = s.actual ?? s.available ?? 0;
     
     propGrid.appendChild(el('div', { class: 'propItem' }, [
-      el('div', { class: 'propLabel', text: 'Capacity' }),
+      el('div', { class: 'propLabel', html: 'Capacity' }),
       el('div', { 
         class: 'propValue', 
         html: `${(capacity_W/1000).toFixed(1)}<span class="propUnit">kW</span>` 
@@ -10200,7 +10154,7 @@ function renderStreamProperties(container, s) {
     // Show actual if it differs from capacity
     if (Math.abs(actual_W - capacity_W) > 1) {
       propGrid.appendChild(el('div', { class: 'propItem' }, [
-        el('div', { class: 'propLabel', text: 'Actual' }),
+        el('div', { class: 'propLabel', html: 'Actual' }),
         el('div', { 
           class: 'propValue', 
           style: actual_W < capacity_W - 1 ? 'color:#fbbf24' : '',
@@ -10211,7 +10165,7 @@ function renderStreamProperties(container, s) {
     
     if (s.demand !== undefined && s.demand > 0) {
       propGrid.appendChild(el('div', { class: 'propItem' }, [
-        el('div', { class: 'propLabel', text: 'Demand' }),
+        el('div', { class: 'propLabel', html: 'Demand' }),
         el('div', { 
           class: 'propValue', 
           html: `${(s.demand/1000).toFixed(1)}<span class="propUnit">kW</span>` 
@@ -10423,10 +10377,10 @@ function updatePropertiesPanel() {
     titleDiv.appendChild(nameInput);
     headerDiv.appendChild(titleDiv);
     
-    // [v6.2] XSS: def.defId/category — built safely via DOM
-    const subtitleDiv = el('div', { class: 'unitSubtitle' });
-    subtitleDiv.appendChild(document.createTextNode(def.defId + ' · '));
-    subtitleDiv.appendChild(el('span', { style: `color:${def.color}`, text: def.category }));
+    const subtitleDiv = el('div', { 
+      class: 'unitSubtitle', 
+      html: `${def.defId} · <span style="color:${def.color}">${def.category}</span>` 
+    });
     headerDiv.appendChild(subtitleDiv);
     
     propEditor.appendChild(headerDiv);
@@ -10511,7 +10465,7 @@ function updatePropertiesPanel() {
       // Resistance heater — efficiency is always 1.00 (1st law), display only
       u.params.eta = 1.00;
       const etaRow = el('div', { class: 'propItem' }, [
-        el('div', { class: 'propLabel', text: 'Efficiency (-)' }),
+        el('div', { class: 'propLabel', html: 'Efficiency (-)' }),
         el('div', { class: 'propValue', style: 'opacity:0.6;', html: '1.00 <span style="font-size:10px; opacity:0.7;">(fixed)</span>' })
       ]);
       paramsSection.content.appendChild(etaRow);
@@ -10634,7 +10588,7 @@ function updatePropertiesPanel() {
       const modeLabel = el('div', { 
         class: 'small', 
         style: 'margin-bottom:8px; opacity:0.8;',
-        text: 'Modes: approach temp (default) · outlet temp setpoint · UA/NTU (set via params)'
+        html: 'Modes: approach temp (default) · outlet temp setpoint · UA/NTU (set via params)'
       });
       paramsSection.content.appendChild(modeLabel);
       
@@ -10681,7 +10635,7 @@ function updatePropertiesPanel() {
       propsSection.content.appendChild(el('div', { 
         class: 'small', 
         style: 'padding: 8px 0; opacity:0.6;',
-        text: 'Not computed yet — press Run' 
+        html: 'Not computed yet — press Run' 
       }));
     } else if (u.defId === 'sink') {
       // For sink, show incoming stream properties in Properties section
@@ -10691,7 +10645,7 @@ function updatePropertiesPanel() {
         propsSection.content.appendChild(el('div', { 
           class: 'small', 
           style: 'padding: 8px 0; opacity:0.6;',
-          text: 'No incoming stream' 
+          html: 'No incoming stream' 
         }));
       }
     } else {
@@ -10721,7 +10675,7 @@ function updatePropertiesPanel() {
         hxBox.appendChild(el('div', { 
           class: 'small', 
           style: 'font-weight:700; margin-bottom:8px; opacity:0.8; text-transform:uppercase;', 
-          text: '🔄 Heat Exchange' 
+          html: '🔄 Heat Exchange' 
         }));
         const dg = el('div', { class: 'propGrid' });
 
@@ -10733,23 +10687,23 @@ function updatePropertiesPanel() {
         const fmtT = (T_K) => `${unitSys.temperature.from(T_K).toFixed(1)}<span class="propUnit">${unitSys.temperature.symbol}</span>`;
 
         dg.appendChild(el('div', { class: 'propItem' }, [
-          el('div', { class: 'propLabel', text: 'T hot in' }),
+          el('div', { class: 'propLabel', html: 'T hot in' }),
           el('div', { class: 'propValue', html: fmtT(Thi) })
         ]));
         dg.appendChild(el('div', { class: 'propItem' }, [
-          el('div', { class: 'propLabel', text: 'T hot out' }),
+          el('div', { class: 'propLabel', html: 'T hot out' }),
           el('div', { class: 'propValue', html: fmtT(Tho) })
         ]));
         dg.appendChild(el('div', { class: 'propItem' }, [
-          el('div', { class: 'propLabel', text: 'T cold in' }),
+          el('div', { class: 'propLabel', html: 'T cold in' }),
           el('div', { class: 'propValue', html: fmtT(Tci) })
         ]));
         dg.appendChild(el('div', { class: 'propItem' }, [
-          el('div', { class: 'propLabel', text: 'T cold out' }),
+          el('div', { class: 'propLabel', html: 'T cold out' }),
           el('div', { class: 'propValue', html: fmtT(Tco) })
         ]));
         dg.appendChild(el('div', { class: 'propItem' }, [
-          el('div', { class: 'propLabel', text: 'Duty' }),
+          el('div', { class: 'propLabel', html: 'Duty' }),
           el('div', { class: 'propValue', html: `${ud.last.Q.toFixed(2)}<span class="propUnit">kW</span>` })
         ]));
 
@@ -10757,14 +10711,14 @@ function updatePropertiesPanel() {
         if (pinch !== undefined) {
           const pinchColor = ud.last.hxCross ? '#ef4444' : (pinch < 5 ? '#f97316' : '#6ee7b7');
           dg.appendChild(el('div', { class: 'propItem' }, [
-            el('div', { class: 'propLabel', text: 'ΔT min (pinch)' }),
+            el('div', { class: 'propLabel', html: 'ΔT min (pinch)' }),
             el('div', { class: 'propValue', style: `color:${pinchColor};`, html: `${pinch.toFixed(2)}<span class="propUnit">K</span>` })
           ]));
         }
 
         if (ud.last.effectiveness && ud.last.effectiveness !== 'N/A') {
           dg.appendChild(el('div', { class: 'propItem' }, [
-            el('div', { class: 'propLabel', text: 'Effectiveness' }),
+            el('div', { class: 'propLabel', html: 'Effectiveness' }),
             el('div', { class: 'propValue', html: `${ud.last.effectiveness}<span class="propUnit">%</span>` })
           ]));
         }
@@ -10792,7 +10746,7 @@ function updatePropertiesPanel() {
         powerBox.appendChild(el('div', { 
           class: 'small', 
           style: 'font-weight:700; margin-bottom:8px; opacity:0.8; text-transform:uppercase;', 
-          text: '⚡ Power & Pressure' 
+          html: '⚡ Power & Pressure' 
         }));
         
         const dataGrid = el('div', { class: 'propGrid' });
@@ -10803,11 +10757,11 @@ function updatePropertiesPanel() {
           const Pact = unitSys.pressure.from(ud.last.Pout_actual);
           const isCurt = ud.last.curtailed;
           dataGrid.appendChild(el('div', { class: 'propItem' }, [
-            el('div', { class: 'propLabel', text: 'P setpoint' }),
+            el('div', { class: 'propLabel', html: 'P setpoint' }),
             el('div', { class: 'propValue', html: `${Pset.toFixed(unitSys.pressure.decimals)}<span class="propUnit">${unitSys.pressure.symbol}</span>` })
           ]));
           dataGrid.appendChild(el('div', { class: 'propItem' }, [
-            el('div', { class: 'propLabel', text: 'P actual' }),
+            el('div', { class: 'propLabel', html: 'P actual' }),
             el('div', { class: 'propValue', style: isCurt ? 'color:#f97316;' : '', 
               html: `${Pact.toFixed(unitSys.pressure.decimals)}<span class="propUnit">${unitSys.pressure.symbol}</span>` })
           ]));
@@ -10815,14 +10769,14 @@ function updatePropertiesPanel() {
         
         // Shaft power actual (W → kW)
         dataGrid.appendChild(el('div', { class: 'propItem' }, [
-          el('div', { class: 'propLabel', text: 'Shaft power' }),
+          el('div', { class: 'propLabel', html: 'Shaft power' }),
           el('div', { class: 'propValue', html: `${(ud.last.W_shaft/1000).toFixed(2)}<span class="propUnit">kW</span>` })
         ]));
         
         // Shaft power setpoint if curtailed
         if (ud.last.curtailed && ud.last.W_shaft_setpoint !== undefined) {
           dataGrid.appendChild(el('div', { class: 'propItem' }, [
-            el('div', { class: 'propLabel', text: 'Shaft needed' }),
+            el('div', { class: 'propLabel', html: 'Shaft needed' }),
             el('div', { class: 'propValue', style: 'color:#f97316;', 
               html: `${(ud.last.W_shaft_setpoint/1000).toFixed(2)}<span class="propUnit">kW</span>` })
           ]));
@@ -10831,12 +10785,12 @@ function updatePropertiesPanel() {
         // Hydraulic/Isentropic power
         if (ud.last.W_hydraulic !== undefined) {
           dataGrid.appendChild(el('div', { class: 'propItem' }, [
-            el('div', { class: 'propLabel', text: 'Hydraulic' }),
+            el('div', { class: 'propLabel', html: 'Hydraulic' }),
             el('div', { class: 'propValue', html: `${(ud.last.W_hydraulic/1000).toFixed(2)}<span class="propUnit">kW</span>` })
           ]));
         } else if (ud.last.W_isentropic !== undefined) {
           dataGrid.appendChild(el('div', { class: 'propItem' }, [
-            el('div', { class: 'propLabel', text: 'Isentropic' }),
+            el('div', { class: 'propLabel', html: 'Isentropic' }),
             el('div', { class: 'propValue', html: `${(ud.last.W_isentropic/1000).toFixed(2)}<span class="propUnit">kW</span>` })
           ]));
         }
@@ -10844,7 +10798,7 @@ function updatePropertiesPanel() {
         // Efficiency
         if (ud.last.eta !== undefined) {
           dataGrid.appendChild(el('div', { class: 'propItem' }, [
-            el('div', { class: 'propLabel', text: 'Efficiency' }),
+            el('div', { class: 'propLabel', html: 'Efficiency' }),
             el('div', { class: 'propValue', html: `${(ud.last.eta * 100).toFixed(0)}<span class="propUnit">%</span>` })
           ]));
         }
@@ -10860,14 +10814,14 @@ function updatePropertiesPanel() {
         heatBox.appendChild(el('div', { 
           class: 'small', 
           style: 'font-weight:700; margin-bottom:8px; opacity:0.8; text-transform:uppercase;', 
-          text: '🔥 Heat Duty' 
+          html: '🔥 Heat Duty' 
         }));
         
         const dataGrid = el('div', { class: 'propGrid' });
         
         // T setpoint
         dataGrid.appendChild(el('div', { class: 'propItem' }, [
-          el('div', { class: 'propLabel', text: 'T setpoint' }),
+          el('div', { class: 'propLabel', html: 'T setpoint' }),
           el('div', { class: 'propValue', 
             html: `${unitSys.temperature.from(ud.last.T_setpoint_K).toFixed(1)}<span class="propUnit">${unitSys.temperature.symbol}</span>` 
           })
@@ -10881,7 +10835,7 @@ function updatePropertiesPanel() {
           const deviation = Math.abs(T_actual_disp - T_set_disp);
           const devColor = deviation > 1 ? '#f97316' : '#22c55e';
           dataGrid.appendChild(el('div', { class: 'propItem' }, [
-            el('div', { class: 'propLabel', text: 'T actual' }),
+            el('div', { class: 'propLabel', html: 'T actual' }),
             el('div', { class: 'propValue', style: `color:${devColor};`,
               html: `${T_actual_disp.toFixed(1)}<span class="propUnit">${unitSys.temperature.symbol}</span>` 
             })
@@ -10890,13 +10844,13 @@ function updatePropertiesPanel() {
         
         // Q demand vs actual (internal W → display kW)
         dataGrid.appendChild(el('div', { class: 'propItem' }, [
-          el('div', { class: 'propLabel', text: 'Q demand' }),
+          el('div', { class: 'propLabel', html: 'Q demand' }),
           el('div', { class: 'propValue', 
             html: `${(ud.last.Q_demand_W/1000).toFixed(2)}<span class="propUnit">kW</span>` 
           })
         ]));
         dataGrid.appendChild(el('div', { class: 'propItem' }, [
-          el('div', { class: 'propLabel', text: 'Q actual' }),
+          el('div', { class: 'propLabel', html: 'Q actual' }),
           el('div', { class: 'propValue', 
             style: ud.last.supplyLimited ? 'color:#f97316;' : '',
             html: `${(ud.last.Q_actual_W/1000).toFixed(2)}<span class="propUnit">kW</span>` 
@@ -10913,28 +10867,28 @@ function updatePropertiesPanel() {
         convBox.appendChild(el('div', { 
           class: 'small', 
           style: 'font-weight:700; margin-bottom:8px; opacity:0.8; text-transform:uppercase;', 
-          text: '⚡ Power Conversion' 
+          html: '⚡ Power Conversion' 
         }));
         const dataGrid = el('div', { class: 'propGrid' });
         dataGrid.appendChild(el('div', { class: 'propItem' }, [
-          el('div', { class: 'propLabel', text: 'Electrical in' }),
+          el('div', { class: 'propLabel', html: 'Electrical in' }),
           el('div', { class: 'propValue', html: `${(ud.last.W_elec_W/1000).toFixed(2)}<span class="propUnit">kW</span>` })
         ]));
         dataGrid.appendChild(el('div', { class: 'propItem' }, [
-          el('div', { class: 'propLabel', text: 'Mechanical out' }),
+          el('div', { class: 'propLabel', html: 'Mechanical out' }),
           el('div', { class: 'propValue', html: `${(ud.last.W_mech_W/1000).toFixed(2)}<span class="propUnit">kW</span>` })
         ]));
         dataGrid.appendChild(el('div', { class: 'propItem' }, [
-          el('div', { class: 'propLabel', text: 'Heat loss' }),
+          el('div', { class: 'propLabel', html: 'Heat loss' }),
           el('div', { class: 'propValue', style: 'color:#f97316;', html: `${((ud.last.Q_loss_W||0)/1000).toFixed(2)}<span class="propUnit">kW</span>` })
         ]));
         dataGrid.appendChild(el('div', { class: 'propItem' }, [
-          el('div', { class: 'propLabel', text: 'Efficiency' }),
+          el('div', { class: 'propLabel', html: 'Efficiency' }),
           el('div', { class: 'propValue', html: `${ud.last.efficiency_pct}<span class="propUnit">%</span>` })
         ]));
         convBox.appendChild(dataGrid);
         if (ud.last.heatOutWarning) {
-          convBox.appendChild(el('div', { style: 'margin-top:8px; padding:6px 8px; background:#78350f; border-radius:4px; font-size:11px; color:#fbbf24;', text: '⚠ ' + ud.last.heatOutWarning.message }));
+          convBox.appendChild(el('div', { style: 'margin-top:8px; padding:6px 8px; background:#78350f; border-radius:4px; font-size:11px; color:#fbbf24;', html: '⚠ ' + ud.last.heatOutWarning.message }));
         }
         propsSection.content.appendChild(convBox);
       }
@@ -10945,21 +10899,21 @@ function updatePropertiesPanel() {
         convBox.appendChild(el('div', { 
           class: 'small', 
           style: 'font-weight:700; margin-bottom:8px; opacity:0.8; text-transform:uppercase;', 
-          text: '⚡ Power → Heat' 
+          html: '⚡ Power → Heat' 
         }));
         const dataGrid = el('div', { class: 'propGrid' });
         const Welec = (ud.last.W_elec_actual_W || 0) / 1000;
         const Qheat = (ud.last.Q_available_W || 0) / 1000;
         dataGrid.appendChild(el('div', { class: 'propItem' }, [
-          el('div', { class: 'propLabel', text: 'Electrical in' }),
+          el('div', { class: 'propLabel', html: 'Electrical in' }),
           el('div', { class: 'propValue', html: `${Welec.toFixed(2)}<span class="propUnit">kW</span>` })
         ]));
         dataGrid.appendChild(el('div', { class: 'propItem' }, [
-          el('div', { class: 'propLabel', text: 'Heat out' }),
+          el('div', { class: 'propLabel', html: 'Heat out' }),
           el('div', { class: 'propValue', html: `${Qheat.toFixed(2)}<span class="propUnit">kW</span>` })
         ]));
         dataGrid.appendChild(el('div', { class: 'propItem' }, [
-          el('div', { class: 'propLabel', text: 'Efficiency' }),
+          el('div', { class: 'propLabel', html: 'Efficiency' }),
           el('div', { class: 'propValue', html: `${ud.last.efficiency_pct}<span class="propUnit">%</span>` })
         ]));
         convBox.appendChild(dataGrid);
@@ -10972,7 +10926,7 @@ function updatePropertiesPanel() {
         hubBox.appendChild(el('div', { 
           class: 'small', 
           style: 'font-weight:700; margin-bottom:8px; opacity:0.8; text-transform:uppercase;', 
-          text: '⚡ Power Balance' 
+          html: '⚡ Power Balance' 
         }));
         const dataGrid = el('div', { class: 'propGrid' });
         const fields = [
@@ -10987,7 +10941,7 @@ function updatePropertiesPanel() {
           if (val === undefined) continue;
           const isHighlight = label === 'Total demand' && ud.last.curtailmentFactor < 1;
           dataGrid.appendChild(el('div', { class: 'propItem' }, [
-            el('div', { class: 'propLabel', text: label }),
+            el('div', { class: 'propLabel', html: label }),
             el('div', { class: 'propValue', style: isHighlight ? 'color:#f97316;' : '',
               html: `${(val/1000).toFixed(2)}<span class="propUnit">${unit}</span>` })
           ]));
@@ -10996,7 +10950,7 @@ function updatePropertiesPanel() {
         const cf = ud.last.curtailmentFactor ?? 1;
         const cfColor = cf < 1 ? '#f97316' : '#22c55e';
         dataGrid.appendChild(el('div', { class: 'propItem' }, [
-          el('div', { class: 'propLabel', text: 'Curtailment' }),
+          el('div', { class: 'propLabel', html: 'Curtailment' }),
           el('div', { class: 'propValue', style: `color:${cfColor};`,
             html: `${(cf * 100).toFixed(1)}<span class="propUnit">%</span>` })
         ]));
@@ -11010,17 +10964,17 @@ function updatePropertiesPanel() {
         hBox.appendChild(el('div', { 
           class: 'small', 
           style: 'font-weight:700; margin-bottom:8px; opacity:0.8; text-transform:uppercase;', 
-          text: '🔥 Heat Absorbed' 
+          html: '🔥 Heat Absorbed' 
         }));
         const dataGrid = el('div', { class: 'propGrid' });
         dataGrid.appendChild(el('div', { class: 'propItem' }, [
-          el('div', { class: 'propLabel', text: 'Total' }),
+          el('div', { class: 'propLabel', html: 'Total' }),
           el('div', { class: 'propValue', html: `${((ud.last.absorbed_W || 0)/1000).toFixed(2)}<span class="propUnit">kW</span>` })
         ]));
         if ((ud.last.sourceCount || 0) > 1) {
           dataGrid.appendChild(el('div', { class: 'propItem' }, [
-            el('div', { class: 'propLabel', text: 'Sources' }),
-            el('div', { class: 'propValue', text: `${ud.last.sourceCount}` })
+            el('div', { class: 'propLabel', html: 'Sources' }),
+            el('div', { class: 'propValue', html: `${ud.last.sourceCount}` })
           ]));
         }
         hBox.appendChild(dataGrid);
@@ -11033,11 +10987,11 @@ function updatePropertiesPanel() {
         eBox.appendChild(el('div', { 
           class: 'small', 
           style: 'font-weight:700; margin-bottom:8px; opacity:0.8; text-transform:uppercase;', 
-          text: '⚡ Electrical Load' 
+          html: '⚡ Electrical Load' 
         }));
         const dataGrid = el('div', { class: 'propGrid' });
         dataGrid.appendChild(el('div', { class: 'propItem' }, [
-          el('div', { class: 'propLabel', text: 'Absorbed' }),
+          el('div', { class: 'propLabel', html: 'Absorbed' }),
           el('div', { class: 'propValue', html: `${((ud.last.absorbed_W || 0)/1000).toFixed(2)}<span class="propUnit">kW</span>` })
         ]));
         eBox.appendChild(dataGrid);
@@ -11050,11 +11004,11 @@ function updatePropertiesPanel() {
         bBox.appendChild(el('div', { 
           class: 'small', 
           style: 'font-weight:700; margin-bottom:8px; opacity:0.8; text-transform:uppercase;', 
-          text: '🔋 Battery Status' 
+          html: '🔋 Battery Status' 
         }));
         const dataGrid = el('div', { class: 'propGrid' });
         dataGrid.appendChild(el('div', { class: 'propItem' }, [
-          el('div', { class: 'propLabel', text: 'Capacity' }),
+          el('div', { class: 'propLabel', html: 'Capacity' }),
           el('div', { class: 'propValue', html: `${((ud.last.maxPower_W || 0)/1000).toFixed(2)}<span class="propUnit">kW</span>` })
         ]));
         const outPort = ud.ports?.out;
@@ -11063,20 +11017,20 @@ function updatePropertiesPanel() {
         // Show actual draw if it differs from capacity
         if (Math.abs(bActual - (ud.last.maxPower_W || 0)) > 1) {
           dataGrid.appendChild(el('div', { class: 'propItem' }, [
-            el('div', { class: 'propLabel', text: 'Actual' }),
+            el('div', { class: 'propLabel', html: 'Actual' }),
             el('div', { class: 'propValue', style: 'color:#fbbf24;',
               html: `${(bActual/1000).toFixed(2)}<span class="propUnit">kW</span>` })
           ]));
         }
         const shortage = ud.last.shortage_W;
         dataGrid.appendChild(el('div', { class: 'propItem' }, [
-          el('div', { class: 'propLabel', text: 'Demand' }),
+          el('div', { class: 'propLabel', html: 'Demand' }),
           el('div', { class: 'propValue', style: shortage ? 'color:#f97316;' : '',
             html: `${(demand/1000).toFixed(2)}<span class="propUnit">kW</span>` })
         ]));
         if (shortage) {
           dataGrid.appendChild(el('div', { class: 'propItem' }, [
-            el('div', { class: 'propLabel', text: 'Shortage' }),
+            el('div', { class: 'propLabel', html: 'Shortage' }),
             el('div', { class: 'propValue', style: 'color:#ef4444;',
               html: `${(shortage/1000).toFixed(2)}<span class="propUnit">kW</span>` })
           ]));
@@ -11091,18 +11045,18 @@ function updatePropertiesPanel() {
         sBox.appendChild(el('div', { 
           class: 'small', 
           style: 'font-weight:700; margin-bottom:8px; opacity:0.8; text-transform:uppercase;', 
-          text: '⚡ Power Source' 
+          html: '⚡ Power Source' 
         }));
         const dataGrid = el('div', { class: 'propGrid' });
         dataGrid.appendChild(el('div', { class: 'propItem' }, [
-          el('div', { class: 'propLabel', text: 'Capacity' }),
+          el('div', { class: 'propLabel', html: 'Capacity' }),
           el('div', { class: 'propValue', html: `${((ud.last.maxPower_W || 0)/1000).toFixed(2)}<span class="propUnit">kW</span>` })
         ]));
         const srcPort = ud.ports?.out;
         const srcActual = srcPort?.actual ?? srcPort?.available ?? 0;
         if (Math.abs(srcActual - (ud.last.maxPower_W || 0)) > 1) {
           dataGrid.appendChild(el('div', { class: 'propItem' }, [
-            el('div', { class: 'propLabel', text: 'Actual' }),
+            el('div', { class: 'propLabel', html: 'Actual' }),
             el('div', { class: 'propValue', style: 'color:#fbbf24;',
               html: `${(srcActual/1000).toFixed(2)}<span class="propUnit">kW</span>` })
           ]));
@@ -11118,7 +11072,7 @@ function updatePropertiesPanel() {
         tBox.appendChild(el('div', { 
           class: 'small', 
           style: 'font-weight:700; margin-bottom:8px; opacity:0.8; text-transform:uppercase;', 
-          text: '⚙️ Turbine Performance' 
+          html: '⚙️ Turbine Performance' 
         }));
         const dataGrid = el('div', { class: 'propGrid' });
         
@@ -11126,38 +11080,38 @@ function updatePropertiesPanel() {
         if (ud.last.Pin !== undefined) {
           const Pdisp = unitSys.pressure.from(ud.last.Pin);
           dataGrid.appendChild(el('div', { class: 'propItem' }, [
-            el('div', { class: 'propLabel', text: 'P inlet' }),
+            el('div', { class: 'propLabel', html: 'P inlet' }),
             el('div', { class: 'propValue', html: `${Pdisp.toFixed(unitSys.pressure.decimals)}<span class="propUnit">${unitSys.pressure.symbol}</span>` })
           ]));
         }
         if (ud.last.Pout_actual !== undefined) {
           const Pdisp = unitSys.pressure.from(ud.last.Pout_actual);
           dataGrid.appendChild(el('div', { class: 'propItem' }, [
-            el('div', { class: 'propLabel', text: 'P outlet' }),
+            el('div', { class: 'propLabel', html: 'P outlet' }),
             el('div', { class: 'propValue', html: `${Pdisp.toFixed(unitSys.pressure.decimals)}<span class="propUnit">${unitSys.pressure.symbol}</span>` })
           ]));
         }
         if (ud.last.ratio !== undefined) {
           dataGrid.appendChild(el('div', { class: 'propItem' }, [
-            el('div', { class: 'propLabel', text: 'Expansion ratio' }),
-            el('div', { class: 'propValue', text: `${ud.last.ratio}` })
+            el('div', { class: 'propLabel', html: 'Expansion ratio' }),
+            el('div', { class: 'propValue', html: `${ud.last.ratio}` })
           ]));
         }
         
         // Work output
         dataGrid.appendChild(el('div', { class: 'propItem' }, [
-          el('div', { class: 'propLabel', text: 'Shaft output' }),
+          el('div', { class: 'propLabel', html: 'Shaft output' }),
           el('div', { class: 'propValue', html: `${(ud.last.W_shaft/1000).toFixed(2)}<span class="propUnit">kW</span>` })
         ]));
         if (ud.last.W_isentropic !== undefined) {
           dataGrid.appendChild(el('div', { class: 'propItem' }, [
-            el('div', { class: 'propLabel', text: 'Isentropic' }),
+            el('div', { class: 'propLabel', html: 'Isentropic' }),
             el('div', { class: 'propValue', html: `${(ud.last.W_isentropic/1000).toFixed(2)}<span class="propUnit">kW</span>` })
           ]));
         }
         if (ud.last.eta !== undefined) {
           dataGrid.appendChild(el('div', { class: 'propItem' }, [
-            el('div', { class: 'propLabel', text: 'Efficiency' }),
+            el('div', { class: 'propLabel', html: 'Efficiency' }),
             el('div', { class: 'propValue', html: `${(ud.last.eta * 100).toFixed(0)}<span class="propUnit">%</span>` })
           ]));
         }
@@ -11172,28 +11126,28 @@ function updatePropertiesPanel() {
         gBox.appendChild(el('div', { 
           class: 'small', 
           style: 'font-weight:700; margin-bottom:8px; opacity:0.8; text-transform:uppercase;', 
-          text: '⚡ Power Generation' 
+          html: '⚡ Power Generation' 
         }));
         const dataGrid = el('div', { class: 'propGrid' });
         dataGrid.appendChild(el('div', { class: 'propItem' }, [
-          el('div', { class: 'propLabel', text: 'Mechanical in' }),
+          el('div', { class: 'propLabel', html: 'Mechanical in' }),
           el('div', { class: 'propValue', html: `${(ud.last.W_mech_W/1000).toFixed(2)}<span class="propUnit">kW</span>` })
         ]));
         dataGrid.appendChild(el('div', { class: 'propItem' }, [
-          el('div', { class: 'propLabel', text: 'Electrical out' }),
+          el('div', { class: 'propLabel', html: 'Electrical out' }),
           el('div', { class: 'propValue', html: `${(ud.last.W_elec_W/1000).toFixed(2)}<span class="propUnit">kW</span>` })
         ]));
         dataGrid.appendChild(el('div', { class: 'propItem' }, [
-          el('div', { class: 'propLabel', text: 'Heat loss' }),
+          el('div', { class: 'propLabel', html: 'Heat loss' }),
           el('div', { class: 'propValue', style: 'color:#f97316;', html: `${((ud.last.Q_loss_W||0)/1000).toFixed(2)}<span class="propUnit">kW</span>` })
         ]));
         dataGrid.appendChild(el('div', { class: 'propItem' }, [
-          el('div', { class: 'propLabel', text: 'Efficiency' }),
+          el('div', { class: 'propLabel', html: 'Efficiency' }),
           el('div', { class: 'propValue', html: `${ud.last.efficiency_pct}<span class="propUnit">%</span>` })
         ]));
         gBox.appendChild(dataGrid);
         if (ud.last.heatOutWarning) {
-          gBox.appendChild(el('div', { style: 'margin-top:8px; padding:6px 8px; background:#78350f; border-radius:4px; font-size:11px; color:#fbbf24;', text: '⚠ ' + ud.last.heatOutWarning.message }));
+          gBox.appendChild(el('div', { style: 'margin-top:8px; padding:6px 8px; background:#78350f; border-radius:4px; font-size:11px; color:#fbbf24;', html: '⚠ ' + ud.last.heatOutWarning.message }));
         }
         propsSection.content.appendChild(gBox);
       }
@@ -11205,28 +11159,28 @@ function updatePropertiesPanel() {
         sepBox.appendChild(el('div', { 
           class: 'small', 
           style: 'font-weight:700; margin-bottom:8px; opacity:0.8; text-transform:uppercase;', 
-          text: '🔬 Phase Split' 
+          html: '🔬 Phase Split' 
         }));
         const dataGrid = el('div', { class: 'propGrid' });
         
         dataGrid.appendChild(el('div', { class: 'propItem' }, [
-          el('div', { class: 'propLabel', text: 'Inlet phase' }),
-          el('div', { class: 'propValue', text: ud.last.phase === 'VL' ? 'Two-Phase' : ud.last.phase === 'V' ? 'Vapor' : 'Liquid' })
+          el('div', { class: 'propLabel', html: 'Inlet phase' }),
+          el('div', { class: 'propValue', html: ud.last.phase === 'VL' ? 'Two-Phase' : ud.last.phase === 'V' ? 'Vapor' : 'Liquid' })
         ]));
         
         if (ud.last.beta !== null && ud.last.beta !== undefined) {
           dataGrid.appendChild(el('div', { class: 'propItem' }, [
-            el('div', { class: 'propLabel', text: 'Vapor fraction' }),
+            el('div', { class: 'propLabel', html: 'Vapor fraction' }),
             el('div', { class: 'propValue', html: `${(ud.last.beta * 100).toFixed(1)}<span class="propUnit">%</span>` })
           ]));
         }
         
         dataGrid.appendChild(el('div', { class: 'propItem' }, [
-          el('div', { class: 'propLabel', text: 'Vapor flow' }),
+          el('div', { class: 'propLabel', html: 'Vapor flow' }),
           el('div', { class: 'propValue', html: `${ud.last.nV_total.toFixed(3)}<span class="propUnit">mol/s</span>` })
         ]));
         dataGrid.appendChild(el('div', { class: 'propItem' }, [
-          el('div', { class: 'propLabel', text: 'Liquid flow' }),
+          el('div', { class: 'propLabel', html: 'Liquid flow' }),
           el('div', { class: 'propValue', html: `${ud.last.nL_total.toFixed(3)}<span class="propUnit">mol/s</span>` })
         ]));
         
@@ -11260,7 +11214,7 @@ function updatePropertiesPanel() {
         portBox.appendChild(el('div', { 
           class: 'small', 
           style: 'font-weight:700; margin-bottom:6px; opacity:0.8;', 
-          text: p.portId    // [v6.2] XSS: portId from registry
+          html: `${p.portId}` 
         }));
         renderStreamProperties(portBox, s);
         propsSection.content.appendChild(portBox);
@@ -11321,13 +11275,13 @@ function updatePropertiesPanel() {
     const titleDiv = el('div', { 
       class: 'unitTitle', 
       style: 'cursor:default;',
-      text: 'Stream' 
+      html: 'Stream' 
     });
     headerDiv.appendChild(titleDiv);
     
     const subtitleDiv = el('div', { 
       class: 'unitSubtitle', 
-      text: `${fromU?.name || '?'} → ${toU?.name || '?'}`  // [v6.2] XSS: user-editable names
+      html: `${fromU?.name || '?'} → ${toU?.name || '?'}` 
     });
     headerDiv.appendChild(subtitleDiv);
     
@@ -11351,7 +11305,7 @@ function updatePropertiesPanel() {
     const emptyDiv = el('div', { 
       class: 'small', 
       style: 'padding:40px 20px; text-align:center; opacity:0.5;',
-      text: 'Click a unit or stream to inspect' 
+      html: 'Click a unit or stream to inspect' 
     });
     propEditor.appendChild(emptyDiv);
     return;
@@ -11360,11 +11314,11 @@ function updatePropertiesPanel() {
   // ── Header ──
   const headerDiv = el('div', { class: 'unitHeader' });
   headerDiv.appendChild(el('div', { class: 'unitTitle' }, [
-    el('span', { text: 'System Balance' })
+    el('span', { html: 'System Balance' })
   ]));
   headerDiv.appendChild(el('div', { 
     class: 'unitSubtitle', 
-    text: 'Flowsheet boundary audit' 
+    html: 'Flowsheet boundary audit' 
   }));
   propEditor.appendChild(headerDiv);
 
@@ -11376,29 +11330,27 @@ function updatePropertiesPanel() {
     const massClosed = balance.mass.closed;
     mc.appendChild(el('div', { 
       style: `margin-bottom:10px; padding:6px 10px; border-radius:6px; font-size:12px; font-weight:600; text-align:center; background:${massClosed ? '#064e3b' : '#7f1d1d'}; color:${massClosed ? '#6ee7b7' : '#fca5a5'};`,
-      text: massClosed ? '✓ Mass balance closed' : `✗ Mass balance violation: Δ = ${(balance.mass.balance * 1000).toFixed(4)} g/s`
+      html: massClosed ? '✓ Mass balance closed' : `✗ Mass balance violation: Δ = ${(balance.mass.balance * 1000).toFixed(4)} g/s`
     }));
 
     const tbl = el('div', { style: 'font-size:11px; font-family:monospace;' });
 
     // Inputs
-    tbl.appendChild(el('div', { style: 'font-weight:700; opacity:0.7; padding:4px 0; text-transform:uppercase; font-size:10px;', text: '→ Mass In' }));
+    tbl.appendChild(el('div', { style: 'font-weight:700; opacity:0.7; padding:4px 0; text-transform:uppercase; font-size:10px;', html: '→ Mass In' }));
     for (const item of balance.mass.inItems) {
       const detail = Object.entries(item.detail).map(([sp, n]) => `${sp}: ${n.toFixed(3)}`).join(', ');
-      tbl.appendChild(balanceRow(
-        'display:flex; justify-content:space-between; padding:2px 0;',
-        item.name, `(${detail} mol/s)`, `${(item.mass_kgps * 1000).toFixed(3)} g/s`
-      ));
+      tbl.appendChild(el('div', { style: 'display:flex; justify-content:space-between; padding:2px 0;', html:
+        `<span>${item.name} <span style="opacity:0.5; font-size:10px">(${detail} mol/s)</span></span><span style="font-weight:600">${(item.mass_kgps * 1000).toFixed(3)} g/s</span>`
+      }));
     }
 
     // Outputs
-    tbl.appendChild(el('div', { style: 'font-weight:700; opacity:0.7; padding:6px 0 4px; text-transform:uppercase; font-size:10px; border-top:1px solid #334155; margin-top:4px;', text: '← Mass Out' }));
+    tbl.appendChild(el('div', { style: 'font-weight:700; opacity:0.7; padding:6px 0 4px; text-transform:uppercase; font-size:10px; border-top:1px solid #334155; margin-top:4px;', html: '← Mass Out' }));
     for (const item of balance.mass.outItems) {
       const detail = Object.entries(item.detail).map(([sp, n]) => `${sp}: ${n.toFixed(3)}`).join(', ');
-      tbl.appendChild(balanceRow(
-        'display:flex; justify-content:space-between; padding:2px 0;',
-        item.name, `(${detail} mol/s)`, `${(item.mass_kgps * 1000).toFixed(3)} g/s`
-      ));
+      tbl.appendChild(el('div', { style: 'display:flex; justify-content:space-between; padding:2px 0;', html:
+        `<span>${item.name} <span style="opacity:0.5; font-size:10px">(${detail} mol/s)</span></span><span style="font-weight:600">${(item.mass_kgps * 1000).toFixed(3)} g/s</span>`
+      }));
     }
 
     // Totals
@@ -11425,20 +11377,19 @@ function updatePropertiesPanel() {
     const enClosed = balance.energy.closed;
     ec.appendChild(el('div', { 
       style: `margin-bottom:10px; padding:6px 10px; border-radius:6px; font-size:12px; font-weight:600; text-align:center; background:${enClosed ? '#064e3b' : '#7f1d1d'}; color:${enClosed ? '#6ee7b7' : '#fca5a5'};`,
-      text: enClosed ? '✓ Energy balance closed' : `✗ Energy balance error: ${(balance.energy.relError * 100).toFixed(2)}%`
+      html: enClosed ? '✓ Energy balance closed' : `✗ Energy balance error: ${(balance.energy.relError * 100).toFixed(2)}%`
     }));
 
     // ── Inputs ──
-    ec.appendChild(el('div', { style: 'font-weight:700; font-size:11px; margin:8px 0 4px; opacity:0.7; text-transform:uppercase;', text: '→ Energy In' }));
+    ec.appendChild(el('div', { style: 'font-weight:700; font-size:11px; margin:8px 0 4px; opacity:0.7; text-transform:uppercase;', html: '→ Energy In' }));
     const inTbl = el('div', { style: 'font-size:11px; font-family:monospace; margin-bottom:8px;' });
     const typeColors = { material: '#60a5fa', electrical: '#facc15', mechanical: '#a78bfa', heat: '#f97316', dissipated: '#fb923c' };
     const typeLabels = { material: 'Enthalpy', electrical: 'Electrical', mechanical: 'Mechanical', heat: 'Heat', dissipated: 'Dissipated' };
     for (const item of balance.energy.in.items) {
       const c = typeColors[item.type] || '#e2e8f0';
-      inTbl.appendChild(balanceRow(
-        `display:flex; justify-content:space-between; padding:2px 0; color:${c};`,
-        item.name, `(${typeLabels[item.type]})`, `${(item.value/1000).toFixed(2)} kW`
-      ));
+      inTbl.appendChild(el('div', { style: `display:flex; justify-content:space-between; padding:2px 0; color:${c};`, html:
+        `<span>${item.name} <span style="opacity:0.6">(${typeLabels[item.type]})</span></span><span>${(item.value/1000).toFixed(2)} kW</span>`
+      }));
     }
     // Subtotals by type
     inTbl.appendChild(el('div', { style: 'border-top:1px solid #334155; margin-top:4px; padding-top:4px;' }));
@@ -11457,14 +11408,13 @@ function updatePropertiesPanel() {
     ec.appendChild(inTbl);
 
     // ── Outputs ──
-    ec.appendChild(el('div', { style: 'font-weight:700; font-size:11px; margin:8px 0 4px; opacity:0.7; text-transform:uppercase;', text: '← Energy Out' }));
+    ec.appendChild(el('div', { style: 'font-weight:700; font-size:11px; margin:8px 0 4px; opacity:0.7; text-transform:uppercase;', html: '← Energy Out' }));
     const outTbl = el('div', { style: 'font-size:11px; font-family:monospace; margin-bottom:8px;' });
     for (const item of balance.energy.out.items) {
       const c = typeColors[item.type] || '#e2e8f0';
-      outTbl.appendChild(balanceRow(
-        `display:flex; justify-content:space-between; padding:2px 0; color:${c};`,
-        item.name, `(${typeLabels[item.type]})`, `${(item.value/1000).toFixed(2)} kW`
-      ));
+      outTbl.appendChild(el('div', { style: `display:flex; justify-content:space-between; padding:2px 0; color:${c};`, html:
+        `<span>${item.name} <span style="opacity:0.6">(${typeLabels[item.type]})</span></span><span>${(item.value/1000).toFixed(2)} kW</span>`
+      }));
     }
     outTbl.appendChild(el('div', { style: 'border-top:1px solid #334155; margin-top:4px; padding-top:4px;' }));
     for (const type of ['material', 'electrical', 'mechanical', 'heat', 'dissipated']) {
@@ -15340,45 +15290,6 @@ window.runSecurityTests = function() {
     assert('Import status: no IMG element',
       !statusContent.querySelector('img'));
   }
-
-  // ── [v6.2] Test 8: el(text:) treats HTML as literal text, not markup ──
-  window.__xss = undefined;
-  const xssPayload = '<img src=x onerror="window.__xss=1">X';
-  const safeNode = el('div', { text: xssPayload });
-  document.body.appendChild(safeNode);
-  assert('el(text:) no IMG element created',
-    safeNode.querySelector('img') === null);
-  assert('el(text:) literal <img in textContent',
-    safeNode.textContent.includes('<img'));
-  assert('el(text:) onerror did not fire',
-    window.__xss === undefined);
-  safeNode.remove();
-
-  // ── [v6.2] Test 9: addNumberEditor does not parse label as HTML ──
-  window.__xss = undefined;
-  const testContainer = el('div');
-  document.body.appendChild(testContainer);
-  addNumberEditor(testContainer, xssPayload, () => 42, () => {});
-  assert('addNumberEditor: no IMG element from hostile label',
-    testContainer.querySelector('img') === null);
-  assert('addNumberEditor: onerror did not fire',
-    window.__xss === undefined);
-  assert('addNumberEditor: literal <img in label text',
-    testContainer.textContent.includes('<img'));
-  testContainer.remove();
-
-  // ── [v6.2] Test 10: balanceRow does not parse name as HTML ──
-  window.__xss = undefined;
-  const bRow = balanceRow('display:flex;', xssPayload, '(detail)', '42 g/s');
-  document.body.appendChild(bRow);
-  assert('balanceRow: no IMG element from hostile name',
-    bRow.querySelector('img') === null);
-  assert('balanceRow: onerror did not fire',
-    window.__xss === undefined);
-  assert('balanceRow: literal <img in textContent',
-    bRow.textContent.includes('<img'));
-  bRow.remove();
-  window.__xss = undefined;
 
   // Cleanup: remove test unit, deselect, restore
   scene.runtime.unitData.delete(hostileUnit);
