@@ -3,6 +3,37 @@
   ═══════════════════════════════════════════════════════════════════════════
   processThis v9.1.0
 
+  ─── v10.0.1 ──────────────────────────────────────────────────────────────
+  UI Revamp — Inspector Schema + Palette Drawer.
+
+  Major restructuring of the inspector panel and unit addition workflow.
+
+  Inspector: Schema-driven renderer replaces the 1,700-line monolithic
+  updatePropertiesPanel.  Each unit type has a UnitInspector descriptor
+  (params, properties, customSection) colocated with its registration.
+  Fixed zone order: Header → Status → Parameters → Properties → Diagnostics.
+  Generic renderers (insKV, insBox, insBar, insErr) with CSS class vocabulary
+  (ins-kv, ins-badge, ins-err-box, tone-warn, etc.) replace inline styles.
+  All 27 real unit types have UnitInspector entries.
+
+  Palette Drawer: Left-side overlay drawer (264px) slides over canvas.
+  Toggle via "+ Add" toolbar button or "/" hotkey.  Esc closes drawer.
+  Search input (auto-focused) filters by name/defId/category.
+  Category chips for quick filtering.  2-column tile grid with drag-to-
+  canvas and double-click-to-place (viewport center, grid-snapped).
+  CRITICAL: Adding a unit never closes the drawer or clears search/filter.
+  Inspector and palette are independent — both visible simultaneously.
+
+  fmt helpers: fmt.kW(), fmt.T(), fmt.P(), fmt.flow(), fmt.pct(), fmt.time()
+  for consistent value formatting with unit conversion support.
+
+  NNG-UI1: Inspector fixed zone order (Header → Status → Params → Props → Diag)
+  NNG-UI2: Palette persistence (never closes on unit add)
+  NNG-UI3: CSS-first styling (ins-* class vocabulary)
+  NNG-UI4: Unit UI colocation (UnitInspector next to UnitRegistry)
+
+  189 tests, zero regressions.
+
   ─── v9.1.0 ───────────────────────────────────────────────────────────────
   Time & Inventory Milestone.
 
@@ -860,7 +891,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>processThis — v9.1.0</title>
+  <title>processThis — v10.0.1</title>
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
@@ -1864,6 +1895,112 @@
       opacity: 0.75; 
       line-height: 1.2; 
     }
+
+    /* ===== [v10] PALETTE DRAWER ===== */
+    .paletteDrawer {
+      position: absolute; left: 0; top: 0; bottom: 0;
+      width: 264px; z-index: 20;
+      background: #0b0e14ee; backdrop-filter: blur(12px);
+      border-right: 1px solid #2a2f3a;
+      display: flex; flex-direction: column;
+      transform: translateX(-100%);
+      transition: transform 0.2s ease;
+      overflow: hidden;
+    }
+    .paletteDrawer.open { transform: translateX(0); }
+    .paletteDrawer .pal-header {
+      padding: 10px 12px 6px; display: flex; align-items: center; gap: 8px;
+      border-bottom: 1px solid #1e2230;
+    }
+    .paletteDrawer .pal-header input {
+      flex: 1; background: #161b26; border: 1px solid #2a2f3a; border-radius: 6px;
+      padding: 6px 8px; color: #e7e7e7; font-size: 12px; outline: none;
+    }
+    .paletteDrawer .pal-header input:focus { border-color: #4f8eff; }
+    .paletteDrawer .pal-header .pal-close {
+      background: none; border: none; color: #6b7280; font-size: 16px; cursor: pointer; padding: 2px 4px;
+    }
+    .paletteDrawer .pal-chips {
+      padding: 4px 12px 6px; display: flex; flex-wrap: wrap; gap: 4px;
+    }
+    .paletteDrawer .pal-chip {
+      background: #1a1f2e; border: 1px solid #2a2f3a; border-radius: 10px;
+      padding: 2px 8px; font-size: 10px; cursor: pointer; color: #a0a8b8;
+      transition: all 0.15s;
+    }
+    .paletteDrawer .pal-chip:hover { border-color: #4f8eff; color: #c8d0e0; }
+    .paletteDrawer .pal-chip.active { background: #1e3a5f; border-color: #4f8eff; color: #93c5fd; }
+    .paletteDrawer .pal-tiles {
+      flex: 1; overflow-y: auto; padding: 8px 12px;
+      display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
+      align-content: start;
+    }
+    .paletteDrawer .pal-cat-label {
+      grid-column: 1 / -1; font-size: 10px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.5;
+      margin-top: 6px; padding-bottom: 2px;
+    }
+    .paletteDrawer .pal-tile {
+      border: 1px solid #2a2f3a; border-radius: 8px; background: #0f1420;
+      padding: 8px; cursor: grab; user-select: none; transition: all 0.15s;
+    }
+    .paletteDrawer .pal-tile:hover { border-color: #475068; background: #1c222e; }
+    .paletteDrawer .pal-tile:active { cursor: grabbing; }
+    .paletteDrawer .pal-tile .pal-tname { font-size: 11px; font-weight: 700; }
+    .paletteDrawer .pal-tile .pal-tdesc { font-size: 10px; opacity: 0.6; margin-top: 2px; }
+
+    /* ===== [v10] INSPECTOR DATA DISPLAY ===== */
+    .ins-zone { margin-bottom: 2px; }
+    .ins-section-title {
+      font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.5px; opacity: 0.6; padding: 8px 0 4px;
+    }
+    .ins-box {
+      padding: 10px; background: #1e293b; border-radius: 8px; margin-bottom: 8px;
+    }
+    .ins-box-title {
+      font-size: 11px; font-weight: 700; opacity: 0.8; text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    .ins-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px 12px; }
+    .ins-kv {
+      display: flex; justify-content: space-between; align-items: baseline;
+      padding: 2px 0; font-size: 12px;
+    }
+    .ins-kv .lbl { opacity: 0.6; font-size: 11px; }
+    .ins-kv .val { font-family: ui-monospace, 'SF Mono', monospace; font-weight: 600; font-size: 12px; }
+    .ins-kv .val .u { opacity: 0.45; font-size: 10px; margin-left: 2px; font-weight: 400; }
+    .ins-kv.full { grid-column: 1 / -1; }
+    .ins-kv.tone-warn .val { color: #fbbf24; }
+    .ins-kv.tone-bad .val { color: #fca5a5; }
+    .ins-kv.tone-good .val { color: #6ee7b7; }
+    .ins-kv.tone-info .val { color: #60a5fa; }
+    .ins-kv.tone-muted { opacity: 0.5; }
+    .ins-badge {
+      display: inline-block; padding: 2px 7px; border-radius: 4px;
+      font-size: 10px; font-weight: 600;
+    }
+    .ins-badge.good { background: #064e3b; color: #6ee7b7; }
+    .ins-badge.warn { background: #78350f; color: #fbbf24; }
+    .ins-badge.bad { background: #7f1d1d; color: #fca5a5; }
+    .ins-badge.info { background: #1e3a5f; color: #93c5fd; }
+    .ins-err-box {
+      padding: 8px 10px; border-radius: 6px; margin-bottom: 6px; font-size: 12px;
+    }
+    .ins-err-box.warn { background: #78350f44; border: 1px solid #f59e0b; color: #fbbf24; }
+    .ins-err-box.bad { background: #7f1d1d44; border: 1px solid #ef4444; color: #fca5a5; }
+    .ins-err-box.minor { background: #1e3a5f44; border: 1px solid #3b82f6; color: #93c5fd; }
+    .ins-bar-track {
+      display: inline-block; width: 100px; height: 10px; background: #334155;
+      border-radius: 3px; overflow: hidden; vertical-align: middle;
+    }
+    .ins-bar-fill { display: block; height: 100%; border-radius: 3px; }
+    .ins-hint { font-size: 10px; opacity: 0.35; font-style: italic; margin: 4px 0; }
+    .ins-divider { border-top: 1px solid #1e2230; margin: 6px 0; }
+
+    /* Toolbar add button */
+    .tbtn.add-unit { background: #1e3a5f; color: #93c5fd; border-color: #2563eb; }
+    .tbtn.add-unit:hover { background: #1e40af; }
   </style>
 </head>
 <body>
@@ -1881,7 +2018,7 @@
       </div>
       <span class="time-display" id="timeDisplay" style="display:none;"></span>
 
-      <button class="btn" id="btnAdd" style="background:#dc2626; border-color:#dc2626; color:#fff;">+ Add Unit</button>
+      <button class="btn" id="btnAdd" style="background:#1e3a5f; border-color:#2563eb; color:#93c5fd;">+ Add</button>
       
       <input type="text" id="processNameInput" placeholder="Process name…" spellcheck="false" autocomplete="off">
       
@@ -1978,6 +2115,16 @@
         </div>
       </div>
     </div>
+
+    <!-- [v10] Palette Drawer — slides over canvas from left -->
+    <aside class="paletteDrawer" id="paletteDrawer">
+      <div class="pal-header">
+        <input type="text" id="palSearch" placeholder="Search units… (/)" autocomplete="off" spellcheck="false">
+        <button class="pal-close" id="palClose" title="Close palette">×</button>
+      </div>
+      <div class="pal-chips" id="palChips"></div>
+      <div class="pal-tiles" id="palTiles"></div>
+    </aside>
 
     <!-- Main SVG canvas -->
     <svg id="svg" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" aria-label="process grid">
@@ -14448,16 +14595,838 @@ function computeSystemBalance(scene) {
   };
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   [v10] INSPECTOR INFRASTRUCTURE — Schema-driven inspector renderer
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+// ── Format helpers ──
+const fmt = {
+  kW:  (W) => W == null || isNaN(W) ? '—' : `${(W/1000).toFixed(2)}<span class="u">kW</span>`,
+  W:   (W) => W == null || isNaN(W) ? '—' : `${W.toFixed(1)}<span class="u">W</span>`,
+  pct: (v) => v == null || isNaN(v) ? '—' : `${(v*100).toFixed(1)}<span class="u">%</span>`,
+  pctRaw: (v) => v == null || isNaN(v) ? '—' : `${v.toFixed(1)}<span class="u">%</span>`,
+  mol: (v) => v == null ? '—' : `${v.toFixed(1)}<span class="u">mol</span>`,
+  flow:(v) => v == null ? '—' : `${v.toFixed(3)}<span class="u">mol/s</span>`,
+  mass:(v) => v == null ? '—' : `${(v*1000).toFixed(2)}<span class="u">g/s</span>`,
+  T:   (K) => { const us = models.getActive('units'); return K == null ? '—' : `${us.temperature.from(K).toFixed(1)}<span class="u">${us.temperature.symbol}</span>`; },
+  P:   (Pa) => { const us = models.getActive('units'); return Pa == null ? '—' : `${us.pressure.from(Pa).toFixed(us.pressure.decimals)}<span class="u">${us.pressure.symbol}</span>`; },
+  time:(s) => { if (s == null || !isFinite(s)) return '—'; const h = Math.floor(s/3600), m = Math.floor((s%3600)/60); return `~${h}:${String(m).padStart(2,'0')}`; },
+  val: (v, u) => v == null || isNaN(v) ? '—' : `${v}<span class="u">${u||''}</span>`,
+};
+
+// ── Generic renderers ──
+function insKV(parent, label, valueHtml, opts = {}) {
+  const row = el('div', { class: `ins-kv ${opts.tone ? 'tone-'+opts.tone : ''} ${opts.full ? 'full' : ''}`.trim() });
+  row.innerHTML = `<span class="lbl">${label}</span><span class="val">${valueHtml}</span>`;
+  parent.appendChild(row);
+  return row;
+}
+
+function insBox(parent, title) {
+  const box = el('div', { class: 'ins-box' });
+  if (title) box.appendChild(el('div', { class: 'ins-box-title', html: title }));
+  const grid = el('div', { class: 'ins-grid' });
+  box.appendChild(grid);
+  parent.appendChild(box);
+  return grid;
+}
+
+function insBar(parent, label, pct, color) {
+  const row = el('div', { class: 'ins-kv full' });
+  row.innerHTML = `<span class="lbl">${label}</span><span class="val"><span class="ins-bar-track"><span class="ins-bar-fill" style="width:${Math.min(100,pct)}%;background:${color}"></span></span> ${pct.toFixed(1)}%</span>`;
+  parent.appendChild(row);
+}
+
+function insErr(parent, severity, message) {
+  const cls = severity === ErrorSeverity.CATASTROPHIC || severity === ErrorSeverity.MAJOR ? 'bad' : severity === ErrorSeverity.MINOR ? 'warn' : 'minor';
+  const box = el('div', { class: `ins-err-box ${cls}` });
+  box.textContent = `${severity?.icon || '⚠'} ${message}`;
+  parent.appendChild(box);
+}
+
+// ── Per-unit inspector config ──
+// Each entry: { params(u, unitSys), properties(u, ud, grid, scene) }
+// params returns array of param descriptors for auto-rendering
+// properties renders solved data into a grid element
+const UnitInspector = {};
+
+// Helper: standard pressure+efficiency editors
+function _pEtaParams(u, unitSys, Pdefault, etaDefault) {
+  return [
+    { label: `P outlet (${unitSys.pressure.symbol})`,
+      get: () => unitSys.pressure.from(u.params.Pout || Pdefault),
+      set: v => u.params.Pout = unitSys.pressure.to(v),
+      step: unitSys.pressure.decimals === 0 ? 1000 : 0.1 },
+    { label: 'Efficiency (-)',
+      get: () => u.params.eta || etaDefault,
+      set: v => u.params.eta = v, step: 0.01 },
+  ];
+}
+
+// Helper: power equipment properties (compressor/pump/gas_turbine)
+function _powerProps(u, ud, grid, prefix) {
+  const unitSys = models.getActive('units');
+  if (ud.last?.Pout_setpoint != null) {
+    insKV(grid, 'P setpoint', fmt.P(ud.last.Pout_setpoint));
+    const isCurt = ud.last.curtailed;
+    insKV(grid, 'P actual', fmt.P(ud.last.Pout_actual), { tone: isCurt ? 'warn' : '' });
+  }
+  insKV(grid, 'Shaft power', fmt.kW(ud.last?.W_shaft));
+  if (ud.last?.curtailed && ud.last?.W_shaft_setpoint != null)
+    insKV(grid, 'Shaft needed', fmt.kW(ud.last.W_shaft_setpoint), { tone: 'warn' });
+  if (ud.last?.W_hydraulic != null) insKV(grid, 'Hydraulic', fmt.kW(ud.last.W_hydraulic));
+  else if (ud.last?.W_isentropic != null) insKV(grid, 'Isentropic', fmt.kW(ud.last.W_isentropic));
+  if (ud.last?.eta != null) insKV(grid, 'Efficiency', fmt.pct(ud.last.eta));
+  if (ud.last?.heatOutWarning)
+    insErr(grid.parentNode, ud.last.heatOutWarning.severity, ud.last.heatOutWarning.message);
+}
+
+UnitInspector.source = {
+  params(u) {
+    const unitSys = models.getActive('units');
+    const speciesOpts = ComponentRegistry.list().map(c => [c.formula, c.formula]);
+    const params = [
+      { type: 'select', label: 'Species', get: () => u.params.species, set: v => u.params.species = v, options: speciesOpts },
+    ];
+    if (SimSettings.cheatsEnabled) {
+      params.push(
+        { label: `P (${unitSys.pressure.symbol})`, get: () => unitSys.pressure.from(u.params.P), set: v => u.params.P = unitSys.pressure.to(v), step: unitSys.pressure.decimals === 0 ? 1000 : 0.1 },
+        { label: `T (${unitSys.temperature.symbol})`, get: () => unitSys.temperature.from(u.params.T), set: v => u.params.T = unitSys.temperature.to(v), step: 1 }
+      );
+    } else {
+      const atm = SimSettings.getAtmosphere();
+      params.push({ type: 'info', html: `T = ${atm.T_K.toFixed(1)} K | P = ${(atm.P_Pa/1e5).toFixed(4)} bar<br><span style="opacity:0.5">(${atm.presetName} — change in Settings)</span>` });
+    }
+    params.push(
+      { label: `ṅ (${unitSys.molarFlow.symbol})`, get: () => unitSys.molarFlow.from(u.params.nDot), set: v => u.params.nDot = unitSys.molarFlow.to(v), step: 0.1 },
+      { type: 'select', label: 'Phase', get: () => u.params.phaseConstraint || 'V', set: v => u.params.phaseConstraint = v, options: [['V','Vapor only'],['L','Liquid only'],['VL','Vapor-Liquid (flash)']] }
+    );
+    return params;
+  }
+};
+
+UnitInspector.source_air = {
+  params(u) {
+    const atm = SimSettings.getAtmosphere();
+    const params = [
+      { label: 'Flow scale (mol/s)', get: () => u.params.flowScale ?? 1.0, set: v => u.params.flowScale = v, step: 0.1 },
+      { type: 'info', html: `<b>${atm.presetName}</b><br>T = ${atm.T_K.toFixed(1)} K | P = ${(atm.P_Pa/1e5).toFixed(4)} bar` },
+    ];
+    // Air composition display
+    let airHtml = '<div style="display:grid;grid-template-columns:36px 1fr;gap:1px 8px;margin-top:4px;font-size:11px;">';
+    for (const sp of ATMO_SPECIES) {
+      const f = atm.air[sp] || 0;
+      airHtml += `<span style="opacity:0.5">${sp}</span><span style="opacity:${f>0?0.5:0.2}">${(f*100).toFixed(2)}%</span>`;
+    }
+    airHtml += '</div>';
+    params.push({ type: 'info', html: airHtml });
+    params.push({ type: 'info', html: '<span class="ins-hint">Change atmosphere in ☰ Menu → Settings</span>' });
+    return params;
+  }
+};
+
+UnitInspector.source_multi = {
+  customParams(container, u) {
+    const unitSys = models.getActive('units');
+    // Composition editor
+    if (!u.params.n) u.params.n = { N2: 0.78, O2: 0.21, Ar: 0.01 };
+    const compBox = el('div', { style: 'margin-bottom:8px;' });
+    compBox.appendChild(el('div', { class: 'ins-box-title', html: 'Composition (mol/s)' }));
+    for (const sp of Object.keys(u.params.n)) {
+      const row = el('div', { style: 'display:flex; align-items:center; gap:4px;' });
+      row.appendChild(el('label', { html: sp, style: 'min-width:40px;font-size:11px;' }));
+      const inp = el('input', { type: 'number', step: '0.01', style: 'flex:1;' });
+      inp.value = u.params.n[sp];
+      const spCap = sp;
+      inp.addEventListener('input', () => { const v = Number(inp.value); if (v > 0) u.params.n[spCap] = v; else delete u.params.n[spCap]; });
+      row.appendChild(inp);
+      compBox.appendChild(row);
+    }
+    const allSpecies = ComponentRegistry.list().map(c => c.formula).filter(f => !(f in u.params.n));
+    if (allSpecies.length > 0) {
+      const addSel = el('select', { style: 'margin-top:4px;' });
+      addSel.appendChild(el('option', { value: '', html: '+ Add species...' }));
+      for (const sp of allSpecies) addSel.appendChild(el('option', { value: sp, html: sp }));
+      addSel.addEventListener('change', () => { if (addSel.value) { u.params.n[addSel.value] = 1.0; updatePropertiesPanel(); } });
+      compBox.appendChild(addSel);
+    }
+    container.appendChild(compBox);
+    addNumberEditor(container, `T (${unitSys.temperature.symbol})`,
+      () => unitSys.temperature.from(u.params.T ?? 298.15), v => u.params.T = unitSys.temperature.to(v), 1);
+    addNumberEditor(container, `P (${unitSys.pressure.symbol})`,
+      () => unitSys.pressure.from(u.params.P ?? 101325), v => u.params.P = unitSys.pressure.to(v),
+      unitSys.pressure.decimals === 0 ? 1000 : 0.1);
+    addSelectEditor(container, 'Phase',
+      () => u.params.phaseConstraint || 'V', v => u.params.phaseConstraint = v,
+      [['V','Vapor only'],['L','Liquid only'],['VL','Vapor-Liquid']]);
+  }
+};
+
+UnitInspector.sink = {
+  properties(u, ud, grid) {
+    if (ud.last?.stream) { renderStreamProperties(grid.parentNode, ud.last.stream); return true; }
+  }
+};
+
+UnitInspector.sink_heat = {
+  properties(u, ud, grid) {
+    insKV(grid, 'Total absorbed', fmt.kW(ud.last?.absorbed_W));
+    if ((ud.last?.sourceCount || 0) > 1) insKV(grid, 'Sources', `${ud.last.sourceCount}`);
+  }
+};
+
+UnitInspector.sink_electrical = {
+  properties(u, ud, grid) {
+    insKV(grid, 'Absorbed', fmt.kW(ud.last?.absorbed_W));
+  }
+};
+
+UnitInspector.grid_supply = {
+  params(u) { return [{ label: 'Max Power (kW)', get: () => u.params.maxPower || 50, set: v => u.params.maxPower = v, step: 10 }]; },
+  properties(u, ud, grid) {
+    insKV(grid, 'Capacity', fmt.kW(ud.last?.capacity_W));
+    insKV(grid, 'Draw', fmt.kW(ud.last?.draw_W));
+    insKV(grid, 'Demand', fmt.kW(ud.last?.demand_W));
+  }
+};
+
+UnitInspector.source_electrical = {
+  params(u) { return [{ label: 'Max Power (kW)', get: () => u.params.maxPower || 50, set: v => u.params.maxPower = v, step: 10 }]; },
+  properties(u, ud, grid) {
+    insKV(grid, 'Capacity', fmt.kW(ud.last?.capacity_W));
+    insKV(grid, 'Actual', fmt.kW(ud.last?.actual_W));
+  }
+};
+
+UnitInspector.source_mechanical = {
+  params(u) { return [{ label: 'Max Power (kW)', get: () => u.params.maxPower || 50, set: v => u.params.maxPower = v, step: 10 }]; }
+};
+
+UnitInspector.tank = {
+  params(u) {
+    return [
+      { label: 'Volume (m³)', get: () => u.params.volume_m3 || 50, set: v => u.params.volume_m3 = v, step: 1 },
+      { label: 'Draw rate (mol/s)', get: () => u.params.drawRate ?? 1.0, set: v => u.params.drawRate = v, step: 0.1 },
+    ];
+  },
+  properties(u, ud, grid, sc) {
+    const fillPct = ud.last?.fillPct || 0;
+    const barColor = fillPct >= 100 ? '#ef4444' : fillPct >= 80 ? '#f59e0b' : '#06b6d4';
+    insBar(grid, 'Fill', fillPct, barColor);
+    insKV(grid, 'Content', `${(ud.last?.totalMol||0).toFixed(1)} / ${(ud.last?.n_max||0).toFixed(1)}<span class="u">mol</span>`);
+    insKV(grid, 'T', fmt.T(ud.last?.T_K));
+    insKV(grid, 'P', fmt.P(ud.last?.P_Pa));
+    if (ud.last?.n) {
+      for (const [sp, mol] of Object.entries(ud.last.n)) {
+        if (mol > 1e-6) insKV(grid, sp, fmt.mol(mol));
+      }
+    }
+    insKV(grid, 'Draw', fmt.flow(ud.last?.drawRate));
+    const statusColor = ud.last?.status === 'full' ? '#ef4444' : ud.last?.status === 'empty' ? '#64748b' : '#06b6d4';
+    insKV(grid, 'Status', `<span style="color:${statusColor}">${ud.last?.status || '—'}</span>`);
+    // Time estimates
+    if (ud.last?.status === 'active' && ud.last?.totalMol > 0) {
+      const udR = sc?.runtime?.unitData?.get(u.id);
+      const matIn = udR?.ports?.mat_in, matOut = udR?.ports?.mat_out;
+      const nIn = matIn?.n ? Object.values(matIn.n).reduce((a,b)=>a+b,0) : 0;
+      const nOut = matOut?.n ? Object.values(matOut.n).reduce((a,b)=>a+b,0) : 0;
+      const netRate = nIn - nOut;
+      if (netRate > 0.001) insKV(grid, 'Time to full', fmt.time((ud.last.n_max - ud.last.totalMol) / netRate));
+      else if (netRate < -0.001) insKV(grid, 'Time to empty', fmt.time(ud.last.totalMol / Math.abs(netRate)));
+      const nc = netRate > 0 ? 'tone-good' : netRate < 0 ? 'tone-warn' : '';
+      insKV(grid, 'Net flow', `<span class="${nc}">${netRate > 0 ? '+' : ''}${netRate.toFixed(3)}</span><span class="u">mol/s</span>`);
+    }
+  }
+};
+
+UnitInspector.battery = {
+  params(u) {
+    return [
+      { label: 'Peak power (kW)', get: () => u.params.peakPower_kW || 20, set: v => u.params.peakPower_kW = v, step: 1 },
+      { label: 'Capacity (kWh)', get: () => (u.params.capacity_J || 36000000) / 3600000, set: v => u.params.capacity_J = v * 3600000, step: 1 },
+      { label: 'Initial SOC (-)', get: () => u.params.initialSOC ?? 0.9, set: v => u.params.initialSOC = v, step: 0.05 },
+    ];
+  },
+  properties(u, ud, grid) {
+    if (!ud.last) return;
+    const soc = ud.last.soc ?? 0;
+    const barColor = soc < 0.2 ? '#ef4444' : soc < 0.5 ? '#f59e0b' : '#22c55e';
+    insBar(grid, 'SOC', soc * 100, barColor);
+    insKV(grid, 'Charge', `${(ud.last.charge_kWh ?? 0).toFixed(2)}<span class="u">kWh</span>`);
+    insKV(grid, 'Peak', `${(ud.last.peakPower_kW ?? 0).toFixed(1)}<span class="u">kW</span>`);
+    if (ud.last.status === 'discharging' && ud.last.netPower_W > 0) {
+      insKV(grid, 'Discharge', fmt.kW(ud.last.netPower_W), { tone: 'warn' });
+      if (ud.last.timeToEmpty_s) insKV(grid, 'Time to empty', fmt.time(ud.last.timeToEmpty_s));
+    } else if (ud.last.status === 'charging' && ud.last.netPower_W < 0) {
+      insKV(grid, 'Charging', fmt.kW(Math.abs(ud.last.netPower_W)), { tone: 'good' });
+      if (ud.last.timeToFull_s) insKV(grid, 'Time to full', fmt.time(ud.last.timeToFull_s));
+    }
+    const statusColor = ud.last.status === 'discharging' ? '#f59e0b' : ud.last.status === 'charging' ? '#22c55e' : '#64748b';
+    insKV(grid, 'Status', `<span style="color:${statusColor}">${ud.last.status || 'idle'}</span>`);
+  }
+};
+
+UnitInspector.motor = {
+  params(u) { return [{ label: 'Efficiency (-)', get: () => u.params.eta || 0.95, set: v => u.params.eta = v, step: 0.01 }]; },
+  properties(u, ud, grid) {
+    insKV(grid, 'Electrical in', fmt.kW(ud.last?.W_elec_W));
+    insKV(grid, 'Mechanical out', fmt.kW(ud.last?.W_mech_W));
+    insKV(grid, 'Heat loss', fmt.kW(ud.last?.Q_loss_W), { tone: 'warn' });
+    insKV(grid, 'Efficiency', `${ud.last?.efficiency_pct || '—'}<span class="u">%</span>`);
+    if (ud.last?.heatOutWarning)
+      insErr(grid.parentNode, ud.last.heatOutWarning.severity, ud.last.heatOutWarning.message);
+  }
+};
+
+UnitInspector.electric_heater = {
+  params(u) {
+    return [{ type: 'info', html: 'Efficiency: <b>1.00</b> <span style="opacity:0.5">(fixed, 1st law)</span>' }];
+  },
+  properties(u, ud, grid) {
+    insKV(grid, 'Electrical in', fmt.kW(ud.last?.W_elec_actual_W));
+    insKV(grid, 'Heat out', fmt.kW(ud.last?.Q_available_W));
+    insKV(grid, 'Efficiency', `${ud.last?.efficiency_pct || '—'}<span class="u">%</span>`);
+  }
+};
+
+UnitInspector.generator = {
+  params(u) { return [{ label: 'Efficiency (-)', get: () => u.params.eta || 0.97, set: v => u.params.eta = v, step: 0.01 }]; },
+  properties(u, ud, grid) {
+    insKV(grid, 'Mechanical in', fmt.kW(ud.last?.W_mech_W));
+    insKV(grid, 'Electrical out', fmt.kW(ud.last?.W_elec_W));
+    insKV(grid, 'Heat loss', fmt.kW(ud.last?.Q_loss_W), { tone: 'warn' });
+    insKV(grid, 'Efficiency', `${ud.last?.efficiency_pct || '—'}<span class="u">%</span>`);
+    if (ud.last?.heatOutWarning)
+      insErr(grid.parentNode, ud.last.heatOutWarning.severity, ud.last.heatOutWarning.message);
+  }
+};
+
+UnitInspector.valve = {
+  params(u) {
+    const unitSys = models.getActive('units');
+    return [{ label: `P outlet (${unitSys.pressure.symbol})`, get: () => unitSys.pressure.from(u.params.Pout || 101325), set: v => u.params.Pout = unitSys.pressure.to(v), step: unitSys.pressure.decimals === 0 ? 1000 : 0.1 }];
+  }
+};
+
+UnitInspector.pump = {
+  params(u) { const us = models.getActive('units'); return _pEtaParams(u, us, 500000, 0.75); },
+  properties(u, ud, grid) { _powerProps(u, ud, grid, '⚡ Pump'); }
+};
+
+UnitInspector.compressor = {
+  params(u) { const us = models.getActive('units'); return _pEtaParams(u, us, 300000, 0.80); },
+  properties(u, ud, grid) { _powerProps(u, ud, grid, '⚡ Compressor'); }
+};
+
+UnitInspector.gas_turbine = {
+  params(u) { const us = models.getActive('units'); return _pEtaParams(u, us, 101325, 0.88); },
+  properties(u, ud, grid) { _powerProps(u, ud, grid, '⚡ Gas Turbine'); }
+};
+
+UnitInspector.heater = {
+  params(u) {
+    const us = models.getActive('units');
+    return [{ label: `T outlet setpoint (${us.temperature.symbol})`, get: () => us.temperature.from(u.params.T_out ?? 423.15), set: v => u.params.T_out = us.temperature.to(v), step: 1 }];
+  },
+  properties(u, ud, grid) {
+    if (!ud.last?.T_setpoint_K) return;
+    insKV(grid, 'T setpoint', fmt.T(ud.last.T_setpoint_K));
+    const matOut = ud.ports?.mat_out;
+    if (matOut?.T) {
+      const us = models.getActive('units');
+      const dev = Math.abs(us.temperature.from(matOut.T) - us.temperature.from(ud.last.T_setpoint_K));
+      insKV(grid, 'T actual', fmt.T(matOut.T), { tone: dev > 1 ? 'warn' : 'good' });
+    }
+    insKV(grid, 'Q demand', fmt.kW(ud.last.Q_demand_W));
+    insKV(grid, 'Q actual', fmt.kW(ud.last.Q_actual_W), { tone: ud.last.supplyLimited ? 'warn' : '' });
+  }
+};
+
+UnitInspector.cooler = {
+  params(u) {
+    const us = models.getActive('units');
+    return [{ label: `T outlet setpoint (${us.temperature.symbol})`, get: () => us.temperature.from(u.params.T_out ?? 303.15), set: v => u.params.T_out = us.temperature.to(v), step: 1 }];
+  },
+  properties(u, ud, grid) {
+    if (!ud.last?.T_setpoint_K) return;
+    insKV(grid, 'T setpoint', fmt.T(ud.last.T_setpoint_K));
+    const matOut = ud.ports?.mat_out;
+    if (matOut?.T) {
+      const us = models.getActive('units');
+      const dev = Math.abs(us.temperature.from(matOut.T) - us.temperature.from(ud.last.T_setpoint_K));
+      insKV(grid, 'T actual', fmt.T(matOut.T), { tone: dev > 1 ? 'warn' : 'good' });
+    }
+    insKV(grid, 'Q removed', fmt.kW(ud.last.Q_removed_W), { tone: 'info' });
+  }
+};
+
+UnitInspector.splitter = {
+  params(u) {
+    return [{ label: 'Split to out1 (%)', get: () => u.params.splitPct ?? 50, set: v => u.params.splitPct = Math.max(0, Math.min(100, v)), step: 1 }];
+  }
+};
+
+UnitInspector.mixer = {
+  // Mixer has no user-editable parameters
+  properties(u, ud, grid) {
+    if (!ud?.last) return;
+    // T comes from resolved outlet stream, not u.last
+    const outStream = ud.ports?.out;
+    if (outStream?.T) insKV(grid, 'T out', fmt.T(outStream.T));
+    if (ud.last.P_out) insKV(grid, 'P out', fmt.P(ud.last.P_out));
+    if (ud.last.nTotal) insKV(grid, 'Total flow', fmt.flow(ud.last.nTotal));
+    insKV(grid, 'H in₁', `${ud.last.H_in1_kW}<span class="u">kW</span>`, { tone: 'muted' });
+    insKV(grid, 'H in₂', `${ud.last.H_in2_kW}<span class="u">kW</span>`, { tone: 'muted' });
+    insKV(grid, 'H out', `${ud.last.H_out_kW}<span class="u">kW</span>`);
+  }
+};
+
+UnitInspector.hex = {
+  params(u) {
+    const us = models.getActive('units');
+    return [
+      { type: 'info', html: '<span style="opacity:0.6;font-size:11px;">Modes: approach temp · outlet temp · UA/NTU</span>' },
+      { label: 'Approach ΔT (K)', get: () => u.params.T_approach ?? 10, set: v => { u.params.T_approach = v; u.params.T_hot_out = undefined; u.params.T_cold_out = undefined; }, step: 1 },
+      { label: `T hot out (${us.temperature.symbol})`, get: () => u.params.T_hot_out != null ? us.temperature.from(u.params.T_hot_out) : '', set: v => { u.params.T_hot_out = us.temperature.to(v); u.params.T_approach = 0; u.params.T_cold_out = undefined; }, step: 1 },
+      { label: `T cold out (${us.temperature.symbol})`, get: () => u.params.T_cold_out != null ? us.temperature.from(u.params.T_cold_out) : '', set: v => { u.params.T_cold_out = us.temperature.to(v); u.params.T_approach = 0; u.params.T_hot_out = undefined; }, step: 1 },
+    ];
+  },
+  properties(u, ud, grid) {
+    if (ud.last?.Q === undefined) return;
+    insKV(grid, 'T hot in', fmt.T(ud.last.T_hot_in));
+    insKV(grid, 'T hot out', fmt.T(ud.last.T_hot_out_actual ?? ud.last.T_hot_out));
+    insKV(grid, 'T cold in', fmt.T(ud.last.T_cold_in));
+    insKV(grid, 'T cold out', fmt.T(ud.last.T_cold_out_actual ?? ud.last.T_cold_out));
+    insKV(grid, 'Duty', `${ud.last.Q.toFixed(2)}<span class="u">kW</span>`);
+    if (ud.last.hxPinch_K != null) {
+      const tone = ud.last.hxCross ? 'bad' : ud.last.hxPinch_K < 5 ? 'warn' : 'good';
+      insKV(grid, 'ΔT min (pinch)', `${ud.last.hxPinch_K.toFixed(2)}<span class="u">K</span>`, { tone });
+    }
+    if (ud.last.effectiveness && ud.last.effectiveness !== 'N/A')
+      insKV(grid, 'Effectiveness', `${ud.last.effectiveness}<span class="u">%</span>`);
+    if (ud.last.errors) {
+      for (const err of ud.last.errors) insErr(grid.parentNode, err.severity, err.message);
+    }
+  }
+};
+
+UnitInspector.power_hub = {
+  properties(u, ud, grid) {
+    if (!ud.last) return;
+    const f = [['Fixed supply', ud.last.fixedSupply_W], ['Grid supply max', ud.last.batteryMax_W],
+               ['Grid supply draw', ud.last.batteryDraw_W], ['Total supply', ud.last.totalSupply_W],
+               ['Total demand', ud.last.totalDemand_W], ['Surplus → heat', ud.last.surplus_W]];
+    for (const [label, val] of f) {
+      if (val === undefined) continue;
+      const isHL = label === 'Total demand' && ud.last.curtailmentFactor < 1;
+      insKV(grid, label, fmt.kW(val), { tone: isHL ? 'warn' : '' });
+    }
+    const cf = ud.last.curtailmentFactor ?? 1;
+    insKV(grid, 'Curtailment', fmt.pct(cf), { tone: cf < 1 ? 'warn' : 'good' });
+  }
+};
+
+UnitInspector.flash_drum = {
+  properties(u, ud, grid) {
+    if (!ud.last || ud.last.nTotal <= 0) return;
+    insKV(grid, 'Feed', fmt.flow(ud.last.nTotal));
+    insKV(grid, 'Vap fraction', fmt.pctRaw(ud.last.vapFraction));
+    if (ud.last.T_K) insKV(grid, 'T', fmt.T(ud.last.T_K));
+    if (ud.last.P_Pa) insKV(grid, 'P', fmt.P(ud.last.P_Pa));
+    // Phase info
+    if (ud.last.phaseSplit) {
+      const ps = ud.last.phaseSplit;
+      if (ps.vap) insKV(grid, 'Vapor out', fmt.flow(ps.vap));
+      if (ps.liq) insKV(grid, 'Liquid out', fmt.flow(ps.liq));
+    }
+  }
+};
+
+// Reactor configs share reaction selector pattern
+function _reactorParams(u, type) {
+  const params = [];
+  const allRxns = ReactionRegistry.all();
+  const rxnOpts = allRxns.map(r => [r.id, r.name]);
+  if (rxnOpts.length === 0) rxnOpts.push(['', '— No reactions —']);
+  params.push({ type: 'select', label: 'Reaction', get: () => u.params.reactionId || '', set: v => u.params.reactionId = v, options: rxnOpts });
+  // Reaction equation display
+  const rxn = u.params.reactionId ? ReactionRegistry.get(u.params.reactionId) : null;
+  if (rxn) params.push({ type: 'info', html: `<div class="rxnEquation">${formatReactionHTML(rxn.equation)}</div>` });
+  if (type === 'adiabatic') {
+    params.push({ type: 'slider', label: 'Conversion', get: () => u.params.conversion ?? 0.5, set: v => u.params.conversion = v, min: 0, max: 1, step: 0.01 });
+  } else {
+    params.push({ type: 'toggle', label: 'Kinetics (PFR)', get: () => u.params.useKinetics !== false, set: v => { u.params.useKinetics = v; updatePropertiesPanel(); } });
+    if (u.params.useKinetics !== false) {
+      params.push({ label: 'Volume (m³)', get: () => u.params.volume_m3 ?? 1.0, set: v => u.params.volume_m3 = v, step: 3 });
+    } else {
+      params.push({ type: 'slider', label: 'Alpha (approach)', get: () => u.params.alpha ?? 1.0, set: v => u.params.alpha = v, min: 0, max: 1, step: 0.01 });
+    }
+  }
+  return params;
+}
+
+UnitInspector.reactor_adiabatic = { params(u) { return _reactorParams(u, 'adiabatic'); } };
+UnitInspector.reactor_equilibrium = {
+  params(u) { return _reactorParams(u, 'equilibrium'); },
+  properties(u, ud, grid) {
+    if (!ud.last) return;
+    if (ud.last.alpha_eff != null) insKV(grid, 'α_eff', ud.last.alpha_eff.toFixed(4));
+    if (ud.last.rate != null) insKV(grid, 'Rate', `${ud.last.rate.toExponential(2)}<span class="u">mol/m³s</span>`);
+    if (ud.last.tau != null) insKV(grid, 'τ', `${ud.last.tau.toFixed(2)}<span class="u">s</span>`);
+    if (ud.last.K_eq != null) insKV(grid, 'K_eq', ud.last.K_eq.toExponential(3));
+    if (ud.last.T_rxn) insKV(grid, 'T reaction', fmt.T(ud.last.T_rxn));
+  }
+};
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   [v10] PALETTE DRAWER — Left-side unit catalog with search + categories
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+function populatePalette() {
+  const drawer = document.getElementById('paletteDrawer');
+  const searchInput = document.getElementById('palSearch');
+  const chipsContainer = document.getElementById('palChips');
+  const tilesContainer = document.getElementById('palTiles');
+  
+  let activeCategory = 'All';
+  
+  function buildChips() {
+    chipsContainer.innerHTML = '';
+    const cats = new Set(['All']);
+    const byCategory = UnitRegistry.listByCategory({ excludeCheats: !SimSettings.cheatsEnabled });
+    for (const cat of Object.keys(byCategory)) cats.add(cat);
+    for (const cat of cats) {
+      const chip = el('div', { class: `pal-chip ${cat === activeCategory ? 'active' : ''}` });
+      chip.textContent = cat;
+      chip.addEventListener('click', () => { activeCategory = cat; buildChips(); buildTiles(); });
+      chipsContainer.appendChild(chip);
+    }
+  }
+  
+  function buildTiles() {
+    tilesContainer.innerHTML = '';
+    const query = (searchInput.value || '').toLowerCase().trim();
+    const byCategory = UnitRegistry.listByCategory({ excludeCheats: !SimSettings.cheatsEnabled });
+    
+    for (const [catName, units] of Object.entries(byCategory)) {
+      if (activeCategory !== 'All' && catName !== activeCategory) continue;
+      
+      const filtered = units.filter(def => {
+        if (!query) return true;
+        return def.name.toLowerCase().includes(query) || 
+               def.defId.toLowerCase().includes(query) ||
+               (catName || '').toLowerCase().includes(query);
+      });
+      
+      if (filtered.length === 0) continue;
+      
+      tilesContainer.appendChild(el('div', { class: 'pal-cat-label', html: catName }));
+      
+      for (const def of filtered) {
+        const tile = el('div', { class: 'pal-tile' });
+        tile.draggable = true;
+        const wipTag = def._wip ? ' <span style="color:#f59e0b;font-size:9px;font-weight:700;">WIP</span>' : '';
+        tile.innerHTML = `<div class="pal-tname"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${def.color};margin-right:4px;vertical-align:middle;"></span>${def.name}${wipTag}</div><div class="pal-tdesc">${def.defId}</div>`;
+        
+        tile.addEventListener('dragstart', (ev) => {
+          ui.dragDefId = def.defId;
+          ui.isHTML5Dragging = true;
+          ev.dataTransfer.setData('text/plain', def.defId);
+          ev.dataTransfer.effectAllowed = 'copy';
+        });
+        
+        tile.addEventListener('dblclick', () => {
+          // Place at center of current viewport
+          const vb = svg.getAttribute('viewBox')?.split(' ').map(Number) || [0,0,1000,600];
+          const cx = vb[0] + vb[2] / 2;
+          const cy = vb[1] + vb[3] / 2;
+          const gx = Math.round(cx / scene.grid.tile);
+          const gy = Math.round(cy / scene.grid.tile);
+          const newId = scene.placeUnit(def.defId, gx, gy);
+          ui.selectedUnitId = newId;
+          ui.selectedConnId = null;
+          solveScene(scene);
+          updatePropertiesPanel();
+          render();
+          setStatus(`Placed ${def.name}`);
+        });
+        
+        tilesContainer.appendChild(tile);
+      }
+    }
+  }
+  
+  searchInput.addEventListener('input', buildTiles);
+  buildChips();
+  buildTiles();
+}
+
+function togglePalette(forceState) {
+  const drawer = document.getElementById('paletteDrawer');
+  const isOpen = drawer.classList.contains('open');
+  const shouldOpen = forceState !== undefined ? forceState : !isOpen;
+  
+  if (shouldOpen) {
+    drawer.classList.add('open');
+    populatePalette();
+    setTimeout(() => document.getElementById('palSearch').focus(), 50);
+  } else {
+    drawer.classList.remove('open');
+  }
+}
+
+// [v10] Palette event wiring
+document.getElementById('palClose').addEventListener('click', () => togglePalette(false));
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   [v10] SCHEMA-DRIVEN updatePropertiesPanel
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+function renderParams(container, paramDefs, u) {
+  for (const p of paramDefs) {
+    if (p.type === 'info') {
+      container.appendChild(el('div', { style: 'font-size:11px; opacity:0.7; margin:4px 0; line-height:1.4;', html: p.html }));
+    } else if (p.type === 'select') {
+      addSelectEditor(container, p.label, p.get, p.set, p.options);
+    } else if (p.type === 'slider') {
+      addSliderEditor(container, p.label, p.get, p.set, p.min || 0, p.max || 1, p.step || 0.01);
+    } else if (p.type === 'toggle') {
+      const row = el('div', { style: 'display:flex; align-items:center; gap:8px; margin:8px 0;' });
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = p.get();
+      cb.id = 'tog_' + p.label.replace(/\W/g, '_') + '_' + u.id;
+      cb.addEventListener('change', () => p.set(cb.checked));
+      row.appendChild(cb);
+      row.appendChild(el('label', { html: p.label, style: 'font-size:12px; cursor:pointer;', for: cb.id }));
+      container.appendChild(row);
+    } else {
+      // Default: number editor
+      addNumberEditor(container, p.label, p.get, p.set, p.step || 0.1);
+    }
+  }
+}
+
 function updatePropertiesPanel() {
   propEditor.innerHTML = '';
   
-  // UNIT SELECTED
+  // ═══ UNIT SELECTED ═══
   if (ui.selectedUnitId) {
     const u = scene.units.get(ui.selectedUnitId);
-    if (!u) {
-      ui.selectedUnitId = null;
+    if (!u) { ui.selectedUnitId = null; return updatePropertiesPanel(); }
+    const def = UnitRegistry.get(u.defId);
+    const ud = scene.runtime.unitData.get(u.id);
+    const config = UnitInspector[u.defId];
+    
+    // ── Header ──
+    const headerDiv = el('div', { class: 'unitHeader' });
+    const titleDiv = el('div', { class: 'unitTitle' });
+    const nameInput = el('input', { type: 'text', value: u.name || `${def.name} ${u.id.slice(-2)}` });
+    nameInput.addEventListener('input', () => {
+      u.name = nameInput.value;
+      const label = svg.querySelector(`[data-unit-id="${u.id}"]`);
+      if (label) label.textContent = u.name;
+    });
+    nameInput.addEventListener('blur', () => {
+      if (!nameInput.value.trim()) { u.name = `${def.name} ${u.id.slice(-2)}`; nameInput.value = u.name; }
+    });
+    titleDiv.appendChild(nameInput);
+    headerDiv.appendChild(titleDiv);
+    headerDiv.appendChild(el('div', { class: 'unitSubtitle', html: `${def.defId} · <span style="color:${def.color}">${def.category}</span>` }));
+    propEditor.appendChild(headerDiv);
+
+    // ── Errors (top-level) ──
+    if (ud?.last?.error) {
+      const err = ud.last.error;
+      const sev = err.severity || ErrorSeverity.MINOR;
+      insErr(propEditor, sev, err.message);
+    }
+
+    // ── Parameters ──
+    if (config?.params || config?.customParams) {
+      const paramsSection = createCollapsibleSection('Parameters', true);
+      if (config.customParams) {
+        config.customParams(paramsSection.content, u, scene);
+      } else {
+        const paramDefs = config.params(u);
+        renderParams(paramsSection.content, paramDefs, u);
+      }
+      propEditor.appendChild(paramsSection.section);
+    }
+
+    // ── Properties ──
+    const propsSection = createCollapsibleSection('Properties', true);
+    if (!ud) {
+      propsSection.content.appendChild(el('div', { class: 'ins-hint', html: 'Not computed yet — press Test/Step' }));
+    } else if (config?.properties) {
+      const grid = insBox(propsSection.content, null);
+      // Remove box wrapper for clean look — put grid directly
+      const box = grid.parentNode;
+      propsSection.content.removeChild(box);
+      const directGrid = el('div', { class: 'ins-grid' });
+      propsSection.content.appendChild(directGrid);
+      const skipStream = config.properties(u, ud, directGrid, scene);
+      // If properties returned true, it handled everything (e.g., sink renders stream)
+    } else if (u.defId === 'sink' && ud?.last?.stream) {
+      renderStreamProperties(propsSection.content, ud.last.stream);
+    }
+    propEditor.appendChild(propsSection.section);
+
+    // ── Diagnostics ──
+    if (ud?.errors?.length > 0 || ud?.last?.balanceErrors?.length > 0) {
+      const diagSection = createCollapsibleSection('Diagnostics', false);
+      if (ud.errors) {
+        for (const msg of ud.errors) {
+          diagSection.content.appendChild(el('div', { class: 'ins-err-box warn', html: '⚠ ' + msg }));
+        }
+      }
+      propEditor.appendChild(diagSection.section);
+    }
+  }
+  
+  // ═══ STREAM SELECTED ═══
+  else if (ui.selectedConnId) {
+    const conn = scene.connections.find(c => c.id === ui.selectedConnId);
+    if (!conn) {
+      ui.selectedConnId = null;
       return updatePropertiesPanel();
     }
+    
+    const fromUnit = scene.units.get(conn.from.unitId);
+    const toUnit = scene.units.get(conn.to.unitId);
+    const fromDef = UnitRegistry.get(fromUnit.defId);
+    const toDef = UnitRegistry.get(toUnit.defId);
+    const fromName = fromUnit.name || fromDef.name;
+    const toName = toUnit.name || toDef.name;
+    
+    const headerDiv = el('div', { class: 'unitHeader' });
+    headerDiv.appendChild(el('div', { class: 'unitTitle', style: 'cursor:default;', html: `${fromName} → ${toName}` }));
+    const fromPort = fromDef.ports.find(p => p.portId === conn.from.portId);
+    headerDiv.appendChild(el('div', { class: 'unitSubtitle', html: `${conn.from.portId} → ${conn.to.portId} · ${StreamType._name(fromPort?.type)}` }));
+    propEditor.appendChild(headerDiv);
+    
+    const propsSection = createCollapsibleSection('Properties', true);
+    const ud = scene.runtime.unitData.get(conn.from.unitId);
+    const stream = ud?.ports?.[conn.from.portId];
+    if (stream) {
+      renderStreamProperties(propsSection.content, stream);
+    } else {
+      propsSection.content.appendChild(el('div', { class: 'ins-hint', html: 'Not computed yet — press Test/Step' }));
+    }
+    propEditor.appendChild(propsSection.section);
+  }
+  
+  // ═══ NOTHING SELECTED — Balance Display ═══
+  else {
+    const emptyDiv = el('div', { style: 'padding:16px 0; text-align:center;' });
+    emptyDiv.appendChild(el('div', { class: 'small', style: 'opacity:0.5; margin-bottom:6px;', html: 'Click a unit or stream to inspect' }));
+    propEditor.appendChild(emptyDiv);
+  }
+  
+  // ═══ SOLVER SUMMARY STRIP ═══
+  buildSolverSummary(propEditor);
+  
+  // ═══ BALANCE DISPLAY ═══
+  const balance = computeSystemBalance(scene);
+  if (!balance) return;
+  
+  // Balance Header
+  const headerDiv = el('div', { style: 'margin-top:12px; padding:8px 0;' });
+  const massClosed = balance.mass.closed;
+  const enClosed = balance.energy.closed;
+  const mBadge = massClosed ? '<span class="ins-badge good">✓ Closed</span>' : '<span class="ins-badge bad">✗ Open</span>';
+  const eBadge = enClosed ? '<span class="ins-badge good">✓ Closed</span>' : '<span class="ins-badge bad">✗ Open</span>';
+  const enRelErr = balance.energy.relError;
+  const enErrText = isFinite(enRelErr) ? `${(enRelErr*100).toFixed(2)}%` : 'NaN%';
+  headerDiv.innerHTML = `<div style="font-size:12px; font-weight:700; margin-bottom:4px;">System Balance</div>` +
+    `<div style="font-size:11px; display:flex; gap:8px;">Mass ${mBadge} Energy ${eBadge} <span style="opacity:0.5">${enErrText}</span></div>`;
+  propEditor.appendChild(headerDiv);
+
+  // ── Mass Balance ──
+  if (balance.mass.in.length > 0 || balance.mass.out.length > 0) {
+    const massSection = createCollapsibleSection('Mass Balance', true);
+    const mc = massSection.content;
+    mc.appendChild(el('div', { class: 'ins-section-title', html: '→ Mass In' }));
+    for (const item of balance.mass.in) {
+      insKV(mc, item.name, `${(item.mass_kgps*1000).toFixed(4)}<span class="u">g/s</span>`);
+    }
+    const mIn = balance.mass.totalIn;
+    insKV(mc, 'Σ In', `<b>${(mIn*1000).toFixed(4)}</b><span class="u">g/s</span>`);
+
+    mc.appendChild(el('div', { class: 'ins-divider' }));
+    mc.appendChild(el('div', { class: 'ins-section-title', html: '← Mass Out' }));
+    for (const item of balance.mass.out) {
+      insKV(mc, item.name, `${(item.mass_kgps*1000).toFixed(4)}<span class="u">g/s</span>`);
+    }
+    const mOut = balance.mass.totalOut;
+    insKV(mc, 'Σ Out', `<b>${(mOut*1000).toFixed(4)}</b><span class="u">g/s</span>`);
+
+    // Accumulation
+    const hasAccumM = Math.abs(balance.mass.accumulation || 0) > 1e-9;
+    if (hasAccumM) {
+      mc.appendChild(el('div', { class: 'ins-divider' }));
+      mc.appendChild(el('div', { class: 'ins-section-title', html: '⟳ Accumulation' }));
+      insKV(mc, 'Mass accum', `${(balance.mass.accumulation*1000).toFixed(4)}<span class="u">g/s</span>`, { tone: 'info' });
+    }
+
+    mc.appendChild(el('div', { class: 'ins-divider' }));
+    const resLabel = hasAccumM ? 'Residual (In−Out−Accum)' : 'Residual (In−Out)';
+    insKV(mc, resLabel, `<b style="color:${massClosed ? '#6ee7b7' : '#fca5a5'}">${(balance.mass.residual*1000).toFixed(4)}</b><span class="u">g/s</span>`);
+
+    propEditor.appendChild(massSection.section);
+  }
+
+  // ── Energy Balance ──
+  if (balance.energy.in.items.length > 0 || balance.energy.out.items.length > 0) {
+    const enSection = createCollapsibleSection('Energy Balance', true);
+    const ec = enSection.content;
+    
+    // Energy In
+    ec.appendChild(el('div', { class: 'ins-section-title', html: '→ Energy In' }));
+    for (const item of balance.energy.in.items) {
+      insKV(ec, `${item.name} (${item.streamType})`, fmt.kW(item.value_W));
+    }
+    // Subtotals
+    const eIn = balance.energy.in;
+    if (eIn.material) insKV(ec, 'Σ Enthalpy', fmt.kW(eIn.material), { tone: 'muted' });
+    if (eIn.electrical) insKV(ec, 'Σ Electrical', fmt.kW(eIn.electrical), { tone: 'muted' });
+    if (eIn.mechanical) insKV(ec, 'Σ Mechanical', fmt.kW(eIn.mechanical), { tone: 'muted' });
+    if (eIn.heat) insKV(ec, 'Σ Heat', fmt.kW(eIn.heat), { tone: 'muted' });
+    insKV(ec, 'Total In', `<b>${fmt.kW(balance.energy.totalIn)}</b>`);
+
+    ec.appendChild(el('div', { class: 'ins-divider' }));
+    
+    // Energy Out
+    ec.appendChild(el('div', { class: 'ins-section-title', html: '← Energy Out' }));
+    for (const item of balance.energy.out.items) {
+      insKV(ec, `${item.name} (${item.streamType})`, fmt.kW(item.value_W));
+    }
+    const eOut = balance.energy.out;
+    if (eOut.material) insKV(ec, 'Σ Enthalpy', fmt.kW(eOut.material), { tone: 'muted' });
+    if (eOut.electrical) insKV(ec, 'Σ Electrical', fmt.kW(eOut.electrical), { tone: 'muted' });
+    if (eOut.heat) insKV(ec, 'Σ Heat', fmt.kW(eOut.heat), { tone: 'muted' });
+    insKV(ec, 'Total Out', `<b>${fmt.kW(balance.energy.totalOut)}</b>`);
+
+    // Accumulation
+    const hasAccumE = Math.abs(balance.energy.accumulation || 0) > 0.01;
+    if (hasAccumE && balance.accumulation?.items) {
+      ec.appendChild(el('div', { class: 'ins-divider' }));
+      ec.appendChild(el('div', { class: 'ins-section-title', html: '⟳ Accumulation' }));
+      for (const item of balance.accumulation.items) {
+        const tone = item.type === 'battery_charge' ? 'good' : 'info';
+        insKV(ec, `${item.name} (${item.label || item.type})`, fmt.kW(item.value_W), { tone });
+      }
+      insKV(ec, 'Σ Accumulation', fmt.kW(balance.energy.accumulation));
+    }
+
+    ec.appendChild(el('div', { class: 'ins-divider' }));
+    const enResidual = balance.energy.residual;
+    const resLabel = hasAccumE ? 'Residual (In−Out−Accum)' : 'Residual (In−Out)';
+    insKV(ec, resLabel, `<b style="color:${enClosed ? '#6ee7b7' : '#fca5a5'}">${(enResidual/1000).toFixed(4)} kW</b>`);
+
+    propEditor.appendChild(enSection.section);
+  }
+}
     
     const def = UnitRegistry.get(u.defId);
     
@@ -16387,16 +17356,30 @@ svg.addEventListener('drop', (ev) => {
 
 // Keyboard shortcuts
 window.addEventListener('keydown', (ev) => {
+  // Don't intercept when typing in inputs
+  const tag = ev.target.tagName;
+  const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+  
   if (ev.key === 'Escape') {
+    // [v10] Close palette first if open
+    const drawer = document.getElementById('paletteDrawer');
+    if (drawer.classList.contains('open')) {
+      togglePalette(false);
+      return;
+    }
     ui.pendingFrom = null;
     closeMenus();
     setStatus('Cancelled.');
-    
     render();
+  }
+  // [v10] / key opens palette and focuses search (unless typing in an input)
+  if (ev.key === '/' && !isInput) {
+    ev.preventDefault();
+    togglePalette(true);
   }
   // [v6.0.0] B-12: R-key rotation disabled — rendering doesn't support it yet
   // if (ev.key.toLowerCase() === 'r') rotateSelected();
-  if (ev.key === 'Delete') deleteSelected();
+  if (ev.key === 'Delete' && !isInput) deleteSelected();
 });
 
 /* =========================
@@ -16542,11 +17525,7 @@ if (statusTextEl) {
 }
 
 btnAdd.addEventListener('click', () => {
-  ui.selectedUnitId = null;
-  ui.selectedConnId = null;
-  showUnitLibrary();
-  
-  render();
+  togglePalette();
 });
 
 // Status card toggle
