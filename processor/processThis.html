@@ -1,7 +1,14 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v8.10.0
+  processThis v9.0.0
+
+  ─── v9.0.0 ───────────────────────────────────────────────────────────────
+  Version 9 milestone — Hard Mode & Settings complete.
+  Planet X atmosphere preset (T=305.15 K, P=89660 Pa, N₂/O₂/CO₂/Ar).
+  Settings UI polish: compact layout, muted checkbox, Run Tests button
+  with inline result display. All species shown per line including zeros.
+  159 tests, 1174 checks.
 
   ─── v8.10.0 ──────────────────────────────────────────────────────────────
   Hard Mode & Settings system.
@@ -2008,6 +2015,8 @@ const SimSettings = {
       air: { N2: 0.95, CH4: 0.05 } },
     venus: { name: 'Venus (surface)', T_K: 737, P_Pa: 9200000,
       air: { CO2: 0.965, N2: 0.035 } },
+    planet_x: { name: 'Planet X', T_K: 305.15, P_Pa: 89660,
+      air: { N2: 0.70, O2: 0.21, CO2: 0.08, Ar: 0.01 } },
     custom: { name: 'Custom', T_K: 288.15, P_Pa: 101325,
       air: { N2: 0.7809, O2: 0.2095, Ar: 0.0093, CO2: 0.0003, CH4: 0 } }
   },
@@ -13680,9 +13689,12 @@ function updatePropertiesPanel() {
         html: `<b>${atm.presetName}</b><br>T = ${atm.T_K.toFixed(1)} K &nbsp;|&nbsp; P = ${(atm.P_Pa/1e5).toFixed(4)} bar`
       }));
 
-      const airList = el('div', { style: 'margin-top:4px; font-size:11px; opacity:0.5;' });
-      const fracs = Object.entries(atm.air).map(([sp, f]) => `${sp}: ${(f*100).toFixed(2)}%`).join(', ');
-      airList.innerHTML = fracs;
+      const airList = el('div', { style: 'display:grid; grid-template-columns:36px 1fr; gap:1px 8px; margin-top:4px; font-size:11px;' });
+      for (const sp of ATMO_SPECIES) {
+        const f = atm.air[sp] || 0;
+        airList.appendChild(el('span', { html: sp, style: 'opacity:0.5;' }));
+        airList.appendChild(el('span', { html: `${(f*100).toFixed(2)}%`, style: f > 0 ? 'opacity:0.5;' : 'opacity:0.2;' }));
+      }
       paramsSection.content.appendChild(airList);
 
       paramsSection.content.appendChild(el('div', {
@@ -15486,11 +15498,13 @@ function buildSettingsPanel() {
       infoLine.innerHTML = `T = ${vals.T_K.toFixed(1)} K (${(vals.T_K - 273.15).toFixed(1)} °C) &nbsp;· &nbsp;P = ${vals.P_Pa.toLocaleString()} Pa (${(vals.P_Pa / 1e5).toFixed(3)} bar)`;
       atmDisplay.appendChild(infoLine);
 
-      const fracs = Object.entries(vals.air)
-        .filter(([, f]) => f > 0)
-        .map(([sp, f]) => `${sp} ${(f * 100).toFixed(2)}%`)
-        .join(' · ');
-      atmDisplay.appendChild(el('div', { style: 'font-size:11px; opacity:0.5; margin-top:2px;', html: fracs }));
+      const compList = el('div', { style: 'display:grid; grid-template-columns:36px 1fr; gap:1px 8px; font-size:11px; margin-top:4px;' });
+      for (const sp of ATMO_SPECIES) {
+        const f = vals.air[sp] || 0;
+        compList.appendChild(el('span', { html: sp, style: 'opacity:0.6;' }));
+        compList.appendChild(el('span', { html: `${(f * 100).toFixed(2)}%`, style: f > 0 ? 'opacity:0.7;' : 'opacity:0.25;' }));
+      }
+      atmDisplay.appendChild(compList);
     }
   }
 
@@ -15516,17 +15530,18 @@ function buildSettingsPanel() {
   devCheck.type = 'checkbox';
   devCheck.checked = SimSettings.cheatsEnabled;
   devCheck.id = 'settingsDevCheck';
+  devCheck.style.cssText = 'margin:0; flex-shrink:0; opacity:0.45; accent-color:#475569; width:14px; height:14px;';
   devCheck.addEventListener('change', () => _markSettingsDirty());
   devRow.appendChild(devCheck);
   const devLabel = document.createElement('label');
   devLabel.htmlFor = 'settingsDevCheck';
-  devLabel.style.cssText = 'font-size:12px; cursor:pointer;';
+  devLabel.style.cssText = 'font-size:12px; cursor:pointer; white-space:nowrap; line-height:1;';
   devLabel.textContent = 'Developer mode';
   devRow.appendChild(devLabel);
   devSec.appendChild(devRow);
   devSec.appendChild(el('div', {
-    style: 'font-size:10px; opacity:0.4; margin-left:26px; line-height:1.4; margin-bottom:8px;',
-    html: 'Cheat units (cooler, adiabatic reactor, source mix), arbitrary source T/P, auto-run tests on load.'
+    style: 'font-size:10px; opacity:0.35; margin-left:22px; line-height:1.4; margin-bottom:8px;',
+    html: 'Cheat units, arbitrary source T/P, auto-run tests.'
   }));
 
   // Warn if scene has cheat units and dev mode is off
@@ -15544,22 +15559,25 @@ function buildSettingsPanel() {
     }
   }
 
-  // Run Tests button
+  // Run Tests button — capped to ~3:1 aspect
+  const testRow = el('div', { style: 'display:flex; align-items:center; gap:8px;' });
   const testBtn = document.createElement('button');
   testBtn.className = 'btn';
-  testBtn.style.cssText = 'width:100%; padding:5px; font-size:11px;';
+  testBtn.style.cssText = 'padding:4px 14px; font-size:11px; white-space:nowrap;';
   testBtn.textContent = '▶ Run Tests';
+  const testResult = el('span', { style: 'font-size:10px; opacity:0.6;' });
   testBtn.addEventListener('click', () => {
     if (typeof window.runTests === 'function') {
       const result = window.runTests();
-      testBtn.textContent = result.success
-        ? `✓ ${result.tests} tests passed (${result.passed} checks)`
-        : `✗ ${result.failed} checks failed`;
-      testBtn.style.background = result.success ? '#166534' : '#991b1b';
-      setTimeout(() => { testBtn.textContent = '▶ Run Tests'; testBtn.style.background = ''; }, 4000);
+      testResult.textContent = result.success
+        ? `✓ ${result.tests} passed · ${result.passed} checks`
+        : `✗ ${result.failed} failed`;
+      testResult.style.color = result.success ? '#6ee7b7' : '#fca5a5';
     }
   });
-  devSec.appendChild(testBtn);
+  testRow.appendChild(testBtn);
+  testRow.appendChild(testResult);
+  devSec.appendChild(testRow);
   panel.appendChild(devSec);
 
   // ── Wire Apply button ──
@@ -21591,7 +21609,8 @@ function runTests() {
       { key: 'earth_isa', T: 288.15, P: 101325, majorSp: 'N2',  minFrac: 0.78 },
       { key: 'mars',      T: 210,    P: 636,    majorSp: 'CO2', minFrac: 0.95 },
       { key: 'titan',     T: 94,     P: 146700, majorSp: 'N2',  minFrac: 0.95 },
-      { key: 'venus',     T: 737,    P: 9200000,majorSp: 'CO2', minFrac: 0.96 }
+      { key: 'venus',     T: 737,    P: 9200000,majorSp: 'CO2', minFrac: 0.96 },
+      { key: 'planet_x',  T: 305.15, P: 89660,  majorSp: 'N2',  minFrac: 0.70 }
     ];
 
     for (const pc of presetChecks) {

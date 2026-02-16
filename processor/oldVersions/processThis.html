@@ -7,21 +7,30 @@
   Hard Mode & Settings system.
   SimSettings namespace (block 1, DOM-free): DEV_BUILD flag, AUTO_RUN_TESTS
   flag, cheatsEnabled toggle, atmospheric reference state with presets
-  (Earth ISA, Mars, Titan, Venus, Custom). Atmosphere frozen after set.
+  (Earth ISA 288.15K/101325Pa, Mars 210K/636Pa, Titan 94K/146.7kPa,
+  Venus 737K/9.2MPa, Custom). Atmosphere frozen after set.
   Cheat tagging: reactor_adiabatic, cooler, source_multi tagged cheat:true.
   listByCategory({ excludeCheats }) filters palette when hard mode active.
   New unit: source_air — emits atmospheric air (composition, T, P from
   SimSettings.atmosphere); tracks preset changes automatically.
   Source tick hardened: T/P enforced from atmosphere when cheats disabled;
   arbitrary T/P allowed when cheats enabled (backward compatible).
-  Settings modal (Menu → Settings): cheat toggle, atmosphere preset
-  dropdown, developer info. Apply & Re-solve rebuilds palette and scene.
-  Scene persistence: version bumped to 13, settings block in export/import
+  Settings modal (Menu → Settings, last item): two sections —
+  Atmospheric Conditions (preset dropdown with immediate display update,
+  Custom mode with editable T/P/composition for all atmospheric species:
+  N₂, O₂, Ar, CO₂, CH₄), Developer (checkbox controls cheats + auto-test,
+  Run Tests button with pass/fail feedback). Sticky Apply & Re-solve
+  footer; changes highlight button orange until applied.
+  "Run Tests" removed from main menu, moved to Settings developer panel.
+  Developer mode checkbox (checked by default) controls: cheat unit
+  availability, arbitrary source T/P, auto-test execution on page load.
+  Scene persistence: version 13, settings block in export/import
   (cheatsEnabled, atmospherePreset, customAtmosphere). v≤12 import: defaults.
-  Auto-test gated by SimSettings.AUTO_RUN_TESTS (true in dev, false for ship).
+  Auto-test gated by SimSettings.AUTO_RUN_TESTS.
   Default: cheatsEnabled=true, DEV_BUILD=true — no test breakage.
-  Tests 153–158: ISA defaults, source_air output, excludeCheats filter,
-  preset switch, source_air tracks preset, source T/P enforcement.
+  Tests 153–159: ISA defaults, source_air output, excludeCheats filter,
+  preset switch, source_air tracks preset, source T/P enforcement,
+  all presets propagate to source + source_air.
   NNG: NNG-A2, NNG-A4, NNG-U1, NNG-U2, NNG-T1/T2, NNG-C1.
 
   ─── v8.9.8 ───────────────────────────────────────────────────────────────
@@ -1630,12 +1639,11 @@
           <div class="item" id="mModels">Models <span class="hint">packages</span></div>
           <div class="item" id="mUnits">Units <span class="hint">display</span></div>
           <div class="item" id="mSolver">Solver <span class="hint">configure</span></div>
-          <div class="item" id="mSettings">Settings <span class="hint">hard mode</span></div>
           <div class="sep"></div>
           <div class="item" id="mLoadDemo">Load demo</div>
           <div class="item" id="mClear">Clear scene</div>
           <div class="sep"></div>
-          <div class="item" id="mRunTests">Run Tests <span class="hint">verify</span></div>
+          <div class="item" id="mSettings">Settings <span class="hint">⚙</span></div>
         </div>
       </div>
 
@@ -1700,10 +1708,13 @@
 
     <!-- Settings modal [v8.10.0] -->
     <div class="modal" id="modalSettings">
-      <div class="modalContent">
+      <div class="modalContent" style="display:flex; flex-direction:column; max-height:80vh;">
         <button class="modalClose" onclick="document.getElementById('modalSettings').classList.remove('open')">×</button>
-        <h3>⚙ Settings</h3>
-        <div id="settingsPanel" style="margin-top:10px; max-height:60vh; overflow-y:auto;"></div>
+        <h3 style="margin:0 0 4px;">⚙ Settings</h3>
+        <div id="settingsPanel" style="flex:1; overflow-y:auto; min-height:0;"></div>
+        <div id="settingsFooter" style="padding:10px 0 0; border-top:1px solid #334155; margin-top:8px; flex-shrink:0;">
+          <button class="btn" id="settingsApplyBtn" style="width:100%; padding:8px; transition:background 0.2s;">Apply &amp; Re-solve</button>
+        </div>
       </div>
     </div>
 
@@ -1986,7 +1997,7 @@ const SimSettings = {
 
   // ── Presets ──
   _activePreset: 'earth_isa',
-  _customValues: { T_K: 288.15, P_Pa: 101325, air: { N2: 0.7809, O2: 0.2095, Ar: 0.0093, CO2: 0.0003 } },
+  _customValues: { T_K: 288.15, P_Pa: 101325, air: { N2: 0.7809, O2: 0.2095, Ar: 0.0093, CO2: 0.0003, CH4: 0 } },
 
   atmospherePresets: {
     earth_isa: { name: 'Earth (ISA)', T_K: 288.15, P_Pa: 101325,
@@ -1998,7 +2009,7 @@ const SimSettings = {
     venus: { name: 'Venus (surface)', T_K: 737, P_Pa: 9200000,
       air: { CO2: 0.965, N2: 0.035 } },
     custom: { name: 'Custom', T_K: 288.15, P_Pa: 101325,
-      air: { N2: 0.78, O2: 0.21 } }
+      air: { N2: 0.7809, O2: 0.2095, Ar: 0.0093, CO2: 0.0003, CH4: 0 } }
   },
 
   /** Apply a preset (or custom values) as the active atmosphere */
@@ -8444,7 +8455,11 @@ class Scene {
       modelsActive: models.active
     };
     if (SimSettings.getPresetKey() === 'custom') {
-      data.settings.customAtmosphere = { ...SimSettings._customValues };
+      data.settings.customAtmosphere = {
+        T_K: SimSettings._customValues.T_K,
+        P_Pa: SimSettings._customValues.P_Pa,
+        air: { ...SimSettings._customValues.air }
+      };
     }
     if (Object.keys(this.solverOptions).length > 0) {
       data.solverOptions = { ...this.solverOptions };
@@ -8710,6 +8725,7 @@ class Scene {
     if (data.settings && typeof data.settings === 'object') {
       if (typeof data.settings.cheatsEnabled === 'boolean') {
         SimSettings.cheatsEnabled = data.settings.cheatsEnabled;
+        SimSettings.AUTO_RUN_TESTS = data.settings.cheatsEnabled;  // developer mode controls both
       }
       if (data.settings.atmospherePreset) {
         if (data.settings.atmospherePreset === 'custom' && data.settings.customAtmosphere) {
@@ -15353,150 +15369,230 @@ modalSettings.addEventListener('click', (ev) => {
   if (ev.target === modalSettings) modalSettings.classList.remove('open');
 });
 
+// Track pending changes for Apply button highlighting
+let _settingsDirty = false;
+
+function _markSettingsDirty() {
+  _settingsDirty = true;
+  const btn = document.getElementById('settingsApplyBtn');
+  if (btn) {
+    btn.style.background = '#b45309';
+    btn.style.color = '#fff';
+    btn.textContent = '⚠ Apply & Re-solve';
+  }
+}
+
+function _clearSettingsDirty() {
+  _settingsDirty = false;
+  const btn = document.getElementById('settingsApplyBtn');
+  if (btn) {
+    btn.style.background = '';
+    btn.style.color = '';
+    btn.textContent = 'Apply & Re-solve';
+  }
+}
+
+// All species that appear in any atmosphere preset (superset for Custom mode)
+const ATMO_SPECIES = ['N2', 'O2', 'Ar', 'CO2', 'CH4'];
+
 function buildSettingsPanel() {
   const panel = document.getElementById('settingsPanel');
   panel.innerHTML = '';
+  _clearSettingsDirty();
 
-  // ── Section: Simulation Mode ──
-  const simSec = el('div', { style: 'margin-bottom:20px; padding:12px; background:#1e293b; border-radius:8px;' });
-  simSec.appendChild(el('div', {
-    style: 'font-weight:700; font-size:12px; text-transform:uppercase; letter-spacing:0.5px; opacity:0.7; margin-bottom:10px;',
-    html: 'Simulation Mode'
+  // ── Pending preset key (tracks dropdown selection before Apply) ──
+  let pendingPreset = SimSettings.getPresetKey();
+  let pendingCustom = JSON.parse(JSON.stringify(SimSettings._customValues));
+
+  // Helper: get display values for a preset key
+  function presetValues(key) {
+    if (key === 'custom') return pendingCustom;
+    return SimSettings.atmospherePresets[key] || SimSettings.atmospherePresets.earth_isa;
+  }
+
+  // ── Section: Atmospheric Conditions ──
+  const atmSec = el('div', { style: 'padding:10px; background:#1e293b; border-radius:8px; margin-bottom:10px;' });
+  atmSec.appendChild(el('div', {
+    style: 'font-weight:700; font-size:11px; text-transform:uppercase; letter-spacing:0.5px; opacity:0.6; margin-bottom:8px;',
+    html: 'Atmospheric Conditions'
   }));
 
-  const cheatRow = el('div', { style: 'display:flex; align-items:center; gap:10px; margin-bottom:6px;' });
-  const cheatCheck = document.createElement('input');
-  cheatCheck.type = 'checkbox';
-  cheatCheck.checked = SimSettings.cheatsEnabled;
-  cheatCheck.id = 'settingsCheatCheck';
-  cheatRow.appendChild(cheatCheck);
-  cheatRow.appendChild(el('label', {
-    html: 'Cheat units & options',
-    style: 'font-size:13px; cursor:pointer;',
-    for: cheatCheck.id
-  }));
-  simSec.appendChild(cheatRow);
-  simSec.appendChild(el('div', {
-    style: 'font-size:11px; opacity:0.5; margin-left:28px; line-height:1.4;',
-    html: 'Enables: Cooler, Adiabatic reactor, Source (Mix), arbitrary source T/P. Uncheck for hard mode.'
+  // Preset dropdown
+  const presetRow = el('div', { style: 'display:flex; align-items:center; gap:8px; margin-bottom:8px;' });
+  presetRow.appendChild(el('label', { html: 'Preset:', style: 'font-size:12px; min-width:48px;' }));
+  const presetSel = document.createElement('select');
+  presetSel.style.cssText = 'flex:1; background:#0f172a; color:#e2e8f0; border:1px solid #334155; border-radius:4px; padding:3px 6px; font-size:12px;';
+  for (const [key, preset] of Object.entries(SimSettings.atmospherePresets)) {
+    const opt = document.createElement('option');
+    opt.value = key;
+    opt.textContent = preset.name;
+    if (key === pendingPreset) opt.selected = true;
+    presetSel.appendChild(opt);
+  }
+  presetRow.appendChild(presetSel);
+  atmSec.appendChild(presetRow);
+
+  // Display container (rebuilt on dropdown change)
+  const atmDisplay = el('div', { style: '' });
+  atmSec.appendChild(atmDisplay);
+
+  function renderAtmosphereDisplay() {
+    atmDisplay.innerHTML = '';
+    const vals = presetValues(pendingPreset);
+    const isCustom = pendingPreset === 'custom';
+
+    if (isCustom) {
+      // Editable T
+      const tRow = el('div', { style: 'display:flex; align-items:center; gap:6px; margin-bottom:4px; font-size:12px;' });
+      tRow.appendChild(el('span', { html: 'T', style: 'min-width:30px; opacity:0.7;' }));
+      const tInput = document.createElement('input');
+      tInput.type = 'number'; tInput.step = '1'; tInput.value = pendingCustom.T_K;
+      tInput.style.cssText = 'width:80px; background:#0f172a; color:#e2e8f0; border:1px solid #334155; border-radius:3px; padding:2px 4px; font-size:12px;';
+      tInput.addEventListener('input', () => { pendingCustom.T_K = parseFloat(tInput.value) || 288.15; _markSettingsDirty(); });
+      tRow.appendChild(tInput);
+      tRow.appendChild(el('span', { html: 'K', style: 'opacity:0.5; font-size:11px;' }));
+      atmDisplay.appendChild(tRow);
+
+      // Editable P
+      const pRow = el('div', { style: 'display:flex; align-items:center; gap:6px; margin-bottom:6px; font-size:12px;' });
+      pRow.appendChild(el('span', { html: 'P', style: 'min-width:30px; opacity:0.7;' }));
+      const pInput = document.createElement('input');
+      pInput.type = 'number'; pInput.step = '100'; pInput.value = pendingCustom.P_Pa;
+      pInput.style.cssText = 'width:80px; background:#0f172a; color:#e2e8f0; border:1px solid #334155; border-radius:3px; padding:2px 4px; font-size:12px;';
+      pInput.addEventListener('input', () => { pendingCustom.P_Pa = parseFloat(pInput.value) || 101325; _markSettingsDirty(); });
+      pRow.appendChild(pInput);
+      pRow.appendChild(el('span', { html: 'Pa', style: 'opacity:0.5; font-size:11px;' }));
+      atmDisplay.appendChild(pRow);
+
+      // Editable composition — all atmospheric species
+      atmDisplay.appendChild(el('div', { style: 'font-size:10px; opacity:0.5; margin-bottom:3px;', html: 'Air composition (mol fractions):' }));
+      const compGrid = el('div', { style: 'display:grid; grid-template-columns:40px 80px; gap:2px 6px; margin-left:4px;' });
+      for (const sp of ATMO_SPECIES) {
+        compGrid.appendChild(el('span', { html: sp, style: 'font-size:11px; opacity:0.7;' }));
+        const spInput = document.createElement('input');
+        spInput.type = 'number'; spInput.step = '0.001'; spInput.min = '0'; spInput.max = '1';
+        spInput.value = (pendingCustom.air[sp] || 0).toFixed(4);
+        spInput.style.cssText = 'background:#0f172a; color:#e2e8f0; border:1px solid #334155; border-radius:3px; padding:1px 4px; font-size:11px;';
+        spInput.addEventListener('input', () => {
+          pendingCustom.air[sp] = parseFloat(spInput.value) || 0;
+          _markSettingsDirty();
+        });
+        compGrid.appendChild(spInput);
+      }
+      atmDisplay.appendChild(compGrid);
+    } else {
+      // Read-only display
+      const infoLine = el('div', { style: 'font-size:12px; line-height:1.6; opacity:0.8;' });
+      infoLine.innerHTML = `T = ${vals.T_K.toFixed(1)} K (${(vals.T_K - 273.15).toFixed(1)} °C) &nbsp;· &nbsp;P = ${vals.P_Pa.toLocaleString()} Pa (${(vals.P_Pa / 1e5).toFixed(3)} bar)`;
+      atmDisplay.appendChild(infoLine);
+
+      const fracs = Object.entries(vals.air)
+        .filter(([, f]) => f > 0)
+        .map(([sp, f]) => `${sp} ${(f * 100).toFixed(2)}%`)
+        .join(' · ');
+      atmDisplay.appendChild(el('div', { style: 'font-size:11px; opacity:0.5; margin-top:2px;', html: fracs }));
+    }
+  }
+
+  presetSel.addEventListener('change', () => {
+    pendingPreset = presetSel.value;
+    renderAtmosphereDisplay();
+    _markSettingsDirty();
+  });
+
+  renderAtmosphereDisplay();
+  panel.appendChild(atmSec);
+
+  // ── Section: Developer ──
+  const devSec = el('div', { style: 'padding:10px; background:#1e293b; border-radius:8px; margin-bottom:6px;' });
+  devSec.appendChild(el('div', {
+    style: 'font-weight:700; font-size:11px; text-transform:uppercase; letter-spacing:0.5px; opacity:0.6; margin-bottom:8px;',
+    html: 'Developer'
   }));
 
-  // Warn if scene has cheat units
-  if (!SimSettings.cheatsEnabled || !cheatCheck.checked) {
+  // Developer mode checkbox
+  const devRow = el('div', { style: 'display:flex; align-items:center; gap:8px; margin-bottom:4px;' });
+  const devCheck = document.createElement('input');
+  devCheck.type = 'checkbox';
+  devCheck.checked = SimSettings.cheatsEnabled;
+  devCheck.id = 'settingsDevCheck';
+  devCheck.addEventListener('change', () => _markSettingsDirty());
+  devRow.appendChild(devCheck);
+  const devLabel = document.createElement('label');
+  devLabel.htmlFor = 'settingsDevCheck';
+  devLabel.style.cssText = 'font-size:12px; cursor:pointer;';
+  devLabel.textContent = 'Developer mode';
+  devRow.appendChild(devLabel);
+  devSec.appendChild(devRow);
+  devSec.appendChild(el('div', {
+    style: 'font-size:10px; opacity:0.4; margin-left:26px; line-height:1.4; margin-bottom:8px;',
+    html: 'Cheat units (cooler, adiabatic reactor, source mix), arbitrary source T/P, auto-run tests on load.'
+  }));
+
+  // Warn if scene has cheat units and dev mode is off
+  if (!devCheck.checked) {
     const cheatUnits = [];
     for (const u of scene.units.values()) {
       const def = UnitRegistry.get(u.defId);
       if (def && def.cheat) cheatUnits.push(u.name || u.defId);
     }
     if (cheatUnits.length > 0) {
-      simSec.appendChild(el('div', {
-        style: 'margin-top:8px; padding:6px 8px; background:#78350f; border-radius:4px; font-size:11px; color:#fbbf24; line-height:1.4;',
-        html: `⚠ Scene contains cheat units: ${cheatUnits.join(', ')}. They still function but cannot be added.`
+      devSec.appendChild(el('div', {
+        style: 'padding:4px 8px; background:#78350f; border-radius:4px; font-size:10px; color:#fbbf24; line-height:1.3; margin-bottom:6px;',
+        html: `⚠ Scene has cheat units: ${cheatUnits.join(', ')}. They still work but can't be added.`
       }));
     }
   }
-  panel.appendChild(simSec);
 
-  // ── Section: Atmospheric Conditions ──
-  const atmSec = el('div', { style: 'margin-bottom:20px; padding:12px; background:#1e293b; border-radius:8px;' });
-  atmSec.appendChild(el('div', {
-    style: 'font-weight:700; font-size:12px; text-transform:uppercase; letter-spacing:0.5px; opacity:0.7; margin-bottom:10px;',
-    html: 'Atmospheric Conditions'
-  }));
-
-  // Preset dropdown
-  const presetRow = el('div', { style: 'display:flex; align-items:center; gap:8px; margin-bottom:10px;' });
-  presetRow.appendChild(el('label', { html: 'Preset:', style: 'font-size:12px; min-width:50px;' }));
-  const presetSel = document.createElement('select');
-  presetSel.style.cssText = 'flex:1; background:#0f172a; color:#e2e8f0; border:1px solid #334155; border-radius:4px; padding:4px 8px; font-size:12px;';
-  for (const [key, preset] of Object.entries(SimSettings.atmospherePresets)) {
-    const opt = document.createElement('option');
-    opt.value = key;
-    opt.textContent = preset.name;
-    if (key === SimSettings.getPresetKey()) opt.selected = true;
-    presetSel.appendChild(opt);
-  }
-  presetRow.appendChild(presetSel);
-  atmSec.appendChild(presetRow);
-
-  // Display current values
-  const atm = SimSettings.getAtmosphere();
-  const unitSys = models.getActive('units');
-  const isCustom = SimSettings.getPresetKey() === 'custom';
-
-  const atmGrid = el('div', { class: 'propGrid', style: 'margin-bottom:10px;' });
-  atmGrid.appendChild(el('div', { class: 'propItem' }, [
-    el('div', { class: 'propLabel', html: 'T' }),
-    el('div', { class: 'propValue', html: `${atm.T_K.toFixed(2)}<span class="propUnit">K</span> (${(atm.T_K - 273.15).toFixed(1)} °C)` })
-  ]));
-  atmGrid.appendChild(el('div', { class: 'propItem' }, [
-    el('div', { class: 'propLabel', html: 'P' }),
-    el('div', { class: 'propValue', html: `${atm.P_Pa.toFixed(0)}<span class="propUnit">Pa</span> (${(atm.P_Pa / 1e5).toFixed(4)} bar)` })
-  ]));
-  atmSec.appendChild(atmGrid);
-
-  // Air composition table
-  atmSec.appendChild(el('div', {
-    style: 'font-size:11px; opacity:0.6; margin-bottom:6px;',
-    html: 'Air composition (mole fractions):'
-  }));
-  const airGrid = el('div', { style: 'display:grid; grid-template-columns:auto 1fr; gap:2px 12px; font-size:12px; margin-left:8px;' });
-  for (const [sp, frac] of Object.entries(atm.air)) {
-    airGrid.appendChild(el('div', { html: sp, style: 'opacity:0.7;' }));
-    airGrid.appendChild(el('div', { html: frac.toFixed(4) }));
-  }
-  atmSec.appendChild(airGrid);
-
-  if (isCustom) {
-    atmSec.appendChild(el('div', {
-      style: 'margin-top:8px; font-size:11px; opacity:0.5;',
-      html: 'Custom mode: edit T, P, and composition via console — SimSettings.setCustomAtmosphere(T_K, P_Pa, {species: frac, ...})'
-    }));
-  }
-
-  atmSec.appendChild(el('div', {
-    style: 'margin-top:8px; font-size:11px; opacity:0.4; font-style:italic;',
-    html: 'Extra-terrestrial settings update T<sub>atm</sub>, P<sub>atm</sub>, and Air Source composition.'
-  }));
-
-  panel.appendChild(atmSec);
-
-  // ── Section: Developer ──
-  const devSec = el('div', { style: 'margin-bottom:20px; padding:12px; background:#1e293b; border-radius:8px;' });
-  devSec.appendChild(el('div', {
-    style: 'font-weight:700; font-size:12px; text-transform:uppercase; letter-spacing:0.5px; opacity:0.7; margin-bottom:10px;',
-    html: 'Developer'
-  }));
-  devSec.appendChild(el('div', {
-    style: 'font-size:12px; margin-bottom:4px;',
-    html: `Build: <span style="color:${SimSettings.DEV_BUILD ? '#fbbf24' : '#22c55e'};">${SimSettings.DEV_BUILD ? 'Development' : 'Production'}</span>`
-  }));
-  devSec.appendChild(el('div', {
-    style: 'font-size:12px; margin-bottom:4px;',
-    html: `Auto-run tests: ${SimSettings.AUTO_RUN_TESTS ? '✓' : '✗'}`
-  }));
+  // Run Tests button
+  const testBtn = document.createElement('button');
+  testBtn.className = 'btn';
+  testBtn.style.cssText = 'width:100%; padding:5px; font-size:11px;';
+  testBtn.textContent = '▶ Run Tests';
+  testBtn.addEventListener('click', () => {
+    if (typeof window.runTests === 'function') {
+      const result = window.runTests();
+      testBtn.textContent = result.success
+        ? `✓ ${result.tests} tests passed (${result.passed} checks)`
+        : `✗ ${result.failed} checks failed`;
+      testBtn.style.background = result.success ? '#166534' : '#991b1b';
+      setTimeout(() => { testBtn.textContent = '▶ Run Tests'; testBtn.style.background = ''; }, 4000);
+    }
+  });
+  devSec.appendChild(testBtn);
   panel.appendChild(devSec);
 
-  // ── Apply button ──
-  const applyBtn = document.createElement('button');
-  applyBtn.className = 'btn';
-  applyBtn.style.cssText = 'width:100%; padding:8px; margin-top:4px;';
-  applyBtn.textContent = 'Apply & Re-solve';
-  applyBtn.addEventListener('click', () => {
-    SimSettings.cheatsEnabled = cheatCheck.checked;
-    SimSettings.setAtmosphere(presetSel.value);
+  // ── Wire Apply button ──
+  const applyBtn = document.getElementById('settingsApplyBtn');
+  // Clone to remove old listeners
+  const newBtn = applyBtn.cloneNode(true);
+  applyBtn.parentNode.replaceChild(newBtn, applyBtn);
+  newBtn.addEventListener('click', () => {
+    // Apply developer mode
+    SimSettings.cheatsEnabled = devCheck.checked;
+    SimSettings.AUTO_RUN_TESTS = devCheck.checked;
 
-    // Rebuild palette if currently showing
+    // Apply atmosphere
+    if (pendingPreset === 'custom') {
+      // Clean custom: remove zero-fraction species
+      const cleanAir = {};
+      for (const [sp, f] of Object.entries(pendingCustom.air)) {
+        if (f > 0) cleanAir[sp] = f;
+      }
+      SimSettings.setCustomAtmosphere(pendingCustom.T_K, pendingCustom.P_Pa, cleanAir);
+    } else {
+      SimSettings.setAtmosphere(pendingPreset);
+    }
+
     const solveResult = solveScene(scene);
     updateStatusIndicator(solveResult);
     updatePropertiesPanel();
     render();
 
-    // Rebuild panel to show updated values
+    _clearSettingsDirty();
     buildSettingsPanel();
-    setStatus(`Settings applied. ${SimSettings.cheatsEnabled ? 'Cheats ON' : 'Hard mode'} — ${SimSettings.atmosphere.presetName}`);
+    setStatus(`Settings applied. ${SimSettings.cheatsEnabled ? 'Dev mode' : 'Hard mode'} · ${SimSettings.atmosphere.presetName}`);
   });
-  panel.appendChild(applyBtn);
 }
 
 document.getElementById('mLoadDemo').addEventListener('click', () => {
@@ -15509,7 +15605,7 @@ document.getElementById('mLoadDemo').addEventListener('click', () => {
 document.getElementById('mClear').addEventListener('click', () => {
   if (confirm('Clear the entire scene? This cannot be undone.')) {
     scene.importJSON(JSON.stringify({
-      version: 9,  // [v6.0.0]
+      version: 13,
       processName: '',
       grid: { w: 22, h: 14, tile: 48 },
       units: [],
@@ -15523,15 +15619,7 @@ document.getElementById('mClear').addEventListener('click', () => {
   closeMenus();
 });
 
-document.getElementById('mRunTests').addEventListener('click', () => {
-  closeMenus();
-  if (typeof window.runTests === 'function') {
-    window.runTests();
-  } else {
-    console.warn('Test suite not loaded.');
-    setStatus('Test suite not available.');
-  }
-});
+// [v8.10.0] Run Tests moved to Settings modal developer section
 
 document.getElementById('mExport').addEventListener('click', () => {
   // Sync process name from input before export
@@ -21365,7 +21453,7 @@ function runTests() {
   });
 
   // ═══════════════════════════════════════════════════════════════════════
-  // SECTION AH: SimSettings & Hard Mode [v8.10.0] (Tests 153–158)
+  // SECTION AH: SimSettings & Hard Mode [v8.10.0] (Tests 153–159)
   // ═══════════════════════════════════════════════════════════════════════
 
   test('SimSettings — ISA atmosphere defaults', t => {
@@ -21490,6 +21578,48 @@ function runTests() {
     t.assertClose(out2.T, 500, 0.01, 'Cheat mode: T = par.T');
     t.assertClose(out2.P, 500000, 1, 'Cheat mode: P = par.P');
 
+    SimSettings.cheatsEnabled = origCheats;
+  });
+
+  test('SimSettings — all presets propagate to source + source_air', t => {
+    // T7: Each preset should set correct T/P/composition on sources
+    const origPreset = SimSettings.getPresetKey();
+    const origCheats = SimSettings.cheatsEnabled;
+    SimSettings.cheatsEnabled = false;  // hard mode
+
+    const presetChecks = [
+      { key: 'earth_isa', T: 288.15, P: 101325, majorSp: 'N2',  minFrac: 0.78 },
+      { key: 'mars',      T: 210,    P: 636,    majorSp: 'CO2', minFrac: 0.95 },
+      { key: 'titan',     T: 94,     P: 146700, majorSp: 'N2',  minFrac: 0.95 },
+      { key: 'venus',     T: 737,    P: 9200000,majorSp: 'CO2', minFrac: 0.96 }
+    ];
+
+    for (const pc of presetChecks) {
+      SimSettings.setAtmosphere(pc.key);
+      t.clearScene();
+
+      // source (single species) — hard mode enforces T/P
+      const src = t.place('source', 0, 0, { species: 'N2', nDot: 1, T: 999, P: 999, phaseConstraint: 'V' });
+      const snk = t.place('sink', 4, 0);
+      t.wire(src, 'out', snk, 'in');
+
+      // source_air — always uses atmosphere
+      const air = t.place('source_air', 0, 4, { flowScale: 1 });
+      const snk2 = t.place('sink', 4, 4);
+      t.wire(air, 'out', snk2, 'in');
+
+      t.solve();
+      const srcOut = t.port(src, 'out');
+      const airOut = t.port(air, 'out');
+
+      t.assertClose(srcOut.T, pc.T, 1, `${pc.key}: source T`);
+      t.assertClose(srcOut.P, pc.P, 100, `${pc.key}: source P`);
+      t.assertClose(airOut.T, pc.T, 1, `${pc.key}: air T`);
+      t.assertClose(airOut.P, pc.P, 100, `${pc.key}: air P`);
+      t.assertOK(airOut.n[pc.majorSp] >= pc.minFrac, `${pc.key}: air major species`);
+    }
+
+    SimSettings.setAtmosphere(origPreset);
     SimSettings.cheatsEnabled = origCheats;
   });
 
