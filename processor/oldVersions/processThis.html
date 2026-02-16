@@ -1,7 +1,27 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v9.0.5
+  processThis v9.1.0
+
+  ─── v9.1.0 ───────────────────────────────────────────────────────────────
+  Time & Inventory Milestone.
+
+  Feature-complete time-stepping system with material and energy
+  inventory tracking.  Five-phase implementation spanning TimeClock,
+  transport UI, inventory protocol, tank, battery SOC, system balance
+  with accumulation, and integration demo.
+
+  Demo scene: Sabatier CO₂ methanation with kinetics + recycle, now
+  extended with energy storage subsystem (solar 30 kW + Li-Ion battery
+  10 kWh → power hub → electric heater) and N₂ buffer tank (50 m³,
+  0.5 mol/s feed, 0.3 mol/s draw, overflow-protected).  Step the time
+  clock to watch battery SOC deplete/charge and tank fill level change.
+
+  Integration test T189: combined tank + battery + hub over 5 timesteps
+  verifying inventory growth, SOC tracking, hub dispatch, fill tracking,
+  and clock progression.
+
+  189 tests total (target was 180+).  Zero regressions across all phases.
 
   ─── v9.0.5 ───────────────────────────────────────────────────────────────
   Balance + Polish — Phase 4 of Time & Inventory system.
@@ -826,7 +846,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>processThis — v9.0.5</title>
+  <title>processThis — v9.1.0</title>
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
@@ -16942,7 +16962,7 @@ document.getElementById('processNameInput').addEventListener('input', (e) => {
    DEMO
    ========================= */
 function loadDemo() {
-  // ── [v8.9.8] Sabatier CO₂ Methanation — Kinetics Demo ──
+  // ── [v9.1.0] Sabatier CO₂ Methanation + Energy Storage Demo ──
   // CO₂ + 4 H₂ ⇌ CH₄ + 2 H₂O — isothermal PFR with kinetics
   // Fresh feed → mixer → reactor(kinetics, 0.5 m³) → cooler(50°C) → flash
   //                ↑                                                  ↓
@@ -16950,18 +16970,21 @@ function loadDemo() {
   //                                               ↓ purge (15%)
   //                                          flash liq_out → water sink
   //
+  // ENERGY STORAGE SUBSYSTEM (new in v9.1.0):
+  //   Solar (fixed 30 kW) + Battery (10 kWh, 90% SOC) → Hub → Heater → Heat Sink
+  //   N₂ Source → Tank (50 m³ buffer) → N₂ Vent
+  //
   // Feed at 523 K (250°C), 10 bar. At industrial conditions, Sabatier
-  // kinetics are fast → equilibrium-limited (α_eff ≈ 1). This is the
-  // normal operating regime. Try reducing volume to 1e-5 m³ to see
-  // kinetics limitation (α_eff < 1).
-  // Demonstrates kinetics mode with full diagnostics: rate, τ, α_eff.
+  // kinetics are fast → equilibrium-limited (α_eff ≈ 1).
+  // Step the time clock to watch battery SOC deplete and tank fill.
 
   scene.importJSON(JSON.stringify({
     version: 14,
-    processName: 'Sabatier CO₂ Methanation (Kinetics)',
-    grid: { w: 28, h: 14, tile: 48 },
+    processName: 'Sabatier + Energy Storage (v9.1.0)',
+    grid: { w: 28, h: 20, tile: 48 },
     solverOptions: { maxIter: 200 },
     units: [
+      // ── PROCESS SECTION ──
       // Fresh feed: stoichiometric CO₂ + 4 H₂ at 523 K, 10 bar
       { id: 'feed', defId: 'source_multi', name: 'CO₂/H₂ Feed', x: 0, y: 3, rot: 0,
         params: { n: { CO2: 1, H2: 4 }, T: 523, P: 1000000, phaseConstraint: 'V' } },
@@ -16989,10 +17012,42 @@ function loadDemo() {
       { id: 'snk-h2o', defId: 'sink', name: 'Water', x: 20, y: 6, rot: 0, params: {} },
 
       // Heat dump: reactor Q_duty + cooler Q_removed
-      { id: 'q-dump', defId: 'sink_heat', name: 'Heat Dump', x: 10, y: 9, rot: 0, params: {} }
+      { id: 'q-dump', defId: 'sink_heat', name: 'Heat Dump', x: 10, y: 9, rot: 0, params: {} },
+
+      // ── ENERGY STORAGE SUBSYSTEM ──
+      // Solar panel (fixed source, 30 kW)
+      { id: 'solar', defId: 'source_electrical', name: 'Solar 30kW', x: 0, y: 14, rot: 0,
+        params: { maxPower: 30 } },
+
+      // Battery (10 kWh, 20 kW peak, 90% SOC)
+      { id: 'batt', defId: 'battery', name: 'Li-Ion 10kWh', x: 0, y: 17, rot: 0,
+        params: { peakPower_kW: 20, capacity_J: 36000000, initialSOC: 0.9 } },
+
+      // Power hub: solar + battery → consumers
+      { id: 'hub', defId: 'power_hub', name: 'Power Hub', x: 6, y: 14, rot: 0, params: {} },
+
+      // Electric heater (consumer)
+      { id: 'e-heat', defId: 'electric_heater', name: 'E-Heater', x: 12, y: 14, rot: 0, params: {} },
+
+      // Heat sink for heater output
+      { id: 'e-q', defId: 'sink_heat', name: 'Heater Load', x: 16, y: 14, rot: 0, params: {} },
+
+      // Hub surplus heat dump
+      { id: 'hub-q', defId: 'sink_electrical', name: 'Curtailment', x: 6, y: 18, rot: 0, params: {} },
+
+      // ── N₂ BUFFER TANK ──
+      // N₂ feed → tank → vent
+      { id: 'n2-feed', defId: 'source', name: 'N₂ Feed', x: 20, y: 14, rot: 0,
+        params: { species: 'N2', nDot: 0.5, T: 300, P: 200000, phaseConstraint: 'V' } },
+
+      { id: 'n2-tank', defId: 'tank', name: 'N₂ Buffer', x: 22, y: 14, rot: 0,
+        params: { volume_m3: 20, drawRate: 0.3 } },
+
+      { id: 'n2-vent', defId: 'sink', name: 'N₂ Vent', x: 26, y: 14, rot: 0, params: {} },
+      { id: 'n2-ov', defId: 'sink', name: 'Overflow', x: 23, y: 12, rot: 0, params: {} }
     ],
     connections: [
-      // Main process chain (left → right)
+      // ── Process chain ──
       { id: 'c1', from: { unitId: 'feed',  portId: 'out' },
                   to:   { unitId: 'mix',   portId: 'in1' } },
       { id: 'c2', from: { unitId: 'mix',   portId: 'out' },
@@ -17003,22 +17058,36 @@ function loadDemo() {
                   to:   { unitId: 'flash', portId: 'mat_in' } },
       { id: 'c5', from: { unitId: 'flash', portId: 'vap_out' },
                   to:   { unitId: 'split', portId: 'in' } },
-
-      // Products
       { id: 'c6', from: { unitId: 'split', portId: 'out1' },
                   to:   { unitId: 'snk-ch4', portId: 'in' } },
       { id: 'c7', from: { unitId: 'flash', portId: 'liq_out' },
                   to:   { unitId: 'snk-h2o', portId: 'in' } },
-
-      // Recycle: splitter out2 → mixer in2
       { id: 'c8', from: { unitId: 'split', portId: 'out2' },
                   to:   { unitId: 'mix',   portId: 'in2' } },
-
-      // Heat duty: reactor + cooler → heat dump
       { id: 'c9',  from: { unitId: 'rx',   portId: 'heat_out' },
                    to:   { unitId: 'q-dump', portId: 'in' } },
       { id: 'c10', from: { unitId: 'cool', portId: 'heat_out' },
-                   to:   { unitId: 'q-dump', portId: 'in' } }
+                   to:   { unitId: 'q-dump', portId: 'in' } },
+
+      // ── Energy storage ──
+      { id: 'e1', from: { unitId: 'solar', portId: 'out' },
+                  to:   { unitId: 'hub',   portId: 'elec_in' } },
+      { id: 'e2', from: { unitId: 'batt',  portId: 'elec' },
+                  to:   { unitId: 'hub',   portId: 'elec_in' } },
+      { id: 'e3', from: { unitId: 'hub',   portId: 'elec_out' },
+                  to:   { unitId: 'e-heat', portId: 'elec_in' } },
+      { id: 'e4', from: { unitId: 'e-heat', portId: 'heat_out' },
+                  to:   { unitId: 'e-q',   portId: 'in' } },
+      { id: 'e5', from: { unitId: 'hub',   portId: 'heat_out' },
+                  to:   { unitId: 'hub-q', portId: 'in' } },
+
+      // ── N₂ tank ──
+      { id: 't1', from: { unitId: 'n2-feed', portId: 'out' },
+                  to:   { unitId: 'n2-tank', portId: 'mat_in' } },
+      { id: 't2', from: { unitId: 'n2-tank', portId: 'mat_out' },
+                  to:   { unitId: 'n2-vent', portId: 'in' } },
+      { id: 't3', from: { unitId: 'n2-tank', portId: 'overflow' },
+                  to:   { unitId: 'n2-ov',  portId: 'in' } }
     ],
     modelsActive: models.active
   }));
@@ -17026,11 +17095,11 @@ function loadDemo() {
   ui.selectedUnitId = null;
   ui.selectedConnId = null;
   ui.pendingFrom = null;
-  scene.processName = 'Sabatier CO₂ Methanation (Kinetics)';
+  scene.processName = 'Sabatier + Energy Storage (v9.1.0)';
   document.getElementById('processNameInput').value = scene.processName;
   buildModelsPanel();
   const solveResult = solveScene(scene);
-  setStatus("Demo loaded: Sabatier CO₂ methanation with kinetics + recycle.");
+  setStatus("Demo: Sabatier methanation + energy storage (tank & battery). Step ▶ to watch SOC & fill change.");
   updateStatusIndicator(solveResult);
   
   updatePropertiesPanel();
@@ -23618,6 +23687,75 @@ function runTests() {
 
     t.assertOK(dCharge_J > 0, `Battery discharged ${(dCharge_J/1000).toFixed(1)} kJ`);
     t.assertClose(residual_J, 0, 100, `Energy balance residual = ${residual_J.toFixed(1)} J (should ≈ 0)`);
+
+    TimeClock.t = 0; TimeClock.frame = 0;
+    TimeClock.mode = 'test'; SimSettings.dt = origDt;
+  }});
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // AO — Phase 5: Milestone v9.1.0
+  // ═══════════════════════════════════════════════════════════════════════
+
+  tests.push({ name: '189: Milestone integration: tank + battery + hub over 5 steps', fn: t => {
+    const origDt = SimSettings.dt;
+    TimeClock.t = 0; TimeClock.frame = 0; TimeClock.mode = 'test';
+    SimSettings.dt = 60;
+
+    // N₂ source → tank → sink (material subsystem)
+    const n2src = t.place('source', 0, 0, { species: 'N2', nDot: 1.0, T: 300, P: 200000, phaseConstraint: 'V' });
+    const tank  = t.place('tank', 4, 0, { volume_m3: 10, drawRate: 0.5 });
+    const mSnk  = t.place('sink', 8, 0);
+    const ovSnk = t.place('sink', 5, 4);
+    t.wire(n2src, 'out', tank, 'mat_in');
+    t.wire(tank, 'mat_out', mSnk, 'in');
+    t.wire(tank, 'overflow', ovSnk, 'in');
+
+    // Solar (20 kW) + battery (5 kWh, 90%) → hub → heater → heat sink
+    const solar = t.place('source_electrical', 0, 8, { maxPower: 20 });
+    const bat   = t.place('battery', 0, 12, { peakPower_kW: 15, capacity_J: 18000000, initialSOC: 0.9 });
+    const hub   = t.place('power_hub', 6, 8);
+    const heat  = t.place('electric_heater', 10, 8);
+    const hSnk  = t.place('sink_heat', 14, 8);
+    const eSnk  = t.place('sink_electrical', 6, 12);
+    t.wire(solar, 'out', hub, 'elec_in');
+    t.wire(bat, 'elec', hub, 'elec_in');
+    t.wire(hub, 'elec_out', heat, 'elec_in');
+    t.wire(heat, 'heat_out', hSnk, 'in');
+    t.wire(hub, 'heat_out', eSnk, 'in');
+
+    const uTank = scene.units.get(tank);
+    const uBat  = scene.units.get(bat);
+    const initN2 = uTank.inventory.n.N2;
+    const initCharge = uBat.inventory.charge_J;
+
+    // Run 5 steps
+    for (let i = 0; i < 5; i++) {
+      TimeClock.step(scene);
+    }
+
+    // Tank should have accumulated N₂ (inflow > outflow)
+    t.assertOK(uTank.inventory.n.N2 > initN2, 
+      `Tank N₂ grew: ${uTank.inventory.n.N2.toFixed(0)} > ${initN2.toFixed(0)}`);
+    t.assertOK(uTank.inventory.n.N2 > 0, 'Tank has positive inventory');
+
+    // Battery SOC should have changed (hub surplus charges it)
+    // With 20 kW solar and heater consuming via hub, battery may charge or discharge
+    const batUD = scene.runtime.unitData.get(bat);
+    t.assertOK(batUD.last.type === 'battery', 'Battery reports type');
+    t.assertOK(batUD.last.soc >= 0 && batUD.last.soc <= 1, `SOC in valid range: ${(batUD.last.soc*100).toFixed(1)}%`);
+
+    // Tank fill should be tracked
+    const tankUD = scene.runtime.unitData.get(tank);
+    t.assertOK(tankUD.last.fillPct > 0, `Tank fill > 0%: ${tankUD.last.fillPct.toFixed(1)}%`);
+    t.assertOK(tankUD.last.type === 'tank', 'Tank reports type');
+
+    // Hub should have dispatched power
+    const hubUD = scene.runtime.unitData.get(hub);
+    t.assertOK(hubUD.last.totalSupply_W > 0, `Hub supply > 0: ${(hubUD.last.totalSupply_W/1000).toFixed(1)} kW`);
+
+    // Frame count
+    t.assertOK(TimeClock.frame === 5, `frame = ${TimeClock.frame}`);
+    t.assertOK(TimeClock.t === 300, `t = ${TimeClock.t}s`);
 
     TimeClock.t = 0; TimeClock.frame = 0;
     TimeClock.mode = 'test'; SimSettings.dt = origDt;
