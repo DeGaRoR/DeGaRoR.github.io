@@ -1,7 +1,16 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v8.9.6
+  processThis v8.9.7
+
+  ─── v8.9.7 ───────────────────────────────────────────────────────────────
+  Phase 4: Verification & troubleshooting.
+  Three test fixes from Phase 3:
+  - T8: volume 1e-4 → 1e-6 m³ (Sabatier at 10 bar too fast; needed smaller V)
+  - T9: separate topology for negative-V test (unit params frozen by solver)
+  - Test 147 (recycle): T_eval range widened to 400–1000K (mixer blends 900K
+    feed with 323K recycle → actual ≈ 556K)
+  All 152 tests pass, 1113 checks verified.
 
   ─── v8.9.6 ───────────────────────────────────────────────────────────────
   Phase 3: Reactor tick kinetics branch + UI + tests (unverified).
@@ -18,7 +27,6 @@
   New tests T7–T13: large V→equilibrium, small V→kinetics-limited,
   zero V→MAJOR, missing reactant, golden number Sabatier, H2 fast kinetics,
   Sabatier recycle with kinetics.
-  ⚠ TESTS NOT YET VERIFIED — run in Phase 4.
   NNG: NNG-A2, NNG-D2, NNG-D4, NNG-T2.
 
   ─── v8.9.5 ───────────────────────────────────────────────────────────────
@@ -19652,7 +19660,7 @@ function runTests() {
       n: { CO2: 1, H2: 4, N2: 5 }, T: 500, P: 1000000, phaseConstraint: 'V'
     });
     const rx = t.place('reactor_equilibrium', 4, 0, {
-      reactionId: 'R_SABATIER', useKinetics: true, volume_m3: 0.0001
+      reactionId: 'R_SABATIER', useKinetics: true, volume_m3: 1e-6
     });
     const snk = t.place('sink', 8, 0);
     t.wire(src, 'out', rx, 'mat_in');
@@ -19687,10 +19695,18 @@ function runTests() {
     t.assertOK(rxLast.error.message.toLowerCase().includes('volume'),
       'Error mentions volume');
 
-    // Also test negative volume
-    rx.params.volume_m3 = -1;
+    // Also test negative volume (separate topology)
+    const src2 = t.place('source_multi', 0, 6, {
+      n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
+    });
+    const rx2 = t.place('reactor_equilibrium', 4, 6, {
+      reactionId: 'R_H2_COMB', useKinetics: true, volume_m3: -1
+    });
+    const snk2 = t.place('sink', 8, 6);
+    t.wire(src2, 'out', rx2, 'mat_in');
+    t.wire(rx2, 'mat_out', snk2, 'in');
     t.solve();
-    const rxLast2 = t.ud(rx).last;
+    const rxLast2 = t.ud(rx2).last;
     t.assertOK(rxLast2?.error?.severity === ErrorSeverity.MAJOR, 'Negative V: MAJOR');
   });
 
@@ -20319,8 +20335,8 @@ function runTests() {
     // ── 1. Solver converged ──
     const rxLast = t.ud(rx).last;
     t.assertOK(rxLast.status === 'active', 'Reactor status: active');
-    // T_eval = T_in (mixer outlet); feed at 900K, recycle cooled → T_in ≈ 700–900K
-    t.assertOK(rxLast.T_eval > 600 && rxLast.T_eval < 1000,
+    // T_eval = T_in (mixer outlet); feed at 900K, recycle cooled → T_in ≈ 500–900K
+    t.assertOK(rxLast.T_eval > 400 && rxLast.T_eval < 1000,
       'T_eval in plausible range', `T_eval=${rxLast.T_eval.toFixed(0)} K`);
 
     // ── 2. Reactor sees enriched inlet (recycle adds products) ──
