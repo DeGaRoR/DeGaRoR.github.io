@@ -1,7 +1,37 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v9.0.1
+  processThis v9.0.2
+
+  ─── v9.0.2 ───────────────────────────────────────────────────────────────
+  Grid Supply rename + Inventory Protocol + Bidirectional ports — Phase 1.
+
+  Rename: `battery` → `grid_supply` (defId, name, icon, all hub/solver
+  references, property editor, tests). Behavior 100% identical —
+  infinite-capacity responsive electrical source. Version migration in
+  importJSON: version ≤ 13 files with defId 'battery' auto-converted
+  to 'grid_supply'. Export version bumped to 14.
+
+  Inventory protocol on UnitRegistry (NNG-D4 amendment): register() now
+  accepts optional `inventory`, `initInventory(par)`, `updateInventory(
+  inventory, ports, dt)` fields. Scene.placeUnit() calls initInventory
+  for inventory-bearing units.
+
+  TimeClock.step() now: initialises inventories on first step, calls
+  updateInventory for each inventory unit between solves (reads resolved
+  ports from last solve), deep-copies inventory snapshots for capture/
+  restore. TimeClock.reset() restores initial inventory state.
+
+  Bidirectional port support (NNG-M5): port defs may include
+  `bidirectional: true`. validateUnitPorts passes flag to validateStream.
+  validateStream skips POWER_ACTUAL_NEGATIVE check when bidirectional.
+  Prepares for Phase 3 battery with charging (negative actual).
+
+  NNG: NNG-D4 (inventory fields), NNG-M4 (bidirectional actual range),
+  NNG-M5 (new — bidirectional ports), NNG-S1 (step D renamed),
+  NNG-S4 (bidirectional actual).
+  Tests: T164-T168 (grid_supply output, hub dispatch, initInventory on
+  place, capture/restore round-trip, bidirectional validation).
 
   ─── v9.0.1 ───────────────────────────────────────────────────────────────
   TimeClock + Transport Controls — Phase 0 of Time & Inventory system.
@@ -472,13 +502,20 @@
             T → fully).  No explicit `spec` field on streams.
     NNG-M4  Power streams: field names are capacity/actual/demand/curtailmentFactor.
             No _W suffix.  `available` is a deprecated alias for `capacity`.
+            For bidirectional ports (NNG-M5): actual ∈ [−maxCharge, +capacity].
+            Negative actual indicates reverse flow (e.g. battery charging).
+    NNG-M5  Bidirectional ports.  A port may be declared bidirectional: true
+            in its definition.  This allows its actual field to be negative,
+            indicating power flow opposite to the port's declared direction.
+            Only the battery unit uses this.  validateStream() skips the
+            non-negative actual check when ctx.bidirectional is true.
 
   SOLVER:
     NNG-S1  Solver step ordering is fixed:
               tick → validateStreamFlows (heal) → validateMaterialPreFlash
               → flash loop (TP/PH) → port storage → validateUnitPorts (post-flash)
-              → Steps B (demand propagation) → C (hub) → D (battery direct)
-              → E (source direct) → convergence check
+              → Steps B (demand propagation) → C (hub) → D (grid_supply/battery
+              direct) → E (source direct) → convergence check
     NNG-S2  Inter-iteration state goes through RuntimeContext.scratch() only.
             Never store solver state directly on unit objects (u._whatever).
     NNG-S3  PH flash T resolution guarantee.  Any stream with H_target_Jps
@@ -486,6 +523,7 @@
     NNG-S4  Power lifecycle: capacity (set by tick) → demand (set by solver
             Steps B-E) → actual (set by solver, ≤ capacity) → curtailmentFactor
             (actual/demand).  Consumers read input.actual, not input.capacity.
+            For bidirectional ports (NNG-M5): actual may be negative.
     NNG-S5  Inter-timestep persistent state lives on u.inventory.  This field
             is invisible to solveScene() — never read, written, or cleared
             during a solve.  Only TimeClock modifies it between solves.  Tick
@@ -512,7 +550,9 @@
             but must be explicitly declared as such in the schema definition.
             No entry may be registered with a required field missing or null.
             This ensures uniform data availability and prevents feature-gating
-            based on data presence.
+            based on data presence.  Units with inventory: true must also provide
+            initInventory(par) and updateInventory(inventory, ports, dt).  These
+            fields are optional — units without inventories omit them.
 
   COMPATIBILITY:
     NNG-C1  Backward compatibility is NOT required during pre-release development.
@@ -686,7 +726,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>processThis — v9.0.1</title>
+  <title>processThis — v9.0.2</title>
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
@@ -1939,8 +1979,8 @@
           <path d="M42 24l12 8-12 8" fill="none" stroke="currentColor" stroke-width="6" stroke-linejoin="round"/>
         </symbol>
         
-        <!-- Battery (electrical energy storage) -->
-        <symbol id="ico-battery" viewBox="0 0 64 64">
+        <!-- Grid Supply (responsive electrical source) [v9.0.2 renamed from battery] -->
+        <symbol id="ico-grid_supply" viewBox="0 0 64 64">
           <rect x="10" y="18" width="36" height="28" rx="3" fill="none" stroke="currentColor" stroke-width="3"/>
           <rect x="46" y="26" width="6" height="12" rx="1" fill="currentColor"/>
           <rect x="16" y="24" width="8" height="16" fill="currentColor" opacity="0.8"/>
@@ -2166,7 +2206,7 @@ const TimeClock = {
 
   /**
    * Advance one timestep.
-   * 1. On first call (test→paused): capture initial inventories
+   * 1. On first call (test→paused): init inventories, capture snapshot
    * 2. Update inventories from last solve's flows × dt
    * 3. Increment t, frame
    * 4. Re-solve
@@ -2175,14 +2215,28 @@ const TimeClock = {
    */
   step(scene) {
     if (TimeClock.mode === 'test') {
+      // Initialize inventories on first step
+      for (const [uid, u] of scene.units) {
+        const def = UnitRegistry.get(u.defId);
+        if (def && def.inventory && def.initInventory && !u.inventory) {
+          u.inventory = def.initInventory(u.params);
+        }
+      }
       TimeClock._captureInitial(scene);
       TimeClock.mode = 'paused';
     }
 
-    // Phase 1+: inventory update will go here
-    // For each inventory unit: u.inventory = def.updateInventory(...)
+    // [v9.0.2] Update inventories from last solve's resolved ports
+    const dt = TimeClock.dt;
+    for (const [uid, u] of scene.units) {
+      const def = UnitRegistry.get(u.defId);
+      if (!def || !def.inventory || !def.updateInventory || !u.inventory) continue;
+      const ud = scene.runtime.unitData.get(uid);
+      const resolvedPorts = ud ? ud.ports : {};
+      u.inventory = def.updateInventory(u.inventory, resolvedPorts, dt);
+    }
 
-    TimeClock.t += TimeClock.dt;
+    TimeClock.t += dt;
     TimeClock.frame += 1;
 
     const solveResult = solveScene(scene);
@@ -2204,16 +2258,23 @@ const TimeClock = {
     return { solveResult };
   },
 
-  /** Snapshot current inventories as t=0 state */
+  /** Snapshot current inventories as t=0 state (deep copy) */
   _captureInitial(scene) {
     TimeClock._initial = new Map();
-    // Phase 1+: deep-copy u.inventory for each inventory unit
+    for (const [uid, u] of scene.units) {
+      if (u.inventory) {
+        TimeClock._initial.set(uid, JSON.parse(JSON.stringify(u.inventory)));
+      }
+    }
   },
 
-  /** Restore t=0 inventories */
+  /** Restore t=0 inventories from snapshot */
   _restoreInitial(scene) {
     if (!TimeClock._initial) return;
-    // Phase 1+: restore u.inventory from snapshot
+    for (const [uid, snapshot] of TimeClock._initial) {
+      const u = scene.units.get(uid);
+      if (u) u.inventory = JSON.parse(JSON.stringify(snapshot));
+    }
   }
 };
 
@@ -5725,7 +5786,7 @@ function validateStream(stream, ctx) {
       issues.push({ severity: ErrorSeverity.CATASTROPHIC,
         message: `${label}: ${typeName} actual = ${stream.actual} (non-finite)`,
         code: 'POWER_ACTUAL_NAN' });
-    } else if (stream.actual < 0) {
+    } else if (stream.actual < 0 && !ctx.bidirectional) {  // [v9.0.2] NNG-M5: bidirectional allows negative
       issues.push({ severity: ErrorSeverity.MAJOR,
         message: `${label}: ${typeName} actual = ${stream.actual} W (negative)`,
         code: 'POWER_ACTUAL_NEGATIVE' });
@@ -5801,7 +5862,8 @@ function validateUnitPorts(unitData, unit, def) {
     const portIssues = validateStream(stream, {
       portType: p.type,
       unitId: unitId,
-      portId: p.portId
+      portId: p.portId,
+      bidirectional: p.bidirectional || false  // [v9.0.2] NNG-M5
     });
     for (const issue of portIssues) {
       issue.portId = p.portId;
@@ -6005,7 +6067,7 @@ function diagnoseErrors(scene) {
         const hasConnection = scene.connections.some(
           c => c.to.unitId === id && c.to.portId === port.portId
         );
-        if (!hasConnection && def.defId !== 'source' && def.defId !== 'battery' && def.defId !== 'source_mechanical') {
+        if (!hasConnection && def.defId !== 'source' && def.defId !== 'grid_supply' && def.defId !== 'source_mechanical') {
           diagnostics.push({
             unitId: id,
             unitName: u.name || def.name,
@@ -6146,7 +6208,11 @@ class UnitRegistry {
       tick: spec.tick || null,
       postFlashCheck: spec.postFlashCheck || null,  // [v4.7.6] Was missing → postFlashCheck never ran
       _wip: spec._wip || false,  // [v8.8.0] Work-in-progress flag
-      cheat: spec.cheat || false  // [v8.10.0] Hidden in hard mode
+      cheat: spec.cheat || false,  // [v8.10.0] Hidden in hard mode
+      // [v9.0.2] Inventory protocol (NNG-D4, NNG-S5)
+      inventory: spec.inventory || false,
+      initInventory: spec.initInventory || null,
+      updateInventory: spec.updateInventory || null
     };
     this._defs.set(defId, def);
   }
@@ -6293,39 +6359,32 @@ UnitRegistry.register('sink', {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// BATTERY — Dispatchable electrical source (discharge only, for now)
+// GRID SUPPLY — Responsive (dispatchable) electrical source [v9.0.2]
 // ═══════════════════════════════════════════════════════════════════════════════
 // 
 // ┌─────────────────────────────────────────────────────────────────────────────┐
 // │ PURPOSE                                                                    │
-// │   Provides electrical power up to its rated capacity.                      │
-// │   The tick itself is stateless — it reads solver scratch and outputs       │
-// │   accordingly.  Dispatch logic lives in the solver post-processing:        │
-// │     • Hub path (Step C): hub decides battery draw based on gap between     │
-// │       fixed supply and total demand.  Writes hubDemand_W + actualDraw_W    │
-// │       to scratch.                                                          │
+// │   Provides electrical power up to its rated capacity, on demand.           │
+// │   Models an infinite-capacity responsive power source (grid connection,    │
+// │   ideal generator).  No SOC tracking — always available.                   │
+// │   Renamed from 'battery' in v9.0.2 to free that defId for SOC-tracked     │
+// │   energy storage (Phase 3).                                                │
+// │                                                                            │
+// │ DISPATCH                                                                   │
+// │   The tick is stateless — reads solver scratch and outputs accordingly.    │
+// │     • Hub path (Step C): hub decides draw based on gap between fixed       │
+// │       supply and total demand.                                             │
 // │     • Direct path (Step D): solver sums downstream powerDemand and caps    │
-// │       at capacity.  Writes actualDraw_W + directCurtailment to scratch.    │
+// │       at capacity.                                                         │
 // │                                                                            │
 // │ PORTS                                                                      │
 // │   out (ELECTRICAL, OUT) — power output in W                                │
 // │                                                                            │
 // │ PARAMETERS                                                                 │
-// │   maxPower [kW] — rated discharge capacity (default: 1000 kW)             │
-// │                                                                            │
-// │ PORT FIELDS (after solver)                                                 │
-// │   capacity          — maxPower × 1000 (fixed equipment rating)            │
-// │   actual            — what flows (= min(downstream demand, capacity))     │
-// │   demand            — downstream demand written by solver Steps C/D       │
-// │   curtailmentFactor — actual / demand (< 1 when overloaded)              │
-// │                                                                            │
-// │ NOTES                                                                      │
-// │   • Charge management (SOC, charge/discharge cycles) deferred.            │
-// │   • Currently discharge only.                                              │
-// │   • All internal values in W (J/s). par.maxPower is kW (user-facing).     │
+// │   maxPower [kW] — rated capacity (default: 1000 kW)                       │
 // └─────────────────────────────────────────────────────────────────────────────┘
-UnitRegistry.register('battery', {
-  name: 'Battery',
+UnitRegistry.register('grid_supply', {
+  name: 'Grid Supply',
   category: UnitCategories.POWER_MANAGEMENT,
   w: 2,
   h: 2,
@@ -6340,11 +6399,11 @@ UnitRegistry.register('battery', {
       actual: actualDraw_W,
       available: maxPower_W,  // deprecated alias for capacity
       demand: s.hubDemand_W || 0,
-      curtailmentFactor: s.directCurtailment ?? 1.0  // [v6.1] direct-bus curtailment
+      curtailmentFactor: s.directCurtailment ?? 1.0
     };
     u.last = {
       maxPower_W: maxPower_W,
-      type: 'battery'
+      type: 'grid_supply'
     };
   }
 });
@@ -6386,7 +6445,7 @@ UnitRegistry.register('source_electrical', {
 // ┌─────────────────────────────────────────────────────────────────────────────┐
 // │ PURPOSE                                                                    │
 // │   Central switchboard that balances electrical supply and demand.           │
-// │   Aggregates power from fixed sources and batteries on elec_in,            │
+// │   Aggregates power from fixed sources and grid supply on elec_in,         │
 // │   distributes to consumers on elec_out, and dissipates surplus as heat.    │
 // │                                                                            │
 // │ PORTS                                                                      │
@@ -6396,7 +6455,7 @@ UnitRegistry.register('source_electrical', {
 // │                                                                            │
 // │ BALANCING ALGORITHM (runs in solver post-processing Step C)                │
 // │   1. fixed_supply  = Σ capacity from fixed sources on elec_in              │
-// │   2. battery_max   = Σ capacity from batteries on elec_in                  │
+// │   2. battery_max   = Σ capacity from grid supply on elec_in               │
 // │   3. total_demand  = Σ powerDemand of consumers on elec_out                │
 // │   4. battery_draw  = clamp(total_demand − fixed_supply, 0, battery_max)    │
 // │   5. total_supply  = fixed_supply + battery_draw                           │
@@ -6413,7 +6472,7 @@ UnitRegistry.register('source_electrical', {
 // │                                                                            │
 // │ DEMAND WRITEBACK                                                           │
 // │   Fixed sources: demand = capacity (always producing)                      │
-// │   Batteries: demand = proportional share of battery_draw (hub-regulated)   │
+// │   Grid supply: demand = proportional share of battery_draw (hub-regulated) │
 // └─────────────────────────────────────────────────────────────────────────────┘
 // ═══════════════════════════════════════════════════════════════════════════════
 // POWER ALLOCATION FUNCTION — Determines per-consumer power distribution
@@ -8424,8 +8483,8 @@ class Scene {
       case 'source_mechanical':
         unit.params = { maxPower: 50 };   // 50 kW — reasonable small plant
         break;
-      case 'battery':
-        unit.params = { maxPower: 20 };   // 20 kW battery
+      case 'grid_supply':
+        unit.params = { maxPower: 20 };   // 20 kW grid supply
         break;
       // ── Turbomachinery ──
       case 'pump':
@@ -8474,6 +8533,11 @@ class Scene {
         break;
       // ── Units with no params: sink, sink_electrical, sink_heat,
       //    power_hub, mixer, flash_drum — empty params is correct ──
+    }
+
+    // [v9.0.2] Initialize inventory for inventory-bearing units (NNG-S5)
+    if (def.inventory && def.initInventory) {
+      unit.inventory = def.initInventory(unit.params);
     }
     
     this.units.set(id, unit);
@@ -8596,7 +8660,7 @@ class Scene {
 
   exportJSON() {
     const data = {
-      version: 13,  // [v8.10.0] bumped: settings block added
+      version: 14,  // [v9.0.2] bumped: battery→grid_supply rename, inventory protocol
       processName: this.processName || '',
       grid: { w: this.gridW, h: this.gridH, tile: this.tile },
       settings: {
@@ -8671,6 +8735,19 @@ class Scene {
           }
           if (typeof u.params.T_cold_out === 'number') {
             u.params.T_cold_out = u.params.T_cold_out + 273.15;
+          }
+        }
+      }
+    }
+
+    // [v9.0.2] Migrate battery → grid_supply (version ≤ 13)
+    if ((!data.version || data.version < 14) && Array.isArray(data.units)) {
+      for (const u of data.units) {
+        if (u.defId === 'battery') {
+          u.defId = 'grid_supply';
+          // Migrate id prefix if it follows the defId-N pattern
+          if (u.id && u.id.startsWith('battery-')) {
+            u.id = 'grid_supply-' + u.id.slice(8);
           }
         }
       }
@@ -10179,7 +10256,7 @@ function solveScene(scene, options = {}) {
         const srcU  = scene.units.get(conn.from.unitId);
         const srcUD = scene.runtime.unitData.get(conn.from.unitId);
         const avail = srcUD?.ports?.[conn.from.portId]?.capacity ?? srcUD?.ports?.[conn.from.portId]?.available ?? 0;
-        const isBattery = srcU?.defId === 'battery';
+        const isBattery = srcU?.defId === 'grid_supply';  // [v9.0.2] renamed from battery
         
         sources.push({ conn, srcU, srcUD, avail, isBattery });
         if (isBattery) batteryMax_W += avail;
@@ -10201,7 +10278,7 @@ function solveScene(scene, options = {}) {
         totalDemand_W += demand_W;
       }
       
-      // ── Battery dispatch: fixed first, batteries fill gap ──
+      // ── Responsive dispatch: fixed first, responsive (grid_supply) fills gap ──
       const gap_W = Math.max(0, totalDemand_W - fixedSupply_W);
       const batteryDraw_W = Math.min(gap_W, batteryMax_W);
       const totalSupply_W = fixedSupply_W + batteryDraw_W;
@@ -10226,7 +10303,7 @@ function solveScene(scene, options = {}) {
       }
       
       // ── Surplus: fixed sources always produce, excess → heat ──
-      // Batteries are demand-responsive so they never overproduce.
+      // Grid supply is demand-responsive so it never overproduces.
       const surplus_W = Math.max(0, fixedSupply_W - totalDemand_W);
       
       // ── Update output ports ──
@@ -10260,7 +10337,7 @@ function solveScene(scene, options = {}) {
         if (!src.srcUD || !src.srcUD.ports[src.conn.from.portId]) continue;
         
         if (src.isBattery) {
-          // Battery: proportional share of batteryDraw (hub shields from excess)
+          // Grid supply: proportional share of batteryDraw (hub shields from excess)
           const share = batteryMax_W > 0 ? src.avail / batteryMax_W : 0;
           const thisDemand = batteryDraw_W * share;
           const thisActual = thisDemand;  // Hub regulates: battery delivers exactly what's asked
@@ -10306,10 +10383,10 @@ function solveScene(scene, options = {}) {
       hubS.hubCurtailment  = curtailmentFactor;
     }
     
-    // Step D: Battery direct-connection demand writeback
-    // For batteries NOT connected to a hub, sum downstream demands and report.
+    // Step D: Grid supply / battery direct-connection demand writeback
+    // For grid_supply units NOT connected to a hub, sum downstream demands and report.
     for (const [_id, _u] of scene.units) {
-      if (_u.defId !== 'battery') continue;
+      if (_u.defId !== 'grid_supply') continue;
       
       const _ud = scene.runtime.unitData.get(_id);
       const outConns = scene.connections.filter(c => c.from.unitId === _id && c.from.portId === 'out');
@@ -10366,7 +10443,7 @@ function solveScene(scene, options = {}) {
     
     // Step E: Actual computation for direct-connected non-battery sources
     // (source_electrical, source_mechanical not connected to a hub)
-    // Batteries are handled in Step D. Hub-connected sources in Step C.
+    // Grid supply units are handled in Step D. Hub-connected sources in Step C.
     // This ensures ALL non-material output ports carry a consistent `actual` value.
     for (const [_id, _u] of scene.units) {
       if (_u.defId !== 'source_electrical' && _u.defId !== 'source_mechanical') continue;
@@ -11596,8 +11673,8 @@ function drawUnits() {
 
     // Unit icon - map defId to icon name with proper precedence
     let iconName = def.defId;
-    if (def.defId === 'battery') {
-      iconName = 'electrical';
+    if (def.defId === 'grid_supply') {
+      iconName = 'grid_supply';
     } else if (def.defId === 'source_mechanical') {
       iconName = 'mechanical';
     } else if (def.defId === 'source') {
@@ -13869,7 +13946,7 @@ function updatePropertiesPanel() {
       propEditor.appendChild(paramsSection.section);
     }
     
-    if (u.defId === 'battery' || u.defId === 'source_mechanical' || u.defId === 'source_electrical') {
+    if (u.defId === 'grid_supply' || u.defId === 'source_mechanical' || u.defId === 'source_electrical') {
       const paramsSection = createCollapsibleSection('Parameters', true);
       
       if (!u.params.maxPower) u.params.maxPower = 50;
@@ -14571,8 +14648,8 @@ function updatePropertiesPanel() {
         const dataGrid = el('div', { class: 'propGrid' });
         const fields = [
           ['Fixed supply', ud.last.fixedSupply_W, 'kW'],
-          ['Battery max', ud.last.batteryMax_W, 'kW'],
-          ['Battery draw', ud.last.batteryDraw_W, 'kW'],
+          ['Grid supply max', ud.last.batteryMax_W, 'kW'],
+          ['Grid supply draw', ud.last.batteryDraw_W, 'kW'],
           ['Total supply', ud.last.totalSupply_W, 'kW'],
           ['Total demand', ud.last.totalDemand_W, 'kW'],
           ['Surplus → heat', ud.last.surplus_W, 'kW'],
@@ -14638,13 +14715,13 @@ function updatePropertiesPanel() {
         propsSection.content.appendChild(eBox);
       }
       
-      // Special display for Battery
-      if (u.defId === 'battery' && ud.last) {
+      // Special display for Grid Supply
+      if (u.defId === 'grid_supply' && ud.last) {
         const bBox = el('div', { style: 'margin-bottom:16px; padding:12px; background:#1e293b; border-radius:8px;' });
         bBox.appendChild(el('div', { 
           class: 'small', 
           style: 'font-weight:700; margin-bottom:8px; opacity:0.8; text-transform:uppercase;', 
-          html: '🔋 Battery Status' 
+          html: '⚡ Grid Supply Status' 
         }));
         const dataGrid = el('div', { class: 'propGrid' });
         dataGrid.appendChild(el('div', { class: 'propItem' }, [
@@ -15941,7 +16018,7 @@ document.getElementById('mLoadDemo').addEventListener('click', () => {
 document.getElementById('mClear').addEventListener('click', () => {
   if (confirm('Clear the entire scene? This cannot be undone.')) {
     scene.importJSON(JSON.stringify({
-      version: 13,
+      version: 14,
       processName: '',
       grid: { w: 22, h: 14, tile: 48 },
       units: [],
@@ -16045,7 +16122,7 @@ function loadDemo() {
   // Demonstrates kinetics mode with full diagnostics: rate, τ, α_eff.
 
   scene.importJSON(JSON.stringify({
-    version: 13,
+    version: 14,
     processName: 'Sabatier CO₂ Methanation (Kinetics)',
     grid: { w: 28, h: 14, tile: 48 },
     solverOptions: { maxIter: 200 },
@@ -16697,7 +16774,7 @@ function runTests() {
   // ═══════════════════════════════════════════════════════════════════════
 
   test('ElecHeater: Demand Propagation', t => {
-    const elSrc = t.place('battery', 0, 0, { maxPower:100 });
+    const elSrc = t.place('grid_supply', 0, 0, { maxPower:100 });
     const eh = t.place('electric_heater', 3, 0);  // eta hardcoded to 1.00
     const src = t.place('source', 0, 3, { species:'N2', nDot:10, T:300.15, P:200000, phaseConstraint:'V' });
     const htr = t.place('heater', 6, 1, { T_out:473.15 }); const snk = t.place('sink', 10, 1);
@@ -16718,7 +16795,7 @@ function runTests() {
     const src = t.place('source', 0, 3, { species:'H2O', nDot:1, T:398.15, P:100000, phaseConstraint:'VL' });
     const comp = t.place('compressor', 4, 3, { Pout:500000, eta:0.75 });
     const snk = t.place('sink', 8, 3);
-    const elSrc = t.place('battery', 0, 0, { maxPower:100 });
+    const elSrc = t.place('grid_supply', 0, 0, { maxPower:100 });
     const mot = t.place('motor', 3, 0, { eta:0.92 });
     t.wire(src,'out', comp,'mat_in'); t.wire(comp,'mat_out', snk,'in');
     t.wire(elSrc,'out', mot,'elec_in'); t.wire(mot,'mech_out', comp,'power_in');
@@ -16741,7 +16818,7 @@ function runTests() {
   });
 
   test('Heater: Supply Limited', t => {
-    const elSrc = t.place('battery', 0, 0, { maxPower:10 });
+    const elSrc = t.place('grid_supply', 0, 0, { maxPower:10 });
     const eh = t.place('electric_heater', 3, 0);  // eta hardcoded to 1.00
     const src = t.place('source', 0, 3, { species:'N2', nDot:10, T:300.15, P:200000, phaseConstraint:'V' });
     const htr = t.place('heater', 6, 1, { T_out:473.15 }); const snk = t.place('sink', 10, 1);
@@ -17094,7 +17171,7 @@ function runTests() {
   test('Hub: Input Aggregation', t => {
     const fA = t.place('source_electrical', 0, 0, { maxPower:50 });
     const fB = t.place('source_electrical', 0, 3, { maxPower:30 });
-    const bat = t.place('battery', 0, 6, { maxPower:20 });
+    const bat = t.place('grid_supply', 0, 6, { maxPower:20 });
     const hub = t.place('power_hub', 4, 2); const hs = t.place('sink_heat', 4, 0);
     t.wire(fA,'out', hub,'elec_in'); t.wire(fB,'out', hub,'elec_in');
     t.wire(bat,'out', hub,'elec_in'); t.wire(hub,'heat_out', hs,'in');
@@ -17106,14 +17183,14 @@ function runTests() {
     t.assertClose(h.last.surplus_W, 80000, 1, 'Surplus = fixed');
     // MultiConnect via scene.connect()
     const ts = new Scene();
-    const tb1 = ts.placeUnit('source_electrical', 0, 0), tb2 = ts.placeUnit('battery', 0, 3), th = ts.placeUnit('power_hub', 4, 1);
+    const tb1 = ts.placeUnit('source_electrical', 0, 0), tb2 = ts.placeUnit('grid_supply', 0, 3), th = ts.placeUnit('power_hub', 4, 1);
     t.assertOK(ts.connect({unitId:tb1,portId:'out'},{unitId:th,portId:'elec_in'}) && ts.connect({unitId:tb2,portId:'out'},{unitId:th,portId:'elec_in'}), 'multiConnect OK');
     t.assertClose(t.unit(hs).last.absorbed_W || 0, 80000, 1, 'Heat sink absorbed');
   });
 
   test('Hub: Sufficient Supply', t => {
     const fix = t.place('source_electrical', 0, 0, { maxPower:50 });
-    const bat = t.place('battery', 0, 6, { maxPower:30 });
+    const bat = t.place('grid_supply', 0, 6, { maxPower:30 });
     const hub = t.place('power_hub', 4, 1);
     const mot = t.place('motor', 8, 0, { eta:0.92 });
     const sN2 = t.place('source', 0, 10, { species:'N2', nDot:1, T:298.15, P:100000, phaseConstraint:'V' });
@@ -17133,8 +17210,8 @@ function runTests() {
   });
 
   test('Hub: Curtailment', t => {
-    const b1 = t.place('battery', 0, 0, { maxPower:1 });
-    const b2 = t.place('battery', 0, 6, { maxPower:1 });
+    const b1 = t.place('grid_supply', 0, 0, { maxPower:1 });
+    const b2 = t.place('grid_supply', 0, 6, { maxPower:1 });
     const hub = t.place('power_hub', 4, 1);
     const mot = t.place('motor', 8, 0, { eta:0.92 });
     const sN2 = t.place('source', 0, 10, { species:'N2', nDot:1, T:298.15, P:100000, phaseConstraint:'V' });
@@ -17154,7 +17231,7 @@ function runTests() {
   });
 
   test('Compressor: Curtailed Outlet', t => {
-    const bat = t.place('battery', 0, 0, { maxPower:1 });
+    const bat = t.place('grid_supply', 0, 0, { maxPower:1 });
     const mot = t.place('motor', 3, 0, { eta:0.92 });
     const sN2 = t.place('source', 0, 4, { species:'N2', nDot:1, T:298.15, P:100000, phaseConstraint:'V' });
     const comp = t.place('compressor', 7, 2, { Pout:300000, eta:0.75 });
@@ -17174,8 +17251,8 @@ function runTests() {
     t.assertOK(out?.T > 299, 'T_out > T_in', `${out?.T?.toFixed(1)} K`);
   });
 
-  test('Battery: Direct Shortage', t => {
-    const bat = t.place('battery', 0, 0, { maxPower:2 });
+  test('Grid Supply: Direct Shortage', t => {
+    const bat = t.place('grid_supply', 0, 0, { maxPower:2 });
     const mot = t.place('motor', 3, 0, { eta:0.92 });
     const sN2 = t.place('source', 0, 4, { species:'N2', nDot:1, T:298.15, P:100000, phaseConstraint:'V' });
     const comp = t.place('compressor', 7, 2, { Pout:300000, eta:0.75 });
@@ -17613,17 +17690,17 @@ function runTests() {
     // Expected: Heat Sink absorbs 30 + 20 + 10 = 60 kW, sourceCount = 3
 
     // ── Chain A: Battery 30 kW → E.Heater A ──
-    const batA = t.place('battery',         0, 0, { maxPower: 30 });
+    const batA = t.place('grid_supply',         0, 0, { maxPower: 30 });
     const ehA  = t.place('electric_heater', 3, 0);
     t.wire(batA, 'out', ehA, 'elec_in');
 
     // ── Chain B: Battery 20 kW → E.Heater B ──
-    const batB = t.place('battery',         0, 3, { maxPower: 20 });
+    const batB = t.place('grid_supply',         0, 3, { maxPower: 20 });
     const ehB  = t.place('electric_heater', 3, 3);
     t.wire(batB, 'out', ehB, 'elec_in');
 
     // ── Chain C: Battery 10 kW → E.Heater C ──
-    const batC = t.place('battery',         0, 6, { maxPower: 10 });
+    const batC = t.place('grid_supply',         0, 6, { maxPower: 10 });
     const ehC  = t.place('electric_heater', 3, 6);
     t.wire(batC, 'out', ehC, 'elec_in');
 
@@ -17665,7 +17742,7 @@ function runTests() {
     // Battery(50kW) → Motor(η=0.90) → Compressor(N2)
     // Motor consumes W_elec and produces W_mech + Q_loss.
     // 1st law: W_elec = W_mech + Q_loss exactly.
-    const bat = t.place('battery', 0, 0, { maxPower:50 });
+    const bat = t.place('grid_supply', 0, 0, { maxPower:50 });
     const mot = t.place('motor', 3, 0, { eta:0.90 });
     const src = t.place('source', 7, 3, { species:'N2', nDot:2, T:298.15, P:100000, phaseConstraint:'V' });
     const comp = t.place('compressor', 7, 0, { Pout:300000, eta:0.75 });
@@ -17733,7 +17810,7 @@ function runTests() {
   test('Motor: Heat Sink Connected — Closed Balance, No Warning', t => {
     // Battery → Motor → Compressor, heat_out → HeatSink
     // Full energy closure: battery output = mech work + absorbed heat
-    const bat = t.place('battery', 0, 0, { maxPower:50 });
+    const bat = t.place('grid_supply', 0, 0, { maxPower:50 });
     const mot = t.place('motor', 3, 0, { eta:0.90 });
     const hs = t.place('sink_heat', 3, -3);
     const src = t.place('source', 7, 3, { species:'N2', nDot:2, T:298.15, P:100000, phaseConstraint:'V' });
@@ -17764,7 +17841,7 @@ function runTests() {
   test('Motor+Generator: Unconnected Heat → Warning + System Solves', t => {
     // Motor and generator without heat sinks connected.
     // System must still solve OK, but both units get warnings.
-    const bat = t.place('battery', 0, 0, { maxPower:50 });
+    const bat = t.place('grid_supply', 0, 0, { maxPower:50 });
     const mot = t.place('motor', 3, 0, { eta:0.90 });
     const src = t.place('source', 7, 3, { species:'N2', nDot:2, T:298.15, P:100000, phaseConstraint:'V' });
     const comp = t.place('compressor', 7, 0, { Pout:300000, eta:0.75 });
@@ -17791,7 +17868,7 @@ function runTests() {
 
   test('Electric Heater: Q_loss = 0 (η=1.00 hardcoded)', t => {
     // EH has η=1.00 → zero loss by 1st law. Q_loss should be exactly 0.
-    const bat = t.place('battery', 0, 0, { maxPower:50 });
+    const bat = t.place('grid_supply', 0, 0, { maxPower:50 });
     const eh = t.place('electric_heater', 3, 0);
     const src = t.place('source', 0, 3, { species:'N2', nDot:5, T:298.15, P:200000, phaseConstraint:'V' });
     const htr = t.place('heater', 6, 1, { T_out:473.15 });
@@ -17898,7 +17975,7 @@ function runTests() {
     // material enthalpy increase through compression, and verifies that
     // every watt is accounted for across all stream types.
 
-    const bat  = t.place('battery', 0, 0, { maxPower:30 });
+    const bat  = t.place('grid_supply', 0, 0, { maxPower:30 });
     const mot  = t.place('motor', 3, 0, { eta:0.90 });
     const hs   = t.place('sink_heat', 3, -3);
     const src  = t.place('source', 7, 3, { species:'N2', nDot:3, T:298.15, P:100000, phaseConstraint:'V' });
@@ -17974,7 +18051,7 @@ function runTests() {
     //
     // Source(N2, 3mol/s, 25°C, 1bar) → Compressor(3bar) → Sink(material)
 
-    const bat  = t.place('battery', 0, 0, { maxPower:30 });
+    const bat  = t.place('grid_supply', 0, 0, { maxPower:30 });
     const mot  = t.place('motor', 3, 0, { eta:0.90 });
     // Intentionally no heat sink connected to motor's heat_out
     const src  = t.place('source', 7, 3, { species:'N2', nDot:3, T:298.15, P:100000, phaseConstraint:'V' });
@@ -18157,7 +18234,7 @@ function runTests() {
     const snk  = t.place('sink', 12, 1);
 
     // Provide shaft power so compressor runs
-    const bat  = t.place('battery', 8, 5, { maxPower:50 });
+    const bat  = t.place('grid_supply', 8, 5, { maxPower:50 });
     const mot  = t.place('motor', 8, 3, { eta:0.95 });
     t.wire(bat, 'out', mot, 'elec_in');
     t.wire(mot, 'mech_out', comp, 'power_in');
@@ -18204,7 +18281,7 @@ function runTests() {
     // Motor:      E_in = W_elec, E_out = W_mech + Q_loss → should close exactly
     // Compressor: E_in = Hdot_in + W_shaft, E_out = Hdot_out → should close
 
-    const bat  = t.place('battery', 0, 0, { maxPower:30 });
+    const bat  = t.place('grid_supply', 0, 0, { maxPower:30 });
     const mot  = t.place('motor', 3, 0, { eta:0.90 });
     const hs   = t.place('sink_heat', 3, -3);
     const src  = t.place('source', 7, 3, { species:'N2', nDot:3, T:298.15, P:100000, phaseConstraint:'V' });
@@ -19203,7 +19280,7 @@ function runTests() {
 
   test('Direct battery fanout also curtails', t => {
     // Same topology but with battery instead of source_electrical
-    const bat = t.place('battery', 0, 0, { maxPower: 1500 });  // 1500 kW
+    const bat = t.place('grid_supply', 0, 0, { maxPower: 1500 });  // 1500 kW
 
     const mot1 = t.place('motor', 4, 0, { eta: 0.95 });
     const mot2 = t.place('motor', 4, 4, { eta: 0.95 });
@@ -19581,7 +19658,7 @@ function runTests() {
     //         battery fills gap between fixed supply and demand.
 
     const srcE = t.place('source_electrical', 0, 0, { maxPower: 500 });   // 500 kW
-    const bat  = t.place('battery', 0, 4, { maxPower: 300 });             // 300 kW
+    const bat  = t.place('grid_supply', 0, 4, { maxPower: 300 });             // 300 kW
     const hub  = t.place('power_hub', 4, 2);
 
     // Two motors with different downstream loads
@@ -19738,7 +19815,7 @@ function runTests() {
 
     // Battery variant: same test with battery instead of source_electrical
     t.clearScene();
-    const bat  = t.place('battery', 0, 0, { maxPower: 2000 });
+    const bat  = t.place('grid_supply', 0, 0, { maxPower: 2000 });
     const mot2 = t.place('motor', 4, 0, { eta: 0.95 });
     const srcW2 = t.place('source', 8, -2, { species:'H2O', nDot:5000, T:298.15, P:100000, phaseConstraint:'L' });
     const pmp2  = t.place('pump', 8, 0, { Pout:3000000, eta:0.75 });
@@ -21467,7 +21544,7 @@ function runTests() {
 
     // ── Chain A: Power grid + compressor ── (y=0 band)
     const src_e  = t.place('source_electrical', 0, 0, { maxPower: 50 });
-    const batt   = t.place('battery', 0, 3, { maxPower: 20 });
+    const batt   = t.place('grid_supply', 0, 3, { maxPower: 20 });
     const hub    = t.place('power_hub', 4, 0);       // 2×3
     const mot    = t.place('motor', 8, 0, { eta: 0.90 });
     const src_n2 = t.place('source', 14, 0, { species: 'N2', nDot: 2, T: 298.15, P: 100000, phaseConstraint: 'V' });
@@ -22072,6 +22149,150 @@ function runTests() {
     // Restore
     TimeClock.t = 0; TimeClock.frame = 0;
     TimeClock.mode = 'test'; SimSettings.dt = origDt;
+  }});
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // AK — Phase 1: grid_supply rename, inventory protocol, bidirectional [v9.0.2]
+  // ═══════════════════════════════════════════════════════════════════════
+
+  tests.push({ name: '164: grid_supply produces identical output to old battery', fn: t => {
+    // Grid supply should behave exactly like the old battery: responsive electrical source
+    const gs = t.place('grid_supply', 0, 0, { maxPower: 100 });
+    const hub = t.place('power_hub', 4, 1);
+    const load = t.place('electric_heater', 8, 0, { eta: 1.0 });
+    const src = t.place('source', 0, 4, { species: 'N2', nDot: 1.0, T: 300, P: 101325, phaseConstraint: 'V' });
+    const snk = t.place('sink', 12, 0);
+
+    t.wire(gs, 'out', hub, 'elec_in');
+    t.wire(hub, 'elec_out', load, 'elec');
+    t.wire(src, 'out', load, 'in');
+    t.wire(load, 'out', snk, 'in');
+
+    t.solve();
+    const gsUD = t.ud(gs);
+
+    t.assertOK(gsUD.last.type === 'grid_supply', 'u.last.type is grid_supply');
+    t.assertClose(gsUD.last.maxPower_W, 100000, 1, 'Capacity = 100 kW in W');
+    t.assertOK(gsUD.ports.out.actual >= 0, 'Actual draw >= 0');
+    t.assertOK(gsUD.ports.out.capacity === 100000, 'Port capacity correct');
+  }});
+
+  tests.push({ name: '165: Hub Step C dispatches grid_supply correctly', fn: t => {
+    const gs = t.place('grid_supply', 0, 0, { maxPower: 20 });
+    const fix = t.place('source_electrical', 0, 4, { maxPower: 10 });
+    const hub = t.place('power_hub', 4, 1);
+    const load = t.place('sink_electrical', 8, 1);
+
+    t.wire(gs, 'out', hub, 'elec_in');
+    t.wire(fix, 'out', hub, 'elec_in');
+    t.wire(hub, 'elec_out', load, 'elec');
+
+    t.solve();
+    const hubUD = t.ud(hub);
+    // Sink demands Infinity → fixed 10kW + grid_supply fills gap
+    t.assertClose(hubUD.last.fixedSupply_W / 1000, 10, 0.1, 'Fixed supply = 10 kW');
+    t.assertClose(hubUD.last.batteryMax_W / 1000, 20, 0.1, 'Grid supply max = 20 kW');
+    // Total supply should equal fixed + grid_supply draw
+    t.assertOK(hubUD.last.totalSupply_W >= hubUD.last.fixedSupply_W, 'Total >= fixed');
+  }});
+
+  tests.push({ name: '166: Inventory protocol: initInventory called on placeUnit', fn: t => {
+    // Register a temporary test unit with inventory
+    UnitRegistry.register('__test_inv', {
+      name: 'Test Inv',
+      category: UnitCategories.TEST,
+      w: 2, h: 2,
+      ports: [],
+      tick() {},
+      inventory: true,
+      initInventory(par) {
+        return { charge_J: (par.initialSOC || 0.5) * 1000, capacity_J: 1000 };
+      },
+      updateInventory(inv, ports, dt) {
+        return { ...inv }; // no-op
+      }
+    });
+
+    // placeUnit calls initInventory with default params (empty {})
+    // so initialSOC defaults to 0.5 → charge_J = 500
+    const uid = t.place('__test_inv', 0, 0);
+    const u = scene.units.get(uid);
+    t.assertOK(u.inventory != null, 'inventory initialised on placement');
+    t.assertClose(u.inventory.charge_J, 500, 0.01, 'initInventory used default SOC (0.5 × 1000)');
+    t.assertClose(u.inventory.capacity_J, 1000, 0.01, 'capacity_J set');
+
+    // Cleanup
+    UnitRegistry._defs.delete('__test_inv');
+  }});
+
+  tests.push({ name: '167: captureInitial / restoreInitial round-trips inventory', fn: t => {
+    const origDt = SimSettings.dt;
+    TimeClock.t = 0; TimeClock.frame = 0; TimeClock.mode = 'test';
+    SimSettings.dt = 10;
+
+    // Register temp inventory unit
+    UnitRegistry.register('__test_inv2', {
+      name: 'Test Inv2',
+      category: UnitCategories.TEST,
+      w: 2, h: 2,
+      ports: [],
+      tick() {},
+      inventory: true,
+      initInventory(par) { return { val: 100 }; },
+      updateInventory(inv, ports, dt) {
+        return { val: inv.val - 10 }; // drain 10 per step
+      }
+    });
+
+    const uid = t.place('__test_inv2', 0, 0);
+    const u = scene.units.get(uid);
+    t.assertClose(u.inventory.val, 100, 0, 'Initial inventory = 100');
+
+    // Step: captures initial (100), then updates (100→90), then solves
+    TimeClock.step(scene);
+    t.assertClose(u.inventory.val, 90, 0, 'After step 1: val = 90');
+
+    TimeClock.step(scene);
+    t.assertClose(u.inventory.val, 80, 0, 'After step 2: val = 80');
+
+    // Reset: should restore to captured initial (100)
+    TimeClock.reset(scene);
+    t.assertClose(u.inventory.val, 100, 0, 'After reset: val = 100');
+
+    // Cleanup
+    UnitRegistry._defs.delete('__test_inv2');
+    TimeClock.t = 0; TimeClock.frame = 0;
+    TimeClock.mode = 'test'; SimSettings.dt = origDt;
+  }});
+
+  tests.push({ name: '168: bidirectional port validation: negative actual accepted', fn: t => {
+    // Test that validateStream with bidirectional context does NOT flag negative actual
+    const negStream = {
+      type: StreamType.ELECTRICAL,
+      capacity: 10000,
+      actual: -5000,  // charging
+      demand: 0
+    };
+
+    // Without bidirectional: should produce MAJOR error
+    const issuesNoBidir = validateStream(negStream, {
+      portType: StreamType.ELECTRICAL,
+      unitId: 'test-1',
+      portId: 'elec',
+      bidirectional: false
+    });
+    const hasNegError = issuesNoBidir.some(i => i.code === 'POWER_ACTUAL_NEGATIVE');
+    t.assertOK(hasNegError, 'Without bidirectional: negative actual flagged');
+
+    // With bidirectional: should NOT produce that error
+    const issuesBidir = validateStream(negStream, {
+      portType: StreamType.ELECTRICAL,
+      unitId: 'test-1',
+      portId: 'elec',
+      bidirectional: true
+    });
+    const hasNegErrorBidir = issuesBidir.some(i => i.code === 'POWER_ACTUAL_NEGATIVE');
+    t.assertOK(!hasNegErrorBidir, 'With bidirectional: negative actual accepted');
   }});
 
   // ═══════════════════════════════════════════════════════════════════════
