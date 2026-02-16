@@ -1,7 +1,17 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v8.9.2
+  processThis v8.9.3
+
+  ─── v8.9.3 ───────────────────────────────────────────────────────────────
+  Phase 0: Kinetic reactor scaffolding — NNG updates + demo placeholder.
+  NNG-D2 revised: kinetics block now mandatory for all reactions.
+  NNG-D4 new: registry field completeness — no missing required fields.
+  NNG-C1 replaced: backward compatibility not required during pre-release.
+  NNG-C2 removed (see NNG-C1).
+  Demo scene replaced with minimal source→sink placeholder (full Sabatier
+  recycle demo will be rebuilt in Phase 5 once kinetics is validated).
+  NNG: NNG-D2, NNG-D4, NNG-C1, NNG-V1/V2.
 
   ─── v8.9.2 ───────────────────────────────────────────────────────────────
   Solver UI: full solver visualization and parameterization.
@@ -364,16 +374,26 @@
     NNG-D2  A reaction used by a reactor must reference only species present in
             ComponentRegistry.  All referenced species must have formation
             enthalpy data (Hf_298) for energy balance.  Stoichiometry must be
-            mass-balanced (Σ ν_i × MW_i = 0).  These are checked at registration
+            mass-balanced (Σ ν_i × MW_i = 0).  All reactions must include a
+            kinetics block with a recognized model, valid parameters, and at
+            least one literature reference.  These are checked at registration
             time, not at runtime.
     NNG-D3  No unit may produce a species not already defined in ComponentRegistry.
             Reactor products, mixer outputs, splitter outputs — all species must
             be pre-registered.  Violations are CATASTROPHIC.
+    NNG-D4  Every entry in a registry must provide data for all fields defined
+            as required by that registry's schema.  Optional fields are permitted
+            but must be explicitly declared as such in the schema definition.
+            No entry may be registered with a required field missing or null.
+            This ensures uniform data availability and prevents feature-gating
+            based on data presence.
 
   COMPATIBILITY:
-    NNG-C1  Old save files must still load.  importJSON handles version migration.
-    NNG-C2  Deprecated fields normalized at runtime, not removed.  Legacy keys
-            coexist with canonical keys for at least one major version.
+    NNG-C1  Backward compatibility is NOT required during pre-release development.
+            This clause will be reinstated when the application reaches its first
+            public release.  Until then, saved files may become incompatible
+            across versions without migration support.
+    NNG-C2  (Removed — see NNG-C1.)
     NNG-C3  No gameplay physics changes in structural refactors.  If a refactor
             would change any computed value (temperature, pressure, power, flow),
             it is a functional change and must be explicitly documented and tested.
@@ -14721,86 +14741,22 @@ document.getElementById('processNameInput').addEventListener('input', (e) => {
    DEMO
    ========================= */
 function loadDemo() {
-  // ── [v8.9.1] Sabatier CO₂ Methanation with Recycle ──
-  // CO₂ + 4 H₂ ⇌ CH₄ + 2 H₂O — isothermal equilibrium at 900 K, 10 bar
-  // Fresh feed → mixer → reactor → cooler → flash drum → splitter
-  //                ↑                                          ↓
-  //                └──────────── recycle (85%) ────────────────┘
-  // Purge stream (15%) carries CH₄ product; flash separates liquid H₂O.
-  //
-  // Layout: main process flows left-to-right on y≈4 row.
-  // Recycle wraps back underneath. Heat duty sinks at bottom.
-  // Port alignment (absolute coords, all material ports on y=5 line):
-  //   Feed out(2,4) → Mix in1(4,4)
-  //   Mix out(6,5) → Rx mat_in(8,5) → Rx mat_out(10,5) → Cool mat_in(12,5)
-  //   Cool mat_out(14,5) → Flash mat_in(16,5)
-  //   Flash vap_out(18,4) → Split in(20,4) → Split out1(22,3) → Purge in(24,3)
-  //   Flash liq_out(18,7) → Water in(20,7)
-  //   Split out2(22,5) → [recycle wire] → Mix in2(4,6)
+  // ── [v8.9.3] Placeholder demo: simple source → sink ──
+  // Full Sabatier recycle demo will be rebuilt in Phase 5 (v8.9.8)
+  // once kinetics is implemented and validated.
 
   scene.importJSON(JSON.stringify({
     version: 12,
-    processName: 'Sabatier CO₂ Methanation with Recycle',
-    grid: { w: 28, h: 14, tile: 48 },
-    solverOptions: { maxIter: 200 },  // 85% recycle loop needs ~100+ iterations
+    processName: 'Demo (placeholder)',
+    grid: { w: 22, h: 14, tile: 48 },
     units: [
-      // ── Fresh Feed: stoichiometric CO₂ + 4 H₂ at 500 K, 10 bar ──
-      { id: 'feed', defId: 'source_multi', name: 'CO₂/H₂ Feed', x: 0, y: 3, rot: 0,
-        params: { n: { CO2: 1, H2: 4 }, T: 500, P: 1000000, phaseConstraint: 'V' } },
-
-      // ── Mixer: fresh feed (in1) + recycle (in2) ──
-      { id: 'mix', defId: 'mixer', name: 'Mixer', x: 4, y: 4, rot: 0, params: {} },
-
-      // ── Sabatier Reactor: isothermal equilibrium at 900 K ──
-      { id: 'rx', defId: 'reactor_equilibrium', name: 'Sabatier Rx', x: 8, y: 4, rot: 0,
-        params: { reactionId: 'R_SABATIER', alpha: 1.0, T_eval_override: 900 } },
-
-      // ── Cooler: drop to 50 °C for H₂O condensation ──
-      { id: 'cool', defId: 'cooler', name: 'Cooler', x: 12, y: 4, rot: 0,
-        params: { T_out: 323.15 } },
-
-      // ── Flash Drum: liquid H₂O out, vapor (CO₂/H₂/CH₄) out ──
-      { id: 'flash', defId: 'flash_drum', name: 'Flash Drum', x: 16, y: 4, rot: 0, params: {} },
-
-      // ── Splitter: 15 % purge (product), 85 % recycle ──
-      { id: 'split', defId: 'splitter', name: 'Purge/Recycle', x: 20, y: 3, rot: 0,
-        params: { splitPct: 15 } },
-
-      // ── Product Sinks ──
-      { id: 'snk-ch4', defId: 'sink', name: 'CH₄ Product', x: 24, y: 2, rot: 0, params: {} },
-      { id: 'snk-h2o', defId: 'sink', name: 'Water', x: 20, y: 6, rot: 0, params: {} },
-
-      // ── Heat Dump: reactor Q_duty + cooler Q_removed ──
-      { id: 'q-dump', defId: 'sink_heat', name: 'Heat Dump', x: 10, y: 9, rot: 0, params: {} }
+      { id: 'src', defId: 'source_multi', name: 'Feed', x: 2, y: 4, rot: 0,
+        params: { n: { N2: 0.78, O2: 0.21, Ar: 0.01 }, T: 298.15, P: 101325, phaseConstraint: 'V' } },
+      { id: 'snk', defId: 'sink', name: 'Product', x: 8, y: 4, rot: 0, params: {} }
     ],
     connections: [
-      // ── Main process chain (left → right) ──
-      { id: 'c1', from: { unitId: 'feed',  portId: 'out' },
-                  to:   { unitId: 'mix',   portId: 'in1' } },
-      { id: 'c2', from: { unitId: 'mix',   portId: 'out' },
-                  to:   { unitId: 'rx',    portId: 'mat_in' } },
-      { id: 'c3', from: { unitId: 'rx',    portId: 'mat_out' },
-                  to:   { unitId: 'cool',  portId: 'mat_in' } },
-      { id: 'c4', from: { unitId: 'cool',  portId: 'mat_out' },
-                  to:   { unitId: 'flash', portId: 'mat_in' } },
-      { id: 'c5', from: { unitId: 'flash', portId: 'vap_out' },
-                  to:   { unitId: 'split', portId: 'in' } },
-
-      // ── Products ──
-      { id: 'c6', from: { unitId: 'split', portId: 'out1' },
-                  to:   { unitId: 'snk-ch4', portId: 'in' } },
-      { id: 'c7', from: { unitId: 'flash', portId: 'liq_out' },
-                  to:   { unitId: 'snk-h2o', portId: 'in' } },
-
-      // ── Recycle: splitter out2 → mixer in2 ──
-      { id: 'c8', from: { unitId: 'split', portId: 'out2' },
-                  to:   { unitId: 'mix',   portId: 'in2' } },
-
-      // ── Heat duty: reactor + cooler → heat dump (multiConnect) ──
-      { id: 'c9',  from: { unitId: 'rx',   portId: 'heat_out' },
-                   to:   { unitId: 'q-dump', portId: 'in' } },
-      { id: 'c10', from: { unitId: 'cool', portId: 'heat_out' },
-                   to:   { unitId: 'q-dump', portId: 'in' } }
+      { id: 'c1', from: { unitId: 'src', portId: 'out' },
+                  to:   { unitId: 'snk', portId: 'in' } }
     ],
     modelsActive: models.active
   }));
@@ -14808,11 +14764,11 @@ function loadDemo() {
   ui.selectedUnitId = null;
   ui.selectedConnId = null;
   ui.pendingFrom = null;
-  scene.processName = 'Sabatier CO₂ Methanation with Recycle';
+  scene.processName = 'Demo (placeholder)';
   document.getElementById('processNameInput').value = scene.processName;
   buildModelsPanel();
   const solveResult = solveScene(scene);
-  setStatus("Demo loaded: Sabatier CO₂ methanation with recycle loop.");
+  setStatus("Demo loaded: placeholder (source → sink).");
   updateStatusIndicator(solveResult);
   
   updatePropertiesPanel();
