@@ -1,7 +1,25 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v8.9.5
+  processThis v8.9.6
+
+  ─── v8.9.6 ───────────────────────────────────────────────────────────────
+  Phase 3: Reactor tick kinetics branch + UI + tests (unverified).
+  Reactor tick: T_eval_override removed; T_eval = T_in always. Kinetics
+  branch after bisection: if useKinetics && volume_m3 > 0 → PFR integration,
+  else manual alpha path. Volume ≤ 0 → MAJOR error. Extended diagnostics:
+  mode, tau_s, rate_inlet/outlet, alpha_effective, limited_by.
+  Default params: { reactionId, useKinetics: true, volume_m3: 1.0, alpha: 1.0 }.
+  UI: kinetics checkbox (default ON), conditional Volume/Alpha editors,
+  kinetics/manual results display with rate/residence time/alpha diagnostics.
+  T_eval editor removed.
+  Existing tests modified: added useKinetics: false, volume_m3: 1.0;
+  mode assertion updated to 'manual'; T_eval override test removed.
+  New tests T7–T13: large V→equilibrium, small V→kinetics-limited,
+  zero V→MAJOR, missing reactant, golden number Sabatier, H2 fast kinetics,
+  Sabatier recycle with kinetics.
+  ⚠ TESTS NOT YET VERIFIED — run in Phase 4.
+  NNG: NNG-A2, NNG-D2, NNG-D4, NNG-T2.
 
   ─── v8.9.5 ───────────────────────────────────────────────────────────────
   Phase 2: KineticsEval namespace + PFR integrator.
@@ -7817,8 +7835,8 @@ UnitRegistry.register('reactor_equilibrium', {
       return;
     }
 
-    // ── T_eval: isothermal reactor temperature ──
-    const T_eval = par.T_eval_override ?? sIn.T;
+    // ── T_eval: isothermal reactor temperature = inlet T [v8.9.6] ──
+    const T_eval = sIn.T;
 
     // ── K(T_eval) via precomputed registry data ──
     const ln_K = ReactionRegistry.lnK(par.reactionId, T_eval);
@@ -7873,8 +7891,63 @@ UnitRegistry.register('reactor_equilibrium', {
       xi_eq = (lo + hi) / 2;
     }
 
-    const alpha = clamp(par.alpha ?? 1.0, 0, 1);
-    const xi = alpha * xi_eq;
+    // ── [v8.9.6] Kinetics vs manual branch ──
+    let xi, mode, alpha_effective, limited_by, tau_s, rate_inlet, rate_outlet;
+    const useKinetics = par.useKinetics !== false && reaction._kinetics;
+
+    if (useKinetics) {
+      // ── Kinetics mode: PFR integration ──
+      if (!par.volume_m3 || par.volume_m3 <= 0) {
+        u.last = { error: { severity: ErrorSeverity.MAJOR,
+          message: 'Reactor volume must be > 0 (kinetics enabled)' },
+          reactionId: par.reactionId, status: 'error' };
+        ports.mat_out = { type: StreamType.MATERIAL, T: sIn.T, P: sIn.P,
+          n: { ...sIn.n }, phaseConstraint: resolvedPhase };
+        return;
+      }
+
+      // Volumetric flow (ideal gas): Q = n_total × R × T / P
+      const R_gas = 8.314;
+      const n_total_in = Object.values(sIn.n).reduce((a, b) => a + b, 0);
+      const Q_inlet = n_total_in > 0 ? n_total_in * R_gas * T_eval / sIn.P : 0;
+      tau_s = Q_inlet > 0 ? par.volume_m3 / Q_inlet : Infinity;
+
+      // PFR integration
+      xi = integratePFR(reaction._kinetics, T_eval, sIn.P, sIn.n, stoich,
+        xi_eq, par.volume_m3, ln_K);
+
+      alpha_effective = xi_eq > 0 ? xi / xi_eq : 0;
+      limited_by = alpha_effective > 0.95 ? 'equilibrium' : 'kinetics';
+      mode = 'kinetics';
+
+      // Inlet/outlet rates for diagnostics
+      const speciesAll = [...new Set([...Object.keys(sIn.n), ...Object.keys(stoich)])];
+      const P_i_in = {}, P_i_out = {};
+      const n_total_calc = n_total_in > 0 ? n_total_in : 1;
+      for (const sp of speciesAll) {
+        P_i_in[sp] = ((sIn.n[sp] || 0) / n_total_calc) * sIn.P;
+      }
+      const K_eq = Math.exp(Math.min(ln_K, 300));
+      rate_inlet = KineticsEval.rate(reaction._kinetics, T_eval, P_i_in, K_eq, stoich);
+
+      // Outlet partial pressures at xi
+      let n_tot_out = 0;
+      for (const sp of speciesAll) {
+        const n_sp = (sIn.n[sp] || 0) + (stoich[sp] || 0) * xi;
+        P_i_out[sp] = Math.max(n_sp, 0);
+        n_tot_out += Math.max(n_sp, 0);
+      }
+      if (n_tot_out > 0) {
+        for (const sp of speciesAll) P_i_out[sp] = (P_i_out[sp] / n_tot_out) * sIn.P;
+      }
+      rate_outlet = KineticsEval.rate(reaction._kinetics, T_eval, P_i_out, K_eq, stoich);
+    } else {
+      // ── Manual mode: legacy alpha behavior ──
+      const alpha = clamp(par.alpha ?? 1.0, 0, 1);
+      xi = alpha * xi_eq;
+      alpha_effective = alpha;
+      mode = 'manual';
+    }
 
     // ── Outlet molar flows ──
     const n_out = { ...sIn.n };
@@ -7917,19 +7990,33 @@ UnitRegistry.register('reactor_equilibrium', {
     };
 
     // ── Diagnostics ──
-    u.last = {
+    const baseDiag = {
       reactionId: par.reactionId,
-      mode: 'equilibrium',
-      xi, xi_max,
+      mode,
+      xi, xi_max, xi_eq, ln_K, T_eval,
       status: 'active',
       H_in_kW: (H_in_Jps / 1000).toFixed(2),
       H_out_kW: (H_out_Jps / 1000).toFixed(2),
       Q_duty_W,
       Q_duty_sign: Q_duty_W >= 0 ? 'heating' : 'cooling',
-      ln_K, xi_eq, alpha, T_eval,
       dH0: reaction._dH0_Jmol,
       dS0: reaction._dS0_JmolK
     };
+
+    if (mode === 'kinetics') {
+      baseDiag.useKinetics = true;
+      baseDiag.volume_m3 = par.volume_m3;
+      baseDiag.tau_s = tau_s;
+      baseDiag.rate_inlet = rate_inlet;
+      baseDiag.rate_outlet = rate_outlet;
+      baseDiag.alpha_effective = alpha_effective;
+      baseDiag.limited_by = limited_by;
+    } else {
+      baseDiag.useKinetics = false;
+      baseDiag.alpha = par.alpha ?? 1.0;
+    }
+
+    u.last = baseDiag;
   }
 });
 
@@ -8042,7 +8129,7 @@ class Scene {
         unit.params = { reactionId: 'R_H2_COMB', conversion: 0.5 };
         break;
       case 'reactor_equilibrium':
-        unit.params = { reactionId: 'R_H2_COMB', alpha: 1.0 };
+        unit.params = { reactionId: 'R_H2_COMB', useKinetics: true, volume_m3: 1.0, alpha: 1.0 };
         break;
       // ── Units with no params: sink, sink_electrical, sink_heat,
       //    power_hub, mixer, flash_drum — empty params is correct ──
@@ -13666,20 +13753,37 @@ function updatePropertiesPanel() {
         paramsSection.content.appendChild(el('div', { class: 'rxnEquation', html: formatReactionHTML(selRxn.equation) }));
       }
 
-      // T_eval — primary parameter for isothermal reactor
-      addNumberEditor(paramsSection.content, `T<sub>eval</sub> (${unitSys.temperature.symbol})`,
-        () => u.params.T_eval_override ? unitSys.temperature.from(u.params.T_eval_override) : '',
-        v => u.params.T_eval_override = v ? unitSys.temperature.to(v) : undefined, 1);
-      paramsSection.content.appendChild(el('div', {
-        class: 'small',
-        style: 'margin:-4px 0 8px; opacity:0.5; font-size:10px; line-height:1.3;',
-        html: 'Isothermal reactor temperature. K is evaluated at this T. Leave blank to use inlet T.'
+      // [v8.9.6] Kinetics checkbox
+      const kinRow = el('div', { style: 'display:flex; align-items:center; gap:8px; margin:8px 0;' });
+      const kinCheck = document.createElement('input');
+      kinCheck.type = 'checkbox';
+      kinCheck.checked = u.params.useKinetics !== false;
+      kinCheck.id = 'kinCheck_' + u.id;
+      kinCheck.addEventListener('change', () => {
+        u.params.useKinetics = kinCheck.checked;
+        updatePropertiesPanel();
+      });
+      kinRow.appendChild(kinCheck);
+      kinRow.appendChild(el('label', {
+        html: 'Kinetics (PFR)',
+        style: 'font-size:12px; cursor:pointer;',
+        for: kinCheck.id
       }));
+      paramsSection.content.appendChild(kinRow);
 
-      // Alpha slider
-      addSliderEditor(paramsSection.content, 'Alpha (approach to equilibrium)',
-        () => u.params.alpha ?? 1.0,
-        v => u.params.alpha = v, 0, 1, 0.01);
+      // Conditional fields: Volume (kinetics ON) or Alpha (kinetics OFF)
+      if (u.params.useKinetics !== false) {
+        // Volume editor
+        if (u.params.volume_m3 === undefined) u.params.volume_m3 = 1.0;
+        addNumberEditor(paramsSection.content, 'Volume (m³)',
+          () => u.params.volume_m3,
+          v => u.params.volume_m3 = v, 3);
+      } else {
+        // Alpha slider (manual mode)
+        addSliderEditor(paramsSection.content, 'Alpha (approach to equilibrium)',
+          () => u.params.alpha ?? 1.0,
+          v => u.params.alpha = v, 0, 1, 0.01);
+      }
 
       propEditor.appendChild(paramsSection.section);
     }
@@ -14278,20 +14382,71 @@ function updatePropertiesPanel() {
 
         if (ud.last.status === 'active') {
           // Mode-specific results
-          if (ud.last.mode === 'equilibrium') {
+          if (ud.last.mode === 'kinetics') {
+            // [v8.9.6] Kinetics mode display
+            dataGrid.appendChild(el('div', { class: 'propItem' }, [
+              el('div', { class: 'propLabel', html: 'Mode' }),
+              el('div', { class: 'propValue', style: 'color:#f97316;', html: 'Kinetics (PFR)' })
+            ]));
+            const alphaColor = ud.last.alpha_effective > 0.95 ? '#22c55e' : ud.last.alpha_effective > 0.5 ? '#fbbf24' : '#f87171';
+            dataGrid.appendChild(el('div', { class: 'propItem' }, [
+              el('div', { class: 'propLabel', html: 'α<sub>effective</sub>' }),
+              el('div', { class: 'propValue', style: `color:${alphaColor};`, html: `${ud.last.alpha_effective?.toFixed(3)}` })
+            ]));
+            dataGrid.appendChild(el('div', { class: 'propItem' }, [
+              el('div', { class: 'propLabel', html: 'Limited by' }),
+              el('div', { class: 'propValue', html: ud.last.limited_by === 'equilibrium' ? '⚖ Equilibrium' : '⏱ Kinetics' })
+            ]));
+            dataGrid.appendChild(el('div', { class: 'propItem' }, [
+              el('div', { class: 'propLabel', html: 'ξ / ξ<sub>eq</sub>' }),
+              el('div', { class: 'propValue', html: `${ud.last.xi?.toFixed(4)} / ${ud.last.xi_eq?.toFixed(4)}<span class="propUnit">mol/s</span>` })
+            ]));
+            dataGrid.appendChild(el('div', { class: 'propItem' }, [
+              el('div', { class: 'propLabel', html: 'τ (residence time)' }),
+              el('div', { class: 'propValue', html: `${isFinite(ud.last.tau_s) ? ud.last.tau_s.toFixed(2) : '∞'}<span class="propUnit">s</span>` })
+            ]));
+            dataGrid.appendChild(el('div', { class: 'propItem' }, [
+              el('div', { class: 'propLabel', html: 'Volume' }),
+              el('div', { class: 'propValue', html: `${ud.last.volume_m3}<span class="propUnit">m³</span>` })
+            ]));
+            if (ud.last.rate_inlet !== undefined) {
+              dataGrid.appendChild(el('div', { class: 'propItem' }, [
+                el('div', { class: 'propLabel', html: 'Rate (inlet)' }),
+                el('div', { class: 'propValue', html: `${ud.last.rate_inlet.toExponential(2)}<span class="propUnit">mol/(m³·s)</span>` })
+              ]));
+              dataGrid.appendChild(el('div', { class: 'propItem' }, [
+                el('div', { class: 'propLabel', html: 'Rate (outlet)' }),
+                el('div', { class: 'propValue', html: `${ud.last.rate_outlet.toExponential(2)}<span class="propUnit">mol/(m³·s)</span>` })
+              ]));
+            }
             dataGrid.appendChild(el('div', { class: 'propItem' }, [
               el('div', { class: 'propLabel', html: 'ln K' }),
               el('div', { class: 'propValue', html: `${ud.last.ln_K?.toFixed(1)}` })
             ]));
             dataGrid.appendChild(el('div', { class: 'propItem' }, [
-              el('div', { class: 'propLabel', html: 'T<sub>eval</sub> (isothermal)' }),
+              el('div', { class: 'propLabel', html: 'T (isothermal)' }),
               el('div', { class: 'propValue', html: `${unitSys.temperature.from(ud.last.T_eval)?.toFixed(1)}<span class="propUnit">${unitSys.temperature.symbol}</span>` })
+            ]));
+          } else if (ud.last.mode === 'manual') {
+            // [v8.9.6] Manual mode display
+            dataGrid.appendChild(el('div', { class: 'propItem' }, [
+              el('div', { class: 'propLabel', html: 'Mode' }),
+              el('div', { class: 'propValue', html: 'Manual α' })
             ]));
             dataGrid.appendChild(el('div', { class: 'propItem' }, [
               el('div', { class: 'propLabel', html: 'Alpha' }),
               el('div', { class: 'propValue', html: `${ud.last.alpha?.toFixed(2)}` })
             ]));
+            dataGrid.appendChild(el('div', { class: 'propItem' }, [
+              el('div', { class: 'propLabel', html: 'ln K' }),
+              el('div', { class: 'propValue', html: `${ud.last.ln_K?.toFixed(1)}` })
+            ]));
+            dataGrid.appendChild(el('div', { class: 'propItem' }, [
+              el('div', { class: 'propLabel', html: 'T (isothermal)' }),
+              el('div', { class: 'propValue', html: `${unitSys.temperature.from(ud.last.T_eval)?.toFixed(1)}<span class="propUnit">${unitSys.temperature.symbol}</span>` })
+            ]));
           } else {
+            // Adiabatic reactor
             dataGrid.appendChild(el('div', { class: 'propItem' }, [
               el('div', { class: 'propLabel', html: 'Conversion' }),
               el('div', { class: 'propValue', html: `${((ud.last.conversion ?? 0) * 100).toFixed(1)}<span class="propUnit">%</span>` })
@@ -19457,6 +19612,226 @@ function runTests() {
   });
 
   // ═══════════════════════════════════════════════════════════════════════
+  // SECTION AF⅞: Reactor Kinetics Integration [v8.9.6] (T7–T13)
+  // Reactor tick with kinetics mode: PFR integration, volume validation,
+  // kinetics-limited vs equilibrium-limited behavior, golden numbers.
+  // ═══════════════════════════════════════════════════════════════════════
+
+  test('Kinetics — large volume → equilibrium (α_eff > 0.99)', t => {
+    // T7: With very large volume, kinetics have enough time → reach equilibrium
+    const src = t.place('source_multi', 0, 0, {
+      n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
+    });
+    const rx = t.place('reactor_equilibrium', 4, 0, {
+      reactionId: 'R_H2_COMB', useKinetics: true, volume_m3: 100
+    });
+    const snk = t.place('sink', 8, 0);
+    t.wire(src, 'out', rx, 'mat_in');
+    t.wire(rx, 'mat_out', snk, 'in');
+    t.solve();
+
+    const rxLast = t.ud(rx).last;
+    t.assertOK(rxLast.status === 'active', 'Status: active');
+    t.assertOK(rxLast.mode === 'kinetics', 'Mode: kinetics');
+    t.assertOK(rxLast.alpha_effective > 0.99,
+      'α_eff > 0.99 (equilibrium reached)', `α=${rxLast.alpha_effective?.toFixed(4)}`);
+    t.assertOK(rxLast.limited_by === 'equilibrium', 'Limited by: equilibrium');
+
+    // Composition should be near-complete (H2 combustion K >> 1 at 800K)
+    const out = t.port(rx, 'mat_out');
+    t.assertOK(!out.n.H2 || out.n.H2 < 0.02, 'H2 ≈ 0');
+    t.assertClose(out.n.H2O, 2, 0.1, 'H2O ≈ 2');
+
+    // T_out = T_in (isothermal)
+    t.assertClose(out.T, 800, 0.1, 'T_out = 800K');
+  });
+
+  test('Kinetics — small volume → kinetics-limited (α_eff < 0.1)', t => {
+    // T8: Tiny volume → very short residence time → negligible conversion
+    const src = t.place('source_multi', 0, 0, {
+      n: { CO2: 1, H2: 4, N2: 5 }, T: 500, P: 1000000, phaseConstraint: 'V'
+    });
+    const rx = t.place('reactor_equilibrium', 4, 0, {
+      reactionId: 'R_SABATIER', useKinetics: true, volume_m3: 0.0001
+    });
+    const snk = t.place('sink', 8, 0);
+    t.wire(src, 'out', rx, 'mat_in');
+    t.wire(rx, 'mat_out', snk, 'in');
+    t.solve();
+
+    const rxLast = t.ud(rx).last;
+    t.assertOK(rxLast.status === 'active', 'Status: active');
+    t.assertOK(rxLast.mode === 'kinetics', 'Mode: kinetics');
+    t.assertOK(rxLast.alpha_effective < 0.1,
+      'α_eff < 0.1 (kinetics-limited)', `α=${rxLast.alpha_effective?.toFixed(4)}`);
+    t.assertOK(rxLast.limited_by === 'kinetics', 'Limited by: kinetics');
+    t.assertOK(rxLast.tau_s < 1, 'τ < 1 s (very short)');
+  });
+
+  test('Kinetics — zero volume → MAJOR error', t => {
+    // T9: Volume ≤ 0 with kinetics enabled → MAJOR error
+    const src = t.place('source_multi', 0, 0, {
+      n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
+    });
+    const rx = t.place('reactor_equilibrium', 4, 0, {
+      reactionId: 'R_H2_COMB', useKinetics: true, volume_m3: 0
+    });
+    const snk = t.place('sink', 8, 0);
+    t.wire(src, 'out', rx, 'mat_in');
+    t.wire(rx, 'mat_out', snk, 'in');
+    t.solve();
+
+    const rxLast = t.ud(rx).last;
+    t.assertOK(rxLast?.error, 'Error emitted');
+    t.assertOK(rxLast?.error?.severity === ErrorSeverity.MAJOR, 'Severity: MAJOR');
+    t.assertOK(rxLast.error.message.toLowerCase().includes('volume'),
+      'Error mentions volume');
+
+    // Also test negative volume
+    rx.params.volume_m3 = -1;
+    t.solve();
+    const rxLast2 = t.ud(rx).last;
+    t.assertOK(rxLast2?.error?.severity === ErrorSeverity.MAJOR, 'Negative V: MAJOR');
+  });
+
+  test('Kinetics — missing reactant → ξ = 0', t => {
+    // T10: Feed has no H2 (reactant) → ξ_max = 0 → no reaction
+    const src = t.place('source_multi', 0, 0, {
+      n: { O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
+    });
+    const rx = t.place('reactor_equilibrium', 4, 0, {
+      reactionId: 'R_H2_COMB', useKinetics: true, volume_m3: 1.0
+    });
+    const snk = t.place('sink', 8, 0);
+    t.wire(src, 'out', rx, 'mat_in');
+    t.wire(rx, 'mat_out', snk, 'in');
+    t.solve();
+
+    const rxLast = t.ud(rx).last;
+    t.assertOK(rxLast.status === 'no_reactants', 'Status: no_reactants');
+    t.assertClose(rxLast.xi_max, 0, 0, 'xi_max = 0');
+  });
+
+  test('Kinetics — golden number Sabatier (T=500K, P=10bar, V=1m³)', t => {
+    // T11: Specific operating point for regression tracking
+    // Sabatier at 500K, 10 bar, 1 m³: K is large, but kinetics limit conversion
+    const src = t.place('source_multi', 0, 0, {
+      n: { CO2: 1, H2: 4, N2: 5 }, T: 500, P: 1000000, phaseConstraint: 'V'
+    });
+    const rx = t.place('reactor_equilibrium', 4, 0, {
+      reactionId: 'R_SABATIER', useKinetics: true, volume_m3: 1.0
+    });
+    const snk = t.place('sink', 8, 0);
+    t.wire(src, 'out', rx, 'mat_in');
+    t.wire(rx, 'mat_out', snk, 'in');
+    t.solve();
+
+    const rxLast = t.ud(rx).last;
+    t.assertOK(rxLast.status === 'active', 'Status: active');
+    t.assertOK(rxLast.mode === 'kinetics', 'Mode: kinetics');
+
+    // At 500K, K is very large → xi_eq ≈ xi_max
+    t.assertOK(rxLast.xi_eq > 0.9 * rxLast.xi_max,
+      'xi_eq close to xi_max at 500K', `ratio=${(rxLast.xi_eq/rxLast.xi_max).toFixed(4)}`);
+
+    // With 1 m³, kinetics should produce measurable but not full conversion
+    t.assertOK(rxLast.xi > 0, 'xi > 0');
+    t.assertOK(rxLast.alpha_effective > 0, 'α_eff > 0');
+    t.assertOK(rxLast.alpha_effective <= 1.0, 'α_eff ≤ 1');
+
+    // Diagnostics present
+    t.assertOK(isFinite(rxLast.tau_s), 'tau_s is finite');
+    t.assertOK(rxLast.rate_inlet > 0, 'rate_inlet > 0');
+    t.assertOK(rxLast.rate_outlet >= 0, 'rate_outlet ≥ 0');
+    t.assertOK(rxLast.volume_m3 === 1.0, 'volume_m3 = 1.0');
+
+    // Energy closure: Q_duty = H_out - H_in
+    const srcOut = t.port(src, 'out');
+    const out = t.port(rx, 'mat_out');
+    const H_in = srcOut.Hdot_J_s;
+    const H_out = out.Hdot_J_s;
+    const residual = H_out - H_in - rxLast.Q_duty_W;
+    t.assertClose(residual, 0, Math.max(Math.abs(H_in), 1) * 1e-6,
+      'Energy closure: H_out − H_in = Q_duty');
+  });
+
+  test('Kinetics — H₂ combustion fast (T=800K, V=1m³, α_eff > 0.99)', t => {
+    // T12: H2 combustion kinetics are fast — 1 m³ at 800K should reach equilibrium
+    const src = t.place('source_multi', 0, 0, {
+      n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
+    });
+    const rx = t.place('reactor_equilibrium', 4, 0, {
+      reactionId: 'R_H2_COMB', useKinetics: true, volume_m3: 1.0
+    });
+    const snk = t.place('sink', 8, 0);
+    t.wire(src, 'out', rx, 'mat_in');
+    t.wire(rx, 'mat_out', snk, 'in');
+    t.solve();
+
+    const rxLast = t.ud(rx).last;
+    t.assertOK(rxLast.mode === 'kinetics', 'Mode: kinetics');
+    t.assertOK(rxLast.alpha_effective > 0.99,
+      'α_eff > 0.99 (fast kinetics)', `α=${rxLast.alpha_effective?.toFixed(4)}`);
+
+    // Mass balance
+    const srcOut = t.port(src, 'out');
+    const out = t.port(rx, 'mat_out');
+    const m_in = streamMass_kgps(srcOut);
+    const m_out = streamMass_kgps(out);
+    t.assertClose(m_out, m_in, m_in * 0.001, 'Mass balance');
+  });
+
+  test('Kinetics — Sabatier recycle with kinetics (convergence + balance)', t => {
+    // T13: Full recycle loop with kinetics mode active
+    const feed  = t.place('source_multi', 0, 0, {
+      n: { CO2: 1, H2: 4 }, T: 900, P: 1000000, phaseConstraint: 'V'
+    });
+    const mix   = t.place('mixer', 4, 0, {});
+    const rx    = t.place('reactor_equilibrium', 8, 0, {
+      reactionId: 'R_SABATIER', useKinetics: true, volume_m3: 2.0
+    });
+    const cool  = t.place('cooler', 12, 0, { T_out: 323.15 });
+    const flash = t.place('flash_drum', 16, 0, {});
+    const split = t.place('splitter', 20, 0, { splitPct: 15 });
+    const snkCH4 = t.place('sink', 24, 0, {});
+    const snkH2O = t.place('sink', 20, 4, {});
+    const qDump  = t.place('sink_heat', 10, 6, {});
+
+    t.wire(feed, 'out', mix, 'in1');
+    t.wire(mix, 'out', rx, 'mat_in');
+    t.wire(rx, 'mat_out', cool, 'mat_in');
+    t.wire(cool, 'mat_out', flash, 'mat_in');
+    t.wire(flash, 'vap_out', split, 'in');
+    t.wire(split, 'out1', snkCH4, 'in');
+    t.wire(flash, 'liq_out', snkH2O, 'in');
+    t.wire(split, 'out2', mix, 'in2');
+    t.wire(rx, 'heat_out', qDump, 'in');
+    t.wire(cool, 'heat_out', qDump, 'in');
+
+    t.solve({ maxIter: 200 });
+
+    const rxLast = t.ud(rx).last;
+    t.assertOK(rxLast.status === 'active', 'Reactor active');
+    t.assertOK(rxLast.mode === 'kinetics', 'Mode: kinetics');
+    t.assertOK(rxLast.xi > 0, 'xi > 0');
+    t.assertOK(rxLast.alpha_effective > 0, 'α_eff > 0');
+
+    // Mass balance: system-level
+    const bal = computeSystemBalance(scene);
+    t.assertOK(bal, 'Balance computed');
+    t.assertOK(bal.mass.closed, 'Mass closed',
+      `residual=${(bal.mass.balance*1e6).toFixed(3)} µkg/s`);
+
+    // CO₂ conversion > 0 (reactor + recycle produce some product)
+    const feedOut = t.port(feed, 'out');
+    const purge = t.port(snkCH4, 'in');
+    const CO2_in = feedOut.n.CO2;
+    const CO2_out = purge?.n?.CO2 || 0;
+    t.assertOK(CO2_in - CO2_out > 0.01,
+      'Some CO₂ converted', `conv=${((1-CO2_out/CO2_in)*100).toFixed(1)}%`);
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
   // SECTION AF: Reactor Equilibrium — Isothermal K(T) (Tests 124–130)
   // [v8.9.0] Rewritten for isothermal energy contract.
   //   124–126: Rewritten from WIP adiabatic closure to isothermal T_out = T_eval
@@ -19475,7 +19850,7 @@ function runTests() {
       n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
     });
     const rx = t.place('reactor_equilibrium', 4, 0, {
-      reactionId: 'R_H2_COMB', alpha: 1.0
+      reactionId: 'R_H2_COMB', alpha: 1.0, useKinetics: false, volume_m3: 1.0
     });
     const snk = t.place('sink', 8, 0);
     t.wire(src, 'out', rx, 'mat_in');
@@ -19487,7 +19862,7 @@ function runTests() {
 
     // Equilibrium solver
     t.assertOK(rxLast.status === 'active', 'Status: active');
-    t.assertOK(rxLast.mode === 'equilibrium', 'Mode: equilibrium');
+    t.assertOK(rxLast.mode === 'manual', 'Mode: manual');
     t.assertOK(rxLast.ln_K > 50, 'ln K > 50 (overwhelmingly favored)',
       `ln_K=${rxLast.ln_K?.toFixed(1)}`);
     t.assertOK(rxLast.xi_eq > 0.999 * rxLast.xi_max,
@@ -19514,7 +19889,7 @@ function runTests() {
       n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
     });
     const rx = t.place('reactor_equilibrium', 4, 0, {
-      reactionId: 'R_H2_COMB', alpha: 0.5
+      reactionId: 'R_H2_COMB', alpha: 0.5, useKinetics: false, volume_m3: 1.0
     });
     const snk = t.place('sink', 8, 0);
     t.wire(src, 'out', rx, 'mat_in');
@@ -19543,35 +19918,7 @@ function runTests() {
     t.assertClose(m_out, m_in, m_in * 0.001, 'Mass balance');
   });
 
-  test('Reactor Eq. — T_eval override changes K and T_out', t => {
-    // T_eval_override = 500K (different from T_in = 800K)
-    // Isothermal: T_out = 500K (not T_in), ln_K changes
-    const src = t.place('source_multi', 0, 0, {
-      n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
-    });
-    const rx = t.place('reactor_equilibrium', 4, 0, {
-      reactionId: 'R_H2_COMB', alpha: 1.0,
-      T_eval_override: 500
-    });
-    const snk = t.place('sink', 8, 0);
-    t.wire(src, 'out', rx, 'mat_in');
-    t.wire(rx, 'mat_out', snk, 'in');
-    t.solve();
-
-    const out = t.port(rx, 'mat_out');
-    const rxLast = t.ud(rx).last;
-
-    // T_eval and T_out should both be the override value
-    t.assertClose(rxLast.T_eval, 500, 0.1, 'T_eval = 500K (override)');
-    t.assertClose(out.T, 500, 0.1, 'T_out = 500K (isothermal at T_eval)');
-
-    // ln_K at 500K should be larger than at 800K (more exothermic drive)
-    t.assertOK(rxLast.ln_K > 100, 'ln K(500K) > 100', rxLast.ln_K?.toFixed(1));
-
-    // Q_duty should be different from T_eval=T_in case because outlet is
-    // cooled from 800K inlet to 500K + reaction heat release
-    t.assertOK(rxLast.Q_duty_W !== undefined, 'Q_duty computed');
-  });
+  // [v8.9.6] Test 129 (T_eval override) removed — T_eval_override parameter no longer exists.
 
   test('Reactor Eq. — Q_duty energy closure', t => {
     // Verify: Q_duty = H_out − H_in  (definition)
@@ -19580,7 +19927,7 @@ function runTests() {
       n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
     });
     const rx = t.place('reactor_equilibrium', 4, 0, {
-      reactionId: 'R_H2_COMB', alpha: 1.0
+      reactionId: 'R_H2_COMB', alpha: 1.0, useKinetics: false, volume_m3: 1.0
     });
     const snk = t.place('sink', 8, 0);
     t.wire(src, 'out', rx, 'mat_in');
@@ -19622,7 +19969,7 @@ function runTests() {
       n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
     });
     const rx = t.place('reactor_equilibrium', 4, 0, {
-      reactionId: 'R_H2_COMB', alpha: 1.0
+      reactionId: 'R_H2_COMB', alpha: 1.0, useKinetics: false, volume_m3: 1.0
     });
     const snk = t.place('sink', 8, 0);
     t.wire(src, 'out', rx, 'mat_in');
@@ -19692,7 +20039,7 @@ function runTests() {
       n: { H2O: 1, N2: 10 }, T: 300, P: 100000, phaseConstraint: 'VL'
     });
     const rx = t.place('reactor_equilibrium', 4, 0, {
-      reactionId: 'R_H2_COMB', alpha: 1.0
+      reactionId: 'R_H2_COMB', alpha: 1.0, useKinetics: false, volume_m3: 1.0
     });
     const snk = t.place('sink', 8, 0);
     t.wire(src, 'out', rx, 'mat_in');
@@ -19777,7 +20124,7 @@ function runTests() {
       n: { CO2: 1, H2: 4, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
     });
     const rx = t.place('reactor_equilibrium', 4, 0, {
-      reactionId: 'R_SABATIER', alpha: 1.0
+      reactionId: 'R_SABATIER', alpha: 1.0, useKinetics: false, volume_m3: 1.0
     });
     const snk = t.place('sink', 8, 0);
     t.wire(src, 'out', rx, 'mat_in');
@@ -19829,7 +20176,7 @@ function runTests() {
       n: { ...feed }, T: 900, P: 100000, phaseConstraint: 'V'
     });
     const rxA = t.place('reactor_equilibrium', 4, 0, {
-      reactionId: 'R_SABATIER', alpha: 1.0
+      reactionId: 'R_SABATIER', alpha: 1.0, useKinetics: false, volume_m3: 1.0
     });
     const snkA = t.place('sink', 8, 0);
     t.wire(srcA, 'out', rxA, 'mat_in');
@@ -19843,7 +20190,7 @@ function runTests() {
       n: { ...feed }, T: 1000, P: 100000, phaseConstraint: 'V'
     });
     const rxB = t.place('reactor_equilibrium', 4, 8, {
-      reactionId: 'R_SABATIER', alpha: 1.0
+      reactionId: 'R_SABATIER', alpha: 1.0, useKinetics: false, volume_m3: 1.0
     });
     const snkB = t.place('sink', 8, 8);
     t.wire(srcB, 'out', rxB, 'mat_in');
@@ -19880,7 +20227,7 @@ function runTests() {
       n: { ...feed }, T: T_eval, P: 100000, phaseConstraint: 'V'
     });
     const rxA = t.place('reactor_equilibrium', 4, 0, {
-      reactionId: 'R_SABATIER', alpha: 1.0
+      reactionId: 'R_SABATIER', alpha: 1.0, useKinetics: false, volume_m3: 1.0
     });
     const snkA = t.place('sink', 8, 0);
     t.wire(srcA, 'out', rxA, 'mat_in');
@@ -19893,7 +20240,7 @@ function runTests() {
       n: { ...feed }, T: T_eval, P: 1000000, phaseConstraint: 'V'
     });
     const rxB = t.place('reactor_equilibrium', 4, 8, {
-      reactionId: 'R_SABATIER', alpha: 1.0
+      reactionId: 'R_SABATIER', alpha: 1.0, useKinetics: false, volume_m3: 1.0
     });
     const snkB = t.place('sink', 8, 8);
     t.wire(srcB, 'out', rxB, 'mat_in');
@@ -19923,24 +20270,22 @@ function runTests() {
     // Full Sabatier process with recycle: the first loop with an
     // equilibrium reactor in the test suite.
     //
-    // Topology: source → mixer → reactor(900K) → cooler(50°C) → flash
-    //             ↑                                                ↓
-    //             └──── recycle (85%) ──── splitter ←── vap_out ───┘
+    // Topology: source → mixer → reactor(isothermal) → cooler(50°C) → flash
+    //             ↑                                                      ↓
+    //             └──── recycle (85%) ──── splitter ←── vap_out ─────────┘
     //                                        ↓ purge (15%)
     //                                   flash liq_out → water sink
     //
-    // This exercises:
-    //  - Topology solver iterative convergence with material recycle
-    //  - Reactor equilibrium at non-stoichiometric, product-loaded inlet
-    //  - Flash drum VLE separation at high pressure
-    //  - System mass and energy balance closure across a loop
+    // [v8.9.6] T_eval = T_in (mixer outlet). Feed at 900K so reactor sees
+    // near-900K inlet. Recycle stream (cooled/flashed) blends with feed,
+    // so T_in ≈ 850–900K after convergence.
 
     const feed  = t.place('source_multi', 0, 0, {
-      n: { CO2: 1, H2: 4 }, T: 500, P: 1000000, phaseConstraint: 'V'
+      n: { CO2: 1, H2: 4 }, T: 900, P: 1000000, phaseConstraint: 'V'
     });
     const mix   = t.place('mixer', 4, 0, {});
     const rx    = t.place('reactor_equilibrium', 8, 0, {
-      reactionId: 'R_SABATIER', alpha: 1.0, T_eval_override: 900
+      reactionId: 'R_SABATIER', alpha: 1.0, useKinetics: false, volume_m3: 1.0
     });
     const cool  = t.place('cooler', 12, 0, { T_out: 323.15 });
     const flash = t.place('flash_drum', 16, 0, {});
@@ -19974,7 +20319,9 @@ function runTests() {
     // ── 1. Solver converged ──
     const rxLast = t.ud(rx).last;
     t.assertOK(rxLast.status === 'active', 'Reactor status: active');
-    t.assertClose(rxLast.T_eval, 900, 0.1, 'T_eval = 900 K');
+    // T_eval = T_in (mixer outlet); feed at 900K, recycle cooled → T_in ≈ 700–900K
+    t.assertOK(rxLast.T_eval > 600 && rxLast.T_eval < 1000,
+      'T_eval in plausible range', `T_eval=${rxLast.T_eval.toFixed(0)} K`);
 
     // ── 2. Reactor sees enriched inlet (recycle adds products) ──
     const rxIn = t.port(rx, 'mat_in');

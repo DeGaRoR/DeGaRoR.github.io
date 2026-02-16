@@ -1,7 +1,20 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v8.9.4
+  processThis v8.9.5
+
+  ─── v8.9.5 ───────────────────────────────────────────────────────────────
+  Phase 2: KineticsEval namespace + PFR integrator.
+  KineticsEval: pure-function namespace with rateConstant (Arrhenius),
+  ratePowerLaw (reversible power law with (1−Q/K) driving force), and
+  rate (dispatch).  All rates mol/(m³·s), pressures Pa, temperature K.
+  integratePFR: RK4 with 10 fixed steps over reactor volume, equilibrium
+  clamping, degenerate-safe.  Returns xi ∈ [0, xi_eq].
+  Both exported on PG namespace.
+  Tests T3–T6: rateConstant hand calc, ratePowerLaw at known conditions,
+  degenerate inputs (8 sub-cases), PFR basic behavior (monotonicity, edge
+  cases, equilibrium convergence).
+  NNG: NNG-A2 (DOM-free core), NNG-T2, NNG-V1/V2.
 
   ─── v8.9.4 ───────────────────────────────────────────────────────────────
   Phase 1: Registry kinetics schema + data.
@@ -2607,6 +2620,147 @@ ReactionRegistry.register('R_SABATIER', {
     ]
   }
 });
+
+/* =========================
+   KINETICS EVALUATION [v8.9.5]
+   Pure-function namespace for kinetic rate computation.
+   Placed in script block 1 (NNG-A2: DOM-free core).
+   All rates in mol/(m³·s), pressures in Pa, temperature in K.
+   ========================= */
+const KineticsEval = {
+  /**
+   * Arrhenius rate constant: k(T) = A · T^β · exp(−Ea/(R·T))
+   * @param {number} A       - pre-exponential factor
+   * @param {number} beta    - temperature exponent
+   * @param {number} Ea_Jmol - activation energy [J/mol]
+   * @param {number} T_K     - temperature [K]
+   * @returns {number} rate constant, ≥ 0
+   */
+  rateConstant(A, beta, Ea_Jmol, T_K) {
+    if (T_K <= 0 || A <= 0) return 0;
+    const R = 8.314;
+    return A * Math.pow(T_K, beta) * Math.exp(-Ea_Jmol / (R * T_K));
+  },
+
+  /**
+   * Reversible Power Law rate:
+   *   r = k(T) × Π(P_i^order_i) × max(0, 1 − Q/K)
+   *
+   * @param {Object} kin    - reaction._kinetics
+   * @param {number} T_K    - temperature [K]
+   * @param {Object} P_i    - partial pressures { species: Pa }
+   * @param {number} K_eq   - equilibrium constant (activity-based, dimensionless)
+   * @param {Object} stoich - reaction stoichiometry { species: nu }
+   * @returns {number} rate in mol/(m³·s), always ≥ 0
+   */
+  ratePowerLaw(kin, T_K, P_i, K_eq, stoich) {
+    if (K_eq <= 0 || T_K <= 0) return 0;
+
+    const k = KineticsEval.rateConstant(kin.A, kin.beta, kin.Ea_Jmol, T_K);
+    if (k <= 0) return 0;
+
+    // Kinetic driving term: Π(P_i ^ order_i)
+    let kineticTerm = 1;
+    for (const [sp, order] of Object.entries(kin.orders)) {
+      const p = P_i[sp] || 0;
+      if (p <= 0 && order > 0) return 0;  // zero partial pressure kills rate
+      kineticTerm *= Math.pow(Math.max(p, 0), order);
+    }
+
+    // Reaction quotient Q from partial pressures
+    // Q = Π((P_i / P°)^ν_i)  where P° = 1e5 Pa
+    const P_std = 1e5;
+    let lnQ = 0;
+    for (const [sp, nu] of Object.entries(stoich)) {
+      const p = P_i[sp] || 0;
+      const pClamped = Math.max(p, 1e-30);  // avoid log(0)
+      lnQ += nu * Math.log(pClamped / P_std);
+    }
+    const QoverK = Math.exp(lnQ) / K_eq;
+    const drivingForce = Math.max(0, 1 - QoverK);
+
+    return k * kineticTerm * drivingForce;
+  },
+
+  /**
+   * Dispatch: calls the appropriate kinetic model.
+   * @returns {number} rate in mol/(m³·s), always ≥ 0
+   */
+  rate(kin, T_K, P_i, K_eq, stoich) {
+    if (!kin) return 0;
+    if (kin.model === 'POWER_LAW') {
+      return KineticsEval.ratePowerLaw(kin, T_K, P_i, K_eq, stoich);
+    }
+    return 0;  // unrecognized model
+  }
+};
+
+/**
+ * PFR integrator: integrate dξ/dV = r(ξ) from V=0 to V=volume_m3.
+ * RK4 with 10 fixed steps, equilibrium clamping.
+ *
+ * @param {Object} kinetics   - reaction._kinetics
+ * @param {number} T_K        - isothermal temperature [K]
+ * @param {number} P_total    - total pressure [Pa]
+ * @param {Object} n_in       - inlet molar flows { species: mol/s }
+ * @param {Object} stoich     - { species: nu }
+ * @param {number} xi_eq      - equilibrium extent [mol/s]
+ * @param {number} volume_m3  - reactor volume [m³]
+ * @param {number} lnK        - ln(K_eq) at T_K
+ * @returns {number} xi in [0, xi_eq]
+ */
+function integratePFR(kinetics, T_K, P_total, n_in, stoich, xi_eq, volume_m3, lnK) {
+  // Short-circuits
+  if (xi_eq <= 0 || volume_m3 <= 0) return 0;
+  if (lnK === null || lnK === undefined) return 0;
+
+  // Infinite residence time → equilibrium
+  if (volume_m3 > 1e8) return xi_eq;
+
+  const K_eq = Math.exp(Math.min(lnK, 300));  // cap to avoid Infinity
+  const N_STEPS = 10;
+  const dV = volume_m3 / N_STEPS;
+
+  // Rate function: given extent xi, compute r(xi) in mol/(m³·s)
+  // Partial pressures from molar flows at extent xi.
+  const species = [...new Set([...Object.keys(n_in), ...Object.keys(stoich)])];
+
+  function rateAtXi(xi) {
+    let n_total = 0;
+    const P_i = {};
+    for (const sp of species) {
+      const n_sp = (n_in[sp] || 0) + (stoich[sp] || 0) * xi;
+      const n_clamped = Math.max(n_sp, 0);
+      n_total += n_clamped;
+      P_i[sp] = n_clamped;  // temporary: molar flows, will convert
+    }
+    if (n_total <= 1e-30) return 0;
+    // Convert to partial pressures
+    for (const sp of species) {
+      P_i[sp] = (P_i[sp] / n_total) * P_total;
+    }
+    return KineticsEval.rate(kinetics, T_K, P_i, K_eq, stoich);
+  }
+
+  // RK4 integration over volume
+  let xi = 0;
+  for (let step = 0; step < N_STEPS; step++) {
+    if (xi >= xi_eq) break;
+
+    const k1 = rateAtXi(xi) * dV;
+    const k2 = rateAtXi(Math.min(xi + k1 / 2, xi_eq)) * dV;
+    const k3 = rateAtXi(Math.min(xi + k2 / 2, xi_eq)) * dV;
+    const k4 = rateAtXi(Math.min(xi + k3, xi_eq)) * dV;
+
+    const dxi = (k1 + 2 * k2 + 2 * k3 + k4) / 6;
+
+    if (dxi <= 0) break;  // rate is zero or negative → equilibrium reached
+    xi += dxi;
+    xi = Math.min(xi, xi_eq);  // equilibrium clamp
+  }
+
+  return Math.max(0, Math.min(xi, xi_eq));
+}
 
 /* =========================
    MODEL REGISTRY
@@ -10139,6 +10293,10 @@ const PG = {
   formatPower_kW,
   formatEnthalpy_kJmol,
   formatHeatCapacity_kWK,
+
+  // ── Kinetics [v8.9.5] ──
+  KineticsEval,
+  integratePFR,
 
   // ── Test harness (assigned by test script) ──
   TestCtx:   null,
@@ -19130,6 +19288,172 @@ function runTests() {
       kinetics: { ...base.kinetics, references: [] }
     }); } catch(e) { threw = true; }
     t.assertOK(threw, 'Throws on empty kinetics references');
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // SECTION AF¾: KineticsEval + PFR Integrator [v8.9.5] (T3–T6)
+  // ═══════════════════════════════════════════════════════════════════════
+
+  test('KineticsEval.rateConstant — Arrhenius at known T', t => {
+    // T3: k(T) = A · T^β · exp(−Ea/(R·T))
+    const R = 8.314;
+    const A = 1e4, beta = 0, Ea = 50000;  // 50 kJ/mol
+
+    // At 500 K: k = 1e4 · exp(−50000/(8.314·500)) = 1e4 · exp(−12.027)
+    const k500 = KineticsEval.rateConstant(A, beta, Ea, 500);
+    const expected500 = A * Math.exp(-Ea / (R * 500));
+    t.assertClose(k500, expected500, expected500 * 1e-10, 'k(500K) matches hand calc');
+    t.assertOK(k500 > 0, 'k(500K) > 0', k500.toExponential(4));
+
+    // At 800 K: k should be larger (Arrhenius)
+    const k800 = KineticsEval.rateConstant(A, beta, Ea, 800);
+    const expected800 = A * Math.exp(-Ea / (R * 800));
+    t.assertClose(k800, expected800, expected800 * 1e-10, 'k(800K) matches hand calc');
+    t.assertOK(k800 > k500, 'k(800K) > k(500K)');
+
+    // With beta = 1: k(T) = A · T · exp(−Ea/(R·T))
+    const kBeta = KineticsEval.rateConstant(A, 1, Ea, 600);
+    const expectedBeta = A * 600 * Math.exp(-Ea / (R * 600));
+    t.assertClose(kBeta, expectedBeta, expectedBeta * 1e-10, 'k with beta=1 matches');
+
+    // Degenerate: T=0 → 0, A=0 → 0
+    t.assertClose(KineticsEval.rateConstant(A, 0, Ea, 0), 0, 0, 'k(T=0) = 0');
+    t.assertClose(KineticsEval.rateConstant(0, 0, Ea, 500), 0, 0, 'k(A=0) = 0');
+    t.assertClose(KineticsEval.rateConstant(A, 0, Ea, -10), 0, 0, 'k(T<0) = 0');
+  });
+
+  test('KineticsEval.ratePowerLaw — rate at known conditions', t => {
+    // T4: Simple power law test with known inputs
+    // r = k(T) · Π(P_i^order_i) · max(0, 1 − Q/K)
+    const kin = {
+      model: 'POWER_LAW', A: 1e4, beta: 0, Ea_Jmol: 50000,
+      orders: { H2: 1, O2: 0.5 }
+    };
+    const stoich = { H2: -2, O2: -1, H2O: 2 };
+
+    // At T=800, pure reactants, no products → Q ≈ 0, driving force ≈ 1
+    const P_i_fresh = { H2: 40000, O2: 20000, H2O: 1e-10 };
+    const K_eq = 1e20;  // large K → products strongly favored → Q/K ≈ 0
+
+    const rate1 = KineticsEval.ratePowerLaw(kin, 800, P_i_fresh, K_eq, stoich);
+    t.assertOK(rate1 > 0, 'Rate > 0 for fresh feed', rate1.toExponential(4));
+
+    // Verify structure: k × P_H2^1 × P_O2^0.5 × (1 − Q/K)
+    const R = 8.314;
+    const k_800 = 1e4 * Math.exp(-50000 / (R * 800));
+    const kineticTerm = 40000 * Math.pow(20000, 0.5);
+    // Q for fresh feed with H2O≈0: Q ≈ 0, so driving ≈ 1
+    const rateExpected = k_800 * kineticTerm;  // × ~1
+    t.assertClose(rate1, rateExpected, rateExpected * 0.01, 'Rate matches hand calc (Q≈0)');
+
+    // At equilibrium (Q = K), driving force = 0 → rate = 0
+    // Build P_i such that Q = K. For Q = Π((P_i/P°)^ν_i):
+    // With K very large, we'd need huge product pressures to reach Q=K
+    // Instead test with small K_eq and product-heavy feed
+    const K_small = 0.001;  // products disfavored
+    const P_i_products = { H2: 100, O2: 100, H2O: 90000 };
+    // Q = (P_H2O/P°)^2 / ((P_H2/P°)^2 · (P_O2/P°)^1)
+    // = (90000/1e5)^2 / ((100/1e5)^2 · (100/1e5))  = 0.81 / (1e-6 · 1e-3) = 0.81e9
+    // Q/K = 0.81e9/0.001 >> 1 → driving force clamped to 0
+    const rate2 = KineticsEval.ratePowerLaw(kin, 800, P_i_products, K_small, stoich);
+    t.assertClose(rate2, 0, 1e-30, 'Rate = 0 when Q >> K (beyond equilibrium)');
+
+    // Rate always ≥ 0
+    t.assertOK(rate1 >= 0, 'Rate non-negative (case 1)');
+    t.assertOK(rate2 >= 0, 'Rate non-negative (case 2)');
+  });
+
+  test('KineticsEval — degenerate inputs', t => {
+    // T5: Various degenerate conditions → rate = 0
+    const kin = {
+      model: 'POWER_LAW', A: 1e4, beta: 0, Ea_Jmol: 50000,
+      orders: { H2: 1, O2: 0.5 }
+    };
+    const stoich = { H2: -2, O2: -1, H2O: 2 };
+    const P_i = { H2: 40000, O2: 20000, H2O: 100 };
+    const K_eq = 1e10;
+
+    // Zero partial pressure for species with positive order
+    t.assertClose(KineticsEval.rate(kin, 800, { H2: 0, O2: 20000, H2O: 100 }, K_eq, stoich),
+      0, 0, 'Rate=0 when P_H2=0');
+    t.assertClose(KineticsEval.rate(kin, 800, { H2: 40000, O2: 0, H2O: 100 }, K_eq, stoich),
+      0, 0, 'Rate=0 when P_O2=0');
+
+    // T ≤ 0
+    t.assertClose(KineticsEval.rate(kin, 0, P_i, K_eq, stoich),
+      0, 0, 'Rate=0 when T=0');
+    t.assertClose(KineticsEval.rate(kin, -100, P_i, K_eq, stoich),
+      0, 0, 'Rate=0 when T<0');
+
+    // K_eq ≤ 0
+    t.assertClose(KineticsEval.rate(kin, 800, P_i, 0, stoich),
+      0, 0, 'Rate=0 when K_eq=0');
+    t.assertClose(KineticsEval.rate(kin, 800, P_i, -1, stoich),
+      0, 0, 'Rate=0 when K_eq<0');
+
+    // Null kinetics
+    t.assertClose(KineticsEval.rate(null, 800, P_i, K_eq, stoich),
+      0, 0, 'Rate=0 when kinetics=null');
+
+    // Dispatch with actual reaction
+    const rxn = ReactionRegistry.get('R_H2_COMB');
+    const rateOK = KineticsEval.rate(rxn._kinetics, 800, P_i, K_eq, rxn.stoich);
+    t.assertOK(rateOK > 0, 'Dispatch to POWER_LAW works', rateOK.toExponential(4));
+  });
+
+  test('integratePFR — basic behavior', t => {
+    // T6: PFR integration correctness at various volumes
+    const rxn = ReactionRegistry.get('R_SABATIER');
+    const T_K = 500;  // within Koschany validity
+    const P_total = 1e6;  // 10 bar
+    const n_in = { CO2: 1, H2: 4, N2: 5 };  // stoichiometric + diluent
+
+    // Compute xi_eq from existing bisection reference: use lnK
+    const lnK = ReactionRegistry.lnK('R_SABATIER', T_K);
+    t.assertOK(lnK !== null, 'lnK available');
+    t.assertOK(lnK > 0, 'lnK > 0 at 500K (products favored)', lnK.toFixed(1));
+
+    // xi_max = 1.0 (CO2 is limiting, ν_CO2=-1, n_CO2=1)
+    const xi_max = 1.0;
+
+    // Compute xi_eq by finding where Q=K (use a rough value from bisection)
+    // For this test, we just need xi_eq > 0 and < xi_max.
+    // We'll run with very large volume to find the equilibrium limit.
+    const xi_large = integratePFR(rxn._kinetics, T_K, P_total, n_in, rxn.stoich, xi_max, 1e7, lnK);
+    t.assertOK(xi_large > 0.1, 'Large V: xi > 0.1', xi_large.toFixed(4));
+    t.assertOK(xi_large <= xi_max, 'Large V: xi ≤ xi_max');
+
+    // Use xi_large as proxy for xi_eq
+    const xi_eq = xi_large;
+
+    // Small volume: xi << xi_eq
+    const xi_small = integratePFR(rxn._kinetics, T_K, P_total, n_in, rxn.stoich, xi_eq, 1e-6, lnK);
+    t.assertOK(xi_small < 0.1 * xi_eq, 'Small V: xi << xi_eq', `α=${(xi_small/xi_eq).toFixed(4)}`);
+    t.assertOK(xi_small >= 0, 'Small V: xi ≥ 0');
+
+    // Medium volume: 0 < xi < xi_eq
+    const xi_med = integratePFR(rxn._kinetics, T_K, P_total, n_in, rxn.stoich, xi_eq, 0.5, lnK);
+    t.assertOK(xi_med > xi_small, 'Medium V > Small V');
+    t.assertOK(xi_med <= xi_eq, 'Medium V ≤ xi_eq');
+
+    // Monotonicity: increasing V → increasing xi
+    const xi_v1 = integratePFR(rxn._kinetics, T_K, P_total, n_in, rxn.stoich, xi_eq, 0.1, lnK);
+    const xi_v2 = integratePFR(rxn._kinetics, T_K, P_total, n_in, rxn.stoich, xi_eq, 1.0, lnK);
+    const xi_v3 = integratePFR(rxn._kinetics, T_K, P_total, n_in, rxn.stoich, xi_eq, 10.0, lnK);
+    t.assertOK(xi_v1 <= xi_v2, 'V=0.1 ≤ V=1.0');
+    t.assertOK(xi_v2 <= xi_v3, 'V=1.0 ≤ V=10.0');
+
+    // Edge: xi_eq = 0 → returns 0
+    t.assertClose(integratePFR(rxn._kinetics, T_K, P_total, n_in, rxn.stoich, 0, 1.0, lnK),
+      0, 0, 'xi_eq=0 → xi=0');
+
+    // Edge: volume = 0 → returns 0
+    t.assertClose(integratePFR(rxn._kinetics, T_K, P_total, n_in, rxn.stoich, xi_eq, 0, lnK),
+      0, 0, 'volume=0 → xi=0');
+
+    // Never exceeds xi_eq
+    const xi_huge = integratePFR(rxn._kinetics, T_K, P_total, n_in, rxn.stoich, xi_eq, 1e8, lnK);
+    t.assertOK(xi_huge <= xi_eq + 1e-10, 'Huge V: xi ≤ xi_eq');
   });
 
   // ═══════════════════════════════════════════════════════════════════════
