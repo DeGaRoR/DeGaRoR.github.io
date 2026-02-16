@@ -1,7 +1,29 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v9.0.4
+  processThis v9.0.5
+
+  ─── v9.0.5 ───────────────────────────────────────────────────────────────
+  Balance + Polish — Phase 4 of Time & Inventory system.
+
+  computeSystemBalance: accumulation term.  Scans inventory units for
+  mass and energy storage rates.  Tank: mass accumulation from net
+  material flow (in − out − overflow) in kg/s.  Battery: energy
+  accumulation = −netPower_W (charging positive, discharging negative).
+  Adjusted residual: In − Out − Accum ≈ 0.  Balance display updated
+  with Accumulation section (per-unit breakdown, cyan/green colors).
+  Mass and energy badges now use adjusted residual for closed/open.
+
+  Tank property editor: time-to-full and time-to-empty estimates based
+  on current net flow rate.  Net flow display (mol/s, color-coded).
+
+  Battery property editor: time estimates already present from Phase 3.
+
+  Transport styling: play button pulses green (playPulse animation)
+  during playback.  Time display shows mode indicator (▶/⏸).
+
+  Tests: T187 (tank mass balance In−Out−Accum≈0), T188 (battery energy
+  balance port×dt≈Δcharge).
 
   ─── v9.0.4 ───────────────────────────────────────────────────────────────
   Battery with SOC — Phase 3 of Time & Inventory system.
@@ -804,7 +826,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>processThis — v9.0.4</title>
+  <title>processThis — v9.0.5</title>
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
@@ -928,6 +950,15 @@
     .transport .tbtn:hover { background: #283040; color: #e2e8f0; }
     .transport .tbtn.active { background: #1e40af; color: #fff; border-color: #2563eb; }
     .transport .tbtn:disabled { opacity: 0.3; cursor: default; pointer-events: none; }
+    /* [v9.0.5] Playing state pulsing indicator */
+    .transport .tbtn.playing {
+      background: #065f46; color: #6ee7b7; border-color: #059669;
+      animation: playPulse 1.5s ease-in-out infinite;
+    }
+    @keyframes playPulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.3); }
+      50% { box-shadow: 0 0 6px 2px rgba(16, 185, 129, 0.3); }
+    }
     .time-display {
       font-size: 11px;
       color: #64748b;
@@ -14262,6 +14293,60 @@ function computeSystemBalance(scene) {
   const totalEnergyOut = energyOut.material + energyOut.electrical + energyOut.mechanical + energyOut.heat + energyOut.dissipated;
   const energyBalance  = totalEnergyIn - totalEnergyOut;
 
+  // ── [v9.0.5] Accumulation: inventory units store/release mass and energy ──
+  // Mass accumulation = Σ(tank net mass inflow) in kg/s
+  // Energy accumulation = Σ(battery net charge) in W + Σ(tank enthalpy change) in W
+  const accumulation = { mass_kgps: 0, energy_W: 0, items: [] };
+
+  for (const [id, u] of scene.units) {
+    const def = UnitRegistry.get(u.defId);
+    if (!def || !def.inventory) continue;
+    const ud = scene.runtime.unitData.get(id);
+    if (!ud) continue;
+    const uName = u.name || def.name;
+
+    if (u.defId === 'tank') {
+      // Tank: mass accumulation from net material flow
+      const matIn = ud.ports?.mat_in;
+      const matOut = ud.ports?.mat_out;
+      const overflow = ud.ports?.overflow;
+      const m_in = matIn ? streamMass_kgps(matIn) : 0;
+      const m_out = matOut ? streamMass_kgps(matOut) : 0;
+      const m_ov = overflow ? streamMass_kgps(overflow) : 0;
+      const netMass = m_in - m_out - m_ov;
+      if (Math.abs(netMass) > 1e-15) {
+        accumulation.mass_kgps += netMass;
+        accumulation.items.push({ name: uName, type: 'tank_mass', value_kgps: netMass, value_W: 0 });
+      }
+      // Tank: energy accumulation (simplified — proportional to mass × T)
+      const H_in = matIn?.Hdot_J_s ?? 0;
+      const H_out = matOut?.Hdot_J_s ?? 0;
+      const H_ov = overflow?.Hdot_J_s ?? 0;
+      const netH = H_in - H_out - H_ov;
+      if (Math.abs(netH) > 0.01) {
+        accumulation.energy_W += netH;
+      }
+    }
+
+    if (u.defId === 'battery') {
+      // Battery: energy accumulation = net charge power (negative actual = charging = positive accum)
+      const elecPort = ud.ports?.elec;
+      const netPower = elecPort?.actual || 0;
+      // netPower > 0 = discharging (energy leaving storage → negative accumulation)
+      // netPower < 0 = charging (energy entering storage → positive accumulation)
+      const accumRate = -netPower;  // W stored per second
+      if (Math.abs(accumRate) > 0.01) {
+        accumulation.energy_W += accumRate;
+        accumulation.items.push({ name: uName, type: 'battery_energy', value_kgps: 0, value_W: accumRate });
+      }
+    }
+  }
+
+  // ── Adjusted residuals: In − Out − Accumulation ≈ 0 ──
+  const massResidual = massBalance - accumulation.mass_kgps;
+  const energyResidual = energyBalance - accumulation.energy_W;
+  const massTolAccum = Math.max(totalMassIn, totalMassOut, Math.abs(accumulation.mass_kgps)) * 1e-4 + 1e-10;
+
   return {
     mass: {
       inItems: massInItems,
@@ -14269,7 +14354,9 @@ function computeSystemBalance(scene) {
       totalIn: totalMassIn,
       totalOut: totalMassOut,
       balance: massBalance,
-      closed: Math.abs(massBalance) < massTol
+      accumulation: accumulation.mass_kgps,
+      residual: massResidual,
+      closed: Math.abs(massResidual) < massTolAccum
     },
     energy: {
       in: energyIn,
@@ -14277,9 +14364,12 @@ function computeSystemBalance(scene) {
       totalIn: totalEnergyIn,
       totalOut: totalEnergyOut,
       balance: energyBalance,
-      relError: totalEnergyIn !== 0 ? Math.abs(energyBalance / totalEnergyIn) : 0,
-      closed: totalEnergyIn !== 0 ? Math.abs(energyBalance / totalEnergyIn) < 0.01 : Math.abs(energyBalance) < 1
-    }
+      accumulation: accumulation.energy_W,
+      residual: energyResidual,
+      relError: totalEnergyIn !== 0 ? Math.abs(energyResidual / totalEnergyIn) : 0,
+      closed: totalEnergyIn !== 0 ? Math.abs(energyResidual / totalEnergyIn) < 0.01 : Math.abs(energyResidual) < 1
+    },
+    accumulation
   };
 }
 
@@ -15280,6 +15370,42 @@ function updatePropertiesPanel() {
           el('div', { class: 'propValue', style: `color:${statusColor};`, html: ud.last.status || '—' })
         ]));
 
+        // [v9.0.5] Time estimates
+        if (ud.last.status === 'active' && ud.last.totalMol > 0 && ud.last.n_max > 0) {
+          // Net flow rate from resolved ports
+          const matIn = scene.runtime.unitData.get(ui.selectedUnitId)?.ports?.mat_in;
+          const matOut = scene.runtime.unitData.get(ui.selectedUnitId)?.ports?.mat_out;
+          const nIn = matIn?.n ? Object.values(matIn.n).reduce((a, b) => a + b, 0) : 0;
+          const nOut = matOut?.n ? Object.values(matOut.n).reduce((a, b) => a + b, 0) : 0;
+          const netRate = nIn - nOut;  // mol/s
+          if (netRate > 0.001) {
+            // Filling: time to full
+            const remaining = ud.last.n_max - ud.last.totalMol;
+            const tFull_s = remaining / netRate;
+            const h = Math.floor(tFull_s / 3600);
+            const m = Math.floor((tFull_s % 3600) / 60);
+            dataGrid.appendChild(el('div', { class: 'propItem' }, [
+              el('div', { class: 'propLabel', html: 'Time to full' }),
+              el('div', { class: 'propValue', html: `~${h}:${String(m).padStart(2, '0')}` })
+            ]));
+          } else if (netRate < -0.001) {
+            // Draining: time to empty
+            const tEmpty_s = ud.last.totalMol / Math.abs(netRate);
+            const h = Math.floor(tEmpty_s / 3600);
+            const m = Math.floor((tEmpty_s % 3600) / 60);
+            dataGrid.appendChild(el('div', { class: 'propItem' }, [
+              el('div', { class: 'propLabel', html: 'Time to empty' }),
+              el('div', { class: 'propValue', html: `~${h}:${String(m).padStart(2, '0')}` })
+            ]));
+          }
+          // Net flow display
+          dataGrid.appendChild(el('div', { class: 'propItem' }, [
+            el('div', { class: 'propLabel', html: 'Net flow' }),
+            el('div', { class: 'propValue', style: `color:${netRate > 0 ? '#22c55e' : netRate < 0 ? '#f59e0b' : '#64748b'};`,
+              html: `${netRate > 0 ? '+' : ''}${netRate.toFixed(3)}<span class="propUnit">mol/s</span>` })
+          ]));
+        }
+
         tBox.appendChild(dataGrid);
         propsSection.content.appendChild(tBox);
       }
@@ -15858,9 +15984,10 @@ function updatePropertiesPanel() {
     const mc = massSection.content;
 
     const massClosed = balance.mass.closed;
+    const massResidualDisplay = balance.mass.residual ?? balance.mass.balance;
     mc.appendChild(el('div', { 
       style: `margin-bottom:10px; padding:6px 10px; border-radius:6px; font-size:12px; font-weight:600; text-align:center; background:${massClosed ? '#064e3b' : '#7f1d1d'}; color:${massClosed ? '#6ee7b7' : '#fca5a5'};`,
-      html: massClosed ? '✓ Mass balance closed' : `✗ Mass balance violation: Δ = ${(balance.mass.balance * 1000).toFixed(4)} g/s`
+      html: massClosed ? '✓ Mass balance closed' : `✗ Mass balance violation: Δ = ${(massResidualDisplay * 1000).toFixed(4)} g/s`
     }));
 
     const tbl = el('div', { style: 'font-size:11px; font-family:monospace;' });
@@ -15890,8 +16017,18 @@ function updatePropertiesPanel() {
     tbl.appendChild(el('div', { style: 'display:flex; justify-content:space-between; font-weight:700;', html:
       `<span>Total Out</span><span>${(balance.mass.totalOut * 1000).toFixed(3)} g/s</span>`
     }));
+
+    // [v9.0.5] Accumulation
+    if (Math.abs(balance.mass.accumulation || 0) > 1e-12) {
+      tbl.appendChild(el('div', { style: 'display:flex; justify-content:space-between; font-weight:700; color:#06b6d4;', html:
+        `<span>Accumulation</span><span>${(balance.mass.accumulation * 1000).toFixed(3)} g/s</span>`
+      }));
+    }
+
+    // Residual: In − Out − Accum
+    const residualVal = balance.mass.residual ?? balance.mass.balance;
     tbl.appendChild(el('div', { style: `display:flex; justify-content:space-between; font-weight:700; padding:4px 0; color:${massClosed ? '#6ee7b7' : '#fca5a5'};`, html:
-      `<span>Residual</span><span>${(balance.mass.balance * 1000).toFixed(6)} g/s</span>`
+      `<span>Residual${(balance.mass.accumulation || 0) !== 0 ? ' (In−Out−Accum)' : ''}</span><span>${(residualVal * 1000).toFixed(6)} g/s</span>`
     }));
     mc.appendChild(tbl);
 
@@ -15905,9 +16042,11 @@ function updatePropertiesPanel() {
 
     // Status badge
     const enClosed = balance.energy.closed;
+    const enResidualBadge = balance.energy.residual ?? balance.energy.balance;
+    const enRelErr = balance.energy.totalIn !== 0 ? Math.abs(enResidualBadge / balance.energy.totalIn) : 0;
     ec.appendChild(el('div', { 
       style: `margin-bottom:10px; padding:6px 10px; border-radius:6px; font-size:12px; font-weight:600; text-align:center; background:${enClosed ? '#064e3b' : '#7f1d1d'}; color:${enClosed ? '#6ee7b7' : '#fca5a5'};`,
-      html: enClosed ? '✓ Energy balance closed' : `✗ Energy balance error: ${(balance.energy.relError * 100).toFixed(2)}%`
+      html: enClosed ? '✓ Energy balance closed' : `✗ Energy balance error: ${(enRelErr * 100).toFixed(2)}%`
     }));
 
     // ── Inputs ──
@@ -15961,9 +16100,35 @@ function updatePropertiesPanel() {
     }));
     ec.appendChild(outTbl);
 
+    // ── [v9.0.5] Accumulation ──
+    if (balance.accumulation && balance.accumulation.items.length > 0) {
+      ec.appendChild(el('div', { style: 'font-weight:700; font-size:11px; margin:8px 0 4px; opacity:0.7; text-transform:uppercase;', html: '⟳ Accumulation' }));
+      const accTbl = el('div', { style: 'font-size:11px; font-family:monospace; margin-bottom:8px;' });
+      for (const item of balance.accumulation.items) {
+        if (item.type === 'tank_mass' && Math.abs(item.value_kgps) > 1e-12) {
+          accTbl.appendChild(el('div', { style: 'display:flex; justify-content:space-between; padding:2px 0; color:#06b6d4;', html:
+            `<span>${item.name} <span style="opacity:0.6">(Mass)</span></span><span>${(item.value_kgps * 1000).toFixed(3)} g/s</span>`
+          }));
+        }
+        if (item.type === 'battery_energy' && Math.abs(item.value_W) > 0.01) {
+          accTbl.appendChild(el('div', { style: 'display:flex; justify-content:space-between; padding:2px 0; color:#22c55e;', html:
+            `<span>${item.name} <span style="opacity:0.6">(Charge)</span></span><span>${(item.value_W/1000).toFixed(2)} kW</span>`
+          }));
+        }
+      }
+      if (Math.abs(balance.energy.accumulation || 0) > 0.01) {
+        accTbl.appendChild(el('div', { style: 'display:flex; justify-content:space-between; padding:3px 0; font-weight:700; border-top:1px solid #475569;', html:
+          `<span>Σ Accumulation</span><span style="color:#06b6d4">${(balance.energy.accumulation/1000).toFixed(2)} kW</span>`
+        }));
+      }
+      ec.appendChild(accTbl);
+    }
+
     // ── Residual ──
+    const enResidual = balance.energy.residual ?? balance.energy.balance;
+    const hasAccum = Math.abs(balance.energy.accumulation || 0) > 0.01;
     const residual = el('div', { style: 'display:flex; justify-content:space-between; padding:6px 8px; border-radius:6px; font-weight:700; font-size:12px; background:#1e293b;', html:
-      `<span>Residual (In − Out)</span><span style="color:${enClosed ? '#6ee7b7' : '#fca5a5'}">${(balance.energy.balance/1000).toFixed(4)} kW</span>`
+      `<span>Residual${hasAccum ? ' (In−Out−Accum)' : ' (In−Out)'}</span><span style="color:${enClosed ? '#6ee7b7' : '#fca5a5'}">${(enResidual/1000).toFixed(4)} kW</span>`
     });
     ec.appendChild(residual);
 
@@ -16181,6 +16346,7 @@ function updateTransportUI() {
   btnTest.classList.toggle('active', mode === 'test');
   btnPause.classList.toggle('active', mode === 'paused');
   btnPlay.classList.toggle('active', mode === 'playing');
+  btnPlay.classList.toggle('playing', mode === 'playing');  // [v9.0.5] pulsing indicator
 
   // Button enable/disable
   btnTest.disabled  = mode === 'playing';
@@ -16194,7 +16360,11 @@ function updateTransportUI() {
     timeDisplayEl.style.display = 'none';
   } else {
     timeDisplayEl.style.display = '';
-    timeDisplayEl.innerHTML = `<b>t</b>=${formatTime(TimeClock.t)} · f${TimeClock.frame} · Δt=${SimSettings.dt}s`;
+    // [v9.0.5] Mode indicator in time display
+    const modeLabel = mode === 'playing' ? '<span style="color:#6ee7b7">▶</span>'
+                    : mode === 'paused'  ? '<span style="color:#fbbf24">⏸</span>'
+                    : '';
+    timeDisplayEl.innerHTML = `${modeLabel} <b>t</b>=${formatTime(TimeClock.t)} · f${TimeClock.frame} · Δt=${SimSettings.dt}s`;
   }
 }
 
@@ -23364,6 +23534,90 @@ function runTests() {
     // Reset
     TimeClock.reset(scene);
     t.assertClose(u.inventory.charge_J, initCharge, 0.01, 'charge_J restored after reset');
+
+    TimeClock.t = 0; TimeClock.frame = 0;
+    TimeClock.mode = 'test'; SimSettings.dt = origDt;
+  }});
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // AN — Phase 4: Balance + Polish [v9.0.5]
+  // ═══════════════════════════════════════════════════════════════════════
+
+  tests.push({ name: '187: System balance with tank: In − Out − Accum ≈ 0', fn: t => {
+    const origDt = SimSettings.dt;
+    TimeClock.t = 0; TimeClock.frame = 0; TimeClock.mode = 'test';
+    SimSettings.dt = 10;
+
+    // Source (2 mol/s N2) → Tank (drawRate 0.5) → Sink
+    const src = t.place('source', 0, 0, { species: 'N2', nDot: 2.0, T: 300, P: 101325, phaseConstraint: 'V' });
+    const tid = t.place('tank', 4, 0, { volume_m3: 50, drawRate: 0.5 });
+    const snk = t.place('sink', 8, 0);
+    const snk2 = t.place('sink', 4, 5);
+    t.wire(src, 'out', tid, 'mat_in');
+    t.wire(tid, 'mat_out', snk, 'in');
+    t.wire(tid, 'overflow', snk2, 'in');
+
+    const u = scene.units.get(tid);
+
+    // Step 1: initialises, solves, but inventory update uses empty prior ports
+    TimeClock.step(scene);
+    const afterStep1 = u.inventory.n.N2;
+
+    // Step 2+: inventory now updates from step 1's solved ports
+    TimeClock.step(scene);
+    const afterStep2 = u.inventory.n.N2;
+
+    // Accumulation from step 1 → step 2
+    const accumMol = afterStep2 - afterStep1;
+
+    // From solved ports at end of step 2: net flow × dt
+    const ud = scene.runtime.unitData.get(tid);
+    const nIn = ud?.ports?.mat_in?.n ? Object.values(ud.ports.mat_in.n).reduce((a, b) => a + b, 0) : 0;
+    const nOut = ud?.ports?.mat_out?.n ? Object.values(ud.ports.mat_out.n).reduce((a, b) => a + b, 0) : 0;
+    const dt = SimSettings.dt;
+    const netFlowPerStep = (nIn - nOut) * dt;
+    const residual = netFlowPerStep - accumMol;
+
+    t.assertOK(accumMol > 0, `Tank accumulated ${accumMol.toFixed(1)} mol`);
+    t.assertClose(residual, 0, 1.0, `In−Out−Accum residual = ${residual.toFixed(3)} mol (should ≈ 0)`);
+
+    TimeClock.t = 0; TimeClock.frame = 0;
+    TimeClock.mode = 'test'; SimSettings.dt = origDt;
+  }});
+
+  tests.push({ name: '188: System balance with battery: electrical accum term', fn: t => {
+    const origDt = SimSettings.dt;
+    TimeClock.t = 0; TimeClock.frame = 0; TimeClock.mode = 'test';
+    SimSettings.dt = 60;
+
+    // Battery (90% SOC, 1 kWh capacity, peak 10 kW) → sink_electrical
+    const bat = t.place('battery', 0, 0, { peakPower_kW: 10, capacity_J: 3600000, initialSOC: 0.9 });
+    const snk = t.place('sink_electrical', 4, 0);
+    t.wire(bat, 'elec', snk, 'in');
+
+    const u = scene.units.get(bat);
+
+    // Step 1: init + solve (inventory doesn't change from prior-empty ports)
+    TimeClock.step(scene);
+    const chargeAfter1 = u.inventory.charge_J;
+
+    // Step 2: inventory updated from step 1 solved ports
+    TimeClock.step(scene);
+    const chargeAfter2 = u.inventory.charge_J;
+
+    // Energy discharged between step 1 and step 2
+    const dCharge_J = chargeAfter1 - chargeAfter2;  // positive = discharged
+
+    // From solved port at step 2: actual power × dt
+    const ud = scene.runtime.unitData.get(bat);
+    const actualPower_W = ud?.ports?.elec?.actual || 0;
+    const energyOut_J = actualPower_W * SimSettings.dt;
+
+    // Balance: energy out (from port) ≈ energy discharged (from inventory change)
+    const residual_J = energyOut_J - dCharge_J;
+
+    t.assertOK(dCharge_J > 0, `Battery discharged ${(dCharge_J/1000).toFixed(1)} kJ`);
+    t.assertClose(residual_J, 0, 100, `Energy balance residual = ${residual_J.toFixed(1)} J (should ≈ 0)`);
 
     TimeClock.t = 0; TimeClock.frame = 0;
     TimeClock.mode = 'test'; SimSettings.dt = origDt;
