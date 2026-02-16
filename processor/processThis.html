@@ -1,7 +1,62 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v9.0.3
+  processThis v9.0.5
+
+  ─── v9.0.5 ───────────────────────────────────────────────────────────────
+  Balance + Polish — Phase 4 of Time & Inventory system.
+
+  computeSystemBalance: accumulation term.  Scans inventory units for
+  mass and energy storage rates.  Tank: mass accumulation from net
+  material flow (in − out − overflow) in kg/s.  Battery: energy
+  accumulation = −netPower_W (charging positive, discharging negative).
+  Adjusted residual: In − Out − Accum ≈ 0.  Balance display updated
+  with Accumulation section (per-unit breakdown, cyan/green colors).
+  Mass and energy badges now use adjusted residual for closed/open.
+
+  Tank property editor: time-to-full and time-to-empty estimates based
+  on current net flow rate.  Net flow display (mol/s, color-coded).
+
+  Battery property editor: time estimates already present from Phase 3.
+
+  Transport styling: play button pulses green (playPulse animation)
+  during playback.  Time display shows mode indicator (▶/⏸).
+
+  Tests: T187 (tank mass balance In−Out−Accum≈0), T188 (battery energy
+  balance port×dt≈Δcharge).
+
+  ─── v9.0.4 ───────────────────────────────────────────────────────────────
+  Battery with SOC — Phase 3 of Time & Inventory system.
+
+  New unit: Battery (defId: 'battery', category: POWER_MANAGEMENT, 2×2).
+  SOC-tracked energy storage with bidirectional electrical port.  Single
+  port 'elec' (OUT, bidirectional: true): actual > 0 = discharging,
+  actual < 0 = charging (NNG-M5).
+
+  Inventory protocol: initInventory sets charge_J from capacity_J ×
+  initialSOC (default 90%).  updateInventory: charge_J -= netPower × dt
+  (clamped 0..capacity_J).  Tick computes SOC-limited maxDischarge_W and
+  maxCharge_W, reads hub decisions from scratch.
+
+  Hub Step C rewrite: three-tier dispatch (fixed → responsive grid_supply
+  → SOC battery).  Battery fills demand gap after responsive sources.
+  Surplus → charge batteries before heat dissipation:
+    surplus = fixedSupply + responsiveDraw − totalDemand
+    batteryCharge = min(surplus, Σ maxCharge_W)
+    heatSurplus = surplus − batteryCharge
+  Hub writes hubDischarge_W and hubCharge_W to battery scratch.
+
+  Step D extended: battery direct-bus mode (discharge-only, SOC-limited).
+  Uses 'elec' port ID.  Skip batteries already handled by hub.
+
+  Battery property editor: SOC bar (red/amber/green), stored kWh,
+  peak power, net power, status, time-to-empty/full estimates.
+  Parameter editor: peak power (kW), capacity (kWh), initial SOC.
+  Battery SVG icon (ico-battery, 64×64 viewBox with lightning bolt).
+
+  NNG: NNG-S1 (three-tier hub dispatch), NNG-S4 (battery scratch protocol).
+  Tests: T179-T186 (SOC output, discharge steps, empty battery, hub
+  charging, full stops charge, energy balance, direct-bus, reset).
 
   ─── v9.0.3 ───────────────────────────────────────────────────────────────
   Tank unit — Phase 2 of Time & Inventory system.
@@ -555,8 +610,10 @@
     NNG-S1  Solver step ordering is fixed:
               tick → validateStreamFlows (heal) → validateMaterialPreFlash
               → flash loop (TP/PH) → port storage → validateUnitPorts (post-flash)
-              → Steps B (demand propagation) → C (hub) → D (grid_supply/battery
-              direct) → E (source direct) → convergence check
+              → Steps B (demand propagation) → C (hub: three-tier dispatch —
+              fixed → responsive grid_supply → SOC battery; surplus → charge
+              batteries → heat) → D (grid_supply/battery direct) → E (source
+              direct) → convergence check
     NNG-S2  Inter-iteration state goes through RuntimeContext.scratch() only.
             Never store solver state directly on unit objects (u._whatever).
     NNG-S3  PH flash T resolution guarantee.  Any stream with H_target_Jps
@@ -565,6 +622,8 @@
             Steps B-E) → actual (set by solver, ≤ capacity) → curtailmentFactor
             (actual/demand).  Consumers read input.actual, not input.capacity.
             For bidirectional ports (NNG-M5): actual may be negative.
+            Battery tick exposes _maxDischarge_W and _maxCharge_W on port for
+            hub to read.  Hub writes hubDischarge_W and hubCharge_W to scratch.
     NNG-S5  Inter-timestep persistent state lives on u.inventory.  This field
             is invisible to solveScene() — never read, written, or cleared
             during a solve.  Only TimeClock modifies it between solves.  Tick
@@ -767,7 +826,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>processThis — v9.0.3</title>
+  <title>processThis — v9.0.5</title>
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
@@ -891,6 +950,15 @@
     .transport .tbtn:hover { background: #283040; color: #e2e8f0; }
     .transport .tbtn.active { background: #1e40af; color: #fff; border-color: #2563eb; }
     .transport .tbtn:disabled { opacity: 0.3; cursor: default; pointer-events: none; }
+    /* [v9.0.5] Playing state pulsing indicator */
+    .transport .tbtn.playing {
+      background: #065f46; color: #6ee7b7; border-color: #059669;
+      animation: playPulse 1.5s ease-in-out infinite;
+    }
+    @keyframes playPulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.3); }
+      50% { box-shadow: 0 0 6px 2px rgba(16, 185, 129, 0.3); }
+    }
     .time-display {
       font-size: 11px;
       color: #64748b;
@@ -2036,6 +2104,16 @@
           <line x1="16" y1="52" x2="48" y2="52" stroke="currentColor" stroke-width="2" stroke-dasharray="4 3" opacity="0.5"/>
           <!-- T label -->
           <text x="32" y="42" text-anchor="middle" font-size="20" font-weight="700" fill="currentColor" opacity="0.6">T</text>
+        </symbol>
+
+        <!-- Battery (SOC-tracked energy storage) [v9.0.4] -->
+        <symbol id="ico-battery" viewBox="0 0 64 64">
+          <rect x="10" y="18" width="36" height="28" rx="3" fill="none" stroke="currentColor" stroke-width="3"/>
+          <rect x="46" y="26" width="6" height="12" rx="1" fill="currentColor"/>
+          <!-- SOC bar indicator -->
+          <rect x="14" y="22" width="28" height="20" rx="1" fill="currentColor" opacity="0.3"/>
+          <!-- Lightning bolt -->
+          <path d="M30 22 L24 34 L30 34 L26 42" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         </symbol>
         
         <!-- Power Hub (electrical bus/distribution) -->
@@ -6625,6 +6703,114 @@ UnitRegistry.register('tank', {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// BATTERY — SOC-Tracked Energy Storage [v9.0.4]
+// ═══════════════════════════════════════════════════════════════════════════════
+//
+// ┌─────────────────────────────────────────────────────────────────────────────┐
+// │ PURPOSE                                                                    │
+// │   Stores and releases electrical energy with state-of-charge tracking.     │
+// │   In test mode, behaves like a finite-capacity power source (at SOC).      │
+// │   In time mode, charge depletes on discharge and grows on surplus charge.  │
+// │                                                                            │
+// │ PORTS                                                                      │
+// │   elec (ELECTRICAL, OUT, bidirectional: true)                              │
+// │     actual > 0 → discharging, actual < 0 → charging (NNG-M5)              │
+// │                                                                            │
+// │ PARAMETERS                                                                 │
+// │   peakPower_kW  — max instantaneous power (kW, default 20)                │
+// │   capacity_J    — total energy capacity (J, default 36000000 = 10 kWh)    │
+// │   initialSOC    — starting state of charge (0..1, default 0.9)            │
+// │                                                                            │
+// │ INVENTORY (NNG-S5)                                                         │
+// │   { charge_J, capacity_J }                                                │
+// │   charge_J decremented by netPower × dt each timestep.                    │
+// │                                                                            │
+// │ HUB INTEGRATION                                                            │
+// │   Hub Step C reads _maxDischarge_W and _maxCharge_W from port.            │
+// │   Writes hubDischarge_W and hubCharge_W to scratch.                       │
+// │   Surplus → charge before heat dissipation.                                │
+// │                                                                            │
+// │ DIRECT MODE (no hub)                                                       │
+// │   Discharge-only. SOC limits capacity. No charging.                        │
+// └─────────────────────────────────────────────────────────────────────────────┘
+UnitRegistry.register('battery', {
+  name: 'Battery',
+  category: UnitCategories.POWER_MANAGEMENT,
+  w: 2,
+  h: 2,
+  inventory: true,
+  ports: [{ portId: 'elec', dir: PortDir.OUT, type: StreamType.ELECTRICAL, x: 2, y: 1, bidirectional: true }],
+
+  initInventory(par) {
+    const capacity_J = par.capacity_J || 36000000;  // 10 kWh default
+    return {
+      charge_J: capacity_J * (par.initialSOC ?? 0.9),
+      capacity_J
+    };
+  },
+
+  updateInventory(inventory, resolvedPorts, dt) {
+    const inv = { ...inventory };
+    const netPower_W = resolvedPorts.elec?.actual || 0;
+    // positive actual = discharged energy, negative = charged energy
+    inv.charge_J = Math.max(0, Math.min(
+      inv.capacity_J,
+      inv.charge_J - netPower_W * dt
+    ));
+    return inv;
+  },
+
+  tick(u, ports, par, ctx) {
+    const peakPower_W = (par.peakPower_kW || 20) * 1000;
+    const inv = u.inventory;
+    const s = ctx ? ctx.scratch : {};
+    const dt = TimeClock.dt || 60;
+
+    // SOC-limited discharge: can't extract more energy than stored
+    let maxDischarge_W = peakPower_W;
+    if (inv) {
+      if (inv.charge_J <= 0) maxDischarge_W = 0;
+      else maxDischarge_W = Math.min(peakPower_W, inv.charge_J / dt);
+    }
+
+    // SOC-limited charge: can't store more than remaining capacity
+    let maxCharge_W = peakPower_W;
+    if (inv) {
+      const headroom_J = inv.capacity_J - inv.charge_J;
+      if (headroom_J <= 0) maxCharge_W = 0;
+      else maxCharge_W = Math.min(peakPower_W, headroom_J / dt);
+    }
+
+    // Read hub/solver decisions from scratch
+    const discharge_W = s.hubDischarge_W ?? (s.actualDraw_W ?? maxDischarge_W);
+    const charge_W    = s.hubCharge_W ?? 0;
+    const netPower_W  = discharge_W - charge_W;
+    // netPower > 0 → discharging, < 0 → charging
+
+    ports.elec = {
+      type: StreamType.ELECTRICAL,
+      capacity:    maxDischarge_W,
+      actual:      netPower_W,           // may be negative (NNG-M5)
+      demand:      s.hubDemand_W || 0,
+      curtailmentFactor: s.directCurtailment ?? 1.0,
+      _maxCharge_W:    maxCharge_W,      // hub reads this
+      _maxDischarge_W: maxDischarge_W    // hub reads this
+    };
+
+    u.last = {
+      peakPower_W, maxDischarge_W, maxCharge_W,
+      discharge_W, charge_W, netPower_W,
+      soc: inv ? inv.charge_J / inv.capacity_J : 0.9,
+      charge_J:   inv?.charge_J,
+      capacity_J: inv?.capacity_J,
+      status: netPower_W > 1 ? 'discharging'
+            : netPower_W < -1 ? 'charging' : 'idle',
+      type: 'battery'
+    };
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // FIXED POWER SOURCE — Non-dispatchable electrical source
 // ═══════════════════════════════════════════════════════════════════════════════
 // Produces at nominal capacity unconditionally. Think grid connection or
@@ -8706,6 +8892,10 @@ class Scene {
       case 'tank':
         unit.params = { volume_m3: 50, drawRate: 1.0 };  // 50 m³, 1 mol/s draw
         break;
+      // ── SOC-tracked battery [v9.0.4] ──
+      case 'battery':
+        unit.params = { peakPower_kW: 20, capacity_J: 36000000, initialSOC: 0.9 };
+        break;
       // ── Turbomachinery ──
       case 'pump':
         unit.params = { Pout: 500000, eta: 0.75 };     // 5 bar, centrifugal
@@ -10469,18 +10659,29 @@ function solveScene(scene, options = {}) {
         c => c.to.unitId === _id && c.to.portId === 'elec_in'
       );
       let fixedSupply_W = 0;
-      let batteryMax_W = 0;
+      let responsiveMax_W = 0;  // grid_supply (infinite capacity, demand-responsive)
+      let batteryMaxDischarge_W = 0;  // battery (SOC-tracked)
+      let batteryMaxCharge_W = 0;
       const sources = [];
       
       for (const conn of inConns) {
         const srcU  = scene.units.get(conn.from.unitId);
         const srcUD = scene.runtime.unitData.get(conn.from.unitId);
-        const avail = srcUD?.ports?.[conn.from.portId]?.capacity ?? srcUD?.ports?.[conn.from.portId]?.available ?? 0;
-        const isBattery = srcU?.defId === 'grid_supply';  // [v9.0.2] renamed from battery
+        const portData = srcUD?.ports?.[conn.from.portId];
+        const avail = portData?.capacity ?? portData?.available ?? 0;
+        const isResponsive = srcU?.defId === 'grid_supply';
+        const isSOCBattery = srcU?.defId === 'battery';
         
-        sources.push({ conn, srcU, srcUD, avail, isBattery });
-        if (isBattery) batteryMax_W += avail;
-        else fixedSupply_W += avail;
+        const srcInfo = { conn, srcU, srcUD, avail, isResponsive, isSOCBattery };
+        if (isSOCBattery) {
+          srcInfo.maxDischarge = portData?._maxDischarge_W ?? avail;
+          srcInfo.maxCharge = portData?._maxCharge_W ?? 0;
+          batteryMaxDischarge_W += srcInfo.maxDischarge;
+          batteryMaxCharge_W += srcInfo.maxCharge;
+        }
+        sources.push(srcInfo);
+        if (isResponsive) responsiveMax_W += avail;
+        else if (!isSOCBattery) fixedSupply_W += avail;
       }
       
       // ── Build consumer list from elec_out connections ──
@@ -10498,10 +10699,16 @@ function solveScene(scene, options = {}) {
         totalDemand_W += demand_W;
       }
       
-      // ── Responsive dispatch: fixed first, responsive (grid_supply) fills gap ──
-      const gap_W = Math.max(0, totalDemand_W - fixedSupply_W);
-      const batteryDraw_W = Math.min(gap_W, batteryMax_W);
-      const totalSupply_W = fixedSupply_W + batteryDraw_W;
+      // ── Three-tier dispatch: fixed → responsive (grid_supply) → battery ──
+      // [v9.0.4] Extended for SOC-tracked battery
+      const responsiveGap_W = Math.max(0, totalDemand_W - fixedSupply_W);
+      const responsiveDraw_W = Math.min(responsiveGap_W, responsiveMax_W);
+      let totalSupply_W = fixedSupply_W + responsiveDraw_W;
+
+      // Battery discharge: fills remaining gap after responsive
+      const remainingGap_W = Math.max(0, totalDemand_W - totalSupply_W);
+      const batteryDraw_W = Math.min(remainingGap_W, batteryMaxDischarge_W);
+      totalSupply_W += batteryDraw_W;
       
       // ── Per-consumer allocation ──
       const consumerAllocation = allocatePower(consumers, totalSupply_W);
@@ -10522,9 +10729,11 @@ function solveScene(scene, options = {}) {
         }
       }
       
-      // ── Surplus: fixed sources always produce, excess → heat ──
-      // Grid supply is demand-responsive so it never overproduces.
-      const surplus_W = Math.max(0, fixedSupply_W - totalDemand_W);
+      // ── Surplus → charge batteries before heat ──
+      // Surplus only from fixed + responsive (batteries don't overproduce)
+      const surplus_W = Math.max(0, fixedSupply_W + responsiveDraw_W - totalDemand_W);
+      const batteryCharge_W = Math.min(surplus_W, batteryMaxCharge_W);
+      const heatSurplus_W = surplus_W - batteryCharge_W;
       
       // ── Update output ports ──
       const stripDemand = (s) => { if (!s) return s; const { demand, ...rest } = s; return rest; };
@@ -10534,16 +10743,16 @@ function solveScene(scene, options = {}) {
       };
       
       if (_ud.ports.elec_out) {
-        _ud.ports.elec_out.capacity = fixedSupply_W + batteryMax_W;  // total potential
-        _ud.ports.elec_out.actual = totalSupply_W;                   // after dispatch
-        _ud.ports.elec_out.available = totalSupply_W;                // deprecated alias
+        _ud.ports.elec_out.capacity = fixedSupply_W + responsiveMax_W + batteryMaxDischarge_W;
+        _ud.ports.elec_out.actual = totalSupply_W;
+        _ud.ports.elec_out.available = totalSupply_W;  // deprecated alias
         _ud.ports.elec_out.curtailmentFactor = curtailmentFactor;
         _ud.ports.elec_out.demand = totalDemand_W;
       }
       if (_ud.ports.heat_out) {
-        _ud.ports.heat_out.capacity = surplus_W;
-        _ud.ports.heat_out.actual = surplus_W;
-        _ud.ports.heat_out.available = surplus_W;  // deprecated alias
+        _ud.ports.heat_out.capacity = heatSurplus_W;
+        _ud.ports.heat_out.actual = heatSurplus_W;
+        _ud.ports.heat_out.available = heatSurplus_W;  // deprecated alias
       }
       
       const newHubPorts = {
@@ -10556,22 +10765,36 @@ function solveScene(scene, options = {}) {
       for (const src of sources) {
         if (!src.srcUD || !src.srcUD.ports[src.conn.from.portId]) continue;
         
-        if (src.isBattery) {
-          // Grid supply: proportional share of batteryDraw (hub shields from excess)
-          const share = batteryMax_W > 0 ? src.avail / batteryMax_W : 0;
-          const thisDemand = batteryDraw_W * share;
-          const thisActual = thisDemand;  // Hub regulates: battery delivers exactly what's asked
+        if (src.isResponsive) {
+          // Grid supply: proportional share of responsiveDraw
+          const share = responsiveMax_W > 0 ? src.avail / responsiveMax_W : 0;
+          const thisDemand = responsiveDraw_W * share;
+          const thisActual = thisDemand;
           src.srcUD.ports[src.conn.from.portId].demand = thisDemand;
           src.srcUD.ports[src.conn.from.portId].actual = thisActual;
-          // [v5.4.0] Write to RuntimeContext scratch (was src.srcU._hub*)
           const ss = runtimeCtx.scratch(src.conn.from.unitId);
           ss.hubDemand_W = thisDemand;
           ss.actualDraw_W = thisActual;
+        } else if (src.isSOCBattery) {
+          // Battery: proportional share of discharge, minus proportional share of charge
+          const dischargeShare = batteryMaxDischarge_W > 0
+            ? src.maxDischarge / batteryMaxDischarge_W : 0;
+          const chargeShare = batteryMaxCharge_W > 0
+            ? src.maxCharge / batteryMaxCharge_W : 0;
+          const thisDischarge = batteryDraw_W * dischargeShare;
+          const thisCharge = batteryCharge_W * chargeShare;
+          const netActual = thisDischarge - thisCharge;
+          src.srcUD.ports[src.conn.from.portId].demand = thisDischarge;
+          src.srcUD.ports[src.conn.from.portId].actual = netActual;
+          const ss = runtimeCtx.scratch(src.conn.from.unitId);
+          ss.hubDischarge_W = thisDischarge;
+          ss.hubCharge_W = thisCharge;
+          ss.hubDemand_W = thisDischarge;
+          ss.actualDraw_W = netActual;
         } else {
           // Fixed source: demand = capacity (always producing)
           src.srcUD.ports[src.conn.from.portId].demand = src.avail;
-          src.srcUD.ports[src.conn.from.portId].actual = src.avail;  // Always at capacity
-          // [v5.4.0] Write to RuntimeContext scratch (was src.srcU._hub*)
+          src.srcUD.ports[src.conn.from.portId].actual = src.avail;
           const ss = runtimeCtx.scratch(src.conn.from.unitId);
           ss.hubDemand_W = src.avail;
           ss.actualDraw_W = src.avail;
@@ -10579,44 +10802,60 @@ function solveScene(scene, options = {}) {
       }
       
       // ── Diagnostics ──
-      _ud.last.fixedSupply_W     = fixedSupply_W;
-      _ud.last.batteryMax_W      = batteryMax_W;
-      _ud.last.totalDemand_W     = totalDemand_W;
-      _ud.last.batteryDraw_W     = batteryDraw_W;
-      _ud.last.totalSupply_W     = totalSupply_W;
-      _ud.last.surplus_W         = surplus_W;
-      _ud.last.curtailmentFactor = curtailmentFactor;
-      _ud.last.consumerAllocation = consumerAllocation;
-      _u.last.fixedSupply_W      = fixedSupply_W;
-      _u.last.batteryMax_W       = batteryMax_W;
-      _u.last.totalDemand_W      = totalDemand_W;
-      _u.last.batteryDraw_W      = batteryDraw_W;
-      _u.last.totalSupply_W      = totalSupply_W;
-      _u.last.surplus_W          = surplus_W;
-      _u.last.curtailmentFactor  = curtailmentFactor;
-      _u.last.consumerAllocation = consumerAllocation;
+      _ud.last.fixedSupply_W        = fixedSupply_W;
+      _ud.last.responsiveMax_W      = responsiveMax_W;
+      _ud.last.batteryMax_W         = responsiveMax_W;  // backward compat
+      _ud.last.batteryMaxDischarge_W = batteryMaxDischarge_W;
+      _ud.last.batteryMaxCharge_W   = batteryMaxCharge_W;
+      _ud.last.totalDemand_W        = totalDemand_W;
+      _ud.last.responsiveDraw_W     = responsiveDraw_W;
+      _ud.last.batteryDraw_W        = responsiveDraw_W;  // backward compat
+      _ud.last.socBatteryDraw_W     = batteryDraw_W;
+      _ud.last.batteryCharge_W      = batteryCharge_W;
+      _ud.last.totalSupply_W        = totalSupply_W;
+      _ud.last.surplus_W            = surplus_W;
+      _ud.last.heatSurplus_W        = heatSurplus_W;
+      _ud.last.curtailmentFactor    = curtailmentFactor;
+      _ud.last.consumerAllocation   = consumerAllocation;
+      _u.last.fixedSupply_W         = fixedSupply_W;
+      _u.last.batteryMax_W          = responsiveMax_W;  // backward compat
+      _u.last.totalDemand_W         = totalDemand_W;
+      _u.last.batteryDraw_W         = responsiveDraw_W;  // backward compat
+      _u.last.totalSupply_W         = totalSupply_W;
+      _u.last.surplus_W             = surplus_W;
+      _u.last.curtailmentFactor     = curtailmentFactor;
+      _u.last.consumerAllocation    = consumerAllocation;
       
       // [v5.4.0] Hub scratch via RuntimeContext (was _u._hub*)
       const hubS = runtimeCtx.scratch(_id);
-      hubS.hubSurplus_W    = surplus_W;
+      hubS.hubSurplus_W    = heatSurplus_W;
       hubS.hubDistAvail_W  = totalSupply_W;
       hubS.hubCurtailment  = curtailmentFactor;
     }
     
     // Step D: Grid supply / battery direct-connection demand writeback
-    // For grid_supply units NOT connected to a hub, sum downstream demands and report.
+    // For grid_supply and battery units NOT connected to a hub, sum downstream demands.
     for (const [_id, _u] of scene.units) {
-      if (_u.defId !== 'grid_supply') continue;
+      if (_u.defId !== 'grid_supply' && _u.defId !== 'battery') continue;
       
       const _ud = scene.runtime.unitData.get(_id);
-      const outConns = scene.connections.filter(c => c.from.unitId === _id && c.from.portId === 'out');
+      // [v9.0.4] Battery uses 'elec' port, grid_supply uses 'out'
+      const outPortId = _u.defId === 'battery' ? 'elec' : 'out';
+      const outConns = scene.connections.filter(c => c.from.unitId === _id && c.from.portId === outPortId);
       
-      // Skip batteries connected to a hub (hub handles their demand)
+      // Skip units connected to a hub (hub handles their demand)
       const connectedToHub = outConns.some(c => {
         const targetU = scene.units.get(c.to.unitId);
         return targetU && targetU.defId === 'power_hub';
       });
       if (connectedToHub) continue;
+      
+      // Also check if connected to hub via elec_in (battery/grid_supply → hub.elec_in)
+      const hubInConn = scene.connections.some(c =>
+        c.from.unitId === _id && c.to.portId === 'elec_in' &&
+        scene.units.get(c.to.unitId)?.defId === 'power_hub'
+      );
+      if (hubInConn) continue;
       
       // Direct connection: sum downstream consumer demands
       let downstreamDemand_W = 0;
@@ -10625,7 +10864,8 @@ function solveScene(scene, options = {}) {
         if (consumerUD) downstreamDemand_W += consumerUD.powerDemand || 0;
       }
       
-      const maxPower_W = _ud.ports.out?.capacity ?? _ud.ports.out?.available ?? 0;
+      const portData = _ud.ports[outPortId];
+      const maxPower_W = portData?.capacity ?? portData?.available ?? 0;
       
       // [v6.1] Direct-bus curtailment: compute factor for fanout conservation
       // Guard: Infinity demand (from sinks) must not produce factor=0;
@@ -10635,10 +10875,10 @@ function solveScene(scene, options = {}) {
         ? Math.max(0, Math.min(1, actualDraw_W / downstreamDemand_W))
         : 1.0;
 
-      if (_ud.ports.out) {
-        _ud.ports.out.demand = downstreamDemand_W;
-        _ud.ports.out.actual = actualDraw_W;
-        _ud.ports.out.curtailmentFactor = curtailmentFactor;
+      if (portData) {
+        portData.demand = downstreamDemand_W;
+        portData.actual = actualDraw_W;
+        portData.curtailmentFactor = curtailmentFactor;
       }
       // [v5.4.0] Write to RuntimeContext scratch (was _u._hub*)
       const bs = runtimeCtx.scratch(_id);
@@ -14053,6 +14293,60 @@ function computeSystemBalance(scene) {
   const totalEnergyOut = energyOut.material + energyOut.electrical + energyOut.mechanical + energyOut.heat + energyOut.dissipated;
   const energyBalance  = totalEnergyIn - totalEnergyOut;
 
+  // ── [v9.0.5] Accumulation: inventory units store/release mass and energy ──
+  // Mass accumulation = Σ(tank net mass inflow) in kg/s
+  // Energy accumulation = Σ(battery net charge) in W + Σ(tank enthalpy change) in W
+  const accumulation = { mass_kgps: 0, energy_W: 0, items: [] };
+
+  for (const [id, u] of scene.units) {
+    const def = UnitRegistry.get(u.defId);
+    if (!def || !def.inventory) continue;
+    const ud = scene.runtime.unitData.get(id);
+    if (!ud) continue;
+    const uName = u.name || def.name;
+
+    if (u.defId === 'tank') {
+      // Tank: mass accumulation from net material flow
+      const matIn = ud.ports?.mat_in;
+      const matOut = ud.ports?.mat_out;
+      const overflow = ud.ports?.overflow;
+      const m_in = matIn ? streamMass_kgps(matIn) : 0;
+      const m_out = matOut ? streamMass_kgps(matOut) : 0;
+      const m_ov = overflow ? streamMass_kgps(overflow) : 0;
+      const netMass = m_in - m_out - m_ov;
+      if (Math.abs(netMass) > 1e-15) {
+        accumulation.mass_kgps += netMass;
+        accumulation.items.push({ name: uName, type: 'tank_mass', value_kgps: netMass, value_W: 0 });
+      }
+      // Tank: energy accumulation (simplified — proportional to mass × T)
+      const H_in = matIn?.Hdot_J_s ?? 0;
+      const H_out = matOut?.Hdot_J_s ?? 0;
+      const H_ov = overflow?.Hdot_J_s ?? 0;
+      const netH = H_in - H_out - H_ov;
+      if (Math.abs(netH) > 0.01) {
+        accumulation.energy_W += netH;
+      }
+    }
+
+    if (u.defId === 'battery') {
+      // Battery: energy accumulation = net charge power (negative actual = charging = positive accum)
+      const elecPort = ud.ports?.elec;
+      const netPower = elecPort?.actual || 0;
+      // netPower > 0 = discharging (energy leaving storage → negative accumulation)
+      // netPower < 0 = charging (energy entering storage → positive accumulation)
+      const accumRate = -netPower;  // W stored per second
+      if (Math.abs(accumRate) > 0.01) {
+        accumulation.energy_W += accumRate;
+        accumulation.items.push({ name: uName, type: 'battery_energy', value_kgps: 0, value_W: accumRate });
+      }
+    }
+  }
+
+  // ── Adjusted residuals: In − Out − Accumulation ≈ 0 ──
+  const massResidual = massBalance - accumulation.mass_kgps;
+  const energyResidual = energyBalance - accumulation.energy_W;
+  const massTolAccum = Math.max(totalMassIn, totalMassOut, Math.abs(accumulation.mass_kgps)) * 1e-4 + 1e-10;
+
   return {
     mass: {
       inItems: massInItems,
@@ -14060,7 +14354,9 @@ function computeSystemBalance(scene) {
       totalIn: totalMassIn,
       totalOut: totalMassOut,
       balance: massBalance,
-      closed: Math.abs(massBalance) < massTol
+      accumulation: accumulation.mass_kgps,
+      residual: massResidual,
+      closed: Math.abs(massResidual) < massTolAccum
     },
     energy: {
       in: energyIn,
@@ -14068,9 +14364,12 @@ function computeSystemBalance(scene) {
       totalIn: totalEnergyIn,
       totalOut: totalEnergyOut,
       balance: energyBalance,
-      relError: totalEnergyIn !== 0 ? Math.abs(energyBalance / totalEnergyIn) : 0,
-      closed: totalEnergyIn !== 0 ? Math.abs(energyBalance / totalEnergyIn) < 0.01 : Math.abs(energyBalance) < 1
-    }
+      accumulation: accumulation.energy_W,
+      residual: energyResidual,
+      relError: totalEnergyIn !== 0 ? Math.abs(energyResidual / totalEnergyIn) : 0,
+      closed: totalEnergyIn !== 0 ? Math.abs(energyResidual / totalEnergyIn) < 0.01 : Math.abs(energyResidual) < 1
+    },
+    accumulation
   };
 }
 
@@ -14232,6 +14531,33 @@ function updatePropertiesPanel() {
         () => u.params.drawRate, 
         v => u.params.drawRate = v, 
         0.1
+      );
+      
+      propEditor.appendChild(paramsSection.section);
+    }
+    
+    // [v9.0.4] Battery parameter editor
+    if (u.defId === 'battery') {
+      const paramsSection = createCollapsibleSection('Parameters', true);
+      
+      if (!u.params.peakPower_kW) u.params.peakPower_kW = 20;
+      addNumberEditor(paramsSection.content, 'Peak power (kW)', 
+        () => u.params.peakPower_kW, 
+        v => u.params.peakPower_kW = v, 
+        1
+      );
+      if (!u.params.capacity_J) u.params.capacity_J = 36000000;
+      // Display as kWh (1 kWh = 3600000 J)
+      addNumberEditor(paramsSection.content, 'Capacity (kWh)', 
+        () => u.params.capacity_J / 3600000, 
+        v => u.params.capacity_J = v * 3600000, 
+        1
+      );
+      if (u.params.initialSOC === undefined) u.params.initialSOC = 0.9;
+      addNumberEditor(paramsSection.content, 'Initial SOC (-)', 
+        () => u.params.initialSOC, 
+        v => u.params.initialSOC = v, 
+        0.05
       );
       
       propEditor.appendChild(paramsSection.section);
@@ -15044,6 +15370,42 @@ function updatePropertiesPanel() {
           el('div', { class: 'propValue', style: `color:${statusColor};`, html: ud.last.status || '—' })
         ]));
 
+        // [v9.0.5] Time estimates
+        if (ud.last.status === 'active' && ud.last.totalMol > 0 && ud.last.n_max > 0) {
+          // Net flow rate from resolved ports
+          const matIn = scene.runtime.unitData.get(ui.selectedUnitId)?.ports?.mat_in;
+          const matOut = scene.runtime.unitData.get(ui.selectedUnitId)?.ports?.mat_out;
+          const nIn = matIn?.n ? Object.values(matIn.n).reduce((a, b) => a + b, 0) : 0;
+          const nOut = matOut?.n ? Object.values(matOut.n).reduce((a, b) => a + b, 0) : 0;
+          const netRate = nIn - nOut;  // mol/s
+          if (netRate > 0.001) {
+            // Filling: time to full
+            const remaining = ud.last.n_max - ud.last.totalMol;
+            const tFull_s = remaining / netRate;
+            const h = Math.floor(tFull_s / 3600);
+            const m = Math.floor((tFull_s % 3600) / 60);
+            dataGrid.appendChild(el('div', { class: 'propItem' }, [
+              el('div', { class: 'propLabel', html: 'Time to full' }),
+              el('div', { class: 'propValue', html: `~${h}:${String(m).padStart(2, '0')}` })
+            ]));
+          } else if (netRate < -0.001) {
+            // Draining: time to empty
+            const tEmpty_s = ud.last.totalMol / Math.abs(netRate);
+            const h = Math.floor(tEmpty_s / 3600);
+            const m = Math.floor((tEmpty_s % 3600) / 60);
+            dataGrid.appendChild(el('div', { class: 'propItem' }, [
+              el('div', { class: 'propLabel', html: 'Time to empty' }),
+              el('div', { class: 'propValue', html: `~${h}:${String(m).padStart(2, '0')}` })
+            ]));
+          }
+          // Net flow display
+          dataGrid.appendChild(el('div', { class: 'propItem' }, [
+            el('div', { class: 'propLabel', html: 'Net flow' }),
+            el('div', { class: 'propValue', style: `color:${netRate > 0 ? '#22c55e' : netRate < 0 ? '#f59e0b' : '#64748b'};`,
+              html: `${netRate > 0 ? '+' : ''}${netRate.toFixed(3)}<span class="propUnit">mol/s</span>` })
+          ]));
+        }
+
         tBox.appendChild(dataGrid);
         propsSection.content.appendChild(tBox);
       }
@@ -15104,6 +15466,85 @@ function updatePropertiesPanel() {
         }
         bBox.appendChild(dataGrid);
         propsSection.content.appendChild(bBox);
+      }
+      
+      // [v9.0.4] Special display for Battery (SOC-tracked)
+      if (u.defId === 'battery' && ud.last) {
+        const batBox = el('div', { style: 'margin-bottom:16px; padding:12px; background:#1e293b; border-radius:8px;' });
+        batBox.appendChild(el('div', { 
+          class: 'small', 
+          style: 'font-weight:700; margin-bottom:8px; opacity:0.8; text-transform:uppercase;', 
+          html: '🔋 Battery Status' 
+        }));
+        const dataGrid = el('div', { class: 'propGrid' });
+
+        // SOC bar
+        const soc = (ud.last.soc || 0) * 100;
+        const barW = 100;
+        const socW = Math.min(barW, barW * soc / 100);
+        const socColor = soc <= 10 ? '#ef4444' : soc <= 30 ? '#f59e0b' : '#22c55e';
+        dataGrid.appendChild(el('div', { class: 'propItem', style: 'grid-column: 1 / -1;' }, [
+          el('div', { class: 'propLabel', html: 'Charge' }),
+          el('div', { class: 'propValue', html:
+            `<span style="display:inline-block;width:${barW}px;height:10px;background:#334155;border-radius:3px;overflow:hidden;vertical-align:middle;">` +
+            `<span style="display:block;width:${socW}px;height:100%;background:${socColor};border-radius:3px;"></span></span>` +
+            ` ${soc.toFixed(1)}%`
+          })
+        ]));
+
+        // Charge in kWh
+        const charge_kWh = (ud.last.charge_J || 0) / 3600000;
+        const capacity_kWh = (ud.last.capacity_J || 36000000) / 3600000;
+        dataGrid.appendChild(el('div', { class: 'propItem' }, [
+          el('div', { class: 'propLabel', html: 'Stored' }),
+          el('div', { class: 'propValue', html: `${charge_kWh.toFixed(2)} / ${capacity_kWh.toFixed(1)}<span class="propUnit">kWh</span>` })
+        ]));
+
+        // Peak power
+        dataGrid.appendChild(el('div', { class: 'propItem' }, [
+          el('div', { class: 'propLabel', html: 'Peak' }),
+          el('div', { class: 'propValue', html: `${(ud.last.peakPower_W/1000).toFixed(1)}<span class="propUnit">kW</span>` })
+        ]));
+
+        // Net power
+        const netPower = ud.last.netPower_W || 0;
+        const netColor = netPower > 1 ? '#f59e0b' : netPower < -1 ? '#22c55e' : '#64748b';
+        dataGrid.appendChild(el('div', { class: 'propItem' }, [
+          el('div', { class: 'propLabel', html: 'Net power' }),
+          el('div', { class: 'propValue', style: `color:${netColor};`, 
+            html: `${(netPower/1000).toFixed(2)}<span class="propUnit">kW</span>` })
+        ]));
+
+        // Status
+        const statusColor = ud.last.status === 'discharging' ? '#f59e0b' 
+                          : ud.last.status === 'charging' ? '#22c55e' : '#64748b';
+        dataGrid.appendChild(el('div', { class: 'propItem' }, [
+          el('div', { class: 'propLabel', html: 'Status' }),
+          el('div', { class: 'propValue', style: `color:${statusColor};`, html: ud.last.status || 'idle' })
+        ]));
+
+        // Time estimate
+        if (ud.last.status === 'discharging' && ud.last.netPower_W > 0) {
+          const timeToEmpty_s = ud.last.charge_J / ud.last.netPower_W;
+          const h = Math.floor(timeToEmpty_s / 3600);
+          const m = Math.floor((timeToEmpty_s % 3600) / 60);
+          dataGrid.appendChild(el('div', { class: 'propItem' }, [
+            el('div', { class: 'propLabel', html: 'Time to empty' }),
+            el('div', { class: 'propValue', html: `~${h}:${String(m).padStart(2, '0')}` })
+          ]));
+        } else if (ud.last.status === 'charging' && ud.last.netPower_W < 0) {
+          const headroom_J = ud.last.capacity_J - ud.last.charge_J;
+          const timeToFull_s = headroom_J / Math.abs(ud.last.netPower_W);
+          const h = Math.floor(timeToFull_s / 3600);
+          const m = Math.floor((timeToFull_s % 3600) / 60);
+          dataGrid.appendChild(el('div', { class: 'propItem' }, [
+            el('div', { class: 'propLabel', html: 'Time to full' }),
+            el('div', { class: 'propValue', html: `~${h}:${String(m).padStart(2, '0')}` })
+          ]));
+        }
+
+        batBox.appendChild(dataGrid);
+        propsSection.content.appendChild(batBox);
       }
       
       // Special display for Fixed Power Source
@@ -15543,9 +15984,10 @@ function updatePropertiesPanel() {
     const mc = massSection.content;
 
     const massClosed = balance.mass.closed;
+    const massResidualDisplay = balance.mass.residual ?? balance.mass.balance;
     mc.appendChild(el('div', { 
       style: `margin-bottom:10px; padding:6px 10px; border-radius:6px; font-size:12px; font-weight:600; text-align:center; background:${massClosed ? '#064e3b' : '#7f1d1d'}; color:${massClosed ? '#6ee7b7' : '#fca5a5'};`,
-      html: massClosed ? '✓ Mass balance closed' : `✗ Mass balance violation: Δ = ${(balance.mass.balance * 1000).toFixed(4)} g/s`
+      html: massClosed ? '✓ Mass balance closed' : `✗ Mass balance violation: Δ = ${(massResidualDisplay * 1000).toFixed(4)} g/s`
     }));
 
     const tbl = el('div', { style: 'font-size:11px; font-family:monospace;' });
@@ -15575,8 +16017,18 @@ function updatePropertiesPanel() {
     tbl.appendChild(el('div', { style: 'display:flex; justify-content:space-between; font-weight:700;', html:
       `<span>Total Out</span><span>${(balance.mass.totalOut * 1000).toFixed(3)} g/s</span>`
     }));
+
+    // [v9.0.5] Accumulation
+    if (Math.abs(balance.mass.accumulation || 0) > 1e-12) {
+      tbl.appendChild(el('div', { style: 'display:flex; justify-content:space-between; font-weight:700; color:#06b6d4;', html:
+        `<span>Accumulation</span><span>${(balance.mass.accumulation * 1000).toFixed(3)} g/s</span>`
+      }));
+    }
+
+    // Residual: In − Out − Accum
+    const residualVal = balance.mass.residual ?? balance.mass.balance;
     tbl.appendChild(el('div', { style: `display:flex; justify-content:space-between; font-weight:700; padding:4px 0; color:${massClosed ? '#6ee7b7' : '#fca5a5'};`, html:
-      `<span>Residual</span><span>${(balance.mass.balance * 1000).toFixed(6)} g/s</span>`
+      `<span>Residual${(balance.mass.accumulation || 0) !== 0 ? ' (In−Out−Accum)' : ''}</span><span>${(residualVal * 1000).toFixed(6)} g/s</span>`
     }));
     mc.appendChild(tbl);
 
@@ -15590,9 +16042,11 @@ function updatePropertiesPanel() {
 
     // Status badge
     const enClosed = balance.energy.closed;
+    const enResidualBadge = balance.energy.residual ?? balance.energy.balance;
+    const enRelErr = balance.energy.totalIn !== 0 ? Math.abs(enResidualBadge / balance.energy.totalIn) : 0;
     ec.appendChild(el('div', { 
       style: `margin-bottom:10px; padding:6px 10px; border-radius:6px; font-size:12px; font-weight:600; text-align:center; background:${enClosed ? '#064e3b' : '#7f1d1d'}; color:${enClosed ? '#6ee7b7' : '#fca5a5'};`,
-      html: enClosed ? '✓ Energy balance closed' : `✗ Energy balance error: ${(balance.energy.relError * 100).toFixed(2)}%`
+      html: enClosed ? '✓ Energy balance closed' : `✗ Energy balance error: ${(enRelErr * 100).toFixed(2)}%`
     }));
 
     // ── Inputs ──
@@ -15646,9 +16100,35 @@ function updatePropertiesPanel() {
     }));
     ec.appendChild(outTbl);
 
+    // ── [v9.0.5] Accumulation ──
+    if (balance.accumulation && balance.accumulation.items.length > 0) {
+      ec.appendChild(el('div', { style: 'font-weight:700; font-size:11px; margin:8px 0 4px; opacity:0.7; text-transform:uppercase;', html: '⟳ Accumulation' }));
+      const accTbl = el('div', { style: 'font-size:11px; font-family:monospace; margin-bottom:8px;' });
+      for (const item of balance.accumulation.items) {
+        if (item.type === 'tank_mass' && Math.abs(item.value_kgps) > 1e-12) {
+          accTbl.appendChild(el('div', { style: 'display:flex; justify-content:space-between; padding:2px 0; color:#06b6d4;', html:
+            `<span>${item.name} <span style="opacity:0.6">(Mass)</span></span><span>${(item.value_kgps * 1000).toFixed(3)} g/s</span>`
+          }));
+        }
+        if (item.type === 'battery_energy' && Math.abs(item.value_W) > 0.01) {
+          accTbl.appendChild(el('div', { style: 'display:flex; justify-content:space-between; padding:2px 0; color:#22c55e;', html:
+            `<span>${item.name} <span style="opacity:0.6">(Charge)</span></span><span>${(item.value_W/1000).toFixed(2)} kW</span>`
+          }));
+        }
+      }
+      if (Math.abs(balance.energy.accumulation || 0) > 0.01) {
+        accTbl.appendChild(el('div', { style: 'display:flex; justify-content:space-between; padding:3px 0; font-weight:700; border-top:1px solid #475569;', html:
+          `<span>Σ Accumulation</span><span style="color:#06b6d4">${(balance.energy.accumulation/1000).toFixed(2)} kW</span>`
+        }));
+      }
+      ec.appendChild(accTbl);
+    }
+
     // ── Residual ──
+    const enResidual = balance.energy.residual ?? balance.energy.balance;
+    const hasAccum = Math.abs(balance.energy.accumulation || 0) > 0.01;
     const residual = el('div', { style: 'display:flex; justify-content:space-between; padding:6px 8px; border-radius:6px; font-weight:700; font-size:12px; background:#1e293b;', html:
-      `<span>Residual (In − Out)</span><span style="color:${enClosed ? '#6ee7b7' : '#fca5a5'}">${(balance.energy.balance/1000).toFixed(4)} kW</span>`
+      `<span>Residual${hasAccum ? ' (In−Out−Accum)' : ' (In−Out)'}</span><span style="color:${enClosed ? '#6ee7b7' : '#fca5a5'}">${(enResidual/1000).toFixed(4)} kW</span>`
     });
     ec.appendChild(residual);
 
@@ -15866,6 +16346,7 @@ function updateTransportUI() {
   btnTest.classList.toggle('active', mode === 'test');
   btnPause.classList.toggle('active', mode === 'paused');
   btnPlay.classList.toggle('active', mode === 'playing');
+  btnPlay.classList.toggle('playing', mode === 'playing');  // [v9.0.5] pulsing indicator
 
   // Button enable/disable
   btnTest.disabled  = mode === 'playing';
@@ -15879,7 +16360,11 @@ function updateTransportUI() {
     timeDisplayEl.style.display = 'none';
   } else {
     timeDisplayEl.style.display = '';
-    timeDisplayEl.innerHTML = `<b>t</b>=${formatTime(TimeClock.t)} · f${TimeClock.frame} · Δt=${SimSettings.dt}s`;
+    // [v9.0.5] Mode indicator in time display
+    const modeLabel = mode === 'playing' ? '<span style="color:#6ee7b7">▶</span>'
+                    : mode === 'paused'  ? '<span style="color:#fbbf24">⏸</span>'
+                    : '';
+    timeDisplayEl.innerHTML = `${modeLabel} <b>t</b>=${formatTime(TimeClock.t)} · f${TimeClock.frame} · Δt=${SimSettings.dt}s`;
   }
 }
 
@@ -22875,6 +23360,267 @@ function runTests() {
     // (flash only runs on connected outputs with non-zero flow)
     const totalFlow = Object.values(matOut.n || {}).reduce((a, b) => a + b, 0);
     t.assertOK(totalFlow >= 0, 'Total outlet flow >= 0');
+  }});
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // AM — Phase 3: Battery with SOC [v9.0.4]
+  // ═══════════════════════════════════════════════════════════════════════
+
+  tests.push({ name: '179: Battery 90% SOC: outputs at peakPower', fn: t => {
+    const bat = t.place('battery', 0, 0, { peakPower_kW: 20, capacity_J: 36000000, initialSOC: 0.9 });
+    const snk = t.place('sink_electrical', 4, 0);
+    t.wire(bat, 'elec', snk, 'in');
+
+    t.solve();
+    const u = scene.units.get(bat);
+    const ud = scene.runtime.unitData.get(bat);
+
+    t.assertOK(u.inventory != null, 'Battery has inventory');
+    t.assertClose(u.inventory.charge_J, 36000000 * 0.9, 1, 'charge_J = 90% of capacity');
+    t.assertOK(ud.last.soc > 0.89 && ud.last.soc < 0.91, `SOC ~90%: ${(ud.last.soc*100).toFixed(1)}%`);
+    t.assertOK(ud.last.maxDischarge_W > 0, 'maxDischarge > 0');
+    t.assertOK(ud.last.type === 'battery', 'type = battery');
+  }});
+
+  tests.push({ name: '180: Battery discharge over steps: charge_J decreases', fn: t => {
+    const origDt = SimSettings.dt;
+    TimeClock.t = 0; TimeClock.frame = 0; TimeClock.mode = 'test';
+    SimSettings.dt = 60;
+
+    const bat = t.place('battery', 0, 0, { peakPower_kW: 10, capacity_J: 3600000, initialSOC: 0.9 });
+    const hub = t.place('power_hub', 4, 0);
+    const heater = t.place('electric_heater', 8, 0);
+    const hSnk = t.place('sink_heat', 12, 0);
+    const eSnk = t.place('sink_electrical', 8, 4);
+
+    t.wire(bat, 'elec', hub, 'elec_in');
+    t.wire(hub, 'elec_out', heater, 'elec_in');
+    t.wire(heater, 'heat_out', hSnk, 'in');
+    t.wire(hub, 'heat_out', eSnk, 'in');
+
+    const u = scene.units.get(bat);
+    const initCharge = u.inventory.charge_J;
+
+    // Step: battery discharges to meet heater demand
+    for (let i = 0; i < 3; i++) {
+      TimeClock.step(scene);
+    }
+    t.assertOK(u.inventory.charge_J < initCharge, 'charge decreased after discharge');
+    t.assertOK(u.inventory.charge_J >= 0, 'charge >= 0');
+
+    TimeClock.t = 0; TimeClock.frame = 0;
+    TimeClock.mode = 'test'; SimSettings.dt = origDt;
+  }});
+
+  tests.push({ name: '181: Battery at 0% SOC: output = 0', fn: t => {
+    const bat = t.place('battery', 0, 0, { peakPower_kW: 20, capacity_J: 36000000, initialSOC: 0 });
+    const snk = t.place('sink_electrical', 4, 0);
+    t.wire(bat, 'elec', snk, 'in');
+
+    // Force charge to zero
+    const u = scene.units.get(bat);
+    u.inventory.charge_J = 0;
+
+    t.solve();
+    const ud = scene.runtime.unitData.get(bat);
+    t.assertClose(ud.last.maxDischarge_W, 0, 0.01, 'maxDischarge = 0 at empty');
+    t.assertOK(ud.ports.elec.capacity === 0, 'capacity = 0 at empty');
+  }});
+
+  tests.push({ name: '182: Hub charges battery from surplus: charge_J increases', fn: t => {
+    const origDt = SimSettings.dt;
+    TimeClock.t = 0; TimeClock.frame = 0; TimeClock.mode = 'test';
+    SimSettings.dt = 60;
+
+    // Fixed source (50 kW) + battery (50% SOC) → hub, NO consumers on elec_out.
+    // All 50 kW is surplus → should charge battery (up to maxCharge_W).
+    const src = t.place('source_electrical', 0, 0, { maxPower: 50 });
+    const bat = t.place('battery', 0, 4, { peakPower_kW: 40, capacity_J: 36000000, initialSOC: 0.5 });
+    const hub = t.place('power_hub', 4, 0);
+
+    t.wire(src, 'out', hub, 'elec_in');
+    t.wire(bat, 'elec', hub, 'elec_in');
+
+    const u = scene.units.get(bat);
+    const initCharge = u.inventory.charge_J;
+
+    // Steps: surplus should charge battery
+    for (let i = 0; i < 3; i++) {
+      TimeClock.step(scene);
+    }
+    t.assertOK(u.inventory.charge_J > initCharge, 
+      `charge increased: ${(u.inventory.charge_J/3600000).toFixed(3)} > ${(initCharge/3600000).toFixed(3)} kWh`);
+
+    TimeClock.t = 0; TimeClock.frame = 0;
+    TimeClock.mode = 'test'; SimSettings.dt = origDt;
+  }});
+
+  tests.push({ name: '183: Battery at 100% SOC: charging stops', fn: t => {
+    const bat = t.place('battery', 0, 0, { peakPower_kW: 20, capacity_J: 36000000, initialSOC: 1.0 });
+    const snk = t.place('sink_electrical', 4, 0);
+    t.wire(bat, 'elec', snk, 'in');
+
+    // Force charge to full
+    const u = scene.units.get(bat);
+    u.inventory.charge_J = u.inventory.capacity_J;
+
+    t.solve();
+    const ud = scene.runtime.unitData.get(bat);
+    t.assertClose(ud.last.maxCharge_W, 0, 0.01, 'maxCharge = 0 when full');
+  }});
+
+  tests.push({ name: '184: Hub energy balance: fixedSupply = served + charge + heat', fn: t => {
+    // Fixed source (30 kW) + battery (50% SOC) → hub, no consumers.
+    // Expected: fixed=30kW, demand=0, surplus=30kW → charge battery (up to 20kW peak)
+    // Remainder → heat surplus = 10kW
+    const src = t.place('source_electrical', 0, 0, { maxPower: 30 });
+    const bat = t.place('battery', 0, 4, { peakPower_kW: 20, capacity_J: 36000000, initialSOC: 0.5 });
+    const hub = t.place('power_hub', 4, 0);
+
+    t.wire(src, 'out', hub, 'elec_in');
+    t.wire(bat, 'elec', hub, 'elec_in');
+
+    t.solve();
+    const hubUD = scene.runtime.unitData.get(hub);
+    const fixed = hubUD.last.fixedSupply_W;
+    const surplus = hubUD.last.surplus_W;
+    const batteryCharge = hubUD.last.batteryCharge_W || 0;
+    const heatSurplus = hubUD.last.heatSurplus_W;
+
+    // Energy balance: surplus = batteryCharge + heatSurplus
+    t.assertClose(surplus, batteryCharge + (heatSurplus || 0), 1, 
+      `surplus (${(surplus||0).toFixed(0)}) = charge (${batteryCharge.toFixed(0)}) + heat (${(heatSurplus||0).toFixed(0)})`);
+    // Fixed supply fully delivered
+    t.assertClose(fixed, 30000, 10, 'fixedSupply = 30 kW');
+    // Battery should absorb up to peakPower (20kW)
+    t.assertOK(batteryCharge > 0, `Battery charging: ${batteryCharge.toFixed(0)} W`);
+    t.assertOK(batteryCharge <= 20001, `Battery charge <= peakPower: ${batteryCharge.toFixed(0)} W`);
+  }});
+
+  tests.push({ name: '185: Battery direct-bus: discharge-only, no charging', fn: t => {
+    // Battery → heater directly (no hub). Should discharge, never charge.
+    const bat = t.place('battery', 0, 0, { peakPower_kW: 20, capacity_J: 36000000, initialSOC: 0.9 });
+    const heater = t.place('electric_heater', 4, 0);
+    const hSnk = t.place('sink_heat', 8, 0);
+
+    t.wire(bat, 'elec', heater, 'elec_in');
+    t.wire(heater, 'heat_out', hSnk, 'in');
+
+    t.solve();
+    const ud = scene.runtime.unitData.get(bat);
+    // Direct mode: actual >= 0 (no charging possible without hub)
+    t.assertOK(ud.ports.elec.actual >= 0, 'Direct-bus: actual >= 0 (no charging)');
+    t.assertOK(ud.last.status !== 'charging', 'Status is not charging in direct mode');
+  }});
+
+  tests.push({ name: '186: Battery reset: SOC restored to initial', fn: t => {
+    const origDt = SimSettings.dt;
+    TimeClock.t = 0; TimeClock.frame = 0; TimeClock.mode = 'test';
+    SimSettings.dt = 60;
+
+    const bat = t.place('battery', 0, 0, { peakPower_kW: 10, capacity_J: 3600000, initialSOC: 0.9 });
+    const snk = t.place('sink_electrical', 4, 0);
+    t.wire(bat, 'elec', snk, 'in');
+
+    const u = scene.units.get(bat);
+    const initCharge = u.inventory.charge_J;
+
+    // Discharge for a few steps
+    for (let i = 0; i < 5; i++) {
+      TimeClock.step(scene);
+    }
+    t.assertOK(u.inventory.charge_J < initCharge, 'Discharged before reset');
+
+    // Reset
+    TimeClock.reset(scene);
+    t.assertClose(u.inventory.charge_J, initCharge, 0.01, 'charge_J restored after reset');
+
+    TimeClock.t = 0; TimeClock.frame = 0;
+    TimeClock.mode = 'test'; SimSettings.dt = origDt;
+  }});
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // AN — Phase 4: Balance + Polish [v9.0.5]
+  // ═══════════════════════════════════════════════════════════════════════
+
+  tests.push({ name: '187: System balance with tank: In − Out − Accum ≈ 0', fn: t => {
+    const origDt = SimSettings.dt;
+    TimeClock.t = 0; TimeClock.frame = 0; TimeClock.mode = 'test';
+    SimSettings.dt = 10;
+
+    // Source (2 mol/s N2) → Tank (drawRate 0.5) → Sink
+    const src = t.place('source', 0, 0, { species: 'N2', nDot: 2.0, T: 300, P: 101325, phaseConstraint: 'V' });
+    const tid = t.place('tank', 4, 0, { volume_m3: 50, drawRate: 0.5 });
+    const snk = t.place('sink', 8, 0);
+    const snk2 = t.place('sink', 4, 5);
+    t.wire(src, 'out', tid, 'mat_in');
+    t.wire(tid, 'mat_out', snk, 'in');
+    t.wire(tid, 'overflow', snk2, 'in');
+
+    const u = scene.units.get(tid);
+
+    // Step 1: initialises, solves, but inventory update uses empty prior ports
+    TimeClock.step(scene);
+    const afterStep1 = u.inventory.n.N2;
+
+    // Step 2+: inventory now updates from step 1's solved ports
+    TimeClock.step(scene);
+    const afterStep2 = u.inventory.n.N2;
+
+    // Accumulation from step 1 → step 2
+    const accumMol = afterStep2 - afterStep1;
+
+    // From solved ports at end of step 2: net flow × dt
+    const ud = scene.runtime.unitData.get(tid);
+    const nIn = ud?.ports?.mat_in?.n ? Object.values(ud.ports.mat_in.n).reduce((a, b) => a + b, 0) : 0;
+    const nOut = ud?.ports?.mat_out?.n ? Object.values(ud.ports.mat_out.n).reduce((a, b) => a + b, 0) : 0;
+    const dt = SimSettings.dt;
+    const netFlowPerStep = (nIn - nOut) * dt;
+    const residual = netFlowPerStep - accumMol;
+
+    t.assertOK(accumMol > 0, `Tank accumulated ${accumMol.toFixed(1)} mol`);
+    t.assertClose(residual, 0, 1.0, `In−Out−Accum residual = ${residual.toFixed(3)} mol (should ≈ 0)`);
+
+    TimeClock.t = 0; TimeClock.frame = 0;
+    TimeClock.mode = 'test'; SimSettings.dt = origDt;
+  }});
+
+  tests.push({ name: '188: System balance with battery: electrical accum term', fn: t => {
+    const origDt = SimSettings.dt;
+    TimeClock.t = 0; TimeClock.frame = 0; TimeClock.mode = 'test';
+    SimSettings.dt = 60;
+
+    // Battery (90% SOC, 1 kWh capacity, peak 10 kW) → sink_electrical
+    const bat = t.place('battery', 0, 0, { peakPower_kW: 10, capacity_J: 3600000, initialSOC: 0.9 });
+    const snk = t.place('sink_electrical', 4, 0);
+    t.wire(bat, 'elec', snk, 'in');
+
+    const u = scene.units.get(bat);
+
+    // Step 1: init + solve (inventory doesn't change from prior-empty ports)
+    TimeClock.step(scene);
+    const chargeAfter1 = u.inventory.charge_J;
+
+    // Step 2: inventory updated from step 1 solved ports
+    TimeClock.step(scene);
+    const chargeAfter2 = u.inventory.charge_J;
+
+    // Energy discharged between step 1 and step 2
+    const dCharge_J = chargeAfter1 - chargeAfter2;  // positive = discharged
+
+    // From solved port at step 2: actual power × dt
+    const ud = scene.runtime.unitData.get(bat);
+    const actualPower_W = ud?.ports?.elec?.actual || 0;
+    const energyOut_J = actualPower_W * SimSettings.dt;
+
+    // Balance: energy out (from port) ≈ energy discharged (from inventory change)
+    const residual_J = energyOut_J - dCharge_J;
+
+    t.assertOK(dCharge_J > 0, `Battery discharged ${(dCharge_J/1000).toFixed(1)} kJ`);
+    t.assertClose(residual_J, 0, 100, `Energy balance residual = ${residual_J.toFixed(1)} J (should ≈ 0)`);
+
+    TimeClock.t = 0; TimeClock.frame = 0;
+    TimeClock.mode = 'test'; SimSettings.dt = origDt;
   }});
 
   // ═══════════════════════════════════════════════════════════════════════
