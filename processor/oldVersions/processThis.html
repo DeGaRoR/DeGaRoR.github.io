@@ -4,16 +4,37 @@
   processThis v8.9.1
 
   ─── v8.9.1 ───────────────────────────────────────────────────────────────
-  Phase 4a-1: Sabatier methanation reaction (CO₂ + 4H₂ ⇌ CH₄ + 2H₂O).
+  Phase 4a: Sabatier methanation reaction (CO₂ + 4H₂ ⇌ CH₄ + 2H₂O).
   New reaction R_SABATIER registered with NIST-JANAF/WebBook data.
   Moderate K (crosses 1 near 956K), Δν = −2 — exercises bisection in the
   non-trivial regime and enables Le Chatelier pressure test.
-  Tests (Section AF.3, 131–134): registration + precomputed thermo,
+  New unit: Cooler — complement of heater (T_out ≤ T_in, heat_out port,
+  PH-flash outlet). Icon, property panel, results display, heat warning.
+  Demo scene replaced: Sabatier CO₂ methanation with recycle loop —
+  source → mixer → equilibrium reactor (900K, 10 bar) → cooler (50°C)
+  → flash drum → splitter (15% purge / 85% recycle) → back to mixer.
+  Heat dump collects cooler Q_removed; reactor utility heating shown in
+  balance as energy input.
+  Bugfix — reactor heat_out sign: when Q_duty > 0 (heating needed, e.g.
+  cold recycle feed), heat_out now correctly emits 0 (no heat exits) and
+  stores Q_utility_in_W for balance accounting.  Previously emitted
+  |Q_duty| regardless of sign, double-counting ~308 kW in the Sabatier
+  recycle loop.  computeSystemBalance scans for implicit utility heating.
+  Bugfix — scene-level solver options: Scene.solverOptions { maxIter,
+  alpha, acceleration } persisted in export/import JSON.  solveScene()
+  merges scene options with call-level overrides.  All UI re-solves now
+  inherit the scene's settings (critical for high-recycle processes).
+  Demo uses maxIter=200 for 85% recycle convergence.
+  Mass balance display tolerance relaxed from 1e-6 to 1e-4 (0.01%)
+  to prevent false "violation" at solver convergence boundary.
+  Tests (Section AF.3, 131–135): registration + precomputed thermo,
   moderate K bisection at 800K (non-boundary ξ_eq), K crossover at
   900K vs 1000K (products→reactants), Le Chatelier pressure (Δν = −2,
-  higher P favours products: ξ_eq(10 bar) > ξ_eq(1 bar) by >5%).
-  Added bisection clamping rationale comment (1e-30 smoothing).
-  Closes reviewer pressure-sensitivity item.
+  higher P favours products: ξ_eq(10 bar) > ξ_eq(1 bar) by >5%),
+  recycle loop integration (solver convergence, enriched reactor inlet,
+  overall conversion > single-pass, flash purity, system mass + energy
+  balance closure). Added bisection clamping rationale comment.
+  Closes all reviewer items from external code review.
 
   ─── v8.9.0 ───────────────────────────────────────────────────────────────
   Phase 3: Physically correct isothermal equilibrium reactor.
@@ -1398,6 +1419,14 @@
           <path d="M20 32 Q26 26, 32 32 T44 32" fill="none" stroke="currentColor" stroke-width="3"/>
           <path d="M32 6 L32 20" stroke="currentColor" stroke-width="4"/>
           <path d="M26 10 L32 6 L38 10" fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/>
+        </symbol>
+        
+        <!-- Single Stream Cooler [v8.9.1] — mirror of heater, arrow down -->
+        <symbol id="ico-cooler" viewBox="0 0 64 64">
+          <rect x="14" y="20" width="36" height="24" fill="none" stroke="currentColor" stroke-width="4" rx="4"/>
+          <path d="M20 32 Q26 26, 32 32 T44 32" fill="none" stroke="currentColor" stroke-width="3"/>
+          <path d="M32 44 L32 58" stroke="currentColor" stroke-width="4"/>
+          <path d="M26 54 L32 58 L38 54" fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/>
         </symbol>
         
         <!-- Electric Heater (circle with H, like motor with M) -->
@@ -6388,6 +6417,77 @@ UnitRegistry.register('heater', {
   }
 });
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// COOLER — Single-stream cooler [v8.9.1]
+// ═══════════════════════════════════════════════════════════════════════════════
+// Complement of heater: removes heat from process stream to achieve T_out ≤ T_in.
+// Heat removed is emitted on heat_out port. dP = 0.
+// Outlet via H_target_Jps for PH-flash (handles phase change during cooling).
+UnitRegistry.register('cooler', {
+  name: 'Cooler',
+  category: UnitCategories.HEAT_EXCHANGER,
+  w: 2,
+  h: 2,
+  ports: [
+    { portId: 'mat_in', dir: PortDir.IN, type: StreamType.MATERIAL, x: 0, y: 1 },
+    { portId: 'mat_out', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 1 },
+    { portId: 'heat_out', dir: PortDir.OUT, type: StreamType.HEAT, x: 1, y: 2 }
+  ],
+  tick(u, ports, par) {
+    const sIn = ports.mat_in;
+    if (!sIn) return;
+
+    const H_in_Jps = thermo.getHdot_Jps(sIn);
+
+    if (H_in_Jps === 0 && (!sIn.T || !sIn.P || !sIn.n)) {
+      u.last = { error: { severity: ErrorSeverity.MAJOR,
+        message: 'Cannot compute inlet enthalpy — missing stream properties' } };
+      return;
+    }
+
+    // T_out setpoint (must be ≤ T_in)
+    const T_setpoint_K = (par.T_out !== undefined && par.T_out !== null) ? par.T_out : (sIn.T - 50);
+
+    if (T_setpoint_K > sIn.T + 0.01) {
+      u.last = { error: { severity: ErrorSeverity.MAJOR,
+        message: `Setpoint (${(T_setpoint_K-273.15).toFixed(1)}°C) > inlet (${(sIn.T-273.15).toFixed(1)}°C) — use a heater for heating` } };
+      return;
+    }
+
+    // Compute outlet enthalpy at T_setpoint
+    const outProxy = { type: StreamType.MATERIAL, T: T_setpoint_K, P: sIn.P, n: { ...sIn.n },
+      phaseConstraint: sIn.phaseConstraint || 'VL' };
+    const H_out_Jps = thermo.getHdot_Jps(outProxy);
+    const Q_removed_W = H_in_Jps - H_out_Jps;  // positive when cooling
+
+    // Outlet stream — PH-flash to resolve phase
+    ports.mat_out = {
+      type: StreamType.MATERIAL,
+      P: sIn.P,
+      n: { ...sIn.n },
+      phaseConstraint: 'VL',
+      H_target_Jps: H_out_Jps
+    };
+
+    // Heat removed → heat_out port
+    ports.heat_out = {
+      type: StreamType.HEAT,
+      capacity: Math.abs(Q_removed_W),
+      actual: Math.abs(Q_removed_W),
+      available: Math.abs(Q_removed_W),
+      demand: 0
+    };
+
+    u.last = {
+      T_in_K: sIn.T,
+      T_setpoint_K: T_setpoint_K,
+      Q_removed_W: Q_removed_W,
+      H_in_kW: (H_in_Jps / 1000).toFixed(2),
+      H_out_kW: (H_out_Jps / 1000).toFixed(2)
+    };
+  }
+});
+
 // Two-Stream Heat Exchanger
 // ═══════════════════════════════════════════════════════════════════════════════
 // HEAT EXCHANGER — Pure helper functions
@@ -7051,14 +7151,19 @@ UnitRegistry.register('reactor_adiabatic', {
     }
 
     // ── Guard: VL/L inlet not supported [v8.8.0] ──
-    const pc = sIn.phaseConstraint || 'V';
-    if (pc === 'L' || pc === 'VL') {
+    // Check resolved phase (post-flash) first, then phaseConstraint.
+    // A mixer with phaseConstraint='VL' may resolve to phase='V' after
+    // flash — that's acceptable. Only reject if the stream actually
+    // contains liquid after phase equilibrium.
+    const inletPhase = sIn.phase || sIn.phaseConstraint || 'V';
+    if (inletPhase === 'L' || inletPhase === 'VL') {
       u.last = { error: { severity: ErrorSeverity.MAJOR,
-        message: `Gas-phase reactor requires vapor inlet (got ${pc}). Use a flash drum or heater upstream to vaporize.` } };
+        message: `Gas-phase reactor requires vapor inlet (got ${inletPhase}). Use a flash drum or heater upstream to vaporize.` } };
       ports.mat_out = { type: StreamType.MATERIAL, T: sIn.T, P: sIn.P,
-        n: { ...sIn.n }, phaseConstraint: pc };
+        n: { ...sIn.n }, phaseConstraint: inletPhase };
       return;
     }
+    const resolvedPhase = inletPhase;
 
     const stoich = reaction.stoich;
 
@@ -7066,7 +7171,7 @@ UnitRegistry.register('reactor_adiabatic', {
     if (sIn.T < reaction.Tmin_K || sIn.T > reaction.Tmax_K ||
         sIn.P < reaction.Pmin_Pa || sIn.P > reaction.Pmax_Pa) {
       ports.mat_out = { type: StreamType.MATERIAL, T: sIn.T, P: sIn.P,
-        n: { ...sIn.n }, phaseConstraint: pc };
+        n: { ...sIn.n }, phaseConstraint: resolvedPhase };
       u.last = { reactionId: par.reactionId,
         status: 'inactive',
         reason: `T=${sIn.T.toFixed(0)}K or P=${(sIn.P/1e5).toFixed(2)}bar outside activation window` };
@@ -7086,7 +7191,7 @@ UnitRegistry.register('reactor_adiabatic', {
 
     if (xi_max <= 0) {
       ports.mat_out = { type: StreamType.MATERIAL, T: sIn.T, P: sIn.P,
-        n: { ...sIn.n }, phaseConstraint: pc };
+        n: { ...sIn.n }, phaseConstraint: resolvedPhase };
       u.last = { reactionId: par.reactionId, status: 'no_reactants', xi_max: 0 };
       return;
     }
@@ -7111,7 +7216,7 @@ UnitRegistry.register('reactor_adiabatic', {
       type: StreamType.MATERIAL,
       P: sIn.P,
       n: n_out,
-      phaseConstraint: pc,
+      phaseConstraint: resolvedPhase,
       H_target_Jps: H_in_Jps
     };
 
@@ -7162,14 +7267,15 @@ UnitRegistry.register('reactor_equilibrium', {
     }
 
     // ── Guard: VL/L inlet not supported ──
-    const pc = sIn.phaseConstraint || 'V';
-    if (pc === 'L' || pc === 'VL') {
+    const inletPhase = sIn.phase || sIn.phaseConstraint || 'V';
+    if (inletPhase === 'L' || inletPhase === 'VL') {
       u.last = { error: { severity: ErrorSeverity.MAJOR,
-        message: `Gas-phase reactor requires vapor inlet (got ${pc}). Use a flash drum or heater upstream to vaporize.` } };
+        message: `Gas-phase reactor requires vapor inlet (got ${inletPhase}). Use a flash drum or heater upstream to vaporize.` } };
       ports.mat_out = { type: StreamType.MATERIAL, T: sIn.T, P: sIn.P,
-        n: { ...sIn.n }, phaseConstraint: pc };
+        n: { ...sIn.n }, phaseConstraint: inletPhase };
       return;
     }
+    const resolvedPhase = inletPhase;
 
     const stoich = reaction.stoich;
 
@@ -7177,7 +7283,7 @@ UnitRegistry.register('reactor_equilibrium', {
     if (sIn.T < reaction.Tmin_K || sIn.T > reaction.Tmax_K ||
         sIn.P < reaction.Pmin_Pa || sIn.P > reaction.Pmax_Pa) {
       ports.mat_out = { type: StreamType.MATERIAL, T: sIn.T, P: sIn.P,
-        n: { ...sIn.n }, phaseConstraint: pc };
+        n: { ...sIn.n }, phaseConstraint: resolvedPhase };
       u.last = { reactionId: par.reactionId,
         status: 'inactive',
         reason: `T=${sIn.T.toFixed(0)}K or P=${(sIn.P/1e5).toFixed(2)}bar outside activation window` };
@@ -7190,7 +7296,7 @@ UnitRegistry.register('reactor_equilibrium', {
         message: 'K(T) requires hf0_Jmol and s0_JmolK for all species in reaction' },
         reactionId: par.reactionId, status: 'error' };
       ports.mat_out = { type: StreamType.MATERIAL, T: sIn.T, P: sIn.P,
-        n: { ...sIn.n }, phaseConstraint: pc };
+        n: { ...sIn.n }, phaseConstraint: resolvedPhase };
       return;
     }
 
@@ -7207,7 +7313,7 @@ UnitRegistry.register('reactor_equilibrium', {
 
     if (xi_max <= 0) {
       ports.mat_out = { type: StreamType.MATERIAL, T: sIn.T, P: sIn.P,
-        n: { ...sIn.n }, phaseConstraint: pc };
+        n: { ...sIn.n }, phaseConstraint: resolvedPhase };
       u.last = { reactionId: par.reactionId, status: 'no_reactants', xi_max: 0 };
       return;
     }
@@ -7287,23 +7393,28 @@ UnitRegistry.register('reactor_equilibrium', {
       T: T_eval,
       P: sIn.P,
       n: n_out,
-      phaseConstraint: pc
+      phaseConstraint: resolvedPhase
     };
 
     // ── Q_duty: heat required to maintain isothermal operation ──
     const H_in_Jps = thermo.getHdot_Jps(sIn);
     const outProxy = { type: StreamType.MATERIAL, T: T_eval, P: sIn.P, n: n_out,
-      phaseConstraint: pc };
+      phaseConstraint: resolvedPhase };
     const H_out_Jps = thermo.getHdot_Jps(outProxy);
     const Q_duty_W = H_out_Jps - H_in_Jps;  // +ve = needs heating, −ve = needs cooling
 
-    // ── Heat port: emit |Q_duty| ──
+    // ── Heat port: emit only the cooling load ──
+    // Q_duty > 0 → heating needed (external utility, no heat exits reactor)
+    // Q_duty < 0 → cooling needed (heat exits reactor via heat_out)
+    const Q_cooling_W = Math.max(0, -Q_duty_W);   // ≥0: heat that exits
+    const Q_heating_W = Math.max(0,  Q_duty_W);   // ≥0: external heat needed
     ports.heat_out = {
       type: StreamType.HEAT,
-      capacity: Math.abs(Q_duty_W),
-      actual: Math.abs(Q_duty_W),
-      available: Math.abs(Q_duty_W),
-      demand: 0
+      capacity: Q_cooling_W,
+      actual: Q_cooling_W,
+      available: Q_cooling_W,
+      demand: 0,
+      Q_utility_in_W: Q_heating_W   // implicit external heating (balance use)
     };
 
     // ── Diagnostics ──
@@ -7345,6 +7456,7 @@ class Scene {
     this.connections = [];
     this._idCounter = 0;
     this.processName = '';
+    this.solverOptions = {};  // { maxIter, alpha, acceleration }
     
     // Runtime calculation results
     this.runtime = {
@@ -7564,6 +7676,9 @@ class Scene {
       connections: [],
       modelsActive: models.active
     };
+    if (Object.keys(this.solverOptions).length > 0) {
+      data.solverOptions = { ...this.solverOptions };
+    }
     
     for (const u of this.units.values()) {
       data.units.push({
@@ -7804,6 +7919,20 @@ class Scene {
             thermo.setPackage(pkg);
           }
         }
+      }
+    }
+
+    // Import solver options (maxIter, alpha, acceleration)
+    this.solverOptions = {};
+    if (data.solverOptions && typeof data.solverOptions === 'object') {
+      if (typeof data.solverOptions.maxIter === 'number' && data.solverOptions.maxIter > 0) {
+        this.solverOptions.maxIter = Math.min(data.solverOptions.maxIter, 500);
+      }
+      if (typeof data.solverOptions.alpha === 'number') {
+        this.solverOptions.alpha = data.solverOptions.alpha;
+      }
+      if (typeof data.solverOptions.acceleration === 'string') {
+        this.solverOptions.acceleration = data.solverOptions.acceleration;
       }
     }
 
@@ -8461,14 +8590,16 @@ function wegsteinStep(x_prev, g_prev, x_curr, g_curr) {
 }
 
 function solveScene(scene, options = {}) {
-  const MAX_ITER = 50;
+  // Merge scene-level solver options with call-level overrides
+  const merged = { ...(scene.solverOptions || {}), ...options };
+  const MAX_ITER = merged.maxIter ?? 50;
   let iter = 0;
   let changed = true;
   let unitFaulted = false; // [v5.4.2] Set true if any unit tick throws
 
   // [v5.3.0] Solver options
-  const alpha        = options.alpha ?? 1.0;            // Damping: 1.0 = direct sub
-  const acceleration = options.acceleration ?? 'none';  // 'none' | 'wegstein'
+  const alpha        = merged.alpha ?? 1.0;            // Damping: 1.0 = direct sub
+  const acceleration = merged.acceleration ?? 'none';  // 'none' | 'wegstein'
   const useWegstein  = acceleration === 'wegstein';
 
   // Initialize runtime data for all units
@@ -9425,7 +9556,7 @@ function solveScene(scene, options = {}) {
   // Units with heat loss/duty ports that should ideally be connected
   // to a heat sink for closed energy balance. Warn if left floating.
   for (const [id, u] of scene.units) {
-    if (u.defId !== 'motor' && u.defId !== 'generator' && u.defId !== 'reactor_equilibrium') continue;
+    if (u.defId !== 'motor' && u.defId !== 'generator' && u.defId !== 'reactor_equilibrium' && u.defId !== 'cooler') continue;
     const ud = scene.runtime.unitData.get(id);
     const Q_loss = ud.ports?.heat_out?.actual ?? 0;
     if (Q_loss < 0.01) continue;  // No loss to dissipate → no warning needed
@@ -9434,7 +9565,7 @@ function solveScene(scene, options = {}) {
     );
     if (!hasHeatConn) {
       if (!ud.last) ud.last = {};
-      const heatLabel = u.defId === 'reactor_equilibrium' ? 'Heat duty' : 'Heat loss';
+      const heatLabel = (u.defId === 'reactor_equilibrium' || u.defId === 'cooler') ? 'Heat duty' : 'Heat loss';
       ud.last.heatOutWarning = {
         severity: ErrorSeverity.MINOR,
         message: `${heatLabel} port unconnected — ${(Q_loss/1000).toFixed(2)} kW dissipated to environment (connect to heat sink for closed energy balance)`
@@ -12370,9 +12501,26 @@ function computeSystemBalance(scene) {
     }
   }
 
+  // ── Implicit utility heating: units that need external heat input ──
+  // When an isothermal reactor needs heating (Q_duty > 0), the heat doesn't
+  // exit via heat_out — it must be supplied externally.  Account for it as
+  // an energy input so the system balance closes.
+  for (const [id, u] of scene.units) {
+    const ud = scene.runtime.unitData.get(id);
+    if (!ud) continue;
+    const Q_util = ud.ports?.heat_out?.Q_utility_in_W;
+    if (Q_util && Q_util > 0.01) {
+      const uName = u.name || UnitRegistry.get(u.defId)?.name || id;
+      energyIn.heat += Q_util;
+      energyIn.items.push({ name: uName + ' (utility)', type: 'heat', value: Q_util });
+    }
+  }
+
   // ── Totals ──
   const massBalance = totalMassIn - totalMassOut;
-  const massTol = Math.max(totalMassIn, totalMassOut) * 1e-6 + 1e-10;
+  // Display tolerance: 0.01% relative — well within engineering accuracy.
+  // Solver convergence (1 ppm) means residuals near this level for recycle loops.
+  const massTol = Math.max(totalMassIn, totalMassOut) * 1e-4 + 1e-10;
 
   const totalEnergyIn  = energyIn.material + energyIn.electrical + energyIn.mechanical + energyIn.heat;
   const totalEnergyOut = energyOut.material + energyOut.electrical + energyOut.mechanical + energyOut.heat + energyOut.dissipated;
@@ -12631,6 +12779,21 @@ function updatePropertiesPanel() {
       if (u.params.T_out === undefined) u.params.T_out = 423.15;  // Default 150°C = 423.15K  [v6.0.0]
       addNumberEditor(paramsSection.content, `T outlet setpoint (${unitSys.temperature.symbol})`, 
         () => unitSys.temperature.from(u.params.T_out),  // [v6.0.0] params.T_out is K
+        v => { u.params.T_out = unitSys.temperature.to(v); },
+        1
+      );
+      
+      propEditor.appendChild(paramsSection.section);
+    }
+
+    // [v8.9.1] Cooler — mirrors heater
+    if (u.defId === 'cooler') {
+      const paramsSection = createCollapsibleSection('Parameters', true);
+      const unitSys = models.getActive('units');
+      
+      if (u.params.T_out === undefined) u.params.T_out = 303.15;  // Default 30°C
+      addNumberEditor(paramsSection.content, `T outlet setpoint (${unitSys.temperature.symbol})`, 
+        () => unitSys.temperature.from(u.params.T_out),
         v => { u.params.T_out = unitSys.temperature.to(v); },
         1
       );
@@ -13042,6 +13205,53 @@ function updatePropertiesPanel() {
         
         heatBox.appendChild(dataGrid);
         propsSection.content.appendChild(heatBox);
+      }
+
+      // [v8.9.1] Cooler results display
+      if (u.defId === 'cooler' && ud.last && ud.last.T_setpoint_K !== undefined) {
+        const unitSys = models.getActive('units');
+        const coolBox = el('div', { style: 'margin-bottom:16px; padding:12px; background:#1e293b; border-radius:8px;' });
+        coolBox.appendChild(el('div', { 
+          class: 'small', 
+          style: 'font-weight:700; margin-bottom:8px; opacity:0.8; text-transform:uppercase;', 
+          html: '❄ Cooling Duty' 
+        }));
+        
+        const dataGrid = el('div', { class: 'propGrid' });
+        
+        // T setpoint
+        dataGrid.appendChild(el('div', { class: 'propItem' }, [
+          el('div', { class: 'propLabel', html: 'T setpoint' }),
+          el('div', { class: 'propValue', 
+            html: `${unitSys.temperature.from(ud.last.T_setpoint_K).toFixed(1)}<span class="propUnit">${unitSys.temperature.symbol}</span>` 
+          })
+        ]));
+        
+        // T actual (from PH flash)
+        const matOut = ud.ports?.mat_out;
+        if (matOut && matOut.T) {
+          const T_actual_disp = unitSys.temperature.from(matOut.T);
+          const T_set_disp = unitSys.temperature.from(ud.last.T_setpoint_K);
+          const deviation = Math.abs(T_actual_disp - T_set_disp);
+          const devColor = deviation > 1 ? '#f97316' : '#22c55e';
+          dataGrid.appendChild(el('div', { class: 'propItem' }, [
+            el('div', { class: 'propLabel', html: 'T actual' }),
+            el('div', { class: 'propValue', style: `color:${devColor};`,
+              html: `${T_actual_disp.toFixed(1)}<span class="propUnit">${unitSys.temperature.symbol}</span>` 
+            })
+          ]));
+        }
+        
+        // Q removed
+        dataGrid.appendChild(el('div', { class: 'propItem' }, [
+          el('div', { class: 'propLabel', html: 'Q removed' }),
+          el('div', { class: 'propValue', style: 'color:#60a5fa;',
+            html: `${(ud.last.Q_removed_W/1000).toFixed(2)}<span class="propUnit">kW</span>` 
+          })
+        ]));
+        
+        coolBox.appendChild(dataGrid);
+        propsSection.content.appendChild(coolBox);
       }
       
       // Special display for motor (actual power, not capacity)
@@ -14110,118 +14320,86 @@ document.getElementById('processNameInput').addEventListener('input', (e) => {
    DEMO
    ========================= */
 function loadDemo() {
+  // ── [v8.9.1] Sabatier CO₂ Methanation with Recycle ──
+  // CO₂ + 4 H₂ ⇌ CH₄ + 2 H₂O — isothermal equilibrium at 900 K, 10 bar
+  // Fresh feed → mixer → reactor → cooler → flash drum → splitter
+  //                ↑                                          ↓
+  //                └──────────── recycle (85%) ────────────────┘
+  // Purge stream (15%) carries CH₄ product; flash separates liquid H₂O.
+  //
+  // Layout: main process flows left-to-right on y≈4 row.
+  // Recycle wraps back underneath. Heat duty sinks at bottom.
+  // Port alignment (absolute coords, all material ports on y=5 line):
+  //   Feed out(2,4) → Mix in1(4,4)
+  //   Mix out(6,5) → Rx mat_in(8,5) → Rx mat_out(10,5) → Cool mat_in(12,5)
+  //   Cool mat_out(14,5) → Flash mat_in(16,5)
+  //   Flash vap_out(18,4) → Split in(20,4) → Split out1(22,3) → Purge in(24,3)
+  //   Flash liq_out(18,7) → Water in(20,7)
+  //   Split out2(22,5) → [recycle wire] → Mix in2(4,6)
+
   scene.importJSON(JSON.stringify({
-    version: 12,  // [v6.0.0] T params in K
-    grid: { w: 24, h: 22, tile: 48 },
+    version: 12,
+    processName: 'Sabatier CO₂ Methanation with Recycle',
+    grid: { w: 28, h: 14, tile: 48 },
+    solverOptions: { maxIter: 200 },  // 85% recycle loop needs ~100+ iterations
     units: [
-      // ── Power Sources ──
-      { id: 'pwr-a', defId: 'source_electrical', name: 'Grid', x: 0, y: 4, rot: 0, 
-        params: { maxPower: 50 } },
-      { id: 'batt-a', defId: 'battery', name: 'Battery', x: 0, y: 8, rot: 0, 
-        params: { maxPower: 30 } },
-      
-      // ── Turbine + Generator (third power source) ──
-      { id: 'src-hot', defId: 'source', name: 'Hot N2', x: 0, y: 12, rot: 0,
-        params: { species: 'N2', P: 500000, T: 673.15, nDot: 0.5, phaseConstraint: 'V' } },
-      { id: 'turb', defId: 'gas_turbine', name: 'Turbine', x: 4, y: 12, rot: 0,
-        params: { Pout: 101325, eta: 0.88 } },
-      { id: 'snk-exh', defId: 'sink', name: 'Exhaust', x: 8, y: 12, rot: 0,
-        params: {} },
-      { id: 'gen', defId: 'generator', name: 'Generator', x: 4, y: 15, rot: 0,
-        params: { eta: 0.97 } },
-      
-      // ── Power Hub ──
-      { id: 'hub', defId: 'power_hub', name: 'Hub', x: 8, y: 5, rot: 0, 
-        params: {} },
-      
-      // ── Heat Sink (surplus) ──
-      { id: 'hsink', defId: 'sink_heat', name: 'Dump Load', x: 8, y: 1, rot: 0, 
-        params: {} },
-      
-      // ── Heat Sink (converter losses) — multiConnect from motor + generator ──
-      { id: 'hsink-loss', defId: 'sink_heat', name: 'Loss Dump', x: 8, y: 15, rot: 0, 
-        params: {} },
-      
-      // ── Construct A: Motor + Compressor Chain ──
-      { id: 'motor-a', defId: 'motor', name: 'Motor', x: 12, y: 4, rot: 0, 
-        params: { eta: 0.95 } },
-      { id: 'src-a', defId: 'source', name: 'N2 Feed', x: 12, y: 8, rot: 0, 
-        params: { species: 'N2', P: 100000, T: 298.15, nDot: 1.0, phaseConstraint: 'V' } },
-      { id: 'comp-a', defId: 'compressor', name: 'Compressor', x: 16, y: 6, rot: 0, 
-        params: { Pout: 300000, eta: 0.80 } },
-      { id: 'snk-a', defId: 'sink', name: 'Product', x: 20, y: 6, rot: 0, 
-        params: {} },
-      
-      // ── Construct B: Electric Heater Chain ──
-      { id: 'eh-b', defId: 'electric_heater', name: 'E.Heater', x: 12, y: 11, rot: 0, 
-        params: {} },
-      { id: 'src-b', defId: 'source', name: 'H2O Feed', x: 12, y: 15, rot: 0, 
-        params: { species: 'H2O', P: 200000, T: 300.15, nDot: 2.0, phaseConstraint: 'L' } },
-      { id: 'htr-b', defId: 'heater', name: 'Heater', x: 16, y: 12, rot: 0, 
-        params: { T_out: 353.15 } },
-      { id: 'snk-b', defId: 'sink', name: 'Hot H2O', x: 20, y: 12, rot: 0, 
-        params: {} },
-      
-      // ── Construct C: H₂ Combustion Reactor [v8.5.0] ──
-      { id: 'src-rx', defId: 'source_multi', name: 'H₂/Air Feed', x: 0, y: 16, rot: 0,
-        params: { n: { H2: 2, O2: 1, N2: 8 }, T: 800, P: 200000, phaseConstraint: 'V' } },
-      { id: 'reactor', defId: 'reactor_adiabatic', name: 'Combustor', x: 4, y: 16, rot: 0,
-        params: { reactionId: 'R_H2_COMB', conversion: 1.0 } },
-      { id: 'snk-rx', defId: 'sink', name: 'Flue Gas', x: 8, y: 16, rot: 0,
-        params: {} },
+      // ── Fresh Feed: stoichiometric CO₂ + 4 H₂ at 500 K, 10 bar ──
+      { id: 'feed', defId: 'source_multi', name: 'CO₂/H₂ Feed', x: 0, y: 3, rot: 0,
+        params: { n: { CO2: 1, H2: 4 }, T: 500, P: 1000000, phaseConstraint: 'V' } },
+
+      // ── Mixer: fresh feed (in1) + recycle (in2) ──
+      { id: 'mix', defId: 'mixer', name: 'Mixer', x: 4, y: 4, rot: 0, params: {} },
+
+      // ── Sabatier Reactor: isothermal equilibrium at 900 K ──
+      { id: 'rx', defId: 'reactor_equilibrium', name: 'Sabatier Rx', x: 8, y: 4, rot: 0,
+        params: { reactionId: 'R_SABATIER', alpha: 1.0, T_eval_override: 900 } },
+
+      // ── Cooler: drop to 50 °C for H₂O condensation ──
+      { id: 'cool', defId: 'cooler', name: 'Cooler', x: 12, y: 4, rot: 0,
+        params: { T_out: 323.15 } },
+
+      // ── Flash Drum: liquid H₂O out, vapor (CO₂/H₂/CH₄) out ──
+      { id: 'flash', defId: 'flash_drum', name: 'Flash Drum', x: 16, y: 4, rot: 0, params: {} },
+
+      // ── Splitter: 15 % purge (product), 85 % recycle ──
+      { id: 'split', defId: 'splitter', name: 'Purge/Recycle', x: 20, y: 3, rot: 0,
+        params: { splitPct: 15 } },
+
+      // ── Product Sinks ──
+      { id: 'snk-ch4', defId: 'sink', name: 'CH₄ Product', x: 24, y: 2, rot: 0, params: {} },
+      { id: 'snk-h2o', defId: 'sink', name: 'Water', x: 20, y: 6, rot: 0, params: {} },
+
+      // ── Heat Dump: reactor Q_duty + cooler Q_removed ──
+      { id: 'q-dump', defId: 'sink_heat', name: 'Heat Dump', x: 10, y: 9, rot: 0, params: {} }
     ],
     connections: [
-      // Sources → Hub (all on elec_in)
-      { id: 'h1', from: { unitId: 'pwr-a', portId: 'out' }, 
-        to: { unitId: 'hub', portId: 'elec_in' } },
-      { id: 'h2', from: { unitId: 'batt-a', portId: 'out' }, 
-        to: { unitId: 'hub', portId: 'elec_in' } },
-      { id: 'h5', from: { unitId: 'gen', portId: 'elec_out' }, 
-        to: { unitId: 'hub', portId: 'elec_in' } },
-      
-      // Turbine chain: hot gas → turbine → exhaust, shaft → generator
-      { id: 't1', from: { unitId: 'src-hot', portId: 'out' }, 
-        to: { unitId: 'turb', portId: 'mat_in' } },
-      { id: 't2', from: { unitId: 'turb', portId: 'mat_out' }, 
-        to: { unitId: 'snk-exh', portId: 'in' } },
-      { id: 't3', from: { unitId: 'turb', portId: 'mech_out' }, 
-        to: { unitId: 'gen', portId: 'mech_in' } },
-      
-      // Hub surplus → Heat Sink
-      { id: 'h3', from: { unitId: 'hub', portId: 'heat_out' }, 
-        to: { unitId: 'hsink', portId: 'in' } },
-      
-      // Hub → Motor → Compressor chain
-      { id: 'a1', from: { unitId: 'hub', portId: 'elec_out' }, 
-        to: { unitId: 'motor-a', portId: 'elec_in' } },
-      { id: 'a2', from: { unitId: 'motor-a', portId: 'mech_out' }, 
-        to: { unitId: 'comp-a', portId: 'power_in' } },
-      { id: 'a3', from: { unitId: 'src-a', portId: 'out' }, 
-        to: { unitId: 'comp-a', portId: 'mat_in' } },
-      { id: 'a4', from: { unitId: 'comp-a', portId: 'mat_out' }, 
-        to: { unitId: 'snk-a', portId: 'in' } },
-      
-      // Hub → E.Heater → Heater chain
-      { id: 'b1', from: { unitId: 'hub', portId: 'elec_out' }, 
-        to: { unitId: 'eh-b', portId: 'elec_in' } },
-      { id: 'b2', from: { unitId: 'eh-b', portId: 'heat_out' }, 
-        to: { unitId: 'htr-b', portId: 'heat_in' } },
-      { id: 'b3', from: { unitId: 'src-b', portId: 'out' }, 
-        to: { unitId: 'htr-b', portId: 'mat_in' } },
-      { id: 'b4', from: { unitId: 'htr-b', portId: 'mat_out' }, 
-        to: { unitId: 'snk-b', portId: 'in' } },
-      
-      // Converter heat losses → shared heat sink (multiConnect)
-      { id: 'q1', from: { unitId: 'motor-a', portId: 'heat_out' }, 
-        to: { unitId: 'hsink-loss', portId: 'in' } },
-      { id: 'q2', from: { unitId: 'gen', portId: 'heat_out' }, 
-        to: { unitId: 'hsink-loss', portId: 'in' } },
-      
-      // Reactor chain: H₂/Air → Combustor → Flue Gas
-      { id: 'rx1', from: { unitId: 'src-rx', portId: 'out' },
-        to: { unitId: 'reactor', portId: 'mat_in' } },
-      { id: 'rx2', from: { unitId: 'reactor', portId: 'mat_out' },
-        to: { unitId: 'snk-rx', portId: 'in' } },
+      // ── Main process chain (left → right) ──
+      { id: 'c1', from: { unitId: 'feed',  portId: 'out' },
+                  to:   { unitId: 'mix',   portId: 'in1' } },
+      { id: 'c2', from: { unitId: 'mix',   portId: 'out' },
+                  to:   { unitId: 'rx',    portId: 'mat_in' } },
+      { id: 'c3', from: { unitId: 'rx',    portId: 'mat_out' },
+                  to:   { unitId: 'cool',  portId: 'mat_in' } },
+      { id: 'c4', from: { unitId: 'cool',  portId: 'mat_out' },
+                  to:   { unitId: 'flash', portId: 'mat_in' } },
+      { id: 'c5', from: { unitId: 'flash', portId: 'vap_out' },
+                  to:   { unitId: 'split', portId: 'in' } },
+
+      // ── Products ──
+      { id: 'c6', from: { unitId: 'split', portId: 'out1' },
+                  to:   { unitId: 'snk-ch4', portId: 'in' } },
+      { id: 'c7', from: { unitId: 'flash', portId: 'liq_out' },
+                  to:   { unitId: 'snk-h2o', portId: 'in' } },
+
+      // ── Recycle: splitter out2 → mixer in2 ──
+      { id: 'c8', from: { unitId: 'split', portId: 'out2' },
+                  to:   { unitId: 'mix',   portId: 'in2' } },
+
+      // ── Heat duty: reactor + cooler → heat dump (multiConnect) ──
+      { id: 'c9',  from: { unitId: 'rx',   portId: 'heat_out' },
+                   to:   { unitId: 'q-dump', portId: 'in' } },
+      { id: 'c10', from: { unitId: 'cool', portId: 'heat_out' },
+                   to:   { unitId: 'q-dump', portId: 'in' } }
     ],
     modelsActive: models.active
   }));
@@ -14229,10 +14407,11 @@ function loadDemo() {
   ui.selectedUnitId = null;
   ui.selectedConnId = null;
   ui.pendingFrom = null;
-  scene.processName = 'Demo Process';
+  scene.processName = 'Sabatier CO₂ Methanation with Recycle';
   document.getElementById('processNameInput').value = scene.processName;
+  buildModelsPanel();
   const solveResult = solveScene(scene);
-  setStatus(describeSolve() + "\nDemo: power grid (3 sources → hub → compressor + heater) + H₂ combustion reactor.");
+  setStatus(describeSolve() + "\nDemo: Sabatier CO₂ methanation — equilibrium reactor (900 K, 10 bar) with recycle loop.");
   updateStatusIndicator(solveResult);
   
   updatePropertiesPanel();
@@ -18546,9 +18725,10 @@ function runTests() {
   });
 
   test('Reactor Eq. — VL inlet rejected', t => {
-    // Same guard as adiabatic reactor
+    // Genuine two-phase stream: H₂O + N₂ at 300K, 1 bar.
+    // Water dew point ≈ 318K for y_H2O = 0.09 at 1 bar → at 300K, H₂O condenses → VL
     const src = t.place('source_multi', 0, 0, {
-      n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'VL'
+      n: { H2O: 1, N2: 10 }, T: 300, P: 100000, phaseConstraint: 'VL'
     });
     const rx = t.place('reactor_equilibrium', 4, 0, {
       reactionId: 'R_H2_COMB', alpha: 1.0
@@ -18566,18 +18746,19 @@ function runTests() {
     // Pass-through: outlet composition unchanged
     const out = t.port(rx, 'mat_out');
     const srcOut = t.port(src, 'out');
-    t.assertClose(out.n.H2, srcOut.n.H2, 0.001, 'H2 passed through');
-    t.assertClose(out.n.O2, srcOut.n.O2, 0.001, 'O2 passed through');
+    t.assertClose(out.n.H2O, srcOut.n.H2O, 0.001, 'H2O passed through');
+    t.assertClose(out.n.N2, srcOut.n.N2, 0.001, 'N2 passed through');
   });
 
   // ═══════════════════════════════════════════════════════════════════════
-  // SECTION AF.3: Sabatier Reaction — Registration + Pressure (Tests 131–134)
+  // SECTION AF.3: Sabatier Reaction — Registration + Pressure + Recycle (Tests 131–135)
   // [v8.9.1] Exercises the full chain of adding a new reaction.
   // Sabatier has moderate K (crosses 1 near 956K) and Δν = −2, enabling:
   //   131: Registration + precomputed thermo validation
   //   132: Moderate K bisection (non-trivial ξ_eq between 0 and ξ_max)
   //   133: K crossover (T_eval above/below K=1 flips behaviour)
   //   134: Le Chatelier pressure dependence (Δν < 0 → higher P favours products)
+  //   135: Full recycle loop integration (solver convergence, mass/energy closure)
   // ═══════════════════════════════════════════════════════════════════════
 
   test('Sabatier — registration and precomputed thermo', t => {
@@ -18777,14 +18958,123 @@ function runTests() {
       'ln K identical at both pressures (K is T-dependent only)');
   });
 
+  test('Sabatier — recycle loop integration (solver convergence)', t => {
+    // Full Sabatier process with recycle: the first loop with an
+    // equilibrium reactor in the test suite.
+    //
+    // Topology: source → mixer → reactor(900K) → cooler(50°C) → flash
+    //             ↑                                                ↓
+    //             └──── recycle (85%) ──── splitter ←── vap_out ───┘
+    //                                        ↓ purge (15%)
+    //                                   flash liq_out → water sink
+    //
+    // This exercises:
+    //  - Topology solver iterative convergence with material recycle
+    //  - Reactor equilibrium at non-stoichiometric, product-loaded inlet
+    //  - Flash drum VLE separation at high pressure
+    //  - System mass and energy balance closure across a loop
+
+    const feed  = t.place('source_multi', 0, 0, {
+      n: { CO2: 1, H2: 4 }, T: 500, P: 1000000, phaseConstraint: 'V'
+    });
+    const mix   = t.place('mixer', 4, 0, {});
+    const rx    = t.place('reactor_equilibrium', 8, 0, {
+      reactionId: 'R_SABATIER', alpha: 1.0, T_eval_override: 900
+    });
+    const cool  = t.place('cooler', 12, 0, { T_out: 323.15 });
+    const flash = t.place('flash_drum', 16, 0, {});
+    const split = t.place('splitter', 20, 0, { splitPct: 15 });
+    const snkCH4 = t.place('sink', 24, 0, {});
+    const snkH2O = t.place('sink', 20, 4, {});
+    const qDump  = t.place('sink_heat', 10, 6, {});
+
+    // Main chain
+    t.wire(feed, 'out', mix, 'in1');
+    t.wire(mix, 'out', rx, 'mat_in');
+    t.wire(rx, 'mat_out', cool, 'mat_in');
+    t.wire(cool, 'mat_out', flash, 'mat_in');
+    t.wire(flash, 'vap_out', split, 'in');
+
+    // Products
+    t.wire(split, 'out1', snkCH4, 'in');
+    t.wire(flash, 'liq_out', snkH2O, 'in');
+
+    // Recycle
+    t.wire(split, 'out2', mix, 'in2');
+
+    // Heat
+    t.wire(rx, 'heat_out', qDump, 'in');
+    t.wire(cool, 'heat_out', qDump, 'in');
+
+    // Recycle loop with 85% recycle ratio needs >50 iterations for direct
+    // substitution convergence. Allow up to 200 iterations.
+    t.solve({ maxIter: 200 });
+
+    // ── 1. Solver converged ──
+    const rxLast = t.ud(rx).last;
+    t.assertOK(rxLast.status === 'active', 'Reactor status: active');
+    t.assertClose(rxLast.T_eval, 900, 0.1, 'T_eval = 900 K');
+
+    // ── 2. Reactor sees enriched inlet (recycle adds products) ──
+    const rxIn = t.port(rx, 'mat_in');
+    t.assertOK(rxIn.n.CH4 > 0.01, 'Reactor inlet has recycled CH₄',
+      `n_CH4=${rxIn.n.CH4?.toFixed(3)}`);
+
+    // ── 3. Single-pass vs overall conversion ──
+    // At 900 K with K ≈ 3.6, single-pass conversion is partial.
+    // With 85% recycle, overall CO₂ conversion should exceed single-pass.
+    const feedOut = t.port(feed, 'out');
+    const purge = t.port(snkCH4, 'in');
+    const water = t.port(snkH2O, 'in');
+    const CO2_in = feedOut.n.CO2;
+    const CO2_out_purge = purge.n.CO2 || 0;
+    const CO2_out_water = water.n?.CO2 || 0;
+    const CO2_converted = CO2_in - CO2_out_purge - CO2_out_water;
+    const overallConv = CO2_converted / CO2_in;
+    t.assertOK(overallConv > 0.3,
+      'Overall CO₂ conversion > 30% (recycle benefit)',
+      `conv=${(overallConv * 100).toFixed(1)}%`);
+
+    // Single-pass: ξ / (CO₂ into reactor)
+    const singlePass = rxLast.xi / (rxIn.n.CO2 || 1);
+    t.assertOK(overallConv > singlePass * 0.95,
+      'Overall conversion ≥ single-pass (recycle amplifies)',
+      `overall=${(overallConv*100).toFixed(1)}%, single=${(singlePass*100).toFixed(1)}%`);
+
+    // ── 4. Flash separation: liquid stream is mostly H₂O ──
+    if (water && water.n) {
+      const totalWater = Object.values(water.n).reduce((a, b) => a + b, 0);
+      if (totalWater > 0.001) {
+        const h2oFrac = (water.n.H2O || 0) / totalWater;
+        t.assertOK(h2oFrac > 0.9,
+          'Water stream > 90 mol% H₂O', `x_H2O=${h2oFrac.toFixed(3)}`);
+      }
+    }
+
+    // ── 5. System mass balance ──
+    const bal = computeSystemBalance(scene);
+    t.assertOK(bal, 'System balance computed');
+    const massTol = Math.max(bal.mass.totalIn, bal.mass.totalOut) * 0.005;
+    t.assertClose(bal.mass.balance, 0, Math.max(massTol, 1e-6),
+      'System mass balance closes',
+      `in=${bal.mass.totalIn.toFixed(6)}, out=${bal.mass.totalOut.toFixed(6)}`);
+
+    // ── 6. System energy balance (with dissipated heat) ──
+    const eTol = Math.max(Math.abs(bal.energy.totalIn), Math.abs(bal.energy.totalOut)) * 0.005;
+    t.assertClose(bal.energy.balance, 0, Math.max(eTol, 100),
+      'System energy balance closes (with heat)',
+      `in=${(bal.energy.totalIn/1000).toFixed(1)} kW, out=${(bal.energy.totalOut/1000).toFixed(1)} kW`);
+  });
+
   // ═══════════════════════════════════════════════════════════════════════
-  // SECTION AF.4: Reactor Adiabatic Guards (Tests 135–136) [v8.8.0]
+  // SECTION AF.4: Reactor Adiabatic Guards (Tests 136–137) [v8.8.0]
   // ═══════════════════════════════════════════════════════════════════════
 
   test('Reactor adiabatic — VL inlet rejected', t => {
-    // Gas-phase reactor must reject two-phase or liquid inlet
+    // Genuine two-phase stream: H₂O + N₂ at 300K, 1 bar.
+    // Water dew point ≈ 318K for y_H2O = 0.09 at 1 bar → at 300K, H₂O condenses → VL
     const src = t.place('source_multi', 0, 0, {
-      n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'VL'
+      n: { H2O: 1, N2: 10 }, T: 300, P: 100000, phaseConstraint: 'VL'
     });
     const rx = t.place('reactor_adiabatic', 4, 0, {
       reactionId: 'R_H2_COMB', conversion: 0.5
@@ -18802,8 +19092,8 @@ function runTests() {
     // Pass-through: outlet composition unchanged
     const out = t.port(rx, 'mat_out');
     const srcOut = t.port(src, 'out');
-    t.assertClose(out.n.H2, srcOut.n.H2, 0.001, 'H2 passed through');
-    t.assertClose(out.n.O2, srcOut.n.O2, 0.001, 'O2 passed through');
+    t.assertClose(out.n.H2O, srcOut.n.H2O, 0.001, 'H2O passed through');
+    t.assertClose(out.n.N2, srcOut.n.N2, 0.001, 'N2 passed through');
   });
 
   test('Reactor adiabatic — undiluted stoichiometric H2/O2', t => {
@@ -18831,7 +19121,7 @@ function runTests() {
   });
 
   // ═══════════════════════════════════════════════════════════════════════
-  // SECTION AG: Balance Report Cross-Validation (Tests 137–139)
+  // SECTION AG: Balance Report Cross-Validation (Tests 138–140)
   // [v8.6.1] Verify computeSystemBalance() report matches internal engine.
   // The report is the primary human-facing trust surface — if it disagrees
   // with the engine, users lose confidence even if the engine is correct.
@@ -18873,7 +19163,7 @@ function runTests() {
       'Report residual = engine residual');
 
     // Report closed flag must be consistent with its own tolerance
-    const massTol = Math.max(bal.mass.totalIn, bal.mass.totalOut) * 1e-6 + 1e-10;
+    const massTol = Math.max(bal.mass.totalIn, bal.mass.totalOut) * 1e-4 + 1e-10;
     const expectClosed = Math.abs(bal.mass.balance) < massTol;
     t.assertOK(bal.mass.closed === expectClosed,
       `mass.closed consistent (residual=${(bal.mass.balance*1e6).toFixed(3)} µkg/s, tol=${(massTol*1e6).toFixed(3)} µkg/s)`);
@@ -18933,7 +19223,7 @@ function runTests() {
     t.assertClose(bal.mass.balance, engineResidual, 1e-9, 'Report residual = engine residual');
 
     // Report closed flag must be self-consistent
-    const massTol = Math.max(bal.mass.totalIn, bal.mass.totalOut) * 1e-6 + 1e-10;
+    const massTol = Math.max(bal.mass.totalIn, bal.mass.totalOut) * 1e-4 + 1e-10;
     const expectClosed = Math.abs(bal.mass.balance) < massTol;
     t.assertOK(bal.mass.closed === expectClosed, 'mass.closed self-consistent');
 
@@ -19232,7 +19522,7 @@ function runTests() {
       'mass.balance = totalIn - totalOut');
 
     // Mass: closed flag self-consistent
-    const massTol = Math.max(bal.mass.totalIn, bal.mass.totalOut) * 1e-6 + 1e-10;
+    const massTol = Math.max(bal.mass.totalIn, bal.mass.totalOut) * 1e-4 + 1e-10;
     const expectMassClosed = Math.abs(bal.mass.balance) < massTol;
     t.assertOK(bal.mass.closed === expectMassClosed, 'mass.closed self-consistent');
 

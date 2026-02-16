@@ -1,7 +1,34 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v8.9.1
+  processThis v8.9.2
+
+  ─── v8.9.2 ───────────────────────────────────────────────────────────────
+  Solver UI: full solver visualization and parameterization.
+  New Solver modal (☰ Menu → Solver, or ⚙ from right panel / top bar):
+  — Configuration: max iterations (10–500, slider+number), acceleration
+    method (Direct substitution / Wegstein dropdown), damping α (0.1–1.0
+    slider). "Apply & Re-solve" writes to scene.solverOptions and re-runs.
+  — Results: 2×2 grid of key numbers (status, iterations, method, α),
+    recycle loop count, tear stream count, Wegstein fallbacks.
+  — Topology table: SCC decomposition with unit names, cyclic/acyclic
+    flags, and tear stream identification (from → to with highlight tags).
+  — Diagnostics list: all unit errors/warnings from last solve, grouped
+    by severity with icons and full messages.
+  — Convergence warnings section for non-converged solves.
+  Right-panel solver summary strip (replaces old STATUS section):
+  — Compact "flight instruments": convergence badge, iteration count,
+    unit/connection/loop/tear counts, method, α, Wegstein fallbacks.
+  — Clickable ⚙ gear and "Solver Settings & Details" link → modal.
+  — Shown above system balance when nothing is selected.
+  Balance header: "N iter" badge (green/amber) in title row.
+  Top-bar status indicator revamp:
+  — Now shows iteration count ("Converged — 150 iter").
+  — ⚙ help button always visible, opens Solver modal on click.
+  — Status text also clickable → Solver modal.
+  Removed showDiagnosisDialog() — diagnostics consolidated into Solver
+  modal's Results section.
+  lastSolve now stores maxIter, ordering, and tears data for panel use.
 
   ─── v8.9.1 ───────────────────────────────────────────────────────────────
   Phase 4a: Sabatier methanation reaction (CO₂ + 4H₂ ⇌ CH₄ + 2H₂O).
@@ -1209,6 +1236,218 @@
       padding-top: 14px;
       border-top: 1px solid #2a2f3a;
     }
+
+    /* ===== SOLVER SUMMARY STRIP ===== */
+    .solverStrip {
+      border: 1px solid #2a2f3a;
+      border-radius: 12px;
+      background: #0b0e14;
+      padding: 10px 12px;
+      margin-bottom: 10px;
+      font-size: 11px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+    .solverStrip .solverHeader {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+    .solverStrip .solverTitle {
+      font-weight: 700;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      opacity: 0.7;
+    }
+    .solverStrip .solverGear {
+      cursor: pointer;
+      opacity: 0.5;
+      font-size: 14px;
+      transition: opacity 0.15s;
+      padding: 2px 4px;
+      border-radius: 4px;
+    }
+    .solverStrip .solverGear:hover {
+      opacity: 1;
+      background: #1e293b;
+    }
+    .solverStrip .solverBadge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    .solverStrip .solverBadge.ok { background: #064e3b; color: #6ee7b7; }
+    .solverStrip .solverBadge.warn { background: #78350f; color: #fbbf24; }
+    .solverStrip .solverBadge.fail { background: #7f1d1d; color: #fca5a5; }
+    .solverStrip .solverRow {
+      display: flex;
+      justify-content: space-between;
+      padding: 1px 0;
+      opacity: 0.75;
+    }
+    .solverStrip .solverRow .val {
+      font-weight: 600;
+      opacity: 1;
+    }
+    .solverStrip .solverLink {
+      display: block;
+      text-align: center;
+      margin-top: 6px;
+      padding-top: 6px;
+      border-top: 1px solid #1e293b;
+      color: #60a5fa;
+      cursor: pointer;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      opacity: 0.7;
+      transition: opacity 0.15s;
+    }
+    .solverStrip .solverLink:hover { opacity: 1; }
+
+    /* ===== SOLVER MODAL CONTENT ===== */
+    .solverConfig {
+      display: grid;
+      gap: 12px;
+      margin: 10px 0;
+    }
+    .solverConfigRow {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .solverConfigRow label {
+      font-size: 12px;
+      font-weight: 600;
+      min-width: 110px;
+    }
+    .solverConfigRow .inputGroup {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+      justify-content: flex-end;
+    }
+    .solverConfigRow input[type="number"] {
+      width: 72px;
+      background: #0f1420;
+      border: 1px solid #2a2f3a;
+      border-radius: 6px;
+      color: #e2e8f0;
+      padding: 5px 8px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 12px;
+      text-align: right;
+    }
+    .solverConfigRow input[type="range"] {
+      flex: 1;
+      max-width: 120px;
+      accent-color: #60a5fa;
+    }
+    .solverConfigRow select {
+      background: #0f1420;
+      border: 1px solid #2a2f3a;
+      border-radius: 6px;
+      color: #e2e8f0;
+      padding: 5px 8px;
+      font-size: 12px;
+    }
+    .solverConfigRow .valDisplay {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 12px;
+      font-weight: 600;
+      min-width: 36px;
+      text-align: right;
+    }
+    .solverApplyBtn {
+      display: block;
+      width: 100%;
+      margin-top: 8px;
+      padding: 8px;
+      background: #1d4ed8;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .solverApplyBtn:hover { background: #2563eb; }
+    .solverResultsGrid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      margin: 8px 0;
+    }
+    .solverResultCard {
+      background: #0f1420;
+      border: 1px solid #2a2f3a;
+      border-radius: 8px;
+      padding: 8px 10px;
+    }
+    .solverResultCard .rlabel {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      opacity: 0.6;
+      margin-bottom: 2px;
+    }
+    .solverResultCard .rvalue {
+      font-size: 14px;
+      font-weight: 700;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+    .sccTable {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      margin: 6px 0;
+    }
+    .sccTable th {
+      text-align: left;
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      opacity: 0.5;
+      padding: 4px 6px;
+      border-bottom: 1px solid #2a2f3a;
+    }
+    .sccTable td {
+      padding: 4px 6px;
+      border-bottom: 1px solid #1e293b;
+    }
+    .sccTable .cyclic { color: #fbbf24; }
+    .sccTable .acyclic { color: #6ee7b7; }
+    .sccTable .tearTag {
+      display: inline-block;
+      background: #78350f;
+      color: #fbbf24;
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-size: 9px;
+      font-weight: 600;
+      margin-left: 4px;
+    }
+    .diagItem {
+      padding: 6px 8px;
+      border-radius: 6px;
+      margin: 4px 0;
+      font-size: 11px;
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+    }
+    .diagItem.error { background: #7f1d1d33; border: 1px solid #7f1d1d; }
+    .diagItem.warn { background: #78350f33; border: 1px solid #78350f; }
+    .diagItem.minor { background: #1e293b; border: 1px solid #334155; }
+    .diagItem .diagIcon { flex-shrink: 0; }
     
     .controlsGrid {
       display: grid;
@@ -1276,7 +1515,7 @@
       <div id="statusIndicator" class="status-indicator" style="display:none;">
         <div class="status-icon"></div>
         <div class="status-text"></div>
-        <button class="status-help" title="Diagnosis">?</button>
+        <button class="status-help" title="Open Solver…">⚙</button>
       </div>
 
       <div class="menuWrap">
@@ -1286,6 +1525,7 @@
           <div class="item" id="mReactions">Reactions <span class="hint">library</span></div>
           <div class="item" id="mModels">Models <span class="hint">packages</span></div>
           <div class="item" id="mUnits">Units <span class="hint">display</span></div>
+          <div class="item" id="mSolver">Solver <span class="hint">configure</span></div>
           <div class="sep"></div>
           <div class="item" id="mLoadDemo">Load demo</div>
           <div class="item" id="mClear">Clear scene</div>
@@ -1340,6 +1580,16 @@
         <h3>Reaction Library</h3>
         <div class="small">Registered chemical reactions available for reactor units.</div>
         <div class="card" id="reactionsPanel" style="margin-top:10px; max-height:60vh; overflow-y:auto;"></div>
+      </div>
+    </div>
+
+    <!-- Solver modal -->
+    <div class="modal" id="modalSolver">
+      <div class="modalContent">
+        <button class="modalClose" onclick="document.getElementById('modalSolver').classList.remove('open')">×</button>
+        <h3>Solver</h3>
+        <div class="small">Configure iteration method and inspect convergence results.</div>
+        <div id="solverPanel" style="margin-top:10px; max-height:60vh; overflow-y:auto;"></div>
       </div>
     </div>
 
@@ -9688,7 +9938,11 @@ function solveScene(scene, options = {}) {
     tearCount: tears.length,
     wegsteinFallbacks: wegsteinFallbackCount,
     // [v5.4.2] Exception containment
-    unitFaulted
+    unitFaulted,
+    // [v8.9.1] Topology + tear stream data for solver panel
+    maxIter: MAX_ITER,
+    ordering,
+    tears
   };
   
   // Diagnose errors and determine overall status
@@ -9829,14 +10083,16 @@ function updateStatusIndicator(solveResult) {
     // Convergence failure
     indicator.classList.add('critical');
     icon.textContent = '💥';
-    text.textContent = 'Convergence Failed';
+    text.textContent = `Convergence Failed (${solveResult.iterations} iter)`;
     helpBtn.style.display = 'flex';
+    helpBtn.title = 'Open Solver…';
   } else if (!solveResult.hasErrors) {
     // Success
     indicator.classList.add('success');
     icon.textContent = '✓';
-    text.textContent = 'All Systems Operational';
-    helpBtn.style.display = 'none';
+    text.textContent = `Converged — ${solveResult.iterations} iter`;
+    helpBtn.style.display = 'flex';
+    helpBtn.title = 'Open Solver…';
   } else {
     // Has errors - determine severity
     const maxLevel = solveResult.maxSeverity;
@@ -9856,202 +10112,12 @@ function updateStatusIndicator(solveResult) {
     }
     
     helpBtn.style.display = 'flex';
+    helpBtn.title = 'Open Solver…';
   }
 }
 
-// Show diagnosis dialog
-function showDiagnosisDialog() {
-  const diagnostics = scene.runtime.diagnostics || [];
-  
-  if (diagnostics.length === 0) {
-    alert('No issues detected in the current simulation.');
-    return;
-  }
-  
-  // Create modal dialog
-  const modal = document.createElement('div');
-  modal.style.cssText = `
-    position: fixed;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(0,0,0,0.8);
-    z-index: 1000;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
-  `;
-  
-  const dialog = document.createElement('div');
-  dialog.style.cssText = `
-    background: #1a1f2e;
-    border: 2px solid #2a2f3a;
-    border-radius: 16px;
-    max-width: 700px;
-    width: 100%;
-    max-height: 80vh;
-    overflow-y: auto;
-    padding: 24px;
-    color: #e7e7e7;
-  `;
-  
-  // Header
-  const header = document.createElement('div');
-  header.style.cssText = `
-    font-size: 20px;
-    font-weight: 700;
-    margin-bottom: 20px;
-    padding-bottom: 16px;
-    border-bottom: 2px solid #2a2f3a;
-  `;
-  header.textContent = `🔍 Diagnosis Report (${diagnostics.length} issue${diagnostics.length > 1 ? 's' : ''})`;
-  dialog.appendChild(header);
-  
-  // Group diagnostics by severity
-  const critical = diagnostics.filter(d => d.severity.level === ErrorSeverity.CATASTROPHIC.level);
-  const major = diagnostics.filter(d => d.severity.level === ErrorSeverity.MAJOR.level);
-  const minor = diagnostics.filter(d => d.severity.level === ErrorSeverity.MINOR.level);
-  
-  const groups = [
-    { name: 'CATASTROPHIC FAILURES', items: critical, color: '#ef4444', icon: '💥' },
-    { name: 'MAJOR DAMAGE', items: major, color: '#f97316', icon: '🔧' },
-    { name: 'WARNINGS', items: minor, color: '#fbbf24', icon: '⚠️' }
-  ];
-  
-  for (const group of groups) {
-    if (group.items.length === 0) continue;
-    
-    const groupHeader = document.createElement('div');
-    groupHeader.style.cssText = `
-      font-size: 14px;
-      font-weight: 700;
-      color: ${group.color};
-      margin: 20px 0 12px 0;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    `;
-    groupHeader.textContent = `${group.icon} ${group.name}`;
-    dialog.appendChild(groupHeader);
-    
-    for (const diag of group.items) {
-      const issueBox = document.createElement('div');
-      issueBox.style.cssText = `
-        background: ${group.color}11;
-        border: 2px solid ${group.color};
-        border-radius: 12px;
-        padding: 16px;
-        margin-bottom: 12px;
-      `;
-      
-      // Unit name
-      const unitName = document.createElement('div');
-      unitName.style.cssText = `
-        font-weight: 700;
-        font-size: 15px;
-        margin-bottom: 8px;
-        color: ${group.color};
-      `;
-      unitName.textContent = `${diag.unitName}`;
-      issueBox.appendChild(unitName);
-      
-      // Title
-      const title = document.createElement('div');
-      title.style.cssText = `
-        font-weight: 600;
-        font-size: 14px;
-        margin-bottom: 8px;
-      `;
-      title.textContent = diag.title;
-      issueBox.appendChild(title);
-      
-      // Explanation
-      const explanation = document.createElement('div');
-      explanation.style.cssText = `
-        font-size: 13px;
-        line-height: 1.5;
-        opacity: 0.9;
-        margin-bottom: 12px;
-      `;
-      explanation.textContent = diag.explanation;
-      issueBox.appendChild(explanation);
-      
-      // Causes
-      if (diag.causes && diag.causes.length > 0) {
-        const causesTitle = document.createElement('div');
-        causesTitle.style.cssText = `
-          font-weight: 600;
-          font-size: 12px;
-          margin: 12px 0 6px 0;
-          opacity: 0.8;
-        `;
-        causesTitle.textContent = 'POSSIBLE CAUSES:';
-        issueBox.appendChild(causesTitle);
-        
-        const causesList = document.createElement('ul');
-        causesList.style.cssText = `
-          margin: 0;
-          padding-left: 20px;
-          font-size: 12px;
-          line-height: 1.6;
-          opacity: 0.8;
-        `;
-        for (const cause of diag.causes) {
-          const li = document.createElement('li');
-          li.textContent = cause;
-          causesList.appendChild(li);
-        }
-        issueBox.appendChild(causesList);
-      }
-      
-      // Fixes
-      if (diag.fixes && diag.fixes.length > 0) {
-        const fixesTitle = document.createElement('div');
-        fixesTitle.style.cssText = `
-          font-weight: 600;
-          font-size: 12px;
-          margin: 12px 0 6px 0;
-          color: #22c55e;
-        `;
-        fixesTitle.textContent = '✓ SUGGESTED FIXES:';
-        issueBox.appendChild(fixesTitle);
-        
-        const fixesList = document.createElement('ul');
-        fixesList.style.cssText = `
-          margin: 0;
-          padding-left: 20px;
-          font-size: 12px;
-          line-height: 1.6;
-          color: #4ade80;
-        `;
-        for (const fix of diag.fixes) {
-          const li = document.createElement('li');
-          li.textContent = fix;
-          fixesList.appendChild(li);
-        }
-        issueBox.appendChild(fixesList);
-      }
-      
-      dialog.appendChild(issueBox);
-    }
-  }
-  
-  // Close button
-  const closeBtn = document.createElement('button');
-  closeBtn.textContent = 'Close';
-  closeBtn.className = 'btn primary';
-  closeBtn.style.cssText = `
-    margin-top: 20px;
-    width: 100%;
-  `;
-  closeBtn.onclick = () => modal.remove();
-  dialog.appendChild(closeBtn);
-  
-  modal.appendChild(dialog);
-  modal.onclick = (e) => {
-    if (e.target === modal) modal.remove();
-  };
-  
-  document.body.appendChild(modal);
-}
+// [v8.9.1] showDiagnosisDialog superseded by openSolverModal() — diagnostics
+// are now displayed in the Solver modal's Results section.
 
 /* =========================
    UI STATE
@@ -10087,41 +10153,318 @@ const modalModels = document.getElementById('modalModels');
 const modalUnits = document.getElementById('modalUnits');
 const modalComponents = document.getElementById('modalComponents');
 const modalReactions = document.getElementById('modalReactions');
+const modalSolver = document.getElementById('modalSolver');
 const modelsPanelEl = document.getElementById('modelsPanel');
 const componentsPanelEl = document.getElementById('componentsPanel');
 const reactionsPanelEl = document.getElementById('reactionsPanel');
+const solverPanelEl = document.getElementById('solverPanel');
 
-// Status is now managed within propEditor
+// Status is now a transient toast — solver info lives in the summary strip
 let statusSection = null;
 let statusContent = null;
 
 /* =========================
-   STREAM CALCULATIONS
-   Helper functions for stream property calculations
+   SOLVER SUMMARY STRIP — shown above balance in right panel
    ========================= */
-function calculateStreamFlowrates(stream) {
-  if (!stream || stream.type !== StreamType.MATERIAL) return null;
+function buildSolverSummary(container) {
+  const ls = scene.runtime?.lastSolve;
+  if (!ls || !scene.units.size) return;
+
+  const strip = el('div', { class: 'solverStrip' });
+
+  // Header: "Solver" + ⚙ gear
+  const hdr = el('div', { class: 'solverHeader' });
+  hdr.appendChild(el('span', { class: 'solverTitle', html: 'Solver' }));
+  const gear = el('span', { class: 'solverGear', html: '⚙' });
+  gear.title = 'Solver settings…';
+  gear.addEventListener('click', openSolverModal);
+  hdr.appendChild(gear);
+  strip.appendChild(hdr);
+
+  // Badge: convergence status
+  const converged = ls.ok;
+  const badgeClass = converged ? 'ok' : (ls.unitFaulted ? 'fail' : 'warn');
+  const badgeText = converged
+    ? `✓ Converged`
+    : (ls.unitFaulted ? '✗ Unit faulted' : `⚠ Did not converge`);
+  const iterText = converged
+    ? `${ls.iterations} iteration${ls.iterations !== 1 ? 's' : ''}`
+    : `${ls.iterations}/${ls.maxIter} iterations`;
   
-  // [v5.5.1] Coerce + guard every component flow before summation
-  let nTotal = 0;
-  for (const [comp, val] of Object.entries(stream.n || {})) {
-    const n = Number(val);
-    nTotal += Number.isFinite(n) ? n : 0;
-  }
-  
-  // Mass flowrate (kg/s) using thermo adapter — guard output
-  let mTotal = thermo.streamMassFlow(stream);
-  if (!Number.isFinite(mTotal)) mTotal = 0;
-  
-  // Volumetric flowrate (m³/s) — guard output
-  let vTotal = thermo.streamVolFlow_m3ps(stream);
-  if (!Number.isFinite(vTotal)) vTotal = 0;
-  
-  return { nTotal, mTotal, vTotal };
+  const badgeRow = el('div', { style: 'display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;' });
+  badgeRow.appendChild(el('span', { class: `solverBadge ${badgeClass}`, html: badgeText }));
+  badgeRow.appendChild(el('span', {
+    style: 'font-weight:600; font-size:11px; opacity:0.8;',
+    html: iterText
+  }));
+  strip.appendChild(badgeRow);
+
+  // Topology row
+  const cyclicSCCs = ls.ordering?.sccs?.filter(s => s.isCyclic) || [];
+  const loopCount = cyclicSCCs.length;
+  const tearCount = ls.tearCount || 0;
+  const loopText = loopCount > 0
+    ? `${loopCount} recycle loop${loopCount > 1 ? 's' : ''} · ${tearCount} tear${tearCount !== 1 ? 's' : ''}`
+    : 'No recycle loops';
+
+  const row1 = el('div', { class: 'solverRow' });
+  row1.appendChild(el('span', { html: `${scene.units.size} units · ${scene.connections.length} connections` }));
+  strip.appendChild(row1);
+
+  const row2 = el('div', { class: 'solverRow' });
+  row2.appendChild(el('span', { html: loopText }));
+  strip.appendChild(row2);
+
+  // Method row
+  const methodName = ls.acceleration === 'wegstein' ? 'Wegstein' : 'Direct substitution';
+  const alphaText = ls.alpha < 1 ? ` · α = ${ls.alpha}` : '';
+  const fbText = ls.wegsteinFallbacks > 0 ? ` · ${ls.wegsteinFallbacks} fallback${ls.wegsteinFallbacks > 1 ? 's' : ''}` : '';
+  const row3 = el('div', { class: 'solverRow' });
+  row3.appendChild(el('span', { html: methodName + alphaText + fbText }));
+  strip.appendChild(row3);
+
+  // Link to solver modal
+  const link = el('div', { class: 'solverLink', html: '⚙ Solver Settings & Details' });
+  link.addEventListener('click', openSolverModal);
+  strip.appendChild(link);
+
+  container.appendChild(strip);
 }
 
 /* =========================
-   UI HELPER FUNCTIONS
+   SOLVER MODAL — Configuration + Results
+   ========================= */
+function openSolverModal() {
+  buildSolverPanel();
+  modalSolver.classList.add('open');
+  closeMenus();
+}
+
+function buildSolverPanel() {
+  solverPanelEl.innerHTML = '';
+  const ls = scene.runtime?.lastSolve;
+  const opts = scene.solverOptions || {};
+
+  // ── Configuration Section ──
+  const configCard = el('div', { class: 'card', style: 'margin-bottom:10px;' });
+  configCard.appendChild(el('div', {
+    style: 'font-weight:700; font-size:12px; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px; opacity:0.7;',
+    html: 'Configuration'
+  }));
+
+  const configGrid = el('div', { class: 'solverConfig' });
+
+  // Max iterations
+  const iterRow = el('div', { class: 'solverConfigRow' });
+  iterRow.appendChild(el('label', { html: 'Max iterations' }));
+  const iterGroup = el('div', { class: 'inputGroup' });
+  const iterSlider = document.createElement('input');
+  iterSlider.type = 'range'; iterSlider.min = '10'; iterSlider.max = '500'; iterSlider.step = '10';
+  iterSlider.value = String(opts.maxIter || 50);
+  const iterNum = document.createElement('input');
+  iterNum.type = 'number'; iterNum.min = '10'; iterNum.max = '500'; iterNum.step = '10';
+  iterNum.value = String(opts.maxIter || 50);
+  iterSlider.addEventListener('input', () => { iterNum.value = iterSlider.value; });
+  iterNum.addEventListener('input', () => { iterSlider.value = iterNum.value; });
+  iterGroup.appendChild(iterSlider);
+  iterGroup.appendChild(iterNum);
+  iterRow.appendChild(iterGroup);
+  configGrid.appendChild(iterRow);
+
+  // Acceleration method
+  const accelRow = el('div', { class: 'solverConfigRow' });
+  accelRow.appendChild(el('label', { html: 'Acceleration' }));
+  const accelGroup = el('div', { class: 'inputGroup' });
+  const accelSel = document.createElement('select');
+  [['none', 'Direct substitution'], ['wegstein', 'Wegstein']].forEach(([v, t]) => {
+    const o = document.createElement('option');
+    o.value = v; o.textContent = t;
+    if ((opts.acceleration || 'none') === v) o.selected = true;
+    accelSel.appendChild(o);
+  });
+  accelGroup.appendChild(accelSel);
+  accelRow.appendChild(accelGroup);
+  configGrid.appendChild(accelRow);
+
+  // Damping alpha
+  const alphaRow = el('div', { class: 'solverConfigRow' });
+  alphaRow.appendChild(el('label', { html: 'Damping α' }));
+  const alphaGroup = el('div', { class: 'inputGroup' });
+  const alphaSlider = document.createElement('input');
+  alphaSlider.type = 'range'; alphaSlider.min = '0.1'; alphaSlider.max = '1.0'; alphaSlider.step = '0.05';
+  alphaSlider.value = String(opts.alpha ?? 1.0);
+  const alphaDisp = el('span', { class: 'valDisplay', html: (opts.alpha ?? 1.0).toFixed(2) });
+  alphaSlider.addEventListener('input', () => { alphaDisp.textContent = Number(alphaSlider.value).toFixed(2); });
+  alphaGroup.appendChild(alphaSlider);
+  alphaGroup.appendChild(alphaDisp);
+  alphaRow.appendChild(alphaGroup);
+  configGrid.appendChild(alphaRow);
+
+  configCard.appendChild(configGrid);
+
+  // Apply button
+  const applyBtn = document.createElement('button');
+  applyBtn.className = 'solverApplyBtn';
+  applyBtn.textContent = '▶ Apply & Re-solve';
+  applyBtn.addEventListener('click', () => {
+    const newMaxIter = Math.max(10, Math.min(500, parseInt(iterNum.value) || 50));
+    const newAccel = accelSel.value;
+    const newAlpha = Math.max(0.1, Math.min(1.0, parseFloat(alphaSlider.value) || 1.0));
+    scene.solverOptions = { maxIter: newMaxIter, acceleration: newAccel, alpha: newAlpha };
+    const solveResult = solveScene(scene);
+    updateStatusIndicator(solveResult);
+    updatePropertiesPanel();
+    render();
+    buildSolverPanel();  // Refresh results in modal
+  });
+  configCard.appendChild(applyBtn);
+  solverPanelEl.appendChild(configCard);
+
+  // ── Results Section ──
+  if (ls) {
+    const resultsCard = el('div', { class: 'card' });
+    resultsCard.appendChild(el('div', {
+      style: 'font-weight:700; font-size:12px; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px; opacity:0.7;',
+      html: 'Last Solve Results'
+    }));
+
+    // Results grid: 4 key numbers
+    const rGrid = el('div', { class: 'solverResultsGrid' });
+
+    const converged = ls.ok;
+    const statusColor = converged ? '#6ee7b7' : '#fca5a5';
+    const statusText = converged ? 'Converged' : (ls.unitFaulted ? 'Faulted' : 'Not converged');
+
+    rGrid.appendChild(makeResultCard('Status', statusText, statusColor));
+    rGrid.appendChild(makeResultCard('Iterations', `${ls.iterations}` + (converged ? '' : ` / ${ls.maxIter}`)));
+    rGrid.appendChild(makeResultCard('Method',
+      ls.acceleration === 'wegstein' ? 'Wegstein' : 'Direct sub.'));
+    rGrid.appendChild(makeResultCard('Damping α', ls.alpha?.toFixed(2) || '1.00'));
+    resultsCard.appendChild(rGrid);
+
+    const rGrid2 = el('div', { class: 'solverResultsGrid', style: 'margin-top:2px;' });
+    const cyclicSCCs = ls.ordering?.sccs?.filter(s => s.isCyclic) || [];
+    rGrid2.appendChild(makeResultCard('Recycle loops', String(cyclicSCCs.length)));
+    rGrid2.appendChild(makeResultCard('Tear streams', String(ls.tearCount || 0)));
+    if (ls.acceleration === 'wegstein') {
+      rGrid2.appendChild(makeResultCard('Fallbacks', String(ls.wegsteinFallbacks || 0)));
+    }
+    if (ls.unitFaulted) {
+      rGrid2.appendChild(makeResultCard('Unit faulted', 'Yes', '#fca5a5'));
+    }
+    resultsCard.appendChild(rGrid2);
+
+    // ── SCC Topology Table ──
+    if (ls.ordering?.sccs?.length > 0) {
+      resultsCard.appendChild(el('div', {
+        style: 'font-weight:600; font-size:11px; margin:12px 0 4px; opacity:0.7;',
+        html: 'Topology — Strongly Connected Components'
+      }));
+
+      const table = el('table', { class: 'sccTable' });
+      const thead = el('thead');
+      const headRow = el('tr');
+      ['#', 'Units', 'Type', 'Tear streams'].forEach(h => {
+        headRow.appendChild(el('th', { html: h }));
+      });
+      thead.appendChild(headRow);
+      table.appendChild(thead);
+
+      const tbody = el('tbody');
+      ls.ordering.sccs.forEach((scc, i) => {
+        const tr = el('tr');
+
+        // Index
+        tr.appendChild(el('td', { html: String(i + 1), style: 'opacity:0.5;' }));
+
+        // Members with names
+        const memberNames = scc.members.map(mid => {
+          const u = scene.units.get(mid);
+          const def = UnitRegistry.get(u?.defId);
+          return u?.name || def?.name || mid;
+        });
+        tr.appendChild(el('td', { html: memberNames.join(', ') }));
+
+        // Cyclic flag
+        const typeClass = scc.isCyclic ? 'cyclic' : 'acyclic';
+        const typeLabel = scc.isCyclic ? 'Recycle' : 'Acyclic';
+        tr.appendChild(el('td', { class: typeClass, html: typeLabel }));
+
+        // Tear streams for this SCC
+        const sccTears = (ls.tears || []).filter(t => {
+          return scc.members.includes(t.fromUnitId) && scc.members.includes(t.toUnitId);
+        });
+        const tearCell = el('td');
+        if (sccTears.length > 0) {
+          sccTears.forEach(t => {
+            const fromName = scene.units.get(t.fromUnitId)?.name || t.fromUnitId;
+            const toName = scene.units.get(t.toUnitId)?.name || t.toUnitId;
+            const tag = el('span', { class: 'tearTag', html: `${fromName} → ${toName}` });
+            tearCell.appendChild(tag);
+          });
+        } else {
+          tearCell.appendChild(el('span', { style: 'opacity:0.3;', html: '—' }));
+        }
+        tr.appendChild(tearCell);
+
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody);
+      resultsCard.appendChild(table);
+    }
+
+    // ── Diagnostics list ──
+    const diags = scene.runtime?.diagnostics || [];
+    if (diags.length > 0) {
+      resultsCard.appendChild(el('div', {
+        style: 'font-weight:600; font-size:11px; margin:12px 0 4px; opacity:0.7;',
+        html: `Diagnostics — ${diags.length} issue${diags.length > 1 ? 's' : ''}`
+      }));
+
+      const diagList = el('div');
+      for (const d of diags) {
+        const level = d.severity?.level ?? 0;
+        const cls = level >= 3 ? 'error' : (level >= 2 ? 'warn' : 'minor');
+        const icon = level >= 3 ? '🔧' : (level >= 2 ? '⚠' : 'ℹ');
+        const item = el('div', { class: `diagItem ${cls}` });
+        item.appendChild(el('span', { class: 'diagIcon', html: icon }));
+        item.appendChild(el('div', {
+          html: `<b>${d.unitName || '?'}</b> — ${d.originalMessage || d.explanation || '?'}`
+        }));
+        diagList.appendChild(item);
+      }
+      resultsCard.appendChild(diagList);
+    }
+
+    // Warnings
+    if (ls.warnings?.length > 0 && !ls.ok) {
+      resultsCard.appendChild(el('div', {
+        style: 'font-weight:600; font-size:11px; margin:12px 0 4px; opacity:0.7;',
+        html: 'Warnings'
+      }));
+      ls.warnings.forEach(w => {
+        resultsCard.appendChild(el('div', {
+          class: 'diagItem warn',
+          html: `<span class="diagIcon">⚠</span><div>${w}</div>`
+        }));
+      });
+    }
+
+    solverPanelEl.appendChild(resultsCard);
+  }
+}
+
+function makeResultCard(label, value, color) {
+  const card = el('div', { class: 'solverResultCard' });
+  card.appendChild(el('div', { class: 'rlabel', html: label }));
+  const valEl = el('div', { class: 'rvalue', html: value });
+  if (color) valEl.style.color = color;
+  card.appendChild(valEl);
+  return card;
+}
+
+/* =========================
+   STATUS — Transient messages (connect, import, export, etc.)
    ========================= */
 function setStatus(s) {
   // Create status section if it doesn't exist
@@ -10156,6 +10499,43 @@ function setStatus(s) {
     statusContent.classList.remove('collapsed');
   }
 }
+
+function describeSolve() {
+  const ls = scene.runtime.lastSolve;
+  if (!scene.units.size) return 'Empty scene.';
+  return ls.ok
+    ? `Converged in ${ls.iterations} iteration(s)`
+    : `Did not converge — ${ls.warnings?.join(' | ') || 'max iterations reached'}`;
+}
+
+/* =========================
+   STREAM CALCULATIONS
+   Helper functions for stream property calculations
+   ========================= */
+function calculateStreamFlowrates(stream) {
+  if (!stream || stream.type !== StreamType.MATERIAL) return null;
+  
+  // [v5.5.1] Coerce + guard every component flow before summation
+  let nTotal = 0;
+  for (const [comp, val] of Object.entries(stream.n || {})) {
+    const n = Number(val);
+    nTotal += Number.isFinite(n) ? n : 0;
+  }
+  
+  // Mass flowrate (kg/s) using thermo adapter — guard output
+  let mTotal = thermo.streamMassFlow(stream);
+  if (!Number.isFinite(mTotal)) mTotal = 0;
+  
+  // Volumetric flowrate (m³/s) — guard output
+  let vTotal = thermo.streamVolFlow_m3ps(stream);
+  if (!Number.isFinite(vTotal)) vTotal = 0;
+  
+  return { nTotal, mTotal, vTotal };
+}
+
+/* =========================
+   UI HELPER FUNCTIONS
+   ========================= */
 
 function closeMenus() {
   menuMain.classList.remove('open');
@@ -13777,6 +14157,10 @@ function updatePropertiesPanel() {
   const balance = computeSystemBalance(scene);
   
   if (!balance || (balance.mass.inItems.length === 0 && balance.energy.in.items.length === 0)) {
+    // Even with no balance data, show solver strip if we have a scene
+    if (scene.units.size > 0) {
+      buildSolverSummary(propEditor);
+    }
     const emptyDiv = el('div', { 
       class: 'small', 
       style: 'padding:40px 20px; text-align:center; opacity:0.5;',
@@ -13786,11 +14170,22 @@ function updatePropertiesPanel() {
     return;
   }
 
-  // ── Header ──
+  // ── Solver Summary Strip ──
+  buildSolverSummary(propEditor);
+
+  // ── Balance Header ──
+  const ls = scene.runtime?.lastSolve;
   const headerDiv = el('div', { class: 'unitHeader' });
-  headerDiv.appendChild(el('div', { class: 'unitTitle' }, [
-    el('span', { html: 'System Balance' })
-  ]));
+  const titleRow = el('div', { class: 'unitTitle', style: 'display:flex; justify-content:space-between; align-items:center;' });
+  titleRow.appendChild(el('span', { html: 'System Balance' }));
+  if (ls) {
+    const iterBadge = el('span', {
+      style: `font-size:10px; font-weight:600; padding:2px 6px; border-radius:4px; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; background:${ls.ok ? '#064e3b' : '#78350f'}; color:${ls.ok ? '#6ee7b7' : '#fbbf24'};`,
+      html: `${ls.iterations} iter`
+    });
+    titleRow.appendChild(iterBadge);
+  }
+  headerDiv.appendChild(titleRow);
   headerDiv.appendChild(el('div', { 
     class: 'unitSubtitle', 
     html: 'Flowsheet boundary audit' 
@@ -13914,20 +14309,6 @@ function updatePropertiesPanel() {
 
     propEditor.appendChild(enSection.section);
   }
-}
-
-function describeSolve() {
-  const ls = scene.runtime.lastSolve;
-  if (!scene.units.size) return 'Empty scene.';
-  
-  let txt = ls.ok 
-    ? `✅ Converged in ${ls.iterations} iteration(s)\n` 
-    : `⚠ ${ls.warnings.join(' | ')}\n`;
-  txt += `Units: ${scene.units.size} · Connections: ${scene.connections.length}\n`;
-  txt += `Models: ` + Object.entries(models.active)
-    .map(([k, v]) => `${k}:${v}`)
-    .join(' · ');
-  return txt;
 }
 
 /* =========================
@@ -14132,7 +14513,17 @@ const statusHelp = document.querySelector('.status-help');
 if (statusHelp) {
   statusHelp.addEventListener('click', (ev) => {
     ev.stopPropagation();
-    showDiagnosisDialog();
+    openSolverModal();
+  });
+}
+
+// Status indicator text area → also opens solver modal
+const statusTextEl = document.querySelector('.status-text');
+if (statusTextEl) {
+  statusTextEl.style.cursor = 'pointer';
+  statusTextEl.addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    openSolverModal();
   });
 }
 
@@ -14188,6 +14579,10 @@ document.getElementById('mUnits').addEventListener('click', () => {
   closeMenus();
 });
 
+document.getElementById('mSolver').addEventListener('click', () => {
+  openSolverModal();
+});
+
 // Close modals when clicking outside
 modalModels.addEventListener('click', (ev) => {
   if (ev.target === modalModels) {
@@ -14210,6 +14605,12 @@ modalComponents.addEventListener('click', (ev) => {
 modalReactions.addEventListener('click', (ev) => {
   if (ev.target === modalReactions) {
     modalReactions.classList.remove('open');
+  }
+});
+
+modalSolver.addEventListener('click', (ev) => {
+  if (ev.target === modalSolver) {
+    modalSolver.classList.remove('open');
   }
 });
 
@@ -14411,7 +14812,7 @@ function loadDemo() {
   document.getElementById('processNameInput').value = scene.processName;
   buildModelsPanel();
   const solveResult = solveScene(scene);
-  setStatus(describeSolve() + "\nDemo: Sabatier CO₂ methanation — equilibrium reactor (900 K, 10 bar) with recycle loop.");
+  setStatus("Demo loaded: Sabatier CO₂ methanation with recycle loop.");
   updateStatusIndicator(solveResult);
   
   updatePropertiesPanel();
