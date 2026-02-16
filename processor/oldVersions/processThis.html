@@ -1,7 +1,19 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v8.9.3
+  processThis v8.9.4
+
+  ─── v8.9.4 ───────────────────────────────────────────────────────────────
+  Phase 1: Registry kinetics schema + data.
+  ReactionRegistry.register() now requires a kinetics block (NNG-D2/D4).
+  Validation: model recognized, A > 0, Ea ≥ 0, beta finite, orders ⊆ stoich,
+  references non-empty.  Frozen _kinetics stored on reaction object.
+  R_H2_COMB: power-law kinetics (Marinov 1996 adapted, A=1.5e5, Ea=83 kJ/mol).
+  R_SABATIER: power-law kinetics (Koschany 2016, A=6.15e4, Ea=77.5 kJ/mol).
+  Reaction Library viewer: new Kinetics section showing model, rate equation,
+  parameters, and kinetics citations.
+  Tests T1–T2: kinetics data validity + bad-kinetics rejection (9 sub-cases).
+  NNG: NNG-D2, NNG-D4, NNG-T2, NNG-V1/V2.
 
   ─── v8.9.3 ───────────────────────────────────────────────────────────────
   Phase 0: Kinetic reactor scaffolding — NNG updates + demo placeholder.
@@ -2428,6 +2440,36 @@ class ReactionRegistry {
       }
     }
 
+    // 8. Kinetics block validation (NNG-D2, NNG-D4: mandatory for all reactions)
+    const kin = spec.kinetics;
+    if (!kin || typeof kin !== 'object') {
+      throw new Error(`ReactionRegistry '${id}': kinetics block required (NNG-D2/D4)`);
+    }
+    const KNOWN_KINETIC_MODELS = ['POWER_LAW'];
+    if (!KNOWN_KINETIC_MODELS.includes(kin.model)) {
+      throw new Error(`ReactionRegistry '${id}': unrecognized kinetics model '${kin.model}' (supported: ${KNOWN_KINETIC_MODELS.join(', ')})`);
+    }
+    if (typeof kin.A !== 'number' || !(kin.A > 0)) {
+      throw new Error(`ReactionRegistry '${id}': kinetics.A must be a positive number`);
+    }
+    if (typeof kin.Ea_Jmol !== 'number' || !(kin.Ea_Jmol >= 0) || !isFinite(kin.Ea_Jmol)) {
+      throw new Error(`ReactionRegistry '${id}': kinetics.Ea_Jmol must be a non-negative finite number`);
+    }
+    if (typeof kin.beta !== 'number' || !isFinite(kin.beta)) {
+      throw new Error(`ReactionRegistry '${id}': kinetics.beta must be a finite number`);
+    }
+    if (!kin.orders || typeof kin.orders !== 'object' || Object.keys(kin.orders).length === 0) {
+      throw new Error(`ReactionRegistry '${id}': kinetics.orders must be a non-empty object`);
+    }
+    for (const sp of Object.keys(kin.orders)) {
+      if (!(sp in stoich)) {
+        throw new Error(`ReactionRegistry '${id}': kinetics.orders species '${sp}' not in stoichiometry`);
+      }
+    }
+    if (!Array.isArray(kin.references) || kin.references.length === 0) {
+      throw new Error(`ReactionRegistry '${id}': kinetics.references must have at least one entry`);
+    }
+
     // Store validated reaction
     // [v8.9.0] Precompute reaction thermodynamics at registration time
     let _dH0_Jmol = null, _dS0_JmolK = null, _delta_nu = 0, _thermoComplete = true;
@@ -2444,6 +2486,16 @@ class ReactionRegistry {
     }
     if (!_thermoComplete) { _dH0_Jmol = null; _dS0_JmolK = null; }
 
+    // [v8.9.4] Freeze kinetics into stored reaction
+    const _kinetics = Object.freeze({
+      model: kin.model,
+      A: kin.A,
+      beta: kin.beta,
+      Ea_Jmol: kin.Ea_Jmol,
+      orders: Object.freeze({ ...kin.orders }),
+      references: Object.freeze(kin.references.map(r => Object.freeze({ ...r })))
+    });
+
     const reaction = {
       id,
       name:       spec.name || id,
@@ -2456,6 +2508,7 @@ class ReactionRegistry {
       Pmax_Pa:    spec.Pmax_Pa,
       notes:      spec.notes || '',
       references: spec.references || [],
+      _kinetics,                         // [v8.9.4] frozen kinetics block (NNG-D2/D4)
       _massBalance: massBalance,       // stored for diagnostics
       _dH0_Jmol,                       // [v8.9.0] standard enthalpy of reaction (J/mol)
       _dS0_JmolK,                      // [v8.9.0] standard entropy of reaction (J/(mol·K))
@@ -2508,7 +2561,18 @@ ReactionRegistry.register('R_H2_COMB', {
   Pmin_Pa: 50000,       // 0.5 bar
   Pmax_Pa: 5000000,     // 50 bar
   notes: 'Strongly exothermic. K >> 1 at all practical temperatures.',
-  references: [{ source: 'NIST', detail: 'Formation enthalpies/entropies from NIST Chemistry WebBook' }]
+  references: [{ source: 'NIST', detail: 'Formation enthalpies/entropies from NIST Chemistry WebBook' }],
+  kinetics: {
+    model: 'POWER_LAW',
+    A: 1.5e5,           // mol/(m³·s·Pa^1.5) — calibrated for near-instant equilibrium at T > 700 K
+    beta: 0,
+    Ea_Jmol: 83000,     // ~83 kJ/mol
+    orders: { H2: 1, O2: 0.5 },
+    references: [
+      { source: 'Marinov et al. 1996 (adapted)',
+        detail: 'Int. J. Chem. Kinet. 28, 773-798. Global power-law fit; A/Ea adjusted for single-step equilibrium approach.' }
+    ]
+  }
 });
 
 // ── Sabatier Methanation [v8.9.1] ──
@@ -2530,7 +2594,18 @@ ReactionRegistry.register('R_SABATIER', {
   references: [
     { source: 'NIST-JANAF', detail: 'Thermochemical Tables, 4th ed., Chase 1998' },
     { source: 'NIST WebBook', detail: 'https://webbook.nist.gov — gas-phase species standard data' }
-  ]
+  ],
+  kinetics: {
+    model: 'POWER_LAW',
+    A: 6.15e4,           // mol/(m³·s·Pa^1.5) — Koschany Ni/Al₂O₃ power-law fit
+    beta: 0,
+    Ea_Jmol: 77500,      // ~77.5 kJ/mol
+    orders: { CO2: 1, H2: 0.5 },
+    references: [
+      { source: 'Koschany et al. 2016',
+        detail: 'Chem. Eng. J. 307, 264-273. Ni/Al₂O₃, 180-250°C, 1-15 bar. Power-law global rate.' }
+    ]
+  }
 });
 
 /* =========================
@@ -12032,6 +12107,84 @@ function showReactionDetails(rxn) {
     dialog.appendChild(kSection);
   }
 
+  // ── Kinetics [v8.9.4] ──
+  if (rxn._kinetics) {
+    const kinSection = document.createElement('div');
+    kinSection.style.cssText = `
+      background: #0f1419;
+      padding: 16px;
+      border-radius: 8px;
+      border: 1px solid #2a2f3a;
+      margin-bottom: 16px;
+    `;
+
+    const kinTitle = document.createElement('div');
+    kinTitle.style.cssText = 'font-size:13px; font-weight:700; margin-bottom:8px; color:#f97316;';
+    kinTitle.textContent = 'Kinetics';
+    kinSection.appendChild(kinTitle);
+
+    const kin = rxn._kinetics;
+    const modelLabels = { POWER_LAW: 'Reversible Power Law' };
+    const modelLabel = modelLabels[kin.model] || kin.model;
+
+    const modelLine = document.createElement('div');
+    modelLine.style.cssText = 'font-size:12px; margin-bottom:10px; opacity:0.8;';
+    modelLine.textContent = 'Model: ' + modelLabel;
+    kinSection.appendChild(modelLine);
+
+    // Rate equation display
+    const ordersStr = Object.entries(kin.orders)
+      .map(([sp, n]) => {
+        const sup = n === 1 ? '' : (Number.isInteger(n) ? String(n) : n.toFixed(1));
+        return 'P' + sp + (sup ? sup.split('').map(c => ({ '0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹','.':'·' }[c] || c)).join('') : '');
+      }).join(' · ');
+
+    const rateEq = document.createElement('div');
+    rateEq.style.cssText = 'font-family:monospace; font-size:12px; margin-bottom:12px; padding:8px; background:#1e293b; border-radius:4px; line-height:1.6;';
+    const betaStr = kin.beta !== 0 ? ` · T${kin.beta > 0 ? '^' + kin.beta : '^(' + kin.beta + ')'}` : '';
+    rateEq.innerHTML = `r = k(T) · ${ordersStr} · (1 − Q/K)<br>`
+      + `k(T) = ${kin.A.toExponential(2)}${betaStr} · exp(−${(kin.Ea_Jmol/1000).toFixed(1)} kJ / RT)`;
+    kinSection.appendChild(rateEq);
+
+    // Parameters table
+    const paramGrid = document.createElement('div');
+    paramGrid.style.cssText = 'display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px;';
+
+    function kinParam(label, value) {
+      const d = document.createElement('div');
+      d.style.cssText = 'font-size:11px; font-family:monospace;';
+      d.innerHTML = `<span style="opacity:0.6;">${label}:</span> ${value}`;
+      return d;
+    }
+
+    paramGrid.appendChild(kinParam('A', kin.A.toExponential(3)));
+    paramGrid.appendChild(kinParam('Ea', (kin.Ea_Jmol/1000).toFixed(1) + ' kJ/mol'));
+    paramGrid.appendChild(kinParam('β', String(kin.beta)));
+    paramGrid.appendChild(kinParam('Basis', 'mol/(m³·s), Pa'));
+
+    for (const [sp, ord] of Object.entries(kin.orders)) {
+      paramGrid.appendChild(kinParam('Order ' + sp, String(ord)));
+    }
+
+    kinSection.appendChild(paramGrid);
+
+    // Kinetics citations
+    if (kin.references && kin.references.length > 0) {
+      const kinRefTitle = document.createElement('div');
+      kinRefTitle.style.cssText = 'font-size:11px; font-weight:700; margin-bottom:6px; opacity:0.6; text-transform:uppercase; letter-spacing:0.5px;';
+      kinRefTitle.textContent = 'Kinetics Sources';
+      kinSection.appendChild(kinRefTitle);
+      for (const ref of kin.references) {
+        const refLine = document.createElement('div');
+        refLine.style.cssText = 'font-size:11px; opacity:0.7; margin-bottom:3px;';
+        refLine.textContent = ref.source + (ref.detail ? ': ' + ref.detail : '');
+        kinSection.appendChild(refLine);
+      }
+    }
+
+    dialog.appendChild(kinSection);
+  }
+
   // ── Notes ──
   if (rxn.notes) {
     const notesSection = document.createElement('div');
@@ -18850,6 +19003,133 @@ function runTests() {
     }
     t.assertClose(mb, 0, 1e-10, 'Σ νᵢ×MW_i ≈ 0');
     t.assertClose(mb, rxn._massBalance, 1e-10, 'Matches stored value');
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // SECTION AF½: Kinetics Registry Validation [v8.9.4] (T1–T2)
+  // ═══════════════════════════════════════════════════════════════════════
+
+  test('Registry kinetics — valid data on all reactions', t => {
+    // T1: Every registered reaction must have _kinetics (NNG-D2/D4)
+    const all = ReactionRegistry.all();
+    t.assertOK(all.length >= 2, 'At least 2 reactions registered');
+
+    for (const rxn of all) {
+      t.assertOK(rxn._kinetics, `${rxn.id} has _kinetics`);
+      t.assertOK(rxn._kinetics.model === 'POWER_LAW', `${rxn.id} model = POWER_LAW`);
+      t.assertOK(rxn._kinetics.A > 0, `${rxn.id} A > 0`);
+      t.assertOK(rxn._kinetics.Ea_Jmol >= 0, `${rxn.id} Ea ≥ 0`);
+      t.assertOK(isFinite(rxn._kinetics.beta), `${rxn.id} beta finite`);
+      t.assertOK(Object.keys(rxn._kinetics.orders).length > 0, `${rxn.id} has orders`);
+      t.assertOK(rxn._kinetics.references.length > 0, `${rxn.id} has kinetics references`);
+
+      // Orders reference only stoich species
+      for (const sp of Object.keys(rxn._kinetics.orders)) {
+        t.assertOK(sp in rxn.stoich, `${rxn.id} order species '${sp}' in stoich`);
+      }
+    }
+
+    // Spot-check specific values
+    const h2 = ReactionRegistry.get('R_H2_COMB');
+    t.assertClose(h2._kinetics.Ea_Jmol, 83000, 1, 'R_H2_COMB Ea = 83000');
+    t.assertClose(h2._kinetics.orders.H2, 1, 0, 'R_H2_COMB order H2 = 1');
+    t.assertClose(h2._kinetics.orders.O2, 0.5, 0, 'R_H2_COMB order O2 = 0.5');
+
+    const sab = ReactionRegistry.get('R_SABATIER');
+    t.assertClose(sab._kinetics.Ea_Jmol, 77500, 1, 'R_SABATIER Ea = 77500');
+    t.assertClose(sab._kinetics.orders.CO2, 1, 0, 'R_SABATIER order CO2 = 1');
+    t.assertClose(sab._kinetics.orders.H2, 0.5, 0, 'R_SABATIER order H2 = 0.5');
+
+    // Frozen: _kinetics should be immutable
+    t.assertOK(Object.isFrozen(h2._kinetics), 'R_H2_COMB _kinetics frozen');
+    t.assertOK(Object.isFrozen(h2._kinetics.orders), 'R_H2_COMB orders frozen');
+  });
+
+  test('Registry kinetics — validation rejects bad kinetics', t => {
+    // T2: Various kinetics validation failures
+    // Base valid spec (uses existing H2 combustion stoich)
+    const base = {
+      stoich: { H2: -2, O2: -1, H2O: 2 },
+      Tmin_K: 100, Tmax_K: 500, Pmin_Pa: 1e4, Pmax_Pa: 1e6,
+      kinetics: {
+        model: 'POWER_LAW', A: 1e3, beta: 0, Ea_Jmol: 50000,
+        orders: { H2: 1 },
+        references: [{ source: 'Test', detail: 'Unit test' }]
+      }
+    };
+
+    let threw;
+
+    // Missing kinetics entirely
+    threw = false;
+    try { ReactionRegistry.register('KBAD1', {
+      stoich: base.stoich, Tmin_K: 100, Tmax_K: 500, Pmin_Pa: 1e4, Pmax_Pa: 1e6
+    }); } catch(e) { threw = true; }
+    t.assertOK(threw, 'Throws on missing kinetics block');
+
+    // Unrecognized model
+    threw = false;
+    try { ReactionRegistry.register('KBAD2', {
+      ...base,
+      kinetics: { ...base.kinetics, model: 'BOGUS_MODEL' }
+    }); } catch(e) { threw = true; }
+    t.assertOK(threw, 'Throws on unrecognized model');
+
+    // A ≤ 0
+    threw = false;
+    try { ReactionRegistry.register('KBAD3', {
+      ...base,
+      kinetics: { ...base.kinetics, A: -5 }
+    }); } catch(e) { threw = true; }
+    t.assertOK(threw, 'Throws on A ≤ 0');
+
+    // A = 0
+    threw = false;
+    try { ReactionRegistry.register('KBAD4', {
+      ...base,
+      kinetics: { ...base.kinetics, A: 0 }
+    }); } catch(e) { threw = true; }
+    t.assertOK(threw, 'Throws on A = 0');
+
+    // Ea negative
+    threw = false;
+    try { ReactionRegistry.register('KBAD5', {
+      ...base,
+      kinetics: { ...base.kinetics, Ea_Jmol: -1000 }
+    }); } catch(e) { threw = true; }
+    t.assertOK(threw, 'Throws on negative Ea');
+
+    // beta not finite
+    threw = false;
+    try { ReactionRegistry.register('KBAD6', {
+      ...base,
+      kinetics: { ...base.kinetics, beta: Infinity }
+    }); } catch(e) { threw = true; }
+    t.assertOK(threw, 'Throws on non-finite beta');
+
+    // Orders referencing non-stoich species
+    threw = false;
+    try { ReactionRegistry.register('KBAD7', {
+      ...base,
+      kinetics: { ...base.kinetics, orders: { N2: 1 } }
+    }); } catch(e) { threw = true; }
+    t.assertOK(threw, 'Throws on orders species not in stoich');
+
+    // Empty orders
+    threw = false;
+    try { ReactionRegistry.register('KBAD8', {
+      ...base,
+      kinetics: { ...base.kinetics, orders: {} }
+    }); } catch(e) { threw = true; }
+    t.assertOK(threw, 'Throws on empty orders');
+
+    // Missing references
+    threw = false;
+    try { ReactionRegistry.register('KBAD9', {
+      ...base,
+      kinetics: { ...base.kinetics, references: [] }
+    }); } catch(e) { threw = true; }
+    t.assertOK(threw, 'Throws on empty kinetics references');
   });
 
   // ═══════════════════════════════════════════════════════════════════════
