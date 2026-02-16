@@ -1,7 +1,28 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v8.9.8
+  processThis v8.10.0
+
+  ─── v8.10.0 ──────────────────────────────────────────────────────────────
+  Hard Mode & Settings system.
+  SimSettings namespace (block 1, DOM-free): DEV_BUILD flag, AUTO_RUN_TESTS
+  flag, cheatsEnabled toggle, atmospheric reference state with presets
+  (Earth ISA, Mars, Titan, Venus, Custom). Atmosphere frozen after set.
+  Cheat tagging: reactor_adiabatic, cooler, source_multi tagged cheat:true.
+  listByCategory({ excludeCheats }) filters palette when hard mode active.
+  New unit: source_air — emits atmospheric air (composition, T, P from
+  SimSettings.atmosphere); tracks preset changes automatically.
+  Source tick hardened: T/P enforced from atmosphere when cheats disabled;
+  arbitrary T/P allowed when cheats enabled (backward compatible).
+  Settings modal (Menu → Settings): cheat toggle, atmosphere preset
+  dropdown, developer info. Apply & Re-solve rebuilds palette and scene.
+  Scene persistence: version bumped to 13, settings block in export/import
+  (cheatsEnabled, atmospherePreset, customAtmosphere). v≤12 import: defaults.
+  Auto-test gated by SimSettings.AUTO_RUN_TESTS (true in dev, false for ship).
+  Default: cheatsEnabled=true, DEV_BUILD=true — no test breakage.
+  Tests 153–158: ISA defaults, source_air output, excludeCheats filter,
+  preset switch, source_air tracks preset, source T/P enforcement.
+  NNG: NNG-A2, NNG-A4, NNG-U1, NNG-U2, NNG-T1/T2, NNG-C1.
 
   ─── v8.9.8 ───────────────────────────────────────────────────────────────
   Phase 5: Sabatier kinetics demo process.
@@ -1609,6 +1630,7 @@
           <div class="item" id="mModels">Models <span class="hint">packages</span></div>
           <div class="item" id="mUnits">Units <span class="hint">display</span></div>
           <div class="item" id="mSolver">Solver <span class="hint">configure</span></div>
+          <div class="item" id="mSettings">Settings <span class="hint">hard mode</span></div>
           <div class="sep"></div>
           <div class="item" id="mLoadDemo">Load demo</div>
           <div class="item" id="mClear">Clear scene</div>
@@ -1673,6 +1695,15 @@
         <h3>Solver</h3>
         <div class="small">Configure iteration method and inspect convergence results.</div>
         <div id="solverPanel" style="margin-top:10px; max-height:60vh; overflow-y:auto;"></div>
+      </div>
+    </div>
+
+    <!-- Settings modal [v8.10.0] -->
+    <div class="modal" id="modalSettings">
+      <div class="modalContent">
+        <button class="modalClose" onclick="document.getElementById('modalSettings').classList.remove('open')">×</button>
+        <h3>⚙ Settings</h3>
+        <div id="settingsPanel" style="margin-top:10px; max-height:60vh; overflow-y:auto;"></div>
       </div>
     </div>
 
@@ -1936,6 +1967,91 @@
 
 <script>
 "use strict";
+
+/* =========================
+   SIMULATION SETTINGS [v8.10.0]
+   Global configuration: build flags, cheat mode, atmospheric reference.
+   DOM-free (NNG-A2). Exported on PG (NNG-A4).
+   ========================= */
+const SimSettings = {
+  // ── Build configuration ──
+  DEV_BUILD: true,          // true = dev branch, false = shipping
+  AUTO_RUN_TESTS: true,     // gates auto-test at boot; tracks DEV_BUILD
+
+  // ── Cheat mode ──
+  cheatsEnabled: true,      // toggled by UI; defaults to DEV_BUILD
+
+  // ── Active atmospheric reference (frozen after set) ──
+  atmosphere: null,         // set by _applyPreset() below
+
+  // ── Presets ──
+  _activePreset: 'earth_isa',
+  _customValues: { T_K: 288.15, P_Pa: 101325, air: { N2: 0.7809, O2: 0.2095, Ar: 0.0093, CO2: 0.0003 } },
+
+  atmospherePresets: {
+    earth_isa: { name: 'Earth (ISA)', T_K: 288.15, P_Pa: 101325,
+      air: { N2: 0.7809, O2: 0.2095, Ar: 0.0093, CO2: 0.0003 } },
+    mars: { name: 'Mars', T_K: 210, P_Pa: 636,
+      air: { CO2: 0.9532, N2: 0.027, Ar: 0.016, O2: 0.0013 } },
+    titan: { name: 'Titan', T_K: 94, P_Pa: 146700,
+      air: { N2: 0.95, CH4: 0.05 } },
+    venus: { name: 'Venus (surface)', T_K: 737, P_Pa: 9200000,
+      air: { CO2: 0.965, N2: 0.035 } },
+    custom: { name: 'Custom', T_K: 288.15, P_Pa: 101325,
+      air: { N2: 0.78, O2: 0.21 } }
+  },
+
+  /** Apply a preset (or custom values) as the active atmosphere */
+  _applyPreset() {
+    const key = SimSettings._activePreset;
+    let src;
+    if (key === 'custom') {
+      src = SimSettings._customValues;
+    } else {
+      src = SimSettings.atmospherePresets[key];
+      if (!src) src = SimSettings.atmospherePresets.earth_isa;
+    }
+    // Freeze a copy as the active atmosphere
+    const airCopy = Object.freeze({ ...src.air });
+    SimSettings.atmosphere = Object.freeze({
+      T_K: src.T_K,
+      P_Pa: src.P_Pa,
+      air: airCopy,
+      presetName: (key === 'custom') ? 'Custom' : src.name
+    });
+  },
+
+  /** Set atmosphere from a preset key */
+  setAtmosphere(presetKey) {
+    if (!SimSettings.atmospherePresets[presetKey]) return;
+    SimSettings._activePreset = presetKey;
+    if (presetKey === 'custom') {
+      // Sync custom preset object from editable values
+      SimSettings.atmospherePresets.custom = {
+        name: 'Custom',
+        ...SimSettings._customValues
+      };
+    }
+    SimSettings._applyPreset();
+  },
+
+  /** Set custom atmosphere values and activate */
+  setCustomAtmosphere(T_K, P_Pa, airComp) {
+    SimSettings._customValues = { T_K, P_Pa, air: { ...airComp } };
+    SimSettings.atmospherePresets.custom = { name: 'Custom', T_K, P_Pa, air: { ...airComp } };
+    SimSettings._activePreset = 'custom';
+    SimSettings._applyPreset();
+  },
+
+  /** Get current atmosphere (always frozen) */
+  getAtmosphere() { return SimSettings.atmosphere; },
+
+  /** Get active preset key */
+  getPresetKey() { return SimSettings._activePreset; }
+};
+
+// Initialize default atmosphere
+SimSettings._applyPreset();
 
 /* =========================
    CONSTANTS & ENUMS
@@ -5865,7 +5981,8 @@ class UnitRegistry {
       ports: spec.ports || [],
       tick: spec.tick || null,
       postFlashCheck: spec.postFlashCheck || null,  // [v4.7.6] Was missing → postFlashCheck never ran
-      _wip: spec._wip || false  // [v8.8.0] Work-in-progress flag
+      _wip: spec._wip || false,  // [v8.8.0] Work-in-progress flag
+      cheat: spec.cheat || false  // [v8.10.0] Hidden in hard mode
     };
     this._defs.set(defId, def);
   }
@@ -5878,9 +5995,10 @@ class UnitRegistry {
     return Array.from(this._defs.values()); 
   }
   
-  static listByCategory() {
+  static listByCategory(opts = {}) {
     const byCategory = {};
     for (const def of this._defs.values()) {
+      if (def.cheat && opts.excludeCheats) continue;  // [v8.10.0] hard mode filter
       const cat = def.category;
       if (!byCategory[cat]) byCategory[cat] = [];
       byCategory[cat].push(def);
@@ -5901,20 +6019,24 @@ UnitRegistry.register('source', {
     const n = {};
     n[par.species] = par.nDot;
     
+    // [v8.10.0] Hard mode: enforce atmospheric T/P
+    const atm = SimSettings.getAtmosphere();
+    let T_K = SimSettings.cheatsEnabled ? (par.T ?? atm.T_K) : atm.T_K;
+    let P_Pa = SimSettings.cheatsEnabled ? (par.P ?? atm.P_Pa) : atm.P_Pa;
+
     // [v4.0.0] Validate absolute temperature: clamp to [1, 5000] K
-    let T_K = par.T;  // [v6.0.0] params.T is now in K (was °C before v6)
     if (T_K < 1) {
-      u.last = { ...(u.last || {}), warning: `Temperature ${(T_K - 273.15).toFixed(1)}°C below absolute zero — clamped to 1 K (-272.15°C)` };
+      u.last = { ...(u.last || {}), warning: `Temperature clamped to 1 K` };
       T_K = 1;
     } else if (T_K > 5000) {
-      u.last = { ...(u.last || {}), warning: `Temperature ${(T_K - 273.15).toFixed(0)}°C exceeds 5000 K limit — clamped to 5000 K (4726.85°C)` };
+      u.last = { ...(u.last || {}), warning: `Temperature clamped to 5000 K` };
       T_K = 5000;
     }
     
     ports.out = {
       type: StreamType.MATERIAL,
       T: T_K,
-      P: par.P,           // Already in Pa
+      P: P_Pa,
       n: n,               // mol/s for each component
       phaseConstraint: par.phaseConstraint || 'V' // User-controlled phase constraint
     };
@@ -5926,6 +6048,7 @@ UnitRegistry.register('source', {
 UnitRegistry.register('source_multi', {
   name: 'Source (Mix)',
   category: UnitCategories.SOURCE,
+  cheat: true,  // [v8.10.0] hidden in hard mode
   w: 2,
   h: 2,
   ports: [{ portId: 'out', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 1 }],
@@ -5957,6 +6080,34 @@ UnitRegistry.register('source_multi', {
       n: { ...n },
       phaseConstraint: par.phaseConstraint || 'V'
     };
+  }
+});
+
+// Air Source — emits atmospheric air at atmospheric T,P [v8.10.0]
+// Composition, T, P all driven by SimSettings.atmosphere (tracks preset).
+// Hard-mode friendly: always available, no cheat params.
+UnitRegistry.register('source_air', {
+  name: 'Air Source',
+  category: UnitCategories.SOURCE,
+  w: 2,
+  h: 2,
+  ports: [{ portId: 'out', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 1 }],
+  tick(u, ports, par) {
+    const atm = SimSettings.getAtmosphere();
+    const flowScale = par.flowScale ?? 1.0;
+    const n = {};
+    for (const [sp, frac] of Object.entries(atm.air)) {
+      if (!ComponentRegistry.exists(sp)) continue;  // skip unavailable species silently
+      n[sp] = frac * flowScale;
+    }
+    ports.out = {
+      type: StreamType.MATERIAL,
+      T: atm.T_K,
+      P: atm.P_Pa,
+      n,
+      phaseConstraint: 'V'
+    };
+    u.last = { T: atm.T_K, P: atm.P_Pa, flowScale, preset: atm.presetName };
   }
 });
 
@@ -6963,6 +7114,7 @@ UnitRegistry.register('heater', {
 UnitRegistry.register('cooler', {
   name: 'Cooler',
   category: UnitCategories.HEAT_EXCHANGER,
+  cheat: true,  // [v8.10.0] hidden in hard mode
   w: 2,
   h: 2,
   ports: [
@@ -7667,6 +7819,7 @@ UnitRegistry.register('flash_drum', {
 UnitRegistry.register('reactor_adiabatic', {
   name: 'Reactor (Adiabatic)',
   category: UnitCategories.REACTOR,
+  cheat: true,  // [v8.10.0] hidden in hard mode
   w: 2,
   h: 3,
   ports: [
@@ -8096,7 +8249,11 @@ class Scene {
     switch (defId) {
       // ── Material source: N2 gas at ambient conditions ──
       case 'source':
-        unit.params = { species: 'N2', nDot: 1.0, T: 298.15, P: 101325, phaseConstraint: 'V' };  // [v6.0.0] T in K
+        unit.params = { species: 'N2', nDot: 1.0,
+          T: SimSettings.atmosphere.T_K, P: SimSettings.atmosphere.P_Pa, phaseConstraint: 'V' };
+        break;
+      case 'source_air':
+        unit.params = { flowScale: 1.0 };
         break;
       // ── Power / mechanical sources ──
       case 'source_electrical':
@@ -8275,13 +8432,20 @@ class Scene {
 
   exportJSON() {
     const data = {
-      version: 9,  // [v6.0.0] bumped: T params now in K
+      version: 13,  // [v8.10.0] bumped: settings block added
       processName: this.processName || '',
       grid: { w: this.gridW, h: this.gridH, tile: this.tile },
+      settings: {
+        cheatsEnabled: SimSettings.cheatsEnabled,
+        atmospherePreset: SimSettings.getPresetKey()
+      },
       units: [],
       connections: [],
       modelsActive: models.active
     };
+    if (SimSettings.getPresetKey() === 'custom') {
+      data.settings.customAtmosphere = { ...SimSettings._customValues };
+    }
     if (Object.keys(this.solverOptions).length > 0) {
       data.solverOptions = { ...this.solverOptions };
     }
@@ -8541,6 +8705,22 @@ class Scene {
         this.solverOptions.acceleration = data.solverOptions.acceleration;
       }
     }
+
+    // [v8.10.0] Import settings (version ≤ 12 → defaults)
+    if (data.settings && typeof data.settings === 'object') {
+      if (typeof data.settings.cheatsEnabled === 'boolean') {
+        SimSettings.cheatsEnabled = data.settings.cheatsEnabled;
+      }
+      if (data.settings.atmospherePreset) {
+        if (data.settings.atmospherePreset === 'custom' && data.settings.customAtmosphere) {
+          const ca = data.settings.customAtmosphere;
+          SimSettings.setCustomAtmosphere(ca.T_K, ca.P_Pa, ca.air || {});
+        } else {
+          SimSettings.setAtmosphere(data.settings.atmospherePreset);
+        }
+      }
+    }
+    // (If no settings block: keep current SimSettings — DEV_BUILD defaults)
 
     return { ok: true };
   }
@@ -10405,6 +10585,9 @@ const PG = {
   KineticsEval,
   integratePFR,
 
+  // ── Settings [v8.10.0] ──
+  SimSettings,
+
   // ── Test harness (assigned by test script) ──
   TestCtx:   null,
   runTests:  null,
@@ -11407,7 +11590,9 @@ function showUnitLibrary() {
   propEditor.appendChild(subtitleDiv);
   
   // Organize units by category
-  const byCategory = UnitRegistry.listByCategory();
+  const byCategory = UnitRegistry.listByCategory({
+    excludeCheats: !SimSettings.cheatsEnabled   // [v8.10.0] hard mode filter
+  });
   
   for (const [categoryName, units] of Object.entries(byCategory)) {
     // Category header
@@ -13425,19 +13610,25 @@ function updatePropertiesPanel() {
         speciesOptions
       );
       
-      // Pressure with unit conversion
-      addNumberEditor(paramsSection.content, `P (${unitSys.pressure.symbol})`, 
-        () => unitSys.pressure.from(u.params.P), 
-        v => u.params.P = unitSys.pressure.to(v), 
-        unitSys.pressure.decimals === 0 ? 1000 : 0.1
-      );
-      
-      // Temperature with unit conversion
-      addNumberEditor(paramsSection.content, `T (${unitSys.temperature.symbol})`, 
-        () => unitSys.temperature.from(u.params.T),  // [v6.0.0] params.T is K
-        v => u.params.T = unitSys.temperature.to(v), 
-        1
-      );
+      // [v8.10.0] T/P: editable when cheats enabled, read-only atmospheric when hard mode
+      if (SimSettings.cheatsEnabled) {
+        addNumberEditor(paramsSection.content, `P (${unitSys.pressure.symbol})`, 
+          () => unitSys.pressure.from(u.params.P), 
+          v => u.params.P = unitSys.pressure.to(v), 
+          unitSys.pressure.decimals === 0 ? 1000 : 0.1
+        );
+        addNumberEditor(paramsSection.content, `T (${unitSys.temperature.symbol})`, 
+          () => unitSys.temperature.from(u.params.T),
+          v => u.params.T = unitSys.temperature.to(v), 
+          1
+        );
+      } else {
+        const atm = SimSettings.getAtmosphere();
+        paramsSection.content.appendChild(el('div', {
+          style: 'font-size:11px; opacity:0.6; margin:4px 0 8px; line-height:1.4;',
+          html: `T = ${atm.T_K.toFixed(1)} K &nbsp;|&nbsp; P = ${(atm.P_Pa/1e5).toFixed(4)} bar<br><span style="opacity:0.5;">(${atm.presetName} — change in Settings)</span>`
+        }));
+      }
       
       // Molar flow with unit conversion
       addNumberEditor(paramsSection.content, `ṅ (${unitSys.molarFlow.symbol})`, 
@@ -13454,6 +13645,35 @@ function updatePropertiesPanel() {
         [['V', 'Vapor only'], ['L', 'Liquid only'], ['VL', 'Vapor-Liquid (flash)']]
       );
       
+      propEditor.appendChild(paramsSection.section);
+    }
+
+    // [v8.10.0] Air Source property editor
+    if (u.defId === 'source_air') {
+      const paramsSection = createCollapsibleSection('Parameters', true);
+      const atm = SimSettings.getAtmosphere();
+
+      // Flow scale
+      addNumberEditor(paramsSection.content, 'Flow scale (mol/s)',
+        () => u.params.flowScale ?? 1.0,
+        v => u.params.flowScale = v, 0.1);
+
+      // Read-only atmosphere display
+      paramsSection.content.appendChild(el('div', {
+        style: 'margin-top:8px; font-size:11px; opacity:0.6; line-height:1.5;',
+        html: `<b>${atm.presetName}</b><br>T = ${atm.T_K.toFixed(1)} K &nbsp;|&nbsp; P = ${(atm.P_Pa/1e5).toFixed(4)} bar`
+      }));
+
+      const airList = el('div', { style: 'margin-top:4px; font-size:11px; opacity:0.5;' });
+      const fracs = Object.entries(atm.air).map(([sp, f]) => `${sp}: ${(f*100).toFixed(2)}%`).join(', ');
+      airList.innerHTML = fracs;
+      paramsSection.content.appendChild(airList);
+
+      paramsSection.content.appendChild(el('div', {
+        style: 'margin-top:6px; font-size:10px; opacity:0.35; font-style:italic;',
+        html: 'Change atmosphere in ☰ Menu → Settings'
+      }));
+
       propEditor.appendChild(paramsSection.section);
     }
     
@@ -15120,6 +15340,165 @@ modalSolver.addEventListener('click', (ev) => {
   }
 });
 
+// [v8.10.0] Settings modal
+const modalSettings = document.getElementById('modalSettings');
+
+document.getElementById('mSettings').addEventListener('click', () => {
+  buildSettingsPanel();
+  modalSettings.classList.add('open');
+  closeMenus();
+});
+
+modalSettings.addEventListener('click', (ev) => {
+  if (ev.target === modalSettings) modalSettings.classList.remove('open');
+});
+
+function buildSettingsPanel() {
+  const panel = document.getElementById('settingsPanel');
+  panel.innerHTML = '';
+
+  // ── Section: Simulation Mode ──
+  const simSec = el('div', { style: 'margin-bottom:20px; padding:12px; background:#1e293b; border-radius:8px;' });
+  simSec.appendChild(el('div', {
+    style: 'font-weight:700; font-size:12px; text-transform:uppercase; letter-spacing:0.5px; opacity:0.7; margin-bottom:10px;',
+    html: 'Simulation Mode'
+  }));
+
+  const cheatRow = el('div', { style: 'display:flex; align-items:center; gap:10px; margin-bottom:6px;' });
+  const cheatCheck = document.createElement('input');
+  cheatCheck.type = 'checkbox';
+  cheatCheck.checked = SimSettings.cheatsEnabled;
+  cheatCheck.id = 'settingsCheatCheck';
+  cheatRow.appendChild(cheatCheck);
+  cheatRow.appendChild(el('label', {
+    html: 'Cheat units & options',
+    style: 'font-size:13px; cursor:pointer;',
+    for: cheatCheck.id
+  }));
+  simSec.appendChild(cheatRow);
+  simSec.appendChild(el('div', {
+    style: 'font-size:11px; opacity:0.5; margin-left:28px; line-height:1.4;',
+    html: 'Enables: Cooler, Adiabatic reactor, Source (Mix), arbitrary source T/P. Uncheck for hard mode.'
+  }));
+
+  // Warn if scene has cheat units
+  if (!SimSettings.cheatsEnabled || !cheatCheck.checked) {
+    const cheatUnits = [];
+    for (const u of scene.units.values()) {
+      const def = UnitRegistry.get(u.defId);
+      if (def && def.cheat) cheatUnits.push(u.name || u.defId);
+    }
+    if (cheatUnits.length > 0) {
+      simSec.appendChild(el('div', {
+        style: 'margin-top:8px; padding:6px 8px; background:#78350f; border-radius:4px; font-size:11px; color:#fbbf24; line-height:1.4;',
+        html: `⚠ Scene contains cheat units: ${cheatUnits.join(', ')}. They still function but cannot be added.`
+      }));
+    }
+  }
+  panel.appendChild(simSec);
+
+  // ── Section: Atmospheric Conditions ──
+  const atmSec = el('div', { style: 'margin-bottom:20px; padding:12px; background:#1e293b; border-radius:8px;' });
+  atmSec.appendChild(el('div', {
+    style: 'font-weight:700; font-size:12px; text-transform:uppercase; letter-spacing:0.5px; opacity:0.7; margin-bottom:10px;',
+    html: 'Atmospheric Conditions'
+  }));
+
+  // Preset dropdown
+  const presetRow = el('div', { style: 'display:flex; align-items:center; gap:8px; margin-bottom:10px;' });
+  presetRow.appendChild(el('label', { html: 'Preset:', style: 'font-size:12px; min-width:50px;' }));
+  const presetSel = document.createElement('select');
+  presetSel.style.cssText = 'flex:1; background:#0f172a; color:#e2e8f0; border:1px solid #334155; border-radius:4px; padding:4px 8px; font-size:12px;';
+  for (const [key, preset] of Object.entries(SimSettings.atmospherePresets)) {
+    const opt = document.createElement('option');
+    opt.value = key;
+    opt.textContent = preset.name;
+    if (key === SimSettings.getPresetKey()) opt.selected = true;
+    presetSel.appendChild(opt);
+  }
+  presetRow.appendChild(presetSel);
+  atmSec.appendChild(presetRow);
+
+  // Display current values
+  const atm = SimSettings.getAtmosphere();
+  const unitSys = models.getActive('units');
+  const isCustom = SimSettings.getPresetKey() === 'custom';
+
+  const atmGrid = el('div', { class: 'propGrid', style: 'margin-bottom:10px;' });
+  atmGrid.appendChild(el('div', { class: 'propItem' }, [
+    el('div', { class: 'propLabel', html: 'T' }),
+    el('div', { class: 'propValue', html: `${atm.T_K.toFixed(2)}<span class="propUnit">K</span> (${(atm.T_K - 273.15).toFixed(1)} °C)` })
+  ]));
+  atmGrid.appendChild(el('div', { class: 'propItem' }, [
+    el('div', { class: 'propLabel', html: 'P' }),
+    el('div', { class: 'propValue', html: `${atm.P_Pa.toFixed(0)}<span class="propUnit">Pa</span> (${(atm.P_Pa / 1e5).toFixed(4)} bar)` })
+  ]));
+  atmSec.appendChild(atmGrid);
+
+  // Air composition table
+  atmSec.appendChild(el('div', {
+    style: 'font-size:11px; opacity:0.6; margin-bottom:6px;',
+    html: 'Air composition (mole fractions):'
+  }));
+  const airGrid = el('div', { style: 'display:grid; grid-template-columns:auto 1fr; gap:2px 12px; font-size:12px; margin-left:8px;' });
+  for (const [sp, frac] of Object.entries(atm.air)) {
+    airGrid.appendChild(el('div', { html: sp, style: 'opacity:0.7;' }));
+    airGrid.appendChild(el('div', { html: frac.toFixed(4) }));
+  }
+  atmSec.appendChild(airGrid);
+
+  if (isCustom) {
+    atmSec.appendChild(el('div', {
+      style: 'margin-top:8px; font-size:11px; opacity:0.5;',
+      html: 'Custom mode: edit T, P, and composition via console — SimSettings.setCustomAtmosphere(T_K, P_Pa, {species: frac, ...})'
+    }));
+  }
+
+  atmSec.appendChild(el('div', {
+    style: 'margin-top:8px; font-size:11px; opacity:0.4; font-style:italic;',
+    html: 'Extra-terrestrial settings update T<sub>atm</sub>, P<sub>atm</sub>, and Air Source composition.'
+  }));
+
+  panel.appendChild(atmSec);
+
+  // ── Section: Developer ──
+  const devSec = el('div', { style: 'margin-bottom:20px; padding:12px; background:#1e293b; border-radius:8px;' });
+  devSec.appendChild(el('div', {
+    style: 'font-weight:700; font-size:12px; text-transform:uppercase; letter-spacing:0.5px; opacity:0.7; margin-bottom:10px;',
+    html: 'Developer'
+  }));
+  devSec.appendChild(el('div', {
+    style: 'font-size:12px; margin-bottom:4px;',
+    html: `Build: <span style="color:${SimSettings.DEV_BUILD ? '#fbbf24' : '#22c55e'};">${SimSettings.DEV_BUILD ? 'Development' : 'Production'}</span>`
+  }));
+  devSec.appendChild(el('div', {
+    style: 'font-size:12px; margin-bottom:4px;',
+    html: `Auto-run tests: ${SimSettings.AUTO_RUN_TESTS ? '✓' : '✗'}`
+  }));
+  panel.appendChild(devSec);
+
+  // ── Apply button ──
+  const applyBtn = document.createElement('button');
+  applyBtn.className = 'btn';
+  applyBtn.style.cssText = 'width:100%; padding:8px; margin-top:4px;';
+  applyBtn.textContent = 'Apply & Re-solve';
+  applyBtn.addEventListener('click', () => {
+    SimSettings.cheatsEnabled = cheatCheck.checked;
+    SimSettings.setAtmosphere(presetSel.value);
+
+    // Rebuild palette if currently showing
+    const solveResult = solveScene(scene);
+    updateStatusIndicator(solveResult);
+    updatePropertiesPanel();
+    render();
+
+    // Rebuild panel to show updated values
+    buildSettingsPanel();
+    setStatus(`Settings applied. ${SimSettings.cheatsEnabled ? 'Cheats ON' : 'Hard mode'} — ${SimSettings.atmosphere.presetName}`);
+  });
+  panel.appendChild(applyBtn);
+}
+
 document.getElementById('mLoadDemo').addEventListener('click', () => {
   if (confirm('Load demo? This will replace the current scene.')) {
     loadDemo();
@@ -15242,7 +15621,7 @@ function loadDemo() {
   // Demonstrates kinetics mode with full diagnostics: rate, τ, α_eff.
 
   scene.importJSON(JSON.stringify({
-    version: 12,
+    version: 13,
     processName: 'Sabatier CO₂ Methanation (Kinetics)',
     grid: { w: 28, h: 14, tile: 48 },
     solverOptions: { maxIter: 200 },
@@ -20986,6 +21365,135 @@ function runTests() {
   });
 
   // ═══════════════════════════════════════════════════════════════════════
+  // SECTION AH: SimSettings & Hard Mode [v8.10.0] (Tests 153–158)
+  // ═══════════════════════════════════════════════════════════════════════
+
+  test('SimSettings — ISA atmosphere defaults', t => {
+    // T1: Verify ISA standard atmosphere reference values
+    const atm = SimSettings.getAtmosphere();
+    t.assertOK(atm !== null, 'Atmosphere object exists');
+    t.assertClose(atm.T_K, 288.15, 0.01, 'ISA T = 288.15 K');
+    t.assertClose(atm.P_Pa, 101325, 1, 'ISA P = 101325 Pa');
+    t.assertOK(atm.air.N2 !== undefined, 'Air has N₂');
+    t.assertClose(atm.air.N2, 0.7809, 0.001, 'N₂ = 0.7809');
+    t.assertClose(atm.air.O2, 0.2095, 0.001, 'O₂ = 0.2095');
+    t.assertOK(Object.isFrozen(atm), 'Atmosphere is frozen');
+    t.assertOK(Object.isFrozen(atm.air), 'Air composition is frozen');
+  });
+
+  test('SimSettings — source_air emits atmospheric composition', t => {
+    // T2: source_air tick uses SimSettings.atmosphere
+    const src = t.place('source_air', 0, 0, { flowScale: 2.5 });
+    const snk = t.place('sink', 4, 0);
+    t.wire(src, 'out', snk, 'in');
+    t.solve();
+
+    const out = t.port(src, 'out');
+    const atm = SimSettings.getAtmosphere();
+    t.assertClose(out.T, atm.T_K, 0.01, 'T = atmospheric T');
+    t.assertClose(out.P, atm.P_Pa, 1, 'P = atmospheric P');
+    t.assertClose(out.n.N2, 0.7809 * 2.5, 0.01, 'N₂ scaled by flowScale');
+    t.assertClose(out.n.O2, 0.2095 * 2.5, 0.01, 'O₂ scaled by flowScale');
+  });
+
+  test('SimSettings — listByCategory excludeCheats filter', t => {
+    // T3: Verify cheat units are filtered when excludeCheats is true
+    const allUnits = UnitRegistry.listByCategory({ excludeCheats: false });
+    const hardUnits = UnitRegistry.listByCategory({ excludeCheats: true });
+
+    // Flatten to defId arrays
+    const allIds = Object.values(allUnits).flat().map(d => d.defId);
+    const hardIds = Object.values(hardUnits).flat().map(d => d.defId);
+
+    t.assertOK(allIds.includes('reactor_adiabatic'), 'All: has reactor_adiabatic');
+    t.assertOK(allIds.includes('cooler'), 'All: has cooler');
+    t.assertOK(allIds.includes('source_multi'), 'All: has source_multi');
+    t.assertOK(!hardIds.includes('reactor_adiabatic'), 'Hard: no reactor_adiabatic');
+    t.assertOK(!hardIds.includes('cooler'), 'Hard: no cooler');
+    t.assertOK(!hardIds.includes('source_multi'), 'Hard: no source_multi');
+
+    // Non-cheat units always present
+    t.assertOK(hardIds.includes('reactor_equilibrium'), 'Hard: has reactor_equilibrium');
+    t.assertOK(hardIds.includes('source'), 'Hard: has source');
+    t.assertOK(hardIds.includes('source_air'), 'Hard: has source_air');
+    t.assertOK(hardIds.includes('heater'), 'Hard: has heater');
+    t.assertOK(hardIds.includes('hex'), 'Hard: has hex');
+  });
+
+  test('SimSettings — atmosphere preset switch', t => {
+    // T4: Switch to Mars, verify values, switch back
+    const origPreset = SimSettings.getPresetKey();
+    const origAtm = SimSettings.getAtmosphere();
+
+    SimSettings.setAtmosphere('mars');
+    const mars = SimSettings.getAtmosphere();
+    t.assertClose(mars.T_K, 210, 1, 'Mars T = 210 K');
+    t.assertClose(mars.P_Pa, 636, 1, 'Mars P = 636 Pa');
+    t.assertOK(mars.air.CO2 > 0.9, 'Mars air is CO₂-dominant');
+    t.assertOK(mars.presetName === 'Mars', 'Preset name = Mars');
+
+    // Restore
+    SimSettings.setAtmosphere(origPreset);
+    const restored = SimSettings.getAtmosphere();
+    t.assertClose(restored.T_K, origAtm.T_K, 0.01, 'Restored T');
+    t.assertClose(restored.P_Pa, origAtm.P_Pa, 1, 'Restored P');
+  });
+
+  test('SimSettings — source_air tracks preset change', t => {
+    // T5: Switch atmosphere, source_air output should change
+    const origPreset = SimSettings.getPresetKey();
+
+    SimSettings.setAtmosphere('mars');
+    const src = t.place('source_air', 0, 0, { flowScale: 1.0 });
+    const snk = t.place('sink', 4, 0);
+    t.wire(src, 'out', snk, 'in');
+    t.solve();
+
+    const out = t.port(src, 'out');
+    t.assertClose(out.T, 210, 1, 'Mars T in output');
+    t.assertClose(out.P, 636, 1, 'Mars P in output');
+    t.assertOK(out.n.CO2 > 0.9, 'Mars CO₂-dominant output');
+
+    // Restore
+    SimSettings.setAtmosphere(origPreset);
+  });
+
+  test('SimSettings — source T/P enforcement in hard mode', t => {
+    // T6: With cheats disabled, source tick ignores par.T/P and uses atmospheric
+    const origCheats = SimSettings.cheatsEnabled;
+
+    SimSettings.cheatsEnabled = false;
+    const src = t.place('source', 0, 0, {
+      species: 'N2', nDot: 1.0, T: 500, P: 500000, phaseConstraint: 'V'
+    });
+    const snk = t.place('sink', 4, 0);
+    t.wire(src, 'out', snk, 'in');
+    t.solve();
+
+    const out = t.port(src, 'out');
+    const atm = SimSettings.getAtmosphere();
+    t.assertClose(out.T, atm.T_K, 0.01, 'Hard mode: T = atmospheric');
+    t.assertClose(out.P, atm.P_Pa, 1, 'Hard mode: P = atmospheric');
+
+    // Restore cheats
+    SimSettings.cheatsEnabled = true;
+
+    // With cheats ON, par.T/P should be used
+    const src2 = t.place('source', 0, 4, {
+      species: 'N2', nDot: 1.0, T: 500, P: 500000, phaseConstraint: 'V'
+    });
+    const snk2 = t.place('sink', 4, 4);
+    t.wire(src2, 'out', snk2, 'in');
+    t.solve();
+
+    const out2 = t.port(src2, 'out');
+    t.assertClose(out2.T, 500, 0.01, 'Cheat mode: T = par.T');
+    t.assertClose(out2.P, 500000, 1, 'Cheat mode: P = par.P');
+
+    SimSettings.cheatsEnabled = origCheats;
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
   // RUNNER
   // ═══════════════════════════════════════════════════════════════════════
 
@@ -21519,10 +22027,12 @@ window.runTransientStateTests = function() {
   return { pass, fail, total: pass + fail, results };
 };
 
-// Auto-run on page load
-setTimeout(() => {
-  try { window.runTests(); } catch (e) { console.error('Test execution error:', e); }
-}, 500);
+// [v8.10.0] Auto-run gated by SimSettings.AUTO_RUN_TESTS
+if (SimSettings.AUTO_RUN_TESTS) {
+  setTimeout(() => {
+    try { window.runTests(); } catch (e) { console.error('Test execution error:', e); }
+  }, 500);
+}
 
 </script>
 </body>
