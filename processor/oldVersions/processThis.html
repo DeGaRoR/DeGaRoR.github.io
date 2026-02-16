@@ -1,7 +1,19 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v8.9.7
+  processThis v8.9.8
+
+  ─── v8.9.8 ───────────────────────────────────────────────────────────────
+  Phase 5: Sabatier kinetics demo process.
+  loadDemo() rebuilt with realistic Sabatier power-to-gas plant:
+  CO₂ + 4 H₂ feed at 523 K, 10 bar → mixer → reactor (R_SABATIER,
+  useKinetics: true, 0.5 m³ PFR) → cooler (323 K) → flash → splitter
+  (85% recycle / 15% purge). Heat dump collects reactor + cooler duty.
+  At industrial conditions (10 bar), kinetics are fast → equilibrium-
+  limited (α_eff ≈ 1). This is the realistic operating regime. User can
+  reduce volume to ~1e-5 m³ to explore kinetics-limited behavior.
+  Demonstrates kinetics mode with diagnostics: rate, τ, α_eff, limited_by.
+  All 152 tests pass, 1113 checks.
 
   ─── v8.9.7 ───────────────────────────────────────────────────────────────
   Phase 4: Verification & troubleshooting.
@@ -15215,22 +15227,83 @@ document.getElementById('processNameInput').addEventListener('input', (e) => {
    DEMO
    ========================= */
 function loadDemo() {
-  // ── [v8.9.3] Placeholder demo: simple source → sink ──
-  // Full Sabatier recycle demo will be rebuilt in Phase 5 (v8.9.8)
-  // once kinetics is implemented and validated.
+  // ── [v8.9.8] Sabatier CO₂ Methanation — Kinetics Demo ──
+  // CO₂ + 4 H₂ ⇌ CH₄ + 2 H₂O — isothermal PFR with kinetics
+  // Fresh feed → mixer → reactor(kinetics, 0.5 m³) → cooler(50°C) → flash
+  //                ↑                                                  ↓
+  //                └──────── recycle (85%) ──── splitter ←── vap_out ──┘
+  //                                               ↓ purge (15%)
+  //                                          flash liq_out → water sink
+  //
+  // Feed at 523 K (250°C), 10 bar. At industrial conditions, Sabatier
+  // kinetics are fast → equilibrium-limited (α_eff ≈ 1). This is the
+  // normal operating regime. Try reducing volume to 1e-5 m³ to see
+  // kinetics limitation (α_eff < 1).
+  // Demonstrates kinetics mode with full diagnostics: rate, τ, α_eff.
 
   scene.importJSON(JSON.stringify({
     version: 12,
-    processName: 'Demo (placeholder)',
-    grid: { w: 22, h: 14, tile: 48 },
+    processName: 'Sabatier CO₂ Methanation (Kinetics)',
+    grid: { w: 28, h: 14, tile: 48 },
+    solverOptions: { maxIter: 200 },
     units: [
-      { id: 'src', defId: 'source_multi', name: 'Feed', x: 2, y: 4, rot: 0,
-        params: { n: { N2: 0.78, O2: 0.21, Ar: 0.01 }, T: 298.15, P: 101325, phaseConstraint: 'V' } },
-      { id: 'snk', defId: 'sink', name: 'Product', x: 8, y: 4, rot: 0, params: {} }
+      // Fresh feed: stoichiometric CO₂ + 4 H₂ at 523 K, 10 bar
+      { id: 'feed', defId: 'source_multi', name: 'CO₂/H₂ Feed', x: 0, y: 3, rot: 0,
+        params: { n: { CO2: 1, H2: 4 }, T: 523, P: 1000000, phaseConstraint: 'V' } },
+
+      // Mixer: fresh feed (in1) + recycle (in2)
+      { id: 'mix', defId: 'mixer', name: 'Mixer', x: 4, y: 4, rot: 0, params: {} },
+
+      // Sabatier Reactor: kinetics PFR, 0.5 m³ (kinetics-limited at mixed inlet T)
+      { id: 'rx', defId: 'reactor_equilibrium', name: 'Sabatier Rx', x: 8, y: 4, rot: 0,
+        params: { reactionId: 'R_SABATIER', useKinetics: true, volume_m3: 0.5 } },
+
+      // Cooler: drop to 50°C for H₂O condensation
+      { id: 'cool', defId: 'cooler', name: 'Cooler', x: 12, y: 4, rot: 0,
+        params: { T_out: 323.15 } },
+
+      // Flash drum: liquid H₂O out, vapor (CO₂/H₂/CH₄) out
+      { id: 'flash', defId: 'flash_drum', name: 'Flash Drum', x: 16, y: 4, rot: 0, params: {} },
+
+      // Splitter: 15% purge (product), 85% recycle
+      { id: 'split', defId: 'splitter', name: 'Purge/Recycle', x: 20, y: 3, rot: 0,
+        params: { splitPct: 15 } },
+
+      // Product sinks
+      { id: 'snk-ch4', defId: 'sink', name: 'CH₄ Product', x: 24, y: 2, rot: 0, params: {} },
+      { id: 'snk-h2o', defId: 'sink', name: 'Water', x: 20, y: 6, rot: 0, params: {} },
+
+      // Heat dump: reactor Q_duty + cooler Q_removed
+      { id: 'q-dump', defId: 'sink_heat', name: 'Heat Dump', x: 10, y: 9, rot: 0, params: {} }
     ],
     connections: [
-      { id: 'c1', from: { unitId: 'src', portId: 'out' },
-                  to:   { unitId: 'snk', portId: 'in' } }
+      // Main process chain (left → right)
+      { id: 'c1', from: { unitId: 'feed',  portId: 'out' },
+                  to:   { unitId: 'mix',   portId: 'in1' } },
+      { id: 'c2', from: { unitId: 'mix',   portId: 'out' },
+                  to:   { unitId: 'rx',    portId: 'mat_in' } },
+      { id: 'c3', from: { unitId: 'rx',    portId: 'mat_out' },
+                  to:   { unitId: 'cool',  portId: 'mat_in' } },
+      { id: 'c4', from: { unitId: 'cool',  portId: 'mat_out' },
+                  to:   { unitId: 'flash', portId: 'mat_in' } },
+      { id: 'c5', from: { unitId: 'flash', portId: 'vap_out' },
+                  to:   { unitId: 'split', portId: 'in' } },
+
+      // Products
+      { id: 'c6', from: { unitId: 'split', portId: 'out1' },
+                  to:   { unitId: 'snk-ch4', portId: 'in' } },
+      { id: 'c7', from: { unitId: 'flash', portId: 'liq_out' },
+                  to:   { unitId: 'snk-h2o', portId: 'in' } },
+
+      // Recycle: splitter out2 → mixer in2
+      { id: 'c8', from: { unitId: 'split', portId: 'out2' },
+                  to:   { unitId: 'mix',   portId: 'in2' } },
+
+      // Heat duty: reactor + cooler → heat dump
+      { id: 'c9',  from: { unitId: 'rx',   portId: 'heat_out' },
+                   to:   { unitId: 'q-dump', portId: 'in' } },
+      { id: 'c10', from: { unitId: 'cool', portId: 'heat_out' },
+                   to:   { unitId: 'q-dump', portId: 'in' } }
     ],
     modelsActive: models.active
   }));
@@ -15238,11 +15311,11 @@ function loadDemo() {
   ui.selectedUnitId = null;
   ui.selectedConnId = null;
   ui.pendingFrom = null;
-  scene.processName = 'Demo (placeholder)';
+  scene.processName = 'Sabatier CO₂ Methanation (Kinetics)';
   document.getElementById('processNameInput').value = scene.processName;
   buildModelsPanel();
   const solveResult = solveScene(scene);
-  setStatus("Demo loaded: placeholder (source → sink).");
+  setStatus("Demo loaded: Sabatier CO₂ methanation with kinetics + recycle.");
   updateStatusIndicator(solveResult);
   
   updatePropertiesPanel();
