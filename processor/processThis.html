@@ -21,6 +21,9 @@
   hubAllocFactor) even when demand is Infinity — no false convergence.
   Fix: Electric heater & motor tick guard Infinity × curtailment = NaN
   by using hubAllocated_W directly when demand is infinite.
+  Fix: computeSystemBalance boundary detection skips inventory units
+  (battery, tank).  Their energy/mass flows are captured by the
+  accumulation term, not double-counted as boundary In/Out.
 
   Demo scene: Sabatier CO₂ methanation with kinetics + recycle, now
   extended with energy storage subsystem (solar 30 kW + Li-Ion battery
@@ -14264,6 +14267,9 @@ function computeSystemBalance(scene) {
     // Classify: are all ports the same direction?
     const dirs = new Set(def.ports.map(p => p.dir));
     if (dirs.size !== 1) continue;  // Mixed directions → internal unit, skip
+    // [v9.1.0] Inventory units (battery, tank) are internal storage, not boundary.
+    // Their energy/mass flows are captured by the accumulation term.
+    if (def.inventory) continue;
     const boundaryDir = [...dirs][0];
 
     for (const p of def.ports) {

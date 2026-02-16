@@ -11,9 +11,20 @@
   transport UI, inventory protocol, tank, battery SOC, system balance
   with accumulation, and integration demo.
 
+  Bugfix: Infinity demand from sinks (heatDemand/powerDemand=Infinity) no longer
+  causes NaN propagation or convergence failure.
+  Fix: allocatePower() handles infinite-demand consumers by allocating
+  supply to finite consumers first, splitting remainder among infinite.
+  Fix: Hub Step C uses effectiveDemand_W = clamp(totalDemand, totalCapacity)
+  for dispatch math, surplus calc, curtailment, and port writes.
+  Fix: Steps B/D/E now detect scratch value changes (powerDemand_W,
+  hubAllocFactor) even when demand is Infinity — no false convergence.
+  Fix: Electric heater & motor tick guard Infinity × curtailment = NaN
+  by using hubAllocated_W directly when demand is infinite.
+
   Demo scene: Sabatier CO₂ methanation with kinetics + recycle, now
   extended with energy storage subsystem (solar 30 kW + Li-Ion battery
-  10 kWh → power hub → electric heater) and N₂ buffer tank (50 m³,
+  10 kWh → power hub → electric heater) and N₂ buffer tank (20 m³,
   0.5 mol/s feed, 0.3 mol/s draw, overflow-protected).  Step the time
   clock to watch battery SOC deplete/charge and tank fill level change.
 
@@ -6922,6 +6933,35 @@ function allocatePower(consumers, totalSupply_W) {
     return allocation;
   }
   
+  // [v9.1.0] Handle infinite demand (from sinks): allocate supply to finite
+  // consumers first, then split remainder equally among infinite consumers.
+  // factor is meaningless for infinite demand — consumers use hubAllocated_W.
+  if (!isFinite(totalDemand_W)) {
+    const infConsumers = consumers.filter(c => !isFinite(c.demand_W));
+    const finConsumers = consumers.filter(c => isFinite(c.demand_W));
+    const finTotal = finConsumers.reduce((s, c) => s + c.demand_W, 0);
+    const finServed = Math.min(finTotal, totalSupply_W);
+    const remaining = Math.max(0, totalSupply_W - finServed);
+
+    for (const c of finConsumers) {
+      const frac = finTotal > 0 ? Math.min(1, finServed / finTotal) : 1;
+      const alloc = c.demand_W * frac;
+      allocation[c.unitId] = {
+        demand_W: c.demand_W, allocated_W: alloc,
+        factor: frac, priority: c.priority ?? 1
+      };
+    }
+    const perInf = infConsumers.length > 0 ? remaining / infConsumers.length : 0;
+    for (const c of infConsumers) {
+      allocation[c.unitId] = {
+        demand_W: c.demand_W, allocated_W: perInf,
+        factor: totalSupply_W > 0 ? 1.0 : 0,  // signal "use allocated_W" not "scale demand"
+        priority: c.priority ?? 1
+      };
+    }
+    return allocation;
+  }
+  
   // Proportional allocation: each consumer gets the same fraction of their demand
   const globalFactor = Math.min(1.0, totalSupply_W / totalDemand_W);
   
@@ -7244,7 +7284,9 @@ UnitRegistry.register('motor', {
     // unloaded motor draws nothing, and multiple consumers can't each claim
     // the full bus.  Converges on iteration 2+ once Step B has run.
     const myDemand_W = s.powerDemand_W ?? 0;
-    const W_elec_W = Math.min(myDemand_W * curtailment, myCap_W);
+    // [v9.1.0] Guard: Infinity demand → use myCap_W directly
+    const rawMotorDraw = isFinite(myDemand_W) ? myDemand_W * curtailment : myCap_W;
+    const W_elec_W = Math.min(rawMotorDraw, myCap_W);
     const W_mech_W = W_elec_W * eta;
     const Q_loss_W = W_elec_W - W_mech_W;  // 1st law: P_in = P_out + Q_loss
     
@@ -7302,7 +7344,9 @@ UnitRegistry.register('electric_heater', {
     // Demand from Step B rollup. Fallback 0 (not elecActual_W!) ensures an
     // unloaded heater draws nothing.  Converges on iteration 2+ once Step B has run.
     const myDemand_W = s.powerDemand_W ?? 0;
-    const W_elec_W = Math.min(myDemand_W * curtailment, myCap_W);
+    // [v9.1.0] Guard: if demand is Infinity (from heat sink), use myCap_W directly
+    const rawDraw = isFinite(myDemand_W) ? myDemand_W * curtailment : myCap_W;
+    const W_elec_W = Math.min(rawDraw, myCap_W);
     const Q_available_W = W_elec_W * eta;
     const Q_loss_W = W_elec_W - Q_available_W;  // Always 0 (eta=1.00), computed for consistency
     
@@ -10721,12 +10765,15 @@ function solveScene(scene, options = {}) {
       
       // ── Three-tier dispatch: fixed → responsive (grid_supply) → battery ──
       // [v9.0.4] Extended for SOC-tracked battery
-      const responsiveGap_W = Math.max(0, totalDemand_W - fixedSupply_W);
+      // [v9.1.0] Clamp infinite demand (from heat sinks) — dispatch uses supply cap
+      const effectiveDemand_W = isFinite(totalDemand_W) ? totalDemand_W 
+        : (fixedSupply_W + responsiveMax_W + batteryMaxDischarge_W);
+      const responsiveGap_W = Math.max(0, effectiveDemand_W - fixedSupply_W);
       const responsiveDraw_W = Math.min(responsiveGap_W, responsiveMax_W);
       let totalSupply_W = fixedSupply_W + responsiveDraw_W;
 
       // Battery discharge: fills remaining gap after responsive
-      const remainingGap_W = Math.max(0, totalDemand_W - totalSupply_W);
+      const remainingGap_W = Math.max(0, effectiveDemand_W - totalSupply_W);
       const batteryDraw_W = Math.min(remainingGap_W, batteryMaxDischarge_W);
       totalSupply_W += batteryDraw_W;
       
@@ -10734,9 +10781,10 @@ function solveScene(scene, options = {}) {
       const consumerAllocation = allocatePower(consumers, totalSupply_W);
       
       // Global curtailment factor (summary for port-level backward compatibility)
+      // [v9.1.0] Guard: Infinity demand → factor based on effectiveDemand
       let curtailmentFactor = 1.0;
-      if (totalDemand_W > 0 && totalSupply_W < totalDemand_W) {
-        curtailmentFactor = totalSupply_W / totalDemand_W;
+      if (effectiveDemand_W > 0 && totalSupply_W < effectiveDemand_W) {
+        curtailmentFactor = totalSupply_W / effectiveDemand_W;
       }
       
       // [v5.4.0] Write per-consumer allocation factors to RuntimeContext scratch
@@ -10751,7 +10799,8 @@ function solveScene(scene, options = {}) {
       
       // ── Surplus → charge batteries before heat ──
       // Surplus only from fixed + responsive (batteries don't overproduce)
-      const surplus_W = Math.max(0, fixedSupply_W + responsiveDraw_W - totalDemand_W);
+      // [v9.1.0] Use effectiveDemand for surplus (Infinity demand → 0 surplus)
+      const surplus_W = Math.max(0, fixedSupply_W + responsiveDraw_W - effectiveDemand_W);
       const batteryCharge_W = Math.min(surplus_W, batteryMaxCharge_W);
       const heatSurplus_W = surplus_W - batteryCharge_W;
       
@@ -10767,7 +10816,7 @@ function solveScene(scene, options = {}) {
         _ud.ports.elec_out.actual = totalSupply_W;
         _ud.ports.elec_out.available = totalSupply_W;  // deprecated alias
         _ud.ports.elec_out.curtailmentFactor = curtailmentFactor;
-        _ud.ports.elec_out.demand = totalDemand_W;
+        _ud.ports.elec_out.demand = effectiveDemand_W;  // [v9.1.0] clamped, not Infinity
       }
       if (_ud.ports.heat_out) {
         _ud.ports.heat_out.capacity = heatSurplus_W;
@@ -10827,7 +10876,7 @@ function solveScene(scene, options = {}) {
       _ud.last.batteryMax_W         = responsiveMax_W;  // backward compat
       _ud.last.batteryMaxDischarge_W = batteryMaxDischarge_W;
       _ud.last.batteryMaxCharge_W   = batteryMaxCharge_W;
-      _ud.last.totalDemand_W        = totalDemand_W;
+      _ud.last.totalDemand_W        = effectiveDemand_W;  // [v9.1.0] clamped
       _ud.last.responsiveDraw_W     = responsiveDraw_W;
       _ud.last.batteryDraw_W        = responsiveDraw_W;  // backward compat
       _ud.last.socBatteryDraw_W     = batteryDraw_W;
@@ -10839,7 +10888,7 @@ function solveScene(scene, options = {}) {
       _ud.last.consumerAllocation   = consumerAllocation;
       _u.last.fixedSupply_W         = fixedSupply_W;
       _u.last.batteryMax_W          = responsiveMax_W;  // backward compat
-      _u.last.totalDemand_W         = totalDemand_W;
+      _u.last.totalDemand_W         = effectiveDemand_W;  // [v9.1.0] clamped
       _u.last.batteryDraw_W         = responsiveDraw_W;  // backward compat
       _u.last.totalSupply_W         = totalSupply_W;
       _u.last.surplus_W             = surplus_W;
