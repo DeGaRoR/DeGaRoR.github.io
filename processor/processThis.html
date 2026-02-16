@@ -1,7 +1,27 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v9.0.0
+  processThis v9.0.1
+
+  ─── v9.0.1 ───────────────────────────────────────────────────────────────
+  TimeClock + Transport Controls — Phase 0 of Time & Inventory system.
+
+  TimeClock namespace (block 1, DOM-free): t, dt, frame, mode, step(),
+  reset(), _captureInitial(), _restoreInitial() (stubs for Phase 1+).
+  Mode state machine: test → paused (on first Step) → playing / paused.
+  Reset returns to test mode with t=0, frame=0.
+
+  Transport controls replace "▶ Run" button: Test / Step / Play / Pause /
+  Reset as a compact button group. Time display (t, frame, Δt) visible
+  only when mode ≠ test. Play loop with configurable speed (1x–max).
+  Auto-pause on topology changes (unit add/delete, connection add/delete).
+
+  Settings modal: new Time section with Δt and play speed editors.
+  SimSettings.dt (default 60s) and playSpeed persisted.
+
+  NNG: NNG-S5 (new — inventory layer), NNG-T4 (new — deterministic time
+  tests), NNG-A2 (TimeClock DOM-free), NNG-A4 (exported on PG).
+  Tests: T160-T163 (step, reset, mode transitions, solveScene trigger).
 
   ─── v9.0.0 ───────────────────────────────────────────────────────────────
   Version 9 milestone — Hard Mode & Settings complete.
@@ -466,6 +486,12 @@
     NNG-S4  Power lifecycle: capacity (set by tick) → demand (set by solver
             Steps B-E) → actual (set by solver, ≤ capacity) → curtailmentFactor
             (actual/demand).  Consumers read input.actual, not input.capacity.
+    NNG-S5  Inter-timestep persistent state lives on u.inventory.  This field
+            is invisible to solveScene() — never read, written, or cleared
+            during a solve.  Only TimeClock modifies it between solves.  Tick
+            functions may read u.inventory to determine port output; they never
+            write it.  The solver's inter-iteration state (scratch, convergence)
+            remains governed by NNG-S2.
 
   DATA COMPLETENESS:
     NNG-D1  A species used in any stream must exist in ComponentRegistry with
@@ -503,6 +529,10 @@
     NNG-T2  New features must include tests.  Minimum: one positive-path test,
             one error/edge-case test.
     NNG-T3  Tests must be deterministic.  No random inputs, no timing deps.
+    NNG-T4  Time-related tests must be deterministic.  Use explicit
+            TimeClock.step() calls.  No real-time playback, no setTimeout,
+            no setInterval in tests.  All time tests restore TimeClock and
+            SimSettings to defaults after completion.
 
   VERSIONING:
     NNG-V1  Every functional change MUST increment the version number in the
@@ -656,7 +686,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>processThis — v8.9.1</title>
+  <title>processThis — v9.0.1</title>
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
@@ -756,6 +786,38 @@
     .btn.primary:hover { 
       filter: brightness(1.05); 
     }
+
+    /* ===== TRANSPORT CONTROLS [v9.0.1] ===== */
+    .transport {
+      display: flex;
+      gap: 2px;
+      align-items: center;
+    }
+    .transport .tbtn {
+      background: #1c222e;
+      color: #94a3b8;
+      border: 1px solid #2a2f3a;
+      padding: 6px 8px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+      user-select: none;
+      white-space: nowrap;
+      transition: background 0.15s, color 0.15s;
+    }
+    .transport .tbtn:first-child { border-radius: 8px 0 0 8px; }
+    .transport .tbtn:last-child  { border-radius: 0 8px 8px 0; }
+    .transport .tbtn:hover { background: #283040; color: #e2e8f0; }
+    .transport .tbtn.active { background: #1e40af; color: #fff; border-color: #2563eb; }
+    .transport .tbtn:disabled { opacity: 0.3; cursor: default; pointer-events: none; }
+    .time-display {
+      font-size: 11px;
+      color: #64748b;
+      margin-left: 6px;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+    .time-display b { color: #94a3b8; }
     
     /* ===== PROCESS NAME INPUT ===== */
     #processNameInput {
@@ -1626,7 +1688,16 @@
   <div class="canvasWrap">
     <!-- Top toolbar -->
     <div class="topbar">
-      <button class="btn primary" id="btnRun">▶ Run</button>
+      <!-- Transport controls [v9.0.1] -->
+      <div class="transport">
+        <button class="tbtn active" id="btnTest" title="Solve once (no time)">⟳ Test</button>
+        <button class="tbtn" id="btnStep" title="Advance one timestep">▶ Step</button>
+        <button class="tbtn" id="btnPlay" title="Auto-step">▶▶ Play</button>
+        <button class="tbtn" id="btnPause" title="Pause" disabled>⏸</button>
+        <button class="tbtn" id="btnReset" title="Reset to t=0" disabled>↺</button>
+      </div>
+      <span class="time-display" id="timeDisplay" style="display:none;"></span>
+
       <button class="btn" id="btnAdd" style="background:#dc2626; border-color:#dc2626; color:#fff;">+ Add Unit</button>
       
       <input type="text" id="processNameInput" placeholder="Process name…" spellcheck="false" autocomplete="off">
@@ -1999,6 +2070,10 @@ const SimSettings = {
   // ── Cheat mode ──
   cheatsEnabled: true,      // toggled by UI; defaults to DEV_BUILD
 
+  // ── Time settings [v9.0.1] ──
+  dt: 60,                   // timestep duration (seconds)
+  playSpeed: '1x',          // play loop speed ('1x','2x','5x','10x','max')
+
   // ── Active atmospheric reference (frozen after set) ──
   atmosphere: null,         // set by _applyPreset() below
 
@@ -2072,6 +2147,75 @@ const SimSettings = {
 
 // Initialize default atmosphere
 SimSettings._applyPreset();
+
+/* =========================
+   TIME CLOCK [v9.0.1]
+   Discrete-time layer over the steady-state solver.
+   Each step: update inventories from last solve → advance t → re-solve.
+   DOM-free (NNG-A2). Exported on PG (NNG-A4).
+   Inter-timestep state on u.inventory (NNG-S5).
+   ========================= */
+const TimeClock = {
+  t:     0,        // current simulation time (seconds)
+  frame: 0,        // integer frame counter (0 = initial state)
+  mode:  'test',   // 'test' | 'paused' | 'playing'
+  _initial: null,  // Map: unitId → deep copy of initial inventory (set on first step)
+
+  /** Get effective dt from SimSettings */
+  get dt() { return SimSettings.dt || 60; },
+
+  /**
+   * Advance one timestep.
+   * 1. On first call (test→paused): capture initial inventories
+   * 2. Update inventories from last solve's flows × dt
+   * 3. Increment t, frame
+   * 4. Re-solve
+   * @param {Scene} scene
+   * @returns {{ t, frame, solveResult }}
+   */
+  step(scene) {
+    if (TimeClock.mode === 'test') {
+      TimeClock._captureInitial(scene);
+      TimeClock.mode = 'paused';
+    }
+
+    // Phase 1+: inventory update will go here
+    // For each inventory unit: u.inventory = def.updateInventory(...)
+
+    TimeClock.t += TimeClock.dt;
+    TimeClock.frame += 1;
+
+    const solveResult = solveScene(scene);
+    return { t: TimeClock.t, frame: TimeClock.frame, solveResult };
+  },
+
+  /**
+   * Reset to t=0, restore initial inventories, re-solve.
+   * @param {Scene} scene
+   * @returns {{ solveResult }}
+   */
+  reset(scene) {
+    TimeClock._restoreInitial(scene);
+    TimeClock.t = 0;
+    TimeClock.frame = 0;
+    TimeClock.mode = 'test';
+
+    const solveResult = solveScene(scene);
+    return { solveResult };
+  },
+
+  /** Snapshot current inventories as t=0 state */
+  _captureInitial(scene) {
+    TimeClock._initial = new Map();
+    // Phase 1+: deep-copy u.inventory for each inventory unit
+  },
+
+  /** Restore t=0 inventories */
+  _restoreInitial(scene) {
+    if (!TimeClock._initial) return;
+    // Phase 1+: restore u.inventory from snapshot
+  }
+};
 
 /* =========================
    CONSTANTS & ENUMS
@@ -8457,7 +8601,8 @@ class Scene {
       grid: { w: this.gridW, h: this.gridH, tile: this.tile },
       settings: {
         cheatsEnabled: SimSettings.cheatsEnabled,
-        atmospherePreset: SimSettings.getPresetKey()
+        atmospherePreset: SimSettings.getPresetKey(),
+        dt: SimSettings.dt  // [v9.0.1]
       },
       units: [],
       connections: [],
@@ -8744,8 +8889,18 @@ class Scene {
           SimSettings.setAtmosphere(data.settings.atmospherePreset);
         }
       }
+      // [v9.0.1] Import timestep
+      if (typeof data.settings.dt === 'number' && data.settings.dt >= 1) {
+        SimSettings.dt = data.settings.dt;
+      }
     }
     // (If no settings block: keep current SimSettings — DEV_BUILD defaults)
+
+    // [v9.0.1] Reset TimeClock on import — always start in test mode
+    TimeClock.t = 0;
+    TimeClock.frame = 0;
+    TimeClock.mode = 'test';
+    TimeClock._initial = null;
 
     return { ok: true };
   }
@@ -10613,6 +10768,9 @@ const PG = {
   // ── Settings [v8.10.0] ──
   SimSettings,
 
+  // ── Time [v9.0.1] ──
+  TimeClock,
+
   // ── Test harness (assigned by test script) ──
   TestCtx:   null,
   runTests:  null,
@@ -10711,7 +10869,12 @@ const ui = {
 const svg = document.getElementById('svg');
 const ioEl = document.getElementById('io');
 const propEditor = document.getElementById('propEditor');
-const btnRun = document.getElementById('btnRun');
+const btnTest  = document.getElementById('btnTest');
+const btnStep  = document.getElementById('btnStep');
+const btnPlay  = document.getElementById('btnPlay');
+const btnPause = document.getElementById('btnPause');
+const btnReset = document.getElementById('btnReset');
+const timeDisplayEl = document.getElementById('timeDisplay');
 const btnAdd = document.getElementById('btnAdd');
 const btnMenu = document.getElementById('btnMenu');
 const btnFile = document.getElementById('btnFile');
@@ -11517,6 +11680,7 @@ function drawUnits() {
         if (port.dir === PortDir.IN && ui.pendingFrom) {
           // Complete connection
           const id = scene.connect(ui.pendingFrom, { unitId, portId });
+          if (id) autoPauseOnTopologyChange(); // [v9.0.1]
           setStatus(id 
             ? 'Connection added.' 
             : (scene._lastConnectError || 'Connection refused: port already connected or incompatible type.'));
@@ -15081,6 +15245,7 @@ function deselectAll() {
 // function rotateSelected() { ... }
 
 function deleteSelected() {
+  autoPauseOnTopologyChange(); // [v9.0.1]
   if (ui.selectedUnitId) {
     scene.deleteUnit(ui.selectedUnitId);
     ui.selectedUnitId = null;
@@ -15231,6 +15396,7 @@ svg.addEventListener('drop', (ev) => {
   ui.pendingFrom = null;
   ui.dragDefId = null;
   ui.isHTML5Dragging = false;
+  autoPauseOnTopologyChange(); // [v9.0.1]
   setStatus(`Placed: ${UnitRegistry.get(defId).name}`);
   
   updatePropertiesPanel();
@@ -15252,14 +15418,121 @@ window.addEventListener('keydown', (ev) => {
 });
 
 /* =========================
-   BUTTONS & MENUS
+   TRANSPORT CONTROLS [v9.0.1]
    ========================= */
-btnRun.addEventListener('click', () => {
-  const solveResult = solveScene(scene);
-  setStatus(describeSolve());
+
+// ── Time display formatting ──
+function formatTime(seconds) {
+  const s = Math.round(seconds);
+  const sec = s % 60;
+  const min = Math.floor(s / 60) % 60;
+  const hr  = Math.floor(s / 3600) % 24;
+  const day = Math.floor(s / 86400);
+  if (day > 0) return `${day}d ${String(hr).padStart(2,'0')}:${String(min).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+  if (hr > 0)  return `${hr}:${String(min).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+  return `${min}:${String(sec).padStart(2,'0')}`;
+}
+
+function updateTransportUI() {
+  const mode = TimeClock.mode;
+  // Button active states
+  btnTest.classList.toggle('active', mode === 'test');
+  btnPause.classList.toggle('active', mode === 'paused');
+  btnPlay.classList.toggle('active', mode === 'playing');
+
+  // Button enable/disable
+  btnTest.disabled  = mode === 'playing';
+  btnStep.disabled  = mode === 'playing';
+  btnPlay.disabled  = mode === 'playing';
+  btnPause.disabled = mode !== 'playing';
+  btnReset.disabled = mode === 'test';
+
+  // Time display
+  if (mode === 'test') {
+    timeDisplayEl.style.display = 'none';
+  } else {
+    timeDisplayEl.style.display = '';
+    timeDisplayEl.innerHTML = `<b>t</b>=${formatTime(TimeClock.t)} · f${TimeClock.frame} · Δt=${SimSettings.dt}s`;
+  }
+}
+
+function afterSolve(solveResult) {
   updateStatusIndicator(solveResult);
   updatePropertiesPanel();
   render();
+  updateTransportUI();
+}
+
+// ── Play loop ──
+const PLAY_SPEEDS = { '1x': 1000, '2x': 500, '5x': 200, '10x': 100, 'max': 16 };
+let _playTimer = null;
+
+function startPlay() {
+  if (TimeClock.mode === 'test') {
+    // First step captures initial
+    const { solveResult } = TimeClock.step(scene);
+    afterSolve(solveResult);
+    setStatus(`Step → frame ${TimeClock.frame}`);
+  }
+  TimeClock.mode = 'playing';
+  updateTransportUI();
+  _playTimer = setInterval(() => {
+    const { solveResult } = TimeClock.step(scene);
+    afterSolve(solveResult);
+    // Stop on CATASTROPHIC
+    if (solveResult && !solveResult.ok && solveResult.unitFaulted) {
+      stopPlay();
+      setStatus('⏸ Paused — solver error');
+    }
+  }, PLAY_SPEEDS[SimSettings.playSpeed || '1x']);
+}
+
+function stopPlay() {
+  if (_playTimer) { clearInterval(_playTimer); _playTimer = null; }
+  if (TimeClock.mode === 'playing') TimeClock.mode = 'paused';
+  updateTransportUI();
+}
+
+/** Auto-pause on topology changes (called from connection/delete/place) */
+function autoPauseOnTopologyChange() {
+  if (TimeClock.mode === 'playing') {
+    stopPlay();
+    setStatus('⏸ Auto-paused — topology changed');
+  }
+}
+
+// ── Button handlers ──
+btnTest.addEventListener('click', () => {
+  stopPlay();
+  // Solve once at current state — no time advancement, no reset
+  TimeClock.mode = 'test';
+  const solveResult = solveScene(scene);
+  setStatus(describeSolve());
+  afterSolve(solveResult);
+});
+
+btnStep.addEventListener('click', () => {
+  stopPlay();
+  const { solveResult } = TimeClock.step(scene);
+  setStatus(`Step → frame ${TimeClock.frame}, t=${formatTime(TimeClock.t)}`);
+  afterSolve(solveResult);
+});
+
+btnPlay.addEventListener('click', () => {
+  startPlay();
+  setStatus('▶▶ Playing…');
+});
+
+btnPause.addEventListener('click', () => {
+  stopPlay();
+  setStatus(`⏸ Paused at frame ${TimeClock.frame}`);
+});
+
+btnReset.addEventListener('click', () => {
+  stopPlay();
+  const { solveResult } = TimeClock.reset(scene);
+  setStatus('↺ Reset to t=0');
+  afterSolve(solveResult);
 });
 
 // Status indicator help button
@@ -15517,6 +15790,40 @@ function buildSettingsPanel() {
   renderAtmosphereDisplay();
   panel.appendChild(atmSec);
 
+  // ── Section: Time [v9.0.1] ──
+  const timeSec = el('div', { style: 'padding:10px; background:#1e293b; border-radius:8px; margin-bottom:10px;' });
+  timeSec.appendChild(el('div', {
+    style: 'font-weight:700; font-size:11px; text-transform:uppercase; letter-spacing:0.5px; opacity:0.6; margin-bottom:8px;',
+    html: 'Time'
+  }));
+
+  // Δt input
+  const dtRow = el('div', { style: 'display:flex; align-items:center; gap:8px; margin-bottom:6px;' });
+  dtRow.appendChild(el('label', { html: 'Timestep (Δt):', style: 'font-size:12px; min-width:90px;' }));
+  const dtInput = document.createElement('input');
+  dtInput.type = 'number'; dtInput.min = '1'; dtInput.step = '1'; dtInput.value = SimSettings.dt;
+  dtInput.style.cssText = 'width:70px; background:#0f172a; color:#e2e8f0; border:1px solid #334155; border-radius:3px; padding:2px 4px; font-size:12px;';
+  dtInput.addEventListener('input', () => _markSettingsDirty());
+  dtRow.appendChild(dtInput);
+  dtRow.appendChild(el('span', { html: 's', style: 'opacity:0.5; font-size:12px;' }));
+  timeSec.appendChild(dtRow);
+
+  // Play speed selector
+  const speedRow = el('div', { style: 'display:flex; align-items:center; gap:8px;' });
+  speedRow.appendChild(el('label', { html: 'Play speed:', style: 'font-size:12px; min-width:90px;' }));
+  const speedSel = document.createElement('select');
+  speedSel.style.cssText = 'background:#0f172a; color:#e2e8f0; border:1px solid #334155; border-radius:4px; padding:3px 6px; font-size:12px;';
+  for (const spd of ['1x', '2x', '5x', '10x', 'max']) {
+    const opt = document.createElement('option');
+    opt.value = spd; opt.textContent = spd;
+    if (spd === SimSettings.playSpeed) opt.selected = true;
+    speedSel.appendChild(opt);
+  }
+  speedSel.addEventListener('change', () => _markSettingsDirty());
+  speedRow.appendChild(speedSel);
+  timeSec.appendChild(speedRow);
+  panel.appendChild(timeSec);
+
   // ── Section: Developer ──
   const devSec = el('div', { style: 'padding:10px; background:#1e293b; border-radius:8px; margin-bottom:6px;' });
   devSec.appendChild(el('div', {
@@ -15589,6 +15896,17 @@ function buildSettingsPanel() {
     // Apply developer mode
     SimSettings.cheatsEnabled = devCheck.checked;
     SimSettings.AUTO_RUN_TESTS = devCheck.checked;
+
+    // Apply time settings [v9.0.1]
+    const newDt = Math.max(1, parseInt(dtInput.value) || 60);
+    SimSettings.dt = newDt;
+    SimSettings.playSpeed = speedSel.value;
+    // If play is active, restart with new speed
+    if (TimeClock.mode === 'playing') {
+      stopPlay();
+      startPlay();
+    }
+    updateTransportUI();
 
     // Apply atmosphere
     if (pendingPreset === 'custom') {
@@ -21641,6 +21959,120 @@ function runTests() {
     SimSettings.setAtmosphere(origPreset);
     SimSettings.cheatsEnabled = origCheats;
   });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // AJ — TimeClock: step, reset, mode transitions [v9.0.1]
+  // ═══════════════════════════════════════════════════════════════════════
+
+  tests.push({ name: '160: TimeClock.step increments t and frame', fn: t => {
+    // Save & reset TimeClock state
+    const origDt = SimSettings.dt;
+    const origMode = TimeClock.mode;
+    const origT = TimeClock.t;
+    const origFrame = TimeClock.frame;
+    TimeClock.t = 0; TimeClock.frame = 0; TimeClock.mode = 'test';
+    SimSettings.dt = 30;
+
+    // Place a simple unit so solveScene has something to do
+    const src = t.place('source', 0, 0);
+
+    // First step: should transition test → paused and advance
+    const r1 = TimeClock.step(scene);
+    t.assertClose(r1.t, 30, 0.01, 'After step 1: t = 30');
+    t.assertClose(r1.frame, 1, 0, 'After step 1: frame = 1');
+    t.assertOK(TimeClock.mode === 'paused', 'First step transitions to paused');
+
+    // Second step: stays paused, advances further
+    const r2 = TimeClock.step(scene);
+    t.assertClose(r2.t, 60, 0.01, 'After step 2: t = 60');
+    t.assertClose(r2.frame, 2, 0, 'After step 2: frame = 2');
+    t.assertOK(TimeClock.mode === 'paused', 'Second step stays paused');
+
+    // solveResult present
+    t.assertOK(r2.solveResult != null, 'step returns solveResult');
+
+    // Restore
+    TimeClock.t = origT; TimeClock.frame = origFrame;
+    TimeClock.mode = origMode; SimSettings.dt = origDt;
+  }});
+
+  tests.push({ name: '161: TimeClock.reset restores t=0, frame=0, mode=test', fn: t => {
+    const origDt = SimSettings.dt;
+    TimeClock.t = 0; TimeClock.frame = 0; TimeClock.mode = 'test';
+    SimSettings.dt = 10;
+
+    const src = t.place('source', 0, 0);
+
+    // Advance several steps
+    TimeClock.step(scene);
+    TimeClock.step(scene);
+    TimeClock.step(scene);
+    t.assertClose(TimeClock.t, 30, 0.01, 'After 3 steps: t=30');
+    t.assertClose(TimeClock.frame, 3, 0, 'After 3 steps: frame=3');
+
+    // Reset
+    const { solveResult } = TimeClock.reset(scene);
+    t.assertClose(TimeClock.t, 0, 0, 'After reset: t=0');
+    t.assertClose(TimeClock.frame, 0, 0, 'After reset: frame=0');
+    t.assertOK(TimeClock.mode === 'test', 'After reset: mode=test');
+    t.assertOK(solveResult != null, 'reset returns solveResult');
+
+    // Restore
+    TimeClock.t = 0; TimeClock.frame = 0;
+    TimeClock.mode = 'test'; SimSettings.dt = origDt;
+  }});
+
+  tests.push({ name: '162: TimeClock mode transitions', fn: t => {
+    const origMode = TimeClock.mode;
+    const origT = TimeClock.t;
+    const origFrame = TimeClock.frame;
+    const origDt = SimSettings.dt;
+    TimeClock.t = 0; TimeClock.frame = 0; TimeClock.mode = 'test';
+    SimSettings.dt = 60;
+
+    const src = t.place('source', 0, 0);
+
+    // test → paused (via step)
+    t.assertOK(TimeClock.mode === 'test', 'Initial: test');
+    TimeClock.step(scene);
+    t.assertOK(TimeClock.mode === 'paused', 'After step: paused');
+
+    // paused → paused (via step again)
+    TimeClock.step(scene);
+    t.assertOK(TimeClock.mode === 'paused', 'Step while paused: still paused');
+
+    // Simulate play → pause
+    TimeClock.mode = 'playing';
+    t.assertOK(TimeClock.mode === 'playing', 'Set to playing');
+    TimeClock.mode = 'paused';  // as stopPlay would do
+    t.assertOK(TimeClock.mode === 'paused', 'Pause: paused');
+
+    // paused → test (via reset)
+    TimeClock.reset(scene);
+    t.assertOK(TimeClock.mode === 'test', 'Reset: test');
+
+    // Restore
+    TimeClock.t = origT; TimeClock.frame = origFrame;
+    TimeClock.mode = origMode; SimSettings.dt = origDt;
+  }});
+
+  tests.push({ name: '163: TimeClock.step calls solveScene (runtime updates)', fn: t => {
+    const origDt = SimSettings.dt;
+    TimeClock.t = 0; TimeClock.frame = 0; TimeClock.mode = 'test';
+    SimSettings.dt = 60;
+
+    const src = t.place('source', 0, 0);
+
+    // Step triggers a solve — runtime.lastSolve should exist and be ok
+    const { solveResult } = TimeClock.step(scene);
+    t.assertOK(solveResult.ok === true, 'solveResult.ok after step');
+    t.assertOK(scene.runtime.lastSolve != null, 'runtime.lastSolve populated');
+    t.assertOK(scene.runtime.lastSolve.ok === true, 'lastSolve.ok after step');
+
+    // Restore
+    TimeClock.t = 0; TimeClock.frame = 0;
+    TimeClock.mode = 'test'; SimSettings.dt = origDt;
+  }});
 
   // ═══════════════════════════════════════════════════════════════════════
   // RUNNER
