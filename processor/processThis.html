@@ -3,6 +3,51 @@
   ═══════════════════════════════════════════════════════════════════════════
   processThis v9.1.0
 
+  ─── v10.0.4 ──────────────────────────────────────────────────────────────
+  Unit taxonomy, registry cleanup & settings decoupling.
+
+  CATEGORY REORGANIZATION (C1–C3):
+  12 old categories → 7 user-facing + TEST.  Ordered for palette display:
+  Boundaries (#10b981) → Heat Transfer (#3b82f6) → Pressure (#8b5cf6) →
+  Reactors (#ef4444) → Separation & Mixing (#14b8a6) → Storage (#06b6d4) →
+  Power (#eab308).  Legacy constants (SOURCE, SINK, POWER_SOURCE,
+  POWER_CONVERSION, POWER_MANAGEMENT, HEAT_EXCHANGER, SEPARATOR, TOPOLOGY,
+  VESSEL) resolve via getters.  listByCategory() returns ordered by
+  category.order.
+
+  SOURCE_ELECTRICAL MERGE (C6–C10):
+  source_electrical removed — merged into grid_supply with { fixed: true }
+  toggle.  Import migration (version ≤ 14) converts defId, params.fixed,
+  unit IDs, and connection references.  Export version → 15.  Grid supply
+  icon changed to lightning bolt (ico-electrical).
+
+  SETTINGS DECOUPLING (C15–C17):
+  cheatsEnabled (Developer mode) and showCheats (Show advanced units) are
+  now independent settings with separate checkboxes.  Developer mode
+  controls arbitrary source T/P and auto-test.  Show advanced units controls
+  palette visibility of cheat-tagged units.  Both default to false.
+
+  UNIT CLASSIFICATION (C4–C5, C11, C14):
+  _devTest flag: _test_throw, _test_nan_producer, _test_string_flow never
+  shown in palette (even with showCheats=true).  Still renderable in
+  imported scenes.  source_multi: no longer cheat (promoted to user-facing).
+  source_mechanical: now cheat-tagged.
+
+  PALETTE & UI (C12–C13, C18–C20):
+  Multi-source: × delete button per species row.
+  Generator renamed → "Electric Generator".
+  Palette tiles: display name only (defId subtitle removed).
+  grid_supply inspector: "Fixed output" toggle + mode display.
+
+  TESTS (0.2a–0.2b):
+  runTests() saves/restores SimSettings.cheatsEnabled (set true for tests).
+  Hub tests updated: grid_supply units that expect fixed behavior now pass
+  { fixed: true }.  excludeCheats test updated for source_multi promotion,
+  source_mechanical cheat tag, _devTest filtering.
+  New: T194 (source_electrical migration), T195 (_devTest filtering),
+  T196 (category ordering), T197 (grid_supply fixed mode).
+  Gate: 197/197 tests, 1339 checks, zero regressions.
+
   ─── v10.0.3 ──────────────────────────────────────────────────────────────
   Fix patch — 8 issues from testing feedback.
 
@@ -963,7 +1008,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>processThis — v10.0.3</title>
+  <title>processThis — v10.0.4</title>
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
@@ -2515,8 +2560,11 @@ const SimSettings = {
   DEV_BUILD: true,          // true = dev branch, false = shipping
   AUTO_RUN_TESTS: true,     // gates auto-test at boot; tracks DEV_BUILD
 
-  // ── Cheat mode ──
-  cheatsEnabled: true,      // toggled by UI; defaults to DEV_BUILD
+  // ── Developer mode ── (arbitrary source T/P, auto-test)
+  cheatsEnabled: false,     // [v10.0.4] default false — clean palette for UI work
+
+  // ── Advanced units visibility ── (decoupled from developer mode)
+  showCheats: false,        // [v10.0.4] toggled separately from dev mode
 
   // ── Time settings [v9.0.1] ──
   dt: 60,                   // timestep duration (seconds)
@@ -6515,41 +6563,29 @@ function diagnoseErrors(scene) {
    Categories for organizing units with color coding
    ========================= */
 const UnitCategories = {
-  // Material sources
-  SOURCE: { name: 'Sources', color: '#10b981' },      // Green
-  
-  // Material sinks  
-  SINK: { name: 'Sinks', color: '#6366f1' },          // Indigo
-  
-  // Power sources
-  POWER_SOURCE: { name: 'Power Sources', color: '#eab308' },  // Yellow
-  
-  // Power conversion
-  POWER_CONVERSION: { name: 'Power Conversion', color: '#f59e0b' }, // Orange
-  
-  // Pressure change equipment
-  PRESSURE: { name: 'Pressure Change', color: '#8b5cf6' }, // Purple
-  
-  // Heat exchangers
-  HEAT_EXCHANGER: { name: 'Heat Exchangers', color: '#3b82f6' }, // Blue
-  
-  // Separators
-  SEPARATOR: { name: 'Separators', color: '#ec4899' }, // Pink
-  
-  // Topology (mixers, splitters, tees)
-  TOPOLOGY: { name: 'Topology', color: '#14b8a6' },    // Teal
-  
-  // Power management (hub, battery, power sink)
-  POWER_MANAGEMENT: { name: 'Power Management', color: '#facc15' },  // Gold
-  
-  // Reactors
-  REACTOR: { name: 'Reactors', color: '#ef4444' },    // Red
-  
-  // Vessels (tanks, drums with inventory) [v9.0.3]
-  VESSEL: { name: 'Vessels', color: '#06b6d4' },       // Cyan
-  
-  // Test units
-  TEST: { name: 'Test Units', color: '#64748b' }      // Slate
+  // [v10.0.4] Rationalized taxonomy — 7 user-facing categories, ordered for palette display.
+  // order: controls palette display order (ascending).
+  BOUNDARY:       { name: 'Boundaries',          color: '#10b981', order: 1 },  // Green
+  HEAT_TRANSFER:  { name: 'Heat Transfer',        color: '#3b82f6', order: 2 },  // Blue
+  PRESSURE:       { name: 'Pressure',             color: '#8b5cf6', order: 3 },  // Purple
+  REACTOR:        { name: 'Reactors',             color: '#ef4444', order: 4 },  // Red
+  SEPARATION:     { name: 'Separation & Mixing',  color: '#14b8a6', order: 5 },  // Teal
+  STORAGE:        { name: 'Storage',              color: '#06b6d4', order: 6 },  // Cyan
+  POWER:          { name: 'Power',                color: '#eab308', order: 7 },  // Amber
+
+  // ── Legacy aliases (resolve to new categories) ──
+  get SOURCE()           { return this.BOUNDARY; },
+  get SINK()             { return this.BOUNDARY; },
+  get POWER_SOURCE()     { return this.POWER; },
+  get POWER_CONVERSION() { return this.POWER; },
+  get POWER_MANAGEMENT() { return this.POWER; },
+  get HEAT_EXCHANGER()   { return this.HEAT_TRANSFER; },
+  get SEPARATOR()        { return this.SEPARATION; },
+  get TOPOLOGY()         { return this.SEPARATION; },
+  get VESSEL()           { return this.STORAGE; },
+
+  // Test units — never shown in palette
+  TEST:            { name: 'Test Units', color: '#64748b', order: 99 }
 };
 
 /* =========================
@@ -6608,11 +6644,12 @@ class UnitRegistry {
   static _defs = new Map();
 
   static register(defId, spec) {
-    const category = spec.category || UnitCategories.UTILITY;
+    const category = spec.category || UnitCategories.BOUNDARY;
     const def = {
       defId,
       name: spec.name,
       category: category.name,
+      _categoryOrder: category.order ?? 50,
       w: Math.max(2, spec.w || 2),  // Minimum 2x2 for better readability
       h: Math.max(2, spec.h || 2),
       color: category.color, // Color comes from category
@@ -6620,7 +6657,8 @@ class UnitRegistry {
       tick: spec.tick || null,
       postFlashCheck: spec.postFlashCheck || null,  // [v4.7.6] Was missing → postFlashCheck never ran
       _wip: spec._wip || false,  // [v8.8.0] Work-in-progress flag
-      cheat: spec.cheat || false,  // [v8.10.0] Hidden in hard mode
+      cheat: spec.cheat || false,  // [v8.10.0] Hidden when showCheats=false
+      _devTest: spec._devTest || false, // [v10.0.4] Never shown in palette (test-only units)
       // [v9.0.2] Inventory protocol (NNG-D4, NNG-S5)
       inventory: spec.inventory || false,
       initInventory: spec.initInventory || null,
@@ -6641,13 +6679,19 @@ class UnitRegistry {
   
   static listByCategory(opts = {}) {
     const byCategory = {};
+    const orderMap = {};
     for (const def of this._defs.values()) {
+      if (def._devTest) continue;  // [v10.0.4] Never show dev-test units in palette
       if (def.cheat && opts.excludeCheats) continue;  // [v8.10.0] hard mode filter
       const cat = def.category;
-      if (!byCategory[cat]) byCategory[cat] = [];
+      if (!byCategory[cat]) { byCategory[cat] = []; orderMap[cat] = def._categoryOrder ?? 50; }
       byCategory[cat].push(def);
     }
-    return byCategory;
+    // [v10.0.4] Return ordered by category.order
+    const ordered = {};
+    const sortedCats = Object.keys(byCategory).sort((a, b) => (orderMap[a] || 50) - (orderMap[b] || 50));
+    for (const cat of sortedCats) ordered[cat] = byCategory[cat];
+    return ordered;
   }
 }
 
@@ -6692,7 +6736,7 @@ UnitRegistry.register('source', {
 UnitRegistry.register('source_multi', {
   name: 'Source (Mix)',
   category: UnitCategories.SOURCE,
-  cheat: true,  // [v8.10.0] hidden in hard mode
+  // [v10.0.4] No longer cheat — user-facing multi-component source
   w: 2,
   h: 2,
   ports: [{ portId: 'out', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 1 }],
@@ -6799,7 +6843,7 @@ UnitRegistry.register('sink', {
 // └─────────────────────────────────────────────────────────────────────────────┘
 UnitRegistry.register('grid_supply', {
   name: 'Grid Supply',
-  category: UnitCategories.POWER_MANAGEMENT,
+  category: UnitCategories.POWER,
   w: 2,
   h: 2,
   ports: [{ portId: 'out', dir: PortDir.OUT, type: StreamType.ELECTRICAL, x: 2, y: 1 }],
@@ -6807,17 +6851,19 @@ UnitRegistry.register('grid_supply', {
     const maxPower_W = (par.maxPower || 1000) * 1000;
     const s = ctx ? ctx.scratch : {};
     const actualDraw_W = s.actualDraw_W ?? maxPower_W;
+    // [v10.0.4] Fixed mode: behaves like old source_electrical (always provides max)
+    const isFixed = par.fixed === true;
     ports.out = {
       type: StreamType.ELECTRICAL,
       capacity: maxPower_W,
       actual: actualDraw_W,
       available: maxPower_W,  // deprecated alias for capacity
-      demand: s.hubDemand_W || 0,
+      demand: isFixed ? (s.hubDemand_W !== undefined ? s.hubDemand_W : maxPower_W) : (s.hubDemand_W || 0),
       curtailmentFactor: s.directCurtailment ?? 1.0
     };
     u.last = {
       maxPower_W: maxPower_W,
-      type: 'grid_supply'
+      type: isFixed ? 'fixed' : 'grid_supply'
     };
   }
 });
@@ -7090,35 +7136,8 @@ UnitRegistry.register('battery', {
   }
 });
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// FIXED POWER SOURCE — Non-dispatchable electrical source
-// ═══════════════════════════════════════════════════════════════════════════════
-// Produces at nominal capacity unconditionally. Think grid connection or
-// generator at rated load. Not demand-responsive: always outputs maxPower.
-UnitRegistry.register('source_electrical', {
-  name: 'Power Source',
-  category: UnitCategories.POWER_SOURCE,
-  w: 2,
-  h: 2,
-  ports: [{ portId: 'out', dir: PortDir.OUT, type: StreamType.ELECTRICAL, x: 2, y: 1 }],
-  tick(u, ports, par, ctx) {
-    const maxPower_W = (par.maxPower || 1000) * 1000;
-    const s = ctx ? ctx.scratch : {};
-    const actualDraw_W = s.actualDraw_W ?? maxPower_W;
-    ports.out = {
-      type: StreamType.ELECTRICAL,
-      capacity: maxPower_W,
-      actual: actualDraw_W,
-      available: maxPower_W,  // deprecated alias for capacity
-      demand: s.hubDemand_W !== undefined ? s.hubDemand_W : maxPower_W,
-      curtailmentFactor: s.directCurtailment ?? 1.0  // [v6.1] direct-bus curtailment
-    };
-    u.last = {
-      maxPower_W: maxPower_W,
-      type: 'fixed'
-    };
-  }
-});
+// [v10.0.4] source_electrical REMOVED — merged into grid_supply with { fixed: true }
+// Import migration (version ≤ 14) converts source_electrical → grid_supply.
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // POWER HUB — Electrical bus that balances supply and demand
@@ -7438,7 +7457,7 @@ UnitRegistry.register('gas_turbine', {
 // converts to electrical power with efficiency loss.
 // This is a bookkeeping unit — no thermodynamics, just W_elec = W_mech × η.
 UnitRegistry.register('generator', {
-  name: 'Generator',
+  name: 'Electric Generator',
   category: UnitCategories.POWER_CONVERSION,
   w: 2,
   h: 2,
@@ -7487,6 +7506,7 @@ UnitRegistry.register('generator', {
 UnitRegistry.register('source_mechanical', {
   name: 'Mechanical Source',
   category: UnitCategories.POWER_SOURCE,
+  cheat: true,  // [v10.0.4] advanced unit — free shaft power
   w: 2,
   h: 2,
   ports: [{ portId: 'out', dir: PortDir.OUT, type: StreamType.MECHANICAL, x: 2, y: 1 }],
@@ -9194,7 +9214,6 @@ class Scene {
         unit.params = { flowScale: 1.0 };
         break;
       // ── Power / mechanical sources ──
-      case 'source_electrical':
       case 'source_mechanical':
         unit.params = { maxPower: 50 };   // 50 kW — reasonable small plant
         break;
@@ -9390,11 +9409,12 @@ class Scene {
 
   exportJSON() {
     const data = {
-      version: 14,  // [v9.0.2] bumped: battery→grid_supply rename, inventory protocol
+      version: 15,  // [v10.0.4] bumped: source_electrical merge, showCheats decoupled
       processName: this.processName || '',
       grid: { w: this.gridW, h: this.gridH, tile: this.tile },
       settings: {
         cheatsEnabled: SimSettings.cheatsEnabled,
+        showCheats: SimSettings.showCheats,
         atmospherePreset: SimSettings.getPresetKey(),
         dt: SimSettings.dt  // [v9.0.1]
       },
@@ -9478,6 +9498,31 @@ class Scene {
           // Migrate id prefix if it follows the defId-N pattern
           if (u.id && u.id.startsWith('battery-')) {
             u.id = 'grid_supply-' + u.id.slice(8);
+          }
+        }
+      }
+    }
+
+    // [v10.0.4] Migrate source_electrical → grid_supply (version ≤ 14)
+    if ((!data.version || data.version < 15) && Array.isArray(data.units)) {
+      for (const u of data.units) {
+        if (u.defId === 'source_electrical') {
+          u.defId = 'grid_supply';
+          if (!u.params) u.params = {};
+          u.params.fixed = true;  // source_electrical was always fixed supply
+          if (u.id && u.id.startsWith('source_electrical-')) {
+            u.id = 'grid_supply-' + u.id.slice(18);
+          }
+        }
+      }
+      // Also update connection references
+      if (Array.isArray(data.connections)) {
+        for (const c of data.connections) {
+          if (c.from?.unitId?.startsWith('source_electrical-')) {
+            c.from.unitId = 'grid_supply-' + c.from.unitId.slice(18);
+          }
+          if (c.to?.unitId?.startsWith('source_electrical-')) {
+            c.to.unitId = 'grid_supply-' + c.to.unitId.slice(18);
           }
         }
       }
@@ -9686,7 +9731,13 @@ class Scene {
     if (data.settings && typeof data.settings === 'object') {
       if (typeof data.settings.cheatsEnabled === 'boolean') {
         SimSettings.cheatsEnabled = data.settings.cheatsEnabled;
-        SimSettings.AUTO_RUN_TESTS = data.settings.cheatsEnabled;  // developer mode controls both
+        SimSettings.AUTO_RUN_TESTS = data.settings.cheatsEnabled;
+      }
+      // [v10.0.4] showCheats decoupled — old files without it default to cheatsEnabled
+      if (typeof data.settings.showCheats === 'boolean') {
+        SimSettings.showCheats = data.settings.showCheats;
+      } else {
+        SimSettings.showCheats = SimSettings.cheatsEnabled;
       }
       if (data.settings.atmospherePreset) {
         if (data.settings.atmospherePreset === 'custom' && data.settings.customAtmosphere) {
@@ -10989,7 +11040,7 @@ function solveScene(scene, options = {}) {
         const srcUD = scene.runtime.unitData.get(conn.from.unitId);
         const portData = srcUD?.ports?.[conn.from.portId];
         const avail = portData?.capacity ?? portData?.available ?? 0;
-        const isResponsive = srcU?.defId === 'grid_supply';
+        const isResponsive = srcUD?.last?.type === 'grid_supply';  // [v10.0.4] check type, not defId
         const isSOCBattery = srcU?.defId === 'battery';
         
         const srcInfo = { conn, srcU, srcUD, avail, isResponsive, isSOCBattery };
@@ -11226,12 +11277,12 @@ function solveScene(scene, options = {}) {
       }
     }
     
-    // Step E: Actual computation for direct-connected non-battery sources
-    // (source_electrical, source_mechanical not connected to a hub)
-    // Grid supply units are handled in Step D. Hub-connected sources in Step C.
+    // Step E: Actual computation for direct-connected source_mechanical
+    // (source_mechanical not connected to a hub)
+    // Grid supply (both fixed and responsive) handled in Step D. Hub-connected sources in Step C.
     // This ensures ALL non-material output ports carry a consistent `actual` value.
     for (const [_id, _u] of scene.units) {
-      if (_u.defId !== 'source_electrical' && _u.defId !== 'source_mechanical') continue;
+      if (_u.defId !== 'source_mechanical') continue;
       
       const _ud = scene.runtime.unitData.get(_id);
       const outPortId = 'out';
@@ -12460,13 +12511,11 @@ function drawUnits() {
     // Unit icon - map defId to icon name with proper precedence
     let iconName = def.defId;
     if (def.defId === 'grid_supply') {
-      iconName = 'grid_supply';
+      iconName = 'electrical';   // [v10.0.4] lightning bolt (was ico-grid_supply)
     } else if (def.defId === 'source_mechanical') {
       iconName = 'mechanical';
     } else if (def.defId === 'source') {
       iconName = 'source';
-    } else if (def.defId === 'source_electrical') {
-      iconName = 'source_electrical';
     } else if (def.defId === 'source_air') {
       iconName = 'source_air';
     } else if (def.defId === 'sink_heat') {
@@ -14790,6 +14839,12 @@ UnitInspector.source_multi = {
       const spCap = sp;
       inp.addEventListener('input', () => { const v = Number(inp.value); if (v > 0) u.params.n[spCap] = v; else delete u.params.n[spCap]; });
       row.appendChild(inp);
+      // [v10.0.4] Delete button per species
+      const delBtn = el('button', { class: 'btn', style: 'padding:1px 6px; font-size:11px; min-width:auto; line-height:1; color:#f87171;' });
+      delBtn.textContent = '×';
+      delBtn.title = `Remove ${sp}`;
+      delBtn.addEventListener('click', () => { delete u.params.n[spCap]; updatePropertiesPanel(); });
+      row.appendChild(delBtn);
       compBox.appendChild(row);
     }
     const allSpecies = ComponentRegistry.list().map(c => c.formula).filter(f => !(f in u.params.n));
@@ -14832,21 +14887,18 @@ UnitInspector.sink_electrical = {
 };
 
 UnitInspector.grid_supply = {
-  params(u) { return [{ label: 'Max Power (kW)', get: () => u.params.maxPower || 50, set: v => u.params.maxPower = v, step: 10 }]; },
+  params(u) { return [
+    { label: 'Max Power (kW)', get: () => u.params.maxPower || 50, set: v => u.params.maxPower = v, step: 10 },
+    { type: 'toggle', label: 'Fixed output (non-responsive)', get: () => u.params.fixed === true, set: v => { u.params.fixed = v; updatePropertiesPanel(); } },
+  ]; },
   properties(u, ud, grid) {
-    insKV(grid, 'Capacity', fmt.kW(ud.last?.capacity_W));
-    insKV(grid, 'Draw', fmt.kW(ud.last?.draw_W));
-    insKV(grid, 'Demand', fmt.kW(ud.last?.demand_W));
+    const mode = ud.last?.type === 'fixed' ? 'Fixed' : 'Responsive';
+    insKV(grid, 'Mode', mode, { tone: mode === 'Fixed' ? 'warn' : 'good' });
+    insKV(grid, 'Capacity', fmt.kW(ud.last?.maxPower_W));
   }
 };
 
-UnitInspector.source_electrical = {
-  params(u) { return [{ label: 'Max Power (kW)', get: () => u.params.maxPower || 50, set: v => u.params.maxPower = v, step: 10 }]; },
-  properties(u, ud, grid) {
-    insKV(grid, 'Capacity', fmt.kW(ud.last?.capacity_W));
-    insKV(grid, 'Actual', fmt.kW(ud.last?.actual_W));
-  }
-};
+// [v10.0.4] source_electrical inspector removed — merged into grid_supply
 
 UnitInspector.source_mechanical = {
   params(u) { return [{ label: 'Max Power (kW)', get: () => u.params.maxPower || 50, set: v => u.params.maxPower = v, step: 10 }]; }
@@ -15178,7 +15230,7 @@ function populatePalette() {
   function buildChips() {
     chipsContainer.innerHTML = '';
     const cats = new Set(['All']);
-    const byCategory = UnitRegistry.listByCategory({ excludeCheats: !SimSettings.cheatsEnabled });
+    const byCategory = UnitRegistry.listByCategory({ excludeCheats: !SimSettings.showCheats });
     for (const cat of Object.keys(byCategory)) cats.add(cat);
     for (const cat of cats) {
       const chip = el('div', { class: `pal-chip ${cat === activeCategory ? 'active' : ''}` });
@@ -15191,7 +15243,7 @@ function populatePalette() {
   function buildTiles() {
     tilesContainer.innerHTML = '';
     const query = (searchInput.value || '').toLowerCase().trim();
-    const byCategory = UnitRegistry.listByCategory({ excludeCheats: !SimSettings.cheatsEnabled });
+    const byCategory = UnitRegistry.listByCategory({ excludeCheats: !SimSettings.showCheats });
     
     for (const [catName, units] of Object.entries(byCategory)) {
       if (activeCategory !== 'All' && catName !== activeCategory) continue;
@@ -15211,7 +15263,8 @@ function populatePalette() {
         const tile = el('div', { class: 'pal-tile' });
         tile.draggable = true;
         const wipTag = def._wip ? ' <span style="color:#f59e0b;font-size:9px;font-weight:700;">WIP</span>' : '';
-        tile.innerHTML = `<div class="pal-tname"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${def.color};margin-right:4px;vertical-align:middle;"></span>${def.name}${wipTag}</div><div class="pal-tdesc">${def.defId}</div>`;
+        const cheatTag = def.cheat ? ' <span style="color:#94a3b8;font-size:9px;">★</span>' : '';
+        tile.innerHTML = `<div class="pal-tname"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${def.color};margin-right:4px;vertical-align:middle;"></span>${def.name}${wipTag}${cheatTag}</div>`;
         
         tile.addEventListener('dragstart', (ev) => {
           ui.dragDefId = def.defId;
@@ -16195,11 +16248,31 @@ function buildSettingsPanel() {
   devSec.appendChild(devRow);
   devSec.appendChild(el('div', {
     style: 'font-size:10px; opacity:0.35; margin-left:22px; line-height:1.4; margin-bottom:8px;',
-    html: 'Cheat units, arbitrary source T/P, auto-run tests.'
+    html: 'Arbitrary source T/P, auto-run tests at boot.'
   }));
 
-  // Warn if scene has cheat units and dev mode is off
-  if (!devCheck.checked) {
+  // Show advanced units checkbox (decoupled from dev mode)
+  const cheatRow = el('div', { style: 'display:flex; align-items:center; gap:8px; margin-bottom:4px;' });
+  const cheatCheck = document.createElement('input');
+  cheatCheck.type = 'checkbox';
+  cheatCheck.checked = SimSettings.showCheats;
+  cheatCheck.id = 'settingsCheatCheck';
+  cheatCheck.style.cssText = 'margin:0;';
+  cheatCheck.addEventListener('change', () => _markSettingsDirty());
+  cheatRow.appendChild(cheatCheck);
+  const cheatLabel = document.createElement('label');
+  cheatLabel.htmlFor = 'settingsCheatCheck';
+  cheatLabel.style.cssText = 'font-size:12px; cursor:pointer; white-space:nowrap; line-height:1;';
+  cheatLabel.textContent = 'Show advanced units';
+  cheatRow.appendChild(cheatLabel);
+  devSec.appendChild(cheatRow);
+  devSec.appendChild(el('div', {
+    style: 'font-size:10px; opacity:0.35; margin-left:22px; line-height:1.4; margin-bottom:8px;',
+    html: 'Cooler, adiabatic reactor, mechanical source.'
+  }));
+
+  // Warn if scene has cheat units and cheats are hidden
+  if (!cheatCheck.checked) {
     const cheatUnits = [];
     for (const u of scene.units.values()) {
       const def = UnitRegistry.get(u.defId);
@@ -16208,7 +16281,7 @@ function buildSettingsPanel() {
     if (cheatUnits.length > 0) {
       devSec.appendChild(el('div', {
         style: 'padding:4px 8px; background:#78350f; border-radius:4px; font-size:10px; color:#fbbf24; line-height:1.3; margin-bottom:6px;',
-        html: `⚠ Scene has cheat units: ${cheatUnits.join(', ')}. They still work but can't be added.`
+        html: `⚠ Scene has advanced units: ${cheatUnits.join(', ')}. They still work but can't be added.`
       }));
     }
   }
@@ -16240,9 +16313,10 @@ function buildSettingsPanel() {
   const newBtn = applyBtn.cloneNode(true);
   applyBtn.parentNode.replaceChild(newBtn, applyBtn);
   newBtn.addEventListener('click', () => {
-    // Apply developer mode
+    // Apply developer mode + advanced units (decoupled)
     SimSettings.cheatsEnabled = devCheck.checked;
     SimSettings.AUTO_RUN_TESTS = devCheck.checked;
+    SimSettings.showCheats = cheatCheck.checked;
 
     // Apply time settings [v9.0.1]
     const newDt = Math.max(1, parseInt(dtInput.value) || 60);
@@ -16431,8 +16505,8 @@ function loadDemo() {
 
       // ── ENERGY STORAGE SUBSYSTEM ──
       // Solar panel (fixed source, 30 kW)
-      { id: 'solar', defId: 'source_electrical', name: 'Solar 30kW', x: 0, y: 14, rot: 0,
-        params: { maxPower: 30 } },
+      { id: 'solar', defId: 'grid_supply', name: 'Solar 30kW', x: 0, y: 14, rot: 0,
+        params: { maxPower: 30, fixed: true } },
 
       // Battery (10 kWh, 20 kW peak, 90% SOC)
       { id: 'batt', defId: 'battery', name: 'Li-Ion 10kWh', x: 0, y: 17, rot: 0,
@@ -17488,8 +17562,8 @@ function runTests() {
   // ═══════════════════════════════════════════════════════════════════════
 
   test('Hub: Input Aggregation', t => {
-    const fA = t.place('source_electrical', 0, 0, { maxPower:50 });
-    const fB = t.place('source_electrical', 0, 3, { maxPower:30 });
+    const fA = t.place('grid_supply', 0, 0, { maxPower:50, fixed:true });
+    const fB = t.place('grid_supply', 0, 3, { maxPower:30, fixed:true });
     const bat = t.place('grid_supply', 0, 6, { maxPower:20 });
     const hub = t.place('power_hub', 4, 2); const hs = t.place('sink_heat', 4, 0);
     t.wire(fA,'out', hub,'elec_in'); t.wire(fB,'out', hub,'elec_in');
@@ -17502,13 +17576,14 @@ function runTests() {
     t.assertClose(h.last.surplus_W, 80000, 1, 'Surplus = fixed');
     // MultiConnect via scene.connect()
     const ts = new Scene();
-    const tb1 = ts.placeUnit('source_electrical', 0, 0), tb2 = ts.placeUnit('grid_supply', 0, 3), th = ts.placeUnit('power_hub', 4, 1);
+    const tb1 = ts.placeUnit('grid_supply', 0, 0), tb2 = ts.placeUnit('grid_supply', 0, 3), th = ts.placeUnit('power_hub', 4, 1);
+    ts.units.get(tb1).params.fixed = true;  // [v10.0.4] was source_electrical
     t.assertOK(ts.connect({unitId:tb1,portId:'out'},{unitId:th,portId:'elec_in'}) && ts.connect({unitId:tb2,portId:'out'},{unitId:th,portId:'elec_in'}), 'multiConnect OK');
     t.assertClose(t.unit(hs).last.absorbed_W || 0, 80000, 1, 'Heat sink absorbed');
   });
 
   test('Hub: Sufficient Supply', t => {
-    const fix = t.place('source_electrical', 0, 0, { maxPower:50 });
+    const fix = t.place('grid_supply', 0, 0, { maxPower:50, fixed:true });
     const bat = t.place('grid_supply', 0, 6, { maxPower:30 });
     const hub = t.place('power_hub', 4, 1);
     const mot = t.place('motor', 8, 0, { eta:0.92 });
@@ -17587,7 +17662,7 @@ function runTests() {
   });
 
   test('Hub: Proportional Curtailment', t => {
-    const fix = t.place('source_electrical', 0, 0, { maxPower:5 });
+    const fix = t.place('grid_supply', 0, 0, { maxPower:5 });
     const hub = t.place('power_hub', 3, 1); const hs = t.place('sink_heat', 3, -2);
     const mA = t.place('motor', 7, 0, { eta:0.92 });
     const sA = t.place('source', 7, 4, { species:'N2', nDot:1, T:298.15, P:100000, phaseConstraint:'V' });
@@ -17697,7 +17772,7 @@ function runTests() {
   // ═══════════════════════════════════════════════════════════════════════
 
   test('Hub: Per-Consumer Allocation', t => {
-    const fix = t.place('source_electrical', 0, 0, { maxPower:10 });
+    const fix = t.place('grid_supply', 0, 0, { maxPower:10 });
     const hub = t.place('power_hub', 3, 1); const hs = t.place('sink_heat', 3, -2);
     const mA = t.place('motor', 7, 0, { eta:0.92 });
     const sA = t.place('source', 7, 4, { species:'N2', nDot:2, T:298.15, P:100000, phaseConstraint:'V' });
@@ -17871,7 +17946,7 @@ function runTests() {
 
   test('Hub-to-Hub: Solver Detects Imported', t => {
     // Bypass connect() via wire() to simulate an imported file
-    const src  = t.place('source_electrical', 0, 0, { maxPower: 10 });
+    const src  = t.place('grid_supply', 0, 0, { maxPower: 10 });
     const hubA = t.place('power_hub', 3, 0);
     const hubB = t.place('power_hub', 7, 0);
     const hs   = t.place('sink_heat', 3, 4);
@@ -17895,7 +17970,7 @@ function runTests() {
   test('Hub-to-Hub: Blocked in Realistic Topology', t => {
     // Full topology: SourceElec → HubA → [HubB blocked] → Motor → Compressor
     // All connections except the hub-to-hub link should succeed.
-    const src  = t.place('source_electrical', 0, 0, { maxPower: 50 });
+    const src  = t.place('grid_supply', 0, 0, { maxPower: 50 });
     const hubA = t.place('power_hub',         3, 0);
     const hubB = t.place('power_hub',         7, 0);
     const mot  = t.place('motor',            11, 0, { eta: 0.92 });
@@ -17928,7 +18003,7 @@ function runTests() {
   test('Hub-to-Hub: Motor Between Hubs Allowed', t => {
     // The recommended workaround: Hub → Motor → second Hub
     // This must NOT be blocked — the motor acts as demand relay.
-    const src  = t.place('source_electrical', 0, 0, { maxPower: 50 });
+    const src  = t.place('grid_supply', 0, 0, { maxPower: 50 });
     const hubA = t.place('power_hub',         3, 0);
     const mot  = t.place('motor',             7, 0, { eta: 0.92 });
     const gen  = t.place('generator',        11, 0, { eta: 0.95 });
@@ -19300,7 +19375,7 @@ function runTests() {
 
   test('RuntimeContext: solve twice → identical results, no stale scratch', t => {
     // Build a hub scene: Source → Hub → Motor → Compressor + Sink
-    const src = t.place('source_electrical', 0, 0, { maxPower: 100 });
+    const src = t.place('grid_supply', 0, 0, { maxPower: 100 });
     const hub = t.place('power_hub', 3, 0);
     const mot = t.place('motor', 6, 0, { eta: 0.95 });
     const matSrc = t.place('source', 9, 0, { species:'N2', nDot:1, T:373.15, P:200000, phaseConstraint:'V' });
@@ -19350,7 +19425,8 @@ function runTests() {
   // Register a deterministic test unit whose tick always throws.
   UnitRegistry.register('_test_throw', {
     name: 'Test Thrower',
-    category: UnitCategories.TOPOLOGY,
+    category: UnitCategories.TEST,
+    _devTest: true,  // [v10.0.4] never shown in palette
     w: 2, h: 2,
     ports: [
       { portId: 'in',  dir: PortDir.IN,  type: StreamType.MATERIAL, x: 0, y: 1 },
@@ -19411,7 +19487,8 @@ function runTests() {
   // Test unit that writes NaN into stream flows and u.last
   UnitRegistry.register('_test_nan_producer', {
     name: 'NaN Producer',
-    category: UnitCategories.TOPOLOGY,
+    category: UnitCategories.TEST,
+    _devTest: true,  // [v10.0.4] never shown in palette
     w: 2, h: 2,
     ports: [
       { portId: 'in',  dir: PortDir.IN,  type: StreamType.MATERIAL, x: 0, y: 1 },
@@ -19484,7 +19561,8 @@ function runTests() {
     // Register an inline unit that puts a string in n
     UnitRegistry.register('_test_string_flow', {
       name: 'String Flow',
-      category: UnitCategories.TOPOLOGY,
+      category: UnitCategories.TEST,
+      _devTest: true,  // [v10.0.4] never shown in palette
       w: 2, h: 2,
       ports: [
         { portId: 'in',  dir: PortDir.IN,  type: StreamType.MATERIAL, x: 0, y: 1 },
@@ -19538,7 +19616,7 @@ function runTests() {
     //          └──▶ motor2 ──▶ pump2 ◀── srcW2 (H2O)  ──▶ snk2
     // Each pump wants ~1180 kW shaft → ~1242 kW elec → total ~2484 kW > 1500 kW cap
 
-    const srcE = t.place('source_electrical', 0, 0, { maxPower: 1500 });  // 1500 kW
+    const srcE = t.place('grid_supply', 0, 0, { maxPower: 1500 });  // 1500 kW
 
     const mot1 = t.place('motor', 4, 0, { eta: 0.95 });
     const mot2 = t.place('motor', 4, 4, { eta: 0.95 });
@@ -19830,14 +19908,14 @@ function runTests() {
 
     // ── Test B: NaN actual on electrical (caught by post-flash) → solver ok:false ──
     t.clearScene();
-    const elecDef = UnitRegistry.get('source_electrical');
+    const elecDef = UnitRegistry.get('grid_supply');
     const origElecTick = elecDef.tick;
     elecDef.tick = function(u, ports, par, ctx) {
       origElecTick.call(this, u, ports, par, ctx);
       ports.out.actual = NaN;
     };
     try {
-      const srcE = t.place('source_electrical', 0, 0, { maxPower: 100 });
+      const srcE = t.place('grid_supply', 0, 0, { maxPower: 100 });
       const mot = t.place('motor', 3, 0, { eta: 0.95 });
       const srcW = t.place('source', 6, -3, { species:'H2O', nDot:10, T:298.15, P:100000, phaseConstraint:'L' });
       const pmp = t.place('pump', 9, 0, { Pout:500000, eta:0.75 });
@@ -19874,7 +19952,7 @@ function runTests() {
   test('Non-material normalization in solver — available aliased to capacity', t => {
     // source_electrical already sets both capacity and available.
     // Verify after solve the port has capacity = available (normalization ran).
-    const src = t.place('source_electrical', 0, 0, { maxPower: 50 });
+    const src = t.place('grid_supply', 0, 0, { maxPower: 50 });
     const snk = t.place('sink_electrical', 3, 0);
     t.wire(src, 'out', snk, 'in');
     t.solve();
@@ -19903,7 +19981,7 @@ function runTests() {
     //   curtailmentFactor ≈ actual/demand (when demand finite > 0)
     //   Σ consumer draws ≈ source actual
 
-    const srcE = t.place('source_electrical', 0, 0, { maxPower: 1500 });  // 1500 kW
+    const srcE = t.place('grid_supply', 0, 0, { maxPower: 1500 });  // 1500 kW
     const mot1 = t.place('motor', 4, 0, { eta: 0.95 });
     const mot2 = t.place('motor', 4, 4, { eta: 0.95 });
 
@@ -19976,8 +20054,8 @@ function runTests() {
     //         hub demand = Σ consumer demands,
     //         battery fills gap between fixed supply and demand.
 
-    const srcE = t.place('source_electrical', 0, 0, { maxPower: 500 });   // 500 kW
-    const bat  = t.place('grid_supply', 0, 4, { maxPower: 300 });             // 300 kW
+    const srcE = t.place('grid_supply', 0, 0, { maxPower: 500, fixed: true });   // 500 kW fixed
+    const bat  = t.place('grid_supply', 0, 4, { maxPower: 300 });             // 300 kW responsive
     const hub  = t.place('power_hub', 4, 2);
 
     // Two motors with different downstream loads
@@ -20099,7 +20177,7 @@ function runTests() {
     // The fix (v6.1+) uses demand from Step B and scratch change detection.
 
     // Simple topology: source → motor → pump → sink (water)
-    const srcE = t.place('source_electrical', 0, 0, { maxPower: 2000 });
+    const srcE = t.place('grid_supply', 0, 0, { maxPower: 2000 });
     const mot  = t.place('motor', 4, 0, { eta: 0.95 });
     const srcW = t.place('source', 8, -2, { species:'H2O', nDot:5000, T:298.15, P:100000, phaseConstraint:'L' });
     const pmp  = t.place('pump', 8, 0, { Pout:3000000, eta:0.75 });
@@ -21862,7 +21940,7 @@ function runTests() {
     // ══════════════════════════════════════════════════════════════════════
 
     // ── Chain A: Power grid + compressor ── (y=0 band)
-    const src_e  = t.place('source_electrical', 0, 0, { maxPower: 50 });
+    const src_e  = t.place('grid_supply', 0, 0, { maxPower: 50 });
     const batt   = t.place('grid_supply', 0, 3, { maxPower: 20 });
     const hub    = t.place('power_hub', 4, 0);       // 2×3
     const mot    = t.place('motor', 8, 0, { eta: 0.90 });
@@ -21894,7 +21972,7 @@ function runTests() {
     // gen.heat_out deliberately UNCONNECTED → dissipated
 
     // ── Chain C: Electric heater (standalone) ── (y=12 band)
-    const src_e2 = t.place('source_electrical', 0, 12, { maxPower: 10 });
+    const src_e2 = t.place('grid_supply', 0, 12, { maxPower: 10 });
     const eh     = t.place('electric_heater', 4, 12);
 
     t.wire(src_e2, 'out', eh, 'elec_in');
@@ -22225,12 +22303,17 @@ function runTests() {
     const allIds = Object.values(allUnits).flat().map(d => d.defId);
     const hardIds = Object.values(hardUnits).flat().map(d => d.defId);
 
+    // Cheat units appear in all, excluded from hard
     t.assertOK(allIds.includes('reactor_adiabatic'), 'All: has reactor_adiabatic');
     t.assertOK(allIds.includes('cooler'), 'All: has cooler');
-    t.assertOK(allIds.includes('source_multi'), 'All: has source_multi');
+    t.assertOK(allIds.includes('source_mechanical'), 'All: has source_mechanical');
     t.assertOK(!hardIds.includes('reactor_adiabatic'), 'Hard: no reactor_adiabatic');
     t.assertOK(!hardIds.includes('cooler'), 'Hard: no cooler');
-    t.assertOK(!hardIds.includes('source_multi'), 'Hard: no source_multi');
+    t.assertOK(!hardIds.includes('source_mechanical'), 'Hard: no source_mechanical');
+
+    // [v10.0.4] source_multi is no longer cheat — always visible
+    t.assertOK(allIds.includes('source_multi'), 'All: has source_multi');
+    t.assertOK(hardIds.includes('source_multi'), 'Hard: has source_multi');
 
     // Non-cheat units always present
     t.assertOK(hardIds.includes('reactor_equilibrium'), 'Hard: has reactor_equilibrium');
@@ -22238,6 +22321,12 @@ function runTests() {
     t.assertOK(hardIds.includes('source_air'), 'Hard: has source_air');
     t.assertOK(hardIds.includes('heater'), 'Hard: has heater');
     t.assertOK(hardIds.includes('hex'), 'Hard: has hex');
+
+    // [v10.0.4] _devTest units never appear in ANY list
+    t.assertOK(!allIds.includes('_test_throw'), 'All: no _test_throw');
+    t.assertOK(!allIds.includes('_test_nan_producer'), 'All: no _test_nan_producer');
+    t.assertOK(!allIds.includes('_test_string_flow'), 'All: no _test_string_flow');
+    t.assertOK(!hardIds.includes('_test_throw'), 'Hard: no _test_throw');
   });
 
   test('SimSettings — atmosphere preset switch', t => {
@@ -22498,7 +22587,7 @@ function runTests() {
 
   tests.push({ name: '165: Hub Step C dispatches grid_supply correctly', fn: t => {
     const gs = t.place('grid_supply', 0, 0, { maxPower: 20 });
-    const fix = t.place('source_electrical', 0, 4, { maxPower: 10 });
+    const fix = t.place('grid_supply', 0, 4, { maxPower: 10, fixed: true });
     const hub = t.place('power_hub', 4, 1);
     const load = t.place('sink_electrical', 8, 1);
 
@@ -22918,7 +23007,7 @@ function runTests() {
 
     // Fixed source (50 kW) + battery (50% SOC) → hub, NO consumers on elec_out.
     // All 50 kW is surplus → should charge battery (up to maxCharge_W).
-    const src = t.place('source_electrical', 0, 0, { maxPower: 50 });
+    const src = t.place('grid_supply', 0, 0, { maxPower: 50, fixed: true });
     const bat = t.place('battery', 0, 4, { peakPower_kW: 40, capacity_J: 36000000, initialSOC: 0.5 });
     const hub = t.place('power_hub', 4, 0);
 
@@ -22957,7 +23046,7 @@ function runTests() {
     // Fixed source (30 kW) + battery (50% SOC) → hub, no consumers.
     // Expected: fixed=30kW, demand=0, surplus=30kW → charge battery (up to 20kW peak)
     // Remainder → heat surplus = 10kW
-    const src = t.place('source_electrical', 0, 0, { maxPower: 30 });
+    const src = t.place('grid_supply', 0, 0, { maxPower: 30, fixed: true });
     const bat = t.place('battery', 0, 4, { peakPower_kW: 20, capacity_J: 36000000, initialSOC: 0.5 });
     const hub = t.place('power_hub', 4, 0);
 
@@ -23126,7 +23215,7 @@ function runTests() {
     t.wire(tank, 'overflow', ovSnk, 'in');
 
     // Solar (20 kW) + battery (5 kWh, 90%) → hub → heater → heat sink
-    const solar = t.place('source_electrical', 0, 8, { maxPower: 20 });
+    const solar = t.place('grid_supply', 0, 8, { maxPower: 20 });
     const bat   = t.place('battery', 0, 12, { peakPower_kW: 15, capacity_J: 18000000, initialSOC: 0.9 });
     const hub   = t.place('power_hub', 6, 8);
     const heat  = t.place('electric_heater', 10, 8);
@@ -23264,8 +23353,86 @@ function runTests() {
   }});
 
   // ═══════════════════════════════════════════════════════════════════════
+  // [v10.0.4] ORGANIZATIONAL TESTS — taxonomy, migration, registry
+  // ═══════════════════════════════════════════════════════════════════════
+
+  tests.push({ name: '194: source_electrical → grid_supply import migration', fn: t => {
+    // Build a v14 JSON payload with source_electrical
+    const oldJSON = JSON.stringify({
+      version: 14,
+      units: [
+        { id: 'source_electrical-1', defId: 'source_electrical', name: 'Old Elec', x: 0, y: 0, rot: 0, params: { maxPower: 100 } },
+        { id: 'power_hub-1', defId: 'power_hub', name: 'Hub', x: 4, y: 0, rot: 0, params: {} }
+      ],
+      connections: [
+        { id: 'c1', from: { unitId: 'source_electrical-1', portId: 'out' }, to: { unitId: 'power_hub-1', portId: 'elec_in' } }
+      ],
+      settings: {}
+    });
+    const r = scene.importJSON(oldJSON);
+    t.assertOK(r.ok, 'Import succeeds');
+    // Unit should be migrated
+    const units = Array.from(scene.units.values());
+    const migrated = units.find(u => u.name === 'Old Elec');
+    t.assertOK(migrated, 'Migrated unit found');
+    t.assertOK(migrated.defId === 'grid_supply', `defId = grid_supply (got: ${migrated.defId})`);
+    t.assertOK(migrated.params.fixed === true, 'params.fixed = true (was source_electrical)');
+    t.assertOK(migrated.id.startsWith('grid_supply-'), `id remapped: ${migrated.id}`);
+    // Connection should be remapped
+    const conn = scene.connections[0];
+    t.assertOK(conn.from.unitId.startsWith('grid_supply-'), `conn.from remapped: ${conn.from.unitId}`);
+  }});
+
+  tests.push({ name: '195: _devTest units never appear in listByCategory', fn: t => {
+    const all = UnitRegistry.listByCategory({ excludeCheats: false });
+    const hard = UnitRegistry.listByCategory({ excludeCheats: true });
+    const allIds = Object.values(all).flat().map(d => d.defId);
+    const hardIds = Object.values(hard).flat().map(d => d.defId);
+    // None of the _devTest units should appear
+    t.assertOK(!allIds.includes('_test_throw'), 'All: no _test_throw');
+    t.assertOK(!allIds.includes('_test_nan_producer'), 'All: no _test_nan_producer');
+    t.assertOK(!allIds.includes('_test_string_flow'), 'All: no _test_string_flow');
+    t.assertOK(!hardIds.includes('_test_throw'), 'Hard: no _test_throw');
+    t.assertOK(!hardIds.includes('_test_nan_producer'), 'Hard: no _test_nan_producer');
+    // But they DO exist in the registry (for programmatic use)
+    t.assertOK(UnitRegistry.get('_test_throw') !== undefined, '_test_throw exists in registry');
+    t.assertOK(UnitRegistry.get('_test_nan_producer') !== undefined, '_test_nan_producer exists in registry');
+  }});
+
+  tests.push({ name: '196: Category ordering follows defined order', fn: t => {
+    const cats = UnitRegistry.listByCategory({ excludeCheats: false });
+    const catNames = Object.keys(cats);
+    // Verify first 7 categories match expected order
+    const expected = ['Boundaries', 'Heat Transfer', 'Pressure', 'Reactors', 'Separation & Mixing', 'Storage', 'Power'];
+    for (let i = 0; i < expected.length; i++) {
+      t.assertOK(catNames[i] === expected[i], `Category ${i}: "${catNames[i]}" = "${expected[i]}"`);
+    }
+    t.assertOK(catNames.length === expected.length, `${catNames.length} categories (expected ${expected.length})`);
+  }});
+
+  tests.push({ name: '197: grid_supply fixed mode sets last.type correctly', fn: t => {
+    // Responsive mode (default)
+    const gs1 = t.place('grid_supply', 0, 0, { maxPower: 10 });
+    const hub1 = t.place('power_hub', 4, 0);
+    t.wire(gs1, 'out', hub1, 'elec_in');
+    t.solve();
+    t.assertOK(t.unit(gs1).last.type === 'grid_supply', `Responsive: type = "${t.unit(gs1).last.type}"`);
+    // Fixed mode
+    t.clearScene();
+    const gs2 = t.place('grid_supply', 0, 0, { maxPower: 10, fixed: true });
+    const hub2 = t.place('power_hub', 4, 0);
+    t.wire(gs2, 'out', hub2, 'elec_in');
+    t.solve();
+    t.assertOK(t.unit(gs2).last.type === 'fixed', `Fixed: type = "${t.unit(gs2).last.type}"`);
+  }});
+
+  // ═══════════════════════════════════════════════════════════════════════
   // RUNNER
   // ═══════════════════════════════════════════════════════════════════════
+
+  // [v10.0.4] Tests require cheatsEnabled=true for custom source T/P
+  const _savedCheats = SimSettings.cheatsEnabled;
+  SimSettings.cheatsEnabled = true;
 
   let totalPass = 0, totalFail = 0;
   let testsPassed = 0, testsFailed = 0;
@@ -23295,8 +23462,9 @@ function runTests() {
     }
   }
 
-  // Restore console.warn
+  // Restore console.warn and cheatsEnabled
   console.warn = _origWarn;
+  SimSettings.cheatsEnabled = _savedCheats;
 
   // ── Condensed summary (always shown) ──
   const totalChecks = totalPass + totalFail;
