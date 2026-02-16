@@ -13,20 +13,7 @@
   Demo scene replaced: Sabatier CO₂ methanation with recycle loop —
   source → mixer → equilibrium reactor (900K, 10 bar) → cooler (50°C)
   → flash drum → splitter (15% purge / 85% recycle) → back to mixer.
-  Heat dump collects cooler Q_removed; reactor utility heating shown in
-  balance as energy input.
-  Bugfix — reactor heat_out sign: when Q_duty > 0 (heating needed, e.g.
-  cold recycle feed), heat_out now correctly emits 0 (no heat exits) and
-  stores Q_utility_in_W for balance accounting.  Previously emitted
-  |Q_duty| regardless of sign, double-counting ~308 kW in the Sabatier
-  recycle loop.  computeSystemBalance scans for implicit utility heating.
-  Bugfix — scene-level solver options: Scene.solverOptions { maxIter,
-  alpha, acceleration } persisted in export/import JSON.  solveScene()
-  merges scene options with call-level overrides.  All UI re-solves now
-  inherit the scene's settings (critical for high-recycle processes).
-  Demo uses maxIter=200 for 85% recycle convergence.
-  Mass balance display tolerance relaxed from 1e-6 to 1e-4 (0.01%)
-  to prevent false "violation" at solver convergence boundary.
+  Heat dump collects reactor Q_duty + cooler Q_removed.
   Tests (Section AF.3, 131–135): registration + precomputed thermo,
   moderate K bisection at 800K (non-boundary ξ_eq), K crossover at
   900K vs 1000K (products→reactants), Le Chatelier pressure (Δν = −2,
@@ -7676,9 +7663,6 @@ class Scene {
       connections: [],
       modelsActive: models.active
     };
-    if (Object.keys(this.solverOptions).length > 0) {
-      data.solverOptions = { ...this.solverOptions };
-    }
     
     for (const u of this.units.values()) {
       data.units.push({
@@ -7919,20 +7903,6 @@ class Scene {
             thermo.setPackage(pkg);
           }
         }
-      }
-    }
-
-    // Import solver options (maxIter, alpha, acceleration)
-    this.solverOptions = {};
-    if (data.solverOptions && typeof data.solverOptions === 'object') {
-      if (typeof data.solverOptions.maxIter === 'number' && data.solverOptions.maxIter > 0) {
-        this.solverOptions.maxIter = Math.min(data.solverOptions.maxIter, 500);
-      }
-      if (typeof data.solverOptions.alpha === 'number') {
-        this.solverOptions.alpha = data.solverOptions.alpha;
-      }
-      if (typeof data.solverOptions.acceleration === 'string') {
-        this.solverOptions.acceleration = data.solverOptions.acceleration;
       }
     }
 
@@ -8590,16 +8560,14 @@ function wegsteinStep(x_prev, g_prev, x_curr, g_curr) {
 }
 
 function solveScene(scene, options = {}) {
-  // Merge scene-level solver options with call-level overrides
-  const merged = { ...(scene.solverOptions || {}), ...options };
-  const MAX_ITER = merged.maxIter ?? 50;
+  const MAX_ITER = options.maxIter ?? 50;
   let iter = 0;
   let changed = true;
   let unitFaulted = false; // [v5.4.2] Set true if any unit tick throws
 
   // [v5.3.0] Solver options
-  const alpha        = merged.alpha ?? 1.0;            // Damping: 1.0 = direct sub
-  const acceleration = merged.acceleration ?? 'none';  // 'none' | 'wegstein'
+  const alpha        = options.alpha ?? 1.0;            // Damping: 1.0 = direct sub
+  const acceleration = options.acceleration ?? 'none';  // 'none' | 'wegstein'
   const useWegstein  = acceleration === 'wegstein';
 
   // Initialize runtime data for all units
@@ -12518,9 +12486,7 @@ function computeSystemBalance(scene) {
 
   // ── Totals ──
   const massBalance = totalMassIn - totalMassOut;
-  // Display tolerance: 0.01% relative — well within engineering accuracy.
-  // Solver convergence (1 ppm) means residuals near this level for recycle loops.
-  const massTol = Math.max(totalMassIn, totalMassOut) * 1e-4 + 1e-10;
+  const massTol = Math.max(totalMassIn, totalMassOut) * 1e-6 + 1e-10;
 
   const totalEnergyIn  = energyIn.material + energyIn.electrical + energyIn.mechanical + energyIn.heat;
   const totalEnergyOut = energyOut.material + energyOut.electrical + energyOut.mechanical + energyOut.heat + energyOut.dissipated;
@@ -14341,7 +14307,6 @@ function loadDemo() {
     version: 12,
     processName: 'Sabatier CO₂ Methanation with Recycle',
     grid: { w: 28, h: 14, tile: 48 },
-    solverOptions: { maxIter: 200 },  // 85% recycle loop needs ~100+ iterations
     units: [
       // ── Fresh Feed: stoichiometric CO₂ + 4 H₂ at 500 K, 10 bar ──
       { id: 'feed', defId: 'source_multi', name: 'CO₂/H₂ Feed', x: 0, y: 3, rot: 0,
@@ -19163,7 +19128,7 @@ function runTests() {
       'Report residual = engine residual');
 
     // Report closed flag must be consistent with its own tolerance
-    const massTol = Math.max(bal.mass.totalIn, bal.mass.totalOut) * 1e-4 + 1e-10;
+    const massTol = Math.max(bal.mass.totalIn, bal.mass.totalOut) * 1e-6 + 1e-10;
     const expectClosed = Math.abs(bal.mass.balance) < massTol;
     t.assertOK(bal.mass.closed === expectClosed,
       `mass.closed consistent (residual=${(bal.mass.balance*1e6).toFixed(3)} µkg/s, tol=${(massTol*1e6).toFixed(3)} µkg/s)`);
@@ -19223,7 +19188,7 @@ function runTests() {
     t.assertClose(bal.mass.balance, engineResidual, 1e-9, 'Report residual = engine residual');
 
     // Report closed flag must be self-consistent
-    const massTol = Math.max(bal.mass.totalIn, bal.mass.totalOut) * 1e-4 + 1e-10;
+    const massTol = Math.max(bal.mass.totalIn, bal.mass.totalOut) * 1e-6 + 1e-10;
     const expectClosed = Math.abs(bal.mass.balance) < massTol;
     t.assertOK(bal.mass.closed === expectClosed, 'mass.closed self-consistent');
 
@@ -19522,7 +19487,7 @@ function runTests() {
       'mass.balance = totalIn - totalOut');
 
     // Mass: closed flag self-consistent
-    const massTol = Math.max(bal.mass.totalIn, bal.mass.totalOut) * 1e-4 + 1e-10;
+    const massTol = Math.max(bal.mass.totalIn, bal.mass.totalOut) * 1e-6 + 1e-10;
     const expectMassClosed = Math.abs(bal.mass.balance) < massTol;
     t.assertOK(bal.mass.closed === expectMassClosed, 'mass.closed self-consistent');
 

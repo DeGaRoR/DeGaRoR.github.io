@@ -1,7 +1,19 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v8.9.0
+  processThis v8.9.1
+
+  ─── v8.9.1 ───────────────────────────────────────────────────────────────
+  Phase 4a-1: Sabatier methanation reaction (CO₂ + 4H₂ ⇌ CH₄ + 2H₂O).
+  New reaction R_SABATIER registered with NIST-JANAF/WebBook data.
+  Moderate K (crosses 1 near 956K), Δν = −2 — exercises bisection in the
+  non-trivial regime and enables Le Chatelier pressure test.
+  Tests (Section AF.3, 131–134): registration + precomputed thermo,
+  moderate K bisection at 800K (non-boundary ξ_eq), K crossover at
+  900K vs 1000K (products→reactants), Le Chatelier pressure (Δν = −2,
+  higher P favours products: ξ_eq(10 bar) > ξ_eq(1 bar) by >5%).
+  Added bisection clamping rationale comment (1e-30 smoothing).
+  Closes reviewer pressure-sensitivity item.
 
   ─── v8.9.0 ───────────────────────────────────────────────────────────────
   Phase 3: Physically correct isothermal equilibrium reactor.
@@ -476,7 +488,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>processThis — v8.9.0</title>
+  <title>processThis — v8.9.1</title>
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
@@ -2198,6 +2210,28 @@ ReactionRegistry.register('R_H2_COMB', {
   Pmax_Pa: 5000000,     // 50 bar
   notes: 'Strongly exothermic. K >> 1 at all practical temperatures.',
   references: [{ source: 'NIST', detail: 'Formation enthalpies/entropies from NIST Chemistry WebBook' }]
+});
+
+// ── Sabatier Methanation [v8.9.1] ──
+// CO₂ + 4 H₂ ⇌ CH₄ + 2 H₂O
+// ΔH°  = −165 012 J/mol (exothermic), ΔS° = −172.584 J/(mol·K)
+// Δν   = −2 (5 gas moles → 3)
+// K crossover near 956 K (products favored below, reactants above)
+// Ni or Ru catalyst. CO₂ methanation for power-to-gas and Mars ISRU.
+ReactionRegistry.register('R_SABATIER', {
+  name: 'Sabatier Methanation',
+  equation: 'CO₂ + 4 H₂ ⇌ CH₄ + 2 H₂O',
+  stoich: { CO2: -1, H2: -4, CH4: 1, H2O: 2 },
+  reversible: true,
+  Tmin_K: 400,
+  Tmax_K: 1200,
+  Pmin_Pa: 10000,       // 0.1 bar
+  Pmax_Pa: 10000000,    // 100 bar
+  notes: 'Sabatier process. Ni or Ru catalyst. CO₂ methanation for power-to-gas and Mars ISRU. K crosses 1 near 956 K.',
+  references: [
+    { source: 'NIST-JANAF', detail: 'Thermochemical Tables, 4th ed., Chase 1998' },
+    { source: 'NIST WebBook', detail: 'https://webbook.nist.gov — gas-phase species standard data' }
+  ]
 });
 
 /* =========================
@@ -7185,6 +7219,10 @@ UnitRegistry.register('reactor_equilibrium', {
     const ln_K = ReactionRegistry.lnK(par.reactionId, T_eval);
 
     // ── Bisection: find ξ_eq where ln_Q(ξ) = ln_K ──
+    // Mole fractions are clamped to 1e-30 (not 0) to keep ln(y_i) finite.
+    // This smooths the ±∞ asymptotes at the bisection endpoints where a
+    // reactant or product vanishes.  Acceptable for ideal-gas K with the
+    // current reaction set; revisit if fugacity-based activities are added.
     const eps = xi_max * 1e-10;
     const P_std = 1e5;
 
@@ -18533,7 +18571,214 @@ function runTests() {
   });
 
   // ═══════════════════════════════════════════════════════════════════════
-  // SECTION AF.2: Reactor Adiabatic Guards (Tests 131–132) [v8.8.0]
+  // SECTION AF.3: Sabatier Reaction — Registration + Pressure (Tests 131–134)
+  // [v8.9.1] Exercises the full chain of adding a new reaction.
+  // Sabatier has moderate K (crosses 1 near 956K) and Δν = −2, enabling:
+  //   131: Registration + precomputed thermo validation
+  //   132: Moderate K bisection (non-trivial ξ_eq between 0 and ξ_max)
+  //   133: K crossover (T_eval above/below K=1 flips behaviour)
+  //   134: Le Chatelier pressure dependence (Δν < 0 → higher P favours products)
+  // ═══════════════════════════════════════════════════════════════════════
+
+  test('Sabatier — registration and precomputed thermo', t => {
+    const rxn = ReactionRegistry.get('R_SABATIER');
+    t.assertOK(rxn, 'R_SABATIER registered');
+    t.assertOK(rxn.name === 'Sabatier Methanation', 'Name correct');
+    t.assertOK(rxn.reversible === true, 'Reversible');
+
+    // Mass balance
+    t.assertOK(Math.abs(rxn._massBalance) < 0.001, 'Mass balance < 0.001 g/mol',
+      rxn._massBalance.toExponential(4));
+
+    // Precomputed thermo [v8.9.0]
+    t.assertOK(rxn._thermoComplete, '_thermoComplete = true');
+
+    // Independent calculation from registered species
+    let dH0 = 0, dS0 = 0, dnu = 0;
+    for (const [sp, nu] of Object.entries(rxn.stoich)) {
+      const comp = ComponentRegistry.get(sp);
+      dH0 += nu * comp.hf0_Jmol;
+      dS0 += nu * comp.s0_JmolK;
+      dnu += nu;
+    }
+    t.assertClose(rxn._dH0_Jmol, dH0, 0.1, 'ΔH° matches species data');
+    t.assertClose(rxn._dS0_JmolK, dS0, 0.001, 'ΔS° matches species data');
+    t.assertClose(rxn._delta_nu, dnu, 0.001, 'Δν matches species data');
+
+    // Known values from NIST-JANAF
+    t.assertClose(rxn._dH0_Jmol, -165012, 1, 'ΔH° ≈ −165 012 J/mol');
+    t.assertClose(rxn._dS0_JmolK, -172.584, 0.01, 'ΔS° ≈ −172.584 J/(mol·K)');
+    t.assertClose(rxn._delta_nu, -2, 0.001, 'Δν = −2');
+
+    // lnK at known temperatures
+    const lnK_800 = ReactionRegistry.lnK('R_SABATIER', 800);
+    t.assertClose(lnK_800, 4.05, 0.1, 'ln K(800K) ≈ 4.05 → K ≈ 57');
+
+    const lnK_1000 = ReactionRegistry.lnK('R_SABATIER', 1000);
+    t.assertOK(lnK_1000 < 0, 'ln K(1000K) < 0 → reactants favoured');
+
+    // K crossover: lnK changes sign between 900K and 1000K
+    const lnK_900 = ReactionRegistry.lnK('R_SABATIER', 900);
+    t.assertOK(lnK_900 > 0, 'ln K(900K) > 0');
+    t.assertOK(lnK_1000 < 0, 'ln K(1000K) < 0 → crossover between 900–1000K');
+
+    // validateAll should pass
+    const vr = ReactionRegistry.validateAll();
+    t.assertOK(vr['R_SABATIER'].valid, 'validateAll() passes for Sabatier');
+  });
+
+  test('Sabatier — moderate K, non-trivial bisection at 800K', t => {
+    // K(800K) ≈ 57: products favoured but NOT overwhelmingly.
+    // ξ_eq should be well between 0 and ξ_max (bisection actually bisects).
+    // Feed: stoichiometric CO₂:H₂ = 1:4, with N₂ diluent
+    const src = t.place('source_multi', 0, 0, {
+      n: { CO2: 1, H2: 4, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
+    });
+    const rx = t.place('reactor_equilibrium', 4, 0, {
+      reactionId: 'R_SABATIER', alpha: 1.0
+    });
+    const snk = t.place('sink', 8, 0);
+    t.wire(src, 'out', rx, 'mat_in');
+    t.wire(rx, 'mat_out', snk, 'in');
+    t.solve();
+
+    const out = t.port(rx, 'mat_out');
+    const srcOut = t.port(src, 'out');
+    const rxLast = t.ud(rx).last;
+
+    t.assertOK(rxLast.status === 'active', 'Status: active');
+    t.assertClose(rxLast.T_eval, 800, 0.1, 'T_eval = 800K');
+    t.assertClose(out.T, 800, 0.1, 'T_out = 800K (isothermal)');
+
+    // Non-trivial bisection: ξ_eq between 0 and ξ_max (not at boundary)
+    t.assertOK(rxLast.xi_eq > 0.05 * rxLast.xi_max,
+      'ξ_eq > 5% of ξ_max (not at lower boundary)',
+      `ratio=${(rxLast.xi_eq / rxLast.xi_max).toFixed(4)}`);
+    t.assertOK(rxLast.xi_eq < 0.999 * rxLast.xi_max,
+      'ξ_eq < 99.9% of ξ_max (not at upper boundary)',
+      `ratio=${(rxLast.xi_eq / rxLast.xi_max).toFixed(4)}`);
+
+    // Products formed but not completely
+    t.assertOK(out.n.CH4 > 0.1, 'CH₄ produced');
+    t.assertOK(out.n.CO2 > 0.01, 'CO₂ remaining (not fully consumed)');
+    t.assertOK(out.n.H2 > 0.01, 'H₂ remaining');
+    t.assertOK(out.n.H2O > 0.1, 'H₂O produced');
+
+    // Diluent N₂ passes through
+    t.assertClose(out.n.N2, 10, 0.001, 'N₂ inert pass-through');
+
+    // Mass balance
+    const m_in  = streamMass_kgps(srcOut);
+    const m_out = streamMass_kgps(out);
+    t.assertClose(m_out, m_in, m_in * 0.001, 'Mass balance');
+
+    // Q_duty: exothermic at 800K, products favoured → cooling needed
+    t.assertOK(rxLast.Q_duty_W < 0, 'Q_duty < 0 (cooling)',
+      `Q_duty=${(rxLast.Q_duty_W / 1000).toFixed(2)} kW`);
+  });
+
+  test('Sabatier — K crossover: products vs reactants favoured', t => {
+    // At 900K: K ≈ 3.6, products mildly favoured → moderate ξ_eq
+    // At 1000K: K ≈ 0.4, reactants favoured → ξ_eq smaller
+    const feed = { CO2: 1, H2: 4, N2: 10 };
+
+    // Run A: T_eval = 900K
+    const srcA = t.place('source_multi', 0, 0, {
+      n: { ...feed }, T: 900, P: 100000, phaseConstraint: 'V'
+    });
+    const rxA = t.place('reactor_equilibrium', 4, 0, {
+      reactionId: 'R_SABATIER', alpha: 1.0
+    });
+    const snkA = t.place('sink', 8, 0);
+    t.wire(srcA, 'out', rxA, 'mat_in');
+    t.wire(rxA, 'mat_out', snkA, 'in');
+    t.solve();
+    const lastA = t.ud(rxA).last;
+    const xi_eq_900 = lastA.xi_eq;
+
+    // Run B: T_eval = 1000K (separate topology)
+    const srcB = t.place('source_multi', 0, 8, {
+      n: { ...feed }, T: 1000, P: 100000, phaseConstraint: 'V'
+    });
+    const rxB = t.place('reactor_equilibrium', 4, 8, {
+      reactionId: 'R_SABATIER', alpha: 1.0
+    });
+    const snkB = t.place('sink', 8, 8);
+    t.wire(srcB, 'out', rxB, 'mat_in');
+    t.wire(rxB, 'mat_out', snkB, 'in');
+    t.solve();
+    const lastB = t.ud(rxB).last;
+    const xi_eq_1000 = lastB.xi_eq;
+
+    // 900K: ln K > 0, products favoured
+    t.assertOK(lastA.ln_K > 0, 'ln K(900K) > 0',
+      `ln_K=${lastA.ln_K?.toFixed(2)}`);
+    // 1000K: ln K < 0, reactants favoured
+    t.assertOK(lastB.ln_K < 0, 'ln K(1000K) < 0',
+      `ln_K=${lastB.ln_K?.toFixed(2)}`);
+
+    // ξ_eq(900K) > ξ_eq(1000K): higher T shifts exothermic reaction backward
+    t.assertOK(xi_eq_900 > xi_eq_1000,
+      'ξ_eq(900K) > ξ_eq(1000K) — Le Chatelier temperature',
+      `900K: ${xi_eq_900.toFixed(4)}, 1000K: ${xi_eq_1000.toFixed(4)}`);
+
+    // Both should have active status
+    t.assertOK(lastA.status === 'active', 'Status A: active');
+    t.assertOK(lastB.status === 'active', 'Status B: active');
+  });
+
+  test('Sabatier — Le Chatelier pressure dependence (Δν = −2)', t => {
+    // Δν = −2: higher pressure favours product side (fewer moles).
+    // Same feed at 1 bar vs 10 bar → ξ_eq should increase with P.
+    const feed = { CO2: 1, H2: 4, N2: 10 };
+    const T_eval = 800;
+
+    // Run A: P = 1 bar
+    const srcA = t.place('source_multi', 0, 0, {
+      n: { ...feed }, T: T_eval, P: 100000, phaseConstraint: 'V'
+    });
+    const rxA = t.place('reactor_equilibrium', 4, 0, {
+      reactionId: 'R_SABATIER', alpha: 1.0
+    });
+    const snkA = t.place('sink', 8, 0);
+    t.wire(srcA, 'out', rxA, 'mat_in');
+    t.wire(rxA, 'mat_out', snkA, 'in');
+    t.solve();
+    const xi_eq_1bar = t.ud(rxA).last.xi_eq;
+
+    // Run B: P = 10 bar
+    const srcB = t.place('source_multi', 0, 8, {
+      n: { ...feed }, T: T_eval, P: 1000000, phaseConstraint: 'V'
+    });
+    const rxB = t.place('reactor_equilibrium', 4, 8, {
+      reactionId: 'R_SABATIER', alpha: 1.0
+    });
+    const snkB = t.place('sink', 8, 8);
+    t.wire(srcB, 'out', rxB, 'mat_in');
+    t.wire(rxB, 'mat_out', snkB, 'in');
+    t.solve();
+    const xi_eq_10bar = t.ud(rxB).last.xi_eq;
+
+    // Le Chatelier: Δν < 0 → higher P shifts equilibrium toward products
+    t.assertOK(xi_eq_10bar > xi_eq_1bar,
+      'ξ_eq(10 bar) > ξ_eq(1 bar) — Le Chatelier pressure (Δν = −2)',
+      `1 bar: ${xi_eq_1bar.toFixed(4)}, 10 bar: ${xi_eq_10bar.toFixed(4)}`);
+
+    // The shift should be significant (not just numerical noise)
+    const shift_pct = ((xi_eq_10bar - xi_eq_1bar) / xi_eq_1bar) * 100;
+    t.assertOK(shift_pct > 5,
+      'Pressure shift > 5% (significant, not noise)',
+      `shift = +${shift_pct.toFixed(1)}%`);
+
+    // Both ln_K should be identical (K depends only on T, not P)
+    const lnK_A = t.ud(rxA).last.ln_K;
+    const lnK_B = t.ud(rxB).last.ln_K;
+    t.assertClose(lnK_A, lnK_B, 0.001,
+      'ln K identical at both pressures (K is T-dependent only)');
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // SECTION AF.4: Reactor Adiabatic Guards (Tests 135–136) [v8.8.0]
   // ═══════════════════════════════════════════════════════════════════════
 
   test('Reactor adiabatic — VL inlet rejected', t => {
@@ -18586,7 +18831,7 @@ function runTests() {
   });
 
   // ═══════════════════════════════════════════════════════════════════════
-  // SECTION AG: Balance Report Cross-Validation (Tests 133–135)
+  // SECTION AG: Balance Report Cross-Validation (Tests 137–139)
   // [v8.6.1] Verify computeSystemBalance() report matches internal engine.
   // The report is the primary human-facing trust surface — if it disagrees
   // with the engine, users lose confidence even if the engine is correct.
