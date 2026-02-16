@@ -15351,11 +15351,11 @@ function updatePropertiesPanel() {
   propEditor.appendChild(headerDiv);
 
   // ── Mass Balance ──
-  if (balance.mass.in.length > 0 || balance.mass.out.length > 0) {
+  if (balance.mass.inItems.length > 0 || balance.mass.outItems.length > 0) {
     const massSection = createCollapsibleSection('Mass Balance', true);
     const mc = massSection.content;
     mc.appendChild(el('div', { class: 'ins-section-title', html: '→ Mass In' }));
-    for (const item of balance.mass.in) {
+    for (const item of balance.mass.inItems) {
       insKV(mc, item.name, `${(item.mass_kgps*1000).toFixed(4)}<span class="u">g/s</span>`);
     }
     const mIn = balance.mass.totalIn;
@@ -15363,7 +15363,7 @@ function updatePropertiesPanel() {
 
     mc.appendChild(el('div', { class: 'ins-divider' }));
     mc.appendChild(el('div', { class: 'ins-section-title', html: '← Mass Out' }));
-    for (const item of balance.mass.out) {
+    for (const item of balance.mass.outItems) {
       insKV(mc, item.name, `${(item.mass_kgps*1000).toFixed(4)}<span class="u">g/s</span>`);
     }
     const mOut = balance.mass.totalOut;
