@@ -3,6 +3,46 @@
   ═══════════════════════════════════════════════════════════════════════════
   processThis v9.1.0
 
+  ─── v10.0.6 ──────────────────────────────────────────────────────────────
+  Final polish patch — 3 fixes from user testing of v10.0.5.
+
+  F10b: btnAdd warm accent — subtle teal (#0f2d2d bg, #5eead4 text) that
+      draws soft attention without screaming.
+  F11b: Palette UX overhaul —
+      • Removed search input and category filter chips (not needed with
+        few units; eliminates all "/" focus bugs).
+      • Palette closes on click outside (mousedown on canvas/topbar).
+      • "/" key is now a clean toggle: press to open, press to close.
+      • Header simplified to "Add Unit" label + close button.
+  F14b: "Electric Generator" → "Generator" (fits single line in palette).
+
+  Gate: 197/197 tests, 1339 checks, zero regressions.
+
+  ─── v10.0.5 ──────────────────────────────────────────────────────────────
+  Testing feedback patch — 6 fixes from user testing of v10.0.4.
+
+  F9  (A7 followup): Connection flow — clicking OUT while pending restarts
+      from new port; clicking same OUT cancels; Esc cancels; clicking IN
+      without pending shows hint.  Pending always cleared on refusal.
+  F10 (A+ followup): btnAdd styling — matches transport button neutral
+      palette (dark bg, muted text, same border) instead of blue highlight.
+  F11 (F1 followup): "/" in palette search — character blocked in search
+      input via keydown preventDefault.  Key is now dedicated to toggle.
+  F12 (F4 followup): Diagnostics section — always visible, open by default.
+      Shows "✓ No issues" when clean, "Not computed yet" before first solve.
+  F13 (F8 followup): Decimal precision — addNumberEditor accepts explicit
+      `decimals` param; all T/P editors pass unit system's decimals field.
+      K→2dp, °C→1dp, bar→3dp, Pa→0dp.  Generic params fall back to
+      step-derived precision.
+  F14 (T196 followup): Category naming —
+      "Heat Transfer" → "Heat"; "Reactors" → "Reactor".
+      sink_heat moved from Boundaries to Heat category.
+      reactor_equilibrium display name: "Reactor (Equilibrium)" → "Reactor"
+      (the thermodynamically correct model needs no qualifier).
+      Test T196 + T140 updated.
+
+  Gate: 197/197 tests, 1339 checks, zero regressions.
+
   ─── v10.0.4 ──────────────────────────────────────────────────────────────
   Unit taxonomy, registry cleanup & settings decoupling.
 
@@ -1008,7 +1048,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>processThis — v10.0.4</title>
+  <title>processThis — v10.0.6</title>
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
@@ -2043,27 +2083,12 @@
     }
     .paletteDrawer.open { transform: translateX(0); }
     .paletteDrawer .pal-header {
-      padding: 10px 12px 6px; display: flex; align-items: center; gap: 8px;
+      padding: 10px 12px 6px; display: flex; align-items: center; justify-content: space-between;
       border-bottom: 1px solid #1e2230;
     }
-    .paletteDrawer .pal-header input {
-      flex: 1; background: #161b26; border: 1px solid #2a2f3a; border-radius: 6px;
-      padding: 6px 8px; color: #e7e7e7; font-size: 12px; outline: none;
-    }
-    .paletteDrawer .pal-header input:focus { border-color: #4f8eff; }
     .paletteDrawer .pal-header .pal-close {
       background: none; border: none; color: #6b7280; font-size: 16px; cursor: pointer; padding: 2px 4px;
     }
-    .paletteDrawer .pal-chips {
-      padding: 4px 12px 6px; display: flex; flex-wrap: wrap; gap: 4px;
-    }
-    .paletteDrawer .pal-chip {
-      background: #1a1f2e; border: 1px solid #2a2f3a; border-radius: 10px;
-      padding: 2px 8px; font-size: 10px; cursor: pointer; color: #a0a8b8;
-      transition: all 0.15s;
-    }
-    .paletteDrawer .pal-chip:hover { border-color: #4f8eff; color: #c8d0e0; }
-    .paletteDrawer .pal-chip.active { background: #1e3a5f; border-color: #4f8eff; color: #93c5fd; }
     .paletteDrawer .pal-tiles {
       flex: 1; overflow-y: auto; padding: 8px 12px;
       display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
@@ -2132,9 +2157,14 @@
     .ins-hint { font-size: 11px; opacity: 0.5; font-style: italic; margin: 4px 0; }
     .ins-divider { border-top: 1px solid #1e2230; margin: 8px 0; }
 
-    /* Toolbar add button */
-    .tbtn.add-unit { background: #1e3a5f; color: #93c5fd; border-color: #2563eb; }
-    .tbtn.add-unit:hover { background: #1e40af; }
+    /* Toolbar add button — warm accent, soft attention */
+    .tbtn.add-unit {
+      background: #0f2d2d; color: #5eead4; border: 1px solid #134e4a;
+      border-radius: 6px; padding: 6px 10px; cursor: pointer;
+      font-size: 12px; font-weight: 600; white-space: nowrap;
+      transition: background 0.15s, color 0.15s;
+    }
+    .tbtn.add-unit:hover { background: #134e4a; color: #99f6e4; }
   </style>
 </head>
 <body>
@@ -2253,10 +2283,9 @@
     <!-- [v10] Palette Drawer — slides over canvas from left -->
     <aside class="paletteDrawer" id="paletteDrawer">
       <div class="pal-header">
-        <input type="text" id="palSearch" placeholder="Search units… (/)" autocomplete="off" spellcheck="false">
-        <button class="pal-close" id="palClose" title="Close palette">×</button>
+        <span style="font-size:12px; font-weight:700; opacity:0.7;">Add Unit</span>
+        <button class="pal-close" id="palClose" title="Close palette (/)">×</button>
       </div>
-      <div class="pal-chips" id="palChips"></div>
       <div class="pal-tiles" id="palTiles"></div>
     </aside>
 
@@ -6563,12 +6592,12 @@ function diagnoseErrors(scene) {
    Categories for organizing units with color coding
    ========================= */
 const UnitCategories = {
-  // [v10.0.4] Rationalized taxonomy — 7 user-facing categories, ordered for palette display.
+  // [v10.0.5] Rationalized taxonomy — 7 user-facing categories, ordered for palette display.
   // order: controls palette display order (ascending).
   BOUNDARY:       { name: 'Boundaries',          color: '#10b981', order: 1 },  // Green
-  HEAT_TRANSFER:  { name: 'Heat Transfer',        color: '#3b82f6', order: 2 },  // Blue
+  HEAT_TRANSFER:  { name: 'Heat',                 color: '#3b82f6', order: 2 },  // Blue
   PRESSURE:       { name: 'Pressure',             color: '#8b5cf6', order: 3 },  // Purple
-  REACTOR:        { name: 'Reactors',             color: '#ef4444', order: 4 },  // Red
+  REACTOR:        { name: 'Reactor',              color: '#ef4444', order: 4 },  // Red
   SEPARATION:     { name: 'Separation & Mixing',  color: '#14b8a6', order: 5 },  // Teal
   STORAGE:        { name: 'Storage',              color: '#06b6d4', order: 6 },  // Cyan
   POWER:          { name: 'Power',                color: '#eab308', order: 7 },  // Amber
@@ -7318,7 +7347,7 @@ UnitRegistry.register('sink_electrical', {
 // ═══════════════════════════════════════════════════════════════════════════════
 UnitRegistry.register('sink_heat', {
   name: 'Heat Sink',
-  category: UnitCategories.SINK,
+  category: UnitCategories.HEAT_TRANSFER,  // [v10.0.5] moved from SINK to Heat
   w: 2,
   h: 2,
   ports: [{ portId: 'in', dir: PortDir.IN, type: StreamType.HEAT, x: 0, y: 1, multiConnect: true }],
@@ -7457,7 +7486,7 @@ UnitRegistry.register('gas_turbine', {
 // converts to electrical power with efficiency loss.
 // This is a bookkeeping unit — no thermodynamics, just W_elec = W_mech × η.
 UnitRegistry.register('generator', {
-  name: 'Electric Generator',
+  name: 'Generator',  // [v10.0.6] shortened from "Electric Generator" — unambiguous in Power category
   category: UnitCategories.POWER_CONVERSION,
   w: 2,
   h: 2,
@@ -8891,7 +8920,7 @@ UnitRegistry.register('reactor_adiabatic', {
 // Physically consistent: K and outlet T are the same temperature.
 // See DESIGN_reactor_refactor_v1.md §3 for full specification.
 UnitRegistry.register('reactor_equilibrium', {
-  name: 'Reactor (Equilibrium)',
+  name: 'Reactor',  // [v10.0.5] the thermodynamically correct model — no qualifier needed
   category: UnitCategories.REACTOR,
   w: 2,
   h: 3,
@@ -12618,12 +12647,22 @@ function drawUnits() {
         ev.stopPropagation();
         const port = p;
         
-        if (port.dir === PortDir.OUT && !ui.pendingFrom) {
-          // Start connection mode
+        if (port.dir === PortDir.OUT) {
+          if (ui.pendingFrom) {
+            // Already connecting — clicking another OUT cancels and restarts
+            if (ui.pendingFrom.unitId === unitId && ui.pendingFrom.portId === portId) {
+              // Same port — just cancel
+              ui.pendingFrom = null;
+              setStatus('Connection cancelled.');
+              render();
+              return;
+            }
+          }
+          // Start (or restart) connection mode
           ui.selectedUnitId = null;
           ui.pendingFrom = { unitId, portId };
           ui.selectedConnId = null;
-          setStatus('Connect: click a compatible IN port.');
+          setStatus('Connect: click a compatible IN port. Press Esc to cancel.');
           render();
           return;
         }
@@ -12634,10 +12673,13 @@ function drawUnits() {
           if (id) autoPauseOnTopologyChange(); // [v9.0.1]
           setStatus(id 
             ? 'Connection added.' 
-            : (scene._lastConnectError || 'Connection refused: port already connected or incompatible type.'));
+            : (scene._lastConnectError || 'Connection refused.'));
           ui.pendingFrom = null;
           updatePropertiesPanel();
           render();
+        } else if (port.dir === PortDir.IN && !ui.pendingFrom) {
+          // Clicking an IN port without pending — hint
+          setStatus('Click an OUT port first to start a connection.');
         }
       });
 
@@ -14071,15 +14113,16 @@ function el(tag, attrs = {}, children = []) {
   return e;
 }
 
-function addNumberEditor(container, label, get, set, step = 0.1) {
+function addNumberEditor(container, label, get, set, step = 0.1, decimals) {
   const row = el('div', { class: 'row' });
   row.appendChild(el('label', { html: label }));
   
-  // [v10.0.3] Derive display precision from step to avoid nonsense decimals
-  const decimals = step >= 1 ? 0 : Math.min(6, Math.max(0, -Math.floor(Math.log10(step))));
+  // [v10.0.5] Use explicit decimals if provided, else derive from step
+  const dp = (decimals !== undefined) ? decimals
+    : (step >= 1 ? 0 : Math.min(6, Math.max(0, -Math.floor(Math.log10(step)))));
   const inp = el('input', { type: 'number', step: String(step) });
   const rawVal = get();
-  inp.value = rawVal != null && isFinite(rawVal) ? Number(rawVal.toFixed(decimals)) : '';
+  inp.value = rawVal != null && isFinite(rawVal) ? Number(rawVal.toFixed(dp)) : '';
   inp.addEventListener('input', () => { set(Number(inp.value)); });
   
   row.appendChild(inp);
@@ -14755,7 +14798,7 @@ function _pEtaParams(u, unitSys, Pdefault, etaDefault) {
     { label: `P outlet (${unitSys.pressure.symbol})`,
       get: () => unitSys.pressure.from(u.params.Pout || Pdefault),
       set: v => u.params.Pout = unitSys.pressure.to(v),
-      step: unitSys.pressure.decimals === 0 ? 1000 : 0.1 },
+      step: unitSys.pressure.decimals === 0 ? 1000 : 0.1, decimals: unitSys.pressure.decimals },
     { label: 'Efficiency (-)',
       get: () => u.params.eta || etaDefault,
       set: v => u.params.eta = v, step: 0.01 },
@@ -14789,8 +14832,8 @@ UnitInspector.source = {
     ];
     if (SimSettings.cheatsEnabled) {
       params.push(
-        { label: `P (${unitSys.pressure.symbol})`, get: () => unitSys.pressure.from(u.params.P), set: v => u.params.P = unitSys.pressure.to(v), step: unitSys.pressure.decimals === 0 ? 1000 : 0.1 },
-        { label: `T (${unitSys.temperature.symbol})`, get: () => unitSys.temperature.from(u.params.T), set: v => u.params.T = unitSys.temperature.to(v), step: 1 }
+        { label: `P (${unitSys.pressure.symbol})`, get: () => unitSys.pressure.from(u.params.P), set: v => u.params.P = unitSys.pressure.to(v), step: unitSys.pressure.decimals === 0 ? 1000 : 0.1, decimals: unitSys.pressure.decimals },
+        { label: `T (${unitSys.temperature.symbol})`, get: () => unitSys.temperature.from(u.params.T), set: v => u.params.T = unitSys.temperature.to(v), step: 1, decimals: unitSys.temperature.decimals }
       );
     } else {
       const atm = SimSettings.getAtmosphere();
@@ -14857,10 +14900,11 @@ UnitInspector.source_multi = {
     }
     container.appendChild(compBox);
     addNumberEditor(container, `T (${unitSys.temperature.symbol})`,
-      () => unitSys.temperature.from(u.params.T ?? 298.15), v => u.params.T = unitSys.temperature.to(v), 1);
+      () => unitSys.temperature.from(u.params.T ?? 298.15), v => u.params.T = unitSys.temperature.to(v),
+      1, unitSys.temperature.decimals);
     addNumberEditor(container, `P (${unitSys.pressure.symbol})`,
       () => unitSys.pressure.from(u.params.P ?? 101325), v => u.params.P = unitSys.pressure.to(v),
-      unitSys.pressure.decimals === 0 ? 1000 : 0.1);
+      unitSys.pressure.decimals === 0 ? 1000 : 0.1, unitSys.pressure.decimals);
     addSelectEditor(container, 'Phase',
       () => u.params.phaseConstraint || 'V', v => u.params.phaseConstraint = v,
       [['V','Vapor only'],['L','Liquid only'],['VL','Vapor-Liquid']]);
@@ -15006,7 +15050,7 @@ UnitInspector.generator = {
 UnitInspector.valve = {
   params(u) {
     const unitSys = models.getActive('units');
-    return [{ label: `P outlet (${unitSys.pressure.symbol})`, get: () => unitSys.pressure.from(u.params.Pout || 101325), set: v => u.params.Pout = unitSys.pressure.to(v), step: unitSys.pressure.decimals === 0 ? 1000 : 0.1 }];
+    return [{ label: `P outlet (${unitSys.pressure.symbol})`, get: () => unitSys.pressure.from(u.params.Pout || 101325), set: v => u.params.Pout = unitSys.pressure.to(v), step: unitSys.pressure.decimals === 0 ? 1000 : 0.1, decimals: unitSys.pressure.decimals }];
   }
 };
 
@@ -15028,7 +15072,7 @@ UnitInspector.gas_turbine = {
 UnitInspector.heater = {
   params(u) {
     const us = models.getActive('units');
-    return [{ label: `T outlet setpoint (${us.temperature.symbol})`, get: () => us.temperature.from(u.params.T_out ?? 423.15), set: v => u.params.T_out = us.temperature.to(v), step: 1 }];
+    return [{ label: `T outlet setpoint (${us.temperature.symbol})`, get: () => us.temperature.from(u.params.T_out ?? 423.15), set: v => u.params.T_out = us.temperature.to(v), step: 1, decimals: us.temperature.decimals }];
   },
   properties(u, ud, grid) {
     if (!ud.last?.T_setpoint_K) return;
@@ -15047,7 +15091,7 @@ UnitInspector.heater = {
 UnitInspector.cooler = {
   params(u) {
     const us = models.getActive('units');
-    return [{ label: `T outlet setpoint (${us.temperature.symbol})`, get: () => us.temperature.from(u.params.T_out ?? 303.15), set: v => u.params.T_out = us.temperature.to(v), step: 1 }];
+    return [{ label: `T outlet setpoint (${us.temperature.symbol})`, get: () => us.temperature.from(u.params.T_out ?? 303.15), set: v => u.params.T_out = us.temperature.to(v), step: 1, decimals: us.temperature.decimals }];
   },
   properties(u, ud, grid) {
     if (!ud.last?.T_setpoint_K) return;
@@ -15098,8 +15142,8 @@ UnitInspector.hex = {
     return [
       { type: 'info', html: '<span style="opacity:0.6;font-size:11px;">Modes: approach temp · outlet temp · UA/NTU</span>' },
       { label: 'Approach ΔT (K)', get: () => u.params.T_approach ?? 10, set: v => { u.params.T_approach = v; u.params.T_hot_out = undefined; u.params.T_cold_out = undefined; }, step: 1 },
-      { label: `T hot out (${us.temperature.symbol})`, get: () => u.params.T_hot_out != null ? us.temperature.from(u.params.T_hot_out) : '', set: v => { u.params.T_hot_out = us.temperature.to(v); u.params.T_approach = 0; u.params.T_cold_out = undefined; }, step: 1 },
-      { label: `T cold out (${us.temperature.symbol})`, get: () => u.params.T_cold_out != null ? us.temperature.from(u.params.T_cold_out) : '', set: v => { u.params.T_cold_out = us.temperature.to(v); u.params.T_approach = 0; u.params.T_hot_out = undefined; }, step: 1 },
+      { label: `T hot out (${us.temperature.symbol})`, get: () => u.params.T_hot_out != null ? us.temperature.from(u.params.T_hot_out) : '', set: v => { u.params.T_hot_out = us.temperature.to(v); u.params.T_approach = 0; u.params.T_cold_out = undefined; }, step: 1, decimals: us.temperature.decimals },
+      { label: `T cold out (${us.temperature.symbol})`, get: () => u.params.T_cold_out != null ? us.temperature.from(u.params.T_cold_out) : '', set: v => { u.params.T_cold_out = us.temperature.to(v); u.params.T_approach = 0; u.params.T_hot_out = undefined; }, step: 1, decimals: us.temperature.decimals },
     ];
   },
   properties(u, ud, grid) {
@@ -15220,100 +15264,63 @@ UnitInspector.reactor_equilibrium = {
    ═══════════════════════════════════════════════════════════════════════════ */
 
 function populatePalette() {
-  const drawer = document.getElementById('paletteDrawer');
-  const searchInput = document.getElementById('palSearch');
-  const chipsContainer = document.getElementById('palChips');
   const tilesContainer = document.getElementById('palTiles');
+  tilesContainer.innerHTML = '';
+  const byCategory = UnitRegistry.listByCategory({ excludeCheats: !SimSettings.showCheats });
   
-  let activeCategory = 'All';
-  
-  function buildChips() {
-    chipsContainer.innerHTML = '';
-    const cats = new Set(['All']);
-    const byCategory = UnitRegistry.listByCategory({ excludeCheats: !SimSettings.showCheats });
-    for (const cat of Object.keys(byCategory)) cats.add(cat);
-    for (const cat of cats) {
-      const chip = el('div', { class: `pal-chip ${cat === activeCategory ? 'active' : ''}` });
-      chip.textContent = cat;
-      chip.addEventListener('click', () => { activeCategory = cat; buildChips(); buildTiles(); });
-      chipsContainer.appendChild(chip);
-    }
-  }
-  
-  function buildTiles() {
-    tilesContainer.innerHTML = '';
-    const query = (searchInput.value || '').toLowerCase().trim();
-    const byCategory = UnitRegistry.listByCategory({ excludeCheats: !SimSettings.showCheats });
+  for (const [catName, units] of Object.entries(byCategory)) {
+    tilesContainer.appendChild(el('div', { class: 'pal-cat-label', html: catName }));
     
-    for (const [catName, units] of Object.entries(byCategory)) {
-      if (activeCategory !== 'All' && catName !== activeCategory) continue;
+    for (const def of units) {
+      const tile = el('div', { class: 'pal-tile' });
+      tile.draggable = true;
+      const wipTag = def._wip ? ' <span style="color:#f59e0b;font-size:9px;font-weight:700;">WIP</span>' : '';
+      const cheatTag = def.cheat ? ' <span style="color:#94a3b8;font-size:9px;">★</span>' : '';
+      tile.innerHTML = `<div class="pal-tname"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${def.color};margin-right:4px;vertical-align:middle;"></span>${def.name}${wipTag}${cheatTag}</div>`;
       
-      const filtered = units.filter(def => {
-        if (!query) return true;
-        return def.name.toLowerCase().includes(query) || 
-               def.defId.toLowerCase().includes(query) ||
-               (catName || '').toLowerCase().includes(query);
+      tile.addEventListener('dragstart', (ev) => {
+        ui.dragDefId = def.defId;
+        ui.isHTML5Dragging = true;
+        ev.dataTransfer.setData('text/plain', def.defId);
+        ev.dataTransfer.effectAllowed = 'copy';
       });
       
-      if (filtered.length === 0) continue;
-      
-      tilesContainer.appendChild(el('div', { class: 'pal-cat-label', html: catName }));
-      
-      for (const def of filtered) {
-        const tile = el('div', { class: 'pal-tile' });
-        tile.draggable = true;
-        const wipTag = def._wip ? ' <span style="color:#f59e0b;font-size:9px;font-weight:700;">WIP</span>' : '';
-        const cheatTag = def.cheat ? ' <span style="color:#94a3b8;font-size:9px;">★</span>' : '';
-        tile.innerHTML = `<div class="pal-tname"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${def.color};margin-right:4px;vertical-align:middle;"></span>${def.name}${wipTag}${cheatTag}</div>`;
-        
-        tile.addEventListener('dragstart', (ev) => {
-          ui.dragDefId = def.defId;
-          ui.isHTML5Dragging = true;
-          ev.dataTransfer.setData('text/plain', def.defId);
-          ev.dataTransfer.effectAllowed = 'copy';
-        });
-        
-        tile.addEventListener('dblclick', () => {
-          // Place at center of current viewport
-          const vb = svg.getAttribute('viewBox')?.split(' ').map(Number) || [0,0,1000,600];
-          const cx = vb[0] + vb[2] / 2;
-          const cy = vb[1] + vb[3] / 2;
-          const gx = Math.round(cx / scene.tile);
-          const gy = Math.round(cy / scene.tile);
-          const newId = scene.placeUnit(def.defId, gx, gy);
-          if (!newId) {
-            // Collision at center — try nearby cells
-            for (let dx = 1; dx <= 4; dx++) {
-              for (const [ox, oy] of [[dx,0],[-dx,0],[0,dx],[0,-dx],[dx,dx],[-dx,-dx]]) {
-                const altId = scene.placeUnit(def.defId, gx+ox, gy+oy);
-                if (altId) {
-                  ui.selectedUnitId = altId;
-                  ui.selectedConnId = null;
-                  updatePropertiesPanel();
-                  render();
-                  setStatus(`Placed ${def.name}`);
-                  return;
-                }
+      tile.addEventListener('dblclick', () => {
+        // Place at center of current viewport
+        const vb = svg.getAttribute('viewBox')?.split(' ').map(Number) || [0,0,1000,600];
+        const cx = vb[0] + vb[2] / 2;
+        const cy = vb[1] + vb[3] / 2;
+        const gx = Math.round(cx / scene.tile);
+        const gy = Math.round(cy / scene.tile);
+        const newId = scene.placeUnit(def.defId, gx, gy);
+        if (!newId) {
+          // Collision at center — try nearby cells
+          for (let dx = 1; dx <= 4; dx++) {
+            for (const [ox, oy] of [[dx,0],[-dx,0],[0,dx],[0,-dx],[dx,dx],[-dx,-dx]]) {
+              const altId = scene.placeUnit(def.defId, gx+ox, gy+oy);
+              if (altId) {
+                ui.selectedUnitId = altId;
+                ui.selectedConnId = null;
+                updatePropertiesPanel();
+                render();
+                setStatus(`Placed ${def.name}`);
+                return;
               }
             }
-            setStatus('Cannot place — no free space near viewport center.');
-            return;
           }
-          ui.selectedUnitId = newId;
-          ui.selectedConnId = null;
-          updatePropertiesPanel();
-          render();
-          setStatus(`Placed ${def.name}`);
-        });
-        
-        tilesContainer.appendChild(tile);
-      }
+          setStatus('Cannot place — no free space near viewport center.');
+          return;
+        }
+        ui.selectedUnitId = newId;
+        ui.selectedConnId = null;
+        updatePropertiesPanel();
+        render();
+        setStatus(`Placed ${def.name}`);
+      });
+      
+      tilesContainer.appendChild(tile);
     }
   }
-  
-  searchInput.addEventListener('input', buildTiles);
-  buildChips();
-  buildTiles();
 }
 
 function togglePalette(forceState) {
@@ -15324,7 +15331,6 @@ function togglePalette(forceState) {
   if (shouldOpen) {
     drawer.classList.add('open');
     populatePalette();
-    setTimeout(() => document.getElementById('palSearch').focus(), 50);
   } else {
     drawer.classList.remove('open');
   }
@@ -15332,6 +15338,15 @@ function togglePalette(forceState) {
 
 // [v10] Palette event wiring
 document.getElementById('palClose').addEventListener('click', () => togglePalette(false));
+
+// [v10.0.6] Close palette when clicking outside (canvas or topbar)
+document.addEventListener('mousedown', (ev) => {
+  const drawer = document.getElementById('paletteDrawer');
+  if (!drawer.classList.contains('open')) return;
+  if (drawer.contains(ev.target)) return;  // Click inside palette
+  if (ev.target.id === 'btnAdd' || ev.target.closest?.('#btnAdd')) return;  // Click on Add button
+  togglePalette(false);
+});
 
 /* ═══════════════════════════════════════════════════════════════════════════
    [v10] SCHEMA-DRIVEN updatePropertiesPanel
@@ -15357,7 +15372,7 @@ function renderParams(container, paramDefs, u) {
       container.appendChild(row);
     } else {
       // Default: number editor
-      addNumberEditor(container, p.label, p.get, p.set, p.step || 0.1);
+      addNumberEditor(container, p.label, p.get, p.set, p.step || 0.1, p.decimals);
     }
   }
 }
@@ -15427,10 +15442,11 @@ function updatePropertiesPanel() {
     }
     propEditor.appendChild(propsSection.section);
 
-    // ── Diagnostics ──
-    if (ud?.errors?.length > 0 || ud?.last?.balanceErrors?.length > 0) {
-      const diagSection = createCollapsibleSection('Diagnostics', false);
-      if (ud.errors) {
+    // ── Diagnostics (always shown, open by default) ──
+    {
+      const hasErrors = (ud?.errors?.length > 0 || ud?.last?.balanceErrors?.length > 0);
+      const diagSection = createCollapsibleSection('Diagnostics', true);
+      if (hasErrors && ud.errors) {
         for (const err of ud.errors) {
           if (typeof err === 'string') {
             diagSection.content.appendChild(el('div', { class: 'ins-err-box warn', html: '⚠ ' + err }));
@@ -15440,6 +15456,10 @@ function updatePropertiesPanel() {
             diagSection.content.appendChild(el('div', { class: `ins-err-box ${cls}`, html: `${icon} ${err.message || JSON.stringify(err)}` }));
           }
         }
+      } else if (ud) {
+        diagSection.content.appendChild(el('div', { style: 'font-size:12px; color:#6ee7b7; opacity:0.8; padding:4px 0;', html: '✓ No issues' }));
+      } else {
+        diagSection.content.appendChild(el('div', { class: 'ins-hint', html: 'Not computed yet — press Test/Step' }));
       }
       propEditor.appendChild(diagSection.section);
     }
@@ -15793,20 +15813,16 @@ window.addEventListener('keydown', (ev) => {
     setStatus('Cancelled.');
     render();
   }
-  // [v10] / key toggles palette (intercept even in palette search box)
+  // [v10.0.6] "/" toggles palette
   if (ev.key === '/') {
     const drawer = document.getElementById('paletteDrawer');
-    const palSearch = document.getElementById('palSearch');
+    ev.preventDefault();
     if (drawer.classList.contains('open')) {
-      // Palette is open — close it (don't type "/" in search)
-      ev.preventDefault();
       togglePalette(false);
-      return;
-    }
-    if (!isInput) {
-      ev.preventDefault();
+    } else if (!isInput) {
       togglePalette(true);
     }
+    return;
   }
   // [v10.0.2] Ctrl+Enter runs Test (NNG-UI8: doesn't conflict with browser)
   if (ev.key === 'Enter' && (ev.ctrlKey || ev.metaKey)) {
@@ -21353,7 +21369,7 @@ function runTests() {
     t.assertOK(bal.energy.out.dissipated > 0, 'Dissipated > 0');
     // Find the reactor's dissipated item
     const rxDissipated = bal.energy.out.items.find(
-      i => i.type === 'dissipated' && i.name.includes('Equilibrium'));
+      i => i.type === 'dissipated' && i.name.includes('Reactor'));
     t.assertOK(rxDissipated, 'Reactor dissipated entry found in balance');
     t.assertClose(rxDissipated.value, Q_abs, Q_abs * 0.01,
       'Dissipated amount ≈ |Q_duty|');
@@ -23403,7 +23419,7 @@ function runTests() {
     const cats = UnitRegistry.listByCategory({ excludeCheats: false });
     const catNames = Object.keys(cats);
     // Verify first 7 categories match expected order
-    const expected = ['Boundaries', 'Heat Transfer', 'Pressure', 'Reactors', 'Separation & Mixing', 'Storage', 'Power'];
+    const expected = ['Boundaries', 'Heat', 'Pressure', 'Reactor', 'Separation & Mixing', 'Storage', 'Power'];
     for (let i = 0; i < expected.length; i++) {
       t.assertOK(catNames[i] === expected[i], `Category ${i}: "${catNames[i]}" = "${expected[i]}"`);
     }
