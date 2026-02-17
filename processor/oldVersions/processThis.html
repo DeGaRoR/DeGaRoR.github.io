@@ -3,6 +3,32 @@
   ═══════════════════════════════════════════════════════════════════════════
   processThis v9.1.0
 
+  ─── v10.5.1 ──────────────────────────────────────────────────────────────
+  Speed system redesign.
+
+  3 SPEED MODES (replaces 5-level string system):
+  ▶ Normal (5s) · ▶▶ Fast (2s) · ▶▶▶ Turbo (0.5s)
+  SimSettings.playSpeed changed from string ('1x') to index (0/1/2).
+  PLAY_SPEEDS, FLOW_ARROW_SPEEDS, PLAY_SPEED_LABELS are parallel arrays.
+
+  SPEED INDICATOR:
+  Compact clickable element next to time display. Shows overlapping arrows
+  (tight letter-spacing). Each click cycles: ▶ → ▶▶ → ▶▶▶ → ▶.
+  Does not cycle through pause. Tooltip shows label + interval.
+  If play is active, speed change takes effect immediately (restarts
+  interval + updates arrow animation duration).
+
+  SETTINGS MODAL:
+  Play speed dropdown updated to 3 options (Normal/Fast/Turbo).
+
+  RESET CONFIRMATION:
+  btnReset now shows confirm('Reset time to Day 1, 12H?'). Cancel = no-op.
+
+  T212: Rewritten for 3-level array speed system.
+  T213: Speed cycling wraps 0→1→2→0.
+
+  Gate: 213/213 tests, 1451 checks, zero regressions.
+
   ─── v10.5.0 ──────────────────────────────────────────────────────────────
   Animation & Time Display Redesign.
 
@@ -1682,7 +1708,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>processThis — v10.5.0</title>
+  <title>processThis — v10.5.1</title>
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
@@ -2015,6 +2041,19 @@
       white-space: nowrap;
     }
     .time-display b { color: #94a3b8; }
+
+    .speed-indicator {
+      font-size: 10px;
+      color: #64748b;
+      margin-left: 4px;
+      cursor: pointer;
+      letter-spacing: -4px;
+      padding: 2px 6px 2px 4px;
+      border-radius: 4px;
+      user-select: none;
+      transition: color 0.15s;
+    }
+    .speed-indicator:hover { color: #94a3b8; background: #1e293b; }
     
     /* ===== PROCESS NAME INPUT ===== */
     #processNameInput {
@@ -3059,6 +3098,7 @@
         <button class="tbtn" id="btnReset" data-tip="Reset to t=0" disabled>↺</button>
       </div>
       <span class="time-display" id="timeDisplay" style="cursor:pointer;" title="Click to open settings"></span>
+      <span class="speed-indicator" id="speedIndicator" title="Normal (5s)">▶</span>
 
       <!-- Zoom controls [v10.1.0] -->
       <div class="zoom-controls">
@@ -3485,7 +3525,7 @@ const SimSettings = {
 
   // ── Time settings [v9.0.1] ──
   dt: 3600,                  // [v10.5.0] timestep duration (seconds) — 1 hour default
-  playSpeed: '1x',          // play loop speed ('1x','2x','5x','10x','max')
+  playSpeed: 0,              // [v10.5.1] play speed index (0=normal, 1=fast, 2=turbo)
 
   // ── Animations [v10.4.0] (NNG-UI11: gated, never alter solver state) ──
   animations: true,         // master toggle for all visual animations
@@ -3661,8 +3701,9 @@ function formatTime(seconds) {
   const hour = Math.floor((seconds % 86400) / 3600);
   return `Day ${day}, ${hour}H`;
 }
-const PLAY_SPEEDS = { '1x': 1000, '2x': 500, '5x': 200, '10x': 100, 'max': 16 };
-const FLOW_ARROW_SPEEDS = { '1x': '2s', '2x': '1.2s', '5x': '0.6s', '10x': '0.3s', 'max': '0.15s' };
+const PLAY_SPEEDS = [5000, 2000, 500];           // [v10.5.1] 3 modes: normal, fast, turbo (ms)
+const PLAY_SPEED_LABELS = ['Normal (5s)', 'Fast (2s)', 'Turbo (0.5s)'];
+const FLOW_ARROW_SPEEDS = ['3s', '1.5s', '0.5s']; // arrow animation duration per mode
 
 /* =========================
    CONSTANTS & ENUMS
@@ -13152,6 +13193,7 @@ const btnPlay  = document.getElementById('btnPlay');
 const btnPause = document.getElementById('btnPause');
 const btnReset = document.getElementById('btnReset');
 const timeDisplayEl = document.getElementById('timeDisplay');
+const speedIndicatorEl = document.getElementById('speedIndicator');
 const btnAdd = document.getElementById('btnAdd');
 const btnMenu = document.getElementById('btnMenu');
 const menuMain = document.getElementById('menuMain');
@@ -17534,6 +17576,12 @@ function updateTransportUI() {
   // [v10.5.0] Time display — always visible, Day/Hour format
   timeDisplayEl.style.display = '';
   timeDisplayEl.textContent = formatTime(TimeClock.t);
+
+  // [v10.5.1] Speed indicator
+  const si = SimSettings.playSpeed || 0;
+  const arrows = ['▶', '▶▶', '▶▶▶'];
+  speedIndicatorEl.textContent = arrows[si] || arrows[0];
+  speedIndicatorEl.title = PLAY_SPEED_LABELS[si] || PLAY_SPEED_LABELS[0];
 }
 
 // [v10.4.1] Cached per-unit alarm severity for render (NNG-AL2, NNG-AL5)
@@ -17619,7 +17667,7 @@ let _playTimer = null;
 
 function _startFlowArrows() {
   if (!SimSettings.animations) return;
-  const speed = FLOW_ARROW_SPEEDS[SimSettings.playSpeed || '1x'] || '1.5s';
+  const speed = FLOW_ARROW_SPEEDS[SimSettings.playSpeed || 0] || '3s';
   document.querySelectorAll('.flow-arrow').forEach(el => {
     el.style.setProperty('--flow-speed', speed);
     el.classList.add('flow-arrow-active');
@@ -17641,7 +17689,7 @@ function startPlay() {
   }
   TimeClock.mode = 'playing';
   updateTransportUI();
-  _startFlowArrows();  // [v10.5.0] continuous arrow animation
+  _startFlowArrows();
   _playTimer = setInterval(() => {
     const { solveResult } = TimeClock.step(scene);
     afterSolve(solveResult);
@@ -17650,7 +17698,7 @@ function startPlay() {
       stopPlay();
       setStatus('⏸ Paused — solver error');
     }
-  }, PLAY_SPEEDS[SimSettings.playSpeed || '1x']);
+  }, PLAY_SPEEDS[SimSettings.playSpeed || 0]);
 }
 
 function stopPlay() {
@@ -17696,10 +17744,31 @@ btnPause.addEventListener('click', () => {
 });
 
 btnReset.addEventListener('click', () => {
+  // [v10.5.1] Confirmation before reset
+  if (!confirm('Reset time to Day 1, 12H?')) return;
   stopPlay();
   const { solveResult } = TimeClock.reset(scene);
   setStatus(`↺ Reset to ${formatTime(TimeClock.t)}`);
   afterSolve(solveResult);
+});
+
+// [v10.5.1] Speed indicator — cycle through 3 modes
+speedIndicatorEl.addEventListener('click', () => {
+  SimSettings.playSpeed = ((SimSettings.playSpeed || 0) + 1) % 3;
+  updateTransportUI();
+  // If currently playing, restart with new speed
+  if (TimeClock.mode === 'playing' && _playTimer) {
+    clearInterval(_playTimer);
+    _startFlowArrows();  // update arrow speed
+    _playTimer = setInterval(() => {
+      const { solveResult } = TimeClock.step(scene);
+      afterSolve(solveResult);
+      if (solveResult && !solveResult.ok && solveResult.unitFaulted) {
+        stopPlay();
+        setStatus('⏸ Paused — solver error');
+      }
+    }, PLAY_SPEEDS[SimSettings.playSpeed]);
+  }
 });
 
 // [v10.1.0] Zoom controls (E1)
@@ -18037,12 +18106,12 @@ function buildSettingsPanel() {
   speedRow.appendChild(el('label', { html: 'Play speed:', style: 'font-size:12px; min-width:90px;' }));
   const speedSel = document.createElement('select');
   speedSel.style.cssText = 'background:#0f172a; color:#e2e8f0; border:1px solid #334155; border-radius:4px; padding:3px 6px; font-size:12px;';
-  for (const spd of ['1x', '2x', '5x', '10x', 'max']) {
+  PLAY_SPEED_LABELS.forEach((label, i) => {
     const opt = document.createElement('option');
-    opt.value = spd; opt.textContent = spd;
-    if (spd === SimSettings.playSpeed) opt.selected = true;
+    opt.value = i; opt.textContent = label;
+    if (i === (SimSettings.playSpeed || 0)) opt.selected = true;
     speedSel.appendChild(opt);
-  }
+  });
   speedSel.addEventListener('change', () => _markSettingsDirty());
   speedRow.appendChild(speedSel);
   timeSec.appendChild(speedRow);
@@ -18197,7 +18266,7 @@ function buildSettingsPanel() {
     // Apply time settings [v9.0.1]
     const newDt = Math.max(1, parseInt(dtInput.value) || 60);
     SimSettings.dt = newDt;
-    SimSettings.playSpeed = speedSel.value;
+    SimSettings.playSpeed = parseInt(speedSel.value) || 0;
     // If play is active, restart with new speed
     if (TimeClock.mode === 'playing') {
       stopPlay();
@@ -25691,14 +25760,30 @@ function runTests() {
   }});
 
   // T212: Flow arrow CSS classes and speed mapping
-  tests.push({ name: '212: Arrow flow speed mapping', fn: t => {
-    t.assertOK(FLOW_ARROW_SPEEDS['1x'] === '2s', '1x → 2s');
-    t.assertOK(FLOW_ARROW_SPEEDS['max'] === '0.15s', 'max → 0.15s');
-    t.assertOK(Object.keys(FLOW_ARROW_SPEEDS).length === 5, '5 speed levels');
-    // Verify PLAY_SPEEDS keys match FLOW_ARROW_SPEEDS keys
-    for (const k of Object.keys(PLAY_SPEEDS)) {
-      t.assertOK(FLOW_ARROW_SPEEDS[k] !== undefined, `Arrow speed for ${k}`);
-    }
+  // [v10.5.1] Rewritten for 3-level speed system
+  tests.push({ name: '212: Speed system — 3 modes', fn: t => {
+    // Arrays are parallel and length 3
+    t.assertClose(PLAY_SPEEDS.length, 3, 0, '3 play speeds');
+    t.assertClose(FLOW_ARROW_SPEEDS.length, 3, 0, '3 arrow speeds');
+    t.assertClose(PLAY_SPEED_LABELS.length, 3, 0, '3 speed labels');
+    // Intervals decrease (faster)
+    t.assertOK(PLAY_SPEEDS[0] > PLAY_SPEEDS[1], 'Mode 0 slower than 1');
+    t.assertOK(PLAY_SPEEDS[1] > PLAY_SPEEDS[2], 'Mode 1 slower than 2');
+    // Default playSpeed is 0
+    t.assertClose(SimSettings.playSpeed, 0, 0, 'Default speed = 0');
+  }});
+
+  tests.push({ name: '213: Speed cycling wraps around', fn: t => {
+    const orig = SimSettings.playSpeed;
+    SimSettings.playSpeed = 0;
+    // Simulate cycling: (current + 1) % 3
+    SimSettings.playSpeed = (SimSettings.playSpeed + 1) % 3;
+    t.assertClose(SimSettings.playSpeed, 1, 0, '0 → 1');
+    SimSettings.playSpeed = (SimSettings.playSpeed + 1) % 3;
+    t.assertClose(SimSettings.playSpeed, 2, 0, '1 → 2');
+    SimSettings.playSpeed = (SimSettings.playSpeed + 1) % 3;
+    t.assertClose(SimSettings.playSpeed, 0, 0, '2 → 0 (wrap)');
+    SimSettings.playSpeed = orig;
   }});
 
   // ═══════════════════════════════════════════════════════════════════════

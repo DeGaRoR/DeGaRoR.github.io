@@ -3,6 +3,30 @@
   ═══════════════════════════════════════════════════════════════════════════
   processThis v9.1.0
 
+  ─── v10.5.2 ──────────────────────────────────────────────────────────────
+  Multi-arrow connections + uniform flow speed.
+
+  MULTI-ARROW — count by chord length:
+  < 4 cells → 1 arrow (centered). 4-7 → 3. 8-11 → 5. 12+ → 7.
+  Always odd count, one always at center. Positions via i/(n+1) for
+  even spacing with margins.
+
+  UNIFORM SPEED — all arrows travel same visual speed:
+  Duration = baseSec × (chord / 200px), clamped to [0.3s, 8s].
+  Short connections = fast cycle, long connections = slow cycle, but
+  arrows move at the same px/s everywhere.
+
+  STAGGER — multiple arrows distributed along path:
+  Each arrow gets animation-delay = -(i/n) × duration, keeping arrows
+  evenly spread during animation. Uses data-chord, data-arrow-idx,
+  data-arrow-count attributes set at render time.
+
+  CSS: --flow-duration replaces --flow-speed variable.
+
+  T214: Arrow count thresholds + centered positions.
+
+  Gate: 214/214 tests, 1470 checks, zero regressions.
+
   ─── v10.5.1 ──────────────────────────────────────────────────────────────
   Speed system redesign.
 
@@ -1708,7 +1732,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>processThis — v10.5.1</title>
+  <title>processThis — v10.5.2</title>
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
@@ -1927,7 +1951,7 @@
       to   { offset-distance: 95%; }
     }
     .flow-arrow-active {
-      animation: arrow-flow var(--flow-speed, 1.5s) linear infinite;
+      animation: arrow-flow var(--flow-duration, 1.5s) linear infinite;
     }
 
     /* ===== TOPO FLASH PULSE [v10.5.0] (AN-3 replacement) ===== */
@@ -3704,6 +3728,20 @@ function formatTime(seconds) {
 const PLAY_SPEEDS = [5000, 2000, 500];           // [v10.5.1] 3 modes: normal, fast, turbo (ms)
 const PLAY_SPEED_LABELS = ['Normal (5s)', 'Fast (2s)', 'Turbo (0.5s)'];
 const FLOW_ARROW_SPEEDS = ['3s', '1.5s', '0.5s']; // arrow animation duration per mode
+
+// [v10.5.2] Arrow count by chord length in cells. Always odd, one centered.
+function _arrowCount(chordCells) {
+  if (chordCells < 4) return 1;
+  if (chordCells < 8) return 3;
+  if (chordCells < 12) return 5;
+  return 7;
+}
+// Arrow positions as fractions [0..1] — evenly spaced, one always at 0.5
+function _arrowPositions(n) {
+  const pos = [];
+  for (let i = 1; i <= n; i++) pos.push(i / (n + 1));
+  return pos;
+}
 
 /* =========================
    CONSTANTS & ENUMS
@@ -13985,31 +14023,33 @@ function drawConnections() {
 
     g.appendChild(path);
 
-    // Cubic Bézier at t=0.5: P = 0.125*P0 + 0.375*P1 + 0.375*P2 + 0.125*P3
-    const mx = 0.125 * fx + 0.375 * c1x + 0.375 * c2x + 0.125 * tx;
-    const my = 0.125 * fy + 0.375 * c1y + 0.375 * c2y + 0.125 * ty;
-    // Tangent at t=0.5: P' = 3[0.25*(P1-P0) + 0.5*(P2-P1) + 0.25*(P3-P2)]
-    const tdx = 0.75 * (c1x - fx) + 1.5 * (c2x - c1x) + 0.75 * (tx - c2x);
-    const tdy = 0.75 * (c1y - fy) + 1.5 * (c2y - c1y) + 0.75 * (ty - c2y);
-    const angle = Math.atan2(tdy, tdx) * 180 / Math.PI;
-    
-    // [v10.5.0] Arrow with offset-path for continuous flow animation
-    const arrowG = svgEl('g', { 'pointer-events': 'none' });
-    if (isConnDimmed) arrowG.classList.add('conn-dimmed');
-    arrowG.appendChild(svgEl('path', {
-      d: 'M-5,-4 L5,0 L-5,4 Z',
-      fill: isSelected ? '#60a5fa' : visuals.color
-    }));
-    // Use offset-path for positioning (replaces transform)
-    arrowG.style.offsetPath = `path('${pathD}')`;
-    arrowG.style.offsetDistance = '50%';
-    arrowG.style.offsetRotate = 'auto';
-    arrowG.classList.add('flow-arrow');
-    // If currently playing, activate animation immediately
-    if (TimeClock.mode === 'playing' && SimSettings.animations) {
-      arrowG.classList.add('flow-arrow-active');
+    // [v10.5.2] Multi-arrow flow indicators — count based on chord length
+    const chordPx = Math.hypot(tx - fx, ty - fy);
+    const chordCells = chordPx / scene.tile;
+    const nArrows = _arrowCount(chordCells);
+    const arrowPositions = _arrowPositions(nArrows);
+    const arrowColor = isSelected ? '#60a5fa' : visuals.color;
+    const isPlaying = TimeClock.mode === 'playing' && SimSettings.animations;
+
+    for (let ai = 0; ai < nArrows; ai++) {
+      const pct = arrowPositions[ai];
+      const arrowG = svgEl('g', { 'pointer-events': 'none' });
+      if (isConnDimmed) arrowG.classList.add('conn-dimmed');
+      arrowG.appendChild(svgEl('path', {
+        d: 'M-5,-4 L5,0 L-5,4 Z',
+        fill: arrowColor
+      }));
+      arrowG.style.offsetPath = `path('${pathD}')`;
+      arrowG.style.offsetDistance = `${(pct * 100).toFixed(1)}%`;
+      arrowG.style.offsetRotate = 'auto';
+      arrowG.classList.add('flow-arrow');
+      // Store data for uniform-speed animation
+      arrowG.dataset.chord = chordPx.toFixed(0);
+      arrowG.dataset.arrowIdx = ai;
+      arrowG.dataset.arrowCount = nArrows;
+      if (isPlaying) arrowG.classList.add('flow-arrow-active');
+      g.appendChild(arrowG);
     }
-    g.appendChild(arrowG);
   }
 
   // Draw pending connection (during connection mode)
@@ -17667,9 +17707,20 @@ let _playTimer = null;
 
 function _startFlowArrows() {
   if (!SimSettings.animations) return;
-  const speed = FLOW_ARROW_SPEEDS[SimSettings.playSpeed || 0] || '3s';
+  const baseSec = parseFloat(FLOW_ARROW_SPEEDS[SimSettings.playSpeed || 0]) || 3;
+  const refPx = 200;  // reference chord length for base duration
+
   document.querySelectorAll('.flow-arrow').forEach(el => {
-    el.style.setProperty('--flow-speed', speed);
+    const chord = parseFloat(el.dataset.chord) || refPx;
+    const n = parseInt(el.dataset.arrowCount) || 1;
+    const i = parseInt(el.dataset.arrowIdx) || 0;
+    // Duration scales with chord length so all arrows move at same visual speed
+    const dur = Math.max(0.3, Math.min(8, baseSec * (chord / refPx)));
+    el.style.setProperty('--flow-duration', dur + 's');
+    // Stagger: negative delay spreads arrows evenly along the path
+    if (n > 1) {
+      el.style.animationDelay = `${-(i / n) * dur}s`;
+    }
     el.classList.add('flow-arrow-active');
   });
 }
@@ -17677,6 +17728,7 @@ function _startFlowArrows() {
 function _stopFlowArrows() {
   document.querySelectorAll('.flow-arrow').forEach(el => {
     el.classList.remove('flow-arrow-active');
+    el.style.animationDelay = '';
   });
 }
 
@@ -25784,6 +25836,32 @@ function runTests() {
     SimSettings.playSpeed = (SimSettings.playSpeed + 1) % 3;
     t.assertClose(SimSettings.playSpeed, 0, 0, '2 → 0 (wrap)');
     SimSettings.playSpeed = orig;
+  }});
+
+  // [v10.5.2] T214: Multi-arrow count and positions
+  tests.push({ name: '214: Arrow count by chord + centered positions', fn: t => {
+    // Count thresholds
+    t.assertClose(_arrowCount(2), 1, 0, '<4 cells → 1 arrow');
+    t.assertClose(_arrowCount(3.9), 1, 0, '3.9 cells → 1');
+    t.assertClose(_arrowCount(4), 3, 0, '4 cells → 3');
+    t.assertClose(_arrowCount(7.9), 3, 0, '7.9 cells → 3');
+    t.assertClose(_arrowCount(8), 5, 0, '8 cells → 5');
+    t.assertClose(_arrowCount(11.9), 5, 0, '11.9 → 5');
+    t.assertClose(_arrowCount(12), 7, 0, '12 cells → 7');
+    t.assertClose(_arrowCount(20), 7, 0, '20 cells → 7');
+    // Positions always include 0.5 (centered)
+    const p1 = _arrowPositions(1);
+    t.assertClose(p1[0], 0.5, 0.001, '1 arrow at 50%');
+    const p3 = _arrowPositions(3);
+    t.assertClose(p3[1], 0.5, 0.001, '3 arrows: center at 50%');
+    t.assertClose(p3[0], 0.25, 0.001, '3 arrows: first at 25%');
+    t.assertClose(p3[2], 0.75, 0.001, '3 arrows: last at 75%');
+    const p5 = _arrowPositions(5);
+    t.assertClose(p5[2], 0.5, 0.001, '5 arrows: center at 50%');
+    // All counts are odd
+    for (const c of [1, 2, 5, 8, 12, 20]) {
+      t.assertOK(_arrowCount(c) % 2 === 1, `count(${c}) is odd`);
+    }
   }});
 
   // ═══════════════════════════════════════════════════════════════════════
