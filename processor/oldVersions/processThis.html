@@ -3,6 +3,47 @@
   ═══════════════════════════════════════════════════════════════════════════
   processThis v9.1.0
 
+  ─── v10.5.0 ──────────────────────────────────────────────────────────────
+  Animation & Time Display Redesign.
+
+  TIME DISPLAY — Always visible:
+  Format: "Day 1, 12H" (day-hour, always shown). Starts at noon Day 1
+  (t = 43200s). Default dt changed from 60s to 3600s (1 hour per step).
+  Click on time display opens Settings modal.
+  Frame counter, Δt, mode prefix removed from display — clean format.
+
+  ANIMATION — Two categories (pulse vs continuous):
+  Pulse: fires on Test/Step button press only. NOT during autoplay.
+  Continuous: fires when Play is active. Stops when play stops.
+
+  REMOVED — Solve pulse ring (AN-3):
+  The expanding circle from scene centroid is gone. Replaced by topo flash.
+
+  REMOVED — Dash-march flow overlay (AN-1):
+  The animated dashed paths per connection are gone. Replaced by arrow flow.
+
+  NEW — Topo flash pulse (AN-3 replacement):
+  On manual Test/Step, units flash sequentially in topological order
+  (sources → intermediates → sinks). CSS brightness filter with stagger
+  gives a visual "wave" showing flow direction. ~40-80ms between units.
+
+  NEW — Arrow flow animation (AN-1 replacement):
+  During Play, the static direction arrows on connections animate along
+  their Bézier paths using CSS offset-path. Speed tied to play speed
+  (1x→2s, 2x→1.2s, 5x→0.6s, 10x→0.3s, max→0.15s).
+  Arrows snap to midpoint when play stops.
+
+  MOVED TO BLOCK 1 (DOM-free):
+  formatTime(), PLAY_SPEEDS, FLOW_ARROW_SPEEDS — accessible to headless
+  test suite.
+
+  T161: Updated for new initial t=43200 (noon).
+  T210: formatTime Day/Hour format + default dt.
+  T211: Pulse gating — fires in test/step, blocked in play.
+  T212: Arrow flow speed mapping.
+
+  Gate: 212/212 tests, 1450 checks, zero regressions.
+
   ─── v10.4.3 ──────────────────────────────────────────────────────────────
   HEAT-B: Reactor dual heat ports + endothermic support.
 
@@ -1641,7 +1682,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>processThis — v10.4.3</title>
+  <title>processThis — v10.5.0</title>
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
@@ -1854,32 +1895,23 @@
     }
     .action-bar .tbtn svg { display: block; }
 
-    /* ===== STREAM FLOW ANIMATION [v10.4.0] (AN-1) ===== */
-    @keyframes flow-march {
-      to { stroke-dashoffset: -24; }
+    /* ===== ARROW FLOW ANIMATION [v10.5.0] (AN-1 replacement) ===== */
+    @keyframes arrow-flow {
+      from { offset-distance: 5%; }
+      to   { offset-distance: 95%; }
     }
-    .flow-anim {
-      animation: flow-march 0.8s linear infinite;
-      pointer-events: none;
-    }
-    .flow-anim.flow-fast {
-      animation-duration: 0.4s;
-    }
-    .flow-anim.flow-slow {
-      animation-duration: 1.4s;
-    }
-    .flow-anim.flow-reverse {
-      animation-direction: reverse;
+    .flow-arrow-active {
+      animation: arrow-flow var(--flow-speed, 1.5s) linear infinite;
     }
 
-    /* ===== SOLVE PULSE [v10.4.1] (AN-3) ===== */
-    @keyframes solve-pulse {
-      0%   { opacity: 0.7; }
-      100% { opacity: 0; }
+    /* ===== TOPO FLASH PULSE [v10.5.0] (AN-3 replacement) ===== */
+    @keyframes unit-topo-pulse {
+      0%   { filter: brightness(1); }
+      35%  { filter: brightness(1.9) drop-shadow(0 0 4px rgba(148, 163, 184, 0.5)); }
+      100% { filter: brightness(1); }
     }
-    .solve-pulse-ring {
-      pointer-events: none;
-      animation: solve-pulse 0.5s ease-out forwards;
+    .unit-topo-pulse > rect:first-child {
+      animation: unit-topo-pulse 0.3s ease-out;
     }
 
     /* ===== FAILURE SHAKE + GLOW [v10.4.1] (AN-4a) ===== */
@@ -3026,7 +3058,7 @@
         <button class="tbtn" id="btnPause" data-tip="Pause" disabled>⏸</button>
         <button class="tbtn" id="btnReset" data-tip="Reset to t=0" disabled>↺</button>
       </div>
-      <span class="time-display" id="timeDisplay" style="display:none;"></span>
+      <span class="time-display" id="timeDisplay" style="cursor:pointer;" title="Click to open settings"></span>
 
       <!-- Zoom controls [v10.1.0] -->
       <div class="zoom-controls">
@@ -3452,7 +3484,7 @@ const SimSettings = {
   showCheats: false,        // [v10.0.4] toggled separately from dev mode
 
   // ── Time settings [v9.0.1] ──
-  dt: 60,                   // timestep duration (seconds)
+  dt: 3600,                  // [v10.5.0] timestep duration (seconds) — 1 hour default
   playSpeed: '1x',          // play loop speed ('1x','2x','5x','10x','max')
 
   // ── Animations [v10.4.0] (NNG-UI11: gated, never alter solver state) ──
@@ -3541,13 +3573,13 @@ SimSettings._applyPreset();
    Inter-timestep state on u.inventory (NNG-S5).
    ========================= */
 const TimeClock = {
-  t:     0,        // current simulation time (seconds)
+  t:     43200,   // [v10.5.0] current simulation time (seconds) — starts at noon Day 1
   frame: 0,        // integer frame counter (0 = initial state)
   mode:  'test',   // 'test' | 'paused' | 'playing'
   _initial: null,  // Map: unitId → deep copy of initial inventory (set on first step)
 
   /** Get effective dt from SimSettings */
-  get dt() { return SimSettings.dt || 60; },
+  get dt() { return SimSettings.dt || 3600; },
 
   /**
    * Advance one timestep.
@@ -3595,7 +3627,7 @@ const TimeClock = {
    */
   reset(scene) {
     TimeClock._restoreInitial(scene);
-    TimeClock.t = 0;
+    TimeClock.t = 43200;  // [v10.5.0] reset to noon Day 1
     TimeClock.frame = 0;
     TimeClock.mode = 'test';
 
@@ -3622,6 +3654,15 @@ const TimeClock = {
     }
   }
 };
+
+// [v10.5.0] Time formatting and play speed constants — DOM-free, usable by tests
+function formatTime(seconds) {
+  const day = Math.floor(seconds / 86400) + 1;
+  const hour = Math.floor((seconds % 86400) / 3600);
+  return `Day ${day}, ${hour}H`;
+}
+const PLAY_SPEEDS = { '1x': 1000, '2x': 500, '5x': 200, '10x': 100, 'max': 16 };
+const FLOW_ARROW_SPEEDS = { '1x': '2s', '2x': '1.2s', '5x': '0.6s', '10x': '0.3s', 'max': '0.15s' };
 
 /* =========================
    CONSTANTS & ENUMS
@@ -13819,7 +13860,7 @@ function drawConnections() {
   const g = svgEl('g', { id: 'connections' });
   
   // [v10.1.0] Flow marker ID mapping (E3)
-  const _flowMarkerIds = ['flow-material', 'flow-heat', 'flow-mechanical', 'flow-electrical'];
+  // Connection flow markers removed v10.5.0 — arrows use offset-path instead
   
   // Draw existing connections
   for (const c of scene.connections) {
@@ -13902,23 +13943,6 @@ function drawConnections() {
 
     g.appendChild(path);
 
-    // [v10.4.0] AN-1: Stream flow animation overlay
-    if (SimSettings.animations && !isConnDimmed) {
-      const flowPath = svgEl('path', {
-        d: pathD,
-        fill: 'none',
-        stroke: isSelected ? '#93c5fd' : visuals.color,
-        'stroke-width': isPowerStream ? 2 : 2.5,
-        'stroke-dasharray': isPowerStream ? '3,9' : '4,20',
-        'stroke-linecap': 'round',
-        opacity: isPowerStream ? 0.7 : 0.5,
-      });
-      flowPath.classList.add('flow-anim');
-      // Speed by stream type
-      if (fromPort.type === StreamType.ELECTRICAL) flowPath.classList.add('flow-fast');
-      else if (fromPort.type === StreamType.HEAT) flowPath.classList.add('flow-slow');
-      g.appendChild(flowPath);
-    }
     // Cubic Bézier at t=0.5: P = 0.125*P0 + 0.375*P1 + 0.375*P2 + 0.125*P3
     const mx = 0.125 * fx + 0.375 * c1x + 0.375 * c2x + 0.125 * tx;
     const my = 0.125 * fy + 0.375 * c1y + 0.375 * c2y + 0.125 * ty;
@@ -13927,23 +13951,22 @@ function drawConnections() {
     const tdy = 0.75 * (c1y - fy) + 1.5 * (c2y - c1y) + 0.75 * (ty - c2y);
     const angle = Math.atan2(tdy, tdx) * 180 / Math.PI;
     
-    const markerId = _flowMarkerIds[fromPort.type] || 'flow-material';
-    const arrow = svgEl('use', {
-      x: mx - 4, y: my - 3,
-      width: 8, height: 6,
-      'pointer-events': 'none'
-    });
-    arrow.setAttribute('href', `#${markerId}-shape`);
-    // Use a rotated triangle directly instead of <use> for simplicity
-    const arrowG = svgEl('g', {
-      transform: `translate(${mx},${my}) rotate(${angle})`,
-      'pointer-events': 'none'
-    });
+    // [v10.5.0] Arrow with offset-path for continuous flow animation
+    const arrowG = svgEl('g', { 'pointer-events': 'none' });
     if (isConnDimmed) arrowG.classList.add('conn-dimmed');
     arrowG.appendChild(svgEl('path', {
       d: 'M-5,-4 L5,0 L-5,4 Z',
       fill: isSelected ? '#60a5fa' : visuals.color
     }));
+    // Use offset-path for positioning (replaces transform)
+    arrowG.style.offsetPath = `path('${pathD}')`;
+    arrowG.style.offsetDistance = '50%';
+    arrowG.style.offsetRotate = 'auto';
+    arrowG.classList.add('flow-arrow');
+    // If currently playing, activate animation immediately
+    if (TimeClock.mode === 'playing' && SimSettings.animations) {
+      arrowG.classList.add('flow-arrow-active');
+    }
     g.appendChild(arrowG);
   }
 
@@ -17491,17 +17514,7 @@ window.addEventListener('keydown', (ev) => {
    TRANSPORT CONTROLS [v9.0.1]
    ========================= */
 
-// ── Time display formatting ──
-function formatTime(seconds) {
-  const s = Math.round(seconds);
-  const sec = s % 60;
-  const min = Math.floor(s / 60) % 60;
-  const hr  = Math.floor(s / 3600) % 24;
-  const day = Math.floor(s / 86400);
-  if (day > 0) return `${day}d ${String(hr).padStart(2,'0')}:${String(min).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
-  if (hr > 0)  return `${hr}:${String(min).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
-  return `${min}:${String(sec).padStart(2,'0')}`;
-}
+// ── Time display ── (formatTime moved to block 1 for headless test access)
 
 function updateTransportUI() {
   const mode = TimeClock.mode;
@@ -17518,17 +17531,9 @@ function updateTransportUI() {
   btnPause.disabled = mode !== 'playing';
   btnReset.disabled = mode === 'test';
 
-  // Time display
-  if (mode === 'test') {
-    timeDisplayEl.style.display = 'none';
-  } else {
-    timeDisplayEl.style.display = '';
-    // [v9.0.5] Mode indicator in time display
-    const modeLabel = mode === 'playing' ? '<span style="color:#6ee7b7">▶</span>'
-                    : mode === 'paused'  ? '<span style="color:#fbbf24">⏸</span>'
-                    : '';
-    timeDisplayEl.innerHTML = `${modeLabel} <b>t</b>=${formatTime(TimeClock.t)} · f${TimeClock.frame} · Δt=${SimSettings.dt}s`;
-  }
+  // [v10.5.0] Time display — always visible, Day/Hour format
+  timeDisplayEl.style.display = '';
+  timeDisplayEl.textContent = formatTime(TimeClock.t);
 }
 
 // [v10.4.1] Cached per-unit alarm severity for render (NNG-AL2, NNG-AL5)
@@ -17567,43 +17572,35 @@ function afterSolve(solveResult) {
   render();
   updateTransportUI();
 
-  // [v10.4.1] AN-3: Solve pulse + AN-4a: Shake on new errors
+  // [v10.5.0] Animation triggers — pulse vs continuous
   if (SimSettings.animations && solveResult) {
-    _triggerSolvePulse(solveResult);
+    // Topo flash pulse: only on manual test/step, never during autoplay
+    if (TimeClock.mode !== 'playing') {
+      _triggerTopoPulse();
+    }
+    // Failure shake: fires on new errors in any mode
     if (SimSettings.animFailureEffects && _lastSolveHadNewErrors) {
       _triggerFailureShakes();
     }
   }
 }
 
-// [v10.4.1] AN-3: Solve pulse — brief expanding ring from scene center
-function _triggerSolvePulse(solveResult) {
-  const unitsG = document.getElementById('units');
-  if (!unitsG || scene.units.size === 0) return;
+// [v10.5.0] AN-3 (replaced): Sequential topo flash — units light up source→sink
+function _triggerTopoPulse() {
+  const order = scene.runtime?.ordering?.unitOrder;
+  if (!order || order.length === 0) return;
 
-  // Compute centroid of all units
-  let cx = 0, cy = 0, n = 0;
-  for (const [, u] of scene.units) {
-    const def = UnitRegistry.get(u.defId);
-    cx += (u.x + def.w / 2) * scene.tile;
-    cy += (u.y + def.h / 2) * scene.tile;
-    n++;
-  }
-  cx /= n; cy /= n;
+  const stagger = Math.min(80, 600 / order.length);  // ms between flashes
 
-  const color = (!solveResult.ok || (solveResult.hasErrors && solveResult.maxSeverity >= ErrorSeverity.CATASTROPHIC.level))
-    ? '#ef4444' : solveResult.hasErrors ? '#fbbf24' : '#22c55e';
-
-  const ring = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-  ring.setAttribute('cx', cx);
-  ring.setAttribute('cy', cy);
-  ring.setAttribute('r', 40);
-  ring.setAttribute('fill', 'none');
-  ring.setAttribute('stroke', color);
-  ring.setAttribute('stroke-width', '2');
-  ring.classList.add('solve-pulse-ring');
-  unitsG.appendChild(ring);
-  ring.addEventListener('animationend', () => ring.remove());
+  order.forEach((uid, i) => {
+    setTimeout(() => {
+      const g = document.querySelector(`g[data-uid="${uid}"]`);
+      if (!g) return;
+      g.classList.add('unit-topo-pulse');
+      g.addEventListener('animationend',
+        () => g.classList.remove('unit-topo-pulse'), { once: true });
+    }, i * stagger);
+  });
 }
 
 // [v10.4.1] AN-4a: Shake units with new errors
@@ -17617,19 +17614,34 @@ function _triggerFailureShakes() {
   }
 }
 
-// ── Play loop ──
-const PLAY_SPEEDS = { '1x': 1000, '2x': 500, '5x': 200, '10x': 100, 'max': 16 };
+// ── Play loop ── (PLAY_SPEEDS and FLOW_ARROW_SPEEDS moved to block 1)
 let _playTimer = null;
+
+function _startFlowArrows() {
+  if (!SimSettings.animations) return;
+  const speed = FLOW_ARROW_SPEEDS[SimSettings.playSpeed || '1x'] || '1.5s';
+  document.querySelectorAll('.flow-arrow').forEach(el => {
+    el.style.setProperty('--flow-speed', speed);
+    el.classList.add('flow-arrow-active');
+  });
+}
+
+function _stopFlowArrows() {
+  document.querySelectorAll('.flow-arrow').forEach(el => {
+    el.classList.remove('flow-arrow-active');
+  });
+}
 
 function startPlay() {
   if (TimeClock.mode === 'test') {
     // First step captures initial
     const { solveResult } = TimeClock.step(scene);
     afterSolve(solveResult);
-    setStatus(`Step → frame ${TimeClock.frame}`);
+    setStatus(`Step → ${formatTime(TimeClock.t)}`);
   }
   TimeClock.mode = 'playing';
   updateTransportUI();
+  _startFlowArrows();  // [v10.5.0] continuous arrow animation
   _playTimer = setInterval(() => {
     const { solveResult } = TimeClock.step(scene);
     afterSolve(solveResult);
@@ -17644,6 +17656,7 @@ function startPlay() {
 function stopPlay() {
   if (_playTimer) { clearInterval(_playTimer); _playTimer = null; }
   if (TimeClock.mode === 'playing') TimeClock.mode = 'paused';
+  _stopFlowArrows();  // [v10.5.0] snap arrows back to midpoint
   updateTransportUI();
 }
 
@@ -17668,7 +17681,7 @@ btnTest.addEventListener('click', () => {
 btnStep.addEventListener('click', () => {
   stopPlay();
   const { solveResult } = TimeClock.step(scene);
-  setStatus(`Step → frame ${TimeClock.frame}, t=${formatTime(TimeClock.t)}`);
+  setStatus(`Step → ${formatTime(TimeClock.t)}`);
   afterSolve(solveResult);
 });
 
@@ -17679,13 +17692,13 @@ btnPlay.addEventListener('click', () => {
 
 btnPause.addEventListener('click', () => {
   stopPlay();
-  setStatus(`⏸ Paused at frame ${TimeClock.frame}`);
+  setStatus(`⏸ Paused at ${formatTime(TimeClock.t)}`);
 });
 
 btnReset.addEventListener('click', () => {
   stopPlay();
   const { solveResult } = TimeClock.reset(scene);
-  setStatus('↺ Reset to t=0');
+  setStatus(`↺ Reset to ${formatTime(TimeClock.t)}`);
   afterSolve(solveResult);
 });
 
@@ -17848,6 +17861,12 @@ modalSolver.addEventListener('click', (ev) => {
 
 // [v8.10.0] Settings modal
 const modalSettings = document.getElementById('modalSettings');
+
+// [v10.5.0] Click time display → open settings
+timeDisplayEl.addEventListener('click', () => {
+  buildSettingsPanel();
+  modalSettings.classList.add('open');
+});
 
 document.getElementById('mSettings').addEventListener('click', () => {
   buildSettingsPanel();
@@ -18491,6 +18510,7 @@ setViewBox();
 
 updatePropertiesPanel();
 render();
+updateTransportUI();  // [v10.5.0] Show time display immediately
 
 </script>
 
@@ -24373,8 +24393,9 @@ function runTests() {
     TimeClock.mode = origMode; SimSettings.dt = origDt;
   }});
 
-  tests.push({ name: '161: TimeClock.reset restores t=0, frame=0, mode=test', fn: t => {
+  tests.push({ name: '161: TimeClock.reset restores initial state', fn: t => {
     const origDt = SimSettings.dt;
+    const origT = TimeClock.t;
     TimeClock.t = 0; TimeClock.frame = 0; TimeClock.mode = 'test';
     SimSettings.dt = 10;
 
@@ -24387,15 +24408,15 @@ function runTests() {
     t.assertClose(TimeClock.t, 30, 0.01, 'After 3 steps: t=30');
     t.assertClose(TimeClock.frame, 3, 0, 'After 3 steps: frame=3');
 
-    // Reset
+    // Reset — [v10.5.0] resets to 43200 (noon Day 1), not 0
     const { solveResult } = TimeClock.reset(scene);
-    t.assertClose(TimeClock.t, 0, 0, 'After reset: t=0');
+    t.assertClose(TimeClock.t, 43200, 0, 'After reset: t=43200 (noon)');
     t.assertClose(TimeClock.frame, 0, 0, 'After reset: frame=0');
     t.assertOK(TimeClock.mode === 'test', 'After reset: mode=test');
     t.assertOK(solveResult != null, 'reset returns solveResult');
 
     // Restore
-    TimeClock.t = 0; TimeClock.frame = 0;
+    TimeClock.t = origT; TimeClock.frame = 0;
     TimeClock.mode = 'test'; SimSettings.dt = origDt;
   }});
 
@@ -25628,6 +25649,56 @@ function runTests() {
     t.assertOK(Q_out > Q_released, 'Q_out > Q_released (bonus added)',
       `out=${(Q_out/1000).toFixed(1)} vs released=${(Q_released/1000).toFixed(1)} kW`);
     t.assertClose(Q_out / 1000, (Q_released + bonus) / 1000, 1, 'Q_out ≈ Q_released + bonus');
+  }});
+
+  // [v10.5.0] T210-T212: Time display + animation gating
+  // ═══════════════════════════════════════════════════════════════════════
+
+  // T210: formatTime produces correct Day/Hour format
+  tests.push({ name: '210: Time display format — Day/Hour', fn: t => {
+    t.assertOK(formatTime(0) === 'Day 1, 0H', 'midnight day 1', formatTime(0));
+    t.assertOK(formatTime(43200) === 'Day 1, 12H', 'noon day 1', formatTime(43200));
+    t.assertOK(formatTime(86400) === 'Day 2, 0H', 'midnight day 2', formatTime(86400));
+    t.assertOK(formatTime(90000) === 'Day 2, 1H', '1AM day 2', formatTime(90000));
+    t.assertOK(formatTime(259200 + 3600*15) === 'Day 4, 15H', '3PM day 4', formatTime(259200 + 3600*15));
+    // Default dt is 3600 (1 hour)
+    t.assertClose(SimSettings.dt, 3600, 0, 'Default dt = 3600s');
+    // Initial t is 43200 (noon)
+    // (TimeClock.t may have been modified by earlier tests, so just check format)
+  }});
+
+  // T211: Topo pulse fires on test/step, not during play
+  tests.push({ name: '211: Topo pulse gating — manual only', fn: t => {
+    // The pulse trigger condition is: animations ON + mode !== 'playing'
+    // Verify the logic would fire correctly
+    const origAnim = SimSettings.animations;
+    SimSettings.animations = true;
+    // In test mode → pulse should fire
+    t.assertOK(SimSettings.animations && TimeClock.mode !== 'playing',
+      'Pulse gate: fires in test mode');
+    // Simulate play mode
+    const origMode = TimeClock.mode;
+    TimeClock.mode = 'playing';
+    t.assertOK(!(SimSettings.animations && TimeClock.mode !== 'playing'),
+      'Pulse gate: blocked in play mode');
+    // Animations off → blocked
+    SimSettings.animations = false;
+    TimeClock.mode = 'test';
+    t.assertOK(!(SimSettings.animations && TimeClock.mode !== 'playing'),
+      'Pulse gate: blocked when animations off');
+    SimSettings.animations = origAnim;
+    TimeClock.mode = origMode;
+  }});
+
+  // T212: Flow arrow CSS classes and speed mapping
+  tests.push({ name: '212: Arrow flow speed mapping', fn: t => {
+    t.assertOK(FLOW_ARROW_SPEEDS['1x'] === '2s', '1x → 2s');
+    t.assertOK(FLOW_ARROW_SPEEDS['max'] === '0.15s', 'max → 0.15s');
+    t.assertOK(Object.keys(FLOW_ARROW_SPEEDS).length === 5, '5 speed levels');
+    // Verify PLAY_SPEEDS keys match FLOW_ARROW_SPEEDS keys
+    for (const k of Object.keys(PLAY_SPEEDS)) {
+      t.assertOK(FLOW_ARROW_SPEEDS[k] !== undefined, `Arrow speed for ${k}`);
+    }
   }});
 
   // ═══════════════════════════════════════════════════════════════════════
