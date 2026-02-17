@@ -3,6 +3,32 @@
   ═══════════════════════════════════════════════════════════════════════════
   processThis v9.1.0
 
+  ─── v10.0.7 ──────────────────────────────────────────────────────────────
+  Prep patch — category rename, toolbar split, menu reorganization.
+
+  C1: Category rename: "Boundaries" → "Streams". Material stream sources
+      and sinks now grouped under a physics-oriented name that parallels
+      Heat, Pressure, Reactor, etc. Test T196 updated.
+  C2: Toolbar split — actions vs information. Transport controls, time
+      display, and "+ Add" button moved to a floating action bar centered
+      at the bottom of the canvas workspace. Process name, status
+      indicator, and menu remain in a compact info bar at top-left.
+      Add button placed first (left) in action bar for palette proximity.
+  C3: Menu reorganization:
+      • Registries submenu (Components, Reactions, Models)
+      • Physical Units (renamed from "Units")
+      • Solver
+      • Import Model / Export Model (absorbed from removed File button)
+      • Examples submenu (Demo — CO₂ Methanation)
+      • Clear Scene
+      • Settings
+  C4: File button removed entirely — functionality consolidated under
+      ☰ Menu as "Import Model" and "Export Model".
+  C5: Info bar order: Menu → Process name (2× width) → Status indicator.
+  C6: Tab key added as palette toggle shortcut alongside "/".
+
+  Gate: 197/197 tests, 1339 checks (browser). No engine changes.
+
   ─── v10.0.6 ──────────────────────────────────────────────────────────────
   Final polish patch — 3 fixes from user testing of v10.0.5.
 
@@ -1048,7 +1074,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>processThis — v10.0.6</title>
+  <title>processThis — v10.0.7</title>
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
@@ -1123,8 +1149,8 @@
       margin-top: 10px; 
     }
 
-    /* ===== TOP BAR ===== */
-    .topbar {
+    /* ===== TOP BAR (info + menu) ===== */
+    .info-bar {
       position: absolute; 
       left: 10px; 
       top: 10px; 
@@ -1135,6 +1161,23 @@
       background: #0b0e14cc; 
       border: 1px solid #2a2f3a; 
       border-radius: 14px; 
+      padding: 8px 10px;
+      backdrop-filter: blur(10px);
+    }
+
+    /* ===== FLOATING ACTION BAR (bottom-center of canvas) ===== */
+    .action-bar {
+      position: absolute;
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 5;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      background: #0b0e14cc;
+      border: 1px solid #2a2f3a;
+      border-radius: 14px;
       padding: 8px 10px;
       backdrop-filter: blur(10px);
     }
@@ -1209,7 +1252,7 @@
     
     /* ===== PROCESS NAME INPUT ===== */
     #processNameInput {
-      width: 160px;
+      width: 320px;
       background: #0b0e14;
       color: #e7e7e7;
       border: 1px solid #2a2f3a;
@@ -1379,6 +1422,32 @@
       height: 1px; 
       background: #2a2f3a; 
       margin: 6px 4px; 
+    }
+
+    /* ===== SUBMENUS ===== */
+    .menu .has-sub {
+      position: relative;
+    }
+    .menu .has-sub::after {
+      content: '›'; font-size: 16px; opacity: 0.5; margin-left: 8px;
+    }
+    .menu .submenu {
+      display: none;
+      position: absolute;
+      left: 100%;
+      top: -8px;
+      padding-left: 8px;  /* invisible hover bridge to parent */
+    }
+    .menu .submenu-inner {
+      min-width: 200px;
+      background: #0b0e14f2;
+      border: 1px solid #2a2f3a;
+      border-radius: 14px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+      padding: 8px;
+    }
+    .menu .has-sub:hover > .submenu {
+      display: block;
     }
 
     /* ===== MODELS DRAWER ===== */
@@ -2170,8 +2239,49 @@
 <body>
 <div class="app">
   <div class="canvasWrap">
-    <!-- Top toolbar -->
-    <div class="topbar">
+    <!-- Info bar (top-left: menu, name, status) -->
+    <div class="info-bar">
+      <div class="menuWrap">
+        <button class="btn" id="btnMenu">☰ Menu</button>
+        <div class="menu" id="menuMain">
+          <div class="item has-sub">Registries
+            <div class="submenu"><div class="submenu-inner">
+              <div class="item" id="mComponents">Components</div>
+              <div class="item" id="mReactions">Reactions</div>
+              <div class="item" id="mModels">Models</div>
+            </div></div>
+          </div>
+          <div class="item" id="mUnits">Physical Units <span class="hint">display</span></div>
+          <div class="item" id="mSolver">Solver <span class="hint">configure</span></div>
+          <div class="sep"></div>
+          <div class="item" id="mImport">Import Model…</div>
+          <div class="item" id="mExport">Export Model…</div>
+          <div class="sep"></div>
+          <div class="item has-sub">Examples
+            <div class="submenu"><div class="submenu-inner">
+              <div class="item" id="mLoadDemo">Demo — CO₂ Methanation</div>
+            </div></div>
+          </div>
+          <div class="item" id="mClear">Clear Scene</div>
+          <div class="sep"></div>
+          <div class="item" id="mSettings">Settings <span class="hint">⚙</span></div>
+        </div>
+      </div>
+
+      <input type="text" id="processNameInput" placeholder="Process name…" spellcheck="false" autocomplete="off">
+      
+      <!-- Status Indicator -->
+      <div id="statusIndicator" class="status-indicator" style="display:none;">
+        <div class="status-icon"></div>
+        <div class="status-text"></div>
+        <button class="status-help" title="Open Solver…">⚙</button>
+      </div>
+    </div>
+
+    <!-- Action bar (floating, bottom-center of canvas) -->
+    <div class="action-bar">
+      <button class="tbtn add-unit" id="btnAdd">+ Add</button>
+
       <!-- Transport controls [v9.0.1] -->
       <div class="transport">
         <button class="tbtn active" id="btnTest" title="Solve once (no time)">⟳ Test</button>
@@ -2181,41 +2291,6 @@
         <button class="tbtn" id="btnReset" title="Reset to t=0" disabled>↺</button>
       </div>
       <span class="time-display" id="timeDisplay" style="display:none;"></span>
-
-      <button class="tbtn add-unit" id="btnAdd">+ Add</button>
-      
-      <input type="text" id="processNameInput" placeholder="Process name…" spellcheck="false" autocomplete="off">
-      
-      <!-- Status Indicator -->
-      <div id="statusIndicator" class="status-indicator" style="display:none;">
-        <div class="status-icon"></div>
-        <div class="status-text"></div>
-        <button class="status-help" title="Open Solver…">⚙</button>
-      </div>
-
-      <div class="menuWrap">
-        <button class="btn" id="btnMenu">☰ Menu</button>
-        <div class="menu" id="menuMain">
-          <div class="item" id="mComponents">Components <span class="hint">view</span></div>
-          <div class="item" id="mReactions">Reactions <span class="hint">library</span></div>
-          <div class="item" id="mModels">Models <span class="hint">packages</span></div>
-          <div class="item" id="mUnits">Units <span class="hint">display</span></div>
-          <div class="item" id="mSolver">Solver <span class="hint">configure</span></div>
-          <div class="sep"></div>
-          <div class="item" id="mLoadDemo">Load demo</div>
-          <div class="item" id="mClear">Clear scene</div>
-          <div class="sep"></div>
-          <div class="item" id="mSettings">Settings <span class="hint">⚙</span></div>
-        </div>
-      </div>
-
-      <div class="menuWrap">
-        <button class="btn" id="btnFile">💾 File</button>
-        <div class="menu" id="menuFile">
-          <div class="item" id="mExport">Save to file…</div>
-          <div class="item" id="mImport">Open file…</div>
-        </div>
-      </div>
     </div>
 
     <!-- Models modal -->
@@ -2564,7 +2639,7 @@
         <div><b>Zoom:</b> Mouse wheel</div>
         <div><b>Delete:</b> Del key</div>
         <div><b>Run:</b> Ctrl + Enter</div>
-        <div><b>Palette:</b> / key</div>
+        <div><b>Palette:</b> / or Tab</div>
         <div><b>Cancel:</b> Esc</div>
       </div>
     </div>
@@ -6594,7 +6669,7 @@ function diagnoseErrors(scene) {
 const UnitCategories = {
   // [v10.0.5] Rationalized taxonomy — 7 user-facing categories, ordered for palette display.
   // order: controls palette display order (ascending).
-  BOUNDARY:       { name: 'Boundaries',          color: '#10b981', order: 1 },  // Green
+  BOUNDARY:       { name: 'Streams',              color: '#10b981', order: 1 },  // Green — material stream sources & sinks
   HEAT_TRANSFER:  { name: 'Heat',                 color: '#3b82f6', order: 2 },  // Blue
   PRESSURE:       { name: 'Pressure',             color: '#8b5cf6', order: 3 },  // Purple
   REACTOR:        { name: 'Reactor',              color: '#ef4444', order: 4 },  // Red
@@ -11820,9 +11895,7 @@ const btnReset = document.getElementById('btnReset');
 const timeDisplayEl = document.getElementById('timeDisplay');
 const btnAdd = document.getElementById('btnAdd');
 const btnMenu = document.getElementById('btnMenu');
-const btnFile = document.getElementById('btnFile');
 const menuMain = document.getElementById('menuMain');
-const menuFile = document.getElementById('menuFile');
 const modalModels = document.getElementById('modalModels');
 const modalUnits = document.getElementById('modalUnits');
 const modalComponents = document.getElementById('modalComponents');
@@ -12213,7 +12286,6 @@ function calculateStreamFlowrates(stream) {
 
 function closeMenus() {
   menuMain.classList.remove('open');
-  menuFile.classList.remove('open');
 }
 
 function toggle(el) {
@@ -15339,7 +15411,7 @@ function togglePalette(forceState) {
 // [v10] Palette event wiring
 document.getElementById('palClose').addEventListener('click', () => togglePalette(false));
 
-// [v10.0.6] Close palette when clicking outside (canvas or topbar)
+// [v10.0.6] Close palette when clicking outside (canvas or toolbars)
 document.addEventListener('mousedown', (ev) => {
   const drawer = document.getElementById('paletteDrawer');
   if (!drawer.classList.contains('open')) return;
@@ -15813,8 +15885,8 @@ window.addEventListener('keydown', (ev) => {
     setStatus('Cancelled.');
     render();
   }
-  // [v10.0.6] "/" toggles palette
-  if (ev.key === '/') {
+  // [v10.0.6] "/" toggles palette; [v10.0.7] Tab also toggles palette
+  if (ev.key === '/' || ev.key === 'Tab') {
     const drawer = document.getElementById('paletteDrawer');
     ev.preventDefault();
     if (drawer.classList.contains('open')) {
@@ -15978,17 +16050,10 @@ btnAdd.addEventListener('click', () => {
   togglePalette();
 });
 
-// Status card toggle
+// Menu toggle
 btnMenu.addEventListener('click', (ev) => {
   ev.stopPropagation();
-  menuFile.classList.remove('open');
   toggle(menuMain);
-});
-
-btnFile.addEventListener('click', (ev) => {
-  ev.stopPropagation();
-  menuMain.classList.remove('open');
-  toggle(menuFile);
 });
 
 document.addEventListener('pointerdown', (ev) => {
@@ -16369,7 +16434,7 @@ function buildSettingsPanel() {
 }
 
 document.getElementById('mLoadDemo').addEventListener('click', () => {
-  if (confirm('Load demo? This will replace the current scene.')) {
+  if (confirm('Load example model? This will replace the current scene.')) {
     loadDemo();
   }
   closeMenus();
@@ -23419,7 +23484,7 @@ function runTests() {
     const cats = UnitRegistry.listByCategory({ excludeCheats: false });
     const catNames = Object.keys(cats);
     // Verify first 7 categories match expected order
-    const expected = ['Boundaries', 'Heat', 'Pressure', 'Reactor', 'Separation & Mixing', 'Storage', 'Power'];
+    const expected = ['Streams', 'Heat', 'Pressure', 'Reactor', 'Separation & Mixing', 'Storage', 'Power'];
     for (let i = 0; i < expected.length; i++) {
       t.assertOK(catNames[i] === expected[i], `Category ${i}: "${catNames[i]}" = "${expected[i]}"`);
     }
