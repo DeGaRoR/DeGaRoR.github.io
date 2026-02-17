@@ -3,6 +3,84 @@
   ═══════════════════════════════════════════════════════════════════════════
   processThis v9.1.0
 
+  ─── v10.4.3 ──────────────────────────────────────────────────────────────
+  HEAT-B: Reactor dual heat ports + endothermic support.
+
+  REACTOR_EQUILIBRIUM — Dual heat ports:
+  heat_in  (IN,  HEAT) at bottom (x:1, y:3) — external heat supply.
+  heat_out (OUT, HEAT) at top    (x:1, y:0) — released/excess heat.
+
+  ENDOTHERMIC LOGIC (Q_duty > 0):
+  If heat_in.actual >= Q_required: reaction proceeds, surplus exits heat_out.
+  If heat_in.actual < Q_required: CATASTROPHIC error, passthrough unreacted
+  feed. Diagnostic: "Insufficient heat: need X kW, have Y kW."
+  No graceful degradation — system hard-stops without heat.
+
+  EXOTHERMIC LOGIC (Q_duty ≤ 0):
+  Reaction always proceeds. Released heat + any bonus heat_in exits heat_out.
+  heat_in is optional; connecting a heat source to an exothermic reactor
+  just adds bonus heat to the output. No error.
+
+  NEW REACTION — Steam Methane Reforming (R_STEAM_REFORM):
+  CH₄ + 2 H₂O ⇌ CO₂ + 4 H₂.  ΔH° = +165 kJ/mol (endothermic).
+  Reverse of Sabatier. Favored above ~956 K. Ni catalyst.
+
+  PORT LAYOUT CHANGES:
+  Reactor heat_out moved from bottom (y:3) to top (y:0).
+  Cooler heat_out moved from bottom (y:2) to top (y:0).
+  Consistent convention: heat exits upward.
+
+  UI FIX: Test results now shown in status bar on auto-run.
+
+  T206: Endothermic + sufficient heat → products, active status.
+  T207: Endothermic + insufficient heat → CATASTROPHIC, passthrough.
+  T208: Endothermic + no heat_in → CATASTROPHIC, alarm propagation.
+  T209: Exothermic + bonus heat_in → passes through to heat_out.
+
+  Gate: 209/209 tests, 1433 checks, zero regressions.
+
+  ─── v10.4.2 ──────────────────────────────────────────────────────────────
+  HEAT-A: Strip heat demand propagation.
+
+  ARCHITECTURAL CHANGE — Remove heatDemand system entirely.
+  Heat demand was a backward-propagating signal modeled after electrical
+  demand, but physically wrong: heat is a consequence, not a controlled
+  draw. Reactors produce heat because reactions are exothermic. Electric
+  heaters produce heat because they receive electricity. Neither responds
+  to downstream "demand."
+
+  REMOVED:
+  - u.heatDemand field on all units (init, per-tick reset, sink_heat,
+    heater). Field no longer exists after solve.
+  - _ud.heatDemand in runtime data (Step A copy, per-tick reset).
+  - Step B downstream heatDemand rollup for electric_heater. The
+    electric heater now derives powerDemand from its power_kW setpoint
+    only — no downstream walk, no heatDemand chain.
+  - Q_heat_demand_W from electric heater u.last (was downstream echo).
+
+  PRESERVED:
+  - Electrical demand system (hub→motor, hub→pump, hub→compressor).
+    powerDemand on these units is correctly derived from mechanical
+    load ÷ η. Hub Step C allocates and curtails.
+  - Thermal heater supply-limiting. Heater still compares heat_in.actual
+    to Q_demand_W and degrades T_out when undersupplied. The mechanism
+    is local (heater checks its own input), not demand-signaled.
+  - Electric heater tick: draws powerSetpoint_W × curtailment, capped
+    by hub allocation. Clean, simple.
+
+  BUG FIX — Endo/exo icon swap:
+  🔥 now correctly marks exothermic (releases heat), ❄️ endothermic
+  (absorbs heat). Was reversed.
+
+  T27 REWRITTEN: Tests setpoint-driven behavior instead of demand
+  propagation. 60 kW setpoint → heater reaches T_out. 20 kW → supply
+  limited. Both paths verified.
+  T204: heatDemand field does not exist on any unit/unitData after solve.
+  T205: e-heater powerDemand = power_kW setpoint, independent of
+  downstream heat consumers. Verifiable by changing setpoint.
+
+  Gate: 205/205 tests, 1407 checks, zero regressions.
+
   ─── v10.4.1 ──────────────────────────────────────────────────────────────
   Alarm-driven animations + NNG-AL edicts + bug fixes.
 
@@ -1563,7 +1641,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>processThis — v10.4.1</title>
+  <title>processThis — v10.4.3</title>
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
@@ -4271,6 +4349,37 @@ ReactionRegistry.register('R_SABATIER', {
     references: [
       { source: 'Koschany et al. 2016',
         detail: 'Chem. Eng. J. 307, 264-273. Ni/Al₂O₃, 180-250°C, 1-15 bar. Power-law global rate.' }
+    ]
+  }
+});
+
+// ── Steam Methane Reforming [v10.4.3] ──
+// CH₄ + 2 H₂O ⇌ CO₂ + 4 H₂
+// Reverse of Sabatier.  ΔH° = +165 012 J/mol (endothermic), ΔS° = +172.584 J/(mol·K)
+// Δν = +2 (3 gas moles → 5).  K > 1 above ~956 K.
+// Requires external heat to sustain the reaction.
+ReactionRegistry.register('R_STEAM_REFORM', {
+  name: 'Steam Methane Reforming',
+  equation: 'CH₄ + 2 H₂O ⇌ CO₂ + 4 H₂',
+  stoich: { CH4: -1, H2O: -2, CO2: 1, H2: 4 },
+  reversible: true,
+  Tmin_K: 600,
+  Tmax_K: 1200,
+  Pmin_Pa: 100000,     // 1 bar
+  Pmax_Pa: 5000000,    // 50 bar
+  notes: 'Strongly endothermic. Reverse of Sabatier. Favored at high T (>956 K). Ni catalyst.',
+  references: [
+    { source: 'NIST-JANAF', detail: 'Thermochemical Tables, 4th ed., Chase 1998' }
+  ],
+  kinetics: {
+    model: 'POWER_LAW',
+    A: 2.0e5,           // mol/(m³·s·Pa^0.5)
+    beta: 0,
+    Ea_Jmol: 100000,    // ~100 kJ/mol
+    orders: { CH4: 1, H2O: 0.5 },
+    references: [
+      { source: 'Xu & Froment 1989 (adapted)',
+        detail: 'AIChE J. 35, 88-96. Ni/MgAl₂O₄. Power-law simplification of Langmuir-Hinshelwood.' }
     ]
   }
 });
@@ -8147,9 +8256,6 @@ UnitRegistry.register('sink_heat', {
       absorbed_W: sIn ? (sIn.actual ?? sIn.available ?? 0) : 0,
       sourceCount: sIn?._sourceCount ?? (sIn ? 1 : 0)
     };
-    // Signal unconstrained demand upstream so electric heaters (and their
-    // sources/batteries) know this sink will absorb all available heat.
-    u.heatDemand = Infinity;
   }
 });
 
@@ -8430,10 +8536,8 @@ UnitRegistry.register('electric_heater', {
     // Per-consumer ceiling: hub's absolute allocation (prevents overdraw even
     // if demand or curtailment is stale). Direct-connect falls to bus actual.
     const myCap_W = s.hubAllocated_W ?? elecActual_W;
-    // Demand: use user setpoint, or downstream demand from Step B if available
-    const myDemand_W = s.powerDemand_W || powerSetpoint_W;
-    // [v9.1.0] Guard: if demand is Infinity (from heat sink), use myCap_W directly
-    const rawDraw = isFinite(myDemand_W) ? myDemand_W * curtailment : myCap_W;
+    // [v10.4.2 HEAT-A] Demand = user setpoint only. No heat demand propagation.
+    const rawDraw = powerSetpoint_W * curtailment;
     const W_elec_W = Math.min(rawDraw, myCap_W);
     const Q_available_W = W_elec_W * eta;
     const Q_loss_W = W_elec_W - Q_available_W;  // Always 0 (eta=1.00), computed for consistency
@@ -8853,10 +8957,6 @@ UnitRegistry.register('heater', {
     
     const H_out_Jps = H_in_Jps + Q_actual_W;  // W + W = W
     
-    // ── Store heat demand for upstream signaling (P0.2: in W) ──
-    // Reports FULL demand (not limited) so the hub can compute true curtailment
-    u.heatDemand = Q_demand_W;
-    
     // ── Output stream — solver PH-flashes to find actual T and phase ──
     ports.mat_out = {
       type: StreamType.MATERIAL,
@@ -8898,7 +8998,7 @@ UnitRegistry.register('cooler', {
   ports: [
     { portId: 'mat_in', dir: PortDir.IN, type: StreamType.MATERIAL, x: 0, y: 1 },
     { portId: 'mat_out', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 1 },
-    { portId: 'heat_out', dir: PortDir.OUT, type: StreamType.HEAT, x: 1, y: 2 }
+    { portId: 'heat_out', dir: PortDir.OUT, type: StreamType.HEAT, x: 1, y: 0 }
   ],
   tick(u, ports, par) {
     const sIn = ports.mat_in;
@@ -9716,9 +9816,10 @@ UnitRegistry.register('reactor_equilibrium', {
   w: 2,
   h: 3,
   ports: [
-    { portId: 'mat_in',  dir: PortDir.IN,  type: StreamType.MATERIAL, x: 0, y: 1 },
-    { portId: 'mat_out', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 1 },
-    { portId: 'heat_out', dir: PortDir.OUT, type: StreamType.HEAT, x: 1, y: 3 }
+    { portId: 'mat_in',   dir: PortDir.IN,  type: StreamType.MATERIAL, x: 0, y: 1 },
+    { portId: 'mat_out',  dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 1 },
+    { portId: 'heat_in',  dir: PortDir.IN,  type: StreamType.HEAT,     x: 1, y: 3 },
+    { portId: 'heat_out', dir: PortDir.OUT, type: StreamType.HEAT,     x: 1, y: 0 }
   ],
   tick(u, ports, par) {
     const sIn = ports.mat_in;
@@ -9926,33 +10027,68 @@ UnitRegistry.register('reactor_equilibrium', {
     const H_out_Jps = thermo.getHdot_Jps(outProxy);
     const Q_duty_W = H_out_Jps - H_in_Jps;  // +ve = needs heating, −ve = needs cooling
 
-    // ── Heat port: emit only the cooling load ──
-    // Q_duty > 0 → heating needed (external utility, no heat exits reactor)
-    // Q_duty < 0 → cooling needed (heat exits reactor via heat_out)
-    const Q_cooling_W = Math.max(0, -Q_duty_W);   // ≥0: heat that exits
-    const Q_heating_W = Math.max(0,  Q_duty_W);   // ≥0: external heat needed
+    // ── [v10.4.3 HEAT-B] Dual heat ports: heat_in (bottom) + heat_out (top) ──
+    const Q_supplied_W = ports.heat_in ? (ports.heat_in.actual ?? ports.heat_in.available ?? 0) : 0;
+    const heatTol = 10; // W tolerance
+
+    let Q_out_W = 0;         // heat exiting via heat_out
+    let heatInsufficient = false;
+
+    if (Q_duty_W > heatTol) {
+      // ── ENDOTHERMIC: reactor needs external heat ──
+      const Q_required_W = Q_duty_W;
+      if (Q_supplied_W >= Q_required_W - heatTol) {
+        // Sufficient heat — reaction proceeds, dump surplus
+        Q_out_W = Math.max(0, Q_supplied_W - Q_required_W);
+      } else {
+        // INSUFFICIENT HEAT — critical error, passthrough unreacted feed
+        heatInsufficient = true;
+        Q_out_W = 0;
+        ports.mat_out = {
+          type: StreamType.MATERIAL,
+          T: sIn.T,
+          P: sIn.P,
+          n: { ...sIn.n },
+          phaseConstraint: sIn.phaseConstraint || resolvedPhase
+        };
+      }
+    } else {
+      // ── EXOTHERMIC (or zero duty): reaction always proceeds ──
+      const Q_released_W = Math.max(0, -Q_duty_W);
+      Q_out_W = Q_released_W + Q_supplied_W;  // bonus heat passes through
+    }
+
     ports.heat_out = {
       type: StreamType.HEAT,
-      capacity: Q_cooling_W,
-      actual: Q_cooling_W,
-      available: Q_cooling_W,
-      demand: Q_cooling_W,            // [v10.4.1] producer output demand = actual
-      Q_utility_in_W: Q_heating_W   // implicit external heating (balance use)
+      capacity: Q_out_W,
+      actual: Q_out_W,
+      available: Q_out_W
     };
 
     // ── Diagnostics ──
     const baseDiag = {
       reactionId: par.reactionId,
       mode,
-      xi, xi_max, xi_eq, ln_K, T_eval,
-      status: 'active',
+      xi: heatInsufficient ? 0 : xi,
+      xi_max, xi_eq, ln_K, T_eval,
+      status: heatInsufficient ? 'heat_starved' : 'active',
       H_in_kW: (H_in_Jps / 1000).toFixed(2),
       H_out_kW: (H_out_Jps / 1000).toFixed(2),
       Q_duty_W,
       Q_duty_sign: Q_duty_W >= 0 ? 'heating' : 'cooling',
+      Q_supplied_W,
+      Q_out_W,
       dH0: reaction._dH0_Jmol,
       dS0: reaction._dS0_JmolK
     };
+
+    // [v10.4.3 HEAT-B] Critical error for endothermic + insufficient heat
+    if (heatInsufficient) {
+      baseDiag.error = {
+        severity: ErrorSeverity.CATASTROPHIC,
+        message: `Insufficient heat: need ${(Q_duty_W/1000).toFixed(1)} kW, have ${(Q_supplied_W/1000).toFixed(1)} kW`
+      };
+    }
 
     if (mode === 'kinetics') {
       baseDiag.useKinetics = true;
@@ -11269,7 +11405,6 @@ function solveScene(scene, options = {}) {
     // but are authoritative only for the current solve.
     u.last = {};
     u.powerDemand = 0;
-    u.heatDemand = 0;
   }
 
   // [v5.4.0] Create runtime context — all solver↔tick scratch state lives here.
@@ -11396,10 +11531,8 @@ function solveScene(scene, options = {}) {
       ud.errors = [];           // Clear errors from previous iteration
       u.last = {};              // Clear unit-specific calculation results
       u.powerDemand = 0;        // Reset power demand (will be recalculated)
-      u.heatDemand = 0;         // Reset heat demand (will be recalculated)
       ud.last = {};             // Clear runtime diagnostics
       ud.powerDemand = 0;       // Clear runtime power demand
-      ud.heatDemand = 0;        // Clear runtime heat demand
 
       // [v5.4.0] Build per-unit runtime context
       const unitCtx = runtimeCtx.forUnit(id, ud);
@@ -11769,12 +11902,11 @@ function solveScene(scene, options = {}) {
     for (const [_id, _u] of scene.units) {
       const _ud = scene.runtime.unitData.get(_id);
       _ud.powerDemand = _u.powerDemand || 0;
-      _ud.heatDemand = _u.heatDemand || 0;
     }
     
     // Step B: Propagate demand through power conversion units
-    // Motor:          downstream powerDemand → electrical demand (÷ η)
-    // Electric heater: downstream heatDemand  → electrical demand (÷ η)
+    // Motor: downstream powerDemand → electrical demand (÷ η)
+    // Electric heater: power_kW setpoint → electrical demand (no heat propagation)
     // IMPORTANT: Do NOT overwrite W_elec_W / W_mech_W (actual throughput from tick).
     //            Store demand as separate fields for hub to read.
     for (const [_id, _u] of scene.units) {
@@ -11811,35 +11943,19 @@ function solveScene(scene, options = {}) {
         }
         
         if (_u.defId === 'electric_heater') {
-          let downstreamHeat = 0;
-          for (const conn of outConns) {
-            const consumerUD = scene.runtime.unitData.get(conn.to.unitId);
-            if (consumerUD) downstreamHeat += consumerUD.heatDemand || 0;
-          }
-          const eta = 1.00;  // Resistance heater — always 100%
-          // [v10.4.1] Use user setpoint when no downstream demand, but only if
-          // the heater actually has an electrical input (otherwise demand=0)
+          // [v10.4.2 HEAT-A] Power demand = user setpoint. No heat demand propagation.
           const hasElecIn = scene.connections.some(c => c.to.unitId === _id && c.to.portId === 'elec_in');
           const powerSetpoint_W = (_u.params.power_kW ?? 30) * 1000;
-          _ud.powerDemand = downstreamHeat > 0 ? (downstreamHeat / eta)
-                          : hasElecIn ? powerSetpoint_W : 0;
-          _ud.last.Q_heat_demand_W = downstreamHeat;
+          _ud.powerDemand = hasElecIn ? powerSetpoint_W : 0;
           _ud.last.W_elec_demand_W = _ud.powerDemand;
-          // [v5.4.0] Carry forward via RuntimeContext scratch (was _u._powerDemand_W)
+          // [v5.4.0] Carry forward via RuntimeContext scratch
           const _ehs = runtimeCtx.scratch(_id);
-          // [v6.1] Detect scratch change → force another iteration if demand shifted
           if (_ehs.powerDemand_W !== undefined &&
               isFinite(_ud.powerDemand) && isFinite(_ehs.powerDemand_W) &&
               Math.abs(_ehs.powerDemand_W - _ud.powerDemand) > 0.01) {
             changed = true;
           }
           _ehs.powerDemand_W = _ud.powerDemand;
-          
-          for (const p of _def.ports) {
-            if (p.dir === PortDir.OUT && _ud.ports[p.portId]) {
-              _ud.ports[p.portId].demand = downstreamHeat;
-            }
-          }
         }
       }
     }
@@ -16670,11 +16786,18 @@ UnitInspector.reactor_equilibrium = {
     if (!ud?.last?.Q_duty_W) return [];
     const L = ud.last;
     const isEndo = L.Q_duty_sign === 'heating';
-    const badge = isEndo ? '🔥 Endothermic' : '❄️ Exothermic';
-    return [
+    const badge = isEndo ? '❄️ Endothermic' : '🔥 Exothermic';
+    const items = [
       { label: 'Q duty', value: fmt.kW(Math.abs(L.Q_duty_W)) },
       { label: 'Type', value: badge, tone: isEndo ? 'warn' : 'info' },
     ];
+    if (isEndo) {
+      items.push({ label: 'Heat supplied', value: fmt.kW(L.Q_supplied_W ?? 0), tone: L.status === 'heat_starved' ? 'err' : '' });
+    }
+    if (L.Q_out_W > 0) {
+      items.push({ label: 'Heat out', value: fmt.kW(L.Q_out_W) });
+    }
+    return items;
   },
   reaction(u, ud) { if (!ud?.last) return []; const L = ud.last; const items = [];
     if (L.mode) items.push({ label: 'Mode', value: L.mode });
@@ -18922,22 +19045,35 @@ function runTests() {
   // SECTION D: Power system — demand chains (Tests 27-30)
   // ═══════════════════════════════════════════════════════════════════════
 
-  test('ElecHeater: Demand Propagation', t => {
+  test('ElecHeater: Setpoint-Driven (HEAT-A)', t => {
+    // [v10.4.2] E-heater draws its power_kW setpoint, NOT downstream heat demand.
+    // With 60 kW setpoint and ~50 kW heater need: heater reaches T_out.
+    // With 30 kW setpoint and ~50 kW heater need: heater is supply-limited.
     const elSrc = t.place('grid_supply', 0, 0, { maxPower:100 });
-    const eh = t.place('electric_heater', 3, 0);  // eta hardcoded to 1.00
+    const eh = t.place('electric_heater', 3, 0, { power_kW: 60 });
     const src = t.place('source', 0, 3, { species:'N2', nDot:10, T:300.15, P:200000, phaseConstraint:'V' });
     const htr = t.place('heater', 6, 1, { T_out:473.15 }); const snk = t.place('sink', 10, 1);
     t.wire(elSrc,'out', eh,'elec_in'); t.wire(eh,'heat_out', htr,'heat_in');
     t.wire(src,'out', htr,'mat_in'); t.wire(htr,'mat_out', snk,'in');
     t.solve();
+    // E-heater draws setpoint (60 kW), not heater demand
+    t.assertClose((t.ud(eh).last.W_elec_actual_W||0)/1000, 60, 0.5, 'EH draws 60 kW setpoint');
+    // Heater has enough heat → reaches T_out
     const out = t.port(htr, 'mat_out');
-    const Qd = (t.ud(htr).last.Q_demand_W||0)/1000, Qa = (t.ud(htr).last.Q_actual_W||0)/1000;
-    t.assertClose(out.T, 473.15, 1, 'T_out [K]');
-    t.assertClose(Qa, Qd, 0.1, 'Q_actual=Q_demand');
-    t.assertClose((t.ud(eh).last.Q_heat_demand_W||0)/1000, Qa, 0.1, 'EH Q [kW]');
-    t.assertClose((t.ud(eh).powerDemand||0)/1000, Qa, 0.2, 'EH elec demand');  // η=1.00 → elec = heat
-    const Hin = thermo.getHdot_Jps({type:StreamType.MATERIAL, T:300, P:200000, n:{N2:10}});
-    t.assertClose((thermo.getHdot_Jps(out)-Hin)/1000, Qa, 1, 'H balance [kW]');
+    t.assertClose(out.T, 473.15, 2, 'Heater reaches T_out');
+    t.assertOK(t.ud(htr).last?.supplyLimited !== true, 'Not supply limited');
+    // Now test supply-limited: reduce setpoint to 20 kW (heater needs ~50)
+    t.clearScene();
+    const elSrc2 = t.place('grid_supply', 0, 0, { maxPower:100 });
+    const eh2 = t.place('electric_heater', 3, 0, { power_kW: 20 });
+    const src2 = t.place('source', 0, 3, { species:'N2', nDot:10, T:300.15, P:200000, phaseConstraint:'V' });
+    const htr2 = t.place('heater', 6, 1, { T_out:473.15 }); const snk2 = t.place('sink', 10, 1);
+    t.wire(elSrc2,'out', eh2,'elec_in'); t.wire(eh2,'heat_out', htr2,'heat_in');
+    t.wire(src2,'out', htr2,'mat_in'); t.wire(htr2,'mat_out', snk2,'in');
+    t.solve();
+    t.assertClose((t.ud(eh2).last.W_elec_actual_W||0)/1000, 20, 0.5, 'EH draws 20 kW setpoint');
+    t.assertOK(t.ud(htr2).last?.supplyLimited === true, 'Supply limited at 20 kW');
+    t.assertOK(t.port(htr2,'mat_out').T < 473 - 10, 'T_actual < T_set');
   });
 
   test('Motor+Compressor Demand', t => {
@@ -25328,6 +25464,172 @@ function runTests() {
     SimSettings.animFailureEffects = saved2;
   }});
 
+  // [v10.4.2] T204: HEAT-A — heatDemand field must not exist on any unit after solve
+  tests.push({ name: '204: HEAT-A heatDemand removed from all units', fn: t => {
+    t.clearScene();
+    const elSrc = t.place('grid_supply', 0, 0, { maxPower: 50 });
+    const eh = t.place('electric_heater', 3, 0, { power_kW: 30 });
+    const src = t.place('source', 0, 3, { species: 'N2', nDot: 5, T: 300, P: 200000, phaseConstraint: 'V' });
+    const htr = t.place('heater', 6, 1, { T_out: 400 });
+    const snk = t.place('sink', 10, 1);
+    const hs = t.place('sink_heat', 3, 4);
+    t.wire(elSrc, 'out', eh, 'elec_in');
+    t.wire(eh, 'heat_out', htr, 'heat_in');
+    t.wire(src, 'out', htr, 'mat_in');
+    t.wire(htr, 'mat_out', snk, 'in');
+    t.solve();
+    let anyHeatDemand = false;
+    for (const [uid, u] of scene.units) {
+      if (u.heatDemand !== undefined) {
+        anyHeatDemand = true;
+        break;
+      }
+    }
+    t.assertOK(!anyHeatDemand, 'No unit has heatDemand field');
+    // Also check unitData
+    for (const [uid, ud] of scene.runtime.unitData) {
+      if (ud.heatDemand !== undefined) {
+        anyHeatDemand = true;
+        break;
+      }
+    }
+    t.assertOK(!anyHeatDemand, 'No unitData has heatDemand field');
+  }});
+
+  // [v10.4.2] T205: HEAT-A — e-heater powerDemand = setpoint, independent of downstream
+  tests.push({ name: '205: HEAT-A e-heater powerDemand = power_kW setpoint', fn: t => {
+    t.clearScene();
+    const elSrc = t.place('grid_supply', 0, 0, { maxPower: 100 });
+    const eh = t.place('electric_heater', 3, 0, { power_kW: 42 });
+    const hs = t.place('sink_heat', 6, 0);
+    t.wire(elSrc, 'out', eh, 'elec_in');
+    t.wire(eh, 'heat_out', hs, 'in');
+    t.solve();
+    // powerDemand = 42 kW setpoint (not influenced by heat sink)
+    t.assertClose(t.ud(eh).powerDemand / 1000, 42, 0.01, 'powerDemand = 42 kW');
+    t.assertClose(t.ud(eh).last.W_elec_actual_W / 1000, 42, 0.5, 'actual draw = 42 kW');
+    // Change setpoint and re-solve
+    t.unit(eh).params.power_kW = 15;
+    t.solve();
+    t.assertClose(t.ud(eh).powerDemand / 1000, 15, 0.01, 'powerDemand = 15 kW after change');
+    t.assertClose(t.ud(eh).last.W_elec_actual_W / 1000, 15, 0.5, 'actual draw = 15 kW');
+  }});
+
+  // [v10.4.3] T206-T209: HEAT-B — Reactor dual heat ports
+  // ═══════════════════════════════════════════════════════════════════════
+
+  // T206: Endothermic reactor with sufficient heat → products, no error
+  tests.push({ name: '206: HEAT-B endothermic + sufficient heat → products', fn: t => {
+    t.clearScene();
+    // Steam reforming at 1000K: CH4 + 2H2O → CO2 + 4H2 (endothermic)
+    const src = t.place('source_multi', 0, 0, {
+      n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V'
+    });
+    const rx = t.place('reactor_equilibrium', 4, 0, {
+      reactionId: 'R_STEAM_REFORM', useKinetics: false, alpha: 1.0
+    });
+    const snk = t.place('sink', 8, 0);
+    // Provide heat via grid_supply → e-heater → reactor heat_in
+    const elSrc = t.place('grid_supply', 0, 5, { maxPower: 500 });
+    const eh = t.place('electric_heater', 4, 5, { power_kW: 500 });
+    t.wire(elSrc, 'out', eh, 'elec_in');
+    t.wire(eh, 'heat_out', rx, 'heat_in');
+    t.wire(src, 'out', rx, 'mat_in');
+    t.wire(rx, 'mat_out', snk, 'in');
+    t.solve();
+    const rxLast = t.ud(rx).last;
+    t.assertOK(rxLast.Q_duty_W > 0, 'Q_duty > 0 (endothermic)', `Q=${(rxLast.Q_duty_W/1000).toFixed(1)} kW`);
+    t.assertOK(rxLast.status === 'active', 'Status: active (not heat starved)');
+    t.assertOK(!rxLast.error, 'No error');
+    const out = t.port(rx, 'mat_out');
+    t.assertOK(out && (out.n?.CO2 || 0) > 0.01, 'Products formed (CO2 present)');
+  }});
+
+  // T207: Endothermic reactor with insufficient heat → CRITICAL, passthrough
+  tests.push({ name: '207: HEAT-B endothermic + insufficient heat → CRITICAL', fn: t => {
+    t.clearScene();
+    const src = t.place('source_multi', 0, 0, {
+      n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V'
+    });
+    const rx = t.place('reactor_equilibrium', 4, 0, {
+      reactionId: 'R_STEAM_REFORM', useKinetics: false, alpha: 1.0
+    });
+    const snk = t.place('sink', 8, 0);
+    // Tiny heat source — not enough
+    const elSrc = t.place('grid_supply', 0, 5, { maxPower: 1 });
+    const eh = t.place('electric_heater', 4, 5, { power_kW: 1 });
+    t.wire(elSrc, 'out', eh, 'elec_in');
+    t.wire(eh, 'heat_out', rx, 'heat_in');
+    t.wire(src, 'out', rx, 'mat_in');
+    t.wire(rx, 'mat_out', snk, 'in');
+    t.solve();
+    const rxLast = t.ud(rx).last;
+    t.assertOK(rxLast.status === 'heat_starved', 'Status: heat_starved');
+    t.assertOK(rxLast.error, 'Has error object');
+    t.assertOK(rxLast.error?.severity === ErrorSeverity.CATASTROPHIC, 'Error is CATASTROPHIC');
+    t.assertOK(rxLast.error?.message?.includes('Insufficient heat'), 'Message: insufficient heat');
+    // Output should be passthrough (unreacted feed)
+    const out = t.port(rx, 'mat_out');
+    t.assertOK(out, 'mat_out exists (passthrough)');
+    t.assertClose(out?.n?.CH4 || 0, 1, 0.01, 'CH4 passes through unreacted');
+  }});
+
+  // T208: Endothermic reactor with no heat_in connected → CRITICAL
+  tests.push({ name: '208: HEAT-B endothermic + no heat_in → CRITICAL', fn: t => {
+    t.clearScene();
+    const src = t.place('source_multi', 0, 0, {
+      n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V'
+    });
+    const rx = t.place('reactor_equilibrium', 4, 0, {
+      reactionId: 'R_STEAM_REFORM', useKinetics: false, alpha: 1.0
+    });
+    const snk = t.place('sink', 8, 0);
+    t.wire(src, 'out', rx, 'mat_in');
+    t.wire(rx, 'mat_out', snk, 'in');
+    // No heat_in connection
+    t.solve();
+    const rxLast = t.ud(rx).last;
+    t.assertOK(rxLast.status === 'heat_starved', 'Status: heat_starved');
+    t.assertOK(rxLast.error?.severity === ErrorSeverity.CATASTROPHIC, 'CATASTROPHIC error');
+    // AlarmSystem should pick this up
+    const alarms = AlarmSystem.evaluate(scene);
+    const criticals = alarms.filter(a => a.severity === AlarmSeverity.CRITICAL && a.unitId === rx);
+    t.assertOK(criticals.length > 0, 'AlarmSystem reports CRITICAL for reactor');
+  }});
+
+  // T209: Exothermic reactor with heat_in → bonus heat passes to heat_out
+  tests.push({ name: '209: HEAT-B exothermic + heat_in bonus → heat_out', fn: t => {
+    t.clearScene();
+    // Sabatier at 523K — strongly exothermic
+    const src = t.place('source_multi', 0, 0, {
+      n: { CO2: 1, H2: 4 }, T: 523, P: 1000000, phaseConstraint: 'V'
+    });
+    const rx = t.place('reactor_equilibrium', 4, 0, {
+      reactionId: 'R_SABATIER', useKinetics: true, volume_m3: 0.5
+    });
+    const snk = t.place('sink', 8, 0);
+    const qdump = t.place('sink_heat', 4, 4);
+    // Provide bonus heat (10 kW)
+    const elSrc = t.place('grid_supply', 0, 5, { maxPower: 10 });
+    const eh = t.place('electric_heater', 2, 5, { power_kW: 10 });
+    t.wire(elSrc, 'out', eh, 'elec_in');
+    t.wire(eh, 'heat_out', rx, 'heat_in');
+    t.wire(src, 'out', rx, 'mat_in');
+    t.wire(rx, 'mat_out', snk, 'in');
+    t.wire(rx, 'heat_out', qdump, 'in');
+    t.solve();
+    const rxLast = t.ud(rx).last;
+    t.assertOK(rxLast.Q_duty_W < 0, 'Exothermic (Q_duty < 0)');
+    t.assertOK(rxLast.status === 'active', 'Status: active');
+    // heat_out should include both released heat AND bonus
+    const Q_released = Math.abs(rxLast.Q_duty_W);
+    const Q_out = rxLast.Q_out_W || 0;
+    const bonus = 10000;  // 10 kW from e-heater
+    t.assertOK(Q_out > Q_released, 'Q_out > Q_released (bonus added)',
+      `out=${(Q_out/1000).toFixed(1)} vs released=${(Q_released/1000).toFixed(1)} kW`);
+    t.assertClose(Q_out / 1000, (Q_released + bonus) / 1000, 1, 'Q_out ≈ Q_released + bonus');
+  }});
+
   // ═══════════════════════════════════════════════════════════════════════
   // RUNNER
   // ═══════════════════════════════════════════════════════════════════════
@@ -25870,7 +26172,15 @@ window.runTransientStateTests = function() {
 // [v8.10.0] Auto-run gated by SimSettings.AUTO_RUN_TESTS
 if (SimSettings.AUTO_RUN_TESTS) {
   setTimeout(() => {
-    try { window.runTests(); } catch (e) { console.error('Test execution error:', e); }
+    try {
+      const result = window.runTests();
+      if (result) {
+        const total = result.passed + result.failed;
+        setStatus(result.success
+          ? `✓ ${result.tests} tests, ${result.passed} checks — all green`
+          : `✗ ${result.failed} of ${total} checks failed`);
+      }
+    } catch (e) { console.error('Test execution error:', e); }
   }, 500);
 }
 
