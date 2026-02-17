@@ -3,6 +3,44 @@
   ═══════════════════════════════════════════════════════════════════════════
   processThis v9.1.0
 
+  ─── v10.3.4 ──────────────────────────────────────────────────────────────
+  AlarmSystem architecture, drawer layout fix, menu icon-only.
+
+  ALARMSYSTEM (engine block):
+  Pluggable alarm infrastructure with formal architecture:
+  - AlarmSeverity: CRITICAL > ERROR > WARNING > INFO > OK (frozen enum
+    with level, key, icon, color, label)
+  - AlarmCategory: CONVERGENCE, MASS_BALANCE, ENERGY_BALANCE, PRESSURE,
+    UNIT, CONNECTIVITY, CONFIGURATION (extensible string keys)
+  - AlarmSystem.register(fn): plug in a source function (scene) → Alarm[]
+  - AlarmSystem.evaluate(scene): runs all sources, returns sorted list
+  - AlarmSystem.summarize(alarms): count by severity
+  - AlarmSystem.worstSeverity(alarms): highest severity in list
+  - AlarmSystem.byCategory(alarms, cat): filter by category
+  Six built-in sources: convergence, mass balance, energy balance,
+  pressure (placeholder), per-unit errors, unconnected ports.
+  Each alarm: { id, category, severity, message, detail?, remediation?,
+  unitId? }. Exported on PG.
+
+  TRAFFIC LIGHTS + DIAGNOSTIC MODAL rewired to use AlarmSystem.evaluate()
+  as single source of truth. Both derive state from the same alarm list.
+
+  DIAGNOSTIC MODAL: grouped by category, each alarm shows severity icon,
+  message, detail (grey), remediation (blue "↳"). Unit alarms are
+  clickable → selects the unit and closes the modal.
+
+  PALETTE DRAWER: top: 50px — starts below info bar. Info bar always
+  visible, + button always accessible as toggle. No z-index fight.
+
+  MENU BUTTON: icon-only (☰), "Menu" text removed.
+
+  T199: AlarmSystem architecture — evaluate, summarize, worstSeverity,
+        byCategory, alarm shape validation (13 checks)
+  T200: Built-in sources cover all categories, severity ordering,
+        custom source registration (9 checks)
+
+  Gate: 200/200 tests, 1389 checks, zero regressions.
+
   ─── v10.3.3 ──────────────────────────────────────────────────────────────
   Panel drawer fix, traffic light sizing, diagnostic modal.
 
@@ -1418,7 +1456,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>processThis — v10.3.3</title>
+  <title>processThis — v10.3.4</title>
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
@@ -2594,7 +2632,7 @@
 
     /* ===== [v10] PALETTE DRAWER ===== */
     .paletteDrawer {
-      position: absolute; left: 0; top: 0; bottom: 0;
+      position: absolute; left: 0; top: 50px; bottom: 0;
       width: 264px; z-index: 20;
       background: #0b0e14ee; backdrop-filter: blur(12px);
       border-right: 1px solid #2a2f3a;
@@ -2698,7 +2736,7 @@
       <div class="info-bar-left">
         <button class="add-btn-left" id="btnAdd" title="Add unit (/ or Tab)">+</button>
         <div class="menuWrap">
-          <button class="btn" id="btnMenu">☰ Menu</button>
+          <button class="btn" id="btnMenu">☰</button>
         <div class="menu" id="menuMain">
           <div class="item has-sub">Registries
             <div class="submenu"><div class="submenu-inner">
@@ -12400,6 +12438,187 @@ function calculateStreamFlowrates(stream) {
   return { nTotal, mTotal, vTotal };
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   [v10.3.4] ALARM SYSTEM — Engine-level diagnostic infrastructure
+   
+   Architecture:
+   - AlarmSeverity: enumerated severity levels with stable ordering
+   - AlarmCategory: string-keyed categories for grouping
+   - Alarm sources: pluggable functions (scene) → Alarm[]
+   - AlarmSystem.evaluate(scene): runs all sources, returns sorted alarms
+   - AlarmSystem.register(source): add new alarm source at runtime
+   
+   Each alarm: { id, category, severity, message, detail?, remediation?, unitId? }
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+const AlarmSeverity = Object.freeze({
+  CRITICAL: { level: 4, key: 'critical', icon: '🔴', color: '#fca5a5', label: 'Critical' },
+  ERROR:    { level: 3, key: 'error',    icon: '🔴', color: '#fca5a5', label: 'Error' },
+  WARNING:  { level: 2, key: 'warning',  icon: '🟡', color: '#fde68a', label: 'Warning' },
+  INFO:     { level: 1, key: 'info',     icon: 'ℹ️', color: '#93c5fd', label: 'Info' },
+  OK:       { level: 0, key: 'ok',       icon: '🟢', color: '#6ee7b7', label: 'OK' },
+});
+
+const AlarmCategory = Object.freeze({
+  CONVERGENCE:   'Convergence',
+  MASS_BALANCE:  'Mass Balance',
+  ENERGY_BALANCE:'Energy Balance',
+  PRESSURE:      'Pressure Solve',
+  UNIT:          'Unit',
+  CONNECTIVITY:  'Connectivity',
+  CONFIGURATION: 'Configuration',
+});
+
+/**
+ * An alarm source is a function: (scene) → Alarm[]
+ * where Alarm = { id, category, severity, message, detail?, remediation?, unitId? }
+ */
+const AlarmSystem = {
+  _sources: [],
+
+  /** Register a new alarm source function */
+  register(sourceFn) {
+    if (typeof sourceFn === 'function') this._sources.push(sourceFn);
+  },
+
+  /** Evaluate all sources, return sorted alarm list */
+  evaluate(scene) {
+    const alarms = [];
+    for (const src of this._sources) {
+      try {
+        const result = src(scene);
+        if (Array.isArray(result)) alarms.push(...result);
+      } catch (e) {
+        alarms.push({
+          id: 'alarm_source_error',
+          category: AlarmCategory.CONFIGURATION,
+          severity: AlarmSeverity.WARNING,
+          message: `Alarm source threw: ${e.message}`,
+        });
+      }
+    }
+    // Sort by severity (highest first), then category
+    alarms.sort((a, b) => (b.severity.level - a.severity.level)
+      || a.category.localeCompare(b.category));
+    return alarms;
+  },
+
+  /** Count alarms by severity */
+  summarize(alarms) {
+    const counts = { critical: 0, error: 0, warning: 0, info: 0, ok: 0 };
+    for (const a of alarms) counts[a.severity.key] = (counts[a.severity.key] || 0) + 1;
+    return counts;
+  },
+
+  /** Get worst severity from alarm list */
+  worstSeverity(alarms) {
+    let worst = AlarmSeverity.OK;
+    for (const a of alarms) {
+      if (a.severity.level > worst.level) worst = a.severity;
+    }
+    return worst;
+  },
+
+  /** Filter alarms by category */
+  byCategory(alarms, category) {
+    return alarms.filter(a => a.category === category);
+  },
+};
+
+// ── Built-in alarm sources ──
+
+// Source: Convergence
+AlarmSystem.register((scene) => {
+  const ls = scene.runtime?.lastSolve;
+  if (!ls) return [{ id: 'conv_no_solve', category: AlarmCategory.CONVERGENCE,
+    severity: AlarmSeverity.INFO, message: 'No solve performed yet.',
+    remediation: 'Press Test to run the solver.' }];
+  if (!ls.ok) return [{ id: 'conv_failed', category: AlarmCategory.CONVERGENCE,
+    severity: AlarmSeverity.CRITICAL, message: `Failed after ${ls.iterations} iterations.`,
+    detail: `Max iterations reached without convergence.`,
+    remediation: 'Check recycle loops, tear stream guesses, or increase max iterations in Solver.' }];
+  return [{ id: 'conv_ok', category: AlarmCategory.CONVERGENCE,
+    severity: AlarmSeverity.OK, message: `Converged in ${ls.iterations} iteration${ls.iterations !== 1 ? 's' : ''}.` }];
+});
+
+// Source: Mass Balance
+AlarmSystem.register((scene) => {
+  const bal = computeSystemBalance(scene);
+  if (!bal) return [];
+  if (bal.mass.closed) return [{ id: 'mass_closed', category: AlarmCategory.MASS_BALANCE,
+    severity: AlarmSeverity.OK, message: `Closed — residual ${(Math.abs(bal.mass.residual)*1e6).toFixed(2)} mg/s.` }];
+  return [{ id: 'mass_open', category: AlarmCategory.MASS_BALANCE,
+    severity: AlarmSeverity.ERROR, message: `Open — residual ${(bal.mass.residual*1000).toFixed(4)} g/s.`,
+    remediation: 'Ensure all sources have matching sinks. Check for unconnected material ports.' }];
+});
+
+// Source: Energy Balance
+AlarmSystem.register((scene) => {
+  const bal = computeSystemBalance(scene);
+  if (!bal) return [];
+  const pct = (bal.energy.relError * 100).toFixed(3);
+  if (bal.energy.closed) return [{ id: 'energy_closed', category: AlarmCategory.ENERGY_BALANCE,
+    severity: AlarmSeverity.OK, message: `Closed — ${pct}% relative error.` }];
+  return [{ id: 'energy_open', category: AlarmCategory.ENERGY_BALANCE,
+    severity: AlarmSeverity.WARNING, message: `Open — ${pct}% relative error.`,
+    remediation: 'Check heat dissipation paths. Unaccounted heat sinks may be missing.' }];
+});
+
+// Source: Pressure Solve (placeholder)
+AlarmSystem.register(() => [{ id: 'pressure_placeholder', category: AlarmCategory.PRESSURE,
+  severity: AlarmSeverity.OK, message: 'Not yet solving — isobaric assumption active.' }]);
+
+// Source: Per-unit errors
+AlarmSystem.register((scene) => {
+  const alarms = [];
+  if (!scene.runtime?.unitData) return alarms;
+  for (const [id, ud] of scene.runtime.unitData) {
+    const u = scene.units.get(id);
+    const def = UnitRegistry.get(u?.defId);
+    const uName = u?.name || def?.name || id;
+    if (ud?.last?.error) {
+      const sev = ud.last.error.severity;
+      const aLevel = (sev?.level >= ErrorSeverity.CATASTROPHIC.level) ? AlarmSeverity.CRITICAL
+                   : (sev?.level >= ErrorSeverity.MAJOR.level) ? AlarmSeverity.ERROR
+                   : AlarmSeverity.WARNING;
+      alarms.push({ id: `unit_${id}_err`, category: AlarmCategory.UNIT,
+        severity: aLevel, message: ud.last.error.message, unitId: id,
+        detail: `Unit: ${uName}` });
+    }
+    if (ud?.errors?.length) {
+      for (let i = 0; i < ud.errors.length; i++) {
+        const err = ud.errors[i];
+        const msg = typeof err === 'string' ? err : err?.message || JSON.stringify(err);
+        alarms.push({ id: `unit_${id}_warn_${i}`, category: AlarmCategory.UNIT,
+          severity: AlarmSeverity.WARNING, message: msg, unitId: id,
+          detail: `Unit: ${uName}` });
+      }
+    }
+  }
+  return alarms;
+});
+
+// Source: Connectivity — unconnected ports
+AlarmSystem.register((scene) => {
+  const alarms = [];
+  for (const [id, u] of scene.units) {
+    const def = UnitRegistry.get(u.defId);
+    if (!def?.ports) continue;
+    for (const port of def.ports) {
+      const isConnected = scene.connections.some(c =>
+        (c.from.unitId === id && c.from.portId === port.id) ||
+        (c.to.unitId === id && c.to.portId === port.id));
+      if (!isConnected) {
+        const uName = u.name || def.name || id;
+        alarms.push({ id: `unconnected_${id}_${port.id}`, category: AlarmCategory.CONNECTIVITY,
+          severity: AlarmSeverity.INFO, message: `${uName}: port "${port.id}" is unconnected.`,
+          unitId: id, remediation: 'Connect or remove this unit if unused.' });
+      }
+    }
+  }
+  return alarms;
+});
+
 const PG = {
   // ── Enums ──
   PortDir,
@@ -12467,6 +12686,9 @@ const PG = {
   streamMass_kgps,
   computeSystemBalance,
   calculateStreamFlowrates,
+  AlarmSeverity,
+  AlarmCategory,
+  AlarmSystem,
   fmt,
 
   // ── Test harness (assigned by test script) ──
@@ -12497,63 +12719,56 @@ function updateStatusIndicator(solveResult) {
   if (!solveResult) { tl.style.display = 'none'; return; }
   tl.style.display = 'flex';
 
-  // Reset all
   const setDot = (dot, cls, tip) => {
     dot.className = 'tl-dot ' + cls;
     dot.querySelector('.tl-tip').textContent = tip;
   };
 
-  // ── Convergence ──
-  let msg = '', msgClass = 'ok';
-  if (!solveResult.ok) {
-    setDot(tlConv, 'red', `Convergence failed (${solveResult.iterations} iter)`);
-    msg = `Convergence failed — ${solveResult.iterations} iterations`;
-    msgClass = 'err';
-  } else if (solveResult.hasErrors) {
-    const maxLvl = solveResult.maxSeverity;
-    if (maxLvl >= ErrorSeverity.CATASTROPHIC.level) {
-      setDot(tlConv, 'red', 'Catastrophic failure');
-      msg = 'Catastrophic failure'; msgClass = 'err';
-    } else if (maxLvl >= ErrorSeverity.MAJOR.level) {
-      setDot(tlConv, 'amber', 'Equipment damage');
-      msg = 'Equipment issues'; msgClass = 'warn';
-    } else {
-      setDot(tlConv, 'amber', `Configuration issues (${solveResult.iterations} iter)`);
-      msg = 'Configuration warnings'; msgClass = 'warn';
-    }
+  // ── Evaluate alarms from the single source of truth ──
+  const alarms = AlarmSystem.evaluate(scene);
+
+  // Map AlarmSeverity → dot color class
+  const sevToDot = (sev) => {
+    if (sev.level >= AlarmSeverity.ERROR.level) return 'red';
+    if (sev.level >= AlarmSeverity.WARNING.level) return 'amber';
+    if (sev.level >= AlarmSeverity.INFO.level) return 'grey';
+    return 'green';
+  };
+
+  // Map AlarmSeverity → message CSS class
+  const sevToMsg = (sev) => {
+    if (sev.level >= AlarmSeverity.ERROR.level) return 'err';
+    if (sev.level >= AlarmSeverity.WARNING.level) return 'warn';
+    return 'ok';
+  };
+
+  // ── Per-category dots ──
+  const catMap = {
+    [AlarmCategory.CONVERGENCE]:    tlConv,
+    [AlarmCategory.MASS_BALANCE]:   tlMass,
+    [AlarmCategory.ENERGY_BALANCE]: tlEnergy,
+    [AlarmCategory.PRESSURE]:       tlPressure,
+  };
+
+  for (const [cat, dot] of Object.entries(catMap)) {
+    const catAlarms = AlarmSystem.byCategory(alarms, cat);
+    if (catAlarms.length === 0) { setDot(dot, 'grey', cat + ' — no data'); continue; }
+    const worst = AlarmSystem.worstSeverity(catAlarms);
+    setDot(dot, sevToDot(worst), catAlarms[0].message);
+  }
+
+  // ── Message: show the worst non-OK alarm ──
+  const nonOK = alarms.filter(a => a.severity.level > AlarmSeverity.OK.level
+    && a.severity.level > AlarmSeverity.INFO.level);
+  if (nonOK.length > 0) {
+    const worst = nonOK[0]; // already sorted worst-first
+    tlMsg.textContent = worst.message;
+    tlMsg.className = 'tl-msg ' + sevToMsg(worst.severity);
   } else {
-    setDot(tlConv, 'green', `Converged — ${solveResult.iterations} iter`);
+    const convAlarm = alarms.find(a => a.category === AlarmCategory.CONVERGENCE);
+    tlMsg.textContent = convAlarm?.message || '';
+    tlMsg.className = 'tl-msg ok';
   }
-
-  // ── Mass & Energy Balance ──
-  const balance = computeSystemBalance(scene);
-  if (balance) {
-    if (balance.mass.closed) {
-      setDot(tlMass, 'green', `Mass closed — residual ${(balance.mass.residual*1e6).toFixed(2)} mg/s`);
-    } else {
-      setDot(tlMass, 'red', `Mass open — residual ${(balance.mass.residual*1000).toFixed(4)} g/s`);
-      if (!msg) { msg = 'Mass balance open'; msgClass = 'err'; }
-    }
-    if (balance.energy.closed) {
-      setDot(tlEnergy, 'green', `Energy closed — ${(balance.energy.relError*100).toFixed(3)}% error`);
-    } else {
-      setDot(tlEnergy, 'amber', `Energy open — ${(balance.energy.relError*100).toFixed(2)}% error`);
-      if (!msg) { msg = 'Energy balance open'; msgClass = 'warn'; }
-    }
-  } else {
-    setDot(tlMass, 'grey', 'Mass balance — no data');
-    setDot(tlEnergy, 'grey', 'Energy balance — no data');
-  }
-
-  // ── Pressure (placeholder — always green until pressure solve) ──
-  setDot(tlPressure, 'green', 'Pressure — not yet solving');
-
-  // ── Message ──
-  if (!msg && solveResult.ok && !solveResult.hasErrors) {
-    msg = `Converged — ${solveResult.iterations} iter`;
-  }
-  tlMsg.textContent = msg;
-  tlMsg.className = 'tl-msg ' + msgClass;
 }
 
 // [v8.9.1] showDiagnosisDialog superseded by openSolverModal() — diagnostics
@@ -13007,78 +13222,80 @@ function openDiagnosticModal() {
   panel.innerHTML = '';
   closeMenus();
 
-  const ls = scene.runtime?.lastSolve;
-  const balance = computeSystemBalance(scene);
-  const alarms = [];  // { severity: 'error'|'warn'|'info'|'ok', category, message }
+  // ── Evaluate all alarm sources ──
+  const alarms = AlarmSystem.evaluate(scene);
+  const counts = AlarmSystem.summarize(alarms);
+  const worst = AlarmSystem.worstSeverity(alarms);
 
-  // ── Convergence ──
-  if (!ls) {
-    alarms.push({ severity: 'info', category: 'Convergence', message: 'No solve performed yet — press Test.' });
-  } else if (!ls.ok) {
-    alarms.push({ severity: 'error', category: 'Convergence', message: `Failed after ${ls.iterations} iterations. Check recycle loops and tear stream guesses.` });
-  } else {
-    alarms.push({ severity: 'ok', category: 'Convergence', message: `Converged in ${ls.iterations} iteration${ls.iterations !== 1 ? 's' : ''}.` });
-  }
-
-  // ── Mass Balance ──
-  if (balance) {
-    if (balance.mass.closed) {
-      alarms.push({ severity: 'ok', category: 'Mass Balance', message: `Closed — residual ${(Math.abs(balance.mass.residual)*1e6).toFixed(2)} mg/s.` });
-    } else {
-      alarms.push({ severity: 'error', category: 'Mass Balance', message: `Open — residual ${(balance.mass.residual*1000).toFixed(4)} g/s. Check unconnected sources/sinks.` });
-    }
-  }
-
-  // ── Energy Balance ──
-  if (balance) {
-    if (balance.energy.closed) {
-      alarms.push({ severity: 'ok', category: 'Energy Balance', message: `Closed — ${(balance.energy.relError*100).toFixed(3)}% relative error.` });
-    } else {
-      alarms.push({ severity: 'warn', category: 'Energy Balance', message: `Open — ${(balance.energy.relError*100).toFixed(2)}% relative error. Check heat dissipation paths.` });
-    }
-  }
-
-  // ── Pressure Solve ──
-  alarms.push({ severity: 'ok', category: 'Pressure Solve', message: 'Not yet solving — isobaric assumption active.' });
-
-  // ── Per-unit errors ──
-  if (scene.runtime?.unitData) {
-    for (const [id, ud] of scene.runtime.unitData) {
-      const u = scene.units.get(id);
-      const def = UnitRegistry.get(u?.defId);
-      const uName = u?.name || def?.name || id;
-      if (ud?.last?.error) {
-        const sev = ud.last.error.severity;
-        const cls = (sev?.level >= ErrorSeverity.MAJOR.level) ? 'error' : 'warn';
-        alarms.push({ severity: cls, category: 'Unit: ' + uName, message: ud.last.error.message });
-      }
-      if (ud?.errors?.length) {
-        for (const err of ud.errors) {
-          const msg = typeof err === 'string' ? err : err?.message || JSON.stringify(err);
-          alarms.push({ severity: 'warn', category: 'Unit: ' + uName, message: msg });
-        }
-      }
-    }
-  }
-
-  // ── Render ──
-  const sevOrder = { error: 0, warn: 1, info: 2, ok: 3 };
-  const sevIcon  = { error: '🔴', warn: '🟡', info: 'ℹ️', ok: '🟢' };
-  const sevColor = { error: '#fca5a5', warn: '#fde68a', info: '#93c5fd', ok: '#6ee7b7' };
-  alarms.sort((a, b) => sevOrder[a.severity] - sevOrder[b.severity]);
-
-  const errorCount = alarms.filter(a => a.severity === 'error').length;
-  const warnCount  = alarms.filter(a => a.severity === 'warn').length;
-  const sumDiv = el('div', { style: 'font-size:12px; margin-bottom:10px; opacity:0.7;' });
-  sumDiv.textContent = `${alarms.length} items — ${errorCount} error${errorCount !== 1 ? 's' : ''}, ${warnCount} warning${warnCount !== 1 ? 's' : ''}`;
+  // ── Summary bar ──
+  const sumDiv = el('div', { style: 'display:flex; gap:10px; align-items:center; margin-bottom:12px; padding:8px 10px; border-radius:6px; background:#111827;' });
+  const total = alarms.length;
+  const errN = counts.critical + counts.error;
+  const warnN = counts.warning;
+  const okN = counts.ok + counts.info;
+  sumDiv.innerHTML = `<span style="font-size:16px;">${worst.icon}</span>` +
+    `<span style="font-size:12px; color:${worst.color}; font-weight:600;">${total} items</span>` +
+    (errN > 0 ? `<span style="font-size:11px; color:#fca5a5;">${errN} error${errN!==1?'s':''}</span>` : '') +
+    (warnN > 0 ? `<span style="font-size:11px; color:#fde68a;">${warnN} warning${warnN!==1?'s':''}</span>` : '') +
+    `<span style="font-size:11px; color:#6ee7b7; opacity:0.7;">${okN} OK</span>`;
   panel.appendChild(sumDiv);
 
-  for (const alarm of alarms) {
-    const row = el('div', { style: `display:flex; gap:8px; align-items:flex-start; padding:6px 0; border-bottom:1px solid #1e293b; font-size:12px;` });
-    row.innerHTML = `<span style="flex-shrink:0;">${sevIcon[alarm.severity]}</span>` +
-      `<span style="font-weight:600; min-width:100px; color:${sevColor[alarm.severity]};">${esc(alarm.category)}</span>` +
-      `<span style="color:#cbd5e1;">${esc(alarm.message)}</span>`;
-    panel.appendChild(row);
+  // ── Group by category ──
+  const categories = [];
+  const seen = new Set();
+  for (const a of alarms) {
+    if (!seen.has(a.category)) { categories.push(a.category); seen.add(a.category); }
+  }
+
+  for (const cat of categories) {
+    const catAlarms = alarms.filter(a => a.category === cat);
+    const catWorst = AlarmSystem.worstSeverity(catAlarms);
+
+    // Category header
+    const hdr = el('div', { style: `font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; margin:12px 0 4px; color:${catWorst.color}; opacity:0.8;` });
+    hdr.textContent = cat;
+    panel.appendChild(hdr);
+
+    // Alarm rows
+    for (const alarm of catAlarms) {
+      const row = el('div', { style: 'display:flex; gap:8px; align-items:flex-start; padding:5px 0; border-bottom:1px solid #1e293b44; font-size:12px;' });
+
+      const iconSpan = el('span', { style: 'flex-shrink:0; font-size:12px;' });
+      iconSpan.textContent = alarm.severity.icon;
+
+      const bodyDiv = el('div', { style: 'flex:1; min-width:0;' });
+      const msgSpan = el('div', { style: 'color:#cbd5e1;' });
+      msgSpan.textContent = alarm.message;
+      bodyDiv.appendChild(msgSpan);
+
+      if (alarm.detail) {
+        const detSpan = el('div', { style: 'font-size:11px; opacity:0.5; margin-top:1px;' });
+        detSpan.textContent = alarm.detail;
+        bodyDiv.appendChild(detSpan);
+      }
+      if (alarm.remediation) {
+        const remSpan = el('div', { style: 'font-size:11px; color:#60a5fa; margin-top:2px;' });
+        remSpan.textContent = '↳ ' + alarm.remediation;
+        bodyDiv.appendChild(remSpan);
+      }
+
+      row.appendChild(iconSpan);
+      row.appendChild(bodyDiv);
+
+      // Click to select unit if applicable
+      if (alarm.unitId) {
+        row.style.cursor = 'pointer';
+        row.addEventListener('click', () => {
+          ui.selectedUnitId = alarm.unitId;
+          ui.selectedConnId = null;
+          updatePropertiesPanel();
+          render();
+          modal.classList.remove('open');
+        });
+      }
+
+      panel.appendChild(row);
+    }
   }
 
   if (alarms.length === 0) {
@@ -24606,6 +24823,68 @@ function runTests() {
     t.assertOK(nullResult === null, 'returns null for non-material stream');
     const nullResult2 = calculateStreamFlowrates(null);
     t.assertOK(nullResult2 === null, 'returns null for null');
+  }});
+
+  // [v10.3.4] T199-T200: AlarmSystem
+  tests.push({ name: '199: AlarmSystem architecture — evaluate, summarize, worstSeverity', fn: t => {
+    t.clearScene();
+    const src = scene.placeUnit('source', 0, 0);
+    const snk = scene.placeUnit('sink', 5, 0);
+    scene.connect({ unitId: src, portId: 'out' }, { unitId: snk, portId: 'in' });
+    solveScene(scene);
+    const alarms = AlarmSystem.evaluate(scene);
+    t.assertOK(Array.isArray(alarms), 'evaluate returns array');
+    t.assertOK(alarms.length > 0, 'has alarms after solve');
+    // Each alarm has required shape
+    for (const a of alarms) {
+      t.assertOK(typeof a.id === 'string', `alarm id is string: ${a.id}`);
+      t.assertOK(typeof a.category === 'string', `alarm category is string: ${a.category}`);
+      t.assertOK(a.severity && typeof a.severity.level === 'number', `alarm severity has level: ${a.severity?.key}`);
+      t.assertOK(typeof a.message === 'string', `alarm message is string`);
+    }
+    // summarize
+    const counts = AlarmSystem.summarize(alarms);
+    t.assertOK(typeof counts.critical === 'number', 'counts.critical is number');
+    t.assertOK(typeof counts.ok === 'number', 'counts.ok is number');
+    t.assertOK(counts.ok > 0, 'has ok alarms for solved scene');
+    // worstSeverity
+    const worst = AlarmSystem.worstSeverity(alarms);
+    t.assertOK(worst && typeof worst.level === 'number', 'worstSeverity returns severity');
+    // byCategory
+    const conv = AlarmSystem.byCategory(alarms, AlarmCategory.CONVERGENCE);
+    t.assertOK(conv.length > 0, 'has convergence alarms');
+    t.assertOK(conv[0].category === AlarmCategory.CONVERGENCE, 'filtered by category');
+  }});
+
+  tests.push({ name: '200: AlarmSystem built-in sources cover all categories', fn: t => {
+    t.clearScene();
+    const src = scene.placeUnit('source', 0, 0);
+    const snk = scene.placeUnit('sink', 5, 0);
+    scene.connect({ unitId: src, portId: 'out' }, { unitId: snk, portId: 'in' });
+    solveScene(scene);
+    const alarms = AlarmSystem.evaluate(scene);
+    const categories = new Set(alarms.map(a => a.category));
+    t.assertOK(categories.has(AlarmCategory.CONVERGENCE), 'has convergence');
+    t.assertOK(categories.has(AlarmCategory.MASS_BALANCE), 'has mass balance');
+    t.assertOK(categories.has(AlarmCategory.ENERGY_BALANCE), 'has energy balance');
+    t.assertOK(categories.has(AlarmCategory.PRESSURE), 'has pressure');
+    // Connectivity source: unconnected units should not exist (fully wired)
+    // but the source should run without error
+    const conn = AlarmSystem.byCategory(alarms, AlarmCategory.CONNECTIVITY);
+    t.assertOK(Array.isArray(conn), 'connectivity check ran');
+    // Severity ordering: sorted worst-first
+    for (let i = 1; i < alarms.length; i++) {
+      t.assertOK(alarms[i].severity.level <= alarms[i-1].severity.level
+        || alarms[i].category >= alarms[i-1].category, 'alarms sorted by severity then category');
+    }
+    // Custom source registration
+    const testId = '_test_custom_' + Date.now();
+    AlarmSystem.register(() => [{ id: testId, category: 'Test',
+      severity: AlarmSeverity.INFO, message: 'custom source' }]);
+    const alarms2 = AlarmSystem.evaluate(scene);
+    t.assertOK(alarms2.some(a => a.id === testId), 'custom source registered and evaluated');
+    // Clean up: remove last source
+    AlarmSystem._sources.pop();
   }});
 
   // ═══════════════════════════════════════════════════════════════════════

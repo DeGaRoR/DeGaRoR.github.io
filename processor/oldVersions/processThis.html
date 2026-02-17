@@ -3,6 +3,40 @@
   ═══════════════════════════════════════════════════════════════════════════
   processThis v9.1.0
 
+  ─── v10.3.3 ──────────────────────────────────────────────────────────────
+  Panel drawer fix, traffic light sizing, diagnostic modal.
+
+  PANEL DRAWER FIX:
+  Panel is now position:fixed overlay instead of grid column. Hides via
+  translateX(100%) — canvas never resizes, no zoom reflow. Grid is
+  permanently 1fr 0px; the panel floats on top.
+
+  "TEST" LABEL RESTORED on the test button. Other buttons remain
+  icon-only.
+
+  TRAFFIC LIGHTS ENLARGED:
+  - Dots 14px (was 10px), gap 7px, message font 12px (was 11px).
+  - Bright tooltip on hover (#e2e8f0 fill, 12px, bold).
+  - Visual separator between Energy and Pressure (future system).
+  - Each dot clickable: Convergence → Solver, Mass/Energy → Balance
+    Report, Pressure → Diagnostic.
+  - Message text clickable → Diagnostic modal.
+
+  DIAGNOSTIC MODAL (foundation):
+  Menu → Diagnostic. Centralized alarm/advisory panel collecting:
+  - Convergence status (from lastSolve)
+  - Mass balance (from computeSystemBalance)
+  - Energy balance (from computeSystemBalance)
+  - Pressure solve (placeholder — isobaric)
+  - Per-unit errors and warnings (from runtime.unitData)
+  Alarms sorted by severity (error → warn → info → ok).
+  Summary line: "N items — X errors, Y warnings".
+  Each alarm: colored icon, category, message.
+  This is the foundation for alarm rationalization,
+  auto-diagnosis, and structured debugging.
+
+  Gate: 198/198 tests, 1346 checks, zero regressions.
+
   ─── v10.3.2 ──────────────────────────────────────────────────────────────
   Bottom bar icon cleanup.
 
@@ -1384,7 +1418,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>processThis — v10.3.2</title>
+  <title>processThis — v10.3.3</title>
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
@@ -1417,16 +1451,7 @@
     .app { 
       height: 100vh; 
       display: grid; 
-      grid-template-columns: 1fr var(--panel-width, 360px);
-      transition: grid-template-columns 0.15s ease;
-    }
-    .app.panel-hidden {
       grid-template-columns: 1fr 0px;
-    }
-    .app.panel-hidden .rightPanel {
-      overflow: hidden;
-      padding: 0;
-      border-left: none;
     }
     
     .canvasWrap { 
@@ -1442,14 +1467,23 @@
     }
     
     .rightPanel {
+      position: fixed;
+      right: 0; top: 0; bottom: 0;
+      width: var(--panel-width, 360px);
       border-left: 1px solid #2a2f3a;
-      background: #0b0e14cc;
+      background: #0b0e14ee;
       backdrop-filter: blur(10px);
       overflow: auto;
       padding: 14px;
       display: flex;
       flex-direction: column;
-      position: relative;
+      z-index: 20;
+      transform: translateX(0);
+      transition: transform 0.15s ease;
+    }
+    .rightPanel.panel-hidden {
+      transform: translateX(100%);
+      pointer-events: none;
     }
     
     .panel-resize-handle {
@@ -1704,42 +1738,47 @@
     .traffic-lights {
       display: flex;
       align-items: center;
-      gap: 5px;
-      padding: 6px 10px;
-      border-radius: 8px;
+      gap: 7px;
+      padding: 7px 12px;
+      border-radius: 10px;
       background: #0b0e14cc;
       backdrop-filter: blur(6px);
     }
     .tl-dot {
-      width: 10px; height: 10px; border-radius: 50%;
+      width: 14px; height: 14px; border-radius: 50%;
       background: #334155;
-      transition: background 0.2s;
+      transition: background 0.2s, box-shadow 0.2s;
       position: relative;
-      cursor: default;
+      cursor: pointer;
     }
-    .tl-dot.green  { background: #22c55e; box-shadow: 0 0 4px #22c55e88; }
-    .tl-dot.amber  { background: #fbbf24; box-shadow: 0 0 4px #fbbf2488; }
-    .tl-dot.red    { background: #ef4444; box-shadow: 0 0 4px #ef444488; }
+    .tl-dot:hover { filter: brightness(1.3); }
+    .tl-dot.green  { background: #22c55e; box-shadow: 0 0 6px #22c55e88; }
+    .tl-dot.amber  { background: #fbbf24; box-shadow: 0 0 6px #fbbf2488; }
+    .tl-dot.red    { background: #ef4444; box-shadow: 0 0 6px #ef444488; }
     .tl-dot.grey   { background: #334155; }
-    .tl-msg {
-      font-size: 11px; color: #94a3b8; white-space: nowrap;
-      max-width: 260px; overflow: hidden; text-overflow: ellipsis;
-      margin-left: 4px;
+    .tl-sep {
+      width: 1px; height: 14px; background: #334155; margin: 0 2px;
     }
+    .tl-msg {
+      font-size: 12px; color: #94a3b8; white-space: nowrap;
+      max-width: 280px; overflow: hidden; text-overflow: ellipsis;
+      margin-left: 4px; cursor: pointer;
+    }
+    .tl-msg:hover { text-decoration: underline; }
     .tl-msg.warn { color: #fbbf24; }
     .tl-msg.err  { color: #ef4444; }
     .tl-msg.ok   { color: #6ee7b7; }
     .tl-tip {
       display: none;
-      position: absolute; bottom: 120%; left: 50%; transform: translateX(-50%);
-      background: #1e293b; color: #e2e8f0; font-size: 11px; padding: 4px 8px;
-      border-radius: 4px; white-space: nowrap; z-index: 40;
-      pointer-events: none; border: 1px solid #334155;
+      position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%);
+      background: #e2e8f0; color: #0f1420; font-size: 12px; font-weight: 600;
+      padding: 4px 10px; border-radius: 5px; white-space: nowrap; z-index: 40;
+      pointer-events: none;
     }
     .tl-dot:hover .tl-tip { display: block; }
     .tl-gear {
       background: transparent; border: none; color: #64748b;
-      cursor: pointer; font-size: 13px; padding: 0 0 0 2px;
+      cursor: pointer; font-size: 14px; padding: 0 0 0 3px;
       line-height: 1; transition: color 0.15s;
     }
     .tl-gear:hover { color: #e2e8f0; }
@@ -2671,6 +2710,7 @@
           <div class="item" id="mUnits">Physical Units <span class="hint">display</span></div>
           <div class="item" id="mSolver">Solver <span class="hint">configure</span></div>
           <div class="item" id="mBalance">Balance Report</div>
+          <div class="item" id="mDiagnostic">Diagnostic <span class="hint">alarms</span></div>
           <div class="sep"></div>
           <div class="item" id="mImport">Import Model…</div>
           <div class="item" id="mExport">Export Model…</div>
@@ -2692,10 +2732,11 @@
       <!-- Traffic Light Indicators [v10.3.1] -->
       <div class="info-bar-right">
         <div id="trafficLights" class="traffic-lights" style="display:none;">
-          <div class="tl-dot grey" id="tlConv"><div class="tl-tip">Convergence</div></div>
-          <div class="tl-dot grey" id="tlMass"><div class="tl-tip">Mass Balance</div></div>
-          <div class="tl-dot grey" id="tlEnergy"><div class="tl-tip">Energy Balance</div></div>
-          <div class="tl-dot grey" id="tlPressure"><div class="tl-tip">Pressure Solve</div></div>
+          <div class="tl-dot grey" id="tlConv" data-target="solver"><div class="tl-tip">Convergence</div></div>
+          <div class="tl-dot grey" id="tlMass" data-target="balance"><div class="tl-tip">Mass Balance</div></div>
+          <div class="tl-dot grey" id="tlEnergy" data-target="balance"><div class="tl-tip">Energy Balance</div></div>
+          <div class="tl-sep"></div>
+          <div class="tl-dot grey" id="tlPressure" data-target="diagnostic"><div class="tl-tip">Pressure Solve</div></div>
           <span class="tl-msg" id="tlMsg"></span>
           <button class="tl-gear" id="tlGear" title="Open Solver…">⚙</button>
         </div>
@@ -2706,7 +2747,7 @@
     <div class="action-bar">
       <!-- Transport controls [v9.0.1] -->
       <div class="transport">
-        <button class="tbtn active" id="btnTest" data-tip="Test (solve once)">⟳</button>
+        <button class="tbtn active" id="btnTest" data-tip="Solve once (no time)">⟳ Test</button>
         <button class="tbtn" id="btnStep" data-tip="Step (advance 1 timestep)">▶|</button>
         <button class="tbtn" id="btnPlay" data-tip="Play (auto-step)">▶</button>
         <button class="tbtn" id="btnPause" data-tip="Pause" disabled>⏸</button>
@@ -2774,13 +2815,23 @@
       </div>
     </div>
 
-    <!-- Settings modal [v8.10.0] -->
+    <!-- Balance modal [v10.3.0] -->
     <div class="modal" id="modalBalance">
       <div class="modalContent">
         <button class="modalClose" onclick="document.getElementById('modalBalance').classList.remove('open')">×</button>
         <h3>System Balance</h3>
         <div class="small">Mass and energy balance across system boundaries.</div>
         <div id="balancePanel" style="margin-top:10px; max-height:60vh; overflow-y:auto;"></div>
+      </div>
+    </div>
+
+    <!-- Diagnostic modal [v10.3.3] -->
+    <div class="modal" id="modalDiagnostic">
+      <div class="modalContent" style="max-width:620px;">
+        <button class="modalClose" onclick="document.getElementById('modalDiagnostic').classList.remove('open')">×</button>
+        <h3>Diagnostic</h3>
+        <div class="small">Centralized alarm and advisory system.</div>
+        <div id="diagnosticPanel" style="margin-top:10px; max-height:60vh; overflow-y:auto;"></div>
       </div>
     </div>
 
@@ -12948,6 +12999,96 @@ function openBalanceModal() {
 }
 
 /* =========================
+   [v10.3.3] DIAGNOSTIC MODAL
+   ========================= */
+function openDiagnosticModal() {
+  const modal = document.getElementById('modalDiagnostic');
+  const panel = document.getElementById('diagnosticPanel');
+  panel.innerHTML = '';
+  closeMenus();
+
+  const ls = scene.runtime?.lastSolve;
+  const balance = computeSystemBalance(scene);
+  const alarms = [];  // { severity: 'error'|'warn'|'info'|'ok', category, message }
+
+  // ── Convergence ──
+  if (!ls) {
+    alarms.push({ severity: 'info', category: 'Convergence', message: 'No solve performed yet — press Test.' });
+  } else if (!ls.ok) {
+    alarms.push({ severity: 'error', category: 'Convergence', message: `Failed after ${ls.iterations} iterations. Check recycle loops and tear stream guesses.` });
+  } else {
+    alarms.push({ severity: 'ok', category: 'Convergence', message: `Converged in ${ls.iterations} iteration${ls.iterations !== 1 ? 's' : ''}.` });
+  }
+
+  // ── Mass Balance ──
+  if (balance) {
+    if (balance.mass.closed) {
+      alarms.push({ severity: 'ok', category: 'Mass Balance', message: `Closed — residual ${(Math.abs(balance.mass.residual)*1e6).toFixed(2)} mg/s.` });
+    } else {
+      alarms.push({ severity: 'error', category: 'Mass Balance', message: `Open — residual ${(balance.mass.residual*1000).toFixed(4)} g/s. Check unconnected sources/sinks.` });
+    }
+  }
+
+  // ── Energy Balance ──
+  if (balance) {
+    if (balance.energy.closed) {
+      alarms.push({ severity: 'ok', category: 'Energy Balance', message: `Closed — ${(balance.energy.relError*100).toFixed(3)}% relative error.` });
+    } else {
+      alarms.push({ severity: 'warn', category: 'Energy Balance', message: `Open — ${(balance.energy.relError*100).toFixed(2)}% relative error. Check heat dissipation paths.` });
+    }
+  }
+
+  // ── Pressure Solve ──
+  alarms.push({ severity: 'ok', category: 'Pressure Solve', message: 'Not yet solving — isobaric assumption active.' });
+
+  // ── Per-unit errors ──
+  if (scene.runtime?.unitData) {
+    for (const [id, ud] of scene.runtime.unitData) {
+      const u = scene.units.get(id);
+      const def = UnitRegistry.get(u?.defId);
+      const uName = u?.name || def?.name || id;
+      if (ud?.last?.error) {
+        const sev = ud.last.error.severity;
+        const cls = (sev?.level >= ErrorSeverity.MAJOR.level) ? 'error' : 'warn';
+        alarms.push({ severity: cls, category: 'Unit: ' + uName, message: ud.last.error.message });
+      }
+      if (ud?.errors?.length) {
+        for (const err of ud.errors) {
+          const msg = typeof err === 'string' ? err : err?.message || JSON.stringify(err);
+          alarms.push({ severity: 'warn', category: 'Unit: ' + uName, message: msg });
+        }
+      }
+    }
+  }
+
+  // ── Render ──
+  const sevOrder = { error: 0, warn: 1, info: 2, ok: 3 };
+  const sevIcon  = { error: '🔴', warn: '🟡', info: 'ℹ️', ok: '🟢' };
+  const sevColor = { error: '#fca5a5', warn: '#fde68a', info: '#93c5fd', ok: '#6ee7b7' };
+  alarms.sort((a, b) => sevOrder[a.severity] - sevOrder[b.severity]);
+
+  const errorCount = alarms.filter(a => a.severity === 'error').length;
+  const warnCount  = alarms.filter(a => a.severity === 'warn').length;
+  const sumDiv = el('div', { style: 'font-size:12px; margin-bottom:10px; opacity:0.7;' });
+  sumDiv.textContent = `${alarms.length} items — ${errorCount} error${errorCount !== 1 ? 's' : ''}, ${warnCount} warning${warnCount !== 1 ? 's' : ''}`;
+  panel.appendChild(sumDiv);
+
+  for (const alarm of alarms) {
+    const row = el('div', { style: `display:flex; gap:8px; align-items:flex-start; padding:6px 0; border-bottom:1px solid #1e293b; font-size:12px;` });
+    row.innerHTML = `<span style="flex-shrink:0;">${sevIcon[alarm.severity]}</span>` +
+      `<span style="font-weight:600; min-width:100px; color:${sevColor[alarm.severity]};">${esc(alarm.category)}</span>` +
+      `<span style="color:#cbd5e1;">${esc(alarm.message)}</span>`;
+    panel.appendChild(row);
+  }
+
+  if (alarms.length === 0) {
+    panel.appendChild(el('div', { style: 'opacity:0.5; padding:12px;', html: 'No diagnostics available.' }));
+  }
+
+  modal.classList.add('open');
+}
+
+/* =========================
    STATUS — Transient messages (connect, import, export, etc.)
    ========================= */
 function setStatus(s) {
@@ -16237,15 +16378,15 @@ function renderParams(container, paramDefs, u) {
 }
 
 function updatePropertiesPanel() {
-  const app = document.querySelector('.app');
+  const panel = document.getElementById('rightPanel');
   propEditor.innerHTML = '';
   
-  // [v10.3.1] Hide panel when nothing selected
+  // [v10.3.1] Hide panel when nothing selected (drawer style — no canvas reflow)
   if (!ui.selectedUnitId && !ui.selectedConnId) {
-    app.classList.add('panel-hidden');
+    panel.classList.add('panel-hidden');
     return;
   }
-  app.classList.remove('panel-hidden');
+  panel.classList.remove('panel-hidden');
   
   // ═══ UNIT SELECTED ═══
   if (ui.selectedUnitId) {
@@ -16438,13 +16579,13 @@ function updatePropertiesPanel() {
    ========================= */
 {
   const handle = document.getElementById('panelResizeHandle');
-  const app = document.querySelector('.app');
+  const panel = document.getElementById('rightPanel');
   const MIN_W = 260, MAX_W = 700, DEFAULT_W = 360;
   let dragging = false, startX = 0, startW = DEFAULT_W;
 
   handle.addEventListener('pointerdown', (e) => {
     dragging = true; startX = e.clientX;
-    startW = document.getElementById('rightPanel').offsetWidth;
+    startW = panel.offsetWidth;
     handle.classList.add('active');
     handle.setPointerCapture(e.pointerId);
     e.preventDefault();
@@ -16452,7 +16593,7 @@ function updatePropertiesPanel() {
   handle.addEventListener('pointermove', (e) => {
     if (!dragging) return;
     const w = Math.max(MIN_W, Math.min(MAX_W, startW + (startX - e.clientX)));
-    app.style.setProperty('--panel-width', w + 'px');
+    panel.style.setProperty('--panel-width', w + 'px');
   });
   handle.addEventListener('pointerup', () => {
     dragging = false;
@@ -16927,12 +17068,22 @@ document.getElementById('tlGear').addEventListener('click', (ev) => {
   openSolverModal();
 });
 
-// [v10.3.1] Clicking message text → balance report
+// [v10.3.3] Traffic light dots → appropriate modals
+document.querySelectorAll('.tl-dot').forEach(dot => {
+  dot.addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    const target = dot.dataset.target;
+    if (target === 'solver') openSolverModal();
+    else if (target === 'balance') openBalanceModal();
+    else if (target === 'diagnostic') openDiagnosticModal();
+  });
+});
+
+// [v10.3.3] Message text → diagnostic modal
 document.getElementById('tlMsg').addEventListener('click', (ev) => {
   ev.stopPropagation();
-  openBalanceModal();
+  openDiagnosticModal();
 });
-document.getElementById('tlMsg').style.cursor = 'pointer';
 
 btnAdd.addEventListener('click', () => {
   togglePalette();
@@ -16983,10 +17134,18 @@ document.getElementById('mBalance').addEventListener('click', () => {
   openBalanceModal();
 });
 
+document.getElementById('mDiagnostic').addEventListener('click', () => {
+  openDiagnosticModal();
+});
+
 // Close modals when clicking outside
 const modalBalance = document.getElementById('modalBalance');
 modalBalance.addEventListener('click', (ev) => {
   if (ev.target === modalBalance) modalBalance.classList.remove('open');
+});
+const modalDiagnostic = document.getElementById('modalDiagnostic');
+modalDiagnostic.addEventListener('click', (ev) => {
+  if (ev.target === modalDiagnostic) modalDiagnostic.classList.remove('open');
 });
 
 // Close modals when clicking outside
