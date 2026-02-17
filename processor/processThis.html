@@ -3,6 +3,69 @@
   ═══════════════════════════════════════════════════════════════════════════
   processThis v9.1.0
 
+  ─── v10.7.0 ──────────────────────────────────────────────────────────────
+  P1: Canvas Stickers — live floating data labels tethered to units.
+
+  FEATURE: Sticker system for displaying inspector badge data on canvas.
+  Users drag badges (conditions / power / reaction / kpis) from the
+  inspector panel onto the SVG canvas.  Badges collect into one floating
+  sticker container per unit, positioned relative to the unit center.
+
+  Data model:  u.sticker = { dx, dy, items: [{ section, label }] }.
+  Unique key: (section, label) — duplicate drops are no-ops with toast.
+  Live refresh: values re-evaluate from inspector hooks on every render.
+  Auto-stream: _autoStreamToItems() converts T/P/Phase/flow for units
+  without custom conditions() hooks (source, sink, etc.).
+
+  SVG rendering: dark semi-transparent card with category-color border,
+  unit name header, per-row label/value pairs, dashed tether line to
+  unit center.  Stickers are draggable to reposition (pointer drag on
+  background, snaps to half-tile).  Per-row × removes individual badges,
+  header × removes entire sticker.
+
+  Inspector badges tagged draggable: propItems in _renderKPIGrid and
+  _renderAutoStream get data-sticker-* attributes + HTML5 dragstart.
+  SVG drop handler routes application/x-sticker-badge MIME type.
+
+  Bottom bar: 📌 toggle shows/hides sticker tether lines (ui.showStickerLines).
+
+  Persistence: exportJSON serializes u.sticker; importJSON restores with
+  validation (section/label strings required, empty → null).
+
+  Undo: all sticker mutations (add badge, remove badge, remove sticker,
+  move sticker) push undo snapshots.
+
+  T223: Sticker data model (create/dedup/remove).
+  T224: Sticker round-trip (export/import).
+  T225: Sticker deleted with unit.
+
+  Gate: 225/225 tests, 1525 checks.
+
+  ─── v10.6.2 ──────────────────────────────────────────────────────────────
+  Tank inventory stale-params bug fix.
+
+  BUG: Tank fill showed 500% on first Step when volume was changed from
+  the placeUnit default (50 m³) to e.g. 10 m³ in the inspector.
+  ROOT CAUSE: placeUnit() calls initInventory() with default params at
+  placement time. If the user changes volume/capacity/initialSOC in the
+  inspector before pressing Step, the inventory still holds content
+  computed for the original defaults. tick() computes n_max from current
+  params → massive fill overshoot.
+
+  FIX (two-pronged):
+  1. t.place() test helper: reinitializes inventory after setting custom
+     params (fixes all test scenarios).
+  2. renderParams() wraps set callbacks for inventory-bearing units:
+     if TimeClock.mode === 'test' (not yet stepped), any param change
+     triggers _reinitInventoryIfTest(u) → reinit from current params.
+     After first step (mode='paused'), param changes don't reinit
+     (preserves runtime state during a simulation run).
+
+  T222: Inventory reinit — verifies tank V=10 and battery custom capacity
+  both produce correct initial content after t.place().
+
+  Gate: 222/222 tests, 1505 checks, zero regressions.
+
   ─── v10.6.1 ──────────────────────────────────────────────────────────────
   Tank overflow + CATASTROPHIC propagation fix.
 
@@ -1847,7 +1910,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>processThis — v10.6.1</title>
+  <title>processThis — v10.7.0</title>
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
@@ -2229,6 +2292,21 @@
     .param-warn-text {
       font-size: 10px; color: #f87171; margin: -2px 0 4px 0; padding: 0;
     }
+
+    /* ===== STICKER SYSTEM [v10.7.0] ===== */
+    .sticker-tether { pointer-events: none; }
+    .sticker-bg { cursor: grab; }
+    .sticker-bg:active { cursor: grabbing; }
+    .sticker-row-hit { cursor: default; }
+    .sticker-row-hit:hover + .sticker-row-x { opacity: 1; }
+    .sticker-row-x { opacity: 0; cursor: pointer; transition: opacity 0.15s; }
+    .sticker-row-x:hover { opacity: 1; }
+    .sticker-close { cursor: pointer; opacity: 0.4; transition: opacity 0.15s; }
+    .sticker-close:hover { opacity: 1; }
+
+    /* Inspector draggable badges */
+    .propItem[draggable="true"] { cursor: grab; }
+    .propItem[draggable="true"]:active { cursor: grabbing; opacity: 0.6; }
     
     /* ===== PROCESS NAME INPUT ===== */
     #processNameInput {
@@ -3283,6 +3361,7 @@
 
       <!-- Utilities toggle [v10.1.1] -->
       <button class="tbtn" id="btnUtilities" data-tip="Show/hide utilities" style="font-size:14px; border-radius:8px;">⚡</button>
+      <button class="tbtn" id="btnStickerLines" data-tip="Show/hide sticker lines" style="font-size:14px; border-radius:8px;">📌</button>
     </div>
 
     <!-- Models modal -->
@@ -3810,7 +3889,7 @@ const TimeClock = {
    */
   step(scene) {
     if (TimeClock.mode === 'test') {
-      // Initialize inventories on first step
+      // Initialize inventories on first step (only if not already set)
       for (const [uid, u] of scene.units) {
         const def = UnitRegistry.get(u.defId);
         if (def && def.inventory && def.initInventory && !u.inventory) {
@@ -10714,7 +10793,7 @@ class Scene {
     }
     
     for (const u of this.units.values()) {
-      data.units.push({
+      const unitData = {
         id: u.id,
         defId: u.defId,
         name: u.name,
@@ -10722,7 +10801,9 @@ class Scene {
         y: u.y,
         rot: u.rot,
         params: u.params
-      });
+      };
+      if (u.sticker) unitData.sticker = u.sticker;  // [v10.7.0] P1
+      data.units.push(unitData);
     }
     
     data.connections = [...this.connections];
@@ -10890,6 +10971,15 @@ class Scene {
         rot: typeof rot === 'number' && isFinite(rot) ? rot : 0,
         params: (u.params && typeof u.params === 'object') ? u.params : {}
       };
+      // [v10.7.0] Restore sticker data
+      if (u.sticker && typeof u.sticker === 'object' && Array.isArray(u.sticker.items)) {
+        unit.sticker = {
+          dx: typeof u.sticker.dx === 'number' ? u.sticker.dx : 3,
+          dy: typeof u.sticker.dy === 'number' ? u.sticker.dy : -2,
+          items: u.sticker.items.filter(it => it && typeof it.section === 'string' && typeof it.label === 'string')
+        };
+        if (unit.sticker.items.length === 0) unit.sticker = null;
+      }
       tempUnits.set(unit.id, unit);
       unitIds.add(unit.id);
 
@@ -13505,6 +13595,7 @@ const ui = {
   isHTML5Dragging: false, // Track HTML5 drag from library
   _mouseWorld: { x: 0, y: 0 },
   showUtilities: true,    // [v10.1.1] E7: dim power utility units when false
+  showStickerLines: true, // [v10.7.0] P1: show/hide sticker tether lines
   reconnecting: null      // [v10.1.1] {connId} when reconnecting a stream
 };
 
@@ -14751,12 +14842,257 @@ function drawUnits() {
   svg.appendChild(g);
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// [v10.7.0] STICKER RENDERING
+// ═══════════════════════════════════════════════════════════════════════════
+
+function drawStickers() {
+  const tile = scene.tile;
+  const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  g.setAttribute('class', 'stickers-layer');
+
+  for (const [uid, u] of scene.units) {
+    if (!u.sticker?.items?.length) continue;
+    const def = UnitRegistry.get(u.defId);
+    if (!def) continue;
+
+    // Evaluate live values
+    const evaluated = _evaluateStickerItems(u);
+    if (!evaluated.length) continue;
+
+    const unitCx = (u.x + def.w / 2) * tile;
+    const unitCy = (u.y + def.h / 2) * tile;
+    const stickerX = unitCx + u.sticker.dx * tile;
+    const stickerY = unitCy + u.sticker.dy * tile;
+
+    // Layout constants
+    const W = 150;
+    const rowH = 18;
+    const padX = 8;
+    const padY = 6;
+    const headerH = 16; // unit name header
+    const totalH = padY + headerH + evaluated.length * rowH + padY;
+    const stickerCx = stickerX + W / 2;
+    const stickerCy = stickerY + totalH / 2;
+
+    const stickerG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    stickerG.setAttribute('data-sticker-uid', uid);
+
+    // Tether line
+    if (ui.showStickerLines) {
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('x1', unitCx);
+      line.setAttribute('y1', unitCy);
+      line.setAttribute('x2', stickerCx);
+      line.setAttribute('y2', stickerCy);
+      line.setAttribute('stroke', '#475569');
+      line.setAttribute('stroke-width', '1');
+      line.setAttribute('stroke-dasharray', '4,3');
+      line.setAttribute('class', 'sticker-tether');
+      stickerG.appendChild(line);
+    }
+
+    // Background
+    const catColor = def.color || '#64748b';
+    const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    bg.setAttribute('x', stickerX);
+    bg.setAttribute('y', stickerY);
+    bg.setAttribute('width', W);
+    bg.setAttribute('height', totalH);
+    bg.setAttribute('rx', 6);
+    bg.setAttribute('fill', 'rgba(15,23,42,0.92)');
+    bg.setAttribute('stroke', catColor);
+    bg.setAttribute('stroke-width', '1');
+    bg.setAttribute('stroke-opacity', '0.5');
+    bg.setAttribute('class', 'sticker-bg');
+    stickerG.appendChild(bg);
+
+    // Header: unit name + close button
+    const name = u.name || def.name || uid.slice(-4);
+    const hdr = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    hdr.setAttribute('x', stickerX + padX);
+    hdr.setAttribute('y', stickerY + padY + 10);
+    hdr.setAttribute('font-size', '10');
+    hdr.setAttribute('fill', catColor);
+    hdr.setAttribute('font-weight', '600');
+    hdr.setAttribute('font-family', 'inherit');
+    hdr.setAttribute('opacity', '0.7');
+    hdr.textContent = name.length > 18 ? name.slice(0, 17) + '…' : name;
+    stickerG.appendChild(hdr);
+
+    // Close × button
+    const closeX = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    closeX.setAttribute('x', stickerX + W - padX - 4);
+    closeX.setAttribute('y', stickerY + padY + 10);
+    closeX.setAttribute('font-size', '11');
+    closeX.setAttribute('fill', '#94a3b8');
+    closeX.setAttribute('text-anchor', 'end');
+    closeX.setAttribute('class', 'sticker-close');
+    closeX.textContent = '×';
+    closeX.addEventListener('pointerdown', (ev) => {
+      ev.stopPropagation();
+      _pushUndo('Remove sticker');
+      u.sticker = null;
+      autoSave();
+      render();
+    });
+    stickerG.appendChild(closeX);
+
+    // Badge rows
+    let rowY = stickerY + padY + headerH;
+    for (let i = 0; i < evaluated.length; i++) {
+      const item = evaluated[i];
+      const y = rowY + i * rowH;
+
+      // Hit area for hover (invisible rect)
+      const hitRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      hitRect.setAttribute('x', stickerX);
+      hitRect.setAttribute('y', y);
+      hitRect.setAttribute('width', W);
+      hitRect.setAttribute('height', rowH);
+      hitRect.setAttribute('fill', 'transparent');
+      hitRect.setAttribute('class', 'sticker-row-hit');
+      stickerG.appendChild(hitRect);
+
+      // Label
+      const lbl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      lbl.setAttribute('x', stickerX + padX);
+      lbl.setAttribute('y', y + 13);
+      lbl.setAttribute('font-size', '10');
+      lbl.setAttribute('fill', '#94a3b8');
+      lbl.setAttribute('font-family', 'inherit');
+      lbl.setAttribute('pointer-events', 'none');
+      lbl.textContent = item.label;
+      stickerG.appendChild(lbl);
+
+      // Value (strip HTML tags for SVG text)
+      const valText = item.value.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+      const val = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      val.setAttribute('x', stickerX + W - padX);
+      val.setAttribute('y', y + 13);
+      val.setAttribute('font-size', '11');
+      val.setAttribute('text-anchor', 'end');
+      val.setAttribute('font-family', 'inherit');
+      val.setAttribute('font-weight', '600');
+      val.setAttribute('pointer-events', 'none');
+      val.setAttribute('fill',
+        item.tone === 'warn' ? '#fbbf24' :
+        item.tone === 'bad'  ? '#fca5a5' :
+        item.tone === 'good' ? '#6ee7b7' :
+        item.tone === 'info' ? '#93c5fd' : '#e2e8f0');
+      val.textContent = valText;
+      stickerG.appendChild(val);
+
+      // Row remove × (appears on hover via CSS)
+      const rowX = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      rowX.setAttribute('x', stickerX + W - 2);
+      rowX.setAttribute('y', y + 13);
+      rowX.setAttribute('font-size', '9');
+      rowX.setAttribute('fill', '#f87171');
+      rowX.setAttribute('text-anchor', 'end');
+      rowX.setAttribute('class', 'sticker-row-x');
+      rowX.textContent = '×';
+      const idx = i;
+      rowX.addEventListener('pointerdown', (ev) => {
+        ev.stopPropagation();
+        _pushUndo('Remove sticker badge');
+        u.sticker.items.splice(idx, 1);
+        if (u.sticker.items.length === 0) u.sticker = null;
+        autoSave();
+        render();
+      });
+      stickerG.appendChild(rowX);
+    }
+
+    // Sticker drag (reposition)
+    _setupStickerDrag(stickerG, bg, u, def, tile);
+
+    g.appendChild(stickerG);
+  }
+
+  svg.appendChild(g);
+}
+
+// [v10.7.0] Sticker drag-to-reposition handler
+function _setupStickerDrag(stickerG, bgRect, u, def, tile) {
+  let dragging = false;
+  let startX, startY, origDx, origDy;
+
+  bgRect.addEventListener('pointerdown', (ev) => {
+    if (ev.button !== 0) return;
+    ev.stopPropagation();
+    dragging = true;
+    origDx = u.sticker.dx;
+    origDy = u.sticker.dy;
+    const pt = svg.createSVGPoint();
+    pt.x = ev.clientX; pt.y = ev.clientY;
+    const svgP = pt.matrixTransform(svg.getScreenCTM().inverse());
+    startX = svgP.x;
+    startY = svgP.y;
+    bgRect.setPointerCapture(ev.pointerId);
+    _pushUndo('Move sticker');
+  });
+
+  bgRect.addEventListener('pointermove', (ev) => {
+    if (!dragging) return;
+    const pt = svg.createSVGPoint();
+    pt.x = ev.clientX; pt.y = ev.clientY;
+    const svgP = pt.matrixTransform(svg.getScreenCTM().inverse());
+    const dx = svgP.x - startX;
+    const dy = svgP.y - startY;
+    u.sticker.dx = origDx + dx / tile;
+    u.sticker.dy = origDy + dy / tile;
+    render();
+  });
+
+  bgRect.addEventListener('pointerup', (ev) => {
+    if (!dragging) return;
+    dragging = false;
+    bgRect.releasePointerCapture(ev.pointerId);
+    // Snap to half-tile increments
+    u.sticker.dx = Math.round(u.sticker.dx * 2) / 2;
+    u.sticker.dy = Math.round(u.sticker.dy * 2) / 2;
+    autoSave();
+    render();
+  });
+}
+
+// [v10.7.0] Handle a sticker badge dropped onto the canvas
+function _handleStickerDrop(ev, section, label, unitId) {
+  const u = scene.units.get(unitId);
+  if (!u) return;
+
+  // Compute world position of drop
+  const w = screenToWorld(ev.clientX, ev.clientY);
+  const def = UnitRegistry.get(u.defId);
+  const unitCx = u.x + (def?.w || 2) / 2;
+  const unitCy = u.y + (def?.h || 2) / 2;
+  const dx = w.x / scene.tile - unitCx;
+  const dy = w.y / scene.tile - unitCy;
+
+  _pushUndo('Add sticker badge');
+
+  if (!u.sticker) {
+    u.sticker = { dx: Math.round(dx * 2) / 2, dy: Math.round(dy * 2) / 2, items: [] };
+  }
+  // Dedup
+  if (u.sticker.items.some(it => it.section === section && it.label === label)) {
+    showToast('Already in sticker');
+    return;
+  }
+  u.sticker.items.push({ section, label });
+  autoSave();
+  render();
+  showToast(`Added "${label}" to sticker`);
+}
+
 function render() {
   clearSVG();
   setViewBox();
   drawGrid();
   drawConnections();
   drawUnits();
+  drawStickers();  // [v10.7.0] P1: canvas stickers on top
 }
 
 /* =========================
@@ -16606,12 +16942,12 @@ function esc(s) {
 }
 
 // [v10.2.0] Labeled KPI section (e.g. "Power & Energy")
-function _renderLabeledSection(container, title, items) {
+function _renderLabeledSection(container, title, items, stickerCtx) {
   if (!items?.length) return;
   const lbl = el('div', { class: 'ins-section-label' });
   lbl.textContent = title; // textContent for XSS safety
   container.appendChild(lbl);
-  _renderKPIGrid(container, items);
+  _renderKPIGrid(container, items, stickerCtx);
 }
 
 // Find primary material stream from resolved port data
@@ -16634,30 +16970,37 @@ function _findPrimaryStream(ud, def) {
 
 // Render auto-extracted material stream — 2-column grid layout
 // Row 1: T | P     Row 2: Phase | Vap fraction     Row 3: Composition (full)     Row 4: Molar | Mass flow
-function _renderAutoStream(container, stream) {
+function _renderAutoStream(container, stream, unitId) {
   if (!stream || stream.type !== StreamType.MATERIAL) return;
   const unitSys = models.getActive('units');
   const grid = el('div', { class: 'propGrid' });
+  const sCtx = unitId ? { unitId, section: 'conditions' } : null;
   
   // Row 1: T | P
-  grid.appendChild(el('div', { class: 'propItem' }, [
+  const tItem = el('div', { class: 'propItem' }, [
     el('div', { class: 'propLabel', html: 'Temperature' }),
     el('div', { class: 'propValue', 
       html: `${unitSys.temperature.from(stream.T).toFixed(unitSys.temperature.decimals)}<span class="propUnit">${unitSys.temperature.symbol}</span>` })
-  ]));
-  grid.appendChild(el('div', { class: 'propItem' }, [
+  ]);
+  if (sCtx) _tagDraggableBadge(tItem, sCtx, 'Temperature');
+  grid.appendChild(tItem);
+  const pItem = el('div', { class: 'propItem' }, [
     el('div', { class: 'propLabel', html: 'Pressure' }),
     el('div', { class: 'propValue', 
       html: `${unitSys.pressure.from(stream.P).toFixed(unitSys.pressure.decimals)}<span class="propUnit">${unitSys.pressure.symbol}</span>` })
-  ]));
+  ]);
+  if (sCtx) _tagDraggableBadge(pItem, sCtx, 'Pressure');
+  grid.appendChild(pItem);
   
   // Row 2: Phase | Vapor fraction (if two-phase)
   const isVL = stream.phase === 'VL';
   const phaseText = stream.phase === 'V' ? 'Vapor' : stream.phase === 'L' ? 'Liquid' : isVL ? 'Two-Phase' : '—';
-  grid.appendChild(el('div', { class: 'propItem' }, [
+  const phItem = el('div', { class: 'propItem' }, [
     el('div', { class: 'propLabel', html: 'Phase' }),
     el('div', { class: 'propValue', style: 'font-size:12px;', html: phaseText })
-  ]));
+  ]);
+  if (sCtx) _tagDraggableBadge(phItem, sCtx, 'Phase');
+  grid.appendChild(phItem);
   if (isVL) {
     grid.appendChild(el('div', { class: 'propItem' }, [
       el('div', { class: 'propLabel', html: 'Vapor fraction' }),
@@ -16709,22 +17052,70 @@ function _renderAutoStream(container, stream) {
   // Row 4: Molar flow | Mass flow
   const flowrates = calculateStreamFlowrates(stream);
   if (flowrates) {
-    grid.appendChild(el('div', { class: 'propItem' }, [
+    const mfItem = el('div', { class: 'propItem' }, [
       el('div', { class: 'propLabel', html: 'Molar flow' }),
       el('div', { class: 'propValue', 
         html: `${unitSys.molarFlow.from(flowrates.nTotal).toFixed(unitSys.molarFlow.decimals)}<span class="propUnit">${unitSys.molarFlow.symbol}</span>` })
-    ]));
-    grid.appendChild(el('div', { class: 'propItem' }, [
+    ]);
+    if (sCtx) _tagDraggableBadge(mfItem, sCtx, 'Molar flow');
+    grid.appendChild(mfItem);
+    const msItem = el('div', { class: 'propItem' }, [
       el('div', { class: 'propLabel', html: 'Mass flow' }),
       el('div', { class: 'propValue', 
         html: `${unitSys.massFlow.from(flowrates.mTotal).toFixed(unitSys.massFlow.decimals)}<span class="propUnit">${unitSys.massFlow.symbol}</span>` })
-    ]));
+    ]);
+    if (sCtx) _tagDraggableBadge(msItem, sCtx, 'Mass flow');
+    grid.appendChild(msItem);
   }
   container.appendChild(grid);
 }
 
+// [v10.7.0] Convert auto-stream data to labeled items (same format as inspector hooks)
+function _autoStreamToItems(stream) {
+  if (!stream || stream.type !== StreamType.MATERIAL) return [];
+  const unitSys = models.getActive('units');
+  const items = [];
+  if (stream.T != null) items.push({ label: 'Temperature', value: `${unitSys.temperature.from(stream.T).toFixed(unitSys.temperature.decimals)}<span class="propUnit">${unitSys.temperature.symbol}</span>` });
+  if (stream.P != null) items.push({ label: 'Pressure', value: `${unitSys.pressure.from(stream.P).toFixed(unitSys.pressure.decimals)}<span class="propUnit">${unitSys.pressure.symbol}</span>` });
+  const phaseText = stream.phase === 'V' ? 'Vapor' : stream.phase === 'L' ? 'Liquid' : stream.phase === 'VL' ? 'Two-Phase' : '—';
+  items.push({ label: 'Phase', value: phaseText });
+  const flowrates = calculateStreamFlowrates(stream);
+  if (flowrates) {
+    items.push({ label: 'Molar flow', value: `${unitSys.molarFlow.from(flowrates.nTotal).toFixed(unitSys.molarFlow.decimals)}<span class="propUnit">${unitSys.molarFlow.symbol}</span>` });
+    items.push({ label: 'Mass flow', value: `${unitSys.massFlow.from(flowrates.mTotal).toFixed(unitSys.massFlow.decimals)}<span class="propUnit">${unitSys.massFlow.symbol}</span>` });
+  }
+  return items;
+}
+
+// [v10.7.0] Evaluate sticker items against live solver data
+function _evaluateStickerItems(u) {
+  if (!u.sticker?.items?.length) return [];
+  const def = UnitRegistry.get(u.defId);
+  const ud = scene.runtime.unitData.get(u.id);
+  const cfg = UnitInspector[u.defId];
+  if (!ud) return u.sticker.items.map(it => ({ ...it, value: '—' }));
+
+  // Collect all available badges by section
+  const pools = {};
+  if (cfg?.conditions) pools.conditions = cfg.conditions(u, ud) || [];
+  else {
+    const ps = _findPrimaryStream(ud, def);
+    pools.conditions = ps ? _autoStreamToItems(ps) : [];
+  }
+  pools.power    = cfg?.power    ? (cfg.power(u, ud)    || []) : [];
+  pools.reaction = cfg?.reaction ? (cfg.reaction(u, ud) || []) : [];
+  pools.kpis     = cfg?.kpis     ? (cfg.kpis(u, ud)     || []) : [];
+
+  return u.sticker.items.map(it => {
+    const pool = pools[it.section] || [];
+    const match = pool.find(p => p.label === it.label);
+    return { ...it, value: match?.value ?? '—', tone: match?.tone, bar: match?.bar, barColor: match?.barColor };
+  });
+}
+
 // Render KPI items as propItem cards in a 2-col grid
-function _renderKPIGrid(container, items) {
+// stickerCtx: optional { unitId, section } — makes badges draggable to canvas
+function _renderKPIGrid(container, items, stickerCtx) {
   if (!items || items.length === 0) return;
   const grid = el('div', { class: 'propGrid' });
   for (const item of items) {
@@ -16735,6 +17126,7 @@ function _renderKPIGrid(container, items) {
       const barWrap = el('div', { style: 'display:flex;align-items:center;gap:8px;' });
       barWrap.innerHTML = `<span class="ins-bar-track" style="flex:1;"><span class="ins-bar-fill" style="width:${Math.min(100,item.value)}%;background:${item.barColor||'#60a5fa'}"></span></span><span class="propValue" style="font-size:12px;">${item.value.toFixed(1)}%</span>`;
       barItem.appendChild(barWrap);
+      if (stickerCtx) _tagDraggableBadge(barItem, stickerCtx, item.label);
       grid.appendChild(barItem);
     } else {
       const pi = el('div', { class: `propItem${item.full ? ' full-row' : ''}` });
@@ -16743,10 +17135,25 @@ function _renderKPIGrid(container, items) {
       valEl.innerHTML = item.value;
       if (item.tone) valEl.style.color = item.tone === 'warn' ? '#fbbf24' : item.tone === 'bad' ? '#fca5a5' : item.tone === 'good' ? '#6ee7b7' : item.tone === 'info' ? '#93c5fd' : '';
       pi.appendChild(valEl);
+      if (stickerCtx) _tagDraggableBadge(pi, stickerCtx, item.label);
       grid.appendChild(pi);
     }
   }
   container.appendChild(grid);
+}
+
+// [v10.7.0] Tag a propItem element as a sticker drag source
+function _tagDraggableBadge(elem, ctx, label) {
+  elem.draggable = true;
+  elem.dataset.stickerUnit = ctx.unitId;
+  elem.dataset.stickerSection = ctx.section;
+  elem.dataset.stickerLabel = label;
+  elem.addEventListener('dragstart', (ev) => {
+    ev.dataTransfer.setData('application/x-sticker-badge', JSON.stringify({
+      unitId: ctx.unitId, section: ctx.section, label
+    }));
+    ev.dataTransfer.effectAllowed = 'copy';
+  });
 }
 
 // Render detail items as insKV in a collapsible section
@@ -17348,29 +17755,46 @@ document.addEventListener('mousedown', (ev) => {
    [v10] SCHEMA-DRIVEN updatePropertiesPanel
    ═══════════════════════════════════════════════════════════════════════════ */
 
+// [v10.6.2] Reinitialize inventory when params change in test mode.
+// ROOT CAUSE: placeUnit inits inventory with default params. If user changes
+// volume/capacity in inspector before first Step, inventory is stale.
+function _reinitInventoryIfTest(u) {
+  if (TimeClock.mode !== 'test') return;
+  const def = UnitRegistry.get(u.defId);
+  if (def?.inventory && def?.initInventory) {
+    u.inventory = def.initInventory(u.params);
+  }
+}
+
 function renderParams(container, paramDefs, u) {
+  const def = UnitRegistry.get(u.defId);
+  const hasInventory = def?.inventory && def?.initInventory;
+
   for (const p of paramDefs) {
+    // [v10.6.2] Wrap set callback to reinit inventory for inventory-bearing units
+    const wSet = hasInventory ? (v) => { p.set(v); _reinitInventoryIfTest(u); } : p.set;
+
     if (p.type === 'info') {
       container.appendChild(el('div', { style: 'font-size:11px; opacity:0.7; margin:4px 0; line-height:1.4;', html: p.html }));
     } else if (p.type === 'select') {
-      addSelectEditor(container, p.label, p.get, p.set, p.options);
+      addSelectEditor(container, p.label, p.get, wSet, p.options);
     } else if (p.type === 'slider') {
-      addSliderEditor(container, p.label, p.get, p.set, p.min || 0, p.max || 1, p.step || 0.01);
+      addSliderEditor(container, p.label, p.get, wSet, p.min || 0, p.max || 1, p.step || 0.01);
     } else if (p.type === 'toggle') {
       const row = el('div', { style: 'display:flex; align-items:center; gap:8px; margin:8px 0;' });
       const cb = document.createElement('input');
       cb.type = 'checkbox';
       cb.checked = p.get();
       cb.id = 'tog_' + p.label.replace(/\W/g, '_') + '_' + u.id;
-      cb.addEventListener('change', () => { _pushUndoDebounced(`Toggle ${p.label}`); p.set(cb.checked); });
+      cb.addEventListener('change', () => { _pushUndoDebounced(`Toggle ${p.label}`); wSet(cb.checked); });
       row.appendChild(cb);
       row.appendChild(el('label', { html: p.label, style: 'font-size:12px; cursor:pointer;', for: cb.id }));
       container.appendChild(row);
     } else if (p.min != null && p.max != null && !p.validate) {
       // [v10.2.2] Auto-slider for bounded number params (no custom validate)
-      addSliderEditor(container, p.label, p.get, p.set, p.min, p.max, p.step || 0.01);
+      addSliderEditor(container, p.label, p.get, wSet, p.min, p.max, p.step || 0.01);
     } else {
-      addNumberEditor(container, p.label, p.get, p.set, p.step || 0.1, p.decimals, p.validate);
+      addNumberEditor(container, p.label, p.get, wSet, p.step || 0.1, p.decimals, p.validate);
     }
   }
 }
@@ -17480,28 +17904,28 @@ function _rebuildInspectorContent() {
     // Priority: config.conditions() > auto-stream from primary material port
     if (config?.conditions && ud) {
       const items = config.conditions(u, ud);
-      if (items?.length) _renderKPIGrid(propEditor, items);
+      if (items?.length) _renderKPIGrid(propEditor, items, { unitId: u.id, section: 'conditions' });
     } else if (ud) {
       const primaryStream = _findPrimaryStream(ud, def);
-      if (primaryStream) _renderAutoStream(propEditor, primaryStream);
+      if (primaryStream) _renderAutoStream(propEditor, primaryStream, u.id);
     }
 
     // ── [v10.2.0] Power & Energy ──
     if (ud && config?.power) {
       const items = config.power(u, ud);
-      if (items?.length) _renderLabeledSection(propEditor, 'Power & Energy', items);
+      if (items?.length) _renderLabeledSection(propEditor, 'Power & Energy', items, { unitId: u.id, section: 'power' });
     }
 
     // ── [v10.2.2] Reaction Data ──
     if (ud && config?.reaction) {
       const items = config.reaction(u, ud);
-      if (items?.length) _renderLabeledSection(propEditor, 'Reaction Data', items);
+      if (items?.length) _renderLabeledSection(propEditor, 'Reaction Data', items, { unitId: u.id, section: 'reaction' });
     }
 
     // ── Unit-specific KPIs ──
     if (ud && config?.kpis) {
       const kpiItems = config.kpis(u, ud);
-      if (kpiItems?.length) _renderKPIGrid(propEditor, kpiItems);
+      if (kpiItems?.length) _renderKPIGrid(propEditor, kpiItems, { unitId: u.id, section: 'kpis' });
     }
     if (!ud) {
       propEditor.appendChild(el('div', { class: 'ins-hint', html: 'Not computed yet — press Test/Step' }));
@@ -17925,6 +18349,17 @@ svg.addEventListener('dragleave', (ev) => {
 
 svg.addEventListener('drop', (ev) => {
   ev.preventDefault();
+
+  // [v10.7.0] Check for sticker badge drop first
+  const stickerData = ev.dataTransfer.getData('application/x-sticker-badge');
+  if (stickerData) {
+    try {
+      const { unitId, section, label } = JSON.parse(stickerData);
+      _handleStickerDrop(ev, section, label, unitId);
+    } catch (e) { /* ignore malformed data */ }
+    return;
+  }
+
   const defId = ev.dataTransfer.getData('text/plain') || ui.dragDefId;
   if (!defId) return;
   
@@ -18290,6 +18725,14 @@ btnUtilities.addEventListener('click', () => {
       }
     }
   }
+  render();
+});
+
+// [v10.7.0] Sticker lines toggle
+const btnStickerLines = document.getElementById('btnStickerLines');
+btnStickerLines.addEventListener('click', () => {
+  ui.showStickerLines = !ui.showStickerLines;
+  btnStickerLines.style.opacity = ui.showStickerLines ? '1' : '0.35';
   render();
 });
 
@@ -19105,7 +19548,14 @@ class TestCtx {
   place(defId, x, y, params) {
     const id = scene.placeUnit(defId, x, y);
     if (!id) throw new Error(`Failed to place ${defId} at (${x},${y})`);
-    if (params) scene.units.get(id).params = params;
+    if (params) {
+      scene.units.get(id).params = params;
+      // [v10.6.2] Reinitialize inventory with correct params (placeUnit used defaults)
+      const def = UnitRegistry.get(defId);
+      if (def?.inventory && def?.initInventory) {
+        scene.units.get(id).inventory = def.initInventory(params);
+      }
+    }
     return id;
   }
   wire(fromId, fromPort, toId, toPort) {
@@ -26460,8 +26910,116 @@ function runTests() {
     TimeClock.mode = 'test'; SimSettings.dt = origDt;
   }});
 
+  // [v10.6.2] T222: Inventory reinit when params differ from placeUnit defaults
+  tests.push({ name: '222: Tank inventory matches custom params (not placeUnit defaults)', fn: t => {
+    const origDt = SimSettings.dt;
+    TimeClock.t = 0; TimeClock.frame = 0; TimeClock.mode = 'test';
+    SimSettings.dt = 60;
+
+    // Place tank with V=10 (default is 50)
+    const tid = t.place('tank', 0, 0, { volume_m3: 10, drawRate: 0.5 });
+    const u = scene.units.get(tid);
+
+    // Inventory should be for V=10, not V=50
+    const expected_n = (101325 * 10) / (8.314 * SimSettings.atmosphere.T_K);
+    const actual_n = Object.values(u.inventory.n).reduce((a, b) => a + b, 0);
+    t.assertClose(actual_n, expected_n, 1.0, `Inventory matches V=10: ${actual_n.toFixed(0)} ≈ ${expected_n.toFixed(0)}`);
+
+    // Battery with custom capacity
+    const bid = t.place('battery', 4, 0, { peakPower_kW: 5, capacity_J: 1000, initialSOC: 0.5 });
+    const bu = scene.units.get(bid);
+    t.assertClose(bu.inventory.charge_J, 500, 0.01, 'Battery charge_J = capacity × SOC = 500');
+
+    TimeClock.t = 0; TimeClock.frame = 0;
+    TimeClock.mode = 'test'; SimSettings.dt = origDt;
+  }});
+
   // ═══════════════════════════════════════════════════════════════════════
-  // RUNNER
+  // [v10.7.0] STICKER TESTS
+  // ═══════════════════════════════════════════════════════════════════════
+
+  tests.push({ name: '223: Sticker data model: create, dedup, persistence structure', fn: t => {
+    const src = t.place('source', 0, 0, { species: 'N2', nDot: 1.0, T: 400, P: 200000, phaseConstraint: 'V' });
+    const snk = t.place('sink', 4, 0);
+    t.wire(src, 'out', snk, 'in');
+
+    const u = scene.units.get(src);
+
+    // No sticker initially
+    t.assertOK(!u.sticker, 'No sticker initially');
+
+    // Create sticker
+    u.sticker = { dx: 3, dy: -2, items: [
+      { section: 'conditions', label: 'Temperature' },
+      { section: 'conditions', label: 'Pressure' },
+    ]};
+
+    t.assertOK(u.sticker.items.length === 2, '2 items');
+    t.assertOK(u.sticker.dx === 3, 'dx=3');
+
+    // Dedup check
+    const hasDup = u.sticker.items.some(it => it.section === 'conditions' && it.label === 'Temperature');
+    t.assertOK(hasDup, 'Existing badge detected by section+label');
+
+    // Add non-duplicate
+    const newItem = { section: 'power', label: 'Shaft power' };
+    const isDup = u.sticker.items.some(it => it.section === newItem.section && it.label === newItem.label);
+    t.assertOK(!isDup, 'New badge not a duplicate');
+    u.sticker.items.push(newItem);
+    t.assertOK(u.sticker.items.length === 3, '3 items after add');
+
+    // Remove item
+    u.sticker.items.splice(1, 1); // remove Pressure
+    t.assertOK(u.sticker.items.length === 2, '2 items after remove');
+    t.assertOK(u.sticker.items[0].label === 'Temperature', 'First item preserved');
+    t.assertOK(u.sticker.items[1].label === 'Shaft power', 'Third item shifted');
+  }});
+
+  tests.push({ name: '224: Sticker round-trip via export/import', fn: t => {
+    const src = t.place('source', 0, 0, { species: 'N2', nDot: 1.0, T: 350, P: 101325, phaseConstraint: 'V' });
+    const u = scene.units.get(src);
+    u.sticker = { dx: 4, dy: -1, items: [
+      { section: 'conditions', label: 'Temperature' },
+      { section: 'power', label: 'Shaft power' },
+    ]};
+
+    // Export
+    const json = scene.exportJSON();
+    const parsed = JSON.parse(json);
+    const srcData = parsed.units.find(x => x.id === src);
+    t.assertOK(srcData.sticker != null, 'Sticker exported');
+    t.assertOK(srcData.sticker.items.length === 2, 'Sticker has 2 items');
+    t.assertClose(srcData.sticker.dx, 4, 0.01, 'dx=4');
+
+    // Import into fresh scene
+    t.clearScene();
+    const result = scene.importJSON(json);
+    t.assertOK(result.ok, 'Import succeeded');
+    const restored = scene.units.get(src);
+    t.assertOK(restored.sticker != null, 'Sticker restored');
+    t.assertOK(restored.sticker.items.length === 2, 'Items preserved');
+    t.assertOK(restored.sticker.items[0].label === 'Temperature', 'First item label');
+    t.assertOK(restored.sticker.items[1].section === 'power', 'Second item section');
+
+    // Unit without sticker: should not have sticker field
+    const snk = t.place('sink', 8, 0);
+    const json2 = scene.exportJSON();
+    const parsed2 = JSON.parse(json2);
+    const snkData = parsed2.units.find(x => x.id === snk);
+    t.assertOK(!snkData.sticker, 'Unit without sticker has no sticker field');
+  }});
+
+  tests.push({ name: '225: Sticker deleted with unit', fn: t => {
+    const src = t.place('source', 0, 0, { species: 'N2', nDot: 1.0, T: 300, P: 101325, phaseConstraint: 'V' });
+    const u = scene.units.get(src);
+    u.sticker = { dx: 2, dy: -1, items: [{ section: 'conditions', label: 'Temperature' }]};
+
+    t.assertOK(scene.units.has(src), 'Unit exists');
+    scene.deleteUnit(src);
+    t.assertOK(!scene.units.has(src), 'Unit deleted');
+    // Sticker gone with the unit — no cleanup needed
+  }});
+
   // ═══════════════════════════════════════════════════════════════════════
 
   // [v10.0.4] Tests require cheatsEnabled=true for custom source T/P

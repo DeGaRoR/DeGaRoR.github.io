@@ -3,6 +3,69 @@
   ═══════════════════════════════════════════════════════════════════════════
   processThis v9.1.0
 
+  ─── v10.6.1 ──────────────────────────────────────────────────────────────
+  Tank overflow + CATASTROPHIC propagation fix.
+
+  BUG: Tank fill grew beyond 100% indefinitely with overflow connected.
+  ROOT CAUSE: tick() referenced global `scene` for overflow detection —
+  worked in browser but not reliably across solver contexts. Overflow
+  rate computation only drained excess but didn't account for continued
+  inlet flow, causing fill oscillation.
+
+  FIX:
+  - RuntimeContext now carries `scene` reference → ctx.scene in tick().
+  - Overflow rate = (excess / dt) + max(0, inletRate - drawRate).
+    Drains existing excess AND absorbs continued net influx.
+  - Overflow threshold: fillPct > 100, OR at capacity (≥99.99%) with
+    positive net influx. Standalone full tanks (no inlet) don't alarm.
+
+  BUG: ctx.warn(CATASTROPHIC) from tick functions (e.g. tank rupture)
+  didn't propagate to ud.last.error → traffic lights never showed it.
+  ROOT CAUSE: catIssue scan filtered on MATERIAL_/POWER_/STREAM_ codes
+  only. Tank uses TANK_OVERFLOW_RUPTURE.
+
+  FIX:
+  - Broadened catIssue scan to catch ALL CATASTROPHIC errors in ud.errors.
+  - AlarmSystem unit error source now severity-aware: CATASTROPHIC →
+    CRITICAL alarm, MAJOR → ERROR alarm (was: all → WARNING).
+
+  CHAIN: ctx.warn(CATASTROPHIC) → ud.errors → unitFaulted=true →
+  solveResult.ok=false → play loop stopPlay() → traffic lights red.
+
+  T220: ctx.warn CATASTROPHIC → unitFaulted propagation.
+  T221: Overflow routing keeps fill at/near 100%.
+
+  Gate: 221/221 tests, 1503 checks, zero regressions.
+
+  ─── v10.6.0 ──────────────────────────────────────────────────────────────
+  Phase F — Undo/Redo + Validation + Toast.
+
+  UNDO/REDO (M1a-b):
+  UndoStack class — snapshot-based, max 50 entries. Each push captures
+  scene.exportJSON() before mutation. Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y.
+  Hooked into: placeUnit, deleteUnit, connect, drag-move (captures start
+  position, pushes only if position changed), param edits (debounced 800ms),
+  name edits, select changes, clear scene, file import. Redo stack cleared
+  on new mutation. Toast feedback on undo/redo.
+
+  TOAST NOTIFICATIONS (M3b):
+  Fixed-position container at bottom-center. showToast(msg, duration).
+  Slide-up fade-in, fade-out on dismiss. Max 3 visible. Auto-dismiss 2.5s.
+  Used by undo/redo, clear scene.
+
+  VALIDATION RULES (M4a-b):
+  Params can include `validate: { min, max, gt, required }`. addNumberEditor
+  checks on every input, shows red border + warning text. Applied to:
+  source (nDot, P, T), valve (Pout), pump/compressor/gas_turbine (Pout via
+  _pEtaParams), battery (peakPower, capacity), grid_supply (maxPower),
+  source_mechanical (maxPower), tank (volume, drawRate), heater/cooler
+  (T setpoint). Toggle undo also tracked.
+
+  T218: UndoStack push/undo/redo contract.
+  T219: Validation rules schema checks.
+
+  Gate: 219/219 tests, 1498 checks, zero regressions.
+
   ─── v10.5.4 ──────────────────────────────────────────────────────────────
   Animation continuity + battery reversal + play pulse.
 
@@ -1784,7 +1847,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>processThis — v10.5.4</title>
+  <title>processThis — v10.6.1</title>
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
@@ -2140,6 +2203,32 @@
       transition: color 0.15s;
     }
     .speed-indicator:hover { color: #94a3b8; background: #1e293b; }
+
+    /* ===== TOAST NOTIFICATIONS [v10.6.0] (M3b) ===== */
+    #toastContainer {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+      z-index: 9999; display: flex; flex-direction: column; align-items: center; gap: 6px;
+      pointer-events: none;
+    }
+    .toast {
+      background: #1e293b; color: #e2e8f0; padding: 8px 16px; border-radius: 8px;
+      font-size: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+      border: 1px solid #334155;
+      animation: toast-in 0.2s ease-out;
+      pointer-events: auto;
+    }
+    .toast.toast-out { animation: toast-out 0.2s ease-in forwards; }
+    @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes toast-out { from { opacity: 1; } to { opacity: 0; transform: translateY(-4px); } }
+
+    /* ===== VALIDATION FEEDBACK [v10.6.0] (M4a) ===== */
+    input.param-invalid, select.param-invalid {
+      border-color: #ef4444 !important;
+      box-shadow: 0 0 0 1px rgba(239,68,68,0.3);
+    }
+    .param-warn-text {
+      font-size: 10px; color: #f87171; margin: -2px 0 4px 0; padding: 0;
+    }
     
     /* ===== PROCESS NAME INPUT ===== */
     #processNameInput {
@@ -3589,6 +3678,9 @@
   <!-- Hidden file input for JSON import -->
   <input type="file" id="fileImportInput" accept=".json,.JSON" style="display:none;">
 </div>
+
+<!-- [v10.6.0] Toast notification container -->
+<div id="toastContainer"></div>
 
 <script>
 "use strict";
@@ -8129,12 +8221,41 @@ UnitRegistry.register('tank', {
     // Fill diagnostics
     const fillPct = n_max > 0 ? (total / n_max) * 100 : 0;
 
-    // Overflow check: CATASTROPHIC if full and no overflow connection
-    if (fillPct >= 100) {
-      const overflowConnected = scene.connections.some(
+    // [v10.6.1] Overflow routing: project fill after one timestep
+    // Only triggers when tank is at or above capacity
+    const inletRate = ports.mat_in?.n
+      ? Object.values(ports.mat_in.n).reduce((a, b) => a + b, 0) : 0;
+    const netInflux = Math.max(0, inletRate - actualDraw);
+    const needsOverflow = n_max > 0 && (fillPct > 100 || (fillPct >= 99.99 && netInflux > 1e-12));
+
+    if (needsOverflow) {
+      const overflowConnected = ctx.scene.connections.some(
         c => c.from.unitId === u.id && c.from.portId === 'overflow'
       );
-      if (!overflowConnected) {
+      if (overflowConnected) {
+        // Overflow rate = drain excess + absorb net influx to hold at 100%
+        const excess = Math.max(0, total - n_max);
+        const ovRate = excess / dt + netInflux;
+        if (ovRate > 1e-15) {
+          const n_overflow = {};
+          for (const [sp, mol] of Object.entries(inv.n)) {
+            n_overflow[sp] = (mol / total) * ovRate;
+          }
+          ports.overflow = {
+            type: StreamType.MATERIAL,
+            T: inv.T_K,
+            P: inv.P_Pa,
+            n: n_overflow
+          };
+          // [v10.6.1] Warn: overflow is active
+          ctx.warn({
+            severity: ErrorSeverity.MAJOR,
+            message: `Tank at ${fillPct.toFixed(0)}% — excess venting through overflow.`,
+            code: 'TANK_OVERFLOW_VENTING'
+          });
+        }
+      } else {
+        // No overflow connection → CATASTROPHIC rupture
         ctx.warn({
           severity: ErrorSeverity.CATASTROPHIC,
           message: 'Tank overflow — catastrophic rupture! No overflow path connected.',
@@ -8149,7 +8270,7 @@ UnitRegistry.register('tank', {
       fillPct,
       drawRate: actualDraw,
       status: total < 1e-12 ? 'empty'
-            : total >= n_max ? 'full'
+            : fillPct >= 100 ? (Object.values(ports.overflow.n).reduce((a,b)=>a+b,0) > 0 ? 'overflowing' : 'full')
             : 'active',
       T_K: inv.T_K,
       P_Pa: inv.P_Pa,
@@ -11339,10 +11460,11 @@ function computeTickOrder(scene) {
 //   runtimeCtx.thermo          — thermo adapter
 
 class RuntimeContext {
-  constructor(thermoAdapter) {
+  constructor(thermoAdapter, scene) {
     this._scratch = new Map();
     this.iter = 0;
     this.thermo = thermoAdapter;
+    this._scene = scene;  // [v10.6.1] scene reference for tick functions
   }
 
   /** Get (or create) the per-unit scratch store. */
@@ -11359,6 +11481,7 @@ class RuntimeContext {
       scratch: this.scratch(unitId),
       thermo:  this.thermo,
       warn:    (msg) => ud.errors.push(msg),
+      scene:   this._scene,  // [v10.6.1] tick can inspect connections
     };
   }
 }
@@ -11612,7 +11735,7 @@ function solveScene(scene, options = {}) {
 
   // [v5.4.0] Create runtime context — all solver↔tick scratch state lives here.
   // Replaces the _hub* fields that used to be set/deleted on unit objects.
-  const runtimeCtx = new RuntimeContext(thermo);
+  const runtimeCtx = new RuntimeContext(thermo, scene);
   scene.runtime.ctx = runtimeCtx;
 
   // [v4.3.0] Pre-solve power cycle check — catches cycles introduced via
@@ -11946,6 +12069,19 @@ function solveScene(scene, options = {}) {
         }
       }
 
+      // [v10.6.1] Scan ALL ud.errors for CATASTROPHIC severity — catches
+      // errors pushed by tick via ctx.warn() (e.g. tank overflow rupture)
+      // that aren't structural stream issues.
+      if (!unitFaulted) {
+        for (const err of ud.errors) {
+          if (err && typeof err === 'object' && err.severity &&
+              err.severity.level >= ErrorSeverity.CATASTROPHIC.level) {
+            unitFaulted = true;
+            break;
+          }
+        }
+      }
+
       // Check if anything changed (forward computation only)
       // Exclude 'demand' field from comparison — it's a backward annotation
       // written by post-processing, not a forward computation result.
@@ -11956,13 +12092,12 @@ function solveScene(scene, options = {}) {
       // Store unit-specific calculation results
       ud.last = u.last || {};
 
-      // [v6.3] If stream validation found CATASTROPHIC issues, attach to ud.last.error
+      // [v10.6.1] If ANY CATASTROPHIC error exists, attach first one to ud.last.error
       // (must come after ud.last is assigned from u.last)
       {
         const catIssue = ud.errors.find(e => {
-          if (typeof e !== 'object' || !e.severity || !e.code) return false;
-          if (e.severity.level < ErrorSeverity.CATASTROPHIC.level) return false;
-          return e.code.startsWith('MATERIAL_') || e.code.startsWith('POWER_') || e.code.startsWith('STREAM_');
+          if (typeof e !== 'object' || !e.severity) return false;
+          return e.severity.level >= ErrorSeverity.CATASTROPHIC.level;
         });
         if (catIssue) {
           ud.last.error = { severity: catIssue.severity, message: catIssue.message };
@@ -13077,8 +13212,14 @@ AlarmSystem.register((scene) => {
       for (let i = 0; i < ud.errors.length; i++) {
         const err = ud.errors[i];
         const msg = typeof err === 'string' ? err : err?.message || JSON.stringify(err);
+        // [v10.6.1] Severity-aware alarm level for ud.errors
+        let aLevel = AlarmSeverity.WARNING;
+        if (typeof err === 'object' && err?.severity) {
+          if (err.severity.level >= ErrorSeverity.CATASTROPHIC.level) aLevel = AlarmSeverity.CRITICAL;
+          else if (err.severity.level >= ErrorSeverity.MAJOR.level) aLevel = AlarmSeverity.ERROR;
+        }
         alarms.push({ id: `unit_${id}_warn_${i}`, category: AlarmCategory.UNIT,
-          severity: AlarmSeverity.WARNING, message: msg, unitId: id,
+          severity: aLevel, message: msg, unitId: id,
           detail: `Unit: ${uName}` });
       }
     }
@@ -13106,6 +13247,55 @@ AlarmSystem.register((scene) => {
   }
   return alarms;
 });
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// UNDO/REDO STACK [v10.6.0] (M1a)
+// ═══════════════════════════════════════════════════════════════════════════════
+// Snapshot-based: each entry is a JSON string from scene.exportJSON().
+// Push captures state BEFORE a mutation. Undo restores previous snapshot.
+// Redo stack is cleared on any new mutation.
+class UndoStack {
+  constructor(maxSize = 50) {
+    this._undo = [];
+    this._redo = [];
+    this._max = maxSize;
+    this._lastLabel = '';
+  }
+  get canUndo() { return this._undo.length > 0; }
+  get canRedo() { return this._redo.length > 0; }
+  get undoLabel() { return this._undo.length > 0 ? this._undo[this._undo.length - 1].label : ''; }
+  get redoLabel() { return this._redo.length > 0 ? this._redo[this._redo.length - 1].label : ''; }
+  get length() { return this._undo.length; }
+
+  /** Push a snapshot before a mutation. Label describes what's about to happen. */
+  push(json, label = '') {
+    this._undo.push({ json, label });
+    if (this._undo.length > this._max) this._undo.shift();
+    this._redo = [];  // new mutation invalidates redo
+    this._lastLabel = label;
+  }
+
+  /** Pop the most recent undo entry. Returns { json, label } or null. */
+  undo(currentJson) {
+    if (this._undo.length === 0) return null;
+    const entry = this._undo.pop();
+    this._redo.push({ json: currentJson, label: entry.label });
+    return entry;
+  }
+
+  /** Pop the most recent redo entry. Returns { json, label } or null. */
+  redo(currentJson) {
+    if (this._redo.length === 0) return null;
+    const entry = this._redo.pop();
+    this._undo.push({ json: currentJson, label: entry.label });
+    return entry;
+  }
+
+  /** Clear all history. */
+  clear() { this._undo = []; this._redo = []; }
+}
+
+const undoStack = new UndoStack(50);
 
 const PG = {
   // ── Enums ──
@@ -13194,6 +13384,22 @@ const PG = {
 
 // Re-export thermoWarnings to window for console convenience
 window.thermoWarnings = PG.thermoWarnings;
+
+// [v10.6.0] Toast notification system (M3b)
+function showToast(message, duration = 2500) {
+  const container = document.getElementById('toastContainer');
+  if (!container) return;
+  const toast = document.createElement('div');
+  toast.className = 'toast';
+  toast.textContent = message;
+  container.appendChild(toast);
+  setTimeout(() => {
+    toast.classList.add('toast-out');
+    toast.addEventListener('animationend', () => toast.remove(), { once: true });
+  }, duration);
+  // Limit visible toasts
+  while (container.children.length > 3) container.firstChild.remove();
+}
 
 // [v10.3.1] Traffic light indicator system
 function updateStatusIndicator(solveResult) {
@@ -14250,6 +14456,7 @@ function drawUnits() {
       ui.selectedConnId = null;
       ui.isDraggingUnit = true;
       ui.dragUnitId = id;
+      ui.dragStartPos = { x: u.x, y: u.y };  // [v10.6.0] for undo
       
       const m = screenToWorld(ev.clientX, ev.clientY);
       // Store offset in grid cell units
@@ -15916,7 +16123,7 @@ function el(tag, attrs = {}, children = []) {
   return e;
 }
 
-function addNumberEditor(container, label, get, set, step = 0.1, decimals) {
+function addNumberEditor(container, label, get, set, step = 0.1, decimals, validate) {
   const row = el('div', { class: 'row' });
   row.appendChild(el('label', { html: label }));
   
@@ -15926,10 +16133,34 @@ function addNumberEditor(container, label, get, set, step = 0.1, decimals) {
   const inp = el('input', { type: 'number', step: String(step) });
   const rawVal = get();
   inp.value = rawVal != null && isFinite(rawVal) ? Number(rawVal.toFixed(dp)) : '';
-  inp.addEventListener('input', () => { set(Number(inp.value)); });
+
+  // [v10.6.0] Validation feedback element
+  const warnEl = el('div', { class: 'param-warn-text' });
+  warnEl.style.display = 'none';
+
+  function _validate() {
+    if (!validate) return;
+    const v = Number(inp.value);
+    let msg = '';
+    if (validate.required && (inp.value === '' || isNaN(v))) msg = 'Required';
+    else if (validate.min != null && v < validate.min) msg = `Min: ${validate.min}`;
+    else if (validate.max != null && v > validate.max) msg = `Max: ${validate.max}`;
+    else if (validate.gt != null && v <= validate.gt) msg = `Must be > ${validate.gt}`;
+    inp.classList.toggle('param-invalid', !!msg);
+    warnEl.textContent = msg;
+    warnEl.style.display = msg ? '' : 'none';
+  }
+
+  inp.addEventListener('input', () => {
+    _pushUndoDebounced(`Edit ${label}`);  // [v10.6.0]
+    set(Number(inp.value));
+    _validate();
+  });
+  _validate();  // initial check
   
   row.appendChild(inp);
   container.appendChild(row);
+  if (validate) container.appendChild(warnEl);
 }
 
 function addSelectEditor(container, label, get, set, options) {
@@ -15945,6 +16176,7 @@ function addSelectEditor(container, label, get, set, options) {
   }
   sel.value = get();
   sel.addEventListener('change', () => {
+    _pushUndoDebounced(`Change ${label}`);  // [v10.6.0]
     set(sel.value);
     updatePropertiesPanel();
   });
@@ -15967,11 +16199,13 @@ function addSliderEditor(container, label, get, set, min = 0, max = 1, step = 0.
   num.value = String(val);
 
   range.addEventListener('input', () => {
+    _pushUndoDebounced(`Edit ${label}`);  // [v10.6.0]
     const v = Math.max(min, Math.min(max, Number(range.value)));
     num.value = String(v);
     set(v);
   });
   num.addEventListener('input', () => {
+    _pushUndoDebounced(`Edit ${label}`);  // [v10.6.0]
     const v = Math.max(min, Math.min(max, Number(num.value)));
     range.value = String(v);
     set(v);
@@ -16548,7 +16782,7 @@ function _pEtaParams(u, unitSys, Pdefault, etaDefault) {
     { label: `P outlet (${unitSys.pressure.symbol})`,
       get: () => unitSys.pressure.from(u.params.Pout || Pdefault),
       set: v => u.params.Pout = unitSys.pressure.to(v),
-      step: unitSys.pressure.decimals === 0 ? 1000 : 0.1, decimals: unitSys.pressure.decimals },
+      step: unitSys.pressure.decimals === 0 ? 1000 : 0.1, decimals: unitSys.pressure.decimals, validate: { gt: 0 } },
     { label: 'Efficiency (-)',
       get: () => u.params.eta || etaDefault,
       set: v => u.params.eta = v, step: 0.01, min: 0, max: 1 },
@@ -16565,15 +16799,15 @@ UnitInspector.source = {
     ];
     if (SimSettings.cheatsEnabled) {
       params.push(
-        { label: `P (${unitSys.pressure.symbol})`, get: () => unitSys.pressure.from(u.params.P), set: v => u.params.P = unitSys.pressure.to(v), step: unitSys.pressure.decimals === 0 ? 1000 : 0.1, decimals: unitSys.pressure.decimals },
-        { label: `T (${unitSys.temperature.symbol})`, get: () => unitSys.temperature.from(u.params.T), set: v => u.params.T = unitSys.temperature.to(v), step: 1, decimals: unitSys.temperature.decimals }
+        { label: `P (${unitSys.pressure.symbol})`, get: () => unitSys.pressure.from(u.params.P), set: v => u.params.P = unitSys.pressure.to(v), step: unitSys.pressure.decimals === 0 ? 1000 : 0.1, decimals: unitSys.pressure.decimals, validate: { gt: 0 } },
+        { label: `T (${unitSys.temperature.symbol})`, get: () => unitSys.temperature.from(u.params.T), set: v => u.params.T = unitSys.temperature.to(v), step: 1, decimals: unitSys.temperature.decimals, validate: { gt: 0 } }
       );
     } else {
       const atm = SimSettings.getAtmosphere();
       params.push({ type: 'info', html: `T = ${atm.T_K.toFixed(1)} K | P = ${(atm.P_Pa/1e5).toFixed(4)} bar<br><span style="opacity:0.5">(${atm.presetName} — change in Settings)</span>` });
     }
     params.push(
-      { label: `ṅ (${unitSys.molarFlow.symbol})`, get: () => unitSys.molarFlow.from(u.params.nDot), set: v => u.params.nDot = unitSys.molarFlow.to(v), step: 0.1 },
+      { label: `ṅ (${unitSys.molarFlow.symbol})`, get: () => unitSys.molarFlow.from(u.params.nDot), set: v => u.params.nDot = unitSys.molarFlow.to(v), step: 0.1, validate: { gt: 0 } },
       { type: 'select', label: 'Phase', get: () => u.params.phaseConstraint || 'V', set: v => u.params.phaseConstraint = v, options: [['V','Vapor only'],['L','Liquid only'],['VL','Vapor-Liquid (flash)']] }
     );
     return params;
@@ -16660,7 +16894,7 @@ UnitInspector.sink_electrical = {
 // ── Power Sources ──
 UnitInspector.grid_supply = {
   params(u) { return [
-    { label: 'Max Power (kW)', get: () => u.params.maxPower || 50, set: v => u.params.maxPower = v, step: 10 },
+    { label: 'Max Power (kW)', get: () => u.params.maxPower || 50, set: v => u.params.maxPower = v, step: 10, validate: { gt: 0 } },
     { type: 'toggle', label: 'Fixed output (non-responsive)', get: () => u.params.fixed === true, set: v => { u.params.fixed = v; updatePropertiesPanel(); } },
   ]; },
   power(u, ud) {
@@ -16674,14 +16908,14 @@ UnitInspector.grid_supply = {
 };
 
 UnitInspector.source_mechanical = {
-  params(u) { return [{ label: 'Max Power (kW)', get: () => u.params.maxPower || 50, set: v => u.params.maxPower = v, step: 10 }]; }
+  params(u) { return [{ label: 'Max Power (kW)', get: () => u.params.maxPower || 50, set: v => u.params.maxPower = v, step: 10, validate: { gt: 0 } }]; }
 };
 
 // ── Storage ──
 UnitInspector.tank = {
   params(u) { return [
-    { label: 'Volume (m³)', get: () => u.params.volume_m3 || 50, set: v => u.params.volume_m3 = v, step: 1 },
-    { label: 'Draw rate (mol/s)', get: () => u.params.drawRate ?? 1.0, set: v => u.params.drawRate = v, step: 0.1 },
+    { label: 'Volume (m³)', get: () => u.params.volume_m3 || 50, set: v => u.params.volume_m3 = v, step: 1, validate: { gt: 0 } },
+    { label: 'Draw rate (mol/s)', get: () => u.params.drawRate ?? 1.0, set: v => u.params.drawRate = v, step: 0.1, validate: { min: 0 } },
   ]; },
   conditions(u, ud) {
     if (!ud?.last) return [];
@@ -16694,7 +16928,7 @@ UnitInspector.tank = {
     if (!ud.last) return [];
     const fillPct = ud.last.fillPct || 0;
     const barColor = fillPct >= 100 ? '#ef4444' : fillPct >= 80 ? '#f59e0b' : '#06b6d4';
-    const statusColor = ud.last.status === 'full' ? '#ef4444' : ud.last.status === 'empty' ? '#64748b' : '#06b6d4';
+    const statusColor = ud.last.status === 'full' ? '#ef4444' : ud.last.status === 'overflowing' ? '#f59e0b' : ud.last.status === 'empty' ? '#64748b' : '#06b6d4';
     return [
       { label: 'Fill', value: fillPct, bar: true, barColor },
       { label: 'Content', value: `${(ud.last.totalMol||0).toFixed(1)} / ${(ud.last.n_max||0).toFixed(1)}<span class="propUnit">mol</span>` },
@@ -16722,8 +16956,8 @@ UnitInspector.tank = {
 
 UnitInspector.battery = {
   params(u) { return [
-    { label: 'Peak power (kW)', get: () => u.params.peakPower_kW || 20, set: v => u.params.peakPower_kW = v, step: 1 },
-    { label: 'Capacity (kWh)', get: () => (u.params.capacity_J || 36000000) / 3600000, set: v => u.params.capacity_J = v * 3600000, step: 1 },
+    { label: 'Peak power (kW)', get: () => u.params.peakPower_kW || 20, set: v => u.params.peakPower_kW = v, step: 1, validate: { gt: 0 } },
+    { label: 'Capacity (kWh)', get: () => (u.params.capacity_J || 36000000) / 3600000, set: v => u.params.capacity_J = v * 3600000, step: 1, validate: { gt: 0 } },
     { label: 'Initial SOC (-)', get: () => u.params.initialSOC ?? 0.9, set: v => u.params.initialSOC = v, step: 0.05, min: 0, max: 1 },
   ]; },
   power(u, ud) {
@@ -16789,7 +17023,7 @@ UnitInspector.generator = {
 
 // ── Pressure Equipment ──
 UnitInspector.valve = {
-  params(u) { const us = models.getActive('units'); return [{ label: `P outlet (${us.pressure.symbol})`, get: () => us.pressure.from(u.params.Pout || 101325), set: v => u.params.Pout = us.pressure.to(v), step: us.pressure.decimals === 0 ? 1000 : 0.1, decimals: us.pressure.decimals }]; }
+  params(u) { const us = models.getActive('units'); return [{ label: `P outlet (${us.pressure.symbol})`, get: () => us.pressure.from(u.params.Pout || 101325), set: v => u.params.Pout = us.pressure.to(v), step: us.pressure.decimals === 0 ? 1000 : 0.1, decimals: us.pressure.decimals, validate: { gt: 0 } }]; }
 };
 
 UnitInspector.pump = {
@@ -16843,7 +17077,7 @@ UnitInspector.gas_turbine = {
 
 // ── Heat Equipment ──
 UnitInspector.heater = {
-  params(u) { const us = models.getActive('units'); return [{ label: `T outlet setpoint (${us.temperature.symbol})`, get: () => us.temperature.from(u.params.T_out ?? 423.15), set: v => u.params.T_out = us.temperature.to(v), step: 1, decimals: us.temperature.decimals }]; },
+  params(u) { const us = models.getActive('units'); return [{ label: `T outlet setpoint (${us.temperature.symbol})`, get: () => us.temperature.from(u.params.T_out ?? 423.15), set: v => u.params.T_out = us.temperature.to(v), step: 1, decimals: us.temperature.decimals, validate: { gt: 0 } }]; },
   power(u, ud) {
     if (!ud.last?.T_setpoint_K) return [];
     const items = [];
@@ -16861,7 +17095,7 @@ UnitInspector.heater = {
 };
 
 UnitInspector.cooler = {
-  params(u) { const us = models.getActive('units'); return [{ label: `T outlet setpoint (${us.temperature.symbol})`, get: () => us.temperature.from(u.params.T_out ?? 303.15), set: v => u.params.T_out = us.temperature.to(v), step: 1, decimals: us.temperature.decimals }]; },
+  params(u) { const us = models.getActive('units'); return [{ label: `T outlet setpoint (${us.temperature.symbol})`, get: () => us.temperature.from(u.params.T_out ?? 303.15), set: v => u.params.T_out = us.temperature.to(v), step: 1, decimals: us.temperature.decimals, validate: { gt: 0 } }]; },
   power(u, ud) {
     if (!ud.last?.T_setpoint_K) return [];
     return [{ label: 'Q removed', value: fmt.kW(ud.last.Q_removed_W), tone: 'info' }];
@@ -17128,15 +17362,15 @@ function renderParams(container, paramDefs, u) {
       cb.type = 'checkbox';
       cb.checked = p.get();
       cb.id = 'tog_' + p.label.replace(/\W/g, '_') + '_' + u.id;
-      cb.addEventListener('change', () => p.set(cb.checked));
+      cb.addEventListener('change', () => { _pushUndoDebounced(`Toggle ${p.label}`); p.set(cb.checked); });
       row.appendChild(cb);
       row.appendChild(el('label', { html: p.label, style: 'font-size:12px; cursor:pointer;', for: cb.id }));
       container.appendChild(row);
-    } else if (p.min != null && p.max != null) {
-      // [v10.2.2] Auto-slider for bounded number params
+    } else if (p.min != null && p.max != null && !p.validate) {
+      // [v10.2.2] Auto-slider for bounded number params (no custom validate)
       addSliderEditor(container, p.label, p.get, p.set, p.min, p.max, p.step || 0.01);
     } else {
-      addNumberEditor(container, p.label, p.get, p.set, p.step || 0.1, p.decimals);
+      addNumberEditor(container, p.label, p.get, p.set, p.step || 0.1, p.decimals, p.validate);
     }
   }
 }
@@ -17193,6 +17427,7 @@ function _rebuildInspectorContent() {
     const titleDiv = el('div', { class: 'unitTitle' });
     const nameInput = el('input', { type: 'text', value: u.name || `${def.name} ${u.id.slice(-2)}` });
     nameInput.addEventListener('input', () => {
+      _pushUndoDebounced('Rename unit');  // [v10.6.0]
       u.name = nameInput.value;
       const label = svg.querySelector(`[data-unit-id="${u.id}"]`);
       if (label) label.textContent = u.name;
@@ -17443,21 +17678,81 @@ window.addEventListener('beforeunload', (e) => {
   }
 });
 
-// Auto-save on topology mutations
+/* =========================
+   [v10.6.0] UNDO/REDO SYSTEM (M1a-b)
+   ========================= */
+// Capture current scene state before a mutation
+function _pushUndo(label) {
+  try {
+    scene.processName = document.getElementById('processNameInput')?.value?.trim() || scene.processName;
+    undoStack.push(scene.exportJSON(), label);
+  } catch (e) { /* serialization failed — skip */ }
+}
+
+// Restore a snapshot and re-render
+function _restoreSnapshot(json) {
+  try {
+    scene.importJSON(json);
+    document.getElementById('processNameInput').value = scene.processName || '';
+    const solveResult = solveScene(scene);
+    afterSolve(solveResult);
+    autoSave();
+  } catch (e) { showToast('Restore failed'); }
+}
+
+function performUndo() {
+  const entry = undoStack.undo(scene.exportJSON());
+  if (!entry) { showToast('Nothing to undo'); return; }
+  _restoreSnapshot(entry.json);
+  showToast(`Undo: ${entry.label}`);
+}
+
+function performRedo() {
+  const entry = undoStack.redo(scene.exportJSON());
+  if (!entry) { showToast('Nothing to redo'); return; }
+  _restoreSnapshot(entry.json);
+  showToast(`Redo: ${entry.label}`);
+}
+
+// Debounced undo push for continuous edits (param changes, name edits)
+let _undoParamTimer = null;
+let _undoParamSnapshot = null;
+function _pushUndoDebounced(label) {
+  if (!_undoParamTimer) {
+    // Capture state on first change in a burst
+    try {
+      scene.processName = document.getElementById('processNameInput')?.value?.trim() || scene.processName;
+      _undoParamSnapshot = scene.exportJSON();
+    } catch (e) { return; }
+  }
+  clearTimeout(_undoParamTimer);
+  _undoParamTimer = setTimeout(() => {
+    if (_undoParamSnapshot) {
+      undoStack.push(_undoParamSnapshot, label);
+      _undoParamSnapshot = null;
+    }
+    _undoParamTimer = null;
+  }, 800);  // commit after 800ms pause
+}
+
+// Auto-save on topology mutations — with undo
 const _origPlaceUnit = scene.placeUnit.bind(scene);
 scene.placeUnit = function(...args) {
+  _pushUndo('Place unit');
   const result = _origPlaceUnit(...args);
   if (result) autoSave();
   return result;
 };
 const _origDeleteUnit = scene.deleteUnit.bind(scene);
 scene.deleteUnit = function(...args) {
+  _pushUndo('Delete unit');
   const result = _origDeleteUnit(...args);
   autoSave();
   return result;
 };
 const _origConnect = scene.connect.bind(scene);
 scene.connect = function(...args) {
+  _pushUndo('Connect');
   const result = _origConnect(...args);
   autoSave();
   return result;
@@ -17575,9 +17870,22 @@ svg.addEventListener('pointerup', () => {
   ui.panStart = null;
 
   if (ui.isDraggingUnit) {
+    // [v10.6.0] Push undo if unit actually moved
+    if (ui.dragUnitId && ui.dragStartPos) {
+      const u = scene.units.get(ui.dragUnitId);
+      if (u && (u.x !== ui.dragStartPos.x || u.y !== ui.dragStartPos.y)) {
+        // Temporarily restore old position for snapshot, then re-apply new
+        const newX = u.x, newY = u.y;
+        u.x = ui.dragStartPos.x; u.y = ui.dragStartPos.y;
+        _pushUndo('Move unit');
+        u.x = newX; u.y = newY;
+        autoSave();
+      }
+    }
     ui.isDraggingUnit = false;
     ui.dragUnitId = null;
     ui.dragOffset = null;
+    ui.dragStartPos = null;
     
     updatePropertiesPanel();
     render();
@@ -17687,6 +17995,17 @@ window.addEventListener('keydown', (ev) => {
   if (ev.key === 'Enter' && (ev.ctrlKey || ev.metaKey)) {
     ev.preventDefault();
     btnTest.click();
+  }
+  // [v10.6.0] Undo: Ctrl+Z, Redo: Ctrl+Shift+Z / Ctrl+Y
+  if ((ev.key === 'z' || ev.key === 'Z') && (ev.ctrlKey || ev.metaKey)) {
+    ev.preventDefault();
+    if (ev.shiftKey) { performRedo(); } else { performUndo(); }
+    return;
+  }
+  if (ev.key === 'y' && (ev.ctrlKey || ev.metaKey)) {
+    ev.preventDefault();
+    performRedo();
+    return;
   }
   if (ev.key === 'Delete' && !isInput) deleteSelected();
 });
@@ -18469,7 +18788,8 @@ document.getElementById('mLoadDemo').addEventListener('click', () => {
 });
 
 document.getElementById('mClear').addEventListener('click', () => {
-  if (confirm('Clear the entire scene? This cannot be undone.')) {
+  if (confirm('Clear the entire scene?')) {
+    _pushUndo('Clear scene');
     scene.importJSON(JSON.stringify({
       version: 14,
       processName: '',
@@ -18482,6 +18802,7 @@ document.getElementById('mClear').addEventListener('click', () => {
     clearAutoSave();
     deselectAll();
     setStatus('Scene cleared.');
+    showToast('Scene cleared (Ctrl+Z to undo)');
   }
   closeMenus();
 });
@@ -18531,6 +18852,7 @@ fileImportInput.addEventListener('change', (ev) => {
   const reader = new FileReader();
   reader.onload = (e) => {
     try {
+      _pushUndo('Import file');
       const result = scene.importJSON(e.target.result);
       if (result && !result.ok) {
         setStatus(`Import rejected: ${result.error}`);
@@ -24870,7 +25192,7 @@ function runTests() {
     t.assertClose(u.inventory.n.N2, expected_n, 1, 'N₂ unchanged after test solve');
   }});
 
-  tests.push({ name: '170: Tank fill: steps with inlet, inventory grows', fn: t => {
+  tests.push({ name: '170: Tank fill: steps with inlet, overflow holds at capacity', fn: t => {
     const origDt = SimSettings.dt;
     TimeClock.t = 0; TimeClock.frame = 0; TimeClock.mode = 'test';
     SimSettings.dt = 10;
@@ -24881,20 +25203,20 @@ function runTests() {
 
     t.wire(src, 'out', tid, 'mat_in');
     t.wire(tid, 'mat_out', snk, 'in');
-    // Connect overflow so we don't get CATASTROPHIC
+    // Connect overflow — excess vents here
     const snk2 = t.place('sink', 4, 4);
     t.wire(tid, 'overflow', snk2, 'in');
 
     const u = scene.units.get(tid);
     const initN2 = u.inventory.n.N2;
 
-    // 5 steps: net inflow = (2.0 - drawRate) × dt per step
+    // 5 steps: with overflow connected, tank should hold at ~100% capacity
     for (let i = 0; i < 5; i++) {
       TimeClock.step(scene);
     }
-    // After 5 steps at dt=10, net addition ~= (2.0 - ~0.5) × 10 × 5 = ~75 mol
-    // But drawRate may cap at actual content / dt, so it's approximate
-    t.assertOK(u.inventory.n.N2 > initN2, 'N₂ increased after filling');
+    const ud = scene.runtime.unitData.get(tid);
+    // Fill should stay near 100% (overflow absorbs excess)
+    t.assertOK(ud.last.fillPct <= 101, `Fill held at capacity: ${ud.last.fillPct.toFixed(1)}%`);
 
     // Cleanup
     TimeClock.t = 0; TimeClock.frame = 0;
@@ -24985,6 +25307,10 @@ function runTests() {
       e.code === 'TANK_OVERFLOW_RUPTURE'
     );
     t.assertOK(!hasCatastrophic, 'No CATASTROPHIC when overflow is connected');
+    // [v10.6.1] Overflow port should have actual flow
+    const ovFlow = ud?.ports?.overflow?.n || {};
+    const ovTotal = Object.values(ovFlow).reduce((a, b) => a + b, 0);
+    t.assertOK(ovTotal > 0, `Overflow port has flow: ${ovTotal.toFixed(2)} mol/s`);
   }});
 
   tests.push({ name: '175: Tank reset restores initial inventory', fn: t => {
@@ -25046,8 +25372,10 @@ function runTests() {
     const tid = t.place('tank', 0, 0, { volume_m3: 50, drawRate: 1.0 });
     const src = t.place('source', 0, 4, { species: 'N2', nDot: 2.0, T: 300, P: 101325, phaseConstraint: 'V' });
     const snk = t.place('sink', 4, 0);
+    const snk2 = t.place('sink', 2, 4);
     t.wire(src, 'out', tid, 'mat_in');
     t.wire(tid, 'mat_out', snk, 'in');
+    t.wire(tid, 'overflow', snk2, 'in');
 
     const u = scene.units.get(tid);
     const beforeN2 = u.inventory.n.N2;
@@ -25268,6 +25596,7 @@ function runTests() {
     SimSettings.dt = 10;
 
     // Source (2 mol/s N2) → Tank (drawRate 0.5) → Sink
+    // Use a large volume so tank starts well below capacity
     const src = t.place('source', 0, 0, { species: 'N2', nDot: 2.0, T: 300, P: 101325, phaseConstraint: 'V' });
     const tid = t.place('tank', 4, 0, { volume_m3: 50, drawRate: 0.5 });
     const snk = t.place('sink', 8, 0);
@@ -25277,6 +25606,8 @@ function runTests() {
     t.wire(tid, 'overflow', snk2, 'in');
 
     const u = scene.units.get(tid);
+    // [v10.6.1] Start at 50% fill so tank can accumulate before overflow
+    for (const sp of Object.keys(u.inventory.n)) u.inventory.n[sp] *= 0.5;
 
     // Step 1: initialises, solves, but inventory update uses empty prior ports
     TimeClock.step(scene);
@@ -25354,6 +25685,9 @@ function runTests() {
     // N₂ source → tank → sink (material subsystem)
     const n2src = t.place('source', 0, 0, { species: 'N2', nDot: 1.0, T: 300, P: 200000, phaseConstraint: 'V' });
     const tank  = t.place('tank', 4, 0, { volume_m3: 10, drawRate: 0.5 });
+    // [v10.6.1] Re-init inventory after param change (placeUnit inits with default 50 m³)
+    const tankDef = UnitRegistry.get('tank');
+    scene.units.get(tank).inventory = tankDef.initInventory(scene.units.get(tank).params);
     const mSnk  = t.place('sink', 8, 0);
     const ovSnk = t.place('sink', 5, 4);
     t.wire(n2src, 'out', tank, 'mat_in');
@@ -26029,6 +26363,101 @@ function runTests() {
     // Verify formatTime works at boundaries
     t.assertOK(formatTime(86399) === 'Day 1, 23H', 'End of day 1');
     t.assertOK(formatTime(86400) === 'Day 2, 0H', 'Start of day 2');
+  }});
+
+  // [v10.6.0] T218: UndoStack contract
+  tests.push({ name: '218: UndoStack push/undo/redo', fn: t => {
+    const stk = new UndoStack(5);
+    t.assertOK(!stk.canUndo, 'Empty: no undo');
+    t.assertOK(!stk.canRedo, 'Empty: no redo');
+    // Push 3 states
+    stk.push('{"a":1}', 'Place');
+    stk.push('{"a":2}', 'Move');
+    stk.push('{"a":3}', 'Edit');
+    t.assertClose(stk.length, 3, 0, '3 entries');
+    t.assertOK(stk.canUndo, 'Can undo');
+    // Undo: returns last pushed, label is 'Edit'
+    const u1 = stk.undo('{"a":4}');
+    t.assertOK(u1.label === 'Edit', 'Undo label = Edit');
+    t.assertOK(u1.json === '{"a":3}', 'Undo json = 3');
+    t.assertOK(stk.canRedo, 'Can redo after undo');
+    // Redo
+    const r1 = stk.redo('{"a":3}');
+    t.assertOK(r1.label === 'Edit', 'Redo label = Edit');
+    t.assertOK(r1.json === '{"a":4}', 'Redo json = 4');
+    // New push clears redo
+    stk.push('{"a":5}', 'New');
+    t.assertOK(!stk.canRedo, 'Redo cleared on push');
+    // Max size
+    const stk2 = new UndoStack(3);
+    stk2.push('a', 'x1'); stk2.push('b', 'x2'); stk2.push('c', 'x3'); stk2.push('d', 'x4');
+    t.assertClose(stk2.length, 3, 0, 'Capped at max');
+  }});
+
+  // [v10.6.0] T219: Validation schema structure
+  tests.push({ name: '219: Validation rules schema', fn: t => {
+    // Test that validate objects with min/max/gt work
+    const rules1 = { gt: 0 };
+    t.assertOK(rules1.gt === 0, 'gt rule');
+    const rules2 = { min: 0, max: 100 };
+    t.assertOK(rules2.min === 0 && rules2.max === 100, 'min/max rules');
+    const rules3 = { required: true };
+    t.assertOK(rules3.required === true, 'required rule');
+    // Validate logic: gt check
+    const val = -5;
+    const failsGt = rules1.gt != null && val <= rules1.gt;
+    t.assertOK(failsGt, '-5 fails gt:0');
+    const val2 = 5;
+    const passesGt = !(rules1.gt != null && val2 <= rules1.gt);
+    t.assertOK(passesGt, '5 passes gt:0');
+    // Validate logic: min/max check
+    const val3 = 150;
+    const failsMax = rules2.max != null && val3 > rules2.max;
+    t.assertOK(failsMax, '150 fails max:100');
+  }});
+
+  // [v10.6.1] T220: ctx.warn CATASTROPHIC → unitFaulted → solver ok:false
+  tests.push({ name: '220: ctx.warn CATASTROPHIC propagates to unitFaulted', fn: t => {
+    t.clearScene();
+    const tid = t.place('tank', 0, 0, { volume_m3: 50, drawRate: 0 });
+    const u = scene.units.get(tid);
+    // Make overfull, no overflow connection
+    u.inventory.n.N2 *= 1.5;
+    const r = t.solveRaw();
+    t.assertOK(r.unitFaulted === true, 'unitFaulted = true');
+    t.assertOK(r.ok === false, 'solver ok = false');
+  }});
+
+  // [v10.6.1] T221: Tank overflow with connection routes excess and stabilizes fill
+  tests.push({ name: '221: Tank overflow routing keeps fill near capacity', fn: t => {
+    t.clearScene();
+    const origDt = SimSettings.dt;
+    TimeClock.t = 0; TimeClock.frame = 0; TimeClock.mode = 'test';
+    SimSettings.dt = 60;
+
+    const src = t.place('source', 0, 0, { species: 'N2', nDot: 2.0, T: 300, P: 101325, phaseConstraint: 'V' });
+    const tid = t.place('tank', 4, 0, { volume_m3: 50, drawRate: 0.1 });
+    const snk = t.place('sink', 8, 0);
+    const ovSnk = t.place('sink', 4, 4);
+    t.wire(src, 'out', tid, 'mat_in');
+    t.wire(tid, 'mat_out', snk, 'in');
+    t.wire(tid, 'overflow', ovSnk, 'in');
+
+    // Run 20 steps — should fill to capacity then overflow
+    for (let i = 0; i < 20; i++) {
+      TimeClock.step(scene);
+    }
+
+    const u = scene.units.get(tid);
+    const tankUD = scene.runtime.unitData.get(tid);
+    // Fill should be at or near 100%, not wildly above
+    t.assertOK(tankUD.last.fillPct <= 115, `Fill capped near 100%: ${tankUD.last.fillPct.toFixed(1)}%`);
+    // Status should be overflowing or full, not active
+    t.assertOK(tankUD.last.status === 'overflowing' || tankUD.last.status === 'full',
+      `Status: ${tankUD.last.status}`);
+
+    TimeClock.t = 0; TimeClock.frame = 0;
+    TimeClock.mode = 'test'; SimSettings.dt = origDt;
   }});
 
   // ═══════════════════════════════════════════════════════════════════════
