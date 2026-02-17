@@ -18,8 +18,13 @@
 
   STAGGER — multiple arrows distributed along path:
   Each arrow gets animation-delay = -(i/n) × duration, keeping arrows
-  evenly spread during animation. Uses data-chord, data-arrow-idx,
-  data-arrow-count attributes set at render time.
+  evenly spread during animation.
+
+  RENDER-INLINE ANIMATION:
+  Duration, delay, and active class are all computed inline during render()
+  when play is active. This makes arrows survive any re-render (zoom, pan,
+  selection, hover) without resetting. _startFlowArrows() delegates to
+  render(); _stopFlowArrows() does immediate DOM cleanup.
 
   CSS: --flow-duration replaces --flow-speed variable.
 
@@ -14030,6 +14035,10 @@ function drawConnections() {
     const arrowPositions = _arrowPositions(nArrows);
     const arrowColor = isSelected ? '#60a5fa' : visuals.color;
     const isPlaying = TimeClock.mode === 'playing' && SimSettings.animations;
+    // Precompute animation params once per connection (not per arrow)
+    const _refPx = 200;
+    const _baseSec = isPlaying ? (parseFloat(FLOW_ARROW_SPEEDS[SimSettings.playSpeed || 0]) || 3) : 0;
+    const _dur = isPlaying ? Math.max(0.3, Math.min(8, _baseSec * (chordPx / _refPx))) : 0;
 
     for (let ai = 0; ai < nArrows; ai++) {
       const pct = arrowPositions[ai];
@@ -14043,11 +14052,11 @@ function drawConnections() {
       arrowG.style.offsetDistance = `${(pct * 100).toFixed(1)}%`;
       arrowG.style.offsetRotate = 'auto';
       arrowG.classList.add('flow-arrow');
-      // Store data for uniform-speed animation
-      arrowG.dataset.chord = chordPx.toFixed(0);
-      arrowG.dataset.arrowIdx = ai;
-      arrowG.dataset.arrowCount = nArrows;
-      if (isPlaying) arrowG.classList.add('flow-arrow-active');
+      if (isPlaying) {
+        arrowG.style.setProperty('--flow-duration', _dur + 's');
+        if (nArrows > 1) arrowG.style.animationDelay = `${-(ai / nArrows) * _dur}s`;
+        arrowG.classList.add('flow-arrow-active');
+      }
       g.appendChild(arrowG);
     }
   }
@@ -17705,30 +17714,19 @@ function _triggerFailureShakes() {
 // ── Play loop ── (PLAY_SPEEDS and FLOW_ARROW_SPEEDS moved to block 1)
 let _playTimer = null;
 
+// [v10.5.2] Arrow animation is now fully inline in render().
+// _startFlowArrows just triggers a re-render so arrows pick up play state.
 function _startFlowArrows() {
   if (!SimSettings.animations) return;
-  const baseSec = parseFloat(FLOW_ARROW_SPEEDS[SimSettings.playSpeed || 0]) || 3;
-  const refPx = 200;  // reference chord length for base duration
-
-  document.querySelectorAll('.flow-arrow').forEach(el => {
-    const chord = parseFloat(el.dataset.chord) || refPx;
-    const n = parseInt(el.dataset.arrowCount) || 1;
-    const i = parseInt(el.dataset.arrowIdx) || 0;
-    // Duration scales with chord length so all arrows move at same visual speed
-    const dur = Math.max(0.3, Math.min(8, baseSec * (chord / refPx)));
-    el.style.setProperty('--flow-duration', dur + 's');
-    // Stagger: negative delay spreads arrows evenly along the path
-    if (n > 1) {
-      el.style.animationDelay = `${-(i / n) * dur}s`;
-    }
-    el.classList.add('flow-arrow-active');
-  });
+  render();
 }
 
+// _stopFlowArrows removes animation from existing DOM immediately (no render wait)
 function _stopFlowArrows() {
   document.querySelectorAll('.flow-arrow').forEach(el => {
     el.classList.remove('flow-arrow-active');
     el.style.animationDelay = '';
+    el.style.removeProperty('--flow-duration');
   });
 }
 
