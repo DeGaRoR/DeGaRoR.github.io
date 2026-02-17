@@ -3,6 +3,88 @@
   ═══════════════════════════════════════════════════════════════════════════
   processThis v9.1.0
 
+  ─── v10.3.2 ──────────────────────────────────────────────────────────────
+  Bottom bar icon cleanup.
+
+  ACTION BAR:
+  - All buttons icon-only — removed text labels (Test, Step, Play,
+    Fit, Reset). Transport icons ⟳ ▶| ▶ ⏸ ↺ already recognizable.
+  - Fit icon: 4 expanding corner arrows (SVG). Universally recognized
+    as "fit to content" / "expand to fill".
+  - Reset icon: clock/compass circle (SVG). Recognizable as "reset view".
+  - Custom CSS tooltips (data-tip) replace native title attribute.
+    Near-instant (80ms transition), bright fill (#e2e8f0 on dark),
+    12px font. No native tooltip delay.
+  - SVG buttons display:flex for proper alignment.
+
+  Gate: 198/198 tests, 1346 checks, zero regressions.
+
+  ─── v10.3.1 ──────────────────────────────────────────────────────────────
+  Panel hide, traffic lights, animation fix.
+
+  INSPECTOR PANEL HIDES WHEN NOTHING SELECTED:
+  Canvas goes full-width when no unit or stream is selected. Panel
+  reappears instantly on click. CSS class .panel-hidden on .app sets
+  grid-template-columns to 1fr 0px.
+
+  TRAFFIC LIGHT INDICATOR SYSTEM:
+  Replaced the old status indicator pill with 4 traffic-light dots:
+  Convergence | Mass Balance | Energy Balance | Pressure Solve.
+  Each dot is green/amber/red/grey. Hover shows tooltip with details.
+  Message text next to dots for warnings/errors. Gear icon → Solver
+  modal. Message text → Balance Report modal.
+  Pressure dot always green (placeholder until pressure solving).
+
+  BALANCE DISPLAY REMOVED FROM INSPECTOR:
+  The inline balance display in the empty-inspector state is gone.
+  Balance data is now in: (a) traffic light dots (summary),
+  (b) Menu → Balance Report modal (full detail).
+
+  JITTER ANIMATION REMOVED:
+  Deleted ins-animate / ins-enter keyframes. The 0.15s slide-up
+  transition on inspector rebuild was causing unpleasant jitter.
+
+  Gate: 198/198 tests, 1346 checks, zero regressions.
+
+  ─── v10.3.0 ──────────────────────────────────────────────────────────────
+  Phase C — Test recovery, resizable panel, auto-save, balance modal.
+  198/198 tests (was 89/197).
+
+  TEST RECOVERY (108 tests fixed):
+  Three pure-computation functions were stranded in the UI script block
+  (DOM-dependent), unreachable by headless tests:
+  - streamMass_kgps(stream) — mass flow from molar composition
+  - computeSystemBalance(scene) — system-wide mass + energy balance
+  - fmt{} — format helpers (kW, T, P, pct, etc.)
+  - calculateStreamFlowrates(stream) — molar/mass/volumetric flowrates
+  Moved all four to engine block. Exported on PG. The 108 failures were
+  ALL caused by streamMass_kgps being undefined in headless mode.
+
+  T198 STREAM FLOWRATE CONTRACT TEST:
+  Verifies calculateStreamFlowrates returns { nTotal, mTotal, vTotal }
+  for material streams, null for non-material and null inputs.
+
+  E8 OVERLAP PREVENTION: Already existed since v10.0.3.
+
+  M2 RESIZABLE INSPECTOR PANEL:
+  CSS variable --panel-width (default 360px). Drag handle on left edge,
+  blue highlight on hover. Pointer capture: MIN 260px, MAX 700px.
+
+  M8 AUTO-SAVE + BEFOREUNLOAD:
+  - localStorage auto-save (2s debounce) after: solve, place, delete,
+    connect, name change.
+  - Restore from auto-save on page load (skips demo if save exists).
+  - beforeunload warning + final save when scene has units.
+  - Clear Scene clears auto-save.
+  - Corrupt auto-save falls back to demo with message.
+
+  E9 BALANCE REPORT MODAL:
+  Menu → Balance Report opens modal with full mass + energy balance.
+  Summary badges (✓ Closed / ✗ Open), per-boundary-unit breakdown,
+  subtotals, accumulation, residuals with color coding.
+
+  Gate: 198/198 tests, 1346 checks, zero regressions.
+
   ─── v10.2.4 ──────────────────────────────────────────────────────────────
   Visual fix — param zone blue tint, VL per-phase composition.
 
@@ -1302,7 +1384,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>processThis — v10.2.4</title>
+  <title>processThis — v10.3.2</title>
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
@@ -1335,7 +1417,16 @@
     .app { 
       height: 100vh; 
       display: grid; 
-      grid-template-columns: 1fr 360px; 
+      grid-template-columns: 1fr var(--panel-width, 360px);
+      transition: grid-template-columns 0.15s ease;
+    }
+    .app.panel-hidden {
+      grid-template-columns: 1fr 0px;
+    }
+    .app.panel-hidden .rightPanel {
+      overflow: hidden;
+      padding: 0;
+      border-left: none;
     }
     
     .canvasWrap { 
@@ -1358,6 +1449,18 @@
       padding: 14px;
       display: flex;
       flex-direction: column;
+      position: relative;
+    }
+    
+    .panel-resize-handle {
+      position: absolute; left: -3px; top: 0; bottom: 0; width: 6px;
+      cursor: col-resize; z-index: 30;
+      background: transparent;
+      transition: background 0.15s;
+    }
+    .panel-resize-handle:hover,
+    .panel-resize-handle.active {
+      background: #2563eb66;
     }
     
     .rightPanel h2 { 
@@ -1465,10 +1568,31 @@
       user-select: none;
       white-space: nowrap;
       transition: background 0.15s, color 0.15s;
+      display: flex; align-items: center; justify-content: center;
     }
     .zoom-controls .tbtn:first-child { border-radius: 8px 0 0 8px; }
     .zoom-controls .tbtn:last-child  { border-radius: 0 8px 8px 0; }
     .zoom-controls .tbtn:hover { background: #283040; color: #e2e8f0; }
+
+    /* ===== ACTION BAR TOOLTIPS [v10.3.2] ===== */
+    .action-bar .tbtn {
+      position: relative;
+    }
+    .action-bar .tbtn::after {
+      content: attr(data-tip);
+      position: absolute; bottom: calc(100% + 6px); left: 50%;
+      transform: translateX(-50%) scale(0.95);
+      background: #e2e8f0; color: #0f1420;
+      font-size: 12px; font-weight: 600;
+      padding: 4px 8px; border-radius: 4px;
+      white-space: nowrap; pointer-events: none;
+      opacity: 0; transition: opacity 0.08s, transform 0.08s;
+      z-index: 50;
+    }
+    .action-bar .tbtn:hover::after {
+      opacity: 1; transform: translateX(-50%) scale(1);
+    }
+    .action-bar .tbtn svg { display: block; }
 
     /* ===== HOVER HIGHLIGHT (E2) ===== */
     .unit-hover > rect:first-child { filter: url(#hover-brighten); }
@@ -1576,100 +1700,49 @@
     }
 
     /* ===== STATUS INDICATOR ===== */
-    .status-indicator {
+    /* ===== TRAFFIC LIGHT INDICATORS [v10.3.1] ===== */
+    .traffic-lights {
       display: flex;
       align-items: center;
-      gap: 8px;
-      padding: 8px 12px;
-      border-radius: 10px;
-      font-size: 13px;
-      font-weight: 600;
-      border: 2px solid;
-      transition: all 0.3s ease;
+      gap: 5px;
+      padding: 6px 10px;
+      border-radius: 8px;
+      background: #0b0e14cc;
+      backdrop-filter: blur(6px);
     }
-    
-    .status-indicator.idle {
-      background: #1e293b22;
-      border-color: #475569;
-      color: #94a3b8;
+    .tl-dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: #334155;
+      transition: background 0.2s;
+      position: relative;
+      cursor: default;
     }
-    
-    .status-indicator.running {
-      background: #3b82f622;
-      border-color: #3b82f6;
-      color: #60a5fa;
-      animation: pulse 1.5s ease-in-out infinite;
-    }
-    
-    .status-indicator.success {
-      background: #22c55e22;
-      border-color: #22c55e;
-      color: #4ade80;
-    }
-    
-    .status-indicator.warning {
-      background: #fbbf2422;
-      border-color: #fbbf24;
-      color: #fbbf24;
-    }
-    
-    .status-indicator.error {
-      background: #f9731622;
-      border-color: #f97316;
-      color: #f97316;
-    }
-    
-    .status-indicator.critical {
-      background: #ef444422;
-      border-color: #ef4444;
-      color: #ef4444;
-      animation: shake 0.5s ease-in-out;
-    }
-    
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.6; }
-    }
-    
-    @keyframes shake {
-      0%, 100% { transform: translateX(0); }
-      25% { transform: translateX(-4px); }
-      75% { transform: translateX(4px); }
-    }
-    
-    .status-icon {
-      font-size: 16px;
-      line-height: 1;
-    }
-    
-    .status-text {
-      white-space: nowrap;
-    }
-    
-    .status-help {
-      background: transparent;
-      border: 1px solid currentColor;
-      color: inherit;
-      border-radius: 50%;
-      width: 20px;
-      height: 20px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 12px;
-      font-weight: 700;
-      cursor: pointer;
-      padding: 0;
+    .tl-dot.green  { background: #22c55e; box-shadow: 0 0 4px #22c55e88; }
+    .tl-dot.amber  { background: #fbbf24; box-shadow: 0 0 4px #fbbf2488; }
+    .tl-dot.red    { background: #ef4444; box-shadow: 0 0 4px #ef444488; }
+    .tl-dot.grey   { background: #334155; }
+    .tl-msg {
+      font-size: 11px; color: #94a3b8; white-space: nowrap;
+      max-width: 260px; overflow: hidden; text-overflow: ellipsis;
       margin-left: 4px;
-      opacity: 0.8;
-      transition: opacity 0.2s;
     }
-    
-    .status-help:hover {
-      opacity: 1;
-      background: currentColor;
-      color: #0b0e14;
+    .tl-msg.warn { color: #fbbf24; }
+    .tl-msg.err  { color: #ef4444; }
+    .tl-msg.ok   { color: #6ee7b7; }
+    .tl-tip {
+      display: none;
+      position: absolute; bottom: 120%; left: 50%; transform: translateX(-50%);
+      background: #1e293b; color: #e2e8f0; font-size: 11px; padding: 4px 8px;
+      border-radius: 4px; white-space: nowrap; z-index: 40;
+      pointer-events: none; border: 1px solid #334155;
     }
+    .tl-dot:hover .tl-tip { display: block; }
+    .tl-gear {
+      background: transparent; border: none; color: #64748b;
+      cursor: pointer; font-size: 13px; padding: 0 0 0 2px;
+      line-height: 1; transition: color 0.15s;
+    }
+    .tl-gear:hover { color: #e2e8f0; }
     
     .pill { 
       padding: 2px 8px; 
@@ -2576,11 +2649,6 @@
     .ins-divider { border-top: 1px solid #1e2230; margin: 8px 0; }
 
     /* ===== INSPECTOR TRANSITION ===== */
-    @keyframes ins-enter {
-      from { opacity: 0; transform: translateY(6px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-    .ins-animate { animation: ins-enter 0.15s ease-out; }
   </style>
 </head>
 <body>
@@ -2602,6 +2670,7 @@
           </div>
           <div class="item" id="mUnits">Physical Units <span class="hint">display</span></div>
           <div class="item" id="mSolver">Solver <span class="hint">configure</span></div>
+          <div class="item" id="mBalance">Balance Report</div>
           <div class="sep"></div>
           <div class="item" id="mImport">Import Model…</div>
           <div class="item" id="mExport">Export Model…</div>
@@ -2620,12 +2689,15 @@
       <input type="text" id="processNameInput" placeholder="Process name…" spellcheck="false" autocomplete="off">
       </div>
 
-      <!-- Status Indicator (right, no container) -->
+      <!-- Traffic Light Indicators [v10.3.1] -->
       <div class="info-bar-right">
-        <div id="statusIndicator" class="status-indicator" style="display:none;">
-          <div class="status-icon"></div>
-          <div class="status-text"></div>
-          <button class="status-help" title="Open Solver…">⚙</button>
+        <div id="trafficLights" class="traffic-lights" style="display:none;">
+          <div class="tl-dot grey" id="tlConv"><div class="tl-tip">Convergence</div></div>
+          <div class="tl-dot grey" id="tlMass"><div class="tl-tip">Mass Balance</div></div>
+          <div class="tl-dot grey" id="tlEnergy"><div class="tl-tip">Energy Balance</div></div>
+          <div class="tl-dot grey" id="tlPressure"><div class="tl-tip">Pressure Solve</div></div>
+          <span class="tl-msg" id="tlMsg"></span>
+          <button class="tl-gear" id="tlGear" title="Open Solver…">⚙</button>
         </div>
       </div>
     </div>
@@ -2634,22 +2706,22 @@
     <div class="action-bar">
       <!-- Transport controls [v9.0.1] -->
       <div class="transport">
-        <button class="tbtn active" id="btnTest" title="Solve once (no time)">⟳ Test</button>
-        <button class="tbtn" id="btnStep" title="Advance one timestep">▶| Step</button>
-        <button class="tbtn" id="btnPlay" title="Auto-step">▶ Play</button>
-        <button class="tbtn" id="btnPause" title="Pause" disabled>⏸</button>
-        <button class="tbtn" id="btnReset" title="Reset to t=0" disabled>↺</button>
+        <button class="tbtn active" id="btnTest" data-tip="Test (solve once)">⟳</button>
+        <button class="tbtn" id="btnStep" data-tip="Step (advance 1 timestep)">▶|</button>
+        <button class="tbtn" id="btnPlay" data-tip="Play (auto-step)">▶</button>
+        <button class="tbtn" id="btnPause" data-tip="Pause" disabled>⏸</button>
+        <button class="tbtn" id="btnReset" data-tip="Reset to t=0" disabled>↺</button>
       </div>
       <span class="time-display" id="timeDisplay" style="display:none;"></span>
 
       <!-- Zoom controls [v10.1.0] -->
       <div class="zoom-controls">
-        <button class="tbtn" id="btnFit" title="Zoom to fit all units">⊞ Fit</button>
-        <button class="tbtn" id="btnResetView" title="Reset to default view">⊡ Reset</button>
+        <button class="tbtn" id="btnFit" data-tip="Fit all units"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 5V1h4M11 1h4v4M15 11v4h-4M5 15H1v-4"/></svg></button>
+        <button class="tbtn" id="btnResetView" data-tip="Reset view"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="8" cy="8" r="5"/><path d="M8 5v3h3"/></svg></button>
       </div>
 
       <!-- Utilities toggle [v10.1.1] -->
-      <button class="tbtn" id="btnUtilities" title="Show/hide power utilities" style="font-size:14px; border-radius:8px;">⚡</button>
+      <button class="tbtn" id="btnUtilities" data-tip="Show/hide utilities" style="font-size:14px; border-radius:8px;">⚡</button>
     </div>
 
     <!-- Models modal -->
@@ -2699,6 +2771,16 @@
         <h3>Solver</h3>
         <div class="small">Configure iteration method and inspect convergence results.</div>
         <div id="solverPanel" style="margin-top:10px; max-height:60vh; overflow-y:auto;"></div>
+      </div>
+    </div>
+
+    <!-- Settings modal [v8.10.0] -->
+    <div class="modal" id="modalBalance">
+      <div class="modalContent">
+        <button class="modalClose" onclick="document.getElementById('modalBalance').classList.remove('open')">×</button>
+        <h3>System Balance</h3>
+        <div class="small">Mass and energy balance across system boundaries.</div>
+        <div id="balancePanel" style="margin-top:10px; max-height:60vh; overflow-y:auto;"></div>
       </div>
     </div>
 
@@ -3015,7 +3097,8 @@
   </div>
 
   <!-- Right panel for properties and unit library -->
-  <aside class="rightPanel">
+  <aside class="rightPanel" id="rightPanel">
+    <div class="panel-resize-handle" id="panelResizeHandle"></div>
     <div class="card" id="propEditor"></div>
   </aside>
 
@@ -12107,6 +12190,165 @@ function solveScene(scene, options = {}) {
 //   PG.StreamType / PortDir / etc.  → enums
 // ═══════════════════════════════════════════════════════════════════════════════
 
+// [v10.3.0] Moved to engine block for headless test access (was in UI block)
+function streamMass_kgps(stream) {
+  if (!stream?.n) return 0;
+  let mass = 0;
+  for (const [sp, n] of Object.entries(stream.n)) {
+    if (n < 1e-15) continue;
+    const comp = ComponentRegistry.get(sp);
+    mass += n * (comp?.MW || 28) / 1000;  // mol/s × g/mol ÷ 1000 = kg/s
+  }
+  return mass;
+}
+const streamMass_kg = streamMass_kgps;  // back-compat alias
+
+// [v10.3.0] Format helpers — moved to engine for headless test access
+const fmt = {
+  kW:  (W) => W == null || isNaN(W) ? '—' : `${(W/1000).toFixed(2)}<span class="u">kW</span>`,
+  W:   (W) => W == null || isNaN(W) ? '—' : `${W.toFixed(1)}<span class="u">W</span>`,
+  pct: (v) => v == null || isNaN(v) ? '—' : `${(v*100).toFixed(1)}<span class="u">%</span>`,
+  pctRaw: (v) => v == null || isNaN(v) ? '—' : `${v.toFixed(1)}<span class="u">%</span>`,
+  mol: (v) => v == null ? '—' : `${v.toFixed(1)}<span class="u">mol</span>`,
+  flow:(v) => v == null ? '—' : `${v.toFixed(3)}<span class="u">mol/s</span>`,
+  mass:(v) => v == null ? '—' : `${(v*1000).toFixed(2)}<span class="u">g/s</span>`,
+  T:   (K) => { const us = models.getActive('units'); return K == null ? '—' : `${us.temperature.from(K).toFixed(1)}<span class="u">${us.temperature.symbol}</span>`; },
+  P:   (Pa) => { const us = models.getActive('units'); return Pa == null ? '—' : `${us.pressure.from(Pa).toFixed(us.pressure.decimals)}<span class="u">${us.pressure.symbol}</span>`; },
+  time:(s) => { if (s == null || !isFinite(s)) return '—'; const h = Math.floor(s/3600), m = Math.floor((s%3600)/60); return `~${h}:${String(m).padStart(2,'0')}`; },
+  val: (v, u) => v == null || isNaN(v) ? '—' : `${v}<span class="u">${u||''}</span>`,
+};
+
+// [v10.3.0] computeSystemBalance — moved to engine for headless test access
+function computeSystemBalance(scene) {
+  if (!scene.runtime?.unitData) return null;
+  const massInItems = [], massOutItems = [];
+  let totalMassIn = 0, totalMassOut = 0;
+  const energyIn  = { material: 0, electrical: 0, mechanical: 0, heat: 0, items: [] };
+  const energyOut = { material: 0, electrical: 0, mechanical: 0, heat: 0, dissipated: 0, items: [] };
+
+  for (const [id, u] of scene.units) {
+    const def = UnitRegistry.get(u.defId);
+    const ud = scene.runtime.unitData.get(id);
+    if (!ud) continue;
+    const uName = u.name || def.name;
+    const dirs = new Set(def.ports.map(p => p.dir));
+    if (dirs.size !== 1) continue;
+    if (def.inventory) continue;
+    const boundaryDir = [...dirs][0];
+
+    for (const p of def.ports) {
+      const stream = ud.ports?.[p.portId];
+      if (!stream) continue;
+
+      if (p.type === StreamType.MATERIAL && stream.n) {
+        const m = streamMass_kgps(stream);
+        const H = stream.Hdot_J_s ?? thermo.getHdot_Jps(stream);
+        if (boundaryDir === PortDir.OUT) {
+          if (m > 1e-15) { totalMassIn += m; massInItems.push({ name: uName, mass_kgps: m, detail: { ...stream.n } }); }
+          if (isFinite(H)) { energyIn.material += H; energyIn.items.push({ name: uName, type: 'material', value: H }); }
+        } else {
+          if (m > 1e-15) { totalMassOut += m; massOutItems.push({ name: uName, mass_kgps: m, detail: { ...stream.n } }); }
+          if (isFinite(H)) { energyOut.material += H; energyOut.items.push({ name: uName, type: 'material', value: H }); }
+        }
+      } else if (p.type === StreamType.ELECTRICAL || p.type === StreamType.MECHANICAL || p.type === StreamType.HEAT) {
+        const W = stream.actual ?? stream.available ?? 0;
+        if (W <= 0) continue;
+        const eType = p.type === StreamType.ELECTRICAL ? 'electrical' : p.type === StreamType.MECHANICAL ? 'mechanical' : 'heat';
+        if (boundaryDir === PortDir.OUT) { energyIn[eType] += W; energyIn.items.push({ name: uName, type: eType, value: W }); }
+        else { energyOut[eType] += W; energyOut.items.push({ name: uName, type: eType, value: W }); }
+      }
+    }
+  }
+
+  // Unconnected heat_out → dissipated
+  for (const [id, u] of scene.units) {
+    const def = UnitRegistry.get(u.defId);
+    const ud = scene.runtime.unitData.get(id);
+    if (!ud) continue;
+    for (const p of def.ports) {
+      if (p.portId === 'heat_out' && p.dir === PortDir.OUT) {
+        const Q = ud.ports?.heat_out?.actual ?? 0;
+        if (Q < 0.01) continue;
+        if (!scene.connections.some(c => c.from.unitId === id && c.from.portId === 'heat_out')) {
+          energyOut.dissipated += Q;
+          energyOut.items.push({ name: u.name || def.name, type: 'dissipated', value: Q });
+        }
+      }
+    }
+  }
+
+  // Implicit utility heating
+  for (const [id, u] of scene.units) {
+    const ud = scene.runtime.unitData.get(id);
+    if (!ud) continue;
+    const Q_util = ud.ports?.heat_out?.Q_utility_in_W;
+    if (Q_util && Q_util > 0.01) {
+      const uName = u.name || UnitRegistry.get(u.defId)?.name || id;
+      energyIn.heat += Q_util;
+      energyIn.items.push({ name: uName + ' (utility)', type: 'heat', value: Q_util });
+    }
+  }
+
+  const massBalance = totalMassIn - totalMassOut;
+  const massTol = Math.max(totalMassIn, totalMassOut) * 1e-4 + 1e-10;
+  const totalEnergyIn  = energyIn.material + energyIn.electrical + energyIn.mechanical + energyIn.heat;
+  const totalEnergyOut = energyOut.material + energyOut.electrical + energyOut.mechanical + energyOut.heat + energyOut.dissipated;
+  const energyBalance  = totalEnergyIn - totalEnergyOut;
+
+  // Accumulation (inventory units)
+  const accumulation = { mass_kgps: 0, energy_W: 0, items: [] };
+  for (const [id, u] of scene.units) {
+    const def = UnitRegistry.get(u.defId);
+    if (!def || !def.inventory) continue;
+    const ud = scene.runtime.unitData.get(id);
+    if (!ud) continue;
+    const uName = u.name || def.name;
+    if (u.defId === 'tank') {
+      const matIn = ud.ports?.mat_in, matOut = ud.ports?.mat_out, overflow = ud.ports?.overflow;
+      const m_in = matIn ? streamMass_kgps(matIn) : 0, m_out = matOut ? streamMass_kgps(matOut) : 0, m_ov = overflow ? streamMass_kgps(overflow) : 0;
+      const netMass = m_in - m_out - m_ov;
+      if (Math.abs(netMass) > 1e-15) { accumulation.mass_kgps += netMass; accumulation.items.push({ name: uName, type: 'tank_mass', value_kgps: netMass, value_W: 0 }); }
+      const H_in = matIn?.Hdot_J_s ?? 0, H_out = matOut?.Hdot_J_s ?? 0, H_ov = overflow?.Hdot_J_s ?? 0;
+      if (Math.abs(H_in - H_out - H_ov) > 0.01) accumulation.energy_W += (H_in - H_out - H_ov);
+    }
+    if (u.defId === 'battery') {
+      const netPower = ud.ports?.elec?.actual || 0;
+      const accumRate = -netPower;
+      if (Math.abs(accumRate) > 0.01) { accumulation.energy_W += accumRate; accumulation.items.push({ name: uName, type: 'battery_energy', value_kgps: 0, value_W: accumRate }); }
+    }
+  }
+
+  const massResidual = massBalance - accumulation.mass_kgps;
+  const energyResidual = energyBalance - accumulation.energy_W;
+  const massTolAccum = Math.max(totalMassIn, totalMassOut, Math.abs(accumulation.mass_kgps)) * 1e-4 + 1e-10;
+
+  return {
+    mass: { inItems: massInItems, outItems: massOutItems, totalIn: totalMassIn, totalOut: totalMassOut,
+            balance: massBalance, accumulation: accumulation.mass_kgps, residual: massResidual,
+            closed: Math.abs(massResidual) < massTolAccum },
+    energy: { in: energyIn, out: energyOut, totalIn: totalEnergyIn, totalOut: totalEnergyOut,
+              balance: energyBalance, accumulation: accumulation.energy_W, residual: energyResidual,
+              relError: totalEnergyIn !== 0 ? Math.abs(energyResidual / totalEnergyIn) : 0,
+              closed: totalEnergyIn !== 0 ? Math.abs(energyResidual / totalEnergyIn) < 0.01 : Math.abs(energyResidual) < 1 },
+    accumulation
+  };
+}
+
+// [v10.3.0] Moved to engine for headless test access
+function calculateStreamFlowrates(stream) {
+  if (!stream || stream.type !== StreamType.MATERIAL) return null;
+  let nTotal = 0;
+  for (const [comp, val] of Object.entries(stream.n || {})) {
+    const n = Number(val);
+    nTotal += Number.isFinite(n) ? n : 0;
+  }
+  let mTotal = thermo.streamMassFlow(stream);
+  if (!Number.isFinite(mTotal)) mTotal = 0;
+  let vTotal = thermo.streamVolFlow_m3ps(stream);
+  if (!Number.isFinite(vTotal)) vTotal = 0;
+  return { nTotal, mTotal, vTotal };
+}
+
 const PG = {
   // ── Enums ──
   PortDir,
@@ -12170,6 +12412,12 @@ const PG = {
   // ── Time [v9.0.1] ──
   TimeClock,
 
+  // ── Mass flow helper [v10.3.0] moved to engine for headless test access ──
+  streamMass_kgps,
+  computeSystemBalance,
+  calculateStreamFlowrates,
+  fmt,
+
   // ── Test harness (assigned by test script) ──
   TestCtx:   null,
   runTests:  null,
@@ -12186,59 +12434,75 @@ const PG = {
 // Re-export thermoWarnings to window for console convenience
 window.thermoWarnings = PG.thermoWarnings;
 
-// Update status indicator
+// [v10.3.1] Traffic light indicator system
 function updateStatusIndicator(solveResult) {
-  const indicator = document.getElementById('statusIndicator');
-  const icon = indicator.querySelector('.status-icon');
-  const text = indicator.querySelector('.status-text');
-  const helpBtn = indicator.querySelector('.status-help');
-  
-  if (!solveResult) {
-    // Not run yet
-    indicator.style.display = 'none';
-    return;
-  }
-  
-  indicator.style.display = 'flex';
-  
-  // Remove all status classes
-  indicator.className = 'status-indicator';
-  
+  const tl = document.getElementById('trafficLights');
+  const tlConv = document.getElementById('tlConv');
+  const tlMass = document.getElementById('tlMass');
+  const tlEnergy = document.getElementById('tlEnergy');
+  const tlPressure = document.getElementById('tlPressure');
+  const tlMsg = document.getElementById('tlMsg');
+
+  if (!solveResult) { tl.style.display = 'none'; return; }
+  tl.style.display = 'flex';
+
+  // Reset all
+  const setDot = (dot, cls, tip) => {
+    dot.className = 'tl-dot ' + cls;
+    dot.querySelector('.tl-tip').textContent = tip;
+  };
+
+  // ── Convergence ──
+  let msg = '', msgClass = 'ok';
   if (!solveResult.ok) {
-    // Convergence failure
-    indicator.classList.add('critical');
-    icon.textContent = '💥';
-    text.textContent = `Convergence Failed (${solveResult.iterations} iter)`;
-    helpBtn.style.display = 'flex';
-    helpBtn.title = 'Open Solver…';
-  } else if (!solveResult.hasErrors) {
-    // Success
-    indicator.classList.add('success');
-    icon.textContent = '✓';
-    text.textContent = `Converged — ${solveResult.iterations} iter`;
-    helpBtn.style.display = 'flex';
-    helpBtn.title = 'Open Solver…';
-  } else {
-    // Has errors - determine severity
-    const maxLevel = solveResult.maxSeverity;
-    
-    if (maxLevel >= ErrorSeverity.CATASTROPHIC.level) {
-      indicator.classList.add('critical');
-      icon.textContent = '💥';
-      text.textContent = 'Catastrophic Failure';
-    } else if (maxLevel >= ErrorSeverity.MAJOR.level) {
-      indicator.classList.add('error');
-      icon.textContent = '🔧';
-      text.textContent = 'Equipment Damage';
+    setDot(tlConv, 'red', `Convergence failed (${solveResult.iterations} iter)`);
+    msg = `Convergence failed — ${solveResult.iterations} iterations`;
+    msgClass = 'err';
+  } else if (solveResult.hasErrors) {
+    const maxLvl = solveResult.maxSeverity;
+    if (maxLvl >= ErrorSeverity.CATASTROPHIC.level) {
+      setDot(tlConv, 'red', 'Catastrophic failure');
+      msg = 'Catastrophic failure'; msgClass = 'err';
+    } else if (maxLvl >= ErrorSeverity.MAJOR.level) {
+      setDot(tlConv, 'amber', 'Equipment damage');
+      msg = 'Equipment issues'; msgClass = 'warn';
     } else {
-      indicator.classList.add('warning');
-      icon.textContent = '⚠️';
-      text.textContent = 'Configuration Issues';
+      setDot(tlConv, 'amber', `Configuration issues (${solveResult.iterations} iter)`);
+      msg = 'Configuration warnings'; msgClass = 'warn';
     }
-    
-    helpBtn.style.display = 'flex';
-    helpBtn.title = 'Open Solver…';
+  } else {
+    setDot(tlConv, 'green', `Converged — ${solveResult.iterations} iter`);
   }
+
+  // ── Mass & Energy Balance ──
+  const balance = computeSystemBalance(scene);
+  if (balance) {
+    if (balance.mass.closed) {
+      setDot(tlMass, 'green', `Mass closed — residual ${(balance.mass.residual*1e6).toFixed(2)} mg/s`);
+    } else {
+      setDot(tlMass, 'red', `Mass open — residual ${(balance.mass.residual*1000).toFixed(4)} g/s`);
+      if (!msg) { msg = 'Mass balance open'; msgClass = 'err'; }
+    }
+    if (balance.energy.closed) {
+      setDot(tlEnergy, 'green', `Energy closed — ${(balance.energy.relError*100).toFixed(3)}% error`);
+    } else {
+      setDot(tlEnergy, 'amber', `Energy open — ${(balance.energy.relError*100).toFixed(2)}% error`);
+      if (!msg) { msg = 'Energy balance open'; msgClass = 'warn'; }
+    }
+  } else {
+    setDot(tlMass, 'grey', 'Mass balance — no data');
+    setDot(tlEnergy, 'grey', 'Energy balance — no data');
+  }
+
+  // ── Pressure (placeholder — always green until pressure solve) ──
+  setDot(tlPressure, 'green', 'Pressure — not yet solving');
+
+  // ── Message ──
+  if (!msg && solveResult.ok && !solveResult.hasErrors) {
+    msg = `Converged — ${solveResult.iterations} iter`;
+  }
+  tlMsg.textContent = msg;
+  tlMsg.className = 'tl-msg ' + msgClass;
 }
 
 // [v8.9.1] showDiagnosisDialog superseded by openSolverModal() — diagnostics
@@ -12594,6 +12858,96 @@ function makeResultCard(label, value, color) {
 }
 
 /* =========================
+   [v10.3.0] BALANCE REPORT MODAL (E9)
+   ========================= */
+function openBalanceModal() {
+  const modal = document.getElementById('modalBalance');
+  const panel = document.getElementById('balancePanel');
+  panel.innerHTML = '';
+  closeMenus();
+
+  const balance = computeSystemBalance(scene);
+  if (!balance) {
+    panel.appendChild(el('div', { style: 'opacity:0.5; padding:12px;', html: 'No solve data — press Test first.' }));
+    modal.classList.add('open');
+    return;
+  }
+
+  // ── Summary badges ──
+  const sumDiv = el('div', { style: 'display:flex; gap:12px; margin-bottom:12px; flex-wrap:wrap;' });
+  const mBadge = balance.mass.closed
+    ? '<span class="ins-badge good" style="font-size:12px;">✓ Mass Closed</span>'
+    : '<span class="ins-badge bad" style="font-size:12px;">✗ Mass Open</span>';
+  const eBadge = balance.energy.closed
+    ? '<span class="ins-badge good" style="font-size:12px;">✓ Energy Closed</span>'
+    : '<span class="ins-badge bad" style="font-size:12px;">✗ Energy Open</span>';
+  const relErr = balance.energy.relError;
+  const errText = isFinite(relErr) ? `${(relErr*100).toFixed(3)}%` : '—';
+  sumDiv.innerHTML = `${mBadge} ${eBadge} <span style="opacity:0.5; font-size:12px;">ΔE: ${errText}</span>`;
+  panel.appendChild(sumDiv);
+
+  // ── Helper: formatted mass value ──
+  const fmtM = (kgps) => `${(kgps*1000).toFixed(4)} g/s`;
+
+  // ── Mass Balance Table ──
+  if (balance.mass.inItems.length || balance.mass.outItems.length) {
+    panel.appendChild(el('div', { style: 'font-weight:700; font-size:13px; margin:8px 0 4px;', html: 'Mass Balance' }));
+    const tbl = el('table', { style: 'width:100%; font-size:12px; border-collapse:collapse;' });
+    const addRow = (label, val, bold, color) => {
+      const tr = el('tr');
+      const style = `padding:3px 6px; ${bold ? 'font-weight:700;' : ''} ${color ? 'color:'+color+';' : ''}`;
+      tr.innerHTML = `<td style="${style}">${label}</td><td style="${style} text-align:right;">${val}</td>`;
+      tbl.appendChild(tr);
+    };
+    addRow('→ Mass In', '', true);
+    for (const item of balance.mass.inItems) addRow('  ' + item.name, fmtM(item.mass_kgps));
+    addRow('Σ In', fmtM(balance.mass.totalIn), true);
+    addRow('', '');
+    addRow('← Mass Out', '', true);
+    for (const item of balance.mass.outItems) addRow('  ' + item.name, fmtM(item.mass_kgps));
+    addRow('Σ Out', fmtM(balance.mass.totalOut), true);
+    if (Math.abs(balance.mass.accumulation) > 1e-9) {
+      addRow('', '');
+      addRow('⟳ Accumulation', fmtM(balance.mass.accumulation), false, '#60a5fa');
+    }
+    addRow('', '');
+    const resColor = balance.mass.closed ? '#6ee7b7' : '#fca5a5';
+    addRow('Residual', fmtM(balance.mass.residual), true, resColor);
+    panel.appendChild(tbl);
+  }
+
+  // ── Energy Balance Table ──
+  if (balance.energy.in.items.length || balance.energy.out.items.length) {
+    panel.appendChild(el('div', { style: 'font-weight:700; font-size:13px; margin:14px 0 4px; border-top:1px solid #1e293b; padding-top:10px;', html: 'Energy Balance' }));
+    const tbl = el('table', { style: 'width:100%; font-size:12px; border-collapse:collapse;' });
+    const addRow = (label, val, bold, color) => {
+      const tr = el('tr');
+      const style = `padding:3px 6px; ${bold ? 'font-weight:700;' : ''} ${color ? 'color:'+color+';' : ''}`;
+      tr.innerHTML = `<td style="${style}">${label}</td><td style="${style} text-align:right;">${val}</td>`;
+      tbl.appendChild(tr);
+    };
+    const fmtE = (W) => `${(W/1000).toFixed(3)} kW`;
+    addRow('→ Energy In', '', true);
+    for (const item of balance.energy.in.items) addRow(`  ${item.name} (${item.type})`, fmtE(item.value));
+    addRow('Σ In', fmtE(balance.energy.totalIn), true);
+    addRow('', '');
+    addRow('← Energy Out', '', true);
+    for (const item of balance.energy.out.items) addRow(`  ${item.name} (${item.type})`, fmtE(item.value));
+    addRow('Σ Out', fmtE(balance.energy.totalOut), true);
+    if (Math.abs(balance.energy.accumulation) > 0.01) {
+      addRow('', '');
+      addRow('⟳ Accumulation', fmtE(balance.energy.accumulation), false, '#60a5fa');
+    }
+    addRow('', '');
+    const resColor = balance.energy.closed ? '#6ee7b7' : '#fca5a5';
+    addRow('Residual', fmtE(balance.energy.residual), true, resColor);
+  panel.appendChild(tbl);
+  }
+
+  modal.classList.add('open');
+}
+
+/* =========================
    STATUS — Transient messages (connect, import, export, etc.)
    ========================= */
 function setStatus(s) {
@@ -12626,26 +12980,7 @@ function describeSolve() {
    STREAM CALCULATIONS
    Helper functions for stream property calculations
    ========================= */
-function calculateStreamFlowrates(stream) {
-  if (!stream || stream.type !== StreamType.MATERIAL) return null;
-  
-  // [v5.5.1] Coerce + guard every component flow before summation
-  let nTotal = 0;
-  for (const [comp, val] of Object.entries(stream.n || {})) {
-    const n = Number(val);
-    nTotal += Number.isFinite(n) ? n : 0;
-  }
-  
-  // Mass flowrate (kg/s) using thermo adapter — guard output
-  let mTotal = thermo.streamMassFlow(stream);
-  if (!Number.isFinite(mTotal)) mTotal = 0;
-  
-  // Volumetric flowrate (m³/s) — guard output
-  let vTotal = thermo.streamVolFlow_m3ps(stream);
-  if (!Number.isFinite(vTotal)) vTotal = 0;
-  
-  return { nTotal, mTotal, vTotal };
-}
+// calculateStreamFlowrates — defined in engine block, available globally
 
 /* =========================
    UI HELPER FUNCTIONS
@@ -15090,245 +15425,14 @@ function renderStreamProperties(container, s) {
 // when species change).  Energy in watts across all stream types.
 // ════════════════════════════════════════════════════════════════════════
 
-function streamMass_kgps(stream) {
-  if (!stream?.n) return 0;
-  let mass = 0;
-  for (const [sp, n] of Object.entries(stream.n)) {
-    if (n < 1e-15) continue;
-    const comp = ComponentRegistry.get(sp);
-    mass += n * (comp?.MW || 28) / 1000;  // mol/s × g/mol ÷ 1000 = kg/s
-  }
-  return mass;
-}
-const streamMass_kg = streamMass_kgps;  // [v10.0.1] back-compat alias
+// streamMass_kgps — defined in engine block, available globally
 
-function computeSystemBalance(scene) {
-  if (!scene.runtime?.unitData) return null;
-
-  // ── Mass balance (global, kg/s) ──
-  const massInItems  = [];   // { name, mass_kgps, detail: { species: mol/s, ... } }
-  const massOutItems = [];
-  let totalMassIn  = 0;
-  let totalMassOut = 0;
-
-  // ── Energy balance (W) ──
-  const energyIn  = { material: 0, electrical: 0, mechanical: 0, heat: 0, items: [] };
-  const energyOut = { material: 0, electrical: 0, mechanical: 0, heat: 0, dissipated: 0, items: [] };
-
-  // ── [v8.6.2] Port-direction boundary detection ──
-  // A unit is a boundary element if ALL its ports share the same direction.
-  //   All OUT → source (feeds INTO the system)
-  //   All IN  → sink   (drains OUT OF the system)
-  // This automatically handles any future source/sink types without hardcoding.
-
-  for (const [id, u] of scene.units) {
-    const def = UnitRegistry.get(u.defId);
-    const ud = scene.runtime.unitData.get(id);
-    if (!ud) continue;
-    const uName = u.name || def.name;
-
-    // Classify: are all ports the same direction?
-    const dirs = new Set(def.ports.map(p => p.dir));
-    if (dirs.size !== 1) continue;  // Mixed directions → internal unit, skip
-    // [v9.1.0] Inventory units (battery, tank) are internal storage, not boundary.
-    // Their energy/mass flows are captured by the accumulation term.
-    if (def.inventory) continue;
-    const boundaryDir = [...dirs][0];
-
-    for (const p of def.ports) {
-      const stream = ud.ports?.[p.portId];
-      if (!stream) continue;
-
-      if (p.type === StreamType.MATERIAL && stream.n) {
-        const m = streamMass_kgps(stream);
-        const H = stream.Hdot_J_s ?? thermo.getHdot_Jps(stream);
-
-        if (boundaryDir === PortDir.OUT) {
-          // Source: material flowing INTO the system
-          if (m > 1e-15) {
-            totalMassIn += m;
-            massInItems.push({ name: uName, mass_kgps: m, detail: { ...stream.n } });
-          }
-          if (isFinite(H)) {
-            energyIn.material += H;
-            energyIn.items.push({ name: uName, type: 'material', value: H });
-          }
-        } else {
-          // Sink: material flowing OUT of the system
-          if (m > 1e-15) {
-            totalMassOut += m;
-            massOutItems.push({ name: uName, mass_kgps: m, detail: { ...stream.n } });
-          }
-          if (isFinite(H)) {
-            energyOut.material += H;
-            energyOut.items.push({ name: uName, type: 'material', value: H });
-          }
-        }
-      } else if (p.type === StreamType.ELECTRICAL ||
-                 p.type === StreamType.MECHANICAL ||
-                 p.type === StreamType.HEAT) {
-        const W = stream.actual ?? stream.available ?? 0;
-        if (W <= 0) continue;
-
-        const eType = p.type === StreamType.ELECTRICAL ? 'electrical'
-                    : p.type === StreamType.MECHANICAL ? 'mechanical'
-                    : 'heat';
-
-        if (boundaryDir === PortDir.OUT) {
-          energyIn[eType] += W;
-          energyIn.items.push({ name: uName, type: eType, value: W });
-        } else {
-          energyOut[eType] += W;
-          energyOut.items.push({ name: uName, type: eType, value: W });
-        }
-      }
-    }
-  }
-
-  // ── Unconnected heat_out ports → dissipated OUT ──
-  for (const [id, u] of scene.units) {
-    const def = UnitRegistry.get(u.defId);
-    const ud = scene.runtime.unitData.get(id);
-    if (!ud) continue;
-    for (const p of def.ports) {
-      if (p.portId === 'heat_out' && p.dir === PortDir.OUT) {
-        const Q = ud.ports?.heat_out?.actual ?? 0;
-        if (Q < 0.01) continue;
-        const hasConn = scene.connections.some(
-          c => c.from.unitId === id && c.from.portId === 'heat_out'
-        );
-        if (!hasConn) {
-          const uName = u.name || def.name;
-          energyOut.dissipated += Q;
-          energyOut.items.push({ name: uName, type: 'dissipated', value: Q });
-        }
-      }
-    }
-  }
-
-  // ── Implicit utility heating: units that need external heat input ──
-  // When an isothermal reactor needs heating (Q_duty > 0), the heat doesn't
-  // exit via heat_out — it must be supplied externally.  Account for it as
-  // an energy input so the system balance closes.
-  for (const [id, u] of scene.units) {
-    const ud = scene.runtime.unitData.get(id);
-    if (!ud) continue;
-    const Q_util = ud.ports?.heat_out?.Q_utility_in_W;
-    if (Q_util && Q_util > 0.01) {
-      const uName = u.name || UnitRegistry.get(u.defId)?.name || id;
-      energyIn.heat += Q_util;
-      energyIn.items.push({ name: uName + ' (utility)', type: 'heat', value: Q_util });
-    }
-  }
-
-  // ── Totals ──
-  const massBalance = totalMassIn - totalMassOut;
-  // Display tolerance: 0.01% relative — well within engineering accuracy.
-  // Solver convergence (1 ppm) means residuals near this level for recycle loops.
-  const massTol = Math.max(totalMassIn, totalMassOut) * 1e-4 + 1e-10;
-
-  const totalEnergyIn  = energyIn.material + energyIn.electrical + energyIn.mechanical + energyIn.heat;
-  const totalEnergyOut = energyOut.material + energyOut.electrical + energyOut.mechanical + energyOut.heat + energyOut.dissipated;
-  const energyBalance  = totalEnergyIn - totalEnergyOut;
-
-  // ── [v9.0.5] Accumulation: inventory units store/release mass and energy ──
-  // Mass accumulation = Σ(tank net mass inflow) in kg/s
-  // Energy accumulation = Σ(battery net charge) in W + Σ(tank enthalpy change) in W
-  const accumulation = { mass_kgps: 0, energy_W: 0, items: [] };
-
-  for (const [id, u] of scene.units) {
-    const def = UnitRegistry.get(u.defId);
-    if (!def || !def.inventory) continue;
-    const ud = scene.runtime.unitData.get(id);
-    if (!ud) continue;
-    const uName = u.name || def.name;
-
-    if (u.defId === 'tank') {
-      // Tank: mass accumulation from net material flow
-      const matIn = ud.ports?.mat_in;
-      const matOut = ud.ports?.mat_out;
-      const overflow = ud.ports?.overflow;
-      const m_in = matIn ? streamMass_kgps(matIn) : 0;
-      const m_out = matOut ? streamMass_kgps(matOut) : 0;
-      const m_ov = overflow ? streamMass_kgps(overflow) : 0;
-      const netMass = m_in - m_out - m_ov;
-      if (Math.abs(netMass) > 1e-15) {
-        accumulation.mass_kgps += netMass;
-        accumulation.items.push({ name: uName, type: 'tank_mass', value_kgps: netMass, value_W: 0 });
-      }
-      // Tank: energy accumulation (simplified — proportional to mass × T)
-      const H_in = matIn?.Hdot_J_s ?? 0;
-      const H_out = matOut?.Hdot_J_s ?? 0;
-      const H_ov = overflow?.Hdot_J_s ?? 0;
-      const netH = H_in - H_out - H_ov;
-      if (Math.abs(netH) > 0.01) {
-        accumulation.energy_W += netH;
-      }
-    }
-
-    if (u.defId === 'battery') {
-      // Battery: energy accumulation = net charge power (negative actual = charging = positive accum)
-      const elecPort = ud.ports?.elec;
-      const netPower = elecPort?.actual || 0;
-      // netPower > 0 = discharging (energy leaving storage → negative accumulation)
-      // netPower < 0 = charging (energy entering storage → positive accumulation)
-      const accumRate = -netPower;  // W stored per second
-      if (Math.abs(accumRate) > 0.01) {
-        accumulation.energy_W += accumRate;
-        accumulation.items.push({ name: uName, type: 'battery_energy', value_kgps: 0, value_W: accumRate });
-      }
-    }
-  }
-
-  // ── Adjusted residuals: In − Out − Accumulation ≈ 0 ──
-  const massResidual = massBalance - accumulation.mass_kgps;
-  const energyResidual = energyBalance - accumulation.energy_W;
-  const massTolAccum = Math.max(totalMassIn, totalMassOut, Math.abs(accumulation.mass_kgps)) * 1e-4 + 1e-10;
-
-  return {
-    mass: {
-      inItems: massInItems,
-      outItems: massOutItems,
-      totalIn: totalMassIn,
-      totalOut: totalMassOut,
-      balance: massBalance,
-      accumulation: accumulation.mass_kgps,
-      residual: massResidual,
-      closed: Math.abs(massResidual) < massTolAccum
-    },
-    energy: {
-      in: energyIn,
-      out: energyOut,
-      totalIn: totalEnergyIn,
-      totalOut: totalEnergyOut,
-      balance: energyBalance,
-      accumulation: accumulation.energy_W,
-      residual: energyResidual,
-      relError: totalEnergyIn !== 0 ? Math.abs(energyResidual / totalEnergyIn) : 0,
-      closed: totalEnergyIn !== 0 ? Math.abs(energyResidual / totalEnergyIn) < 0.01 : Math.abs(energyResidual) < 1
-    },
-    accumulation
-  };
-}
+// computeSystemBalance — defined in engine block, available globally
+// fmt — defined in engine block, available globally
 
 /* ═══════════════════════════════════════════════════════════════════════════
    [v10] INSPECTOR INFRASTRUCTURE — Schema-driven inspector renderer
    ═══════════════════════════════════════════════════════════════════════════ */
-
-// ── Format helpers ──
-const fmt = {
-  kW:  (W) => W == null || isNaN(W) ? '—' : `${(W/1000).toFixed(2)}<span class="u">kW</span>`,
-  W:   (W) => W == null || isNaN(W) ? '—' : `${W.toFixed(1)}<span class="u">W</span>`,
-  pct: (v) => v == null || isNaN(v) ? '—' : `${(v*100).toFixed(1)}<span class="u">%</span>`,
-  pctRaw: (v) => v == null || isNaN(v) ? '—' : `${v.toFixed(1)}<span class="u">%</span>`,
-  mol: (v) => v == null ? '—' : `${v.toFixed(1)}<span class="u">mol</span>`,
-  flow:(v) => v == null ? '—' : `${v.toFixed(3)}<span class="u">mol/s</span>`,
-  mass:(v) => v == null ? '—' : `${(v*1000).toFixed(2)}<span class="u">g/s</span>`,
-  T:   (K) => { const us = models.getActive('units'); return K == null ? '—' : `${us.temperature.from(K).toFixed(1)}<span class="u">${us.temperature.symbol}</span>`; },
-  P:   (Pa) => { const us = models.getActive('units'); return Pa == null ? '—' : `${us.pressure.from(Pa).toFixed(us.pressure.decimals)}<span class="u">${us.pressure.symbol}</span>`; },
-  time:(s) => { if (s == null || !isFinite(s)) return '—'; const h = Math.floor(s/3600), m = Math.floor((s%3600)/60); return `~${h}:${String(m).padStart(2,'0')}`; },
-  val: (v, u) => v == null || isNaN(v) ? '—' : `${v}<span class="u">${u||''}</span>`,
-};
 
 // ── Generic renderers ──
 function insKV(parent, label, valueHtml, opts = {}) {
@@ -16133,12 +16237,15 @@ function renderParams(container, paramDefs, u) {
 }
 
 function updatePropertiesPanel() {
-  // [v10.1.3] Trigger transition animation
-  propEditor.classList.remove('ins-animate');
-  void propEditor.offsetWidth; // force reflow
-  propEditor.classList.add('ins-animate');
-
+  const app = document.querySelector('.app');
   propEditor.innerHTML = '';
+  
+  // [v10.3.1] Hide panel when nothing selected
+  if (!ui.selectedUnitId && !ui.selectedConnId) {
+    app.classList.add('panel-hidden');
+    return;
+  }
+  app.classList.remove('panel-hidden');
   
   // ═══ UNIT SELECTED ═══
   if (ui.selectedUnitId) {
@@ -16323,116 +16430,108 @@ function updatePropertiesPanel() {
       propEditor.appendChild(el('div', { class: 'ins-hint', html: 'Not computed yet — press Test/Step' }));
     }
   }
-  
-  // ═══ NOTHING SELECTED — Balance Display ═══
-  else {
-    const emptyDiv = el('div', { style: 'padding:16px 0; text-align:center;' });
-    emptyDiv.appendChild(el('div', { class: 'small', style: 'opacity:0.5; margin-bottom:6px;', html: 'Click a unit or stream to inspect' }));
-    propEditor.appendChild(emptyDiv);
-
-    // ── Balance Display (only when nothing selected) ──
-    const balance = computeSystemBalance(scene);
-    if (balance) {
-      // Balance Header
-      const balHeaderDiv = el('div', { style: 'margin-top:12px; padding:8px 0;' });
-      const massClosed = balance.mass.closed;
-      const enClosed = balance.energy.closed;
-      const mBadge = massClosed ? '<span class="ins-badge good">✓ Closed</span>' : '<span class="ins-badge bad">✗ Open</span>';
-      const eBadge = enClosed ? '<span class="ins-badge good">✓ Closed</span>' : '<span class="ins-badge bad">✗ Open</span>';
-      const enRelErr = balance.energy.relError;
-      const enErrText = isFinite(enRelErr) ? `${(enRelErr*100).toFixed(2)}%` : 'NaN%';
-      balHeaderDiv.innerHTML = `<div style="font-size:12px; font-weight:700; margin-bottom:4px;">System Balance</div>` +
-        `<div style="font-size:11px; display:flex; gap:8px;">Mass ${mBadge} Energy ${eBadge} <span style="opacity:0.5">${enErrText}</span></div>`;
-      propEditor.appendChild(balHeaderDiv);
-
-      // ── Mass Balance ──
-      if (balance.mass.inItems.length > 0 || balance.mass.outItems.length > 0) {
-        const massSection = createCollapsibleSection('Mass Balance', true);
-        const mc = massSection.content;
-        mc.appendChild(el('div', { class: 'ins-section-title', html: '→ Mass In' }));
-        for (const item of balance.mass.inItems) {
-          insKV(mc, item.name, `${(item.mass_kgps*1000).toFixed(4)}<span class="u">g/s</span>`);
-        }
-        const mIn = balance.mass.totalIn;
-        insKV(mc, 'Σ In', `<b>${(mIn*1000).toFixed(4)}</b><span class="u">g/s</span>`);
-
-        mc.appendChild(el('div', { class: 'ins-divider' }));
-        mc.appendChild(el('div', { class: 'ins-section-title', html: '← Mass Out' }));
-        for (const item of balance.mass.outItems) {
-          insKV(mc, item.name, `${(item.mass_kgps*1000).toFixed(4)}<span class="u">g/s</span>`);
-        }
-        const mOut = balance.mass.totalOut;
-        insKV(mc, 'Σ Out', `<b>${(mOut*1000).toFixed(4)}</b><span class="u">g/s</span>`);
-
-        // Accumulation
-        const hasAccumM = Math.abs(balance.mass.accumulation || 0) > 1e-9;
-        if (hasAccumM) {
-          mc.appendChild(el('div', { class: 'ins-divider' }));
-          mc.appendChild(el('div', { class: 'ins-section-title', html: '⟳ Accumulation' }));
-          insKV(mc, 'Mass accum', `${(balance.mass.accumulation*1000).toFixed(4)}<span class="u">g/s</span>`, { tone: 'info' });
-        }
-
-        mc.appendChild(el('div', { class: 'ins-divider' }));
-        const resLabel = hasAccumM ? 'Residual (In−Out−Accum)' : 'Residual (In−Out)';
-        insKV(mc, resLabel, `<b style="color:${massClosed ? '#6ee7b7' : '#fca5a5'}">${(balance.mass.residual*1000).toFixed(4)}</b><span class="u">g/s</span>`);
-
-        propEditor.appendChild(massSection.section);
-      }
-
-      // ── Energy Balance ──
-      if (balance.energy.in.items.length > 0 || balance.energy.out.items.length > 0) {
-        const enSection = createCollapsibleSection('Energy Balance', true);
-        const ec = enSection.content;
-        
-        // Energy In
-        ec.appendChild(el('div', { class: 'ins-section-title', html: '→ Energy In' }));
-        for (const item of balance.energy.in.items) {
-          insKV(ec, `${item.name} (${item.type})`, fmt.kW(item.value));
-        }
-        // Subtotals
-        const eIn = balance.energy.in;
-        if (eIn.material) insKV(ec, 'Σ Enthalpy', fmt.kW(eIn.material), { tone: 'muted' });
-        if (eIn.electrical) insKV(ec, 'Σ Electrical', fmt.kW(eIn.electrical), { tone: 'muted' });
-        if (eIn.mechanical) insKV(ec, 'Σ Mechanical', fmt.kW(eIn.mechanical), { tone: 'muted' });
-        if (eIn.heat) insKV(ec, 'Σ Heat', fmt.kW(eIn.heat), { tone: 'muted' });
-        insKV(ec, 'Total In', `<b>${fmt.kW(balance.energy.totalIn)}</b>`);
-
-        ec.appendChild(el('div', { class: 'ins-divider' }));
-        
-        // Energy Out
-        ec.appendChild(el('div', { class: 'ins-section-title', html: '← Energy Out' }));
-        for (const item of balance.energy.out.items) {
-          insKV(ec, `${item.name} (${item.type})`, fmt.kW(item.value));
-        }
-        const eOut = balance.energy.out;
-        if (eOut.material) insKV(ec, 'Σ Enthalpy', fmt.kW(eOut.material), { tone: 'muted' });
-        if (eOut.electrical) insKV(ec, 'Σ Electrical', fmt.kW(eOut.electrical), { tone: 'muted' });
-        if (eOut.heat) insKV(ec, 'Σ Heat', fmt.kW(eOut.heat), { tone: 'muted' });
-        insKV(ec, 'Total Out', `<b>${fmt.kW(balance.energy.totalOut)}</b>`);
-
-        // Accumulation
-        const hasAccumE = Math.abs(balance.energy.accumulation || 0) > 0.01;
-        if (hasAccumE && balance.accumulation?.items) {
-          ec.appendChild(el('div', { class: 'ins-divider' }));
-          ec.appendChild(el('div', { class: 'ins-section-title', html: '⟳ Accumulation' }));
-          for (const item of balance.accumulation.items) {
-            const tone = item.type === 'battery_charge' ? 'good' : 'info';
-            insKV(ec, `${item.name} (${item.label || item.type})`, fmt.kW(item.value_W), { tone });
-          }
-          insKV(ec, 'Σ Accumulation', fmt.kW(balance.energy.accumulation));
-        }
-
-        ec.appendChild(el('div', { class: 'ins-divider' }));
-        const enResidual = balance.energy.residual;
-        const enResLabel = hasAccumE ? 'Residual (In−Out−Accum)' : 'Residual (In−Out)';
-        insKV(ec, enResLabel, `<b style="color:${enClosed ? '#6ee7b7' : '#fca5a5'}">${(enResidual/1000).toFixed(4)} kW</b>`);
-
-        propEditor.appendChild(enSection.section);
-      }
-    }
-  }
-  // [v10.2.0] Solver summary removed from inspector — status indicator is sufficient
+  // [v10.3.1] Balance display removed — now in traffic lights + Balance Report modal
 }
+
+/* =========================
+   [v10.3.0] PANEL RESIZE
+   ========================= */
+{
+  const handle = document.getElementById('panelResizeHandle');
+  const app = document.querySelector('.app');
+  const MIN_W = 260, MAX_W = 700, DEFAULT_W = 360;
+  let dragging = false, startX = 0, startW = DEFAULT_W;
+
+  handle.addEventListener('pointerdown', (e) => {
+    dragging = true; startX = e.clientX;
+    startW = document.getElementById('rightPanel').offsetWidth;
+    handle.classList.add('active');
+    handle.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  });
+  handle.addEventListener('pointermove', (e) => {
+    if (!dragging) return;
+    const w = Math.max(MIN_W, Math.min(MAX_W, startW + (startX - e.clientX)));
+    app.style.setProperty('--panel-width', w + 'px');
+  });
+  handle.addEventListener('pointerup', () => {
+    dragging = false;
+    handle.classList.remove('active');
+  });
+}
+
+/* =========================
+   [v10.3.0] AUTO-SAVE (M8)
+   ========================= */
+const AUTOSAVE_KEY = 'processThis_autosave';
+const AUTOSAVE_DELAY = 2000; // ms debounce
+let _autosaveTimer = null;
+let _lastSavedJSON = null;
+
+function autoSave() {
+  clearTimeout(_autosaveTimer);
+  _autosaveTimer = setTimeout(() => {
+    try {
+      scene.processName = document.getElementById('processNameInput').value.trim();
+      const json = scene.exportJSON();
+      localStorage.setItem(AUTOSAVE_KEY, json);
+      _lastSavedJSON = json;
+    } catch (e) { /* quota exceeded — silently fail */ }
+  }, AUTOSAVE_DELAY);
+}
+
+function autoSaveNow() {
+  clearTimeout(_autosaveTimer);
+  try {
+    scene.processName = document.getElementById('processNameInput').value.trim();
+    const json = scene.exportJSON();
+    localStorage.setItem(AUTOSAVE_KEY, json);
+    _lastSavedJSON = json;
+  } catch (e) { /* silently fail */ }
+}
+
+function clearAutoSave() {
+  localStorage.removeItem(AUTOSAVE_KEY);
+  _lastSavedJSON = null;
+}
+
+// Hook auto-save into afterSolve (covers test, step, play, solver re-solve)
+const _origAfterSolve = afterSolve;
+afterSolve = function(solveResult) {
+  _origAfterSolve(solveResult);
+  autoSave();
+};
+
+// beforeunload: warn if scene has content
+window.addEventListener('beforeunload', (e) => {
+  if (scene.units.size > 0) {
+    autoSaveNow(); // save one last time
+    e.preventDefault();
+  }
+});
+
+// Auto-save on topology mutations
+const _origPlaceUnit = scene.placeUnit.bind(scene);
+scene.placeUnit = function(...args) {
+  const result = _origPlaceUnit(...args);
+  if (result) autoSave();
+  return result;
+};
+const _origDeleteUnit = scene.deleteUnit.bind(scene);
+scene.deleteUnit = function(...args) {
+  const result = _origDeleteUnit(...args);
+  autoSave();
+  return result;
+};
+const _origConnect = scene.connect.bind(scene);
+scene.connect = function(...args) {
+  const result = _origConnect(...args);
+  autoSave();
+  return result;
+};
+
+// Auto-save on process name change
+document.getElementById('processNameInput').addEventListener('input', () => autoSave());
 
 /* =========================
    EVENT HANDLERS
@@ -16822,23 +16921,18 @@ btnUtilities.addEventListener('click', () => {
 });
 
 // Status indicator help button
-const statusHelp = document.querySelector('.status-help');
-if (statusHelp) {
-  statusHelp.addEventListener('click', (ev) => {
-    ev.stopPropagation();
-    openSolverModal();
-  });
-}
+// [v10.3.1] Traffic light gear → solver modal
+document.getElementById('tlGear').addEventListener('click', (ev) => {
+  ev.stopPropagation();
+  openSolverModal();
+});
 
-// Status indicator text area → also opens solver modal
-const statusTextEl = document.querySelector('.status-text');
-if (statusTextEl) {
-  statusTextEl.style.cursor = 'pointer';
-  statusTextEl.addEventListener('click', (ev) => {
-    ev.stopPropagation();
-    openSolverModal();
-  });
-}
+// [v10.3.1] Clicking message text → balance report
+document.getElementById('tlMsg').addEventListener('click', (ev) => {
+  ev.stopPropagation();
+  openBalanceModal();
+});
+document.getElementById('tlMsg').style.cursor = 'pointer';
 
 btnAdd.addEventListener('click', () => {
   togglePalette();
@@ -16883,6 +16977,16 @@ document.getElementById('mUnits').addEventListener('click', () => {
 
 document.getElementById('mSolver').addEventListener('click', () => {
   openSolverModal();
+});
+
+document.getElementById('mBalance').addEventListener('click', () => {
+  openBalanceModal();
+});
+
+// Close modals when clicking outside
+const modalBalance = document.getElementById('modalBalance');
+modalBalance.addEventListener('click', (ev) => {
+  if (ev.target === modalBalance) modalBalance.classList.remove('open');
 });
 
 // Close modals when clicking outside
@@ -17245,6 +17349,7 @@ document.getElementById('mClear').addEventListener('click', () => {
       modelsActive: models.active
     }));
     document.getElementById('processNameInput').value = '';
+    clearAutoSave();
     deselectAll();
     setStatus('Scene cleared.');
   }
@@ -17485,9 +17590,29 @@ window.addEventListener('resize', () => {
 
 setViewBox();
 
+// [v10.3.0] M8: Restore from auto-save, or load demo
+{
+  const saved = localStorage.getItem(AUTOSAVE_KEY);
+  if (saved) {
+    try {
+      const result = scene.importJSON(saved);
+      if (result && !result.ok) throw new Error(result.error);
+      document.getElementById('processNameInput').value = scene.processName || '';
+      const solveResult = solveScene(scene);
+      updateStatusIndicator(solveResult);
+      _lastSavedJSON = saved;
+      setStatus('Restored from auto-save.');
+    } catch (e) {
+      loadDemo();
+      setStatus('Auto-save corrupt — loaded demo.');
+    }
+  } else {
+    loadDemo();
+  }
+}
+
 updatePropertiesPanel();
 render();
-loadDemo();
 
 </script>
 
@@ -24300,6 +24425,28 @@ function runTests() {
     t.wire(gs2, 'out', hub2, 'elec_in');
     t.solve();
     t.assertOK(t.unit(gs2).last.type === 'fixed', `Fixed: type = "${t.unit(gs2).last.type}"`);
+  }});
+
+  // [v10.3.0] T198: Stream flowrate contract
+  tests.push({ name: '198: calculateStreamFlowrates returns correct shape for material stream', fn: t => {
+    t.clearScene();
+    const src = scene.placeUnit('source', 0, 0);
+    const snk = scene.placeUnit('sink', 5, 0);
+    scene.connect({ unitId: src, portId: 'out' }, { unitId: snk, portId: 'in' });
+    solveScene(scene);
+    const ud = scene.runtime.unitData.get(src);
+    const stream = ud.ports?.out;
+    t.assertOK(stream && stream.n, 'source out port has stream with n');
+    const fr = calculateStreamFlowrates(stream);
+    t.assertOK(fr !== null, 'calculateStreamFlowrates returns non-null');
+    t.assertOK(typeof fr.nTotal === 'number' && fr.nTotal > 0, `nTotal=${fr.nTotal} is positive number`);
+    t.assertOK(typeof fr.mTotal === 'number' && fr.mTotal > 0, `mTotal=${fr.mTotal} is positive number`);
+    t.assertOK(typeof fr.vTotal === 'number' && fr.vTotal >= 0, `vTotal=${fr.vTotal} is non-negative number`);
+    // Non-material returns null
+    const nullResult = calculateStreamFlowrates({ type: StreamType.HEAT, actual: 1000 });
+    t.assertOK(nullResult === null, 'returns null for non-material stream');
+    const nullResult2 = calculateStreamFlowrates(null);
+    t.assertOK(nullResult2 === null, 'returns null for null');
   }});
 
   // ═══════════════════════════════════════════════════════════════════════

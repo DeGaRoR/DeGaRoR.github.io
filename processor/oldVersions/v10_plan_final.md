@@ -142,6 +142,73 @@ Every release has a step ID (e.g., `0.1`, `2.3`) for instruction reference ("pro
 
 ---
 
+### Step 0.1b — Fix Patch (testing feedback) → v10.0.3
+
+**Scope:**
+- F1: "/" palette toggle — close on second press (intercept in search box)
+- F2: Air Source wind icon — new `ico-source_air` SVG symbol
+- F3: Reactor inspector — field name mismatch with engine; added adiabatic properties
+- F4: Diagnostic `[object Object]` — dispatch on string vs `{severity, message}` object
+- F5: Units vanishing on drop — auto-nudge nearby cells; dblclick `scene.grid.tile` → `scene.tile`
+- F6: Splitter properties empty — added `properties()` method
+- F7: Step/Play icons — ▶| Step, ▶ Play (classic transport convention)
+- F8: Decimal display — `addNumberEditor` derives precision from step param
+
+**Estimated:** ~1.5 hr. **Gate:** 193 tests pass.
+
+---
+
+### Step 0.2 — Unit Taxonomy, Registry Cleanup & Settings Decoupling → v10.0.4
+
+**Context:** Working copy contains a prior failed attempt (~90% complete). 47 tests broken
+by `cheatsEnabled` default change without test runner fix. All structural changes are sound.
+
+**Scope (21 changes, grouped into 3 sub-steps):**
+
+**0.2a — Test fixes (get back to green):**
+- X1: `runTests()` saves/restores `SimSettings.cheatsEnabled`, sets `true` during tests
+- X2: Update Test T3 — source_multi now in hard mode, source_mechanical excluded, _devTest never present
+
+**0.2b — New tests for organizational changes:**
+- T194: source_electrical → grid_supply import migration
+- T195: _devTest units never in `listByCategory`
+- T196: Category ordering (Boundaries → Heat Transfer → Pressure → Reactors → Separation & Mixing → Storage → Power)
+- T197: grid_supply fixed mode behavior
+
+**0.2c — Finalize:**
+- Version bump, changelog (documents C1–C21: category reorganization, source_electrical merge,
+  dev/cheat decoupling, palette cleanup, multi-source delete buttons, generator rename)
+
+**Key organizational changes (already in working copy):**
+- 12 old categories → 7 user-facing + TEST (legacy aliases via getters)
+- `_devTest` flag: test units invisible in palette, still renderable
+- `source_electrical` merged into `grid_supply` (with `fixed` toggle)
+- `showCheats` decoupled from `cheatsEnabled` (separate checkboxes)
+- Palette tiles: display name only (no defId subtitle)
+- Cheat units: cooler, reactor_adiabatic, source_mechanical
+- Non-cheat: source_multi (promoted to user-facing)
+
+**Full analysis:** See `/home/claude/step_0.2_plan.md`
+
+**Estimated:** ~1.5 hr total (0.2a: 30min, 0.2b: 45min, 0.2c: 15min). **Gate:** 197/197 tests.
+
+---
+
+### Step 0.2d — Testing Feedback Patch → v10.0.5
+
+**Scope (6 fixes from user testing of v10.0.4):**
+- F9: Connection flow — OUT→OUT restarts/cancels pending, Esc cancels
+- F10: btnAdd neutral styling (match transport buttons)
+- F11: "/" blocked in palette search (key dedicated to toggle shortcut)
+- F12: Diagnostics always visible, open by default, "✓ No issues" when clean
+- F13: Decimal precision — pass unit system `decimals` field to all T/P editors
+- F14: Category names — "Heat Transfer"→"Heat", "Reactors"→"Reactor";
+  sink_heat moved to Heat; reactor_equilibrium renamed "Reactor"
+
+**Gate:** 197/197 tests, 1339 checks.
+
+---
+
 ### Step 2.1 — Canvas Interaction → v10.1.0
 
 **Scope:**
@@ -915,20 +982,74 @@ Status: `[ ]` planned · `[~]` in progress · `[✓]` complete · `[x]` deferred
 
 ```
 ═══════════════════════════════════════════════════════════════════
- Step 0.1 — BUGS + ANNOYING                            → v10.0.2
+ Step 0.1 — BUGS + ANNOYING                          ✓ v10.0.2
 ═══════════════════════════════════════════════════════════════════
- [ ] B1    Stream click crash (StreamType._name)
- [ ] B2    Balance display scope fix
- [ ] B3    Checkbox styling + alignment
- [ ] A1    Shortcut help text update
- [ ] A2    Ctrl+Enter for Test
- [ ] A3    source_air icon mapping
- [ ] A4    Font size / readability pass
- [ ] A5    Zoom limits
- [ ] A6    Dead code removal
- [ ] A7    Connection refusal feedback
- [ ] A+    btnAdd inline style → CSS class
- [ ] T+    Add tests T190–T193 (UI data contracts)
+ [✓] B1    Stream click crash (StreamType._name)
+ [✓] B2    Balance display scope fix
+ [✓] B3    Checkbox styling + alignment
+ [✓] B4    Energy balance item field names (value_W→value, streamType→type)
+ [✓] A1    Shortcut help text update
+ [✓] A2    Ctrl+Enter for Test
+ [✓] A3    source_air icon mapping
+ [✓] A4    Font size / readability pass
+ [✓] A5    Zoom limits
+ [✓] A6    Dead code removal
+ [✓] A7    Connection refusal feedback
+ [✓] A+    btnAdd inline style → CSS class
+ [✓] T+    Add tests T190–T193 (UI data contracts)
+
+═══════════════════════════════════════════════════════════════════
+ Step 0.1b — FIX PATCH (testing feedback)             ✓ v10.0.3
+═══════════════════════════════════════════════════════════════════
+ [✓] F1    "/" palette toggle (close on second press)
+ [✓] F2    Air Source wind icon (new SVG symbol)
+ [✓] F3    Reactor inspector field name mismatch + adiabatic properties
+ [✓] F4    Diagnostic [object Object] (string vs object dispatch)
+ [✓] F5    Units vanishing on drop (auto-nudge + dblclick scene.tile fix)
+ [✓] F6    Splitter properties (was params-only)
+ [✓] F7    Step/Play transport icons (▶| / ▶)
+ [✓] F8    Decimal display (precision derived from step param)
+
+═══════════════════════════════════════════════════════════════════
+ Step 0.2a — TEST FIXES (taxonomy test lifecycle)       ✓ v10.0.4
+═══════════════════════════════════════════════════════════════════
+ [✓] X1    runTests() sets cheatsEnabled=true (47 test failures fixed)
+ [✓] X1b   Hub tests: add fixed:true to grid_supply units (6 tests)
+ [✓] X2    Test T3: source_multi now in hard mode (no longer cheat)
+ [✓] X2b   Test T3: source_mechanical excluded (now cheat)
+ [✓] X2c   Test T3: _devTest never-in-palette assertions
+
+═══════════════════════════════════════════════════════════════════
+ Step 0.2b — NEW TESTS (organizational changes)         ✓ v10.0.4
+═══════════════════════════════════════════════════════════════════
+ [✓] T194  source_electrical → grid_supply import migration
+ [✓] T195  _devTest units never in listByCategory
+ [✓] T196  Category ordering (Boundaries → ... → Power)
+ [✓] T197  grid_supply fixed mode behavior
+
+═══════════════════════════════════════════════════════════════════
+ Step 0.2c — FINALIZE & SHIP                            ✓ v10.0.4
+═══════════════════════════════════════════════════════════════════
+ [✓] V1    Version bump to v10.0.4
+ [✓] V2    Changelog entry (C1–C21)
+ [✓] V3    Plan tracker update
+
+═══════════════════════════════════════════════════════════════════
+ Step 0.2d — TESTING FEEDBACK PATCH                     ✓ v10.0.5
+═══════════════════════════════════════════════════════════════════
+ [✓] F9    Connection flow: OUT→OUT restarts/cancels, Esc cancels
+ [✓] F10   btnAdd neutral styling (match transport buttons)
+ [✓] F11   "/" blocked in palette search (key dedicated to toggle)
+ [✓] F12   Diagnostics always visible, open by default, "✓ No issues"
+ [✓] F13   Decimal precision: unit system decimals for T/P editors
+ [✓] F14   Category names: Heat, Reactor; sink_heat→Heat; reactor→"Reactor"
+
+═══════════════════════════════════════════════════════════════════
+ Step 0.2e — FINAL POLISH PATCH                        ✓ v10.0.6
+═══════════════════════════════════════════════════════════════════
+ [✓] F10b  btnAdd warm teal accent (soft attention)
+ [✓] F11b  Palette: remove search/chips, close on outside click, clean "/" toggle
+ [✓] F14b  Generator name shortened (fits single palette line)
 
 ═══════════════════════════════════════════════════════════════════
  Step 2.1 — CANVAS INTERACTION                          → v10.1.0

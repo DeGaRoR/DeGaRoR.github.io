@@ -3,6 +3,98 @@
   ═══════════════════════════════════════════════════════════════════════════
   processThis v9.1.0
 
+  ─── v10.3.0 ──────────────────────────────────────────────────────────────
+  Phase C — Test recovery, resizable panel, auto-save, balance modal.
+  198/198 tests (was 89/197).
+
+  TEST RECOVERY (108 tests fixed):
+  Three pure-computation functions were stranded in the UI script block
+  (DOM-dependent), unreachable by headless tests:
+  - streamMass_kgps(stream) — mass flow from molar composition
+  - computeSystemBalance(scene) — system-wide mass + energy balance
+  - fmt{} — format helpers (kW, T, P, pct, etc.)
+  - calculateStreamFlowrates(stream) — molar/mass/volumetric flowrates
+  Moved all four to engine block. Exported on PG. The 108 failures were
+  ALL caused by streamMass_kgps being undefined in headless mode.
+
+  T198 STREAM FLOWRATE CONTRACT TEST:
+  Verifies calculateStreamFlowrates returns { nTotal, mTotal, vTotal }
+  for material streams, null for non-material and null inputs.
+
+  E8 OVERLAP PREVENTION: Already existed since v10.0.3.
+
+  M2 RESIZABLE INSPECTOR PANEL:
+  CSS variable --panel-width (default 360px). Drag handle on left edge,
+  blue highlight on hover. Pointer capture: MIN 260px, MAX 700px.
+
+  M8 AUTO-SAVE + BEFOREUNLOAD:
+  - localStorage auto-save (2s debounce) after: solve, place, delete,
+    connect, name change.
+  - Restore from auto-save on page load (skips demo if save exists).
+  - beforeunload warning + final save when scene has units.
+  - Clear Scene clears auto-save.
+  - Corrupt auto-save falls back to demo with message.
+
+  E9 BALANCE REPORT MODAL:
+  Menu → Balance Report opens modal with full mass + energy balance.
+  Summary badges (✓ Closed / ✗ Open), per-boundary-unit breakdown,
+  subtotals, accumulation, residuals with color coding.
+
+  Gate: 198/198 tests, 1346 checks, zero regressions.
+
+  ─── v10.2.4 ──────────────────────────────────────────────────────────────
+  Visual fix — param zone blue tint, VL per-phase composition.
+
+  - .ins-params-zone: bg #111827 + blue border (#2563eb at 27% opacity).
+    Clearly distinct from output KPI cards.
+  - VL streams: composition now shows per-phase breakdown.
+    Vapor (y) and Liquid (x) mole fractions displayed separately with
+    "VAPOR" / "LIQUID" sub-labels. Single-phase streams unchanged.
+    Data sourced from flash result: stream.y, stream.x.
+
+  Gate: 89/197 (unchanged).
+
+  ─── v10.2.3 ──────────────────────────────────────────────────────────────
+  Visual fix — param zone contrast, section spacing, reactor grid.
+
+  - .ins-params-zone background #1a1e2e (was #161b26) + border #2d3548.
+    Visible tint against #0f1420 propItem cards.
+  - propGrid margin-bottom 8→14px, ins-section-label margin 10→14px top.
+    Sections breathe.
+  - Reactor Mode, Type, Limited by: removed full-row. Now 2-column cards
+    like every other KPI item. grid_supply Mode likewise.
+  - full-row reserved for: bar charts, Reason strings in detail only.
+
+  Gate: 89/197 (unchanged).
+
+  ─── v10.2.2 ──────────────────────────────────────────────────────────────
+  Inspector refinement — params zone, reactor section, add button, sliders.
+
+  PARAMETER ZONE:
+  - Replaced collapsible section with flat .ins-params-zone (subtle darker
+    background #161b26, border, rounded). No title — the visual distinction
+    between dark zone (inputs) and KPI cards (outputs) is self-evident.
+  - Number params with min/max auto-render as slider+number combos.
+    Added min/max to: efficiency (all units), splitPct, initialSOC.
+
+  REACTION DATA SECTION:
+  - New reaction() hook in inspector API. Rendered with "Reaction Data"
+    label between Power & Energy and Unit KPIs.
+  - reactor_equilibrium: Conversion, K_eq, Approach α, Mode, Limited by,
+    τ in reaction(). Q duty + endo/exo badge in power(). Rest to detail.
+  - reactor_adiabatic: Conversion, Limited by in reaction(). Rest to detail.
+
+  ADD BUTTON RELOCATED:
+  - Moved from centered position to left group (first element).
+  - Order: [+] [☰ Menu] [Process name…]  ··right··  [status indicator]
+  - .add-btn-center → .add-btn-left (36px, fits pill).
+  - Status indicator: removed pill container (border/background), bare text.
+
+  NNG: Updated UI5 (section order includes Reaction Data),
+       UI6 (no reaction data in kpis).
+
+  Gate: 89/197 headless (unchanged). No engine changes.
+
   ─── v10.2.1 ──────────────────────────────────────────────────────────────
   Inspector polish — 2-col layout, solver strip removal, NNGs.
 
@@ -367,9 +459,11 @@
   NNG-UI4: Unit UI colocation (UnitInspector next to UnitRegistry)
   NNG-UI5: Inspector section order is IMMUTABLE:
            Header → Status → Parameters → Process Conditions → Power & Energy
-           → Unit KPIs → Detail.  Sections omitted when empty, never shown hollow.
+           → Reaction Data → Unit KPIs → Detail.
+           Sections omitted when empty, never shown hollow.
   NNG-UI6: Data goes in the RIGHT hook. No T/P/flow in kpis() (→ conditions or trunk).
-           No power/duty in kpis() (→ power()). No status strings in kpis().
+           No power/duty in kpis() (→ power()). No reaction data in kpis() (→ reaction()).
+           No status strings in kpis().
   NNG-UI7: One renderer per visual style. _renderKPIGrid for all KPI cards,
            _renderAutoStream for trunk, _renderDetailSection for condensed KV.
            No inline style overrides on propItem/propValue in unit configs.
@@ -1247,7 +1341,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>processThis — v10.2.1</title>
+  <title>processThis — v10.3.0</title>
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
@@ -1280,7 +1374,7 @@
     .app { 
       height: 100vh; 
       display: grid; 
-      grid-template-columns: 1fr 360px; 
+      grid-template-columns: 1fr var(--panel-width, 360px); 
     }
     
     .canvasWrap { 
@@ -1303,6 +1397,18 @@
       padding: 14px;
       display: flex;
       flex-direction: column;
+      position: relative;
+    }
+    
+    .panel-resize-handle {
+      position: absolute; left: -3px; top: 0; bottom: 0; width: 6px;
+      cursor: col-resize; z-index: 30;
+      background: transparent;
+      transition: background 0.15s;
+    }
+    .panel-resize-handle:hover,
+    .panel-resize-handle.active {
+      background: #2563eb66;
     }
     
     .rightPanel h2 { 
@@ -1330,50 +1436,46 @@
       z-index: 25;
       display: flex; 
       align-items: center;
+      justify-content: space-between;
       pointer-events: none;
     }
     .info-bar > * { pointer-events: auto; }
 
     .info-bar-left {
       display: flex;
-      gap: 10px;
+      gap: 6px;
       align-items: center;
       background: #0b0e14cc; 
       border: 1px solid #2a2f3a; 
       border-radius: 14px; 
-      padding: 8px 10px;
+      padding: 5px 10px 5px 5px;
       backdrop-filter: blur(10px);
     }
 
     .info-bar-right {
       display: flex;
       align-items: center;
-      background: #0b0e14cc;
-      border: 1px solid #2a2f3a;
-      border-radius: 14px;
-      padding: 4px 10px;
-      backdrop-filter: blur(10px);
+      pointer-events: auto;
     }
 
-    /* ===== ADD BUTTON (centered, prominent) ===== */
-    .add-btn-center {
-      margin: 0 auto;
-      width: 42px; height: 42px;
+    /* ===== ADD BUTTON (left, in group) ===== */
+    .add-btn-left {
+      width: 36px; height: 36px;
       border-radius: 50%;
       border: 2px solid #134e4a;
       background: #0b1e1eee;
       color: #5eead4;
-      font-size: 24px;
+      font-size: 22px;
       font-weight: 300;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
-      backdrop-filter: blur(10px);
       transition: background 0.15s, border-color 0.15s, transform 0.15s;
       line-height: 1;
+      flex-shrink: 0;
     }
-    .add-btn-center:hover {
+    .add-btn-left:hover {
       background: #134e4a;
       border-color: #5eead4;
       color: #99f6e4;
@@ -2108,7 +2210,7 @@
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 6px;
-      margin-bottom: 8px;
+      margin-bottom: 14px;
     }
     .propGrid .full-row { grid-column: 1 / -1; }
     
@@ -2496,7 +2598,11 @@
     .ins-kv.tone-muted { opacity: 0.6; }
     .ins-section-label {
       font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;
-      opacity: 0.4; margin: 10px 0 4px; padding-left: 2px;
+      opacity: 0.4; margin: 14px 0 6px; padding-left: 2px;
+    }
+    .ins-params-zone {
+      background: #111827; border: 1px solid #2563eb44; border-radius: 6px;
+      padding: 8px 10px 6px; margin-bottom: 14px;
     }
     .ins-badge {
       display: inline-block; padding: 2px 7px; border-radius: 4px;
@@ -2534,6 +2640,7 @@
     <!-- Info bar (full-width, 3 zones) -->
     <div class="info-bar">
       <div class="info-bar-left">
+        <button class="add-btn-left" id="btnAdd" title="Add unit (/ or Tab)">+</button>
         <div class="menuWrap">
           <button class="btn" id="btnMenu">☰ Menu</button>
         <div class="menu" id="menuMain">
@@ -2546,6 +2653,7 @@
           </div>
           <div class="item" id="mUnits">Physical Units <span class="hint">display</span></div>
           <div class="item" id="mSolver">Solver <span class="hint">configure</span></div>
+          <div class="item" id="mBalance">Balance Report</div>
           <div class="sep"></div>
           <div class="item" id="mImport">Import Model…</div>
           <div class="item" id="mExport">Export Model…</div>
@@ -2564,10 +2672,7 @@
       <input type="text" id="processNameInput" placeholder="Process name…" spellcheck="false" autocomplete="off">
       </div>
 
-      <!-- Add button (centered) -->
-      <button class="add-btn-center" id="btnAdd" title="Add unit (/ or Tab)">+</button>
-
-      <!-- Status Indicator (right) -->
+      <!-- Status Indicator (right, no container) -->
       <div class="info-bar-right">
         <div id="statusIndicator" class="status-indicator" style="display:none;">
           <div class="status-icon"></div>
@@ -2646,6 +2751,16 @@
         <h3>Solver</h3>
         <div class="small">Configure iteration method and inspect convergence results.</div>
         <div id="solverPanel" style="margin-top:10px; max-height:60vh; overflow-y:auto;"></div>
+      </div>
+    </div>
+
+    <!-- Settings modal [v8.10.0] -->
+    <div class="modal" id="modalBalance">
+      <div class="modalContent">
+        <button class="modalClose" onclick="document.getElementById('modalBalance').classList.remove('open')">×</button>
+        <h3>System Balance</h3>
+        <div class="small">Mass and energy balance across system boundaries.</div>
+        <div id="balancePanel" style="margin-top:10px; max-height:60vh; overflow-y:auto;"></div>
       </div>
     </div>
 
@@ -2962,7 +3077,8 @@
   </div>
 
   <!-- Right panel for properties and unit library -->
-  <aside class="rightPanel">
+  <aside class="rightPanel" id="rightPanel">
+    <div class="panel-resize-handle" id="panelResizeHandle"></div>
     <div class="card" id="propEditor"></div>
   </aside>
 
@@ -12054,6 +12170,165 @@ function solveScene(scene, options = {}) {
 //   PG.StreamType / PortDir / etc.  → enums
 // ═══════════════════════════════════════════════════════════════════════════════
 
+// [v10.3.0] Moved to engine block for headless test access (was in UI block)
+function streamMass_kgps(stream) {
+  if (!stream?.n) return 0;
+  let mass = 0;
+  for (const [sp, n] of Object.entries(stream.n)) {
+    if (n < 1e-15) continue;
+    const comp = ComponentRegistry.get(sp);
+    mass += n * (comp?.MW || 28) / 1000;  // mol/s × g/mol ÷ 1000 = kg/s
+  }
+  return mass;
+}
+const streamMass_kg = streamMass_kgps;  // back-compat alias
+
+// [v10.3.0] Format helpers — moved to engine for headless test access
+const fmt = {
+  kW:  (W) => W == null || isNaN(W) ? '—' : `${(W/1000).toFixed(2)}<span class="u">kW</span>`,
+  W:   (W) => W == null || isNaN(W) ? '—' : `${W.toFixed(1)}<span class="u">W</span>`,
+  pct: (v) => v == null || isNaN(v) ? '—' : `${(v*100).toFixed(1)}<span class="u">%</span>`,
+  pctRaw: (v) => v == null || isNaN(v) ? '—' : `${v.toFixed(1)}<span class="u">%</span>`,
+  mol: (v) => v == null ? '—' : `${v.toFixed(1)}<span class="u">mol</span>`,
+  flow:(v) => v == null ? '—' : `${v.toFixed(3)}<span class="u">mol/s</span>`,
+  mass:(v) => v == null ? '—' : `${(v*1000).toFixed(2)}<span class="u">g/s</span>`,
+  T:   (K) => { const us = models.getActive('units'); return K == null ? '—' : `${us.temperature.from(K).toFixed(1)}<span class="u">${us.temperature.symbol}</span>`; },
+  P:   (Pa) => { const us = models.getActive('units'); return Pa == null ? '—' : `${us.pressure.from(Pa).toFixed(us.pressure.decimals)}<span class="u">${us.pressure.symbol}</span>`; },
+  time:(s) => { if (s == null || !isFinite(s)) return '—'; const h = Math.floor(s/3600), m = Math.floor((s%3600)/60); return `~${h}:${String(m).padStart(2,'0')}`; },
+  val: (v, u) => v == null || isNaN(v) ? '—' : `${v}<span class="u">${u||''}</span>`,
+};
+
+// [v10.3.0] computeSystemBalance — moved to engine for headless test access
+function computeSystemBalance(scene) {
+  if (!scene.runtime?.unitData) return null;
+  const massInItems = [], massOutItems = [];
+  let totalMassIn = 0, totalMassOut = 0;
+  const energyIn  = { material: 0, electrical: 0, mechanical: 0, heat: 0, items: [] };
+  const energyOut = { material: 0, electrical: 0, mechanical: 0, heat: 0, dissipated: 0, items: [] };
+
+  for (const [id, u] of scene.units) {
+    const def = UnitRegistry.get(u.defId);
+    const ud = scene.runtime.unitData.get(id);
+    if (!ud) continue;
+    const uName = u.name || def.name;
+    const dirs = new Set(def.ports.map(p => p.dir));
+    if (dirs.size !== 1) continue;
+    if (def.inventory) continue;
+    const boundaryDir = [...dirs][0];
+
+    for (const p of def.ports) {
+      const stream = ud.ports?.[p.portId];
+      if (!stream) continue;
+
+      if (p.type === StreamType.MATERIAL && stream.n) {
+        const m = streamMass_kgps(stream);
+        const H = stream.Hdot_J_s ?? thermo.getHdot_Jps(stream);
+        if (boundaryDir === PortDir.OUT) {
+          if (m > 1e-15) { totalMassIn += m; massInItems.push({ name: uName, mass_kgps: m, detail: { ...stream.n } }); }
+          if (isFinite(H)) { energyIn.material += H; energyIn.items.push({ name: uName, type: 'material', value: H }); }
+        } else {
+          if (m > 1e-15) { totalMassOut += m; massOutItems.push({ name: uName, mass_kgps: m, detail: { ...stream.n } }); }
+          if (isFinite(H)) { energyOut.material += H; energyOut.items.push({ name: uName, type: 'material', value: H }); }
+        }
+      } else if (p.type === StreamType.ELECTRICAL || p.type === StreamType.MECHANICAL || p.type === StreamType.HEAT) {
+        const W = stream.actual ?? stream.available ?? 0;
+        if (W <= 0) continue;
+        const eType = p.type === StreamType.ELECTRICAL ? 'electrical' : p.type === StreamType.MECHANICAL ? 'mechanical' : 'heat';
+        if (boundaryDir === PortDir.OUT) { energyIn[eType] += W; energyIn.items.push({ name: uName, type: eType, value: W }); }
+        else { energyOut[eType] += W; energyOut.items.push({ name: uName, type: eType, value: W }); }
+      }
+    }
+  }
+
+  // Unconnected heat_out → dissipated
+  for (const [id, u] of scene.units) {
+    const def = UnitRegistry.get(u.defId);
+    const ud = scene.runtime.unitData.get(id);
+    if (!ud) continue;
+    for (const p of def.ports) {
+      if (p.portId === 'heat_out' && p.dir === PortDir.OUT) {
+        const Q = ud.ports?.heat_out?.actual ?? 0;
+        if (Q < 0.01) continue;
+        if (!scene.connections.some(c => c.from.unitId === id && c.from.portId === 'heat_out')) {
+          energyOut.dissipated += Q;
+          energyOut.items.push({ name: u.name || def.name, type: 'dissipated', value: Q });
+        }
+      }
+    }
+  }
+
+  // Implicit utility heating
+  for (const [id, u] of scene.units) {
+    const ud = scene.runtime.unitData.get(id);
+    if (!ud) continue;
+    const Q_util = ud.ports?.heat_out?.Q_utility_in_W;
+    if (Q_util && Q_util > 0.01) {
+      const uName = u.name || UnitRegistry.get(u.defId)?.name || id;
+      energyIn.heat += Q_util;
+      energyIn.items.push({ name: uName + ' (utility)', type: 'heat', value: Q_util });
+    }
+  }
+
+  const massBalance = totalMassIn - totalMassOut;
+  const massTol = Math.max(totalMassIn, totalMassOut) * 1e-4 + 1e-10;
+  const totalEnergyIn  = energyIn.material + energyIn.electrical + energyIn.mechanical + energyIn.heat;
+  const totalEnergyOut = energyOut.material + energyOut.electrical + energyOut.mechanical + energyOut.heat + energyOut.dissipated;
+  const energyBalance  = totalEnergyIn - totalEnergyOut;
+
+  // Accumulation (inventory units)
+  const accumulation = { mass_kgps: 0, energy_W: 0, items: [] };
+  for (const [id, u] of scene.units) {
+    const def = UnitRegistry.get(u.defId);
+    if (!def || !def.inventory) continue;
+    const ud = scene.runtime.unitData.get(id);
+    if (!ud) continue;
+    const uName = u.name || def.name;
+    if (u.defId === 'tank') {
+      const matIn = ud.ports?.mat_in, matOut = ud.ports?.mat_out, overflow = ud.ports?.overflow;
+      const m_in = matIn ? streamMass_kgps(matIn) : 0, m_out = matOut ? streamMass_kgps(matOut) : 0, m_ov = overflow ? streamMass_kgps(overflow) : 0;
+      const netMass = m_in - m_out - m_ov;
+      if (Math.abs(netMass) > 1e-15) { accumulation.mass_kgps += netMass; accumulation.items.push({ name: uName, type: 'tank_mass', value_kgps: netMass, value_W: 0 }); }
+      const H_in = matIn?.Hdot_J_s ?? 0, H_out = matOut?.Hdot_J_s ?? 0, H_ov = overflow?.Hdot_J_s ?? 0;
+      if (Math.abs(H_in - H_out - H_ov) > 0.01) accumulation.energy_W += (H_in - H_out - H_ov);
+    }
+    if (u.defId === 'battery') {
+      const netPower = ud.ports?.elec?.actual || 0;
+      const accumRate = -netPower;
+      if (Math.abs(accumRate) > 0.01) { accumulation.energy_W += accumRate; accumulation.items.push({ name: uName, type: 'battery_energy', value_kgps: 0, value_W: accumRate }); }
+    }
+  }
+
+  const massResidual = massBalance - accumulation.mass_kgps;
+  const energyResidual = energyBalance - accumulation.energy_W;
+  const massTolAccum = Math.max(totalMassIn, totalMassOut, Math.abs(accumulation.mass_kgps)) * 1e-4 + 1e-10;
+
+  return {
+    mass: { inItems: massInItems, outItems: massOutItems, totalIn: totalMassIn, totalOut: totalMassOut,
+            balance: massBalance, accumulation: accumulation.mass_kgps, residual: massResidual,
+            closed: Math.abs(massResidual) < massTolAccum },
+    energy: { in: energyIn, out: energyOut, totalIn: totalEnergyIn, totalOut: totalEnergyOut,
+              balance: energyBalance, accumulation: accumulation.energy_W, residual: energyResidual,
+              relError: totalEnergyIn !== 0 ? Math.abs(energyResidual / totalEnergyIn) : 0,
+              closed: totalEnergyIn !== 0 ? Math.abs(energyResidual / totalEnergyIn) < 0.01 : Math.abs(energyResidual) < 1 },
+    accumulation
+  };
+}
+
+// [v10.3.0] Moved to engine for headless test access
+function calculateStreamFlowrates(stream) {
+  if (!stream || stream.type !== StreamType.MATERIAL) return null;
+  let nTotal = 0;
+  for (const [comp, val] of Object.entries(stream.n || {})) {
+    const n = Number(val);
+    nTotal += Number.isFinite(n) ? n : 0;
+  }
+  let mTotal = thermo.streamMassFlow(stream);
+  if (!Number.isFinite(mTotal)) mTotal = 0;
+  let vTotal = thermo.streamVolFlow_m3ps(stream);
+  if (!Number.isFinite(vTotal)) vTotal = 0;
+  return { nTotal, mTotal, vTotal };
+}
+
 const PG = {
   // ── Enums ──
   PortDir,
@@ -12116,6 +12391,12 @@ const PG = {
 
   // ── Time [v9.0.1] ──
   TimeClock,
+
+  // ── Mass flow helper [v10.3.0] moved to engine for headless test access ──
+  streamMass_kgps,
+  computeSystemBalance,
+  calculateStreamFlowrates,
+  fmt,
 
   // ── Test harness (assigned by test script) ──
   TestCtx:   null,
@@ -12541,6 +12822,96 @@ function makeResultCard(label, value, color) {
 }
 
 /* =========================
+   [v10.3.0] BALANCE REPORT MODAL (E9)
+   ========================= */
+function openBalanceModal() {
+  const modal = document.getElementById('modalBalance');
+  const panel = document.getElementById('balancePanel');
+  panel.innerHTML = '';
+  closeMenus();
+
+  const balance = computeSystemBalance(scene);
+  if (!balance) {
+    panel.appendChild(el('div', { style: 'opacity:0.5; padding:12px;', html: 'No solve data — press Test first.' }));
+    modal.classList.add('open');
+    return;
+  }
+
+  // ── Summary badges ──
+  const sumDiv = el('div', { style: 'display:flex; gap:12px; margin-bottom:12px; flex-wrap:wrap;' });
+  const mBadge = balance.mass.closed
+    ? '<span class="ins-badge good" style="font-size:12px;">✓ Mass Closed</span>'
+    : '<span class="ins-badge bad" style="font-size:12px;">✗ Mass Open</span>';
+  const eBadge = balance.energy.closed
+    ? '<span class="ins-badge good" style="font-size:12px;">✓ Energy Closed</span>'
+    : '<span class="ins-badge bad" style="font-size:12px;">✗ Energy Open</span>';
+  const relErr = balance.energy.relError;
+  const errText = isFinite(relErr) ? `${(relErr*100).toFixed(3)}%` : '—';
+  sumDiv.innerHTML = `${mBadge} ${eBadge} <span style="opacity:0.5; font-size:12px;">ΔE: ${errText}</span>`;
+  panel.appendChild(sumDiv);
+
+  // ── Helper: formatted mass value ──
+  const fmtM = (kgps) => `${(kgps*1000).toFixed(4)} g/s`;
+
+  // ── Mass Balance Table ──
+  if (balance.mass.inItems.length || balance.mass.outItems.length) {
+    panel.appendChild(el('div', { style: 'font-weight:700; font-size:13px; margin:8px 0 4px;', html: 'Mass Balance' }));
+    const tbl = el('table', { style: 'width:100%; font-size:12px; border-collapse:collapse;' });
+    const addRow = (label, val, bold, color) => {
+      const tr = el('tr');
+      const style = `padding:3px 6px; ${bold ? 'font-weight:700;' : ''} ${color ? 'color:'+color+';' : ''}`;
+      tr.innerHTML = `<td style="${style}">${label}</td><td style="${style} text-align:right;">${val}</td>`;
+      tbl.appendChild(tr);
+    };
+    addRow('→ Mass In', '', true);
+    for (const item of balance.mass.inItems) addRow('  ' + item.name, fmtM(item.mass_kgps));
+    addRow('Σ In', fmtM(balance.mass.totalIn), true);
+    addRow('', '');
+    addRow('← Mass Out', '', true);
+    for (const item of balance.mass.outItems) addRow('  ' + item.name, fmtM(item.mass_kgps));
+    addRow('Σ Out', fmtM(balance.mass.totalOut), true);
+    if (Math.abs(balance.mass.accumulation) > 1e-9) {
+      addRow('', '');
+      addRow('⟳ Accumulation', fmtM(balance.mass.accumulation), false, '#60a5fa');
+    }
+    addRow('', '');
+    const resColor = balance.mass.closed ? '#6ee7b7' : '#fca5a5';
+    addRow('Residual', fmtM(balance.mass.residual), true, resColor);
+    panel.appendChild(tbl);
+  }
+
+  // ── Energy Balance Table ──
+  if (balance.energy.in.items.length || balance.energy.out.items.length) {
+    panel.appendChild(el('div', { style: 'font-weight:700; font-size:13px; margin:14px 0 4px; border-top:1px solid #1e293b; padding-top:10px;', html: 'Energy Balance' }));
+    const tbl = el('table', { style: 'width:100%; font-size:12px; border-collapse:collapse;' });
+    const addRow = (label, val, bold, color) => {
+      const tr = el('tr');
+      const style = `padding:3px 6px; ${bold ? 'font-weight:700;' : ''} ${color ? 'color:'+color+';' : ''}`;
+      tr.innerHTML = `<td style="${style}">${label}</td><td style="${style} text-align:right;">${val}</td>`;
+      tbl.appendChild(tr);
+    };
+    const fmtE = (W) => `${(W/1000).toFixed(3)} kW`;
+    addRow('→ Energy In', '', true);
+    for (const item of balance.energy.in.items) addRow(`  ${item.name} (${item.type})`, fmtE(item.value));
+    addRow('Σ In', fmtE(balance.energy.totalIn), true);
+    addRow('', '');
+    addRow('← Energy Out', '', true);
+    for (const item of balance.energy.out.items) addRow(`  ${item.name} (${item.type})`, fmtE(item.value));
+    addRow('Σ Out', fmtE(balance.energy.totalOut), true);
+    if (Math.abs(balance.energy.accumulation) > 0.01) {
+      addRow('', '');
+      addRow('⟳ Accumulation', fmtE(balance.energy.accumulation), false, '#60a5fa');
+    }
+    addRow('', '');
+    const resColor = balance.energy.closed ? '#6ee7b7' : '#fca5a5';
+    addRow('Residual', fmtE(balance.energy.residual), true, resColor);
+  panel.appendChild(tbl);
+  }
+
+  modal.classList.add('open');
+}
+
+/* =========================
    STATUS — Transient messages (connect, import, export, etc.)
    ========================= */
 function setStatus(s) {
@@ -12573,26 +12944,7 @@ function describeSolve() {
    STREAM CALCULATIONS
    Helper functions for stream property calculations
    ========================= */
-function calculateStreamFlowrates(stream) {
-  if (!stream || stream.type !== StreamType.MATERIAL) return null;
-  
-  // [v5.5.1] Coerce + guard every component flow before summation
-  let nTotal = 0;
-  for (const [comp, val] of Object.entries(stream.n || {})) {
-    const n = Number(val);
-    nTotal += Number.isFinite(n) ? n : 0;
-  }
-  
-  // Mass flowrate (kg/s) using thermo adapter — guard output
-  let mTotal = thermo.streamMassFlow(stream);
-  if (!Number.isFinite(mTotal)) mTotal = 0;
-  
-  // Volumetric flowrate (m³/s) — guard output
-  let vTotal = thermo.streamVolFlow_m3ps(stream);
-  if (!Number.isFinite(vTotal)) vTotal = 0;
-  
-  return { nTotal, mTotal, vTotal };
-}
+// calculateStreamFlowrates — defined in engine block, available globally
 
 /* =========================
    UI HELPER FUNCTIONS
@@ -15037,245 +15389,14 @@ function renderStreamProperties(container, s) {
 // when species change).  Energy in watts across all stream types.
 // ════════════════════════════════════════════════════════════════════════
 
-function streamMass_kgps(stream) {
-  if (!stream?.n) return 0;
-  let mass = 0;
-  for (const [sp, n] of Object.entries(stream.n)) {
-    if (n < 1e-15) continue;
-    const comp = ComponentRegistry.get(sp);
-    mass += n * (comp?.MW || 28) / 1000;  // mol/s × g/mol ÷ 1000 = kg/s
-  }
-  return mass;
-}
-const streamMass_kg = streamMass_kgps;  // [v10.0.1] back-compat alias
+// streamMass_kgps — defined in engine block, available globally
 
-function computeSystemBalance(scene) {
-  if (!scene.runtime?.unitData) return null;
-
-  // ── Mass balance (global, kg/s) ──
-  const massInItems  = [];   // { name, mass_kgps, detail: { species: mol/s, ... } }
-  const massOutItems = [];
-  let totalMassIn  = 0;
-  let totalMassOut = 0;
-
-  // ── Energy balance (W) ──
-  const energyIn  = { material: 0, electrical: 0, mechanical: 0, heat: 0, items: [] };
-  const energyOut = { material: 0, electrical: 0, mechanical: 0, heat: 0, dissipated: 0, items: [] };
-
-  // ── [v8.6.2] Port-direction boundary detection ──
-  // A unit is a boundary element if ALL its ports share the same direction.
-  //   All OUT → source (feeds INTO the system)
-  //   All IN  → sink   (drains OUT OF the system)
-  // This automatically handles any future source/sink types without hardcoding.
-
-  for (const [id, u] of scene.units) {
-    const def = UnitRegistry.get(u.defId);
-    const ud = scene.runtime.unitData.get(id);
-    if (!ud) continue;
-    const uName = u.name || def.name;
-
-    // Classify: are all ports the same direction?
-    const dirs = new Set(def.ports.map(p => p.dir));
-    if (dirs.size !== 1) continue;  // Mixed directions → internal unit, skip
-    // [v9.1.0] Inventory units (battery, tank) are internal storage, not boundary.
-    // Their energy/mass flows are captured by the accumulation term.
-    if (def.inventory) continue;
-    const boundaryDir = [...dirs][0];
-
-    for (const p of def.ports) {
-      const stream = ud.ports?.[p.portId];
-      if (!stream) continue;
-
-      if (p.type === StreamType.MATERIAL && stream.n) {
-        const m = streamMass_kgps(stream);
-        const H = stream.Hdot_J_s ?? thermo.getHdot_Jps(stream);
-
-        if (boundaryDir === PortDir.OUT) {
-          // Source: material flowing INTO the system
-          if (m > 1e-15) {
-            totalMassIn += m;
-            massInItems.push({ name: uName, mass_kgps: m, detail: { ...stream.n } });
-          }
-          if (isFinite(H)) {
-            energyIn.material += H;
-            energyIn.items.push({ name: uName, type: 'material', value: H });
-          }
-        } else {
-          // Sink: material flowing OUT of the system
-          if (m > 1e-15) {
-            totalMassOut += m;
-            massOutItems.push({ name: uName, mass_kgps: m, detail: { ...stream.n } });
-          }
-          if (isFinite(H)) {
-            energyOut.material += H;
-            energyOut.items.push({ name: uName, type: 'material', value: H });
-          }
-        }
-      } else if (p.type === StreamType.ELECTRICAL ||
-                 p.type === StreamType.MECHANICAL ||
-                 p.type === StreamType.HEAT) {
-        const W = stream.actual ?? stream.available ?? 0;
-        if (W <= 0) continue;
-
-        const eType = p.type === StreamType.ELECTRICAL ? 'electrical'
-                    : p.type === StreamType.MECHANICAL ? 'mechanical'
-                    : 'heat';
-
-        if (boundaryDir === PortDir.OUT) {
-          energyIn[eType] += W;
-          energyIn.items.push({ name: uName, type: eType, value: W });
-        } else {
-          energyOut[eType] += W;
-          energyOut.items.push({ name: uName, type: eType, value: W });
-        }
-      }
-    }
-  }
-
-  // ── Unconnected heat_out ports → dissipated OUT ──
-  for (const [id, u] of scene.units) {
-    const def = UnitRegistry.get(u.defId);
-    const ud = scene.runtime.unitData.get(id);
-    if (!ud) continue;
-    for (const p of def.ports) {
-      if (p.portId === 'heat_out' && p.dir === PortDir.OUT) {
-        const Q = ud.ports?.heat_out?.actual ?? 0;
-        if (Q < 0.01) continue;
-        const hasConn = scene.connections.some(
-          c => c.from.unitId === id && c.from.portId === 'heat_out'
-        );
-        if (!hasConn) {
-          const uName = u.name || def.name;
-          energyOut.dissipated += Q;
-          energyOut.items.push({ name: uName, type: 'dissipated', value: Q });
-        }
-      }
-    }
-  }
-
-  // ── Implicit utility heating: units that need external heat input ──
-  // When an isothermal reactor needs heating (Q_duty > 0), the heat doesn't
-  // exit via heat_out — it must be supplied externally.  Account for it as
-  // an energy input so the system balance closes.
-  for (const [id, u] of scene.units) {
-    const ud = scene.runtime.unitData.get(id);
-    if (!ud) continue;
-    const Q_util = ud.ports?.heat_out?.Q_utility_in_W;
-    if (Q_util && Q_util > 0.01) {
-      const uName = u.name || UnitRegistry.get(u.defId)?.name || id;
-      energyIn.heat += Q_util;
-      energyIn.items.push({ name: uName + ' (utility)', type: 'heat', value: Q_util });
-    }
-  }
-
-  // ── Totals ──
-  const massBalance = totalMassIn - totalMassOut;
-  // Display tolerance: 0.01% relative — well within engineering accuracy.
-  // Solver convergence (1 ppm) means residuals near this level for recycle loops.
-  const massTol = Math.max(totalMassIn, totalMassOut) * 1e-4 + 1e-10;
-
-  const totalEnergyIn  = energyIn.material + energyIn.electrical + energyIn.mechanical + energyIn.heat;
-  const totalEnergyOut = energyOut.material + energyOut.electrical + energyOut.mechanical + energyOut.heat + energyOut.dissipated;
-  const energyBalance  = totalEnergyIn - totalEnergyOut;
-
-  // ── [v9.0.5] Accumulation: inventory units store/release mass and energy ──
-  // Mass accumulation = Σ(tank net mass inflow) in kg/s
-  // Energy accumulation = Σ(battery net charge) in W + Σ(tank enthalpy change) in W
-  const accumulation = { mass_kgps: 0, energy_W: 0, items: [] };
-
-  for (const [id, u] of scene.units) {
-    const def = UnitRegistry.get(u.defId);
-    if (!def || !def.inventory) continue;
-    const ud = scene.runtime.unitData.get(id);
-    if (!ud) continue;
-    const uName = u.name || def.name;
-
-    if (u.defId === 'tank') {
-      // Tank: mass accumulation from net material flow
-      const matIn = ud.ports?.mat_in;
-      const matOut = ud.ports?.mat_out;
-      const overflow = ud.ports?.overflow;
-      const m_in = matIn ? streamMass_kgps(matIn) : 0;
-      const m_out = matOut ? streamMass_kgps(matOut) : 0;
-      const m_ov = overflow ? streamMass_kgps(overflow) : 0;
-      const netMass = m_in - m_out - m_ov;
-      if (Math.abs(netMass) > 1e-15) {
-        accumulation.mass_kgps += netMass;
-        accumulation.items.push({ name: uName, type: 'tank_mass', value_kgps: netMass, value_W: 0 });
-      }
-      // Tank: energy accumulation (simplified — proportional to mass × T)
-      const H_in = matIn?.Hdot_J_s ?? 0;
-      const H_out = matOut?.Hdot_J_s ?? 0;
-      const H_ov = overflow?.Hdot_J_s ?? 0;
-      const netH = H_in - H_out - H_ov;
-      if (Math.abs(netH) > 0.01) {
-        accumulation.energy_W += netH;
-      }
-    }
-
-    if (u.defId === 'battery') {
-      // Battery: energy accumulation = net charge power (negative actual = charging = positive accum)
-      const elecPort = ud.ports?.elec;
-      const netPower = elecPort?.actual || 0;
-      // netPower > 0 = discharging (energy leaving storage → negative accumulation)
-      // netPower < 0 = charging (energy entering storage → positive accumulation)
-      const accumRate = -netPower;  // W stored per second
-      if (Math.abs(accumRate) > 0.01) {
-        accumulation.energy_W += accumRate;
-        accumulation.items.push({ name: uName, type: 'battery_energy', value_kgps: 0, value_W: accumRate });
-      }
-    }
-  }
-
-  // ── Adjusted residuals: In − Out − Accumulation ≈ 0 ──
-  const massResidual = massBalance - accumulation.mass_kgps;
-  const energyResidual = energyBalance - accumulation.energy_W;
-  const massTolAccum = Math.max(totalMassIn, totalMassOut, Math.abs(accumulation.mass_kgps)) * 1e-4 + 1e-10;
-
-  return {
-    mass: {
-      inItems: massInItems,
-      outItems: massOutItems,
-      totalIn: totalMassIn,
-      totalOut: totalMassOut,
-      balance: massBalance,
-      accumulation: accumulation.mass_kgps,
-      residual: massResidual,
-      closed: Math.abs(massResidual) < massTolAccum
-    },
-    energy: {
-      in: energyIn,
-      out: energyOut,
-      totalIn: totalEnergyIn,
-      totalOut: totalEnergyOut,
-      balance: energyBalance,
-      accumulation: accumulation.energy_W,
-      residual: energyResidual,
-      relError: totalEnergyIn !== 0 ? Math.abs(energyResidual / totalEnergyIn) : 0,
-      closed: totalEnergyIn !== 0 ? Math.abs(energyResidual / totalEnergyIn) < 0.01 : Math.abs(energyResidual) < 1
-    },
-    accumulation
-  };
-}
+// computeSystemBalance — defined in engine block, available globally
+// fmt — defined in engine block, available globally
 
 /* ═══════════════════════════════════════════════════════════════════════════
    [v10] INSPECTOR INFRASTRUCTURE — Schema-driven inspector renderer
    ═══════════════════════════════════════════════════════════════════════════ */
-
-// ── Format helpers ──
-const fmt = {
-  kW:  (W) => W == null || isNaN(W) ? '—' : `${(W/1000).toFixed(2)}<span class="u">kW</span>`,
-  W:   (W) => W == null || isNaN(W) ? '—' : `${W.toFixed(1)}<span class="u">W</span>`,
-  pct: (v) => v == null || isNaN(v) ? '—' : `${(v*100).toFixed(1)}<span class="u">%</span>`,
-  pctRaw: (v) => v == null || isNaN(v) ? '—' : `${v.toFixed(1)}<span class="u">%</span>`,
-  mol: (v) => v == null ? '—' : `${v.toFixed(1)}<span class="u">mol</span>`,
-  flow:(v) => v == null ? '—' : `${v.toFixed(3)}<span class="u">mol/s</span>`,
-  mass:(v) => v == null ? '—' : `${(v*1000).toFixed(2)}<span class="u">g/s</span>`,
-  T:   (K) => { const us = models.getActive('units'); return K == null ? '—' : `${us.temperature.from(K).toFixed(1)}<span class="u">${us.temperature.symbol}</span>`; },
-  P:   (Pa) => { const us = models.getActive('units'); return Pa == null ? '—' : `${us.pressure.from(Pa).toFixed(us.pressure.decimals)}<span class="u">${us.pressure.symbol}</span>`; },
-  time:(s) => { if (s == null || !isFinite(s)) return '—'; const h = Math.floor(s/3600), m = Math.floor((s%3600)/60); return `~${h}:${String(m).padStart(2,'0')}`; },
-  val: (v, u) => v == null || isNaN(v) ? '—' : `${v}<span class="u">${u||''}</span>`,
-};
 
 // ── Generic renderers ──
 function insKV(parent, label, valueHtml, opts = {}) {
@@ -15382,21 +15503,43 @@ function _renderAutoStream(container, stream) {
     grid.appendChild(el('div')); // empty cell to maintain grid
   }
 
-  // Row 3: Composition (full width)
+  // Row 3: Composition (full width) — with per-phase breakdown for VL
   const components = Object.keys(stream.n || {}).filter(k => stream.n[k] > 1e-9).sort((a, b) => stream.n[b] - stream.n[a]);
   const nTotal = components.reduce((s, k) => s + stream.n[k], 0);
-  if (components.length) {
-    const compRow = el('div', { class: 'full-row', style: 'margin-top:2px;' });
-    const compWrap = el('div', { style: 'display:flex; flex-wrap:wrap; gap:4px;' });
-    for (const comp of components) {
-      const molFrac = nTotal > 0 ? (stream.n[comp] / nTotal) : 0;
+  
+  function _compBadges(fracs, species) {
+    const wrap = el('div', { style: 'display:flex; flex-wrap:wrap; gap:4px;' });
+    for (const sp of species) {
+      const f = fracs[sp] ?? 0;
+      if (f < 1e-6) continue;
       const badge = el('div', { class: 'compBadge' });
-      badge.appendChild(el('span', { class: 'spec', text: comp }));
-      badge.appendChild(el('span', { class: 'pct', text: `${(100 * molFrac).toFixed(1)}%` }));
-      compWrap.appendChild(badge);
+      badge.appendChild(el('span', { class: 'spec', text: sp }));
+      badge.appendChild(el('span', { class: 'pct', text: `${(100 * f).toFixed(1)}%` }));
+      wrap.appendChild(badge);
     }
-    compRow.appendChild(compWrap);
-    grid.appendChild(compRow);
+    return wrap;
+  }
+  
+  if (components.length) {
+    if (isVL && stream.y && stream.x) {
+      // Per-phase composition
+      const vapRow = el('div', { class: 'full-row', style: 'margin-top:2px;' });
+      vapRow.appendChild(el('div', { style: 'font-size:10px; opacity:0.5; text-transform:uppercase; letter-spacing:0.3px; margin-bottom:3px;', text: 'Vapor' }));
+      vapRow.appendChild(_compBadges(stream.y, components));
+      grid.appendChild(vapRow);
+      
+      const liqRow = el('div', { class: 'full-row', style: 'margin-top:4px;' });
+      liqRow.appendChild(el('div', { style: 'font-size:10px; opacity:0.5; text-transform:uppercase; letter-spacing:0.3px; margin-bottom:3px;', text: 'Liquid' }));
+      liqRow.appendChild(_compBadges(stream.x, components));
+      grid.appendChild(liqRow);
+    } else {
+      // Single-phase: overall composition
+      const compRow = el('div', { class: 'full-row', style: 'margin-top:2px;' });
+      const molFracs = {};
+      for (const sp of components) molFracs[sp] = nTotal > 0 ? stream.n[sp] / nTotal : 0;
+      compRow.appendChild(_compBadges(molFracs, components));
+      grid.appendChild(compRow);
+    }
   }
   
   // Row 4: Molar flow | Mass flow
@@ -15456,15 +15599,16 @@ function _renderDetailSection(container, items) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// PER-UNIT INSPECTOR CONFIG — v10.2.0 Unified Inspector
+// PER-UNIT INSPECTOR CONFIG — v10.2.2 Unified Inspector
 // ═══════════════════════════════════════════════════════════════════════════
 // API (all hooks optional):
-//   params(u)            → editable param descriptors
+//   params(u)            → editable param descriptors (rendered in .ins-params-zone)
 //   customParams(c,u,s)  → custom param DOM
 //   conditions(u, ud)    → KPI items for T/P/phase/composition (overrides auto-stream)
-//   power(u, ud)         → KPI items for power/energy/duty numbers
+//   power(u, ud)         → KPI items for power/energy/duty ("Power & Energy")
+//   reaction(u, ud)      → KPI items for reactor-specific data ("Reaction Data")
 //   kpis(u, ud)          → KPI items for unit-specific operational data
-//   detail(u, ud, sc)    → condensed KV items for deep-dive data
+//   detail(u, ud, sc)    → condensed KV items for deep-dive data (collapsible)
 // ═══════════════════════════════════════════════════════════════════════════
 const UnitInspector = {};
 
@@ -15477,7 +15621,7 @@ function _pEtaParams(u, unitSys, Pdefault, etaDefault) {
       step: unitSys.pressure.decimals === 0 ? 1000 : 0.1, decimals: unitSys.pressure.decimals },
     { label: 'Efficiency (-)',
       get: () => u.params.eta || etaDefault,
-      set: v => u.params.eta = v, step: 0.01 },
+      set: v => u.params.eta = v, step: 0.01, min: 0, max: 1 },
   ];
 }
 
@@ -15593,7 +15737,7 @@ UnitInspector.grid_supply = {
     if (!ud.last) return [];
     const mode = ud.last.type === 'fixed' ? 'Fixed' : 'Responsive';
     return [
-      { label: 'Mode', value: mode, full: true, tone: mode === 'Fixed' ? 'warn' : 'good' },
+      { label: 'Mode', value: mode, tone: mode === 'Fixed' ? 'warn' : 'good' },
       { label: 'Capacity', value: fmt.kW(ud.last.maxPower_W) },
     ];
   }
@@ -15650,7 +15794,7 @@ UnitInspector.battery = {
   params(u) { return [
     { label: 'Peak power (kW)', get: () => u.params.peakPower_kW || 20, set: v => u.params.peakPower_kW = v, step: 1 },
     { label: 'Capacity (kWh)', get: () => (u.params.capacity_J || 36000000) / 3600000, set: v => u.params.capacity_J = v * 3600000, step: 1 },
-    { label: 'Initial SOC (-)', get: () => u.params.initialSOC ?? 0.9, set: v => u.params.initialSOC = v, step: 0.05 },
+    { label: 'Initial SOC (-)', get: () => u.params.initialSOC ?? 0.9, set: v => u.params.initialSOC = v, step: 0.05, min: 0, max: 1 },
   ]; },
   power(u, ud) {
     if (!ud.last) return [];
@@ -15681,7 +15825,7 @@ UnitInspector.battery = {
 
 // ── Power Conversion ──
 UnitInspector.motor = {
-  params(u) { return [{ label: 'Efficiency (-)', get: () => u.params.eta || 0.95, set: v => u.params.eta = v, step: 0.01 }]; },
+  params(u) { return [{ label: 'Efficiency (-)', get: () => u.params.eta || 0.95, set: v => u.params.eta = v, step: 0.01, min: 0, max: 1 }]; },
   power(u, ud) { return !ud.last ? [] : [
     { label: 'Electrical in', value: fmt.kW(ud.last.W_elec_W) },
     { label: 'Mechanical out', value: fmt.kW(ud.last.W_mech_W) },
@@ -15700,7 +15844,7 @@ UnitInspector.electric_heater = {
 };
 
 UnitInspector.generator = {
-  params(u) { return [{ label: 'Efficiency (-)', get: () => u.params.eta || 0.97, set: v => u.params.eta = v, step: 0.01 }]; },
+  params(u) { return [{ label: 'Efficiency (-)', get: () => u.params.eta || 0.97, set: v => u.params.eta = v, step: 0.01, min: 0, max: 1 }]; },
   power(u, ud) { return !ud.last ? [] : [
     { label: 'Mechanical in', value: fmt.kW(ud.last.W_mech_W) },
     { label: 'Electrical out', value: fmt.kW(ud.last.W_elec_W) },
@@ -15799,7 +15943,7 @@ UnitInspector.cooler = {
 
 // ── Topology ──
 UnitInspector.splitter = {
-  params(u) { return [{ label: 'Split to out1 (%)', get: () => u.params.splitPct ?? 50, set: v => u.params.splitPct = Math.max(0, Math.min(100, v)), step: 1 }]; },
+  params(u) { return [{ label: 'Split to out1 (%)', get: () => u.params.splitPct ?? 50, set: v => u.params.splitPct = Math.max(0, Math.min(100, v)), step: 1, min: 0, max: 100 }]; },
   kpis(u, ud) { if (!ud?.last) return []; return [
     ...(ud.last.nOut1 != null ? [{ label: 'Out 1', value: fmt.flow(ud.last.nOut1) }] : []),
     ...(ud.last.nOut2 != null ? [{ label: 'Out 2', value: fmt.flow(ud.last.nOut2) }] : []),
@@ -15894,11 +16038,12 @@ function _reactorParams(u, type) {
 
 UnitInspector.reactor_adiabatic = {
   params(u) { return _reactorParams(u, 'adiabatic'); },
-  kpis(u, ud) { if (!ud?.last) return []; return [
-    ...(ud.last.conversion != null ? [{ label: 'Conversion', value: fmt.pct(ud.last.conversion) }] : []),
-    ...(ud.last.xi != null ? [{ label: 'ξ', value: `${ud.last.xi.toExponential(3)}<span class="propUnit">mol/s</span>` }] : []),
+  reaction(u, ud) { if (!ud?.last) return []; const L = ud.last; return [
+    ...(L.conversion != null ? [{ label: 'Conversion', value: fmt.pct(L.conversion) }] : []),
+    ...(L.limited_by ? [{ label: 'Limited by', value: L.limited_by }] : []),
   ]; },
   detail(u, ud) { if (!ud?.last) return []; const L = ud.last; return [
+    ...(L.xi != null ? [{ label: 'ξ', value: `${L.xi.toExponential(3)}<span class="u">mol/s</span>` }] : []),
     ...(L.xi_max != null ? [{ label: 'ξ_max', value: `${L.xi_max.toExponential(3)}<span class="u">mol/s</span>` }] : []),
     ...(L.H_in_kW ? [{ label: 'H in', value: `${L.H_in_kW}<span class="u">kW</span>` }] : []),
     ...(L.reason ? [{ label: 'Reason', value: L.reason, full: true, tone: 'warn' }] : []),
@@ -15910,22 +16055,26 @@ UnitInspector.reactor_equilibrium = {
   power(u, ud) {
     if (!ud?.last?.Q_duty_W) return [];
     const L = ud.last;
-    const sign = L.Q_duty_sign === 'heating' ? '🔥' : '❄️';
-    return [{ label: `Q duty ${sign}`, value: fmt.kW(Math.abs(L.Q_duty_W)), tone: L.Q_duty_sign === 'heating' ? 'warn' : 'info' }];
+    const isEndo = L.Q_duty_sign === 'heating';
+    const badge = isEndo ? '🔥 Endothermic' : '❄️ Exothermic';
+    return [
+      { label: 'Q duty', value: fmt.kW(Math.abs(L.Q_duty_W)) },
+      { label: 'Type', value: badge, tone: isEndo ? 'warn' : 'info' },
+    ];
   },
-  kpis(u, ud) { if (!ud.last) return []; const L = ud.last; const items = [];
-    if (L.ln_K != null) items.push({ label: 'K_eq', value: Math.exp(Math.min(L.ln_K, 300)).toExponential(3) });
+  reaction(u, ud) { if (!ud?.last) return []; const L = ud.last; const items = [];
+    if (L.mode) items.push({ label: 'Mode', value: L.mode });
     if (L.xi != null && L.xi_max > 0) items.push({ label: 'Conversion', value: fmt.pct(L.xi / L.xi_max) });
-    if (L.xi != null) items.push({ label: 'ξ', value: `${L.xi.toExponential(3)}<span class="propUnit">mol/s</span>` });
+    if (L.ln_K != null) items.push({ label: 'K_eq', value: Math.exp(Math.min(L.ln_K, 300)).toExponential(3) });
+    if (L.alpha_effective != null) items.push({ label: 'Approach α', value: L.alpha_effective.toFixed(4) });
+    if (L.limited_by) items.push({ label: 'Limited by', value: L.limited_by });
+    if (L.tau_s != null) items.push({ label: 'τ', value: `${L.tau_s.toFixed(2)}<span class="propUnit">s</span>` });
     return items;
   },
   detail(u, ud) { if (!ud.last) return []; const L = ud.last; return [
-    ...(L.mode ? [{ label: 'Mode', value: L.mode, full: true }] : []),
     ...(L.T_eval ? [{ label: 'T reaction', value: fmt.T(L.T_eval) }] : []),
+    ...(L.xi != null ? [{ label: 'ξ', value: `${L.xi.toExponential(3)}<span class="u">mol/s</span>` }] : []),
     ...(L.xi_eq != null ? [{ label: 'ξ_eq', value: `${L.xi_eq.toExponential(3)}<span class="u">mol/s</span>` }] : []),
-    ...(L.alpha_effective != null ? [{ label: 'α_eff', value: L.alpha_effective.toFixed(4) }] : []),
-    ...(L.limited_by ? [{ label: 'Limited by', value: L.limited_by }] : []),
-    ...(L.tau_s != null ? [{ label: 'τ', value: `${L.tau_s.toFixed(2)}<span class="u">s</span>` }] : []),
     ...(L.rate_inlet != null ? [{ label: 'Rate (inlet)', value: `${L.rate_inlet.toExponential(2)}<span class="u">mol/m³s</span>` }] : []),
     ...(L.reason ? [{ label: 'Reason', value: L.reason, full: true, tone: 'warn' }] : []),
   ]; }
@@ -16042,8 +16191,10 @@ function renderParams(container, paramDefs, u) {
       row.appendChild(cb);
       row.appendChild(el('label', { html: p.label, style: 'font-size:12px; cursor:pointer;', for: cb.id }));
       container.appendChild(row);
+    } else if (p.min != null && p.max != null) {
+      // [v10.2.2] Auto-slider for bounded number params
+      addSliderEditor(container, p.label, p.get, p.set, p.min, p.max, p.step || 0.01);
     } else {
-      // Default: number editor
       addNumberEditor(container, p.label, p.get, p.set, p.step || 0.1, p.decimals);
     }
   }
@@ -16107,15 +16258,15 @@ function updatePropertiesPanel() {
       propEditor.appendChild(el('div', { style: 'font-size:11px; color:#6ee7b7; opacity:0.6; padding:2px 0 4px;', html: '✓ OK' }));
     }
 
-    // ── Parameters (collapsible, open) ──
+    // ── Parameters (flat zone, distinct background) [v10.2.2] ──
     if (config?.params || config?.customParams) {
-      const paramsSection = createCollapsibleSection('Parameters', true);
+      const paramsZone = el('div', { class: 'ins-params-zone' });
       if (config.customParams) {
-        config.customParams(paramsSection.content, u, scene);
+        config.customParams(paramsZone, u, scene);
       } else {
-        renderParams(paramsSection.content, config.params(u), u);
+        renderParams(paramsZone, config.params(u), u);
       }
-      propEditor.appendChild(paramsSection.section);
+      propEditor.appendChild(paramsZone);
     }
 
     // ── [v10.2.0] Process Conditions ──
@@ -16132,6 +16283,12 @@ function updatePropertiesPanel() {
     if (ud && config?.power) {
       const items = config.power(u, ud);
       if (items?.length) _renderLabeledSection(propEditor, 'Power & Energy', items);
+    }
+
+    // ── [v10.2.2] Reaction Data ──
+    if (ud && config?.reaction) {
+      const items = config.reaction(u, ud);
+      if (items?.length) _renderLabeledSection(propEditor, 'Reaction Data', items);
     }
 
     // ── Unit-specific KPIs ──
@@ -16344,6 +16501,106 @@ function updatePropertiesPanel() {
   }
   // [v10.2.0] Solver summary removed from inspector — status indicator is sufficient
 }
+
+/* =========================
+   [v10.3.0] PANEL RESIZE
+   ========================= */
+{
+  const handle = document.getElementById('panelResizeHandle');
+  const app = document.querySelector('.app');
+  const MIN_W = 260, MAX_W = 700, DEFAULT_W = 360;
+  let dragging = false, startX = 0, startW = DEFAULT_W;
+
+  handle.addEventListener('pointerdown', (e) => {
+    dragging = true; startX = e.clientX;
+    startW = document.getElementById('rightPanel').offsetWidth;
+    handle.classList.add('active');
+    handle.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  });
+  handle.addEventListener('pointermove', (e) => {
+    if (!dragging) return;
+    const w = Math.max(MIN_W, Math.min(MAX_W, startW + (startX - e.clientX)));
+    app.style.setProperty('--panel-width', w + 'px');
+  });
+  handle.addEventListener('pointerup', () => {
+    dragging = false;
+    handle.classList.remove('active');
+  });
+}
+
+/* =========================
+   [v10.3.0] AUTO-SAVE (M8)
+   ========================= */
+const AUTOSAVE_KEY = 'processThis_autosave';
+const AUTOSAVE_DELAY = 2000; // ms debounce
+let _autosaveTimer = null;
+let _lastSavedJSON = null;
+
+function autoSave() {
+  clearTimeout(_autosaveTimer);
+  _autosaveTimer = setTimeout(() => {
+    try {
+      scene.processName = document.getElementById('processNameInput').value.trim();
+      const json = scene.exportJSON();
+      localStorage.setItem(AUTOSAVE_KEY, json);
+      _lastSavedJSON = json;
+    } catch (e) { /* quota exceeded — silently fail */ }
+  }, AUTOSAVE_DELAY);
+}
+
+function autoSaveNow() {
+  clearTimeout(_autosaveTimer);
+  try {
+    scene.processName = document.getElementById('processNameInput').value.trim();
+    const json = scene.exportJSON();
+    localStorage.setItem(AUTOSAVE_KEY, json);
+    _lastSavedJSON = json;
+  } catch (e) { /* silently fail */ }
+}
+
+function clearAutoSave() {
+  localStorage.removeItem(AUTOSAVE_KEY);
+  _lastSavedJSON = null;
+}
+
+// Hook auto-save into afterSolve (covers test, step, play, solver re-solve)
+const _origAfterSolve = afterSolve;
+afterSolve = function(solveResult) {
+  _origAfterSolve(solveResult);
+  autoSave();
+};
+
+// beforeunload: warn if scene has content
+window.addEventListener('beforeunload', (e) => {
+  if (scene.units.size > 0) {
+    autoSaveNow(); // save one last time
+    e.preventDefault();
+  }
+});
+
+// Auto-save on topology mutations
+const _origPlaceUnit = scene.placeUnit.bind(scene);
+scene.placeUnit = function(...args) {
+  const result = _origPlaceUnit(...args);
+  if (result) autoSave();
+  return result;
+};
+const _origDeleteUnit = scene.deleteUnit.bind(scene);
+scene.deleteUnit = function(...args) {
+  const result = _origDeleteUnit(...args);
+  autoSave();
+  return result;
+};
+const _origConnect = scene.connect.bind(scene);
+scene.connect = function(...args) {
+  const result = _origConnect(...args);
+  autoSave();
+  return result;
+};
+
+// Auto-save on process name change
+document.getElementById('processNameInput').addEventListener('input', () => autoSave());
 
 /* =========================
    EVENT HANDLERS
@@ -16796,6 +17053,16 @@ document.getElementById('mSolver').addEventListener('click', () => {
   openSolverModal();
 });
 
+document.getElementById('mBalance').addEventListener('click', () => {
+  openBalanceModal();
+});
+
+// Close modals when clicking outside
+const modalBalance = document.getElementById('modalBalance');
+modalBalance.addEventListener('click', (ev) => {
+  if (ev.target === modalBalance) modalBalance.classList.remove('open');
+});
+
 // Close modals when clicking outside
 modalModels.addEventListener('click', (ev) => {
   if (ev.target === modalModels) {
@@ -17156,6 +17423,7 @@ document.getElementById('mClear').addEventListener('click', () => {
       modelsActive: models.active
     }));
     document.getElementById('processNameInput').value = '';
+    clearAutoSave();
     deselectAll();
     setStatus('Scene cleared.');
   }
@@ -17396,9 +17664,29 @@ window.addEventListener('resize', () => {
 
 setViewBox();
 
+// [v10.3.0] M8: Restore from auto-save, or load demo
+{
+  const saved = localStorage.getItem(AUTOSAVE_KEY);
+  if (saved) {
+    try {
+      const result = scene.importJSON(saved);
+      if (result && !result.ok) throw new Error(result.error);
+      document.getElementById('processNameInput').value = scene.processName || '';
+      const solveResult = solveScene(scene);
+      updateStatusIndicator(solveResult);
+      _lastSavedJSON = saved;
+      setStatus('Restored from auto-save.');
+    } catch (e) {
+      loadDemo();
+      setStatus('Auto-save corrupt — loaded demo.');
+    }
+  } else {
+    loadDemo();
+  }
+}
+
 updatePropertiesPanel();
 render();
-loadDemo();
 
 </script>
 
@@ -24211,6 +24499,28 @@ function runTests() {
     t.wire(gs2, 'out', hub2, 'elec_in');
     t.solve();
     t.assertOK(t.unit(gs2).last.type === 'fixed', `Fixed: type = "${t.unit(gs2).last.type}"`);
+  }});
+
+  // [v10.3.0] T198: Stream flowrate contract
+  tests.push({ name: '198: calculateStreamFlowrates returns correct shape for material stream', fn: t => {
+    t.clearScene();
+    const src = scene.placeUnit('source', 0, 0);
+    const snk = scene.placeUnit('sink', 5, 0);
+    scene.connect({ unitId: src, portId: 'out' }, { unitId: snk, portId: 'in' });
+    solveScene(scene);
+    const ud = scene.runtime.unitData.get(src);
+    const stream = ud.ports?.out;
+    t.assertOK(stream && stream.n, 'source out port has stream with n');
+    const fr = calculateStreamFlowrates(stream);
+    t.assertOK(fr !== null, 'calculateStreamFlowrates returns non-null');
+    t.assertOK(typeof fr.nTotal === 'number' && fr.nTotal > 0, `nTotal=${fr.nTotal} is positive number`);
+    t.assertOK(typeof fr.mTotal === 'number' && fr.mTotal > 0, `mTotal=${fr.mTotal} is positive number`);
+    t.assertOK(typeof fr.vTotal === 'number' && fr.vTotal >= 0, `vTotal=${fr.vTotal} is non-negative number`);
+    // Non-material returns null
+    const nullResult = calculateStreamFlowrates({ type: StreamType.HEAT, actual: 1000 });
+    t.assertOK(nullResult === null, 'returns null for non-material stream');
+    const nullResult2 = calculateStreamFlowrates(null);
+    t.assertOK(nullResult2 === null, 'returns null for null');
   }});
 
   // ═══════════════════════════════════════════════════════════════════════
