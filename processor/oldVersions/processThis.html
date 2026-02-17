@@ -4,7 +4,23 @@
   processThis v9.1.0
 
   ─── v10.4.1 ──────────────────────────────────────────────────────────────
-  Alarm-driven animations + NNG-AL edicts.
+  Alarm-driven animations + NNG-AL edicts + bug fixes.
+
+  BUG FIX — Electric heater power setpoint:
+  Heater was hardcoded to use downstream heat demand (0 when unloaded).
+  Added u.params.power_kW (default 30, settable in inspector).
+  Step B uses setpoint as fallback when no downstream consumer, guarded
+  by elec_in connection check (unconnected heater → demand=0, unchanged).
+
+  BUG FIX — False "actual > demand" warnings:
+  Three units in demo scene threw spurious POWER_ACTUAL_GT_DEMAND:
+  reactor heat_out, hub elec_out, heater heat_out — all because producer
+  output ports wrote demand:0 (meaning "not set"), which triggered the
+  check when actual > 0. TWO-PART FIX:
+  1. Validation: changed demand >= 0 → demand > 0 (skip when unset).
+  2. Ports: producer outputs now write demand = actual (reactor heat_out,
+     hub elec_out/heat_out, electric heater heat_out). Semantically
+     correct: a producer's output "demand" is what it chose to supply.
 
   NNG-AL ALARM MANAGEMENT RULES (6 rules enacted):
   NNG-AL1: Alarm schema immutable (id, category, severity, message, etc).
@@ -7083,9 +7099,10 @@ function validateStream(stream, ctx) {
     }
 
     // [v6.4] Cross-check: actual <= demand + tolerance (overdispatch)
-    // Only check when demand is finite and positive — Infinity demand (from sinks)
+    // Only check when demand is finite and POSITIVE — demand=0 means "not set"
+    // on producer output ports, not "no power needed". Infinity demand (from sinks)
     // is expected and means "take whatever is available".
-    if (isFiniteNum(stream.actual) && isFiniteNum(stream.demand) && stream.demand >= 0) {
+    if (isFiniteNum(stream.actual) && isFiniteNum(stream.demand) && stream.demand > 0) {
       if (stream.actual > stream.demand + tol) {
         issues.push({ severity: ErrorSeverity.MINOR,
           message: `${label}: ${typeName} actual (${stream.actual.toFixed(1)} W) > demand (${stream.demand.toFixed(1)} W)`,
@@ -8071,7 +8088,7 @@ UnitRegistry.register('power_hub', {
       actual: distAvail_W,
       available: distAvail_W,  // deprecated alias — Step C overwrites
       curtailmentFactor: s.hubCurtailment !== undefined ? s.hubCurtailment : 1.0,
-      demand: 0
+      demand: distAvail_W     // [v10.4.1] initial: demand = actual (Step C refines)
     };
     
     // Heat out: surplus from Step C (fixed sources that overproduce)
@@ -8081,7 +8098,7 @@ UnitRegistry.register('power_hub', {
       capacity: surplus_W,
       actual: surplus_W,
       available: surplus_W,  // deprecated alias
-      demand: 0
+      demand: surplus_W      // [v10.4.1] producer output
     };
     
     u.last = {
@@ -8403,6 +8420,7 @@ UnitRegistry.register('electric_heater', {
     if (!elecIn) return;
     
     const eta = 1.00;  // Resistance heater — always 100% (1st law)
+    const powerSetpoint_W = (u.params.power_kW ?? 30) * 1000;  // [v10.4.1] User-settable
     const s = ctx ? ctx.scratch : {};
     // Per-consumer allocation: prefer individual factor from hub (Step C)
     // Falls back to port-level curtailmentFactor (direct battery / no hub)
@@ -8412,9 +8430,8 @@ UnitRegistry.register('electric_heater', {
     // Per-consumer ceiling: hub's absolute allocation (prevents overdraw even
     // if demand or curtailment is stale). Direct-connect falls to bus actual.
     const myCap_W = s.hubAllocated_W ?? elecActual_W;
-    // Demand from Step B rollup. Fallback 0 (not elecActual_W!) ensures an
-    // unloaded heater draws nothing.  Converges on iteration 2+ once Step B has run.
-    const myDemand_W = s.powerDemand_W ?? 0;
+    // Demand: use user setpoint, or downstream demand from Step B if available
+    const myDemand_W = s.powerDemand_W || powerSetpoint_W;
     // [v9.1.0] Guard: if demand is Infinity (from heat sink), use myCap_W directly
     const rawDraw = isFinite(myDemand_W) ? myDemand_W * curtailment : myCap_W;
     const W_elec_W = Math.min(rawDraw, myCap_W);
@@ -8422,6 +8439,7 @@ UnitRegistry.register('electric_heater', {
     const Q_loss_W = W_elec_W - Q_available_W;  // Always 0 (eta=1.00), computed for consistency
     
     u.last = {
+      powerSetpoint_W: powerSetpoint_W,
       W_elec_capacity_W: elecCapacity_W,
       W_elec_actual_W: W_elec_W,
       Q_available_W: Q_available_W,
@@ -8435,7 +8453,7 @@ UnitRegistry.register('electric_heater', {
       capacity: elecCapacity_W * eta,   // theoretical max heat output
       actual: Q_available_W,            // actual heat output
       available: Q_available_W,         // deprecated alias for actual
-      demand: 0
+      demand: Q_available_W             // [v10.4.1] demand = what we're actually producing
     };
   }
 });
@@ -9918,7 +9936,7 @@ UnitRegistry.register('reactor_equilibrium', {
       capacity: Q_cooling_W,
       actual: Q_cooling_W,
       available: Q_cooling_W,
-      demand: 0,
+      demand: Q_cooling_W,            // [v10.4.1] producer output demand = actual
       Q_utility_in_W: Q_heating_W   // implicit external heating (balance use)
     };
 
@@ -11799,7 +11817,12 @@ function solveScene(scene, options = {}) {
             if (consumerUD) downstreamHeat += consumerUD.heatDemand || 0;
           }
           const eta = 1.00;  // Resistance heater — always 100%
-          _ud.powerDemand = downstreamHeat / eta;  // Hub reads this
+          // [v10.4.1] Use user setpoint when no downstream demand, but only if
+          // the heater actually has an electrical input (otherwise demand=0)
+          const hasElecIn = scene.connections.some(c => c.to.unitId === _id && c.to.portId === 'elec_in');
+          const powerSetpoint_W = (_u.params.power_kW ?? 30) * 1000;
+          _ud.powerDemand = downstreamHeat > 0 ? (downstreamHeat / eta)
+                          : hasElecIn ? powerSetpoint_W : 0;
           _ud.last.Q_heat_demand_W = downstreamHeat;
           _ud.last.W_elec_demand_W = _ud.powerDemand;
           // [v5.4.0] Carry forward via RuntimeContext scratch (was _u._powerDemand_W)
@@ -11931,6 +11954,7 @@ function solveScene(scene, options = {}) {
         _ud.ports.heat_out.capacity = heatSurplus_W;
         _ud.ports.heat_out.actual = heatSurplus_W;
         _ud.ports.heat_out.available = heatSurplus_W;  // deprecated alias
+        _ud.ports.heat_out.demand = heatSurplus_W;     // [v10.4.1] producer output
       }
       
       const newHubPorts = {
@@ -16421,8 +16445,12 @@ UnitInspector.motor = {
 };
 
 UnitInspector.electric_heater = {
-  params(u) { return [{ type: 'info', html: 'Efficiency: <b>1.00</b> <span style="opacity:0.5">(fixed, 1st law)</span>' }]; },
+  params(u) { return [
+    { label: 'Power (kW)', get: () => u.params.power_kW ?? 30, set: v => u.params.power_kW = v, step: 1, min: 0, decimals: 1 },
+    { type: 'info', html: 'Efficiency: <b>1.00</b> <span style="opacity:0.5">(fixed, 1st law)</span>' },
+  ]; },
   power(u, ud) { return !ud.last ? [] : [
+    { label: 'Setpoint', value: fmt.kW(ud.last.powerSetpoint_W) },
     { label: 'Electrical in', value: fmt.kW(ud.last.W_elec_actual_W) },
     { label: 'Heat out', value: fmt.kW(ud.last.Q_available_W) },
     { label: 'Efficiency', value: `${ud.last.efficiency_pct || '—'}<span class="propUnit">%</span>` },
