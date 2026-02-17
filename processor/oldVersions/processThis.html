@@ -3,6 +3,141 @@
   ═══════════════════════════════════════════════════════════════════════════
   processThis v9.1.0
 
+  ─── v10.2.0 ──────────────────────────────────────────────────────────────
+  Unified Inspector Architecture — consistent rendering for all units.
+
+  NEW API:  conditions(u, ud)  → custom process conditions (replaces skipAutoStream)
+            power(u, ud)       → dedicated "Power & Energy" section
+            kpis(u, ud)        → cleaned: only unit-specific operational data
+            detail(u, ud, sc)  → unchanged, collapsible condensed format
+
+  RENDERING PIPELINE (fixed order, sections omitted when empty):
+    Header → Status → Parameters → Process Conditions → Power & Energy
+    → Unit KPIs → Detail
+
+  UNIT MIGRATIONS (all 26 units reviewed):
+    • pump/compressor/gas_turbine: shaft power + η → power()
+    • motor/generator/electric_heater: all KPIs → power()
+    • heater/cooler: T setpoint/actual in kpis(), Q duty → power()
+    • grid_supply: mode + capacity → power()
+    • power_hub: all numbers → power()
+    • sink_heat/sink_electrical: absorbed → power()
+    • battery: SOC/charge/status in kpis(), discharge/charge → power()
+    • tank: conditions() for T/P, skipAutoStream removed, fill/content in kpis()
+    • hex: conditions() for 4 temps, duty/ΔT → power(), effectiveness → detail()
+    • flash_drum: T/P removed from kpis (auto-stream handles)
+    • mixer: kpis removed (auto-stream handles T/P/flow)
+    • splitter: "Feed" removed from kpis (auto-stream handles)
+    • reactor_equilibrium: "mode" → detail(), Q duty → power()
+
+  INFRASTRUCTURE:
+    • esc() XSS helper for user-editable strings in innerHTML contexts
+    • _renderLabeledSection() for titled KPI sections
+    • .ins-section-label CSS class
+    • Connections section restored (hidden behind SHOW_CONNECTIONS flag)
+    • Error messages now use textContent (XSS-safe)
+    • Stream inspector header escapes unit names
+
+  ELIMINATED: skipAutoStream flag (replaced by conditions() override pattern)
+
+  Gate: 89/197 headless (unchanged). No engine changes.
+
+  ─── v10.1.3 ──────────────────────────────────────────────────────────────
+  UX polish — Add button, inspector streamlining, transitions.
+
+  ADD BUTTON REDESIGN:
+  - Moved from action bar to info bar, centered at top of canvas.
+  - 42px round button with teal accent, hover scale effect.
+  - Info bar split into 3 zones: left (menu + name), center (add),
+    right (status indicator). z-index 25 ensures visibility above
+    palette drawer (z-index 20).
+
+  DIAGNOSTICS REMOVAL:
+  - Removed dedicated "Diagnostics" collapsible section from unit
+    inspector. Per-unit errors now display inline below Connections
+    section. Top-level error badge + status indicator are sufficient.
+
+  INSPECTOR TRANSITIONS:
+  - updatePropertiesPanel() triggers a subtle slide-up + fade-in
+    animation (0.15s ease-out) on content rebuild. Gives feedback
+    when switching between units/streams.
+
+  Gate: 89/197 headless (unchanged). No engine changes.
+
+  ─── v10.1.2 ──────────────────────────────────────────────────────────────
+  Polish pass — naming, reconnect, inspector restyling.
+
+  NAMING AUDIT:
+  - Inspector subtitle: "def_id · Category" → "Category · Unit Name" with
+    category color. Internal defId no longer shown anywhere in the UI.
+  - _portLabel() formatter: "mat_in" → "Material In", "elec_out" →
+    "Electrical Out", etc. Applied to E6 connections section, stream
+    inspector subtitle, and status messages.
+  - Cheat warning: fallback from u.defId to def.name.
+
+  STREAM RECONNECT:
+  - Click any connected port (IN or OUT) to enter reconnect mode.
+  - Old connection hidden visually; new rubber-band appears from the
+    opposite end.
+  - Complete on valid target: old deleted, new created.
+  - Cancel (Esc / click empty): old restored (never actually deleted
+    until commit). E4 port feedback excludes reconnecting connection
+    from occupied check.
+
+  INSPECTOR RESTYLING:
+  - .card wrapper: border and border-radius removed.
+  - .propItem: border-radius 10px → 4px.
+  - Input fields: border-radius 12px → 4px, darker background (#141820),
+    visible bottom border (1.5px #475569), blue focus indicator.
+  - .row: grid layout → flexbox, label + input tighter (8px gap),
+    input width fixed at 120px pushed right.
+  - Status panel (setStatus collapsible section): removed from inspector.
+    Function kept as hidden container for XSS security test.
+  - Controls shortcut grid: removed from right panel.
+
+  Gate: 89/197 headless (unchanged). No engine changes.
+
+  ─── v10.1.1 ──────────────────────────────────────────────────────────────
+  Step 2.2 — Connection UX.
+
+  E4: Port connection feedback. During connect mode, compatible IN ports
+      pulse (animated radius 10→14). All other ports dimmed to 0.3.
+      Pulse synced to wall clock via negative animation-delay so render()
+      rebuilds don't restart it. No color override — keeps port colors.
+  E4b: Saturated MATERIAL OUT ports block connect mode start with
+      status message "use a splitter".
+  E6: Port connection status in inspector. New "Connections" section
+      lists every port with direction arrow, portId, stream type, and
+      target unit name (green dot) or "unconnected" (grey circle).
+      Collapsed by default to keep inspector compact.
+  E7: Show/hide utilities toggle. ⚡ icon button in action bar (right
+      side). Toggles utility units (POWER category + sink_heat) and
+      their connections between full visibility and dimmed. Connection
+      dimming is endpoint-based: if either end is utility, dim it.
+      Deselects any dimmed unit or connection on toggle.
+  UI: Inspector restyled — bordered sections replaced with thin
+      separator lines, compact spacing, smaller headers (10px, 0.45
+      opacity) that act as visual anchors rather than prominent titles.
+
+  Gate: 197/197 tests, 1339 checks (browser). No engine changes.
+
+  ─── v10.1.0 ──────────────────────────────────────────────────────────────
+  Step 2.1 — Canvas Interaction.
+
+  E1: Zoom to fit + reset view. Two buttons in action bar right side:
+      ⊞ Fit (zooms viewBox to encompass all units with 15% padding),
+      ⊡ Reset (restores default view). fitView() handles empty scene.
+  E2: Hover highlight on units and streams. SVG brightness filter applied
+      via CSS class on pointerenter/pointerleave. Disabled during drag
+      and connect modes to avoid visual noise.
+  E3: Flow direction arrows on connections. Filled triangle rendered at
+      cubic Bézier midpoint (t=0.5), oriented along tangent direction.
+      Color-matched per stream type (material/heat/mechanical/electrical).
+  E5: Delete buttons in inspector. Both unit and stream inspectors show
+      a "✕ Delete" button in the header row, calling deleteSelected().
+
+  Gate: 197/197 tests, 1339 checks (browser). No engine changes.
+
   ─── v10.0.7 ──────────────────────────────────────────────────────────────
   Prep patch — category rename, toolbar split, menu reorganization.
 
@@ -1074,7 +1209,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>processThis — v10.0.7</title>
+  <title>processThis — v10.2.0</title>
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
@@ -1139,10 +1274,10 @@
     }
     
     .card { 
-      border: 1px solid #2a2f3a; 
-      border-radius: 14px; 
-      padding: 12px; 
-      background: #0b0e14aa; 
+      border: none; 
+      border-radius: 0; 
+      padding: 0; 
+      background: transparent; 
     }
     
     .card + .card { 
@@ -1152,17 +1287,59 @@
     /* ===== TOP BAR (info + menu) ===== */
     .info-bar {
       position: absolute; 
-      left: 10px; 
+      left: 10px; right: 10px; 
       top: 10px; 
-      z-index: 5;
+      z-index: 25;
       display: flex; 
-      gap: 10px; 
+      align-items: center;
+      pointer-events: none;
+    }
+    .info-bar > * { pointer-events: auto; }
+
+    .info-bar-left {
+      display: flex;
+      gap: 10px;
       align-items: center;
       background: #0b0e14cc; 
       border: 1px solid #2a2f3a; 
       border-radius: 14px; 
       padding: 8px 10px;
       backdrop-filter: blur(10px);
+    }
+
+    .info-bar-right {
+      display: flex;
+      align-items: center;
+      background: #0b0e14cc;
+      border: 1px solid #2a2f3a;
+      border-radius: 14px;
+      padding: 4px 10px;
+      backdrop-filter: blur(10px);
+    }
+
+    /* ===== ADD BUTTON (centered, prominent) ===== */
+    .add-btn-center {
+      margin: 0 auto;
+      width: 42px; height: 42px;
+      border-radius: 50%;
+      border: 2px solid #134e4a;
+      background: #0b1e1eee;
+      color: #5eead4;
+      font-size: 24px;
+      font-weight: 300;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(10px);
+      transition: background 0.15s, border-color 0.15s, transform 0.15s;
+      line-height: 1;
+    }
+    .add-btn-center:hover {
+      background: #134e4a;
+      border-color: #5eead4;
+      color: #99f6e4;
+      transform: scale(1.08);
     }
 
     /* ===== FLOATING ACTION BAR (bottom-center of canvas) ===== */
@@ -1181,6 +1358,43 @@
       padding: 8px 10px;
       backdrop-filter: blur(10px);
     }
+
+    /* ===== ZOOM CONTROLS (E1) ===== */
+    .zoom-controls {
+      display: flex;
+      gap: 2px;
+      align-items: center;
+    }
+    .zoom-controls .tbtn {
+      background: #1c222e;
+      color: #94a3b8;
+      border: 1px solid #2a2f3a;
+      padding: 6px 8px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+      user-select: none;
+      white-space: nowrap;
+      transition: background 0.15s, color 0.15s;
+    }
+    .zoom-controls .tbtn:first-child { border-radius: 8px 0 0 8px; }
+    .zoom-controls .tbtn:last-child  { border-radius: 0 8px 8px 0; }
+    .zoom-controls .tbtn:hover { background: #283040; color: #e2e8f0; }
+
+    /* ===== HOVER HIGHLIGHT (E2) ===== */
+    .unit-hover > rect:first-child { filter: url(#hover-brighten); }
+    .conn-hover { stroke-width: 5 !important; stroke-opacity: 0.85; }
+
+    /* ===== PORT CONNECTION FEEDBACK (E4) ===== */
+    @keyframes port-pulse {
+      0%, 100% { r: 10; }
+      50% { r: 14; }
+    }
+    .port-pulse { animation: port-pulse 0.8s ease-in-out infinite; }
+
+    /* ===== UTILITY DIMMING (E7) ===== */
+    .unit-dimmed { opacity: 0.2; pointer-events: none; }
+    .conn-dimmed { opacity: 0.15; pointer-events: none; }
     
     .btn {
       display: inline-flex; 
@@ -1509,16 +1723,22 @@
 
     /* ===== FORM CONTROLS ===== */
     .row { 
-      display: grid; 
-      grid-template-columns: 1fr 140px; 
-      gap: 10px; 
-      align-items: center; 
-      margin: 10px 0; 
+      display: flex; 
+      align-items: center;
+      gap: 8px;
+      margin: 6px 0; 
     }
     
     .row label { 
-      font-size: 12px; 
-      opacity: .9; 
+      font-size: 11px; 
+      opacity: .7;
+      white-space: nowrap;
+      min-width: 0;
+      flex-shrink: 1;
+    }
+    .row input, .row select {
+      flex: 0 0 120px;
+      margin-left: auto;
     }
     
     /* Package selector cards */
@@ -1564,12 +1784,19 @@
     
     input, select, textarea {
       width: 100%; 
-      background: #0b0e14; 
+      background: #141820; 
       color: #e7e7e7; 
       border: 1px solid #2a2f3a; 
-      border-radius: 12px;
-      padding: 8px 10px; 
+      border-bottom: 1.5px solid #475569;
+      border-radius: 4px;
+      padding: 6px 8px; 
       font-size: 12px;
+      transition: border-color 0.15s;
+    }
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: #475569;
+      border-bottom-color: #60a5fa;
     }
 
     /* [v8.6.3] Slider + number input combo for reactor parameters */
@@ -1721,24 +1948,48 @@
       font-size: 12px;
       opacity: 0.6;
     }
+
+    /* ===== DELETE BUTTON (E5) ===== */
+    .ins-delete-btn {
+      background: transparent;
+      border: 1px solid transparent;
+      color: #ef4444;
+      font-size: 16px;
+      line-height: 1;
+      padding: 2px 4px;
+      border-radius: 6px;
+      cursor: pointer;
+      opacity: 0.5;
+      transition: opacity 0.15s, background 0.15s, border-color 0.15s;
+      flex-shrink: 0;
+    }
+    .ins-delete-btn:hover {
+      opacity: 1;
+      background: #7f1d1d33;
+      border-color: #7f1d1d;
+    }
     
     /* Bordered sections (Parameters, Properties) */
     .borderedSection {
-      border: 1px solid #2a2f3a;
-      border-radius: 12px;
-      padding: 12px;
+      border: none;
+      border-radius: 0;
+      padding: 0;
       background: transparent;
-      margin-bottom: 10px;
+      margin-bottom: 2px;
+    }
+    .borderedSection + .borderedSection {
+      border-top: 1px solid #1e293b;
+      padding-top: 4px;
     }
     
     .sectionHeader {
-      font-size: 11px;
-      font-weight: 800;
+      font-size: 10px;
+      font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      opacity: 0.8;
-      margin-bottom: 12px;
-      padding: 0;
+      opacity: 0.45;
+      margin-bottom: 6px;
+      padding: 4px 0 0;
       cursor: pointer;
       user-select: none;
       display: flex;
@@ -1747,11 +1998,11 @@
     }
     
     .sectionHeader:hover {
-      opacity: 1;
+      opacity: 0.7;
     }
     
     .sectionToggle {
-      font-size: 10px;
+      font-size: 8px;
       opacity: 0.5;
       transition: transform 0.2s;
     }
@@ -1816,16 +2067,16 @@
     }
     
     .propGrid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
       margin-bottom: 8px;
     }
     
     .propItem {
       background: #0f1420;
-      border: 1px solid #2a2f3a;
-      border-radius: 10px;
+      border: 1px solid #1e293b;
+      border-radius: 4px;
       padding: 8px 10px;
     }
     
@@ -2204,6 +2455,10 @@
     .ins-kv.tone-good .val { color: #6ee7b7; }
     .ins-kv.tone-info .val { color: #60a5fa; }
     .ins-kv.tone-muted { opacity: 0.6; }
+    .ins-section-label {
+      font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;
+      opacity: 0.4; margin: 10px 0 4px; padding-left: 2px;
+    }
     .ins-badge {
       display: inline-block; padding: 2px 7px; border-radius: 4px;
       font-size: 11px; font-weight: 600;
@@ -2226,23 +2481,22 @@
     .ins-hint { font-size: 11px; opacity: 0.5; font-style: italic; margin: 4px 0; }
     .ins-divider { border-top: 1px solid #1e2230; margin: 8px 0; }
 
-    /* Toolbar add button — warm accent, soft attention */
-    .tbtn.add-unit {
-      background: #0f2d2d; color: #5eead4; border: 1px solid #134e4a;
-      border-radius: 6px; padding: 6px 10px; cursor: pointer;
-      font-size: 12px; font-weight: 600; white-space: nowrap;
-      transition: background 0.15s, color 0.15s;
+    /* ===== INSPECTOR TRANSITION ===== */
+    @keyframes ins-enter {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
     }
-    .tbtn.add-unit:hover { background: #134e4a; color: #99f6e4; }
+    .ins-animate { animation: ins-enter 0.15s ease-out; }
   </style>
 </head>
 <body>
 <div class="app">
   <div class="canvasWrap">
-    <!-- Info bar (top-left: menu, name, status) -->
+    <!-- Info bar (full-width, 3 zones) -->
     <div class="info-bar">
-      <div class="menuWrap">
-        <button class="btn" id="btnMenu">☰ Menu</button>
+      <div class="info-bar-left">
+        <div class="menuWrap">
+          <button class="btn" id="btnMenu">☰ Menu</button>
         <div class="menu" id="menuMain">
           <div class="item has-sub">Registries
             <div class="submenu"><div class="submenu-inner">
@@ -2269,19 +2523,23 @@
       </div>
 
       <input type="text" id="processNameInput" placeholder="Process name…" spellcheck="false" autocomplete="off">
-      
-      <!-- Status Indicator -->
-      <div id="statusIndicator" class="status-indicator" style="display:none;">
-        <div class="status-icon"></div>
-        <div class="status-text"></div>
-        <button class="status-help" title="Open Solver…">⚙</button>
+      </div>
+
+      <!-- Add button (centered) -->
+      <button class="add-btn-center" id="btnAdd" title="Add unit (/ or Tab)">+</button>
+
+      <!-- Status Indicator (right) -->
+      <div class="info-bar-right">
+        <div id="statusIndicator" class="status-indicator" style="display:none;">
+          <div class="status-icon"></div>
+          <div class="status-text"></div>
+          <button class="status-help" title="Open Solver…">⚙</button>
+        </div>
       </div>
     </div>
 
     <!-- Action bar (floating, bottom-center of canvas) -->
     <div class="action-bar">
-      <button class="tbtn add-unit" id="btnAdd">+ Add</button>
-
       <!-- Transport controls [v9.0.1] -->
       <div class="transport">
         <button class="tbtn active" id="btnTest" title="Solve once (no time)">⟳ Test</button>
@@ -2291,6 +2549,15 @@
         <button class="tbtn" id="btnReset" title="Reset to t=0" disabled>↺</button>
       </div>
       <span class="time-display" id="timeDisplay" style="display:none;"></span>
+
+      <!-- Zoom controls [v10.1.0] -->
+      <div class="zoom-controls">
+        <button class="tbtn" id="btnFit" title="Zoom to fit all units">⊞ Fit</button>
+        <button class="tbtn" id="btnResetView" title="Reset to default view">⊡ Reset</button>
+      </div>
+
+      <!-- Utilities toggle [v10.1.1] -->
+      <button class="tbtn" id="btnUtilities" title="Show/hide power utilities" style="font-size:14px; border-radius:8px;">⚡</button>
     </div>
 
     <!-- Models modal -->
@@ -2367,6 +2634,33 @@
     <!-- Main SVG canvas -->
     <svg id="svg" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" aria-label="process grid">
       <defs>
+        <!-- [v10.1.0] Hover brightness filter (E2) -->
+        <filter id="hover-brighten">
+          <feComponentTransfer>
+            <feFuncR type="linear" slope="1.3"/>
+            <feFuncG type="linear" slope="1.3"/>
+            <feFuncB type="linear" slope="1.3"/>
+          </feComponentTransfer>
+        </filter>
+
+        <!-- [v10.1.0] Flow direction markers (E3) — one per stream type -->
+        <marker id="flow-material" viewBox="0 0 8 6" refX="4" refY="3"
+                markerWidth="8" markerHeight="6" orient="auto">
+          <path d="M0,0 L8,3 L0,6 Z" fill="#94a3b8"/>
+        </marker>
+        <marker id="flow-heat" viewBox="0 0 8 6" refX="4" refY="3"
+                markerWidth="8" markerHeight="6" orient="auto">
+          <path d="M0,0 L8,3 L0,6 Z" fill="#fbbf24"/>
+        </marker>
+        <marker id="flow-mechanical" viewBox="0 0 8 6" refX="4" refY="3"
+                markerWidth="8" markerHeight="6" orient="auto">
+          <path d="M0,0 L8,3 L0,6 Z" fill="#a855f7"/>
+        </marker>
+        <marker id="flow-electrical" viewBox="0 0 8 6" refX="4" refY="3"
+                markerWidth="8" markerHeight="6" orient="auto">
+          <path d="M0,0 L8,3 L0,6 Z" fill="#22c55e"/>
+        </marker>
+
         <!-- Material Source -->
         <symbol id="ico-source" viewBox="0 0 64 64">
           <circle cx="20" cy="32" r="10" fill="none" stroke="currentColor" stroke-width="4"/>
@@ -2631,18 +2925,6 @@
   <!-- Right panel for properties and unit library -->
   <aside class="rightPanel">
     <div class="card" id="propEditor"></div>
-
-    <!-- Controls section at bottom -->
-    <div class="controlsSection">
-      <div class="controlsGrid">
-        <div><b>Pan:</b> Middle mouse / Shift + drag</div>
-        <div><b>Zoom:</b> Mouse wheel</div>
-        <div><b>Delete:</b> Del key</div>
-        <div><b>Run:</b> Ctrl + Enter</div>
-        <div><b>Palette:</b> / or Tab</div>
-        <div><b>Cancel:</b> Esc</div>
-      </div>
-    </div>
   </aside>
 
   <!-- Hidden textarea for import/export operations -->
@@ -2849,6 +3131,13 @@ const StreamType = {
   ELECTRICAL: 3  // Green
 };
 const _streamNames = ['Material', 'Heat', 'Mechanical', 'Electrical'];
+
+// [v10.1.1] User-facing port label: "mat_in" → "Material In", "out" → "Out", etc.
+function _portLabel(portId) {
+  const parts = portId.replace(/_/g, ' ').split(' ');
+  const map = { mat: 'Material', elec: 'Electrical', mech: 'Mechanical', in: 'In', out: 'Out' };
+  return parts.map(w => map[w] || (w.charAt(0).toUpperCase() + w.slice(1))).join(' ');
+}
 
 // Stream visual properties
 const StreamVisuals = {
@@ -11878,7 +12167,9 @@ const ui = {
   dragOffset: null, // {cellX, cellY} offset in grid units
   dragDefId: null,
   isHTML5Dragging: false, // Track HTML5 drag from library
-  _mouseWorld: { x: 0, y: 0 }
+  _mouseWorld: { x: 0, y: 0 },
+  showUtilities: true,    // [v10.1.1] E7: dim power utility units when false
+  reconnecting: null      // [v10.1.1] {connId} when reconnecting a stream
 };
 
 /* =========================
@@ -12214,37 +12505,21 @@ function makeResultCard(label, value, color) {
    STATUS — Transient messages (connect, import, export, etc.)
    ========================= */
 function setStatus(s) {
-  // Create status section if it doesn't exist
+  // [v10.1.1] Status messages no longer shown in inspector panel.
+  // Hidden container preserved for XSS security test (T-XSS).
   if (!statusSection) {
-    const result = createCollapsibleSection('STATUS', false);
-    statusSection = result.section;
-    statusContent = result.content;
-    statusContent.id = 'statusContent';  // [v5.4.1] id for security test access
-    
-    // Append after propEditor card in the right panel
-    const rightPanel = propEditor.parentNode;
-    const controlsEl = rightPanel.querySelector('.controlsSection');
-    if (controlsEl) {
-      rightPanel.insertBefore(statusSection, controlsEl);
-    } else {
-      rightPanel.appendChild(statusSection);
-    }
+    statusSection = document.createElement('div');
+    statusSection.style.display = 'none';
+    statusContent = document.createElement('div');
+    statusContent.id = 'statusContent';
+    statusSection.appendChild(statusContent);
+    document.body.appendChild(statusSection);
   }
-  
-  // Update status text — safe rendering (no HTML interpretation)
   statusContent.textContent = '';
   const statusDiv = document.createElement('div');
   statusDiv.className = 'status';
-  statusDiv.style.cssText = 'padding:8px 0; white-space:pre-wrap; font-size:12px; opacity:0.9;';
   statusDiv.textContent = s;
   statusContent.appendChild(statusDiv);
-  
-  // Auto-expand on update
-  const toggle = statusSection.querySelector('.sectionToggle');
-  if (toggle && toggle.classList.contains('collapsed')) {
-    toggle.classList.remove('collapsed');
-    statusContent.classList.remove('collapsed');
-  }
 }
 
 function describeSolve() {
@@ -12351,6 +12626,33 @@ function setViewBox() {
 }
 
 /* =========================
+   ZOOM TO FIT / RESET (E1)
+   ========================= */
+function fitView() {
+  if (!scene.units.size) { resetView(); return; }
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const [id, u] of scene.units) {
+    const def = UnitRegistry.get(u.defId);
+    minX = Math.min(minX, u.x * scene.tile);
+    minY = Math.min(minY, u.y * scene.tile);
+    maxX = Math.max(maxX, (u.x + def.w) * scene.tile);
+    maxY = Math.max(maxY, (u.y + def.h) * scene.tile);
+  }
+  const pad = 0.15; // 15% padding
+  const w = maxX - minX || 200, h = maxY - minY || 200;
+  ui.view = { x: minX - w * pad, y: minY - h * pad, w: w * (1 + 2 * pad), h: h * (1 + 2 * pad) };
+  render();
+}
+
+function resetView() {
+  const rect = svg.getBoundingClientRect();
+  const aspectRatio = rect.width / rect.height;
+  const baseH = 672;
+  ui.view = { x: 0, y: 0, w: baseH * aspectRatio, h: baseH };
+  render();
+}
+
+/* =========================
    PORT EDGE DETECTION
    Determines which edge of a unit a port is on
    ========================= */
@@ -12426,8 +12728,14 @@ function drawGrid() {
 function drawConnections() {
   const g = svgEl('g', { id: 'connections' });
   
+  // [v10.1.0] Flow marker ID mapping (E3)
+  const _flowMarkerIds = ['flow-material', 'flow-heat', 'flow-mechanical', 'flow-electrical'];
+  
   // Draw existing connections
   for (const c of scene.connections) {
+    // [v10.1.1] Hide connection being reconnected
+    if (ui.reconnecting && c.id === ui.reconnecting.connId) continue;
+    
     const fromU = scene.units.get(c.from.unitId);
     const toU = scene.units.get(c.to.unitId);
     if (!fromU || !toU) continue;
@@ -12448,39 +12756,19 @@ function drawConnections() {
     const toEdge = getPortEdge(toPort, toDef);
     
     // Calculate control points perpendicular to each port's edge
-    const controlOffset = 60; // Distance for control points
+    const controlOffset = 60;
     
     let c1x, c1y, c2x, c2y;
     
-    // From port control point (perpendicular to its edge)
-    if (fromEdge === 'left') {
-      c1x = fx - controlOffset;
-      c1y = fy;
-    } else if (fromEdge === 'right') {
-      c1x = fx + controlOffset;
-      c1y = fy;
-    } else if (fromEdge === 'top') {
-      c1x = fx;
-      c1y = fy - controlOffset;
-    } else { // bottom
-      c1x = fx;
-      c1y = fy + controlOffset;
-    }
+    if (fromEdge === 'left') { c1x = fx - controlOffset; c1y = fy; }
+    else if (fromEdge === 'right') { c1x = fx + controlOffset; c1y = fy; }
+    else if (fromEdge === 'top') { c1x = fx; c1y = fy - controlOffset; }
+    else { c1x = fx; c1y = fy + controlOffset; }
     
-    // To port control point (perpendicular to its edge)
-    if (toEdge === 'left') {
-      c2x = tx - controlOffset;
-      c2y = ty;
-    } else if (toEdge === 'right') {
-      c2x = tx + controlOffset;
-      c2y = ty;
-    } else if (toEdge === 'top') {
-      c2x = tx;
-      c2y = ty - controlOffset;
-    } else { // bottom
-      c2x = tx;
-      c2y = ty + controlOffset;
-    }
+    if (toEdge === 'left') { c2x = tx - controlOffset; c2y = ty; }
+    else if (toEdge === 'right') { c2x = tx + controlOffset; c2y = ty; }
+    else if (toEdge === 'top') { c2x = tx; c2y = ty - controlOffset; }
+    else { c2x = tx; c2y = ty + controlOffset; }
     
     const pathD = `M${fx},${fy} C${c1x},${c1y} ${c2x},${c2y} ${tx},${ty}`;
 
@@ -12491,6 +12779,10 @@ function drawConnections() {
     // Power streams (electrical/mechanical) use dashed lines
     const isPowerStream = fromPort.type === StreamType.ELECTRICAL || 
                           fromPort.type === StreamType.MECHANICAL;
+    
+    // [v10.1.1] E7: Dim connections to/from utility units
+    const _isUtility = (def) => def.category === UnitCategories.POWER.name || def.defId === 'sink_heat';
+    const isConnDimmed = !ui.showUtilities && (_isUtility(fromDef) || _isUtility(toDef));
 
     const path = svgEl('path', {
       d: pathD,
@@ -12498,9 +12790,11 @@ function drawConnections() {
       stroke: isSelected ? '#60a5fa' : visuals.color,
       'stroke-width': isSelected ? 4 : 3,
       'stroke-dasharray': isPowerStream ? '8,4' : 'none',
-      cursor: 'pointer'
+      cursor: isConnDimmed ? 'default' : 'pointer'
     });
+    if (isConnDimmed) path.classList.add('conn-dimmed');
 
+    if (!isConnDimmed) {
     path.addEventListener('pointerdown', (ev) => {
       ev.stopPropagation();
       ui.selectedConnId = c.id;
@@ -12509,7 +12803,42 @@ function drawConnections() {
       render();
     });
 
+    // [v10.1.0] Hover highlight (E2) — skip during drag/connect
+    if (!ui.isDraggingUnit && !ui.pendingFrom) {
+      path.addEventListener('pointerenter', () => { path.classList.add('conn-hover'); });
+      path.addEventListener('pointerleave', () => { path.classList.remove('conn-hover'); });
+    }
+    } // end if (!isConnDimmed)
+
     g.appendChild(path);
+
+    // [v10.1.0] Flow direction arrow at Bézier midpoint (E3)
+    // Cubic Bézier at t=0.5: P = 0.125*P0 + 0.375*P1 + 0.375*P2 + 0.125*P3
+    const mx = 0.125 * fx + 0.375 * c1x + 0.375 * c2x + 0.125 * tx;
+    const my = 0.125 * fy + 0.375 * c1y + 0.375 * c2y + 0.125 * ty;
+    // Tangent at t=0.5: P' = 3[0.25*(P1-P0) + 0.5*(P2-P1) + 0.25*(P3-P2)]
+    const tdx = 0.75 * (c1x - fx) + 1.5 * (c2x - c1x) + 0.75 * (tx - c2x);
+    const tdy = 0.75 * (c1y - fy) + 1.5 * (c2y - c1y) + 0.75 * (ty - c2y);
+    const angle = Math.atan2(tdy, tdx) * 180 / Math.PI;
+    
+    const markerId = _flowMarkerIds[fromPort.type] || 'flow-material';
+    const arrow = svgEl('use', {
+      x: mx - 4, y: my - 3,
+      width: 8, height: 6,
+      'pointer-events': 'none'
+    });
+    arrow.setAttribute('href', `#${markerId}-shape`);
+    // Use a rotated triangle directly instead of <use> for simplicity
+    const arrowG = svgEl('g', {
+      transform: `translate(${mx},${my}) rotate(${angle})`,
+      'pointer-events': 'none'
+    });
+    if (isConnDimmed) arrowG.classList.add('conn-dimmed');
+    arrowG.appendChild(svgEl('path', {
+      d: 'M-5,-4 L5,0 L-5,4 Z',
+      fill: isSelected ? '#60a5fa' : visuals.color
+    }));
+    g.appendChild(arrowG);
   }
 
   // Draw pending connection (during connection mode)
@@ -12572,6 +12901,11 @@ function drawUnits() {
     
     const group = svgEl('g', {});
     
+    // [v10.1.1] E7: Dim utility units when toggled off
+    const isUtilityUnit = def.category === UnitCategories.POWER.name || def.defId === 'sink_heat';
+    const isDimmed = !ui.showUtilities && isUtilityUnit;
+    if (isDimmed) group.classList.add('unit-dimmed');
+
     // Unit rectangle
     const rect = svgEl('rect', {
       x: wx, y: wy,
@@ -12580,9 +12914,10 @@ function drawUnits() {
       fill: def.color,
       stroke: ui.selectedUnitId === id ? '#60a5fa' : '#1e293b',
       'stroke-width': 3,
-      cursor: 'grab'
+      cursor: isDimmed ? 'default' : 'grab'
     });
 
+    if (!isDimmed) {
     rect.addEventListener('pointerdown', (ev) => {
       ev.stopPropagation();
       if (ui.pendingFrom) return;
@@ -12606,8 +12941,15 @@ function drawUnits() {
       updatePropertiesPanel();
       render();
     });
+    } // end if (!isDimmed)
 
     group.appendChild(rect);
+
+    // [v10.1.0] Hover highlight (E2) — skip during drag/connect/dimmed
+    if (!ui.isDraggingUnit && !ui.pendingFrom && !isDimmed) {
+      group.addEventListener('pointerenter', () => { group.classList.add('unit-hover'); });
+      group.addEventListener('pointerleave', () => { group.classList.remove('unit-hover'); });
+    }
 
     // Unit icon - map defId to icon name with proper precedence
     let iconName = def.defId;
@@ -12693,6 +13035,17 @@ function drawUnits() {
     group.appendChild(label);
 
     // Ports
+    // [v10.1.1] E4: Pre-compute source port info for connection feedback
+    let _pendingPortType = null;
+    if (ui.pendingFrom) {
+      const _srcU = scene.units.get(ui.pendingFrom.unitId);
+      if (_srcU) {
+        const _srcDef = UnitRegistry.get(_srcU.defId);
+        const _srcPort = _srcDef.ports.find(pp => pp.portId === ui.pendingFrom.portId);
+        if (_srcPort) _pendingPortType = _srcPort.type;
+      }
+    }
+
     for (const p of def.ports) {
       const wp = {
         x: (u.x + p.x) * scene.tile,
@@ -12712,48 +13065,105 @@ function drawUnits() {
         fill: p.dir === PortDir.OUT ? portVisuals.portColor : '#1e293b',
         stroke: portVisuals.portColor,
         'stroke-width': 2.5,
-        cursor: 'pointer'
+        cursor: isDimmed ? 'default' : 'pointer'
       });
 
+      // [v10.1.1] E4: Connection feedback — highlight compatible targets
+      if (ui.pendingFrom && _pendingPortType !== null && !isDimmed) {
+        const isCompatible = p.dir === PortDir.IN && p.type === _pendingPortType;
+        const isOccupied = isCompatible && scene.connections.some(
+          cc => cc.to.unitId === u.id && cc.to.portId === p.portId
+            && !(ui.reconnecting && cc.id === ui.reconnecting.connId)
+        );
+        if (isCompatible && !isOccupied) {
+          // Pulse animation synced to wall clock so render() doesn't restart it
+          circle.classList.add('port-pulse');
+          circle.style.animationDelay = `-${Date.now() % 800}ms`;
+        } else if (!(u.id === ui.pendingFrom.unitId && p.portId === ui.pendingFrom.portId)) {
+          // Dim everything except the source port itself
+          circle.setAttribute('opacity', '0.3');
+        }
+      }
+
+      if (!isDimmed) {
       circle.addEventListener('pointerdown', (ev) => {
         ev.stopPropagation();
         const port = p;
         
         if (port.dir === PortDir.OUT) {
           if (ui.pendingFrom) {
-            // Already connecting — clicking another OUT cancels and restarts
+            // Already connecting — clicking same OUT port cancels
             if (ui.pendingFrom.unitId === unitId && ui.pendingFrom.portId === portId) {
-              // Same port — just cancel
               ui.pendingFrom = null;
-              setStatus('Connection cancelled.');
+              ui.reconnecting = null;
               render();
               return;
             }
           }
-          // Start (or restart) connection mode
+          // [v10.1.1] Reconnect: if material port already connected, detach and redraw
+          if (port.type === StreamType.MATERIAL) {
+            const existingConn = scene.connections.find(
+              cc => cc.from.unitId === unitId && cc.from.portId === portId
+            );
+            if (existingConn) {
+              ui.reconnecting = { connId: existingConn.id };
+              ui.selectedUnitId = null;
+              ui.selectedConnId = null;
+              ui.pendingFrom = { unitId, portId };
+              render();
+              return;
+            }
+          }
+          // Normal connect start
           ui.selectedUnitId = null;
           ui.pendingFrom = { unitId, portId };
           ui.selectedConnId = null;
-          setStatus('Connect: click a compatible IN port. Press Esc to cancel.');
+          ui.reconnecting = null;
           render();
           return;
         }
         
         if (port.dir === PortDir.IN && ui.pendingFrom) {
-          // Complete connection
-          const id = scene.connect(ui.pendingFrom, { unitId, portId });
-          if (id) autoPauseOnTopologyChange(); // [v9.0.1]
-          setStatus(id 
-            ? 'Connection added.' 
-            : (scene._lastConnectError || 'Connection refused.'));
+          // Complete connection (normal or reconnect)
+          if (ui.reconnecting) {
+            // Remove old connection first
+            const oldIdx = scene.connections.findIndex(c => c.id === ui.reconnecting.connId);
+            let oldConn = null;
+            if (oldIdx >= 0) {
+              oldConn = scene.connections[oldIdx];
+              scene.connections.splice(oldIdx, 1);
+            }
+            const id = scene.connect(ui.pendingFrom, { unitId, portId });
+            if (id) {
+              autoPauseOnTopologyChange();
+            } else {
+              // Restore old connection on failure
+              if (oldConn) scene.connections.push(oldConn);
+            }
+            ui.reconnecting = null;
+          } else {
+            const id = scene.connect(ui.pendingFrom, { unitId, portId });
+            if (id) autoPauseOnTopologyChange();
+          }
           ui.pendingFrom = null;
           updatePropertiesPanel();
           render();
         } else if (port.dir === PortDir.IN && !ui.pendingFrom) {
-          // Clicking an IN port without pending — hint
-          setStatus('Click an OUT port first to start a connection.');
+          // [v10.1.1] Reconnect: if IN port already connected, detach and redraw
+          const existingConn = scene.connections.find(
+            cc => cc.to.unitId === unitId && cc.to.portId === portId
+          );
+          if (existingConn) {
+            ui.reconnecting = { connId: existingConn.id };
+            ui.selectedUnitId = null;
+            ui.selectedConnId = null;
+            ui.pendingFrom = { unitId: existingConn.from.unitId, portId: existingConn.from.portId };
+            render();
+            return;
+          }
         }
       });
+      } // end if (!isDimmed)
 
       group.appendChild(circle);
 
@@ -14858,10 +15268,161 @@ function insErr(parent, severity, message) {
   parent.appendChild(box);
 }
 
-// ── Per-unit inspector config ──
-// Each entry: { params(u, unitSys), properties(u, ud, grid, scene) }
-// params returns array of param descriptors for auto-rendering
-// properties renders solved data into a grid element
+// ═══════════════════════════════════════════════════════════════════════════
+// UNIFIED INSPECTOR v2 — Auto-stream + KPI grid + detail section
+// [v10.2.0] Revised API: conditions() + power() + kpis() + detail()
+// ═══════════════════════════════════════════════════════════════════════════
+
+// [v10.2.0] XSS-safe HTML escaper for user-editable strings
+function esc(s) {
+  if (s == null) return '';
+  const d = document.createElement('div');
+  d.textContent = String(s);
+  return d.innerHTML;
+}
+
+// [v10.2.0] Labeled KPI section (e.g. "Power & Energy")
+function _renderLabeledSection(container, title, items) {
+  if (!items?.length) return;
+  const lbl = el('div', { class: 'ins-section-label' });
+  lbl.textContent = title; // textContent for XSS safety
+  container.appendChild(lbl);
+  _renderKPIGrid(container, items);
+}
+
+// Find primary material stream from resolved port data
+function _findPrimaryStream(ud, def) {
+  if (!ud?.ports || !def?.ports) return null;
+  for (const p of def.ports) {
+    if (p.type === StreamType.MATERIAL && p.dir === PortDir.OUT) {
+      const s = ud.ports[p.portId];
+      if (s && s.T != null) return s;
+    }
+  }
+  for (const p of def.ports) {
+    if (p.type === StreamType.MATERIAL && p.dir === PortDir.IN) {
+      const s = ud.ports[p.portId];
+      if (s && s.T != null) return s;
+    }
+  }
+  return null;
+}
+
+// Render auto-extracted material stream KPIs (T, P, Phase, Composition, Flowrates)
+function _renderAutoStream(container, stream) {
+  if (!stream || stream.type !== StreamType.MATERIAL) return;
+  const unitSys = models.getActive('units');
+  const grid = el('div', { class: 'propGrid' });
+  
+  grid.appendChild(el('div', { class: 'propItem' }, [
+    el('div', { class: 'propLabel', html: 'Temperature' }),
+    el('div', { class: 'propValue', 
+      html: `${unitSys.temperature.from(stream.T).toFixed(unitSys.temperature.decimals)}<span class="propUnit">${unitSys.temperature.symbol}</span>` })
+  ]));
+  grid.appendChild(el('div', { class: 'propItem' }, [
+    el('div', { class: 'propLabel', html: 'Pressure' }),
+    el('div', { class: 'propValue', 
+      html: `${unitSys.pressure.from(stream.P).toFixed(unitSys.pressure.decimals)}<span class="propUnit">${unitSys.pressure.symbol}</span>` })
+  ]));
+  
+  const phaseText = stream.phase === 'V' ? 'Vapor' : 
+                    stream.phase === 'L' ? 'Liquid' : 
+                    stream.phase === 'VL' ? `Two-Phase (β=${(stream.vaporFraction||0).toFixed(3)})` : '—';
+  grid.appendChild(el('div', { class: 'propItem' }, [
+    el('div', { class: 'propLabel', html: 'Phase' }),
+    el('div', { class: 'propValue', style: 'font-size:12px;', html: phaseText })
+  ]));
+  
+  const components = Object.keys(stream.n || {}).filter(k => stream.n[k] > 1e-9).sort((a, b) => stream.n[b] - stream.n[a]);
+  const nTotal = components.reduce((s, k) => s + stream.n[k], 0);
+  if (components.length) {
+    const compRow = el('div', { style: 'margin-top:2px;' });
+    const compWrap = el('div', { style: 'display:flex; flex-wrap:wrap; gap:4px;' });
+    for (const comp of components) {
+      const molFrac = nTotal > 0 ? (stream.n[comp] / nTotal) : 0;
+      const badge = el('div', { class: 'compBadge' });
+      badge.appendChild(el('span', { class: 'spec', text: comp }));
+      badge.appendChild(el('span', { class: 'pct', text: `${(100 * molFrac).toFixed(1)}%` }));
+      compWrap.appendChild(badge);
+    }
+    compRow.appendChild(compWrap);
+    grid.appendChild(compRow);
+  }
+  
+  const flowrates = calculateStreamFlowrates(stream);
+  if (flowrates) {
+    grid.appendChild(el('div', { class: 'propItem' }, [
+      el('div', { class: 'propLabel', html: 'Molar flow' }),
+      el('div', { class: 'propValue', 
+        html: `${unitSys.molarFlow.from(flowrates.nTotal).toFixed(unitSys.molarFlow.decimals)}<span class="propUnit">${unitSys.molarFlow.symbol}</span>` })
+    ]));
+    grid.appendChild(el('div', { class: 'propItem' }, [
+      el('div', { class: 'propLabel', html: 'Mass flow' }),
+      el('div', { class: 'propValue', 
+        html: `${unitSys.massFlow.from(flowrates.mTotal).toFixed(unitSys.massFlow.decimals)}<span class="propUnit">${unitSys.massFlow.symbol}</span>` })
+    ]));
+  }
+  container.appendChild(grid);
+}
+
+// Render KPI items as propItem cards in a 2-col grid
+function _renderKPIGrid(container, items) {
+  if (!items || items.length === 0) return;
+  const grid = el('div', { class: 'propGrid' });
+  for (const item of items) {
+    if (!item) continue;
+    if (item.bar) {
+      const barItem = el('div', { class: 'propItem' });
+      barItem.appendChild(el('div', { class: 'propLabel', html: item.label }));
+      const barWrap = el('div', { style: 'display:flex;align-items:center;gap:8px;' });
+      barWrap.innerHTML = `<span class="ins-bar-track" style="flex:1;"><span class="ins-bar-fill" style="width:${Math.min(100,item.value)}%;background:${item.barColor||'#60a5fa'}"></span></span><span class="propValue" style="font-size:12px;">${item.value.toFixed(1)}%</span>`;
+      barItem.appendChild(barWrap);
+      grid.appendChild(barItem);
+    } else if (item.full) {
+      const pi = el('div', { class: 'propItem' });
+      pi.appendChild(el('div', { class: 'propLabel', html: item.label }));
+      const valEl = el('div', { class: 'propValue', style: 'font-size:12px;' });
+      valEl.innerHTML = item.value;
+      if (item.tone) valEl.style.color = item.tone === 'warn' ? '#fbbf24' : item.tone === 'bad' ? '#fca5a5' : item.tone === 'good' ? '#6ee7b7' : item.tone === 'info' ? '#93c5fd' : '';
+      pi.appendChild(valEl);
+      grid.appendChild(pi);
+    } else {
+      const pi = el('div', { class: 'propItem' });
+      pi.appendChild(el('div', { class: 'propLabel', html: item.label }));
+      const valEl = el('div', { class: 'propValue' });
+      valEl.innerHTML = item.value;
+      if (item.tone) valEl.style.color = item.tone === 'warn' ? '#fbbf24' : item.tone === 'bad' ? '#fca5a5' : item.tone === 'good' ? '#6ee7b7' : item.tone === 'info' ? '#93c5fd' : '';
+      pi.appendChild(valEl);
+      grid.appendChild(pi);
+    }
+  }
+  container.appendChild(grid);
+}
+
+// Render detail items as insKV in a collapsible section
+function _renderDetailSection(container, items) {
+  if (!items || items.length === 0) return;
+  const section = createCollapsibleSection('Detail', false);
+  const grid = el('div', { class: 'ins-grid' });
+  for (const item of items) {
+    if (!item) continue;
+    insKV(grid, item.label, item.value, { tone: item.tone || '', full: item.full || false });
+  }
+  section.content.appendChild(grid);
+  container.appendChild(section.section);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PER-UNIT INSPECTOR CONFIG — v10.2.0 Unified Inspector
+// ═══════════════════════════════════════════════════════════════════════════
+// API (all hooks optional):
+//   params(u)            → editable param descriptors
+//   customParams(c,u,s)  → custom param DOM
+//   conditions(u, ud)    → KPI items for T/P/phase/composition (overrides auto-stream)
+//   power(u, ud)         → KPI items for power/energy/duty numbers
+//   kpis(u, ud)          → KPI items for unit-specific operational data
+//   detail(u, ud, sc)    → condensed KV items for deep-dive data
+// ═══════════════════════════════════════════════════════════════════════════
 const UnitInspector = {};
 
 // Helper: standard pressure+efficiency editors
@@ -14877,24 +15438,7 @@ function _pEtaParams(u, unitSys, Pdefault, etaDefault) {
   ];
 }
 
-// Helper: power equipment properties (compressor/pump/gas_turbine)
-function _powerProps(u, ud, grid, prefix) {
-  const unitSys = models.getActive('units');
-  if (ud.last?.Pout_setpoint != null) {
-    insKV(grid, 'P setpoint', fmt.P(ud.last.Pout_setpoint));
-    const isCurt = ud.last.curtailed;
-    insKV(grid, 'P actual', fmt.P(ud.last.Pout_actual), { tone: isCurt ? 'warn' : '' });
-  }
-  insKV(grid, 'Shaft power', fmt.kW(ud.last?.W_shaft));
-  if (ud.last?.curtailed && ud.last?.W_shaft_setpoint != null)
-    insKV(grid, 'Shaft needed', fmt.kW(ud.last.W_shaft_setpoint), { tone: 'warn' });
-  if (ud.last?.W_hydraulic != null) insKV(grid, 'Hydraulic', fmt.kW(ud.last.W_hydraulic));
-  else if (ud.last?.W_isentropic != null) insKV(grid, 'Isentropic', fmt.kW(ud.last.W_isentropic));
-  if (ud.last?.eta != null) insKV(grid, 'Efficiency', fmt.pct(ud.last.eta));
-  if (ud.last?.heatOutWarning)
-    insErr(grid.parentNode, ud.last.heatOutWarning.severity, ud.last.heatOutWarning.message);
-}
-
+// ── Sources ──
 UnitInspector.source = {
   params(u) {
     const unitSys = models.getActive('units');
@@ -14926,7 +15470,6 @@ UnitInspector.source_air = {
       { label: 'Flow scale (mol/s)', get: () => u.params.flowScale ?? 1.0, set: v => u.params.flowScale = v, step: 0.1 },
       { type: 'info', html: `<b>${atm.presetName}</b><br>T = ${atm.T_K.toFixed(1)} K | P = ${(atm.P_Pa/1e5).toFixed(4)} bar` },
     ];
-    // Air composition display
     let airHtml = '<div style="display:grid;grid-template-columns:36px 1fr;gap:1px 8px;margin-top:4px;font-size:11px;">';
     for (const sp of ATMO_SPECIES) {
       const f = atm.air[sp] || 0;
@@ -14942,7 +15485,6 @@ UnitInspector.source_air = {
 UnitInspector.source_multi = {
   customParams(container, u) {
     const unitSys = models.getActive('units');
-    // Composition editor
     if (!u.params.n) u.params.n = { N2: 0.78, O2: 0.21, Ar: 0.01 };
     const compBox = el('div', { style: 'margin-bottom:8px;' });
     compBox.appendChild(el('div', { class: 'ins-box-title', html: 'Composition (mol/s)' }));
@@ -14954,7 +15496,6 @@ UnitInspector.source_multi = {
       const spCap = sp;
       inp.addEventListener('input', () => { const v = Number(inp.value); if (v > 0) u.params.n[spCap] = v; else delete u.params.n[spCap]; });
       row.appendChild(inp);
-      // [v10.0.4] Delete button per species
       const delBtn = el('button', { class: 'btn', style: 'padding:1px 6px; font-size:11px; min-width:auto; line-height:1; color:#f87171;' });
       delBtn.textContent = '×';
       delBtn.title = `Remove ${sp}`;
@@ -14983,352 +15524,368 @@ UnitInspector.source_multi = {
   }
 };
 
-UnitInspector.sink = {
-  properties(u, ud, grid) {
-    if (ud.last?.stream) { renderStreamProperties(grid.parentNode, ud.last.stream); return true; }
-  }
-};
+// ── Sinks ──
+UnitInspector.sink = {};
 
 UnitInspector.sink_heat = {
-  properties(u, ud, grid) {
-    insKV(grid, 'Total absorbed', fmt.kW(ud.last?.absorbed_W));
-    if ((ud.last?.sourceCount || 0) > 1) insKV(grid, 'Sources', `${ud.last.sourceCount}`);
+  power(u, ud) {
+    if (!ud?.last) return [];
+    const items = [{ label: 'Total absorbed', value: fmt.kW(ud.last.absorbed_W) }];
+    if ((ud.last?.sourceCount || 0) > 1) items.push({ label: 'Sources', value: `${ud.last.sourceCount}` });
+    return items;
   }
 };
 
 UnitInspector.sink_electrical = {
-  properties(u, ud, grid) {
-    insKV(grid, 'Absorbed', fmt.kW(ud.last?.absorbed_W));
-  }
+  power(u, ud) { return !ud?.last ? [] : [{ label: 'Absorbed', value: fmt.kW(ud.last.absorbed_W) }]; }
 };
 
+// ── Power Sources ──
 UnitInspector.grid_supply = {
   params(u) { return [
     { label: 'Max Power (kW)', get: () => u.params.maxPower || 50, set: v => u.params.maxPower = v, step: 10 },
     { type: 'toggle', label: 'Fixed output (non-responsive)', get: () => u.params.fixed === true, set: v => { u.params.fixed = v; updatePropertiesPanel(); } },
   ]; },
-  properties(u, ud, grid) {
-    const mode = ud.last?.type === 'fixed' ? 'Fixed' : 'Responsive';
-    insKV(grid, 'Mode', mode, { tone: mode === 'Fixed' ? 'warn' : 'good' });
-    insKV(grid, 'Capacity', fmt.kW(ud.last?.maxPower_W));
+  power(u, ud) {
+    if (!ud.last) return [];
+    const mode = ud.last.type === 'fixed' ? 'Fixed' : 'Responsive';
+    return [
+      { label: 'Mode', value: mode, full: true, tone: mode === 'Fixed' ? 'warn' : 'good' },
+      { label: 'Capacity', value: fmt.kW(ud.last.maxPower_W) },
+    ];
   }
 };
-
-// [v10.0.4] source_electrical inspector removed — merged into grid_supply
 
 UnitInspector.source_mechanical = {
   params(u) { return [{ label: 'Max Power (kW)', get: () => u.params.maxPower || 50, set: v => u.params.maxPower = v, step: 10 }]; }
 };
 
+// ── Storage ──
 UnitInspector.tank = {
-  params(u) {
+  params(u) { return [
+    { label: 'Volume (m³)', get: () => u.params.volume_m3 || 50, set: v => u.params.volume_m3 = v, step: 1 },
+    { label: 'Draw rate (mol/s)', get: () => u.params.drawRate ?? 1.0, set: v => u.params.drawRate = v, step: 0.1 },
+  ]; },
+  conditions(u, ud) {
+    if (!ud?.last) return [];
     return [
-      { label: 'Volume (m³)', get: () => u.params.volume_m3 || 50, set: v => u.params.volume_m3 = v, step: 1 },
-      { label: 'Draw rate (mol/s)', get: () => u.params.drawRate ?? 1.0, set: v => u.params.drawRate = v, step: 0.1 },
+      { label: 'T', value: fmt.T(ud.last.T_K) },
+      { label: 'P', value: fmt.P(ud.last.P_Pa) },
     ];
   },
-  properties(u, ud, grid, sc) {
-    const fillPct = ud.last?.fillPct || 0;
+  kpis(u, ud) {
+    if (!ud.last) return [];
+    const fillPct = ud.last.fillPct || 0;
     const barColor = fillPct >= 100 ? '#ef4444' : fillPct >= 80 ? '#f59e0b' : '#06b6d4';
-    insBar(grid, 'Fill', fillPct, barColor);
-    insKV(grid, 'Content', `${(ud.last?.totalMol||0).toFixed(1)} / ${(ud.last?.n_max||0).toFixed(1)}<span class="u">mol</span>`);
-    insKV(grid, 'T', fmt.T(ud.last?.T_K));
-    insKV(grid, 'P', fmt.P(ud.last?.P_Pa));
-    if (ud.last?.n) {
-      for (const [sp, mol] of Object.entries(ud.last.n)) {
-        if (mol > 1e-6) insKV(grid, sp, fmt.mol(mol));
-      }
-    }
-    insKV(grid, 'Draw', fmt.flow(ud.last?.drawRate));
-    const statusColor = ud.last?.status === 'full' ? '#ef4444' : ud.last?.status === 'empty' ? '#64748b' : '#06b6d4';
-    insKV(grid, 'Status', `<span style="color:${statusColor}">${ud.last?.status || '—'}</span>`);
-    // Time estimates
-    if (ud.last?.status === 'active' && ud.last?.totalMol > 0) {
+    const statusColor = ud.last.status === 'full' ? '#ef4444' : ud.last.status === 'empty' ? '#64748b' : '#06b6d4';
+    return [
+      { label: 'Fill', value: fillPct, bar: true, barColor },
+      { label: 'Content', value: `${(ud.last.totalMol||0).toFixed(1)} / ${(ud.last.n_max||0).toFixed(1)}<span class="propUnit">mol</span>` },
+      { label: 'Status', value: `<span style="color:${statusColor}">${ud.last.status || '—'}</span>` },
+    ];
+  },
+  detail(u, ud, sc) {
+    if (!ud?.last) return [];
+    const items = [];
+    if (ud.last.n) { for (const [sp, mol] of Object.entries(ud.last.n)) { if (mol > 1e-6) items.push({ label: sp, value: fmt.mol(mol) }); } }
+    items.push({ label: 'Draw', value: fmt.flow(ud.last.drawRate) });
+    if (ud.last.status === 'active' && ud.last.totalMol > 0) {
       const udR = sc?.runtime?.unitData?.get(u.id);
       const matIn = udR?.ports?.mat_in, matOut = udR?.ports?.mat_out;
       const nIn = matIn?.n ? Object.values(matIn.n).reduce((a,b)=>a+b,0) : 0;
       const nOut = matOut?.n ? Object.values(matOut.n).reduce((a,b)=>a+b,0) : 0;
       const netRate = nIn - nOut;
-      if (netRate > 0.001) insKV(grid, 'Time to full', fmt.time((ud.last.n_max - ud.last.totalMol) / netRate));
-      else if (netRate < -0.001) insKV(grid, 'Time to empty', fmt.time(ud.last.totalMol / Math.abs(netRate)));
-      const nc = netRate > 0 ? 'tone-good' : netRate < 0 ? 'tone-warn' : '';
-      insKV(grid, 'Net flow', `<span class="${nc}">${netRate > 0 ? '+' : ''}${netRate.toFixed(3)}</span><span class="u">mol/s</span>`);
+      if (netRate > 0.001) items.push({ label: 'Time to full', value: fmt.time((ud.last.n_max - ud.last.totalMol) / netRate) });
+      else if (netRate < -0.001) items.push({ label: 'Time to empty', value: fmt.time(ud.last.totalMol / Math.abs(netRate)) });
+      items.push({ label: 'Net flow', value: `${netRate > 0 ? '+' : ''}${netRate.toFixed(3)}<span class="u">mol/s</span>`, tone: netRate > 0 ? 'good' : netRate < 0 ? 'warn' : '' });
     }
+    return items;
   }
 };
 
 UnitInspector.battery = {
-  params(u) {
-    return [
-      { label: 'Peak power (kW)', get: () => u.params.peakPower_kW || 20, set: v => u.params.peakPower_kW = v, step: 1 },
-      { label: 'Capacity (kWh)', get: () => (u.params.capacity_J || 36000000) / 3600000, set: v => u.params.capacity_J = v * 3600000, step: 1 },
-      { label: 'Initial SOC (-)', get: () => u.params.initialSOC ?? 0.9, set: v => u.params.initialSOC = v, step: 0.05 },
-    ];
+  params(u) { return [
+    { label: 'Peak power (kW)', get: () => u.params.peakPower_kW || 20, set: v => u.params.peakPower_kW = v, step: 1 },
+    { label: 'Capacity (kWh)', get: () => (u.params.capacity_J || 36000000) / 3600000, set: v => u.params.capacity_J = v * 3600000, step: 1 },
+    { label: 'Initial SOC (-)', get: () => u.params.initialSOC ?? 0.9, set: v => u.params.initialSOC = v, step: 0.05 },
+  ]; },
+  power(u, ud) {
+    if (!ud.last) return [];
+    const items = [];
+    if (ud.last.status === 'discharging' && ud.last.netPower_W > 0) items.push({ label: 'Discharge', value: fmt.kW(ud.last.netPower_W), tone: 'warn' });
+    else if (ud.last.status === 'charging' && ud.last.netPower_W < 0) items.push({ label: 'Charging', value: fmt.kW(Math.abs(ud.last.netPower_W)), tone: 'good' });
+    return items;
   },
-  properties(u, ud, grid) {
-    if (!ud.last) return;
+  kpis(u, ud) {
+    if (!ud.last) return [];
     const soc = ud.last.soc ?? 0;
     const barColor = soc < 0.2 ? '#ef4444' : soc < 0.5 ? '#f59e0b' : '#22c55e';
-    insBar(grid, 'SOC', soc * 100, barColor);
-    insKV(grid, 'Charge', `${(ud.last.charge_kWh ?? 0).toFixed(2)}<span class="u">kWh</span>`);
-    insKV(grid, 'Peak', `${(ud.last.peakPower_kW ?? 0).toFixed(1)}<span class="u">kW</span>`);
-    if (ud.last.status === 'discharging' && ud.last.netPower_W > 0) {
-      insKV(grid, 'Discharge', fmt.kW(ud.last.netPower_W), { tone: 'warn' });
-      if (ud.last.timeToEmpty_s) insKV(grid, 'Time to empty', fmt.time(ud.last.timeToEmpty_s));
-    } else if (ud.last.status === 'charging' && ud.last.netPower_W < 0) {
-      insKV(grid, 'Charging', fmt.kW(Math.abs(ud.last.netPower_W)), { tone: 'good' });
-      if (ud.last.timeToFull_s) insKV(grid, 'Time to full', fmt.time(ud.last.timeToFull_s));
-    }
     const statusColor = ud.last.status === 'discharging' ? '#f59e0b' : ud.last.status === 'charging' ? '#22c55e' : '#64748b';
-    insKV(grid, 'Status', `<span style="color:${statusColor}">${ud.last.status || 'idle'}</span>`);
+    return [
+      { label: 'SOC', value: soc * 100, bar: true, barColor },
+      { label: 'Charge', value: `${(ud.last.charge_kWh ?? 0).toFixed(2)}<span class="propUnit">kWh</span>` },
+      { label: 'Status', value: `<span style="color:${statusColor}">${ud.last.status || 'idle'}</span>` },
+    ];
+  },
+  detail(u, ud) {
+    if (!ud.last) return [];
+    const items = [{ label: 'Peak', value: `${(ud.last.peakPower_kW ?? 0).toFixed(1)}<span class="u">kW</span>` }];
+    if (ud.last.timeToEmpty_s) items.push({ label: 'Time to empty', value: fmt.time(ud.last.timeToEmpty_s) });
+    if (ud.last.timeToFull_s) items.push({ label: 'Time to full', value: fmt.time(ud.last.timeToFull_s) });
+    return items;
   }
 };
 
+// ── Power Conversion ──
 UnitInspector.motor = {
   params(u) { return [{ label: 'Efficiency (-)', get: () => u.params.eta || 0.95, set: v => u.params.eta = v, step: 0.01 }]; },
-  properties(u, ud, grid) {
-    insKV(grid, 'Electrical in', fmt.kW(ud.last?.W_elec_W));
-    insKV(grid, 'Mechanical out', fmt.kW(ud.last?.W_mech_W));
-    insKV(grid, 'Heat loss', fmt.kW(ud.last?.Q_loss_W), { tone: 'warn' });
-    insKV(grid, 'Efficiency', `${ud.last?.efficiency_pct || '—'}<span class="u">%</span>`);
-    if (ud.last?.heatOutWarning)
-      insErr(grid.parentNode, ud.last.heatOutWarning.severity, ud.last.heatOutWarning.message);
-  }
+  power(u, ud) { return !ud.last ? [] : [
+    { label: 'Electrical in', value: fmt.kW(ud.last.W_elec_W) },
+    { label: 'Mechanical out', value: fmt.kW(ud.last.W_mech_W) },
+    { label: 'Heat loss', value: fmt.kW(ud.last.Q_loss_W), tone: 'warn' },
+    { label: 'Efficiency', value: `${ud.last.efficiency_pct || '—'}<span class="propUnit">%</span>` },
+  ]; }
 };
 
 UnitInspector.electric_heater = {
-  params(u) {
-    return [{ type: 'info', html: 'Efficiency: <b>1.00</b> <span style="opacity:0.5">(fixed, 1st law)</span>' }];
-  },
-  properties(u, ud, grid) {
-    insKV(grid, 'Electrical in', fmt.kW(ud.last?.W_elec_actual_W));
-    insKV(grid, 'Heat out', fmt.kW(ud.last?.Q_available_W));
-    insKV(grid, 'Efficiency', `${ud.last?.efficiency_pct || '—'}<span class="u">%</span>`);
-  }
+  params(u) { return [{ type: 'info', html: 'Efficiency: <b>1.00</b> <span style="opacity:0.5">(fixed, 1st law)</span>' }]; },
+  power(u, ud) { return !ud.last ? [] : [
+    { label: 'Electrical in', value: fmt.kW(ud.last.W_elec_actual_W) },
+    { label: 'Heat out', value: fmt.kW(ud.last.Q_available_W) },
+    { label: 'Efficiency', value: `${ud.last.efficiency_pct || '—'}<span class="propUnit">%</span>` },
+  ]; }
 };
 
 UnitInspector.generator = {
   params(u) { return [{ label: 'Efficiency (-)', get: () => u.params.eta || 0.97, set: v => u.params.eta = v, step: 0.01 }]; },
-  properties(u, ud, grid) {
-    insKV(grid, 'Mechanical in', fmt.kW(ud.last?.W_mech_W));
-    insKV(grid, 'Electrical out', fmt.kW(ud.last?.W_elec_W));
-    insKV(grid, 'Heat loss', fmt.kW(ud.last?.Q_loss_W), { tone: 'warn' });
-    insKV(grid, 'Efficiency', `${ud.last?.efficiency_pct || '—'}<span class="u">%</span>`);
-    if (ud.last?.heatOutWarning)
-      insErr(grid.parentNode, ud.last.heatOutWarning.severity, ud.last.heatOutWarning.message);
-  }
+  power(u, ud) { return !ud.last ? [] : [
+    { label: 'Mechanical in', value: fmt.kW(ud.last.W_mech_W) },
+    { label: 'Electrical out', value: fmt.kW(ud.last.W_elec_W) },
+    { label: 'Heat loss', value: fmt.kW(ud.last.Q_loss_W), tone: 'warn' },
+    { label: 'Efficiency', value: `${ud.last.efficiency_pct || '—'}<span class="propUnit">%</span>` },
+  ]; }
 };
 
+// ── Pressure Equipment ──
 UnitInspector.valve = {
-  params(u) {
-    const unitSys = models.getActive('units');
-    return [{ label: `P outlet (${unitSys.pressure.symbol})`, get: () => unitSys.pressure.from(u.params.Pout || 101325), set: v => u.params.Pout = unitSys.pressure.to(v), step: unitSys.pressure.decimals === 0 ? 1000 : 0.1, decimals: unitSys.pressure.decimals }];
-  }
+  params(u) { const us = models.getActive('units'); return [{ label: `P outlet (${us.pressure.symbol})`, get: () => us.pressure.from(u.params.Pout || 101325), set: v => u.params.Pout = us.pressure.to(v), step: us.pressure.decimals === 0 ? 1000 : 0.1, decimals: us.pressure.decimals }]; }
 };
 
 UnitInspector.pump = {
   params(u) { const us = models.getActive('units'); return _pEtaParams(u, us, 500000, 0.75); },
-  properties(u, ud, grid) { _powerProps(u, ud, grid, '⚡ Pump'); }
+  power(u, ud) { return !ud?.last ? [] : [
+    { label: 'Shaft power', value: fmt.kW(ud.last.W_shaft) },
+    ...(ud.last.eta != null ? [{ label: 'Efficiency', value: fmt.pct(ud.last.eta) }] : []),
+  ]; },
+  detail(u, ud) {
+    if (!ud.last) return [];
+    const items = [];
+    if (ud.last.Pout_setpoint != null) items.push({ label: 'P setpoint', value: fmt.P(ud.last.Pout_setpoint) });
+    if (ud.last.Pout_actual != null) items.push({ label: 'P actual', value: fmt.P(ud.last.Pout_actual), tone: ud.last.curtailed ? 'warn' : '' });
+    if (ud.last.curtailed && ud.last.W_shaft_setpoint != null) items.push({ label: 'Shaft needed', value: fmt.kW(ud.last.W_shaft_setpoint), tone: 'warn' });
+    if (ud.last.W_hydraulic != null) items.push({ label: 'Hydraulic', value: fmt.kW(ud.last.W_hydraulic) });
+    return items;
+  }
 };
 
 UnitInspector.compressor = {
   params(u) { const us = models.getActive('units'); return _pEtaParams(u, us, 300000, 0.80); },
-  properties(u, ud, grid) { _powerProps(u, ud, grid, '⚡ Compressor'); }
+  power(u, ud) { return !ud?.last ? [] : [
+    { label: 'Shaft power', value: fmt.kW(ud.last.W_shaft) },
+    ...(ud.last.eta != null ? [{ label: 'Efficiency', value: fmt.pct(ud.last.eta) }] : []),
+  ]; },
+  detail(u, ud) {
+    if (!ud.last) return [];
+    const items = [];
+    if (ud.last.Pout_setpoint != null) items.push({ label: 'P setpoint', value: fmt.P(ud.last.Pout_setpoint) });
+    if (ud.last.Pout_actual != null) items.push({ label: 'P actual', value: fmt.P(ud.last.Pout_actual), tone: ud.last.curtailed ? 'warn' : '' });
+    if (ud.last.W_isentropic != null) items.push({ label: 'Isentropic', value: fmt.kW(ud.last.W_isentropic) });
+    return items;
+  }
 };
 
 UnitInspector.gas_turbine = {
   params(u) { const us = models.getActive('units'); return _pEtaParams(u, us, 101325, 0.88); },
-  properties(u, ud, grid) { _powerProps(u, ud, grid, '⚡ Gas Turbine'); }
+  power(u, ud) { return !ud?.last ? [] : [
+    { label: 'Shaft power', value: fmt.kW(ud.last.W_shaft) },
+    ...(ud.last.eta != null ? [{ label: 'Efficiency', value: fmt.pct(ud.last.eta) }] : []),
+  ]; },
+  detail(u, ud) {
+    if (!ud.last) return [];
+    const items = [];
+    if (ud.last.Pout_setpoint != null) items.push({ label: 'P setpoint', value: fmt.P(ud.last.Pout_setpoint) });
+    if (ud.last.Pout_actual != null) items.push({ label: 'P actual', value: fmt.P(ud.last.Pout_actual), tone: ud.last.curtailed ? 'warn' : '' });
+    if (ud.last.W_isentropic != null) items.push({ label: 'Isentropic', value: fmt.kW(ud.last.W_isentropic) });
+    return items;
+  }
 };
 
+// ── Heat Equipment ──
 UnitInspector.heater = {
-  params(u) {
-    const us = models.getActive('units');
-    return [{ label: `T outlet setpoint (${us.temperature.symbol})`, get: () => us.temperature.from(u.params.T_out ?? 423.15), set: v => u.params.T_out = us.temperature.to(v), step: 1, decimals: us.temperature.decimals }];
+  params(u) { const us = models.getActive('units'); return [{ label: `T outlet setpoint (${us.temperature.symbol})`, get: () => us.temperature.from(u.params.T_out ?? 423.15), set: v => u.params.T_out = us.temperature.to(v), step: 1, decimals: us.temperature.decimals }]; },
+  power(u, ud) {
+    if (!ud.last?.T_setpoint_K) return [];
+    const items = [];
+    items.push({ label: 'Q demand', value: fmt.kW(ud.last.Q_demand_W) });
+    items.push({ label: 'Q actual', value: fmt.kW(ud.last.Q_actual_W), tone: ud.last.supplyLimited ? 'warn' : '' });
+    return items;
   },
-  properties(u, ud, grid) {
-    if (!ud.last?.T_setpoint_K) return;
-    insKV(grid, 'T setpoint', fmt.T(ud.last.T_setpoint_K));
+  kpis(u, ud) {
+    if (!ud.last?.T_setpoint_K) return [];
+    const items = [{ label: 'T setpoint', value: fmt.T(ud.last.T_setpoint_K) }];
     const matOut = ud.ports?.mat_out;
-    if (matOut?.T) {
-      const us = models.getActive('units');
-      const dev = Math.abs(us.temperature.from(matOut.T) - us.temperature.from(ud.last.T_setpoint_K));
-      insKV(grid, 'T actual', fmt.T(matOut.T), { tone: dev > 1 ? 'warn' : 'good' });
-    }
-    insKV(grid, 'Q demand', fmt.kW(ud.last.Q_demand_W));
-    insKV(grid, 'Q actual', fmt.kW(ud.last.Q_actual_W), { tone: ud.last.supplyLimited ? 'warn' : '' });
+    if (matOut?.T) { const us = models.getActive('units'); const dev = Math.abs(us.temperature.from(matOut.T) - us.temperature.from(ud.last.T_setpoint_K)); items.push({ label: 'T actual', value: fmt.T(matOut.T), tone: dev > 1 ? 'warn' : 'good' }); }
+    return items;
   }
 };
 
 UnitInspector.cooler = {
-  params(u) {
-    const us = models.getActive('units');
-    return [{ label: `T outlet setpoint (${us.temperature.symbol})`, get: () => us.temperature.from(u.params.T_out ?? 303.15), set: v => u.params.T_out = us.temperature.to(v), step: 1, decimals: us.temperature.decimals }];
+  params(u) { const us = models.getActive('units'); return [{ label: `T outlet setpoint (${us.temperature.symbol})`, get: () => us.temperature.from(u.params.T_out ?? 303.15), set: v => u.params.T_out = us.temperature.to(v), step: 1, decimals: us.temperature.decimals }]; },
+  power(u, ud) {
+    if (!ud.last?.T_setpoint_K) return [];
+    return [{ label: 'Q removed', value: fmt.kW(ud.last.Q_removed_W), tone: 'info' }];
   },
-  properties(u, ud, grid) {
-    if (!ud.last?.T_setpoint_K) return;
-    insKV(grid, 'T setpoint', fmt.T(ud.last.T_setpoint_K));
+  kpis(u, ud) {
+    if (!ud.last?.T_setpoint_K) return [];
+    const items = [{ label: 'T setpoint', value: fmt.T(ud.last.T_setpoint_K) }];
     const matOut = ud.ports?.mat_out;
-    if (matOut?.T) {
-      const us = models.getActive('units');
-      const dev = Math.abs(us.temperature.from(matOut.T) - us.temperature.from(ud.last.T_setpoint_K));
-      insKV(grid, 'T actual', fmt.T(matOut.T), { tone: dev > 1 ? 'warn' : 'good' });
-    }
-    insKV(grid, 'Q removed', fmt.kW(ud.last.Q_removed_W), { tone: 'info' });
+    if (matOut?.T) { const us = models.getActive('units'); const dev = Math.abs(us.temperature.from(matOut.T) - us.temperature.from(ud.last.T_setpoint_K)); items.push({ label: 'T actual', value: fmt.T(matOut.T), tone: dev > 1 ? 'warn' : 'good' }); }
+    return items;
   }
 };
 
+// ── Topology ──
 UnitInspector.splitter = {
-  params(u) {
-    return [{ label: 'Split to out1 (%)', get: () => u.params.splitPct ?? 50, set: v => u.params.splitPct = Math.max(0, Math.min(100, v)), step: 1 }];
-  },
-  properties(u, ud, grid) {
-    if (!ud?.last) return;
-    const L = ud.last;
-    if (L.P) insKV(grid, 'P', fmt.P(L.P));
-    if (L.nTotal) insKV(grid, 'Feed', fmt.flow(L.nTotal));
-    if (L.nOut1 != null) insKV(grid, 'Out 1', fmt.flow(L.nOut1));
-    if (L.nOut2 != null) insKV(grid, 'Out 2', fmt.flow(L.nOut2));
-    if (L.H_in_kW) insKV(grid, 'H in', `${L.H_in_kW}<span class="u">kW</span>`, { tone: 'muted' });
-  }
+  params(u) { return [{ label: 'Split to out1 (%)', get: () => u.params.splitPct ?? 50, set: v => u.params.splitPct = Math.max(0, Math.min(100, v)), step: 1 }]; },
+  kpis(u, ud) { if (!ud?.last) return []; return [
+    ...(ud.last.nOut1 != null ? [{ label: 'Out 1', value: fmt.flow(ud.last.nOut1) }] : []),
+    ...(ud.last.nOut2 != null ? [{ label: 'Out 2', value: fmt.flow(ud.last.nOut2) }] : []),
+  ]; },
+  detail(u, ud) { if (!ud?.last) return []; return [
+    ...(ud.last.P ? [{ label: 'P', value: fmt.P(ud.last.P) }] : []),
+    ...(ud.last.H_in_kW ? [{ label: 'H in', value: `${ud.last.H_in_kW}<span class="u">kW</span>` }] : []),
+  ]; }
 };
 
 UnitInspector.mixer = {
-  // Mixer has no user-editable parameters
-  properties(u, ud, grid) {
-    if (!ud?.last) return;
-    // T comes from resolved outlet stream, not u.last
-    const outStream = ud.ports?.out;
-    if (outStream?.T) insKV(grid, 'T out', fmt.T(outStream.T));
-    if (ud.last.P_out) insKV(grid, 'P out', fmt.P(ud.last.P_out));
-    if (ud.last.nTotal) insKV(grid, 'Total flow', fmt.flow(ud.last.nTotal));
-    insKV(grid, 'H in₁', `${ud.last.H_in1_kW}<span class="u">kW</span>`, { tone: 'muted' });
-    insKV(grid, 'H in₂', `${ud.last.H_in2_kW}<span class="u">kW</span>`, { tone: 'muted' });
-    insKV(grid, 'H out', `${ud.last.H_out_kW}<span class="u">kW</span>`);
-  }
+  // No kpis — auto-stream trunk covers T, P, total flow via primary OUT port
+  detail(u, ud) { return !ud?.last ? [] : [
+    { label: 'H in₁', value: `${ud.last.H_in1_kW}<span class="u">kW</span>` },
+    { label: 'H in₂', value: `${ud.last.H_in2_kW}<span class="u">kW</span>` },
+    { label: 'H out', value: `${ud.last.H_out_kW}<span class="u">kW</span>` },
+  ]; }
 };
 
+// ── Heat Exchangers ──
 UnitInspector.hex = {
-  params(u) {
-    const us = models.getActive('units');
+  params(u) { const us = models.getActive('units'); return [
+    { type: 'info', html: '<span style="opacity:0.6;font-size:11px;">Modes: approach temp · outlet temp · UA/NTU</span>' },
+    { label: 'Approach ΔT (K)', get: () => u.params.T_approach ?? 10, set: v => { u.params.T_approach = v; u.params.T_hot_out = undefined; u.params.T_cold_out = undefined; }, step: 1 },
+    { label: `T hot out (${us.temperature.symbol})`, get: () => u.params.T_hot_out != null ? us.temperature.from(u.params.T_hot_out) : '', set: v => { u.params.T_hot_out = us.temperature.to(v); u.params.T_approach = 0; u.params.T_cold_out = undefined; }, step: 1, decimals: us.temperature.decimals },
+    { label: `T cold out (${us.temperature.symbol})`, get: () => u.params.T_cold_out != null ? us.temperature.from(u.params.T_cold_out) : '', set: v => { u.params.T_cold_out = us.temperature.to(v); u.params.T_approach = 0; u.params.T_hot_out = undefined; }, step: 1, decimals: us.temperature.decimals },
+  ]; },
+  conditions(u, ud) {
+    if (ud?.last?.Q === undefined) return [];
     return [
-      { type: 'info', html: '<span style="opacity:0.6;font-size:11px;">Modes: approach temp · outlet temp · UA/NTU</span>' },
-      { label: 'Approach ΔT (K)', get: () => u.params.T_approach ?? 10, set: v => { u.params.T_approach = v; u.params.T_hot_out = undefined; u.params.T_cold_out = undefined; }, step: 1 },
-      { label: `T hot out (${us.temperature.symbol})`, get: () => u.params.T_hot_out != null ? us.temperature.from(u.params.T_hot_out) : '', set: v => { u.params.T_hot_out = us.temperature.to(v); u.params.T_approach = 0; u.params.T_cold_out = undefined; }, step: 1, decimals: us.temperature.decimals },
-      { label: `T cold out (${us.temperature.symbol})`, get: () => u.params.T_cold_out != null ? us.temperature.from(u.params.T_cold_out) : '', set: v => { u.params.T_cold_out = us.temperature.to(v); u.params.T_approach = 0; u.params.T_hot_out = undefined; }, step: 1, decimals: us.temperature.decimals },
+      { label: 'T hot in', value: fmt.T(ud.last.T_hot_in) },
+      { label: 'T hot out', value: fmt.T(ud.last.T_hot_out_actual ?? ud.last.T_hot_out) },
+      { label: 'T cold in', value: fmt.T(ud.last.T_cold_in) },
+      { label: 'T cold out', value: fmt.T(ud.last.T_cold_out_actual ?? ud.last.T_cold_out) },
     ];
   },
-  properties(u, ud, grid) {
-    if (ud.last?.Q === undefined) return;
-    insKV(grid, 'T hot in', fmt.T(ud.last.T_hot_in));
-    insKV(grid, 'T hot out', fmt.T(ud.last.T_hot_out_actual ?? ud.last.T_hot_out));
-    insKV(grid, 'T cold in', fmt.T(ud.last.T_cold_in));
-    insKV(grid, 'T cold out', fmt.T(ud.last.T_cold_out_actual ?? ud.last.T_cold_out));
-    insKV(grid, 'Duty', `${ud.last.Q.toFixed(2)}<span class="u">kW</span>`);
+  power(u, ud) {
+    if (ud?.last?.Q === undefined) return [];
+    const items = [{ label: 'Duty', value: `${ud.last.Q.toFixed(2)}<span class="propUnit">kW</span>` }];
     if (ud.last.hxPinch_K != null) {
-      const tone = ud.last.hxCross ? 'bad' : ud.last.hxPinch_K < 5 ? 'warn' : 'good';
-      insKV(grid, 'ΔT min (pinch)', `${ud.last.hxPinch_K.toFixed(2)}<span class="u">K</span>`, { tone });
+      items.push({ label: 'ΔT min', value: `${ud.last.hxPinch_K.toFixed(2)}<span class="propUnit">K</span>`, tone: ud.last.hxCross ? 'bad' : ud.last.hxPinch_K < 5 ? 'warn' : 'good' });
     }
-    if (ud.last.effectiveness && ud.last.effectiveness !== 'N/A')
-      insKV(grid, 'Effectiveness', `${ud.last.effectiveness}<span class="u">%</span>`);
-    if (ud.last.errors) {
-      for (const err of ud.last.errors) insErr(grid.parentNode, err.severity, err.message);
-    }
+    return items;
+  },
+  detail(u, ud) {
+    if (ud?.last?.Q === undefined) return [];
+    return (ud.last.effectiveness && ud.last.effectiveness !== 'N/A') ? [{ label: 'Effectiveness', value: `${ud.last.effectiveness}<span class="u">%</span>` }] : [];
   }
 };
 
+// ── Power Management ──
 UnitInspector.power_hub = {
-  properties(u, ud, grid) {
-    if (!ud.last) return;
-    const f = [['Fixed supply', ud.last.fixedSupply_W], ['Grid supply max', ud.last.batteryMax_W],
-               ['Grid supply draw', ud.last.batteryDraw_W], ['Total supply', ud.last.totalSupply_W],
-               ['Total demand', ud.last.totalDemand_W], ['Surplus → heat', ud.last.surplus_W]];
-    for (const [label, val] of f) {
-      if (val === undefined) continue;
-      const isHL = label === 'Total demand' && ud.last.curtailmentFactor < 1;
-      insKV(grid, label, fmt.kW(val), { tone: isHL ? 'warn' : '' });
+  power(u, ud) { if (!ud.last) return []; const items = [];
+    for (const [label, val] of [['Fixed supply', ud.last.fixedSupply_W], ['Grid max', ud.last.batteryMax_W], ['Grid draw', ud.last.batteryDraw_W], ['Total supply', ud.last.totalSupply_W], ['Total demand', ud.last.totalDemand_W], ['Surplus → heat', ud.last.surplus_W]]) {
+      if (val !== undefined) items.push({ label, value: fmt.kW(val), tone: label === 'Total demand' && ud.last.curtailmentFactor < 1 ? 'warn' : '' });
     }
-    const cf = ud.last.curtailmentFactor ?? 1;
-    insKV(grid, 'Curtailment', fmt.pct(cf), { tone: cf < 1 ? 'warn' : 'good' });
+    items.push({ label: 'Curtailment', value: fmt.pct(ud.last.curtailmentFactor ?? 1), tone: (ud.last.curtailmentFactor ?? 1) < 1 ? 'warn' : 'good' });
+    return items;
   }
 };
 
+// ── Separation ──
 UnitInspector.flash_drum = {
-  properties(u, ud, grid) {
-    if (!ud.last || ud.last.nTotal <= 0) return;
-    insKV(grid, 'Feed', fmt.flow(ud.last.nTotal));
-    insKV(grid, 'Vap fraction', fmt.pctRaw(ud.last.vapFraction));
-    if (ud.last.T_K) insKV(grid, 'T', fmt.T(ud.last.T_K));
-    if (ud.last.P_Pa) insKV(grid, 'P', fmt.P(ud.last.P_Pa));
-    // Phase info
-    if (ud.last.phaseSplit) {
-      const ps = ud.last.phaseSplit;
-      if (ps.vap) insKV(grid, 'Vapor out', fmt.flow(ps.vap));
-      if (ps.liq) insKV(grid, 'Liquid out', fmt.flow(ps.liq));
-    }
+  // Auto-stream trunk handles T, P from primary OUT port
+  kpis(u, ud) { if (!ud.last || ud.last.nTotal <= 0) return [];
+    return [
+      { label: 'Feed', value: fmt.flow(ud.last.nTotal) },
+      { label: 'Vap fraction', value: fmt.pctRaw(ud.last.vapFraction) },
+      ...(ud.last.phaseSplit?.vap ? [{ label: 'Vapor out', value: fmt.flow(ud.last.phaseSplit.vap) }] : []),
+      ...(ud.last.phaseSplit?.liq ? [{ label: 'Liquid out', value: fmt.flow(ud.last.phaseSplit.liq) }] : []),
+    ];
   }
 };
 
-// Reactor configs share reaction selector pattern
+// ── Reactors ──
 function _reactorParams(u, type) {
   const params = [];
-  const allRxns = ReactionRegistry.all();
-  const rxnOpts = allRxns.map(r => [r.id, r.name]);
+  const allRxns = ReactionRegistry.all(); const rxnOpts = allRxns.map(r => [r.id, r.name]);
   if (rxnOpts.length === 0) rxnOpts.push(['', '— No reactions —']);
   params.push({ type: 'select', label: 'Reaction', get: () => u.params.reactionId || '', set: v => u.params.reactionId = v, options: rxnOpts });
-  // Reaction equation display
   const rxn = u.params.reactionId ? ReactionRegistry.get(u.params.reactionId) : null;
   if (rxn) params.push({ type: 'info', html: `<div class="rxnEquation">${formatReactionHTML(rxn.equation)}</div>` });
   if (type === 'adiabatic') {
     params.push({ type: 'slider', label: 'Conversion', get: () => u.params.conversion ?? 0.5, set: v => u.params.conversion = v, min: 0, max: 1, step: 0.01 });
   } else {
     params.push({ type: 'toggle', label: 'Kinetics (PFR)', get: () => u.params.useKinetics !== false, set: v => { u.params.useKinetics = v; updatePropertiesPanel(); } });
-    if (u.params.useKinetics !== false) {
-      params.push({ label: 'Volume (m³)', get: () => u.params.volume_m3 ?? 1.0, set: v => u.params.volume_m3 = v, step: 3 });
-    } else {
-      params.push({ type: 'slider', label: 'Alpha (approach)', get: () => u.params.alpha ?? 1.0, set: v => u.params.alpha = v, min: 0, max: 1, step: 0.01 });
-    }
+    if (u.params.useKinetics !== false) params.push({ label: 'Volume (m³)', get: () => u.params.volume_m3 ?? 1.0, set: v => u.params.volume_m3 = v, step: 3 });
+    else params.push({ type: 'slider', label: 'Alpha (approach)', get: () => u.params.alpha ?? 1.0, set: v => u.params.alpha = v, min: 0, max: 1, step: 0.01 });
   }
   return params;
 }
 
 UnitInspector.reactor_adiabatic = {
   params(u) { return _reactorParams(u, 'adiabatic'); },
-  properties(u, ud, grid) {
-    if (!ud?.last) return;
-    const L = ud.last;
-    if (L.status) insKV(grid, 'Status', L.status === 'active' ? '🟢 Active' : L.status === 'inactive' ? '⏸ Inactive' : L.status, { full: true });
-    if (L.conversion != null) insKV(grid, 'Conversion', fmt.pct(L.conversion));
-    if (L.xi != null) insKV(grid, 'ξ', `${L.xi.toExponential(3)}<span class="u">mol/s</span>`);
-    if (L.xi_max != null) insKV(grid, 'ξ_max', `${L.xi_max.toExponential(3)}<span class="u">mol/s</span>`);
-    if (L.H_in_kW) insKV(grid, 'H in', `${L.H_in_kW}<span class="u">kW</span>`, { tone: 'muted' });
-    if (L.reason) insKV(grid, 'Reason', L.reason, { full: true, tone: 'warn' });
-  }
+  kpis(u, ud) { if (!ud?.last) return []; return [
+    ...(ud.last.conversion != null ? [{ label: 'Conversion', value: fmt.pct(ud.last.conversion) }] : []),
+    ...(ud.last.xi != null ? [{ label: 'ξ', value: `${ud.last.xi.toExponential(3)}<span class="propUnit">mol/s</span>` }] : []),
+  ]; },
+  detail(u, ud) { if (!ud?.last) return []; const L = ud.last; return [
+    ...(L.xi_max != null ? [{ label: 'ξ_max', value: `${L.xi_max.toExponential(3)}<span class="u">mol/s</span>` }] : []),
+    ...(L.H_in_kW ? [{ label: 'H in', value: `${L.H_in_kW}<span class="u">kW</span>` }] : []),
+    ...(L.reason ? [{ label: 'Reason', value: L.reason, full: true, tone: 'warn' }] : []),
+  ]; }
 };
+
 UnitInspector.reactor_equilibrium = {
   params(u) { return _reactorParams(u, 'equilibrium'); },
-  properties(u, ud, grid) {
-    if (!ud.last) return;
+  power(u, ud) {
+    if (!ud?.last?.Q_duty_W) return [];
     const L = ud.last;
-    if (L.status) insKV(grid, 'Status', L.status === 'active' ? '🟢 Active' : L.status === 'inactive' ? '⏸ Inactive' : L.status, { full: true });
-    if (L.mode) insKV(grid, 'Mode', L.mode);
-    if (L.ln_K != null) insKV(grid, 'K_eq', Math.exp(Math.min(L.ln_K, 300)).toExponential(3));
-    if (L.T_eval) insKV(grid, 'T reaction', fmt.T(L.T_eval));
-    if (L.xi != null && L.xi_max > 0) insKV(grid, 'Conversion', fmt.pct(L.xi / L.xi_max));
-    if (L.xi != null) insKV(grid, 'ξ', `${L.xi.toExponential(3)}<span class="u">mol/s</span>`);
-    if (L.xi_eq != null) insKV(grid, 'ξ_eq', `${L.xi_eq.toExponential(3)}<span class="u">mol/s</span>`);
-    if (L.Q_duty_W != null) {
-      const sign = L.Q_duty_sign === 'heating' ? '🔥' : '❄️';
-      insKV(grid, `Q duty ${sign}`, fmt.kW(Math.abs(L.Q_duty_W)), { tone: L.Q_duty_sign === 'heating' ? 'warn' : 'info' });
-    }
-    // Kinetics-specific
-    if (L.alpha_effective != null) insKV(grid, 'α_eff', L.alpha_effective.toFixed(4));
-    if (L.limited_by) insKV(grid, 'Limited by', L.limited_by);
-    if (L.tau_s != null) insKV(grid, 'τ', `${L.tau_s.toFixed(2)}<span class="u">s</span>`);
-    if (L.rate_inlet != null) insKV(grid, 'Rate (inlet)', `${L.rate_inlet.toExponential(2)}<span class="u">mol/m³s</span>`);
-    // Inactive reason
-    if (L.reason) insKV(grid, 'Reason', L.reason, { full: true, tone: 'warn' });
-  }
+    const sign = L.Q_duty_sign === 'heating' ? '🔥' : '❄️';
+    return [{ label: `Q duty ${sign}`, value: fmt.kW(Math.abs(L.Q_duty_W)), tone: L.Q_duty_sign === 'heating' ? 'warn' : 'info' }];
+  },
+  kpis(u, ud) { if (!ud.last) return []; const L = ud.last; const items = [];
+    if (L.ln_K != null) items.push({ label: 'K_eq', value: Math.exp(Math.min(L.ln_K, 300)).toExponential(3) });
+    if (L.xi != null && L.xi_max > 0) items.push({ label: 'Conversion', value: fmt.pct(L.xi / L.xi_max) });
+    if (L.xi != null) items.push({ label: 'ξ', value: `${L.xi.toExponential(3)}<span class="propUnit">mol/s</span>` });
+    return items;
+  },
+  detail(u, ud) { if (!ud.last) return []; const L = ud.last; return [
+    ...(L.mode ? [{ label: 'Mode', value: L.mode, full: true }] : []),
+    ...(L.T_eval ? [{ label: 'T reaction', value: fmt.T(L.T_eval) }] : []),
+    ...(L.xi_eq != null ? [{ label: 'ξ_eq', value: `${L.xi_eq.toExponential(3)}<span class="u">mol/s</span>` }] : []),
+    ...(L.alpha_effective != null ? [{ label: 'α_eff', value: L.alpha_effective.toFixed(4) }] : []),
+    ...(L.limited_by ? [{ label: 'Limited by', value: L.limited_by }] : []),
+    ...(L.tau_s != null ? [{ label: 'τ', value: `${L.tau_s.toFixed(2)}<span class="u">s</span>` }] : []),
+    ...(L.rate_inlet != null ? [{ label: 'Rate (inlet)', value: `${L.rate_inlet.toExponential(2)}<span class="u">mol/m³s</span>` }] : []),
+    ...(L.reason ? [{ label: 'Reason', value: L.reason, full: true, tone: 'warn' }] : []),
+  ]; }
 };
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -15450,6 +16007,11 @@ function renderParams(container, paramDefs, u) {
 }
 
 function updatePropertiesPanel() {
+  // [v10.1.3] Trigger transition animation
+  propEditor.classList.remove('ins-animate');
+  void propEditor.offsetWidth; // force reflow
+  propEditor.classList.add('ins-animate');
+
   propEditor.innerHTML = '';
   
   // ═══ UNIT SELECTED ═══
@@ -15460,7 +16022,7 @@ function updatePropertiesPanel() {
     const ud = scene.runtime.unitData.get(u.id);
     const config = UnitInspector[u.defId];
     
-    // ── Header ──
+    // ── Header: Name + Delete ──
     const headerDiv = el('div', { class: 'unitHeader' });
     const titleDiv = el('div', { class: 'unitTitle' });
     const nameInput = el('input', { type: 'text', value: u.name || `${def.name} ${u.id.slice(-2)}` });
@@ -15473,67 +16035,104 @@ function updatePropertiesPanel() {
       if (!nameInput.value.trim()) { u.name = `${def.name} ${u.id.slice(-2)}`; nameInput.value = u.name; }
     });
     titleDiv.appendChild(nameInput);
+    const delBtn = el('button', { class: 'ins-delete-btn', html: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 4h12M5.3 4V2.7a1 1 0 011-1h3.4a1 1 0 011 1V4M6.5 7v4.5M9.5 7v4.5M3.5 4l.7 9a1.5 1.5 0 001.5 1.4h4.6a1.5 1.5 0 001.5-1.4l.7-9"/></svg>' });
+    delBtn.title = 'Delete unit';
+    delBtn.addEventListener('click', () => deleteSelected());
+    titleDiv.appendChild(delBtn);
     headerDiv.appendChild(titleDiv);
-    headerDiv.appendChild(el('div', { class: 'unitSubtitle', html: `${def.defId} · <span style="color:${def.color}">${def.category}</span>` }));
+    headerDiv.appendChild(el('div', { class: 'unitSubtitle', html: `<span style="color:${def.color}">${def.category}</span> · ${def.name}` }));
     propEditor.appendChild(headerDiv);
 
-    // ── Errors (top-level) ──
+    // ── Status / Errors (immediately under header) [v10.2.0 XSS-safe] ──
     if (ud?.last?.error) {
-      const err = ud.last.error;
-      const sev = err.severity || ErrorSeverity.MINOR;
-      insErr(propEditor, sev, err.message);
+      insErr(propEditor, ud.last.error.severity || ErrorSeverity.MINOR, ud.last.error.message);
+    }
+    if (ud?.errors?.length > 0) {
+      for (const err of ud.errors) {
+        const box = el('div');
+        if (typeof err === 'string') {
+          box.className = 'ins-err-box warn';
+          box.textContent = '⚠ ' + err;
+        } else if (err && typeof err === 'object') {
+          box.className = `ins-err-box ${err.severity === ErrorSeverity.CATASTROPHIC || err.severity === ErrorSeverity.MAJOR ? 'bad' : 'warn'}`;
+          box.textContent = `${(err.severity?.icon || '⚠')} ${err.message || JSON.stringify(err)}`;
+        }
+        propEditor.appendChild(box);
+      }
+    }
+    if (ud && !ud?.last?.error && !(ud?.errors?.length > 0)) {
+      propEditor.appendChild(el('div', { style: 'font-size:11px; color:#6ee7b7; opacity:0.6; padding:2px 0 4px;', html: '✓ OK' }));
     }
 
-    // ── Parameters ──
+    // ── Parameters (collapsible, open) ──
     if (config?.params || config?.customParams) {
       const paramsSection = createCollapsibleSection('Parameters', true);
       if (config.customParams) {
         config.customParams(paramsSection.content, u, scene);
       } else {
-        const paramDefs = config.params(u);
-        renderParams(paramsSection.content, paramDefs, u);
+        renderParams(paramsSection.content, config.params(u), u);
       }
       propEditor.appendChild(paramsSection.section);
     }
 
-    // ── Properties ──
-    const propsSection = createCollapsibleSection('Properties', true);
-    if (!ud) {
-      propsSection.content.appendChild(el('div', { class: 'ins-hint', html: 'Not computed yet — press Test/Step' }));
-    } else if (config?.properties) {
-      const grid = insBox(propsSection.content, null);
-      // Remove box wrapper for clean look — put grid directly
-      const box = grid.parentNode;
-      propsSection.content.removeChild(box);
-      const directGrid = el('div', { class: 'ins-grid' });
-      propsSection.content.appendChild(directGrid);
-      const skipStream = config.properties(u, ud, directGrid, scene);
-      // If properties returned true, it handled everything (e.g., sink renders stream)
-    } else if (u.defId === 'sink' && ud?.last?.stream) {
-      renderStreamProperties(propsSection.content, ud.last.stream);
+    // ── [v10.2.0] Process Conditions ──
+    // Priority: config.conditions() > auto-stream from primary material port
+    if (config?.conditions && ud) {
+      const items = config.conditions(u, ud);
+      if (items?.length) _renderKPIGrid(propEditor, items);
+    } else if (ud) {
+      const primaryStream = _findPrimaryStream(ud, def);
+      if (primaryStream) _renderAutoStream(propEditor, primaryStream);
     }
-    propEditor.appendChild(propsSection.section);
 
-    // ── Diagnostics (always shown, open by default) ──
-    {
-      const hasErrors = (ud?.errors?.length > 0 || ud?.last?.balanceErrors?.length > 0);
-      const diagSection = createCollapsibleSection('Diagnostics', true);
-      if (hasErrors && ud.errors) {
-        for (const err of ud.errors) {
-          if (typeof err === 'string') {
-            diagSection.content.appendChild(el('div', { class: 'ins-err-box warn', html: '⚠ ' + err }));
-          } else if (err && typeof err === 'object') {
-            const cls = err.severity === ErrorSeverity.CATASTROPHIC || err.severity === ErrorSeverity.MAJOR ? 'bad' : 'warn';
-            const icon = err.severity?.icon || '⚠';
-            diagSection.content.appendChild(el('div', { class: `ins-err-box ${cls}`, html: `${icon} ${err.message || JSON.stringify(err)}` }));
-          }
+    // ── [v10.2.0] Power & Energy ──
+    if (ud && config?.power) {
+      const items = config.power(u, ud);
+      if (items?.length) _renderLabeledSection(propEditor, 'Power & Energy', items);
+    }
+
+    // ── Unit-specific KPIs ──
+    if (ud && config?.kpis) {
+      const kpiItems = config.kpis(u, ud);
+      if (kpiItems?.length) _renderKPIGrid(propEditor, kpiItems);
+    }
+    if (!ud) {
+      propEditor.appendChild(el('div', { class: 'ins-hint', html: 'Not computed yet — press Test/Step' }));
+    }
+
+    // ── Detail (collapsible, closed) ──
+    if (ud && config?.detail) {
+      const detailItems = config.detail(u, ud, scene);
+      _renderDetailSection(propEditor, detailItems);
+    }
+
+    // ── Connections (hidden by default, preserved for debug) ──
+    const SHOW_CONNECTIONS = false;
+    if (SHOW_CONNECTIONS) {
+      const connSection = createCollapsibleSection('Connections', false);
+      const cc = connSection.content;
+      for (const p of def.ports) {
+        const dirLabel = p.dir === PortDir.OUT ? '→' : '←';
+        const typeLabel = _streamNames[p.type] ?? '?';
+        const conn = p.dir === PortDir.OUT
+          ? scene.connections.find(c => c.from.unitId === u.id && c.from.portId === p.portId)
+          : scene.connections.find(c => c.to.unitId === u.id && c.to.portId === p.portId);
+        let target = '';
+        if (conn) {
+          const otherId = p.dir === PortDir.OUT ? conn.to.unitId : conn.from.unitId;
+          const otherU = scene.units.get(otherId);
+          const otherDef = otherU ? UnitRegistry.get(otherU.defId) : null;
+          target = `<span style="color:#6ee7b7">● </span>${esc(otherU?.name || otherDef?.name || '?')}`;
+        } else {
+          target = '<span style="opacity:0.4">○ unconnected</span>';
         }
-      } else if (ud) {
-        diagSection.content.appendChild(el('div', { style: 'font-size:12px; color:#6ee7b7; opacity:0.8; padding:4px 0;', html: '✓ No issues' }));
-      } else {
-        diagSection.content.appendChild(el('div', { class: 'ins-hint', html: 'Not computed yet — press Test/Step' }));
+        const row = el('div', {
+          style: 'display:flex; justify-content:space-between; align-items:center; padding:3px 0; font-size:11px;',
+          html: `<span style="opacity:0.7">${dirLabel} ${_portLabel(p.portId)} <span style="opacity:0.5">${typeLabel}</span></span><span>${target}</span>`
+        });
+        cc.appendChild(row);
       }
-      propEditor.appendChild(diagSection.section);
+      propEditor.appendChild(connSection.section);
     }
   }
   
@@ -15553,20 +16152,44 @@ function updatePropertiesPanel() {
     const toName = toUnit.name || toDef.name;
     
     const headerDiv = el('div', { class: 'unitHeader' });
-    headerDiv.appendChild(el('div', { class: 'unitTitle', style: 'cursor:default;', html: `${fromName} → ${toName}` }));
+    const titleDiv = el('div', { class: 'unitTitle', style: 'cursor:default;' });
+    titleDiv.appendChild(el('span', { html: `${esc(fromName)} → ${esc(toName)}`, style: 'flex:1;' }));
+    const delBtn = el('button', { class: 'ins-delete-btn', html: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 4h12M5.3 4V2.7a1 1 0 011-1h3.4a1 1 0 011 1V4M6.5 7v4.5M9.5 7v4.5M3.5 4l.7 9a1.5 1.5 0 001.5 1.4h4.6a1.5 1.5 0 001.5-1.4l.7-9"/></svg>' });
+    delBtn.title = 'Delete connection';
+    delBtn.addEventListener('click', () => deleteSelected());
+    titleDiv.appendChild(delBtn);
+    headerDiv.appendChild(titleDiv);
     const fromPort = fromDef.ports.find(p => p.portId === conn.from.portId);
-    headerDiv.appendChild(el('div', { class: 'unitSubtitle', html: `${conn.from.portId} → ${conn.to.portId} · ${_streamNames[fromPort?.type] ?? 'Unknown'}` }));
+    headerDiv.appendChild(el('div', { class: 'unitSubtitle', html: `${_portLabel(conn.from.portId)} → ${_portLabel(conn.to.portId)} · ${_streamNames[fromPort?.type] ?? 'Unknown'}` }));
     propEditor.appendChild(headerDiv);
     
-    const propsSection = createCollapsibleSection('Properties', true);
+    // Stream data — uses same auto-stream renderer for consistency
     const ud = scene.runtime.unitData.get(conn.from.unitId);
     const stream = ud?.ports?.[conn.from.portId];
     if (stream) {
-      renderStreamProperties(propsSection.content, stream);
+      if (stream.type === StreamType.MATERIAL) {
+        _renderAutoStream(propEditor, stream);
+        // Enthalpy in detail
+        if (stream.hMolarMix !== undefined || stream.Hdot_J_s !== undefined) {
+          const enthalpyItems = [];
+          if (stream.hMolarMix !== undefined) enthalpyItems.push({ label: 'Molar enthalpy', value: `${formatEnthalpy_kJmol(stream.hMolarMix)}<span class="u">kJ/mol</span>` });
+          if (stream.Hdot_J_s !== undefined) enthalpyItems.push({ label: 'Enthalpy flow', value: `${formatPower_kW(stream.Hdot_J_s)}<span class="u">kW</span>` });
+          _renderDetailSection(propEditor, enthalpyItems);
+        }
+      } else {
+        // Power/heat streams — render as KPIs
+        const capacity_W = stream.capacity ?? stream.available ?? 0;
+        const actual_W = stream.actual ?? stream.available ?? 0;
+        const kpis = [{ label: 'Capacity', value: `${(capacity_W/1000).toFixed(1)}<span class="propUnit">kW</span>` }];
+        if (Math.abs(actual_W - capacity_W) > 1) {
+          kpis.push({ label: 'Actual', value: `${(actual_W/1000).toFixed(1)}<span class="propUnit">kW</span>`, tone: actual_W < capacity_W - 1 ? 'warn' : '' });
+        }
+        if (stream.demand !== undefined) kpis.push({ label: 'Demand', value: `${(stream.demand/1000).toFixed(1)}<span class="propUnit">kW</span>` });
+        _renderKPIGrid(propEditor, kpis);
+      }
     } else {
-      propsSection.content.appendChild(el('div', { class: 'ins-hint', html: 'Not computed yet — press Test/Step' }));
+      propEditor.appendChild(el('div', { class: 'ins-hint', html: 'Not computed yet — press Test/Step' }));
     }
-    propEditor.appendChild(propsSection.section);
   }
   
   // ═══ NOTHING SELECTED — Balance Display ═══
@@ -15688,6 +16311,7 @@ function deselectAll() {
   ui.selectedUnitId = null;
   ui.selectedConnId = null;
   ui.pendingFrom = null;
+  ui.reconnecting = null;
   updatePropertiesPanel();
   render();
 }
@@ -15736,7 +16360,7 @@ svg.addEventListener('pointerdown', (ev) => {
   if (!existing) {
     if (ui.pendingFrom) {
       ui.pendingFrom = null;
-      setStatus('Connect cancelled.');
+      ui.reconnecting = null;
       
       render();
       return;
@@ -15858,6 +16482,7 @@ svg.addEventListener('drop', (ev) => {
   ui.selectedUnitId = id;
   ui.selectedConnId = null;
   ui.pendingFrom = null;
+  ui.reconnecting = null;
   ui.dragDefId = null;
   ui.isHTML5Dragging = false;
   autoPauseOnTopologyChange(); // [v9.0.1]
@@ -15881,8 +16506,8 @@ window.addEventListener('keydown', (ev) => {
       return;
     }
     ui.pendingFrom = null;
+    ui.reconnecting = null;
     closeMenus();
-    setStatus('Cancelled.');
     render();
   }
   // [v10.0.6] "/" toggles palette; [v10.0.7] Tab also toggles palette
@@ -16025,6 +16650,45 @@ btnReset.addEventListener('click', () => {
   const { solveResult } = TimeClock.reset(scene);
   setStatus('↺ Reset to t=0');
   afterSolve(solveResult);
+});
+
+// [v10.1.0] Zoom controls (E1)
+document.getElementById('btnFit').addEventListener('click', () => fitView());
+document.getElementById('btnResetView').addEventListener('click', () => resetView());
+
+// [v10.1.1] Utilities toggle (E7)
+const btnUtilities = document.getElementById('btnUtilities');
+btnUtilities.addEventListener('click', () => {
+  ui.showUtilities = !ui.showUtilities;
+  btnUtilities.style.opacity = ui.showUtilities ? '1' : '0.35';
+  // Deselect if current selection is a dimmed utility
+  if (!ui.showUtilities) {
+    if (ui.selectedUnitId) {
+      const u = scene.units.get(ui.selectedUnitId);
+      if (u) {
+        const def = UnitRegistry.get(u.defId);
+        if (def.category === UnitCategories.POWER.name || def.defId === 'sink_heat') {
+          ui.selectedUnitId = null;
+          updatePropertiesPanel();
+        }
+      }
+    }
+    if (ui.selectedConnId) {
+      const conn = scene.connections.find(c => c.id === ui.selectedConnId);
+      if (conn) {
+        const fU = scene.units.get(conn.from.unitId);
+        const tU = scene.units.get(conn.to.unitId);
+        const fDef = fU ? UnitRegistry.get(fU.defId) : null;
+        const tDef = tU ? UnitRegistry.get(tU.defId) : null;
+        const _isU = d => d && (d.category === UnitCategories.POWER.name || d.defId === 'sink_heat');
+        if (_isU(fDef) || _isU(tDef)) {
+          ui.selectedConnId = null;
+          updatePropertiesPanel();
+        }
+      }
+    }
+  }
+  render();
 });
 
 // Status indicator help button
@@ -16357,7 +17021,7 @@ function buildSettingsPanel() {
     const cheatUnits = [];
     for (const u of scene.units.values()) {
       const def = UnitRegistry.get(u.defId);
-      if (def && def.cheat) cheatUnits.push(u.name || u.defId);
+      if (def && def.cheat) cheatUnits.push(u.name || def.name);
     }
     if (cheatUnits.length > 0) {
       devSec.appendChild(el('div', {
@@ -16665,6 +17329,7 @@ function loadDemo() {
   ui.selectedUnitId = null;
   ui.selectedConnId = null;
   ui.pendingFrom = null;
+  ui.reconnecting = null;
   scene.processName = 'Sabatier + Energy Storage (v9.1.0)';
   document.getElementById('processNameInput').value = scene.processName;
   buildModelsPanel();
