@@ -3,6 +3,29 @@
   ═══════════════════════════════════════════════════════════════════════════
   processThis v9.1.0
 
+  ─── v10.2.1 ──────────────────────────────────────────────────────────────
+  Inspector polish — 2-col layout, solver strip removal, NNGs.
+
+  2-COLUMN GRID:
+  - .propGrid changed from flex-column to CSS grid (grid-template-columns:
+    1fr 1fr). Process conditions: T|P, Phase|VF, Composition (full-row),
+    Molar|Mass. KPI grids likewise 2-col with full-row for bars/full items.
+  - .full-row utility class for grid-column: 1/-1.
+  - compBadge font-size 11px → 12px for readability.
+
+  SOLVER STRIP REMOVED:
+  - buildSolverSummary(propEditor) call removed from updatePropertiesPanel.
+    The status indicator in the info bar is the single convergence display.
+
+  NNG ADDITIONS (NNG-UI5 through NNG-UI10):
+  - UI5: Immutable section order
+  - UI6: Data goes in the right hook (no T/P in kpis, no power in kpis)
+  - UI7: One renderer per visual style
+  - UI9: XSS escaping rule for user-editable strings
+  - UI10: 2-column grid layout rule
+
+  Gate: 89/197 headless (unchanged). No engine changes.
+
   ─── v10.2.0 ──────────────────────────────────────────────────────────────
   Unified Inspector Architecture — consistent rendering for all units.
 
@@ -342,6 +365,21 @@
   NNG-UI2: Palette persistence (never closes on unit add)
   NNG-UI3: CSS-first styling (ins-* class vocabulary)
   NNG-UI4: Unit UI colocation (UnitInspector next to UnitRegistry)
+  NNG-UI5: Inspector section order is IMMUTABLE:
+           Header → Status → Parameters → Process Conditions → Power & Energy
+           → Unit KPIs → Detail.  Sections omitted when empty, never shown hollow.
+  NNG-UI6: Data goes in the RIGHT hook. No T/P/flow in kpis() (→ conditions or trunk).
+           No power/duty in kpis() (→ power()). No status strings in kpis().
+  NNG-UI7: One renderer per visual style. _renderKPIGrid for all KPI cards,
+           _renderAutoStream for trunk, _renderDetailSection for condensed KV.
+           No inline style overrides on propItem/propValue in unit configs.
+  NNG-UI8: Keyboard shortcuts must not conflict with browser defaults.
+  NNG-UI9: All user-editable strings (u.name, err.message) MUST be escaped
+           via esc() before entering any innerHTML context. fmt.* outputs and
+           def.* fields from UnitRegistry are trusted.
+  NNG-UI10: Process conditions use 2-column grid (T|P, Phase|VF, Composition
+            full-width, Molar|Mass). KPI grids likewise 2-column with full-row
+            for bars and full items. No 1-column stacking for KPI/conditions.
 
   Hotfix: Removed 1,752 lines of orphaned old updatePropertiesPanel body
   that was left at top-level scope after the new schema-driven version.
@@ -1209,7 +1247,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>processThis — v10.2.0</title>
+  <title>processThis — v10.2.1</title>
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
@@ -2067,11 +2105,12 @@
     }
     
     .propGrid {
-      display: flex;
-      flex-direction: column;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
       gap: 6px;
       margin-bottom: 8px;
     }
+    .propGrid .full-row { grid-column: 1 / -1; }
     
     .propItem {
       background: #0f1420;
@@ -2106,7 +2145,7 @@
       border: 1px solid #2a2f3a;
       border-radius: 8px;
       padding: 4px 8px;
-      font-size: 11px;
+      font-size: 12px;
       margin: 4px 4px 4px 0;
       font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     }
@@ -15308,12 +15347,14 @@ function _findPrimaryStream(ud, def) {
   return null;
 }
 
-// Render auto-extracted material stream KPIs (T, P, Phase, Composition, Flowrates)
+// Render auto-extracted material stream — 2-column grid layout
+// Row 1: T | P     Row 2: Phase | Vap fraction     Row 3: Composition (full)     Row 4: Molar | Mass flow
 function _renderAutoStream(container, stream) {
   if (!stream || stream.type !== StreamType.MATERIAL) return;
   const unitSys = models.getActive('units');
   const grid = el('div', { class: 'propGrid' });
   
+  // Row 1: T | P
   grid.appendChild(el('div', { class: 'propItem' }, [
     el('div', { class: 'propLabel', html: 'Temperature' }),
     el('div', { class: 'propValue', 
@@ -15325,18 +15366,27 @@ function _renderAutoStream(container, stream) {
       html: `${unitSys.pressure.from(stream.P).toFixed(unitSys.pressure.decimals)}<span class="propUnit">${unitSys.pressure.symbol}</span>` })
   ]));
   
-  const phaseText = stream.phase === 'V' ? 'Vapor' : 
-                    stream.phase === 'L' ? 'Liquid' : 
-                    stream.phase === 'VL' ? `Two-Phase (β=${(stream.vaporFraction||0).toFixed(3)})` : '—';
+  // Row 2: Phase | Vapor fraction (if two-phase)
+  const isVL = stream.phase === 'VL';
+  const phaseText = stream.phase === 'V' ? 'Vapor' : stream.phase === 'L' ? 'Liquid' : isVL ? 'Two-Phase' : '—';
   grid.appendChild(el('div', { class: 'propItem' }, [
     el('div', { class: 'propLabel', html: 'Phase' }),
     el('div', { class: 'propValue', style: 'font-size:12px;', html: phaseText })
   ]));
-  
+  if (isVL) {
+    grid.appendChild(el('div', { class: 'propItem' }, [
+      el('div', { class: 'propLabel', html: 'Vapor fraction' }),
+      el('div', { class: 'propValue', html: `${(stream.vaporFraction||0).toFixed(3)}` })
+    ]));
+  } else {
+    grid.appendChild(el('div')); // empty cell to maintain grid
+  }
+
+  // Row 3: Composition (full width)
   const components = Object.keys(stream.n || {}).filter(k => stream.n[k] > 1e-9).sort((a, b) => stream.n[b] - stream.n[a]);
   const nTotal = components.reduce((s, k) => s + stream.n[k], 0);
   if (components.length) {
-    const compRow = el('div', { style: 'margin-top:2px;' });
+    const compRow = el('div', { class: 'full-row', style: 'margin-top:2px;' });
     const compWrap = el('div', { style: 'display:flex; flex-wrap:wrap; gap:4px;' });
     for (const comp of components) {
       const molFrac = nTotal > 0 ? (stream.n[comp] / nTotal) : 0;
@@ -15349,6 +15399,7 @@ function _renderAutoStream(container, stream) {
     grid.appendChild(compRow);
   }
   
+  // Row 4: Molar flow | Mass flow
   const flowrates = calculateStreamFlowrates(stream);
   if (flowrates) {
     grid.appendChild(el('div', { class: 'propItem' }, [
@@ -15372,24 +15423,16 @@ function _renderKPIGrid(container, items) {
   for (const item of items) {
     if (!item) continue;
     if (item.bar) {
-      const barItem = el('div', { class: 'propItem' });
+      const barItem = el('div', { class: 'propItem full-row' });
       barItem.appendChild(el('div', { class: 'propLabel', html: item.label }));
       const barWrap = el('div', { style: 'display:flex;align-items:center;gap:8px;' });
       barWrap.innerHTML = `<span class="ins-bar-track" style="flex:1;"><span class="ins-bar-fill" style="width:${Math.min(100,item.value)}%;background:${item.barColor||'#60a5fa'}"></span></span><span class="propValue" style="font-size:12px;">${item.value.toFixed(1)}%</span>`;
       barItem.appendChild(barWrap);
       grid.appendChild(barItem);
-    } else if (item.full) {
-      const pi = el('div', { class: 'propItem' });
-      pi.appendChild(el('div', { class: 'propLabel', html: item.label }));
-      const valEl = el('div', { class: 'propValue', style: 'font-size:12px;' });
-      valEl.innerHTML = item.value;
-      if (item.tone) valEl.style.color = item.tone === 'warn' ? '#fbbf24' : item.tone === 'bad' ? '#fca5a5' : item.tone === 'good' ? '#6ee7b7' : item.tone === 'info' ? '#93c5fd' : '';
-      pi.appendChild(valEl);
-      grid.appendChild(pi);
     } else {
-      const pi = el('div', { class: 'propItem' });
+      const pi = el('div', { class: `propItem${item.full ? ' full-row' : ''}` });
       pi.appendChild(el('div', { class: 'propLabel', html: item.label }));
-      const valEl = el('div', { class: 'propValue' });
+      const valEl = el('div', { class: 'propValue', style: item.full ? 'font-size:12px;' : '' });
       valEl.innerHTML = item.value;
       if (item.tone) valEl.style.color = item.tone === 'warn' ? '#fbbf24' : item.tone === 'bad' ? '#fca5a5' : item.tone === 'good' ? '#6ee7b7' : item.tone === 'info' ? '#93c5fd' : '';
       pi.appendChild(valEl);
@@ -16299,9 +16342,7 @@ function updatePropertiesPanel() {
       }
     }
   }
-  
-  // ═══ SOLVER SUMMARY STRIP (always visible) ═══
-  buildSolverSummary(propEditor);
+  // [v10.2.0] Solver summary removed from inspector — status indicator is sufficient
 }
 
 /* =========================

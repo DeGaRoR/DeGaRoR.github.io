@@ -3,6 +3,59 @@
   ═══════════════════════════════════════════════════════════════════════════
   processThis v9.1.0
 
+  ─── v10.2.4 ──────────────────────────────────────────────────────────────
+  Visual fix — param zone blue tint, VL per-phase composition.
+
+  - .ins-params-zone: bg #111827 + blue border (#2563eb at 27% opacity).
+    Clearly distinct from output KPI cards.
+  - VL streams: composition now shows per-phase breakdown.
+    Vapor (y) and Liquid (x) mole fractions displayed separately with
+    "VAPOR" / "LIQUID" sub-labels. Single-phase streams unchanged.
+    Data sourced from flash result: stream.y, stream.x.
+
+  Gate: 89/197 (unchanged).
+
+  ─── v10.2.3 ──────────────────────────────────────────────────────────────
+  Visual fix — param zone contrast, section spacing, reactor grid.
+
+  - .ins-params-zone background #1a1e2e (was #161b26) + border #2d3548.
+    Visible tint against #0f1420 propItem cards.
+  - propGrid margin-bottom 8→14px, ins-section-label margin 10→14px top.
+    Sections breathe.
+  - Reactor Mode, Type, Limited by: removed full-row. Now 2-column cards
+    like every other KPI item. grid_supply Mode likewise.
+  - full-row reserved for: bar charts, Reason strings in detail only.
+
+  Gate: 89/197 (unchanged).
+
+  ─── v10.2.2 ──────────────────────────────────────────────────────────────
+  Inspector refinement — params zone, reactor section, add button, sliders.
+
+  PARAMETER ZONE:
+  - Replaced collapsible section with flat .ins-params-zone (subtle darker
+    background #161b26, border, rounded). No title — the visual distinction
+    between dark zone (inputs) and KPI cards (outputs) is self-evident.
+  - Number params with min/max auto-render as slider+number combos.
+    Added min/max to: efficiency (all units), splitPct, initialSOC.
+
+  REACTION DATA SECTION:
+  - New reaction() hook in inspector API. Rendered with "Reaction Data"
+    label between Power & Energy and Unit KPIs.
+  - reactor_equilibrium: Conversion, K_eq, Approach α, Mode, Limited by,
+    τ in reaction(). Q duty + endo/exo badge in power(). Rest to detail.
+  - reactor_adiabatic: Conversion, Limited by in reaction(). Rest to detail.
+
+  ADD BUTTON RELOCATED:
+  - Moved from centered position to left group (first element).
+  - Order: [+] [☰ Menu] [Process name…]  ··right··  [status indicator]
+  - .add-btn-center → .add-btn-left (36px, fits pill).
+  - Status indicator: removed pill container (border/background), bare text.
+
+  NNG: Updated UI5 (section order includes Reaction Data),
+       UI6 (no reaction data in kpis).
+
+  Gate: 89/197 headless (unchanged). No engine changes.
+
   ─── v10.2.1 ──────────────────────────────────────────────────────────────
   Inspector polish — 2-col layout, solver strip removal, NNGs.
 
@@ -367,9 +420,11 @@
   NNG-UI4: Unit UI colocation (UnitInspector next to UnitRegistry)
   NNG-UI5: Inspector section order is IMMUTABLE:
            Header → Status → Parameters → Process Conditions → Power & Energy
-           → Unit KPIs → Detail.  Sections omitted when empty, never shown hollow.
+           → Reaction Data → Unit KPIs → Detail.
+           Sections omitted when empty, never shown hollow.
   NNG-UI6: Data goes in the RIGHT hook. No T/P/flow in kpis() (→ conditions or trunk).
-           No power/duty in kpis() (→ power()). No status strings in kpis().
+           No power/duty in kpis() (→ power()). No reaction data in kpis() (→ reaction()).
+           No status strings in kpis().
   NNG-UI7: One renderer per visual style. _renderKPIGrid for all KPI cards,
            _renderAutoStream for trunk, _renderDetailSection for condensed KV.
            No inline style overrides on propItem/propValue in unit configs.
@@ -1247,7 +1302,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>processThis — v10.2.1</title>
+  <title>processThis — v10.2.4</title>
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
@@ -1330,50 +1385,46 @@
       z-index: 25;
       display: flex; 
       align-items: center;
+      justify-content: space-between;
       pointer-events: none;
     }
     .info-bar > * { pointer-events: auto; }
 
     .info-bar-left {
       display: flex;
-      gap: 10px;
+      gap: 6px;
       align-items: center;
       background: #0b0e14cc; 
       border: 1px solid #2a2f3a; 
       border-radius: 14px; 
-      padding: 8px 10px;
+      padding: 5px 10px 5px 5px;
       backdrop-filter: blur(10px);
     }
 
     .info-bar-right {
       display: flex;
       align-items: center;
-      background: #0b0e14cc;
-      border: 1px solid #2a2f3a;
-      border-radius: 14px;
-      padding: 4px 10px;
-      backdrop-filter: blur(10px);
+      pointer-events: auto;
     }
 
-    /* ===== ADD BUTTON (centered, prominent) ===== */
-    .add-btn-center {
-      margin: 0 auto;
-      width: 42px; height: 42px;
+    /* ===== ADD BUTTON (left, in group) ===== */
+    .add-btn-left {
+      width: 36px; height: 36px;
       border-radius: 50%;
       border: 2px solid #134e4a;
       background: #0b1e1eee;
       color: #5eead4;
-      font-size: 24px;
+      font-size: 22px;
       font-weight: 300;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
-      backdrop-filter: blur(10px);
       transition: background 0.15s, border-color 0.15s, transform 0.15s;
       line-height: 1;
+      flex-shrink: 0;
     }
-    .add-btn-center:hover {
+    .add-btn-left:hover {
       background: #134e4a;
       border-color: #5eead4;
       color: #99f6e4;
@@ -2108,7 +2159,7 @@
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 6px;
-      margin-bottom: 8px;
+      margin-bottom: 14px;
     }
     .propGrid .full-row { grid-column: 1 / -1; }
     
@@ -2496,7 +2547,11 @@
     .ins-kv.tone-muted { opacity: 0.6; }
     .ins-section-label {
       font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;
-      opacity: 0.4; margin: 10px 0 4px; padding-left: 2px;
+      opacity: 0.4; margin: 14px 0 6px; padding-left: 2px;
+    }
+    .ins-params-zone {
+      background: #111827; border: 1px solid #2563eb44; border-radius: 6px;
+      padding: 8px 10px 6px; margin-bottom: 14px;
     }
     .ins-badge {
       display: inline-block; padding: 2px 7px; border-radius: 4px;
@@ -2534,6 +2589,7 @@
     <!-- Info bar (full-width, 3 zones) -->
     <div class="info-bar">
       <div class="info-bar-left">
+        <button class="add-btn-left" id="btnAdd" title="Add unit (/ or Tab)">+</button>
         <div class="menuWrap">
           <button class="btn" id="btnMenu">☰ Menu</button>
         <div class="menu" id="menuMain">
@@ -2564,10 +2620,7 @@
       <input type="text" id="processNameInput" placeholder="Process name…" spellcheck="false" autocomplete="off">
       </div>
 
-      <!-- Add button (centered) -->
-      <button class="add-btn-center" id="btnAdd" title="Add unit (/ or Tab)">+</button>
-
-      <!-- Status Indicator (right) -->
+      <!-- Status Indicator (right, no container) -->
       <div class="info-bar-right">
         <div id="statusIndicator" class="status-indicator" style="display:none;">
           <div class="status-icon"></div>
@@ -15382,21 +15435,43 @@ function _renderAutoStream(container, stream) {
     grid.appendChild(el('div')); // empty cell to maintain grid
   }
 
-  // Row 3: Composition (full width)
+  // Row 3: Composition (full width) — with per-phase breakdown for VL
   const components = Object.keys(stream.n || {}).filter(k => stream.n[k] > 1e-9).sort((a, b) => stream.n[b] - stream.n[a]);
   const nTotal = components.reduce((s, k) => s + stream.n[k], 0);
-  if (components.length) {
-    const compRow = el('div', { class: 'full-row', style: 'margin-top:2px;' });
-    const compWrap = el('div', { style: 'display:flex; flex-wrap:wrap; gap:4px;' });
-    for (const comp of components) {
-      const molFrac = nTotal > 0 ? (stream.n[comp] / nTotal) : 0;
+  
+  function _compBadges(fracs, species) {
+    const wrap = el('div', { style: 'display:flex; flex-wrap:wrap; gap:4px;' });
+    for (const sp of species) {
+      const f = fracs[sp] ?? 0;
+      if (f < 1e-6) continue;
       const badge = el('div', { class: 'compBadge' });
-      badge.appendChild(el('span', { class: 'spec', text: comp }));
-      badge.appendChild(el('span', { class: 'pct', text: `${(100 * molFrac).toFixed(1)}%` }));
-      compWrap.appendChild(badge);
+      badge.appendChild(el('span', { class: 'spec', text: sp }));
+      badge.appendChild(el('span', { class: 'pct', text: `${(100 * f).toFixed(1)}%` }));
+      wrap.appendChild(badge);
     }
-    compRow.appendChild(compWrap);
-    grid.appendChild(compRow);
+    return wrap;
+  }
+  
+  if (components.length) {
+    if (isVL && stream.y && stream.x) {
+      // Per-phase composition
+      const vapRow = el('div', { class: 'full-row', style: 'margin-top:2px;' });
+      vapRow.appendChild(el('div', { style: 'font-size:10px; opacity:0.5; text-transform:uppercase; letter-spacing:0.3px; margin-bottom:3px;', text: 'Vapor' }));
+      vapRow.appendChild(_compBadges(stream.y, components));
+      grid.appendChild(vapRow);
+      
+      const liqRow = el('div', { class: 'full-row', style: 'margin-top:4px;' });
+      liqRow.appendChild(el('div', { style: 'font-size:10px; opacity:0.5; text-transform:uppercase; letter-spacing:0.3px; margin-bottom:3px;', text: 'Liquid' }));
+      liqRow.appendChild(_compBadges(stream.x, components));
+      grid.appendChild(liqRow);
+    } else {
+      // Single-phase: overall composition
+      const compRow = el('div', { class: 'full-row', style: 'margin-top:2px;' });
+      const molFracs = {};
+      for (const sp of components) molFracs[sp] = nTotal > 0 ? stream.n[sp] / nTotal : 0;
+      compRow.appendChild(_compBadges(molFracs, components));
+      grid.appendChild(compRow);
+    }
   }
   
   // Row 4: Molar flow | Mass flow
@@ -15456,15 +15531,16 @@ function _renderDetailSection(container, items) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// PER-UNIT INSPECTOR CONFIG — v10.2.0 Unified Inspector
+// PER-UNIT INSPECTOR CONFIG — v10.2.2 Unified Inspector
 // ═══════════════════════════════════════════════════════════════════════════
 // API (all hooks optional):
-//   params(u)            → editable param descriptors
+//   params(u)            → editable param descriptors (rendered in .ins-params-zone)
 //   customParams(c,u,s)  → custom param DOM
 //   conditions(u, ud)    → KPI items for T/P/phase/composition (overrides auto-stream)
-//   power(u, ud)         → KPI items for power/energy/duty numbers
+//   power(u, ud)         → KPI items for power/energy/duty ("Power & Energy")
+//   reaction(u, ud)      → KPI items for reactor-specific data ("Reaction Data")
 //   kpis(u, ud)          → KPI items for unit-specific operational data
-//   detail(u, ud, sc)    → condensed KV items for deep-dive data
+//   detail(u, ud, sc)    → condensed KV items for deep-dive data (collapsible)
 // ═══════════════════════════════════════════════════════════════════════════
 const UnitInspector = {};
 
@@ -15477,7 +15553,7 @@ function _pEtaParams(u, unitSys, Pdefault, etaDefault) {
       step: unitSys.pressure.decimals === 0 ? 1000 : 0.1, decimals: unitSys.pressure.decimals },
     { label: 'Efficiency (-)',
       get: () => u.params.eta || etaDefault,
-      set: v => u.params.eta = v, step: 0.01 },
+      set: v => u.params.eta = v, step: 0.01, min: 0, max: 1 },
   ];
 }
 
@@ -15593,7 +15669,7 @@ UnitInspector.grid_supply = {
     if (!ud.last) return [];
     const mode = ud.last.type === 'fixed' ? 'Fixed' : 'Responsive';
     return [
-      { label: 'Mode', value: mode, full: true, tone: mode === 'Fixed' ? 'warn' : 'good' },
+      { label: 'Mode', value: mode, tone: mode === 'Fixed' ? 'warn' : 'good' },
       { label: 'Capacity', value: fmt.kW(ud.last.maxPower_W) },
     ];
   }
@@ -15650,7 +15726,7 @@ UnitInspector.battery = {
   params(u) { return [
     { label: 'Peak power (kW)', get: () => u.params.peakPower_kW || 20, set: v => u.params.peakPower_kW = v, step: 1 },
     { label: 'Capacity (kWh)', get: () => (u.params.capacity_J || 36000000) / 3600000, set: v => u.params.capacity_J = v * 3600000, step: 1 },
-    { label: 'Initial SOC (-)', get: () => u.params.initialSOC ?? 0.9, set: v => u.params.initialSOC = v, step: 0.05 },
+    { label: 'Initial SOC (-)', get: () => u.params.initialSOC ?? 0.9, set: v => u.params.initialSOC = v, step: 0.05, min: 0, max: 1 },
   ]; },
   power(u, ud) {
     if (!ud.last) return [];
@@ -15681,7 +15757,7 @@ UnitInspector.battery = {
 
 // ── Power Conversion ──
 UnitInspector.motor = {
-  params(u) { return [{ label: 'Efficiency (-)', get: () => u.params.eta || 0.95, set: v => u.params.eta = v, step: 0.01 }]; },
+  params(u) { return [{ label: 'Efficiency (-)', get: () => u.params.eta || 0.95, set: v => u.params.eta = v, step: 0.01, min: 0, max: 1 }]; },
   power(u, ud) { return !ud.last ? [] : [
     { label: 'Electrical in', value: fmt.kW(ud.last.W_elec_W) },
     { label: 'Mechanical out', value: fmt.kW(ud.last.W_mech_W) },
@@ -15700,7 +15776,7 @@ UnitInspector.electric_heater = {
 };
 
 UnitInspector.generator = {
-  params(u) { return [{ label: 'Efficiency (-)', get: () => u.params.eta || 0.97, set: v => u.params.eta = v, step: 0.01 }]; },
+  params(u) { return [{ label: 'Efficiency (-)', get: () => u.params.eta || 0.97, set: v => u.params.eta = v, step: 0.01, min: 0, max: 1 }]; },
   power(u, ud) { return !ud.last ? [] : [
     { label: 'Mechanical in', value: fmt.kW(ud.last.W_mech_W) },
     { label: 'Electrical out', value: fmt.kW(ud.last.W_elec_W) },
@@ -15799,7 +15875,7 @@ UnitInspector.cooler = {
 
 // ── Topology ──
 UnitInspector.splitter = {
-  params(u) { return [{ label: 'Split to out1 (%)', get: () => u.params.splitPct ?? 50, set: v => u.params.splitPct = Math.max(0, Math.min(100, v)), step: 1 }]; },
+  params(u) { return [{ label: 'Split to out1 (%)', get: () => u.params.splitPct ?? 50, set: v => u.params.splitPct = Math.max(0, Math.min(100, v)), step: 1, min: 0, max: 100 }]; },
   kpis(u, ud) { if (!ud?.last) return []; return [
     ...(ud.last.nOut1 != null ? [{ label: 'Out 1', value: fmt.flow(ud.last.nOut1) }] : []),
     ...(ud.last.nOut2 != null ? [{ label: 'Out 2', value: fmt.flow(ud.last.nOut2) }] : []),
@@ -15894,11 +15970,12 @@ function _reactorParams(u, type) {
 
 UnitInspector.reactor_adiabatic = {
   params(u) { return _reactorParams(u, 'adiabatic'); },
-  kpis(u, ud) { if (!ud?.last) return []; return [
-    ...(ud.last.conversion != null ? [{ label: 'Conversion', value: fmt.pct(ud.last.conversion) }] : []),
-    ...(ud.last.xi != null ? [{ label: 'ξ', value: `${ud.last.xi.toExponential(3)}<span class="propUnit">mol/s</span>` }] : []),
+  reaction(u, ud) { if (!ud?.last) return []; const L = ud.last; return [
+    ...(L.conversion != null ? [{ label: 'Conversion', value: fmt.pct(L.conversion) }] : []),
+    ...(L.limited_by ? [{ label: 'Limited by', value: L.limited_by }] : []),
   ]; },
   detail(u, ud) { if (!ud?.last) return []; const L = ud.last; return [
+    ...(L.xi != null ? [{ label: 'ξ', value: `${L.xi.toExponential(3)}<span class="u">mol/s</span>` }] : []),
     ...(L.xi_max != null ? [{ label: 'ξ_max', value: `${L.xi_max.toExponential(3)}<span class="u">mol/s</span>` }] : []),
     ...(L.H_in_kW ? [{ label: 'H in', value: `${L.H_in_kW}<span class="u">kW</span>` }] : []),
     ...(L.reason ? [{ label: 'Reason', value: L.reason, full: true, tone: 'warn' }] : []),
@@ -15910,22 +15987,26 @@ UnitInspector.reactor_equilibrium = {
   power(u, ud) {
     if (!ud?.last?.Q_duty_W) return [];
     const L = ud.last;
-    const sign = L.Q_duty_sign === 'heating' ? '🔥' : '❄️';
-    return [{ label: `Q duty ${sign}`, value: fmt.kW(Math.abs(L.Q_duty_W)), tone: L.Q_duty_sign === 'heating' ? 'warn' : 'info' }];
+    const isEndo = L.Q_duty_sign === 'heating';
+    const badge = isEndo ? '🔥 Endothermic' : '❄️ Exothermic';
+    return [
+      { label: 'Q duty', value: fmt.kW(Math.abs(L.Q_duty_W)) },
+      { label: 'Type', value: badge, tone: isEndo ? 'warn' : 'info' },
+    ];
   },
-  kpis(u, ud) { if (!ud.last) return []; const L = ud.last; const items = [];
-    if (L.ln_K != null) items.push({ label: 'K_eq', value: Math.exp(Math.min(L.ln_K, 300)).toExponential(3) });
+  reaction(u, ud) { if (!ud?.last) return []; const L = ud.last; const items = [];
+    if (L.mode) items.push({ label: 'Mode', value: L.mode });
     if (L.xi != null && L.xi_max > 0) items.push({ label: 'Conversion', value: fmt.pct(L.xi / L.xi_max) });
-    if (L.xi != null) items.push({ label: 'ξ', value: `${L.xi.toExponential(3)}<span class="propUnit">mol/s</span>` });
+    if (L.ln_K != null) items.push({ label: 'K_eq', value: Math.exp(Math.min(L.ln_K, 300)).toExponential(3) });
+    if (L.alpha_effective != null) items.push({ label: 'Approach α', value: L.alpha_effective.toFixed(4) });
+    if (L.limited_by) items.push({ label: 'Limited by', value: L.limited_by });
+    if (L.tau_s != null) items.push({ label: 'τ', value: `${L.tau_s.toFixed(2)}<span class="propUnit">s</span>` });
     return items;
   },
   detail(u, ud) { if (!ud.last) return []; const L = ud.last; return [
-    ...(L.mode ? [{ label: 'Mode', value: L.mode, full: true }] : []),
     ...(L.T_eval ? [{ label: 'T reaction', value: fmt.T(L.T_eval) }] : []),
+    ...(L.xi != null ? [{ label: 'ξ', value: `${L.xi.toExponential(3)}<span class="u">mol/s</span>` }] : []),
     ...(L.xi_eq != null ? [{ label: 'ξ_eq', value: `${L.xi_eq.toExponential(3)}<span class="u">mol/s</span>` }] : []),
-    ...(L.alpha_effective != null ? [{ label: 'α_eff', value: L.alpha_effective.toFixed(4) }] : []),
-    ...(L.limited_by ? [{ label: 'Limited by', value: L.limited_by }] : []),
-    ...(L.tau_s != null ? [{ label: 'τ', value: `${L.tau_s.toFixed(2)}<span class="u">s</span>` }] : []),
     ...(L.rate_inlet != null ? [{ label: 'Rate (inlet)', value: `${L.rate_inlet.toExponential(2)}<span class="u">mol/m³s</span>` }] : []),
     ...(L.reason ? [{ label: 'Reason', value: L.reason, full: true, tone: 'warn' }] : []),
   ]; }
@@ -16042,8 +16123,10 @@ function renderParams(container, paramDefs, u) {
       row.appendChild(cb);
       row.appendChild(el('label', { html: p.label, style: 'font-size:12px; cursor:pointer;', for: cb.id }));
       container.appendChild(row);
+    } else if (p.min != null && p.max != null) {
+      // [v10.2.2] Auto-slider for bounded number params
+      addSliderEditor(container, p.label, p.get, p.set, p.min, p.max, p.step || 0.01);
     } else {
-      // Default: number editor
       addNumberEditor(container, p.label, p.get, p.set, p.step || 0.1, p.decimals);
     }
   }
@@ -16107,15 +16190,15 @@ function updatePropertiesPanel() {
       propEditor.appendChild(el('div', { style: 'font-size:11px; color:#6ee7b7; opacity:0.6; padding:2px 0 4px;', html: '✓ OK' }));
     }
 
-    // ── Parameters (collapsible, open) ──
+    // ── Parameters (flat zone, distinct background) [v10.2.2] ──
     if (config?.params || config?.customParams) {
-      const paramsSection = createCollapsibleSection('Parameters', true);
+      const paramsZone = el('div', { class: 'ins-params-zone' });
       if (config.customParams) {
-        config.customParams(paramsSection.content, u, scene);
+        config.customParams(paramsZone, u, scene);
       } else {
-        renderParams(paramsSection.content, config.params(u), u);
+        renderParams(paramsZone, config.params(u), u);
       }
-      propEditor.appendChild(paramsSection.section);
+      propEditor.appendChild(paramsZone);
     }
 
     // ── [v10.2.0] Process Conditions ──
@@ -16132,6 +16215,12 @@ function updatePropertiesPanel() {
     if (ud && config?.power) {
       const items = config.power(u, ud);
       if (items?.length) _renderLabeledSection(propEditor, 'Power & Energy', items);
+    }
+
+    // ── [v10.2.2] Reaction Data ──
+    if (ud && config?.reaction) {
+      const items = config.reaction(u, ud);
+      if (items?.length) _renderLabeledSection(propEditor, 'Reaction Data', items);
     }
 
     // ── Unit-specific KPIs ──
