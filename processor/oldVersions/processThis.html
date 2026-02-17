@@ -3,6 +3,49 @@
   ═══════════════════════════════════════════════════════════════════════════
   processThis v9.1.0
 
+  ─── v10.3.2 ──────────────────────────────────────────────────────────────
+  Bottom bar icon cleanup.
+
+  ACTION BAR:
+  - All buttons icon-only — removed text labels (Test, Step, Play,
+    Fit, Reset). Transport icons ⟳ ▶| ▶ ⏸ ↺ already recognizable.
+  - Fit icon: 4 expanding corner arrows (SVG). Universally recognized
+    as "fit to content" / "expand to fill".
+  - Reset icon: clock/compass circle (SVG). Recognizable as "reset view".
+  - Custom CSS tooltips (data-tip) replace native title attribute.
+    Near-instant (80ms transition), bright fill (#e2e8f0 on dark),
+    12px font. No native tooltip delay.
+  - SVG buttons display:flex for proper alignment.
+
+  Gate: 198/198 tests, 1346 checks, zero regressions.
+
+  ─── v10.3.1 ──────────────────────────────────────────────────────────────
+  Panel hide, traffic lights, animation fix.
+
+  INSPECTOR PANEL HIDES WHEN NOTHING SELECTED:
+  Canvas goes full-width when no unit or stream is selected. Panel
+  reappears instantly on click. CSS class .panel-hidden on .app sets
+  grid-template-columns to 1fr 0px.
+
+  TRAFFIC LIGHT INDICATOR SYSTEM:
+  Replaced the old status indicator pill with 4 traffic-light dots:
+  Convergence | Mass Balance | Energy Balance | Pressure Solve.
+  Each dot is green/amber/red/grey. Hover shows tooltip with details.
+  Message text next to dots for warnings/errors. Gear icon → Solver
+  modal. Message text → Balance Report modal.
+  Pressure dot always green (placeholder until pressure solving).
+
+  BALANCE DISPLAY REMOVED FROM INSPECTOR:
+  The inline balance display in the empty-inspector state is gone.
+  Balance data is now in: (a) traffic light dots (summary),
+  (b) Menu → Balance Report modal (full detail).
+
+  JITTER ANIMATION REMOVED:
+  Deleted ins-animate / ins-enter keyframes. The 0.15s slide-up
+  transition on inspector rebuild was causing unpleasant jitter.
+
+  Gate: 198/198 tests, 1346 checks, zero regressions.
+
   ─── v10.3.0 ──────────────────────────────────────────────────────────────
   Phase C — Test recovery, resizable panel, auto-save, balance modal.
   198/198 tests (was 89/197).
@@ -1341,7 +1384,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>processThis — v10.3.0</title>
+  <title>processThis — v10.3.2</title>
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
@@ -1374,7 +1417,16 @@
     .app { 
       height: 100vh; 
       display: grid; 
-      grid-template-columns: 1fr var(--panel-width, 360px); 
+      grid-template-columns: 1fr var(--panel-width, 360px);
+      transition: grid-template-columns 0.15s ease;
+    }
+    .app.panel-hidden {
+      grid-template-columns: 1fr 0px;
+    }
+    .app.panel-hidden .rightPanel {
+      overflow: hidden;
+      padding: 0;
+      border-left: none;
     }
     
     .canvasWrap { 
@@ -1516,10 +1568,31 @@
       user-select: none;
       white-space: nowrap;
       transition: background 0.15s, color 0.15s;
+      display: flex; align-items: center; justify-content: center;
     }
     .zoom-controls .tbtn:first-child { border-radius: 8px 0 0 8px; }
     .zoom-controls .tbtn:last-child  { border-radius: 0 8px 8px 0; }
     .zoom-controls .tbtn:hover { background: #283040; color: #e2e8f0; }
+
+    /* ===== ACTION BAR TOOLTIPS [v10.3.2] ===== */
+    .action-bar .tbtn {
+      position: relative;
+    }
+    .action-bar .tbtn::after {
+      content: attr(data-tip);
+      position: absolute; bottom: calc(100% + 6px); left: 50%;
+      transform: translateX(-50%) scale(0.95);
+      background: #e2e8f0; color: #0f1420;
+      font-size: 12px; font-weight: 600;
+      padding: 4px 8px; border-radius: 4px;
+      white-space: nowrap; pointer-events: none;
+      opacity: 0; transition: opacity 0.08s, transform 0.08s;
+      z-index: 50;
+    }
+    .action-bar .tbtn:hover::after {
+      opacity: 1; transform: translateX(-50%) scale(1);
+    }
+    .action-bar .tbtn svg { display: block; }
 
     /* ===== HOVER HIGHLIGHT (E2) ===== */
     .unit-hover > rect:first-child { filter: url(#hover-brighten); }
@@ -1627,100 +1700,49 @@
     }
 
     /* ===== STATUS INDICATOR ===== */
-    .status-indicator {
+    /* ===== TRAFFIC LIGHT INDICATORS [v10.3.1] ===== */
+    .traffic-lights {
       display: flex;
       align-items: center;
-      gap: 8px;
-      padding: 8px 12px;
-      border-radius: 10px;
-      font-size: 13px;
-      font-weight: 600;
-      border: 2px solid;
-      transition: all 0.3s ease;
+      gap: 5px;
+      padding: 6px 10px;
+      border-radius: 8px;
+      background: #0b0e14cc;
+      backdrop-filter: blur(6px);
     }
-    
-    .status-indicator.idle {
-      background: #1e293b22;
-      border-color: #475569;
-      color: #94a3b8;
+    .tl-dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: #334155;
+      transition: background 0.2s;
+      position: relative;
+      cursor: default;
     }
-    
-    .status-indicator.running {
-      background: #3b82f622;
-      border-color: #3b82f6;
-      color: #60a5fa;
-      animation: pulse 1.5s ease-in-out infinite;
-    }
-    
-    .status-indicator.success {
-      background: #22c55e22;
-      border-color: #22c55e;
-      color: #4ade80;
-    }
-    
-    .status-indicator.warning {
-      background: #fbbf2422;
-      border-color: #fbbf24;
-      color: #fbbf24;
-    }
-    
-    .status-indicator.error {
-      background: #f9731622;
-      border-color: #f97316;
-      color: #f97316;
-    }
-    
-    .status-indicator.critical {
-      background: #ef444422;
-      border-color: #ef4444;
-      color: #ef4444;
-      animation: shake 0.5s ease-in-out;
-    }
-    
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.6; }
-    }
-    
-    @keyframes shake {
-      0%, 100% { transform: translateX(0); }
-      25% { transform: translateX(-4px); }
-      75% { transform: translateX(4px); }
-    }
-    
-    .status-icon {
-      font-size: 16px;
-      line-height: 1;
-    }
-    
-    .status-text {
-      white-space: nowrap;
-    }
-    
-    .status-help {
-      background: transparent;
-      border: 1px solid currentColor;
-      color: inherit;
-      border-radius: 50%;
-      width: 20px;
-      height: 20px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 12px;
-      font-weight: 700;
-      cursor: pointer;
-      padding: 0;
+    .tl-dot.green  { background: #22c55e; box-shadow: 0 0 4px #22c55e88; }
+    .tl-dot.amber  { background: #fbbf24; box-shadow: 0 0 4px #fbbf2488; }
+    .tl-dot.red    { background: #ef4444; box-shadow: 0 0 4px #ef444488; }
+    .tl-dot.grey   { background: #334155; }
+    .tl-msg {
+      font-size: 11px; color: #94a3b8; white-space: nowrap;
+      max-width: 260px; overflow: hidden; text-overflow: ellipsis;
       margin-left: 4px;
-      opacity: 0.8;
-      transition: opacity 0.2s;
     }
-    
-    .status-help:hover {
-      opacity: 1;
-      background: currentColor;
-      color: #0b0e14;
+    .tl-msg.warn { color: #fbbf24; }
+    .tl-msg.err  { color: #ef4444; }
+    .tl-msg.ok   { color: #6ee7b7; }
+    .tl-tip {
+      display: none;
+      position: absolute; bottom: 120%; left: 50%; transform: translateX(-50%);
+      background: #1e293b; color: #e2e8f0; font-size: 11px; padding: 4px 8px;
+      border-radius: 4px; white-space: nowrap; z-index: 40;
+      pointer-events: none; border: 1px solid #334155;
     }
+    .tl-dot:hover .tl-tip { display: block; }
+    .tl-gear {
+      background: transparent; border: none; color: #64748b;
+      cursor: pointer; font-size: 13px; padding: 0 0 0 2px;
+      line-height: 1; transition: color 0.15s;
+    }
+    .tl-gear:hover { color: #e2e8f0; }
     
     .pill { 
       padding: 2px 8px; 
@@ -2627,11 +2649,6 @@
     .ins-divider { border-top: 1px solid #1e2230; margin: 8px 0; }
 
     /* ===== INSPECTOR TRANSITION ===== */
-    @keyframes ins-enter {
-      from { opacity: 0; transform: translateY(6px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-    .ins-animate { animation: ins-enter 0.15s ease-out; }
   </style>
 </head>
 <body>
@@ -2672,12 +2689,15 @@
       <input type="text" id="processNameInput" placeholder="Process name…" spellcheck="false" autocomplete="off">
       </div>
 
-      <!-- Status Indicator (right, no container) -->
+      <!-- Traffic Light Indicators [v10.3.1] -->
       <div class="info-bar-right">
-        <div id="statusIndicator" class="status-indicator" style="display:none;">
-          <div class="status-icon"></div>
-          <div class="status-text"></div>
-          <button class="status-help" title="Open Solver…">⚙</button>
+        <div id="trafficLights" class="traffic-lights" style="display:none;">
+          <div class="tl-dot grey" id="tlConv"><div class="tl-tip">Convergence</div></div>
+          <div class="tl-dot grey" id="tlMass"><div class="tl-tip">Mass Balance</div></div>
+          <div class="tl-dot grey" id="tlEnergy"><div class="tl-tip">Energy Balance</div></div>
+          <div class="tl-dot grey" id="tlPressure"><div class="tl-tip">Pressure Solve</div></div>
+          <span class="tl-msg" id="tlMsg"></span>
+          <button class="tl-gear" id="tlGear" title="Open Solver…">⚙</button>
         </div>
       </div>
     </div>
@@ -2686,22 +2706,22 @@
     <div class="action-bar">
       <!-- Transport controls [v9.0.1] -->
       <div class="transport">
-        <button class="tbtn active" id="btnTest" title="Solve once (no time)">⟳ Test</button>
-        <button class="tbtn" id="btnStep" title="Advance one timestep">▶| Step</button>
-        <button class="tbtn" id="btnPlay" title="Auto-step">▶ Play</button>
-        <button class="tbtn" id="btnPause" title="Pause" disabled>⏸</button>
-        <button class="tbtn" id="btnReset" title="Reset to t=0" disabled>↺</button>
+        <button class="tbtn active" id="btnTest" data-tip="Test (solve once)">⟳</button>
+        <button class="tbtn" id="btnStep" data-tip="Step (advance 1 timestep)">▶|</button>
+        <button class="tbtn" id="btnPlay" data-tip="Play (auto-step)">▶</button>
+        <button class="tbtn" id="btnPause" data-tip="Pause" disabled>⏸</button>
+        <button class="tbtn" id="btnReset" data-tip="Reset to t=0" disabled>↺</button>
       </div>
       <span class="time-display" id="timeDisplay" style="display:none;"></span>
 
       <!-- Zoom controls [v10.1.0] -->
       <div class="zoom-controls">
-        <button class="tbtn" id="btnFit" title="Zoom to fit all units">⊞ Fit</button>
-        <button class="tbtn" id="btnResetView" title="Reset to default view">⊡ Reset</button>
+        <button class="tbtn" id="btnFit" data-tip="Fit all units"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 5V1h4M11 1h4v4M15 11v4h-4M5 15H1v-4"/></svg></button>
+        <button class="tbtn" id="btnResetView" data-tip="Reset view"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="8" cy="8" r="5"/><path d="M8 5v3h3"/></svg></button>
       </div>
 
       <!-- Utilities toggle [v10.1.1] -->
-      <button class="tbtn" id="btnUtilities" title="Show/hide power utilities" style="font-size:14px; border-radius:8px;">⚡</button>
+      <button class="tbtn" id="btnUtilities" data-tip="Show/hide utilities" style="font-size:14px; border-radius:8px;">⚡</button>
     </div>
 
     <!-- Models modal -->
@@ -12414,59 +12434,75 @@ const PG = {
 // Re-export thermoWarnings to window for console convenience
 window.thermoWarnings = PG.thermoWarnings;
 
-// Update status indicator
+// [v10.3.1] Traffic light indicator system
 function updateStatusIndicator(solveResult) {
-  const indicator = document.getElementById('statusIndicator');
-  const icon = indicator.querySelector('.status-icon');
-  const text = indicator.querySelector('.status-text');
-  const helpBtn = indicator.querySelector('.status-help');
-  
-  if (!solveResult) {
-    // Not run yet
-    indicator.style.display = 'none';
-    return;
-  }
-  
-  indicator.style.display = 'flex';
-  
-  // Remove all status classes
-  indicator.className = 'status-indicator';
-  
+  const tl = document.getElementById('trafficLights');
+  const tlConv = document.getElementById('tlConv');
+  const tlMass = document.getElementById('tlMass');
+  const tlEnergy = document.getElementById('tlEnergy');
+  const tlPressure = document.getElementById('tlPressure');
+  const tlMsg = document.getElementById('tlMsg');
+
+  if (!solveResult) { tl.style.display = 'none'; return; }
+  tl.style.display = 'flex';
+
+  // Reset all
+  const setDot = (dot, cls, tip) => {
+    dot.className = 'tl-dot ' + cls;
+    dot.querySelector('.tl-tip').textContent = tip;
+  };
+
+  // ── Convergence ──
+  let msg = '', msgClass = 'ok';
   if (!solveResult.ok) {
-    // Convergence failure
-    indicator.classList.add('critical');
-    icon.textContent = '💥';
-    text.textContent = `Convergence Failed (${solveResult.iterations} iter)`;
-    helpBtn.style.display = 'flex';
-    helpBtn.title = 'Open Solver…';
-  } else if (!solveResult.hasErrors) {
-    // Success
-    indicator.classList.add('success');
-    icon.textContent = '✓';
-    text.textContent = `Converged — ${solveResult.iterations} iter`;
-    helpBtn.style.display = 'flex';
-    helpBtn.title = 'Open Solver…';
-  } else {
-    // Has errors - determine severity
-    const maxLevel = solveResult.maxSeverity;
-    
-    if (maxLevel >= ErrorSeverity.CATASTROPHIC.level) {
-      indicator.classList.add('critical');
-      icon.textContent = '💥';
-      text.textContent = 'Catastrophic Failure';
-    } else if (maxLevel >= ErrorSeverity.MAJOR.level) {
-      indicator.classList.add('error');
-      icon.textContent = '🔧';
-      text.textContent = 'Equipment Damage';
+    setDot(tlConv, 'red', `Convergence failed (${solveResult.iterations} iter)`);
+    msg = `Convergence failed — ${solveResult.iterations} iterations`;
+    msgClass = 'err';
+  } else if (solveResult.hasErrors) {
+    const maxLvl = solveResult.maxSeverity;
+    if (maxLvl >= ErrorSeverity.CATASTROPHIC.level) {
+      setDot(tlConv, 'red', 'Catastrophic failure');
+      msg = 'Catastrophic failure'; msgClass = 'err';
+    } else if (maxLvl >= ErrorSeverity.MAJOR.level) {
+      setDot(tlConv, 'amber', 'Equipment damage');
+      msg = 'Equipment issues'; msgClass = 'warn';
     } else {
-      indicator.classList.add('warning');
-      icon.textContent = '⚠️';
-      text.textContent = 'Configuration Issues';
+      setDot(tlConv, 'amber', `Configuration issues (${solveResult.iterations} iter)`);
+      msg = 'Configuration warnings'; msgClass = 'warn';
     }
-    
-    helpBtn.style.display = 'flex';
-    helpBtn.title = 'Open Solver…';
+  } else {
+    setDot(tlConv, 'green', `Converged — ${solveResult.iterations} iter`);
   }
+
+  // ── Mass & Energy Balance ──
+  const balance = computeSystemBalance(scene);
+  if (balance) {
+    if (balance.mass.closed) {
+      setDot(tlMass, 'green', `Mass closed — residual ${(balance.mass.residual*1e6).toFixed(2)} mg/s`);
+    } else {
+      setDot(tlMass, 'red', `Mass open — residual ${(balance.mass.residual*1000).toFixed(4)} g/s`);
+      if (!msg) { msg = 'Mass balance open'; msgClass = 'err'; }
+    }
+    if (balance.energy.closed) {
+      setDot(tlEnergy, 'green', `Energy closed — ${(balance.energy.relError*100).toFixed(3)}% error`);
+    } else {
+      setDot(tlEnergy, 'amber', `Energy open — ${(balance.energy.relError*100).toFixed(2)}% error`);
+      if (!msg) { msg = 'Energy balance open'; msgClass = 'warn'; }
+    }
+  } else {
+    setDot(tlMass, 'grey', 'Mass balance — no data');
+    setDot(tlEnergy, 'grey', 'Energy balance — no data');
+  }
+
+  // ── Pressure (placeholder — always green until pressure solve) ──
+  setDot(tlPressure, 'green', 'Pressure — not yet solving');
+
+  // ── Message ──
+  if (!msg && solveResult.ok && !solveResult.hasErrors) {
+    msg = `Converged — ${solveResult.iterations} iter`;
+  }
+  tlMsg.textContent = msg;
+  tlMsg.className = 'tl-msg ' + msgClass;
 }
 
 // [v8.9.1] showDiagnosisDialog superseded by openSolverModal() — diagnostics
@@ -16201,12 +16237,15 @@ function renderParams(container, paramDefs, u) {
 }
 
 function updatePropertiesPanel() {
-  // [v10.1.3] Trigger transition animation
-  propEditor.classList.remove('ins-animate');
-  void propEditor.offsetWidth; // force reflow
-  propEditor.classList.add('ins-animate');
-
+  const app = document.querySelector('.app');
   propEditor.innerHTML = '';
+  
+  // [v10.3.1] Hide panel when nothing selected
+  if (!ui.selectedUnitId && !ui.selectedConnId) {
+    app.classList.add('panel-hidden');
+    return;
+  }
+  app.classList.remove('panel-hidden');
   
   // ═══ UNIT SELECTED ═══
   if (ui.selectedUnitId) {
@@ -16391,115 +16430,7 @@ function updatePropertiesPanel() {
       propEditor.appendChild(el('div', { class: 'ins-hint', html: 'Not computed yet — press Test/Step' }));
     }
   }
-  
-  // ═══ NOTHING SELECTED — Balance Display ═══
-  else {
-    const emptyDiv = el('div', { style: 'padding:16px 0; text-align:center;' });
-    emptyDiv.appendChild(el('div', { class: 'small', style: 'opacity:0.5; margin-bottom:6px;', html: 'Click a unit or stream to inspect' }));
-    propEditor.appendChild(emptyDiv);
-
-    // ── Balance Display (only when nothing selected) ──
-    const balance = computeSystemBalance(scene);
-    if (balance) {
-      // Balance Header
-      const balHeaderDiv = el('div', { style: 'margin-top:12px; padding:8px 0;' });
-      const massClosed = balance.mass.closed;
-      const enClosed = balance.energy.closed;
-      const mBadge = massClosed ? '<span class="ins-badge good">✓ Closed</span>' : '<span class="ins-badge bad">✗ Open</span>';
-      const eBadge = enClosed ? '<span class="ins-badge good">✓ Closed</span>' : '<span class="ins-badge bad">✗ Open</span>';
-      const enRelErr = balance.energy.relError;
-      const enErrText = isFinite(enRelErr) ? `${(enRelErr*100).toFixed(2)}%` : 'NaN%';
-      balHeaderDiv.innerHTML = `<div style="font-size:12px; font-weight:700; margin-bottom:4px;">System Balance</div>` +
-        `<div style="font-size:11px; display:flex; gap:8px;">Mass ${mBadge} Energy ${eBadge} <span style="opacity:0.5">${enErrText}</span></div>`;
-      propEditor.appendChild(balHeaderDiv);
-
-      // ── Mass Balance ──
-      if (balance.mass.inItems.length > 0 || balance.mass.outItems.length > 0) {
-        const massSection = createCollapsibleSection('Mass Balance', true);
-        const mc = massSection.content;
-        mc.appendChild(el('div', { class: 'ins-section-title', html: '→ Mass In' }));
-        for (const item of balance.mass.inItems) {
-          insKV(mc, item.name, `${(item.mass_kgps*1000).toFixed(4)}<span class="u">g/s</span>`);
-        }
-        const mIn = balance.mass.totalIn;
-        insKV(mc, 'Σ In', `<b>${(mIn*1000).toFixed(4)}</b><span class="u">g/s</span>`);
-
-        mc.appendChild(el('div', { class: 'ins-divider' }));
-        mc.appendChild(el('div', { class: 'ins-section-title', html: '← Mass Out' }));
-        for (const item of balance.mass.outItems) {
-          insKV(mc, item.name, `${(item.mass_kgps*1000).toFixed(4)}<span class="u">g/s</span>`);
-        }
-        const mOut = balance.mass.totalOut;
-        insKV(mc, 'Σ Out', `<b>${(mOut*1000).toFixed(4)}</b><span class="u">g/s</span>`);
-
-        // Accumulation
-        const hasAccumM = Math.abs(balance.mass.accumulation || 0) > 1e-9;
-        if (hasAccumM) {
-          mc.appendChild(el('div', { class: 'ins-divider' }));
-          mc.appendChild(el('div', { class: 'ins-section-title', html: '⟳ Accumulation' }));
-          insKV(mc, 'Mass accum', `${(balance.mass.accumulation*1000).toFixed(4)}<span class="u">g/s</span>`, { tone: 'info' });
-        }
-
-        mc.appendChild(el('div', { class: 'ins-divider' }));
-        const resLabel = hasAccumM ? 'Residual (In−Out−Accum)' : 'Residual (In−Out)';
-        insKV(mc, resLabel, `<b style="color:${massClosed ? '#6ee7b7' : '#fca5a5'}">${(balance.mass.residual*1000).toFixed(4)}</b><span class="u">g/s</span>`);
-
-        propEditor.appendChild(massSection.section);
-      }
-
-      // ── Energy Balance ──
-      if (balance.energy.in.items.length > 0 || balance.energy.out.items.length > 0) {
-        const enSection = createCollapsibleSection('Energy Balance', true);
-        const ec = enSection.content;
-        
-        // Energy In
-        ec.appendChild(el('div', { class: 'ins-section-title', html: '→ Energy In' }));
-        for (const item of balance.energy.in.items) {
-          insKV(ec, `${item.name} (${item.type})`, fmt.kW(item.value));
-        }
-        // Subtotals
-        const eIn = balance.energy.in;
-        if (eIn.material) insKV(ec, 'Σ Enthalpy', fmt.kW(eIn.material), { tone: 'muted' });
-        if (eIn.electrical) insKV(ec, 'Σ Electrical', fmt.kW(eIn.electrical), { tone: 'muted' });
-        if (eIn.mechanical) insKV(ec, 'Σ Mechanical', fmt.kW(eIn.mechanical), { tone: 'muted' });
-        if (eIn.heat) insKV(ec, 'Σ Heat', fmt.kW(eIn.heat), { tone: 'muted' });
-        insKV(ec, 'Total In', `<b>${fmt.kW(balance.energy.totalIn)}</b>`);
-
-        ec.appendChild(el('div', { class: 'ins-divider' }));
-        
-        // Energy Out
-        ec.appendChild(el('div', { class: 'ins-section-title', html: '← Energy Out' }));
-        for (const item of balance.energy.out.items) {
-          insKV(ec, `${item.name} (${item.type})`, fmt.kW(item.value));
-        }
-        const eOut = balance.energy.out;
-        if (eOut.material) insKV(ec, 'Σ Enthalpy', fmt.kW(eOut.material), { tone: 'muted' });
-        if (eOut.electrical) insKV(ec, 'Σ Electrical', fmt.kW(eOut.electrical), { tone: 'muted' });
-        if (eOut.heat) insKV(ec, 'Σ Heat', fmt.kW(eOut.heat), { tone: 'muted' });
-        insKV(ec, 'Total Out', `<b>${fmt.kW(balance.energy.totalOut)}</b>`);
-
-        // Accumulation
-        const hasAccumE = Math.abs(balance.energy.accumulation || 0) > 0.01;
-        if (hasAccumE && balance.accumulation?.items) {
-          ec.appendChild(el('div', { class: 'ins-divider' }));
-          ec.appendChild(el('div', { class: 'ins-section-title', html: '⟳ Accumulation' }));
-          for (const item of balance.accumulation.items) {
-            const tone = item.type === 'battery_charge' ? 'good' : 'info';
-            insKV(ec, `${item.name} (${item.label || item.type})`, fmt.kW(item.value_W), { tone });
-          }
-          insKV(ec, 'Σ Accumulation', fmt.kW(balance.energy.accumulation));
-        }
-
-        ec.appendChild(el('div', { class: 'ins-divider' }));
-        const enResidual = balance.energy.residual;
-        const enResLabel = hasAccumE ? 'Residual (In−Out−Accum)' : 'Residual (In−Out)';
-        insKV(ec, enResLabel, `<b style="color:${enClosed ? '#6ee7b7' : '#fca5a5'}">${(enResidual/1000).toFixed(4)} kW</b>`);
-
-        propEditor.appendChild(enSection.section);
-      }
-    }
-  }
-  // [v10.2.0] Solver summary removed from inspector — status indicator is sufficient
+  // [v10.3.1] Balance display removed — now in traffic lights + Balance Report modal
 }
 
 /* =========================
@@ -16990,23 +16921,18 @@ btnUtilities.addEventListener('click', () => {
 });
 
 // Status indicator help button
-const statusHelp = document.querySelector('.status-help');
-if (statusHelp) {
-  statusHelp.addEventListener('click', (ev) => {
-    ev.stopPropagation();
-    openSolverModal();
-  });
-}
+// [v10.3.1] Traffic light gear → solver modal
+document.getElementById('tlGear').addEventListener('click', (ev) => {
+  ev.stopPropagation();
+  openSolverModal();
+});
 
-// Status indicator text area → also opens solver modal
-const statusTextEl = document.querySelector('.status-text');
-if (statusTextEl) {
-  statusTextEl.style.cursor = 'pointer';
-  statusTextEl.addEventListener('click', (ev) => {
-    ev.stopPropagation();
-    openSolverModal();
-  });
-}
+// [v10.3.1] Clicking message text → balance report
+document.getElementById('tlMsg').addEventListener('click', (ev) => {
+  ev.stopPropagation();
+  openBalanceModal();
+});
+document.getElementById('tlMsg').style.cursor = 'pointer';
 
 btnAdd.addEventListener('click', () => {
   togglePalette();
