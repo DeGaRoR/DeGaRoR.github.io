@@ -41,6 +41,9 @@
   connection stickers into a single array for drawStickerTethers and
   drawStickerCards, eliminating code duplication.
 
+  MENU: "Clear Stickers" option added below "Clear Scene" in the main
+  menu. Removes all stickers from units and connections with undo support.
+
   Gate: 228/228 tests, 1550 checks.
 
   ─── v10.8.0 ──────────────────────────────────────────────────────────────
@@ -2123,6 +2126,31 @@
       transform: scale(1.08);
     }
 
+    /* ===== UNDO/REDO BUTTONS [v10.8.1] ===== */
+    .undo-redo-btn {
+      width: 30px; height: 30px;
+      border-radius: 8px;
+      border: none;
+      background: transparent;
+      color: #64748b;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.15s, background 0.15s;
+      flex-shrink: 0;
+      padding: 0;
+    }
+    .undo-redo-btn:hover {
+      color: #e2e8f0;
+      background: #1e293b;
+    }
+    .undo-redo-btn:disabled {
+      color: #334155;
+      cursor: default;
+      background: transparent;
+    }
+
     /* ===== FLOATING ACTION BAR (bottom-center of canvas) ===== */
     .action-bar {
       position: absolute;
@@ -3352,7 +3380,6 @@
     <!-- Info bar (full-width, 3 zones) -->
     <div class="info-bar">
       <div class="info-bar-left">
-        <button class="add-btn-left" id="btnAdd" title="Add unit (/ or Tab)">+</button>
         <div class="menuWrap">
           <button class="btn" id="btnMenu">☰</button>
         <div class="menu" id="menuMain">
@@ -3377,10 +3404,20 @@
             </div></div>
           </div>
           <div class="item" id="mClear">Clear Scene</div>
+          <div class="item" id="mClearStickers">Clear Stickers</div>
           <div class="sep"></div>
           <div class="item" id="mSettings">Settings <span class="hint">⚙</span></div>
         </div>
       </div>
+
+      <button class="add-btn-left" id="btnAdd" title="Add unit (/ or Tab)">+</button>
+
+      <button class="undo-redo-btn" id="btnUndo" title="Undo (Ctrl+Z)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"/><path d="M3 13a9 9 0 0 1 15.36-6.36L21 9"/></svg>
+      </button>
+      <button class="undo-redo-btn" id="btnRedo" title="Redo (Ctrl+Shift+Z)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 7v6h-6"/><path d="M21 13a9 9 0 0 0-15.36-6.36L3 9"/></svg>
+      </button>
 
       <input type="text" id="processNameInput" placeholder="Process name…" spellcheck="false" autocomplete="off">
       </div>
@@ -6959,8 +6996,10 @@ const thermo = new ThermoAdapter(idealRaoultPkg);
 // Collects extrapolation/range/flash warnings silently. No DOM dependency.
 // Exposed via PG.thermoWarnings() for programmatic inspection.
 let _thermoWarningsFn = () => [];
+let _realConsoleWarn;  // [v10.8.1] original console.warn before any overrides
 (function installWarnCollector() {
   const _origWarn = console.warn;
+  _realConsoleWarn = _origWarn;  // save for test output
   const _seen = new Set();
   let _summarized = false;
   console.warn = function(...args) {
@@ -11074,6 +11113,10 @@ class Scene {
           dy: typeof u.sticker.dy === 'number' ? u.sticker.dy : -2,
           items: u.sticker.items.filter(it => it && typeof it.section === 'string' && typeof it.label === 'string')
         };
+        // [v10.8.1] Restore display options
+        if (u.sticker.display && typeof u.sticker.display === 'object') {
+          unit.sticker.display = { ...u.sticker.display };
+        }
         if (unit.sticker.items.length === 0) unit.sticker = null;
       }
       tempUnits.set(unit.id, unit);
@@ -11147,6 +11190,10 @@ class Scene {
           dy: typeof c.sticker.dy === 'number' ? c.sticker.dy : -2,
           items: c.sticker.items.filter(it => it && typeof it.section === 'string' && typeof it.label === 'string')
         };
+        // [v10.8.1] Restore display options
+        if (c.sticker.display && typeof c.sticker.display === 'object') {
+          connSticker.display = { ...c.sticker.display };
+        }
         if (connSticker.items.length > 0) tempConns[tempConns.length - 1].sticker = connSticker;
       }
 
@@ -13703,6 +13750,9 @@ const ui = {
   showUtilities: true,    // [v10.1.1] E7: dim power utility units when false
   showStickers: true, // [v10.7.0] P1: show/hide stickers entirely
   reconnecting: null,     // [v10.1.1] {connId} when reconnecting a stream
+  // [v10.8.1] Sticker selection
+  selectedStickerId: null,    // unit id or conn id that owns the selected sticker
+  selectedStickerKind: null,  // 'unit' | 'conn' | null
   // [v10.7.1] Sticker drag state (uses ui flags like unit drag)
   isDraggingSticker: false,
   stickerDragUnitId: null,
@@ -13727,6 +13777,8 @@ const timeDisplayEl = document.getElementById('timeDisplay');
 const speedIndicatorEl = document.getElementById('speedIndicator');
 const btnAdd = document.getElementById('btnAdd');
 const btnMenu = document.getElementById('btnMenu');
+const btnUndo = document.getElementById('btnUndo');
+const btnRedo = document.getElementById('btnRedo');
 const menuMain = document.getElementById('menuMain');
 const modalModels = document.getElementById('modalModels');
 const modalUnits = document.getElementById('modalUnits');
@@ -14503,6 +14555,8 @@ function drawConnections() {
       ev.stopPropagation();
       ui.selectedConnId = c.id;
       ui.selectedUnitId = null;
+      ui.selectedStickerId = null;
+      ui.selectedStickerKind = null;
       updatePropertiesPanel();
       render();
     });
@@ -14658,6 +14712,8 @@ function drawUnits() {
       
       ui.selectedUnitId = id;
       ui.selectedConnId = null;
+      ui.selectedStickerId = null;
+      ui.selectedStickerKind = null;
       ui.isDraggingUnit = true;
       ui.dragUnitId = id;
       ui.dragStartPos = { x: u.x, y: u.y };  // [v10.6.0] for undo
@@ -14803,7 +14859,8 @@ function drawUnits() {
       // [v10.1.1] E4: Connection feedback — highlight compatible targets
       if (ui.pendingFrom && _pendingPortType !== null && !isDimmed) {
         const isCompatible = p.dir === PortDir.IN && p.type === _pendingPortType;
-        const isOccupied = isCompatible && scene.connections.some(
+        // [v10.8.1] multiConnect ports are never "occupied"
+        const isOccupied = isCompatible && !p.multiConnect && scene.connections.some(
           cc => cc.to.unitId === u.id && cc.to.portId === p.portId
             && !(ui.reconnecting && cc.id === ui.reconnecting.connId)
         );
@@ -14901,51 +14958,44 @@ function drawUnits() {
 
       // Directional arrow - orient based on which edge the port is on
       const portEdge = getPortEdge(p, def);
-      
-      if (p.dir === PortDir.OUT) {
-        // OUT port: arrow points OUTWARD from unit (away from center)
+
+      // [v10.8.1] Multi-connect detection:
+      //   IN ports: explicit multiConnect flag
+      //   OUT ports: non-MATERIAL types (power/heat/mechanical allow fan-out)
+      const isMulti = p.multiConnect || (p.dir === PortDir.OUT && p.type !== StreamType.MATERIAL);
+      const offsets = isMulti ? [-2.5, 2.5] : [0];  // perpendicular offsets
+      const arrowFill = p.dir === PortDir.OUT ? '#0b0e14' : portVisuals.portColor;
+
+      for (const off of offsets) {
         let arrowPath;
-        if (portEdge === 'top') {
-          // Points UP (away from unit)
-          arrowPath = `M${wp.x - 3},${wp.y + 2} L${wp.x + 3},${wp.y + 2} L${wp.x},${wp.y - 4} Z`;
-        } else if (portEdge === 'bottom') {
-          // Points DOWN (away from unit)
-          arrowPath = `M${wp.x - 3},${wp.y - 2} L${wp.x + 3},${wp.y - 2} L${wp.x},${wp.y + 4} Z`;
-        } else if (portEdge === 'right') {
-          // Points RIGHT (away from unit) - REVERSED
-          arrowPath = `M${wp.x - 2},${wp.y - 3} L${wp.x - 2},${wp.y + 3} L${wp.x + 4},${wp.y} Z`;
-        } else { // left
-          // Points LEFT (away from unit) - REVERSED
-          arrowPath = `M${wp.x + 2},${wp.y - 3} L${wp.x + 2},${wp.y + 3} L${wp.x - 4},${wp.y} Z`;
+        if (p.dir === PortDir.OUT) {
+          // OUT: arrow points OUTWARD (away from center)
+          if (portEdge === 'top') {
+            arrowPath = `M${wp.x + off - 3},${wp.y + 2} L${wp.x + off + 3},${wp.y + 2} L${wp.x + off},${wp.y - 4} Z`;
+          } else if (portEdge === 'bottom') {
+            arrowPath = `M${wp.x + off - 3},${wp.y - 2} L${wp.x + off + 3},${wp.y - 2} L${wp.x + off},${wp.y + 4} Z`;
+          } else if (portEdge === 'right') {
+            arrowPath = `M${wp.x - 2},${wp.y + off - 3} L${wp.x - 2},${wp.y + off + 3} L${wp.x + 4},${wp.y + off} Z`;
+          } else {
+            arrowPath = `M${wp.x + 2},${wp.y + off - 3} L${wp.x + 2},${wp.y + off + 3} L${wp.x - 4},${wp.y + off} Z`;
+          }
+        } else {
+          // IN: arrow points INWARD (toward center)
+          if (portEdge === 'top') {
+            arrowPath = `M${wp.x + off - 3},${wp.y - 2} L${wp.x + off + 3},${wp.y - 2} L${wp.x + off},${wp.y + 4} Z`;
+          } else if (portEdge === 'bottom') {
+            arrowPath = `M${wp.x + off - 3},${wp.y + 2} L${wp.x + off + 3},${wp.y + 2} L${wp.x + off},${wp.y - 4} Z`;
+          } else if (portEdge === 'right') {
+            arrowPath = `M${wp.x - 4},${wp.y + off} L${wp.x + 2},${wp.y + off - 3} L${wp.x + 2},${wp.y + off + 3} Z`;
+          } else {
+            arrowPath = `M${wp.x + 4},${wp.y + off} L${wp.x - 2},${wp.y + off - 3} L${wp.x - 2},${wp.y + off + 3} Z`;
+          }
         }
-        const arrow = svgEl('path', {
+        group.appendChild(svgEl('path', {
           d: arrowPath,
-          fill: '#0b0e14',
+          fill: arrowFill,
           'pointer-events': 'none'
-        });
-        group.appendChild(arrow);
-      } else {
-        // IN port: arrow points INWARD to unit (toward center)
-        let arrowPath;
-        if (portEdge === 'top') {
-          // Points DOWN (into unit)
-          arrowPath = `M${wp.x - 3},${wp.y - 2} L${wp.x + 3},${wp.y - 2} L${wp.x},${wp.y + 4} Z`;
-        } else if (portEdge === 'bottom') {
-          // Points UP (into unit)
-          arrowPath = `M${wp.x - 3},${wp.y + 2} L${wp.x + 3},${wp.y + 2} L${wp.x},${wp.y - 4} Z`;
-        } else if (portEdge === 'right') {
-          // Points LEFT (into unit)
-          arrowPath = `M${wp.x - 4},${wp.y} L${wp.x + 2},${wp.y - 3} L${wp.x + 2},${wp.y + 3} Z`;
-        } else { // left
-          // Points RIGHT (into unit)
-          arrowPath = `M${wp.x + 4},${wp.y} L${wp.x - 2},${wp.y - 3} L${wp.x - 2},${wp.y + 3} Z`;
-        }
-        const arrow = svgEl('path', {
-          d: arrowPath,
-          fill: portVisuals.portColor,
-          'pointer-events': 'none'
-        });
-        group.appendChild(arrow);
+        }));
       }
     }
 
@@ -15070,6 +15120,13 @@ function _collectStickers() {
   return stickers;
 }
 
+// [v10.8.1] Size presets for sticker rendering
+const _stickerSizes = [
+  { labelFs: 10, valueFs: 11, rowH: 18, W: 150, Wn: 80, padX: 8, padY: 6 },   // S
+  { labelFs: 12, valueFs: 13, rowH: 22, W: 180, Wn: 95, padX: 9, padY: 7 },   // M
+  { labelFs: 14, valueFs: 16, rowH: 28, W: 220, Wn: 115, padX: 10, padY: 9 },  // L
+];
+
 // [v10.7.2] Draw tether lines only (rendered BEFORE units so icons sit on top)
 function drawStickerTethers() {
   if (!ui.showStickers) return;
@@ -15078,10 +15135,17 @@ function drawStickerTethers() {
   g.setAttribute('class', 'sticker-tethers-layer');
 
   for (const s of _collectStickers()) {
+    // [v10.8.1] Respect display.connection option
+    const disp = s.sticker.display || {};
+    if (disp.connection === false) continue;
+
+    const sz = _stickerSizes[disp.textSize || 0] || _stickerSizes[0];
+    const showLabel = (disp.label !== false);
+
     const stickerX = s.anchorX + s.sticker.dx * tile;
     const stickerY = s.anchorY + s.sticker.dy * tile;
-    const W = 150, padY = 6, rowH = 18;
-    const totalH = padY + s.evaluated.length * rowH + padY;
+    const W = showLabel ? sz.W : sz.Wn;
+    const totalH = sz.padY + s.evaluated.length * sz.rowH + sz.padY;
     const stickerCx = stickerX + W / 2;
     const stickerCy = stickerY + totalH / 2;
 
@@ -15113,27 +15177,56 @@ function drawStickerCards() {
   g.setAttribute('class', 'stickers-layer');
 
   for (const s of _collectStickers()) {
+    const disp = s.sticker.display || {};
+    const showLabel = disp.label !== false;
+    const showBorder = disp.border !== false;
+    const solidBg = disp.solidBg !== false;
+    const isSelected = ui.selectedStickerId === s.id && ui.selectedStickerKind === s.kind;
+    const sz = _stickerSizes[disp.textSize || 0] || _stickerSizes[0];
+
     const stickerX = s.anchorX + s.sticker.dx * tile;
     const stickerY = s.anchorY + s.sticker.dy * tile;
 
-    const W = 150, rowH = 18, padX = 8, padY = 6;
+    const W = showLabel ? sz.W : sz.Wn;
+    const { rowH, padX, padY, labelFs, valueFs } = sz;
     const totalH = padY + s.evaluated.length * rowH + padY;
 
     const stickerG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     stickerG.setAttribute('data-sticker-id', s.id);
     stickerG.setAttribute('class', 'sticker-card');
 
-    // Background
+    // Selection marquee — subtle dashed outline offset outside the card
+    // Rendered first (behind card) so it never conflicts with display options
+    if (isSelected) {
+      const sel = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      const pad = 4;
+      sel.setAttribute('x', stickerX - pad);
+      sel.setAttribute('y', stickerY - pad);
+      sel.setAttribute('width', W + pad * 2);
+      sel.setAttribute('height', totalH + pad * 2);
+      sel.setAttribute('rx', 8);
+      sel.setAttribute('fill', 'none');
+      sel.setAttribute('stroke', '#60a5fa');
+      sel.setAttribute('stroke-width', '1');
+      sel.setAttribute('stroke-opacity', '0.5');
+      sel.setAttribute('stroke-dasharray', '4,3');
+      sel.setAttribute('pointer-events', 'none');
+      stickerG.appendChild(sel);
+    }
+
+    // Background — purely reflects display options, unaffected by selection
     const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
     bg.setAttribute('x', stickerX);
     bg.setAttribute('y', stickerY);
     bg.setAttribute('width', W);
     bg.setAttribute('height', totalH);
     bg.setAttribute('rx', 6);
-    bg.setAttribute('fill', 'rgba(15,23,42,0.92)');
-    bg.setAttribute('stroke', s.color);
-    bg.setAttribute('stroke-width', '1.5');
-    bg.setAttribute('stroke-opacity', '0.6');
+    bg.setAttribute('fill', solidBg ? 'rgba(15,23,42,0.92)' : 'transparent');
+    if (showBorder) {
+      bg.setAttribute('stroke', s.color);
+      bg.setAttribute('stroke-width', '1.5');
+      bg.setAttribute('stroke-opacity', '0.6');
+    }
     bg.setAttribute('pointer-events', 'none');
     stickerG.appendChild(bg);
 
@@ -15148,29 +15241,33 @@ function drawStickerCards() {
     stickerG.appendChild(hitSurface);
 
     // Badge rows
-    let rowY = stickerY + padY;
+    const textVCenter = padY + rowH * 0.72;  // vertical centering within row
+    let rowY = stickerY;
     for (let i = 0; i < s.evaluated.length; i++) {
       const item = s.evaluated[i];
-      const y = rowY + i * rowH;
+      const y = rowY + padY + i * rowH;
 
-      // Label
-      const lbl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-      lbl.setAttribute('x', stickerX + padX);
-      lbl.setAttribute('y', y + 13);
-      lbl.setAttribute('font-size', '10');
-      lbl.setAttribute('fill', '#94a3b8');
-      lbl.setAttribute('font-family', 'inherit');
-      lbl.setAttribute('pointer-events', 'none');
-      lbl.textContent = item.label;
-      stickerG.appendChild(lbl);
+      // Label (only if display.label is true)
+      if (showLabel) {
+        const lbl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        lbl.setAttribute('x', stickerX + padX);
+        lbl.setAttribute('y', y + textVCenter);
+        lbl.setAttribute('font-size', String(labelFs));
+        lbl.setAttribute('fill', '#94a3b8');
+        lbl.setAttribute('font-family', 'inherit');
+        lbl.setAttribute('pointer-events', 'none');
+        lbl.textContent = item.label;
+        stickerG.appendChild(lbl);
+      }
 
       // Value (strip HTML tags for SVG text)
       const valText = item.value.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
       const val = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-      val.setAttribute('x', stickerX + W - padX - 14);
-      val.setAttribute('y', y + 13);
-      val.setAttribute('font-size', '11');
-      val.setAttribute('text-anchor', 'end');
+      // Position: right-aligned when labels shown, centered when labels hidden
+      val.setAttribute('x', showLabel ? stickerX + W - padX - 14 : stickerX + W / 2);
+      val.setAttribute('y', y + textVCenter);
+      val.setAttribute('font-size', String(valueFs));
+      val.setAttribute('text-anchor', showLabel ? 'end' : 'middle');
       val.setAttribute('font-family', 'inherit');
       val.setAttribute('font-weight', '600');
       val.setAttribute('pointer-events', 'none');
@@ -15182,25 +15279,27 @@ function drawStickerCards() {
       val.textContent = valText;
       stickerG.appendChild(val);
 
-      // Row remove × (always faintly visible)
-      const rowX = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-      rowX.setAttribute('x', stickerX + W - padX);
-      rowX.setAttribute('y', y + 13);
-      rowX.setAttribute('font-size', '9');
-      rowX.setAttribute('fill', '#f87171');
-      rowX.setAttribute('text-anchor', 'end');
-      rowX.setAttribute('class', 'sticker-row-x');
-      rowX.textContent = '×';
-      const idx = i;
-      const onRemove = s.onRemoveItem;
-      rowX.addEventListener('pointerdown', (ev) => {
-        ev.stopPropagation();
-        _pushUndo('Remove sticker badge');
-        onRemove(idx);
-        autoSave();
-        render();
-      });
-      stickerG.appendChild(rowX);
+      // Row remove × (always faintly visible, only when labels shown)
+      if (showLabel) {
+        const rowX = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        rowX.setAttribute('x', stickerX + W - padX);
+        rowX.setAttribute('y', y + textVCenter);
+        rowX.setAttribute('font-size', String(labelFs - 1));
+        rowX.setAttribute('fill', '#f87171');
+        rowX.setAttribute('text-anchor', 'end');
+        rowX.setAttribute('class', 'sticker-row-x');
+        rowX.textContent = '×';
+        const idx = i;
+        const onRemove = s.onRemoveItem;
+        rowX.addEventListener('pointerdown', (ev) => {
+          ev.stopPropagation();
+          _pushUndo('Remove sticker badge');
+          onRemove(idx);
+          autoSave();
+          render();
+        });
+        stickerG.appendChild(rowX);
+      }
     }
 
     // Close × button — positioned just outside the top-right corner
@@ -18043,7 +18142,7 @@ function updatePropertiesPanel() {
   const panel = document.getElementById('rightPanel');
 
   // [v10.3.1] Hide panel when nothing selected
-  if (!ui.selectedUnitId && !ui.selectedConnId) {
+  if (!ui.selectedUnitId && !ui.selectedConnId && !ui.selectedStickerId) {
     panel.classList.add('panel-hidden');
     _inspLastTarget = null;
     return;
@@ -18051,7 +18150,9 @@ function updatePropertiesPanel() {
   panel.classList.remove('panel-hidden');
 
   // [v10.3.5] Crossfade on selection change
-  const target = ui.selectedUnitId || ('c:' + ui.selectedConnId);
+  const target = ui.selectedStickerId
+    ? ('s:' + ui.selectedStickerKind + ':' + ui.selectedStickerId)
+    : (ui.selectedUnitId || ('c:' + ui.selectedConnId));
   const changed = target !== _inspLastTarget;
   _inspLastTarget = target;
 
@@ -18260,6 +18361,153 @@ function _rebuildInspectorContent() {
       propEditor.appendChild(el('div', { class: 'ins-hint', html: 'Not computed yet — press Test/Step' }));
     }
   }
+
+  // ═══ STICKER SELECTED [v10.8.1] ═══
+  else if (ui.selectedStickerId && ui.selectedStickerKind) {
+    let sticker, ownerLabel, evaluated;
+    if (ui.selectedStickerKind === 'unit') {
+      const u = scene.units.get(ui.selectedStickerId);
+      if (!u?.sticker) { ui.selectedStickerId = null; ui.selectedStickerKind = null; return updatePropertiesPanel(); }
+      sticker = u.sticker;
+      const def = UnitRegistry.get(u.defId);
+      ownerLabel = u.name || def?.name || 'Unit';
+      evaluated = _evaluateStickerItems(u);
+    } else {
+      const conn = scene.connections.find(c => c.id === ui.selectedStickerId);
+      if (!conn?.sticker) { ui.selectedStickerId = null; ui.selectedStickerKind = null; return updatePropertiesPanel(); }
+      sticker = conn.sticker;
+      const fU = scene.units.get(conn.from.unitId);
+      const tU = scene.units.get(conn.to.unitId);
+      ownerLabel = `${fU?.name || 'Unit'} → ${tU?.name || 'Unit'}`;
+      evaluated = _evaluateConnStickerItems(conn);
+    }
+
+    // Ensure display defaults
+    if (!sticker.display) sticker.display = {};
+    const disp = sticker.display;
+    if (disp.connection === undefined) disp.connection = true;
+    if (disp.label === undefined) disp.label = true;
+    if (disp.border === undefined) disp.border = true;
+    if (disp.solidBg === undefined) disp.solidBg = true;
+
+    // Header
+    const headerDiv = el('div', { class: 'unitHeader' });
+    const titleDiv = el('div', { class: 'unitTitle', style: 'cursor:default;' });
+    titleDiv.appendChild(el('span', { html: `📌 Sticker`, style: 'flex:1;' }));
+    const delBtn = el('button', { class: 'ins-delete-btn', html: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 4h12M5.3 4V2.7a1 1 0 011-1h3.4a1 1 0 011 1V4M6.5 7v4.5M9.5 7v4.5M3.5 4l.7 9a1.5 1.5 0 001.5 1.4h4.6a1.5 1.5 0 001.5-1.4l.7-9"/></svg>' });
+    delBtn.title = 'Delete sticker';
+    delBtn.addEventListener('click', () => {
+      _pushUndo('Delete sticker');
+      if (ui.selectedStickerKind === 'unit') {
+        const u = scene.units.get(ui.selectedStickerId);
+        if (u) u.sticker = null;
+      } else {
+        const conn = scene.connections.find(c => c.id === ui.selectedStickerId);
+        if (conn) conn.sticker = null;
+      }
+      ui.selectedStickerId = null;
+      ui.selectedStickerKind = null;
+      autoSave();
+      updatePropertiesPanel();
+      render();
+    });
+    titleDiv.appendChild(delBtn);
+    headerDiv.appendChild(titleDiv);
+    headerDiv.appendChild(el('div', { class: 'unitSubtitle', html: ownerLabel }));
+    propEditor.appendChild(headerDiv);
+
+    // Display options
+    const optSection = el('div', { style: 'padding: 8px 12px;' });
+    optSection.appendChild(el('div', { class: 'propLabel', html: 'Display', style: 'margin-bottom:6px;font-weight:600;' }));
+
+    function addDisplayToggle(label, key) {
+      const row = el('div', { style: 'display:flex;align-items:center;gap:8px;margin:5px 0;' });
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = disp[key];
+      cb.addEventListener('change', () => {
+        _pushUndoDebounced('Change sticker display');
+        disp[key] = cb.checked;
+        autoSave();
+        render();
+      });
+      row.appendChild(cb);
+      row.appendChild(el('label', { text: label, style: 'font-size:12px;color:#cbd5e1;cursor:pointer;' }));
+      row.lastChild.addEventListener('click', () => cb.click());
+      return row;
+    }
+
+    optSection.appendChild(addDisplayToggle('Show connection', 'connection'));
+    optSection.appendChild(addDisplayToggle('Show label', 'label'));
+    optSection.appendChild(addDisplayToggle('Show border', 'border'));
+    optSection.appendChild(addDisplayToggle('Solid background', 'solidBg'));
+
+    // Text size selector (S / M / L)
+    if (disp.textSize === undefined) disp.textSize = 0;
+    const sizeRow = el('div', { style: 'display:flex;align-items:center;gap:8px;margin:7px 0 2px;' });
+    sizeRow.appendChild(el('span', { text: 'Text size', style: 'font-size:12px;color:#cbd5e1;' }));
+    const sizeNames = ['S', 'M', 'L'];
+    const btnGroup = el('div', { style: 'display:flex;gap:2px;margin-left:auto;' });
+    for (let si = 0; si < 3; si++) {
+      const btn = el('button', { text: sizeNames[si], style:
+        `width:28px;height:24px;border-radius:6px;border:1px solid ${si === disp.textSize ? '#3b82f6' : '#334155'};` +
+        `background:${si === disp.textSize ? '#1e3a5f' : '#1e293b'};color:${si === disp.textSize ? '#93c5fd' : '#94a3b8'};` +
+        `font-size:11px;font-weight:600;cursor:pointer;`
+      });
+      const idx = si;
+      btn.addEventListener('click', () => {
+        _pushUndoDebounced('Change sticker text size');
+        disp.textSize = idx;
+        autoSave();
+        updatePropertiesPanel();
+        render();
+      });
+      btnGroup.appendChild(btn);
+    }
+    sizeRow.appendChild(btnGroup);
+    optSection.appendChild(sizeRow);
+
+    propEditor.appendChild(optSection);
+
+    // Badge items
+    if (evaluated.length) {
+      const itemsDiv = el('div', { style: 'padding: 4px 12px 12px;' });
+      itemsDiv.appendChild(el('div', { class: 'propLabel', html: 'Badges', style: 'margin-bottom:6px;font-weight:600;' }));
+      for (let i = 0; i < evaluated.length; i++) {
+        const item = evaluated[i];
+        const valText = item.value.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+        const row = el('div', { style: 'display:flex;align-items:center;gap:6px;margin:3px 0;padding:4px 6px;background:#1e293b;border-radius:6px;' });
+        row.appendChild(el('span', { text: item.label, style: 'flex:1;font-size:11px;color:#94a3b8;' }));
+        row.appendChild(el('span', { text: valText, style: 'font-size:12px;color:#e2e8f0;font-weight:600;' }));
+        const xBtn = el('span', { html: '×', style: 'color:#f87171;cursor:pointer;font-size:13px;padding:0 2px;opacity:0.5;' });
+        xBtn.addEventListener('mouseenter', () => { xBtn.style.opacity = '1'; });
+        xBtn.addEventListener('mouseleave', () => { xBtn.style.opacity = '0.5'; });
+        const idx = i;
+        xBtn.addEventListener('click', () => {
+          _pushUndo('Remove sticker badge');
+          sticker.items.splice(idx, 1);
+          if (sticker.items.length === 0) {
+            if (ui.selectedStickerKind === 'unit') {
+              const u = scene.units.get(ui.selectedStickerId);
+              if (u) u.sticker = null;
+            } else {
+              const conn = scene.connections.find(c => c.id === ui.selectedStickerId);
+              if (conn) conn.sticker = null;
+            }
+            ui.selectedStickerId = null;
+            ui.selectedStickerKind = null;
+          }
+          autoSave();
+          updatePropertiesPanel();
+          render();
+        });
+        row.appendChild(xBtn);
+        itemsDiv.appendChild(row);
+      }
+      propEditor.appendChild(itemsDiv);
+    }
+  }
+
   // [v10.3.1] Balance display removed — now in traffic lights + Balance Report modal
 }
 
@@ -18348,10 +18596,13 @@ function _pushUndo(label) {
   try {
     scene.processName = document.getElementById('processNameInput')?.value?.trim() || scene.processName;
     undoStack.push(scene.exportJSON(), label);
+    updateUndoRedoButtons();
   } catch (e) { /* serialization failed — skip */ }
 }
 
 // Restore a snapshot and re-render
+// Solve is needed to rehydrate computed stream/port data (stickers, inspector).
+// This is a steady-state recompute, not a transport "run".
 function _restoreSnapshot(json) {
   try {
     scene.importJSON(json);
@@ -18367,6 +18618,7 @@ function performUndo() {
   if (!entry) { showToast('Nothing to undo'); return; }
   _restoreSnapshot(entry.json);
   showToast(`Undo: ${entry.label}`);
+  updateUndoRedoButtons();
 }
 
 function performRedo() {
@@ -18374,6 +18626,7 @@ function performRedo() {
   if (!entry) { showToast('Nothing to redo'); return; }
   _restoreSnapshot(entry.json);
   showToast(`Redo: ${entry.label}`);
+  updateUndoRedoButtons();
 }
 
 // Debounced undo push for continuous edits (param changes, name edits)
@@ -18392,6 +18645,7 @@ function _pushUndoDebounced(label) {
     if (_undoParamSnapshot) {
       undoStack.push(_undoParamSnapshot, label);
       _undoParamSnapshot = null;
+      updateUndoRedoButtons();
     }
     _undoParamTimer = null;
   }, 800);  // commit after 800ms pause
@@ -18429,6 +18683,8 @@ document.getElementById('processNameInput').addEventListener('input', () => auto
 function deselectAll() {
   ui.selectedUnitId = null;
   ui.selectedConnId = null;
+  ui.selectedStickerId = null;
+  ui.selectedStickerKind = null;
   ui.pendingFrom = null;
   ui.reconnecting = null;
   updatePropertiesPanel();
@@ -18441,15 +18697,31 @@ function deselectAll() {
 
 function deleteSelected() {
   autoPauseOnTopologyChange(); // [v9.0.1]
-  if (ui.selectedUnitId) {
+  if (ui.selectedStickerId && ui.selectedStickerKind) {
+    _pushUndo('Delete sticker');
+    if (ui.selectedStickerKind === 'unit') {
+      const u = scene.units.get(ui.selectedStickerId);
+      if (u) u.sticker = null;
+    } else {
+      const conn = scene.connections.find(c => c.id === ui.selectedStickerId);
+      if (conn) conn.sticker = null;
+    }
+    ui.selectedStickerId = null;
+    ui.selectedStickerKind = null;
+    autoSave();
+    updatePropertiesPanel();
+    render();
+  } else if (ui.selectedUnitId) {
     scene.deleteUnit(ui.selectedUnitId);
     ui.selectedUnitId = null;
     updatePropertiesPanel();
     render();
   } else if (ui.selectedConnId) {
-    // Delete stream
+    // Delete stream — push undo before mutation
+    _pushUndo('Delete connection');
     scene.connections = scene.connections.filter(c => c.id !== ui.selectedConnId);
     ui.selectedConnId = null;
+    autoSave();
     updatePropertiesPanel();
     render();
   }
@@ -18486,6 +18758,8 @@ svg.addEventListener('pointerdown', (ev) => {
     }
     ui.selectedUnitId = null;
     ui.selectedConnId = null;
+    ui.selectedStickerId = null;
+    ui.selectedStickerKind = null;
     
     updatePropertiesPanel();
     render();
@@ -18571,11 +18845,13 @@ svg.addEventListener('pointerup', () => {
     render();
   }
 
-  // [v10.7.1] Sticker drag end — push undo if moved
+  // [v10.7.1] Sticker drag end — push undo if moved, or select if clicked
   if (ui.isDraggingSticker) {
-    const stk = ui.stickerDragConnId
-      ? scene.connections.find(c => c.id === ui.stickerDragConnId)?.sticker
-      : scene.units.get(ui.stickerDragUnitId)?.sticker;
+    const stkKind = ui.stickerDragConnId ? 'conn' : 'unit';
+    const stkId = ui.stickerDragConnId || ui.stickerDragUnitId;
+    const stk = stkKind === 'conn'
+      ? scene.connections.find(c => c.id === stkId)?.sticker
+      : scene.units.get(stkId)?.sticker;
     if (stk) {
       const movedEnough = Math.abs(stk.dx - ui.stickerOrigDx) > 0.01 ||
                           Math.abs(stk.dy - ui.stickerOrigDy) > 0.01;
@@ -18587,6 +18863,13 @@ svg.addEventListener('pointerup', () => {
         stk.dx = newDx;
         stk.dy = newDy;
         autoSave();
+      } else {
+        // Click without drag → select sticker
+        ui.selectedStickerId = stkId;
+        ui.selectedStickerKind = stkKind;
+        ui.selectedUnitId = null;
+        ui.selectedConnId = null;
+        updatePropertiesPanel();
       }
     }
     ui.isDraggingSticker = false;
@@ -18667,6 +18950,8 @@ svg.addEventListener('drop', (ev) => {
   
   ui.selectedUnitId = id;
   ui.selectedConnId = null;
+  ui.selectedStickerId = null;
+  ui.selectedStickerKind = null;
   ui.pendingFrom = null;
   ui.reconnecting = null;
   ui.dragDefId = null;
@@ -19050,6 +19335,18 @@ btnMenu.addEventListener('click', (ev) => {
   ev.stopPropagation();
   toggle(menuMain);
 });
+
+// [v10.8.1] Undo/Redo toolbar buttons
+btnUndo.addEventListener('click', () => performUndo());
+btnRedo.addEventListener('click', () => performRedo());
+
+function updateUndoRedoButtons() {
+  btnUndo.disabled = !undoStack.canUndo;
+  btnRedo.disabled = !undoStack.canRedo;
+  btnUndo.title = undoStack.canUndo ? `Undo: ${undoStack.undoLabel} (Ctrl+Z)` : 'Nothing to undo';
+  btnRedo.title = undoStack.canRedo ? `Redo: ${undoStack.redoLabel} (Ctrl+Shift+Z)` : 'Nothing to redo';
+}
+updateUndoRedoButtons();
 
 document.addEventListener('pointerdown', (ev) => {
   const t = ev.target;
@@ -19531,6 +19828,28 @@ document.getElementById('mClear').addEventListener('click', () => {
   closeMenus();
 });
 
+// [v10.8.1] Clear all stickers from units and connections
+document.getElementById('mClearStickers').addEventListener('click', () => {
+  let count = 0;
+  for (const u of scene.units.values()) { if (u.sticker) count++; }
+  for (const c of scene.connections) { if (c.sticker) count++; }
+  if (count === 0) {
+    showToast('No stickers to clear');
+    closeMenus();
+    return;
+  }
+  _pushUndo('Clear stickers');
+  for (const u of scene.units.values()) u.sticker = null;
+  for (const c of scene.connections) c.sticker = null;
+  ui.selectedStickerId = null;
+  ui.selectedStickerKind = null;
+  autoSave();
+  updatePropertiesPanel();
+  render();
+  showToast(`Cleared ${count} sticker${count > 1 ? 's' : ''} (Ctrl+Z to undo)`);
+  closeMenus();
+});
+
 // [v8.10.0] Run Tests moved to Settings modal developer section
 
 document.getElementById('mExport').addEventListener('click', () => {
@@ -19895,9 +20214,10 @@ class TestCtx {
 
   _printTable() {
     if (!this.results.length) return;
-    console.log(`  ┌${'─'.repeat(78)}┐`);
-    console.log(`  │ Parameter          Calculated    Reference     Delta       Tolerance  Status │`);
-    console.log(`  ├${'─'.repeat(78)}┤`);
+    const _w = _realConsoleWarn || console.warn;
+    _w(`  ┌${'─'.repeat(78)}┐`);
+    _w(`  │ Parameter          Calculated    Reference     Delta       Tolerance  Status │`);
+    _w(`  ├${'─'.repeat(78)}┤`);
     for (const r of this.results) {
       // [v4.7.7] Use scientific notation for very small numbers to avoid misleading "0.0000 vs ±0.0000 → ✗"
       const fmtNum = (v) => {
@@ -19909,9 +20229,9 @@ class TestCtx {
       };
       const fmt = (v, w) => String(typeof v === 'number' ? fmtNum(v) : v).substring(0, w).padEnd(w);
       const tolS = (typeof r.tol === 'number' ? `±${fmtNum(r.tol)}` : String(r.tol)).substring(0, 10).padEnd(10);
-      console.log(`  │ ${fmt(r.name,18)} ${fmt(r.calc,13)} ${fmt(r.ref,13)} ${fmt(r.delta,11)} ${tolS} ${r.status.padEnd(6)} │`);
+      _w(`  │ ${fmt(r.name,18)} ${fmt(r.calc,13)} ${fmt(r.ref,13)} ${fmt(r.delta,11)} ${tolS} ${r.status.padEnd(6)} │`);
     }
-    console.log(`  └${'─'.repeat(78)}┘`);
+    _w(`  └${'─'.repeat(78)}┘`);
   }
 }
 
@@ -27489,9 +27809,11 @@ function runTests() {
   SimSettings.cheatsEnabled = _savedCheats;
 
   // ── Condensed summary (always shown) ──
+  // [v10.8.1] Uses _realConsoleWarn (the original console.warn saved before
+  // any overrides) so output is visible in sandboxed iframe viewers.
   const totalChecks = totalPass + totalFail;
   const allGreen = totalFail === 0 && totalPass > 0;
-  console.log(
+  _realConsoleWarn(
     `${allGreen ? '✓' : '✗'} ${testsPassed}/${tests.length} tests passed  ` +
     `${totalPass}/${totalChecks} checks passed` +
     (totalFail > 0 ? `  (${totalFail} failed)` : '')
@@ -27499,9 +27821,9 @@ function runTests() {
 
   // ── Detail only for failures ──
   if (failedTests.length > 0) {
-    console.log('');
+    _realConsoleWarn('');
     for (const f of failedTests) {
-      console.log(`  ✗ Test ${f.idx}: ${f.name}`);
+      _realConsoleWarn(`  ✗ Test ${f.idx}: ${f.name}`);
       f.ctx._printTable();
     }
   }
