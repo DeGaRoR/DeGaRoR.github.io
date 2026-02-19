@@ -2011,6 +2011,8 @@
     
     .canvasWrap { 
       position: relative; 
+      min-height: 0;
+      overflow: hidden;
     }
     
     #svg { 
@@ -2986,26 +2988,6 @@
       margin-left: 3px;
     }
     
-    .compBadge {
-      display: inline-block;
-      background: #1c222e;
-      border: 1px solid #2a2f3a;
-      border-radius: 8px;
-      padding: 4px 8px;
-      font-size: 12px;
-      margin: 4px 4px 4px 0;
-      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    }
-    
-    .compBadge .spec { 
-      font-weight: 700; 
-    }
-    
-    .compBadge .pct { 
-      opacity: 0.7; 
-      margin-left: 4px; 
-    }
-
     /* ===== CONTROLS SECTION ===== */
     .controlsSection {
       margin-top: auto;
@@ -3426,8 +3408,7 @@
       <div class="info-bar-right">
         <div id="trafficLights" class="traffic-lights" style="display:none;">
           <div class="tl-dot grey" id="tlConv" data-target="solver"><div class="tl-tip">Convergence</div></div>
-          <div class="tl-dot grey" id="tlMass" data-target="balance"><div class="tl-tip">Mass Balance</div></div>
-          <div class="tl-dot grey" id="tlEnergy" data-target="balance"><div class="tl-tip">Energy Balance</div></div>
+          <div class="tl-dot grey" id="tlBalance" data-target="balance"><div class="tl-tip">Mass &amp; Energy Balance</div></div>
           <div class="tl-sep"></div>
           <div class="tl-dot grey" id="tlPressure" data-target="diagnostic"><div class="tl-tip">Pressure Solve</div></div>
           <span class="tl-msg" id="tlMsg"></span>
@@ -8719,7 +8700,7 @@ UnitRegistry.register('power_hub', {
   h: 3,
   ports: [
     { portId: 'elec_in',  dir: PortDir.IN,  type: StreamType.ELECTRICAL, x: 0, y: 1.5, multiConnect: true },
-    { portId: 'elec_out', dir: PortDir.OUT, type: StreamType.ELECTRICAL, x: 2, y: 1.5 },
+    { portId: 'elec_out', dir: PortDir.OUT, type: StreamType.ELECTRICAL, x: 2, y: 1.5, multiConnect: true },
     { portId: 'heat_out', dir: PortDir.OUT, type: StreamType.HEAT, x: 1, y: 0 }
   ],
   tick(u, ports, par, ctx) {
@@ -10853,29 +10834,37 @@ class Scene {
       return null;
     }
 
+    // [v10.8.1] Block duplicate connections (exact same from→to pair)
+    const duplicate = this.connections.find(
+      c => c.from.unitId === from.unitId && c.from.portId === from.portId
+        && c.to.unitId === to.unitId && c.to.portId === to.portId
+    );
+    if (duplicate) {
+      this._lastConnectError = 'This connection already exists.';
+      return null;
+    }
+
     // Check if target IN port already has a connection
     // Exception: multiConnect ports accept unlimited connections
     const existingToPort = this.connections.find(
       c => c.to.unitId === to.unitId && c.to.portId === to.portId
     );
-    if (existingToPort && !(pTo && pTo.multiConnect)) {
+    if (existingToPort && !pTo.multiConnect) {
       this._lastConnectError = `Port "${to.portId}" on ${uTo.name || defTo.name} is already connected.`;
       return null;
     }
 
-    // Check source OUT port connections based on stream type
+    // [v10.8.1] Check if source OUT port already has a connection
+    // All ports are 1-to-1 unless explicitly marked multiConnect
     const existingFromPort = this.connections.find(
       c => c.from.unitId === from.unitId && c.from.portId === from.portId
     );
-    
-    // For MATERIAL streams: strict 1-to-1 (physical splitting not allowed)
-    if (pFrom.type === StreamType.MATERIAL && existingFromPort) {
-      this._lastConnectError = `Material port "${from.portId}" on ${uFrom.name || defFrom.name} already connected — use a splitter.`;
+    if (existingFromPort && !pFrom.multiConnect) {
+      this._lastConnectError = pFrom.type === StreamType.MATERIAL
+        ? `Material port "${from.portId}" on ${uFrom.name || defFrom.name} already connected — use a splitter.`
+        : `Port "${from.portId}" on ${uFrom.name || defFrom.name} is already connected.`;
       return null;
     }
-    
-    // For POWER streams (ELECTRICAL, MECHANICAL): allow multiple outputs from source
-    // This models electrical bus / mechanical shaft sharing
 
     // [v4.4.0] Hub-to-hub rejection — cascaded hubs silently produce wrong
     // power balances because Step C doesn't propagate demand or curtailment
@@ -13648,8 +13637,7 @@ function showToast(message, duration = 2500) {
 function updateStatusIndicator(solveResult) {
   const tl = document.getElementById('trafficLights');
   const tlConv = document.getElementById('tlConv');
-  const tlMass = document.getElementById('tlMass');
-  const tlEnergy = document.getElementById('tlEnergy');
+  const tlBalance = document.getElementById('tlBalance');
   const tlPressure = document.getElementById('tlPressure');
   const tlMsg = document.getElementById('tlMsg');
 
@@ -13680,19 +13668,30 @@ function updateStatusIndicator(solveResult) {
   };
 
   // ── Per-category dots ──
-  const catMap = {
-    [AlarmCategory.CONVERGENCE]:    tlConv,
-    [AlarmCategory.MASS_BALANCE]:   tlMass,
-    [AlarmCategory.ENERGY_BALANCE]: tlEnergy,
-    [AlarmCategory.PRESSURE]:       tlPressure,
-  };
+  // Convergence — own dot
+  const convAlarms = AlarmSystem.byCategory(alarms, AlarmCategory.CONVERGENCE);
+  if (convAlarms.length === 0) { setDot(tlConv, 'grey', 'Convergence — no data'); }
+  else { const worst = AlarmSystem.worstSeverity(convAlarms); setDot(tlConv, sevToDot(worst), convAlarms[0].message); }
 
-  for (const [cat, dot] of Object.entries(catMap)) {
-    const catAlarms = AlarmSystem.byCategory(alarms, cat);
-    if (catAlarms.length === 0) { setDot(dot, 'grey', cat + ' — no data'); continue; }
-    const worst = AlarmSystem.worstSeverity(catAlarms);
-    setDot(dot, sevToDot(worst), catAlarms[0].message);
+  // [v10.8.1] Balance — merged mass + energy, worst of both triggers
+  const massAlarms = AlarmSystem.byCategory(alarms, AlarmCategory.MASS_BALANCE);
+  const energyAlarms = AlarmSystem.byCategory(alarms, AlarmCategory.ENERGY_BALANCE);
+  const balanceAlarms = [...massAlarms, ...energyAlarms];
+  if (balanceAlarms.length === 0) { setDot(tlBalance, 'grey', 'Balance — no data'); }
+  else {
+    const worst = AlarmSystem.worstSeverity(balanceAlarms);
+    // Show the worst alarm's message, noting which type
+    const worstAlarm = balanceAlarms.find(a => a.severity.level === worst.level);
+    const tipParts = [];
+    if (massAlarms.length) { const mw = AlarmSystem.worstSeverity(massAlarms); tipParts.push(`Mass: ${sevToDot(mw) === 'green' ? '✓' : massAlarms[0].message}`); }
+    if (energyAlarms.length) { const ew = AlarmSystem.worstSeverity(energyAlarms); tipParts.push(`Energy: ${sevToDot(ew) === 'green' ? '✓' : energyAlarms[0].message}`); }
+    setDot(tlBalance, sevToDot(worst), tipParts.join(' · ') || worstAlarm?.message || 'Balance');
   }
+
+  // Pressure — own dot
+  const pressAlarms = AlarmSystem.byCategory(alarms, AlarmCategory.PRESSURE);
+  if (pressAlarms.length === 0) { setDot(tlPressure, 'grey', 'Pressure — no data'); }
+  else { const worst = AlarmSystem.worstSeverity(pressAlarms); setDot(tlPressure, sevToDot(worst), pressAlarms[0].message); }
 
   // ── Short summary message (3-4 words, first layer of diagnostic) ──
   const counts = AlarmSystem.summarize(alarms);
@@ -14512,7 +14511,9 @@ function drawConnections() {
     const toEdge = getPortEdge(toPort, toDef);
     
     // Calculate control points perpendicular to each port's edge
-    const controlOffset = 60;
+    // [v10.8.1] Scale control offset to chord length to prevent curve folding on short connections
+    const chordLen = Math.hypot(tx - fx, ty - fy);
+    const controlOffset = Math.max(20, Math.min(60, chordLen * 0.4));
     
     let c1x, c1y, c2x, c2y;
     
@@ -14628,7 +14629,7 @@ function drawConnections() {
         const my = ui._mouseWorld.y;
         
         const portEdge = getPortEdge(port, def);
-        const controlOffset = 60;
+        const controlOffset = Math.max(20, Math.min(60, Math.hypot(mx - fx, my - fy) * 0.4));
         
         let c1x, c1y;
         if (portEdge === 'left') {
@@ -14889,8 +14890,8 @@ function drawUnits() {
               return;
             }
           }
-          // [v10.1.1] Reconnect: if material port already connected, detach and redraw
-          if (port.type === StreamType.MATERIAL) {
+          // [v10.8.1] Reconnect: if non-multiConnect port already connected, detach and redraw
+          if (!port.multiConnect) {
             const existingConn = scene.connections.find(
               cc => cc.from.unitId === unitId && cc.from.portId === portId
             );
@@ -14959,10 +14960,8 @@ function drawUnits() {
       // Directional arrow - orient based on which edge the port is on
       const portEdge = getPortEdge(p, def);
 
-      // [v10.8.1] Multi-connect detection:
-      //   IN ports: explicit multiConnect flag
-      //   OUT ports: non-MATERIAL types (power/heat/mechanical allow fan-out)
-      const isMulti = p.multiConnect || (p.dir === PortDir.OUT && p.type !== StreamType.MATERIAL);
+      // [v10.8.1] Multi-connect ports show double arrows side-by-side
+      const isMulti = !!p.multiConnect;
       const offsets = isMulti ? [-2.5, 2.5] : [0];  // perpendicular offsets
       const arrowFill = p.dir === PortDir.OUT ? '#0b0e14' : portVisuals.portColor;
 
@@ -15024,7 +15023,7 @@ function _connBezierMid(conn) {
   const fy = (fromU.y + fromPort.y) * tile;
   const tx = (toU.x + toPort.x) * tile;
   const ty = (toU.y + toPort.y) * tile;
-  const controlOffset = 60;
+  const controlOffset = Math.max(20, Math.min(60, Math.hypot(tx - fx, ty - fy) * 0.4));
   const fromEdge = getPortEdge(fromPort, fromDef);
   const toEdge = getPortEdge(toPort, toDef);
   let c1x, c1y, c2x, c2y;
@@ -15060,15 +15059,18 @@ function _evaluateConnStickerItems(conn) {
   const ud = scene.runtime?.unitData?.get(conn.from.unitId);
   if (!ud) return conn.sticker.items.map(it => ({ ...it, value: '—' }));
   const stream = ud.ports?.[conn.from.portId];
-  let pool = [];
+  // [v10.8.1] Section-based pools for connections
+  const pools = {};
   if (stream) {
     if (stream.type === StreamType.MATERIAL) {
-      pool = _autoStreamToItems(stream);
+      pools.conditions = _autoStreamToItems(stream);
+      pools.composition = _compositionToItems(stream);
     } else {
-      pool = _powerStreamToItems(stream);
+      pools.conditions = _powerStreamToItems(stream);
     }
   }
   return conn.sticker.items.map(it => {
+    const pool = pools[it.section] || pools.conditions || [];
     const match = pool.find(p => p.label === it.label);
     return { ...it, value: match?.value ?? '—', tone: match?.tone };
   });
@@ -17011,32 +17013,10 @@ function renderStreamProperties(container, s) {
     // Calculate flowrates
     const flowrates = calculateStreamFlowrates(s);
     
-    // Composition
-    const components = Object.keys(s.n || {})
-      .filter(k => s.n[k] > 1e-9)
-      .sort((a, b) => s.n[b] - s.n[a]);
-      
-    if (components.length) {
-      const compSection = el('div', { style: 'grid-column:1/-1; margin-top:6px;' });
-      compSection.appendChild(el('div', { 
-        class: 'propLabel', 
-        html: 'Components', 
-        style: 'margin-bottom:6px;' 
-      }));
-      
-      const compWrap = el('div', { style: 'display:flex; flex-wrap:wrap; gap:4px;' });
-      for (const comp of components) {
-        const n = s.n[comp];
-        const molFrac = flowrates.nTotal > 0 ? (n / flowrates.nTotal) : 0;
-        const badge = el('div', { class: 'compBadge' });
-        const specSpan = el('span', { class: 'spec', text: comp });
-        const pctSpan = el('span', { class: 'pct', text: `${(100 * molFrac).toFixed(1)}%` });
-        badge.appendChild(specSpan);
-        badge.appendChild(pctSpan);
-        compWrap.appendChild(badge);
-      }
-      compSection.appendChild(compWrap);
-      propGrid.appendChild(compSection);
+    // Composition — use standard propItem layout
+    const compItems = _compositionToItems(s);
+    if (compItems.length) {
+      _renderKPIGrid(propGrid, compItems);
     }
     
     // GROUP 3: Flowrates
@@ -17330,42 +17310,18 @@ function _renderAutoStream(container, stream, unitId, connId) {
     grid.appendChild(el('div')); // empty cell to maintain grid
   }
 
-  // Row 3: Composition (full width) — with per-phase breakdown for VL
-  const components = Object.keys(stream.n || {}).filter(k => stream.n[k] > 1e-9).sort((a, b) => stream.n[b] - stream.n[a]);
-  const nTotal = components.reduce((s, k) => s + stream.n[k], 0);
-  
-  function _compBadges(fracs, species) {
-    const wrap = el('div', { style: 'display:flex; flex-wrap:wrap; gap:4px;' });
-    for (const sp of species) {
-      const f = fracs[sp] ?? 0;
-      if (f < 1e-6) continue;
-      const badge = el('div', { class: 'compBadge' });
-      badge.appendChild(el('span', { class: 'spec', text: sp }));
-      badge.appendChild(el('span', { class: 'pct', text: `${(100 * f).toFixed(1)}%` }));
-      wrap.appendChild(badge);
-    }
-    return wrap;
-  }
-  
-  if (components.length) {
-    if (isVL && stream.y && stream.x) {
-      // Per-phase composition
-      const vapRow = el('div', { class: 'full-row', style: 'margin-top:2px;' });
-      vapRow.appendChild(el('div', { style: 'font-size:10px; opacity:0.5; text-transform:uppercase; letter-spacing:0.3px; margin-bottom:3px;', text: 'Vapor' }));
-      vapRow.appendChild(_compBadges(stream.y, components));
-      grid.appendChild(vapRow);
-      
-      const liqRow = el('div', { class: 'full-row', style: 'margin-top:4px;' });
-      liqRow.appendChild(el('div', { style: 'font-size:10px; opacity:0.5; text-transform:uppercase; letter-spacing:0.3px; margin-bottom:3px;', text: 'Liquid' }));
-      liqRow.appendChild(_compBadges(stream.x, components));
-      grid.appendChild(liqRow);
-    } else {
-      // Single-phase: overall composition
-      const compRow = el('div', { class: 'full-row', style: 'margin-top:2px;' });
-      const molFracs = {};
-      for (const sp of components) molFracs[sp] = nTotal > 0 ? stream.n[sp] / nTotal : 0;
-      compRow.appendChild(_compBadges(molFracs, components));
-      grid.appendChild(compRow);
+  // Row 3: Composition — rendered as standard propItems in the same grid
+  const compItems = _compositionToItems(stream);
+  if (compItems.length) {
+    const compCtx = sCtx ? { ...sCtx, section: 'composition' } : null;
+    for (const item of compItems) {
+      const pi = el('div', { class: 'propItem' });
+      pi.appendChild(el('div', { class: 'propLabel', html: item.label }));
+      const valEl = el('div', { class: 'propValue' });
+      valEl.innerHTML = item.value;
+      pi.appendChild(valEl);
+      if (compCtx) _tagDraggableBadge(pi, compCtx, item.label);
+      grid.appendChild(pi);
     }
   }
   
@@ -17423,6 +17379,34 @@ function _powerStreamToItems(stream) {
   return items;
 }
 
+// [v10.8.1] Convert stream composition to labeled sticker items
+function _compositionToItems(stream) {
+  if (!stream || stream.type !== StreamType.MATERIAL) return [];
+  const items = [];
+  const components = Object.keys(stream.n || {}).filter(k => stream.n[k] > 1e-9).sort((a, b) => stream.n[b] - stream.n[a]);
+  const nTotal = components.reduce((s, k) => s + stream.n[k], 0);
+  if (!nTotal) return items;
+  const isVL = stream.phase === 'VL';
+  if (isVL && stream.y && stream.x) {
+    // Per-phase fractions
+    for (const sp of components) {
+      const yf = stream.y[sp] ?? 0;
+      if (yf > 1e-6) items.push({ label: `y(${sp})`, value: `${(100 * yf).toFixed(1)}%` });
+    }
+    for (const sp of components) {
+      const xf = stream.x[sp] ?? 0;
+      if (xf > 1e-6) items.push({ label: `x(${sp})`, value: `${(100 * xf).toFixed(1)}%` });
+    }
+  } else {
+    // Overall mole fractions
+    for (const sp of components) {
+      const f = nTotal > 0 ? stream.n[sp] / nTotal : 0;
+      if (f > 1e-6) items.push({ label: sp, value: `${(100 * f).toFixed(1)}%` });
+    }
+  }
+  return items;
+}
+
 // [v10.7.0] Evaluate sticker items against live solver data
 function _evaluateStickerItems(u) {
   if (!u.sticker?.items?.length) return [];
@@ -17441,6 +17425,9 @@ function _evaluateStickerItems(u) {
   pools.power    = cfg?.power    ? (cfg.power(u, ud)    || []) : [];
   pools.reaction = cfg?.reaction ? (cfg.reaction(u, ud) || []) : [];
   pools.kpis     = cfg?.kpis     ? (cfg.kpis(u, ud)     || []) : [];
+  // [v10.8.1] Composition pool from primary stream
+  const _compStream = _findPrimaryStream(ud, def);
+  pools.composition = _compStream ? _compositionToItems(_compStream) : [];
 
   return u.sticker.items.map(it => {
     const pool = pools[it.section] || [];
@@ -17970,7 +17957,7 @@ UnitInspector.reactor_equilibrium = {
     const badge = isEndo ? '❄️ Endothermic' : '🔥 Exothermic';
     const items = [
       { label: 'Q duty', value: fmt.kW(Math.abs(L.Q_duty_W)) },
-      { label: 'Type', value: badge, tone: isEndo ? 'warn' : 'info' },
+      { label: 'Type', value: badge, tone: isEndo ? 'info' : 'bad' },
     ];
     if (isEndo) {
       items.push({ label: 'Heat supplied', value: fmt.kW(L.Q_supplied_W ?? 0), tone: L.status === 'heat_starved' ? 'err' : '' });
