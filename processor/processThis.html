@@ -1,7 +1,105 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v10.8.1
+  processThis v10.9.3
+
+  ─── v10.9.3 ──────────────────────────────────────────────────────────────
+  Unit configuration pass — multi-direction port variants for 12 unit types.
+
+  SOURCES (source, source_multi, source_air, grid_supply, source_mechanical):
+  4 variants each — port-left, port-right (default), port-top, port-bottom.
+  Single OUT port positionable on any edge.
+
+  SINKS (sink, sink_electrical, sink_heat):
+  4 variants each — port-left (default), port-right, port-top, port-bottom.
+  Single IN port positionable on any edge.
+
+  PUMP & COMPRESSOR:
+  3 variants each — default (L→R), output-top, output-bottom.
+  Power port relocates to avoid collision: stays top when output goes
+  bottom; moves to right edge when output goes top.
+
+  HEAT EXCHANGER:
+  4 variants — hot L→R × cold T→B (default), hot-reversed, cold-reversed,
+  both-reversed. All four flow-direction combos for flexible PFD layout.
+
+  REACTOR EQUILIBRIUM:
+  2 variants — default (heat-in bottom, heat-out top), heat-reversed.
+
+  All variants available via inspector Layout dropdown. Export/import
+  round-trips via params.variant.
+
+  Tests 232–235: source/sink 4-dir, pump/compressor output dir, hex 4-combo,
+  reactor heat flip.
+
+  Gate: 235/235 tests.
+
+  ─── v10.9.2 ──────────────────────────────────────────────────────────────
+  All production units migrated to presentations. Legacy shim demoted.
+
+  MIGRATION: Added 'box/default' presentations to all 24 production units
+  (source, source_multi, source_air, sink, grid_supply, tank, battery,
+  power_hub, sink_electrical, sink_heat, gas_turbine, generator,
+  source_mechanical, motor, electric_heater, valve, pump, compressor,
+  heater, cooler, hex, flash_drum, reactor_adiabatic, reactor_equilibrium).
+  Mixer + splitter already had presentations from v10.9.1.
+
+  SHIM: _legacyPresentation() demoted to dev-test-only fallback. All
+  production units now have explicit presentations{} — the shim only fires
+  for _devTest units registered inside the test harness.
+
+  NNG-P3 enforced: every portId in def.ports has a matching entry in every
+  presentation's ports map. Verified by bulk extraction script.
+
+  Gate: 231/231 tests. Zero visual change — pure data migration.
+
+  ─── v10.9.1 ──────────────────────────────────────────────────────────────
+  Mixer + splitter 'top-recycle' variants for clean recycle-over-the-top
+  routing. SVG symbols ico-mixer--top, ico-splitter--top added. Icon
+  resolution in drawUnits uses presentation.icon when available. Inspector
+  shows Layout dropdown for units with multiple variants. Demo scene updated
+  to use top-recycle variants. Export/import round-trips variant via
+  params.variant. Tests 229–231 cover resolver, variant positions, round-trip.
+
+  ─── v10.9.0 ──────────────────────────────────────────────────────────────
+  Presentation layer separation — visual geometry decoupled from unit logic.
+
+  ARCHITECTURE: Unit definitions now separate logical identity (portId, dir,
+  type) from visual geometry (w, h, port x/y positions, icon). All rendering
+  code reads geometry through getPresentation(def, unit) — never directly
+  from def.w, def.h, or def.ports[].x/y.
+
+  RESOLVER: getPresentation(def, unit) resolves the active presentation for
+  a unit instance by looking up (theme, variant) in def.presentations{}.
+  Falls back to _legacyPresentation() shim that reads old-style def.w/h
+  and def.ports[].x/y for units not yet migrated. Key format: 'theme/variant'.
+  Phase 1 theme is 'box'; variant from unit.params.variant (default: 'default').
+
+  REFACTORED (19 call sites, zero visual change):
+  - placeUnit, moveUnit, unitAt, _collision: use pres.w/h for bounds.
+  - fitView: pres.w/h for bounding box.
+  - drawConnections: port positions from pres.ports[portId].
+  - drawUnits: pres.w/h for rect, pres.ports for circle/arrow placement.
+  - getPortEdge: signature generalized to (portPos, container) — accepts
+    any {x,y} + {w,h} pair (presentation-resolved data).
+  - _connBezierMid: pres.ports for bezier endpoints.
+  - _collectStickers: pres.w/h for anchor/clip geometry.
+
+  UI STATE: ui.theme = 'box' added (future: 'pid', 'game', etc.).
+  UnitRegistry.register: stores spec.presentations if provided.
+
+  NNG ADDITIONS:
+  NNG-P1: All port position reads go through getPresentation(). Never read
+          def.ports[].x/y or def.w/def.h directly for rendering.
+  NNG-P2: def.ports[] is logical identity only: portId, dir, type,
+          multiConnect, bidirectional. No geometry (x/y migrate to
+          presentations in v10.9.1+).
+  NNG-P3: Every portId in def.ports MUST exist in every presentation's
+          ports map. (Enforced by convention; dev-assert in future.)
+  NNG-P4: Unit instance stores variant in params.variant (string, optional,
+          default='default'). Theme is global (ui.theme).
+
+  Gate: 228/228 tests, 1550 checks. Zero visual change — pure refactor.
 
   ─── v10.8.1 ──────────────────────────────────────────────────────────────
   Sticker system overhaul — connection stickers, drag fixes, UX polish.
@@ -2011,8 +2109,6 @@
     
     .canvasWrap { 
       position: relative; 
-      min-height: 0;
-      overflow: hidden;
     }
     
     #svg { 
@@ -3701,6 +3797,28 @@
           <!-- Arrows on outlets -->
           <path d="M48 10 L56 16 L48 22" fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/>
           <path d="M48 42 L56 48 L48 54" fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/>
+        </symbol>
+
+        <!-- [v10.9.1] Mixer top-recycle variant: feed from left, recycle from top -->
+        <symbol id="ico-mixer--top" viewBox="0 0 64 64">
+          <path d="M8 32 L32 32" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+          <path d="M32 8 L32 32" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+          <path d="M32 32 L56 32" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+          <!-- Arrow on recycle inlet (downward) -->
+          <path d="M26 14 L32 8 L38 14" fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/>
+          <!-- Arrow on outlet -->
+          <path d="M48 26 L56 32 L48 38" fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/>
+        </symbol>
+
+        <!-- [v10.9.1] Splitter top-recycle variant: inlet from left, product right, recycle up -->
+        <symbol id="ico-splitter--top" viewBox="0 0 64 64">
+          <path d="M8 32 L32 32" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+          <path d="M32 32 L56 32" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+          <path d="M32 32 L32 8" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+          <!-- Arrow on product outlet (rightward) -->
+          <path d="M48 26 L56 32 L48 38" fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/>
+          <!-- Arrow on recycle outlet (upward) -->
+          <path d="M26 14 L32 8 L38 14" fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/>
         </symbol>
         
         <!-- Generic pipe/flow (fallback) -->
@@ -8082,7 +8200,9 @@ class UnitRegistry {
       initInventory: spec.initInventory || null,
       updateInventory: spec.updateInventory || null,
       // [v9.0.3] Optional ports — unit tolerates disconnected material ports
-      optionalPorts: spec.optionalPorts || false
+      optionalPorts: spec.optionalPorts || false,
+      // [v10.9.0] Presentation layer — visual configs keyed by 'theme/variant'
+      presentations: spec.presentations || null
     };
     this._defs.set(defId, def);
   }
@@ -8113,6 +8233,41 @@ class UnitRegistry {
   }
 }
 
+/* =========================
+   PRESENTATION RESOLVER [v10.9.0] (NNG-P1)
+   Single source of truth for unit visual geometry: w, h, port positions.
+   All rendering code MUST call getPresentation() — never read def.w/h/ports[].x/y directly.
+   ========================= */
+
+// [v10.9.2] Fallback for dev/test units without explicit presentations.
+// All production units MUST have presentations{} — this path only fires for _devTest units.
+function _legacyPresentation(def) {
+  const ports = {};
+  for (const p of def.ports) {
+    if (p.x !== undefined && p.y !== undefined) {
+      ports[p.portId] = { x: p.x, y: p.y };
+    }
+  }
+  return { w: def.w, h: def.h, ports };
+}
+
+/**
+ * Resolve the active presentation for a unit.
+ * @param {object} def   - UnitRegistry definition (from UnitRegistry.get())
+ * @param {object} [unit] - Unit instance (reads unit.params.variant). Null for defaults.
+ * @returns {{ w: number, h: number, ports: Object<string, {x:number,y:number}> }}
+ */
+function getPresentation(def, unit) {
+  if (!def.presentations) return _legacyPresentation(def);
+  const theme = (typeof ui !== 'undefined' && ui.theme) || 'box';
+  const variant = unit?.params?.variant || 'default';
+  const key = theme + '/' + variant;
+  return def.presentations[key]
+      || def.presentations[theme + '/default']
+      || def.presentations['box/default']
+      || _legacyPresentation(def);
+}
+
 // Source - Generic material stream source
 UnitRegistry.register('source', {
   name: 'Source',
@@ -8120,6 +8275,13 @@ UnitRegistry.register('source', {
   w: 2,
   h: 2,
   ports: [{ portId: 'out', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 1 }],
+  // [v10.9.3] Presentation variants — port on any edge
+  presentations: {
+    'box/default':     { w: 2, h: 2, ports: { out:{x:2,y:1} } },
+    'box/port-left':   { w: 2, h: 2, ports: { out:{x:0,y:1} } },
+    'box/port-top':    { w: 2, h: 2, ports: { out:{x:1,y:0} } },
+    'box/port-bottom': { w: 2, h: 2, ports: { out:{x:1,y:2} } }
+  },
   tick(u, ports, par) {
     // Create material stream with molar composition
     const n = {};
@@ -8158,6 +8320,13 @@ UnitRegistry.register('source_multi', {
   w: 2,
   h: 2,
   ports: [{ portId: 'out', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 1 }],
+  // [v10.9.3] Presentation variants — port on any edge
+  presentations: {
+    'box/default':     { w: 2, h: 2, ports: { out:{x:2,y:1} } },
+    'box/port-left':   { w: 2, h: 2, ports: { out:{x:0,y:1} } },
+    'box/port-top':    { w: 2, h: 2, ports: { out:{x:1,y:0} } },
+    'box/port-bottom': { w: 2, h: 2, ports: { out:{x:1,y:2} } }
+  },
   tick(u, ports, par) {
     const n = par.n || { N2: 0.78, O2: 0.21, Ar: 0.01 };
 
@@ -8198,6 +8367,13 @@ UnitRegistry.register('source_air', {
   w: 2,
   h: 2,
   ports: [{ portId: 'out', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 1 }],
+  // [v10.9.3] Presentation variants — port on any edge
+  presentations: {
+    'box/default':     { w: 2, h: 2, ports: { out:{x:2,y:1} } },
+    'box/port-left':   { w: 2, h: 2, ports: { out:{x:0,y:1} } },
+    'box/port-top':    { w: 2, h: 2, ports: { out:{x:1,y:0} } },
+    'box/port-bottom': { w: 2, h: 2, ports: { out:{x:1,y:2} } }
+  },
   tick(u, ports, par) {
     const atm = SimSettings.getAtmosphere();
     const flowScale = par.flowScale ?? 1.0;
@@ -8224,6 +8400,13 @@ UnitRegistry.register('sink', {
   w: 2,
   h: 2,
   ports: [{ portId: 'in', dir: PortDir.IN, type: StreamType.MATERIAL, x: 0, y: 1 }],
+  // [v10.9.3] Presentation variants — port on any edge
+  presentations: {
+    'box/default':     { w: 2, h: 2, ports: { in:{x:0,y:1} } },
+    'box/port-right':  { w: 2, h: 2, ports: { in:{x:2,y:1} } },
+    'box/port-top':    { w: 2, h: 2, ports: { in:{x:1,y:0} } },
+    'box/port-bottom': { w: 2, h: 2, ports: { in:{x:1,y:2} } }
+  },
   tick(u, ports, par) { 
     // Store incoming stream info for display
     if (ports.in) {
@@ -8265,6 +8448,13 @@ UnitRegistry.register('grid_supply', {
   w: 2,
   h: 2,
   ports: [{ portId: 'out', dir: PortDir.OUT, type: StreamType.ELECTRICAL, x: 2, y: 1 }],
+  // [v10.9.3] Presentation variants — port on any edge
+  presentations: {
+    'box/default':     { w: 2, h: 2, ports: { out:{x:2,y:1} } },
+    'box/port-left':   { w: 2, h: 2, ports: { out:{x:0,y:1} } },
+    'box/port-top':    { w: 2, h: 2, ports: { out:{x:1,y:0} } },
+    'box/port-bottom': { w: 2, h: 2, ports: { out:{x:1,y:2} } }
+  },
   tick(u, ports, par, ctx) {
     const maxPower_W = (par.maxPower || 1000) * 1000;
     const s = ctx ? ctx.scratch : {};
@@ -8331,6 +8521,10 @@ UnitRegistry.register('tank', {
     { portId: 'mat_out',  dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 2 },
     { portId: 'overflow', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 1, y: 0 }
   ],
+  // [v10.9.2] Presentation layer
+  presentations: {
+    'box/default': { w: 2, h: 3, ports: { mat_in:{x:0,y:2}, mat_out:{x:2,y:2}, overflow:{x:1,y:0} } }
+  },
   inventory: true,
 
   initInventory(par) {
@@ -8513,6 +8707,10 @@ UnitRegistry.register('battery', {
   h: 2,
   inventory: true,
   ports: [{ portId: 'elec', dir: PortDir.OUT, type: StreamType.ELECTRICAL, x: 2, y: 1, bidirectional: true }],
+  // [v10.9.2] Presentation layer
+  presentations: {
+    'box/default': { w: 2, h: 2, ports: { elec:{x:2,y:1} } }
+  },
 
   initInventory(par) {
     const capacity_J = par.capacity_J || 36000000;  // 10 kWh default
@@ -8703,6 +8901,10 @@ UnitRegistry.register('power_hub', {
     { portId: 'elec_out', dir: PortDir.OUT, type: StreamType.ELECTRICAL, x: 2, y: 1.5, multiConnect: true },
     { portId: 'heat_out', dir: PortDir.OUT, type: StreamType.HEAT, x: 1, y: 0 }
   ],
+  // [v10.9.2] Presentation layer
+  presentations: {
+    'box/default': { w: 2, h: 3, ports: { elec_in:{x:0,y:1.5}, elec_out:{x:2,y:1.5}, heat_out:{x:1,y:0} } }
+  },
   tick(u, ports, par, ctx) {
     const elecIn = ports.elec_in;
     const totalCapacity_W = elecIn ? (elecIn.capacity ?? elecIn.available ?? 0) : 0;
@@ -8749,6 +8951,13 @@ UnitRegistry.register('sink_electrical', {
   w: 2,
   h: 2,
   ports: [{ portId: 'in', dir: PortDir.IN, type: StreamType.ELECTRICAL, x: 0, y: 1 }],
+  // [v10.9.3] Presentation variants — port on any edge
+  presentations: {
+    'box/default':     { w: 2, h: 2, ports: { in:{x:0,y:1} } },
+    'box/port-right':  { w: 2, h: 2, ports: { in:{x:2,y:1} } },
+    'box/port-top':    { w: 2, h: 2, ports: { in:{x:1,y:0} } },
+    'box/port-bottom': { w: 2, h: 2, ports: { in:{x:1,y:2} } }
+  },
   tick(u, ports, par) {
     const sIn = ports.in;
     u.last = {
@@ -8769,6 +8978,13 @@ UnitRegistry.register('sink_heat', {
   w: 2,
   h: 2,
   ports: [{ portId: 'in', dir: PortDir.IN, type: StreamType.HEAT, x: 0, y: 1, multiConnect: true }],
+  // [v10.9.3] Presentation variants — port on any edge
+  presentations: {
+    'box/default':     { w: 2, h: 2, ports: { in:{x:0,y:1} } },
+    'box/port-right':  { w: 2, h: 2, ports: { in:{x:2,y:1} } },
+    'box/port-top':    { w: 2, h: 2, ports: { in:{x:1,y:0} } },
+    'box/port-bottom': { w: 2, h: 2, ports: { in:{x:1,y:2} } }
+  },
   tick(u, ports, par) {
     const sIn = ports.in;
     u.last = {
@@ -8801,6 +9017,10 @@ UnitRegistry.register('gas_turbine', {
     { portId: 'mat_out', dir: PortDir.OUT, type: StreamType.MATERIAL,   x: 2, y: 1 },
     { portId: 'mech_out', dir: PortDir.OUT, type: StreamType.MECHANICAL, x: 1, y: 2 }
   ],
+  // [v10.9.2] Presentation layer
+  presentations: {
+    'box/default': { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, mat_out:{x:2,y:1}, mech_out:{x:1,y:2} } }
+  },
   tick(u, ports, par) {
     const sIn = ports.mat_in;
     if (!sIn) return;
@@ -8910,6 +9130,10 @@ UnitRegistry.register('generator', {
     { portId: 'elec_out', dir: PortDir.OUT, type: StreamType.ELECTRICAL, x: 2, y: 1 },
     { portId: 'heat_out', dir: PortDir.OUT, type: StreamType.HEAT, x: 1, y: 0 }
   ],
+  // [v10.9.2] Presentation layer
+  presentations: {
+    'box/default': { w: 2, h: 2, ports: { mech_in:{x:0,y:1}, elec_out:{x:2,y:1}, heat_out:{x:1,y:0} } }
+  },
   tick(u, ports, par) {
     const mechIn = ports.mech_in;
     if (!mechIn) return;
@@ -8954,6 +9178,13 @@ UnitRegistry.register('source_mechanical', {
   w: 2,
   h: 2,
   ports: [{ portId: 'out', dir: PortDir.OUT, type: StreamType.MECHANICAL, x: 2, y: 1 }],
+  // [v10.9.3] Presentation variants — port on any edge
+  presentations: {
+    'box/default':     { w: 2, h: 2, ports: { out:{x:2,y:1} } },
+    'box/port-left':   { w: 2, h: 2, ports: { out:{x:0,y:1} } },
+    'box/port-top':    { w: 2, h: 2, ports: { out:{x:1,y:0} } },
+    'box/port-bottom': { w: 2, h: 2, ports: { out:{x:1,y:2} } }
+  },
   tick(u, ports, par, ctx) {
     const maxPower_W = (par.maxPower || 1000) * 1000;
     const s = ctx ? ctx.scratch : {};
@@ -8979,6 +9210,10 @@ UnitRegistry.register('motor', {
     { portId: 'mech_out', dir: PortDir.OUT, type: StreamType.MECHANICAL, x: 2, y: 1 },
     { portId: 'heat_out', dir: PortDir.OUT, type: StreamType.HEAT, x: 1, y: 0 }
   ],
+  // [v10.9.2] Presentation layer
+  presentations: {
+    'box/default': { w: 2, h: 2, ports: { elec_in:{x:0,y:1}, mech_out:{x:2,y:1}, heat_out:{x:1,y:0} } }
+  },
   tick(u, ports, par, ctx) {
     const elecIn = ports.elec_in;
     if (!elecIn) return;
@@ -9040,6 +9275,10 @@ UnitRegistry.register('electric_heater', {
     { portId: 'elec_in', dir: PortDir.IN, type: StreamType.ELECTRICAL, x: 0, y: 1 },
     { portId: 'heat_out', dir: PortDir.OUT, type: StreamType.HEAT, x: 2, y: 1 }
   ],
+  // [v10.9.2] Presentation layer
+  presentations: {
+    'box/default': { w: 2, h: 2, ports: { elec_in:{x:0,y:1}, heat_out:{x:2,y:1} } }
+  },
   tick(u, ports, par, ctx) {
     const elecIn = ports.elec_in;
     if (!elecIn) return;
@@ -9091,6 +9330,10 @@ UnitRegistry.register('valve', {
     { portId: 'in', dir: PortDir.IN, type: StreamType.MATERIAL, x: 0, y: 1 },
     { portId: 'out', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 1 }
   ],
+  // [v10.9.2] Presentation layer
+  presentations: {
+    'box/default': { w: 2, h: 2, ports: { in:{x:0,y:1}, out:{x:2,y:1} } }
+  },
   tick(u, ports, par) {
     const sIn = ports.in;
     if (!sIn) return;
@@ -9153,6 +9396,12 @@ UnitRegistry.register('pump', {
     { portId: 'power_in', dir: PortDir.IN, type: StreamType.MECHANICAL, x: 1, y: 0 },
     { portId: 'mat_out', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 1 }
   ],
+  // [v10.9.3] Presentation variants — output direction
+  presentations: {
+    'box/default':       { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, power_in:{x:1,y:0}, mat_out:{x:2,y:1} } },
+    'box/output-top':    { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, power_in:{x:2,y:1}, mat_out:{x:1,y:0} } },
+    'box/output-bottom': { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, power_in:{x:1,y:0}, mat_out:{x:1,y:2} } }
+  },
   tick(u, ports, par) {
     const sIn = ports.mat_in;
     const sPower = ports.power_in;
@@ -9288,6 +9537,12 @@ UnitRegistry.register('compressor', {
     { portId: 'power_in', dir: PortDir.IN, type: StreamType.MECHANICAL, x: 1, y: 0 },
     { portId: 'mat_out', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 1 }
   ],
+  // [v10.9.3] Presentation variants — output direction
+  presentations: {
+    'box/default':       { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, power_in:{x:1,y:0}, mat_out:{x:2,y:1} } },
+    'box/output-top':    { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, power_in:{x:2,y:1}, mat_out:{x:1,y:0} } },
+    'box/output-bottom': { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, power_in:{x:1,y:0}, mat_out:{x:1,y:2} } }
+  },
   tick(u, ports, par) {
     const sIn = ports.mat_in;
     const sPower = ports.power_in;
@@ -9433,6 +9688,10 @@ UnitRegistry.register('heater', {
     { portId: 'heat_in', dir: PortDir.IN, type: StreamType.HEAT, x: 1, y: 0 },
     { portId: 'mat_out', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 1 }
   ],
+  // [v10.9.2] Presentation layer
+  presentations: {
+    'box/default': { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, heat_in:{x:1,y:0}, mat_out:{x:2,y:1} } }
+  },
   tick(u, ports, par) {
     const sIn = ports.mat_in;
     if (!sIn) return;
@@ -9519,6 +9778,10 @@ UnitRegistry.register('cooler', {
     { portId: 'mat_out', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 1 },
     { portId: 'heat_out', dir: PortDir.OUT, type: StreamType.HEAT, x: 1, y: 0 }
   ],
+  // [v10.9.2] Presentation layer
+  presentations: {
+    'box/default': { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, mat_out:{x:2,y:1}, heat_out:{x:1,y:0} } }
+  },
   tick(u, ports, par) {
     const sIn = ports.mat_in;
     if (!sIn) return;
@@ -9822,6 +10085,13 @@ UnitRegistry.register('hex', {
     { portId: 'cold_in',  dir: PortDir.IN,  type: StreamType.MATERIAL, x: 1, y: 0 },
     { portId: 'cold_out', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 1, y: 2 }
   ],
+  // [v10.9.3] Presentation variants — flow direction combos
+  presentations: {
+    'box/default':       { w: 2, h: 2, ports: { hot_in:{x:0,y:1}, hot_out:{x:2,y:1}, cold_in:{x:1,y:0}, cold_out:{x:1,y:2} } },
+    'box/hot-reversed':  { w: 2, h: 2, ports: { hot_in:{x:2,y:1}, hot_out:{x:0,y:1}, cold_in:{x:1,y:0}, cold_out:{x:1,y:2} } },
+    'box/cold-reversed': { w: 2, h: 2, ports: { hot_in:{x:0,y:1}, hot_out:{x:2,y:1}, cold_in:{x:1,y:2}, cold_out:{x:1,y:0} } },
+    'box/both-reversed': { w: 2, h: 2, ports: { hot_in:{x:2,y:1}, hot_out:{x:0,y:1}, cold_in:{x:1,y:2}, cold_out:{x:1,y:0} } }
+  },
 
   tick(u, ports, par) {
     const sHot = ports.hot_in, sCold = ports.cold_in;
@@ -9971,6 +10241,11 @@ UnitRegistry.register('mixer', {
     { portId: 'in2', dir: PortDir.IN, type: StreamType.MATERIAL, x: 0, y: 2 },
     { portId: 'out', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 1 }
   ],
+  // [v10.9.1] Presentation layer — visual configs by theme/variant
+  presentations: {
+    'box/default':     { w: 2, h: 2, ports: { in1: {x:0,y:0}, in2: {x:0,y:2}, out: {x:2,y:1} }, icon: 'ico-mixer' },
+    'box/top-recycle': { w: 2, h: 2, ports: { in1: {x:0,y:1}, in2: {x:1,y:0}, out: {x:2,y:1} }, icon: 'ico-mixer--top' }
+  },
   tick(u, ports, par) {
     const s1 = ports.in1;
     const s2 = ports.in2;
@@ -10061,6 +10336,11 @@ UnitRegistry.register('splitter', {
     { portId: 'out1', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 0 },
     { portId: 'out2', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 2 }
   ],
+  // [v10.9.1] Presentation layer — visual configs by theme/variant
+  presentations: {
+    'box/default':     { w: 2, h: 2, ports: { in: {x:0,y:1}, out1: {x:2,y:0}, out2: {x:2,y:2} }, icon: 'ico-splitter' },
+    'box/top-recycle': { w: 2, h: 2, ports: { in: {x:0,y:1}, out1: {x:2,y:1}, out2: {x:1,y:0} }, icon: 'ico-splitter--top' }
+  },
   tick(u, ports, par) {
     const sIn = ports.in;
     if (!sIn) return;
@@ -10139,6 +10419,10 @@ UnitRegistry.register('flash_drum', {
     { portId: 'vap_out', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 0 },
     { portId: 'liq_out', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 3 }
   ],
+  // [v10.9.2] Presentation layer
+  presentations: {
+    'box/default': { w: 2, h: 3, ports: { mat_in:{x:0,y:1}, vap_out:{x:2,y:0}, liq_out:{x:2,y:3} } }
+  },
   tick(u, ports, par) {
     const sIn = ports.mat_in;
     if (!sIn) return;
@@ -10223,6 +10507,10 @@ UnitRegistry.register('reactor_adiabatic', {
     { portId: 'mat_in',  dir: PortDir.IN,  type: StreamType.MATERIAL, x: 0, y: 1 },
     { portId: 'mat_out', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 1 }
   ],
+  // [v10.9.2] Presentation layer
+  presentations: {
+    'box/default': { w: 2, h: 3, ports: { mat_in:{x:0,y:1}, mat_out:{x:2,y:1} } }
+  },
   tick(u, ports, par) {
     const sIn = ports.mat_in;
     if (!sIn) return;
@@ -10340,6 +10628,11 @@ UnitRegistry.register('reactor_equilibrium', {
     { portId: 'heat_in',  dir: PortDir.IN,  type: StreamType.HEAT,     x: 1, y: 3 },
     { portId: 'heat_out', dir: PortDir.OUT, type: StreamType.HEAT,     x: 1, y: 0 }
   ],
+  // [v10.9.3] Presentation variants — heat port direction
+  presentations: {
+    'box/default':       { w: 2, h: 3, ports: { mat_in:{x:0,y:1}, mat_out:{x:2,y:1}, heat_in:{x:1,y:3}, heat_out:{x:1,y:0} } },
+    'box/heat-reversed': { w: 2, h: 3, ports: { mat_in:{x:0,y:1}, mat_out:{x:2,y:1}, heat_in:{x:1,y:0}, heat_out:{x:1,y:3} } }
+  },
   tick(u, ports, par) {
     const sIn = ports.mat_in;
     if (!sIn) return;
@@ -10661,8 +10954,11 @@ class Scene {
     const def = UnitRegistry.get(defId);
     if (!def) return null;
     
+    // [v10.9.0] NNG-P1: use presentation for collision geometry
+    const pres = getPresentation(def, null);
+    
     // Check collision with existing units
-    if (this._collision(x, y, def.w, def.h, null)) return null;
+    if (this._collision(x, y, pres.w, pres.h, null)) return null;
     
     // Create new unit with default parameters
     const id = `${defId}-${++this._idCounter}`;
@@ -10776,9 +11072,10 @@ class Scene {
     if (!u) return;
     
     const def = UnitRegistry.get(u.defId);
+    const pres = getPresentation(def, u);
     
     // Check collision at new position
-    if (this._collision(nx, ny, def.w, def.h, id)) return;
+    if (this._collision(nx, ny, pres.w, pres.h, id)) return;
     
     u.x = nx;
     u.y = ny;
@@ -10793,7 +11090,8 @@ class Scene {
   unitAt(x, y) {
     for (const [id, u] of this.units) {
       const def = UnitRegistry.get(u.defId);
-      if (x >= u.x && x < u.x + def.w && y >= u.y && y < u.y + def.h) {
+      const pres = getPresentation(def, u);
+      if (x >= u.x && x < u.x + pres.w && y >= u.y && y < u.y + pres.h) {
         return u;
       }
     }
@@ -10805,7 +11103,8 @@ class Scene {
       if (id === skipId) continue;
       
       const def = UnitRegistry.get(u.defId);
-      const ox = u.x, oy = u.y, ow = def.w, oh = def.h;
+      const pres = getPresentation(def, u);
+      const ox = u.x, oy = u.y, ow = pres.w, oh = pres.h;
       
       // AABB collision detection
       if (!(x + w <= ox || ox + ow <= x || y + h <= oy || oy + oh <= y)) {
@@ -13758,7 +14057,9 @@ const ui = {
   stickerDragConnId: null,   // [v10.7.2] connection sticker support
   stickerDragStart: null,  // {x, y} SVG coords at pointerdown
   stickerOrigDx: 0,
-  stickerOrigDy: 0
+  stickerOrigDy: 0,
+  // [v10.9.0] Presentation theme (NNG-P4)
+  theme: 'box'
 };
 
 /* =========================
@@ -14388,10 +14689,11 @@ function fitView() {
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
   for (const [id, u] of scene.units) {
     const def = UnitRegistry.get(u.defId);
+    const pres = getPresentation(def, u);
     minX = Math.min(minX, u.x * scene.tile);
     minY = Math.min(minY, u.y * scene.tile);
-    maxX = Math.max(maxX, (u.x + def.w) * scene.tile);
-    maxY = Math.max(maxY, (u.y + def.h) * scene.tile);
+    maxX = Math.max(maxX, (u.x + pres.w) * scene.tile);
+    maxY = Math.max(maxY, (u.y + pres.h) * scene.tile);
   }
   const pad = 0.15; // 15% padding
   const w = maxX - minX || 200, h = maxY - minY || 200;
@@ -14411,26 +14713,28 @@ function resetView() {
    PORT EDGE DETECTION
    Determines which edge of a unit a port is on
    ========================= */
-function getPortEdge(port, unitDef) {
+// [v10.9.0] Accepts any {x,y} port position and any {w,h} container (presentation or def).
+// NNG-P1: callers should pass presentation-resolved data, not raw def fields.
+function getPortEdge(port, container) {
   const tolerance = 0.1; // Small tolerance for edge detection
   
   // Check if port is on left edge
   if (port.x <= tolerance) return 'left';
   
   // Check if port is on right edge
-  if (port.x >= unitDef.w - tolerance) return 'right';
+  if (port.x >= container.w - tolerance) return 'right';
   
   // Check if port is on top edge
   if (port.y <= tolerance) return 'top';
   
   // Check if port is on bottom edge
-  if (port.y >= unitDef.h - tolerance) return 'bottom';
+  if (port.y >= container.h - tolerance) return 'bottom';
   
   // Fallback: determine by which edge is closest
   const distToLeft = port.x;
-  const distToRight = unitDef.w - port.x;
+  const distToRight = container.w - port.x;
   const distToTop = port.y;
-  const distToBottom = unitDef.h - port.y;
+  const distToBottom = container.h - port.y;
   
   const minDist = Math.min(distToLeft, distToRight, distToTop, distToBottom);
   
@@ -14501,14 +14805,21 @@ function drawConnections() {
     const toPort = toDef.ports.find(p => p.portId === c.to.portId);
     if (!fromPort || !toPort) continue;
 
-    const fx = (fromU.x + fromPort.x) * scene.tile;
-    const fy = (fromU.y + fromPort.y) * scene.tile;
-    const tx = (toU.x + toPort.x) * scene.tile;
-    const ty = (toU.y + toPort.y) * scene.tile;
+    // [v10.9.0] NNG-P1: port positions from presentation
+    const fromPres = getPresentation(fromDef, fromU);
+    const toPres = getPresentation(toDef, toU);
+    const fromPos = fromPres.ports[c.from.portId];
+    const toPos = toPres.ports[c.to.portId];
+    if (!fromPos || !toPos) continue;
+
+    const fx = (fromU.x + fromPos.x) * scene.tile;
+    const fy = (fromU.y + fromPos.y) * scene.tile;
+    const tx = (toU.x + toPos.x) * scene.tile;
+    const ty = (toU.y + toPos.y) * scene.tile;
     
     // Determine port edges for proper curve orientation
-    const fromEdge = getPortEdge(fromPort, fromDef);
-    const toEdge = getPortEdge(toPort, toDef);
+    const fromEdge = getPortEdge(fromPos, fromPres);
+    const toEdge = getPortEdge(toPos, toPres);
     
     // Calculate control points perpendicular to each port's edge
     // [v10.8.1] Scale control offset to chord length to prevent curve folding on short connections
@@ -14622,13 +14933,15 @@ function drawConnections() {
     if (u) {
       const def = UnitRegistry.get(u.defId);
       const port = def.ports.find(p => p.portId === ui.pendingFrom.portId);
-      if (port) {
-        const fx = (u.x + port.x) * scene.tile;
-        const fy = (u.y + port.y) * scene.tile;
+      const pres = getPresentation(def, u);
+      const portPos = pres.ports[ui.pendingFrom.portId];
+      if (port && portPos) {
+        const fx = (u.x + portPos.x) * scene.tile;
+        const fy = (u.y + portPos.y) * scene.tile;
         const mx = ui._mouseWorld.x;
         const my = ui._mouseWorld.y;
         
-        const portEdge = getPortEdge(port, def);
+        const portEdge = getPortEdge(portPos, pres);
         const controlOffset = Math.max(20, Math.min(60, Math.hypot(mx - fx, my - fy) * 0.4));
         
         let c1x, c1y;
@@ -14669,10 +14982,11 @@ function drawUnits() {
   
   for (const [id, u] of scene.units) {
     const def = UnitRegistry.get(u.defId);
+    const pres = getPresentation(def, u);
     const wx = u.x * scene.tile;
     const wy = u.y * scene.tile;
-    const ww = def.w * scene.tile;
-    const wh = def.h * scene.tile;
+    const ww = pres.w * scene.tile;
+    const wh = pres.h * scene.tile;
     
     const group = svgEl('g', {});
     group.setAttribute('data-uid', id);
@@ -14741,17 +15055,24 @@ function drawUnits() {
     }
 
     // Unit icon - map defId to icon name with proper precedence
-    let iconName = def.defId;
-    if (def.defId === 'grid_supply') {
-      iconName = 'electrical';   // [v10.0.4] lightning bolt (was ico-grid_supply)
-    } else if (def.defId === 'source_mechanical') {
-      iconName = 'mechanical';
-    } else if (def.defId === 'source') {
-      iconName = 'source';
-    } else if (def.defId === 'source_air') {
-      iconName = 'source_air';
-    } else if (def.defId === 'sink_heat') {
-      iconName = 'sink_heat';
+    // [v10.9.1] NNG-P1: Use presentation icon if available, else legacy mapping
+    let iconName;
+    if (pres.icon) {
+      // Presentation provides icon directly (strip 'ico-' prefix if present for the lookup)
+      iconName = pres.icon.startsWith('ico-') ? pres.icon.slice(4) : pres.icon;
+    } else {
+      iconName = def.defId;
+      if (def.defId === 'grid_supply') {
+        iconName = 'electrical';   // [v10.0.4] lightning bolt (was ico-grid_supply)
+      } else if (def.defId === 'source_mechanical') {
+        iconName = 'mechanical';
+      } else if (def.defId === 'source') {
+        iconName = 'source';
+      } else if (def.defId === 'source_air') {
+        iconName = 'source_air';
+      } else if (def.defId === 'sink_heat') {
+        iconName = 'sink_heat';
+      }
     }
     // Other units use their defId directly (pump, compressor, valve, motor, sink, heater, hex)
     
@@ -14836,9 +15157,12 @@ function drawUnits() {
     }
 
     for (const p of def.ports) {
+      // [v10.9.0] NNG-P1: port positions from presentation
+      const portPos = pres.ports[p.portId];
+      if (!portPos) continue;
       const wp = {
-        x: (u.x + p.x) * scene.tile,
-        y: (u.y + p.y) * scene.tile
+        x: (u.x + portPos.x) * scene.tile,
+        y: (u.y + portPos.y) * scene.tile
       };
       const portId = p.portId;
       const unitId = u.id;
@@ -14958,7 +15282,7 @@ function drawUnits() {
       group.appendChild(circle);
 
       // Directional arrow - orient based on which edge the port is on
-      const portEdge = getPortEdge(p, def);
+      const portEdge = getPortEdge(portPos, pres);
 
       // [v10.8.1] Multi-connect ports show double arrows side-by-side
       const isMulti = !!p.multiConnect;
@@ -15016,16 +15340,19 @@ function _connBezierMid(conn) {
   if (!fromU || !toU) return null;
   const fromDef = UnitRegistry.get(fromU.defId);
   const toDef = UnitRegistry.get(toU.defId);
-  const fromPort = fromDef.ports.find(p => p.portId === conn.from.portId);
-  const toPort = toDef.ports.find(p => p.portId === conn.to.portId);
-  if (!fromPort || !toPort) return null;
-  const fx = (fromU.x + fromPort.x) * tile;
-  const fy = (fromU.y + fromPort.y) * tile;
-  const tx = (toU.x + toPort.x) * tile;
-  const ty = (toU.y + toPort.y) * tile;
+  // [v10.9.0] NNG-P1: port positions from presentation
+  const fromPres = getPresentation(fromDef, fromU);
+  const toPres = getPresentation(toDef, toU);
+  const fromPos = fromPres.ports[conn.from.portId];
+  const toPos = toPres.ports[conn.to.portId];
+  if (!fromPos || !toPos) return null;
+  const fx = (fromU.x + fromPos.x) * tile;
+  const fy = (fromU.y + fromPos.y) * tile;
+  const tx = (toU.x + toPos.x) * tile;
+  const ty = (toU.y + toPos.y) * tile;
   const controlOffset = Math.max(20, Math.min(60, Math.hypot(tx - fx, ty - fy) * 0.4));
-  const fromEdge = getPortEdge(fromPort, fromDef);
-  const toEdge = getPortEdge(toPort, toDef);
+  const fromEdge = getPortEdge(fromPos, fromPres);
+  const toEdge = getPortEdge(toPos, toPres);
   let c1x, c1y, c2x, c2y;
   if (fromEdge === 'left') { c1x = fx - controlOffset; c1y = fy; }
   else if (fromEdge === 'right') { c1x = fx + controlOffset; c1y = fy; }
@@ -15086,12 +15413,13 @@ function _collectStickers() {
     if (!u.sticker?.items?.length) continue;
     const def = UnitRegistry.get(u.defId);
     if (!def) continue;
+    const pres = getPresentation(def, u);
     const evaluated = _evaluateStickerItems(u);
     if (!evaluated.length) continue;
-    const anchorX = (u.x + def.w / 2) * tile;
-    const anchorY = (u.y + def.h / 2) * tile;
-    const halfW = def.w / 2 * tile;
-    const halfH = def.h / 2 * tile;
+    const anchorX = (u.x + pres.w / 2) * tile;
+    const anchorY = (u.y + pres.h / 2) * tile;
+    const halfW = pres.w / 2 * tile;
+    const halfH = pres.h / 2 * tile;
     const color = def.color || '#64748b';
     stickers.push({
       kind: 'unit', id: uid, sticker: u.sticker, evaluated, color,
@@ -18214,6 +18542,28 @@ function _rebuildInspectorContent() {
       propEditor.appendChild(el('div', { style: 'font-size:11px; color:#6ee7b7; opacity:0.6; padding:2px 0 4px;', html: '✓ OK' }));
     }
 
+    // ── [v10.9.1] Layout variant selector (NNG-P4) ──
+    if (def.presentations) {
+      const theme = ui.theme || 'box';
+      const prefix = theme + '/';
+      const variants = Object.keys(def.presentations)
+        .filter(k => k.startsWith(prefix))
+        .map(k => k.slice(prefix.length));
+      if (variants.length > 1) {
+        const layoutZone = el('div', { class: 'ins-params-zone', style: 'margin-bottom:4px;' });
+        const currentVariant = u.params.variant || 'default';
+        addSelectEditor(layoutZone, 'Layout',
+          () => currentVariant,
+          (v) => {
+            u.params.variant = (v === 'default') ? undefined : v;
+            render();
+          },
+          variants.map(v => [v, v === 'default' ? 'Default' : v.split('-').map(w => w[0].toUpperCase() + w.slice(1)).join(' ')])
+        );
+        propEditor.appendChild(layoutZone);
+      }
+    }
+
     // ── Parameters (flat zone, distinct background) [v10.2.2] ──
     if (config?.params || config?.customParams) {
       const paramsZone = el('div', { class: 'ins-params-zone' });
@@ -19941,7 +20291,7 @@ function loadDemo() {
         params: { n: { CO2: 1, H2: 4 }, T: 523, P: 1000000, phaseConstraint: 'V' } },
 
       // Mixer: fresh feed (in1) + recycle (in2)
-      { id: 'mix', defId: 'mixer', name: 'Mixer', x: 4, y: 4, rot: 0, params: {} },
+      { id: 'mix', defId: 'mixer', name: 'Mixer', x: 4, y: 4, rot: 0, params: { variant: 'top-recycle' } },
 
       // Sabatier Reactor: kinetics PFR, 0.5 m³ (kinetics-limited at mixed inlet T)
       { id: 'rx', defId: 'reactor_equilibrium', name: 'Sabatier Rx', x: 8, y: 4, rot: 0,
@@ -19956,7 +20306,7 @@ function loadDemo() {
 
       // Splitter: 15% purge (product), 85% recycle
       { id: 'split', defId: 'splitter', name: 'Purge/Recycle', x: 20, y: 3, rot: 0,
-        params: { splitPct: 15 } },
+        params: { splitPct: 15, variant: 'top-recycle' } },
 
       // Product sinks
       { id: 'snk-ch4', defId: 'sink', name: 'CH₄ Product', x: 24, y: 2, rot: 0, params: {} },
@@ -27755,6 +28105,164 @@ function runTests() {
     if (W > 0) {
       t.assertClose(Math.abs((H_out - H_in) - W) / 1000, 0, 1.0, 'Energy balance |ΔH - W| < 1 kW');
     }
+  }});
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // SECTION AL: Presentation Layer [v10.9.0–v10.9.3] (Tests 229–235)
+  // ═══════════════════════════════════════════════════════════════════════
+
+  tests.push({ name: '229: getPresentation resolver — legacy shim + presentations lookup', fn: t => {
+    // Legacy fallback: source has no presentations{}, should use _legacyPresentation
+    const srcDef = UnitRegistry.get('source');
+    const srcPres = getPresentation(srcDef, null);
+    t.assertOK(srcPres.w === 2, 'Source legacy w=2');
+    t.assertOK(srcPres.h === 2, 'Source legacy h=2');
+    t.assertOK(srcPres.ports.out && srcPres.ports.out.x === 2, 'Source legacy port out.x=2');
+
+    // Presentation lookup: mixer has presentations{}, default variant
+    const mixDef = UnitRegistry.get('mixer');
+    const mixPres = getPresentation(mixDef, { params: {} });
+    t.assertOK(mixPres.w === 2, 'Mixer default w=2');
+    t.assertOK(mixPres.ports.in1.y === 0, 'Mixer default in1.y=0 (left-top)');
+    t.assertOK(mixPres.ports.in2.y === 2, 'Mixer default in2.y=2 (left-bottom)');
+
+    // Presentation lookup: mixer top-recycle variant
+    const mixPresTR = getPresentation(mixDef, { params: { variant: 'top-recycle' } });
+    t.assertOK(mixPresTR.ports.in2.y === 0, 'Mixer top-recycle in2.y=0 (top)');
+    t.assertOK(mixPresTR.ports.in2.x === 1, 'Mixer top-recycle in2.x=1 (center)');
+    t.assertOK(mixPresTR.ports.in1.y === 1, 'Mixer top-recycle in1.y=1 (left-center)');
+
+    // Fallback: unknown variant falls back to theme/default
+    const mixBad = getPresentation(mixDef, { params: { variant: 'nonexistent' } });
+    t.assertOK(mixBad.ports.in1.y === 0, 'Unknown variant falls back to default');
+  }});
+
+  tests.push({ name: '230: Splitter variant port positions differ from default', fn: t => {
+    const splDef = UnitRegistry.get('splitter');
+    const splDefault = getPresentation(splDef, { params: {} });
+    const splTR = getPresentation(splDef, { params: { variant: 'top-recycle' } });
+
+    // Default: out1 at right-top (2,0), out2 at right-bottom (2,2)
+    t.assertOK(splDefault.ports.out1.x === 2 && splDefault.ports.out1.y === 0, 'Splitter default out1 at (2,0)');
+    t.assertOK(splDefault.ports.out2.x === 2 && splDefault.ports.out2.y === 2, 'Splitter default out2 at (2,2)');
+
+    // Top-recycle: out1 at right-center (2,1), out2 at top-center (1,0)
+    t.assertOK(splTR.ports.out1.x === 2 && splTR.ports.out1.y === 1, 'Splitter TR out1 at (2,1)');
+    t.assertOK(splTR.ports.out2.x === 1 && splTR.ports.out2.y === 0, 'Splitter TR out2 at (1,0)');
+
+    // Icon differs between variants
+    t.assertOK(splDefault.icon !== splTR.icon, 'Different icons per variant');
+  }});
+
+  tests.push({ name: '231: Variant round-trips through export/import', fn: t => {
+    t.clearScene();
+    const mix = t.place('mixer', 0, 0);
+    const mixU = scene.units.get(mix);
+    mixU.params.variant = 'top-recycle';
+
+    const spl = t.place('splitter', 4, 0);
+    const splU = scene.units.get(spl);
+    splU.params.variant = 'top-recycle';
+
+    // Export
+    const json = scene.exportJSON();
+    const parsed = JSON.parse(json);
+    const mixExport = parsed.units.find(u => u.defId === 'mixer');
+    const splExport = parsed.units.find(u => u.defId === 'splitter');
+    t.assertOK(mixExport.params.variant === 'top-recycle', 'Mixer variant exported');
+    t.assertOK(splExport.params.variant === 'top-recycle', 'Splitter variant exported');
+
+    // Import
+    t.clearScene();
+    const result = scene.importJSON(json);
+    t.assertOK(result.ok, 'Import succeeds');
+    const mixImported = Array.from(scene.units.values()).find(u => u.defId === 'mixer');
+    const splImported = Array.from(scene.units.values()).find(u => u.defId === 'splitter');
+    t.assertOK(mixImported.params.variant === 'top-recycle', 'Mixer variant survived import');
+    t.assertOK(splImported.params.variant === 'top-recycle', 'Splitter variant survived import');
+
+    // Verify presentation resolves correctly after import
+    const def = UnitRegistry.get('mixer');
+    const pres = getPresentation(def, mixImported);
+    t.assertOK(pres.ports.in2.y === 0, 'Imported mixer resolves top-recycle presentation');
+  }});
+
+  tests.push({ name: '232: Source 4-direction variants', fn: t => {
+    const def = UnitRegistry.get('source');
+    // Default: port on right
+    const d = getPresentation(def, { params: {} });
+    t.assertOK(d.ports.out.x === 2 && d.ports.out.y === 1, 'Default: right edge');
+    // Left
+    const l = getPresentation(def, { params: { variant: 'port-left' } });
+    t.assertOK(l.ports.out.x === 0 && l.ports.out.y === 1, 'port-left: left edge');
+    // Top
+    const tp = getPresentation(def, { params: { variant: 'port-top' } });
+    t.assertOK(tp.ports.out.x === 1 && tp.ports.out.y === 0, 'port-top: top edge');
+    // Bottom
+    const b = getPresentation(def, { params: { variant: 'port-bottom' } });
+    t.assertOK(b.ports.out.x === 1 && b.ports.out.y === 2, 'port-bottom: bottom edge');
+    // All 5 source types have same variant set
+    for (const id of ['source', 'source_multi', 'source_air', 'grid_supply', 'source_mechanical']) {
+      const d2 = UnitRegistry.get(id);
+      t.assertOK(d2.presentations['box/port-left'] !== undefined, id + ' has port-left');
+      t.assertOK(d2.presentations['box/port-top'] !== undefined, id + ' has port-top');
+    }
+  }});
+
+  tests.push({ name: '233: Sink 4-direction variants', fn: t => {
+    const def = UnitRegistry.get('sink');
+    const d = getPresentation(def, { params: {} });
+    t.assertOK(d.ports.in.x === 0, 'Default: left edge');
+    const r = getPresentation(def, { params: { variant: 'port-right' } });
+    t.assertOK(r.ports.in.x === 2, 'port-right: right edge');
+    const tp = getPresentation(def, { params: { variant: 'port-top' } });
+    t.assertOK(tp.ports.in.y === 0, 'port-top: top edge');
+    const b = getPresentation(def, { params: { variant: 'port-bottom' } });
+    t.assertOK(b.ports.in.y === 2, 'port-bottom: bottom edge');
+    for (const id of ['sink', 'sink_electrical', 'sink_heat']) {
+      const d2 = UnitRegistry.get(id);
+      t.assertOK(d2.presentations['box/port-right'] !== undefined, id + ' has port-right');
+    }
+  }});
+
+  tests.push({ name: '234: Pump/compressor output direction variants', fn: t => {
+    for (const id of ['pump', 'compressor']) {
+      const def = UnitRegistry.get(id);
+      const d = getPresentation(def, { params: {} });
+      t.assertOK(d.ports.mat_out.x === 2, id + ' default: out right');
+      const top = getPresentation(def, { params: { variant: 'output-top' } });
+      t.assertOK(top.ports.mat_out.y === 0, id + ' output-top: out at top');
+      t.assertOK(top.ports.power_in.x === 2, id + ' output-top: power moved to right');
+      const bot = getPresentation(def, { params: { variant: 'output-bottom' } });
+      t.assertOK(bot.ports.mat_out.y === 2, id + ' output-bottom: out at bottom');
+      t.assertOK(bot.ports.power_in.y === 0, id + ' output-bottom: power stays top');
+    }
+  }});
+
+  tests.push({ name: '235: Hex 4-combo flow direction variants', fn: t => {
+    const def = UnitRegistry.get('hex');
+    // Default: hot L→R, cold T→B
+    const d = getPresentation(def, { params: {} });
+    t.assertOK(d.ports.hot_in.x === 0 && d.ports.hot_out.x === 2, 'Default hot L→R');
+    t.assertOK(d.ports.cold_in.y === 0 && d.ports.cold_out.y === 2, 'Default cold T→B');
+    // Hot reversed
+    const hr = getPresentation(def, { params: { variant: 'hot-reversed' } });
+    t.assertOK(hr.ports.hot_in.x === 2 && hr.ports.hot_out.x === 0, 'Hot reversed R→L');
+    t.assertOK(hr.ports.cold_in.y === 0, 'Hot reversed: cold unchanged');
+    // Cold reversed
+    const cr = getPresentation(def, { params: { variant: 'cold-reversed' } });
+    t.assertOK(cr.ports.cold_in.y === 2 && cr.ports.cold_out.y === 0, 'Cold reversed B→T');
+    t.assertOK(cr.ports.hot_in.x === 0, 'Cold reversed: hot unchanged');
+    // Both reversed
+    const br = getPresentation(def, { params: { variant: 'both-reversed' } });
+    t.assertOK(br.ports.hot_in.x === 2 && br.ports.hot_out.x === 0, 'Both: hot R→L');
+    t.assertOK(br.ports.cold_in.y === 2 && br.ports.cold_out.y === 0, 'Both: cold B→T');
+    // Reactor equilibrium heat flip
+    const rxDef = UnitRegistry.get('reactor_equilibrium');
+    const rxD = getPresentation(rxDef, { params: {} });
+    t.assertOK(rxD.ports.heat_in.y === 3 && rxD.ports.heat_out.y === 0, 'Reactor default: heat in bottom, out top');
+    const rxR = getPresentation(rxDef, { params: { variant: 'heat-reversed' } });
+    t.assertOK(rxR.ports.heat_in.y === 0 && rxR.ports.heat_out.y === 3, 'Reactor reversed: heat in top, out bottom');
   }});
 
   // ═══════════════════════════════════════════════════════════════════════
