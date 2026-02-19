@@ -1,7 +1,33 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v11.0.1
+  processThis v11.0.2
+
+  ─── v11.0.2 — Reactor Port Integrity + Inspector Standardisation ──────
+  A. Reactor insulated port hiding:
+     Insulated mode hides heat_in port via dedicated 'box/insulated'
+     presentation (no heat_in in port map). Mode selector auto-disconnects
+     heat_in and sets variant. Scene.connect() gates on active presentation
+     port map — hidden ports cannot be connected to. Dead insulated-mode
+     heat_in guard removed from tick (state can no longer occur).
+     Import migration: strips heat_in connections on insulated reactors,
+     renames 'heat-reversed' variant → 'heat-top'.
+  B. Inspector section standardisation:
+     _renderAutoStream split into composable _renderStreamConditions,
+     _renderStreamFlowrates, _renderStreamComposition. Standard order:
+     params → conditions → flowrates → composition → reaction →
+     power & energy → sizing assistance → kpis → detail.
+     Empty sections collapse to nothing. Items support { tooltip }.
+  C. Reactor inspector refactor:
+     Thermicity (ΔH°) moved to Reaction Data with convention:
+     🔥 Exothermic (red/hot), ❄️ Endothermic (blue/cold).
+     New Sizing Assistance section (heated mode only): isothermal heat
+     duty, isothermal conversion, ξ at T_in — with hover tooltips.
+     Power & Energy: operational only (mode, T_out, ΔT, Q_in).
+     Insulated mode: no sizing section (no heat path).
+  D. Endo/exo convention audit: ❄️ everywhere for cold, 🔥 for hot.
+
+  Gate: 266 tests, 1696 checks, 0 failures.
 
   ─── v11.0.1 — Documentation: Power Surplus Physics ────────────────────
   No logic changes. Added inline physics rationale to gas_turbine header
@@ -10718,14 +10744,20 @@ UnitRegistry.register('reactor_equilibrium', {
     { portId: 'heat_in',  dir: PortDir.IN,  type: StreamType.HEAT,     x: 1, y: 3 }
   ],
   presentations: {
-    'box/default':       { w: 2, h: 3, ports: { mat_in:{x:0,y:1}, mat_out:{x:2,y:1}, heat_in:{x:1,y:3} } },
-    'box/heat-reversed': { w: 2, h: 3, ports: { mat_in:{x:0,y:1}, mat_out:{x:2,y:1}, heat_in:{x:1,y:0} } }
+    'box/default':       { w: 2, h: 3, ports: { mat_in:{x:0,y:1.5}, mat_out:{x:2,y:1.5}, heat_in:{x:1,y:3} } },
+    'box/heat-top':      { w: 2, h: 3, ports: { mat_in:{x:0,y:1.5}, mat_out:{x:2,y:1.5}, heat_in:{x:1,y:0} } },
+    'box/insulated':     { w: 2, h: 3, ports: { mat_in:{x:0,y:1.5}, mat_out:{x:2,y:1.5} } }
   },
   tick(u, ports, par, ctx) {
     const sIn = ports.mat_in;
     if (!sIn) return;
 
     const mode = par.mode || 'insulated';
+
+    // [v11.0.2] Keep variant in sync with thermal mode
+    // Ensures port visibility matches mode regardless of creation path
+    if (mode === 'insulated' && par.variant !== 'insulated') par.variant = 'insulated';
+    if (mode === 'heated' && par.variant === 'insulated') par.variant = undefined;
 
     // ── Guard: reaction must be selected ──
     const reaction = par.reactionId ? ReactionRegistry.get(par.reactionId) : null;
@@ -10747,19 +10779,6 @@ UnitRegistry.register('reactor_equilibrium', {
     }
     const resolvedPhase = inletPhase;
     const stoich = reaction.stoich;
-
-    // ── Insulated mode: reject heat_in connections ──
-    if (mode === 'insulated') {
-      const hasHeatIn = ctx?.scene?.connections.some(
-        c => c.to.unitId === u.id && c.to.portId === 'heat_in');
-      if (hasHeatIn) {
-        u.last = { error: { severity: ErrorSeverity.MAJOR,
-          message: 'Insulated mode — disconnect heat_in (switch to Heated mode to use heat supply)' } };
-        ports.mat_out = { type: StreamType.MATERIAL, T: sIn.T, P: sIn.P,
-          n: { ...sIn.n }, phaseConstraint: resolvedPhase };
-        return;
-      }
-    }
 
     // ── Activation window (inlet T/P) ──
     if (sIn.T < reaction.Tmin_K || sIn.T > reaction.Tmax_K ||
@@ -11041,7 +11060,7 @@ class Scene {
         unit.params = { reactionId: 'R_H2_COMB', conversion: 0.5 };
         break;
       case 'reactor_equilibrium':
-        unit.params = { reactionId: 'R_H2_COMB', useKinetics: true, volume_m3: 1.0, alpha: 1.0 };
+        unit.params = { reactionId: 'R_H2_COMB', useKinetics: true, volume_m3: 1.0, alpha: 1.0, mode: 'insulated', variant: 'insulated' };
         break;
       // ── Units with no params: sink, sink_electrical, sink_heat,
       //    power_hub, mixer, flash_drum — empty params is correct ──
@@ -11127,6 +11146,19 @@ class Scene {
     const pFrom = defFrom.ports.find(p => p.portId === from.portId);
     const pTo = defTo.ports.find(p => p.portId === to.portId);
     if (!pFrom || !pTo) { this._lastConnectError = 'Connection refused: port not found.'; return null; }
+
+    // [v11.0.2] Gate on active presentation — port must be visible in current mode
+    const presTo = getPresentation(defTo, uTo);
+    if (!presTo.ports[to.portId]) {
+      this._lastConnectError = `Port "${to.portId}" is not available in current mode.`;
+      return null;
+    }
+    const presFrom = getPresentation(defFrom, uFrom);
+    if (!presFrom.ports[from.portId]) {
+      this._lastConnectError = `Port "${from.portId}" is not available in current mode.`;
+      return null;
+    }
+
     if (pFrom.type !== pTo.type) {
       this._lastConnectError = `Incompatible stream types: ${_streamNames[pFrom.type]} → ${_streamNames[pTo.type]}.`;
       return null;
@@ -11387,8 +11419,24 @@ class Scene {
         data.connections = data.connections.filter(c => {
           if (c._deleted) return false;  // [v11.0.0] marked for deletion by migration
           if (reactorEqIds.has(c.from?.unitId) && c.from?.portId === 'heat_out') return false;
+          // [v11.0.2] Strip heat_in connections on insulated reactors
+          if (reactorEqIds.has(c.to?.unitId) && c.to?.portId === 'heat_in') {
+            const reactorUnit = data.units.find(uu => uu.id === c.to.unitId);
+            if (reactorUnit && (!reactorUnit.params?.mode || reactorUnit.params.mode === 'insulated')) return false;
+          }
           return true;
         });
+      }
+      // [v11.0.2] Reactor variant migration: heat-reversed → heat-top, insulated mode → insulated variant
+      if (Array.isArray(data.units)) {
+        for (const u of data.units) {
+          if (u.defId === 'reactor_equilibrium' && u.params) {
+            if (u.params.variant === 'heat-reversed') u.params.variant = 'heat-top';
+            if ((!u.params.mode || u.params.mode === 'insulated') && u.params.variant !== 'heat-top') {
+              u.params.variant = 'insulated';
+            }
+          }
+        }
       }
     }
 
@@ -17630,15 +17678,15 @@ function _findPrimaryStream(ud, def) {
   return null;
 }
 
-// Render auto-extracted material stream — 2-column grid layout
-// Row 1: T | P     Row 2: Phase | Vap fraction     Row 3: Composition (full)     Row 4: Molar | Mass flow
-function _renderAutoStream(container, stream, unitId, connId) {
+// [v11.0.2] Composable stream renderers — standard section order
+// Each returns a grid element (or nothing). Sticker context flows through.
+
+// ── Process Conditions: T, P, phase, vapor fraction ──
+function _renderStreamConditions(container, stream, sCtx) {
   if (!stream || stream.type !== StreamType.MATERIAL) return;
   const unitSys = models.getActive('units');
   const grid = el('div', { class: 'propGrid' });
-  const sCtx = unitId ? { unitId, section: 'conditions', connId: connId || null } : null;
   
-  // Row 1: T | P
   const tItem = el('div', { class: 'propItem' }, [
     el('div', { class: 'propLabel', html: 'Temperature' }),
     el('div', { class: 'propValue', 
@@ -17654,7 +17702,6 @@ function _renderAutoStream(container, stream, unitId, connId) {
   if (sCtx) _tagDraggableBadge(pItem, sCtx, 'Pressure');
   grid.appendChild(pItem);
   
-  // Row 2: Phase | Vapor fraction (if two-phase)
   const isVL = stream.phase === 'VL';
   const phaseText = stream.phase === 'V' ? 'Vapor' : stream.phase === 'L' ? 'Liquid' : isVL ? 'Two-Phase' : '—';
   const phItem = el('div', { class: 'propItem' }, [
@@ -17671,41 +17718,62 @@ function _renderAutoStream(container, stream, unitId, connId) {
   } else {
     grid.appendChild(el('div')); // empty cell to maintain grid
   }
+  container.appendChild(grid);
+}
 
-  // Row 3: Composition — rendered as standard propItems in the same grid
-  const compItems = _compositionToItems(stream);
-  if (compItems.length) {
-    const compCtx = sCtx ? { ...sCtx, section: 'composition' } : null;
-    for (const item of compItems) {
-      const pi = el('div', { class: 'propItem' });
-      pi.appendChild(el('div', { class: 'propLabel', html: item.label }));
-      const valEl = el('div', { class: 'propValue' });
-      valEl.innerHTML = item.value;
-      pi.appendChild(valEl);
-      if (compCtx) _tagDraggableBadge(pi, compCtx, item.label);
-      grid.appendChild(pi);
-    }
-  }
-  
-  // Row 4: Molar flow | Mass flow
+// ── Flowrates: molar, mass ──
+function _renderStreamFlowrates(container, stream, sCtx) {
+  if (!stream || stream.type !== StreamType.MATERIAL) return;
+  const unitSys = models.getActive('units');
   const flowrates = calculateStreamFlowrates(stream);
-  if (flowrates) {
-    const mfItem = el('div', { class: 'propItem' }, [
-      el('div', { class: 'propLabel', html: 'Molar flow' }),
-      el('div', { class: 'propValue', 
-        html: `${unitSys.molarFlow.from(flowrates.nTotal).toFixed(unitSys.molarFlow.decimals)}<span class="propUnit">${unitSys.molarFlow.symbol}</span>` })
-    ]);
-    if (sCtx) _tagDraggableBadge(mfItem, sCtx, 'Molar flow');
-    grid.appendChild(mfItem);
-    const msItem = el('div', { class: 'propItem' }, [
-      el('div', { class: 'propLabel', html: 'Mass flow' }),
-      el('div', { class: 'propValue', 
-        html: `${unitSys.massFlow.from(flowrates.mTotal).toFixed(unitSys.massFlow.decimals)}<span class="propUnit">${unitSys.massFlow.symbol}</span>` })
-    ]);
-    if (sCtx) _tagDraggableBadge(msItem, sCtx, 'Mass flow');
-    grid.appendChild(msItem);
+  if (!flowrates) return;
+  const grid = el('div', { class: 'propGrid' });
+  const mfItem = el('div', { class: 'propItem' }, [
+    el('div', { class: 'propLabel', html: 'Molar flow' }),
+    el('div', { class: 'propValue', 
+      html: `${unitSys.molarFlow.from(flowrates.nTotal).toFixed(unitSys.molarFlow.decimals)}<span class="propUnit">${unitSys.molarFlow.symbol}</span>` })
+  ]);
+  if (sCtx) _tagDraggableBadge(mfItem, sCtx, 'Molar flow');
+  grid.appendChild(mfItem);
+  const msItem = el('div', { class: 'propItem' }, [
+    el('div', { class: 'propLabel', html: 'Mass flow' }),
+    el('div', { class: 'propValue', 
+      html: `${unitSys.massFlow.from(flowrates.mTotal).toFixed(unitSys.massFlow.decimals)}<span class="propUnit">${unitSys.massFlow.symbol}</span>` })
+  ]);
+  if (sCtx) _tagDraggableBadge(msItem, sCtx, 'Mass flow');
+  grid.appendChild(msItem);
+  container.appendChild(grid);
+}
+
+// ── Composition: species mol/s ──
+function _renderStreamComposition(container, stream, sCtx) {
+  if (!stream || stream.type !== StreamType.MATERIAL) return;
+  const compItems = _compositionToItems(stream);
+  if (!compItems.length) return;
+  const compCtx = sCtx ? { ...sCtx, section: 'composition' } : null;
+  const lbl = el('div', { class: 'ins-section-label' });
+  lbl.textContent = 'Composition';
+  container.appendChild(lbl);
+  const grid = el('div', { class: 'propGrid' });
+  for (const item of compItems) {
+    const pi = el('div', { class: 'propItem' });
+    pi.appendChild(el('div', { class: 'propLabel', html: item.label }));
+    const valEl = el('div', { class: 'propValue' });
+    valEl.innerHTML = item.value;
+    pi.appendChild(valEl);
+    if (compCtx) _tagDraggableBadge(pi, compCtx, item.label);
+    grid.appendChild(pi);
   }
   container.appendChild(grid);
+}
+
+// Legacy wrapper — backward compat for callers that want the old monolithic render
+function _renderAutoStream(container, stream, unitId, connId) {
+  if (!stream || stream.type !== StreamType.MATERIAL) return;
+  const sCtx = unitId ? { unitId, section: 'conditions', connId: connId || null } : null;
+  _renderStreamConditions(container, stream, sCtx);
+  _renderStreamFlowrates(container, stream, sCtx);
+  _renderStreamComposition(container, stream, sCtx);
 }
 
 // [v10.7.0] Convert auto-stream data to labeled items (same format as inspector hooks)
@@ -17815,6 +17883,7 @@ function _renderKPIGrid(container, items, stickerCtx) {
       grid.appendChild(barItem);
     } else {
       const pi = el('div', { class: `propItem${item.full ? ' full-row' : ''}` });
+      if (item.tooltip) pi.title = item.tooltip;  // [v11.0.2] tooltip on hover
       pi.appendChild(el('div', { class: 'propLabel', html: item.label }));
       const valEl = el('div', { class: 'propValue', style: item.full ? 'font-size:12px;' : '' });
       valEl.innerHTML = item.value;
@@ -17860,11 +17929,14 @@ function _renderDetailSection(container, items) {
 // API (all hooks optional):
 //   params(u)            → editable param descriptors (rendered in .ins-params-zone)
 //   customParams(c,u,s)  → custom param DOM
-//   conditions(u, ud)    → KPI items for T/P/phase/composition (overrides auto-stream)
-//   power(u, ud)         → KPI items for power/energy/duty ("Power & Energy")
+//   conditions(u, ud)    → KPI items for T/P/phase (overrides auto-stream)
 //   reaction(u, ud)      → KPI items for reactor-specific data ("Reaction Data")
+//   power(u, ud)         → KPI items for power/energy/duty ("Power & Energy")
+//   sizing(u, ud)        → KPI items for design references ("Sizing Assistance")
 //   kpis(u, ud)          → KPI items for unit-specific operational data
 //   detail(u, ud, sc)    → condensed KV items for deep-dive data (collapsible)
+// Section order: params → conditions → flowrates → composition → reaction → power → sizing → kpis → detail
+// Empty sections collapse to nothing. Items support { tooltip } for hover text.
 // ═══════════════════════════════════════════════════════════════════════════
 const UnitInspector = {};
 
@@ -18277,8 +18349,26 @@ function _reactorParams(u, type) {
     params.push({ type: 'slider', label: 'Conversion', get: () => u.params.conversion ?? 0.5, set: v => u.params.conversion = v, min: 0, max: 1, step: 0.01 });
   } else {
     params.push({ type: 'select', label: 'Thermal mode', get: () => u.params.mode || 'insulated',
-      set: v => { u.params.mode = v; updatePropertiesPanel(); },
-      options: [['insulated', '🧊 Insulated (adiabatic)'], ['heated', '🔥 Heated (heat_in)']] });
+      set: v => {
+        // [v11.0.2] Auto-disconnect heat_in when switching to insulated
+        if (v === 'insulated') {
+          const heatConns = scene.connections.filter(
+            c => c.to.unitId === u.id && c.to.portId === 'heat_in');
+          if (heatConns.length > 0) {
+            _pushUndo('Switch to insulated mode');
+            scene.connections = scene.connections.filter(
+              c => !(c.to.unitId === u.id && c.to.portId === 'heat_in'));
+          }
+          u.params.variant = 'insulated';
+        } else {
+          // Restore heated variant (default = heat bottom)
+          if (u.params.variant === 'insulated') u.params.variant = undefined;
+        }
+        u.params.mode = v;
+        render();
+        updatePropertiesPanel();
+      },
+      options: [['insulated', '❄️ Insulated (adiabatic)'], ['heated', '🔥 Heated (heat_in)']] });
     params.push({ type: 'toggle', label: 'Kinetics (PFR)', get: () => u.params.useKinetics !== false, set: v => { u.params.useKinetics = v; updatePropertiesPanel(); } });
     if (u.params.useKinetics !== false) params.push({ label: 'Volume (m³)', get: () => u.params.volume_m3 ?? 1.0, set: v => u.params.volume_m3 = v, step: 3 });
     else params.push({ type: 'slider', label: 'Alpha (approach)', get: () => u.params.alpha ?? 1.0, set: v => u.params.alpha = v, min: 0, max: 1, step: 0.01 });
@@ -18307,7 +18397,7 @@ UnitInspector.reactor_equilibrium = {
     const L = ud.last;
     const items = [];
     // Mode badge
-    const modeLabel = L.reactorMode === 'heated' ? '🔥 Heated' : '🧊 Insulated';
+    const modeLabel = L.reactorMode === 'heated' ? '🔥 Heated' : '❄️ Insulated';
     items.push({ label: 'Mode', value: modeLabel });
     // Temperature result
     if (L.T_out != null && L.T_in != null) {
@@ -18316,26 +18406,24 @@ UnitInspector.reactor_equilibrium = {
       items.push({ label: 'T out', value: fmt.T(L.T_out) });
       items.push({ label: 'ΔT', value: `${arrow} ${dT > 0 ? '+' : ''}${dT.toFixed(1)} K`, tone: Math.abs(dT) > 50 ? 'warn' : '' });
     }
-    // Heat input (heated mode)
+    // Heat input (heated mode only)
     if (L.reactorMode === 'heated' && L.Q_in_W != null) {
       items.push({ label: 'Q in (heat_in)', value: fmt.kW(L.Q_in_W) });
     }
-    // Isothermal sizing aid — always shown
-    if (L.iso_Q_duty_W != null) {
-      const isEndo = L.iso_Q_duty_W > 0;
-      const badge = isEndo ? '❄️ endo' : '🔥 exo';
-      items.push({ label: `📐 Q to hold T_in`, value: `${fmt.kW(Math.abs(L.iso_Q_duty_W))} ${badge}`,
-        tone: 'info' });
-    }
     return items;
   },
-  reaction(u, ud) { if (!ud?.last) return []; const L = ud.last; const items = [];
+  reaction(u, ud) {
+    if (!ud?.last) return [];
+    const L = ud.last;
+    const items = [];
     if (L.status) items.push({ label: 'Status', value: L.status, tone: L.status === 'active' ? '' : 'warn' });
-    if (L.conversion_pct != null) items.push({ label: 'Conversion', value: `${L.conversion_pct.toFixed(1)}%` });
-    if (L.iso_conv_pct != null && L.conversion_pct != null) {
-      const delta = L.iso_conv_pct - L.conversion_pct;
-      if (Math.abs(delta) > 0.1) items.push({ label: 'Isothermal conv.', value: `${L.iso_conv_pct.toFixed(1)}%`, tone: 'info' });
+    // [v11.0.2] Thermicity: ΔH° of reaction — always shown, convention: 🔥 exo (red), ❄️ endo (blue)
+    if (L.dH0 != null) {
+      const isEndo = L.dH0 > 0;
+      const badge = isEndo ? '❄️ Endothermic' : '🔥 Exothermic';
+      items.push({ label: 'Thermicity', value: `${badge} (ΔH° = ${(L.dH0/1000).toFixed(1)} kJ/mol)` });
     }
+    if (L.conversion_pct != null) items.push({ label: 'Conversion', value: `${L.conversion_pct.toFixed(1)}%` });
     if (L.ln_K != null) items.push({ label: 'K_eq (at T_out)', value: Math.exp(Math.min(L.ln_K, 300)).toExponential(3) });
     if (L.alpha != null && !L.useKinetics) items.push({ label: 'Approach α', value: L.alpha.toFixed(4) });
     if (L.tau_s != null) items.push({ label: 'τ', value: `${L.tau_s.toFixed(2)}<span class="propUnit">s</span>` });
@@ -18343,12 +18431,33 @@ UnitInspector.reactor_equilibrium = {
     else if (L.iterations != null) items.push({ label: 'Solver', value: `${L.iterations} iter${L.warmStartUsed ? ' (warm)' : ''}${L.skipped ? ' (cached)' : ''}` });
     return items;
   },
+  // [v11.0.2] Sizing Assistance — heated mode only (insulated has no heat path)
+  sizing(u, ud) {
+    if (!ud?.last || ud.last.status !== 'active') return [];
+    const L = ud.last;
+    if (L.reactorMode !== 'heated') return [];
+    const items = [];
+    if (L.iso_Q_duty_W != null) {
+      const heating = L.iso_Q_duty_W >= 0;
+      const label = heating ? 'Isothermal heat duty (heating)' : 'Isothermal heat duty (cooling)';
+      items.push({ label, value: fmt.kW(Math.abs(L.iso_Q_duty_W)),
+        tooltip: 'Heat rate required to maintain reactor outlet at inlet temperature' });
+    }
+    if (L.iso_conv_pct != null) {
+      items.push({ label: 'Isothermal conversion', value: `${L.iso_conv_pct.toFixed(1)}%`,
+        tooltip: 'Equilibrium conversion if reactor held at inlet temperature' });
+    }
+    if (L.iso_xi != null) {
+      items.push({ label: 'ξ at T_in', value: `${L.iso_xi.toExponential(3)}<span class="u">mol/s</span>`,
+        tooltip: 'Extent of reaction at inlet temperature' });
+    }
+    return items;
+  },
   detail(u, ud) { if (!ud.last) return []; const L = ud.last; return [
     ...(L.T_eval ? [{ label: 'T reaction', value: fmt.T(L.T_eval) }] : []),
     ...(L.xi != null ? [{ label: 'ξ', value: `${L.xi.toExponential(3)}<span class="u">mol/s</span>` }] : []),
     ...(L.xi_eq != null ? [{ label: 'ξ_eq', value: `${L.xi_eq.toExponential(3)}<span class="u">mol/s</span>` }] : []),
     ...(L.xi_max != null ? [{ label: 'ξ_max', value: `${L.xi_max.toExponential(3)}<span class="u">mol/s</span>` }] : []),
-    ...(L.iso_xi != null ? [{ label: 'ξ_iso (at T_in)', value: `${L.iso_xi.toExponential(3)}<span class="u">mol/s</span>` }] : []),
     ...(L.H_in_kW ? [{ label: 'H in', value: `${L.H_in_kW}<span class="u">kW</span>` }] : []),
     ...(L.H_out_kW ? [{ label: 'H out', value: `${L.H_out_kW}<span class="u">kW</span>` }] : []),
     ...(L.rate_inlet != null ? [{ label: 'Rate (inlet)', value: `${L.rate_inlet.toExponential(2)}<span class="u">mol/m³s</span>` }] : []),
@@ -18591,7 +18700,9 @@ function _rebuildInspectorContent() {
       const prefix = theme + '/';
       const variants = Object.keys(def.presentations)
         .filter(k => k.startsWith(prefix))
-        .map(k => k.slice(prefix.length));
+        .map(k => k.slice(prefix.length))
+        // [v11.0.2] Filter out mode-managed variants (insulated is set by thermal mode)
+        .filter(v => !(u.defId === 'reactor_equilibrium' && v === 'insulated'));
       if (variants.length > 1) {
         const layoutZone = el('div', { class: 'ins-params-zone', style: 'margin-bottom:4px;' });
         const currentVariant = u.params.variant || 'default';
@@ -18618,32 +18729,53 @@ function _rebuildInspectorContent() {
       propEditor.appendChild(paramsZone);
     }
 
-    // ── [v10.2.0] Process Conditions ──
-    // Priority: config.conditions() > auto-stream from primary material port
-    if (config?.conditions && ud) {
-      const items = config.conditions(u, ud);
-      if (items?.length) _renderKPIGrid(propEditor, items, { unitId: u.id, section: 'conditions' });
-    } else if (ud) {
+    // ── [v11.0.2] Standard section order ──
+    // params → conditions → flowrates → composition → reaction → power → sizing → kpis → detail
+    if (ud) {
+      const _sCtx = { unitId: u.id, section: 'conditions' };
       const primaryStream = _findPrimaryStream(ud, def);
-      if (primaryStream) _renderAutoStream(propEditor, primaryStream, u.id);
-    }
 
-    // ── [v10.2.0] Power & Energy ──
-    if (ud && config?.power) {
-      const items = config.power(u, ud);
-      if (items?.length) _renderLabeledSection(propEditor, 'Power & Energy', items, { unitId: u.id, section: 'power' });
-    }
+      // ── Process Conditions ──
+      if (config?.conditions) {
+        const items = config.conditions(u, ud);
+        if (items?.length) _renderKPIGrid(propEditor, items, _sCtx);
+      } else if (primaryStream) {
+        _renderStreamConditions(propEditor, primaryStream, _sCtx);
+      }
 
-    // ── [v10.2.2] Reaction Data ──
-    if (ud && config?.reaction) {
-      const items = config.reaction(u, ud);
-      if (items?.length) _renderLabeledSection(propEditor, 'Reaction Data', items, { unitId: u.id, section: 'reaction' });
-    }
+      // ── Flowrates ──
+      if (!config?.conditions && primaryStream) {
+        _renderStreamFlowrates(propEditor, primaryStream, _sCtx);
+      }
 
-    // ── Unit-specific KPIs ──
-    if (ud && config?.kpis) {
-      const kpiItems = config.kpis(u, ud);
-      if (kpiItems?.length) _renderKPIGrid(propEditor, kpiItems, { unitId: u.id, section: 'kpis' });
+      // ── Composition ──
+      if (!config?.conditions && primaryStream) {
+        _renderStreamComposition(propEditor, primaryStream, _sCtx);
+      }
+
+      // ── Reaction Data ──
+      if (config?.reaction) {
+        const items = config.reaction(u, ud);
+        if (items?.length) _renderLabeledSection(propEditor, 'Reaction Data', items, { unitId: u.id, section: 'reaction' });
+      }
+
+      // ── Power & Energy ──
+      if (config?.power) {
+        const items = config.power(u, ud);
+        if (items?.length) _renderLabeledSection(propEditor, 'Power & Energy', items, { unitId: u.id, section: 'power' });
+      }
+
+      // ── [v11.0.2] Sizing Assistance ──
+      if (config?.sizing) {
+        const items = config.sizing(u, ud);
+        if (items?.length) _renderLabeledSection(propEditor, 'Sizing Assistance', items, { unitId: u.id, section: 'sizing' });
+      }
+
+      // ── Unit-specific KPIs ──
+      if (config?.kpis) {
+        const kpiItems = config.kpis(u, ud);
+        if (kpiItems?.length) _renderKPIGrid(propEditor, kpiItems, { unitId: u.id, section: 'kpis' });
+      }
     }
     if (!ud) {
       propEditor.appendChild(el('div', { class: 'ins-hint', html: 'Not computed yet — press Test/Step' }));
@@ -20424,7 +20556,7 @@ function loadDemo() {
       { id: 'b-feed', defId: 'source_multi', name: 'CH₄/Steam Feed', x: 4, y: -6, rot: 0,
         params: { n: { CH4: 0.2, H2O: 0.4 }, T: 1000, P: 2000000, phaseConstraint: 'V' } },
       { id: 'b-rx', defId: 'reactor_equilibrium', name: 'SMR Reactor', x: 8, y: -6, rot: 0,
-        params: { reactionId: 'R_STEAM_REFORM', useKinetics: true, volume_m3: 1.0, variant: 'heat-reversed' },
+        params: { reactionId: 'R_STEAM_REFORM', useKinetics: true, volume_m3: 1.0, mode: 'heated', variant: 'heat-top' },
         sticker: { dx: -6, dy: -2, items: [
           { section: 'power', label: 'ΔT' },
           { section: 'reaction', label: 'Conversion' }
@@ -27869,8 +28001,12 @@ function runTests() {
     const rxDef = UnitRegistry.get('reactor_equilibrium');
     const rxD = getPresentation(rxDef, { params: {} });
     t.assertOK(rxD.ports.heat_in.y === 3, 'Reactor default: heat_in at bottom');
-    const rxR = getPresentation(rxDef, { params: { variant: 'heat-reversed' } });
-    t.assertOK(rxR.ports.heat_in.y === 0, 'Reactor reversed: heat_in at top');
+    const rxR = getPresentation(rxDef, { params: { variant: 'heat-top' } });
+    t.assertOK(rxR.ports.heat_in.y === 0, 'Reactor heat-top: heat_in at top');
+    // [v11.0.2] Insulated variant hides heat_in
+    const rxI = getPresentation(rxDef, { params: { variant: 'insulated' } });
+    t.assertOK(!rxI.ports.heat_in, 'Reactor insulated: heat_in hidden');
+    t.assertOK(rxI.ports.mat_in && rxI.ports.mat_out, 'Reactor insulated: mat ports present');
   }});
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -27937,7 +28073,7 @@ function runTests() {
   tests.push({ name: '240: Heated endo + small Q → T between insulated and isothermal', fn: t => {
     // [v11.0.0] Heated mode with partial Q: T_out > insulated, < isothermal
     const feed = t.place('source_multi', 0, 0, { n:{CH4:0.2, H2O:0.4}, T:1000, P:2000000, phaseConstraint:'V' });
-    const rx = t.place('reactor_equilibrium', 4, 0, { reactionId:'R_STEAM_REFORM', useKinetics:true, volume_m3:1.0, mode:'heated', variant:'heat-reversed' });
+    const rx = t.place('reactor_equilibrium', 4, 0, { reactionId:'R_STEAM_REFORM', useKinetics:true, volume_m3:1.0, mode:'heated', variant:'heat-top' });
     const snk = t.place('sink', 8, 0);
     // Supply only 2 kW (duty is ~8 kW)
     const gs = t.place('grid_supply', 0, 6, { maxPower:5 });
@@ -27958,7 +28094,7 @@ function runTests() {
   tests.push({ name: '241: Heated endo + excess Q → T near isothermal', fn: t => {
     // Endothermic + excess heat → T_out ≈ T_in or slightly above
     const feed = t.place('source_multi', 0, 0, { n:{CH4:0.2, H2O:0.4}, T:1000, P:2000000, phaseConstraint:'V' });
-    const rx = t.place('reactor_equilibrium', 4, 0, { reactionId:'R_STEAM_REFORM', useKinetics:true, volume_m3:1.0, mode:'heated', variant:'heat-reversed' });
+    const rx = t.place('reactor_equilibrium', 4, 0, { reactionId:'R_STEAM_REFORM', useKinetics:true, volume_m3:1.0, mode:'heated', variant:'heat-top' });
     const snk = t.place('sink', 8, 0);
     const gs = t.place('grid_supply', 0, 6, { maxPower:100 });
     const eh = t.place('electric_heater', 3, 6, { power_kW:50 });
@@ -27977,7 +28113,7 @@ function runTests() {
   tests.push({ name: '242: Heated exo + Q → T rises above insulated', fn: t => {
     // Exothermic + external heat → T_out higher than insulated case.
     const feed = t.place('source_multi', 0, 0, { n:{CO2:0.1, H2:0.4}, T:600, P:500000, phaseConstraint:'V' });
-    const rxHeat = t.place('reactor_equilibrium', 4, 0, { reactionId:'R_SABATIER', useKinetics:true, volume_m3:1.0, mode:'heated', variant:'heat-reversed' });
+    const rxHeat = t.place('reactor_equilibrium', 4, 0, { reactionId:'R_SABATIER', useKinetics:true, volume_m3:1.0, mode:'heated', variant:'heat-top' });
     const snk = t.place('sink', 8, 0);
     const gs = t.place('grid_supply', 0, 6, { maxPower:50 });
     const eh = t.place('electric_heater', 3, 6, { power_kW:10 });
@@ -28026,7 +28162,7 @@ function runTests() {
     // CH₄+2H₂O @1000K 20bar → Reactor (R_STEAM_REFORM) → Hex hot → Valve (20→2 bar) → Syngas sink
     // Heat supplied by external source (Sabatier stand-in: dedicated source_multi for isolation)
     const bFeed  = t.place('source_multi',     30,  4, { n: { CH4: 0.2, H2O: 0.4 }, T: 1000, P: 2000000, phaseConstraint: 'V' });
-    const bRx    = t.place('reactor_equilibrium', 34, 4, { reactionId: 'R_STEAM_REFORM', useKinetics: true, volume_m3: 1.0, variant: 'heat-reversed', mode: 'heated' });
+    const bRx    = t.place('reactor_equilibrium', 34, 4, { reactionId: 'R_STEAM_REFORM', useKinetics: true, volume_m3: 1.0, variant: 'heat-top', mode: 'heated' });
     const bValve = t.place('valve',            42,  4, { Pout: 200000 });
     const bProd  = t.place('sink',             46,  4);
     // [v11.0.0] bQout removed — no heat_out port on reactor
@@ -28756,27 +28892,35 @@ function runTests() {
     t.assertClose(t.last(rxI).xi, t.last(rxH).xi, 0.001, 'xi identical');
   }});
 
-  tests.push({ name: '269: Insulated mode rejects heat_in connection', fn: t => {
+  tests.push({ name: '269: Insulated mode hides heat_in and rejects connection', fn: t => {
     t.clearScene();
     const src = t.place('source_multi', 0, 0, {
       n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V'
     });
+    // Default mode is insulated — variant should be 'insulated' (no heat_in visible)
     const rx = t.place('reactor_equilibrium', 4, 0, {
-      reactionId: 'R_STEAM_REFORM', useKinetics: false, alpha: 1.0
+      reactionId: 'R_STEAM_REFORM', useKinetics: false, alpha: 1.0, mode: 'insulated', variant: 'insulated'
     });
     const snk = t.place('sink', 8, 0);
-    const gs = t.place('grid_supply', 0, 6, { maxPower: 50 });
     const eh = t.place('electric_heater', 4, 6, { power_kW: 50 });
     const ehSnk = t.place('sink_heat', 8, 6);
-    t.wire(gs, 'out', eh, 'elec_in');
-    t.wire(eh, 'heat_out', rx, 'heat_in');
+    // heat_in should be hidden in insulated presentation
+    const def = UnitRegistry.get('reactor_equilibrium');
+    const pres = getPresentation(def, scene.units.get(rx));
+    t.assertOK(!pres.ports.heat_in, 'heat_in hidden in insulated');
+    // Scene.connect should reject connection to hidden port
+    const connId = scene.connect(
+      { unitId: eh, portId: 'heat_out' },
+      { unitId: rx, portId: 'heat_in' }
+    );
+    t.assertOK(connId === null, 'Connection rejected');
+    t.assertOK(scene._lastConnectError?.includes('not available'), 'Error mentions port not available');
+    // Solve: reactor should work normally without error
     t.wire(src, 'out', rx, 'mat_in');
     t.wire(rx, 'mat_out', snk, 'in');
     t.solve();
     const rxL = t.last(rx);
-    t.assertOK(rxL.error, 'Error present');
-    t.assertOK(rxL.error.severity === ErrorSeverity.MAJOR, 'MAJOR error');
-    t.assertOK(rxL.error.message.includes('Insulated'), 'Message mentions insulated');
+    t.assertOK(!rxL.error, 'No error in insulated mode');
   }});
 
   tests.push({ name: '270: No heat_out port on reactor_equilibrium', fn: t => {
