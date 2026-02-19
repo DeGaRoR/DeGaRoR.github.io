@@ -1,7 +1,39 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v11.1.0
+  processThis v11.1.1
+
+  ─── v11.1.1 — NNG Compliance Fixes ────────────────────────────────────
+  Four surgical fixes from NNG audit. No physics changes.
+
+  A. NNG-9 Tick Isolation:
+     Solver pre-computes output port connectivity map (Map<unitId, Set<portId>>)
+     once before the iteration loop. RuntimeContext.forUnit() now exposes:
+       ctx.portConnected(portId) → boolean (replaces ctx.scene.connections queries)
+       ctx.solveGen → number (replaces ctx.scene._solveGen)
+     Four tick functions updated: tank (overflow), power_hub (elec_surplus),
+     electric_heater (heat_out), cooler (heat_out). Reactor cache updated to
+     use ctx.solveGen. ctx.scene retained as deprecated for transition safety.
+     Performance: O(connections) once vs O(connections) × N_checking_units × iters.
+
+  B. NNG-10 ComponentRegistry gate:
+     register() now calls validate() and throws on errors (matching
+     ReactionRegistry pattern). Incomplete registrations are rejected at
+     startup. Existing TEST_BAD/TEST_ORD tests pass (already use try/catch).
+
+  C. NNG-14 XSS:
+     Two innerHTML paths with user-editable u.name switched to text:.
+     Sticker ownerLabel (was html:, now text:). Cheat unit warning (was html:,
+     now text:). No markup needed in either context.
+
+  D. NNG-11 text correction:
+     Removed "→ E (source direct)" from NNG-11 solver step listing.
+     Step E was deleted in v11.0.0 Phase 2.
+
+  NNG: NNG-9, NNG-10, NNG-11, NNG-14.
+  Tests: T284–T286 (portConnected, solveGen, ComponentRegistry gate).
+
+  Gate: 275 tests, 1722 checks, 0 failures.
 
   ─── v11.1.0 — NNG Rationalization ──────────────────────────────────────
   Complete rewrite of the Non-Negotiables section. The previous ~50 rules
@@ -2030,8 +2062,7 @@
               tick → validateStreamFlows (heal) → validateMaterialPreFlash
               → flash loop (TP/PH) → port storage → validateUnitPorts
               (post-flash) → Steps B (demand) → C (hub: physics-fixed →
-              responsive → battery) → D (direct) → E (source direct) →
-              convergence check.
+              responsive → battery) → D (direct) → convergence check.
             Inter-iteration state through RuntimeContext.scratch() only —
             never u._anything.  Inter-timestep state on u.inventory,
             invisible to solveScene().  PH-flash must yield finite T or
@@ -2272,7 +2303,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>processThis — v11.1.0</title>
+  <title>processThis — v11.1.1</title>
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
@@ -4474,6 +4505,14 @@ class ComponentRegistry {
       molecular: spec.molecular || null        // Molecular structure info (optional)
     };
     this._components.set(formula, comp);
+
+    // [v11.1.1 NNG-10] Validate at registration time — matches ReactionRegistry pattern.
+    // Errors (missing required fields) cause throw; warnings are logged but allowed.
+    const result = this.validate(formula);
+    if (!result.valid) {
+      this._components.delete(formula);
+      throw new Error(`ComponentRegistry '${formula}': ${result.errors.join('; ')}`);
+    }
   }
 
   static get(formula) {
@@ -8928,9 +8967,7 @@ UnitRegistry.register('tank', {
     const needsOverflow = n_max > 0 && (fillPct > 100 || (fillPct >= 99.99 && netInflux > 1e-12));
 
     if (needsOverflow) {
-      const overflowConnected = ctx.scene.connections.some(
-        c => c.from.unitId === u.id && c.from.portId === 'overflow'
-      );
+      const overflowConnected = ctx.portConnected('overflow');
       if (overflowConnected) {
         // Overflow rate = drain excess + absorb net influx to hold at 100%
         const excess = Math.max(0, total - n_max);
@@ -9232,8 +9269,7 @@ UnitRegistry.register('power_hub', {
     };
 
     // [v11.0.0] elec_surplus: carry forward from Step C scratch
-    const hasSurplusConn = ctx?.scene?.connections.some(
-      c => c.from.unitId === u.id && c.from.portId === 'elec_surplus');
+    const hasSurplusConn = ctx.portConnected('elec_surplus');
     const surpVal = s.hubSurplus_W ?? 0;
     ports.elec_surplus = {
       type: StreamType.ELECTRICAL,
@@ -9455,8 +9491,7 @@ UnitRegistry.register('electric_heater', {
     if (!elecIn) return;
     
     // [v11.0.0 NNG-W3] No load connected → no draw
-    const hasHeatOut = ctx?.scene?.connections.some(
-      c => c.from.unitId === u.id && c.from.portId === 'heat_out');
+    const hasHeatOut = ctx.portConnected('heat_out');
     if (!hasHeatOut) {
       u.powerDemand = 0;
       ports.heat_out = { type: StreamType.HEAT, capacity: 0, actual: 0, available: 0, demand: 0 };
@@ -9948,8 +9983,7 @@ UnitRegistry.register('cooler', {
     }
 
     // [v11.0.0 NNG-W3] Unconnected heat_out → no cooling (passthrough)
-    const hasHeatOut = ctx?.scene?.connections.some(
-      c => c.from.unitId === u.id && c.from.portId === 'heat_out');
+    const hasHeatOut = ctx.portConnected('heat_out');
     if (!hasHeatOut) {
       ports.mat_out = {
         type: StreamType.MATERIAL,
@@ -10906,7 +10940,7 @@ UnitRegistry.register('reactor_equilibrium', {
     let _hash = sIn.T * 1e6 + sIn.P + Q_in_W * 1e-3;
     for (let i = 0; i < nKeys.length; i++) _hash += (sIn.n[nKeys[i]] || 0) * (i + 1) * 7919;
     const inletHash = _hash;
-    const curGen = ctx?.scene?._solveGen || 0;
+    const curGen = ctx.solveGen;
     if (u.rxCache?.hash === inletHash && u.rxCache?.out && u.rxCache?.last?.status === 'active'
         && u.rxCache?.gen !== curGen) {  // only skip between solveScene calls
       ports.mat_out = u.rxCache.out;
@@ -12173,10 +12207,12 @@ function computeTickOrder(scene) {
 // fresh each solve — no manual `delete` cleanup required.
 //
 // Structure passed to tick(u, ports, par, ctx):
-//   ctx.iter      — current solver iteration (1-based)
-//   ctx.scratch   — per-unit scratch object { hubAllocFactor, ... }
-//   ctx.thermo    — thermo adapter reference
-//   ctx.warn(msg) — push a warning to this unit's diagnostics
+//   ctx.iter              — current solver iteration (1-based)
+//   ctx.scratch           — per-unit scratch object { hubAllocFactor, ... }
+//   ctx.thermo            — thermo adapter reference
+//   ctx.warn(msg)         — push a warning to this unit's diagnostics
+//   ctx.portConnected(id) — [v11.1.1] true if OUT port has downstream connection (NNG-9)
+//   ctx.solveGen          — [v11.1.1] solve generation counter for cache invalidation (NNG-9)
 //
 // Global structure (scene.runtime.ctx):
 //   runtimeCtx.scratch(unitId) — get or create per-unit scratch store
@@ -12200,12 +12236,19 @@ class RuntimeContext {
 
   /** Build the per-unit ctx object passed as 4th arg to tick. */
   forUnit(unitId, ud) {
+    const connSet = this._outPortConn ? this._outPortConn.get(unitId) : null;
     return {
       iter:    this.iter,
       scratch: this.scratch(unitId),
       thermo:  this.thermo,
       warn:    (msg) => ud.errors.push(msg),
-      scene:   this._scene,  // [v10.6.1] tick can inspect connections
+      // [v11.1.1 NNG-9] Tick-safe connectivity query — no scene access needed.
+      portConnected: connSet ? (portId) => connSet.has(portId) : () => false,
+      // [v11.1.1 NNG-9] Solve generation counter for cache invalidation.
+      solveGen: (this._scene._solveGen || 0),
+      // [DEPRECATED v11.1.1] Retained for backward compat during transition.
+      // New tick code should use ctx.portConnected() instead of ctx.scene.
+      scene:   this._scene,
     };
   }
 }
@@ -12543,6 +12586,17 @@ function solveScene(scene, options = {}) {
     const speciesOrder = stream?.n ? Object.keys(stream.n).sort() : [];
     return { speciesOrder, x_prev: null, g_prev: null };
   }) : [];
+
+  // [v11.1.1 NNG-9] Pre-compute output port connectivity once (connections are
+  // immutable during solve).  Ticks use ctx.portConnected(portId) instead of
+  // querying ctx.scene.connections — enforcing tick isolation.
+  const _outPortConn = new Map();  // unitId → Set<portId>
+  for (const c of scene.connections) {
+    let s = _outPortConn.get(c.from.unitId);
+    if (!s) { s = new Set(); _outPortConn.set(c.from.unitId, s); }
+    s.add(c.from.portId);
+  }
+  runtimeCtx._outPortConn = _outPortConn;
 
   // Iterative successive substitution
   while (changed && iter < MAX_ITER) {
@@ -18991,7 +19045,7 @@ function _rebuildInspectorContent() {
     });
     titleDiv.appendChild(delBtn);
     headerDiv.appendChild(titleDiv);
-    headerDiv.appendChild(el('div', { class: 'unitSubtitle', html: ownerLabel }));
+    headerDiv.appendChild(el('div', { class: 'unitSubtitle', text: ownerLabel }));
     propEditor.appendChild(headerDiv);
 
     // Display options
@@ -20308,7 +20362,7 @@ function buildSettingsPanel() {
     if (cheatUnits.length > 0) {
       devSec.appendChild(el('div', {
         style: 'padding:4px 8px; background:#78350f; border-radius:4px; font-size:10px; color:#fbbf24; line-height:1.3; margin-bottom:6px;',
-        html: `⚠ Scene has advanced units: ${cheatUnits.join(', ')}. They still work but can't be added.`
+        text: `⚠ Scene has advanced units: ${cheatUnits.join(', ')}. They still work but can't be added.`
       }));
     }
   }
@@ -29312,6 +29366,89 @@ function runTests() {
     const heatConn = scene.connections.find(
       c => c.to.unitId === 'r1' && c.to.portId === 'heat_in');
     t.assertOK(heatConn, 'heat_in connection preserved on heated reactor');
+  }});
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // [v11.1.1] NNG COMPLIANCE TESTS
+  // ═══════════════════════════════════════════════════════════════════════
+
+  tests.push({ name: '284: NNG-9 — ctx.portConnected reflects wiring', fn: t => {
+    // Electric heater with heat_out connected → portConnected('heat_out') = true
+    // Cooler with heat_out UNconnected → portConnected('heat_out') = false
+    const src1 = t.place('source', 0, 0, { species:'N2', nDot:1, T:300, P:200000, phaseConstraint:'V' });
+    const grid = t.place('grid_supply', 0, 2, { capacity_kW:100 });
+    const eh   = t.place('electric_heater', 4, 0, { power_kW:10 });
+    const hs   = t.place('sink_heat', 8, 0);
+    const cool = t.place('cooler', 4, 4, { T_out:280 });
+    const snk  = t.place('sink', 8, 4);
+    const src2 = t.place('source', 0, 4, { species:'N2', nDot:1, T:350, P:200000, phaseConstraint:'V' });
+    // Wire heater: elec + material + heat_out connected
+    t.wire(grid, 'out', eh, 'elec_in');
+    t.wire(src1, 'out', eh, 'mat_in');
+    t.wire(eh, 'heat_out', hs, 'in');
+    // Wire cooler: material connected but heat_out NOT connected
+    t.wire(src2, 'out', cool, 'mat_in');
+    t.wire(cool, 'mat_out', snk, 'in');
+    // Note: cool.heat_out deliberately left unconnected
+
+    t.solve();
+
+    // Verify via runtime context: e-heater heat_out is connected
+    const ctx = scene.runtime.ctx;
+    const ehConn = ctx._outPortConn.get(eh);
+    t.assertOK(ehConn && ehConn.has('heat_out'), 'E-heater heat_out in connectivity map');
+
+    // Cooler heat_out is NOT connected
+    const coolConn = ctx._outPortConn.get(cool);
+    const coolHeatConnected = coolConn ? coolConn.has('heat_out') : false;
+    t.assertOK(!coolHeatConnected, 'Cooler heat_out NOT in connectivity map');
+
+    // Functional check: heater should heat (Q > 0), cooler should passthrough (Q = 0)
+    const ehLast = t.last(eh);
+    t.assertOK(ehLast.Q_available_W > 0, 'E-heater heats when heat_out connected');
+    const coolLast = t.last(cool);
+    t.assertClose(coolLast.Q_removed_W, 0, 1e-6, 'Cooler passthrough when heat_out unconnected');
+  }});
+
+  tests.push({ name: '285: NNG-9 — ctx.solveGen increments between solves', fn: t => {
+    const src = t.place('source', 0, 0, { species:'N2', nDot:1, T:500, P:200000, phaseConstraint:'V' });
+    const snk = t.place('sink', 4, 0);
+    t.wire(src, 'out', snk, 'in');
+
+    t.solve();
+    const gen1 = scene._solveGen;
+    t.assertOK(typeof gen1 === 'number' && gen1 >= 1, 'solveGen is a positive number after first solve');
+
+    // Verify forUnit exposes solveGen to ticks
+    const ctx1 = scene.runtime.ctx;
+    const unitCtx = ctx1.forUnit(src, scene.runtime.unitData.get(src));
+    t.assertClose(unitCtx.solveGen, gen1, 0, 'forUnit exposes matching solveGen');
+
+    t.solve();
+    const gen2 = scene._solveGen;
+    t.assertOK(gen2 > gen1, 'solveGen increments between solves');
+  }});
+
+  tests.push({ name: '286: NNG-10 — ComponentRegistry rejects incomplete registration', fn: t => {
+    // Missing cpig → should throw at registration time (not at runtime)
+    let threw = false;
+    try {
+      ComponentRegistry.register('_TEST_INCOMPLETE', {
+        name: 'Test', MW: 28, Tc: 126.2, Pc: 3394000, omega: 0.04,
+        Tb: 77.4, phase298: 'gas',
+        antoine: { A: 6.49, B: 255.68, C: -6.55, Tmin: 54, Tmax: 90 },
+        // cpig deliberately omitted
+        cpLiq: 56.0,
+        hf0_Jmol: 0, s0_JmolK: 191.6
+      });
+    } catch (e) {
+      threw = true;
+      t.assertOK(e.message.includes('cpig') || e.message.includes('heat capacity'),
+        'Error message mentions missing field');
+    }
+    t.assertOK(threw, 'register() throws on missing required field');
+    t.assertOK(!ComponentRegistry.exists('_TEST_INCOMPLETE'),
+      'Incomplete component not left in registry');
   }});
 
   // ═══════════════════════════════════════════════════════════════════════
