@@ -1,7 +1,50 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v9.1.0
+  processThis v10.8.1
+
+  ─── v10.8.1 ──────────────────────────────────────────────────────────────
+  Sticker system overhaul — connection stickers, drag fixes, UX polish.
+
+  DRAG FIX: Sticker drag rewritten to use ui-level state flags (same
+  pattern as unit drag). Old approach attached pointermove/pointerup to
+  the SVG bgRect, which was destroyed by render() mid-drag, killing the
+  interaction. Now pointerdown sets ui.isDraggingSticker and captures on
+  the persistent svg element; pointermove/pointerup in the main SVG
+  handlers drive the drag. Whole sticker card is the drag surface (not
+  just the bg rect), so grabbing anywhere works. user-select: none on
+  .stickers-layer prevents text selection during drag.
+
+  CONNECTION STICKERS: Badges dragged from stream inspector now create
+  stickers on the connection object (conn.sticker = { dx, dy, items }).
+  Anchor point is the cubic bezier midpoint (t=0.5) of the connection
+  curve, computed by _connBezierMid(). _evaluateConnStickerItems()
+  resolves live values from the from-port stream data. connId carried
+  through _tagDraggableBadge → drag data → _handleStickerDrop.
+  _powerStreamToItems() added for non-material streams (Capacity /
+  Actual / Demand). Import/export handles conn.sticker with validation.
+
+  RENDER SPLIT: drawStickers() split into drawStickerTethers() (rendered
+  before units) and drawStickerCards() (rendered after units). Tether
+  lines now appear under unit icons; cards float on top. Tethers clipped
+  at unit bounding box edge via _clipToRectEdge() so dashed lines stop
+  at the unit boundary.
+
+  UX: Unit name header removed from sticker cards (redundant — tether
+  makes ownership clear). Close × moved outside card (top-right corner,
+  above card rect) so it never overlaps row × buttons. Half-tile snap
+  removed — stickers stay exactly where dropped. 📌 button now toggles
+  all stickers (cards + tethers), not just tether lines. Border stroke
+  bumped to 1.5px / 0.6 opacity.
+
+  Unified rendering via _collectStickers() gathers both unit and
+  connection stickers into a single array for drawStickerTethers and
+  drawStickerCards, eliminating code duplication.
+
+  MENU: "Clear Stickers" option added below "Clear Scene" in the main
+  menu. Removes all stickers from units and connections with undo support.
+
+  Gate: 228/228 tests, 1550 checks.
 
   ─── v10.8.0 ──────────────────────────────────────────────────────────────
   NH3 (Ammonia) component + refrigeration cycle validation.
@@ -2083,6 +2126,31 @@
       transform: scale(1.08);
     }
 
+    /* ===== UNDO/REDO BUTTONS [v10.8.1] ===== */
+    .undo-redo-btn {
+      width: 30px; height: 30px;
+      border-radius: 8px;
+      border: none;
+      background: transparent;
+      color: #64748b;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.15s, background 0.15s;
+      flex-shrink: 0;
+      padding: 0;
+    }
+    .undo-redo-btn:hover {
+      color: #e2e8f0;
+      background: #1e293b;
+    }
+    .undo-redo-btn:disabled {
+      color: #334155;
+      cursor: default;
+      background: transparent;
+    }
+
     /* ===== FLOATING ACTION BAR (bottom-center of canvas) ===== */
     .action-bar {
       position: absolute;
@@ -2314,14 +2382,13 @@
     }
 
     /* ===== STICKER SYSTEM [v10.7.0] ===== */
+    .stickers-layer { user-select: none; -webkit-user-select: none; }
     .sticker-tether { pointer-events: none; }
-    .sticker-bg { cursor: grab; }
-    .sticker-bg:active { cursor: grabbing; }
-    .sticker-row-hit { cursor: default; }
-    .sticker-row-hit:hover + .sticker-row-x { opacity: 1; }
-    .sticker-row-x { opacity: 0; cursor: pointer; transition: opacity 0.15s; }
+    .sticker-card { cursor: grab; }
+    .sticker-card:active { cursor: grabbing; }
+    .sticker-row-x { opacity: 0.15; cursor: pointer; transition: opacity 0.15s; }
     .sticker-row-x:hover { opacity: 1; }
-    .sticker-close { cursor: pointer; opacity: 0.4; transition: opacity 0.15s; }
+    .sticker-close { cursor: pointer; opacity: 0.25; transition: opacity 0.15s; pointer-events: all; }
     .sticker-close:hover { opacity: 1; }
 
     /* Inspector draggable badges */
@@ -3313,7 +3380,6 @@
     <!-- Info bar (full-width, 3 zones) -->
     <div class="info-bar">
       <div class="info-bar-left">
-        <button class="add-btn-left" id="btnAdd" title="Add unit (/ or Tab)">+</button>
         <div class="menuWrap">
           <button class="btn" id="btnMenu">☰</button>
         <div class="menu" id="menuMain">
@@ -3338,10 +3404,20 @@
             </div></div>
           </div>
           <div class="item" id="mClear">Clear Scene</div>
+          <div class="item" id="mClearStickers">Clear Stickers</div>
           <div class="sep"></div>
           <div class="item" id="mSettings">Settings <span class="hint">⚙</span></div>
         </div>
       </div>
+
+      <button class="add-btn-left" id="btnAdd" title="Add unit (/ or Tab)">+</button>
+
+      <button class="undo-redo-btn" id="btnUndo" title="Undo (Ctrl+Z)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"/><path d="M3 13a9 9 0 0 1 15.36-6.36L21 9"/></svg>
+      </button>
+      <button class="undo-redo-btn" id="btnRedo" title="Redo (Ctrl+Shift+Z)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 7v6h-6"/><path d="M21 13a9 9 0 0 0-15.36-6.36L3 9"/></svg>
+      </button>
 
       <input type="text" id="processNameInput" placeholder="Process name…" spellcheck="false" autocomplete="off">
       </div>
@@ -3381,7 +3457,7 @@
 
       <!-- Utilities toggle [v10.1.1] -->
       <button class="tbtn" id="btnUtilities" data-tip="Show/hide utilities" style="font-size:14px; border-radius:8px;">⚡</button>
-      <button class="tbtn" id="btnStickerLines" data-tip="Show/hide sticker lines" style="font-size:14px; border-radius:8px;">📌</button>
+      <button class="tbtn" id="btnStickerLines" data-tip="Show/hide stickers" style="font-size:14px; border-radius:8px;">📌</button>
     </div>
 
     <!-- Models modal -->
@@ -6920,8 +6996,10 @@ const thermo = new ThermoAdapter(idealRaoultPkg);
 // Collects extrapolation/range/flash warnings silently. No DOM dependency.
 // Exposed via PG.thermoWarnings() for programmatic inspection.
 let _thermoWarningsFn = () => [];
+let _realConsoleWarn;  // [v10.8.1] original console.warn before any overrides
 (function installWarnCollector() {
   const _origWarn = console.warn;
+  _realConsoleWarn = _origWarn;  // save for test output
   const _seen = new Set();
   let _summarized = false;
   console.warn = function(...args) {
@@ -11035,6 +11113,10 @@ class Scene {
           dy: typeof u.sticker.dy === 'number' ? u.sticker.dy : -2,
           items: u.sticker.items.filter(it => it && typeof it.section === 'string' && typeof it.label === 'string')
         };
+        // [v10.8.1] Restore display options
+        if (u.sticker.display && typeof u.sticker.display === 'object') {
+          unit.sticker.display = { ...u.sticker.display };
+        }
         if (unit.sticker.items.length === 0) unit.sticker = null;
       }
       tempUnits.set(unit.id, unit);
@@ -11100,6 +11182,20 @@ class Scene {
         from: { unitId: fromUnitId, portId: fromPortId },
         to:   { unitId: toUnitId,   portId: toPortId }
       });
+
+      // [v10.7.2] Restore connection sticker data
+      if (c.sticker && typeof c.sticker === 'object' && Array.isArray(c.sticker.items)) {
+        const connSticker = {
+          dx: typeof c.sticker.dx === 'number' ? c.sticker.dx : 2,
+          dy: typeof c.sticker.dy === 'number' ? c.sticker.dy : -2,
+          items: c.sticker.items.filter(it => it && typeof it.section === 'string' && typeof it.label === 'string')
+        };
+        // [v10.8.1] Restore display options
+        if (c.sticker.display && typeof c.sticker.display === 'object') {
+          connSticker.display = { ...c.sticker.display };
+        }
+        if (connSticker.items.length > 0) tempConns[tempConns.length - 1].sticker = connSticker;
+      }
 
       const m = connId.match(/-(\d+)$/);
       if (m) maxConnId = Math.max(maxConnId, parseInt(m[1], 10));
@@ -13652,8 +13748,18 @@ const ui = {
   isHTML5Dragging: false, // Track HTML5 drag from library
   _mouseWorld: { x: 0, y: 0 },
   showUtilities: true,    // [v10.1.1] E7: dim power utility units when false
-  showStickerLines: true, // [v10.7.0] P1: show/hide sticker tether lines
-  reconnecting: null      // [v10.1.1] {connId} when reconnecting a stream
+  showStickers: true, // [v10.7.0] P1: show/hide stickers entirely
+  reconnecting: null,     // [v10.1.1] {connId} when reconnecting a stream
+  // [v10.8.1] Sticker selection
+  selectedStickerId: null,    // unit id or conn id that owns the selected sticker
+  selectedStickerKind: null,  // 'unit' | 'conn' | null
+  // [v10.7.1] Sticker drag state (uses ui flags like unit drag)
+  isDraggingSticker: false,
+  stickerDragUnitId: null,
+  stickerDragConnId: null,   // [v10.7.2] connection sticker support
+  stickerDragStart: null,  // {x, y} SVG coords at pointerdown
+  stickerOrigDx: 0,
+  stickerOrigDy: 0
 };
 
 /* =========================
@@ -13671,6 +13777,8 @@ const timeDisplayEl = document.getElementById('timeDisplay');
 const speedIndicatorEl = document.getElementById('speedIndicator');
 const btnAdd = document.getElementById('btnAdd');
 const btnMenu = document.getElementById('btnMenu');
+const btnUndo = document.getElementById('btnUndo');
+const btnRedo = document.getElementById('btnRedo');
 const menuMain = document.getElementById('menuMain');
 const modalModels = document.getElementById('modalModels');
 const modalUnits = document.getElementById('modalUnits');
@@ -14447,6 +14555,8 @@ function drawConnections() {
       ev.stopPropagation();
       ui.selectedConnId = c.id;
       ui.selectedUnitId = null;
+      ui.selectedStickerId = null;
+      ui.selectedStickerKind = null;
       updatePropertiesPanel();
       render();
     });
@@ -14602,6 +14712,8 @@ function drawUnits() {
       
       ui.selectedUnitId = id;
       ui.selectedConnId = null;
+      ui.selectedStickerId = null;
+      ui.selectedStickerKind = null;
       ui.isDraggingUnit = true;
       ui.dragUnitId = id;
       ui.dragStartPos = { x: u.x, y: u.y };  // [v10.6.0] for undo
@@ -14747,7 +14859,8 @@ function drawUnits() {
       // [v10.1.1] E4: Connection feedback — highlight compatible targets
       if (ui.pendingFrom && _pendingPortType !== null && !isDimmed) {
         const isCompatible = p.dir === PortDir.IN && p.type === _pendingPortType;
-        const isOccupied = isCompatible && scene.connections.some(
+        // [v10.8.1] multiConnect ports are never "occupied"
+        const isOccupied = isCompatible && !p.multiConnect && scene.connections.some(
           cc => cc.to.unitId === u.id && cc.to.portId === p.portId
             && !(ui.reconnecting && cc.id === ui.reconnecting.connId)
         );
@@ -14845,51 +14958,44 @@ function drawUnits() {
 
       // Directional arrow - orient based on which edge the port is on
       const portEdge = getPortEdge(p, def);
-      
-      if (p.dir === PortDir.OUT) {
-        // OUT port: arrow points OUTWARD from unit (away from center)
+
+      // [v10.8.1] Multi-connect detection:
+      //   IN ports: explicit multiConnect flag
+      //   OUT ports: non-MATERIAL types (power/heat/mechanical allow fan-out)
+      const isMulti = p.multiConnect || (p.dir === PortDir.OUT && p.type !== StreamType.MATERIAL);
+      const offsets = isMulti ? [-2.5, 2.5] : [0];  // perpendicular offsets
+      const arrowFill = p.dir === PortDir.OUT ? '#0b0e14' : portVisuals.portColor;
+
+      for (const off of offsets) {
         let arrowPath;
-        if (portEdge === 'top') {
-          // Points UP (away from unit)
-          arrowPath = `M${wp.x - 3},${wp.y + 2} L${wp.x + 3},${wp.y + 2} L${wp.x},${wp.y - 4} Z`;
-        } else if (portEdge === 'bottom') {
-          // Points DOWN (away from unit)
-          arrowPath = `M${wp.x - 3},${wp.y - 2} L${wp.x + 3},${wp.y - 2} L${wp.x},${wp.y + 4} Z`;
-        } else if (portEdge === 'right') {
-          // Points RIGHT (away from unit) - REVERSED
-          arrowPath = `M${wp.x - 2},${wp.y - 3} L${wp.x - 2},${wp.y + 3} L${wp.x + 4},${wp.y} Z`;
-        } else { // left
-          // Points LEFT (away from unit) - REVERSED
-          arrowPath = `M${wp.x + 2},${wp.y - 3} L${wp.x + 2},${wp.y + 3} L${wp.x - 4},${wp.y} Z`;
+        if (p.dir === PortDir.OUT) {
+          // OUT: arrow points OUTWARD (away from center)
+          if (portEdge === 'top') {
+            arrowPath = `M${wp.x + off - 3},${wp.y + 2} L${wp.x + off + 3},${wp.y + 2} L${wp.x + off},${wp.y - 4} Z`;
+          } else if (portEdge === 'bottom') {
+            arrowPath = `M${wp.x + off - 3},${wp.y - 2} L${wp.x + off + 3},${wp.y - 2} L${wp.x + off},${wp.y + 4} Z`;
+          } else if (portEdge === 'right') {
+            arrowPath = `M${wp.x - 2},${wp.y + off - 3} L${wp.x - 2},${wp.y + off + 3} L${wp.x + 4},${wp.y + off} Z`;
+          } else {
+            arrowPath = `M${wp.x + 2},${wp.y + off - 3} L${wp.x + 2},${wp.y + off + 3} L${wp.x - 4},${wp.y + off} Z`;
+          }
+        } else {
+          // IN: arrow points INWARD (toward center)
+          if (portEdge === 'top') {
+            arrowPath = `M${wp.x + off - 3},${wp.y - 2} L${wp.x + off + 3},${wp.y - 2} L${wp.x + off},${wp.y + 4} Z`;
+          } else if (portEdge === 'bottom') {
+            arrowPath = `M${wp.x + off - 3},${wp.y + 2} L${wp.x + off + 3},${wp.y + 2} L${wp.x + off},${wp.y - 4} Z`;
+          } else if (portEdge === 'right') {
+            arrowPath = `M${wp.x - 4},${wp.y + off} L${wp.x + 2},${wp.y + off - 3} L${wp.x + 2},${wp.y + off + 3} Z`;
+          } else {
+            arrowPath = `M${wp.x + 4},${wp.y + off} L${wp.x - 2},${wp.y + off - 3} L${wp.x - 2},${wp.y + off + 3} Z`;
+          }
         }
-        const arrow = svgEl('path', {
+        group.appendChild(svgEl('path', {
           d: arrowPath,
-          fill: '#0b0e14',
+          fill: arrowFill,
           'pointer-events': 'none'
-        });
-        group.appendChild(arrow);
-      } else {
-        // IN port: arrow points INWARD to unit (toward center)
-        let arrowPath;
-        if (portEdge === 'top') {
-          // Points DOWN (into unit)
-          arrowPath = `M${wp.x - 3},${wp.y - 2} L${wp.x + 3},${wp.y - 2} L${wp.x},${wp.y + 4} Z`;
-        } else if (portEdge === 'bottom') {
-          // Points UP (into unit)
-          arrowPath = `M${wp.x - 3},${wp.y + 2} L${wp.x + 3},${wp.y + 2} L${wp.x},${wp.y - 4} Z`;
-        } else if (portEdge === 'right') {
-          // Points LEFT (into unit)
-          arrowPath = `M${wp.x - 4},${wp.y} L${wp.x + 2},${wp.y - 3} L${wp.x + 2},${wp.y + 3} Z`;
-        } else { // left
-          // Points RIGHT (into unit)
-          arrowPath = `M${wp.x + 4},${wp.y} L${wp.x - 2},${wp.y - 3} L${wp.x - 2},${wp.y + 3} Z`;
-        }
-        const arrow = svgEl('path', {
-          d: arrowPath,
-          fill: portVisuals.portColor,
-          'pointer-events': 'none'
-        });
-        group.appendChild(arrow);
+        }));
       }
     }
 
@@ -14903,132 +15009,265 @@ function drawUnits() {
 // [v10.7.0] STICKER RENDERING
 // ═══════════════════════════════════════════════════════════════════════════
 
-function drawStickers() {
+// [v10.7.2] Compute bezier midpoint (t=0.5) for a connection
+function _connBezierMid(conn) {
   const tile = scene.tile;
-  const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-  g.setAttribute('class', 'stickers-layer');
+  const fromU = scene.units.get(conn.from.unitId);
+  const toU = scene.units.get(conn.to.unitId);
+  if (!fromU || !toU) return null;
+  const fromDef = UnitRegistry.get(fromU.defId);
+  const toDef = UnitRegistry.get(toU.defId);
+  const fromPort = fromDef.ports.find(p => p.portId === conn.from.portId);
+  const toPort = toDef.ports.find(p => p.portId === conn.to.portId);
+  if (!fromPort || !toPort) return null;
+  const fx = (fromU.x + fromPort.x) * tile;
+  const fy = (fromU.y + fromPort.y) * tile;
+  const tx = (toU.x + toPort.x) * tile;
+  const ty = (toU.y + toPort.y) * tile;
+  const controlOffset = 60;
+  const fromEdge = getPortEdge(fromPort, fromDef);
+  const toEdge = getPortEdge(toPort, toDef);
+  let c1x, c1y, c2x, c2y;
+  if (fromEdge === 'left') { c1x = fx - controlOffset; c1y = fy; }
+  else if (fromEdge === 'right') { c1x = fx + controlOffset; c1y = fy; }
+  else if (fromEdge === 'top') { c1x = fx; c1y = fy - controlOffset; }
+  else { c1x = fx; c1y = fy + controlOffset; }
+  if (toEdge === 'left') { c2x = tx - controlOffset; c2y = ty; }
+  else if (toEdge === 'right') { c2x = tx + controlOffset; c2y = ty; }
+  else if (toEdge === 'top') { c2x = tx; c2y = ty - controlOffset; }
+  else { c2x = tx; c2y = ty + controlOffset; }
+  // Cubic bezier at t=0.5: B = P0/8 + 3P1/8 + 3P2/8 + P3/8
+  return {
+    x: fx * 0.125 + c1x * 0.375 + c2x * 0.375 + tx * 0.125,
+    y: fy * 0.125 + c1y * 0.375 + c2y * 0.375 + ty * 0.125
+  };
+}
 
+// [v10.7.2] Clip a line from (cx,cy) toward (targetX,targetY) at rect boundary
+function _clipToRectEdge(cx, cy, hw, hh, targetX, targetY) {
+  const dx = targetX - cx, dy = targetY - cy;
+  if (Math.abs(dx) < 0.01 && Math.abs(dy) < 0.01) return { x: cx, y: cy };
+  // Find t where line exits rect [-hw..+hw, -hh..+hh] centered at (cx,cy)
+  let t = 1;
+  if (dx !== 0) t = Math.min(t, Math.abs(hw / dx));
+  if (dy !== 0) t = Math.min(t, Math.abs(hh / dy));
+  return { x: cx + dx * t, y: cy + dy * t };
+}
+
+// [v10.7.2] Evaluate sticker items for a connection sticker
+function _evaluateConnStickerItems(conn) {
+  if (!conn.sticker?.items?.length) return [];
+  const ud = scene.runtime?.unitData?.get(conn.from.unitId);
+  if (!ud) return conn.sticker.items.map(it => ({ ...it, value: '—' }));
+  const stream = ud.ports?.[conn.from.portId];
+  let pool = [];
+  if (stream) {
+    if (stream.type === StreamType.MATERIAL) {
+      pool = _autoStreamToItems(stream);
+    } else {
+      pool = _powerStreamToItems(stream);
+    }
+  }
+  return conn.sticker.items.map(it => {
+    const match = pool.find(p => p.label === it.label);
+    return { ...it, value: match?.value ?? '—', tone: match?.tone };
+  });
+}
+
+// [v10.7.2] Collect all sticker anchors and data for unified rendering
+function _collectStickers() {
+  const tile = scene.tile;
+  const stickers = [];
+
+  // Unit stickers
   for (const [uid, u] of scene.units) {
     if (!u.sticker?.items?.length) continue;
     const def = UnitRegistry.get(u.defId);
     if (!def) continue;
-
-    // Evaluate live values
     const evaluated = _evaluateStickerItems(u);
     if (!evaluated.length) continue;
+    const anchorX = (u.x + def.w / 2) * tile;
+    const anchorY = (u.y + def.h / 2) * tile;
+    const halfW = def.w / 2 * tile;
+    const halfH = def.h / 2 * tile;
+    const color = def.color || '#64748b';
+    stickers.push({
+      kind: 'unit', id: uid, sticker: u.sticker, evaluated, color,
+      anchorX, anchorY, halfW, halfH, clipAnchor: true,
+      onClose() { u.sticker = null; },
+      onRemoveItem(idx) { u.sticker.items.splice(idx, 1); if (u.sticker.items.length === 0) u.sticker = null; }
+    });
+  }
 
-    const unitCx = (u.x + def.w / 2) * tile;
-    const unitCy = (u.y + def.h / 2) * tile;
-    const stickerX = unitCx + u.sticker.dx * tile;
-    const stickerY = unitCy + u.sticker.dy * tile;
+  // Connection stickers
+  for (const conn of scene.connections) {
+    if (!conn.sticker?.items?.length) continue;
+    const mid = _connBezierMid(conn);
+    if (!mid) continue;
+    const evaluated = _evaluateConnStickerItems(conn);
+    if (!evaluated.length) continue;
+    const fromDef = UnitRegistry.get(scene.units.get(conn.from.unitId)?.defId);
+    const visuals = StreamVisuals[fromDef?.ports?.find(p => p.portId === conn.from.portId)?.type];
+    const color = visuals?.color || '#64748b';
+    stickers.push({
+      kind: 'conn', id: conn.id, sticker: conn.sticker, evaluated, color,
+      anchorX: mid.x, anchorY: mid.y, halfW: 0, halfH: 0, clipAnchor: false,
+      onClose() { conn.sticker = null; },
+      onRemoveItem(idx) { conn.sticker.items.splice(idx, 1); if (conn.sticker.items.length === 0) conn.sticker = null; }
+    });
+  }
 
-    // Layout constants
-    const W = 150;
-    const rowH = 18;
-    const padX = 8;
-    const padY = 6;
-    const headerH = 16; // unit name header
-    const totalH = padY + headerH + evaluated.length * rowH + padY;
+  return stickers;
+}
+
+// [v10.8.1] Size presets for sticker rendering
+const _stickerSizes = [
+  { labelFs: 10, valueFs: 11, rowH: 18, W: 150, Wn: 80, padX: 8, padY: 6 },   // S
+  { labelFs: 12, valueFs: 13, rowH: 22, W: 180, Wn: 95, padX: 9, padY: 7 },   // M
+  { labelFs: 14, valueFs: 16, rowH: 28, W: 220, Wn: 115, padX: 10, padY: 9 },  // L
+];
+
+// [v10.7.2] Draw tether lines only (rendered BEFORE units so icons sit on top)
+function drawStickerTethers() {
+  if (!ui.showStickers) return;
+  const tile = scene.tile;
+  const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  g.setAttribute('class', 'sticker-tethers-layer');
+
+  for (const s of _collectStickers()) {
+    // [v10.8.1] Respect display.connection option
+    const disp = s.sticker.display || {};
+    if (disp.connection === false) continue;
+
+    const sz = _stickerSizes[disp.textSize || 0] || _stickerSizes[0];
+    const showLabel = (disp.label !== false);
+
+    const stickerX = s.anchorX + s.sticker.dx * tile;
+    const stickerY = s.anchorY + s.sticker.dy * tile;
+    const W = showLabel ? sz.W : sz.Wn;
+    const totalH = sz.padY + s.evaluated.length * sz.rowH + sz.padY;
     const stickerCx = stickerX + W / 2;
     const stickerCy = stickerY + totalH / 2;
 
-    const stickerG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-    stickerG.setAttribute('data-sticker-uid', uid);
+    // Clip start at anchor boundary (so line doesn't go through unit icon)
+    const start = s.clipAnchor
+      ? _clipToRectEdge(s.anchorX, s.anchorY, s.halfW, s.halfH, stickerCx, stickerCy)
+      : { x: s.anchorX, y: s.anchorY };
 
-    // Tether line
-    if (ui.showStickerLines) {
-      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-      line.setAttribute('x1', unitCx);
-      line.setAttribute('y1', unitCy);
-      line.setAttribute('x2', stickerCx);
-      line.setAttribute('y2', stickerCy);
-      line.setAttribute('stroke', '#475569');
-      line.setAttribute('stroke-width', '1');
-      line.setAttribute('stroke-dasharray', '4,3');
-      line.setAttribute('class', 'sticker-tether');
-      stickerG.appendChild(line);
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', start.x);
+    line.setAttribute('y1', start.y);
+    line.setAttribute('x2', stickerCx);
+    line.setAttribute('y2', stickerCy);
+    line.setAttribute('stroke', '#475569');
+    line.setAttribute('stroke-width', '1');
+    line.setAttribute('stroke-dasharray', '4,3');
+    line.setAttribute('class', 'sticker-tether');
+    g.appendChild(line);
+  }
+
+  svg.appendChild(g);
+}
+
+// [v10.7.2] Draw sticker cards (rendered AFTER units, on top)
+function drawStickerCards() {
+  if (!ui.showStickers) return;
+  const tile = scene.tile;
+  const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  g.setAttribute('class', 'stickers-layer');
+
+  for (const s of _collectStickers()) {
+    const disp = s.sticker.display || {};
+    const showLabel = disp.label !== false;
+    const showBorder = disp.border !== false;
+    const solidBg = disp.solidBg !== false;
+    const isSelected = ui.selectedStickerId === s.id && ui.selectedStickerKind === s.kind;
+    const sz = _stickerSizes[disp.textSize || 0] || _stickerSizes[0];
+
+    const stickerX = s.anchorX + s.sticker.dx * tile;
+    const stickerY = s.anchorY + s.sticker.dy * tile;
+
+    const W = showLabel ? sz.W : sz.Wn;
+    const { rowH, padX, padY, labelFs, valueFs } = sz;
+    const totalH = padY + s.evaluated.length * rowH + padY;
+
+    const stickerG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    stickerG.setAttribute('data-sticker-id', s.id);
+    stickerG.setAttribute('class', 'sticker-card');
+
+    // Selection marquee — subtle dashed outline offset outside the card
+    // Rendered first (behind card) so it never conflicts with display options
+    if (isSelected) {
+      const sel = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      const pad = 4;
+      sel.setAttribute('x', stickerX - pad);
+      sel.setAttribute('y', stickerY - pad);
+      sel.setAttribute('width', W + pad * 2);
+      sel.setAttribute('height', totalH + pad * 2);
+      sel.setAttribute('rx', 8);
+      sel.setAttribute('fill', 'none');
+      sel.setAttribute('stroke', '#60a5fa');
+      sel.setAttribute('stroke-width', '1');
+      sel.setAttribute('stroke-opacity', '0.5');
+      sel.setAttribute('stroke-dasharray', '4,3');
+      sel.setAttribute('pointer-events', 'none');
+      stickerG.appendChild(sel);
     }
 
-    // Background
-    const catColor = def.color || '#64748b';
+    // Background — purely reflects display options, unaffected by selection
     const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
     bg.setAttribute('x', stickerX);
     bg.setAttribute('y', stickerY);
     bg.setAttribute('width', W);
     bg.setAttribute('height', totalH);
     bg.setAttribute('rx', 6);
-    bg.setAttribute('fill', 'rgba(15,23,42,0.92)');
-    bg.setAttribute('stroke', catColor);
-    bg.setAttribute('stroke-width', '1');
-    bg.setAttribute('stroke-opacity', '0.5');
-    bg.setAttribute('class', 'sticker-bg');
+    bg.setAttribute('fill', solidBg ? 'rgba(15,23,42,0.92)' : 'transparent');
+    if (showBorder) {
+      bg.setAttribute('stroke', s.color);
+      bg.setAttribute('stroke-width', '1.5');
+      bg.setAttribute('stroke-opacity', '0.6');
+    }
+    bg.setAttribute('pointer-events', 'none');
     stickerG.appendChild(bg);
 
-    // Header: unit name + close button
-    const name = u.name || def.name || uid.slice(-4);
-    const hdr = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    hdr.setAttribute('x', stickerX + padX);
-    hdr.setAttribute('y', stickerY + padY + 10);
-    hdr.setAttribute('font-size', '10');
-    hdr.setAttribute('fill', catColor);
-    hdr.setAttribute('font-weight', '600');
-    hdr.setAttribute('font-family', 'inherit');
-    hdr.setAttribute('opacity', '0.7');
-    hdr.textContent = name.length > 18 ? name.slice(0, 17) + '…' : name;
-    stickerG.appendChild(hdr);
-
-    // Close × button
-    const closeX = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    closeX.setAttribute('x', stickerX + W - padX - 4);
-    closeX.setAttribute('y', stickerY + padY + 10);
-    closeX.setAttribute('font-size', '11');
-    closeX.setAttribute('fill', '#94a3b8');
-    closeX.setAttribute('text-anchor', 'end');
-    closeX.setAttribute('class', 'sticker-close');
-    closeX.textContent = '×';
-    closeX.addEventListener('pointerdown', (ev) => {
-      ev.stopPropagation();
-      _pushUndo('Remove sticker');
-      u.sticker = null;
-      autoSave();
-      render();
-    });
-    stickerG.appendChild(closeX);
+    // Invisible hit surface covering entire card
+    const hitSurface = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    hitSurface.setAttribute('x', stickerX);
+    hitSurface.setAttribute('y', stickerY);
+    hitSurface.setAttribute('width', W);
+    hitSurface.setAttribute('height', totalH);
+    hitSurface.setAttribute('fill', 'transparent');
+    hitSurface.setAttribute('pointer-events', 'all');
+    stickerG.appendChild(hitSurface);
 
     // Badge rows
-    let rowY = stickerY + padY + headerH;
-    for (let i = 0; i < evaluated.length; i++) {
-      const item = evaluated[i];
-      const y = rowY + i * rowH;
+    const textVCenter = padY + rowH * 0.72;  // vertical centering within row
+    let rowY = stickerY;
+    for (let i = 0; i < s.evaluated.length; i++) {
+      const item = s.evaluated[i];
+      const y = rowY + padY + i * rowH;
 
-      // Hit area for hover (invisible rect)
-      const hitRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-      hitRect.setAttribute('x', stickerX);
-      hitRect.setAttribute('y', y);
-      hitRect.setAttribute('width', W);
-      hitRect.setAttribute('height', rowH);
-      hitRect.setAttribute('fill', 'transparent');
-      hitRect.setAttribute('class', 'sticker-row-hit');
-      stickerG.appendChild(hitRect);
-
-      // Label
-      const lbl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-      lbl.setAttribute('x', stickerX + padX);
-      lbl.setAttribute('y', y + 13);
-      lbl.setAttribute('font-size', '10');
-      lbl.setAttribute('fill', '#94a3b8');
-      lbl.setAttribute('font-family', 'inherit');
-      lbl.setAttribute('pointer-events', 'none');
-      lbl.textContent = item.label;
-      stickerG.appendChild(lbl);
+      // Label (only if display.label is true)
+      if (showLabel) {
+        const lbl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        lbl.setAttribute('x', stickerX + padX);
+        lbl.setAttribute('y', y + textVCenter);
+        lbl.setAttribute('font-size', String(labelFs));
+        lbl.setAttribute('fill', '#94a3b8');
+        lbl.setAttribute('font-family', 'inherit');
+        lbl.setAttribute('pointer-events', 'none');
+        lbl.textContent = item.label;
+        stickerG.appendChild(lbl);
+      }
 
       // Value (strip HTML tags for SVG text)
       const valText = item.value.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
       const val = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-      val.setAttribute('x', stickerX + W - padX);
-      val.setAttribute('y', y + 13);
-      val.setAttribute('font-size', '11');
-      val.setAttribute('text-anchor', 'end');
+      // Position: right-aligned when labels shown, centered when labels hidden
+      val.setAttribute('x', showLabel ? stickerX + W - padX - 14 : stickerX + W / 2);
+      val.setAttribute('y', y + textVCenter);
+      val.setAttribute('font-size', String(valueFs));
+      val.setAttribute('text-anchor', showLabel ? 'end' : 'middle');
       val.setAttribute('font-family', 'inherit');
       val.setAttribute('font-weight', '600');
       val.setAttribute('pointer-events', 'none');
@@ -15040,29 +15279,50 @@ function drawStickers() {
       val.textContent = valText;
       stickerG.appendChild(val);
 
-      // Row remove × (appears on hover via CSS)
-      const rowX = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-      rowX.setAttribute('x', stickerX + W - 2);
-      rowX.setAttribute('y', y + 13);
-      rowX.setAttribute('font-size', '9');
-      rowX.setAttribute('fill', '#f87171');
-      rowX.setAttribute('text-anchor', 'end');
-      rowX.setAttribute('class', 'sticker-row-x');
-      rowX.textContent = '×';
-      const idx = i;
-      rowX.addEventListener('pointerdown', (ev) => {
-        ev.stopPropagation();
-        _pushUndo('Remove sticker badge');
-        u.sticker.items.splice(idx, 1);
-        if (u.sticker.items.length === 0) u.sticker = null;
-        autoSave();
-        render();
-      });
-      stickerG.appendChild(rowX);
+      // Row remove × (always faintly visible, only when labels shown)
+      if (showLabel) {
+        const rowX = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        rowX.setAttribute('x', stickerX + W - padX);
+        rowX.setAttribute('y', y + textVCenter);
+        rowX.setAttribute('font-size', String(labelFs - 1));
+        rowX.setAttribute('fill', '#f87171');
+        rowX.setAttribute('text-anchor', 'end');
+        rowX.setAttribute('class', 'sticker-row-x');
+        rowX.textContent = '×';
+        const idx = i;
+        const onRemove = s.onRemoveItem;
+        rowX.addEventListener('pointerdown', (ev) => {
+          ev.stopPropagation();
+          _pushUndo('Remove sticker badge');
+          onRemove(idx);
+          autoSave();
+          render();
+        });
+        stickerG.appendChild(rowX);
+      }
     }
 
-    // Sticker drag (reposition)
-    _setupStickerDrag(stickerG, bg, u, def, tile);
+    // Close × button — positioned just outside the top-right corner
+    const closeX = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    closeX.setAttribute('x', stickerX + W + 2);
+    closeX.setAttribute('y', stickerY - 2);
+    closeX.setAttribute('font-size', '11');
+    closeX.setAttribute('fill', '#94a3b8');
+    closeX.setAttribute('text-anchor', 'middle');
+    closeX.setAttribute('class', 'sticker-close');
+    closeX.textContent = '×';
+    const onClose = s.onClose;
+    closeX.addEventListener('pointerdown', (ev) => {
+      ev.stopPropagation();
+      _pushUndo('Remove sticker');
+      onClose();
+      autoSave();
+      render();
+    });
+    stickerG.appendChild(closeX);
+
+    // Sticker drag (reposition) — whole card is the drag surface
+    _setupStickerDrag(stickerG, s);
 
     g.appendChild(stickerG);
   }
@@ -15071,56 +15331,58 @@ function drawStickers() {
 }
 
 // [v10.7.0] Sticker drag-to-reposition handler
-function _setupStickerDrag(stickerG, bgRect, u, def, tile) {
-  let dragging = false;
-  let startX, startY, origDx, origDy;
-
-  bgRect.addEventListener('pointerdown', (ev) => {
+// [v10.7.2] Listens on stickerG (whole card), supports unit and connection stickers.
+function _setupStickerDrag(stickerG, stickerInfo) {
+  stickerG.addEventListener('pointerdown', (ev) => {
     if (ev.button !== 0) return;
     ev.stopPropagation();
-    dragging = true;
-    origDx = u.sticker.dx;
-    origDy = u.sticker.dy;
+
+    ui.isDraggingSticker = true;
+    ui.stickerDragUnitId = stickerInfo.kind === 'unit' ? stickerInfo.id : null;
+    ui.stickerDragConnId = stickerInfo.kind === 'conn' ? stickerInfo.id : null;
+    ui.stickerOrigDx = stickerInfo.sticker.dx;
+    ui.stickerOrigDy = stickerInfo.sticker.dy;
+
     const pt = svg.createSVGPoint();
     pt.x = ev.clientX; pt.y = ev.clientY;
     const svgP = pt.matrixTransform(svg.getScreenCTM().inverse());
-    startX = svgP.x;
-    startY = svgP.y;
-    bgRect.setPointerCapture(ev.pointerId);
-    _pushUndo('Move sticker');
-  });
+    ui.stickerDragStart = { x: svgP.x, y: svgP.y };
 
-  bgRect.addEventListener('pointermove', (ev) => {
-    if (!dragging) return;
-    const pt = svg.createSVGPoint();
-    pt.x = ev.clientX; pt.y = ev.clientY;
-    const svgP = pt.matrixTransform(svg.getScreenCTM().inverse());
-    const dx = svgP.x - startX;
-    const dy = svgP.y - startY;
-    u.sticker.dx = origDx + dx / tile;
-    u.sticker.dy = origDy + dy / tile;
-    render();
-  });
-
-  bgRect.addEventListener('pointerup', (ev) => {
-    if (!dragging) return;
-    dragging = false;
-    bgRect.releasePointerCapture(ev.pointerId);
-    // Snap to half-tile increments
-    u.sticker.dx = Math.round(u.sticker.dx * 2) / 2;
-    u.sticker.dy = Math.round(u.sticker.dy * 2) / 2;
-    autoSave();
-    render();
+    // Capture on the SVG so we get events even after stickerG is rebuilt
+    svg.setPointerCapture(ev.pointerId);
   });
 }
 
 // [v10.7.0] Handle a sticker badge dropped onto the canvas
-function _handleStickerDrop(ev, section, label, unitId) {
+function _handleStickerDrop(ev, section, label, unitId, connId) {
+  const w = screenToWorld(ev.clientX, ev.clientY);
+
+  // Connection sticker — store on connection object, anchor = bezier midpoint
+  if (connId) {
+    const conn = scene.connections.find(c => c.id === connId);
+    if (!conn) return;
+    const mid = _connBezierMid(conn);
+    if (!mid) return;
+    const dx = w.x / scene.tile - mid.x / scene.tile;
+    const dy = w.y / scene.tile - mid.y / scene.tile;
+    _pushUndo('Add sticker badge');
+    if (!conn.sticker) {
+      conn.sticker = { dx, dy, items: [] };
+    }
+    if (conn.sticker.items.some(it => it.section === section && it.label === label)) {
+      showToast('Already in sticker');
+      return;
+    }
+    conn.sticker.items.push({ section, label });
+    autoSave();
+    render();
+    showToast(`Added "${label}" to sticker`);
+    return;
+  }
+
+  // Unit sticker
   const u = scene.units.get(unitId);
   if (!u) return;
-
-  // Compute world position of drop
-  const w = screenToWorld(ev.clientX, ev.clientY);
   const def = UnitRegistry.get(u.defId);
   const unitCx = u.x + (def?.w || 2) / 2;
   const unitCy = u.y + (def?.h || 2) / 2;
@@ -15130,7 +15392,7 @@ function _handleStickerDrop(ev, section, label, unitId) {
   _pushUndo('Add sticker badge');
 
   if (!u.sticker) {
-    u.sticker = { dx: Math.round(dx * 2) / 2, dy: Math.round(dy * 2) / 2, items: [] };
+    u.sticker = { dx, dy, items: [] };
   }
   // Dedup
   if (u.sticker.items.some(it => it.section === section && it.label === label)) {
@@ -15148,8 +15410,9 @@ function render() {
   setViewBox();
   drawGrid();
   drawConnections();
+  drawStickerTethers();  // [v10.7.2] tethers under units
   drawUnits();
-  drawStickers();  // [v10.7.0] P1: canvas stickers on top
+  drawStickerCards();    // [v10.7.2] cards on top of units
 }
 
 /* =========================
@@ -17027,11 +17290,11 @@ function _findPrimaryStream(ud, def) {
 
 // Render auto-extracted material stream — 2-column grid layout
 // Row 1: T | P     Row 2: Phase | Vap fraction     Row 3: Composition (full)     Row 4: Molar | Mass flow
-function _renderAutoStream(container, stream, unitId) {
+function _renderAutoStream(container, stream, unitId, connId) {
   if (!stream || stream.type !== StreamType.MATERIAL) return;
   const unitSys = models.getActive('units');
   const grid = el('div', { class: 'propGrid' });
-  const sCtx = unitId ? { unitId, section: 'conditions' } : null;
+  const sCtx = unitId ? { unitId, section: 'conditions', connId: connId || null } : null;
   
   // Row 1: T | P
   const tItem = el('div', { class: 'propItem' }, [
@@ -17144,6 +17407,22 @@ function _autoStreamToItems(stream) {
   return items;
 }
 
+// [v10.7.2] Convert power/heat/electrical stream to labeled items
+function _powerStreamToItems(stream) {
+  if (!stream) return [];
+  const items = [];
+  const capacity_W = stream.capacity ?? stream.available ?? 0;
+  const actual_W = stream.actual ?? stream.available ?? 0;
+  items.push({ label: 'Capacity', value: `${(capacity_W/1000).toFixed(1)}<span class="propUnit">kW</span>` });
+  if (Math.abs(actual_W - capacity_W) > 1) {
+    items.push({ label: 'Actual', value: `${(actual_W/1000).toFixed(1)}<span class="propUnit">kW</span>`, tone: actual_W < capacity_W - 1 ? 'warn' : '' });
+  }
+  if (stream.demand !== undefined) {
+    items.push({ label: 'Demand', value: `${(stream.demand/1000).toFixed(1)}<span class="propUnit">kW</span>` });
+  }
+  return items;
+}
+
 // [v10.7.0] Evaluate sticker items against live solver data
 function _evaluateStickerItems(u) {
   if (!u.sticker?.items?.length) return [];
@@ -17206,9 +17485,9 @@ function _tagDraggableBadge(elem, ctx, label) {
   elem.dataset.stickerSection = ctx.section;
   elem.dataset.stickerLabel = label;
   elem.addEventListener('dragstart', (ev) => {
-    ev.dataTransfer.setData('application/x-sticker-badge', JSON.stringify({
-      unitId: ctx.unitId, section: ctx.section, label
-    }));
+    const data = { unitId: ctx.unitId, section: ctx.section, label };
+    if (ctx.connId) data.connId = ctx.connId;
+    ev.dataTransfer.setData('application/x-sticker-badge', JSON.stringify(data));
     ev.dataTransfer.effectAllowed = 'copy';
   });
 }
@@ -17863,7 +18142,7 @@ function updatePropertiesPanel() {
   const panel = document.getElementById('rightPanel');
 
   // [v10.3.1] Hide panel when nothing selected
-  if (!ui.selectedUnitId && !ui.selectedConnId) {
+  if (!ui.selectedUnitId && !ui.selectedConnId && !ui.selectedStickerId) {
     panel.classList.add('panel-hidden');
     _inspLastTarget = null;
     return;
@@ -17871,7 +18150,9 @@ function updatePropertiesPanel() {
   panel.classList.remove('panel-hidden');
 
   // [v10.3.5] Crossfade on selection change
-  const target = ui.selectedUnitId || ('c:' + ui.selectedConnId);
+  const target = ui.selectedStickerId
+    ? ('s:' + ui.selectedStickerKind + ':' + ui.selectedStickerId)
+    : (ui.selectedUnitId || ('c:' + ui.selectedConnId));
   const changed = target !== _inspLastTarget;
   _inspLastTarget = target;
 
@@ -18055,8 +18336,9 @@ function _rebuildInspectorContent() {
     const ud = scene.runtime.unitData.get(conn.from.unitId);
     const stream = ud?.ports?.[conn.from.portId];
     if (stream) {
+      const connStickerCtx = { unitId: conn.from.unitId, section: 'conditions', connId: conn.id };
       if (stream.type === StreamType.MATERIAL) {
-        _renderAutoStream(propEditor, stream);
+        _renderAutoStream(propEditor, stream, conn.from.unitId, conn.id);
         // Enthalpy in detail
         if (stream.hMolarMix !== undefined || stream.Hdot_J_s !== undefined) {
           const enthalpyItems = [];
@@ -18073,12 +18355,159 @@ function _rebuildInspectorContent() {
           kpis.push({ label: 'Actual', value: `${(actual_W/1000).toFixed(1)}<span class="propUnit">kW</span>`, tone: actual_W < capacity_W - 1 ? 'warn' : '' });
         }
         if (stream.demand !== undefined) kpis.push({ label: 'Demand', value: `${(stream.demand/1000).toFixed(1)}<span class="propUnit">kW</span>` });
-        _renderKPIGrid(propEditor, kpis);
+        _renderKPIGrid(propEditor, kpis, connStickerCtx);
       }
     } else {
       propEditor.appendChild(el('div', { class: 'ins-hint', html: 'Not computed yet — press Test/Step' }));
     }
   }
+
+  // ═══ STICKER SELECTED [v10.8.1] ═══
+  else if (ui.selectedStickerId && ui.selectedStickerKind) {
+    let sticker, ownerLabel, evaluated;
+    if (ui.selectedStickerKind === 'unit') {
+      const u = scene.units.get(ui.selectedStickerId);
+      if (!u?.sticker) { ui.selectedStickerId = null; ui.selectedStickerKind = null; return updatePropertiesPanel(); }
+      sticker = u.sticker;
+      const def = UnitRegistry.get(u.defId);
+      ownerLabel = u.name || def?.name || 'Unit';
+      evaluated = _evaluateStickerItems(u);
+    } else {
+      const conn = scene.connections.find(c => c.id === ui.selectedStickerId);
+      if (!conn?.sticker) { ui.selectedStickerId = null; ui.selectedStickerKind = null; return updatePropertiesPanel(); }
+      sticker = conn.sticker;
+      const fU = scene.units.get(conn.from.unitId);
+      const tU = scene.units.get(conn.to.unitId);
+      ownerLabel = `${fU?.name || 'Unit'} → ${tU?.name || 'Unit'}`;
+      evaluated = _evaluateConnStickerItems(conn);
+    }
+
+    // Ensure display defaults
+    if (!sticker.display) sticker.display = {};
+    const disp = sticker.display;
+    if (disp.connection === undefined) disp.connection = true;
+    if (disp.label === undefined) disp.label = true;
+    if (disp.border === undefined) disp.border = true;
+    if (disp.solidBg === undefined) disp.solidBg = true;
+
+    // Header
+    const headerDiv = el('div', { class: 'unitHeader' });
+    const titleDiv = el('div', { class: 'unitTitle', style: 'cursor:default;' });
+    titleDiv.appendChild(el('span', { html: `📌 Sticker`, style: 'flex:1;' }));
+    const delBtn = el('button', { class: 'ins-delete-btn', html: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 4h12M5.3 4V2.7a1 1 0 011-1h3.4a1 1 0 011 1V4M6.5 7v4.5M9.5 7v4.5M3.5 4l.7 9a1.5 1.5 0 001.5 1.4h4.6a1.5 1.5 0 001.5-1.4l.7-9"/></svg>' });
+    delBtn.title = 'Delete sticker';
+    delBtn.addEventListener('click', () => {
+      _pushUndo('Delete sticker');
+      if (ui.selectedStickerKind === 'unit') {
+        const u = scene.units.get(ui.selectedStickerId);
+        if (u) u.sticker = null;
+      } else {
+        const conn = scene.connections.find(c => c.id === ui.selectedStickerId);
+        if (conn) conn.sticker = null;
+      }
+      ui.selectedStickerId = null;
+      ui.selectedStickerKind = null;
+      autoSave();
+      updatePropertiesPanel();
+      render();
+    });
+    titleDiv.appendChild(delBtn);
+    headerDiv.appendChild(titleDiv);
+    headerDiv.appendChild(el('div', { class: 'unitSubtitle', html: ownerLabel }));
+    propEditor.appendChild(headerDiv);
+
+    // Display options
+    const optSection = el('div', { style: 'padding: 8px 12px;' });
+    optSection.appendChild(el('div', { class: 'propLabel', html: 'Display', style: 'margin-bottom:6px;font-weight:600;' }));
+
+    function addDisplayToggle(label, key) {
+      const row = el('div', { style: 'display:flex;align-items:center;gap:8px;margin:5px 0;' });
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = disp[key];
+      cb.addEventListener('change', () => {
+        _pushUndoDebounced('Change sticker display');
+        disp[key] = cb.checked;
+        autoSave();
+        render();
+      });
+      row.appendChild(cb);
+      row.appendChild(el('label', { text: label, style: 'font-size:12px;color:#cbd5e1;cursor:pointer;' }));
+      row.lastChild.addEventListener('click', () => cb.click());
+      return row;
+    }
+
+    optSection.appendChild(addDisplayToggle('Show connection', 'connection'));
+    optSection.appendChild(addDisplayToggle('Show label', 'label'));
+    optSection.appendChild(addDisplayToggle('Show border', 'border'));
+    optSection.appendChild(addDisplayToggle('Solid background', 'solidBg'));
+
+    // Text size selector (S / M / L)
+    if (disp.textSize === undefined) disp.textSize = 0;
+    const sizeRow = el('div', { style: 'display:flex;align-items:center;gap:8px;margin:7px 0 2px;' });
+    sizeRow.appendChild(el('span', { text: 'Text size', style: 'font-size:12px;color:#cbd5e1;' }));
+    const sizeNames = ['S', 'M', 'L'];
+    const btnGroup = el('div', { style: 'display:flex;gap:2px;margin-left:auto;' });
+    for (let si = 0; si < 3; si++) {
+      const btn = el('button', { text: sizeNames[si], style:
+        `width:28px;height:24px;border-radius:6px;border:1px solid ${si === disp.textSize ? '#3b82f6' : '#334155'};` +
+        `background:${si === disp.textSize ? '#1e3a5f' : '#1e293b'};color:${si === disp.textSize ? '#93c5fd' : '#94a3b8'};` +
+        `font-size:11px;font-weight:600;cursor:pointer;`
+      });
+      const idx = si;
+      btn.addEventListener('click', () => {
+        _pushUndoDebounced('Change sticker text size');
+        disp.textSize = idx;
+        autoSave();
+        updatePropertiesPanel();
+        render();
+      });
+      btnGroup.appendChild(btn);
+    }
+    sizeRow.appendChild(btnGroup);
+    optSection.appendChild(sizeRow);
+
+    propEditor.appendChild(optSection);
+
+    // Badge items
+    if (evaluated.length) {
+      const itemsDiv = el('div', { style: 'padding: 4px 12px 12px;' });
+      itemsDiv.appendChild(el('div', { class: 'propLabel', html: 'Badges', style: 'margin-bottom:6px;font-weight:600;' }));
+      for (let i = 0; i < evaluated.length; i++) {
+        const item = evaluated[i];
+        const valText = item.value.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+        const row = el('div', { style: 'display:flex;align-items:center;gap:6px;margin:3px 0;padding:4px 6px;background:#1e293b;border-radius:6px;' });
+        row.appendChild(el('span', { text: item.label, style: 'flex:1;font-size:11px;color:#94a3b8;' }));
+        row.appendChild(el('span', { text: valText, style: 'font-size:12px;color:#e2e8f0;font-weight:600;' }));
+        const xBtn = el('span', { html: '×', style: 'color:#f87171;cursor:pointer;font-size:13px;padding:0 2px;opacity:0.5;' });
+        xBtn.addEventListener('mouseenter', () => { xBtn.style.opacity = '1'; });
+        xBtn.addEventListener('mouseleave', () => { xBtn.style.opacity = '0.5'; });
+        const idx = i;
+        xBtn.addEventListener('click', () => {
+          _pushUndo('Remove sticker badge');
+          sticker.items.splice(idx, 1);
+          if (sticker.items.length === 0) {
+            if (ui.selectedStickerKind === 'unit') {
+              const u = scene.units.get(ui.selectedStickerId);
+              if (u) u.sticker = null;
+            } else {
+              const conn = scene.connections.find(c => c.id === ui.selectedStickerId);
+              if (conn) conn.sticker = null;
+            }
+            ui.selectedStickerId = null;
+            ui.selectedStickerKind = null;
+          }
+          autoSave();
+          updatePropertiesPanel();
+          render();
+        });
+        row.appendChild(xBtn);
+        itemsDiv.appendChild(row);
+      }
+      propEditor.appendChild(itemsDiv);
+    }
+  }
+
   // [v10.3.1] Balance display removed — now in traffic lights + Balance Report modal
 }
 
@@ -18167,10 +18596,13 @@ function _pushUndo(label) {
   try {
     scene.processName = document.getElementById('processNameInput')?.value?.trim() || scene.processName;
     undoStack.push(scene.exportJSON(), label);
+    updateUndoRedoButtons();
   } catch (e) { /* serialization failed — skip */ }
 }
 
 // Restore a snapshot and re-render
+// Solve is needed to rehydrate computed stream/port data (stickers, inspector).
+// This is a steady-state recompute, not a transport "run".
 function _restoreSnapshot(json) {
   try {
     scene.importJSON(json);
@@ -18186,6 +18618,7 @@ function performUndo() {
   if (!entry) { showToast('Nothing to undo'); return; }
   _restoreSnapshot(entry.json);
   showToast(`Undo: ${entry.label}`);
+  updateUndoRedoButtons();
 }
 
 function performRedo() {
@@ -18193,6 +18626,7 @@ function performRedo() {
   if (!entry) { showToast('Nothing to redo'); return; }
   _restoreSnapshot(entry.json);
   showToast(`Redo: ${entry.label}`);
+  updateUndoRedoButtons();
 }
 
 // Debounced undo push for continuous edits (param changes, name edits)
@@ -18211,6 +18645,7 @@ function _pushUndoDebounced(label) {
     if (_undoParamSnapshot) {
       undoStack.push(_undoParamSnapshot, label);
       _undoParamSnapshot = null;
+      updateUndoRedoButtons();
     }
     _undoParamTimer = null;
   }, 800);  // commit after 800ms pause
@@ -18248,6 +18683,8 @@ document.getElementById('processNameInput').addEventListener('input', () => auto
 function deselectAll() {
   ui.selectedUnitId = null;
   ui.selectedConnId = null;
+  ui.selectedStickerId = null;
+  ui.selectedStickerKind = null;
   ui.pendingFrom = null;
   ui.reconnecting = null;
   updatePropertiesPanel();
@@ -18260,15 +18697,31 @@ function deselectAll() {
 
 function deleteSelected() {
   autoPauseOnTopologyChange(); // [v9.0.1]
-  if (ui.selectedUnitId) {
+  if (ui.selectedStickerId && ui.selectedStickerKind) {
+    _pushUndo('Delete sticker');
+    if (ui.selectedStickerKind === 'unit') {
+      const u = scene.units.get(ui.selectedStickerId);
+      if (u) u.sticker = null;
+    } else {
+      const conn = scene.connections.find(c => c.id === ui.selectedStickerId);
+      if (conn) conn.sticker = null;
+    }
+    ui.selectedStickerId = null;
+    ui.selectedStickerKind = null;
+    autoSave();
+    updatePropertiesPanel();
+    render();
+  } else if (ui.selectedUnitId) {
     scene.deleteUnit(ui.selectedUnitId);
     ui.selectedUnitId = null;
     updatePropertiesPanel();
     render();
   } else if (ui.selectedConnId) {
-    // Delete stream
+    // Delete stream — push undo before mutation
+    _pushUndo('Delete connection');
     scene.connections = scene.connections.filter(c => c.id !== ui.selectedConnId);
     ui.selectedConnId = null;
+    autoSave();
     updatePropertiesPanel();
     render();
   }
@@ -18305,6 +18758,8 @@ svg.addEventListener('pointerdown', (ev) => {
     }
     ui.selectedUnitId = null;
     ui.selectedConnId = null;
+    ui.selectedStickerId = null;
+    ui.selectedStickerKind = null;
     
     updatePropertiesPanel();
     render();
@@ -18342,6 +18797,24 @@ svg.addEventListener('pointermove', (ev) => {
     return;
   }
 
+  // [v10.7.1] Sticker dragging (repositioning on canvas)
+  if (ui.isDraggingSticker && ui.stickerDragStart) {
+    const stk = ui.stickerDragConnId
+      ? scene.connections.find(c => c.id === ui.stickerDragConnId)?.sticker
+      : scene.units.get(ui.stickerDragUnitId)?.sticker;
+    if (stk) {
+      const pt = svg.createSVGPoint();
+      pt.x = ev.clientX; pt.y = ev.clientY;
+      const svgP = pt.matrixTransform(svg.getScreenCTM().inverse());
+      const dx = svgP.x - ui.stickerDragStart.x;
+      const dy = svgP.y - ui.stickerDragStart.y;
+      stk.dx = ui.stickerOrigDx + dx / scene.tile;
+      stk.dy = ui.stickerOrigDy + dy / scene.tile;
+      render();
+    }
+    return;
+  }
+
   // Redraw pending connection
   if (ui.pendingFrom) render();
 });
@@ -18369,6 +18842,40 @@ svg.addEventListener('pointerup', () => {
     ui.dragStartPos = null;
     
     updatePropertiesPanel();
+    render();
+  }
+
+  // [v10.7.1] Sticker drag end — push undo if moved, or select if clicked
+  if (ui.isDraggingSticker) {
+    const stkKind = ui.stickerDragConnId ? 'conn' : 'unit';
+    const stkId = ui.stickerDragConnId || ui.stickerDragUnitId;
+    const stk = stkKind === 'conn'
+      ? scene.connections.find(c => c.id === stkId)?.sticker
+      : scene.units.get(stkId)?.sticker;
+    if (stk) {
+      const movedEnough = Math.abs(stk.dx - ui.stickerOrigDx) > 0.01 ||
+                          Math.abs(stk.dy - ui.stickerOrigDy) > 0.01;
+      if (movedEnough) {
+        const newDx = stk.dx, newDy = stk.dy;
+        stk.dx = ui.stickerOrigDx;
+        stk.dy = ui.stickerOrigDy;
+        _pushUndo('Move sticker');
+        stk.dx = newDx;
+        stk.dy = newDy;
+        autoSave();
+      } else {
+        // Click without drag → select sticker
+        ui.selectedStickerId = stkId;
+        ui.selectedStickerKind = stkKind;
+        ui.selectedUnitId = null;
+        ui.selectedConnId = null;
+        updatePropertiesPanel();
+      }
+    }
+    ui.isDraggingSticker = false;
+    ui.stickerDragUnitId = null;
+    ui.stickerDragConnId = null;
+    ui.stickerDragStart = null;
     render();
   }
 });
@@ -18411,8 +18918,8 @@ svg.addEventListener('drop', (ev) => {
   const stickerData = ev.dataTransfer.getData('application/x-sticker-badge');
   if (stickerData) {
     try {
-      const { unitId, section, label } = JSON.parse(stickerData);
-      _handleStickerDrop(ev, section, label, unitId);
+      const { unitId, section, label, connId } = JSON.parse(stickerData);
+      _handleStickerDrop(ev, section, label, unitId, connId);
     } catch (e) { /* ignore malformed data */ }
     return;
   }
@@ -18443,6 +18950,8 @@ svg.addEventListener('drop', (ev) => {
   
   ui.selectedUnitId = id;
   ui.selectedConnId = null;
+  ui.selectedStickerId = null;
+  ui.selectedStickerKind = null;
   ui.pendingFrom = null;
   ui.reconnecting = null;
   ui.dragDefId = null;
@@ -18785,11 +19294,11 @@ btnUtilities.addEventListener('click', () => {
   render();
 });
 
-// [v10.7.0] Sticker lines toggle
+// [v10.7.0] Sticker toggle — show/hide all stickers
 const btnStickerLines = document.getElementById('btnStickerLines');
 btnStickerLines.addEventListener('click', () => {
-  ui.showStickerLines = !ui.showStickerLines;
-  btnStickerLines.style.opacity = ui.showStickerLines ? '1' : '0.35';
+  ui.showStickers = !ui.showStickers;
+  btnStickerLines.style.opacity = ui.showStickers ? '1' : '0.35';
   render();
 });
 
@@ -18826,6 +19335,18 @@ btnMenu.addEventListener('click', (ev) => {
   ev.stopPropagation();
   toggle(menuMain);
 });
+
+// [v10.8.1] Undo/Redo toolbar buttons
+btnUndo.addEventListener('click', () => performUndo());
+btnRedo.addEventListener('click', () => performRedo());
+
+function updateUndoRedoButtons() {
+  btnUndo.disabled = !undoStack.canUndo;
+  btnRedo.disabled = !undoStack.canRedo;
+  btnUndo.title = undoStack.canUndo ? `Undo: ${undoStack.undoLabel} (Ctrl+Z)` : 'Nothing to undo';
+  btnRedo.title = undoStack.canRedo ? `Redo: ${undoStack.redoLabel} (Ctrl+Shift+Z)` : 'Nothing to redo';
+}
+updateUndoRedoButtons();
 
 document.addEventListener('pointerdown', (ev) => {
   const t = ev.target;
@@ -19307,6 +19828,28 @@ document.getElementById('mClear').addEventListener('click', () => {
   closeMenus();
 });
 
+// [v10.8.1] Clear all stickers from units and connections
+document.getElementById('mClearStickers').addEventListener('click', () => {
+  let count = 0;
+  for (const u of scene.units.values()) { if (u.sticker) count++; }
+  for (const c of scene.connections) { if (c.sticker) count++; }
+  if (count === 0) {
+    showToast('No stickers to clear');
+    closeMenus();
+    return;
+  }
+  _pushUndo('Clear stickers');
+  for (const u of scene.units.values()) u.sticker = null;
+  for (const c of scene.connections) c.sticker = null;
+  ui.selectedStickerId = null;
+  ui.selectedStickerKind = null;
+  autoSave();
+  updatePropertiesPanel();
+  render();
+  showToast(`Cleared ${count} sticker${count > 1 ? 's' : ''} (Ctrl+Z to undo)`);
+  closeMenus();
+});
+
 // [v8.10.0] Run Tests moved to Settings modal developer section
 
 document.getElementById('mExport').addEventListener('click', () => {
@@ -19671,9 +20214,10 @@ class TestCtx {
 
   _printTable() {
     if (!this.results.length) return;
-    console.log(`  ┌${'─'.repeat(78)}┐`);
-    console.log(`  │ Parameter          Calculated    Reference     Delta       Tolerance  Status │`);
-    console.log(`  ├${'─'.repeat(78)}┤`);
+    const _w = _realConsoleWarn || console.warn;
+    _w(`  ┌${'─'.repeat(78)}┐`);
+    _w(`  │ Parameter          Calculated    Reference     Delta       Tolerance  Status │`);
+    _w(`  ├${'─'.repeat(78)}┤`);
     for (const r of this.results) {
       // [v4.7.7] Use scientific notation for very small numbers to avoid misleading "0.0000 vs ±0.0000 → ✗"
       const fmtNum = (v) => {
@@ -19685,9 +20229,9 @@ class TestCtx {
       };
       const fmt = (v, w) => String(typeof v === 'number' ? fmtNum(v) : v).substring(0, w).padEnd(w);
       const tolS = (typeof r.tol === 'number' ? `±${fmtNum(r.tol)}` : String(r.tol)).substring(0, 10).padEnd(10);
-      console.log(`  │ ${fmt(r.name,18)} ${fmt(r.calc,13)} ${fmt(r.ref,13)} ${fmt(r.delta,11)} ${tolS} ${r.status.padEnd(6)} │`);
+      _w(`  │ ${fmt(r.name,18)} ${fmt(r.calc,13)} ${fmt(r.ref,13)} ${fmt(r.delta,11)} ${tolS} ${r.status.padEnd(6)} │`);
     }
-    console.log(`  └${'─'.repeat(78)}┘`);
+    _w(`  └${'─'.repeat(78)}┘`);
   }
 }
 
@@ -27265,9 +27809,11 @@ function runTests() {
   SimSettings.cheatsEnabled = _savedCheats;
 
   // ── Condensed summary (always shown) ──
+  // [v10.8.1] Uses _realConsoleWarn (the original console.warn saved before
+  // any overrides) so output is visible in sandboxed iframe viewers.
   const totalChecks = totalPass + totalFail;
   const allGreen = totalFail === 0 && totalPass > 0;
-  console.log(
+  _realConsoleWarn(
     `${allGreen ? '✓' : '✗'} ${testsPassed}/${tests.length} tests passed  ` +
     `${totalPass}/${totalChecks} checks passed` +
     (totalFail > 0 ? `  (${totalFail} failed)` : '')
@@ -27275,9 +27821,9 @@ function runTests() {
 
   // ── Detail only for failures ──
   if (failedTests.length > 0) {
-    console.log('');
+    _realConsoleWarn('');
     for (const f of failedTests) {
-      console.log(`  ✗ Test ${f.idx}: ${f.name}`);
+      _realConsoleWarn(`  ✗ Test ${f.idx}: ${f.name}`);
       f.ctx._printTable();
     }
   }

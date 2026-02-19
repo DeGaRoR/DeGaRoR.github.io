@@ -1,7 +1,67 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v9.1.0
+  processThis v10.8.1
+
+  ─── v10.8.1 ──────────────────────────────────────────────────────────────
+  Sticker system overhaul — connection stickers, drag fixes, UX polish.
+
+  DRAG FIX: Sticker drag rewritten to use ui-level state flags (same
+  pattern as unit drag). Old approach attached pointermove/pointerup to
+  the SVG bgRect, which was destroyed by render() mid-drag, killing the
+  interaction. Now pointerdown sets ui.isDraggingSticker and captures on
+  the persistent svg element; pointermove/pointerup in the main SVG
+  handlers drive the drag. Whole sticker card is the drag surface (not
+  just the bg rect), so grabbing anywhere works. user-select: none on
+  .stickers-layer prevents text selection during drag.
+
+  CONNECTION STICKERS: Badges dragged from stream inspector now create
+  stickers on the connection object (conn.sticker = { dx, dy, items }).
+  Anchor point is the cubic bezier midpoint (t=0.5) of the connection
+  curve, computed by _connBezierMid(). _evaluateConnStickerItems()
+  resolves live values from the from-port stream data. connId carried
+  through _tagDraggableBadge → drag data → _handleStickerDrop.
+  _powerStreamToItems() added for non-material streams (Capacity /
+  Actual / Demand). Import/export handles conn.sticker with validation.
+
+  RENDER SPLIT: drawStickers() split into drawStickerTethers() (rendered
+  before units) and drawStickerCards() (rendered after units). Tether
+  lines now appear under unit icons; cards float on top. Tethers clipped
+  at unit bounding box edge via _clipToRectEdge() so dashed lines stop
+  at the unit boundary.
+
+  UX: Unit name header removed from sticker cards (redundant — tether
+  makes ownership clear). Close × moved outside card (top-right corner,
+  above card rect) so it never overlaps row × buttons. Half-tile snap
+  removed — stickers stay exactly where dropped. 📌 button now toggles
+  all stickers (cards + tethers), not just tether lines. Border stroke
+  bumped to 1.5px / 0.6 opacity.
+
+  Unified rendering via _collectStickers() gathers both unit and
+  connection stickers into a single array for drawStickerTethers and
+  drawStickerCards, eliminating code duplication.
+
+  Gate: 228/228 tests, 1550 checks.
+
+  ─── v10.8.0 ──────────────────────────────────────────────────────────────
+  NH3 (Ammonia) component + refrigeration cycle validation.
+
+  COMPONENT: Ammonia (NH3) added to ComponentRegistry with full NIST data.
+  CAS 7664-41-7. Two-range Antoine (164–372 K), cpig polynomial (200–1500 K),
+  formation enthalpy and entropy from CODATA (Cox, Wagman et al. 1984).
+  All fields populated; passes ComponentRegistry.validate().
+
+  TESTS: Three new tests proving vapor-compression refrigeration works on
+  the existing ideal-gas + Raoult thermo stack with zero engine changes:
+    T226: NH3 expansion valve — liquid 295 K/10 bar throttled to 2 bar
+          flashes to two-phase at ~254 K (the refrigeration effect).
+    T227: NH3 condensation — vapor 350 K/10 bar cooled to 293 K condenses
+          to subcooled liquid (condenser step).
+    T228: NH3 compression — vapor 256 K/2 bar compressed to 10 bar gives
+          hot superheated vapor (compressor step).
+  Together these prove every step of a vapor-compression cycle.
+
+  Gate: 228/228 tests, 1550 checks.
 
   ─── v10.7.0 ──────────────────────────────────────────────────────────────
   P1: Canvas Stickers — live floating data labels tethered to units.
@@ -1910,7 +1970,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>processThis — v10.7.0</title>
+  <title>processThis — v10.8.0</title>
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
@@ -2294,14 +2354,13 @@
     }
 
     /* ===== STICKER SYSTEM [v10.7.0] ===== */
+    .stickers-layer { user-select: none; -webkit-user-select: none; }
     .sticker-tether { pointer-events: none; }
-    .sticker-bg { cursor: grab; }
-    .sticker-bg:active { cursor: grabbing; }
-    .sticker-row-hit { cursor: default; }
-    .sticker-row-hit:hover + .sticker-row-x { opacity: 1; }
-    .sticker-row-x { opacity: 0; cursor: pointer; transition: opacity 0.15s; }
+    .sticker-card { cursor: grab; }
+    .sticker-card:active { cursor: grabbing; }
+    .sticker-row-x { opacity: 0.15; cursor: pointer; transition: opacity 0.15s; }
     .sticker-row-x:hover { opacity: 1; }
-    .sticker-close { cursor: pointer; opacity: 0.4; transition: opacity 0.15s; }
+    .sticker-close { cursor: pointer; opacity: 0.25; transition: opacity 0.15s; pointer-events: all; }
     .sticker-close:hover { opacity: 1; }
 
     /* Inspector draggable badges */
@@ -3361,7 +3420,7 @@
 
       <!-- Utilities toggle [v10.1.1] -->
       <button class="tbtn" id="btnUtilities" data-tip="Show/hide utilities" style="font-size:14px; border-radius:8px;">⚡</button>
-      <button class="tbtn" id="btnStickerLines" data-tip="Show/hide sticker lines" style="font-size:14px; border-radius:8px;">📌</button>
+      <button class="tbtn" id="btnStickerLines" data-tip="Show/hide stickers" style="font-size:14px; border-radius:8px;">📌</button>
     </div>
 
     <!-- Models modal -->
@@ -4445,6 +4504,43 @@ ComponentRegistry.register('CO2', {
   // NIST Chemistry WebBook — gas phase, 298.15 K, 1 bar
   hf0_Jmol: -393510,  // Std enthalpy of formation (J/mol)
   s0_JmolK: 213.785   // Std molar entropy (J/(mol·K))
+});
+
+// [v10.8.0] Ammonia — refrigerant, Haber process feedstock, industrial base chemical.
+// Enables vapor-compression refrigeration cycles on ideal-gas + Raoult thermo stack.
+ComponentRegistry.register('NH3', {
+  name: 'Ammonia',
+  CAS: '7664-41-7',
+  MW: 17.03052,   // [v10.8.0] IUPAC 2021: 14.00670 + 3×1.00794
+  Tc: 405.4,      // K — NIST Chemistry WebBook
+  Pc: 11333000,   // Pa (113.33 bar) — NIST Chemistry WebBook
+  omega: 0.256,   // Acentric factor — Reid, Prausnitz & Poling (1987)
+  Vc: 0.0000725,  // m³/mol — NIST
+  Zc: 0.242,      // Critical compressibility — NIST
+  Tb: 239.82,     // K (normal boiling point at 1 atm) — NIST
+  Tm: 195.4,      // K (melting point) — NIST
+  Hv: 23370,      // J/mol (heat of vaporization at Tb) — NIST Chemistry WebBook
+  phase298: 'gas',
+  // Antoine equation: log10(Psat[mmHg]) = A - B/(C + T[°C])
+  // Source: Stull 1947 via NIST Chemistry WebBook (CAS 7664-41-7)
+  // Verified: Psat(239.82 K) = 1.014 bar ≈ 1 atm ✓
+  antoine: [
+    { A: 7.36050, B: 926.132, C: 240.17,
+      Tmin: 164, Tmax: 240, desc: 'Low range (solid-liquid to NBP)' },
+    { A: 7.55466, B: 1002.711, C: 247.885,
+      Tmin: 240, Tmax: 372, desc: 'High range (NBP to near-critical)' }
+  ],
+  // Ideal gas Cp polynomial: Cp = A + B*T + C*T² + D*T³  [J/(mol·K)], T in K
+  // Fitted to NIST-JANAF Shomate data (Chase 1998, J. Phys. Chem. Ref. Data Mono. 9)
+  // Accuracy: <1% error vs Shomate over 250–1000 K; ~3% at 200 K (extrapolation)
+  // Cp(298 K) = 35.9 J/(mol·K) vs NIST 35.6 — acceptable for ideal gas model
+  cpig: { A: 27.568, B: 2.5630e-2, C: 0.99072e-5, D: -6.6909e-9, E: 0, Tmin: 200, Tmax: 1500 },
+  cpLiq: 80.8,    // J/(mol·K) — NIST, approximately constant over 200–300 K range
+  rhoLiq: 682,    // kg/m³ (liquid at NBP, 240 K) — NIST
+  // NIST Chemistry WebBook — gas phase, 298.15 K, 1 bar
+  // CODATA recommended values: Cox, Wagman & Medvedev, Hemisphere Publishing, 1984
+  hf0_Jmol: -45940,   // Std enthalpy of formation (J/mol) — CODATA ΔfH° = -45.94 ± 0.35 kJ/mol
+  s0_JmolK: 192.77    // Std molar entropy (J/(mol·K)) — CODATA S° = 192.77 ± 0.05 J/(mol·K)
 });
 
 /* =========================
@@ -11044,6 +11140,16 @@ class Scene {
         to:   { unitId: toUnitId,   portId: toPortId }
       });
 
+      // [v10.7.2] Restore connection sticker data
+      if (c.sticker && typeof c.sticker === 'object' && Array.isArray(c.sticker.items)) {
+        const connSticker = {
+          dx: typeof c.sticker.dx === 'number' ? c.sticker.dx : 2,
+          dy: typeof c.sticker.dy === 'number' ? c.sticker.dy : -2,
+          items: c.sticker.items.filter(it => it && typeof it.section === 'string' && typeof it.label === 'string')
+        };
+        if (connSticker.items.length > 0) tempConns[tempConns.length - 1].sticker = connSticker;
+      }
+
       const m = connId.match(/-(\d+)$/);
       if (m) maxConnId = Math.max(maxConnId, parseInt(m[1], 10));
     }
@@ -13595,8 +13701,15 @@ const ui = {
   isHTML5Dragging: false, // Track HTML5 drag from library
   _mouseWorld: { x: 0, y: 0 },
   showUtilities: true,    // [v10.1.1] E7: dim power utility units when false
-  showStickerLines: true, // [v10.7.0] P1: show/hide sticker tether lines
-  reconnecting: null      // [v10.1.1] {connId} when reconnecting a stream
+  showStickers: true, // [v10.7.0] P1: show/hide stickers entirely
+  reconnecting: null,     // [v10.1.1] {connId} when reconnecting a stream
+  // [v10.7.1] Sticker drag state (uses ui flags like unit drag)
+  isDraggingSticker: false,
+  stickerDragUnitId: null,
+  stickerDragConnId: null,   // [v10.7.2] connection sticker support
+  stickerDragStart: null,  // {x, y} SVG coords at pointerdown
+  stickerOrigDx: 0,
+  stickerOrigDy: 0
 };
 
 /* =========================
@@ -14846,54 +14959,171 @@ function drawUnits() {
 // [v10.7.0] STICKER RENDERING
 // ═══════════════════════════════════════════════════════════════════════════
 
-function drawStickers() {
+// [v10.7.2] Compute bezier midpoint (t=0.5) for a connection
+function _connBezierMid(conn) {
   const tile = scene.tile;
-  const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-  g.setAttribute('class', 'stickers-layer');
+  const fromU = scene.units.get(conn.from.unitId);
+  const toU = scene.units.get(conn.to.unitId);
+  if (!fromU || !toU) return null;
+  const fromDef = UnitRegistry.get(fromU.defId);
+  const toDef = UnitRegistry.get(toU.defId);
+  const fromPort = fromDef.ports.find(p => p.portId === conn.from.portId);
+  const toPort = toDef.ports.find(p => p.portId === conn.to.portId);
+  if (!fromPort || !toPort) return null;
+  const fx = (fromU.x + fromPort.x) * tile;
+  const fy = (fromU.y + fromPort.y) * tile;
+  const tx = (toU.x + toPort.x) * tile;
+  const ty = (toU.y + toPort.y) * tile;
+  const controlOffset = 60;
+  const fromEdge = getPortEdge(fromPort, fromDef);
+  const toEdge = getPortEdge(toPort, toDef);
+  let c1x, c1y, c2x, c2y;
+  if (fromEdge === 'left') { c1x = fx - controlOffset; c1y = fy; }
+  else if (fromEdge === 'right') { c1x = fx + controlOffset; c1y = fy; }
+  else if (fromEdge === 'top') { c1x = fx; c1y = fy - controlOffset; }
+  else { c1x = fx; c1y = fy + controlOffset; }
+  if (toEdge === 'left') { c2x = tx - controlOffset; c2y = ty; }
+  else if (toEdge === 'right') { c2x = tx + controlOffset; c2y = ty; }
+  else if (toEdge === 'top') { c2x = tx; c2y = ty - controlOffset; }
+  else { c2x = tx; c2y = ty + controlOffset; }
+  // Cubic bezier at t=0.5: B = P0/8 + 3P1/8 + 3P2/8 + P3/8
+  return {
+    x: fx * 0.125 + c1x * 0.375 + c2x * 0.375 + tx * 0.125,
+    y: fy * 0.125 + c1y * 0.375 + c2y * 0.375 + ty * 0.125
+  };
+}
 
+// [v10.7.2] Clip a line from (cx,cy) toward (targetX,targetY) at rect boundary
+function _clipToRectEdge(cx, cy, hw, hh, targetX, targetY) {
+  const dx = targetX - cx, dy = targetY - cy;
+  if (Math.abs(dx) < 0.01 && Math.abs(dy) < 0.01) return { x: cx, y: cy };
+  // Find t where line exits rect [-hw..+hw, -hh..+hh] centered at (cx,cy)
+  let t = 1;
+  if (dx !== 0) t = Math.min(t, Math.abs(hw / dx));
+  if (dy !== 0) t = Math.min(t, Math.abs(hh / dy));
+  return { x: cx + dx * t, y: cy + dy * t };
+}
+
+// [v10.7.2] Evaluate sticker items for a connection sticker
+function _evaluateConnStickerItems(conn) {
+  if (!conn.sticker?.items?.length) return [];
+  const ud = scene.runtime?.unitData?.get(conn.from.unitId);
+  if (!ud) return conn.sticker.items.map(it => ({ ...it, value: '—' }));
+  const stream = ud.ports?.[conn.from.portId];
+  let pool = [];
+  if (stream) {
+    if (stream.type === StreamType.MATERIAL) {
+      pool = _autoStreamToItems(stream);
+    } else {
+      pool = _powerStreamToItems(stream);
+    }
+  }
+  return conn.sticker.items.map(it => {
+    const match = pool.find(p => p.label === it.label);
+    return { ...it, value: match?.value ?? '—', tone: match?.tone };
+  });
+}
+
+// [v10.7.2] Collect all sticker anchors and data for unified rendering
+function _collectStickers() {
+  const tile = scene.tile;
+  const stickers = [];
+
+  // Unit stickers
   for (const [uid, u] of scene.units) {
     if (!u.sticker?.items?.length) continue;
     const def = UnitRegistry.get(u.defId);
     if (!def) continue;
-
-    // Evaluate live values
     const evaluated = _evaluateStickerItems(u);
     if (!evaluated.length) continue;
+    const anchorX = (u.x + def.w / 2) * tile;
+    const anchorY = (u.y + def.h / 2) * tile;
+    const halfW = def.w / 2 * tile;
+    const halfH = def.h / 2 * tile;
+    const color = def.color || '#64748b';
+    stickers.push({
+      kind: 'unit', id: uid, sticker: u.sticker, evaluated, color,
+      anchorX, anchorY, halfW, halfH, clipAnchor: true,
+      onClose() { u.sticker = null; },
+      onRemoveItem(idx) { u.sticker.items.splice(idx, 1); if (u.sticker.items.length === 0) u.sticker = null; }
+    });
+  }
 
-    const unitCx = (u.x + def.w / 2) * tile;
-    const unitCy = (u.y + def.h / 2) * tile;
-    const stickerX = unitCx + u.sticker.dx * tile;
-    const stickerY = unitCy + u.sticker.dy * tile;
+  // Connection stickers
+  for (const conn of scene.connections) {
+    if (!conn.sticker?.items?.length) continue;
+    const mid = _connBezierMid(conn);
+    if (!mid) continue;
+    const evaluated = _evaluateConnStickerItems(conn);
+    if (!evaluated.length) continue;
+    const fromDef = UnitRegistry.get(scene.units.get(conn.from.unitId)?.defId);
+    const visuals = StreamVisuals[fromDef?.ports?.find(p => p.portId === conn.from.portId)?.type];
+    const color = visuals?.color || '#64748b';
+    stickers.push({
+      kind: 'conn', id: conn.id, sticker: conn.sticker, evaluated, color,
+      anchorX: mid.x, anchorY: mid.y, halfW: 0, halfH: 0, clipAnchor: false,
+      onClose() { conn.sticker = null; },
+      onRemoveItem(idx) { conn.sticker.items.splice(idx, 1); if (conn.sticker.items.length === 0) conn.sticker = null; }
+    });
+  }
 
-    // Layout constants
-    const W = 150;
-    const rowH = 18;
-    const padX = 8;
-    const padY = 6;
-    const headerH = 16; // unit name header
-    const totalH = padY + headerH + evaluated.length * rowH + padY;
+  return stickers;
+}
+
+// [v10.7.2] Draw tether lines only (rendered BEFORE units so icons sit on top)
+function drawStickerTethers() {
+  if (!ui.showStickers) return;
+  const tile = scene.tile;
+  const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  g.setAttribute('class', 'sticker-tethers-layer');
+
+  for (const s of _collectStickers()) {
+    const stickerX = s.anchorX + s.sticker.dx * tile;
+    const stickerY = s.anchorY + s.sticker.dy * tile;
+    const W = 150, padY = 6, rowH = 18;
+    const totalH = padY + s.evaluated.length * rowH + padY;
     const stickerCx = stickerX + W / 2;
     const stickerCy = stickerY + totalH / 2;
 
-    const stickerG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-    stickerG.setAttribute('data-sticker-uid', uid);
+    // Clip start at anchor boundary (so line doesn't go through unit icon)
+    const start = s.clipAnchor
+      ? _clipToRectEdge(s.anchorX, s.anchorY, s.halfW, s.halfH, stickerCx, stickerCy)
+      : { x: s.anchorX, y: s.anchorY };
 
-    // Tether line
-    if (ui.showStickerLines) {
-      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-      line.setAttribute('x1', unitCx);
-      line.setAttribute('y1', unitCy);
-      line.setAttribute('x2', stickerCx);
-      line.setAttribute('y2', stickerCy);
-      line.setAttribute('stroke', '#475569');
-      line.setAttribute('stroke-width', '1');
-      line.setAttribute('stroke-dasharray', '4,3');
-      line.setAttribute('class', 'sticker-tether');
-      stickerG.appendChild(line);
-    }
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', start.x);
+    line.setAttribute('y1', start.y);
+    line.setAttribute('x2', stickerCx);
+    line.setAttribute('y2', stickerCy);
+    line.setAttribute('stroke', '#475569');
+    line.setAttribute('stroke-width', '1');
+    line.setAttribute('stroke-dasharray', '4,3');
+    line.setAttribute('class', 'sticker-tether');
+    g.appendChild(line);
+  }
+
+  svg.appendChild(g);
+}
+
+// [v10.7.2] Draw sticker cards (rendered AFTER units, on top)
+function drawStickerCards() {
+  if (!ui.showStickers) return;
+  const tile = scene.tile;
+  const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  g.setAttribute('class', 'stickers-layer');
+
+  for (const s of _collectStickers()) {
+    const stickerX = s.anchorX + s.sticker.dx * tile;
+    const stickerY = s.anchorY + s.sticker.dy * tile;
+
+    const W = 150, rowH = 18, padX = 8, padY = 6;
+    const totalH = padY + s.evaluated.length * rowH + padY;
+
+    const stickerG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    stickerG.setAttribute('data-sticker-id', s.id);
+    stickerG.setAttribute('class', 'sticker-card');
 
     // Background
-    const catColor = def.color || '#64748b';
     const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
     bg.setAttribute('x', stickerX);
     bg.setAttribute('y', stickerY);
@@ -14901,58 +15131,27 @@ function drawStickers() {
     bg.setAttribute('height', totalH);
     bg.setAttribute('rx', 6);
     bg.setAttribute('fill', 'rgba(15,23,42,0.92)');
-    bg.setAttribute('stroke', catColor);
-    bg.setAttribute('stroke-width', '1');
-    bg.setAttribute('stroke-opacity', '0.5');
-    bg.setAttribute('class', 'sticker-bg');
+    bg.setAttribute('stroke', s.color);
+    bg.setAttribute('stroke-width', '1.5');
+    bg.setAttribute('stroke-opacity', '0.6');
+    bg.setAttribute('pointer-events', 'none');
     stickerG.appendChild(bg);
 
-    // Header: unit name + close button
-    const name = u.name || def.name || uid.slice(-4);
-    const hdr = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    hdr.setAttribute('x', stickerX + padX);
-    hdr.setAttribute('y', stickerY + padY + 10);
-    hdr.setAttribute('font-size', '10');
-    hdr.setAttribute('fill', catColor);
-    hdr.setAttribute('font-weight', '600');
-    hdr.setAttribute('font-family', 'inherit');
-    hdr.setAttribute('opacity', '0.7');
-    hdr.textContent = name.length > 18 ? name.slice(0, 17) + '…' : name;
-    stickerG.appendChild(hdr);
-
-    // Close × button
-    const closeX = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    closeX.setAttribute('x', stickerX + W - padX - 4);
-    closeX.setAttribute('y', stickerY + padY + 10);
-    closeX.setAttribute('font-size', '11');
-    closeX.setAttribute('fill', '#94a3b8');
-    closeX.setAttribute('text-anchor', 'end');
-    closeX.setAttribute('class', 'sticker-close');
-    closeX.textContent = '×';
-    closeX.addEventListener('pointerdown', (ev) => {
-      ev.stopPropagation();
-      _pushUndo('Remove sticker');
-      u.sticker = null;
-      autoSave();
-      render();
-    });
-    stickerG.appendChild(closeX);
+    // Invisible hit surface covering entire card
+    const hitSurface = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    hitSurface.setAttribute('x', stickerX);
+    hitSurface.setAttribute('y', stickerY);
+    hitSurface.setAttribute('width', W);
+    hitSurface.setAttribute('height', totalH);
+    hitSurface.setAttribute('fill', 'transparent');
+    hitSurface.setAttribute('pointer-events', 'all');
+    stickerG.appendChild(hitSurface);
 
     // Badge rows
-    let rowY = stickerY + padY + headerH;
-    for (let i = 0; i < evaluated.length; i++) {
-      const item = evaluated[i];
+    let rowY = stickerY + padY;
+    for (let i = 0; i < s.evaluated.length; i++) {
+      const item = s.evaluated[i];
       const y = rowY + i * rowH;
-
-      // Hit area for hover (invisible rect)
-      const hitRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-      hitRect.setAttribute('x', stickerX);
-      hitRect.setAttribute('y', y);
-      hitRect.setAttribute('width', W);
-      hitRect.setAttribute('height', rowH);
-      hitRect.setAttribute('fill', 'transparent');
-      hitRect.setAttribute('class', 'sticker-row-hit');
-      stickerG.appendChild(hitRect);
 
       // Label
       const lbl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
@@ -14968,7 +15167,7 @@ function drawStickers() {
       // Value (strip HTML tags for SVG text)
       const valText = item.value.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
       const val = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-      val.setAttribute('x', stickerX + W - padX);
+      val.setAttribute('x', stickerX + W - padX - 14);
       val.setAttribute('y', y + 13);
       val.setAttribute('font-size', '11');
       val.setAttribute('text-anchor', 'end');
@@ -14983,9 +15182,9 @@ function drawStickers() {
       val.textContent = valText;
       stickerG.appendChild(val);
 
-      // Row remove × (appears on hover via CSS)
+      // Row remove × (always faintly visible)
       const rowX = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-      rowX.setAttribute('x', stickerX + W - 2);
+      rowX.setAttribute('x', stickerX + W - padX);
       rowX.setAttribute('y', y + 13);
       rowX.setAttribute('font-size', '9');
       rowX.setAttribute('fill', '#f87171');
@@ -14993,19 +15192,38 @@ function drawStickers() {
       rowX.setAttribute('class', 'sticker-row-x');
       rowX.textContent = '×';
       const idx = i;
+      const onRemove = s.onRemoveItem;
       rowX.addEventListener('pointerdown', (ev) => {
         ev.stopPropagation();
         _pushUndo('Remove sticker badge');
-        u.sticker.items.splice(idx, 1);
-        if (u.sticker.items.length === 0) u.sticker = null;
+        onRemove(idx);
         autoSave();
         render();
       });
       stickerG.appendChild(rowX);
     }
 
-    // Sticker drag (reposition)
-    _setupStickerDrag(stickerG, bg, u, def, tile);
+    // Close × button — positioned just outside the top-right corner
+    const closeX = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    closeX.setAttribute('x', stickerX + W + 2);
+    closeX.setAttribute('y', stickerY - 2);
+    closeX.setAttribute('font-size', '11');
+    closeX.setAttribute('fill', '#94a3b8');
+    closeX.setAttribute('text-anchor', 'middle');
+    closeX.setAttribute('class', 'sticker-close');
+    closeX.textContent = '×';
+    const onClose = s.onClose;
+    closeX.addEventListener('pointerdown', (ev) => {
+      ev.stopPropagation();
+      _pushUndo('Remove sticker');
+      onClose();
+      autoSave();
+      render();
+    });
+    stickerG.appendChild(closeX);
+
+    // Sticker drag (reposition) — whole card is the drag surface
+    _setupStickerDrag(stickerG, s);
 
     g.appendChild(stickerG);
   }
@@ -15014,56 +15232,58 @@ function drawStickers() {
 }
 
 // [v10.7.0] Sticker drag-to-reposition handler
-function _setupStickerDrag(stickerG, bgRect, u, def, tile) {
-  let dragging = false;
-  let startX, startY, origDx, origDy;
-
-  bgRect.addEventListener('pointerdown', (ev) => {
+// [v10.7.2] Listens on stickerG (whole card), supports unit and connection stickers.
+function _setupStickerDrag(stickerG, stickerInfo) {
+  stickerG.addEventListener('pointerdown', (ev) => {
     if (ev.button !== 0) return;
     ev.stopPropagation();
-    dragging = true;
-    origDx = u.sticker.dx;
-    origDy = u.sticker.dy;
+
+    ui.isDraggingSticker = true;
+    ui.stickerDragUnitId = stickerInfo.kind === 'unit' ? stickerInfo.id : null;
+    ui.stickerDragConnId = stickerInfo.kind === 'conn' ? stickerInfo.id : null;
+    ui.stickerOrigDx = stickerInfo.sticker.dx;
+    ui.stickerOrigDy = stickerInfo.sticker.dy;
+
     const pt = svg.createSVGPoint();
     pt.x = ev.clientX; pt.y = ev.clientY;
     const svgP = pt.matrixTransform(svg.getScreenCTM().inverse());
-    startX = svgP.x;
-    startY = svgP.y;
-    bgRect.setPointerCapture(ev.pointerId);
-    _pushUndo('Move sticker');
-  });
+    ui.stickerDragStart = { x: svgP.x, y: svgP.y };
 
-  bgRect.addEventListener('pointermove', (ev) => {
-    if (!dragging) return;
-    const pt = svg.createSVGPoint();
-    pt.x = ev.clientX; pt.y = ev.clientY;
-    const svgP = pt.matrixTransform(svg.getScreenCTM().inverse());
-    const dx = svgP.x - startX;
-    const dy = svgP.y - startY;
-    u.sticker.dx = origDx + dx / tile;
-    u.sticker.dy = origDy + dy / tile;
-    render();
-  });
-
-  bgRect.addEventListener('pointerup', (ev) => {
-    if (!dragging) return;
-    dragging = false;
-    bgRect.releasePointerCapture(ev.pointerId);
-    // Snap to half-tile increments
-    u.sticker.dx = Math.round(u.sticker.dx * 2) / 2;
-    u.sticker.dy = Math.round(u.sticker.dy * 2) / 2;
-    autoSave();
-    render();
+    // Capture on the SVG so we get events even after stickerG is rebuilt
+    svg.setPointerCapture(ev.pointerId);
   });
 }
 
 // [v10.7.0] Handle a sticker badge dropped onto the canvas
-function _handleStickerDrop(ev, section, label, unitId) {
+function _handleStickerDrop(ev, section, label, unitId, connId) {
+  const w = screenToWorld(ev.clientX, ev.clientY);
+
+  // Connection sticker — store on connection object, anchor = bezier midpoint
+  if (connId) {
+    const conn = scene.connections.find(c => c.id === connId);
+    if (!conn) return;
+    const mid = _connBezierMid(conn);
+    if (!mid) return;
+    const dx = w.x / scene.tile - mid.x / scene.tile;
+    const dy = w.y / scene.tile - mid.y / scene.tile;
+    _pushUndo('Add sticker badge');
+    if (!conn.sticker) {
+      conn.sticker = { dx, dy, items: [] };
+    }
+    if (conn.sticker.items.some(it => it.section === section && it.label === label)) {
+      showToast('Already in sticker');
+      return;
+    }
+    conn.sticker.items.push({ section, label });
+    autoSave();
+    render();
+    showToast(`Added "${label}" to sticker`);
+    return;
+  }
+
+  // Unit sticker
   const u = scene.units.get(unitId);
   if (!u) return;
-
-  // Compute world position of drop
-  const w = screenToWorld(ev.clientX, ev.clientY);
   const def = UnitRegistry.get(u.defId);
   const unitCx = u.x + (def?.w || 2) / 2;
   const unitCy = u.y + (def?.h || 2) / 2;
@@ -15073,7 +15293,7 @@ function _handleStickerDrop(ev, section, label, unitId) {
   _pushUndo('Add sticker badge');
 
   if (!u.sticker) {
-    u.sticker = { dx: Math.round(dx * 2) / 2, dy: Math.round(dy * 2) / 2, items: [] };
+    u.sticker = { dx, dy, items: [] };
   }
   // Dedup
   if (u.sticker.items.some(it => it.section === section && it.label === label)) {
@@ -15091,8 +15311,9 @@ function render() {
   setViewBox();
   drawGrid();
   drawConnections();
+  drawStickerTethers();  // [v10.7.2] tethers under units
   drawUnits();
-  drawStickers();  // [v10.7.0] P1: canvas stickers on top
+  drawStickerCards();    // [v10.7.2] cards on top of units
 }
 
 /* =========================
@@ -16970,11 +17191,11 @@ function _findPrimaryStream(ud, def) {
 
 // Render auto-extracted material stream — 2-column grid layout
 // Row 1: T | P     Row 2: Phase | Vap fraction     Row 3: Composition (full)     Row 4: Molar | Mass flow
-function _renderAutoStream(container, stream, unitId) {
+function _renderAutoStream(container, stream, unitId, connId) {
   if (!stream || stream.type !== StreamType.MATERIAL) return;
   const unitSys = models.getActive('units');
   const grid = el('div', { class: 'propGrid' });
-  const sCtx = unitId ? { unitId, section: 'conditions' } : null;
+  const sCtx = unitId ? { unitId, section: 'conditions', connId: connId || null } : null;
   
   // Row 1: T | P
   const tItem = el('div', { class: 'propItem' }, [
@@ -17087,6 +17308,22 @@ function _autoStreamToItems(stream) {
   return items;
 }
 
+// [v10.7.2] Convert power/heat/electrical stream to labeled items
+function _powerStreamToItems(stream) {
+  if (!stream) return [];
+  const items = [];
+  const capacity_W = stream.capacity ?? stream.available ?? 0;
+  const actual_W = stream.actual ?? stream.available ?? 0;
+  items.push({ label: 'Capacity', value: `${(capacity_W/1000).toFixed(1)}<span class="propUnit">kW</span>` });
+  if (Math.abs(actual_W - capacity_W) > 1) {
+    items.push({ label: 'Actual', value: `${(actual_W/1000).toFixed(1)}<span class="propUnit">kW</span>`, tone: actual_W < capacity_W - 1 ? 'warn' : '' });
+  }
+  if (stream.demand !== undefined) {
+    items.push({ label: 'Demand', value: `${(stream.demand/1000).toFixed(1)}<span class="propUnit">kW</span>` });
+  }
+  return items;
+}
+
 // [v10.7.0] Evaluate sticker items against live solver data
 function _evaluateStickerItems(u) {
   if (!u.sticker?.items?.length) return [];
@@ -17149,9 +17386,9 @@ function _tagDraggableBadge(elem, ctx, label) {
   elem.dataset.stickerSection = ctx.section;
   elem.dataset.stickerLabel = label;
   elem.addEventListener('dragstart', (ev) => {
-    ev.dataTransfer.setData('application/x-sticker-badge', JSON.stringify({
-      unitId: ctx.unitId, section: ctx.section, label
-    }));
+    const data = { unitId: ctx.unitId, section: ctx.section, label };
+    if (ctx.connId) data.connId = ctx.connId;
+    ev.dataTransfer.setData('application/x-sticker-badge', JSON.stringify(data));
     ev.dataTransfer.effectAllowed = 'copy';
   });
 }
@@ -17998,8 +18235,9 @@ function _rebuildInspectorContent() {
     const ud = scene.runtime.unitData.get(conn.from.unitId);
     const stream = ud?.ports?.[conn.from.portId];
     if (stream) {
+      const connStickerCtx = { unitId: conn.from.unitId, section: 'conditions', connId: conn.id };
       if (stream.type === StreamType.MATERIAL) {
-        _renderAutoStream(propEditor, stream);
+        _renderAutoStream(propEditor, stream, conn.from.unitId, conn.id);
         // Enthalpy in detail
         if (stream.hMolarMix !== undefined || stream.Hdot_J_s !== undefined) {
           const enthalpyItems = [];
@@ -18016,7 +18254,7 @@ function _rebuildInspectorContent() {
           kpis.push({ label: 'Actual', value: `${(actual_W/1000).toFixed(1)}<span class="propUnit">kW</span>`, tone: actual_W < capacity_W - 1 ? 'warn' : '' });
         }
         if (stream.demand !== undefined) kpis.push({ label: 'Demand', value: `${(stream.demand/1000).toFixed(1)}<span class="propUnit">kW</span>` });
-        _renderKPIGrid(propEditor, kpis);
+        _renderKPIGrid(propEditor, kpis, connStickerCtx);
       }
     } else {
       propEditor.appendChild(el('div', { class: 'ins-hint', html: 'Not computed yet — press Test/Step' }));
@@ -18285,6 +18523,24 @@ svg.addEventListener('pointermove', (ev) => {
     return;
   }
 
+  // [v10.7.1] Sticker dragging (repositioning on canvas)
+  if (ui.isDraggingSticker && ui.stickerDragStart) {
+    const stk = ui.stickerDragConnId
+      ? scene.connections.find(c => c.id === ui.stickerDragConnId)?.sticker
+      : scene.units.get(ui.stickerDragUnitId)?.sticker;
+    if (stk) {
+      const pt = svg.createSVGPoint();
+      pt.x = ev.clientX; pt.y = ev.clientY;
+      const svgP = pt.matrixTransform(svg.getScreenCTM().inverse());
+      const dx = svgP.x - ui.stickerDragStart.x;
+      const dy = svgP.y - ui.stickerDragStart.y;
+      stk.dx = ui.stickerOrigDx + dx / scene.tile;
+      stk.dy = ui.stickerOrigDy + dy / scene.tile;
+      render();
+    }
+    return;
+  }
+
   // Redraw pending connection
   if (ui.pendingFrom) render();
 });
@@ -18312,6 +18568,31 @@ svg.addEventListener('pointerup', () => {
     ui.dragStartPos = null;
     
     updatePropertiesPanel();
+    render();
+  }
+
+  // [v10.7.1] Sticker drag end — push undo if moved
+  if (ui.isDraggingSticker) {
+    const stk = ui.stickerDragConnId
+      ? scene.connections.find(c => c.id === ui.stickerDragConnId)?.sticker
+      : scene.units.get(ui.stickerDragUnitId)?.sticker;
+    if (stk) {
+      const movedEnough = Math.abs(stk.dx - ui.stickerOrigDx) > 0.01 ||
+                          Math.abs(stk.dy - ui.stickerOrigDy) > 0.01;
+      if (movedEnough) {
+        const newDx = stk.dx, newDy = stk.dy;
+        stk.dx = ui.stickerOrigDx;
+        stk.dy = ui.stickerOrigDy;
+        _pushUndo('Move sticker');
+        stk.dx = newDx;
+        stk.dy = newDy;
+        autoSave();
+      }
+    }
+    ui.isDraggingSticker = false;
+    ui.stickerDragUnitId = null;
+    ui.stickerDragConnId = null;
+    ui.stickerDragStart = null;
     render();
   }
 });
@@ -18354,8 +18635,8 @@ svg.addEventListener('drop', (ev) => {
   const stickerData = ev.dataTransfer.getData('application/x-sticker-badge');
   if (stickerData) {
     try {
-      const { unitId, section, label } = JSON.parse(stickerData);
-      _handleStickerDrop(ev, section, label, unitId);
+      const { unitId, section, label, connId } = JSON.parse(stickerData);
+      _handleStickerDrop(ev, section, label, unitId, connId);
     } catch (e) { /* ignore malformed data */ }
     return;
   }
@@ -18728,11 +19009,11 @@ btnUtilities.addEventListener('click', () => {
   render();
 });
 
-// [v10.7.0] Sticker lines toggle
+// [v10.7.0] Sticker toggle — show/hide all stickers
 const btnStickerLines = document.getElementById('btnStickerLines');
 btnStickerLines.addEventListener('click', () => {
-  ui.showStickerLines = !ui.showStickerLines;
-  btnStickerLines.style.opacity = ui.showStickerLines ? '1' : '0.35';
+  ui.showStickers = !ui.showStickers;
+  btnStickerLines.style.opacity = ui.showStickers ? '1' : '0.35';
   render();
 });
 
@@ -27018,6 +27299,155 @@ function runTests() {
     scene.deleteUnit(src);
     t.assertOK(!scene.units.has(src), 'Unit deleted');
     // Sticker gone with the unit — no cleanup needed
+  }});
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // SECTION AK: NH3 Refrigeration Cycle Validation [v10.8.0] (Tests 226–228)
+  // Proves vapor-compression refrigeration works on ideal-gas + Raoult stack.
+  // Three tests = three steps of the cycle: expansion, condensation, compression.
+  // ═══════════════════════════════════════════════════════════════════════
+
+  tests.push({ name: '226: NH3 expansion valve — liquid flashes to cold two-phase', fn: t => {
+    // THE critical refrigeration test.
+    // Liquid NH3 at 295 K, 10 bar (subcooled: Psat(295K) ≈ 9.17 bar < 10 bar)
+    // Throttled isenthalpically to 2 bar → flashes to two-phase at Tsat(2 bar) ≈ 254 K.
+    // Temperature drops ~41 K. This IS the refrigeration effect.
+    //
+    // Physics chain: valve sets H_out = H_in at P = 2 bar.
+    // Solver PH flash (_phFlash_SingleComponent for pure NH3):
+    //   1. _findSaturationTemperature(NH3, 200000) → ~254 K
+    //   2. hf = hMolar(NH3, 254, 200000, 'L'), hg = hMolar(NH3, 254, 200000, 'V')
+    //   3. h_in is between hf and hg → two-phase, lever rule gives quality
+    //
+    // Expected (from manual calculation):
+    //   h_in(L, 295K)  ≈ -254 J/mol (physical, relative to Tref=298.15)
+    //   hf(L, 254K)    ≈ -3567 J/mol
+    //   hg(V, 254K)    ≈ 19154 J/mol
+    //   beta = (h_in - hf)/(hg - hf) ≈ 0.145
+
+    const src = t.place('source', 0, 0, { species: 'NH3', nDot: 1, T: 295, P: 1000000, phaseConstraint: 'L' });
+    const vlv = t.place('valve', 3, 0, { Pout: 200000 });
+    const snk = t.place('sink', 6, 0);
+    t.wire(src, 'out', vlv, 'in');
+    t.wire(vlv, 'out', snk, 'in');
+    t.solve();
+
+    const srcOut = t.port(src, 'out');
+    const out = t.port(vlv, 'out');
+
+    // Phase: must be two-phase
+    t.assertOK(out.phase === 'VL', 'Phase = VL (two-phase)', out.phase);
+
+    // Temperature: should drop to Tsat(2 bar) ≈ 254 K
+    t.assertRange(out.T, 245, 265, 'T_out in range [245, 265] K');
+
+    // Temperature DROP: the whole point — significant cooling
+    t.assertOK(srcOut.T - out.T > 25, 'ΔT > 25 K cooling', `${(srcOut.T - out.T).toFixed(1)} K`);
+
+    // Quality: ~14.5% vapor (most remains liquid)
+    t.assertRange(out.beta, 0.05, 0.30, 'Quality β in [0.05, 0.30]');
+
+    // Mass conservation
+    const nIn = srcOut.n?.NH3 || 0;
+    const nOut = (out.nV?.NH3 || 0) + (out.nL?.NH3 || 0);
+    t.assertClose(nOut, nIn, 0.001, 'Mass conservation (mol/s)');
+
+    // Energy conservation (isenthalpic)
+    if (srcOut?.Hdot_J_s !== undefined && out?.Hdot_J_s !== undefined) {
+      t.assertClose(Math.abs(out.Hdot_J_s - srcOut.Hdot_J_s), 0, 50, 'ΔH ≈ 0 (isenthalpic)');
+    }
+
+    // Pressure
+    t.assertClose(out.P, 200000, 1, 'P_out = 2 bar');
+  }});
+
+  tests.push({ name: '227: NH3 condensation — vapor cooled to subcooled liquid', fn: t => {
+    // Condenser step: hot NH3 vapor at 10 bar cooled below Tsat(10 bar) ≈ 298 K.
+    // Cooling to 293 K → subcooled liquid (5 K below saturation).
+    //
+    // Uses cooler (cheat unit) — we're testing thermo, not the cooling mechanism.
+    // The cooler computes H at T_setpoint via getHdot_Jps (which does TP flash
+    // to determine phase = L), then passes H_target_Jps to outlet.
+    // PH flash downstream resolves to liquid at ~293 K.
+
+    // CRITICAL: phaseConstraint='VL' lets VLE decide phase naturally.
+    // At 350K/10bar: Psat(350K)=39 bar > 10 bar → K>1 → pure vapor. ✓
+    // The cooler inherits this constraint for its H proxy calculation.
+    // If forced to 'V', the cooler computes H_out as VAPOR at 293K (wrong!)
+    // instead of LIQUID at 293K, causing PH flash to land at Tsat ≈ 298K.
+    const src = t.place('source', 0, 0, { species: 'NH3', nDot: 1, T: 350, P: 1000000, phaseConstraint: 'VL' });
+    const clr = t.place('cooler', 3, 0, { T_out: 293 });
+    const snk = t.place('sink', 6, 0);
+    t.wire(src, 'out', clr, 'mat_in');
+    t.wire(clr, 'mat_out', snk, 'in');
+    t.solve();
+
+    const srcOut = t.port(src, 'out');
+    const out = t.port(clr, 'mat_out');
+
+    // Phase: must be liquid (293 K < Tsat ≈ 298 K at 10 bar)
+    t.assertOK(out.phase === 'L', 'Phase = L (liquid)', out.phase);
+
+    // Temperature: should be at or near setpoint
+    t.assertRange(out.T, 288, 298, 'T_out in range [288, 298] K');
+
+    // Mass conservation
+    t.assertClose(out.n?.NH3 || 0, srcOut.n?.NH3 || 0, 0.001, 'Mass conservation');
+
+    // Heat removed: should be positive (cooling)
+    const last = t.last(clr);
+    t.assertOK(last.Q_removed_W > 0, 'Q_removed > 0 (heat extracted)', last.Q_removed_W);
+
+    // Energy balance: Q = H_in - H_out
+    if (srcOut?.Hdot_J_s !== undefined && out?.Hdot_J_s !== undefined) {
+      const Q_calc = srcOut.Hdot_J_s - out.Hdot_J_s;
+      t.assertOK(Q_calc > 0, 'H_in > H_out (cooling)', `ΔH = ${(Q_calc/1000).toFixed(2)} kW`);
+    }
+  }});
+
+  tests.push({ name: '228: NH3 compression — cold vapor to hot high-P vapor', fn: t => {
+    // Compressor step: NH3 vapor at 256 K, 2 bar → 10 bar.
+    // 256 K chosen to be 2 K above Tsat(2 bar) ≈ 254 K — slight superheat,
+    // avoids VL at inlet (compressor rejects liquid).
+    //
+    // Isentropic outlet ≈ 371 K, with η = 0.75 → actual ≈ 410 K.
+    // Hot superheated vapor, ready for condenser.
+
+    const src = t.place('source', 0, 0, { species: 'NH3', nDot: 1, T: 256, P: 200000, phaseConstraint: 'V' });
+    const comp = t.place('compressor', 3, 0, { Pout: 1000000, eta: 0.75 });
+    const snk = t.place('sink', 6, 0);
+    const mech = t.place('source_mechanical', 3, -3, { maxPower: 200 });
+    t.wire(src, 'out', comp, 'mat_in');
+    t.wire(comp, 'mat_out', snk, 'in');
+    t.wire(mech, 'out', comp, 'power_in');
+    t.solve();
+
+    const srcOut = t.port(src, 'out');
+    const out = t.port(comp, 'mat_out');
+
+    // Phase: must remain vapor (T_out >> Tsat at 10 bar ≈ 298 K? Actually T_out ≈ 410 K)
+    t.assertOK(out.phase === 'V', 'Phase = V (vapor)', out.phase);
+
+    // Pressure: should reach setpoint
+    t.assertClose(out.P, 1000000, 1000, 'P_out ≈ 10 bar');
+
+    // Temperature: should be significantly hotter than inlet
+    t.assertOK(out.T > srcOut.T + 50, 'T_out >> T_in', `${out.T.toFixed(1)} K > ${srcOut.T.toFixed(1)} K`);
+    t.assertRange(out.T, 350, 500, 'T_out in range [350, 500] K');
+
+    // Mass conservation
+    t.assertClose(out.n?.NH3 || 0, srcOut.n?.NH3 || 0, 0.001, 'Mass conservation');
+
+    // Shaft work: should be positive and reasonable (5–20 kW for 1 mol/s)
+    const W = t.unit(comp).W_shaft || t.unit(comp).powerDemand || 0;
+    t.assertRange(W / 1000, 2, 30, 'W_shaft in [2, 30] kW');
+
+    // Energy balance: H_out - H_in ≈ W_shaft
+    const H_in = thermo.getHdot_Jps({ type: StreamType.MATERIAL, T: 256, P: 200000, n: { NH3: 1 } });
+    const H_out = thermo.getHdot_Jps(out);
+    if (W > 0) {
+      t.assertClose(Math.abs((H_out - H_in) - W) / 1000, 0, 1.0, 'Energy balance |ΔH - W| < 1 kW');
+    }
   }});
 
   // ═══════════════════════════════════════════════════════════════════════
