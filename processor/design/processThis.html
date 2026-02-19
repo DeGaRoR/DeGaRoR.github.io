@@ -1,23 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v11.0.1
-
-  ─── v11.0.1 — Documentation: Power Surplus Physics ────────────────────
-  No logic changes. Added inline physics rationale to gas_turbine header
-  and power_hub surplus dispatch explaining:
-    • Why turbine output is physics-determined (non-throttleable):
-      W = ṁ·Cp·(Tin−Tout)·η, gas expands regardless of electrical load.
-    • Why grid_supply is always demand-responsive: Ohm's law — load
-      determines current draw, source cannot push excess into resistance.
-    • What happens physically on surplus: overvoltage (not overcurrent).
-      Busbars fine (less current), equipment damaged (insulation breakdown).
-    • Why elec_surplus + heater/sink = dump load: standard practice for
-      microgrids, island power, marine propulsion.
-    • Why CATASTROPHIC flags hub only: engineering message is identical
-      ("connect a dump load") regardless of which consumer we flag.
-
-  Gate: 266 tests, 1693 checks, 0 failures.
+  processThis v11.0.0
 
   ─── v11.0.0 — WYSIWYG Energy Rewrite ───────────────────────────────────
   Complete energy-system overhaul: every unit computes consequences of what
@@ -9216,19 +9200,7 @@ UnitRegistry.register('sink_heat', {
 // Inverse of compressor. Gas enters at high pressure, expands isentropically
 // to outlet pressure, producing shaft work. Efficiency reduces extracted work.
 //
-// PHYSICS NOTE — NON-THROTTLEABLE OUTPUT [v11.0.0]
-//   Unlike grid_supply (demand-responsive), turbine electrical output is
-//   determined entirely by fluid conditions: W = ṁ·Cp·(Tin−Tout)·η.
-//   The gas expands from Pin to Pout regardless of downstream electrical load.
-//   You cannot tell a turbine "I only need 8 kW" — if the thermodynamics
-//   dictate 50 kW, it produces 50 kW. The gas cools by exactly that amount.
-//   This means the turbine CAN overproduce relative to electrical demand.
-//   The hub classifies this as "physicsFixed" and routes surplus to
-//   elec_surplus. If elec_surplus is unconnected → CATASTROPHIC (see hub).
-//   In real plants, this surplus goes to a resistive dump load, grid export,
-//   or battery — exactly what connecting a heater/sink to elec_surplus models.
-//
-// Ports: mat_in (MATERIAL) → mat_out (MATERIAL) + elec_out (ELECTRICAL)
+// Ports: mat_in (MATERIAL) → mat_out (MATERIAL) + mech_out (MECHANICAL)
 // Mode:  Fixed outlet pressure (Pout setpoint)
 //
 // Errors:
@@ -12988,30 +12960,6 @@ function solveScene(scene, options = {}) {
       
       // ── Surplus: physics-fixed output exceeding demand ──
       // Responsive sources throttle to 0 before surplus exists
-      //
-      // PHYSICS RATIONALE [v11.0.0]
-      //   Surplus arises ONLY from physics-determined sources (turbines) whose
-      //   output is set by fluid T,P — not by electrical load. Grid sources are
-      //   demand-responsive (Ohm's law: load determines current, not source)
-      //   and never produce surplus.
-      //
-      //   On a real isolated bus, surplus means net positive shaft torque →
-      //   rotor accelerates → frequency rises → terminal voltage rises →
-      //   overvoltage propagates to ALL equipment on the bus (insulation
-      //   breakdown, power electronics failure, transformer saturation).
-      //   The busbars themselves are fine (less current = less I²R heating),
-      //   but everything connected to them is damaged.
-      //
-      //   Real plants prevent this with dump loads (resistor banks that absorb
-      //   surplus as heat), battery charging, or grid export. Connecting a
-      //   sink_electrical or electric_heater to elec_surplus models exactly
-      //   this — a resistive dump load. This is standard practice for
-      //   microgrids, island power, and marine propulsion systems.
-      //
-      //   The CATASTROPHIC error for unconnected surplus represents the fact
-      //   that your design has real energy with physically nowhere to go.
-      //   We flag the hub rather than propagating damage to each consumer
-      //   because the engineering message is the same: connect a dump load.
       const surplus_W = Math.max(0, physicsFixed_W - effectiveDemand_W);
       // Battery charge: absorb surplus first, then any responsive excess
       const batteryCharge_W = Math.min(surplus_W, batteryMaxCharge_W);
