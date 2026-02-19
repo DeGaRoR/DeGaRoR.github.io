@@ -34,6 +34,11 @@
 
   Gate: 235/235 tests.
 
+  BUGFIX: addNumberEditor crashed with `toFixed is not a function` when a
+  param getter returned a string (e.g. hex T_hot_out returns '' when unset).
+  Root cause: `isFinite('')` is true (coerces to 0) but `''.toFixed` doesn't
+  exist. Fix: added `typeof rawVal === 'number'` guard.
+
   ─── v10.9.2 ──────────────────────────────────────────────────────────────
   All production units migrated to presentations. Legacy shim demoted.
 
@@ -17117,8 +17122,9 @@ function addNumberEditor(container, label, get, set, step = 0.1, decimals, valid
   const dp = (decimals !== undefined) ? decimals
     : (step >= 1 ? 0 : Math.min(6, Math.max(0, -Math.floor(Math.log10(step)))));
   const inp = el('input', { type: 'number', step: String(step) });
+  // [v10.9.3] Guard: typeof check prevents crash when getter returns '' (e.g. hex optional T params)
   const rawVal = get();
-  inp.value = rawVal != null && isFinite(rawVal) ? Number(rawVal.toFixed(dp)) : '';
+  inp.value = (rawVal != null && typeof rawVal === 'number' && isFinite(rawVal)) ? rawVal.toFixed(dp) : (typeof rawVal === 'string' ? rawVal : '');
 
   // [v10.6.0] Validation feedback element
   const warnEl = el('div', { class: 'param-warn-text' });
