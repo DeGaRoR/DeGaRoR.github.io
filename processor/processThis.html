@@ -32,12 +32,34 @@
   Tests 232–235: source/sink 4-dir, pump/compressor output dir, hex 4-combo,
   reactor heat flip.
 
-  Gate: 235/235 tests.
+  Gate: 236/236 tests.
+
+  **NNG FIX — Heater energy violation:** The heater unit was creating energy
+  from nothing when heat_in was unconnected — it used Q_demand as Q_actual
+  regardless. Now: no heat_in → Q_actual=0 (passthrough), MAJOR error
+  emitted: "No heat source connected — heater passes fluid through unheated".
+  Heater transfers ONLY what it receives on heat_in, capped by demand.
+  Tests 24, 25, 95 updated to supply heat via grid→electric_heater→heater.
+
+  Demo scene expanded: 3 new process chains (Brayton cycle, SMR, pump loop)
+  covering all 23 non-cheat unit types. Combustor now properly supplied by
+  grid→electric_heater→heater chain (no free energy). Layout imported from
+  user-rearranged JSON. Demo version guard forces fresh load on upgrade.
 
   BUGFIX: addNumberEditor crashed with `toFixed is not a function` when a
   param getter returned a string (e.g. hex T_hot_out returns '' when unset).
   Root cause: `isFinite('')` is true (coerces to 0) but `''.toFixed` doesn't
   exist. Fix: added `typeof rawVal === 'number'` guard.
+
+  T236: Integration test — builds isolated Brayton cycle (source_air,
+  compressor, heater, gas_turbine, generator, motor, sink_electrical),
+  endothermic SMR reactor (R_STEAM_REFORM with heat supply chain),
+  shared heat exchanger, valve pressure letdown, and liquid water pump
+  loop. Validates solver convergence, correct thermodynamics for all
+  10 previously-uncovered non-cheat unit types, endothermic heat supply
+  adequacy, and absence of MAJOR/CATASTROPHIC errors. 30+ assertions.
+
+  AUTO_RUN_TESTS disabled on startup — run via Menu → Run Tests.
 
   ─── v10.9.2 ──────────────────────────────────────────────────────────────
   All production units migrated to presentations. Legacy shim demoted.
@@ -3510,8 +3532,8 @@
         <div id="trafficLights" class="traffic-lights" style="display:none;">
           <div class="tl-dot grey" id="tlConv" data-target="solver"><div class="tl-tip">Convergence</div></div>
           <div class="tl-dot grey" id="tlBalance" data-target="balance"><div class="tl-tip">Mass &amp; Energy Balance</div></div>
-          <div class="tl-sep"></div>
           <div class="tl-dot grey" id="tlPressure" data-target="diagnostic"><div class="tl-tip">Pressure Solve</div></div>
+          <div class="tl-sep"></div>
           <span class="tl-msg" id="tlMsg"></span>
           <button class="tl-gear" id="tlGear" title="Open Solver…">⚙</button>
         </div>
@@ -3972,7 +3994,7 @@
 const SimSettings = {
   // ── Build configuration ──
   DEV_BUILD: true,          // true = dev branch, false = shipping
-  AUTO_RUN_TESTS: true,     // gates auto-test at boot; tracks DEV_BUILD
+  AUTO_RUN_TESTS: false,    // [v10.9.3] disabled — run manually via Menu → Run Tests
 
   // ── Developer mode ── (arbitrary source T/P, auto-test)
   cheatsEnabled: false,     // [v10.0.4] default false — clean palette for UI work
@@ -9711,7 +9733,7 @@ UnitRegistry.register('heater', {
     }
     
     // ── Setpoint: compute Q_demand from target outlet temperature ──
-    // [v6.0.0] par.T_out is now in K (was °C before v6)
+    // Used for demand propagation (upstream sees how much heat is needed)
     const T_setpoint_K = (par.T_out !== undefined && par.T_out !== null) ? par.T_out : (sIn.T + 50);
     
     if (T_setpoint_K < sIn.T - 0.01) {
@@ -9725,14 +9747,21 @@ UnitRegistry.register('heater', {
     const H_setpoint_Jps = thermo.getHdot_Jps(outProxy);
     const Q_demand_W = Math.max(0, H_setpoint_Jps - H_in_Jps);  // W (J/s)
     
-    // ── Limit Q to available heat supply if connected ──
+    // ── [v10.9.3 NNG] Heater transfers ONLY what it receives on heat_in ──
+    // No heat_in connected → passthrough (no free energy)
     const sHeat = ports.heat_in;
-    let Q_actual_W = Q_demand_W;
+    let Q_actual_W = 0;
     let supplyLimited = false;
+    let noHeatSource = false;
     
-    if (sHeat && (sHeat.actual ?? sHeat.available) >= 0) {
+    if (!sHeat) {
+      // No heat source connected — passthrough, MAJOR warning
+      Q_actual_W = 0;
+      noHeatSource = true;
+    } else {
+      // Transfer whatever heat is supplied, capped by demand
       const heatActual_W = sHeat.actual ?? sHeat.available ?? 0;
-      Q_actual_W = Math.min(Q_demand_W, heatActual_W);  // actual in W
+      Q_actual_W = Math.min(Q_demand_W, heatActual_W);
       if (Q_demand_W > heatActual_W + 10) {  // 10 W tolerance
         supplyLimited = true;
       }
@@ -9750,16 +9779,19 @@ UnitRegistry.register('heater', {
     };
     
     u.last = {
-      T_in_K: sIn.T,  // [v6.0.0] renamed from T_in_C
-      T_setpoint_K: T_setpoint_K,  // [v6.0.0] renamed from T_setpoint_C
+      T_in_K: sIn.T,
+      T_setpoint_K: T_setpoint_K,
       Q_demand_W: Q_demand_W,
       Q_actual_W: Q_actual_W,
       H_in_kW: (H_in_Jps / 1000).toFixed(2),
       H_out_kW: (H_out_Jps / 1000).toFixed(2),
-      supplyLimited: supplyLimited
+      supplyLimited: supplyLimited || noHeatSource
     };
     
-    if (supplyLimited) {
+    if (noHeatSource) {
+      u.last.error = { severity: ErrorSeverity.MAJOR,
+        message: `No heat source connected — heater passes fluid through unheated (need ${(Q_demand_W/1000).toFixed(1)} kW)` };
+    } else if (supplyLimited) {
       u.last.error = { severity: ErrorSeverity.MINOR,
         message: `Setpoint ${(T_setpoint_K-273.15).toFixed(0)}°C not achievable — need ${(Q_demand_W/1000).toFixed(1)} kW, supply limited to ${((sHeat.actual ?? sHeat.available ?? 0)/1000).toFixed(1)} kW` };
     }
@@ -20269,132 +20301,207 @@ document.getElementById('processNameInput').addEventListener('input', (e) => {
    DEMO
    ========================= */
 function loadDemo() {
-  // ── [v9.1.0] Sabatier CO₂ Methanation + Energy Storage Demo ──
-  // CO₂ + 4 H₂ ⇌ CH₄ + 2 H₂O — isothermal PFR with kinetics
-  // Fresh feed → mixer → reactor(kinetics, 0.5 m³) → cooler(50°C) → flash
-  //                ↑                                                  ↓
-  //                └──────── recycle (85%) ──── splitter ←── vap_out ──┘
-  //                                               ↓ purge (15%)
-  //                                          flash liq_out → water sink
+  // ── [v10.9.3] Full Demo — Sabatier + Brayton + SMR + Pump ──
   //
-  // ENERGY STORAGE SUBSYSTEM (new in v9.1.0):
-  //   Solar (fixed 30 kW) + Battery (10 kWh, 90% SOC) → Hub → Heater → Heat Sink
-  //   N₂ Source → Tank (50 m³ buffer) → N₂ Vent
+  // LEFT BLOCK (existing):
+  //   Sabatier CO₂ Methanation + Energy Storage
+  //   CO₂ + 4 H₂ ⇌ CH₄ + 2 H₂O — isothermal PFR with kinetics
+  //   Feed → mixer → reactor → cooler → flash → splitter → product
+  //            ↑                                     ↓ recycle (85%)
+  //   Sabatier reactor heat_out → SMR reactor heat_in (cross-process)
+  //   Solar + Battery → Hub → E-Heater → Heat Sink
+  //   N₂ Source → Tank → Vent
   //
-  // Feed at 523 K (250°C), 10 bar. At industrial conditions, Sabatier
-  // kinetics are fast → equilibrium-limited (α_eff ≈ 1).
-  // Step the time clock to watch battery SOC deplete and tank fill.
+  // RIGHT BLOCK (new):
+  //   A) BRAYTON CYCLE: Air → Compressor → Hex cold → Heater 1200K
+  //      → Gas Turbine → Exhaust. Turbine → Generator → Grid Export.
+  //      Grid → Motor → Compressor.
+  //   B) SMR (endothermic): CH₄+H₂O → Reactor (R_STEAM_REFORM)
+  //      → Hex hot → Valve letdown → Syngas. Heat from Sabatier.
+  //   C) PUMP: Water → Pump 5 bar → Sink. Grid → Motor → Pump.
+  //   SHARED: Heat exchanger (recuperator) between A and B.
 
   scene.importJSON(JSON.stringify({
     version: 14,
-    processName: 'Sabatier + Energy Storage (v9.1.0)',
-    grid: { w: 28, h: 20, tile: 48 },
+    processName: 'Sabatier + Brayton + SMR + Pump Demo (v10.9.3)',
+    grid: { w: 54, h: 42, tile: 48 },
     solverOptions: { maxIter: 200 },
     units: [
-      // ── PROCESS SECTION ──
-      // Fresh feed: stoichiometric CO₂ + 4 H₂ at 523 K, 10 bar
+      // ══════════════════════════════════════════════════════════════════
+      // EXISTING — Sabatier Methanation + Energy Storage
+      // ══════════════════════════════════════════════════════════════════
+
       { id: 'feed', defId: 'source_multi', name: 'CO₂/H₂ Feed', x: 0, y: 3, rot: 0,
         params: { n: { CO2: 1, H2: 4 }, T: 523, P: 1000000, phaseConstraint: 'V' } },
-
-      // Mixer: fresh feed (in1) + recycle (in2)
       { id: 'mix', defId: 'mixer', name: 'Mixer', x: 4, y: 4, rot: 0, params: { variant: 'top-recycle' } },
-
-      // Sabatier Reactor: kinetics PFR, 0.5 m³ (kinetics-limited at mixed inlet T)
       { id: 'rx', defId: 'reactor_equilibrium', name: 'Sabatier Rx', x: 8, y: 4, rot: 0,
-        params: { reactionId: 'R_SABATIER', useKinetics: true, volume_m3: 0.5 } },
-
-      // Cooler: drop to 50°C for H₂O condensation
-      { id: 'cool', defId: 'cooler', name: 'Cooler', x: 12, y: 4, rot: 0,
-        params: { T_out: 323.15 } },
-
-      // Flash drum: liquid H₂O out, vapor (CO₂/H₂/CH₄) out
+        params: { reactionId: 'R_SABATIER', useKinetics: true, volume_m3: 0.5 },
+        sticker: { dx: 3, dy: -2, items: [
+          { section: 'power', label: 'Q duty' },
+          { section: 'reaction', label: 'Conversion' }
+        ]}},
+      { id: 'cool', defId: 'cooler', name: 'Cooler', x: 12, y: 4, rot: 0, params: { T_out: 323.15 } },
       { id: 'flash', defId: 'flash_drum', name: 'Flash Drum', x: 16, y: 4, rot: 0, params: {} },
-
-      // Splitter: 15% purge (product), 85% recycle
       { id: 'split', defId: 'splitter', name: 'Purge/Recycle', x: 20, y: 3, rot: 0,
         params: { splitPct: 15, variant: 'top-recycle' } },
-
-      // Product sinks
-      { id: 'snk-ch4', defId: 'sink', name: 'CH₄ Product', x: 24, y: 2, rot: 0, params: {} },
+      { id: 'snk-ch4', defId: 'sink', name: 'CH₄ Product', x: 24, y: 3, rot: 0, params: {} },
       { id: 'snk-h2o', defId: 'sink', name: 'Water', x: 20, y: 6, rot: 0, params: {} },
-
-      // Heat dump: reactor Q_duty + cooler Q_removed
-      { id: 'q-dump', defId: 'sink_heat', name: 'Heat Dump', x: 10, y: 9, rot: 0, params: {} },
-
-      // ── ENERGY STORAGE SUBSYSTEM ──
-      // Solar panel (fixed source, 30 kW)
-      { id: 'solar', defId: 'grid_supply', name: 'Solar 30kW', x: 0, y: 14, rot: 0,
-        params: { maxPower: 30, fixed: true } },
-
-      // Battery (10 kWh, 20 kW peak, 90% SOC)
-      { id: 'batt', defId: 'battery', name: 'Li-Ion 10kWh', x: 0, y: 17, rot: 0,
-        params: { peakPower_kW: 20, capacity_J: 36000000, initialSOC: 0.9 } },
-
-      // Power hub: solar + battery → consumers
-      { id: 'hub', defId: 'power_hub', name: 'Power Hub', x: 6, y: 14, rot: 0, params: {} },
-
-      // Electric heater (consumer)
-      { id: 'e-heat', defId: 'electric_heater', name: 'E-Heater', x: 12, y: 14, rot: 0, params: {} },
-
-      // Heat sink for heater output
-      { id: 'e-q', defId: 'sink_heat', name: 'Heater Load', x: 16, y: 14, rot: 0, params: {} },
-
-      // Hub surplus heat dump
-      { id: 'hub-q', defId: 'sink_heat', name: 'Surplus Heat', x: 6, y: 18, rot: 0, params: {} },
-
-      // ── N₂ BUFFER TANK ──
-      // N₂ feed → tank → vent
-      { id: 'n2-feed', defId: 'source', name: 'N₂ Feed', x: 20, y: 14, rot: 0,
-        params: { species: 'N2', nDot: 0.5, T: 300, P: 200000, phaseConstraint: 'V' } },
-
-      { id: 'n2-tank', defId: 'tank', name: 'N₂ Buffer', x: 22, y: 14, rot: 0,
-        params: { volume_m3: 20, drawRate: 0.3 } },
-
-      { id: 'n2-vent', defId: 'sink', name: 'N₂ Vent', x: 26, y: 14, rot: 0, params: {} },
-      { id: 'n2-ov', defId: 'sink', name: 'Overflow', x: 23, y: 12, rot: 0, params: {} }
-    ],
-    connections: [
-      // ── Process chain ──
-      { id: 'c1', from: { unitId: 'feed',  portId: 'out' },
-                  to:   { unitId: 'mix',   portId: 'in1' } },
-      { id: 'c2', from: { unitId: 'mix',   portId: 'out' },
-                  to:   { unitId: 'rx',    portId: 'mat_in' } },
-      { id: 'c3', from: { unitId: 'rx',    portId: 'mat_out' },
-                  to:   { unitId: 'cool',  portId: 'mat_in' } },
-      { id: 'c4', from: { unitId: 'cool',  portId: 'mat_out' },
-                  to:   { unitId: 'flash', portId: 'mat_in' } },
-      { id: 'c5', from: { unitId: 'flash', portId: 'vap_out' },
-                  to:   { unitId: 'split', portId: 'in' } },
-      { id: 'c6', from: { unitId: 'split', portId: 'out1' },
-                  to:   { unitId: 'snk-ch4', portId: 'in' } },
-      { id: 'c7', from: { unitId: 'flash', portId: 'liq_out' },
-                  to:   { unitId: 'snk-h2o', portId: 'in' } },
-      { id: 'c8', from: { unitId: 'split', portId: 'out2' },
-                  to:   { unitId: 'mix',   portId: 'in2' } },
-      { id: 'c9',  from: { unitId: 'rx',   portId: 'heat_out' },
-                   to:   { unitId: 'q-dump', portId: 'in' } },
-      { id: 'c10', from: { unitId: 'cool', portId: 'heat_out' },
-                   to:   { unitId: 'q-dump', portId: 'in' } },
+      { id: 'q-dump', defId: 'sink_heat', name: 'Heat Dump', x: 16, y: 0, rot: 0, params: {} },
 
       // ── Energy storage ──
-      { id: 'e1', from: { unitId: 'solar', portId: 'out' },
-                  to:   { unitId: 'hub',   portId: 'elec_in' } },
-      { id: 'e2', from: { unitId: 'batt',  portId: 'elec' },
-                  to:   { unitId: 'hub',   portId: 'elec_in' } },
-      { id: 'e3', from: { unitId: 'hub',   portId: 'elec_out' },
-                  to:   { unitId: 'e-heat', portId: 'elec_in' } },
-      { id: 'e4', from: { unitId: 'e-heat', portId: 'heat_out' },
-                  to:   { unitId: 'e-q',   portId: 'in' } },
-      { id: 'e5', from: { unitId: 'hub',   portId: 'heat_out' },
-                  to:   { unitId: 'hub-q', portId: 'in' } },
+      { id: 'solar', defId: 'grid_supply', name: 'Solar 30kW', x: 2, y: 13, rot: 0,
+        params: { maxPower: 30, fixed: true } },
+      { id: 'batt', defId: 'battery', name: 'Li-Ion 10kWh', x: 2, y: 16, rot: 0,
+        params: { peakPower_kW: 20, capacity_J: 36000000, initialSOC: 0.9 } },
+      { id: 'hub', defId: 'power_hub', name: 'Power Hub', x: 6, y: 14, rot: 0, params: {} },
+      { id: 'e-heat', defId: 'electric_heater', name: 'E-Heater', x: 10, y: 14, rot: 0, params: {} },
+      { id: 'e-q', defId: 'sink_heat', name: 'Heater Load', x: 13, y: 14, rot: 0, params: {} },
+      { id: 'hub-q', defId: 'sink_heat', name: 'Surplus Heat', x: 6, y: 10, rot: 0, params: {} },
 
+      // ── N₂ buffer tank ──
+      { id: 'n2-feed', defId: 'source', name: 'N₂ Feed', x: 18, y: 18, rot: 0,
+        params: { species: 'N2', nDot: 0.5, T: 300, P: 200000, phaseConstraint: 'V' } },
+      { id: 'n2-tank', defId: 'tank', name: 'N₂ Buffer', x: 21, y: 17, rot: 0,
+        params: { volume_m3: 20, drawRate: 0.3 } },
+      { id: 'n2-vent', defId: 'sink', name: 'N₂ Vent', x: 24, y: 18, rot: 0, params: {} },
+      { id: 'n2-ov', defId: 'sink', name: 'Overflow', x: 21, y: 14, rot: 0, params: {} },
+
+      // ══════════════════════════════════════════════════════════════════
+      // PROCESS A — Open Brayton Cycle
+      // ══════════════════════════════════════════════════════════════════
+
+      { id: 'a-grid', defId: 'grid_supply', name: 'Grid 20kW', x: 1, y: -20, rot: 0,
+        params: { maxPower: 20000, fixed: true } },
+      { id: 'a-motor', defId: 'motor', name: 'Motor (Comp.)', x: 4, y: -20, rot: 0,
+        params: { eta: 0.95 } },
+      { id: 'a-air', defId: 'source_air', name: 'Air Intake', x: 3, y: -15, rot: 0,
+        params: { flowScale: 1.0 } },
+      { id: 'a-comp', defId: 'compressor', name: 'Compressor', x: 8, y: -15, rot: 0,
+        params: { Pout: 300000, eta: 0.80 },
+        sticker: { dx: 3, dy: -2, items: [
+          { section: 'power', label: 'Shaft power' }
+        ]}},
+
+      // [v10.9.3 NNG] Combustor heat source — grid + e-heater
+      { id: 'a-hgrid', defId: 'grid_supply', name: 'Fuel 30kW', x: 13, y: -7, rot: 0,
+        params: { maxPower: 30000, fixed: true } },
+      { id: 'a-eheat', defId: 'electric_heater', name: 'Burner Supply', x: 17, y: -7, rot: 0,
+        params: { power_kW: 30 } },
+
+      { id: 'a-heat', defId: 'heater', name: 'Combustor', x: 17, y: -3, rot: 0,
+        params: { T_out: 1200 },
+        sticker: { dx: 3, dy: -2, items: [
+          { section: 'power', label: 'Q demand' }
+        ]}},
+      { id: 'a-turb', defId: 'gas_turbine', name: 'Gas Turbine', x: 23, y: -3, rot: 0,
+        params: { Pout: 101325, eta: 0.88 },
+        sticker: { dx: 3, dy: -2, items: [
+          { section: 'power', label: 'Shaft power' }
+        ]}},
+      { id: 'a-exh', defId: 'sink', name: 'Exhaust', x: 29, y: -3, rot: 0, params: {} },
+      { id: 'a-gen', defId: 'generator', name: 'Generator', x: 29, y: 1, rot: 0,
+        params: { eta: 0.97 },
+        sticker: { dx: 3, dy: -2, items: [
+          { section: 'power', label: 'Electrical out' }
+        ]}},
+      { id: 'a-eout', defId: 'sink_electrical', name: 'Grid Export', x: 33, y: 1, rot: 0, params: {} },
+
+      // ══════════════════════════════════════════════════════════════════
+      // SHARED — Heat Exchanger (Recuperator)
+      // ══════════════════════════════════════════════════════════════════
+
+      { id: 'ab-hex', defId: 'hex', name: 'Recuperator', x: 13, y: -6, rot: 0,
+        params: { T_approach: 10 },
+        sticker: { dx: 3, dy: -2, items: [
+          { section: 'power', label: 'Duty' },
+          { section: 'power', label: 'ΔT min' }
+        ]}},
+
+      // ══════════════════════════════════════════════════════════════════
+      // PROCESS B — Steam Methane Reforming (endothermic)
+      // ══════════════════════════════════════════════════════════════════
+
+      { id: 'b-feed', defId: 'source_multi', name: 'CH₄/Steam Feed', x: 4, y: -6, rot: 0,
+        params: { n: { CH4: 0.2, H2O: 0.4 }, T: 1000, P: 2000000, phaseConstraint: 'V' } },
+      { id: 'b-rx', defId: 'reactor_equilibrium', name: 'SMR Reactor', x: 8, y: -6, rot: 0,
+        params: { reactionId: 'R_STEAM_REFORM', useKinetics: true, volume_m3: 1.0, variant: 'heat-reversed' },
+        sticker: { dx: -6, dy: -2, items: [
+          { section: 'power', label: 'Q duty' },
+          { section: 'reaction', label: 'Conversion' }
+        ]}},
+      { id: 'b-valve', defId: 'valve', name: 'Letdown Valve', x: 17, y: -6, rot: 0,
+        params: { Pout: 200000 } },
+      { id: 'b-prod', defId: 'sink', name: 'Syngas', x: 23, y: -6, rot: 0, params: {} },
+      { id: 'b-qout', defId: 'sink_heat', name: 'SMR Surplus Q', x: 8, y: -11, rot: 0,
+        params: { variant: 'port-top' } },
+
+      // ══════════════════════════════════════════════════════════════════
+      // PROCESS C — Liquid Water Pumping
+      // ══════════════════════════════════════════════════════════════════
+
+      { id: 'c-grid', defId: 'grid_supply', name: 'Pump Supply', x: 31, y: 16, rot: 0,
+        params: { maxPower: 1000, fixed: true } },
+      { id: 'c-motor', defId: 'motor', name: 'Motor (Pump)', x: 35, y: 16, rot: 0,
+        params: { eta: 0.95 } },
+      { id: 'c-src', defId: 'source', name: 'Water In', x: 31, y: 20, rot: 0,
+        params: { species: 'H2O', nDot: 1, T: 293.15, P: 101325, phaseConstraint: 'L' } },
+      { id: 'c-pump', defId: 'pump', name: 'Feed Pump', x: 38, y: 20, rot: 0,
+        params: { Pout: 500000, eta: 0.75 },
+        sticker: { dx: 3, dy: -2, items: [
+          { section: 'power', label: 'Shaft power' }
+        ]}},
+      { id: 'c-sink', defId: 'sink', name: 'Pressurized H₂O', x: 42, y: 20, rot: 0, params: {} },
+      { id: 'sink_heat-1', defId: 'sink_heat', name: 'Heat Sink 1', x: 35, y: 13, rot: 0, params: {} }
+    ],
+    connections: [
+      // ── Sabatier ──
+      { id: 'c1', from: { unitId: 'feed', portId: 'out' }, to: { unitId: 'mix', portId: 'in1' } },
+      { id: 'c2', from: { unitId: 'mix', portId: 'out' }, to: { unitId: 'rx', portId: 'mat_in' } },
+      { id: 'c3', from: { unitId: 'rx', portId: 'mat_out' }, to: { unitId: 'cool', portId: 'mat_in' } },
+      { id: 'c4', from: { unitId: 'cool', portId: 'mat_out' }, to: { unitId: 'flash', portId: 'mat_in' } },
+      { id: 'c5', from: { unitId: 'flash', portId: 'vap_out' }, to: { unitId: 'split', portId: 'in' } },
+      { id: 'c6', from: { unitId: 'split', portId: 'out1' }, to: { unitId: 'snk-ch4', portId: 'in' } },
+      { id: 'c7', from: { unitId: 'flash', portId: 'liq_out' }, to: { unitId: 'snk-h2o', portId: 'in' } },
+      { id: 'c8', from: { unitId: 'split', portId: 'out2' }, to: { unitId: 'mix', portId: 'in2' } },
+      { id: 'c9', from: { unitId: 'rx', portId: 'heat_out' }, to: { unitId: 'b-rx', portId: 'heat_in' } },
+      { id: 'c10', from: { unitId: 'cool', portId: 'heat_out' }, to: { unitId: 'q-dump', portId: 'in' } },
+      // ── Energy storage ──
+      { id: 'e1', from: { unitId: 'solar', portId: 'out' }, to: { unitId: 'hub', portId: 'elec_in' } },
+      { id: 'e2', from: { unitId: 'batt', portId: 'elec' }, to: { unitId: 'hub', portId: 'elec_in' } },
+      { id: 'e3', from: { unitId: 'hub', portId: 'elec_out' }, to: { unitId: 'e-heat', portId: 'elec_in' } },
+      { id: 'e4', from: { unitId: 'e-heat', portId: 'heat_out' }, to: { unitId: 'e-q', portId: 'in' } },
+      { id: 'e5', from: { unitId: 'hub', portId: 'heat_out' }, to: { unitId: 'hub-q', portId: 'in' } },
       // ── N₂ tank ──
-      { id: 't1', from: { unitId: 'n2-feed', portId: 'out' },
-                  to:   { unitId: 'n2-tank', portId: 'mat_in' } },
-      { id: 't2', from: { unitId: 'n2-tank', portId: 'mat_out' },
-                  to:   { unitId: 'n2-vent', portId: 'in' } },
-      { id: 't3', from: { unitId: 'n2-tank', portId: 'overflow' },
-                  to:   { unitId: 'n2-ov',  portId: 'in' } }
+      { id: 't1', from: { unitId: 'n2-feed', portId: 'out' }, to: { unitId: 'n2-tank', portId: 'mat_in' } },
+      { id: 't2', from: { unitId: 'n2-tank', portId: 'mat_out' }, to: { unitId: 'n2-vent', portId: 'in' } },
+      { id: 't3', from: { unitId: 'n2-tank', portId: 'overflow' }, to: { unitId: 'n2-ov', portId: 'in' } },
+      // ── Process A: Brayton cycle ──
+      { id: 'a1', from: { unitId: 'a-grid', portId: 'out' }, to: { unitId: 'a-motor', portId: 'elec_in' } },
+      { id: 'a2', from: { unitId: 'a-motor', portId: 'mech_out' }, to: { unitId: 'a-comp', portId: 'power_in' } },
+      { id: 'a3', from: { unitId: 'a-air', portId: 'out' }, to: { unitId: 'a-comp', portId: 'mat_in' } },
+      { id: 'a4', from: { unitId: 'a-comp', portId: 'mat_out' }, to: { unitId: 'ab-hex', portId: 'cold_in' },
+        sticker: { dx: 0, dy: -2, items: [{ section: 'conditions', label: 'Temperature' }] } },
+      { id: 'a5', from: { unitId: 'ab-hex', portId: 'cold_out' }, to: { unitId: 'a-heat', portId: 'mat_in' } },
+      { id: 'a5h', from: { unitId: 'a-hgrid', portId: 'out' }, to: { unitId: 'a-eheat', portId: 'elec_in' } },
+      { id: 'a5q', from: { unitId: 'a-eheat', portId: 'heat_out' }, to: { unitId: 'a-heat', portId: 'heat_in' } },
+      { id: 'a6', from: { unitId: 'a-heat', portId: 'mat_out' }, to: { unitId: 'a-turb', portId: 'mat_in' } },
+      { id: 'a7', from: { unitId: 'a-turb', portId: 'mat_out' }, to: { unitId: 'a-exh', portId: 'in' },
+        sticker: { dx: 0, dy: -2, items: [{ section: 'conditions', label: 'Temperature' }] } },
+      { id: 'a8', from: { unitId: 'a-turb', portId: 'mech_out' }, to: { unitId: 'a-gen', portId: 'mech_in' } },
+      { id: 'a9', from: { unitId: 'a-gen', portId: 'elec_out' }, to: { unitId: 'a-eout', portId: 'in' } },
+      // ── Process B: SMR ──
+      { id: 'b1', from: { unitId: 'b-feed', portId: 'out' }, to: { unitId: 'b-rx', portId: 'mat_in' } },
+      { id: 'b2', from: { unitId: 'b-rx', portId: 'mat_out' }, to: { unitId: 'ab-hex', portId: 'hot_in' } },
+      { id: 'b3', from: { unitId: 'ab-hex', portId: 'hot_out' }, to: { unitId: 'b-valve', portId: 'in' } },
+      { id: 'b4', from: { unitId: 'b-valve', portId: 'out' }, to: { unitId: 'b-prod', portId: 'in' },
+        sticker: { dx: 0, dy: -2, items: [{ section: 'conditions', label: 'Pressure' }] } },
+      { id: 'b5', from: { unitId: 'b-rx', portId: 'heat_out' }, to: { unitId: 'b-qout', portId: 'in' } },
+      // ── Process C: Pump loop ──
+      { id: 'p1', from: { unitId: 'c-grid', portId: 'out' }, to: { unitId: 'c-motor', portId: 'elec_in' } },
+      { id: 'p2', from: { unitId: 'c-motor', portId: 'mech_out' }, to: { unitId: 'c-pump', portId: 'power_in' } },
+      { id: 'p3', from: { unitId: 'c-src', portId: 'out' }, to: { unitId: 'c-pump', portId: 'mat_in' } },
+      { id: 'p4', from: { unitId: 'c-pump', portId: 'mat_out' }, to: { unitId: 'c-sink', portId: 'in' } },
+      { id: 'conn-2', from: { unitId: 'c-motor', portId: 'heat_out' }, to: { unitId: 'sink_heat-1', portId: 'in' } }
     ],
     modelsActive: models.active
   }));
@@ -20403,11 +20510,11 @@ function loadDemo() {
   ui.selectedConnId = null;
   ui.pendingFrom = null;
   ui.reconnecting = null;
-  scene.processName = 'Sabatier + Energy Storage (v9.1.0)';
+  scene.processName = 'Sabatier + Brayton + SMR + Pump Demo (v10.9.3)';
   document.getElementById('processNameInput').value = scene.processName;
   buildModelsPanel();
   const solveResult = solveScene(scene);
-  setStatus("Demo: Sabatier methanation + energy storage (tank & battery). Step ▶ to watch SOC & fill change.");
+  setStatus("Demo: Sabatier methanation → SMR heat integration, Brayton power cycle, liquid pump. Step ▶ to watch SOC & tank fill.");
   updateStatusIndicator(solveResult);
   
   updatePropertiesPanel();
@@ -20429,9 +20536,12 @@ window.addEventListener('resize', () => {
 setViewBox();
 
 // [v10.3.0] M8: Restore from auto-save, or load demo
+// [v10.9.3] Version guard: if auto-save is from an older demo, load fresh demo
 {
+  const DEMO_VERSION = 'v10.9.3-nng';  // bump this when demo scene changes
   const saved = localStorage.getItem(AUTOSAVE_KEY);
-  if (saved) {
+  const savedDemoVer = localStorage.getItem(AUTOSAVE_KEY + '_demoVer');
+  if (saved && savedDemoVer === DEMO_VERSION) {
     try {
       const result = scene.importJSON(saved);
       if (result && !result.ok) throw new Error(result.error);
@@ -20445,8 +20555,12 @@ setViewBox();
       setStatus('Auto-save corrupt — loaded demo.');
     }
   } else {
+    if (saved && savedDemoVer !== DEMO_VERSION) {
+      localStorage.removeItem(AUTOSAVE_KEY);  // clear stale auto-save
+    }
     loadDemo();
   }
+  localStorage.setItem(AUTOSAVE_KEY + '_demoVer', DEMO_VERSION);
 }
 
 updatePropertiesPanel();
@@ -20964,6 +21078,10 @@ function runTests() {
   test('Heater: N2 Sensible (T_out)', t => {
     const src = t.place('source', 0, 1, { species:'N2', nDot:10, T:300.15, P:200000, phaseConstraint:'V' });
     const htr = t.place('heater', 4, 1, { T_out:400.15 }); const snk = t.place('sink', 8, 1);
+    // [v10.9.3 NNG] Heater needs a heat source — no free energy
+    const gs = t.place('grid_supply', 0, 4, { maxPower:50000, fixed:true });
+    const eh = t.place('electric_heater', 3, 4, { power_kW:50 });
+    t.wire(gs,'out', eh,'elec_in'); t.wire(eh,'heat_out', htr,'heat_in');
     t.wire(src,'out', htr,'mat_in'); t.wire(htr,'mat_out', snk,'in');
     t.solve();
     const out = t.port(htr, 'mat_out');
@@ -20978,6 +21096,10 @@ function runTests() {
   test('Heater: H2O Boiling', t => {
     const src = t.place('source', 0, 1, { species:'H2O', nDot:1, T:363.15, P:101325, phaseConstraint:'L' });
     const htr = t.place('heater', 4, 1, { T_out:423.15 }); const snk = t.place('sink', 8, 1);
+    // [v10.9.3 NNG] Heater needs a heat source — no free energy
+    const gs = t.place('grid_supply', 0, 4, { maxPower:60000, fixed:true });
+    const eh = t.place('electric_heater', 3, 4, { power_kW:60 });
+    t.wire(gs,'out', eh,'elec_in'); t.wire(eh,'heat_out', htr,'heat_in');
     t.wire(src,'out', htr,'mat_in'); t.wire(htr,'mat_out', snk,'in');
     t.solve();
     const out = t.port(htr, 'mat_out');
@@ -23310,6 +23432,10 @@ function runTests() {
     const src2 = t.place('source', 0, 4, { species:'H2O', nDot:5, T:298.15, P:101325, phaseConstraint:'L' });
     const htr  = t.place('heater', 3, 4, { T_out: 353.15 });  // 80°C in K
     const snk2 = t.place('sink', 6, 4);
+    // [v10.9.3 NNG] Heater needs a heat source — no free energy
+    const gs2 = t.place('grid_supply', 0, 7, { maxPower:30000, fixed:true });
+    const eh2 = t.place('electric_heater', 3, 7, { power_kW:30 });
+    t.wire(gs2,'out', eh2,'elec_in'); t.wire(eh2,'heat_out', htr,'heat_in');
     t.wire(src2, 'out', htr, 'mat_in');
     t.wire(htr, 'mat_out', snk2, 'in');
 
@@ -28269,6 +28395,205 @@ function runTests() {
     t.assertOK(rxD.ports.heat_in.y === 3 && rxD.ports.heat_out.y === 0, 'Reactor default: heat in bottom, out top');
     const rxR = getPresentation(rxDef, { params: { variant: 'heat-reversed' } });
     t.assertOK(rxR.ports.heat_in.y === 0 && rxR.ports.heat_out.y === 3, 'Reactor reversed: heat in top, out bottom');
+  }});
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // SECTION: Demo Scene Integration — Brayton + SMR + Pump (Test 236)
+  // ═══════════════════════════════════════════════════════════════════════
+
+  tests.push({ name: '236: Demo scene — Brayton cycle + SMR reactor + Pump loop', fn: t => {
+    // ── PROCESS A: Open Brayton Cycle ──
+    // Grid → Motor → Compressor (air 1→3 bar) → Hex cold → Heater (1200K) → Turbine (3→1 bar) → Exhaust
+    // Turbine shaft → Generator → Electrical Sink
+    const aGrid  = t.place('grid_supply',      30,  0, { maxPower: 20000, fixed: true });
+    const aMotor = t.place('motor',            32,  0, { eta: 0.95 });
+    const aAir   = t.place('source_air',       30,  2, { flowScale: 1.0 });
+    const aComp  = t.place('compressor',       34,  2, { Pout: 300000, eta: 0.80 });
+    const aHeat  = t.place('heater',           40,  6, { T_out: 1200 });
+    const aTurb  = t.place('gas_turbine',      44,  6, { Pout: 101325, eta: 0.88 });
+    const aExh   = t.place('sink',             48,  6);
+    const aGen   = t.place('generator',        46,  8, { eta: 0.97 });
+    const aEout  = t.place('sink_electrical',  50,  8);
+
+    // [v10.9.3 NNG] Combustor needs a heat source — grid + e-heater
+    const aHeatSrc = t.place('grid_supply',    30, 14, { maxPower: 30000, fixed: true });
+    const aEH      = t.place('electric_heater', 32, 14, { power_kW: 30 });
+
+    // ── SHARED: Heat Exchanger (Recuperator) ──
+    // Hot side: SMR product (Process B). Cold side: compressed air (Process A).
+    const abHex  = t.place('hex',              38,  4, { T_approach: 10 });
+
+    // ── PROCESS B: Steam Methane Reforming (endothermic) ──
+    // CH₄+2H₂O @1000K 20bar → Reactor (R_STEAM_REFORM) → Hex hot → Valve (20→2 bar) → Syngas sink
+    // Heat supplied by external source (Sabatier stand-in: dedicated source_multi for isolation)
+    const bFeed  = t.place('source_multi',     30,  4, { n: { CH4: 0.2, H2O: 0.4 }, T: 1000, P: 2000000, phaseConstraint: 'V' });
+    const bRx    = t.place('reactor_equilibrium', 34, 4, { reactionId: 'R_STEAM_REFORM', useKinetics: true, volume_m3: 1.0, variant: 'heat-reversed' });
+    const bValve = t.place('valve',            42,  4, { Pout: 200000 });
+    const bProd  = t.place('sink',             46,  4);
+    const bQout  = t.place('sink_heat',        34,  8, { variant: 'port-top' });
+
+    // Heat supply for SMR reactor: use a dedicated grid_supply → electric_heater chain
+    // Provides ~40 kW guaranteed heat (SMR Q_duty should be ~10–30 kW for 0.2 mol/s CH₄)
+    const bHeatSrc = t.place('grid_supply',    30, 10, { maxPower: 40000, fixed: true });
+    const bEH      = t.place('electric_heater', 32, 10, { power_kW: 40 });
+
+    // ── PROCESS C: Liquid Water Pumping ──
+    const cGrid  = t.place('grid_supply',      38, 10, { maxPower: 1000, fixed: true });
+    const cMotor = t.place('motor',            40, 10, { eta: 0.95 });
+    const cSrc   = t.place('source',           38, 12, { species: 'H2O', nDot: 1, T: 293.15, P: 101325, phaseConstraint: 'L' });
+    const cPump  = t.place('pump',             42, 12, { Pout: 500000, eta: 0.75 });
+    const cSink  = t.place('sink',             46, 12);
+
+    // ── WIRING: Process A ──
+    t.wire(aGrid, 'out',      aMotor, 'elec_in');
+    t.wire(aMotor, 'mech_out', aComp, 'power_in');
+    t.wire(aAir, 'out',       aComp, 'mat_in');
+    t.wire(aComp, 'mat_out',  abHex, 'cold_in');      // compressed air → hex cold
+    t.wire(abHex, 'cold_out', aHeat, 'mat_in');       // preheated air → combustor
+    t.wire(aHeatSrc, 'out', aEH, 'elec_in');          // grid → e-heater
+    t.wire(aEH, 'heat_out', aHeat, 'heat_in');        // heat → combustor
+    t.wire(aHeat, 'mat_out',  aTurb, 'mat_in');       // hot air → turbine
+    t.wire(aTurb, 'mat_out',  aExh, 'in');            // exhaust
+    t.wire(aTurb, 'mech_out', aGen, 'mech_in');       // shaft → generator
+    t.wire(aGen, 'elec_out',  aEout, 'in');           // electricity → sink
+
+    // ── WIRING: Process B ──
+    t.wire(bFeed, 'out',      bRx, 'mat_in');         // feed → reactor
+    t.wire(bRx, 'mat_out',    abHex, 'hot_in');       // product → hex hot
+    t.wire(abHex, 'hot_out',  bValve, 'in');          // cooled product → valve
+    t.wire(bValve, 'out',     bProd, 'in');           // letdown → sink
+    t.wire(bRx, 'heat_out',   bQout, 'in');           // surplus heat → dump
+    t.wire(bHeatSrc, 'out',   bEH, 'elec_in');       // grid → e-heater
+    t.wire(bEH, 'heat_out',   bRx, 'heat_in');       // heat → reactor
+
+    // ── WIRING: Process C ──
+    t.wire(cGrid, 'out',      cMotor, 'elec_in');
+    t.wire(cMotor, 'mech_out', cPump, 'power_in');
+    t.wire(cSrc, 'out',       cPump, 'mat_in');
+    t.wire(cPump, 'mat_out',  cSink, 'in');
+
+    // ── SOLVE ──
+    t.solve({ maxIter: 200 });
+
+    // ════════════════════════════════════════════════════════════════════
+    // ASSERTIONS — Process A: Brayton Cycle
+    // ════════════════════════════════════════════════════════════════════
+
+    // Compressor outlet
+    const compOut = t.port(aComp, 'mat_out');
+    t.assertOK(compOut?.T, 'A: Compressor has outlet');
+    t.assertClose(compOut.P, 300000, 5000, 'A: Compressor P_out ≈ 3 bar');
+    t.assertOK(compOut.T > 340, 'A: Comp T_out > 340K (adiabatic heating)', compOut.T?.toFixed(1));
+
+    // Compressor shaft power
+    const compLast = t.last(aComp);
+    t.assertOK(compLast?.W_shaft > 100, 'A: Comp shaft power > 0', (compLast?.W_shaft/1000)?.toFixed(2) + ' kW');
+
+    // Heater (combustor) — unconnected heat_in = free heat
+    const heatOut = t.port(aHeat, 'mat_out');
+    t.assertOK(heatOut?.T, 'A: Heater has outlet');
+    t.assertClose(heatOut.T, 1200, 5, 'A: Heater T_out ≈ 1200K');
+    t.assertOK(!t.last(aHeat)?.supplyLimited, 'A: Heater not supply-limited');
+
+    // Gas turbine
+    const turbOut = t.port(aTurb, 'mat_out');
+    const turbLast = t.last(aTurb);
+    t.assertOK(turbOut?.T, 'A: Turbine has outlet');
+    t.assertOK(turbOut.T < 1200 - 50, 'A: Turbine T_out < T_in (expansion cooling)', turbOut.T?.toFixed(1));
+    t.assertClose(turbOut.P, 101325, 1000, 'A: Turbine P_out ≈ 1 bar');
+    t.assertOK(turbLast?.W_shaft > 5000, 'A: Turbine shaft > 5 kW', (turbLast?.W_shaft/1000)?.toFixed(2) + ' kW');
+
+    // Generator
+    const genLast = t.ud(aGen)?.last;
+    t.assertOK(genLast?.W_elec_W > 5000, 'A: Generator elec > 5 kW', (genLast?.W_elec_W/1000)?.toFixed(2) + ' kW');
+    t.assertClose(genLast?.W_elec_W, turbLast?.W_shaft * 0.97, 50, 'A: Gen η applied');
+
+    // Motor
+    const motLast = t.ud(aMotor)?.last;
+    t.assertOK(motLast?.W_mech_W > 0, 'A: Motor mech out > 0');
+
+    // ════════════════════════════════════════════════════════════════════
+    // ASSERTIONS — Shared Hex
+    // ════════════════════════════════════════════════════════════════════
+
+    const hexLast = t.ud(abHex)?.last;
+    t.assertOK(hexLast?.Q > 0, 'Hex: Q > 0 (heat transferred)', hexLast?.Q?.toFixed(2) + ' kW');
+    t.assertOK(!hexLast?.hxCross, 'Hex: no temperature crossover');
+    t.assertOK(hexLast?.hxPinch_K > 0, 'Hex: pinch ΔT > 0', hexLast?.hxPinch_K?.toFixed(1) + ' K');
+
+    // Hot outlet (SMR product) should be cooler than hot inlet
+    const hexHotOut = t.port(abHex, 'hot_out');
+    const hexColdOut = t.port(abHex, 'cold_out');
+    t.assertOK(hexHotOut?.T < 1000, 'Hex: hot out cooled', hexHotOut?.T?.toFixed(1));
+    t.assertOK(hexColdOut?.T > 350, 'Hex: cold out warmed', hexColdOut?.T?.toFixed(1));
+
+    // ════════════════════════════════════════════════════════════════════
+    // ASSERTIONS — Process B: SMR Reactor (endothermic)
+    // ════════════════════════════════════════════════════════════════════
+
+    const rxLast = t.ud(bRx)?.last;
+    t.assertOK(rxLast, 'B: Reactor has diagnostics');
+    t.assertOK(rxLast?.status === 'active', 'B: Reactor active', rxLast?.status);
+    t.assertOK(rxLast?.Q_duty_W > 0, 'B: Q_duty > 0 (endothermic)', (rxLast?.Q_duty_W/1000)?.toFixed(2) + ' kW');
+    t.assertOK(rxLast?.Q_duty_sign === 'heating', 'B: Needs heating');
+
+    // Heat supplied should cover Q_duty (not heat-starved)
+    t.assertOK(rxLast?.status !== 'heat_starved', 'B: NOT heat-starved');
+    t.assertOK(rxLast?.Q_supplied_W >= rxLast?.Q_duty_W - 100, 'B: Heat supply ≥ Q_duty',
+      'supplied=' + (rxLast?.Q_supplied_W/1000)?.toFixed(2) + ' kW, duty=' + (rxLast?.Q_duty_W/1000)?.toFixed(2) + ' kW');
+
+    // Surplus heat exits through heat_out
+    t.assertOK(rxLast?.Q_out_W >= 0, 'B: Surplus heat ≥ 0', (rxLast?.Q_out_W/1000)?.toFixed(2) + ' kW');
+
+    // Conversion: K(1000K) ≈ 2.5 → moderate conversion
+    t.assertOK(rxLast?.xi > 0, 'B: ξ > 0 (reaction proceeds)');
+    const conversion = rxLast?.xi / rxLast?.xi_max;
+    t.assertRange(conversion, 0.1, 0.99, 'B: Conversion 10–99%');
+
+    // Product should contain H₂ (formed by SMR)
+    const rxOut = t.port(bRx, 'mat_out');
+    t.assertOK(rxOut?.n?.H2 > 0, 'B: H₂ in product', rxOut?.n?.H2?.toFixed(4));
+
+    // Valve
+    const valveOut = t.port(bValve, 'out');
+    t.assertClose(valveOut?.P, 200000, 5000, 'B: Valve P_out ≈ 2 bar');
+    t.assertOK(valveOut?.T, 'B: Valve outlet has T');
+
+    // ════════════════════════════════════════════════════════════════════
+    // ASSERTIONS — Process C: Liquid Water Pump
+    // ════════════════════════════════════════════════════════════════════
+
+    const pumpOut = t.port(cPump, 'mat_out');
+    t.assertOK(pumpOut, 'C: Pump has outlet');
+    t.assertClose(pumpOut?.P, 500000, 10000, 'C: Pump P_out ≈ 5 bar');
+
+    const pumpLast = t.last(cPump);
+    t.assertOK(pumpLast?.W_shaft >= 0, 'C: Pump shaft ≥ 0');
+    t.assertOK(pumpLast?.W_shaft < 1000, 'C: Pump shaft < 1 kW (liquid is near-incompressible)',
+      (pumpLast?.W_shaft)?.toFixed(1) + ' W');
+
+    const cMotLast = t.ud(cMotor)?.last;
+    t.assertOK(cMotLast?.W_mech_W >= 0, 'C: Motor drives pump');
+
+    // ════════════════════════════════════════════════════════════════════
+    // GLOBAL — No CATASTROPHIC/MAJOR errors on any unit
+    // ════════════════════════════════════════════════════════════════════
+
+    const allUnits = [aGrid, aMotor, aAir, aComp, aHeat, aTurb, aExh, aGen, aEout,
+                      aHeatSrc, aEH,
+                      abHex, bFeed, bRx, bValve, bProd, bQout, bHeatSrc, bEH,
+                      cGrid, cMotor, cSrc, cPump, cSink];
+    let errors = 0;
+    for (const uid of allUnits) {
+      const u = t.unit(uid);
+      const ud = t.ud(uid);
+      const err = u?.last?.error || ud?.last?.error;
+      if (err && (err.severity === ErrorSeverity.CATASTROPHIC || err.severity === ErrorSeverity.MAJOR)) {
+        errors++;
+        t.assertOK(false, `No MAJOR/CATA error on ${u?.name || uid}`, err.message);
+      }
+    }
+    if (errors === 0) t.assertOK(true, 'All units error-free');
   }});
 
   // ═══════════════════════════════════════════════════════════════════════
