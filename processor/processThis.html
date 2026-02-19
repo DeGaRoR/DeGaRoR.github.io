@@ -56,8 +56,18 @@
     Steady state: 43.4 →  2.6 ms/solve (16.7×)
   Tests: T274–T277.
 
-  Gate: 266 tests, 1703 checks, 0 failures.
-  Demo version: v11.0.0-p5.
+  PHASE 7 — Kill Fixed Flag:
+  grid_supply `fixed` parameter removed. All grid sources are demand-responsive
+  (load determines draw, not source). Hub dispatch refactored: three-tier
+  physicsFixed → responsive → battery. Physics-fixed tier reserved for turbines
+  whose electrical output is determined by fluid T,P (non-throttleable).
+  elec_surplus port retained for physics-determined overproduction; unconnected
+  surplus > 0 → CATASTROPHIC error (hub destroyed). Import migration strips
+  `fixed` param from saved scenes. Inspector: fixed toggle removed.
+  Tests: T197 updated, T182 updated, migration test added.
+
+  Gate: 266 tests, 1693 checks, 0 failures.
+  Demo version: v11.0.0-p6.
 
   ─── v10.9.3 ──────────────────────────────────────────────────────────────
   Unit configuration pass — multi-direction port variants for 12 unit types.
@@ -8651,20 +8661,19 @@ UnitRegistry.register('grid_supply', {
   tick(u, ports, par, ctx) {
     const maxPower_W = (par.maxPower || 1000) * 1000;
     const s = ctx ? ctx.scratch : {};
-    const actualDraw_W = s.actualDraw_W ?? maxPower_W;
-    // [v10.0.4] Fixed mode: behaves like old source_electrical (always provides max)
-    const isFixed = par.fixed === true;
+    const actualDraw_W = s.actualDraw_W ?? 0;  // [v11.0.0] all sources demand-responsive
     ports.out = {
       type: StreamType.ELECTRICAL,
       capacity: maxPower_W,
       actual: actualDraw_W,
       available: maxPower_W,  // deprecated alias for capacity
-      demand: isFixed ? (s.hubDemand_W !== undefined ? s.hubDemand_W : maxPower_W) : (s.hubDemand_W || 0),
+      demand: s.hubDemand_W || 0,
       curtailmentFactor: s.directCurtailment ?? 1.0
     };
     u.last = {
       maxPower_W: maxPower_W,
-      type: isFixed ? 'fixed' : 'grid_supply'
+      actual_W: actualDraw_W,
+      type: 'grid_supply'
     };
   }
 });
@@ -9113,35 +9122,23 @@ UnitRegistry.register('power_hub', {
       curtailmentFactor: s.hubCurtailment !== undefined ? s.hubCurtailment : 1.0,
       demand: distAvail_W     // [v10.4.1] initial: demand = actual (Step C refines)
     };
-    
-    // [v11.0.0] Electrical surplus (was heat_out)
-    const surplus_W = s.hubSurplus_W || 0;
+
+    // [v11.0.0] elec_surplus: carry forward from Step C scratch
     const hasSurplusConn = ctx?.scene?.connections.some(
       c => c.from.unitId === u.id && c.from.portId === 'elec_surplus');
+    const surpVal = s.hubSurplus_W ?? 0;
     ports.elec_surplus = {
       type: StreamType.ELECTRICAL,
-      capacity: surplus_W,
-      actual: surplus_W,
-      available: surplus_W,
-      demand: surplus_W
+      capacity: surpVal, actual: surpVal, available: surpVal, demand: surpVal,
+      _connected: hasSurplusConn
     };
     
     u.last = {
       totalCapacity_W:   totalCapacity_W,
       totalSupply_W:     totalCapacity_W,  // Overwritten by Step C
       totalDemand_W:     0,
-      batteryDraw_W:     0,
-      surplus_W:         0,
       curtailmentFactor: 1.0
     };
-    
-    // [v11.0.0 NNG-W3] Unconnected surplus → CRITICAL
-    if (surplus_W > 10 && !hasSurplusConn) {
-      u.last.error = {
-        severity: ErrorSeverity.CRITICAL,
-        message: `Electrical surplus ${(surplus_W/1000).toFixed(1)} kW — no dump load connected`
-      };
-    }
   }
 });
 
@@ -11267,7 +11264,6 @@ class Scene {
         if (u.defId === 'source_electrical') {
           u.defId = 'grid_supply';
           if (!u.params) u.params = {};
-          u.params.fixed = true;  // source_electrical was always fixed supply
           if (u.id && u.id.startsWith('source_electrical-')) {
             u.id = 'grid_supply-' + u.id.slice(18);
           }
@@ -11320,8 +11316,9 @@ class Scene {
           if (c.to?.portId === 'power_in') c.to.portId = 'elec_in';
           // mech_out → elec_out (gas_turbine)
           if (c.from?.portId === 'mech_out') c.from.portId = 'elec_out';
-          // hub heat_out → elec_surplus
+          // [v11.0.0] hub heat_out → elec_surplus migration
           if (hubIds.has(c.from?.unitId) && c.from?.portId === 'heat_out') {
+            // Migrate heat_out connections to elec_surplus
             c.from.portId = 'elec_surplus';
             // Migrate sink_heat connected to hub surplus → sink_electrical
             const targetUnit = data.units.find(u => u.id === c.to?.unitId);
@@ -11335,6 +11332,10 @@ class Scene {
       // [v11.0.0 Phase 5] Reactor migrations
       if (Array.isArray(data.units)) {
         for (const u of data.units) {
+          // [v11.0.0] Strip fixed flag from grid_supply (all sources demand-responsive)
+          if (u.defId === 'grid_supply' && u.params) {
+            delete u.params.fixed;
+          }
           // reactor_adiabatic → reactor_equilibrium (insulated)
           if (u.defId === 'reactor_adiabatic') {
             u.defId = 'reactor_equilibrium';
@@ -11356,6 +11357,7 @@ class Scene {
           }
         }
         data.connections = data.connections.filter(c => {
+          if (c._deleted) return false;  // [v11.0.0] marked for deletion by migration
           if (reactorEqIds.has(c.from?.unitId) && c.from?.portId === 'heat_out') return false;
           return true;
         });
@@ -12874,8 +12876,8 @@ function solveScene(scene, options = {}) {
       const inConns = scene.connections.filter(
         c => c.to.unitId === _id && c.to.portId === 'elec_in'
       );
-      let fixedSupply_W = 0;
-      let responsiveMax_W = 0;  // grid_supply (infinite capacity, demand-responsive)
+      let physicsFixed_W = 0;   // turbines etc. — output set by fluid, non-throttleable
+      let responsiveMax_W = 0;  // grid_supply — demand-responsive, throttleable
       let batteryMaxDischarge_W = 0;  // battery (SOC-tracked)
       let batteryMaxCharge_W = 0;
       const sources = [];
@@ -12885,7 +12887,7 @@ function solveScene(scene, options = {}) {
         const srcUD = scene.runtime.unitData.get(conn.from.unitId);
         const portData = srcUD?.ports?.[conn.from.portId];
         const avail = portData?.capacity ?? portData?.available ?? 0;
-        const isResponsive = srcUD?.last?.type === 'grid_supply';  // [v10.0.4] check type, not defId
+        const isResponsive = srcU?.defId === 'grid_supply';
         const isSOCBattery = srcU?.defId === 'battery';
         
         const srcInfo = { conn, srcU, srcUD, avail, isResponsive, isSOCBattery };
@@ -12894,10 +12896,15 @@ function solveScene(scene, options = {}) {
           srcInfo.maxCharge = portData?._maxCharge_W ?? 0;
           batteryMaxDischarge_W += srcInfo.maxDischarge;
           batteryMaxCharge_W += srcInfo.maxCharge;
+        } else if (isResponsive) {
+          responsiveMax_W += avail;
+        } else {
+          // Physics-determined source (turbine, etc.) — actual is what it produces
+          const srcActual = portData?.actual ?? avail;
+          physicsFixed_W += srcActual;
+          srcInfo.fixedActual = srcActual;
         }
         sources.push(srcInfo);
-        if (isResponsive) responsiveMax_W += avail;
-        else if (!isSOCBattery) fixedSupply_W += avail;
       }
       
       // ── Build consumer list from elec_out connections ──
@@ -12915,16 +12922,19 @@ function solveScene(scene, options = {}) {
         totalDemand_W += demand_W;
       }
       
-      // ── Three-tier dispatch: fixed → responsive (grid_supply) → battery ──
-      // [v9.0.4] Extended for SOC-tracked battery
-      // [v9.1.0] Clamp infinite demand (from heat sinks) — dispatch uses supply cap
+      // ── Three-tier dispatch: physics-fixed → responsive → battery ──
+      // [v11.0.0] Physics-fixed sources (turbines) always produce their output.
+      //           Responsive sources (grid) fill the gap. Battery fills the rest.
+      // [v9.1.0] Clamp infinite demand (from sinks) — dispatch uses supply cap
       const effectiveDemand_W = isFinite(totalDemand_W) ? totalDemand_W 
-        : (fixedSupply_W + responsiveMax_W + batteryMaxDischarge_W);
-      const responsiveGap_W = Math.max(0, effectiveDemand_W - fixedSupply_W);
+        : (physicsFixed_W + responsiveMax_W + batteryMaxDischarge_W);
+      
+      // Responsive fills gap between physics-fixed and demand
+      const responsiveGap_W = Math.max(0, effectiveDemand_W - physicsFixed_W);
       const responsiveDraw_W = Math.min(responsiveGap_W, responsiveMax_W);
-      let totalSupply_W = fixedSupply_W + responsiveDraw_W;
+      let totalSupply_W = physicsFixed_W + responsiveDraw_W;
 
-      // Battery discharge: fills remaining gap after responsive
+      // Battery discharge: fills remaining gap
       const remainingGap_W = Math.max(0, effectiveDemand_W - totalSupply_W);
       const batteryDraw_W = Math.min(remainingGap_W, batteryMaxDischarge_W);
       totalSupply_W += batteryDraw_W;
@@ -12932,8 +12942,7 @@ function solveScene(scene, options = {}) {
       // ── Per-consumer allocation ──
       const consumerAllocation = allocatePower(consumers, totalSupply_W);
       
-      // Global curtailment factor (summary for port-level backward compatibility)
-      // [v9.1.0] Guard: Infinity demand → factor based on effectiveDemand
+      // Global curtailment factor
       let curtailmentFactor = 1.0;
       if (effectiveDemand_W > 0 && totalSupply_W < effectiveDemand_W) {
         curtailmentFactor = totalSupply_W / effectiveDemand_W;
@@ -12949,37 +12958,51 @@ function solveScene(scene, options = {}) {
         }
       }
       
-      // ── Surplus → charge batteries before heat ──
-      // Surplus only from fixed + responsive (batteries don't overproduce)
-      // [v9.1.0] Use effectiveDemand for surplus (Infinity demand → 0 surplus)
-      const surplus_W = Math.max(0, fixedSupply_W + responsiveDraw_W - effectiveDemand_W);
+      // ── Surplus: physics-fixed output exceeding demand ──
+      // Responsive sources throttle to 0 before surplus exists
+      const surplus_W = Math.max(0, physicsFixed_W - effectiveDemand_W);
+      // Battery charge: absorb surplus first, then any responsive excess
       const batteryCharge_W = Math.min(surplus_W, batteryMaxCharge_W);
-      const heatSurplus_W = surplus_W - batteryCharge_W;
+      const netSurplus_W = surplus_W - batteryCharge_W;
       
       // ── Update output ports ──
       const stripDemand = (s) => { if (!s) return s; const { demand, ...rest } = s; return rest; };
       const oldHubPorts = {
         elec_out: stripDemand(_ud.ports.elec_out),
-        heat_out: stripDemand(_ud.ports.heat_out)
+        elec_surplus: stripDemand(_ud.ports.elec_surplus)
       };
       
       if (_ud.ports.elec_out) {
-        _ud.ports.elec_out.capacity = fixedSupply_W + responsiveMax_W + batteryMaxDischarge_W;
+        _ud.ports.elec_out.capacity = physicsFixed_W + responsiveMax_W + batteryMaxDischarge_W;
         _ud.ports.elec_out.actual = totalSupply_W;
         _ud.ports.elec_out.available = totalSupply_W;  // deprecated alias
         _ud.ports.elec_out.curtailmentFactor = curtailmentFactor;
-        _ud.ports.elec_out.demand = effectiveDemand_W;  // [v9.1.0] clamped, not Infinity
+        _ud.ports.elec_out.demand = effectiveDemand_W;
       }
-      if (_ud.ports.heat_out) {
-        _ud.ports.heat_out.capacity = heatSurplus_W;
-        _ud.ports.heat_out.actual = heatSurplus_W;
-        _ud.ports.heat_out.available = heatSurplus_W;  // deprecated alias
-        _ud.ports.heat_out.demand = heatSurplus_W;     // [v10.4.1] producer output
+      // [v11.0.0] elec_surplus: route physics-determined overproduction
+      if (_ud.ports.elec_surplus) {
+        _ud.ports.elec_surplus.capacity = netSurplus_W;
+        _ud.ports.elec_surplus.actual = netSurplus_W;
+        _ud.ports.elec_surplus.available = netSurplus_W;
+        _ud.ports.elec_surplus.demand = netSurplus_W;
+      }
+      // [v11.0.0] CATASTROPHIC: surplus with nowhere to go → fried hub
+      const surplusConnected = _ud.ports.elec_surplus?._connected;
+      if (netSurplus_W > 1 && !surplusConnected) {
+        _ud.errors = _ud.errors || [];
+        _ud.errors.push({
+          severity: ErrorSeverity.CATASTROPHIC,
+          message: `${(netSurplus_W/1000).toFixed(1)} kW surplus with no elec_surplus sink — connect a load or the hub is destroyed`
+        });
+        _ud.last.error = {
+          severity: ErrorSeverity.CATASTROPHIC,
+          message: `${(netSurplus_W/1000).toFixed(1)} kW surplus with no elec_surplus sink — connect a load or the hub is destroyed`
+        };
       }
       
       const newHubPorts = {
         elec_out: stripDemand(_ud.ports.elec_out),
-        heat_out: stripDemand(_ud.ports.heat_out)
+        elec_surplus: stripDemand(_ud.ports.elec_surplus)
       };
       if (portsChanged(oldHubPorts, newHubPorts)) changed = true;
       
@@ -12987,17 +13010,7 @@ function solveScene(scene, options = {}) {
       for (const src of sources) {
         if (!src.srcUD || !src.srcUD.ports[src.conn.from.portId]) continue;
         
-        if (src.isResponsive) {
-          // Grid supply: proportional share of responsiveDraw
-          const share = responsiveMax_W > 0 ? src.avail / responsiveMax_W : 0;
-          const thisDemand = responsiveDraw_W * share;
-          const thisActual = thisDemand;
-          src.srcUD.ports[src.conn.from.portId].demand = thisDemand;
-          src.srcUD.ports[src.conn.from.portId].actual = thisActual;
-          const ss = runtimeCtx.scratch(src.conn.from.unitId);
-          ss.hubDemand_W = thisDemand;
-          ss.actualDraw_W = thisActual;
-        } else if (src.isSOCBattery) {
+        if (src.isSOCBattery) {
           // Battery: proportional share of discharge, minus proportional share of charge
           const dischargeShare = batteryMaxDischarge_W > 0
             ? src.maxDischarge / batteryMaxDischarge_W : 0;
@@ -13013,44 +13026,50 @@ function solveScene(scene, options = {}) {
           ss.hubCharge_W = thisCharge;
           ss.hubDemand_W = thisDischarge;
           ss.actualDraw_W = netActual;
-        } else {
-          // Fixed source: demand = capacity (always producing)
-          src.srcUD.ports[src.conn.from.portId].demand = src.avail;
-          src.srcUD.ports[src.conn.from.portId].actual = src.avail;
+        } else if (src.isResponsive) {
+          // Grid supply: proportional share of responsiveDraw
+          const share = responsiveMax_W > 0 ? src.avail / responsiveMax_W : 0;
+          const thisDraw = responsiveDraw_W * share;
+          src.srcUD.ports[src.conn.from.portId].demand = thisDraw;
+          src.srcUD.ports[src.conn.from.portId].actual = thisDraw;
           const ss = runtimeCtx.scratch(src.conn.from.unitId);
-          ss.hubDemand_W = src.avail;
-          ss.actualDraw_W = src.avail;
+          ss.hubDemand_W = thisDraw;
+          ss.actualDraw_W = thisDraw;
+        } else {
+          // Physics-fixed source: always produces fixedActual
+          src.srcUD.ports[src.conn.from.portId].demand = src.fixedActual || src.avail;
+          src.srcUD.ports[src.conn.from.portId].actual = src.fixedActual || src.avail;
+          const ss = runtimeCtx.scratch(src.conn.from.unitId);
+          ss.hubDemand_W = src.fixedActual || src.avail;
+          ss.actualDraw_W = src.fixedActual || src.avail;
         }
       }
       
       // ── Diagnostics ──
-      _ud.last.fixedSupply_W        = fixedSupply_W;
-      _ud.last.responsiveMax_W      = responsiveMax_W;
-      _ud.last.batteryMax_W         = responsiveMax_W;  // backward compat
+      _ud.last.physicsFixed_W        = physicsFixed_W;
+      _ud.last.responsiveMax_W       = responsiveMax_W;
+      _ud.last.responsiveDraw_W      = responsiveDraw_W;
       _ud.last.batteryMaxDischarge_W = batteryMaxDischarge_W;
-      _ud.last.batteryMaxCharge_W   = batteryMaxCharge_W;
-      _ud.last.totalDemand_W        = effectiveDemand_W;  // [v9.1.0] clamped
-      _ud.last.responsiveDraw_W     = responsiveDraw_W;
-      _ud.last.batteryDraw_W        = responsiveDraw_W;  // backward compat
-      _ud.last.socBatteryDraw_W     = batteryDraw_W;
-      _ud.last.batteryCharge_W      = batteryCharge_W;
-      _ud.last.totalSupply_W        = totalSupply_W;
-      _ud.last.surplus_W            = surplus_W;
-      _ud.last.heatSurplus_W        = heatSurplus_W;
-      _ud.last.curtailmentFactor    = curtailmentFactor;
-      _ud.last.consumerAllocation   = consumerAllocation;
-      _u.last.fixedSupply_W         = fixedSupply_W;
-      _u.last.batteryMax_W          = responsiveMax_W;  // backward compat
-      _u.last.totalDemand_W         = effectiveDemand_W;  // [v9.1.0] clamped
-      _u.last.batteryDraw_W         = responsiveDraw_W;  // backward compat
-      _u.last.totalSupply_W         = totalSupply_W;
-      _u.last.surplus_W             = surplus_W;
-      _u.last.curtailmentFactor     = curtailmentFactor;
-      _u.last.consumerAllocation    = consumerAllocation;
+      _ud.last.batteryMaxCharge_W    = batteryMaxCharge_W;
+      _ud.last.totalDemand_W         = effectiveDemand_W;
+      _ud.last.batteryDraw_W         = batteryDraw_W;
+      _ud.last.batteryCharge_W       = batteryCharge_W;
+      _ud.last.totalSupply_W         = totalSupply_W;
+      _ud.last.surplus_W             = netSurplus_W;
+      _ud.last.curtailmentFactor     = curtailmentFactor;
+      _ud.last.consumerAllocation    = consumerAllocation;
+      // Mirror to unit.last for backward compat
+      _u.last.physicsFixed_W         = physicsFixed_W;
+      _u.last.responsiveMax_W        = responsiveMax_W;
+      _u.last.totalDemand_W          = effectiveDemand_W;
+      _u.last.totalSupply_W          = totalSupply_W;
+      _u.last.surplus_W              = netSurplus_W;
+      _u.last.curtailmentFactor      = curtailmentFactor;
+      _u.last.consumerAllocation     = consumerAllocation;
       
       // [v5.4.0] Hub scratch via RuntimeContext (was _u._hub*)
       const hubS = runtimeCtx.scratch(_id);
-      hubS.hubSurplus_W    = heatSurplus_W;
+      hubS.hubSurplus_W    = netSurplus_W;
       hubS.hubDistAvail_W  = totalSupply_W;
       hubS.hubCurtailment  = curtailmentFactor;
     }
@@ -17916,14 +17935,16 @@ UnitInspector.sink_electrical = {
 UnitInspector.grid_supply = {
   params(u) { return [
     { label: 'Max Power (kW)', get: () => u.params.maxPower || 50, set: v => u.params.maxPower = v, step: 10, validate: { gt: 0 } },
-    { type: 'toggle', label: 'Fixed output (non-responsive)', get: () => u.params.fixed === true, set: v => { u.params.fixed = v; updatePropertiesPanel(); } },
   ]; },
   power(u, ud) {
     if (!ud.last) return [];
-    const mode = ud.last.type === 'fixed' ? 'Fixed' : 'Responsive';
+    const actual = ud.last.actual_W ?? 0;
+    const cap = ud.last.maxPower_W ?? 0;
+    const utilPct = cap > 0 ? (actual / cap * 100).toFixed(0) : '0';
     return [
-      { label: 'Mode', value: mode, tone: mode === 'Fixed' ? 'warn' : 'good' },
-      { label: 'Capacity', value: fmt.kW(ud.last.maxPower_W) },
+      { label: 'Capacity', value: fmt.kW(cap) },
+      { label: 'Actual draw', value: fmt.kW(actual) },
+      { label: 'Utilization', value: `${utilPct}%`, tone: actual > cap * 0.99 ? 'warn' : '' },
     ];
   }
 };
@@ -18165,10 +18186,16 @@ UnitInspector.hex = {
 // ── Power Management ──
 UnitInspector.power_hub = {
   power(u, ud) { if (!ud.last) return []; const items = [];
-    for (const [label, val] of [['Fixed supply', ud.last.fixedSupply_W], ['Grid max', ud.last.batteryMax_W], ['Grid draw', ud.last.batteryDraw_W], ['Total supply', ud.last.totalSupply_W], ['Total demand', ud.last.totalDemand_W], ['Surplus → heat', ud.last.surplus_W]]) {
-      if (val !== undefined) items.push({ label, value: fmt.kW(val), tone: label === 'Total demand' && ud.last.curtailmentFactor < 1 ? 'warn' : '' });
-    }
-    items.push({ label: 'Curtailment', value: fmt.pct(ud.last.curtailmentFactor ?? 1), tone: (ud.last.curtailmentFactor ?? 1) < 1 ? 'warn' : 'good' });
+    if (ud.last.physicsFixed_W > 0) items.push({ label: 'Fixed sources', value: fmt.kW(ud.last.physicsFixed_W) });
+    if (ud.last.responsiveMax_W > 0) items.push({ label: 'Grid capacity', value: fmt.kW(ud.last.responsiveMax_W) });
+    if (ud.last.responsiveDraw_W !== undefined) items.push({ label: 'Grid draw', value: fmt.kW(ud.last.responsiveDraw_W) });
+    if (ud.last.batteryDraw_W) items.push({ label: 'Battery draw', value: fmt.kW(ud.last.batteryDraw_W) });
+    items.push({ label: 'Total supply', value: fmt.kW(ud.last.totalSupply_W ?? 0) });
+    items.push({ label: 'Total demand', value: fmt.kW(ud.last.totalDemand_W ?? 0),
+      tone: (ud.last.curtailmentFactor ?? 1) < 1 ? 'warn' : '' });
+    items.push({ label: 'Curtailment', value: fmt.pct(ud.last.curtailmentFactor ?? 1),
+      tone: (ud.last.curtailmentFactor ?? 1) < 1 ? 'warn' : 'good' });
+    if (ud.last.surplus_W > 1) items.push({ label: 'Surplus', value: fmt.kW(ud.last.surplus_W), tone: 'err' });
     return items;
   }
 };
@@ -18197,6 +18224,9 @@ function _reactorParams(u, type) {
   if (type === 'adiabatic') {
     params.push({ type: 'slider', label: 'Conversion', get: () => u.params.conversion ?? 0.5, set: v => u.params.conversion = v, min: 0, max: 1, step: 0.01 });
   } else {
+    params.push({ type: 'select', label: 'Thermal mode', get: () => u.params.mode || 'insulated',
+      set: v => { u.params.mode = v; updatePropertiesPanel(); },
+      options: [['insulated', '🧊 Insulated (adiabatic)'], ['heated', '🔥 Heated (heat_in)']] });
     params.push({ type: 'toggle', label: 'Kinetics (PFR)', get: () => u.params.useKinetics !== false, set: v => { u.params.useKinetics = v; updatePropertiesPanel(); } });
     if (u.params.useKinetics !== false) params.push({ label: 'Volume (m³)', get: () => u.params.volume_m3 ?? 1.0, set: v => u.params.volume_m3 = v, step: 3 });
     else params.push({ type: 'slider', label: 'Alpha (approach)', get: () => u.params.alpha ?? 1.0, set: v => u.params.alpha = v, min: 0, max: 1, step: 0.01 });
@@ -18221,35 +18251,54 @@ UnitInspector.reactor_adiabatic = {
 UnitInspector.reactor_equilibrium = {
   params(u) { return _reactorParams(u, 'equilibrium'); },
   power(u, ud) {
-    if (!ud?.last?.Q_duty_W) return [];
+    if (!ud?.last || ud.last.status === 'inactive' || ud.last.status === 'no_reactants') return [];
     const L = ud.last;
-    const isEndo = L.Q_duty_sign === 'heating';
-    const badge = isEndo ? '❄️ Endothermic' : '🔥 Exothermic';
-    const items = [
-      { label: 'Q duty', value: fmt.kW(Math.abs(L.Q_duty_W)) },
-      { label: 'Type', value: badge, tone: isEndo ? 'info' : 'bad' },
-    ];
-    if (isEndo) {
-      items.push({ label: 'Heat supplied', value: fmt.kW(L.Q_supplied_W ?? 0), tone: L.status === 'heat_starved' ? 'err' : '' });
+    const items = [];
+    // Mode badge
+    const modeLabel = L.reactorMode === 'heated' ? '🔥 Heated' : '🧊 Insulated';
+    items.push({ label: 'Mode', value: modeLabel });
+    // Temperature result
+    if (L.T_out != null && L.T_in != null) {
+      const dT = L.T_out - L.T_in;
+      const arrow = dT > 0.5 ? '↑' : dT < -0.5 ? '↓' : '≈';
+      items.push({ label: 'T out', value: fmt.T(L.T_out) });
+      items.push({ label: 'ΔT', value: `${arrow} ${dT > 0 ? '+' : ''}${dT.toFixed(1)} K`, tone: Math.abs(dT) > 50 ? 'warn' : '' });
     }
-    if (L.Q_out_W > 0) {
-      items.push({ label: 'Heat out', value: fmt.kW(L.Q_out_W) });
+    // Heat input (heated mode)
+    if (L.reactorMode === 'heated' && L.Q_in_W != null) {
+      items.push({ label: 'Q in (heat_in)', value: fmt.kW(L.Q_in_W) });
+    }
+    // Isothermal sizing aid — always shown
+    if (L.iso_Q_duty_W != null) {
+      const isEndo = L.iso_Q_duty_W > 0;
+      const badge = isEndo ? '❄️ endo' : '🔥 exo';
+      items.push({ label: `📐 Q to hold T_in`, value: `${fmt.kW(Math.abs(L.iso_Q_duty_W))} ${badge}`,
+        tone: 'info' });
     }
     return items;
   },
   reaction(u, ud) { if (!ud?.last) return []; const L = ud.last; const items = [];
-    if (L.mode) items.push({ label: 'Mode', value: L.mode });
-    if (L.xi != null && L.xi_max > 0) items.push({ label: 'Conversion', value: fmt.pct(L.xi / L.xi_max) });
-    if (L.ln_K != null) items.push({ label: 'K_eq', value: Math.exp(Math.min(L.ln_K, 300)).toExponential(3) });
-    if (L.alpha_effective != null) items.push({ label: 'Approach α', value: L.alpha_effective.toFixed(4) });
-    if (L.limited_by) items.push({ label: 'Limited by', value: L.limited_by });
+    if (L.status) items.push({ label: 'Status', value: L.status, tone: L.status === 'active' ? '' : 'warn' });
+    if (L.conversion_pct != null) items.push({ label: 'Conversion', value: `${L.conversion_pct.toFixed(1)}%` });
+    if (L.iso_conv_pct != null && L.conversion_pct != null) {
+      const delta = L.iso_conv_pct - L.conversion_pct;
+      if (Math.abs(delta) > 0.1) items.push({ label: 'Isothermal conv.', value: `${L.iso_conv_pct.toFixed(1)}%`, tone: 'info' });
+    }
+    if (L.ln_K != null) items.push({ label: 'K_eq (at T_out)', value: Math.exp(Math.min(L.ln_K, 300)).toExponential(3) });
+    if (L.alpha != null && !L.useKinetics) items.push({ label: 'Approach α', value: L.alpha.toFixed(4) });
     if (L.tau_s != null) items.push({ label: 'τ', value: `${L.tau_s.toFixed(2)}<span class="propUnit">s</span>` });
+    if (L.converged === false) items.push({ label: 'Solver', value: `NOT CONVERGED (${L.iterations} iter)`, tone: 'err' });
+    else if (L.iterations != null) items.push({ label: 'Solver', value: `${L.iterations} iter${L.warmStartUsed ? ' (warm)' : ''}${L.skipped ? ' (cached)' : ''}` });
     return items;
   },
   detail(u, ud) { if (!ud.last) return []; const L = ud.last; return [
     ...(L.T_eval ? [{ label: 'T reaction', value: fmt.T(L.T_eval) }] : []),
     ...(L.xi != null ? [{ label: 'ξ', value: `${L.xi.toExponential(3)}<span class="u">mol/s</span>` }] : []),
     ...(L.xi_eq != null ? [{ label: 'ξ_eq', value: `${L.xi_eq.toExponential(3)}<span class="u">mol/s</span>` }] : []),
+    ...(L.xi_max != null ? [{ label: 'ξ_max', value: `${L.xi_max.toExponential(3)}<span class="u">mol/s</span>` }] : []),
+    ...(L.iso_xi != null ? [{ label: 'ξ_iso (at T_in)', value: `${L.iso_xi.toExponential(3)}<span class="u">mol/s</span>` }] : []),
+    ...(L.H_in_kW ? [{ label: 'H in', value: `${L.H_in_kW}<span class="u">kW</span>` }] : []),
+    ...(L.H_out_kW ? [{ label: 'H out', value: `${L.H_out_kW}<span class="u">kW</span>` }] : []),
     ...(L.rate_inlet != null ? [{ label: 'Rate (inlet)', value: `${L.rate_inlet.toExponential(2)}<span class="u">mol/m³s</span>` }] : []),
     ...(L.reason ? [{ label: 'Reason', value: L.reason, full: true, tone: 'warn' }] : []),
   ]; }
@@ -20241,7 +20290,7 @@ function loadDemo() {
       { id: 'rx', defId: 'reactor_equilibrium', name: 'Sabatier Rx', x: 8, y: 4, rot: 0,
         params: { reactionId: 'R_SABATIER', useKinetics: true, volume_m3: 0.5 },
         sticker: { dx: 3, dy: -2, items: [
-          { section: 'power', label: 'Q duty' },
+          { section: 'power', label: 'ΔT' },
           { section: 'reaction', label: 'Conversion' }
         ]}},
       { id: 'cool', defId: 'cooler', name: 'Cooler', x: 12, y: 4, rot: 0, params: { T_out: 323.15 } },
@@ -20254,7 +20303,7 @@ function loadDemo() {
 
       // ── Energy storage ──
       { id: 'solar', defId: 'grid_supply', name: 'Solar 30kW', x: 2, y: 13, rot: 0,
-        params: { maxPower: 30, fixed: true } },
+        params: { maxPower: 30 } },
       { id: 'batt', defId: 'battery', name: 'Li-Ion 10kWh', x: 2, y: 16, rot: 0,
         params: { peakPower_kW: 20, capacity_J: 36000000, initialSOC: 0.9 } },
       { id: 'hub', defId: 'power_hub', name: 'Power Hub', x: 6, y: 14, rot: 0, params: {} },
@@ -20275,7 +20324,7 @@ function loadDemo() {
       // ══════════════════════════════════════════════════════════════════
 
       { id: 'a-grid', defId: 'grid_supply', name: 'Grid 20kW', x: 1, y: -20, rot: 0,
-        params: { maxPower: 20000, fixed: true } },
+        params: { maxPower: 20000 } },
       // [v11.0.0] Motor removed — grid connects directly to compressor
       { id: 'a-air', defId: 'source_air', name: 'Air Intake', x: 3, y: -15, rot: 0,
         params: { flowScale: 1.0 } },
@@ -20287,7 +20336,7 @@ function loadDemo() {
 
       // [v10.9.3 NNG] Combustor heat source — grid + e-heater
       { id: 'a-hgrid', defId: 'grid_supply', name: 'Fuel 30kW', x: 13, y: -7, rot: 0,
-        params: { maxPower: 30, fixed: true } },
+        params: { maxPower: 30 } },
       { id: 'a-eheat', defId: 'electric_heater', name: 'Burner Supply', x: 17, y: -7, rot: 0,
         params: { power_kW: 8 } },
 
@@ -20325,7 +20374,7 @@ function loadDemo() {
       { id: 'b-rx', defId: 'reactor_equilibrium', name: 'SMR Reactor', x: 8, y: -6, rot: 0,
         params: { reactionId: 'R_STEAM_REFORM', useKinetics: true, volume_m3: 1.0, variant: 'heat-reversed' },
         sticker: { dx: -6, dy: -2, items: [
-          { section: 'power', label: 'Q duty' },
+          { section: 'power', label: 'ΔT' },
           { section: 'reaction', label: 'Conversion' }
         ]}},
       { id: 'b-valve', defId: 'valve', name: 'Letdown Valve', x: 17, y: -6, rot: 0,
@@ -20338,7 +20387,7 @@ function loadDemo() {
       // ══════════════════════════════════════════════════════════════════
 
       { id: 'c-grid', defId: 'grid_supply', name: 'Pump Supply', x: 31, y: 16, rot: 0,
-        params: { maxPower: 1000, fixed: true } },
+        params: { maxPower: 1000 } },
       // [v11.0.0] Motor removed — grid connects directly to pump
       { id: 'c-src', defId: 'source', name: 'Water In', x: 31, y: 20, rot: 0,
         params: { species: 'H2O', nDot: 1, T: 293.15, P: 101325, phaseConstraint: 'L' } },
@@ -20430,7 +20479,7 @@ setViewBox();
 // [v10.3.0] M8: Restore from auto-save, or load demo
 // [v10.9.3] Version guard: if auto-save is from an older demo, load fresh demo
 {
-  const DEMO_VERSION = 'v11.0.0-p5';  // bump this when demo scene changes
+  const DEMO_VERSION = 'v11.0.2';  // bump this when demo scene changes
   const saved = localStorage.getItem(AUTOSAVE_KEY);
   const savedDemoVer = localStorage.getItem(AUTOSAVE_KEY + '_demoVer');
   if (saved && savedDemoVer === DEMO_VERSION) {
@@ -20618,7 +20667,7 @@ function runTests() {
     const src = t.place('source', 0, 0, { species:'N2', nDot:10, T:300.15, P:100000, phaseConstraint:'V' });
     const comp = t.place('compressor', 3, 0, { Pout:1000000, eta:0.75 });
     const snk = t.place('sink', 6, 0);
-    const gs = t.place('grid_supply', 3, -3, { maxPower:200, fixed:true });
+    const gs = t.place('grid_supply', 3, -3, { maxPower:200 });
     t.wire(src,'out', comp,'mat_in'); t.wire(comp,'mat_out', snk,'in');
     t.wire(gs,'out', comp,'elec_in');
     t.solve();
@@ -20659,7 +20708,7 @@ function runTests() {
     const src = t.place('source', 0, 0, { species:'H2O', nDot:10, T:298.15, P:100000, phaseConstraint:'L' });
     const pmp = t.place('pump', 3, 0, { Pout:5000000, eta:0.70 });
     const snk = t.place('sink', 6, 0);
-    const gs = t.place('grid_supply', 3, -3, { maxPower:5, fixed:true });
+    const gs = t.place('grid_supply', 3, -3, { maxPower:5 });
     t.wire(src,'out', pmp,'mat_in'); t.wire(pmp,'mat_out', snk,'in');
     t.wire(gs,'out', pmp,'elec_in');
     t.solve();
@@ -20684,7 +20733,7 @@ function runTests() {
     const src = t.place('source', 0, 0, { species:'O2', nDot:5, T:120.00, P:200000, phaseConstraint:'V' });
     const comp = t.place('compressor', 3, 0, { Pout:1000000, eta:0.80 });
     const snk = t.place('sink', 6, 0);
-    const gs = t.place('grid_supply', 3, -3, { maxPower:50, fixed:true });
+    const gs = t.place('grid_supply', 3, -3, { maxPower:50 });
     t.wire(src,'out', comp,'mat_in'); t.wire(comp,'mat_out', snk,'in');
     t.wire(gs,'out', comp,'elec_in');
     t.solve();
@@ -20971,7 +21020,7 @@ function runTests() {
     const src = t.place('source', 0, 1, { species:'N2', nDot:10, T:300.15, P:200000, phaseConstraint:'V' });
     const htr = t.place('heater', 4, 1); const snk = t.place('sink', 8, 1);
     // [v11.0.0] Heater is dumb pipe — T_out is consequence of Q supplied
-    const gs = t.place('grid_supply', 0, 4, { maxPower:50000, fixed:true });
+    const gs = t.place('grid_supply', 0, 4, { maxPower:50000 });
     const eh = t.place('electric_heater', 3, 4, { power_kW:50 });
     t.wire(gs,'out', eh,'elec_in'); t.wire(eh,'heat_out', htr,'heat_in');
     t.wire(src,'out', htr,'mat_in'); t.wire(htr,'mat_out', snk,'in');
@@ -20989,7 +21038,7 @@ function runTests() {
     const src = t.place('source', 0, 1, { species:'H2O', nDot:1, T:363.15, P:101325, phaseConstraint:'L' });
     const htr = t.place('heater', 4, 1); const snk = t.place('sink', 8, 1);
     // [v11.0.0] Heater takes ALL heat supplied — T_out is consequence
-    const gs = t.place('grid_supply', 0, 4, { maxPower:60000, fixed:true });
+    const gs = t.place('grid_supply', 0, 4, { maxPower:60000 });
     const eh = t.place('electric_heater', 3, 4, { power_kW:60 });
     t.wire(gs,'out', eh,'elec_in'); t.wire(eh,'heat_out', htr,'heat_in');
     t.wire(src,'out', htr,'mat_in'); t.wire(htr,'mat_out', snk,'in');
@@ -21420,66 +21469,57 @@ function runTests() {
   // ═══════════════════════════════════════════════════════════════════════
 
   test('Hub: Input Aggregation', t => {
-    const fA = t.place('grid_supply', 0, 0, { maxPower:50, fixed:true });
-    const fB = t.place('grid_supply', 0, 3, { maxPower:30, fixed:true });
+    const fA = t.place('grid_supply', 0, 0, { maxPower:50 });
+    const fB = t.place('grid_supply', 0, 3, { maxPower:30 });
     const bat = t.place('grid_supply', 0, 6, { maxPower:20 });
-    const hub = t.place('power_hub', 4, 2); const hs = t.place('sink_electrical', 4, 0);
+    const hub = t.place('power_hub', 4, 2);
     t.wire(fA,'out', hub,'elec_in'); t.wire(fB,'out', hub,'elec_in');
-    t.wire(bat,'out', hub,'elec_in'); t.wire(hub,'elec_surplus', hs,'in');
+    t.wire(bat,'out', hub,'elec_in');
     t.solve();
     const h = t.unit(hub);
-    t.assertClose(h.last.fixedSupply_W, 80000, 1, 'Fixed supply');
-    t.assertClose(h.last.batteryMax_W, 20000, 1, 'Battery max');
-    t.assertClose(h.last.totalCapacity_W, 100000, 1, 'Total capacity');
-    t.assertClose(h.last.surplus_W, 80000, 1, 'Surplus = fixed');
+    t.assertClose(h.last.totalCapacity_W, 100000, 1, 'Total capacity = 100kW');
+    t.assertClose(h.last.responsiveMax_W, 100000, 1, 'Grid max = 100kW');
+    // No consumers → all sources idle
+    t.assertClose(h.last.totalSupply_W || 0, 0, 1, 'Supply = 0 (no consumers)');
     // MultiConnect via scene.connect()
     const ts = new Scene();
     const tb1 = ts.placeUnit('grid_supply', 0, 0), tb2 = ts.placeUnit('grid_supply', 0, 3), th = ts.placeUnit('power_hub', 4, 1);
-    ts.units.get(tb1).params.fixed = true;  // [v10.0.4] was source_electrical
     t.assertOK(ts.connect({unitId:tb1,portId:'out'},{unitId:th,portId:'elec_in'}) && ts.connect({unitId:tb2,portId:'out'},{unitId:th,portId:'elec_in'}), 'multiConnect OK');
-    t.assertClose(t.unit(hs).last.absorbed_W || 0, 80000, 1, 'Heat sink absorbed');
   });
 
   test('Hub: Sufficient Supply', t => {
-    const fix = t.place('grid_supply', 0, 0, { maxPower:50, fixed:true });
+    const fix = t.place('grid_supply', 0, 0, { maxPower:50 });
     const bat = t.place('grid_supply', 0, 6, { maxPower:30 });
     const hub = t.place('power_hub', 4, 1);
-    // [v11.0.0] motor removed
     const sN2 = t.place('source', 0, 10, { species:'N2', nDot:1, T:298.15, P:100000, phaseConstraint:'V' });
     const comp = t.place('compressor', 12, 3, { Pout:300000, eta:0.75 });
-    const snk = t.place('sink', 16, 3); const hs = t.place('sink_electrical', 4, 7);
+    const snk = t.place('sink', 16, 3);
     t.wire(fix,'out', hub,'elec_in'); t.wire(bat,'out', hub,'elec_in');
     t.wire(hub,'elec_out', comp,'elec_in');
-    t.wire(hub,'elec_surplus', hs,'in');
     t.wire(sN2,'out', comp,'mat_in'); t.wire(comp,'mat_out', snk,'in');
     t.solve();
     const h = t.unit(hub), dem = (h.last.totalDemand_W||0)/1000;
     t.assertRange(dem, 1, 20, 'Hub demand [kW]');
     t.assertClose(h.last.curtailmentFactor, 1, 0.001, 'Curtailment = 1');
-    t.assertClose((h.last.batteryDraw_W||0)/1000, 0, 0.1, 'Battery draw = 0');
-    t.assertClose((h.last.surplus_W||0)/1000, 50-dem, 0.5, 'Surplus [kW]');
-    t.assertClose((t.unit(hs).last.absorbed_W||0)/1000, (h.last.surplus_W||0)/1000, 0.5, 'Heat sink = surplus');
+    // [v11.0.0] All sources demand-responsive — supply = demand, no surplus
+    t.assertClose((h.last.totalSupply_W||0)/1000, dem, 0.5, 'Supply = demand');
   });
 
   test('Hub: Curtailment', t => {
     const b1 = t.place('grid_supply', 0, 0, { maxPower:1 });
     const b2 = t.place('grid_supply', 0, 6, { maxPower:1 });
     const hub = t.place('power_hub', 4, 1);
-    // [v11.0.0] motor removed
     const sN2 = t.place('source', 0, 10, { species:'N2', nDot:1, T:298.15, P:100000, phaseConstraint:'V' });
     const comp = t.place('compressor', 12, 3, { Pout:300000, eta:0.75 });
-    const snk = t.place('sink', 16, 3); const hs = t.place('sink_electrical', 4, 7);
+    const snk = t.place('sink', 16, 3);
     t.wire(b1,'out', hub,'elec_in'); t.wire(b2,'out', hub,'elec_in');
     t.wire(hub,'elec_out', comp,'elec_in');
-    t.wire(hub,'elec_surplus', hs,'in');
     t.wire(sN2,'out', comp,'mat_in'); t.wire(comp,'mat_out', snk,'in');
     t.solve();
     const h = t.unit(hub);
     t.assertRange(h.last.curtailmentFactor, 0.001, 0.999, 'Curtailment < 1');
-    t.assertClose((h.last.batteryDraw_W||0)/1000, 2, 0.01, 'Battery draw [kW]');
+    t.assertClose((h.last.responsiveDraw_W||0)/1000, 2, 0.01, 'Grid draw = 2kW (maxed)');
     t.assertClose((h.last.totalSupply_W||0)/1000, 2, 0.01, 'Supply = 2kW');
-    t.assertClose((h.last.surplus_W||0)/1000, 0, 0.01, 'Surplus = 0');
-    t.assertClose(t.unit(hs).last.absorbed_W||0, 0, 10, 'Heat sink = 0');
   });
 
   test('Compressor: Curtailed Outlet', t => {
@@ -21521,7 +21561,7 @@ function runTests() {
 
   test('Hub: Proportional Curtailment', t => {
     const fix = t.place('grid_supply', 0, 0, { maxPower:5 });
-    const hub = t.place('power_hub', 3, 1); const hs = t.place('sink_electrical', 3, -2);
+    const hub = t.place('power_hub', 3, 1);
     // [v11.0.0] motor removed
     const sA = t.place('source', 7, 4, { species:'N2', nDot:1, T:298.15, P:100000, phaseConstraint:'V' });
     const cA = t.place('compressor', 11, 1, { Pout:300000, eta:0.75 });
@@ -21530,7 +21570,7 @@ function runTests() {
     const sB = t.place('source', 7, 10, { species:'N2', nDot:1, T:298.15, P:100000, phaseConstraint:'V' });
     const cB = t.place('compressor', 11, 7, { Pout:300000, eta:0.75 });
     const skB = t.place('sink', 15, 7);
-    t.wire(fix,'out', hub,'elec_in'); t.wire(hub,'elec_surplus', hs,'in');
+    t.wire(fix,'out', hub,'elec_in');
     t.wire(hub,'elec_out', cA,'elec_in');
     t.wire(sA,'out', cA,'mat_in'); t.wire(cA,'mat_out', skA,'in');
     t.wire(hub,'elec_out', cB,'elec_in');
@@ -21545,7 +21585,7 @@ function runTests() {
     t.assertOK(t.port(cA,'mat_out') && t.port(cB,'mat_out'), 'Both outputs');
     const Pa = t.port(cA,'mat_out')?.P, Pb = t.port(cB,'mat_out')?.P;
     if (Pa && Pb) t.assertClose(Pa/Pb, 1, 0.01, 'P ratio = 1');
-    t.assertClose((h.last.surplus_W||0)/1000, 0, 0.01, 'Surplus = 0');
+
   });
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -21577,26 +21617,21 @@ function runTests() {
     const sHot = t.place('source', 0, 2, { species:'N2', nDot:2, T:573.15, P:500000, phaseConstraint:'V' });
     const turb = t.place('gas_turbine', 4, 2, { Pout:100000, eta:0.85 });
     const skGas = t.place('sink', 8, 2);
-    // [v11.0.0] generator removed
-    const hub = t.place('power_hub', 8, 5); const hs = t.place('sink_electrical', 6, 3);
-    // [v11.0.0] motor removed
+    const hub = t.place('power_hub', 8, 5);
+    const surp = t.place('sink_electrical', 8, -1);
     const sCold = t.place('source', 12, 8, { species:'N2', nDot:0.5, T:298.15, P:100000, phaseConstraint:'V' });
     const comp = t.place('compressor', 16, 5, { Pout:200000, eta:0.75 });
     const skComp = t.place('sink', 20, 5);
     t.wire(sHot,'out', turb,'mat_in'); t.wire(turb,'mat_out', skGas,'in');
     t.wire(turb,'elec_out', hub,'elec_in');
     t.wire(hub,'elec_out', comp,'elec_in');
-    // [v11.0.0] motor wiring removed
+    t.wire(hub,'elec_surplus', surp,'in');
     t.wire(sCold,'out', comp,'mat_in'); t.wire(comp,'mat_out', skComp,'in');
     t.solve();
     const h = t.unit(hub), turbE = (t.ud(turb).last.W_shaft||0)/1000;
-    t.assertClose((h.last.fixedSupply_W||0)/1000, turbE, 0.01, 'Hub fixed = turbine elec output');
+    t.assertClose((h.last.physicsFixed_W||0)/1000, turbE, 0.01, 'Hub physics-fixed = turbine output');
     t.assertOK(t.port(comp,'mat_out')?.T, 'Comp outlet exists');
-    t.assertOK((h.last.surplus_W||0) > 0, 'Surplus > 0');
-    const hubHeat = t.port(hub,'elec_surplus');
-    // Use .actual (canonical), fallback to .available
-    t.assertClose((hubHeat?.actual ?? hubHeat?.available ?? 0)/1000, (h.last.surplus_W||0)/1000, 0.01, 'Heat = surplus');
-    t.assertClose(h.last.curtailmentFactor, 1, 0.001, 'No curtailment');
+    t.assertOK(h.last.curtailmentFactor === 1, 'No curtailment (turbine covers compressor)');
   });
 
   test('Turbine: Liquid Inlet Error', t => {
@@ -21759,13 +21794,9 @@ function runTests() {
 
     // Valid connections — all should succeed
     const c1 = scene.connect({ unitId: src,  portId: 'out' },      { unitId: hubA, portId: 'elec_in' });
-    const c2 = scene.connect({ unitId: hubA, portId: 'elec_surplus' }, { unitId: hsA,  portId: 'in' });
     const c3 = scene.connect({ unitId: hubB, portId: 'elec_out' }, { unitId: comp, portId: 'elec_in' });
-    const c4 = scene.connect({ unitId: hubB, portId: 'elec_surplus' }, { unitId: hsB,  portId: 'in' });
     t.assertOK(c1, 'Src→HubA OK');
-    t.assertOK(c2, 'HubA heat OK');
     t.assertOK(c3, 'HubB→Comp OK');
-    t.assertOK(c4, 'HubB heat OK');
 
     // The hub-to-hub link — must be rejected
     const cBad = scene.connect({ unitId: hubA, portId: 'elec_out' }, { unitId: hubB, portId: 'elec_in' });
@@ -21971,7 +22002,7 @@ function runTests() {
     // Source(N2, 3mol/s, 25°C, 1bar) → Compressor(3bar, η=0.75) → Sink
     // Energy: W_elec = H_out - H_in (all power into fluid enthalpy)
 
-    const bat  = t.place('grid_supply', 0, 0, { maxPower:30, fixed:true });
+    const bat  = t.place('grid_supply', 0, 0, { maxPower:30 });
     const src  = t.place('source', 7, 3, { species:'N2', nDot:3, T:298.15, P:100000, phaseConstraint:'V' });
     const comp = t.place('compressor', 7, 0, { Pout:300000, eta:0.75 });
     const snk  = t.place('sink', 11, 0);
@@ -22781,7 +22812,7 @@ function runTests() {
     const matSrc = t.place('source', 0, 0, { species:'N2', nDot:1, T:298.15, P:100000, phaseConstraint:'V' });
     const comp   = t.place('compressor', 4, 0, { Pout:500000, eta:0.75 });
     const matSnk = t.place('sink', 8, 0);
-    const pwrSrc = t.place('grid_supply', 4, -4, { maxPower:200, fixed:true });
+    const pwrSrc = t.place('grid_supply', 4, -4, { maxPower:200 });
 
     t.wire(matSrc, 'out', comp, 'mat_in');
     t.wire(comp, 'mat_out', matSnk, 'in');
@@ -23006,7 +23037,7 @@ function runTests() {
     const htr  = t.place('heater', 3, 4);  // [v11.0.0] no T_out param
     const snk2 = t.place('sink', 6, 4);
     // [v10.9.3 NNG] Heater needs a heat source — no free energy
-    const gs2 = t.place('grid_supply', 0, 7, { maxPower:30000, fixed:true });
+    const gs2 = t.place('grid_supply', 0, 7, { maxPower:30000 });
     const eh2 = t.place('electric_heater', 3, 7, { power_kW:30 });
     t.wire(gs2,'out', eh2,'elec_in'); t.wire(eh2,'heat_out', htr,'heat_in');
     t.wire(src2, 'out', htr, 'mat_in');
@@ -23574,19 +23605,16 @@ function runTests() {
   });
 
   test('Hub allocation — per-consumer dispatch conservation', t => {
-    // Hub with one fixed source + one battery, two consumers of different size.
+    // Hub with two grid sources, two consumers of different size.
     // Verify: Σ consumer allocated ≈ hub elec_out actual,
     //         hub demand = Σ consumer demands,
-    //         battery fills gap between fixed supply and demand.
+    //         sources are demand-responsive.
 
-    const srcE = t.place('grid_supply', 0, 0, { maxPower: 500, fixed: true });   // 500 kW fixed
-    const bat  = t.place('grid_supply', 0, 4, { maxPower: 300 });             // 300 kW responsive
+    const srcE = t.place('grid_supply', 0, 0, { maxPower: 500 });   // 500 kW
+    const bat  = t.place('grid_supply', 0, 4, { maxPower: 300 });   // 300 kW
     const hub  = t.place('power_hub', 4, 2);
 
-    // Two motors with different downstream loads
-    // [v11.0.0] motor removed
-    // [v11.0.0] motor removed
-
+    // Two pumps with different downstream loads
     const srcW1 = t.place('source', 12, -2, { species:'H2O', nDot:5000, T:298.15, P:100000, phaseConstraint:'L' });
     const srcW2 = t.place('source', 12, 2,  { species:'H2O', nDot:3000, T:298.15, P:100000, phaseConstraint:'L' });
 
@@ -23596,15 +23624,10 @@ function runTests() {
     const snk1 = t.place('sink', 20, 0);
     const snk2 = t.place('sink', 20, 4);
 
-    // Wire sources → hub
     t.wire(srcE, 'out', hub, 'elec_in');
     t.wire(bat, 'out', hub, 'elec_in');
-    // Wire hub → motors
     t.wire(hub, 'elec_out', pmp1, 'elec_in');
     t.wire(hub, 'elec_out', pmp2, 'elec_in');
-    // Wire motors → pumps → sinks
-    // [v11.0.0] motor wiring merged above
-    // [v11.0.0] motor wiring merged above
     t.wire(srcW1, 'out', pmp1, 'mat_in');
     t.wire(srcW2, 'out', pmp2, 'mat_in');
     t.wire(pmp1, 'mat_out', snk1, 'in');
@@ -23616,7 +23639,7 @@ function runTests() {
     const hubUD = t.ud(hub);
     t.assertOK(hubUD, 'Hub unitData exists');
     const hubLast = hubUD.last;
-    t.assertOK(hubLast.fixedSupply_W > 0, 'Hub: fixedSupply > 0');
+    t.assertOK(hubLast.responsiveMax_W > 0, 'Hub: gridMax > 0');
     t.assertOK(hubLast.totalDemand_W > 0, 'Hub: totalDemand > 0');
     t.assertOK(hubLast.totalSupply_W > 0, 'Hub: totalSupply > 0');
 
@@ -23628,9 +23651,9 @@ function runTests() {
     t.assertOK(hubOut.demand !== undefined, 'Hub out: demand present');
     t.assertOK(hubOut.curtailmentFactor !== undefined, 'Hub out: curtailmentFactor present');
 
-    // ── Conservation: hub actual = fixedSupply + batteryDraw ──
-    t.assertClose(hubOut.actual, hubLast.fixedSupply_W + hubLast.batteryDraw_W, 100,
-      'Hub actual = fixed + battery draw');
+    // ── Conservation: hub actual = gridDraw ──
+    t.assertClose(hubOut.actual, hubLast.responsiveDraw_W, 100,
+      'Hub actual = grid draw');
 
     // ── Per-consumer allocation sums ──
     const alloc = hubLast.consumerAllocation;
@@ -23642,11 +23665,6 @@ function runTests() {
       t.assertClose(sumAlloc, hubOut.actual, hubOut.actual * 0.05,
         'Σ consumer allocations ≈ hub actual');
     }
-
-    // ── Battery fills gap (not full capacity when demand is lower) ──
-    const gap = Math.max(0, hubLast.totalDemand_W - hubLast.fixedSupply_W);
-    t.assertClose(hubLast.batteryDraw_W, Math.min(gap, hubLast.batteryMax_W), 100,
-      'Battery draw = min(gap, batteryMax)');
 
     // [v11.0.0] Both pumps got power
     const p1W = t.ud(pmp1).last.W_shaft || 0;
@@ -25975,22 +25993,25 @@ function runTests() {
   }});
 
   tests.push({ name: '165: Hub Step C dispatches grid_supply correctly', fn: t => {
-    const gs = t.place('grid_supply', 0, 0, { maxPower: 20 });
-    const fix = t.place('grid_supply', 0, 4, { maxPower: 10, fixed: true });
+    const gs1 = t.place('grid_supply', 0, 0, { maxPower: 20 });
+    const gs2 = t.place('grid_supply', 0, 4, { maxPower: 10 });
     const hub = t.place('power_hub', 4, 1);
-    const load = t.place('sink_electrical', 8, 1);
+    // [v11.0.0] motor removed
+    const sN2 = t.place('source', 0, 8, { species:'N2', nDot:1, T:298.15, P:100000, phaseConstraint:'V' });
+    const comp = t.place('compressor', 8, 1, { Pout:300000, eta:0.75 });
+    const snk = t.place('sink', 12, 1);
 
-    t.wire(gs, 'out', hub, 'elec_in');
-    t.wire(fix, 'out', hub, 'elec_in');
-    t.wire(hub, 'elec_out', load, 'elec');
+    t.wire(gs1, 'out', hub, 'elec_in');
+    t.wire(gs2, 'out', hub, 'elec_in');
+    t.wire(hub, 'elec_out', comp, 'elec_in');
+    t.wire(sN2, 'out', comp, 'mat_in'); t.wire(comp, 'mat_out', snk, 'in');
 
     t.solve();
     const hubUD = t.ud(hub);
-    // Sink demands Infinity → fixed 10kW + grid_supply fills gap
-    t.assertClose(hubUD.last.fixedSupply_W / 1000, 10, 0.1, 'Fixed supply = 10 kW');
-    t.assertClose(hubUD.last.batteryMax_W / 1000, 20, 0.1, 'Grid supply max = 20 kW');
-    // Total supply should equal fixed + grid_supply draw
-    t.assertOK(hubUD.last.totalSupply_W >= hubUD.last.fixedSupply_W, 'Total >= fixed');
+    // [v11.0.0] All demand-responsive: grid capacity = 30kW, supply = demand
+    t.assertClose(hubUD.last.responsiveMax_W / 1000, 30, 0.1, 'Grid max = 30 kW');
+    t.assertOK(hubUD.last.totalSupply_W > 0, 'Supply > 0');
+    t.assertOK(hubUD.last.totalSupply_W <= hubUD.last.responsiveMax_W, 'Supply <= capacity');
   }});
 
   tests.push({ name: '166: Inventory protocol: initInventory called on placeUnit', fn: t => {
@@ -26395,32 +26416,27 @@ function runTests() {
     t.assertOK(ud.ports.elec.capacity === 0, 'capacity = 0 at empty');
   }});
 
-  tests.push({ name: '182: Hub charges battery from surplus: charge_J increases', fn: t => {
-    const origDt = SimSettings.dt;
-    TimeClock.t = 0; TimeClock.frame = 0; TimeClock.mode = 'test';
-    SimSettings.dt = 60;
-
-    // Fixed source (50 kW) + battery (50% SOC) → hub, NO consumers on elec_out.
-    // All 50 kW is surplus → should charge battery (up to maxCharge_W).
-    const src = t.place('grid_supply', 0, 0, { maxPower: 50, fixed: true });
+  tests.push({ name: '182: Hub demand-responsive — no surplus, battery idle when demand met', fn: t => {
+    // [v11.0.0] All sources demand-responsive. Grid 50kW + battery → hub + compressor.
+    // Grid alone can serve demand → battery stays idle (no surplus, no charge).
+    const src = t.place('grid_supply', 0, 0, { maxPower: 50 });
     const bat = t.place('battery', 0, 4, { peakPower_kW: 40, capacity_J: 36000000, initialSOC: 0.5 });
     const hub = t.place('power_hub', 4, 0);
+    const sN2 = t.place('source', 0, 8, { species:'N2', nDot:0.5, T:298.15, P:100000, phaseConstraint:'V' });
+    const comp = t.place('compressor', 8, 0, { Pout:300000, eta:0.75 });
+    const snk = t.place('sink', 12, 0);
 
     t.wire(src, 'out', hub, 'elec_in');
     t.wire(bat, 'elec', hub, 'elec_in');
+    t.wire(hub, 'elec_out', comp, 'elec_in');
+    t.wire(sN2, 'out', comp, 'mat_in'); t.wire(comp, 'mat_out', snk, 'in');
 
-    const u = scene.units.get(bat);
-    const initCharge = u.inventory.charge_J;
-
-    // Steps: surplus should charge battery
-    for (let i = 0; i < 3; i++) {
-      TimeClock.step(scene);
-    }
-    t.assertOK(u.inventory.charge_J > initCharge, 
-      `charge increased: ${(u.inventory.charge_J/3600000).toFixed(3)} > ${(initCharge/3600000).toFixed(3)} kWh`);
-
-    TimeClock.t = 0; TimeClock.frame = 0;
-    TimeClock.mode = 'test'; SimSettings.dt = origDt;
+    t.solve();
+    const hubUD = t.ud(hub);
+    // Grid alone covers demand — battery draw = 0
+    t.assertClose(hubUD.last.batteryDraw_W || 0, 0, 10, 'Battery draw = 0 (grid sufficient)');
+    t.assertOK(hubUD.last.totalSupply_W > 0, 'Supply > 0');
+    t.assertClose(hubUD.last.curtailmentFactor, 1, 0.001, 'No curtailment');
   }});
 
   tests.push({ name: '183: Battery at 100% SOC: charging stops', fn: t => {
@@ -26437,32 +26453,38 @@ function runTests() {
     t.assertClose(ud.last.maxCharge_W, 0, 0.01, 'maxCharge = 0 when full');
   }});
 
-  tests.push({ name: '184: Hub energy balance: fixedSupply = served + charge + heat', fn: t => {
-    // Fixed source (30 kW) + battery (50% SOC) → hub, no consumers.
-    // Expected: fixed=30kW, demand=0, surplus=30kW → charge battery (up to 20kW peak)
-    // Remainder → heat surplus = 10kW
-    const src = t.place('grid_supply', 0, 0, { maxPower: 30, fixed: true });
-    const bat = t.place('battery', 0, 4, { peakPower_kW: 20, capacity_J: 36000000, initialSOC: 0.5 });
-    const hub = t.place('power_hub', 4, 0);
+  tests.push({ name: '184: Hub energy balance: physics-fixed surplus → battery charge', fn: t => {
+    // Turbine (physics-fixed output) + battery → hub, small consumer.
+    // Turbine output > demand → surplus charges battery, remainder to elec_surplus.
+    const sSrc = t.place('source', 0, 0, { species:'N2', nDot:2, T:573.15, P:500000, phaseConstraint:'V' });
+    const turb = t.place('gas_turbine', 4, 0, { Pout:100000, eta:0.85 });
+    const skGas = t.place('sink', 8, 0);
+    const bat = t.place('battery', 0, 6, { peakPower_kW: 5, capacity_J: 36000000, initialSOC: 0.5 });
+    const hub = t.place('power_hub', 4, 6);
+    const eh = t.place('electric_heater', 8, 6, { power_kW: 1 }); // small consumer: 1 kW
+    const hSnk = t.place('sink_heat', 12, 6);
+    const surp = t.place('sink_electrical', 4, 3);
 
-    t.wire(src, 'out', hub, 'elec_in');
+    t.wire(sSrc, 'out', turb, 'mat_in'); t.wire(turb, 'mat_out', skGas, 'in');
+    t.wire(turb, 'elec_out', hub, 'elec_in');
     t.wire(bat, 'elec', hub, 'elec_in');
+    t.wire(hub, 'elec_out', eh, 'elec_in');
+    t.wire(eh, 'heat_out', hSnk, 'in');
+    t.wire(hub, 'elec_surplus', surp, 'in');
 
     t.solve();
     const hubUD = scene.runtime.unitData.get(hub);
-    const fixed = hubUD.last.fixedSupply_W;
-    const surplus = hubUD.last.surplus_W;
+    const turbW = t.ud(turb).last.W_shaft || 0;
+    const physFixed = hubUD.last.physicsFixed_W || 0;
     const batteryCharge = hubUD.last.batteryCharge_W || 0;
-    const heatSurplus = hubUD.last.heatSurplus_W;
+    const surplus = hubUD.last.surplus_W || 0;
 
-    // Energy balance: surplus = batteryCharge + heatSurplus
-    t.assertClose(surplus, batteryCharge + (heatSurplus || 0), 1, 
-      `surplus (${(surplus||0).toFixed(0)}) = charge (${batteryCharge.toFixed(0)}) + heat (${(heatSurplus||0).toFixed(0)})`);
-    // Fixed supply fully delivered
-    t.assertClose(fixed, 30000, 10, 'fixedSupply = 30 kW');
-    // Battery should absorb up to peakPower (20kW)
-    t.assertOK(batteryCharge > 0, `Battery charging: ${batteryCharge.toFixed(0)} W`);
-    t.assertOK(batteryCharge <= 20001, `Battery charge <= peakPower: ${batteryCharge.toFixed(0)} W`);
+    // Turbine classified as physics-fixed
+    t.assertClose(physFixed, turbW, 10, `Physics-fixed = turbine (${(turbW/1000).toFixed(1)} kW)`);
+    // Surplus = turbine - demand → some charges battery
+    t.assertOK(surplus >= 0, `Surplus >= 0 (got ${(surplus/1000).toFixed(1)} kW)`);
+    t.assertOK(batteryCharge >= 0, `Battery charging: ${(batteryCharge/1000).toFixed(1)} kW`);
+    t.assertOK(batteryCharge <= 5001, `Battery charge <= peakPower: ${(batteryCharge/1000).toFixed(1)} kW`);
   }});
 
   tests.push({ name: '185: Battery direct-bus: discharge-only, no charging', fn: t => {
@@ -26777,7 +26799,7 @@ function runTests() {
     const migrated = units.find(u => u.name === 'Old Elec');
     t.assertOK(migrated, 'Migrated unit found');
     t.assertOK(migrated.defId === 'grid_supply', `defId = grid_supply (got: ${migrated.defId})`);
-    t.assertOK(migrated.params.fixed === true, 'params.fixed = true (was source_electrical)');
+    t.assertOK(migrated.params.fixed === undefined, 'params.fixed stripped (v11.0.0 — all sources responsive)');
     t.assertOK(migrated.id.startsWith('grid_supply-'), `id remapped: ${migrated.id}`);
     // Connection should be remapped
     const conn = scene.connections[0];
@@ -26811,20 +26833,21 @@ function runTests() {
     t.assertOK(catNames.length === expected.length, `${catNames.length} categories (expected ${expected.length})`);
   }});
 
-  tests.push({ name: '197: grid_supply fixed mode sets last.type correctly', fn: t => {
-    // Responsive mode (default)
-    const gs1 = t.place('grid_supply', 0, 0, { maxPower: 10 });
-    const hub1 = t.place('power_hub', 4, 0);
-    t.wire(gs1, 'out', hub1, 'elec_in');
+  tests.push({ name: '197: grid_supply always demand-responsive, reports actual draw', fn: t => {
+    const gs = t.place('grid_supply', 0, 0, { maxPower: 50 });
+    const hub = t.place('power_hub', 4, 0);
+    const eh = t.place('electric_heater', 8, 0, { power_kW: 10 });
+    const hs = t.place('sink_heat', 12, 0);
+    const surp = t.place('sink_electrical', 4, -3);
+    t.wire(gs, 'out', hub, 'elec_in');
+    t.wire(hub, 'elec_out', eh, 'elec_in');
+    t.wire(eh, 'heat_out', hs, 'in');
+    t.wire(hub, 'elec_surplus', surp, 'in');
     t.solve();
-    t.assertOK(t.unit(gs1).last.type === 'grid_supply', `Responsive: type = "${t.unit(gs1).last.type}"`);
-    // Fixed mode
-    t.clearScene();
-    const gs2 = t.place('grid_supply', 0, 0, { maxPower: 10, fixed: true });
-    const hub2 = t.place('power_hub', 4, 0);
-    t.wire(gs2, 'out', hub2, 'elec_in');
-    t.solve();
-    t.assertOK(t.unit(gs2).last.type === 'fixed', `Fixed: type = "${t.unit(gs2).last.type}"`);
+    t.assertOK(t.unit(gs).last.type === 'grid_supply', `type = grid_supply (got: "${t.unit(gs).last.type}")`);
+    // Grid should only draw what's demanded (10 kW), not full 50 kW
+    const actual = t.unit(gs).last.actual_W;
+    t.assertOK(Math.abs(actual - 10000) < 100, `Actual draw ≈ 10 kW (got: ${(actual/1000).toFixed(1)} kW)`);
   }});
 
   // [v10.3.0] T198: Stream flowrate contract
@@ -27040,7 +27063,7 @@ function runTests() {
       mode: 'heated'  // explicitly heated
     });
     const snk = t.place('sink', 8, 0);
-    const elSrc = t.place('grid_supply', 0, 5, { maxPower: 500, fixed: true });
+    const elSrc = t.place('grid_supply', 0, 5, { maxPower: 500 });
     const eh = t.place('electric_heater', 4, 5, { power_kW: 500 });
     const ehSnk = t.place('sink_heat', 8, 5);
     t.wire(elSrc, 'out', eh, 'elec_in');
@@ -27080,7 +27103,7 @@ function runTests() {
       mode: 'heated'
     });
     const snkHeat = t.place('sink', 8, 6);
-    const elSrc = t.place('grid_supply', 0, 10, { maxPower: 5, fixed: true });
+    const elSrc = t.place('grid_supply', 0, 10, { maxPower: 5 });
     const eh = t.place('electric_heater', 4, 10, { power_kW: 5 });
     const ehSnk = t.place('sink_heat', 8, 10);
     t.wire(elSrc, 'out', eh, 'elec_in');
@@ -27131,7 +27154,7 @@ function runTests() {
     });
     const snk = t.place('sink', 8, 0);
     // Provide bonus heat (10 kW)
-    const elSrc = t.place('grid_supply', 0, 5, { maxPower: 10, fixed: true });
+    const elSrc = t.place('grid_supply', 0, 5, { maxPower: 10 });
     const eh = t.place('electric_heater', 2, 5, { power_kW: 10 });
     const ehSnk = t.place('sink_heat', 6, 5);
     t.wire(elSrc, 'out', eh, 'elec_in');
@@ -27268,9 +27291,9 @@ function runTests() {
   tests.push({ name: '216: Bidirectional port reversal detection', fn: t => {
     t.clearScene();
     // Place solar + battery + consumer — battery should charge when solar > demand
-    const solar = t.place('grid_supply', 0, 0, { supply_kW: 50, fixed: true });
+    const solar = t.place('grid_supply', 0, 0, { supply_kW: 50 });
     const batt = t.place('battery', 4, 0, { peakPower_kW: 20, capacity_J: 36000000, initialSOC: 0.5 });
-    const load = t.place('grid_supply', 8, 0, { supply_kW: -10, fixed: true }); // 10kW load
+    const load = t.place('grid_supply', 8, 0, { supply_kW: -10 }); // 10kW load
     // Wire through hub — solar and battery share electrical bus
     t.wire(solar, 'out', batt, 'elec');
     // Solve
@@ -27806,7 +27829,7 @@ function runTests() {
     // [v11.0.0 NNG-W1] Heater transfers ALL heat_in to fluid — no demand capping.
     const src = t.place('source', 0, 0, { species:'N2', nDot:10, T:300.15, P:200000, phaseConstraint:'V' });
     const htr = t.place('heater', 4, 0); const snk = t.place('sink', 8, 0);
-    const gs = t.place('grid_supply', 0, 4, { maxPower:50, fixed:true });
+    const gs = t.place('grid_supply', 0, 4, { maxPower:50 });
     const eh = t.place('electric_heater', 3, 4, { power_kW:30 });
     t.wire(gs,'out', eh,'elec_in'); t.wire(eh,'heat_out', htr,'heat_in');
     t.wire(src,'out', htr,'mat_in'); t.wire(htr,'mat_out', snk,'in');
@@ -27841,7 +27864,7 @@ function runTests() {
     // [v11.0.0] Test multiple Q levels — no capping at any level.
     const src = t.place('source', 0, 0, { species:'N2', nDot:5, T:300.15, P:200000, phaseConstraint:'V' });
     const htr = t.place('heater', 4, 0); const snk = t.place('sink', 8, 0);
-    const gs = t.place('grid_supply', 0, 4, { maxPower:200, fixed:true });
+    const gs = t.place('grid_supply', 0, 4, { maxPower:200 });
     const eh = t.place('electric_heater', 3, 4, { power_kW:1 });
     t.wire(gs,'out', eh,'elec_in'); t.wire(eh,'heat_out', htr,'heat_in');
     t.wire(src,'out', htr,'mat_in'); t.wire(htr,'mat_out', snk,'in');
@@ -27865,7 +27888,7 @@ function runTests() {
     const rx = t.place('reactor_equilibrium', 4, 0, { reactionId:'R_STEAM_REFORM', useKinetics:true, volume_m3:1.0, mode:'heated', variant:'heat-reversed' });
     const snk = t.place('sink', 8, 0);
     // Supply only 2 kW (duty is ~8 kW)
-    const gs = t.place('grid_supply', 0, 6, { maxPower:5, fixed:true });
+    const gs = t.place('grid_supply', 0, 6, { maxPower:5 });
     const eh = t.place('electric_heater', 3, 6, { power_kW:2 });
     const ehSnk = t.place('sink_heat', 7, 6);
     t.wire(feed,'out', rx,'mat_in'); t.wire(rx,'mat_out', snk,'in');
@@ -27885,7 +27908,7 @@ function runTests() {
     const feed = t.place('source_multi', 0, 0, { n:{CH4:0.2, H2O:0.4}, T:1000, P:2000000, phaseConstraint:'V' });
     const rx = t.place('reactor_equilibrium', 4, 0, { reactionId:'R_STEAM_REFORM', useKinetics:true, volume_m3:1.0, mode:'heated', variant:'heat-reversed' });
     const snk = t.place('sink', 8, 0);
-    const gs = t.place('grid_supply', 0, 6, { maxPower:100, fixed:true });
+    const gs = t.place('grid_supply', 0, 6, { maxPower:100 });
     const eh = t.place('electric_heater', 3, 6, { power_kW:50 });
     const ehSnk = t.place('sink_heat', 7, 6);
     t.wire(feed,'out', rx,'mat_in'); t.wire(rx,'mat_out', snk,'in');
@@ -27904,7 +27927,7 @@ function runTests() {
     const feed = t.place('source_multi', 0, 0, { n:{CO2:0.1, H2:0.4}, T:600, P:500000, phaseConstraint:'V' });
     const rxHeat = t.place('reactor_equilibrium', 4, 0, { reactionId:'R_SABATIER', useKinetics:true, volume_m3:1.0, mode:'heated', variant:'heat-reversed' });
     const snk = t.place('sink', 8, 0);
-    const gs = t.place('grid_supply', 0, 6, { maxPower:50, fixed:true });
+    const gs = t.place('grid_supply', 0, 6, { maxPower:50 });
     const eh = t.place('electric_heater', 3, 6, { power_kW:10 });
     const ehSnk = t.place('sink_heat', 7, 6);
     t.wire(feed,'out', rxHeat,'mat_in'); t.wire(rxHeat,'mat_out', snk,'in');
@@ -27929,7 +27952,7 @@ function runTests() {
     // ── PROCESS A: Open Brayton Cycle ──
     // Grid → Motor → Compressor (air 1→3 bar) → Hex cold → Heater (1200K) → Turbine (3→1 bar) → Exhaust
     // Turbine shaft → Generator → Electrical Sink
-    const aGrid  = t.place('grid_supply',      30,  0, { maxPower: 20000, fixed: true });
+    const aGrid  = t.place('grid_supply',      30,  0, { maxPower: 20000 });
     // [v11.0.0] motor removed
     const aAir   = t.place('source_air',       30,  2, { flowScale: 1.0 });
     const aComp  = t.place('compressor',       34,  2, { Pout: 300000, eta: 0.80 });
@@ -27940,7 +27963,7 @@ function runTests() {
     const aEout  = t.place('sink_electrical',  50,  8);
 
     // [v10.9.3 NNG] Combustor needs a heat source — grid + e-heater
-    const aHeatSrc = t.place('grid_supply',    30, 14, { maxPower: 30000, fixed: true });
+    const aHeatSrc = t.place('grid_supply',    30, 14, { maxPower: 30000 });
     const aEH      = t.place('electric_heater', 32, 14, { power_kW: 30 });
 
     // ── SHARED: Heat Exchanger (Recuperator) ──
@@ -27958,11 +27981,11 @@ function runTests() {
 
     // Heat supply for SMR reactor: use a dedicated grid_supply → electric_heater chain
     // Provides ~40 kW guaranteed heat (SMR Q_duty should be ~10–30 kW for 0.2 mol/s CH₄)
-    const bHeatSrc = t.place('grid_supply',    30, 10, { maxPower: 40000, fixed: true });
+    const bHeatSrc = t.place('grid_supply',    30, 10, { maxPower: 40000 });
     const bEH      = t.place('electric_heater', 32, 10, { power_kW: 40 });
 
     // ── PROCESS C: Liquid Water Pumping ──
-    const cGrid  = t.place('grid_supply',      38, 10, { maxPower: 1000, fixed: true });
+    const cGrid  = t.place('grid_supply',      38, 10, { maxPower: 1000 });
     // [v11.0.0] motor removed
     const cSrc   = t.place('source',           38, 12, { species: 'H2O', nDot: 1, T: 293.15, P: 101325, phaseConstraint: 'L' });
     const cPump  = t.place('pump',             42, 12, { Pout: 500000, eta: 0.75 });
@@ -28115,7 +28138,7 @@ function runTests() {
   // ═══════════════════════════════════════════════════════════════════════
 
   tests.push({ name: '243: Pump.elec_in energy balance (grid→pump)', fn: t => {
-    const grid = t.place('grid_supply', 0, 0, { maxPower: 5000, fixed: true });
+    const grid = t.place('grid_supply', 0, 0, { maxPower: 5000 });
     const src  = t.place('source', 4, 2, { species: 'H2O', nDot: 5, T: 298.15, P: 100000, phaseConstraint: 'L' });
     const pmp  = t.place('pump', 4, 0, { Pout: 500000, eta: 0.75 });
     const snk  = t.place('sink', 8, 0);
@@ -28164,7 +28187,7 @@ function runTests() {
   }});
 
   tests.push({ name: '246: Compressor.elec_in energy balance (grid→comp)', fn: t => {
-    const grid = t.place('grid_supply', 0, 0, { maxPower: 50000, fixed: true });
+    const grid = t.place('grid_supply', 0, 0, { maxPower: 50000 });
     const src  = t.place('source', 4, 2, { species: 'N2', nDot: 2, T: 298.15, P: 100000, phaseConstraint: 'V' });
     const comp = t.place('compressor', 4, 0, { Pout: 300000, eta: 0.80 });
     const snk  = t.place('sink', 8, 0);
@@ -28327,7 +28350,7 @@ function runTests() {
     const src  = t.place('source_multi', 0, 0, { n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V' });
     const rx   = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_STEAM_REFORM', useKinetics: false, alpha: 1.0, mode: 'heated' });
     const snk  = t.place('sink', 8, 0);
-    const elSrc = t.place('grid_supply', 0, 5, { maxPower: 500, fixed: true });
+    const elSrc = t.place('grid_supply', 0, 5, { maxPower: 500 });
     const eh   = t.place('electric_heater', 4, 5, { power_kW: 500 });
     const ehSnk = t.place('sink_heat', 8, 5);
     t.wire(elSrc, 'out', eh, 'elec_in');
@@ -28347,7 +28370,7 @@ function runTests() {
   }});
 
   tests.push({ name: '255: E-heater heat_out connected → draws power, outputs heat', fn: t => {
-    const grid = t.place('grid_supply', 0, 0, { maxPower: 50, fixed: true });
+    const grid = t.place('grid_supply', 0, 0, { maxPower: 50 });
     const eh   = t.place('electric_heater', 4, 0, { power_kW: 30 });
     const hSnk = t.place('sink_heat', 8, 0);
     t.wire(grid, 'out', eh, 'elec_in');
@@ -28362,7 +28385,7 @@ function runTests() {
   }});
 
   tests.push({ name: '256: E-heater heat_out unconnected → draws 0, MAJOR', fn: t => {
-    const grid = t.place('grid_supply', 0, 0, { maxPower: 50, fixed: true });
+    const grid = t.place('grid_supply', 0, 0, { maxPower: 50 });
     const eh   = t.place('electric_heater', 4, 0, { power_kW: 30 });
     // heat_out NOT connected
     t.wire(grid, 'out', eh, 'elec_in');
@@ -28441,35 +28464,42 @@ function runTests() {
 
   tests.push({ name: '260: Hub surplus → elec_surplus connected → surplus flows out', fn: t => {
     t.clearScene();
-    // Fixed source 50 kW, no consumers → all surplus
-    const fix = t.place('grid_supply', 0, 0, { maxPower: 50, fixed: true });
-    const hub = t.place('power_hub', 4, 0);
-    const snk = t.place('sink_electrical', 8, 0);
-    t.wire(fix, 'out', hub, 'elec_in');
+    // Turbine (physics-fixed) → hub, no consumers → all surplus to elec_surplus
+    const sSrc = t.place('source', 0, 0, { species:'N2', nDot:2, T:573.15, P:500000, phaseConstraint:'V' });
+    const turb = t.place('gas_turbine', 4, 0, { Pout:100000, eta:0.85 });
+    const skGas = t.place('sink', 8, 0);
+    const hub = t.place('power_hub', 4, 4);
+    const snk = t.place('sink_electrical', 8, 4);
+    t.wire(sSrc, 'out', turb, 'mat_in'); t.wire(turb, 'mat_out', skGas, 'in');
+    t.wire(turb, 'elec_out', hub, 'elec_in');
     t.wire(hub, 'elec_surplus', snk, 'in');
     t.solve();
     const hubLast = t.unit(hub).last;
-    t.assertOK(hubLast.surplus_W > 1000, 'Hub has surplus', hubLast.surplus_W);
+    t.assertOK(hubLast.surplus_W > 100, 'Hub has surplus', hubLast.surplus_W);
     const surpPort = t.ud(hub).ports?.elec_surplus;
     t.assertOK(surpPort, 'elec_surplus port exists');
     t.assertOK(surpPort.type === StreamType.ELECTRICAL, 'Port type = ELECTRICAL');
-    t.assertOK(surpPort.actual > 1000, 'Surplus flows out', surpPort.actual);
+    t.assertOK(surpPort.actual > 100, 'Surplus flows out', surpPort.actual);
     const absorbed = t.ud(snk)?.last?.absorbed_W ?? 0;
     t.assertClose(absorbed, surpPort.actual, 10, 'Sink absorbs surplus');
     t.assertOK(!hubLast.error, 'No error (connected)');
   }});
 
-  tests.push({ name: '261: Hub surplus → elec_surplus unconnected → CRITICAL', fn: t => {
+  tests.push({ name: '261: Hub surplus → elec_surplus unconnected → CATASTROPHIC', fn: t => {
     t.clearScene();
-    const fix = t.place('grid_supply', 0, 0, { maxPower: 50, fixed: true });
-    const hub = t.place('power_hub', 4, 0);
+    // Turbine → hub, no consumers, elec_surplus NOT connected → CATASTROPHIC
+    const sSrc = t.place('source', 0, 0, { species:'N2', nDot:2, T:573.15, P:500000, phaseConstraint:'V' });
+    const turb = t.place('gas_turbine', 4, 0, { Pout:100000, eta:0.85 });
+    const skGas = t.place('sink', 8, 0);
+    const hub = t.place('power_hub', 4, 4);
+    t.wire(sSrc, 'out', turb, 'mat_in'); t.wire(turb, 'mat_out', skGas, 'in');
+    t.wire(turb, 'elec_out', hub, 'elec_in');
     // elec_surplus deliberately NOT connected
-    t.wire(fix, 'out', hub, 'elec_in');
     t.solve();
     const hubLast = t.unit(hub).last;
-    t.assertOK(hubLast.surplus_W > 1000, 'Hub has surplus');
+    t.assertOK(hubLast.surplus_W > 100, 'Hub has surplus');
     t.assertOK(hubLast.error, 'Has error');
-    t.assertOK(hubLast.error?.severity === ErrorSeverity.CRITICAL, 'CRITICAL severity');
+    t.assertOK(hubLast.error?.severity === ErrorSeverity.CATASTROPHIC, 'CATASTROPHIC severity');
     t.assertOK(hubLast.error?.message?.includes('surplus'), 'Message mentions surplus');
   }});
 
@@ -28494,7 +28524,7 @@ function runTests() {
       version: 15,
       grid: { w: 20, h: 20, tile: 48 },
       units: [
-        { id: 'g1', defId: 'grid_supply', x: 0, y: 0, params: { maxPower: 50, fixed: true } },
+        { id: 'g1', defId: 'grid_supply', x: 0, y: 0, params: { maxPower: 50 } },
         { id: 'h1', defId: 'power_hub', x: 4, y: 0, params: {} },
         { id: 'hs1', defId: 'sink_heat', x: 8, y: 0, params: {} }
       ],
@@ -28633,7 +28663,7 @@ function runTests() {
       reactionId: 'R_STEAM_REFORM', useKinetics: false, alpha: 1.0, mode: 'heated'
     });
     const snk2 = t.place('sink', 8, 0);
-    const gs = t.place('grid_supply', 0, 6, { maxPower: Q_iso / 1000 + 1, fixed: true });
+    const gs = t.place('grid_supply', 0, 6, { maxPower: Q_iso / 1000 + 1 });
     const eh = t.place('electric_heater', 4, 6, { power_kW: Q_iso / 1000 });
     const ehSnk = t.place('sink_heat', 8, 6);
     t.wire(gs, 'out', eh, 'elec_in');
@@ -28683,7 +28713,7 @@ function runTests() {
       reactionId: 'R_STEAM_REFORM', useKinetics: false, alpha: 1.0
     });
     const snk = t.place('sink', 8, 0);
-    const gs = t.place('grid_supply', 0, 6, { maxPower: 50, fixed: true });
+    const gs = t.place('grid_supply', 0, 6, { maxPower: 50 });
     const eh = t.place('electric_heater', 4, 6, { power_kW: 50 });
     const ehSnk = t.place('sink_heat', 8, 6);
     t.wire(gs, 'out', eh, 'elec_in');
