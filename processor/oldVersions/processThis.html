@@ -26,8 +26,11 @@
      Power & Energy: operational only (mode, T_out, ΔT, Q_in).
      Insulated mode: no sizing section (no heat path).
   D. Endo/exo convention audit: ❄️ everywhere for cold, 🔥 for hot.
+  E. Tests: T278 heated accepts heat_in, T279-280 variant sync in tick,
+     T281 import strips heat_in on insulated, T282 import renames variant,
+     T283 import preserves heat_in on heated. T269 rewritten for port gate.
 
-  Gate: 266 tests, 1696 checks, 0 failures.
+  Gate: 272 tests, 1710 checks, 0 failures.
 
   ─── v11.0.1 — Documentation: Power Surplus Physics ────────────────────
   No logic changes. Added inline physics rationale to gas_turbine header
@@ -29102,6 +29105,150 @@ function runTests() {
     // Energy balance must be identical after skip
     t.assertClose(H_out1, H_out2, 0.01, 'H_out identical');
     t.assertClose(H_out2, H_in2, Math.max(Math.abs(H_in2) * 1e-3, 10), 'Insulated: H_out ≈ H_in');
+  }});
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // SECTION: v11.0.2 — Reactor Port Integrity + Inspector Standardisation
+  // ═══════════════════════════════════════════════════════════════════════
+
+  tests.push({ name: '278: Heated mode reactor accepts heat_in connection', fn: t => {
+    t.clearScene();
+    const src = t.place('source_multi', 0, 0, {
+      n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V'
+    });
+    const rx = t.place('reactor_equilibrium', 4, 0, {
+      reactionId: 'R_STEAM_REFORM', useKinetics: false, alpha: 1.0, mode: 'heated', variant: 'default'
+    });
+    const snk = t.place('sink', 8, 0);
+    const eh = t.place('electric_heater', 4, 6, { power_kW: 50 });
+    // Heated mode: heat_in must be visible and connectable
+    const def = UnitRegistry.get('reactor_equilibrium');
+    const pres = getPresentation(def, scene.units.get(rx));
+    t.assertOK(pres.ports.heat_in, 'heat_in visible in heated mode');
+    // Scene.connect should accept
+    const connId = scene.connect(
+      { unitId: eh, portId: 'heat_out' },
+      { unitId: rx, portId: 'heat_in' }
+    );
+    t.assertOK(connId !== null, 'Connection accepted in heated mode');
+  }});
+
+  tests.push({ name: '279: Variant sync in tick — insulated mode forces insulated variant', fn: t => {
+    t.clearScene();
+    const src = t.place('source_multi', 0, 0, {
+      n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
+    });
+    // Place with mode:insulated but NO variant set (simulates legacy placement)
+    const rx = t.place('reactor_equilibrium', 4, 0, {
+      reactionId: 'R_H2_COMB', alpha: 1.0, useKinetics: false, mode: 'insulated'
+    });
+    const snk = t.place('sink', 8, 0);
+    t.wire(src, 'out', rx, 'mat_in');
+    t.wire(rx, 'mat_out', snk, 'in');
+    t.solve();
+    // After solve, tick should have synced variant
+    const rxUnit = scene.units.get(rx);
+    t.assertOK(rxUnit.params.variant === 'insulated', 'Variant synced to insulated');
+    // And solve should succeed
+    t.assertOK(!t.last(rx).error, 'No error after sync');
+  }});
+
+  tests.push({ name: '280: Variant sync in tick — heated mode clears insulated variant', fn: t => {
+    t.clearScene();
+    const src = t.place('source_multi', 0, 0, {
+      n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
+    });
+    // Place with mode:heated but variant stuck at 'insulated' (simulates corruption)
+    const rx = t.place('reactor_equilibrium', 4, 0, {
+      reactionId: 'R_H2_COMB', alpha: 1.0, useKinetics: false, mode: 'heated', variant: 'insulated'
+    });
+    const snk = t.place('sink', 8, 0);
+    t.wire(src, 'out', rx, 'mat_in');
+    t.wire(rx, 'mat_out', snk, 'in');
+    t.solve();
+    const rxUnit = scene.units.get(rx);
+    t.assertOK(rxUnit.params.variant !== 'insulated', 'Variant cleared from insulated');
+  }});
+
+  tests.push({ name: '281: importJSON strips heat_in on insulated reactor', fn: t => {
+    t.clearScene();
+    const data = {
+      version: 15, grid: { w: 20, h: 20, tile: 48 },
+      units: [
+        { id: 'r1', defId: 'reactor_equilibrium', x: 4, y: 0,
+          params: { reactionId: 'R_H2_COMB', mode: 'insulated' } },
+        { id: 's1', defId: 'source_multi', x: 0, y: 0,
+          params: { n: { H2: 2, O2: 1 }, T: 800, P: 100000, phaseConstraint: 'V' } },
+        { id: 'k1', defId: 'sink', x: 8, y: 0, params: {} },
+        { id: 'h1', defId: 'electric_heater', x: 4, y: 4, params: { power_kW: 50 } }
+      ],
+      connections: [
+        { id: 'c1', from: { unitId: 's1', portId: 'out' }, to: { unitId: 'r1', portId: 'mat_in' } },
+        { id: 'c2', from: { unitId: 'r1', portId: 'mat_out' }, to: { unitId: 'k1', portId: 'in' } },
+        { id: 'c3', from: { unitId: 'h1', portId: 'heat_out' }, to: { unitId: 'r1', portId: 'heat_in' } }
+      ]
+    };
+    const result = scene.importJSON(JSON.stringify(data));
+    t.assertOK(result.ok, 'Import OK');
+    const heatConn = scene.connections.find(
+      c => c.to.unitId === 'r1' && c.to.portId === 'heat_in');
+    t.assertOK(!heatConn, 'heat_in connection stripped on insulated');
+    t.assertOK(scene.connections.some(
+      c => c.from.unitId === 'r1' && c.from.portId === 'mat_out'), 'mat_out preserved');
+    // Insulated variant assigned
+    const rxUnit = [...scene.units.values()].find(u => u.id === 'r1');
+    t.assertOK(rxUnit.params.variant === 'insulated', 'Variant set to insulated');
+  }});
+
+  tests.push({ name: '282: importJSON renames heat-reversed → heat-top', fn: t => {
+    t.clearScene();
+    const data = {
+      version: 15, grid: { w: 20, h: 20, tile: 48 },
+      units: [
+        { id: 'r1', defId: 'reactor_equilibrium', x: 4, y: 0,
+          params: { reactionId: 'R_H2_COMB', mode: 'heated', variant: 'heat-reversed' } },
+        { id: 's1', defId: 'source_multi', x: 0, y: 0,
+          params: { n: { H2: 2, O2: 1 }, T: 800, P: 100000, phaseConstraint: 'V' } },
+        { id: 'k1', defId: 'sink', x: 8, y: 0, params: {} }
+      ],
+      connections: [
+        { id: 'c1', from: { unitId: 's1', portId: 'out' }, to: { unitId: 'r1', portId: 'mat_in' } },
+        { id: 'c2', from: { unitId: 'r1', portId: 'mat_out' }, to: { unitId: 'k1', portId: 'in' } }
+      ]
+    };
+    const result = scene.importJSON(JSON.stringify(data));
+    t.assertOK(result.ok, 'Import OK');
+    const rxUnit = [...scene.units.values()].find(u => u.id === 'r1');
+    t.assertOK(rxUnit.params.variant === 'heat-top', 'heat-reversed renamed to heat-top');
+    // Heated reactor: heat_in should remain visible
+    const def = UnitRegistry.get('reactor_equilibrium');
+    const pres = getPresentation(def, rxUnit);
+    t.assertOK(pres.ports.heat_in, 'heat_in visible after rename');
+  }});
+
+  tests.push({ name: '283: importJSON preserves heat_in on heated reactor', fn: t => {
+    t.clearScene();
+    const data = {
+      version: 15, grid: { w: 20, h: 20, tile: 48 },
+      units: [
+        { id: 'r1', defId: 'reactor_equilibrium', x: 4, y: 0,
+          params: { reactionId: 'R_H2_COMB', mode: 'heated' } },
+        { id: 's1', defId: 'source_multi', x: 0, y: 0,
+          params: { n: { H2: 2, O2: 1 }, T: 800, P: 100000, phaseConstraint: 'V' } },
+        { id: 'k1', defId: 'sink', x: 8, y: 0, params: {} },
+        { id: 'h1', defId: 'electric_heater', x: 4, y: 4, params: { power_kW: 50 } }
+      ],
+      connections: [
+        { id: 'c1', from: { unitId: 's1', portId: 'out' }, to: { unitId: 'r1', portId: 'mat_in' } },
+        { id: 'c2', from: { unitId: 'r1', portId: 'mat_out' }, to: { unitId: 'k1', portId: 'in' } },
+        { id: 'c3', from: { unitId: 'h1', portId: 'heat_out' }, to: { unitId: 'r1', portId: 'heat_in' } }
+      ]
+    };
+    const result = scene.importJSON(JSON.stringify(data));
+    t.assertOK(result.ok, 'Import OK');
+    const heatConn = scene.connections.find(
+      c => c.to.unitId === 'r1' && c.to.portId === 'heat_in');
+    t.assertOK(heatConn, 'heat_in connection preserved on heated reactor');
   }});
 
   // ═══════════════════════════════════════════════════════════════════════

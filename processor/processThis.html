@@ -1,7 +1,39 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v11.0.2
+  processThis v11.1.0
+
+  ─── v11.1.0 — NNG Rationalization ──────────────────────────────────────
+  Complete rewrite of the Non-Negotiables section. The previous ~50 rules
+  (NNG-L, W, A, U, M, S, D, T, V, C, P, AL, UI families) are condensed
+  into 17 numbered rules (NNG-1 through NNG-17) organized by category:
+  Physics, Architecture, Data Integrity, Governance, Security, UI,
+  Alarm & Power Systems.
+
+  Key changes:
+  - NNG-9 (Tick Isolation) added: tick functions are pure computations
+    from ports/params/inventory — never read scene state or other units.
+  - NNG-16 (Alarm Architecture) promoted from implementation detail to
+    top-level NNG, protecting the standardized alarm schema as foundation
+    for future condensation and global diagnosis layers.
+  - NNG-17 (Power Lifecycle) promoted: documents the full demand-driven
+    dispatch sequence and hub↔battery scratch protocol.
+  - NNG-2 (Second Law) added as explicit NNG — was practiced but unstated.
+  - Former NNG-V1/V2 merged into NNG-12 (Version and Change Discipline).
+  - Former NNG-C3 (no physics drift) merged into NNG-12.
+  - Former NNG-C1/C2 (backward compat) dropped — temporary policy, not
+    a design invariant.
+  - All NNG-W rules absorbed into NNG-1 (Conservation) + NNG-3 (WYSIWYG).
+  - All NNG-AL rules absorbed into NNG-16.
+  - All NNG-P rules absorbed into NNG-15.
+  - All NNG-UI rules absorbed into NNG-15.
+
+  Legacy NNG tags in code comments (NNG-W3, NNG-AL2, NNG-S5, etc.) remain
+  as historical annotations. New code should reference NNG-1 through NNG-17.
+
+  No logic changes. No test changes.
+
+  Gate: 272 tests, 1710 checks, 0 failures.
 
   ─── v11.0.2 — Reactor Port Integrity + Inspector Standardisation ──────
   A. Reactor insulated port hiding:
@@ -1910,160 +1942,191 @@
     6.3: STREAM_CONTRACTS, two-phase validation, PH flash T guarantee
     6.4: Power semantic lifecycle, battery doc fix, normalization, overdispatch check
 
-  ─── NON-NEGOTIABLES ─────────────────────────────────────────────────────
-  These invariants MUST be preserved by any modification to this codebase.
-  Violating any of them is a regression, regardless of the feature being added.
+  ─── NON-NEGOTIABLES (v11.1.0) ──────────────────────────────────────────
+  17 invariants. Violating any is a regression regardless of context.
+  New code references NNG-1 through NNG-17. Legacy tags (NNG-L1, NNG-W3,
+  NNG-AL2, etc.) in older comments map to these per the v11.1.0 changelog.
 
-  CONSERVATION LAWS:
-    NNG-L1  Mass balance rigorously closed.  Every non-boundary unit must
-            conserve total mass (kg/s in = kg/s out).  The balance is global
-            (total mass), not per-species — reactions change composition but
-            conserve total mass by stoichiometric design.  Inventory units
-            (tank, battery) are exempt from the instantaneous in = out check.
-            Their mass imbalance equals the accumulation rate, verified by the
-            time-stepping layer.  Global: Σ(sources) − Σ(sinks) − Σ(accum) = 0.
-    NNG-L2  Energy balance rigorously closed.  Every non-boundary unit must
-            satisfy E_in = E_out (material enthalpy + work/heat streams).
-            Residuals > 100 W are flagged.  Reactors include heat of reaction
-            via formation enthalpies — energy is never created or destroyed.
-            Inventory units are exempt from instantaneous E_in = E_out.
-            Energy accumulation = Σ(battery net charge) + Σ(tank ΔH).
+  PHYSICS:
+
+    NNG-1   Conservation.
+            Mass and energy are rigorously conserved.  Every non-boundary
+            unit: mass-in = mass-out, energy-in = energy-out.  Inventory
+            units (tank, battery) exempt from the instantaneous check —
+            their imbalance is accumulation, tracked by the time-stepping
+            layer.  Reactors include heat of reaction via formation
+            enthalpies.  No unit ever creates or destroys mass or energy.
+            Energy residuals > 100 W are flagged.
+
+    NNG-2   Second law.
+            Heat flows hot → cold.  No unit or solver shortcut reverses
+            this without explicit work input.  A heater without a heat
+            source does not heat.  A cooler without a heat sink does not
+            cool.
+
+    NNG-3   WYSIWYG.
+            Physics = visual state.  Unconnected port carries zero — no
+            flow, no heat, no power.  Every unit computes consequences of
+            what it receives, not what it requests.  If a wire doesn't
+            exist on canvas, it doesn't exist in the solver.  No implicit
+            connections, no phantom sources.
 
   ARCHITECTURE:
-    NNG-A1  Single-file HTML.  All code lives in this file.  No external JS
-            files, no build step.  CDN imports (e.g. for icon fonts) are the
-            only permitted external resources.
-    NNG-A2  DOM-free core.  Script block 1 (core logic, thermo, solver, units,
-            validation, tests) must contain ZERO references to `document`,
-            `window`, or any DOM API.  All DOM code lives in script block 2.
-    NNG-A3  Headless test suite.  Tests use only the core API (Scene, UnitRegistry,
-            Solver, PG.*).  No DOM setup, no visual assertions.
-    NNG-A4  Export surface.  Anything that tests or external code needs access
-            to must be exported on the global `PG` object.
-    NNG-A5  Registry pattern for all database-type content.  Each domain of
-            extensible data has its own registry class with static register/get:
-              ComponentRegistry  — chemical species and their properties
-              ModelRegistry      — thermodynamic model packages (by kind)
-              UnitRegistry       — process unit definitions (defId → tick/ports)
-            Future registries (e.g. ReactionRegistry) follow the same pattern:
-            static _map, static register(id, spec), static get(id), static all().
 
-  UNITS & CONVENTIONS:
-    NNG-U1  Absolutely consistent and unique physical units in the calculation
-            engine.  SI base units internally: Pa, K, mol/s, W (=J/s), J/mol,
-            J/(mol·K), kg/m³.  No mixed-unit formulas.  User-facing params may
-            use kW, bar, °C — converted at the tick boundary, never inside core.
-    NNG-U2  All units registered via UnitRegistry.register({ defId, ports, tick }).
-            No ad-hoc unit implementations outside the registry.
-    NNG-U3  All thermodynamic calculations go through ThermoAdapter.  No direct
-            Antoine/Cp/flash/enthalpy formulas in unit tick functions.
-    NNG-U3a Tank temperature mixing uses mole-weighted average:
-            T_new = (n_stored·T_stored + ṅ_in·T_in·Δt) / (n_total).
-            Documented approximation (assumes equal Cp).  Acceptable because:
-            (a) conserves energy first-order, (b) Cp variation small for ideal
-            gas, (c) rigorous PH-flash adds significant complexity.  Future
-            enhancement may use ThermoAdapter.
-    NNG-U4  Thermodynamic models are ThermoPackage subclasses managed by
-            ModelRegistry.  A package is a coherent, self-consistent set of
-            methods (Cp, H, satP, density, flash).  The active package is set
-            globally via ThermoAdapter.setPackage().  Units never call package
-            methods directly — always through ThermoAdapter.
-    NNG-U5  Error severity: CATASTROPHIC (unit faulted, solver stops), MAJOR
-            (wrong result, continue), MINOR (informational).  Severity objects
-            have numeric .level field for programmatic comparison.
+    NNG-4   SI internally.
+            Calculation engine: Pa, K, mol/s, W, J/mol, J/(mol·K), kg/m³.
+            No exceptions.  User-facing params (kW, bar, °C) convert at
+            tick boundary.  Never inside core.
 
-  STREAMS & VALIDATION:
-    NNG-M1  STREAM_CONTRACTS is the single source of truth for all stream
-            schemas.  Validation code references this object, not ad-hoc rules.
-    NNG-M2  Two-phase validation: pre-flash checks tick output (spec-aware),
-            post-flash checks resolved streams (T must exist for material).
-    NNG-M3  Material streams: spec inferred from fields (H_target_Jps → ph_flash,
-            T → fully).  No explicit `spec` field on streams.
-    NNG-M4  Power streams: field names are capacity/actual/demand/curtailmentFactor.
-            No _W suffix.  `available` is a deprecated alias for `capacity`.
-            For bidirectional ports (NNG-M5): actual ∈ [−maxCharge, +capacity].
-            Negative actual indicates reverse flow (e.g. battery charging).
-    NNG-M5  Bidirectional ports.  A port may be declared bidirectional: true
-            in its definition.  This allows its actual field to be negative,
-            indicating power flow opposite to the port's declared direction.
-            Only the battery unit uses this.  validateStream() skips the
-            non-negative actual check when ctx.bidirectional is true.
+    NNG-5   DOM-free core.
+            Script block 1 contains zero references to document, window,
+            or any DOM API.  Tests are headless against the core API only.
+            Everything tests or external code need is exported on PG.
 
-  SOLVER:
-    NNG-S1  Solver step ordering is fixed:
+    NNG-6   Single file.
+            All code in one HTML file.  No external JS, no build step.
+            Only CDN imports (icon fonts) permitted.
+
+    NNG-7   Registries and adapters.
+            Every extensible data domain has a static registry class
+            (register/get/all/exists): ComponentRegistry, ModelRegistry,
+            UnitRegistry, ReactionRegistry.  All thermodynamic calculations
+            route through ThermoAdapter — tick functions never call
+            Antoine/Cp/flash/enthalpy directly.  No ad-hoc unit
+            implementations outside UnitRegistry.register().
+
+    NNG-8   Stream contracts.
+            STREAM_CONTRACTS is the sole schema definition for all stream
+            types.  Two-phase validation: pre-flash (tick output,
+            spec-aware) then post-flash (resolved, T must exist for
+            material).  Material spec inferred from fields (H_target_Jps →
+            PH-flash, T → fully specified) — no explicit spec field.  All
+            validation references the contracts object.  No ad-hoc field
+            checks.
+
+    NNG-9   Tick isolation.
+            A tick function is a pure computation: inputs → outputs.  It
+            reads only its own ports, params, and u.inventory.  It never
+            reads scene state, other units' outputs, the DOM, or solver
+            internals.  It never writes to u.inventory (only TimeClock
+            does that between solves).  It never writes to scratch (that
+            is solver-internal).  If a tick needs external context, it
+            comes through a port.
+
+  DATA INTEGRITY:
+
+    NNG-10  Registry completeness.
+            Every registry entry provides all required fields at
+            registration time — never at runtime.  Species in
+            ComponentRegistry need full thermo data (MW, Tc, Pc, Tb,
+            antoine, cpig) before any use.  Reactions reference only
+            registered species, are mass-balanced (Σνᵢ·MWᵢ = 0), and
+            include a kinetics block with recognized model + literature
+            reference.  No unit may produce an unregistered species.
+            Violations: CATASTROPHIC at startup.
+
+    NNG-11  Solver protocol.
+            Step ordering is fixed:
               tick → validateStreamFlows (heal) → validateMaterialPreFlash
-              → flash loop (TP/PH) → port storage → validateUnitPorts (post-flash)
-              → Steps B (demand propagation) → C (hub: three-tier dispatch —
-              fixed → responsive grid_supply → SOC battery; surplus → charge
-              batteries → heat) → D (grid_supply/battery direct) → E (source
-              direct) → convergence check
-    NNG-S2  Inter-iteration state goes through RuntimeContext.scratch() only.
-            Never store solver state directly on unit objects (u._whatever).
-    NNG-S3  PH flash T resolution guarantee.  Any stream with H_target_Jps
-            must have finite T after flash, or CATASTROPHIC error.
-    NNG-S4  Power lifecycle: capacity (set by tick) → demand (set by solver
-            Steps B-E) → actual (set by solver, ≤ capacity) → curtailmentFactor
-            (actual/demand).  Consumers read input.actual, not input.capacity.
-            For bidirectional ports (NNG-M5): actual may be negative.
-            Battery tick exposes _maxDischarge_W and _maxCharge_W on port for
-            hub to read.  Hub writes hubDischarge_W and hubCharge_W to scratch.
-    NNG-S5  Inter-timestep persistent state lives on u.inventory.  This field
-            is invisible to solveScene() — never read, written, or cleared
-            during a solve.  Only TimeClock modifies it between solves.  Tick
-            functions may read u.inventory to determine port output; they never
-            write it.  The solver's inter-iteration state (scratch, convergence)
-            remains governed by NNG-S2.
+              → flash loop (TP/PH) → port storage → validateUnitPorts
+              (post-flash) → Steps B (demand) → C (hub: physics-fixed →
+              responsive → battery) → D (direct) → E (source direct) →
+              convergence check.
+            Inter-iteration state through RuntimeContext.scratch() only —
+            never u._anything.  Inter-timestep state on u.inventory,
+            invisible to solveScene().  PH-flash must yield finite T or
+            CATASTROPHIC.
 
-  DATA COMPLETENESS:
-    NNG-D1  A species used in any stream must exist in ComponentRegistry with
-            all properties required by the active ThermoPackage (at minimum:
-            MW, Tc, Pc, Tb, antoine, cpig).  Missing properties → CATASTROPHIC.
-    NNG-D2  A reaction used by a reactor must reference only species present in
-            ComponentRegistry.  All referenced species must have formation
-            enthalpy data (Hf_298) for energy balance.  Stoichiometry must be
-            mass-balanced (Σ ν_i × MW_i = 0).  All reactions must include a
-            kinetics block with a recognized model, valid parameters, and at
-            least one literature reference.  These are checked at registration
-            time, not at runtime.
-    NNG-D3  No unit may produce a species not already defined in ComponentRegistry.
-            Reactor products, mixer outputs, splitter outputs — all species must
-            be pre-registered.  Violations are CATASTROPHIC.
-    NNG-D4  Every entry in a registry must provide data for all fields defined
-            as required by that registry's schema.  Optional fields are permitted
-            but must be explicitly declared as such in the schema definition.
-            No entry may be registered with a required field missing or null.
-            This ensures uniform data availability and prevents feature-gating
-            based on data presence.  Units with inventory: true must also provide
-            initInventory(par) and updateInventory(inventory, ports, dt).  These
-            fields are optional — units without inventories omit them.
+  GOVERNANCE:
 
-  COMPATIBILITY:
-    NNG-C1  Backward compatibility is NOT required during pre-release development.
-            This clause will be reinstated when the application reaches its first
-            public release.  Until then, saved files may become incompatible
-            across versions without migration support.
-    NNG-C2  (Removed — see NNG-C1.)
-    NNG-C3  No gameplay physics changes in structural refactors.  If a refactor
-            would change any computed value (temperature, pressure, power, flow),
-            it is a functional change and must be explicitly documented and tested.
+    NNG-12  Version and change discipline.
+            Every functional change increments version and adds a changelog
+            entry above the previous.  Entry states: what changed, why,
+            which NNGs relevant, which tests added/modified.  A refactor
+            that would change any computed value (T, P, power, flow) is
+            not a refactor — it is a functional change.  Document and test
+            it as one.
 
-  TESTING:
-    NNG-T1  All existing tests must pass after any change.  No exceptions.
-    NNG-T2  New features must include tests.  Minimum: one positive-path test,
-            one error/edge-case test.
-    NNG-T3  Tests must be deterministic.  No random inputs, no timing deps.
-    NNG-T4  Time-related tests must be deterministic.  Use explicit
-            TimeClock.step() calls.  No real-time playback, no setTimeout,
-            no setInterval in tests.  All time tests restore TimeClock and
+    NNG-13  Test discipline.
+            All existing tests pass after every change.  No exceptions.
+            New features: minimum one positive-path + one edge-case test.
+            All tests deterministic: no random inputs, no timing
+            dependencies.  Time tests use explicit TimeClock.step(), never
+            real-time playback.  All time tests restore TimeClock and
             SimSettings to defaults after completion.
 
-  VERSIONING:
-    NNG-V1  Every functional change MUST increment the version number in the
-            file header and <title> tag, and MUST add a changelog entry
-            above the previous version's entry.  The filename is always
-            processThis.html — never renamed.
-    NNG-V2  Changelog entries must list: what changed, why, which NNG were
-            relevant, and which test sections were added/modified.
+  SECURITY:
+
+    NNG-14  XSS defense.
+            Every user-editable string (u.name, err.message) must pass
+            through esc() before any innerHTML context.  fmt.* outputs and
+            def.* fields from registries are trusted.  No exceptions.
+
+  UI:
+
+    NNG-15  Inspector and presentation.
+            Inspector section order is immutable:
+              Params → Conditions → Flowrates → Composition → Reaction →
+              Power & Energy → Sizing → KPIs → Detail.
+            Empty sections omitted entirely — never shown hollow.  Port
+            geometry resolved exclusively through getPresentation() —
+            never read def.ports[].x/y directly.  CSS-first styling via
+            ins-* vocabulary.  One renderer per visual style
+            (_renderKPIGrid, _renderStreamConditions, _renderDetailSection).
+
+  ALARM & POWER SYSTEMS:
+
+    NNG-16  Alarm architecture.
+            Frozen schema (id, category, severity, message, unitId, …).
+            Frozen severity taxonomy: CATASTROPHIC > ERROR > WARNING >
+            INFO > OK, each with numeric .level for programmatic
+            comparison.  AlarmSystem.evaluate() is the sole alarm
+            producer — no other code path creates, modifies, or injects
+            alarm objects.  Sources are pluggable pure functions, zero DOM
+            access.  Sources produce, renderers consume — never crossed.
+            Standardized format is the foundation for future condensation,
+            aggregation, and global diagnosis layers.
+
+    NNG-17  Power lifecycle.
+            Power is the only demand-driven system.  Strict sequence:
+              capacity (tick) → demand (solver B–E) → actual (solver,
+              ≤ capacity) → curtailmentFactor (actual/demand).
+            Consumers read input.actual, never input.capacity.
+            Physics-fixed sources (gas turbine): output determined by
+            fluid state, non-throttleable.  Grid sources: always
+            demand-responsive (load draws, source doesn't push).  Surplus
+            from physics-fixed sources exits elec_surplus; unconnected
+            surplus > 0 = CATASTROPHIC.  Bidirectional ports (battery):
+            actual may be negative (charging).  Hub reads _maxDischarge_W /
+            _maxCharge_W from port, writes hubDischarge_W / hubCharge_W
+            to scratch.
+
+  ─── LEGACY NNG CROSS-REFERENCE ─────────────────────────────────────────
+  Old tags found in code comments map to the new numbering as follows:
+
+    NNG-L1, NNG-L2              → NNG-1  (Conservation)
+    NNG-W1 through NNG-W7       → NNG-1 + NNG-3  (Conservation + WYSIWYG)
+    NNG-A1                      → NNG-6  (Single file)
+    NNG-A2, NNG-A3, NNG-A4      → NNG-5  (DOM-free core)
+    NNG-A5                      → NNG-7  (Registries and adapters)
+    NNG-U1                      → NNG-4  (SI internally)
+    NNG-U2                      → NNG-7  (Registries)
+    NNG-U3, NNG-U3a, NNG-U4     → NNG-7  (Adapters)
+    NNG-U5                      → NNG-16 (Alarm architecture — severity)
+    NNG-M1, NNG-M2, NNG-M3      → NNG-8  (Stream contracts)
+    NNG-M4, NNG-M5              → NNG-8 + NNG-17  (Contracts + Power)
+    NNG-S1                      → NNG-11 (Solver protocol)
+    NNG-S2, NNG-S5              → NNG-11 + NNG-9  (Solver + Tick isolation)
+    NNG-S3                      → NNG-11 (Solver protocol — flash guarantee)
+    NNG-S4                      → NNG-17 (Power lifecycle)
+    NNG-D1, NNG-D2, NNG-D3, D4  → NNG-10 (Registry completeness)
+    NNG-T1, T2, T3, T4          → NNG-13 (Test discipline)
+    NNG-V1, NNG-V2              → NNG-12 (Version and change discipline)
+    NNG-C1, NNG-C2              → (dropped — temporary pre-release policy)
+    NNG-C3                      → NNG-12 (no physics drift clause)
+    NNG-P1, P2, P3, P4          → NNG-15 (Inspector and presentation)
+    NNG-AL1 through NNG-AL6     → NNG-16 (Alarm architecture)
+    NNG-UI1 through NNG-UI11    → NNG-15 (Inspector and presentation)
 
   ─── v6.4.0 ───────────────────────────────────────────────────────────────
   Power stream semantic clarification.
@@ -2209,7 +2272,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>processThis — v10.8.0</title>
+  <title>processThis — v11.1.0</title>
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
