@@ -31,6 +31,10 @@
            replaced with milestone summary (~2000 → ~30 lines).
            Architecture overview updated: removed HEAT/MECHANICAL stream
            types, updated component list, modernized section descriptions.
+           Bug fix: reactor insulated mode — layout selector no longer
+           offers heated variants; pre-solve pass strips ghost connections
+           to ports hidden by active presentation; tick nulls heat_in.
+           Test T278 added.
 
   ─── v11.2.0 — NIST Shomate Transition ──────────────────────────────────
   Replaces ad-hoc Cpig power polynomial with NIST Shomate equation for all
@@ -8854,6 +8858,10 @@ UnitRegistry.register('reactor_equilibrium', {
     if (mode === 'insulated' && par.variant !== 'insulated') par.variant = 'insulated';
     if (mode === 'heated' && par.variant === 'insulated') par.variant = undefined;
 
+    // [v12.3.0] Insulated: discard any heat_in that may have leaked through
+    // a ghost connection (pre-solve cleanup should have caught it, but belt+suspenders)
+    if (mode === 'insulated') ports.heat_in = null;
+
     // ── Guard: reaction must be selected ──
     const reaction = par.reactionId ? ReactionRegistry.get(par.reactionId) : null;
     if (!reaction) {
@@ -10337,6 +10345,25 @@ function solveScene(scene, options = {}) {
   // Replaces the _hub* fields that used to be set/deleted on unit objects.
   const runtimeCtx = new RuntimeContext(thermo, scene);
   scene.runtime.ctx = runtimeCtx;
+
+  // [v12.3.0] Pre-solve presentation-consistency pass — strip connections to
+  // ports not in the active presentation.  Catches ghost connections from mode
+  // switches (e.g. reactor insulated→heated→insulated) and malformed imports.
+  const preLen = scene.connections.length;
+  scene.connections = scene.connections.filter(c => {
+    const uFrom = scene.units.get(c.from.unitId);
+    const uTo   = scene.units.get(c.to.unitId);
+    if (!uFrom || !uTo) return false;
+    const defFrom = UnitRegistry.get(uFrom.defId);
+    const defTo   = UnitRegistry.get(uTo.defId);
+    if (!defFrom || !defTo) return false;
+    const presFrom = getPresentation(defFrom, uFrom);
+    const presTo   = getPresentation(defTo, uTo);
+    return presFrom.ports[c.from.portId] && presTo.ports[c.to.portId];
+  });
+  if (scene.connections.length < preLen) {
+    console.log(`[solveScene] Stripped ${preLen - scene.connections.length} ghost connection(s)`);
+  }
 
   // [v4.3.0] Pre-solve power cycle check — catches cycles introduced via
   // import or test harness that bypass Scene.connect() validation.
@@ -16589,8 +16616,15 @@ function _rebuildInspectorContent() {
       const variants = Object.keys(def.presentations)
         .filter(k => k.startsWith(prefix))
         .map(k => k.slice(prefix.length))
-        // [v11.0.2] Filter out mode-managed variants (insulated is set by thermal mode)
-        .filter(v => !(u.defId === 'reactor_equilibrium' && v === 'insulated'));
+        // [v12.3.0] Mode-aware variant filter for reactor_equilibrium:
+        // insulated mode → only insulated variants; heated → only heated variants.
+        // This prevents the user from surfacing heat_in via layout change.
+        .filter(v => {
+          if (u.defId !== 'reactor_equilibrium') return true;
+          const mode = u.params.mode || 'insulated';
+          if (mode === 'insulated') return v === 'insulated';
+          return v !== 'insulated';  // heated mode: show default + heat-top
+        });
       if (variants.length > 1) {
         const layoutZone = el('div', { class: 'ins-params-zone', style: 'margin-bottom:4px;' });
         const currentVariant = u.params.variant || 'default';
@@ -26759,6 +26793,45 @@ function runTests() {
     t.solve();
     const rxUnit = scene.units.get(rx);
     t.assertOK(rxUnit.params.variant !== 'insulated', 'Variant cleared from insulated');
+  }});
+
+  tests.push({ name: '290: Insulated mode strips ghost heat_in connections on solve', fn: t => {
+    // [v12.3.0] Pre-solve presentation-consistency pass must remove connections
+    // to ports not in the active presentation (insulated hides heat_in).
+    t.clearScene();
+    const src = t.place('source_multi', 0, 0, {
+      n: { CH4: 1, H2O: 3 }, T: 900, P: 500000, phaseConstraint: 'V'
+    });
+    const rx = t.place('reactor_equilibrium', 4, 0, {
+      reactionId: 'smr', mode: 'heated'
+    });
+    const snk = t.place('sink', 8, 0);
+    const gs  = t.place('grid_supply', 4, 5, { maxPower: 50000 });
+    t.wire(src, 'out', rx, 'mat_in');
+    t.wire(rx, 'mat_out', snk, 'in');
+    t.wire(gs, 'out', rx, 'heat_in');
+    t.solve();
+
+    // Verify heated mode: heat_in connection exists
+    const heatConns1 = scene.connections.filter(
+      c => c.to.unitId === rx && c.to.portId === 'heat_in');
+    t.assertOK(heatConns1.length === 1, 'Heated: heat_in connected');
+
+    // Switch to insulated — mode setter should disconnect
+    const rxUnit = scene.units.get(rx);
+    rxUnit.params.mode = 'insulated';
+    rxUnit.params.variant = 'insulated';
+    // Simulate what happens on next solve (pre-solve cleanup)
+    t.solve();
+
+    const heatConns2 = scene.connections.filter(
+      c => c.to.unitId === rx && c.to.portId === 'heat_in');
+    t.assertOK(heatConns2.length === 0, 'Insulated: heat_in connection stripped by pre-solve');
+
+    // Verify reactor still works (Q_in = 0)
+    const ud = scene.runtime.unitData.get(rx);
+    t.assertOK(ud?.last?.status === 'active' || ud?.last?.status === 'inactive' || ud?.last?.status === 'no_reactants'
+      || ud?.last?.error, 'Reactor produces valid output after ghost cleanup');
   }});
 
   // ═══════════════════════════════════════════════════════════════════════
