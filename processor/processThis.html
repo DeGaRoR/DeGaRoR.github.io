@@ -1,7 +1,32 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v11.2.0
+  processThis v12.0.0
+
+  ─── v12.0.0 — Heat Stream Deletion + Dead Code Sweep ───────────────────
+  Remove StreamType.HEAT entirely.  Replace electric_heater + heater
+  two-unit pattern with a single inline electric process heater.  Replace
+  cooler (2nd-law violation) with physically-grounded air_cooler.  Retire
+  electric_heater, sink_heat, cooler, reactor_adiabatic.  Remove all
+  compatibility code, cheat system, and dead code.
+
+  v12.0.0  Scaffold + inventory bug fix.  Export version 16.
+           exportJSON now serializes u.inventory (tank/battery state).
+           importJSON restores u.inventory from saved data.
+  v12.1.0  Retire all compatibility code.  importJSON Phase 1b deleted
+           (7 migration eras: °C→K, battery, source_electrical,
+           source_mechanical/motor/generator, port renames, hub heat_out,
+           reactor_adiabatic).  NNG legacy cross-reference table removed.
+  v12.2.0  Dead code sweep + cheat system removal.
+           Deleted: reactor_adiabatic (subsumed by equilibrium insulated),
+           orphan SVG icons (4), dead functions (3), streamMass_kg alias,
+           mechanical energy subcategory, Q_utility_in_W scan.
+           Removed entire cheat/developer-mode infrastructure:
+           SimSettings.cheatsEnabled/showCheats, UnitRegistry cheat flag,
+           source T/P gate (now always user-settable, atm defaults),
+           Settings UI dev/cheat checkboxes + warning banner,
+           export/import persistence, palette excludeCheats filter.
+           Deleted 10 migration tests, rewrote T6/T7, simplified T195/T196.
 
   ─── v11.2.0 — NIST Shomate Transition ──────────────────────────────────
   Replaces ad-hoc Cpig power polynomial with NIST Shomate equation for all
@@ -2167,33 +2192,6 @@
             _maxCharge_W from port, writes hubDischarge_W / hubCharge_W
             to scratch.
 
-  ─── LEGACY NNG CROSS-REFERENCE ─────────────────────────────────────────
-  Old tags found in code comments map to the new numbering as follows:
-
-    NNG-L1, NNG-L2              → NNG-1  (Conservation)
-    NNG-W1 through NNG-W7       → NNG-1 + NNG-3  (Conservation + WYSIWYG)
-    NNG-A1                      → NNG-6  (Single file)
-    NNG-A2, NNG-A3, NNG-A4      → NNG-5  (DOM-free core)
-    NNG-A5                      → NNG-7  (Registries and adapters)
-    NNG-U1                      → NNG-4  (SI internally)
-    NNG-U2                      → NNG-7  (Registries)
-    NNG-U3, NNG-U3a, NNG-U4     → NNG-7  (Adapters)
-    NNG-U5                      → NNG-16 (Alarm architecture — severity)
-    NNG-M1, NNG-M2, NNG-M3      → NNG-8  (Stream contracts)
-    NNG-M4, NNG-M5              → NNG-8 + NNG-17  (Contracts + Power)
-    NNG-S1                      → NNG-11 (Solver protocol)
-    NNG-S2, NNG-S5              → NNG-11 + NNG-9  (Solver + Tick isolation)
-    NNG-S3                      → NNG-11 (Solver protocol — flash guarantee)
-    NNG-S4                      → NNG-17 (Power lifecycle)
-    NNG-D1, NNG-D2, NNG-D3, D4  → NNG-10 (Registry completeness)
-    NNG-T1, T2, T3, T4          → NNG-13 (Test discipline)
-    NNG-V1, NNG-V2              → NNG-12 (Version and change discipline)
-    NNG-C1, NNG-C2              → (dropped — temporary pre-release policy)
-    NNG-C3                      → NNG-12 (no physics drift clause)
-    NNG-P1, P2, P3, P4          → NNG-15 (Inspector and presentation)
-    NNG-AL1 through NNG-AL6     → NNG-16 (Alarm architecture)
-    NNG-UI1 through NNG-UI11    → NNG-15 (Inspector and presentation)
-
   ─── v6.4.0 ───────────────────────────────────────────────────────────────
   Power stream semantic clarification.
 
@@ -3943,12 +3941,8 @@
           <path d="M26 30h12" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
         </symbol>
         
-        <!-- Electrical Source (Lightning/Grid) -->
-        <symbol id="ico-electrical" viewBox="0 0 64 64">
-          <path d="M36 6 16 36h16l-4 22 20-30H32z" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-        </symbol>
-        
         <!-- [v11.0.0] ico-mechanical and ico-motor deleted -->
+        <!-- [v12.0.0] ico-electrical deleted (orphan — no unit uses it) -->
         
         <!-- Pump (Triangle with impeller) -->
         <symbol id="ico-pump" viewBox="0 0 64 64">
@@ -3973,16 +3967,6 @@
           <path d="M8 32 L32 12 L32 52 L8 32 Z" fill="currentColor" opacity="0.8"/>
           <path d="M56 32 L32 12 L32 52 L56 32 Z" fill="currentColor" opacity="0.8"/>
           <path d="M8 32 L32 12 L32 52 L8 32 Z M56 32 L32 12 L32 52 L56 32 Z" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/>
-        </symbol>
-        
-        <!-- Heat Exchanger -->
-        <symbol id="ico-hx" viewBox="0 0 64 64">
-          <path d="M10 20h44" stroke="currentColor" stroke-width="4"/>
-          <path d="M10 44h44" stroke="currentColor" stroke-width="4"/>
-          <path d="M16 20c8 8 8 16 0 24" fill="none" stroke="currentColor" stroke-width="4"/>
-          <path d="M48 20c-8 8-8 16 0 24" fill="none" stroke="currentColor" stroke-width="4"/>
-          <path d="M32 6v12" stroke="currentColor" stroke-width="4"/>
-          <path d="M26 14h12" stroke="currentColor" stroke-width="4"/>
         </symbol>
         
         <!-- Single Stream Heater -->
@@ -4074,12 +4058,6 @@
           <path d="M26 14 L32 8 L38 14" fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/>
         </symbol>
         
-        <!-- Generic pipe/flow (fallback) -->
-        <symbol id="ico-pipe" viewBox="0 0 64 64">
-          <path d="M10 32h44" stroke="currentColor" stroke-width="6" stroke-linecap="round"/>
-          <path d="M42 24l12 8-12 8" fill="none" stroke="currentColor" stroke-width="6" stroke-linejoin="round"/>
-        </symbol>
-        
         <!-- Grid Supply (responsive electrical source) [v9.0.2 renamed from battery] -->
         <symbol id="ico-grid_supply" viewBox="0 0 64 64">
           <rect x="10" y="18" width="36" height="28" rx="3" fill="none" stroke="currentColor" stroke-width="3"/>
@@ -4129,13 +4107,6 @@
           <line x1="30" y1="56" x2="34" y2="56" stroke="currentColor" stroke-width="2"/>
         </symbol>
         
-        <!-- Fixed Power Source (generator/grid) -->
-        <symbol id="ico-source_electrical" viewBox="0 0 64 64">
-          <circle cx="32" cy="32" r="18" fill="none" stroke="currentColor" stroke-width="3"/>
-          <!-- ~ AC symbol -->
-          <path d="M22 32 Q27 22 32 32 Q37 42 42 32" fill="none" stroke="currentColor" stroke-width="2.5"/>
-        </symbol>
-        
         <!-- Heat Sink (radiator/dissipation) -->
         <symbol id="ico-sink_heat" viewBox="0 0 64 64">
           <!-- Wavy heat lines -->
@@ -4168,13 +4139,6 @@
           <circle cx="18" cy="40" r="2" fill="currentColor" opacity="0.6"/>
           <path d="M30 32h22" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
           <path d="M44 24l8 8-8 8" fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/>
-        </symbol>
-
-        <!-- Reactor (Adiabatic) [v8.6.0] -->
-        <symbol id="ico-reactor_adiabatic" viewBox="0 0 64 64">
-          <rect x="14" y="8" width="36" height="48" rx="6" fill="none" stroke="currentColor" stroke-width="4"/>
-          <path d="M26 24l6 8-6 8" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round" opacity="0.8"/>
-          <path d="M34 24l6 8-6 8" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round" opacity="0.8"/>
         </symbol>
 
         <!-- Reactor (Equilibrium) [v8.9.0] — ⇌ arrows -->
@@ -4216,12 +4180,6 @@ const SimSettings = {
   // ── Build configuration ──
   DEV_BUILD: true,          // true = dev branch, false = shipping
   AUTO_RUN_TESTS: false,    // [v10.9.3] disabled — run manually via Menu → Run Tests
-
-  // ── Developer mode ── (arbitrary source T/P, auto-test)
-  cheatsEnabled: false,     // [v10.0.4] default false — clean palette for UI work
-
-  // ── Advanced units visibility ── (decoupled from developer mode)
-  showCheats: false,        // [v10.0.4] toggled separately from dev mode
 
   // ── Time settings [v9.0.1] ──
   dt: 3600,                  // [v10.5.0] timestep duration (seconds) — 1 hour default
@@ -4969,33 +4927,6 @@ ComponentRegistry.register('NH3', {
    ========================= */
 function clamp(v, min, max) { 
   return Math.max(min, Math.min(max, v)); 
-}
-
-function compToString(comp) {
-  if (!comp) return '';
-  const arr = Object.entries(comp)
-    .filter(([, f]) => f > 1e-6)
-    .map(([s, f]) => `${s}:${(f * 100).toFixed(1)}%`);
-  return arr.join(' ');
-}
-
-function formatStream(s) {
-  if (!s) return '—';
-  if (s.type === StreamType.ELECTRICAL) 
-    return `⚡ ${((s.actual ?? s.available ?? 0)/1000).toFixed(1)} kW`;
-  if (s.type === StreamType.HEAT) 
-    return `🔥 ${((s.actual ?? s.available ?? 0)/1000).toFixed(1)} kW`;
-  // [v11.0.0] MECHANICAL deleted
-  if (s.type === StreamType.MATERIAL) {
-    // Internal phase encoding: 'V', 'L', 'VL'
-    const phaseDisplay = s.phase === 'V' ? 'Vapor' : 
-                         s.phase === 'L' ? 'Liquid' : 
-                         s.phase === 'VL' ? 'Two-Phase' : 'Unknown';
-    const T_display = s.T ? (s.T - 273.15).toFixed(1) : '?';
-    const P_display = s.P ? (s.P / 100000).toFixed(2) : '?';
-    return `${phaseDisplay} T=${T_display}°C P=${P_display} bar`;
-  }
-  return JSON.stringify(s);
 }
 
 // Validation: Ensure stream type matches port type
@@ -8699,7 +8630,6 @@ class UnitRegistry {
       tick: spec.tick || null,
       postFlashCheck: spec.postFlashCheck || null,  // [v4.7.6] Was missing → postFlashCheck never ran
       _wip: spec._wip || false,  // [v8.8.0] Work-in-progress flag
-      cheat: spec.cheat || false,  // [v8.10.0] Hidden when showCheats=false
       _devTest: spec._devTest || false, // [v10.0.4] Never shown in palette (test-only units)
       // [v9.0.2] Inventory protocol (NNG-D4, NNG-S5)
       inventory: spec.inventory || false,
@@ -8726,7 +8656,6 @@ class UnitRegistry {
     const orderMap = {};
     for (const def of this._defs.values()) {
       if (def._devTest) continue;  // [v10.0.4] Never show dev-test units in palette
-      if (def.cheat && opts.excludeCheats) continue;  // [v8.10.0] hard mode filter
       const cat = def.category;
       if (!byCategory[cat]) { byCategory[cat] = []; orderMap[cat] = def._categoryOrder ?? 50; }
       byCategory[cat].push(def);
@@ -8793,10 +8722,10 @@ UnitRegistry.register('source', {
     const n = {};
     n[par.species] = par.nDot;
     
-    // [v8.10.0] Hard mode: enforce atmospheric T/P
+    // [v12.0.0] Source always uses par.T/P with atmospheric defaults
     const atm = SimSettings.getAtmosphere();
-    let T_K = SimSettings.cheatsEnabled ? (par.T ?? atm.T_K) : atm.T_K;
-    let P_Pa = SimSettings.cheatsEnabled ? (par.P ?? atm.P_Pa) : atm.P_Pa;
+    let T_K = par.T ?? atm.T_K;
+    let P_Pa = par.P ?? atm.P_Pa;
 
     // [v4.0.0] Validate absolute temperature: clamp to [1, 5000] K
     if (T_K < 1) {
@@ -9560,7 +9489,7 @@ UnitRegistry.register('gas_turbine', {
         phaseConstraint: 'V',
         H_target_Jps: H_in
       };
-      ports.elec_out = { type: StreamType.ELECTRICAL, capacity: 0, actual: 0, available: 0, demand: 0 };
+      ports.elec_out = { type: StreamType.ELECTRICAL, capacity: 0, actual: 0, demand: 0 };
       u.last = {
         Pin: sIn.P, Pout_setpoint: Pout, Pout_actual: sIn.P,
         W_shaft: 0, W_elec: 0, W_isentropic: 0, eta: eta,
@@ -10114,7 +10043,6 @@ UnitRegistry.register('heater', {
 UnitRegistry.register('cooler', {
   name: 'Cooler',
   category: UnitCategories.HEAT_EXCHANGER,
-  cheat: true,  // [v8.10.0] hidden in hard mode
   w: 2,
   h: 2,
   ports: [
@@ -10859,122 +10787,7 @@ UnitRegistry.register('flash_drum', {
   }
 });
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// REACTOR (Adiabatic) — Fixed conversion [v8.8.0]
-// ═══════════════════════════════════════════════════════════════════════════════
-// Single-inlet, single-outlet adiabatic reactor. Applies a registered reaction
-// at specified conversion. Outlet enthalpy = inlet enthalpy (H_target_Jps).
-// Formation shifts in hMolar() make T_out absorb the heat of reaction.
-// dP = 0 (pressure path handled by separate units in future).
-UnitRegistry.register('reactor_adiabatic', {
-  name: 'Reactor (Adiabatic)',
-  category: UnitCategories.REACTOR,
-  cheat: true,  // [v8.10.0] hidden in hard mode
-  w: 2,
-  h: 3,
-  ports: [
-    { portId: 'mat_in',  dir: PortDir.IN,  type: StreamType.MATERIAL, x: 0, y: 1 },
-    { portId: 'mat_out', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 1 }
-  ],
-  // [v10.9.2] Presentation layer
-  presentations: {
-    'box/default': { w: 2, h: 3, ports: { mat_in:{x:0,y:1}, mat_out:{x:2,y:1} } }
-  },
-  tick(u, ports, par) {
-    const sIn = ports.mat_in;
-    if (!sIn) return;
-
-    // ── Guard: reaction must be selected ──
-    const reaction = par.reactionId ? ReactionRegistry.get(par.reactionId) : null;
-    if (!reaction) {
-      u.last = { error: { severity: ErrorSeverity.MAJOR,
-        message: 'No reaction selected' } };
-      ports.mat_out = { type: StreamType.MATERIAL, T: sIn.T, P: sIn.P,
-        n: { ...sIn.n }, phaseConstraint: sIn.phaseConstraint || 'V' };
-      return;
-    }
-
-    // ── Guard: VL/L inlet not supported [v8.8.0] ──
-    // Check resolved phase (post-flash) first, then phaseConstraint.
-    // A mixer with phaseConstraint='VL' may resolve to phase='V' after
-    // flash — that's acceptable. Only reject if the stream actually
-    // contains liquid after phase equilibrium.
-    const inletPhase = sIn.phase || sIn.phaseConstraint || 'V';
-    if (inletPhase === 'L' || inletPhase === 'VL') {
-      u.last = { error: { severity: ErrorSeverity.MAJOR,
-        message: `Gas-phase reactor requires vapor inlet (got ${inletPhase}). Use a flash drum or heater upstream to vaporize.` } };
-      ports.mat_out = { type: StreamType.MATERIAL, T: sIn.T, P: sIn.P,
-        n: { ...sIn.n }, phaseConstraint: inletPhase };
-      return;
-    }
-    const resolvedPhase = inletPhase;
-
-    const stoich = reaction.stoich;
-
-    // ── Activation window (inlet T/P) ──
-    if (sIn.T < reaction.Tmin_K || sIn.T > reaction.Tmax_K ||
-        sIn.P < reaction.Pmin_Pa || sIn.P > reaction.Pmax_Pa) {
-      ports.mat_out = { type: StreamType.MATERIAL, T: sIn.T, P: sIn.P,
-        n: { ...sIn.n }, phaseConstraint: resolvedPhase };
-      u.last = { reactionId: par.reactionId,
-        status: 'inactive',
-        reason: `T=${sIn.T.toFixed(0)}K or P=${(sIn.P/1e5).toFixed(2)}bar outside activation window` };
-      return;
-    }
-
-    // ── ξ_max (limiting reactant) ──
-    let xi_max = Infinity;
-    for (const [sp, nu] of Object.entries(stoich)) {
-      if (nu < 0) {
-        const n_i = sIn.n[sp] || 0;
-        if (n_i <= 1e-15) { xi_max = 0; break; }
-        xi_max = Math.min(xi_max, n_i / (-nu));
-      }
-    }
-    if (!isFinite(xi_max)) xi_max = 0;
-
-    if (xi_max <= 0) {
-      ports.mat_out = { type: StreamType.MATERIAL, T: sIn.T, P: sIn.P,
-        n: { ...sIn.n }, phaseConstraint: resolvedPhase };
-      u.last = { reactionId: par.reactionId, status: 'no_reactants', xi_max: 0 };
-      return;
-    }
-
-    // ── Fixed conversion extent ──
-    const conversion = clamp(par.conversion ?? 0, 0, 1);
-    const xi = conversion * xi_max;
-
-    // ── Outlet molar flows ──
-    const n_out = { ...sIn.n };
-    for (const [sp, nu] of Object.entries(stoich)) {
-      n_out[sp] = (n_out[sp] || 0) + nu * xi;
-      if (n_out[sp] < 1e-15) n_out[sp] = 0;
-    }
-    for (const key of Object.keys(n_out)) {
-      if (n_out[key] <= 0) delete n_out[key];
-    }
-
-    // ── Adiabatic energy closure: H_out = H_in ──
-    const H_in_Jps = thermo.getHdot_Jps(sIn);
-    ports.mat_out = {
-      type: StreamType.MATERIAL,
-      P: sIn.P,
-      n: n_out,
-      phaseConstraint: resolvedPhase,
-      H_target_Jps: H_in_Jps
-    };
-
-    // ── Diagnostics ──
-    u.last = {
-      reactionId: par.reactionId,
-      mode: 'fixed',
-      conversion,
-      xi, xi_max,
-      status: 'active',
-      H_in_kW: (H_in_Jps / 1000).toFixed(2)
-    };
-  }
-});
+// [v12.0.0] reactor_adiabatic deleted — subsumed by reactor_equilibrium insulated mode
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // REACTOR (Equilibrium) — CSTR T-ξ solver [v11.0.0]
@@ -11478,12 +11291,10 @@ class Scene {
 
   exportJSON() {
     const data = {
-      version: 15,  // [v10.0.4] bumped: source_electrical merge, showCheats decoupled
+      version: 16,  // [v12.0.0] inventory serialization
       processName: this.processName || '',
       grid: { w: this.gridW, h: this.gridH, tile: this.tile },
       settings: {
-        cheatsEnabled: SimSettings.cheatsEnabled,
-        showCheats: SimSettings.showCheats,
         atmospherePreset: SimSettings.getPresetKey(),
         dt: SimSettings.dt  // [v9.0.1]
       },
@@ -11513,6 +11324,7 @@ class Scene {
         params: u.params
       };
       if (u.sticker) unitData.sticker = u.sticker;  // [v10.7.0] P1
+      if (u.inventory) unitData.inventory = u.inventory;  // [v12.0.0] tank/battery state
       data.units.push(unitData);
     }
     
@@ -11536,165 +11348,7 @@ class Scene {
     }
 
 
-    // ── Phase 1b: Version migration ──
-    // [v6.0.0] Migrate temperature params from °C (version ≤ 8) to K (version ≥ 9)
-    if ((!data.version || data.version < 9) && Array.isArray(data.units)) {
-      for (const u of data.units) {
-        if (!u.params) continue;
-        // Source unit: params.T was in °C
-        if (u.defId === 'source' && typeof u.params.T === 'number') {
-          u.params.T = u.params.T + 273.15;
-        }
-        // Heater: params.T_out was in °C
-        if (u.defId === 'heater' && typeof u.params.T_out === 'number') {
-          u.params.T_out = u.params.T_out + 273.15;
-        }
-        // Heat exchanger: T_hot_out and T_cold_out were in °C
-        if (u.defId === 'hex') {
-          if (typeof u.params.T_hot_out === 'number') {
-            u.params.T_hot_out = u.params.T_hot_out + 273.15;
-          }
-          if (typeof u.params.T_cold_out === 'number') {
-            u.params.T_cold_out = u.params.T_cold_out + 273.15;
-          }
-        }
-      }
-    }
-
-    // [v9.0.2] Migrate battery → grid_supply (version ≤ 13)
-    if ((!data.version || data.version < 14) && Array.isArray(data.units)) {
-      for (const u of data.units) {
-        if (u.defId === 'battery') {
-          u.defId = 'grid_supply';
-          // Migrate id prefix if it follows the defId-N pattern
-          if (u.id && u.id.startsWith('battery-')) {
-            u.id = 'grid_supply-' + u.id.slice(8);
-          }
-        }
-      }
-    }
-
-    // [v10.0.4] Migrate source_electrical → grid_supply (version ≤ 14)
-    if ((!data.version || data.version < 15) && Array.isArray(data.units)) {
-      for (const u of data.units) {
-        if (u.defId === 'source_electrical') {
-          u.defId = 'grid_supply';
-          if (!u.params) u.params = {};
-          if (u.id && u.id.startsWith('source_electrical-')) {
-            u.id = 'grid_supply-' + u.id.slice(18);
-          }
-        }
-      }
-      // Also update connection references
-      if (Array.isArray(data.connections)) {
-        for (const c of data.connections) {
-          if (c.from?.unitId?.startsWith('source_electrical-')) {
-            c.from.unitId = 'grid_supply-' + c.from.unitId.slice(18);
-          }
-          if (c.to?.unitId?.startsWith('source_electrical-')) {
-            c.to.unitId = 'grid_supply-' + c.to.unitId.slice(18);
-          }
-        }
-      }
-    }
-
-    // [v11.0.0] Migrate source_mechanical → grid_supply, delete motor/generator
-    if (Array.isArray(data.units)) {
-      const deletedIds = new Set();
-      const hubIds = new Set();
-      for (const u of data.units) {
-        if (u.defId === 'source_mechanical') {
-          u.defId = 'grid_supply';
-          if (!u.params) u.params = {};
-          if (!u.params.maxPower) u.params.maxPower = 50;
-        }
-        if (u.defId === 'motor' || u.defId === 'generator') {
-          deletedIds.add(u.id);
-        }
-        if (u.defId === 'power_hub') {
-          hubIds.add(u.id);
-        }
-      }
-      // Remove deleted units
-      if (deletedIds.size > 0) {
-        data.units = data.units.filter(u => !deletedIds.has(u.id));
-        // Remove connections involving deleted units
-        if (Array.isArray(data.connections)) {
-          data.connections = data.connections.filter(c =>
-            !deletedIds.has(c.from?.unitId) && !deletedIds.has(c.to?.unitId)
-          );
-        }
-      }
-      // [v11.0.0] Port renames in connections
-      if (Array.isArray(data.connections)) {
-        for (const c of data.connections) {
-          // power_in → elec_in (pump, compressor consumers)
-          if (c.to?.portId === 'power_in') c.to.portId = 'elec_in';
-          // mech_out → elec_out (gas_turbine)
-          if (c.from?.portId === 'mech_out') c.from.portId = 'elec_out';
-          // [v11.0.0] hub heat_out → elec_surplus migration
-          if (hubIds.has(c.from?.unitId) && c.from?.portId === 'heat_out') {
-            // Migrate heat_out connections to elec_surplus
-            c.from.portId = 'elec_surplus';
-            // Migrate sink_heat connected to hub surplus → sink_electrical
-            const targetUnit = data.units.find(u => u.id === c.to?.unitId);
-            if (targetUnit && targetUnit.defId === 'sink_heat') {
-              targetUnit.defId = 'sink_electrical';
-            }
-          }
-        }
-      }
-
-      // [v11.0.0 Phase 5] Reactor migrations
-      if (Array.isArray(data.units)) {
-        for (const u of data.units) {
-          // [v11.0.0] Strip fixed flag from grid_supply (all sources demand-responsive)
-          if (u.defId === 'grid_supply' && u.params) {
-            delete u.params.fixed;
-          }
-          // reactor_adiabatic → reactor_equilibrium (insulated)
-          if (u.defId === 'reactor_adiabatic') {
-            u.defId = 'reactor_equilibrium';
-            if (u.params) {
-              delete u.params.conversion;  // fixed conversion not applicable
-              u.params.mode = 'insulated';
-              u.params.useKinetics = false;
-              u.params.alpha = 1.0;  // full equilibrium
-            }
-          }
-        }
-      }
-      // Remove reactor_equilibrium heat_out connections (port removed)
-      if (Array.isArray(data.connections)) {
-        const reactorEqIds = new Set();
-        if (Array.isArray(data.units)) {
-          for (const u of data.units) {
-            if (u.defId === 'reactor_equilibrium') reactorEqIds.add(u.id);
-          }
-        }
-        data.connections = data.connections.filter(c => {
-          if (c._deleted) return false;  // [v11.0.0] marked for deletion by migration
-          if (reactorEqIds.has(c.from?.unitId) && c.from?.portId === 'heat_out') return false;
-          // [v11.0.2] Strip heat_in connections on insulated reactors
-          if (reactorEqIds.has(c.to?.unitId) && c.to?.portId === 'heat_in') {
-            const reactorUnit = data.units.find(uu => uu.id === c.to.unitId);
-            if (reactorUnit && (!reactorUnit.params?.mode || reactorUnit.params.mode === 'insulated')) return false;
-          }
-          return true;
-        });
-      }
-      // [v11.0.2] Reactor variant migration: heat-reversed → heat-top, insulated mode → insulated variant
-      if (Array.isArray(data.units)) {
-        for (const u of data.units) {
-          if (u.defId === 'reactor_equilibrium' && u.params) {
-            if (u.params.variant === 'heat-reversed') u.params.variant = 'heat-top';
-            if ((!u.params.mode || u.params.mode === 'insulated') && u.params.variant !== 'heat-top') {
-              u.params.variant = 'insulated';
-            }
-          }
-        }
-      }
-    }
+    // [v12.0.0] All migration eras removed — format version 16, no legacy scenes.
 
     // ── Phase 2: Validate structure + caps ──
     const errors = [];
@@ -11790,6 +11444,10 @@ class Scene {
           unit.sticker.display = { ...u.sticker.display };
         }
         if (unit.sticker.items.length === 0) unit.sticker = null;
+      }
+      // [v12.0.0] Restore inventory state (tank/battery)
+      if (u.inventory && typeof u.inventory === 'object') {
+        unit.inventory = u.inventory;
       }
       tempUnits.set(unit.id, unit);
       unitIds.add(unit.id);
@@ -11922,18 +11580,8 @@ class Scene {
       }
     }
 
-    // [v8.10.0] Import settings (version ≤ 12 → defaults)
+    // [v12.0.0] Import settings
     if (data.settings && typeof data.settings === 'object') {
-      if (typeof data.settings.cheatsEnabled === 'boolean') {
-        SimSettings.cheatsEnabled = data.settings.cheatsEnabled;
-        SimSettings.AUTO_RUN_TESTS = data.settings.cheatsEnabled;
-      }
-      // [v10.0.4] showCheats decoupled — old files without it default to cheatsEnabled
-      if (typeof data.settings.showCheats === 'boolean') {
-        SimSettings.showCheats = data.settings.showCheats;
-      } else {
-        SimSettings.showCheats = SimSettings.cheatsEnabled;
-      }
       if (data.settings.atmospherePreset) {
         if (data.settings.atmospherePreset === 'custom' && data.settings.customAtmosphere) {
           const ca = data.settings.customAtmosphere;
@@ -13818,7 +13466,7 @@ function streamMass_kgps(stream) {
   }
   return mass;
 }
-const streamMass_kg = streamMass_kgps;  // back-compat alias
+
 
 // [v10.3.0] Format helpers — moved to engine for headless test access
 const fmt = {
@@ -13840,8 +13488,8 @@ function computeSystemBalance(scene) {
   if (!scene.runtime?.unitData) return null;
   const massInItems = [], massOutItems = [];
   let totalMassIn = 0, totalMassOut = 0;
-  const energyIn  = { material: 0, electrical: 0, mechanical: 0, heat: 0, items: [] };
-  const energyOut = { material: 0, electrical: 0, mechanical: 0, heat: 0, items: [] };
+  const energyIn  = { material: 0, electrical: 0, heat: 0, items: [] };
+  const energyOut = { material: 0, electrical: 0, heat: 0, items: [] };
 
   for (const [id, u] of scene.units) {
     const def = UnitRegistry.get(u.defId);
@@ -13877,25 +13525,10 @@ function computeSystemBalance(scene) {
     }
   }
 
-  // [v11.0.0 NNG-W3] "dissipated" category deleted.
-  // All units with unconnected heat_out now write actual=0 (WYSIWYG).
-
-  // Implicit utility heating
-  for (const [id, u] of scene.units) {
-    const ud = scene.runtime.unitData.get(id);
-    if (!ud) continue;
-    const Q_util = ud.ports?.heat_out?.Q_utility_in_W;
-    if (Q_util && Q_util > 0.01) {
-      const uName = u.name || UnitRegistry.get(u.defId)?.name || id;
-      energyIn.heat += Q_util;
-      energyIn.items.push({ name: uName + ' (utility)', type: 'heat', value: Q_util });
-    }
-  }
-
   const massBalance = totalMassIn - totalMassOut;
   const massTol = Math.max(totalMassIn, totalMassOut) * 1e-4 + 1e-10;
-  const totalEnergyIn  = energyIn.material + energyIn.electrical + energyIn.mechanical + energyIn.heat;
-  const totalEnergyOut = energyOut.material + energyOut.electrical + energyOut.mechanical + energyOut.heat;
+  const totalEnergyIn  = energyIn.material + energyIn.electrical + energyIn.heat;
+  const totalEnergyOut = energyOut.material + energyOut.electrical + energyOut.heat;
   const energyBalance  = totalEnergyIn - totalEnergyOut;
 
   // Accumulation (inventory units)
@@ -17614,34 +17247,6 @@ function createCollapsibleSection(title, isOpen = true) {
   return { section, content };
 }
 
-function createCollapsibleSubSection(title, isOpen = true) {
-  const section = el('div', { class: 'subSection' });
-  
-  const header = el('div', { class: 'subSectionHeader' });
-  const titleSpan = document.createElement('span');
-  titleSpan.textContent = title;
-  const toggleSpan = document.createElement('span');
-  toggleSpan.className = `subSectionToggle ${isOpen ? '' : 'collapsed'}`;
-  toggleSpan.textContent = '▼';
-  header.appendChild(titleSpan);
-  header.appendChild(toggleSpan);
-  
-  const content = el('div', { 
-    class: `subSectionContent ${isOpen ? '' : 'collapsed'}` 
-  });
-  
-  header.addEventListener('click', () => {
-    const toggle = header.querySelector('.subSectionToggle');
-    toggle.classList.toggle('collapsed');
-    content.classList.toggle('collapsed');
-  });
-  
-  section.appendChild(header);
-  section.appendChild(content);
-  
-  return { section, content };
-}
-
 function renderStreamProperties(container, s) {
   if (!s) {
     container.appendChild(el('div', { 
@@ -18237,15 +17842,11 @@ UnitInspector.source = {
     const params = [
       { type: 'select', label: 'Species', get: () => u.params.species, set: v => u.params.species = v, options: speciesOpts },
     ];
-    if (SimSettings.cheatsEnabled) {
-      params.push(
-        { label: `P (${unitSys.pressure.symbol})`, get: () => unitSys.pressure.from(u.params.P), set: v => u.params.P = unitSys.pressure.to(v), step: unitSys.pressure.decimals === 0 ? 1000 : 0.1, decimals: unitSys.pressure.decimals, validate: { gt: 0 } },
-        { label: `T (${unitSys.temperature.symbol})`, get: () => unitSys.temperature.from(u.params.T), set: v => u.params.T = unitSys.temperature.to(v), step: 1, decimals: unitSys.temperature.decimals, validate: { gt: 0 } }
-      );
-    } else {
-      const atm = SimSettings.getAtmosphere();
-      params.push({ type: 'info', html: `T = ${atm.T_K.toFixed(1)} K | P = ${(atm.P_Pa/1e5).toFixed(4)} bar<br><span style="opacity:0.5">(${atm.presetName} — change in Settings)</span>` });
-    }
+    // [v12.0.0] T/P always editable (atmosphere is default, user can override)
+    params.push(
+      { label: `P (${unitSys.pressure.symbol})`, get: () => unitSys.pressure.from(u.params.P), set: v => u.params.P = unitSys.pressure.to(v), step: unitSys.pressure.decimals === 0 ? 1000 : 0.1, decimals: unitSys.pressure.decimals, validate: { gt: 0 } },
+      { label: `T (${unitSys.temperature.symbol})`, get: () => unitSys.temperature.from(u.params.T), set: v => u.params.T = unitSys.temperature.to(v), step: 1, decimals: unitSys.temperature.decimals, validate: { gt: 0 } }
+    );
     params.push(
       { label: `ṅ (${unitSys.molarFlow.symbol})`, get: () => unitSys.molarFlow.from(u.params.nDot), set: v => u.params.nDot = unitSys.molarFlow.to(v), step: 0.1, validate: { gt: 0 } },
       { type: 'select', label: 'Phase', get: () => u.params.phaseConstraint || 'V', set: v => u.params.phaseConstraint = v, options: [['V','Vapor only'],['L','Liquid only'],['VL','Vapor-Liquid (flash)']] }
@@ -18652,20 +18253,6 @@ function _reactorParams(u, type) {
   return params;
 }
 
-UnitInspector.reactor_adiabatic = {
-  params(u) { return _reactorParams(u, 'adiabatic'); },
-  reaction(u, ud) { if (!ud?.last) return []; const L = ud.last; return [
-    ...(L.conversion != null ? [{ label: 'Conversion', value: fmt.pct(L.conversion) }] : []),
-    ...(L.limited_by ? [{ label: 'Limited by', value: L.limited_by }] : []),
-  ]; },
-  detail(u, ud) { if (!ud?.last) return []; const L = ud.last; return [
-    ...(L.xi != null ? [{ label: 'ξ', value: `${L.xi.toExponential(3)}<span class="u">mol/s</span>` }] : []),
-    ...(L.xi_max != null ? [{ label: 'ξ_max', value: `${L.xi_max.toExponential(3)}<span class="u">mol/s</span>` }] : []),
-    ...(L.H_in_kW ? [{ label: 'H in', value: `${L.H_in_kW}<span class="u">kW</span>` }] : []),
-    ...(L.reason ? [{ label: 'Reason', value: L.reason, full: true, tone: 'warn' }] : []),
-  ]; }
-};
-
 UnitInspector.reactor_equilibrium = {
   params(u) { return _reactorParams(u, 'equilibrium'); },
   power(u, ud) {
@@ -18748,7 +18335,7 @@ UnitInspector.reactor_equilibrium = {
 function populatePalette() {
   const tilesContainer = document.getElementById('palTiles');
   tilesContainer.innerHTML = '';
-  const byCategory = UnitRegistry.listByCategory({ excludeCheats: !SimSettings.showCheats });
+  const byCategory = UnitRegistry.listByCategory();
   
   for (const [catName, units] of Object.entries(byCategory)) {
     tilesContainer.appendChild(el('div', { class: 'pal-cat-label', html: catName }));
@@ -18757,8 +18344,7 @@ function populatePalette() {
       const tile = el('div', { class: 'pal-tile' });
       tile.draggable = true;
       const wipTag = def._wip ? ' <span style="color:#f59e0b;font-size:9px;font-weight:700;">WIP</span>' : '';
-      const cheatTag = def.cheat ? ' <span style="color:#94a3b8;font-size:9px;">★</span>' : '';
-      tile.innerHTML = `<div class="pal-tname"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${def.color};margin-right:4px;vertical-align:middle;"></span>${def.name}${wipTag}${cheatTag}</div>`;
+      tile.innerHTML = `<div class="pal-tname"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${def.color};margin-right:4px;vertical-align:middle;"></span>${def.name}${wipTag}</div>`;
       
       tile.addEventListener('dragstart', (ev) => {
         ui.dragDefId = def.defId;
@@ -20461,67 +20047,12 @@ function buildSettingsPanel() {
   }));
   panel.appendChild(animSec);
 
-  // ── Section: Developer ──
+  // ── Section: Testing ── [v12.0.0] Simplified — cheat/dev mode removed
   const devSec = el('div', { style: 'padding:10px; background:#1e293b; border-radius:8px; margin-bottom:6px;' });
   devSec.appendChild(el('div', {
     style: 'font-weight:700; font-size:11px; text-transform:uppercase; letter-spacing:0.5px; opacity:0.6; margin-bottom:8px;',
-    html: 'Developer'
+    html: 'Testing'
   }));
-
-  // Developer mode checkbox
-  const devRow = el('div', { style: 'display:flex; align-items:center; gap:8px; margin-bottom:4px;' });
-  const devCheck = document.createElement('input');
-  devCheck.type = 'checkbox';
-  devCheck.checked = SimSettings.cheatsEnabled;
-  devCheck.id = 'settingsDevCheck';
-  devCheck.style.cssText = 'margin:0;';
-  devCheck.addEventListener('change', () => _markSettingsDirty());
-  devRow.appendChild(devCheck);
-  const devLabel = document.createElement('label');
-  devLabel.htmlFor = 'settingsDevCheck';
-  devLabel.style.cssText = 'font-size:12px; cursor:pointer; white-space:nowrap; line-height:1;';
-  devLabel.textContent = 'Developer mode';
-  devRow.appendChild(devLabel);
-  devSec.appendChild(devRow);
-  devSec.appendChild(el('div', {
-    style: 'font-size:10px; opacity:0.35; margin-left:22px; line-height:1.4; margin-bottom:8px;',
-    html: 'Arbitrary source T/P, auto-run tests at boot.'
-  }));
-
-  // Show advanced units checkbox (decoupled from dev mode)
-  const cheatRow = el('div', { style: 'display:flex; align-items:center; gap:8px; margin-bottom:4px;' });
-  const cheatCheck = document.createElement('input');
-  cheatCheck.type = 'checkbox';
-  cheatCheck.checked = SimSettings.showCheats;
-  cheatCheck.id = 'settingsCheatCheck';
-  cheatCheck.style.cssText = 'margin:0;';
-  cheatCheck.addEventListener('change', () => _markSettingsDirty());
-  cheatRow.appendChild(cheatCheck);
-  const cheatLabel = document.createElement('label');
-  cheatLabel.htmlFor = 'settingsCheatCheck';
-  cheatLabel.style.cssText = 'font-size:12px; cursor:pointer; white-space:nowrap; line-height:1;';
-  cheatLabel.textContent = 'Show advanced units';
-  cheatRow.appendChild(cheatLabel);
-  devSec.appendChild(cheatRow);
-  devSec.appendChild(el('div', {
-    style: 'font-size:10px; opacity:0.35; margin-left:22px; line-height:1.4; margin-bottom:8px;',
-    html: 'Cooler, adiabatic reactor, mechanical source.'
-  }));
-
-  // Warn if scene has cheat units and cheats are hidden
-  if (!cheatCheck.checked) {
-    const cheatUnits = [];
-    for (const u of scene.units.values()) {
-      const def = UnitRegistry.get(u.defId);
-      if (def && def.cheat) cheatUnits.push(u.name || def.name);
-    }
-    if (cheatUnits.length > 0) {
-      devSec.appendChild(el('div', {
-        style: 'padding:4px 8px; background:#78350f; border-radius:4px; font-size:10px; color:#fbbf24; line-height:1.3; margin-bottom:6px;',
-        text: `⚠ Scene has advanced units: ${cheatUnits.join(', ')}. They still work but can't be added.`
-      }));
-    }
-  }
 
   // Run Tests button — capped to ~3:1 aspect
   const testRow = el('div', { style: 'display:flex; align-items:center; gap:8px;' });
@@ -20550,11 +20081,6 @@ function buildSettingsPanel() {
   const newBtn = applyBtn.cloneNode(true);
   applyBtn.parentNode.replaceChild(newBtn, applyBtn);
   newBtn.addEventListener('click', () => {
-    // Apply developer mode + advanced units (decoupled)
-    SimSettings.cheatsEnabled = devCheck.checked;
-    SimSettings.AUTO_RUN_TESTS = devCheck.checked;
-    SimSettings.showCheats = cheatCheck.checked;
-
     // Apply time settings [v9.0.1]
     const newDt = Math.max(1, parseInt(dtInput.value) || 60);
     SimSettings.dt = newDt;
@@ -20585,7 +20111,7 @@ function buildSettingsPanel() {
 
     _clearSettingsDirty();
     buildSettingsPanel();
-    setStatus(`Settings applied. ${SimSettings.cheatsEnabled ? 'Dev mode' : 'Hard mode'} · ${SimSettings.atmosphere.presetName}`);
+    setStatus(`Settings applied. ${SimSettings.atmosphere.presetName}`);
   });
 }
 
@@ -26161,40 +25687,6 @@ function runTests() {
     t.assertClose(out.n.O2, 0.2095 * 2.5, 0.01, 'O₂ scaled by flowScale');
   });
 
-  test('SimSettings — listByCategory excludeCheats filter', t => {
-    // T3: Verify cheat units are filtered when excludeCheats is true
-    const allUnits = UnitRegistry.listByCategory({ excludeCheats: false });
-    const hardUnits = UnitRegistry.listByCategory({ excludeCheats: true });
-
-    // Flatten to defId arrays
-    const allIds = Object.values(allUnits).flat().map(d => d.defId);
-    const hardIds = Object.values(hardUnits).flat().map(d => d.defId);
-
-    // Cheat units appear in all, excluded from hard
-    t.assertOK(allIds.includes('reactor_adiabatic'), 'All: has reactor_adiabatic');
-    t.assertOK(allIds.includes('cooler'), 'All: has cooler');
-    // [v11.0.0] source_mechanical deleted
-    t.assertOK(!hardIds.includes('reactor_adiabatic'), 'Hard: no reactor_adiabatic');
-    t.assertOK(!hardIds.includes('cooler'), 'Hard: no cooler');
-
-    // [v10.0.4] source_multi is no longer cheat — always visible
-    t.assertOK(allIds.includes('source_multi'), 'All: has source_multi');
-    t.assertOK(hardIds.includes('source_multi'), 'Hard: has source_multi');
-
-    // Non-cheat units always present
-    t.assertOK(hardIds.includes('reactor_equilibrium'), 'Hard: has reactor_equilibrium');
-    t.assertOK(hardIds.includes('source'), 'Hard: has source');
-    t.assertOK(hardIds.includes('source_air'), 'Hard: has source_air');
-    t.assertOK(hardIds.includes('heater'), 'Hard: has heater');
-    t.assertOK(hardIds.includes('hex'), 'Hard: has hex');
-
-    // [v10.0.4] _devTest units never appear in ANY list
-    t.assertOK(!allIds.includes('_test_throw'), 'All: no _test_throw');
-    t.assertOK(!allIds.includes('_test_nan_producer'), 'All: no _test_nan_producer');
-    t.assertOK(!allIds.includes('_test_string_flow'), 'All: no _test_string_flow');
-    t.assertOK(!hardIds.includes('_test_throw'), 'Hard: no _test_throw');
-  });
-
   test('SimSettings — atmosphere preset switch', t => {
     // T4: Switch to Mars, verify values, switch back
     const origPreset = SimSettings.getPresetKey();
@@ -26233,11 +25725,8 @@ function runTests() {
     SimSettings.setAtmosphere(origPreset);
   });
 
-  test('SimSettings — source T/P enforcement in hard mode', t => {
-    // T6: With cheats disabled, source tick ignores par.T/P and uses atmospheric
-    const origCheats = SimSettings.cheatsEnabled;
-
-    SimSettings.cheatsEnabled = false;
+  test('SimSettings — source T/P uses params with atmospheric defaults', t => {
+    // T6: [v12.0.0] Source always uses par.T/P; atmosphere is the default when unset
     const src = t.place('source', 0, 0, {
       species: 'N2', nDot: 1.0, T: 500, P: 500000, phaseConstraint: 'V'
     });
@@ -26246,33 +25735,25 @@ function runTests() {
     t.solve();
 
     const out = t.port(src, 'out');
-    const atm = SimSettings.getAtmosphere();
-    t.assertClose(out.T, atm.T_K, 0.01, 'Hard mode: T = atmospheric');
-    t.assertClose(out.P, atm.P_Pa, 1, 'Hard mode: P = atmospheric');
+    t.assertClose(out.T, 500, 0.01, 'Source uses par.T');
+    t.assertClose(out.P, 500000, 1, 'Source uses par.P');
 
-    // Restore cheats
-    SimSettings.cheatsEnabled = true;
-
-    // With cheats ON, par.T/P should be used
-    const src2 = t.place('source', 0, 4, {
-      species: 'N2', nDot: 1.0, T: 500, P: 500000, phaseConstraint: 'V'
-    });
-    const snk2 = t.place('sink', 4, 4);
+    // Without T/P params → defaults to atmospheric
+    t.clearScene();
+    const src2 = t.place('source', 0, 0, { species: 'N2', nDot: 1.0, phaseConstraint: 'V' });
+    const snk2 = t.place('sink', 4, 0);
     t.wire(src2, 'out', snk2, 'in');
     t.solve();
 
     const out2 = t.port(src2, 'out');
-    t.assertClose(out2.T, 500, 0.01, 'Cheat mode: T = par.T');
-    t.assertClose(out2.P, 500000, 1, 'Cheat mode: P = par.P');
-
-    SimSettings.cheatsEnabled = origCheats;
+    const atm = SimSettings.getAtmosphere();
+    t.assertClose(out2.T, atm.T_K, 0.01, 'No par.T → atmospheric T');
+    t.assertClose(out2.P, atm.P_Pa, 1, 'No par.P → atmospheric P');
   });
 
-  test('SimSettings — all presets propagate to source + source_air', t => {
-    // T7: Each preset should set correct T/P/composition on sources
+  test('SimSettings — all presets propagate to source_air', t => {
+    // T7: [v12.0.0] Rewritten — source_air always tracks atmosphere
     const origPreset = SimSettings.getPresetKey();
-    const origCheats = SimSettings.cheatsEnabled;
-    SimSettings.cheatsEnabled = false;  // hard mode
 
     const presetChecks = [
       { key: 'earth_isa', T: 288.15, P: 101325, majorSp: 'N2',  minFrac: 0.78 },
@@ -26286,29 +25767,18 @@ function runTests() {
       SimSettings.setAtmosphere(pc.key);
       t.clearScene();
 
-      // source (single species) — hard mode enforces T/P
-      const src = t.place('source', 0, 0, { species: 'N2', nDot: 1, T: 999, P: 999, phaseConstraint: 'V' });
+      const air = t.place('source_air', 0, 0, { flowScale: 1 });
       const snk = t.place('sink', 4, 0);
-      t.wire(src, 'out', snk, 'in');
-
-      // source_air — always uses atmosphere
-      const air = t.place('source_air', 0, 4, { flowScale: 1 });
-      const snk2 = t.place('sink', 4, 4);
-      t.wire(air, 'out', snk2, 'in');
-
+      t.wire(air, 'out', snk, 'in');
       t.solve();
-      const srcOut = t.port(src, 'out');
-      const airOut = t.port(air, 'out');
 
-      t.assertClose(srcOut.T, pc.T, 1, `${pc.key}: source T`);
-      t.assertClose(srcOut.P, pc.P, 100, `${pc.key}: source P`);
+      const airOut = t.port(air, 'out');
       t.assertClose(airOut.T, pc.T, 1, `${pc.key}: air T`);
       t.assertClose(airOut.P, pc.P, 100, `${pc.key}: air P`);
       t.assertOK(airOut.n[pc.majorSp] >= pc.minFrac, `${pc.key}: air major species`);
     }
 
     SimSettings.setAtmosphere(origPreset);
-    SimSettings.cheatsEnabled = origCheats;
   });
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -27239,51 +26709,20 @@ function runTests() {
   // [v10.0.4] ORGANIZATIONAL TESTS — taxonomy, migration, registry
   // ═══════════════════════════════════════════════════════════════════════
 
-  tests.push({ name: '194: source_electrical → grid_supply import migration', fn: t => {
-    // Build a v14 JSON payload with source_electrical
-    const oldJSON = JSON.stringify({
-      version: 14,
-      units: [
-        { id: 'source_electrical-1', defId: 'source_electrical', name: 'Old Elec', x: 0, y: 0, rot: 0, params: { maxPower: 100 } },
-        { id: 'power_hub-1', defId: 'power_hub', name: 'Hub', x: 4, y: 0, rot: 0, params: {} }
-      ],
-      connections: [
-        { id: 'c1', from: { unitId: 'source_electrical-1', portId: 'out' }, to: { unitId: 'power_hub-1', portId: 'elec_in' } }
-      ],
-      settings: {}
-    });
-    const r = scene.importJSON(oldJSON);
-    t.assertOK(r.ok, 'Import succeeds');
-    // Unit should be migrated
-    const units = Array.from(scene.units.values());
-    const migrated = units.find(u => u.name === 'Old Elec');
-    t.assertOK(migrated, 'Migrated unit found');
-    t.assertOK(migrated.defId === 'grid_supply', `defId = grid_supply (got: ${migrated.defId})`);
-    t.assertOK(migrated.params.fixed === undefined, 'params.fixed stripped (v11.0.0 — all sources responsive)');
-    t.assertOK(migrated.id.startsWith('grid_supply-'), `id remapped: ${migrated.id}`);
-    // Connection should be remapped
-    const conn = scene.connections[0];
-    t.assertOK(conn.from.unitId.startsWith('grid_supply-'), `conn.from remapped: ${conn.from.unitId}`);
-  }});
-
   tests.push({ name: '195: _devTest units never appear in listByCategory', fn: t => {
-    const all = UnitRegistry.listByCategory({ excludeCheats: false });
-    const hard = UnitRegistry.listByCategory({ excludeCheats: true });
+    const all = UnitRegistry.listByCategory();
     const allIds = Object.values(all).flat().map(d => d.defId);
-    const hardIds = Object.values(hard).flat().map(d => d.defId);
     // None of the _devTest units should appear
     t.assertOK(!allIds.includes('_test_throw'), 'All: no _test_throw');
     t.assertOK(!allIds.includes('_test_nan_producer'), 'All: no _test_nan_producer');
     t.assertOK(!allIds.includes('_test_string_flow'), 'All: no _test_string_flow');
-    t.assertOK(!hardIds.includes('_test_throw'), 'Hard: no _test_throw');
-    t.assertOK(!hardIds.includes('_test_nan_producer'), 'Hard: no _test_nan_producer');
     // But they DO exist in the registry (for programmatic use)
     t.assertOK(UnitRegistry.get('_test_throw') !== undefined, '_test_throw exists in registry');
     t.assertOK(UnitRegistry.get('_test_nan_producer') !== undefined, '_test_nan_producer exists in registry');
   }});
 
   tests.push({ name: '196: Category ordering follows defined order', fn: t => {
-    const cats = UnitRegistry.listByCategory({ excludeCheats: false });
+    const cats = UnitRegistry.listByCategory();
     const catNames = Object.keys(cats);
     // Verify first 7 categories match expected order
     const expected = ['Streams', 'Heat', 'Pressure', 'Reactor', 'Separation & Mixing', 'Storage', 'Power'];
@@ -28715,46 +28154,6 @@ function runTests() {
     t.assertOK(!isPowerStreamType(StreamType.MATERIAL), 'MATERIAL is not power');
   }});
 
-  tests.push({ name: '250: importJSON migrates source_mechanical → grid_supply', fn: t => {
-    const json = JSON.stringify({
-      version: 10, processName: 'mech-migrate',
-      grid: { w: 10, h: 10, tile: 48 },
-      units: [
-        { id: 'sm-1', defId: 'source_mechanical', name: 'Shaft', x: 0, y: 0, rot: 0, params: { maxPower: 100 } },
-        { id: 'snk-1', defId: 'sink_electrical', name: 'Sink', x: 4, y: 0, rot: 0, params: {} }
-      ],
-      connections: []
-    });
-    const r = scene.importJSON(json);
-    t.assertOK(r && r.ok, 'Import OK');
-    const u = scene.units.get('sm-1');
-    t.assertOK(u, 'Unit exists');
-    t.assertOK(u.defId === 'grid_supply', 'Migrated to grid_supply');
-  }});
-
-  tests.push({ name: '251: importJSON drops motor/generator (_deleted_v11)', fn: t => {
-    const json = JSON.stringify({
-      version: 10, processName: 'mot-gen-drop',
-      grid: { w: 10, h: 10, tile: 48 },
-      units: [
-        { id: 'mot-1', defId: 'motor', name: 'Motor', x: 0, y: 0, rot: 0, params: { eta: 0.95 } },
-        { id: 'gen-1', defId: 'generator', name: 'Gen', x: 4, y: 0, rot: 0, params: { eta: 0.97 } },
-        { id: 'src-1', defId: 'source', name: 'Src', x: 0, y: 4, rot: 0,
-          params: { species: 'N2', nDot: 1, T: 298.15, P: 101325, phaseConstraint: 'V' } }
-      ],
-      connections: []
-    });
-    const r = scene.importJSON(json);
-    // Motor and generator should either not be in scene or be flagged
-    const mot = scene.units.get('mot-1');
-    const gen = scene.units.get('gen-1');
-    const src = scene.units.get('src-1');
-    // src should exist; motor/gen should not resolve to valid units
-    t.assertOK(src, 'Source imported');
-    t.assertOK(!mot || !UnitRegistry.get(mot.defId)?.tick, 'Motor not functional');
-    t.assertOK(!gen || !UnitRegistry.get(gen.defId)?.tick, 'Generator not functional');
-  }});
-
   tests.push({ name: '252: Pump/Compressor hub allocation via scratch', fn: t => {
     const grid = t.place('grid_supply', 0, 0, { maxPower: 10 });
     const hub  = t.place('power_hub', 3, 0);
@@ -28982,68 +28381,6 @@ function runTests() {
     t.assertClose(surpPort?.actual ?? 0, 0, 10, 'elec_surplus actual ≈ 0');
   }});
 
-  tests.push({ name: '263: importJSON migrates hub heat_out → elec_surplus + sink_heat → sink_electrical', fn: t => {
-    t.clearScene();
-    const data = {
-      version: 15,
-      grid: { w: 20, h: 20, tile: 48 },
-      units: [
-        { id: 'g1', defId: 'grid_supply', x: 0, y: 0, params: { maxPower: 50 } },
-        { id: 'h1', defId: 'power_hub', x: 4, y: 0, params: {} },
-        { id: 'hs1', defId: 'sink_heat', x: 8, y: 0, params: {} }
-      ],
-      connections: [
-        { id: 'c1', from: { unitId: 'g1', portId: 'out' }, to: { unitId: 'h1', portId: 'elec_in' } },
-        { id: 'c2', from: { unitId: 'h1', portId: 'heat_out' }, to: { unitId: 'hs1', portId: 'in' } }
-      ]
-    };
-    const result = scene.importJSON(JSON.stringify(data));
-    t.assertOK(result.ok, 'Import OK');
-    // Connection should now reference elec_surplus
-    const conn = scene.connections.find(c => c.from.unitId === 'h1' && c.from.portId === 'elec_surplus');
-    t.assertOK(conn, 'Connection migrated to elec_surplus');
-    const oldConn = scene.connections.find(c => c.from.unitId === 'h1' && c.from.portId === 'heat_out');
-    t.assertOK(!oldConn, 'No heat_out connection remains');
-    // sink_heat should have been migrated to sink_electrical
-    const sinkUnit = [...scene.units.values()].find(u => u.id === 'hs1');
-    t.assertOK(sinkUnit?.defId === 'sink_electrical', 'sink_heat migrated to sink_electrical');
-  }});
-
-  tests.push({ name: '264: importJSON migrates power_in → elec_in, mech_out → elec_out', fn: t => {
-    t.clearScene();
-    const data = {
-      version: 15,
-      grid: { w: 20, h: 20, tile: 48 },
-      units: [
-        { id: 'g1', defId: 'grid_supply', x: 0, y: 0, params: { maxPower: 50 } },
-        { id: 'p1', defId: 'pump', x: 4, y: 0, params: { Pout: 500000 } },
-        { id: 's1', defId: 'source', x: 4, y: 3, params: { species: 'H2O', nDot: 1, T: 300, P: 100000, phaseConstraint: 'L' } },
-        { id: 'k1', defId: 'sink', x: 8, y: 0, params: {} },
-        { id: 't1', defId: 'gas_turbine', x: 12, y: 0, params: { Pout: 101325, eta: 0.85 } },
-        { id: 's2', defId: 'source', x: 12, y: 3, params: { species: 'N2', nDot: 1, T: 800, P: 500000, phaseConstraint: 'V' } },
-        { id: 'k2', defId: 'sink', x: 16, y: 0, params: {} },
-        { id: 'k3', defId: 'sink_electrical', x: 16, y: 3, params: {} }
-      ],
-      connections: [
-        { id: 'c1', from: { unitId: 'g1', portId: 'out' }, to: { unitId: 'p1', portId: 'power_in' } },
-        { id: 'c2', from: { unitId: 's1', portId: 'out' }, to: { unitId: 'p1', portId: 'mat_in' } },
-        { id: 'c3', from: { unitId: 'p1', portId: 'mat_out' }, to: { unitId: 'k1', portId: 'in' } },
-        { id: 'c4', from: { unitId: 's2', portId: 'out' }, to: { unitId: 't1', portId: 'mat_in' } },
-        { id: 'c5', from: { unitId: 't1', portId: 'mech_out' }, to: { unitId: 'k3', portId: 'in' } },
-        { id: 'c6', from: { unitId: 't1', portId: 'mat_out' }, to: { unitId: 'k2', portId: 'in' } }
-      ]
-    };
-    const result = scene.importJSON(JSON.stringify(data));
-    t.assertOK(result.ok, 'Import OK');
-    // power_in → elec_in
-    const pumpConn = scene.connections.find(c => c.to.unitId === 'p1' && c.to.portId === 'elec_in');
-    t.assertOK(pumpConn, 'power_in migrated to elec_in');
-    // mech_out → elec_out
-    const turbConn = scene.connections.find(c => c.from.unitId === 't1' && c.from.portId === 'elec_out');
-    t.assertOK(turbConn, 'mech_out migrated to elec_out');
-  }});
-
-  // ═══════════════════════════════════════════════════════════════════════
   // Phase 5 Tests: CSTR T-ξ solver, insulated/heated modes
   // ═══════════════════════════════════════════════════════════════════════
 
@@ -29206,51 +28543,6 @@ function runTests() {
     t.assertOK(portIds.includes('mat_in'), 'mat_in present');
     t.assertOK(portIds.includes('mat_out'), 'mat_out present');
     t.assertOK(portIds.includes('heat_in'), 'heat_in present');
-  }});
-
-  tests.push({ name: '271: importJSON migrates reactor_adiabatic → insulated', fn: t => {
-    t.clearScene();
-    const data = {
-      version: 15, grid: { w: 20, h: 20, tile: 48 },
-      units: [
-        { id: 'r1', defId: 'reactor_adiabatic', x: 4, y: 0, params: { reactionId: 'R_H2_COMB', conversion: 0.5 } },
-        { id: 's1', defId: 'source_multi', x: 0, y: 0, params: { n: { H2: 2, O2: 1 }, T: 800, P: 100000, phaseConstraint: 'V' } },
-        { id: 'k1', defId: 'sink', x: 8, y: 0, params: {} }
-      ],
-      connections: [
-        { id: 'c1', from: { unitId: 's1', portId: 'out' }, to: { unitId: 'r1', portId: 'mat_in' } },
-        { id: 'c2', from: { unitId: 'r1', portId: 'mat_out' }, to: { unitId: 'k1', portId: 'in' } }
-      ]
-    };
-    const result = scene.importJSON(JSON.stringify(data));
-    t.assertOK(result.ok, 'Import OK');
-    const rxUnit = [...scene.units.values()].find(u => u.id === 'r1');
-    t.assertOK(rxUnit.defId === 'reactor_equilibrium', 'defId migrated');
-    t.assertOK(rxUnit.params.mode === 'insulated', 'Mode: insulated');
-    t.assertOK(rxUnit.params.conversion === undefined, 'conversion removed');
-  }});
-
-  tests.push({ name: '272: importJSON strips reactor heat_out connections', fn: t => {
-    t.clearScene();
-    const data = {
-      version: 15, grid: { w: 20, h: 20, tile: 48 },
-      units: [
-        { id: 'r1', defId: 'reactor_equilibrium', x: 4, y: 0, params: { reactionId: 'R_H2_COMB' } },
-        { id: 's1', defId: 'source_multi', x: 0, y: 0, params: { n: { H2: 2, O2: 1 }, T: 800, P: 100000, phaseConstraint: 'V' } },
-        { id: 'k1', defId: 'sink', x: 8, y: 0, params: {} },
-        { id: 'h1', defId: 'sink_heat', x: 4, y: -3, params: {} }
-      ],
-      connections: [
-        { id: 'c1', from: { unitId: 's1', portId: 'out' }, to: { unitId: 'r1', portId: 'mat_in' } },
-        { id: 'c2', from: { unitId: 'r1', portId: 'mat_out' }, to: { unitId: 'k1', portId: 'in' } },
-        { id: 'c3', from: { unitId: 'r1', portId: 'heat_out' }, to: { unitId: 'h1', portId: 'in' } }
-      ]
-    };
-    const result = scene.importJSON(JSON.stringify(data));
-    t.assertOK(result.ok, 'Import OK');
-    const heatConn = scene.connections.find(c => c.from.unitId === 'r1' && c.from.portId === 'heat_out');
-    t.assertOK(!heatConn, 'heat_out connection stripped');
-    t.assertOK(scene.connections.some(c => c.from.unitId === 'r1' && c.from.portId === 'mat_out'), 'mat_out preserved');
   }});
 
   tests.push({ name: '273: Isothermal ref matches legacy Q_duty', fn: t => {
@@ -29443,87 +28735,6 @@ function runTests() {
     t.assertOK(rxUnit.params.variant !== 'insulated', 'Variant cleared from insulated');
   }});
 
-  tests.push({ name: '281: importJSON strips heat_in on insulated reactor', fn: t => {
-    t.clearScene();
-    const data = {
-      version: 15, grid: { w: 20, h: 20, tile: 48 },
-      units: [
-        { id: 'r1', defId: 'reactor_equilibrium', x: 4, y: 0,
-          params: { reactionId: 'R_H2_COMB', mode: 'insulated' } },
-        { id: 's1', defId: 'source_multi', x: 0, y: 0,
-          params: { n: { H2: 2, O2: 1 }, T: 800, P: 100000, phaseConstraint: 'V' } },
-        { id: 'k1', defId: 'sink', x: 8, y: 0, params: {} },
-        { id: 'h1', defId: 'electric_heater', x: 4, y: 4, params: { power_kW: 50 } }
-      ],
-      connections: [
-        { id: 'c1', from: { unitId: 's1', portId: 'out' }, to: { unitId: 'r1', portId: 'mat_in' } },
-        { id: 'c2', from: { unitId: 'r1', portId: 'mat_out' }, to: { unitId: 'k1', portId: 'in' } },
-        { id: 'c3', from: { unitId: 'h1', portId: 'heat_out' }, to: { unitId: 'r1', portId: 'heat_in' } }
-      ]
-    };
-    const result = scene.importJSON(JSON.stringify(data));
-    t.assertOK(result.ok, 'Import OK');
-    const heatConn = scene.connections.find(
-      c => c.to.unitId === 'r1' && c.to.portId === 'heat_in');
-    t.assertOK(!heatConn, 'heat_in connection stripped on insulated');
-    t.assertOK(scene.connections.some(
-      c => c.from.unitId === 'r1' && c.from.portId === 'mat_out'), 'mat_out preserved');
-    // Insulated variant assigned
-    const rxUnit = [...scene.units.values()].find(u => u.id === 'r1');
-    t.assertOK(rxUnit.params.variant === 'insulated', 'Variant set to insulated');
-  }});
-
-  tests.push({ name: '282: importJSON renames heat-reversed → heat-top', fn: t => {
-    t.clearScene();
-    const data = {
-      version: 15, grid: { w: 20, h: 20, tile: 48 },
-      units: [
-        { id: 'r1', defId: 'reactor_equilibrium', x: 4, y: 0,
-          params: { reactionId: 'R_H2_COMB', mode: 'heated', variant: 'heat-reversed' } },
-        { id: 's1', defId: 'source_multi', x: 0, y: 0,
-          params: { n: { H2: 2, O2: 1 }, T: 800, P: 100000, phaseConstraint: 'V' } },
-        { id: 'k1', defId: 'sink', x: 8, y: 0, params: {} }
-      ],
-      connections: [
-        { id: 'c1', from: { unitId: 's1', portId: 'out' }, to: { unitId: 'r1', portId: 'mat_in' } },
-        { id: 'c2', from: { unitId: 'r1', portId: 'mat_out' }, to: { unitId: 'k1', portId: 'in' } }
-      ]
-    };
-    const result = scene.importJSON(JSON.stringify(data));
-    t.assertOK(result.ok, 'Import OK');
-    const rxUnit = [...scene.units.values()].find(u => u.id === 'r1');
-    t.assertOK(rxUnit.params.variant === 'heat-top', 'heat-reversed renamed to heat-top');
-    // Heated reactor: heat_in should remain visible
-    const def = UnitRegistry.get('reactor_equilibrium');
-    const pres = getPresentation(def, rxUnit);
-    t.assertOK(pres.ports.heat_in, 'heat_in visible after rename');
-  }});
-
-  tests.push({ name: '283: importJSON preserves heat_in on heated reactor', fn: t => {
-    t.clearScene();
-    const data = {
-      version: 15, grid: { w: 20, h: 20, tile: 48 },
-      units: [
-        { id: 'r1', defId: 'reactor_equilibrium', x: 4, y: 0,
-          params: { reactionId: 'R_H2_COMB', mode: 'heated' } },
-        { id: 's1', defId: 'source_multi', x: 0, y: 0,
-          params: { n: { H2: 2, O2: 1 }, T: 800, P: 100000, phaseConstraint: 'V' } },
-        { id: 'k1', defId: 'sink', x: 8, y: 0, params: {} },
-        { id: 'h1', defId: 'electric_heater', x: 4, y: 4, params: { power_kW: 50 } }
-      ],
-      connections: [
-        { id: 'c1', from: { unitId: 's1', portId: 'out' }, to: { unitId: 'r1', portId: 'mat_in' } },
-        { id: 'c2', from: { unitId: 'r1', portId: 'mat_out' }, to: { unitId: 'k1', portId: 'in' } },
-        { id: 'c3', from: { unitId: 'h1', portId: 'heat_out' }, to: { unitId: 'r1', portId: 'heat_in' } }
-      ]
-    };
-    const result = scene.importJSON(JSON.stringify(data));
-    t.assertOK(result.ok, 'Import OK');
-    const heatConn = scene.connections.find(
-      c => c.to.unitId === 'r1' && c.to.portId === 'heat_in');
-    t.assertOK(heatConn, 'heat_in connection preserved on heated reactor');
-  }});
-
   // ═══════════════════════════════════════════════════════════════════════
   // [v11.2.0] SHOMATE TRANSITION TESTS
   // ═══════════════════════════════════════════════════════════════════════
@@ -29678,8 +28889,6 @@ function runTests() {
   }});
 
   // ═══════════════════════════════════════════════════════════════════════
-  const _savedCheats = SimSettings.cheatsEnabled;
-  SimSettings.cheatsEnabled = true;
 
   let totalPass = 0, totalFail = 0;
   let testsPassed = 0, testsFailed = 0;
@@ -29709,9 +28918,8 @@ function runTests() {
     }
   }
 
-  // Restore console.warn and cheatsEnabled
+  // Restore console.warn
   console.warn = _origWarn;
-  SimSettings.cheatsEnabled = _savedCheats;
 
   // ── Condensed summary (always shown) ──
   // [v10.8.1] Uses _realConsoleWarn (the original console.warn saved before
