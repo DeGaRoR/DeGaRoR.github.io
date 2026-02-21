@@ -35,6 +35,13 @@
            offers heated variants; pre-solve pass strips ghost connections
            to ports hidden by active presentation; tick nulls heat_in.
            Test T278 added.
+  v12.4.0  Register air_cooler — physically-grounded ambient heat rejection.
+           2nd-law enforcement (T_setpoint ≥ T_ambient).  No heat port;
+           Q_rejected_W tracked in u.last for balance accounting.
+           computeSystemBalance: new energyOut.ambient subcategory sums
+           Q_rejected_W across all units; included in totalEnergyOut.
+           SVG ico-air_cooler.  UnitInspector.air_cooler with T_setpoint
+           param + ambient info display.  Tests T291–T294.
 
   ─── v11.2.0 — NIST Shomate Transition ──────────────────────────────────
   Replaces ad-hoc Cpig power polynomial with NIST Shomate equation for all
@@ -366,7 +373,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>processThis — v12.3.0</title>
+  <title>processThis — v12.4.0</title>
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
@@ -2013,6 +2020,16 @@
           <path d="M20 32 Q26 26, 32 32 T44 32" fill="none" stroke="currentColor" stroke-width="3"/>
           <path d="M32 44 L32 58" stroke="currentColor" stroke-width="4"/>
           <path d="M26 54 L32 58 L38 54" fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/>
+        </symbol>
+        
+        <!-- Air Cooler [v12.4.0] — box with wavy line, upward air arrows -->
+        <symbol id="ico-air_cooler" viewBox="0 0 64 64">
+          <rect x="14" y="20" width="36" height="24" fill="none" stroke="currentColor" stroke-width="4" rx="4"/>
+          <path d="M20 32 Q26 26, 32 32 T44 32" fill="none" stroke="currentColor" stroke-width="3"/>
+          <path d="M24 44 L24 56" stroke="currentColor" stroke-width="2.5" stroke-dasharray="3,3"/>
+          <path d="M32 44 L32 56" stroke="currentColor" stroke-width="2.5" stroke-dasharray="3,3"/>
+          <path d="M40 44 L40 56" stroke="currentColor" stroke-width="2.5" stroke-dasharray="3,3"/>
+          <path d="M28 52 L32 56 L36 52" fill="none" stroke="currentColor" stroke-width="2.5"/>
         </symbol>
         
         <!-- Electric Heater (circle with H, like motor with M) -->
@@ -8164,6 +8181,95 @@ UnitRegistry.register('cooler', {
   }
 });
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// AIR COOLER — Ambient heat rejection [v12.4.0]
+// ═══════════════════════════════════════════════════════════════════════════════
+// Physically-grounded replacement for cooler (which required a heat_out port).
+// Cools process stream toward T_setpoint by rejecting heat to ambient air.
+// 2nd-law enforcement: T_setpoint ≥ T_ambient.  No heat port — rejected heat
+// appears in Q_rejected_W diagnostic for system energy balance accounting.
+// dP = 0.  Outlet via H_target_Jps for PH-flash.
+UnitRegistry.register('air_cooler', {
+  name: 'Air Cooler',
+  category: UnitCategories.HEAT_TRANSFER,
+  w: 2,
+  h: 2,
+  ports: [
+    { portId: 'mat_in',  dir: PortDir.IN,  type: StreamType.MATERIAL, x: 0, y: 1 },
+    { portId: 'mat_out', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 1 }
+  ],
+  presentations: {
+    'box/default':     { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, mat_out:{x:2,y:1} } },
+    'box/port-top':    { w: 2, h: 2, ports: { mat_in:{x:1,y:0}, mat_out:{x:1,y:2} } }
+  },
+  tick(u, ports, par) {
+    const sIn = ports.mat_in;
+    if (!sIn) return;
+
+    const H_in_Jps = thermo.getHdot_Jps(sIn);
+    if (H_in_Jps === 0 && (!sIn.T || !sIn.P || !sIn.n)) {
+      u.last = { error: { severity: ErrorSeverity.MAJOR,
+        message: 'Cannot compute inlet enthalpy — missing stream properties' } };
+      return;
+    }
+
+    const atm = SimSettings.getAtmosphere();
+    const T_amb = atm.T_K;
+    const T_setpoint = par.T_out ?? (sIn.T > T_amb + 10 ? T_amb + 10 : sIn.T);
+
+    // 2nd-law enforcement: cannot cool below ambient
+    if (T_setpoint < T_amb - 0.01) {
+      u.last = {
+        T_in_K: sIn.T, T_setpoint_K: T_setpoint, T_ambient_K: T_amb,
+        Q_rejected_W: 0,
+        error: { severity: ErrorSeverity.MAJOR,
+          message: `Setpoint ${(T_setpoint-273.15).toFixed(1)}°C < ambient ${(T_amb-273.15).toFixed(1)}°C — violates 2nd law` }
+      };
+      // Passthrough
+      ports.mat_out = { type: StreamType.MATERIAL, P: sIn.P, n: { ...sIn.n },
+        phaseConstraint: sIn.phaseConstraint || 'VL', H_target_Jps: H_in_Jps };
+      return;
+    }
+
+    // Cannot heat — setpoint must be ≤ inlet
+    if (T_setpoint > sIn.T + 0.01) {
+      u.last = {
+        T_in_K: sIn.T, T_setpoint_K: T_setpoint, T_ambient_K: T_amb,
+        Q_rejected_W: 0,
+        error: { severity: ErrorSeverity.MAJOR,
+          message: `Setpoint ${(T_setpoint-273.15).toFixed(1)}°C > inlet ${(sIn.T-273.15).toFixed(1)}°C — use a heater` }
+      };
+      ports.mat_out = { type: StreamType.MATERIAL, P: sIn.P, n: { ...sIn.n },
+        phaseConstraint: sIn.phaseConstraint || 'VL', H_target_Jps: H_in_Jps };
+      return;
+    }
+
+    // Compute outlet enthalpy at T_setpoint
+    const outProxy = { type: StreamType.MATERIAL, T: T_setpoint, P: sIn.P,
+      n: { ...sIn.n }, phaseConstraint: sIn.phaseConstraint || 'VL' };
+    const H_out_Jps = thermo.getHdot_Jps(outProxy);
+    const Q_rejected_W = H_in_Jps - H_out_Jps;  // positive when cooling
+
+    // Outlet stream — PH-flash
+    ports.mat_out = {
+      type: StreamType.MATERIAL,
+      P: sIn.P,
+      n: { ...sIn.n },
+      phaseConstraint: 'VL',
+      H_target_Jps: H_out_Jps
+    };
+
+    u.last = {
+      T_in_K: sIn.T,
+      T_setpoint_K: T_setpoint,
+      T_ambient_K: T_amb,
+      Q_rejected_W,
+      H_in_kW: (H_in_Jps / 1000).toFixed(2),
+      H_out_kW: (H_out_Jps / 1000).toFixed(2)
+    };
+  }
+});
+
 // Two-Stream Heat Exchanger
 // ═══════════════════════════════════════════════════════════════════════════════
 // HEAT EXCHANGER — Pure helper functions
@@ -11580,8 +11686,23 @@ function computeSystemBalance(scene) {
 
   const massBalance = totalMassIn - totalMassOut;
   const massTol = Math.max(totalMassIn, totalMassOut) * 1e-4 + 1e-10;
+
+  // [v12.4.0] Ambient heat rejection — air_cooler rejects heat to environment.
+  // This energy leaves the system boundary without a port; tracked via u.last.Q_rejected_W.
+  let ambientRejection = 0;
+  const ambientItems = [];
+  for (const [id, u] of scene.units) {
+    const ud = scene.runtime.unitData.get(id);
+    if (!ud?.last?.Q_rejected_W || ud.last.Q_rejected_W <= 0.01) continue;
+    const uName = u.name || UnitRegistry.get(u.defId)?.name || id;
+    ambientRejection += ud.last.Q_rejected_W;
+    ambientItems.push({ name: uName, type: 'ambient', value: ud.last.Q_rejected_W });
+  }
+  energyOut.ambient = ambientRejection;
+  energyOut.items.push(...ambientItems);
+
   const totalEnergyIn  = energyIn.material + energyIn.electrical + energyIn.heat;
-  const totalEnergyOut = energyOut.material + energyOut.electrical + energyOut.heat;
+  const totalEnergyOut = energyOut.material + energyOut.electrical + energyOut.heat + energyOut.ambient;
   const energyBalance  = totalEnergyIn - totalEnergyOut;
 
   // Accumulation (inventory units)
@@ -16180,6 +16301,39 @@ UnitInspector.cooler = {
     const items = [{ label: 'T setpoint', value: fmt.T(ud.last.T_setpoint_K) }];
     const matOut = ud.ports?.mat_out;
     if (matOut?.T) { const us = models.getActive('units'); const dev = Math.abs(us.temperature.from(matOut.T) - us.temperature.from(ud.last.T_setpoint_K)); items.push({ label: 'T actual', value: fmt.T(matOut.T), tone: dev > 1 ? 'warn' : 'good' }); }
+    return items;
+  }
+};
+
+// [v12.4.0] Air cooler inspector
+UnitInspector.air_cooler = {
+  params(u) {
+    const us = models.getActive('units');
+    const atm = SimSettings.getAtmosphere();
+    return [
+      { label: `T outlet setpoint (${us.temperature.symbol})`,
+        get: () => us.temperature.from(u.params.T_out ?? (atm.T_K + 10)),
+        set: v => u.params.T_out = us.temperature.to(v),
+        step: 1, decimals: us.temperature.decimals, validate: { gt: 0 } },
+      { type: 'info', html: `Ambient: ${(atm.T_K - 273.15).toFixed(1)}°C (${atm.presetName})<br><span style="opacity:0.5">T<sub>out</sub> ≥ T<sub>ambient</sub> required</span>` }
+    ];
+  },
+  power(u, ud) {
+    if (!ud?.last?.Q_rejected_W) return [];
+    return [{ label: 'Q rejected', value: fmt.kW(ud.last.Q_rejected_W), tone: 'info' }];
+  },
+  kpis(u, ud) {
+    if (!ud?.last?.T_setpoint_K) return [];
+    const items = [
+      { label: 'T setpoint', value: fmt.T(ud.last.T_setpoint_K) },
+      { label: 'T ambient', value: fmt.T(ud.last.T_ambient_K) }
+    ];
+    const matOut = ud.ports?.mat_out;
+    if (matOut?.T) {
+      const us = models.getActive('units');
+      const dev = Math.abs(us.temperature.from(matOut.T) - us.temperature.from(ud.last.T_setpoint_K));
+      items.push({ label: 'T actual', value: fmt.T(matOut.T), tone: dev > 1 ? 'warn' : 'good' });
+    }
     return items;
   }
 };
@@ -26903,6 +27057,82 @@ function runTests() {
     const H500_h2o  = thermo.hMolar('H2O', 500, 1e5, 'V');
     const dH_h2o = H1500_h2o - H500_h2o;
     t.assertClose(dH_h2o, 41225, 200, 'H2O ΔH(500→1500K)');
+  }});
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // [v12.4.0] AIR COOLER TESTS
+  // ═══════════════════════════════════════════════════════════════════════
+
+  tests.push({ name: '291: Air cooler basic cooling — T_out, Q_rejected', fn: t => {
+    t.clearScene();
+    const src = t.place('source', 0, 0, { species: 'N2', nDot: 1.0, T: 500, P: 100000, phaseConstraint: 'V' });
+    const ac  = t.place('air_cooler', 4, 0, { T_out: 350 });
+    const snk = t.place('sink', 8, 0);
+    t.wire(src, 'out', ac, 'mat_in');
+    t.wire(ac, 'mat_out', snk, 'in');
+    t.solve();
+
+    const ud = t.ud(ac);
+    t.assertOK(ud.last.Q_rejected_W > 0, 'Q_rejected > 0');
+    t.assertClose(ud.last.T_setpoint_K, 350, 0.01, 'T_setpoint = 350 K');
+    t.assertClose(ud.last.T_in_K, 500, 0.01, 'T_in = 500 K');
+
+    const matOut = ud.ports?.mat_out;
+    // After PH-flash, T should be near setpoint
+    if (matOut?.T) t.assertClose(matOut.T, 350, 2, 'T_out ≈ 350 K');
+  }});
+
+  tests.push({ name: '292: Air cooler 2nd-law — T_setpoint < T_ambient → error', fn: t => {
+    t.clearScene();
+    const atm = SimSettings.getAtmosphere();
+    const src = t.place('source', 0, 0, { species: 'N2', nDot: 1.0, T: 400, P: 100000, phaseConstraint: 'V' });
+    const ac  = t.place('air_cooler', 4, 0, { T_out: atm.T_K - 20 });  // below ambient
+    const snk = t.place('sink', 8, 0);
+    t.wire(src, 'out', ac, 'mat_in');
+    t.wire(ac, 'mat_out', snk, 'in');
+    t.solve();
+
+    const ud = t.ud(ac);
+    t.assertOK(ud.last.error, 'Error raised for sub-ambient setpoint');
+    t.assertOK(ud.last.error.severity === ErrorSeverity.MAJOR, 'Severity = MAJOR');
+    t.assertClose(ud.last.Q_rejected_W, 0, 0.01, 'Q_rejected = 0 on error');
+  }});
+
+  tests.push({ name: '293: Air cooler passthrough — T_setpoint ≈ T_in', fn: t => {
+    t.clearScene();
+    const src = t.place('source', 0, 0, { species: 'N2', nDot: 1.0, T: 350, P: 100000, phaseConstraint: 'V' });
+    const ac  = t.place('air_cooler', 4, 0, { T_out: 350 });
+    const snk = t.place('sink', 8, 0);
+    t.wire(src, 'out', ac, 'mat_in');
+    t.wire(ac, 'mat_out', snk, 'in');
+    t.solve();
+
+    const ud = t.ud(ac);
+    t.assertClose(ud.last.Q_rejected_W, 0, 10, 'Q_rejected ≈ 0 at passthrough');
+    t.assertOK(!ud.last.error, 'No error');
+  }});
+
+  tests.push({ name: '294: Air cooler Q_rejected in system energy balance', fn: t => {
+    t.clearScene();
+    const src = t.place('source', 0, 0, { species: 'N2', nDot: 1.0, T: 600, P: 100000, phaseConstraint: 'V' });
+    const ac  = t.place('air_cooler', 4, 0, { T_out: 350 });
+    const snk = t.place('sink', 8, 0);
+    t.wire(src, 'out', ac, 'mat_in');
+    t.wire(ac, 'mat_out', snk, 'in');
+    t.solve();
+
+    const bal = computeSystemBalance(scene);
+    t.assertOK(bal !== null, 'Balance computed');
+    t.assertOK(bal.energy.out.ambient > 0, 'ambient > 0 in energy out');
+
+    // Q_rejected should appear in out.items with type 'ambient'
+    const ambItems = bal.energy.out.items.filter(i => i.type === 'ambient');
+    t.assertOK(ambItems.length >= 1, 'At least 1 ambient item');
+
+    // Energy closure: totalIn ≈ totalOut (material in ≈ material out + ambient)
+    const relErr = bal.energy.relError * 100;
+    t.assertClose(relErr, 0, 1.0, 'Energy relative error < 1%');
+    t.assertOK(bal.energy.closed, 'energy.closed = true');
   }});
 
   // ═══════════════════════════════════════════════════════════════════════
