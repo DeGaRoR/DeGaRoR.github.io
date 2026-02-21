@@ -256,16 +256,49 @@
            When Q limited, T_out > setpoint + MINOR warning.
            New: T304–T310 (7 tests).
 
-  v12.9.1  Demo scene + balance closure — 286 tests, 1788 assertions.
-           Demo scene: SMR reactor now powered (grid→elec_in, isothermal
-           T_out=1000K, Q=8.47 kW).  34 units, 30 connections.
-           Balance report verified: mass closed (residual <1e-7),
-           energy closed (0.002% relative error), ambient rejection
-           (226 kW from air_cooler) correctly categorized.
-           T236: balance report assertions added (mass closed, energy
-           closed, all item categories present).
-           T316: balance report structure test — ambient items, electrical
-           items, total energy conservation.
+  v12.9.3  Electric heater polish — 289 tests, 1810 assertions.
+           Default power_kW = 10 (pilot-plant 10 kW inline heater,
+           e.g. MHI Airtorch VTA550-10). Was 0 — useless default.
+           Improved starvation messages: power mode "Starved: X / Y kW",
+           T mode "Insufficient power to reach setpoint: X / Y kW".
+           UI fixes from v12.9.2: select options format, icon mappings.
+
+  v12.9.2  Air cooler WYSIWYG + validation — 289 tests, 1810 assertions.
+           No ideal mode: pilot-plant defaults always active (UA=1 kW/K,
+           airFlow=2 kg/s). Inspector: no empty/∞ placeholders, min bounds.
+           Effective Cp (Q_demand/ΔT) handles condensation in NTU model.
+           Demo cooler sized: UA=5, airFlow=10 (ε=0.9997 for 272 kW).
+           T317: T_amb floor on Earth (288K) and Planet X (305K) — setpoint
+           at T_amb works, below T_amb → MAJOR error. Atmosphere-aware.
+           T318: UA-only limiting (tiny UA, large airFlow) → ε < 0.5.
+           T319: AirFlow-only limiting (large UA, tiny airFlow) → air
+           saturates near T_in, C_air < C_process confirms fan bottleneck.
+           UI fix: electric_heater inspector crash — select options used
+           {value,label} objects but addSelectEditor expects [val,txt]
+           arrays. Fixed to match convention.
+           UI fix: electric_heater icon missing — defId renamed from
+           'heater' to 'electric_heater' but icon map not updated.
+           Added mapping electric_heater→ico-heater.
+           UI fix: grid_supply icon mapping pointed to deleted
+           ico-electrical; corrected to ico-grid_supply.
+
+  v12.9.1  Demo scene + balance closure + air cooler ε-NTU rewrite.
+           286 tests, 1792 assertions.
+           Air cooler rewritten to use HEX DNA: synthetic atmosphere cold
+           stream from SimSettings (T_amb, P_atm, composition — works on
+           Mars/Titan/Venus). Same hxCapacityRates + hxSolveUaNtu as HEX.
+           WYSIWYG: no ideal mode. Pilot-plant defaults always active:
+             UA_kW_K = 1.0 (fin-fan size), airFlow_kgps = 2.0 (fan).
+           Effective Cp for process side: Q_demand/(T_in−T_set) includes
+           latent heat — NTU model handles condensation correctly.
+           Phase constraint bug fixed: proxy used inlet 'V' but outlet
+           used 'VL', missing condensation latent heat (~93K overshoot).
+           Inspector: UA + air flow params, Q demand/rejected, ε/NTU/Cr/
+           C_air/C_process/T_air_out diagnostics.
+           Demo scene: cooler sized UA=5 airFlow=10 (ε=0.9997 for 272kW
+           duty), SMR reactor powered (isothermal 1000K, Q=8.47kW).
+           34 units, 30 connections. Balance: mass closed, energy 0.001%.
+           T236: balance report assertions. T316: balance structure test.
 
   v12.9.0  Reactor demand model + validation — 285 tests, 1763 assertions.
            Three-mode heat demand replaces binary insulated/heated:
@@ -618,7 +651,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>processThis — v12.9.1</title>
+  <title>processThis — v12.9.3</title>
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
@@ -8188,7 +8221,7 @@ UnitRegistry.register('electric_heater', {
     // ── No electrical supply → passthrough (both modes) ──
     const sElec = ports.elec_in;
     if (!sElec) {
-      u.powerDemand = mode === 'power_setpoint' ? (par.power_kW ?? 0) * 1000 : 0;
+      u.powerDemand = mode === 'power_setpoint' ? (par.power_kW ?? 10) * 1000 : 0;
       ports.mat_out = { type: StreamType.MATERIAL, P: sIn.P, n: { ...sIn.n },
         phaseConstraint: 'VL', H_target_Jps: H_in_Jps };
       u.last = { mode, T_in_K: sIn.T, Q_demand_W: 0, Q_actual_W: 0, curtailed: true,
@@ -8205,7 +8238,7 @@ UnitRegistry.register('electric_heater', {
 
     if (mode === 'power_setpoint') {
       // ── POWER SETPOINT MODE ──
-      const Q_setpoint_W = (par.power_kW ?? 0) * 1000;
+      const Q_setpoint_W = (par.power_kW ?? 10) * 1000;
       u.powerDemand = Q_setpoint_W;
       const Q_actual_W = Math.min(Q_setpoint_W, W_avail);
       const curtailed = Q_actual_W < Q_setpoint_W - 1;
@@ -8222,7 +8255,7 @@ UnitRegistry.register('electric_heater', {
 
       if (curtailed) {
         u.last.error = { severity: ErrorSeverity.MINOR,
-          message: `Power-limited: ${(Q_applied/1000).toFixed(1)} / ${(Q_setpoint_W/1000).toFixed(1)} kW` };
+          message: `Starved: ${(Q_applied/1000).toFixed(1)} / ${(Q_setpoint_W/1000).toFixed(1)} kW available` };
       }
 
     } else {
@@ -8262,7 +8295,7 @@ UnitRegistry.register('electric_heater', {
 
       if (curtailed) {
         u.last.error = { severity: ErrorSeverity.MINOR,
-          message: `Power-limited: ${(Q_actual_W/1000).toFixed(1)} / ${(Q_demand_W/1000).toFixed(1)} kW` };
+          message: `Insufficient power to reach setpoint: ${(Q_actual_W/1000).toFixed(1)} / ${(Q_demand_W/1000).toFixed(1)} kW available` };
       }
     }
   }
@@ -8279,9 +8312,13 @@ UnitRegistry.register('electric_heater', {
 // appears in Q_rejected_W diagnostic for system energy balance accounting.
 // dP = 0.  Outlet via H_target_Jps for PH-flash.
 //
-// [v12.8.1] Capacity mechanism: par.UA_kW_K (kW/K) limits cooling duty.
-//   Q_max = UA × (T_in - T_amb).  Default: Infinity (no limit).
-//   When Q_demand > Q_max, T_out > setpoint (capacity-limited) with MINOR.
+// [v12.9.1] Rewritten to use HEX ε-NTU DNA with synthetic atmosphere stream.
+//   Cold side = atmospheric air at T_amb, P_atm, composition from SimSettings.
+//   Two capacity parameters (always active, WYSIWYG — no ideal mode):
+//     UA_kW_K      — overall heat transfer coeff × area (kW/K), default 1.0
+//     airFlow_kgps — air mass flow rate (kg/s), default 2.0
+//   Pilot-plant defaults: 1 kW/K fin-fan, 2 kg/s fan flow.
+//   Q capped at Q_demand so T_out never undershoots setpoint.
 UnitRegistry.register('air_cooler', {
   name: 'Air Cooler',
   category: UnitCategories.HEAT_TRANSFER,
@@ -8319,7 +8356,7 @@ UnitRegistry.register('air_cooler', {
           message: `Setpoint ${(T_setpoint-273.15).toFixed(1)}°C < ambient ${(T_amb-273.15).toFixed(1)}°C — violates 2nd law` }
       };
       ports.mat_out = { type: StreamType.MATERIAL, P: sIn.P, n: { ...sIn.n },
-        phaseConstraint: sIn.phaseConstraint || 'VL', H_target_Jps: H_in_Jps };
+        phaseConstraint: 'VL', H_target_Jps: H_in_Jps };
       return;
     }
 
@@ -8332,27 +8369,76 @@ UnitRegistry.register('air_cooler', {
           message: `Setpoint ${(T_setpoint-273.15).toFixed(1)}°C > inlet ${(sIn.T-273.15).toFixed(1)}°C — use a heater` }
       };
       ports.mat_out = { type: StreamType.MATERIAL, P: sIn.P, n: { ...sIn.n },
-        phaseConstraint: sIn.phaseConstraint || 'VL', H_target_Jps: H_in_Jps };
+        phaseConstraint: 'VL', H_target_Jps: H_in_Jps };
       return;
     }
 
-    // Compute outlet enthalpy at T_setpoint
-    const outProxy = { type: StreamType.MATERIAL, T: T_setpoint, P: sIn.P,
-      n: { ...sIn.n }, phaseConstraint: sIn.phaseConstraint || 'VL' };
-    const H_setpoint_Jps = thermo.getHdot_Jps(outProxy);
+    // ── Q_demand: enthalpy to reach setpoint (VL for condensation duty) ──
+    const H_setpoint_Jps = hxEnthalpy(
+      { P: sIn.P, n: sIn.n, phaseConstraint: 'VL' }, T_setpoint);
     const Q_demand_W = H_in_Jps - H_setpoint_Jps;  // positive when cooling
 
-    // [v12.8.1] Capacity limit via UA (kW/K)
-    const UA_kW_K = par.UA_kW_K ?? Infinity;
-    const Q_max_W = UA_kW_K < Infinity
-      ? UA_kW_K * 1000 * Math.max(0, sIn.T - T_amb)   // Q_max = UA × (T_in - T_amb)
-      : Infinity;
-    const Q_actual_W = Math.min(Q_demand_W, Q_max_W);
-    const capacityLimited = Q_actual_W < Q_demand_W - 1;
+    // ── Always realistic: ε-NTU with synthetic atmosphere cold side ──
+    // [v12.9.1] WYSIWYG: no ideal mode. Defaults are pilot-plant scale.
+    const UA_W_K       = (par.UA_kW_K ?? 1.0) * 1000;    // default 1 kW/K
+    const airFlow_kgps = par.airFlow_kgps ?? 2.0;         // default 2 kg/s
 
+    // Build synthetic air stream from atmosphere
+    let MW_mean = 0, fracSum = 0;
+    for (const [sp, frac] of Object.entries(atm.air)) {
+      const comp = ComponentRegistry.get(sp);
+      if (comp) { MW_mean += frac * comp.MW; fracSum += frac; }
+    }
+    MW_mean = fracSum > 0 ? MW_mean / fracSum : 28.97;  // g/mol, fallback dry air
+    const n_total = airFlow_kgps / (MW_mean / 1000);     // mol/s
+    const nAir = {};
+    for (const [sp, frac] of Object.entries(atm.air)) {
+      if (ComponentRegistry.exists(sp)) nAir[sp] = frac * n_total;
+    }
+    const sAir = { type: StreamType.MATERIAL, T: T_amb, P: atm.P_Pa,
+                    n: nAir, phaseConstraint: 'V' };
+
+    // ── HEX DNA: capacity rates + ε-NTU (counter-current) ──
+    // Use effective Cp for process side: Q_demand / ΔT includes latent heat.
+    // Standard condenser design practice — single-phase Cp misses phase change.
+    const H_air_in = thermo.getHdot_Jps(sAir);
+    const dT_process = sIn.T - T_setpoint;
+    const C_proc_eff = dT_process > 0.1 ? Q_demand_W / dT_process : thermo.streamCp(sIn);
+    const C_air = thermo.streamCp(sAir);
+    const Cmin = Math.min(C_proc_eff, C_air);
+    const Cmax = Math.max(C_proc_eff, C_air);
+    const Cr = Cmax > 1e-12 ? Cmin / Cmax : 0;
+    const cap = { C_hot: C_proc_eff, C_cold: C_air, Cmin, Cmax, Cr };
+    const ntuResult = hxSolveUaNtu(sIn, sAir, H_in_Jps, H_air_in, cap, UA_W_K);
+
+    let Q_actual_W, ntuDiag = null;
+
+    if (ntuResult.error) {
+      // Fallback: if NTU solver fails (e.g. zero Cp), pass through
+      Q_actual_W = 0;
+      u.last = { T_in_K: sIn.T, T_setpoint_K: T_setpoint, T_ambient_K: T_amb,
+        Q_rejected_W: 0, error: ntuResult.error };
+      ports.mat_out = { type: StreamType.MATERIAL, P: sIn.P, n: { ...sIn.n },
+        phaseConstraint: 'VL', H_target_Jps: H_in_Jps };
+      return;
+    }
+
+    // Cap at Q_demand — don't cool below setpoint
+    Q_actual_W = Math.min(Q_demand_W, Math.max(0, ntuResult.Q_W));
+    ntuDiag = {
+      NTU: ntuResult.diag?.NTU, epsilon: ntuResult.diag?.epsilon,
+      Cr: ntuResult.diag?.Cr, Cmin: ntuResult.diag?.Cmin, Cmax: ntuResult.diag?.Cmax,
+      Qmax_W: ntuResult.diag?.Qmax_W,
+      C_air: cap.C_cold, C_process: cap.C_hot,
+      T_air_out_est: ntuResult.T_cold_out_est,
+      airFlow_kgps, UA_kW_K: UA_W_K / 1000,
+      warnings: ntuResult.warnings
+    };
+
+    const capacityLimited = Q_actual_W < Q_demand_W - 1;
     const H_out_Jps = H_in_Jps - Q_actual_W;
 
-    // Outlet stream — PH-flash
+    // ── Outlet stream — PH-flash (same pattern as HEX) ──
     ports.mat_out = {
       type: StreamType.MATERIAL,
       P: sIn.P,
@@ -8367,15 +8453,20 @@ UnitRegistry.register('air_cooler', {
       T_ambient_K: T_amb,
       Q_rejected_W: Q_actual_W,
       Q_demand_W,
-      Q_max_W: Q_max_W < Infinity ? Q_max_W : undefined,
       capacityLimited,
       H_in_kW: (H_in_Jps / 1000).toFixed(2),
-      H_out_kW: (H_out_Jps / 1000).toFixed(2)
+      H_out_kW: (H_out_Jps / 1000).toFixed(2),
+      ntu: ntuDiag
     };
 
     if (capacityLimited) {
       u.last.error = { severity: ErrorSeverity.MINOR,
-        message: `Capacity-limited: ${(Q_actual_W/1000).toFixed(1)} / ${(Q_demand_W/1000).toFixed(1)} kW (UA = ${UA_kW_K} kW/K)` };
+        message: `Capacity-limited: ${(Q_actual_W/1000).toFixed(1)} / ${(Q_demand_W/1000).toFixed(1)} kW` +
+          (ntuDiag ? ` (ε=${ntuDiag.epsilon?.toFixed(2)}, NTU=${ntuDiag.NTU?.toFixed(1)})` : '') };
+    }
+    if (ntuDiag?.warnings?.length && !u.last.error) {
+      u.last.error = { severity: ErrorSeverity.WARNING,
+        message: ntuDiag.warnings[0] };
     }
   }
 });
@@ -13327,7 +13418,9 @@ function drawUnits() {
     } else {
       iconName = def.defId;
       if (def.defId === 'grid_supply') {
-        iconName = 'electrical';   // [v10.0.4] lightning bolt (was ico-grid_supply)
+        iconName = 'grid_supply';  // [v12.9.2] was 'electrical' but ico-electrical deleted in v12.0.0
+      } else if (def.defId === 'electric_heater') {
+        iconName = 'heater';       // [v12.9.2] renamed unit, icon kept as ico-heater
       } else if (def.defId === 'source') {
         iconName = 'source';
       } else if (def.defId === 'source_air') {
@@ -16312,8 +16405,8 @@ UnitInspector.electric_heater = {
     const items = [
       { label: 'Mode', type: 'select',
         options: [
-          { value: 'T_setpoint', label: 'Temperature setpoint' },
-          { value: 'power_setpoint', label: 'Power setpoint' }
+          ['T_setpoint', 'Temperature setpoint'],
+          ['power_setpoint', 'Power setpoint']
         ],
         get: () => mode,
         set: v => u.params.mode = v }
@@ -16325,7 +16418,7 @@ UnitInspector.electric_heater = {
         step: 1, decimals: us.temperature.decimals, validate: { gt: 0 } });
     } else {
       items.push({ label: 'Power (kW)',
-        get: () => u.params.power_kW ?? 0,
+        get: () => u.params.power_kW ?? 10,
         set: v => u.params.power_kW = Math.max(0, v),
         step: 1, decimals: 1, validate: { gte: 0 } });
     }
@@ -16373,16 +16466,23 @@ UnitInspector.air_cooler = {
         set: v => u.params.T_out = us.temperature.to(v),
         step: 1, decimals: us.temperature.decimals, validate: { gt: 0 } },
       { label: 'UA capacity (kW/K)',
-        get: () => u.params.UA_kW_K ?? '',
-        set: v => u.params.UA_kW_K = (v === '' || v === 0) ? undefined : Math.max(0, v),
-        step: 0.1, decimals: 1, placeholder: '∞ (unlimited)' },
-      { type: 'info', html: `Ambient: ${(atm.T_K - 273.15).toFixed(1)}°C (${atm.presetName})<br><span style="opacity:0.5">T<sub>out</sub> ≥ T<sub>ambient</sub> required</span>` }
+        get: () => u.params.UA_kW_K ?? 1.0,
+        set: v => u.params.UA_kW_K = Math.max(0.001, v),
+        step: 0.1, decimals: 1, min: 0.001 },
+      { label: 'Air flow (kg/s)',
+        get: () => u.params.airFlow_kgps ?? 2.0,
+        set: v => u.params.airFlow_kgps = Math.max(0.01, v),
+        step: 0.1, decimals: 1, min: 0.01 },
+      { type: 'info', html: `Ambient: ${(atm.T_K - 273.15).toFixed(1)}°C, ${(atm.P_Pa/1000).toFixed(1)} kPa (${atm.presetName})<br><span style="opacity:0.5">T<sub>out</sub> ≥ T<sub>ambient</sub> required</span>` }
     ];
   },
   power(u, ud) {
-    if (!ud?.last?.Q_rejected_W) return [];
-    const items = [{ label: 'Q rejected', value: fmt.kW(ud.last.Q_rejected_W), tone: 'info' }];
-    if (ud.last.Q_max_W != null) items.push({ label: 'Q max (UA)', value: fmt.kW(ud.last.Q_max_W), tone: ud.last.capacityLimited ? 'warn' : '' });
+    if (!ud?.last?.Q_rejected_W && ud?.last?.Q_rejected_W !== 0) return [];
+    const items = [
+      { label: 'Q rejected', value: fmt.kW(ud.last.Q_rejected_W), tone: 'info' },
+      { label: 'Q demand', value: fmt.kW(ud.last.Q_demand_W), tone: '' }
+    ];
+    if (ud.last.ntu?.Qmax_W != null) items.push({ label: 'Q max (ε-NTU)', value: fmt.kW(ud.last.ntu.Qmax_W), tone: ud.last.capacityLimited ? 'warn' : '' });
     return items;
   },
   kpis(u, ud) {
@@ -16397,6 +16497,22 @@ UnitInspector.air_cooler = {
       const dev = Math.abs(us.temperature.from(matOut.T) - us.temperature.from(ud.last.T_setpoint_K));
       items.push({ label: 'T actual', value: fmt.T(matOut.T), tone: dev > 1 ? 'warn' : 'good' });
     }
+    if (ud.last.ntu?.epsilon != null) {
+      items.push({ label: 'Effectiveness', value: `${(ud.last.ntu.epsilon*100).toFixed(1)}%`,
+        tone: ud.last.capacityLimited ? 'warn' : 'good' });
+    }
+    return items;
+  },
+  detail(u, ud) {
+    if (!ud?.last?.ntu) return [];
+    const n = ud.last.ntu;
+    const items = [];
+    if (n.epsilon != null) items.push({ label: 'Effectiveness ε', value: `${(n.epsilon*100).toFixed(1)}<span class="u">%</span>` });
+    if (n.NTU != null) items.push({ label: 'NTU', value: n.NTU.toFixed(2) });
+    if (n.Cr != null) items.push({ label: 'C ratio', value: n.Cr.toFixed(3) });
+    if (n.C_process != null) items.push({ label: 'C process', value: `${(n.C_process/1000).toFixed(2)}<span class="u">kW/K</span>` });
+    if (n.C_air != null) items.push({ label: 'C air', value: `${(n.C_air/1000).toFixed(2)}<span class="u">kW/K</span>` });
+    if (n.T_air_out_est != null) items.push({ label: 'T air out', value: fmt.T(n.T_air_out_est) });
     return items;
   }
 };
@@ -18548,7 +18664,7 @@ function loadDemo() {
 
   scene.importJSON(JSON.stringify({
     version: 14,
-    processName: 'Sabatier + Brayton + SMR + Pump Demo (v11.0.0)',
+    processName: 'Sabatier + Brayton + SMR + Pump Demo (v12.9.3)',
     grid: { w: 54, h: 42, tile: 48 },
     solverOptions: { maxIter: 200 },
     units: [
@@ -18565,7 +18681,8 @@ function loadDemo() {
           { section: 'power', label: 'ΔT' },
           { section: 'reaction', label: 'Conversion' }
         ]}},
-      { id: 'cool', defId: 'air_cooler', name: 'Cooler', x: 12, y: 4, rot: 0, params: { T_out: 323.15 } },
+      { id: 'cool', defId: 'air_cooler', name: 'Cooler', x: 12, y: 4, rot: 0,
+        params: { T_out: 323.15, UA_kW_K: 5, airFlow_kgps: 10 } },
       { id: 'flash', defId: 'flash_drum', name: 'Flash Drum', x: 16, y: 4, rot: 0, params: {} },
       { id: 'split', defId: 'splitter', name: 'Purge/Recycle', x: 20, y: 3, rot: 0,
         params: { splitPct: 15, variant: 'top-recycle' } },
@@ -18720,7 +18837,7 @@ function loadDemo() {
   ui.selectedConnId = null;
   ui.pendingFrom = null;
   ui.reconnecting = null;
-  scene.processName = 'Sabatier + Brayton + SMR + Pump Demo (v11.0.0)';
+  scene.processName = 'Sabatier + Brayton + SMR + Pump Demo (v12.9.3)';
   document.getElementById('processNameInput').value = scene.processName;
   buildModelsPanel();
   const solveResult = solveScene(scene);
@@ -22801,7 +22918,7 @@ function runTests() {
     const rx    = t.place('reactor_equilibrium', 8, 0, {
       reactionId: 'R_SABATIER', useKinetics: true, volume_m3: 2.0
     });
-    const cool  = t.place('air_cooler', 12, 0, { T_out: 323.15 });
+    const cool  = t.place('air_cooler', 12, 0, { T_out: 323.15, UA_kW_K: 5, airFlow_kgps: 10 });
     const flash = t.place('flash_drum', 16, 0, {});
     const split = t.place('splitter', 20, 0, { splitPct: 15 });
     const snkCH4 = t.place('sink', 24, 0, {});
@@ -23252,7 +23369,7 @@ function runTests() {
     const rx    = t.place('reactor_equilibrium', 8, 0, {
       reactionId: 'R_SABATIER', alpha: 1.0, useKinetics: false, volume_m3: 1.0
     });
-    const cool  = t.place('air_cooler', 12, 0, { T_out: 323.15 });
+    const cool  = t.place('air_cooler', 12, 0, { T_out: 323.15, UA_kW_K: 5, airFlow_kgps: 10 });
     const flash = t.place('flash_drum', 16, 0, {});
     const split = t.place('splitter', 20, 0, { splitPct: 15 });
     const snkCH4 = t.place('sink', 24, 0, {});
@@ -25668,7 +25785,8 @@ function runTests() {
   tests.push({ name: '227: NH3 condensation — vapor cooled to subcooled liquid', fn: t => {
     const src = t.place('source', 0, 0, { species: 'NH3', nDot: 1, T: 350, P: 1000000, phaseConstraint: 'VL' });
     // [v12.8.0] air_cooler replaces cooler+sink_heat
-    const clr = t.place('air_cooler', 3, 0, { T_out: 293 });
+    // [v12.9.1] Explicit sizing — this test validates condensation, not cooler capacity
+    const clr = t.place('air_cooler', 3, 0, { T_out: 293, UA_kW_K: 10, airFlow_kgps: 20 });
     const snk = t.place('sink', 6, 0);
     t.wire(src, 'out', clr, 'mat_in');
     t.wire(clr, 'mat_out', snk, 'in');
@@ -27344,24 +27462,29 @@ function runTests() {
     t.solve();
     const last = t.last(clr);
     t.assertOK(last.capacityLimited, 'Capacity-limited');
-    t.assertOK(last.Q_max_W != null, 'Q_max reported');
+    t.assertOK(last.ntu?.Qmax_W != null, 'Q_max reported (ε-NTU)');
     t.assertOK(last.Q_rejected_W < last.Q_demand_W, 'Q_rejected < Q_demand');
     t.assertOK(last.error?.severity === ErrorSeverity.MINOR, 'MINOR capacity-limited error');
+    t.assertOK(last.ntu?.epsilon < 1, 'ε < 1 (undersized)');
     // T_out should be well above setpoint
     const out = t.port(clr, 'mat_out');
     t.assertOK(out.T > 310 + 50, 'T_out >> setpoint (UA-limited)', `T=${out.T.toFixed(0)}K`);
   }});
 
-  tests.push({ name: '309: Air cooler — no UA (default) → unlimited capacity', fn: t => {
+  tests.push({ name: '309: Air cooler — default UA/airFlow (pilot-plant)', fn: t => {
     t.clearScene();
     const src = t.place('source', 0, 0, { species: 'N2', nDot: 1, T: 600, P: 101325, phaseConstraint: 'V' });
-    const clr = t.place('air_cooler', 4, 0, { T_out: 310 });  // no UA → unlimited
+    const clr = t.place('air_cooler', 4, 0, { T_out: 310 });  // defaults: UA=1 kW/K, airFlow=2 kg/s
     const snk = t.place('sink', 8, 0);
     t.wire(src, 'out', clr, 'mat_in'); t.wire(clr, 'mat_out', snk, 'in');
     t.solve();
     const last = t.last(clr);
-    t.assertOK(!last.capacityLimited, 'Not capacity-limited');
-    t.assertOK(last.Q_max_W == null, 'No Q_max (unlimited)');
+    // With 1 mol/s N2 (C_proc ~ 0.03 kW/K), defaults are generous → hits setpoint
+    t.assertOK(!last.capacityLimited, 'Not capacity-limited at defaults');
+    t.assertOK(last.ntu != null, 'NTU diagnostics present');
+    t.assertOK(last.ntu.epsilon > 0.99, 'ε ≈ 1 (generous defaults for small flow)');
+    t.assertOK(last.ntu.UA_kW_K === 1.0, 'Default UA = 1 kW/K');
+    t.assertOK(last.ntu.airFlow_kgps === 2.0, 'Default airFlow = 2 kg/s');
     const out = t.port(clr, 'mat_out');
     t.assertClose(out.T, 310, 5, 'T_out ≈ setpoint');
   }});
@@ -27576,6 +27699,115 @@ function runTests() {
     const tolerance = Math.max(Math.abs(bal.energy.totalIn), Math.abs(bal.energy.totalOut)) * 0.01;
     t.assertClose(bal.energy.totalIn, bal.energy.totalOut, tolerance,
       'Total energy in ≈ out');
+  }});
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // SECTION: v12.9.2 — Air Cooler T_amb Floor + Capacity Tests (317–319)
+  // ═══════════════════════════════════════════════════════════════════════
+
+  tests.push({ name: '317: Air cooler — T_amb floor on Earth and Planet X', fn: t => {
+    // Earth: T_amb = 288.15 K (15°C). Setpoint at T_amb OK, below errors.
+    t.clearScene();
+    const atm0 = SimSettings.getAtmosphere();
+    t.assertClose(atm0.T_K, 288.15, 1, 'Earth T_amb ≈ 288 K');
+
+    const src = t.place('source', 0, 0, { species: 'N2', nDot: 1, T: 400, P: 101325, phaseConstraint: 'V' });
+    const clr = t.place('air_cooler', 4, 0, { T_out: 288.15, UA_kW_K: 10, airFlow_kgps: 20 });
+    const snk = t.place('sink', 8, 0);
+    t.wire(src, 'out', clr, 'mat_in'); t.wire(clr, 'mat_out', snk, 'in');
+    t.solve();
+    const last = t.last(clr);
+    // At setpoint = T_amb: should work (no 2nd law violation)
+    t.assertOK(!last.error || last.error.severity !== ErrorSeverity.MAJOR,
+      'Earth: setpoint = T_amb → no MAJOR error');
+    const out = t.port(clr, 'mat_out');
+    t.assertOK(out.T >= 288.15 - 1, 'Earth: T_out ≥ T_amb (2nd law)', `T=${out.T.toFixed(1)}K`);
+
+    // Now setpoint below T_amb → MAJOR
+    t.clearScene();
+    const src2 = t.place('source', 0, 0, { species: 'N2', nDot: 1, T: 400, P: 101325, phaseConstraint: 'V' });
+    const clr2 = t.place('air_cooler', 4, 0, { T_out: 270, UA_kW_K: 10, airFlow_kgps: 20 });
+    const snk2 = t.place('sink', 8, 0);
+    t.wire(src2, 'out', clr2, 'mat_in'); t.wire(clr2, 'mat_out', snk2, 'in');
+    t.solve();
+    const last2 = t.last(clr2);
+    t.assertOK(last2.error?.severity === ErrorSeverity.MAJOR, 'Earth: setpoint < T_amb → MAJOR');
+    t.assertOK(last2.Q_rejected_W === 0, 'Earth: Q_rejected = 0 (blocked)');
+
+    // Switch to Planet X: T_amb = 305.15 K (32°C)
+    const prevPreset = SimSettings.getPresetKey();
+    SimSettings.setAtmosphere('planet_x');
+    const atmX = SimSettings.getAtmosphere();
+    t.assertClose(atmX.T_K, 305.15, 1, 'Planet X T_amb ≈ 305 K');
+
+    t.clearScene();
+    // Setpoint 300 K < 305.15 K → should be blocked
+    const src3 = t.place('source', 0, 0, { species: 'N2', nDot: 1, T: 500, P: 101325, phaseConstraint: 'V' });
+    const clr3 = t.place('air_cooler', 4, 0, { T_out: 300, UA_kW_K: 10, airFlow_kgps: 20 });
+    const snk3 = t.place('sink', 8, 0);
+    t.wire(src3, 'out', clr3, 'mat_in'); t.wire(clr3, 'mat_out', snk3, 'in');
+    t.solve();
+    const last3 = t.last(clr3);
+    t.assertOK(last3.error?.severity === ErrorSeverity.MAJOR,
+      'Planet X: 300K < T_amb(305K) → MAJOR');
+
+    // Setpoint 310 K > 305.15 K → should work
+    t.clearScene();
+    const src4 = t.place('source', 0, 0, { species: 'N2', nDot: 1, T: 500, P: 101325, phaseConstraint: 'V' });
+    const clr4 = t.place('air_cooler', 4, 0, { T_out: 310, UA_kW_K: 10, airFlow_kgps: 20 });
+    const snk4 = t.place('sink', 8, 0);
+    t.wire(src4, 'out', clr4, 'mat_in'); t.wire(clr4, 'mat_out', snk4, 'in');
+    t.solve();
+    const last4 = t.last(clr4);
+    t.assertOK(!last4.error || last4.error.severity !== ErrorSeverity.MAJOR,
+      'Planet X: 310K > T_amb(305K) → no MAJOR');
+    const out4 = t.port(clr4, 'mat_out');
+    t.assertOK(out4.T >= 305 - 1, 'Planet X: T_out ≥ T_amb', `T=${out4.T.toFixed(1)}K`);
+
+    // Restore atmosphere
+    SimSettings.setAtmosphere(prevPreset);
+  }});
+
+  tests.push({ name: '318: Air cooler — UA-only capacity limiting (large airFlow)', fn: t => {
+    // Large airFlow (100 kg/s) so air side is never the bottleneck.
+    // Tiny UA (0.01 kW/K) → ε << 1, capacity-limited by exchanger size.
+    t.clearScene();
+    const src = t.place('source', 0, 0, { species: 'N2', nDot: 10, T: 600, P: 101325, phaseConstraint: 'V' });
+    const clr = t.place('air_cooler', 4, 0, { T_out: 310, UA_kW_K: 0.01, airFlow_kgps: 100 });
+    const snk = t.place('sink', 8, 0);
+    t.wire(src, 'out', clr, 'mat_in'); t.wire(clr, 'mat_out', snk, 'in');
+    t.solve();
+    const last = t.last(clr);
+    t.assertOK(last.capacityLimited, 'Capacity-limited');
+    t.assertOK(last.ntu?.epsilon < 0.5, 'ε < 0.5 (UA bottleneck)', `ε=${last.ntu?.epsilon?.toFixed(3)}`);
+    // With unlimited air, Cr → 0, so NTU alone controls ε
+    t.assertOK(last.ntu?.Cr < 0.05, 'Cr ≈ 0 (air >> process)', `Cr=${last.ntu?.Cr?.toFixed(4)}`);
+    const out = t.port(clr, 'mat_out');
+    t.assertOK(out.T > 310 + 100, 'T_out >> setpoint (UA-limited)', `T=${out.T.toFixed(0)}K`);
+  }});
+
+  tests.push({ name: '319: Air cooler — airFlow-only capacity limiting (large UA)', fn: t => {
+    // Large UA (100 kW/K) so exchanger is never the bottleneck.
+    // Tiny airFlow (0.05 kg/s) → air saturates, C_air << C_process.
+    t.clearScene();
+    const src = t.place('source', 0, 0, { species: 'N2', nDot: 10, T: 600, P: 101325, phaseConstraint: 'V' });
+    const clr = t.place('air_cooler', 4, 0, { T_out: 310, UA_kW_K: 100, airFlow_kgps: 0.05 });
+    const snk = t.place('sink', 8, 0);
+    t.wire(src, 'out', clr, 'mat_in'); t.wire(clr, 'mat_out', snk, 'in');
+    t.solve();
+    const last = t.last(clr);
+    t.assertOK(last.capacityLimited, 'Capacity-limited');
+    // ε should be high (large NTU) but Q capped by C_air × ΔT
+    t.assertOK(last.ntu?.epsilon > 0.9, 'ε ≈ 1 (large NTU)', `ε=${last.ntu?.epsilon?.toFixed(3)}`);
+    // Air exits very hot — near process inlet T
+    t.assertOK(last.ntu?.T_air_out_est > 500, 'Air saturated (T_air_out >> T_amb)',
+      `T_air=${last.ntu?.T_air_out_est?.toFixed(0)}K`);
+    // C_air is the bottleneck
+    t.assertOK(last.ntu?.C_air < last.ntu?.C_process,
+      'C_air < C_process (fan bottleneck)',
+      `C_air=${(last.ntu?.C_air/1000).toFixed(2)} C_proc=${(last.ntu?.C_process/1000).toFixed(2)} kW/K`);
+    const out = t.port(clr, 'mat_out');
+    t.assertOK(out.T > 310 + 50, 'T_out >> setpoint (airFlow-limited)', `T=${out.T.toFixed(0)}K`);
   }});
 
   // ═══════════════════════════════════════════════════════════════════════
