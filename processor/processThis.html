@@ -245,6 +245,16 @@
            T290 updated: ghost elec_in stripping.  New: T301 isPowerStreamType,
            T302 NNG sentinel (asserts NNG-1–NNG-17 in source), T303 deleted
            unit registry gate.  NNG title: "Non-negotiables (NNG)".
+  v12.8.1  Electric heater rename + dual mode + air cooler capacity.
+           Heater renamed to electric_heater (defId, inspector, all tests,
+           demo scene, default params).  Display name: Electric Heater.
+           Two modes: T_setpoint (default, compute Q from ΔH) and
+           power_setpoint (user sets kW, T_out is consequence).  Both
+           modes curtail gracefully on insufficient power supply.
+           Air cooler: UA_kW_K parameter for capacity limiting.
+           Q_max = UA × (T_in − T_amb).  Default: unlimited (Infinity).
+           When Q limited, T_out > setpoint + MINOR warning.
+           New: T304–T310 (7 tests).
 
   ─── v11.2.0 — NIST Shomate Transition ──────────────────────────────────
   Replaces ad-hoc Cpig power polynomial with NIST Shomate equation for all
@@ -6876,6 +6886,8 @@ class UnitRegistry {
   static list() { 
     return Array.from(this._defs.values()); 
   }
+
+  static exists(id) { return this._defs.has(id); }  // [v12.8.1]
   
   static listByCategory(opts = {}) {
     const byCategory = {};
@@ -8100,13 +8112,15 @@ UnitRegistry.register('compressor', {
   }
 });
 
-// Heater - Inline electric process heater [v12.5.0]
-// User specifies T_out setpoint; unit computes Q_demand = ΔH and draws
-// electrical power from grid.  If curtailed, T_out degrades proportionally.
+// Electric Heater - Inline electric process heater [v12.5.0] [v12.8.1]
+// Two modes:
+//   T_setpoint (default): User specifies T_out; unit computes Q_demand = ΔH.
+//                         Curtails if power supply insufficient.
+//   power_setpoint:       User specifies power_kW; T_out is consequence.
+//                         Curtails if power supply < setpoint.
 // Analogous to compressor (user specifies P_out, unit computes W).
-// Replaces the old heater+electric_heater two-unit pattern.
-UnitRegistry.register('heater', {
-  name: 'Heater',
+UnitRegistry.register('electric_heater', {
+  name: 'Electric Heater',
   category: UnitCategories.HEAT_TRANSFER,
   w: 2,
   h: 2,
@@ -8130,70 +8144,86 @@ UnitRegistry.register('heater', {
       return;
     }
 
-    const T_setpoint = par.T_out ?? (sIn.T + 50);
+    const mode = par.mode || 'T_setpoint';
 
-    // Guard: cannot cool — use air_cooler
-    if (T_setpoint < sIn.T - 0.01) {
-      u.powerDemand = 0;
-      ports.mat_out = { type: StreamType.MATERIAL, P: sIn.P, n: { ...sIn.n },
-        phaseConstraint: 'VL', H_target_Jps: H_in_Jps };
-      u.last = { T_in_K: sIn.T, T_setpoint_K: T_setpoint, Q_demand_W: 0, Q_actual_W: 0,
-        error: { severity: ErrorSeverity.MAJOR,
-          message: `Setpoint ${(T_setpoint-273.15).toFixed(1)}°C < inlet ${(sIn.T-273.15).toFixed(1)}°C — use an air cooler` } };
-      return;
-    }
-
-    // Compute Q needed for setpoint
-    const outProxy = { type: StreamType.MATERIAL, T: T_setpoint, P: sIn.P,
-      n: { ...sIn.n }, phaseConstraint: sIn.phaseConstraint || 'VL' };
-    const H_setpoint_Jps = thermo.getHdot_Jps(outProxy);
-    const Q_demand_W = Math.max(0, H_setpoint_Jps - H_in_Jps);
-
-    u.powerDemand = Q_demand_W;
-
-    // No electrical supply → passthrough
+    // ── No electrical supply → passthrough (both modes) ──
     const sElec = ports.elec_in;
     if (!sElec) {
+      u.powerDemand = mode === 'power_setpoint' ? (par.power_kW ?? 0) * 1000 : 0;
       ports.mat_out = { type: StreamType.MATERIAL, P: sIn.P, n: { ...sIn.n },
         phaseConstraint: 'VL', H_target_Jps: H_in_Jps };
-      u.last = { T_in_K: sIn.T, T_setpoint_K: T_setpoint,
-        Q_demand_W, Q_actual_W: 0, curtailed: true,
-        H_in_kW: (H_in_Jps / 1000).toFixed(2),
-        H_out_kW: (H_in_Jps / 1000).toFixed(2),
+      u.last = { mode, T_in_K: sIn.T, Q_demand_W: 0, Q_actual_W: 0, curtailed: true,
+        H_in_kW: (H_in_Jps / 1000).toFixed(2), H_out_kW: (H_in_Jps / 1000).toFixed(2),
         error: { severity: ErrorSeverity.MAJOR,
           message: 'No electrical supply connected — fluid passes through unheated' } };
       return;
     }
 
-    // Hub allocation (same pattern as compressor)
+    // Hub allocation
     const s = ctx ? ctx.scratch : {};
     const W_avail = s.hubAllocated_W ?? (sElec.actual ?? sElec.available ?? Infinity);
-    const Q_actual_W = Math.min(Q_demand_W, W_avail);
-    const curtailed = Q_actual_W < Q_demand_W - 1;
 
-    const H_out_Jps = H_in_Jps + Q_actual_W;
+    if (mode === 'power_setpoint') {
+      // ── POWER SETPOINT MODE ──
+      const Q_setpoint_W = (par.power_kW ?? 0) * 1000;
+      u.powerDemand = Q_setpoint_W;
+      const Q_actual_W = Math.min(Q_setpoint_W, W_avail);
+      const curtailed = Q_actual_W < Q_setpoint_W - 1;
 
-    ports.mat_out = {
-      type: StreamType.MATERIAL,
-      P: sIn.P,
-      n: { ...sIn.n },
-      phaseConstraint: 'VL',
-      H_target_Jps: H_out_Jps
-    };
+      // Guard: Q must be non-negative (cannot cool)
+      const Q_applied = Math.max(0, Q_actual_W);
+      const H_out_Jps = H_in_Jps + Q_applied;
 
-    u.last = {
-      T_in_K: sIn.T,
-      T_setpoint_K: T_setpoint,
-      Q_demand_W,
-      Q_actual_W,
-      curtailed,
-      H_in_kW: (H_in_Jps / 1000).toFixed(2),
-      H_out_kW: (H_out_Jps / 1000).toFixed(2)
-    };
+      ports.mat_out = { type: StreamType.MATERIAL, P: sIn.P, n: { ...sIn.n },
+        phaseConstraint: 'VL', H_target_Jps: H_out_Jps };
 
-    if (curtailed) {
-      u.last.error = { severity: ErrorSeverity.MINOR,
-        message: `Power-limited: ${(Q_actual_W/1000).toFixed(1)} / ${(Q_demand_W/1000).toFixed(1)} kW` };
+      u.last = { mode, T_in_K: sIn.T, Q_setpoint_W, Q_actual_W: Q_applied, curtailed,
+        H_in_kW: (H_in_Jps / 1000).toFixed(2), H_out_kW: (H_out_Jps / 1000).toFixed(2) };
+
+      if (curtailed) {
+        u.last.error = { severity: ErrorSeverity.MINOR,
+          message: `Power-limited: ${(Q_applied/1000).toFixed(1)} / ${(Q_setpoint_W/1000).toFixed(1)} kW` };
+      }
+
+    } else {
+      // ── T SETPOINT MODE (default) ──
+      const T_setpoint = par.T_out ?? (sIn.T + 50);
+
+      // Guard: cannot cool — use air_cooler
+      if (T_setpoint < sIn.T - 0.01) {
+        u.powerDemand = 0;
+        ports.mat_out = { type: StreamType.MATERIAL, P: sIn.P, n: { ...sIn.n },
+          phaseConstraint: 'VL', H_target_Jps: H_in_Jps };
+        u.last = { mode, T_in_K: sIn.T, T_setpoint_K: T_setpoint, Q_demand_W: 0, Q_actual_W: 0,
+          error: { severity: ErrorSeverity.MAJOR,
+            message: `Setpoint ${(T_setpoint-273.15).toFixed(1)}°C < inlet ${(sIn.T-273.15).toFixed(1)}°C — use an air cooler` } };
+        return;
+      }
+
+      // Compute Q needed for setpoint
+      const outProxy = { type: StreamType.MATERIAL, T: T_setpoint, P: sIn.P,
+        n: { ...sIn.n }, phaseConstraint: sIn.phaseConstraint || 'VL' };
+      const H_setpoint_Jps = thermo.getHdot_Jps(outProxy);
+      const Q_demand_W = Math.max(0, H_setpoint_Jps - H_in_Jps);
+
+      u.powerDemand = Q_demand_W;
+
+      const Q_actual_W = Math.min(Q_demand_W, W_avail);
+      const curtailed = Q_actual_W < Q_demand_W - 1;
+
+      const H_out_Jps = H_in_Jps + Q_actual_W;
+
+      ports.mat_out = { type: StreamType.MATERIAL, P: sIn.P, n: { ...sIn.n },
+        phaseConstraint: 'VL', H_target_Jps: H_out_Jps };
+
+      u.last = { mode, T_in_K: sIn.T, T_setpoint_K: T_setpoint,
+        Q_demand_W, Q_actual_W, curtailed,
+        H_in_kW: (H_in_Jps / 1000).toFixed(2), H_out_kW: (H_out_Jps / 1000).toFixed(2) };
+
+      if (curtailed) {
+        u.last.error = { severity: ErrorSeverity.MINOR,
+          message: `Power-limited: ${(Q_actual_W/1000).toFixed(1)} / ${(Q_demand_W/1000).toFixed(1)} kW` };
+      }
     }
   }
 });
@@ -8201,13 +8231,17 @@ UnitRegistry.register('heater', {
 // [v12.6.0] Cooler deleted — replaced by air_cooler (ambient heat rejection, no HEAT port).
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// AIR COOLER — Ambient heat rejection [v12.4.0]
+// AIR COOLER — Ambient heat rejection [v12.4.0] [v12.8.1]
 // ═══════════════════════════════════════════════════════════════════════════════
 // Physically-grounded replacement for cooler (which required a heat_out port).
 // Cools process stream toward T_setpoint by rejecting heat to ambient air.
 // 2nd-law enforcement: T_setpoint ≥ T_ambient.  No heat port — rejected heat
 // appears in Q_rejected_W diagnostic for system energy balance accounting.
 // dP = 0.  Outlet via H_target_Jps for PH-flash.
+//
+// [v12.8.1] Capacity mechanism: par.UA_kW_K (kW/K) limits cooling duty.
+//   Q_max = UA × (T_in - T_amb).  Default: Infinity (no limit).
+//   When Q_demand > Q_max, T_out > setpoint (capacity-limited) with MINOR.
 UnitRegistry.register('air_cooler', {
   name: 'Air Cooler',
   category: UnitCategories.HEAT_TRANSFER,
@@ -8244,7 +8278,6 @@ UnitRegistry.register('air_cooler', {
         error: { severity: ErrorSeverity.MAJOR,
           message: `Setpoint ${(T_setpoint-273.15).toFixed(1)}°C < ambient ${(T_amb-273.15).toFixed(1)}°C — violates 2nd law` }
       };
-      // Passthrough
       ports.mat_out = { type: StreamType.MATERIAL, P: sIn.P, n: { ...sIn.n },
         phaseConstraint: sIn.phaseConstraint || 'VL', H_target_Jps: H_in_Jps };
       return;
@@ -8266,8 +8299,18 @@ UnitRegistry.register('air_cooler', {
     // Compute outlet enthalpy at T_setpoint
     const outProxy = { type: StreamType.MATERIAL, T: T_setpoint, P: sIn.P,
       n: { ...sIn.n }, phaseConstraint: sIn.phaseConstraint || 'VL' };
-    const H_out_Jps = thermo.getHdot_Jps(outProxy);
-    const Q_rejected_W = H_in_Jps - H_out_Jps;  // positive when cooling
+    const H_setpoint_Jps = thermo.getHdot_Jps(outProxy);
+    const Q_demand_W = H_in_Jps - H_setpoint_Jps;  // positive when cooling
+
+    // [v12.8.1] Capacity limit via UA (kW/K)
+    const UA_kW_K = par.UA_kW_K ?? Infinity;
+    const Q_max_W = UA_kW_K < Infinity
+      ? UA_kW_K * 1000 * Math.max(0, sIn.T - T_amb)   // Q_max = UA × (T_in - T_amb)
+      : Infinity;
+    const Q_actual_W = Math.min(Q_demand_W, Q_max_W);
+    const capacityLimited = Q_actual_W < Q_demand_W - 1;
+
+    const H_out_Jps = H_in_Jps - Q_actual_W;
 
     // Outlet stream — PH-flash
     ports.mat_out = {
@@ -8282,10 +8325,18 @@ UnitRegistry.register('air_cooler', {
       T_in_K: sIn.T,
       T_setpoint_K: T_setpoint,
       T_ambient_K: T_amb,
-      Q_rejected_W,
+      Q_rejected_W: Q_actual_W,
+      Q_demand_W,
+      Q_max_W: Q_max_W < Infinity ? Q_max_W : undefined,
+      capacityLimited,
       H_in_kW: (H_in_Jps / 1000).toFixed(2),
       H_out_kW: (H_out_Jps / 1000).toFixed(2)
     };
+
+    if (capacityLimited) {
+      u.last.error = { severity: ErrorSeverity.MINOR,
+        message: `Capacity-limited: ${(Q_actual_W/1000).toFixed(1)} / ${(Q_demand_W/1000).toFixed(1)} kW (UA = ${UA_kW_K} kW/K)` };
+    }
   }
 });
 
@@ -9268,8 +9319,8 @@ class Scene {
         unit.params = { Pout: 101325 };   // let down to 1 atm
         break;
       // ── Heat exchange ──
-      case 'heater':
-        unit.params = { T_out: 423.15 };  // 150°C = 423.15 K  [v6.0.0]
+      case 'electric_heater':
+        unit.params = { T_out: 423.15, mode: 'T_setpoint' };  // [v12.8.1] dual mode
         break;
       case 'hex':
         unit.params = { T_approach: 10 }; // 10 K approach
@@ -11007,7 +11058,7 @@ function solveScene(scene, options = {}) {
       const _ud = scene.runtime.unitData.get(_id);
       
       // [v12.6.0] Pump, compressor, heater: direct electrical consumers
-      if (_u.defId === 'pump' || _u.defId === 'compressor' || _u.defId === 'heater') {
+      if (_u.defId === 'pump' || _u.defId === 'compressor' || _u.defId === 'electric_heater') {
           const hasElecIn = scene.connections.some(c => c.to.unitId === _id && c.to.portId === 'elec_in');
           if (!hasElecIn) _ud.powerDemand = 0;
           const _ps = runtimeCtx.scratch(_id);
@@ -16199,21 +16250,38 @@ UnitInspector.gas_turbine = {
 };
 
 // ── Heat Equipment ──
-UnitInspector.heater = {
-  // [v12.5.0] T_setpoint parameter — inline electric process heater
+UnitInspector.electric_heater = {
+  // [v12.8.1] Dual mode: T_setpoint / power_setpoint
   params(u) {
     const us = models.getActive('units');
-    return [
-      { label: `T outlet setpoint (${us.temperature.symbol})`,
+    const mode = u.params.mode || 'T_setpoint';
+    const items = [
+      { label: 'Mode', type: 'select',
+        options: [
+          { value: 'T_setpoint', label: 'Temperature setpoint' },
+          { value: 'power_setpoint', label: 'Power setpoint' }
+        ],
+        get: () => mode,
+        set: v => u.params.mode = v }
+    ];
+    if (mode === 'T_setpoint') {
+      items.push({ label: `T outlet setpoint (${us.temperature.symbol})`,
         get: () => us.temperature.from(u.params.T_out ?? 373.15),
         set: v => u.params.T_out = us.temperature.to(v),
-        step: 1, decimals: us.temperature.decimals, validate: { gt: 0 } }
-    ];
+        step: 1, decimals: us.temperature.decimals, validate: { gt: 0 } });
+    } else {
+      items.push({ label: 'Power (kW)',
+        get: () => u.params.power_kW ?? 0,
+        set: v => u.params.power_kW = Math.max(0, v),
+        step: 1, decimals: 1, validate: { gte: 0 } });
+    }
+    return items;
   },
   power(u, ud) {
     if (!ud?.last) return [];
     const items = [];
     if (ud.last.Q_demand_W != null) items.push({ label: 'Q demand', value: fmt.kW(ud.last.Q_demand_W) });
+    if (ud.last.Q_setpoint_W != null) items.push({ label: 'Q setpoint', value: fmt.kW(ud.last.Q_setpoint_W) });
     if (ud.last.Q_actual_W != null) items.push({ label: 'Q actual', value: fmt.kW(ud.last.Q_actual_W),
       tone: ud.last.curtailed ? 'warn' : '' });
     return items;
@@ -16221,13 +16289,18 @@ UnitInspector.heater = {
   kpis(u, ud) {
     if (!ud?.last) return [];
     const items = [];
+    if (ud.last.mode) items.push({ label: 'Mode', value: ud.last.mode === 'power_setpoint' ? 'Power' : 'T setpoint' });
     if (ud.last.T_in_K) items.push({ label: 'T inlet', value: fmt.T(ud.last.T_in_K) });
     if (ud.last.T_setpoint_K) items.push({ label: 'T setpoint', value: fmt.T(ud.last.T_setpoint_K) });
     const matOut = ud.ports?.mat_out;
     if (matOut?.T) {
       const us = models.getActive('units');
-      const dev = Math.abs(us.temperature.from(matOut.T) - us.temperature.from(ud.last.T_setpoint_K));
-      items.push({ label: 'T actual', value: fmt.T(matOut.T), tone: dev > 1 ? 'warn' : 'good' });
+      if (ud.last.T_setpoint_K) {
+        const dev = Math.abs(us.temperature.from(matOut.T) - us.temperature.from(ud.last.T_setpoint_K));
+        items.push({ label: 'T actual', value: fmt.T(matOut.T), tone: dev > 1 ? 'warn' : 'good' });
+      } else {
+        items.push({ label: 'T actual', value: fmt.T(matOut.T) });
+      }
     }
     return items;
   }
@@ -16235,7 +16308,7 @@ UnitInspector.heater = {
 
 // [v12.6.0] cooler inspector deleted — replaced by air_cooler
 
-// [v12.4.0] Air cooler inspector
+// [v12.4.0] [v12.8.1] Air cooler inspector
 UnitInspector.air_cooler = {
   params(u) {
     const us = models.getActive('units');
@@ -16245,12 +16318,18 @@ UnitInspector.air_cooler = {
         get: () => us.temperature.from(u.params.T_out ?? (atm.T_K + 10)),
         set: v => u.params.T_out = us.temperature.to(v),
         step: 1, decimals: us.temperature.decimals, validate: { gt: 0 } },
+      { label: 'UA capacity (kW/K)',
+        get: () => u.params.UA_kW_K ?? '',
+        set: v => u.params.UA_kW_K = (v === '' || v === 0) ? undefined : Math.max(0, v),
+        step: 0.1, decimals: 1, placeholder: '∞ (unlimited)' },
       { type: 'info', html: `Ambient: ${(atm.T_K - 273.15).toFixed(1)}°C (${atm.presetName})<br><span style="opacity:0.5">T<sub>out</sub> ≥ T<sub>ambient</sub> required</span>` }
     ];
   },
   power(u, ud) {
     if (!ud?.last?.Q_rejected_W) return [];
-    return [{ label: 'Q rejected', value: fmt.kW(ud.last.Q_rejected_W), tone: 'info' }];
+    const items = [{ label: 'Q rejected', value: fmt.kW(ud.last.Q_rejected_W), tone: 'info' }];
+    if (ud.last.Q_max_W != null) items.push({ label: 'Q max (UA)', value: fmt.kW(ud.last.Q_max_W), tone: ud.last.capacityLimited ? 'warn' : '' });
+    return items;
   },
   kpis(u, ud) {
     if (!ud?.last?.T_setpoint_K) return [];
@@ -18465,7 +18544,7 @@ function loadDemo() {
       { id: 'a-hgrid', defId: 'grid_supply', name: 'Fuel 30kW', x: 13, y: -7, rot: 0,
         params: { maxPower: 30 } },
 
-      { id: 'a-heat', defId: 'heater', name: 'Combustor', x: 17, y: -3, rot: 0,
+      { id: 'a-heat', defId: 'electric_heater', name: 'Combustor', x: 17, y: -3, rot: 0,
         params: { T_out: 1200 },
         sticker: { dx: 3, dy: -2, items: [
           { section: 'power', label: 'Q demand' }
@@ -19010,7 +19089,7 @@ function runTests() {
     t.assertOK(Q_exact_kW / Q_Cp_kW > 5, 'Q_exact/Q_Cp > 5');
     // Integration test: heater T_out mode
     const src = t.place('source', 0, 0, { species:'H2O', nDot:1, T:363.15, P:101325, phaseConstraint:'VL' });
-    const htr = t.place('heater', 3, 0);  // [v11.0.0] no T_out param
+    const htr = t.place('electric_heater', 3, 0);  // [v11.0.0] no T_out param
     const snk = t.place('sink', 6, 0);
     t.wire(src,'out', htr,'mat_in'); t.wire(htr,'mat_out', snk,'in');
     t.solve();
@@ -19142,9 +19221,9 @@ function runTests() {
   test('Heater: N2 Sensible (T_out)', t => {
     // [v12.5.0] Inline electric heater — T_setpoint drives Q_demand
     const src = t.place('source', 0, 1, { species:'N2', nDot:10, T:300.15, P:200000, phaseConstraint:'V' });
-    const htr = t.place('heater', 4, 1, { T_out: 500 }); const snk = t.place('sink', 8, 1);
-    const gs = t.place('grid_supply', 0, 4, { capacity_kW:100 });
-    const hub = t.place('hub', 2, 4);
+    const htr = t.place('electric_heater', 4, 1, { T_out: 500 }); const snk = t.place('sink', 8, 1);
+    const gs = t.place('grid_supply', 0, 4, { maxPower:100 });
+    const hub = t.place('power_hub', 2, 4);
     t.wire(gs,'out', hub,'elec_in'); t.wire(hub,'elec_out', htr,'elec_in');
     t.wire(src,'out', htr,'mat_in'); t.wire(htr,'mat_out', snk,'in');
     t.solve();
@@ -19160,9 +19239,9 @@ function runTests() {
   test('Heater: H2O Boiling', t => {
     // [v12.5.0] Inline electric heater with phase change
     const src = t.place('source', 0, 1, { species:'H2O', nDot:1, T:363.15, P:101325, phaseConstraint:'L' });
-    const htr = t.place('heater', 4, 1, { T_out: 500 }); const snk = t.place('sink', 8, 1);
-    const gs = t.place('grid_supply', 0, 4, { capacity_kW:100 });
-    const hub = t.place('hub', 2, 4);
+    const htr = t.place('electric_heater', 4, 1, { T_out: 500 }); const snk = t.place('sink', 8, 1);
+    const gs = t.place('grid_supply', 0, 4, { maxPower:100 });
+    const hub = t.place('power_hub', 2, 4);
     t.wire(gs,'out', hub,'elec_in'); t.wire(hub,'elec_out', htr,'elec_in');
     t.wire(src,'out', htr,'mat_in'); t.wire(htr,'mat_out', snk,'in');
     t.solve();
@@ -19201,10 +19280,10 @@ function runTests() {
 
   test('Heater: Setpoint-Driven (HEAT-A)', t => {
     // [v12.5.0] Heater draws Q_demand = ΔH(T_in → T_setpoint) from grid
-    const gs = t.place('grid_supply', 0, 0, { capacity_kW:100 });
-    const hub = t.place('hub', 2, 0);
+    const gs = t.place('grid_supply', 0, 0, { maxPower:100 });
+    const hub = t.place('power_hub', 2, 0);
     const src = t.place('source', 0, 3, { species:'N2', nDot:10, T:300.15, P:200000, phaseConstraint:'V' });
-    const htr = t.place('heater', 6, 1, { T_out: 500 }); const snk = t.place('sink', 10, 1);
+    const htr = t.place('electric_heater', 6, 1, { T_out: 500 }); const snk = t.place('sink', 10, 1);
     t.wire(gs,'out', hub,'elec_in'); t.wire(hub,'elec_out', htr,'elec_in');
     t.wire(src,'out', htr,'mat_in'); t.wire(htr,'mat_out', snk,'in');
     t.solve();
@@ -19222,10 +19301,10 @@ function runTests() {
   // [v11.0.0] Test deleted: Converters Need Elec Input
   test('Heater: Power Demand Drives Grid Draw', t => {
     // [v12.5.0] Heater powerDemand propagates to grid via hub
-    const gs = t.place('grid_supply', 0, 0, { capacity_kW:100 });
-    const hub = t.place('hub', 2, 0);
+    const gs = t.place('grid_supply', 0, 0, { maxPower:100 });
+    const hub = t.place('power_hub', 2, 0);
     const src = t.place('source', 0, 3, { species:'N2', nDot:10, T:300.15, P:200000, phaseConstraint:'V' });
-    const htr = t.place('heater', 6, 1, { T_out: 400 }); const snk = t.place('sink', 10, 1);
+    const htr = t.place('electric_heater', 6, 1, { T_out: 400 }); const snk = t.place('sink', 10, 1);
     t.wire(gs,'out', hub,'elec_in'); t.wire(hub,'elec_out', htr,'elec_in');
     t.wire(src,'out', htr,'mat_in'); t.wire(htr,'mat_out', snk,'in');
     t.solve();
@@ -20758,7 +20837,7 @@ function runTests() {
     // The cycle is: mixer → hex → splitter → mixer  → one SCC with 3 members
     const src  = t.place('source', 0, 0, { species:'N2', nDot:1, T:298.15, P:200000, phaseConstraint:'V' });
     const mix  = t.place('mixer', 4, 0);
-    const htr  = t.place('heater', 8, 0, { T_out: 373.15 });  // 100°C in K
+    const htr  = t.place('electric_heater', 8, 0, { T_out: 373.15 });  // 100°C in K
     const spl  = t.place('splitter', 12, 0, { splitPct: 80 });
     const snk  = t.place('sink', 16, 0);
 
@@ -20847,7 +20926,7 @@ function runTests() {
   function buildRecycleRig(t, { splitPct = 70, T_out = 423.15 } = {}) {  // [v6.0.1] T_out in K (150°C)
     const src = t.place('source', 0, 0, { species:'N2', nDot:1, T:373.15, P:200000, phaseConstraint:'V' });
     const mix = t.place('mixer', 4, 0);
-    const htr = t.place('heater', 8, 0, { T_out });
+    const htr = t.place('electric_heater', 8, 0, { T_out });
     const spl = t.place('splitter', 12, 0, { splitPct });
     const snk = t.place('sink', 16, 0);
     t.wire(src, 'out', mix, 'in1');
@@ -21035,10 +21114,10 @@ function runTests() {
     t.wire(thr, 'out', snk1, 'in');
 
     const src2 = t.place('source', 0, 4, { species:'H2O', nDot:5, T:298.15, P:101325, phaseConstraint:'L' });
-    const htr  = t.place('heater', 3, 4, { T_out: 400 });  // [v12.5.0] inline electric heater
+    const htr  = t.place('electric_heater', 3, 4, { T_out: 400 });  // [v12.5.0] inline electric heater
     const snk2 = t.place('sink', 6, 4);
-    const gs2 = t.place('grid_supply', 0, 7, { capacity_kW:100 });
-    const hub2 = t.place('hub', 1, 7);
+    const gs2 = t.place('grid_supply', 0, 7, { maxPower:100 });
+    const hub2 = t.place('power_hub', 1, 7);
     t.wire(gs2,'out', hub2,'elec_in'); t.wire(hub2,'elec_out', htr,'elec_in');
     t.wire(src2, 'out', htr, 'mat_in');
     t.wire(htr, 'mat_out', snk2, 'in');
@@ -21428,7 +21507,7 @@ function runTests() {
     // Heater outputs { P, n, H_target_Jps } (no T).
     // Solver must PH-flash it → downstream sees T finite.
     const src = t.place('source', 0, 0, { species:'H2O', nDot:1, T:363.15, P:101325, phaseConstraint:'VL' });
-    const htr = t.place('heater', 3, 0, { T_out: 383.15 });
+    const htr = t.place('electric_heater', 3, 0, { T_out: 383.15 });
     const snk = t.place('sink', 6, 0);
     t.wire(src, 'out', htr, 'mat_in');
     t.wire(htr, 'mat_out', snk, 'in');
@@ -22460,7 +22539,7 @@ function runTests() {
     const src = t.place('source_multi', 0, 0, {
       n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
     });
-    const rx = t.place('reactor_equilibrium', 4, 0, {
+    const rx = t.place('reactor_adiabatic', 4, 0, {
       reactionId: 'R_H2_COMB', useKinetics: true, volume_m3: 100
     });
     const snk = t.place('sink', 8, 0);
@@ -22490,7 +22569,7 @@ function runTests() {
     const src = t.place('source_multi', 0, 0, {
       n: { CO2: 1, H2: 4, N2: 5 }, T: 500, P: 1000000, phaseConstraint: 'V'
     });
-    const rx = t.place('reactor_equilibrium', 4, 0, {
+    const rx = t.place('reactor_adiabatic', 4, 0, {
       reactionId: 'R_SABATIER', useKinetics: true, volume_m3: 1e-6
     });
     const snk = t.place('sink', 8, 0);
@@ -22516,7 +22595,7 @@ function runTests() {
     const src = t.place('source_multi', 0, 0, {
       n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
     });
-    const rx = t.place('reactor_equilibrium', 4, 0, {
+    const rx = t.place('reactor_adiabatic', 4, 0, {
       reactionId: 'R_H2_COMB', useKinetics: true, volume_m3: 0
     });
     const snk = t.place('sink', 8, 0);
@@ -22550,7 +22629,7 @@ function runTests() {
     const src = t.place('source_multi', 0, 0, {
       n: { O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
     });
-    const rx = t.place('reactor_equilibrium', 4, 0, {
+    const rx = t.place('reactor_adiabatic', 4, 0, {
       reactionId: 'R_H2_COMB', useKinetics: true, volume_m3: 1.0
     });
     const snk = t.place('sink', 8, 0);
@@ -22567,7 +22646,7 @@ function runTests() {
     const src = t.place('source_multi', 0, 0, {
       n: { CO2: 1, H2: 4, N2: 5 }, T: 500, P: 1000000, phaseConstraint: 'V'
     });
-    const rx = t.place('reactor_equilibrium', 4, 0, {
+    const rx = t.place('reactor_adiabatic', 4, 0, {
       reactionId: 'R_SABATIER', useKinetics: true, volume_m3: 1.0
     });
     const snk = t.place('sink', 8, 0);
@@ -22604,7 +22683,7 @@ function runTests() {
     const src = t.place('source_multi', 0, 0, {
       n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
     });
-    const rx = t.place('reactor_equilibrium', 4, 0, {
+    const rx = t.place('reactor_adiabatic', 4, 0, {
       reactionId: 'R_H2_COMB', useKinetics: true, volume_m3: 1.0
     });
     const snk = t.place('sink', 8, 0);
@@ -22688,7 +22767,7 @@ function runTests() {
     const src = t.place('source_multi', 0, 0, {
       n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
     });
-    const rx = t.place('reactor_equilibrium', 4, 0, {
+    const rx = t.place('reactor_adiabatic', 4, 0, {
       reactionId: 'R_H2_COMB', alpha: 1.0, useKinetics: false
     });
     const snk = t.place('sink', 8, 0);
@@ -22719,7 +22798,7 @@ function runTests() {
     const src = t.place('source_multi', 0, 0, {
       n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
     });
-    const rx = t.place('reactor_equilibrium', 4, 0, {
+    const rx = t.place('reactor_adiabatic', 4, 0, {
       reactionId: 'R_H2_COMB', alpha: 0.5, useKinetics: false
     });
     const snk = t.place('sink', 8, 0);
@@ -22752,7 +22831,7 @@ function runTests() {
     const src = t.place('source_multi', 0, 0, {
       n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
     });
-    const rx = t.place('reactor_equilibrium', 4, 0, {
+    const rx = t.place('reactor_adiabatic', 4, 0, {
       reactionId: 'R_H2_COMB', alpha: 1.0, useKinetics: false
     });
     const snk = t.place('sink', 8, 0);
@@ -22784,7 +22863,7 @@ function runTests() {
     const src = t.place('source_multi', 0, 0, {
       n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
     });
-    const rx = t.place('reactor_equilibrium', 4, 0, {
+    const rx = t.place('reactor_adiabatic', 4, 0, {
       reactionId: 'R_H2_COMB', alpha: 1.0, useKinetics: false
     });
     const snk = t.place('sink', 8, 0);
@@ -22855,7 +22934,7 @@ function runTests() {
     const src = t.place('source_multi', 0, 0, {
       n: { H2O: 1, N2: 10 }, T: 300, P: 100000, phaseConstraint: 'VL'
     });
-    const rx = t.place('reactor_equilibrium', 4, 0, {
+    const rx = t.place('reactor_adiabatic', 4, 0, {
       reactionId: 'R_H2_COMB', alpha: 1.0, useKinetics: false, volume_m3: 1.0
     });
     const snk = t.place('sink', 8, 0);
@@ -22937,7 +23016,7 @@ function runTests() {
     const src = t.place('source_multi', 0, 0, {
       n: { CO2: 1, H2: 4, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
     });
-    const rx = t.place('reactor_equilibrium', 4, 0, {
+    const rx = t.place('reactor_adiabatic', 4, 0, {
       reactionId: 'R_SABATIER', alpha: 1.0, useKinetics: false
     });
     const snk = t.place('sink', 8, 0);
@@ -22982,7 +23061,7 @@ function runTests() {
     const srcA = t.place('source_multi', 0, 0, {
       n: { ...feed }, T: 900, P: 100000, phaseConstraint: 'V'
     });
-    const rxA = t.place('reactor_equilibrium', 4, 0, {
+    const rxA = t.place('reactor_adiabatic', 4, 0, {
       reactionId: 'R_SABATIER', alpha: 1.0, useKinetics: false
     });
     const snkA = t.place('sink', 8, 0);
@@ -23025,7 +23104,7 @@ function runTests() {
     const srcA = t.place('source_multi', 0, 0, {
       n: { ...feed }, T: T_eval, P: 100000, phaseConstraint: 'V'
     });
-    const rxA = t.place('reactor_equilibrium', 4, 0, {
+    const rxA = t.place('reactor_adiabatic', 4, 0, {
       reactionId: 'R_SABATIER', alpha: 1.0, useKinetics: false
     });
     const snkA = t.place('sink', 8, 0);
@@ -23292,7 +23371,7 @@ function runTests() {
     const srcMix = t.place('source_multi', 0, 4, {
       n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
     });
-    const rx  = t.place('reactor_adiabatic', 4, 4, {
+    const rx  = t.place('reactor_equilibrium', 4, 4, {
       reactionId: 'R_H2_COMB', conversion: 1.0
     });
     const snk2 = t.place('sink', 8, 4);
@@ -23403,7 +23482,7 @@ function runTests() {
 
     // ── Chain D: Heater (elec_in unconnected, passthrough) ── (y=15)
     const src_h2o = t.place('source', 0, 15, { species: 'H2O', nDot: 1, T: 300.15, P: 200000, phaseConstraint: 'L' });
-    const htr    = t.place('heater', 4, 15, { T_out: 353.15 });
+    const htr    = t.place('electric_heater', 4, 15, { T_out: 353.15 });
     const snk_h2o = t.place('sink', 8, 15);
 
     t.wire(src_h2o, 'out', htr, 'mat_in');
@@ -23414,7 +23493,7 @@ function runTests() {
     const src_rx = t.place('source_multi', 0, 18, {
       n: { H2: 2, O2: 1, N2: 8 }, T: 800, P: 100000, phaseConstraint: 'V'
     });
-    const rx     = t.place('reactor_adiabatic', 4, 18, {
+    const rx     = t.place('reactor_equilibrium', 4, 18, {
       reactionId: 'R_H2_COMB', conversion: 1.0
     });
     const snk_rx = t.place('sink', 8, 18);
@@ -23900,7 +23979,7 @@ function runTests() {
     const gs = t.place('grid_supply', 0, 0, { maxPower: 100 });
     const hub = t.place('power_hub', 4, 1);
     const src = t.place('source', 0, 4, { species: 'N2', nDot: 1.0, T: 300, P: 101325, phaseConstraint: 'V' });
-    const htr = t.place('heater', 8, 1, { T_out: 500 });
+    const htr = t.place('electric_heater', 8, 1, { T_out: 500 });
     const snk = t.place('sink', 12, 1);
 
     t.wire(gs, 'out', hub, 'elec_in');
@@ -24304,7 +24383,7 @@ function runTests() {
     const bat = t.place('battery', 0, 0, { peakPower_kW: 10, capacity_J: 3600000, initialSOC: 0.9 });
     const hub = t.place('power_hub', 4, 0);
     const src = t.place('source', 8, 4, { species:'N2', nDot:1, T:300, P:101325, phaseConstraint:'V' });
-    const htr = t.place('heater', 8, 0, { T_out: 600 });
+    const htr = t.place('electric_heater', 8, 0, { T_out: 600 });
     const snk = t.place('sink', 12, 0);
     const eSnk = t.place('sink_electrical', 4, 4);
 
@@ -24389,7 +24468,7 @@ function runTests() {
     const bat = t.place('battery', 0, 6, { peakPower_kW: 5, capacity_J: 36000000, initialSOC: 0.5 });
     const hub = t.place('power_hub', 4, 6);
     const loadSrc = t.place('source', 8, 9, { species:'N2', nDot:0.1, T:300, P:101325, phaseConstraint:'V' });
-    const loadHtr = t.place('heater', 8, 6, { T_out: 400 });
+    const loadHtr = t.place('electric_heater', 8, 6, { T_out: 400 });
     const loadSnk = t.place('sink', 12, 6);
     const surp = t.place('sink_electrical', 4, 3);
 
@@ -24569,7 +24648,7 @@ function runTests() {
     const bat   = t.place('battery', 0, 12, { peakPower_kW: 15, capacity_J: 18000000, initialSOC: 0.9 });
     const hub   = t.place('power_hub', 6, 8);
     const hSrc  = t.place('source', 10, 12, { species:'N2', nDot:1, T:300, P:101325, phaseConstraint:'V' });
-    const htr   = t.place('heater', 10, 8, { T_out: 600 });
+    const htr   = t.place('electric_heater', 10, 8, { T_out: 600 });
     const hSnk2 = t.place('sink', 14, 8);
     const eSnk  = t.place('sink_electrical', 6, 12);
     t.wire(solar, 'out', hub, 'elec_in');
@@ -24685,7 +24764,7 @@ function runTests() {
     t.assertOK(c3 === null, 'duplicate material OUT refused');
     t.assertOK(typeof scene._lastConnectError === 'string' && scene._lastConnectError.includes('splitter'), `error mentions splitter: "${scene._lastConnectError}"`);
     // Type mismatch — [v12.5.0] heater now has elec_in (ELECTRICAL), not heat_in
-    const htr = scene.placeUnit('heater', 0, 10);
+    const htr = scene.placeUnit('electric_heater', 0, 10);
     const c4 = scene.connect({ unitId: src, portId: 'out' }, { unitId: htr, portId: 'elec_in' });
     t.assertOK(c4 === null, 'type mismatch refused');
     t.assertOK(typeof scene._lastConnectError === 'string' && scene._lastConnectError.includes('Incompatible'), `error mentions incompatible: "${scene._lastConnectError}"`);
@@ -24739,7 +24818,7 @@ function runTests() {
     const hub = t.place('power_hub', 4, 0);
     // [v12.8.0] heater with elec_in as electrical load (replaces e-heater+sink_heat)
     const src = t.place('source', 8, -3, { species: 'N2', nDot: 1, T: 300, P: 101325, phaseConstraint: 'V' });
-    const htr = t.place('heater', 8, 0, { T_out: 400 });
+    const htr = t.place('electric_heater', 8, 0, { T_out: 400 });
     const snk = t.place('sink', 12, 0);
     const surp = t.place('sink_electrical', 4, -3);
     t.wire(gs, 'out', hub, 'elec_in');
@@ -24903,10 +24982,10 @@ function runTests() {
   // [v10.4.2] T204: HEAT-A — heatDemand field must not exist on any unit after solve
   tests.push({ name: '204: HEAT-A heatDemand removed from all units', fn: t => {
     t.clearScene();
-    const gs = t.place('grid_supply', 0, 0, { capacity_kW: 50 });
-    const hub = t.place('hub', 2, 0);
+    const gs = t.place('grid_supply', 0, 0, { maxPower: 50 });
+    const hub = t.place('power_hub', 2, 0);
     const src = t.place('source', 0, 3, { species: 'N2', nDot: 5, T: 300, P: 200000, phaseConstraint: 'V' });
-    const htr = t.place('heater', 6, 1, { T_out: 400 });
+    const htr = t.place('electric_heater', 6, 1, { T_out: 400 });
     const snk = t.place('sink', 10, 1);
     t.wire(gs, 'out', hub, 'elec_in');
     t.wire(hub, 'elec_out', htr, 'elec_in');
@@ -24936,7 +25015,7 @@ function runTests() {
     // [v12.8.0] Replaces e-heater test — heater now has elec_in directly
     t.clearScene();
     const src = t.place('source', 0, 0, { species: 'N2', nDot: 1, T: 300, P: 101325, phaseConstraint: 'V' });
-    const htr = t.place('heater', 4, 0, { T_out: 500 });
+    const htr = t.place('electric_heater', 4, 0, { T_out: 500 });
     const snk = t.place('sink', 8, 0);
     const gs = t.place('grid_supply', 4, -3, { maxPower: 100 });
     t.wire(src, 'out', htr, 'mat_in');
@@ -24964,7 +25043,7 @@ function runTests() {
     const src = t.place('source_multi', 0, 0, {
       n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V'
     });
-    const rx = t.place('reactor_equilibrium', 4, 0, {
+    const rx = t.place('reactor_adiabatic', 4, 0, {
       reactionId: 'R_STEAM_REFORM', useKinetics: false, alpha: 1.0,
       mode: 'heated'  // explicitly heated
     });
@@ -24992,7 +25071,7 @@ function runTests() {
       n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V'
     });
     // Insulated reference
-    const rxIns = t.place('reactor_equilibrium', 4, 0, {
+    const rxIns = t.place('reactor_adiabatic', 4, 0, {
       reactionId: 'R_STEAM_REFORM', useKinetics: false, alpha: 1.0
     });
     const snkIns = t.place('sink', 8, 0);
@@ -25024,7 +25103,7 @@ function runTests() {
     const src = t.place('source_multi', 0, 0, {
       n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V'
     });
-    const rx = t.place('reactor_equilibrium', 4, 0, {
+    const rx = t.place('reactor_adiabatic', 4, 0, {
       reactionId: 'R_STEAM_REFORM', useKinetics: false, alpha: 1.0
       // default: insulated
     });
@@ -25049,7 +25128,7 @@ function runTests() {
     const src = t.place('source_multi', 0, 0, {
       n: { CO2: 1, H2: 4 }, T: 523, P: 1000000, phaseConstraint: 'V'
     });
-    const rx = t.place('reactor_equilibrium', 4, 0, {
+    const rx = t.place('reactor_adiabatic', 4, 0, {
       reactionId: 'R_SABATIER', useKinetics: true, volume_m3: 0.5,
       mode: 'heated'
     });
@@ -25707,12 +25786,12 @@ function runTests() {
     // Reactor equilibrium heat_in position (heat_out removed in v11.0.0)
     const rxDef = UnitRegistry.get('reactor_equilibrium');
     const rxD = getPresentation(rxDef, { params: {} });
-    t.assertOK(rxD.ports.heat_in.y === 3, 'Reactor default: heat_in at bottom');
+    t.assertOK(rxD.ports.elec_in.y === 3, 'Reactor default: elec_in at bottom');  // [v12.8.1] was heat_in
     const rxR = getPresentation(rxDef, { params: { variant: 'elec-top' } });
-    t.assertOK(rxR.ports.heat_in.y === 0, 'Reactor heat-top: heat_in at top');
-    // [v11.0.2] Insulated variant hides heat_in
+    t.assertOK(rxR.ports.elec_in.y === 0, 'Reactor elec-top: elec_in at top');
+    // [v11.0.2] Insulated variant hides elec_in
     const rxI = getPresentation(rxDef, { params: { variant: 'insulated' } });
-    t.assertOK(!rxI.ports.heat_in, 'Reactor insulated: heat_in hidden');
+    t.assertOK(!rxI.ports.elec_in, 'Reactor insulated: elec_in hidden');
     t.assertOK(rxI.ports.mat_in && rxI.ports.mat_out, 'Reactor insulated: mat ports present');
   }});
 
@@ -25791,7 +25870,7 @@ function runTests() {
     const aGrid  = t.place('grid_supply',      30,  0, { maxPower: 20000 });
     const aAir   = t.place('source_air',       30,  2, { flowScale: 1.0 });
     const aComp  = t.place('compressor',       34,  2, { Pout: 300000, eta: 0.80 });
-    const aHeat  = t.place('heater',           40,  6);
+    const aHeat  = t.place('electric_heater',           40,  6, { T_out: 1200 });  // [v12.8.1] combustor needs high T_out
     const aTurb  = t.place('gas_turbine',      44,  6, { Pout: 101325, eta: 0.88 });
     const aExh   = t.place('sink',             48,  6);
     const aEout  = t.place('sink_electrical',  50,  8);
@@ -26261,7 +26340,7 @@ function runTests() {
     const src = t.place('source_multi', 0, 0, {
       n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V'
     });
-    const rx = t.place('reactor_equilibrium', 4, 0, {
+    const rx = t.place('reactor_adiabatic', 4, 0, {
       reactionId: 'R_STEAM_REFORM', useKinetics: false, alpha: 1.0
     });
     const snk = t.place('sink', 8, 0);
@@ -26289,7 +26368,7 @@ function runTests() {
     const src = t.place('source_multi', 0, 0, {
       n: { CO2: 1, H2: 4 }, T: 523, P: 1000000, phaseConstraint: 'V'
     });
-    const rx = t.place('reactor_equilibrium', 4, 0, {
+    const rx = t.place('reactor_adiabatic', 4, 0, {
       reactionId: 'R_SABATIER', useKinetics: false, alpha: 1.0
     });
     const snk = t.place('sink', 8, 0);
@@ -26317,7 +26396,7 @@ function runTests() {
     const src1 = t.place('source_multi', 0, 0, {
       n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V'
     });
-    const rx1 = t.place('reactor_equilibrium', 4, 0, {
+    const rx1 = t.place('reactor_adiabatic', 4, 0, {
       reactionId: 'R_STEAM_REFORM', useKinetics: false, alpha: 1.0
     });
     const snk1 = t.place('sink', 8, 0);
@@ -26331,7 +26410,7 @@ function runTests() {
     const src2 = t.place('source_multi', 0, 0, {
       n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V'
     });
-    const rx2 = t.place('reactor_equilibrium', 4, 0, {
+    const rx2 = t.place('reactor_adiabatic', 4, 0, {
       reactionId: 'R_STEAM_REFORM', useKinetics: false, alpha: 1.0, mode: 'heated'
     });
     const snk2 = t.place('sink', 8, 0);
@@ -26351,7 +26430,7 @@ function runTests() {
     const srcI = t.place('source_multi', 0, 0, {
       n: { CO2: 1, H2: 4 }, T: 523, P: 1000000, phaseConstraint: 'V'
     });
-    const rxI = t.place('reactor_equilibrium', 4, 0, {
+    const rxI = t.place('reactor_adiabatic', 4, 0, {
       reactionId: 'R_SABATIER', useKinetics: false, alpha: 1.0
     });
     const snkI = t.place('sink', 8, 0);
@@ -26379,7 +26458,7 @@ function runTests() {
       n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V'
     });
     // Default mode is insulated — variant should be 'insulated' (no elec_in visible)
-    const rx = t.place('reactor_equilibrium', 4, 0, {
+    const rx = t.place('reactor_adiabatic', 4, 0, {
       reactionId: 'R_STEAM_REFORM', useKinetics: false, alpha: 1.0, mode: 'insulated', variant: 'insulated'
     });
     const snk = t.place('sink', 8, 0);
@@ -26409,7 +26488,7 @@ function runTests() {
     t.assertOK(!portIds.includes('heat_out'), 'No heat_out in port list');
     t.assertOK(portIds.includes('mat_in'), 'mat_in present');
     t.assertOK(portIds.includes('mat_out'), 'mat_out present');
-    t.assertOK(portIds.includes('heat_in'), 'heat_in present');
+    t.assertOK(portIds.includes('elec_in'), 'elec_in present');  // [v12.8.1] was heat_in
   }});
 
   tests.push({ name: '273: Isothermal ref matches legacy Q_duty', fn: t => {
@@ -26417,7 +26496,7 @@ function runTests() {
     const src = t.place('source_multi', 0, 0, {
       n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
     });
-    const rx = t.place('reactor_equilibrium', 4, 0, {
+    const rx = t.place('reactor_adiabatic', 4, 0, {
       reactionId: 'R_H2_COMB', alpha: 1.0, useKinetics: false
     });
     const snk = t.place('sink', 8, 0);
@@ -26442,7 +26521,7 @@ function runTests() {
     const src = t.place('source_multi', 0, 0, {
       n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V'
     });
-    const rx = t.place('reactor_equilibrium', 4, 0, {
+    const rx = t.place('reactor_adiabatic', 4, 0, {
       reactionId: 'R_STEAM_REFORM', useKinetics: false, alpha: 1.0
     });
     const snk = t.place('sink', 8, 0);
@@ -26466,7 +26545,7 @@ function runTests() {
     const src = t.place('source_multi', 0, 0, {
       n: { CO2: 1, H2: 4 }, T: 523, P: 1000000, phaseConstraint: 'V'
     });
-    const rx = t.place('reactor_equilibrium', 4, 0, {
+    const rx = t.place('reactor_adiabatic', 4, 0, {
       reactionId: 'R_SABATIER', useKinetics: false, alpha: 1.0
     });
     const snk = t.place('sink', 8, 0);
@@ -26496,7 +26575,7 @@ function runTests() {
     const src = t.place('source_multi', 0, 0, {
       n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V'
     });
-    const rx = t.place('reactor_equilibrium', 4, 0, {
+    const rx = t.place('reactor_adiabatic', 4, 0, {
       reactionId: 'R_STEAM_REFORM', useKinetics: false, alpha: 1.0
     });
     const snk = t.place('sink', 8, 0);
@@ -26520,7 +26599,7 @@ function runTests() {
     const src = t.place('source_multi', 0, 0, {
       n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
     });
-    const rx = t.place('reactor_equilibrium', 4, 0, {
+    const rx = t.place('reactor_adiabatic', 4, 0, {
       reactionId: 'R_H2_COMB', useKinetics: false, alpha: 1.0
     });
     const snk = t.place('sink', 8, 0);
@@ -26548,7 +26627,7 @@ function runTests() {
     const src = t.place('source_multi', 0, 0, {
       n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V'
     });
-    const rx = t.place('reactor_equilibrium', 4, 0, {
+    const rx = t.place('reactor_adiabatic', 4, 0, {
       reactionId: 'R_STEAM_REFORM', useKinetics: false, alpha: 1.0, mode: 'heated', variant: 'default'
     });
     const snk = t.place('sink', 8, 0);
@@ -26572,7 +26651,7 @@ function runTests() {
       n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
     });
     // Place with mode:insulated but NO variant set (simulates legacy placement)
-    const rx = t.place('reactor_equilibrium', 4, 0, {
+    const rx = t.place('reactor_adiabatic', 4, 0, {
       reactionId: 'R_H2_COMB', alpha: 1.0, useKinetics: false, mode: 'insulated'
     });
     const snk = t.place('sink', 8, 0);
@@ -26592,7 +26671,7 @@ function runTests() {
       n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
     });
     // Place with mode:heated but variant stuck at 'insulated' (simulates corruption)
-    const rx = t.place('reactor_equilibrium', 4, 0, {
+    const rx = t.place('reactor_adiabatic', 4, 0, {
       reactionId: 'R_H2_COMB', alpha: 1.0, useKinetics: false, mode: 'heated', variant: 'insulated'
     });
     const snk = t.place('sink', 8, 0);
@@ -26611,7 +26690,7 @@ function runTests() {
     const src = t.place('source_multi', 0, 0, {
       n: { CH4: 1, H2O: 3 }, T: 900, P: 500000, phaseConstraint: 'V'
     });
-    const rx = t.place('reactor_equilibrium', 4, 0, {
+    const rx = t.place('reactor_adiabatic', 4, 0, {
       reactionId: 'smr', mode: 'heated'
     });
     const snk = t.place('sink', 8, 0);
@@ -26797,10 +26876,10 @@ function runTests() {
   tests.push({ name: '295: Heater basic — T_setpoint heating with grid power', fn: t => {
     t.clearScene();
     const src  = t.place('source', 0, 0, { species: 'N2', nDot: 1.0, T: 300, P: 100000, phaseConstraint: 'V' });
-    const htr  = t.place('heater', 4, 0, { T_out: 500 });
+    const htr  = t.place('electric_heater', 4, 0, { T_out: 500 });
     const snk  = t.place('sink', 8, 0);
-    const grid = t.place('grid_supply', 4, 4, { capacity_kW: 100 });
-    const hub  = t.place('hub', 4, 6);
+    const grid = t.place('grid_supply', 4, 4, { maxPower: 100 });
+    const hub  = t.place('power_hub', 4, 6);
     t.wire(src, 'out', htr, 'mat_in');
     t.wire(htr, 'mat_out', snk, 'in');
     t.wire(grid, 'out', hub, 'elec_in');
@@ -26819,7 +26898,7 @@ function runTests() {
   tests.push({ name: '296: Heater no elec → passthrough, Q=0', fn: t => {
     t.clearScene();
     const src = t.place('source', 0, 0, { species: 'N2', nDot: 1.0, T: 300, P: 100000, phaseConstraint: 'V' });
-    const htr = t.place('heater', 4, 0, { T_out: 500 });
+    const htr = t.place('electric_heater', 4, 0, { T_out: 500 });
     const snk = t.place('sink', 8, 0);
     t.wire(src, 'out', htr, 'mat_in');
     t.wire(htr, 'mat_out', snk, 'in');
@@ -26834,9 +26913,9 @@ function runTests() {
   tests.push({ name: '297: Heater setpoint < inlet → error', fn: t => {
     t.clearScene();
     const src = t.place('source', 0, 0, { species: 'N2', nDot: 1.0, T: 500, P: 100000, phaseConstraint: 'V' });
-    const htr = t.place('heater', 4, 0, { T_out: 300 });  // below inlet
+    const htr = t.place('electric_heater', 4, 0, { T_out: 300 });  // below inlet
     const snk = t.place('sink', 8, 0);
-    const grid = t.place('grid_supply', 4, 4, { capacity_kW: 100 });
+    const grid = t.place('grid_supply', 4, 4, { maxPower: 100 });
     t.wire(src, 'out', htr, 'mat_in');
     t.wire(htr, 'mat_out', snk, 'in');
     t.wire(grid, 'out', htr, 'elec_in');
@@ -26850,10 +26929,10 @@ function runTests() {
   tests.push({ name: '298: Heater curtailment — limited power degrades T_out', fn: t => {
     t.clearScene();
     const src  = t.place('source', 0, 0, { species: 'N2', nDot: 1.0, T: 300, P: 100000, phaseConstraint: 'V' });
-    const htr  = t.place('heater', 4, 0, { T_out: 800 });  // large demand
+    const htr  = t.place('electric_heater', 4, 0, { T_out: 800 });  // large demand
     const snk  = t.place('sink', 8, 0);
-    const grid = t.place('grid_supply', 4, 4, { capacity_kW: 1 });  // tiny supply
-    const hub  = t.place('hub', 4, 6);
+    const grid = t.place('grid_supply', 4, 4, { maxPower: 1 });  // tiny supply
+    const hub  = t.place('power_hub', 4, 6);
     t.wire(src, 'out', htr, 'mat_in');
     t.wire(htr, 'mat_out', snk, 'in');
     t.wire(grid, 'out', hub, 'elec_in');
@@ -26890,8 +26969,8 @@ function runTests() {
     const src2 = t.place('source_multi', 0, 0, { n: { CO2:1, H2:4 }, T: 523, P: 1000000, phaseConstraint: 'V' });
     const rx2  = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_SABATIER', mode: 'heated' });
     const snk2 = t.place('sink', 8, 0);
-    const gs   = t.place('grid_supply', 4, 5, { capacity_kW: 100 });
-    const hub  = t.place('hub', 4, 7);
+    const gs   = t.place('grid_supply', 4, 5, { maxPower: 100 });
+    const hub  = t.place('power_hub', 4, 7);
     t.wire(src2, 'out', rx2, 'mat_in');
     t.wire(rx2, 'mat_out', snk2, 'in');
     t.wire(gs, 'out', hub, 'elec_in');
@@ -26915,10 +26994,10 @@ function runTests() {
     t.wire(rx1, 'mat_out', snk1, 'in');
     t.solve();
     const T_insulated = t.port(rx1, 'mat_out')?.T;
-    const Q_iso = t.ud(rx1).last.Q_duty_isothermal_W;
+    const Q_iso = t.ud(rx1).last.iso_Q_duty_W;  // [v12.8.1] correct field name
 
     t.assertOK(isFiniteNum(T_insulated) && T_insulated < 1000, 'Insulated T drops (endothermic)', `${T_insulated?.toFixed(1)}`);
-    t.assertOK(Q_iso < 0, 'Q_duty_isothermal < 0 (endothermic)', `${Q_iso?.toFixed(0)}`);
+    t.assertOK(Q_iso > 0, 'iso_Q_duty > 0 (endothermic needs heat)', `${Q_iso?.toFixed(0)}`);
 
     // Heated mode: supply |Q_iso| of power
     t.clearScene();
@@ -26926,8 +27005,8 @@ function runTests() {
     const src2 = t.place('source_multi', 0, 0, { n: { CH4:1, H2O:2 }, T: 1000, P: 500000, phaseConstraint: 'V' });
     const rx2  = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_STEAM_REFORM', mode: 'heated' });
     const snk2 = t.place('sink', 8, 0);
-    const gs   = t.place('grid_supply', 4, 5, { capacity_kW: Q_supply_kW + 10 });
-    const hub  = t.place('hub', 4, 7);
+    const gs   = t.place('grid_supply', 4, 5, { maxPower: Q_supply_kW + 10 });
+    const hub  = t.place('power_hub', 4, 7);
     t.wire(src2, 'out', rx2, 'mat_in');
     t.wire(rx2, 'mat_out', snk2, 'in');
     t.wire(gs, 'out', hub, 'elec_in');
@@ -26947,10 +27026,10 @@ function runTests() {
     // [v12.6.0] Rewritten: heater with elec_in connected vs air_cooler mat_out connected
     // Tests connectivity tracking in solve context.
     const src1 = t.place('source', 0, 0, { species:'N2', nDot:1, T:300, P:200000, phaseConstraint:'V' });
-    const htr  = t.place('heater', 4, 0, { T_out: 400 });
+    const htr  = t.place('electric_heater', 4, 0, { T_out: 400 });
     const snk1 = t.place('sink', 8, 0);
-    const gs   = t.place('grid_supply', 0, 4, { capacity_kW:50 });
-    const hub  = t.place('hub', 2, 4);
+    const gs   = t.place('grid_supply', 0, 4, { maxPower:50 });
+    const hub  = t.place('power_hub', 2, 4);
     t.wire(src1, 'out', htr, 'mat_in');
     t.wire(htr, 'mat_out', snk1, 'in');
     t.wire(gs, 'out', hub, 'elec_in');
@@ -27026,22 +27105,143 @@ function runTests() {
 
   tests.push({ name: '302: NNG sentinel — all 17 rules exist in source', fn: t => {
     // [v12.8.0] Guard against accidental deletion of NNG rules.
-    // This test reads the HTML source and verifies NNG-1 through NNG-17 are present.
-    const html = document.documentElement.outerHTML;
+    // Read script textContent (outerHTML strips script bodies in DOM).
+    const scripts = Array.from(document.querySelectorAll('script'));
+    const src = scripts.map(s => s.textContent).join('\n');
     for (let i = 1; i <= 17; i++) {
       const tag = `NNG-${i}`;
-      t.assertOK(html.includes(tag), `${tag} exists in source`);
+      t.assertOK(src.includes(tag), `${tag} exists in source`);
     }
   }});
 
   tests.push({ name: '303: No deleted units in registry', fn: t => {
-    // [v12.8.0] electric_heater, sink_heat, cooler must not be registered
-    t.assertOK(!UnitRegistry.exists('electric_heater'), 'electric_heater not registered');
+    // [v12.8.1] sink_heat, cooler must not be registered
     t.assertOK(!UnitRegistry.exists('sink_heat'), 'sink_heat not registered');
     t.assertOK(!UnitRegistry.exists('cooler'), 'cooler not registered');
-    // air_cooler and heater must exist
+    // electric_heater (renamed from heater) and air_cooler must exist
+    t.assertOK(UnitRegistry.exists('electric_heater'), 'electric_heater registered');
     t.assertOK(UnitRegistry.exists('air_cooler'), 'air_cooler registered');
-    t.assertOK(UnitRegistry.exists('heater'), 'heater registered');
+  }});
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // [v12.8.1] Phase 8.1 — Electric Heater Modes + Air Cooler Capacity
+  // ═══════════════════════════════════════════════════════════════════════
+
+  tests.push({ name: '304: Electric heater T_setpoint mode — basic', fn: t => {
+    t.clearScene();
+    const src = t.place('source', 0, 0, { species: 'N2', nDot: 1, T: 300, P: 101325, phaseConstraint: 'V' });
+    const htr = t.place('electric_heater', 4, 0, { T_out: 500, mode: 'T_setpoint' });
+    const snk = t.place('sink', 8, 0);
+    const gs = t.place('grid_supply', 4, -3, { maxPower: 100 });
+    t.wire(src, 'out', htr, 'mat_in'); t.wire(htr, 'mat_out', snk, 'in');
+    t.wire(gs, 'out', htr, 'elec_in');
+    t.solve();
+    const last = t.last(htr);
+    t.assertOK(last.mode === 'T_setpoint', 'Mode = T_setpoint');
+    t.assertOK(last.Q_actual_W > 0, 'Q_actual > 0');
+    t.assertOK(!last.curtailed, 'Not curtailed');
+    const out = t.port(htr, 'mat_out');
+    t.assertClose(out.T, 500, 5, 'T_out ≈ 500K');
+  }});
+
+  tests.push({ name: '305: Electric heater power_setpoint mode — basic', fn: t => {
+    t.clearScene();
+    const src = t.place('source', 0, 0, { species: 'N2', nDot: 1, T: 300, P: 101325, phaseConstraint: 'V' });
+    const htr = t.place('electric_heater', 4, 0, { power_kW: 10, mode: 'power_setpoint' });
+    const snk = t.place('sink', 8, 0);
+    const gs = t.place('grid_supply', 4, -3, { maxPower: 50 });
+    t.wire(src, 'out', htr, 'mat_in'); t.wire(htr, 'mat_out', snk, 'in');
+    t.wire(gs, 'out', htr, 'elec_in');
+    t.solve();
+    const last = t.last(htr);
+    t.assertOK(last.mode === 'power_setpoint', 'Mode = power_setpoint');
+    t.assertClose(last.Q_actual_W, 10000, 100, 'Q_actual ≈ 10 kW');
+    t.assertOK(!last.curtailed, 'Not curtailed');
+    // T_out should be > T_in (heat added)
+    const out = t.port(htr, 'mat_out');
+    t.assertOK(out.T > 300, 'T_out > T_in', `T=${out.T.toFixed(0)}K`);
+  }});
+
+  tests.push({ name: '306: Electric heater power_setpoint — curtailed by grid', fn: t => {
+    t.clearScene();
+    const src = t.place('source', 0, 0, { species: 'N2', nDot: 1, T: 300, P: 101325, phaseConstraint: 'V' });
+    // Request 50 kW but grid only supplies 5 kW
+    const htr = t.place('electric_heater', 4, 0, { power_kW: 50, mode: 'power_setpoint' });
+    const snk = t.place('sink', 8, 0);
+    const gs = t.place('grid_supply', 4, -3, { maxPower: 5 });
+    t.wire(src, 'out', htr, 'mat_in'); t.wire(htr, 'mat_out', snk, 'in');
+    t.wire(gs, 'out', htr, 'elec_in');
+    t.solve();
+    const last = t.last(htr);
+    t.assertOK(last.curtailed, 'Curtailed');
+    t.assertOK(last.Q_actual_W < 50000, 'Q_actual < 50 kW setpoint');
+    t.assertOK(last.Q_actual_W > 0, 'Q_actual > 0 (some power flows)');
+    t.assertOK(last.error?.severity === ErrorSeverity.MINOR, 'MINOR power-limited error');
+  }});
+
+  tests.push({ name: '307: Electric heater T_setpoint — insufficient power, cannot reach target', fn: t => {
+    t.clearScene();
+    const src = t.place('source', 0, 0, { species: 'N2', nDot: 1, T: 300, P: 101325, phaseConstraint: 'V' });
+    // Request 800K but grid only supplies 1 kW (need ~15 kW for N2 300→800K)
+    const htr = t.place('electric_heater', 4, 0, { T_out: 800, mode: 'T_setpoint' });
+    const snk = t.place('sink', 8, 0);
+    const gs = t.place('grid_supply', 4, -3, { maxPower: 1 });
+    t.wire(src, 'out', htr, 'mat_in'); t.wire(htr, 'mat_out', snk, 'in');
+    t.wire(gs, 'out', htr, 'elec_in');
+    t.solve();
+    const last = t.last(htr);
+    t.assertOK(last.curtailed, 'Curtailed');
+    t.assertOK(last.Q_actual_W < last.Q_demand_W, 'Q_actual < Q_demand');
+    t.assertOK(last.error?.severity === ErrorSeverity.MINOR, 'MINOR power-limited error');
+    // T_out should be between T_in and setpoint
+    const out = t.port(htr, 'mat_out');
+    t.assertOK(out.T > 300 + 10, 'T_out > T_in (some heating)', `T=${out.T.toFixed(0)}K`);
+    t.assertOK(out.T < 800 - 50, 'T_out << setpoint (curtailed)', `T=${out.T.toFixed(0)}K`);
+  }});
+
+  tests.push({ name: '308: Air cooler — UA capacity limits cooling', fn: t => {
+    t.clearScene();
+    // Hot N2 at 600K, try to cool to ambient+10 (~308K) but with tiny UA
+    const src = t.place('source', 0, 0, { species: 'N2', nDot: 1, T: 600, P: 101325, phaseConstraint: 'V' });
+    const clr = t.place('air_cooler', 4, 0, { T_out: 310, UA_kW_K: 0.01 });  // tiny UA
+    const snk = t.place('sink', 8, 0);
+    t.wire(src, 'out', clr, 'mat_in'); t.wire(clr, 'mat_out', snk, 'in');
+    t.solve();
+    const last = t.last(clr);
+    t.assertOK(last.capacityLimited, 'Capacity-limited');
+    t.assertOK(last.Q_max_W != null, 'Q_max reported');
+    t.assertOK(last.Q_rejected_W < last.Q_demand_W, 'Q_rejected < Q_demand');
+    t.assertOK(last.error?.severity === ErrorSeverity.MINOR, 'MINOR capacity-limited error');
+    // T_out should be well above setpoint
+    const out = t.port(clr, 'mat_out');
+    t.assertOK(out.T > 310 + 50, 'T_out >> setpoint (UA-limited)', `T=${out.T.toFixed(0)}K`);
+  }});
+
+  tests.push({ name: '309: Air cooler — no UA (default) → unlimited capacity', fn: t => {
+    t.clearScene();
+    const src = t.place('source', 0, 0, { species: 'N2', nDot: 1, T: 600, P: 101325, phaseConstraint: 'V' });
+    const clr = t.place('air_cooler', 4, 0, { T_out: 310 });  // no UA → unlimited
+    const snk = t.place('sink', 8, 0);
+    t.wire(src, 'out', clr, 'mat_in'); t.wire(clr, 'mat_out', snk, 'in');
+    t.solve();
+    const last = t.last(clr);
+    t.assertOK(!last.capacityLimited, 'Not capacity-limited');
+    t.assertOK(last.Q_max_W == null, 'No Q_max (unlimited)');
+    const out = t.port(clr, 'mat_out');
+    t.assertClose(out.T, 310, 5, 'T_out ≈ setpoint');
+  }});
+
+  tests.push({ name: '310: Air cooler — 2nd law: cannot cool below ambient', fn: t => {
+    t.clearScene();
+    const src = t.place('source', 0, 0, { species: 'N2', nDot: 1, T: 350, P: 101325, phaseConstraint: 'V' });
+    // SimSettings ambient is ~298K. Try setpoint of 250K — should be rejected.
+    const clr = t.place('air_cooler', 4, 0, { T_out: 250 });
+    const snk = t.place('sink', 8, 0);
+    t.wire(src, 'out', clr, 'mat_in'); t.wire(clr, 'mat_out', snk, 'in');
+    t.solve();
+    const last = t.last(clr);
+    t.assertOK(last.error?.severity === ErrorSeverity.MAJOR, 'MAJOR: below ambient');
+    t.assertOK(last.Q_rejected_W === 0, 'Q_rejected = 0 (passthrough)');
   }});
 
   // ═══════════════════════════════════════════════════════════════════════

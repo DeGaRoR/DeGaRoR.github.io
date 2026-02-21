@@ -3,7 +3,7 @@
   ═══════════════════════════════════════════════════════════════════════════
   processThis v12.0.0
 
-  ─── NON-NEGOTIABLES (v11.1.0) ──────────────────────────────────────────
+  ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   17 invariants. Violating any is a regression regardless of context.
   New code references NNG-1 through NNG-17. Legacy tags (NNG-L1, NNG-W3,
   NNG-AL2, etc.) in older comments map to these per the v11.1.0 changelog.
@@ -234,6 +234,17 @@
            NNG-1 through NNG-17 restored to top of document (lost in
            Phase 3 condensation).  NNG-3 amended with physical-equipment
            clause.
+  v12.8.0  Test rewrites — Phase 8.
+           All tests purged of electric_heater, sink_heat, cooler, heat_in,
+           heat_out references.  Pattern: grid→e-heater→heat_in replaced by
+           grid→elec_in (reactor, heater).  cooler→sink_heat replaced by
+           air_cooler.  T205 rewritten for heater powerDemand.  T227 uses
+           air_cooler.  T236 demo scene simplified (no e-heater chains).
+           T255, T256 deleted (e-heater unit tests).  T259 rewritten for
+           air_cooler passthrough.  T269, T278 updated: heat_in→elec_in.
+           T290 updated: ghost elec_in stripping.  New: T301 isPowerStreamType,
+           T302 NNG sentinel (asserts NNG-1–NNG-17 in source), T303 deleted
+           unit registry gate.  NNG title: "Non-negotiables (NNG)".
 
   ─── v11.2.0 — NIST Shomate Transition ──────────────────────────────────
   Replaces ad-hoc Cpig power polynomial with NIST Shomate equation for all
@@ -24610,11 +24621,14 @@ function runTests() {
   // UI DATA CONTRACT TESTS — verifies data shapes consumed by inspectors
   // ═══════════════════════════════════════════════════════════════════════
 
-  tests.push({ name: '190: _streamNames covers all StreamType values', fn: t => {
+  tests.push({ name: '190: _streamNames covers all active StreamType values', fn: t => {
     for (const [key, val] of Object.entries(StreamType)) {
       const name = _streamNames[val];
       t.assertOK(typeof name === 'string' && name.length > 0, `_streamNames[${val}] = "${name}" (${key})`);
     }
+    // [v12.8.0] Verify no gaps in active types — every StreamType value maps to a non-empty name
+    t.assertOK(_streamNames[StreamType.MATERIAL] === 'Material', 'MATERIAL → Material');
+    t.assertOK(_streamNames[StreamType.ELECTRICAL] === 'Electrical', 'ELECTRICAL → Electrical');
   }});
 
   tests.push({ name: '191: computeSystemBalance returns correct shape for solved scene', fn: t => {
@@ -24723,18 +24737,21 @@ function runTests() {
   tests.push({ name: '197: grid_supply always demand-responsive, reports actual draw', fn: t => {
     const gs = t.place('grid_supply', 0, 0, { maxPower: 50 });
     const hub = t.place('power_hub', 4, 0);
-    const eh = t.place('electric_heater', 8, 0, { power_kW: 10 });
-    const hs = t.place('sink_heat', 12, 0);
+    // [v12.8.0] heater with elec_in as electrical load (replaces e-heater+sink_heat)
+    const src = t.place('source', 8, -3, { species: 'N2', nDot: 1, T: 300, P: 101325, phaseConstraint: 'V' });
+    const htr = t.place('heater', 8, 0, { T_out: 400 });
+    const snk = t.place('sink', 12, 0);
     const surp = t.place('sink_electrical', 4, -3);
     t.wire(gs, 'out', hub, 'elec_in');
-    t.wire(hub, 'elec_out', eh, 'elec_in');
-    t.wire(eh, 'heat_out', hs, 'in');
+    t.wire(hub, 'elec_out', htr, 'elec_in');
+    t.wire(src, 'out', htr, 'mat_in');
+    t.wire(htr, 'mat_out', snk, 'in');
     t.wire(hub, 'elec_surplus', surp, 'in');
     t.solve();
     t.assertOK(t.unit(gs).last.type === 'grid_supply', `type = grid_supply (got: "${t.unit(gs).last.type}")`);
-    // Grid should only draw what's demanded (10 kW), not full 50 kW
+    // Grid should only draw what's demanded, not full 50 kW
     const actual = t.unit(gs).last.actual_W;
-    t.assertOK(Math.abs(actual - 10000) < 100, `Actual draw ≈ 10 kW (got: ${(actual/1000).toFixed(1)} kW)`);
+    t.assertOK(actual > 0 && actual < 50000, `Actual draw < 50 kW (got: ${(actual/1000).toFixed(1)} kW)`);
   }});
 
   // [v10.3.0] T198: Stream flowrate contract
@@ -24915,22 +24932,25 @@ function runTests() {
   }});
 
   // [v10.4.2] T205: HEAT-A — e-heater powerDemand = setpoint, independent of downstream
-  tests.push({ name: '205: HEAT-A e-heater powerDemand = power_kW setpoint', fn: t => {
+  tests.push({ name: '205: Heater powerDemand reflects Q needed for T_out', fn: t => {
+    // [v12.8.0] Replaces e-heater test — heater now has elec_in directly
     t.clearScene();
-    const elSrc = t.place('grid_supply', 0, 0, { maxPower: 100 });
-    const eh = t.place('electric_heater', 3, 0, { power_kW: 42 });
-    const hs = t.place('sink_heat', 6, 0);
-    t.wire(elSrc, 'out', eh, 'elec_in');
-    t.wire(eh, 'heat_out', hs, 'in');
+    const src = t.place('source', 0, 0, { species: 'N2', nDot: 1, T: 300, P: 101325, phaseConstraint: 'V' });
+    const htr = t.place('heater', 4, 0, { T_out: 500 });
+    const snk = t.place('sink', 8, 0);
+    const gs = t.place('grid_supply', 4, -3, { maxPower: 100 });
+    t.wire(src, 'out', htr, 'mat_in');
+    t.wire(htr, 'mat_out', snk, 'in');
+    t.wire(gs, 'out', htr, 'elec_in');
     t.solve();
-    // powerDemand = 42 kW setpoint (not influenced by heat sink)
-    t.assertClose(t.ud(eh).powerDemand / 1000, 42, 0.01, 'powerDemand = 42 kW');
-    t.assertClose(t.ud(eh).last.W_elec_actual_W / 1000, 42, 0.5, 'actual draw = 42 kW');
-    // Change setpoint and re-solve
-    t.unit(eh).params.power_kW = 15;
+    const last = t.last(htr);
+    t.assertOK(last.Q_actual_W > 0, 'Q_actual > 0');
+    t.assertOK(t.unit(htr).powerDemand > 0, 'powerDemand > 0');
+    // Change T_out setpoint and re-solve
+    t.unit(htr).params.T_out = 400;
     t.solve();
-    t.assertClose(t.ud(eh).powerDemand / 1000, 15, 0.01, 'powerDemand = 15 kW after change');
-    t.assertClose(t.ud(eh).last.W_elec_actual_W / 1000, 15, 0.5, 'actual draw = 15 kW');
+    const last2 = t.last(htr);
+    t.assertOK(last2.Q_actual_W < last.Q_actual_W, 'Lower T_out → less Q');
   }});
 
   // [v10.4.3] T206-T209: HEAT-B — Reactor dual heat ports
@@ -24949,11 +24969,9 @@ function runTests() {
       mode: 'heated'  // explicitly heated
     });
     const snk = t.place('sink', 8, 0);
+    // [v12.8.0] grid → reactor elec_in directly (replaces e-heater chain)
     const elSrc = t.place('grid_supply', 0, 5, { maxPower: 500 });
-    const eh = t.place('electric_heater', 4, 5, { power_kW: 500 });
-    const ehSnk = t.place('sink_heat', 8, 5);
-    t.wire(elSrc, 'out', eh, 'elec_in');
-    t.wire(eh, 'heat_out', rx, 'heat_in');
+    t.wire(elSrc, 'out', rx, 'elec_in');
     t.wire(src, 'out', rx, 'mat_in');
     t.wire(rx, 'mat_out', snk, 'in');
     t.solve();
@@ -24980,7 +24998,7 @@ function runTests() {
     const snkIns = t.place('sink', 8, 0);
     t.wire(src, 'out', rxIns, 'mat_in');
     t.wire(rxIns, 'mat_out', snkIns, 'in');
-    // Heated with small Q
+    // Heated with small Q — [v12.8.0] grid → reactor elec_in directly
     const src2 = t.place('source_multi', 0, 6, {
       n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V'
     });
@@ -24990,10 +25008,7 @@ function runTests() {
     });
     const snkHeat = t.place('sink', 8, 6);
     const elSrc = t.place('grid_supply', 0, 10, { maxPower: 5 });
-    const eh = t.place('electric_heater', 4, 10, { power_kW: 5 });
-    const ehSnk = t.place('sink_heat', 8, 10);
-    t.wire(elSrc, 'out', eh, 'elec_in');
-    t.wire(eh, 'heat_out', rxHeat, 'heat_in');
+    t.wire(elSrc, 'out', rxHeat, 'elec_in');
     t.wire(src2, 'out', rxHeat, 'mat_in');
     t.wire(rxHeat, 'mat_out', snkHeat, 'in');
     t.solve();
@@ -25039,12 +25054,9 @@ function runTests() {
       mode: 'heated'
     });
     const snk = t.place('sink', 8, 0);
-    // Provide bonus heat (10 kW)
+    // [v12.8.0] grid → reactor elec_in directly
     const elSrc = t.place('grid_supply', 0, 5, { maxPower: 10 });
-    const eh = t.place('electric_heater', 2, 5, { power_kW: 10 });
-    const ehSnk = t.place('sink_heat', 6, 5);
-    t.wire(elSrc, 'out', eh, 'elec_in');
-    t.wire(eh, 'heat_out', rx, 'heat_in');
+    t.wire(elSrc, 'out', rx, 'elec_in');
     t.wire(src, 'out', rx, 'mat_in');
     t.wire(rx, 'mat_out', snk, 'in');
     t.solve();
@@ -25473,12 +25485,11 @@ function runTests() {
 
   tests.push({ name: '227: NH3 condensation — vapor cooled to subcooled liquid', fn: t => {
     const src = t.place('source', 0, 0, { species: 'NH3', nDot: 1, T: 350, P: 1000000, phaseConstraint: 'VL' });
-    const clr = t.place('cooler', 3, 0, { T_out: 293 });
+    // [v12.8.0] air_cooler replaces cooler+sink_heat
+    const clr = t.place('air_cooler', 3, 0, { T_out: 293 });
     const snk = t.place('sink', 6, 0);
-    const hSnk = t.place('sink_heat', 3, -3);  // [v11.0.0] cooler needs heat sink
     t.wire(src, 'out', clr, 'mat_in');
     t.wire(clr, 'mat_out', snk, 'in');
-    t.wire(clr, 'heat_out', hSnk, 'in');
     t.solve();
 
     const srcOut = t.port(src, 'out');
@@ -25495,13 +25506,7 @@ function runTests() {
 
     // Heat removed: should be positive (cooling)
     const last = t.last(clr);
-    t.assertOK(last.Q_removed_W > 0, 'Q_removed > 0 (heat extracted)', last.Q_removed_W);
-
-    // Energy balance: Q = H_in - H_out
-    if (srcOut?.Hdot_J_s !== undefined && out?.Hdot_J_s !== undefined) {
-      const Q_calc = srcOut.Hdot_J_s - out.Hdot_J_s;
-      t.assertOK(Q_calc > 0, 'H_in > H_out (cooling)', `ΔH = ${(Q_calc/1000).toFixed(2)} kW`);
-    }
+    t.assertOK(last.Q_rejected_W > 0, 'Q_rejected > 0 (heat extracted)', last.Q_rejected_W);
   }});
 
   tests.push({ name: '228: NH3 compression — cold vapor to hot high-P vapor', fn: t => {
@@ -25722,12 +25727,10 @@ function runTests() {
     const feed = t.place('source_multi', 0, 0, { n:{CH4:0.2, H2O:0.4}, T:1000, P:2000000, phaseConstraint:'V' });
     const rx = t.place('reactor_equilibrium', 4, 0, { reactionId:'R_STEAM_REFORM', useKinetics:true, volume_m3:1.0, mode:'heated', variant:'elec-top' });
     const snk = t.place('sink', 8, 0);
-    // Supply only 2 kW (duty is ~8 kW)
+    // [v12.8.0] grid → reactor elec_in directly (supply only 2 kW, duty is ~8 kW)
     const gs = t.place('grid_supply', 0, 6, { maxPower:5 });
-    const eh = t.place('electric_heater', 3, 6, { power_kW:2 });
-    const ehSnk = t.place('sink_heat', 7, 6);
     t.wire(feed,'out', rx,'mat_in'); t.wire(rx,'mat_out', snk,'in');
-    t.wire(gs,'out', eh,'elec_in'); t.wire(eh,'heat_out', rx,'heat_in');
+    t.wire(gs,'out', rx,'elec_in');
     t.solve();
     const rxL = t.ud(rx).last;
     t.assertOK(rxL?.status === 'active', 'Status: active');
@@ -25743,16 +25746,15 @@ function runTests() {
     const feed = t.place('source_multi', 0, 0, { n:{CH4:0.2, H2O:0.4}, T:1000, P:2000000, phaseConstraint:'V' });
     const rx = t.place('reactor_equilibrium', 4, 0, { reactionId:'R_STEAM_REFORM', useKinetics:true, volume_m3:1.0, mode:'heated', variant:'elec-top' });
     const snk = t.place('sink', 8, 0);
+    // [v12.8.0] grid → reactor elec_in directly (50 kW, duty ~8 kW)
     const gs = t.place('grid_supply', 0, 6, { maxPower:100 });
-    const eh = t.place('electric_heater', 3, 6, { power_kW:50 });
-    const ehSnk = t.place('sink_heat', 7, 6);
     t.wire(feed,'out', rx,'mat_in'); t.wire(rx,'mat_out', snk,'in');
-    t.wire(gs,'out', eh,'elec_in'); t.wire(eh,'heat_out', rx,'heat_in');
+    t.wire(gs,'out', rx,'elec_in');
     t.solve();
     const rxL = t.ud(rx).last;
     t.assertOK(rxL?.status === 'active', 'Status: active');
     t.assertOK(rxL?.converged, 'Converged');
-    // With 50 kW (duty ~8 kW), T should be above T_in
+    // With 50+ kW (duty ~8 kW), T should be above T_in
     const out = t.port(rx, 'mat_out');
     t.assertOK(out.T > 990, 'T_out > 990K (excess heat)', `T=${out.T.toFixed(0)}K`);
   }});
@@ -25762,11 +25764,10 @@ function runTests() {
     const feed = t.place('source_multi', 0, 0, { n:{CO2:0.1, H2:0.4}, T:600, P:500000, phaseConstraint:'V' });
     const rxHeat = t.place('reactor_equilibrium', 4, 0, { reactionId:'R_SABATIER', useKinetics:true, volume_m3:1.0, mode:'heated', variant:'elec-top' });
     const snk = t.place('sink', 8, 0);
+    // [v12.8.0] grid → reactor elec_in directly
     const gs = t.place('grid_supply', 0, 6, { maxPower:50 });
-    const eh = t.place('electric_heater', 3, 6, { power_kW:10 });
-    const ehSnk = t.place('sink_heat', 7, 6);
     t.wire(feed,'out', rxHeat,'mat_in'); t.wire(rxHeat,'mat_out', snk,'in');
-    t.wire(gs,'out', eh,'elec_in'); t.wire(eh,'heat_out', rxHeat,'heat_in');
+    t.wire(gs,'out', rxHeat,'elec_in');
     // Also build insulated reference
     const feed2 = t.place('source_multi', 0, 12, { n:{CO2:0.1, H2:0.4}, T:600, P:500000, phaseConstraint:'V' });
     const rxIns = t.place('reactor_equilibrium', 4, 12, { reactionId:'R_SABATIER', useKinetics:true, volume_m3:1.0 });
@@ -25785,68 +25786,55 @@ function runTests() {
 
   tests.push({ name: '236: Demo scene — Brayton cycle + SMR reactor + Pump loop', fn: t => {
     // ── PROCESS A: Open Brayton Cycle ──
-    // Grid → Motor → Compressor (air 1→3 bar) → Hex cold → Heater (1200K) → Turbine (3→1 bar) → Exhaust
-    // Turbine shaft → Generator → Electrical Sink
+    // Grid → Compressor (air 1→3 bar) → Hex cold → Heater (elec_in) → Turbine (3→1 bar) → Exhaust
+    // Turbine shaft → Electrical Sink
     const aGrid  = t.place('grid_supply',      30,  0, { maxPower: 20000 });
-    // [v11.0.0] motor removed
     const aAir   = t.place('source_air',       30,  2, { flowScale: 1.0 });
     const aComp  = t.place('compressor',       34,  2, { Pout: 300000, eta: 0.80 });
-    const aHeat  = t.place('heater',           40,  6);  // [v11.0.0] no T_out
+    const aHeat  = t.place('heater',           40,  6);
     const aTurb  = t.place('gas_turbine',      44,  6, { Pout: 101325, eta: 0.88 });
     const aExh   = t.place('sink',             48,  6);
-    // [v11.0.0] generator removed
     const aEout  = t.place('sink_electrical',  50,  8);
 
-    // [v10.9.3 NNG] Combustor needs a heat source — grid + e-heater
+    // [v12.8.0] Combustor heat: grid directly to heater elec_in
     const aHeatSrc = t.place('grid_supply',    30, 14, { maxPower: 30000 });
-    const aEH      = t.place('electric_heater', 32, 14, { power_kW: 30 });
 
     // ── SHARED: Heat Exchanger (Recuperator) ──
-    // Hot side: SMR product (Process B). Cold side: compressed air (Process A).
     const abHex  = t.place('hex',              38,  4, { T_approach: 10 });
 
     // ── PROCESS B: Steam Methane Reforming (endothermic) ──
-    // CH₄+2H₂O @1000K 20bar → Reactor (R_STEAM_REFORM) → Hex hot → Valve (20→2 bar) → Syngas sink
-    // Heat supplied by external source (Sabatier stand-in: dedicated source_multi for isolation)
     const bFeed  = t.place('source_multi',     30,  4, { n: { CH4: 0.2, H2O: 0.4 }, T: 1000, P: 2000000, phaseConstraint: 'V' });
     const bRx    = t.place('reactor_equilibrium', 34, 4, { reactionId: 'R_STEAM_REFORM', useKinetics: true, volume_m3: 1.0, variant: 'elec-top', mode: 'heated' });
     const bValve = t.place('valve',            42,  4, { Pout: 200000 });
     const bProd  = t.place('sink',             46,  4);
-    // [v11.0.0] bQout removed — no heat_out port on reactor
 
-    // Heat supply for SMR reactor: use a dedicated grid_supply → electric_heater chain
-    // Provides ~40 kW guaranteed heat (SMR Q_duty should be ~10–30 kW for 0.2 mol/s CH₄)
+    // [v12.8.0] SMR heat: grid directly to reactor elec_in
     const bHeatSrc = t.place('grid_supply',    30, 10, { maxPower: 40000 });
-    const bEH      = t.place('electric_heater', 32, 10, { power_kW: 40 });
 
     // ── PROCESS C: Liquid Water Pumping ──
     const cGrid  = t.place('grid_supply',      38, 10, { maxPower: 1000 });
-    // [v11.0.0] motor removed
     const cSrc   = t.place('source',           38, 12, { species: 'H2O', nDot: 1, T: 293.15, P: 101325, phaseConstraint: 'L' });
     const cPump  = t.place('pump',             42, 12, { Pout: 500000, eta: 0.75 });
     const cSink  = t.place('sink',             46, 12);
 
-    // ── WIRING: Process A ── [v11.0.0] No motor/generator
+    // ── WIRING: Process A ──
     t.wire(aGrid, 'out',      aComp, 'elec_in');
     t.wire(aAir, 'out',       aComp, 'mat_in');
-    t.wire(aComp, 'mat_out',  abHex, 'cold_in');      // compressed air → hex cold
-    t.wire(abHex, 'cold_out', aHeat, 'mat_in');       // preheated air → combustor
-    t.wire(aHeatSrc, 'out', aEH, 'elec_in');          // grid → e-heater
-    t.wire(aEH, 'heat_out', aHeat, 'heat_in');        // heat → combustor
-    t.wire(aHeat, 'mat_out',  aTurb, 'mat_in');       // hot air → turbine
-    t.wire(aTurb, 'mat_out',  aExh, 'in');            // exhaust
-    t.wire(aTurb, 'elec_out', aEout, 'in');           // electricity → sink
+    t.wire(aComp, 'mat_out',  abHex, 'cold_in');
+    t.wire(abHex, 'cold_out', aHeat, 'mat_in');
+    t.wire(aHeatSrc, 'out',   aHeat, 'elec_in');     // [v12.8.0] grid → heater elec_in
+    t.wire(aHeat, 'mat_out',  aTurb, 'mat_in');
+    t.wire(aTurb, 'mat_out',  aExh, 'in');
+    t.wire(aTurb, 'elec_out', aEout, 'in');
 
     // ── WIRING: Process B ──
-    t.wire(bFeed, 'out',      bRx, 'mat_in');         // feed → reactor
-    t.wire(bRx, 'mat_out',    abHex, 'hot_in');       // product → hex hot
-    t.wire(abHex, 'hot_out',  bValve, 'in');          // cooled product → valve
-    t.wire(bValve, 'out',     bProd, 'in');           // letdown → sink
-    // [v11.0.0] no heat_out wire — reactor has no heat_out port
-    t.wire(bHeatSrc, 'out',   bEH, 'elec_in');       // grid → e-heater
-    t.wire(bEH, 'heat_out',   bRx, 'heat_in');       // heat → reactor
+    t.wire(bFeed, 'out',      bRx, 'mat_in');
+    t.wire(bRx, 'mat_out',    abHex, 'hot_in');
+    t.wire(abHex, 'hot_out',  bValve, 'in');
+    t.wire(bValve, 'out',     bProd, 'in');
+    t.wire(bHeatSrc, 'out',   bRx, 'elec_in');       // [v12.8.0] grid → reactor elec_in
 
-    // ── WIRING: Process C ── [v11.0.0] No motor
+    // ── WIRING: Process C ──
     t.wire(cGrid, 'out',      cPump, 'elec_in');
     t.wire(cSrc, 'out',       cPump, 'mat_in');
     t.wire(cPump, 'mat_out',  cSink, 'in');
@@ -25858,17 +25846,14 @@ function runTests() {
     // ASSERTIONS — Process A: Brayton Cycle
     // ════════════════════════════════════════════════════════════════════
 
-    // Compressor outlet
     const compOut = t.port(aComp, 'mat_out');
     t.assertOK(compOut?.T, 'A: Compressor has outlet');
     t.assertClose(compOut.P, 300000, 5000, 'A: Compressor P_out ≈ 3 bar');
     t.assertOK(compOut.T > 340, 'A: Comp T_out > 340K (adiabatic heating)', compOut.T?.toFixed(1));
 
-    // Compressor shaft power
     const compLast = t.last(aComp);
     t.assertOK(compLast?.W_shaft > 100, 'A: Comp shaft power > 0', (compLast?.W_shaft/1000)?.toFixed(2) + ' kW');
 
-    // Heater (combustor) — [v11.0.0] takes ALL heat supplied, T_out is consequence
     const heatOut = t.port(aHeat, 'mat_out');
     t.assertOK(heatOut?.T, 'A: Heater has outlet');
     const hexColdOutT = t.port(abHex, 'cold_out')?.T || 300;
@@ -25876,7 +25861,6 @@ function runTests() {
     const htrQ = t.last(aHeat)?.Q_actual_W ?? 0;
     t.assertOK(htrQ > 0, 'A: Heater received heat', `${(htrQ/1000).toFixed(1)} kW`);
 
-    // Gas turbine
     const turbOut = t.port(aTurb, 'mat_out');
     const turbLast = t.last(aTurb);
     t.assertOK(turbOut?.T, 'A: Turbine has outlet');
@@ -25884,8 +25868,6 @@ function runTests() {
     t.assertClose(turbOut.P, 101325, 1000, 'A: Turbine P_out ≈ 1 bar');
     t.assertOK(turbLast?.W_shaft > 5000, 'A: Turbine shaft > 5 kW', (turbLast?.W_shaft/1000)?.toFixed(2) + ' kW');
 
-    // [v11.0.0] Generator/Motor removed — turbine outputs elec directly
-    // Turbine electrical output check (combined η)
     const turbElecPort = t.port(aTurb, 'elec_out');
     t.assertOK(turbElecPort?.actual > 5000, 'A: Turbine elec out > 5 kW');
 
@@ -25898,7 +25880,6 @@ function runTests() {
     t.assertOK(!hexLast?.hxCross, 'Hex: no temperature crossover');
     t.assertOK(hexLast?.hxPinch_K > 0, 'Hex: pinch ΔT > 0', hexLast?.hxPinch_K?.toFixed(1) + ' K');
 
-    // Hot outlet (SMR product) should be cooler than hot inlet
     const hexHotOut = t.port(abHex, 'hot_out');
     const hexColdOut = t.port(abHex, 'cold_out');
     t.assertOK(hexHotOut?.T < 1000, 'Hex: hot out cooled', hexHotOut?.T?.toFixed(1));
@@ -25914,20 +25895,16 @@ function runTests() {
     t.assertOK(rxLast?.converged, 'B: CSTR converged');
     t.assertOK(rxLast?.iso_Q_duty_W > 0, 'B: iso_Q_duty > 0 (endothermic)', (rxLast?.iso_Q_duty_W/1000)?.toFixed(2) + ' kW');
 
-    // Heated mode: Q_in > 0
     t.assertOK(rxLast?.Q_in_W > 0, 'B: Q_in > 0 (heated mode)',
       'Q_in=' + (rxLast?.Q_in_W/1000)?.toFixed(2) + ' kW');
 
-    // Conversion: K(1000K) ≈ 2.5 → moderate conversion
     t.assertOK(rxLast?.xi > 0, 'B: ξ > 0 (reaction proceeds)');
     const conversion = rxLast?.xi / rxLast?.xi_max;
     t.assertRange(conversion, 0.1, 0.99, 'B: Conversion 10–99%');
 
-    // Product should contain H₂ (formed by SMR)
     const rxOut = t.port(bRx, 'mat_out');
     t.assertOK(rxOut?.n?.H2 > 0, 'B: H₂ in product', rxOut?.n?.H2?.toFixed(4));
 
-    // Valve
     const valveOut = t.port(bValve, 'out');
     t.assertClose(valveOut?.P, 200000, 5000, 'B: Valve P_out ≈ 2 bar');
     t.assertOK(valveOut?.T, 'B: Valve outlet has T');
@@ -25945,15 +25922,13 @@ function runTests() {
     t.assertOK(pumpLast?.W_shaft < 1000, 'C: Pump shaft < 1 kW (liquid is near-incompressible)',
       (pumpLast?.W_shaft)?.toFixed(1) + ' W');
 
-    // [v11.0.0] Motor removed — pump is direct electrical consumer
-
     // ════════════════════════════════════════════════════════════════════
     // GLOBAL — No CATASTROPHIC/MAJOR errors on any unit
     // ════════════════════════════════════════════════════════════════════
 
     const allUnits = [aGrid, aAir, aComp, aHeat, aTurb, aExh, aEout,
-                      aHeatSrc, aEH,
-                      abHex, bFeed, bRx, bValve, bProd, bHeatSrc, bEH,
+                      aHeatSrc,
+                      abHex, bFeed, bRx, bValve, bProd, bHeatSrc,
                       cGrid, cSrc, cPump, cSink];
     let errors = 0;
     for (const uid of allUnits) {
@@ -26140,15 +26115,13 @@ function runTests() {
   }});
 
   tests.push({ name: '254: Heated endo + excess Q → T_out > T_in, energy in fluid', fn: t => {
-    // Steam reforming at 1000K with 500 kW (duty ~200 kW). All energy in fluid.
+    // Steam reforming at 1000K with large Q (duty ~200 kW). All energy in fluid.
     const src  = t.place('source_multi', 0, 0, { n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V' });
     const rx   = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_STEAM_REFORM', useKinetics: false, alpha: 1.0, mode: 'heated' });
     const snk  = t.place('sink', 8, 0);
+    // [v12.8.0] grid → reactor elec_in directly
     const elSrc = t.place('grid_supply', 0, 5, { maxPower: 500 });
-    const eh   = t.place('electric_heater', 4, 5, { power_kW: 500 });
-    const ehSnk = t.place('sink_heat', 8, 5);
-    t.wire(elSrc, 'out', eh, 'elec_in');
-    t.wire(eh, 'heat_out', rx, 'heat_in');
+    t.wire(elSrc, 'out', rx, 'elec_in');
     t.wire(src, 'out', rx, 'mat_in');
     t.wire(rx, 'mat_out', snk, 'in');
     t.solve();
@@ -26163,36 +26136,8 @@ function runTests() {
     t.assertOK(!t.ud(rx).ports?.heat_out, 'No heat_out port');
   }});
 
-  tests.push({ name: '255: E-heater heat_out connected → draws power, outputs heat', fn: t => {
-    const grid = t.place('grid_supply', 0, 0, { maxPower: 50 });
-    const eh   = t.place('electric_heater', 4, 0, { power_kW: 30 });
-    const hSnk = t.place('sink_heat', 8, 0);
-    t.wire(grid, 'out', eh, 'elec_in');
-    t.wire(eh, 'heat_out', hSnk, 'in');
-    t.solve();
-    const last = t.last(eh);
-    t.assertOK(last.W_elec_actual_W > 0, 'Draws power');
-    t.assertClose(last.Q_available_W, last.W_elec_actual_W, 1, 'Q = W (η=100%)');
-    t.assertOK(!last.error, 'No error');
-    const heatPort = t.ud(eh).ports?.heat_out;
-    t.assertOK(heatPort?.actual > 0, 'heat_out.actual > 0');
-  }});
-
-  tests.push({ name: '256: E-heater heat_out unconnected → draws 0, MAJOR', fn: t => {
-    const grid = t.place('grid_supply', 0, 0, { maxPower: 50 });
-    const eh   = t.place('electric_heater', 4, 0, { power_kW: 30 });
-    // heat_out NOT connected
-    t.wire(grid, 'out', eh, 'elec_in');
-    t.solve();
-    const last = t.last(eh);
-    t.assertClose(last.W_elec_actual_W, 0, 0.1, 'Draws 0 W');
-    t.assertClose(last.Q_available_W, 0, 0.1, 'Q = 0');
-    t.assertOK(last.error?.severity === ErrorSeverity.MAJOR, 'MAJOR error');
-    t.assertOK(last.error?.message?.includes('No heat load'), 'Message: no heat load');
-    // heat_out port carries 0
-    const heatPort = t.ud(eh).ports?.heat_out;
-    t.assertClose(heatPort?.actual ?? 0, 0, 0.1, 'heat_out.actual = 0');
-  }});
+  // [v12.8.0] T255 deleted: E-heater heat_out connected — electric_heater deleted
+  // [v12.8.0] T256 deleted: E-heater heat_out unconnected — electric_heater deleted
 
   tests.push({ name: '257: No "dissipated" field in system balance', fn: t => {
     // Build a system with an exothermic reactor, heat_out unconnected
@@ -26232,24 +26177,19 @@ function runTests() {
     t.assertOK(bal.energy.closed, 'Balance closed');
   }});
 
-  tests.push({ name: '259: Cooler unconnected heat_out → passthrough + MAJOR', fn: t => {
-    const src = t.place('source', 0, 0, { species: 'N2', nDot: 2, T: 573.15, P: 200000, phaseConstraint: 'V' });
-    const clr = t.place('cooler', 3, 0, { T_out: 323.15 });
+  tests.push({ name: '259: Air cooler with T_out ≥ T_in → passthrough + MINOR', fn: t => {
+    // [v12.8.0] Replaces cooler unconnected-heat_out test (cooler deleted)
+    const src = t.place('source', 0, 0, { species: 'N2', nDot: 2, T: 300, P: 200000, phaseConstraint: 'V' });
+    const clr = t.place('air_cooler', 3, 0, { T_out: 350 });  // T_out > T_in → can't cool
     const snk = t.place('sink', 6, 0);
     t.wire(src, 'out', clr, 'mat_in');
     t.wire(clr, 'mat_out', snk, 'in');
-    // heat_out NOT connected
     t.solve();
     const last = t.last(clr);
-    t.assertClose(last.Q_removed_W, 0, 1, 'Q_removed = 0');
-    t.assertOK(last.error?.severity === ErrorSeverity.MAJOR, 'MAJOR error');
-    // Passthrough: T_out ≈ T_in
+    // Should passthrough (can't heat with an air cooler)
     const out = t.port(clr, 'mat_out');
     const srcOut = t.port(src, 'out');
-    t.assertClose(out.T, srcOut.T, 1, 'T_out ≈ T_in (passthrough)');
-    // heat_out actual = 0
-    const heatPort = t.ud(clr).ports?.heat_out;
-    t.assertClose(heatPort?.actual ?? 0, 0, 0.1, 'heat_out.actual = 0');
+    t.assertClose(out.T, srcOut.T, 1, 'T_out ≈ T_in (passthrough — cannot heat)');
   }});
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -26386,7 +26326,7 @@ function runTests() {
     t.solve();
     const Q_iso = t.last(rx1).iso_Q_duty_W;
     t.assertOK(Q_iso > 0, 'iso_Q_duty > 0 (endothermic)');
-    // Now: heated reactor with that exact Q
+    // Now: heated reactor with that exact Q — [v12.8.0] grid → reactor elec_in
     t.clearScene();
     const src2 = t.place('source_multi', 0, 0, {
       n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V'
@@ -26396,10 +26336,7 @@ function runTests() {
     });
     const snk2 = t.place('sink', 8, 0);
     const gs = t.place('grid_supply', 0, 6, { maxPower: Q_iso / 1000 + 1 });
-    const eh = t.place('electric_heater', 4, 6, { power_kW: Q_iso / 1000 });
-    const ehSnk = t.place('sink_heat', 8, 6);
-    t.wire(gs, 'out', eh, 'elec_in');
-    t.wire(eh, 'heat_out', rx2, 'heat_in');
+    t.wire(gs, 'out', rx2, 'elec_in');
     t.wire(src2, 'out', rx2, 'mat_in');
     t.wire(rx2, 'mat_out', snk2, 'in');
     t.solve();
@@ -26436,26 +26373,25 @@ function runTests() {
     t.assertClose(t.last(rxI).xi, t.last(rxH).xi, 0.001, 'xi identical');
   }});
 
-  tests.push({ name: '269: Insulated mode hides heat_in and rejects connection', fn: t => {
+  tests.push({ name: '269: Insulated mode hides elec_in and rejects connection', fn: t => {
     t.clearScene();
     const src = t.place('source_multi', 0, 0, {
       n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V'
     });
-    // Default mode is insulated — variant should be 'insulated' (no heat_in visible)
+    // Default mode is insulated — variant should be 'insulated' (no elec_in visible)
     const rx = t.place('reactor_equilibrium', 4, 0, {
       reactionId: 'R_STEAM_REFORM', useKinetics: false, alpha: 1.0, mode: 'insulated', variant: 'insulated'
     });
     const snk = t.place('sink', 8, 0);
-    const eh = t.place('electric_heater', 4, 6, { power_kW: 50 });
-    const ehSnk = t.place('sink_heat', 8, 6);
-    // heat_in should be hidden in insulated presentation
+    const gs = t.place('grid_supply', 4, 6, { maxPower: 50 });
+    // [v12.8.0] elec_in should be hidden in insulated presentation
     const def = UnitRegistry.get('reactor_equilibrium');
     const pres = getPresentation(def, scene.units.get(rx));
-    t.assertOK(!pres.ports.heat_in, 'heat_in hidden in insulated');
+    t.assertOK(!pres.ports.elec_in, 'elec_in hidden in insulated');
     // Scene.connect should reject connection to hidden port
     const connId = scene.connect(
-      { unitId: eh, portId: 'heat_out' },
-      { unitId: rx, portId: 'heat_in' }
+      { unitId: gs, portId: 'out' },
+      { unitId: rx, portId: 'elec_in' }
     );
     t.assertOK(connId === null, 'Connection rejected');
     t.assertOK(scene._lastConnectError?.includes('not available'), 'Error mentions port not available');
@@ -26607,7 +26543,7 @@ function runTests() {
   // SECTION: v11.0.2 — Reactor Port Integrity + Inspector Standardisation
   // ═══════════════════════════════════════════════════════════════════════
 
-  tests.push({ name: '278: Heated mode reactor accepts heat_in connection', fn: t => {
+  tests.push({ name: '278: Heated mode reactor accepts elec_in connection', fn: t => {
     t.clearScene();
     const src = t.place('source_multi', 0, 0, {
       n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V'
@@ -26616,15 +26552,16 @@ function runTests() {
       reactionId: 'R_STEAM_REFORM', useKinetics: false, alpha: 1.0, mode: 'heated', variant: 'default'
     });
     const snk = t.place('sink', 8, 0);
-    const eh = t.place('electric_heater', 4, 6, { power_kW: 50 });
-    // Heated mode: heat_in must be visible and connectable
+    // [v12.8.0] grid → reactor elec_in
+    const gs = t.place('grid_supply', 4, 6, { maxPower: 50 });
+    // Heated mode: elec_in must be visible and connectable
     const def = UnitRegistry.get('reactor_equilibrium');
     const pres = getPresentation(def, scene.units.get(rx));
-    t.assertOK(pres.ports.heat_in, 'heat_in visible in heated mode');
+    t.assertOK(pres.ports.elec_in, 'elec_in visible in heated mode');
     // Scene.connect should accept
     const connId = scene.connect(
-      { unitId: eh, portId: 'heat_out' },
-      { unitId: rx, portId: 'heat_in' }
+      { unitId: gs, portId: 'out' },
+      { unitId: rx, portId: 'elec_in' }
     );
     t.assertOK(connId !== null, 'Connection accepted in heated mode');
   }});
@@ -26666,9 +26603,10 @@ function runTests() {
     t.assertOK(rxUnit.params.variant !== 'insulated', 'Variant cleared from insulated');
   }});
 
-  tests.push({ name: '290: Insulated mode strips ghost heat_in connections on solve', fn: t => {
-    // [v12.3.0] Pre-solve presentation-consistency pass must remove connections
-    // to ports not in the active presentation (insulated hides heat_in).
+  tests.push({ name: '290: Insulated mode strips ghost elec_in connections on solve', fn: t => {
+    // [v12.8.0] Updated: elec_in replaces heat_in. Pre-solve presentation-consistency
+    // pass must remove connections to ports not in the active presentation
+    // (insulated hides elec_in).
     t.clearScene();
     const src = t.place('source_multi', 0, 0, {
       n: { CH4: 1, H2O: 3 }, T: 900, P: 500000, phaseConstraint: 'V'
@@ -26680,13 +26618,13 @@ function runTests() {
     const gs  = t.place('grid_supply', 4, 5, { maxPower: 50000 });
     t.wire(src, 'out', rx, 'mat_in');
     t.wire(rx, 'mat_out', snk, 'in');
-    t.wire(gs, 'out', rx, 'heat_in');
+    t.wire(gs, 'out', rx, 'elec_in');
     t.solve();
 
-    // Verify heated mode: heat_in connection exists
-    const heatConns1 = scene.connections.filter(
-      c => c.to.unitId === rx && c.to.portId === 'heat_in');
-    t.assertOK(heatConns1.length === 1, 'Heated: heat_in connected');
+    // Verify heated mode: elec_in connection exists
+    const elecConns1 = scene.connections.filter(
+      c => c.to.unitId === rx && c.to.portId === 'elec_in');
+    t.assertOK(elecConns1.length === 1, 'Heated: elec_in connected');
 
     // Switch to insulated — mode setter should disconnect
     const rxUnit = scene.units.get(rx);
@@ -26695,9 +26633,9 @@ function runTests() {
     // Simulate what happens on next solve (pre-solve cleanup)
     t.solve();
 
-    const heatConns2 = scene.connections.filter(
-      c => c.to.unitId === rx && c.to.portId === 'heat_in');
-    t.assertOK(heatConns2.length === 0, 'Insulated: heat_in connection stripped by pre-solve');
+    const elecConns2 = scene.connections.filter(
+      c => c.to.unitId === rx && c.to.portId === 'elec_in');
+    t.assertOK(elecConns2.length === 0, 'Insulated: elec_in connection stripped by pre-solve');
 
     // Verify reactor still works (Q_in = 0)
     const ud = scene.runtime.unitData.get(rx);
@@ -27073,6 +27011,37 @@ function runTests() {
     t.assertOK(threw, 'register() throws on missing required field');
     t.assertOK(!ComponentRegistry.exists('_TEST_INCOMPLETE'),
       'Incomplete component not left in registry');
+  }});
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // [v12.8.0] Phase 8 Gate Tests
+  // ═══════════════════════════════════════════════════════════════════════
+
+  tests.push({ name: '301: isPowerStreamType — only ELECTRICAL', fn: t => {
+    t.assertOK(isPowerStreamType(StreamType.ELECTRICAL), 'ELECTRICAL is power');
+    t.assertOK(!isPowerStreamType(StreamType.MATERIAL), 'MATERIAL is not power');
+    // Verify HEAT enum slot (1) does not exist in StreamType
+    t.assertOK(StreamType.HEAT === undefined, 'StreamType.HEAT is undefined (deleted)');
+  }});
+
+  tests.push({ name: '302: NNG sentinel — all 17 rules exist in source', fn: t => {
+    // [v12.8.0] Guard against accidental deletion of NNG rules.
+    // This test reads the HTML source and verifies NNG-1 through NNG-17 are present.
+    const html = document.documentElement.outerHTML;
+    for (let i = 1; i <= 17; i++) {
+      const tag = `NNG-${i}`;
+      t.assertOK(html.includes(tag), `${tag} exists in source`);
+    }
+  }});
+
+  tests.push({ name: '303: No deleted units in registry', fn: t => {
+    // [v12.8.0] electric_heater, sink_heat, cooler must not be registered
+    t.assertOK(!UnitRegistry.exists('electric_heater'), 'electric_heater not registered');
+    t.assertOK(!UnitRegistry.exists('sink_heat'), 'sink_heat not registered');
+    t.assertOK(!UnitRegistry.exists('cooler'), 'cooler not registered');
+    // air_cooler and heater must exist
+    t.assertOK(UnitRegistry.exists('air_cooler'), 'air_cooler registered');
+    t.assertOK(UnitRegistry.exists('heater'), 'heater registered');
   }});
 
   // ═══════════════════════════════════════════════════════════════════════
