@@ -256,6 +256,12 @@
            When Q limited, T_out > setpoint + MINOR warning.
            New: T304–T310 (7 tests).
 
+  v12.9.4  Reactor curtailment warning — 289 tests, 1810 assertions.
+           reactor_equilibrium now warns when power-starved in isothermal
+           or fixed-power mode: MINOR "Insufficient power for isothermal
+           operation: X / Y kW — reactor at Z°C instead of W°C".
+           Completes setpoint-warning coverage across all units.
+
   v12.9.3  Electric heater polish — 289 tests, 1810 assertions.
            Default power_kW = 10 (pilot-plant 10 kW inline heater,
            e.g. MHI Airtorch VTA550-10). Was 0 — useless default.
@@ -651,7 +657,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>processThis — v12.9.3</title>
+  <title>processThis — v12.9.4</title>
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
@@ -9347,6 +9353,17 @@ UnitRegistry.register('reactor_equilibrium', {
       u.last.error = {
         severity: ErrorSeverity.MAJOR,
         message: `CSTR solver did not converge after ${cstr.iterations} iterations`
+      };
+    }
+
+    // [v12.9.4] Setpoint warning: insufficient power for isothermal/fixed demand
+    if (u.last.curtailed && !u.last.error) {
+      const demandKW = ((u.powerDemand || 0) / 1000).toFixed(1);
+      const actualKW = (Q_in_W / 1000).toFixed(1);
+      const modeLabel = heatDemand === 'isothermal' ? 'isothermal operation' : 'fixed power target';
+      u.last.error = {
+        severity: ErrorSeverity.MINOR,
+        message: `Insufficient power for ${modeLabel}: ${actualKW} / ${demandKW} kW — reactor at ${(cstr.T_out - 273.15).toFixed(0)}°C instead of ${(sIn.T - 273.15).toFixed(0)}°C`
       };
     }
 
@@ -18664,7 +18681,7 @@ function loadDemo() {
 
   scene.importJSON(JSON.stringify({
     version: 14,
-    processName: 'Sabatier + Brayton + SMR + Pump Demo (v12.9.3)',
+    processName: 'Sabatier + Brayton + SMR + Pump Demo (v12.9.4)',
     grid: { w: 54, h: 42, tile: 48 },
     solverOptions: { maxIter: 200 },
     units: [
@@ -18837,7 +18854,7 @@ function loadDemo() {
   ui.selectedConnId = null;
   ui.pendingFrom = null;
   ui.reconnecting = null;
-  scene.processName = 'Sabatier + Brayton + SMR + Pump Demo (v12.9.3)';
+  scene.processName = 'Sabatier + Brayton + SMR + Pump Demo (v12.9.4)';
   document.getElementById('processNameInput').value = scene.processName;
   buildModelsPanel();
   const solveResult = solveScene(scene);
