@@ -256,17 +256,22 @@
            When Q limited, T_out > setpoint + MINOR warning.
            New: T304–T310 (7 tests).
 
-  v12.9.0  Final audit — all 280 tests pass (27,824 lines).
+  v12.9.0  Reactor demand model + final audit — 280 tests pass.
+           Three-mode heat demand replaces binary insulated/heated:
+             heatDemand: 'none'       — adiabatic, elec_in hidden
+             heatDemand: 'isothermal' — demands max(0, iso_Q_duty)
+             heatDemand: 'fixed'      — demands par.Q_fixed_kW
+           iso_Q_duty computed BEFORE CSTR (stable, no extra iterations).
+           Finite demand fixes Infinity*factor=NaN allocation bug.
+           Inspector: 3-option dropdown, Q demanded/received/curtailed KPIs,
+           sizing section shown for all modes.
+           importJSON: mode:'heated'→heatDemand:'isothermal',
+                       mode:'insulated'→heatDemand:'none'.
+           Variant sync + ghost stripping preserved (port hiding on 'none').
            reactor_adiabatic → reactor_equilibrium in all 41 test placements.
-           conversion: param → useKinetics: false, alpha: X.  Equilibrium
-           tolerances loosened for finite-K residuals (H2 combustion at
-           high T, water dissociation).  Direct grid→consumer power
-           allocation fixed for Infinity-demand consumers (reactor heated
-           mode).  NNG sentinel: JS constant replaces DOM comment scan.
-           All grid→reactor test wires routed through power_hub.
-           Grep audit: StreamType.HEAT, sink_heat, cooler,
-           reactor_adiabatic, cheatsEnabled, showCheats → zero in
-           active code.
+           NNG sentinel: JS constant replaces DOM comment scan.
+           Direct grid→consumer allocation guards Infinity demand.
+           Grep audit: all Phase 2b targets at zero in active code.
 
   ─── v11.2.0 — NIST Shomate Transition ──────────────────────────────────
   Replaces ad-hoc Cpig power polynomial with NIST Shomate equation for all
@@ -9047,16 +9052,15 @@ UnitRegistry.register('reactor_equilibrium', {
     const sIn = ports.mat_in;
     if (!sIn) return;
 
-    const mode = par.mode || 'insulated';
+    // [v12.9.0] Three-mode demand: none (adiabatic), isothermal, fixed
+    const heatDemand = par.heatDemand || 'none';
 
-    // [v11.0.2] Keep variant in sync with thermal mode
-    // Ensures port visibility matches mode regardless of creation path
-    if (mode === 'insulated' && par.variant !== 'insulated') par.variant = 'insulated';
-    if (mode === 'heated' && par.variant === 'insulated') par.variant = undefined;
+    // Variant sync: 'none' → insulated presentation (hides elec_in)
+    if (heatDemand === 'none' && par.variant !== 'insulated') par.variant = 'insulated';
+    if (heatDemand !== 'none' && par.variant === 'insulated') par.variant = undefined;
 
-    // [v12.6.0] Insulated: discard any elec_in that may have leaked through
-    // a ghost connection (pre-solve cleanup should have caught it, but belt+suspenders)
-    if (mode === 'insulated') ports.elec_in = null;
+    // None mode: discard any ghost elec_in
+    if (heatDemand === 'none') ports.elec_in = null;
 
     // ── Guard: reaction must be selected ──
     const reaction = par.reactionId ? ReactionRegistry.get(par.reactionId) : null;
@@ -9128,13 +9132,34 @@ UnitRegistry.register('reactor_equilibrium', {
       return;
     }
 
-    // ── Q_in: electrical heat supplied to the reactor ──
+    // ── [v12.9.0] Isothermal reference — computed BEFORE CSTR for demand ──
+    // Only depends on (T_in, P, n_in, stoich, xi_max) — stable across iterations.
+    const H_in_Jps = thermo.getHdot_Jps(sIn);
+    const isoRef = findXiEq(par.reactionId, sIn.T, sIn.n, stoich, xi_max, sIn.P);
+    let xi_iso = isoRef.xi_eq;
+    if (useKinetics) {
+      xi_iso = integratePFR(reaction._kinetics, sIn.T, sIn.P, sIn.n, stoich,
+        isoRef.xi_eq, par.volume_m3, isoRef.ln_K);
+    } else {
+      xi_iso = (par.alpha ?? 1.0) * isoRef.xi_eq;
+    }
+    const n_iso = applyNout(sIn.n, stoich, xi_iso);
+    const H_iso = thermo.getHdot_Jps({ type: StreamType.MATERIAL, T: sIn.T, P: sIn.P,
+      n: n_iso, phaseConstraint: resolvedPhase });
+    const iso_Q_duty_W = H_iso - H_in_Jps;
+    const conv_iso = xi_max > 0 ? (xi_iso / xi_max) * 100 : 0;
+
+    // ── [v12.9.0] Demand and Q_in ──
     let Q_in_W = 0;
-    if (mode === 'heated') {
+    if (heatDemand !== 'none') {
+      if (heatDemand === 'isothermal') {
+        u.powerDemand = Math.max(0, iso_Q_duty_W);
+      } else { // 'fixed'
+        u.powerDemand = Math.max(0, (par.Q_fixed_kW ?? 0) * 1000);
+      }
       const sElec = ports.elec_in;
       const rs = ctx ? ctx.scratch : {};
       Q_in_W = sElec ? (rs.hubAllocated_W ?? sElec.available ?? sElec.capacity ?? 0) : 0;
-      u.powerDemand = Infinity;  // reactor accepts all available power
     }
 
     // ── [v11.0.0 Phase 6] Skip-when-clean: reuse cached result if inputs unchanged ──
@@ -9163,21 +9188,6 @@ UnitRegistry.register('reactor_equilibrium', {
       phaseConstraint: resolvedPhase
     };
 
-    // ── Isothermal reference (what-if at T_in) ──
-    const isoRef = findXiEq(par.reactionId, sIn.T, sIn.n, stoich, xi_max, sIn.P);
-    let xi_iso = isoRef.xi_eq;
-    if (useKinetics) {
-      xi_iso = integratePFR(reaction._kinetics, sIn.T, sIn.P, sIn.n, stoich,
-        isoRef.xi_eq, par.volume_m3, isoRef.ln_K);
-    } else {
-      xi_iso = (par.alpha ?? 1.0) * isoRef.xi_eq;
-    }
-    const n_iso = applyNout(sIn.n, stoich, xi_iso);
-    const H_iso = thermo.getHdot_Jps({ type: StreamType.MATERIAL, T: sIn.T, P: sIn.P,
-      n: n_iso, phaseConstraint: resolvedPhase });
-    const Q_duty_isothermal_W = H_iso - cstr.H_in_Jps;
-    const conv_iso = xi_max > 0 ? (xi_iso / xi_max) * 100 : 0;
-
     // ── Kinetics diagnostics ──
     let kinDiag = {};
     if (useKinetics) {
@@ -9198,7 +9208,7 @@ UnitRegistry.register('reactor_equilibrium', {
     u.last = {
       reactionId: par.reactionId,
       mode: useKinetics ? 'kinetics' : 'manual',
-      reactorMode: mode,
+      heatDemand,
       xi: cstr.xi,
       xi_max,
       xi_eq: cstr.xi_eq,
@@ -9211,15 +9221,17 @@ UnitRegistry.register('reactor_equilibrium', {
       status: 'active',
       H_in_kW: (cstr.H_in_Jps / 1000).toFixed(2),
       H_out_kW: (cstr.H_out_Jps / 1000).toFixed(2),
+      Q_demanded_W: u.powerDemand || 0,
       Q_in_W,
-      Q_duty_W: Q_duty_isothermal_W,  // kept for backward compat
-      Q_duty_sign: Q_duty_isothermal_W >= 0 ? 'heating' : 'cooling',
+      curtailed: heatDemand !== 'none' && Q_in_W < (u.powerDemand || 0) - 1,
+      Q_duty_W: iso_Q_duty_W,  // kept for backward compat
+      Q_duty_sign: iso_Q_duty_W >= 0 ? 'heating' : 'cooling',
       dH0: reaction._dH0_Jmol,
       dS0: reaction._dS0_JmolK,
       converged: cstr.converged,
       iterations: cstr.iterations,
       // Isothermal reference (sizing help)
-      iso_Q_duty_W: Q_duty_isothermal_W,
+      iso_Q_duty_W,
       iso_xi: xi_iso,
       iso_conv_pct: conv_iso,
       ...kinDiag
@@ -9355,7 +9367,7 @@ class Scene {
         unit.params = { n: { N2: 0.78, O2: 0.21, Ar: 0.01 }, T: 298.15, P: 101325, phaseConstraint: 'V' };
         break;
       case 'reactor_equilibrium':
-        unit.params = { reactionId: 'R_H2_COMB', useKinetics: true, volume_m3: 1.0, alpha: 1.0, mode: 'insulated', variant: 'insulated' };
+        unit.params = { reactionId: 'R_H2_COMB', useKinetics: true, volume_m3: 1.0, alpha: 1.0, heatDemand: 'none', variant: 'insulated' };
         break;
       // ── Units with no params: sink, sink_electrical, sink_heat,
       //    power_hub, mixer, flash_drum — empty params is correct ──
@@ -9674,6 +9686,11 @@ class Scene {
       // [v12.0.0] Restore inventory state (tank/battery)
       if (u.inventory && typeof u.inventory === 'object') {
         unit.inventory = u.inventory;
+      }
+      // [v12.9.0] Migrate reactor mode → heatDemand
+      if (unit.defId === 'reactor_equilibrium' && unit.params.mode && !unit.params.heatDemand) {
+        unit.params.heatDemand = unit.params.mode === 'heated' ? 'isothermal' : 'none';
+        delete unit.params.mode;
       }
       tempUnits.set(unit.id, unit);
       unitIds.add(unit.id);
@@ -16463,27 +16480,36 @@ function _reactorParams(u, type) {
   if (type === 'adiabatic') {
     params.push({ type: 'slider', label: 'Conversion', get: () => u.params.conversion ?? 0.5, set: v => u.params.conversion = v, min: 0, max: 1, step: 0.01 });
   } else {
-    params.push({ type: 'select', label: 'Thermal mode', get: () => u.params.mode || 'insulated',
+    // [v12.9.0] Three-mode demand selector
+    params.push({ type: 'select', label: 'Heat demand', get: () => u.params.heatDemand || 'none',
       set: v => {
-        // [v12.6.0] Auto-disconnect elec_in when switching to insulated
-        if (v === 'insulated') {
+        if (v === 'none') {
+          // Disconnect elec_in when switching to none (adiabatic)
           const elecConns = scene.connections.filter(
             c => c.to.unitId === u.id && c.to.portId === 'elec_in');
           if (elecConns.length > 0) {
-            _pushUndo('Switch to insulated mode');
+            _pushUndo('Switch to adiabatic (none)');
             scene.connections = scene.connections.filter(
               c => !(c.to.unitId === u.id && c.to.portId === 'elec_in'));
           }
           u.params.variant = 'insulated';
         } else {
-          // Restore heated variant (default = elec bottom)
           if (u.params.variant === 'insulated') u.params.variant = undefined;
         }
-        u.params.mode = v;
+        u.params.heatDemand = v;
         render();
         updatePropertiesPanel();
       },
-      options: [['insulated', '❄️ Insulated (adiabatic)'], ['heated', '🔥 Heated (elec_in)']] });
+      options: [
+        ['none', '❄️ Adiabatic (no elec)'],
+        ['isothermal', '🎯 Isothermal demand'],
+        ['fixed', '⚡ Fixed power']
+      ] });
+    // Fixed power input (only in fixed mode)
+    if (u.params.heatDemand === 'fixed') {
+      params.push({ label: 'Q fixed (kW)', get: () => u.params.Q_fixed_kW ?? 0,
+        set: v => u.params.Q_fixed_kW = v, step: 1 });
+    }
     params.push({ type: 'toggle', label: 'Kinetics (PFR)', get: () => u.params.useKinetics !== false, set: v => { u.params.useKinetics = v; updatePropertiesPanel(); } });
     if (u.params.useKinetics !== false) params.push({ label: 'Volume (m³)', get: () => u.params.volume_m3 ?? 1.0, set: v => u.params.volume_m3 = v, step: 3 });
     else params.push({ type: 'slider', label: 'Alpha (approach)', get: () => u.params.alpha ?? 1.0, set: v => u.params.alpha = v, min: 0, max: 1, step: 0.01 });
@@ -16497,9 +16523,9 @@ UnitInspector.reactor_equilibrium = {
     if (!ud?.last || ud.last.status === 'inactive' || ud.last.status === 'no_reactants') return [];
     const L = ud.last;
     const items = [];
-    // Mode badge
-    const modeLabel = L.reactorMode === 'heated' ? '🔥 Heated' : '❄️ Insulated';
-    items.push({ label: 'Mode', value: modeLabel });
+    // [v12.9.0] Heat demand mode badge
+    const demandLabels = { none: '❄️ Adiabatic', isothermal: '🎯 Isothermal', fixed: '⚡ Fixed' };
+    items.push({ label: 'Heat demand', value: demandLabels[L.heatDemand] || demandLabels.none });
     // Temperature result
     if (L.T_out != null && L.T_in != null) {
       const dT = L.T_out - L.T_in;
@@ -16507,9 +16533,11 @@ UnitInspector.reactor_equilibrium = {
       items.push({ label: 'T out', value: fmt.T(L.T_out) });
       items.push({ label: 'ΔT', value: `${arrow} ${dT > 0 ? '+' : ''}${dT.toFixed(1)} K`, tone: Math.abs(dT) > 50 ? 'warn' : '' });
     }
-    // Heat input (heated mode only)
-    if (L.reactorMode === 'heated' && L.Q_in_W != null) {
-      items.push({ label: 'Q in (elec)', value: fmt.kW(L.Q_in_W) });
+    // Heat input (non-adiabatic only)
+    if (L.heatDemand && L.heatDemand !== 'none') {
+      if (L.Q_demanded_W != null) items.push({ label: 'Q demanded', value: fmt.kW(L.Q_demanded_W) });
+      if (L.Q_in_W != null) items.push({ label: 'Q received', value: fmt.kW(L.Q_in_W) });
+      if (L.curtailed) items.push({ label: 'Status', value: 'Power-limited', tone: 'warn' });
     }
     return items;
   },
@@ -16518,7 +16546,6 @@ UnitInspector.reactor_equilibrium = {
     const L = ud.last;
     const items = [];
     if (L.status) items.push({ label: 'Status', value: L.status, tone: L.status === 'active' ? '' : 'warn' });
-    // [v11.0.2] Thermicity: ΔH° of reaction — always shown, convention: 🔥 exo (red), ❄️ endo (blue)
     if (L.dH0 != null) {
       const isEndo = L.dH0 > 0;
       const badge = isEndo ? '❄️ Endothermic' : '🔥 Exothermic';
@@ -16532,11 +16559,10 @@ UnitInspector.reactor_equilibrium = {
     else if (L.iterations != null) items.push({ label: 'Solver', value: `${L.iterations} iter${L.warmStartUsed ? ' (warm)' : ''}${L.skipped ? ' (cached)' : ''}` });
     return items;
   },
-  // [v11.0.2] Sizing Assistance — heated mode only (insulated has no heat path)
+  // [v12.9.0] Sizing — shown for all modes (iso_Q_duty always computed)
   sizing(u, ud) {
     if (!ud?.last || ud.last.status !== 'active') return [];
     const L = ud.last;
-    if (L.reactorMode !== 'heated') return [];
     const items = [];
     if (L.iso_Q_duty_W != null) {
       const heating = L.iso_Q_duty_W >= 0;
@@ -16806,9 +16832,9 @@ function _rebuildInspectorContent() {
         // This prevents the user from surfacing heat_in via layout change.
         .filter(v => {
           if (u.defId !== 'reactor_equilibrium') return true;
-          const mode = u.params.mode || 'insulated';
-          if (mode === 'insulated') return v === 'insulated';
-          return v !== 'insulated';  // heated mode: show default + elec-top
+          const hd = u.params.heatDemand || 'none';
+          if (hd === 'none') return v === 'insulated';
+          return v !== 'insulated';  // isothermal/fixed: show default + elec-top
         });
       if (variants.length > 1) {
         const layoutZone = el('div', { class: 'ins-params-zone', style: 'margin-bottom:4px;' });
@@ -18598,7 +18624,7 @@ function loadDemo() {
       { id: 'b-feed', defId: 'source_multi', name: 'CH₄/Steam Feed', x: 4, y: -6, rot: 0,
         params: { n: { CH4: 0.2, H2O: 0.4 }, T: 1000, P: 2000000, phaseConstraint: 'V' } },
       { id: 'b-rx', defId: 'reactor_equilibrium', name: 'SMR Reactor', x: 8, y: -6, rot: 0,
-        params: { reactionId: 'R_STEAM_REFORM', useKinetics: true, volume_m3: 1.0, mode: 'heated', variant: 'elec-top' },
+        params: { reactionId: 'R_STEAM_REFORM', useKinetics: true, volume_m3: 1.0, heatDemand: 'isothermal', variant: 'elec-top' },
         sticker: { dx: -6, dy: -2, items: [
           { section: 'power', label: 'ΔT' },
           { section: 'reaction', label: 'Conversion' }
@@ -25072,7 +25098,7 @@ function runTests() {
     });
     const rx = t.place('reactor_equilibrium', 4, 0, {
       reactionId: 'R_STEAM_REFORM', useKinetics: false, alpha: 1.0,
-      mode: 'heated'  // explicitly heated
+      heatDemand: 'isothermal'  // explicitly heated
     });
     const snk = t.place('sink', 8, 0);
     // [v12.9.0] grid → hub → reactor elec_in (hub required for power allocation)
@@ -25112,7 +25138,7 @@ function runTests() {
     });
     const rxHeat = t.place('reactor_equilibrium', 4, 6, {
       reactionId: 'R_STEAM_REFORM', useKinetics: false, alpha: 1.0,
-      mode: 'heated'
+      heatDemand: 'isothermal'
     });
     const snkHeat = t.place('sink', 8, 6);
     const elSrc = t.place('grid_supply', 0, 10, { maxPower: 5 });
@@ -25153,15 +25179,15 @@ function runTests() {
     t.assertOK(rxLast.iso_Q_duty_W > 0, 'iso_Q_duty > 0 (endothermic reference)');
   }});
 
-  tests.push({ name: '209: Heated exo + bonus → T_out rises, all in fluid', fn: t => {
+  tests.push({ name: '209: Fixed power exo + bonus → T_out rises, all in fluid', fn: t => {
     t.clearScene();
-    // Sabatier at 523K — exothermic
+    // Sabatier at 523K — exothermic, but user injects 10 kW (WYSIWYG)
     const src = t.place('source_multi', 0, 0, {
       n: { CO2: 1, H2: 4 }, T: 523, P: 1000000, phaseConstraint: 'V'
     });
     const rx = t.place('reactor_equilibrium', 4, 0, {
       reactionId: 'R_SABATIER', useKinetics: true, volume_m3: 0.5,
-      mode: 'heated'
+      heatDemand: 'fixed', Q_fixed_kW: 10
     });
     const snk = t.place('sink', 8, 0);
     // [v12.9.0] grid → hub → reactor elec_in
@@ -25174,12 +25200,12 @@ function runTests() {
     t.solve();
     const rxLast = t.ud(rx).last;
     t.assertOK(rxLast.status === 'active', 'Status: active');
-    t.assertOK(rxLast.Q_in_W > 0, 'Q_in > 0 (bonus heat)');
+    t.assertOK(rxLast.Q_in_W > 0, 'Q_in > 0 (fixed power)');
     // No heat_out port — all in fluid
     t.assertOK(!t.ud(rx).ports?.heat_out, 'No heat_out port');
     // T_out should be > insulated (bonus heat raises T)
     const out = t.port(rx, 'mat_out');
-    t.assertOK(out.T > 523, 'T_out > T_in (exo + bonus)', `T=${out.T.toFixed(0)}K`);
+    t.assertOK(out.T > 523, 'T_out > T_in (exo + fixed heat)', `T=${out.T.toFixed(0)}K`);
     t.assertOK(rxLast.converged, 'CSTR converged');
   }});
 
@@ -25837,7 +25863,7 @@ function runTests() {
   tests.push({ name: '240: Heated endo + small Q → T between insulated and isothermal', fn: t => {
     // [v11.0.0] Heated mode with partial Q: T_out > insulated, < isothermal
     const feed = t.place('source_multi', 0, 0, { n:{CH4:0.2, H2O:0.4}, T:1000, P:2000000, phaseConstraint:'V' });
-    const rx = t.place('reactor_equilibrium', 4, 0, { reactionId:'R_STEAM_REFORM', useKinetics:true, volume_m3:1.0, mode:'heated', variant:'elec-top' });
+    const rx = t.place('reactor_equilibrium', 4, 0, { reactionId:'R_STEAM_REFORM', useKinetics:true, volume_m3:1.0, heatDemand:'isothermal', variant:'elec-top' });
     const snk = t.place('sink', 8, 0);
     // [v12.9.0] grid → hub → reactor elec_in
     const gs = t.place('grid_supply', 0, 6, { maxPower:5 });
@@ -25857,7 +25883,7 @@ function runTests() {
   tests.push({ name: '241: Heated endo + excess Q → T near isothermal', fn: t => {
     // Endothermic + excess heat → T_out ≈ T_in or slightly above
     const feed = t.place('source_multi', 0, 0, { n:{CH4:0.2, H2O:0.4}, T:1000, P:2000000, phaseConstraint:'V' });
-    const rx = t.place('reactor_equilibrium', 4, 0, { reactionId:'R_STEAM_REFORM', useKinetics:true, volume_m3:1.0, mode:'heated', variant:'elec-top' });
+    const rx = t.place('reactor_equilibrium', 4, 0, { reactionId:'R_STEAM_REFORM', useKinetics:true, volume_m3:1.0, heatDemand:'isothermal', variant:'elec-top' });
     const snk = t.place('sink', 8, 0);
     // [v12.9.0] grid → hub → reactor elec_in
     const gs = t.place('grid_supply', 0, 6, { maxPower:100 });
@@ -25873,10 +25899,10 @@ function runTests() {
     t.assertOK(out.T > 990, 'T_out > 990K (excess heat)', `T=${out.T.toFixed(0)}K`);
   }});
 
-  tests.push({ name: '242: Heated exo + Q → T rises above insulated', fn: t => {
-    // Exothermic + external heat → T_out higher than insulated case.
+  tests.push({ name: '242: Fixed power exo + Q → T rises above insulated', fn: t => {
+    // Exothermic + fixed external heat → T_out higher than insulated case.
     const feed = t.place('source_multi', 0, 0, { n:{CO2:0.1, H2:0.4}, T:600, P:500000, phaseConstraint:'V' });
-    const rxHeat = t.place('reactor_equilibrium', 4, 0, { reactionId:'R_SABATIER', useKinetics:true, volume_m3:1.0, mode:'heated', variant:'elec-top' });
+    const rxHeat = t.place('reactor_equilibrium', 4, 0, { reactionId:'R_SABATIER', useKinetics:true, volume_m3:1.0, heatDemand:'fixed', Q_fixed_kW:50, variant:'elec-top' });
     const snk = t.place('sink', 8, 0);
     // [v12.9.0] grid → hub → reactor elec_in
     const gs = t.place('grid_supply', 0, 6, { maxPower:50 });
@@ -25919,7 +25945,7 @@ function runTests() {
 
     // ── PROCESS B: Steam Methane Reforming (endothermic) ──
     const bFeed  = t.place('source_multi',     30,  4, { n: { CH4: 0.2, H2O: 0.4 }, T: 1000, P: 2000000, phaseConstraint: 'V' });
-    const bRx    = t.place('reactor_equilibrium', 34, 4, { reactionId: 'R_STEAM_REFORM', useKinetics: true, volume_m3: 1.0, variant: 'elec-top', mode: 'heated' });
+    const bRx    = t.place('reactor_equilibrium', 34, 4, { reactionId: 'R_STEAM_REFORM', useKinetics: true, volume_m3: 1.0, variant: 'elec-top', heatDemand: 'isothermal' });
     const bValve = t.place('valve',            42,  4, { Pout: 200000 });
     const bProd  = t.place('sink',             46,  4);
 
@@ -26231,12 +26257,12 @@ function runTests() {
     t.assertClose(bal.energy.residual, 0, Math.max(Math.abs(bal.energy.totalIn) * 0.001, 100), 'Residual ≈ 0');
   }});
 
-  tests.push({ name: '254: Heated endo + excess Q → T_out > T_in, energy in fluid', fn: t => {
-    // Steam reforming at 1000K with large Q (duty ~200 kW). All energy in fluid.
+  tests.push({ name: '254: Fixed power endo + excess Q → T_out > T_in, energy in fluid', fn: t => {
+    // Steam reforming at 1000K with large fixed Q (500 kW, duty ~200 kW). WYSIWYG: all Q enters fluid.
     const src  = t.place('source_multi', 0, 0, { n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V' });
-    const rx   = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_STEAM_REFORM', useKinetics: false, alpha: 1.0, mode: 'heated' });
+    const rx   = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_STEAM_REFORM', useKinetics: false, alpha: 1.0, heatDemand: 'fixed', Q_fixed_kW: 500 });
     const snk  = t.place('sink', 8, 0);
-    // [v12.8.0] grid → reactor elec_in directly
+    // Direct grid → reactor (tests direct allocation with finite demand)
     const elSrc = t.place('grid_supply', 0, 5, { maxPower: 500 });
     t.wire(elSrc, 'out', rx, 'elec_in');
     t.wire(src, 'out', rx, 'mat_in');
@@ -26449,7 +26475,7 @@ function runTests() {
       n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V'
     });
     const rx2 = t.place('reactor_equilibrium', 4, 0, {
-      reactionId: 'R_STEAM_REFORM', useKinetics: false, alpha: 1.0, mode: 'heated'
+      reactionId: 'R_STEAM_REFORM', useKinetics: false, alpha: 1.0, heatDemand: 'isothermal'
     });
     const snk2 = t.place('sink', 8, 0);
     const gs = t.place('grid_supply', 0, 6, { maxPower: Q_iso / 1000 + 1 });
@@ -26478,7 +26504,7 @@ function runTests() {
       n: { CO2: 1, H2: 4 }, T: 523, P: 1000000, phaseConstraint: 'V'
     });
     const rxH = t.place('reactor_equilibrium', 4, 6, {
-      reactionId: 'R_SABATIER', useKinetics: false, alpha: 1.0, mode: 'heated'
+      reactionId: 'R_SABATIER', useKinetics: false, alpha: 1.0, heatDemand: 'isothermal'
     });
     const snkH = t.place('sink', 8, 6);
     t.wire(srcH, 'out', rxH, 'mat_in');
@@ -26497,7 +26523,7 @@ function runTests() {
     });
     // Default mode is insulated — variant should be 'insulated' (no elec_in visible)
     const rx = t.place('reactor_equilibrium', 4, 0, {
-      reactionId: 'R_STEAM_REFORM', useKinetics: false, alpha: 1.0, mode: 'insulated', variant: 'insulated'
+      reactionId: 'R_STEAM_REFORM', useKinetics: false, alpha: 1.0, heatDemand: 'none', variant: 'insulated'
     });
     const snk = t.place('sink', 8, 0);
     const gs = t.place('grid_supply', 4, 6, { maxPower: 50 });
@@ -26666,7 +26692,7 @@ function runTests() {
       n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V'
     });
     const rx = t.place('reactor_equilibrium', 4, 0, {
-      reactionId: 'R_STEAM_REFORM', useKinetics: false, alpha: 1.0, mode: 'heated', variant: 'default'
+      reactionId: 'R_STEAM_REFORM', useKinetics: false, alpha: 1.0, heatDemand: 'isothermal', variant: 'default'
     });
     const snk = t.place('sink', 8, 0);
     // [v12.8.0] grid → reactor elec_in
@@ -26683,14 +26709,14 @@ function runTests() {
     t.assertOK(connId !== null, 'Connection accepted in heated mode');
   }});
 
-  tests.push({ name: '279: Variant sync in tick — insulated mode forces insulated variant', fn: t => {
+  tests.push({ name: '279: Variant sync — heatDemand:none forces insulated variant', fn: t => {
     t.clearScene();
     const src = t.place('source_multi', 0, 0, {
       n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
     });
     // Place with mode:insulated but NO variant set (simulates legacy placement)
     const rx = t.place('reactor_equilibrium', 4, 0, {
-      reactionId: 'R_H2_COMB', alpha: 1.0, useKinetics: false, mode: 'insulated'
+      reactionId: 'R_H2_COMB', alpha: 1.0, useKinetics: false, heatDemand: 'none'
     });
     const snk = t.place('sink', 8, 0);
     t.wire(src, 'out', rx, 'mat_in');
@@ -26703,14 +26729,14 @@ function runTests() {
     t.assertOK(!t.last(rx).error, 'No error after sync');
   }});
 
-  tests.push({ name: '280: Variant sync in tick — heated mode clears insulated variant', fn: t => {
+  tests.push({ name: '280: Variant sync — heatDemand:isothermal clears insulated variant', fn: t => {
     t.clearScene();
     const src = t.place('source_multi', 0, 0, {
       n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
     });
     // Place with mode:heated but variant stuck at 'insulated' (simulates corruption)
     const rx = t.place('reactor_equilibrium', 4, 0, {
-      reactionId: 'R_H2_COMB', alpha: 1.0, useKinetics: false, mode: 'heated', variant: 'insulated'
+      reactionId: 'R_H2_COMB', alpha: 1.0, useKinetics: false, heatDemand: 'isothermal', variant: 'insulated'
     });
     const snk = t.place('sink', 8, 0);
     t.wire(src, 'out', rx, 'mat_in');
@@ -26720,7 +26746,7 @@ function runTests() {
     t.assertOK(rxUnit.params.variant !== 'insulated', 'Variant cleared from insulated');
   }});
 
-  tests.push({ name: '290: Insulated mode strips ghost elec_in connections on solve', fn: t => {
+  tests.push({ name: '290: Adiabatic (none) strips ghost elec_in connections on solve', fn: t => {
     // [v12.8.0] Updated: elec_in replaces heat_in. Pre-solve presentation-consistency
     // pass must remove connections to ports not in the active presentation
     // (insulated hides elec_in).
@@ -26729,7 +26755,7 @@ function runTests() {
       n: { CH4: 1, H2O: 3 }, T: 900, P: 500000, phaseConstraint: 'V'
     });
     const rx = t.place('reactor_equilibrium', 4, 0, {
-      reactionId: 'smr', mode: 'heated'
+      reactionId: 'smr', heatDemand: 'isothermal'
     });
     const snk = t.place('sink', 8, 0);
     const gs  = t.place('grid_supply', 4, 5, { maxPower: 50000 });
@@ -26743,9 +26769,9 @@ function runTests() {
       c => c.to.unitId === rx && c.to.portId === 'elec_in');
     t.assertOK(elecConns1.length === 1, 'Heated: elec_in connected');
 
-    // Switch to insulated — mode setter should disconnect
+    // Switch to adiabatic — tick should sync variant and strip ghost connections
     const rxUnit = scene.units.get(rx);
-    rxUnit.params.mode = 'insulated';
+    rxUnit.params.heatDemand = 'none';
     rxUnit.params.variant = 'insulated';
     // Simulate what happens on next solve (pre-solve cleanup)
     t.solve();
@@ -26989,23 +27015,23 @@ function runTests() {
   // SECTION: Reactor elec_in Tests (T299–T300) [v12.6.0]
   // ═══════════════════════════════════════════════════════════════════════
 
-  tests.push({ name: '299: Reactor heated — exothermic + elec_in → T higher than insulated', fn: t => {
+  tests.push({ name: '299: Reactor fixed power — exothermic + elec_in → T higher than insulated', fn: t => {
     // Sabatier is exothermic: adding electrical heat should make T_out even higher.
     // Compare insulated vs heated mode.
     t.clearScene();
     // Insulated baseline
     const src1 = t.place('source_multi', 0, 0, { n: { CO2:1, H2:4 }, T: 523, P: 1000000, phaseConstraint: 'V' });
-    const rx1  = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_SABATIER', useKinetics: false, alpha: 1.0, mode: 'insulated', variant: 'insulated' });
+    const rx1  = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_SABATIER', useKinetics: false, alpha: 1.0, heatDemand: 'none', variant: 'insulated' });
     const snk1 = t.place('sink', 8, 0);
     t.wire(src1, 'out', rx1, 'mat_in');
     t.wire(rx1, 'mat_out', snk1, 'in');
     t.solve();
     const T_insulated = t.port(rx1, 'mat_out')?.T;
 
-    // Heated mode with power
+    // Heated mode with fixed power (exo → isothermal demand = 0, must use fixed)
     t.clearScene();
     const src2 = t.place('source_multi', 0, 0, { n: { CO2:1, H2:4 }, T: 523, P: 1000000, phaseConstraint: 'V' });
-    const rx2  = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_SABATIER', useKinetics: false, alpha: 1.0, mode: 'heated' });
+    const rx2  = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_SABATIER', useKinetics: false, alpha: 1.0, heatDemand: 'fixed', Q_fixed_kW: 100 });
     const snk2 = t.place('sink', 8, 0);
     const gs   = t.place('grid_supply', 4, 5, { maxPower: 100 });
     const hub  = t.place('power_hub', 4, 7);
@@ -27026,7 +27052,7 @@ function runTests() {
     // First get isothermal duty from insulated run.
     t.clearScene();
     const src1 = t.place('source_multi', 0, 0, { n: { CH4:1, H2O:2 }, T: 1000, P: 500000, phaseConstraint: 'V' });
-    const rx1  = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_STEAM_REFORM', useKinetics: false, alpha: 1.0, mode: 'insulated', variant: 'insulated' });
+    const rx1  = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_STEAM_REFORM', useKinetics: false, alpha: 1.0, heatDemand: 'none', variant: 'insulated' });
     const snk1 = t.place('sink', 8, 0);
     t.wire(src1, 'out', rx1, 'mat_in');
     t.wire(rx1, 'mat_out', snk1, 'in');
@@ -27041,7 +27067,7 @@ function runTests() {
     t.clearScene();
     const Q_supply_kW = Math.abs(Q_iso) / 1000;
     const src2 = t.place('source_multi', 0, 0, { n: { CH4:1, H2O:2 }, T: 1000, P: 500000, phaseConstraint: 'V' });
-    const rx2  = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_STEAM_REFORM', useKinetics: false, alpha: 1.0, mode: 'heated' });
+    const rx2  = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_STEAM_REFORM', useKinetics: false, alpha: 1.0, heatDemand: 'isothermal' });
     const snk2 = t.place('sink', 8, 0);
     const gs   = t.place('grid_supply', 4, 5, { maxPower: Q_supply_kW + 10 });
     const hub  = t.place('power_hub', 4, 7);
