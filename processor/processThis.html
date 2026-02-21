@@ -256,6 +256,17 @@
            When Q limited, T_out > setpoint + MINOR warning.
            New: T304–T310 (7 tests).
 
+  v12.9.1  Demo scene + balance closure — 286 tests, 1788 assertions.
+           Demo scene: SMR reactor now powered (grid→elec_in, isothermal
+           T_out=1000K, Q=8.47 kW).  34 units, 30 connections.
+           Balance report verified: mass closed (residual <1e-7),
+           energy closed (0.002% relative error), ambient rejection
+           (226 kW from air_cooler) correctly categorized.
+           T236: balance report assertions added (mass closed, energy
+           closed, all item categories present).
+           T316: balance report structure test — ambient items, electrical
+           items, total energy conservation.
+
   v12.9.0  Reactor demand model + validation — 285 tests, 1763 assertions.
            Three-mode heat demand replaces binary insulated/heated:
              heatDemand: 'none'       — adiabatic, elec_in hidden
@@ -607,7 +618,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>processThis — v12.9.0</title>
+  <title>processThis — v12.9.1</title>
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
@@ -18636,6 +18647,9 @@ function loadDemo() {
       { id: 'b-valve', defId: 'valve', name: 'Letdown Valve', x: 17, y: -6, rot: 0,
         params: { Pout: 200000 } },
       { id: 'b-prod', defId: 'sink', name: 'Syngas', x: 23, y: -6, rot: 0, params: {} },
+      // [v12.9.0] Grid supply for SMR reactor isothermal heating
+      { id: 'b-grid', defId: 'grid_supply', name: 'SMR Heat 20kW', x: 4, y: -10, rot: 0,
+        params: { maxPower: 20 } },
       // [v11.0.0] b-qout removed — no heat_out port on reactor
 
       // ══════════════════════════════════════════════════════════════════
@@ -18692,7 +18706,8 @@ function loadDemo() {
       { id: 'b3', from: { unitId: 'ab-hex', portId: 'hot_out' }, to: { unitId: 'b-valve', portId: 'in' } },
       { id: 'b4', from: { unitId: 'b-valve', portId: 'out' }, to: { unitId: 'b-prod', portId: 'in' },
         sticker: { dx: 0, dy: -2, items: [{ section: 'conditions', label: 'Pressure' }] } },
-      // [v11.0.0] b5 removed — reactor has no heat_out port
+      // [v12.9.0] SMR reactor heat supply (isothermal demand)
+      { id: 'b5', from: { unitId: 'b-grid', portId: 'out' }, to: { unitId: 'b-rx', portId: 'elec_in' } },
       // ── Process C: Pump loop ──
       { id: 'p1', from: { unitId: 'c-grid', portId: 'out' }, to: { unitId: 'c-pump', portId: 'elec_in' } },
       { id: 'p3', from: { unitId: 'c-src', portId: 'out' }, to: { unitId: 'c-pump', portId: 'mat_in' } },
@@ -26100,7 +26115,7 @@ function runTests() {
 
     const allUnits = [aGrid, aAir, aComp, aHeat, aTurb, aExh, aEout,
                       aHeatSrc,
-                      abHex, bFeed, bRx, bValve, bProd, bHeatSrc,
+                      abHex, bFeed, bRx, bValve, bProd, bHeatSrc, bHub,
                       cGrid, cSrc, cPump, cSink];
     let errors = 0;
     for (const uid of allUnits) {
@@ -26113,6 +26128,34 @@ function runTests() {
       }
     }
     if (errors === 0) t.assertOK(true, 'All units error-free');
+
+    // ════════════════════════════════════════════════════════════════════
+    // [v12.9.1] BALANCE REPORT — computeSystemBalance must close
+    // This is the same function that renders the UI balance panel.
+    // ════════════════════════════════════════════════════════════════════
+
+    const bal = computeSystemBalance(scene);
+    t.assertOK(bal, 'Balance report computed');
+
+    // Mass balance
+    t.assertOK(bal.mass.totalIn > 0, 'Mass in > 0', bal.mass.totalIn?.toFixed(4));
+    t.assertOK(bal.mass.totalOut > 0, 'Mass out > 0', bal.mass.totalOut?.toFixed(4));
+    t.assertOK(bal.mass.closed, 'Mass balance CLOSED',
+      `residual=${bal.mass.residual?.toExponential(2)}`);
+
+    // Energy balance
+    t.assertOK(bal.energy.in.electrical > 0, 'Electrical energy in > 0',
+      `${(bal.energy.in.electrical/1000).toFixed(2)} kW`);
+    t.assertOK(bal.energy.closed, 'Energy balance CLOSED',
+      `relErr=${(bal.energy.relError*100).toFixed(4)}%`);
+
+    // Energy items: verify boundary items are present
+    const inTypes = new Set(bal.energy.in.items.map(i => i.type));
+    const outTypes = new Set(bal.energy.out.items.map(i => i.type));
+    t.assertOK(inTypes.has('material'), 'Energy in has material items');
+    t.assertOK(inTypes.has('electrical'), 'Energy in has electrical items');
+    t.assertOK(outTypes.has('material'), 'Energy out has material items');
+    t.assertOK(outTypes.has('electrical'), 'Energy out has electrical items');
   }});
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -27487,8 +27530,55 @@ function runTests() {
     t.assertClose(L.Q_in_W, L.iso_Q_duty_W, L.iso_Q_duty_W * 0.01, 'Q_in ≈ iso_duty');
   }});
 
-  // ═══════════════════════════════════════════════════════════════════════
+  tests.push({ name: '316: Balance report — ambient rejection + all categories', fn: t => {
+    // Build system with air_cooler (ambient heat rejection) + reactor + grid.
+    // Verify computeSystemBalance returns correct structure for UI panel.
+    t.clearScene();
+    // Exothermic reactor → cooler → sink. Grid → reactor (fixed power).
+    const src = t.place('source_multi', 0, 0, { n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V' });
+    const rx  = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_H2_COMB', useKinetics: false, alpha: 1.0, heatDemand: 'fixed', Q_fixed_kW: 5 });
+    const clr = t.place('air_cooler', 8, 0, { T_out: 350 });
+    const snk = t.place('sink', 12, 0);
+    const gs  = t.place('grid_supply', 0, 5, { maxPower: 5 });
+    t.wire(src, 'out', rx, 'mat_in'); t.wire(rx, 'mat_out', clr, 'mat_in');
+    t.wire(clr, 'mat_out', snk, 'in'); t.wire(gs, 'out', rx, 'elec_in');
+    t.solve();
 
+    const bal = computeSystemBalance(scene);
+    t.assertOK(bal, 'Balance computed');
+
+    // Mass
+    t.assertOK(bal.mass.totalIn > 0, 'Mass in > 0');
+    t.assertOK(bal.mass.totalOut > 0, 'Mass out > 0');
+    t.assertClose(bal.mass.totalIn, bal.mass.totalOut, bal.mass.totalIn * 0.001, 'Mass in ≈ out');
+    t.assertOK(bal.mass.closed, 'Mass closed');
+
+    // Energy structure
+    t.assertOK(bal.energy.in.material !== 0, 'E_in has material component');
+    t.assertOK(bal.energy.in.electrical > 0, 'E_in has electrical', `${(bal.energy.in.electrical/1000).toFixed(2)} kW`);
+    t.assertOK(bal.energy.out.material !== 0, 'E_out has material component');
+    t.assertOK(bal.energy.out.ambient > 0, 'E_out has ambient (air cooler)',
+      `${(bal.energy.out.ambient/1000).toFixed(2)} kW`);
+
+    // Items arrays — these are what the UI panel iterates
+    t.assertOK(bal.energy.in.items.length >= 2, 'In items: ≥ 2 (source + grid)');
+    t.assertOK(bal.energy.out.items.length >= 2, 'Out items: ≥ 2 (sink + ambient)');
+    const ambientItems = bal.energy.out.items.filter(i => i.type === 'ambient');
+    t.assertOK(ambientItems.length === 1, 'Exactly 1 ambient item (air cooler)');
+    t.assertOK(ambientItems[0].value > 0, 'Ambient value > 0');
+
+    // Closed
+    t.assertOK(bal.energy.closed, 'Energy closed',
+      `relErr=${(bal.energy.relError*100).toFixed(4)}%`);
+
+    // Total energy: in = out (within tolerance)
+    // totalIn = mat_in + elec_in, totalOut = mat_out + elec_out + ambient
+    const tolerance = Math.max(Math.abs(bal.energy.totalIn), Math.abs(bal.energy.totalOut)) * 0.01;
+    t.assertClose(bal.energy.totalIn, bal.energy.totalOut, tolerance,
+      'Total energy in ≈ out');
+  }});
+
+  // ═══════════════════════════════════════════════════════════════════════
   let totalPass = 0, totalFail = 0;
   let testsPassed = 0, testsFailed = 0;
   const failedTests = [];
