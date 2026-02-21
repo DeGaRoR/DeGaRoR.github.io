@@ -256,7 +256,7 @@
            When Q limited, T_out > setpoint + MINOR warning.
            New: T304–T310 (7 tests).
 
-  v12.9.0  Reactor demand model + final audit — 280 tests pass.
+  v12.9.0  Reactor demand model + validation — 285 tests, 1763 assertions.
            Three-mode heat demand replaces binary insulated/heated:
              heatDemand: 'none'       — adiabatic, elec_in hidden
              heatDemand: 'isothermal' — demands max(0, iso_Q_duty)
@@ -268,6 +268,10 @@
            importJSON: mode:'heated'→heatDemand:'isothermal',
                        mode:'insulated'→heatDemand:'none'.
            Variant sync + ghost stripping preserved (port hiding on 'none').
+           New tests: T311 exo+isothermal=adiabatic, T312 exo+fixed>adiabatic,
+           T313 curtailed hub sharing, T314 fixed=iso_duty matches isothermal,
+           T315 direct grid→reactor finite demand.
+           Atom conservation added to T102/T106/T135.
            reactor_adiabatic → reactor_equilibrium in all 41 test placements.
            NNG sentinel: JS constant replaces DOM comment scan.
            Direct grid→consumer allocation guards Infinity demand.
@@ -22046,6 +22050,14 @@ function runTests() {
     const rxLast = t.ud(rx).last;
     t.assertOK(rxLast.status === 'active', 'Status: active');
     t.assertClose(rxLast.xi, 1.0, 0.01, 'ξ ≈ ξ_max');  // [v12.9.0] equilibrium K finite at high T
+
+    // [v12.9.0] Atom conservation: H and O atoms must be exactly preserved
+    const H_in  = 2 * 2;  // 2 mol/s H2 × 2 H atoms
+    const H_out = 2 * (out.n.H2 || 0) + 2 * (out.n.H2O || 0);
+    t.assertClose(H_out, H_in, H_in * 0.001, 'H atoms conserved');
+    const O_in  = 2 * 1;  // 1 mol/s O2 × 2 O atoms
+    const O_out = 2 * (out.n.O2 || 0) + 1 * (out.n.H2O || 0);
+    t.assertClose(O_out, O_in, O_in * 0.001, 'O atoms conserved');
   });
 
   test('Reactor — partial conversion 25%', t => {
@@ -22177,6 +22189,16 @@ function runTests() {
     if (srcOut?.Hdot_J_s !== undefined && out.Hdot_J_s !== undefined) {
       t.assertClose(Math.abs(out.Hdot_J_s - srcOut.Hdot_J_s), 0, 200, 'ΔH adiabatic');
     }
+
+    // [v12.9.0] Atom conservation: H, O, N, Ar atoms preserved
+    const H_in  = 2 * 2;  // 2 mol/s H2 × 2 H/mol
+    const H_out = 2 * (out.n.H2 || 0) + 2 * (out.n.H2O || 0);
+    t.assertClose(H_out, H_in, H_in * 0.001, 'H atoms conserved');
+    const O_in  = 2 * 1;
+    const O_out = 2 * (out.n.O2 || 0) + 1 * (out.n.H2O || 0);
+    t.assertClose(O_out, O_in, O_in * 0.001, 'O atoms conserved');
+    t.assertClose(out.n.N2, 5, 0.001, 'N2 conserved (inert)');
+    t.assertClose(out.n.Ar, 2, 0.001, 'Ar conserved (inert)');
   });
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -23350,6 +23372,13 @@ function runTests() {
     if (rxLast?.status === 'active') {
       t.assertOK(out.n.H2O > 1.0, 'H2O > 1.0 mol/s');  // [v12.9.0] water dissociates at ~4000K
       t.assertOK(out.T > 1500, 'T_out > 1500K (extreme adiabatic rise)');
+      // [v12.9.0] Atom conservation even with dissociation
+      const H_in  = 2 * 2;  // 2 mol/s H2 × 2 H/mol
+      const H_out = 2 * (out.n.H2 || 0) + 2 * (out.n.H2O || 0);
+      t.assertClose(H_out, H_in, H_in * 0.01, 'H atoms conserved');
+      const O_in  = 2 * 1;
+      const O_out = 2 * (out.n.O2 || 0) + 1 * (out.n.H2O || 0);
+      t.assertClose(O_out, O_in, O_in * 0.01, 'O atoms conserved');
     }
   });
 
@@ -27305,6 +27334,157 @@ function runTests() {
     const last = t.last(clr);
     t.assertOK(last.error?.severity === ErrorSeverity.MAJOR, 'MAJOR: below ambient');
     t.assertOK(last.Q_rejected_W === 0, 'Q_rejected = 0 (passthrough)');
+  }});
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // SECTION: v12.9.0 — Reactor Demand Model Validation (Tests 311–315)
+  // ═══════════════════════════════════════════════════════════════════════
+
+  tests.push({ name: '311: Exo + isothermal → demand=0, adiabatic result', fn: t => {
+    // Sabatier is exothermic. Isothermal mode: iso_Q_duty < 0 → demand = 0.
+    // Even with grid connected, hub allocates 0 → reactor runs adiabatic.
+    t.clearScene();
+    const src = t.place('source_multi', 0, 0, { n: { CO2: 1, H2: 4 }, T: 523, P: 1000000, phaseConstraint: 'V' });
+    const rx  = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_SABATIER', useKinetics: false, alpha: 1.0, heatDemand: 'isothermal' });
+    const snk = t.place('sink', 8, 0);
+    const gs  = t.place('grid_supply', 0, 5, { maxPower: 100 });
+    const hub = t.place('power_hub', 2, 5);
+    t.wire(src, 'out', rx, 'mat_in'); t.wire(rx, 'mat_out', snk, 'in');
+    t.wire(gs, 'out', hub, 'elec_in'); t.wire(hub, 'elec_out', rx, 'elec_in');
+    t.solve();
+    const L = t.last(rx);
+    t.assertOK(L.status === 'active', 'Active');
+    t.assertOK(L.iso_Q_duty_W < 0, 'iso_Q_duty < 0 (exothermic)', L.iso_Q_duty_W?.toFixed(0));
+    t.assertOK(L.Q_demanded_W === 0, 'Demand = 0 (max(0, negative))');
+    t.assertOK(L.Q_in_W === 0, 'Q_in = 0 (nothing allocated)');
+    // Should match adiabatic result
+    t.clearScene();
+    const src2 = t.place('source_multi', 0, 0, { n: { CO2: 1, H2: 4 }, T: 523, P: 1000000, phaseConstraint: 'V' });
+    const rx2  = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_SABATIER', useKinetics: false, alpha: 1.0, heatDemand: 'none', variant: 'insulated' });
+    const snk2 = t.place('sink', 8, 0);
+    t.wire(src2, 'out', rx2, 'mat_in'); t.wire(rx2, 'mat_out', snk2, 'in');
+    t.solve();
+    const T_adia = t.port(rx2, 'mat_out')?.T;
+    t.assertClose(L.T_out, T_adia, 1.0, 'Isothermal exo matches adiabatic', `${L.T_out?.toFixed(1)} vs ${T_adia?.toFixed(1)}`);
+  }});
+
+  tests.push({ name: '312: Exo + fixed power → T exceeds adiabatic', fn: t => {
+    // Sabatier exothermic + 50 kW fixed power. WYSIWYG: T rises beyond adiabatic.
+    t.clearScene();
+    // Adiabatic baseline
+    const src1 = t.place('source_multi', 0, 0, { n: { CO2: 1, H2: 4 }, T: 523, P: 1000000, phaseConstraint: 'V' });
+    const rx1  = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_SABATIER', useKinetics: false, alpha: 1.0, heatDemand: 'none', variant: 'insulated' });
+    const snk1 = t.place('sink', 8, 0);
+    t.wire(src1, 'out', rx1, 'mat_in'); t.wire(rx1, 'mat_out', snk1, 'in');
+    t.solve();
+    const T_adia = t.port(rx1, 'mat_out')?.T;
+    // Fixed power run
+    t.clearScene();
+    const src2 = t.place('source_multi', 0, 0, { n: { CO2: 1, H2: 4 }, T: 523, P: 1000000, phaseConstraint: 'V' });
+    const rx2  = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_SABATIER', useKinetics: false, alpha: 1.0, heatDemand: 'fixed', Q_fixed_kW: 50 });
+    const snk2 = t.place('sink', 8, 0);
+    const gs   = t.place('grid_supply', 0, 5, { maxPower: 50 });
+    const hub  = t.place('power_hub', 2, 5);
+    t.wire(src2, 'out', rx2, 'mat_in'); t.wire(rx2, 'mat_out', snk2, 'in');
+    t.wire(gs, 'out', hub, 'elec_in'); t.wire(hub, 'elec_out', rx2, 'elec_in');
+    t.solve();
+    const L = t.last(rx2);
+    const T_fixed = t.port(rx2, 'mat_out')?.T;
+    t.assertOK(L.status === 'active', 'Active');
+    t.assertOK(L.Q_in_W > 40000, 'Q_in ≈ 50 kW', `${(L.Q_in_W/1000)?.toFixed(1)} kW`);
+    t.assertOK(T_fixed > T_adia + 10, 'T_fixed > T_adiabatic', `${T_fixed?.toFixed(1)} > ${T_adia?.toFixed(1)}`);
+  }});
+
+  tests.push({ name: '313: Curtailed network — reactor + compressor share hub', fn: t => {
+    // Two consumers on one hub: reactor (isothermal endo) + compressor.
+    // Grid supply < total demand → both get curtailed. Neither gets NaN.
+    t.clearScene();
+    const src = t.place('source_multi', 0, 0, { n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V' });
+    const rx  = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_STEAM_REFORM', useKinetics: false, alpha: 1.0, heatDemand: 'isothermal' });
+    const snk = t.place('sink', 8, 0);
+    t.wire(src, 'out', rx, 'mat_in'); t.wire(rx, 'mat_out', snk, 'in');
+    // Compressor on same hub
+    const airSrc = t.place('source', 0, 6, { species: 'N2', nDot: 5, T: 300, P: 100000, phaseConstraint: 'V' });
+    const comp   = t.place('compressor', 4, 6, { Pout: 500000, eta: 0.8 });
+    const airSnk = t.place('sink', 8, 6);
+    t.wire(airSrc, 'out', comp, 'mat_in'); t.wire(comp, 'mat_out', airSnk, 'in');
+    // Shared hub with undersized grid
+    const gs  = t.place('grid_supply', 0, 12, { maxPower: 10 });  // 10 kW for ~80 kW total demand
+    const hub = t.place('power_hub', 2, 12);
+    t.wire(gs, 'out', hub, 'elec_in');
+    t.wire(hub, 'elec_out', rx, 'elec_in');
+    t.wire(hub, 'elec_out', comp, 'elec_in');
+    t.solve();
+    const rxL = t.last(rx);
+    t.assertOK(rxL.status === 'active', 'Reactor active');
+    t.assertOK(isFinite(rxL.T_out) && rxL.T_out > 0, 'T_out finite', rxL.T_out?.toFixed(1));
+    t.assertOK(rxL.curtailed === true, 'Reactor curtailed');
+    t.assertOK(rxL.Q_in_W < rxL.Q_demanded_W, 'Q_in < Q_demanded');
+    // Compressor should also get something, not NaN (warning ok — it's curtailed too)
+    const compL = t.last(comp);
+    t.assertOK(compL && (!compL.error || compL.error.severity?.level < 2), 'Compressor no MAJOR error');
+  }});
+
+  tests.push({ name: '314: Fixed power = iso_duty → matches isothermal result', fn: t => {
+    // If user sets Q_fixed_kW exactly to the isothermal duty, result should match isothermal mode.
+    t.clearScene();
+    // Get iso_duty from adiabatic run
+    const src1 = t.place('source_multi', 0, 0, { n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V' });
+    const rx1  = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_STEAM_REFORM', useKinetics: false, alpha: 1.0, heatDemand: 'none', variant: 'insulated' });
+    const snk1 = t.place('sink', 8, 0);
+    t.wire(src1, 'out', rx1, 'mat_in'); t.wire(rx1, 'mat_out', snk1, 'in');
+    t.solve();
+    const iso_duty_kW = t.last(rx1).iso_Q_duty_W / 1000;
+    t.assertOK(iso_duty_kW > 0, 'Endo: iso_duty > 0', iso_duty_kW.toFixed(1));
+
+    // Isothermal mode
+    t.clearScene();
+    const src2 = t.place('source_multi', 0, 0, { n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V' });
+    const rx2  = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_STEAM_REFORM', useKinetics: false, alpha: 1.0, heatDemand: 'isothermal' });
+    const snk2 = t.place('sink', 8, 0);
+    const gs2  = t.place('grid_supply', 0, 5, { maxPower: iso_duty_kW + 10 });
+    const hub2 = t.place('power_hub', 2, 5);
+    t.wire(src2, 'out', rx2, 'mat_in'); t.wire(rx2, 'mat_out', snk2, 'in');
+    t.wire(gs2, 'out', hub2, 'elec_in'); t.wire(hub2, 'elec_out', rx2, 'elec_in');
+    t.solve();
+    const T_iso = t.port(rx2, 'mat_out')?.T;
+
+    // Fixed mode with Q = iso_duty
+    t.clearScene();
+    const src3 = t.place('source_multi', 0, 0, { n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V' });
+    const rx3  = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_STEAM_REFORM', useKinetics: false, alpha: 1.0, heatDemand: 'fixed', Q_fixed_kW: iso_duty_kW });
+    const snk3 = t.place('sink', 8, 0);
+    const gs3  = t.place('grid_supply', 0, 5, { maxPower: iso_duty_kW + 10 });
+    const hub3 = t.place('power_hub', 2, 5);
+    t.wire(src3, 'out', rx3, 'mat_in'); t.wire(rx3, 'mat_out', snk3, 'in');
+    t.wire(gs3, 'out', hub3, 'elec_in'); t.wire(hub3, 'elec_out', rx3, 'elec_in');
+    t.solve();
+    const T_fixed = t.port(rx3, 'mat_out')?.T;
+
+    t.assertClose(T_fixed, T_iso, 2.0, 'Fixed = isothermal when Q matches duty',
+      `${T_fixed?.toFixed(1)} vs ${T_iso?.toFixed(1)}`);
+  }});
+
+  tests.push({ name: '315: Direct grid→reactor (no hub), finite demand', fn: t => {
+    // Direct connection: grid_supply → reactor elec_in, no hub.
+    // With finite demand, no NaN/Infinity in allocation.
+    t.clearScene();
+    const src = t.place('source_multi', 0, 0, { n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V' });
+    const rx  = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_STEAM_REFORM', useKinetics: false, alpha: 1.0, heatDemand: 'isothermal' });
+    const snk = t.place('sink', 8, 0);
+    const gs  = t.place('grid_supply', 0, 5, { maxPower: 500 });
+    t.wire(src, 'out', rx, 'mat_in'); t.wire(rx, 'mat_out', snk, 'in');
+    t.wire(gs, 'out', rx, 'elec_in');
+    t.solve();
+    const L = t.last(rx);
+    t.assertOK(L.status === 'active', 'Active');
+    t.assertOK(L.converged, 'Converged');
+    t.assertOK(isFinite(L.Q_in_W) && L.Q_in_W > 0, 'Q_in finite & > 0', L.Q_in_W?.toFixed(0));
+    t.assertOK(!L.curtailed, 'Not curtailed (supply ≥ demand)');
+    // Isothermal: T_out ≈ T_in
+    t.assertClose(L.T_out, 1000, 5, 'T_out ≈ T_in (isothermal)', L.T_out?.toFixed(1));
+    // Q_in ≈ iso_duty
+    t.assertClose(L.Q_in_W, L.iso_Q_duty_W, L.iso_Q_duty_W * 0.01, 'Q_in ≈ iso_duty');
   }});
 
   // ═══════════════════════════════════════════════════════════════════════
