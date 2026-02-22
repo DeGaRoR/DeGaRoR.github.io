@@ -116,7 +116,13 @@ All material flows ≥ 0 everywhere. Backflow conditions are detected,
 zeroed, and alarmed — never computed. Implicit check valves on every
 connection.
 
-*Status: new in v13.0.0. Codifies the S5 pressure network design.*
+No silent clamping. Any flow forced to zero by the pressure network
+— backflow, pressure conflict, empty vessel, zero-resistance path,
+insufficient ΔP — produces a visible alarm stating the cause. The
+player always knows why a connection carries no flow.
+
+*Status: new in v13.0.0. Codifies the S5 pressure network design.
+Paragraph 3 (no silent clamping) added for v13.1.0.*
 
 ---
 

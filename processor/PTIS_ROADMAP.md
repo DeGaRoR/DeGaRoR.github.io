@@ -123,21 +123,32 @@ from ΔP across valves and resistances. New reservoir unit, pressure
 propagation via BFS, algebraic Cv flow solver.
 
 **Sub-sessions:**
-- **S5a** (2 sessions): Reservoir unit (5-port, finite/reservoir modes,
+- **S5a** (4 sessions): Reservoir unit (5-port, finite/reservoir modes,
   headspace pressure from PR density). atmosphere_sink (P_atm anchor).
-  Resistance parameter k on passthrough units. UnionFind + BFS pressure
-  propagation. Implicit check valves (all flows ≥ 0). Source backward
-  compatibility.
-- **S5b** (2 sessions): ΔP valve with Cv. Algebraic path solver (single
+  Pressure roles on all units. Resistance parameter k on passthrough
+  units. UnionFind + BFS pressure propagation. Implicit check valves
+  (all flows ≥ 0). Source backward compatibility.
+- **S5b** (3 sessions): ΔP valve with Cv. Algebraic path solver (single
   path closed-form, branching linear/bisection). Production gating on
-  pressure ERROR. Traffic light annotations.
+  pressure ERROR. Traffic light annotations. No-silent-clamping
+  acceptance gate.
 
 **Why here:** This is the deepest engine change — replaces the fundamental
 flow model. S5a provides pressure as physical quantity; S5b adds flow from
 ΔP. Split so S8 game development can proceed with S5a alone if needed.
 
+**Split caveat:** S5a without S5b means flows are clamped to zero in
+certain topologies with no visible alarm. This violates NNG-4 ("detected,
+zeroed, and alarmed"). If S5b is deferred, a minimal alarm bridge (INFO
+on every clamped flow) must ship with S5a to prevent silent failures.
+
 **Risk note:** 79 tests — more than all other engine stages combined.
-Recommend S5a as a stable checkpoint before S5b.
+Test coverage spans four categories: (1) topology validation — invalid
+networks fail predictably with alarms, (2) failure modes — every flow
+clamped to zero produces a visible reason, (3) conservation — mass
+balance closes across the pressure network, (4) performance — bounded
+solve time, no pressure-flow iteration. Recommend S5a as a stable
+checkpoint before S5b.
 
 **Spec:** `PTIS_S5_SPEC.md`
 
@@ -148,7 +159,7 @@ Recommend S5a as a stable checkpoint before S5b.
 **What:** Third reactor paradigm: power drives chemistry instead of
 temperature. Extent of reaction proportional to electrical power input.
 
-**Sub-sessions:** 1.
+**Sub-sessions:** 2 (unit registration + tick, then inspector + tests).
 
 **What it enables:** Water electrolysis (R_H2O_ELEC), CO₂ electrolysis
 (R_CO2_ELEC). Campaign M2 electrolyzer, M10 greenhouse.

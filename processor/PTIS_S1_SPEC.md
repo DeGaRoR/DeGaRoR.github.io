@@ -31,11 +31,12 @@ No refactoring of existing tick functions.
 
 ---
 
-# S1-pre — Solver Hardening (Pre-Fix)
+# S1-pre — Solver & Power Stream Hardening (Pre-Fix)
 
-Two micro-fixes identified during solver audit. Neither changes
-computed results for current flowsheets, but both close gaps that
-would produce silent wrong answers as unit/reaction scope grows.
+Eight fixes identified during solver, power-stream, and code-quality
+audits. Most are micro-fixes that close gaps before they become real
+problems. S1-pre-6 is a genuine conservation bug on direct-bus
+topologies with mixed finite/infinite demand consumers.
 
 **Do these before S1a. No new tests required — existing tests
 validate that behaviour is unchanged.**
@@ -112,6 +113,288 @@ Where `nTotal` is the sum of raw blended flows before clamping
 
 **Risk:** None. Only activates when clamping changed the total,
 which means a species went negative — an already-abnormal state.
+
+---
+
+## S1-pre-3. Power Read Infinity Fallback
+
+**File:** `processThis.html`, pump tick (~line 7978), compressor tick
+(~line 8114), electric_heater tick (~line 8243)
+
+**Current patterns (inconsistent across units):**
+```
+Pump:       hubAllocated_W ?? (actual ?? available ?? Infinity)
+Compressor: hubAllocated_W ?? (actual ?? available ?? Infinity)
+Heater:     hubAllocated_W ?? available ?? capacity ?? Infinity
+Reactor:    hubAllocated_W ?? available ?? capacity ?? 0        ← correct
+```
+
+**Problem:** If `hubAllocated_W` is unset (edge case: consumer
+connected to a non-hub, non-grid source that only sets `capacity`),
+pump and compressor fall through to `Infinity` and run uncurtailed.
+The heater skips `actual` entirely. The reactor is the only unit
+that fails safe to 0.
+
+**Fix:** Standardize all four to the same canonical read order:
+```javascript
+const W_avail = s.hubAllocated_W
+  ?? sElec.actual ?? sElec.capacity ?? 0;
+```
+
+`actual` first (solver-dispatched value), `capacity` second
+(equipment rating), `0` last (fail safe — no power, no work).
+Drop `available` from the read chain entirely (it's a deprecated
+alias normalized to `capacity` by `normalizeNonMaterialStream()`).
+
+**Risk:** None for hub/direct-bus paths (hubAllocated_W is always
+set). Fixes behaviour for edge-case direct connections.
+
+---
+
+## S1-pre-4. Stale HEAT/MECHANICAL Doc Strings
+
+**File:** `processThis.html`, STREAM_CONTRACTS.POWER block (~line 6196),
+power_hub header block (~line 7540)
+
+**Current (STREAM_CONTRACTS):**
+```javascript
+// Applies to ELECTRICAL, MECHANICAL, HEAT.          ← line 6196
+doc: 'Applies to ELECTRICAL and HEAT. ...',          ← line 6240
+```
+
+**Current (power_hub header):**
+```
+heat_out (HEAT, OUT) — surplus dissipated as heat    ← line 7548
+surplus = ... → heat_out                              ← line 7559
+distributes ... and dissipates surplus as heat.       ← line 7543
+```
+
+**Problem:** StreamType.HEAT deleted in v12.7.0, MECHANICAL deleted
+in v12.6.0. Two authoritative reference points — the stream contract
+and the hub architecture header — still describe deleted types and
+ports. The hub header describes `heat_out (HEAT, OUT)` but the actual
+port is `elec_surplus (ELECTRICAL, OUT)` since v11.0.0.
+
+**Fix (STREAM_CONTRACTS):**
+- Line 6196: `// Applies to ELECTRICAL.`
+- Line 6240: `doc: 'Applies to ELECTRICAL. All values in watts (W).'`
+- Line 6228: Remove `source_mechanical` from the PRODUCER list
+  (already migrated to grid_supply in v11.0.0).
+
+**Fix (power_hub header, lines 7540–7570):**
+- Line 7543: `distributes to consumers on elec_out, and routes surplus to elec_surplus.`
+- Line 7548: `elec_surplus (ELECTRICAL, OUT) — surplus power for dump loads`
+- Line 7559: `surplus = max(0, fixed_supply − total_demand) → elec_surplus`
+
+**Risk:** None. Documentation-only changes.
+
+---
+
+## S1-pre-5. Stop Emitting Deprecated `available` on Producers
+
+**File:** `processThis.html`, grid_supply tick (~line 7217),
+battery hub output (~line 7667), power_hub Step C outputs
+(~lines 11366, 11374), multiConnect aggregation (~line 10859),
+`streamSignature()` (~line 10013)
+
+**Current:** Several producers write `available: X` as the primary
+field alongside or instead of `capacity`. Consumers then read
+`available` in their fallback chains. The `normalizeNonMaterialStream()`
+function copies `available` → `capacity`, making it operationally
+safe but creating a half-migrated codebase where some paths use
+`capacity` and others use `available`.
+
+Additionally, `streamSignature()` includes `available` in the
+convergence signature. If any path sets `available` inconsistently
+with `capacity` after normalization, `portsChanged()` sees a
+spurious delta and forces extra solver iterations.
+
+**Problem:** Not a bug today, but increases risk of future
+inconsistency. S2 (Power Management) builds directly on the power
+stream contract — starting S2 with a clean single-field convention
+avoids carrying the alias debt forward.
+
+**Fix (producers):** At each producer, ensure `capacity` is the
+primary field. Keep `available` as a write-through alias for backward
+compatibility with any external scene JSON that reads it:
+```javascript
+// grid_supply example
+capacity: maxPower_W,
+available: maxPower_W,  // deprecated alias — remove after S2
+```
+
+**Fix (streamSignature):** Remove `available` from the convergence
+signature (~line 10013). After normalization, `capacity` carries
+the same value. Removing the alias from convergence detection
+eliminates a class of spurious iteration.
+
+No consumer-side changes needed (S1-pre-3 already removes
+`available` from the read chain).
+
+**Risk:** None. `normalizeNonMaterialStream()` already handles
+both fields. This makes the code match the documented contract.
+
+---
+
+## S1-pre-6. Direct-Bus Infinity Demand Over-Allocation
+
+**File:** `processThis.html`, Step D (~line 11489)
+
+**Current:** Step D sums downstream demands including Infinity
+(from `sink_electrical`), then allocates per consumer:
+```javascript
+downstreamDemand_W += consumerUD.powerDemand || 0;  // can be Infinity
+// ...
+curtailmentFactor = isFinite(downstreamDemand_W)
+  ? actualDraw_W / downstreamDemand_W : 1.0;        // → 1.0
+// ...
+allocated = isFinite(consumerDemand)
+  ? consumerDemand * curtailmentFactor               // finite: full demand
+  : actualDraw_W;                                     // infinite: full draw
+```
+
+**Bug:** With grid_supply (20 kW) → [compressor (5 kW) +
+sink_electrical (∞)]:
+- curtailmentFactor = 1.0 (Infinity guard)
+- Compressor gets 5000 × 1.0 = 5000 W
+- Sink gets actualDraw_W = 20000 W
+- Sum allocated = 25000 > 20000 actual. **Conservation violation.**
+
+The hub path (Step C, line 11293) handles this correctly by clamping
+Infinity to total supply before allocation. Step D does not.
+
+**Fix:** Separate finite and infinite consumers, allocate finite
+first, give infinite the remainder:
+```javascript
+// Partition consumers
+let finiteDemand_W = 0;
+const finiteConsumers = [], infiniteConsumers = [];
+for (const conn of outConns) {
+  const consumerUD = scene.runtime.unitData.get(conn.to.unitId);
+  const d = consumerUD?.powerDemand || 0;
+  if (isFinite(d)) {
+    finiteDemand_W += d;
+    finiteConsumers.push({ conn, demand: d });
+  } else {
+    infiniteConsumers.push({ conn });
+  }
+}
+
+const actualDraw_W = Math.min(
+  finiteDemand_W + (infiniteConsumers.length > 0 ? maxPower_W : 0),
+  maxPower_W
+);
+
+// Finite consumers: proportional curtailment
+const finiteDraw = Math.min(finiteDemand_W, actualDraw_W);
+const finiteFactor = finiteDemand_W > 0
+  ? finiteDraw / finiteDemand_W : 1.0;
+
+for (const { conn, demand } of finiteConsumers) {
+  const cs = runtimeCtx.scratch(conn.to.unitId);
+  cs.hubAllocated_W = demand * finiteFactor;
+  cs.hubAllocFactor = finiteFactor;
+}
+
+// Infinite consumers: remainder
+const remainder = Math.max(0, actualDraw_W - finiteDraw);
+const perInf = infiniteConsumers.length > 0
+  ? remainder / infiniteConsumers.length : 0;
+for (const { conn } of infiniteConsumers) {
+  const cs = runtimeCtx.scratch(conn.to.unitId);
+  cs.hubAllocated_W = perInf;
+  cs.hubAllocFactor = finiteFactor;
+}
+```
+
+**Risk:** Changes allocation behaviour for direct-bus topologies
+with `sink_electrical`. Current behaviour is wrong (over-allocates),
+so the change is a correction. All existing tests use hub paths.
+
+---
+
+## S1-pre-7. Zero-Flow Flash Falsy T Guard
+
+**File:** `processThis.html`, solver flash loop (~line 10943)
+
+**Current:**
+```javascript
+if (!stream.T) stream.T = 298.15;
+```
+
+**Problem:** `!stream.T` is true for T=0 (absolute zero) and T=NaN.
+T=0 is physically impossible (below flash bounds), but the test
+should match the project's convention for "missing" — `undefined` or
+`null` — not falsiness. Other T guards in the codebase use explicit
+null checks.
+
+**Fix:**
+```javascript
+if (stream.T == null) stream.T = 298.15;
+```
+
+**Risk:** None. T=0 never occurs in practice. Aligns with existing
+style conventions throughout the thermo layer.
+
+---
+
+## S1-pre-8. Enforce Structured ud.errors
+
+**File:** `processThis.html`, solver loop and `ctx.warn` definition
+
+**Current:** `ud.errors` receives a mix of structured objects
+(`{ severity, message, code }`) and raw strings. The CATASTROPHIC
+scan at line 11042 only detects objects:
+```javascript
+if (err && typeof err === 'object' && err.severity &&
+    err.severity.level >= ErrorSeverity.CATASTROPHIC.level)
+```
+
+Raw string errors can never trigger `unitFaulted`, even if they
+represent fatal conditions. Current raw-string pushes:
+- Line 10711: power cycle message (string)
+- Line 10741: hub-to-hub message (string)
+- Line 10990: flash warning (string)
+- Line 11005: flash catch error (string)
+- Line 11020: stream type mismatch (string)
+
+Additionally, `ctx.warn` (line 10411) is defined as
+`(msg) => ud.errors.push(msg)` with no type enforcement. A future
+tick doing `ctx.warn("fatal problem")` would silently fail to
+trigger faulted status.
+
+**Fix (solver string pushes):** Wrap each raw string push:
+```javascript
+// Before:
+ud.errors.push(`Flash failed on ${p.portId}: ${err.message}`);
+// After:
+ud.errors.push({ severity: ErrorSeverity.MINOR,
+  message: `Flash failed on ${p.portId}: ${err.message}`,
+  code: 'FLASH_EXCEPTION' });
+```
+
+Apply to all five string-push sites. Assign appropriate severities:
+- Power cycle, hub-to-hub: CATASTROPHIC (already short-circuit)
+- Flash warning: INFO
+- Flash catch: MAJOR
+- Stream type mismatch: MAJOR
+
+**Fix (ctx.warn):** Auto-wrap raw strings:
+```javascript
+warn: (msg) => {
+  if (typeof msg === 'string') {
+    ud.errors.push({ severity: ErrorSeverity.MINOR, message: msg });
+  } else {
+    ud.errors.push(msg);
+  }
+},
+```
+
+**Risk:** Low. Changes the shape of some error entries from string
+to object. Any code that reads `ud.errors` as strings (e.g., for
+display) already handles both types or uses `.message`. The
+`diagnoseErrors()` aggregator already extracts `.message` from
+objects.
 
 ---
 
@@ -923,11 +1206,27 @@ consistency; the tick function should be updated to use
 
 ```
 S1-pre (before S1a, same session):
-  [ ] Reactor cache hash: add reactionId, alpha, volume_m3,
+  [ ] S1-pre-1: Reactor cache hash: add reactionId, alpha, volume_m3,
       useKinetics, heatDemand to _hash (~line 9279)
-  [ ] blendMaterialStream: renormalize total flow after clamp
-      (~line 10476)
-  [ ] Verify: all 289 existing tests still pass (no functional change)
+  [ ] S1-pre-2: blendMaterialStream: renormalize total flow after
+      clamp (~line 10476)
+  [ ] S1-pre-3: Power read standardization: pump (~7978), compressor
+      (~8114), heater (~8243) → actual ?? capacity ?? 0
+  [ ] S1-pre-4: Stale docs: remove HEAT/MECHANICAL from
+      STREAM_CONTRACTS (~6196, 6228, 6240) AND power_hub header
+      (~7543, 7548, 7559)
+  [ ] S1-pre-5: Producer available→capacity: ensure capacity is
+      primary on grid_supply, battery, hub outputs, multiConnect.
+      Remove available from streamSignature() (~10013)
+  [ ] S1-pre-6: Direct-bus Infinity fix: partition finite/infinite
+      consumers in Step D (~11489), allocate finite first,
+      remainder to infinite
+  [ ] S1-pre-7: Zero-flow flash: !stream.T → stream.T == null
+      (~line 10943)
+  [ ] S1-pre-8: Structured ud.errors: wrap 5 raw string pushes
+      (~10711, 10741, 10990, 11005, 11020) + auto-wrap in
+      ctx.warn (~10411)
+  [ ] Verify: all 289 existing tests still pass
 
 S1a (1 session):
   [ ] Line 3013: H₂O cpig Tmin 500 → 298
@@ -968,7 +1267,7 @@ Total S1: ~23 new tests → 312 cumulative
 
 | Consumer | What it uses from S1 |
 |----------|---------------------|
-| S2 (Power) | Alarm infrastructure for overload/fry alarms |
+| S2 (Power) | Alarm infrastructure for overload/fry alarms; S1-pre power stream cleanup (capacity primary, Infinity fix, stale docs) |
 | S3 (PR EOS) | CO species for CO-containing reaction validation |
 | S6 (Electrochemical) | R_H2O_ELEC, R_CO2_ELEC, R_COELEC reaction data; R_H2_FUELCELL, R_CO_FUELCELL data for future fuel_cell; ELECTROCHEMICAL model |
 | S7 (Perf Maps) | Limit data for overlay rendering; limitParams for inspector hooks |

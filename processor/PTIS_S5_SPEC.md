@@ -65,6 +65,42 @@ non-participating units.
 
 ---
 
+## Network Invariants (Acceptance Criteria)
+
+These invariants hold after every solver tick. Every invariant maps
+to specific tests. S5 is not complete until all pass.
+
+**INV-1. Non-negative flow.** Every material flow ≥ 0. Backflow is
+never computed — it is detected, zeroed, and alarmed.
+*Tests: T-PS33 (reverse flow), T-PS60 (mixer backflow)*
+
+**INV-2. No silent clamping.** Every flow forced to zero by the
+pressure network produces a visible alarm stating the cause. Causes
+include: backflow (P_out > P_in), pressure conflict (two anchors
+disagree), empty vessel (no liquid/vapor), zero-resistance path
+(Q clamped), insufficient ΔP (ΔP_static ≤ 0), and closed valve
+(opening = 0).
+*Tests: T-PS09, T-PS10 (empty vessel), T-PS14 (closed valve),
+T-PS31 (valve P_in < target), T-PS33 (reverse), T-PS41/T-PS47
+(conflicts), T-PS56 (ΔP ≤ 0), T-PS60 (mixer backflow), T-PS62
+(zero resistance)*
+
+**INV-3. Single anchor per zone.** Every pressure zone has exactly
+one anchor pressure, or an ERROR alarm fires identifying the
+conflict.
+*Tests: T-PS41, T-PS47 (conflict detection)*
+
+**INV-4. Conservation.** Mass balance closes across the pressure
+network. Total mass in = total mass out + accumulation, within
+tolerance.
+*Tests: T-PS75 (demo scene clean), T-PS79 (full regression)*
+
+**INV-5. Bounded time.** No pressure-flow iteration. Every topology
+solves in O(n) BFS + O(paths) algebra. Deterministic results.
+*Tests: T-PS78 (30 units < 50ms)*
+
+---
+
 ## Phased Rollout
 
 The spec is implemented in 4 phases within 2 sub-sessions:
@@ -670,6 +706,8 @@ unchanged. No defId renames.
 | 79 | Full regression | all previous + 79 new |
 
 **Gate:** All previous (355) + 79 new pass → 434 cumulative.
+All five network invariants (INV-1 through INV-5) verified by
+mapped tests above.
 
 ---
 

@@ -256,6 +256,20 @@
            When Q limited, T_out > setpoint + MINOR warning.
            New: T304–T310 (7 tests).
 
+  v12.10.0 Multi-select, group move, copy/paste — 289 tests, 1810 assertions.
+           Multi-select: Ctrl+click toggles units into selection set.
+           Rubber-band: click+drag on empty canvas draws marquee box-select.
+           Group move: drag any selected unit to move entire group.
+           Copy/paste: Ctrl+C copies selected units + internal connections,
+           Ctrl+V pastes at mouse position with new IDs.  Ctrl+drag on a
+           selected unit duplicates the selection and drags the copies.
+           Delete: removes all selected units.  Inspector shows count when
+           multiple units selected.  Undo covers all group operations.
+           UI state: selectedUnitIds Set is source of truth; selectedUnitId
+           derived for single-selection inspector compatibility.
+           NNG: NNG-12 (version bump), NNG-14 (pasted names use esc()),
+           NNG-6 (single file).  No physics changes.
+
   v12.9.4  Reactor curtailment warning — 289 tests, 1810 assertions.
            reactor_equilibrium now warns when power-starved in isothermal
            or fixed-power mode: MINOR "Insufficient power for isothermal
@@ -657,7 +671,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>processThis — v12.9.4</title>
+  <title>processThis — v12.10.0</title>
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
@@ -12409,6 +12423,10 @@ const ui = {
   view: { x: 0, y: 0, w: 1056, h: 672 }, // Updated dynamically by setViewBox
   selectedUnitId: null,
   selectedConnId: null,
+  selectedUnitIds: new Set(),   // [v12.10.0] multi-select: source of truth
+  _clipboard: null,             // [v12.10.0] {units:[], connections:[]} for copy/paste
+  _rubberBand: null,            // [v12.10.0] {x,y,x2,y2} world coords for marquee
+  _groupDragStarts: null,       // [v12.10.0] Map<id,{x,y}> original positions for undo
   pendingFrom: null, // Connection mode: {unitId, portId}
   isPanning: false,
   panStart: null,
@@ -12930,8 +12948,7 @@ function openDiagnosticModal() {
       if (alarm.unitId) {
         row.style.cursor = 'pointer';
         row.addEventListener('click', () => {
-          ui.selectedUnitId = alarm.unitId;
-          ui.selectedConnId = null;
+          _selectOnly(alarm.unitId);  // [v12.10.0]
           updatePropertiesPanel();
           render();
           modal.classList.remove('open');
@@ -13239,6 +13256,7 @@ function drawConnections() {
       ev.stopPropagation();
       ui.selectedConnId = c.id;
       ui.selectedUnitId = null;
+      ui.selectedUnitIds.clear();  // [v12.10.0]
       ui.selectedStickerId = null;
       ui.selectedStickerKind = null;
       updatePropertiesPanel();
@@ -13384,7 +13402,7 @@ function drawUnits() {
       width: ww, height: wh,
       rx: 8,
       fill: def.color,
-      stroke: ui.selectedUnitId === id ? '#60a5fa' : '#1e293b',
+      stroke: _isSelected(id) ? '#60a5fa' : '#1e293b',
       'stroke-width': 3,
       cursor: isDimmed ? 'default' : 'grab'
     });
@@ -13396,14 +13414,39 @@ function drawUnits() {
       
       // Don't start dragging existing units during HTML5 drag from library
       if (ui.isHTML5Dragging) return;
-      
-      ui.selectedUnitId = id;
-      ui.selectedConnId = null;
-      ui.selectedStickerId = null;
-      ui.selectedStickerKind = null;
+
+      // [v12.10.0] Ctrl+drag: duplicate selection and drag copies
+      if ((ev.ctrlKey || ev.metaKey) && _isSelected(id)) {
+        _duplicateAndDrag(ev);
+        render();
+        return;
+      }
+
+      // [v12.10.0] Ctrl+click: toggle multi-select
+      if (ev.ctrlKey || ev.metaKey) {
+        _toggleSelect(id);
+        updatePropertiesPanel();
+        render();
+        return;
+      }
+
+      // Plain click: select only this unit (unless it's already in a multi-selection, then just start drag)
+      if (!_isSelected(id)) {
+        _selectOnly(id);
+      } else if (ui.selectedUnitIds.size === 1) {
+        // Already the sole selection, keep it
+      }
+      // If clicking a unit already in multi-select, keep selection for group drag
+
+      // [v12.10.0] Group drag setup
       ui.isDraggingUnit = true;
       ui.dragUnitId = id;
       ui.dragStartPos = { x: u.x, y: u.y };  // [v10.6.0] for undo
+      ui._groupDragStarts = new Map();
+      for (const selId of ui.selectedUnitIds) {
+        const su = scene.units.get(selId);
+        if (su) ui._groupDragStarts.set(selId, { x: su.x, y: su.y });
+      }
       
       const m = screenToWorld(ev.clientX, ev.clientY);
       // Store offset in grid cell units
@@ -14106,6 +14149,15 @@ function _handleStickerDrop(ev, section, label, unitId, connId) {
 }
 
 function render() {
+  // [v12.10.0] Safety: sync selectedUnitIds with selectedUnitId if out of sync
+  // (covers code paths that set selectedUnitId directly without going through helpers)
+  if (ui.selectedUnitId && !ui.selectedUnitIds.has(ui.selectedUnitId)) {
+    ui.selectedUnitIds.clear();
+    ui.selectedUnitIds.add(ui.selectedUnitId);
+  } else if (!ui.selectedUnitId && ui.selectedUnitIds.size === 0) {
+    // Both empty — in sync
+  }
+
   clearSVG();
   setViewBox();
   drawGrid();
@@ -14113,6 +14165,24 @@ function render() {
   drawStickerTethers();  // [v10.7.2] tethers under units
   drawUnits();
   drawStickerCards();    // [v10.7.2] cards on top of units
+
+  // [v12.10.0] Rubber-band selection marquee
+  if (ui._rubberBand) {
+    const rb = ui._rubberBand;
+    const x = Math.min(rb.x, rb.x2);
+    const y = Math.min(rb.y, rb.y2);
+    const w = Math.abs(rb.x2 - rb.x);
+    const h = Math.abs(rb.y2 - rb.y);
+    const marquee = svgEl('rect', {
+      x, y, width: w, height: h,
+      fill: 'rgba(96, 165, 250, 0.08)',
+      stroke: '#60a5fa',
+      'stroke-width': 1.5,
+      'stroke-dasharray': '6 3',
+      'pointer-events': 'none'
+    });
+    svg.appendChild(marquee);
+  }
 }
 
 /* =========================
@@ -16882,6 +16952,40 @@ let _inspTransitioning = false;
 function updatePropertiesPanel() {
   const panel = document.getElementById('rightPanel');
 
+  // [v12.10.0] Multi-select summary
+  if (ui.selectedUnitIds.size > 1) {
+    panel.classList.remove('panel-hidden');
+    _inspLastTarget = 'multi:' + ui.selectedUnitIds.size;
+    propEditor.style.opacity = '1';
+    propEditor.innerHTML = '';
+
+    const headerDiv = el('div', { class: 'unitHeader' });
+    const titleDiv = el('div', { style: 'display:flex; align-items:center; gap:8px;' });
+    titleDiv.appendChild(el('span', { class: 'unitTitle', text: `${ui.selectedUnitIds.size} units selected` }));
+    headerDiv.appendChild(titleDiv);
+    headerDiv.appendChild(el('div', { class: 'unitSubtitle', text: 'Ctrl+click to add/remove · Drag to move group' }));
+    propEditor.appendChild(headerDiv);
+
+    // List selected units
+    const listDiv = el('div', { style: 'padding: 8px 12px;' });
+    for (const id of ui.selectedUnitIds) {
+      const u = scene.units.get(id);
+      if (!u) continue;
+      const def = UnitRegistry.get(u.defId);
+      const row = el('div', { style: 'display:flex; align-items:center; gap:8px; padding:4px 0; font-size:12px; color:#cbd5e1;' });
+      row.appendChild(el('span', { style: `display:inline-block;width:10px;height:10px;border-radius:3px;background:${def?.color || '#666'};` }));
+      row.appendChild(el('span', { html: esc(u.name) }));
+      listDiv.appendChild(row);
+    }
+    propEditor.appendChild(listDiv);
+
+    // Hint
+    const hintDiv = el('div', { style: 'padding: 8px 12px; font-size:11px; color:#64748b;' });
+    hintDiv.innerHTML = 'Ctrl+C to copy · Ctrl+V to paste<br>Delete to remove all · Ctrl+A to select all';
+    propEditor.appendChild(hintDiv);
+    return;
+  }
+
   // [v10.3.1] Hide panel when nothing selected
   if (!ui.selectedUnitId && !ui.selectedConnId && !ui.selectedStickerId) {
     panel.classList.add('panel-hidden');
@@ -17473,11 +17577,234 @@ document.getElementById('processNameInput').addEventListener('input', () => auto
 /* =========================
    EVENT HANDLERS
    ========================= */
-function deselectAll() {
+/* =========================
+   SELECTION HELPERS [v12.10.0]
+   ========================= */
+
+/** Select exactly one unit (or null to clear). Syncs selectedUnitId for inspector. */
+function _selectOnly(id) {
+  ui.selectedUnitIds.clear();
+  if (id) ui.selectedUnitIds.add(id);
+  ui.selectedUnitId = id || null;
+  ui.selectedConnId = null;
+  ui.selectedStickerId = null;
+  ui.selectedStickerKind = null;
+}
+
+/** Toggle a unit in/out of the multi-select set. */
+function _toggleSelect(id) {
+  if (ui.selectedUnitIds.has(id)) {
+    ui.selectedUnitIds.delete(id);
+  } else {
+    ui.selectedUnitIds.add(id);
+  }
+  // Inspector shows single unit only if exactly 1 selected
+  ui.selectedUnitId = ui.selectedUnitIds.size === 1 ? [...ui.selectedUnitIds][0] : null;
+  ui.selectedConnId = null;
+  ui.selectedStickerId = null;
+  ui.selectedStickerKind = null;
+}
+
+/** Add a unit to multi-select without removing others. */
+function _addSelect(id) {
+  ui.selectedUnitIds.add(id);
+  ui.selectedUnitId = ui.selectedUnitIds.size === 1 ? [...ui.selectedUnitIds][0] : null;
+}
+
+/** Clear multi-select and single-select. */
+function _clearSelection() {
+  ui.selectedUnitIds.clear();
   ui.selectedUnitId = null;
   ui.selectedConnId = null;
   ui.selectedStickerId = null;
   ui.selectedStickerKind = null;
+}
+
+/** Check if a unit is in the current selection. */
+function _isSelected(id) {
+  return ui.selectedUnitIds.has(id);
+}
+
+/**
+ * Copy selected units (and connections between them) to clipboard buffer.
+ * [v12.10.0] NNG-9: pure data copy, no DOM access.
+ */
+function _copySelection() {
+  if (ui.selectedUnitIds.size === 0) return;
+  const unitIds = ui.selectedUnitIds;
+  const units = [];
+  for (const id of unitIds) {
+    const u = scene.units.get(id);
+    if (!u) continue;
+    units.push({
+      id: u.id, defId: u.defId, name: u.name,
+      x: u.x, y: u.y, rot: u.rot,
+      params: JSON.parse(JSON.stringify(u.params)),
+      sticker: u.sticker ? JSON.parse(JSON.stringify(u.sticker)) : null,
+      inventory: u.inventory ? JSON.parse(JSON.stringify(u.inventory)) : null
+    });
+  }
+  // Capture connections that are fully inside the selection
+  const connections = scene.connections.filter(
+    c => unitIds.has(c.from.unitId) && unitIds.has(c.to.unitId)
+  ).map(c => JSON.parse(JSON.stringify(c)));
+
+  ui._clipboard = { units, connections };
+  showToast(`Copied ${units.length} unit${units.length > 1 ? 's' : ''}`);
+}
+
+/**
+ * Paste clipboard at mouse position. Generates new IDs, offsets positions.
+ * [v12.10.0] NNG-12: pushes undo. NNG-14: names pass through esc() at render time.
+ */
+function _pasteClipboard() {
+  if (!ui._clipboard || ui._clipboard.units.length === 0) return;
+  const { units: srcUnits, connections: srcConns } = ui._clipboard;
+
+  // Compute bounding box of source units
+  let minX = Infinity, minY = Infinity;
+  for (const u of srcUnits) { minX = Math.min(minX, u.x); minY = Math.min(minY, u.y); }
+
+  // Target position: mouse world coords → grid cell, or offset from original
+  const mouse = ui._mouseWorld;
+  const targetCell = worldToCell(mouse.x, mouse.y);
+  const offsetX = targetCell.x - minX;
+  const offsetY = targetCell.y - minY;
+
+  _pushUndo('Paste units');
+
+  // Map old ID → new ID
+  const idMap = new Map();
+  const newIds = [];
+
+  for (const src of srcUnits) {
+    const nx = src.x + offsetX;
+    const ny = src.y + offsetY;
+
+    // Place via scene API (handles collision, id generation, defaults)
+    let newId = scene.placeUnit(src.defId, nx, ny);
+    // Auto-nudge on collision
+    if (!newId) {
+      const offsets = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,1],[1,-1],[-1,-1],
+                       [2,0],[-2,0],[0,2],[0,-2]];
+      for (const [dx, dy] of offsets) {
+        newId = scene.placeUnit(src.defId, nx + dx, ny + dy);
+        if (newId) break;
+      }
+    }
+    if (!newId) continue;
+
+    // Overwrite defaults with source params
+    const newUnit = scene.units.get(newId);
+    newUnit.name = src.name + ' (copy)';
+    newUnit.params = JSON.parse(JSON.stringify(src.params));
+    if (src.sticker) newUnit.sticker = JSON.parse(JSON.stringify(src.sticker));
+    if (src.inventory) newUnit.inventory = JSON.parse(JSON.stringify(src.inventory));
+
+    idMap.set(src.id, newId);
+    newIds.push(newId);
+  }
+
+  // Recreate internal connections with remapped IDs
+  for (const conn of srcConns) {
+    const fromId = idMap.get(conn.from.unitId);
+    const toId = idMap.get(conn.to.unitId);
+    if (fromId && toId) {
+      scene.connect(
+        { unitId: fromId, portId: conn.from.portId },
+        { unitId: toId, portId: conn.to.portId }
+      );
+    }
+  }
+
+  // Select the pasted units
+  ui.selectedUnitIds.clear();
+  for (const id of newIds) ui.selectedUnitIds.add(id);
+  ui.selectedUnitId = newIds.length === 1 ? newIds[0] : null;
+
+  autoSave();
+  updatePropertiesPanel();
+  render();
+  showToast(`Pasted ${newIds.length} unit${newIds.length > 1 ? 's' : ''}`);
+}
+
+/**
+ * Duplicate selected units and begin dragging the copies (Ctrl+drag).
+ * [v12.10.0]
+ */
+function _duplicateAndDrag(ev) {
+  if (ui.selectedUnitIds.size === 0) return;
+
+  // Copy selection to clipboard and paste in-place (offset 0)
+  _copySelection();
+  if (!ui._clipboard || ui._clipboard.units.length === 0) return;
+  const { units: srcUnits, connections: srcConns } = ui._clipboard;
+
+  _pushUndo('Duplicate units');
+
+  const idMap = new Map();
+  const newIds = [];
+
+  for (const src of srcUnits) {
+    // Place adjacent — try +1,+1 offset, then nudge
+    let newId = null;
+    const offsets = [[1,1],[2,0],[0,2],[-1,1],[1,-1],[2,2],[3,0],[0,3]];
+    for (const [dx, dy] of offsets) {
+      newId = scene.placeUnit(src.defId, src.x + dx, src.y + dy);
+      if (newId) break;
+    }
+    if (!newId) continue;
+
+    const newUnit = scene.units.get(newId);
+    newUnit.name = src.name + ' (copy)';
+    newUnit.params = JSON.parse(JSON.stringify(src.params));
+    if (src.sticker) newUnit.sticker = JSON.parse(JSON.stringify(src.sticker));
+    if (src.inventory) newUnit.inventory = JSON.parse(JSON.stringify(src.inventory));
+
+    idMap.set(src.id, newId);
+    newIds.push(newId);
+  }
+
+  for (const conn of srcConns) {
+    const fromId = idMap.get(conn.from.unitId);
+    const toId = idMap.get(conn.to.unitId);
+    if (fromId && toId) {
+      scene.connect(
+        { unitId: fromId, portId: conn.from.portId },
+        { unitId: toId, portId: conn.to.portId }
+      );
+    }
+  }
+
+  // Select the new copies and begin group drag
+  ui.selectedUnitIds.clear();
+  for (const id of newIds) ui.selectedUnitIds.add(id);
+  ui.selectedUnitId = newIds.length === 1 ? newIds[0] : null;
+
+  // Set up group drag state using first new unit
+  if (newIds.length > 0) {
+    const firstUnit = scene.units.get(newIds[0]);
+    ui.isDraggingUnit = true;
+    ui.dragUnitId = newIds[0];
+    ui._groupDragStarts = new Map();
+    for (const id of ui.selectedUnitIds) {
+      const u = scene.units.get(id);
+      if (u) ui._groupDragStarts.set(id, { x: u.x, y: u.y });
+    }
+    const m = screenToWorld(ev.clientX, ev.clientY);
+    ui.dragOffset = {
+      cellX: (m.x / scene.tile) - firstUnit.x,
+      cellY: (m.y / scene.tile) - firstUnit.y
+    };
+    ui.dragStartPos = { x: firstUnit.x, y: firstUnit.y };
+  }
+
+  autoSave();
+  render();
+}
+
+function deselectAll() {
+  _clearSelection();
   ui.pendingFrom = null;
   ui.reconnecting = null;
   updatePropertiesPanel();
@@ -17504,9 +17831,25 @@ function deleteSelected() {
     autoSave();
     updatePropertiesPanel();
     render();
+  } else if (ui.selectedUnitIds.size > 1) {
+    // [v12.10.0] Multi-delete
+    _pushUndo('Delete units');
+    const ids = [...ui.selectedUnitIds];
+    for (const id of ids) {
+      scene.units.delete(id);
+      scene.connections = scene.connections.filter(
+        c => c.from.unitId !== id && c.to.unitId !== id
+      );
+      if (scene.runtime.unitData) scene.runtime.unitData.delete(id);
+    }
+    _clearSelection();
+    autoSave();
+    updatePropertiesPanel();
+    render();
+    showToast(`Deleted ${ids.length} units`);
   } else if (ui.selectedUnitId) {
     scene.deleteUnit(ui.selectedUnitId);
-    ui.selectedUnitId = null;
+    _clearSelection();
     updatePropertiesPanel();
     render();
   } else if (ui.selectedConnId) {
@@ -17549,10 +17892,13 @@ svg.addEventListener('pointerdown', (ev) => {
       render();
       return;
     }
-    ui.selectedUnitId = null;
-    ui.selectedConnId = null;
-    ui.selectedStickerId = null;
-    ui.selectedStickerKind = null;
+
+    // [v12.10.0] Start rubber-band selection on empty canvas
+    if (!ev.ctrlKey && !ev.metaKey) {
+      _clearSelection();
+    }
+    ui._rubberBand = { x: w.x, y: w.y, x2: w.x, y2: w.y };
+    svg.setPointerCapture(ev.pointerId);
     
     updatePropertiesPanel();
     render();
@@ -17577,16 +17923,60 @@ svg.addEventListener('pointermove', (ev) => {
 
   // Unit dragging
   if (ui.isDraggingUnit && ui.dragUnitId && ui.dragOffset) {
-    const u = scene.units.get(ui.dragUnitId);
-    if (u) {
+    const anchor = scene.units.get(ui.dragUnitId);
+    if (anchor) {
       const wpos = ui._mouseWorld;
       const cellX = (wpos.x / scene.tile) - ui.dragOffset.cellX;
       const cellY = (wpos.y / scene.tile) - ui.dragOffset.cellY;
       const nx = Math.round(cellX);
       const ny = Math.round(cellY);
-      scene.moveUnit(u.id, nx, ny);
+      const dx = nx - anchor.x;
+      const dy = ny - anchor.y;
+
+      // [v12.10.0] Group drag: move all selected units by same delta
+      if (ui.selectedUnitIds.size > 1 && _isSelected(ui.dragUnitId) && (dx !== 0 || dy !== 0)) {
+        // Check collisions for all units against non-selected units
+        let canMove = true;
+        for (const selId of ui.selectedUnitIds) {
+          const su = scene.units.get(selId);
+          if (!su) continue;
+          const def = UnitRegistry.get(su.defId);
+          const pres = getPresentation(def, su);
+          const tx = su.x + dx, ty = su.y + dy;
+          // Check collision with non-selected units only
+          for (const [otherId, other] of scene.units) {
+            if (ui.selectedUnitIds.has(otherId)) continue;
+            const oDef = UnitRegistry.get(other.defId);
+            const oPres = getPresentation(oDef, other);
+            if (!(tx + pres.w <= other.x || other.x + oPres.w <= tx ||
+                  ty + pres.h <= other.y || other.y + oPres.h <= ty)) {
+              canMove = false;
+              break;
+            }
+          }
+          if (!canMove) break;
+        }
+        if (canMove) {
+          for (const selId of ui.selectedUnitIds) {
+            const su = scene.units.get(selId);
+            if (su) { su.x += dx; su.y += dy; }
+          }
+        }
+      } else {
+        // Single unit drag (original behavior)
+        scene.moveUnit(anchor.id, nx, ny);
+      }
       render();
     }
+    return;
+  }
+
+  // [v12.10.0] Rubber-band drawing
+  if (ui._rubberBand) {
+    const w = ui._mouseWorld;
+    ui._rubberBand.x2 = w.x;
+    ui._rubberBand.y2 = w.y;
+    render();
     return;
   }
 
@@ -17617,11 +18007,31 @@ svg.addEventListener('pointerup', () => {
   ui.panStart = null;
 
   if (ui.isDraggingUnit) {
-    // [v10.6.0] Push undo if unit actually moved
-    if (ui.dragUnitId && ui.dragStartPos) {
+    // [v12.10.0] Group drag undo: check if any unit moved
+    if (ui._groupDragStarts && ui.selectedUnitIds.size > 1) {
+      let anyMoved = false;
+      for (const [id, start] of ui._groupDragStarts) {
+        const u = scene.units.get(id);
+        if (u && (u.x !== start.x || u.y !== start.y)) { anyMoved = true; break; }
+      }
+      if (anyMoved) {
+        // Temporarily restore old positions for undo snapshot, then re-apply
+        const newPositions = new Map();
+        for (const [id, start] of ui._groupDragStarts) {
+          const u = scene.units.get(id);
+          if (u) { newPositions.set(id, { x: u.x, y: u.y }); u.x = start.x; u.y = start.y; }
+        }
+        _pushUndo('Move units');
+        for (const [id, pos] of newPositions) {
+          const u = scene.units.get(id);
+          if (u) { u.x = pos.x; u.y = pos.y; }
+        }
+        autoSave();
+      }
+    } else if (ui.dragUnitId && ui.dragStartPos) {
+      // [v10.6.0] Single unit undo
       const u = scene.units.get(ui.dragUnitId);
       if (u && (u.x !== ui.dragStartPos.x || u.y !== ui.dragStartPos.y)) {
-        // Temporarily restore old position for snapshot, then re-apply new
         const newX = u.x, newY = u.y;
         u.x = ui.dragStartPos.x; u.y = ui.dragStartPos.y;
         _pushUndo('Move unit');
@@ -17633,7 +18043,40 @@ svg.addEventListener('pointerup', () => {
     ui.dragUnitId = null;
     ui.dragOffset = null;
     ui.dragStartPos = null;
+    ui._groupDragStarts = null;
     
+    updatePropertiesPanel();
+    render();
+  }
+
+  // [v12.10.0] Rubber-band selection finalization
+  if (ui._rubberBand) {
+    const rb = ui._rubberBand;
+    const rbLeft = Math.min(rb.x, rb.x2);
+    const rbRight = Math.max(rb.x, rb.x2);
+    const rbTop = Math.min(rb.y, rb.y2);
+    const rbBottom = Math.max(rb.y, rb.y2);
+    const rbW = rbRight - rbLeft;
+    const rbH = rbBottom - rbTop;
+
+    // Only select if dragged a meaningful distance (> half a tile)
+    if (rbW > scene.tile * 0.5 || rbH > scene.tile * 0.5) {
+      for (const [id, u] of scene.units) {
+        const def = UnitRegistry.get(u.defId);
+        const pres = getPresentation(def, u);
+        // Unit world bounds
+        const ux = u.x * scene.tile;
+        const uy = u.y * scene.tile;
+        const uw = pres.w * scene.tile;
+        const uh = pres.h * scene.tile;
+        // Check overlap with rubber-band
+        if (!(ux + uw <= rbLeft || rbRight <= ux || uy + uh <= rbTop || rbBottom <= uy)) {
+          _addSelect(id);
+        }
+      }
+    }
+
+    ui._rubberBand = null;
     updatePropertiesPanel();
     render();
   }
@@ -17742,6 +18185,7 @@ svg.addEventListener('drop', (ev) => {
   }
   
   ui.selectedUnitId = id;
+  ui.selectedUnitIds.clear(); ui.selectedUnitIds.add(id);  // [v12.10.0]
   ui.selectedConnId = null;
   ui.selectedStickerId = null;
   ui.selectedStickerKind = null;
@@ -17799,6 +18243,27 @@ window.addEventListener('keydown', (ev) => {
   if (ev.key === 'y' && (ev.ctrlKey || ev.metaKey)) {
     ev.preventDefault();
     performRedo();
+    return;
+  }
+  // [v12.10.0] Copy: Ctrl+C
+  if (ev.key === 'c' && (ev.ctrlKey || ev.metaKey) && !isInput) {
+    ev.preventDefault();
+    _copySelection();
+    return;
+  }
+  // [v12.10.0] Paste: Ctrl+V
+  if (ev.key === 'v' && (ev.ctrlKey || ev.metaKey) && !isInput) {
+    ev.preventDefault();
+    _pasteClipboard();
+    return;
+  }
+  // [v12.10.0] Select all: Ctrl+A
+  if (ev.key === 'a' && (ev.ctrlKey || ev.metaKey) && !isInput) {
+    ev.preventDefault();
+    ui.selectedUnitIds.clear();
+    for (const [id] of scene.units) _addSelect(id);
+    updatePropertiesPanel();
+    render();
     return;
   }
   if (ev.key === 'Delete' && !isInput) deleteSelected();

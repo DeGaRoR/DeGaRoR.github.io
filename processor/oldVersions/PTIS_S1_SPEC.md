@@ -7,7 +7,7 @@
 ## Overview
 
 **What:** Fix thermodynamic data errors, register CO as 10th species,
-expand from 3 to 11 reactions, build equipment limits infrastructure
+expand from 3 to 14 reactions, build equipment limits infrastructure
 with alarm integration, fix default parameters.
 
 **Sub-sessions:** S1a (1), S1b (1), S1c (2) — 4 sessions total.
@@ -26,8 +26,375 @@ No refactoring of existing tick functions.
 **After S1:**
 - 20 unit types (unchanged count; limits added to 12)
 - 10 species (+CO)
-- 11 reactions (+7 new, +1 rename)
+- 14 reactions (+10 new, +1 rename)
 - ~312 tests (+23)
+
+---
+
+# S1-pre — Solver & Power Stream Hardening (Pre-Fix)
+
+Eight fixes identified during solver, power-stream, and code-quality
+audits. Most are micro-fixes that close gaps before they become real
+problems. One (S1-pre-6) is a genuine conservation bug on direct-bus
+topologies with mixed finite/infinite demand consumers.
+
+**Do these before S1a. No new tests required — existing tests
+validate that behaviour is unchanged.**
+
+---
+
+## S1-pre-1. Reactor Skip-When-Clean Cache Hash
+
+**File:** `processThis.html`, reactor_equilibrium tick (~line 9279)
+
+**Current hash:**
+```javascript
+let _hash = sIn.T * 1e6 + sIn.P + Q_in_W * 1e-3;
+for (let i = 0; i < nKeys.length; i++)
+  _hash += (sIn.n[nKeys[i]] || 0) * (i + 1) * 7919;
+```
+
+**Problem:** Hash captures inlet stream and Q_in but not reactor
+parameters. If a player changes reactionId, alpha, volume_m3,
+useKinetics, or heatDemand between solves without changing the inlet
+stream, the gen-guard prevents a skip within the same solve — but the
+warm-start bracket (±10 K from cached T_out) may be wrong for the
+new parameters. Completing the hash is cheap insurance.
+
+**Fix:** Add parameter fingerprint to hash:
+```javascript
+let _hash = sIn.T * 1e6 + sIn.P + Q_in_W * 1e-3;
+for (let i = 0; i < nKeys.length; i++)
+  _hash += (sIn.n[nKeys[i]] || 0) * (i + 1) * 7919;
+// Parameter fingerprint — bust cache on any config change
+if (par.reactionId)  _hash += hashString(par.reactionId) * 1e-6;
+if (par.alpha != null) _hash += par.alpha * 3571;
+if (par.volume_m3)   _hash += par.volume_m3 * 6271;
+if (par.useKinetics) _hash += 9901;
+if (par.heatDemand)  _hash += hashString(par.heatDemand) * 1e-7;
+```
+
+Where `hashString` is a simple DJB2 or FNV hash (add as a 5-line
+utility if not already present, or inline with char-code sum).
+
+**Risk:** None. Cache misses more often (correctly), warm start
+still narrows bracket when hash matches.
+
+---
+
+## S1-pre-2. Tear Stream Blend Normalization
+
+**File:** `processThis.html`, `blendMaterialStream()` (~line 10453)
+
+**Current:** After blending molar flows with relaxation factor α,
+individual species are clamped ≥ 0. Total flow is not renormalized.
+
+**Problem:** Clamping a negative blended flow to zero without
+adjusting other species creates a tiny mass imbalance on the tear
+stream. For current flowsheets (small recycle fractions, few
+species) the effect is below tolerance. With 10 species and deep
+recycles (S5 pressure-driven flow), accumulated drift could trigger
+spurious mass-balance alarms.
+
+**Fix:** After the clamping loop, add total-flow renormalization:
+```javascript
+// Renormalize: preserve pre-clamp total to avoid mass drift
+if (nTotal > 1e-15) {
+  const preClampTotal = Object.values(newS.n).reduce((a,b) => a+b, 0);
+  if (preClampTotal > 1e-15 && Math.abs(preClampTotal - nTotal) > 1e-15) {
+    const scale = nTotal / preClampTotal;
+    for (const sp of species) newS.n[sp] *= scale;
+  }
+}
+```
+
+Where `nTotal` is the sum of raw blended flows before clamping
+(capture it before the clamp loop).
+
+**Risk:** None. Only activates when clamping changed the total,
+which means a species went negative — an already-abnormal state.
+
+---
+
+## S1-pre-3. Power Read Infinity Fallback
+
+**File:** `processThis.html`, pump tick (~line 7978), compressor tick
+(~line 8114), electric_heater tick (~line 8243)
+
+**Current patterns (inconsistent across units):**
+```
+Pump:       hubAllocated_W ?? (actual ?? available ?? Infinity)
+Compressor: hubAllocated_W ?? (actual ?? available ?? Infinity)
+Heater:     hubAllocated_W ?? available ?? capacity ?? Infinity
+Reactor:    hubAllocated_W ?? available ?? capacity ?? 0        ← correct
+```
+
+**Problem:** If `hubAllocated_W` is unset (edge case: consumer
+connected to a non-hub, non-grid source that only sets `capacity`),
+pump and compressor fall through to `Infinity` and run uncurtailed.
+The heater skips `actual` entirely. The reactor is the only unit
+that fails safe to 0.
+
+**Fix:** Standardize all four to the same canonical read order:
+```javascript
+const W_avail = s.hubAllocated_W
+  ?? sElec.actual ?? sElec.capacity ?? 0;
+```
+
+`actual` first (solver-dispatched value), `capacity` second
+(equipment rating), `0` last (fail safe — no power, no work).
+Drop `available` from the read chain entirely (it's a deprecated
+alias normalized to `capacity` by `normalizeNonMaterialStream()`).
+
+**Risk:** None for hub/direct-bus paths (hubAllocated_W is always
+set). Fixes behaviour for edge-case direct connections.
+
+---
+
+## S1-pre-4. Stale HEAT/MECHANICAL Doc Strings
+
+**File:** `processThis.html`, STREAM_CONTRACTS.POWER block (~line 6196),
+power_hub header block (~line 7540)
+
+**Current (STREAM_CONTRACTS):**
+```javascript
+// Applies to ELECTRICAL, MECHANICAL, HEAT.          ← line 6196
+doc: 'Applies to ELECTRICAL and HEAT. ...',          ← line 6240
+```
+
+**Current (power_hub header):**
+```
+heat_out (HEAT, OUT) — surplus dissipated as heat    ← line 7548
+surplus = ... → heat_out                              ← line 7559
+distributes ... and dissipates surplus as heat.       ← line 7543
+```
+
+**Problem:** StreamType.HEAT deleted in v12.7.0, MECHANICAL deleted
+in v12.6.0. Two authoritative reference points — the stream contract
+and the hub architecture header — still describe deleted types and
+ports. The hub header describes `heat_out (HEAT, OUT)` but the actual
+port is `elec_surplus (ELECTRICAL, OUT)` since v11.0.0.
+
+**Fix (STREAM_CONTRACTS):**
+- Line 6196: `// Applies to ELECTRICAL.`
+- Line 6240: `doc: 'Applies to ELECTRICAL. All values in watts (W).'`
+- Line 6228: Remove `source_mechanical` from the PRODUCER list
+  (already migrated to grid_supply in v11.0.0).
+
+**Fix (power_hub header, lines 7540–7570):**
+- Line 7543: `distributes to consumers on elec_out, and routes surplus to elec_surplus.`
+- Line 7548: `elec_surplus (ELECTRICAL, OUT) — surplus power for dump loads`
+- Line 7559: `surplus = max(0, fixed_supply − total_demand) → elec_surplus`
+
+**Risk:** None. Documentation-only changes.
+
+---
+
+## S1-pre-5. Stop Emitting Deprecated `available` on Producers
+
+**File:** `processThis.html`, grid_supply tick (~line 7217),
+battery hub output (~line 7667), power_hub Step C outputs
+(~lines 11366, 11374), multiConnect aggregation (~line 10859),
+`streamSignature()` (~line 10013)
+
+**Current:** Several producers write `available: X` as the primary
+field alongside or instead of `capacity`. Consumers then read
+`available` in their fallback chains. The `normalizeNonMaterialStream()`
+function copies `available` → `capacity`, making it operationally
+safe but creating a half-migrated codebase where some paths use
+`capacity` and others use `available`.
+
+Additionally, `streamSignature()` includes `available` in the
+convergence signature. If any path sets `available` inconsistently
+with `capacity` after normalization, `portsChanged()` sees a
+spurious delta and forces extra solver iterations.
+
+**Problem:** Not a bug today, but increases risk of future
+inconsistency. S2 (Power Management) builds directly on the power
+stream contract — starting S2 with a clean single-field convention
+avoids carrying the alias debt forward.
+
+**Fix (producers):** At each producer, ensure `capacity` is the
+primary field. Keep `available` as a write-through alias for backward
+compatibility with any external scene JSON that reads it:
+```javascript
+// grid_supply example
+capacity: maxPower_W,
+available: maxPower_W,  // deprecated alias — remove after S2
+```
+
+**Fix (streamSignature):** Remove `available` from the convergence
+signature (~line 10013). After normalization, `capacity` carries
+the same value. Removing the alias from convergence detection
+eliminates a class of spurious iteration.
+
+No consumer-side changes needed (S1-pre-3 already removes
+`available` from the read chain).
+
+**Risk:** None. `normalizeNonMaterialStream()` already handles
+both fields. This makes the code match the documented contract.
+
+---
+
+## S1-pre-6. Direct-Bus Infinity Demand Over-Allocation
+
+**File:** `processThis.html`, Step D (~line 11489)
+
+**Current:** Step D sums downstream demands including Infinity
+(from `sink_electrical`), then allocates per consumer:
+```javascript
+downstreamDemand_W += consumerUD.powerDemand || 0;  // can be Infinity
+// ...
+curtailmentFactor = isFinite(downstreamDemand_W)
+  ? actualDraw_W / downstreamDemand_W : 1.0;        // → 1.0
+// ...
+allocated = isFinite(consumerDemand)
+  ? consumerDemand * curtailmentFactor               // finite: full demand
+  : actualDraw_W;                                     // infinite: full draw
+```
+
+**Bug:** With grid_supply (20 kW) → [compressor (5 kW) +
+sink_electrical (∞)]:
+- curtailmentFactor = 1.0 (Infinity guard)
+- Compressor gets 5000 × 1.0 = 5000 W
+- Sink gets actualDraw_W = 20000 W
+- Sum allocated = 25000 > 20000 actual. **Conservation violation.**
+
+The hub path (Step C, line 11293) handles this correctly by clamping
+Infinity to total supply before allocation. Step D does not.
+
+**Fix:** Separate finite and infinite consumers, allocate finite
+first, give infinite the remainder:
+```javascript
+// Partition consumers
+let finiteDemand_W = 0;
+const finiteConsumers = [], infiniteConsumers = [];
+for (const conn of outConns) {
+  const consumerUD = scene.runtime.unitData.get(conn.to.unitId);
+  const d = consumerUD?.powerDemand || 0;
+  if (isFinite(d)) {
+    finiteDemand_W += d;
+    finiteConsumers.push({ conn, demand: d });
+  } else {
+    infiniteConsumers.push({ conn });
+  }
+}
+
+const actualDraw_W = Math.min(
+  finiteDemand_W + (infiniteConsumers.length > 0 ? maxPower_W : 0),
+  maxPower_W
+);
+
+// Finite consumers: proportional curtailment
+const finiteDraw = Math.min(finiteDemand_W, actualDraw_W);
+const finiteFactor = finiteDemand_W > 0
+  ? finiteDraw / finiteDemand_W : 1.0;
+
+for (const { conn, demand } of finiteConsumers) {
+  const cs = runtimeCtx.scratch(conn.to.unitId);
+  cs.hubAllocated_W = demand * finiteFactor;
+  cs.hubAllocFactor = finiteFactor;
+}
+
+// Infinite consumers: remainder
+const remainder = Math.max(0, actualDraw_W - finiteDraw);
+const perInf = infiniteConsumers.length > 0
+  ? remainder / infiniteConsumers.length : 0;
+for (const { conn } of infiniteConsumers) {
+  const cs = runtimeCtx.scratch(conn.to.unitId);
+  cs.hubAllocated_W = perInf;
+  cs.hubAllocFactor = finiteFactor;
+}
+```
+
+**Risk:** Changes allocation behaviour for direct-bus topologies
+with `sink_electrical`. Current behaviour is wrong (over-allocates),
+so the change is a correction. All existing tests use hub paths.
+
+---
+
+## S1-pre-7. Zero-Flow Flash Falsy T Guard
+
+**File:** `processThis.html`, solver flash loop (~line 10943)
+
+**Current:**
+```javascript
+if (!stream.T) stream.T = 298.15;
+```
+
+**Problem:** `!stream.T` is true for T=0 (absolute zero) and T=NaN.
+T=0 is physically impossible (below flash bounds), but the test
+should match the project's convention for "missing" — `undefined` or
+`null` — not falsiness. Other T guards in the codebase use explicit
+null checks.
+
+**Fix:**
+```javascript
+if (stream.T == null) stream.T = 298.15;
+```
+
+**Risk:** None. T=0 never occurs in practice. Aligns with existing
+style conventions throughout the thermo layer.
+
+---
+
+## S1-pre-8. Enforce Structured ud.errors
+
+**File:** `processThis.html`, solver loop and `ctx.warn` definition
+
+**Current:** `ud.errors` receives a mix of structured objects
+(`{ severity, message, code }`) and raw strings. The CATASTROPHIC
+scan at line 11042 only detects objects:
+```javascript
+if (err && typeof err === 'object' && err.severity &&
+    err.severity.level >= ErrorSeverity.CATASTROPHIC.level)
+```
+
+Raw string errors can never trigger `unitFaulted`, even if they
+represent fatal conditions. Current raw-string pushes:
+- Line 10711: power cycle message (string)
+- Line 10741: hub-to-hub message (string)
+- Line 10990: flash warning (string)
+- Line 11005: flash catch error (string)
+- Line 11020: stream type mismatch (string)
+
+Additionally, `ctx.warn` (line 10411) is defined as
+`(msg) => ud.errors.push(msg)` with no type enforcement. A future
+tick doing `ctx.warn("fatal problem")` would silently fail to
+trigger faulted status.
+
+**Fix (solver string pushes):** Wrap each raw string push:
+```javascript
+// Before:
+ud.errors.push(`Flash failed on ${p.portId}: ${err.message}`);
+// After:
+ud.errors.push({ severity: ErrorSeverity.MINOR,
+  message: `Flash failed on ${p.portId}: ${err.message}`,
+  code: 'FLASH_EXCEPTION' });
+```
+
+Apply to all five string-push sites. Assign appropriate severities:
+- Power cycle, hub-to-hub: CATASTROPHIC (already short-circuit)
+- Flash warning: INFO
+- Flash catch: MAJOR
+- Stream type mismatch: MAJOR
+
+**Fix (ctx.warn):** Auto-wrap raw strings:
+```javascript
+warn: (msg) => {
+  if (typeof msg === 'string') {
+    ud.errors.push({ severity: ErrorSeverity.MINOR, message: msg });
+  } else {
+    ud.errors.push(msg);
+  }
+},
+```
+
+**Risk:** Low. Changes the shape of some error entries from string
+to object. Any code that reads `ud.errors` as strings (e.g., for
+display) already handles both types or uses `.message`. The
+`diagnoseErrors()` aggregator already extracts `.message` from
+objects.
 
 ---
 
@@ -137,7 +504,8 @@ const KNOWN_KINETIC_MODELS = ['POWER_LAW'];
 const KNOWN_KINETIC_MODELS = ['POWER_LAW', 'ELECTROCHEMICAL'];
 ```
 
-**Rationale:** S1b registers R_H2O_ELEC and R_CO2_ELEC with
+**Rationale:** S1b registers 5 ELECTROCHEMICAL reactions (R_H2O_ELEC,
+R_CO2_ELEC, R_COELEC, R_H2_FUELCELL, R_CO_FUELCELL) with
 `kinetics: { model: 'ELECTROCHEMICAL' }`. Without this change,
 `ReactionRegistry.register()` would throw at line 3331. The
 ELECTROCHEMICAL model is data-only until S6 activates it in
@@ -371,9 +739,67 @@ ReactionRegistry.register('R_CO2_ELEC', {
 ```
 **ΔH° = +566,000 J/mol** (computed from NIST formation enthalpies of CO₂ and CO).
 
+### R_COELEC — Co-Electrolysis (Data Only)
+
+```javascript
+ReactionRegistry.register('R_COELEC', {
+  name: 'Co-Electrolysis (SOEC)',
+  equation: 'CO₂ + H₂O → CO + H₂ + O₂',
+  stoich: { CO2: -1, H2O: -1, CO: 1, H2: 1, O2: 1 },
+  reversible: false,
+  Tmin_K: 923,
+  Tmax_K: 1273,
+  Pmin_Pa: 100000,
+  Pmax_Pa: 3000000,
+  notes: 'SOEC co-electrolysis. Produces syngas (CO+H₂) + O₂ in one step. More efficient than separate H₂O + CO₂ electrolysis. Late-game unlock.',
+  references: [{ source: 'NIST-JANAF', detail: 'Chase 1998' }],
+  kinetics: { model: 'ELECTROCHEMICAL' }
+});
+```
+**ΔH° = +524,806 J/mol** (sum of CO₂→CO and H₂O→H₂ bond energies).
+Electrode separation: CO + H₂ + unreacted feed → cathode, O₂ → anode.
+
+### R_H2_FUELCELL — Hydrogen Fuel Cell (Data Only)
+
+```javascript
+ReactionRegistry.register('R_H2_FUELCELL', {
+  name: 'Hydrogen Fuel Cell',
+  equation: '2 H₂ + O₂ → 2 H₂O',
+  stoich: { H2: -2, O2: -1, H2O: 2 },
+  reversible: false,
+  Tmin_K: 298,
+  Tmax_K: 1273,
+  Pmin_Pa: 100000,
+  Pmax_Pa: 5000000,
+  notes: 'Reverse electrolysis — generates power. H₂ at cathode, O₂ at anode. Data only until fuel_cell unit registered.',
+  references: [{ source: 'NIST-JANAF', detail: 'Chase 1998' }],
+  kinetics: { model: 'ELECTROCHEMICAL' }
+});
+```
+**ΔH° = −483,652 J/mol** (exothermic — generates electrical power).
+
+### R_CO_FUELCELL — CO Fuel Cell (Data Only)
+
+```javascript
+ReactionRegistry.register('R_CO_FUELCELL', {
+  name: 'CO Solid Oxide Fuel Cell',
+  equation: '2 CO + O₂ → 2 CO₂',
+  stoich: { CO: -2, O2: -1, CO2: 2 },
+  reversible: false,
+  Tmin_K: 923,
+  Tmax_K: 1273,
+  Pmin_Pa: 100000,
+  Pmax_Pa: 5000000,
+  notes: 'SOFC — CO as fuel. Generates power. CO at cathode, O₂ at anode. Data only until fuel_cell unit registered.',
+  references: [{ source: 'NIST-JANAF', detail: 'Chase 1998' }],
+  kinetics: { model: 'ELECTROCHEMICAL' }
+});
+```
+**ΔH° = −565,960 J/mol** (exothermic — generates electrical power).
+
 ---
 
-## S1b Reaction Summary After Completion (11 total)
+## S1b Reaction Summary After Completion (14 total)
 
 | # | ID | Equation | ΔH° (kJ/mol) | Kinetics | Status |
 |---|-----|----------|-------------|----------|--------|
@@ -387,7 +813,10 @@ ReactionRegistry.register('R_CO2_ELEC', {
 | 8 | R_CH4_COMB | CH₄ + 2O₂ → CO₂ + 2H₂O | −803 | POWER_LAW | **new** |
 | 9 | R_H2O_ELEC | 2H₂O → 2H₂ + O₂ | +484 | ELECTROCHEMICAL | **new (data)** |
 | 10 | R_CO2_ELEC | 2CO₂ → 2CO + O₂ | +566 | ELECTROCHEMICAL | **new (data)** |
-| 11 | ~~R_H2O_FORM~~ | ~~phantom — never existed in code~~ | — | — | removed from specs |
+| 11 | R_COELEC | CO₂ + H₂O → CO + H₂ + O₂ | +525 | ELECTROCHEMICAL | **new (data)** |
+| 12 | R_H2_FUELCELL | 2H₂ + O₂ → 2H₂O | −484 | ELECTROCHEMICAL | **new (data)** |
+| 13 | R_CO_FUELCELL | 2CO + O₂ → 2CO₂ | −566 | ELECTROCHEMICAL | **new (data)** |
+| 14 | ~~R_H2O_FORM~~ | ~~phantom — never existed in code~~ | — | — | removed from specs |
 
 **Species coverage after S1b:** 10 species (H₂O, O₂, H₂, N₂, Ar, CH₄, He, CO₂, NH₃, CO).
 Every C/H/O/N species reachable via at least one reaction.
@@ -404,10 +833,13 @@ Every C/H/O/N species reachable via at least one reaction.
 | 4 | R_CH4_COMB mass balance | Δmass = 0 | abs(Σ(ν×MW)) < 1e-6 |
 | 5 | R_H2O_ELEC: registered, model = 'ELECTROCHEMICAL' | No throw | .kinetics.model === 'ELECTROCHEMICAL' |
 | 6 | R_CO2_ELEC: registered, model = 'ELECTROCHEMICAL' | No throw | .kinetics.model === 'ELECTROCHEMICAL' |
-| 7 | R_SMR_OVERALL: import migration | Scene with old 'R_STEAM_REFORM' loads | unit.params.reactionId === 'R_SMR_OVERALL' |
-| 8 | Demo scene (Sabatier loop) still loads + solves | No regression | Same CH₄ production ± 1% |
+| 7 | R_COELEC: registered, mass balance | No throw | abs(Σ(ν×MW)) < 1e-6, .kinetics.model === 'ELECTROCHEMICAL' |
+| 8 | R_H2_FUELCELL: registered, ΔH < 0 | No throw | ._dH0_Jmol < 0, .kinetics.model === 'ELECTROCHEMICAL' |
+| 9 | R_CO_FUELCELL: registered, ΔH < 0 | No throw | ._dH0_Jmol < 0, .kinetics.model === 'ELECTROCHEMICAL' |
+| 10 | R_SMR_OVERALL: import migration | Scene with old 'R_STEAM_REFORM' loads | unit.params.reactionId === 'R_SMR_OVERALL' |
+| 11 | Demo scene (Sabatier loop) still loads + solves | No regression | Same CH₄ production ± 1% |
 
-**Gate:** All S1a tests + 8 new pass.
+**Gate:** All S1a tests + 11 new pass.
 
 ---
 
@@ -773,6 +1205,29 @@ consistency; the tick function should be updated to use
 ## Implementation Checklist
 
 ```
+S1-pre (before S1a, same session):
+  [ ] S1-pre-1: Reactor cache hash: add reactionId, alpha, volume_m3,
+      useKinetics, heatDemand to _hash (~line 9279)
+  [ ] S1-pre-2: blendMaterialStream: renormalize total flow after
+      clamp (~line 10476)
+  [ ] S1-pre-3: Power read standardization: pump (~7978), compressor
+      (~8114), heater (~8243) → actual ?? capacity ?? 0
+  [ ] S1-pre-4: Stale docs: remove HEAT/MECHANICAL from
+      STREAM_CONTRACTS (~6196, 6228, 6240) AND power_hub header
+      (~7543, 7548, 7559)
+  [ ] S1-pre-5: Producer available→capacity: ensure capacity is
+      primary on grid_supply, battery, hub outputs, multiConnect.
+      Remove available from streamSignature() (~10013)
+  [ ] S1-pre-6: Direct-bus Infinity fix: partition finite/infinite
+      consumers in Step D (~11489), allocate finite first,
+      remainder to infinite
+  [ ] S1-pre-7: Zero-flow flash: !stream.T → stream.T == null
+      (~line 10943)
+  [ ] S1-pre-8: Structured ud.errors: wrap 5 raw string pushes
+      (~10711, 10741, 10990, 11005, 11020) + auto-wrap in
+      ctx.warn (~10411)
+  [ ] Verify: all 289 existing tests still pass
+
 S1a (1 session):
   [ ] Line 3013: H₂O cpig Tmin 500 → 298
   [ ] Line 3189: CO₂ Antoine → array with liquid-vapor range
@@ -783,7 +1238,7 @@ S1a (1 session):
 S1b (1 session):
   [ ] Line 3500: R_STEAM_REFORM → R_SMR_OVERALL (rename)
   [ ] importJSON migration for old reactionId
-  [ ] 7 new reaction registrations (R_HABER through R_CO2_ELEC)
+  [ ] 10 new reaction registrations (R_HABER through R_CO_FUELCELL)
   [ ] 8 tests passing
 
 S1c session 1 (infrastructure):
@@ -814,6 +1269,6 @@ Total S1: ~23 new tests → 312 cumulative
 |----------|---------------------|
 | S2 (Power) | Alarm infrastructure for overload/fry alarms |
 | S3 (PR EOS) | CO species for CO-containing reaction validation |
-| S6 (Electrochemical) | R_H2O_ELEC, R_CO2_ELEC reaction data; ELECTROCHEMICAL model |
+| S6 (Electrochemical) | R_H2O_ELEC, R_CO2_ELEC, R_COELEC reaction data; R_H2_FUELCELL, R_CO_FUELCELL data for future fuel_cell; ELECTROCHEMICAL model |
 | S7 (Perf Maps) | Limit data for overlay rendering; limitParams for inspector hooks |
 | S8 (Game) | Reactions for all campaign missions; limits for paramLocks |
