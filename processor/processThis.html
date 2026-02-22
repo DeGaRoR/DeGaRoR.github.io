@@ -717,6 +717,7 @@
       display: block;
       background: radial-gradient(1200px 700px at 40% 30%, #141a26 0%, #0f1115 55%, #0b0d12 100%);
       touch-action: none;
+      user-select: none; -webkit-user-select: none;
     }
     
     .rightPanel {
@@ -960,6 +961,16 @@
     /* ===== HOVER HIGHLIGHT (E2) ===== */
     .unit-hover > rect:first-child { filter: url(#hover-brighten); }
     .conn-hover { stroke-width: 5 !important; stroke-opacity: 0.85; }
+
+    /* ===== SELECTION MARQUEE ===== */
+    .selection-marquee {
+      fill: rgba(96, 165, 250, 0.08);
+      stroke: #60a5fa;
+      stroke-width: 1.5;
+      stroke-dasharray: 6 3;
+      rx: 8;
+      pointer-events: none;
+    }
 
     /* ===== PORT CONNECTION FEEDBACK (E4) ===== */
     @keyframes port-pulse {
@@ -5870,7 +5881,6 @@ let _realConsoleWarn;  // [v10.8.1] original console.warn before any overrides
   const _origWarn = console.warn;
   _realConsoleWarn = _origWarn;  // save for test output
   const _seen = new Set();
-  let _summarized = false;
   console.warn = function(...args) {
     const msg = args.map(a => String(a)).join(' ');
     if (msg.startsWith('Warning:') || msg.includes('extrapolation') ||
@@ -5882,12 +5892,6 @@ let _realConsoleWarn;  // [v10.8.1] original console.warn before any overrides
     _origWarn.apply(console, args);
   };
   _thermoWarningsFn = () => [..._seen];
-  setTimeout(() => {
-    if (_seen.size > 0 && !_summarized) {
-      _summarized = true;
-      _origWarn(`[thermo] ${_seen.size} range/extrapolation warnings suppressed. Run thermoWarnings() to inspect.`);
-    }
-  }, 1000);
 })();
 
 // =============================================================================
@@ -13410,6 +13414,7 @@ function drawUnits() {
     if (!isDimmed) {
     rect.addEventListener('pointerdown', (ev) => {
       ev.stopPropagation();
+      ev.preventDefault(); // Prevent text selection during drag
       if (ui.pendingFrom) return;
       
       // Don't start dragging existing units during HTML5 drag from library
@@ -14175,11 +14180,7 @@ function render() {
     const h = Math.abs(rb.y2 - rb.y);
     const marquee = svgEl('rect', {
       x, y, width: w, height: h,
-      fill: 'rgba(96, 165, 250, 0.08)',
-      stroke: '#60a5fa',
-      'stroke-width': 1.5,
-      'stroke-dasharray': '6 3',
-      'pointer-events': 'none'
+      class: 'selection-marquee'
     });
     svg.appendChild(marquee);
   }
@@ -17897,6 +17898,7 @@ svg.addEventListener('pointerdown', (ev) => {
     if (!ev.ctrlKey && !ev.metaKey) {
       _clearSelection();
     }
+    ev.preventDefault(); // Prevent text selection during rubber-band drag
     ui._rubberBand = { x: w.x, y: w.y, x2: w.x, y2: w.y };
     svg.setPointerCapture(ev.pointerId);
     
