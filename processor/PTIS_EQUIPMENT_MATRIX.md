@@ -618,16 +618,70 @@ Modes: `sealed` (P = P_charge), `vented` (P = P_atm), `finite` (P from gas law +
 
 ---
 
-### 3.4 Composites (S8)
+### 3.4 Membrane Separator (S8c)
 
-| defId | Physical | Game intro | Ports |
-|-------|----------|------------|-------|
-| `greenhouse` | Agricultural pod with grow lights | M10 | air_in, air_out, water_in, waste_out, nh3_in, power_in |
-| `human` | Metabolic unit (colonists) | M10 | air_in, air_out, food_in, waste_out |
+| Field | Value |
+|-------|-------|
+| **defId** | `membrane_separator` |
+| **Category** | SEPARATOR |
+| **Footprint** | 1×2 |
+| **Physical** | Selective permeation membrane — gas exchange or renal filtration |
+| **Game intro** | M10 (internal to greenhouse and human group templates) |
+| **Trunk** | `separatorTick` (new, dedicated) |
 
-Internal structure hidden: mixer + reactor + separator. Registered like normal units. Player sees ports and parameters, not internals.
+**Ports**
 
-### 3.5 Fuel Cell (S8)
+| portId | Label | Direction | Type |
+|--------|-------|-----------|------|
+| mat_in | Feed | IN | MATERIAL |
+| perm_out | Permeate | OUT | MATERIAL |
+| ret_out | Retentate | OUT | MATERIAL |
+
+**Parameters**
+
+| Param | Default | Unit | Notes |
+|-------|---------|------|-------|
+| membrane | 'gas_exchange' | enum | Membrane type (selectivity preset) |
+| selectivity | `{ O2: 0.95 }` | — | Species → fraction passing to permeate |
+
+**Physics**: Pure selectivity-map permeation (not VLE). Each species in
+feed is split: `selectivity[sp]` fraction to permeate, remainder to
+retentate. Unspecified species default to 0 (retentate). Mass and energy
+balance close exactly.
+
+**Configurations in campaign templates:**
+
+| Template | membrane | selectivity | Physical analogue |
+|----------|----------|------------|-------------------|
+| Greenhouse (leaf) | gas_exchange | `{ O2: 0.95, H2O: 0.80 }` | Stomatal gas exchange |
+| Human (kidney) | renal | `{ H2O: 0.99, CO2: 0.05 }` | Renal filtration |
+
+Same defId, different operating parameters. NNG-3 compliant.
+
+---
+
+### 3.5 Composites (S8c via S7b Group Templates)
+
+Composites are **locked group templates** registered via S7b
+GroupTemplateRegistry — not opaque units with bespoke tick functions.
+The player can Tab into any composite to see real units running real
+physics (read-only wiring, selectively editable parameters).
+
+| Template ID | Internal units | Boundary ports | Notes |
+|-------------|---------------|----------------|-------|
+| `greenhouse` | grid_supply, reactor_electrochemical (R_PHOTO), membrane_separator (leaf), mixer | air_in, water_in, elec_in, air_out, food_out | η editable (0.5–5%) |
+| `human` | reactor_equilibrium (R_METABOLISM), membrane_separator (kidney) | air_in, food_in, air_out, waste_out | Parameterized by population |
+
+Full template definitions in `PTIS_S7b_SPEC.md` §S7b Impact on S8 Spec.
+
+**Greenhouse sizing (7 colonists):** 85 kW electrical at η=1%, 848 W
+thermodynamic minimum, 84.2 kW waste heat.
+
+**Human metabolic rates (2500 kcal/day/person):** 0.84 mol/hr/person
+each of CH₂O, O₂ consumed and CO₂, H₂O produced. 121 W/person
+metabolic heat (from reactor energy balance).
+
+### 3.6 Fuel Cell (S8)
 
 | Field | Value |
 |-------|-------|
@@ -650,7 +704,7 @@ Internal structure hidden: mixer + reactor + separator. Registered like normal u
 
 **Reactions**: R_H2_FUELCELL (2H₂+O₂→2H₂O), R_CO_FUELCELL (2CO+O₂→2CO₂). Trunk detects ΔH<0 → generate mode.
 
-### 3.6 Steam Turbine (S8)
+### 3.7 Steam Turbine (S8)
 
 | Field | Value |
 |-------|-------|
@@ -663,7 +717,7 @@ Internal structure hidden: mixer + reactor + separator. Registered like normal u
 
 Same ports as gas_turbine. Config: `moistureCheck: true, maxWetness: 0.12`. Limits: T_HH=823K, P_HH=100 bar. WARNING if exhaust liquid fraction > 12%.
 
-### 3.7 Cryo Dewar (S8)
+### 3.8 Cryo Dewar (S8)
 
 | Field | Value |
 |-------|-------|
@@ -767,6 +821,7 @@ Same ports as tank. Limits: T_LL=20K, T_HH=300K, P_HH=10 bar (fragile vessel). N
 | pump | | | | | | | | ★ | · | · |
 | steam_turbine | | | | | | | | ★ | · | · |
 | tank_cryo | | | | | | | | | ★★ | · |
+| membrane_separator | | | | | | | | | | ★★ |
 | greenhouse | | | | | | | | | | ★ |
 | human | | | | | | | | | | ★ |
 
@@ -776,6 +831,14 @@ Notes: M4 reactor_eq is a second unit (combustion chamber), locked to
 R_CH4_COMB + heatDemand:'none' via paramLocks. M8 steam_turbine is a
 separate defId from gas_turbine (shared expander trunk, moisture check).
 M9 tank_cryo is a separate defId from tank (Dewar, vacuum-insulated).
+M10 membrane_separator (★★) is internal to greenhouse and human group
+templates — the player never places it directly, but sees it when
+Tab-opening either composite. greenhouse and human are locked S7b group
+templates with transparent internals.
+
+**M10 fabrication unlock:** All previously introduced equipment becomes
+available in unlimited quantities (∞). Player must build 4–5 combined
+cycle power blocks to supply the greenhouse's ~85 kW demand.
 
 ---
 

@@ -161,7 +161,7 @@ case 'reactor_electrochemical':
 | Parameter | Default | Min | Max | Notes |
 |-----------|---------|-----|-----|-------|
 | reactionId | 'R_H2O_ELEC' | enum | | Must have `model: 'ELECTROCHEMICAL'` |
-| efficiency | 0.70 | 0.30 | 0.95 | Electrical → chemical conversion |
+| efficiency | 0.70 | 0.005 | 0.99 | Electrical → chemical. Electrolysis: 0.60–0.80. Photochemical (grow lights): 0.005–0.05 |
 | conversion_max | 0.80 | 0.01 | 0.99 | Max single-pass conversion of limiting reactant |
 
 **Efficiency rationale:**
@@ -171,6 +171,9 @@ case 'reactor_electrochemical':
 | Alkaline | 0.55–0.70 | Mature, lower cost |
 | Solid oxide (SOEC) | 0.80–0.95 | High T, highest efficiency |
 | Default 0.70 | — | Mid-range PEM |
+| Grow lights (overhead LED) | 0.003–0.005 | Conventional agriculture lighting |
+| Grow lights (targeted LED) | 0.005–0.02 | NASA close-canopy, bleeding edge |
+| Default for R_PHOTOSYNTHESIS | 0.01 | 1% — validated against NASA BPC data |
 
 **Reaction selector:** Inspector dropdown filters ReactionRegistry to
 show only reactions with `kinetics.model === 'ELECTROCHEMICAL'`. After
@@ -212,7 +215,7 @@ tick(u, ports, par, ctx) {
   }
 
   const stoich = rxn.stoich;
-  const eta = Math.max(0.01, Math.min(0.99, par.efficiency ?? 0.70));
+  const eta = Math.max(0.001, Math.min(0.99, par.efficiency ?? 0.70));
   const conv_max = Math.max(0.01, Math.min(0.99, par.conversion_max ?? 0.80));
 
   // ── ΔH_rxn from formation enthalpies ──
@@ -529,15 +532,20 @@ UnitInspector.reactor_electrochemical = {
         set: v => u.params.reactionId = v },
       { label: 'Efficiency (η)',
         get: () => u.params.efficiency ?? 0.70,
-        set: v => u.params.efficiency = Math.max(0.30, Math.min(0.95, v)),
-        step: 0.01, decimals: 2 },
+        set: v => u.params.efficiency = Math.max(0.005, Math.min(0.99, v)),
+        step: 0.001, decimals: 3 },
       { label: 'Max conversion',
         get: () => u.params.conversion_max ?? 0.80,
         set: v => u.params.conversion_max = Math.max(0.01, Math.min(0.99, v)),
         step: 0.01, decimals: 2 },
       { type: 'info', html: () => {
         const rxn = ReactionRegistry.get(u.params.reactionId);
-        return rxn ? `${rxn.equation}<br>ΔH° = ${(rxn._dH0_Jmol/1000).toFixed(1)} kJ/mol` : '';
+        if (!rxn) return '';
+        const isPhoto = rxn.id === 'R_PHOTOSYNTHESIS';
+        const etaNote = isPhoto
+          ? 'η includes LED→PAR→photosynthesis chain. Typical: 0.5–2%.'
+          : `η is direct electrochemical conversion. Typical: 60–80%.`;
+        return `${rxn.equation}<br>ΔH° = ${(rxn._dH0_Jmol/1000).toFixed(1)} kJ/mol<br>${etaNote}`;
       }}
     ];
   },

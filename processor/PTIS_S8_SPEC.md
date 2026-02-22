@@ -22,7 +22,9 @@ S8a is pure state machine (no missions), S8b is mission framework
 (no content), S8c is campaign content (data-driven). Each sub-session
 is independently testable.
 
-**Dependencies:** All of S1–S7. S8 is the consumer of every prior stage.
+**Dependencies:** All of S1–S7b. S8 is the consumer of every prior
+stage. S7b (GroupTemplateRegistry) required specifically by S8c for
+greenhouse and human composite template registrations.
 
 **Required by:** Nothing — S8 is the final stage.
 
@@ -31,7 +33,7 @@ distillation, pressure network, electrochemical reactor (2-outlet),
 performance maps, 447 tests. No game state machine, no missions,
 no scarcity system.
 
-**After S8:** Playable 10-mission campaign + sandbox mode. ~477 tests
+**After S8:** Playable 10-mission campaign + sandbox mode. ~495 tests
 (447 + ~30 new).
 
 ---
@@ -480,53 +482,78 @@ heat_out (label: Waste heat).
 Reactions: R_H2_FUELCELL, R_CO_FUELCELL (registered in S1).
 Trunk detects ΔH<0 → generate mode (power OUT).
 
-## S8c-4. Composite Units
+## S8c-4. Composite Units (via S7b Group Templates)
+
+Composites (greenhouse, human) are registered as locked group
+templates via the S7b GroupTemplateRegistry — not as opaque units
+with bespoke tick functions. The player can Tab into any composite
+to see real units running real physics. See `PTIS_S7b_SPEC.md`
+§S7b Impact on S8 Spec for full template definitions.
 
 ### Greenhouse
 
-```javascript
-UnitRegistry.register('greenhouse', {
-  name: 'Greenhouse',
-  category: UnitCategories.REACTOR,
-  w: 3, h: 3,
-  ports: [
-    { portId: 'air_in',    dir: PortDir.IN,  type: StreamType.MATERIAL,   x: 0, y: 1 },
-    { portId: 'water_in',  dir: PortDir.IN,  type: StreamType.MATERIAL,   x: 0, y: 2 },
-    { portId: 'nh3_in',    dir: PortDir.IN,  type: StreamType.MATERIAL,   x: 1, y: 0 },
-    { portId: 'elec_in',   dir: PortDir.IN,  type: StreamType.ELECTRICAL, x: 2, y: 0 },
-    { portId: 'air_out',   dir: PortDir.OUT, type: StreamType.MATERIAL,   x: 3, y: 1 },
-    { portId: 'food_out',  dir: PortDir.OUT, type: StreamType.MATERIAL,   x: 3, y: 2 }
-  ],
-  // Internally: reactor_electrochemical(R_PHOTOSYNTHESIS) + separation
-  // air_out: enriched O₂ air (CO₂ consumed, O₂ produced)
-  // food_out: CH₂O stream
-  // Power: grow lights (drives photosynthesis rate)
-});
+Locked group template containing: `grid_supply` (grow lights),
+`reactor_electrochemical` (R_PHOTOSYNTHESIS, η=0.01), `membrane_separator`
+(leaf, gas exchange), `mixer` (nutrient input).
+
+Boundary ports: air_in, water_in, elec_in, air_out (O₂-rich), food_out.
+
+**Lighting efficiency is the ONE editable parameter** on the locked
+template (via `editableParams: ['efficiency']` on the photo_reactor).
+The player can adjust η (0.5–5%) and watch power demand change.
+
+Greenhouse sizing (7 colonists, R_PHOTOSYNTHESIS):
+```
+CO₂ fixation needed:   5.88 mol/hr = 0.001633 mol/s
+O₂ production:         5.88 mol/hr
+CH₂O production:       5.88 mol/hr (food)
+Water consumed:         5.88 mol/hr
+Thermodynamic minimum:  848 W  (ξ × |ΔH|)
+Default η:              1.0%   (combined LED + photosynthesis)
+Electrical demand:      85 kW  (848 / 0.01)
+Waste heat:             84.2 kW (exits heat_out port)
 ```
 
 ### Human (Colonist Group)
 
-```javascript
-UnitRegistry.register('human', {
-  name: 'Colonists',
-  category: UnitCategories.REACTOR,
-  w: 2, h: 2,
-  ports: [
-    { portId: 'air_in',   dir: PortDir.IN,  type: StreamType.MATERIAL,   x: 0, y: 0 },
-    { portId: 'food_in',  dir: PortDir.IN,  type: StreamType.MATERIAL,   x: 0, y: 1 },
-    { portId: 'water_in', dir: PortDir.IN,  type: StreamType.MATERIAL,   x: 0, y: 2 },
-    { portId: 'air_out',  dir: PortDir.OUT, type: StreamType.MATERIAL,   x: 2, y: 0 },
-    { portId: 'waste_out',dir: PortDir.OUT, type: StreamType.MATERIAL,   x: 2, y: 2 }
-  ],
-  // Internally: R_METABOLISM + metabolic heat + water consumption
-  // Parameterized by population count
-  // O₂ consumed: 0.39 mol/hr/person
-  // CO₂ produced: 0.34 mol/hr/person
-  // Water consumed: 11.6 mol/hr/person
-  // Food consumed: 0.34 mol/hr/person (CH₂O)
-  // Metabolic heat: 100W/person
-});
+Locked group template containing: `reactor_equilibrium` (R_METABOLISM,
+T=310K, complete conversion), `membrane_separator` (kidney, renal
+filtration).
+
+Boundary ports: air_in, food_in, air_out (exhaled), waste_out.
+
+Metabolic rates (basis: 2500 kcal/day/person, NASA moderate activity):
 ```
+CH₂O consumed:  0.84 mol/hr/person  (food)
+O₂ consumed:    0.84 mol/hr/person  (1:1 stoichiometry)
+CO₂ produced:   0.84 mol/hr/person
+H₂O produced:   0.84 mol/hr/person  (metabolic water, exhaled)
+Water consumed:  7.0  mol/hr/person  (drinking, exits as waste)
+Metabolic heat:  121  W/person       (from ΔH × ξ, automatic)
+```
+
+All four species rates are identical because R_METABOLISM stoichiometry
+is 1:1:1:1 (CH₂O + O₂ → CO₂ + H₂O). Heat emerges from the reactor
+energy balance, not a separate parameter. Parameterized by
+`CampaignState.population`.
+
+### New Unit: membrane_separator
+
+Required by both greenhouse (leaf) and human (kidney) templates.
+Registered as a real defId in UnitRegistry:
+
+| Field | Value |
+|-------|-------|
+| defId | `membrane_separator` |
+| Category | SEPARATOR |
+| Ports | mat_in (feed), perm_out (permeate), ret_out (retentate) |
+| Physics | Selectivity-map permeation (not VLE — membrane, not flash) |
+| Params | `membrane` type, `selectivity` map (species → fraction to permeate) |
+| Trunk | `separatorTick` (new, dedicated) |
+
+Same defId serves both greenhouse leaf (O₂/H₂O permeation) and human
+kidney (waste filtration) with different selectivity maps via params.
+Follows NNG-3: same machine, different operating parameters.
 
 ## S8c-5. Room Unit (Shelter)
 
@@ -656,12 +683,26 @@ Full details in `game_arch_part_4_missions.md` §20–§29. Summary:
 
 ### Phase D — SUSTAIN (M10)
 
-**M10 Biosphere** (px_m10_biosphere)
-- Palette: +greenhouse×1, +human×1, full accumulated inventory
+**M10 Biosphere — The Final Boss** (px_m10_biosphere)
+- Palette: +greenhouse×1, +human×1, +room×1
+- Fabrication unlocked: all previously available equipment now
+  unlimited count (∞). Narrative: "Engineering team restores
+  the ship's fabrication workshop."
 - Species: +CH₂O. Reactions: +R_PHOTOSYNTHESIS, +R_METABOLISM
-- Objective: maintain_conditions (CO₂<0.5%, O₂ 19–23%, food flow) for 3600s
-- Teaching: closed ecosystem, plants as reactors, everything connects
-- Stars: ★all objectives ★★sustain 4h ★★★wastewater recycle
+- Vent capacity: sufficient CH₄ for ≥100 kW thermal input
+  (additional vent or uprated existing vent)
+- Objective: maintain_conditions (CO₂<0.5%, O₂ 19–23%, food
+  flow ≥ 5.88 mol/hr CH₂O) for 3600s
+- Teaching: closed ecosystem, plants as chemical reactors, power
+  at scale, everything connects to everything
+- Power challenge: greenhouse demands ~85 kW at default 1%
+  efficiency. Player must build 4–5 combined cycle power blocks
+  (using S7b templates for manageable PFD organization). The
+  player can adjust greenhouse lighting efficiency (0.5–5%) as
+  a design tradeoff — lower η is more realistic but needs more
+  power. This IS the final engineering challenge.
+- Stars: ★all conditions 1hr ★★sustain 4hr ★★★wastewater
+  recycle (≥50% water recovery)
 
 ## S8c-8. Save/Load + Home Screen
 
@@ -711,6 +752,24 @@ Per `game_arch_part_4_missions.md` §19:
 Population affects room O₂/CO₂ rates and food demand. Human unit
 parameterized by `CampaignState.population`.
 
+### Power Budget by Phase
+
+| Phase | Available | Greenhouse | Other loads | Surplus | Notes |
+|-------|-----------|-----------|------------|---------|-------|
+| M1–M3 | Battery (75 kWh) | — | 0.2 kW | Depleting | Emergency only |
+| M4 | ~5 kW (Brayton) | — | 1.2 kW | ~3.8 kW | First power |
+| M5 | ~5 kW | — | 5.2 kW | −0.2 kW | Tight |
+| M6 | ~5 kW | — | 5.9 kW | −0.9 kW | Power-limited |
+| M7 | ~5 kW | — | 6.6 kW | −1.6 kW | Power-limited |
+| M8 | ~10 kW (combined) | — | 6.6 kW | ~3.4 kW | Rankine adds ~5 kW |
+| M9 | ~10 kW | — | 10.6 kW | −0.6 kW | Tight during cryo |
+| M10 | ~100 kW (5× combined) | 85 kW | 7.0 kW | ~8 kW | Fabrication unlocked |
+
+M10 represents a 10× step change in power infrastructure. The
+biosphere IS the final boss, and its power demand forces the player
+to scale up everything they've built. S7b group templates make
+building at this scale manageable.
+
 ---
 
 ## Tests (~30 total across S8a/b/c)
@@ -742,7 +801,7 @@ parameterized by `CampaignState.population`.
 | 15 | Scene inheritance: tank contents preserved | n_H2O matches |
 | 16 | Full campaign regression | all S1–S7 tests still pass |
 
-**Gate:** All previous (447) + 30 new → 477 cumulative.
+**Gate:** All previous (465) + 30 new → 495 cumulative.
 
 ---
 
@@ -806,8 +865,12 @@ S8c session 1 (campaign state + new registrations):
   [ ] Tests S8c 1-3
 
 S8c session 2 (composites + room):
-  [ ] greenhouse unit registration + tick
-  [ ] human unit registration + tick (parameterized by population)
+  [ ] CH₂O species registration
+  [ ] R_PHOTOSYNTHESIS, R_METABOLISM reaction registration
+  [ ] membrane_separator defId registration (separatorTick trunk)
+  [ ] Greenhouse group template registration (S7b GroupTemplateRegistry)
+  [ ] Human group template registration (S7b GroupTemplateRegistry)
+  [ ] Greenhouse editableParams: lighting efficiency exposed
   [ ] room unit registration + tick (atmospheric tracking)
   [ ] Survival demands + computeRunway()
   [ ] Tests S8c 8-13
@@ -827,17 +890,26 @@ S8c session 4 (save/load + integration):
   [ ] Tests S8c 14-16
   [ ] Full regression
 
-Total S8: ~30 new tests → 477 cumulative
+Total S8: ~30 new tests → 495 cumulative
 ```
 
 ---
 
 ## Open Questions (flagged, non-blocking for S8)
 
-1. **M10 power requirement (~82 kW):** Dramatically exceeds 8 kW
-   combined cycle. Options: (a) allow multiple power units, (b) add
-   solar array as M10 equipment, (c) tunable LED efficiency parameter.
-   Resolve during S8c session 3.
+1. **M10 power requirement (~85 kW) — RESOLVED:**
+   Greenhouse η = 1% (validated against NASA data), 7 colonists,
+   85 kW electrical demand. Resolution combines three mechanisms:
+   (a) M10 unlocks fabrication — unlimited equipment counts,
+   player builds 4–5 combined cycle power blocks at ~20 kW each;
+   (b) S7b group templates make building at scale manageable —
+   player saves one power block as template, instantiates copies;
+   (c) greenhouse lighting efficiency (η) is an editable parameter
+   on the locked greenhouse template, allowing the player to trade
+   realism for practicality (η=2% halves power demand to ~42 kW).
+   No new power equipment types needed. The vent provides sufficient
+   CH₄. The challenge is infrastructure at scale — the final exam
+   of everything the player has learned.
 
 2. **3D view:** Game arch specifies Three.js 3D plant view as primary
    interface. S8 implements the game logic layer only. 3D visualization

@@ -100,8 +100,17 @@ mission paramLocks. Physical boundaries that prevent mixing
 (electrode membranes, phase separators) are modeled explicitly as
 separate outlet ports — never post-processed by downstream units.
 
+Groups are a canvas-level organizational concept. A group is a named
+set of units and their internal connections, displayed as a single
+collapsible box with boundary ports. The solver sees through groups —
+it iterates individual units and unit-to-unit connections. Groups
+never affect tick ordering, stream resolution, pressure propagation,
+or any computed value. A scene with groups produces identical physics
+to the same scene ungrouped.
+
 *Status: extended. Paragraphs 1–2 unchanged from v12.7.0. Paragraph
-3 (equipment identity + electrode separation) new in v13.0.0.*
+3 (equipment identity + electrode separation) new in v13.0.0.
+Paragraph 4 (groups as canvas-level concept) new in v13.8.0.*
 
 ---
 
@@ -251,10 +260,16 @@ and literature reference. Units declare limitParams and limits per
 size at registration. No unit may produce an unregistered species.
 Violations: CATASTROPHIC at startup.
 
+GroupTemplateRegistry follows the same register/get/all/exists
+pattern. Templates are frozen on registration. Template instantiation
+creates real units and real connections — the template is a blueprint,
+not a runtime abstraction.
+
 *Status: merged. Paragraph 1 is old NNG-7. Paragraph 2 is old
 NNG-10 (registry completeness), absorbed because data integrity
 is the quality bar for registries — same concern, same rule.
-Limits clause new in v13.0.0.*
+Limits clause new in v13.0.0. Paragraph 3 (GroupTemplateRegistry)
+new in v13.8.0.*
 
 ---
 

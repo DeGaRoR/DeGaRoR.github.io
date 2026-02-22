@@ -38,7 +38,7 @@
 <h1>Process This In Space — Dependency Graph</h1>
 <div class="subtitle">Consolidated · February 2026 · Engine-first roadmap · Baseline v12.10.0 (289 tests, 20 units) · NNG-1 through NNG-15</div>
 
-<svg viewBox="0 0 960 860" width="960" height="860">
+<svg viewBox="0 0 960 980" width="960" height="980">
   <defs>
     <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
       <polygon points="0 0, 8 3, 0 6" fill="#484f58"/>
@@ -118,11 +118,11 @@
 
   <!-- S7 -->
   <g class="stage" transform="translate(20, 645)">
-    <rect x="0" y="0" width="250" height="72" fill="#1c2333" stroke="#bc8cff"/>
+    <rect x="0" y="0" width="250" height="72" fill="#1c2333" stroke="#484f58"/>
     <text x="125" y="18" text-anchor="middle" class="label">S7 — Performance Maps</text>
     <text x="125" y="33" text-anchor="middle" class="desc">VP envelopes · reactor/column maps · limit overlays</text>
     <text x="125" y="49" text-anchor="middle" class="spec">PTIS_S7_SPEC.md</text>
-    <text x="65" y="63" text-anchor="middle" class="tests">+5 tests → 446</text>
+    <text x="65" y="63" text-anchor="middle" class="tests">+5 tests → 447</text>
     <text x="190" y="63" text-anchor="middle" class="sessions">4 sessions · low risk</text>
   </g>
 
@@ -132,22 +132,35 @@
   <g class="stage" transform="translate(670, 345)">
     <rect x="0" y="0" width="250" height="72" fill="#1c2333" stroke="#484f58"/>
     <text x="125" y="18" text-anchor="middle" class="label">S6 — Electrochemical Reactor</text>
-    <text x="125" y="33" text-anchor="middle" class="desc">Power-driven chemistry · electrode separation · labels</text>
+    <text x="125" y="33" text-anchor="middle" class="desc">Power-driven chemistry · electrode separation · η 0.5–99%</text>
     <text x="125" y="49" text-anchor="middle" class="spec">PTIS_S6_SPEC.md</text>
-    <text x="65" y="63" text-anchor="middle" class="tests">+10 tests → 441</text>
+    <text x="65" y="63" text-anchor="middle" class="tests">+8 tests → 442</text>
     <text x="190" y="63" text-anchor="middle" class="sessions">2 sessions · low risk</text>
+  </g>
+
+  <!-- ═══════════════ S7b (center, between S5 and S8) ═══════════════ -->
+
+  <!-- S7b -->
+  <g class="stage" transform="translate(290, 665)">
+    <rect x="0" y="0" width="340" height="82" fill="#1c2333" stroke="#f0883e"/>
+    <text x="170" y="18" text-anchor="middle" class="label">S7b — Unit Groups &amp; Sub-Assemblies</text>
+    <text x="170" y="33" text-anchor="middle" class="desc">GroupTemplateRegistry · overlay navigation · campaign composites</text>
+    <text x="170" y="47" text-anchor="middle" class="desc">S7b-1 data model + templates (2) · S7b-2 canvas + tests (2)</text>
+    <text x="170" y="63" text-anchor="middle" class="spec">PTIS_S7b_SPEC.md</text>
+    <text x="85" y="77" text-anchor="middle" class="tests">+18 tests → 465</text>
+    <text x="255" y="77" text-anchor="middle" class="risk-med">4 sessions · medium risk</text>
   </g>
 
   <!-- ═══════════════ GAME LAYER: S8 ═══════════════ -->
 
   <!-- S8 -->
-  <g class="stage" transform="translate(275, 760)">
+  <g class="stage" transform="translate(275, 880)">
     <rect x="0" y="0" width="370" height="82" fill="#1c2333" stroke="#bc8cff"/>
     <text x="185" y="18" text-anchor="middle" class="label">S8 — Game Layer</text>
-    <text x="185" y="33" text-anchor="middle" class="desc">Build/Run checkpoint · missions · campaign · composites · trunk refactor</text>
+    <text x="185" y="33" text-anchor="middle" class="desc">Build/Run checkpoint · missions · campaign · S7b composites · trunk refactor</text>
     <text x="185" y="47" text-anchor="middle" class="desc">S8a state machine (4) · S8b mission engine (4) · S8c campaign (4)</text>
     <text x="185" y="63" text-anchor="middle" class="spec">PTIS_S8_SPEC.md  ·  game_arch_part_*.md</text>
-    <text x="95" y="77" text-anchor="middle" class="tests">+30 tests → 477</text>
+    <text x="95" y="77" text-anchor="middle" class="tests">+30 tests → 495</text>
     <text x="280" y="77" text-anchor="middle" class="risk-med">12 sessions · medium risk</text>
   </g>
 
@@ -161,8 +174,10 @@
   <path d="M460,297 L460,335" class="arrow arrow-crit"/>
   <!-- S3 → S5 (longer gap, skip row) -->
   <path d="M460,417 L460,545" class="arrow arrow-crit"/>
-  <!-- S5 → S8 -->
-  <path d="M460,627 L460,760" class="arrow arrow-crit"/>
+  <!-- S5 → S7b -->
+  <path d="M460,627 L460,665" class="arrow arrow-crit"/>
+  <!-- S7b → S8 -->
+  <path d="M460,747 L460,880" class="arrow arrow-crit"/>
 
   <!-- Critical path badge -->
   <g class="crit-badge" transform="translate(464, 485)">
@@ -189,11 +204,14 @@
   <!-- S3 → S7 (arc left) -->
   <path d="M310,395 C200,395 100,585 115,645" class="arrow arrow-merge"/>
 
-  <!-- S7 → S8 -->
-  <path d="M210,717 C210,745 300,760 310,795" class="arrow arrow-merge"/>
+  <!-- S7 → S7b (short hop right into S7b) -->
+  <path d="M270,695 L290,700" class="arrow arrow-merge"/>
+
+  <!-- S7 → S8 (long arc — also merges at S8 for visual feedback) -->
+  <path d="M145,717 C145,810 300,870 310,910" class="arrow arrow-merge"/>
 
   <!-- S6 → S8 (long arc down right side) -->
-  <path d="M795,417 C820,630 650,770 645,795" class="arrow arrow-dep"/>
+  <path d="M795,417 C820,750 650,890 645,915" class="arrow arrow-dep"/>
 
   <!-- ═══════════════ PHASE ANNOTATIONS ═══════════════ -->
 
@@ -201,14 +219,15 @@
   <text x="8" y="200" class="phase-label" transform="rotate(-90, 8, 200)">FOUNDATION</text>
   <text x="8" y="395" class="phase-label" transform="rotate(-90, 8, 395)">THERMODYNAMICS</text>
   <text x="8" y="595" class="phase-label" transform="rotate(-90, 8, 595)">DYNAMICS</text>
-  <text x="918" y="800" class="phase-label" transform="rotate(-90, 918, 800)">GAME</text>
+  <text x="918" y="730" class="phase-label" transform="rotate(-90, 918, 730)">GROUPING</text>
+  <text x="918" y="920" class="phase-label" transform="rotate(-90, 918, 920)">GAME</text>
 
   <!-- ═══════════════ LEGEND ═══════════════ -->
 
   <g class="legend" transform="translate(670, 20)">
     <rect x="0" y="0" width="270" height="110" fill="#161b22" stroke="#30363d" rx="6"/>
     <line x1="15" y1="20" x2="50" y2="20" stroke="#f0883e" stroke-width="2"/>
-    <text x="58" y="24">Critical path (S0→S1→S2→S3→S5→S8)</text>
+    <text x="58" y="24">Critical path (S0→S1→S2→S3→S5→S7b→S8)</text>
     <line x1="15" y1="40" x2="50" y2="40" stroke="#484f58" stroke-width="2" stroke-dasharray="6 3"/>
     <text x="58" y="44">Branch dependency</text>
     <line x1="15" y1="60" x2="50" y2="60" stroke="#bc8cff" stroke-width="2" stroke-dasharray="4 4"/>
@@ -225,8 +244,8 @@
   <g transform="translate(670, 145)">
     <rect x="0" y="0" width="270" height="60" fill="#161b22" stroke="#30363d" rx="6"/>
     <text x="135" y="16" text-anchor="middle" fill="#8b949e" font-size="10" font-weight="600">TOTALS</text>
-    <text x="135" y="33" text-anchor="middle" fill="#7ee787" font-size="11">289 → 477 tests (+188)</text>
-    <text x="135" y="50" text-anchor="middle" fill="#d2a8ff" font-size="11">38 sessions · ~23–28 weeks</text>
+    <text x="135" y="33" text-anchor="middle" fill="#7ee787" font-size="11">289 → 495 tests (+206)</text>
+    <text x="135" y="50" text-anchor="middle" fill="#d2a8ff" font-size="11">42 sessions · ~26–31 weeks</text>
   </g>
 
 </svg>

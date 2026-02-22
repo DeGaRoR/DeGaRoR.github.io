@@ -14,10 +14,11 @@
 | S3 | Peng-Robinson EOS | 3 | Medium | ~15 | ~340 | Real-gas VLE, fugacity K-values |
 | S4 | Separation & HEX Fix | 3 | Medium | ~12 | ~352 | Distillation column, UA/NTU fix |
 | S5 | Pressure-Driven Flow | 7 | **High** | ~79 | ~431 | Reservoir, pressure network, Cv solver |
-| S6 | Electrochemical Reactor | 2 | Low | ~10 | ~441 | Power-driven chemistry, electrode separation |
-| S7 | Performance Maps | 4 | Low | ~5 | ~446 | VP envelopes, reactor/column maps |
-| S8 | Game Layer | 12 | Medium | ~30 | ~477 | Build/Run loop, missions, campaign |
-| | **Total** | **38** | | **~187** | **~477** | |
+| S6 | Electrochemical Reactor | 2 | Low | ~8 | ~442 | Power-driven chemistry, electrode separation |
+| S7 | Performance Maps | 4 | Low | ~5 | ~447 | VP envelopes, reactor/column maps |
+| S7b | Unit Groups & Sub-Assemblies | 4 | Medium | ~18 | ~465 | GroupTemplateRegistry, overlay navigation, campaign composites |
+| S8 | Game Layer | 12 | Medium | ~30 | ~495 | Build/Run loop, missions, campaign |
+| | **Total** | **42** | | **~206** | **~495** | |
 
 ---
 
@@ -173,8 +174,9 @@ temperature. Extent of reaction proportional to electrical power input.
 **What:** Interactive canvas overlays on unit inspectors showing
 operating envelopes, phase boundaries, and limit regions.
 
-**Sub-sessions:** 2 (canvas infrastructure + VP/phase maps, then
-reactor/column/limit maps with inspector hooks).
+**Sub-sessions:** S7.1 (2), S7.2 (2) — 4 sessions total.
+(Internal sub-sessions renamed from S7a/S7b to S7.1/S7.2 to avoid
+collision with stage S7b.)
 
 **Why last engine stage:** Needs PR curves (S3), column data (S4),
 and limit regions (S1c) to display meaningful content.
@@ -183,11 +185,61 @@ and limit regions (S1c) to display meaningful content.
 
 ---
 
+## S7b — Unit Groups & Sub-Assemblies
+
+**What:** Canvas-level grouping system. Players can select multiple
+units, group them into a named box with boundary ports, and
+navigate into groups via an expand-in-place overlay. Includes
+GroupTemplateRegistry for reusable templates and locked campaign
+composites (greenhouse, human).
+
+**Sub-sessions:**
+- **S7b-1** (2 sessions): Data model (group fields on scene, units,
+  connections). createGroup()/disbandGroup(). Boundary port
+  auto-detection from cross-boundary connections. GroupTemplateRegistry
+  with register/get/all/instantiate. Serialization round-trip.
+- **S7b-2** (2 sessions): Expand-in-place overlay (dimmed parent +
+  expanded container + active interior). Group header bar with ×
+  close. Context menus (Open, Rename, Save as Template, Ungroup,
+  Delete). Locked group overlay with selective editableParams.
+  Campaign composite palette integration. Edge case tests +
+  T-GR-INVARIANT (group/ungroup physics invariant).
+
+**Key design decisions:**
+- **Solver transparency:** Groups are canvas-only. The solver
+  iterates flat unit lists and flat connections — no nesting
+  in the solve cycle. NNG-3: a grouped scene produces identical
+  physics to the same scene ungrouped.
+- **Expand-in-place overlay:** Group expands from collapsed position;
+  parent canvas dims to 30% opacity. Player maintains spatial
+  context (sees where group sits in process). Not Blender's
+  full-isolation Tab model.
+- **UI accessibility:** Every action has a click/touch path.
+  Keyboard shortcuts (Ctrl+G, Escape) are accelerators only.
+- **Locked composites with selective parameter exposure:**
+  `editableParams` field on TemplateUnit allows specific
+  parameters to be editable even in locked groups (e.g.,
+  greenhouse lighting efficiency).
+
+**Why here (after S7, before S8):** Engine-first strategy — sandbox
+gets full grouping infrastructure before campaign constrains it with
+locked composites. S8c composites (greenhouse, human) are registered
+as S7b group templates, not opaque units.
+
+**Risk:** Medium. Expand-in-place overlay rendering is the most
+complex canvas work. Boundary port delegation and solver invariant
+are architecturally simple but require exhaustive testing.
+
+**Spec:** `PTIS_S7b_SPEC.md`
+
+---
+
 ## S8 — Game Layer
 
 **What:** Transform the simulator into a playable survival-engineering
 game with Kerbal-style Build/Run loop, 10-mission campaign, equipment
-scarcity, and narrative integration.
+scarcity, and narrative integration. Composites (greenhouse, human)
+implemented via S7b GroupTemplateRegistry.
 
 **Sub-sessions:**
 - **S8a** (4 sessions): Build/Run state machine. Auto-checkpoint on Play.
@@ -200,9 +252,12 @@ scarcity, and narrative integration.
 - **S8c** (4 sessions): Depletable supply units (O₂ bottles, LiOH, water,
   MREs). Room unit (shelter as atmospheric tank). Campaign state + equipment
   inheritance. Save/load. Home screen + sandbox mode. M10 composites
-  (greenhouse, human, CH₂O species, R_PHOTOSYNTHESIS, R_METABOLISM).
+  (greenhouse, human) as S7b locked group templates. membrane_separator
+  defId. CH₂O species, R_PHOTOSYNTHESIS, R_METABOLISM. M10 fabrication
+  unlock (unlimited equipment for power scaling).
 
 **Governing design:** `game_arch_part_*.md` (Parts I–IV, VII–VIII).
+S7b templates for greenhouse/human composites.
 
 **Spec:** `PTIS_S8_SPEC.md`
 
@@ -211,10 +266,15 @@ scarcity, and narrative integration.
 ## Critical Path
 
 ```
-S0 → S1a → S1b → S1c → S2 → S3a → S3b → S5a → S5b → S8a → S8b → S8c
+S0 → S1a → S1b → S1c → S2 → S3a → S3b → S5a → S5b → S7b-1 → S7b-2 → S8a → S8b → S8c
 ```
 
-Longest chain: 11 sub-sessions on the critical path.
+Longest chain: 14 sub-sessions on the critical path.
+
+Note: S7b is on the critical path because S8c composites
+(greenhouse, human) require GroupTemplateRegistry. S7 (Performance
+Maps) is NOT on the critical path — it merges at S8 as an
+enrichment, not a gate.
 
 ## Parallel Branches
 
@@ -222,9 +282,9 @@ Longest chain: 11 sub-sessions on the critical path.
 |--------|--------------|-----------|
 | S4a → S4b | S3b | S7 (column maps) |
 | S6 | S2 | S8c (electrochemical units) |
-| S7 | S1c + S3b + S4a | S8 (inspector integration) |
+| S7 | S1c + S3b + S4a | S7b (inspector hooks), S8 (visual feedback) |
 
-See `PTIS_DEPENDENCY_MAP.md` for the full visual graph.
+See `PTIS_DEPENDENCY_MAP.html` for the full visual graph.
 
 ---
 
@@ -239,18 +299,25 @@ See `PTIS_DEPENDENCY_MAP.md` for the full visual graph.
    (cathode) + mat_out_ano (anode). Electrode separation by design.
 3. ~~Reactor visual variants~~ → Deferred. Same defId, cosmetic
    presentations only. No engine impact.
+4. ~~M10 power budget (85 kW)~~ → Greenhouse η = 1% (validated
+   against NASA data), 7 colonists, 85 kW electrical demand.
+   Resolution: (a) M10 unlocks fabrication — unlimited equipment
+   counts, player builds 4–5 combined cycle power blocks at ~20 kW
+   each; (b) S7b group templates make building at scale manageable;
+   (c) greenhouse lighting efficiency (η) is editable on the locked
+   template (0.5–5%), letting the player trade realism for
+   practicality. See `PTIS_BIOSPHERE_POWER_RECONCILIATION.md`.
 5. ~~Distillation column restrictions~~ → No restrictions. Available
    in sandbox and campaign. Mission palette controls availability.
 6. ~~CH₂O registration~~ → S8c session 1.
+7. ~~Composites as opaque units vs transparent groups~~ → S7b locked
+   group templates. Greenhouse and human are composed of real units
+   (reactor_electrochemical, reactor_equilibrium, membrane_separator)
+   that the player can inspect. Not opaque defIds with bespoke ticks.
 
 ### Still Open
 
-4. **M10 power budget (82 kW):** Player must upscale power facilities
-   (multiple combined cycles), not shortcut with solar arrays. The
-   power constraint IS the final boss — teaches that closed-ecosystem
-   energy is enormous. Exact fuel supply (additional vents? higher
-   CH₄ fraction? realistic LED efficiency?) needs scenario math
-   validation during S8c session 3.
+None. All open design questions resolved.
 
 ### Architecture Decisions (2026-02-22)
 
@@ -258,3 +325,10 @@ Cross-cutting decisions on shared tick trunks, port labels, equipment
 variant strategy, fuel cell, steam turbine, co-electrolysis recorded
 in S8 §S8c-3b (trunk architecture, decision tree, future extension
 path).
+
+S7b expand-in-place overlay model, editableParams selective parameter
+exposure, and GroupTemplateRegistry design recorded in `PTIS_S7b_SPEC.md`.
+
+Biosphere power reconciliation (metabolic rates, greenhouse efficiency,
+M10 power supply resolution) recorded in
+`PTIS_BIOSPHERE_POWER_RECONCILIATION.md`.
