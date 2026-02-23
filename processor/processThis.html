@@ -705,10 +705,13 @@
       height: 100vh; 
       display: grid; 
       grid-template-columns: 1fr 0px;
+      grid-template-rows: 1fr;
     }
     
     .canvasWrap { 
-      position: relative; 
+      position: relative;
+      overflow: hidden;
+      min-height: 0;
     }
     
     #svg { 
