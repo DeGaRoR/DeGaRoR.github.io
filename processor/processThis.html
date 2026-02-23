@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v12.12.0
+  processThis v12.13.0
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   17 invariants. Violating any is a regression regardless of context.
@@ -255,6 +255,11 @@
            Q_max = UA × (T_in − T_amb).  Default: unlimited (Infinity).
            When Q limited, T_out > setpoint + MINOR warning.
            New: T304–T310 (7 tests).
+
+  v12.13.0 Stream sizing rework — 3 discrete levels (S/M/L) by mass flow.
+           Size button icon reflects current setting (dashed/thin/med/thick).
+           Color button shows mode label (Style/Island/Elec/T/P/φ).
+           Electrical streams no longer sized (always default width).
 
   v12.12.0 UX polish — zoom-to-unit, selection glow, zero-flow X, tank
            indicator, atmospheric pressure band, solve animation rework.
@@ -695,7 +700,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>processThis — v12.12.0</title>
+  <title>processThis — v12.13.0</title>
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
@@ -922,6 +927,13 @@
     .btn-cluster .tbtn:hover { background: #283040; color: #e2e8f0; }
     .tbtn-emoji { font-size: 14px; }
     .tbtn-dim { opacity: 0.35; }
+    .tbtn-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      min-width: 28px;
+      text-align: center;
+    }
 
     /* ===== VISUAL MAPPING DROPDOWN MENUS ===== */
     .vis-menu-anchor { position: relative; }
@@ -2273,24 +2285,26 @@
 
       <!-- Visual mapping cluster -->
       <div class="btn-cluster">
-        <button class="tbtn vis-menu-anchor" id="btnColor" data-tip="Color by…">
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="5" cy="8" r="4" fill="#60a5fa" opacity="0.8"/><circle cx="11" cy="8" r="4" fill="#f87171" opacity="0.8"/></svg>
+        <button class="tbtn vis-menu-anchor tbtn-label" id="btnColor" data-tip="Color by…">
+          <span id="btnColorLabel">Style</span>
           <div class="vis-menu" id="menuColor">
             <div class="vis-menu-title">Color by</div>
-            <div class="vis-menu-item active" data-val="type"><span class="vm-check">✓</span>Type</div>
-            <div class="vis-menu-item" data-val="islands"><span class="vm-check"></span>Islands</div>
-            <div class="vis-menu-item" data-val="material_electrical"><span class="vm-check"></span>Material / Electrical</div>
-            <div class="vis-menu-item" data-val="temperature"><span class="vm-check"></span><span class="vm-swatch" style="background:linear-gradient(90deg,#1e3a8a,#22d3ee,#34d399,#fde047,#ef4444)"></span>Temperature</div>
-            <div class="vis-menu-item" data-val="pressure"><span class="vm-check"></span><span class="vm-swatch" style="background:linear-gradient(90deg,#1e3a5f,#06d6a0 25%,#34d399 35%,#fde047,#ef4444)"></span>Pressure</div>
-            <div class="vis-menu-item" data-val="phase"><span class="vm-check"></span><span class="vm-swatch" style="background:linear-gradient(90deg,#60a5fa 33%,#c084fc 66%,#f87171)"></span>Phase</div>
+            <div class="vis-menu-item active" data-val="type" data-label="Style"><span class="vm-check">✓</span>Type</div>
+            <div class="vis-menu-item" data-val="islands" data-label="Island"><span class="vm-check"></span>Islands</div>
+            <div class="vis-menu-item" data-val="material_electrical" data-label="Elec"><span class="vm-check"></span>Material / Electrical</div>
+            <div class="vis-menu-item" data-val="temperature" data-label="T"><span class="vm-check"></span><span class="vm-swatch" style="background:linear-gradient(90deg,#1e3a8a,#22d3ee,#34d399,#fde047,#ef4444)"></span>Temperature</div>
+            <div class="vis-menu-item" data-val="pressure" data-label="P"><span class="vm-check"></span><span class="vm-swatch" style="background:linear-gradient(90deg,#1e3a5f,#06d6a0 25%,#34d399 35%,#fde047,#ef4444)"></span>Pressure</div>
+            <div class="vis-menu-item" data-val="phase" data-label="φ"><span class="vm-check"></span><span class="vm-swatch" style="background:linear-gradient(90deg,#60a5fa 33%,#c084fc 66%,#f87171)"></span>Phase</div>
           </div>
         </button>
         <button class="tbtn vis-menu-anchor tbtn-dim" id="btnStreamSize" data-tip="Size streams by…">
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-linecap="round"><line x1="2" y1="4" x2="14" y2="4" stroke-width="1.5"/><line x1="2" y1="8" x2="14" y2="8" stroke-width="3"/><line x1="2" y1="12" x2="14" y2="12" stroke-width="5"/></svg>
+          <svg id="btnSizeIcon" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-linecap="round"><line x1="2" y1="8" x2="14" y2="8" stroke-width="2" stroke-dasharray="3 3"/></svg>
           <div class="vis-menu" id="menuStreamSize">
-            <div class="vis-menu-title">Size streams by</div>
-            <div class="vis-menu-item" data-val="flow"><span class="vm-check"></span>Mass flow / Power</div>
+            <div class="vis-menu-title">Size by mass flow</div>
             <div class="vis-menu-item active" data-val="none"><span class="vm-check">✓</span>None</div>
+            <div class="vis-menu-item" data-val="s"><span class="vm-check"></span>S — subtle</div>
+            <div class="vis-menu-item" data-val="m"><span class="vm-check"></span>M — moderate</div>
+            <div class="vis-menu-item" data-val="l"><span class="vm-check"></span>L — prominent</div>
           </div>
         </button>
       </div>
@@ -12592,7 +12606,7 @@ const ui = {
   showStickers: true, // [v10.7.0] P1: show/hide stickers entirely
   // [v12.11.0] Unified visual mapping
   colorBy: 'type',          // 'type' | 'islands' | 'material_electrical' | 'temperature' | 'pressure' | 'phase'
-  streamSizeBy: 'none',     // 'none' | 'flow'
+  streamSizeBy: 'none',     // 'none' | 's' | 'm' | 'l'
   reconnecting: null,     // [v10.1.1] {connId} when reconnecting a stream
   // [v10.8.1] Sticker selection
   selectedStickerId: null,    // unit id or conn id that owns the selected sticker
@@ -13607,10 +13621,9 @@ function _isZeroFlow(stream) {
 function drawConnections() {
   const g = svgEl('g', { id: 'connections' });
   
-  // [v12.11.0] Pre-pass: cache stream data, compute flow/power min/max for sizing
+  // [v12.13.0] Pre-pass: cache stream data, compute mass-flow min/max for sizing
   const _streamCache = new Map(); // connId → stream ref
   let mfMin = Infinity, mfMax = -Infinity;
-  let pwMin = Infinity, pwMax = -Infinity;
   for (const c of scene.connections) {
     const ud = scene.runtime?.unitData?.get(c.from.unitId);
     const stream = ud?.ports?.[c.from.portId];
@@ -13622,30 +13635,22 @@ function drawConnections() {
         if (fr.mTotal < mfMin) mfMin = fr.mTotal;
         if (fr.mTotal > mfMax) mfMax = fr.mTotal;
       }
-    } else if (stream.type === StreamType.ELECTRICAL) {
-      const pw = Math.abs(stream.actual ?? stream.available ?? 0);
-      if (pw > 0 && Number.isFinite(pw)) {
-        if (pw < pwMin) pwMin = pw;
-        if (pw > pwMax) pwMax = pw;
-      }
     }
   }
   if (!Number.isFinite(mfMin)) { mfMin = 0; mfMax = 0; }
-  if (!Number.isFinite(pwMin)) { pwMin = 0; pwMax = 0; }
 
-  // Size helpers
-  const _SW_MIN = 1.5, _SW_MAX = 8, _SW_DEF = 3;
+  // [v12.13.0] Discrete width levels: S(8px), M(16px), L(40px) max
+  const _SW_DEF = 3, _SW_MIN = 1.5;
+  const _SW_MAX_MAP = { s: 8, m: 16, l: 40 };
   function _connWidth(stream) {
-    if (!stream || ui.streamSizeBy === 'none') return _SW_DEF;
-    if (stream.type === StreamType.MATERIAL) {
-      const fr = calculateStreamFlowrates(stream);
-      if (fr && Number.isFinite(fr.mTotal) && fr.mTotal > 0)
-        return _SW_MIN + (_SW_MAX - _SW_MIN) * _visNormLinear(fr.mTotal, mfMin, mfMax);
-    } else if (stream.type === StreamType.ELECTRICAL) {
-      const pw = Math.abs(stream.actual ?? stream.available ?? 0);
-      if (pw > 0 && Number.isFinite(pw))
-        return _SW_MIN + (_SW_MAX - _SW_MIN) * _visNormLinear(pw, pwMin, pwMax);
-    }
+    const mode = ui.streamSizeBy;
+    if (!stream || mode === 'none') return _SW_DEF;
+    // Only material streams get sized; electrical stays default
+    if (stream.type !== StreamType.MATERIAL) return _SW_DEF;
+    const swMax = _SW_MAX_MAP[mode] || 8;
+    const fr = calculateStreamFlowrates(stream);
+    if (fr && Number.isFinite(fr.mTotal) && fr.mTotal > 0)
+      return _SW_MIN + (swMax - _SW_MIN) * _visNormLinear(fr.mTotal, mfMin, mfMax);
     return _SW_DEF;
   }
 
@@ -19068,6 +19073,7 @@ btnStickerLines.addEventListener('click', () => {
 });
 
 // [v12.11.0] Visual mapping dropdown menus
+// [v12.13.0] Visual mapping dropdown menus with dynamic button content
 (function initVisMenus() {
   const menuDefs = [
     { btnId: 'btnColor',      menuId: 'menuColor',      stateKey: 'colorBy',      dimVal: null },
@@ -19075,6 +19081,8 @@ btnStickerLines.addEventListener('click', () => {
   ];
   const btns = menuDefs.map(d => document.getElementById(d.btnId));
   const menus = menuDefs.map(d => document.getElementById(d.menuId));
+  const colorLabel = document.getElementById('btnColorLabel');
+  const sizeIcon = document.getElementById('btnSizeIcon');
 
   function closeAll() { menus.forEach(m => m.classList.remove('open')); }
 
@@ -19084,6 +19092,24 @@ btnStickerLines.addEventListener('click', () => {
       it.classList.toggle('active', active);
       it.querySelector('.vm-check').textContent = active ? '✓' : '';
     });
+  }
+
+  // Update color button text from active menu item's data-label
+  function updateColorLabel() {
+    const active = menus[0].querySelector('.vis-menu-item.active');
+    if (active && colorLabel) colorLabel.textContent = active.dataset.label || 'Style';
+  }
+
+  // Update size button icon: dashed=none, thin=s, medium=m, thick=l
+  const _sizeLineWidths = { none: 2, s: 2, m: 3.5, l: 6 };
+  const _sizeDash = { none: '3 3', s: '', m: '', l: '' };
+  function updateSizeIcon() {
+    if (!sizeIcon) return;
+    const line = sizeIcon.querySelector('line');
+    if (!line) return;
+    const mode = ui.streamSizeBy;
+    line.setAttribute('stroke-width', _sizeLineWidths[mode] || 2);
+    line.setAttribute('stroke-dasharray', _sizeDash[mode] || '');
   }
 
   menuDefs.forEach((d, i) => {
@@ -19100,6 +19126,8 @@ btnStickerLines.addEventListener('click', () => {
         ui[d.stateKey] = item.dataset.val;
         syncChecks(menus[i], ui[d.stateKey]);
         if (d.dimVal !== null) btns[i].classList.toggle('tbtn-dim', ui[d.stateKey] === d.dimVal);
+        updateColorLabel();
+        updateSizeIcon();
         closeAll();
         render();
       });
