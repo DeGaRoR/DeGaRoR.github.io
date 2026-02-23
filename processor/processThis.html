@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v12.15.1
+  processThis v12.15.3
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   17 invariants. Violating any is a regression regardless of context.
@@ -255,6 +255,18 @@
            Q_max = UA × (T_in − T_amb).  Default: unlimited (Infinity).
            When Q limited, T_out > setpoint + MINOR warning.
            New: T304–T310 (7 tests).
+
+  v12.15.3 Hover on selected/errored/warned units no longer replaces
+           their glow with the hover brightness filter. Hover highlight
+           only applies to units with no active glow state, eliminating
+           the flicker on click-to-select.
+
+  v12.15.2 Electrical stream sizing — sized by power (W) alongside
+           material streams sized by mass flow. Pre-pass collects
+           power min/max. Menu title updated to "Size by flow".
+           Middle-click pan: unit rect, connection path, and port
+           circle handlers now ignore non-left clicks, letting
+           middle-click bubble to the canvas pan handler.
 
   v12.15.1 Generic port labels — optional `label` field on port definitions.
            Rendered at 45° top-right of port dot for any port with a label.
@@ -729,7 +741,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>processThis — v12.15.1</title>
+  <title>processThis — v12.15.3</title>
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
@@ -1101,7 +1113,7 @@
     }
 
     /* ===== HOVER HIGHLIGHT (E2) ===== */
-    .unit-hover > rect:first-child { filter: url(#hover-brighten); }
+    .unit-hover:not(.unit-selected):not(.unit-glow-error):not(.unit-glow-warn) > rect:first-child { filter: url(#hover-brighten); }
     .conn-hover { filter: brightness(1.4); stroke-opacity: 0.9; }
 
     /* ===== SELECTION MARQUEE ===== */
@@ -2329,7 +2341,7 @@
         <button class="tbtn vis-menu-anchor tbtn-dim" id="btnStreamSize" data-tip="Size streams by…">
           <svg id="btnSizeIcon" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-linecap="round"><line x1="2" y1="8" x2="14" y2="8" stroke-width="2" stroke-dasharray="3 3"/></svg>
           <div class="vis-menu" id="menuStreamSize">
-            <div class="vis-menu-title">Size by mass flow</div>
+            <div class="vis-menu-title">Size by flow</div>
             <div class="vis-menu-item active" data-val="none"><span class="vm-check">✓</span>None</div>
             <div class="vis-menu-item" data-val="s"><span class="vm-check"></span>S — subtle</div>
             <div class="vis-menu-item" data-val="m"><span class="vm-check"></span>M — moderate</div>
@@ -13658,9 +13670,11 @@ function _isZeroFlow(stream) {
 function drawConnections() {
   const g = svgEl('g', { id: 'connections' });
   
-  // [v12.13.0] Pre-pass: cache stream data, compute mass-flow min/max for sizing
+  // [v12.15.2] Pre-pass: cache stream data, compute min/max for sizing
+  // Material: mass flow (kg/s). Electrical: power (W).
   const _streamCache = new Map(); // connId → stream ref
   let mfMin = Infinity, mfMax = -Infinity;
+  let pwMin = Infinity, pwMax = -Infinity;
   for (const c of scene.connections) {
     const ud = scene.runtime?.unitData?.get(c.from.unitId);
     const stream = ud?.ports?.[c.from.portId];
@@ -13672,22 +13686,33 @@ function drawConnections() {
         if (fr.mTotal < mfMin) mfMin = fr.mTotal;
         if (fr.mTotal > mfMax) mfMax = fr.mTotal;
       }
+    } else if (stream.type === StreamType.ELECTRICAL) {
+      const pw = Math.abs(stream.actual ?? stream.capacity ?? 0);
+      if (pw > 0) {
+        if (pw < pwMin) pwMin = pw;
+        if (pw > pwMax) pwMax = pw;
+      }
     }
   }
   if (!Number.isFinite(mfMin)) { mfMin = 0; mfMax = 0; }
+  if (!Number.isFinite(pwMin)) { pwMin = 0; pwMax = 0; }
 
-  // [v12.13.0] Discrete width levels: S(8px), M(16px), L(40px) max
+  // [v12.15.2] Discrete width levels: S(8px), M(16px), L(40px) max
   const _SW_DEF = 3, _SW_MIN = 1.5;
   const _SW_MAX_MAP = { s: 8, m: 16, l: 40 };
   function _connWidth(stream) {
     const mode = ui.streamSizeBy;
     if (!stream || mode === 'none') return _SW_DEF;
-    // Only material streams get sized; electrical stays default
-    if (stream.type !== StreamType.MATERIAL) return _SW_DEF;
     const swMax = _SW_MAX_MAP[mode] || 8;
-    const fr = calculateStreamFlowrates(stream);
-    if (fr && Number.isFinite(fr.mTotal) && fr.mTotal > 0)
-      return _SW_MIN + (swMax - _SW_MIN) * _visNormLinear(fr.mTotal, mfMin, mfMax);
+    if (stream.type === StreamType.MATERIAL) {
+      const fr = calculateStreamFlowrates(stream);
+      if (fr && Number.isFinite(fr.mTotal) && fr.mTotal > 0)
+        return _SW_MIN + (swMax - _SW_MIN) * _visNormLinear(fr.mTotal, mfMin, mfMax);
+    } else if (stream.type === StreamType.ELECTRICAL) {
+      const pw = Math.abs(stream.actual ?? stream.capacity ?? 0);
+      if (pw > 0)
+        return _SW_MIN + (swMax - _SW_MIN) * _visNormLinear(pw, pwMin, pwMax);
+    }
     return _SW_DEF;
   }
 
@@ -13771,6 +13796,7 @@ function drawConnections() {
 
     if (!isConnDimmed) {
     path.addEventListener('pointerdown', (ev) => {
+      if (ev.button !== 0) return; // [v12.15.2] let middle-click bubble to pan handler
       ev.stopPropagation();
       ui.selectedConnId = c.id;
       ui.selectedUnitId = null;
@@ -14035,6 +14061,7 @@ function drawUnits() {
 
     if (!isDimmed) {
     rect.addEventListener('pointerdown', (ev) => {
+      if (ev.button !== 0) return; // [v12.15.2] let middle-click bubble to pan handler
       ev.stopPropagation();
       ev.preventDefault(); // Prevent text selection during drag
       if (ui.pendingFrom) return;
@@ -14223,6 +14250,7 @@ function drawUnits() {
 
       if (!isDimmed) {
       circle.addEventListener('pointerdown', (ev) => {
+        if (ev.button !== 0) return; // [v12.15.2] let middle-click bubble to pan handler
         ev.stopPropagation();
         const port = p;
         
