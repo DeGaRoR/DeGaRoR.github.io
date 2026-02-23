@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v12.0.0
+  processThis v12.12.0
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   17 invariants. Violating any is a regression regardless of context.
@@ -255,6 +255,30 @@
            Q_max = UA × (T_in − T_amb).  Default: unlimited (Infinity).
            When Q limited, T_out > setpoint + MINOR warning.
            New: T304–T310 (7 tests).
+
+  v12.12.0 UX polish — zoom-to-unit, selection glow, zero-flow X, tank
+           indicator, atmospheric pressure band, solve animation rework.
+           Zoom-to-unit: lens icon in inspector header + alarm click zoom.
+           Selection: bright glow ring distinguishable from error/warn.
+           Zero-flow: bold X cross replaces arrows on solved ≈0 streams.
+           Tank fill indicator: higher contrast, larger percentage text.
+           Pressure scale: dynamic atmospheric band (±20% of planet P_atm)
+             with distinct teal colour differentiating from compressed.
+           Solve animation: gentle 1s brightness wave (topo-ordered),
+             play-tick 0.6s subtle glow. Slower, smoother, less flashy.
+           Error/warning glow: slightly larger radius for visibility.
+
+  v12.11.0 Visual mapping system — unified coloring, zero-flow indicator,
+           arrow sizing, action bar layout cleanup.
+           Unified "Color by" dropdown (Type, Islands, Material/Electrical,
+           Temperature, Pressure, Phase) colours both units and streams.
+           "Size streams by" dropdown (Mass flow / Power, None).
+           Piecewise-linear absolute scales for T (7 segments, 50 K–2273 K+)
+           and P (4 segments, vacuum–300 bar).
+           Zero-flow ⊘ marker on solved streams with ≈0 flow.
+           Flow arrows scale with stream width.
+           Action bar: three .btn-cluster groups, no inline CSS.
+           Islands mode: material + electrical union-find.
 
   v12.10.0 Multi-select, group move, copy/paste — 289 tests, 1810 assertions.
            Multi-select: Ctrl+click toggles units into selection set.
@@ -671,7 +695,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>processThis — v12.10.0</title>
+  <title>processThis — v12.12.0</title>
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
@@ -870,13 +894,13 @@
       backdrop-filter: blur(10px);
     }
 
-    /* ===== ZOOM CONTROLS (E1) ===== */
-    .zoom-controls {
+    /* ===== BUTTON CLUSTER (joined-button group, used by all action bar groups) ===== */
+    .btn-cluster {
       display: flex;
       gap: 2px;
       align-items: center;
     }
-    .zoom-controls .tbtn {
+    .btn-cluster .tbtn {
       background: #1c222e;
       color: #94a3b8;
       border: 1px solid #2a2f3a;
@@ -886,12 +910,71 @@
       font-weight: 600;
       user-select: none;
       white-space: nowrap;
-      transition: background 0.15s, color 0.15s;
+      transition: background 0.15s, color 0.15s, opacity 0.15s;
       display: flex; align-items: center; justify-content: center;
+      line-height: 1;
+      min-height: 28px;
+      box-sizing: border-box;
     }
-    .zoom-controls .tbtn:first-child { border-radius: 8px 0 0 8px; }
-    .zoom-controls .tbtn:last-child  { border-radius: 0 8px 8px 0; }
-    .zoom-controls .tbtn:hover { background: #283040; color: #e2e8f0; }
+    .btn-cluster .tbtn:first-child { border-radius: 8px 0 0 8px; }
+    .btn-cluster .tbtn:last-child  { border-radius: 0 8px 8px 0; }
+    .btn-cluster .tbtn:only-child  { border-radius: 8px; }
+    .btn-cluster .tbtn:hover { background: #283040; color: #e2e8f0; }
+    .tbtn-emoji { font-size: 14px; }
+    .tbtn-dim { opacity: 0.35; }
+
+    /* ===== VISUAL MAPPING DROPDOWN MENUS ===== */
+    .vis-menu-anchor { position: relative; }
+    .vis-menu {
+      position: absolute;
+      bottom: calc(100% + 10px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: #131825;
+      border: 1px solid #2a2f3a;
+      border-radius: 10px;
+      padding: 6px 0;
+      min-width: 180px;
+      z-index: 60;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+      pointer-events: auto;
+      display: none;
+    }
+    .vis-menu.open { display: block; }
+    .vis-menu-title {
+      font-size: 10px;
+      font-weight: 700;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 4px 12px 6px;
+      user-select: none;
+    }
+    .vis-menu-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      font-size: 12px;
+      font-weight: 500;
+      color: #94a3b8;
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.1s, color 0.1s;
+    }
+    .vis-menu-item:hover { background: #1e293b; color: #e2e8f0; }
+    .vis-menu-item.active { color: #60a5fa; }
+    .vis-menu-item .vm-check {
+      width: 14px;
+      text-align: center;
+      font-size: 11px;
+      flex-shrink: 0;
+    }
+    .vis-menu-item .vm-swatch {
+      width: 14px; height: 14px;
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
 
     /* ===== ACTION BAR TOOLTIPS [v10.3.2] ===== */
     .action-bar .tbtn {
@@ -911,7 +994,18 @@
     .action-bar .tbtn:hover::after {
       opacity: 1; transform: translateX(-50%) scale(1);
     }
+    .action-bar .tbtn:has(.vis-menu.open)::after {
+      display: none;
+    }
     .action-bar .tbtn svg { display: block; }
+
+    /* ===== ZERO-FLOW CROSS MARKER [v12.12.0] ===== */
+    .zero-flow-cross {
+      stroke-linecap: round;
+      stroke-width: 3;
+      opacity: 0.8;
+      pointer-events: none;
+    }
 
     /* ===== ARROW FLOW ANIMATION [v10.5.0] (AN-1 replacement) ===== */
     @keyframes arrow-flow {
@@ -922,24 +1016,24 @@
       animation: arrow-flow var(--flow-duration, 1.5s) linear infinite;
     }
 
-    /* ===== TOPO FLASH PULSE [v10.5.0] (AN-3 replacement) ===== */
+    /* ===== TOPO GLOW PULSE [v12.12.0] — gentle brightness wave ===== */
     @keyframes unit-topo-pulse {
       0%   { filter: brightness(1); }
-      30%  { filter: brightness(1.35); }
+      40%  { filter: brightness(1.12); }
       100% { filter: brightness(1); }
     }
     .unit-topo-pulse > rect:first-child {
-      animation: unit-topo-pulse 0.3s ease-out;
+      animation: unit-topo-pulse 1s ease-in-out;
     }
 
-    /* ===== PLAY TICK PULSE [v10.5.4] — subtle dim on each autoplay step ===== */
+    /* ===== PLAY TICK GLOW [v12.12.0] — subtle brightness on autoplay ===== */
     @keyframes unit-play-tick {
-      0%   { opacity: 1; }
-      30%  { opacity: 0.7; }
-      100% { opacity: 1; }
+      0%   { filter: brightness(1); }
+      40%  { filter: brightness(1.08); }
+      100% { filter: brightness(1); }
     }
     .unit-play-tick > rect:first-child {
-      animation: unit-play-tick 0.25s ease-out;
+      animation: unit-play-tick 0.6s ease-in-out;
     }
 
     /* ===== FAILURE SHAKE + GLOW [v10.4.1] (AN-4a) ===== */
@@ -954,16 +1048,20 @@
     .unit-shake {
       animation: unit-shake 0.4s ease-out;
     }
+    /* [v12.12.0] Selection glow — bright blue ring, clearly distinct from error/warn */
+    .unit-selected > rect:first-child {
+      filter: drop-shadow(0 0 6px #60a5facc) drop-shadow(0 0 14px #60a5fa66);
+    }
     .unit-glow-error > rect:first-child {
-      filter: drop-shadow(0 0 6px #ef4444aa) drop-shadow(0 0 12px #ef444466);
+      filter: drop-shadow(0 0 8px #ef4444bb) drop-shadow(0 0 16px #ef444466);
     }
     .unit-glow-warn > rect:first-child {
-      filter: drop-shadow(0 0 4px #fbbf2488) drop-shadow(0 0 8px #fbbf2444);
+      filter: drop-shadow(0 0 6px #fbbf24aa) drop-shadow(0 0 12px #fbbf2455);
     }
 
     /* ===== HOVER HIGHLIGHT (E2) ===== */
     .unit-hover > rect:first-child { filter: url(#hover-brighten); }
-    .conn-hover { stroke-width: 5 !important; stroke-opacity: 0.85; }
+    .conn-hover { filter: brightness(1.4); stroke-opacity: 0.9; }
 
     /* ===== SELECTION MARQUEE ===== */
     .selection-marquee {
@@ -1565,6 +1663,27 @@
       background: #7f1d1d33;
       border-color: #7f1d1d;
     }
+
+    /* [v12.12.0] Zoom-to-unit button — same size as delete, neutral blue */
+    .ins-zoom-btn {
+      background: transparent;
+      border: 1px solid transparent;
+      color: #94a3b8;
+      font-size: 16px;
+      line-height: 1;
+      padding: 2px 4px;
+      border-radius: 6px;
+      cursor: pointer;
+      opacity: 0.5;
+      transition: opacity 0.15s, background 0.15s, border-color 0.15s;
+      flex-shrink: 0;
+    }
+    .ins-zoom-btn:hover {
+      opacity: 1;
+      color: #60a5fa;
+      background: #1e3a5f33;
+      border-color: #1e3a5f;
+    }
     
     /* Bordered sections (Parameters, Properties) */
     .borderedSection {
@@ -2140,15 +2259,41 @@
       <span class="time-display" id="timeDisplay" style="cursor:pointer;" title="Click to open settings"></span>
       <span class="speed-indicator" id="speedIndicator" title="Normal (5s)">▶</span>
 
-      <!-- Zoom controls [v10.1.0] -->
-      <div class="zoom-controls">
+      <!-- Zoom cluster -->
+      <div class="btn-cluster">
         <button class="tbtn" id="btnFit" data-tip="Fit all units"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 5V1h4M11 1h4v4M15 11v4h-4M5 15H1v-4"/></svg></button>
         <button class="tbtn" id="btnResetView" data-tip="Reset view"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="1.5" fill="currentColor" stroke="none"/><path d="M2 5V2h3"/><path d="M11 2h3v3"/><path d="M14 11v3h-3"/><path d="M5 14H2v-3"/></svg></button>
       </div>
 
-      <!-- Utilities toggle [v10.1.1] -->
-      <button class="tbtn" id="btnUtilities" data-tip="Show/hide utilities" style="font-size:14px; border-radius:8px;">⚡</button>
-      <button class="tbtn" id="btnStickerLines" data-tip="Show/hide stickers" style="font-size:14px; border-radius:8px;">📌</button>
+      <!-- Visibility cluster -->
+      <div class="btn-cluster">
+        <button class="tbtn tbtn-emoji" id="btnUtilities" data-tip="Show/hide utilities">⚡</button>
+        <button class="tbtn tbtn-emoji" id="btnStickerLines" data-tip="Show/hide stickers">📌</button>
+      </div>
+
+      <!-- Visual mapping cluster -->
+      <div class="btn-cluster">
+        <button class="tbtn vis-menu-anchor" id="btnColor" data-tip="Color by…">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="5" cy="8" r="4" fill="#60a5fa" opacity="0.8"/><circle cx="11" cy="8" r="4" fill="#f87171" opacity="0.8"/></svg>
+          <div class="vis-menu" id="menuColor">
+            <div class="vis-menu-title">Color by</div>
+            <div class="vis-menu-item active" data-val="type"><span class="vm-check">✓</span>Type</div>
+            <div class="vis-menu-item" data-val="islands"><span class="vm-check"></span>Islands</div>
+            <div class="vis-menu-item" data-val="material_electrical"><span class="vm-check"></span>Material / Electrical</div>
+            <div class="vis-menu-item" data-val="temperature"><span class="vm-check"></span><span class="vm-swatch" style="background:linear-gradient(90deg,#1e3a8a,#22d3ee,#34d399,#fde047,#ef4444)"></span>Temperature</div>
+            <div class="vis-menu-item" data-val="pressure"><span class="vm-check"></span><span class="vm-swatch" style="background:linear-gradient(90deg,#1e3a5f,#06d6a0 25%,#34d399 35%,#fde047,#ef4444)"></span>Pressure</div>
+            <div class="vis-menu-item" data-val="phase"><span class="vm-check"></span><span class="vm-swatch" style="background:linear-gradient(90deg,#60a5fa 33%,#c084fc 66%,#f87171)"></span>Phase</div>
+          </div>
+        </button>
+        <button class="tbtn vis-menu-anchor tbtn-dim" id="btnStreamSize" data-tip="Size streams by…">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-linecap="round"><line x1="2" y1="4" x2="14" y2="4" stroke-width="1.5"/><line x1="2" y1="8" x2="14" y2="8" stroke-width="3"/><line x1="2" y1="12" x2="14" y2="12" stroke-width="5"/></svg>
+          <div class="vis-menu" id="menuStreamSize">
+            <div class="vis-menu-title">Size streams by</div>
+            <div class="vis-menu-item" data-val="flow"><span class="vm-check"></span>Mass flow / Power</div>
+            <div class="vis-menu-item active" data-val="none"><span class="vm-check">✓</span>None</div>
+          </div>
+        </button>
+      </div>
     </div>
 
     <!-- Models modal -->
@@ -2770,8 +2915,8 @@ const StreamVisuals = {
     portColor: '#94a3b8' 
   },
   [StreamType.ELECTRICAL]: { 
-    color: '#22c55e', 
-    portColor: '#22c55e' 
+    color: '#eab308',  // [v12.11.0] unified amber (was green)
+    portColor: '#eab308' 
   }
 };
 
@@ -12445,6 +12590,9 @@ const ui = {
   _mouseWorld: { x: 0, y: 0 },
   showUtilities: true,    // [v10.1.1] E7: dim power utility units when false
   showStickers: true, // [v10.7.0] P1: show/hide stickers entirely
+  // [v12.11.0] Unified visual mapping
+  colorBy: 'type',          // 'type' | 'islands' | 'material_electrical' | 'temperature' | 'pressure' | 'phase'
+  streamSizeBy: 'none',     // 'none' | 'flow'
   reconnecting: null,     // [v10.1.1] {connId} when reconnecting a stream
   // [v10.8.1] Sticker selection
   selectedStickerId: null,    // unit id or conn id that owns the selected sticker
@@ -12951,13 +13099,13 @@ function openDiagnosticModal() {
       row.appendChild(iconSpan);
       row.appendChild(bodyDiv);
 
-      // Click to select unit if applicable
+      // Click to select + zoom to unit if applicable
       if (alarm.unitId) {
         row.style.cursor = 'pointer';
         row.addEventListener('click', () => {
           _selectOnly(alarm.unitId);  // [v12.10.0]
           updatePropertiesPanel();
-          render();
+          zoomToUnit(alarm.unitId);   // [v12.12.0] zoom to the offending unit
           modal.classList.remove('open');
         });
       }
@@ -13106,6 +13254,25 @@ function resetView() {
   render();
 }
 
+// [v12.12.0] Zoom to centre a specific unit with comfortable padding
+function zoomToUnit(unitId) {
+  const u = scene.units.get(unitId);
+  if (!u) return;
+  const def = UnitRegistry.get(u.defId);
+  if (!def) return;
+  const pres = getPresentation(def, u);
+  const cx = (u.x + pres.w / 2) * scene.tile;
+  const cy = (u.y + pres.h / 2) * scene.tile;
+  // Zoom level: show ~8 tile units of context around the unit
+  const span = Math.max(pres.w, pres.h) * scene.tile * 6;
+  const svgRect = svg.getBoundingClientRect();
+  const aspectRatio = svgRect.width / svgRect.height;
+  const h = Math.max(span, 300);
+  const w = h * aspectRatio;
+  ui.view = { x: cx - w / 2, y: cy - h / 2, w, h };
+  render();
+}
+
 /* =========================
    PORT EDGE DETECTION
    Determines which edge of a unit a port is on
@@ -13181,11 +13348,311 @@ function drawGrid() {
   svg.appendChild(g);
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   [v12.11.0] VISUAL MAPPING ENGINE
+   Unified colour/size helpers for drawConnections() and drawUnits().
+   Absolute piecewise scales for T and P.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+// ── Generic piecewise-linear normalisation ──
+// breaks: [[val, t], ...] sorted ascending by val.  Returns t ∈ [0, 1].
+function _piecewiseNorm(val, breaks) {
+  if (val <= breaks[0][0]) return breaks[0][1];
+  for (let i = 1; i < breaks.length; i++) {
+    if (val <= breaks[i][0]) {
+      const [v0, t0] = breaks[i - 1];
+      const [v1, t1] = breaks[i];
+      return t0 + (t1 - t0) * ((val - v0) / (v1 - v0));
+    }
+  }
+  return breaks[breaks.length - 1][1];
+}
+
+// ── Generic gradient colour from normalised t and colour stops ──
+// stops: [[t, '#hex'], ...] sorted ascending by t.
+function _gradientColor(t, stops) {
+  t = Math.max(0, Math.min(1, t));
+  if (t <= stops[0][0]) return stops[0][1];
+  for (let i = 1; i < stops.length; i++) {
+    if (t <= stops[i][0]) {
+      const frac = (t - stops[i-1][0]) / (stops[i][0] - stops[i-1][0]);
+      return _visLerp(stops[i-1][1], stops[i][1], frac);
+    }
+  }
+  return stops[stops.length - 1][1];
+}
+
+function _visLerp(c1, c2, t) {
+  const r1 = parseInt(c1.slice(1,3),16), g1 = parseInt(c1.slice(3,5),16), b1 = parseInt(c1.slice(5,7),16);
+  const r2 = parseInt(c2.slice(1,3),16), g2 = parseInt(c2.slice(3,5),16), b2 = parseInt(c2.slice(5,7),16);
+  return `rgb(${Math.round(r1+(r2-r1)*t)},${Math.round(g1+(g2-g1)*t)},${Math.round(b1+(b2-b1)*t)})`;
+}
+
+// ── Temperature scale: 7 segments, highest resolution in ambient range ──
+// Cryogenic 50–200K, Refrigeration 200–273K, Ambient 273–373K,
+// Combustion 373–873K, High 873–1273K, Very high 1273–2273K, Inferno 2273K+
+const _T_BREAKS = [
+  [50, 0], [200, 0.08], [273, 0.20], [373, 0.55],
+  [873, 0.75], [1273, 0.87], [2273, 0.96]
+];
+const _T_COLORS = [
+  [0.00, '#1e3a8a'], [0.08, '#3b82f6'], [0.20, '#22d3ee'],
+  [0.35, '#34d399'], [0.55, '#fde047'], [0.75, '#f97316'],
+  [0.87, '#ef4444'], [0.96, '#991b1b'], [1.00, '#fef3c7']
+];
+function _visTempColor(T) {
+  if (!Number.isFinite(T) || T <= 0) return null;
+  return _gradientColor(_piecewiseNorm(T, _T_BREAKS), _T_COLORS);
+}
+
+// ── Pressure scale: 4 segments, highest resolution in 1–10 bar ──
+// Vacuum 0–1bar, Low 1–10bar, Medium 10–100bar, High 100–300bar
+const _P_BREAKS = [
+  [0, 0], [1e5, 0.20], [1e6, 0.55], [1e7, 0.80], [3e7, 1.0]
+];
+const _P_COLORS = [
+  [0.00, '#1e3a5f'], [0.20, '#34d399'], [0.40, '#a3e635'],
+  [0.55, '#fde047'], [0.80, '#f97316'], [1.00, '#ef4444']
+];
+// [v12.12.0] Atmospheric band: distinct teal for ±20% of planet P_atm
+const _P_ATM_COLOR = '#06d6a0';  // bright mint — clearly "atmospheric"
+function _visPressColor(P) {
+  if (!Number.isFinite(P) || P < 0) return null;
+  // Check atmospheric band (dynamic from planet settings)
+  const pAtm = SimSettings.atmosphere?.P_Pa ?? 101325;
+  if (P >= pAtm * 0.8 && P <= pAtm * 1.2) return _P_ATM_COLOR;
+  return _gradientColor(_piecewiseNorm(P, _P_BREAKS), _P_COLORS);
+}
+
+// ── Phase colours ──
+const _VIS_PHASE = { L: '#60a5fa', V: '#f87171', VL: '#c084fc' };
+const _VIS_DIM = '#334155';       // no-data neutral
+const _VIS_ELEC = '#eab308';      // unified electrical colour (amber)
+const _VIS_MAT_STREAM = '#94a3b8'; // default material stream grey
+
+// ── Island detection: material + electrical union-find ──
+function _visIslands() {
+  function makeUF() {
+    const parent = new Map();
+    function find(x) {
+      if (!parent.has(x)) parent.set(x, x);
+      while (parent.get(x) !== x) { parent.set(x, parent.get(parent.get(x))); x = parent.get(x); }
+      return x;
+    }
+    function union(a, b) { const ra = find(a), rb = find(b); if (ra !== rb) parent.set(ra, rb); }
+    return { find, union, init(x) { find(x); } };
+  }
+
+  const matUF = makeUF(), elecUF = makeUF();
+  const unitHasMat = new Set(), unitHasElec = new Set();
+
+  // Init all units in both UFs
+  for (const id of scene.units.keys()) { matUF.init(id); elecUF.init(id); }
+
+  // Union by connection type
+  for (const c of scene.connections) {
+    const fromU = scene.units.get(c.from.unitId);
+    if (!fromU) continue;
+    const fromDef = UnitRegistry.get(fromU.defId);
+    const fromPort = fromDef?.ports.find(p => p.portId === c.from.portId);
+    if (!fromPort) continue;
+    if (fromPort.type === StreamType.MATERIAL) {
+      matUF.union(c.from.unitId, c.to.unitId);
+      unitHasMat.add(c.from.unitId);
+      unitHasMat.add(c.to.unitId);
+    } else if (fromPort.type === StreamType.ELECTRICAL) {
+      elecUF.union(c.from.unitId, c.to.unitId);
+      unitHasElec.add(c.from.unitId);
+      unitHasElec.add(c.to.unitId);
+    }
+  }
+
+  // Also mark units that HAVE material/electrical ports even if unconnected
+  for (const [id, u] of scene.units) {
+    const def = UnitRegistry.get(u.defId);
+    if (!def) continue;
+    for (const p of def.ports) {
+      if (p.type === StreamType.MATERIAL) unitHasMat.add(id);
+      else if (p.type === StreamType.ELECTRICAL) unitHasElec.add(id);
+    }
+  }
+
+  // Assign island indices: material first, then electrical offset
+  const matRootToIdx = new Map();
+  let matIdx = 0;
+  const matIsland = new Map(); // unitId → island index
+  for (const id of scene.units.keys()) {
+    if (!unitHasMat.has(id)) continue;
+    const r = matUF.find(id);
+    if (!matRootToIdx.has(r)) matRootToIdx.set(r, matIdx++);
+    matIsland.set(id, matRootToIdx.get(r));
+  }
+
+  const elecRootToIdx = new Map();
+  let elecIdx = 0;
+  const elecIsland = new Map();
+  for (const id of scene.units.keys()) {
+    if (!unitHasElec.has(id)) continue;
+    const r = elecUF.find(id);
+    if (!elecRootToIdx.has(r)) elecRootToIdx.set(r, elecIdx++);
+    elecIsland.set(id, elecRootToIdx.get(r));
+  }
+
+  return { matIsland, elecIsland, matCount: matIdx };
+}
+
+// ── 10-colour palette for islands ──
+const _ISLAND_PALETTE = [
+  '#3b82f6','#ef4444','#22c55e','#f59e0b','#a855f7',
+  '#ec4899','#06b6d4','#f97316','#84cc16','#6366f1'
+];
+function _islandColor(idx) {
+  return _ISLAND_PALETTE[idx % _ISLAND_PALETTE.length];
+}
+
+// ── Resolve unit colour for current mode ──
+function _visUnitColor(u, def, islands) {
+  const mode = ui.colorBy;
+  if (mode === 'type') return def.color;
+
+  if (mode === 'islands' && islands) {
+    // Material island takes priority; fall back to electrical island
+    if (islands.matIsland.has(u.id))
+      return _islandColor(islands.matIsland.get(u.id));
+    if (islands.elecIsland.has(u.id))
+      return _islandColor(islands.matCount + islands.elecIsland.get(u.id));
+    return _VIS_DIM;
+  }
+
+  if (mode === 'material_electrical') {
+    // Does this unit have any material port?
+    const hasMat = def.ports.some(p => p.type === StreamType.MATERIAL);
+    return hasMat ? '#3b82f6' : _VIS_ELEC;
+  }
+
+  // Temperature, Pressure, Phase: need runtime data
+  const ud = scene.runtime?.unitData?.get(u.id);
+  const ps = ud ? _findPrimaryStream(ud, def) : null;
+
+  if (mode === 'temperature') {
+    return (ps && ps.T != null) ? (_visTempColor(ps.T) || _VIS_DIM) : _VIS_DIM;
+  }
+  if (mode === 'pressure') {
+    return (ps && ps.P != null) ? (_visPressColor(ps.P) || _VIS_DIM) : _VIS_DIM;
+  }
+  if (mode === 'phase') {
+    if (ps && ps.phase) return _VIS_PHASE[ps.phase] || _VIS_DIM;
+    // Electrical-only units with no phase → dim
+    return _VIS_DIM;
+  }
+
+  return def.color;
+}
+
+// ── Resolve stream colour for current mode ──
+// streamType: StreamType.MATERIAL or ELECTRICAL
+// stream: runtime stream data (may be null)
+// connFromUnitId, connToUnitId: for island lookup
+function _visStreamColor(streamType, stream, connFromUnitId, islands) {
+  const mode = ui.colorBy;
+
+  if (mode === 'type') {
+    return streamType === StreamType.ELECTRICAL ? _VIS_ELEC : _VIS_MAT_STREAM;
+  }
+
+  if (mode === 'islands' && islands) {
+    if (streamType === StreamType.MATERIAL && islands.matIsland.has(connFromUnitId))
+      return _islandColor(islands.matIsland.get(connFromUnitId));
+    if (streamType === StreamType.ELECTRICAL && islands.elecIsland.has(connFromUnitId))
+      return _islandColor(islands.matCount + islands.elecIsland.get(connFromUnitId));
+    return _VIS_DIM;
+  }
+
+  if (mode === 'material_electrical') {
+    return streamType === StreamType.ELECTRICAL ? _VIS_ELEC : '#3b82f6';
+  }
+
+  // T, P, Phase: only material streams have this data
+  if (streamType !== StreamType.MATERIAL || !stream) return _VIS_DIM;
+
+  if (mode === 'temperature' && stream.T != null)
+    return _visTempColor(stream.T) || _VIS_DIM;
+  if (mode === 'pressure' && stream.P != null)
+    return _visPressColor(stream.P) || _VIS_DIM;
+  if (mode === 'phase' && stream.phase)
+    return _VIS_PHASE[stream.phase] || _VIS_DIM;
+
+  return _VIS_DIM;
+}
+
+// ── Linear normaliser for flow/power sizing (per-frame min/max) ──
+function _visNormLinear(val, lo, hi) {
+  if (hi <= lo) return 0.5;
+  return Math.max(0, Math.min(1, (val - lo) / (hi - lo)));
+}
+
+// ── Zero-flow detection ──
+function _isZeroFlow(stream) {
+  if (!stream) return false;
+  if (stream.type === StreamType.MATERIAL) {
+    const fr = calculateStreamFlowrates(stream);
+    return fr && Number.isFinite(fr.mTotal) && fr.mTotal < 1e-9;
+  }
+  if (stream.type === StreamType.ELECTRICAL) {
+    return stream.actual !== undefined && Math.abs(stream.actual) < 0.1;
+  }
+  return false;
+}
+
 function drawConnections() {
   const g = svgEl('g', { id: 'connections' });
   
-  // [v10.1.0] Flow marker ID mapping (E3)
-  // Connection flow markers removed v10.5.0 — arrows use offset-path instead
+  // [v12.11.0] Pre-pass: cache stream data, compute flow/power min/max for sizing
+  const _streamCache = new Map(); // connId → stream ref
+  let mfMin = Infinity, mfMax = -Infinity;
+  let pwMin = Infinity, pwMax = -Infinity;
+  for (const c of scene.connections) {
+    const ud = scene.runtime?.unitData?.get(c.from.unitId);
+    const stream = ud?.ports?.[c.from.portId];
+    if (!stream) continue;
+    _streamCache.set(c.id, stream);
+    if (stream.type === StreamType.MATERIAL) {
+      const fr = calculateStreamFlowrates(stream);
+      if (fr && Number.isFinite(fr.mTotal) && fr.mTotal > 0) {
+        if (fr.mTotal < mfMin) mfMin = fr.mTotal;
+        if (fr.mTotal > mfMax) mfMax = fr.mTotal;
+      }
+    } else if (stream.type === StreamType.ELECTRICAL) {
+      const pw = Math.abs(stream.actual ?? stream.available ?? 0);
+      if (pw > 0 && Number.isFinite(pw)) {
+        if (pw < pwMin) pwMin = pw;
+        if (pw > pwMax) pwMax = pw;
+      }
+    }
+  }
+  if (!Number.isFinite(mfMin)) { mfMin = 0; mfMax = 0; }
+  if (!Number.isFinite(pwMin)) { pwMin = 0; pwMax = 0; }
+
+  // Size helpers
+  const _SW_MIN = 1.5, _SW_MAX = 8, _SW_DEF = 3;
+  function _connWidth(stream) {
+    if (!stream || ui.streamSizeBy === 'none') return _SW_DEF;
+    if (stream.type === StreamType.MATERIAL) {
+      const fr = calculateStreamFlowrates(stream);
+      if (fr && Number.isFinite(fr.mTotal) && fr.mTotal > 0)
+        return _SW_MIN + (_SW_MAX - _SW_MIN) * _visNormLinear(fr.mTotal, mfMin, mfMax);
+    } else if (stream.type === StreamType.ELECTRICAL) {
+      const pw = Math.abs(stream.actual ?? stream.available ?? 0);
+      if (pw > 0 && Number.isFinite(pw))
+        return _SW_MIN + (_SW_MAX - _SW_MIN) * _visNormLinear(pw, pwMin, pwMax);
+    }
+    return _SW_DEF;
+  }
+
+  // Island map (shared with drawUnits via closure — computed once per render)
+  const _islands = (ui.colorBy === 'islands') ? _visIslands() : null;
+  // Store on drawConnections for drawUnits to reuse
+  drawConnections._islands = _islands;
   
   // Draw existing connections
   for (const c of scene.connections) {
@@ -13237,8 +13704,10 @@ function drawConnections() {
     
     const pathD = `M${fx},${fy} C${c1x},${c1y} ${c2x},${c2y} ${tx},${ty}`;
 
-    // Get visual properties for this stream type
-    const visuals = StreamVisuals[fromPort.type];
+    // [v12.11.0] Visual mapping: colour + width from unified mode
+    const _stream = _streamCache.get(c.id);
+    const mappedColor = _visStreamColor(fromPort.type, _stream, c.from.unitId, _islands);
+    const mappedWidth = _connWidth(_stream);
     const isSelected = ui.selectedConnId === c.id;
     
     // Power streams (electrical) use dashed lines
@@ -13251,8 +13720,8 @@ function drawConnections() {
     const path = svgEl('path', {
       d: pathD,
       fill: 'none',
-      stroke: isSelected ? '#60a5fa' : visuals.color,
-      'stroke-width': isSelected ? 4 : 3,
+      stroke: isSelected ? '#60a5fa' : mappedColor,
+      'stroke-width': isSelected ? Math.max(4, mappedWidth + 1) : mappedWidth,
       'stroke-dasharray': isPowerStream ? '8,4' : 'none',
       cursor: isConnDimmed ? 'default' : 'pointer'
     });
@@ -13283,44 +13752,64 @@ function drawConnections() {
     const isReversed = fromPort.bidirectional &&
       (scene.runtime?.unitData?.get(c.from.unitId)?.ports?.[c.from.portId]?.actual ?? 0) < -1;
 
-    // [v10.5.2] Multi-arrow flow indicators — count based on chord length
-    const chordPx = Math.hypot(tx - fx, ty - fy);
-    const chordCells = chordPx / scene.tile;
-    const nArrows = _arrowCount(chordCells);
-    const arrowPositions = _arrowPositions(nArrows);
-    const arrowColor = isSelected ? '#60a5fa' : visuals.color;
-    const isPlaying = TimeClock.mode === 'playing' && SimSettings.animations;
-    // Precompute animation params once per connection (not per arrow)
-    const _refPx = 200;
-    const _baseSec = isPlaying ? (parseFloat(FLOW_ARROW_SPEEDS[SimSettings.playSpeed || 0]) || 3) : 0;
-    const _dur = isPlaying ? Math.max(0.3, Math.min(8, _baseSec * (chordPx / _refPx))) : 0;
-    // [v10.5.4] Global clock elapsed time for phase-continuous animation
-    const _elapsed = isPlaying ? (Date.now() - _playStartedAt) / 1000 : 0;
+    // [v12.12.0] Zero-flow: bold X cross replaces arrows (no animation)
+    const _zeroFlow = !isConnDimmed && _stream && _isZeroFlow(_stream);
 
-    for (let ai = 0; ai < nArrows; ai++) {
-      const pct = arrowPositions[ai];
-      const arrowG = svgEl('g', { 'pointer-events': 'none' });
-      if (isConnDimmed) arrowG.classList.add('conn-dimmed');
-      arrowG.appendChild(svgEl('path', {
-        d: 'M-5,-4 L5,0 L-5,4 Z',
-        fill: arrowColor
+    if (_zeroFlow) {
+      // Render X cross at bézier midpoint, coloured as per stream
+      const mx = 0.125*fx + 0.375*c1x + 0.375*c2x + 0.125*tx;
+      const my = 0.125*fy + 0.375*c1y + 0.375*c2y + 0.125*ty;
+      const sz = 7;  // half-size of the X
+      const crossG = svgEl('g', { 'pointer-events': 'none', class: 'zero-flow-cross' });
+      crossG.appendChild(svgEl('line', {
+        x1: mx - sz, y1: my - sz, x2: mx + sz, y2: my + sz, stroke: mappedColor
       }));
-      arrowG.style.offsetPath = `path('${pathD}')`;
-      // [v10.5.4] Reversed arrows flip position (e.g. 25% → 75%)
-      const displayPct = isReversed ? (1 - pct) : pct;
-      arrowG.style.offsetDistance = `${(displayPct * 100).toFixed(1)}%`;
-      arrowG.style.offsetRotate = 'auto';
-      arrowG.classList.add('flow-arrow');
-      if (isPlaying) {
-        arrowG.style.setProperty('--flow-duration', _dur + 's');
-        // [v10.5.4] Phase-continuous delay: elapsed + per-arrow stagger
-        const staggerOffset = (ai / nArrows) * _dur;
-        arrowG.style.animationDelay = `${-(_elapsed + staggerOffset)}s`;
-        arrowG.classList.add('flow-arrow-active');
-        // [v10.5.4] Reversed flow → reversed animation direction
-        if (isReversed) arrowG.style.animationDirection = 'reverse';
+      crossG.appendChild(svgEl('line', {
+        x1: mx + sz, y1: my - sz, x2: mx - sz, y2: my + sz, stroke: mappedColor
+      }));
+      g.appendChild(crossG);
+    } else {
+      // [v10.5.2] Multi-arrow flow indicators — count based on chord length
+      const chordPx = Math.hypot(tx - fx, ty - fy);
+      const chordCells = chordPx / scene.tile;
+      const nArrows = _arrowCount(chordCells);
+      const arrowPositions = _arrowPositions(nArrows);
+      const arrowColor = isSelected ? '#60a5fa' : mappedColor;
+      const arrowScale = mappedWidth / _SW_DEF; // [v12.11.0] scale arrows with stream width
+      const isPlaying = TimeClock.mode === 'playing' && SimSettings.animations;
+      // Precompute animation params once per connection (not per arrow)
+      const _refPx = 200;
+      const _baseSec = isPlaying ? (parseFloat(FLOW_ARROW_SPEEDS[SimSettings.playSpeed || 0]) || 3) : 0;
+      const _dur = isPlaying ? Math.max(0.3, Math.min(8, _baseSec * (chordPx / _refPx))) : 0;
+      // [v10.5.4] Global clock elapsed time for phase-continuous animation
+      const _elapsed = isPlaying ? (Date.now() - _playStartedAt) / 1000 : 0;
+
+      for (let ai = 0; ai < nArrows; ai++) {
+        const pct = arrowPositions[ai];
+        const arrowG = svgEl('g', { 'pointer-events': 'none' });
+        if (isConnDimmed) arrowG.classList.add('conn-dimmed');
+        arrowG.appendChild(svgEl('path', {
+          d: 'M-5,-4 L5,0 L-5,4 Z',
+          fill: arrowColor,
+          transform: arrowScale !== 1 ? `scale(${arrowScale.toFixed(2)})` : undefined
+        }));
+        arrowG.style.offsetPath = `path('${pathD}')`;
+        // [v10.5.4] Reversed arrows flip position (e.g. 25% → 75%)
+        const displayPct = isReversed ? (1 - pct) : pct;
+        arrowG.style.offsetDistance = `${(displayPct * 100).toFixed(1)}%`;
+        arrowG.style.offsetRotate = 'auto';
+        arrowG.classList.add('flow-arrow');
+        if (isPlaying) {
+          arrowG.style.setProperty('--flow-duration', _dur + 's');
+          // [v10.5.4] Phase-continuous delay: elapsed + per-arrow stagger
+          const staggerOffset = (ai / nArrows) * _dur;
+          arrowG.style.animationDelay = `${-(_elapsed + staggerOffset)}s`;
+          arrowG.classList.add('flow-arrow-active');
+          // [v10.5.4] Reversed flow → reversed animation direction
+          if (isReversed) arrowG.style.animationDirection = 'reverse';
+        }
+        g.appendChild(arrowG);
       }
-      g.appendChild(arrowG);
     }
   }
 
@@ -13377,6 +13866,9 @@ function drawConnections() {
 function drawUnits() {
   const g = svgEl('g', { id: 'units' });
   
+  // [v12.11.0] Reuse island map computed by drawConnections (runs first in render())
+  const _islands = drawConnections._islands;
+
   for (const [id, u] of scene.units) {
     const def = UnitRegistry.get(u.defId);
     const pres = getPresentation(def, u);
@@ -13403,14 +13895,19 @@ function drawUnits() {
       }
     }
 
-    // Unit rectangle
+    // [v12.12.0] Selection glow class
+    const isUnitSelected = _isSelected(id);
+    if (isUnitSelected) group.classList.add('unit-selected');
+
+    // [v12.11.0] Unit rectangle — colour driven by unified visual mapping
+    const unitFill = _visUnitColor(u, def, _islands);
     const rect = svgEl('rect', {
       x: wx, y: wy,
       width: ww, height: wh,
       rx: 8,
-      fill: def.color,
-      stroke: _isSelected(id) ? '#60a5fa' : '#1e293b',
-      'stroke-width': 3,
+      fill: unitFill,
+      stroke: isUnitSelected ? '#60a5fa' : '#1e293b',
+      'stroke-width': isUnitSelected ? 4 : 3,
       cursor: isDimmed ? 'default' : 'grab'
     });
 
@@ -13514,6 +14011,7 @@ function drawUnits() {
     group.appendChild(ico);
 
     // [v9.0.3] Tank fill indicator — dynamic rectangle showing inventory level
+    // [v12.12.0] Enhanced contrast and text size
     if (def.defId === 'tank') {
       const ud = scene.runtime?.unitData?.get(id);
       const fillPct = Math.min(100, Math.max(0, ud?.last?.fillPct || 0));
@@ -13528,7 +14026,7 @@ function drawUnits() {
           height: fillH,
           rx: 2,
           fill: '#06b6d4',  // VESSEL category cyan
-          opacity: 0.25,
+          opacity: 0.4,
           'pointer-events': 'none'
         });
         group.appendChild(fillRect);
@@ -13539,10 +14037,10 @@ function drawUnits() {
           x: wx + ww / 2,
           y: wy + wh - 6,
           'text-anchor': 'middle',
-          'font-size': 9,
-          'font-weight': 600,
-          fill: '#06b6d4',
-          opacity: 0.8,
+          'font-size': 12,
+          'font-weight': 700,
+          fill: '#e2e8f0',
+          opacity: 0.9,
           'pointer-events': 'none'
         });
         fillLabel.textContent = `${fillPct.toFixed(0)}%`;
@@ -17047,6 +17545,11 @@ function _rebuildInspectorContent() {
       if (!nameInput.value.trim()) { u.name = `${def.name} ${u.id.slice(-2)}`; nameInput.value = u.name; }
     });
     titleDiv.appendChild(nameInput);
+    // [v12.12.0] Zoom-to-unit button (left side of title)
+    const zoomBtn = el('button', { class: 'ins-zoom-btn', html: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="7" cy="7" r="4.5"/><line x1="10.2" y1="10.2" x2="14" y2="14"/></svg>' });
+    zoomBtn.title = 'Zoom to unit';
+    zoomBtn.addEventListener('click', () => zoomToUnit(u.id));
+    titleDiv.insertBefore(zoomBtn, nameInput);
     const delBtn = el('button', { class: 'ins-delete-btn', html: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 4h12M5.3 4V2.7a1 1 0 011-1h3.4a1 1 0 011 1V4M6.5 7v4.5M9.5 7v4.5M3.5 4l.7 9a1.5 1.5 0 001.5 1.4h4.6a1.5 1.5 0 001.5-1.4l.7-9"/></svg>' });
     delBtn.title = 'Delete unit';
     delBtn.addEventListener('click', () => deleteSelected());
@@ -18359,16 +18862,17 @@ function afterSolve(solveResult) {
 }
 
 // [v10.5.4] Subtle play-tick pulse — brief opacity dim, topo-ordered with tight stagger
+// [v12.12.0] Subtle play-tick glow — gentle brightness wave, topo-ordered
 function _triggerPlayTickPulse() {
   const order = _visualTopoOrder();
   if (order.length === 0) return;
-  const stagger = Math.min(30, 200 / order.length);  // tighter than manual pulse
+  const stagger = Math.min(50, 350 / order.length);
   order.forEach((uid, i) => {
     setTimeout(() => {
       const g = document.querySelector(`g[data-uid="${uid}"]`);
       if (!g) return;
-      g.classList.remove('unit-play-tick');  // reset if still active
-      void g.offsetWidth;                    // force reflow
+      g.classList.remove('unit-play-tick');
+      void g.offsetWidth;
       g.classList.add('unit-play-tick');
       g.addEventListener('animationend',
         () => g.classList.remove('unit-play-tick'), { once: true });
@@ -18376,13 +18880,11 @@ function _triggerPlayTickPulse() {
   });
 }
 
-// [v10.5.0] AN-3: Sequential topo flash — uses _visualTopoOrder from block 1
+// [v12.12.0] Sequential topo glow — slower, gentler wave on manual test/step
 function _triggerTopoPulse() {
   const order = _visualTopoOrder();
   if (order.length === 0) return;
-
-  const stagger = Math.min(80, 600 / order.length);  // ms between flashes
-
+  const stagger = Math.min(150, 1200 / order.length);
   order.forEach((uid, i) => {
     setTimeout(() => {
       const g = document.querySelector(`g[data-uid="${uid}"]`);
@@ -18526,7 +19028,7 @@ document.getElementById('btnResetView').addEventListener('click', () => resetVie
 const btnUtilities = document.getElementById('btnUtilities');
 btnUtilities.addEventListener('click', () => {
   ui.showUtilities = !ui.showUtilities;
-  btnUtilities.style.opacity = ui.showUtilities ? '1' : '0.35';
+  btnUtilities.classList.toggle('tbtn-dim', !ui.showUtilities);
   // Deselect if current selection is a dimmed utility
   if (!ui.showUtilities) {
     if (ui.selectedUnitId) {
@@ -18561,9 +19063,53 @@ btnUtilities.addEventListener('click', () => {
 const btnStickerLines = document.getElementById('btnStickerLines');
 btnStickerLines.addEventListener('click', () => {
   ui.showStickers = !ui.showStickers;
-  btnStickerLines.style.opacity = ui.showStickers ? '1' : '0.35';
+  btnStickerLines.classList.toggle('tbtn-dim', !ui.showStickers);
   render();
 });
+
+// [v12.11.0] Visual mapping dropdown menus
+(function initVisMenus() {
+  const menuDefs = [
+    { btnId: 'btnColor',      menuId: 'menuColor',      stateKey: 'colorBy',      dimVal: null },
+    { btnId: 'btnStreamSize', menuId: 'menuStreamSize',  stateKey: 'streamSizeBy', dimVal: 'none' }
+  ];
+  const btns = menuDefs.map(d => document.getElementById(d.btnId));
+  const menus = menuDefs.map(d => document.getElementById(d.menuId));
+
+  function closeAll() { menus.forEach(m => m.classList.remove('open')); }
+
+  function syncChecks(menu, val) {
+    menu.querySelectorAll('.vis-menu-item').forEach(it => {
+      const active = it.dataset.val === val;
+      it.classList.toggle('active', active);
+      it.querySelector('.vm-check').textContent = active ? '✓' : '';
+    });
+  }
+
+  menuDefs.forEach((d, i) => {
+    btns[i].addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      const wasOpen = menus[i].classList.contains('open');
+      closeAll();
+      if (!wasOpen) menus[i].classList.add('open');
+    });
+
+    menus[i].querySelectorAll('.vis-menu-item').forEach(item => {
+      item.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        ui[d.stateKey] = item.dataset.val;
+        syncChecks(menus[i], ui[d.stateKey]);
+        if (d.dimVal !== null) btns[i].classList.toggle('tbtn-dim', ui[d.stateKey] === d.dimVal);
+        closeAll();
+        render();
+      });
+    });
+  });
+
+  document.addEventListener('pointerdown', (ev) => {
+    if (!btns.some(b => b.contains(ev.target))) closeAll();
+  });
+})();
 
 // Status indicator help button
 // [v10.3.1] Traffic light gear → solver modal
