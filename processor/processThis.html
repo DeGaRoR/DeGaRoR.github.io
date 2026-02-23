@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v12.13.0
+  processThis v12.15.1
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   17 invariants. Violating any is a regression regardless of context.
@@ -255,6 +255,29 @@
            Q_max = UA × (T_in − T_amb).  Default: unlimited (Infinity).
            When Q limited, T_out > setpoint + MINOR warning.
            New: T304–T310 (7 tests).
+
+  v12.15.1 Generic port labels — optional `label` field on port definitions.
+           Rendered at 45° top-right of port dot for any port with a label.
+           Labels added: tank overflow, hub elec_surplus, flash drum
+           vap_out ("V") and liq_out ("L").
+
+  v12.15.0 Liquid level rework, purge label fix.
+           Liquid fill: opaque blue (#3b82f6 @ 0.85), generous inset (8px)
+             so vessel boundary always visible even at 100%.
+           Wavy surface pattern on liquid top edge (SVG sine wave).
+           Animated fill: SVG <animate> smoothly transitions from previous
+             level to current over 0.6s ease-in-out on each solve.
+           Color-by button label: "Style" → "Type" for consistency.
+           Purge "P" label: repositioned to 45° top-right of port dot,
+             clear of bezier connection paths.
+
+  v12.14.0 Level indicators, purge ports, arrow rework.
+           Tank fill: plain blue (#3b82f6) for clear visibility.
+           Flash drum: liquid level indicator + percentage (1-beta).
+           Purge port labels: "P" marker on tank overflow, hub surplus.
+           Arrow rework: bordered arrows (dark stroke + coloured fill)
+             when stream width ≥ 6px. Removes arrow scaling entirely.
+             Consistent arrow size regardless of stream width.
 
   v12.13.0 Stream sizing rework — 3 discrete levels (S/M/L) by mass flow.
            Size button icon reflects current setting (dashed/thin/med/thick).
@@ -700,7 +723,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>processThis — v12.13.0</title>
+  <title>processThis — v12.15.1</title>
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
@@ -2286,10 +2309,10 @@
       <!-- Visual mapping cluster -->
       <div class="btn-cluster">
         <button class="tbtn vis-menu-anchor tbtn-label" id="btnColor" data-tip="Color by…">
-          <span id="btnColorLabel">Style</span>
+          <span id="btnColorLabel">Type</span>
           <div class="vis-menu" id="menuColor">
             <div class="vis-menu-title">Color by</div>
-            <div class="vis-menu-item active" data-val="type" data-label="Style"><span class="vm-check">✓</span>Type</div>
+            <div class="vis-menu-item active" data-val="type" data-label="Type"><span class="vm-check">✓</span>Type</div>
             <div class="vis-menu-item" data-val="islands" data-label="Island"><span class="vm-check"></span>Islands</div>
             <div class="vis-menu-item" data-val="material_electrical" data-label="Elec"><span class="vm-check"></span>Material / Electrical</div>
             <div class="vis-menu-item" data-val="temperature" data-label="T"><span class="vm-check"></span><span class="vm-swatch" style="background:linear-gradient(90deg,#1e3a8a,#22d3ee,#34d399,#fde047,#ef4444)"></span>Temperature</div>
@@ -7449,7 +7472,7 @@ UnitRegistry.register('tank', {
   ports: [
     { portId: 'mat_in',   dir: PortDir.IN,  type: StreamType.MATERIAL, x: 0, y: 2 },
     { portId: 'mat_out',  dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 2 },
-    { portId: 'overflow', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 1, y: 0 }
+    { portId: 'overflow', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 1, y: 0, label: 'overflow' }
   ],
   // [v10.9.2] Presentation layer
   presentations: {
@@ -7827,7 +7850,7 @@ UnitRegistry.register('power_hub', {
   ports: [
     { portId: 'elec_in',  dir: PortDir.IN,  type: StreamType.ELECTRICAL, x: 0, y: 1.5, multiConnect: true },
     { portId: 'elec_out', dir: PortDir.OUT, type: StreamType.ELECTRICAL, x: 2, y: 1.5, multiConnect: true },
-    { portId: 'elec_surplus', dir: PortDir.OUT, type: StreamType.ELECTRICAL, x: 1, y: 0 }
+    { portId: 'elec_surplus', dir: PortDir.OUT, type: StreamType.ELECTRICAL, x: 1, y: 0, label: 'overflow' }
   ],
   // [v10.9.2] Presentation layer
   presentations: {
@@ -9236,8 +9259,8 @@ UnitRegistry.register('flash_drum', {
   h: 3,
   ports: [
     { portId: 'mat_in', dir: PortDir.IN, type: StreamType.MATERIAL, x: 0, y: 1 },
-    { portId: 'vap_out', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 0 },
-    { portId: 'liq_out', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 3 }
+    { portId: 'vap_out', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 0, label: 'V' },
+    { portId: 'liq_out', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 3, label: 'L' }
   ],
   // [v10.9.2] Presentation layer
   presentations: {
@@ -13780,7 +13803,9 @@ function drawConnections() {
       const nArrows = _arrowCount(chordCells);
       const arrowPositions = _arrowPositions(nArrows);
       const arrowColor = isSelected ? '#60a5fa' : mappedColor;
-      const arrowScale = mappedWidth / _SW_DEF; // [v12.11.0] scale arrows with stream width
+      // [v12.14.0] Bordered arrows when stream is wide (≥6px), so arrows
+      // remain visible against the thick line. No scaling — consistent size.
+      const _arrowBordered = mappedWidth >= 6;
       const isPlaying = TimeClock.mode === 'playing' && SimSettings.animations;
       // Precompute animation params once per connection (not per arrow)
       const _refPx = 200;
@@ -13793,11 +13818,16 @@ function drawConnections() {
         const pct = arrowPositions[ai];
         const arrowG = svgEl('g', { 'pointer-events': 'none' });
         if (isConnDimmed) arrowG.classList.add('conn-dimmed');
-        arrowG.appendChild(svgEl('path', {
+        const arrowAttrs = {
           d: 'M-5,-4 L5,0 L-5,4 Z',
-          fill: arrowColor,
-          transform: arrowScale !== 1 ? `scale(${arrowScale.toFixed(2)})` : undefined
-        }));
+          fill: arrowColor
+        };
+        if (_arrowBordered) {
+          arrowAttrs.stroke = '#0b0e14';
+          arrowAttrs['stroke-width'] = 1.5;
+          arrowAttrs['stroke-linejoin'] = 'round';
+        }
+        arrowG.appendChild(svgEl('path', arrowAttrs));
         arrowG.style.offsetPath = `path('${pathD}')`;
         // [v10.5.4] Reversed arrows flip position (e.g. 25% → 75%)
         const displayPct = isReversed ? (1 - pct) : pct;
@@ -13866,6 +13896,79 @@ function drawConnections() {
   }
 
   svg.appendChild(g);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   [v12.15.0] LIQUID LEVEL RENDERING
+   Shared by tank and flash drum. Opaque blue fill with wavy surface,
+   animated transitions from previous fill level via SVG <animate>.
+   ═══════════════════════════════════════════════════════════════════════════ */
+const _prevFillPct = new Map(); // unitId → previous fill percentage
+const _LIQUID_COLOR = '#3b82f6';
+const _LIQUID_PAD = 8; // generous inset so vessel boundary shows even at 100%
+
+function _drawLiquidFill(group, unitId, pct, wx, wy, ww, wh) {
+  const pad = _LIQUID_PAD;
+  const x0 = wx + pad, y0 = wy + pad;
+  const fw = ww - 2 * pad;  // fill width
+  const fh = wh - 2 * pad;  // fillable height
+  const fillH = fh * pct / 100;
+  const prev = _prevFillPct.get(unitId);
+  _prevFillPct.set(unitId, pct);
+
+  if (fillH <= 0) return;
+
+  // Surface Y (top of liquid)
+  const surfY = y0 + (fh - fillH);
+  const botY = y0 + fh;
+  const amp = 2.5; // wave amplitude in px
+
+  // Build wavy-top path: 2 sine-wave cycles across the width
+  // Uses cubic beziers: C(control1, control2, endpoint)
+  const w4 = fw / 4;
+  const d = `M${x0},${surfY} ` +
+    `C${x0 + w4 * 0.5},${surfY - amp} ${x0 + w4 * 0.5},${surfY + amp} ${x0 + w4},${surfY} ` +
+    `C${x0 + w4 * 1.5},${surfY - amp} ${x0 + w4 * 1.5},${surfY + amp} ${x0 + w4 * 2},${surfY} ` +
+    `C${x0 + w4 * 2.5},${surfY - amp} ${x0 + w4 * 2.5},${surfY + amp} ${x0 + w4 * 3},${surfY} ` +
+    `C${x0 + w4 * 3.5},${surfY - amp} ${x0 + w4 * 3.5},${surfY + amp} ${x0 + fw},${surfY} ` +
+    `L${x0 + fw},${botY} L${x0},${botY} Z`;
+
+  const fillPath = svgEl('path', {
+    d, fill: _LIQUID_COLOR, opacity: 0.85, 'pointer-events': 'none'
+  });
+
+  // Animate from previous level if changed
+  if (prev !== undefined && prev !== pct && prev >= 0) {
+    const prevFillH = fh * prev / 100;
+    const prevSurfY = y0 + (fh - prevFillH);
+    const dOld = `M${x0},${prevSurfY} ` +
+      `C${x0 + w4 * 0.5},${prevSurfY - amp} ${x0 + w4 * 0.5},${prevSurfY + amp} ${x0 + w4},${prevSurfY} ` +
+      `C${x0 + w4 * 1.5},${prevSurfY - amp} ${x0 + w4 * 1.5},${prevSurfY + amp} ${x0 + w4 * 2},${prevSurfY} ` +
+      `C${x0 + w4 * 2.5},${prevSurfY - amp} ${x0 + w4 * 2.5},${prevSurfY + amp} ${x0 + w4 * 3},${prevSurfY} ` +
+      `C${x0 + w4 * 3.5},${prevSurfY - amp} ${x0 + w4 * 3.5},${prevSurfY + amp} ${x0 + fw},${prevSurfY} ` +
+      `L${x0 + fw},${botY} L${x0},${botY} Z`;
+
+    const anim = document.createElementNS('http://www.w3.org/2000/svg', 'animate');
+    anim.setAttribute('attributeName', 'd');
+    anim.setAttribute('from', dOld);
+    anim.setAttribute('to', d);
+    anim.setAttribute('dur', '0.6s');
+    anim.setAttribute('fill', 'freeze');
+    anim.setAttribute('calcMode', 'spline');
+    anim.setAttribute('keySplines', '0.25 0.1 0.25 1');
+    fillPath.appendChild(anim);
+  }
+
+  group.appendChild(fillPath);
+
+  // Percentage text (always at bottom, above fill)
+  const label = svgEl('text', {
+    x: wx + ww / 2, y: wy + wh - 8,
+    'text-anchor': 'middle', 'font-size': 12, 'font-weight': 700,
+    fill: '#e2e8f0', opacity: 0.9, 'pointer-events': 'none'
+  });
+  label.textContent = `${pct.toFixed(0)}%`;
+  group.appendChild(label);
 }
 
 function drawUnits() {
@@ -14015,42 +14118,23 @@ function drawUnits() {
     
     group.appendChild(ico);
 
-    // [v9.0.3] Tank fill indicator — dynamic rectangle showing inventory level
-    // [v12.12.0] Enhanced contrast and text size
-    if (def.defId === 'tank') {
-      const ud = scene.runtime?.unitData?.get(id);
-      const fillPct = Math.min(100, Math.max(0, ud?.last?.fillPct || 0));
-      const pad = 4;  // padding inside unit rect
-      const fillableH = wh - 2 * pad;
-      const fillH = fillableH * fillPct / 100;
-      if (fillH > 0) {
-        const fillRect = svgEl('rect', {
-          x: wx + pad,
-          y: wy + pad + (fillableH - fillH),  // fill from bottom
-          width: ww - 2 * pad,
-          height: fillH,
-          rx: 2,
-          fill: '#06b6d4',  // VESSEL category cyan
-          opacity: 0.4,
-          'pointer-events': 'none'
-        });
-        group.appendChild(fillRect);
+    // [v12.15.0] Liquid level rendering (shared by tank & flash drum)
+    const _fillPctForUnit = (() => {
+      if (def.defId === 'tank') {
+        const ud = scene.runtime?.unitData?.get(id);
+        return ud?.last?.fillPct != null ? Math.min(100, Math.max(0, ud.last.fillPct)) : -1;
       }
-      // Fill percentage text
-      if (fillPct > 0) {
-        const fillLabel = svgEl('text', {
-          x: wx + ww / 2,
-          y: wy + wh - 6,
-          'text-anchor': 'middle',
-          'font-size': 12,
-          'font-weight': 700,
-          fill: '#e2e8f0',
-          opacity: 0.9,
-          'pointer-events': 'none'
-        });
-        fillLabel.textContent = `${fillPct.toFixed(0)}%`;
-        group.appendChild(fillLabel);
+      if (def.defId === 'flash_drum') {
+        const ud = scene.runtime?.unitData?.get(id);
+        const beta = ud?.last?.beta;
+        return (beta !== undefined && Number.isFinite(beta))
+          ? Math.min(100, Math.max(0, (1 - beta) * 100)) : -1;
       }
+      return -1;
+    })();
+
+    if (_fillPctForUnit >= 0) {
+      _drawLiquidFill(group, id, _fillPctForUnit, wx, wy, ww, wh);
     }
 
     // Unit label (using actual unit name)
@@ -14204,6 +14288,19 @@ function drawUnits() {
       } // end if (!isDimmed)
 
       group.appendChild(circle);
+
+      // [v12.15.1] Generic port label — rendered for any port with a `label` field
+      if (p.label) {
+        const plbl = svgEl('text', {
+          x: wp.x + 12, y: wp.y - 12,
+          'text-anchor': 'start', 'dominant-baseline': 'central',
+          'font-size': 9, 'font-weight': 600,
+          fill: portVisuals.portColor, opacity: 0.65,
+          'pointer-events': 'none'
+        });
+        plbl.textContent = p.label;
+        group.appendChild(plbl);
+      }
 
       // Directional arrow - orient based on which edge the port is on
       const portEdge = getPortEdge(portPos, pres);
@@ -19097,7 +19194,7 @@ btnStickerLines.addEventListener('click', () => {
   // Update color button text from active menu item's data-label
   function updateColorLabel() {
     const active = menus[0].querySelector('.vis-menu-item.active');
-    if (active && colorLabel) colorLabel.textContent = active.dataset.label || 'Style';
+    if (active && colorLabel) colorLabel.textContent = active.dataset.label || 'Type';
   }
 
   // Update size button icon: dashed=none, thin=s, medium=m, thick=l
