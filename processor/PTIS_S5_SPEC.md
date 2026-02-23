@@ -17,7 +17,7 @@ iteration).
 
 **Risk:** High. Largest stage by scope. Core architectural change to
 how flow originates. Mitigated by algebraic-only solver (no iteration),
-phase-gated rollout, and 83 dedicated tests.
+phase-gated rollout, and 91 dedicated tests.
 
 **Dependencies:** S3 (PR liquid density for `computeTankState` headspace
 calculation). S1 (alarm infrastructure for pressure alarms). S2
@@ -45,7 +45,7 @@ flow control). S5c splitter manifold on critical path to S8.
 - Splitter manifold (N-port, ratio + flow_controlled modes)
 - Mixer manifold (N-port passive)
 - `allocateByPriority()` reused from S2 for flow curtailment
-- ~435 tests (352 + 83 new)
+- ~443 tests (352 + 91 new)
 
 ---
 
@@ -67,6 +67,45 @@ computed.
 with `pressure.role = 'none'`. Engineering units (reservoir, valve,
 process units) participate. Both can coexist. A visual indicator marks
 non-participating units.
+
+**Floating zone rule:** When a pressure zone contains no anchors (all
+connected units have `role = 'none'`), the pressure-flow layer is
+skipped entirely for that zone. Flow originates from source tick
+functions exactly as in pre-S5: each source stamps Q on its outlet,
+and the sequential solver propagates it through downstream units
+unchanged. A floating zone produces an INFO alarm ("No pressure
+anchor — using ideal flow") but never blocks Step/Play. An
+all-ideal flowsheet (source → process units → sink) runs identically
+to v12 behavior. This is the backward-compatibility guarantee.
+
+**Zone boundary at role=none interfaces:** BFS pressure propagation
+stops when it reaches a port whose wire connects to a `role = 'none'`
+unit. That port becomes an open boundary of the pressure zone.
+Consequences:
+
+- **Ideal source feeding a pressure zone:** The source tick stamps Q.
+  The pressure solver does not compute Q for that inlet — it accepts
+  the source-stamped value as an external feed. ΔP across downstream
+  passthrough units is computed from that Q (for display and alarms)
+  but does not override the stamped flow. If the resulting pressure
+  at the zone's anchor conflicts with the stamped flow's implied
+  pressure, an INFO alarm notes the inconsistency but flow proceeds.
+  This lets players prototype with ideal sources before graduating
+  to reservoirs.
+- **Pressure zone feeding an ideal sink:** The path solver computes Q
+  to the zone boundary. The ideal sink accepts whatever arrives. No
+  anchor needed on the sink side.
+- **Mixed flowsheet:** Each zone is solved independently. Ideal zones
+  use stamped flow. Pressure zones use the algebraic solver. The two
+  never interfere.
+
+**Per-zone isolation on errors:** If a pressure zone has an
+unresolvable conflict (multiple anchors at incompatible pressures),
+that zone's flow is set to zero on all paths within it, with ERROR
+alarms on each affected connection. **Other zones solve normally.**
+The player can still Step to observe healthy parts of the flowsheet
+while debugging the broken zone. Test (Simulate) always runs
+regardless of errors in any zone.
 
 ---
 
@@ -104,20 +143,30 @@ tolerance.
 solves in O(n) BFS + O(paths) algebra. Deterministic results.
 *Tests: T-PS78 (30 units < 50ms)*
 
+**INV-6. Backward compatibility.** Any flowsheet that uses only
+`role = 'none'` units (sources, sinks, process units without
+reservoirs) produces bit-identical output to the pre-S5 solver.
+The pressure-flow layer is transparent — it adds capability without
+changing existing behavior. All 352 pre-S5 tests pass unchanged.
+*Tests: T-PS43 (floating zone stamped Q), T-PS48 (pressure layer
+skipped), T-PS80–T-PS82 (ideal-only regression), T-PS87 (full
+pre-S5 regression gate)*
+
 ---
 
 ## Phased Rollout
 
-The spec is implemented in 4 phases within 2 sub-sessions:
+The spec is implemented in 5 phases within 2 sub-sessions:
 
 | Phase | Scope | Features | Tests |
 |-------|-------|----------|-------|
 | 1 | Vessel | computeTankState, reservoir, atmosphere_sink | T-PS01–T-PS23 (23) |
 | 2 | Network structure | Pressure roles, k resistance, valve enhancement, UnionFind, topology analysis | T-PS24–T-PS43 (20) |
 | 3 | Propagation + solver | BFS, algebraic path solver, branching, density correction | T-PS44–T-PS64 (21) |
-| 4 | Gating + UX | Production gating, traffic light, connection-time analysis, demo scene | T-PS65–T-PS79 (15) |
+| 4 | Gating + UX | Per-zone isolation, traffic light, connection-time analysis, demo scene | T-PS65–T-PS79 (15) |
+| 5 | Backward compat + isolation | Ideal-only regression, mixed flowsheets, per-zone isolation | T-PS80–T-PS87 (8) |
 
-**S5a** covers Phases 1–2 (4 sessions). **S5b** covers Phases 3–4 (3 sessions).
+**S5a** covers Phases 1–2 (4 sessions). **S5b** covers Phases 3–5 (3 sessions).
 
 ---
 
@@ -448,8 +497,22 @@ function analyzePressureTopology(scene) { ... }
 
 Zones = connected components. Each zone has 0..N anchors.
 Multiple anchors at same P (within tolerance) → OK.
-Multiple anchors at different P → conflict ERROR.
-No anchors → floating zone (INFO, ideal units present).
+Multiple anchors at different P → conflict ERROR (per-zone isolation:
+flow zeroed in this zone only, other zones unaffected — see Design
+Principles §Per-zone isolation).
+No anchors → floating zone (INFO, ideal units present — pressure-flow
+layer skipped, source-stamped Q used, see §Floating zone rule).
+
+**Zone boundary detection:** `buildPressureNodes` only creates nodes
+for ports on participating units (`role !== 'none'`). Wires to
+`role = 'none'` units are recorded as boundary edges. For each
+boundary edge, the analysis returns:
+- `boundaryFeeds`: Map of zone → list of `{ port, direction: 'in'|'out' }`
+  identifying where ideal sources inject flow into or ideal sinks
+  extract flow from the zone.
+
+The path solver uses `boundaryFeeds` to accept source-stamped Q at
+inlet boundaries and terminate paths at outlet boundaries.
 
 ---
 
@@ -512,16 +575,24 @@ default (fixed T_amb for debugging).
  * Seeds from anchors, traverses drop/passthrough/boost units.
  * Bidirectional: forward (know P_in → compute P_out) and
  * reverse (know P_out → infer P_in).
+ * Stops at zone boundaries (ports wired to role='none' units).
+ * Skips floating zones entirely (no anchors → source-stamped flow).
  */
 function propagatePressures(scene) {
   // 1. Seed anchor pressures
-  // 2. BFS queue: process each zone
-  // 3. For each edge:
+  // 2. For each zone:
+  //    - If zone has no anchors (floating): skip. Mark as floating.
+  //    - If zone has conflicting anchors: zero all flows, ERROR alarms.
+  //      Do NOT propagate BFS in this zone — other zones unaffected.
+  // 3. BFS queue: process each healthy zone
+  // 4. For each edge:
   //    - drop: P_out = P_in − ΔP
   //    - passthrough: P_out = P_in − k×Q² (Q from previous tick or 0)
   //    - boost: P_out = P_in + ΔP_boost
-  // 4. Conflict detection at tolerance thresholds
-  // 5. Write P to each port in scene.runtime
+  //    - boundary edge (to role=none): stop. Do not propagate beyond.
+  // 5. Conflict detection at tolerance thresholds
+  // 6. Write P to each port in scene.runtime
+  //    (floating zone ports: P = undefined, not displayed)
 }
 ```
 
@@ -581,16 +652,33 @@ alarm (S2). Below minimum → surge alarm (S1 limits).
 
 ### F-011. Production Gating
 
+**Per-zone isolation (not global blocking).** A pressure ERROR in one
+zone does not block the entire flowsheet. The solver handles broken
+zones by zeroing their flow and raising ERROR alarms. Healthy zones
+solve normally. The player can Step/Play to observe the working parts
+while debugging the broken zone.
+
 ```javascript
-// In TimeClock step/play gate check:
-const pressureErrors = AlarmSystem.getActive()
-  .filter(a => a.category === 'PRESSURE' && a.severity === 'ERROR');
-if (pressureErrors.length > 0) {
-  // Block Step/Play, show message
-  return { blocked: true, reason: pressureErrors[0].message };
+// In propagatePressures(), per zone:
+if (zone.hasConflict) {
+  zone.paths.forEach(p => p.Q = 0);
+  zone.units.forEach(u => AlarmSystem.raise(u.id, {
+    category: 'PRESSURE', severity: 'ERROR',
+    message: `Pressure conflict in zone: ${zone.conflictDescription}`
+  }));
+  // This zone is dead — other zones proceed normally.
 }
-// Simulation (Test button) always runs — never blocked
+// Floating zones (no anchors) are not errors — skip pressure layer,
+// source-stamped flow proceeds in sequential solver step.
 ```
+
+**Step/Play is only blocked by CATASTROPHIC alarms** (e.g., overfull
+vessel, structural integrity). Pressure ERRORs are serious but
+survivable — the affected zone has zero flow, which the player can
+see and fix.
+
+**Test (Simulate) always runs** — never blocked by any alarm severity.
+This is the player's diagnostic tool.
 
 ### F-012. Traffic Light + Canvas
 
@@ -628,20 +716,31 @@ matching, inventory depletion, safety venting.
 ```
 1. computeTankState() on all tanks/reservoirs → anchor P
 2. BFS pressure propagation → zone P, path structure
+   - Floating zones (no anchors): skip. Mark as floating.
+   - Conflicting zones: zero all flows in zone, ERROR alarms.
+     Other zones unaffected.
+   - Boundary edges (to role=none units): BFS stops at boundary.
 3. For each reservoir/tank outlet with opening > 0:
-   a. Trace path(s) to downstream anchor(s)
+   a. Trace path(s) to downstream anchor(s) or boundary
    b. Sum K_path, ΔP_fixed (valves, boosts)
    c. Compute ΔP_static
    d. If branching: solve P_junction (algebra or bisection)
    e. Compute Q per path. Clamp ≥ 0.
+   f. At inlet boundaries: accept source-stamped Q as external feed.
 4. Set flow on each outlet port → propagate through units sequentially
+   - Floating zones: sources stamp Q here (pre-S5 behavior, unchanged)
+   - Pressure zones: Q already computed in step 3
 5. Units tick: reactions, heat exchange, phase equilibrium
 6. Update tank inventories: n += (Σn_in − Σn_out) × dt
 
-Steps 1–3: pressure-flow layer (new).
-Steps 4–5: existing sequential solver (unchanged).
+Steps 1–3: pressure-flow layer (new). Skipped for floating zones.
+Steps 4–5: existing sequential solver (unchanged). Handles all zones.
 Step 6: inventory integration (enhanced).
 ```
+
+**Key guarantee:** For an all-ideal flowsheet (every zone floating),
+steps 1–3 do nothing. The tick reduces to steps 4–5–6, which is
+exactly the pre-S5 solver. Output is bit-identical to v12.
 
 ---
 
@@ -661,9 +760,26 @@ Step 6: inventory integration (enhanced).
 **Scene import:** Map old tank port IDs if needed. Old source/sink/valve
 unchanged. No defId renames.
 
+**"Deprecate in palette" means:**
+
+- **Campaign mode:** Sources/sinks hidden from palette. Missions use
+  reservoir + atmosphere_sink exclusively. Old scenes containing sources
+  still load and work (backward compat) but new placements are blocked.
+- **Sandbox mode:** Sources/sinks remain visible in the palette with an
+  "ideal" badge (dimmed border, italic label). They are grouped under
+  an "Ideal / Legacy" subsection at the bottom of the relevant category.
+  Reservoir and atmosphere_sink appear above them as the recommended
+  defaults.
+- **Old tank:** Same treatment — visible in sandbox with "legacy" badge,
+  hidden in campaign. Reservoir is the recommended replacement.
+
+This ensures sandbox users always have access to ideal units for quick
+prototyping and debugging, while campaign players experience the
+pressure-driven design from the start.
+
 ---
 
-## Tests (79 new)
+## Tests (87 new)
 
 ### Phase 1 Tests (T-PS01–T-PS23)
 
@@ -716,7 +832,7 @@ unchanged. No defId renames.
 | 40 | Two anchors same P: no conflict | OK |
 | 41 | Two anchors diff P: conflict ERROR | alarm |
 | 42 | Source (role=none) in anchored zone: INFO | info-only |
-| 43 | Floating zone: no error | passes clean |
+| 43 | Floating zone: source-stamped Q flows | source→heater→sink: Q, T, H identical to pre-S5 |
 
 ### Phase 3 Tests (T-PS44–T-PS64)
 
@@ -726,7 +842,7 @@ unchanged. No defId renames.
 | 45 | Reverse inference through valve | P_in inferred from P_out |
 | 46 | Boost: pump propagation | P_out = P_in + ΔP |
 | 47 | Conflict: two tanks, different P | ERROR alarm |
-| 48 | Floating: all unknown, no errors | clean run |
+| 48 | Floating zone: pressure layer skipped, sequential solver runs | steps 1–3 produce no Q; step 4–5 source stamps Q; output identical to no-S5 baseline |
 | 49 | Passthrough k>0: ΔP depends on Q | ΔP = k×Q² |
 | 50 | HEX: hot/cold independent | separate zones |
 | 51 | Mixer: warning on large P mismatch | WARNING |
@@ -748,9 +864,9 @@ unchanged. No defId renames.
 
 | # | Test | Assert |
 |---|------|--------|
-| 65 | Step blocked on pressure ERROR | blocked = true |
+| 65 | Step NOT blocked on pressure ERROR | per-zone: broken zone Q=0, healthy zones run |
 | 66 | Step OK on WARNING | blocked = false |
-| 67 | Play blocked on ERROR | auto-pause |
+| 67 | Play NOT blocked on pressure ERROR | per-zone isolation, auto-pause only on CATASTROPHIC |
 | 68 | Test (simulate) always runs | never blocked |
 | 69 | Traffic light green/amber/red | correct states |
 | 70 | Ideal-only flowsheet: pressure dot absent | no dot |
@@ -764,9 +880,22 @@ unchanged. No defId renames.
 | 78 | Performance: 30 units < 50ms | timing check |
 | 79 | Full regression | all previous + 79 new |
 
-**Gate (S5a+S5b):** All previous (352) + 79 new pass → 431 cumulative.
-All five network invariants (INV-1 through INV-5) verified by
-mapped tests above. S5c adds 4 more → 435 total.
+### Phase 5 Tests (T-PS80–T-PS87) — Backward Compatibility & Zone Isolation
+
+| # | Test | Assert |
+|---|------|--------|
+| 80 | Ideal-only: source(N₂)→heater(+50K)→sink | Q, T_out, H_out bit-identical to pre-S5 baseline |
+| 81 | Ideal-only: source→splitter→2×heater→mixer→sink | all streams identical to pre-S5 |
+| 82 | Ideal-only: source→reactor_adiabatic(R_SABATIER)→flash→sink | conversion, phase split identical to pre-S5 |
+| 83 | Mixed: source(role=none)→heater(k=500)→reservoir(anchor) | source stamps Q; heater ΔP computed for display; reservoir accepts flow; no ERROR |
+| 84 | Mixed: reservoir(anchor)→valve→sink(role=none) | path solver computes Q to boundary; sink accepts; no ERROR |
+| 85 | Per-zone isolation: zone A conflict, zone B healthy | zone A: Q=0, ERROR alarms. zone B: Q correct, no alarms. Step runs. |
+| 86 | Per-zone isolation: zone A floating + zone B anchored | zone A: source-stamped Q. zone B: solver Q. Both run simultaneously. |
+| 87 | All 352 pre-S5 tests pass unchanged | zero-delta regression gate |
+
+**Gate (S5a+S5b):** All previous (352) + 87 new pass → 439 cumulative.
+All six network invariants (INV-1 through INV-6) verified by
+mapped tests above. S5c adds 4 more → 443 total.
 
 ---
 
@@ -822,16 +951,20 @@ S5b session 2 (path solver):
   [ ] Tests T-PS53–T-PS64
 
 S5b session 3 (gating + UX + integration):
-  [ ] Production gating (Step/Play blocked on ERROR)
-  [ ] Traffic light pressure dot
-  [ ] Non-participating unit visual indicator
+  [ ] Per-zone isolation (conflict → zero flow in zone, others unaffected)
+  [ ] Zone boundary detection (BFS stops at role=none interfaces)
+  [ ] Floating zone skip (no anchors → source-stamped Q, no pressure layer)
+  [ ] Traffic light pressure dot (per-zone: green/amber/red)
+  [ ] Non-participating unit visual indicator ("ideal" badge)
   [ ] Connection-time topology analysis
-  [ ] Live parameter → re-solve + auto-pause
+  [ ] Live parameter → re-solve + auto-pause on CATASTROPHIC only
   [ ] Demo scene (reservoir→heater→valve→atmosphere_sink)
   [ ] Performance check (30 units < 50ms)
   [ ] Export/import round-trip with pressure data
-  [ ] Full regression
-  [ ] Tests T-PS65–T-PS79
+  [ ] Backward compat regression (T-PS80–T-PS82, T-PS87)
+  [ ] Mixed flowsheet tests (T-PS83–T-PS84)
+  [ ] Per-zone isolation tests (T-PS85–T-PS86)
+  [ ] Tests T-PS65–T-PS87
 
 S5a extra (PlanetRegistry):
   [ ] PlanetRegistry.register() with atmosphere, diurnal params
@@ -848,7 +981,7 @@ S5c session (manifolds):
   [ ] Inspector for both manifolds
   [ ] Tests S5c-1 through S5c-4
 
-Total S5: 83 new tests → 435 cumulative
+Total S5: 91 new tests → 443 cumulative
 ```
 
 ---
@@ -954,7 +1087,7 @@ All units simulating control loops use consistent mode names:
 | 3 | Flow controlled: curtailment | Q_set [0.6, 0.6], feed=1.0, strategy=proportional | Each gets 0.5 |
 | 4 | Mixer manifold: 3 inlets | Three different feeds | Mass balance, H conserved |
 
-**Gate:** All previous S5a+S5b (431) + 4 new → 435 cumulative.
+**Gate:** All previous S5a+S5b (439) + 4 new → 443 cumulative.
 
 ---
 
