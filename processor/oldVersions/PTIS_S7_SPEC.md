@@ -13,7 +13,7 @@ boundaries), field maps (reactor feasibility T×P → conversion%), limit
 region overlays, and column operating map. Plus alarm rationalization
 skeleton.
 
-**Sub-sessions:** S7a (2), S7b (2) — 4 sessions total.
+**Sub-sessions:** S7.1 (2), S7.2 (2) — 4 sessions total.
 
 **Risk:** Low-medium. Mostly DOM/canvas rendering (Block 2). Physics
 computations are lightweight (VP from Antoine/PR, reactor grid from
@@ -25,7 +25,8 @@ existing equilibrium solver). No changes to core simulation logic.
 - S4 (distillation_column for Gilliland operating map)
 - S6 optional (electrochemical reactor map: conversion vs power)
 
-**Required by:** S8 (maps provide visual feedback during game missions).
+**Required by:** S7b (inspector hooks reused for group interior views),
+S8 (maps provide visual feedback during game missions).
 
 **Baseline state (post-S6):**
 - No performance map rendering infrastructure
@@ -52,23 +53,23 @@ implementation phases. Their status relative to this consolidation:
 | Gov Phase | Content | Status |
 |-----------|---------|--------|
 | 0 | Heat stream deletion | ✅ Done in v12 |
-| 1 | Rendering infrastructure | **S7a** |
+| 1 | Rendering infrastructure | **S7.1** |
 | 2 | Limits + alarm source + data | ✅ Done in S1 |
-| 3 | Species VP envelopes (PM-1) | **S7a** |
-| 4 | Dynamic phase maps (PM-2, PM-3) | **S7b** |
-| 5 | Reactor feasibility maps (PM-4, PM-5) | **S7b** |
-| 6 | Alarm rationalization | **S7a** |
-| 7 | Limit overlays + column map + inspector hooks | **S7b** |
+| 3 | Species VP envelopes (PM-1) | **S7.1** |
+| 4 | Dynamic phase maps (PM-2, PM-3) | **S7.2** |
+| 5 | Reactor feasibility maps (PM-4, PM-5) | **S7.2** |
+| 6 | Alarm rationalization | **S7.1** |
+| 7 | Limit overlays + column map + inspector hooks | **S7.2** |
 
 S7 delivers Phases 1, 3, 4, 5, 6, 7.
 
 ---
 
-# S7a — Rendering Infrastructure + VP Envelopes + Alarm Rationalization
+# S7.1 — Rendering Infrastructure + VP Envelopes + Alarm Rationalization
 
 **Sessions:** 2 (rendering trunk + VP curves, then alarm rationalization).
 
-## S7a-1. CSS Classes (pm-*)
+## S7.1-1. CSS Classes (pm-*)
 
 ```css
 /* Performance Map — embedded in inspector detail panel */
@@ -99,7 +100,7 @@ S7 delivers Phases 1, 3, 4, 5, 6, 7.
 
 ---
 
-## S7a-2. Canvas Setup + HiDPI
+## S7.1-2. Canvas Setup + HiDPI
 
 ```javascript
 /**
@@ -131,7 +132,7 @@ function pmSetupCanvas(container) {
 
 ---
 
-## S7a-3. Axis Layout + Drawing
+## S7.1-3. Axis Layout + Drawing
 
 ```javascript
 /** Standard margins [px]: top, right, bottom, left */
@@ -198,7 +199,7 @@ const PM_AXES_TP = {
 
 ---
 
-## S7a-4. Pointer Tracking + Operating Point Marker
+## S7.1-4. Pointer Tracking + Operating Point Marker
 
 ```javascript
 /**
@@ -226,7 +227,7 @@ function pmDrawMarker(ctx, layout, xVal, yVal, color = '#e74c3c') { /* ... */ }
 
 ---
 
-## S7a-5. Color Scale Utilities
+## S7.1-5. Color Scale Utilities
 
 ```javascript
 /**
@@ -267,7 +268,7 @@ function pmSpeciesColor(index) {
 
 ---
 
-## S7a-6. Species VP Envelopes (PM-1)
+## S7.1-6. Species VP Envelopes (PM-1)
 
 Curve map: T(x) vs Psat(y, log scale). One line per species in
 the current stream composition. Tc dots at each curve's terminus.
@@ -334,7 +335,7 @@ when composition changes. Computation < 1 ms per species.
 
 ---
 
-## S7a-7. Alarm Rationalization
+## S7.1-7. Alarm Rationalization
 
 **Current:** `AlarmSystem._rationalize()` is a skeleton (from S1).
 
@@ -373,11 +374,11 @@ or presentation.
 
 ---
 
-# S7b — Dynamic Maps + Reactor Maps + Integration
+# S7.2 — Dynamic Maps + Reactor Maps + Integration
 
 **Sessions:** 2 (pump/compressor + reactor maps, then overlays + column + inspector hooks).
 
-## S7b-1. Pump Cavitation Map (PM-2)
+## S7.2-1. Pump Cavitation Map (PM-2)
 
 Curve map: T(x) vs P_bubble(y). Region below curve = safe (subcooled).
 Region above = cavitation risk.
@@ -406,7 +407,7 @@ Rendering: shaded safe region below curve (green tint), danger above
 **Inspector hook:** pump. Shows inlet composition bubble curve.
 Default: pure water curve before first solve.
 
-## S7b-2. Compressor Condensation Map (PM-3)
+## S7.2-2. Compressor Condensation Map (PM-3)
 
 Curve map: T(x) vs P_dew(y). Region above curve = safe (superheated).
 Region below = condensation risk.
@@ -433,7 +434,7 @@ PerfMapData.getDewCurve = function(composition) {
 
 ---
 
-## S7b-3. Reactor Feasibility Maps (PM-4, PM-5)
+## S7.2-3. Reactor Feasibility Maps (PM-4, PM-5)
 
 Field map: T(x) vs P(y) → conversion % (color). Two variants:
 isothermal (PM-4) and adiabatic (PM-5).
@@ -528,7 +529,7 @@ instead of T×P field).
 
 ---
 
-## S7b-4. Limit Region Overlays (PM-6)
+## S7.2-4. Limit Region Overlays (PM-6)
 
 Semi-transparent red/amber bands on any map with matching axes.
 
@@ -577,7 +578,7 @@ and reactor feasibility maps (T/P). Data from `getEffectiveLimits()`
 
 ---
 
-## S7b-5. Column Operating Map
+## S7.2-5. Column Operating Map
 
 Gilliland curve: X vs Y. Shows minimum stages, minimum reflux,
 actual operating point.
@@ -622,7 +623,7 @@ Axes: X = (R−R_min)/(R+1) [0..1], Y = (N−N_min)/(N+1) [0..1].
 
 ---
 
-## S7b-6. Inspector Integration
+## S7.2-6. Inspector Integration
 
 Each unit type gains a `map` config in its inspector definition:
 
@@ -689,7 +690,7 @@ rendered at 80vw for detailed inspection. Same data, larger canvas.
 ## Implementation Checklist
 
 ```
-S7a session 1 (rendering + VP):
+S7.1 session 1 (rendering + VP):
   [ ] pm-* CSS classes in style block
   [ ] pmSetupCanvas() with HiDPI
   [ ] pmAxisLayout() with lin/log scale
@@ -704,7 +705,7 @@ S7a session 1 (rendering + VP):
   [ ] pmDrawVPEnvelope() (lines + Tc dots)
   [ ] Test 1: H₂O VP at 373K
 
-S7a session 2 (rationalization + bubble/dew):
+S7.1 session 2 (rationalization + bubble/dew):
   [ ] AlarmSystem._rationalize() dedup implementation
   [ ] AlarmSystem.evaluate() pipeline wiring
   [ ] PerfMapData.getBubbleCurve()
@@ -712,7 +713,7 @@ S7a session 2 (rationalization + bubble/dew):
   [ ] Default water/air curves
   [ ] Test 5: alarm dedup
 
-S7b session 1 (reactor maps):
+S7.2 session 1 (reactor maps):
   [ ] PerfMapData.computeReactorGrid() with warm-start
   [ ] equilibriumConversion() per grid cell
   [ ] adiabaticConversion() per grid cell (energy balance iteration)
@@ -721,7 +722,7 @@ S7b session 1 (reactor maps):
   [ ] Composition hash cache
   [ ] Test 2: Haber conversion vs P
 
-S7b session 2 (overlays + column + hooks):
+S7.2 session 2 (overlays + column + hooks):
   [ ] pmDrawLimitOverlays() (CRIT/WARN bands)
   [ ] pmDrawGillilandMap() (X vs Y curve + operating point)
   [ ] Inspector .map config on 10 unit types
@@ -739,6 +740,7 @@ Total S7: 5 new tests → 447 cumulative
 
 | Consumer | What it uses from S7 |
 |----------|---------------------|
+| S7b (Groups) | Inspector rendering hooks reused for group interior views. Performance map canvas infrastructure available inside group overlays. |
 | S8 (Game) | Visual feedback during missions: VP envelopes help player understand phase behavior, reactor maps show optimal operating region, limit overlays show equipment boundaries |
 | Future | Chart infrastructure (pmSetupCanvas, pmAxisLayout, pmColorScale) reusable for time-series, Sankey, bar/pie charts |
 | Future | Alarm rationalization skeleton ready for cascade suppression, aggregation, shelving, dead-banding |

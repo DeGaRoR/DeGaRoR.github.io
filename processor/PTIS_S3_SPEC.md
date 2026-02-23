@@ -426,7 +426,7 @@ AlarmSystem.register('thermo_convergence', (scene) => {
 | 7 | Cubic failure → fallback | T=1K, P=1e9 Pa (extreme) | Z_vap = 1.0, converged = false |
 | 8 | VLE fallback | Single-root conditions → Raoult K + alarm | alarm source fires |
 
-**Gate:** All S2 tests (328) + 8 new pass.
+**Gate:** All S2 tests (325) + 8 new pass → 333 cumulative.
 
 ---
 
@@ -802,7 +802,43 @@ conservative (no energy created).
 
 ---
 
-## S3b Tests (~7)
+## S3b-10. Ice / Solid Detection (solidRisk Flag)
+
+After flash calculation resolves T and phase fractions, check for
+solid formation risk:
+
+```javascript
+// Post-flash solid risk check
+if (flashResult.T < 273.15) {
+  const x_H2O_liq = flashResult.x_liquid?.H2O ?? 0;
+  if (x_H2O_liq > 1e-6) {
+    flashResult.solidRisk = true;
+    flashResult.solidSpecies = 'H2O';
+  }
+}
+```
+
+**Consequences by unit type:**
+
+| Unit | Alarm | Effect |
+|------|-------|--------|
+| HEX (cold side) | WARNING → ERROR | UA degrades (frost buildup) |
+| Pipe/connection | WARNING → CRITICAL | Flow restriction → blockage |
+| Valve/compressor | CRITICAL | Mechanical damage risk |
+| Tank | INFO | Expansion risk |
+
+**Teaching value:** "Dehydrate before cryogenic processing." The
+player's M9 Linde cycle freezes until upstream flash removes water.
+Natural ★★★ criterion for M5: clean air with <100 ppm H₂O.
+
+**Alarm integration:** Units check `flashResult.solidRisk` in their
+post-flash validation and emit severity-appropriate alarms via
+`AlarmSystem`. No phase change is computed — solid formation is
+flagged, not modeled (ice Cp/density out of scope).
+
+---
+
+## S3b Tests (~8)
 
 | # | Test | Expected | Assert |
 |---|------|----------|--------|
@@ -812,9 +848,10 @@ conservative (no energy created).
 | 4 | Liquid density: H₂O at 300K/1bar | ≈ 55,500 mol/m³ (55.5 mol/L) | abs(ρ/MW − 55500) < 2000 |
 | 5 | Package toggle: IDEAL mode | Same results as pre-S3 | All baseline values match ±0.1% |
 | 6 | Range alarm: H₂O Cp at 250K | INFO in AlarmSystem | alarm.severity === 'INFO' |
-| 7 | **Full regression: both packages** | All S1+S2 tests pass | 336 tests pass in IDEAL, 336 in PR |
+| 7 | Ice detection: H₂O at 260K, liquid present | solidRisk = true | flashResult.solidRisk === true, solidSpecies === 'H2O' |
+| 8 | **Full regression: both packages** | All S1+S2 tests pass | 325 tests pass in IDEAL, 325 in PR |
 
-**Gate:** All previous (336) + 7 new pass. Full regression in both IDEAL and PR mode.
+**Gate:** All previous (325) + 8 new pass → 333 cumulative. Full regression in both IDEAL and PR mode.
 
 ---
 
@@ -849,10 +886,12 @@ S3b session (departures + integration):
   [ ] Package selector: SimSettings.thermoPackage toggle
   [ ] Range-exceeded alarm source
   [ ] HEX error passthrough fallback (S3b-9, ~line 8766)
-  [ ] 7 tests passing
+  [ ] solidRisk flag in post-flash check (S3b-10)
+  [ ] Unit-specific ice alarm integration
+  [ ] 8 tests passing
   [ ] Full regression in BOTH packages
 
-Total S3: ~15 new tests → 343 cumulative
+Total S3: ~16 new tests → 340 cumulative
 ```
 
 ---

@@ -89,14 +89,13 @@ For 7 people:
 
 **Lighting efficiency chain:**
 ```
-Electricity → LED (50% → PAR) → Photosynthesis (2–4% of PAR → chemical)
-Overall:  η ≈ 1–2% of electrical input → food energy
-Game default: η = 2% (achievable with close-canopy targeted LED arrays)
+Electricity → LED (50% → PAR) → Photosynthesis (2% of PAR → chemical)
+Overall:  η ≈ 1% of electrical input → food energy
 ```
 
 ```
-At η = 0.01 (1%):   P_greenhouse = 848 / 0.01 = 84,800 W ≈ 85 kW  (★★★ challenge)
-At η = 0.02 (2%):   P_greenhouse = 848 / 0.02 = 42,400 W ≈ 42 kW  (default)
+At η = 0.01 (1%):   P_greenhouse = 848 / 0.01 = 84,800 W ≈ 85 kW
+At η = 0.02 (2%):   P_greenhouse = 848 / 0.02 = 42,400 W ≈ 42 kW
 At η = 0.005 (0.5%): P_greenhouse = 848 / 0.005 = 169,600 W ≈ 170 kW
 ```
 
@@ -108,57 +107,38 @@ validation session):**
 | BPC CO₂ scaling | 162 kW | 39 kW |
 | Area × power density | 150 kW | 60 kW |
 | kWh/g × production | 171 kW | 106 kW |
-| Our model (η=2%, default) | — | 42 kW |
-| Our model (η=1%, ★★★) | — | 85 kW |
+| Our model (η=1%) | — | 85 kW |
 
-At η=2% (default), 42 kW sits well within the NASA best-case range
-(39–106 kW), representing achievable close-canopy targeted LED
-technology. At η=1% (★★★ challenge), 85 kW sits at the optimistic
-end — physically honest, bleeding edge but not fictional.
+Our 85 kW sits at the optimistic end of best-case targeted LED
+technology (NASA 2014 close-canopy study). This is physically
+honest — bleeding edge but not fictional.
 
 ### 2.3 Waste Heat
 
-At η = 0.02 (default), the greenhouse dumps 98% of input as waste heat:
+At η = 0.01, the greenhouse dumps 99% of input as waste heat:
 ```
-Q_waste = P_greenhouse × (1 − η) = 42,000 × 0.98 = 41,160 W ≈ 41 kW
+Q_waste = P_greenhouse × (1 − η) = 85,000 × 0.99 = 84,150 W ≈ 84 kW
 ```
 
-At η = 0.01 (★★★ challenge): Q_waste ≈ 84 kW.
-
-This dominates the colony's thermal budget. The 847 W of human
-metabolic heat is negligible by comparison. The engineering challenge
-is cooling the greenhouse, not the humans. Waste heat exits via the
-greenhouse's cooling circuit (cool_in/cool_out material ports).
+This completely dominates the colony's thermal budget. The 847 W
+of human metabolic heat is negligible by comparison. The
+engineering challenge is cooling the greenhouse, not the humans.
 
 ### 2.4 Corrected Power Budget (M10)
 
-**Default difficulty (η=2%):**
-
 | Load | Power (kW) | Notes |
 |------|-----------|-------|
-| Greenhouse (η=2%) | 42.0 | Dominant load |
+| Greenhouse (η=1%) | 85.0 | Dominant load |
 | Compressors (air processing) | 4.0 | CO₂ scrubbing train |
 | Heat pump (shelter heating) | 0.7 | From M6 |
 | Haber synthesis | 0.7 | NH₃ makeup for fertilizer |
 | Electrolyzer (O₂ backup) | 1.0 | Emergency top-up |
 | Water recycling | 0.5 | Pump + distillation |
 | Baseline (lighting, comms) | 0.2 | From M1 |
-| **Total** | **~49** | |
-
-Achievable with ~3 combined cycles (~60 kW capacity).
-
-**★★★ challenge (η=1%):**
-
-| Load | Power (kW) | Notes |
-|------|-----------|-------|
-| Greenhouse (η=1%) | 85.0 | Dominant load |
-| Other loads | 7.1 | Same as above |
 | **Total** | **~92** | |
 
-Requires ~5 combined cycles (~100 kW capacity).
-
-Previous estimate: 82 kW (6 people). Corrected: **~49 kW (7 people)**
-at η = 2% default, **~92 kW** at η = 1% (★★★).
+Previous estimate: 82 kW (6 people). Corrected: **~92 kW (7 people)**
+at η = 1%.
 
 ---
 
@@ -168,11 +148,10 @@ at η = 2% default, **~92 kW** at η = 1% (★★★).
 
 The S-size gas turbine produces ~20 kW net per combined cycle
 (2 compressors at 0.05 kg/s each → 0.10 kg/s through turbine,
-Brayton net ~15 kW + Rankine ~5 kW). At default η=2%, the player
-needs **~3 combined cycles** to reach ~60 kW capacity. For the ★★★
-challenge (η=1%), **5 combined cycles** are needed for ~100 kW.
+Brayton net ~15 kW + Rankine ~5 kW). The player needs **5 combined
+cycles** to reach ~100 kW capacity.
 
-Each combined cycle requires: 2× compressor, 1× reactor_adiabatic
+Each combined cycle requires: 2× compressor, 1× reactor_equilibrium
 (combustor), 1× gas_turbine, 1× HEX (HRSG), 1× steam_turbine,
 1× pump, plus sources and sinks for fuel/air/exhaust. That's 8
 process units per train.
@@ -224,8 +203,6 @@ vent source).
 
 ### 4.1 S6 — Electrochemical Reactor Efficiency Range
 
-**Status: Propagated into PTIS_S6_SPEC.md**
-
 **Rationale:** The S6 efficiency parameter represents the ratio of
 electrical input to chemical output. For direct electrochemistry
 (PEM/SOEC), 30–95% is correct. For photochemical processes driven
@@ -240,7 +217,7 @@ greenhouse applications while keeping sane defaults for electrolysis.
 const eta = Math.max(0.01, Math.min(0.99, par.efficiency ?? 0.70));
 
 // AFTER:
-const eta = Math.max(0.001, Math.min(0.99, par.efficiency ?? 0.90));
+const eta = Math.max(0.001, Math.min(0.99, par.efficiency ?? 0.70));
 ```
 Floor lowered from 0.01 to 0.001 (0.1%). Allows modeling
 inefficient lighting systems. 0.001 gives 848 kW for 7 people —
@@ -263,7 +240,7 @@ for fine control in the low range. Upper limit raised to 0.99.
 
 | Parameter | Default | Min | Max | Notes |
 |-----------|---------|-----|-----|-------|
-| efficiency | 0.90 | 0.005 | 0.99 | Electrical → chemical. Electrolysis: 0.60–0.90. Photochemical (grow lights): 0.005–0.05 |
+| efficiency | 0.70 | 0.005 | 0.99 | Electrical → chemical. Electrolysis: 0.60–0.80. Photochemical (grow lights): 0.005–0.05 |
 
 **Change 4: Inspector info box — reaction-aware context**
 ```javascript
@@ -282,7 +259,7 @@ for fine control in the low range. Upper limit raised to 0.99.
 
 ### 4.2 S8 — Greenhouse Template Efficiency
 
-**Status: Propagated into PTIS_S8_SPEC.md and PTIS_COMPOSITE_MODELS.md**
+**Change: greenhouse template in §S8 Impact on S10 Spec**
 
 ```javascript
 // BEFORE (in S8 spec):
@@ -293,24 +270,26 @@ for fine control in the low range. Upper limit raised to 0.99.
 
 // AFTER:
 { localId: 'photo_reactor', defId: 'reactor_electrochemical',
-  params: { reaction: 'R_PHOTOSYNTHESIS', efficiency: 0.02,
+  x: 1, y: 0,
+  params: { reaction: 'R_PHOTOSYNTHESIS', efficiency: 0.01,
             conversion_max: 0.95 },
-  paramLocked: true,
-  editableParams: ['efficiency'] }
+  paramLocked: false },
 ```
 
 Key changes:
-- `efficiency: 0.28` → `0.02` (2% — validated against NASA data, default)
-- `editableParams: ['efficiency']` — efficiency is the ONE parameter
-  the player CAN tune on the locked greenhouse. The reaction ID and
-  internal wiring are locked, but η is exposed as a gameplay lever.
+- `efficiency: 0.28` → `0.01` (1% — validated against NASA data)
+- `paramLocked: false` — efficiency is the ONE parameter the player
+  CAN tune on the locked greenhouse. The reaction ID and internal
+  wiring are locked, but η is exposed as a gameplay lever. The
+  inspector shows it prominently with the context note from S6.
 
-**Design rationale:** At η=2% (default), the greenhouse demands
-~42 kW — achievable with 2–3 combined cycles and within NASA's
-best-case range. The player can push η down to 1% for a ★★★
-challenge (85 kW, requiring 5 combined cycles) or explore η=0.5%
-for an extreme scenario. The player trades realism for practicality
-— a real engineering decision.
+**Design rationale:** Locking efficiency at 1% means the player
+has zero agency over the biggest power consumer. Unlocking it
+within the reactor's valid range (0.5–5%) lets the player
+experiment. Setting η = 2% halves the power demand (42 kW) but
+is flagged as "theoretical limit, not demonstrated" in the info
+tooltip. The player trades realism for practicality — a real
+engineering decision.
 
 **Selective paramLock mechanism:** The greenhouse group template
 is `locked: true` (can't rewire, can't delete internal units),
@@ -328,7 +307,7 @@ editable. New field on TemplateUnit:
 
 // Greenhouse photo_reactor:
 { localId: 'photo_reactor', defId: 'reactor_electrochemical',
-  params: { reactionId: 'R_PHOTOSYNTHESIS', efficiency: 0.02,
+  params: { reactionId: 'R_PHOTOSYNTHESIS', efficiency: 0.01,
             conversion_max: 0.95 },
   paramLocked: true,
   editableParams: ['efficiency'] }  // Only η exposed to player
@@ -342,8 +321,6 @@ read-only values.
 ---
 
 ### 4.3 S10 — Metabolic Rates, M10 Mission, Open Question
-
-**Status: Propagated into PTIS_S10_SPEC.md and PTIS_COMPOSITE_MODELS.md**
 
 #### 4.3.1 Human Unit Metabolic Rates (§S10c-4)
 
@@ -360,7 +337,7 @@ Replace the human unit comment block:
 // Metabolic heat: 100W/person
 
 // AFTER:
-// Internally: R_METABOLISM (reactor_adiabatic, complete conversion)
+// Internally: R_METABOLISM (reactor_equilibrium, complete conversion)
 // Parameterized by CampaignState.population
 //
 // Metabolic rates (basis: 2500 kcal/day/person, NASA moderate activity):
@@ -376,12 +353,13 @@ Replace the human unit comment block:
 // Heat emerges from the reactor energy balance, not a separate term.
 ```
 
-**Note:** The human composite template uses `reactor_adiabatic` running
-R_METABOLISM (see `PTIS_COMPOSITE_MODELS.md` §2). Since R_METABOLISM
-has ΔH = −519 kJ/mol and the equilibrium constant at 310K is
-astronomical (K >> 10^50), conversion is effectively 100%.
-Metabolic heat (121 W/person) emerges automatically from the reactor
-energy balance and is removed via the body_hex internal unit.
+**Note:** The S8 human template uses `reactor_equilibrium` running
+R_METABOLISM. Since R_METABOLISM has ΔH = −519 kJ/mol and the
+equilibrium constant at 310K is astronomical (K >> 10^50), conversion
+is effectively 100%. The `A=∞ POWER_LAW` model specified in §S10c-3
+achieves the same result but `reactor_equilibrium` is more principled.
+Either model works — the equilibrium approach is recommended because
+it uses existing infrastructure without special-casing.
 
 #### 4.3.2 Greenhouse Sizing Table (new, add to §S10c-4)
 
@@ -392,9 +370,9 @@ Greenhouse sizing (7 colonists, R_PHOTOSYNTHESIS):
   CH₂O production:       5.88 mol/hr
   Water consumed:         5.88 mol/hr
   Thermodynamic minimum:  848 W
-  Default η:              2.0% (combined LED + photosynthesis)
-  Electrical demand:      42 kW
-  Waste heat:             ~41 kW (exits via cooling circuit cool_out)
+  Default η:              1.0% (combined LED + photosynthesis)
+  Electrical demand:      85 kW
+  Waste heat:             84.2 kW (exits heat_out port)
 ```
 
 #### 4.3.3 M10 Mission (§S10c-7, Phase D)

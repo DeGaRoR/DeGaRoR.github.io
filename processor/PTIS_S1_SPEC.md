@@ -45,7 +45,7 @@ validate that behaviour is unchanged.**
 
 ## S1-pre-1. Reactor Skip-When-Clean Cache Hash
 
-**File:** `processThis.html`, reactor_equilibrium tick (~line 9279)
+**File:** `processThis.html`, equilibriumTick (~line 9279)
 
 **Current hash:**
 ```javascript
@@ -900,22 +900,28 @@ Add `limitParams` array to each unit definition object (inside the
 parameters to evaluate for this unit type.
 
 ```
-compressor:          limitParams: ['T', 'P', 'mass', 'phase']
-pump:                limitParams: ['T', 'P', 'mass', 'phase']
-gas_turbine:         limitParams: ['T', 'P', 'mass', 'phase']
-electric_heater:     limitParams: ['T', 'P', 'mass']
-air_cooler:          limitParams: ['T', 'P', 'mass']
-hex:                 limitParams: ['T', 'P', 'mass']
-valve:               limitParams: ['T', 'P', 'mass']
-flash_drum:          limitParams: ['T', 'P', 'mass']
-mixer:               limitParams: ['T', 'P', 'mass']
-splitter:            limitParams: ['T', 'P', 'mass']
-reactor_equilibrium: limitParams: ['T', 'P', 'mass', 'phase']
-tank:                limitParams: ['T', 'P', 'mass', 'level']
+compressor:              limitParams: ['T', 'P', 'mass', 'phase']
+pump:                    limitParams: ['T', 'P', 'mass', 'phase']
+gas_turbine:             limitParams: ['T', 'P', 'mass', 'phase']
+electric_heater:         limitParams: ['T', 'P', 'mass']
+air_cooler:              limitParams: ['T', 'P', 'mass']
+hex:                     limitParams: ['T', 'P', 'mass']
+valve:                   limitParams: ['T', 'P', 'mass']
+flash_drum:              limitParams: ['T', 'P', 'mass']
+mixer:                   limitParams: ['T', 'P', 'mass']
+splitter:                limitParams: ['T', 'P', 'mass']
+reactor_adiabatic:       limitParams: ['T', 'P', 'mass', 'phase']
+reactor_jacketed:        limitParams: ['T', 'P', 'mass', 'phase']
+reactor_cooled:          limitParams: ['T', 'P', 'mass', 'phase']
+tank:                    limitParams: ['T', 'P', 'mass', 'level']
 ```
 
-12 units total. `reactor_adiabatic` does not exist — subsumed by
-`reactor_equilibrium` in v12.0.0 (line 9133 confirms deletion).
+14 units total. After S6, `reactor_equilibrium` no longer exists —
+replaced by three defIds (`reactor_adiabatic`, `reactor_jacketed`,
+`reactor_cooled`) sharing the same `equilibriumTick` trunk. All three
+receive identical limit parameters and S-size data. Additional reactor
+defIds (`reactor_electrochemical`, `fuel_cell`) receive limits via the
+Equipment Matrix but are registered in S6/S9, not S1.
 
 ---
 
@@ -960,7 +966,9 @@ limits: {
 | flash_drum | 243 | 263 | 523 | 623 | 0.2e5 | 150e5 | — | 0.15 | — | — | — |
 | mixer | 243 | 263 | 623 | 723 | 0.2e5 | 150e5 | — | 0.25 | — | — | — |
 | splitter | 243 | 263 | 623 | 723 | 0.2e5 | 150e5 | — | 0.25 | — | — | — |
-| reactor_equilibrium | 323 | 373 | 773 | 923 | 0.5e5 | 150e5 | 0.001 | 0.08 | V | — | — |
+| reactor_adiabatic | 323 | 373 | 773 | 923 | 0.5e5 | 150e5 | 0.001 | 0.08 | V | — | — |
+| reactor_jacketed | 323 | 373 | 773 | 923 | 0.5e5 | 150e5 | 0.001 | 0.08 | V | — | — |
+| reactor_cooled | 323 | 373 | 773 | 923 | 0.5e5 | 150e5 | 0.001 | 0.08 | V | — | — |
 | tank | 263 | 278 | 333 | 353 | 0.8e5 | 5e5 | — | 0.05 | — | 90 | 100 |
 
 **Note:** `—` means limit tag not defined (no alarm for that boundary).

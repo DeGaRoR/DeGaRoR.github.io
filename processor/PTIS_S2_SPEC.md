@@ -90,8 +90,8 @@ problem. With clean separation, this function is unnecessary.
 
 **2. Latent convergence bug: reactor not in Step B.** Step B
 monitors demand changes for pump, compressor, and electric_heater
-— but NOT reactor_equilibrium, which also sets variable
-`powerDemand` in heated/insulated mode. Currently masked because
+— but NOT reactor_jacketed, which also sets variable
+`powerDemand` in heated mode. Currently masked because
 `curtailmentFactor` on the hub port catches the change via
 `portsChanged()`. If CF is below tolerance but the allocation
 shift is above tolerance (narrow window: material ΔT < 0.001 K
@@ -511,7 +511,7 @@ if (u.fried) {
 | compressor | `workFull.W_shaft_W` at setpoint | Already computed (line 7974) |
 | pump | `workFull.W_shaft_W` at setpoint | Already computed (line 8110) |
 | electric_heater | `Q_demand_W` in T_setpoint mode, `par.power_kW × 1000` in power_setpoint | Already computed |
-| reactor_equilibrium | `abs(iso_Q_duty_W)` in isothermal/fixed mode | Only when heatDemand ≠ 'none' |
+| reactor_jacketed | `abs(iso_Q_duty_W)` in isothermal/fixed mode | Always has elec_in (no conditional port) |
 
 For compressor, pump, and heater: the rated power is the power they
 *request* (their `u.powerDemand`). If they receive more than
@@ -533,8 +533,9 @@ if (u.fried) { /* fry guard return */ }
 
 **Electric heater** (line ~8243): Same pattern, rated = `u.powerDemand`.
 
-**Reactor** (line ~9274): Only in isothermal/fixed modes where `elec_in`
-is active. Rated = `u.powerDemand` (the computed isothermal duty).
+**Reactor jacketed** (line ~9274): Always has elec_in. Rated = `u.powerDemand`
+(the computed isothermal duty). reactor_adiabatic and reactor_cooled
+do not have elec_in ports and are not subject to overload.
 
 ---
 
@@ -555,7 +556,8 @@ const PowerPriority = Object.freeze({
 Add `powerPriority` to consumers connected to hubs. Default: `NORMAL` (2).
 
 ```javascript
-// In initParams for pump, compressor, electric_heater, reactor_equilibrium:
+// In initParams for pump, compressor, electric_heater,
+// reactor_adiabatic, reactor_jacketed, reactor_cooled:
 unit.params.powerPriority = PowerPriority.NORMAL;
 
 // sink_electrical default:
@@ -569,7 +571,48 @@ CRITICAL / NORMAL / DEFERRABLE.
 
 **File:** `processThis.html`
 **Line:** 7586
-**Replace** the existing `allocatePower` function:
+**Replace** the existing `allocatePower` function.
+
+The allocation algorithm is extracted as a **generic utility**
+`allocateByPriority()` that serves both power dispatch (S2) and
+flow distribution in the splitter manifold (S5c). This avoids
+duplicating curtailment logic.
+
+### allocateByPriority() — Generic Curtailment Utility
+
+```javascript
+/**
+ * Allocate a limited supply across prioritized demands.
+ * Used by: S2 hub power dispatch, S5c splitter manifold flow control.
+ *
+ * @param {number} supply - Total available (watts, mol/s, etc.)
+ * @param {Array<{id, amount, priority}>} demands - Consumers with demand and priority (1=highest)
+ * @param {'proportional'|'priority'} strategy
+ * @returns {Array<{id, allocated}>}
+ */
+function allocateByPriority(supply, demands, strategy) {
+  const total = demands.reduce((s, d) => s + d.amount, 0);
+  if (total <= supply)
+    return demands.map(d => ({ id: d.id, allocated: d.amount }));
+
+  if (strategy === 'proportional') {
+    const factor = supply / total;
+    return demands.map(d => ({ id: d.id, allocated: d.amount * factor }));
+  }
+
+  if (strategy === 'priority') {
+    const sorted = [...demands].sort((a, b) => a.priority - b.priority);
+    let remaining = supply;
+    return sorted.map(d => {
+      const alloc = Math.min(d.amount, remaining);
+      remaining -= alloc;
+      return { id: d.id, allocated: alloc };
+    });
+  }
+}
+```
+
+### allocatePower() — Hub-Specific Wrapper
 
 ```javascript
 function allocatePower(consumers, totalSupply_W) {
@@ -888,7 +931,7 @@ Session 1 — Overload/Fry:
   [ ] Fry guard in compressor tick (~line 7978)
   [ ] Fry guard in pump tick (~line 8114)
   [ ] Fry guard in electric_heater tick (~line 8243)
-  [ ] Fry guard in reactor_equilibrium tick (~line 9274, isothermal/fixed only)
+  [ ] Fry guard in reactor_jacketed tick (~line 9274)
   [ ] Hub surplus: check absorber functioning, not just connected
   [ ] Step E: physics-fixed direct-connection overspeed detection
   [ ] Fry state serialization (export/import)
@@ -959,6 +1002,7 @@ creates surplus that must be managed:
 
 | Consumer | What it uses from S2 |
 |----------|---------------------|
+| S5c (Flow Control) | `allocateByPriority()` generic utility reused for splitter manifold curtailment. Same priority/proportional strategies. |
 | S6 (Electrochemical) | Power demand contract: `powerDemand = ξ_max × |ΔH_rxn| / η`. Uses same `checkOverload()` function. |
 | S5 (Pressure) | Production gating reads power ERROR alarms to block flow in overloaded networks |
 | S8 (Game) | Priority levels map to game mechanics: life support = CRITICAL, production = NORMAL, comfort = DEFERRABLE |

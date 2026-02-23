@@ -8,22 +8,50 @@
 
 | Stage | Title | Sessions | Risk | New Tests | Cumulative | Key Deliverable |
 |-------|-------|----------|------|-----------|------------|-----------------|
-| S1 | Thermo & Chemistry Foundation | 4 | Low | ~23 | ~312 | 10 species, 11 reactions, equipment limits |
-| S2 | Power Management | 2 | Low | ~8 | ~320 | Overload/fry, priority shedding |
-| S3 | Peng-Robinson EOS | 3 | Medium | ~15 | ~335 | Real-gas VLE, fugacity K-values |
-| S4 | Separation & HEX Fix | 3 | Medium | ~12 | ~347 | Distillation column, UA/NTU fix |
-| S5 | Pressure-Driven Flow | 4 | **High** | ~79 | ~426 | Reservoir, pressure network, Cv solver |
-| S6 | Electrochemical Reactor | 1 | Low | ~8 | ~434 | Power-driven chemistry |
-| S7 | Performance Maps | 2 | Low | ~5 | ~439 | VP envelopes, reactor/column maps |
-| S8 | Game Layer | 6 | Medium | ~30 | ~469 | Build/Run loop, missions, campaign |
-| | **Total** | **25** | | **~180** | **~469** | |
+| S0 | NNG Consolidation | 1 | Low | ~2 | ~291 | 15 NNG rules, renumbered, sentinel |
+| S1 | Thermo & Chemistry Foundation | 4 | Low | ~26 | ~317 | 10 species, 14 reactions, equipment limits |
+| S2 | Power Management | 2 | Low | ~8 | ~325 | Overload/fry, priority shedding |
+| S3 | Peng-Robinson EOS | 3 | Medium | ~15 | ~340 | Real-gas VLE, fugacity K-values |
+| S4 | Separation & HEX Fix | 3 | Medium | ~12 | ~352 | Distillation column, UA/NTU fix |
+| S5 | Pressure-Driven Flow | 7 | **High** | ~79 | ~431 | Reservoir, pressure network, Cv solver |
+| S6 | Electrochemical Reactor | 2 | Low | ~8 | ~442 | Power-driven chemistry, electrode separation |
+| S7 | Performance Maps | 4 | Low | ~5 | ~447 | VP envelopes, reactor/column maps |
+| S8 | Unit Groups & Sub-Assemblies | 4 | Medium | ~18 | ~465 | GroupTemplateRegistry, overlay navigation |
+| | | | | | | ⚙ **GAME GATE** ⚙ |
+| S9 | Game Engine Extensions | 2 | Low | ~8 | ~473 | New defIds, CH₂O, trunks, game-required physics |
+| S10 | Game Layer | 10 | Medium | ~22 | ~495 | Build/Run loop, missions, campaign |
+| | **Total** | **42** | | **~206** | **~495** | |
+
+### Renumbering History (February 2026)
+
+| Old | New | Reason |
+|-----|-----|--------|
+| S7b | **S8** | Promoted to full stage — grouping is core engine infrastructure |
+| S8 (engine registrations) | **S9** | Extracted from old S8c — new defIds, species, reactions are engine work |
+| S8 (game mechanics + content) | **S10** | Pure game layer — state machine, missions, campaign |
+
+---
+
+## S0 — NNG Consolidation
+
+**What:** Consolidate NNG rules from 17 to 15. Renumber for
+physics-first ordering. Absorb 3 redundant rules, extend 3, add 1
+new (pressure-flow network). Update sentinel test.
+
+**Sessions:** 1. Pure documentation + sentinel test. No functional
+code changes.
+
+**Governing design:** NNG-1 through NNG-15 defined in full in
+`PTIS_S0_SPEC.md`.
+
+**Spec:** `PTIS_S0_SPEC.md`
 
 ---
 
 ## S1 — Thermo & Chemistry Foundation
 
 **What:** Fix thermodynamic data errors, register CO as 10th species,
-expand from 3 to 11 reactions, build equipment limits infrastructure
+expand from 3 to 14 reactions, build equipment limits infrastructure
 with alarm integration.
 
 **Sub-sessions:**
@@ -106,18 +134,24 @@ from ΔP across valves and resistances. New reservoir unit, pressure
 propagation via BFS, algebraic Cv flow solver.
 
 **Sub-sessions:**
-- **S5a** (2 sessions): Reservoir unit (5-port, finite/reservoir modes,
+- **S5a** (4 sessions): Reservoir unit (5-port, finite/reservoir modes,
   headspace pressure from PR density). atmosphere_sink (P_atm anchor).
-  Resistance parameter k on passthrough units. UnionFind + BFS pressure
-  propagation. Implicit check valves (all flows ≥ 0). Source backward
-  compatibility.
-- **S5b** (2 sessions): ΔP valve with Cv. Algebraic path solver (single
+  Pressure roles on all units. Resistance parameter k on passthrough
+  units. UnionFind + BFS pressure propagation. Implicit check valves
+  (all flows ≥ 0). Source backward compatibility.
+- **S5b** (3 sessions): ΔP valve with Cv. Algebraic path solver (single
   path closed-form, branching linear/bisection). Production gating on
-  pressure ERROR. Traffic light annotations.
+  pressure ERROR. Traffic light annotations. No-silent-clamping
+  acceptance gate.
 
 **Why here:** This is the deepest engine change — replaces the fundamental
 flow model. S5a provides pressure as physical quantity; S5b adds flow from
-ΔP. Split so S8 game development can proceed with S5a alone if needed.
+ΔP. Split so development can proceed with S5a alone if needed.
+
+**Split caveat:** S5a without S5b means flows are clamped to zero in
+certain topologies with no visible alarm. This violates NNG-4 ("detected,
+zeroed, and alarmed"). If S5b is deferred, a minimal alarm bridge (INFO
+on every clamped flow) must ship with S5a to prevent silent failures.
 
 **Risk note:** 79 tests — more than all other engine stages combined.
 Recommend S5a as a stable checkpoint before S5b.
@@ -131,7 +165,7 @@ Recommend S5a as a stable checkpoint before S5b.
 **What:** Third reactor paradigm: power drives chemistry instead of
 temperature. Extent of reaction proportional to electrical power input.
 
-**Sub-sessions:** 1.
+**Sub-sessions:** 2 (unit registration + tick, then inspector + tests).
 
 **What it enables:** Water electrolysis (R_H2O_ELEC), CO₂ electrolysis
 (R_CO2_ELEC). Campaign M2 electrolyzer, M10 greenhouse.
@@ -145,69 +179,247 @@ temperature. Extent of reaction proportional to electrical power input.
 **What:** Interactive canvas overlays on unit inspectors showing
 operating envelopes, phase boundaries, and limit regions.
 
-**Sub-sessions:** 2 (canvas infrastructure + VP/phase maps, then
-reactor/column/limit maps with inspector hooks).
+**Sub-sessions:** S7.1 (2), S7.2 (2) — 4 sessions total.
 
-**Why last engine stage:** Needs PR curves (S3), column data (S4),
-and limit regions (S1c) to display meaningful content.
+**Why last pure-engine stage before grouping:** Needs PR curves (S3),
+column data (S4), and limit regions (S1c) to display meaningful content.
 
 **Spec:** `PTIS_S7_SPEC.md`
 
 ---
 
-## S8 — Game Layer
+## S8 — Unit Groups & Sub-Assemblies
+
+**What:** Canvas-level grouping system. Players can select multiple
+units, group them into a named box with boundary ports, and
+navigate into groups via an expand-in-place overlay. Includes
+GroupTemplateRegistry for reusable templates and locked campaign
+composites (greenhouse, human).
+
+**Sub-sessions:**
+- **S8-1** (2 sessions): Data model (group fields on scene, units,
+  connections). createGroup()/disbandGroup(). Boundary port
+  auto-detection from cross-boundary connections. GroupTemplateRegistry
+  with register/get/all/instantiate. Serialization round-trip.
+- **S8-2** (2 sessions): Expand-in-place overlay (dimmed parent +
+  expanded container + active interior). Group header bar with ×
+  close. Context menus (Open, Rename, Save as Template, Ungroup,
+  Delete). Locked group overlay with selective editableParams.
+  Campaign composite palette integration. Edge case tests +
+  T-GR-INVARIANT (group/ungroup physics invariant).
+
+**Key design decisions:**
+- **Solver transparency:** Groups are canvas-only. The solver
+  iterates flat unit lists and flat connections — no nesting
+  in the solve cycle. NNG-3: a grouped scene produces identical
+  physics to the same scene ungrouped.
+- **Expand-in-place overlay:** Group expands from collapsed position;
+  parent canvas dims to 30% opacity. Player maintains spatial
+  context (sees where group sits in process). Not Blender's
+  full-isolation Tab model.
+- **UI accessibility:** Every action has a click/touch path.
+  Keyboard shortcuts (Ctrl+G, Escape) are accelerators only.
+- **Locked composites with selective parameter exposure:**
+  `editableParams` field on TemplateUnit allows specific
+  parameters to be editable even in locked groups (e.g.,
+  greenhouse lighting efficiency).
+
+**Why here (after S7, before S9):** Engine-first strategy — sandbox
+gets full grouping infrastructure before the game layer constrains it
+with locked composites. S10 composites (greenhouse, human) are
+registered as S8 group templates, not opaque units.
+
+**Risk:** Medium. Expand-in-place overlay rendering is the most
+complex canvas work. Boundary port delegation and solver invariant
+are architecturally simple but require exhaustive testing.
+
+**Spec:** `PTIS_S8_SPEC.md`
+
+---
+
+### ⚙ GAME GATE ⚙
+
+Everything above (S0–S8) constitutes the complete simulation engine:
+465 tests, all physics, all grouping infrastructure, all inspector
+overlays. The simulator works as a standalone sandbox.
+
+Everything below (S9–S10) adds game-specific content and mechanics.
+S9 extends the engine with units and chemistry needed by the campaign.
+S10 wraps the engine in a playable game.
+
+---
+
+## S9 — Game Engine Extensions
+
+**What:** Register new defIds, species, and reactions required by
+the campaign but architecturally part of the engine. These units
+share tick trunks with existing units and follow the same NNG rules.
+They work in sandbox mode regardless of whether the game layer is
+loaded.
+
+**Sub-sessions:** 2 (defId registrations + tests).
+
+**Content:**
+- **New defIds:** `steam_turbine` (expanderTick trunk, moistureCheck),
+  `tank_cryo` (vesselTick trunk, Dewar limits), `membrane_separator`
+  (new separatorTick trunk), `fuel_cell` (electrochemicalTick trunk,
+  generate mode — data registration only, not in current 10 missions).
+- **New species:** CH₂O (formaldehyde, food proxy, MW 30.026).
+- **New reactions:** R_PHOTOSYNTHESIS (CO₂ + H₂O → CH₂O + O₂,
+  +519.4 kJ/mol, ELECTROCHEMICAL), R_METABOLISM (CH₂O + O₂ → CO₂ + H₂O,
+  −519.4 kJ/mol, POWER_LAW complete conversion).
+- **Trunk architecture:** Shared tick trunk documentation and
+  config-driven branching for all defId families.
+
+**Dependencies:** S8 (GroupTemplateRegistry — composites use these
+units inside group templates). S6 (electrochemicalTick trunk shared
+by fuel_cell). S2 (power contracts for fuel_cell generate mode).
+
+**Spec:** `PTIS_S9_SPEC.md`
+
+---
+
+## S10 — Game Layer
 
 **What:** Transform the simulator into a playable survival-engineering
 game with Kerbal-style Build/Run loop, 10-mission campaign, equipment
-scarcity, and narrative integration.
+scarcity, and narrative integration. Composites (greenhouse, human)
+implemented via S8 GroupTemplateRegistry using S9-registered units.
 
 **Sub-sessions:**
-- **S8a** (2 sessions): Build/Run state machine. Auto-checkpoint on Play.
+- **S10a** (3 sessions): Build/Run state machine. Auto-checkpoint on Play.
   Revert on catastrophic failure. Time warp with auto-decelerate. Topology
-  edit guards. Scene serialization fix.
-- **S8b** (2 sessions): MissionDefinition schema. MissionRegistry.
+  edit guards. Scene serialization.
+- **S10b** (4 sessions): MissionDefinition schema. MissionRegistry.
   6 objective evaluator types. Star ratings. Palette scarcity (count badges).
   paramLocks enforcement. Progressive hint system. Mission flow
   (briefing → build → run → evaluate → debrief).
-- **S8c** (2 sessions): Depletable supply units (O₂ bottles, LiOH, water,
-  MREs). Room unit (shelter as atmospheric tank). Campaign state + equipment
-  inheritance. Save/load. Home screen + sandbox mode. M10 composites
-  (greenhouse, human, CH₂O species, R_PHOTOSYNTHESIS, R_METABOLISM).
+- **S10c** (3 sessions): Depletable supply units (O₂ bottles, LiOH, water,
+  MREs, battery). Room unit (shelter as atmospheric tank). Campaign state +
+  equipment inheritance. Save/load. Home screen + sandbox mode. Greenhouse
+  and human composite templates registered via S8 GroupTemplateRegistry.
+  10 mission data definitions. M10 fabrication unlock.
 
-**Governing design:** `game_arch_part_*.md` (Parts I–IV, VII–VIII).
+**Governing design:** `PTIS_GAME_DESIGN.md` (unified game design
+document covering philosophy, missions, equipment stories, biosphere
+concept, UX vision).
 
-**Spec:** `PTIS_S8_SPEC.md`
+**Spec:** `PTIS_S10_SPEC.md`
 
 ---
 
 ## Critical Path
 
 ```
-S1a → S1b → S1c → S2 → S3a → S3b → S5a → S5b → S8a → S8b → S8c
+S0 → S1a → S1b → S1c → S2 → S3a → S3b → S5a → S5b → S8-1 → S8-2 → S9 → S10a → S10b → S10c
 ```
 
-Longest chain: 11 sub-sessions on the critical path.
+Longest chain: 15 sub-sessions on the critical path.
+
+Note: S8 is on the critical path because S10c composites (greenhouse,
+human) require GroupTemplateRegistry. S7 (Performance Maps) is NOT on
+the critical path — it merges at S10 as a visual enrichment, not a gate.
 
 ## Parallel Branches
 
 | Branch | Branches from | Merges at |
 |--------|--------------|-----------|
 | S4a → S4b | S3b | S7 (column maps) |
-| S6 | S2 | S8c (electrochemical units) |
-| S7 | S1c + S3b + S4a | S8 (inspector integration) |
+| S6 | S2 | S9 (electrochemical trunk for fuel_cell) |
+| S7 | S1c + S3b + S4a | S8 (inspector hooks), S10 (visual feedback) |
 
-See `PTIS_DEPENDENCY_MAP.md` for the full visual graph.
+See `PTIS_DEPENDENCY_MAP.html` for the full visual graph.
 
 ---
 
-## Open Game Design Questions (Do Not Block Engine Work)
+## Document Map
 
-1. Tank variants: LP / HP / Dewar as separate defIds or one unit?
-2. Electrolyzer: dedicated unit (2 gas outlets) or generic reactor_electrochemical?
-3. Reactor visual variants: combustion chamber vs catalytic bed presentation?
-4. M10 power budget: 82 kW grow lights — multiple Brayton units, solar, or tunable LED efficiency?
-5. Distillation column: sandbox-only or possible in future campaign chapters?
-6. CH₂O registration: with M10 composites in S8c, or earlier for engine completeness?
+### Roadmap & Reference
+| Document | Purpose |
+|----------|---------|
+| `PTIS_ROADMAP.md` | This file — stage overview, critical path, open questions |
+| `PTIS_DEPENDENCY_MAP.html` | Visual dependency graph |
+| `PTIS_EQUIPMENT_MATRIX.md` | Canonical equipment, species, reaction, and progression tables |
+| `PTIS_BIOSPHERE_POWER_RECONCILIATION.md` | Biosphere derivations, cross-spec consistency checks |
 
-These are recorded and deferred. The engine spec for each stage is complete
-without resolving them. Game architecture docs hold the design context.
+### Engine Specs (S0–S9)
+| Document | Stage | Content |
+|----------|-------|---------|
+| `PTIS_S0_SPEC.md` | S0 | NNG consolidation |
+| `PTIS_S1_SPEC.md` | S1 | Thermo & chemistry foundation |
+| `PTIS_S2_SPEC.md` | S2 | Power management |
+| `PTIS_S3_SPEC.md` | S3 | Peng-Robinson EOS |
+| `PTIS_S4_SPEC.md` | S4 | Separation & HEX fix |
+| `PTIS_S5_SPEC.md` | S5 | Pressure-driven flow |
+| `PTIS_S6_SPEC.md` | S6 | Electrochemical reactor |
+| `PTIS_S7_SPEC.md` | S7 | Performance maps |
+| `PTIS_S8_SPEC.md` | S8 | Unit groups & sub-assemblies |
+| `PTIS_S9_SPEC.md` | S9 | Game engine extensions (new defIds, species, reactions) |
+
+### Game Specs (S10)
+| Document | Stage | Content |
+|----------|-------|---------|
+| `PTIS_S10_SPEC.md` | S10 | Game layer implementation (state machine, missions, campaign) |
+| `PTIS_GAME_DESIGN.md` | — | Unified game design (philosophy, narrative, missions, UX) |
+
+### Archived
+| Document | Replaced by |
+|----------|-------------|
+| `game_arch_part_1_to_3_description.md` | `PTIS_GAME_DESIGN.md` Parts I–III |
+| `game_arch_part_4_missions.md` | `PTIS_GAME_DESIGN.md` Part IV + `PTIS_S10_SPEC.md` |
+| `game_arch_part_5_biosphere.md` | `PTIS_GAME_DESIGN.md` Part V + `PTIS_S9_SPEC.md` |
+| `game_arch_part_6_room.md` | `PTIS_GAME_DESIGN.md` Part VI + `PTIS_S10_SPEC.md` |
+| `game_arch_part_7_equipment.md` | `PTIS_GAME_DESIGN.md` Part VII + `PTIS_EQUIPMENT_MATRIX.md` |
+| `game_arch_part_8_ux.md` | `PTIS_GAME_DESIGN.md` Part VIII |
+| `biosphere-loop-design-v3.md` | `PTIS_BIOSPHERE_POWER_RECONCILIATION.md` + `PTIS_S9_SPEC.md` |
+
+---
+
+## Open Game Design Questions
+
+### Resolved
+
+1. ~~Tank variants~~ → `tank` defId with mission paramLocks for LP/HP
+   rating differences. `tank_cryo` (Dewar) as separate defId (different
+   physical machine). See NNG-3 decision tree in S9 spec.
+2. ~~Electrolyzer outlets~~ → S6 specifies 2 outlets: mat_out_cat
+   (cathode) + mat_out_ano (anode). Electrode separation by design.
+3. ~~Reactor visual variants~~ → Deferred. Same defId, cosmetic
+   presentations only. No engine impact.
+4. ~~M10 power budget (85 kW)~~ → Greenhouse η = 1% (validated
+   against NASA data), 7 colonists, 85 kW electrical demand.
+   Resolution: (a) M10 unlocks fabrication — unlimited equipment
+   counts, player builds 4–5 combined cycle power blocks at ~20 kW
+   each; (b) S8 group templates make building at scale manageable;
+   (c) greenhouse lighting efficiency (η) is editable on the locked
+   template (0.5–5%), letting the player trade realism for
+   practicality. See `PTIS_BIOSPHERE_POWER_RECONCILIATION.md`.
+5. ~~Distillation column restrictions~~ → No restrictions. Available
+   in sandbox and campaign. Mission palette controls availability.
+6. ~~CH₂O registration~~ → S9 session 1.
+7. ~~Composites as opaque units vs transparent groups~~ → S8 locked
+   group templates. Greenhouse and human are composed of real units
+   (reactor_electrochemical, reactor_equilibrium, membrane_separator)
+   that the player can inspect. Not opaque defIds with bespoke ticks.
+8. ~~Human drinking water port~~ → Human template has 5 boundary
+   ports: air_in, food_in, water_in, air_out, waste_out. Drinking
+   water enters via water_in, exits as H₂O + NH₃ via waste_out
+   (urine analogue). No biomass waste — all carbon is oxidized by
+   R_METABOLISM.
+
+### Still Open
+
+None. All open design questions resolved.
+
+### Architecture Decisions (2026-02-22)
+
+Cross-cutting decisions on shared tick trunks, port labels, equipment
+variant strategy, fuel cell, steam turbine, co-electrolysis recorded
+in S9 spec (trunk architecture, decision tree, future extension path).
+
+S8 expand-in-place overlay model, editableParams selective parameter
+exposure, and GroupTemplateRegistry design recorded in `PTIS_S8_SPEC.md`.
+
+Biosphere power reconciliation (metabolic rates, greenhouse efficiency,
+M10 power supply resolution) recorded in
+`PTIS_BIOSPHERE_POWER_RECONCILIATION.md`.

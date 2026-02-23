@@ -33,7 +33,7 @@ PR enthalpy departures for JT cooling in refrigeration tests).
 - 22 unit types (+distillation_column)
 - HEX UA/NTU correct for condensing/evaporating service
 - Refrigeration loops verified end-to-end
-- ~355 tests (343 + 12 new)
+- ~352 tests (340 + 12 new)
 
 ---
 
@@ -64,13 +64,12 @@ UnitRegistry.register('distillation_column', {
     { portId: 'mat_in',    dir: PortDir.IN,  type: StreamType.MATERIAL,   x: 0, y: 1 },
     { portId: 'elec_in',   dir: PortDir.IN,  type: StreamType.ELECTRICAL, x: 1, y: 0 },
     { portId: 'mat_out_D', dir: PortDir.OUT, type: StreamType.MATERIAL,   x: 2, y: 0 },
-    { portId: 'mat_out_B', dir: PortDir.OUT, type: StreamType.MATERIAL,   x: 2, y: 2 },
-    { portId: 'elec_surplus', dir: PortDir.OUT, type: StreamType.ELECTRICAL, x: 1, y: 3 }
+    { portId: 'mat_out_B', dir: PortDir.OUT, type: StreamType.MATERIAL,   x: 2, y: 2 }
   ],
   presentations: {
     'box/default': { w: 2, h: 3, ports: {
       mat_in:{x:0,y:1.5}, elec_in:{x:1,y:0}, mat_out_D:{x:2,y:0.5},
-      mat_out_B:{x:2,y:2.5}, elec_surplus:{x:1,y:3}
+      mat_out_B:{x:2,y:2.5}
     }}
   },
   // ... tick function defined in S4a-5
@@ -79,10 +78,12 @@ UnitRegistry.register('distillation_column', {
 
 **Port notes:**
 - `elec_in`: Reboiler power supply. Column demands Q_R.
-- `elec_surplus`: Condenser heat output. Connected to a dump load or
-  recovered via another HEX. Uses ELECTRICAL stream type because
-  HEAT streams were deleted in v12.6.0 — this is consistent with
-  how the hub surplus port works.
+- No condenser heat port. Condenser heat rejection is absorbed into
+  product streams (distillate exits subcooled, bottoms exits hot).
+  This follows the same principle as reactor_electrochemical (S6):
+  adiabatic on material side, waste heat stays in products, player
+  cools downstream with air_cooler/HEX if needed. No HEAT stream
+  type exists (NNG-3).
 
 ---
 
@@ -467,16 +468,10 @@ tick(u, ports, par, ctx) {
       + (1 - separationFactor) * H_in * (dist.B / nTotal)
   };
 
-  // Condenser duty on surplus port
-  if (ports.elec_surplus) {
-    const Q_C_actual = Q_condenser_W * separationFactor;
-    ports.elec_surplus = {
-      type: StreamType.ELECTRICAL,
-      capacity: Q_C_actual,
-      actual: Q_C_actual,
-      available: Q_C_actual
-    };
-  }
+  // Condenser heat absorbed into product streams.
+  // Distillate exits subcooled (condenser cools it).
+  // Bottoms exits hot (reboiler heats it).
+  // No separate condenser port — player cools downstream if needed.
 
   // ── Diagnostics ──
   u.last = {
@@ -717,7 +712,7 @@ Assert: T_out < T_in, Z_vap ≈ 0.3–0.5 (supercritical/near-critical)
 | 11 | Refrig C: condenser | hot outlet is liquid |
 | 12 | Refrig D: NH₃ loop convergence | stable within 5 iterations |
 
-**Gate:** All previous (343) + 12 new pass.
+**Gate:** All previous (340) + 12 new pass → 352 cumulative.
 
 ---
 
@@ -737,7 +732,7 @@ S4a session 2 (energy + diagnostics):
   [ ] Tick function with FUG pipeline
   [ ] Energy balance (Q_R, Q_C)
   [ ] Power demand + curtailed separation
-  [ ] Condenser output on elec_surplus port
+  [ ] Condenser heat into product streams (no surplus port)
   [ ] Inspector (params, kpis, power sections)
   [ ] Limit parameters (T, P, mass)
   [ ] NNG-14 diagnostic messages (4 distinct messages)
@@ -749,7 +744,7 @@ S4b session (HEX fix + refrigeration):
   [ ] 2 HEX UA/NTU regression tests
   [ ] 4 refrigeration loop tests (+ CO₂ near-critical)
 
-Total S4: ~12 new tests → 355 cumulative
+Total S4: ~12 new tests → 352 cumulative
 ```
 
 ---

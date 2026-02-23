@@ -1,934 +1,1586 @@
 # PTIS_S8_SPEC
-## S8 — Game Layer
-### processThis v13.7.0 → v14.0.0 (post-S7)
+## S8 — Unit Groups & Sub-Assemblies
+### processThis v13.7.0 → v13.8.0 (post-S7)
 
 ---
 
 ## Overview
 
-**What:** Transform the simulator into a playable survival-engineering
-game. Build/Run state machine with auto-checkpoint and revert.
-MissionDefinition schema with 6 objective evaluator types. 10-mission
-campaign on Planet X with equipment scarcity, narrative integration,
-and progressive unlocks. Depletable supply units, room (shelter),
-composites (greenhouse, human), 2 new species (CO, CH₂O), 2 new
-reactions (R_PHOTOSYNTHESIS, R_METABOLISM). Sandbox mode preserved
-for free-form engineering.
+**What:** Blender-style node grouping for the process flowsheet. Select
+units, group them into a collapsible container with auto-detected
+boundary ports. Tab to navigate in/out. Name, save, and reuse groups
+as templates from the palette. Campaign composites (greenhouse, human)
+become locked group templates containing real, inspectable units —
+replacing bespoke tick functions with transparent assemblies the player
+can open and understand.
 
-**Sub-sessions:** S8a (4), S8b (4), S8c (4) — 12 sessions total.
+**Sub-sessions:** S8-1 (2), S8-2 (2) — 4 sessions total.
 
-**Risk:** High. Largest stage by scope. Mitigated by clean separation:
-S8a is pure state machine (no missions), S8b is mission framework
-(no content), S8c is campaign content (data-driven). Each sub-session
-is independently testable.
+**Risk:** Medium. The expand-in-place overlay rendering (dimmed parent
++ expanded container + active interior) is the most complex canvas
+work. Boundary port delegation and the solver invariant (groups
+invisible to physics) are architecturally simple but must be tested
+exhaustively. Main edge-case risk is multiConnect ports crossing
+group boundaries and nested group interaction with the overlay stack.
 
-**Dependencies:** All of S1–S7b. S8 is the consumer of every prior
-stage. S7b (GroupTemplateRegistry) required specifically by S8c for
-greenhouse and human composite template registrations.
+**Dependencies:**
+- S5 (scene infrastructure, canvas renderer, connection model)
+- S7 (inspector hooks — groups need inspector integration for
+  collapsed-state summary display)
 
-**Required by:** Nothing — S8 is the final stage.
+**Required by:** S10c (greenhouse, human, room registered as locked
+group templates instead of opaque composite units).
 
-**Baseline state (post-S7):** Full simulation engine with PR EOS,
-distillation, pressure network, electrochemical reactor (2-outlet),
-performance maps, 447 tests. No game state machine, no missions,
-no scarcity system.
+**Baseline state (post-S7):** Flat scene model. `Scene.units` is a
+Map of individual units. `Scene.connections` is a flat array. No
+hierarchy, no grouping, no assembly concept. Composites (greenhouse,
+human) specified in S8 as single-registration units with internal
+physics hidden in bespoke tick functions. ~458 tests.
 
-**After S8:** Playable 10-mission campaign + sandbox mode. ~495 tests
-(447 + ~30 new).
-
----
-
-## Governing Design
-
-Game architecture defined in:
-- `game_arch_part_1_to_3_description.md` (game philosophy, core loop)
-- `game_arch_part_4_missions.md` (mission format, all 10 missions)
-- `game_arch_part_7_equipment.md` (S-size equipment specs)
-- `game_arch_part_8_ux.md` (3D view, UX, state machine)
-- `processThis-game-spec-v2.md` (consolidated architecture)
-
-This spec references those documents as authoritative. It does not
-repeat their full content but provides the implementation-level detail
-needed for each session.
+**After S8:** Group data model in scene. Canvas navigation stack
+with Tab in/out. GroupTemplateRegistry with save/instantiate.
+Palette "Templates" section. Locked groups for campaign composites.
+Generic scaling mechanism. Scene version bump (16 → 17, `groups`
+field). NNG-3 updated. ~476 tests (458 + ~18 new).
 
 ---
 
-# S8a — Build/Run State Machine (4 sessions)
+## Design Principles
 
-## S8a-1. Game Modes
+**Groups are scene organization, not physics.** The solver never sees
+a group. `solveScene()` iterates `scene.units` — a flat Map, same as
+today. Connections still point unit-to-unit. Boundary ports are a
+canvas-level indirection: they affect rendering and navigation, not
+the tick/solve cycle. This is the foundational invariant.
 
-```javascript
-const GameMode = Object.freeze({
-  SANDBOX: 'sandbox',     // Free-form, all equipment, no scarcity
-  CAMPAIGN: 'campaign'    // Mission-driven, scarcity, narrative
-});
+**Modeled after Blender node groups.** Select → Group (Ctrl+G). The
+selection collapses to a single box on the parent canvas. Tab enters
+the group interior. Group Input / Group Output boundary nodes show
+where external connections enter and leave. Tab returns to parent.
+Breadcrumb trail shows depth. Groups can nest.
 
-const PlayState = Object.freeze({
-  BUILD: 'build',         // World frozen. Topology editable. Params editable.
-  RUN: 'run',             // World ticking. Topology locked. Params live.
-  PAUSED: 'paused',       // World frozen. Topology locked. Resume available.
-  EVALUATE: 'evaluate',   // Post-run. Checking objectives. Brief.
-  BRIEFING: 'briefing',   // Pre-mission narrative overlay.
-  DEBRIEF: 'debrief'      // Post-mission narrative overlay.
-});
-```
+**Campaign composites are locked groups, not opaque boxes.** The
+greenhouse is a reactor + separator + mixer inside a locked group.
+The player can Tab in, click on each unit, read its inspector, see
+the streams — but cannot rewire or delete. The teaching message:
+these "advanced" systems are just the same components you've been
+using. The game doesn't hide physics, it assembles it.
 
-**State transitions:**
-
-```
-BRIEFING → BUILD → RUN ⇄ PAUSED → EVALUATE → DEBRIEF → (next mission)
-                    ↓
-              CATASTROPHIC → revert to checkpoint → BUILD
-```
-
-**Sandbox mode:** Uses BUILD ⇄ RUN ⇄ PAUSED only. No briefing,
-evaluate, or debrief states. No scarcity. Full palette.
-
-## S8a-2. Auto-Checkpoint
-
-Every transition from BUILD → RUN auto-saves:
-```javascript
-function checkpoint() {
-  const snap = {
-    scene: serializeScene(),
-    inventories: serializeInventories(),  // tank contents, battery SoC
-    campaignState: CampaignState.serialize(),
-    timestamp: Date.now()
-  };
-  CheckpointManager.push(snap);  // stack of up to 5
-}
-```
-
-**Revert:** On CATASTROPHIC alarm or player request, restore from
-checkpoint. Tank inventories, battery charge, timer all reset to
-checkpoint state. Equipment layout preserved.
-
-## S8a-3. Time Warp
-
-```javascript
-const TimeWarp = {
-  speeds: [1, 2, 5, 10, 50],  // multipliers
-  current: 0,  // index
-  autoDecelerate(alarms) {
-    // WARNING → clamp to 2×
-    // ERROR → clamp to 1×
-    // CATASTROPHIC → pause
-    const maxSev = alarms.reduce((m, a) => Math.max(m, sevOrder[a.severity]), 0);
-    if (maxSev >= sevOrder.CATASTROPHIC) PlayState.set('paused');
-    else if (maxSev >= sevOrder.ERROR) this.current = Math.min(this.current, 0);
-    else if (maxSev >= sevOrder.WARNING) this.current = Math.min(this.current, 1);
-  }
-};
-```
-
-TimeClock.dt multiplied by warp factor. Auto-decelerate on alarms.
-
-## S8a-4. Topology Edit Guards
-
-In RUN state:
-- Adding/deleting units → blocked (toast: "Pause to edit layout")
-- Connecting/disconnecting wires → blocked
-- Parameter changes → allowed (live tuning)
-- Valve opening changes → allowed (live)
-
-In BUILD state: all edits allowed. World frozen (dt = 0).
-
-## S8a Tests (~6)
-
-| # | Test | Assert |
-|---|------|--------|
-| 1 | BUILD → RUN creates checkpoint | CheckpointManager.stack.length increases |
-| 2 | Revert restores scene | scene matches checkpoint exactly |
-| 3 | Revert restores inventories | tank.n matches checkpoint |
-| 4 | Topology edit blocked in RUN | addUnit() returns false |
-| 5 | Param edit allowed in RUN | setValue() succeeds |
-| 6 | Time warp auto-decelerate on ERROR | warp.current ≤ 0 |
+**Dual purpose: sub-assemblies and PFD organization.** The same
+grouping mechanism serves both "save this as a reusable template"
+and "collapse this section to declutter my flowsheet." No separate
+frame/section concept needed.
 
 ---
 
-# S8b — Mission Framework (4 sessions)
+## NNG Amendment
 
-## S8b-1. MissionDefinition Schema
+### NNG-3 — WYSIWYG (add paragraph 4)
+
+```
+Groups are a canvas-level organizational concept. A group is a named
+set of units and their internal connections, displayed as a single
+collapsible box with boundary ports. The solver sees through groups —
+it iterates individual units and unit-to-unit connections. Groups
+never affect tick ordering, stream resolution, pressure propagation,
+or any computed value. A scene with groups produces identical physics
+to the same scene ungrouped.
+```
+
+**Rationale:** NNG-3 defines the relationship between visual state
+and physics. Groups are the one case where visual state (collapsed
+box) diverges from physical state (individual units). The paragraph
+makes explicit that this divergence is presentation-only.
+
+### NNG-10 — Registries (add clause)
+
+```
+GroupTemplateRegistry follows the same register/get/all/exists
+pattern. Templates are frozen on registration. Template instantiation
+creates real units and real connections — the template is a blueprint,
+not a runtime abstraction.
+```
+
+---
+
+# S8-1 — Group Data Model & Boundary Detection (2 sessions)
+
+## S8-1a. GroupDefinition Schema
 
 ```javascript
 /**
- * @typedef {Object} MissionDefinition
- * @property {string} id - Unique ID ('px_m1_water')
- * @property {string} title
- * @property {string} description - One-line summary
- * @property {string} chapter - 'A'|'B'|'C'|'D'
- * @property {string} atmosphere - Atmosphere preset
- * @property {Object} palette - { defId: count }
- * @property {Object} paramLocks - { defId: { param: value } }
- * @property {string[]} species - Available species IDs
- * @property {string[]} reactions - Available reaction IDs
- * @property {Object|null} initialScene - Pre-built starting flowsheet
- * @property {boolean} inheritScene - Start from previous mission end state
- * @property {Objective[]} objectives - Win conditions
- * @property {StarCriterion[]} stars - 1-3 star thresholds
- * @property {NarrativeBeat[]} briefing
- * @property {NarrativeBeat[]} debriefing
- * @property {Hint[]} hints - Progressive hints
- * @property {string[]} requires - Prerequisite mission IDs
- * @property {Object} rewards - { unlockedParts, unlockedMissions, unlockedSpecies, unlockedReactions }
+ * A group is a named container of units within a scene.
+ * It has no physics — the solver sees through it entirely.
+ *
+ * @typedef {Object} GroupDefinition
+ * @property {string} id           - Unique within scene ('grp-1', 'grp-2')
+ * @property {string} name         - User-editable label ('Sabatier Loop')
+ * @property {Set<string>} unitIds - Member unit IDs
+ * @property {BoundaryPort[]} boundaryPorts - Auto-detected, user-renameable
+ * @property {boolean} locked      - true = inspect-only (campaign composites)
+ * @property {string|null} templateId - If instantiated from a template
+ * @property {string|null} parentGroupId - For nested groups (null = root)
+ * @property {{x,y,w,h}} collapsedBounds - Position/size when collapsed on parent canvas
  */
-```
 
-**Frozen on registration.** Missions are pure data — no code, no
-closures. The MissionRegistry validates and freezes each definition.
-
-## S8b-2. MissionRegistry
-
-```javascript
-const MissionRegistry = {
-  _missions: new Map(),
-  register(def) {
-    // Validate schema
-    // Validate species/reactions exist in ComponentRegistry/ReactionRegistry
-    // Validate palette defIds exist in UnitRegistry
-    // Freeze
-    Object.freeze(def);
-    this._missions.set(def.id, def);
-  },
-  get(id) { return this._missions.get(id); },
-  getAll() { return [...this._missions.values()]; },
-  getAvailable(campaignState) {
-    return this.getAll().filter(m =>
-      m.requires.every(r => campaignState.completed.has(r)));
-  }
-};
-```
-
-## S8b-3. Objective Evaluators
-
-6 types, each a pure function:
-
-```javascript
-const ObjectiveEvaluators = {
-  convergence(obj, scene, runtime) {
-    return runtime.converged === true;
-  },
-
-  store_component(obj, scene, runtime) {
-    // Find target tank(s), check species moles, purity, phase
-    const tanks = findUnits(scene, obj.targetUnit || 'tank');
-    for (const tank of tanks) {
-      const inv = tank.inventory;
-      const moles = inv.n[obj.species] || 0;
-      if (moles < obj.minMoles) continue;
-      if (obj.minPurity) {
-        const total = Object.values(inv.n).reduce((a,b) => a+b, 0);
-        if (total < 1e-12 || moles / total < obj.minPurity) continue;
-      }
-      // Phase check via computeTankState if requiredPhase specified
-      return true;
-    }
-    return false;
-  },
-
-  sustained_flow(obj, scene, runtime) {
-    // Check flow of species at target exceeds minFlow for duration
-    return runtime.sustainedTimers[obj.id] >= obj.duration_s;
-  },
-
-  maintain_conditions(obj, scene, runtime) {
-    // Check T/P/composition bounds at target unit for duration
-    return runtime.conditionTimers[obj.id] >= obj.duration_s;
-  },
-
-  power_output(obj, scene, runtime) {
-    // Check net electrical output exceeds threshold for duration
-    return runtime.powerTimers[obj.id] >= obj.duration_s;
-  },
-
-  parts_remaining(obj, scene, runtime) {
-    const placed = countPlacedUnits(scene);
-    const total = sumPalette(runtime.mission.palette);
-    return (total - placed) >= obj.minCount;
-  }
-};
-```
-
-## S8b-4. Star Rating
-
-```javascript
-function evaluateStars(mission, scene, runtime) {
-  let stars = 0;
-  for (const criterion of mission.stars) {
-    // Each criterion references an objective index or custom check
-    const met = criterion.objectives
-      ? criterion.objectives.every(i => runtime.objectiveResults[i])
-      : ObjectiveEvaluators[criterion.type](criterion, scene, runtime);
-    if (met) stars++;
-    else break;  // Stars are cumulative — must earn ★ before ★★
-  }
-  return stars;
-}
-```
-
-## S8b-5. Palette Scarcity
-
-```javascript
-function getPaletteForMission(mission, campaignState) {
-  const palette = {};
-  // Base palette from mission
-  for (const [defId, count] of Object.entries(mission.palette)) {
-    palette[defId] = (palette[defId] || 0) + count;
-  }
-  // Inherited parts from completed missions (if inheritParts)
-  if (mission.inheritParts && campaignState) {
-    for (const [defId, count] of Object.entries(campaignState.accumulatedParts)) {
-      palette[defId] = (palette[defId] || 0) + count;
-    }
-  }
-  return palette;
-}
-```
-
-**UI:** Count badge on each palette entry ("2×"). Grey when all placed.
-Tease entries (greyed with narrative tooltip) for equipment the player
-will find later.
-
-## S8b-6. ParamLocks Enforcement
-
-```javascript
-// In inspector rendering:
-function isParamLocked(unit, paramKey, mission) {
-  if (!mission) return false;
-  const locks = mission.paramLocks[unit.defId];
-  return locks && paramKey in locks;
-}
-// Locked params: show value as read-only text with lock icon
-// Source on hover: "Fixed by mission constraints"
-```
-
-## S8b-7. Progressive Hint System
-
-```javascript
-const HintManager = {
-  shown: new Set(),
-  check(mission, runtime) {
-    for (const hint of mission.hints) {
-      if (this.shown.has(hint.id)) continue;
-      const triggered = this.evaluateTrigger(hint.after, runtime);
-      if (triggered) {
-        this.shown.add(hint.id);
-        NarrativeOverlay.showHint(hint.text, hint.speaker || 'vasquez');
-      }
-    }
-  },
-  evaluateTrigger(trigger, runtime) {
-    // 'time:300' → 300s elapsed
-    // 'fail:2' → 2 failed attempts
-    // 'place:air_cooler' → unit type placed
-    // 'alarm:severity:ERROR' → ERROR alarm active
-  }
-};
-```
-
-## S8b-8. Mission Flow
-
-```
-1. Player selects mission from mission select screen
-2. BRIEFING: NarrativeBeat[] plays (dialogue, images, objectives)
-3. BUILD: Scene loaded (initial or inherited). Palette restricted.
-   Player designs freely. No time passes.
-4. Player presses COMMIT (Play button)
-5. Auto-checkpoint. Transition to RUN.
-6. RUN: World ticks. Objectives evaluated each tick.
-   Time warp available. Hints check periodically.
-   CATASTROPHIC → revert to checkpoint → BUILD.
-7. All primary objectives met → EVALUATE
-8. Star rating computed. DEBRIEF narrative plays.
-9. Rewards applied to CampaignState. Next mission unlocked.
-```
-
-## S8b Tests (~8)
-
-| # | Test | Assert |
-|---|------|--------|
-| 1 | MissionRegistry validates schema | Bad mission → throws |
-| 2 | MissionRegistry freezes definitions | Object.isFrozen(mission) |
-| 3 | convergence evaluator | converged scene → true |
-| 4 | store_component evaluator | tank with 100 mol H₂O → true |
-| 5 | sustained_flow evaluator | timer reaches duration → true |
-| 6 | Palette scarcity: count = 0 → blocked | addUnit returns false |
-| 7 | ParamLocks: locked param read-only | setValue() no-op |
-| 8 | Star evaluation: ★ but not ★★ | stars === 1 |
-
----
-
-# S8c — Campaign Content (4 sessions)
-
-## S8c-1. CampaignState
-
-```javascript
-const CampaignState = {
-  completed: new Set(),      // mission IDs
-  stars: {},                 // { missionId: 1|2|3 }
-  accumulatedParts: {},      // { defId: count } from rewards
-  accumulatedSpecies: new Set(['H2O','CO2','N2','CH4','Ar']),
-  accumulatedReactions: new Set(),
-  currentScene: null,        // serialized scene from last mission
-  population: 2,             // survivors
-  reserves: {                // depletable starting reserves
-    O2_bottles_mol: 300,
-    LiOH_cartridges: 20,
-    water_mol: 2222,
-    battery_kWh: 75,
-    MREs: 200
-  },
-  gameDay: 0,
-
-  applyRewards(mission) {
-    this.completed.add(mission.id);
-    const r = mission.rewards;
-    if (r.unlockedParts) {
-      for (const [k, v] of Object.entries(r.unlockedParts))
-        this.accumulatedParts[k] = (this.accumulatedParts[k] || 0) + v;
-    }
-    if (r.unlockedSpecies) r.unlockedSpecies.forEach(s => this.accumulatedSpecies.add(s));
-    if (r.unlockedReactions) r.unlockedReactions.forEach(r => this.accumulatedReactions.add(r));
-  },
-
-  serialize() { /* JSON-safe snapshot */ },
-  deserialize(data) { /* restore from JSON */ }
-};
-```
-
-## S8c-2. New Species (S8c scope)
-
-| Species | MW | hf0_Jmol | Tc | Pc | Registered |
-|---------|-----|---------|-----|-----|------------|
-| CO | 28.01 | −110,530 | 132.9 | 35.0e5 | S1 (data only, activated S8c) |
-| CH₂O | 30.03 | −115,900 | 408 | 65.9e5 | New in S8c (food proxy) |
-
-CO was registered in S1 as component data. CH₂O (formaldehyde, food
-proxy) is new — simplified stand-in for carbohydrates in the biosphere
-loop.
-
-## S8c-3. New Reactions (S8c scope)
-
-| Reaction | Equation | ΔH | Model | Mission |
-|----------|----------|-----|-------|---------|
-| R_PHOTOSYNTHESIS | CO₂ + H₂O → CH₂O + O₂ | +519 kJ/mol | ELECTROCHEMICAL | M10 |
-| R_METABOLISM | CH₂O + O₂ → CO₂ + H₂O | −519 kJ/mol | POWER_LAW (A=∞) | M10 |
-
-R_PHOTOSYNTHESIS uses ELECTROCHEMICAL model (light energy = electrical
-input to greenhouse unit). R_METABOLISM uses POWER_LAW with very high
-A (effectively complete conversion) — humans consume all food.
-
-## S8c-3b. New Unit Registrations (S8c scope)
-
-### Shared Tick Trunk Architecture (NNG-3, NNG-10)
-
-Multiple defIds share identical physics via named trunk functions.
-No frameworks, no inheritance — just shared function references
-with per-defId config:
-
-```javascript
-function expanderTick(u, ports, par, ctx) {
-  const config = UnitRegistry.get(u.defId).config || {};
-  // Shared isentropic expansion logic
-  if (config.moistureCheck && outletLiqFrac > config.maxWetness) {
-    // Steam turbine only: wet exhaust warning
-  }
-}
-```
-
-Trunk inventory:
-
-| Trunk | DefIds sharing it |
-|---|---|
-| `vesselTick` | tank, tank_cryo, reservoir |
-| `heatExchangerTick` | hex, air_cooler |
-| `expanderTick` | gas_turbine, steam_turbine |
-| `compressorTick` | compressor |
-| `electrochemicalTick` | reactor_electrochemical, fuel_cell |
-| `reactorTick` | reactor_equilibrium |
-
-**When to create a new defId (NNG-3 decision tree):**
-- Different ports → new defId
-- Different physics branching (config flags) → new defId, shared trunk
-- Different ratings/limits only → same defId, mission paramLocks
-- Different capacity only → same defId, different size (S/M/L)
-
-**Future extension:** If variant count grows beyond paramLocks
-(3+ rating variants × 3 sizes per trunk), a profile system could
-layer on: `unit.profile` field, profile-specific limit overrides,
-palette key `defId/profile`. Not needed for current 10 missions.
-
-### steam_turbine (M8)
-
-Separate defId sharing `expanderTick` trunk with `gas_turbine`.
-Config: `{ moistureCheck: true, maxWetness: 0.12 }`.
-Same ports as gas_turbine (mat_in, mat_out, elec_out).
-Limits: T_HH=823K, P_HH=100 bar. WARNING if exhaust liquid > 12%.
-
-### tank_cryo (M9)
-
-Separate defId sharing `vesselTick` trunk with `tank`.
-Same ports as tank (mat_in, mat_out).
-Limits: T_LL=20K, T_HH=300K, P_HH=10 bar.
-Physical: vacuum-insulated Dewar, multi-layer insulation, boil-off vent.
-
-### fuel_cell (future — data registration only in S8c)
-
-Separate defId sharing `electrochemicalTick` trunk with
-`reactor_electrochemical`. Config: `{ direction: 'generate' }`.
-Ports: mat_in_cat (label: Fuel), mat_in_ano (label: Oxidant),
-mat_out (label: Exhaust), elec_out (label: Power out),
-heat_out (label: Waste heat).
-Reactions: R_H2_FUELCELL, R_CO_FUELCELL (registered in S1).
-Trunk detects ΔH<0 → generate mode (power OUT).
-
-## S8c-4. Composite Units (via S7b Group Templates)
-
-Composites (greenhouse, human) are registered as locked group
-templates via the S7b GroupTemplateRegistry — not as opaque units
-with bespoke tick functions. The player can Tab into any composite
-to see real units running real physics. See `PTIS_S7b_SPEC.md`
-§S7b Impact on S8 Spec for full template definitions.
-
-### Greenhouse
-
-Locked group template containing: `grid_supply` (grow lights),
-`reactor_electrochemical` (R_PHOTOSYNTHESIS, η=0.01), `membrane_separator`
-(leaf, gas exchange), `mixer` (nutrient input).
-
-Boundary ports: air_in, water_in, elec_in, air_out (O₂-rich), food_out.
-
-**Lighting efficiency is the ONE editable parameter** on the locked
-template (via `editableParams: ['efficiency']` on the photo_reactor).
-The player can adjust η (0.5–5%) and watch power demand change.
-
-Greenhouse sizing (7 colonists, R_PHOTOSYNTHESIS):
-```
-CO₂ fixation needed:   5.88 mol/hr = 0.001633 mol/s
-O₂ production:         5.88 mol/hr
-CH₂O production:       5.88 mol/hr (food)
-Water consumed:         5.88 mol/hr
-Thermodynamic minimum:  848 W  (ξ × |ΔH|)
-Default η:              1.0%   (combined LED + photosynthesis)
-Electrical demand:      85 kW  (848 / 0.01)
-Waste heat:             84.2 kW (exits heat_out port)
-```
-
-### Human (Colonist Group)
-
-Locked group template containing: `reactor_equilibrium` (R_METABOLISM,
-T=310K, complete conversion), `membrane_separator` (kidney, renal
-filtration).
-
-Boundary ports: air_in, food_in, air_out (exhaled), waste_out.
-
-Metabolic rates (basis: 2500 kcal/day/person, NASA moderate activity):
-```
-CH₂O consumed:  0.84 mol/hr/person  (food)
-O₂ consumed:    0.84 mol/hr/person  (1:1 stoichiometry)
-CO₂ produced:   0.84 mol/hr/person
-H₂O produced:   0.84 mol/hr/person  (metabolic water, exhaled)
-Water consumed:  7.0  mol/hr/person  (drinking, exits as waste)
-Metabolic heat:  121  W/person       (from ΔH × ξ, automatic)
-```
-
-All four species rates are identical because R_METABOLISM stoichiometry
-is 1:1:1:1 (CH₂O + O₂ → CO₂ + H₂O). Heat emerges from the reactor
-energy balance, not a separate parameter. Parameterized by
-`CampaignState.population`.
-
-### New Unit: membrane_separator
-
-Required by both greenhouse (leaf) and human (kidney) templates.
-Registered as a real defId in UnitRegistry:
-
-| Field | Value |
-|-------|-------|
-| defId | `membrane_separator` |
-| Category | SEPARATOR |
-| Ports | mat_in (feed), perm_out (permeate), ret_out (retentate) |
-| Physics | Selectivity-map permeation (not VLE — membrane, not flash) |
-| Params | `membrane` type, `selectivity` map (species → fraction to permeate) |
-| Trunk | `separatorTick` (new, dedicated) |
-
-Same defId serves both greenhouse leaf (O₂/H₂O permeation) and human
-kidney (waste filtration) with different selectivity maps via params.
-Follows NNG-3: same machine, different operating parameters.
-
-## S8c-5. Room Unit (Shelter)
-
-The shelter is modeled as a large sealed tank (50 m³) with atmospheric
-composition tracking:
-
-```javascript
-UnitRegistry.register('room', {
-  name: 'Shelter',
-  category: UnitCategories.VESSEL,
-  w: 4, h: 4,
-  optionalPorts: true,
-  inventory: true,
-  ports: [
-    { portId: 'air_supply',  dir: PortDir.IN,  type: StreamType.MATERIAL, x: 0, y: 1 },
-    { portId: 'water_supply',dir: PortDir.IN,  type: StreamType.MATERIAL, x: 0, y: 2 },
-    { portId: 'o2_supply',   dir: PortDir.IN,  type: StreamType.MATERIAL, x: 0, y: 3 },
-    { portId: 'exhaust',     dir: PortDir.OUT, type: StreamType.MATERIAL, x: 4, y: 2 },
-    { portId: 'heat_reject', dir: PortDir.OUT, type: StreamType.ELECTRICAL,x: 4, y: 3 }
-  ],
-  // Tracks: O₂%, CO₂%, T, P, humidity
-  // Consumes: survival demands (O₂, water per occupant)
-  // Produces: CO₂, waste heat per occupant
-  // Alarm: CO₂ > 0.5% WARNING, > 2% ERROR, > 5% CRITICAL
-  // Alarm: O₂ < 19% WARNING, < 16% ERROR, < 14% CRITICAL
-});
-```
-
-## S8c-6. Survival Demands and Runway
-
-```javascript
 /**
- * Compute runway (hours until critical resource exhaustion).
- * @param {CampaignState} state
- * @param {Object} productionRates - { species: mol/s net production }
- * @returns {{ species: string, hours: number }[] } sorted ascending
+ * A boundary port maps a group's external interface to a real
+ * unit port inside the group.
+ *
+ * @typedef {Object} BoundaryPort
+ * @property {string} portId    - Unique within this group ('bp_in_1')
+ * @property {string} label     - Display name ('Feed Gas'), user-editable
+ * @property {'IN'|'OUT'} dir   - Direction from the group's perspective
+ * @property {string} type      - Stream type (MATERIAL, ELECTRICAL)
+ * @property {string} unitId    - The real unit inside the group
+ * @property {string} unitPortId - The real port on that unit
+ * @property {{x,y}} position   - Port position on collapsed group box
  */
-function computeRunway(state, productionRates) {
-  const runways = [];
-  for (const demand of state.activeDemands) {
-    const rate = productionRates[demand.species] || 0;
-    const reserve = state.reserves[demand.reserveKey] || 0;
-    const consumption = demand.rate_molps;
-
-    if (rate >= consumption) {
-      runways.push({ species: demand.species, hours: Infinity });
-    } else {
-      const deficit = consumption - rate;  // mol/s net deficit
-      const hours = reserve / (deficit * 3600);
-      runways.push({ species: demand.species, hours });
-    }
-  }
-  return runways.sort((a, b) => a.hours - b.hours);
-}
 ```
 
-**HUD display:** Most critical runway always visible. Color: green (>48h),
-amber (12–48h), red (<12h), flashing red (<4h).
-
-## S8c-7. The 10 Missions (Data Definitions)
-
-Each mission is a pure data object registered via MissionRegistry.
-Full details in `game_arch_part_4_missions.md` §20–§29. Summary:
-
-### Phase A — SURVIVE (M1–M3)
-
-**M1 Water** (px_m1_water)
-- Palette: source(vent)×1, air_cooler×1, flash_drum×1, tank×2
-- Objective: store_component H₂O ≥ 100 mol (liquid)
-- Teaching: condensation, phase separation, second law (T_approach)
-- Stars: ★100mol ★★200mol ★★★200mol with 1 tank
-
-**M2 Oxygen** (px_m2_oxygen)
-- Palette: +electrolyzer×1, +battery×1, +tank×1 (inherited from M1)
-- Objective: store_component O₂ ≥ 50 mol
-- Teaching: electrolysis, power consumption, electrode separation
-- Stars: ★50mol O₂ ★★100mol H₂ ★★★≤10kWh battery
-- **Uses reactor_electrochemical with mat_out_cat (H₂) + mat_out_ano (O₂)**
-
-**M3 Fuel** (px_m3_fuel)
-- Palette: +mixer×1, +reactor_equilibrium×1, +hex×1 (inherited)
-- Objective: store_component CH₄ ≥ 20 mol (purity ≥ 0.9)
-- Teaching: Sabatier reaction, recycle loop, HEX cooling
-- Stars: ★20mol ★★water recycle 10min ★★★≤85mol H₂ consumed
-
-### Phase B — STABILIZE (M4–M6)
-
-**M4 Power** (px_m4_power)
-- Palette: +source(atm)×1, +source(vent2)×1, +compressor×1,
-  +gas_turbine×1, +reactor_equilibrium×1 (locked: R_CH4_COMB, heatDemand:'none') (inherited)
-- Objective: power_output ≥ 5kW for 300s
-- Teaching: Brayton cycle, combustion, turbine work > compressor work
-- Stars: ★5kW 5min ★★battery charging ★★★≤4 units in loop
-
-**M5 Air** (px_m5_air)
-- Palette: +compressor×1(total 2), +air_cooler×1(total 2),
-  +valve×1, +flash_drum×1(total 2) (inherited)
-- Objective: store_component N₂+O₂ ≥ 500 mol (<0.5% CO₂)
-- Teaching: multi-stage compression, CO₂ liquefaction near critical point
-- Stars: ★500mol <0.5%CO₂ ★★50mol liquid CO₂ ★★★<0.1%CO₂
-
-**M6 Warmth** (px_m6_warmth)
-- Palette: +hex×1(total 2), uses existing compressor+valve (inherited)
-- Objective: maintain_conditions room T 293–300K for 1800s
-- Teaching: heat pump, COP, closed cycle, power budgeting
-- Stars: ★T sustained ★★COP≥2.5 ★★★COP≥3.0
-
-### Phase C — EXPAND (M7–M9)
-
-**M7 Fertilizer** (px_m7_fertilizer)
-- Palette: +splitter×1, +heater×1 (inherited)
-- Objective: store_component NH₃ ≥ 10 mol (liquid)
-- Teaching: Haber synthesis, recycle + purge, inert accumulation
-- Stars: ★10mol ★★Ar purge 10min ★★★>50% N₂ conversion
-
-**M8 More Power** (px_m8_power2)
-- Palette: +pump×1, +steam_turbine×1 (inherited)
-- Objective: power_output ≥ 8kW for 300s
-- Teaching: Rankine bottoming cycle, combined cycle, liquid compression
-- Stars: ★8kW 5min ★★pump work <5W ★★★>35% combined efficiency
-
-**M9 Reserves** (px_m9_reserves)
-- Palette: +tank_cryo×2, uses accumulated inventory (inherited)
-- Objective: store_component O₂ ≥ 50 mol (liquid) AND CH₄ ≥ 50 mol (liquid)
-- Teaching: cryogenic liquefaction, Linde cycle, turboexpander
-- Stars: ★both stored ★★single continuous run ★★★turboexpander work recovery
-
-### Phase D — SUSTAIN (M10)
-
-**M10 Biosphere — The Final Boss** (px_m10_biosphere)
-- Palette: +greenhouse×1, +human×1, +room×1
-- Fabrication unlocked: all previously available equipment now
-  unlimited count (∞). Narrative: "Engineering team restores
-  the ship's fabrication workshop."
-- Species: +CH₂O. Reactions: +R_PHOTOSYNTHESIS, +R_METABOLISM
-- Vent capacity: sufficient CH₄ for ≥100 kW thermal input
-  (additional vent or uprated existing vent)
-- Objective: maintain_conditions (CO₂<0.5%, O₂ 19–23%, food
-  flow ≥ 5.88 mol/hr CH₂O) for 3600s
-- Teaching: closed ecosystem, plants as chemical reactors, power
-  at scale, everything connects to everything
-- Power challenge: greenhouse demands ~85 kW at default 1%
-  efficiency. Player must build 4–5 combined cycle power blocks
-  (using S7b templates for manageable PFD organization). The
-  player can adjust greenhouse lighting efficiency (0.5–5%) as
-  a design tradeoff — lower η is more realistic but needs more
-  power. This IS the final engineering challenge.
-- Stars: ★all conditions 1hr ★★sustain 4hr ★★★wastewater
-  recycle (≥50% water recovery)
-
-## S8c-8. Save/Load + Home Screen
+## S8-1b. Scene Schema Extension
 
 ```javascript
-const SaveManager = {
-  save(slot) {
+class Scene {
+  constructor() {
+    // ... existing fields ...
+    this.units = new Map();
+    this.connections = [];
+    this._idCounter = 0;
+
+    // [v13.8.0] Group infrastructure
+    this.groups = new Map();    // groupId → GroupDefinition
+    this._groupIdCounter = 0;
+  }
+
+  // ── Serialization (version 16 → 17) ──
+
+  exportJSON() {
     const data = {
-      version: SCENE_VERSION,
-      gameMode: GameMode.current,
-      campaignState: CampaignState.serialize(),
-      scene: serializeScene(),
-      checkpoints: CheckpointManager.serialize(),
-      timestamp: Date.now()
+      version: 17,  // [v13.8.0] groups field added
+      // ... existing fields unchanged ...
+      units: [],
+      connections: [],
+      groups: []     // NEW: serialized group definitions
     };
-    localStorage.setItem(`ptis_save_${slot}`, JSON.stringify(data));
-  },
-  load(slot) { /* deserialize + validate version */ },
-  listSlots() { /* return available saves with metadata */ }
-};
+
+    // Units: add groupId field
+    for (const u of this.units.values()) {
+      const unitData = {
+        id: u.id, defId: u.defId, name: u.name,
+        x: u.x, y: u.y, rot: u.rot, params: u.params
+      };
+      if (u.groupId) unitData.groupId = u.groupId;  // NEW
+      if (u.sticker) unitData.sticker = u.sticker;
+      if (u.inventory) unitData.inventory = u.inventory;
+      data.units.push(unitData);
+    }
+
+    data.connections = [...this.connections];
+
+    // Groups
+    for (const g of this.groups.values()) {
+      data.groups.push({
+        id: g.id,
+        name: g.name,
+        unitIds: [...g.unitIds],
+        boundaryPorts: g.boundaryPorts.map(bp => ({ ...bp })),
+        locked: g.locked,
+        templateId: g.templateId,
+        parentGroupId: g.parentGroupId,
+        collapsedBounds: { ...g.collapsedBounds }
+      });
+    }
+
+    return JSON.stringify(data, null, 2);
+  }
+
+  importJSON(str) {
+    // ... existing parse + validate ...
+    // v17: import groups (backward-compatible: v16 files have no groups)
+    if (Array.isArray(data.groups)) {
+      for (const gData of data.groups) {
+        // validate + reconstruct GroupDefinition
+        // restore unit.groupId cross-references
+      }
+    }
+  }
+}
 ```
 
-**Home screen:**
-- New Campaign (starts M1 briefing)
-- Continue Campaign (loads last auto-save)
-- Sandbox Mode (free-form, all equipment)
-- Load Save (slot picker)
+**Backward compatibility:** v16 scenes import with `groups = []`.
+v17 scenes import into v16 engines with groups silently dropped
+(unknown field). Units still exist, connections still exist — the
+flat scene is always valid without groups.
 
-## S8c-9. Equipment Inheritance
+## S8-1c. Group/Ungroup Operations
 
-Each mission's palette = mission.palette + Σ(rewards from completed
-prerequisites). Scene inheritance: if `inheritScene`, load the final
-committed scene from the previous mission. Existing units keep their
-inventory state (tank contents, battery charge). New palette entries
-appear in the toolbar.
+```javascript
+/**
+ * Create a group from selected units.
+ * Auto-detects boundary ports from cross-boundary connections.
+ *
+ * @param {Scene} scene
+ * @param {Set<string>} selectedUnitIds - Units to group
+ * @param {string} [name] - Optional group name
+ * @returns {GroupDefinition|null} - null if < 2 units selected
+ */
+function createGroup(scene, selectedUnitIds, name) {
+  if (selectedUnitIds.size < 2) return null;
 
-## S8c-10. Population + Reserve Timeline
+  const groupId = `grp-${++scene._groupIdCounter}`;
 
-Per `game_arch_part_4_missions.md` §19:
+  // ── Detect boundary ports ──
+  const boundaryPorts = [];
+  let bpCounter = 0;
 
-| Day | Population | Event |
-|-----|-----------|-------|
-| 0 | 2 | Crash (Kael + Vasquez) |
-| ~10 | 3 | +Jin (M4 salvage) |
-| ~22 | 5 | +Amara, Tomás (M6 salvage) |
-| ~27 | 7 | +Priya, Erik (M7 salvage) |
+  for (const conn of scene.connections) {
+    const fromInside = selectedUnitIds.has(conn.from.unitId);
+    const toInside   = selectedUnitIds.has(conn.to.unitId);
 
-Population affects room O₂/CO₂ rates and food demand. Human unit
-parameterized by `CampaignState.population`.
+    if (fromInside && !toInside) {
+      // Outgoing connection → OUT boundary port
+      boundaryPorts.push({
+        portId: `bp_out_${++bpCounter}`,
+        label: conn.from.portId,  // default label = inner port name
+        dir: 'OUT',
+        type: getPortType(scene, conn.from),
+        unitId: conn.from.unitId,
+        unitPortId: conn.from.portId,
+        position: null  // computed by layout
+      });
+    }
+    else if (!fromInside && toInside) {
+      // Incoming connection → IN boundary port
+      boundaryPorts.push({
+        portId: `bp_in_${++bpCounter}`,
+        label: conn.to.portId,
+        dir: 'IN',
+        type: getPortType(scene, conn.to),
+        unitId: conn.to.unitId,
+        unitPortId: conn.to.portId,
+        position: null
+      });
+    }
+    // Both inside → internal (no boundary port)
+    // Both outside → impossible (not our connection)
+  }
 
-### Power Budget by Phase
+  // ── Compute collapsed bounds from member bounding box ──
+  const bounds = computeBoundingBox(scene, selectedUnitIds);
 
-| Phase | Available | Greenhouse | Other loads | Surplus | Notes |
-|-------|-----------|-----------|------------|---------|-------|
-| M1–M3 | Battery (75 kWh) | — | 0.2 kW | Depleting | Emergency only |
-| M4 | ~5 kW (Brayton) | — | 1.2 kW | ~3.8 kW | First power |
-| M5 | ~5 kW | — | 5.2 kW | −0.2 kW | Tight |
-| M6 | ~5 kW | — | 5.9 kW | −0.9 kW | Power-limited |
-| M7 | ~5 kW | — | 6.6 kW | −1.6 kW | Power-limited |
-| M8 | ~10 kW (combined) | — | 6.6 kW | ~3.4 kW | Rankine adds ~5 kW |
-| M9 | ~10 kW | — | 10.6 kW | −0.6 kW | Tight during cryo |
-| M10 | ~100 kW (5× combined) | 85 kW | 7.0 kW | ~8 kW | Fabrication unlocked |
+  const group = {
+    id: groupId,
+    name: name || `Group ${scene._groupIdCounter}`,
+    unitIds: new Set(selectedUnitIds),
+    boundaryPorts,
+    locked: false,
+    templateId: null,
+    parentGroupId: null,  // TODO: detect if all selected are in same parent
+    collapsedBounds: bounds
+  };
 
-M10 represents a 10× step change in power infrastructure. The
-biosphere IS the final boss, and its power demand forces the player
-to scale up everything they've built. S7b group templates make
-building at this scale manageable.
+  // ── Assign membership ──
+  for (const uid of selectedUnitIds) {
+    const u = scene.units.get(uid);
+    if (u) u.groupId = groupId;
+  }
 
----
+  scene.groups.set(groupId, group);
 
-## Tests (~30 total across S8a/b/c)
+  // ── Layout boundary port positions ──
+  layoutBoundaryPorts(group);
 
-### S8a Tests (6): State Machine
-1–6 as listed in S8a section above.
+  return group;
+}
 
-### S8b Tests (8): Mission Framework
-1–8 as listed in S8b section above.
+/**
+ * Dissolve a group, returning units to the parent level.
+ * Connections are preserved — they still point unit-to-unit.
+ */
+function ungroupGroup(scene, groupId) {
+  const group = scene.groups.get(groupId);
+  if (!group) return false;
+  if (group.locked) return false;  // Cannot ungroup locked composites
 
-### S8c Tests (~16): Campaign Content
+  for (const uid of group.unitIds) {
+    const u = scene.units.get(uid);
+    if (u) u.groupId = group.parentGroupId || null;
+  }
+
+  scene.groups.delete(groupId);
+  return true;
+}
+```
+
+## S8-1d. Boundary Port Layout
+
+Boundary ports are positioned on the collapsed group box edges.
+IN ports on the left edge, OUT ports on the right edge, distributed
+vertically with even spacing. Electrical ports on the bottom. Same
+convention as individual unit port layout.
+
+```javascript
+function layoutBoundaryPorts(group) {
+  const { x, y, w, h } = group.collapsedBounds;
+  const ins  = group.boundaryPorts.filter(bp => bp.dir === 'IN');
+  const outs = group.boundaryPorts.filter(bp => bp.dir === 'OUT');
+
+  // IN ports: left edge, distributed vertically
+  ins.forEach((bp, i) => {
+    bp.position = { x: 0, y: Math.round((i + 1) * h / (ins.length + 1)) };
+  });
+
+  // OUT ports: right edge, distributed vertically
+  outs.forEach((bp, i) => {
+    bp.position = { x: w, y: Math.round((i + 1) * h / (outs.length + 1)) };
+  });
+}
+```
+
+## S8-1e. Connection Indirection
+
+The solver never sees boundary ports. Under the hood, connections
+always point to real unit ports. The canvas renderer translates
+between boundary port positions and real connection endpoints when
+the group is collapsed.
+
+```javascript
+/**
+ * Get the visual endpoint for a connection at render time.
+ * If the unit is inside a collapsed group, return the group's
+ * boundary port position instead of the unit's actual position.
+ *
+ * @returns {{ x, y, unitId, portId, isGroup }}
+ */
+function resolveConnectionEndpoint(scene, endpoint, navigationStack) {
+  const unit = scene.units.get(endpoint.unitId);
+  if (!unit || !unit.groupId) return null;  // direct — no indirection
+
+  const group = scene.groups.get(unit.groupId);
+  if (!group) return null;
+
+  // If we're currently navigated INSIDE this group, render directly
+  const currentLevel = navigationStack[navigationStack.length - 1];
+  if (currentLevel === group.id) return null;  // no indirection needed
+
+  // Group is collapsed — find the boundary port for this connection
+  const bp = group.boundaryPorts.find(
+    bp => bp.unitId === endpoint.unitId && bp.unitPortId === endpoint.portId
+  );
+  if (!bp) return null;
+
+  return {
+    x: group.collapsedBounds.x + bp.position.x,
+    y: group.collapsedBounds.y + bp.position.y,
+    unitId: group.id,  // visual target is the group box
+    portId: bp.portId,
+    isGroup: true
+  };
+}
+```
+
+**Critical invariant:** `scene.connections` never changes when
+grouping or ungrouping. Connections always store real unit IDs and
+real port IDs. The indirection exists only in the rendering layer.
+
+## S8-1 Tests (~6)
 
 | # | Test | Assert |
 |---|------|--------|
-| 1 | CH₂O species registered | ComponentRegistry.get('CH2O') exists |
-| 2 | R_PHOTOSYNTHESIS registered | ReactionRegistry.get exists, ELECTROCHEMICAL model |
-| 3 | R_METABOLISM registered | ReactionRegistry.get exists, POWER_LAW model |
-| 4 | All 10 missions register | MissionRegistry.getAll().length === 10 |
-| 5 | Mission dependency chain valid | M1 has no requires, M10 requires M9 |
-| 6 | CampaignState.applyRewards accumulates parts | parts count increases |
-| 7 | Palette scarcity with inheritance | M3 palette includes M1+M2 rewards |
-| 8 | Room unit: CO₂ alarm at 2% | ERROR alarm fires |
-| 9 | Room unit: O₂ alarm at 16% | ERROR alarm fires |
-| 10 | Greenhouse: CO₂ consumed, O₂ + CH₂O produced | mass balance |
-| 11 | Human: O₂ consumed, CO₂ produced | mass balance |
-| 12 | computeRunway: deficit scenario | finite hours |
-| 13 | computeRunway: surplus scenario | Infinity |
-| 14 | Save/load round-trip | campaignState preserved |
-| 15 | Scene inheritance: tank contents preserved | n_H2O matches |
-| 16 | Full campaign regression | all S1–S7 tests still pass |
+| 1 | createGroup with 3 units, 2 cross-boundary wires | group has 2 boundaryPorts (1 IN, 1 OUT) |
+| 2 | createGroup: internal wires not promoted | connection count unchanged, boundaryPorts excludes internal |
+| 3 | ungroupGroup restores unit.groupId to null | all member units have groupId === null |
+| 4 | Locked group rejects ungroup | ungroupGroup returns false |
+| 5 | Serialization round-trip with groups | export → import → groups restored, unit.groupId preserved |
+| 6 | v16 scene imports with empty groups | scene.groups.size === 0, all units accessible |
 
-**Gate:** All previous (465) + 30 new → 495 cumulative.
+---
+
+# S8-2 — Canvas, Templates & Palette (2 sessions)
+
+## S8-2a. Navigation Model — Contextual Overlay
+
+**Design problem:** Blender's full-replacement Tab model works for
+node editors because node trees are abstract. Flowsheets are spatial
+— the player needs to see where the group sits in the process. Full
+isolation is disorienting: "where am I? what's upstream? what's
+downstream?"
+
+**Solution: expand-in-place overlay.** When the player enters a
+group, the group box expands on the canvas to reveal its internal
+units. The parent canvas remains visible but dims to ~30% opacity
+and becomes non-interactive. The expanded group has a clear border,
+a header bar with the group name and a close button (×), and the
+boundary nodes are visible at the edges — directly aligned with
+the external wires that connect to them (which are visible as
+dimmed lines on the parent canvas).
+
+Visual model:
+```
+┌─────────────────────────────────────────────────┐
+│  Parent canvas (dimmed, non-interactive)         │
+│                                                  │
+│     [source]──────┐                              │
+│                   │                              │
+│   ┌───────────────▼──────────────────────┐       │
+│   │ ✕  Sabatier Loop                     │       │
+│   │ ┌─────────┐                          │       │
+│   │ │ Group   │   [reactor]──[cooler]──┐ │       │
+│   │ │ Input   │──▶              ┌──────┤ │       │
+│   │ │ ·Feed   │   [heater]─────┘      ││ │       │
+│   │ └─────────┘              ┌────────┐│ │       │
+│   │                          │ Group  ││ │       │
+│   │                          │ Output ├┘ │       │
+│   │                          │ ·Prod  │  │       │
+│   │                          └────────┘  │       │
+│   └──────────────────────────────────────┘       │
+│                              │                   │
+│                              ▼                   │
+│                         [tank]                   │
+└─────────────────────────────────────────────────┘
+```
+
+The player sees:
+- The internal units, fully interactive (or read-only if locked)
+- The boundary Input/Output nodes at the edges
+- The dimmed parent canvas showing spatial context
+- The dimmed external wires connecting to the group's boundary ports
+- A clear visual container with a close button
+
+**Exiting:** Three equivalent ways, all always available:
+1. Click the × button on the group header
+2. Click anywhere on the dimmed parent canvas
+3. Press Escape (or Tab with nothing selected)
+
+**Entering:** Three equivalent ways:
+1. Double-click the collapsed group box
+2. Right-click → "Open Group" in context menu
+3. Ctrl+G (keyboard shortcut, Blender convention)
+
+**Principle: nothing is keyboard-only.** Every action has a direct
+click/touch equivalent. Keyboard shortcuts are accelerators, not
+gates.
+
+```javascript
+/**
+ * Canvas navigation context.
+ * Expand-in-place model: parent canvas dims but remains visible.
+ *
+ * Stack model:
+ *   [null]                    → root level
+ *   [null, 'grp-1']          → inside grp-1, parent dimmed
+ *   [null, 'grp-1', 'grp-3'] → nested: grp-1 dimmed, grp-3 expanded
+ */
+const CanvasNav = {
+  stack: [null],  // null = scene root
+
+  current() {
+    return this.stack[this.stack.length - 1];
+  },
+
+  isInGroup() {
+    return this.stack.length > 1;
+  },
+
+  /** Enter a group — expand in place */
+  enter(groupId) {
+    const group = scene.groups.get(groupId);
+    if (!group) return;
+    this.stack.push(groupId);
+    // Compute expanded bounds (larger than collapsed, centered on same position)
+    this._computeExpandedLayout(group);
+    canvasRedraw();
+  },
+
+  /** Exit current group — collapse back */
+  exit() {
+    if (this.stack.length <= 1) return;
+    this.stack.pop();
+    canvasRedraw();
+  },
+
+  /** Jump to specific depth (breadcrumb click) */
+  jumpTo(depth) {
+    this.stack.length = depth + 1;
+    canvasRedraw();
+  },
+
+  /** Compute expanded layout for group interior */
+  _computeExpandedLayout(group) {
+    // Expanded size = bounding box of internal units + padding
+    // Centered on collapsed position, clamped to canvas bounds
+    // Stored on group._expandedBounds (transient, not serialized)
+  },
+
+  /** Which units render at full opacity? */
+  getActiveUnits(scene) {
+    const level = this.current();
+    if (level === null) {
+      return [...scene.units.values()].filter(u => !u.groupId);
+    }
+    const group = scene.groups.get(level);
+    if (!group) return [];
+    return [...group.unitIds].map(id => scene.units.get(id)).filter(Boolean);
+  },
+
+  /** Which units render dimmed (parent context)? */
+  getDimmedUnits(scene) {
+    if (this.stack.length <= 1) return [];  // at root, nothing dimmed
+    // Return all units NOT in the current group
+    const currentGroup = scene.groups.get(this.current());
+    if (!currentGroup) return [];
+    return [...scene.units.values()].filter(u =>
+      !currentGroup.unitIds.has(u.id)
+    );
+  },
+
+  /** Which groups appear as collapsed boxes at this level? */
+  getVisibleGroups(scene) {
+    const level = this.current();
+    return [...scene.groups.values()].filter(
+      g => g.parentGroupId === level && g.id !== this.current()
+    );
+  },
+
+  /** Breadcrumb trail for header bar */
+  getBreadcrumbs(scene) {
+    return this.stack.map((id, i) => ({
+      label: id === null ? 'Root' : (scene.groups.get(id)?.name || id),
+      depth: i
+    }));
+  }
+};
+```
+
+### Input Handling in Overlay Mode
+
+When inside a group:
+
+| Target | Interaction | Result |
+|--------|------------|--------|
+| Active unit (inside group) | Click | Select, open inspector |
+| Active unit (inside group) | Drag | Move (if not locked) |
+| Active connection (inside) | Click | Select |
+| Dimmed parent canvas | Click anywhere | Exit group (collapse) |
+| Group header × button | Click | Exit group (collapse) |
+| Breadcrumb segment | Click | Jump to that depth |
+| Escape key | Press | Exit group |
+| Ctrl+G on selected units inside | Press | Create nested sub-group |
+
+Dimmed units and connections are non-interactive — clicks on them
+trigger the "exit group" behavior, not selection. This prevents
+accidental edits to parent-level equipment while working inside a
+group.
+
+## S8-2b. Collapsed Group Rendering
+
+When a group is collapsed (viewed from its parent level), it renders
+as a single rectangular box:
+
+```javascript
+function renderCollapsedGroup(ctx, group, scene, tile) {
+  const { x, y, w, h } = group.collapsedBounds;
+  const px = x * tile, py = y * tile;
+  const pw = w * tile, ph = h * tile;
+
+  // ── Box ──
+  ctx.fillStyle = group.locked ? '#1a2a3a' : '#1c2333';
+  ctx.strokeStyle = group.locked ? '#58a6ff' : '#8b949e';
+  ctx.lineWidth = 2;
+  roundRect(ctx, px, py, pw, ph, 8);
+  ctx.fill();
+  ctx.stroke();
+
+  // ── Lock icon (campaign composites) ──
+  if (group.locked) {
+    drawLockIcon(ctx, px + 6, py + 6);
+  }
+
+  // ── Name ──
+  ctx.fillStyle = '#e6edf3';
+  ctx.font = '600 13px -apple-system, sans-serif';
+  ctx.fillText(group.name, px + (group.locked ? 22 : 8), py + 18);
+
+  // ── Boundary ports ──
+  for (const bp of group.boundaryPorts) {
+    const bpx = px + bp.position.x * tile;
+    const bpy = py + bp.position.y * tile;
+    drawPort(ctx, bpx, bpy, bp.type, bp.dir);
+
+    // Port label
+    ctx.fillStyle = '#8b949e';
+    ctx.font = '10px -apple-system, sans-serif';
+    const labelX = bp.dir === 'IN' ? bpx + 10 : bpx - 10;
+    const align = bp.dir === 'IN' ? 'left' : 'right';
+    ctx.textAlign = align;
+    ctx.fillText(bp.label, labelX, bpy + 4);
+    ctx.textAlign = 'left';
+  }
+
+  // ── Worst alarm severity badge ──
+  const worstAlarm = getWorstAlarmInGroup(group, scene);
+  if (worstAlarm && worstAlarm.severity !== 'OK') {
+    drawAlarmBadge(ctx, px + pw - 8, py + 8, worstAlarm.severity);
+  }
+
+  // ── Unit count ──
+  ctx.fillStyle = '#484f58';
+  ctx.font = '10px -apple-system, sans-serif';
+  ctx.fillText(`${group.unitIds.size} units`, px + 8, py + ph - 8);
+}
+```
+
+## S8-2c. Overlay Rendering
+
+When navigated inside a group, the canvas renders three layers:
+
+1. **Dimmed parent layer** — all parent-level units and connections
+   at 30% opacity. Non-interactive. Provides spatial context.
+2. **Expanded group container** — bordered rectangle with header bar,
+   at the group's position but expanded to fit internal units.
+3. **Active interior layer** — member units rendered normally inside
+   the container. Fully interactive (or read-only if locked).
+
+```javascript
+function renderGroupOverlay(ctx, group, scene, tile) {
+  // ── Layer 1: Dimmed parent context ──
+  ctx.save();
+  ctx.globalAlpha = 0.3;
+  for (const u of CanvasNav.getDimmedUnits(scene)) {
+    renderUnit(ctx, u, scene, tile, { dimmed: true });
+  }
+  for (const conn of scene.connections) {
+    // Render parent-level connections dimmed
+    const fromIn = group.unitIds.has(conn.from.unitId);
+    const toIn = group.unitIds.has(conn.to.unitId);
+    if (!fromIn && !toIn) {
+      renderConnection(ctx, conn, scene, tile, { dimmed: true });
+    }
+  }
+  ctx.restore();
+
+  // ── Semi-transparent scrim over parent ──
+  ctx.fillStyle = 'rgba(13, 17, 23, 0.5)';
+  ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+
+  // ── Layer 2: Expanded group container ──
+  const eb = group._expandedBounds;  // transient, computed on enter
+  const px = eb.x * tile, py = eb.y * tile;
+  const pw = eb.w * tile, ph = eb.h * tile;
+
+  // Container background
+  ctx.fillStyle = '#0d1117';
+  ctx.strokeStyle = group.locked ? '#58a6ff' : '#8b949e';
+  ctx.lineWidth = 2;
+  roundRect(ctx, px, py - 28, pw, ph + 28, 8);
+  ctx.fill();
+  ctx.stroke();
+
+  // ── Header bar ──
+  ctx.fillStyle = '#161b22';
+  roundRectTop(ctx, px, py - 28, pw, 28, 8);
+  ctx.fill();
+
+  // Group name
+  ctx.fillStyle = '#e6edf3';
+  ctx.font = '600 12px -apple-system, sans-serif';
+  ctx.fillText(group.name, px + 12, py - 10);
+
+  // Lock icon (campaign composites)
+  if (group.locked) {
+    drawLockIcon(ctx, px + pw - 40, py - 22);
+  }
+
+  // Close button (×)
+  ctx.fillStyle = '#8b949e';
+  ctx.font = '16px -apple-system, sans-serif';
+  ctx.fillText('×', px + pw - 18, py - 9);
+  // Register click target for close button
+  registerClickTarget('group_close', { x: px + pw - 24, y: py - 28, w: 24, h: 28 });
+
+  // ── Layer 3: Internal units and connections ──
+  // Boundary Input node (left edge of container)
+  const inPorts = group.boundaryPorts.filter(bp => bp.dir === 'IN');
+  if (inPorts.length > 0) {
+    renderBoundaryNode(ctx, 'Input', inPorts, px, py, ph, 'left', tile);
+  }
+
+  // Boundary Output node (right edge of container)
+  const outPorts = group.boundaryPorts.filter(bp => bp.dir === 'OUT');
+  if (outPorts.length > 0) {
+    renderBoundaryNode(ctx, 'Output', outPorts, px + pw, py, ph, 'right', tile);
+  }
+
+  // Member units (fully interactive or locked-readonly)
+  for (const uid of group.unitIds) {
+    const u = scene.units.get(uid);
+    if (!u) continue;
+    renderUnit(ctx, u, scene, tile, { locked: group.locked });
+  }
+
+  // Internal connections
+  for (const conn of scene.connections) {
+    const fromIn = group.unitIds.has(conn.from.unitId);
+    const toIn = group.unitIds.has(conn.to.unitId);
+    if (fromIn && toIn) {
+      renderConnection(ctx, conn, scene, tile);
+    }
+  }
+
+  // Cross-boundary connections (from boundary node to internal unit)
+  for (const bp of group.boundaryPorts) {
+    renderBoundaryWire(ctx, bp, scene, tile);
+  }
+
+  // ── Worst alarm severity badge in header ──
+  const worstAlarm = getWorstAlarmInGroup(group, scene);
+  if (worstAlarm && worstAlarm.severity !== 'OK') {
+    drawAlarmBadge(ctx, px + pw - 60, py - 22, worstAlarm.severity);
+  }
+}
+```
+
+**Locked group overlay:** When `group.locked === true`, the overlay
+renders identically but interaction is mostly read-only:
+- Clicking a unit opens its inspector
+- Parameters listed in `editableParams` have active controls
+  (e.g., greenhouse lighting efficiency)
+- All other parameters are greyed out, values visible but not
+  editable
+- Stream conditions, temperatures, compositions fully visible
+- Drag, delete, connect, disconnect all rejected
+- Toast on structural edit attempt: "This is a pre-built assembly"
+- The teaching value is that the player SEES real physics and can
+  tune exposed parameters — but can't rewire
+
+## S8-2d. GroupTemplateRegistry
+
+```javascript
+/**
+ * Registry for reusable group templates.
+ * Campaign composites are registered here.
+ * User-created templates are saved here.
+ *
+ * A template is a blueprint — instantiation creates real units
+ * and real connections. The template itself is frozen pure data.
+ */
+const GroupTemplateRegistry = {
+  _templates: new Map(),
+
+  /**
+   * Register a group template.
+   * @param {string} id - Template ID ('greenhouse', 'user_sabatier_loop')
+   * @param {Object} def - Template definition
+   */
+  register(id, def) {
+    // Validate: all defIds exist in UnitRegistry
+    for (const unitDef of def.units) {
+      if (!UnitRegistry.exists(unitDef.defId)) {
+        throw new Error(`GroupTemplate '${id}': unknown defId '${unitDef.defId}'`);
+      }
+    }
+
+    // Validate: boundary port delegates exist
+    for (const bp of def.boundaryPorts) {
+      const target = def.units.find(u => u.localId === bp.unitLocalId);
+      if (!target) {
+        throw new Error(`GroupTemplate '${id}': boundary port '${bp.portId}' delegates to unknown unit '${bp.unitLocalId}'`);
+      }
+    }
+
+    // Validate: internal connections reference valid local IDs and ports
+    for (const conn of def.connections) {
+      // ... validate from/to local IDs and port existence ...
+    }
+
+    Object.freeze(def);
+    Object.freeze(def.units);
+    Object.freeze(def.boundaryPorts);
+    Object.freeze(def.connections);
+    this._templates.set(id, def);
+  },
+
+  get(id) { return this._templates.get(id); },
+  exists(id) { return this._templates.has(id); },
+  all() { return [...this._templates.values()]; },
+
+  /** Templates available for palette display */
+  getPaletteEntries() {
+    return this.all().filter(t => t.showInPalette);
+  }
+};
+```
+
+**Template definition schema:**
+
+```javascript
+/**
+ * @typedef {Object} GroupTemplate
+ * @property {string} id          - Unique template ID
+ * @property {string} name        - Display name ('Greenhouse')
+ * @property {string} category    - Palette category ('CAMPAIGN'|'USER'|'BUILTIN')
+ * @property {boolean} locked     - Instances are locked (campaign composites)
+ * @property {boolean} showInPalette - Appears in palette
+ * @property {number} w           - Collapsed footprint width (grid cells)
+ * @property {number} h           - Collapsed footprint height (grid cells)
+ * @property {TemplateUnit[]} units - Internal units (local IDs)
+ * @property {TemplateConnection[]} connections - Internal wiring
+ * @property {TemplateBoundaryPort[]} boundaryPorts - External interface
+ * @property {Object} [paramOverrides] - Default params applied to internal units
+ */
+
+/**
+ * @typedef {Object} TemplateUnit
+ * @property {string} localId     - ID within template ('photo_reactor')
+ * @property {string} defId       - UnitRegistry defId
+ * @property {number} x           - Relative x within group
+ * @property {number} y           - Relative y within group
+ * @property {Object} params      - Default parameters
+ * @property {boolean} paramLocked - All params locked (campaign composites)
+ * @property {string[]|null} editableParams - If non-null, only these
+ *   params are editable even in a locked group. All others greyed out
+ *   in inspector. null = all locked (default for locked groups).
+ */
+
+/**
+ * @typedef {Object} TemplateBoundaryPort
+ * @property {string} portId      - Port ID on the group box
+ * @property {string} label       - Display label
+ * @property {'IN'|'OUT'} dir     - Direction
+ * @property {string} type        - Stream type
+ * @property {string} unitLocalId - Which internal unit this delegates to
+ * @property {string} unitPortId  - Which port on that unit
+ */
+```
+
+## S8-2e. Template Instantiation
+
+```javascript
+/**
+ * Instantiate a group template into the scene.
+ * Creates real units, real connections, and a group wrapper.
+ *
+ * @param {Scene} scene
+ * @param {string} templateId
+ * @param {number} x, y - Placement position on canvas
+ * @returns {GroupDefinition|null}
+ */
+function instantiateTemplate(scene, templateId, x, y) {
+  const template = GroupTemplateRegistry.get(templateId);
+  if (!template) return null;
+
+  // ── Create real units with scene-unique IDs ──
+  const localToSceneId = new Map();
+
+  for (const tUnit of template.units) {
+    const sceneId = scene.placeUnit(
+      tUnit.defId,
+      x + tUnit.x,
+      y + tUnit.y
+    );
+    if (!sceneId) continue;  // collision — handle gracefully
+
+    localToSceneId.set(tUnit.localId, sceneId);
+
+    // Apply template params
+    const unit = scene.units.get(sceneId);
+    if (unit && tUnit.params) {
+      Object.assign(unit.params, tUnit.params);
+    }
+  }
+
+  // ── Create internal connections ──
+  for (const tConn of template.connections) {
+    const fromId = localToSceneId.get(tConn.from.localId);
+    const toId   = localToSceneId.get(tConn.to.localId);
+    if (fromId && toId) {
+      scene.connect(
+        { unitId: fromId, portId: tConn.from.portId },
+        { unitId: toId,   portId: tConn.to.portId }
+      );
+    }
+  }
+
+  // ── Create group ──
+  const sceneUnitIds = new Set(localToSceneId.values());
+  const group = createGroup(scene, sceneUnitIds, template.name);
+  if (group) {
+    group.locked = template.locked;
+    group.templateId = template.id;
+
+    // Override auto-detected boundary ports with template's labeled ports
+    group.boundaryPorts = template.boundaryPorts.map(tbp => ({
+      portId: tbp.portId,
+      label: tbp.label,
+      dir: tbp.dir,
+      type: tbp.type,
+      unitId: localToSceneId.get(tbp.unitLocalId),
+      unitPortId: tbp.unitPortId,
+      position: null  // computed by layout
+    }));
+    layoutBoundaryPorts(group);
+
+    // Set collapsed bounds from template footprint
+    group.collapsedBounds = { x, y, w: template.w, h: template.h };
+  }
+
+  return group;
+}
+```
+
+## S8-2f. Saving User Templates
+
+```javascript
+/**
+ * Save an existing group as a reusable template.
+ * Extracts the structure from the live scene.
+ */
+function saveGroupAsTemplate(scene, groupId, name) {
+  const group = scene.groups.get(groupId);
+  if (!group) return null;
+
+  // ── Build template units with relative coordinates ──
+  const bounds = group.collapsedBounds;
+  const units = [];
+  const sceneToLocalId = new Map();
+
+  for (const uid of group.unitIds) {
+    const u = scene.units.get(uid);
+    if (!u) continue;
+    const localId = u.defId + '_' + units.length;
+    sceneToLocalId.set(uid, localId);
+    units.push({
+      localId,
+      defId: u.defId,
+      x: u.x - bounds.x,
+      y: u.y - bounds.y,
+      params: { ...u.params },
+      paramLocked: false
+    });
+  }
+
+  // ── Extract internal connections ──
+  const connections = [];
+  for (const conn of scene.connections) {
+    const fromLocal = sceneToLocalId.get(conn.from.unitId);
+    const toLocal   = sceneToLocalId.get(conn.to.unitId);
+    if (fromLocal && toLocal) {
+      connections.push({
+        from: { localId: fromLocal, portId: conn.from.portId },
+        to:   { localId: toLocal,   portId: conn.to.portId }
+      });
+    }
+  }
+
+  // ── Map boundary ports ──
+  const boundaryPorts = group.boundaryPorts.map(bp => ({
+    portId: bp.portId,
+    label: bp.label,
+    dir: bp.dir,
+    type: bp.type,
+    unitLocalId: sceneToLocalId.get(bp.unitId),
+    unitPortId: bp.unitPortId
+  }));
+
+  const templateId = `user_${name.toLowerCase().replace(/\s+/g, '_')}_${Date.now()}`;
+
+  const template = {
+    id: templateId,
+    name,
+    category: 'USER',
+    locked: false,
+    showInPalette: true,
+    w: bounds.w,
+    h: bounds.h,
+    units,
+    connections,
+    boundaryPorts
+  };
+
+  GroupTemplateRegistry.register(templateId, template);
+  return templateId;
+}
+```
+
+**Persistence:** User templates are serialized alongside the scene
+in `exportJSON()` via a `userTemplates` array. On import, they are
+re-registered in `GroupTemplateRegistry`. Campaign templates are
+registered at startup and do not need persistence.
+
+```javascript
+// In exportJSON():
+data.userTemplates = GroupTemplateRegistry.all()
+  .filter(t => t.category === 'USER')
+  .map(t => ({ ...t }));
+
+// In importJSON():
+if (Array.isArray(data.userTemplates)) {
+  for (const t of data.userTemplates) {
+    GroupTemplateRegistry.register(t.id, t);
+  }
+}
+```
+
+## S8-2g. Palette Integration
+
+The palette toolbar gains a "Templates" section below the standard
+equipment categories:
+
+```javascript
+function buildPaletteEntries(gameMode, campaignState) {
+  const entries = [];
+
+  // ── Standard equipment (existing logic) ──
+  // ... existing palette building ...
+
+  // ── Templates section ──
+  const templates = GroupTemplateRegistry.getPaletteEntries();
+
+  // Campaign templates (locked composites)
+  const campaign = templates.filter(t => t.category === 'CAMPAIGN');
+  if (campaign.length > 0) {
+    entries.push({ type: 'section', label: 'Assemblies' });
+    for (const t of campaign) {
+      entries.push({
+        type: 'template',
+        templateId: t.id,
+        name: t.name,
+        w: t.w,
+        h: t.h,
+        locked: t.locked
+      });
+    }
+  }
+
+  // User templates
+  const user = templates.filter(t => t.category === 'USER');
+  if (user.length > 0) {
+    entries.push({ type: 'section', label: 'My Templates' });
+    for (const t of user) {
+      entries.push({
+        type: 'template',
+        templateId: t.id,
+        name: t.name,
+        w: t.w,
+        h: t.h,
+        locked: false
+      });
+    }
+  }
+
+  return entries;
+}
+```
+
+**Placement:** Dragging a template from the palette calls
+`instantiateTemplate()`. Same interaction as placing a unit, but
+creates a group.
+
+**Context menu on groups (right-click collapsed group box):**
+
+| Action | Shortcut | Notes |
+|--------|----------|-------|
+| Open Group | Double-click / Ctrl+G | Enter overlay view |
+| Rename Group | — | Inline edit of group name |
+| Save as Template | — | `saveGroupAsTemplate()` → appears in palette |
+| Ungroup | Ctrl+Shift+G | Dissolve (disabled if locked) |
+| Delete Group | Delete | Removes group + all member units + connections |
+
+**Context menu on canvas background (right-click with ≥2 units
+selected):**
+
+| Action | Shortcut | Notes |
+|--------|----------|-------|
+| Group Selected | Ctrl+G | Creates group from selection |
+
+**All actions are accessible via right-click context menu.** Keyboard
+shortcuts are accelerators only. Touch/mouse users never need a
+keyboard to group, enter, exit, or manage groups.
+
+## S8-2h. Nested Groups
+
+Groups can contain other groups. When the player selects units that
+include a collapsed group box and groups them, the inner group
+becomes a child (`parentGroupId` set to the new outer group).
+
+Depth limit: 3 levels (root → group → group → group). Prevents
+confusion. Enforced in `createGroup()`.
+
+```javascript
+// In createGroup():
+const maxDepth = 3;
+const currentDepth = getGroupDepth(scene, parentGroupId);
+if (currentDepth >= maxDepth) {
+  toast('Maximum nesting depth reached');
+  return null;
+}
+```
+
+## S8-2i. Edge Cases — Boundary Ports & Solver Safety
+
+Grouping creates boundary ports from cross-boundary connections.
+Several edge cases need explicit handling to guarantee that grouping
+never corrupts physics (NNG-3: groups never affect computed values).
+
+### Edge 1: Unconnected internal ports
+
+A unit inside a group may have ports that are connected neither
+internally nor externally. These ports have no boundary port created
+for them. They remain unconnected.
+
+**Behavior:** Identical to an ungrouped unit with an unconnected
+port. NNG-3 applies: unconnected port = zero flow, zero heat, zero
+power. The solver already handles this. No special group logic
+needed.
+
+### Edge 2: Boundary port with no external connection
+
+After grouping, the boundary port exists on the collapsed group box
+but the external wire may be disconnected by the user (or may never
+have existed if the group was instantiated from a template and
+placed without connecting all ports).
+
+**Behavior:** The boundary port is displayed on the group box as an
+available port. Under the hood, the internal unit port it delegates
+to is simply unconnected. NNG-3: zero flow. The boundary port is
+visual only — it advertises "you can connect here" but creates no
+phantom flow if you don't.
+
+### Edge 3: multiConnect ports crossing the boundary
+
+A `multiConnect` port (e.g., `elec_in` on a hub) inside a group
+may have connections both to internal units AND to external units.
+Both connections are real in `scene.connections`. The boundary port
+delegates to the same physical port.
+
+**Behavior:** The boundary port is created for the external
+connection(s). The internal connections are just internal wires.
+The solver sees all connections on the multiConnect port — both
+internal and external. The collapsed group box shows the boundary
+port; wires from external units connect to it. Under the hood, all
+connections point to the same real unit port. Works correctly
+because `scene.connections` is unchanged by grouping.
+
+### Edge 4: Grouping units from different existing groups
+
+If the selection spans units from two different groups, the
+operation is rejected.
+
+**Behavior:** `createGroup()` checks that all selected units share
+the same `groupId` (or all have `null`). Mixed membership → toast:
+"Cannot group units from different groups. Ungroup first." This
+prevents tangled hierarchies.
+
+### Edge 5: Deleting a group
+
+Two distinct operations:
+- **"Delete Group":** All member units and their connections
+  (internal and external) are removed from the scene. The group is
+  removed. External units that were connected to the group lose
+  those connections — cleaned up by existing ghost connection
+  stripping in `solveScene()`.
+- **"Ungroup":** Units return to the parent level with their
+  individual positions. All connections preserved. Group metadata
+  removed. No physics impact.
+
+### Edge 6: Solver invariant test
+
+The critical invariant, tested explicitly:
+
+```javascript
+// T-GR-INVARIANT: Grouping never changes computed values
+// 1. Build a scene with N units and M connections
+// 2. Solve → record all stream temperatures, pressures, flows
+// 3. Group a subset of units
+// 4. Solve again → all values identical within tolerance
+// 5. Ungroup → solve → all values identical
+```
+
+This test exists because it is the one thing that must never break.
+If it fails, grouping has somehow leaked into the solver.
+
+## S8-2 Tests (~12)
+
+| # | Test | Assert |
+|---|------|--------|
+| 1 | CanvasNav.enter/exit | stack depth changes correctly |
+| 2 | getActiveUnits at root excludes grouped units | only ungrouped units returned |
+| 3 | getActiveUnits inside group returns members | all member units returned |
+| 4 | getDimmedUnits inside group returns parent units | non-member units returned |
+| 5 | Collapsed group renders boundary ports | port count matches boundaryPorts.length |
+| 6 | resolveConnectionEndpoint with collapsed group | returns group box position |
+| 7 | resolveConnectionEndpoint inside group | returns null (no indirection) |
+| 8 | GroupTemplateRegistry.register validates defIds | unknown defId → throws |
+| 9 | instantiateTemplate creates units + connections + group | scene.units grows, group exists |
+| 10 | saveGroupAsTemplate round-trip: save → instantiate | same topology |
+| 11 | **T-GR-INVARIANT: group/ungroup preserves physics** | all computed values identical before and after |
+| 12 | Edge: mixed group membership rejected | createGroup returns null, toast shown |
+
+---
+
+## S8 Impact on S8 Spec
+
+S8 replaces the old S8 "composite unit" approach. The following old-S8c
+sections are affected:
+
+### old S8c-4 (Composite Units) — Rewritten
+
+Instead of:
+```javascript
+// OLD S8 approach — opaque composite with bespoke tick
+UnitRegistry.register('greenhouse', { tick: greenhouseTick, ... });
+```
+
+New approach:
+```javascript
+// S10c registers campaign composite templates using S8 infrastructure.
+// Full greenhouse design (7 internal units, 7 boundary ports) in
+// PTIS_COMPOSITE_MODELS.md §1.
+
+GroupTemplateRegistry.register('greenhouse', {
+  name: 'Greenhouse',
+  category: 'CAMPAIGN',
+  locked: true,
+  showInPalette: true,
+  scalable: true,
+  scaleParam: 'racks',
+  scaleDefault: 1,
+  w: 4, h: 3,
+
+  // 7 internal units — see PTIS_COMPOSITE_MODELS.md §1.2
+  units: [
+    { localId: 'soil_buffer',   defId: 'tank',
+      params: { volume_m3: 0.050 }, paramLocked: true },
+    { localId: 'nutrient_mix',  defId: 'mixer',
+      paramLocked: true },
+    { localId: 'photo_reactor', defId: 'reactor_electrochemical',
+      params: { reaction: 'R_PHOTOSYNTHESIS', efficiency: 0.02,
+                conversion_max: 0.95 },
+      paramLocked: true,
+      editableParams: ['efficiency'] },
+    { localId: 'product_mixer', defId: 'mixer',
+      paramLocked: true },
+    { localId: 'cooling_hex',   defId: 'hex',
+      params: { UA: 'scaled' }, paramLocked: true },
+    { localId: 'fan',           defId: 'compressor',
+      params: { P_ratio: 1.001 }, paramLocked: true },
+    { localId: 'leaf',          defId: 'membrane_separator',
+      params: { selectivity: { CH2O: 0.05, NH3: 0.05 } },
+      paramLocked: true }
+  ],
+
+  // Internal connections — see PTIS_COMPOSITE_MODELS.md §1.3
+  connections: [ /* ... full wiring in composite models spec ... */ ],
+
+  boundaryPorts: [
+    { portId: 'co2_in',     label: 'CO₂ In',     dir: 'IN',  type: 'MATERIAL',
+      unitLocalId: 'nutrient_mix',  unitPortId: 'mat_in_A' },
+    { portId: 'nutrient_in', label: 'Nutrient In', dir: 'IN',  type: 'MATERIAL',
+      unitLocalId: 'soil_buffer',   unitPortId: 'mat_in' },
+    { portId: 'elec_in',    label: 'Power',       dir: 'IN',  type: 'ELECTRICAL',
+      unitLocalId: 'photo_reactor', unitPortId: 'elec_in' },
+    { portId: 'cool_in',    label: 'Coolant In',  dir: 'IN',  type: 'MATERIAL',
+      unitLocalId: 'fan',           unitPortId: 'mat_in' },
+    { portId: 'cool_out',   label: 'Coolant Out', dir: 'OUT', type: 'MATERIAL',
+      unitLocalId: 'cooling_hex',   unitPortId: 'cold_out' },
+    { portId: 'air_out',    label: 'O₂-rich Air', dir: 'OUT', type: 'MATERIAL',
+      unitLocalId: 'leaf',          unitPortId: 'perm_out' },
+    { portId: 'food_out',   label: 'Food',        dir: 'OUT', type: 'MATERIAL',
+      unitLocalId: 'leaf',          unitPortId: 'ret_out' }
+  ]
+});
+```
+
+The player places "Greenhouse" from the palette. It appears as a
+locked group box. Tab in → see the electrochemical reactor running
+photosynthesis, the membrane separator acting as a leaf, the mixer
+handling nutrient input, the cooling HEX rejecting waste heat. Click
+any unit → full read-only inspector with real stream data:
+temperatures, compositions, flow rates.
+The efficiency parameter on the photo_reactor is the ONE editable
+control: the player can adjust lighting efficiency (0.5–5%) and
+watch the power demand change in real time. At η = 2% (default), the
+greenhouse demands ~42 kW for 7 colonists. At η = 1%, demand rises
+to ~85 kW — a ★★★ challenge. The physics is fully transparent —
+the player learns that biology is elegant but energetically expensive.
+
+### New Units Required (registered in S9, not S8)
+
+S8 provides the grouping infrastructure. S9 registers the specific
+units that live inside campaign composites:
+
+| defId | Physical | Purpose | Trunk |
+|-------|----------|---------|-------|
+| `membrane_separator` | Selective membrane unit | Leaf (gas exchange), kidney (metabolic waste), LiOH scrubber (CO₂ removal) | `separatorTick` (new) |
+
+The `membrane_separator` is the "leaf", "kidney", and "LiOH scrubber".
+It is a real registered unit with:
+- `mat_in` (feed), `perm_out` (permeate), `ret_out` (retentate)
+- Params: `selectivity` map (species → fraction to permeate)
+- Optional depletable params: `depletable` (bool), `sorbentCapacity` (mol),
+  `sorbentRemaining` (mol), `maxRate` (mol/hr)
+- Dedicated `separatorTick` trunk (not flash_drum physics — membrane
+  permeation, not VLE)
+- S-size limits appropriate for biological membranes
+
+The same `defId` serves the greenhouse leaf (CH₂O/NH₃: 0.05 selectivity),
+the human kidney (NH₃: 0.01 selectivity), and the Day-0 LiOH scrubber
+(CO₂: 0.01 selectivity, depletable=true, 268 mol capacity). Different
+selectivity maps via params, same physics trunk. This follows NNG-3:
+same machine, different operating parameters.
+
+Full composite designs are specified in `PTIS_COMPOSITE_MODELS.md`.
+
+### old S8c-5 (Human) — Rewritten as Template
+
+The full human composite design (11 internal units, 5 boundary ports)
+is specified in `PTIS_COMPOSITE_MODELS.md` §2. S8 provides the
+GroupTemplateRegistry infrastructure; S10c performs the actual
+registration.
+
+```javascript
+// Metabolic rates (2500 kcal/day/person, NASA moderate activity):
+//   CH₂O consumed:  0.84 mol/hr/person  (food)
+//   O₂ consumed:    0.84 mol/hr/person  (1:1 stoichiometry)
+//   CO₂ produced:   0.84 mol/hr/person
+//   H₂O produced:   0.84 mol/hr/person  (metabolic, exhaled)
+//   Water consumed:  7.0  mol/hr/person  (drinking → waste)
+//   Metabolic heat:  121 W/person        (from ΔH × ξ, automatic)
+
+GroupTemplateRegistry.register('human', {
+  name: 'Colonists',
+  category: 'CAMPAIGN',
+  locked: true,
+  showInPalette: true,
+  scalable: true,
+  scaleParam: 'population',
+  scaleDefault: 2,
+  w: 4, h: 2,
+
+  // 11 internal units — see PTIS_COMPOSITE_MODELS.md §2.2 for full list
+  // Key units shown here; full template in composite models spec.
+  units: [
+    { localId: 'fan',          defId: 'compressor',
+      params: { P_ratio: 1.001 }, paramLocked: true },
+    { localId: 'air_splitter', defId: 'splitter',
+      params: { splitPct: 8 }, paramLocked: true },
+    { localId: 'air_buffer',   defId: 'tank',
+      params: { volume_m3: 0.005, T: 310, P: 101325 }, paramLocked: true },
+    { localId: 'food_buffer',  defId: 'tank',
+      params: { volume_m3: 0.012 }, paramLocked: true },
+    { localId: 'feed_mixer',   defId: 'mixer', paramLocked: true },
+    { localId: 'metabolism',   defId: 'reactor_adiabatic',
+      params: { reaction: 'R_METABOLISM', T: 310 }, paramLocked: true },
+    { localId: 'body_hex',     defId: 'hex',
+      params: { UA: 'scaled' }, paramLocked: true },
+    { localId: 'kidney',       defId: 'membrane_separator',
+      params: { selectivity: { NH3: 0.01 } }, paramLocked: true },
+    { localId: 'air_mixer',    defId: 'mixer', paramLocked: true },
+    { localId: 'water_buffer', defId: 'tank',
+      params: { volume_m3: 0.0063 }, paramLocked: true },
+    { localId: 'waste_mixer',  defId: 'mixer', paramLocked: true }
+  ],
+
+  // 12 internal connections — see PTIS_COMPOSITE_MODELS.md §2.3
+  connections: [ /* ... full wiring in composite models spec ... */ ],
+
+  boundaryPorts: [
+    { portId: 'air_in',    label: 'Air In',      dir: 'IN',  type: 'MATERIAL',
+      unitLocalId: 'fan',          unitPortId: 'mat_in' },
+    { portId: 'food_in',   label: 'Food In',     dir: 'IN',  type: 'MATERIAL',
+      unitLocalId: 'food_buffer',  unitPortId: 'mat_in' },
+    { portId: 'water_in',  label: 'Water In',    dir: 'IN',  type: 'MATERIAL',
+      unitLocalId: 'water_buffer', unitPortId: 'mat_in' },
+    { portId: 'air_out',   label: 'Exhaled Air', dir: 'OUT', type: 'MATERIAL',
+      unitLocalId: 'air_mixer',    unitPortId: 'mat_out' },
+    { portId: 'waste_out', label: 'Waste',        dir: 'OUT', type: 'MATERIAL',
+      unitLocalId: 'waste_mixer',  unitPortId: 'mat_out' }
+  ],
+
+  scaleRules: [
+    { unitLocalId: 'metabolism',    param: 'rate_multiplier', factor: 1.0 },
+    { unitLocalId: 'air_buffer',    param: 'volume_m3',      factor: 1.0 },
+    { unitLocalId: 'food_buffer',   param: 'volume_m3',      factor: 1.0 },
+    { unitLocalId: 'water_buffer',  param: 'volume_m3',      factor: 1.0 },
+    { unitLocalId: 'body_hex',      param: 'UA',             factor: 1.0 },
+    { unitLocalId: 'fan',           param: 'flowTarget',     factor: 1.0 },
+    { unitLocalId: 'air_splitter',  param: 'flowTarget',     factor: 1.0 }
+  ]
+});
+```
+
+### S10c Room — Unchanged
+
+The room (shelter) remains a single registered unit. It is a vessel
+(large sealed tank with atmospheric tracking), not a composite. No
+internal structure to expose.
+
+---
+
+## Tests Summary (~18 total)
+
+| Session | Tests | Cumulative |
+|---------|-------|------------|
+| S8-1a–e (data model, boundary detection, serialization) | 6 | 464 |
+| S8-2a–i (canvas, templates, palette, edge cases) | 12 | 476 |
+| **Total S8** | **~18** | **~476** |
+
+**Gate:** All previous (458) + 18 new → 476 cumulative.
 
 ---
 
 ## Implementation Checklist
 
 ```
-S8a session 1 (state machine core):
-  [ ] GameMode + PlayState enums
-  [ ] State transition logic (BUILD ⇄ RUN ⇄ PAUSED)
-  [ ] Topology edit guards (blocked in RUN)
-  [ ] Param edit pass-through in RUN
+S8-1 session 1 (data model + boundary detection):
+  [ ] GroupDefinition schema
+  [ ] Scene.groups Map + _groupIdCounter
+  [ ] unit.groupId field
+  [ ] createGroup() with boundary port auto-detection
+  [ ] createGroup() mixed-membership rejection (Edge 4)
+  [ ] ungroupGroup()
+  [ ] computeBoundingBox() for collapsed bounds
+  [ ] layoutBoundaryPorts() — IN left, OUT right
+  [ ] Tests 1–4
 
-S8a session 2 (checkpoint + revert):
-  [ ] CheckpointManager (auto-save on BUILD→RUN)
-  [ ] Revert to checkpoint (scene + inventories + campaign)
-  [ ] CATASTROPHIC → auto-revert flow
-  [ ] Tests S8a 1-3
+S8-1 session 2 (serialization + connection indirection):
+  [ ] exportJSON version 16 → 17, groups array
+  [ ] importJSON v17 groups restore + v16 backward compat
+  [ ] userTemplates serialization in export/import
+  [ ] resolveConnectionEndpoint() indirection layer
+  [ ] NNG-3 paragraph 4 (groups are canvas-level)
+  [ ] NNG-10 clause (GroupTemplateRegistry)
+  [ ] Tests 5–6
 
-S8a session 3 (time warp):
-  [ ] TimeWarp speed multiplier array
-  [ ] Auto-decelerate on alarm severity
-  [ ] TimeClock.dt integration with warp factor
-  [ ] Tests S8a 4-6
+S8-2 session 1 (canvas + overlay navigation):
+  [ ] CanvasNav object (stack, enter, exit, jumpTo)
+  [ ] getActiveUnits() / getDimmedUnits() / getVisibleGroups()
+  [ ] renderCollapsedGroup() — box, name, ports, alarm badge
+  [ ] renderGroupOverlay() — dimmed parent + expanded container + active interior
+  [ ] Boundary Input/Output node rendering at container edges
+  [ ] Group header bar with name + close button (×)
+  [ ] Dimmed parent scrim (click-to-exit)
+  [ ] Enter: double-click, context menu "Open Group", Ctrl+G
+  [ ] Exit: × button, click dimmed area, Escape
+  [ ] Locked group: read-only inspectors, edit rejection toast
+  [ ] Context menu: Open, Rename, Save as Template, Ungroup, Delete
+  [ ] Tests 1–7
 
-S8a session 4 (integration):
-  [ ] PlayState UI controls (Build/Run/Pause buttons)
-  [ ] State indicator in header
-  [ ] Toast messages for blocked actions
-  [ ] Sandbox mode (no restrictions)
-
-S8b session 1 (mission schema + registry):
-  [ ] MissionDefinition typedef + validation
-  [ ] MissionRegistry.register() with freeze
-  [ ] MissionRegistry.getAvailable()
-  [ ] Tests S8b 1-2
-
-S8b session 2 (objective evaluators):
-  [ ] 6 evaluator types (convergence, store_component, sustained_flow, maintain_conditions, power_output, parts_remaining)
-  [ ] Runtime timers for sustained/maintain objectives
-  [ ] Tests S8b 3-5
-
-S8b session 3 (scarcity + locks):
-  [ ] getPaletteForMission() with inheritance
-  [ ] Palette count badges + grey-out
-  [ ] ParamLocks enforcement in inspector
-  [ ] Tease entries with narrative tooltip
-  [ ] Tests S8b 6-7
-
-S8b session 4 (stars + hints + flow):
-  [ ] evaluateStars()
-  [ ] HintManager with trigger evaluation
-  [ ] Mission flow: BRIEFING→BUILD→RUN→EVALUATE→DEBRIEF
-  [ ] Narrative overlay (placeholder - text only)
-  [ ] Test S8b 8
-
-S8c session 1 (campaign state + new registrations):
-  [ ] CampaignState object (completed, stars, parts, reserves)
-  [ ] CH₂O species registration
-  [ ] R_PHOTOSYNTHESIS, R_METABOLISM reaction registration
-  [ ] CO species activation
-  [ ] Tests S8c 1-3
-
-S8c session 2 (composites + room):
-  [ ] CH₂O species registration
-  [ ] R_PHOTOSYNTHESIS, R_METABOLISM reaction registration
-  [ ] membrane_separator defId registration (separatorTick trunk)
-  [ ] Greenhouse group template registration (S7b GroupTemplateRegistry)
-  [ ] Human group template registration (S7b GroupTemplateRegistry)
-  [ ] Greenhouse editableParams: lighting efficiency exposed
-  [ ] room unit registration + tick (atmospheric tracking)
-  [ ] Survival demands + computeRunway()
-  [ ] Tests S8c 8-13
-
-S8c session 3 (10 missions):
-  [ ] Register all 10 missions (M1-M10) as data objects
-  [ ] Mission dependency chain
-  [ ] Equipment inheritance logic
-  [ ] Population timeline events
-  [ ] Tests S8c 4-7
-
-S8c session 4 (save/load + integration):
-  [ ] SaveManager (save/load/list)
-  [ ] Home screen (New Campaign, Continue, Sandbox, Load)
-  [ ] Scene inheritance (tank contents, battery charge)
-  [ ] HUD: runway display, population, game day
-  [ ] Tests S8c 14-16
+S8-2 session 2 (templates + palette):
+  [ ] GroupTemplateRegistry (register/get/all/exists)
+  [ ] Template schema + validation + freeze
+  [ ] instantiateTemplate() — units + connections + group
+  [ ] saveGroupAsTemplate() — extract from live scene
+  [ ] Palette 'Assemblies' / 'My Templates' sections
+  [ ] Nested groups with depth limit (3)
+  [ ] T-GR-INVARIANT: group/ungroup physics invariant test
+  [ ] Generic scaling: scalable, scaleParam, scaleRules fields
+  [ ] Scaling: instantiateTemplate applies scale × factor to internal params
+  [ ] Scaling: inspector shows scaleParam slider/input
+  [ ] Tests 8–12
   [ ] Full regression
 
-Total S8: ~30 new tests → 495 cumulative
+Total S8: ~18 new tests → 476 cumulative
 ```
 
 ---
 
-## Open Questions (flagged, non-blocking for S8)
+## S8-3. Generic Scaling Mechanism
 
-1. **M10 power requirement (~85 kW) — RESOLVED:**
-   Greenhouse η = 1% (validated against NASA data), 7 colonists,
-   85 kW electrical demand. Resolution combines three mechanisms:
-   (a) M10 unlocks fabrication — unlimited equipment counts,
-   player builds 4–5 combined cycle power blocks at ~20 kW each;
-   (b) S7b group templates make building at scale manageable —
-   player saves one power block as template, instantiates copies;
-   (c) greenhouse lighting efficiency (η) is an editable parameter
-   on the locked greenhouse template, allowing the player to trade
-   realism for practicality (η=2% halves power demand to ~42 kW).
-   No new power equipment types needed. The vent provides sufficient
-   CH₄. The challenge is infrastructure at scale — the final exam
-   of everything the player has learned.
+Any composite can opt into scaling. The template declares which
+internal parameters scale and how:
 
-2. **3D view:** Game arch specifies Three.js 3D plant view as primary
-   interface. S8 implements the game logic layer only. 3D visualization
-   is a separate workstream (post-S8) that layers on top of the
-   existing 2D flowsheet. The 2D SVG view remains fully functional
-   for all gameplay.
+```javascript
+// Human composite scales with population (2→3→5→7)
+// Greenhouse composite scales with racks
+GroupTemplateRegistry.register('human', {
+  // ...existing definition...
+  scalable: true,
+  scaleParam: 'population',   // inspector label
+  scaleDefault: 2,            // initial value
 
-3. **Narrative content:** S8 implements the narrative system (beat
-   player, dialogue overlay). Actual narrative text (briefings, expert
-   dialogue, debriefings) is content that can be iterated independently
-   of the code. Placeholder text sufficient for S8.
+  scaleRules: [
+    { unitLocalId: 'metabolism',    param: 'rate_multiplier', factor: 1.0 },
+    { unitLocalId: 'air_buffer',    param: 'volume_m3',      factor: 1.0 },
+    { unitLocalId: 'food_buffer',   param: 'volume_m3',      factor: 1.0 },
+    { unitLocalId: 'water_buffer',  param: 'volume_m3',      factor: 1.0 },
+    { unitLocalId: 'body_hex',      param: 'UA',             factor: 1.0 },
+    { unitLocalId: 'fan',           param: 'flowTarget',     factor: 1.0 },
+    { unitLocalId: 'air_splitter',  param: 'flowTarget',     factor: 1.0 }
+  ]
+});
+```
+
+**How it works:** Solver reads `scale` from composite params.
+For each scaleRule: `internalUnit.params[param] = baseValue × scale × factor`.
+Internal units are unaware — they just see their params.
+
+**Generic:** Human: `scaleParam: 'population'`. Greenhouse:
+`scaleParam: 'racks'`. Future power block: `scaleParam: 'trains'`.
+Same mechanism, different label.
+
+**Campaign events:** Rescue events set
+`setParam('human_1', 'population', 3)`. All internal rates
+adjust next tick. One composite, one scaling parameter, no
+duplication.
+
+**Factor:** Default 1.0 (linear). Could support 0.75 for
+sublinear scaling (shared overhead). Not needed for current
+campaign.
+
+~20–30 lines of implementation in the template instantiation path.
 
 ---
 
-## What S8 Delivers
+## What S8 Does NOT Do
 
-The complete game: 10 missions teaching condensation, electrolysis,
-Sabatier synthesis, Brayton power, multi-stage compression, heat pumps,
-Haber synthesis with recycle/purge, Rankine bottoming cycle, cryogenic
-liquefaction, and closed biosphere — all grounded in the real
-thermodynamic engine built in S1–S7. A player who completes the
-campaign has accidentally learned chemical engineering.
+- **No new physics.** Groups are invisible to the solver. No tick
+  functions change. No computed values change.
+- **No campaign content.** Greenhouse/human template registrations
+  happen in S10c, not S8. S8 provides the infrastructure only.
+  Full composite designs in `PTIS_COMPOSITE_MODELS.md`.
+- **No new separator unit.** `membrane_separator` is registered in
+  S9 (it's an engine extension requiring separatorTick trunk).
+- **No 3D view.** Groups work on the 2D SVG/canvas flowsheet.
+- **No cross-scene templates.** User templates are per-scene (saved
+  in exportJSON). A global template library is a post-S8 feature.
+
+---
+
+## What S8 Enables Downstream
+
+| Consumer | What it uses |
+|----------|-------------|
+| S9 (Engine extensions) | membrane_separator registered as standalone defId using S8 template infrastructure. |
+| S10c (composites) | Locked group templates for greenhouse, human. Full designs in `PTIS_COMPOSITE_MODELS.md`. Player can Tab in and inspect real physics. |
+| S10b (missions) | Palette `{ templateId: count }` for composite equipment scarcity. |
+| S10c (save/load) | Groups preserved in scene serialization. Templates restored on load. |
+| S9b (validation) | Scaling mechanism used during validation: `setParam('human_1', 'population', N)`. |
+| Sandbox | Player groups sections of complex PFDs. Saves reusable sub-assemblies. |
+| Future | Cross-scene template library. Template sharing/export. |
+
+---
+
+## Dependency Map Update
+
+```
+S0 → S1 → S2 → S3 → S5 → S7 → S8 → S9 → S10a → S10b → S10c
+                 ↓              ↑
+                 S4 ─────────→ S7
+                 ↓
+                 S6 ─────────────────────────────→ S9
+```
+
+Critical path extends by 4 sessions (S8).
+
+| Stage | Sessions | Cumulative |
+|-------|----------|------------|
+| S0–S7 (unchanged) | 26 | 458 tests |
+| **S8** | **4** | **476 tests** |
+| S9–S10 | 12 | ~506 tests |
+| **Total** | **42** | **~506** |
+
+Note: S8 test count increases from 477 to ~495 because the
+greenhouse/human tests now validate template instantiation and
+internal unit behavior, not just opaque composite outputs.

@@ -740,7 +740,7 @@ S4a session 2 (energy + diagnostics):
   [ ] Condenser output on elec_surplus port
   [ ] Inspector (params, kpis, power sections)
   [ ] Limit parameters (T, P, mass)
-  [ ] NNG-12 diagnostic messages (4 distinct messages)
+  [ ] NNG-14 diagnostic messages (4 distinct messages)
   [ ] 6 column tests passing
 
 S4b session (HEX fix + refrigeration):

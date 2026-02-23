@@ -72,12 +72,9 @@ flagged.
 
 Heat flows hot → cold. No unit or solver shortcut reverses this
 without explicit work input. A heater without a heat source does
-not heat. A cooler without a heat sink does not cool. There is no
-HEAT stream type — heat transfer occurs only through material
-streams (coolant in pipes) or electrical streams (resistive heating).
+not heat. A cooler without a heat sink does not cool.
 
-*Status: extended. Original from v12.10.0. HEAT port purge
-clarification added v13.6.0 (S6).*
+*Status: unchanged from v12.10.0.*
 
 ---
 
@@ -113,10 +110,7 @@ to the same scene ungrouped.
 
 *Status: extended. Paragraphs 1–2 unchanged from v12.7.0. Paragraph
 3 (equipment identity + electrode separation) new in v13.0.0.
-Paragraph 4 (groups as canvas-level concept) new in v13.8.0.
-Port type enum: only MATERIAL and ELECTRICAL. HEAT removed in
-v13.6.0 (S6). Heating is electrical (cable). Cooling is material
-(coolant through pipe). No abstract heat concept.*
+Paragraph 4 (groups as canvas-level concept) new in v13.8.0.*
 
 ---
 
@@ -458,15 +452,6 @@ NNG-17 (power)   →  NNG-5
 Legacy tags (NNG-W3, NNG-AL2, NNG-S5 etc.) in historical comments
 are NOT updated — they predate even the old numbering and serve as
 archaeological markers.
-
-### Step 5: Document HEAT port type deprecation
-
-The NNG-2 and NNG-3 updates establish that only MATERIAL and
-ELECTRICAL port types exist. The `StreamType` enum (line ~380)
-still contains `HEAT: 'HEAT'` — no shipped unit uses it. The
-actual enum entry removal happens in S6 (§S6a-6) when the
-reactor taxonomy split formalizes the purge. S0 establishes the
-rule; S6 executes the code change.
 
 ---
 

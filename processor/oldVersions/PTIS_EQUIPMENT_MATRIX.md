@@ -119,7 +119,7 @@ None — passive unit. Operates at inlet conditions.
 
 **Variant — Dewar Tank (M9)**: Vacuum-insulated. T_LL = 20 K, P_HH = 10 bar. Same defId, distinguished by mission paramLocks or visual variant.
 
-**Open question**: Limits spec says P_HH = 5 bar (LP PN6 vessel). Game arch says 200 bar. Resolution needed: LP/HP/Dewar variants or single unit with mission-locked P_HH. See PTIS_ROADMAP §Open Questions.
+**Resolved**: Single `tank` defId with wide limits (P_HH = 200 bar). Missions use paramLocks to tighten P_HH for LP service (e.g., P_HH = 5 bar). Cryo Dewar is separate defId `tank_cryo` (vacuum-insulated, T_LL = 20K, P_HH = 10 bar) — physically distinct machine.
 
 ---
 
@@ -538,32 +538,33 @@ Solve modes: approach (bisection with PH-flash), T_setpoint (fixed outlet), UA/N
 |-------|-------|
 | **defId** | `reactor_electrochemical` |
 | **Category** | REACTION |
-| **Footprint** | 2×2 |
-| **Physical** | Electrochemical cell stack, power-driven reaction |
+| **Footprint** | 2×3 |
+| **Physical** | Electrochemical cell stack, power-driven reaction, membrane-separated outlets |
 | **Game intro** | M2 (as electrolyzer for water splitting) |
 | **Salvage** | Life support spare from ship stores (PEM stack) |
+| **Trunk** | `electrochemical` (shared with fuel_cell) |
 
 **Ports**
 
-| portId | Direction | Type |
-|--------|-----------|------|
-| mat_in | IN | MATERIAL |
-| power_in | IN | ELECTRICAL |
-| mat_out | OUT | MATERIAL |
-| heat_out | OUT | ELECTRICAL |
-
-Note: heat_out is type ELECTRICAL (not HEAT — v12 retired heat streams). Represents waste heat as electrical equivalent.
+| portId | Label | Direction | Type |
+|--------|-------|-----------|------|
+| mat_in | Feed | IN | MATERIAL |
+| elec_in | Power in | IN | ELECTRICAL |
+| mat_out_cat | Cathode | OUT | MATERIAL |
+| mat_out_ano | Anode (O₂) | OUT | MATERIAL |
+| heat_out | Waste heat | OUT | ELECTRICAL |
 
 **Parameters**
 
 | Param | Default | Unit | Notes |
 |-------|---------|------|-------|
 | reactionId | 'R_H2O_ELEC' | — | Electrochemical reaction to drive |
-| efficiency | 0.85 | — | Electrical → chemical efficiency |
+| efficiency | 0.70 | — | Electrical → chemical efficiency |
+| conversion_max | 0.80 | — | Max single-pass conversion |
 
-**Physics**: ξ = P_chemical / |ΔH_rxn|. Power demand = ξ_max × |ΔH_rxn| / η. Waste heat Q = P_available − Q_chem.
+**Physics**: ξ = P_chemical / |ΔH_rxn|. Electrode separation: O₂ → anode, everything else → cathode. Waste heat Q = P_available − Q_chem.
 
-**Open question**: Game electrolyzer wants 2 separate gas outlets (O₂, H₂) for PEM cell realism. Generic reactor_electrochemical has 1 mat_out. May need dedicated `electrolyzer` defId. See PTIS_ROADMAP §Open Questions.
+**Resolved**: 2 outlets by design — electrode membrane physically separates products. No flash drum needed.
 
 ---
 
@@ -617,14 +618,120 @@ Modes: `sealed` (P = P_charge), `vented` (P = P_atm), `finite` (P from gas law +
 
 ---
 
-### 3.4 Composites (S8)
+### 3.4 Membrane Separator (S9)
 
-| defId | Physical | Game intro | Ports |
-|-------|----------|------------|-------|
-| `greenhouse` | Agricultural pod with grow lights | M10 | air_in, air_out, water_in, waste_out, nh3_in, power_in |
-| `human` | Metabolic unit (colonists) | M10 | air_in, air_out, food_in, waste_out |
+| Field | Value |
+|-------|-------|
+| **defId** | `membrane_separator` |
+| **Category** | SEPARATOR |
+| **Footprint** | 1×2 |
+| **Physical** | Selective permeation membrane — gas exchange or renal filtration |
+| **Game intro** | M10 (internal to greenhouse and human group templates) |
+| **Trunk** | `separatorTick` (new, dedicated) |
 
-Internal structure hidden: mixer + reactor + separator. Registered like normal units. Player sees ports and parameters, not internals.
+**Ports**
+
+| portId | Label | Direction | Type |
+|--------|-------|-----------|------|
+| mat_in | Feed | IN | MATERIAL |
+| perm_out | Permeate | OUT | MATERIAL |
+| ret_out | Retentate | OUT | MATERIAL |
+
+**Parameters**
+
+| Param | Default | Unit | Notes |
+|-------|---------|------|-------|
+| membrane | 'gas_exchange' | enum | Membrane type (selectivity preset) |
+| selectivity | `{ O2: 0.95 }` | — | Species → fraction passing to permeate |
+
+**Physics**: Pure selectivity-map permeation (not VLE). Each species in
+feed is split: `selectivity[sp]` fraction to permeate, remainder to
+retentate. Unspecified species default to 1.0 (fully permeate). Mass
+and energy balance close exactly.
+
+**Configurations in campaign templates:**
+
+| Template | membrane | selectivity | Physical analogue |
+|----------|----------|------------|-------------------|
+| Greenhouse (leaf) | gas_exchange | `{ O2: 0.95, H2O: 0.80 }` | Stomatal gas exchange |
+| Human (kidney) | renal | `{ NH3: 0.01 }` | Renal filtration (NH₃ → retentate, rest permeates) |
+
+Same defId, different operating parameters. NNG-3 compliant.
+
+---
+
+### 3.5 Composites (S9 via S8 Group Templates)
+
+Composites are **locked group templates** registered via S8
+GroupTemplateRegistry — not opaque units with bespoke tick functions.
+The player can Tab into any composite to see real units running real
+physics (read-only wiring, selectively editable parameters).
+
+| Template ID | Internal units | Boundary ports | Notes |
+|-------------|---------------|----------------|-------|
+| `greenhouse` | grid_supply, reactor_electrochemical (R_PHOTO), membrane_separator (leaf), mixer | air_in, water_in, elec_in, air_out, food_out | η editable (0.5–5%) |
+| `human` | reactor_equilibrium (R_METABOLISM), membrane_separator (kidney), mixer (waste) | air_in, food_in, water_in, air_out, waste_out | Parameterized by population |
+
+Full template definitions in `PTIS_S8_SPEC.md` §S8 Impact on S10 Spec.
+
+**Greenhouse sizing (7 colonists):** 85 kW electrical at η=1%, 848 W
+thermodynamic minimum, 84.2 kW waste heat.
+
+**Human metabolic rates (2500 kcal/day/person):** 0.84 mol/hr/person
+each of CH₂O, O₂ consumed and CO₂, H₂O produced. 121 W/person
+metabolic heat (from reactor energy balance). Drinking water:
+7.0 mol/hr/person enters via water_in, exits as H₂O + NH₃ via
+waste_out (urine analogue). All carbon oxidized by R_METABOLISM —
+no biomass waste.
+
+### 3.6 Fuel Cell (S9)
+
+| Field | Value |
+|-------|-------|
+| **defId** | `fuel_cell` |
+| **Category** | REACTION |
+| **Footprint** | 2×3 |
+| **Physical** | PEM/SOFC stack — reverse electrolysis, generates power |
+| **Game intro** | Future (not in current 10 missions) |
+| **Trunk** | `electrochemical` (shared with reactor_electrochemical) |
+
+**Ports**
+
+| portId | Label | Direction | Type |
+|--------|-------|-----------|------|
+| mat_in_cat | Fuel (H₂) | IN | MATERIAL |
+| mat_in_ano | Oxidant (O₂) | IN | MATERIAL |
+| mat_out | Exhaust | OUT | MATERIAL |
+| elec_out | Power out | OUT | ELECTRICAL |
+| heat_out | Waste heat | OUT | ELECTRICAL |
+
+**Reactions**: R_H2_FUELCELL (2H₂+O₂→2H₂O), R_CO_FUELCELL (2CO+O₂→2CO₂). Trunk detects ΔH<0 → generate mode.
+
+### 3.7 Steam Turbine (S9)
+
+| Field | Value |
+|-------|-------|
+| **defId** | `steam_turbine` |
+| **Category** | PRESSURE |
+| **Footprint** | 2×2 |
+| **Physical** | Axial steam expander with moisture tolerance limit |
+| **Game intro** | M8 (Rankine bottoming cycle) |
+| **Trunk** | `expander` (shared with gas_turbine) |
+
+Same ports as gas_turbine. Config: `moistureCheck: true, maxWetness: 0.12`. Limits: T_HH=823K, P_HH=100 bar. WARNING if exhaust liquid fraction > 12%.
+
+### 3.8 Cryo Dewar (S9)
+
+| Field | Value |
+|-------|-------|
+| **defId** | `tank_cryo` |
+| **Category** | VESSEL |
+| **Footprint** | 2×2 |
+| **Physical** | Vacuum-insulated storage vessel (multi-layer insulation) |
+| **Game intro** | M9 (cryogenic reserves) |
+| **Trunk** | `vessel` (shared with tank, reservoir) |
+
+Same ports as tank. Limits: T_LL=20K, T_HH=300K, P_HH=10 bar (fragile vessel). Narratively distinct: vacuum jacket, boil-off vent, frost accumulation.
 
 ---
 
@@ -650,7 +757,7 @@ Internal structure hidden: mixer + reactor + separator. Registered like normal u
 |----|---------|-----|--------|----------|---|----------------|
 | CO | CO | 28.010 | 132.9 | 34.99 | 0.048 | 298–1300, 1300–6000 |
 
-### 4.3 Added in S8c (1 species → 11 total)
+### 4.3 Added in S9 (1 species → 11 total)
 
 | ID | Formula | MW | Notes |
 |----|---------|-----|-------|
@@ -668,7 +775,7 @@ Internal structure hidden: mixer + reactor + separator. Registered like normal u
 | R_SABATIER | CO₂ + 4H₂ → CH₄ + 2H₂O | −165,000 | POWER_LAW | |
 | R_STEAM_REFORM | CH₄ + 2H₂O → CO₂ + 4H₂ | +165,000 | POWER_LAW | ⚠ Renamed to R_SMR_OVERALL in S1b |
 
-### 5.2 After S1b (11 reactions)
+### 5.2 After S1b (14 reactions)
 
 | ID | Equation | ΔH° (J/mol) | Kinetics | Game mission | New/Changed |
 |----|----------|-------------|----------|-------------|-------------|
@@ -682,13 +789,16 @@ Internal structure hidden: mixer + reactor + separator. Registered like normal u
 | R_CH4_COMB | CH₄ + 2O₂ → CO₂ + 2H₂O | −802,600 | POWER_LAW | M4 | **new** |
 | R_H2O_ELEC | 2H₂O → 2H₂ + O₂ | +483,600 | ELECTROCHEMICAL | M2 | **new** (data only until S6) |
 | R_CO2_ELEC | 2CO₂ → 2CO + O₂ | +566,000 | ELECTROCHEMICAL | Sandbox | **new** (data only until S6) |
+| R_COELEC | CO₂ + H₂O → CO + H₂ + O₂ | +524,806 | ELECTROCHEMICAL | Late-game unlock | **new** (co-electrolysis, data only until S6) |
+| R_H2_FUELCELL | 2H₂ + O₂ → 2H₂O | −483,600 | ELECTROCHEMICAL | Future (fuel cell) | **new** (data only until fuel_cell unit) |
+| R_CO_FUELCELL | 2CO + O₂ → 2CO₂ | −566,000 | ELECTROCHEMICAL | Future (fuel cell) | **new** (data only until fuel_cell unit) |
 
-### 5.3 Added in S8c (13 reactions total)
+### 5.3 Added in S9 (16 reactions total)
 
 | ID | Equation | ΔH° (J/mol) | Kinetics | Game mission |
 |----|----------|-------------|----------|-------------|
-| R_PHOTOSYNTHESIS | CO₂ + H₂O → CH₂O + O₂ | +519,000 | ELECTROCHEMICAL | M10 (greenhouse) |
-| R_METABOLISM | CH₂O + O₂ → CO₂ + H₂O | −519,000 | POWER_LAW (complete) | M10 (human) |
+| R_PHOTOSYNTHESIS | CO₂ + H₂O → CH₂O + O₂ | +519,400 | ELECTROCHEMICAL | M10 (greenhouse) |
+| R_METABOLISM | CH₂O + O₂ → CO₂ + H₂O | −519,400 | POWER_LAW (complete) | M10 (human) |
 
 ---
 
@@ -704,19 +814,34 @@ Internal structure hidden: mixer + reactor + separator. Registered like normal u
 | electrolyzer | | ★ | · | · | · | · | · | · | · | · |
 | battery | | ★ | · | · | · | · | · | · | · | · |
 | mixer | | | ★ | · | · | · | · | · | · | · |
-| reactor_eq | | | ★ | · | · | · | · | · | · | · |
+| reactor_eq | | | ★ | +1 | · | · | · | · | · | · |
 | hex | | | ★ | · | · | +1 | · | · | · | · |
 | compressor | | | | ★ | +1 | · | · | · | · | · |
-| gas_turbine | | | | ★ | · | · | · | +1 | · | · |
-| reactor_eq (adi) | | | | ★ | · | · | · | · | · | · |
+| gas_turbine | | | | ★ | · | · | · | · | · | · |
 | valve | | | | | ★ | · | · | · | · | · |
 | splitter | | | | | | | ★ | · | · | · |
 | heater | | | | | | | ★ | · | · | · |
 | pump | | | | | | | | ★ | · | · |
+| steam_turbine | | | | | | | | ★ | · | · |
+| tank_cryo | | | | | | | | | ★★ | · |
+| membrane_separator | | | | | | | | | | ★★ |
 | greenhouse | | | | | | | | | | ★ |
 | human | | | | | | | | | | ★ |
 
 ★ = introduced  · = carried  +N = additional units of same type
+
+Notes: M4 reactor_eq is a second unit (combustion chamber), locked to
+R_CH4_COMB + heatDemand:'none' via paramLocks. M8 steam_turbine is a
+separate defId from gas_turbine (shared expander trunk, moisture check).
+M9 tank_cryo is a separate defId from tank (Dewar, vacuum-insulated).
+M10 membrane_separator (★★) is internal to greenhouse and human group
+templates — the player never places it directly, but sees it when
+Tab-opening either composite. greenhouse and human are locked S8 group
+templates with transparent internals.
+
+**M10 fabrication unlock:** All previously introduced equipment becomes
+available in unlimited quantities (∞). Player must build 4–5 combined
+cycle power blocks to supply the greenhouse's ~85 kW demand.
 
 ---
 

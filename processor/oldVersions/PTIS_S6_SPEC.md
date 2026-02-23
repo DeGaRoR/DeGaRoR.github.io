@@ -98,11 +98,11 @@ UnitRegistry.register('reactor_electrochemical', {
   w: 2,
   h: 3,
   ports: [
-    { portId: 'mat_in',      dir: PortDir.IN,  type: StreamType.MATERIAL,   x: 0, y: 1 },
-    { portId: 'elec_in',     dir: PortDir.IN,  type: StreamType.ELECTRICAL, x: 1, y: 0 },
-    { portId: 'mat_out_cat', dir: PortDir.OUT, type: StreamType.MATERIAL,   x: 2, y: 0 },
-    { portId: 'mat_out_ano', dir: PortDir.OUT, type: StreamType.MATERIAL,   x: 2, y: 2 },
-    { portId: 'heat_out',    dir: PortDir.OUT, type: StreamType.ELECTRICAL, x: 1, y: 3 }
+    { portId: 'mat_in',      label: 'Feed',          dir: PortDir.IN,  type: StreamType.MATERIAL,   x: 0, y: 1 },
+    { portId: 'elec_in',     label: 'Power in',      dir: PortDir.IN,  type: StreamType.ELECTRICAL, x: 1, y: 0 },
+    { portId: 'mat_out_cat', label: 'Cathode',       dir: PortDir.OUT, type: StreamType.MATERIAL,   x: 2, y: 0 },
+    { portId: 'mat_out_ano', label: 'Anode (O₂)',    dir: PortDir.OUT, type: StreamType.MATERIAL,   x: 2, y: 2 },
+    { portId: 'heat_out',    label: 'Waste heat',    dir: PortDir.OUT, type: StreamType.ELECTRICAL, x: 1, y: 3 }
   ],
   presentations: {
     'box/default': { w: 2, h: 3, ports: {
@@ -161,7 +161,7 @@ case 'reactor_electrochemical':
 | Parameter | Default | Min | Max | Notes |
 |-----------|---------|-----|-----|-------|
 | reactionId | 'R_H2O_ELEC' | enum | | Must have `model: 'ELECTROCHEMICAL'` |
-| efficiency | 0.70 | 0.30 | 0.95 | Electrical → chemical conversion |
+| efficiency | 0.70 | 0.005 | 0.99 | Electrical → chemical. Electrolysis: 0.60–0.80. Photochemical (grow lights): 0.005–0.05 |
 | conversion_max | 0.80 | 0.01 | 0.99 | Max single-pass conversion of limiting reactant |
 
 **Efficiency rationale:**
@@ -171,6 +171,9 @@ case 'reactor_electrochemical':
 | Alkaline | 0.55–0.70 | Mature, lower cost |
 | Solid oxide (SOEC) | 0.80–0.95 | High T, highest efficiency |
 | Default 0.70 | — | Mid-range PEM |
+| Grow lights (overhead LED) | 0.003–0.005 | Conventional agriculture lighting |
+| Grow lights (targeted LED) | 0.005–0.02 | NASA close-canopy, bleeding edge |
+| Default for R_PHOTOSYNTHESIS | 0.01 | 1% — validated against NASA BPC data |
 
 **Reaction selector:** Inspector dropdown filters ReactionRegistry to
 show only reactions with `kinetics.model === 'ELECTROCHEMICAL'`. After
@@ -212,7 +215,7 @@ tick(u, ports, par, ctx) {
   }
 
   const stoich = rxn.stoich;
-  const eta = Math.max(0.01, Math.min(0.99, par.efficiency ?? 0.70));
+  const eta = Math.max(0.001, Math.min(0.99, par.efficiency ?? 0.70));
   const conv_max = Math.max(0.01, Math.min(0.99, par.conversion_max ?? 0.80));
 
   // ── ΔH_rxn from formation enthalpies ──
@@ -529,15 +532,20 @@ UnitInspector.reactor_electrochemical = {
         set: v => u.params.reactionId = v },
       { label: 'Efficiency (η)',
         get: () => u.params.efficiency ?? 0.70,
-        set: v => u.params.efficiency = Math.max(0.30, Math.min(0.95, v)),
-        step: 0.01, decimals: 2 },
+        set: v => u.params.efficiency = Math.max(0.005, Math.min(0.99, v)),
+        step: 0.001, decimals: 3 },
       { label: 'Max conversion',
         get: () => u.params.conversion_max ?? 0.80,
         set: v => u.params.conversion_max = Math.max(0.01, Math.min(0.99, v)),
         step: 0.01, decimals: 2 },
       { type: 'info', html: () => {
         const rxn = ReactionRegistry.get(u.params.reactionId);
-        return rxn ? `${rxn.equation}<br>ΔH° = ${(rxn._dH0_Jmol/1000).toFixed(1)} kJ/mol` : '';
+        if (!rxn) return '';
+        const isPhoto = rxn.id === 'R_PHOTOSYNTHESIS';
+        const etaNote = isPhoto
+          ? 'η includes LED→PAR→photosynthesis chain. Typical: 0.5–2%.'
+          : `η is direct electrochemical conversion. Typical: 60–80%.`;
+        return `${rxn.equation}<br>ΔH° = ${(rxn._dH0_Jmol/1000).toFixed(1)} kJ/mol<br>${etaNote}`;
       }}
     ];
   },
@@ -608,7 +616,7 @@ Session 1 (unit + tick):
       - Enthalpy split proportional to molar flow
       - Two outlet streams (cathode + anode)
       - Waste heat port (ELECTRICAL)
-      - NNG-12 diagnostics (idle, power-limited, no reactant)
+      - NNG-14 diagnostics (idle, power-limited, no reactant)
 
 Session 2 (inspector + tests):
   [ ] Inspector: reaction selector (ELECTROCHEMICAL filter), η, conv_max
@@ -627,4 +635,4 @@ Total S6: 8 new tests → 442 cumulative
 |----------|---------------------|
 | S7 (Perf Maps) | Electrolyzer conversion vs power curves; η sensitivity |
 | S8 (Game) | M2: O₂ from anode feeds life support directly. M5: CO₂ splitting. M9: O₂ from electrolyzer feeds cryogenic column. Two outlets eliminate need for downstream separation. |
-| Future | Fuel cell (reverse electrolysis): same unit pattern, exothermic reaction, power OUT instead of IN, H₂ enters cathode + O₂ enters anode |
+| Future | Fuel cell (`fuel_cell` defId, S8+): shares `electrochemicalTick` trunk. 2 mat_in (fuel + oxidant), 1 mat_out (exhaust), elec_out (power). Trunk detects ΔH<0 → generate mode. Uses R_H2_FUELCELL, R_CO_FUELCELL (registered in S1). See S8 §S8c-3b. |

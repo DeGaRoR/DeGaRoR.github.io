@@ -424,40 +424,35 @@ Solve modes: approach (bisection with PH-flash), T_setpoint (fixed outlet), UA/N
 
 ---
 
-### 1.12 Reactor — Equilibrium (Fixed-Bed Catalytic)
+### 1.12 Reactor — Adiabatic (Fixed-Bed Catalytic, Insulated)
 
 | Field | Value |
 |-------|-------|
-| **defId** | `reactor_equilibrium` |
+| **defId** | `reactor_adiabatic` |
 | **Category** | REACTION |
 | **Footprint** | 2×2 |
-| **Physical** | Vertical cylindrical vessel packed with catalyst pellets |
-| **Game intro** | M3 (Sabatier), M4 (combustion, adiabatic mode), M7 (Haber) |
+| **Physical** | Insulated catalytic vessel — no heat exchange with surroundings |
+| **Trunk** | `equilibriumTick` (config: `{ mode: 'adiabatic' }`) |
+| **Game intro** | M3 (Sabatier), M4 (combustion chamber), M7 (Haber) |
 | **Salvage** | M3: Sabatier CO₂ recycler catalyst bed; M4: propulsion combustor |
 
-**Ports**
+**Ports (2)**
 
-| portId | Direction | Type | Position | Conditional |
-|--------|-----------|------|----------|-------------|
-| mat_in | IN | MATERIAL | left | Always |
-| mat_out | OUT | MATERIAL | right | Always |
-| elec_in | IN | ELECTRICAL | bottom | Only when heatDemand = 'isothermal' or 'fixed' |
+| portId | Direction | Type | Position |
+|--------|-----------|------|----------|
+| mat_in | IN | MATERIAL | left |
+| mat_out | OUT | MATERIAL | right |
 
 **Parameters**
 
-| Param | Default | Corrected Default | Unit | Notes |
-|-------|---------|-------------------|------|-------|
-| reactionId | 'R_H2_COMB' | — | — | Which reaction to drive |
-| useKinetics | true | — | — | Use kinetic model |
-| volume_m3 | ~~1.0~~ | **0.003** | m³ | ⚠ Code says 1.0, must fix (S1c) |
-| alpha | 1.0 | — | — | Activity factor |
-| heatDemand | 'none' | — | — | 'none' = adiabatic, 'isothermal', 'fixed' |
-| variant | 'insulated' | — | — | Visual variant |
+| Param | Default | Unit | Notes |
+|-------|---------|------|-------|
+| reactionId | 'R_H2_COMB' | — | Which reaction to drive |
+| useKinetics | true | — | Use kinetic model |
+| volume_m3 | 0.003 | m³ | Catalyst bed volume (corrected from 1.0 in S1c) |
+| alpha | 1.0 | — | Activity factor |
 
-**Heat demand modes**:
-- `'none'` — Adiabatic. Q_in = 0. T_out from energy balance. (Game's "combustion chamber")
-- `'isothermal'` — T_out = T_in. Q_in computed. Needs elec_in.
-- `'fixed'` — Q_in = fixed value. T_out from energy balance. Needs elec_in.
+**Physics:** Q_external = 0. T_out from energy balance: H_in + ΔH_rxn × ξ = H_out. All reaction heat stays in products.
 
 **S-Size Limits**
 
@@ -470,7 +465,79 @@ Solve modes: approach (bisection with PH-flash), T_setpoint (fixed outlet), UA/N
 
 **S-Size Specs** (game_arch §45.6): Volume 0.05 m³, catalyst ~40 kg, max T 923 K, max P 150 bar, GHSV 10,000–50,000 hr⁻¹.
 
-**Visual variants**: 'insulated' (catalytic bed + insulation wrap), 'combustion' (flame viewport). Same physics. Game arch lists "reactor_adi" as separate visual type for M4 combustion chamber — implemented as visualVariant, not separate defId.
+**Visual variants**: 'insulated' (catalytic bed + insulation wrap), 'combustion' (flame viewport). Same physics, cosmetic only.
+
+---
+
+### 1.13 Reactor — Jacketed (Electrically Heated)
+
+| Field | Value |
+|-------|-------|
+| **defId** | `reactor_jacketed` |
+| **Category** | REACTION |
+| **Footprint** | 2×2 |
+| **Physical** | Electrically heated catalytic vessel with heating jacket |
+| **Trunk** | `equilibriumTick` (config: `{ mode: 'jacketed' }`) |
+| **Game intro** | Sandbox |
+
+**Ports (3)**
+
+| portId | Direction | Type | Position |
+|--------|-----------|------|----------|
+| mat_in | IN | MATERIAL | left |
+| mat_out | OUT | MATERIAL | right |
+| elec_in | IN | ELECTRICAL | bottom |
+
+**Parameters**
+
+| Param | Default | Unit | Notes |
+|-------|---------|------|-------|
+| reactionId | 'R_H2_COMB' | — | |
+| useKinetics | true | — | |
+| volume_m3 | 0.003 | m³ | |
+| alpha | 1.0 | — | |
+
+**Physics:** elec_in provides Q_electrical. If sufficient for isothermal → T_out ≈ T_in. If insufficient → T_out from energy balance with Q actually provided. NNG-2 compliant (heating via real cable).
+
+**S-Size Limits:** Same as reactor_adiabatic.
+
+---
+
+### 1.14 Reactor — Cooled (Cooling Jacket)
+
+| Field | Value |
+|-------|-------|
+| **defId** | `reactor_cooled` |
+| **Category** | REACTION |
+| **Footprint** | 2×3 |
+| **Physical** | Catalytic vessel with cooling water jacket |
+| **Trunk** | `equilibriumTick` (config: `{ mode: 'cooled' }`) |
+| **Game intro** | Sandbox |
+
+**Ports (4)**
+
+| portId | Direction | Type | Position |
+|--------|-----------|------|----------|
+| mat_in | IN | MATERIAL | left-top |
+| mat_out | OUT | MATERIAL | right-top |
+| cool_in | IN | MATERIAL | left-bottom |
+| cool_out | OUT | MATERIAL | right-bottom |
+
+**Parameters**
+
+| Param | Default | Unit | Notes |
+|-------|---------|------|-------|
+| reactionId | 'R_H2_COMB' | — | |
+| useKinetics | true | — | |
+| volume_m3 | 0.003 | m³ | |
+| alpha | 1.0 | — | |
+| UA | 500 | W/K | Internal HEX capacity |
+
+**Physics:** Internal HEX between reaction products and cooling stream. Uses shared `heatExchangerTick` logic. NNG-2 compliant (cooling via real pipes).
+
+**S-Size Limits:** Same as reactor_adiabatic (process side).
+
+**Note:** Replaces the old `reactor_equilibrium` with `heatDemand='none'|'isothermal'|'fixed'` conditional port pattern. The three defIds (adiabatic, jacketed, cooled) have fixed, unconditional port layouts per NNG-3. See `PTIS_S6_SPEC.md` for full details.
 
 ---
 
@@ -515,7 +582,7 @@ Solve modes: approach (bisection with PH-flash), T_setpoint (fixed outlet), UA/N
 | `source` | MATERIAL out | `{ n, T, P, phaseConstraint }` | Single-species. Game: "geothermal vent" |
 | `source_multi` | MATERIAL out | `{ n: {species: mol}, T, P, phaseConstraint }` | Multi-species. Game: "vent gas feed" |
 | `source_air` | MATERIAL out | (atmosphere composition) | Ambient air at T_atm, P_atm |
-| `grid_supply` | ELECTRICAL out | `{ P_kW }` | External power. Game: not used (no grid on planet) |
+| `grid_supply` | ELECTRICAL out | `{ P_kW }` | External power. Game: not used (no grid on planet). Not used in greenhouse composite (elec_in delegates directly to photo_reactor.elec_in). |
 
 **Game mapping**: `source`/`source_multi` → "geothermal vent" (M1, M4). `source_air` → "atmosphere intake" (M4+). Narratively reframed but functionally unchanged. S5 introduces `reservoir` as replacement for sources in pressure-driven mode; existing sources kept for backward compat.
 
@@ -540,11 +607,11 @@ Solve modes: approach (bisection with PH-flash), T_setpoint (fixed outlet), UA/N
 | **Category** | REACTION |
 | **Footprint** | 2×3 |
 | **Physical** | Electrochemical cell stack, power-driven reaction, membrane-separated outlets |
-| **Game intro** | M2 (as electrolyzer for water splitting) |
+| **Game intro** | M2 (as electrolyzer for water splitting), M10 (photosynthesis inside greenhouse) |
 | **Salvage** | Life support spare from ship stores (PEM stack) |
-| **Trunk** | `electrochemical` (shared with fuel_cell) |
+| **Trunk** | `electrochemicalTick` (shared with fuel_cell) |
 
-**Ports**
+**Ports (4)**
 
 | portId | Label | Direction | Type |
 |--------|-------|-----------|------|
@@ -552,19 +619,18 @@ Solve modes: approach (bisection with PH-flash), T_setpoint (fixed outlet), UA/N
 | elec_in | Power in | IN | ELECTRICAL |
 | mat_out_cat | Cathode | OUT | MATERIAL |
 | mat_out_ano | Anode (O₂) | OUT | MATERIAL |
-| heat_out | Waste heat | OUT | ELECTRICAL |
 
 **Parameters**
 
 | Param | Default | Unit | Notes |
 |-------|---------|------|-------|
 | reactionId | 'R_H2O_ELEC' | — | Electrochemical reaction to drive |
-| efficiency | 0.70 | — | Electrical → chemical efficiency |
+| efficiency | **0.90** | — | Electrical → chemical. Range: 0.005–0.99 (supports greenhouse η=0.5–5%) |
 | conversion_max | 0.80 | — | Max single-pass conversion |
 
-**Physics**: ξ = P_chemical / |ΔH_rxn|. Electrode separation: O₂ → anode, everything else → cathode. Waste heat Q = P_available − Q_chem.
+**Physics**: ξ = P_chemical / |ΔH_rxn|. Electrode separation: O₂ → anode, everything else → cathode. Adiabatic on material side — waste heat stays in products (no heat_out port). Player cools downstream with air_cooler or HEX.
 
-**Resolved**: 2 outlets by design — electrode membrane physically separates products. No flash drum needed.
+**Resolved**: 2 outlets by design — electrode membrane physically separates products. No flash drum needed. heat_out removed (NNG-2/NNG-3 compliance).
 
 ---
 
@@ -578,7 +644,7 @@ Solve modes: approach (bisection with PH-flash), T_setpoint (fixed outlet), UA/N
 | **Physical** | Trayed or packed column with condenser and reboiler |
 | **Game usage** | Sandbox only — campaign M5 uses compression+flash for air separation |
 
-**Ports**
+**Ports (4)**
 
 | portId | Direction | Type |
 |--------|-----------|------|
@@ -586,7 +652,6 @@ Solve modes: approach (bisection with PH-flash), T_setpoint (fixed outlet), UA/N
 | elec_in | IN | ELECTRICAL |
 | mat_out_D | OUT | MATERIAL |
 | mat_out_B | OUT | MATERIAL |
-| heat_out | OUT | ELECTRICAL |
 
 **Parameters**
 
@@ -618,15 +683,15 @@ Modes: `sealed` (P = P_charge), `vented` (P = P_atm), `finite` (P from gas law +
 
 ---
 
-### 3.4 Membrane Separator (S8c)
+### 3.4 Membrane Separator (S9)
 
 | Field | Value |
 |-------|-------|
 | **defId** | `membrane_separator` |
 | **Category** | SEPARATOR |
 | **Footprint** | 1×2 |
-| **Physical** | Selective permeation membrane — gas exchange or renal filtration |
-| **Game intro** | M10 (internal to greenhouse and human group templates) |
+| **Physical** | Selective permeation membrane — gas exchange, renal filtration, or sorbent scrubbing |
+| **Game intro** | M10 (internal to greenhouse and human group templates; LiOH scrubber in Day-0 room) |
 | **Trunk** | `separatorTick` (new, dedicated) |
 
 **Ports**
@@ -643,56 +708,71 @@ Modes: `sealed` (P = P_charge), `vented` (P = P_atm), `finite` (P from gas law +
 |-------|---------|------|-------|
 | membrane | 'gas_exchange' | enum | Membrane type (selectivity preset) |
 | selectivity | `{ O2: 0.95 }` | — | Species → fraction passing to permeate |
+| depletable | false | — | If true, sorbent decrements per absorbed moles |
+| sorbentCapacity | Infinity | mol | Total absorption capacity when depletable |
+| sorbentRemaining | Infinity | mol | Current remaining capacity |
+| maxRate | Infinity | mol/hr | Max absorption rate (for rate-limited scrubbers) |
 
 **Physics**: Pure selectivity-map permeation (not VLE). Each species in
 feed is split: `selectivity[sp]` fraction to permeate, remainder to
-retentate. Unspecified species default to 0 (retentate). Mass and energy
-balance close exactly.
+retentate. Unspecified species default to 1.0 (fully permeate). Mass
+and energy balance close exactly.
+
+**Depletion logic (when `depletable: true`):** Trunk decrements
+`sorbentRemaining` by moles absorbed each tick. When sorbent = 0,
+selectivity drops to 0 (all species pass through). Alarm at
+sorbentRemaining < 20% of sorbentCapacity → WARNING.
 
 **Configurations in campaign templates:**
 
-| Template | membrane | selectivity | Physical analogue |
-|----------|----------|------------|-------------------|
-| Greenhouse (leaf) | gas_exchange | `{ O2: 0.95, H2O: 0.80 }` | Stomatal gas exchange |
-| Human (kidney) | renal | `{ H2O: 0.99, CO2: 0.05 }` | Renal filtration |
+| Template | membrane | selectivity | depletable | Physical analogue |
+|----------|----------|------------|------------|-------------------|
+| Greenhouse (leaf) | gas_exchange | `{ CH2O: 0.05, NH3: 0.05 }` | false | Stomatal gas exchange (retain food + NH₃) |
+| Human (kidney) | renal | `{ NH3: 0.01 }` | false | Renal filtration (NH₃ → retentate) |
+| Day-0 LiOH scrubber | sorbent | `{ CO2: 0.01 }` | **true** (268 mol, 5 mol/hr max) | CO₂ absorption (retain CO₂ in retentate) |
 
 Same defId, different operating parameters. NNG-3 compliant.
 
 ---
 
-### 3.5 Composites (S8c via S7b Group Templates)
+### 3.5 Composites (S10 via S8 Group Templates)
 
-Composites are **locked group templates** registered via S7b
+Composites are **locked group templates** registered via S8
 GroupTemplateRegistry — not opaque units with bespoke tick functions.
 The player can Tab into any composite to see real units running real
 physics (read-only wiring, selectively editable parameters).
 
 | Template ID | Internal units | Boundary ports | Notes |
 |-------------|---------------|----------------|-------|
-| `greenhouse` | grid_supply, reactor_electrochemical (R_PHOTO), membrane_separator (leaf), mixer | air_in, water_in, elec_in, air_out, food_out | η editable (0.5–5%) |
-| `human` | reactor_equilibrium (R_METABOLISM), membrane_separator (kidney) | air_in, food_in, air_out, waste_out | Parameterized by population |
+| `greenhouse` | soil_buffer, nutrient_mix, photo_reactor (reactor_electrochemical, R_PHOTOSYNTHESIS), product_mixer, cooling_hex, fan, leaf (membrane_separator) | co2_in, nutrient_in, elec_in, cool_in, cool_out, air_out, food_out | η editable (0.5–5%), default 2% |
+| `human` | fan, air_splitter, air_buffer, food_buffer, feed_mixer, metabolism (reactor_adiabatic, R_METABOLISM), body_hex, kidney (membrane_separator), air_mixer, water_buffer, waste_mixer | air_in, food_in, water_in, air_out, waste_out | Parameterized by population (scaling) |
 
-Full template definitions in `PTIS_S7b_SPEC.md` §S7b Impact on S8 Spec.
+Full template definitions, conceptual models, buffer sizing, alarm
+envelopes, and scaling rules in `PTIS_COMPOSITE_MODELS.md`.
 
-**Greenhouse sizing (7 colonists):** 85 kW electrical at η=1%, 848 W
-thermodynamic minimum, 84.2 kW waste heat.
+**Greenhouse sizing (7 colonists):** ~42 kW electrical at η=2% (default),
+848 W thermodynamic minimum. η editable 0.5–5%. At η=1%, demand rises
+to ~85 kW (★★★ challenge).
 
 **Human metabolic rates (2500 kcal/day/person):** 0.84 mol/hr/person
 each of CH₂O, O₂ consumed and CO₂, H₂O produced. 121 W/person
-metabolic heat (from reactor energy balance).
+metabolic heat (from reactor energy balance, carried out as warm air
+via air_out). Drinking water: enters via water_in, exits as H₂O + NH₃
+via waste_out (urine analogue). All carbon oxidized by R_METABOLISM —
+no biomass waste.
 
-### 3.6 Fuel Cell (S8)
+### 3.6 Fuel Cell (S6b)
 
 | Field | Value |
 |-------|-------|
 | **defId** | `fuel_cell` |
 | **Category** | REACTION |
 | **Footprint** | 2×3 |
-| **Physical** | PEM/SOFC stack — reverse electrolysis, generates power |
-| **Game intro** | Future (not in current 10 missions) |
-| **Trunk** | `electrochemical` (shared with reactor_electrochemical) |
+| **Physical** | PEM/SOFC stack with mandatory cooling water loop — reverse electrolysis, generates power |
+| **Game intro** | Future (not in current 10 missions). Sandbox available. |
+| **Trunk** | `electrochemicalTick` (shared with reactor_electrochemical, generate mode) |
 
-**Ports**
+**Ports (6)**
 
 | portId | Label | Direction | Type |
 |--------|-------|-----------|------|
@@ -700,11 +780,12 @@ metabolic heat (from reactor energy balance).
 | mat_in_ano | Oxidant (O₂) | IN | MATERIAL |
 | mat_out | Exhaust | OUT | MATERIAL |
 | elec_out | Power out | OUT | ELECTRICAL |
-| heat_out | Waste heat | OUT | ELECTRICAL |
+| cool_in | Coolant In | IN | MATERIAL |
+| cool_out | Coolant Out | OUT | MATERIAL |
 
-**Reactions**: R_H2_FUELCELL (2H₂+O₂→2H₂O), R_CO_FUELCELL (2CO+O₂→2CO₂). Trunk detects ΔH<0 → generate mode.
+**Reactions**: R_H2_FUELCELL (2H₂+O₂→2H₂O), R_CO_FUELCELL (2CO+O₂→2CO₂). Trunk detects ΔH<0 → generate mode. Internal HEX (cool_in/cool_out) removes waste heat using UA parameter.
 
-### 3.7 Steam Turbine (S8)
+### 3.7 Steam Turbine (S9)
 
 | Field | Value |
 |-------|-------|
@@ -717,7 +798,7 @@ metabolic heat (from reactor energy balance).
 
 Same ports as gas_turbine. Config: `moistureCheck: true, maxWetness: 0.12`. Limits: T_HH=823K, P_HH=100 bar. WARNING if exhaust liquid fraction > 12%.
 
-### 3.8 Cryo Dewar (S8)
+### 3.8 Cryo Dewar (S9)
 
 | Field | Value |
 |-------|-------|
@@ -754,7 +835,7 @@ Same ports as tank. Limits: T_LL=20K, T_HH=300K, P_HH=10 bar (fragile vessel). N
 |----|---------|-----|--------|----------|---|----------------|
 | CO | CO | 28.010 | 132.9 | 34.99 | 0.048 | 298–1300, 1300–6000 |
 
-### 4.3 Added in S8c (1 species → 11 total)
+### 4.3 Added in S9 (1 species → 11 total)
 
 | ID | Formula | MW | Notes |
 |----|---------|-----|-------|
@@ -790,12 +871,12 @@ Same ports as tank. Limits: T_LL=20K, T_HH=300K, P_HH=10 bar (fragile vessel). N
 | R_H2_FUELCELL | 2H₂ + O₂ → 2H₂O | −483,600 | ELECTROCHEMICAL | Future (fuel cell) | **new** (data only until fuel_cell unit) |
 | R_CO_FUELCELL | 2CO + O₂ → 2CO₂ | −566,000 | ELECTROCHEMICAL | Future (fuel cell) | **new** (data only until fuel_cell unit) |
 
-### 5.3 Added in S8c (16 reactions total)
+### 5.3 Added in S9 (16 reactions total)
 
 | ID | Equation | ΔH° (J/mol) | Kinetics | Game mission |
 |----|----------|-------------|----------|-------------|
-| R_PHOTOSYNTHESIS | CO₂ + H₂O → CH₂O + O₂ | +519,000 | ELECTROCHEMICAL | M10 (greenhouse) |
-| R_METABOLISM | CH₂O + O₂ → CO₂ + H₂O | −519,000 | POWER_LAW (complete) | M10 (human) |
+| R_PHOTOSYNTHESIS | CO₂ + H₂O → CH₂O + O₂ | +519,400 | ELECTROCHEMICAL | M10 (greenhouse) |
+| R_METABOLISM | CH₂O + O₂ → CO₂ + H₂O | −519,400 | POWER_LAW (complete) | M10 (human) |
 
 ---
 
@@ -811,7 +892,7 @@ Same ports as tank. Limits: T_LL=20K, T_HH=300K, P_HH=10 bar (fragile vessel). N
 | electrolyzer | | ★ | · | · | · | · | · | · | · | · |
 | battery | | ★ | · | · | · | · | · | · | · | · |
 | mixer | | | ★ | · | · | · | · | · | · | · |
-| reactor_eq | | | ★ | +1 | · | · | · | · | · | · |
+| reactor_adiabatic | | | ★ | +1 | · | · | · | · | · | · |
 | hex | | | ★ | · | · | +1 | · | · | · | · |
 | compressor | | | | ★ | +1 | · | · | · | · | · |
 | gas_turbine | | | | ★ | · | · | · | · | · | · |
@@ -827,18 +908,19 @@ Same ports as tank. Limits: T_LL=20K, T_HH=300K, P_HH=10 bar (fragile vessel). N
 
 ★ = introduced  · = carried  +N = additional units of same type
 
-Notes: M4 reactor_eq is a second unit (combustion chamber), locked to
-R_CH4_COMB + heatDemand:'none' via paramLocks. M8 steam_turbine is a
-separate defId from gas_turbine (shared expander trunk, moisture check).
-M9 tank_cryo is a separate defId from tank (Dewar, vacuum-insulated).
-M10 membrane_separator (★★) is internal to greenhouse and human group
-templates — the player never places it directly, but sees it when
-Tab-opening either composite. greenhouse and human are locked S7b group
-templates with transparent internals.
+Notes: M4 reactor_adiabatic is a second unit (combustion chamber), locked to
+R_CH4_COMB via paramLocks. M8 steam_turbine is a separate defId from
+gas_turbine (shared expander trunk, moisture check). M9 tank_cryo is a
+separate defId from tank (Dewar, vacuum-insulated). M10 membrane_separator
+(★★) is internal to greenhouse and human group templates — the player
+never places it directly, but sees it when Tab-opening either composite.
+greenhouse and human are locked S8 group templates with transparent
+internals. See `PTIS_COMPOSITE_MODELS.md` for full template definitions.
 
 **M10 fabrication unlock:** All previously introduced equipment becomes
-available in unlimited quantities (∞). Player must build 4–5 combined
-cycle power blocks to supply the greenhouse's ~85 kW demand.
+available in unlimited quantities (∞). Player must build 2–3 combined
+cycle power blocks to supply the greenhouse's ~42 kW demand (at η=2%).
+At η=1% (★★★ challenge), demand rises to ~85 kW.
 
 ---
 
@@ -846,12 +928,15 @@ cycle power blocks to supply the greenhouse's ~85 kW demand.
 
 | Parameter | Value |
 |-----------|-------|
-| Composition | 70% N₂, 21% O₂, 8% CO₂, 1% Ar |
+| Composition | 69.3% N₂, 20.8% O₂, 7.92% CO₂, 0.99% Ar, 0.95% H₂O |
 | Surface pressure | 0.885 atm (89,750 Pa) |
 | Surface temperature | 288 K (15°C) |
-| Geothermal vent gas | 500 K, ~1 atm, 30% H₂O / 35% CO₂ / 25% N₂ / 10% CH₄ |
-| Single vent flow | 0.002 kg/s (0.068 mol/s) |
-| Second vent (M4+) | 0.005 kg/s, same composition |
+| Relative humidity | ~50% (0.95% H₂O at 50% RH, 288 K) |
+| Diurnal T variation | ±10 K sinusoidal + 2 K noise (toggleable) |
+| Geothermal vent gas | 500 K, ~3 bar, 30% H₂O / 35% CO₂ / 25% N₂ / 10% CH₄ |
+
+Vent parameters defined per mission, not in planet registry.
+See `PTIS_COMPOSITE_MODELS.md` §6 for vent table.
 
 ---
 

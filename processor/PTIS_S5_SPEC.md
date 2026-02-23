@@ -13,17 +13,18 @@ no user-typed flow rates. New reservoir unit (enhanced 5-port tank),
 new atmosphere_sink, algebraic path solver (NNG-4: no flow-pressure
 iteration).
 
-**Sub-sessions:** S5a (4), S5b (3) — 7 sessions total.
+**Sub-sessions:** S5a (4), S5b (3), S5c (1) — 8 sessions total.
 
 **Risk:** High. Largest stage by scope. Core architectural change to
 how flow originates. Mitigated by algebraic-only solver (no iteration),
-phase-gated rollout, and 79 dedicated tests.
+phase-gated rollout, and 83 dedicated tests.
 
 **Dependencies:** S3 (PR liquid density for `computeTankState` headspace
-calculation). S1 (alarm infrastructure for pressure alarms).
+calculation). S1 (alarm infrastructure for pressure alarms). S2
+(`allocateByPriority()` utility reused by S5c splitter manifold).
 
 **Required by:** S8 (game missions use reservoir + Cv for player-designed
-flow control).
+flow control). S5c splitter manifold on critical path to S8.
 
 **Baseline state (post-S4):**
 - Tank: 3-port (mat_in, mat_out, overflow), P = inlet P, volume default 0.15 m³ (corrected S1)
@@ -40,7 +41,11 @@ flow control).
 - UnionFind + BFS pressure propagation
 - Algebraic path solver (single, parallel, branch)
 - Production gating on pressure ERROR
-- ~434 tests (355 + 79 new)
+- PlanetRegistry with T_amb(t) sinusoidal diurnal model
+- Splitter manifold (N-port, ratio + flow_controlled modes)
+- Mixer manifold (N-port passive)
+- `allocateByPriority()` reused from S2 for flow curtailment
+- ~435 tests (352 + 83 new)
 
 ---
 
@@ -356,8 +361,15 @@ Add `pressure: { role, pairs, k }` to every unit registration.
 | hex | passthrough | 1000 | hot_in→hot_out, cold_in→cold_out |
 | mixer | passthrough | 0 | in1,in2→out |
 | splitter | passthrough | 0 | mat_in→out1,out2 |
+| splitter_manifold | passthrough | 0 | mat_in→out1..outN |
+| mixer_manifold | passthrough | 0 | in1..inN→mat_out |
 | flash_drum | passthrough | 100 | mat_in→vap_out,liq_out |
-| reactor_equilibrium | passthrough | 5000 | mat_in→mat_out |
+| membrane_separator | passthrough | 500 | mat_in→perm_out,ret_out |
+| reactor_adiabatic | passthrough | 5000 | mat_in→mat_out |
+| reactor_jacketed | passthrough | 5000 | mat_in→mat_out |
+| reactor_cooled | passthrough | 5000 | mat_in→mat_out, cool_in→cool_out |
+| reactor_electrochemical | passthrough | 5000 | mat_in→mat_out_cat,mat_out_ano |
+| fuel_cell | passthrough | 5000 | mat_in_cat,mat_in_ano→mat_out, cool_in→cool_out |
 | distillation_column | passthrough | 10000 | mat_in→mat_out_D,mat_out_B |
 | valve | drop | 0 | mat_in→mat_out |
 | pump | boost | 0 | mat_in→mat_out |
@@ -438,6 +450,53 @@ Zones = connected components. Each zone has 0..N anchors.
 Multiple anchors at same P (within tolerance) → OK.
 Multiple anchors at different P → conflict ERROR.
 No anchors → floating zone (INFO, ideal units present).
+
+---
+
+## S5a — PlanetRegistry (Ambient Conditions)
+
+Planet-level ambient conditions used by air_cooler (T_approach
+referenced to T_amb), room wall conduction (UA × (T_room − T_amb)),
+and future atmospheric intake units.
+
+```javascript
+PlanetRegistry.register('planet_x', {
+  name: 'Planet X',
+  atmosphere: {
+    composition: { N2: 0.693, O2: 0.208, CO2: 0.0792,
+                   Ar: 0.0099, H2O: 0.0095 },
+    P_surface_Pa: 89750,
+    T_mean_K: 288
+  },
+  diurnal: {
+    enabled: true,
+    amplitude_K: 10,
+    period_s: 86400,
+    noise_K: 2
+  }
+});
+```
+
+**T_amb(t) model:**
+
+```
+T_amb(t) = T_mean + A × sin(2π × t / t_day) + noise(t)
+```
+
+| Parameter | Value |
+|-----------|-------|
+| T_mean | 288 K |
+| Amplitude | 10 K |
+| Range | 278–298 K (never freezing) |
+| Period | 24 hr game-time |
+| Noise | ±2 K random walk, capped |
+
+**Toggle:** `diurnal.enabled`. Campaign: on. Sandbox: off by
+default (fixed T_amb for debugging).
+
+**Planet registry is not vent data.** Vents are mission-specific
+`reservoir` units defined in mission data (see `PTIS_COMPOSITE_MODELS.md`
+§6). Planet conditions are global ambient state.
 
 ---
 
@@ -705,9 +764,9 @@ unchanged. No defId renames.
 | 78 | Performance: 30 units < 50ms | timing check |
 | 79 | Full regression | all previous + 79 new |
 
-**Gate:** All previous (355) + 79 new pass → 434 cumulative.
+**Gate (S5a+S5b):** All previous (352) + 79 new pass → 431 cumulative.
 All five network invariants (INV-1 through INV-5) verified by
-mapped tests above.
+mapped tests above. S5c adds 4 more → 435 total.
 
 ---
 
@@ -774,7 +833,22 @@ S5b session 3 (gating + UX + integration):
   [ ] Full regression
   [ ] Tests T-PS65–T-PS79
 
-Total S5: 79 new tests → 434 cumulative
+S5a extra (PlanetRegistry):
+  [ ] PlanetRegistry.register() with atmosphere, diurnal params
+  [ ] T_amb(t) computation: sinusoidal + noise
+  [ ] Diurnal toggle (campaign on, sandbox off)
+  [ ] air_cooler references T_amb from PlanetRegistry
+
+S5c session (manifolds):
+  [ ] splitter_manifold registration (N-port, dynamic outlets)
+  [ ] ratio mode (existing splitter behavior, N outlets)
+  [ ] flow_controlled mode with Q_setpoints
+  [ ] Curtailment via allocateByPriority() from S2
+  [ ] mixer_manifold registration (N-port passive)
+  [ ] Inspector for both manifolds
+  [ ] Tests S5c-1 through S5c-4
+
+Total S5: 83 new tests → 435 cumulative
 ```
 
 ---
@@ -793,9 +867,101 @@ always converges, always gives qualitatively correct results.
 
 ---
 
+# S5c — Splitter/Mixer Manifold + Flow Control (1 session)
+
+**Session:** 1. On critical path: S5b → S5c → S8.
+
+**Dependencies:** S2 (`allocateByPriority()` utility). S5b (pressure
+network operational).
+
+## S5c-1. Splitter Manifold
+
+N-outlet (2–10) splitter with two operating modes:
+
+| Mode | Behavior | Outlet config |
+|------|----------|---------------|
+| `ratio` (existing) | Fixed split fractions, ΣR = 1.0 | `ratio` per outlet (0–1) |
+| `flow_controlled` (new) | N−1 outlets have Q setpoints, last gets remainder | `Q_setpoint` (mol/s), `priority` (int 1–10), `isRemainder` (bool) |
+
+**Curtailment** when Σ(Q_setpoints) > Q_total: uses
+`allocateByPriority()` from S2 with either 'proportional' or
+'priority' strategy. The remainder outlet receives
+Q_total − Σ(allocated). If negative, remainder = 0.
+
+**No pressure iteration.** Consistent with S5 architecture: Cv
+valves only inside tanks, dP valves everywhere else.
+
+**Registration:**
+
+```javascript
+UnitRegistry.register('splitter_manifold', {
+  name: 'Splitter Manifold',
+  category: UnitCategories.TOPOLOGY,
+  w: 2, h: 2,
+  ports: [
+    { portId: 'mat_in', label: 'Feed', dir: PortDir.IN, type: StreamType.MATERIAL, x: 0, y: 1 },
+    // Outlets created dynamically based on params.outlets (2–10)
+    // Default: 2 outlets at registration
+  ],
+  // Dynamic port generation handled by outletCount param
+});
+```
+
+**Campaign progression:**
+
+| Mission | Equipment | Capability |
+|---------|-----------|-----------|
+| M3 | `splitter` (simple 2-outlet tee) | Ratio mode only |
+| M7 | `splitter_manifold` (N outlets, flow control) | flow_controlled + priority curtailment |
+
+## S5c-2. Mixer Manifold
+
+N-inlet (2–10) mixer merging into 1 outlet. Purely passive. Flows
+merge at common node pressure. Enthalpy-averaged T. Molar-averaged
+composition.
+
+```javascript
+UnitRegistry.register('mixer_manifold', {
+  name: 'Mixer Manifold',
+  category: UnitCategories.TOPOLOGY,
+  w: 2, h: 2,
+  ports: [
+    // Inlets created dynamically based on params.inlets (2–10)
+    { portId: 'mat_out', label: 'Out', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 1 }
+  ]
+});
+```
+
+## S5c-3. Naming Convention
+
+All units simulating control loops use consistent mode names:
+
+| Unit | Mode name | What it controls |
+|------|-----------|-----------------|
+| compressor | `pressure_controlled` | Outlet P |
+| pump | `pressure_controlled` | Outlet P |
+| valve | `pressure_controlled` | Outlet P |
+| splitter_manifold | `flow_controlled` | Outlet Q |
+| heater | `temperature_controlled` | Outlet T |
+| air_cooler | `temperature_controlled` | Outlet T |
+
+## S5c Tests (~4)
+
+| # | Test | Setup | Assert |
+|---|------|-------|--------|
+| 1 | Ratio mode: 3 outlets, 30/30/40 | 1 mol/s feed | Outlets: 0.3, 0.3, 0.4 mol/s |
+| 2 | Flow controlled: excess supply | Q_set [0.3, 0.5], feed=1.0 | Out1=0.3, Out2=0.5, remainder=0.2 |
+| 3 | Flow controlled: curtailment | Q_set [0.6, 0.6], feed=1.0, strategy=proportional | Each gets 0.5 |
+| 4 | Mixer manifold: 3 inlets | Three different feeds | Mass balance, H conserved |
+
+**Gate:** All previous S5a+S5b (431) + 4 new → 435 cumulative.
+
+---
+
 ## What S5 Enables Downstream
 
 | Consumer | What it uses from S5 |
 |----------|---------------------|
 | S7 (Perf Maps) | Reservoir P vs level curves; Cv flow vs opening maps |
-| S8 (Game) | All missions: reservoir replaces magic sources, Cv gives player flow control, pressure network enforces physical coherence |
+| S8 (Game) | All missions: reservoir replaces magic sources, Cv gives player flow control, pressure network enforces physical coherence. Splitter manifold (S5c) provides flow distribution for M7+ recycle loops. |
+| S10 (Biosphere) | PlanetRegistry T_amb(t) drives room wall conduction and air_cooler T_approach |

@@ -10,7 +10,7 @@
 via `computeTankState()`. A pressure network propagates P through the
 flowsheet via BFS. Flow emerges from ΔP through Cv restrictions —
 no user-typed flow rates. New reservoir unit (enhanced 5-port tank),
-new atmosphere_sink, algebraic path solver (NNG-17: no flow-pressure
+new atmosphere_sink, algebraic path solver (NNG-4: no flow-pressure
 iteration).
 
 **Sub-sessions:** S5a (4), S5b (3) — 7 sessions total.
@@ -51,18 +51,53 @@ flow control).
 The player designs systems by choosing vessel sizes, valve openings, and
 routing. Flow rate is a consequence, not an input.
 
-**NNG-17: No flow-pressure iteration.** Flow through Cv restrictions is
+**NNG-4: Pressure-flow network.** Flow through Cv restrictions is
 computed algebraically from anchor pressures, path resistances, and ΔP
 budgets. The solver never iterates between flow and pressure fields.
 Every topology computes in bounded time with deterministic results.
-
-**NNG-18: Implicit check valves.** All flows ≥ 0 everywhere. Backflow
-detected, zeroed, alarmed — never computed.
+All flows ≥ 0 everywhere. Backflow detected, zeroed, alarmed — never
+computed.
 
 **The realism ladder:** Ideal units (source, sink) opt out of pressure
 with `pressure.role = 'none'`. Engineering units (reservoir, valve,
 process units) participate. Both can coexist. A visual indicator marks
 non-participating units.
+
+---
+
+## Network Invariants (Acceptance Criteria)
+
+These invariants hold after every solver tick. Every invariant maps
+to specific tests. S5 is not complete until all pass.
+
+**INV-1. Non-negative flow.** Every material flow ≥ 0. Backflow is
+never computed — it is detected, zeroed, and alarmed.
+*Tests: T-PS33 (reverse flow), T-PS60 (mixer backflow)*
+
+**INV-2. No silent clamping.** Every flow forced to zero by the
+pressure network produces a visible alarm stating the cause. Causes
+include: backflow (P_out > P_in), pressure conflict (two anchors
+disagree), empty vessel (no liquid/vapor), zero-resistance path
+(Q clamped), insufficient ΔP (ΔP_static ≤ 0), and closed valve
+(opening = 0).
+*Tests: T-PS09, T-PS10 (empty vessel), T-PS14 (closed valve),
+T-PS31 (valve P_in < target), T-PS33 (reverse), T-PS41/T-PS47
+(conflicts), T-PS56 (ΔP ≤ 0), T-PS60 (mixer backflow), T-PS62
+(zero resistance)*
+
+**INV-3. Single anchor per zone.** Every pressure zone has exactly
+one anchor pressure, or an ERROR alarm fires identifying the
+conflict.
+*Tests: T-PS41, T-PS47 (conflict detection)*
+
+**INV-4. Conservation.** Mass balance closes across the pressure
+network. Total mass in = total mass out + accumulation, within
+tolerance.
+*Tests: T-PS75 (demo scene clean), T-PS79 (full regression)*
+
+**INV-5. Bounded time.** No pressure-flow iteration. Every topology
+solves in O(n) BFS + O(paths) algebra. Deterministic results.
+*Tests: T-PS78 (30 units < 50ms)*
 
 ---
 
@@ -465,7 +500,7 @@ Direct algebra. No iteration.
 
 **Parallel paths, different downstream anchors:**
 Single equation in P_junction. Monotonic. Bisection ≤ 20 iterations.
-Always converges (NNG-17).
+Always converges (NNG-4).
 
 **Density correction (gas paths):**
 ```
@@ -671,6 +706,8 @@ unchanged. No defId renames.
 | 79 | Full regression | all previous + 79 new |
 
 **Gate:** All previous (355) + 79 new pass → 434 cumulative.
+All five network invariants (INV-1 through INV-5) verified by
+mapped tests above.
 
 ---
 
@@ -722,7 +759,7 @@ S5b session 2 (path solver):
   [ ] Parallel paths diff anchors (bisection ≤ 20 iter)
   [ ] Merge/mixer backflow detection
   [ ] Density correction (SG_eff)
-  [ ] Pressure AlarmSystem source (NNG-12 messages)
+  [ ] Pressure AlarmSystem source (NNG-14 messages)
   [ ] Tests T-PS53–T-PS64
 
 S5b session 3 (gating + UX + integration):
@@ -742,7 +779,7 @@ Total S5: 79 new tests → 434 cumulative
 
 ---
 
-## What This Model Cannot Do (NNG-17 Trade-offs)
+## What This Model Cannot Do (NNG-4 Trade-offs)
 
 | Limitation | Mitigation |
 |-----------|-----------|

@@ -6,17 +6,20 @@
 
 ## Overview
 
-**What:** Replace sink_electrical's infinite demand with a finite
-ratedPower_kW. Add overload detection with severity-scaled consequences
-including fry state. Implement priority-based load shedding on hubs.
-Formalize curtailment signaling on direct connections.
+**What:** Separate power dispatch metadata from stream objects
+(foundational cleanup). Replace sink_electrical's infinite demand with
+a finite ratedPower_kW. Add overload detection with severity-scaled
+consequences including fry state. Implement priority-based load
+shedding on hubs. Formalize curtailment signaling on direct connections.
 
-**Sessions:** 2 (overload/fry logic, then priority allocation + tests).
+**Sessions:** 3 (dispatch separation, overload/fry logic, then priority
+allocation + tests).
 
 **Risk:** Low-medium. Contained changes to power dispatch; no new units,
 no new physics models.
 
-**Dependencies:** S1 (alarm source infrastructure, `_rationalize()`).
+**Dependencies:** S1 (alarm source infrastructure, `_rationalize()`),
+S1-pre-3 through S1-pre-6 (power read standardisation, Infinity fix).
 
 **Required by:** S6 (electrochemical reactor power demand contract).
 
@@ -26,13 +29,18 @@ no new physics models.
 - `allocatePower()` uses proportional allocation (line 7586)
 - No overload detection, no fry trigger from electrical overload
 - Consumers read power via `s.hubAllocated_W ?? sElec.actual`
+- Power port streams carry mixed physical state + dispatch metadata
+- `stripDemandFromPorts()` patches oscillation from demand on ports
+- Step B monitors hard-coded unit list (misses reactor)
 
 **After S2:**
+- Power streams carry physical state only (capacity, actual)
+- Dispatch metadata in solver scratch + ud.last
 - All consumers have finite ratedPower
 - Overload → WARNING/ERROR/CRITICAL → fry
 - Hub uses priority-based shedding (CRITICAL > NORMAL > DEFERRABLE)
 - Direct connections signal curtailment and check overload
-- ~328 tests (320 + 8 new)
+- ~323 tests (312 from S1 + 1 S2-pre + 10 S2-A/F)
 
 ---
 
@@ -50,6 +58,220 @@ absorption capacity.
 degradation, unit produces less). Overload = too much power (equipment
 damage, escalating to destruction). Different failure modes, different
 severity, different user response.
+
+---
+
+# S2-pre. Separate Power Dispatch Metadata from Stream Objects
+
+**Files:** `processThis.html` — hub tick (~line 7663), Step C
+(~line 11363), Step D (~line 11507), `streamSignature()` (~line
+10010), `portsChanged()` ABS_TOL (~line 10043),
+`stripDemandFromPorts()` (~line 10086), Step B (~line 11219)
+
+## Problem
+
+Power port stream objects currently carry two kinds of data mixed
+together:
+
+- **Physical state:** `capacity` (equipment rating), `actual`
+  (power flowing) — analogous to T, P, n on material streams
+- **Dispatch metadata:** `demand` (consumer request),
+  `curtailmentFactor` (allocation ratio) — control-system concepts
+  with no physical analogue on a wire
+
+This mixing has three concrete consequences:
+
+**1. `stripDemandFromPorts()` exists as a patch.** It was added
+because `demand` on ports caused infinite oscillation (tick resets
+demand to 0, Step C restores it → `portsChanged` fires every
+iteration). The function strips `demand` but leaves
+`curtailmentFactor`, which is an incomplete fix for a design
+problem. With clean separation, this function is unnecessary.
+
+**2. Latent convergence bug: reactor not in Step B.** Step B
+monitors demand changes for pump, compressor, and electric_heater
+— but NOT reactor_equilibrium, which also sets variable
+`powerDemand` in heated/insulated mode. Currently masked because
+`curtailmentFactor` on the hub port catches the change via
+`portsChanged()`. If CF is below tolerance but the allocation
+shift is above tolerance (narrow window: material ΔT < 0.001 K
+but power Δ > 0.01 W), convergence terminates prematurely. This
+is accidental correctness — the code relies on a port summary
+field to compensate for an incomplete convergence check.
+
+**3. Blocks clean S2 design.** S2 adds overload modelling, fry
+alarms, and priority-based shedding. All of these build on the
+power dispatch lifecycle. Starting S2 with a model where streams
+mix physical state with dispatch metadata means every S2 feature
+inherits the ambiguity.
+
+## Design
+
+After this change, power port streams carry only physical state:
+```javascript
+// hub elec_out — after refactoring
+{
+  type: StreamType.ELECTRICAL,
+  capacity: totalSupply_W,    // bus headroom
+  actual:   totalSupply_W     // power flowing
+}
+```
+
+Dispatch metadata moves to `ud.last` (for inspector display) and
+solver scratch (for inter-iteration convergence):
+```javascript
+// hub ud.last — after refactoring
+ud.last = {
+  totalCapacity_W,
+  totalSupply_W,
+  totalDemand_W,              // was on port as 'demand'
+  curtailmentFactor,          // was on port
+  surplus_W,
+  consumerAllocation          // already here
+};
+```
+
+This implements the reviewer-recommended demand-dispatch-allocation
+model:
+1. **Demand signals:** consumer ticks set `u.powerDemand`
+2. **Allocation results:** Steps B/C/D compute and write
+   `scratch.hubAllocated_W` per consumer
+3. **Consumers act on allocation:** ticks read scratch, never port
+
+## Fix (5 parts)
+
+**A. Step C: add per-consumer allocation change detection**
+
+Currently Step C writes scratch but doesn't detect changes — it
+relies on `curtailmentFactor` on the port to trigger convergence.
+Add explicit detection, mirroring what Step D already does:
+```javascript
+for (const conn of outConns) {
+  const alloc = consumerAllocation[conn.to.unitId];
+  if (alloc) {
+    const cs = runtimeCtx.scratch(conn.to.unitId);
+    // Detect allocation change → force another iteration
+    if (cs.hubAllocated_W !== undefined &&
+        Math.abs(cs.hubAllocated_W - alloc.allocated_W) > 0.01) {
+      changed = true;
+    }
+    cs.hubAllocFactor = alloc.factor;
+    cs.hubAllocated_W = alloc.allocated_W;
+  }
+}
+```
+
+**B. Step B: make generic instead of hard-coded unit list**
+
+Replace:
+```javascript
+if (_u.defId === 'pump' || _u.defId === 'compressor'
+    || _u.defId === 'electric_heater') {
+```
+With:
+```javascript
+if (_ud.powerDemand > 0 && isFinite(_ud.powerDemand)) {
+```
+Catches reactor, plus any future power consumer (including S6
+electrolyzer), without maintaining a list. `sink_electrical`
+(Infinity) is excluded by the `isFinite` guard — and after S2-A
+replaces Infinity with finite `ratedPower`, sink joins the
+generic check automatically.
+
+**C. Remove dispatch fields from port writes**
+
+Hub tick, Step C, Step D, grid_supply, battery: stop writing
+`demand` and `curtailmentFactor` on port stream objects. Move
+these to `ud.last` for each relevant unit.
+
+**D. Clean up convergence infrastructure**
+
+- Delete `stripDemandFromPorts()` entirely (~12 lines)
+- Remove `curtailmentFactor` and `demand` from `streamSignature()`
+- Remove `curtailmentFactor` and `available` from `ABS_TOL`
+  (`available` already removed by S1-pre-5)
+
+**E. Update STREAM_CONTRACTS.POWER schema**
+
+Remove `demand` and `curtailmentFactor` from the POWER lifecycle
+documentation. They remain documented in the solver dispatch
+section (Steps B–D) where they belong.
+
+## Convergence after refactoring
+
+All six `changed = true` triggers in the solver, with their status:
+
+| Trigger | What | Status |
+|---|---|---|
+| Line 11057 | Unit material/physical port changes | Unchanged |
+| Line 11104 | Tick exception | Unchanged |
+| Line 11227 | Step B: consumer demand change | **Fixed** — now generic |
+| Line 11395 | Step C: hub port physical changes | Unchanged (checks capacity, actual only) |
+| NEW | Step C: per-consumer allocation change | **Added** — explicit detection |
+| Line 11532 | Step D: direct-bus scratch change | Unchanged |
+
+Power convergence is now driven by explicit allocation tracking
+(Steps B, C, D) rather than implicit port field side effects.
+
+## What doesn't change
+
+- No consumer tick changes — they already read
+  `scratch.hubAllocated_W`, not port fields
+- No player-visible changes — inspector reads `ud.last`
+- No connection topology changes
+- No solver structural changes
+- Material stream convergence completely unaffected
+
+## Line count estimate
+
+- Added: ~15 lines (allocation detection in Step C, generic Step B)
+- Removed: ~30 lines (`stripDemandFromPorts`, port field writes,
+  signature/tolerance entries)
+- Net: ~−15 lines
+
+## Tests
+
+- Existing power tests (T208–T215, T220) verify conservation and
+  curtailment via `ud.last` — most need no changes
+- Tests that assert `curtailmentFactor` directly on port streams
+  need updating to assert on `ud.last` instead
+- Add 1 new test: reactor demand change triggers convergence
+  iteration (validates the Step B + Step C fix)
+
+## Ordering
+
+S2-pre depends on S1-pre-3 (power read standardisation), S1-pre-5
+(available migration), and S1-pre-6 (direct-bus Infinity fix).
+Implement S2-pre first, verify all tests pass, then proceed to
+S2-A.
+
+**Risk:** Low-medium. Largest single S2 item but touches only the
+dispatch loop, not consumer ticks. Consumer ticks already read
+scratch. Convergence mechanism is a direct copy of Step D's
+existing pattern. If anything breaks, revert to CF-on-port and
+add the Step B generic fix separately — that alone fixes the
+latent reactor convergence bug.
+
+## Acceptance Criterion
+
+**Hard rule:** After S2-pre, stream state objects on power ports
+are pure physical state (`type`, `capacity`, `actual`). Dispatch
+metadata (`demand`, `curtailmentFactor`) lives exclusively in
+solver scratch (inter-iteration) and `ud.last` (inspector/
+diagnostics). No solver convergence logic depends on demand or
+curtailment fields on stream objects. `stripDemandFromPorts()` is
+deleted.
+
+**Verification:** `grep -n 'demand\|curtailmentFactor'` on any
+port write inside a tick function or Step C/D returns zero hits
+(excluding `ud.last` and scratch writes).
+
+**NNG-5 update note:** S0 NNG-5 currently says "Consumers read
+input.actual, never input.capacity." After S2-pre, consumers read
+`scratch.hubAllocated_W`, not port fields at all. NNG-5 wording
+should be updated post-S2 to: "Consumers read allocation from
+solver scratch, never from port fields directly." This is a
+documentation-only change to S0 — no code impact.
 
 ---
 
@@ -209,6 +431,56 @@ When `unit.fried = true`:
 - **Persists** across solver iterations and ticks
 - **Cleared by:** user replaces unit OR clicks "Reset" in inspector
 - Serialized in exportJSON: `unit.fried: true`
+
+## Fry Cascade: Hub Surplus with Fried Absorber
+
+**Scenario:** Turbine 100kW, consumers 60kW, surplus sink rated 20kW
+on `elec_surplus`. Sink receives 40kW → 100% overload → fried.
+Next iteration: fried sink sets `powerDemand = 0` and absorbs nothing.
+But the hub still computes `netSurplus = 40kW` and checks the surplus
+connection. The wire to the fried sink still exists →
+`surplusConnected = true` → **no CATASTROPHIC raised**.
+
+Physically this is wrong. A fried dump load is an open circuit. 40kW
+with nowhere to go means bus voltage spikes and everything on the bus
+should be destroyed.
+
+**Fix:** Extend the hub surplus CATASTROPHIC check (line ~11378) to
+verify the connected absorber is functioning:
+
+```javascript
+// [S2] Check if surplus sink is actually functioning
+const surplusConnected = _ud.ports.elec_surplus?._connected;
+let surplusSinkFunctioning = false;
+if (surplusConnected) {
+  // Find units connected to elec_surplus
+  const surpConns = scene.connections.filter(
+    c => c.from.unitId === _id && c.from.portId === 'elec_surplus'
+  );
+  for (const sc of surpConns) {
+    const sinkU = scene.units.get(sc.to.unitId);
+    if (sinkU && !sinkU.fried) {
+      surplusSinkFunctioning = true;
+      break;
+    }
+  }
+}
+
+if (netSurplus_W > 1 && !surplusSinkFunctioning) {
+  // Surplus with no functioning absorber → bus destruction
+  _ud.errors.push({
+    severity: ErrorSeverity.CATASTROPHIC,
+    message: surplusConnected
+      ? `${(netSurplus_W/1000).toFixed(1)} kW surplus — dump load destroyed, no functioning absorber`
+      : `${(netSurplus_W/1000).toFixed(1)} kW surplus with no elec_surplus sink — connect a dump load`
+  });
+}
+```
+
+This creates a proper fry cascade: turbine overproduces → dump load
+fries → hub detects no functioning absorber → CATASTROPHIC → hub
+faults → all consumers lose power. The player sees a chain of
+consequences from undersizing their dump load.
 
 ## Fry guard in tick functions
 
@@ -381,16 +653,14 @@ to `powerPriority` with default NORMAL (2) is semantically correct.
 
 ---
 
-# S2-D. Direct Connection Curtailment
+# S2-D. Direct Connection Safety
 
-## Current State
+## D1. Grid/Battery Direct Overload Check (existing scope)
 
 Direct connections (grid_supply → consumer, no hub) already compute
 `actualDraw_W = min(supply_capacity, consumer_demand)` and pass a
 `curtailmentFactor` (line ~11500). This works correctly after the
 v12.9.0 finite demand fix.
-
-## S2 Addition: Overload Check
 
 After the existing `actualDraw_W` computation (line ~11499), add:
 
@@ -422,6 +692,104 @@ where the source has higher capacity than the consumer's demand.
 
 **Exception:** If the consumer has `powerDemand = 0` (idle) but is
 still connected to a live source, no power flows (allocated = 0).
+
+## D2. Physics-Fixed Direct Connection: Overspeed Detection
+
+**Problem:** Step D only processes `grid_supply` and `battery`
+(line 11468). A turbine wired directly to a consumer bypasses
+dispatch entirely. The consumer falls back to reading the port
+(`sElec.actual`) and uses what it needs. But physically:
+
+A turbine's shaft power is set by gas expansion — non-throttleable.
+If a turbine produces 50 kW and the consumer draws only 30 kW,
+the 20 kW surplus has no electrical path. Without a hub's surplus
+management, the generator cannot dissipate the excess torque:
+rotor accelerates → overspeed → bearing failure, blade
+liberation, generator winding damage. The turbine destroys itself.
+
+This is why real plants NEVER direct-connect a turbine to a single
+load without a governor or dump load — the hub models that
+governor/switchboard function.
+
+**Fix:** Add a new Step E after Step D that detects physics-fixed
+sources on direct connections (no hub):
+
+```javascript
+// Step E: Physics-fixed source direct-connection overspeed check
+for (const [_id, _u] of scene.units) {
+  if (_u.defId === 'grid_supply' || _u.defId === 'battery' ||
+      _u.defId === 'power_hub') continue;
+  const _def = UnitRegistry.get(_u.defId);
+  if (!_def) continue;
+
+  // Find electrical output ports
+  const elecOutPorts = _def.ports.filter(
+    p => p.dir === PortDir.OUT && p.type === StreamType.ELECTRICAL
+  );
+  if (elecOutPorts.length === 0) continue;
+
+  const _ud = scene.runtime.unitData.get(_id);
+
+  for (const p of elecOutPorts) {
+    const portData = _ud?.ports?.[p.portId];
+    const sourceOutput_W = portData?.actual ?? 0;
+    if (sourceOutput_W < 0.01) continue;  // not producing
+
+    // Check: is this port connected to a hub?
+    const outConns = scene.connections.filter(
+      c => c.from.unitId === _id && c.from.portId === p.portId
+    );
+    const connectedToHub = outConns.some(c =>
+      scene.units.get(c.to.unitId)?.defId === 'power_hub'
+    );
+    if (connectedToHub) continue;  // hub handles surplus
+
+    // Direct connection: sum downstream demand
+    let downstreamDemand_W = 0;
+    for (const conn of outConns) {
+      const consumerUD = scene.runtime.unitData.get(conn.to.unitId);
+      downstreamDemand_W += consumerUD?.powerDemand || 0;
+    }
+
+    // Surplus on a physics-fixed direct connection = overspeed
+    const surplus_W = sourceOutput_W - downstreamDemand_W;
+    if (surplus_W > 1) {
+      _ud.errors = _ud.errors || [];
+      _ud.errors.push({
+        severity: ErrorSeverity.CATASTROPHIC,
+        message: `Overspeed: ${(sourceOutput_W/1000).toFixed(1)} kW output `
+          + `but only ${(downstreamDemand_W/1000).toFixed(1)} kW load. `
+          + `${(surplus_W/1000).toFixed(1)} kW surplus with no hub to `
+          + `manage it — turbine destroyed. Connect through a power hub.`,
+        code: 'OVERSPEED_NO_HUB'
+      });
+      _u.fried = true;  // permanent destruction
+      _ud.last = _ud.last || {};
+      _ud.last.error = _ud.errors[_ud.errors.length - 1];
+    }
+
+    // Also write allocation to downstream consumers (like Step D)
+    for (const conn of outConns) {
+      const consumerUD = scene.runtime.unitData.get(conn.to.unitId);
+      const cs = runtimeCtx.scratch(conn.to.unitId);
+      const d = consumerUD?.powerDemand || 0;
+      cs.hubAllocated_W = isFinite(d) ? Math.min(d, sourceOutput_W) : sourceOutput_W;
+    }
+  }
+}
+```
+
+**Physics rationale:** This is exactly what happens to an
+unloaded turbine-generator. The hub's three-tier dispatch
+(physics-fixed → responsive → battery) with surplus routing to
+`elec_surplus` is the game's model of a real switchboard with
+governor control and dump loads. Bypassing it bypasses safety.
+
+**Player experience:** Player connects turbine directly to a
+compressor. If the compressor needs less power than the turbine
+produces → turbine fries immediately with a clear message telling
+them to use a hub. This teaches the engineering principle that
+physics-fixed sources need managed distribution.
 
 ---
 
@@ -497,6 +865,21 @@ AlarmSystem.register('power_overload', (scene) => {
 ## Implementation Checklist
 
 ```
+Session 0 — Dispatch Separation (S2-pre):
+  [ ] Step C: add per-consumer allocation change detection
+  [ ] Step B: replace hard-coded unit list with generic
+      powerDemand > 0 && isFinite check
+  [ ] Hub tick, Step C, Step D, grid_supply, battery: remove
+      demand + curtailmentFactor from port stream writes
+  [ ] Move demand + curtailmentFactor to ud.last on hub
+  [ ] Delete stripDemandFromPorts()
+  [ ] Remove curtailmentFactor + demand from streamSignature()
+      and ABS_TOL
+  [ ] Update STREAM_CONTRACTS.POWER lifecycle docs
+  [ ] Update tests: port-level CF assertions → ud.last assertions
+  [ ] Add test: reactor demand change triggers convergence
+  [ ] Verify: all 312 S1 tests pass + 1 new
+
 Session 1 — Overload/Fry:
   [ ] sink_electrical: add ratedPower_kW param (default 1000)
   [ ] sink_electrical: powerDemand = ratedPower (kill Infinity)
@@ -506,6 +889,8 @@ Session 1 — Overload/Fry:
   [ ] Fry guard in pump tick (~line 8114)
   [ ] Fry guard in electric_heater tick (~line 8243)
   [ ] Fry guard in reactor_equilibrium tick (~line 9274, isothermal/fixed only)
+  [ ] Hub surplus: check absorber functioning, not just connected
+  [ ] Step E: physics-fixed direct-connection overspeed detection
   [ ] Fry state serialization (export/import)
   [ ] Inspector "Reset Fry" button
   [ ] AlarmSystem.register('power_overload', ...)
@@ -519,12 +904,12 @@ Session 2 — Priority + Tests:
   [ ] Inspector: priority dropdown for consumers
   [ ] 8 tests passing
 
-Total S2: ~8 new tests → 328 cumulative
+Total S2: ~11 new tests → 323 cumulative
 ```
 
 ---
 
-## Tests (~8)
+## Tests (~10)
 
 | # | Test | Setup | Expected | Assert |
 |---|------|-------|----------|--------|
@@ -536,8 +921,10 @@ Total S2: ~8 new tests → 328 cumulative
 | 6 | Fry reset | Fried compressor. Call delete unit.fried. | Unit computes normally | unit.fried === undefined, unit.last has output |
 | 7 | sink_electrical finite demand | sink_electrical rated 500 kW on hub with 1000 kW supply | Demands 500 kW, receives 500 kW. No overload. | u.powerDemand === 500000 |
 | 8 | Energy balance closure | Hub: 100W grid, 3 consumers totaling 80W demand | Supply = demand + surplus, Σallocated ≤ supply | Math.abs(totalAllocated - supply) < 0.01 |
+| 9 | Turbine direct overspeed | Turbine (50kW output) → compressor (30kW demand), no hub | Surplus 20kW, no hub → turbine fried | turbine.fried === true, error.code === 'OVERSPEED_NO_HUB' |
+| 10 | Fry cascade: dump load fries | Hub: turbine 100kW, consumers 60kW, surplus sink rated 20kW | Sink fries (100% overload), then hub detects no functioning absorber → CATASTROPHIC | sink.fried === true, hub CATASTROPHIC error |
 
-**Gate:** All S1 tests (312) + 8 new pass.
+**Gate:** All S1 tests (312) + 1 S2-pre + 10 new pass.
 
 ---
 
@@ -559,8 +946,12 @@ path, not by consumer allocation.
 **Gas turbine output:** Turbines are physics-fixed sources — their output
 is determined by fluid conditions, not electrical load. They cannot be
 overloaded because they produce, not consume. However, their output
-creates surplus that must be absorbed (existing CATASTROPHIC surplus logic
-in hub, line ~11395).
+creates surplus that must be managed:
+- **Hub path:** surplus routes to `elec_surplus` → dump load absorbs it.
+  If dump load fries, hub detects no functioning absorber → CATASTROPHIC.
+- **Direct path (no hub):** if load < output, surplus has no path →
+  Step E detects overspeed → turbine fries immediately with
+  `OVERSPEED_NO_HUB`. Player must use a hub for physics-fixed sources.
 
 ---
 

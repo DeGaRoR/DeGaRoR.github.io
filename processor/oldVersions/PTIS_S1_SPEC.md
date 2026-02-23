@@ -35,7 +35,7 @@ No refactoring of existing tick functions.
 
 Eight fixes identified during solver, power-stream, and code-quality
 audits. Most are micro-fixes that close gaps before they become real
-problems. One (S1-pre-6) is a genuine conservation bug on direct-bus
+problems. S1-pre-6 is a genuine conservation bug on direct-bus
 topologies with mixed finite/infinite demand consumers.
 
 **Do these before S1a. No new tests required — existing tests
@@ -1267,7 +1267,7 @@ Total S1: ~23 new tests → 312 cumulative
 
 | Consumer | What it uses from S1 |
 |----------|---------------------|
-| S2 (Power) | Alarm infrastructure for overload/fry alarms |
+| S2 (Power) | Alarm infrastructure for overload/fry alarms; S1-pre power stream cleanup (capacity primary, Infinity fix, stale docs) |
 | S3 (PR EOS) | CO species for CO-containing reaction validation |
 | S6 (Electrochemical) | R_H2O_ELEC, R_CO2_ELEC, R_COELEC reaction data; R_H2_FUELCELL, R_CO_FUELCELL data for future fuel_cell; ELECTROCHEMICAL model |
 | S7 (Perf Maps) | Limit data for overlay rendering; limitParams for inspector hooks |

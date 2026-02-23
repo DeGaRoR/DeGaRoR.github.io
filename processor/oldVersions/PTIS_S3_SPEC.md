@@ -750,6 +750,58 @@ alarm-system-integrated approach. The `console.warn` calls become
 
 ---
 
+## S3b-9. HEX Error Passthrough Fallback
+
+**File:** `processThis.html`, HEX tick (~line 8766)
+
+**Current:** When `hxSolveApproach` (or any HEX mode solver) returns
+`result.error`, the tick writes `u.last = result` and returns
+without writing `ports.hot_out` or `ports.cold_out`. Downstream
+units receive null inputs and silently stop producing output.
+
+**Problem:** With PR thermodynamics, HEX approach bisection explores
+a wider enthalpy landscape (phase-change latent heat). Edge cases
+that currently don't trigger errors under ideal-gas Cp may produce
+infeasible approach constraints under PR. A hard stop in the HEX
+kills the entire downstream chain with no diagnostic trail.
+
+**Fix:** After the error-return block, add passthrough fallback:
+```javascript
+if (result.error) {
+  // Passthrough: inlet → outlet unchanged, flagged degraded
+  ports.hot_out = {
+    type: StreamType.MATERIAL, T: sHot.T, P: sHot.P,
+    n: { ...sHot.n },
+    phaseConstraint: sHot.phaseConstraint || 'VL'
+  };
+  ports.cold_out = {
+    type: StreamType.MATERIAL, T: sCold.T, P: sCold.P,
+    n: { ...sCold.n },
+    phaseConstraint: sCold.phaseConstraint || 'VL'
+  };
+  u.last = {
+    ...result,
+    status: 'degraded',
+    Q: 0, hxDuty_W: 0,
+    T_hot_in: sHot.T, T_hot_out: sHot.T,
+    T_cold_in: sCold.T, T_cold_out: sCold.T
+  };
+  return;
+}
+```
+
+**Rationale:** Downstream units always receive valid streams.
+The `status: 'degraded'` field (and the existing error object)
+give the alarm system and game layer a clear signal. The solver
+can still converge the rest of the flowsheet. No heat is transferred
+— the player sees "HEX not operating" rather than a broken chain.
+
+**Risk:** None. The error path currently produces no output at all;
+passthrough is strictly more informative. Zero duty is physically
+conservative (no energy created).
+
+---
+
 ## S3b Tests (~7)
 
 | # | Test | Expected | Assert |
@@ -796,6 +848,7 @@ S3b session (departures + integration):
   [ ] _mixH(), _mixS(), _integrateEntropy_ig() helpers
   [ ] Package selector: SimSettings.thermoPackage toggle
   [ ] Range-exceeded alarm source
+  [ ] HEX error passthrough fallback (S3b-9, ~line 8766)
   [ ] 7 tests passing
   [ ] Full regression in BOTH packages
 

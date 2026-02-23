@@ -32,13 +32,16 @@
   .phase-label { font-size: 10px; fill: #484f58; font-weight: 600; letter-spacing: 1px; }
   .crit-badge rect { fill: #f0883e; rx: 3; ry: 3; }
   .crit-badge text { fill: #0d1117; font-size: 8px; font-weight: 700; }
+  .gate-line { stroke: #f0883e; stroke-width: 1; stroke-dasharray: 8 4; opacity: 0.5; }
+  .gate-badge rect { fill: #0d1117; stroke: #f0883e; stroke-width: 1.5; rx: 4; ry: 4; }
+  .gate-badge text { fill: #f0883e; font-size: 10px; font-weight: 700; letter-spacing: 1px; }
 </style>
 </head>
 <body>
 <h1>Process This In Space — Dependency Graph</h1>
-<div class="subtitle">Consolidated · February 2026 · Engine-first roadmap · Baseline v12.10.0 (289 tests, 20 units)</div>
+<div class="subtitle">Revised numbering · February 2026 · Engine-first roadmap · Baseline v12.10.0 (289 tests, 20 units) · NNG-1 through NNG-15 · Game gate at S9</div>
 
-<svg viewBox="0 0 960 780" width="960" height="780">
+<svg viewBox="0 0 960 1020" width="960" height="1020">
   <defs>
     <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
       <polygon points="0 0, 8 3, 0 6" fill="#484f58"/>
@@ -53,109 +56,153 @@
 
   <!-- ═══════════════ CRITICAL PATH (center column) ═══════════════ -->
 
+  <!-- S0 -->
+  <g class="stage" transform="translate(370, 20)">
+    <rect x="0" y="0" width="180" height="55" fill="#1c2333" stroke="#f0883e"/>
+    <text x="90" y="18" text-anchor="middle" class="label">S0 — NNG Consolidation</text>
+    <text x="90" y="33" text-anchor="middle" class="desc">17→15 rules · renumber · sentinel</text>
+    <text x="90" y="48" text-anchor="middle" class="sessions">1 session · low risk</text>
+  </g>
+
   <!-- S1 -->
-  <g class="stage" transform="translate(310, 20)">
+  <g class="stage" transform="translate(310, 95)">
     <rect x="0" y="0" width="300" height="82" fill="#1c2333" stroke="#f0883e"/>
     <text x="150" y="18" text-anchor="middle" class="label">S1 — Thermo &amp; Chemistry Foundation</text>
-    <text x="150" y="33" text-anchor="middle" class="desc">H₂O/CO₂ data fixes · CO species · 11 reactions · equipment limits</text>
+    <text x="150" y="33" text-anchor="middle" class="desc">H₂O/CO₂ data fixes · CO species · 14 reactions · equipment limits</text>
     <text x="150" y="47" text-anchor="middle" class="desc">S1a thermo · S1b chemistry · S1c limits infrastructure</text>
     <text x="150" y="61" text-anchor="middle" class="spec">PTIS_S1_SPEC.md</text>
-    <text x="75" y="75" text-anchor="middle" class="tests">+23 tests → 312</text>
+    <text x="75" y="75" text-anchor="middle" class="tests">+26 tests → 317</text>
     <text x="210" y="75" text-anchor="middle" class="sessions">4 sessions · low risk</text>
   </g>
 
   <!-- S2 -->
-  <g class="stage" transform="translate(310, 140)">
+  <g class="stage" transform="translate(310, 200)">
     <rect x="0" y="0" width="300" height="72" fill="#1c2333" stroke="#f0883e"/>
     <text x="150" y="18" text-anchor="middle" class="label">S2 — Power Management</text>
     <text x="150" y="33" text-anchor="middle" class="desc">Overload/fry logic · priority shedding · curtailment</text>
     <text x="150" y="49" text-anchor="middle" class="spec">PTIS_S2_SPEC.md</text>
-    <text x="75" y="63" text-anchor="middle" class="tests">+8 tests → 320</text>
+    <text x="75" y="63" text-anchor="middle" class="tests">+8 tests → 325</text>
     <text x="210" y="63" text-anchor="middle" class="sessions">2 sessions · low risk</text>
   </g>
 
   <!-- S3 -->
-  <g class="stage" transform="translate(310, 250)">
+  <g class="stage" transform="translate(310, 300)">
     <rect x="0" y="0" width="300" height="82" fill="#1c2333" stroke="#f0883e"/>
     <text x="150" y="18" text-anchor="middle" class="label">S3 — Peng-Robinson EOS</text>
     <text x="150" y="33" text-anchor="middle" class="desc">Cubic solver · fugacity K-values · H/S departures</text>
     <text x="150" y="47" text-anchor="middle" class="desc">S3a core + mixing · S3b integration + regression</text>
     <text x="150" y="63" text-anchor="middle" class="spec">PTIS_S3_SPEC.md</text>
-    <text x="75" y="77" text-anchor="middle" class="tests">+15 tests → 335</text>
+    <text x="75" y="77" text-anchor="middle" class="tests">+15 tests → 340</text>
     <text x="210" y="77" text-anchor="middle" class="risk-med">3 sessions · medium risk</text>
   </g>
 
   <!-- S5 -->
-  <g class="stage" transform="translate(310, 460)">
+  <g class="stage" transform="translate(310, 490)">
     <rect x="0" y="0" width="300" height="82" fill="#1c2333" stroke="#f0883e"/>
     <text x="150" y="18" text-anchor="middle" class="label">S5 — Pressure-Driven Flow</text>
     <text x="150" y="33" text-anchor="middle" class="desc">Reservoir unit · BFS pressure propagation · Cv solver</text>
-    <text x="150" y="47" text-anchor="middle" class="desc">S5a pressure network · S5b algebraic flow solver</text>
+    <text x="150" y="47" text-anchor="middle" class="desc">S5a pressure network (4 sess) · S5b algebraic solver (3 sess)</text>
     <text x="150" y="63" text-anchor="middle" class="spec">PTIS_S5_SPEC.md</text>
-    <text x="75" y="77" text-anchor="middle" class="tests">+79 tests → 426</text>
-    <text x="210" y="77" text-anchor="middle" class="risk-high">4 sessions · HIGH risk</text>
+    <text x="75" y="77" text-anchor="middle" class="tests">+79 tests → 431</text>
+    <text x="210" y="77" text-anchor="middle" class="risk-high">7 sessions · HIGH risk</text>
+  </g>
+
+  <!-- S8 (was S7b) -->
+  <g class="stage" transform="translate(290, 615)">
+    <rect x="0" y="0" width="340" height="82" fill="#1c2333" stroke="#f0883e"/>
+    <text x="170" y="18" text-anchor="middle" class="label">S8 — Unit Groups &amp; Sub-Assemblies</text>
+    <text x="170" y="33" text-anchor="middle" class="desc">GroupTemplateRegistry · overlay navigation · campaign composites</text>
+    <text x="170" y="47" text-anchor="middle" class="desc">S8-1 data model + templates (2) · S8-2 canvas + tests (2)</text>
+    <text x="170" y="63" text-anchor="middle" class="spec">PTIS_S8_SPEC.md</text>
+    <text x="85" y="77" text-anchor="middle" class="tests">+18 tests → 465</text>
+    <text x="255" y="77" text-anchor="middle" class="risk-med">4 sessions · medium risk</text>
+  </g>
+
+  <!-- ═══════════════ GAME GATE ═══════════════ -->
+
+  <line x1="120" y1="735" x2="400" y2="735" class="gate-line"/>
+  <line x1="560" y1="735" x2="840" y2="735" class="gate-line"/>
+  <g class="gate-badge" transform="translate(400, 723)">
+    <rect x="0" y="0" width="160" height="24"/>
+    <text x="80" y="16" text-anchor="middle">⚙ GAME GATE ⚙</text>
+  </g>
+
+  <!-- S9 -->
+  <g class="stage" transform="translate(310, 780)">
+    <rect x="0" y="0" width="300" height="82" fill="#1c2333" stroke="#f0883e"/>
+    <text x="150" y="18" text-anchor="middle" class="label">S9 — Game Engine Extensions</text>
+    <text x="150" y="33" text-anchor="middle" class="desc">New defIds · CH₂O species · R_PHOTOSYNTHESIS · R_METABOLISM</text>
+    <text x="150" y="47" text-anchor="middle" class="desc">steam_turbine · tank_cryo · membrane_separator · fuel_cell · trunks</text>
+    <text x="150" y="63" text-anchor="middle" class="spec">PTIS_S9_SPEC.md</text>
+    <text x="75" y="77" text-anchor="middle" class="tests">+8 tests → 473</text>
+    <text x="210" y="77" text-anchor="middle" class="sessions">2 sessions · low risk</text>
+  </g>
+
+  <!-- S10 -->
+  <g class="stage" transform="translate(275, 900)">
+    <rect x="0" y="0" width="370" height="95" fill="#1c2333" stroke="#bc8cff"/>
+    <text x="185" y="18" text-anchor="middle" class="label">S10 — Game Layer</text>
+    <text x="185" y="33" text-anchor="middle" class="desc">Build/Run checkpoint · missions · campaign · composites · room</text>
+    <text x="185" y="47" text-anchor="middle" class="desc">S10a state machine (3) · S10b mission engine (4) · S10c campaign (3)</text>
+    <text x="185" y="63" text-anchor="middle" class="spec">PTIS_S10_SPEC.md  ·  PTIS_GAME_DESIGN.md</text>
+    <text x="95" y="78" text-anchor="middle" class="tests">+22 tests → 495</text>
+    <text x="280" y="78" text-anchor="middle" class="risk-med">10 sessions · medium risk</text>
+    <text x="185" y="90" text-anchor="middle" class="desc">Composites (greenhouse, human) via S8 GroupTemplateRegistry</text>
   </g>
 
   <!-- ═══════════════ BRANCH LEFT: S4, S7 ═══════════════ -->
 
   <!-- S4 -->
-  <g class="stage" transform="translate(20, 375)">
+  <g class="stage" transform="translate(20, 430)">
     <rect x="0" y="0" width="250" height="72" fill="#1c2333" stroke="#484f58"/>
     <text x="125" y="18" text-anchor="middle" class="label">S4 — Separation &amp; HEX Fix</text>
     <text x="125" y="33" text-anchor="middle" class="desc">FUG distillation column · UA/NTU Cp fix · refrig tests</text>
     <text x="125" y="49" text-anchor="middle" class="spec">PTIS_S4_SPEC.md</text>
-    <text x="65" y="63" text-anchor="middle" class="tests">+12 tests → 347</text>
+    <text x="65" y="63" text-anchor="middle" class="tests">+12 tests → 352</text>
     <text x="190" y="63" text-anchor="middle" class="risk-med">3 sessions · med risk</text>
   </g>
 
   <!-- S7 -->
-  <g class="stage" transform="translate(20, 560)">
-    <rect x="0" y="0" width="250" height="72" fill="#1c2333" stroke="#bc8cff"/>
+  <g class="stage" transform="translate(20, 595)">
+    <rect x="0" y="0" width="250" height="72" fill="#1c2333" stroke="#484f58"/>
     <text x="125" y="18" text-anchor="middle" class="label">S7 — Performance Maps</text>
     <text x="125" y="33" text-anchor="middle" class="desc">VP envelopes · reactor/column maps · limit overlays</text>
     <text x="125" y="49" text-anchor="middle" class="spec">PTIS_S7_SPEC.md</text>
-    <text x="65" y="63" text-anchor="middle" class="tests">+5 tests → 439</text>
-    <text x="190" y="63" text-anchor="middle" class="sessions">2 sessions · low risk</text>
+    <text x="65" y="63" text-anchor="middle" class="tests">+5 tests → 447</text>
+    <text x="190" y="63" text-anchor="middle" class="sessions">4 sessions · low risk</text>
   </g>
 
   <!-- ═══════════════ BRANCH RIGHT: S6 ═══════════════ -->
 
   <!-- S6 -->
-  <g class="stage" transform="translate(670, 260)">
+  <g class="stage" transform="translate(670, 310)">
     <rect x="0" y="0" width="250" height="72" fill="#1c2333" stroke="#484f58"/>
     <text x="125" y="18" text-anchor="middle" class="label">S6 — Electrochemical Reactor</text>
-    <text x="125" y="33" text-anchor="middle" class="desc">Power-driven chemistry · ξ from P · waste heat</text>
+    <text x="125" y="33" text-anchor="middle" class="desc">Power-driven chemistry · electrode separation · η 0.1–99%</text>
     <text x="125" y="49" text-anchor="middle" class="spec">PTIS_S6_SPEC.md</text>
-    <text x="65" y="63" text-anchor="middle" class="tests">+8 tests → 434</text>
-    <text x="190" y="63" text-anchor="middle" class="sessions">1 session · low risk</text>
-  </g>
-
-  <!-- ═══════════════ GAME LAYER: S8 ═══════════════ -->
-
-  <!-- S8 -->
-  <g class="stage" transform="translate(275, 680)">
-    <rect x="0" y="0" width="370" height="82" fill="#1c2333" stroke="#bc8cff"/>
-    <text x="185" y="18" text-anchor="middle" class="label">S8 — Game Layer</text>
-    <text x="185" y="33" text-anchor="middle" class="desc">Build/Run checkpoint · missions · campaign · depletables · composites</text>
-    <text x="185" y="47" text-anchor="middle" class="desc">S8a state machine · S8b mission engine · S8c campaign + shell</text>
-    <text x="185" y="63" text-anchor="middle" class="spec">PTIS_S8_SPEC.md  ·  game_arch_part_*.md</text>
-    <text x="95" y="77" text-anchor="middle" class="tests">+30 tests → 469</text>
-    <text x="280" y="77" text-anchor="middle" class="risk-med">6 sessions · medium risk</text>
+    <text x="65" y="63" text-anchor="middle" class="tests">+8 tests → ~442</text>
+    <text x="190" y="63" text-anchor="middle" class="sessions">2 sessions · low risk</text>
   </g>
 
   <!-- ═══════════════ CRITICAL PATH ARROWS ═══════════════ -->
 
+  <!-- S0 → S1 -->
+  <path d="M460,75 L460,95" class="arrow arrow-crit"/>
   <!-- S1 → S2 -->
-  <path d="M460,102 L460,140" class="arrow arrow-crit"/>
+  <path d="M460,177 L460,200" class="arrow arrow-crit"/>
   <!-- S2 → S3 -->
-  <path d="M460,212 L460,250" class="arrow arrow-crit"/>
-  <!-- S3 → S5 (longer gap, skip row) -->
-  <path d="M460,332 L460,460" class="arrow arrow-crit"/>
+  <path d="M460,272 L460,300" class="arrow arrow-crit"/>
+  <!-- S3 → S5 (longer gap — room for S4 branch) -->
+  <path d="M460,382 L460,490" class="arrow arrow-crit"/>
   <!-- S5 → S8 -->
-  <path d="M460,542 L460,680" class="arrow arrow-crit"/>
+  <path d="M460,572 L460,615" class="arrow arrow-crit"/>
+  <!-- S8 → S9 (crosses game gate) -->
+  <path d="M460,697 L460,780" class="arrow arrow-crit"/>
+  <!-- S9 → S10 -->
+  <path d="M460,862 L460,900" class="arrow arrow-crit"/>
 
   <!-- Critical path badge -->
-  <g class="crit-badge" transform="translate(464, 400)">
+  <g class="crit-badge" transform="translate(464, 436)">
     <rect x="0" y="0" width="70" height="14"/>
     <text x="35" y="10" text-anchor="middle">CRITICAL PATH</text>
   </g>
@@ -163,47 +210,47 @@
   <!-- ═══════════════ BRANCH ARROWS ═══════════════ -->
 
   <!-- S3 → S4 (branch left) -->
-  <path d="M350,332 C330,355 280,370 270,375" class="arrow arrow-dep"/>
-
-  <!-- S3 → S5 label region — S4 is parallel -->
+  <path d="M350,382 C330,405 280,425 270,430" class="arrow arrow-dep"/>
 
   <!-- S2 → S6 (branch right) -->
-  <path d="M610,185 C640,185 670,230 700,260" class="arrow arrow-dep"/>
+  <path d="M610,250 C640,260 670,285 700,310" class="arrow arrow-dep"/>
 
   <!-- ═══════════════ MERGE ARROWS ═══════════════ -->
 
   <!-- S4 → S7 -->
-  <path d="M145,447 L145,560" class="arrow arrow-merge"/>
+  <path d="M145,502 L145,595" class="arrow arrow-merge"/>
 
   <!-- S1 → S7 (long arc down left side) -->
-  <path d="M310,80 C50,80 30,500 50,560" class="arrow arrow-merge"/>
+  <path d="M310,155 C50,155 30,535 50,595" class="arrow arrow-merge"/>
 
   <!-- S3 → S7 (arc left) -->
-  <path d="M310,310 C200,310 100,500 115,560" class="arrow arrow-merge"/>
+  <path d="M310,370 C200,370 100,535 115,595" class="arrow arrow-merge"/>
 
-  <!-- S7 → S8 -->
-  <path d="M210,632 C210,660 300,680 310,715" class="arrow arrow-merge"/>
+  <!-- S7 → S8 (short hop right into S8) -->
+  <path d="M270,645 L290,650" class="arrow arrow-merge"/>
 
-  <!-- S6 → S8 (long arc down right side) -->
-  <path d="M795,332 C820,550 650,690 645,715" class="arrow arrow-dep"/>
+  <!-- S6 → S9 (long arc down right side — fuel_cell needs electrochemicalTick) -->
+  <path d="M795,382 C820,580 650,760 610,810" class="arrow arrow-dep"/>
 
-  <!-- S5 → S7 is NOT a dependency (S7 doesn't need S5) -->
-  <!-- S4b depends on S3b, already covered by S3→S4 arrow -->
+  <!-- S7 → S10 (visual feedback enrichment — not on critical path) -->
+  <path d="M145,667 C145,790 300,880 310,930" class="arrow arrow-merge"/>
 
   <!-- ═══════════════ PHASE ANNOTATIONS ═══════════════ -->
 
-  <!-- Left margin phase labels -->
-  <text x="8" y="70" class="phase-label" transform="rotate(-90, 8, 70)">FOUNDATION</text>
-  <text x="8" y="310" class="phase-label" transform="rotate(-90, 8, 310)">THERMODYNAMICS</text>
-  <text x="8" y="510" class="phase-label" transform="rotate(-90, 8, 510)">DYNAMICS</text>
-  <text x="918" y="720" class="phase-label" transform="rotate(-90, 918, 720)">GAME</text>
+  <text x="8" y="60" class="phase-label" transform="rotate(-90, 8, 60)">GOVERNANCE</text>
+  <text x="8" y="190" class="phase-label" transform="rotate(-90, 8, 190)">FOUNDATION</text>
+  <text x="8" y="370" class="phase-label" transform="rotate(-90, 8, 370)">THERMODYNAMICS</text>
+  <text x="8" y="545" class="phase-label" transform="rotate(-90, 8, 545)">DYNAMICS</text>
+  <text x="918" y="685" class="phase-label" transform="rotate(-90, 918, 685)">GROUPING</text>
+  <text x="918" y="830" class="phase-label" transform="rotate(-90, 918, 830)">EXTENSION</text>
+  <text x="918" y="960" class="phase-label" transform="rotate(-90, 918, 960)">GAME</text>
 
   <!-- ═══════════════ LEGEND ═══════════════ -->
 
   <g class="legend" transform="translate(670, 20)">
-    <rect x="0" y="0" width="260" height="110" fill="#161b22" stroke="#30363d" rx="6"/>
+    <rect x="0" y="0" width="270" height="110" fill="#161b22" stroke="#30363d" rx="6"/>
     <line x1="15" y1="20" x2="50" y2="20" stroke="#f0883e" stroke-width="2"/>
-    <text x="58" y="24">Critical path (S1→S2→S3→S5→S8)</text>
+    <text x="58" y="24">Critical path (S0→S1→S2→S3→S5→S8→S9→S10)</text>
     <line x1="15" y1="40" x2="50" y2="40" stroke="#484f58" stroke-width="2" stroke-dasharray="6 3"/>
     <text x="58" y="44">Branch dependency</text>
     <line x1="15" y1="60" x2="50" y2="60" stroke="#bc8cff" stroke-width="2" stroke-dasharray="4 4"/>
@@ -218,10 +265,20 @@
   <!-- ═══════════════ TOTALS BAR ═══════════════ -->
 
   <g transform="translate(670, 145)">
-    <rect x="0" y="0" width="260" height="60" fill="#161b22" stroke="#30363d" rx="6"/>
-    <text x="130" y="16" text-anchor="middle" fill="#8b949e" font-size="10" font-weight="600">TOTALS</text>
-    <text x="130" y="33" text-anchor="middle" fill="#7ee787" font-size="11">289 → 469 tests (+180)</text>
-    <text x="130" y="50" text-anchor="middle" fill="#d2a8ff" font-size="11">25 sessions · ~15–19 weeks</text>
+    <rect x="0" y="0" width="270" height="75" fill="#161b22" stroke="#30363d" rx="6"/>
+    <text x="135" y="16" text-anchor="middle" fill="#8b949e" font-size="10" font-weight="600">TOTALS</text>
+    <text x="135" y="33" text-anchor="middle" fill="#7ee787" font-size="11">289 → 495 tests (+206)</text>
+    <text x="135" y="50" text-anchor="middle" fill="#d2a8ff" font-size="11">42 sessions · ~26–31 weeks</text>
+    <text x="135" y="66" text-anchor="middle" fill="#8b949e" font-size="9">Engine: S0–S8 (30 sess) · Game: S9–S10 (12 sess)</text>
+  </g>
+
+  <!-- ═══════════════ RENUMBERING NOTE ═══════════════ -->
+
+  <g transform="translate(670, 232)">
+    <rect x="0" y="0" width="270" height="52" fill="#161b22" stroke="#30363d" rx="6"/>
+    <text x="135" y="16" text-anchor="middle" fill="#8b949e" font-size="10" font-weight="600">RENUMBERING (Feb 2026)</text>
+    <text x="135" y="32" text-anchor="middle" fill="#58a6ff" font-size="9">S7b → S8 · old S8 engine regs → S9</text>
+    <text x="135" y="46" text-anchor="middle" fill="#58a6ff" font-size="9">old S8 game layer → S10 · S7 unchanged</text>
   </g>
 
 </svg>
