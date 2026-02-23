@@ -260,6 +260,12 @@
            Rendered at 45° top-right of port dot for any port with a label.
            Labels added: tank overflow, hub elec_surplus, flash drum
            vap_out ("V") and liq_out ("L").
+           BUG FIX: Connectivity alarm used `port.id` (undefined) instead
+           of `port.portId` — every port appeared unconnected.
+           BUG FIX: Connectivity alarm checked base def.ports instead of
+           active presentation ports — hidden ports (e.g. reactor elec_in
+           in insulated mode) falsely flagged as unconnected.
+           Also skip optionalPorts units (tank) from connectivity check.
 
   v12.15.0 Liquid level rework, purge label fix.
            Liquid fill: opaque blue (#3b82f6 @ 0.85), generous inset (8px)
@@ -12340,14 +12346,22 @@ AlarmSystem.register((scene) => {
   for (const [id, u] of scene.units) {
     const def = UnitRegistry.get(u.defId);
     if (!def?.ports) continue;
+    // [v12.15.1] Skip units with optionalPorts — they tolerate disconnected ports by design
+    if (def.optionalPorts) continue;
+    // [v12.15.1] Only check ports visible in the active presentation
+    // (e.g. reactor in insulated mode hides elec_in)
+    const pres = getPresentation(def, u);
+    const visiblePorts = pres?.ports || {};
     for (const port of def.ports) {
+      // Skip ports hidden by the active presentation variant
+      if (!(port.portId in visiblePorts)) continue;
       const isConnected = scene.connections.some(c =>
-        (c.from.unitId === id && c.from.portId === port.id) ||
-        (c.to.unitId === id && c.to.portId === port.id));
+        (c.from.unitId === id && c.from.portId === port.portId) ||
+        (c.to.unitId === id && c.to.portId === port.portId));
       if (!isConnected) {
         const uName = u.name || def.name || id;
-        alarms.push({ id: `unconnected_${id}_${port.id}`, category: AlarmCategory.CONNECTIVITY,
-          severity: AlarmSeverity.INFO, message: `${uName}: port "${port.id}" is unconnected.`,
+        alarms.push({ id: `unconnected_${id}_${port.portId}`, category: AlarmCategory.CONNECTIVITY,
+          severity: AlarmSeverity.INFO, message: `${uName}: port "${port.portId}" is unconnected.`,
           unitId: id, remediation: 'Connect or remove this unit if unused.' });
       }
     }
