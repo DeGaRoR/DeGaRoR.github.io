@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v12.15.3
+  processThis v12.16.0
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   17 invariants. Violating any is a regression regardless of context.
@@ -255,6 +255,12 @@
            Q_max = UA × (T_in − T_amb).  Default: unlimited (Infinity).
            When Q limited, T_out > setpoint + MINOR warning.
            New: T304–T310 (7 tests).
+
+  v12.16.0 Composition color mode — streams and units colored by chemical
+           makeup. Each species has a fixed color (H₂O blue, CO₂ red,
+           CH₄ orange, H₂ lime, N₂ silver, O₂ cyan, NH₃ teal, Ar
+           violet, He pink). Mixed streams blend colors by mole fraction.
+           Electrical streams dim. Menu label: "Mix".
 
   v12.15.3 Hover on selected/errored/warned units no longer replaces
            their glow with the hover brightness filter. Hover highlight
@@ -741,7 +747,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>processThis — v12.15.3</title>
+  <title>processThis — v12.16.0</title>
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
@@ -2336,6 +2342,7 @@
             <div class="vis-menu-item" data-val="temperature" data-label="T"><span class="vm-check"></span><span class="vm-swatch" style="background:linear-gradient(90deg,#1e3a8a,#22d3ee,#34d399,#fde047,#ef4444)"></span>Temperature</div>
             <div class="vis-menu-item" data-val="pressure" data-label="P"><span class="vm-check"></span><span class="vm-swatch" style="background:linear-gradient(90deg,#1e3a5f,#06d6a0 25%,#34d399 35%,#fde047,#ef4444)"></span>Pressure</div>
             <div class="vis-menu-item" data-val="phase" data-label="φ"><span class="vm-check"></span><span class="vm-swatch" style="background:linear-gradient(90deg,#60a5fa 33%,#c084fc 66%,#f87171)"></span>Phase</div>
+            <div class="vis-menu-item" data-val="composition" data-label="Mix"><span class="vm-check"></span><span class="vm-swatch" style="background:linear-gradient(90deg,#3b82f6,#84cc16,#f97316,#ef4444)"></span>Composition</div>
           </div>
         </button>
         <button class="tbtn vis-menu-anchor tbtn-dim" id="btnStreamSize" data-tip="Size streams by…">
@@ -12654,7 +12661,7 @@ const ui = {
   showUtilities: true,    // [v10.1.1] E7: dim power utility units when false
   showStickers: true, // [v10.7.0] P1: show/hide stickers entirely
   // [v12.11.0] Unified visual mapping
-  colorBy: 'type',          // 'type' | 'islands' | 'material_electrical' | 'temperature' | 'pressure' | 'phase'
+  colorBy: 'type',          // 'type' | 'islands' | 'material_electrical' | 'temperature' | 'pressure' | 'phase' | 'composition'
   streamSizeBy: 'none',     // 'none' | 's' | 'm' | 'l'
   reconnecting: null,     // [v10.1.1] {connId} when reconnecting a stream
   // [v10.8.1] Sticker selection
@@ -13493,6 +13500,38 @@ const _VIS_DIM = '#334155';       // no-data neutral
 const _VIS_ELEC = '#eab308';      // unified electrical colour (amber)
 const _VIS_MAT_STREAM = '#94a3b8'; // default material stream grey
 
+// [v12.16.0] Per-species colour palette for composition mode
+const _SPECIES_COLOR = {
+  H2O: [59, 130, 246],   // blue — water
+  CO2: [239, 68,  68],   // red — greenhouse
+  CH4: [249, 115, 22],   // orange — fuel gas
+  H2:  [132, 204, 22],   // lime — hydrogen
+  N2:  [148, 163, 184],  // silver — inert
+  O2:  [34, 211, 238],   // cyan — oxidiser
+  NH3: [20, 184, 166],   // teal — ammonia
+  Ar:  [139, 92, 246],   // violet — noble
+  He:  [236, 72, 153],   // pink — noble
+  CO:  [251, 191, 36],   // amber — syngas
+};
+const _SPECIES_DEFAULT_RGB = [148, 163, 184]; // grey for unknown species
+
+function _visCompColor(stream) {
+  if (!stream || stream.type !== StreamType.MATERIAL || !stream.n) return null;
+  const entries = Object.entries(stream.n);
+  const total = entries.reduce((s, [, v]) => s + v, 0);
+  if (total < 1e-15) return null;
+  let r = 0, g = 0, b = 0;
+  for (const [sp, mol] of entries) {
+    const frac = mol / total;
+    if (frac < 1e-9) continue;
+    const rgb = _SPECIES_COLOR[sp] || _SPECIES_DEFAULT_RGB;
+    r += rgb[0] * frac;
+    g += rgb[1] * frac;
+    b += rgb[2] * frac;
+  }
+  return `rgb(${Math.round(r)},${Math.round(g)},${Math.round(b)})`;
+}
+
 // ── Island detection: material + electrical union-find ──
 function _visIslands() {
   function makeUF() {
@@ -13609,6 +13648,10 @@ function _visUnitColor(u, def, islands) {
     return _VIS_DIM;
   }
 
+  if (mode === 'composition') {
+    return _visCompColor(ps) || _VIS_DIM;
+  }
+
   return def.color;
 }
 
@@ -13635,8 +13678,11 @@ function _visStreamColor(streamType, stream, connFromUnitId, islands) {
     return streamType === StreamType.ELECTRICAL ? _VIS_ELEC : '#3b82f6';
   }
 
-  // T, P, Phase: only material streams have this data
+  // T, P, Phase, Composition: only material streams have this data
   if (streamType !== StreamType.MATERIAL || !stream) return _VIS_DIM;
+
+  if (mode === 'composition')
+    return _visCompColor(stream) || _VIS_DIM;
 
   if (mode === 'temperature' && stream.T != null)
     return _visTempColor(stream.T) || _VIS_DIM;
