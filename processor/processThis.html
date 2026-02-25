@@ -38,12 +38,20 @@
             heat stream type.  Heating → inline electric heater (elec_in).
             Cooling → air cooler (ambient rejection).
             Every defId in UnitRegistry corresponds to a distinct physical
-            machine — one you could point at in a pilot plant.  If two
-            machines share physics but differ in ports or computation
-            branching, they are separate defIds sharing a tick trunk.  If
-            they differ only in ratings, they are the same defId with
-            constraints tightened by mission paramLocks.  Physical
-            boundaries that prevent mixing (electrode membranes, phase
+            topology — one you could point at in a pilot plant and identify
+            by its port layout.  If two machines share thermodynamic logic
+            but differ in ports or computation branching, they are separate
+            defIds sharing a tick trunk (e.g. compressor vs
+            compressor_diaphragm — same isentropic core, different port
+            count due to cooling circuit).  If they share both topology
+            and computation but differ in ratings, materials, or operating
+            envelope, they are profiles of the same defId.  Each profile
+            is a named, palette-visible equipment variant with its own
+            limits, defaults, config flags, and size catalog.  The palette
+            shows profiles, not defIds.  Missions reference profiles for
+            scarcity and may further tighten profile parameters via
+            paramLocks.
+            Physical boundaries that prevent mixing (electrode membranes, phase
             separators) are modeled explicitly as separate outlet ports —
             never post-processed by downstream units.
             Groups are a canvas-level organizational concept.  A group is
@@ -569,7 +577,45 @@
              'Fuel/Air Mix' mixer, 'Combustor' reactor_equilibrium.
            - Test 236 updated: heater assertions → combustion assertions
              (exothermic ΔT, H₂O in products).
-           - DEMO_VERSION bumped v13.1.0 → v13.1.1.
+           - DEMO_VERSION bumped v13.1.0 → v13.1.2.
+
+           Demo SMR temperature reduction:
+           - CH₄/Steam feed T lowered 1000K → 873K (600°C).
+           - Stays 50K below reactor T_HH=923K (650°C) — within pilot-scale
+             SS316L vessel limits.  Lower T → lower equilibrium conversion,
+             but that's the realistic pilot-scale constraint.
+           - Test 236 updated to match.
+
+  v13.1.3  ProfileRegistry + tier/profile equipment identity — 347 tests.
+           NNG-3 amendment: three-tier equipment identity model:
+             1. Different ports → different defIds (e.g. compressor vs compressor_diaphragm)
+             2. Same topology, different ratings → profiles of same defId
+             3. Mission-specific → paramLocks on top of profiles.
+           ProfileRegistry class: register, get, getByDefId, list, listByCategory.
+           Profile fields: profileId, defId, name, category, tiers[], limits{tier→{}},
+             defaults, config, limitPort, milestone.
+           All 20 production units migrated to profiles (1:1, backward compatible).
+           T2 mixer POC: T_HH 723→923K, T_LL 243→173K, mass_HH 0.25→0.30 kg/s
+             (Inconel + PTFE seals upgrade from SS316L).
+           Battery 3-tier: T1 pilot (20 kW / 10 kWh), T2 demo (100 kW / 100 kWh),
+             T3 industrial (500 kW / 1 MWh) — tier-specific defaults applied on place.
+           Power Hub: tier 2 only (demo-scale coordination device).
+           Boundary units (sources, sinks, grid_supply): tier 1 only, no badge.
+           getEffectiveLimits(profileId, tier) — new signature, replaces (def, size).
+           evaluateLimits gains profileId + tier parameters.
+           Placed units gain profileId + tier fields (placeUnit, export/importJSON).
+           Backward compat: missing profileId defaults to defId, missing tier defaults to 1.
+           Palette UI: iterates ProfileRegistry, one tile per (profile, tier) pair.
+             Tier badge on T2+ tiles (T1 grey, T2 blue, T3 purple).
+             Tier filter bar (All/T1/T2/T3). Single-tier T1 units: no badge.
+           Flowsheet SVG: tier badge circle on T2+ units (top-right corner).
+           Inspector: tier shown in subtitle for T2+ units.
+           Copy/paste + Ctrl+drag duplicate: preserves profileId + tier.
+           Drop handler: applies profileId + tier + tier-specific defaults from palette.
+           9 new tests: profile coverage, T2 mixer limits, listByCategory, getByDefId,
+             placeUnit fields, serialization round-trip, battery 3-tier defaults,
+             power_hub T2 only, boundary units single-tier.
+           DEMO_VERSION bumped v13.1.2 → v13.1.3.
 
   v13.0.8  Two-domain alarm architecture — 322 tests.
            Phase 1 — Schema & Severity:
@@ -1500,23 +1546,27 @@
       flex-shrink: 0;
     }
 
-    /* ===== ACTION BAR TOOLTIPS [v10.3.2] ===== */
-    .action-bar .tbtn {
-      position: relative;
-    }
-    .action-bar .tbtn::after {
+    /* ===== TOOLTIPS — universal [data-tip] system [v13.1.3] ===== */
+    [data-tip] { position: relative; }
+    [data-tip]::after {
       content: attr(data-tip);
       position: absolute; bottom: calc(100% + 6px); left: 50%;
       transform: translateX(-50%) scale(0.95);
       background: #e2e8f0; color: #0f1420;
       font-size: 12px; font-weight: 600;
       padding: 4px 8px; border-radius: 4px;
-      white-space: nowrap; pointer-events: none;
+      white-space: pre-line; pointer-events: none;
       opacity: 0; transition: opacity 0.08s, transform 0.08s;
       z-index: 50;
     }
-    .action-bar .tbtn:hover::after {
+    [data-tip]:hover::after {
       opacity: 1; transform: translateX(-50%) scale(1);
+    }
+    [data-tip=""]:hover::after { display: none; }
+
+    /* ===== ACTION BAR TOOLTIPS [v10.3.2] ===== */
+    .action-bar .tbtn::after {
+      white-space: nowrap; /* override: action bar tips are always single-line */
     }
     .action-bar .tbtn:has(.vis-menu.open)::after {
       display: none;
@@ -2657,6 +2707,14 @@
     .paletteDrawer .pal-tile:active { cursor: grabbing; }
     .paletteDrawer .pal-tile .pal-tname { font-size: 11px; font-weight: 700; }
     .paletteDrawer .pal-tile .pal-tdesc { font-size: 10px; opacity: 0.6; margin-top: 2px; }
+    .paletteDrawer .pal-tile .pal-tier { display:inline-block; font-size:9px; font-weight:700; padding:1px 4px; border-radius:3px; margin-left:5px; vertical-align:middle; }
+    .paletteDrawer .pal-tile .pal-tier.t1 { background:#334155; color:#94a3b8; }
+    .paletteDrawer .pal-tile .pal-tier.t2 { background:#334155; color:#e2e8f0; }
+    .paletteDrawer .pal-tile .pal-tier.t3 { background:#422006; color:#fbbf24; }
+    .paletteDrawer .pal-filter { display:flex; gap:4px; padding:6px 10px; border-bottom:1px solid #1e293b; }
+    .paletteDrawer .pal-filter-btn { font-size:10px; font-weight:700; padding:3px 8px; border-radius:4px; border:1px solid #334155; background:transparent; color:#94a3b8; cursor:pointer; }
+    .paletteDrawer .pal-filter-btn:hover { border-color:#475569; color:#e2e8f0; }
+    .paletteDrawer .pal-filter-btn.active { background:#1e3a5f; border-color:#3b82f6; color:#60a5fa; }
 
     /* ===== [v10] INSPECTOR DATA DISPLAY ===== */
     .ins-zone { margin-bottom: 2px; }
@@ -2929,8 +2987,20 @@
         <span style="font-size:12px; font-weight:700; opacity:0.7;">Add Unit</span>
         <button class="pal-close" id="palClose" title="Close palette (/)">×</button>
       </div>
+      <div class="pal-filter" id="palFilter">
+        <button class="pal-filter-btn active" data-tier="all">All</button>
+        <button class="pal-filter-btn" data-tier="boundary">Boundary</button>
+        <button class="pal-filter-btn" data-tier="1">Tier 1</button>
+        <button class="pal-filter-btn" data-tier="2">Tier 2</button>
+        <button class="pal-filter-btn" data-tier="3">Tier 3</button>
+      </div>
       <div class="pal-tiles" id="palTiles"></div>
     </aside>
+
+    <!-- [v13.1.3] Floating tooltip — shared, positioned at body level to avoid clipping -->
+    <div id="ptip" style="position:fixed;z-index:100;pointer-events:none;opacity:0;transition:opacity 0.08s;
+      background:#e2e8f0;color:#0f1420;font-size:12px;font-weight:600;padding:5px 9px;border-radius:4px;
+      white-space:pre-line;max-width:200px;line-height:1.5;"></div>
 
     <!-- Main SVG canvas -->
     <svg id="svg" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" aria-label="process grid">
@@ -7936,6 +8006,84 @@ class UnitRegistry {
 }
 
 /* =========================
+   PROFILE REGISTRY [v13.1.3] (NNG-3 equipment identity)
+   Profiles are named, palette-visible equipment variants.
+   Each profile belongs to one defId and declares available tiers.
+   Limits live here (not on UnitRegistry).  The palette iterates
+   profiles, not defIds.
+   ========================= */
+
+class ProfileRegistry {
+  static _profiles = new Map();
+
+  static register(profileId, spec) {
+    // Validate defId exists
+    if (!UnitRegistry.exists(spec.defId)) {
+      throw new Error(`Profile '${profileId}': defId '${spec.defId}' not registered`);
+    }
+    // Validate tiers array
+    if (!Array.isArray(spec.tiers) || spec.tiers.length === 0) {
+      throw new Error(`Profile '${profileId}': tiers must be non-empty array`);
+    }
+    // Validate limits exist for every declared tier (skip for boundary units with no limits)
+    const hasLimits = spec.limits && Object.keys(spec.limits).length > 0;
+    if (hasLimits) {
+      for (const t of spec.tiers) {
+        if (!spec.limits[t]) {
+          throw new Error(`Profile '${profileId}': missing limits for tier ${t}`);
+        }
+      }
+    }
+    const profile = Object.freeze({
+      profileId,
+      defId:     spec.defId,
+      name:      spec.name,
+      category:  spec.category,           // UnitCategories.XXX
+      _categoryOrder: spec.category?.order ?? 50,
+      tiers:     Object.freeze([...spec.tiers]),
+      limits:    Object.freeze(spec.limits),
+      defaults:  Object.freeze(spec.defaults || {}),
+      config:    Object.freeze(spec.config || {}),
+      limitPort: spec.limitPort || null,
+      milestone: spec.milestone || null,
+      boundary:  !!spec.boundary,         // [v13.1.3] true = tool (source/sink), no tier badge
+    });
+    ProfileRegistry._profiles.set(profileId, profile);
+  }
+
+  static get(id) { return this._profiles.get(id); }
+
+  static exists(id) { return this._profiles.has(id); }
+
+  static getByDefId(defId) {
+    return [...this._profiles.values()].filter(p => p.defId === defId);
+  }
+
+  static list() { return [...this._profiles.values()]; }
+
+  static listByCategory(opts = {}) {
+    const tierFilter = opts.maxTier ?? Infinity;
+    const byCategory = {};
+    const orderMap = {};
+    for (const p of this._profiles.values()) {
+      // Skip if lowest available tier exceeds filter
+      if (Math.min(...p.tiers) > tierFilter) continue;
+      const cat = typeof p.category === 'string' ? p.category : (p.category?.name || 'Other');
+      if (!byCategory[cat]) {
+        byCategory[cat] = [];
+        orderMap[cat] = p._categoryOrder ?? 50;
+      }
+      byCategory[cat].push(p);
+    }
+    const ordered = {};
+    const sortedCats = Object.keys(byCategory)
+      .sort((a, b) => (orderMap[a] || 50) - (orderMap[b] || 50));
+    for (const cat of sortedCats) ordered[cat] = byCategory[cat];
+    return ordered;
+  }
+}
+
+/* =========================
    PRESENTATION RESOLVER [v10.9.0] (NNG-P1)
    Single source of truth for unit visual geometry: w, h, port positions.
    All rendering code MUST call getPresentation() — never read def.w/h/ports[].x/y directly.
@@ -10344,7 +10492,9 @@ UnitRegistry.register('reactor_equilibrium', {
   },
   // [v13.0.4 S1c] Equipment limits
   limitParams: ['T_LL', 'T_L', 'T_H', 'T_HH', 'P_LL', 'P_L', 'P_H', 'P_HH', 'mass_LL', 'mass_HH'],
-  limits: { S: { T_LL: 323, T_L: 373, T_H: 773, T_HH: 923, P_LL: 50000, P_L: 80000, P_H: 12000000, P_HH: 15000000, mass_LL: 0.001, mass_HH: 0.08 } },
+  // [v13.1.2] T_H/T_HH widened provisionally — combustion chamber variant needs ~1300°C.
+  // TODO(S6): split into per-variant limits (adiabatic/general 923K, combustion 1573K).
+  limits: { S: { T_LL: 323, T_L: 373, T_H: 1273, T_HH: 1573, P_LL: 50000, P_L: 80000, P_H: 12000000, P_HH: 15000000, mass_LL: 0.001, mass_HH: 0.08 } },
   tick(u, ports, par, ctx) {
     const sIn = ports.mat_in;
     if (!sIn) return;
@@ -10581,6 +10731,91 @@ UnitRegistry.register('reactor_equilibrium', {
 });
 
 /* =========================
+   PROFILE REGISTRATIONS [v13.1.3]
+   Every production unit gets a 1:1 profile.  profileId = defId for
+   backward compatibility.  Limits move here from UnitRegistry.
+   T2 mixer is the first multi-tier profile (POC).
+   ========================= */
+
+// ── Boundary units (no limits, no tier progression — always available) ──
+ProfileRegistry.register('source',       { defId: 'source',       name: 'Source',           category: UnitCategories.SOURCE,           tiers: [1], limits: {}, boundary: true });
+ProfileRegistry.register('source_multi', { defId: 'source_multi', name: 'Multi Source',     category: UnitCategories.SOURCE,           tiers: [1], limits: {}, boundary: true });
+ProfileRegistry.register('source_air',   { defId: 'source_air',   name: 'Air Source',       category: UnitCategories.SOURCE,           tiers: [1], limits: {}, boundary: true });
+ProfileRegistry.register('sink',         { defId: 'sink',         name: 'Sink',             category: UnitCategories.SINK,             tiers: [1], limits: {}, boundary: true });
+ProfileRegistry.register('grid_supply',  { defId: 'grid_supply',  name: 'Grid Supply',      category: UnitCategories.POWER,            tiers: [1], limits: {}, boundary: true });
+ProfileRegistry.register('sink_electrical', { defId: 'sink_electrical', name: 'Electrical Sink', category: UnitCategories.POWER_MANAGEMENT, tiers: [1], limits: {}, boundary: true });
+
+// ── Power management (tiered) ──
+// Battery: T1 pilot (20 kW / 10 kWh), T2 demo (100 kW / 100 kWh), T3 industrial (500 kW / 1 MWh)
+ProfileRegistry.register('battery', {
+  defId: 'battery', name: 'Battery', category: UnitCategories.POWER_MANAGEMENT,
+  tiers: [1, 2, 3], limits: {},
+  defaults: {
+    1: { peakPower_kW: 20,  capacity_J: 36000000,   initialSOC: 0.9 },   // 10 kWh
+    2: { peakPower_kW: 100, capacity_J: 360000000,  initialSOC: 0.9 },   // 100 kWh
+    3: { peakPower_kW: 500, capacity_J: 3600000000, initialSOC: 0.9 }    // 1 MWh
+  }
+});
+// Power Hub: demo-scale coordination device — tier 2 only
+ProfileRegistry.register('power_hub', { defId: 'power_hub', name: 'Power Hub', category: UnitCategories.POWER_MANAGEMENT, tiers: [2], limits: {} });
+
+// ── Process equipment (limits keyed by tier) ──
+ProfileRegistry.register('tank', {
+  defId: 'tank', name: 'Tank', category: UnitCategories.VESSEL, tiers: [1],
+  limits: { 1: { T_LL: 263, T_L: 278, T_H: 333, T_HH: 353, P_LL: 80000, P_L: 85000, P_H: 400000, P_HH: 500000, mass_HH: 0.05, level_H: 90, level_HH: 100 } }
+});
+ProfileRegistry.register('gas_turbine', {
+  defId: 'gas_turbine', name: 'Gas Turbine', category: UnitCategories.PRESSURE, tiers: [1],
+  limitPort: 'mat_in',
+  limits: { 1: { T_LL: 323, T_L: 373, T_H: 873, T_HH: 1023, P_LL: 150000, P_L: 200000, P_H: 12000000, P_HH: 15000000, mass_LL: 0.005, mass_HH: 0.12 } }
+});
+ProfileRegistry.register('valve', {
+  defId: 'valve', name: 'Valve', category: UnitCategories.PRESSURE, tiers: [1],
+  limits: { 1: { T_LL: 243, T_L: 263, T_H: 523, T_HH: 623, P_H: 12000000, P_HH: 15000000, mass_HH: 0.25 } }
+});
+ProfileRegistry.register('pump', {
+  defId: 'pump', name: 'Pump', category: UnitCategories.PRESSURE, tiers: [1],
+  limits: { 1: { T_LL: 263, T_L: 278, T_H: 353, T_HH: 393, P_LL: 50000, P_L: 80000, P_H: 4000000, P_HH: 5000000, mass_HH: 0.12 } }
+});
+ProfileRegistry.register('compressor', {
+  defId: 'compressor', name: 'Compressor (Piston)', category: UnitCategories.PRESSURE, tiers: [1],
+  limits: { 1: { T_LL: 243, T_L: 263, T_H: 473, T_HH: 523, P_LL: 50000, P_L: 80000, P_H: 1200000, P_HH: 1500000, mass_HH: 0.08 } }
+});
+ProfileRegistry.register('electric_heater', {
+  defId: 'electric_heater', name: 'Electric Heater', category: UnitCategories.HEAT_TRANSFER, tiers: [1],
+  limits: { 1: { T_LL: 253, T_L: 273, T_H: 723, T_HH: 823, P_LL: 20000, P_L: 50000, P_H: 12000000, P_HH: 15000000, mass_LL: 0.002, mass_HH: 0.12 } }
+});
+ProfileRegistry.register('air_cooler', {
+  defId: 'air_cooler', name: 'Air Cooler', category: UnitCategories.HEAT_TRANSFER, tiers: [1],
+  limits: { 1: { T_LL: 253, T_L: 273, T_H: 623, T_HH: 723, P_LL: 20000, P_L: 50000, P_H: 12000000, P_HH: 15000000, mass_HH: 0.12 } }
+});
+ProfileRegistry.register('hex', {
+  defId: 'hex', name: 'Heat Exchanger', category: UnitCategories.HEAT_EXCHANGER, tiers: [1],
+  limits: { 1: { T_LL: 243, T_L: 263, T_H: 573, T_HH: 673, P_LL: 20000, P_L: 50000, P_H: 12000000, P_HH: 15000000, mass_HH: 0.12 } }
+});
+// [v13.1.3] T2 mixer: Inconel + PTFE seals — proof of concept for multi-tier profiles
+ProfileRegistry.register('mixer', {
+  defId: 'mixer', name: 'Mixer', category: UnitCategories.TOPOLOGY, tiers: [1, 2],
+  limits: {
+    1: { T_LL: 243, T_L: 263, T_H: 623, T_HH: 723, P_LL: 20000, P_L: 50000, P_H: 12000000, P_HH: 15000000, mass_HH: 0.25 },
+    2: { T_LL: 173, T_L: 223, T_H: 773, T_HH: 923, P_LL: 20000, P_L: 50000, P_H: 4000000, P_HH: 5000000, mass_HH: 0.30 }
+  }
+});
+ProfileRegistry.register('splitter', {
+  defId: 'splitter', name: 'Splitter', category: UnitCategories.TOPOLOGY, tiers: [1],
+  limits: { 1: { T_LL: 243, T_L: 263, T_H: 623, T_HH: 723, P_LL: 20000, P_L: 50000, P_H: 12000000, P_HH: 15000000, mass_HH: 0.25 } }
+});
+ProfileRegistry.register('flash_drum', {
+  defId: 'flash_drum', name: 'Flash Drum', category: UnitCategories.SEPARATOR, tiers: [1],
+  limits: { 1: { T_LL: 243, T_L: 263, T_H: 523, T_HH: 623, P_LL: 20000, P_L: 50000, P_H: 12000000, P_HH: 15000000, mass_HH: 0.15 } }
+});
+// [v13.1.2] T_HH=1573 provisional — reverted to 923 in S6 when combustion_chamber profile exists
+ProfileRegistry.register('reactor_equilibrium', {
+  defId: 'reactor_equilibrium', name: 'Reactor', category: UnitCategories.REACTOR, tiers: [1],
+  limits: { 1: { T_LL: 323, T_L: 373, T_H: 1273, T_HH: 1573, P_LL: 50000, P_L: 80000, P_H: 12000000, P_HH: 15000000, mass_LL: 0.001, mass_HH: 0.08 } }
+});
+
+/* =========================
    SCENE CLASS
    Manages the process flowsheet state
    ========================= */
@@ -10626,6 +10861,8 @@ class Scene {
     const unit = { 
       id, 
       defId, 
+      profileId: defId,   // [v13.1.3] 1:1 default; overridden by caller for multi-profile defIds
+      tier: 1,            // [v13.1.3] default tier
       name: `${def.name} ${this._idCounter}`, // Default name
       x, 
       y, 
@@ -10887,6 +11124,8 @@ class Scene {
       const unitData = {
         id: u.id,
         defId: u.defId,
+        profileId: u.profileId || u.defId,  // [v13.1.3]
+        tier: u.tier || 1,                   // [v13.1.3]
         name: u.name,
         x: u.x,
         y: u.y,
@@ -11007,6 +11246,8 @@ class Scene {
       const unit = {
         id: u.id,
         defId: u.defId,
+        profileId: u.profileId || u.defId,  // [v13.1.3] backward compat
+        tier: u.tier || 1,                   // [v13.1.3] backward compat
         name: (typeof u.name === 'string' ? u.name : '') || 'Unit',
         x, y,
         rot: typeof rot === 'number' && isFinite(rot) ? rot : 0,
@@ -13501,13 +13742,15 @@ function getLimitParam(key, ud, def) {
 }
 
 // [S1c-5] getEffectiveLimits — 3-layer merge: definition → mission → player
-// Only definition layer active for now (mission/player layers are future)
-function getEffectiveLimits(def, size) {
-  const sz = size || 'S';
-  const defLimits = def?.limits?.[sz];
-  if (!defLimits) return null;
+// [v13.1.3] Now takes profileId + tier instead of def + size.
+function getEffectiveLimits(profileId, tier) {
+  const profile = ProfileRegistry.get(profileId);
+  if (!profile) return null;
+  const t = tier || 1;
+  const tierLimits = profile.limits?.[t];
+  if (!tierLimits) return null;
   // Future: merge with mission overrides, then player overrides
-  return { ...defLimits };
+  return { ...tierLimits };
 }
 
 // [S1c-6] evaluateLimits — pure function: unit data + def → violation array
@@ -13522,16 +13765,23 @@ function _fmtLimit(tag, siValue) {
   if (!conv) return `${siValue.toPrecision(4)}`;
   return `${conv.from(siValue).toFixed(conv.decimals)} ${conv.symbol}`;
 }
-function evaluateLimits(unitId, unitName, ud, def) {
-  if (!def?.limitParams || !def?.limits) return [];
-  const limits = getEffectiveLimits(def, 'S');
+function evaluateLimits(unitId, unitName, ud, def, profileId, tier) {
+  if (!def?.limitParams) return [];
+  const limits = profileId ? getEffectiveLimits(profileId, tier || 1) : null;
   if (!limits) return [];
+
+  // [v13.1.3] limitPort: profile overrides def
+  const profile = profileId ? ProfileRegistry.get(profileId) : null;
+  const effectiveLimitPort = profile?.limitPort || def.limitPort || null;
+  // Temporarily patch def for _findPrimaryStream if profile has limitPort override
+  const defForStream = effectiveLimitPort !== def.limitPort
+    ? { ...def, limitPort: effectiveLimitPort } : def;
 
   const violations = [];
   for (const key of def.limitParams) {
     const threshold = limits[key];
     if (threshold == null) continue;
-    const value = getLimitParam(key, ud, def);
+    const value = getLimitParam(key, ud, defForStream);
     if (value == null) continue;
 
     const tpl = LIMIT_PARAM_TEMPLATES[key];
@@ -13690,11 +13940,14 @@ AlarmSystem.register((scene) => {
   const alarms = [];
   for (const [id, u] of scene.units) {
     const def = UnitRegistry.get(u.defId);
-    if (!def?.limitParams || !def?.limits) continue;
+    if (!def?.limitParams) continue;
+    const pId = u.profileId || u.defId;  // [v13.1.3] backward compat
+    const profile = ProfileRegistry.get(pId);
+    if (!profile || !profile.limits || Object.keys(profile.limits).length === 0) continue;
     const ud = scene.runtime?.unitData?.get(id);
     if (!ud) continue;
     const uName = u.name || def.name || id;
-    const violations = evaluateLimits(id, uName, ud, def);
+    const violations = evaluateLimits(id, uName, ud, def, pId, u.tier || 1);
     alarms.push(...violations);
   }
   return alarms;
@@ -13761,6 +14014,7 @@ const PG = {
   ComponentRegistry,
   ReactionRegistry,
   UnitRegistry,
+  ProfileRegistry,
   ModelRegistry,
   models,
 
@@ -13787,6 +14041,8 @@ const PG = {
   allocatePower,
   allocateByPriority,
   checkOverload,
+  getEffectiveLimits,
+  evaluateLimits,
   buildMaterialGraph,
   tarjanSCCs,
   computeTickOrder,
@@ -13967,10 +14223,13 @@ const ui = {
   dragUnitId: null,
   dragOffset: null, // {cellX, cellY} offset in grid units
   dragDefId: null,
+  dragProfileId: null,     // [v13.1.3] profile being dragged from palette
+  dragTier: null,          // [v13.1.3] tier being dragged from palette
   isHTML5Dragging: false, // Track HTML5 drag from library
   _mouseWorld: { x: 0, y: 0 },
   showUtilities: true,    // [v10.1.1] E7: dim power utility units when false
   showStickers: true, // [v10.7.0] P1: show/hide stickers entirely
+  paletteTierFilter: 'all',  // [v13.1.3] 'all' | '1' | '2' | '3'
   // [v12.11.0] Unified visual mapping
   colorBy: 'type',          // 'type' | 'islands' | 'material_electrical' | 'temperature' | 'pressure' | 'phase' | 'composition'
   streamSizeBy: 'none',     // 'none' | 's' | 'm' | 'l'
@@ -15657,6 +15916,27 @@ function drawUnits() {
     });
     label.textContent = u.name || def.name;
     group.appendChild(label);
+
+    // [v13.1.3] Tier badge — filled triangle in top-right corner with border
+    // T1: no badge (clean default). T2: silver. T3: gold. Boundary units: never.
+    const _badgeProfile = ProfileRegistry.get(u.profileId || u.defId);
+    if (_badgeProfile && !_badgeProfile.boundary && u.tier > 1) {
+      const tierFills = { 2: '#e2e8f0', 3: '#fbbf24' };
+      const fill = tierFills[u.tier] || tierFills[2];
+      const sz = 13;
+      const tx = wx + ww - 1;
+      const ty = wy + 1;
+      const pts = `${tx},${ty} ${tx},${ty+sz} ${tx-sz},${ty}`;
+      // Dark outline for contrast on any background color
+      group.appendChild(svgEl('polygon', {
+        points: pts, fill: '#0f172a', stroke: '#0f172a', 'stroke-width': 2,
+        'stroke-linejoin': 'round', 'pointer-events': 'none'
+      }));
+      // Filled triangle on top
+      group.appendChild(svgEl('polygon', {
+        points: pts, fill, opacity: 0.95, 'pointer-events': 'none'
+      }));
+    }
 
     // Ports
     // [v10.1.1] E4: Pre-compute source port info for connection feedback
@@ -19020,50 +19300,136 @@ UnitInspector.reactor_equilibrium = {
    [v10] PALETTE DRAWER — Left-side unit catalog with search + categories
    ═══════════════════════════════════════════════════════════════════════════ */
 
+// [v13.1.3] Floating tooltip — shared across palette and future uses.
+// Positioned at body level to avoid overflow clipping in scrollable containers.
+const _ptip = document.getElementById('ptip');
+let _ptipTimer = null;
+function showTip(el, text) {
+  if (!text || !_ptip) return;
+  clearTimeout(_ptipTimer);
+  const r = el.getBoundingClientRect();
+  _ptip.textContent = text;
+  _ptip.style.left = (r.right + 8) + 'px';
+  _ptip.style.top  = (r.top + r.height / 2) + 'px';
+  _ptip.style.transform = 'translateY(-50%)';
+  _ptip.style.opacity = '1';
+}
+function hideTip() {
+  if (!_ptip) return;
+  _ptip.style.opacity = '0';
+}
+
+// [v13.1.3] Build hover tooltip text for palette tile: key limits in display units
+function _buildTileTooltip(profile, tier) {
+  const lines = [];
+  const lim = profile.limits?.[tier];
+  const defs = profile.defaults?.[tier];
+  const us = models.getActive('units');
+
+  if (lim) {
+    if (lim.T_HH != null)    lines.push(`T max: ${us.temperature.from(lim.T_HH).toFixed(0)} ${us.temperature.symbol}`);
+    if (lim.P_HH != null)    lines.push(`P max: ${us.pressure.from(lim.P_HH).toFixed(0)} ${us.pressure.symbol}`);
+    if (lim.mass_HH != null) lines.push(`Flow max: ${us.massFlow.from(lim.mass_HH).toFixed(0)} ${us.massFlow.symbol}`);
+  }
+  if (defs) {
+    if (defs.peakPower_kW != null) lines.push(`Power: ${defs.peakPower_kW} kW`);
+    if (defs.capacity_J != null) {
+      const kWh = defs.capacity_J / 3600000;
+      lines.push(`Capacity: ${kWh >= 1000 ? (kWh/1000).toFixed(0) + ' MWh' : kWh.toFixed(0) + ' kWh'}`);
+    }
+  }
+  return lines.length > 0 ? lines.join('\n') : '';
+}
+
 function populatePalette() {
   const tilesContainer = document.getElementById('palTiles');
   tilesContainer.innerHTML = '';
-  const byCategory = UnitRegistry.listByCategory();
+
+  // [v13.1.3] Iterate ProfileRegistry — one tile per (profile, tier) pair
+  const tierFilter = ui.paletteTierFilter;
+  const byCategory = ProfileRegistry.listByCategory();
   
-  for (const [catName, units] of Object.entries(byCategory)) {
+  for (const [catName, profiles] of Object.entries(byCategory)) {
+    // Build tile list: boundary in all+boundary; process equipment in all+tier filters
+    const tiles = [];
+    for (const profile of profiles) {
+      if (profile.boundary) {
+        // Boundary: visible in 'all' and 'boundary' only, no badge
+        if (tierFilter === 'all' || tierFilter === 'boundary') {
+          tiles.push({ profile, tier: 1, showBadge: false });
+        }
+      } else {
+        // Process equipment: visible in 'all' and matching tier, never in 'boundary'
+        if (tierFilter === 'boundary') continue;
+        const visibleTiers = tierFilter === 'all' ? profile.tiers
+          : profile.tiers.filter(t => t === parseInt(tierFilter, 10));
+        for (const t of visibleTiers) {
+          tiles.push({ profile, tier: t, showBadge: t > 1 });
+        }
+      }
+    }
+    if (tiles.length === 0) continue;
+
     tilesContainer.appendChild(el('div', { class: 'pal-cat-label', html: catName }));
     
-    for (const def of units) {
+    for (const { profile, tier, showBadge } of tiles) {
+      const def = UnitRegistry.get(profile.defId);
+      if (!def) continue;
       const tile = el('div', { class: 'pal-tile' });
       tile.draggable = true;
       const wipTag = def._wip ? ' <span style="color:#f59e0b;font-size:9px;font-weight:700;">WIP</span>' : '';
-      tile.innerHTML = `<div class="pal-tname"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${def.color};margin-right:4px;vertical-align:middle;"></span>${def.name}${wipTag}</div>`;
-      
+      const tierBadge = showBadge ? `<span class="pal-tier t${tier}">Tier ${tier}</span>` : '';
+
+      tile.innerHTML = `<div class="pal-tname"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${def.color};margin-right:4px;vertical-align:middle;"></span>${profile.name}${tierBadge}${wipTag}</div>`;
+      const _tip = _buildTileTooltip(profile, tier);
+      if (_tip) {
+        tile.addEventListener('mouseenter', () => showTip(tile, _tip));
+        tile.addEventListener('mouseleave', hideTip);
+      }
+
       tile.addEventListener('dragstart', (ev) => {
-        ui.dragDefId = def.defId;
+        hideTip();
+        ui.dragDefId = profile.defId;
+        ui.dragProfileId = profile.profileId;
+        ui.dragTier = tier;
         ui.isHTML5Dragging = true;
-        ev.dataTransfer.setData('text/plain', def.defId);
+        ev.dataTransfer.setData('text/plain', profile.defId);
         ev.dataTransfer.effectAllowed = 'copy';
       });
       
       tile.addEventListener('dblclick', () => {
-        // Place at center of current viewport
         const vb = svg.getAttribute('viewBox')?.split(' ').map(Number) || [0,0,1000,600];
         const cx = vb[0] + vb[2] / 2;
         const cy = vb[1] + vb[3] / 2;
         const gx = Math.round(cx / scene.tile);
         const gy = Math.round(cy / scene.tile);
-        const newId = scene.placeUnit(def.defId, gx, gy);
-        if (!newId) {
-          // Collision at center — try nearby cells
-          for (let dx = 1; dx <= 4; dx++) {
-            for (const [ox, oy] of [[dx,0],[-dx,0],[0,dx],[0,-dx],[dx,dx],[-dx,-dx]]) {
-              const altId = scene.placeUnit(def.defId, gx+ox, gy+oy);
-              if (altId) {
-                ui.selectedUnitId = altId;
-                ui.selectedConnId = null;
-                updatePropertiesPanel();
-                render();
-                setStatus(`Placed ${def.name}`);
-                return;
-              }
+
+        const _tryPlace = (x, y) => {
+          const id = scene.placeUnit(profile.defId, x, y);
+          if (!id) return null;
+          const placed = scene.units.get(id);
+          if (placed) {
+            placed.profileId = profile.profileId;
+            placed.tier = tier;
+            // [v13.1.3] Apply tier-specific defaults if profile defines them
+            if (profile.defaults?.[tier]) {
+              placed.params = { ...placed.params, ...profile.defaults[tier] };
             }
           }
+          return id;
+        };
+
+        let newId = _tryPlace(gx, gy);
+        if (!newId) {
+          for (let dx = 1; dx <= 4; dx++) {
+            for (const [ox, oy] of [[dx,0],[-dx,0],[0,dx],[0,-dx],[dx,dx],[-dx,-dx]]) {
+              newId = _tryPlace(gx+ox, gy+oy);
+              if (newId) break;
+            }
+            if (newId) break;
+          }
+        }
+        if (!newId) {
           setStatus('Cannot place — no free space near viewport center.');
           return;
         }
@@ -19071,7 +19437,7 @@ function populatePalette() {
         ui.selectedConnId = null;
         updatePropertiesPanel();
         render();
-        setStatus(`Placed ${def.name}`);
+        setStatus(`Placed ${profile.name}${showBadge ? ' T' + tier : ''}`);
       });
       
       tilesContainer.appendChild(tile);
@@ -19094,6 +19460,19 @@ function togglePalette(forceState) {
 
 // [v10] Palette event wiring
 document.getElementById('palClose').addEventListener('click', () => togglePalette(false));
+
+// [v13.1.3] Tier filter bar — toggle active tier filter and repopulate palette
+document.getElementById('palFilter').addEventListener('click', (ev) => {
+  const btn = ev.target.closest('.pal-filter-btn');
+  if (!btn) return;
+  const tier = btn.dataset.tier;
+  ui.paletteTierFilter = tier;
+  // Update active state
+  for (const b of document.querySelectorAll('#palFilter .pal-filter-btn')) {
+    b.classList.toggle('active', b.dataset.tier === tier);
+  }
+  populatePalette();
+});
 
 // [v10.0.6] Close palette when clicking outside (canvas or toolbars)
 document.addEventListener('mousedown', (ev) => {
@@ -19259,7 +19638,11 @@ function _rebuildInspectorContent() {
     delBtn.addEventListener('click', () => deleteSelected());
     titleDiv.appendChild(delBtn);
     headerDiv.appendChild(titleDiv);
-    headerDiv.appendChild(el('div', { class: 'unitSubtitle', html: `<span style="color:${def.color}">${def.category}</span> · ${def.name}` }));
+    const _insTierProfile = ProfileRegistry.get(u.profileId || u.defId);
+    const _tierColors = { 2: '#e2e8f0', 3: '#fbbf24' };
+    const _showTier = _insTierProfile && !_insTierProfile.boundary && u.tier > 1;
+    const _tierLabel = _showTier ? ` · <span style="color:${_tierColors[u.tier] || '#e2e8f0'};font-weight:700;">T${u.tier}</span>` : '';
+    headerDiv.appendChild(el('div', { class: 'unitSubtitle', html: `<span style="color:${def.color}">${def.category}</span> · ${def.name}${_tierLabel}` }));
     propEditor.appendChild(headerDiv);
 
     // ── [v13.0.7] Alarm banners — sourced from AlarmSystem (NNG-7 single source of truth) ──
@@ -19292,7 +19675,10 @@ function _rebuildInspectorContent() {
 
     // ── [v13.0.7] Build limit context for property highlighting ──
     const _limitViolations = _unitAlarms.filter(a => a.id?.startsWith('limit_'));
-    const _effectiveLimits = (def.limitParams && def.limits) ? getEffectiveLimits(def, 'S') : null;
+    const _pId = u.profileId || u.defId;
+    const _profile = ProfileRegistry.get(_pId);
+    const _hasLimits = _profile && _profile.limits && Object.keys(_profile.limits).length > 0;
+    const _effectiveLimits = (def.limitParams && _hasLimits) ? getEffectiveLimits(_pId, u.tier || 1) : null;
     const _limitCtx = (_limitViolations.length > 0 || _effectiveLimits)
       ? { violations: _limitViolations, limits: _effectiveLimits } : null;
 
@@ -19400,15 +19786,18 @@ function _rebuildInspectorContent() {
     // Shows ALL stored limit parameters as Variable × LL/L/H/HH grid.
     // This is a static view of the unit definition — no actual/status comparison.
     // L/H columns reserved for future user-configurable alarm limits.
-    if (def.limitParams?.length > 0 && def.limits) {
-      const effLimits = getEffectiveLimits(def, 'S');
+    if (def.limitParams?.length > 0) {
+      const _pId2 = u.profileId || u.defId;
+      const _prof2 = ProfileRegistry.get(_pId2);
+      const _hasLim2 = _prof2 && _prof2.limits && Object.keys(_prof2.limits).length > 0;
+      const effLimits = _hasLim2 ? getEffectiveLimits(_pId2, u.tier || 1) : null;
       if (effLimits) {
         const unitSys = models.getActive('units');
         const section = createCollapsibleSection('Equipment Limits', false);
 
-        // Size indicator
+        // Tier indicator
         const sizeNote = el('div', { style: 'font-size:10px; color:#64748b; margin-bottom:6px;' });
-        sizeNote.textContent = 'Size: S (small)  —  limits apply to this equipment size';
+        sizeNote.textContent = `Tier ${u.tier || 1}  —  limits apply to this equipment tier`;
         section.content.appendChild(sizeNote);
 
         // Group limitParams by tag to build one row per variable
@@ -19927,6 +20316,8 @@ function _copySelection() {
     if (!u) continue;
     units.push({
       id: u.id, defId: u.defId, name: u.name,
+      profileId: u.profileId || u.defId,  // [v13.1.3]
+      tier: u.tier || 1,                   // [v13.1.3]
       x: u.x, y: u.y, rot: u.rot,
       params: JSON.parse(JSON.stringify(u.params)),
       sticker: u.sticker ? JSON.parse(JSON.stringify(u.sticker)) : null,
@@ -19989,6 +20380,8 @@ function _pasteClipboard() {
     newUnit.params = JSON.parse(JSON.stringify(src.params));
     if (src.sticker) newUnit.sticker = JSON.parse(JSON.stringify(src.sticker));
     if (src.inventory) newUnit.inventory = JSON.parse(JSON.stringify(src.inventory));
+    if (src.profileId) newUnit.profileId = src.profileId;  // [v13.1.3]
+    if (src.tier) newUnit.tier = src.tier;                  // [v13.1.3]
 
     idMap.set(src.id, newId);
     newIds.push(newId);
@@ -20049,6 +20442,8 @@ function _duplicateAndDrag(ev) {
     newUnit.params = JSON.parse(JSON.stringify(src.params));
     if (src.sticker) newUnit.sticker = JSON.parse(JSON.stringify(src.sticker));
     if (src.inventory) newUnit.inventory = JSON.parse(JSON.stringify(src.inventory));
+    if (src.profileId) newUnit.profileId = src.profileId;  // [v13.1.3]
+    if (src.tier) newUnit.tier = src.tier;                  // [v13.1.3]
 
     idMap.set(src.id, newId);
     newIds.push(newId);
@@ -20470,6 +20865,8 @@ svg.addEventListener('drop', (ev) => {
   if (!id) {
     setStatus('Cannot place here — no free space nearby.');
     ui.dragDefId = null;
+    ui.dragProfileId = null;
+    ui.dragTier = null;
     ui.isHTML5Dragging = false;
     return;
   }
@@ -20481,10 +20878,24 @@ svg.addEventListener('drop', (ev) => {
   ui.selectedStickerKind = null;
   ui.pendingFrom = null;
   ui.reconnecting = null;
+  // [v13.1.3] Apply profile/tier from palette drag
+  const _droppedUnit = scene.units.get(id);
+  if (_droppedUnit) {
+    _droppedUnit.profileId = ui.dragProfileId || defId;
+    _droppedUnit.tier = ui.dragTier || 1;
+    // Apply tier-specific defaults if profile defines them
+    const _dropProfile = ProfileRegistry.get(_droppedUnit.profileId);
+    if (_dropProfile?.defaults?.[_droppedUnit.tier]) {
+      _droppedUnit.params = { ..._droppedUnit.params, ..._dropProfile.defaults[_droppedUnit.tier] };
+    }
+  }
   ui.dragDefId = null;
+  ui.dragProfileId = null;
+  ui.dragTier = null;
   ui.isHTML5Dragging = false;
+  const _profile = ProfileRegistry.get(_droppedUnit?.profileId || defId);
   autoPauseOnTopologyChange(); // [v9.0.1]
-  setStatus(`Placed: ${UnitRegistry.get(defId).name}`);
+  setStatus(`Placed: ${_profile?.name || UnitRegistry.get(defId)?.name || defId}`);
   
   updatePropertiesPanel();
   render();
@@ -21601,7 +22012,7 @@ function loadDemo() {
       // ══════════════════════════════════════════════════════════════════
 
       { id: 'b-feed', defId: 'source_multi', name: 'CH₄/Steam Feed', x: 4, y: -6, rot: 0,
-        params: { n: { CH4: 0.2, H2O: 0.4 }, T: 1000, P: 2000000, phaseConstraint: 'V' } },
+        params: { n: { CH4: 0.2, H2O: 0.4 }, T: 873, P: 2000000, phaseConstraint: 'V' } },
       { id: 'b-rx', defId: 'reactor_equilibrium', name: 'SMR Reactor', x: 8, y: -6, rot: 0,
         params: { reactionId: 'R_SMR_OVERALL', useKinetics: true, volume_m3: 1.0, heatDemand: 'isothermal', variant: 'elec-top' },
         sticker: { dx: -6, dy: -2, items: [
@@ -21757,7 +22168,7 @@ setViewBox();
 // [v10.3.0] M8: Restore from auto-save, or load demo
 // [v10.9.3] Version guard: if auto-save is from an older demo, load fresh demo
 {
-  const DEMO_VERSION = 'v13.1.1';  // bump this when demo scene changes
+  const DEMO_VERSION = 'v13.1.3';  // bump this when demo scene changes
   const saved = localStorage.getItem(AUTOSAVE_KEY);
   const savedDemoVer = localStorage.getItem(AUTOSAVE_KEY + '_demoVer');
   if (saved && savedDemoVer === DEMO_VERSION) {
@@ -29325,7 +29736,7 @@ function runTests() {
     const abHex  = t.place('hex',              38,  4, { T_approach: 10 });
 
     // ── PROCESS B: Steam Methane Reforming (endothermic) ──
-    const bFeed  = t.place('source_multi',     30,  4, { n: { CH4: 0.2, H2O: 0.4 }, T: 1000, P: 2000000, phaseConstraint: 'V' });
+    const bFeed  = t.place('source_multi',     30,  4, { n: { CH4: 0.2, H2O: 0.4 }, T: 873, P: 2000000, phaseConstraint: 'V' });
     const bRx    = t.place('reactor_equilibrium', 34, 4, { reactionId: 'R_SMR_OVERALL', useKinetics: true, volume_m3: 1.0, variant: 'elec-top', heatDemand: 'isothermal' });
     const bValve = t.place('valve',            42,  4, { Pout: 200000 });
     const bProd  = t.place('sink',             46,  4);
@@ -31148,7 +31559,7 @@ function runTests() {
     // Pump with T > T_HH (393 K) limit
     const def = UnitRegistry.get('pump');
     const ud = { ports: { mat_out: { T: 800, P: 500000, n: { H2O: 10 }, type: StreamType.MATERIAL } } };
-    const violations = evaluateLimits('u_pump', 'Pump', ud, def);
+    const violations = evaluateLimits('u_pump', 'Pump', ud, def, 'pump', 1);
     t.assertOK(violations.length >= 1, 'At least 1 violation');
     const tViol = violations.find(v => v.param === 'T_HH');
     t.assertOK(tViol, 'T_HH violation found');
@@ -31163,14 +31574,14 @@ function runTests() {
     const def = UnitRegistry.get('pump');
     // [v13.0.8] Reduced flow: 5 mol/s H2O = 0.09 kg/s, under mass_HH=0.12
     const ud = { ports: { mat_out: { T: 350, P: 500000, n: { H2O: 5 }, type: StreamType.MATERIAL } } };
-    const violations = evaluateLimits('u_pump', 'Pump', ud, def);
+    const violations = evaluateLimits('u_pump', 'Pump', ud, def, 'pump', 1);
     t.assertOK(violations.length === 0, `No violations in normal range (got ${violations.length}: ${violations.map(v=>v.param).join(',')})`);
   });
 
   test('338: S1c — evaluateLimits P_LL violation', t => {
     const def = UnitRegistry.get('flash_drum');
     const ud = { ports: { vap_out: { T: 350, P: 5000, n: { H2O: 1 }, type: StreamType.MATERIAL } } };
-    const violations = evaluateLimits('u_flash', 'Flash Drum', ud, def);
+    const violations = evaluateLimits('u_flash', 'Flash Drum', ud, def, 'flash_drum', 1);
     const pViol = violations.find(v => v.param === 'P_LL');
     t.assertOK(pViol, 'P_LL violation (5000 < 20000 Pa limit)');
     t.assertOK(pViol.severity === AlarmSeverity.CATASTROPHIC, 'P_LL is CATASTROPHIC (destruction)');
@@ -31181,7 +31592,7 @@ function runTests() {
     // 60 kg/s exceeds compressor mass_HH = 0.05
     const ud = { ports: { mat_out: { T: 350, P: 500000, n: { N2: 2142.8 }, type: StreamType.MATERIAL } } };
     // N2: 2142.8 mol/s × 28.014 g/mol / 1000 ≈ 60 kg/s
-    const violations = evaluateLimits('u_comp', 'Compressor', ud, def);
+    const violations = evaluateLimits('u_comp', 'Compressor', ud, def, 'compressor', 1);
     const mViol = violations.find(v => v.param === 'mass_HH');
     t.assertOK(mViol, 'mass_HH violation found');
   });
@@ -31190,7 +31601,7 @@ function runTests() {
     const def = UnitRegistry.get('pump');
     // T=100 < T_LL=200, P=500 < P_LL=1000
     const ud = { ports: { mat_out: { T: 100, P: 500, n: { H2O: 1 }, type: StreamType.MATERIAL } } };
-    const violations = evaluateLimits('u_pump', 'Pump', ud, def);
+    const violations = evaluateLimits('u_pump', 'Pump', ud, def, 'pump', 1);
     t.assertOK(violations.length >= 2, `≥2 violations: ${violations.length}`);
     t.assertOK(violations.some(v => v.param === 'T_LL'), 'T_LL found');
     t.assertOK(violations.some(v => v.param === 'P_LL'), 'P_LL found');
@@ -31200,7 +31611,7 @@ function runTests() {
     const def = UnitRegistry.get('electric_heater');
     // T=900K exceeds both T_H (723) and T_HH (823)
     const ud = { ports: { mat_out: { T: 900, P: 200000, n: { H2O: 0.1 }, type: StreamType.MATERIAL } } };
-    const violations = evaluateLimits('u_htr', 'Heater', ud, def);
+    const violations = evaluateLimits('u_htr', 'Heater', ud, def, 'electric_heater', 1);
     const tHH = violations.find(v => v.param === 'T_HH');
     const tH = violations.find(v => v.param === 'T_H');
     t.assertOK(tHH, 'T_HH violation present');
@@ -31208,7 +31619,7 @@ function runTests() {
     // Same for LL suppressing L
     const def2 = UnitRegistry.get('pump');
     const ud2 = { ports: { mat_out: { T: 100, P: 200000, n: { H2O: 1 }, type: StreamType.MATERIAL } } };
-    const viol2 = evaluateLimits('u_pump', 'Pump', ud2, def2);
+    const viol2 = evaluateLimits('u_pump', 'Pump', ud2, def2, 'pump', 1);
     const tLL = viol2.find(v => v.param === 'T_LL');
     const tL = viol2.find(v => v.param === 'T_L');
     t.assertOK(tLL, 'T_LL violation present');
@@ -31223,7 +31634,7 @@ function runTests() {
       mat_in:  { T: 800, P: 300000, n: { N2: 0.5 }, type: StreamType.MATERIAL },
       mat_out: { T: 500, P: 101325, n: { N2: 0.5 }, type: StreamType.MATERIAL }
     }};
-    const violations = evaluateLimits('u_turb', 'Gas Turbine', ud, def);
+    const violations = evaluateLimits('u_turb', 'Gas Turbine', ud, def, 'gas_turbine', 1);
     const pLL = violations.find(v => v.param === 'P_LL');
     t.assertOK(!pLL, 'No P_LL — inlet at 3 bar is fine (outlet 1 atm ignored)');
     // Now inlet below P_LL (100 kPa < 150 kPa) — should fire
@@ -31231,21 +31642,128 @@ function runTests() {
       mat_in:  { T: 500, P: 100000, n: { N2: 0.5 }, type: StreamType.MATERIAL },
       mat_out: { T: 400, P: 80000,  n: { N2: 0.5 }, type: StreamType.MATERIAL }
     }};
-    const viol2 = evaluateLimits('u_turb', 'Gas Turbine', ud2, def);
+    const viol2 = evaluateLimits('u_turb', 'Gas Turbine', ud2, def, 'gas_turbine', 1);
     const pLL2 = viol2.find(v => v.param === 'P_LL');
     t.assertOK(pLL2, 'P_LL fires when inlet pressure too low');
   });
 
-  test('341: S1c — getEffectiveLimits returns S-size data', t => {
-    const def = UnitRegistry.get('reactor_equilibrium');
-    const limits = getEffectiveLimits(def, 'S');
+  test('341: S1c — getEffectiveLimits returns tier data', t => {
+    const limits = getEffectiveLimits('reactor_equilibrium', 1);
     t.assertOK(limits, 'Limits returned');
     // [v13.0.8] Updated to matrix-correct values
-    t.assertOK(limits.T_HH === 923, 'T_HH = 923 K');
+    t.assertOK(limits.T_HH === 1573, 'T_HH = 1573 K (provisional, S6 will split by variant)');
     t.assertOK(limits.P_HH === 15000000, 'P_HH = 15 MPa');
     t.assertOK(limits.mass_HH === 0.08, 'mass_HH = 0.08 kg/s');
     t.assertOK(limits.T_L === 373, 'T_L = 373 K (WARNING tier)');
     t.assertOK(limits.P_L === 80000, 'P_L = 80 kPa');
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // Profile Registry tests [v13.1.3]
+  // ═══════════════════════════════════════════════════════════════════════
+
+  test('341a: ProfileRegistry — all production units have profiles', t => {
+    // Every unit with limitParams should have a matching profile
+    const defs = UnitRegistry.list();
+    const withLimits = defs.filter(d => d.limitParams?.length > 0);
+    for (const def of withLimits) {
+      const profile = ProfileRegistry.get(def.defId);
+      t.assertOK(profile, `Profile exists for ${def.defId}`);
+      t.assertOK(profile.defId === def.defId, `Profile defId matches for ${def.defId}`);
+    }
+  });
+
+  test('341b: ProfileRegistry — T2 mixer has wider limits', t => {
+    const profile = ProfileRegistry.get('mixer');
+    t.assertOK(profile, 'Mixer profile exists');
+    t.assertOK(profile.tiers.includes(1), 'Mixer has tier 1');
+    t.assertOK(profile.tiers.includes(2), 'Mixer has tier 2');
+    const t1 = getEffectiveLimits('mixer', 1);
+    const t2 = getEffectiveLimits('mixer', 2);
+    t.assertOK(t1 && t2, 'Both tier limits resolved');
+    t.assertOK(t2.T_HH > t1.T_HH, `T2 T_HH (${t2.T_HH}) > T1 T_HH (${t1.T_HH})`);
+    t.assertOK(t2.T_LL < t1.T_LL, `T2 T_LL (${t2.T_LL}) < T1 T_LL (${t1.T_LL})`);
+    t.assertOK(t2.mass_HH > t1.mass_HH, `T2 mass_HH (${t2.mass_HH}) > T1 mass_HH (${t1.mass_HH})`);
+  });
+
+  test('341c: ProfileRegistry — listByCategory groups profiles', t => {
+    const byCategory = ProfileRegistry.listByCategory();
+    t.assertOK(Object.keys(byCategory).length > 0, 'Has categories');
+    // Pressure category should contain gas_turbine, valve, pump, compressor
+    const pressure = byCategory['Pressure'] || [];
+    const pressureIds = pressure.map(p => p.profileId);
+    t.assertOK(pressureIds.includes('gas_turbine'), 'Pressure has gas_turbine');
+    t.assertOK(pressureIds.includes('pump'), 'Pressure has pump');
+  });
+
+  test('341d: ProfileRegistry — getByDefId finds all profiles for a defId', t => {
+    const mixerProfiles = ProfileRegistry.getByDefId('mixer');
+    t.assertOK(mixerProfiles.length >= 1, 'At least 1 mixer profile');
+    t.assertOK(mixerProfiles[0].profileId === 'mixer', 'Profile id matches');
+  });
+
+  test('341e: placeUnit assigns profileId and tier', t => {
+    const id = t.place('pump', 0, 0, { Pout: 500000, eta: 0.75 });
+    const u = scene.units.get(id);
+    t.assertOK(u.profileId === 'pump', `profileId = pump (got ${u.profileId})`);
+    t.assertOK(u.tier === 1, `tier = 1 (got ${u.tier})`);
+  });
+
+  test('341f: exportJSON/importJSON round-trips profileId and tier', t => {
+    const id = t.place('mixer', 0, 0);
+    const u = scene.units.get(id);
+    u.profileId = 'mixer';
+    u.tier = 2;
+    const json = scene.exportJSON();
+    const data = JSON.parse(json);
+    const saved = data.units.find(u2 => u2.id === id);
+    t.assertOK(saved.profileId === 'mixer', 'Exported profileId');
+    t.assertOK(saved.tier === 2, 'Exported tier');
+    // Import fresh
+    const s2 = new Scene();
+    const result = s2.importJSON(json);
+    t.assertOK(result.ok, 'Import OK');
+    const u2 = s2.units.get(id);
+    t.assertOK(u2.profileId === 'mixer', 'Imported profileId');
+    t.assertOK(u2.tier === 2, 'Imported tier');
+  });
+
+  test('341g: ProfileRegistry — battery has 3 tiers with escalating defaults', t => {
+    const profile = ProfileRegistry.get('battery');
+    t.assertOK(profile, 'Battery profile exists');
+    t.assertOK(profile.tiers.length === 3, 'Battery has 3 tiers');
+    const d1 = profile.defaults[1];
+    const d2 = profile.defaults[2];
+    const d3 = profile.defaults[3];
+    t.assertOK(d1 && d2 && d3, 'All tier defaults present');
+    t.assertOK(d1.peakPower_kW === 20,  'T1: 20 kW');
+    t.assertOK(d2.peakPower_kW === 100, 'T2: 100 kW');
+    t.assertOK(d3.peakPower_kW === 500, 'T3: 500 kW');
+    t.assertOK(d1.capacity_J === 36000000,   'T1: 10 kWh (36 MJ)');
+    t.assertOK(d2.capacity_J === 360000000,  'T2: 100 kWh (360 MJ)');
+    t.assertOK(d3.capacity_J === 3600000000, 'T3: 1 MWh (3600 MJ)');
+  });
+
+  test('341h: ProfileRegistry — power_hub is tier 2 only', t => {
+    const profile = ProfileRegistry.get('power_hub');
+    t.assertOK(profile, 'Power Hub profile exists');
+    t.assertOK(profile.tiers.length === 1, 'Single tier');
+    t.assertOK(profile.tiers[0] === 2, 'Tier 2 only');
+  });
+
+  test('341i: ProfileRegistry — boundary units flagged, single-tier, no limits', t => {
+    for (const pId of ['source', 'source_multi', 'source_air', 'sink', 'grid_supply', 'sink_electrical']) {
+      const p = ProfileRegistry.get(pId);
+      t.assertOK(p, `${pId} profile exists`);
+      t.assertOK(p.boundary === true, `${pId}: boundary flag set`);
+      t.assertOK(p.tiers.length === 1 && p.tiers[0] === 1, `${pId}: single tier [1]`);
+      t.assertOK(Object.keys(p.limits).length === 0, `${pId}: no limits`);
+    }
+    // Non-boundary equipment should NOT have boundary flag
+    for (const pId of ['pump', 'mixer', 'battery', 'power_hub']) {
+      const p = ProfileRegistry.get(pId);
+      t.assertOK(!p.boundary, `${pId}: not boundary`);
+    }
   });
 
   test('342: S1c — getLimitParam reads T, P, mass correctly', t => {
@@ -31351,7 +31869,7 @@ function runTests() {
   test('348: v13.0.8 — domain routing: limit violations are PLANT', t => {
     const def = UnitRegistry.get('pump');
     const ud = { ports: { mat_out: { T: 800, P: 500000, n: { H2O: 1 }, type: StreamType.MATERIAL } } };
-    const violations = evaluateLimits('u_pump', 'Pump', ud, def);
+    const violations = evaluateLimits('u_pump', 'Pump', ud, def, 'pump', 1);
     t.assertOK(violations.length > 0, 'Has violations');
     for (const v of violations) {
       t.assertOK(v.domain === AlarmDomain.PLANT, `${v.param}: domain = PLANT`);
@@ -31417,14 +31935,14 @@ function runTests() {
     const def = UnitRegistry.get('tank');
     // Simulate a tank at 95% fill → should trigger level_H (90%)
     const ud = { last: { fillPct: 95 }, ports: { mat_out: { T: 300, P: 101325, n: { H2O: 1 }, type: StreamType.MATERIAL } } };
-    const violations = evaluateLimits('u_tank', 'Tank', ud, def);
+    const violations = evaluateLimits('u_tank', 'Tank', ud, def, 'tank', 1);
     const lvlH = violations.find(v => v.param === 'level_H');
     t.assertOK(lvlH, 'level_H violation at 95% fill');
     t.assertOK(lvlH.severity === AlarmSeverity.WARNING, 'level_H is WARNING');
     t.assertOK(lvlH.message.includes('%'), 'Message includes % formatting');
     // At 101% → level_HH should trigger (>100 threshold)
     const ud100 = { last: { fillPct: 101 }, ports: { mat_out: { T: 300, P: 101325, n: { H2O: 1 }, type: StreamType.MATERIAL } } };
-    const viol100 = evaluateLimits('u_tank', 'Tank', ud100, def);
+    const viol100 = evaluateLimits('u_tank', 'Tank', ud100, def, 'tank', 1);
     const lvlHH = viol100.find(v => v.param === 'level_HH');
     t.assertOK(lvlHH, 'level_HH violation at 101% fill');
     t.assertOK(lvlHH.severity === AlarmSeverity.CATASTROPHIC, 'level_HH is CATASTROPHIC');
