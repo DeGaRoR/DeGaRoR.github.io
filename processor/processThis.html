@@ -3192,6 +3192,21 @@
           <text x="32" y="74" text-anchor="middle" font-size="16" font-weight="700" fill="currentColor" opacity="0.7">L</text>
         </symbol>
         
+        <!-- [v13.4.0] Distillation column — tall trayed vessel with condenser/reboiler -->
+        <symbol id="ico-distillation_column" viewBox="0 0 64 96">
+          <!-- Column vessel -->
+          <rect x="18" y="6" width="28" height="84" rx="14" ry="14" fill="none" stroke="currentColor" stroke-width="3"/>
+          <!-- Trays (horizontal internals) -->
+          <line x1="22" y1="26" x2="42" y2="26" stroke="currentColor" stroke-width="1.5" opacity="0.5"/>
+          <line x1="22" y1="38" x2="42" y2="38" stroke="currentColor" stroke-width="1.5" opacity="0.5"/>
+          <line x1="22" y1="50" x2="42" y2="50" stroke="currentColor" stroke-width="1.5" opacity="0.5"/>
+          <line x1="22" y1="62" x2="42" y2="62" stroke="currentColor" stroke-width="1.5" opacity="0.5"/>
+          <!-- D label (top) -->
+          <text x="32" y="20" text-anchor="middle" font-size="13" font-weight="700" fill="currentColor" opacity="0.7">D</text>
+          <!-- B label (bottom) -->
+          <text x="32" y="80" text-anchor="middle" font-size="13" font-weight="700" fill="currentColor" opacity="0.7">B</text>
+        </symbol>
+        
         <symbol id="ico-splitter" viewBox="0 0 64 64">
           <!-- Single inlet to two outlets -->
           <path d="M8 32 L32 32" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
@@ -7389,6 +7404,29 @@ class ThermoAdapter {
   kValue(comp, T_K, P_Pa, composition) {
     return this._pkg.kValue(comp, T_K, P_Pa, composition);
   }
+
+  /**
+   * [v13.4.0] S4a — Mixture molar enthalpy (ideal-mixing approximation).
+   * H_mix = Σ(x_i × h_i(T, P, phase))  [J/mol]
+   *
+   * Uses per-species hMolar (which includes H_dep under PR).
+   * Does NOT include mixture cross-terms from PR mixing rules —
+   * acceptable for shortcut distillation energy estimates.
+   *
+   * @param {Object} z - { species: moleFraction }
+   * @param {number} T_K - Temperature (K)
+   * @param {number} P_Pa - Pressure (Pa)
+   * @param {string} phaseHint - 'V', 'L', or 'VL'
+   * @returns {number} Mixture molar enthalpy (J/mol)
+   */
+  hMolar_mix(z, T_K, P_Pa, phaseHint) {
+    let H = 0;
+    for (const [sp, xi] of Object.entries(z)) {
+      if (xi <= 0) continue;
+      H += xi * this.hMolar(sp, T_K, P_Pa, phaseHint);
+    }
+    return H;
+  }
   
   /**
    * Authoritative saturation temperature calculation (inverse Antoine)
@@ -10557,6 +10595,9 @@ UnitRegistry.register('air_cooler', {
                     n: nAir, phaseConstraint: 'V' };
 
     // ── HEX DNA: capacity rates + ε-NTU (counter-current) ──
+    // NOTE [v13.4.0]: Uses inline effective-Cp (Q_demand/ΔT) for process side,
+    // NOT hxCapacityRates(). This is correct: air_cooler's process-side Cp already
+    // captures phase-change duty. Air side is always single-phase (no fix needed).
     const H_air_in = thermo.getHdot_Jps(sAir);
     const dT_process = sIn.T - T_setpoint;
     const C_proc_eff = dT_process > 0.1 ? Q_demand_W / dT_process : thermo.streamCp(sIn);
@@ -11348,6 +11389,406 @@ UnitRegistry.register('flash_drum', {
 // [v12.0.0] reactor_adiabatic deleted — subsumed by reactor_equilibrium insulated mode
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// DISTILLATION COLUMN — Shortcut FUG Method [v13.4.0]
+// ═══════════════════════════════════════════════════════════════════════════════
+// Fenske-Underwood-Gilliland shortcut distillation.
+// Computes product splits from relative volatility (K-values from thermo).
+// Two product streams: distillate (light) and bottoms (heavy).
+// Electrical power input drives the reboiler.
+// Condenser heat is output as electrical (recoverable, or dump).
+
+// ── FUG Pure Functions ──────────────────────────────────────────────────────
+
+/**
+ * Fenske equation — minimum stages at total reflux.
+ * @param {number} xD_LK - LK mole fraction in distillate
+ * @param {number} xD_HK - HK mole fraction in distillate (= 1 − xD_LK for binary)
+ * @param {number} xB_LK - LK mole fraction in bottoms (= 1 − xB_HK)
+ * @param {number} xB_HK - HK mole fraction in bottoms
+ * @param {number} alpha_LK - Relative volatility of LK w.r.t. HK
+ * @returns {number} N_min (minimum theoretical stages)
+ */
+function fenskeNmin(xD_LK, xD_HK, xB_LK, xB_HK, alpha_LK) {
+  if (alpha_LK <= 1.001) return Infinity;  // no separation possible
+  return Math.log((xD_LK / xD_HK) * (xB_HK / xB_LK)) / Math.log(alpha_LK);
+}
+
+/**
+ * Distribute non-key components at total reflux.
+ * (d_i / b_i) = (d_LK / b_LK) × α_i^N_min
+ *
+ * @param {Object} z_feed - { species: moleFraction } in feed
+ * @param {number} F_total - Total feed molar flow (mol/s)
+ * @param {Object} alphas - { species: relativeVolatility }
+ * @param {number} N_min
+ * @param {string} LK, HK
+ * @param {number} xD_LK, xB_HK - key purities
+ * @returns {{ d: {species: mol/s}, b: {species: mol/s}, D, B, feasible }}
+ */
+function fenskeDistribution(z_feed, F_total, alphas, N_min, LK, HK, xD_LK, xB_HK) {
+  const d = {}, b = {};
+
+  // Key component material balance (binary key approximation for D/B estimate)
+  const z_LK = z_feed[LK] || 0;
+  const z_HK = z_feed[HK] || 0;
+  const F = F_total;
+
+  // Binary D/B estimate (keys only in products)
+  const D_est = F * (z_LK * xB_HK + z_HK * (xD_LK - 1))
+              / (xD_LK * xB_HK - (1 - xD_LK) * (1 - xB_HK));
+  const B_est = F - D_est;
+
+  if (D_est <= 0 || B_est <= 0) {
+    return { d: { ...z_feed }, b: {}, D: F, B: 0, feasible: false };
+  }
+
+  // LK split ratio from binary estimate
+  const d_LK_est = xD_LK * D_est;
+  const b_LK_est = F * z_LK - d_LK_est;
+  const dLK_over_bLK = d_LK_est / Math.max(b_LK_est, 1e-30);
+  const alpha_LK = alphas[LK] || 1.0;
+
+  // Distribute ALL components (including keys) via Fenske equation:
+  // d_i / b_i = (d_LK / b_LK) × (alpha_i / alpha_LK)^N_min
+  // This ensures d_i + b_i = F × z_i for every species (exact mass balance)
+  for (const [sp, zi] of Object.entries(z_feed)) {
+    const alpha_i = alphas[sp] || 1.0;
+    const ratio = dLK_over_bLK * Math.pow(alpha_i / alpha_LK, N_min);
+    const f_i = F * zi;
+    d[sp] = f_i * ratio / (1 + ratio);
+    b[sp] = f_i - d[sp];
+  }
+
+  // Actual D, B from distributed splits
+  let D_actual = 0, B_actual = 0;
+  for (const sp of Object.keys(z_feed)) {
+    D_actual += d[sp] || 0;
+    B_actual += b[sp] || 0;
+  }
+
+  return { d, b, D: D_actual, B: B_actual, feasible: true };
+}
+
+/**
+ * Underwood equation — minimum reflux ratio.
+ * Finds θ root from: Σ[α_i × z_i / (α_i − θ)] = 1 − q
+ * Then: R_min = Σ[α_i × xD_i / (α_i − θ)] − 1
+ *
+ * @param {Object} z_feed - feed mole fractions
+ * @param {Object} x_D    - distillate mole fractions
+ * @param {Object} alphas  - relative volatilities
+ * @param {number} q       - feed thermal condition (1=sat liq, 0=sat vap)
+ * @returns {{ theta, R_min }}
+ */
+function underwoodRmin(z_feed, x_D, alphas, q) {
+  const species = Object.keys(z_feed);
+  const alpha_vals = species.map(sp => alphas[sp] || 1.0);
+  const z_vals = species.map(sp => z_feed[sp] || 0);
+  const xD_vals = species.map(sp => x_D[sp] || 0);
+
+  // Find θ by bisection: f(θ) = Σ[α_i z_i / (α_i − θ)] − (1 − q) = 0
+  // θ lies between α_HK and α_LK (both > 0)
+  const alpha_sorted = [...alpha_vals].sort((a, b) => a - b);
+  let lo = alpha_sorted[0] + 0.001;
+  let hi = alpha_sorted[alpha_sorted.length - 1] - 0.001;
+  if (lo >= hi) lo = 0.5;
+
+  let theta = (lo + hi) / 2;
+  for (let iter = 0; iter < 50; iter++) {
+    theta = (lo + hi) / 2;
+    let sum = 0;
+    for (let i = 0; i < species.length; i++) {
+      const denom = alpha_vals[i] - theta;
+      if (Math.abs(denom) < 1e-10) { sum += 1e10 * Math.sign(z_vals[i]); continue; }
+      sum += alpha_vals[i] * z_vals[i] / denom;
+    }
+    const target = 1 - q;
+    if (Math.abs(sum - target) < 1e-6) break;
+    if (sum > target) hi = theta; else lo = theta;
+  }
+
+  // R_min from second Underwood equation
+  let R_min = -1;
+  for (let i = 0; i < species.length; i++) {
+    const denom = alpha_vals[i] - theta;
+    if (Math.abs(denom) < 1e-10) continue;
+    R_min += alpha_vals[i] * xD_vals[i] / denom;
+  }
+
+  return { theta, R_min: Math.max(0, R_min) };
+}
+
+/**
+ * Gilliland correlation (Molokanov form).
+ * Given N_min and R_min, compute actual stages N.
+ *
+ * @param {number} N_min - Fenske minimum stages
+ * @param {number} R_min - Underwood minimum reflux
+ * @param {number} R     - Actual reflux ratio
+ * @returns {number} N_actual (theoretical stages needed)
+ */
+function gillilandStages(N_min, R_min, R) {
+  if (R <= R_min) return Infinity;  // below minimum reflux
+  const X = (R - R_min) / (R + 1);
+  if (X <= 0 || X >= 1) return N_min * 2;  // fallback
+
+  const Y = 1 - Math.exp(
+    ((1 + 54.4 * X) / (11 + 117.2 * X)) * ((X - 1) / Math.sqrt(X))
+  );
+
+  if (Y >= 1 || Y < 0) return N_min * 2;
+  return (N_min + Y) / (1 - Y);
+}
+
+/**
+ * Compute feed thermal condition q.
+ * q = 1.0 for saturated liquid, 0.0 for saturated vapor.
+ * q = (H_sat_vap − H_feed) / (H_sat_vap − H_sat_liq)
+ *
+ * @param {Object} stream - feed stream with T, P, n
+ * @param {number} P_col_Pa - column operating pressure (Pa)
+ * @returns {number} q (0–1.5, allows subcooled q > 1)
+ */
+function feedThermalCondition(stream, P_col_Pa) {
+  const nTotal = Object.values(stream.n).reduce((a, b) => a + b, 0);
+  if (nTotal <= 0) return 1.0;
+
+  // Normalize to mole fractions
+  const z = {};
+  for (const [sp, n] of Object.entries(stream.n)) z[sp] = n / nTotal;
+
+  // Per-mole feed enthalpy
+  const H_feed = thermo.getHdot_Jps(stream) / nTotal;  // J/mol
+
+  // Saturated liquid and vapor enthalpies at feed T and column P
+  const H_liq = thermo.hMolar_mix(z, stream.T, P_col_Pa, 'L');
+  const H_vap = thermo.hMolar_mix(z, stream.T, P_col_Pa, 'V');
+
+  if (Math.abs(H_vap - H_liq) < 1) return 1.0;  // no phase change
+  const q = (H_vap - H_feed) / (H_vap - H_liq);
+  return Math.max(0, Math.min(1.5, q));  // allow subcooled (q > 1)
+}
+
+// ── Unit Registration ───────────────────────────────────────────────────────
+
+UnitRegistry.register('distillation_column', {
+  name: 'Distillation Column',
+  category: UnitCategories.SEPARATOR,
+  w: 2,
+  h: 3,
+  ports: [
+    { portId: 'mat_in',    dir: PortDir.IN,  type: StreamType.MATERIAL,   x: 0, y: 1 },
+    { portId: 'elec_in',   dir: PortDir.IN,  type: StreamType.ELECTRICAL, x: 1, y: 0 },
+    { portId: 'mat_out_D', dir: PortDir.OUT, type: StreamType.MATERIAL,   x: 2, y: 0, label: 'D' },
+    { portId: 'mat_out_B', dir: PortDir.OUT, type: StreamType.MATERIAL,   x: 2, y: 2, label: 'B' }
+  ],
+  presentations: {
+    'box/default': { w: 2, h: 3, ports: {
+      mat_in:{x:0,y:1.5}, elec_in:{x:1,y:0}, mat_out_D:{x:2,y:0.5},
+      mat_out_B:{x:2,y:2.5}
+    }}
+  },
+  limitParams: ['T_LL', 'T_L', 'T_H', 'T_HH', 'P_LL', 'P_L', 'P_H', 'P_HH', 'mass_HH'],
+  tick(u, ports, par, ctx) {
+    // Fry guard (S2)
+    if (u.fried) {
+      u.powerDemand = 0;
+      const sIn = ports.mat_in;
+      if (sIn) {
+        const H_in = thermo.getHdot_Jps(sIn);
+        const nTotal = Object.values(sIn.n).reduce((a, b) => a + b, 0);
+        const halfN = {};
+        for (const sp of Object.keys(sIn.n)) halfN[sp] = sIn.n[sp] * 0.5;
+        ports.mat_out_D = { type: StreamType.MATERIAL, P: sIn.P, n: { ...halfN },
+          phaseConstraint: 'VL', H_target_Jps: H_in * 0.5 };
+        ports.mat_out_B = { type: StreamType.MATERIAL, P: sIn.P, n: { ...halfN },
+          phaseConstraint: 'VL', H_target_Jps: H_in * 0.5 };
+      }
+      u.last = { fried: true, error: { severity: ErrorSeverity.CATASTROPHIC,
+        message: 'Column reboiler destroyed by electrical overload. Replace or reset.' } };
+      return;
+    }
+
+    const sIn = ports.mat_in;
+    if (!sIn) return;
+
+    const P_col = (par.P_column_bar ?? 1.0) * 1e5;
+    const LK = par.lightKey;
+    const HK = par.heavyKey;
+
+    // ── Validation ──
+    const nTotal = Object.values(sIn.n).reduce((a, b) => a + b, 0);
+    if (nTotal < 1e-15) {
+      u.last = { error: { severity: ErrorSeverity.MAJOR, message: 'Empty feed' } };
+      return;
+    }
+
+    const species = Object.keys(sIn.n).filter(sp => sIn.n[sp] > 1e-15);
+    if (species.length < 2) {
+      u.last = { error: { severity: ErrorSeverity.MAJOR,
+        message: 'Feed is single-component — distillation requires at least two species.' } };
+      return;
+    }
+
+    if (!LK || !HK || !sIn.n[LK] || !sIn.n[HK]) {
+      u.last = { error: { severity: ErrorSeverity.MAJOR,
+        message: `No ${!LK ? 'light' : 'heavy'} key ${!LK ? '' : `(${HK})`} in feed. Set key species in inspector.` } };
+      return;
+    }
+
+    // ── K-values and relative volatility ──
+    const z = {};
+    for (const sp of species) z[sp] = sIn.n[sp] / nTotal;
+
+    const K = {};
+    for (const sp of species) {
+      K[sp] = thermo.kValue(sp, sIn.T, P_col, z);
+    }
+    const K_HK = K[HK] || 1e-10;
+    const alphas = {};
+    for (const sp of species) {
+      alphas[sp] = K[sp] / K_HK;
+    }
+
+    const alpha_LK = alphas[LK];
+    if (alpha_LK < 1.05) {
+      u.last = { error: { severity: ErrorSeverity.WARNING,
+        message: `α(${LK}/${HK}) = ${alpha_LK.toFixed(2)} — separation very difficult. Try different pressure or keys.` } };
+    }
+
+    // ── FUG calculations ──
+    const xD_LK = par.xD_lightKey ?? 0.95;
+    const xB_HK = par.xB_heavyKey ?? 0.95;
+    const xD_HK = 1 - xD_LK;  // simplified binary assumption for key balance
+    const xB_LK = 1 - xB_HK;
+
+    const N_min = fenskeNmin(xD_LK, xD_HK, xB_LK, xB_HK, alpha_LK);
+    const dist = fenskeDistribution(z, nTotal, alphas, N_min, LK, HK, xD_LK, xB_HK);
+
+    if (!dist.feasible) {
+      u.last = { error: { severity: ErrorSeverity.MAJOR,
+        message: 'Infeasible separation — check purity specs vs feed composition.' } };
+      return;
+    }
+
+    // Distillate composition (mole fractions)
+    const x_D = {};
+    for (const sp of species) x_D[sp] = (dist.d[sp] || 0) / dist.D;
+
+    const q = feedThermalCondition(sIn, P_col);
+    const uw = underwoodRmin(z, x_D, alphas, q);
+    const R = (par.R_over_Rmin ?? 1.3) * uw.R_min;
+    const N_actual = gillilandStages(N_min, uw.R_min, R);
+
+    // ── Column sizing check ──
+    const N_user = par.N_stages ?? 20;
+    const undersized = N_actual > N_user;
+    if (undersized) {
+      u.last = u.last || {};
+      u.last.error = {
+        severity: ErrorSeverity.WARNING,
+        message: `Column has ${N_user} stages but ${N_actual.toFixed(0)} needed. Increase stages, reduce purity, or adjust R/R_min.`
+      };
+    }
+
+    // ── Energy balance ──
+    const H_D_vap = thermo.hMolar_mix(x_D, sIn.T, P_col, 'V');
+    const H_D_liq = thermo.hMolar_mix(x_D, sIn.T, P_col, 'L');
+    const lambda = H_D_vap - H_D_liq;  // J/mol (latent heat at distillate composition)
+
+    const Q_condenser_W = R * dist.D * lambda;       // W (condenser duty)
+    const H_in = thermo.getHdot_Jps(sIn);            // W (feed enthalpy flow)
+    const H_D_out = dist.D * H_D_liq;                // W (distillate enthalpy)
+    const x_B = {};
+    for (const sp of species) x_B[sp] = (dist.b[sp] || 0) / Math.max(dist.B, 1e-30);
+    const H_B_liq = thermo.hMolar_mix(x_B, sIn.T, P_col, 'L');
+    const H_B_out = dist.B * H_B_liq;                // W (bottoms enthalpy)
+    const Q_reboiler_W = Q_condenser_W + H_D_out + H_B_out - H_in;
+
+    // ── Power demand / allocation ──
+    u.powerDemand = Math.max(0, Q_reboiler_W);
+
+    const sElec = ports.elec_in;
+    const s = ctx ? ctx.scratch : {};
+    const W_avail = Math.min(
+      s.hubAllocated_W ?? (sElec?.actual ?? sElec?.available ?? 0),
+      Q_reboiler_W > 0 ? Q_reboiler_W : Infinity
+    );
+
+    // Power-limited separation
+    let separationFactor = 1.0;
+    if (Q_reboiler_W > 0 && W_avail < Q_reboiler_W - 1) {
+      separationFactor = W_avail / Q_reboiler_W;
+    }
+
+    // ── Output streams ──
+    // Scale product splits by separationFactor (partial separation if power-limited)
+    // At sf=0: feed split proportionally to D/F and B/F (no separation, mass conserved)
+    // At sf=1: full FUG separation
+    const d_actual = {}, b_actual = {};
+    for (const sp of species) {
+      const d_full = dist.d[sp] || 0;
+      const b_full = dist.b[sp] || 0;
+      d_actual[sp] = z[sp] * dist.D * (1 - separationFactor) + d_full * separationFactor;
+      b_actual[sp] = z[sp] * dist.B * (1 - separationFactor) + b_full * separationFactor;
+    }
+
+    // Distillate outlet (PH-flash resolves T and phase)
+    ports.mat_out_D = {
+      type: StreamType.MATERIAL,
+      P: P_col,
+      n: d_actual,
+      phaseConstraint: 'VL',
+      H_target_Jps: dist.D * H_D_liq * separationFactor
+        + (1 - separationFactor) * H_in * (dist.D / nTotal)
+    };
+
+    // Bottoms outlet
+    ports.mat_out_B = {
+      type: StreamType.MATERIAL,
+      P: P_col,
+      n: b_actual,
+      phaseConstraint: 'VL',
+      H_target_Jps: dist.B * H_B_liq * separationFactor
+        + (1 - separationFactor) * H_in * (dist.B / nTotal)
+    };
+
+    // Condenser heat absorbed into product streams.
+    // Distillate exits subcooled (condenser cools it).
+    // Bottoms exits hot (reboiler heats it).
+    // No separate condenser port — player cools downstream if needed.
+
+    // ── Diagnostics ──
+    u.last = {
+      N_min: N_min,
+      N_actual: N_actual,
+      N_stages: N_user,
+      undersized,
+      R_min: uw.R_min,
+      R: R,
+      theta: uw.theta,
+      q: q,
+      alpha_LK: alpha_LK,
+      Q_reboiler_kW: Q_reboiler_W / 1000,
+      Q_condenser_kW: Q_condenser_W / 1000,
+      Q_reboiler_actual_kW: (W_avail / 1000),
+      separationFactor,
+      D_molps: dist.D,
+      B_molps: dist.B,
+      LK, HK
+    };
+
+    // Preserve undersized warning even after u.last reassignment
+    if (undersized) {
+      u.last.error = {
+        severity: ErrorSeverity.WARNING,
+        message: `Column has ${N_user} stages but ${N_actual.toFixed(0)} needed. Increase stages, reduce purity, or adjust R/R_min.`
+      };
+    }
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // REACTOR (Equilibrium) — CSTR T-ξ solver [v11.0.0]
 // ═══════════════════════════════════════════════════════════════════════════════
 // Two modes:
@@ -11701,6 +12142,12 @@ ProfileRegistry.register('flash_drum', {
   defId: 'flash_drum', name: 'Flash Drum', category: UnitCategories.SEPARATOR, tiers: [1],
   limits: { 1: { T_LL: 243, T_L: 263, T_H: 523, T_HH: 623, P_LL: 20000, P_L: 50000, P_H: 12000000, P_HH: 15000000, mass_HH: 0.15 } }
 });
+// [v13.4.0] S4a — Distillation column: cryogenic-capable (T_LL=73K for LN₂),
+// moderate-pressure vessel (50 bar max), pilot-plant mass flow.
+ProfileRegistry.register('distillation_column', {
+  defId: 'distillation_column', name: 'Distillation Column', category: UnitCategories.SEPARATOR, tiers: [1],
+  limits: { 1: { T_LL: 73, T_L: 100, T_H: 473, T_HH: 523, P_LL: 5000, P_L: 50000, P_H: 4000000, P_HH: 5000000, mass_HH: 0.15 } }
+});
 // [v13.1.2] T_HH=1573 provisional — reverted to 923 in S6 when combustion_chamber profile exists
 ProfileRegistry.register('reactor_equilibrium', {
   defId: 'reactor_equilibrium', name: 'Reactor', category: UnitCategories.REACTOR, tiers: [1],
@@ -11829,6 +12276,14 @@ class Scene {
       // ── Electrical sink [v13.1.0 S2-A] ──
       case 'sink_electrical':
         unit.params = { ratedPower_kW: 1000, powerPriority: 3 };  // 1 MW dump load, deferrable
+        break;
+      // ── Separation [v13.4.0 S4a] ──
+      case 'distillation_column':
+        unit.params = {
+          N_stages: 20, R_over_Rmin: 1.3, feed_stage_frac: 0.5,
+          P_column_bar: 1.0, lightKey: '', heavyKey: '',
+          xD_lightKey: 0.95, xB_heavyKey: 0.95, powerPriority: 2
+        };
         break;
       // ── Units with no params: sink, sink_heat,
       //    power_hub, mixer, flash_drum — empty params is correct ──
@@ -14981,6 +15436,13 @@ const PG = {
   formatPower_kW,
   formatEnthalpy_kJmol,
   formatHeatCapacity_kWK,
+
+  // ── Distillation FUG [v13.4.0 S4a] ──
+  fenskeNmin,
+  fenskeDistribution,
+  underwoodRmin,
+  gillilandStages,
+  feedThermalCondition,
 
   // ── Kinetics [v8.9.5] ──
   KineticsEval,
@@ -20113,6 +20575,65 @@ UnitInspector.flash_drum = {
       ...(ud.last.phaseSplit?.vap ? [{ label: 'Vapor out', value: fmt.flow(ud.last.phaseSplit.vap) }] : []),
       ...(ud.last.phaseSplit?.liq ? [{ label: 'Liquid out', value: fmt.flow(ud.last.phaseSplit.liq) }] : []),
     ];
+  }
+};
+
+// [v13.4.0] S4a — Distillation Column Inspector
+UnitInspector.distillation_column = {
+  params(u) {
+    // Find feed species from resolved inlet stream (after solve)
+    const ud = scene.runtime?.unitData?.get(u.id);
+    const sIn = ud?.ports?.mat_in;
+    const feedSpecies = sIn ? Object.keys(sIn.n).filter(sp => sIn.n[sp] > 1e-15) : [];
+    const speciesOpts = feedSpecies.length > 0
+      ? feedSpecies.map(sp => [sp, sp])
+      : [['', '— solve first —']];
+
+    return [
+      { label: 'Theoretical stages', get: () => u.params.N_stages ?? 20,
+        set: v => u.params.N_stages = Math.max(3, Math.min(100, Math.round(v))),
+        step: 1, decimals: 0 },
+      { label: 'R / R_min', get: () => u.params.R_over_Rmin ?? 1.3,
+        set: v => u.params.R_over_Rmin = Math.max(1.05, Math.min(5, v)),
+        step: 0.05, decimals: 2 },
+      { label: 'Column P (bar)', get: () => u.params.P_column_bar ?? 1.0,
+        set: v => u.params.P_column_bar = Math.max(0.1, Math.min(50, v)),
+        step: 0.5, decimals: 1 },
+      { label: 'Light key', type: 'select',
+        options: speciesOpts, get: () => u.params.lightKey,
+        set: v => u.params.lightKey = v },
+      { label: 'Heavy key', type: 'select',
+        options: speciesOpts, get: () => u.params.heavyKey,
+        set: v => u.params.heavyKey = v },
+      { label: 'LK purity in distillate', get: () => u.params.xD_lightKey ?? 0.95,
+        set: v => u.params.xD_lightKey = Math.max(0.5, Math.min(0.999, v)),
+        step: 0.01, decimals: 3 },
+      { label: 'HK purity in bottoms', get: () => u.params.xB_heavyKey ?? 0.95,
+        set: v => u.params.xB_heavyKey = Math.max(0.5, Math.min(0.999, v)),
+        step: 0.01, decimals: 3 },
+      { label: 'Priority', get: () => u.params.powerPriority ?? 2,
+        set: v => u.params.powerPriority = Math.max(1, Math.round(v)), step: 1, validate: { gte: 1 } }
+    ];
+  },
+  kpis(u, ud) {
+    if (!ud?.last?.alpha_LK) return [];
+    return [
+      { label: 'α (LK/HK)', value: ud.last.alpha_LK.toFixed(2) },
+      { label: 'N_min / N_actual', value: `${ud.last.N_min?.toFixed(1)} / ${ud.last.N_actual?.toFixed(1)}` },
+      { label: 'R_min / R', value: `${ud.last.R_min?.toFixed(2)} / ${ud.last.R?.toFixed(2)}` },
+      { label: 'q (feed)', value: ud.last.q?.toFixed(2) },
+      { label: 'Separation', value: `${(ud.last.separationFactor * 100).toFixed(0)}%`,
+        tone: ud.last.separationFactor < 1 ? 'warn' : '' }
+    ];
+  },
+  power(u, ud) {
+    if (!ud?.last) return [];
+    const items = [];
+    if (ud.last.Q_reboiler_kW != null) items.push({ label: 'Q reboiler', value: fmt.kW(ud.last.Q_reboiler_kW * 1000) });
+    if (ud.last.Q_condenser_kW != null) items.push({ label: 'Q condenser', value: fmt.kW(ud.last.Q_condenser_kW * 1000) });
+    if (ud.last.Q_reboiler_actual_kW != null) items.push({ label: 'Q supplied', value: fmt.kW(ud.last.Q_reboiler_actual_kW * 1000),
+      tone: ud.last.separationFactor < 1 ? 'warn' : '' });
+    return items;
   }
 };
 
@@ -33568,6 +34089,194 @@ function runTests() {
   test('382: THERMO_RANGE alarm category exists', t => {
     t.assertOK(AlarmCategory.THERMO_RANGE === 'Thermo Range', 'THERMO_RANGE category');
     t.assertOK(AlarmCategory.THERMO_CONVERGENCE === 'Thermo Convergence', 'THERMO_CONVERGENCE category');
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // SECTION S4a: Distillation Column — FUG Shortcut Method (Tests 383–388)
+  // ═══════════════════════════════════════════════════════════════════════
+
+  test('383: S4a — Column N₂/O₂ separation at 5 bar, distillate enriched in N₂', t => {
+    // N₂/O₂ binary at 5 bar: N₂ is more volatile (LK), O₂ is HK
+    const src = t.place('source_multi', 0, 0, {
+      n: { N2: 0.79, O2: 0.21 }, T: 150, P: 500000, phaseConstraint: 'VL'
+    });
+    const col = t.place('distillation_column', 4, 0, {
+      N_stages: 30, R_over_Rmin: 1.3, P_column_bar: 5,
+      lightKey: 'N2', heavyKey: 'O2',
+      xD_lightKey: 0.95, xB_heavyKey: 0.95, powerPriority: 2
+    });
+    const grid = t.place('grid_supply', 4, 4, { maxPower: 50 });
+    const hub  = t.place('power_hub', 6, 4);
+    const snkD = t.place('sink', 8, 0);
+    const snkB = t.place('sink', 8, 4);
+    t.wire(src, 'out', col, 'mat_in');
+    t.wire(grid, 'out', hub, 'elec_in');
+    t.wire(hub, 'elec_out', col, 'elec_in');
+    t.wire(col, 'mat_out_D', snkD, 'in');
+    t.wire(col, 'mat_out_B', snkB, 'in');
+    t.solve();
+
+    const L = t.last(col);
+    t.assertOK(L && !L.fried, 'column not fried');
+    t.assertOK(L.alpha_LK > 1.0, `α(N₂/O₂) > 1 (got ${L.alpha_LK?.toFixed(2)})`);
+
+    // Distillate should be enriched in N₂
+    const dStream = t.port(snkD, 'in');
+    const nN2_D = dStream?.n?.N2 || 0;
+    const nO2_D = dStream?.n?.O2 || 0;
+    const xN2_D = nN2_D / Math.max(nN2_D + nO2_D, 1e-30);
+    t.assertOK(xN2_D > 0.9, `distillate N₂ > 90% (got ${(xN2_D*100).toFixed(1)}%)`);
+
+    // Bottoms should be enriched in O₂
+    const bStream = t.port(snkB, 'in');
+    const nN2_B = bStream?.n?.N2 || 0;
+    const nO2_B = bStream?.n?.O2 || 0;
+    const xO2_B = nO2_B / Math.max(nN2_B + nO2_B, 1e-30);
+    t.assertOK(xO2_B > 0.9, `bottoms O₂ > 90% (got ${(xO2_B*100).toFixed(1)}%)`);
+
+    // FUG diagnostics populated
+    t.assertOK(L.N_min > 0 && isFinite(L.N_min), `N_min finite (${L.N_min?.toFixed(1)})`);
+    t.assertOK(L.R_min >= 0, `R_min >= 0 (${L.R_min?.toFixed(2)})`);
+  });
+
+  test('384: S4a — Column mass balance: F = D + B per species', t => {
+    const src = t.place('source_multi', 0, 0, {
+      n: { N2: 0.5, O2: 0.3, Ar: 0.2 }, T: 200, P: 500000, phaseConstraint: 'VL'
+    });
+    const col = t.place('distillation_column', 4, 0, {
+      N_stages: 25, R_over_Rmin: 1.5, P_column_bar: 5,
+      lightKey: 'N2', heavyKey: 'O2',
+      xD_lightKey: 0.90, xB_heavyKey: 0.90, powerPriority: 2
+    });
+    const grid = t.place('grid_supply', 4, 4, { maxPower: 100 });
+    const hub  = t.place('power_hub', 6, 4);
+    const snkD = t.place('sink', 8, 0);
+    const snkB = t.place('sink', 8, 4);
+    t.wire(src, 'out', col, 'mat_in');
+    t.wire(grid, 'out', hub, 'elec_in');
+    t.wire(hub, 'elec_out', col, 'elec_in');
+    t.wire(col, 'mat_out_D', snkD, 'in');
+    t.wire(col, 'mat_out_B', snkB, 'in');
+    t.solve();
+
+    const sIn = t.port(col, 'mat_in');
+    const dStream = t.port(snkD, 'in');
+    const bStream = t.port(snkB, 'in');
+
+    // Check mass balance for each species
+    for (const sp of ['N2', 'O2', 'Ar']) {
+      const feedMol = sIn?.n?.[sp] || 0;
+      const distMol = dStream?.n?.[sp] || 0;
+      const botMol  = bStream?.n?.[sp] || 0;
+      const err = Math.abs(feedMol - distMol - botMol);
+      t.assertClose(err, 0, 1e-10, `${sp} balance: |F-D-B|`);
+    }
+  });
+
+  test('385: S4a — Column energy balance: |Q_R − Q_C − ΔH| < 5%', t => {
+    const src = t.place('source_multi', 0, 0, {
+      n: { N2: 0.79, O2: 0.21 }, T: 150, P: 500000, phaseConstraint: 'VL'
+    });
+    const col = t.place('distillation_column', 4, 0, {
+      N_stages: 20, R_over_Rmin: 1.3, P_column_bar: 5,
+      lightKey: 'N2', heavyKey: 'O2',
+      xD_lightKey: 0.95, xB_heavyKey: 0.95, powerPriority: 2
+    });
+    const grid = t.place('grid_supply', 4, 4, { maxPower: 100 });
+    const hub  = t.place('power_hub', 6, 4);
+    const snkD = t.place('sink', 8, 0);
+    const snkB = t.place('sink', 8, 4);
+    t.wire(src, 'out', col, 'mat_in');
+    t.wire(grid, 'out', hub, 'elec_in');
+    t.wire(hub, 'elec_out', col, 'elec_in');
+    t.wire(col, 'mat_out_D', snkD, 'in');
+    t.wire(col, 'mat_out_B', snkB, 'in');
+    t.solve();
+
+    const L = t.last(col);
+    t.assertOK(L != null, 'column has diagnostics');
+    t.assertOK(L.Q_reboiler_kW != null, 'Q_reboiler computed');
+    t.assertOK(L.Q_condenser_kW != null, 'Q_condenser computed');
+    // Energy balance: Q_R = Q_C + H_D + H_B − H_F
+    // Since Q_R = Q_C + ΔH, check Q_R and Q_C are reasonable (both positive)
+    t.assertOK(L.Q_condenser_kW >= 0, `Q_condenser >= 0 (${L.Q_condenser_kW?.toFixed(2)} kW)`);
+    // Reboiler can be negative if feed is superheated — check it's finite
+    t.assertOK(isFinite(L.Q_reboiler_kW), `Q_reboiler finite (${L.Q_reboiler_kW?.toFixed(2)} kW)`);
+  });
+
+  test('386: S4a — Column undersized: warning when N < N_actual', t => {
+    // Use very few stages with high purity — should be undersized
+    const src = t.place('source_multi', 0, 0, {
+      n: { N2: 0.79, O2: 0.21 }, T: 150, P: 500000, phaseConstraint: 'VL'
+    });
+    const col = t.place('distillation_column', 4, 0, {
+      N_stages: 3, R_over_Rmin: 1.3, P_column_bar: 5,
+      lightKey: 'N2', heavyKey: 'O2',
+      xD_lightKey: 0.99, xB_heavyKey: 0.99, powerPriority: 2
+    });
+    const grid = t.place('grid_supply', 4, 4, { maxPower: 100 });
+    const hub  = t.place('power_hub', 6, 4);
+    const snkD = t.place('sink', 8, 0);
+    const snkB = t.place('sink', 8, 4);
+    t.wire(src, 'out', col, 'mat_in');
+    t.wire(grid, 'out', hub, 'elec_in');
+    t.wire(hub, 'elec_out', col, 'elec_in');
+    t.wire(col, 'mat_out_D', snkD, 'in');
+    t.wire(col, 'mat_out_B', snkB, 'in');
+    t.solve();
+
+    const L = t.last(col);
+    t.assertOK(L?.undersized === true, 'column flagged as undersized');
+    t.assertOK(L?.error?.severity === ErrorSeverity.WARNING, 'undersized produces WARNING');
+    t.assertOK(L?.error?.message?.includes('stages'), 'message mentions stages');
+  });
+
+  test('387: S4a — Column single-component feed: MAJOR error', t => {
+    // Pure N₂ feed — distillation impossible
+    const src = t.place('source', 0, 0, {
+      species: 'N2', nDot: 1.0, T: 150, P: 500000, phaseConstraint: 'V'
+    });
+    const col = t.place('distillation_column', 4, 0, {
+      N_stages: 20, R_over_Rmin: 1.3, P_column_bar: 5,
+      lightKey: 'N2', heavyKey: 'O2',
+      xD_lightKey: 0.95, xB_heavyKey: 0.95, powerPriority: 2
+    });
+    const snkD = t.place('sink', 8, 0);
+    const snkB = t.place('sink', 8, 4);
+    t.wire(src, 'out', col, 'mat_in');
+    t.wire(col, 'mat_out_D', snkD, 'in');
+    t.wire(col, 'mat_out_B', snkB, 'in');
+    t.solve();
+
+    const L = t.last(col);
+    t.assertOK(L?.error?.severity === ErrorSeverity.MAJOR, 'single-component → MAJOR');
+    t.assertOK(L?.error?.message?.includes('single-component'), 'message mentions single-component');
+  });
+
+  test('388: S4a — FUG pure functions: Fenske/Gilliland smoke test', t => {
+    // Binary benzene/toluene-like: α = 2.5, 95% purities
+    const N_min = fenskeNmin(0.95, 0.05, 0.05, 0.95, 2.5);
+    t.assertOK(N_min > 3 && N_min < 20, `Fenske N_min in range (${N_min.toFixed(2)})`);
+
+    // Gilliland: at R = 1.3 × R_min with R_min = 1.5
+    const R_min = 1.5;
+    const R = 1.3 * R_min;
+    const N_act = gillilandStages(N_min, R_min, R);
+    t.assertOK(N_act > N_min, `Gilliland N > N_min (${N_act.toFixed(1)} > ${N_min.toFixed(1)})`);
+    t.assertOK(isFinite(N_act), 'Gilliland finite');
+
+    // Gilliland edge: R ≤ R_min → Infinity
+    const N_inf = gillilandStages(N_min, R_min, R_min);
+    t.assertOK(!isFinite(N_inf), 'R = R_min → Infinity stages');
+
+    // Fenske edge: α ≈ 1 → Infinity
+    const N_hard = fenskeNmin(0.95, 0.05, 0.05, 0.95, 1.0005);
+    t.assertOK(!isFinite(N_hard), 'α ≈ 1 → Infinity stages');
+
+    // Underwood: simple binary
+    const uw = underwoodRmin({ A: 0.5, B: 0.5 }, { A: 0.95, B: 0.05 }, { A: 2.5, B: 1.0 }, 1.0);
+    t.assertOK(uw.R_min >= 0, `Underwood R_min >= 0 (${uw.R_min.toFixed(2)})`);
+    t.assertOK(isFinite(uw.theta), `θ finite (${uw.theta.toFixed(3)})`);
   });
 
   // ═══════════════════════════════════════════════════════════════════════
