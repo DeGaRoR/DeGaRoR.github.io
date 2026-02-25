@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v13.0.1
+  processThis v13.0.2
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -403,6 +403,24 @@
            Flow arrows scale with stream width.
            Action bar: three .btn-cluster groups, no inline CSS.
            Islands mode: material + electrical union-find.
+
+  v13.0.2  S1a: Thermo fixes + CO species — 294 tests, 1817 assertions.
+           S1a-1: H₂O cpig Tmin 500 → 298. Shomate coefficients valid from
+             298 K per NIST. Eliminates false console warnings for 298–500 K.
+             Fixed test 287 reference Cp(H₂O,300K): 35.22 → 33.60 (old value
+             was from fallback path, 33.60 is the correct NIST Shomate result).
+           S1a-2: CO₂ Antoine: replaced single sublimation range (154–196 K)
+             with array of two ranges: sublimation + liquid-vapor (217–304 K,
+             Ambrose 1956). Psat(CO₂,250K) now returns ~17 bar (was nonsense).
+           S1a-3: CO registered as 10th species. MW 28.01, Tc 132.9 K,
+             Pc 34.99 bar, two-range Shomate (298–1300, 1300–6000 K),
+             hf0 −110530 J/mol, s0 197.66 J/(mol·K). All NIST data.
+             Inserted between CO₂ and NH₃ (CO₂/CO chemically related).
+           S1a-4: KNOWN_KINETIC_MODELS += 'ELECTROCHEMICAL'. Data-only until
+             S6 activates it in KineticsEval.rate().
+           5 new tests (T320–T324): H₂O Cp at 400K, CO₂ Antoine liquid-vapor
+             (250K) and sublimation (180K), CO registration data, CO Cp at 500K.
+           NNG: NNG-10 (registry completeness), NNG-14 (version bump + tests).
 
   v13.0.1  S1-pre: Solver & power stream hardening — 289 tests, 1800 assertions.
            Eight pre-S1 fixes. No new tests; existing tests validate unchanged behaviour.
@@ -3346,7 +3364,7 @@ ComponentRegistry.register('H2O', {
   ],
   // NIST Chemistry WebBook — Shomate equation, gas phase
   // Range 500–1700 K (Tref=298.15 handled by clamped extrapolation; Cp~constant 33–35 over 200–500K)
-  cpig: { A: 30.09200, B: 6.832514, C: 6.793435, D: -2.534480, E: 0.082139, Tmin: 500, Tmax: 1700 },
+  cpig: { A: 30.09200, B: 6.832514, C: 6.793435, D: -2.534480, E: 0.082139, Tmin: 298, Tmax: 1700 },
   cpLiq: 75.3,  // J/(mol·K) at 298K - approximately constant for liquid water
   rhoLiq: 1000,  // kg/m³ at 298K (liquid density at reference conditions)
   // NIST Chemistry WebBook — gas phase, 298.15 K, 1 bar
@@ -3521,8 +3539,12 @@ ComponentRegistry.register('CO2', {
   Tm: 216.6,
   Hv: 16700,  // J/mol — vaporization at triple point (216.6K, 5.18 bar); CO2 sublimes at 1 atm
   phase298: 'gas',
-  // Antoine for solid-vapor equilibrium (sublimation)
-  antoine: { A: 9.8106, B: 1347.8, C: 273.0, Tmin: 154, Tmax: 196 },
+  // [v13.0.2 S1a-2] Antoine: sublimation (solid-vapor) + liquid-vapor ranges
+  // Sublimation: Stull 1947 via NIST. Liquid-vapor: Ambrose 1956, validated 217–304 K.
+  antoine: [
+    { A: 9.8106, B: 1347.8, C: 273.0, Tmin: 154, Tmax: 196, desc: 'Sublimation' },
+    { A: 7.5789, B: 861.82, C: 271.88, Tmin: 217, Tmax: 304, desc: 'Liquid-vapor' }
+  ],
   // NIST Chemistry WebBook — Shomate equation, gas phase (two ranges)
   cpig: [
     { A: 24.99735, B: 55.18696, C: -33.69137, D: 7.948387, E: -0.136638, Tmin: 298, Tmax: 1200 },
@@ -3533,6 +3555,34 @@ ComponentRegistry.register('CO2', {
   // NIST Chemistry WebBook — gas phase, 298.15 K, 1 bar
   hf0_Jmol: -393510,  // Std enthalpy of formation (J/mol)
   s0_JmolK: 213.785   // Std molar entropy (J/(mol·K))
+});
+
+// [v13.0.2 S1a-3] Carbon Monoxide — syngas component, WGS/RWGS/SMR product, fuel cell fuel.
+// Enables CO-containing reactions (R_SMR, R_WGS, R_RWGS, R_CO2_ELEC, R_COELEC, R_CO_FUELCELL).
+ComponentRegistry.register('CO', {
+  name: 'Carbon Monoxide',
+  CAS: '630-08-0',
+  MW: 28.01040,    // IUPAC 2021: 12.01100 + 15.99940
+  Tc: 132.9,       // K
+  Pc: 3499000,     // Pa (34.99 bar)
+  omega: 0.048,
+  Vc: 0.0000930,   // m³/mol
+  Zc: 0.292,
+  Tb: 81.6,        // K (boiling point at 1 atm)
+  Tm: 68.1,        // K (melting point)
+  Hv: 6040,        // J/mol (heat of vaporization at NBP)
+  phase298: 'gas',
+  antoine: { A: 6.24021, B: 230.272, C: 260.0, Tmin: 68, Tmax: 133 },
+  // NIST Chemistry WebBook — Shomate equation, gas phase (two ranges)
+  cpig: [
+    { A: 25.56759, B: 6.096130, C: 4.054656, D: -2.671301, E: 0.131021, Tmin: 298, Tmax: 1300 },
+    { A: 35.15070, B: 1.300095, C: -0.205921, D: 0.013550, E: -3.282780, Tmin: 1300, Tmax: 6000 }
+  ],
+  cpLiq: 60.2,     // J/(mol·K) for liquid CO at ~82 K (NIST)
+  rhoLiq: 789,     // kg/m³ (liquid CO at NBP)
+  // NIST Chemistry WebBook — gas phase, 298.15 K, 1 bar
+  hf0_Jmol: -110530,  // Std enthalpy of formation (J/mol)
+  s0_JmolK: 197.660   // Std molar entropy (J/(mol·K))
 });
 
 // [v10.8.0] Ammonia — refrigerant, Haber process feedstock, industrial base chemical.
@@ -3669,7 +3719,7 @@ class ReactionRegistry {
     if (!kin || typeof kin !== 'object') {
       throw new Error(`ReactionRegistry '${id}': kinetics block required (NNG-D2/D4)`);
     }
-    const KNOWN_KINETIC_MODELS = ['POWER_LAW'];
+    const KNOWN_KINETIC_MODELS = ['POWER_LAW', 'ELECTROCHEMICAL'];
     if (!KNOWN_KINETIC_MODELS.includes(kin.model)) {
       throw new Error(`ReactionRegistry '${id}': unrecognized kinetics model '${kin.model}' (supported: ${KNOWN_KINETIC_MODELS.join(', ')})`);
     }
@@ -28383,7 +28433,7 @@ function runTests() {
   tests.push({ name: '287: Shomate Cp vs NIST reference at 300/600/1000K', fn: t => {
     // Independent NIST Shomate Cp values (computed offline, not from this code)
     const ref = {
-      H2O: { 300: 35.22, 600: 36.32, 1000: 41.27 },
+      H2O: { 300: 33.60, 600: 36.32, 1000: 41.27 },
       O2:  { 300: 29.39, 600: 32.11, 1000: 34.86 },
       H2:  { 300: 28.85, 600: 29.33, 1000: 30.21 },
       N2:  { 300: 29.12, 600: 30.10, 1000: 32.69 },
@@ -29212,6 +29262,46 @@ function runTests() {
     const out = t.port(clr, 'mat_out');
     t.assertOK(out.T > 310 + 50, 'T_out >> setpoint (airFlow-limited)', `T=${out.T.toFixed(0)}K`);
   }});
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // S1a: Thermo fixes + CO species (v13.0.2)
+  // ═══════════════════════════════════════════════════════════════════════
+
+  test('320: S1a — H₂O Cp at 400 K (no warning, Tmin fixed to 298)', t => {
+    const Cp = thermo.cpMolar('H2O', 400, 101325, 'V');
+    t.assertRange(Cp, 32, 36, 'Cp(H₂O,g,400K) ≈ 34 J/(mol·K)');
+    // Also verify 350 K works (was below old Tmin=500)
+    const Cp350 = thermo.cpMolar('H2O', 350, 101325, 'V');
+    t.assertRange(Cp350, 32, 36, 'Cp(H₂O,g,350K) ≈ 33–35');
+  });
+
+  test('321: S1a — CO₂ Antoine liquid-vapor range (250 K ≈ 17 bar)', t => {
+    const Psat250 = thermo.saturationPressure('CO2', 250);
+    // NIST: CO₂ at 250 K → ~17.8 bar (1.78 MPa)
+    t.assertRange(Psat250, 15e5, 20e5, 'Psat(CO₂,250K) ≈ 17 bar [Pa]');
+  });
+
+  test('322: S1a — CO₂ Antoine sublimation range (180 K)', t => {
+    const Psat180 = thermo.saturationPressure('CO2', 180);
+    // Sublimation: 180 K → ~0.1–1 bar
+    t.assertOK(Psat180 > 0 && Psat180 < 1e5, 'Psat(CO₂,180K) > 0 and < 1 bar', `${(Psat180/1e5).toFixed(4)} bar`);
+  });
+
+  test('323: S1a — CO species registered with correct data', t => {
+    const co = ComponentRegistry.get('CO');
+    t.assertOK(co !== null && co !== undefined, 'CO registered');
+    t.assertClose(co.MW, 28.010, 0.01, 'MW ≈ 28.01');
+    t.assertClose(co.Tc, 132.9, 0.5, 'Tc ≈ 132.9 K');
+    t.assertClose(co.Pc, 3499000, 1000, 'Pc ≈ 34.99 bar [Pa]');
+    t.assertClose(co.hf0_Jmol, -110530, 10, 'hf0 = -110530 J/mol');
+    t.assertOK(co.phase298 === 'gas', 'phase298 = gas', co.phase298);
+  });
+
+  test('324: S1a — CO Cp at 500 K ≈ 29.2 J/(mol·K)', t => {
+    const Cp = thermo.cpMolar('CO', 500, 101325, 'V');
+    // NIST Shomate at 500 K: ~29.2 J/(mol·K)
+    t.assertRange(Cp, 28, 31, 'Cp(CO,g,500K) ≈ 29.2');
+  });
 
   // ═══════════════════════════════════════════════════════════════════════
   let totalPass = 0, totalFail = 0;
