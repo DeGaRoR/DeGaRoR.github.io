@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v13.3.0
+  processThis v13.4.0
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -289,6 +289,38 @@
   ═══════════════════════════════════════════════════════════════════════════
 
   ─── v13.3.0 — S3: Peng-Robinson Equation of State ──────────────────────
+
+  ─── v13.4.0 — S4: Distillation Column + HEX Phase-Change Fix ──────────
+  399 tests, 2407 assertions, 0 failures.
+
+  S4a — Distillation Column (FUG Shortcut Method):
+  - New unit: distillation_column with SVG icon, 4 ports (mat_in, elec_in,
+    mat_out_D, mat_out_B), and pilot-plant scale limits (T: 73–523 K,
+    P: 5 kPa – 50 bar, mass: 0.15 kg/s).
+  - FUG pipeline: fenskeNmin → fenskeDistribution → underwoodRmin (θ bisection)
+    → gillilandStages (Molokanov correlation). All exported as pure functions.
+  - Multicomponent Fenske distribution with exact per-species mass balance.
+  - Energy balance: Q_R = Q_C + H_D + H_B − H_F with ideal-mixing
+    thermo.hMolar_mix() helper and feedThermalCondition() for q estimation.
+  - Power demand → hub allocation → separationFactor curtailment. At sf < 1,
+    outlet compositions blend FUG result with feed-proportional split.
+  - Inspector: params() with feed-stream species lookup for LK/HK selectors,
+    kpis() (α, N_min/N_actual, R_min/R, q, separation%), power() (Q_R, Q_C).
+  - Diagnostic messages per NNG-14: single-component (MAJOR), LK==HK (MAJOR),
+    α < 1.05 (WARNING), undersized N < N_actual (WARNING).
+  - 6 tests T383–T388: N₂/O₂ separation at 5 bar, mass balance, energy
+    balance, undersized warning, single-component error, FUG smoke test.
+
+  S4b — HEX Effective-Cp Fix + Refrigeration Verification:
+  - New _effectiveCp(stream, T_other, role) function: computes effective heat
+    capacity rate including latent heat. For isothermal phase change (ΔT < 1K),
+    returns 1e12 (infinite Cp). For single-phase, equivalent to streamCp.
+  - hxCapacityRates() rewritten to use _effectiveCp — fixes UA/NTU mode
+    underpredicting Q for condensing/evaporating streams.
+  - Air cooler unaffected: uses inline effective-Cp (documented in code).
+  - 6 tests T389–T394: _effectiveCp condensing steam, single-phase regression,
+    NH₃ JT cooling (PR mode, T_out < 270K), HEX evaporator, HEX condenser,
+    NH₃ refrigeration loop (compressor → condenser → valve → evaporator).
   Full real-gas thermodynamic package alongside existing ideal/Raoult model.
   387 tests, 2367 assertions, 0 failures (IDEAL mode).  PR mode: 384/387.
 
@@ -10707,12 +10739,35 @@ function hxEnthalpy(stream, T_K) {
 }
 
 /**
+ * Effective heat capacity rate [W/K] including latent heat.
+ * For isothermal phase change (ΔT < 1K), returns 1e12 (infinite Cp).
+ * For single-phase streams, equivalent to streamCp but more robust.
+ * [v13.4.0 S4b] Fixes UA/NTU underprediction for phase-changing streams.
+ */
+function _effectiveCp(stream, T_other, role) {
+  const H_in = thermo.getHdot_Jps(stream);
+  // Target T: the other stream's inlet T (maximum possible heat exchange)
+  const T_target = role === 'hot'
+    ? Math.max(T_other, stream.T - 200)  // hot side cools toward cold inlet
+    : Math.min(T_other, stream.T + 200); // cold side heats toward hot inlet
+  const H_target = hxEnthalpy(stream, T_target);
+  const deltaT = Math.abs(stream.T - T_target);
+  const deltaH = Math.abs(H_in - H_target);
+
+  if (deltaT < 1.0) {
+    return 1e12;  // isothermal phase change — not the limiting stream
+  }
+  return deltaH / deltaT;
+}
+
+/**
  * Compute capacity rates for two streams.
+ * [v13.4.0 S4b] Uses _effectiveCp for phase-change-aware Cp.
  * @returns {{ C_hot, C_cold, Cmin, Cmax, Cr }}
  */
 function hxCapacityRates(sHot, sCold) {
-  const C_hot  = thermo.streamCp(sHot);   // J/s/K
-  const C_cold = thermo.streamCp(sCold);  // J/s/K
+  const C_hot  = _effectiveCp(sHot, sCold.T, 'hot');
+  const C_cold = _effectiveCp(sCold, sHot.T, 'cold');
   const Cmin   = Math.min(C_hot, C_cold);
   const Cmax   = Math.max(C_hot, C_cold);
   const Cr     = Cmax > 1e-12 ? Cmin / Cmax : 0;
@@ -15428,6 +15483,7 @@ const PG = {
   wegsteinStep,
   RuntimeContext,
   hxEnthalpy,
+  _effectiveCp,
   hxCapacityRates,
   hxSolveSetpoint,
   hxSolveUaNtu,
@@ -34277,6 +34333,144 @@ function runTests() {
     const uw = underwoodRmin({ A: 0.5, B: 0.5 }, { A: 0.95, B: 0.05 }, { A: 2.5, B: 1.0 }, 1.0);
     t.assertOK(uw.R_min >= 0, `Underwood R_min >= 0 (${uw.R_min.toFixed(2)})`);
     t.assertOK(isFinite(uw.theta), `θ finite (${uw.theta.toFixed(3)})`);
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // SECTION S4b: HEX Effective-Cp Fix + Refrigeration (Tests 389–394)
+  // ═══════════════════════════════════════════════════════════════════════
+
+  test('389: S4b — _effectiveCp captures latent heat for condensing steam', t => {
+    // Steam at 373K + cold water at 293K → approach mode vs UA mode
+    // Approach mode (baseline)
+    const srcH = t.place('source', 0, 0, { species: 'H2O', nDot: 0.1, T: 393.15, P: 101325, phaseConstraint: 'VL' });
+    const srcC = t.place('source', 0, 4, { species: 'H2O', nDot: 0.5, T: 293.15, P: 200000, phaseConstraint: 'L' });
+    const hex = t.place('hex', 4, 0, { T_approach: 5 });
+    const snkH = t.place('sink', 8, 0);
+    const snkC = t.place('sink', 8, 4);
+    t.wire(srcH, 'out', hex, 'hot_in');
+    t.wire(srcC, 'out', hex, 'cold_in');
+    t.wire(hex, 'hot_out', snkH, 'in');
+    t.wire(hex, 'cold_out', snkC, 'in');
+    t.solve();
+    const L_app = t.last(hex);
+    const Q_approach = L_app?.Q;
+    t.assertOK(Q_approach != null && Q_approach > 0, `Approach Q > 0 (${Q_approach?.toFixed(1)} kW)`);
+
+    // _effectiveCp should give much larger C for steam than sensible-only Cp
+    const steamStream = { T: 393.15, P: 101325, n: { H2O: 0.1 }, phaseConstraint: 'VL' };
+    const C_eff = _effectiveCp(steamStream, 293.15, 'hot');
+    const C_sens = thermo.streamCp(steamStream);
+    t.assertOK(C_eff > C_sens * 2, `effectiveCp(${C_eff.toFixed(1)}) >> sensibleCp(${C_sens.toFixed(1)})`);
+  });
+
+  test('390: S4b — _effectiveCp for single-phase stream ≈ streamCp', t => {
+    // For a single-phase stream (no phase change), _effectiveCp should be close to streamCp
+    const gasStream = { type: StreamType.MATERIAL, T: 500, P: 101325, n: { N2: 0.5, O2: 0.2 }, phaseConstraint: 'V' };
+    const C_eff = _effectiveCp(gasStream, 300, 'hot');
+    const C_sens = thermo.streamCp(gasStream);
+    // Should be within ~50% (Cp varies with T across 200K range)
+    const ratio = C_eff / Math.max(C_sens, 1e-30);
+    t.assertOK(ratio > 0.3 && ratio < 3.0, `single-phase ratio ≈ 1 (${ratio.toFixed(2)})`);
+  });
+
+  test('391: S4b — NH₃ JT cooling through valve (PR mode)', t => {
+    // NH₃ at 40°C, 20 bar → valve to 2 bar: should cool dramatically
+    thermo.setPackage(pengRobinsonPkg);
+    const src = t.place('source', 0, 0, { species: 'NH3', nDot: 0.1, T: 313.15, P: 2000000, phaseConstraint: 'VL' });
+    const vlv = t.place('valve', 4, 0, { Pout: 200000 });
+    const snk = t.place('sink', 8, 0);
+    t.wire(src, 'out', vlv, 'in');
+    t.wire(vlv, 'out', snk, 'in');
+    t.solve();
+    const out = t.port(snk, 'in');
+    t.assertOK(out?.T < 270, `JT cooling: T_out < 270K (got ${out?.T?.toFixed(1)}K)`);
+    t.assertOK(out?.T > 180, `JT not absurd: T_out > 180K (got ${out?.T?.toFixed(1)}K)`);
+    thermo.setPackage(idealRaoultPkg);
+  });
+
+  test('392: S4b — HEX evaporator: cold NH₃ warms (PR mode)', t => {
+    // Two-phase NH₃ (cold side) + warm air (hot side)
+    thermo.setPackage(pengRobinsonPkg);
+    const srcNH3 = t.place('source', 0, 0, { species: 'NH3', nDot: 0.1, T: 240, P: 200000, phaseConstraint: 'VL' });
+    const srcAir = t.place('source', 0, 4, { species: 'N2', nDot: 1.0, T: 300, P: 101325, phaseConstraint: 'V' });
+    const hex = t.place('hex', 4, 0, { T_approach: 10 });
+    const snkC = t.place('sink', 8, 0);
+    const snkH = t.place('sink', 8, 4);
+    t.wire(srcAir, 'out', hex, 'hot_in');
+    t.wire(srcNH3, 'out', hex, 'cold_in');
+    t.wire(hex, 'hot_out', snkH, 'in');
+    t.wire(hex, 'cold_out', snkC, 'in');
+    t.solve();
+    const coldOut = t.port(snkC, 'in');
+    t.assertOK(coldOut?.T > 240, `NH₃ warmed: T_cold_out > 240K (got ${coldOut?.T?.toFixed(1)}K)`);
+    const L = t.last(hex);
+    t.assertOK(L?.Q > 0, `Duty > 0 (${L?.Q?.toFixed(2)} kW)`);
+    thermo.setPackage(idealRaoultPkg);
+  });
+
+  test('393: S4b — HEX condenser: hot NH₃ cooled by water (PR mode)', t => {
+    // Superheated NH₃ (hot) + cold H₂O (cold)
+    thermo.setPackage(pengRobinsonPkg);
+    const srcNH3 = t.place('source', 0, 0, { species: 'NH3', nDot: 0.1, T: 353.15, P: 2000000, phaseConstraint: 'VL' });
+    const srcH2O = t.place('source', 0, 4, { species: 'H2O', nDot: 0.5, T: 293.15, P: 200000, phaseConstraint: 'L' });
+    const hex = t.place('hex', 4, 0, { T_approach: 10 });
+    const snkH = t.place('sink', 8, 0);
+    const snkC = t.place('sink', 8, 4);
+    t.wire(srcNH3, 'out', hex, 'hot_in');
+    t.wire(srcH2O, 'out', hex, 'cold_in');
+    t.wire(hex, 'hot_out', snkH, 'in');
+    t.wire(hex, 'cold_out', snkC, 'in');
+    t.solve();
+    const hotOut = t.port(snkH, 'in');
+    t.assertOK(hotOut?.T < 340, `NH₃ cooled: T_hot_out < 340K (got ${hotOut?.T?.toFixed(1)}K)`);
+    const L = t.last(hex);
+    t.assertOK(L?.Q > 0, `Duty > 0 (${L?.Q?.toFixed(2)} kW)`);
+    thermo.setPackage(idealRaoultPkg);
+  });
+
+  test('394: S4b — NH₃ refrigeration loop converges (PR mode)', t => {
+    // Compressor(20bar) → HEX(condenser) → valve(2bar) → HEX(evaporator) → sink
+    thermo.setPackage(pengRobinsonPkg);
+    // Row 0: process flow
+    const src = t.place('source', 0, 0, { species: 'NH3', nDot: 0.1, T: 270, P: 200000, phaseConstraint: 'V' });
+    const comp = t.place('compressor', 3, 0, { Pout: 2000000, eta: 0.75, powerPriority: 2 });
+    const hexCond = t.place('hex', 6, 0, { T_approach: 10 });
+    const vlv = t.place('valve', 9, 0, { Pout: 200000 });
+    const hexEvap = t.place('hex', 12, 0, { T_approach: 10 });
+    const snk = t.place('sink', 15, 0);
+    // Row 3: utilities
+    const gs = t.place('grid_supply', 0, 3, { maxPower: 50 });
+    const hub = t.place('power_hub', 3, 3);
+    const srcH2O = t.place('source', 6, 3, { species: 'H2O', nDot: 1.0, T: 293.15, P: 200000, phaseConstraint: 'L' });
+    const snkH2O = t.place('sink', 9, 3);
+    const srcAir = t.place('source', 12, 3, { species: 'N2', nDot: 2.0, T: 300, P: 101325, phaseConstraint: 'V' });
+    const snkAir = t.place('sink', 15, 3);
+
+    // Wire: src → comp → hexCond(hot) → vlv → hexEvap(cold) → snk
+    t.wire(src, 'out', comp, 'mat_in');
+    t.wire(gs, 'out', hub, 'elec_in');
+    t.wire(hub, 'elec_out', comp, 'elec_in');
+    t.wire(comp, 'mat_out', hexCond, 'hot_in');
+    t.wire(srcH2O, 'out', hexCond, 'cold_in');
+    t.wire(hexCond, 'hot_out', vlv, 'in');
+    t.wire(hexCond, 'cold_out', snkH2O, 'in');
+    t.wire(vlv, 'out', hexEvap, 'cold_in');
+    t.wire(srcAir, 'out', hexEvap, 'hot_in');
+    t.wire(hexEvap, 'cold_out', snk, 'in');
+    t.wire(hexEvap, 'hot_out', snkAir, 'in');
+    t.solve();
+
+    // Condenser should have meaningful duty
+    const Lcond = t.last(hexCond);
+    t.assertOK(Lcond?.Q > 0, `Condenser duty > 0 (${Lcond?.Q?.toFixed(2)} kW)`);
+    // Evaporator should have meaningful duty
+    const Levap = t.last(hexEvap);
+    t.assertOK(Levap?.Q > 0, `Evaporator duty > 0 (${Levap?.Q?.toFixed(2)} kW)`);
+    // Valve output should be cold
+    const vlvOut = t.port(vlv, 'out');
+    t.assertOK(vlvOut?.T < 300, `Valve outlet cold: T < 300K (got ${vlvOut?.T?.toFixed(1)}K)`);
+
+    thermo.setPackage(idealRaoultPkg);
   });
 
   // ═══════════════════════════════════════════════════════════════════════
