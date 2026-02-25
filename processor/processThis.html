@@ -561,6 +561,16 @@
              inlet conditions.  Exhaust at atmospheric no longer triggers P_LL.
            - 1 new test: gas_turbine limits check inlet, not outlet.
 
+           Demo scene combustor replacement:
+           - Replaced cheaty Electric Heater + Grid with proper combustion:
+             H₂ Source → Mixer → Reactor (R_H2_COMB, adiabatic/insulated).
+           - TIT controlled by fuel/air ratio — lean burn at 0.02 mol/s H₂.
+           - Removed 'Fuel 30kW' grid_supply. Added 'H₂ Fuel' source,
+             'Fuel/Air Mix' mixer, 'Combustor' reactor_equilibrium.
+           - Test 236 updated: heater assertions → combustion assertions
+             (exothermic ΔT, H₂O in products).
+           - DEMO_VERSION bumped v13.1.0 → v13.1.1.
+
   v13.0.8  Two-domain alarm architecture — 322 tests.
            Phase 1 — Schema & Severity:
            Alarm domains: new AlarmDomain enum (PLANT / SIM).  PLANT =
@@ -21484,9 +21494,9 @@ function loadDemo() {
   //   N₂ Source → Tank → Vent
   //
   // RIGHT BLOCK:
-  //   A) BRAYTON CYCLE: Air → Compressor → Hex cold → Heater 1200K
-  //      → Gas Turbine → Exhaust. Turbine → Generator → Grid Export.
-  //      Grid → Motor → Compressor.
+  //   A) BRAYTON CYCLE: Air → Compressor → Hex cold → Mixer ← H₂ Fuel
+  //      → Combustor (R_H2_COMB adiabatic) → Gas Turbine → Exhaust.
+  //      TIT controlled by fuel/air ratio (lean burn). Turbine → Grid Export.
   //   B) SMR (endothermic): CH₄+H₂O → Reactor (R_SMR_OVERALL)
   //      → Hex hot → Valve letdown → Syngas. Heat from Sabatier.
   //   C) PUMP: Water → Pump 5 bar → Sink. Grid → Motor → Pump.
@@ -21554,16 +21564,18 @@ function loadDemo() {
           { section: 'power', label: 'Shaft power' }
         ]}},
 
-      // [v12.5.0] Combustor heat source — grid direct to inline electric heater
-      { id: 'a-hgrid', defId: 'grid_supply', name: 'Fuel 30kW', x: 13, y: -7, rot: 0,
-        params: { maxPower: 30 } },
-
-      { id: 'a-heat', defId: 'electric_heater', name: 'Combustor', x: 17, y: -3, rot: 0,
-        params: { T_out: 1200 },
+      // [v13.1.0] Combustion via H₂ + lean air — real gas turbine cycle.
+      // TIT controlled by fuel/air ratio (player adjusts nDot).
+      { id: 'a-fuel', defId: 'source', name: 'H₂ Fuel', x: 15, y: -2, rot: 0,
+        params: { species: 'H2', nDot: 0.02, T: 298.15, P: 300000, phaseConstraint: 'V' } },
+      { id: 'a-mix', defId: 'mixer', name: 'Fuel/Air Mix', x: 17, y: -3, rot: 0, params: {} },
+      { id: 'a-comb', defId: 'reactor_equilibrium', name: 'Combustor', x: 21, y: -3, rot: 0,
+        params: { reactionId: 'R_H2_COMB', useKinetics: true, volume_m3: 0.01, heatDemand: 'none', variant: 'insulated' },
         sticker: { dx: 3, dy: -2, items: [
-          { section: 'power', label: 'Q demand' }
+          { section: 'power', label: 'ΔT' },
+          { section: 'reaction', label: 'Conversion' }
         ]}},
-      { id: 'a-turb', defId: 'gas_turbine', name: 'Gas Turbine', x: 23, y: -3, rot: 0,
+      { id: 'a-turb', defId: 'gas_turbine', name: 'Gas Turbine', x: 25, y: -3, rot: 0,
         params: { Pout: 101325, eta: 0.88 },
         sticker: { dx: 3, dy: -2, items: [
           { section: 'power', label: 'Shaft power' }
@@ -21681,9 +21693,10 @@ function loadDemo() {
       { id: 'a3', from: { unitId: 'a-air', portId: 'out' }, to: { unitId: 'a-comp', portId: 'mat_in' } },
       { id: 'a4', from: { unitId: 'a-comp', portId: 'mat_out' }, to: { unitId: 'ab-hex', portId: 'cold_in' },
         sticker: { dx: 0, dy: -2, items: [{ section: 'conditions', label: 'Temperature' }] } },
-      { id: 'a5', from: { unitId: 'ab-hex', portId: 'cold_out' }, to: { unitId: 'a-heat', portId: 'mat_in' } },
-      { id: 'a5h', from: { unitId: 'a-hgrid', portId: 'out' }, to: { unitId: 'a-heat', portId: 'elec_in' } },
-      { id: 'a6', from: { unitId: 'a-heat', portId: 'mat_out' }, to: { unitId: 'a-turb', portId: 'mat_in' } },
+      { id: 'a5', from: { unitId: 'ab-hex', portId: 'cold_out' }, to: { unitId: 'a-mix', portId: 'in1' } },
+      { id: 'a5f', from: { unitId: 'a-fuel', portId: 'out' }, to: { unitId: 'a-mix', portId: 'in2' } },
+      { id: 'a5m', from: { unitId: 'a-mix', portId: 'out' }, to: { unitId: 'a-comb', portId: 'mat_in' } },
+      { id: 'a6', from: { unitId: 'a-comb', portId: 'mat_out' }, to: { unitId: 'a-turb', portId: 'mat_in' } },
       { id: 'a7', from: { unitId: 'a-turb', portId: 'mat_out' }, to: { unitId: 'a-exh', portId: 'in' },
         sticker: { dx: 0, dy: -2, items: [{ section: 'conditions', label: 'Temperature' }] } },
       { id: 'a8', from: { unitId: 'a-turb', portId: 'elec_out' }, to: { unitId: 'a-eout', portId: 'in' } },
@@ -21744,7 +21757,7 @@ setViewBox();
 // [v10.3.0] M8: Restore from auto-save, or load demo
 // [v10.9.3] Version guard: if auto-save is from an older demo, load fresh demo
 {
-  const DEMO_VERSION = 'v13.1.0';  // bump this when demo scene changes
+  const DEMO_VERSION = 'v13.1.1';  // bump this when demo scene changes
   const saved = localStorage.getItem(AUTOSAVE_KEY);
   const savedDemoVer = localStorage.getItem(AUTOSAVE_KEY + '_demoVer');
   if (saved && savedDemoVer === DEMO_VERSION) {
@@ -29295,18 +29308,18 @@ function runTests() {
 
   tests.push({ name: '236: Demo scene — Brayton cycle + SMR reactor + Pump loop', fn: t => {
     // ── PROCESS A: Open Brayton Cycle ──
-    // Grid → Compressor (air 1→3 bar) → Hex cold → Heater (elec_in) → Turbine (3→1 bar) → Exhaust
+    // Grid → Compressor (air 1→3 bar) → Hex cold → Mixer ← H₂ Fuel
+    // → Combustor (R_H2_COMB adiabatic) → Gas Turbine (3→1 bar) → Exhaust
     // Turbine shaft → Electrical Sink
     const aGrid  = t.place('grid_supply',      30,  0, { maxPower: 20000 });
     const aAir   = t.place('source_air',       30,  2, { flowScale: 1.0 });
     const aComp  = t.place('compressor',       34,  2, { Pout: 300000, eta: 0.80 });
-    const aHeat  = t.place('electric_heater',           40,  6, { T_out: 3000 });  // [v12.9.0] combustor T well above recuperator outlet
-    const aTurb  = t.place('gas_turbine',      44,  6, { Pout: 101325, eta: 0.88 });
-    const aExh   = t.place('sink',             48,  6);
-    const aEout  = t.place('sink_electrical',  50,  8);
-
-    // [v12.8.0] Combustor heat: grid directly to heater elec_in
-    const aHeatSrc = t.place('grid_supply',    30, 14, { maxPower: 30000 });
+    const aFuel  = t.place('source',           38,  8, { species: 'H2', nDot: 0.02, T: 298.15, P: 300000, phaseConstraint: 'V' });
+    const aMix   = t.place('mixer',            40,  6);
+    const aComb  = t.place('reactor_equilibrium', 44, 6, { reactionId: 'R_H2_COMB', useKinetics: true, volume_m3: 0.01, heatDemand: 'none', variant: 'insulated' });
+    const aTurb  = t.place('gas_turbine',      48,  6, { Pout: 101325, eta: 0.88 });
+    const aExh   = t.place('sink',             52,  6);
+    const aEout  = t.place('sink_electrical',  52, 10);
 
     // ── SHARED: Heat Exchanger (Recuperator) ──
     const abHex  = t.place('hex',              38,  4, { T_approach: 10 });
@@ -29331,9 +29344,10 @@ function runTests() {
     t.wire(aGrid, 'out',      aComp, 'elec_in');
     t.wire(aAir, 'out',       aComp, 'mat_in');
     t.wire(aComp, 'mat_out',  abHex, 'cold_in');
-    t.wire(abHex, 'cold_out', aHeat, 'mat_in');
-    t.wire(aHeatSrc, 'out',   aHeat, 'elec_in');     // [v12.8.0] grid → heater elec_in
-    t.wire(aHeat, 'mat_out',  aTurb, 'mat_in');
+    t.wire(abHex, 'cold_out', aMix, 'in1');
+    t.wire(aFuel, 'out',      aMix, 'in2');
+    t.wire(aMix, 'out',       aComb, 'mat_in');
+    t.wire(aComb, 'mat_out',  aTurb, 'mat_in');
     t.wire(aTurb, 'mat_out',  aExh, 'in');
     t.wire(aTurb, 'elec_out', aEout, 'in');
 
@@ -29365,17 +29379,18 @@ function runTests() {
     const compLast = t.last(aComp);
     t.assertOK(compLast?.W_shaft > 100, 'A: Comp shaft power > 0', (compLast?.W_shaft/1000)?.toFixed(2) + ' kW');
 
-    const heatOut = t.port(aHeat, 'mat_out');
-    t.assertOK(heatOut?.T, 'A: Heater has outlet');
+    // [v13.1.0] Combustion: H₂ + air → adiabatic reactor
+    const combOut = t.port(aComb, 'mat_out');
+    t.assertOK(combOut?.T, 'A: Combustor has outlet');
     const hexColdOutT = t.port(abHex, 'cold_out')?.T || 300;
-    t.assertOK(heatOut.T > hexColdOutT, 'A: Heater T_out > T_in', `${heatOut.T?.toFixed(1)}K`);
-    const htrQ = t.last(aHeat)?.Q_actual_W ?? 0;
-    t.assertOK(htrQ > 0, 'A: Heater received heat', `${(htrQ/1000).toFixed(1)} kW`);
+    t.assertOK(combOut.T > hexColdOutT, 'A: Combustor T_out > T_in (exothermic)', `${combOut.T?.toFixed(1)}K`);
+    // H₂ combustion should produce water in products
+    t.assertOK(combOut.n?.H2O > 0, 'A: Combustion produces H₂O', `${combOut.n?.H2O?.toFixed(4)} mol/s`);
 
     const turbOut = t.port(aTurb, 'mat_out');
     const turbLast = t.last(aTurb);
     t.assertOK(turbOut?.T, 'A: Turbine has outlet');
-    t.assertOK(turbOut.T < heatOut.T - 50, 'A: Turbine T_out < T_in (expansion cooling)', turbOut.T?.toFixed(1));
+    t.assertOK(turbOut.T < combOut.T - 50, 'A: Turbine T_out < T_in (expansion cooling)', turbOut.T?.toFixed(1));
     t.assertClose(turbOut.P, 101325, 1000, 'A: Turbine P_out ≈ 1 bar');
     t.assertOK(turbLast?.W_shaft > 5000, 'A: Turbine shaft > 5 kW', (turbLast?.W_shaft/1000)?.toFixed(2) + ' kW');
 
@@ -29437,8 +29452,7 @@ function runTests() {
     // GLOBAL — No CATASTROPHIC/MAJOR errors on any unit
     // ════════════════════════════════════════════════════════════════════
 
-    const allUnits = [aGrid, aAir, aComp, aHeat, aTurb, aExh, aEout,
-                      aHeatSrc,
+    const allUnits = [aGrid, aAir, aComp, aFuel, aMix, aComb, aTurb, aExh, aEout,
                       abHex, bFeed, bRx, bValve, bProd, bHeatSrc, bHub,
                       cGrid, cSrc, cPump, cSink];
     let errors = 0;
