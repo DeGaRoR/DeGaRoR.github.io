@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v13.0.0
+  processThis v13.0.1
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -403,6 +403,35 @@
            Flow arrows scale with stream width.
            Action bar: three .btn-cluster groups, no inline CSS.
            Islands mode: material + electrical union-find.
+
+  v13.0.1  S1-pre: Solver & power stream hardening — 289 tests, 1800 assertions.
+           Eight pre-S1 fixes. No new tests; existing tests validate unchanged behaviour.
+           S1-pre-1: Reactor cache hash includes reactionId, alpha, volume_m3,
+             useKinetics, heatDemand — prevents stale warm-start after param change.
+             Added hashString() DJB2 utility.
+           S1-pre-2: blendMaterialStream renormalizes total molar flow after
+             species clamp ≥ 0 — prevents mass drift on deep recycle tear streams.
+           S1-pre-3: Standardized power read on pump, compressor, electric_heater,
+             reactor to: hubAllocated_W ?? actual ?? capacity ?? 0.
+             Dropped deprecated 'available' from read chain. Fail-safe to 0.
+           S1-pre-4: Removed stale HEAT/MECHANICAL references from
+             STREAM_CONTRACTS comment block, producer list, and power_hub header.
+             heat_out → elec_surplus in hub architecture docs.
+           S1-pre-5: Dropped deprecated 'available' from streamSignature()
+             convergence check (prevents spurious solver iterations).
+             Cleaned 'available' fallbacks from multiConnect aggregation,
+             hub Step C, and Step D reads.
+           S1-pre-6: Direct-bus Step D: partitions finite/infinite consumers.
+             Finite consumers get proportional curtailment; infinite consumers
+             get remainder. Fixes conservation violation when mixing finite-demand
+             units with sink_electrical (Infinity demand). NNG-1.
+           S1-pre-7: Zero-flow flash T guard: !stream.T → stream.T == null.
+             Aligns with codebase null-check convention. NNG-6.
+           S1-pre-8: Wrapped 5 raw-string ud.errors.push() sites with structured
+             { severity, message, code } objects (CATASTROPHIC for power cycle
+             and hub-to-hub; INFO for flash warning; MAJOR for flash exception
+             and stream type mismatch). ctx.warn() auto-wraps raw strings to
+             { severity: MINOR }. NNG-7 (frozen alarm schema).
 
   v12.10.0 Multi-select, group move, copy/paste — 289 tests, 1810 assertions.
            Multi-select: Ctrl+click toggles units into selection set.
@@ -3547,6 +3576,13 @@ ComponentRegistry.register('NH3', {
 /* =========================
    UTILITY FUNCTIONS
    ========================= */
+// [v12.10.1 S1-pre-1] Simple DJB2 string hash for cache key fingerprinting
+function hashString(s) {
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+  return h;
+}
+
 function clamp(v, min, max) { 
   return Math.max(min, Math.min(max, v)); 
 }
@@ -6493,7 +6529,7 @@ const STREAM_CONTRACTS = Object.freeze({
   }),
 
   // ── Non-material (power) streams ──────────────────────────────────────
-  // Applies to ELECTRICAL, MECHANICAL, HEAT.
+  // Applies to ELECTRICAL.
   // Field names are in watts (W) — no _W suffix (matches all existing unit ticks).
   //
   // ── SEMANTIC LIFECYCLE ──
@@ -6525,7 +6561,7 @@ const STREAM_CONTRACTS = Object.freeze({
   //               normalizeNonMaterialStream().  May appear in older unit ticks.
   //
   // ── PRODUCER vs CONSUMER ──
-  //   Producers (source_electrical, battery, source_mechanical):
+  //   Producers (source_electrical, battery):
   //     tick sets capacity + actual (default: capacity).
   //     Solver overwrites actual, demand, curtailmentFactor.
   //   Consumers (motor, electric_heater):
@@ -6537,7 +6573,7 @@ const STREAM_CONTRACTS = Object.freeze({
   //     Allocates per-consumer via allocatePower().
   //     Writes elec_out capacity/actual/demand/curtailmentFactor.
   POWER: Object.freeze({
-    doc: 'Applies to ELECTRICAL and HEAT. All values in watts (W).',
+    doc: 'Applies to ELECTRICAL. All values in watts (W).',
     lifecycle: Object.freeze({
       capacity:          'Equipment rating. Set by tick. May be Infinity.',
       demand:            'Solver dispatch target. Written by Steps B-E. Not set by tick.',
@@ -7840,12 +7876,12 @@ UnitRegistry.register('battery', {
 // │ PURPOSE                                                                    │
 // │   Central switchboard that balances electrical supply and demand.           │
 // │   Aggregates power from fixed sources and grid supply on elec_in,         │
-// │   distributes to consumers on elec_out, and dissipates surplus as heat.    │
+// │   distributes to consumers on elec_out, and routes surplus to elec_surplus. │
 // │                                                                            │
 // │ PORTS                                                                      │
 // │   elec_in  (ELECTRICAL, IN,  multiConnect) — all producers connect here    │
 // │   elec_out (ELECTRICAL, OUT) — all consumers connect here                  │
-// │   heat_out (HEAT, OUT) — surplus dissipated as heat                        │
+// │   elec_surplus (ELECTRICAL, OUT) — surplus power for dump loads             │
 // │                                                                            │
 // │ BALANCING ALGORITHM (runs in solver post-processing Step C)                │
 // │   1. fixed_supply  = Σ capacity from fixed sources on elec_in              │
@@ -7856,7 +7892,7 @@ UnitRegistry.register('battery', {
 // │   6. Per-consumer allocation via allocatePower() function:                 │
 // │      Default: proportional — each consumer gets demand × (supply/demand)   │
 // │      Future: priority-based, round-robin, etc. (same function signature)   │
-// │   7. surplus       = max(0, fixed_supply − total_demand) → heat_out        │
+// │   7. surplus       = max(0, fixed_supply − total_demand) → elec_surplus     │
 // │                                                                            │
 // │ PER-CONSUMER ALLOCATION (v4.2.0)                                           │
 // │   Each consumer gets an individual hubAllocFactor in its RuntimeContext scratch.    │
@@ -7955,7 +7991,7 @@ UnitRegistry.register('power_hub', {
   },
   tick(u, ports, par, ctx) {
     const elecIn = ports.elec_in;
-    const totalCapacity_W = elecIn ? (elecIn.capacity ?? elecIn.available ?? 0) : 0;
+    const totalCapacity_W = elecIn ? (elecIn.capacity ?? 0) : 0;
     const s = ctx ? ctx.scratch : {};
     
     // Forward: advertise supply on elec_out (use carry-forward from Step C)
@@ -8273,9 +8309,9 @@ UnitRegistry.register('pump', {
     const workFull = thermo.computePumpWork(sIn, Pout_setpoint, eta);
     u.powerDemand = workFull.W_shaft_W;
     
-    // [v11.0.0] Hub allocation via scratch, or direct port actual
+    // [v12.10.1 S1-pre-3] Standardized power read: actual → capacity → 0 (fail safe)
     const s = ctx ? ctx.scratch : {};
-    const W_avail = s.hubAllocated_W ?? (sElec.actual ?? sElec.available ?? Infinity);
+    const W_avail = s.hubAllocated_W ?? (sElec.actual ?? sElec.capacity ?? 0);
     const curtailed = W_avail < workFull.W_shaft_W - 1;
     const W_shaft_actual = Math.min(workFull.W_shaft_W, W_avail);
     
@@ -8409,9 +8445,9 @@ UnitRegistry.register('compressor', {
     const workFull = thermo.computeCompressorWork(sIn, Pout_setpoint, eta);
     u.powerDemand = workFull.W_shaft_W;
     
-    // [v11.0.0] Hub allocation via scratch, or direct port actual
+    // [v12.10.1 S1-pre-3] Standardized power read: actual → capacity → 0 (fail safe)
     const s = ctx ? ctx.scratch : {};
-    const W_avail = s.hubAllocated_W ?? (sElec.actual ?? sElec.available ?? Infinity);
+    const W_avail = s.hubAllocated_W ?? (sElec.actual ?? sElec.capacity ?? 0);
     const curtailed = W_avail < workFull.W_shaft_W - 1;
     const W_shaft_actual = Math.min(workFull.W_shaft_W, W_avail);
     
@@ -8537,10 +8573,9 @@ UnitRegistry.register('electric_heater', {
       return;
     }
 
-    // Hub allocation
-    // [v12.9.0] hubAllocated_W is set by power_hub; available = grid capacity (direct connection)
+    // [v12.10.1 S1-pre-3] Standardized power read: actual → capacity → 0 (fail safe)
     const s = ctx ? ctx.scratch : {};
-    const W_avail = s.hubAllocated_W ?? sElec.available ?? sElec.capacity ?? Infinity;
+    const W_avail = s.hubAllocated_W ?? sElec.actual ?? sElec.capacity ?? 0;
 
     if (mode === 'power_setpoint') {
       // ── POWER SETPOINT MODE ──
@@ -9571,13 +9606,19 @@ UnitRegistry.register('reactor_equilibrium', {
       }
       const sElec = ports.elec_in;
       const rs = ctx ? ctx.scratch : {};
-      Q_in_W = sElec ? (rs.hubAllocated_W ?? sElec.available ?? sElec.capacity ?? 0) : 0;
+      Q_in_W = sElec ? (rs.hubAllocated_W ?? sElec.actual ?? sElec.capacity ?? 0) : 0;
     }
 
     // ── [v11.0.0 Phase 6] Skip-when-clean: reuse cached result if inputs unchanged ──
     const nKeys = Object.keys(sIn.n).sort();
     let _hash = sIn.T * 1e6 + sIn.P + Q_in_W * 1e-3;
     for (let i = 0; i < nKeys.length; i++) _hash += (sIn.n[nKeys[i]] || 0) * (i + 1) * 7919;
+    // [v12.10.1 S1-pre-1] Parameter fingerprint — bust cache on any config change
+    if (par.reactionId)    _hash += hashString(par.reactionId) * 1e-6;
+    if (par.alpha != null) _hash += par.alpha * 3571;
+    if (par.volume_m3)     _hash += par.volume_m3 * 6271;
+    if (par.useKinetics)   _hash += 9901;
+    if (par.heatDemand)    _hash += hashString(par.heatDemand) * 1e-7;
     const inletHash = _hash;
     const curGen = ctx.solveGen;
     if (u.rxCache?.hash === inletHash && u.rxCache?.out && u.rxCache?.last?.status === 'active'
@@ -10310,7 +10351,8 @@ function streamSignature(stream) {
   // --- non-material (power) streams ---
   if (stream.capacity           !== undefined) sig.capacity           = stream.capacity;
   if (stream.actual             !== undefined) sig.actual             = stream.actual;
-  if (stream.available          !== undefined) sig.available          = stream.available;
+  // [v12.10.1 S1-pre-5] 'available' removed from convergence signature —
+  // deprecated alias normalized to 'capacity' by normalizeNonMaterialStream().
   if (stream.curtailmentFactor  !== undefined) sig.curtailmentFactor  = stream.curtailmentFactor;
 
   return sig;
@@ -10708,7 +10750,14 @@ class RuntimeContext {
       iter:    this.iter,
       scratch: this.scratch(unitId),
       thermo:  this.thermo,
-      warn:    (msg) => ud.errors.push(msg),
+      // [v12.10.1 S1-pre-8] Auto-wrap raw strings to structured error objects
+      warn:    (msg) => {
+        if (typeof msg === 'string') {
+          ud.errors.push({ severity: ErrorSeverity.MINOR, message: msg });
+        } else {
+          ud.errors.push(msg);
+        }
+      },
       // [v11.1.1 NNG-9] Tick-safe connectivity query — no scene access needed.
       portConnected: connSet ? (portId) => connSet.has(portId) : () => false,
       // [v11.1.1 NNG-9] Solve generation counter for cache invalidation.
@@ -10767,15 +10816,24 @@ function blendMaterialStream(oldS, newS, alpha) {
     newS.P = b * oldS.P + a * newS.P;
   }
 
-  // Molar flows — blend, clamp ≥ 0
+  // Molar flows — blend, clamp ≥ 0, renormalize
   const species = new Set([...Object.keys(oldS.n), ...Object.keys(newS.n)]);
-  let nTotal = 0;
+  let rawTotal = 0;
   for (const sp of species) {
     const oldN = oldS.n[sp] || 0;
     const newN = newS.n[sp] || 0;
-    const blended = Math.max(0, b * oldN + a * newN);
-    newS.n[sp] = blended;
-    nTotal += blended;
+    const blended = b * oldN + a * newN;
+    rawTotal += blended;
+    newS.n[sp] = Math.max(0, blended);
+  }
+
+  // [v12.10.1 S1-pre-2] Renormalize: preserve pre-clamp total to avoid mass drift
+  if (rawTotal > 1e-15) {
+    const postClampTotal = Object.values(newS.n).reduce((s, v) => s + v, 0);
+    if (postClampTotal > 1e-15 && Math.abs(postClampTotal - rawTotal) > 1e-15) {
+      const scale = rawTotal / postClampTotal;
+      for (const sp of species) newS.n[sp] *= scale;
+    }
   }
 
   // Enthalpy target (if set by HEX/PH-flash units, blend it too)
@@ -11008,7 +11066,8 @@ function solveScene(scene, options = {}) {
     for (const uid of powerCycle) {
       const ud = scene.runtime.unitData.get(uid);
       if (ud) {
-        ud.errors.push(cycleMsg);
+        ud.errors.push({ severity: ErrorSeverity.CATASTROPHIC,
+          message: cycleMsg, code: 'POWER_CYCLE' });
         ud.last = ud.last || {};
         ud.last.error = {
           severity: ErrorSeverity.CATASTROPHIC,
@@ -11038,7 +11097,8 @@ function solveScene(scene, options = {}) {
       for (const uid of [c.from.unitId, c.to.unitId]) {
         const ud = scene.runtime.unitData.get(uid);
         if (ud) {
-          ud.errors.push(msg);
+          ud.errors.push({ severity: ErrorSeverity.CATASTROPHIC,
+            message: msg, code: 'HUB_TO_HUB' });
           ud.last = ud.last || {};
           ud.last.error = { severity: ErrorSeverity.MAJOR, message: msg };
         }
@@ -11148,8 +11208,8 @@ function solveScene(scene, options = {}) {
                 const fromUD = scene.runtime.unitData.get(conn.from.unitId);
                 const stream = fromUD?.ports?.[conn.from.portId];
                 if (stream) {
-                  totalCapacity += stream.capacity ?? stream.available ?? 0;
-                  totalActual += stream.actual ?? stream.available ?? 0;
+                  totalCapacity += stream.capacity ?? 0;
+                  totalActual += stream.actual ?? 0;
                 }
               }
               inPorts[p.portId] = {
@@ -11240,7 +11300,8 @@ function solveScene(scene, options = {}) {
               stream.nL = {};
               stream.Hdot_J_s = 0;
               // Assign a default T if not set
-              if (!stream.T) stream.T = 298.15;
+              // [v12.10.1 S1-pre-7] Use null check, not falsy (T=0 is physically impossible but !0 is true)
+              if (stream.T == null) stream.T = 298.15;
             } else {
             try {
               let result;
@@ -11287,7 +11348,9 @@ function solveScene(scene, options = {}) {
               // Store any flash warnings
               if (result.warning) {
                 if (!ud.errors) ud.errors = [];
-                ud.errors.push(`${p.portId}: ${result.warning}`);
+                ud.errors.push({ severity: ErrorSeverity.INFO,
+                  message: `${p.portId}: ${result.warning}`,
+                  code: 'FLASH_WARNING' });
               }
               
               // Compute enthalpy immediately after flash
@@ -11302,7 +11365,9 @@ function solveScene(scene, options = {}) {
               }
               
             } catch (err) {
-              ud.errors.push(`Flash failed on ${p.portId}: ${err.message}`);
+              ud.errors.push({ severity: ErrorSeverity.MAJOR,
+                message: `Flash failed on ${p.portId}: ${err.message}`,
+                code: 'FLASH_EXCEPTION' });
             }
             } // end else (nTotal > 0)
           }
@@ -11317,7 +11382,9 @@ function solveScene(scene, options = {}) {
           
           // Validate stream type matches port type
           if (stream && !validateStreamType(stream, p.type)) {
-            ud.errors.push(`Port ${p.portId}: stream type mismatch`);
+            ud.errors.push({ severity: ErrorSeverity.MAJOR,
+              message: `Port ${p.portId}: stream type mismatch`,
+              code: 'STREAM_TYPE_MISMATCH' });
           }
         }
       }
@@ -11550,7 +11617,7 @@ function solveScene(scene, options = {}) {
         const srcU  = scene.units.get(conn.from.unitId);
         const srcUD = scene.runtime.unitData.get(conn.from.unitId);
         const portData = srcUD?.ports?.[conn.from.portId];
-        const avail = portData?.capacity ?? portData?.available ?? 0;
+        const avail = portData?.capacity ?? 0;
         const isResponsive = srcU?.defId === 'grid_supply';
         const isSOCBattery = srcU?.defId === 'battery';
         
@@ -11786,23 +11853,37 @@ function solveScene(scene, options = {}) {
       );
       if (hubInConn) continue;
       
-      // Direct connection: sum downstream consumer demands
-      let downstreamDemand_W = 0;
+      // [v12.10.1 S1-pre-6] Direct connection: partition finite/infinite consumers
+      // Fixes conservation violation when mixing finite-demand + infinite-demand (sink_electrical)
+      let finiteDemand_W = 0;
+      const finiteConsumers = [], infiniteConsumers = [];
       for (const conn of outConns) {
         const consumerUD = scene.runtime.unitData.get(conn.to.unitId);
-        if (consumerUD) downstreamDemand_W += consumerUD.powerDemand || 0;
+        const d = consumerUD?.powerDemand || 0;
+        if (isFinite(d)) {
+          finiteDemand_W += d;
+          finiteConsumers.push({ conn, demand: d });
+        } else {
+          infiniteConsumers.push({ conn });
+        }
       }
       
       const portData = _ud.ports[outPortId];
-      const maxPower_W = portData?.capacity ?? portData?.available ?? 0;
+      const maxPower_W = portData?.capacity ?? 0;
       
-      // [v6.1] Direct-bus curtailment: compute factor for fanout conservation
-      // Guard: Infinity demand (from sinks) must not produce factor=0;
-      // let myCap_W in the consumer tick handle the limiting instead.
-      const actualDraw_W = Math.min(downstreamDemand_W, maxPower_W);
-      const curtailmentFactor = (downstreamDemand_W > 0 && isFinite(downstreamDemand_W))
-        ? Math.max(0, Math.min(1, actualDraw_W / downstreamDemand_W))
-        : 1.0;
+      const actualDraw_W = Math.min(
+        finiteDemand_W + (infiniteConsumers.length > 0 ? maxPower_W : 0),
+        maxPower_W
+      );
+      
+      // Finite consumers: proportional curtailment
+      const finiteDraw = Math.min(finiteDemand_W, actualDraw_W);
+      const finiteFactor = finiteDemand_W > 0
+        ? finiteDraw / finiteDemand_W : 1.0;
+      
+      // Total demand for reporting (use finiteDemand_W + maxPower_W as proxy for infinite)
+      const downstreamDemand_W = finiteDemand_W + (infiniteConsumers.length > 0 ? maxPower_W : 0);
+      const curtailmentFactor = finiteFactor;
 
       if (portData) {
         portData.demand = downstreamDemand_W;
@@ -11810,19 +11891,20 @@ function solveScene(scene, options = {}) {
         portData.curtailmentFactor = curtailmentFactor;
       }
       
-      // [v11.0.0] Write allocation to each direct-connected consumer's scratch
-      // (mirrors how hub Step C writes hubAllocated_W)
-      for (const conn of outConns) {
-        const consumerUD = scene.runtime.unitData.get(conn.to.unitId);
-        if (!consumerUD) continue;
+      // [v12.10.1] Write allocation: finite consumers get proportional share,
+      // infinite consumers get the remainder (conserves total)
+      for (const { conn, demand } of finiteConsumers) {
         const cs = runtimeCtx.scratch(conn.to.unitId);
-        const consumerDemand = consumerUD.powerDemand || 0;
-        // [v12.9.0] Guard: Infinity demand → allocate full capacity (not Inf*factor=NaN/Inf)
-        const allocated = isFinite(consumerDemand)
-          ? consumerDemand * curtailmentFactor
-          : actualDraw_W;  // give the full draw to infinite-demand consumers
-        cs.hubAllocated_W = allocated;  // reuse same key pump/compressor reads
-        cs.hubAllocFactor = curtailmentFactor;
+        cs.hubAllocated_W = demand * finiteFactor;
+        cs.hubAllocFactor = finiteFactor;
+      }
+      const remainder = Math.max(0, actualDraw_W - finiteDraw);
+      const perInf = infiniteConsumers.length > 0
+        ? remainder / infiniteConsumers.length : 0;
+      for (const { conn } of infiniteConsumers) {
+        const cs = runtimeCtx.scratch(conn.to.unitId);
+        cs.hubAllocated_W = perInf;
+        cs.hubAllocFactor = finiteFactor;
       }
       // [v5.4.0] Write to RuntimeContext scratch (was _u._hub*)
       const bs = runtimeCtx.scratch(_id);
@@ -11897,8 +11979,8 @@ function solveScene(scene, options = {}) {
           const fromUD = scene.runtime.unitData.get(conn.from.unitId);
           const stream = fromUD?.ports?.[conn.from.portId];
           if (stream) {
-            totalCapacity += stream.capacity ?? stream.available ?? 0;
-            totalActual   += stream.actual   ?? stream.available ?? 0;
+            totalCapacity += stream.capacity ?? 0;
+            totalActual   += stream.actual   ?? 0;
           }
         }
         ud.ports[p.portId] = {
