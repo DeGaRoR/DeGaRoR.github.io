@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v13.0.2
+  processThis v13.0.3
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -403,6 +403,27 @@
            Flow arrows scale with stream width.
            Action bar: three .btn-cluster groups, no inline CSS.
            Islands mode: material + electrical union-find.
+
+  v13.0.3  S1b: Chemistry palette — 305 tests, 1913 assertions.
+           S1b-1: Renamed R_STEAM_REFORM → R_SMR_OVERALL (global, 25 sites).
+             importJSON migration auto-converts saved scenes.
+             Updated registration name to 'Steam Methane Reforming (Overall)'.
+           S1b-2: 10 new reactions registered (13 total):
+             POWER_LAW: R_HABER (NH₃ synthesis), R_SMR (stepwise, produces CO),
+               R_WGS (water-gas shift), R_RWGS (reverse WGS), R_CH4_COMB
+               (methane combustion).
+             ELECTROCHEMICAL: R_H2O_ELEC (water electrolysis), R_CO2_ELEC
+               (CO₂ electrolysis), R_COELEC (co-electrolysis), R_H2_FUELCELL,
+               R_CO_FUELCELL.
+           Validation: ELECTROCHEMICAL model gated — skips A/Ea/beta/orders
+             checks (data-only until S6 activates rate in KineticsEval).
+             _kinetics freeze uses ?? null for missing fields.
+           Inspector: ELECTROCHEMICAL reactions show "Rate determined by power
+             input" instead of crashing on null A/Ea.
+           Existing kinetics validation test updated for dual-model support.
+           11 new tests (T325–T335): mass balance on 6 reactions, model checks
+             on 4 ELECTROCHEMICAL reactions, importJSON migration, total count.
+           NNG: NNG-D2 (kinetics required), NNG-D4 (references), NNG-14 (tests).
 
   v13.0.2  S1a: Thermo fixes + CO species — 294 tests, 1817 assertions.
            S1a-1: H₂O cpig Tmin 500 → 298. Shomate coefficients valid from
@@ -3723,25 +3744,29 @@ class ReactionRegistry {
     if (!KNOWN_KINETIC_MODELS.includes(kin.model)) {
       throw new Error(`ReactionRegistry '${id}': unrecognized kinetics model '${kin.model}' (supported: ${KNOWN_KINETIC_MODELS.join(', ')})`);
     }
-    if (typeof kin.A !== 'number' || !(kin.A > 0)) {
-      throw new Error(`ReactionRegistry '${id}': kinetics.A must be a positive number`);
-    }
-    if (typeof kin.Ea_Jmol !== 'number' || !(kin.Ea_Jmol >= 0) || !isFinite(kin.Ea_Jmol)) {
-      throw new Error(`ReactionRegistry '${id}': kinetics.Ea_Jmol must be a non-negative finite number`);
-    }
-    if (typeof kin.beta !== 'number' || !isFinite(kin.beta)) {
-      throw new Error(`ReactionRegistry '${id}': kinetics.beta must be a finite number`);
-    }
-    if (!kin.orders || typeof kin.orders !== 'object' || Object.keys(kin.orders).length === 0) {
-      throw new Error(`ReactionRegistry '${id}': kinetics.orders must be a non-empty object`);
-    }
-    for (const sp of Object.keys(kin.orders)) {
-      if (!(sp in stoich)) {
-        throw new Error(`ReactionRegistry '${id}': kinetics.orders species '${sp}' not in stoichiometry`);
+    // [v13.0.3 S1b] POWER_LAW requires A, Ea, beta, orders, references.
+    // ELECTROCHEMICAL is data-only — rate determined by power input (S6).
+    if (kin.model === 'POWER_LAW') {
+      if (typeof kin.A !== 'number' || !(kin.A > 0)) {
+        throw new Error(`ReactionRegistry '${id}': kinetics.A must be a positive number`);
       }
-    }
-    if (!Array.isArray(kin.references) || kin.references.length === 0) {
-      throw new Error(`ReactionRegistry '${id}': kinetics.references must have at least one entry`);
+      if (typeof kin.Ea_Jmol !== 'number' || !(kin.Ea_Jmol >= 0) || !isFinite(kin.Ea_Jmol)) {
+        throw new Error(`ReactionRegistry '${id}': kinetics.Ea_Jmol must be a non-negative finite number`);
+      }
+      if (typeof kin.beta !== 'number' || !isFinite(kin.beta)) {
+        throw new Error(`ReactionRegistry '${id}': kinetics.beta must be a finite number`);
+      }
+      if (!kin.orders || typeof kin.orders !== 'object' || Object.keys(kin.orders).length === 0) {
+        throw new Error(`ReactionRegistry '${id}': kinetics.orders must be a non-empty object`);
+      }
+      for (const sp of Object.keys(kin.orders)) {
+        if (!(sp in stoich)) {
+          throw new Error(`ReactionRegistry '${id}': kinetics.orders species '${sp}' not in stoichiometry`);
+        }
+      }
+      if (!Array.isArray(kin.references) || kin.references.length === 0) {
+        throw new Error(`ReactionRegistry '${id}': kinetics.references must have at least one entry`);
+      }
     }
 
     // Store validated reaction
@@ -3760,14 +3785,14 @@ class ReactionRegistry {
     }
     if (!_thermoComplete) { _dH0_Jmol = null; _dS0_JmolK = null; }
 
-    // [v8.9.4] Freeze kinetics into stored reaction
+    // [v13.0.3 S1b] Freeze kinetics — ELECTROCHEMICAL may lack A/Ea/beta/orders
     const _kinetics = Object.freeze({
       model: kin.model,
-      A: kin.A,
-      beta: kin.beta,
-      Ea_Jmol: kin.Ea_Jmol,
-      orders: Object.freeze({ ...kin.orders }),
-      references: Object.freeze(kin.references.map(r => Object.freeze({ ...r })))
+      A: kin.A ?? null,
+      beta: kin.beta ?? null,
+      Ea_Jmol: kin.Ea_Jmol ?? null,
+      orders: kin.orders ? Object.freeze({ ...kin.orders }) : null,
+      references: kin.references ? Object.freeze(kin.references.map(r => Object.freeze({ ...r }))) : Object.freeze([])
     });
 
     const reaction = {
@@ -3882,13 +3907,13 @@ ReactionRegistry.register('R_SABATIER', {
   }
 });
 
-// ── Steam Methane Reforming [v10.4.3] ──
+// [v13.0.3 S1b-1] Steam Methane Reforming (Overall) — renamed from R_STEAM_REFORM
 // CH₄ + 2 H₂O ⇌ CO₂ + 4 H₂
 // Reverse of Sabatier.  ΔH° = +165 012 J/mol (endothermic), ΔS° = +172.584 J/(mol·K)
 // Δν = +2 (3 gas moles → 5).  K > 1 above ~956 K.
 // Requires external heat to sustain the reaction.
-ReactionRegistry.register('R_STEAM_REFORM', {
-  name: 'Steam Methane Reforming',
+ReactionRegistry.register('R_SMR_OVERALL', {
+  name: 'Steam Methane Reforming (Overall)',
   equation: 'CH₄ + 2 H₂O ⇌ CO₂ + 4 H₂',
   stoich: { CH4: -1, H2O: -2, CO2: 1, H2: 4 },
   reversible: true,
@@ -3911,6 +3936,203 @@ ReactionRegistry.register('R_STEAM_REFORM', {
         detail: 'AIChE J. 35, 88-96. Ni/MgAl₂O₄. Power-law simplification of Langmuir-Hinshelwood.' }
     ]
   }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// [v13.0.3 S1b-2] New reactions — 10 registrations (5 POWER_LAW + 5 ELECTROCHEMICAL)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ── Haber-Bosch Ammonia Synthesis ──
+ReactionRegistry.register('R_HABER', {
+  name: 'Haber-Bosch Ammonia Synthesis',
+  equation: 'N₂ + 3 H₂ ⇌ 2 NH₃',
+  stoich: { N2: -1, H2: -3, NH3: 2 },
+  reversible: true,
+  Tmin_K: 573,
+  Tmax_K: 873,
+  Pmin_Pa: 5000000,
+  Pmax_Pa: 30000000,
+  notes: 'Exothermic, Δν = −2. Favored at low T, high P. Fe₃O₄ or Ru catalyst.',
+  references: [{ source: 'NIST-JANAF', detail: 'Chase 1998' }],
+  kinetics: {
+    model: 'POWER_LAW',
+    A: 8.85e4,
+    beta: 0,
+    Ea_Jmol: 170000,
+    orders: { N2: 1, H2: 1.5 },
+    references: [{ source: 'Temkin & Pyzhev (adapted)',
+      detail: 'Global power-law fit for educational use.' }]
+  }
+});
+
+// ── Steam Methane Reforming (Stepwise) ──
+ReactionRegistry.register('R_SMR', {
+  name: 'Steam Methane Reforming',
+  equation: 'CH₄ + H₂O → CO + 3 H₂',
+  stoich: { CH4: -1, H2O: -1, CO: 1, H2: 3 },
+  reversible: true,
+  Tmin_K: 700,
+  Tmax_K: 1200,
+  Pmin_Pa: 100000,
+  Pmax_Pa: 5000000,
+  notes: 'Strongly endothermic. First step of industrial SMR (produces syngas). Ni catalyst.',
+  references: [{ source: 'NIST-JANAF', detail: 'Chase 1998' }],
+  kinetics: {
+    model: 'POWER_LAW',
+    A: 2.0e5,
+    beta: 0,
+    Ea_Jmol: 100000,
+    orders: { CH4: 1, H2O: 0.5 },
+    references: [{ source: 'Xu & Froment 1989 (adapted)',
+      detail: 'AIChE J. 35, 88-96.' }]
+  }
+});
+
+// ── Water-Gas Shift ──
+ReactionRegistry.register('R_WGS', {
+  name: 'Water-Gas Shift',
+  equation: 'CO + H₂O ⇌ CO₂ + H₂',
+  stoich: { CO: -1, H2O: -1, CO2: 1, H2: 1 },
+  reversible: true,
+  Tmin_K: 473,
+  Tmax_K: 1073,
+  Pmin_Pa: 100000,
+  Pmax_Pa: 5000000,
+  notes: 'Mildly exothermic. Δν = 0 (pressure-independent). Fe₃O₄ (HTS) or Cu/ZnO (LTS).',
+  references: [{ source: 'NIST-JANAF', detail: 'Chase 1998' }],
+  kinetics: {
+    model: 'POWER_LAW',
+    A: 1.0e4,
+    beta: 0,
+    Ea_Jmol: 47400,
+    orders: { CO: 1, H2O: 0.5 },
+    references: [{ source: 'Moe 1962 (adapted)',
+      detail: 'Chem. Eng. Progress 58(3), 33-36.' }]
+  }
+});
+
+// ── Reverse Water-Gas Shift ──
+ReactionRegistry.register('R_RWGS', {
+  name: 'Reverse Water-Gas Shift',
+  equation: 'CO₂ + H₂ → CO + H₂O',
+  stoich: { CO2: -1, H2: -1, CO: 1, H2O: 1 },
+  reversible: true,
+  Tmin_K: 573,
+  Tmax_K: 1200,
+  Pmin_Pa: 100000,
+  Pmax_Pa: 5000000,
+  notes: 'Endothermic. Reverse of WGS. Favored at high T. CO₂ utilization pathway.',
+  references: [{ source: 'NIST-JANAF', detail: 'Chase 1998' }],
+  kinetics: {
+    model: 'POWER_LAW',
+    A: 1.0e4,
+    beta: 0,
+    Ea_Jmol: 47400,
+    orders: { CO2: 1, H2: 0.5 },
+    references: [{ source: 'Moe 1962 (adapted)', detail: 'Reverse direction.' }]
+  }
+});
+
+// ── Methane Combustion ──
+ReactionRegistry.register('R_CH4_COMB', {
+  name: 'Methane Combustion',
+  equation: 'CH₄ + 2 O₂ → CO₂ + 2 H₂O',
+  stoich: { CH4: -1, O2: -2, CO2: 1, H2O: 2 },
+  reversible: false,
+  Tmin_K: 500,
+  Tmax_K: 3000,
+  Pmin_Pa: 50000,
+  Pmax_Pa: 5000000,
+  notes: 'Strongly exothermic. Complete combustion. Primary fuel for Brayton cycle (M4).',
+  references: [{ source: 'NIST-JANAF', detail: 'Chase 1998' }],
+  kinetics: {
+    model: 'POWER_LAW',
+    A: 1.3e8,
+    beta: 0,
+    Ea_Jmol: 125000,
+    orders: { CH4: 0.7, O2: 0.8 },
+    references: [{ source: 'Westbrook & Dryer 1981 (adapted)',
+      detail: 'Combust. Sci. Tech. 27, 31-43.' }]
+  }
+});
+
+// ── Water Electrolysis (Data Only — ELECTROCHEMICAL) ──
+ReactionRegistry.register('R_H2O_ELEC', {
+  name: 'Water Electrolysis',
+  equation: '2 H₂O → 2 H₂ + O₂',
+  stoich: { H2O: -2, H2: 2, O2: 1 },
+  reversible: false,
+  Tmin_K: 298,
+  Tmax_K: 473,
+  Pmin_Pa: 100000,
+  Pmax_Pa: 10000000,
+  notes: 'Electrochemical. Power drives the reaction. PEM or alkaline cell. Primary O₂ source (M2).',
+  references: [{ source: 'NIST-JANAF', detail: 'Chase 1998' }],
+  kinetics: {
+    model: 'ELECTROCHEMICAL'
+  }
+});
+
+// ── CO₂ Electrolysis (Data Only — ELECTROCHEMICAL) ──
+ReactionRegistry.register('R_CO2_ELEC', {
+  name: 'CO₂ Electrolysis',
+  equation: '2 CO₂ → 2 CO + O₂',
+  stoich: { CO2: -2, CO: 2, O2: 1 },
+  reversible: false,
+  Tmin_K: 298,
+  Tmax_K: 1273,
+  Pmin_Pa: 100000,
+  Pmax_Pa: 5000000,
+  notes: 'Electrochemical (SOEC). CO₂ → CO + O₂. Sandbox option alongside R_H2O_ELEC.',
+  references: [{ source: 'NIST-JANAF', detail: 'Chase 1998' }],
+  kinetics: {
+    model: 'ELECTROCHEMICAL'
+  }
+});
+
+// ── Co-Electrolysis (Data Only — ELECTROCHEMICAL) ──
+ReactionRegistry.register('R_COELEC', {
+  name: 'Co-Electrolysis (SOEC)',
+  equation: 'CO₂ + H₂O → CO + H₂ + O₂',
+  stoich: { CO2: -1, H2O: -1, CO: 1, H2: 1, O2: 1 },
+  reversible: false,
+  Tmin_K: 923,
+  Tmax_K: 1273,
+  Pmin_Pa: 100000,
+  Pmax_Pa: 3000000,
+  notes: 'SOEC co-electrolysis. Produces syngas (CO+H₂) + O₂ in one step. More efficient than separate H₂O + CO₂ electrolysis. Late-game unlock.',
+  references: [{ source: 'NIST-JANAF', detail: 'Chase 1998' }],
+  kinetics: { model: 'ELECTROCHEMICAL' }
+});
+
+// ── Hydrogen Fuel Cell (Data Only — ELECTROCHEMICAL) ──
+ReactionRegistry.register('R_H2_FUELCELL', {
+  name: 'Hydrogen Fuel Cell',
+  equation: '2 H₂ + O₂ → 2 H₂O',
+  stoich: { H2: -2, O2: -1, H2O: 2 },
+  reversible: false,
+  Tmin_K: 298,
+  Tmax_K: 1273,
+  Pmin_Pa: 100000,
+  Pmax_Pa: 5000000,
+  notes: 'Reverse electrolysis — generates power. H₂ at cathode, O₂ at anode. Data only until fuel_cell unit registered.',
+  references: [{ source: 'NIST-JANAF', detail: 'Chase 1998' }],
+  kinetics: { model: 'ELECTROCHEMICAL' }
+});
+
+// ── CO Solid Oxide Fuel Cell (Data Only — ELECTROCHEMICAL) ──
+ReactionRegistry.register('R_CO_FUELCELL', {
+  name: 'CO Solid Oxide Fuel Cell',
+  equation: '2 CO + O₂ → 2 CO₂',
+  stoich: { CO: -2, O2: -1, CO2: 2 },
+  reversible: false,
+  Tmin_K: 923,
+  Tmax_K: 1273,
+  Pmin_Pa: 100000,
+  Pmax_Pa: 5000000,
+  notes: 'SOFC — CO as fuel. Generates power. CO at cathode, O₂ at anode. Data only until fuel_cell unit registered.',
+  references: [{ source: 'NIST-JANAF', detail: 'Chase 1998' }],
+  kinetics: { model: 'ELECTROCHEMICAL' }
 });
 
 /* =========================
@@ -10102,6 +10324,15 @@ class Scene {
 
     // [v12.0.0] All migration eras removed — format version 16, no legacy scenes.
 
+    // [v13.0.3 S1b-1] Rename migration: R_STEAM_REFORM → R_SMR_OVERALL
+    if (Array.isArray(data.units)) {
+      for (const u of data.units) {
+        if (u.params?.reactionId === 'R_STEAM_REFORM') {
+          u.params.reactionId = 'R_SMR_OVERALL';
+        }
+      }
+    }
+
     // ── Phase 2: Validate structure + caps ──
     const errors = [];
 
@@ -16034,6 +16265,14 @@ function showReactionDetails(rxn) {
     modelLine.textContent = 'Model: ' + modelLabel;
     kinSection.appendChild(modelLine);
 
+    // [v13.0.3 S1b] ELECTROCHEMICAL has no rate equation params — show model only
+    if (kin.model !== 'POWER_LAW' || !kin.orders) {
+      const note = document.createElement('div');
+      note.style.cssText = 'font-size:11px; opacity:0.6; margin-bottom:12px;';
+      note.textContent = 'Rate determined by power input (no kinetic parameters).';
+      kinSection.appendChild(note);
+    } else {
+
     // Rate equation display
     const ordersStr = Object.entries(kin.orders)
       .map(([sp, n]) => {
@@ -16069,6 +16308,7 @@ function showReactionDetails(rxn) {
     }
 
     kinSection.appendChild(paramGrid);
+    } // end POWER_LAW display
 
     // Kinetics citations
     if (kin.references && kin.references.length > 0) {
@@ -20107,7 +20347,7 @@ function loadDemo() {
   //   A) BRAYTON CYCLE: Air → Compressor → Hex cold → Heater 1200K
   //      → Gas Turbine → Exhaust. Turbine → Generator → Grid Export.
   //      Grid → Motor → Compressor.
-  //   B) SMR (endothermic): CH₄+H₂O → Reactor (R_STEAM_REFORM)
+  //   B) SMR (endothermic): CH₄+H₂O → Reactor (R_SMR_OVERALL)
   //      → Hex hot → Valve letdown → Syngas. Heat from Sabatier.
   //   C) PUMP: Water → Pump 5 bar → Sink. Grid → Motor → Pump.
   //   SHARED: Heat exchanger (recuperator) between A and B.
@@ -20206,7 +20446,7 @@ function loadDemo() {
       { id: 'b-feed', defId: 'source_multi', name: 'CH₄/Steam Feed', x: 4, y: -6, rot: 0,
         params: { n: { CH4: 0.2, H2O: 0.4 }, T: 1000, P: 2000000, phaseConstraint: 'V' } },
       { id: 'b-rx', defId: 'reactor_equilibrium', name: 'SMR Reactor', x: 8, y: -6, rot: 0,
-        params: { reactionId: 'R_STEAM_REFORM', useKinetics: true, volume_m3: 1.0, heatDemand: 'isothermal', variant: 'elec-top' },
+        params: { reactionId: 'R_SMR_OVERALL', useKinetics: true, volume_m3: 1.0, heatDemand: 'isothermal', variant: 'elec-top' },
         sticker: { dx: -6, dy: -2, items: [
           { section: 'power', label: 'ΔT' },
           { section: 'reaction', label: 'Conversion' }
@@ -23901,17 +24141,23 @@ function runTests() {
 
     for (const rxn of all) {
       t.assertOK(rxn._kinetics, `${rxn.id} has _kinetics`);
-      t.assertOK(rxn._kinetics.model === 'POWER_LAW', `${rxn.id} model = POWER_LAW`);
-      t.assertOK(rxn._kinetics.A > 0, `${rxn.id} A > 0`);
-      t.assertOK(rxn._kinetics.Ea_Jmol >= 0, `${rxn.id} Ea ≥ 0`);
-      t.assertOK(isFinite(rxn._kinetics.beta), `${rxn.id} beta finite`);
-      t.assertOK(Object.keys(rxn._kinetics.orders).length > 0, `${rxn.id} has orders`);
-      t.assertOK(rxn._kinetics.references.length > 0, `${rxn.id} has kinetics references`);
+      const model = rxn._kinetics.model;
+      t.assertOK(model === 'POWER_LAW' || model === 'ELECTROCHEMICAL',
+        `${rxn.id} model valid`, model);
 
-      // Orders reference only stoich species
-      for (const sp of Object.keys(rxn._kinetics.orders)) {
-        t.assertOK(sp in rxn.stoich, `${rxn.id} order species '${sp}' in stoich`);
+      if (model === 'POWER_LAW') {
+        t.assertOK(rxn._kinetics.A > 0, `${rxn.id} A > 0`);
+        t.assertOK(rxn._kinetics.Ea_Jmol >= 0, `${rxn.id} Ea ≥ 0`);
+        t.assertOK(isFinite(rxn._kinetics.beta), `${rxn.id} beta finite`);
+        t.assertOK(Object.keys(rxn._kinetics.orders).length > 0, `${rxn.id} has orders`);
+        t.assertOK(rxn._kinetics.references.length > 0, `${rxn.id} has kinetics references`);
+
+        // Orders reference only stoich species
+        for (const sp of Object.keys(rxn._kinetics.orders)) {
+          t.assertOK(sp in rxn.stoich, `${rxn.id} order species '${sp}' in stoich`);
+        }
       }
+      // ELECTROCHEMICAL: model-only, no A/Ea/beta/orders required
     }
 
     // Spot-check specific values
@@ -26708,7 +26954,7 @@ function runTests() {
       n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V'
     });
     const rx = t.place('reactor_equilibrium', 4, 0, {
-      reactionId: 'R_STEAM_REFORM', useKinetics: false, alpha: 1.0,
+      reactionId: 'R_SMR_OVERALL', useKinetics: false, alpha: 1.0,
       heatDemand: 'isothermal'  // explicitly heated
     });
     const snk = t.place('sink', 8, 0);
@@ -26738,7 +26984,7 @@ function runTests() {
     });
     // Insulated reference
     const rxIns = t.place('reactor_equilibrium', 4, 0, {
-      reactionId: 'R_STEAM_REFORM', useKinetics: false, alpha: 1.0
+      reactionId: 'R_SMR_OVERALL', useKinetics: false, alpha: 1.0
     });
     const snkIns = t.place('sink', 8, 0);
     t.wire(src, 'out', rxIns, 'mat_in');
@@ -26748,7 +26994,7 @@ function runTests() {
       n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V'
     });
     const rxHeat = t.place('reactor_equilibrium', 4, 6, {
-      reactionId: 'R_STEAM_REFORM', useKinetics: false, alpha: 1.0,
+      reactionId: 'R_SMR_OVERALL', useKinetics: false, alpha: 1.0,
       heatDemand: 'isothermal'
     });
     const snkHeat = t.place('sink', 8, 6);
@@ -26772,7 +27018,7 @@ function runTests() {
       n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V'
     });
     const rx = t.place('reactor_equilibrium', 4, 0, {
-      reactionId: 'R_STEAM_REFORM', useKinetics: false, alpha: 1.0
+      reactionId: 'R_SMR_OVERALL', useKinetics: false, alpha: 1.0
       // default: insulated
     });
     const snk = t.place('sink', 8, 0);
@@ -27475,7 +27721,7 @@ function runTests() {
   tests.push({ name: '240: Heated endo + small Q → T between insulated and isothermal', fn: t => {
     // [v11.0.0] Heated mode with partial Q: T_out > insulated, < isothermal
     const feed = t.place('source_multi', 0, 0, { n:{CH4:0.2, H2O:0.4}, T:1000, P:2000000, phaseConstraint:'V' });
-    const rx = t.place('reactor_equilibrium', 4, 0, { reactionId:'R_STEAM_REFORM', useKinetics:true, volume_m3:1.0, heatDemand:'isothermal', variant:'elec-top' });
+    const rx = t.place('reactor_equilibrium', 4, 0, { reactionId:'R_SMR_OVERALL', useKinetics:true, volume_m3:1.0, heatDemand:'isothermal', variant:'elec-top' });
     const snk = t.place('sink', 8, 0);
     // [v12.9.0] grid → hub → reactor elec_in
     const gs = t.place('grid_supply', 0, 6, { maxPower:5 });
@@ -27495,7 +27741,7 @@ function runTests() {
   tests.push({ name: '241: Heated endo + excess Q → T near isothermal', fn: t => {
     // Endothermic + excess heat → T_out ≈ T_in or slightly above
     const feed = t.place('source_multi', 0, 0, { n:{CH4:0.2, H2O:0.4}, T:1000, P:2000000, phaseConstraint:'V' });
-    const rx = t.place('reactor_equilibrium', 4, 0, { reactionId:'R_STEAM_REFORM', useKinetics:true, volume_m3:1.0, heatDemand:'isothermal', variant:'elec-top' });
+    const rx = t.place('reactor_equilibrium', 4, 0, { reactionId:'R_SMR_OVERALL', useKinetics:true, volume_m3:1.0, heatDemand:'isothermal', variant:'elec-top' });
     const snk = t.place('sink', 8, 0);
     // [v12.9.0] grid → hub → reactor elec_in
     const gs = t.place('grid_supply', 0, 6, { maxPower:100 });
@@ -27557,7 +27803,7 @@ function runTests() {
 
     // ── PROCESS B: Steam Methane Reforming (endothermic) ──
     const bFeed  = t.place('source_multi',     30,  4, { n: { CH4: 0.2, H2O: 0.4 }, T: 1000, P: 2000000, phaseConstraint: 'V' });
-    const bRx    = t.place('reactor_equilibrium', 34, 4, { reactionId: 'R_STEAM_REFORM', useKinetics: true, volume_m3: 1.0, variant: 'elec-top', heatDemand: 'isothermal' });
+    const bRx    = t.place('reactor_equilibrium', 34, 4, { reactionId: 'R_SMR_OVERALL', useKinetics: true, volume_m3: 1.0, variant: 'elec-top', heatDemand: 'isothermal' });
     const bValve = t.place('valve',            42,  4, { Pout: 200000 });
     const bProd  = t.place('sink',             46,  4);
 
@@ -27900,7 +28146,7 @@ function runTests() {
   tests.push({ name: '254: Fixed power endo + excess Q → T_out > T_in, energy in fluid', fn: t => {
     // Steam reforming at 1000K with large fixed Q (500 kW, duty ~200 kW). WYSIWYG: all Q enters fluid.
     const src  = t.place('source_multi', 0, 0, { n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V' });
-    const rx   = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_STEAM_REFORM', useKinetics: false, alpha: 1.0, heatDemand: 'fixed', Q_fixed_kW: 500 });
+    const rx   = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_SMR_OVERALL', useKinetics: false, alpha: 1.0, heatDemand: 'fixed', Q_fixed_kW: 500 });
     const snk  = t.place('sink', 8, 0);
     // Direct grid → reactor (tests direct allocation with finite demand)
     const elSrc = t.place('grid_supply', 0, 5, { maxPower: 500 });
@@ -28045,7 +28291,7 @@ function runTests() {
       n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V'
     });
     const rx = t.place('reactor_equilibrium', 4, 0, {
-      reactionId: 'R_STEAM_REFORM', useKinetics: false, alpha: 1.0
+      reactionId: 'R_SMR_OVERALL', useKinetics: false, alpha: 1.0
     });
     const snk = t.place('sink', 8, 0);
     t.wire(src, 'out', rx, 'mat_in');
@@ -28101,7 +28347,7 @@ function runTests() {
       n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V'
     });
     const rx1 = t.place('reactor_equilibrium', 4, 0, {
-      reactionId: 'R_STEAM_REFORM', useKinetics: false, alpha: 1.0
+      reactionId: 'R_SMR_OVERALL', useKinetics: false, alpha: 1.0
     });
     const snk1 = t.place('sink', 8, 0);
     t.wire(src1, 'out', rx1, 'mat_in');
@@ -28115,7 +28361,7 @@ function runTests() {
       n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V'
     });
     const rx2 = t.place('reactor_equilibrium', 4, 0, {
-      reactionId: 'R_STEAM_REFORM', useKinetics: false, alpha: 1.0, heatDemand: 'isothermal'
+      reactionId: 'R_SMR_OVERALL', useKinetics: false, alpha: 1.0, heatDemand: 'isothermal'
     });
     const snk2 = t.place('sink', 8, 0);
     const gs = t.place('grid_supply', 0, 6, { maxPower: Q_iso / 1000 + 1 });
@@ -28163,7 +28409,7 @@ function runTests() {
     });
     // Default mode is insulated — variant should be 'insulated' (no elec_in visible)
     const rx = t.place('reactor_equilibrium', 4, 0, {
-      reactionId: 'R_STEAM_REFORM', useKinetics: false, alpha: 1.0, heatDemand: 'none', variant: 'insulated'
+      reactionId: 'R_SMR_OVERALL', useKinetics: false, alpha: 1.0, heatDemand: 'none', variant: 'insulated'
     });
     const snk = t.place('sink', 8, 0);
     const gs = t.place('grid_supply', 4, 6, { maxPower: 50 });
@@ -28226,7 +28472,7 @@ function runTests() {
       n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V'
     });
     const rx = t.place('reactor_equilibrium', 4, 0, {
-      reactionId: 'R_STEAM_REFORM', useKinetics: false, alpha: 1.0
+      reactionId: 'R_SMR_OVERALL', useKinetics: false, alpha: 1.0
     });
     const snk = t.place('sink', 8, 0);
     t.wire(src, 'out', rx, 'mat_in');
@@ -28280,7 +28526,7 @@ function runTests() {
       n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V'
     });
     const rx = t.place('reactor_equilibrium', 4, 0, {
-      reactionId: 'R_STEAM_REFORM', useKinetics: false, alpha: 1.0
+      reactionId: 'R_SMR_OVERALL', useKinetics: false, alpha: 1.0
     });
     const snk = t.place('sink', 8, 0);
     t.wire(src, 'out', rx, 'mat_in');
@@ -28332,7 +28578,7 @@ function runTests() {
       n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V'
     });
     const rx = t.place('reactor_equilibrium', 4, 0, {
-      reactionId: 'R_STEAM_REFORM', useKinetics: false, alpha: 1.0, heatDemand: 'isothermal', variant: 'default'
+      reactionId: 'R_SMR_OVERALL', useKinetics: false, alpha: 1.0, heatDemand: 'isothermal', variant: 'default'
     });
     const snk = t.place('sink', 8, 0);
     // [v12.8.0] grid → reactor elec_in
@@ -28692,7 +28938,7 @@ function runTests() {
     // First get isothermal duty from insulated run.
     t.clearScene();
     const src1 = t.place('source_multi', 0, 0, { n: { CH4:1, H2O:2 }, T: 1000, P: 500000, phaseConstraint: 'V' });
-    const rx1  = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_STEAM_REFORM', useKinetics: false, alpha: 1.0, heatDemand: 'none', variant: 'insulated' });
+    const rx1  = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_SMR_OVERALL', useKinetics: false, alpha: 1.0, heatDemand: 'none', variant: 'insulated' });
     const snk1 = t.place('sink', 8, 0);
     t.wire(src1, 'out', rx1, 'mat_in');
     t.wire(rx1, 'mat_out', snk1, 'in');
@@ -28707,7 +28953,7 @@ function runTests() {
     t.clearScene();
     const Q_supply_kW = Math.abs(Q_iso) / 1000;
     const src2 = t.place('source_multi', 0, 0, { n: { CH4:1, H2O:2 }, T: 1000, P: 500000, phaseConstraint: 'V' });
-    const rx2  = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_STEAM_REFORM', useKinetics: false, alpha: 1.0, heatDemand: 'isothermal' });
+    const rx2  = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_SMR_OVERALL', useKinetics: false, alpha: 1.0, heatDemand: 'isothermal' });
     const snk2 = t.place('sink', 8, 0);
     const gs   = t.place('grid_supply', 4, 5, { maxPower: Q_supply_kW + 10 });
     const hub  = t.place('power_hub', 4, 7);
@@ -29019,7 +29265,7 @@ function runTests() {
     // Grid supply < total demand → both get curtailed. Neither gets NaN.
     t.clearScene();
     const src = t.place('source_multi', 0, 0, { n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V' });
-    const rx  = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_STEAM_REFORM', useKinetics: false, alpha: 1.0, heatDemand: 'isothermal' });
+    const rx  = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_SMR_OVERALL', useKinetics: false, alpha: 1.0, heatDemand: 'isothermal' });
     const snk = t.place('sink', 8, 0);
     t.wire(src, 'out', rx, 'mat_in'); t.wire(rx, 'mat_out', snk, 'in');
     // Compressor on same hub
@@ -29049,7 +29295,7 @@ function runTests() {
     t.clearScene();
     // Get iso_duty from adiabatic run
     const src1 = t.place('source_multi', 0, 0, { n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V' });
-    const rx1  = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_STEAM_REFORM', useKinetics: false, alpha: 1.0, heatDemand: 'none', variant: 'insulated' });
+    const rx1  = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_SMR_OVERALL', useKinetics: false, alpha: 1.0, heatDemand: 'none', variant: 'insulated' });
     const snk1 = t.place('sink', 8, 0);
     t.wire(src1, 'out', rx1, 'mat_in'); t.wire(rx1, 'mat_out', snk1, 'in');
     t.solve();
@@ -29059,7 +29305,7 @@ function runTests() {
     // Isothermal mode
     t.clearScene();
     const src2 = t.place('source_multi', 0, 0, { n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V' });
-    const rx2  = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_STEAM_REFORM', useKinetics: false, alpha: 1.0, heatDemand: 'isothermal' });
+    const rx2  = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_SMR_OVERALL', useKinetics: false, alpha: 1.0, heatDemand: 'isothermal' });
     const snk2 = t.place('sink', 8, 0);
     const gs2  = t.place('grid_supply', 0, 5, { maxPower: iso_duty_kW + 10 });
     const hub2 = t.place('power_hub', 2, 5);
@@ -29071,7 +29317,7 @@ function runTests() {
     // Fixed mode with Q = iso_duty
     t.clearScene();
     const src3 = t.place('source_multi', 0, 0, { n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V' });
-    const rx3  = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_STEAM_REFORM', useKinetics: false, alpha: 1.0, heatDemand: 'fixed', Q_fixed_kW: iso_duty_kW });
+    const rx3  = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_SMR_OVERALL', useKinetics: false, alpha: 1.0, heatDemand: 'fixed', Q_fixed_kW: iso_duty_kW });
     const snk3 = t.place('sink', 8, 0);
     const gs3  = t.place('grid_supply', 0, 5, { maxPower: iso_duty_kW + 10 });
     const hub3 = t.place('power_hub', 2, 5);
@@ -29089,7 +29335,7 @@ function runTests() {
     // With finite demand, no NaN/Infinity in allocation.
     t.clearScene();
     const src = t.place('source_multi', 0, 0, { n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V' });
-    const rx  = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_STEAM_REFORM', useKinetics: false, alpha: 1.0, heatDemand: 'isothermal' });
+    const rx  = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_SMR_OVERALL', useKinetics: false, alpha: 1.0, heatDemand: 'isothermal' });
     const snk = t.place('sink', 8, 0);
     const gs  = t.place('grid_supply', 0, 5, { maxPower: 500 });
     t.wire(src, 'out', rx, 'mat_in'); t.wire(rx, 'mat_out', snk, 'in');
@@ -29262,6 +29508,113 @@ function runTests() {
     const out = t.port(clr, 'mat_out');
     t.assertOK(out.T > 310 + 50, 'T_out >> setpoint (airFlow-limited)', `T=${out.T.toFixed(0)}K`);
   }});
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // S1b: Chemistry palette (v13.0.3)
+  // ═══════════════════════════════════════════════════════════════════════
+
+  test('325: S1b — R_HABER mass balance (N₂ + 3H₂ → 2NH₃)', t => {
+    const rxn = ReactionRegistry.get('R_HABER');
+    t.assertOK(rxn, 'R_HABER registered');
+    let mb = 0;
+    for (const [sp, nu] of Object.entries(rxn.stoich)) mb += nu * ComponentRegistry.get(sp).MW;
+    t.assertClose(Math.abs(mb), 0, 1e-3, 'Mass balance |Σ(ν×MW)| < 1e-3');
+  });
+
+  test('326: S1b — R_SMR mass balance (CH₄ + H₂O → CO + 3H₂)', t => {
+    const rxn = ReactionRegistry.get('R_SMR');
+    t.assertOK(rxn, 'R_SMR registered');
+    let mb = 0;
+    for (const [sp, nu] of Object.entries(rxn.stoich)) mb += nu * ComponentRegistry.get(sp).MW;
+    t.assertClose(Math.abs(mb), 0, 1e-3, 'Mass balance');
+    t.assertOK(rxn.stoich.CO === 1, 'CO is product', rxn.stoich.CO);
+  });
+
+  test('327: S1b — R_WGS mass balance (CO + H₂O → CO₂ + H₂)', t => {
+    const rxn = ReactionRegistry.get('R_WGS');
+    t.assertOK(rxn, 'R_WGS registered');
+    let mb = 0;
+    for (const [sp, nu] of Object.entries(rxn.stoich)) mb += nu * ComponentRegistry.get(sp).MW;
+    t.assertClose(Math.abs(mb), 0, 1e-3, 'Mass balance');
+  });
+
+  test('328: S1b — R_CH4_COMB mass balance (CH₄ + 2O₂ → CO₂ + 2H₂O)', t => {
+    const rxn = ReactionRegistry.get('R_CH4_COMB');
+    t.assertOK(rxn, 'R_CH4_COMB registered');
+    let mb = 0;
+    for (const [sp, nu] of Object.entries(rxn.stoich)) mb += nu * ComponentRegistry.get(sp).MW;
+    t.assertClose(Math.abs(mb), 0, 1e-3, 'Mass balance');
+    t.assertOK(rxn._dH0_Jmol < -700000, 'Strongly exothermic', rxn._dH0_Jmol);
+  });
+
+  test('329: S1b — R_H2O_ELEC ELECTROCHEMICAL model', t => {
+    const rxn = ReactionRegistry.get('R_H2O_ELEC');
+    t.assertOK(rxn, 'R_H2O_ELEC registered');
+    t.assertOK(rxn._kinetics.model === 'ELECTROCHEMICAL', 'model = ELECTROCHEMICAL');
+    t.assertOK(rxn._dH0_Jmol > 400000, 'Endothermic (electrolysis)', rxn._dH0_Jmol);
+  });
+
+  test('330: S1b — R_CO2_ELEC ELECTROCHEMICAL model', t => {
+    const rxn = ReactionRegistry.get('R_CO2_ELEC');
+    t.assertOK(rxn, 'R_CO2_ELEC registered');
+    t.assertOK(rxn._kinetics.model === 'ELECTROCHEMICAL', 'model = ELECTROCHEMICAL');
+    let mb = 0;
+    for (const [sp, nu] of Object.entries(rxn.stoich)) mb += nu * ComponentRegistry.get(sp).MW;
+    t.assertClose(Math.abs(mb), 0, 1e-3, 'Mass balance');
+  });
+
+  test('331: S1b — R_COELEC co-electrolysis mass balance', t => {
+    const rxn = ReactionRegistry.get('R_COELEC');
+    t.assertOK(rxn, 'R_COELEC registered');
+    t.assertOK(rxn._kinetics.model === 'ELECTROCHEMICAL', 'model = ELECTROCHEMICAL');
+    let mb = 0;
+    for (const [sp, nu] of Object.entries(rxn.stoich)) mb += nu * ComponentRegistry.get(sp).MW;
+    t.assertClose(Math.abs(mb), 0, 1e-3, 'Mass balance');
+  });
+
+  test('332: S1b — R_H2_FUELCELL exothermic + ELECTROCHEMICAL', t => {
+    const rxn = ReactionRegistry.get('R_H2_FUELCELL');
+    t.assertOK(rxn, 'R_H2_FUELCELL registered');
+    t.assertOK(rxn._kinetics.model === 'ELECTROCHEMICAL', 'model = ELECTROCHEMICAL');
+    t.assertOK(rxn._dH0_Jmol < 0, 'Exothermic (generates power)', rxn._dH0_Jmol);
+  });
+
+  test('333: S1b — R_CO_FUELCELL exothermic + ELECTROCHEMICAL', t => {
+    const rxn = ReactionRegistry.get('R_CO_FUELCELL');
+    t.assertOK(rxn, 'R_CO_FUELCELL registered');
+    t.assertOK(rxn._kinetics.model === 'ELECTROCHEMICAL', 'model = ELECTROCHEMICAL');
+    t.assertOK(rxn._dH0_Jmol < 0, 'Exothermic (generates power)', rxn._dH0_Jmol);
+  });
+
+  test('334: S1b — importJSON migration R_STEAM_REFORM → R_SMR_OVERALL', t => {
+    const scene = new Scene();
+    const json = JSON.stringify({
+      version: 16, processName: 'migration-test',
+      grid: { w: 10, h: 10, tile: 48 },
+      units: [
+        { id: 'u1', defId: 'reactor_equilibrium', x: 0, y: 0,
+          params: { reactionId: 'R_STEAM_REFORM', useKinetics: false, alpha: 1.0 } }
+      ],
+      connections: []
+    });
+    const result = scene.importJSON(json);
+    t.assertOK(result.ok, 'Import succeeded', result.error);
+    const u = scene.units.get('u1');
+    t.assertOK(u.params.reactionId === 'R_SMR_OVERALL',
+      'reactionId migrated', u.params.reactionId);
+  });
+
+  test('335: S1b — 14 total reactions, all mass-balanced', t => {
+    const all = ReactionRegistry.all();
+    t.assertOK(all.length >= 13, `≥13 reactions: ${all.length}`);
+    for (const rxn of all) {
+      let mb = 0;
+      for (const [sp, nu] of Object.entries(rxn.stoich)) mb += nu * ComponentRegistry.get(sp).MW;
+      t.assertClose(Math.abs(mb), 0, 1e-3, `${rxn.id} mass balance`);
+    }
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
 
   // ═══════════════════════════════════════════════════════════════════════
   // S1a: Thermo fixes + CO species (v13.0.2)
