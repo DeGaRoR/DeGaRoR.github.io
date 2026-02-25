@@ -540,7 +540,8 @@ do not have elec_in ports and are not subject to overload.
 ---
 
 # S2-C. Hub Priority Allocation
-
+WARNING: change to the spec (authoritative): the powerPriority parameter on units should be an integer, so detailed priority lists can be built by the user. It entirely replaces the restrictive CRITICAL / NORMAL / DEFERRABLE system described here. This new unit field in the inspector will be diplayed as an input box with +/- cursor to increase/decrease the indicator by one.
+The power hub will report its allocation data in the inspector (generic format for all allocation modes), including priority factor per consumer for easy troubleshooting. This will be done using a new section in the inspector called "allocation report". Avoid in-line CSS, use existing styling for inspector's categories
 ## Priority Levels
 
 ```javascript

@@ -1,6 +1,13 @@
 # PTIS_EQUIPMENT_MATRIX
 ## Process This In Space — Equipment, Chemistry & Species Reference
-### Baseline: v12.10.0 · S-Size Pilot Plant Scale (2–10 persons)
+### Baseline: v13.0.8 · S-Size Pilot Plant Scale (2–10 persons)
+
+**v13.0.8 changes:** All equipment limits corrected to realistic values.
+L/H alarm tiers populated for T and P on all units.  P_L/P_H derived
+from equipment engineering practice (P_H ≈ 80% of mechanical rating,
+P_L = meaningful low-pressure warning per equipment type).  mass_LL
+added where matrix specifies minimum flow.  Tank fully populated
+(was 2 params, now 11).  §8 updated to 3-tier severity model.
 
 ---
 
@@ -33,10 +40,10 @@
 
 **S-Size Limits**
 
-| Param | LL | L | H | HH | Unit | Alarm |
+| Param | LL | L | H | HH | Unit | Notes |
 |-------|-----|---|---|-----|------|-------|
-| T | 253 | 273 | 623 | 723 | K | Phase: — |
-| P | 0.2 | — | — | 150 | bar | |
+| T | 253 | 273 | 623 | 723 | K | Fin material limits |
+| P | 0.2 | 0.5 | 120 | 150 | bar | Tube burst pressure |
 | ṁ | — | — | — | 0.12 | kg/s | |
 
 **S-Size Specs** (game_arch §45.1): Max flow 0.08 kg/s, fan power 50–100 W, heat rejection up to 20 kW.
@@ -71,7 +78,7 @@ None — passive unit. Operates at inlet conditions.
 | Param | LL | L | H | HH | Unit |
 |-------|-----|---|---|-----|------|
 | T | 243 | 263 | 523 | 623 | K |
-| P | 0.2 | — | — | 150 | bar |
+| P | 0.2 | 0.5 | 120 | 150 | bar |
 | ṁ | — | — | — | 0.15 | kg/s |
 
 **S-Size Specs** (game_arch §45.2): Volume 0.05 m³, max pressure 100 bar, T range 80–600 K.
@@ -99,27 +106,25 @@ None — passive unit. Operates at inlet conditions.
 
 **Parameters**
 
-| Param | Default | Corrected Default | Unit | Notes |
-|-------|---------|-------------------|------|-------|
-| volume_m3 | ~~50~~ | **0.15** | m³ | ⚠ Code says 50, must fix to 0.15 (S1c) |
-| drawRate | 1.0 | 1.0 | mol/s | |
+| Param | Default | Unit | Notes |
+|-------|---------|------|-------|
+| volume_m3 | 0.15 | m³ | S-size default |
+| drawRate | 1.0 | mol/s | |
 
 **Inventory**: Yes — tracks `{ n: {species: mol}, T, P }` per tick.
 
 **S-Size Limits**
 
-| Param | LL | L | H | HH | Unit |
-|-------|-----|---|---|-----|------|
-| T | 263 | 278 | 333 | 353 | K |
-| P | 0.8 | — | — | 5 | bar |
-| ṁ | — | — | — | 0.05 | kg/s |
-| level | — | — | 90 | 100 | % |
+| Param | LL | L | H | HH | Unit | Notes |
+|-------|-----|---|---|-----|------|-------|
+| T | 263 | 278 | 333 | 353 | K | Thin-wall vessel |
+| P | 0.8 | 0.85 | 4 | 5 | bar | Base model (missions may tighten via paramLocks) |
+| ṁ | — | — | — | 0.05 | kg/s | |
+| level | — | — | 90 | 100 | % | Fill percentage |
 
-**S-Size Specs** (game_arch §45.3): Volume 0.15 m³ default (adjustable 0.01–1.0 m³), max pressure 200 bar, T range 80–600 K.
+**S-Size Specs** (game_arch §45.3): Volume 0.15 m³ default (adjustable 0.01–1.0 m³), max pressure 5 bar (base), T range 263–353 K.
 
-**Variant — Dewar Tank (M9)**: Vacuum-insulated. T_LL = 20 K, P_HH = 10 bar. Same defId, distinguished by mission paramLocks or visual variant.
-
-**Resolved**: Single `tank` defId with wide limits (P_HH = 200 bar). Missions use paramLocks to tighten P_HH for LP service (e.g., P_HH = 5 bar). Cryo Dewar is separate defId `tank_cryo` (vacuum-insulated, T_LL = 20K, P_HH = 10 bar) — physically distinct machine.
+**Variant — Dewar Tank (M9)**: Vacuum-insulated. T_LL = 20 K, P_HH = 10 bar. Separate defId `tank_cryo`.
 
 ---
 
@@ -153,8 +158,8 @@ None — passive unit. Operates at inlet conditions.
 
 | Param | LL | L | H | HH | Unit | Notes |
 |-------|-----|---|---|-----|------|-------|
-| T | 243 | 263 | 333 | 353 | K | Discharge T |
-| P | 0.5 | — | — | 150 | bar | Discharge P |
+| T | 243 | 263 | 333 | 353 | K | Discharge T (diaphragm material limit) |
+| P | 0.5 | 0.8 | 120 | 150 | bar | Casing rating |
 | ṁ | — | — | — | 0.05 | kg/s | |
 | phase | — | — | — | — | — | REQUIRED: V (vapor only) |
 
@@ -192,9 +197,9 @@ None — passive unit. Operates at inlet conditions.
 
 | Param | LL | L | H | HH | Unit | Notes |
 |-------|-----|---|---|-----|------|-------|
-| T | 323 | 373 | 873 | 1023 | K | Inlet T (blade material limit) |
-| P | 1.5 | — | — | 150 | bar | Inlet P |
-| ṁ | 0.005 | — | — | 0.12 | kg/s | Min flow for stable operation |
+| T | 323 | 373 | 873 | 1023 | K | Inlet T (blade material / Inconel limit) |
+| P | 1.5 | 2.0 | 120 | 150 | bar | Inlet P (casing rating) |
+| ṁ | 0.005 | — | — | 0.12 | kg/s | Min flow for stable rotor operation (surge) |
 | phase | — | — | — | — | — | REQUIRED: V |
 
 **S-Size Specs** (game_arch §45.9): Max inlet T 1023 K, max inlet P 20 bar, η 0.75–0.85, power up to 10 kW, mass flow up to 0.1 kg/s. Dual role: power turbine (M4/M8) or turboexpander for cooling (M9).
@@ -231,8 +236,8 @@ None — passive unit. Operates at inlet conditions.
 
 | Param | LL | L | H | HH | Unit | Notes |
 |-------|-----|---|---|-----|------|-------|
-| T | 263 | 278 | 353 | 393 | K | |
-| P | 0.5 | — | — | 50 | bar | Discharge P |
+| T | 263 | 278 | 353 | 393 | K | Seal/gasket material limit |
+| P | 0.5 | 0.8 | 40 | 50 | bar | Discharge P (gear casing) |
 | ṁ | — | — | — | 0.12 | kg/s | |
 | phase | — | — | — | — | — | REQUIRED: L (liquid only) |
 
@@ -266,11 +271,11 @@ None — passive unit. Operates at inlet conditions.
 
 **S-Size Limits**
 
-| Param | LL | L | H | HH | Unit |
-|-------|-----|---|---|-----|------|
-| T | 243 | 263 | 523 | 623 | K |
-| P | — | — | — | 150 | bar |
-| ṁ | — | — | — | 0.25 | kg/s |
+| Param | LL | L | H | HH | Unit | Notes |
+|-------|-----|---|---|-----|------|-------|
+| T | 243 | 263 | 523 | 623 | K | Body/packing material |
+| P | — | — | 120 | 150 | bar | Body rating (no low-P alarm — valves handle vacuum) |
+| ṁ | — | — | — | 0.25 | kg/s | |
 
 **S-Size Specs** (game_arch §45.11): Cv adjustable, max inlet P 200 bar. JT cooling architecture: H_target = H_in, PH-flash resolves T_out.
 
@@ -306,11 +311,11 @@ None — passive unit. Operates at inlet conditions.
 
 **S-Size Limits**
 
-| Param | LL | L | H | HH | Unit |
-|-------|-----|---|---|-----|------|
-| T | 253 | 273 | 723 | 823 | K |
-| P | 0.2 | — | — | 150 | bar |
-| ṁ | 0.002 | — | — | 0.12 | kg/s |
+| Param | LL | L | H | HH | Unit | Notes |
+|-------|-----|---|---|-----|------|-------|
+| T | 253 | 273 | 723 | 823 | K | Element burnout limit |
+| P | 0.2 | 0.5 | 120 | 150 | bar | Tube rating |
+| ṁ | 0.002 | — | — | 0.12 | kg/s | Min flow (element overheats without cooling flow) |
 
 **S-Size Specs** (game_arch §45.13): Max power 5 kW, max T_out 923 K (element limit), efficiency ~98%.
 
@@ -349,7 +354,7 @@ Solve modes: approach (bisection with PH-flash), T_setpoint (fixed outlet), UA/N
 | Param | LL | L | H | HH | Unit |
 |-------|-----|---|---|-----|------|
 | T | 243 | 263 | 573 | 673 | K |
-| P | 0.2 | — | — | 150 | bar |
+| P | 0.2 | 0.5 | 120 | 150 | bar |
 | ṁ | — | — | — | 0.12 | kg/s |
 
 **S-Size Specs** (game_arch §45.7): Heat transfer area 2 m², UA 500 W/K, max P 100 bar/side, min approach 5 K.
@@ -384,7 +389,7 @@ Solve modes: approach (bisection with PH-flash), T_setpoint (fixed outlet), UA/N
 | Param | LL | L | H | HH | Unit |
 |-------|-----|---|---|-----|------|
 | T | 243 | 263 | 623 | 723 | K |
-| P | 0.2 | — | — | 150 | bar |
+| P | 0.2 | 0.5 | 120 | 150 | bar |
 | ṁ | — | — | — | 0.25 | kg/s |
 
 ---
@@ -419,7 +424,7 @@ Solve modes: approach (bisection with PH-flash), T_setpoint (fixed outlet), UA/N
 | Param | LL | L | H | HH | Unit |
 |-------|-----|---|---|-----|------|
 | T | 243 | 263 | 623 | 723 | K |
-| P | 0.2 | — | — | 150 | bar |
+| P | 0.2 | 0.5 | 120 | 150 | bar |
 | ṁ | — | — | — | 0.25 | kg/s |
 
 ---
@@ -459,8 +464,8 @@ Solve modes: approach (bisection with PH-flash), T_setpoint (fixed outlet), UA/N
 | Param | LL | L | H | HH | Unit | Notes |
 |-------|-----|---|---|-----|------|-------|
 | T | 323 | 373 | 773 | 923 | K | Catalyst sintering limit at HH |
-| P | 0.5 | — | — | 150 | bar | |
-| ṁ | 0.001 | — | — | 0.08 | kg/s | |
+| P | 0.5 | 0.8 | 120 | 150 | bar | Vessel rating |
+| ṁ | 0.001 | — | — | 0.08 | kg/s | Min flow for kinetics |
 | phase | — | — | — | — | — | REQUIRED: V |
 
 **S-Size Specs** (game_arch §45.6): Volume 0.05 m³, catalyst ~40 kg, max T 923 K, max P 150 bar, GHSV 10,000–50,000 hr⁻¹.
@@ -818,7 +823,7 @@ Same ports as tank. Limits: T_LL=20K, T_HH=300K, P_HH=10 bar (fragile vessel). N
 ### 4.1 Current (v12.10.0 baseline — 9 species)
 
 | ID | Formula | MW (g/mol) | Tc (K) | Pc (bar) | ω | Shomate ranges | Antoine |
-|----|---------|-----------|--------|----------|---|----------------|---------|
+|----|---------|-----------|--------|----------|---|----------------|---------| 
 | H2O | H₂O | 18.015 | 647.1 | 220.64 | 0.344 | ⚠ 500–1700 → **fix to 298–1700** | 255–373 K |
 | O2 | O₂ | 31.999 | 154.6 | 50.43 | 0.022 | 100–700, 700–2000 | 54–154 K |
 | H2 | H₂ | 2.016 | 33.2 | 12.97 | −0.217 | 298–1000, 1000–2500 | 14–33 K |
@@ -942,14 +947,53 @@ See `PTIS_COMPOSITE_MODELS.md` §6 for vent table.
 
 ## 8. Limit Severity Mapping
 
-All equipment limits follow the four-tier scheme:
+All equipment limits follow the three-tier scheme (v13.0.8):
 
 | Zone | Condition | Severity | Game consequence |
-|------|-----------|----------|-----------------|
-| Below LL or above HH | Out of physical envelope | CRITICAL | Catastrophic failure (rupture, fry, blade loss) |
-| Between LL–L or H–HH | Approaching limit | WARNING | Expert warns, time warp limited |
-| Between L–H | Normal operating range | OK | — |
-| Phase violation | Wrong phase for unit | CRITICAL | Immediate alarm (liquid in compressor, gas in pump) |
+|------|-----------|----------|-----------------| 
+| Below LL or above HH | Out of physical envelope | CATASTROPHIC | Equipment destroyed (rupture, fry, blade loss). Pulsating red glow. |
+| Between LL–L or H–HH | Approaching limit | WARNING | Expert warns, amber indicator, time warp limited. |
+| Between L–H | Normal operating range | OK | Green. |
+| Phase violation | Wrong phase for unit | CATASTROPHIC | Immediate alarm (liquid in compressor, gas in pump). |
+
+**Alarm domains (v13.0.8):** Limit violations are always PLANT domain
+(physical equipment events, player-visible).  SIM domain reserved for
+solver/validator diagnostics (NaN, flash failures, convergence).
+
+**Domain rule:** "Can the solver still produce a valid result?
+If yes → PLANT.  If no → SIM."
 
 Limit evaluation: `evaluateLimits(def, unit, unitData, mission)` → pure function.
 Three-layer merge: `getEffectiveLimits(def, unit, mission?)` → definition ∩ mission ∩ player.
+
+---
+
+## 9. Consolidated Limit Reference
+
+All values in SI units (K, Pa, kg/s, %) as stored in code.
+
+| Unit | T_LL | T_L | T_H | T_HH | P_LL | P_L | P_H | P_HH | ṁ_LL | ṁ_HH | level_H | level_HH |
+|------|------|-----|-----|------|------|-----|-----|------|------|------|---------|----------|
+| air_cooler | 253 | 273 | 623 | 723 | 20000 | 50000 | 12000000 | 15000000 | — | 0.12 | — | — |
+| flash_drum | 243 | 263 | 523 | 623 | 20000 | 50000 | 12000000 | 15000000 | — | 0.15 | — | — |
+| tank | 263 | 278 | 333 | 353 | 80000 | 85000 | 400000 | 500000 | — | 0.05 | 90 | 100 |
+| compressor | 243 | 263 | 333 | 353 | 50000 | 80000 | 12000000 | 15000000 | — | 0.05 | — | — |
+| gas_turbine | 323 | 373 | 873 | 1023 | 150000 | 200000 | 12000000 | 15000000 | 0.005 | 0.12 | — | — |
+| pump | 263 | 278 | 353 | 393 | 50000 | 80000 | 4000000 | 5000000 | — | 0.12 | — | — |
+| valve | 243 | 263 | 523 | 623 | — | — | 12000000 | 15000000 | — | 0.25 | — | — |
+| electric_heater | 253 | 273 | 723 | 823 | 20000 | 50000 | 12000000 | 15000000 | 0.002 | 0.12 | — | — |
+| hex | 243 | 263 | 573 | 673 | 20000 | 50000 | 12000000 | 15000000 | — | 0.12 | — | — |
+| mixer | 243 | 263 | 623 | 723 | 20000 | 50000 | 12000000 | 15000000 | — | 0.25 | — | — |
+| splitter | 243 | 263 | 623 | 723 | 20000 | 50000 | 12000000 | 15000000 | — | 0.25 | — | — |
+| reactor (all 3) | 323 | 373 | 773 | 923 | 50000 | 80000 | 12000000 | 15000000 | 0.001 | 0.08 | — | — |
+
+**P_L / P_H derivation notes:**
+- P_H ≈ 80% of P_HH (approaching mechanical rating / relief valve setpoint)
+- P_L = meaningful low-pressure warning per equipment type:
+  - 0.5 bar for units with 0.2 bar P_LL (sub-atmospheric unusual)
+  - 0.8 bar for turbomachinery / reactors (0.5 bar P_LL, low suction concern)
+  - 2.0 bar for gas_turbine (needs ΔP for stable expansion)
+  - 0.85 bar for tank (thin-wall vessel approaching vacuum)
+  - Valve: no P_LL or P_L (handles vacuum by design)
+- Tank P_H = 4 bar / P_HH = 5 bar (base model; missions tighten via paramLocks)
+- Pump P_H = 40 bar / P_HH = 50 bar (gear pump casing, lower than vessels)

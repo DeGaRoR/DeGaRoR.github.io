@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v13.0.6
+  processThis v13.0.7
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -110,8 +110,18 @@
             checks.
 
     NNG-7   Alarm architecture.
-            Frozen schema (id, category, severity, message, unitId, …).
-            Frozen severity taxonomy: CATASTROPHIC > ERROR > WARNING >
+            Frozen alarm schema:
+              id          string    unique alarm identifier
+              category    AlarmCategory  grouping key
+              severity    AlarmSeverity  frozen taxonomy level
+              message     string    the issue (never embeds unit name)
+              unitId?     string    machine-readable unit reference
+              unitName?   string    human-readable unit display name
+              detail?     string    supplementary context
+              remediation? string   suggested corrective action
+            Unit-scoped alarms MUST set both unitId and unitName.
+            The message field describes the problem, not the location.
+            Frozen severity taxonomy: CRITICAL > ERROR > WARNING >
             INFO > OK, each with numeric .level for programmatic
             comparison.  AlarmSystem.evaluate() is the sole alarm
             producer — no other code path creates, modifies, or injects
@@ -403,6 +413,25 @@
            Flow arrows scale with stream width.
            Action bar: three .btn-cluster groups, no inline CSS.
            Islands mode: material + electrical union-find.
+
+  v13.0.7  NNG-7 alarm schema hardening — 316 tests, 1941 assertions.
+           Not in original S1 scope; discovered during Diagnostic Center
+           UI testing that alarm sources used three inconsistent patterns
+           for reporting unit identity.  Critical audit revealed:
+             - evaluateLimits produced alarms with no unit name at all
+             - Per-unit errors used detail:"Unit: X" but not in message
+             - Connectivity embedded unit name in message but no detail
+           Fix: added unitName to NNG-7 frozen schema.  Rule: unit-scoped
+           alarms MUST set both unitId (machine) and unitName (human).
+           The message field describes the issue, never the location.
+           Updated all 3 unit-scoped alarm sources for compliance.
+           Diagnostic modal reads alarm.unitName directly (no re-resolve).
+           Diagnostic Center UI: title bar with inline traffic lights,
+           emphasized error/warning counts, consistent unit name display.
+           NNG-7 text expanded with explicit field-by-field schema.
+           T336 +1 assertion (unitName), T343 +2 assertions (unitId/Name),
+           T346 new: NNG-7 compliance sweep on all unit-scoped alarms.
+           NNG: NNG-7 (alarm schema), NNG-14 (version + tests).
 
   v13.0.6  Equipment limit messages use display units — 315 tests, 1937 assertions.
            evaluateLimits messages now format values through the active unit
@@ -2449,7 +2478,7 @@
           <div class="item" id="mUnits">Physical Units <span class="hint">display</span></div>
           <div class="item" id="mSolver">Solver <span class="hint">configure</span></div>
           <div class="item" id="mBalance">Balance Report</div>
-          <div class="item" id="mDiagnostic">Diagnostic <span class="hint">alarms</span></div>
+          <div class="item" id="mDiagnostic">Diagnostic Center <span class="hint">alarms</span></div>
           <div class="sep"></div>
           <div class="item" id="mImport">Import Model…</div>
           <div class="item" id="mExport">Export Model…</div>
@@ -2608,8 +2637,10 @@
     <div class="modal" id="modalDiagnostic">
       <div class="modalContent" style="max-width:620px;">
         <button class="modalClose" onclick="document.getElementById('modalDiagnostic').classList.remove('open')">×</button>
-        <h3>Diagnostic</h3>
-        <div class="small">Centralized alarm and advisory system.</div>
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
+          <h3 style="margin:0;" title="Centralized alarm and advisory system">Diagnostic Center</h3>
+          <div id="diagTrafficLights" style="display:flex; gap:14px; align-items:center;"></div>
+        </div>
         <div id="diagnosticPanel" style="margin-top:10px; max-height:60vh; overflow-y:auto;"></div>
       </div>
     </div>
@@ -12724,6 +12755,7 @@ function calculateStreamFlowrates(stream) {
 
 /* ═══════════════════════════════════════════════════════════════════════════
    [v10.3.4] ALARM SYSTEM — Engine-level diagnostic infrastructure
+   [v13.0.7] Schema hardened per NNG-7: unitName mandatory for unit-scoped alarms.
    
    Architecture:
    - AlarmSeverity: enumerated severity levels with stable ordering
@@ -12732,7 +12764,16 @@ function calculateStreamFlowrates(stream) {
    - AlarmSystem.evaluate(scene): runs all sources, returns sorted alarms
    - AlarmSystem.register(source): add new alarm source at runtime
    
-   Each alarm: { id, category, severity, message, detail?, remediation?, unitId? }
+   Frozen alarm schema (NNG-7):
+     id           string         unique alarm identifier
+     category     AlarmCategory  grouping key
+     severity     AlarmSeverity  frozen taxonomy level
+     message      string         the issue — never embeds unit name
+     unitId?      string         machine-readable unit reference
+     unitName?    string         human-readable unit display name
+     detail?      string         supplementary context
+     remediation? string         suggested corrective action
+   Unit-scoped alarms MUST set both unitId and unitName.
    ═══════════════════════════════════════════════════════════════════════════ */
 
 const AlarmSeverity = Object.freeze({
@@ -12755,7 +12796,9 @@ const AlarmCategory = Object.freeze({
 
 /**
  * An alarm source is a function: (scene) → Alarm[]
- * where Alarm = { id, category, severity, message, detail?, remediation?, unitId? }
+ * Alarm schema: { id, category, severity, message, unitId?, unitName?, detail?, remediation? }
+ * Unit-scoped alarms MUST set both unitId and unitName (NNG-7).
+ * The message field describes the issue, never the location.
  */
 const AlarmSystem = {
   _sources: [],
@@ -12875,7 +12918,8 @@ function getEffectiveLimits(def, size) {
 }
 
 // [S1c-6] evaluateLimits — pure function: unit data + def → violation array
-// Returns: [{ id, unitId, param, value, limit, severity, message }]
+// [v13.0.7] Now accepts unitName; produces NNG-7 compliant alarms with unitId + unitName.
+// Returns: [{ id, unitId, unitName, category, severity, message, param, value, limit }]
 // [v13.0.6] Messages use display units (°C, bar, kg/h) via models.getActive('units').
 const _limitTagToUnit = { T: 'temperature', P: 'pressure', mass: 'massFlow' };
 function _fmtLimit(tag, siValue) {
@@ -12884,7 +12928,7 @@ function _fmtLimit(tag, siValue) {
   if (!conv) return `${siValue.toPrecision(4)}`;
   return `${conv.from(siValue).toFixed(conv.decimals)} ${conv.symbol}`;
 }
-function evaluateLimits(unitId, ud, def) {
+function evaluateLimits(unitId, unitName, ud, def) {
   if (!def?.limitParams || !def?.limits) return [];
   const limits = getEffectiveLimits(def, 'S');
   if (!limits) return [];
@@ -12907,6 +12951,7 @@ function evaluateLimits(unitId, ud, def) {
       violations.push({
         id: `limit_${unitId}_${key}`,
         unitId,
+        unitName,
         param: key,
         value,
         limit: threshold,
@@ -12963,6 +13008,7 @@ AlarmSystem.register(() => [{ id: 'pressure_placeholder', category: AlarmCategor
   severity: AlarmSeverity.OK, message: 'Not yet solving — isobaric assumption active.' }]);
 
 // Source: Per-unit errors
+// [v13.0.7] NNG-7 compliance: unitName on all unit-scoped alarms, message = issue only.
 AlarmSystem.register((scene) => {
   const alarms = [];
   if (!scene.runtime?.unitData) return alarms;
@@ -12976,8 +13022,7 @@ AlarmSystem.register((scene) => {
                    : (sev?.level >= ErrorSeverity.MAJOR.level) ? AlarmSeverity.ERROR
                    : AlarmSeverity.WARNING;
       alarms.push({ id: `unit_${id}_err`, category: AlarmCategory.UNIT,
-        severity: aLevel, message: ud.last.error.message, unitId: id,
-        detail: `Unit: ${uName}` });
+        severity: aLevel, message: ud.last.error.message, unitId: id, unitName: uName });
     }
     if (ud?.errors?.length) {
       for (let i = 0; i < ud.errors.length; i++) {
@@ -12990,8 +13035,7 @@ AlarmSystem.register((scene) => {
           else if (err.severity.level >= ErrorSeverity.MAJOR.level) aLevel = AlarmSeverity.ERROR;
         }
         alarms.push({ id: `unit_${id}_warn_${i}`, category: AlarmCategory.UNIT,
-          severity: aLevel, message: msg, unitId: id,
-          detail: `Unit: ${uName}` });
+          severity: aLevel, message: msg, unitId: id, unitName: uName });
       }
     }
   }
@@ -12999,6 +13043,7 @@ AlarmSystem.register((scene) => {
 });
 
 // Source: Connectivity — unconnected ports
+// [v13.0.7] NNG-7 compliance: unitName field, message = issue only.
 AlarmSystem.register((scene) => {
   const alarms = [];
   for (const [id, u] of scene.units) {
@@ -13019,8 +13064,8 @@ AlarmSystem.register((scene) => {
       if (!isConnected) {
         const uName = u.name || def.name || id;
         alarms.push({ id: `unconnected_${id}_${port.portId}`, category: AlarmCategory.CONNECTIVITY,
-          severity: AlarmSeverity.INFO, message: `${uName}: port "${port.portId}" is unconnected.`,
-          unitId: id, remediation: 'Connect or remove this unit if unused.' });
+          severity: AlarmSeverity.INFO, message: `Port "${port.portId}" is unconnected.`,
+          unitId: id, unitName: uName, remediation: 'Connect or remove this unit if unused.' });
       }
     }
   }
@@ -13028,6 +13073,7 @@ AlarmSystem.register((scene) => {
 });
 
 // [v13.0.4 S1c-7] Source: Equipment Limits
+// [v13.0.7] NNG-7 compliance: passes unitName into evaluateLimits.
 AlarmSystem.register((scene) => {
   const alarms = [];
   for (const [id, u] of scene.units) {
@@ -13035,7 +13081,8 @@ AlarmSystem.register((scene) => {
     if (!def?.limitParams || !def?.limits) continue;
     const ud = scene.runtime?.unitData?.get(id);
     if (!ud) continue;
-    const violations = evaluateLimits(id, ud, def);
+    const uName = u.name || def.name || id;
+    const violations = evaluateLimits(id, uName, ud, def);
     alarms.push(...violations);
   }
   return alarms;
@@ -13755,89 +13802,149 @@ function openBalanceModal() {
 
 /* =========================
    [v10.3.3] DIAGNOSTIC MODAL
+   [v13.0.7] Redesigned: traffic lights in title bar, issues-only, unit names on all rows.
    ========================= */
 function openDiagnosticModal() {
   const modal = document.getElementById('modalDiagnostic');
   const panel = document.getElementById('diagnosticPanel');
+  const tlContainer = document.getElementById('diagTrafficLights');
   panel.innerHTML = '';
+  tlContainer.innerHTML = '';
   closeMenus();
 
   // ── Evaluate all alarm sources ──
   const alarms = AlarmSystem.evaluate(scene);
-  const counts = AlarmSystem.summarize(alarms);
-  const worst = AlarmSystem.worstSeverity(alarms);
 
-  // ── Summary bar ──
-  const sumDiv = el('div', { style: 'display:flex; gap:10px; align-items:center; margin-bottom:12px; padding:8px 10px; border-radius:6px; background:#111827;' });
-  const total = alarms.length;
-  const errN = counts.critical + counts.error;
-  const warnN = counts.warning;
-  const okN = counts.ok + counts.info;
-  sumDiv.innerHTML = `<span style="font-size:16px;">${worst.icon}</span>` +
-    `<span style="font-size:12px; color:${worst.color}; font-weight:600;">${total} items</span>` +
-    (errN > 0 ? `<span style="font-size:11px; color:#fca5a5;">${errN} error${errN!==1?'s':''}</span>` : '') +
-    (warnN > 0 ? `<span style="font-size:11px; color:#fde68a;">${warnN} warning${warnN!==1?'s':''}</span>` : '') +
-    `<span style="font-size:11px; color:#6ee7b7; opacity:0.7;">${okN} OK</span>`;
-  panel.appendChild(sumDiv);
+  // ── Classify: system vitals vs actionable issues ──
+  const VITAL_CATS = new Set([
+    AlarmCategory.CONVERGENCE, AlarmCategory.MASS_BALANCE,
+    AlarmCategory.ENERGY_BALANCE, AlarmCategory.PRESSURE
+  ]);
+  const actionable = alarms.filter(a => a.severity.level >= AlarmSeverity.WARNING.level);
 
-  // ── Group by category ──
-  const categories = [];
-  const seen = new Set();
-  for (const a of alarms) {
-    if (!seen.has(a.category)) { categories.push(a.category); seen.add(a.category); }
-  }
+  // ── Traffic lights — compact dots in title row ──
+  const sevToDotCls = (sev) => {
+    if (sev.level >= AlarmSeverity.ERROR.level) return 'red';
+    if (sev.level >= AlarmSeverity.WARNING.level) return 'amber';
+    return 'green';
+  };
+  const dotColors = { green: '#22c55e', amber: '#fbbf24', red: '#ef4444' };
 
-  for (const cat of categories) {
-    const catAlarms = alarms.filter(a => a.category === cat);
-    const catWorst = AlarmSystem.worstSeverity(catAlarms);
+  const convAlarms = AlarmSystem.byCategory(alarms, AlarmCategory.CONVERGENCE);
+  const massAlarms = AlarmSystem.byCategory(alarms, AlarmCategory.MASS_BALANCE);
+  const energyAlarms = AlarmSystem.byCategory(alarms, AlarmCategory.ENERGY_BALANCE);
+  const balanceAlarms = [...massAlarms, ...energyAlarms];
+  const pressAlarms = AlarmSystem.byCategory(alarms, AlarmCategory.PRESSURE);
 
-    // Category header
-    const hdr = el('div', { style: `font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; margin:12px 0 4px; color:${catWorst.color}; opacity:0.8;` });
-    hdr.textContent = cat;
-    panel.appendChild(hdr);
+  const convW = convAlarms.length ? AlarmSystem.worstSeverity(convAlarms) : AlarmSeverity.OK;
+  const balW  = balanceAlarms.length ? AlarmSystem.worstSeverity(balanceAlarms) : AlarmSeverity.OK;
+  const presW = pressAlarms.length ? AlarmSystem.worstSeverity(pressAlarms) : AlarmSeverity.OK;
 
-    // Alarm rows
-    for (const alarm of catAlarms) {
-      const row = el('div', { style: 'display:flex; gap:8px; align-items:flex-start; padding:5px 0; border-bottom:1px solid #1e293b44; font-size:12px;' });
+  const mkDot = (label, sev, alarmList) => {
+    const cls = sevToDotCls(sev);
+    const c = dotColors[cls];
+    const tip = sev.level >= AlarmSeverity.WARNING.level && alarmList.length
+      ? `${label}: ${alarmList[0].message}` : `${label}: OK`;
+    const wrap = el('div', { style: 'display:flex; align-items:center; gap:4px; cursor:default;' });
+    wrap.title = tip;
+    wrap.innerHTML = `<span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:${c}; box-shadow:0 0 4px ${c}88;"></span>` +
+      `<span style="font-size:10px; color:#94a3b8; letter-spacing:0.3px;">${label}</span>`;
+    return wrap;
+  };
 
-      const iconSpan = el('span', { style: 'flex-shrink:0; font-size:12px;' });
-      iconSpan.textContent = alarm.severity.icon;
+  tlContainer.appendChild(mkDot('Conv', convW, convAlarms));
+  tlContainer.appendChild(mkDot('Bal', balW, balanceAlarms));
+  tlContainer.appendChild(mkDot('Press', presW, pressAlarms));
 
-      const bodyDiv = el('div', { style: 'flex:1; min-width:0;' });
-      const msgSpan = el('div', { style: 'color:#cbd5e1;' });
-      msgSpan.textContent = alarm.message;
-      bodyDiv.appendChild(msgSpan);
+  // ── Summary: only count actionable issues, with icons ──
+  const errN = actionable.filter(a => a.severity.level >= AlarmSeverity.ERROR.level).length;
+  const warnN = actionable.filter(a => a.severity.level === AlarmSeverity.WARNING.level).length;
 
-      if (alarm.detail) {
-        const detSpan = el('div', { style: 'font-size:11px; opacity:0.5; margin-top:1px;' });
-        detSpan.textContent = alarm.detail;
-        bodyDiv.appendChild(detSpan);
-      }
-      if (alarm.remediation) {
-        const remSpan = el('div', { style: 'font-size:11px; color:#60a5fa; margin-top:2px;' });
-        remSpan.textContent = '↳ ' + alarm.remediation;
-        bodyDiv.appendChild(remSpan);
-      }
-
-      row.appendChild(iconSpan);
-      row.appendChild(bodyDiv);
-
-      // Click to select + zoom to unit if applicable
-      if (alarm.unitId) {
-        row.style.cursor = 'pointer';
-        row.addEventListener('click', () => {
-          _selectOnly(alarm.unitId);  // [v12.10.0]
-          updatePropertiesPanel();
-          zoomToUnit(alarm.unitId);   // [v12.12.0] zoom to the offending unit
-          modal.classList.remove('open');
-        });
-      }
-
-      panel.appendChild(row);
+  if (errN + warnN > 0) {
+    const sumDiv = el('div', { style: 'display:flex; gap:12px; align-items:center; margin-bottom:10px; padding:6px 10px; border-radius:6px; background:#111827;' });
+    if (errN > 0) {
+      const errSpan = el('span', { style: 'display:flex; align-items:center; gap:4px; font-size:13px; font-weight:700; color:#fca5a5;' });
+      errSpan.innerHTML = `<span style="font-size:14px;">🔴</span> ${errN} error${errN !== 1 ? 's' : ''}`;
+      sumDiv.appendChild(errSpan);
     }
+    if (warnN > 0) {
+      const warnSpan = el('span', { style: 'display:flex; align-items:center; gap:4px; font-size:13px; font-weight:700; color:#fde68a;' });
+      warnSpan.innerHTML = `<span style="font-size:14px;">🟡</span> ${warnN} warning${warnN !== 1 ? 's' : ''}`;
+      sumDiv.appendChild(warnSpan);
+    }
+    panel.appendChild(sumDiv);
   }
 
-  if (alarms.length === 0) {
+  // ── Issue rows (only actionable — no OK/INFO vitals) ──
+  if (actionable.length > 0) {
+    const categories = [];
+    const seen = new Set();
+    for (const a of actionable) {
+      if (!seen.has(a.category)) { categories.push(a.category); seen.add(a.category); }
+    }
+
+    for (const cat of categories) {
+      const catAlarms = actionable.filter(a => a.category === cat);
+      const catWorst = AlarmSystem.worstSeverity(catAlarms);
+
+      // Category header
+      const hdr = el('div', { style: `font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; margin:12px 0 4px; color:${catWorst.color}; opacity:0.8;` });
+      hdr.textContent = cat;
+      panel.appendChild(hdr);
+
+      // Alarm rows
+      for (const alarm of catAlarms) {
+        const row = el('div', { style: 'display:flex; gap:8px; align-items:flex-start; padding:5px 0; border-bottom:1px solid #1e293b44; font-size:12px;' });
+
+        const iconSpan = el('span', { style: 'flex-shrink:0; font-size:12px;' });
+        iconSpan.textContent = alarm.severity.icon;
+
+        const bodyDiv = el('div', { style: 'flex:1; min-width:0;' });
+
+        // Unit name label — from alarm.unitName (NNG-7 schema)
+        if (alarm.unitName) {
+          const unitLabel = el('div', { style: 'font-size:11px; font-weight:600; color:#60a5fa; margin-bottom:1px;' });
+          unitLabel.textContent = alarm.unitName;
+          bodyDiv.appendChild(unitLabel);
+        }
+
+        const msgSpan = el('div', { style: 'color:#cbd5e1;' });
+        msgSpan.textContent = alarm.message;
+        bodyDiv.appendChild(msgSpan);
+
+        if (alarm.detail) {
+          // Skip redundant "Unit: X" detail since we show it above
+          const detSpan = el('div', { style: 'font-size:11px; opacity:0.5; margin-top:1px;' });
+          detSpan.textContent = alarm.detail;
+          bodyDiv.appendChild(detSpan);
+        }
+        if (alarm.remediation) {
+          const remSpan = el('div', { style: 'font-size:11px; color:#60a5fa; margin-top:2px;' });
+          remSpan.textContent = '↳ ' + alarm.remediation;
+          bodyDiv.appendChild(remSpan);
+        }
+
+        row.appendChild(iconSpan);
+        row.appendChild(bodyDiv);
+
+        // Click to select + zoom to unit if applicable
+        if (alarm.unitId) {
+          row.style.cursor = 'pointer';
+          row.addEventListener('click', () => {
+            _selectOnly(alarm.unitId);  // [v12.10.0]
+            updatePropertiesPanel();
+            zoomToUnit(alarm.unitId);   // [v12.12.0] zoom to the offending unit
+            modal.classList.remove('open');
+          });
+        }
+
+        panel.appendChild(row);
+      }
+    }
+  } else if (alarms.length > 0) {
+    // All vitals green, no issues
+    panel.appendChild(el('div', { style: 'opacity:0.5; padding:12px; font-size:12px;', html: '✓ All clear — no issues.' }));
+  } else {
     panel.appendChild(el('div', { style: 'opacity:0.5; padding:12px;', html: 'No diagnostics available.' }));
   }
 
@@ -29842,25 +29949,26 @@ function runTests() {
     // Pump with T > 700 K limit
     const def = UnitRegistry.get('pump');
     const ud = { ports: { mat_out: { T: 800, P: 500000, n: { H2O: 10 }, type: StreamType.MATERIAL } } };
-    const violations = evaluateLimits('u_pump', ud, def);
+    const violations = evaluateLimits('u_pump', 'Pump', ud, def);
     t.assertOK(violations.length >= 1, 'At least 1 violation');
     const tViol = violations.find(v => v.param === 'T_HH');
     t.assertOK(tViol, 'T_HH violation found');
     t.assertOK(tViol.severity === AlarmSeverity.CRITICAL, 'T_HH is CRITICAL');
     t.assertOK(tViol.value === 800, 'value = 800 K');
+    t.assertOK(tViol.unitName === 'Pump', 'unitName set (NNG-7)');
   });
 
   test('337: S1c — evaluateLimits no violation when within limits', t => {
     const def = UnitRegistry.get('pump');
     const ud = { ports: { mat_out: { T: 350, P: 500000, n: { H2O: 10 }, type: StreamType.MATERIAL } } };
-    const violations = evaluateLimits('u_pump', ud, def);
+    const violations = evaluateLimits('u_pump', 'Pump', ud, def);
     t.assertOK(violations.length === 0, 'No violations in normal range');
   });
 
   test('338: S1c — evaluateLimits P_LL violation', t => {
     const def = UnitRegistry.get('flash_drum');
     const ud = { ports: { vap_out: { T: 350, P: 5000, n: { H2O: 1 }, type: StreamType.MATERIAL } } };
-    const violations = evaluateLimits('u_flash', ud, def);
+    const violations = evaluateLimits('u_flash', 'Flash Drum', ud, def);
     const pViol = violations.find(v => v.param === 'P_LL');
     t.assertOK(pViol, 'P_LL violation (5000 < 10000 limit)');
     t.assertOK(pViol.severity === AlarmSeverity.CRITICAL, 'P_LL is CRITICAL');
@@ -29871,7 +29979,7 @@ function runTests() {
     // 60 kg/s exceeds compressor mass_HH = 50
     const ud = { ports: { mat_out: { T: 350, P: 500000, n: { N2: 2142.8 }, type: StreamType.MATERIAL } } };
     // N2: 2142.8 mol/s × 28.014 g/mol / 1000 ≈ 60 kg/s
-    const violations = evaluateLimits('u_comp', ud, def);
+    const violations = evaluateLimits('u_comp', 'Compressor', ud, def);
     const mViol = violations.find(v => v.param === 'mass_HH');
     t.assertOK(mViol, 'mass_HH violation found');
   });
@@ -29880,7 +29988,7 @@ function runTests() {
     const def = UnitRegistry.get('pump');
     // T=100 < T_LL=200, P=500 < P_LL=1000
     const ud = { ports: { mat_out: { T: 100, P: 500, n: { H2O: 1 }, type: StreamType.MATERIAL } } };
-    const violations = evaluateLimits('u_pump', ud, def);
+    const violations = evaluateLimits('u_pump', 'Pump', ud, def);
     t.assertOK(violations.length >= 2, `≥2 violations: ${violations.length}`);
     t.assertOK(violations.some(v => v.param === 'T_LL'), 'T_LL found');
     t.assertOK(violations.some(v => v.param === 'P_LL'), 'P_LL found');
@@ -29921,6 +30029,10 @@ function runTests() {
     const limitAlarms = alarms.filter(a => a.id?.startsWith('limit_'));
     // Pump T_HH = 700 K, inlet is 800 K → should trigger
     t.assertOK(limitAlarms.some(a => a.param === 'T_HH'), 'T_HH alarm found');
+    // NNG-7: unitName must be present on unit-scoped alarms
+    const thhAlarm = limitAlarms.find(a => a.param === 'T_HH');
+    t.assertOK(thhAlarm.unitId, 'unitId set');
+    t.assertOK(thhAlarm.unitName, 'unitName set (NNG-7)');
   });
 
   test('344: S1c — _rationalize deduplicates by id, keeps highest severity', t => {
@@ -29943,6 +30055,27 @@ function runTests() {
     t.assertClose(s.units.get(rid).params.volume_m3, 0.003, 0.0001, 'Reactor default 0.003 m³');
     const aid = s.placeUnit('air_cooler', 8, 0);
     t.assertClose(s.units.get(aid).params.T_approach, 10, 0, 'Air cooler T_approach = 10 K');
+  });
+
+  test('346: v13.0.7 — NNG-7 alarm schema: unit-scoped alarms have unitId + unitName', t => {
+    // Build scene with a pump that will trigger limits + per-unit errors
+    const src  = t.place('source', 0, 0, { T: 800, P: 500000, n: { H2O: 10 }, phaseConstraint: 'V' });
+    const gs   = t.place('grid_supply', 3, 0, { maxPower: 50 });
+    const pmp  = t.place('pump', 6, 0, { Pout: 1000000, eta: 0.75 });
+    const snk  = t.place('sink', 9, 0);
+    t.wire(src, 'out', pmp, 'mat_in');
+    t.wire(gs, 'out', pmp, 'elec_in');
+    t.wire(pmp, 'mat_out', snk, 'in');
+    t.solve();
+    const alarms = AlarmSystem.evaluate(scene);
+    const unitScoped = alarms.filter(a => a.unitId);
+    t.assertOK(unitScoped.length > 0, 'Has unit-scoped alarms');
+    for (const a of unitScoped) {
+      t.assertOK(typeof a.unitName === 'string' && a.unitName.length > 0,
+        `Alarm ${a.id}: unitName present ("${a.unitName}")`);
+      t.assertOK(typeof a.unitId === 'string' && a.unitId.length > 0,
+        `Alarm ${a.id}: unitId present`);
+    }
   });
 
   // ═══════════════════════════════════════════════════════════════════════
