@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v13.0.7
+  processThis v13.0.8
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -68,6 +68,11 @@
             zero-resistance path, insufficient ΔP — produces a visible
             alarm stating the cause.  The player always knows why a
             connection carries no flow.
+            Check-valve implementation: valve, mixer (per-inlet), and
+            gas_turbine detect backflow (P_downstream ≥ P_inlet) and
+            zero the affected flow with a PLANT/WARNING alarm.  Mixer
+            uses a 0.1 bar (10 kPa) threshold for inlet pressure
+            comparison.  Splitter deferred to full pressure network.
 
     NNG-5   Power lifecycle.
             Power is the only demand-driven system.  Strict sequence:
@@ -86,8 +91,8 @@
             demand.  Overload (power delivered > rated capacity) and
             curtailment (power delivered < demand) are distinct failure
             modes with distinct severity.  Overload escalates: WARNING →
-            ERROR → CRITICAL (fry).  Curtailment degrades gracefully
-            (reduced output, INFO alarm).
+            CATASTROPHIC (destruction).  Curtailment degrades gracefully
+            (reduced output, WARNING alarm).
 
   SYSTEMS — How Physics Is Executed:
 
@@ -111,7 +116,8 @@
 
     NNG-7   Alarm architecture.
             Frozen alarm schema:
-              id          string    unique alarm identifier
+              id          string         unique alarm identifier
+              domain      AlarmDomain    SIM or PLANT
               category    AlarmCategory  grouping key
               severity    AlarmSeverity  frozen taxonomy level
               message     string    the issue (never embeds unit name)
@@ -121,12 +127,40 @@
               remediation? string   suggested corrective action
             Unit-scoped alarms MUST set both unitId and unitName.
             The message field describes the problem, not the location.
-            Frozen severity taxonomy: CRITICAL > ERROR > WARNING >
-            INFO > OK, each with numeric .level for programmatic
-            comparison.  AlarmSystem.evaluate() is the sole alarm
-            producer — no other code path creates, modifies, or injects
-            alarm objects.  Sources are pluggable pure functions, zero DOM
-            access.  Sources produce, renderers consume — never crossed.
+            Alarm domains:
+              PLANT   Simulated physical events.  Player-visible.  What a
+                      real DCS operator would see: equipment destruction,
+                      safety system activation, degraded operation, limit
+                      violations.  Toolbar, inspector, and Diagnostic
+                      Center surface PLANT alarms.
+              SIM     Simulation engine health.  Dev-visible.  NaN
+                      propagation, flash failures, solver crashes, thermo
+                      extrapolation.  Shown in a collapsible "Simulation
+                      Health" section, hidden from player by default.
+            Domain rule: "Can the solver still produce a valid result?
+              If yes → PLANT.  If no → SIM."
+            Alarm philosophy — severity semantics:
+              CATASTROPHIC  PLANT: equipment physically destroyed (rupture,
+                            meltdown, explosion).  Triggered by LL/HH hard
+                            limits and tick-level destruction events.
+                            SIM: physics broken (NaN, solver failure, mass
+                            balance open).  Deep red pulsating glow.
+              WARNING       PLANT: safety system active, degraded operation,
+                            L/H alarm limits.  Amber.
+                            SIM: thermo extrapolation, numerical drift.
+              INFO          Advisory.  No action required.
+              OK            System healthy.  Green.
+            Equipment limit model:
+              LL/HH = CATASTROPHIC — hard destruction limits, baked into
+              unit definitions, non-configurable by player.
+              L/H = WARNING — operational alarm limits, user-configurable
+              (future milestone).
+            Frozen severity taxonomy: CATASTROPHIC > WARNING > INFO > OK,
+            each with numeric .level for programmatic comparison.
+            AlarmSystem.evaluate() is the sole alarm producer — no other
+            code path creates, modifies, or injects alarm objects.  Sources
+            are pluggable pure functions, zero DOM access.  Sources produce,
+            renderers consume — never crossed.
             Standardized format is the foundation for future condensation,
             aggregation, and global diagnosis layers.
 
@@ -414,24 +448,117 @@
            Action bar: three .btn-cluster groups, no inline CSS.
            Islands mode: material + electrical union-find.
 
-  v13.0.7  NNG-7 alarm schema hardening — 316 tests, 1941 assertions.
+  v13.0.8  Two-domain alarm architecture — 322 tests.
+           Phase 1 — Schema & Severity:
+           Alarm domains: new AlarmDomain enum (PLANT / SIM).  PLANT =
+           player-visible DCS alarms.  SIM = dev-visible engine health.
+           Domain rule: "Can the solver produce a valid result?  If yes →
+           PLANT.  If no → SIM."  Domain field added to NNG-7 frozen
+           schema.
+           AlarmSeverity.ERROR removed — 3-tier taxonomy: CATASTROPHIC >
+           WARNING > INFO > OK.  All former ERROR occupants reclassified:
+             - L/H limit templates → WARNING (approaching envelope)
+             - mass_HH template → WARNING (rating exceeded, not destruction)
+             - Mass balance open → CATASTROPHIC (NNG-1 violation)
+             - ErrorSeverity.MAJOR tick mapping → WARNING
+           All 17 UI references to AlarmSeverity.ERROR updated.
+           New LIMIT_PARAM_TEMPLATES: P_L, P_H (pressure alarm limits),
+           mass_LL (minimum flow / surge), level_H, level_HH (tank fill).
+           getLimitParam extended for 'level' tag (reads ud.last.fillPct).
+           Phase 2 — Domain Routing:
+           Every alarm source now sets domain field (PLANT or SIM).
+           Solver-produced errors (validators, flash failures, NaN, tick
+           exceptions) tagged _domain:'sim' at 10 push sites in solveScene.
+           Per-unit alarm bridge reads _domain and routes to AlarmDomain.
+           Tick-produced errors (ud.last.error, ctx.warn) default to PLANT.
+           Convergence failed → SIM.  Mass/energy balance → PLANT.
+           Connectivity, equipment limits → PLANT.
+           Phase 3 — Check-Valve Backflow (NNG-4):
+           Valve: Pout > Pin → zero outlet flow + WARNING (was passthrough
+           with error).  Gas turbine: Pout >= Pin → zero mat_out + zero
+           elec_out + WARNING (was passthrough at inlet conditions).
+           Mixer: compares inlet pressures, zeroes low-P inlet when
+           ΔP > 0.1 bar (10 kPa threshold) + WARNING.  All three emit
+           PLANT/WARNING via existing per-unit alarm bridge.
+           Splitter deferred to full pressure network (NNG-4).
+           Phase 4 — Equipment Limit Data:
+           All 12 units corrected from Equipment Matrix spec.  Every
+           LL/HH value was a placeholder — now matches matrix authority.
+           Added T_L, T_H to all units (WARNING tier).  Added P_L, P_H
+           to all units with P_LL (derived: P_L ≈ meaningful low warning,
+           P_H ≈ 80% of P_HH mechanical rating).  Valve: P_LL removed
+           (matrix says —, valves handle vacuum).  Added mass_LL to
+           gas_turbine (0.005 surge), electric_heater (0.002 starved),
+           reactor (0.001 min kinetics).  Tank: full overhaul from 2
+           params to 11 (T, P, mass_HH, level_H, level_HH).  Total
+           limit params: 5→9 typical, tank 2→11.
+           Phase 5 — UI Domain Split:
+           Toolbar status message filters to PLANT (unit counts, status
+           text).  System vitals (Conv/Bal/Press dots) use all alarms
+           (convergence-failed is SIM but player needs to see it).
+           Inspector alarm banners filter to PLANT only.  Canvas glow
+           and failure shake filter to PLANT only (afterSolve).
+           Diagnostic Center: PLANT issues shown normally; SIM issues
+           in collapsible "Simulation Health (N)" section at bottom,
+           closed by default, muted styling (indigo labels, 70% opacity).
+           Phase 6 — Tests:
+           Updated T336–T343 for matrix-correct limit values (comments,
+           T337 flow reduced for new mass_HH, T341 assertions updated).
+           T346 now checks domain field.  New tests T347–T352:
+           T347: no AlarmSeverity.ERROR in output; T348: domain routing
+           for limit violations; T349: convergence domain; T350: valve
+           check-valve zeroes flow; T351: mixer check-valve zeroes
+           low-P inlet; T352: tank level_H/level_HH from fillPct.
+           NNG-4: check-valve implementation detail (valve, mixer,
+           gas_turbine — implementation in Phase 3).
+           NNG-5: overload escalation updated to 3-tier.
+           NNG-7: alarm philosophy rewritten (domains, 3-tier severity,
+           domain rule, updated limit model).
+           NNG: NNG-4 (check-valve), NNG-5 (overload), NNG-7 (domains +
+           severity + limits), NNG-14 (version).
+
+  v13.0.7  NNG-7 alarm system redesign + inspector integration — 316 tests,
+           1941 assertions.
            Not in original S1 scope; discovered during Diagnostic Center
-           UI testing that alarm sources used three inconsistent patterns
-           for reporting unit identity.  Critical audit revealed:
-             - evaluateLimits produced alarms with no unit name at all
-             - Per-unit errors used detail:"Unit: X" but not in message
-             - Connectivity embedded unit name in message but no detail
-           Fix: added unitName to NNG-7 frozen schema.  Rule: unit-scoped
-           alarms MUST set both unitId (machine) and unitName (human).
-           The message field describes the issue, never the location.
-           Updated all 3 unit-scoped alarm sources for compliance.
-           Diagnostic modal reads alarm.unitName directly (no re-resolve).
-           Diagnostic Center UI: title bar with inline traffic lights,
-           emphasized error/warning counts, consistent unit name display.
-           NNG-7 text expanded with explicit field-by-field schema.
-           T336 +1 assertion (unitName), T343 +2 assertions (unitId/Name),
-           T346 new: NNG-7 compliance sweep on all unit-scoped alarms.
-           NNG: NNG-7 (alarm schema), NNG-14 (version + tests).
+           UI testing.  Comprehensive alarm system audit and redesign.
+           NNG-7 schema:
+             - Added unitName field.  Unit-scoped alarms MUST set both
+               unitId (machine) and unitName (human).  Message = issue only.
+             - Updated all 3 unit-scoped alarm sources for compliance.
+             - Explicit field-by-field schema in NNG text.
+           NNG-7 alarm philosophy (new):
+             - CATASTROPHIC = total destruction (LL/HH hard limits, tick
+               events like tank rupture).  Deep red pulsating glow.
+             - ERROR = damage / production halt (L/H alarm limits, mass
+               balance failures, unit faults).  Red.
+             - WARNING = informative (zero flows, energy imbalance).  Amber.
+             - OK = system healthy.  Green with "All clear" message.
+           Two-tier equipment limit model:
+             - LL/HH = CATASTROPHIC — hard destruction limits in unit defs.
+             - L/H = ERROR — operational alarms (future user-configurable).
+             - Labels describe consequences ("Temperature exceeds
+               destruction limit" not "Temperature very high").
+           Restored AlarmSeverity.CATASTROPHIC (was silently flattened to
+           CRITICAL — game-y naming is intentional).
+           Traffic light visuals: 4-tier CSS (catastrophic pulsating deep
+           red, red, amber, green).  Animation for catastrophic dots and
+           inspector banners.
+           Inspector integration:
+             - Alarm banners from AlarmSystem (single source of truth),
+               replacing ad-hoc ud.errors display.  3-tier styling.
+             - T, P, mass flow highlighted when in limit violation.
+             - Limit annotations under values ("limits: 200–700 °C").
+             - New "Equipment Limits" collapsible section: static table
+               Variable × LL/L/H/HH showing all stored parameters.
+               Size indicator (S).  L/H columns present but empty
+               (reserved for user-configurable limits).
+             - Fixed crash: section.container → section.section.
+           Diagnostic Center: title, inline traffic lights, consistent
+           unit name display, emphasized issue counts.
+           Tests: T336 +1 (unitName), T343 +2 (unitId/Name), T346 new
+           (NNG-7 compliance sweep).
+           NNG: NNG-3 (equipment realism), NNG-7 (alarm schema +
+           philosophy + limit model), NNG-14 (version + tests).
 
   v13.0.6  Equipment limit messages use display units — 315 tests, 1937 assertions.
            evaluateLimits messages now format values through the active unit
@@ -1523,6 +1650,14 @@
     .tl-dot.green  { background: #22c55e; box-shadow: 0 0 6px #22c55e88; }
     .tl-dot.amber  { background: #fbbf24; box-shadow: 0 0 6px #fbbf2488; }
     .tl-dot.red    { background: #ef4444; box-shadow: 0 0 6px #ef444488; }
+    .tl-dot.catastrophic {
+      background: #991b1b; box-shadow: 0 0 8px #dc262688;
+      animation: catastrophic-pulse 1.2s ease-in-out infinite;
+    }
+    @keyframes catastrophic-pulse {
+      0%, 100% { box-shadow: 0 0 6px #dc262644; background: #991b1b; }
+      50%      { box-shadow: 0 0 14px #dc2626aa; background: #b91c1c; }
+    }
     .tl-dot.grey   { background: #334155; }
     .tl-sep {
       width: 1px; height: 14px; background: #334155; margin: 0 2px;
@@ -1535,6 +1670,7 @@
     .tl-msg:hover { text-decoration: underline; }
     .tl-msg.warn { color: #fbbf24; }
     .tl-msg.err  { color: #ef4444; }
+    .tl-msg.catastrophic { color: #fca5a5; font-weight: 700; }
     .tl-msg.ok   { color: #6ee7b7; }
     .tl-tip {
       display: none;
@@ -2447,7 +2583,14 @@
     }
     .ins-err-box.warn { background: #78350f44; border: 1px solid #f59e0b; color: #fbbf24; }
     .ins-err-box.bad { background: #7f1d1d44; border: 1px solid #ef4444; color: #fca5a5; }
+    .ins-err-box.catastrophic { background: #7f1d1d66; border: 1px solid #dc2626; color: #fca5a5; font-weight: 600; animation: catastrophic-pulse-bg 1.2s ease-in-out infinite; }
+    @keyframes catastrophic-pulse-bg { 0%,100% { border-color: #dc2626; } 50% { border-color: #fca5a5; } }
     .ins-err-box.minor { background: #1e3a5f44; border: 1px solid #3b82f6; color: #93c5fd; }
+    .propItem.alarm-warn { border-left: 2px solid #fbbf24; padding-left: 6px; }
+    .propItem.alarm-warn .propValue { color: #fbbf24; }
+    .propItem.alarm-bad { border-left: 2px solid #ef4444; padding-left: 6px; }
+    .propItem.alarm-bad .propValue { color: #fca5a5; }
+    .propItem .limit-hint { font-size: 9px; color: #64748b; margin-top: 1px; }
     .ins-bar-track {
       display: inline-block; width: 100px; height: 10px; background: #334155;
       border-radius: 3px; overflow: hidden; vertical-align: middle;
@@ -2637,7 +2780,7 @@
     <div class="modal" id="modalDiagnostic">
       <div class="modalContent" style="max-width:620px;">
         <button class="modalClose" onclick="document.getElementById('modalDiagnostic').classList.remove('open')">×</button>
-        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px; padding-right:32px;">
           <h3 style="margin:0;" title="Centralized alarm and advisory system">Diagnostic Center</h3>
           <div id="diagTrafficLights" style="display:flex; gap:14px; align-items:center;"></div>
         </div>
@@ -8014,8 +8157,8 @@ UnitRegistry.register('tank', {
   },
 
   // [v13.0.4 S1c] Equipment limits
-  limitParams: ['P_LL', 'P_HH'],
-  limits: { S: { P_LL: 10000, P_HH: 5000000 } },
+  limitParams: ['T_LL', 'T_L', 'T_H', 'T_HH', 'P_LL', 'P_L', 'P_H', 'P_HH', 'mass_HH', 'level_H', 'level_HH'],
+  limits: { S: { T_LL: 263, T_L: 278, T_H: 333, T_HH: 353, P_LL: 80000, P_L: 85000, P_H: 400000, P_HH: 500000, mass_HH: 0.05, level_H: 90, level_HH: 100 } },
   tick(u, ports, par, ctx) {
     const inv = u.inventory || { n: {}, T_K: 288.15, P_Pa: 101325 };
     const total = Object.values(inv.n).reduce((a, b) => a + b, 0);
@@ -8435,7 +8578,7 @@ UnitRegistry.register('sink_electrical', {
 // Errors:
 //   CATASTROPHIC — liquid at inlet (blade destruction)
 //   MAJOR        — liquid forms during expansion (wet exhaust)
-//   MINOR        — Pout >= Pin (no expansion possible)
+//   MINOR        — Pout >= Pin, check valve closed, flow zeroed (NNG-4)
 UnitRegistry.register('gas_turbine', {
   name: 'Gas Turbine',
   category: UnitCategories.PRESSURE,
@@ -8451,8 +8594,8 @@ UnitRegistry.register('gas_turbine', {
     'box/default': { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, mat_out:{x:2,y:1}, elec_out:{x:1,y:2} } }
   },
   // [v13.0.4 S1c] Equipment limits
-  limitParams: ['T_LL', 'T_HH', 'P_LL', 'P_HH', 'mass_HH'],
-  limits: { S: { T_LL: 200, T_HH: 1600, P_LL: 50000, P_HH: 5000000, mass_HH: 50 } },
+  limitParams: ['T_LL', 'T_L', 'T_H', 'T_HH', 'P_LL', 'P_L', 'P_H', 'P_HH', 'mass_LL', 'mass_HH'],
+  limits: { S: { T_LL: 323, T_L: 373, T_H: 873, T_HH: 1023, P_LL: 150000, P_L: 200000, P_H: 12000000, P_HH: 15000000, mass_LL: 0.005, mass_HH: 0.12 } },
   tick(u, ports, par) {
     const sIn = ports.mat_in;
     if (!sIn) return;
@@ -8471,14 +8614,14 @@ UnitRegistry.register('gas_turbine', {
       return;
     }
     
+    // [v13.0.8] Check valve: Pout >= Pin → zero flow (NNG-4)
     if (Pout >= sIn.P) {
-      const H_in = thermo.getHdot_Jps(sIn);
       ports.mat_out = {
         type: StreamType.MATERIAL,
         P: sIn.P,
-        n: { ...sIn.n },
+        n: {},
         phaseConstraint: 'V',
-        H_target_Jps: H_in
+        H_target_Jps: 0
       };
       ports.elec_out = { type: StreamType.ELECTRICAL, capacity: 0, actual: 0, demand: 0 };
       u.last = {
@@ -8486,7 +8629,7 @@ UnitRegistry.register('gas_turbine', {
         W_shaft: 0, W_elec: 0, W_isentropic: 0, eta: eta,
         error: {
           severity: ErrorSeverity.MINOR,
-          message: `Outlet pressure ${(Pout/100000).toFixed(2)} bar ≥ inlet ${(sIn.P/100000).toFixed(2)} bar — no expansion`
+          message: `Check valve closed — outlet pressure ${(Pout/100000).toFixed(2)} bar ≥ inlet ${(sIn.P/100000).toFixed(2)} bar`
         }
       };
       return;
@@ -8562,20 +8705,28 @@ UnitRegistry.register('valve', {
     'box/default': { w: 2, h: 2, ports: { in:{x:0,y:1}, out:{x:2,y:1} } }
   },
   // [v13.0.4 S1c] Equipment limits
-  limitParams: ['T_LL', 'T_HH', 'P_LL', 'P_HH', 'mass_HH'],
-  limits: { S: { T_LL: 100, T_HH: 1000, P_LL: 1000, P_HH: 50000000, mass_HH: 100 } },
+  limitParams: ['T_LL', 'T_L', 'T_H', 'T_HH', 'P_H', 'P_HH', 'mass_HH'],
+  limits: { S: { T_LL: 243, T_L: 263, T_H: 523, T_HH: 623, P_H: 12000000, P_HH: 15000000, mass_HH: 0.25 } },
   tick(u, ports, par) {
     const sIn = ports.in;
     if (!sIn) return;
     
     const Pout = par.Pout || 101325;
     
-    // Check for pressure increase (valve can't do this)
+    // [v13.0.8] Check valve: Pout >= Pin → zero flow (NNG-4)
     if (Pout > sIn.P) {
+      ports.out = {
+        type: StreamType.MATERIAL,
+        P: sIn.P,
+        n: {},
+        phaseConstraint: 'VL',
+        H_target_Jps: 0
+      };
       u.last = {
+        Pin: sIn.P, Pout: Pout, deltaP: 0, mode: 'check-valve',
         error: {
           severity: ErrorSeverity.MINOR,
-          message: 'Outlet pressure higher than inlet - valve cannot increase pressure'
+          message: `Check valve closed — downstream pressure ${(Pout/100000).toFixed(2)} bar exceeds inlet ${(sIn.P/100000).toFixed(2)} bar`
         }
       };
       return;
@@ -8633,8 +8784,8 @@ UnitRegistry.register('pump', {
     'box/output-bottom': { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, elec_in:{x:1,y:0}, mat_out:{x:1,y:2} } }
   },
   // [v13.0.4 S1c] Equipment limits
-  limitParams: ['T_LL', 'T_HH', 'P_LL', 'P_HH', 'mass_HH'],
-  limits: { S: { T_LL: 200, T_HH: 700, P_LL: 1000, P_HH: 20000000, mass_HH: 100 } },
+  limitParams: ['T_LL', 'T_L', 'T_H', 'T_HH', 'P_LL', 'P_L', 'P_H', 'P_HH', 'mass_HH'],
+  limits: { S: { T_LL: 263, T_L: 278, T_H: 353, T_HH: 393, P_LL: 50000, P_L: 80000, P_H: 4000000, P_HH: 5000000, mass_HH: 0.12 } },
   tick(u, ports, par, ctx) {
     const sIn = ports.mat_in;
     const sElec = ports.elec_in;
@@ -8772,8 +8923,8 @@ UnitRegistry.register('compressor', {
     'box/output-bottom': { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, elec_in:{x:1,y:0}, mat_out:{x:1,y:2} } }
   },
   // [v13.0.4 S1c] Equipment limits
-  limitParams: ['T_LL', 'T_HH', 'P_LL', 'P_HH', 'mass_HH'],
-  limits: { S: { T_LL: 200, T_HH: 700, P_LL: 1000, P_HH: 20000000, mass_HH: 50 } },
+  limitParams: ['T_LL', 'T_L', 'T_H', 'T_HH', 'P_LL', 'P_L', 'P_H', 'P_HH', 'mass_HH'],
+  limits: { S: { T_LL: 243, T_L: 263, T_H: 333, T_HH: 353, P_LL: 50000, P_L: 80000, P_H: 12000000, P_HH: 15000000, mass_HH: 0.05 } },
   tick(u, ports, par, ctx) {
     const sIn = ports.mat_in;
     const sElec = ports.elec_in;
@@ -8919,8 +9070,8 @@ UnitRegistry.register('electric_heater', {
     'box/elec-bottom':   { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, elec_in:{x:1,y:2}, mat_out:{x:2,y:1} } }
   },
   // [v13.0.4 S1c] Equipment limits
-  limitParams: ['T_LL', 'T_HH', 'P_LL', 'P_HH', 'mass_HH'],
-  limits: { S: { T_LL: 200, T_HH: 1200, P_LL: 1000, P_HH: 10000000, mass_HH: 50 } },
+  limitParams: ['T_LL', 'T_L', 'T_H', 'T_HH', 'P_LL', 'P_L', 'P_H', 'P_HH', 'mass_LL', 'mass_HH'],
+  limits: { S: { T_LL: 253, T_L: 273, T_H: 723, T_HH: 823, P_LL: 20000, P_L: 50000, P_H: 12000000, P_HH: 15000000, mass_LL: 0.002, mass_HH: 0.12 } },
   tick(u, ports, par, ctx) {
     const sIn = ports.mat_in;
     if (!sIn) return;
@@ -9047,9 +9198,9 @@ UnitRegistry.register('air_cooler', {
     'box/default':     { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, mat_out:{x:2,y:1} } },
     'box/port-top':    { w: 2, h: 2, ports: { mat_in:{x:1,y:0}, mat_out:{x:1,y:2} } }
   },
-  // [v13.0.4 S1c] Equipment limits
-  limitParams: ['T_LL', 'T_HH', 'P_LL', 'P_HH', 'mass_HH'],
-  limits: { S: { T_LL: 200, T_HH: 800, P_LL: 1000, P_HH: 10000000, mass_HH: 50 } },
+  // [v13.0.4 S1c] Equipment limits — corrected to matrix values v13.0.8
+  limitParams: ['T_LL', 'T_L', 'T_H', 'T_HH', 'P_LL', 'P_L', 'P_H', 'P_HH', 'mass_HH'],
+  limits: { S: { T_LL: 253, T_L: 273, T_H: 623, T_HH: 723, P_LL: 20000, P_L: 50000, P_H: 12000000, P_HH: 15000000, mass_HH: 0.12 } },
   tick(u, ports, par) {
     const sIn = ports.mat_in;
     if (!sIn) return;
@@ -9446,9 +9597,9 @@ UnitRegistry.register('hex', {
     'box/both-reversed': { w: 2, h: 2, ports: { hot_in:{x:2,y:1}, hot_out:{x:0,y:1}, cold_in:{x:1,y:2}, cold_out:{x:1,y:0} } }
   },
 
-  // [v13.0.4 S1c] Equipment limits
-  limitParams: ['T_LL', 'T_HH', 'P_LL', 'P_HH', 'mass_HH'],
-  limits: { S: { T_LL: 200, T_HH: 800, P_LL: 1000, P_HH: 10000000, mass_HH: 50 } },
+  // [v13.0.4 S1c] Equipment limits — corrected to matrix values v13.0.8
+  limitParams: ['T_LL', 'T_L', 'T_H', 'T_HH', 'P_LL', 'P_L', 'P_H', 'P_HH', 'mass_HH'],
+  limits: { S: { T_LL: 243, T_L: 263, T_H: 573, T_HH: 673, P_LL: 20000, P_L: 50000, P_H: 12000000, P_HH: 15000000, mass_HH: 0.12 } },
   tick(u, ports, par) {
     const sHot = ports.hot_in, sCold = ports.cold_in;
     if (!sHot || !sCold) return;
@@ -9602,9 +9753,9 @@ UnitRegistry.register('mixer', {
     'box/default':     { w: 2, h: 2, ports: { in1: {x:0,y:0}, in2: {x:0,y:2}, out: {x:2,y:1} }, icon: 'ico-mixer' },
     'box/top-recycle': { w: 2, h: 2, ports: { in1: {x:0,y:1}, in2: {x:1,y:0}, out: {x:2,y:1} }, icon: 'ico-mixer--top' }
   },
-  // [v13.0.4 S1c] Equipment limits
-  limitParams: ['T_LL', 'T_HH', 'P_LL', 'P_HH', 'mass_HH'],
-  limits: { S: { T_LL: 200, T_HH: 800, P_LL: 1000, P_HH: 10000000, mass_HH: 100 } },
+  // [v13.0.4 S1c] Equipment limits — corrected to matrix values v13.0.8
+  limitParams: ['T_LL', 'T_L', 'T_H', 'T_HH', 'P_LL', 'P_L', 'P_H', 'P_HH', 'mass_HH'],
+  limits: { S: { T_LL: 243, T_L: 263, T_H: 623, T_HH: 723, P_LL: 20000, P_L: 50000, P_H: 12000000, P_HH: 15000000, mass_HH: 0.25 } },
   tick(u, ports, par) {
     const s1 = ports.in1;
     const s2 = ports.in2;
@@ -9617,14 +9768,30 @@ UnitRegistry.register('mixer', {
     
     // Effective inlets: missing → zero-flow placeholder
     const EMPTY_STREAM = { type: StreamType.MATERIAL, T: 298.15, P: 101325, n: {} };
-    const eff1 = s1 || EMPTY_STREAM;
-    const eff2 = s2 || EMPTY_STREAM;
+    let eff1 = s1 || EMPTY_STREAM;
+    let eff2 = s2 || EMPTY_STREAM;
+    
+    // [v13.0.8] Check-valve logic (NNG-4): compare inlet pressures.
+    // If ΔP > 0.1 bar (10 kPa), zero the weaker inlet to prevent backflow.
+    const CHECK_VALVE_DP = 10000;  // 0.1 bar in Pa
+    let checkValveMsg = null;
+    const p1 = (s1 && s1.P > 0) ? s1.P : 0;
+    const p2 = (s2 && s2.P > 0) ? s2.P : 0;
+    if (s1 && s2 && p1 > 0 && p2 > 0 && Math.abs(p1 - p2) > CHECK_VALVE_DP) {
+      if (p1 < p2) {
+        eff1 = EMPTY_STREAM;
+        checkValveMsg = `Check valve closed on in1 — pressure ${(p1/100000).toFixed(2)} bar vs in2 ${(p2/100000).toFixed(2)} bar`;
+      } else {
+        eff2 = EMPTY_STREAM;
+        checkValveMsg = `Check valve closed on in2 — pressure ${(p2/100000).toFixed(2)} bar vs in1 ${(p1/100000).toFixed(2)} bar`;
+      }
+    }
     
     // ── Pressure: minimum of inlets that have real data ──
     // Ignore placeholders (recycle bootstrap) — only real streams set pressure
     const pressures = [];
-    if (s1 && s1.P > 0) pressures.push(s1.P);
-    if (s2 && s2.P > 0) pressures.push(s2.P);
+    if (eff1 !== EMPTY_STREAM && eff1.P > 0) pressures.push(eff1.P);
+    if (eff2 !== EMPTY_STREAM && eff2.P > 0) pressures.push(eff2.P);
     const P_out = pressures.length > 0 ? Math.min(...pressures) : 101325;
     
     // ── Molar balance: merge compositions ──
@@ -9659,8 +9826,11 @@ UnitRegistry.register('mixer', {
     // ── Energy balance: adiabatic mixer (Q = 0, W = 0) ──
     // H_out = H_in1 + H_in2  (total enthalpy flow in J/s)
     // For empty placeholder streams, getHdot_Jps returns 0 (no flow = no enthalpy)
-    const H_in1 = s1 ? thermo.getHdot_Jps(eff1) : 0;
-    const H_in2 = s2 ? thermo.getHdot_Jps(eff2) : 0;
+    // [v13.0.8] Use eff streams (may be zeroed by check-valve)
+    const hasFlow1 = eff1 !== EMPTY_STREAM && Object.values(eff1.n || {}).some(v => v > 0);
+    const hasFlow2 = eff2 !== EMPTY_STREAM && Object.values(eff2.n || {}).some(v => v > 0);
+    const H_in1 = hasFlow1 ? thermo.getHdot_Jps(eff1) : 0;
+    const H_in2 = hasFlow2 ? thermo.getHdot_Jps(eff2) : 0;
     const H_out_Jps = H_in1 + H_in2;
     
     // ── Output stream spec: solver will PH-flash to find T and phase ──
@@ -9681,6 +9851,10 @@ UnitRegistry.register('mixer', {
       H_out_kW: (H_out_Jps / 1000).toFixed(2),
       nComponents: Object.keys(n_out).length
     };
+    // [v13.0.8] Check-valve alarm if an inlet was zeroed
+    if (checkValveMsg) {
+      u.last.error = { severity: ErrorSeverity.MINOR, message: checkValveMsg };
+    }
   }
 });
 
@@ -9700,9 +9874,9 @@ UnitRegistry.register('splitter', {
     'box/default':     { w: 2, h: 2, ports: { in: {x:0,y:1}, out1: {x:2,y:0}, out2: {x:2,y:2} }, icon: 'ico-splitter' },
     'box/top-recycle': { w: 2, h: 2, ports: { in: {x:0,y:1}, out1: {x:2,y:1}, out2: {x:1,y:0} }, icon: 'ico-splitter--top' }
   },
-  // [v13.0.4 S1c] Equipment limits
-  limitParams: ['T_LL', 'T_HH', 'P_LL', 'P_HH', 'mass_HH'],
-  limits: { S: { T_LL: 200, T_HH: 800, P_LL: 1000, P_HH: 10000000, mass_HH: 100 } },
+  // [v13.0.4 S1c] Equipment limits — corrected to matrix values v13.0.8
+  limitParams: ['T_LL', 'T_L', 'T_H', 'T_HH', 'P_LL', 'P_L', 'P_H', 'P_HH', 'mass_HH'],
+  limits: { S: { T_LL: 243, T_L: 263, T_H: 623, T_HH: 723, P_LL: 20000, P_L: 50000, P_H: 12000000, P_HH: 15000000, mass_HH: 0.25 } },
   tick(u, ports, par) {
     const sIn = ports.in;
     if (!sIn) return;
@@ -9786,8 +9960,8 @@ UnitRegistry.register('flash_drum', {
     'box/default': { w: 2, h: 3, ports: { mat_in:{x:0,y:1}, vap_out:{x:2,y:0}, liq_out:{x:2,y:3} } }
   },
   // [v13.0.4 S1c] Equipment limits
-  limitParams: ['T_LL', 'T_HH', 'P_LL', 'P_HH', 'mass_HH'],
-  limits: { S: { T_LL: 200, T_HH: 700, P_LL: 10000, P_HH: 5000000, mass_HH: 50 } },
+  limitParams: ['T_LL', 'T_L', 'T_H', 'T_HH', 'P_LL', 'P_L', 'P_H', 'P_HH', 'mass_HH'],
+  limits: { S: { T_LL: 243, T_L: 263, T_H: 523, T_HH: 623, P_LL: 20000, P_L: 50000, P_H: 12000000, P_HH: 15000000, mass_HH: 0.15 } },
   tick(u, ports, par) {
     const sIn = ports.mat_in;
     if (!sIn) return;
@@ -9886,8 +10060,8 @@ UnitRegistry.register('reactor_equilibrium', {
     'box/insulated':     { w: 2, h: 3, ports: { mat_in:{x:0,y:1.5}, mat_out:{x:2,y:1.5} } }
   },
   // [v13.0.4 S1c] Equipment limits
-  limitParams: ['T_LL', 'T_HH', 'P_LL', 'P_HH', 'mass_HH'],
-  limits: { S: { T_LL: 200, T_HH: 1500, P_LL: 10000, P_HH: 30000000, mass_HH: 50 } },
+  limitParams: ['T_LL', 'T_L', 'T_H', 'T_HH', 'P_LL', 'P_L', 'P_H', 'P_HH', 'mass_LL', 'mass_HH'],
+  limits: { S: { T_LL: 323, T_L: 373, T_H: 773, T_HH: 923, P_LL: 50000, P_L: 80000, P_H: 12000000, P_HH: 15000000, mass_LL: 0.001, mass_HH: 0.08 } },
   tick(u, ports, par, ctx) {
     const sIn = ports.mat_in;
     if (!sIn) return;
@@ -11661,7 +11835,7 @@ function solveScene(scene, options = {}) {
           if (stream && stream.n) {
             const flowErrs = validateStreamFlows(stream, `${u.name || id}:${p.portId}`);
             for (const e of flowErrs) {
-              ud.errors.push({ severity: ErrorSeverity.MAJOR, message: e, code: 'INVALID_STREAM_NUMERIC' });
+              ud.errors.push({ severity: ErrorSeverity.MAJOR, message: e, code: 'INVALID_STREAM_NUMERIC', _domain: 'sim' });
             }
           }
         }
@@ -11679,6 +11853,7 @@ function solveScene(scene, options = {}) {
               portId: p.portId
             });
             for (const issue of preIssues) {
+              issue._domain = 'sim';  // [v13.0.8] solver-produced → SIM domain
               ud.errors.push(issue);
               if (issue.severity.level >= ErrorSeverity.CATASTROPHIC.level) {
                 unitFaulted = true;
@@ -11724,7 +11899,7 @@ function solveScene(scene, options = {}) {
                 if (!isFiniteNum(stream.T)) {
                   ud.errors.push({ severity: ErrorSeverity.CATASTROPHIC,
                     message: `${p.portId}: PH flash failed to resolve T (H_target=${(stream.H_target_Jps/1000).toFixed(1)} kW, got T=${stream.T})`,
-                    code: 'MATERIAL_PH_UNRESOLVED' });
+                    code: 'MATERIAL_PH_UNRESOLVED', _domain: 'sim' });
                   unitFaulted = true;
                 }
                 
@@ -11737,7 +11912,7 @@ function solveScene(scene, options = {}) {
               const flashErrs = validateFlashResult(result, `${u.name || id}:${p.portId}`);
               if (flashErrs.length > 0) {
                 for (const e of flashErrs) {
-                  ud.errors.push({ severity: ErrorSeverity.MAJOR, message: e, code: 'INVALID_FLASH_RESULT' });
+                  ud.errors.push({ severity: ErrorSeverity.MAJOR, message: e, code: 'INVALID_FLASH_RESULT', _domain: 'sim' });
                 }
                 // Skip writing corrupt results — leave stream pre-flash
               } else {
@@ -11756,7 +11931,7 @@ function solveScene(scene, options = {}) {
                 if (!ud.errors) ud.errors = [];
                 ud.errors.push({ severity: ErrorSeverity.INFO,
                   message: `${p.portId}: ${result.warning}`,
-                  code: 'FLASH_WARNING' });
+                  code: 'FLASH_WARNING', _domain: 'sim' });
               }
               
               // Compute enthalpy immediately after flash
@@ -11766,14 +11941,14 @@ function solveScene(scene, options = {}) {
               if (stream.Hdot_J_s !== undefined && !isFiniteNum(stream.Hdot_J_s)) {
                 ud.errors.push({ severity: ErrorSeverity.MAJOR,
                   message: `${p.portId}: Hdot_J_s = ${stream.Hdot_J_s} after enthalpy calc — zeroed`,
-                  code: 'INVALID_ENTHALPY' });
+                  code: 'INVALID_ENTHALPY', _domain: 'sim' });
                 stream.Hdot_J_s = 0;
               }
               
             } catch (err) {
               ud.errors.push({ severity: ErrorSeverity.MAJOR,
                 message: `Flash failed on ${p.portId}: ${err.message}`,
-                code: 'FLASH_EXCEPTION' });
+                code: 'FLASH_EXCEPTION', _domain: 'sim' });
             }
             } // end else (nTotal > 0)
           }
@@ -11790,7 +11965,7 @@ function solveScene(scene, options = {}) {
           if (stream && !validateStreamType(stream, p.type)) {
             ud.errors.push({ severity: ErrorSeverity.MAJOR,
               message: `Port ${p.portId}: stream type mismatch`,
-              code: 'STREAM_TYPE_MISMATCH' });
+              code: 'STREAM_TYPE_MISMATCH', _domain: 'sim' });
           }
         }
       }
@@ -11802,6 +11977,7 @@ function solveScene(scene, options = {}) {
       {
         const streamIssues = validateUnitPorts(ud, u, def);
         for (const issue of streamIssues) {
+          issue._domain = 'sim';  // [v13.0.8] post-flash validation → SIM domain
           ud.errors.push(issue);
           if (issue.severity.level >= ErrorSeverity.CATASTROPHIC.level) {
             unitFaulted = true;
@@ -11851,7 +12027,7 @@ function solveScene(scene, options = {}) {
           ud.errors.push({
             severity: ErrorSeverity.MAJOR,
             message: `Output "${k}" = ${v} (non-finite) — zeroed`,
-            code: 'INVALID_OUTPUT_NUMERIC'
+            code: 'INVALID_OUTPUT_NUMERIC', _domain: 'sim'
           });
           ud.last[k] = 0;
         }
@@ -11863,13 +12039,14 @@ function solveScene(scene, options = {}) {
         ud.errors.push({
           severity: ErrorSeverity.CATASTROPHIC,
           message: `Tick exception: ${tickErr.message || String(tickErr)}`,
-          code: 'TICK_EXCEPTION',
+          code: 'TICK_EXCEPTION', _domain: 'sim',
           stack: tickErr.stack || ''
         });
         ud.last = u.last || {};
         ud.last.error = {
           severity: ErrorSeverity.CATASTROPHIC,
-          message: `Tick exception: ${tickErr.message || String(tickErr)}`
+          message: `Tick exception: ${tickErr.message || String(tickErr)}`,
+          _domain: 'sim'
         };
         // Ports left as previous iteration — downstream units see stale data
         // but don't crash.  Mark changed so the loop continues (other units
@@ -12756,8 +12933,10 @@ function calculateStreamFlowrates(stream) {
 /* ═══════════════════════════════════════════════════════════════════════════
    [v10.3.4] ALARM SYSTEM — Engine-level diagnostic infrastructure
    [v13.0.7] Schema hardened per NNG-7: unitName mandatory for unit-scoped alarms.
+   [v13.0.8] Two-domain architecture: AlarmDomain (PLANT/SIM). ERROR removed.
    
    Architecture:
+   - AlarmDomain: PLANT (player-facing) or SIM (dev-facing)
    - AlarmSeverity: enumerated severity levels with stable ordering
    - AlarmCategory: string-keyed categories for grouping
    - Alarm sources: pluggable functions (scene) → Alarm[]
@@ -12766,6 +12945,7 @@ function calculateStreamFlowrates(stream) {
    
    Frozen alarm schema (NNG-7):
      id           string         unique alarm identifier
+     domain       AlarmDomain    PLANT or SIM
      category     AlarmCategory  grouping key
      severity     AlarmSeverity  frozen taxonomy level
      message      string         the issue — never embeds unit name
@@ -12774,11 +12954,17 @@ function calculateStreamFlowrates(stream) {
      detail?      string         supplementary context
      remediation? string         suggested corrective action
    Unit-scoped alarms MUST set both unitId and unitName.
+   Domain rule: "Can the solver produce a valid result? If yes → PLANT. If no → SIM."
    ═══════════════════════════════════════════════════════════════════════════ */
 
+// [v13.0.8] Alarm domains — PLANT (player DCS) vs SIM (engine health)
+const AlarmDomain = Object.freeze({
+  PLANT: 'plant',   // Physical events on simulated equipment — player-visible
+  SIM:   'sim',     // Simulation engine health — dev-visible
+});
+
 const AlarmSeverity = Object.freeze({
-  CRITICAL: { level: 4, key: 'critical', icon: '🔴', color: '#fca5a5', label: 'Critical' },
-  ERROR:    { level: 3, key: 'error',    icon: '🔴', color: '#fca5a5', label: 'Error' },
+  CATASTROPHIC: { level: 4, key: 'catastrophic', icon: '🔴', color: '#fca5a5', label: 'Catastrophic' },
   WARNING:  { level: 2, key: 'warning',  icon: '🟡', color: '#fde68a', label: 'Warning' },
   INFO:     { level: 1, key: 'info',     icon: 'ℹ️', color: '#93c5fd', label: 'Info' },
   OK:       { level: 0, key: 'ok',       icon: '🟢', color: '#6ee7b7', label: 'OK' },
@@ -12833,7 +13019,7 @@ const AlarmSystem = {
 
   /** Count alarms by severity */
   summarize(alarms) {
-    const counts = { critical: 0, error: 0, warning: 0, info: 0, ok: 0 };
+    const counts = { catastrophic: 0, warning: 0, info: 0, ok: 0 };
     for (const a of alarms) counts[a.severity.key] = (counts[a.severity.key] || 0) + 1;
     return counts;
   },
@@ -12873,16 +13059,24 @@ const AlarmSystem = {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 // [S1c-1] LIMIT_PARAM_TEMPLATES — each key defines a checkable parameter
-// Tags: T (temperature), P (pressure), mass (mass flow), phase (phase check)
+// Tags: T (temperature), P (pressure), mass (mass flow), level (tank fill %)
 // Sides: LL (very low), L (low), H (high), HH (very high)
+// [v13.0.8] 3-tier alarm model per NNG-7:
+//   LL/HH = CATASTROPHIC — hard equipment destruction limits, non-configurable.
+//   L/H   = WARNING — operational alarm limits, user-configurable (future).
 const LIMIT_PARAM_TEMPLATES = Object.freeze({
-  T_LL:    { tag: 'T',    side: 'LL', severity: AlarmSeverity.CRITICAL, label: 'Temperature very low',  unit: 'K' },
-  T_L:     { tag: 'T',    side: 'L',  severity: AlarmSeverity.WARNING,  label: 'Temperature low',       unit: 'K' },
-  T_H:     { tag: 'T',    side: 'H',  severity: AlarmSeverity.WARNING,  label: 'Temperature high',      unit: 'K' },
-  T_HH:    { tag: 'T',    side: 'HH', severity: AlarmSeverity.CRITICAL, label: 'Temperature very high', unit: 'K' },
-  P_LL:    { tag: 'P',    side: 'LL', severity: AlarmSeverity.CRITICAL, label: 'Pressure very low',     unit: 'Pa' },
-  P_HH:    { tag: 'P',    side: 'HH', severity: AlarmSeverity.CRITICAL, label: 'Pressure very high',    unit: 'Pa' },
-  mass_HH: { tag: 'mass', side: 'HH', severity: AlarmSeverity.WARNING,  label: 'Mass flow rate high',   unit: 'kg/s' },
+  T_LL:     { tag: 'T',     side: 'LL', severity: AlarmSeverity.CATASTROPHIC, label: 'Temperature below destruction limit',  unit: 'K' },
+  T_L:      { tag: 'T',     side: 'L',  severity: AlarmSeverity.WARNING,      label: 'Temperature below alarm limit',        unit: 'K' },
+  T_H:      { tag: 'T',     side: 'H',  severity: AlarmSeverity.WARNING,      label: 'Temperature above alarm limit',        unit: 'K' },
+  T_HH:     { tag: 'T',     side: 'HH', severity: AlarmSeverity.CATASTROPHIC, label: 'Temperature exceeds destruction limit', unit: 'K' },
+  P_LL:     { tag: 'P',     side: 'LL', severity: AlarmSeverity.CATASTROPHIC, label: 'Pressure below destruction limit',     unit: 'Pa' },
+  P_L:      { tag: 'P',     side: 'L',  severity: AlarmSeverity.WARNING,      label: 'Pressure below alarm limit',           unit: 'Pa' },
+  P_H:      { tag: 'P',     side: 'H',  severity: AlarmSeverity.WARNING,      label: 'Pressure above alarm limit',           unit: 'Pa' },
+  P_HH:     { tag: 'P',     side: 'HH', severity: AlarmSeverity.CATASTROPHIC, label: 'Pressure exceeds destruction limit',   unit: 'Pa' },
+  mass_LL:  { tag: 'mass',  side: 'LL', severity: AlarmSeverity.CATASTROPHIC, label: 'Flow below minimum (surge/stall)',     unit: 'kg/s' },
+  mass_HH:  { tag: 'mass',  side: 'HH', severity: AlarmSeverity.WARNING,      label: 'Flow rate exceeds equipment rating',   unit: 'kg/s' },
+  level_H:  { tag: 'level', side: 'H',  severity: AlarmSeverity.WARNING,      label: 'Tank level high',                      unit: '%' },
+  level_HH: { tag: 'level', side: 'HH', severity: AlarmSeverity.CATASTROPHIC, label: 'Tank level critical',                  unit: '%' },
 });
 
 // [S1c-4] _computeMassRate — total mass flow rate (kg/s) from primary stream molar flows
@@ -12901,9 +13095,10 @@ function _computeMassRate(ud, def) {
 function getLimitParam(key, ud, def) {
   const tpl = LIMIT_PARAM_TEMPLATES[key];
   if (!tpl) return null;
-  if (tpl.tag === 'T')    return _findPrimaryStream(ud, def)?.T ?? null;
-  if (tpl.tag === 'P')    return _findPrimaryStream(ud, def)?.P ?? null;
-  if (tpl.tag === 'mass') return _computeMassRate(ud, def);
+  if (tpl.tag === 'T')     return _findPrimaryStream(ud, def)?.T ?? null;
+  if (tpl.tag === 'P')     return _findPrimaryStream(ud, def)?.P ?? null;
+  if (tpl.tag === 'mass')  return _computeMassRate(ud, def);
+  if (tpl.tag === 'level') return ud?.last?.fillPct ?? null;  // [v13.0.8] tank fill %
   return null;
 }
 
@@ -12921,8 +13116,9 @@ function getEffectiveLimits(def, size) {
 // [v13.0.7] Now accepts unitName; produces NNG-7 compliant alarms with unitId + unitName.
 // Returns: [{ id, unitId, unitName, category, severity, message, param, value, limit }]
 // [v13.0.6] Messages use display units (°C, bar, kg/h) via models.getActive('units').
-const _limitTagToUnit = { T: 'temperature', P: 'pressure', mass: 'massFlow' };
+const _limitTagToUnit = { T: 'temperature', P: 'pressure', mass: 'massFlow', level: null };
 function _fmtLimit(tag, siValue) {
+  if (tag === 'level') return `${siValue.toFixed(0)} %`;  // [v13.0.8] tank fill percentage
   const us = models.getActive('units');
   const conv = us[_limitTagToUnit[tag]];
   if (!conv) return `${siValue.toPrecision(4)}`;
@@ -12950,6 +13146,7 @@ function evaluateLimits(unitId, unitName, ud, def) {
     if (violated) {
       violations.push({
         id: `limit_${unitId}_${key}`,
+        domain: AlarmDomain.PLANT,
         unitId,
         unitName,
         param: key,
@@ -12969,14 +13166,14 @@ function evaluateLimits(unitId, unitName, ud, def) {
 // Source: Convergence
 AlarmSystem.register((scene) => {
   const ls = scene.runtime?.lastSolve;
-  if (!ls) return [{ id: 'conv_no_solve', category: AlarmCategory.CONVERGENCE,
+  if (!ls) return [{ id: 'conv_no_solve', domain: AlarmDomain.PLANT, category: AlarmCategory.CONVERGENCE,
     severity: AlarmSeverity.INFO, message: 'No solve performed yet.',
     remediation: 'Press Test to run the solver.' }];
-  if (!ls.ok) return [{ id: 'conv_failed', category: AlarmCategory.CONVERGENCE,
-    severity: AlarmSeverity.CRITICAL, message: `Failed after ${ls.iterations} iterations.`,
+  if (!ls.ok) return [{ id: 'conv_failed', domain: AlarmDomain.SIM, category: AlarmCategory.CONVERGENCE,
+    severity: AlarmSeverity.CATASTROPHIC, message: `Failed after ${ls.iterations} iterations.`,
     detail: `Max iterations reached without convergence.`,
     remediation: 'Check recycle loops, tear stream guesses, or increase max iterations in Solver.' }];
-  return [{ id: 'conv_ok', category: AlarmCategory.CONVERGENCE,
+  return [{ id: 'conv_ok', domain: AlarmDomain.PLANT, category: AlarmCategory.CONVERGENCE,
     severity: AlarmSeverity.OK, message: `Converged in ${ls.iterations} iteration${ls.iterations !== 1 ? 's' : ''}.` }];
 });
 
@@ -12984,10 +13181,10 @@ AlarmSystem.register((scene) => {
 AlarmSystem.register((scene) => {
   const bal = computeSystemBalance(scene);
   if (!bal) return [];
-  if (bal.mass.closed) return [{ id: 'mass_closed', category: AlarmCategory.MASS_BALANCE,
+  if (bal.mass.closed) return [{ id: 'mass_closed', domain: AlarmDomain.PLANT, category: AlarmCategory.MASS_BALANCE,
     severity: AlarmSeverity.OK, message: `Closed — residual ${(Math.abs(bal.mass.residual)*1e6).toFixed(2)} mg/s.` }];
-  return [{ id: 'mass_open', category: AlarmCategory.MASS_BALANCE,
-    severity: AlarmSeverity.ERROR, message: `Open — residual ${(bal.mass.residual*1000).toFixed(4)} g/s.`,
+  return [{ id: 'mass_open', domain: AlarmDomain.PLANT, category: AlarmCategory.MASS_BALANCE,
+    severity: AlarmSeverity.CATASTROPHIC, message: `Open — residual ${(bal.mass.residual*1000).toFixed(4)} g/s.`,
     remediation: 'Ensure all sources have matching sinks. Check for unconnected material ports.' }];
 });
 
@@ -12996,19 +13193,21 @@ AlarmSystem.register((scene) => {
   const bal = computeSystemBalance(scene);
   if (!bal) return [];
   const pct = (bal.energy.relError * 100).toFixed(3);
-  if (bal.energy.closed) return [{ id: 'energy_closed', category: AlarmCategory.ENERGY_BALANCE,
+  if (bal.energy.closed) return [{ id: 'energy_closed', domain: AlarmDomain.PLANT, category: AlarmCategory.ENERGY_BALANCE,
     severity: AlarmSeverity.OK, message: `Closed — ${pct}% relative error.` }];
-  return [{ id: 'energy_open', category: AlarmCategory.ENERGY_BALANCE,
+  return [{ id: 'energy_open', domain: AlarmDomain.PLANT, category: AlarmCategory.ENERGY_BALANCE,
     severity: AlarmSeverity.WARNING, message: `Open — ${pct}% relative error.`,
     remediation: 'Check heat dissipation paths. Unaccounted heat sinks may be missing.' }];
 });
 
 // Source: Pressure Solve (placeholder)
-AlarmSystem.register(() => [{ id: 'pressure_placeholder', category: AlarmCategory.PRESSURE,
+AlarmSystem.register(() => [{ id: 'pressure_placeholder', domain: AlarmDomain.PLANT, category: AlarmCategory.PRESSURE,
   severity: AlarmSeverity.OK, message: 'Not yet solving — isobaric assumption active.' }]);
 
 // Source: Per-unit errors
-// [v13.0.7] NNG-7 compliance: unitName on all unit-scoped alarms, message = issue only.
+// [v13.0.8] Domain routing: errors tagged _domain:'sim' → SIM, all others → PLANT.
+// Tick-produced errors (ud.last.error, ctx.warn) default to PLANT.
+// Solver-produced errors (validators, flash failures, NaN) tagged 'sim' in solveScene.
 AlarmSystem.register((scene) => {
   const alarms = [];
   if (!scene.runtime?.unitData) return alarms;
@@ -13018,23 +13217,22 @@ AlarmSystem.register((scene) => {
     const uName = u?.name || def?.name || id;
     if (ud?.last?.error) {
       const sev = ud.last.error.severity;
-      const aLevel = (sev?.level >= ErrorSeverity.CATASTROPHIC.level) ? AlarmSeverity.CRITICAL
-                   : (sev?.level >= ErrorSeverity.MAJOR.level) ? AlarmSeverity.ERROR
+      const aLevel = (sev?.level >= ErrorSeverity.CATASTROPHIC.level) ? AlarmSeverity.CATASTROPHIC
                    : AlarmSeverity.WARNING;
-      alarms.push({ id: `unit_${id}_err`, category: AlarmCategory.UNIT,
+      const domain = ud.last.error._domain === 'sim' ? AlarmDomain.SIM : AlarmDomain.PLANT;
+      alarms.push({ id: `unit_${id}_err`, domain, category: AlarmCategory.UNIT,
         severity: aLevel, message: ud.last.error.message, unitId: id, unitName: uName });
     }
     if (ud?.errors?.length) {
       for (let i = 0; i < ud.errors.length; i++) {
         const err = ud.errors[i];
         const msg = typeof err === 'string' ? err : err?.message || JSON.stringify(err);
-        // [v10.6.1] Severity-aware alarm level for ud.errors
         let aLevel = AlarmSeverity.WARNING;
         if (typeof err === 'object' && err?.severity) {
-          if (err.severity.level >= ErrorSeverity.CATASTROPHIC.level) aLevel = AlarmSeverity.CRITICAL;
-          else if (err.severity.level >= ErrorSeverity.MAJOR.level) aLevel = AlarmSeverity.ERROR;
+          if (err.severity.level >= ErrorSeverity.CATASTROPHIC.level) aLevel = AlarmSeverity.CATASTROPHIC;
         }
-        alarms.push({ id: `unit_${id}_warn_${i}`, category: AlarmCategory.UNIT,
+        const domain = (typeof err === 'object' && err?._domain === 'sim') ? AlarmDomain.SIM : AlarmDomain.PLANT;
+        alarms.push({ id: `unit_${id}_warn_${i}`, domain, category: AlarmCategory.UNIT,
           severity: aLevel, message: msg, unitId: id, unitName: uName });
       }
     }
@@ -13063,7 +13261,7 @@ AlarmSystem.register((scene) => {
         (c.to.unitId === id && c.to.portId === port.portId));
       if (!isConnected) {
         const uName = u.name || def.name || id;
-        alarms.push({ id: `unconnected_${id}_${port.portId}`, category: AlarmCategory.CONNECTIVITY,
+        alarms.push({ id: `unconnected_${id}_${port.portId}`, domain: AlarmDomain.PLANT, category: AlarmCategory.CONNECTIVITY,
           severity: AlarmSeverity.INFO, message: `Port "${port.portId}" is unconnected.`,
           unitId: id, unitName: uName, remediation: 'Connect or remove this unit if unused.' });
       }
@@ -13205,6 +13403,7 @@ const PG = {
   computeSystemBalance,
   calculateStreamFlowrates,
   AlarmSeverity,
+  AlarmDomain,
   AlarmCategory,
   AlarmSystem,
   fmt,
@@ -13258,11 +13457,14 @@ function updateStatusIndicator(solveResult) {
   };
 
   // ── Evaluate alarms from the single source of truth ──
-  const alarms = AlarmSystem.evaluate(scene);
+  const allAlarms = AlarmSystem.evaluate(scene);
+  // [v13.0.8] Phase 5: system vitals use all alarms; status message filters to PLANT
+  const plantAlarms = allAlarms.filter(a => a.domain === AlarmDomain.PLANT);
 
   // Map AlarmSeverity → dot color class
+  // [v13.0.8] 3-tier: catastrophic (pulsating deep red), amber (warning), green (all clear)
   const sevToDot = (sev) => {
-    if (sev.level >= AlarmSeverity.ERROR.level) return 'red';
+    if (sev.level >= AlarmSeverity.CATASTROPHIC.level) return 'catastrophic';
     if (sev.level >= AlarmSeverity.WARNING.level) return 'amber';
     if (sev.level >= AlarmSeverity.INFO.level) return 'grey';
     return 'green';
@@ -13270,20 +13472,20 @@ function updateStatusIndicator(solveResult) {
 
   // Map AlarmSeverity → message CSS class
   const sevToMsg = (sev) => {
-    if (sev.level >= AlarmSeverity.ERROR.level) return 'err';
+    if (sev.level >= AlarmSeverity.CATASTROPHIC.level) return 'catastrophic';
     if (sev.level >= AlarmSeverity.WARNING.level) return 'warn';
     return 'ok';
   };
 
-  // ── Per-category dots ──
+  // ── Per-category dots — system vitals use ALL alarms ──
   // Convergence — own dot
-  const convAlarms = AlarmSystem.byCategory(alarms, AlarmCategory.CONVERGENCE);
+  const convAlarms = AlarmSystem.byCategory(allAlarms, AlarmCategory.CONVERGENCE);
   if (convAlarms.length === 0) { setDot(tlConv, 'grey', 'Convergence — no data'); }
   else { const worst = AlarmSystem.worstSeverity(convAlarms); setDot(tlConv, sevToDot(worst), convAlarms[0].message); }
 
   // [v10.8.1] Balance — merged mass + energy, worst of both triggers
-  const massAlarms = AlarmSystem.byCategory(alarms, AlarmCategory.MASS_BALANCE);
-  const energyAlarms = AlarmSystem.byCategory(alarms, AlarmCategory.ENERGY_BALANCE);
+  const massAlarms = AlarmSystem.byCategory(allAlarms, AlarmCategory.MASS_BALANCE);
+  const energyAlarms = AlarmSystem.byCategory(allAlarms, AlarmCategory.ENERGY_BALANCE);
   const balanceAlarms = [...massAlarms, ...energyAlarms];
   if (balanceAlarms.length === 0) { setDot(tlBalance, 'grey', 'Balance — no data'); }
   else {
@@ -13297,34 +13499,27 @@ function updateStatusIndicator(solveResult) {
   }
 
   // Pressure — own dot
-  const pressAlarms = AlarmSystem.byCategory(alarms, AlarmCategory.PRESSURE);
+  const pressAlarms = AlarmSystem.byCategory(allAlarms, AlarmCategory.PRESSURE);
   if (pressAlarms.length === 0) { setDot(tlPressure, 'grey', 'Pressure — no data'); }
   else { const worst = AlarmSystem.worstSeverity(pressAlarms); setDot(tlPressure, sevToDot(worst), pressAlarms[0].message); }
 
-  // ── Short summary message (3-4 words, first layer of diagnostic) ──
-  const counts = AlarmSystem.summarize(alarms);
-  const errN = counts.critical + counts.error;
+  // ── Short summary message — PLANT domain only (player-facing) ──
+  const counts = AlarmSystem.summarize(plantAlarms);
+  const catN = counts.catastrophic;
   const warnN = counts.warning;
 
   let msg, msgClass;
-  if (errN === 0 && warnN === 0) {
+  if (catN === 0 && warnN === 0) {
     msg = 'All clear'; msgClass = 'ok';
-  } else if (counts.critical > 0) {
-    // Find what's critical
-    const crit = alarms.find(a => a.severity.level >= AlarmSeverity.CRITICAL.level);
+  } else if (catN > 0) {
+    const crit = plantAlarms.find(a => a.severity.level >= AlarmSeverity.CATASTROPHIC.level);
     if (crit?.category === AlarmCategory.CONVERGENCE) { msg = 'Solver failed'; }
-    else { msg = 'Critical failure'; }
-    msgClass = 'err';
-  } else if (errN > 0 && warnN > 0) {
-    msg = `${errN + warnN} issues found`; msgClass = 'err';
-  } else if (errN > 0) {
-    const err = alarms.find(a => a.severity.level >= AlarmSeverity.ERROR.level);
-    if (err?.category === AlarmCategory.MASS_BALANCE) { msg = 'Mass imbalance'; }
-    else if (err?.category === AlarmCategory.UNIT) { msg = 'Unit fault'; }
-    else { msg = 'Errors detected'; }
-    msgClass = 'err';
+    else if (crit?.category === AlarmCategory.MASS_BALANCE) { msg = 'Mass imbalance'; }
+    else if (crit?.category === AlarmCategory.UNIT) { msg = 'Unit destroyed'; }
+    else { msg = 'Catastrophic failure'; }
+    msgClass = 'catastrophic';
   } else {
-    const warn = alarms.find(a => a.severity.level >= AlarmSeverity.WARNING.level);
+    const warn = plantAlarms.find(a => a.severity.level >= AlarmSeverity.WARNING.level);
     if (warn?.category === AlarmCategory.ENERGY_BALANCE) { msg = 'Energy leak'; }
     else if (warn?.category === AlarmCategory.UNIT) { msg = 'Check units'; }
     else if (warnN === 1) { msg = 'Minor issue'; }
@@ -13813,28 +14008,32 @@ function openDiagnosticModal() {
   closeMenus();
 
   // ── Evaluate all alarm sources ──
-  const alarms = AlarmSystem.evaluate(scene);
+  const allAlarms = AlarmSystem.evaluate(scene);
+  // [v13.0.8] Phase 5: split PLANT (player DCS) vs SIM (dev diagnostics)
+  const plantAlarms = allAlarms.filter(a => a.domain === AlarmDomain.PLANT);
+  const simAlarms = allAlarms.filter(a => a.domain === AlarmDomain.SIM);
 
-  // ── Classify: system vitals vs actionable issues ──
+  // ── Classify: system vitals vs actionable issues (PLANT only) ──
   const VITAL_CATS = new Set([
     AlarmCategory.CONVERGENCE, AlarmCategory.MASS_BALANCE,
     AlarmCategory.ENERGY_BALANCE, AlarmCategory.PRESSURE
   ]);
-  const actionable = alarms.filter(a => a.severity.level >= AlarmSeverity.WARNING.level);
+  const actionable = plantAlarms.filter(a => a.severity.level >= AlarmSeverity.WARNING.level);
 
   // ── Traffic lights — compact dots in title row ──
   const sevToDotCls = (sev) => {
-    if (sev.level >= AlarmSeverity.ERROR.level) return 'red';
+    if (sev.level >= AlarmSeverity.CATASTROPHIC.level) return 'catastrophic';
     if (sev.level >= AlarmSeverity.WARNING.level) return 'amber';
     return 'green';
   };
-  const dotColors = { green: '#22c55e', amber: '#fbbf24', red: '#ef4444' };
+  const dotColors = { green: '#22c55e', amber: '#fbbf24', red: '#ef4444', catastrophic: '#991b1b' };
 
-  const convAlarms = AlarmSystem.byCategory(alarms, AlarmCategory.CONVERGENCE);
-  const massAlarms = AlarmSystem.byCategory(alarms, AlarmCategory.MASS_BALANCE);
-  const energyAlarms = AlarmSystem.byCategory(alarms, AlarmCategory.ENERGY_BALANCE);
+  // [v13.0.8] Traffic lights use allAlarms (system vitals span both domains)
+  const convAlarms = AlarmSystem.byCategory(allAlarms, AlarmCategory.CONVERGENCE);
+  const massAlarms = AlarmSystem.byCategory(allAlarms, AlarmCategory.MASS_BALANCE);
+  const energyAlarms = AlarmSystem.byCategory(allAlarms, AlarmCategory.ENERGY_BALANCE);
   const balanceAlarms = [...massAlarms, ...energyAlarms];
-  const pressAlarms = AlarmSystem.byCategory(alarms, AlarmCategory.PRESSURE);
+  const pressAlarms = AlarmSystem.byCategory(allAlarms, AlarmCategory.PRESSURE);
 
   const convW = convAlarms.length ? AlarmSystem.worstSeverity(convAlarms) : AlarmSeverity.OK;
   const balW  = balanceAlarms.length ? AlarmSystem.worstSeverity(balanceAlarms) : AlarmSeverity.OK;
@@ -13843,11 +14042,13 @@ function openDiagnosticModal() {
   const mkDot = (label, sev, alarmList) => {
     const cls = sevToDotCls(sev);
     const c = dotColors[cls];
+    const isCatastrophic = cls === 'catastrophic';
     const tip = sev.level >= AlarmSeverity.WARNING.level && alarmList.length
       ? `${label}: ${alarmList[0].message}` : `${label}: OK`;
     const wrap = el('div', { style: 'display:flex; align-items:center; gap:4px; cursor:default;' });
     wrap.title = tip;
-    wrap.innerHTML = `<span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:${c}; box-shadow:0 0 4px ${c}88;"></span>` +
+    const pulseStyle = isCatastrophic ? 'animation:catastrophic-pulse 1.2s ease-in-out infinite;' : '';
+    wrap.innerHTML = `<span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:${c}; box-shadow:0 0 4px ${c}88; ${pulseStyle}"></span>` +
       `<span style="font-size:10px; color:#94a3b8; letter-spacing:0.3px;">${label}</span>`;
     return wrap;
   };
@@ -13857,14 +14058,14 @@ function openDiagnosticModal() {
   tlContainer.appendChild(mkDot('Press', presW, pressAlarms));
 
   // ── Summary: only count actionable issues, with icons ──
-  const errN = actionable.filter(a => a.severity.level >= AlarmSeverity.ERROR.level).length;
+  const catN = actionable.filter(a => a.severity.level >= AlarmSeverity.CATASTROPHIC.level).length;
   const warnN = actionable.filter(a => a.severity.level === AlarmSeverity.WARNING.level).length;
 
-  if (errN + warnN > 0) {
+  if (catN + warnN > 0) {
     const sumDiv = el('div', { style: 'display:flex; gap:12px; align-items:center; margin-bottom:10px; padding:6px 10px; border-radius:6px; background:#111827;' });
-    if (errN > 0) {
+    if (catN > 0) {
       const errSpan = el('span', { style: 'display:flex; align-items:center; gap:4px; font-size:13px; font-weight:700; color:#fca5a5;' });
-      errSpan.innerHTML = `<span style="font-size:14px;">🔴</span> ${errN} error${errN !== 1 ? 's' : ''}`;
+      errSpan.innerHTML = `<span style="font-size:14px;">🔴</span> ${catN} catastrophic`;
       sumDiv.appendChild(errSpan);
     }
     if (warnN > 0) {
@@ -13941,11 +14142,53 @@ function openDiagnosticModal() {
         panel.appendChild(row);
       }
     }
-  } else if (alarms.length > 0) {
+  } else if (plantAlarms.length > 0) {
     // All vitals green, no issues
     panel.appendChild(el('div', { style: 'opacity:0.5; padding:12px; font-size:12px;', html: '✓ All clear — no issues.' }));
   } else {
     panel.appendChild(el('div', { style: 'opacity:0.5; padding:12px;', html: 'No diagnostics available.' }));
+  }
+
+  // ── [v13.0.8] Phase 5: Simulation Health (dev) — collapsible SIM section ──
+  const simIssues = simAlarms.filter(a => a.severity.level >= AlarmSeverity.WARNING.level);
+  if (simIssues.length > 0) {
+    const simSection = el('div', { style: 'margin-top:16px; border-top:1px solid #1e293b;' });
+    const simHeader = el('div', { style: 'display:flex; align-items:center; gap:6px; padding:8px 0 4px; cursor:pointer; user-select:none;' });
+    const simArrow = el('span', { style: 'font-size:10px; color:#64748b; transition:transform 0.15s;' });
+    simArrow.textContent = '▶';
+    const simLabel = el('span', { style: 'font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:#64748b;' });
+    simLabel.textContent = `Simulation Health (${simIssues.length})`;
+    simHeader.appendChild(simArrow);
+    simHeader.appendChild(simLabel);
+    const simBody = el('div', { style: 'display:none; padding-left:4px;' });
+
+    simHeader.addEventListener('click', () => {
+      const open = simBody.style.display !== 'none';
+      simBody.style.display = open ? 'none' : 'block';
+      simArrow.style.transform = open ? '' : 'rotate(90deg)';
+    });
+
+    for (const alarm of simIssues) {
+      const row = el('div', { style: 'display:flex; gap:8px; align-items:flex-start; padding:4px 0; border-bottom:1px solid #1e293b22; font-size:11px; opacity:0.7;' });
+      const iconSpan = el('span', { style: 'flex-shrink:0;' });
+      iconSpan.textContent = alarm.severity.icon;
+      const bodyDiv = el('div', { style: 'flex:1; min-width:0;' });
+      if (alarm.unitName) {
+        const unitLabel = el('div', { style: 'font-size:10px; font-weight:600; color:#818cf8; margin-bottom:1px;' });
+        unitLabel.textContent = alarm.unitName;
+        bodyDiv.appendChild(unitLabel);
+      }
+      const msgSpan = el('div', { style: 'color:#94a3b8;' });
+      msgSpan.textContent = alarm.message;
+      bodyDiv.appendChild(msgSpan);
+      row.appendChild(iconSpan);
+      row.appendChild(bodyDiv);
+      simBody.appendChild(row);
+    }
+
+    simSection.appendChild(simHeader);
+    simSection.appendChild(simBody);
+    panel.appendChild(simSection);
   }
 
   modal.classList.add('open');
@@ -14842,7 +15085,7 @@ function drawUnits() {
     // [v10.4.1] AN-4a: Failure glow (NNG-AL5: alarm-driven visuals)
     if (SimSettings.animations && SimSettings.animFailureEffects && !isDimmed) {
       const unitSev = _cachedUnitAlarms.get(id);
-      if (unitSev && unitSev.level >= AlarmSeverity.ERROR.level) {
+      if (unitSev && unitSev.level >= AlarmSeverity.CATASTROPHIC.level) {
         group.classList.add('unit-glow-error');
       } else if (unitSev && unitSev.level >= AlarmSeverity.WARNING.level) {
         group.classList.add('unit-glow-warn');
@@ -17427,23 +17670,60 @@ function _findPrimaryStream(ud, def) {
 // Each returns a grid element (or nothing). Sticker context flows through.
 
 // ── Process Conditions: T, P, phase, vapor fraction ──
-function _renderStreamConditions(container, stream, sCtx) {
+function _renderStreamConditions(container, stream, sCtx, limitCtx) {
   if (!stream || stream.type !== StreamType.MATERIAL) return;
   const unitSys = models.getActive('units');
   const grid = el('div', { class: 'propGrid' });
+
+  // Helper: check if a tag (T or P) has violations and get alarm class
+  const alarmClass = (tag) => {
+    if (!limitCtx?.violations) return '';
+    const v = limitCtx.violations.find(v => v.param?.startsWith(tag + '_'));
+    if (!v) return '';
+    if (v.severity.level >= AlarmSeverity.CATASTROPHIC.level) return 'alarm-bad';
+    return 'alarm-warn';
+  };
+
+  // Helper: format limit range annotation for a tag
+  const limitHint = (tag) => {
+    if (!limitCtx?.limits) return null;
+    const unitKey = tag === 'T' ? 'temperature' : 'pressure';
+    const conv = unitSys[unitKey];
+    if (!conv) return null;
+    const pairs = [];
+    const ll = limitCtx.limits[tag + '_LL'];
+    const l  = limitCtx.limits[tag + '_L'];
+    const h  = limitCtx.limits[tag + '_H'];
+    const hh = limitCtx.limits[tag + '_HH'];
+    const lo = ll ?? l;
+    const hi = hh ?? h;
+    if (lo != null) pairs.push(conv.from(lo).toFixed(conv.decimals));
+    if (hi != null) pairs.push(conv.from(hi).toFixed(conv.decimals));
+    if (pairs.length === 0) return null;
+    if (pairs.length === 2) return `limits: ${pairs[0]}–${pairs[1]} ${conv.symbol}`;
+    if (lo != null) return `min: ${pairs[0]} ${conv.symbol}`;
+    return `max: ${pairs[0]} ${conv.symbol}`;
+  };
   
-  const tItem = el('div', { class: 'propItem' }, [
+  const tCls = alarmClass('T');
+  const tItem = el('div', { class: `propItem${tCls ? ' ' + tCls : ''}` }, [
     el('div', { class: 'propLabel', html: 'Temperature' }),
     el('div', { class: 'propValue', 
       html: `${unitSys.temperature.from(stream.T).toFixed(unitSys.temperature.decimals)}<span class="propUnit">${unitSys.temperature.symbol}</span>` })
   ]);
+  const tHint = limitHint('T');
+  if (tHint) tItem.appendChild(el('div', { class: 'limit-hint', text: tHint }));
   if (sCtx) _tagDraggableBadge(tItem, sCtx, 'Temperature');
   grid.appendChild(tItem);
-  const pItem = el('div', { class: 'propItem' }, [
+
+  const pCls = alarmClass('P');
+  const pItem = el('div', { class: `propItem${pCls ? ' ' + pCls : ''}` }, [
     el('div', { class: 'propLabel', html: 'Pressure' }),
     el('div', { class: 'propValue', 
       html: `${unitSys.pressure.from(stream.P).toFixed(unitSys.pressure.decimals)}<span class="propUnit">${unitSys.pressure.symbol}</span>` })
   ]);
+  const pHint = limitHint('P');
+  if (pHint) pItem.appendChild(el('div', { class: 'limit-hint', text: pHint }));
   if (sCtx) _tagDraggableBadge(pItem, sCtx, 'Pressure');
   grid.appendChild(pItem);
   
@@ -17467,7 +17747,7 @@ function _renderStreamConditions(container, stream, sCtx) {
 }
 
 // ── Flowrates: molar, mass ──
-function _renderStreamFlowrates(container, stream, sCtx) {
+function _renderStreamFlowrates(container, stream, sCtx, limitCtx) {
   if (!stream || stream.type !== StreamType.MATERIAL) return;
   const unitSys = models.getActive('units');
   const flowrates = calculateStreamFlowrates(stream);
@@ -17480,11 +17760,23 @@ function _renderStreamFlowrates(container, stream, sCtx) {
   ]);
   if (sCtx) _tagDraggableBadge(mfItem, sCtx, 'Molar flow');
   grid.appendChild(mfItem);
-  const msItem = el('div', { class: 'propItem' }, [
+
+  // Mass flow — with limit highlighting
+  const massCls = limitCtx?.violations?.some(v => v.param === 'mass_HH')
+    ? 'alarm-warn' : '';
+  const msItem = el('div', { class: `propItem${massCls ? ' ' + massCls : ''}` }, [
     el('div', { class: 'propLabel', html: 'Mass flow' }),
     el('div', { class: 'propValue', 
       html: `${unitSys.massFlow.from(flowrates.mTotal).toFixed(unitSys.massFlow.decimals)}<span class="propUnit">${unitSys.massFlow.symbol}</span>` })
   ]);
+  // Mass limit hint
+  if (limitCtx?.limits?.mass_HH != null) {
+    const conv = unitSys.massFlow;
+    if (conv) {
+      msItem.appendChild(el('div', { class: 'limit-hint',
+        text: `max: ${conv.from(limitCtx.limits.mass_HH).toFixed(conv.decimals)} ${conv.symbol}` }));
+    }
+  }
   if (sCtx) _tagDraggableBadge(msItem, sCtx, 'Mass flow');
   grid.appendChild(msItem);
   container.appendChild(grid);
@@ -18517,26 +18809,26 @@ function _rebuildInspectorContent() {
     headerDiv.appendChild(el('div', { class: 'unitSubtitle', html: `<span style="color:${def.color}">${def.category}</span> · ${def.name}` }));
     propEditor.appendChild(headerDiv);
 
-    // ── Status / Errors (immediately under header) [v10.2.0 XSS-safe] ──
-    if (ud?.last?.error) {
-      insErr(propEditor, ud.last.error.severity || ErrorSeverity.MINOR, ud.last.error.message);
-    }
-    if (ud?.errors?.length > 0) {
-      for (const err of ud.errors) {
-        const box = el('div');
-        if (typeof err === 'string') {
-          box.className = 'ins-err-box warn';
-          box.textContent = '⚠ ' + err;
-        } else if (err && typeof err === 'object') {
-          box.className = `ins-err-box ${err.severity === ErrorSeverity.CATASTROPHIC || err.severity === ErrorSeverity.MAJOR ? 'bad' : 'warn'}`;
-          box.textContent = `${(err.severity?.icon || '⚠')} ${err.message || JSON.stringify(err)}`;
-        }
+    // ── [v13.0.7] Alarm banners — sourced from AlarmSystem (NNG-7 single source of truth) ──
+    // [v13.0.8] Phase 5: inspector shows PLANT domain only (player-facing)
+    const _unitAlarms = AlarmSystem.evaluate(scene).filter(a => a.unitId === u.id && a.domain === AlarmDomain.PLANT);
+    const _unitIssues = _unitAlarms.filter(a => a.severity.level >= AlarmSeverity.WARNING.level);
+    if (_unitIssues.length > 0) {
+      for (const alarm of _unitIssues) {
+        const cls = alarm.severity.level >= AlarmSeverity.CATASTROPHIC.level ? 'catastrophic' : 'warn';
+        const box = el('div', { class: `ins-err-box ${cls}` });
+        box.textContent = `${alarm.severity.icon} ${alarm.message}`;
         propEditor.appendChild(box);
       }
-    }
-    if (ud && !ud?.last?.error && !(ud?.errors?.length > 0)) {
+    } else if (ud) {
       propEditor.appendChild(el('div', { style: 'font-size:11px; color:#6ee7b7; opacity:0.6; padding:2px 0 4px;', html: '✓ OK' }));
     }
+
+    // ── [v13.0.7] Build limit context for property highlighting ──
+    const _limitViolations = _unitAlarms.filter(a => a.id?.startsWith('limit_'));
+    const _effectiveLimits = (def.limitParams && def.limits) ? getEffectiveLimits(def, 'S') : null;
+    const _limitCtx = (_limitViolations.length > 0 || _effectiveLimits)
+      ? { violations: _limitViolations, limits: _effectiveLimits } : null;
 
     // ── [v10.9.1] Layout variant selector (NNG-P4) ──
     if (def.presentations) {
@@ -18591,12 +18883,12 @@ function _rebuildInspectorContent() {
         const items = config.conditions(u, ud);
         if (items?.length) _renderKPIGrid(propEditor, items, _sCtx);
       } else if (primaryStream) {
-        _renderStreamConditions(propEditor, primaryStream, _sCtx);
+        _renderStreamConditions(propEditor, primaryStream, _sCtx, _limitCtx);
       }
 
       // ── Flowrates ──
       if (!config?.conditions && primaryStream) {
-        _renderStreamFlowrates(propEditor, primaryStream, _sCtx);
+        _renderStreamFlowrates(propEditor, primaryStream, _sCtx, _limitCtx);
       }
 
       // ── Composition ──
@@ -18636,6 +18928,71 @@ function _rebuildInspectorContent() {
     if (ud && config?.detail) {
       const detailItems = config.detail(u, ud, scene);
       _renderDetailSection(propEditor, detailItems);
+    }
+
+    // ── [v13.0.7] Equipment Limits (static spec table) ──
+    // Shows ALL stored limit parameters as Variable × LL/L/H/HH grid.
+    // This is a static view of the unit definition — no actual/status comparison.
+    // L/H columns reserved for future user-configurable alarm limits.
+    if (def.limitParams?.length > 0 && def.limits) {
+      const effLimits = getEffectiveLimits(def, 'S');
+      if (effLimits) {
+        const unitSys = models.getActive('units');
+        const section = createCollapsibleSection('Equipment Limits', false);
+
+        // Size indicator
+        const sizeNote = el('div', { style: 'font-size:10px; color:#64748b; margin-bottom:6px;' });
+        sizeNote.textContent = 'Size: S (small)  —  limits apply to this equipment size';
+        section.content.appendChild(sizeNote);
+
+        // Group limitParams by tag to build one row per variable
+        const tagRows = new Map(); // tag → { LL, L, H, HH }
+        for (const key of def.limitParams) {
+          const tpl = LIMIT_PARAM_TEMPLATES[key];
+          if (!tpl) continue;
+          if (!tagRows.has(tpl.tag)) tagRows.set(tpl.tag, {});
+          tagRows.get(tpl.tag)[tpl.side] = effLimits[key] ?? null;
+        }
+
+        const tbl = el('div', { style: 'display:grid; grid-template-columns:auto auto auto auto auto; gap:2px 8px; font-size:11px; padding:4px 0;' });
+
+        // Header
+        const hdrStyle = 'color:#64748b; font-weight:600; padding-bottom:4px; text-align:center;';
+        tbl.appendChild(el('div', { style: 'color:#64748b; font-weight:600; padding-bottom:4px;', text: '' }));
+        tbl.appendChild(el('div', { style: hdrStyle, html: '<span title="Catastrophic low — equipment destruction">LL</span>' }));
+        tbl.appendChild(el('div', { style: hdrStyle, html: '<span title="Alarm low — user-configurable (future)">L</span>' }));
+        tbl.appendChild(el('div', { style: hdrStyle, html: '<span title="Alarm high — user-configurable (future)">H</span>' }));
+        tbl.appendChild(el('div', { style: hdrStyle, html: '<span title="Catastrophic high — equipment destruction">HH</span>' }));
+
+        const tagLabels = { T: 'Temperature', P: 'Pressure', mass: 'Mass flow' };
+        for (const [tag, sides] of tagRows) {
+          const unitKey = _limitTagToUnit[tag];
+          const conv = unitSys[unitKey];
+          const fmtVal = (v) => {
+            if (v == null) return '—';
+            return conv ? `${conv.from(v).toFixed(conv.decimals)}` : `${v}`;
+          };
+          const unitLabel = conv ? conv.symbol : '';
+
+          // Row label
+          tbl.appendChild(el('div', { style: 'color:#94a3b8; font-weight:500;', text: `${tagLabels[tag] || tag} (${unitLabel})` }));
+
+          // LL, L, H, HH cells
+          const cellStyle = (side) => {
+            const val = sides[side];
+            if (val == null) return 'color:#334155; text-align:center;'; // dimmed placeholder
+            const isCatastrophic = side === 'LL' || side === 'HH';
+            return `color:${isCatastrophic ? '#fca5a5' : '#fbbf24'}; text-align:center;`;
+          };
+          tbl.appendChild(el('div', { style: cellStyle('LL'), text: fmtVal(sides.LL) }));
+          tbl.appendChild(el('div', { style: cellStyle('L'),  text: fmtVal(sides.L) }));
+          tbl.appendChild(el('div', { style: cellStyle('H'),  text: fmtVal(sides.H) }));
+          tbl.appendChild(el('div', { style: cellStyle('HH'), text: fmtVal(sides.HH) }));
+        }
+
+        section.content.appendChild(tbl);
+        propEditor.appendChild(section.section);
+      }
     }
 
     // ── Connections (hidden by default, preserved for debug) ──
@@ -19782,6 +20139,8 @@ function afterSolve(solveResult) {
     const alarms = AlarmSystem.evaluate(scene);
     for (const a of alarms) {
       if (!a.unitId) continue;
+      // [v13.0.8] Phase 5: canvas glow/shake shows PLANT domain only
+      if (a.domain !== AlarmDomain.PLANT) continue;
       const existing = _cachedUnitAlarms.get(a.unitId);
       if (!existing || a.severity.level > existing.level) {
         _cachedUnitAlarms.set(a.unitId, a.severity);
@@ -19789,9 +20148,9 @@ function afterSolve(solveResult) {
     }
     // Detect new failures for shake trigger
     for (const [uid, sev] of _cachedUnitAlarms) {
-      if (sev.level >= AlarmSeverity.ERROR.level) {
+      if (sev.level >= AlarmSeverity.CATASTROPHIC.level) {
         const prev = prevAlarms.get(uid);
-        if (!prev || prev.level < AlarmSeverity.ERROR.level) {
+        if (!prev || prev.level < AlarmSeverity.CATASTROPHIC.level) {
           _lastSolveHadNewErrors = true;
           break;
         }
@@ -19858,7 +20217,7 @@ function _triggerTopoPulse() {
 // [v10.4.1] AN-4a: Shake units with new errors
 function _triggerFailureShakes() {
   for (const [uid, sev] of _cachedUnitAlarms) {
-    if (sev.level < AlarmSeverity.ERROR.level) continue;
+    if (sev.level < AlarmSeverity.CATASTROPHIC.level) continue;
     const unitG = document.querySelector(`g[data-uid="${uid}"]`);
     if (!unitG) continue;
     unitG.classList.add('unit-shake');
@@ -27103,13 +27462,14 @@ function runTests() {
     // Each alarm has required shape
     for (const a of alarms) {
       t.assertOK(typeof a.id === 'string', `alarm id is string: ${a.id}`);
+      t.assertOK(a.domain === 'plant' || a.domain === 'sim', `alarm domain is plant|sim: ${a.domain}`);
       t.assertOK(typeof a.category === 'string', `alarm category is string: ${a.category}`);
       t.assertOK(a.severity && typeof a.severity.level === 'number', `alarm severity has level: ${a.severity?.key}`);
       t.assertOK(typeof a.message === 'string', `alarm message is string`);
     }
     // summarize
     const counts = AlarmSystem.summarize(alarms);
-    t.assertOK(typeof counts.critical === 'number', 'counts.critical is number');
+    t.assertOK(typeof counts.catastrophic === 'number', 'counts.catastrophic is number');
     t.assertOK(typeof counts.ok === 'number', 'counts.ok is number');
     t.assertOK(counts.ok > 0, 'has ok alarms for solved scene');
     // worstSeverity
@@ -29946,23 +30306,26 @@ function runTests() {
   // ═══════════════════════════════════════════════════════════════════════
 
   test('336: S1c — evaluateLimits T_HH violation on pump', t => {
-    // Pump with T > 700 K limit
+    // Pump with T > T_HH (393 K) limit
     const def = UnitRegistry.get('pump');
     const ud = { ports: { mat_out: { T: 800, P: 500000, n: { H2O: 10 }, type: StreamType.MATERIAL } } };
     const violations = evaluateLimits('u_pump', 'Pump', ud, def);
     t.assertOK(violations.length >= 1, 'At least 1 violation');
     const tViol = violations.find(v => v.param === 'T_HH');
     t.assertOK(tViol, 'T_HH violation found');
-    t.assertOK(tViol.severity === AlarmSeverity.CRITICAL, 'T_HH is CRITICAL');
+    t.assertOK(tViol.severity === AlarmSeverity.CATASTROPHIC, 'T_HH is CATASTROPHIC (destruction)');
     t.assertOK(tViol.value === 800, 'value = 800 K');
     t.assertOK(tViol.unitName === 'Pump', 'unitName set (NNG-7)');
+    // [v13.0.8] domain field on limit violations
+    t.assertOK(tViol.domain === AlarmDomain.PLANT, 'domain = PLANT');
   });
 
   test('337: S1c — evaluateLimits no violation when within limits', t => {
     const def = UnitRegistry.get('pump');
-    const ud = { ports: { mat_out: { T: 350, P: 500000, n: { H2O: 10 }, type: StreamType.MATERIAL } } };
+    // [v13.0.8] Reduced flow: 5 mol/s H2O = 0.09 kg/s, under mass_HH=0.12
+    const ud = { ports: { mat_out: { T: 350, P: 500000, n: { H2O: 5 }, type: StreamType.MATERIAL } } };
     const violations = evaluateLimits('u_pump', 'Pump', ud, def);
-    t.assertOK(violations.length === 0, 'No violations in normal range');
+    t.assertOK(violations.length === 0, `No violations in normal range (got ${violations.length}: ${violations.map(v=>v.param).join(',')})`);
   });
 
   test('338: S1c — evaluateLimits P_LL violation', t => {
@@ -29970,13 +30333,13 @@ function runTests() {
     const ud = { ports: { vap_out: { T: 350, P: 5000, n: { H2O: 1 }, type: StreamType.MATERIAL } } };
     const violations = evaluateLimits('u_flash', 'Flash Drum', ud, def);
     const pViol = violations.find(v => v.param === 'P_LL');
-    t.assertOK(pViol, 'P_LL violation (5000 < 10000 limit)');
-    t.assertOK(pViol.severity === AlarmSeverity.CRITICAL, 'P_LL is CRITICAL');
+    t.assertOK(pViol, 'P_LL violation (5000 < 20000 Pa limit)');
+    t.assertOK(pViol.severity === AlarmSeverity.CATASTROPHIC, 'P_LL is CATASTROPHIC (destruction)');
   });
 
   test('339: S1c — evaluateLimits mass_HH violation', t => {
     const def = UnitRegistry.get('compressor');
-    // 60 kg/s exceeds compressor mass_HH = 50
+    // 60 kg/s exceeds compressor mass_HH = 0.05
     const ud = { ports: { mat_out: { T: 350, P: 500000, n: { N2: 2142.8 }, type: StreamType.MATERIAL } } };
     // N2: 2142.8 mol/s × 28.014 g/mol / 1000 ≈ 60 kg/s
     const violations = evaluateLimits('u_comp', 'Compressor', ud, def);
@@ -29998,9 +30361,12 @@ function runTests() {
     const def = UnitRegistry.get('reactor_equilibrium');
     const limits = getEffectiveLimits(def, 'S');
     t.assertOK(limits, 'Limits returned');
-    t.assertOK(limits.T_HH === 1500, 'T_HH = 1500 K');
-    t.assertOK(limits.P_HH === 30000000, 'P_HH = 30 MPa');
-    t.assertOK(limits.mass_HH === 50, 'mass_HH = 50 kg/s');
+    // [v13.0.8] Updated to matrix-correct values
+    t.assertOK(limits.T_HH === 923, 'T_HH = 923 K');
+    t.assertOK(limits.P_HH === 15000000, 'P_HH = 15 MPa');
+    t.assertOK(limits.mass_HH === 0.08, 'mass_HH = 0.08 kg/s');
+    t.assertOK(limits.T_L === 373, 'T_L = 373 K (WARNING tier)');
+    t.assertOK(limits.P_L === 80000, 'P_L = 80 kPa');
   });
 
   test('342: S1c — getLimitParam reads T, P, mass correctly', t => {
@@ -30027,7 +30393,7 @@ function runTests() {
     t.solve();
     const alarms = AlarmSystem.evaluate(scene);
     const limitAlarms = alarms.filter(a => a.id?.startsWith('limit_'));
-    // Pump T_HH = 700 K, inlet is 800 K → should trigger
+    // Pump T_HH = 393 K, inlet is 800 K → should trigger
     t.assertOK(limitAlarms.some(a => a.param === 'T_HH'), 'T_HH alarm found');
     // NNG-7: unitName must be present on unit-scoped alarms
     const thhAlarm = limitAlarms.find(a => a.param === 'T_HH');
@@ -30038,13 +30404,13 @@ function runTests() {
   test('344: S1c — _rationalize deduplicates by id, keeps highest severity', t => {
     const alarms = [
       { id: 'dup', severity: AlarmSeverity.WARNING, category: AlarmCategory.UNIT, message: 'low' },
-      { id: 'dup', severity: AlarmSeverity.CRITICAL, category: AlarmCategory.UNIT, message: 'high' },
+      { id: 'dup', severity: AlarmSeverity.CATASTROPHIC, category: AlarmCategory.UNIT, message: 'high' },
       { id: 'unique', severity: AlarmSeverity.INFO, category: AlarmCategory.UNIT, message: 'ok' },
     ];
     const result = AlarmSystem._rationalize(alarms);
     t.assertOK(result.length === 2, `2 after dedup: ${result.length}`);
     const dup = result.find(a => a.id === 'dup');
-    t.assertOK(dup.severity === AlarmSeverity.CRITICAL, 'Kept CRITICAL');
+    t.assertOK(dup.severity === AlarmSeverity.CATASTROPHIC, 'Kept CATASTROPHIC');
   });
 
   test('345: S1c — default params: tank 0.15 m³, reactor 0.003 m³, air_cooler T_approach', t => {
@@ -30075,7 +30441,113 @@ function runTests() {
         `Alarm ${a.id}: unitName present ("${a.unitName}")`);
       t.assertOK(typeof a.unitId === 'string' && a.unitId.length > 0,
         `Alarm ${a.id}: unitId present`);
+      // [v13.0.8] domain field required
+      t.assertOK(a.domain === 'plant' || a.domain === 'sim',
+        `Alarm ${a.id}: domain is plant|sim (got "${a.domain}")`);
     }
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // v13.0.8: Two-domain alarm architecture tests
+  // ═══════════════════════════════════════════════════════════════════════
+
+  test('347: v13.0.8 — no AlarmSeverity.ERROR in alarm output', t => {
+    const src = t.place('source', 0, 0, { T: 800, P: 500000, n: { H2O: 10 }, phaseConstraint: 'V' });
+    const gs  = t.place('grid_supply', 3, 0, { maxPower: 50 });
+    const pmp = t.place('pump', 6, 0, { Pout: 1000000, eta: 0.75 });
+    const snk = t.place('sink', 9, 0);
+    t.wire(src, 'out', pmp, 'mat_in');
+    t.wire(gs, 'out', pmp, 'elec_in');
+    t.wire(pmp, 'mat_out', snk, 'in');
+    t.solve();
+    const alarms = AlarmSystem.evaluate(scene);
+    for (const a of alarms) {
+      t.assertOK(a.severity.key !== 'error',
+        `No ERROR severity: alarm ${a.id} has ${a.severity.key}`);
+    }
+    // Verify ERROR doesn't exist in enum
+    t.assertOK(!AlarmSeverity.ERROR, 'AlarmSeverity.ERROR removed from enum');
+  });
+
+  test('348: v13.0.8 — domain routing: limit violations are PLANT', t => {
+    const def = UnitRegistry.get('pump');
+    const ud = { ports: { mat_out: { T: 800, P: 500000, n: { H2O: 1 }, type: StreamType.MATERIAL } } };
+    const violations = evaluateLimits('u_pump', 'Pump', ud, def);
+    t.assertOK(violations.length > 0, 'Has violations');
+    for (const v of violations) {
+      t.assertOK(v.domain === AlarmDomain.PLANT, `${v.param}: domain = PLANT`);
+    }
+  });
+
+  test('349: v13.0.8 — domain routing: convergence OK=PLANT, failed=SIM', t => {
+    // Solved scene → convergence OK → PLANT
+    const src = t.place('source', 0, 0, { T: 300, P: 101325, n: { N2: 1 }, phaseConstraint: 'V' });
+    const snk = t.place('sink', 3, 0);
+    t.wire(src, 'out', snk, 'in');
+    t.solve();
+    const alarms = AlarmSystem.evaluate(scene);
+    const convOk = alarms.find(a => a.id === 'conv_ok');
+    t.assertOK(convOk, 'conv_ok alarm present');
+    t.assertOK(convOk.domain === AlarmDomain.PLANT, 'conv_ok domain = PLANT');
+  });
+
+  test('350: v13.0.8 — check-valve: valve zeroes flow on Pout > Pin', t => {
+    // Valve with Pout > inlet P → check valve triggers
+    const src = t.place('source', 0, 0, { T: 300, P: 101325, n: { N2: 1 }, phaseConstraint: 'V' });
+    const vlv = t.place('valve', 3, 0, { Pout: 500000 });  // 5 bar > 1 bar inlet
+    const snk = t.place('sink', 6, 0);
+    t.wire(src, 'out', vlv, 'in');
+    t.wire(vlv, 'out', snk, 'in');
+    t.solve();
+    const ud = t.unit(vlv);
+    t.assertOK(ud.last.mode === 'check-valve', 'mode = check-valve');
+    // Output should have empty composition
+    const outStream = ud.ports?.out;
+    if (outStream && outStream.n) {
+      const totalFlow = Object.values(outStream.n).reduce((a,b) => a+b, 0);
+      t.assertClose(totalFlow, 0, 0.001, 'Output flow zeroed');
+    } else {
+      t.assertOK(true, 'No output stream (check valve blocked)');
+    }
+    // Should produce a warning alarm
+    const alarms = AlarmSystem.evaluate(scene);
+    const cvAlarm = alarms.find(a => a.unitId && a.message?.includes('Check valve'));
+    t.assertOK(cvAlarm, 'Check valve alarm emitted');
+    t.assertOK(cvAlarm.domain === AlarmDomain.PLANT, 'Check valve alarm is PLANT domain');
+  });
+
+  test('351: v13.0.8 — check-valve: mixer zeroes low-P inlet', t => {
+    // Two sources at different pressures, ΔP > 0.1 bar → weaker inlet zeroed
+    const src1 = t.place('source', 0, 0, { T: 300, P: 500000, n: { N2: 1 }, phaseConstraint: 'V' });
+    const src2 = t.place('source', 0, 3, { T: 300, P: 101325, n: { N2: 1 }, phaseConstraint: 'V' });
+    const mix  = t.place('mixer', 3, 0);
+    const snk  = t.place('sink', 6, 0);
+    t.wire(src1, 'out', mix, 'in1');
+    t.wire(src2, 'out', mix, 'in2');
+    t.wire(mix, 'out', snk, 'in');
+    t.solve();
+    const ud = t.unit(mix);
+    // Check valve should have closed on in2 (lower pressure)
+    t.assertOK(ud.last.error, 'Has check-valve error');
+    t.assertOK(ud.last.error.message.includes('Check valve closed on in2'),
+      `Message mentions in2: "${ud.last.error.message}"`);
+  });
+
+  test('352: v13.0.8 — tank level limits: L/H templates evaluate fillPct', t => {
+    const def = UnitRegistry.get('tank');
+    // Simulate a tank at 95% fill → should trigger level_H (90%)
+    const ud = { last: { fillPct: 95 }, ports: { mat_out: { T: 300, P: 101325, n: { H2O: 1 }, type: StreamType.MATERIAL } } };
+    const violations = evaluateLimits('u_tank', 'Tank', ud, def);
+    const lvlH = violations.find(v => v.param === 'level_H');
+    t.assertOK(lvlH, 'level_H violation at 95% fill');
+    t.assertOK(lvlH.severity === AlarmSeverity.WARNING, 'level_H is WARNING');
+    t.assertOK(lvlH.message.includes('%'), 'Message includes % formatting');
+    // At 101% → level_HH should trigger (>100 threshold)
+    const ud100 = { last: { fillPct: 101 }, ports: { mat_out: { T: 300, P: 101325, n: { H2O: 1 }, type: StreamType.MATERIAL } } };
+    const viol100 = evaluateLimits('u_tank', 'Tank', ud100, def);
+    const lvlHH = viol100.find(v => v.param === 'level_HH');
+    t.assertOK(lvlHH, 'level_HH violation at 101% fill');
+    t.assertOK(lvlHH.severity === AlarmSeverity.CATASTROPHIC, 'level_HH is CATASTROPHIC');
   });
 
   // ═══════════════════════════════════════════════════════════════════════
