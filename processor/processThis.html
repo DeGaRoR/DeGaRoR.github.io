@@ -5936,11 +5936,27 @@ class PengRobinsonPackage extends IdealRaoultPackage {
   // [v13.3.0] S3b — Mixture Helpers & Entropy-Based Work Overrides
   // ═══════════════════════════════════════════════════════════════════════
 
-  // ── S3b helpers: _mixH, _mixS ─────────────────────────────────────────
+  // ── S3b helpers: _idealGasGamma, _mixH, _mixS ─────────────────────────
 
   /**
-   * Mixture molar enthalpy rate [J/s] at T, P for given component flows.
-   * H_dot = Σ n_i · [H_ig_i(T) + H_dep_i(T, P)]
+   * Compute ideal-gas mixture gamma (Cp/Cv) for display purposes.
+   * Uses parent (ideal) cpMolar; not used in PR work calculations.
+   */
+  _idealGasGamma(compFlows, T_K) {
+    const R = PengRobinsonPackage.R;
+    const nTotal = Object.values(compFlows).reduce((a, b) => a + b, 0);
+    if (nTotal <= 0) return { cpMix: 29, gammaMix: 1.4 };  // air defaults
+    let cpMix = 0;
+    for (const [comp, n] of Object.entries(compFlows)) {
+      cpMix += (n / nTotal) * super.cpMolar(comp, T_K, 1e5, 'V');
+    }
+    const cvMix = cpMix - R;
+    const gammaMix = cvMix > 0 ? cpMix / cvMix : 1.4;
+    return { cpMix, gammaMix };
+  }
+
+  /**
+   * Mixture molar enthalpy rate [J/s] at T, P.
    * For PR: H_dep comes from departure function on the mixture.
    * Simplification: compute mixture PR once, apply same H_dep to total.
    */
@@ -6040,7 +6056,10 @@ class PengRobinsonPackage extends IdealRaoultPackage {
     const W_isentropic_W = H_isen - H_in;
     const W_shaft_W = W_isentropic_W / eta;
 
-    return { W_isentropic_W, W_shaft_W, T_isentropic_K };
+    // Compute ideal-gas gammaMix/cpMix for display (not used in calculation)
+    const { cpMix, gammaMix } = this._idealGasGamma(compFlows, T_in);
+
+    return { W_isentropic_W, W_shaft_W, T_isentropic_K, gammaMix, cpMix };
   }
 
   /**
@@ -6070,7 +6089,10 @@ class PengRobinsonPackage extends IdealRaoultPackage {
     const W_isentropic_W = H_in - H_isen;  // positive (energy extracted)
     const W_shaft_W = W_isentropic_W * eta;
 
-    return { W_isentropic_W, W_shaft_W, T_isentropic_K };
+    // Compute ideal-gas gammaMix/cpMix for display (not used in calculation)
+    const { cpMix, gammaMix } = this._idealGasGamma(compFlows, T_in);
+
+    return { W_isentropic_W, W_shaft_W, T_isentropic_K, gammaMix, cpMix };
   }
 
   /**
@@ -6103,7 +6125,10 @@ class PengRobinsonPackage extends IdealRaoultPackage {
       if (Math.abs(P_hi - P_lo) / P_mid < 1e-4) break;
     }
 
-    return { P_actual: P_mid, W_isentropic_W: W_isen_target, W_shaft_W: W_shaft_avail_W, T_isentropic_K: T_isen_K };
+    // Compute ideal-gas gammaMix/cpMix for display
+    const { cpMix, gammaMix } = this._idealGasGamma(compFlows, T_in);
+
+    return { P_actual: P_mid, W_isentropic_W: W_isen_target, W_shaft_W: W_shaft_avail_W, T_isentropic_K: T_isen_K, gammaMix, cpMix };
   }
 
   // ── S3b-5: Bubble & Dew Pressure ─────────────────────────────────────
