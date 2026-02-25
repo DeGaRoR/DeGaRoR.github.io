@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v13.0.3
+  processThis v13.0.6
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -403,6 +403,52 @@
            Flow arrows scale with stream width.
            Action bar: three .btn-cluster groups, no inline CSS.
            Islands mode: material + electrical union-find.
+
+  v13.0.6  Equipment limit messages use display units — 315 tests, 1937 assertions.
+           evaluateLimits messages now format values through the active unit
+           system (models.getActive('units')): T in °C/K/°F, P in bar/Pa/psi,
+           mass in kg/h/kg/s/lb/h — matching stream stickers and inspectors.
+           Added _fmtLimit(tag, siValue) helper + _limitTagToUnit dispatch map.
+           Example: "Temperature very high: 926.9 °C (limit: 926.9 °C)" instead
+           of the old "Temperature very high: 1200 K (limit: 1200 K)".
+
+  v13.0.5  S1c Session 2: Defaults, UnitRegistry fix & Tests — 315 tests,
+           1937 assertions (+10 new).
+           S1c-9a: Tank default volume_m3 50 → 0.15 (S-size pilot 150L).
+             Updated: params init, tick fallbacks, inspector, comment.
+             Fixed test 169 to use new default.
+           S1c-9b: Reactor default volume_m3 1.0 → 0.003 (S-size 3L).
+             Updated: params init, inspector.
+           S1c-9c: Air cooler default params { T_approach: 10 }. Tick reads
+             par.T_approach ?? 10 (was hardcoded 10).
+           FIX: UnitRegistry.register now preserves limitParams + limits
+             fields on def object (were silently dropped in v13.0.4).
+           10 new tests (T336–T345): evaluateLimits violations (5), 
+             getEffectiveLimits (1), getLimitParam (1), alarm source
+             integration (1), _rationalize dedup (1), default params (1).
+           NNG: NNG-14 (tests), NNG-7 (alarm integration verified).
+
+  v13.0.4  S1c Session 1: Equipment Limits Infrastructure — 305 tests, 1913
+           assertions (no new tests — infrastructure only, tests in session 2).
+           S1c-1: LIMIT_PARAM_TEMPLATES dictionary — 7 parameter templates
+             (T_LL/L/H/HH, P_LL/HH, mass_HH) with tags, severity, labels.
+           S1c-2: limitParams arrays added to 14 unit definitions (12 with
+             material limits, 2 electrical-only with empty arrays).
+           S1c-3: S-size limit data added to 12 material unit definitions
+             with numeric T/P/mass thresholds per equipment type.
+           S1c-4: getLimitParam() reads runtime values via tag dispatch.
+             _computeMassRate() computes kg/s from molar flows + MW.
+             _findPrimaryStream() pre-existed — reused as-is.
+           S1c-5: getEffectiveLimits() — 3-layer merge stub (definition
+             layer only; mission/player layers reserved for future).
+           S1c-6: evaluateLimits() — pure function: unit + def → violations.
+             Checks each limitParam against S-size threshold, returns alarm
+             objects with id, severity, value, limit, message.
+           S1c-7: AlarmSystem.register('equipment_limits') — iterates scene
+             units, calls evaluateLimits for each with limitParams+limits.
+           S1c-8: AlarmSystem._rationalize() — dedup by alarm id, keeping
+             highest severity. Integrated into evaluate() pipeline.
+           NNG: NNG-7 (alarm schema), NNG-14 (no test regression).
 
   v13.0.3  S1b: Chemistry palette — 305 tests, 1913 assertions.
            S1b-1: Renamed R_STEAM_REFORM → R_SMR_OVERALL (global, 25 sites).
@@ -7560,7 +7606,10 @@ class UnitRegistry {
       // [v9.0.3] Optional ports — unit tolerates disconnected material ports
       optionalPorts: spec.optionalPorts || false,
       // [v10.9.0] Presentation layer — visual configs keyed by 'theme/variant'
-      presentations: spec.presentations || null
+      presentations: spec.presentations || null,
+      // [v13.0.4 S1c] Equipment limits
+      limitParams: spec.limitParams || null,
+      limits: spec.limits || null
     };
     this._defs.set(defId, def);
   }
@@ -7850,7 +7899,7 @@ UnitRegistry.register('grid_supply', {
 // │   overflow (MATERIAL, OUT) — excess when fill ≥ 100% (top center)         │
 // │                                                                            │
 // │ PARAMETERS                                                                 │
-// │   volume_m3   — tank volume in m³ (default 50)                            │
+// │   volume_m3   — tank volume in m³ (default 0.15, S-size pilot)             │
 // │   drawRate    — outlet molar flow rate in mol/s (default 1.0)             │
 // │                                                                            │
 // │ INVENTORY (NNG-S5)                                                         │
@@ -7887,7 +7936,7 @@ UnitRegistry.register('tank', {
 
   initInventory(par) {
     const atm = SimSettings.atmosphere;
-    const V = par.volume_m3 || 50;
+    const V = par.volume_m3 || 0.15;
     const n_N2 = (atm.P_Pa * V) / (8.314 * atm.T_K);
     return {
       n: { N2: n_N2 },
@@ -7933,10 +7982,13 @@ UnitRegistry.register('tank', {
     return inv;
   },
 
+  // [v13.0.4 S1c] Equipment limits
+  limitParams: ['P_LL', 'P_HH'],
+  limits: { S: { P_LL: 10000, P_HH: 5000000 } },
   tick(u, ports, par, ctx) {
     const inv = u.inventory || { n: {}, T_K: 288.15, P_Pa: 101325 };
     const total = Object.values(inv.n).reduce((a, b) => a + b, 0);
-    const V = par.volume_m3 || 50;
+    const V = par.volume_m3 || 0.15;
     const n_max = (inv.P_Pa * V) / (8.314 * inv.T_K);
     const drawRate = par.drawRate ?? 1.0;
 
@@ -8087,6 +8139,8 @@ UnitRegistry.register('battery', {
     return inv;
   },
 
+  // [v13.0.4 S1c] Equipment limits (electrical only)
+  limitParams: [],
   tick(u, ports, par, ctx) {
     const peakPower_W = (par.peakPower_kW || 20) * 1000;
     const inv = u.inventory;
@@ -8261,6 +8315,8 @@ UnitRegistry.register('power_hub', {
   presentations: {
     'box/default': { w: 2, h: 3, ports: { elec_in:{x:0,y:1.5}, elec_out:{x:2,y:1.5}, elec_surplus:{x:1,y:0} } }
   },
+  // [v13.0.4 S1c] Equipment limits (electrical only)
+  limitParams: [],
   tick(u, ports, par, ctx) {
     const elecIn = ports.elec_in;
     const totalCapacity_W = elecIn ? (elecIn.capacity ?? 0) : 0;
@@ -8363,6 +8419,9 @@ UnitRegistry.register('gas_turbine', {
   presentations: {
     'box/default': { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, mat_out:{x:2,y:1}, elec_out:{x:1,y:2} } }
   },
+  // [v13.0.4 S1c] Equipment limits
+  limitParams: ['T_LL', 'T_HH', 'P_LL', 'P_HH', 'mass_HH'],
+  limits: { S: { T_LL: 200, T_HH: 1600, P_LL: 50000, P_HH: 5000000, mass_HH: 50 } },
   tick(u, ports, par) {
     const sIn = ports.mat_in;
     if (!sIn) return;
@@ -8471,6 +8530,9 @@ UnitRegistry.register('valve', {
   presentations: {
     'box/default': { w: 2, h: 2, ports: { in:{x:0,y:1}, out:{x:2,y:1} } }
   },
+  // [v13.0.4 S1c] Equipment limits
+  limitParams: ['T_LL', 'T_HH', 'P_LL', 'P_HH', 'mass_HH'],
+  limits: { S: { T_LL: 100, T_HH: 1000, P_LL: 1000, P_HH: 50000000, mass_HH: 100 } },
   tick(u, ports, par) {
     const sIn = ports.in;
     if (!sIn) return;
@@ -8539,6 +8601,9 @@ UnitRegistry.register('pump', {
     'box/output-top':    { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, elec_in:{x:2,y:1}, mat_out:{x:1,y:0} } },
     'box/output-bottom': { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, elec_in:{x:1,y:0}, mat_out:{x:1,y:2} } }
   },
+  // [v13.0.4 S1c] Equipment limits
+  limitParams: ['T_LL', 'T_HH', 'P_LL', 'P_HH', 'mass_HH'],
+  limits: { S: { T_LL: 200, T_HH: 700, P_LL: 1000, P_HH: 20000000, mass_HH: 100 } },
   tick(u, ports, par, ctx) {
     const sIn = ports.mat_in;
     const sElec = ports.elec_in;
@@ -8675,6 +8740,9 @@ UnitRegistry.register('compressor', {
     'box/output-top':    { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, elec_in:{x:2,y:1}, mat_out:{x:1,y:0} } },
     'box/output-bottom': { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, elec_in:{x:1,y:0}, mat_out:{x:1,y:2} } }
   },
+  // [v13.0.4 S1c] Equipment limits
+  limitParams: ['T_LL', 'T_HH', 'P_LL', 'P_HH', 'mass_HH'],
+  limits: { S: { T_LL: 200, T_HH: 700, P_LL: 1000, P_HH: 20000000, mass_HH: 50 } },
   tick(u, ports, par, ctx) {
     const sIn = ports.mat_in;
     const sElec = ports.elec_in;
@@ -8819,6 +8887,9 @@ UnitRegistry.register('electric_heater', {
     'box/default':       { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, elec_in:{x:1,y:0}, mat_out:{x:2,y:1} } },
     'box/elec-bottom':   { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, elec_in:{x:1,y:2}, mat_out:{x:2,y:1} } }
   },
+  // [v13.0.4 S1c] Equipment limits
+  limitParams: ['T_LL', 'T_HH', 'P_LL', 'P_HH', 'mass_HH'],
+  limits: { S: { T_LL: 200, T_HH: 1200, P_LL: 1000, P_HH: 10000000, mass_HH: 50 } },
   tick(u, ports, par, ctx) {
     const sIn = ports.mat_in;
     if (!sIn) return;
@@ -8945,6 +9016,9 @@ UnitRegistry.register('air_cooler', {
     'box/default':     { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, mat_out:{x:2,y:1} } },
     'box/port-top':    { w: 2, h: 2, ports: { mat_in:{x:1,y:0}, mat_out:{x:1,y:2} } }
   },
+  // [v13.0.4 S1c] Equipment limits
+  limitParams: ['T_LL', 'T_HH', 'P_LL', 'P_HH', 'mass_HH'],
+  limits: { S: { T_LL: 200, T_HH: 800, P_LL: 1000, P_HH: 10000000, mass_HH: 50 } },
   tick(u, ports, par) {
     const sIn = ports.mat_in;
     if (!sIn) return;
@@ -8958,7 +9032,8 @@ UnitRegistry.register('air_cooler', {
 
     const atm = SimSettings.getAtmosphere();
     const T_amb = atm.T_K;
-    const T_setpoint = par.T_out ?? (sIn.T > T_amb + 10 ? T_amb + 10 : sIn.T);
+    const T_approach = par.T_approach ?? 10;  // [v13.0.5 S1c-9c] configurable
+    const T_setpoint = par.T_out ?? (sIn.T > T_amb + T_approach ? T_amb + T_approach : sIn.T);
 
     // 2nd-law enforcement: cannot cool below ambient
     if (T_setpoint < T_amb - 0.01) {
@@ -9340,6 +9415,9 @@ UnitRegistry.register('hex', {
     'box/both-reversed': { w: 2, h: 2, ports: { hot_in:{x:2,y:1}, hot_out:{x:0,y:1}, cold_in:{x:1,y:2}, cold_out:{x:1,y:0} } }
   },
 
+  // [v13.0.4 S1c] Equipment limits
+  limitParams: ['T_LL', 'T_HH', 'P_LL', 'P_HH', 'mass_HH'],
+  limits: { S: { T_LL: 200, T_HH: 800, P_LL: 1000, P_HH: 10000000, mass_HH: 50 } },
   tick(u, ports, par) {
     const sHot = ports.hot_in, sCold = ports.cold_in;
     if (!sHot || !sCold) return;
@@ -9493,6 +9571,9 @@ UnitRegistry.register('mixer', {
     'box/default':     { w: 2, h: 2, ports: { in1: {x:0,y:0}, in2: {x:0,y:2}, out: {x:2,y:1} }, icon: 'ico-mixer' },
     'box/top-recycle': { w: 2, h: 2, ports: { in1: {x:0,y:1}, in2: {x:1,y:0}, out: {x:2,y:1} }, icon: 'ico-mixer--top' }
   },
+  // [v13.0.4 S1c] Equipment limits
+  limitParams: ['T_LL', 'T_HH', 'P_LL', 'P_HH', 'mass_HH'],
+  limits: { S: { T_LL: 200, T_HH: 800, P_LL: 1000, P_HH: 10000000, mass_HH: 100 } },
   tick(u, ports, par) {
     const s1 = ports.in1;
     const s2 = ports.in2;
@@ -9588,6 +9669,9 @@ UnitRegistry.register('splitter', {
     'box/default':     { w: 2, h: 2, ports: { in: {x:0,y:1}, out1: {x:2,y:0}, out2: {x:2,y:2} }, icon: 'ico-splitter' },
     'box/top-recycle': { w: 2, h: 2, ports: { in: {x:0,y:1}, out1: {x:2,y:1}, out2: {x:1,y:0} }, icon: 'ico-splitter--top' }
   },
+  // [v13.0.4 S1c] Equipment limits
+  limitParams: ['T_LL', 'T_HH', 'P_LL', 'P_HH', 'mass_HH'],
+  limits: { S: { T_LL: 200, T_HH: 800, P_LL: 1000, P_HH: 10000000, mass_HH: 100 } },
   tick(u, ports, par) {
     const sIn = ports.in;
     if (!sIn) return;
@@ -9670,6 +9754,9 @@ UnitRegistry.register('flash_drum', {
   presentations: {
     'box/default': { w: 2, h: 3, ports: { mat_in:{x:0,y:1}, vap_out:{x:2,y:0}, liq_out:{x:2,y:3} } }
   },
+  // [v13.0.4 S1c] Equipment limits
+  limitParams: ['T_LL', 'T_HH', 'P_LL', 'P_HH', 'mass_HH'],
+  limits: { S: { T_LL: 200, T_HH: 700, P_LL: 10000, P_HH: 5000000, mass_HH: 50 } },
   tick(u, ports, par) {
     const sIn = ports.mat_in;
     if (!sIn) return;
@@ -9767,6 +9854,9 @@ UnitRegistry.register('reactor_equilibrium', {
     'box/elec-top':      { w: 2, h: 3, ports: { mat_in:{x:0,y:1.5}, mat_out:{x:2,y:1.5}, elec_in:{x:1,y:0} } },
     'box/insulated':     { w: 2, h: 3, ports: { mat_in:{x:0,y:1.5}, mat_out:{x:2,y:1.5} } }
   },
+  // [v13.0.4 S1c] Equipment limits
+  limitParams: ['T_LL', 'T_HH', 'P_LL', 'P_HH', 'mass_HH'],
+  limits: { S: { T_LL: 200, T_HH: 1500, P_LL: 10000, P_HH: 30000000, mass_HH: 50 } },
   tick(u, ports, par, ctx) {
     const sIn = ports.mat_in;
     if (!sIn) return;
@@ -10067,7 +10157,7 @@ class Scene {
         break;
       // ── Vessels [v9.0.3] ──
       case 'tank':
-        unit.params = { volume_m3: 50, drawRate: 1.0 };  // 50 m³, 1 mol/s draw
+        unit.params = { volume_m3: 0.15, drawRate: 1.0 };  // [v13.0.5 S1c-9a] S-size pilot (150 L), 1 mol/s draw
         break;
       // ── SOC-tracked battery [v9.0.4] ──
       case 'battery':
@@ -10103,7 +10193,11 @@ class Scene {
         unit.params = { n: { N2: 0.78, O2: 0.21, Ar: 0.01 }, T: 298.15, P: 101325, phaseConstraint: 'V' };
         break;
       case 'reactor_equilibrium':
-        unit.params = { reactionId: 'R_H2_COMB', useKinetics: true, volume_m3: 1.0, alpha: 1.0, heatDemand: 'none', variant: 'insulated' };
+        unit.params = { reactionId: 'R_H2_COMB', useKinetics: true, volume_m3: 0.003, alpha: 1.0, heatDemand: 'none', variant: 'insulated' };
+        break;
+      // ── Air Cooler [v13.0.5 S1c-9c] ──
+      case 'air_cooler':
+        unit.params = { T_approach: 10 };  // 10 K approach above ambient
         break;
       // ── Units with no params: sink, sink_electrical, sink_heat,
       //    power_hub, mixer, flash_drum — empty params is correct ──
@@ -12690,7 +12784,8 @@ const AlarmSystem = {
     // Sort by severity (highest first), then category
     alarms.sort((a, b) => (b.severity.level - a.severity.level)
       || a.category.localeCompare(b.category));
-    return alarms;
+    // [v13.0.4 S1c-8] Deduplicate by id, keeping highest severity
+    return this._rationalize(alarms);
   },
 
   /** Count alarms by severity */
@@ -12713,7 +12808,116 @@ const AlarmSystem = {
   byCategory(alarms, category) {
     return alarms.filter(a => a.category === category);
   },
+
+  // [v13.0.4 S1c-8] Deduplicate alarms by id, keeping highest severity
+  _rationalize(alarms) {
+    const best = new Map();
+    for (const a of alarms) {
+      const existing = best.get(a.id);
+      if (!existing || a.severity.level > existing.severity.level) {
+        best.set(a.id, a);
+      }
+    }
+    return [...best.values()];
+  },
 };
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// [v13.0.4 S1c] Equipment Limits Infrastructure
+// Pure-function limit evaluation pipeline:
+//   LIMIT_PARAM_TEMPLATES → limitParams/limits on defs → getEffectiveLimits()
+//   → evaluateLimits() → AlarmSystem source
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// [S1c-1] LIMIT_PARAM_TEMPLATES — each key defines a checkable parameter
+// Tags: T (temperature), P (pressure), mass (mass flow), phase (phase check)
+// Sides: LL (very low), L (low), H (high), HH (very high)
+const LIMIT_PARAM_TEMPLATES = Object.freeze({
+  T_LL:    { tag: 'T',    side: 'LL', severity: AlarmSeverity.CRITICAL, label: 'Temperature very low',  unit: 'K' },
+  T_L:     { tag: 'T',    side: 'L',  severity: AlarmSeverity.WARNING,  label: 'Temperature low',       unit: 'K' },
+  T_H:     { tag: 'T',    side: 'H',  severity: AlarmSeverity.WARNING,  label: 'Temperature high',      unit: 'K' },
+  T_HH:    { tag: 'T',    side: 'HH', severity: AlarmSeverity.CRITICAL, label: 'Temperature very high', unit: 'K' },
+  P_LL:    { tag: 'P',    side: 'LL', severity: AlarmSeverity.CRITICAL, label: 'Pressure very low',     unit: 'Pa' },
+  P_HH:    { tag: 'P',    side: 'HH', severity: AlarmSeverity.CRITICAL, label: 'Pressure very high',    unit: 'Pa' },
+  mass_HH: { tag: 'mass', side: 'HH', severity: AlarmSeverity.WARNING,  label: 'Mass flow rate high',   unit: 'kg/s' },
+});
+
+// [S1c-4] _computeMassRate — total mass flow rate (kg/s) from primary stream molar flows
+function _computeMassRate(ud, def) {
+  const ps = _findPrimaryStream(ud, def);
+  if (!ps || !ps.n) return null;
+  let mass_kgps = 0;
+  for (const [sp, nDot] of Object.entries(ps.n)) {
+    const comp = ComponentRegistry.get(sp);
+    if (comp && nDot > 0) mass_kgps += nDot * comp.MW / 1000; // mol/s × g/mol / 1000 = kg/s
+  }
+  return mass_kgps > 0 ? mass_kgps : null;
+}
+
+// [S1c-4] getLimitParam — read runtime value for a given limit parameter key
+function getLimitParam(key, ud, def) {
+  const tpl = LIMIT_PARAM_TEMPLATES[key];
+  if (!tpl) return null;
+  if (tpl.tag === 'T')    return _findPrimaryStream(ud, def)?.T ?? null;
+  if (tpl.tag === 'P')    return _findPrimaryStream(ud, def)?.P ?? null;
+  if (tpl.tag === 'mass') return _computeMassRate(ud, def);
+  return null;
+}
+
+// [S1c-5] getEffectiveLimits — 3-layer merge: definition → mission → player
+// Only definition layer active for now (mission/player layers are future)
+function getEffectiveLimits(def, size) {
+  const sz = size || 'S';
+  const defLimits = def?.limits?.[sz];
+  if (!defLimits) return null;
+  // Future: merge with mission overrides, then player overrides
+  return { ...defLimits };
+}
+
+// [S1c-6] evaluateLimits — pure function: unit data + def → violation array
+// Returns: [{ id, unitId, param, value, limit, severity, message }]
+// [v13.0.6] Messages use display units (°C, bar, kg/h) via models.getActive('units').
+const _limitTagToUnit = { T: 'temperature', P: 'pressure', mass: 'massFlow' };
+function _fmtLimit(tag, siValue) {
+  const us = models.getActive('units');
+  const conv = us[_limitTagToUnit[tag]];
+  if (!conv) return `${siValue.toPrecision(4)}`;
+  return `${conv.from(siValue).toFixed(conv.decimals)} ${conv.symbol}`;
+}
+function evaluateLimits(unitId, ud, def) {
+  if (!def?.limitParams || !def?.limits) return [];
+  const limits = getEffectiveLimits(def, 'S');
+  if (!limits) return [];
+
+  const violations = [];
+  for (const key of def.limitParams) {
+    const threshold = limits[key];
+    if (threshold == null) continue;
+    const value = getLimitParam(key, ud, def);
+    if (value == null) continue;
+
+    const tpl = LIMIT_PARAM_TEMPLATES[key];
+    if (!tpl) continue;
+
+    let violated = false;
+    if (tpl.side === 'LL' || tpl.side === 'L') violated = value < threshold;
+    if (tpl.side === 'HH' || tpl.side === 'H') violated = value > threshold;
+
+    if (violated) {
+      violations.push({
+        id: `limit_${unitId}_${key}`,
+        unitId,
+        param: key,
+        value,
+        limit: threshold,
+        category: AlarmCategory.UNIT,
+        severity: tpl.severity,
+        message: `${tpl.label}: ${_fmtLimit(tpl.tag, value)} (limit: ${_fmtLimit(tpl.tag, threshold)})`,
+      });
+    }
+  }
+  return violations;
+}
 
 // ── Built-in alarm sources ──
 
@@ -12819,6 +13023,20 @@ AlarmSystem.register((scene) => {
           unitId: id, remediation: 'Connect or remove this unit if unused.' });
       }
     }
+  }
+  return alarms;
+});
+
+// [v13.0.4 S1c-7] Source: Equipment Limits
+AlarmSystem.register((scene) => {
+  const alarms = [];
+  for (const [id, u] of scene.units) {
+    const def = UnitRegistry.get(u.defId);
+    if (!def?.limitParams || !def?.limits) continue;
+    const ud = scene.runtime?.unitData?.get(id);
+    if (!ud) continue;
+    const violations = evaluateLimits(id, ud, def);
+    alarms.push(...violations);
   }
   return alarms;
 });
@@ -17487,7 +17705,7 @@ UnitInspector.grid_supply = {
 // ── Storage ──
 UnitInspector.tank = {
   params(u) { return [
-    { label: 'Volume (m³)', get: () => u.params.volume_m3 || 50, set: v => u.params.volume_m3 = v, step: 1, validate: { gt: 0 } },
+    { label: 'Volume (m³)', get: () => u.params.volume_m3 || 0.15, set: v => u.params.volume_m3 = v, step: 0.01, validate: { gt: 0 } },
     { label: 'Draw rate (mol/s)', get: () => u.params.drawRate ?? 1.0, set: v => u.params.drawRate = v, step: 0.1, validate: { min: 0 } },
   ]; },
   conditions(u, ud) {
@@ -17865,7 +18083,7 @@ function _reactorParams(u, type) {
         set: v => u.params.Q_fixed_kW = v, step: 1 });
     }
     params.push({ type: 'toggle', label: 'Kinetics (PFR)', get: () => u.params.useKinetics !== false, set: v => { u.params.useKinetics = v; updatePropertiesPanel(); } });
-    if (u.params.useKinetics !== false) params.push({ label: 'Volume (m³)', get: () => u.params.volume_m3 ?? 1.0, set: v => u.params.volume_m3 = v, step: 3 });
+    if (u.params.useKinetics !== false) params.push({ label: 'Volume (m³)', get: () => u.params.volume_m3 ?? 0.003, set: v => u.params.volume_m3 = v, step: 0.001 });
     else params.push({ type: 'slider', label: 'Alpha (approach)', get: () => u.params.alpha ?? 1.0, set: v => u.params.alpha = v, min: 0, max: 1, step: 0.01 });
   }
   return params;
@@ -26035,7 +26253,7 @@ function runTests() {
     const tid = t.place('tank', 0, 0);
     const u = scene.units.get(tid);
     const atm = SimSettings.atmosphere;
-    const V = 50; // default volume
+    const V = 0.15; // [v13.0.5 S1c-9a] S-size default volume
     const expected_n = (atm.P_Pa * V) / (8.314 * atm.T_K);
 
     t.assertOK(u.inventory != null, 'Tank has inventory after placement');
@@ -29615,6 +29833,117 @@ function runTests() {
   });
 
   // ═══════════════════════════════════════════════════════════════════════
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // S1c Session 2: Equipment limits tests (v13.0.5)
+  // ═══════════════════════════════════════════════════════════════════════
+
+  test('336: S1c — evaluateLimits T_HH violation on pump', t => {
+    // Pump with T > 700 K limit
+    const def = UnitRegistry.get('pump');
+    const ud = { ports: { mat_out: { T: 800, P: 500000, n: { H2O: 10 }, type: StreamType.MATERIAL } } };
+    const violations = evaluateLimits('u_pump', ud, def);
+    t.assertOK(violations.length >= 1, 'At least 1 violation');
+    const tViol = violations.find(v => v.param === 'T_HH');
+    t.assertOK(tViol, 'T_HH violation found');
+    t.assertOK(tViol.severity === AlarmSeverity.CRITICAL, 'T_HH is CRITICAL');
+    t.assertOK(tViol.value === 800, 'value = 800 K');
+  });
+
+  test('337: S1c — evaluateLimits no violation when within limits', t => {
+    const def = UnitRegistry.get('pump');
+    const ud = { ports: { mat_out: { T: 350, P: 500000, n: { H2O: 10 }, type: StreamType.MATERIAL } } };
+    const violations = evaluateLimits('u_pump', ud, def);
+    t.assertOK(violations.length === 0, 'No violations in normal range');
+  });
+
+  test('338: S1c — evaluateLimits P_LL violation', t => {
+    const def = UnitRegistry.get('flash_drum');
+    const ud = { ports: { vap_out: { T: 350, P: 5000, n: { H2O: 1 }, type: StreamType.MATERIAL } } };
+    const violations = evaluateLimits('u_flash', ud, def);
+    const pViol = violations.find(v => v.param === 'P_LL');
+    t.assertOK(pViol, 'P_LL violation (5000 < 10000 limit)');
+    t.assertOK(pViol.severity === AlarmSeverity.CRITICAL, 'P_LL is CRITICAL');
+  });
+
+  test('339: S1c — evaluateLimits mass_HH violation', t => {
+    const def = UnitRegistry.get('compressor');
+    // 60 kg/s exceeds compressor mass_HH = 50
+    const ud = { ports: { mat_out: { T: 350, P: 500000, n: { N2: 2142.8 }, type: StreamType.MATERIAL } } };
+    // N2: 2142.8 mol/s × 28.014 g/mol / 1000 ≈ 60 kg/s
+    const violations = evaluateLimits('u_comp', ud, def);
+    const mViol = violations.find(v => v.param === 'mass_HH');
+    t.assertOK(mViol, 'mass_HH violation found');
+  });
+
+  test('340: S1c — evaluateLimits multiple simultaneous violations', t => {
+    const def = UnitRegistry.get('pump');
+    // T=100 < T_LL=200, P=500 < P_LL=1000
+    const ud = { ports: { mat_out: { T: 100, P: 500, n: { H2O: 1 }, type: StreamType.MATERIAL } } };
+    const violations = evaluateLimits('u_pump', ud, def);
+    t.assertOK(violations.length >= 2, `≥2 violations: ${violations.length}`);
+    t.assertOK(violations.some(v => v.param === 'T_LL'), 'T_LL found');
+    t.assertOK(violations.some(v => v.param === 'P_LL'), 'P_LL found');
+  });
+
+  test('341: S1c — getEffectiveLimits returns S-size data', t => {
+    const def = UnitRegistry.get('reactor_equilibrium');
+    const limits = getEffectiveLimits(def, 'S');
+    t.assertOK(limits, 'Limits returned');
+    t.assertOK(limits.T_HH === 1500, 'T_HH = 1500 K');
+    t.assertOK(limits.P_HH === 30000000, 'P_HH = 30 MPa');
+    t.assertOK(limits.mass_HH === 50, 'mass_HH = 50 kg/s');
+  });
+
+  test('342: S1c — getLimitParam reads T, P, mass correctly', t => {
+    const def = UnitRegistry.get('mixer');
+    const ud = { ports: { out: { T: 400, P: 200000, n: { H2O: 5, N2: 3 }, type: StreamType.MATERIAL } } };
+    const T = getLimitParam('T_HH', ud, def);
+    t.assertClose(T, 400, 0.1, 'T = 400 K');
+    const P = getLimitParam('P_HH', ud, def);
+    t.assertClose(P, 200000, 1, 'P = 200000 Pa');
+    const mass = getLimitParam('mass_HH', ud, def);
+    // H2O: 5×18.015/1000 = 0.0901, N2: 3×28.014/1000 = 0.0840 → total ≈ 0.174
+    t.assertRange(mass, 0.15, 0.20, 'mass ≈ 0.174 kg/s');
+  });
+
+  test('343: S1c — alarm source produces alarms for violated limits', t => {
+    // Build a scene with a pump at extreme T
+    const src  = t.place('source', 0, 0, { T: 800, P: 500000, n: { H2O: 10 }, phaseConstraint: 'V' });
+    const gs   = t.place('grid_supply', 3, 0, { maxPower: 50 });
+    const pmp  = t.place('pump', 6, 0, { Pout: 1000000, eta: 0.75 });
+    const snk  = t.place('sink', 9, 0);
+    t.wire(src, 'out', pmp, 'mat_in');
+    t.wire(gs, 'out', pmp, 'elec_in');
+    t.wire(pmp, 'mat_out', snk, 'in');
+    t.solve();
+    const alarms = AlarmSystem.evaluate(scene);
+    const limitAlarms = alarms.filter(a => a.id?.startsWith('limit_'));
+    // Pump T_HH = 700 K, inlet is 800 K → should trigger
+    t.assertOK(limitAlarms.some(a => a.param === 'T_HH'), 'T_HH alarm found');
+  });
+
+  test('344: S1c — _rationalize deduplicates by id, keeps highest severity', t => {
+    const alarms = [
+      { id: 'dup', severity: AlarmSeverity.WARNING, category: AlarmCategory.UNIT, message: 'low' },
+      { id: 'dup', severity: AlarmSeverity.CRITICAL, category: AlarmCategory.UNIT, message: 'high' },
+      { id: 'unique', severity: AlarmSeverity.INFO, category: AlarmCategory.UNIT, message: 'ok' },
+    ];
+    const result = AlarmSystem._rationalize(alarms);
+    t.assertOK(result.length === 2, `2 after dedup: ${result.length}`);
+    const dup = result.find(a => a.id === 'dup');
+    t.assertOK(dup.severity === AlarmSeverity.CRITICAL, 'Kept CRITICAL');
+  });
+
+  test('345: S1c — default params: tank 0.15 m³, reactor 0.003 m³, air_cooler T_approach', t => {
+    const s = new Scene();
+    const tid = s.placeUnit('tank', 0, 0);
+    t.assertClose(s.units.get(tid).params.volume_m3, 0.15, 0.001, 'Tank default 0.15 m³');
+    const rid = s.placeUnit('reactor_equilibrium', 4, 0);
+    t.assertClose(s.units.get(rid).params.volume_m3, 0.003, 0.0001, 'Reactor default 0.003 m³');
+    const aid = s.placeUnit('air_cooler', 8, 0);
+    t.assertClose(s.units.get(aid).params.T_approach, 10, 0, 'Air cooler T_approach = 10 K');
+  });
 
   // ═══════════════════════════════════════════════════════════════════════
   // S1a: Thermo fixes + CO species (v13.0.2)
