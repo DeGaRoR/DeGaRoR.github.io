@@ -546,6 +546,21 @@
            - High-pressure work deferred to future compressor_hp (diaphragm
              with cooling circuit, spec issued separately).
 
+           Alarm suppression:
+           - evaluateLimits: HH suppresses H, LL suppresses L on same
+             variable.  If T_HH fires, T_H is redundant and removed
+             before returning.  Prevents duplicate alarms at different
+             severity levels for the same physical condition.
+           - 1 new test: suppression verified for both high and low sides.
+
+           Equipment limit port override:
+           - UnitRegistry: new limitPort field — declares which port
+             equipment limits check.  Default: first material OUT (unchanged).
+           - _findPrimaryStream: if def.limitPort set, checks that port first.
+           - gas_turbine: limitPort = 'mat_in'.  TIT and feed pressure are
+             inlet conditions.  Exhaust at atmospheric no longer triggers P_LL.
+           - 1 new test: gas_turbine limits check inlet, not outlet.
+
   v13.0.8  Two-domain alarm architecture — 322 tests.
            Phase 1 — Schema & Severity:
            Alarm domains: new AlarmDomain enum (PLANT / SIM).  PLANT =
@@ -7876,7 +7891,9 @@ class UnitRegistry {
       presentations: spec.presentations || null,
       // [v13.0.4 S1c] Equipment limits
       limitParams: spec.limitParams || null,
-      limits: spec.limits || null
+      limits: spec.limits || null,
+      // [v13.1.0] Override which port equipment limits check (default: first material OUT)
+      limitPort: spec.limitPort || null
     };
     this._defs.set(defId, def);
   }
@@ -8806,6 +8823,7 @@ UnitRegistry.register('gas_turbine', {
   category: UnitCategories.PRESSURE,
   w: 2,
   h: 2,
+  limitPort: 'mat_in',  // [v13.1.0] TIT + feed pressure are inlet conditions
   ports: [
     { portId: 'mat_in',  dir: PortDir.IN,  type: StreamType.MATERIAL,   x: 0, y: 1 },
     { portId: 'mat_out', dir: PortDir.OUT, type: StreamType.MATERIAL,   x: 2, y: 1 },
@@ -13425,6 +13443,15 @@ const LIMIT_PARAM_TEMPLATES = Object.freeze({
 // Pure function: finds first material output (or input) stream with resolved T.
 function _findPrimaryStream(ud, def) {
   if (!ud?.ports || !def?.ports) return null;
+
+  // [v13.1.0] Explicit limitPort override — unit declares which port
+  // its equipment limits apply to. Used by gas_turbine (inlet TIT/pressure)
+  // and any future unit where the critical condition is not on the outlet.
+  if (def.limitPort) {
+    const s = ud.ports[def.limitPort];
+    if (s && s.T != null) return s;
+  }
+
   for (const p of def.ports) {
     if (p.type === StreamType.MATERIAL && p.dir === PortDir.OUT) {
       const s = ud.ports[p.portId];
@@ -13519,7 +13546,23 @@ function evaluateLimits(unitId, unitName, ud, def) {
       });
     }
   }
-  return violations;
+
+  // [v13.1.0] Same-variable suppression: if T_HH fires, T_H is redundant
+  // (and vice versa for LL/L). Keep only the highest severity per tag+direction.
+  const dominated = new Set();
+  for (const v of violations) {
+    const tpl = LIMIT_PARAM_TEMPLATES[v.param];
+    if (!tpl) continue;
+    // HH dominates H, LL dominates L (same tag, same direction)
+    const partner = tpl.side === 'HH' ? `${tpl.tag}_H`
+                  : tpl.side === 'LL' ? `${tpl.tag}_L`
+                  : null;
+    if (partner) {
+      const partnerId = `limit_${unitId}_${partner}`;
+      dominated.add(partnerId);
+    }
+  }
+  return dominated.size > 0 ? violations.filter(v => !dominated.has(v.id)) : violations;
 }
 
 // ── Built-in alarm sources ──
@@ -31137,6 +31180,46 @@ function runTests() {
     t.assertOK(violations.length >= 2, `≥2 violations: ${violations.length}`);
     t.assertOK(violations.some(v => v.param === 'T_LL'), 'T_LL found');
     t.assertOK(violations.some(v => v.param === 'P_LL'), 'P_LL found');
+  });
+
+  test('340b: evaluateLimits — HH suppresses H on same variable', t => {
+    const def = UnitRegistry.get('electric_heater');
+    // T=900K exceeds both T_H (723) and T_HH (823)
+    const ud = { ports: { mat_out: { T: 900, P: 200000, n: { H2O: 0.1 }, type: StreamType.MATERIAL } } };
+    const violations = evaluateLimits('u_htr', 'Heater', ud, def);
+    const tHH = violations.find(v => v.param === 'T_HH');
+    const tH = violations.find(v => v.param === 'T_H');
+    t.assertOK(tHH, 'T_HH violation present');
+    t.assertOK(!tH, 'T_H suppressed by T_HH');
+    // Same for LL suppressing L
+    const def2 = UnitRegistry.get('pump');
+    const ud2 = { ports: { mat_out: { T: 100, P: 200000, n: { H2O: 1 }, type: StreamType.MATERIAL } } };
+    const viol2 = evaluateLimits('u_pump', 'Pump', ud2, def2);
+    const tLL = viol2.find(v => v.param === 'T_LL');
+    const tL = viol2.find(v => v.param === 'T_L');
+    t.assertOK(tLL, 'T_LL violation present');
+    t.assertOK(!tL, 'T_L suppressed by T_LL');
+  });
+
+  test('340c: evaluateLimits — gas_turbine limitPort checks inlet', t => {
+    const def = UnitRegistry.get('gas_turbine');
+    // Inlet at 800K, 300kPa (within limits). Outlet at atmospheric 101kPa (below P_LL=150kPa).
+    // Without limitPort, the outlet would trigger P_LL. With limitPort='mat_in', inlet is checked.
+    const ud = { ports: {
+      mat_in:  { T: 800, P: 300000, n: { N2: 0.5 }, type: StreamType.MATERIAL },
+      mat_out: { T: 500, P: 101325, n: { N2: 0.5 }, type: StreamType.MATERIAL }
+    }};
+    const violations = evaluateLimits('u_turb', 'Gas Turbine', ud, def);
+    const pLL = violations.find(v => v.param === 'P_LL');
+    t.assertOK(!pLL, 'No P_LL — inlet at 3 bar is fine (outlet 1 atm ignored)');
+    // Now inlet below P_LL (100 kPa < 150 kPa) — should fire
+    const ud2 = { ports: {
+      mat_in:  { T: 500, P: 100000, n: { N2: 0.5 }, type: StreamType.MATERIAL },
+      mat_out: { T: 400, P: 80000,  n: { N2: 0.5 }, type: StreamType.MATERIAL }
+    }};
+    const viol2 = evaluateLimits('u_turb', 'Gas Turbine', ud2, def);
+    const pLL2 = viol2.find(v => v.param === 'P_LL');
+    t.assertOK(pLL2, 'P_LL fires when inlet pressure too low');
   });
 
   test('341: S1c — getEffectiveLimits returns S-size data', t => {
