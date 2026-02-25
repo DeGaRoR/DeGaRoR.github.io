@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v13.0.8
+  processThis v13.1.0
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -76,9 +76,13 @@
 
     NNG-5   Power lifecycle.
             Power is the only demand-driven system.  Strict sequence:
-              capacity (tick) → demand (solver B–E) → actual (solver,
-              ≤ capacity) → curtailmentFactor (actual/demand).
-            Consumers read input.actual, never input.capacity.
+              capacity (tick) → demand (solver B–E, in scratch) → actual
+              (solver, ≤ capacity) → curtailmentFactor (in ud.last).
+            Ports carry physical state only (capacity, actual).  Dispatch
+            metadata (demand, curtailmentFactor, allocation) lives in
+            solver scratch and ud.last — never on port stream objects.
+            Consumers read allocation from scratch (hubAllocated_W),
+            falling back to input.actual for direct connections.
             Physics-fixed sources (gas turbine): output determined by
             fluid state, non-throttleable.  Grid sources: always
             demand-responsive (load draws, source doesn't push).  Surplus
@@ -447,6 +451,100 @@
            Flow arrows scale with stream width.
            Action bar: three .btn-cluster groups, no inline CSS.
            Islands mode: material + electrical union-find.
+
+  v13.1.0  S2-pre: Dispatch separation — 323 tests.
+           Power port streams now carry physical state only (capacity, actual).
+           Dispatch metadata (demand, curtailmentFactor, allocation) moved to
+           solver scratch and ud.last.
+
+           Changes:
+           - Hub tick, source ticks (grid_supply, battery, gas_turbine): removed
+             demand + curtailmentFactor from port writes.
+           - Step C (hub balancing): removed demand/CF from elec_out/elec_surplus
+             port writes.  Deleted local stripDemand lambda.  Hub port snapshot
+             comparison now direct (no wrapping).  Added per-consumer allocation
+             change detection (hubAllocated_W delta > 0.01 → changed).
+           - Step C source writeback: demand removed from source port writes;
+             actual (physical flow) retained.
+           - Step D (direct connection): demand/CF removed from portData writes.
+           - Deleted stripDemandFromPorts() function + 2 call sites.  Solver
+             tick loop now compares raw ud.ports directly.
+           - streamSignature(): curtailmentFactor removed.
+           - portsChanged() ABS_TOL: available + curtailmentFactor removed.
+           - STREAM_CONTRACTS.POWER: demand + curtailmentFactor removed from
+             lifecycle and optional fields.
+           - Step B: generic powerDemand > 0 && isFinite() check replaces
+             hard-coded pump/compressor/heater list.  Catches reactor_equilibrium
+             in heated mode + any future consumer.
+           - NNG-5 wording updated: ports carry physical state only; dispatch
+             metadata in scratch/ud.last.
+           - New test: reactor isothermal demand detected by generic Step B.
+           - 6 tests updated: port CF → scratch/ud.last assertions.
+           - _findPrimaryStream() moved from block 2 (UI) to block 1 (core)
+             for NNG-11 compliance.  Fixes 9 tests that were untestable in
+             headless mode.  Function is pure (no DOM) — misplacement was
+             historical.
+
+           S2-A: Overload + Fry:
+           - checkOverload(W_delivered, W_rated, u) pure function.  Thresholds:
+             ≤5% OK, 5-20% MINOR, 20-50% MAJOR, >50% CATASTROPHIC + u.fried.
+             Uses ErrorSeverity objects → existing alarm bridge handles NNG-7.
+           - sink_electrical: ratedPower_kW param (default 1000), finite demand
+             replaces Infinity, self-limits absorption to rated_W.
+           - Fry guards on pump, compressor, electric_heater, reactor_equilibrium,
+             sink_electrical.  Fried units pass fluid through unmodified (or
+             absorb 0 W) with CATASTROPHIC error + powerDemand = 0.
+           - Hub surplus: enhanced to check absorber is functional (not fried).
+           - Step E: physics-fixed direct-connection overspeed.  Gas turbines
+             directly connected to consumers (no hub) with surplus → fry consumers.
+           - Fry state serialization: exportJSON writes u.fried, importJSON restores.
+           - PG.checkOverload exported.
+           - Hub surplus: unified capacity-aware check.  Sums absorber rated
+             capacity from elec_surplus connections.  If surplus > absorber
+             capacity → bus failure: CATASTROPHIC on hub, fries ALL consumers
+             on elec_out AND overloaded absorbers.  No absorber, fried absorber,
+             undersized absorber — all collapse to same path (unabsorbed watts).
+           - 8 new tests: checkOverload thresholds, sink_electrical finite demand,
+             pump fry guard, heater fry guard, fry serialization, bus cascade
+             (surplus within capacity, surplus exceeds capacity, no absorber).
+
+           S2-C: Priority Allocation:
+           - allocateByPriority(demands, supply) generic utility.  Groups by
+             integer priority (lower = served first), proportional within group,
+             unused supply cascades to next tier.  PG export.
+           - allocatePower() rewritten as wrapper: delegates finite-demand path
+             to allocateByPriority.  Legacy infinite-demand path preserved.
+           - powerPriority integer param on all consumers: pump, compressor,
+             electric_heater, reactor_equilibrium (default 2), sink_electrical
+             (default 3 — deferrable dump load).
+           - Hub consumer list reads powerPriority (was hubPriority).
+           - Default priority changed from 1 → 2 across all paths.
+           - 5 new tests: allocateByPriority basic shedding, same-priority
+             proportional, ample supply, hub priority shedding integration,
+             fry reset.
+
+           S2-C UI:
+           - sink_electrical inspector: ratedPower_kW param editor, power
+             section with rated/absorbed/utilization, priority input.
+           - "Reset Fry" button on all consumer inspectors when u.fried=true.
+             Appears as red banner button below CATASTROPHIC alarm, undoable.
+           - Priority integer input on pump, compressor, electric_heater,
+             reactor_equilibrium, sink_electrical inspectors.
+           - Hub inspector: allocation report in Detail section showing
+             per-consumer priority, allocated/demand, and percentage.
+           - Demo scene: Process D — Priority & Fry Demo.  5 kW grid →
+             hub → compressor (P1), heater (P2), dump load (P3 2kW rated).
+             Shows priority shedding + allocation report.
+
+           Compressor limit revision:
+           - Compressor renamed 'Compressor (Piston)' — oil-free reciprocating.
+           - T_H/T_HH raised: 333/353 → 473/523 K (metal + PTFE tolerates
+             hot adiabatic outlet; old limits were for FKM diaphragm).
+           - P_H/P_HH lowered: 12M/15M → 1.2M/1.5M Pa (piston at pilot
+             scale does ~15 bar max; 150 bar is diaphragm territory).
+           - mass_HH raised: 0.05 → 0.08 kg/s (piston has more throughput).
+           - High-pressure work deferred to future compressor_hp (diaphragm
+             with cooling circuit, spec issued separately).
 
   v13.0.8  Two-domain alarm architecture — 322 tests.
            Phase 1 — Schema & Severity:
@@ -1030,14 +1128,14 @@
          n: { species: mol/s } — molar flow map
          phase: 'V' | 'L' | 'VL'  (set by flash calculation)
          H_target_Jps: when set, triggers PH flash (solver finds T)
-     - ELECTRICAL: { type, capacity, actual, demand, curtailmentFactor }
-                   — all values in W; curtailmentFactor 0..1
+     - ELECTRICAL: { type, capacity, actual }
+                   — all values in W
 
      Non-material stream semantics:
        capacity  = max the source can provide (set by producer)
        actual    = power actually transferred after demand resolution
-       demand    = power the consumer wants (propagated backward)
-       curtailmentFactor = actual/demand, clamped 0..1
+       Dispatch metadata (demand, curtailmentFactor, allocation) lives in
+       solver scratch and ud.last — never on port stream objects (NNG-5).
 
   4. UNIT OPERATIONS
      - Category-based organization with color coding
@@ -7055,26 +7153,23 @@ const STREAM_CONTRACTS = Object.freeze({
   // ── PRODUCER vs CONSUMER ──
   //   Producers (source_electrical, battery):
   //     tick sets capacity + actual (default: capacity).
-  //     Solver overwrites actual, demand, curtailmentFactor.
-  //   Consumers (motor, electric_heater):
-  //     Read input port's actual + curtailmentFactor.
-  //     Store desired draw as unitData.powerDemand (NOT on port).
-  //     Write output port capacity/actual from input × η.
+  //     Solver overwrites actual via scratch → tick read.
+  //   Consumers (pump, compressor, electric_heater):
+  //     Read allocation from solver scratch (hubAllocated_W), fallback to
+  //     input port actual.  Store desired draw as unitData.powerDemand.
   //   Hub (power_hub):
-  //     Aggregates producer capacity, consumer demand.
+  //     Aggregates producer capacity, consumer demand (via scratch).
   //     Allocates per-consumer via allocatePower().
-  //     Writes elec_out capacity/actual/demand/curtailmentFactor.
+  //     Writes elec_out capacity/actual.  Dispatch metadata in ud.last.
   POWER: Object.freeze({
     doc: 'Applies to ELECTRICAL. All values in watts (W).',
     lifecycle: Object.freeze({
       capacity:          'Equipment rating. Set by tick. May be Infinity.',
-      demand:            'Solver dispatch target. Written by Steps B-E. Not set by tick.',
-      actual:            'Physical flow. actual ≤ capacity. Written by solver (producers) or tick (converters).',
-      curtailmentFactor: 'actual / demand. Written by solver. 1.0 = no curtailment.'
+      actual:            'Physical flow. actual ≤ capacity. Written by solver (producers) or tick (converters).'
+      // [v13.1.0 S2-pre] demand + curtailmentFactor removed from ports — now in ud.last/scratch only
     }),
     required: { actual: 'finite_nonneg' },
-    optional: { capacity: 'finite_nonneg_or_inf', demand: 'finite_or_inf',
-                curtailmentFactor: 'unit_fraction' },
+    optional: { capacity: 'finite_nonneg_or_inf' },
     aliases: Object.freeze({ available: 'capacity' }),
     tolerance: { actual_vs_capacity: 1.0 }  // W
   })
@@ -7732,18 +7827,16 @@ const UnitCategories = {
       T is GUARANTEED to be finite after flash (solver checks this).
 
    POWER streams (ELECTRICAL only — [v12.7.0] HEAT/MECHANICAL removed):
-   - ELECTRICAL: { type, capacity, actual, demand, curtailmentFactor? }
+   - ELECTRICAL: { type, capacity, actual }
        All values in Watts (W).
        capacity  = equipment rating / upper bound. Set by tick. Constant per iteration.
-       demand    = solver dispatch target. Written by Steps B-E (not by tick).
-                   For producers: total downstream demand. For converters: propagated through η.
        actual    = what physically flows. Satisfies actual ≤ capacity.
                    Producers: min(demand, capacity). Converters: input.actual × η.
-       curtailmentFactor = actual/demand when demand > 0, else 1.0. Clamped 0..1.
-                   Set by hub (Step C) or direct bus (Steps D/E).
-                   Consumers read this to scale their draw proportionally.
        available = DEPRECATED alias for capacity — normalizeNonMaterialStream()
                    resolves it. Do not use in new code.
+       [v13.1.0 S2-pre] Dispatch metadata (demand, curtailmentFactor, allocation)
+       now lives in solver scratch and ud.last — never on port stream objects.
+       Consumers read hubAllocated_W from scratch, falling back to input.actual.
    See STREAM_CONTRACTS.POWER.lifecycle for the full semantic model.
    
    Connections are only allowed between ports of the SAME type.
@@ -8045,9 +8138,7 @@ UnitRegistry.register('grid_supply', {
       type: StreamType.ELECTRICAL,
       capacity: maxPower_W,
       actual: actualDraw_W,
-      available: maxPower_W,  // deprecated alias for capacity
-      demand: s.hubDemand_W || 0,
-      curtailmentFactor: s.directCurtailment ?? 1.0
+      available: maxPower_W  // deprecated alias for capacity
     };
     u.last = {
       maxPower_W: maxPower_W,
@@ -8346,8 +8437,6 @@ UnitRegistry.register('battery', {
       type: StreamType.ELECTRICAL,
       capacity:    maxDischarge_W,
       actual:      netPower_W,           // may be negative (NNG-M5)
-      demand:      s.hubDemand_W || 0,
-      curtailmentFactor: s.directCurtailment ?? 1.0,
       _maxCharge_W:    maxCharge_W,      // hub reads this
       _maxDischarge_W: maxDischarge_W    // hub reads this
     };
@@ -8405,6 +8494,76 @@ UnitRegistry.register('battery', {
 // │   Grid supply: demand = proportional share of battery_draw (hub-regulated) │
 // └─────────────────────────────────────────────────────────────────────────────┘
 // ═══════════════════════════════════════════════════════════════════════════════
+// PRIORITY-BASED ALLOCATION — Generic utility for demand-driven dispatch
+// ═══════════════════════════════════════════════════════════════════════════════
+// [v13.1.0 S2-C] Pure function: groups demands by integer priority, serves
+// lowest-numbered group first (priority 1 = most critical). Within each group,
+// allocation is proportional if supply is insufficient. Unused supply cascades
+// to the next priority group.
+//
+// Input:  demands = [{ id, amount, priority }]   (priority: integer, lower = served first)
+//         supply  = total available supply (number)
+// Output: [{ id, allocated, priority }]
+//
+// Contract:
+//   - Σ allocated ≤ supply
+//   - Each allocated ∈ [0, demand.amount]
+//   - Lower priority numbers fully served before higher numbers get anything
+// ═══════════════════════════════════════════════════════════════════════════════
+function allocateByPriority(demands, supply) {
+  if (!demands.length || supply <= 0) {
+    return demands.map(d => ({ id: d.id, allocated: 0, priority: d.priority }));
+  }
+
+  // Group by priority value
+  const groups = new Map();
+  for (const d of demands) {
+    const p = d.priority ?? 2;
+    if (!groups.has(p)) groups.set(p, []);
+    groups.get(p).push(d);
+  }
+
+  // Sort groups by priority (ascending = most critical first)
+  const sortedKeys = [...groups.keys()].sort((a, b) => a - b);
+
+  let remaining = supply;
+  const result = new Map();
+
+  for (const key of sortedKeys) {
+    const group = groups.get(key);
+    const groupDemand = group.reduce((s, d) => s + d.amount, 0);
+
+    if (groupDemand <= 0) {
+      for (const d of group) result.set(d.id, { id: d.id, allocated: 0, priority: key });
+      continue;
+    }
+
+    if (remaining >= groupDemand) {
+      // Fully serve this group
+      for (const d of group) result.set(d.id, { id: d.id, allocated: d.amount, priority: key });
+      remaining -= groupDemand;
+    } else {
+      // Proportional within this group
+      const frac = remaining / groupDemand;
+      for (const d of group) result.set(d.id, { id: d.id, allocated: d.amount * frac, priority: key });
+      remaining = 0;
+    }
+
+    if (remaining <= 0) {
+      // Zero out all lower-priority groups
+      for (let i = sortedKeys.indexOf(key) + 1; i < sortedKeys.length; i++) {
+        for (const d of groups.get(sortedKeys[i])) {
+          result.set(d.id, { id: d.id, allocated: 0, priority: sortedKeys[i] });
+        }
+      }
+      break;
+    }
+  }
+
+  return demands.map(d => result.get(d.id));
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // POWER ALLOCATION FUNCTION — Determines per-consumer power distribution
 // ═══════════════════════════════════════════════════════════════════════════════
 // Pure function: (consumers, totalSupply_W) → allocation map
@@ -8425,14 +8584,13 @@ function allocatePower(consumers, totalSupply_W) {
   
   if (totalDemand_W <= 0 || consumers.length === 0) {
     for (const c of consumers) {
-      allocation[c.unitId] = { demand_W: 0, allocated_W: 0, factor: 1.0, priority: c.priority ?? 1 };
+      allocation[c.unitId] = { demand_W: 0, allocated_W: 0, factor: 1.0, priority: c.priority ?? 2 };
     }
     return allocation;
   }
   
-  // [v9.1.0] Handle infinite demand (from sinks): allocate supply to finite
-  // consumers first, then split remainder equally among infinite consumers.
-  // factor is meaningless for infinite demand — consumers use hubAllocated_W.
+  // [v9.1.0] Legacy: handle infinite demand (from old sink_electrical).
+  // Finite consumers served first via priority, remainder split among infinite.
   if (!isFinite(totalDemand_W)) {
     const infConsumers = consumers.filter(c => !isFinite(c.demand_W));
     const finConsumers = consumers.filter(c => isFinite(c.demand_W));
@@ -8445,34 +8603,83 @@ function allocatePower(consumers, totalSupply_W) {
       const alloc = c.demand_W * frac;
       allocation[c.unitId] = {
         demand_W: c.demand_W, allocated_W: alloc,
-        factor: frac, priority: c.priority ?? 1
+        factor: frac, priority: c.priority ?? 2
       };
     }
     const perInf = infConsumers.length > 0 ? remaining / infConsumers.length : 0;
     for (const c of infConsumers) {
       allocation[c.unitId] = {
         demand_W: c.demand_W, allocated_W: perInf,
-        factor: totalSupply_W > 0 ? 1.0 : 0,  // signal "use allocated_W" not "scale demand"
-        priority: c.priority ?? 1
+        factor: totalSupply_W > 0 ? 1.0 : 0,
+        priority: c.priority ?? 2
       };
     }
     return allocation;
   }
-  
-  // Proportional allocation: each consumer gets the same fraction of their demand
-  const globalFactor = Math.min(1.0, totalSupply_W / totalDemand_W);
-  
-  for (const c of consumers) {
-    const allocated_W = c.demand_W * globalFactor;
+
+  // [v13.1.0 S2-C] Priority-based allocation: delegate to allocateByPriority.
+  // Lower priority number = served first. Proportional within same tier.
+  const demands = consumers.map(c => ({
+    id: c.unitId, amount: c.demand_W, priority: c.priority ?? 2
+  }));
+  const results = allocateByPriority(demands, totalSupply_W);
+
+  for (let i = 0; i < consumers.length; i++) {
+    const c = consumers[i];
+    const r = results[i];
     allocation[c.unitId] = {
       demand_W: c.demand_W,
-      allocated_W: allocated_W,
-      factor: globalFactor,
-      priority: c.priority ?? 1
+      allocated_W: r.allocated,
+      factor: c.demand_W > 0 ? r.allocated / c.demand_W : 1.0,
+      priority: r.priority
     };
   }
   
   return allocation;
+}
+
+// ── [v13.1.0 S2-A] Overload detection ──────────────────────────────────────
+// Pure function: compares delivered power to rated capacity.
+// Returns overload info object.  Caller spreads result into u.last.
+// Uses ErrorSeverity objects so the per-unit alarm bridge (NNG-7) handles alarms.
+//
+// Thresholds:
+//   ≤5%  over rated → OK (within tolerance)
+//   5-20%           → WARNING (insulation stress, bearing wear)
+//   20-50%          → WARNING (severe, imminent failure)
+//   >50%            → CATASTROPHIC + sets u.fried (equipment destroyed)
+//
+function checkOverload(W_delivered, W_rated, u) {
+  if (!isFinite(W_rated) || W_rated <= 0 || !isFinite(W_delivered) || W_delivered <= 0) {
+    return { overload: false };
+  }
+  const ratio = W_delivered / W_rated;
+  const excess_pct = (ratio - 1) * 100;
+
+  if (excess_pct <= 5) {
+    return { overload: false, headroom_pct: -excess_pct };
+  }
+  if (excess_pct <= 20) {
+    return {
+      overload: true, overload_pct: excess_pct, W_delivered, W_rated,
+      error: { severity: ErrorSeverity.MINOR,
+        message: `Overloaded ${excess_pct.toFixed(0)}% above rated ${(W_rated/1000).toFixed(1)} kW — reduce load` }
+    };
+  }
+  if (excess_pct <= 50) {
+    return {
+      overload: true, overload_pct: excess_pct, W_delivered, W_rated,
+      error: { severity: ErrorSeverity.MAJOR,
+        message: `Severe overload ${excess_pct.toFixed(0)}% above rated ${(W_rated/1000).toFixed(1)} kW — imminent failure` }
+    };
+  }
+  // >50%: destroy the unit
+  u.fried = true;
+  return {
+    overload: true, overload_pct: excess_pct, W_delivered, W_rated, fried: true,
+    error: { severity: ErrorSeverity.CATASTROPHIC,
+      message: `Destroyed by ${excess_pct.toFixed(0)}% overload (${(W_delivered/1000).toFixed(1)} kW on ${(W_rated/1000).toFixed(1)} kW rated)` }
+  };
 }
 
 UnitRegistry.register('power_hub', {
@@ -8502,9 +8709,7 @@ UnitRegistry.register('power_hub', {
       type: StreamType.ELECTRICAL,
       capacity: totalCapacity_W,
       actual: distAvail_W,
-      available: distAvail_W,  // deprecated alias — Step C overwrites
-      curtailmentFactor: s.hubCurtailment !== undefined ? s.hubCurtailment : 1.0,
-      demand: distAvail_W     // [v10.4.1] initial: demand = actual (Step C refines)
+      available: distAvail_W  // deprecated alias — Step C overwrites
     };
 
     // [v11.0.0] elec_surplus: carry forward from Step C scratch
@@ -8512,7 +8717,7 @@ UnitRegistry.register('power_hub', {
     const surpVal = s.hubSurplus_W ?? 0;
     ports.elec_surplus = {
       type: StreamType.ELECTRICAL,
-      capacity: surpVal, actual: surpVal, available: surpVal, demand: surpVal,
+      capacity: surpVal, actual: surpVal, available: surpVal,
       _connected: hasSurplusConn
     };
     
@@ -8541,14 +8746,31 @@ UnitRegistry.register('sink_electrical', {
     'box/port-top':    { w: 2, h: 2, ports: { in:{x:1,y:0} } },
     'box/port-bottom': { w: 2, h: 2, ports: { in:{x:1,y:2} } }
   },
-  tick(u, ports, par) {
+  tick(u, ports, par, ctx) {
     const sIn = ports.in;
+    const rated_W = ((par.ratedPower_kW ?? 1000) * 1000);
+
+    // [v13.1.0 S2-A] Fry guard
+    if (u.fried) {
+      u.last = { fried: true, absorbed_W: 0, rated_W,
+        error: { severity: ErrorSeverity.CATASTROPHIC,
+          message: 'Unit destroyed by electrical overload. Replace or reset.' } };
+      u.powerDemand = 0;
+      return;
+    }
+
+    // [v13.1.0 S2-A] Finite demand replaces Infinity
+    u.powerDemand = rated_W;
+
+    const s = ctx ? ctx.scratch : {};
+    const W_avail = s.hubAllocated_W ?? (sIn ? (sIn.actual ?? sIn.capacity ?? 0) : 0);
+    // Self-limit: never absorb more than rated
+    const absorbed = Math.min(W_avail, rated_W);
+
     u.last = {
-      absorbed_W: sIn ? (sIn.actual ?? sIn.available ?? 0) : 0
+      absorbed_W: absorbed,
+      rated_W
     };
-    // Signal unconstrained demand upstream so direct-connected
-    // batteries/sources output at full capacity.
-    u.powerDemand = Infinity;
   }
 });
 
@@ -8623,7 +8845,7 @@ UnitRegistry.register('gas_turbine', {
         phaseConstraint: 'V',
         H_target_Jps: 0
       };
-      ports.elec_out = { type: StreamType.ELECTRICAL, capacity: 0, actual: 0, demand: 0 };
+      ports.elec_out = { type: StreamType.ELECTRICAL, capacity: 0, actual: 0 };
       u.last = {
         Pin: sIn.P, Pout_setpoint: Pout, Pout_actual: sIn.P,
         W_shaft: 0, W_elec: 0, W_isentropic: 0, eta: eta,
@@ -8651,8 +8873,7 @@ UnitRegistry.register('gas_turbine', {
       type: StreamType.ELECTRICAL,
       capacity: work.W_shaft_W,
       actual: work.W_shaft_W,
-      available: work.W_shaft_W,
-      demand: 0
+      available: work.W_shaft_W
     };
     
     u.last = {
@@ -8791,6 +9012,16 @@ UnitRegistry.register('pump', {
     const sElec = ports.elec_in;
     if (!sIn) return;
     
+    // [v13.1.0 S2-A] Fry guard — destroyed equipment passes fluid through unmodified
+    if (u.fried) {
+      u.powerDemand = 0;
+      ports.mat_out = { type: StreamType.MATERIAL, P: sIn.P, n: { ...sIn.n },
+        phaseConstraint: 'L', H_target_Jps: thermo.getHdot_Jps(sIn) };
+      u.last = { fried: true, error: { severity: ErrorSeverity.CATASTROPHIC,
+        message: 'Unit destroyed by electrical overload. Replace or reset.' } };
+      return;
+    }
+    
     // [v11.0.0] Require electrical input — pump cannot operate without power
     if (!sElec) {
       u.powerDemand = 0;
@@ -8831,6 +9062,7 @@ UnitRegistry.register('pump', {
     // [v12.10.1 S1-pre-3] Standardized power read: actual → capacity → 0 (fail safe)
     const s = ctx ? ctx.scratch : {};
     const W_avail = s.hubAllocated_W ?? (sElec.actual ?? sElec.capacity ?? 0);
+    
     const curtailed = W_avail < workFull.W_shaft_W - 1;
     const W_shaft_actual = Math.min(workFull.W_shaft_W, W_avail);
     
@@ -8907,7 +9139,7 @@ UnitRegistry.register('pump', {
 
 // Compressor - Raises gas pressure
 UnitRegistry.register('compressor', {
-  name: 'Compressor',
+  name: 'Compressor (Piston)',
   category: UnitCategories.PRESSURE,
   w: 2,
   h: 2,
@@ -8922,13 +9154,25 @@ UnitRegistry.register('compressor', {
     'box/output-top':    { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, elec_in:{x:2,y:1}, mat_out:{x:1,y:0} } },
     'box/output-bottom': { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, elec_in:{x:1,y:0}, mat_out:{x:1,y:2} } }
   },
-  // [v13.0.4 S1c] Equipment limits
+  // [v13.1.0 S2-C] Revised: oil-free reciprocating piston, pilot-plant S-size.
+  // T raised (metal + PTFE rings tolerate hot adiabatic outlet).
+  // P lowered (piston can't do 150 bar — that's diaphragm territory → compressor_hp).
   limitParams: ['T_LL', 'T_L', 'T_H', 'T_HH', 'P_LL', 'P_L', 'P_H', 'P_HH', 'mass_HH'],
-  limits: { S: { T_LL: 243, T_L: 263, T_H: 333, T_HH: 353, P_LL: 50000, P_L: 80000, P_H: 12000000, P_HH: 15000000, mass_HH: 0.05 } },
+  limits: { S: { T_LL: 243, T_L: 263, T_H: 473, T_HH: 523, P_LL: 50000, P_L: 80000, P_H: 1200000, P_HH: 1500000, mass_HH: 0.08 } },
   tick(u, ports, par, ctx) {
     const sIn = ports.mat_in;
     const sElec = ports.elec_in;
     if (!sIn) return;
+    
+    // [v13.1.0 S2-A] Fry guard
+    if (u.fried) {
+      u.powerDemand = 0;
+      ports.mat_out = { type: StreamType.MATERIAL, P: sIn.P, n: { ...sIn.n },
+        phaseConstraint: 'V', H_target_Jps: thermo.getHdot_Jps(sIn) };
+      u.last = { fried: true, error: { severity: ErrorSeverity.CATASTROPHIC,
+        message: 'Unit destroyed by electrical overload. Replace or reset.' } };
+      return;
+    }
     
     // [v11.0.0] Require electrical input — compressor cannot operate without power
     if (!sElec) {
@@ -8970,6 +9214,7 @@ UnitRegistry.register('compressor', {
     // [v12.10.1 S1-pre-3] Standardized power read: actual → capacity → 0 (fail safe)
     const s = ctx ? ctx.scratch : {};
     const W_avail = s.hubAllocated_W ?? (sElec.actual ?? sElec.capacity ?? 0);
+    
     const curtailed = W_avail < workFull.W_shaft_W - 1;
     const W_shaft_actual = Math.min(workFull.W_shaft_W, W_avail);
     
@@ -9075,6 +9320,16 @@ UnitRegistry.register('electric_heater', {
   tick(u, ports, par, ctx) {
     const sIn = ports.mat_in;
     if (!sIn) return;
+
+    // [v13.1.0 S2-A] Fry guard
+    if (u.fried) {
+      u.powerDemand = 0;
+      ports.mat_out = { type: StreamType.MATERIAL, P: sIn.P, n: { ...sIn.n },
+        phaseConstraint: 'VL', H_target_Jps: thermo.getHdot_Jps(sIn) };
+      u.last = { fried: true, error: { severity: ErrorSeverity.CATASTROPHIC,
+        message: 'Unit destroyed by electrical overload. Replace or reset.' } };
+      return;
+    }
 
     const H_in_Jps = thermo.getHdot_Jps(sIn);
     if (H_in_Jps === 0 && (!sIn.T || !sIn.P || !sIn.n)) {
@@ -10066,6 +10321,16 @@ UnitRegistry.register('reactor_equilibrium', {
     const sIn = ports.mat_in;
     if (!sIn) return;
 
+    // [v13.1.0 S2-A] Fry guard — destroyed reactor passes fluid through unmodified
+    if (u.fried) {
+      u.powerDemand = 0;
+      ports.mat_out = { type: StreamType.MATERIAL, T: sIn.T, P: sIn.P,
+        n: { ...sIn.n }, phaseConstraint: sIn.phaseConstraint || 'V' };
+      u.last = { fried: true, error: { severity: ErrorSeverity.CATASTROPHIC,
+        message: 'Unit destroyed by electrical overload. Replace or reset.' } };
+      return;
+    }
+
     // [v12.9.0] Three-mode demand: none (adiabatic), isothermal, fixed
     const heatDemand = par.heatDemand || 'none';
 
@@ -10370,10 +10635,10 @@ class Scene {
         break;
       // ── Turbomachinery ──
       case 'pump':
-        unit.params = { Pout: 500000, eta: 0.75 };     // 5 bar, centrifugal
+        unit.params = { Pout: 500000, eta: 0.75, powerPriority: 2 };     // 5 bar, centrifugal
         break;
       case 'compressor':
-        unit.params = { Pout: 300000, eta: 0.80 };     // 3 bar, centrifugal
+        unit.params = { Pout: 300000, eta: 0.80, powerPriority: 2 };     // 3 bar, centrifugal
         break;
       case 'gas_turbine':
         unit.params = { Pout: 101325, eta: 0.88 };     // expand to 1 atm
@@ -10384,7 +10649,7 @@ class Scene {
         break;
       // ── Heat exchange ──
       case 'electric_heater':
-        unit.params = { T_out: 423.15, mode: 'T_setpoint' };  // [v12.8.1] dual mode
+        unit.params = { T_out: 423.15, mode: 'T_setpoint', powerPriority: 2 };  // [v12.8.1] dual mode
         break;
       case 'hex':
         unit.params = { T_approach: 10 }; // 10 K approach
@@ -10398,13 +10663,17 @@ class Scene {
         unit.params = { n: { N2: 0.78, O2: 0.21, Ar: 0.01 }, T: 298.15, P: 101325, phaseConstraint: 'V' };
         break;
       case 'reactor_equilibrium':
-        unit.params = { reactionId: 'R_H2_COMB', useKinetics: true, volume_m3: 0.003, alpha: 1.0, heatDemand: 'none', variant: 'insulated' };
+        unit.params = { reactionId: 'R_H2_COMB', useKinetics: true, volume_m3: 0.003, alpha: 1.0, heatDemand: 'none', variant: 'insulated', powerPriority: 2 };
         break;
       // ── Air Cooler [v13.0.5 S1c-9c] ──
       case 'air_cooler':
         unit.params = { T_approach: 10 };  // 10 K approach above ambient
         break;
-      // ── Units with no params: sink, sink_electrical, sink_heat,
+      // ── Electrical sink [v13.1.0 S2-A] ──
+      case 'sink_electrical':
+        unit.params = { ratedPower_kW: 1000, powerPriority: 3 };  // 1 MW dump load, deferrable
+        break;
+      // ── Units with no params: sink, sink_heat,
       //    power_hub, mixer, flash_drum — empty params is correct ──
     }
 
@@ -10598,6 +10867,7 @@ class Scene {
       };
       if (u.sticker) unitData.sticker = u.sticker;  // [v10.7.0] P1
       if (u.inventory) unitData.inventory = u.inventory;  // [v12.0.0] tank/battery state
+      if (u.fried) unitData.fried = true;  // [v13.1.0 S2-A] overload destruction state
       data.units.push(unitData);
     }
     
@@ -10730,6 +11000,10 @@ class Scene {
       // [v12.0.0] Restore inventory state (tank/battery)
       if (u.inventory && typeof u.inventory === 'object') {
         unit.inventory = u.inventory;
+      }
+      // [v13.1.0 S2-A] Restore fried state
+      if (u.fried === true) {
+        unit.fried = true;
       }
       // [v12.9.0] Migrate reactor mode → heatDemand
       if (unit.defId === 'reactor_equilibrium' && unit.params.mode && !unit.params.heatDemand) {
@@ -10933,7 +11207,7 @@ function streamSignature(stream) {
   if (stream.actual             !== undefined) sig.actual             = stream.actual;
   // [v12.10.1 S1-pre-5] 'available' removed from convergence signature —
   // deprecated alias normalized to 'capacity' by normalizeNonMaterialStream().
-  if (stream.curtailmentFactor  !== undefined) sig.curtailmentFactor  = stream.curtailmentFactor;
+  // [v13.1.0 S2-pre] curtailmentFactor removed — dispatch metadata not on ports.
 
   return sig;
 }
@@ -10966,8 +11240,8 @@ function portsChanged(oldPorts, newPorts) {
     T: 0.001, P: 0.1,
     beta: 1e-8, vaporFraction: 1e-8,
     Hdot_J_s: 0.01,
-    capacity: 0.01, actual: 0.01, available: 0.01,
-    curtailmentFactor: 1e-8
+    capacity: 0.01, actual: 0.01
+    // [v13.1.0 S2-pre] available (S1-pre-5) and curtailmentFactor removed
   };
   const FLOW_ABS_TOL = 1e-12;  // mol/s — absolute floor for near-zero flows
   const REL_TOL = 1e-6;         // 1 ppm — relative tolerance for all numerics
@@ -11005,18 +11279,7 @@ function portsChanged(oldPorts, newPorts) {
  * Strip the `demand` field from every stream in a port map.
  * Demand is a backward annotation and must not affect forward-convergence checks.
  */
-function stripDemandFromPorts(ports) {
-  const stripped = {};
-  for (const [portId, stream] of Object.entries(ports)) {
-    if (stream && stream.demand !== undefined) {
-      const { demand, ...rest } = stream;
-      stripped[portId] = rest;
-    } else {
-      stripped[portId] = stream;
-    }
-  }
-  return stripped;
-}
+// [v13.1.0 S2-pre] stripDemandFromPorts deleted — demand/CF no longer on ports.
 
 /* =========================
    POWER CYCLE DETECTION
@@ -11816,8 +12079,12 @@ function solveScene(scene, options = {}) {
         }
       }
 
-      // Store old state to detect changes (strip demand — backward annotation)
-      const oldPortsSnap = stripDemandFromPorts(ud.ports);
+      // Store old state to detect changes (forward computation only)
+      // [v13.1.0 S2-pre] Direct comparison — demand/CF no longer on ports.
+      const oldPortsSnap = {};
+      for (const [pk, pv] of Object.entries(ud.ports)) {
+        oldPortsSnap[pk] = pv ? { ...pv } : pv;
+      }
 
       // [v5.4.2] Per-unit exception containment: a throwing tick must not
       // crash the entire solve.  Record a structured error on the faulted
@@ -11999,11 +12266,8 @@ function solveScene(scene, options = {}) {
       }
 
       // Check if anything changed (forward computation only)
-      // Exclude 'demand' field from comparison — it's a backward annotation
-      // written by post-processing, not a forward computation result.
-      // Including it causes infinite oscillation (tick resets to 0, post-pass restores).
-      const newPortsSnap = stripDemandFromPorts(ud.ports);
-      if (portsChanged(oldPortsSnap, newPortsSnap)) changed = true;
+      // [v13.1.0 S2-pre] Direct comparison — demand/CF no longer on ports.
+      if (portsChanged(oldPortsSnap, ud.ports)) changed = true;
 
       // Store unit-specific calculation results
       ud.last = u.last || {};
@@ -12166,9 +12430,14 @@ function solveScene(scene, options = {}) {
       const _def = UnitRegistry.get(_u.defId);
       const _ud = scene.runtime.unitData.get(_id);
       
-      // [v12.6.0] Pump, compressor, heater: direct electrical consumers
-      if (_u.defId === 'pump' || _u.defId === 'compressor' || _u.defId === 'electric_heater') {
-          const hasElecIn = scene.connections.some(c => c.to.unitId === _id && c.to.portId === 'elec_in');
+      // [v13.1.0 S2-pre] Generic: any unit with finite positive powerDemand
+      if (_ud.powerDemand > 0 && isFinite(_ud.powerDemand)) {
+          // Check for ANY incoming electrical connection (elec_in, in, etc.)
+          const elecInPorts = (_def?.ports || [])
+            .filter(p => p.type === StreamType.ELECTRICAL && p.dir === PortDir.IN)
+            .map(p => p.portId);
+          const hasElecIn = scene.connections.some(c =>
+            c.to.unitId === _id && elecInPorts.includes(c.to.portId));
           if (!hasElecIn) _ud.powerDemand = 0;
           const _ps = runtimeCtx.scratch(_id);
           if (_ps.powerDemand_W !== undefined &&
@@ -12231,7 +12500,7 @@ function solveScene(scene, options = {}) {
         const consumerU = scene.units.get(conn.to.unitId);
         const consumerUD = scene.runtime.unitData.get(conn.to.unitId);
         const demand_W = consumerUD?.powerDemand || 0;
-        const priority = consumerU?.params?.hubPriority ?? 1;
+        const priority = consumerU?.params?.powerPriority ?? 2;  // [v13.1.0 S2-C]
         consumers.push({ unitId: conn.to.unitId, demand_W, priority });
         totalDemand_W += demand_W;
       }
@@ -12263,10 +12532,15 @@ function solveScene(scene, options = {}) {
       }
       
       // [v5.4.0] Write per-consumer allocation factors to RuntimeContext scratch
+      // [v13.1.0 S2-pre] Detect allocation changes → force re-iteration
       for (const conn of outConns) {
         const alloc = consumerAllocation[conn.to.unitId];
         if (alloc) {
           const cs = runtimeCtx.scratch(conn.to.unitId);
+          if (cs.hubAllocated_W !== undefined &&
+              Math.abs(cs.hubAllocated_W - alloc.allocated_W) > 0.01) {
+            changed = true;
+          }
           cs.hubAllocFactor = alloc.factor;
           cs.hubAllocated_W = alloc.allocated_W;
         }
@@ -12304,43 +12578,74 @@ function solveScene(scene, options = {}) {
       const netSurplus_W = surplus_W - batteryCharge_W;
       
       // ── Update output ports ──
-      const stripDemand = (s) => { if (!s) return s; const { demand, ...rest } = s; return rest; };
+      // [v13.1.0 S2-pre] Dispatch metadata (demand, CF) removed from ports —
+      // now lives in ud.last and scratch only.  Ports carry physical state only.
       const oldHubPorts = {
-        elec_out: stripDemand(_ud.ports.elec_out),
-        elec_surplus: stripDemand(_ud.ports.elec_surplus)
+        elec_out: _ud.ports.elec_out ? { ...(_ud.ports.elec_out) } : null,
+        elec_surplus: _ud.ports.elec_surplus ? { ...(_ud.ports.elec_surplus) } : null
       };
       
       if (_ud.ports.elec_out) {
         _ud.ports.elec_out.capacity = physicsFixed_W + responsiveMax_W + batteryMaxDischarge_W;
         _ud.ports.elec_out.actual = totalSupply_W;
         _ud.ports.elec_out.available = totalSupply_W;  // deprecated alias
-        _ud.ports.elec_out.curtailmentFactor = curtailmentFactor;
-        _ud.ports.elec_out.demand = effectiveDemand_W;
       }
       // [v11.0.0] elec_surplus: route physics-determined overproduction
       if (_ud.ports.elec_surplus) {
         _ud.ports.elec_surplus.capacity = netSurplus_W;
         _ud.ports.elec_surplus.actual = netSurplus_W;
         _ud.ports.elec_surplus.available = netSurplus_W;
-        _ud.ports.elec_surplus.demand = netSurplus_W;
       }
-      // [v11.0.0] CATASTROPHIC: surplus with nowhere to go → fried hub
-      const surplusConnected = _ud.ports.elec_surplus?._connected;
-      if (netSurplus_W > 1 && !surplusConnected) {
+      // [v13.1.0 S2-A] Unified surplus check: unabsorbed energy → bus failure
+      // Sum absorber capacity from all functional sinks on elec_surplus.
+      // If surplus exceeds total capacity, the bus has unabsorbed energy:
+      // overvoltage destroys every consumer on the bus (elec_out connections).
+      const surplusConns = scene.connections.filter(c => c.from.unitId === _id && c.from.portId === 'elec_surplus');
+      let totalAbsorberCapacity_W = 0;
+      for (const conn of surplusConns) {
+        const sinkU = scene.units.get(conn.to.unitId);
+        if (!sinkU || sinkU.fried) continue;
+        // Use rated capacity from params, falling back to powerDemand
+        const sinkUD = scene.runtime.unitData.get(conn.to.unitId);
+        const rated = (sinkU.params?.ratedPower_kW ?? 0) * 1000;
+        totalAbsorberCapacity_W += rated > 0 ? rated : (sinkUD?.powerDemand ?? 0);
+      }
+      const unabsorbed_W = netSurplus_W - totalAbsorberCapacity_W;
+      if (unabsorbed_W > 1) {
+        // Bus failure: unabsorbed energy → overvoltage cascade
+        const reason = surplusConns.length === 0
+          ? 'no dump load connected'
+          : totalAbsorberCapacity_W < 1
+            ? 'dump load destroyed or non-functional'
+            : `dump load capacity ${(totalAbsorberCapacity_W/1000).toFixed(1)} kW < ${(netSurplus_W/1000).toFixed(1)} kW surplus`;
         _ud.errors = _ud.errors || [];
         _ud.errors.push({
           severity: ErrorSeverity.CATASTROPHIC,
-          message: `${(netSurplus_W/1000).toFixed(1)} kW surplus with no elec_surplus sink — connect a load or the hub is destroyed`
+          message: `${(unabsorbed_W/1000).toFixed(1)} kW unabsorbed surplus — ${reason}`
         });
         _ud.last.error = {
           severity: ErrorSeverity.CATASTROPHIC,
-          message: `${(netSurplus_W/1000).toFixed(1)} kW surplus with no elec_surplus sink — connect a load or the hub is destroyed`
+          message: `${(unabsorbed_W/1000).toFixed(1)} kW unabsorbed surplus — ${reason}`
         };
+        // Fry every consumer on elec_out (overvoltage)
+        for (const conn of outConns) {
+          const consumerU = scene.units.get(conn.to.unitId);
+          if (consumerU && !consumerU.fried) {
+            consumerU.fried = true;
+          }
+        }
+        // Fry undersized absorbers too (overloaded dump load burns out)
+        for (const conn of surplusConns) {
+          const sinkU = scene.units.get(conn.to.unitId);
+          if (sinkU && !sinkU.fried) {
+            sinkU.fried = true;
+          }
+        }
       }
       
       const newHubPorts = {
-        elec_out: stripDemand(_ud.ports.elec_out),
-        elec_surplus: stripDemand(_ud.ports.elec_surplus)
+        elec_out: _ud.ports.elec_out ? { ...(_ud.ports.elec_out) } : null,
+        elec_surplus: _ud.ports.elec_surplus ? { ...(_ud.ports.elec_surplus) } : null
       };
       if (portsChanged(oldHubPorts, newHubPorts)) changed = true;
       
@@ -12357,7 +12662,7 @@ function solveScene(scene, options = {}) {
           const thisDischarge = batteryDraw_W * dischargeShare;
           const thisCharge = batteryCharge_W * chargeShare;
           const netActual = thisDischarge - thisCharge;
-          src.srcUD.ports[src.conn.from.portId].demand = thisDischarge;
+          // [v13.1.0 S2-pre] demand removed from port — physical actual only
           src.srcUD.ports[src.conn.from.portId].actual = netActual;
           const ss = runtimeCtx.scratch(src.conn.from.unitId);
           ss.hubDischarge_W = thisDischarge;
@@ -12368,14 +12673,14 @@ function solveScene(scene, options = {}) {
           // Grid supply: proportional share of responsiveDraw
           const share = responsiveMax_W > 0 ? src.avail / responsiveMax_W : 0;
           const thisDraw = responsiveDraw_W * share;
-          src.srcUD.ports[src.conn.from.portId].demand = thisDraw;
+          // [v13.1.0 S2-pre] demand removed from port — physical actual only
           src.srcUD.ports[src.conn.from.portId].actual = thisDraw;
           const ss = runtimeCtx.scratch(src.conn.from.unitId);
           ss.hubDemand_W = thisDraw;
           ss.actualDraw_W = thisDraw;
         } else {
           // Physics-fixed source: always produces fixedActual
-          src.srcUD.ports[src.conn.from.portId].demand = src.fixedActual || src.avail;
+          // [v13.1.0 S2-pre] demand removed from port — physical actual only
           src.srcUD.ports[src.conn.from.portId].actual = src.fixedActual || src.avail;
           const ss = runtimeCtx.scratch(src.conn.from.unitId);
           ss.hubDemand_W = src.fixedActual || src.avail;
@@ -12469,9 +12774,8 @@ function solveScene(scene, options = {}) {
       const curtailmentFactor = finiteFactor;
 
       if (portData) {
-        portData.demand = downstreamDemand_W;
+        // [v13.1.0 S2-pre] demand/CF removed from port — physical actual only
         portData.actual = actualDraw_W;
-        portData.curtailmentFactor = curtailmentFactor;
       }
       
       // [v12.10.1] Write allocation: finite consumers get proportional share,
@@ -12510,7 +12814,45 @@ function solveScene(scene, options = {}) {
       }
     }
     
-    // [v11.0.0] Step E deleted — source_mechanical removed.
+    // [v13.1.0 S2-A] Step E: Physics-fixed direct-connection overspeed
+    // Gas turbines directly connected to consumers (no hub) can overproduce.
+    // With no hub to route surplus, excess power destroys connected consumers.
+    for (const [_id, _u] of scene.units) {
+      if (_u.defId !== 'gas_turbine') continue;
+      const _ud = scene.runtime.unitData.get(_id);
+      const outConns = scene.connections.filter(c => c.from.unitId === _id && c.from.portId === 'elec_out');
+      // Skip if connected to a hub (hub handles surplus)
+      const connectedToHub = outConns.some(c => scene.units.get(c.to.unitId)?.defId === 'power_hub');
+      if (connectedToHub) continue;
+      // Turbine output (physics-fixed)
+      const turbOutput_W = _ud?.ports?.elec_out?.actual ?? 0;
+      if (turbOutput_W < 1) continue;
+      // Sum downstream demand
+      let downDemand_W = 0;
+      for (const conn of outConns) {
+        const consumerUD = scene.runtime.unitData.get(conn.to.unitId);
+        downDemand_W += consumerUD?.powerDemand || 0;
+      }
+      const surplus_W = turbOutput_W - downDemand_W;
+      if (surplus_W > 1) {
+        // Fry each connected consumer
+        for (const conn of outConns) {
+          const consumerU = scene.units.get(conn.to.unitId);
+          if (consumerU && !consumerU.fried) {
+            consumerU.fried = true;
+            const consumerUD = scene.runtime.unitData.get(conn.to.unitId);
+            if (consumerUD) {
+              consumerUD.last = consumerUD.last || {};
+              consumerUD.last.error = { severity: ErrorSeverity.CATASTROPHIC,
+                message: `Destroyed by ${(surplus_W/1000).toFixed(1)} kW overspeed — turbine output exceeds demand with no hub/dump load` };
+            }
+          }
+        }
+        _ud.last = _ud.last || {};
+        _ud.last.overspeed = true;
+        _ud.last.surplus_W = surplus_W;
+      }
+    }
 
   }  // end while (changed && iter < MAX_ITER)
 
@@ -13079,6 +13421,25 @@ const LIMIT_PARAM_TEMPLATES = Object.freeze({
   level_HH: { tag: 'level', side: 'HH', severity: AlarmSeverity.CATASTROPHIC, label: 'Tank level critical',                  unit: '%' },
 });
 
+// [v13.1.0] Moved from block 2 → block 1 (NNG-11: DOM-free core).
+// Pure function: finds first material output (or input) stream with resolved T.
+function _findPrimaryStream(ud, def) {
+  if (!ud?.ports || !def?.ports) return null;
+  for (const p of def.ports) {
+    if (p.type === StreamType.MATERIAL && p.dir === PortDir.OUT) {
+      const s = ud.ports[p.portId];
+      if (s && s.T != null) return s;
+    }
+  }
+  for (const p of def.ports) {
+    if (p.type === StreamType.MATERIAL && p.dir === PortDir.IN) {
+      const s = ud.ports[p.portId];
+      if (s && s.T != null) return s;
+    }
+  }
+  return null;
+}
+
 // [S1c-4] _computeMassRate — total mass flow rate (kg/s) from primary stream molar flows
 function _computeMassRate(ud, def) {
   const ps = _findPrimaryStream(ud, def);
@@ -13371,6 +13732,8 @@ const PG = {
   // ── Helpers (pure functions) ──
   clamp,
   allocatePower,
+  allocateByPriority,
+  checkOverload,
   buildMaterialGraph,
   tarjanSCCs,
   computeTickOrder,
@@ -17648,23 +18011,7 @@ function _renderLabeledSection(container, title, items, stickerCtx) {
   _renderKPIGrid(container, items, stickerCtx);
 }
 
-// Find primary material stream from resolved port data
-function _findPrimaryStream(ud, def) {
-  if (!ud?.ports || !def?.ports) return null;
-  for (const p of def.ports) {
-    if (p.type === StreamType.MATERIAL && p.dir === PortDir.OUT) {
-      const s = ud.ports[p.portId];
-      if (s && s.T != null) return s;
-    }
-  }
-  for (const p of def.ports) {
-    if (p.type === StreamType.MATERIAL && p.dir === PortDir.IN) {
-      const s = ud.ports[p.portId];
-      if (s && s.T != null) return s;
-    }
-  }
-  return null;
-}
+// [v13.1.0] _findPrimaryStream moved to block 1 (NNG-11 compliance).
 
 // [v11.0.2] Composable stream renderers — standard section order
 // Each returns a grid element (or nothing). Sticker context flows through.
@@ -18078,7 +18425,25 @@ UnitInspector.sink = {};
 // [v12.6.0] sink_heat inspector deleted
 
 UnitInspector.sink_electrical = {
-  power(u, ud) { return !ud?.last ? [] : [{ label: 'Absorbed', value: fmt.kW(ud.last.absorbed_W) }]; }
+  params(u) {
+    return [
+      { label: 'Rated power (kW)', get: () => u.params.ratedPower_kW ?? 1000,
+        set: v => u.params.ratedPower_kW = Math.max(0.1, v), step: 10, validate: { gt: 0 } },
+      { label: 'Priority', get: () => u.params.powerPriority ?? 3,
+        set: v => u.params.powerPriority = Math.max(1, Math.round(v)), step: 1, validate: { gte: 1 } },
+    ];
+  },
+  power(u, ud) {
+    if (!ud?.last) return [];
+    const rated_W = (u.params.ratedPower_kW ?? 1000) * 1000;
+    const absorbed = ud.last.absorbed_W ?? 0;
+    const utilPct = rated_W > 0 ? (absorbed / rated_W * 100).toFixed(0) : '0';
+    return [
+      { label: 'Rated', value: fmt.kW(rated_W) },
+      { label: 'Absorbed', value: fmt.kW(absorbed) },
+      { label: 'Utilization', value: `${utilPct}%`, tone: absorbed > rated_W * 0.95 ? 'warn' : '' },
+    ];
+  }
 };
 
 // ── Power Sources ──
@@ -18188,7 +18553,11 @@ UnitInspector.valve = {
 };
 
 UnitInspector.pump = {
-  params(u) { const us = models.getActive('units'); return _pEtaParams(u, us, 500000, 0.75); },
+  params(u) { const us = models.getActive('units'); return [
+    ..._pEtaParams(u, us, 500000, 0.75),
+    { label: 'Priority', get: () => u.params.powerPriority ?? 2,
+      set: v => u.params.powerPriority = Math.max(1, Math.round(v)), step: 1, validate: { gte: 1 } },
+  ]; },
   power(u, ud) { return !ud?.last ? [] : [
     { label: 'Shaft power', value: fmt.kW(ud.last.W_shaft) },
     ...(ud.last.eta != null ? [{ label: 'Efficiency', value: fmt.pct(ud.last.eta) }] : []),
@@ -18205,7 +18574,11 @@ UnitInspector.pump = {
 };
 
 UnitInspector.compressor = {
-  params(u) { const us = models.getActive('units'); return _pEtaParams(u, us, 300000, 0.80); },
+  params(u) { const us = models.getActive('units'); return [
+    ..._pEtaParams(u, us, 300000, 0.80),
+    { label: 'Priority', get: () => u.params.powerPriority ?? 2,
+      set: v => u.params.powerPriority = Math.max(1, Math.round(v)), step: 1, validate: { gte: 1 } },
+  ]; },
   power(u, ud) { return !ud?.last ? [] : [
     { label: 'Shaft power', value: fmt.kW(ud.last.W_shaft) },
     ...(ud.last.eta != null ? [{ label: 'Efficiency', value: fmt.pct(ud.last.eta) }] : []),
@@ -18262,6 +18635,8 @@ UnitInspector.electric_heater = {
         set: v => u.params.power_kW = Math.max(0, v),
         step: 1, decimals: 1, validate: { gte: 0 } });
     }
+    items.push({ label: 'Priority', get: () => u.params.powerPriority ?? 2,
+      set: v => u.params.powerPriority = Math.max(1, Math.round(v)), step: 1, validate: { gte: 1 } });
     return items;
   },
   power(u, ud) {
@@ -18424,6 +18799,29 @@ UnitInspector.power_hub = {
       tone: (ud.last.curtailmentFactor ?? 1) < 1 ? 'warn' : 'good' });
     if (ud.last.surplus_W > 1) items.push({ label: 'Surplus', value: fmt.kW(ud.last.surplus_W), tone: 'err' });
     return items;
+  },
+  detail(u, ud, sc) {
+    if (!ud?.last?.consumerAllocation) return [];
+    const alloc = ud.last.consumerAllocation;
+    const items = [];
+    // Sort by priority then by demand descending
+    const entries = Object.entries(alloc)
+      .map(([uid, a]) => {
+        const cu = sc?.units?.get(uid);
+        const name = cu?.name || uid.slice(-4);
+        return { name, ...a };
+      })
+      .sort((a, b) => (a.priority - b.priority) || (b.demand_W - a.demand_W));
+    for (const e of entries) {
+      const pctStr = (e.factor * 100).toFixed(0);
+      const tone = e.factor >= 0.99 ? '' : e.factor > 0 ? 'warn' : 'err';
+      items.push({
+        label: `P${e.priority} ${esc(e.name)}`,
+        value: `${fmt.kW(e.allocated_W)} / ${fmt.kW(e.demand_W)} <span class="propUnit">(${pctStr}%)</span>`,
+        tone
+      });
+    }
+    return items;
   }
 };
 
@@ -18485,6 +18883,8 @@ function _reactorParams(u, type) {
     if (u.params.useKinetics !== false) params.push({ label: 'Volume (m³)', get: () => u.params.volume_m3 ?? 0.003, set: v => u.params.volume_m3 = v, step: 0.001 });
     else params.push({ type: 'slider', label: 'Alpha (approach)', get: () => u.params.alpha ?? 1.0, set: v => u.params.alpha = v, min: 0, max: 1, step: 0.01 });
   }
+  params.push({ label: 'Priority', get: () => u.params.powerPriority ?? 2,
+    set: v => u.params.powerPriority = Math.max(1, Math.round(v)), step: 1, validate: { gte: 1 } });
   return params;
 }
 
@@ -18819,6 +19219,19 @@ function _rebuildInspectorContent() {
         const box = el('div', { class: `ins-err-box ${cls}` });
         box.textContent = `${alarm.severity.icon} ${alarm.message}`;
         propEditor.appendChild(box);
+      }
+      // [v13.1.0 S2-C] Reset Fry button for fried consumers
+      if (u.fried) {
+        const resetBtn = el('button', { class: 'btn', style: 'margin:4px 0 8px; padding:4px 12px; font-size:12px; background:#dc2626; color:#fff; border:none; border-radius:4px; cursor:pointer; width:100%;' });
+        resetBtn.textContent = '⚡ Reset Equipment (Clear Fry)';
+        resetBtn.title = 'Restore this unit to working condition';
+        resetBtn.addEventListener('click', () => {
+          _pushUndo('Reset fry');
+          delete u.fried;
+          render();
+          updatePropertiesPanel();
+        });
+        propEditor.appendChild(resetBtn);
       }
     } else if (ud) {
       propEditor.appendChild(el('div', { style: 'font-size:11px; color:#6ee7b7; opacity:0.6; padding:2px 0 4px;', html: '✓ OK' }));
@@ -21016,7 +21429,7 @@ document.getElementById('processNameInput').addEventListener('input', (e) => {
    DEMO
    ========================= */
 function loadDemo() {
-  // ── [v10.9.3] Full Demo — Sabatier + Brayton + SMR + Pump ──
+  // ── [v10.9.3] Full Demo — Sabatier + Brayton + SMR + Pump + Priority ──
   //
   // LEFT BLOCK (existing):
   //   Sabatier CO₂ Methanation + Energy Storage
@@ -21027,19 +21440,22 @@ function loadDemo() {
   //   Solar + Battery → Hub → E-Heater → Heat Sink
   //   N₂ Source → Tank → Vent
   //
-  // RIGHT BLOCK (new):
+  // RIGHT BLOCK:
   //   A) BRAYTON CYCLE: Air → Compressor → Hex cold → Heater 1200K
   //      → Gas Turbine → Exhaust. Turbine → Generator → Grid Export.
   //      Grid → Motor → Compressor.
   //   B) SMR (endothermic): CH₄+H₂O → Reactor (R_SMR_OVERALL)
   //      → Hex hot → Valve letdown → Syngas. Heat from Sabatier.
   //   C) PUMP: Water → Pump 5 bar → Sink. Grid → Motor → Pump.
+  //   D) PRIORITY DEMO: Grid 5kW → Hub → Compressor (P1 critical),
+  //      Heater (P2 normal), Dump Load (P3 deferrable 2kW rated).
+  //      Shows priority shedding + hub allocation report.
   //   SHARED: Heat exchanger (recuperator) between A and B.
 
   scene.importJSON(JSON.stringify({
     version: 14,
-    processName: 'Sabatier + Brayton + SMR + Pump Demo (v12.9.4)',
-    grid: { w: 54, h: 42, tile: 48 },
+    processName: 'Sabatier + Brayton + SMR + Pump + Priority Demo (v13.1.0)',
+    grid: { w: 56, h: 42, tile: 48 },
     solverOptions: { maxIter: 200 },
     units: [
       // ══════════════════════════════════════════════════════════════════
@@ -21069,7 +21485,8 @@ function loadDemo() {
       { id: 'batt', defId: 'battery', name: 'Li-Ion 10kWh', x: 2, y: 16, rot: 0,
         params: { peakPower_kW: 20, capacity_J: 36000000, initialSOC: 0.9 } },
       { id: 'hub', defId: 'power_hub', name: 'Power Hub', x: 6, y: 14, rot: 0, params: {} },
-      { id: 'hub-q', defId: 'sink_electrical', name: 'Surplus Power', x: 6, y: 10, rot: 0, params: {} },
+      { id: 'hub-q', defId: 'sink_electrical', name: 'Surplus Power', x: 6, y: 10, rot: 0,
+        params: { ratedPower_kW: 50, powerPriority: 3 } },
 
       // ── N₂ buffer tank ──
       { id: 'n2-feed', defId: 'source', name: 'N₂ Feed', x: 18, y: 18, rot: 0,
@@ -21110,7 +21527,8 @@ function loadDemo() {
         ]}},
       { id: 'a-exh', defId: 'sink', name: 'Exhaust', x: 29, y: -3, rot: 0, params: {} },
       // [v11.0.0] Generator removed — turbine outputs electrical directly
-      { id: 'a-eout', defId: 'sink_electrical', name: 'Grid Export', x: 29, y: 1, rot: 0, params: {} },
+      { id: 'a-eout', defId: 'sink_electrical', name: 'Grid Export', x: 29, y: 1, rot: 0,
+        params: { ratedPower_kW: 100, powerPriority: 3 } },
 
       // ══════════════════════════════════════════════════════════════════
       // SHARED — Heat Exchanger (Recuperator)
@@ -21157,7 +21575,42 @@ function loadDemo() {
         sticker: { dx: 3, dy: -2, items: [
           { section: 'power', label: 'Shaft power' }
         ]}},
-      { id: 'c-sink', defId: 'sink', name: 'Pressurized H₂O', x: 42, y: 20, rot: 0, params: {} }
+      { id: 'c-sink', defId: 'sink', name: 'Pressurized H₂O', x: 42, y: 20, rot: 0, params: {} },
+
+      // ══════════════════════════════════════════════════════════════════
+      // PROCESS D — Priority Allocation & Fry Demo
+      // ══════════════════════════════════════════════════════════════════
+      // Grid 5kW → Hub → Compressor (P1 critical), Heater (P2 normal),
+      //                    Dump Load (P3 deferrable, 2 kW rated)
+      // With only 5 kW supply, the hub prioritizes: compressor first,
+      // heater gets remainder, dump load gets nothing.
+      // Click hub to see allocation report. Click consumers to see priority.
+
+      { id: 'd-grid', defId: 'grid_supply', name: 'Colony 5kW', x: 32, y: 4, rot: 0,
+        params: { maxPower: 5 } },
+      { id: 'd-hub', defId: 'power_hub', name: 'Priority Hub', x: 36, y: 4, rot: 0, params: {},
+        sticker: { dx: 4, dy: -2, items: [
+          { section: 'power', label: 'Total supply' },
+          { section: 'power', label: 'Curtailment' }
+        ]}},
+      { id: 'd-dump', defId: 'sink_electrical', name: 'Dump Load 2kW', x: 36, y: 0, rot: 0,
+        params: { ratedPower_kW: 2, powerPriority: 3 } },
+      { id: 'd-n2', defId: 'source', name: 'N₂ In', x: 40, y: 2, rot: 0,
+        params: { species: 'N2', nDot: 0.3, T: 298.15, P: 100000, phaseConstraint: 'V' } },
+      { id: 'd-comp', defId: 'compressor', name: 'Life Support', x: 44, y: 2, rot: 0,
+        params: { Pout: 300000, eta: 0.80, powerPriority: 1 },
+        sticker: { dx: 3, dy: -2, items: [
+          { section: 'power', label: 'Shaft power' }
+        ]}},
+      { id: 'd-csnk', defId: 'sink', name: 'Compressed N₂', x: 48, y: 2, rot: 0, params: {} },
+      { id: 'd-h2o', defId: 'source', name: 'H₂O In', x: 40, y: 6, rot: 0,
+        params: { species: 'H2O', nDot: 0.2, T: 293.15, P: 101325, phaseConstraint: 'L' } },
+      { id: 'd-htr', defId: 'electric_heater', name: 'Water Heater', x: 44, y: 6, rot: 0,
+        params: { T_out: 363.15, powerPriority: 2 },
+        sticker: { dx: 3, dy: -2, items: [
+          { section: 'power', label: 'Q actual' }
+        ]}},
+      { id: 'd-hsnk', defId: 'sink', name: 'Hot H₂O', x: 48, y: 6, rot: 0, params: {} }
     ],
     connections: [
       // ── Sabatier ──
@@ -21202,7 +21655,16 @@ function loadDemo() {
       // ── Process C: Pump loop ──
       { id: 'p1', from: { unitId: 'c-grid', portId: 'out' }, to: { unitId: 'c-pump', portId: 'elec_in' } },
       { id: 'p3', from: { unitId: 'c-src', portId: 'out' }, to: { unitId: 'c-pump', portId: 'mat_in' } },
-      { id: 'p4', from: { unitId: 'c-pump', portId: 'mat_out' }, to: { unitId: 'c-sink', portId: 'in' } }
+      { id: 'p4', from: { unitId: 'c-pump', portId: 'mat_out' }, to: { unitId: 'c-sink', portId: 'in' } },
+      // ── Process D: Priority demo ──
+      { id: 'd1', from: { unitId: 'd-grid', portId: 'out' }, to: { unitId: 'd-hub', portId: 'elec_in' } },
+      { id: 'd2', from: { unitId: 'd-hub', portId: 'elec_surplus' }, to: { unitId: 'd-dump', portId: 'in' } },
+      { id: 'd3', from: { unitId: 'd-hub', portId: 'elec_out' }, to: { unitId: 'd-comp', portId: 'elec_in' } },
+      { id: 'd4', from: { unitId: 'd-hub', portId: 'elec_out' }, to: { unitId: 'd-htr', portId: 'elec_in' } },
+      { id: 'd5', from: { unitId: 'd-n2', portId: 'out' }, to: { unitId: 'd-comp', portId: 'mat_in' } },
+      { id: 'd6', from: { unitId: 'd-comp', portId: 'mat_out' }, to: { unitId: 'd-csnk', portId: 'in' } },
+      { id: 'd7', from: { unitId: 'd-h2o', portId: 'out' }, to: { unitId: 'd-htr', portId: 'mat_in' } },
+      { id: 'd8', from: { unitId: 'd-htr', portId: 'mat_out' }, to: { unitId: 'd-hsnk', portId: 'in' } }
     ],
     modelsActive: models.active
   }));
@@ -21239,7 +21701,7 @@ setViewBox();
 // [v10.3.0] M8: Restore from auto-save, or load demo
 // [v10.9.3] Version guard: if auto-save is from an older demo, load fresh demo
 {
-  const DEMO_VERSION = 'v11.0.2';  // bump this when demo scene changes
+  const DEMO_VERSION = 'v13.1.0';  // bump this when demo scene changes
   const saved = localStorage.getItem(AUTOSAVE_KEY);
   const savedDemoVer = localStorage.getItem(AUTOSAVE_KEY + '_demoVer');
   if (saved && savedDemoVer === DEMO_VERSION) {
@@ -21673,7 +22135,8 @@ function runTests() {
   // ═══════════════════════════════════════════════════════════════════════
 
   test('Mixer: N2 Sensible Mixing', t => {
-    const s1 = t.place('source', 0, 0, { species:'N2', nDot:10, T:300.15, P:200000, phaseConstraint:'V' });
+    // [v13.0.8 fix] Equal pressures — avoids check-valve trigger (ΔP > 0.1 bar)
+    const s1 = t.place('source', 0, 0, { species:'N2', nDot:10, T:300.15, P:100000, phaseConstraint:'V' });
     const s2 = t.place('source', 0, 3, { species:'N2', nDot:10, T:500.15, P:100000, phaseConstraint:'V' });
     const mix = t.place('mixer', 4, 1); const snk = t.place('sink', 8, 1);
     t.wire(s1,'out', mix,'in1'); t.wire(s2,'out', mix,'in2'); t.wire(mix,'out', snk,'in');
@@ -21682,7 +22145,7 @@ function runTests() {
     t.assertClose(out.P, 100000, 1, 'P_out [Pa]');
     t.assertClose(Object.values(out.n).reduce((a,b)=>a+b,0), 20, 0.001, 'n_total');
     t.assertOK(out.phase === 'V', 'Phase = V', out.phase);
-    const H1 = thermo.getHdot_Jps({type:StreamType.MATERIAL, T:300, P:200000, n:{N2:10}});
+    const H1 = thermo.getHdot_Jps({type:StreamType.MATERIAL, T:300, P:100000, n:{N2:10}});
     const H2 = thermo.getHdot_Jps({type:StreamType.MATERIAL, T:500, P:100000, n:{N2:10}});
     t.assertHBalance(out.Hdot_J_s || thermo.getHdot_Jps(out), H1+H2, 5e-3, 'H balance');
     const ref = thermo.phFlash({P:100000, n:{N2:20}, H_target_Jps:H1+H2});
@@ -21691,7 +22154,8 @@ function runTests() {
   });
 
   test('Mixer: CO2+N2 Composition', t => {
-    const s1 = t.place('source', 0, 0, { species:'CO2', nDot:10, T:350.15, P:300000, phaseConstraint:'V' });
+    // [v13.0.8 fix] Equal pressures — avoids check-valve trigger (ΔP > 0.1 bar)
+    const s1 = t.place('source', 0, 0, { species:'CO2', nDot:10, T:350.15, P:100000, phaseConstraint:'V' });
     const s2 = t.place('source', 0, 3, { species:'N2', nDot:30, T:350.15, P:100000, phaseConstraint:'V' });
     const mix = t.place('mixer', 4, 1); const snk = t.place('sink', 8, 1);
     t.wire(s1,'out', mix,'in1'); t.wire(s2,'out', mix,'in2'); t.wire(mix,'out', snk,'in');
@@ -21700,7 +22164,7 @@ function runTests() {
     t.assertClose(out.P, 100000, 1, 'P_out [Pa]');
     t.assertClose(out.n.CO2 || 0, 10, 0.001, 'n_CO2');
     t.assertClose(out.n.N2 || 0, 30, 0.001, 'n_N2');
-    const H1 = thermo.getHdot_Jps({type:StreamType.MATERIAL, T:350, P:300000, n:{CO2:10}});
+    const H1 = thermo.getHdot_Jps({type:StreamType.MATERIAL, T:350, P:100000, n:{CO2:10}});
     const H2 = thermo.getHdot_Jps({type:StreamType.MATERIAL, T:350, P:100000, n:{N2:30}});
     t.assertHBalance(out.Hdot_J_s || thermo.getHdot_Jps(out), H1+H2, 5e-3, 'H balance');
     const ref = thermo.phFlash({P:100000, n:{CO2:10,N2:30}, H_target_Jps:H1+H2});
@@ -22429,7 +22893,7 @@ function runTests() {
     t.assertOK(t.scratch(cA).hubAllocFactor !== undefined && t.scratch(cB).hubAllocFactor !== undefined, 'hubAllocFactor set');
     t.assertClose(t.scratch(cA).hubAllocFactor, cf, 0.001, 'Factor matches CF');
     t.assertClose((WA+WB)/1000, 10, 0.1, 'Total = supply');
-    t.assertOK(entries.every(e => e.priority === 1), 'Default priority = 1');
+    t.assertOK(entries.every(e => e.priority === 2), 'Default priority = 2');  // [v13.1.0 S2-C]
   });
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -23867,9 +24331,11 @@ function runTests() {
 
     const srcOut = t.port(srcE, 'out');
     t.assertClose(srcOut.actual, 1500000, 100, 'Source actual = 1500 kW');
-    t.assertOK(srcOut.curtailmentFactor !== undefined, 'curtailmentFactor defined');
-    t.assertOK(srcOut.curtailmentFactor < 1.0, 'curtailmentFactor < 1 (overloaded)',
-      `cf=${srcOut.curtailmentFactor?.toFixed(4)}`);
+    // [v13.1.0 S2-pre] CF now in scratch, not on port
+    const srcScratch = t.scratch(srcE);
+    t.assertOK(srcScratch.directCurtailment !== undefined, 'directCurtailment defined');
+    t.assertOK(srcScratch.directCurtailment < 1.0, 'directCurtailment < 1 (overloaded)',
+      `cf=${srcScratch.directCurtailment?.toFixed(4)}`);
 
     // Conservation: sum of pump shaft work ≈ source actual
     const W1 = t.ud(pmp1).last.W_shaft || 0;
@@ -23883,7 +24349,7 @@ function runTests() {
     t.assertOK(t.ud(pmp2).last.curtailed, 'Pump2 curtailed');
 
     t.assertOK(isFinite(totalDraw) && totalDraw >= 0, 'No NaN/negative draw');
-    t.assertOK(isFinite(srcOut.curtailmentFactor), 'curtailmentFactor finite');
+    t.assertOK(isFinite(srcScratch.directCurtailment), 'directCurtailment finite');
   });
 
   test('Direct battery fanout also curtails', t => {
@@ -23911,9 +24377,11 @@ function runTests() {
 
     const batOut = t.port(bat, 'out');
     t.assertClose(batOut.actual, 1500000, 100, 'Battery actual = 1500 kW');
-    t.assertOK(batOut.curtailmentFactor !== undefined, 'curtailmentFactor defined');
-    t.assertOK(batOut.curtailmentFactor < 1.0, 'curtailmentFactor < 1',
-      `cf=${batOut.curtailmentFactor?.toFixed(4)}`);
+    // [v13.1.0 S2-pre] CF now in scratch, not on port
+    const batScratch = t.scratch(bat);
+    t.assertOK(batScratch.directCurtailment !== undefined, 'directCurtailment defined');
+    t.assertOK(batScratch.directCurtailment < 1.0, 'directCurtailment < 1',
+      `cf=${batScratch.directCurtailment?.toFixed(4)}`);
 
     const W1 = t.ud(pmp1).last.W_shaft || 0;
     const W2 = t.ud(pmp2).last.W_shaft || 0;
@@ -23925,7 +24393,7 @@ function runTests() {
     t.assertOK(t.ud(pmp2).last.curtailed, 'Pump2 curtailed');
 
     t.assertOK(isFinite(totalDraw) && totalDraw >= 0, 'No NaN/negative draw');
-    t.assertOK(isFinite(batOut.curtailmentFactor), 'curtailmentFactor finite');
+    t.assertOK(isFinite(batScratch.directCurtailment), 'directCurtailment finite');
   });
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -23948,9 +24416,8 @@ function runTests() {
     // [v6.4] Lifecycle semantic model
     t.assertOK(STREAM_CONTRACTS.POWER.lifecycle, 'POWER.lifecycle exists');
     t.assertOK(STREAM_CONTRACTS.POWER.lifecycle.capacity, 'lifecycle.capacity defined');
-    t.assertOK(STREAM_CONTRACTS.POWER.lifecycle.demand, 'lifecycle.demand defined');
+    // [v13.1.0 S2-pre] demand + curtailmentFactor removed from port lifecycle
     t.assertOK(STREAM_CONTRACTS.POWER.lifecycle.actual, 'lifecycle.actual defined');
-    t.assertOK(STREAM_CONTRACTS.POWER.lifecycle.curtailmentFactor, 'lifecycle.curtailmentFactor defined');
 
     // ── inferMaterialSpec ──
     t.assertOK(inferMaterialSpec({ T: 300 }) === 'fully', 'T only → fully');
@@ -24207,20 +24674,16 @@ function runTests() {
     t.assertOK(srcOut, 'Source out port exists');
     t.assertOK(srcOut.capacity !== undefined, 'Source: capacity present');
     t.assertOK(srcOut.actual !== undefined, 'Source: actual present');
-    t.assertOK(srcOut.demand !== undefined, 'Source: demand present');
-    t.assertOK(srcOut.curtailmentFactor !== undefined, 'Source: curtailmentFactor present');
+    // [v13.1.0 S2-pre] demand + curtailmentFactor no longer on port
 
     // ── Semantic invariants on source ──
     t.assertOK(srcOut.actual <= srcOut.capacity + 1,
       'Source: actual ≤ capacity', `actual=${srcOut.actual} cap=${srcOut.capacity}`);
-    if (isFinite(srcOut.demand) && srcOut.demand >= 0) {
-      t.assertOK(srcOut.actual <= srcOut.demand + 1,
-        'Source: actual ≤ demand', `actual=${srcOut.actual} demand=${srcOut.demand}`);
-    }
-    if (isFinite(srcOut.demand) && srcOut.demand > 0) {
-      const expectedCF = srcOut.actual / srcOut.demand;
-      t.assertClose(srcOut.curtailmentFactor, expectedCF, 0.001,
-        'Source: cf ≈ actual/demand');
+    // [v13.1.0 S2-pre] CF check uses scratch
+    const srcScratch = t.scratch(srcE);
+    if (srcScratch.directCurtailment !== undefined) {
+      t.assertOK(srcScratch.directCurtailment >= 0 && srcScratch.directCurtailment <= 1 + 1e-6,
+        'Source: directCurtailment in [0,1]');
     }
 
     // [v11.0.0] Pump shaft work checks (pumps are direct consumers now)
@@ -24237,9 +24700,8 @@ function runTests() {
     // ── STREAM_CONTRACTS.POWER.lifecycle exists ──
     t.assertOK(STREAM_CONTRACTS.POWER.lifecycle, 'POWER.lifecycle exists');
     t.assertOK(STREAM_CONTRACTS.POWER.lifecycle.capacity, 'lifecycle.capacity documented');
-    t.assertOK(STREAM_CONTRACTS.POWER.lifecycle.demand, 'lifecycle.demand documented');
+    // [v13.1.0 S2-pre] demand + curtailmentFactor removed from port lifecycle
     t.assertOK(STREAM_CONTRACTS.POWER.lifecycle.actual, 'lifecycle.actual documented');
-    t.assertOK(STREAM_CONTRACTS.POWER.lifecycle.curtailmentFactor, 'lifecycle.curtailmentFactor documented');
   });
 
   test('Hub allocation — per-consumer dispatch conservation', t => {
@@ -24286,8 +24748,8 @@ function runTests() {
     t.assertOK(hubOut, 'Hub elec_out exists');
     t.assertOK(hubOut.capacity !== undefined, 'Hub out: capacity present');
     t.assertOK(hubOut.actual !== undefined, 'Hub out: actual present');
-    t.assertOK(hubOut.demand !== undefined, 'Hub out: demand present');
-    t.assertOK(hubOut.curtailmentFactor !== undefined, 'Hub out: curtailmentFactor present');
+    // [v13.1.0 S2-pre] demand + CF in ud.last, not on port
+    t.assertOK(hubLast.curtailmentFactor !== undefined, 'Hub last: curtailmentFactor present');
 
     // ── Conservation: hub actual = gridDraw ──
     t.assertClose(hubOut.actual, hubLast.responsiveDraw_W, 100,
@@ -24309,6 +24771,326 @@ function runTests() {
     const p2W = t.ud(pmp2).last.W_shaft || 0;
     t.assertOK(p1W > 0, 'Pump1 drew power');
     t.assertOK(p2W > 0, 'Pump2 drew power');
+  });
+
+  test('Reactor isothermal demand detected by generic Step B', t => {
+    // [v13.1.0 S2-pre] Step B now uses generic powerDemand > 0 && isFinite() check
+    // instead of hard-coded pump/compressor/heater list.  This test verifies
+    // reactor_equilibrium in isothermal mode is properly detected.
+    const src = t.place('source_multi', 0, 0, { n: { CH4: 1, H2O: 3 }, T: 800, P: 300000, phaseConstraint: 'V' });
+    const rx  = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_SMR_OVERALL', useKinetics: false, alpha: 1.0, heatDemand: 'isothermal' });
+    const snk = t.place('sink', 8, 0);
+    t.wire(src, 'out', rx, 'mat_in');
+    t.wire(rx, 'mat_out', snk, 'in');
+
+    const gs  = t.place('grid_supply', 0, 6, { maxPower: 100 });
+    const hub = t.place('power_hub', 2, 6);
+    t.wire(gs, 'out', hub, 'elec_in');
+    t.wire(hub, 'elec_out', rx, 'elec_in');
+
+    t.solve();
+
+    const rxUD = t.ud(rx);
+    t.assertOK(rxUD.powerDemand > 0, 'Reactor has finite positive powerDemand');
+    t.assertOK(isFinite(rxUD.powerDemand), 'Reactor powerDemand is finite');
+
+    // Verify hub allocation includes reactor
+    const hubLast = t.ud(hub).last;
+    t.assertOK(hubLast.totalDemand_W > 0, 'Hub sees demand');
+    t.assertOK(hubLast.consumerAllocation, 'Hub has consumer allocation');
+
+    const rxAlloc = hubLast.consumerAllocation[rx];
+    t.assertOK(rxAlloc, 'Reactor has allocation entry');
+    t.assertOK(rxAlloc.allocated_W > 0, 'Reactor allocated > 0');
+
+    // Verify reactor received power and is active
+    const rxLast = rxUD.last;
+    t.assertOK(rxLast.status === 'active', 'Reactor active');
+    t.assertOK(rxLast.Q_in_W > 0, 'Reactor received power');
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // SECTION: S2-A — Overload, Fry, Serialization
+  // ═══════════════════════════════════════════════════════════════════════
+
+  test('checkOverload — threshold tiers', t => {
+    // [v13.1.0 S2-A] Pure function thresholds: ≤5% OK, 5-20% MINOR, 20-50% MAJOR, >50% CATASTROPHIC
+    const u = {};
+    const ok = PG.checkOverload(1000, 1000, u);
+    t.assertOK(!ok.overload, '1:1 ratio → no overload');
+    t.assertOK(!u.fried, 'Not fried at 1:1');
+
+    const u2 = {};
+    const warn = PG.checkOverload(1100, 1000, u2);  // 10% over
+    t.assertOK(warn.overload, '10% over → overload');
+    t.assertOK(warn.error.severity === ErrorSeverity.MINOR, '10% → MINOR');
+    t.assertOK(!u2.fried, 'Not fried at 10%');
+
+    const u3 = {};
+    const major = PG.checkOverload(1300, 1000, u3);  // 30% over
+    t.assertOK(major.overload, '30% over → overload');
+    t.assertOK(major.error.severity === ErrorSeverity.MAJOR, '30% → MAJOR');
+    t.assertOK(!u3.fried, 'Not fried at 30%');
+
+    const u4 = {};
+    const cata = PG.checkOverload(1600, 1000, u4);  // 60% over
+    t.assertOK(cata.overload, '60% over → overload');
+    t.assertOK(cata.error.severity === ErrorSeverity.CATASTROPHIC, '60% → CATASTROPHIC');
+    t.assertOK(u4.fried === true, 'Fried at 60%');
+  });
+
+  test('sink_electrical — finite demand and ratedPower_kW', t => {
+    // [v13.1.0 S2-A] sink_electrical now uses finite demand based on ratedPower_kW
+    const gs = t.place('grid_supply', 0, 0, { maxPower: 50 });
+    const hub = t.place('power_hub', 4, 0);
+    const sk = t.place('sink_electrical', 8, 0, { ratedPower_kW: 20 });
+    t.wire(gs, 'out', hub, 'elec_in');
+    t.wire(hub, 'elec_out', sk, 'in');
+    t.solve();
+    const skU = t.unit(sk);
+    const skUD = t.ud(sk);
+    t.assertOK(!skU.fried, 'Sink not fried (supply within rated)');
+    t.assertClose(skUD.last.absorbed_W, 20000, 100, 'Absorbed = 20 kW');
+    t.assertClose(skUD.last.rated_W, 20000, 1, 'Rated = 20 kW');
+    t.assertOK(skUD.powerDemand === 20000, 'Finite demand = 20 kW');
+  });
+
+  test('Fry guard — fried pump passes fluid through', t => {
+    // [v13.1.0 S2-A] Fried units output passthrough with CATASTROPHIC error
+    const src = t.place('source', 0, 0, { species: 'H2O', nDot: 5, T: 300, P: 200000, phaseConstraint: 'L' });
+    const pump = t.place('pump', 4, 0, { Pout: 500000, eta: 0.75 });
+    const snk = t.place('sink', 8, 0);
+    const gs = t.place('grid_supply', 0, 4, { maxPower: 50 });
+    const hub = t.place('power_hub', 2, 4);
+    t.wire(gs, 'out', hub, 'elec_in'); t.wire(hub, 'elec_out', pump, 'elec_in');
+    t.wire(src, 'out', pump, 'mat_in'); t.wire(pump, 'mat_out', snk, 'in');
+    // Pre-set fried before solve
+    t.unit(pump).fried = true;
+    t.solve();
+    const pumpUD = t.ud(pump);
+    t.assertOK(pumpUD.last.fried === true, 'last.fried = true');
+    t.assertOK(pumpUD.last.error?.severity === ErrorSeverity.CATASTROPHIC, 'CATASTROPHIC error');
+    // Fluid passes through at inlet P (no pressure increase)
+    const out = pumpUD.ports.mat_out;
+    t.assertClose(out.P, 200000, 1, 'Pout = Pin (passthrough)');
+    t.assertOK(pumpUD.powerDemand === 0, 'powerDemand = 0 when fried');
+  });
+
+  test('Fry guard — fried heater passes fluid through', t => {
+    const src = t.place('source', 0, 0, { species: 'N2', nDot: 1, T: 300, P: 101325, phaseConstraint: 'V' });
+    const htr = t.place('electric_heater', 4, 0, { T_out: 500 });
+    const snk = t.place('sink', 8, 0);
+    const gs = t.place('grid_supply', 0, 4, { maxPower: 50 });
+    const hub = t.place('power_hub', 2, 4);
+    t.wire(gs, 'out', hub, 'elec_in'); t.wire(hub, 'elec_out', htr, 'elec_in');
+    t.wire(src, 'out', htr, 'mat_in'); t.wire(htr, 'mat_out', snk, 'in');
+    t.unit(htr).fried = true;
+    t.solve();
+    const htrUD = t.ud(htr);
+    t.assertOK(htrUD.last.fried === true, 'last.fried = true');
+    // Fluid passes through unheated
+    const out = htrUD.ports.mat_out;
+    t.assertClose(out.T, 300, 1, 'T_out ≈ T_in (no heating)');
+  });
+
+  test('Fry state survives export/import', t => {
+    const gs = t.place('grid_supply', 0, 0, { maxPower: 50 });
+    const hub = t.place('power_hub', 4, 0);
+    const sk = t.place('sink_electrical', 8, 0, { ratedPower_kW: 10 });
+    t.wire(gs, 'out', hub, 'elec_in');
+    t.wire(hub, 'elec_out', sk, 'in');
+    // Pre-fry the sink
+    t.unit(sk).fried = true;
+    t.solve();
+    // Export and reimport
+    const json = scene.exportJSON();
+    const scene2 = PG.createScene();
+    const result = scene2.importJSON(json);
+    t.assertOK(result.ok, 'Import OK');
+    // Find the reimported sink
+    let reimportedFried = false;
+    for (const [uid, u] of scene2.units) {
+      if (u.defId === 'sink_electrical' && u.fried === true) reimportedFried = true;
+    }
+    t.assertOK(reimportedFried, 'Fried state survives export/import');
+  });
+
+  test('Bus cascade — surplus within absorber capacity → no fry', t => {
+    // Turbine (physics-fixed) → hub → compressor (small demand).
+    // Surplus → adequately sized sink_electrical on elec_surplus.
+    // Nobody gets fried.
+    const sSrc = t.place('source', 0, 0, { species: 'N2', nDot: 2, T: 573.15, P: 500000, phaseConstraint: 'V' });
+    const turb = t.place('gas_turbine', 4, 0, { Pout: 100000, eta: 0.85 });
+    const skGas = t.place('sink', 8, 0);
+    const hub = t.place('power_hub', 4, 4);
+    const dump = t.place('sink_electrical', 8, 4, { ratedPower_kW: 1000 }); // 1 MW — way more than surplus
+    const sCold = t.place('source', 0, 8, { species: 'N2', nDot: 0.1, T: 298.15, P: 100000, phaseConstraint: 'V' });
+    const comp = t.place('compressor', 8, 8, { Pout: 200000, eta: 0.75 });
+    const skComp = t.place('sink', 12, 8);
+    t.wire(sSrc, 'out', turb, 'mat_in'); t.wire(turb, 'mat_out', skGas, 'in');
+    t.wire(turb, 'elec_out', hub, 'elec_in');
+    t.wire(hub, 'elec_out', comp, 'elec_in');
+    t.wire(hub, 'elec_surplus', dump, 'in');
+    t.wire(sCold, 'out', comp, 'mat_in'); t.wire(comp, 'mat_out', skComp, 'in');
+    t.solve();
+    t.assertOK(!t.unit(comp).fried, 'Compressor not fried');
+    t.assertOK(!t.unit(dump).fried, 'Dump load not fried');
+    t.assertOK(!t.unit(hub).last?.error, 'Hub no error');
+    t.assertOK(t.port(comp, 'mat_out')?.P > 100000, 'Compressor operates normally');
+  });
+
+  test('Bus cascade — surplus exceeds absorber → all consumers fried', t => {
+    // Turbine → hub → compressor. Tiny (1 W) dump load on elec_surplus.
+    // Surplus vastly exceeds absorber → bus failure → compressor fried.
+    const sSrc = t.place('source', 0, 0, { species: 'N2', nDot: 2, T: 573.15, P: 500000, phaseConstraint: 'V' });
+    const turb = t.place('gas_turbine', 4, 0, { Pout: 100000, eta: 0.85 });
+    const skGas = t.place('sink', 8, 0);
+    const hub = t.place('power_hub', 4, 4);
+    const dump = t.place('sink_electrical', 8, 4, { ratedPower_kW: 0.001 }); // 1 W — grossly undersized
+    const sCold = t.place('source', 0, 8, { species: 'N2', nDot: 0.1, T: 298.15, P: 100000, phaseConstraint: 'V' });
+    const comp = t.place('compressor', 8, 8, { Pout: 200000, eta: 0.75 });
+    const skComp = t.place('sink', 12, 8);
+    t.wire(sSrc, 'out', turb, 'mat_in'); t.wire(turb, 'mat_out', skGas, 'in');
+    t.wire(turb, 'elec_out', hub, 'elec_in');
+    t.wire(hub, 'elec_out', comp, 'elec_in');
+    t.wire(hub, 'elec_surplus', dump, 'in');
+    t.wire(sCold, 'out', comp, 'mat_in'); t.wire(comp, 'mat_out', skComp, 'in');
+    t.solve();
+    t.assertOK(t.unit(comp).fried === true, 'Compressor fried by bus overvoltage');
+    t.assertOK(t.unit(dump).fried === true, 'Dump load fried (overloaded)');
+    const hubLast = t.unit(hub).last;
+    t.assertOK(hubLast.error?.severity === ErrorSeverity.CATASTROPHIC, 'Hub CATASTROPHIC');
+    t.assertOK(hubLast.error?.message?.includes('unabsorbed'), 'Message mentions unabsorbed');
+  });
+
+  test('Bus cascade — no absorber at all → all consumers fried', t => {
+    // Turbine → hub → heater. elec_surplus NOT connected. Surplus exists.
+    const sSrc = t.place('source', 0, 0, { species: 'N2', nDot: 2, T: 573.15, P: 500000, phaseConstraint: 'V' });
+    const turb = t.place('gas_turbine', 4, 0, { Pout: 100000, eta: 0.85 });
+    const skGas = t.place('sink', 8, 0);
+    const hub = t.place('power_hub', 4, 4);
+    const sCold = t.place('source', 0, 8, { species: 'N2', nDot: 0.1, T: 298.15, P: 100000, phaseConstraint: 'V' });
+    const htr = t.place('electric_heater', 8, 8, { T_out: 350 });
+    const skHtr = t.place('sink', 12, 8);
+    t.wire(sSrc, 'out', turb, 'mat_in'); t.wire(turb, 'mat_out', skGas, 'in');
+    t.wire(turb, 'elec_out', hub, 'elec_in');
+    t.wire(hub, 'elec_out', htr, 'elec_in');
+    t.wire(sCold, 'out', htr, 'mat_in'); t.wire(htr, 'mat_out', skHtr, 'in');
+    // elec_surplus deliberately NOT connected
+    t.solve();
+    t.assertOK(t.unit(htr).fried === true, 'Heater fried by bus overvoltage');
+    const hubLast = t.unit(hub).last;
+    t.assertOK(hubLast.error?.severity === ErrorSeverity.CATASTROPHIC, 'Hub CATASTROPHIC');
+    t.assertOK(hubLast.error?.message?.includes('no dump load'), 'Message mentions no dump load');
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // SECTION: S2-C — Priority Allocation
+  // ═══════════════════════════════════════════════════════════════════════
+
+  test('allocateByPriority — basic priority shedding', t => {
+    // 3 consumers: priority 1 (5 kW), priority 2 (10 kW), priority 3 (8 kW)
+    // Supply = 12 kW. Priority 1 gets full 5 kW, priority 2 gets full 7 kW remaining → 7/10, priority 3 gets 0.
+    const demands = [
+      { id: 'A', amount: 5000, priority: 1 },
+      { id: 'B', amount: 10000, priority: 2 },
+      { id: 'C', amount: 8000, priority: 3 }
+    ];
+    const result = PG.allocateByPriority(demands, 12000);
+    const rA = result.find(r => r.id === 'A');
+    const rB = result.find(r => r.id === 'B');
+    const rC = result.find(r => r.id === 'C');
+    t.assertClose(rA.allocated, 5000, 1, 'Priority 1 fully served');
+    t.assertClose(rB.allocated, 7000, 1, 'Priority 2 gets remainder (7 kW of 10 kW)');
+    t.assertClose(rC.allocated, 0, 1, 'Priority 3 gets nothing');
+    const total = result.reduce((s, r) => s + r.allocated, 0);
+    t.assertClose(total, 12000, 1, 'Total = supply');
+  });
+
+  test('allocateByPriority — same priority proportional', t => {
+    // 3 consumers all priority 2, different demands. Supply < total.
+    const demands = [
+      { id: 'A', amount: 6000, priority: 2 },
+      { id: 'B', amount: 3000, priority: 2 },
+      { id: 'C', amount: 1000, priority: 2 }
+    ];
+    const result = PG.allocateByPriority(demands, 5000);
+    // Total demand = 10000, supply = 5000 → factor = 0.5 for all
+    const rA = result.find(r => r.id === 'A');
+    const rB = result.find(r => r.id === 'B');
+    const rC = result.find(r => r.id === 'C');
+    t.assertClose(rA.allocated, 3000, 1, 'A gets 50% of 6 kW');
+    t.assertClose(rB.allocated, 1500, 1, 'B gets 50% of 3 kW');
+    t.assertClose(rC.allocated, 500, 1, 'C gets 50% of 1 kW');
+    const total = result.reduce((s, r) => s + r.allocated, 0);
+    t.assertClose(total, 5000, 1, 'Total = supply');
+  });
+
+  test('allocateByPriority — ample supply serves all', t => {
+    const demands = [
+      { id: 'A', amount: 5000, priority: 1 },
+      { id: 'B', amount: 3000, priority: 3 }
+    ];
+    const result = PG.allocateByPriority(demands, 100000);
+    t.assertClose(result[0].allocated, 5000, 1, 'A fully served');
+    t.assertClose(result[1].allocated, 3000, 1, 'B fully served');
+  });
+
+  test('Hub priority shedding — critical consumer survives curtailment', t => {
+    // Hub with 4 kW supply. Compressor (priority 1, ~2.1 kW demand) + heater (priority 3, ~4.4 kW).
+    // Compressor should be fully served, heater curtailed.
+    const gs = t.place('grid_supply', 0, 0, { maxPower: 4 });
+    const hub = t.place('power_hub', 4, 0);
+    const surp = t.place('sink_electrical', 4, -4);
+    const sN2 = t.place('source', 0, 6, { species: 'N2', nDot: 0.5, T: 298.15, P: 100000, phaseConstraint: 'V' });
+    const comp = t.place('compressor', 8, 0, { Pout: 300000, eta: 0.75, powerPriority: 1 });
+    const skComp = t.place('sink', 12, 0);
+    const sN2b = t.place('source', 0, 10, { species: 'N2', nDot: 0.5, T: 298.15, P: 101325, phaseConstraint: 'V' });
+    const htr = t.place('electric_heater', 8, 6, { T_out: 600, powerPriority: 3 });
+    const skHtr = t.place('sink', 12, 6);
+    t.wire(gs, 'out', hub, 'elec_in');
+    t.wire(hub, 'elec_surplus', surp, 'in');
+    t.wire(hub, 'elec_out', comp, 'elec_in');
+    t.wire(hub, 'elec_out', htr, 'elec_in');
+    t.wire(sN2, 'out', comp, 'mat_in'); t.wire(comp, 'mat_out', skComp, 'in');
+    t.wire(sN2b, 'out', htr, 'mat_in'); t.wire(htr, 'mat_out', skHtr, 'in');
+    t.solve();
+    const hubLast = t.unit(hub).last;
+    const alloc = hubLast.consumerAllocation;
+    t.assertOK(alloc, 'Allocation exists');
+    if (!alloc) return;
+    const compAlloc = alloc[comp];
+    const htrAlloc = alloc[htr];
+    t.assertOK(compAlloc, 'Compressor has allocation');
+    t.assertOK(htrAlloc, 'Heater has allocation');
+    // Compressor (priority 1) should be fully served
+    t.assertClose(compAlloc.factor, 1.0, 0.01, 'Compressor factor ≈ 1 (fully served)');
+    // Heater (priority 3) should be curtailed
+    t.assertOK(htrAlloc.factor < 1.0, 'Heater curtailed', htrAlloc.factor?.toFixed(3));
+    t.assertOK(compAlloc.priority === 1, 'Compressor priority = 1');
+    t.assertOK(htrAlloc.priority === 3, 'Heater priority = 3');
+  });
+
+  test('Fry reset — delete u.fried restores normal operation', t => {
+    const src = t.place('source', 0, 0, { species: 'H2O', nDot: 5, T: 300, P: 200000, phaseConstraint: 'L' });
+    const pump = t.place('pump', 4, 0, { Pout: 500000, eta: 0.75 });
+    const snk = t.place('sink', 8, 0);
+    const gs = t.place('grid_supply', 0, 4, { maxPower: 50 });
+    const hub = t.place('power_hub', 2, 4);
+    const surp = t.place('sink_electrical', 2, -2);
+    t.wire(gs, 'out', hub, 'elec_in'); t.wire(hub, 'elec_out', pump, 'elec_in');
+    t.wire(hub, 'elec_surplus', surp, 'in');
+    t.wire(src, 'out', pump, 'mat_in'); t.wire(pump, 'mat_out', snk, 'in');
+    // Fry the pump, solve, verify fried
+    t.unit(pump).fried = true;
+    t.solve();
+    t.assertOK(t.ud(pump).last.fried === true, 'Pump fried');
+    t.assertClose(t.port(pump, 'mat_out')?.P, 200000, 1, 'Passthrough P = inlet');
+    // Reset and solve again
+    delete t.unit(pump).fried;
+    t.solve();
+    t.assertOK(!t.unit(pump).fried, 'Pump not fried after reset');
+    t.assertOK(t.port(pump, 'mat_out')?.P > 200000, 'Pump pressurizing again', t.port(pump, 'mat_out')?.P);
   });
 
   test('normalizeNonMaterialStream — complete normalization', t => {
@@ -30518,8 +31300,9 @@ function runTests() {
 
   test('351: v13.0.8 — check-valve: mixer zeroes low-P inlet', t => {
     // Two sources at different pressures, ΔP > 0.1 bar → weaker inlet zeroed
-    const src1 = t.place('source', 0, 0, { T: 300, P: 500000, n: { N2: 1 }, phaseConstraint: 'V' });
-    const src2 = t.place('source', 0, 3, { T: 300, P: 101325, n: { N2: 1 }, phaseConstraint: 'V' });
+    // [fix] source reads par.species/par.nDot, not par.n
+    const src1 = t.place('source', 0, 0, { species: 'N2', nDot: 1, T: 300, P: 500000, phaseConstraint: 'V' });
+    const src2 = t.place('source', 0, 3, { species: 'N2', nDot: 1, T: 300, P: 101325, phaseConstraint: 'V' });
     const mix  = t.place('mixer', 3, 0);
     const snk  = t.place('sink', 6, 0);
     t.wire(src1, 'out', mix, 'in1');
