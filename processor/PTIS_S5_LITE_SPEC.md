@@ -1,6 +1,6 @@
 # PTIS S5-lite SPEC (v4 — FINAL)
 ## S5-lite — Tank Physics + Cv Flow
-### processThis v13.6.0 → v14.0.0
+### processThis v13.7.0 → v14.0.0
 
 ---
 
@@ -26,7 +26,7 @@ trace added to solver (~60 lines).
 **Dependencies:** S3 (PR liquid density for computeTankState). S1
 (alarm infrastructure: ErrorSeverity, ctx.warn, alarm bridge).
 
-**Baseline state (v13.6.0):**
+**Baseline state (v13.7.0):**
 - Tank: 3-port (mat_in, mat_out, overflow), P = inlet P, drawRate = magic
 - Valve: isenthalpic, Pout mode only
 - Sink: absorbs everything, no physics
@@ -641,15 +641,17 @@ Both safety systems use k-values proportional to tank volume.
 Hardcoded constants, not in profiles, not player-editable.
 
 ```javascript
-const K_RELIEF_BASE = 1.5e-3;    // mol/(s·Pa·m³)
-const K_OVERFLOW_BASE = 80;      // mol/(s·%·m³)
+const K_RELIEF_BASE = 0.5;        // mol/(s·Pa·m³) — sized so even 0.01 bar overshoot >> max feed
+const K_OVERFLOW_BASE = 1e4;      // mol/(s·%·m³)  — sized so even 0.1% overlevel >> max feed
 ```
 
 Relief: `Q_vent = K_RELIEF_BASE × V × (P_tank − P_relief)`
 Overflow: `Q_overflow = K_OVERFLOW_BASE × V × (level − overflow_level)`
 
-Both self-correcting. Safety devices overwhelm reasonable process
-inflows at pilot scale.
+Both self-correcting. Constants intentionally oversized so any
+overshoot self-corrects within a fraction of a percent — effectively
+hard clamps while remaining finite and proportional. Never needs
+tuning.
 
 **Tick logic:**
 
@@ -1293,181 +1295,100 @@ system generation.
 
 ---
 
-### F-012. TimeClock Fixes (Pre-requisite)
+### F-012. TimeClock Interim Fixes (Pre-requisite)
 
-Six bugs in the time system that will break S5-lite tank physics if
-left unfixed. Implemented as S5a-0 before any tank/trace work.
+Minimal fixes so S5-lite tank tests can rely on step/reset. The full
+simulation loop redesign (mode elimination, checkpoints, catastrophic
+events) is deferred to **S-SIM phase** — see `PTIS_S_SIM_SPEC.md`.
 
-**Bug inventory:**
+**Bugs found during audit:**
 
-| # | Bug | Root cause | Impact on S5-lite |
-|---|---|---|---|
-| 1 | Import sets t=0, reset sets t=43200 | Hardcoded literals disagree | Minor: cosmetic time jump |
-| 2 | Test button poisons reset snapshot | btnTest sets mode='test' without restoring inventory; next Step captures modified state as "initial" | **Critical:** reset never works after Test→Step cycle |
-| 3 | Tank tick uses dt in steady-state Cv cap | `actualDraw = min(drawRate, total/dt)` — dt-dependent flow inside solver iteration | **Critical for old model only** — S5-lite Cv equation has no dt. Documenting as root cause of Denis's observed "first run ≠ subsequent run" behavior |
-| 4 | Units placed mid-sim have no reset snapshot | `_captureInitial` runs once on first Step | Moderate: reset leaves mid-sim units at current state |
-| 5 | Export loses time context | t, frame, _initial not serialized | Moderate: exported scenes lose timeline |
-| 6 | `_reinitInventoryIfTest` silent in paused mode | Guard `mode !== 'test'` blocks param changes from reinitializing | Minor: known, by design. Documented. |
+| # | Bug | Status |
+|---|---|---|
+| 1 | Import t=0 vs reset t=43200 | **Fixed in v13.7.0** |
+| 2 | Test button poisons reset snapshot | **Fix: disable when mode ≠ 'test'** |
+| 3 | Tank tick dt-in-solver | **S5-lite replaces entire tick** |
+| 4 | Mid-sim units missing from snapshot | **Fix: step() captures uncaptured units** |
+| 5 | Export loses time context | **Fix: version 17** |
+| 6 | _reinitInventoryIfTest in paused mode | **By design, documented** |
+
+Note: Bugs 2 and 4 use _captureInitial / _restoreInitial which will
+be replaced by the checkpoint system in S-SIM. These are interim
+fixes — correct but temporary.
 
 **Fix 1: T0 constant.**
 
 ```javascript
-// At module level, next to TimeClock:
 const T0_SECONDS = 43200;  // noon Day 1 — universal base time
-
-// TimeClock initialization:
-const TimeClock = {
-  t: T0_SECONDS,
-  // ...
-};
-
-// TimeClock.reset:
-reset(scene) {
-  TimeClock._restoreInitial(scene);
-  TimeClock.t = T0_SECONDS;
-  // ...
-}
-
-// importJSON:
-TimeClock.t = T0_SECONDS;  // was: 0
+// Used in: TimeClock.t init, reset(), importJSON
+// DRY cleanup of existing correct code (v13.7.0 already fixed import)
 ```
 
-**Fix 2: Test button restores inventory.**
-
-The Test button means "go back to design mode and re-solve the
-initial state." It must restore inventories, not just flip the mode
-flag. Without this, reset is permanently broken after any Test→Step
-cycle.
+**Fix 2: Disable Test button outside test mode.**
 
 ```javascript
-btnTest.addEventListener('click', () => {
-  stopPlay();
-  // Restore inventories to initial snapshot (same as reset)
-  TimeClock._restoreInitial(scene);
-  TimeClock.t = T0_SECONDS;
-  TimeClock.frame = 0;
-  TimeClock.mode = 'test';
-  const solveResult = solveScene(scene);
-  setStatus(describeSolve());
-  afterSolve(solveResult);
-});
+// In updateTransportUI():
+btnTest.disabled  = mode !== 'test';   // design-mode only
+btnReset.disabled = mode === 'test';   // simulation-mode only
 ```
 
-This makes Test equivalent to Reset except the UI stays in
-"design mode" (test). Player experience: Test = "start over and
-let me re-solve without advancing time."
+Test button removed entirely in S-SIM phase. For now, just prevent
+the snapshot poisoning by making it unreachable after stepping.
 
-**Fix 3: Document old tank dt bug (no code change).**
-
-The old tank tick computes `actualDraw = min(drawRate, total / dt)`.
-This cap is dt-dependent: with dt=3600, a 6 mol inventory caps draw
-to 0.0017 mol/s — the solver converges to a false steady-state where
-inlet ≈ outlet and level appears static. On the second run (after
-one updateInventory call adds 3600 mol), the cap lifts and behavior
-changes.
-
-S5-lite eliminates this: the Cv equation `Q = Cv × (opening/100)
-× √(ΔP / (SG × 1e5))` has no dt. Flow is purely a function of
-tank state (P, composition) and downstream pressure. dt only
-appears in updateInventory where it belongs.
-
-No code change — the old tank tick is being replaced entirely.
-Documenting for the test migration: old tests 170–172 used
-drawRate and will be deleted, not adapted.
+**Fix 3: Document only.** S5-lite Cv equation has no dt in the solver.
 
 **Fix 4: Capture mid-sim units.**
 
 ```javascript
-step(scene) {
-  if (TimeClock.mode === 'test') {
-    // Initialize inventories on first step
-    for (const [uid, u] of scene.units) {
-      const def = UnitRegistry.get(u.defId);
-      if (def && def.inventory && def.initInventory && !u.inventory) {
-        u.inventory = def.initInventory(u.params);
-      }
-    }
-    TimeClock._captureInitial(scene);
-    TimeClock.mode = 'paused';
-  }
-
-  // ── NEW: capture any units added since last capture ──
-  if (TimeClock._initial) {
-    for (const [uid, u] of scene.units) {
-      if (u.inventory && !TimeClock._initial.has(uid)) {
-        TimeClock._initial.set(uid,
-          JSON.parse(JSON.stringify(u.inventory)));
-      }
+// In step(), after the test→paused block:
+if (TimeClock._initial) {
+  for (const [uid, u] of scene.units) {
+    if (u.inventory && !TimeClock._initial.has(uid)) {
+      TimeClock._initial.set(uid,
+        JSON.parse(JSON.stringify(u.inventory)));
     }
   }
-
-  // ... rest of step unchanged
 }
 ```
 
-**Fix 5: Export/import time context.**
-
-Export version bump: 16 → 17.
+**Fix 5: Export/import time context (version 17).**
 
 ```javascript
-// exportJSON additions:
+// Export:
 data.version = 17;
-data.time = {
-  t: TimeClock.t,
-  frame: TimeClock.frame,
-  mode: TimeClock.mode   // 'test' | 'paused'
-};
-// Per-unit: save initial snapshot alongside current inventory
-for (const unitData of data.units) {
-  if (TimeClock._initial) {
-    const init = TimeClock._initial.get(unitData.id);
-    if (init) unitData.inventoryInitial = init;
-  }
-}
+data.time = { t: TimeClock.t, frame: TimeClock.frame };
+// Per-unit: inventoryInitial from _initial map
 
-// importJSON additions (version ≥ 17):
-if (data.time) {
-  TimeClock.t = data.time.t ?? T0_SECONDS;
-  TimeClock.frame = data.time.frame ?? 0;
-  TimeClock.mode = data.time.mode === 'paused' ? 'paused' : 'test';
-} else {
-  // Legacy (version ≤ 16): reset to base
-  TimeClock.t = T0_SECONDS;  // was: 0
-  TimeClock.frame = 0;
-  TimeClock.mode = 'test';
-}
+// Import (v17+):
+TimeClock.t = data.time?.t ?? T0_SECONDS;
+TimeClock.frame = data.time?.frame ?? 0;
+TimeClock.mode = 'test';  // always start in test on import (S-SIM will change to 'paused')
+// Restore _initial from inventoryInitial
 
-// Restore _initial from saved data
-TimeClock._initial = null;
-for (const u of data.units) {
-  if (u.inventoryInitial) {
-    if (!TimeClock._initial) TimeClock._initial = new Map();
-    TimeClock._initial.set(u.id, u.inventoryInitial);
-  }
-}
+// Import (v16 legacy): t = T0_SECONDS (already correct in v13.7.0)
 ```
 
-**Fix 6: No code change.** `_reinitInventoryIfTest` is correct — param
-changes during simulation should NOT reset inventory. Documented in
-Bug 6 rationale above. If a player needs to fix initial fill, they
-reset first.
+**Fix 6: No code change.** Documented.
 
 ---
 
 ## Tests (~55 new)
 
-### TimeClock Fixes (T-TC01–T-TC08)
+### TimeClock Interim Fixes (T-TC01–T-TC08)
 
 | # | Test | Assert |
 |---|------|--------|
 | TC01 | Step from test mode | t = T0 + dt, frame = 1, mode = 'paused' |
 | TC02 | Reset after stepping | t = T0, frame = 0, mode = 'test', inventory = initial |
-| TC03 | Test button after stepping restores inventory | Step 5×, click Test (mode='test' + restore), Step again → _captureInitial captures ORIGINAL state, not stepped state |
-| TC04 | Test→Step→Test→Step cycle: reset still works | Step 3×, Test, Step 3×, Reset → inventory = original |
+| TC03 | Test button disabled after stepping | Step 1×, check btnTest.disabled === true |
+| TC04 | Test button re-enabled after reset | Step 3×, Reset, check btnTest.disabled === false |
 | TC05 | Unit placed mid-sim gets snapshot | Step 2×, place new inventory unit, Step 1×, Reset → new unit inventory = state at placement |
-| TC06 | Export at frame 5, import: t/frame/mode restored | Export, import, check t = T0 + 5×dt, frame = 5 |
-| TC07 | Export _initial, import, reset: original inventory restored | Step 5×, export, import, reset → inventory = original |
-| TC08 | Legacy import (version ≤ 16): t = T0 (not 0) | Import v16 JSON, check t = 43200 |
+| TC06 | Export at frame 5, import: t/frame restored | Export, import, check t = T0 + 5×dt, frame = 5 |
+| TC07 | Export _initial, import, reset: inventory restored | Step 5×, export, import, reset → inventory = original |
+| TC08 | Legacy import (version ≤ 16): t = T0 | Import v16 JSON, check t = 43200 (regression guard) |
+
+Note: TC01–TC05 are interim — will be replaced by T-SM01–SM06 in
+S-SIM phase (mode='test' eliminated, reset → restore checkpoint).
 
 ### computeTankState (T-PS01–T-PS06)
 
@@ -1568,17 +1489,15 @@ reset first.
 ## Implementation Checklist
 
 ```
-S5a-0 (TimeClock fixes — prerequisite):
-  [ ] T0_SECONDS constant (43200) — replace all hardcoded literals
-  [ ] Fix import: t = T0_SECONDS (was 0)
-  [ ] Fix Test button: restore inventories + reset t/frame before re-solve
-  [ ] Fix _captureInitial gap: step() captures mid-sim units
-  [ ] Export version 17: save t, frame, mode, inventoryInitial
-  [ ] Import version 17: restore t, frame, mode, _initial
-  [ ] Legacy import (≤ 16): t = T0_SECONDS (backward compat)
+S5a-0 (TimeClock interim fixes — prerequisite, replaced by S-SIM later):
+  [ ] T0_SECONDS constant (43200) — DRY cleanup
+  [ ] Disable Test button when mode !== 'test' (updateTransportUI)
+  [ ] Capture mid-sim units in step() (_initial gap fix)
+  [ ] Export version 17: save t, frame, inventoryInitial
+  [ ] Import version 17: restore t, frame, _initial
   [ ] Delete old tank tests 169–174 (old model, replaced in S5a-2)
   [ ] Adapt tests 160–161 (t=0 start → T0_SECONDS)
-  [ ] Tests T-TC01–T-TC08
+  [ ] Tests T-TC01–T-TC08 (interim, replaced by T-SM* in S-SIM)
   [ ] Regression gate: 399 − 6 (deleted) + 8 (new) = 401
 
 S5a-1 (computeTankState + trace):
@@ -1633,6 +1552,7 @@ S5a-3 (integration + regression):
 
 | Topic | Status |
 |---|---|
+| **S-SIM: Simulation loop redesign** | **Separate phase — see PTIS_S_SIM_SPEC.md** |
 | Source consolidation | Separate cleanup session |
 | Port naming harmonization | Separate cleanup session |
 | S5-advanced (k_resistance, passive tee, zones) | ~480 lines, on demand |

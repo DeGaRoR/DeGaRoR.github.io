@@ -1,5 +1,5 @@
 # S5-lite Phase Tracker
-## v13.6.0 → v14.0.0
+## v13.7.0 → v14.0.0
 
 ---
 
@@ -19,15 +19,17 @@
 - [x] Tank: P emergent from computeTankState(), no tankMode parameter
 - [x] Tank: dual Cv outlets (vapor/liquid phase draws)
 - [x] Tank: relief valve (P_relief) + overflow (overflow_level), both always active
-- [x] Tank: safety k-values hardcoded proportional to V, not in profiles
+- [x] Tank: safety k-values oversized (effectively hard clamps, never needs tuning)
 - [x] Tank: initInventory from (composition, T_init, P_init) or (composition, T_init, level_init)
 - [x] Tank: adiabatic mixing for T evolution in updateInventory
 - [x] Tank: 2h x 3w footprint with port labels
 - [x] Tank dP alarm: distinguishes equalized (dP=0) from reverse (dP<0)
-- [x] TimeClock audit: 6 bugs identified, F-012 spec written
+- [x] TimeClock audit: 6 bugs identified, interim F-012 bridge written
+- [x] Bug 1 (import t=0) already fixed by Denis in v13.7.0
+- [x] S-SIM spec written for full simulation loop redesign (post-S5)
 - [x] S5-advanced scope reduced (~480 lines residual, passive tee if needed)
 - [x] 20 scenarios validated against S5-full formula
-- [x] S5-lite spec v6 FINAL
+- [x] S5-lite spec v7 FINAL
 
 ## Open Design Decisions
 
@@ -37,18 +39,16 @@
 
 ---
 
-## S5a-0: TimeClock fixes (prerequisite)
+## S5a-0: TimeClock interim fixes (prerequisite, replaced by S-SIM later)
 
-- [ ] T0_SECONDS constant (43200) — replace all hardcoded literals
-- [ ] Fix import: t = T0_SECONDS (was 0)
-- [ ] Fix Test button: restore inventories + reset t/frame before re-solve
-- [ ] Fix _captureInitial gap: step() captures mid-sim units
-- [ ] Export version 17: save t, frame, mode, inventoryInitial
-- [ ] Import version 17: restore t, frame, mode, _initial
-- [ ] Legacy import (<=16): t = T0_SECONDS (backward compat)
+- [ ] T0_SECONDS constant (43200) — DRY cleanup
+- [ ] Disable Test button when mode !== 'test' (updateTransportUI)
+- [ ] Capture mid-sim units in step() (_initial gap fix)
+- [ ] Export version 17: save t, frame, inventoryInitial
+- [ ] Import version 17: restore t, frame, _initial
 - [ ] Delete old tank tests 169-174 (old model, replaced in S5a-2)
 - [ ] Adapt tests 160-161 (t=0 start -> T0_SECONDS)
-- [ ] Tests T-TC01-T-TC08
+- [ ] Tests T-TC01-T-TC08 (interim, replaced by T-SM* in S-SIM)
 - [ ] Regression gate: 399 - 6 + 8 = 401
 
 ## S5a-1: computeTankState + trace + helpers
@@ -101,6 +101,17 @@
 
 ---
 
+## Subsequent Phases
+
+| Phase | Spec | Scope |
+|---|---|---|
+| **S-SIM** | PTIS_S_SIM_SPEC.md | Mode elimination, checkpoint system, catastrophic events, auto-solve-on-edit, Restore UX |
+| S-CLEAN | PTIS_S_CLEAN_SPEC.md | Source consolidation, port naming, electrical boundaries |
+| S-CLIMATE | (not yet written) | Day/night T_atm(t), humidity variation |
+| S5-advanced | PTIS_S5_ADVANCED_SPEC.md | k_resistance, passive tee, zones, loop convergence |
+
+---
+
 ## Deferred (not S5-lite scope)
 
 | Topic | When |
@@ -114,5 +125,5 @@
 | S5-advanced: pressure loop convergence | On demand (~150 lines) |
 | Sink J-T correction (PR real gas) | Future enhancement |
 | Alarm refinement (code field, cause->consequence, INFO path) | Alarm sprint |
-| Tank sub-stepping (internal dt subdivision) | Future: accurate safety integration at large dt |
-| Adaptive dt (auto-adjust based on inventory rate-of-change) | Future |
+| Tank sub-stepping (internal dt subdivision) | Future |
+| Adaptive dt | Future |

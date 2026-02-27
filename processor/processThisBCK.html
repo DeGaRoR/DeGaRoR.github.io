@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v13.7.0
+  processThis v13.6.0
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -289,34 +289,6 @@
   ═══════════════════════════════════════════════════════════════════════════
 
   ─── v13.3.0 — S3: Peng-Robinson Equation of State ──────────────────────
-
-  ─── v13.7.0 — Time Sync + Auto-Apply Atmosphere + Import Time Fix ─────────
-  399 tests, 2407 assertions, 0 failures.
-
-  Import time bug fix:
-  - importJSON now sets TimeClock.t = 43200 (noon) instead of 0 (midnight),
-    matching the TimeClock initial value, reset() target, and CSS animation
-    start phase. Display now correctly shows "Day 1, 12H" after import.
-
-  Atmosphere auto-apply:
-  - Clicking a planet card in the Atmosphere modal now immediately applies
-    the preset, re-solves, and updates the background. No Apply button needed.
-  - Apply button retained only for Custom (editable fields need explicit commit).
-  - Modal stays open after apply for quick comparison switching.
-
-  CSS animation ↔ game time synchronization:
-  - syncPlanetBgTime(): snaps animation phase to TimeClock.t on every step,
-    reset, and play start/stop. Uses CSS variable update + forced animation
-    restart to set exact phase position.
-  - Play mode: dynamically sets --XX-cycle to match play rate
-    (cycleDuration = (86400/dt) × playSpeedMs/1000), so animation runs at
-    the exact pace of game time. Speed changes during play re-sync.
-  - Step mode: snaps to exact game time on each step, then ambient animations
-    continue freely between steps.
-  - Pause: animations continue at last synced rate (no freeze — ambient
-    elements like clouds/terrain sway keep moving for visual life).
-  - Reset: snaps back to noon phase.
-  - NNG-3: visual only. NNG-9: no tick reads animation state. NNG-11: DOM-only.
 
   ─── v13.6.0 — Multi-Planet Background Animations + Atmosphere Modal ───────
   399 tests, 2407 assertions, 0 failures.
@@ -5941,10 +5913,6 @@
 
     /* SVG transparent mode when planet bg is active */
     #svg.bg-transparent { background: transparent !important; }
-    /* [v13.7.0] Force-restart all animations for time sync */
-    .anim-reset, .anim-reset * { animation: none !important; }
-    /* [v13.7.0] Freeze animations when not playing */
-    .anim-paused, .anim-paused * { animation-play-state: paused !important; }
 
     /* ===== ATMOSPHERE MODAL [v13.6.0] ===== */
     .atmo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
@@ -16292,8 +16260,7 @@ class Scene {
     // (If no settings block: keep current SimSettings — DEV_BUILD defaults)
 
     // [v9.0.1] Reset TimeClock on import — always start in test mode
-    // [v13.7.0] Start at noon (43200s) to match CSS animation start phase
-    TimeClock.t = 43200;
+    TimeClock.t = 0;
     TimeClock.frame = 0;
     TimeClock.mode = 'test';
     TimeClock._initial = null;
@@ -26119,7 +26086,6 @@ function startPlay() {
   _playStartedAt = Date.now();  // [v10.5.4] global animation clock
   updateTransportUI();
   _startFlowArrows();
-  syncPlanetBgTime('play');  // [v13.7.0] sync animation to game time at play speed
   _playTimer = setInterval(() => {
     const { solveResult } = TimeClock.step(scene);
     afterSolve(solveResult);
@@ -26132,7 +26098,6 @@ function startPlay() {
 }
 
 function stopPlay() {
-  syncPlanetBgTime('pause');  // [v13.7.0] freeze animation in place FIRST (before reflows)
   if (_playTimer) { clearInterval(_playTimer); _playTimer = null; }
   if (TimeClock.mode === 'playing') TimeClock.mode = 'paused';
   _stopFlowArrows();  // [v10.5.0] snap arrows back to midpoint
@@ -26162,7 +26127,6 @@ btnStep.addEventListener('click', () => {
   const { solveResult } = TimeClock.step(scene);
   setStatus(`Step → ${formatTime(TimeClock.t)}`);
   afterSolve(solveResult);
-  syncPlanetBgTime('snap');  // [v13.7.0] snap animation to new game time
 });
 
 btnPlay.addEventListener('click', () => {
@@ -26182,7 +26146,6 @@ btnReset.addEventListener('click', () => {
   const { solveResult } = TimeClock.reset(scene);
   setStatus(`↺ Reset to ${formatTime(TimeClock.t)}`);
   afterSolve(solveResult);
-  syncPlanetBgTime('snap');  // [v13.7.0] snap animation to noon
 });
 
 // [v10.5.1] Speed indicator — cycle through 3 modes
@@ -26193,7 +26156,6 @@ speedIndicatorEl.addEventListener('click', () => {
   if (TimeClock.mode === 'playing' && _playTimer) {
     clearInterval(_playTimer);
     _startFlowArrows();  // update arrow speed
-    syncPlanetBgTime('play');  // [v13.7.0] re-sync at new play rate
     _playTimer = setInterval(() => {
       const { solveResult } = TimeClock.step(scene);
       afterSolve(solveResult);
@@ -26266,15 +26228,6 @@ const PLANET_BG_MAP = {
   planet_x:  'bg-planet_x',
 };
 
-// Preset key → CSS variable prefix mapping [v13.7.0]
-const PLANET_CSS_PREFIX = {
-  earth_isa: 'ea',
-  mars:      'ma',
-  titan:     'ti',
-  venus:     've',
-  planet_x:  'px',
-};
-
 /** Apply planet background visibility based on SimSettings + current preset */
 function applyPlanetBg() {
   const presetKey = SimSettings.getPresetKey();
@@ -26297,12 +26250,6 @@ function applyPlanetBg() {
   btnPlanetBg.disabled = !hasBg;
   btnPlanetBg.style.opacity = hasBg ? '' : '0.2';
   btnPlanetBg.setAttribute('data-tip', hasBg ? 'Planet background' : 'Planet background (no animation for Custom)');
-
-  // [v13.7.0] Sync animation phase after visibility change
-  if (show) {
-    const m = TimeClock.mode === 'playing' ? 'play' : 'snap';
-    syncPlanetBgTime(m);
-  }
 }
 btnPlanetBg.addEventListener('click', () => {
   const presetKey = SimSettings.getPresetKey();
@@ -26310,61 +26257,6 @@ btnPlanetBg.addEventListener('click', () => {
   SimSettings.showPlanetBg = !SimSettings.showPlanetBg;
   applyPlanetBg();
 });
-
-// ── [v13.7.0] CSS animation ↔ game time synchronization ──
-
-/**
- * Sync planet background animation phase to TimeClock.t.
- *
- * @param {string} [mode] - 'play'  → match animation speed to play rate, unfreeze
- *                           'snap'  → restart at 120s ambient rate, frozen (for step/reset)
- *                           'pause' → freeze in place without restart (for pause/stop)
- */
-function syncPlanetBgTime(mode) {
-  const presetKey = SimSettings.getPresetKey();
-  const prefix = PLANET_CSS_PREFIX[presetKey];
-  const layerId = PLANET_BG_MAP[presetKey];
-  if (!prefix || !layerId) return;
-
-  const layerEl = document.getElementById(layerId);
-  if (!layerEl || !layerEl.classList.contains('active')) return;
-
-  // 'pause' → just freeze animations in place, no restart
-  if (mode === 'pause') {
-    layerEl.classList.add('anim-paused');
-    void layerEl.offsetHeight;  // force synchronous style application
-    return;
-  }
-
-  // Cycle duration: in play mode, match to play speed; otherwise default 120s
-  let cycleSec;
-  if (mode === 'play') {
-    const dt = SimSettings.dt || 3600;
-    const speedMs = PLAY_SPEEDS[SimSettings.playSpeed || 0];
-    const stepsPerDay = 86400 / dt;
-    cycleSec = stepsPerDay * (speedMs / 1000);
-    cycleSec = Math.max(12, Math.min(600, cycleSec));
-  } else {
-    cycleSec = 120;
-  }
-
-  // Phase: fraction of day elapsed (0 = midnight, 0.5 = noon)
-  const dayFraction = (TimeClock.t % 86400) / 86400;
-  const offsetSec = -(dayFraction * cycleSec);
-
-  // Set CSS variables on the planet layer element
-  layerEl.style.setProperty(`--${prefix}-cycle`, `${cycleSec}s`);
-  layerEl.style.setProperty(`--${prefix}-offset`, `${offsetSec}s`);
-
-  // Force-restart all animations so they pick up the new variable values
-  layerEl.classList.add('anim-reset');
-  void layerEl.offsetHeight;
-  layerEl.classList.remove('anim-reset');
-
-  // 'play' → unfreeze; 'snap' → stay frozen
-  layerEl.classList.toggle('anim-paused', mode !== 'play');
-}
-
 // Initial state
 applyPlanetBg();
 
@@ -26587,68 +26479,50 @@ function buildAtmospherePanel() {
   const panel = document.getElementById('atmospherePanel');
   panel.innerHTML = '';
 
+  let pendingPreset = SimSettings.getPresetKey();
   let pendingCustom = JSON.parse(JSON.stringify(SimSettings._customValues));
 
   const applyBtn = document.getElementById('atmoApplyBtn');
+  // Clone to remove old listeners
   const newApplyBtn = applyBtn.cloneNode(true);
   applyBtn.parentNode.replaceChild(newApplyBtn, applyBtn);
 
-  // [v13.7.0] Apply helper — shared by card click (presets) and Apply button (custom)
-  function applyPreset(key) {
-    SimSettings.setAtmosphere(key);
-    const solveResult = solveScene(scene);
-    updateStatusIndicator(solveResult);
-    updatePropertiesPanel();
-    render();
-    applyPlanetBg();
-    setStatus('Atmosphere: ' + SimSettings.atmosphere.presetName);
+  let dirty = false;
+  function markDirty() {
+    dirty = true;
+    newApplyBtn.style.background = '#b45309';
+    newApplyBtn.style.color = '#fff';
+    newApplyBtn.textContent = '⚠ Apply & Re-solve';
   }
-
-  function applyCustom() {
-    const cleanAir = {};
-    for (const [sp, f] of Object.entries(pendingCustom.air)) {
-      if (f > 0) cleanAir[sp] = f;
-    }
-    SimSettings.setCustomAtmosphere(pendingCustom.T_K, pendingCustom.P_Pa, cleanAir);
-    const solveResult = solveScene(scene);
-    updateStatusIndicator(solveResult);
-    updatePropertiesPanel();
-    render();
-    applyPlanetBg();
-    setStatus('Atmosphere: Custom');
-  }
-
-  function resetApplyBtn() {
+  function clearDirty() {
+    dirty = false;
     newApplyBtn.style.background = '';
     newApplyBtn.style.color = '';
     newApplyBtn.textContent = 'Apply & Re-solve';
   }
 
-  function markApplyDirty() {
-    newApplyBtn.style.background = '#b45309';
-    newApplyBtn.style.color = '#fff';
-    newApplyBtn.textContent = '⚠ Apply & Re-solve';
-  }
-
   // ── Planet cards grid ──
   const grid = el('div', { class: 'atmo-grid' });
-  const activeKey = SimSettings.getPresetKey();
 
+  // Build a card for each non-custom preset
   const presetKeys = Object.keys(SimSettings.atmospherePresets).filter(k => k !== 'custom');
   for (const key of presetKeys) {
     const preset = SimSettings.atmospherePresets[key];
-    const card = el('div', { class: 'atmo-card' + (key === activeKey ? ' active' : '') });
+    const card = el('div', { class: 'atmo-card' + (key === pendingPreset ? ' active' : '') });
     card.dataset.key = key;
 
+    // Name + icon
     const nameEl = el('div', { class: 'atmo-card-name' });
     nameEl.appendChild(el('span', { class: 'atmo-icon', html: PLANET_ICONS[key] || '🪐' }));
     nameEl.appendChild(document.createTextNode(preset.name));
     card.appendChild(nameEl);
 
+    // T + P
     const vals = el('div', { class: 'atmo-card-vals' });
     vals.innerHTML = `${preset.T_K.toFixed(1)} K · ${(preset.P_Pa / 1e5).toFixed(preset.P_Pa < 1000 ? 4 : 2)} bar`;
     card.appendChild(vals);
 
+    // Composition summary
     const comp = el('div', { class: 'atmo-card-comp' });
     const parts = Object.entries(preset.air)
       .filter(([, f]) => f > 0.005)
@@ -26657,12 +26531,10 @@ function buildAtmospherePanel() {
     comp.textContent = parts.join('  ');
     card.appendChild(comp);
 
-    // [v13.7.0] Auto-apply on click — instant switch, no Apply button needed
     card.addEventListener('click', () => {
-      if (key === SimSettings.getPresetKey()) return; // already active
-      applyPreset(key);
+      pendingPreset = key;
+      markDirty();
       refreshCards();
-      resetApplyBtn();
     });
 
     grid.appendChild(card);
@@ -26670,35 +26542,38 @@ function buildAtmospherePanel() {
   panel.appendChild(grid);
 
   // ── Custom section ──
-  const customWrap = el('div', { class: 'atmo-custom-fields' + (activeKey === 'custom' ? ' active' : '') });
+  const customWrap = el('div', { class: 'atmo-custom-fields' + (pendingPreset === 'custom' ? ' active' : '') });
   const customHeader = el('div', { class: 'atmo-card-name', style: 'margin-bottom:6px; cursor:pointer;' });
   customHeader.appendChild(el('span', { class: 'atmo-icon', html: '⚙' }));
   customHeader.appendChild(document.createTextNode('Custom'));
   customHeader.addEventListener('click', () => {
-    // Switch to custom — don't auto-apply (user needs to edit fields first)
-    markApplyDirty();
-    refreshCards('custom');
+    pendingPreset = 'custom';
+    markDirty();
+    refreshCards();
   });
   customWrap.appendChild(customHeader);
 
+  // T
   const tRow = el('div', { class: 'atmo-field-row' });
   tRow.appendChild(el('label', { html: 'T' }));
   const tInput = document.createElement('input');
   tInput.type = 'number'; tInput.step = '1'; tInput.value = pendingCustom.T_K;
-  tInput.addEventListener('input', () => { pendingCustom.T_K = parseFloat(tInput.value) || 288.15; markApplyDirty(); refreshCards('custom'); });
+  tInput.addEventListener('input', () => { pendingCustom.T_K = parseFloat(tInput.value) || 288.15; pendingPreset = 'custom'; markDirty(); refreshCards(); });
   tRow.appendChild(tInput);
   tRow.appendChild(el('span', { class: 'atmo-unit', html: 'K' }));
   customWrap.appendChild(tRow);
 
+  // P
   const pRow = el('div', { class: 'atmo-field-row' });
   pRow.appendChild(el('label', { html: 'P' }));
   const pInput = document.createElement('input');
   pInput.type = 'number'; pInput.step = '100'; pInput.value = pendingCustom.P_Pa;
-  pInput.addEventListener('input', () => { pendingCustom.P_Pa = parseFloat(pInput.value) || 101325; markApplyDirty(); refreshCards('custom'); });
+  pInput.addEventListener('input', () => { pendingCustom.P_Pa = parseFloat(pInput.value) || 101325; pendingPreset = 'custom'; markDirty(); refreshCards(); });
   pRow.appendChild(pInput);
   pRow.appendChild(el('span', { class: 'atmo-unit', html: 'Pa' }));
   customWrap.appendChild(pRow);
 
+  // Composition
   customWrap.appendChild(el('div', { style: 'font-size:10px; opacity:0.4; margin:6px 0 3px;', html: 'Air composition (mol fractions):' }));
   const compGrid = el('div', { class: 'atmo-comp-grid' });
   for (const sp of ATMO_SPECIES) {
@@ -26708,26 +26583,40 @@ function buildAtmospherePanel() {
     spInput.value = (pendingCustom.air[sp] || 0).toFixed(4);
     spInput.addEventListener('input', () => {
       pendingCustom.air[sp] = parseFloat(spInput.value) || 0;
-      markApplyDirty(); refreshCards('custom');
+      pendingPreset = 'custom'; markDirty(); refreshCards();
     });
     compGrid.appendChild(spInput);
   }
   customWrap.appendChild(compGrid);
   panel.appendChild(customWrap);
 
-  function refreshCards(forceCustom) {
-    const current = forceCustom || SimSettings.getPresetKey();
+  function refreshCards() {
     for (const card of grid.querySelectorAll('.atmo-card')) {
-      card.classList.toggle('active', card.dataset.key === current);
+      card.classList.toggle('active', card.dataset.key === pendingPreset);
     }
-    customWrap.classList.toggle('active', current === 'custom');
+    customWrap.classList.toggle('active', pendingPreset === 'custom');
   }
 
-  // Apply button — only needed for Custom (presets auto-apply on click)
+  // ── Apply handler ──
   newApplyBtn.addEventListener('click', () => {
-    applyCustom();
-    refreshCards();
-    resetApplyBtn();
+    if (pendingPreset === 'custom') {
+      const cleanAir = {};
+      for (const [sp, f] of Object.entries(pendingCustom.air)) {
+        if (f > 0) cleanAir[sp] = f;
+      }
+      SimSettings.setCustomAtmosphere(pendingCustom.T_K, pendingCustom.P_Pa, cleanAir);
+    } else {
+      SimSettings.setAtmosphere(pendingPreset);
+    }
+
+    const solveResult = solveScene(scene);
+    updateStatusIndicator(solveResult);
+    updatePropertiesPanel();
+    render();
+    applyPlanetBg();
+
+    clearDirty();
+    setStatus('Atmosphere applied: ' + SimSettings.atmosphere.presetName);
   });
 }
 
