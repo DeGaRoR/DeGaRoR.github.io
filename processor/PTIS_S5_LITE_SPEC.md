@@ -15,7 +15,7 @@ enhanced sink is a process boundary at P_atm. New `restriction` unit
 (fixed ΔP, isenthalpic). Valve becomes a true pressure regulator with
 setpoint validation. Splitter reclassified as active flow divider.
 
-**Sessions:** 3 (S5a-1, S5a-2, S5a-3).
+**Sessions:** 4 (S5a-0, S5a-1, S5a-2, S5a-3).
 
 **Risk:** Medium. Tank defId replaced (breaking change with migration).
 Two new units (reservoir, restriction). Sink enhanced (zero regression
@@ -35,14 +35,14 @@ trace added to solver (~60 lines).
 - 399 tests, 2407 assertions
 
 **After S5-lite:**
-- Tank: 4-port (feed_in, mat_out, overflow, vent), P from computeTankState(), Cv outlet
+- Tank: 5-port (mat_in, gas_out, liq_out, vent, overflow), P from computeTankState(), dual Cv outlets (vapor/liquid), adiabatic mixing, relief + overflow safety, 2h×3w footprint
 - Reservoir: 1-port (mat_out), infinite volume, constant P, Cv outlet
 - Sink: process boundary at P_atm with isenthalpic expansion reporting
 - Restriction: fixed ΔP, isenthalpic (shares tick with valve)
 - Valve: pressure regulator with setpoint validation (look-through when unable to regulate)
 - Splitter: active flow divider with check valve alarm
 - Pre-tick resolveDownstreamPressures() with P_current tracking
-- ~440 tests
+- ~448 tests
 
 ---
 
@@ -270,8 +270,7 @@ function resolveDownstreamPressures(scene) {
         const inv = ud?.inventory || u.inventory || { n:{}, T_K:298 };
         const V = u.params.volume_m3 || 0.15;
         const state = computeTankState(inv.n, inv.T_K, V, thermo);
-        anchorP.set(id, u.params.tankMode === 'vented'
-          ? P_atm : state.P_Pa);
+        anchorP.set(id, state.P_Pa);
         break;
       }
       case 'reservoir':
@@ -284,15 +283,30 @@ function resolveDownstreamPressures(scene) {
   }
 
   // 2. Trace from each vessel outlet
+  // Tank has two Cv outlets (gas_out, liq_out); trace each independently.
+  // Reservoir has one (mat_out).
+  // Result: Map<string, number> keyed by "unitId:portId"
   const result = new Map();
   for (const [id, u] of scene.units) {
-    if (u.defId === 'tank' || u.defId === 'reservoir') {
+    if (u.defId === 'tank') {
+      const P_vessel = anchorP.get(id);
+      for (const portId of ['gas_out', 'liq_out']) {
+        const trace = traceToAnchor(
+          scene, id, portId, P_vessel,
+          anchorP, P_atm, new Set(),
+          valveStatus, dividerStatus);
+        result.set(id + ':' + portId,
+          trace.P_anchor + trace.dP_sum - trace.boost_sum);
+      }
+    }
+    if (u.defId === 'reservoir') {
       const P_vessel = anchorP.get(id);
       const trace = traceToAnchor(
         scene, id, 'mat_out', P_vessel,
         anchorP, P_atm, new Set(),
         valveStatus, dividerStatus);
-      result.set(id, trace.P_anchor + trace.dP_sum - trace.boost_sum);
+      result.set(id + ':mat_out',
+        trace.P_anchor + trace.dP_sum - trace.boost_sum);
     }
   }
 
@@ -546,44 +560,353 @@ Overfull → V_headspace clamped to 0, CATASTROPHIC.
 
 ### F-002. Tank Unit (Replacement)
 
-**Replaces** current tank at line 12618. Same defId `tank`. Port
-rename: mat_in → feed_in. Adds vent port. Removes drawRate.
+**Replaces** current tank at line 12618. Same defId `tank`. Removes
+drawRate. Adds gas_out, liq_out, vent ports. Removes mat_out.
+No `tankMode` parameter — tank is always sealed. "Atmospheric" behavior
+is achieved by topology (connect vent to sink) and a low P_relief.
 
-**Ports:** feed_in (IN), mat_out (OUT), overflow (OUT), vent (OUT).
-All optional (optionalPorts: true).
+**Footprint:** 2h × 3w (unique wide shape).
+
+**Ports:**
+
+| portId | Dir | Type | Position | Phase | Player-controlled? |
+|---|---|---|---|---|---|
+| mat_in | IN | MATERIAL | (0, 1) left | Any | Via upstream |
+| gas_out | OUT | MATERIAL | (1, 0) top-left | Vapor (n_V) | Cv + opening slider |
+| vent | OUT | MATERIAL | (3, 0) top-right | Vapor (n_V) | P_relief setpoint only |
+| liq_out | OUT | MATERIAL | (1, 2) bottom-left | Liquid (n_L) | Cv + opening slider |
+| overflow | OUT | MATERIAL | (3, 2) bottom-right | Liquid (n_L) | overflow_level only |
+
+All optional (optionalPorts: true). Port labels displayed on canvas.
 
 **Parameters:**
 
-| Key | Default | Unit | Range | Notes |
-|-----|---------|------|-------|-------|
-| volume_m3 | 0.15 | m³ | 0.001–1000 | Vessel volume |
-| tankMode | 'sealed' | — | sealed / vented | Pressure behavior |
-| T_K | 298.15 | K | 50–2000 | Operating temperature |
-| composition | {} | mol fracs | — | Initial fill |
-| Cv | 50 | — | 0.1–10000 | Outlet valve coefficient |
-| opening_pct | 0 | % | 0–100 | 0 = closed |
-| P_design_bar | 10 | bar | 1–100 | Vent trigger |
+| Key | Default | Visible | Range | Notes |
+|-----|---------|---------|-------|-------|
+| volume_m3 | 0.15 | Yes | 0.001–1000 | Fixed at placement |
+| initialComposition | { N2: 1.0 } | At placement | — | Mol fractions |
+| T_init | T_atm | At placement | 50–2000 K | Initial temperature |
+| P_init | P_atm | At placement | 1e3–200e5 Pa | Gas fill → back-computes moles |
+| level_init | — | At placement | 0–95 % | Liquid fill → back-computes moles. Mutually exclusive with P_init |
+| P_relief | 200000 | Yes | 1e5–200e5 Pa | Safety valve set pressure |
+| overflow_level | 90 | Yes | 50–95 % | Overflow nozzle height |
+| Cv_gas | 50 | Advanced | 0.1–10000 | Gas draw valve coefficient |
+| opening_gas_pct | 0 | Yes (slider) | 0–100 | Gas draw opening |
+| Cv_liq | 50 | Advanced | 0.1–10000 | Liquid draw valve coefficient |
+| opening_liq_pct | 0 | Yes (slider) | 0–100 | Liquid draw opening |
+
+**initInventory:**
+
+```javascript
+initInventory(par) {
+  const atm = SimSettings.getAtmosphere();
+  const V = par.volume_m3 || 0.15;
+  const T = par.T_init ?? atm.T_K;
+  const comp = par.initialComposition || { N2: 1.0 };
+
+  // Normalize fractions
+  const total = Object.values(comp).reduce((a, b) => a + b, 0);
+  const fracs = {};
+  for (const [sp, f] of Object.entries(comp)) fracs[sp] = f / total;
+
+  let n = {};
+  if (par.level_init != null && par.level_init > 0) {
+    // Liquid fill mode: back-compute moles from level
+    const V_liq = (par.level_init / 100) * V;
+    for (const [sp, frac] of Object.entries(fracs)) {
+      const cd = ComponentRegistry.get(sp);
+      const rho = cd?.rhoLiq || 1000;  // kg/m³
+      const MW_kg = (cd?.MW || 0.018);  // kg/mol
+      n[sp] = frac * V_liq * rho / MW_kg;
+    }
+  } else {
+    // Gas fill mode: back-compute moles from P_init
+    const P = par.P_init ?? atm.P_Pa;
+    const n_total = P * V / (8.314 * T);
+    for (const [sp, frac] of Object.entries(fracs)) {
+      n[sp] = frac * n_total;
+    }
+  }
+
+  return { n, T_K: T };
+}
+```
+
+After init, computeTankState re-derives P from actual moles. Player
+sees true P in inspector immediately.
+
+**Safety valve sizing:**
+
+Both safety systems use k-values proportional to tank volume.
+Hardcoded constants, not in profiles, not player-editable.
+
+```javascript
+const K_RELIEF_BASE = 1.5e-3;    // mol/(s·Pa·m³)
+const K_OVERFLOW_BASE = 80;      // mol/(s·%·m³)
+```
+
+Relief: `Q_vent = K_RELIEF_BASE × V × (P_tank − P_relief)`
+Overflow: `Q_overflow = K_OVERFLOW_BASE × V × (level − overflow_level)`
+
+Both self-correcting. Safety devices overwhelm reasonable process
+inflows at pilot scale.
 
 **Tick logic:**
-1. Call computeTankState() → P_tank (or P_atm if vented)
-2. Read P_downstream from solver cache
-3. ΔP = P_tank − P_downstream.
-   - If ΔP = 0: Q = 0, MINOR: "Pressures equalized — no flow."
-   - If ΔP < 0: Q = 0, MINOR: "Reverse pressure — downstream at
-     X bar exceeds vessel at Y bar."
-   - If ΔP > 0: proceed to Cv equation.
-4. Q = Cv × (opening/100) × √(ΔP / (SG × 1e5))
-5. Cap Q at available inventory per dt
-6. Compose outlet stream at tank T, P_tank, proportional composition
-7. Vent: P > P_design → WARNING (connected) / CATASTROPHIC (unconnected)
-8. Overflow: level > 90% → WARNING (connected) / CATASTROPHIC (unconnected)
+
+```javascript
+tick(u, ports, par) {
+  const sIn = ports.mat_in;
+  const V = par.volume_m3 || 0.15;
+  const inv = u.inventory;
+  const dt = SimSettings.dt;
+
+  // 1. Compute tank state
+  const state = computeTankState(inv.n, inv.T_K, V, thermo);
+  const P_tank = state.P_Pa;
+
+  // 2. Gas draw (from vapor phase)
+  const P_down_gas = scene.runtime.P_downstream
+    ?.get(u.id + ':gas_out') ?? P_tank;
+  const dP_gas = P_tank - P_down_gas;
+  let Q_gas = 0;
+  if (dP_gas > 0 && (par.opening_gas_pct || 0) > 0
+      && state.n_V && Object.values(state.n_V).some(v => v > 1e-15)) {
+    const n_V_total = Object.values(state.n_V).reduce((a,b) => a+b, 0);
+    const MW_V = _inventoryMW(state.n_V);
+    const SG_V = (P_tank * MW_V) / (8.314 * inv.T_K * 1.225);
+    Q_gas = (par.Cv_gas || 50) * (par.opening_gas_pct / 100)
+          * Math.sqrt(Math.max(0, dP_gas) / (SG_V * 1e5));
+    Q_gas = Math.min(Q_gas, n_V_total / dt);
+
+    const gas_frac = {};
+    for (const [sp, n] of Object.entries(state.n_V)) {
+      gas_frac[sp] = n / n_V_total;
+    }
+    const n_out_gas = {};
+    for (const [sp, frac] of Object.entries(gas_frac)) {
+      n_out_gas[sp] = frac * Q_gas;
+    }
+    ports.gas_out = {
+      type: StreamType.MATERIAL,
+      T: inv.T_K, P: P_tank, n: n_out_gas,
+      phaseConstraint: 'V'
+    };
+  } else {
+    ports.gas_out = {
+      type: StreamType.MATERIAL,
+      T: inv.T_K, P: P_tank, n: {},
+      phaseConstraint: 'V'
+    };
+    if (dP_gas < -100) {
+      u.last = { ...(u.last || {}), error: {
+        severity: ErrorSeverity.MINOR,
+        message: `Gas outlet: reverse pressure — downstream at `
+          + `${(P_down_gas/1e5).toFixed(1)} bar exceeds vessel `
+          + `at ${(P_tank/1e5).toFixed(1)} bar`
+      }};
+    }
+  }
+
+  // 3. Liquid draw (from liquid phase)
+  const P_down_liq = scene.runtime.P_downstream
+    ?.get(u.id + ':liq_out') ?? P_tank;
+  const dP_liq = P_tank - P_down_liq;
+  let Q_liq = 0;
+  if (dP_liq > 0 && (par.opening_liq_pct || 0) > 0
+      && state.n_L && Object.values(state.n_L).some(v => v > 1e-15)) {
+    const n_L_total = Object.values(state.n_L).reduce((a,b) => a+b, 0);
+    const MW_L = _inventoryMW(state.n_L);
+    const rho_L = thermo.density
+      ? thermo.density(Object.keys(state.n_L)[0], inv.T_K, P_tank, 'L')
+      : 1000;
+    const SG_L = rho_L / 1000;
+    Q_liq = (par.Cv_liq || 50) * (par.opening_liq_pct / 100)
+          * Math.sqrt(Math.max(0, dP_liq) / (SG_L * 1e5));
+    Q_liq = Math.min(Q_liq, n_L_total / dt);
+
+    const liq_frac = {};
+    for (const [sp, n] of Object.entries(state.n_L)) {
+      liq_frac[sp] = n / n_L_total;
+    }
+    const n_out_liq = {};
+    for (const [sp, frac] of Object.entries(liq_frac)) {
+      n_out_liq[sp] = frac * Q_liq;
+    }
+    ports.liq_out = {
+      type: StreamType.MATERIAL,
+      T: inv.T_K, P: P_tank, n: n_out_liq,
+      phaseConstraint: 'L'
+    };
+  } else {
+    ports.liq_out = {
+      type: StreamType.MATERIAL,
+      T: inv.T_K, P: P_tank, n: {},
+      phaseConstraint: 'L'
+    };
+    if (dP_liq < -100) {
+      u.last = { ...(u.last || {}), error: {
+        severity: ErrorSeverity.MINOR,
+        message: `Liquid outlet: reverse pressure — downstream at `
+          + `${(P_down_liq/1e5).toFixed(1)} bar exceeds vessel `
+          + `at ${(P_tank/1e5).toFixed(1)} bar`
+      }};
+    }
+  }
+
+  // 4. Relief valve (automatic — vapor phase)
+  let Q_vent = 0;
+  const P_relief = par.P_relief || 200000;
+  if (P_tank > P_relief) {
+    const n_V_total = Object.values(state.n_V || {})
+      .reduce((a,b) => a+b, 0);
+    Q_vent = K_RELIEF_BASE * V * (P_tank - P_relief);
+    Q_vent = Math.min(Q_vent, n_V_total / dt);
+
+    if (Q_vent > 0) {
+      const vent_n = {};
+      for (const [sp, n] of Object.entries(state.n_V || {})) {
+        vent_n[sp] = (n / n_V_total) * Q_vent;
+      }
+      // Connected vent → stream to port
+      // Unconnected vent → removed from inventory + WARNING
+      const ventConnected = scene.connections.some(
+        c => c.from.unitId === u.id && c.from.portId === 'vent');
+      if (ventConnected) {
+        ports.vent = {
+          type: StreamType.MATERIAL,
+          T: inv.T_K, P: P_tank, n: vent_n,
+          phaseConstraint: 'V'
+        };
+      }
+      ctx.warn({
+        severity: ventConnected
+          ? ErrorSeverity.MINOR : ErrorSeverity.MINOR,
+        message: `Relief valve open at ${(P_tank/1e5).toFixed(1)} bar `
+          + `(set: ${(P_relief/1e5).toFixed(1)} bar)`
+          + (ventConnected ? '' : ' — venting to atmosphere')
+      });
+    }
+  }
+
+  // 5. Overflow (automatic — liquid phase)
+  let Q_overflow = 0;
+  const overflow_lvl = par.overflow_level ?? 90;
+  if (state.level_pct > overflow_lvl) {
+    const n_L_total = Object.values(state.n_L || {})
+      .reduce((a,b) => a+b, 0);
+    Q_overflow = K_OVERFLOW_BASE * V
+      * (state.level_pct - overflow_lvl);
+    Q_overflow = Math.min(Q_overflow, n_L_total / dt);
+
+    if (Q_overflow > 0) {
+      const ov_n = {};
+      for (const [sp, n] of Object.entries(state.n_L || {})) {
+        ov_n[sp] = (n / n_L_total) * Q_overflow;
+      }
+      const ovConnected = scene.connections.some(
+        c => c.from.unitId === u.id && c.from.portId === 'overflow');
+      if (ovConnected) {
+        ports.overflow = {
+          type: StreamType.MATERIAL,
+          T: inv.T_K, P: P_tank, n: ov_n,
+          phaseConstraint: 'L'
+        };
+      }
+      ctx.warn({
+        severity: ovConnected
+          ? ErrorSeverity.MINOR : ErrorSeverity.MINOR,
+        message: `Overflow active at ${state.level_pct.toFixed(0)}% `
+          + `(threshold: ${overflow_lvl}%)`
+          + (ovConnected ? '' : ' — draining to ground')
+      });
+    }
+  }
+
+  // 6. Diagnostics
+  u.last = {
+    ...u.last,
+    P_Pa: P_tank, P_bar: P_tank / 1e5,
+    T_K: inv.T_K,
+    level_pct: state.level_pct,
+    V_liq_m3: state.V_liq_m3,
+    V_vap_m3: state.V_vap_m3,
+    Q_gas, Q_liq, Q_vent, Q_overflow,
+    vent_status: P_tank > P_relief ? 'OPEN' : 'CLOSED',
+    overflow_status: state.level_pct > overflow_lvl ? 'ACTIVE' : 'OK'
+  };
+}
+```
+
+**updateInventory:**
+
+```javascript
+updateInventory(inventory, resolvedPorts, dt) {
+  const inv = { ...inventory, n: { ...inventory.n } };
+  const inFlow  = resolvedPorts.mat_in?.n || {};
+  const gasFlow = resolvedPorts.gas_out?.n || {};
+  const liqFlow = resolvedPorts.liq_out?.n || {};
+  const ventFlow = resolvedPorts.vent?.n || {};
+  const ovFlow  = resolvedPorts.overflow?.n || {};
+
+  const allSp = new Set([
+    ...Object.keys(inv.n), ...Object.keys(inFlow),
+    ...Object.keys(gasFlow), ...Object.keys(liqFlow),
+    ...Object.keys(ventFlow), ...Object.keys(ovFlow)
+  ]);
+
+  for (const sp of allSp) {
+    const cur = inv.n[sp] || 0;
+    const inN = (inFlow[sp] || 0) * dt;
+    const outN = ((gasFlow[sp]||0) + (liqFlow[sp]||0)
+               + (ventFlow[sp]||0) + (ovFlow[sp]||0)) * dt;
+    inv.n[sp] = Math.max(0, cur + inN - outN);
+  }
+
+  // Adiabatic mixing: T evolves from enthalpy balance
+  // T_new = (H_inventory + H_in - H_out) / Cp_inventory
+  // Simplified for S5-lite: weighted average by moles
+  if (resolvedPorts.mat_in?.T && resolvedPorts.mat_in.n) {
+    const n_in = Object.values(inFlow).reduce((a,b) => a+b, 0) * dt;
+    const n_inv = Object.values(inv.n).reduce((a,b) => a+b, 0);
+    if (n_inv > 0 && n_in > 0) {
+      inv.T_K = (inventory.T_K * (n_inv - n_in) + resolvedPorts.mat_in.T * n_in) / n_inv;
+    }
+  }
+
+  return inv;
+}
+```
 
 **Profiles:**
 
 | profileId | Name | Key defaults |
 |---|---|---|
-| tank_atmospheric | Atmospheric Tank | vented, Cv=50, opening=0 |
-| tank_pressure | Pressure Vessel | sealed, Cv=50, opening=0, P_design=10 |
+| tank_atmospheric | Atmospheric Tank | P_relief=150000 (1.5 bar), overflow_level=90, T_init=T_atm, P_init=P_atm, initialComposition={N2:1} |
+| tank_pressure | Pressure Vessel | P_relief=1000000 (10 bar), overflow_level=90, T_init=T_atm, P_init=500000, initialComposition={N2:1} |
+
+"Atmospheric" tank: low P_relief means any pressure buildup gets
+vented. Connect vent to sink for clean accounting.
+
+**Inspector layout:**
+
+```
+┌─ Status (read-only, computed) ─────────┐
+│ P: 2.34 bar    T: 298.1 K              │
+│ Level: 45.2%   V_liq: 0.068 m³         │
+├─ Gas Outlet ───────────────────────────┤
+│ Opening: ████████░░ 80%    Q: 0.42 mol/s│
+│ Cv: 50  (advanced)                      │
+├─ Liquid Outlet ────────────────────────┤
+│ Opening: ██████████ 100%   Q: 1.23 mol/s│
+│ Cv: 50  (advanced)                      │
+├─ Safety ───────────────────────────────┤
+│ P_relief: 5.0 bar   Vent: CLOSED       │
+│ Overflow: 90%        Status: OK         │
+├─ Initial Fill (placement only) ────────┤
+│ Composition: { N₂: 1.0 }               │
+│ T_init: 298 K  P_init: 1.01 bar        │
+└─────────────────────────────────────────┘
+```
 
 ---
 
@@ -782,8 +1105,11 @@ ProfileRegistry.register('tank_atmospheric', {
   limits: { 1: { T_LL:263, T_L:278, T_H:333, T_HH:353,
                   P_LL:5000, P_HH:200000,
                   level_H:90, level_HH:100 } },
-  defaults: { 1: { volume_m3:0.15, tankMode:'vented',
-                    Cv:50, opening_pct:0 } }
+  defaults: { 1: { volume_m3:0.15, P_relief:150000,
+                    overflow_level:90,
+                    Cv_gas:50, opening_gas_pct:0,
+                    Cv_liq:50, opening_liq_pct:0,
+                    initialComposition:{N2:1}, P_init:101325 } }
 });
 
 ProfileRegistry.register('tank_pressure', {
@@ -792,8 +1118,11 @@ ProfileRegistry.register('tank_pressure', {
   limits: { 1: { T_LL:233, T_L:263, T_H:473, T_HH:523,
                   P_LL:5000, P_HH:5000000,
                   level_H:90, level_HH:100 } },
-  defaults: { 1: { volume_m3:0.15, tankMode:'sealed',
-                    Cv:50, opening_pct:0, P_design_bar:10 } }
+  defaults: { 1: { volume_m3:0.15, P_relief:1000000,
+                    overflow_level:90,
+                    Cv_gas:50, opening_gas_pct:0,
+                    Cv_liq:50, opening_liq_pct:0,
+                    initialComposition:{N2:1}, P_init:500000 } }
 });
 
 // Reservoir
@@ -912,19 +1241,20 @@ AlarmSystem.register((scene) => {
 ### F-010. Scene Import Migration
 
 ```javascript
-// Port rename
-for (const conn of scene.connections) {
-  for (const end of [conn.from, conn.to]) {
-    const u = scene.units.get(end.unitId);
-    if (u?.defId === 'tank' && end.portId === 'mat_in') {
-      end.portId = 'feed_in';
-    }
-  }
-}
-// Remove obsolete drawRate
 for (const [id, u] of scene.units) {
-  if (u.defId === 'tank' && u.params.drawRate !== undefined) {
+  if (u.defId === 'tank') {
+    // Remove obsolete params
     delete u.params.drawRate;
+    delete u.params.tankMode;
+    delete u.params.P_design_bar;
+
+    // Migrate old mat_out connections → liq_out (safest default:
+    // old tank drew mixed phase from bottom, closest to liquid draw)
+    for (const conn of scene.connections) {
+      if (conn.from.unitId === id && conn.from.portId === 'mat_out') {
+        conn.from.portId = 'liq_out';
+      }
+    }
   }
 }
 ```
@@ -963,7 +1293,181 @@ system generation.
 
 ---
 
-## Tests (~41 new)
+### F-012. TimeClock Fixes (Pre-requisite)
+
+Six bugs in the time system that will break S5-lite tank physics if
+left unfixed. Implemented as S5a-0 before any tank/trace work.
+
+**Bug inventory:**
+
+| # | Bug | Root cause | Impact on S5-lite |
+|---|---|---|---|
+| 1 | Import sets t=0, reset sets t=43200 | Hardcoded literals disagree | Minor: cosmetic time jump |
+| 2 | Test button poisons reset snapshot | btnTest sets mode='test' without restoring inventory; next Step captures modified state as "initial" | **Critical:** reset never works after Test→Step cycle |
+| 3 | Tank tick uses dt in steady-state Cv cap | `actualDraw = min(drawRate, total/dt)` — dt-dependent flow inside solver iteration | **Critical for old model only** — S5-lite Cv equation has no dt. Documenting as root cause of Denis's observed "first run ≠ subsequent run" behavior |
+| 4 | Units placed mid-sim have no reset snapshot | `_captureInitial` runs once on first Step | Moderate: reset leaves mid-sim units at current state |
+| 5 | Export loses time context | t, frame, _initial not serialized | Moderate: exported scenes lose timeline |
+| 6 | `_reinitInventoryIfTest` silent in paused mode | Guard `mode !== 'test'` blocks param changes from reinitializing | Minor: known, by design. Documented. |
+
+**Fix 1: T0 constant.**
+
+```javascript
+// At module level, next to TimeClock:
+const T0_SECONDS = 43200;  // noon Day 1 — universal base time
+
+// TimeClock initialization:
+const TimeClock = {
+  t: T0_SECONDS,
+  // ...
+};
+
+// TimeClock.reset:
+reset(scene) {
+  TimeClock._restoreInitial(scene);
+  TimeClock.t = T0_SECONDS;
+  // ...
+}
+
+// importJSON:
+TimeClock.t = T0_SECONDS;  // was: 0
+```
+
+**Fix 2: Test button restores inventory.**
+
+The Test button means "go back to design mode and re-solve the
+initial state." It must restore inventories, not just flip the mode
+flag. Without this, reset is permanently broken after any Test→Step
+cycle.
+
+```javascript
+btnTest.addEventListener('click', () => {
+  stopPlay();
+  // Restore inventories to initial snapshot (same as reset)
+  TimeClock._restoreInitial(scene);
+  TimeClock.t = T0_SECONDS;
+  TimeClock.frame = 0;
+  TimeClock.mode = 'test';
+  const solveResult = solveScene(scene);
+  setStatus(describeSolve());
+  afterSolve(solveResult);
+});
+```
+
+This makes Test equivalent to Reset except the UI stays in
+"design mode" (test). Player experience: Test = "start over and
+let me re-solve without advancing time."
+
+**Fix 3: Document old tank dt bug (no code change).**
+
+The old tank tick computes `actualDraw = min(drawRate, total / dt)`.
+This cap is dt-dependent: with dt=3600, a 6 mol inventory caps draw
+to 0.0017 mol/s — the solver converges to a false steady-state where
+inlet ≈ outlet and level appears static. On the second run (after
+one updateInventory call adds 3600 mol), the cap lifts and behavior
+changes.
+
+S5-lite eliminates this: the Cv equation `Q = Cv × (opening/100)
+× √(ΔP / (SG × 1e5))` has no dt. Flow is purely a function of
+tank state (P, composition) and downstream pressure. dt only
+appears in updateInventory where it belongs.
+
+No code change — the old tank tick is being replaced entirely.
+Documenting for the test migration: old tests 170–172 used
+drawRate and will be deleted, not adapted.
+
+**Fix 4: Capture mid-sim units.**
+
+```javascript
+step(scene) {
+  if (TimeClock.mode === 'test') {
+    // Initialize inventories on first step
+    for (const [uid, u] of scene.units) {
+      const def = UnitRegistry.get(u.defId);
+      if (def && def.inventory && def.initInventory && !u.inventory) {
+        u.inventory = def.initInventory(u.params);
+      }
+    }
+    TimeClock._captureInitial(scene);
+    TimeClock.mode = 'paused';
+  }
+
+  // ── NEW: capture any units added since last capture ──
+  if (TimeClock._initial) {
+    for (const [uid, u] of scene.units) {
+      if (u.inventory && !TimeClock._initial.has(uid)) {
+        TimeClock._initial.set(uid,
+          JSON.parse(JSON.stringify(u.inventory)));
+      }
+    }
+  }
+
+  // ... rest of step unchanged
+}
+```
+
+**Fix 5: Export/import time context.**
+
+Export version bump: 16 → 17.
+
+```javascript
+// exportJSON additions:
+data.version = 17;
+data.time = {
+  t: TimeClock.t,
+  frame: TimeClock.frame,
+  mode: TimeClock.mode   // 'test' | 'paused'
+};
+// Per-unit: save initial snapshot alongside current inventory
+for (const unitData of data.units) {
+  if (TimeClock._initial) {
+    const init = TimeClock._initial.get(unitData.id);
+    if (init) unitData.inventoryInitial = init;
+  }
+}
+
+// importJSON additions (version ≥ 17):
+if (data.time) {
+  TimeClock.t = data.time.t ?? T0_SECONDS;
+  TimeClock.frame = data.time.frame ?? 0;
+  TimeClock.mode = data.time.mode === 'paused' ? 'paused' : 'test';
+} else {
+  // Legacy (version ≤ 16): reset to base
+  TimeClock.t = T0_SECONDS;  // was: 0
+  TimeClock.frame = 0;
+  TimeClock.mode = 'test';
+}
+
+// Restore _initial from saved data
+TimeClock._initial = null;
+for (const u of data.units) {
+  if (u.inventoryInitial) {
+    if (!TimeClock._initial) TimeClock._initial = new Map();
+    TimeClock._initial.set(u.id, u.inventoryInitial);
+  }
+}
+```
+
+**Fix 6: No code change.** `_reinitInventoryIfTest` is correct — param
+changes during simulation should NOT reset inventory. Documented in
+Bug 6 rationale above. If a player needs to fix initial fill, they
+reset first.
+
+---
+
+## Tests (~55 new)
+
+### TimeClock Fixes (T-TC01–T-TC08)
+
+| # | Test | Assert |
+|---|------|--------|
+| TC01 | Step from test mode | t = T0 + dt, frame = 1, mode = 'paused' |
+| TC02 | Reset after stepping | t = T0, frame = 0, mode = 'test', inventory = initial |
+| TC03 | Test button after stepping restores inventory | Step 5×, click Test (mode='test' + restore), Step again → _captureInitial captures ORIGINAL state, not stepped state |
+| TC04 | Test→Step→Test→Step cycle: reset still works | Step 3×, Test, Step 3×, Reset → inventory = original |
+| TC05 | Unit placed mid-sim gets snapshot | Step 2×, place new inventory unit, Step 1×, Reset → new unit inventory = state at placement |
+| TC06 | Export at frame 5, import: t/frame/mode restored | Export, import, check t = T0 + 5×dt, frame = 5 |
+| TC07 | Export _initial, import, reset: original inventory restored | Step 5×, export, import, reset → inventory = original |
+| TC08 | Legacy import (version ≤ 16): t = T0 (not 0) | Import v16 JSON, check t = 43200 |
 
 ### computeTankState (T-PS01–T-PS06)
 
@@ -976,100 +1480,132 @@ system generation.
 | 05 | All liquid | P = 200 bar sentinel |
 | 06 | Deterministic | Two calls identical |
 
-### Tank (T-PS07–T-PS16)
+### Tank (T-PS07–T-PS20)
 
 | # | Test | Assert |
 |---|------|--------|
-| 07 | Opening=50%, N₂ 5 bar → sink | Q > 0, Cv equation match |
-| 08 | Opening=0% | Q=0, MINOR |
-| 09 | Vented mode | P_tank = P_atm |
-| 10 | Sealed mode | P_tank from computeTankState |
-| 11 | Depletion over 2 dt | inventory ↓, Q ↓ |
-| 12 | Overflow | WARNING / CATASTROPHIC |
-| 13 | Vent | WARNING / CATASTROPHIC |
-| 14 | Empty tank | Q=0, MINOR |
-| 15 | initInventory | N₂ at ~atm |
-| 16 | updateInventory | in−out = accumulation |
+| 07 | Gas draw: opening_gas=50%, N₂ 5 bar → sink | Q_gas > 0, Cv equation, vapor composition |
+| 08 | Liquid draw: opening_liq=100%, H₂O 50% level → sink | Q_liq > 0, Cv equation, liquid composition |
+| 09 | Both draws open simultaneously | Q_gas + Q_liq, each from correct phase |
+| 10 | Opening=0% on both | Q_gas=0, Q_liq=0 |
+| 11 | Gas draw reverse pressure | ΔP < 0 → Q=0, MINOR alarm |
+| 12 | Depletion over 2 dt | inventory ↓, Q ↓ |
+| 13 | Relief valve: P > P_relief, vent connected | gas flows to vent port, WARNING |
+| 14 | Relief valve: P > P_relief, vent unconnected | gas removed, WARNING "venting to atmosphere" |
+| 15 | Overflow: level > threshold, overflow connected | liquid flows to port, WARNING |
+| 16 | Overflow: level > threshold, overflow unconnected | liquid removed, WARNING "draining to ground" |
+| 17 | Both safeties active simultaneously | P > P_relief AND level > threshold, both fire |
+| 18 | Empty tank (gas phase) | Q_gas=0, MINOR |
+| 19 | initInventory gas mode | P_init=5 bar → n = PV/RT, computeTankState matches |
+| 20 | initInventory liquid mode | level_init=50% → V_liq, computeTankState level matches |
+| 21 | updateInventory mass balance | in − gas − liq − vent − overflow = accumulation |
+| 22 | updateInventory T evolution | Hot feed → T rises (adiabatic mixing) |
 
-### Reservoir (T-PS17–T-PS21)
-
-| # | Test | Assert |
-|---|------|--------|
-| 17 | Gas, opening=100%, 5 bar → sink | Q > 0, Cv match |
-| 18 | Opening=0% | Q=0, MINOR |
-| 19 | P_res ≤ P_downstream | Q=0, MINOR |
-| 20 | Composition | outlet fractions correct |
-| 21 | No depletion | Q constant across ticks |
-
-### Sink (T-PS22–T-PS23)
+### Reservoir (T-PS23–T-PS27)
 
 | # | Test | Assert |
 |---|------|--------|
-| 22 | Absorbs all flow | absorbed_mol_s correct |
-| 23 | Reports expansion | inlet.P_Pa, outlet.P_Pa |
+| 23 | Gas, opening=100%, 5 bar → sink | Q > 0, Cv match |
+| 24 | Opening=0% | Q=0, MINOR |
+| 25 | P_res ≤ P_downstream | Q=0, MINOR |
+| 26 | Composition | outlet fractions correct |
+| 27 | No depletion | Q constant across ticks |
 
-### Restriction (T-PS24–T-PS26)
-
-| # | Test | Assert |
-|---|------|--------|
-| 24 | Pin=5, dP=2 | Pout=3 bar, isenthalpic |
-| 25 | dP > Pin | Pout clamped, check valve |
-| 26 | Shared tick | H_in = H_out |
-
-### Pressure Trace (T-PS27–T-PS36)
+### Sink (T-PS28–T-PS29)
 
 | # | Test | Assert |
 |---|------|--------|
-| 27 | Tank → sink | P_down = P_atm |
-| 28 | Tank → valve(Pout=2) → sink | P_down = 2 (regulates) |
-| 29 | Tank → restr(dP=2) → sink | P_down = P_atm + 2 |
-| 30 | Tank → divider → sink + TankB(3) | max = 3 |
-| 31 | Tank → restr(1) → TankB(3) | 3 + 1 = 4 |
-| 32 | Tank → comp(Pout=10) → sink | P_down = 0.9 − 5 = −4.1, ΔP=9.1 |
-| 33 | Tank → turbine(Pout=2) → sink | P_down = 0.9 + 3 = 3.9, ΔP=1.1 |
-| 34 | Tank → valve(Pout=2) → TankB(3) | look-through, P_down = 3, WARNING |
-| 35 | Tank → pump(Pout=10) → Tank (recirc) | P_down = 5−5=0, ΔP=5 |
-| 36 | Dead end (unconnected) | P_down = P_atm |
+| 28 | Absorbs all flow | absorbed_mol_s correct |
+| 29 | Reports expansion | inlet.P_Pa, outlet.P_Pa |
 
-### Valve Setpoint Validation (T-PS37–T-PS38)
+### Restriction (T-PS30–T-PS32)
 
 | # | Test | Assert |
 |---|------|--------|
-| 37 | Valve Pout > downstream: regulates | Pout = par.Pout, canRegulate=true |
-| 38 | Valve Pout < downstream: pass-through | Pout = sIn.P, WARNING alarm |
+| 30 | Pin=5, dP=2 | Pout=3 bar, isenthalpic |
+| 31 | dP > Pin | Pout clamped, check valve |
+| 32 | Shared tick | H_in = H_out |
 
-### Flow Divider Diagnostics (T-PS39–T-PS40)
-
-| # | Test | Assert |
-|---|------|--------|
-| 39 | Divider branch P_eff ≥ P_in | MINOR: check valve alarm, names blocked port |
-| 40 | Divider branches differ by >0.5 bar, all < P_in | MINOR alarm |
-
-### Regression (T-PS41)
+### Pressure Trace (T-PS33–T-PS42)
 
 | # | Test | Assert |
 |---|------|--------|
-| 41 | All 399 pre-S5 tests pass | zero delta |
+| 33 | Tank gas_out → sink | P_down = P_atm |
+| 34 | Tank liq_out → sink (separate trace) | P_down = P_atm (independent) |
+| 35 | Tank → valve(Pout=2) → sink | P_down = 2 (regulates) |
+| 36 | Tank → restr(dP=2) → sink | P_down = P_atm + 2 |
+| 37 | Tank → divider → sink + TankB(3) | max = 3 |
+| 38 | Tank → comp(Pout=10) → sink | P_down = −4.1, ΔP=9.1 |
+| 39 | Tank → turbine(Pout=2) → sink | P_down = 3.9, ΔP=1.1 |
+| 40 | Tank → valve(Pout=2) → TankB(3) | look-through, P_down = 3, WARNING |
+| 41 | Tank → pump(Pout=10) → Tank (recirc) | P_down = 0, ΔP=5 |
+| 42 | Dead end (unconnected) | P_down = P_atm |
 
-**Gate:** 399 + 41 = 440 cumulative.
+### Valve Setpoint Validation (T-PS43–T-PS44)
+
+| # | Test | Assert |
+|---|------|--------|
+| 43 | Valve Pout > downstream: regulates | Pout = par.Pout, canRegulate=true |
+| 44 | Valve Pout < downstream: pass-through | Pout = sIn.P, WARNING alarm |
+
+### Flow Divider Diagnostics (T-PS45–T-PS46)
+
+| # | Test | Assert |
+|---|------|--------|
+| 45 | Divider branch P_eff ≥ P_in | MINOR: check valve alarm, names blocked port |
+| 46 | Divider branches differ by >0.5 bar, all < P_in | MINOR alarm |
+
+### Regression (T-PS47)
+
+| # | Test | Assert |
+|---|------|--------|
+| 47 | All 393 surviving pre-S5 tests pass | zero delta |
+
+**Gate:** 393 + 8 + 47 = 448 cumulative.
 
 ---
 
 ## Implementation Checklist
 
 ```
+S5a-0 (TimeClock fixes — prerequisite):
+  [ ] T0_SECONDS constant (43200) — replace all hardcoded literals
+  [ ] Fix import: t = T0_SECONDS (was 0)
+  [ ] Fix Test button: restore inventories + reset t/frame before re-solve
+  [ ] Fix _captureInitial gap: step() captures mid-sim units
+  [ ] Export version 17: save t, frame, mode, inventoryInitial
+  [ ] Import version 17: restore t, frame, mode, _initial
+  [ ] Legacy import (≤ 16): t = T0_SECONDS (backward compat)
+  [ ] Delete old tank tests 169–174 (old model, replaced in S5a-2)
+  [ ] Adapt tests 160–161 (t=0 start → T0_SECONDS)
+  [ ] Tests T-TC01–T-TC08
+  [ ] Regression gate: 399 − 6 (deleted) + 8 (new) = 401
+
 S5a-1 (computeTankState + trace):
   [ ] computeTankState() pure function (Block 1)
+  [ ] K_RELIEF_BASE, K_OVERFLOW_BASE constants
   [ ] _inventoryMW, _compositionMW helpers
   [ ] resolveDownstreamPressures() + traceToAnchor()
+      Tank: trace gas_out and liq_out independently
+      Reservoir: trace mat_out
+      Result keyed by "unitId:portId"
   [ ] valveStatus + dividerStatus caches in solver context
   [ ] Export on PG
   [ ] Tests T-PS01–T-PS06 (computeTankState)
-  [ ] Tests T-PS27–T-PS36 (trace)
-  [ ] Regression gate: 399 + 16 = 415
+  [ ] Tests T-PS33–T-PS42 (trace, incl. dual outlet)
+  [ ] Regression gate: 401 + 16 = 417
 
 S5a-2 (units + profiles):
-  [ ] Replace tank registration (4-port, Cv tick)
+  [ ] Replace tank registration (5-port, 2h×3w footprint)
+      Ports: mat_in, gas_out, liq_out, vent, overflow
+      Dual Cv outlets (vapor/liquid phase draws)
+      Relief valve (automatic, P > P_relief)
+      Overflow (automatic, level > overflow_level)
+      Connected/unconnected safety port logic
+  [ ] Tank initInventory (gas mode: P_init, liquid mode: level_init)
+  [ ] Tank updateInventory (5-port mass balance, adiabatic T mixing)
+  [ ] Tank inspector layout (status, gas/liq outlets, safety, init)
+  [ ] Port labels on canvas
   [ ] Reservoir registration (1-port, Cv tick)
   [ ] Sink enhancement (boundary, dual reporting)
   [ ] Restriction registration (fixed ΔP)
@@ -1079,14 +1615,15 @@ S5a-2 (units + profiles):
   [ ] Splitter display name → "Flow Divider"
   [ ] Splitter check valve alarm (reads dividerStatus)
   [ ] Equipment annotation comments (valve, splitter, restriction)
-  [ ] 7 profile registrations
+  [ ] 7 profile registrations (2 tank, 3 reservoir, 1 restriction)
   [ ] Remove old tank profile
-  [ ] Scene import migration
+  [ ] Scene import migration (remove drawRate, remove tankMode)
   [ ] Pressure alarm source
-  [ ] Tests T-PS07–T-PS26, T-PS37–T-PS40
+  [ ] Tests T-PS07–T-PS32 (tank, reservoir, sink, restriction)
+  [ ] Tests T-PS43–T-PS46 (valve validation, divider diagnostics)
 
 S5a-3 (integration + regression):
-  [ ] Full regression gate T-PS41 (440 tests)
+  [ ] Full regression gate T-PS47 (448 tests)
   [ ] Version bump v14.0.0
 ```
 
@@ -1101,3 +1638,5 @@ S5a-3 (integration + regression):
 | S5-advanced (k_resistance, passive tee, zones) | ~480 lines, on demand |
 | Sink J-T correction (PR real gas) | Future enhancement |
 | Alarm refinement | Dedicated sprint: `code` field, cause→consequence format, INFO path through bridge |
+| Tank sub-stepping (internal dt subdivision) | Future: accurate safety valve integration at large dt |
+| Adaptive dt | Future: auto-adjust dt based on inventory rate-of-change |
