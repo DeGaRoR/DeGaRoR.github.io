@@ -14375,19 +14375,29 @@ function _isenthalpicThrottleTick(u, ports, par, ctx) {
     if (rawPout < P_atm) clamped = true;
   }
 
-  // Check valve: Pout >= Pin → zero flow
+  // [v14.1.1] Pass-through: Pout >= Pin → insufficient ΔP for pressure drop.
+  // Restriction orifices and pressure regulators are passive devices — they
+  // have no physical mechanism to block flow.  When driving force is absent
+  // the device becomes a straight pipe segment: Pout = Pin, mass passes
+  // through isenthalpically, alarm warns the player.  (NNG-3: mass conserved)
   if (Pout >= sIn.P) {
+    const H_in_Jps = thermo.getHdot_Jps(sIn);
     ports.out = ports.mat_out = {
       type: StreamType.MATERIAL, P: sIn.P,
-      n: {}, phaseConstraint: 'VL', H_target_Jps: 0
+      n: { ...sIn.n }, phaseConstraint: 'VL',
+      H_target_Jps: H_in_Jps
     };
+    const deviceName = u.defId === 'restriction' ? 'Restriction' : 'Regulator';
     u.last = {
-      Pin: sIn.P, Pout, deltaP: 0, mode: 'check-valve',
+      Pin: sIn.P, Pout: sIn.P, deltaP: 0,
+      mode: 'pass-through',
+      H_in_kW: (H_in_Jps / 1000).toFixed(2),
       error: {
         severity: ErrorSeverity.MINOR,
-        message: `Check valve closed — downstream pressure `
-               + `${(Pout/1e5).toFixed(2)} bar ≥ inlet `
-               + `${(sIn.P/1e5).toFixed(2)} bar`
+        message: `${deviceName} pass-through — insufficient ΔP `
+               + `(setpoint ${(Pout/1e5).toFixed(2)} bar ≥ inlet `
+               + `${(sIn.P/1e5).toFixed(2)} bar). `
+               + `Device acts as straight pipe.`
       }
     };
     return;
@@ -19755,12 +19765,20 @@ function computeSystemBalance(scene) {
     if (!ud) continue;
     const uName = u.name || def.name;
     if (u.defId === 'tank') {
-      const matIn = ud.ports?.mat_in, matOut = ud.ports?.mat_out, overflow = ud.ports?.overflow;
-      const m_in = matIn ? streamMass_kgps(matIn) : 0, m_out = matOut ? streamMass_kgps(matOut) : 0, m_ov = overflow ? streamMass_kgps(overflow) : 0;
-      const netMass = m_in - m_out - m_ov;
+      const matIn = ud.ports?.mat_in;
+      const gasOut = ud.ports?.gas_out, liqOut = ud.ports?.liq_out;
+      const vent = ud.ports?.vent, overflow = ud.ports?.overflow;
+      const m_in = matIn ? streamMass_kgps(matIn) : 0;
+      const m_gas = gasOut ? streamMass_kgps(gasOut) : 0;
+      const m_liq = liqOut ? streamMass_kgps(liqOut) : 0;
+      const m_vent = vent ? streamMass_kgps(vent) : 0;
+      const m_ov = overflow ? streamMass_kgps(overflow) : 0;
+      const netMass = m_in - m_gas - m_liq - m_vent - m_ov;
       if (Math.abs(netMass) > 1e-15) { accumulation.mass_kgps += netMass; accumulation.items.push({ name: uName, type: 'tank_mass', value_kgps: netMass, value_W: 0 }); }
-      const H_in = matIn?.Hdot_J_s ?? 0, H_out = matOut?.Hdot_J_s ?? 0, H_ov = overflow?.Hdot_J_s ?? 0;
-      if (Math.abs(H_in - H_out - H_ov) > 0.01) accumulation.energy_W += (H_in - H_out - H_ov);
+      const H_in = matIn?.Hdot_J_s ?? 0;
+      const H_gas = gasOut?.Hdot_J_s ?? 0, H_liq = liqOut?.Hdot_J_s ?? 0;
+      const H_vent = vent?.Hdot_J_s ?? 0, H_ov = overflow?.Hdot_J_s ?? 0;
+      if (Math.abs(H_in - H_gas - H_liq - H_vent - H_ov) > 0.01) accumulation.energy_W += (H_in - H_gas - H_liq - H_vent - H_ov);
     }
     if (u.defId === 'open_tank') {
       // Liquid accumulation: mat_in - liq_out - overflow - vented_gas
@@ -35755,10 +35773,10 @@ function runTests() {
     t.assertOK(outPort.n.N2 > 0, 'out port carries N₂');
   }});
 
-  // T-PS31: Restriction dP > Pin → Pout clamped to P_atm, check valve fires
+  // T-PS31: Restriction dP > Pin → Pout clamped to P_atm, pass-through fires
   // [v14.1.1] Source at 1 bar, restriction wants 2 bar drop → clamped to P_atm.
-  // P_atm ≈ 1.01 bar > Pin (1 bar) → check valve closes. No vacuum possible.
-  tests.push({ name: '400: T-PS31 Restriction: dP > Pin → clamped, check valve', fn: t => {
+  // P_atm ≈ 1.01 bar > Pin (1 bar) → pass-through (straight pipe). Mass conserved.
+  tests.push({ name: '400: T-PS31 Restriction: dP > Pin → clamped, pass-through', fn: t => {
     const src = t.place('source', 0, 0, { species: 'N2', nDot: 1.0, T: 300, P: 100000, phaseConstraint: 'V' });
     const rst = t.place('restriction', 4, 0, { deltaP: 200000 });
     const snk = t.place('sink', 8, 0);
@@ -35766,11 +35784,13 @@ function runTests() {
     t.wire(rst, 'out', snk, 'in');
     t.solve();
     const ud = t.ud(rst);
-    const P_atm = SimSettings.getAtmosphere().P_Pa;
-    // Pout = max(P_atm, 1bar - 2bar) = P_atm ≈ 1.01 bar
-    t.assertClose(ud.last.Pout, P_atm, 1, 'Pout clamped to P_atm');
-    // P_atm > Pin (1 bar) → check valve fires
-    t.assertOK(ud.last.mode === 'check-valve', 'mode = check-valve (Pout >= Pin)');
+    // Pass-through: Pout = Pin, mass conserved
+    t.assertClose(ud.last.Pout, 100000, 1, 'Pout = Pin (pass-through)');
+    t.assertOK(ud.last.mode === 'pass-through', 'mode = pass-through (insufficient ΔP)');
+    // Mass must pass through
+    const outN = ud.ports.out?.n || {};
+    const nOut = Object.values(outN).reduce((s, v) => s + v, 0);
+    t.assertOK(nOut > 0.5, 'mass passes through (not destroyed)');
   }});
 
   // T-PS32: Restriction shared tick H_in = H_out (enthalpy preserved)
@@ -40343,29 +40363,27 @@ function runTests() {
     t.assertOK(convOk.domain === AlarmDomain.PLANT, 'conv_ok domain = PLANT');
   });
 
-  test('350: v13.0.8 — check-valve: valve zeroes flow on Pout > Pin', t => {
-    // Valve with Pout > inlet P → check valve triggers
-    const src = t.place('source', 0, 0, { T: 300, P: 101325, n: { N2: 1 }, phaseConstraint: 'V' });
+  test('350: v13.0.8 — pass-through: valve passes flow on Pout > Pin', t => {
+    // Valve with Pout > inlet P → pass-through (regulator opens fully)
+    const src = t.place('source', 0, 0, { species: 'N2', nDot: 1, T: 300, P: 101325, phaseConstraint: 'V' });
     const vlv = t.place('valve', 3, 0, { Pout: 500000 });  // 5 bar > 1 bar inlet
     const snk = t.place('sink', 6, 0);
     t.wire(src, 'out', vlv, 'in');
     t.wire(vlv, 'out', snk, 'in');
     t.solve();
-    const ud = t.unit(vlv);
-    t.assertOK(ud.last.mode === 'check-valve', 'mode = check-valve');
-    // Output should have empty composition
+    const ud = t.ud(vlv);
+    t.assertOK(ud.last.mode === 'pass-through', 'mode = pass-through');
+    // Output must carry mass (not destroyed)
     const outStream = ud.ports?.out;
-    if (outStream && outStream.n) {
-      const totalFlow = Object.values(outStream.n).reduce((a,b) => a+b, 0);
-      t.assertClose(totalFlow, 0, 0.001, 'Output flow zeroed');
-    } else {
-      t.assertOK(true, 'No output stream (check valve blocked)');
-    }
-    // Should produce a warning alarm
+    const totalFlow = outStream?.n ? Object.values(outStream.n).reduce((a,b) => a+b, 0) : 0;
+    t.assertOK(totalFlow > 0.5, 'mass passes through (not destroyed)');
+    // Pout = Pin (straight pipe)
+    t.assertClose(ud.last.Pout, 101325, 1, 'Pout = Pin (pass-through)');
+    // Should produce a warning alarm about insufficient ΔP
     const alarms = AlarmSystem.evaluate(scene);
-    const cvAlarm = alarms.find(a => a.unitId && a.message?.includes('Check valve'));
-    t.assertOK(cvAlarm, 'Check valve alarm emitted');
-    t.assertOK(cvAlarm.domain === AlarmDomain.PLANT, 'Check valve alarm is PLANT domain');
+    const ptAlarm = alarms.find(a => a.unitId && a.message?.includes('pass-through'));
+    t.assertOK(ptAlarm, 'Pass-through alarm emitted');
+    t.assertOK(ptAlarm.domain === AlarmDomain.PLANT, 'Pass-through alarm is PLANT domain');
   });
 
   test('351: v13.0.8 — check-valve: mixer zeroes low-P inlet', t => {
