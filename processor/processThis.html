@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v14.0.0
+  processThis v14.1.0
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -288,6 +288,62 @@
   CHANGELOG
   ═══════════════════════════════════════════════════════════════════════════
 
+  ─── v14.1.0 — Tank Architecture: Profiles, Safety, Open Tank ────────────
+  467 tests, 2557 assertions, 0 failures.
+
+  SEALED TANK — Safety connected-only (NNG-3):
+  - Relief valve and overflow drain only operate when port is connected.
+    Unconnected = no safety device. Limit system handles consequences.
+  - vent_status / overflow_status reflect connected state.
+
+  SEALED TANK — 3 profiles (all defId 'tank'):
+  - tank_dev:           Configurable Tank (dev: true). All params editable.
+                        Single tier. Wide limits (100–1000 K, 0.01–1000 bar).
+  - tank_low_pressure:  Low Pressure Tank. Sealed, 5 bar rated.
+                        Tiers 1 (150L) + 2 (1000L).
+  - tank_high_pressure: High Pressure Tank. Sealed, 30/50 bar rated.
+                        Tiers 1 (150L) + 2 (1000L).
+
+  OPEN TANK — New defId: open_tank (was tank_vented profile on sealed tank).
+  Different physical topology (3 ports vs 5) and computation (P imposed
+  vs P computed) → separate defId per NNG-3.
+  - P = P_atm always. Pressure anchor in trace (like sink).
+  - Liquid accumulates; all vapor is boundary loss to atmosphere.
+  - updateInventory flashes at P_atm, strips vapor, tracks vented_n.
+  - No gas_out, no vent port — headspace is open atmosphere.
+  - Gravity NOT modelled (acknowledged). ΔP to atmospheric sink = 0 →
+    no flow. Player needs a pump. If gravity is added later, it will be
+    served by SimSettings globally.
+  - Overflow: connected-only (same as sealed tank).
+  - Ports: mat_in (IN), liq_out (OUT, Cv valve), overflow (OUT).
+  - SVG icon: open-top U-shape with atmospheric wavy line.
+  - Profile: open_tank (tiers 1: 150L/Cv30, 2: 1000L/Cv50).
+  - Limits: T + level only (no P limits — open vessel).
+  - Balance report: vented gas as boundary mass outflow (species-resolved).
+
+  INSPECTOR — profile-aware for all tank types:
+  - Dev profile: all params exposed (volume, Cv, openings, P_relief, etc).
+  - Game profiles: volume + Cv locked per tier, shown as spec info bar.
+    Openings, P_relief (capped ≤ P_HH), overflow_level editable.
+  - Open tank: T, P (labeled "atm"), fill bar, vented rate, time estimates.
+  - _specInfo() renders locked specs as read-only info line.
+
+  Cv values: T1 = 30 (both phases), T2 = 50 (both phases).
+  P_relief ≤ P_HH inline validation on game profiles.
+
+  HARDCODED EARTH VALUES PURGED:
+  - Tank tick fallback T_K → SimSettings.getAtmosphere().T_K (was 288/298).
+  - Pressure trace fallback T_K → same.
+  - PlaceUnit P_init → SimSettings.getAtmosphere().P_Pa (was 101325).
+  - Cv reference densities (1.225 gas, 1000 liquid) confirmed as valve
+    engineering convention, not planetary physics — unchanged.
+
+  Deleted: tank_vented profile, dead par.vented branch in sealed tank tick.
+  Renamed: tank_atmospheric → tank_low_pressure, tank_pressure →
+  tank_high_pressure, vented_tank → open_tank.
+
+  12 new/updated tests: T-PS14, T-PS16, T220, T-VT01–T-VT08.
+
   ─── v14.0.0 — S5-lite: Tank Physics + Cv Flow ────────────────────────────
   455 tests, 2516 assertions, 0 failures.
 
@@ -364,7 +420,7 @@
     Branch imbalance > 0.5 bar → MINOR informational. Alarm fires even on
     empty inlet (explains WHY there's no flow). 2 tests T-PS45–46.
   - Pressure alarm source (F-009): replaces placeholder.
-  - 7 profile registrations: tank_atmospheric, tank_pressure, reservoir_gas,
+  - 7 profile registrations: tank_low_pressure, tank_high_pressure, reservoir_gas,
     reservoir_liquid, reservoir_air (Planet X atmosphere), restriction,
     gas_turbine (profiles with tiered limits).
   - Gate: 448 tests, 2480 assertions.
@@ -6856,6 +6912,18 @@
           <text x="32" y="42" text-anchor="middle" font-size="20" font-weight="700" fill="currentColor" opacity="0.6">T</text>
         </symbol>
 
+        <!-- Open Tank (open-top vessel at atmospheric pressure) [v14.0.2] -->
+        <symbol id="ico-open_tank" viewBox="0 0 64 96">
+          <!-- Open-top U-shape: sides + bottom, no cap -->
+          <path d="M14 12 L14 72 Q14 84 32 84 Q50 84 50 72 L50 12" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+          <!-- Atmosphere indicator (wavy line at open top) -->
+          <path d="M18 14 Q23 10 28 14 Q33 18 38 14 Q43 10 48 14" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.4"/>
+          <!-- Liquid level indicator line -->
+          <line x1="16" y1="52" x2="48" y2="52" stroke="currentColor" stroke-width="2" stroke-dasharray="4 3" opacity="0.5"/>
+          <!-- V label (vented) -->
+          <text x="32" y="42" text-anchor="middle" font-size="18" font-weight="700" fill="currentColor" opacity="0.6">V</text>
+        </symbol>
+
         <!-- Battery (SOC-tracked energy storage) [v9.0.4] -->
         <symbol id="ico-battery" viewBox="0 0 64 64">
           <rect x="10" y="18" width="36" height="28" rx="3" fill="none" stroke="currentColor" stroke-width="3"/>
@@ -12884,15 +12952,15 @@ UnitRegistry.register('tank', {
   optionalPorts: true,
   ports: [
     { portId: 'mat_in',   dir: PortDir.IN,  type: StreamType.MATERIAL, x: 0, y: 1, label: 'in' },
-    { portId: 'gas_out',  dir: PortDir.OUT, type: StreamType.MATERIAL, x: 1, y: 0, label: 'gas' },
-    { portId: 'vent',     dir: PortDir.OUT, type: StreamType.MATERIAL, x: 3, y: 0, label: 'vent' },
-    { portId: 'liq_out',  dir: PortDir.OUT, type: StreamType.MATERIAL, x: 1, y: 2, label: 'liq' },
-    { portId: 'overflow', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 3, y: 2, label: 'ovfl' }
+    { portId: 'gas_out',  dir: PortDir.OUT, type: StreamType.MATERIAL, x: 3, y: 0, label: 'gas' },
+    { portId: 'vent',     dir: PortDir.OUT, type: StreamType.MATERIAL, x: 1, y: 0, label: 'vent' },
+    { portId: 'liq_out',  dir: PortDir.OUT, type: StreamType.MATERIAL, x: 3, y: 2, label: 'liq' },
+    { portId: 'overflow', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 1, y: 2, label: 'ovfl' }
   ],
   presentations: {
     'box/default': { w: 3, h: 2, ports: {
-      mat_in:{x:0,y:1}, gas_out:{x:1,y:0}, vent:{x:3,y:0},
-      liq_out:{x:1,y:2}, overflow:{x:3,y:2}
+      mat_in:{x:0,y:1}, gas_out:{x:3,y:0}, vent:{x:1,y:0},
+      liq_out:{x:3,y:2}, overflow:{x:1,y:2}
     }}
   },
   // [v13.0.4 S1c] Equipment limits
@@ -12979,7 +13047,7 @@ UnitRegistry.register('tank', {
 
   tick(u, ports, par, ctx) {
     const V = par.volume_m3 || 0.15;
-    const inv = u.inventory || { n: {}, T_K: 288 };
+    const inv = u.inventory || { n: {}, T_K: SimSettings.getAtmosphere().T_K };
     const dt = SimSettings.dt;
 
     // 1. Compute tank state
@@ -13064,10 +13132,12 @@ UnitRegistry.register('tank', {
       }
     }
 
-    // 4. Relief valve (automatic \u2014 vapor phase)
+    // 4. Relief valve (vapor phase) — connected-only (NNG-3: no device = no safety)
+    // Unconnected vent = no relief valve installed. Limit system handles overpressure.
     let Q_vent = 0;
     const P_relief = par.P_relief || 200000;
-    if (P_tank > P_relief) {
+    const ventConnected = ctx.portConnected('vent');
+    if (ventConnected && P_tank > P_relief) {
       const n_V_total = Object.values(state.n_V || {})
         .reduce((a,b) => a+b, 0);
       Q_vent = K_RELIEF_BASE * V * (P_tank - P_relief);
@@ -13078,20 +13148,15 @@ UnitRegistry.register('tank', {
         for (const [sp, amt] of Object.entries(state.n_V || {})) {
           vent_n[sp] = (amt / n_V_total) * Q_vent;
         }
-        const ventConnected = ctx.portConnected('vent');
-        if (ventConnected) {
-          ports.vent = {
-            type: StreamType.MATERIAL,
-            T: inv.T_K, P: P_tank, n: vent_n,
-            phaseConstraint: 'V'
-          };
-        }
+        ports.vent = {
+          type: StreamType.MATERIAL,
+          T: inv.T_K, P: P_tank, n: vent_n,
+          phaseConstraint: 'V'
+        };
         ctx.warn({
-          severity: ventConnected
-            ? ErrorSeverity.MINOR : ErrorSeverity.CATASTROPHIC,
+          severity: ErrorSeverity.MINOR,
           message: `Relief valve open at ${(P_tank/1e5).toFixed(1)} bar `
             + `(set: ${(P_relief/1e5).toFixed(1)} bar)`
-            + (ventConnected ? '' : ' \u2014 venting to atmosphere')
         });
       }
     }
@@ -13099,10 +13164,12 @@ UnitRegistry.register('tank', {
       ports.vent = { type: StreamType.MATERIAL, T: inv.T_K, P: P_tank, n: {} };
     }
 
-    // 5. Overflow (automatic \u2014 liquid phase)
+    // 5. Overflow (liquid phase) — connected-only (NNG-3: no device = no safety)
+    // Unconnected overflow = no drain installed. Limit system handles overfill.
     let Q_overflow = 0;
     const overflow_lvl = par.overflow_level ?? 90;
-    if (state.level_pct > overflow_lvl) {
+    const ovConnected = ctx.portConnected('overflow');
+    if (ovConnected && state.level_pct > overflow_lvl) {
       const n_L_total = Object.values(state.n_L || {})
         .reduce((a,b) => a+b, 0);
       Q_overflow = K_OVERFLOW_BASE * V
@@ -13114,20 +13181,15 @@ UnitRegistry.register('tank', {
         for (const [sp, amt] of Object.entries(state.n_L || {})) {
           ov_n[sp] = (amt / n_L_total) * Q_overflow;
         }
-        const ovConnected = ctx.portConnected('overflow');
-        if (ovConnected) {
-          ports.overflow = {
-            type: StreamType.MATERIAL,
-            T: inv.T_K, P: P_tank, n: ov_n,
-            phaseConstraint: 'L'
-          };
-        }
+        ports.overflow = {
+          type: StreamType.MATERIAL,
+          T: inv.T_K, P: P_tank, n: ov_n,
+          phaseConstraint: 'L'
+        };
         ctx.warn({
-          severity: ovConnected
-            ? ErrorSeverity.MINOR : ErrorSeverity.CATASTROPHIC,
+          severity: ErrorSeverity.MINOR,
           message: `Overflow active at ${state.level_pct.toFixed(0)}% `
             + `(threshold: ${overflow_lvl}%)`
-            + (ovConnected ? '' : ' \u2014 draining to ground')
         });
       }
     }
@@ -13146,9 +13208,274 @@ UnitRegistry.register('tank', {
       V_liq_m3: state.V_liq_m3,
       V_vap_m3: state.V_vap_m3,
       Q_gas, Q_liq, Q_vent, Q_overflow,
-      vent_status: P_tank > P_relief ? 'OPEN' : 'CLOSED',
-      overflow_status: state.level_pct > overflow_lvl ? 'ACTIVE' : 'OK',
+      vent_status: (ventConnected && P_tank > P_relief) ? 'OPEN' : 'CLOSED',
+      overflow_status: (ovConnected && state.level_pct > overflow_lvl) ? 'ACTIVE' : 'OK',
       type: 'tank'
+    };
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// OPEN TANK — Open vessel at atmospheric pressure [v14.0.2]
+// ═══════════════════════════════════════════════════════════════════════════════
+//
+// ┌─────────────────────────────────────────────────────────────────────────────┐
+// │ 3-port open vessel. P = P_atm always (pressure anchor).                   │
+// │ Liquid accumulates; all vapor is boundary loss to atmosphere.             │
+// │ Think: open bucket, settling tank, atmospheric receiver.                  │
+// │                                                                            │
+// │ Ports: mat_in (IN), liq_out (OUT, liquid Cv draw),                        │
+// │        overflow (OUT, auto liquid overflow — connected-only)               │
+// │                                                                            │
+// │ No gas_out, no vent — headspace freely exchanges with atmosphere.         │
+// │ Boundary unit for mass balance: vented vapor tracked as boundary outflow. │
+// └─────────────────────────────────────────────────────────────────────────────┘
+UnitRegistry.register('open_tank', {
+  name: 'Open Tank',
+  category: UnitCategories.VESSEL,
+  w: 3,
+  h: 2,
+  optionalPorts: true,
+  ports: [
+    { portId: 'mat_in',   dir: PortDir.IN,  type: StreamType.MATERIAL, x: 0, y: 1, label: 'in' },
+    { portId: 'liq_out',  dir: PortDir.OUT, type: StreamType.MATERIAL, x: 3, y: 2, label: 'liq' },
+    { portId: 'overflow', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 1, y: 2, label: 'ovfl' }
+  ],
+  presentations: {
+    'box/default': { w: 3, h: 2, ports: {
+      mat_in:{x:0,y:1}, liq_out:{x:3,y:2}, overflow:{x:1,y:2}
+    }}
+  },
+  limitParams: ['T_LL', 'T_L', 'T_H', 'T_HH', 'level_H', 'level_HH'],
+  limits: { S: { T_LL: 263, T_L: 278, T_H: 333, T_HH: 353, level_H: 90, level_HH: 100 } },
+  inventory: true,
+
+  initInventory(par) {
+    const atm = SimSettings.getAtmosphere();
+    const V = par.volume_m3 || 0.15;
+    const T = par.T_init ?? atm.T_K;
+    const comp = par.initialComposition || { H2O: 1.0 };
+
+    const total = Object.values(comp).reduce((a, b) => a + b, 0);
+    const fracs = {};
+    for (const [sp, f] of Object.entries(comp)) fracs[sp] = f / total;
+
+    const n = {};
+    const level = par.level_init ?? 0;
+    if (level > 0) {
+      // Liquid fill: back-compute moles from level percentage
+      const V_liq = (level / 100) * V;
+      for (const [sp, frac] of Object.entries(fracs)) {
+        const cd = ComponentRegistry.get(sp);
+        const rho = cd?.rhoLiq || 1000;
+        const MW_kg = (cd?.MW || 18) / 1000;
+        n[sp] = frac * V_liq * rho / MW_kg;
+      }
+    }
+    // No gas inventory — headspace is atmosphere (not tracked)
+    return { n, T_K: T };
+  },
+
+  updateInventory(inventory, resolvedPorts, dt) {
+    const inv = { ...inventory, n: { ...inventory.n } };
+    const inFlow   = resolvedPorts.mat_in?.n || {};
+    const liqFlow  = resolvedPorts.liq_out?.n || {};
+    const ovFlow   = resolvedPorts.overflow?.n || {};
+
+    // Collect all species
+    const allSp = new Set([
+      ...Object.keys(inv.n), ...Object.keys(inFlow),
+      ...Object.keys(liqFlow), ...Object.keys(ovFlow)
+    ]);
+
+    for (const sp of allSp) {
+      const cur = inv.n[sp] || 0;
+      const inN = (inFlow[sp] || 0) * dt;
+      const outN = ((liqFlow[sp]||0) + (ovFlow[sp]||0)) * dt;
+      inv.n[sp] = Math.max(0, cur + inN - outN);
+    }
+
+    // After accumulation, flash at P_atm to separate liquid/vapor.
+    // Vapor escapes to atmosphere — remove from inventory and track as boundary loss.
+    const atm = SimSettings.getAtmosphere();
+    const n_total = Object.values(inv.n).reduce((a,b) => a+b, 0);
+    const vented_n = {};
+    if (n_total > 1e-15) {
+      const flashResult = thermo.tpFlash({
+        T: inv.T_K, P: atm.P_Pa, n: inv.n
+      });
+      if (flashResult && flashResult.nV) {
+        for (const sp of Object.keys(inv.n)) {
+          const vap = flashResult.nV[sp] || 0;
+          if (vap > 1e-15) {
+            vented_n[sp] = vap / dt;  // convert moles to mol/s rate
+          }
+          inv.n[sp] = flashResult.nL?.[sp] || 0;
+        }
+      }
+      if (flashResult && flashResult.beta >= 1) {
+        // All vapor — everything vents
+        for (const sp of Object.keys(inv.n)) {
+          vented_n[sp] = inv.n[sp] / dt;
+          inv.n[sp] = 0;
+        }
+      }
+    }
+    inv._vented_n = vented_n;  // store for tick diagnostics
+
+    // Adiabatic mixing: simplified mole-weighted T average
+    if (resolvedPorts.mat_in?.T && resolvedPorts.mat_in.n) {
+      const n_in = Object.values(inFlow).reduce((a,b) => a+b, 0) * dt;
+      const n_inv = Object.values(inv.n).reduce((a,b) => a+b, 0);
+      if (n_inv > 0 && n_in > 0) {
+        inv.T_K = (inventory.T_K * (n_inv - n_in) + resolvedPorts.mat_in.T * n_in) / n_inv;
+      }
+    }
+
+    return inv;
+  },
+
+  tick(u, ports, par, ctx) {
+    const V = par.volume_m3 || 0.15;
+    const inv = u.inventory || { n: {}, T_K: SimSettings.getAtmosphere().T_K };
+    const dt = SimSettings.dt;
+    const atm = SimSettings.getAtmosphere();
+    const P_atm = atm.P_Pa;
+
+    // 1. Compute liquid volume and level
+    // All inventory is liquid (vapor stripped in updateInventory)
+    const n_total = Object.values(inv.n).reduce((a,b) => a+b, 0);
+    let V_liq = 0;
+    let level_pct = 0;
+    if (n_total > 1e-15) {
+      // Estimate liquid volume from inventory
+      for (const [sp, mol] of Object.entries(inv.n)) {
+        if (mol > 1e-15) {
+          const cd = ComponentRegistry.get(sp);
+          const MW_kg = (cd?.MW || 18) / 1000;
+          const rho = (thermo.density ? thermo.density(sp, inv.T_K, P_atm, 'L') : null)
+                    || cd?.rhoLiq || 1000;
+          V_liq += mol * MW_kg / rho;
+        }
+      }
+      level_pct = Math.min(100, (V_liq / V) * 100);
+    }
+
+    // 2. Read vented gas from last updateInventory (boundary loss to atmosphere)
+    const vented_n = inv._vented_n || {};
+    const Q_vented = Object.values(vented_n).reduce((a,b) => a+b, 0);
+
+    // 3. Liquid draw via Cv valve
+    // ΔP = P_atm - P_downstream. Without a pump, draining to atmospheric
+    // sink gives ΔP ≈ 0 → no flow. Gravity is not modelled (acknowledged).
+    // Player needs a pump to draw from an open tank, or a downstream
+    // vessel at lower pressure.
+    const P_down_liq = ctx.downstreamP('liq_out') ?? P_atm;
+    const dP_liq = P_atm - P_down_liq;
+    let Q_liq = 0;
+    if (dP_liq > 0 && (par.opening_liq_pct || 0) > 0 && n_total > 1e-15) {
+      // Use first species for SG estimate
+      const sp0 = Object.keys(inv.n).find(sp => inv.n[sp] > 1e-15);
+      const rho_L = sp0 && thermo.density
+        ? thermo.density(sp0, inv.T_K, P_atm, 'L') : 1000;
+      const SG_L = rho_L / 1000;
+      Q_liq = (par.Cv_liq || 30) * (par.opening_liq_pct / 100)
+            * Math.sqrt(Math.max(0, dP_liq) / (SG_L * 1e5));
+      Q_liq = Math.min(Q_liq, n_total / dt);
+
+      const n_out_liq = {};
+      for (const [sp, amt] of Object.entries(inv.n)) {
+        n_out_liq[sp] = (amt / n_total) * Q_liq;
+      }
+      ports.liq_out = {
+        type: StreamType.MATERIAL,
+        T: inv.T_K, P: P_atm, n: n_out_liq,
+        phaseConstraint: 'L'
+      };
+    } else {
+      ports.liq_out = {
+        type: StreamType.MATERIAL,
+        T: inv.T_K, P: P_atm, n: {},
+        phaseConstraint: 'L'
+      };
+    }
+
+    // 4. Overflow (connected-only, same as sealed tank)
+    let Q_overflow = 0;
+    const overflow_lvl = par.overflow_level ?? 90;
+    const ovConnected = ctx.portConnected('overflow');
+    if (ovConnected && level_pct > overflow_lvl && n_total > 1e-15) {
+      Q_overflow = K_OVERFLOW_BASE * V * (level_pct - overflow_lvl);
+      Q_overflow = Math.min(Q_overflow, n_total / dt);
+
+      if (Q_overflow > 0) {
+        const ov_n = {};
+        for (const [sp, amt] of Object.entries(inv.n)) {
+          ov_n[sp] = (amt / n_total) * Q_overflow;
+        }
+        ports.overflow = {
+          type: StreamType.MATERIAL,
+          T: inv.T_K, P: P_atm, n: ov_n,
+          phaseConstraint: 'L'
+        };
+        ctx.warn({
+          severity: ErrorSeverity.MINOR,
+          message: `Overflow active at ${level_pct.toFixed(0)}% `
+            + `(threshold: ${overflow_lvl}%)`
+        });
+      }
+    }
+    if (!ports.overflow) {
+      ports.overflow = { type: StreamType.MATERIAL, T: inv.T_K, P: P_atm, n: {} };
+    }
+
+    // 5. Vented gas warning (informational — this is expected behavior)
+    if (Q_vented > 1e-6) {
+      const specList = Object.entries(vented_n)
+        .filter(([,v]) => v > 1e-6)
+        .map(([sp, v]) => `${sp}: ${v.toFixed(3)}`)
+        .join(', ');
+      ctx.warn({
+        severity: ErrorSeverity.INFO,
+        message: `Venting ${Q_vented.toFixed(3)} mol/s to atmosphere (${specList})`
+      });
+    }
+
+    // 6. Diagnostics
+    // Compute vented mass for balance report
+    let vented_mass_kgps = 0;
+    for (const [sp, mol] of Object.entries(vented_n)) {
+      const cd = ComponentRegistry.get(sp);
+      if (cd) vented_mass_kgps += mol * cd.MW / 1000;
+    }
+
+    const n_max = (() => {
+      // Estimate max moles at 100% fill (liquid)
+      const sp0 = Object.keys(inv.n).find(sp => inv.n[sp] > 1e-15) || 'H2O';
+      const cd = ComponentRegistry.get(sp0);
+      const MW_kg = (cd?.MW || 18) / 1000;
+      const rho = cd?.rhoLiq || 1000;
+      return V * rho / MW_kg;
+    })();
+
+    u.last = {
+      ...(u.last || {}),
+      P_Pa: P_atm, P_bar: P_atm / 1e5,
+      T_K: inv.T_K,
+      totalMol: n_total,
+      n: { ...inv.n },
+      n_max,
+      level_pct,
+      fillPct: level_pct,
+      V_liq_m3: V_liq,
+      Q_liq, Q_overflow, Q_vented,
+      vented_n: { ...vented_n },
+      vented_mass_kgps,
+      overflow_status: (ovConnected && level_pct > overflow_lvl) ? 'ACTIVE' : 'OK',
+      status: n_total < 1e-12 ? 'empty'
+            : level_pct >= 100 ? 'full'
+            : Q_liq > 0 || Q_overflow > 0 ? 'active' : 'idle',
+      type: 'open_tank'
     };
   }
 });
@@ -16135,24 +16462,67 @@ ProfileRegistry.register('battery', {
 ProfileRegistry.register('power_hub', { defId: 'power_hub', name: 'Power Hub', category: UnitCategories.POWER_MANAGEMENT, tiers: [2], limits: {} });
 
 // ── Process equipment (limits keyed by tier) ──
-// [v13.8.0 S5a-2b] Tank profiles: atmospheric + pressure vessel
-ProfileRegistry.register('tank_atmospheric', {
-  defId: 'tank', name: 'Atmospheric Tank', category: UnitCategories.VESSEL, tiers: [1],
-  limits: { 1: { T_LL:263, T_L:278, T_H:333, T_HH:353,
-                  P_LL:5000, P_HH:200000,
+// [v14.0.1] Tank profiles: dev (unconstrained), vented, atmospheric, pressure vessel
+// Tier 1 = S-size (pilot plant), Tier 2 = M-size (larger vessel).
+// Game profiles lock volume + Cv per tier; dev profile leaves all editable.
+ProfileRegistry.register('tank_dev', {
+  defId: 'tank', name: 'Configurable Tank', category: UnitCategories.VESSEL, tiers: [1],
+  config: { dev: true },
+  limits: { 1: { T_LL:100, T_L:200, T_H:800, T_HH:1000,
+                  P_LL:1000, P_L:5000, P_H:50000000, P_HH:100000000,
                   level_H:90, level_HH:100 } },
-  defaults: { 1: { volume_m3:0.15, P_relief:150000,
+  defaults: { 1: { volume_m3:0.15, P_relief:200000,
                     overflow_level:90,
                     Cv_gas:50, opening_gas_pct:0,
                     Cv_liq:50, opening_liq_pct:0,
                     initialComposition:{N2:1}, P_init:101325 } }
 });
-ProfileRegistry.register('tank_pressure', {
-  defId: 'tank', name: 'Pressure Vessel', category: UnitCategories.VESSEL, tiers: [1],
-  limits: { 1: { T_LL:233, T_L:263, T_H:473, T_HH:523,
-                  P_LL:5000, P_HH:5000000,
+ProfileRegistry.register('open_tank', {
+  defId: 'open_tank', name: 'Open Tank', category: UnitCategories.VESSEL, tiers: [1, 2],
+  limits: { 1: { T_LL:263, T_L:278, T_H:333, T_HH:353,
+                  level_H:90, level_HH:100 },
+            2: { T_LL:263, T_L:278, T_H:333, T_HH:353,
                   level_H:90, level_HH:100 } },
-  defaults: { 1: { volume_m3:0.15, P_relief:1000000,
+  defaults: { 1: { volume_m3:0.15, overflow_level:90,
+                    Cv_liq:30, opening_liq_pct:0,
+                    initialComposition:{H2O:1}, level_init:0 },
+              2: { volume_m3:1.0, overflow_level:90,
+                    Cv_liq:50, opening_liq_pct:0,
+                    initialComposition:{H2O:1}, level_init:0 } }
+});
+ProfileRegistry.register('tank_low_pressure', {
+  defId: 'tank', name: 'Low Pressure Tank', category: UnitCategories.VESSEL, tiers: [1, 2],
+  limits: { 1: { T_LL:263, T_L:278, T_H:333, T_HH:353,
+                  P_LL:80000, P_L:85000, P_H:400000, P_HH:500000,
+                  level_H:90, level_HH:100 },
+            2: { T_LL:263, T_L:278, T_H:333, T_HH:353,
+                  P_LL:80000, P_L:85000, P_H:400000, P_HH:500000,
+                  level_H:90, level_HH:100 } },
+  defaults: { 1: { volume_m3:0.15, P_relief:400000,
+                    overflow_level:90,
+                    Cv_gas:30, opening_gas_pct:0,
+                    Cv_liq:30, opening_liq_pct:0,
+                    initialComposition:{N2:1}, P_init:101325 },
+              2: { volume_m3:1.0, P_relief:400000,
+                    overflow_level:90,
+                    Cv_gas:50, opening_gas_pct:0,
+                    Cv_liq:50, opening_liq_pct:0,
+                    initialComposition:{N2:1}, P_init:101325 } }
+});
+ProfileRegistry.register('tank_high_pressure', {
+  defId: 'tank', name: 'High Pressure Tank', category: UnitCategories.VESSEL, tiers: [1, 2],
+  limits: { 1: { T_LL:233, T_L:263, T_H:473, T_HH:523,
+                  P_LL:50000, P_L:80000, P_H:2400000, P_HH:3000000,
+                  level_H:90, level_HH:100 },
+            2: { T_LL:233, T_L:263, T_H:473, T_HH:523,
+                  P_LL:50000, P_L:80000, P_H:4000000, P_HH:5000000,
+                  level_H:90, level_HH:100 } },
+  defaults: { 1: { volume_m3:0.15, P_relief:2500000,
+                    overflow_level:90,
+                    Cv_gas:30, opening_gas_pct:0,
+                    Cv_liq:30, opening_liq_pct:0,
+                    initialComposition:{N2:1}, P_init:500000 },
+              2: { volume_m3:1.0, P_relief:4000000,
                     overflow_level:90,
                     Cv_gas:50, opening_gas_pct:0,
                     Cv_liq:50, opening_liq_pct:0,
@@ -16326,8 +16696,14 @@ class Scene {
         break;
       // ── Vessels [v9.0.3] ──
       case 'tank':
-        unit.params = { volume_m3: 0.15, P_init: 101325, P_relief: 200000,
-                        opening_gas_pct: 0, Cv_gas: 50, opening_liq_pct: 0, Cv_liq: 50 };  // [v14.0.0 S5-lite] Cv-valve tank
+        unit.params = { volume_m3: 0.15, P_init: SimSettings.getAtmosphere().P_Pa, P_relief: 200000,
+                        overflow_level: 90,
+                        opening_gas_pct: 0, Cv_gas: 30, opening_liq_pct: 0, Cv_liq: 30 };  // [v14.0.2] P_init from SimSettings
+        break;
+      case 'open_tank':
+        unit.params = { volume_m3: 0.15, overflow_level: 90,
+                        Cv_liq: 30, opening_liq_pct: 0,
+                        initialComposition: { H2O: 1 }, level_init: 0 };  // [v14.0.2]
         break;
       // ── SOC-tracked battery [v9.0.4] ──
       case 'battery':
@@ -17755,7 +18131,7 @@ function resolveDownstreamPressures(scene) {
   for (const [id, u] of scene.units) {
     switch (u.defId) {
       case 'tank': {
-        const inv = u.inventory || { n: {}, T_K: 298 };
+        const inv = u.inventory || { n: {}, T_K: SimSettings.getAtmosphere().T_K };
         const V = u.params.volume_m3 || 0.15;
         const state = computeTankState(inv.n, inv.T_K, V, thermo);
         anchorP.set(id, state.P_Pa);
@@ -17763,6 +18139,9 @@ function resolveDownstreamPressures(scene) {
       }
       case 'reservoir':
         anchorP.set(id, (u.params.P_bar || 5) * 1e5);
+        break;
+      case 'open_tank':
+        anchorP.set(id, P_atm);
         break;
       case 'sink':
         anchorP.set(id, P_atm);
@@ -17791,6 +18170,14 @@ function resolveDownstreamPressures(scene) {
         anchorP, P_atm, new Set(),
         valveStatus, dividerStatus);
       result.set(id + ':mat_out',
+        trace.P_anchor + trace.dP_sum - trace.boost_sum);
+    }
+    if (u.defId === 'open_tank') {
+      const trace = traceToAnchor(
+        scene, id, 'liq_out', P_atm,
+        anchorP, P_atm, new Set(),
+        valveStatus, dividerStatus);
+      result.set(id + ':liq_out',
         trace.P_anchor + trace.dP_sum - trace.boost_sum);
     }
   }
@@ -19209,6 +19596,23 @@ function computeSystemBalance(scene) {
       const H_in = matIn?.Hdot_J_s ?? 0, H_out = matOut?.Hdot_J_s ?? 0, H_ov = overflow?.Hdot_J_s ?? 0;
       if (Math.abs(H_in - H_out - H_ov) > 0.01) accumulation.energy_W += (H_in - H_out - H_ov);
     }
+    if (u.defId === 'open_tank') {
+      // Liquid accumulation: mat_in - liq_out - overflow - vented_gas
+      const matIn = ud.ports?.mat_in, liqOut = ud.ports?.liq_out, overflow = ud.ports?.overflow;
+      const m_in = matIn ? streamMass_kgps(matIn) : 0;
+      const m_liq = liqOut ? streamMass_kgps(liqOut) : 0;
+      const m_ov = overflow ? streamMass_kgps(overflow) : 0;
+      const m_vented = ud.last?.vented_mass_kgps || 0;
+      // Vented gas is boundary outflow — add to mass out
+      if (m_vented > 1e-15) {
+        totalMassOut += m_vented;
+        massOutItems.push({ name: uName + ' (vented)', mass_kgps: m_vented, detail: { ...(ud.last?.vented_n || {}) } });
+      }
+      const netMass = m_in - m_liq - m_ov - m_vented;
+      if (Math.abs(netMass) > 1e-15) { accumulation.mass_kgps += netMass; accumulation.items.push({ name: uName, type: 'open_tank_mass', value_kgps: netMass, value_W: 0 }); }
+      const H_in = matIn?.Hdot_J_s ?? 0, H_liq = liqOut?.Hdot_J_s ?? 0, H_ov = overflow?.Hdot_J_s ?? 0;
+      if (Math.abs(H_in - H_liq - H_ov) > 0.01) accumulation.energy_W += (H_in - H_liq - H_ov);
+    }
     if (u.defId === 'battery') {
       const netPower = ud.ports?.elec?.actual || 0;
       const accumRate = -netPower;
@@ -19584,7 +19988,7 @@ AlarmSystem.register((scene) => {
     const uName = u.name || UnitRegistry.get(u.defId)?.name || id;
 
     // Vessel empty
-    if (u.defId === 'tank' && ud.last?.totalMol < 1e-12) {
+    if ((u.defId === 'tank' || u.defId === 'open_tank') && ud.last?.totalMol < 1e-12) {
       alarms.push({
         id: `vessel_empty_${id}`, domain: AlarmDomain.PLANT,
         category: AlarmCategory.PRESSURE, severity: AlarmSeverity.INFO,
@@ -21668,7 +22072,7 @@ function drawUnits() {
 
     // [v12.15.0] Liquid level rendering (shared by tank & flash drum)
     const _fillPctForUnit = (() => {
-      if (def.defId === 'tank') {
+      if (def.defId === 'tank' || def.defId === 'open_tank') {
         const ud = scene.runtime?.unitData?.get(id);
         return ud?.last?.fillPct != null ? Math.min(100, Math.max(0, ud.last.fillPct)) : -1;
       }
@@ -24586,14 +24990,69 @@ UnitInspector.grid_supply = {
 UnitInspector.tank = {
   params(u) {
     const us = models.getActive('units');
-    return [
-      { label: 'Volume (m³)', get: () => u.params.volume_m3 || 0.15, set: v => u.params.volume_m3 = v, step: 0.01, validate: { gt: 0 } },
-      { label: `P relief (${us.pressure.symbol})`, get: () => us.pressure.from(u.params.P_relief || 200000), set: v => u.params.P_relief = us.pressure.to(v), step: us.pressure.decimals === 0 ? 10000 : 0.1, decimals: us.pressure.decimals, validate: { gt: 0 } },
-      { label: 'Gas valve Cv', get: () => u.params.Cv_gas ?? 50, set: v => u.params.Cv_gas = v, step: 1, validate: { min: 0 } },
+    const profile = ProfileRegistry.get(u.profileId || u.defId);
+    const isDev = profile?.config?.dev;
+    const isVented = !!u.params.vented;
+    const effLim = getEffectiveLimits(u.profileId || u.defId, u.tier || 1);
+    const P_HH_disp = effLim?.P_HH ? us.pressure.from(effLim.P_HH) : Infinity;
+
+    const items = [];
+
+    if (isDev) {
+      // Dev profile: everything editable
+      items.push(
+        { label: 'Volume (m³)', get: () => u.params.volume_m3 || 0.15, set: v => u.params.volume_m3 = v, step: 0.01, validate: { gt: 0 } },
+        { label: 'Gas valve Cv', get: () => u.params.Cv_gas ?? 50, set: v => u.params.Cv_gas = v, step: 1, validate: { min: 0 } },
+        { label: 'Liq valve Cv', get: () => u.params.Cv_liq ?? 50, set: v => u.params.Cv_liq = v, step: 1, validate: { min: 0 } },
+      );
+    }
+
+    // Opening always editable
+    items.push(
       { label: 'Gas opening (%)', get: () => u.params.opening_gas_pct ?? 0, set: v => u.params.opening_gas_pct = v, step: 5, validate: { min: 0, max: 100 } },
-      { label: 'Liq valve Cv', get: () => u.params.Cv_liq ?? 50, set: v => u.params.Cv_liq = v, step: 1, validate: { min: 0 } },
       { label: 'Liq opening (%)', get: () => u.params.opening_liq_pct ?? 0, set: v => u.params.opening_liq_pct = v, step: 5, validate: { min: 0, max: 100 } },
-    ];
+    );
+
+    // P_relief: dev=uncapped, game=capped at P_HH, vented=hidden (always P_atm)
+    if (!isVented) {
+      if (isDev) {
+        items.push(
+          { label: `P relief (${us.pressure.symbol})`,
+            get: () => us.pressure.from(u.params.P_relief || 200000),
+            set: v => u.params.P_relief = us.pressure.to(v),
+            step: us.pressure.decimals === 0 ? 10000 : 0.1,
+            decimals: us.pressure.decimals,
+            validate: { gt: 0 } },
+        );
+      } else {
+        items.push(
+          { label: `P relief (${us.pressure.symbol})`,
+            get: () => us.pressure.from(u.params.P_relief || 200000),
+            set: v => u.params.P_relief = us.pressure.to(Math.min(v, P_HH_disp)),
+            step: us.pressure.decimals === 0 ? 10000 : 0.1,
+            decimals: us.pressure.decimals,
+            validate: { gt: 0, max: P_HH_disp } },
+        );
+      }
+    }
+
+    // Overflow level: always editable
+    items.push(
+      { label: 'Overflow level (%)', get: () => u.params.overflow_level ?? 90, set: v => u.params.overflow_level = v, step: 5, validate: { min: 50, max: 100 } },
+    );
+
+    return items;
+  },
+  // [v14.0.1] Show locked specs (volume, Cv) as read-only info for non-dev profiles
+  _specInfo(u) {
+    const profile = ProfileRegistry.get(u.profileId || u.defId);
+    if (profile?.config?.dev) return null;
+    const V = u.params.volume_m3 || 0.15;
+    const isVented = !!u.params.vented;
+    let info = `${(V * 1000).toFixed(0)} L`;
+    info += ` · Cv ${u.params.Cv_gas ?? 30}/${u.params.Cv_liq ?? 30}`;
+    if (isVented) info += ' · vented';
+    return info;
   },
   conditions(u, ud) {
     if (!ud?.last) return [];
@@ -24629,6 +25088,75 @@ UnitInspector.tank = {
       const nOutLiq = liqOut?.n ? Object.values(liqOut.n).reduce((a,b)=>a+b,0) : 0;
       const nOut = nOutGas + nOutLiq;
       const netRate = nIn - nOut;
+      if (netRate > 0.001) items.push({ label: 'Time to full', value: fmt.time((ud.last.n_max - ud.last.totalMol) / netRate) });
+      else if (netRate < -0.001) items.push({ label: 'Time to empty', value: fmt.time(ud.last.totalMol / Math.abs(netRate)) });
+      items.push({ label: 'Net flow', value: `${netRate > 0 ? '+' : ''}${netRate.toFixed(3)}<span class="u">mol/s</span>`, tone: netRate > 0 ? 'good' : netRate < 0 ? 'warn' : '' });
+    }
+    return items;
+  }
+};
+
+// ── Open Tank (open vessel) [v14.0.2] ──
+UnitInspector.open_tank = {
+  params(u) {
+    const profile = ProfileRegistry.get(u.profileId || u.defId);
+    const isDev = profile?.config?.dev;
+    const items = [];
+
+    if (isDev) {
+      items.push(
+        { label: 'Volume (m³)', get: () => u.params.volume_m3 || 0.15, set: v => u.params.volume_m3 = v, step: 0.01, validate: { gt: 0 } },
+        { label: 'Liq valve Cv', get: () => u.params.Cv_liq ?? 30, set: v => u.params.Cv_liq = v, step: 1, validate: { min: 0 } },
+      );
+    }
+
+    items.push(
+      { label: 'Liq opening (%)', get: () => u.params.opening_liq_pct ?? 0, set: v => u.params.opening_liq_pct = v, step: 5, validate: { min: 0, max: 100 } },
+      { label: 'Overflow level (%)', get: () => u.params.overflow_level ?? 90, set: v => u.params.overflow_level = v, step: 5, validate: { min: 50, max: 100 } },
+    );
+
+    return items;
+  },
+  _specInfo(u) {
+    const profile = ProfileRegistry.get(u.profileId || u.defId);
+    if (profile?.config?.dev) return null;
+    const V = u.params.volume_m3 || 0.15;
+    return `${(V * 1000).toFixed(0)} L · Cv ${u.params.Cv_liq ?? 30} · open to atmosphere`;
+  },
+  conditions(u, ud) {
+    if (!ud?.last) return [];
+    return [
+      { label: 'T', value: fmt.T(ud.last.T_K) },
+      { label: 'P', value: fmt.P(ud.last.P_Pa) + ' (atm)' },
+    ];
+  },
+  kpis(u, ud) {
+    if (!ud.last) return [];
+    const fillPct = ud.last.fillPct || 0;
+    const barColor = fillPct >= 100 ? '#ef4444' : fillPct >= 80 ? '#f59e0b' : '#06b6d4';
+    const statusColor = ud.last.status === 'full' ? '#ef4444' : ud.last.status === 'empty' ? '#64748b' : '#06b6d4';
+    return [
+      { label: 'Fill', value: fillPct, bar: true, barColor },
+      { label: 'Content', value: `${(ud.last.totalMol||0).toFixed(1)}<span class="propUnit">mol</span>` },
+      { label: 'Status', value: `<span style="color:${statusColor}">${ud.last.status || '—'}</span>` },
+    ];
+  },
+  detail(u, ud, sc) {
+    if (!ud?.last) return [];
+    const items = [];
+    if (ud.last.n) { for (const [sp, mol] of Object.entries(ud.last.n)) { if (mol > 1e-6) items.push({ label: sp, value: fmt.mol(mol) }); } }
+    if (ud.last.Q_liq > 1e-6) items.push({ label: 'Q liq', value: fmt.flow(ud.last.Q_liq) });
+    if (ud.last.Q_vented > 1e-6) {
+      items.push({ label: 'Vented', value: `${ud.last.Q_vented.toFixed(3)}<span class="u">mol/s</span>`, tone: 'warn' });
+    }
+    if (ud.last.status === 'active' && ud.last.totalMol > 0) {
+      const udR = sc?.runtime?.unitData?.get(u.id);
+      const matIn = udR?.ports?.mat_in;
+      const liqOut = udR?.ports?.liq_out;
+      const nIn = matIn?.n ? Object.values(matIn.n).reduce((a,b)=>a+b,0) : 0;
+      const nOutLiq = liqOut?.n ? Object.values(liqOut.n).reduce((a,b)=>a+b,0) : 0;
+      const nVented = ud.last.Q_vented || 0;
+      const netRate = nIn - nOutLiq - nVented;
       if (netRate > 0.001) items.push({ label: 'Time to full', value: fmt.time((ud.last.n_max - ud.last.totalMol) / netRate) });
       else if (netRate < -0.001) items.push({ label: 'Time to empty', value: fmt.time(ud.last.totalMol / Math.abs(netRate)) });
       items.push({ label: 'Net flow', value: `${netRate > 0 ? '+' : ''}${netRate.toFixed(3)}<span class="u">mol/s</span>`, tone: netRate > 0 ? 'good' : netRate < 0 ? 'warn' : '' });
@@ -25591,6 +26119,16 @@ function _rebuildInspectorContent() {
     }
 
     // ── Parameters (flat zone, distinct background) [v10.2.2] ──
+    // [v14.0.1] Show locked specs as read-only info bar for non-dev tank profiles
+    if (config?._specInfo) {
+      const specText = config._specInfo(u);
+      if (specText) {
+        propEditor.appendChild(el('div', {
+          style: 'font-size:10px; color:#94a3b8; padding:4px 12px 0; letter-spacing:0.3px;',
+          html: specText
+        }));
+      }
+    }
     if (config?.params || config?.customParams) {
       const paramsZone = el('div', { class: 'ins-params-zone' });
       if (config.customParams) {
@@ -28021,7 +28559,8 @@ function loadDemo() {
       { id: 'n2-feed', defId: 'source', name: 'N₂ Feed', x: 18, y: 18, rot: 0,
         params: { species: 'N2', nDot: 0.5, T: 300, P: 200000, phaseConstraint: 'V' } },
       { id: 'n2-tank', defId: 'tank', name: 'N₂ Buffer', x: 21, y: 17, rot: 0,
-        params: { volume_m3: 20, P_init: 200000, P_relief: 500000,
+        profileId: 'tank_dev',
+        params: { volume_m3: 20, P_init: 200000, P_relief: 500000, overflow_level: 90,
                   opening_gas_pct: 50, Cv_gas: 50, opening_liq_pct: 0 } },
       { id: 'n2-vent', defId: 'sink', name: 'N₂ Vent', x: 24, y: 18, rot: 0, params: {} },
       { id: 'n2-ov', defId: 'sink', name: 'Overflow', x: 21, y: 14, rot: 0, params: {} },
@@ -34573,16 +35112,19 @@ function runTests() {
     t.assertClose(catErrs.length, 0, 0, 'No CATASTROPHIC (vent connected)');
   }});
 
-  // T-PS14: Relief valve: vent unconnected → CATASTROPHIC
-  tests.push({ name: '382: T-PS14 Relief valve: vent unconnected → CATASTROPHIC', fn: t => {
+  // T-PS14: Relief valve: vent unconnected → no safety device, no alarm from tick
+  // Limit system handles overpressure (P > P_HH). NNG-3: unconnected port = no device.
+  tests.push({ name: '382: T-PS14 Relief: vent unconnected → no safety device', fn: t => {
     const tid = t.place('tank', 0, 0, { volume_m3: 0.15, P_init: 500000, P_relief: 150000, opening_gas_pct: 0 });
-    // No vent connection
-    const r = t.solveRaw();
-    const ud = scene.runtime.unitData.get(tid);
-    t.assertOK(ud.last.vent_status === 'OPEN', 'Vent is OPEN');
-    const catErrs = ud.errors.filter(e => e.severity?.level >= ErrorSeverity.CATASTROPHIC.level);
-    t.assertOK(catErrs.length > 0, 'CATASTROPHIC (vent unconnected)');
-    t.assertOK(r.unitFaulted === true, 'unitFaulted');
+    // No vent connection — no relief valve installed
+    t.solve();
+    const ud = t.ud(tid);
+    t.assertOK(ud.last.vent_status === 'CLOSED', 'Vent CLOSED (no device)');
+    t.assertClose(ud.last.Q_vent, 0, 0, 'Q_vent = 0 (no device)');
+    // No CATASTROPHIC from tick — pressure simply stays high
+    const catFromTick = ud.errors.filter(e =>
+      e.severity?.level >= ErrorSeverity.CATASTROPHIC.level && e.message?.includes('Relief'));
+    t.assertClose(catFromTick.length, 0, 0, 'No relief alarm (no device connected)');
   }});
 
   // T-PS15: Overflow: level > threshold, overflow connected → MINOR
@@ -34601,18 +35143,22 @@ function runTests() {
     t.assertClose(catErrs.length, 0, 0, 'No CATASTROPHIC (overflow connected)');
   }});
 
-  // T-PS16: Overflow: unconnected → CATASTROPHIC
-  tests.push({ name: '384: T-PS16 Overflow: unconnected → CATASTROPHIC', fn: t => {
+  // T-PS16: Overflow: unconnected → no drain device, no alarm from tick
+  // Limit system handles overfill (level > level_HH). NNG-3: unconnected port = no device.
+  tests.push({ name: '384: T-PS16 Overflow: unconnected → no drain device', fn: t => {
     const tid = t.place('tank', 0, 0, {
       volume_m3: 0.15, level_init: 95, initialComposition: { H2O: 1 },
       overflow_level: 90, opening_gas_pct: 0, opening_liq_pct: 0
     });
-    // No overflow connection
-    const r = t.solveRaw();
-    const ud = scene.runtime.unitData.get(tid);
-    t.assertOK(ud.last.overflow_status === 'ACTIVE', 'Overflow ACTIVE');
-    const catErrs = ud.errors.filter(e => e.severity?.level >= ErrorSeverity.CATASTROPHIC.level);
-    t.assertOK(catErrs.length > 0, 'CATASTROPHIC (overflow unconnected)');
+    // No overflow connection — no drain installed
+    t.solve();
+    const ud = t.ud(tid);
+    t.assertOK(ud.last.overflow_status === 'OK', 'Overflow OK (no device)');
+    t.assertClose(ud.last.Q_overflow, 0, 0, 'Q_overflow = 0 (no device)');
+    // No CATASTROPHIC from tick — level simply stays high
+    const catFromTick = ud.errors.filter(e =>
+      e.severity?.level >= ErrorSeverity.CATASTROPHIC.level && e.message?.includes('Overflow'));
+    t.assertClose(catFromTick.length, 0, 0, 'No overflow alarm (no device connected)');
   }});
 
   // T-PS17: Both safeties active simultaneously
@@ -35144,6 +35690,214 @@ function runTests() {
     // Sink: absorbs flow
     const udS = t.ud(snk);
     t.assertOK(udS.last.absorbed_mol_s > 0, 'Sink absorbs flow');
+  }});
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // T-PS49–T-PS52: Tank profile safety & vented tank [v14.0.1]
+  // ═══════════════════════════════════════════════════════════════════════
+
+  // T-PS49: Vented tank P_relief = P_atm from SimSettings
+  // T-PS49: Vented tank — basic: P = P_atm, empty
+  tests.push({ name: '413: T-PS49 Open tank: P = P_atm always', fn: t => {
+    const tid = t.place('open_tank', 0, 0, {
+      volume_m3: 0.15, level_init: 0, initialComposition: { H2O: 1 }
+    });
+    t.solve();
+    const ud = t.ud(tid);
+    const P_atm = SimSettings.getAtmosphere().P_Pa;
+    t.assertClose(ud.last.P_Pa, P_atm, 1, 'P = P_atm');
+    t.assertClose(ud.last.totalMol, 0, 0, 'Empty tank has 0 mol');
+    t.assertOK(ud.last.status === 'empty', 'Status = empty');
+  }});
+
+  // T-PS50: Profile limits complete — atmospheric tank has P_L/P_H
+  tests.push({ name: '414: T-PS50 Low pressure profile has complete P limits', fn: t => {
+    const lim = getEffectiveLimits('tank_low_pressure', 1);
+    t.assertOK(lim != null, 'Limits exist for tank_low_pressure tier 1');
+    t.assertOK(lim.P_LL != null, 'P_LL defined');
+    t.assertOK(lim.P_L != null, 'P_L defined');
+    t.assertOK(lim.P_H != null, 'P_H defined');
+    t.assertOK(lim.P_HH != null, 'P_HH defined');
+    t.assertClose(lim.P_HH, 500000, 0, 'P_HH = 5 bar (equipment matrix)');
+    // Verify ordering: LL < L < H < HH
+    t.assertOK(lim.P_LL < lim.P_L, 'P_LL < P_L');
+    t.assertOK(lim.P_L < lim.P_H, 'P_L < P_H');
+    t.assertOK(lim.P_H < lim.P_HH, 'P_H < P_HH');
+  }});
+
+  // T-PS51: Pressure vessel tier 2 has wider envelope than tier 1
+  tests.push({ name: '415: T-PS51 High pressure tier 2 > tier 1 envelope', fn: t => {
+    const lim1 = getEffectiveLimits('tank_high_pressure', 1);
+    const lim2 = getEffectiveLimits('tank_high_pressure', 2);
+    t.assertOK(lim1 != null && lim2 != null, 'Both tiers have limits');
+    t.assertOK(lim2.P_HH > lim1.P_HH, 'Tier 2 P_HH > Tier 1 P_HH');
+    // Both have same T envelope (same material class)
+    t.assertClose(lim1.T_HH, lim2.T_HH, 0, 'Same T_HH across tiers');
+  }});
+
+  // T-PS52: Dev profile has wide-open limits (for testing)
+  tests.push({ name: '416: T-PS52 Dev profile: wide limits for unconstrained testing', fn: t => {
+    const lim = getEffectiveLimits('tank_dev', 1);
+    t.assertOK(lim != null, 'Dev profile has limits');
+    t.assertOK(lim.P_HH >= 10000000, 'P_HH >= 100 bar (very permissive)');
+    t.assertOK(lim.T_HH >= 800, 'T_HH >= 800 K (very permissive)');
+  }});
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // T-VT — Open Tank tests [v14.0.2]
+  // ═══════════════════════════════════════════════════════════════════════
+
+  // T-VT01: Liquid fill initializes correctly
+  tests.push({ name: '417: T-VT01 Open tank: liquid init at 50%', fn: t => {
+    const tid = t.place('open_tank', 0, 0, {
+      volume_m3: 0.15, level_init: 50, initialComposition: { H2O: 1 }
+    });
+    t.solve();
+    const ud = t.ud(tid);
+    t.assertOK(ud.last.totalMol > 0, 'Has liquid inventory');
+    t.assertOK(ud.last.level_pct > 20 && ud.last.level_pct < 80, 'Level ~50%');
+    t.assertOK(ud.last.status !== 'empty', 'Not empty');
+  }});
+
+  // T-VT02: Gas feed → all vented, nothing stored
+  tests.push({ name: '418: T-VT02 Open tank: gas feed → all vented', fn: t => {
+    const origDt = SimSettings.dt;
+    TimeClock.t = 0; TimeClock.frame = 0; TimeClock.mode = 'test';
+    SimSettings.dt = 1;
+
+    const src = t.place('source', 0, 0, { species: 'N2', nDot: 1.0, T: 300, P: 200000, phaseConstraint: 'V' });
+    const tid = t.place('open_tank', 4, 0, {
+      volume_m3: 0.15, level_init: 0, initialComposition: { N2: 1 },
+      opening_liq_pct: 0
+    });
+    t.wire(src, 'out', tid, 'mat_in');
+
+    // Run several steps
+    for (let i = 0; i < 5; i++) {
+      solveScene(scene, thermo);
+      const def = UnitRegistry.get('open_tank');
+      const u = scene.units.get(tid);
+      if (def.updateInventory && u.inventory) {
+        const ud = scene.runtime.unitData.get(tid);
+        u.inventory = def.updateInventory(u.inventory, ud.ports || {}, SimSettings.dt);
+      }
+      TimeClock.t += SimSettings.dt; TimeClock.frame++;
+    }
+    t.solve();
+    const ud = t.ud(tid);
+    // Gas can't be stored in an open vessel — should be near zero
+    t.assertOK(ud.last.totalMol < 0.1, 'Gas not stored (vented to atmosphere)');
+
+    SimSettings.dt = origDt;
+  }});
+
+  // T-VT03: Liquid feed → liquid accumulates
+  tests.push({ name: '419: T-VT03 Open tank: liquid feed → accumulates', fn: t => {
+    const origDt = SimSettings.dt;
+    TimeClock.t = 0; TimeClock.frame = 0; TimeClock.mode = 'test';
+    SimSettings.dt = 1;
+
+    const src = t.place('source', 0, 0, { species: 'H2O', nDot: 5.0, T: 300, P: 200000, phaseConstraint: 'L' });
+    const tid = t.place('open_tank', 4, 0, {
+      volume_m3: 1.0, level_init: 0, initialComposition: { H2O: 1 },
+      opening_liq_pct: 0
+    });
+    t.wire(src, 'out', tid, 'mat_in');
+
+    // Run several steps
+    for (let i = 0; i < 5; i++) {
+      solveScene(scene, thermo);
+      const def = UnitRegistry.get('open_tank');
+      const u = scene.units.get(tid);
+      if (def.updateInventory && u.inventory) {
+        const ud = scene.runtime.unitData.get(tid);
+        u.inventory = def.updateInventory(u.inventory, ud.ports || {}, SimSettings.dt);
+      }
+      TimeClock.t += SimSettings.dt; TimeClock.frame++;
+    }
+    t.solve();
+    const ud = t.ud(tid);
+    // Water should accumulate in the tank
+    t.assertOK(ud.last.totalMol > 10, 'Liquid accumulated');
+    t.assertOK(ud.last.level_pct > 0, 'Level > 0');
+
+    SimSettings.dt = origDt;
+  }});
+
+  // T-VT04: Liquid draw via Cv valve — needs ΔP (pump or lower-P downstream)
+  // Draining to atmospheric sink gives ΔP = 0 → no flow (gravity not modelled)
+  tests.push({ name: '420: T-VT04 Open tank: no Cv flow to atmospheric sink', fn: t => {
+    const tid = t.place('open_tank', 0, 0, {
+      volume_m3: 0.15, level_init: 80, initialComposition: { H2O: 1 },
+      Cv_liq: 30, opening_liq_pct: 50
+    });
+    const snk = t.place('sink', 5, 2);
+    t.wire(tid, 'liq_out', snk, 'in');
+    t.solve();
+    const ud = t.ud(tid);
+    // ΔP = P_atm - P_atm = 0 → no flow without pump
+    t.assertClose(ud.last.Q_liq, 0, 1e-6, 'Q_liq ≈ 0 (no ΔP without pump)');
+  }});
+
+  // T-VT05: Overflow connected-only
+  tests.push({ name: '421: T-VT05 Open tank: overflow connected-only', fn: t => {
+    const tid = t.place('open_tank', 0, 0, {
+      volume_m3: 0.15, level_init: 95, initialComposition: { H2O: 1 },
+      overflow_level: 90, opening_liq_pct: 0
+    });
+    // No overflow connection
+    t.solve();
+    const ud = t.ud(tid);
+    t.assertOK(ud.last.overflow_status === 'OK', 'Overflow OK (no device)');
+    t.assertClose(ud.last.Q_overflow, 0, 0, 'Q_overflow = 0 (no device)');
+  }});
+
+  // T-VT06: Overflow connected → flows
+  tests.push({ name: '422: T-VT06 Open tank: overflow connected → liquid flows', fn: t => {
+    const tid = t.place('open_tank', 0, 0, {
+      volume_m3: 0.15, level_init: 95, initialComposition: { H2O: 1 },
+      overflow_level: 90, opening_liq_pct: 0
+    });
+    const ovSnk = t.place('sink', 5, 2);
+    t.wire(tid, 'overflow', ovSnk, 'in');
+    t.solve();
+    const ud = t.ud(tid);
+    t.assertOK(ud.last.overflow_status === 'ACTIVE', 'Overflow ACTIVE');
+    t.assertOK(ud.last.Q_overflow > 0, 'Q_overflow > 0');
+  }});
+
+  // T-VT07: Pressure anchor — downstream sees P_atm from open tank
+  tests.push({ name: '423: T-VT07 Open tank: pressure anchor at P_atm', fn: t => {
+    const tid = t.place('open_tank', 0, 0, {
+      volume_m3: 0.15, level_init: 50, initialComposition: { H2O: 1 },
+      Cv_liq: 30, opening_liq_pct: 50
+    });
+    const snk = t.place('sink', 5, 2);
+    t.wire(tid, 'liq_out', snk, 'in');
+    t.solve();
+    const ud = t.ud(tid);
+    const P_atm = SimSettings.getAtmosphere().P_Pa;
+    // Vented tank always reports P = P_atm
+    t.assertClose(ud.last.P_Pa, P_atm, 1, 'P_Pa = P_atm');
+    // It is an anchor for the pressure trace
+    const traceResult = resolveDownstreamPressures(scene);
+    const traceKey = tid + ':liq_out';
+    const P_down = traceResult.get(traceKey);
+    // Downstream of liq_out traces to sink (also P_atm)
+    t.assertOK(P_down != null, 'Trace found for liq_out');
+    t.assertClose(P_down, P_atm, 100, 'P_downstream ≈ P_atm');
+  }});
+
+  // T-VT08: Profile registration correct
+  tests.push({ name: '424: T-VT08 Open tank: profile limits (no P limits)', fn: t => {
+    const lim = getEffectiveLimits('open_tank', 1);
+    t.assertOK(lim != null, 'Limits exist for open_tank tier 1');
+    t.assertOK(lim.T_LL != null, 'T_LL defined');
+    t.assertOK(lim.T_HH != null, 'T_HH defined');
+    t.assertOK(lim.level_H != null, 'level_H defined');
+    t.assertOK(lim.level_HH != null, 'level_HH defined');
+    // No P limits — vessel is always at P_atm
+    t.assertOK(lim.P_HH == null, 'No P_HH (open vessel)');
   }});
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -36396,17 +37150,24 @@ function runTests() {
     t.assertOK(failsMax, '150 fails max:100');
   }});
 
-  // [v10.6.1] T220: ctx.warn CATASTROPHIC → unitFaulted → solver ok:false
-  tests.push({ name: '220: ctx.warn CATASTROPHIC propagates to unitFaulted', fn: t => {
+  // [v10.6.1] T220: CATASTROPHIC alarm from limit system when P > P_HH
+  // [v14.0.1] Updated: tank safety is connected-only. Unvented overpressure →
+  // limit system fires CATASTROPHIC (not tick). Validates the new design.
+  tests.push({ name: '220: Overpressured unvented tank → limit CATASTROPHIC', fn: t => {
     t.clearScene();
-    const tid = t.place('tank', 0, 0, { volume_m3: 50, P_relief: 150000 });
+    // Tank at 6 bar, profile P_HH = 5 bar (atmospheric profile) → CATASTROPHIC
+    const tid = t.place('tank', 0, 0, { volume_m3: 0.15, P_init: 600000, opening_gas_pct: 0 });
     const u = scene.units.get(tid);
-    // Inflate inventory so P > P_relief (1.5 bar). 3× atm → ~3 bar >> 1.5 bar
-    // No vent connection → CATASTROPHIC
-    for (const sp of Object.keys(u.inventory.n)) u.inventory.n[sp] *= 3;
-    const r = t.solveRaw();
-    t.assertOK(r.unitFaulted === true, 'unitFaulted = true');
-    t.assertOK(r.ok === false, 'solver ok = false');
+    u.profileId = 'tank_low_pressure';
+    u.tier = 1;
+    t.solve();
+    // Evaluate limits — should fire P_HH CATASTROPHIC
+    const def = UnitRegistry.get('tank');
+    const ud = t.ud(tid);
+    const violations = evaluateLimits(tid, u.name, ud, def, 'tank_low_pressure', 1);
+    const phh = violations.find(v => v.param === 'P_HH');
+    t.assertOK(phh != null, 'P_HH violation detected');
+    t.assertOK(phh?.severity?.level >= AlarmSeverity.CATASTROPHIC.level, 'Severity = CATASTROPHIC');
   }});
 
   // [v10.6.1 → v13.8.0] T221: Tank relief/overflow safety routing
@@ -39304,14 +40065,14 @@ function runTests() {
     const def = UnitRegistry.get('tank');
     // Simulate a tank at 95% fill → should trigger level_H (90%)
     const ud = { last: { fillPct: 95 }, ports: { mat_out: { T: 300, P: 101325, n: { H2O: 1 }, type: StreamType.MATERIAL } } };
-    const violations = evaluateLimits('u_tank', 'Tank', ud, def, 'tank_atmospheric', 1);
+    const violations = evaluateLimits('u_tank', 'Tank', ud, def, 'tank_low_pressure', 1);
     const lvlH = violations.find(v => v.param === 'level_H');
     t.assertOK(lvlH, 'level_H violation at 95% fill');
     t.assertOK(lvlH.severity === AlarmSeverity.WARNING, 'level_H is WARNING');
     t.assertOK(lvlH.message.includes('%'), 'Message includes % formatting');
     // At 101% → level_HH should trigger (>100 threshold)
     const ud100 = { last: { fillPct: 101 }, ports: { mat_out: { T: 300, P: 101325, n: { H2O: 1 }, type: StreamType.MATERIAL } } };
-    const viol100 = evaluateLimits('u_tank', 'Tank', ud100, def, 'tank_atmospheric', 1);
+    const viol100 = evaluateLimits('u_tank', 'Tank', ud100, def, 'tank_low_pressure', 1);
     const lvlHH = viol100.find(v => v.param === 'level_HH');
     t.assertOK(lvlHH, 'level_HH violation at 101% fill');
     t.assertOK(lvlHH.severity === AlarmSeverity.CATASTROPHIC, 'level_HH is CATASTROPHIC');
