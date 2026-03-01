@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v13.7.0
+  processThis v14.0.0
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -287,6 +287,114 @@
   ═══════════════════════════════════════════════════════════════════════════
   CHANGELOG
   ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v14.0.0 — S5-lite: Tank Physics + Cv Flow ────────────────────────────
+  455 tests, 2516 assertions, 0 failures.
+
+  Breaking change: tank model replaced. Old saves auto-migrate via F-010.
+
+  S5a-0 — TimeClock interim fixes:
+  - T0_SECONDS constant (43200 = noon). DRY cleanup for reset, import, init.
+  - Test button disabled when mode !== 'test' (prevents mid-sim re-entry).
+  - Mid-sim unit placement captures _initial snapshot at placement frame.
+  - Export version 17: saves t, frame, inventoryInitial for full state restore.
+  - Import version 17: restores t/frame; legacy imports default t = T0.
+  - Deleted 6 old tank tests (169–174) replaced by S5a-2 coverage.
+  - 8 new tests T-TC01–TC08 (interim, replaced by T-SM* in S-SIM phase).
+  - Gate: 401 tests, 2346 assertions.
+
+  S5a-1 — computeTankState + pressure trace:
+  - computeTankState(): pure function computing P, level, phase split from
+    inventory {n, T_K} and volume. Uses PR liquid density (S3 dependency).
+    200 bar sentinel for all-liquid (incompressible). Handles empty inventory.
+  - K_RELIEF_BASE, K_OVERFLOW_BASE safety valve constants.
+  - _inventoryMW(), _compositionMW() helpers for SG computation.
+  - resolveDownstreamPressures(): pre-tick trace walks from each vessel
+    outlet (tank gas_out/liq_out, reservoir mat_out) to the nearest anchor
+    (tank, reservoir, sink). Accumulates drops (restriction, turbine) and
+    boosts (pump, compressor). Formula: P_down = P_anchor + Σdrops − Σboosts.
+  - traceToAnchor(): recursive walk with cycle detection. Validates valve
+    setpoints (peek-beyond for Pout vs P_downstream). Records flow divider
+    branch diagnostics per-branch.
+  - valveStatus + dividerStatus caches in scene.runtime for tick consumption.
+  - 6 tests T-PS01–06 (computeTankState: gas, liquid, mixed, empty, all-liq,
+    deterministic).
+  - 10 tests T-PS33–42 (pressure trace: direct, valve regulating, restriction,
+    divider max, compressor boost, turbine drop, look-through, pump recirc,
+    dead end).
+  - Gate: 417 tests, 2384 assertions.
+
+  S5a-2a — Core vessels (tank + reservoir):
+  - Tank: 5-port (mat_in, gas_out, liq_out, vent, overflow), 3w×2h footprint.
+    Dual Cv outlets: vapor draw from gas_out, liquid draw from liq_out.
+    Flow = Cv × (opening/100) × √(ΔP / (SG × 1e5)), capped by inventory.
+    Relief valve: automatic vent when P > P_relief (connected → port flow,
+    unconnected → removed + CATASTROPHIC alarm per Q2).
+    Overflow: automatic drain when level > threshold (same connected/
+    unconnected logic).
+    optionalPorts: true — unconnected ports are valid (no dangling-port error).
+  - initInventory: gas mode (P_init → n = PV/RT) and liquid mode
+    (level_init → V_liq with atmospheric headspace fill).
+  - updateInventory: 5-port mass balance (in − gas − liq − vent − overflow =
+    accumulation) with adiabatic T mixing.
+  - Reservoir: 1-port (mat_out), infinite volume, constant P = P_bar × 1e5,
+    Cv outlet. No depletion. Boundary unit.
+  - 5 tests T-PS23–27 (reservoir: flow, zero opening, reverse P, composition,
+    no depletion).
+  - 14 tests T-PS07–22 (tank: gas draw, liquid draw, dual draw, zero opening,
+    reverse P alarm, depletion, relief connected/unconnected, overflow
+    connected/unconnected, dual safety, empty tank, initInventory gas/liquid,
+    updateInventory mass/T balance).
+  - Gate: 439 tests, 2457 assertions.
+
+  S5a-2b — Pressure units + profiles + polish:
+  - _isenthalpicThrottleTick(): shared tick function for valve and restriction.
+    Isenthalpic expansion (H_in = H_out), enthalpy-based T_out search,
+    check valve at dP ≤ 0, empty stream handling.
+  - Restriction: new unit (fixed ΔP, isenthalpic). Registered with profile
+    limits. 3 tests T-PS30–32.
+  - Valve: refactored to "Pressure Regulator". Uses shared tick. Setpoint
+    validation reads valveStatus from trace. canRegulate = true → isenthalpic
+    to Pout. canRegulate = false → pass-through at inlet P with WARNING.
+    2 tests T-PS43–44.
+  - Sink: enhanced as process boundary at P_atm. Reports absorbed_mol_s,
+    inlet/outlet P, expansion ratio. 2 tests T-PS28–29.
+  - Splitter: reclassified as "Flow Divider". Check valve alarm reads
+    dividerStatus from trace. Per-branch P_eff ≥ P_in → MINOR alarm.
+    Branch imbalance > 0.5 bar → MINOR informational. Alarm fires even on
+    empty inlet (explains WHY there's no flow). 2 tests T-PS45–46.
+  - Pressure alarm source (F-009): replaces placeholder.
+  - 7 profile registrations: tank_atmospheric, tank_pressure, reservoir_gas,
+    reservoir_liquid, reservoir_air (Planet X atmosphere), restriction,
+    gas_turbine (profiles with tiered limits).
+  - Gate: 448 tests, 2480 assertions.
+
+  S5a-3 — Integration + regression:
+  - T-PS47: full integration test (Tank → restriction → valve → sink).
+  - T-PS48a–f: 6 backpressure robustness tests (Tank(3bar) → [unit] →
+    Tank(5bar) for direct, valve, restriction, mixer, splitter, chained).
+  - Demo scene updated: tank params (Cv/opening), connections (gas_out),
+    version name. DEMO_VERSION bumped (clears stale autosave).
+  - Tank inspector: params updated for Cv/opening controls, detail panel
+    reads Q_gas/Q_liq and gas_out/liq_out ports.
+  - Tank palette defaults: Cv-valve params replacing old drawRate.
+  - F-010 import migration: removes drawRate/tankMode/P_design_bar from
+    old saves, remaps mat_out → liq_out connections.
+  - Version bump v14.0.0.
+  - Gate: 455 tests.
+
+  Spec amendments (cumulative):
+  - F-010 import migration: reinstated (was DROPPED in progress tracker).
+  - Q2 severity: unconnected safety discharge = CATASTROPHIC.
+  - SG reference: planet-specific from SimSettings.
+  - Reservoir_air P_bar: dynamic from SimSettings.
+  - H: ports.out only (no dual assignment).
+  - Q4: check valve >= (physically correct).
+  - Q1: ctx accessors for NNG-9 compliance.
+  - T-PS36: transparent heater test (restriction tested separately).
+  - initInventory liquid mode: atmospheric headspace fill (+1 test T-PS20b).
+  - Divider empty-inlet still checks dividerStatus for check valve alarm.
+  - Valve check-valve condition uses >= (physically correct).
 
   ─── v13.3.0 — S3: Peng-Robinson Equation of State ──────────────────────
 
@@ -1424,7 +1532,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>processThis — v12.16.0</title>
+  <title>processThis — v14.0.0</title>
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
@@ -27875,7 +27983,7 @@ function loadDemo() {
 
   scene.importJSON(JSON.stringify({
     version: 14,
-    processName: 'Sabatier + Brayton + SMR + Pump + Priority Demo (v13.1.0)',
+    processName: 'Sabatier + Brayton + SMR + Pump + Priority Demo (v14.0.0)',
     grid: { w: 56, h: 42, tile: 48 },
     solverOptions: { maxIter: 200 },
     units: [
@@ -35001,6 +35109,41 @@ function runTests() {
     t.assertOK(udV.last, 'valve u.last populated');
     t.assertOK(udV.last.mode === 'pass-through', 'valve pass-through');
     t.assertOK(Number.isFinite(udV.last.Pin), 'valve Pin finite');
+  }});
+
+  // T-PS47: S5-lite full integration regression gate
+  // Verifies the complete S5 pipeline in one test: tank → restriction → valve → sink
+  // with pressure trace, Cv flow, isenthalpic expansion, and valve regulation.
+  tests.push({ name: '412: T-PS47 S5-lite integration: Tank → restriction → valve → sink', fn: t => {
+    // Tank at 5 bar, restriction drops 1 bar, valve regulates to 2 bar, sink at P_atm
+    const tA = t.place('tank', 0, 0, { volume_m3: 0.5, P_init: 500000, P_relief: 1000000,
+                                         opening_gas_pct: 100, Cv_gas: 50 });
+    const res = t.place('restriction', 5, 0, { deltaP: 100000 });
+    const vlv = t.place('valve', 9, 0, { Pout: 200000 });
+    const snk = t.place('sink', 13, 0);
+    t.wire(tA, 'gas_out', res, 'in');
+    t.wire(res, 'out', vlv, 'in');
+    t.wire(vlv, 'out', snk, 'in');
+    t.solve();
+    // Tank should produce flow (ΔP > 0)
+    const udT = t.ud(tA);
+    t.assertOK(udT.last.Q_gas > 0, 'Tank gas draw > 0 (Cv-driven)');
+    t.assertOK(udT.last.P_Pa > 100000, 'Tank pressure computed from inventory');
+    // Restriction: isenthalpic, Pin > Pout
+    const udR = t.ud(res);
+    t.assertOK(udR.last.mode === 'isenthalpic', 'Restriction isenthalpic');
+    t.assertOK(udR.last.Pin > udR.last.Pout, 'Restriction drops pressure');
+    t.assertClose(udR.last.Pin - udR.last.Pout, 100000, 5000, 'Restriction dP ≈ 1 bar');
+    // Valve: regulating (Pout=2 bar > P_atm)
+    const udV = t.ud(vlv);
+    t.assertOK(udV.last.mode === 'isenthalpic', 'Valve regulating (isenthalpic)');
+    t.assertClose(udV.last.Pout, 200000, 5000, 'Valve Pout ≈ 2 bar');
+    // Trace must have populated valve status
+    const vs = scene.runtime.valveStatus?.get(vlv);
+    t.assertOK(vs && vs.canRegulate, 'Trace confirms valve can regulate');
+    // Sink: absorbs flow
+    const udS = t.ud(snk);
+    t.assertOK(udS.last.absorbed_mol_s > 0, 'Sink absorbs flow');
   }});
 
   // ═══════════════════════════════════════════════════════════════════════
