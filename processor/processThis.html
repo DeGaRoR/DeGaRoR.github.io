@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v14.3.2
+  processThis v14.4.0
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -300,6 +300,31 @@
   ═══════════════════════════════════════════════════════════════════════════
   CHANGELOG
   ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v14.4.0 — Planet Report + Menu Restructure + PU Submenu ─────────────
+  475 tests, 2583 assertions, 0 failures.
+
+  Menu restructure:
+  - New "Reports" submenu: Solver, Mass & Energy Balance, Diagnostic
+    Center, Planet & Atmosphere.
+  - New "Physical Units" submenu: SI (bar), SI, Imperial — direct click
+    selection, no modal needed.  Replaces old "Physical Units" flat item
+    that opened a modal with card-based selection.
+
+  Planet & Atmosphere report modal (§1.4 of terraform spec):
+  - Surface conditions: T, P, RH%, dew point (all via fmt.T/fmt.P unit
+    system).
+  - Derived: mean MW, air density (ideal gas).
+  - Composition bars: horizontal colored bars per species ≥ 0.01%, wet
+    air (includes H₂O if RH > 0).
+  - Habitability assessment: O₂ pp, CO₂ pp, T, P checked against human
+    tolerance thresholds with ok/warn/crit coloring.
+  - Breathable verdict banner: green ✓ / yellow ⚠ / red ✗.
+  - "Your Impact" placeholder (greyed, Phase 2).
+  - Opens from: menu Reports → Planet & Atmosphere, or click on climate
+    bar planet section (pointer-events:auto + hover highlight).
+
+  NNG: NNG-3 (WYSIWYG), NNG-14 (no test impact — display-only DOM).
 
   ─── v14.3.2 — Climate Bar UI ────────────────────────────────────────────
   475 tests, 2583 assertions, 0 failures.
@@ -2042,6 +2067,15 @@
       gap: 8px;
       align-items: center;
       color: #e2e8f0;
+      pointer-events: auto;
+      cursor: pointer;
+      border-radius: 8px;
+      padding: 2px 6px;
+      margin: -2px -6px;
+      transition: background 0.15s;
+    }
+    .climate-bar .cb-planet:hover {
+      background: #1b223066;
     }
     .climate-bar .cb-planet .cb-name {
       font-weight: 700;
@@ -6781,10 +6815,21 @@
               <div class="item" id="mModels">Models</div>
             </div></div>
           </div>
-          <div class="item" id="mUnits">Physical Units <span class="hint">display</span></div>
-          <div class="item" id="mSolver">Solver <span class="hint">configure</span></div>
-          <div class="item" id="mBalance">Balance Report</div>
-          <div class="item" id="mDiagnostic">Diagnostic Center <span class="hint">alarms</span></div>
+          <div class="item has-sub">Reports
+            <div class="submenu"><div class="submenu-inner">
+              <div class="item" id="mSolver">Solver</div>
+              <div class="item" id="mBalance">Mass &amp; Energy Balance</div>
+              <div class="item" id="mDiagnostic">Diagnostic Center</div>
+              <div class="item" id="mPlanet">Planet &amp; Atmosphere</div>
+            </div></div>
+          </div>
+          <div class="item has-sub">Physical Units
+            <div class="submenu"><div class="submenu-inner">
+              <div class="item" id="mPU_SI_bar">SI (bar) <span class="hint">°C, bar</span></div>
+              <div class="item" id="mPU_SI">SI <span class="hint">K, Pa</span></div>
+              <div class="item" id="mPU_Imperial">Imperial <span class="hint">°F, psi</span></div>
+            </div></div>
+          </div>
           <div class="sep"></div>
           <div class="item" id="mImport">Import Model…</div>
           <div class="item" id="mExport">Export Model…</div>
@@ -6963,6 +7008,16 @@
           <div id="diagTrafficLights" style="display:flex; gap:14px; align-items:center;"></div>
         </div>
         <div id="diagnosticPanel" style="margin-top:10px; max-height:60vh; overflow-y:auto;"></div>
+      </div>
+    </div>
+
+    <!-- [v14.3.2] Planet & Atmosphere report modal -->
+    <div class="modal" id="modalPlanet">
+      <div class="modalContent" style="max-width:520px;">
+        <button class="modalClose" onclick="document.getElementById('modalPlanet').classList.remove('open')">×</button>
+        <h3 id="planetModalTitle" style="margin:0 0 2px;">🪐 Planet &amp; Atmosphere</h3>
+        <div class="small" style="margin-bottom:8px;">Surface conditions, composition, and habitability assessment.</div>
+        <div id="planetPanel" style="max-height:60vh; overflow-y:auto;"></div>
       </div>
     </div>
 
@@ -21693,6 +21748,129 @@ function openDiagnosticModal() {
 }
 
 /* =========================
+   [v14.3.2] PLANET & ATMOSPHERE REPORT
+   Surface conditions, composition, habitability assessment.
+   ========================= */
+function openPlanetModal() {
+  const modal = document.getElementById('modalPlanet');
+  const panel = document.getElementById('planetPanel');
+  panel.innerHTML = '';
+  closeMenus();
+
+  const atm = SimSettings.getAtmosphere();
+  const wet = SimSettings.getWetAir();
+  const dewPt = SimSettings.getDewPoint();
+  const RH = (atm.RH ?? 0) * 100;
+
+  // Dynamic title with planet name and icon from canonical PLANET_ICONS
+  const em = PLANET_ICONS[SimSettings.getPresetKey()] || '🌐';
+  document.getElementById('planetModalTitle').innerHTML = `${em} ${atm.presetName} — Atmosphere`;
+
+  // ── Surface Conditions ──
+  panel.appendChild(el('div', { style: 'font-weight:700; font-size:13px; margin-bottom:6px;', html: 'Surface Conditions' }));
+  const grid = el('div', { style: 'display:grid; grid-template-columns:1fr 1fr; gap:2px 16px; font-size:12px; margin-bottom:14px;' });
+  const addKV = (label, val) => {
+    grid.appendChild(el('div', { style: 'color:#94a3b8; padding:3px 0;', text: label }));
+    grid.appendChild(el('div', { style: 'text-align:right; padding:3px 0;', html: val }));
+  };
+  addKV('Temperature', fmt.T(atm.T_K));
+  addKV('Pressure', fmt.P(atm.P_Pa));
+  addKV('Relative Humidity', RH > 0 ? `${RH.toFixed(0)}<span class="u">%</span>` : '—');
+  addKV('Dew Point', dewPt ? fmt.T(dewPt) : '—');
+
+  // Mean MW and air density
+  let meanMW = 0;
+  for (const [sp, f] of Object.entries(wet)) {
+    const c = ComponentRegistry.exists(sp) ? ComponentRegistry.get(sp) : null;
+    if (c) meanMW += f * c.MW;
+  }
+  const R = 8.314;
+  const rho = (atm.P_Pa * meanMW / 1000) / (R * atm.T_K);
+  addKV('Mean MW', `${meanMW.toFixed(2)}<span class="u">g/mol</span>`);
+  addKV('Air Density', `${rho.toFixed(3)}<span class="u">kg/m³</span>`);
+  panel.appendChild(grid);
+
+  // ── Composition Bars ──
+  panel.appendChild(el('div', { style: 'font-weight:700; font-size:13px; margin-bottom:6px; border-top:1px solid #1e293b; padding-top:10px;', html: 'Atmospheric Composition (wet)' }));
+  const spNames = { N2: 'N₂', O2: 'O₂', CO2: 'CO₂', Ar: 'Ar', CH4: 'CH₄', H2: 'H₂', H2O: 'H₂O', SO2: 'SO₂' };
+  const spColors = { N2: '#60a5fa', O2: '#34d399', CO2: '#f87171', Ar: '#a78bfa', CH4: '#fb923c', H2: '#fbbf24', H2O: '#38bdf8', SO2: '#e879f9' };
+  const sorted = Object.entries(wet).filter(([, f]) => f >= 0.0001).sort((a, b) => b[1] - a[1]);
+  const barsDiv = el('div', { style: 'display:flex; flex-direction:column; gap:4px; margin-bottom:14px;' });
+  for (const [sp, f] of sorted) {
+    const pct = f * 100;
+    const color = spColors[sp] || '#94a3b8';
+    const row = el('div', { style: 'display:flex; align-items:center; gap:8px; font-size:11px;' });
+    row.innerHTML =
+      `<span style="width:32px; text-align:right; color:${color}; font-weight:600;">${spNames[sp] || sp}</span>` +
+      `<div style="flex:1; height:8px; background:#1e293b; border-radius:4px; overflow:hidden;">` +
+        `<div style="width:${Math.max(pct, 0.5)}%; height:100%; background:${color}; border-radius:4px;"></div>` +
+      `</div>` +
+      `<span style="width:52px; text-align:right; font-variant-numeric:tabular-nums;">${pct >= 1 ? pct.toFixed(1) : pct.toFixed(2)}%</span>`;
+    barsDiv.appendChild(row);
+  }
+  panel.appendChild(barsDiv);
+
+  // ── Habitability Assessment ──
+  panel.appendChild(el('div', { style: 'font-weight:700; font-size:13px; margin-bottom:6px; border-top:1px solid #1e293b; padding-top:10px;', html: 'Habitability Assessment' }));
+  const T_C = atm.T_K - 273.15;
+  const P_kPa = atm.P_Pa / 1000;
+  const ppO2 = (wet.O2 || 0) * P_kPa;
+  const ppCO2 = (wet.CO2 || 0) * P_kPa;
+
+  // Thresholds
+  const checks = [
+    { label: 'O₂ partial pressure', val: `${ppO2.toFixed(1)} kPa`,
+      status: ppO2 >= 19 && ppO2 <= 23.5 ? 'ok' : ppO2 >= 16 && ppO2 <= 50 ? 'warn' : 'crit',
+      note: ppO2 < 16 ? 'hypoxic' : ppO2 > 50 ? 'O₂ toxic' : ppO2 < 19 ? 'low' : ppO2 > 23.5 ? 'elevated' : 'nominal' },
+    { label: 'CO₂ partial pressure', val: `${ppCO2.toFixed(2)} kPa`,
+      status: ppCO2 <= 0.5 ? 'ok' : ppCO2 <= 4 ? 'warn' : 'crit',
+      note: ppCO2 > 4 ? 'toxic' : ppCO2 > 0.5 ? 'elevated' : 'nominal' },
+    { label: 'Temperature', val: fmt.T(atm.T_K),
+      status: T_C >= 10 && T_C <= 35 ? 'ok' : T_C >= 0 && T_C <= 45 ? 'warn' : 'crit',
+      note: T_C < 0 ? 'freezing' : T_C > 45 ? 'lethal heat' : T_C < 10 ? 'cold' : T_C > 35 ? 'hot' : 'comfortable' },
+    { label: 'Surface pressure', val: fmt.P(atm.P_Pa),
+      status: P_kPa >= 80 && P_kPa <= 110 ? 'ok' : P_kPa >= 60 && P_kPa <= 140 ? 'warn' : 'crit',
+      note: P_kPa < 60 ? 'vacuum-like' : P_kPa > 140 ? 'hyperbaric' : P_kPa < 80 ? 'low' : P_kPa > 110 ? 'high' : 'nominal' }
+  ];
+
+  const statusIcon = { ok: '✓', warn: '⚠', crit: '✗' };
+  const statusColor = { ok: '#6ee7b7', warn: '#fbbf24', crit: '#fca5a5' };
+  const checkGrid = el('div', { style: 'display:flex; flex-direction:column; gap:3px; margin-bottom:14px;' });
+  let worst = 'ok';
+  for (const c of checks) {
+    if (c.status === 'crit') worst = 'crit';
+    else if (c.status === 'warn' && worst !== 'crit') worst = 'warn';
+    const row = el('div', { style: 'display:flex; align-items:center; gap:8px; font-size:12px; padding:3px 0;' });
+    row.innerHTML =
+      `<span style="color:${statusColor[c.status]}; width:16px; text-align:center;">${statusIcon[c.status]}</span>` +
+      `<span style="flex:1; color:#94a3b8;">${c.label}</span>` +
+      `<span style="font-variant-numeric:tabular-nums;">${c.val}</span>` +
+      `<span style="width:80px; text-align:right; font-size:10px; color:${statusColor[c.status]};">${c.note}</span>`;
+    checkGrid.appendChild(row);
+  }
+  panel.appendChild(checkGrid);
+
+  // ── Verdict Banner ──
+  const verdictText = worst === 'ok' ? 'Breathable' : worst === 'warn' ? 'Marginal' : 'Not Breathable';
+  const verdictBg = worst === 'ok' ? '#065f4622' : worst === 'warn' ? '#78350f22' : '#7f1d1d22';
+  const verdictBorder = worst === 'ok' ? '#065f46' : worst === 'warn' ? '#78350f' : '#7f1d1d';
+  const verdictCol = statusColor[worst];
+  const verdict = el('div', {
+    style: `text-align:center; padding:10px; border-radius:10px; font-size:14px; font-weight:700; color:${verdictCol}; background:${verdictBg}; border:1px solid ${verdictBorder};`
+  });
+  verdict.innerHTML = `${statusIcon[worst]} ${verdictText}`;
+  panel.appendChild(verdict);
+
+  // ── "Your Impact" placeholder ──
+  const impactDiv = el('div', { style: 'margin-top:14px; border-top:1px solid #1e293b; padding-top:10px;' });
+  impactDiv.appendChild(el('div', { style: 'font-weight:700; font-size:13px; margin-bottom:4px; opacity:0.25;', html: 'Your Impact' }));
+  impactDiv.appendChild(el('div', { style: 'font-size:11px; opacity:0.25;', html: 'Atmospheric changes from your process — coming in Phase 2.' }));
+  panel.appendChild(impactDiv);
+
+  modal.classList.add('open');
+}
+
+/* =========================
    STATUS — Transient messages (connect, import, export, etc.)
    ========================= */
 function setStatus(s) {
@@ -23429,6 +23607,7 @@ function buildUnitsPanel() {
       buildUnitsPanel();
       updatePropertiesPanel();
       render();
+      updateClimateBar();  // [v14.3.0] refresh T/P display units
     });
     
     panel.appendChild(card);
@@ -28220,6 +28399,7 @@ let _lastSolveHadNewErrors = false;
    [v14.3.0] CLIMATE BAR — atmospheric readout
    ========================= */
 const _cbPlanet = document.getElementById('cbPlanet');
+if (_cbPlanet) _cbPlanet.addEventListener('click', () => openPlanetModal());
 
 function updateClimateBar() {
   if (!_cbPlanet) return;
@@ -28238,9 +28418,8 @@ function updateClimateBar() {
     return `<span class="cb-val">${name}\u2009${pct}%</span>`;
   });
 
-  // Planet emoji map
-  const emoji = { 'Planet X': '🪐', 'Earth (ISA)': '🌍', 'Mars': '🔴', 'Titan': '🟠', 'Venus (surface)': '♀', 'Custom': '⚙' };
-  const em = emoji[atm.presetName] || '🌐';
+  // Planet icon from canonical PLANET_ICONS map
+  const em = PLANET_ICONS[SimSettings.getPresetKey()] || '🌐';
 
   _cbPlanet.innerHTML =
     `<span class="cb-name">${em} ${atm.presetName}</span>` +
@@ -28765,11 +28944,17 @@ document.getElementById('mModels').addEventListener('click', () => {
   closeMenus();
 });
 
-document.getElementById('mUnits').addEventListener('click', () => {
-  buildUnitsPanel();
-  modalUnits.classList.add('open');
-  closeMenus();
-});
+// [v14.3.2] Physical Units — direct submenu selection (replaces modal)
+for (const [menuId, sysId] of [['mPU_SI_bar','SI_bar'], ['mPU_SI','SI'], ['mPU_Imperial','Imperial']]) {
+  document.getElementById(menuId).addEventListener('click', () => {
+    models.setActive('units', sysId);
+    updatePropertiesPanel();
+    render();
+    updateClimateBar();
+    closeMenus();
+    setStatus('Units: ' + models.getActive('units').name);
+  });
+}
 
 document.getElementById('mSolver').addEventListener('click', () => {
   openSolverModal();
@@ -28783,6 +28968,10 @@ document.getElementById('mDiagnostic').addEventListener('click', () => {
   openDiagnosticModal();
 });
 
+document.getElementById('mPlanet').addEventListener('click', () => {
+  openPlanetModal();
+});
+
 // Close modals when clicking outside
 const modalBalance = document.getElementById('modalBalance');
 modalBalance.addEventListener('click', (ev) => {
@@ -28791,6 +28980,10 @@ modalBalance.addEventListener('click', (ev) => {
 const modalDiagnostic = document.getElementById('modalDiagnostic');
 modalDiagnostic.addEventListener('click', (ev) => {
   if (ev.target === modalDiagnostic) modalDiagnostic.classList.remove('open');
+});
+const modalPlanet = document.getElementById('modalPlanet');
+modalPlanet.addEventListener('click', (ev) => {
+  if (ev.target === modalPlanet) modalPlanet.classList.remove('open');
 });
 
 // Close modals when clicking outside
