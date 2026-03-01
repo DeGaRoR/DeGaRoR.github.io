@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v14.1.1
+  processThis v14.1.2
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -81,13 +81,19 @@
             always conserved.  Alarm: "insufficient ΔP".
             Active devices (gas_turbine, mixer): when check-valve fires,
             a post-tick backward scan traces blocked inlets to their
-            originating boundary source through single-path chains.
+            originating boundary source.  Stops at inventory units
+            (buffers absorb by design) and multi-output units
+            (splitters) — an active splitter would shut down, but
+            the cascade through the graph kills healthy branches.
+            Splitter branch zeroing needs dedicated spec; until then,
+            mass gap at blocked branch is surfaced by balance audit.
             Blocked sources are zeroed with alarm "Output blocked —
-            downstream path blocked at [unit]".  Multi-output units
-            (splitters) stop the backward trace — cannot zero a source
-            that also feeds an unblocked branch.  The blocking unit
+            downstream path blocked at [unit]".  The blocking unit
             retains its own check-valve alarm.  Both alarms are PLANT
             domain so the alarm center provides full diagnosis.
+            The backward scan is O(units), non-iterative, runs once
+            per solver iteration.  blockedSources is monotonic (never
+            shrinks) — adds at most one extra solver iteration.
 
     NNG-5   Power lifecycle.
             Power is the only demand-driven system.  Strict sequence:
@@ -294,6 +300,82 @@
   ═══════════════════════════════════════════════════════════════════════════
   CHANGELOG
   ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v14.1.2 — Mass Conservation: Check-Valve Physics & Backpressure ───────
+  467 tests, 2560 assertions, 0 failures.
+
+  Mass balance bug hunt: user scene showed 13.6 g/s residual (10% of
+  throughput).  Root cause was two independent bugs — both fixed, plus a
+  new solver post-pass for complete mass conservation.
+
+  Bug 1: Sealed tank balance port names.
+  - computeSystemBalance referenced nonexistent `mat_out` on sealed tanks.
+    Actual ports are gas_out, liq_out, vent, overflow.  Tank outflows were
+    never subtracted from accumulation.  Fixed lines 19757-19771.
+
+  Bug 2: Check-valve mass destruction in passive devices.
+  - Restriction and valve shared _isenthalpicThrottleTick.  When
+    Pout >= Pin (e.g. ΔP setpoint exceeds available pressure, clamped to
+    P_atm which exceeds Pin), check-valve fired: output set to n:{}.
+    Upstream source still emitted — mass entered system, vanished.
+  - Physical analysis: restriction orifice is a hole in a pipe.  It has
+    no physical mechanism to block flow.  Valve (pressure regulator) with
+    insufficient ΔP likewise cannot close — it's already wide open.
+  - Fix: when Pout >= Pin, passive devices become straight pipe segments.
+    Pout = Pin, full mass passes isenthalpically, MINOR alarm:
+    "insufficient ΔP — device acts as straight pipe."
+  - Mass always conserved through passive devices regardless of pressure
+    conditions.
+
+  Check-valve audit across codebase — 5 units examined:
+  - Restriction: was destroying mass → now pass-through (fixed above).
+  - Valve: was destroying mass → now pass-through (fixed above).
+  - Gas turbine: check-valve physically correct (stalled rotor blocks
+    gas), but upstream source still emitted into dead end → mass lost.
+  - Mixer: check-valve zeroed weaker inlet on ΔP > 0.1 bar, but
+    upstream source still emitted → mass lost.
+  - Splitter: no mass destruction (alarm only).  Confirmed clean.
+
+  New: backpressure propagation post-pass (NNG-4).
+  After all unit ticks, a backward scan traces _blockedInlet markers
+  (set by mixer and gas_turbine check-valve paths) back to their
+  originating boundary source.  Stops at inventory units (buffers
+  absorb by design — tracked as accumulation) and multi-output units
+  (splitters — see below).
+
+  Splitter stop: an active splitter with ratio controller would shut
+  down when one branch is blocked (can't maintain setpoint).  However,
+  the backward trace cascade kills healthy branches too — demo scene
+  Brayton cycle goes dead when Fuel/Air Mix blocks one inlet.  Splitter
+  branch zeroing needs dedicated spec (zero only the blocked branch,
+  redistribute to others).  For now, trace stops at splitters; mass gap
+  at blocked branch is a known limitation surfaced by balance audit.
+
+  Blocked sources are zeroed and alarmed: "Output blocked — downstream
+  path blocked at [unit]".  The blocking unit retains its own check-valve
+  alarm.  Two alarms per blocked path = full alarm center diagnosis.
+
+  Anti-oscillation: blockedSources Map persists across solver iterations
+  (lives outside the while loop).  Once blocked, a source stays blocked
+  for the entire solve — subsequent iterations skip its tick entirely
+  (ud.errors cleared, ports stay zeroed, alarm preserved).  Monotonic:
+  adds at most one extra solver iteration to propagate zeros.
+
+  Performance impact: O(units) graph walk per iteration, no flash calls,
+  no pressure-flow coupling.  NNG-4 spirit preserved — no iteration
+  between pressure and flow fields.
+
+  NNG-4 updated to document three regimes:
+  - Passive (restriction, valve): pass-through at P_in, mass conserved.
+  - Active (turbine, mixer): check-valve + backward trace zeros source.
+    Stops at splitters (cascade kills healthy branches — needs spec).
+  - Inventory (tanks): absorbs mass, tracked as accumulation.
+
+  Test updates:
+  - T-PS31 (restriction): expects pass-through mode, verifies mass flows.
+  - T350 (valve): expects pass-through mode, verifies mass flows, alarm.
+  - T351 (mixer): expects source blocked by backpressure propagation,
+    verifies mixer output = high-P source only.
 
   ─── v14.1.1 — Reservoir Flash, P_atm Floor, Restriction Inspector ────────
   467 tests, 2557 assertions, 0 failures.
@@ -18574,7 +18656,10 @@ function solveScene(scene, options = {}) {
       const ud = scene.runtime.unitData.get(id);
 
       // [v14.1.1] Skip blocked sources — output stays zeroed, alarm preserved
-      if (blockedSources.has(id)) continue;
+      if (blockedSources.has(id)) {
+        ud.errors = [];
+        continue;
+      }
 
       const inPorts = {};
 
@@ -18874,12 +18959,12 @@ function solveScene(scene, options = {}) {
       }
     }
 
-    // ── [v14.1.1] Check-valve backpressure propagation (NNG-4 post-pass) ──
+    // ── [v14.1.2] Check-valve backpressure propagation (NNG-4 post-pass) ──
     // After all ticks: active devices (turbine, mixer) may have blocked an
     // inlet via check-valve, destroying mass from upstream sources.  Walk
-    // backward through single-path chains to find and zero the originating
-    // boundary source.  Alarms on both source (blocked) and blocking unit
-    // (check-valve) give the player full diagnostic visibility.
+    // backward to find and zero the originating boundary source.  Stops at
+    // inventory units (buffers absorb) and multi-output units (splitters —
+    // cascade kills healthy branches; needs dedicated spec).
     //
     // blockedSources (Map) persists across iterations to prevent oscillation:
     // source emits → check-valve fires → post-pass zeros → source re-emits.
@@ -18908,6 +18993,11 @@ function solveScene(scene, options = {}) {
           const dirs = new Set(fDef.ports.map(p => p.dir));
           if (dirs.size === 1 && dirs.has(PortDir.OUT)) return [fId];
           if (fDef.inventory) return [];
+          // Multi material-output unit (splitter): stop trace.  Active splitter
+          // with ratio controller would shut down, but the cascade kills all
+          // branches including healthy ones.  Splitter handling needs dedicated
+          // spec — for now, mass gap at blocked branch is caught by item 4
+          // (mass trap audit in computeSystemBalance).
           const matOuts = fDef.ports.filter(p => p.dir === PortDir.OUT && p.type === StreamType.MATERIAL);
           if (matOuts.length > 1) return [];
           const matIns = fDef.ports.filter(p => p.dir === PortDir.IN && p.type === StreamType.MATERIAL);
