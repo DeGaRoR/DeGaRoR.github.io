@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v14.3.1
+  processThis v14.3.2
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -300,6 +300,24 @@
   ═══════════════════════════════════════════════════════════════════════════
   CHANGELOG
   ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v14.3.2 — Climate Bar UI ────────────────────────────────────────────
+  475 tests, 2583 assertions, 0 failures.
+
+  Floating glass-morphism capsule at top-center of canvas showing live
+  atmospheric conditions.  Mirrors action-bar styling (same bg, border,
+  radius, backdrop-filter).  Pure display — no new physics.
+
+  Left section (live): planet emoji + name, T°C, P kPa, composition
+  breakdown (species ≥ 0.5% sorted by fraction desc).
+  Right section (placeholder): Room, H₂O, O₂, NH₃, ⚡ — all greyed
+  (opacity:0.25), wired in future terraforming phases.
+
+  Hooks: afterSolve, atmosphere modal apply (preset + custom),
+  file import, and startup init.  Updates on every solve cycle.
+
+  NNG: NNG-3 (WYSIWYG — shows actual atmosphere state), NNG-14 (no
+  test impact — display-only DOM change).
 
   ─── v14.3.1 — Atmosphere Data Quality + NNG-10 Compliance ──────────────
   475 tests, ~2600 assertions, 0 failures.
@@ -1995,6 +2013,54 @@
       cursor: default;
       background: transparent;
     }
+
+    /* ===== CLIMATE BAR (top-center, floating atmospheric readout) [v14.3.0] ===== */
+    .climate-bar {
+      position: absolute;
+      top: 58px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 6;
+      display: flex;
+      gap: 14px;
+      align-items: center;
+      background: #0b0e14cc;
+      border: 1px solid #2a2f3a;
+      border-radius: 14px;
+      padding: 5px 14px;
+      backdrop-filter: blur(10px);
+      font-size: 11px;
+      font-weight: 500;
+      color: #94a3b8;
+      white-space: nowrap;
+      pointer-events: none;
+      user-select: none;
+      transition: opacity 0.2s;
+    }
+    .climate-bar .cb-planet {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      color: #e2e8f0;
+    }
+    .climate-bar .cb-planet .cb-name {
+      font-weight: 700;
+      letter-spacing: 0.03em;
+    }
+    .climate-bar .u { opacity: 0.5; font-size: 10px; margin-left: 1px; font-weight: 400; }
+    .climate-bar .cb-sep {
+      width: 1px;
+      height: 14px;
+      background: #2a2f3a;
+      flex-shrink: 0;
+    }
+    .climate-bar .cb-life {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      opacity: 0.25;
+    }
+    .climate-bar .cb-val { font-variant-numeric: tabular-nums; }
 
     /* ===== FLOATING ACTION BAR (bottom-center of canvas) ===== */
     .action-bar {
@@ -6758,6 +6824,19 @@
           <span class="tl-msg" id="tlMsg"></span>
           <button class="tl-gear" id="tlGear" title="Open Solver…">⚙</button>
         </div>
+      </div>
+    </div>
+
+    <!-- [v14.3.0] Climate bar (floating top-center atmospheric readout) -->
+    <div class="climate-bar" id="climateBar">
+      <div class="cb-planet" id="cbPlanet"></div>
+      <div class="cb-sep"></div>
+      <div class="cb-life" id="cbLife">
+        <span>Room —</span>
+        <span>H₂O —</span>
+        <span>O₂ —</span>
+        <span>NH₃ —</span>
+        <span>⚡ —</span>
       </div>
     </div>
 
@@ -28137,6 +28216,39 @@ function updateTransportUI() {
 let _cachedUnitAlarms = new Map(); // unitId → AlarmSeverity
 let _lastSolveHadNewErrors = false;
 
+/* =========================
+   [v14.3.0] CLIMATE BAR — atmospheric readout
+   ========================= */
+const _cbPlanet = document.getElementById('cbPlanet');
+
+function updateClimateBar() {
+  if (!_cbPlanet) return;
+  const atm = SimSettings.getAtmosphere();
+
+  // Build composition string: species > 0.5% shown, sorted by fraction desc
+  const sorted = Object.entries(atm.air)
+    .filter(([, f]) => f >= 0.005)
+    .sort((a, b) => b[1] - a[1]);
+
+  // Species display names with subscripts
+  const spNames = { N2: 'N₂', O2: 'O₂', CO2: 'CO₂', Ar: 'Ar', CH4: 'CH₄', H2: 'H₂', H2O: 'H₂O' };
+  const compParts = sorted.map(([sp, f]) => {
+    const name = spNames[sp] || sp;
+    const pct = (f * 100).toFixed(f >= 0.01 ? 0 : 1);
+    return `<span class="cb-val">${name}\u2009${pct}%</span>`;
+  });
+
+  // Planet emoji map
+  const emoji = { 'Planet X': '🪐', 'Earth (ISA)': '🌍', 'Mars': '🔴', 'Titan': '🟠', 'Venus (surface)': '♀', 'Custom': '⚙' };
+  const em = emoji[atm.presetName] || '🌐';
+
+  _cbPlanet.innerHTML =
+    `<span class="cb-name">${em} ${atm.presetName}</span>` +
+    `<span class="cb-val">${fmt.T(atm.T_K)}</span>` +
+    `<span class="cb-val">${fmt.P(atm.P_Pa)}</span>` +
+    compParts.join('');
+}
+
 function afterSolve(solveResult) {
   // Cache alarm data for render (NNG-AL2: single source of truth)
   const prevAlarms = _cachedUnitAlarms;
@@ -28170,6 +28282,7 @@ function afterSolve(solveResult) {
   updatePropertiesPanel();
   render();
   updateTransportUI();
+  updateClimateBar();  // [v14.3.0]
 
   // [v10.5.0] Animation triggers — pulse vs continuous
   if (SimSettings.animations && solveResult) {
@@ -28747,6 +28860,7 @@ function buildAtmospherePanel() {
     updatePropertiesPanel();
     render();
     applyPlanetBg();
+    updateClimateBar();  // [v14.3.0]
     setStatus('Atmosphere: ' + SimSettings.atmosphere.presetName);
   }
 
@@ -28761,6 +28875,7 @@ function buildAtmospherePanel() {
     updatePropertiesPanel();
     render();
     applyPlanetBg();
+    updateClimateBar();  // [v14.3.0]
     setStatus('Atmosphere: Custom');
   }
 
@@ -29193,6 +29308,7 @@ fileImportInput.addEventListener('change', (ev) => {
       updatePropertiesPanel();
       render();
       applyPlanetBg(); // [v13.5.0]
+      updateClimateBar();  // [v14.3.0]
       setStatus(`Imported: ${file.name} (${scene.units.size} units, ${scene.connections.length} connections)`);
     } catch (err) {
       setStatus('Import failed: ' + err.message);
@@ -29520,6 +29636,7 @@ updatePropertiesPanel();
 render();
 updateTransportUI();  // [v10.5.0] Show time display immediately
 applyPlanetBg();      // [v13.5.0] Show planet bg if preset is planet_x
+updateClimateBar();   // [v14.3.0] Show atmosphere readout
 
 </script>
 
