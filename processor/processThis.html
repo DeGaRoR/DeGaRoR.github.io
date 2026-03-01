@@ -288,24 +288,37 @@
   CHANGELOG
   ═══════════════════════════════════════════════════════════════════════════
 
-  ─── v14.1.1 — Reservoir: Flash-Based Mixture SG ─────────────────────────
+  ─── v14.1.1 — Reservoir Flash, P_atm Floor, Restriction Inspector ────────
   467 tests, 2557 assertions, 0 failures.
 
   Reservoir rewrite: one defId, one profile, fully configurable.
   - Removed phaseConstraint parameter. Phase is emergent from flash.
   - Tick flashes at (T, P) → β (vapor fraction) determines phase split.
   - Mixture SG for Cv: ρ_mix = β·ρ_V + (1−β)·ρ_L (homogeneous model).
-    Handles gas, liquid, and multiphase wellhead output correctly.
   - Outlet stream has no phaseConstraint — solver flash decides downstream.
-  - u.last reports beta and phase (V/L/VL) for inspector.
+  - Deleted reservoir_gas, reservoir_liquid, reservoir_air profiles.
+    Replaced with single reservoir profile (composition, T, P, Cv, opening).
+  - Inspector: composition editor, T, P, Cv, opening. Conditions: phase.
 
-  Deleted: reservoir_gas, reservoir_liquid, reservoir_air profiles.
-  Replaced with single reservoir profile (composition, T, P, Cv, opening).
+  P_atm floor — no vacuum without vacuum pump (out of scope).
+  - Valve tick: Pout = max(P_atm, par.Pout). Warns when clamped.
+  - Restriction tick: Pout = max(P_atm, Pin − ΔP). Warns when clamped.
+  - Gas turbine tick: Pout = max(P_atm, par.Pout). Warns when clamped.
+  - Valve trace: Pout clamped to P_atm in pressure trace walk.
+  - Restriction trace: effective dP capped at Pin − P_atm.
+  - Gas turbine trace: Pout clamped to P_atm.
+  - All clamps emit MINOR warning: "cannot create vacuum without vacuum pump".
 
-  Inspector: full composition editor (add/remove species, mole fractions),
-  T, P, Cv, opening. Conditions panel shows phase. KPIs: flow, ΔP.
+  Restriction inspector (was missing entirely):
+  - params: ΔP editable with unit system support.
+  - conditions: P in, P out. KPIs: ΔP actual, mode.
 
-  T default fallback: SimSettings.getAtmosphere().T_K (was 298.15).
+  SVG icons added: restriction (orifice plate), reservoir (wellhead).
+
+  PlaceUnit defaults: valve, gas_turbine, source_multi now use
+  SimSettings.getAtmosphere() instead of hardcoded Earth values.
+
+  Restriction placeUnit case added (was missing, defaulted to empty params).
 
   ─── v14.1.0 — Tank Architecture: Profiles, Safety, Open Tank ────────────
   467 tests, 2557 assertions, 0 failures.
@@ -6802,6 +6815,32 @@
           <path d="M8 32 L32 12 L32 52 L8 32 Z" fill="currentColor" opacity="0.8"/>
           <path d="M56 32 L32 12 L32 52 L56 32 Z" fill="currentColor" opacity="0.8"/>
           <path d="M8 32 L32 12 L32 52 L8 32 Z M56 32 L32 12 L32 52 L56 32 Z" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/>
+        </symbol>
+
+        <!-- Restriction (orifice plate) [v14.1.1] — constriction between pipes -->
+        <symbol id="ico-restriction" viewBox="0 0 64 64">
+          <!-- Pipe lines -->
+          <line x1="4" y1="32" x2="24" y2="32" stroke="currentColor" stroke-width="4"/>
+          <line x1="40" y1="32" x2="60" y2="32" stroke="currentColor" stroke-width="4"/>
+          <!-- Orifice plate (vertical plate with narrow opening) -->
+          <rect x="30" y="8" width="4" height="48" fill="currentColor" opacity="0.6" rx="1"/>
+          <!-- Constriction opening -->
+          <path d="M24 22 L30 28 L30 36 L24 42" fill="none" stroke="currentColor" stroke-width="2.5"/>
+          <path d="M40 22 L34 28 L34 36 L40 42" fill="none" stroke="currentColor" stroke-width="2.5"/>
+        </symbol>
+
+        <!-- Reservoir (wellhead / supply boundary) [v14.1.1] — underground source -->
+        <symbol id="ico-reservoir" viewBox="0 0 64 64">
+          <!-- Ground line -->
+          <line x1="8" y1="36" x2="56" y2="36" stroke="currentColor" stroke-width="2" stroke-dasharray="4,3"/>
+          <!-- Underground reservoir shape -->
+          <ellipse cx="32" cy="50" rx="20" ry="8" fill="currentColor" opacity="0.3" stroke="currentColor" stroke-width="2"/>
+          <!-- Wellhead pipe up -->
+          <rect x="29" y="14" width="6" height="24" fill="currentColor" opacity="0.7"/>
+          <!-- Outlet arrow -->
+          <path d="M42 20 L50 20 L46 14 M50 20 L46 26" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/>
+          <!-- Infinity hint (∞) -->
+          <text x="32" y="54" text-anchor="middle" font-size="10" fill="currentColor" font-weight="bold">∞</text>
         </symbol>
         
         <!-- Single Stream Heater -->
@@ -14113,7 +14152,10 @@ UnitRegistry.register('gas_turbine', {
     const sIn = ports.mat_in;
     if (!sIn) return;
     
-    const Pout = par.Pout || (sIn.P / 2);
+    const P_atm = SimSettings.getAtmosphere().P_Pa;
+    const rawPout = par.Pout || (sIn.P / 2);
+    const Pout = Math.max(P_atm, rawPout);
+    const gtClamped = rawPout < P_atm;
     // [v11.0.0] Combined η absorbs generator loss (was 0.88 isen × 0.97 gen)
     const eta = par.eta || 0.85;
     
@@ -14169,7 +14211,7 @@ UnitRegistry.register('gas_turbine', {
     
     u.last = {
       Pin: sIn.P,
-      Pout_setpoint: Pout,
+      Pout_setpoint: rawPout,
       Pout_actual: Pout,
       ratio: (sIn.P / Pout).toFixed(2),
       Tin: sIn.T - 273.15,
@@ -14180,7 +14222,12 @@ UnitRegistry.register('gas_turbine', {
       eta: eta,
       eta_pct: (eta * 100).toFixed(0),
       H_in_kW: (work.H_in_Jps / 1000).toFixed(2),
-      H_out_kW: (work.H_target_Jps / 1000).toFixed(2)
+      H_out_kW: (work.H_target_Jps / 1000).toFixed(2),
+      ...(gtClamped ? { error: {
+        severity: ErrorSeverity.MINOR,
+        message: `Outlet clamped to P_atm (${(P_atm/1e5).toFixed(2)} bar) — `
+               + `cannot expand below atmospheric without vacuum pump`
+      }} : {})
     };
   },
   // Post-flash check: detect liquid formation in outlet
@@ -14218,10 +14265,14 @@ UnitRegistry.register('gas_turbine', {
 function _isenthalpicThrottleTick(u, ports, par, ctx) {
   const sIn = ports.in || ports.mat_in;
   if (!sIn) return;
+  const P_atm = SimSettings.getAtmosphere().P_Pa;
 
   let Pout;
+  let clamped = false;
   if (u.defId === 'restriction') {
-    Pout = Math.max(0, sIn.P - (par.deltaP ?? 100000));
+    const rawPout = sIn.P - (par.deltaP ?? 100000);
+    Pout = Math.max(P_atm, rawPout);
+    if (rawPout < P_atm) clamped = true;
   } else {
     // Valve — check solver cache for regulation status (NNG-9: ctx accessor)
     const status = ctx.valveStatus();
@@ -14234,7 +14285,7 @@ function _isenthalpicThrottleTick(u, ports, par, ctx) {
         error: {
           severity: ErrorSeverity.MINOR,
           message: `Cannot maintain setpoint `
-            + `${((par.Pout||101325)/1e5).toFixed(1)} bar — `
+            + `${((par.Pout||P_atm)/1e5).toFixed(1)} bar — `
             + `downstream at ${(status.P_beyond/1e5).toFixed(1)} bar`
         }
       };
@@ -14245,7 +14296,9 @@ function _isenthalpicThrottleTick(u, ports, par, ctx) {
       };
       return;
     }
-    Pout = par.Pout || 101325;
+    const rawPout = par.Pout || P_atm;
+    Pout = Math.max(P_atm, rawPout);
+    if (rawPout < P_atm) clamped = true;
   }
 
   // Check valve: Pout >= Pin → zero flow
@@ -14274,11 +14327,18 @@ function _isenthalpicThrottleTick(u, ports, par, ctx) {
     H_target_Jps: H_in_Jps
   };
 
+  const warning = clamped ? {
+    severity: ErrorSeverity.MINOR,
+    message: `Outlet clamped to P_atm (${(P_atm/1e5).toFixed(2)} bar) — `
+           + `cannot create vacuum without vacuum pump`
+  } : undefined;
+
   u.last = {
     Pin: sIn.P, Pout, deltaP: sIn.P - Pout,
     ratio: (sIn.P / Pout).toFixed(2),
-    mode: 'isenthalpic',
-    H_in_kW: (H_in_Jps / 1000).toFixed(2)
+    mode: clamped ? 'clamped' : 'isenthalpic',
+    H_in_kW: (H_in_Jps / 1000).toFixed(2),
+    ...(warning ? { error: warning } : {})
   };
 }
 
@@ -16742,11 +16802,14 @@ class Scene {
         unit.params = { Pout: 300000, eta: 0.80, powerPriority: 2 };     // 3 bar, centrifugal
         break;
       case 'gas_turbine':
-        unit.params = { Pout: 101325, eta: 0.88 };     // expand to 1 atm
+        unit.params = { Pout: SimSettings.getAtmosphere().P_Pa, eta: 0.88 };     // expand to P_atm
         break;
       // ── Pressure change ──
+      case 'restriction':
+        unit.params = { deltaP: 100000 };   // 1 bar drop
+        break;
       case 'valve':
-        unit.params = { Pout: 101325 };   // let down to 1 atm
+        unit.params = { Pout: SimSettings.getAtmosphere().P_Pa };   // let down to P_atm
         break;
       // ── Heat exchange ──
       case 'electric_heater':
@@ -16761,7 +16824,8 @@ class Scene {
         break;
       // ── Reactions [v8.6.0] ──
       case 'source_multi':
-        unit.params = { n: { N2: 0.78, O2: 0.21, Ar: 0.01 }, T: 298.15, P: 101325, phaseConstraint: 'V' };
+        unit.params = { n: { N2: 0.78, O2: 0.21, Ar: 0.01 },
+          T: SimSettings.getAtmosphere().T_K, P: SimSettings.getAtmosphere().P_Pa, phaseConstraint: 'V' };
         break;
       case 'reactor_equilibrium':
         unit.params = { reactionId: 'R_H2_COMB', useKinetics: true, volume_m3: 0.003, alpha: 1.0, heatDemand: 'none', variant: 'insulated', powerPriority: 2 };
@@ -18036,9 +18100,9 @@ function traceToAnchor(scene, unitId, portId, P_current,
     return { P_anchor: anchorP.get(nextId), dP_sum: 0, boost_sum: 0 };
   }
 
-  // REGULATOR (valve) — validate setpoint
+  // REGULATOR (valve) — validate setpoint, clamp to P_atm (no vacuum)
   if (nextU.defId === 'valve') {
-    const Pout = nextU.params.Pout || 101325;
+    const Pout = Math.max(P_atm, nextU.params.Pout || P_atm);
     // Peek downstream to check if valve can regulate
     const beyond = traceToAnchor(
       scene, nextId, 'out', Pout,
@@ -18056,22 +18120,25 @@ function traceToAnchor(scene, unitId, portId, P_current,
     }
   }
 
-  // RESTRICTION (drop)
+  // RESTRICTION (drop) — clamp to P_atm (no vacuum)
   if (nextU.defId === 'restriction') {
     const dP = nextU.params.deltaP ?? 100000;
+    const P_after = Math.max(P_atm, P_current - dP);
+    const effectiveDrop = P_current - P_after;
     const downstream = traceToAnchor(
-      scene, nextId, 'out', P_current - dP,
+      scene, nextId, 'out', P_after,
       anchorP, P_atm, visited, valveStatus, dividerStatus);
     return { P_anchor: downstream.P_anchor,
-             dP_sum: downstream.dP_sum + dP,
+             dP_sum: downstream.dP_sum + effectiveDrop,
              boost_sum: downstream.boost_sum };
   }
 
-  // GAS TURBINE (drop)
+  // GAS TURBINE (drop) — clamp to P_atm (no vacuum)
   if (nextU.defId === 'gas_turbine') {
-    const Pout = nextU.params.Pout
+    const rawPout = nextU.params.Pout
               || nextU.last?.Pout_actual
               || (P_current / 2);
+    const Pout = Math.max(P_atm, rawPout);
     const drop = Math.max(0, P_current - Pout);
     const downstream = traceToAnchor(
       scene, nextId, 'mat_out', Pout,
@@ -25292,6 +25359,27 @@ UnitInspector.battery = {
 // [v12.6.0] electric_heater inspector deleted
 
 // ── Pressure Equipment ──
+// ── Restriction (orifice plate / fixed pressure drop) [v14.1.1] ──
+UnitInspector.restriction = {
+  params(u) { const us = models.getActive('units'); return [
+    { label: `ΔP (${us.pressure.symbol})`, get: () => us.pressure.from(u.params.deltaP ?? 100000), set: v => u.params.deltaP = us.pressure.to(v), step: us.pressure.decimals === 0 ? 10000 : 0.1, decimals: us.pressure.decimals, validate: { gt: 0 } }
+  ]; },
+  conditions(u, ud) {
+    if (!ud?.last) return [];
+    return [
+      { label: 'P in', value: fmt.P(ud.last.Pin) },
+      { label: 'P out', value: fmt.P(ud.last.Pout) },
+    ];
+  },
+  kpis(u, ud) {
+    if (!ud?.last) return [];
+    return [
+      { label: 'ΔP actual', value: `${((ud.last.deltaP||0)/1e5).toFixed(2)}<span class="propUnit">bar</span>` },
+      { label: 'Mode', value: ud.last.mode || '—' },
+    ];
+  }
+};
+
 UnitInspector.valve = {
   params(u) { const us = models.getActive('units'); return [{ label: `P outlet (${us.pressure.symbol})`, get: () => us.pressure.from(u.params.Pout || 101325), set: v => u.params.Pout = us.pressure.to(v), step: us.pressure.decimals === 0 ? 1000 : 0.1, decimals: us.pressure.decimals, validate: { gt: 0 } }]; }
 };
@@ -29076,15 +29164,15 @@ function runTests() {
   });
 
   test('Methane Valve (Ideal Gas)', t => {
-    // Source(CH4,300K,50bar,V) → Valve(1bar) → Sink
+    // Source(CH4,300K,50bar,V) → Valve(2bar) → Sink
     const src = t.place('source', 0, 0, { species:'CH4', nDot:5, T:300.15, P:5000000, phaseConstraint:'V' });
-    const vlv = t.place('valve', 3, 0, { Pout:100000 });
+    const vlv = t.place('valve', 3, 0, { Pout:200000 });
     const snk = t.place('sink', 6, 0);
     t.wire(src,'out', vlv,'in'); t.wire(vlv,'out', snk,'in');
     t.solve();
     const out = t.port(vlv, 'out');
     const srcS = t.port(src, 'out');
-    t.assertClose(out.P, 100000, 1, 'P_out [Pa]');
+    t.assertClose(out.P, 200000, 1, 'P_out [Pa]');
     t.assertOK(out.phase === 'V', 'Phase = V', out.phase);
     // Ideal: isenthalpic → T ≈ T_in.  PR: JT cooling at 50→1 bar gives ~275K.
     const isPR = thermo.getPackage().id === 'peng_robinson';
@@ -29995,7 +30083,7 @@ function runTests() {
 
   test('Gas Turbine: N2 Expansion', t => {
     const src = t.place('source', 0, 0, { species:'N2', nDot:1, T:473.15, P:300000, phaseConstraint:'V' });
-    const turb = t.place('gas_turbine', 4, 0, { Pout:100000, eta:0.85 });
+    const turb = t.place('gas_turbine', 4, 0, { Pout:150000, eta:0.85 });
     const snk = t.place('sink', 8, 0);
     t.wire(src,'out', turb,'mat_in'); t.wire(turb,'mat_out', snk,'in');
     t.solve();
@@ -30008,7 +30096,7 @@ function runTests() {
     t.assertClose(mech?.actual ?? mech?.available ?? 0, W, 1, 'elec_out power');
     const Hin = thermo.getHdot_Jps({type:StreamType.MATERIAL, T:473.15, P:300000, n:{N2:1}});
     t.assertClose(Math.abs((Hin-thermo.getHdot_Jps(out))-W)/1000, 0, 0.05, 'Energy balance [kW]');
-    t.assertClose(out.P, 100000, 1, 'P_out [Pa]');
+    t.assertClose(out.P, 150000, 1, 'P_out [Pa]');
     const Wi = t.unit(turb).last.W_isentropic;
     t.assertOK(Wi > W + 1, 'W_isen > W_shaft');
   });
@@ -35519,8 +35607,10 @@ function runTests() {
     t.assertOK(outPort.n.N2 > 0, 'out port carries N₂');
   }});
 
-  // T-PS31: Restriction dP > Pin → Pout clamped at 0, check valve
-  tests.push({ name: '400: T-PS31 Restriction: dP > Pin → check valve', fn: t => {
+  // T-PS31: Restriction dP > Pin → Pout clamped to P_atm, check valve fires
+  // [v14.1.1] Source at 1 bar, restriction wants 2 bar drop → clamped to P_atm.
+  // P_atm ≈ 1.01 bar > Pin (1 bar) → check valve closes. No vacuum possible.
+  tests.push({ name: '400: T-PS31 Restriction: dP > Pin → clamped, check valve', fn: t => {
     const src = t.place('source', 0, 0, { species: 'N2', nDot: 1.0, T: 300, P: 100000, phaseConstraint: 'V' });
     const rst = t.place('restriction', 4, 0, { deltaP: 200000 });
     const snk = t.place('sink', 8, 0);
@@ -35528,12 +35618,11 @@ function runTests() {
     t.wire(rst, 'out', snk, 'in');
     t.solve();
     const ud = t.ud(rst);
-    // Pout = max(0, 1bar - 2bar) = 0, but 0 >= Pin? No: Pout=0 < Pin=1bar
-    // Actually Pout = 0, and check valve fires when Pout >= Pin.
-    // 0 < 100000 so it should proceed normally with Pout = 0
-    // But flow through to a sink at P_atm: P=0 is unusual
-    t.assertClose(ud.last.Pout, 0, 1, 'Pout clamped to 0');
-    t.assertOK(ud.last.mode === 'isenthalpic', 'mode = isenthalpic (Pout < Pin)');
+    const P_atm = SimSettings.getAtmosphere().P_Pa;
+    // Pout = max(P_atm, 1bar - 2bar) = P_atm ≈ 1.01 bar
+    t.assertClose(ud.last.Pout, P_atm, 1, 'Pout clamped to P_atm');
+    // P_atm > Pin (1 bar) → check valve fires
+    t.assertOK(ud.last.mode === 'check-valve', 'mode = check-valve (Pout >= Pin)');
   }});
 
   // T-PS32: Restriction shared tick H_in = H_out (enthalpy preserved)
