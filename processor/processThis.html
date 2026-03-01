@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v14.1.0
+  processThis v14.1.1
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -287,6 +287,25 @@
   ═══════════════════════════════════════════════════════════════════════════
   CHANGELOG
   ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v14.1.1 — Reservoir: Flash-Based Mixture SG ─────────────────────────
+  467 tests, 2557 assertions, 0 failures.
+
+  Reservoir rewrite: one defId, one profile, fully configurable.
+  - Removed phaseConstraint parameter. Phase is emergent from flash.
+  - Tick flashes at (T, P) → β (vapor fraction) determines phase split.
+  - Mixture SG for Cv: ρ_mix = β·ρ_V + (1−β)·ρ_L (homogeneous model).
+    Handles gas, liquid, and multiphase wellhead output correctly.
+  - Outlet stream has no phaseConstraint — solver flash decides downstream.
+  - u.last reports beta and phase (V/L/VL) for inspector.
+
+  Deleted: reservoir_gas, reservoir_liquid, reservoir_air profiles.
+  Replaced with single reservoir profile (composition, T, P, Cv, opening).
+
+  Inspector: full composition editor (add/remove species, mole fractions),
+  T, P, Cv, opening. Conditions panel shows phase. KPIs: flow, ΔP.
+
+  T default fallback: SimSettings.getAtmosphere().T_K (was 298.15).
 
   ─── v14.1.0 — Tank Architecture: Profiles, Safety, Open Tank ────────────
   467 tests, 2557 assertions, 0 failures.
@@ -13481,13 +13500,15 @@ UnitRegistry.register('open_tank', {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// RESERVOIR — Inexhaustible supply vessel [v13.8.0 S5a-2a]
+// RESERVOIR — Inexhaustible supply vessel [v14.1.0]
 // ═══════════════════════════════════════════════════════════════════════════════
 //
 // ┌─────────────────────────────────────────────────────────────────────────────┐
 // │ Infinite volume, constant P. Cv outlet. No inventory tracking.            │
 // │ Models a wellhead, utility header, or infinite supply boundary.            │
-// │ Same Cv equation as tank gas draw, but never depletes.                    │
+// │ Flash at (T, P) determines phase split → mixture SG for Cv equation.     │
+// │ No phaseConstraint — phase is emergent from thermodynamics.               │
+// │ ρ_mix = β·ρ_V + (1−β)·ρ_L  (homogeneous two-phase flow model)           │
 // └─────────────────────────────────────────────────────────────────────────────┘
 UnitRegistry.register('reservoir', {
   name: 'Reservoir',
@@ -13505,37 +13526,53 @@ UnitRegistry.register('reservoir', {
   limits: { S: { T_LL: 200, T_L: 250, T_H: 500, T_HH: 600, P_LL: 10000, P_L: 50000, P_H: 20000000, P_HH: 25000000 } },
   tick(u, ports, par, ctx) {
     const P_res = (par.P_bar || 5) * 1e5;
-    const T = par.T || 298.15;
+    const T = par.T || SimSettings.getAtmosphere().T_K;
     const comp = par.composition || { N2: 1.0 };
     const opening = par.opening_pct ?? 100;
     const Cv = par.Cv || 50;
-    const phaseHint = par.phaseConstraint || 'V';
 
     // Normalize composition
     const total = Object.values(comp).reduce((a, b) => a + b, 0);
     const fracs = {};
     for (const [sp, f] of Object.entries(comp)) fracs[sp] = f / total;
 
+    // Flash at reservoir conditions to determine phase split
+    const n_flash = {};
+    for (const [sp, f] of Object.entries(fracs)) n_flash[sp] = f; // unit moles for flash
+    const flash = thermo.tpFlash({ T, P: P_res, n: n_flash });
+    const beta = flash?.beta ?? 1.0; // vapor mole fraction
+
     // Downstream pressure from trace
     const P_down = ctx.downstreamP('mat_out') ?? (SimSettings.getAtmosphere().P_Pa);
     const dP = P_res - P_down;
 
     let Q = 0;
+    let phase = 'V';
     if (dP > 0 && opening > 0) {
-      // SG computation depends on phase
-      let SG;
-      if (phaseHint === 'L') {
-        // Liquid: use density of first species
-        const sp0 = Object.keys(fracs)[0];
-        const rho_L = thermo.density ? thermo.density(sp0, T, P_res, 'L') : 1000;
-        SG = rho_L / 1000;
-      } else {
-        // Gas: SG = rho_gas / rho_air_ref
-        const MW = _compositionMW(fracs);
-        SG = (P_res * MW) / (8.314 * T * 1.225);
+      // Mixture SG: ρ_mix = β·ρ_V + (1−β)·ρ_L
+      const MW = _compositionMW(fracs);
+
+      // ρ_V from ideal gas law
+      const rho_V = (P_res * MW) / (8.314 * T);
+
+      // ρ_L from species-weighted liquid densities
+      let rho_L = 0;
+      if (beta < 1.0) {
+        for (const [sp, f] of Object.entries(fracs)) {
+          const rho_sp = (thermo.density ? thermo.density(sp, T, P_res, 'L') : null)
+                       || ComponentRegistry.get(sp)?.rhoLiq || 1000;
+          rho_L += f * rho_sp;
+        }
       }
+
+      const rho_mix = beta * rho_V + (1 - beta) * rho_L;
+      // SG relative to Cv reference (water = 1000 kg/m³)
+      const SG = rho_mix / 1000;
+
       Q = Cv * (opening / 100)
-        * Math.sqrt(Math.max(0, dP) / (SG * 1e5));
+        * Math.sqrt(Math.max(0, dP) / (Math.max(SG, 1e-6) * 1e5));
+
+      phase = beta >= 0.999 ? 'V' : beta <= 0.001 ? 'L' : 'VL';
     }
 
     const n_out = {};
@@ -13545,8 +13582,8 @@ UnitRegistry.register('reservoir', {
 
     ports.mat_out = {
       type: StreamType.MATERIAL,
-      T: T, P: P_res, n: n_out,
-      phaseConstraint: phaseHint
+      T: T, P: P_res, n: n_out
+      // No phaseConstraint — solver flash determines phase downstream
     };
 
     if (dP <= 0 && opening > 0) {
@@ -13563,6 +13600,8 @@ UnitRegistry.register('reservoir', {
       Q_mol_s: Q,
       opening_pct: opening,
       dP_bar: dP / 1e5,
+      beta,
+      phase,
       status: (dP <= 0 && opening > 0) ? 'no_dP' : 'ok',
       type: 'reservoir'
     };
@@ -16529,25 +16568,11 @@ ProfileRegistry.register('tank_high_pressure', {
                     initialComposition:{N2:1}, P_init:500000 } }
 });
 // [v13.8.0 S5a-2b] Reservoir profiles: gas, liquid, air (Planet X atmosphere)
-ProfileRegistry.register('reservoir_gas', {
-  defId: 'reservoir', name: 'Gas Supply', category: UnitCategories.SOURCE, tiers: [1],
+ProfileRegistry.register('reservoir', {
+  defId: 'reservoir', name: 'Reservoir', category: UnitCategories.SOURCE, tiers: [1],
   limits: {}, boundary: true,
   defaults: { 1: { P_bar:5, T:298.15, composition:{N2:1},
-                    Cv:50, opening_pct:100, phaseConstraint:'V' } }
-});
-ProfileRegistry.register('reservoir_liquid', {
-  defId: 'reservoir', name: 'Liquid Supply', category: UnitCategories.SOURCE, tiers: [1],
-  limits: {}, boundary: true,
-  defaults: { 1: { P_bar:5, T:298.15, composition:{H2O:1},
-                    Cv:50, opening_pct:100, phaseConstraint:'L' } }
-});
-ProfileRegistry.register('reservoir_air', {
-  defId: 'reservoir', name: 'Air Supply', category: UnitCategories.SOURCE, tiers: [1],
-  limits: {}, boundary: true,
-  defaults: { 1: { P_bar:0.8975, T:288.15,
-                    composition: { N2:0.693, O2:0.208, CO2:0.0792,
-                                   Ar:0.0099, H2O:0.0095 },
-                    Cv:100, opening_pct:100, phaseConstraint:'V' } }
+                    Cv:50, opening_pct:100 } }
 });
 // [v13.8.0 S5a-2b] Restriction profile
 ProfileRegistry.register('restriction', {
@@ -24962,6 +24987,69 @@ UnitInspector.sink_electrical = {
       { label: 'Rated', value: fmt.kW(rated_W) },
       { label: 'Absorbed', value: fmt.kW(absorbed) },
       { label: 'Utilization', value: `${utilPct}%`, tone: absorbed > rated_W * 0.95 ? 'warn' : '' },
+    ];
+  }
+};
+
+// ── Power Sources ──
+
+// ── Reservoir (wellhead / supply boundary) [v14.1.0] ──
+UnitInspector.reservoir = {
+  customParams(container, u) {
+    const unitSys = models.getActive('units');
+    if (!u.params.composition) u.params.composition = { N2: 1.0 };
+
+    // Composition editor (mole fractions)
+    const compBox = el('div', { style: 'margin-bottom:8px;' });
+    compBox.appendChild(el('div', { class: 'ins-box-title', html: 'Composition (mole frac)' }));
+    for (const sp of Object.keys(u.params.composition)) {
+      const row = el('div', { style: 'display:flex; align-items:center; gap:4px;' });
+      row.appendChild(el('label', { html: sp, style: 'min-width:40px;font-size:11px;' }));
+      const inp = el('input', { type: 'number', step: '0.01', min: '0', style: 'flex:1;' });
+      inp.value = u.params.composition[sp];
+      const spCap = sp;
+      inp.addEventListener('input', () => { const v = Number(inp.value); if (v > 0) u.params.composition[spCap] = v; else delete u.params.composition[spCap]; });
+      row.appendChild(inp);
+      const delBtn = el('button', { class: 'btn', style: 'padding:1px 6px; font-size:11px; min-width:auto; line-height:1; color:#f87171;' });
+      delBtn.textContent = '×';
+      delBtn.title = `Remove ${sp}`;
+      delBtn.addEventListener('click', () => { delete u.params.composition[spCap]; updatePropertiesPanel(); });
+      row.appendChild(delBtn);
+      compBox.appendChild(row);
+    }
+    const allSpecies = ComponentRegistry.list().map(c => c.formula).filter(f => !(f in u.params.composition));
+    if (allSpecies.length > 0) {
+      const addSel = el('select', { style: 'margin-top:4px;' });
+      addSel.appendChild(el('option', { value: '', html: '+ Add species...' }));
+      for (const sp of allSpecies) addSel.appendChild(el('option', { value: sp, html: sp }));
+      addSel.addEventListener('change', () => { if (addSel.value) { u.params.composition[addSel.value] = 0.1; updatePropertiesPanel(); } });
+      compBox.appendChild(addSel);
+    }
+    container.appendChild(compBox);
+
+    // T, P, Cv, opening
+    addNumberEditor(container, 'T (K)',
+      () => u.params.T ?? SimSettings.getAtmosphere().T_K, v => u.params.T = v, 1, 1);
+    addNumberEditor(container, 'P (bar)',
+      () => u.params.P_bar ?? 5, v => u.params.P_bar = v, 0.1, 2);
+    addNumberEditor(container, 'Cv',
+      () => u.params.Cv ?? 50, v => u.params.Cv = v, 1, 0);
+    addNumberEditor(container, 'Opening (%)',
+      () => u.params.opening_pct ?? 100, v => u.params.opening_pct = v, 5, 0);
+  },
+  conditions(u, ud) {
+    if (!ud?.last) return [];
+    return [
+      { label: 'T', value: fmt.T(ud.last.T_K) },
+      { label: 'P', value: fmt.P(ud.last.P_bar * 1e5) },
+      { label: 'Phase', value: ud.last.phase || '—' },
+    ];
+  },
+  kpis(u, ud) {
+    if (!ud?.last) return [];
+    return [
+      { label: 'Flow', value: `${(ud.last.Q_mol_s||0).toFixed(3)}<span class="propUnit">mol/s</span>` },
+      { label: 'ΔP', value: `${(ud.last.dP_bar||0).toFixed(2)}<span class="propUnit">bar</span>` },
     ];
   }
 };
@@ -35263,7 +35351,7 @@ function runTests() {
 
   // T-PS23: Gas, opening=100%, 5 bar → sink
   tests.push({ name: '391: T-PS23 Reservoir: gas 5 bar → sink, Q > 0', fn: t => {
-    const rid = t.place('reservoir', 0, 0, { P_bar: 5, T: 300, composition: { N2: 1 }, opening_pct: 100, Cv: 50, phaseConstraint: 'V' });
+    const rid = t.place('reservoir', 0, 0, { P_bar: 5, T: 300, composition: { N2: 1 }, opening_pct: 100, Cv: 50 });
     const snk = t.place('sink', 4, 0);
     t.wire(rid, 'mat_out', snk, 'in');
     t.solve();
@@ -35304,7 +35392,7 @@ function runTests() {
   tests.push({ name: '394: T-PS26 Reservoir: outlet composition correct', fn: t => {
     const rid = t.place('reservoir', 0, 0, {
       P_bar: 5, T: 350, composition: { N2: 0.79, O2: 0.21 },
-      opening_pct: 100, Cv: 50, phaseConstraint: 'V'
+      opening_pct: 100, Cv: 50
     });
     const snk = t.place('sink', 4, 0);
     t.wire(rid, 'mat_out', snk, 'in');
