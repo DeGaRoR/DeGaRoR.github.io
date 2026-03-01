@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v14.1.2
+  processThis v14.2.0
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -300,6 +300,24 @@
   ═══════════════════════════════════════════════════════════════════════════
   CHANGELOG
   ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v14.2.0 — S5b Phase 1: Convergence Tolerance 1 ppm → 100 ppm ─────────
+  468 tests, 2564 assertions, 0 failures.
+
+  Solver convergence tolerance relaxed from 1e-6 (1 ppm) to 1e-4 (100 ppm)
+  in both portsChanged() and tear stream stability check.  Still 10× tighter
+  than Aspen Plus defaults (1000 ppm).  For a game engine simulating planetary
+  colonization, 100 ppm is indistinguishable from 1 ppm.
+
+  This change alone does not fix convergence on the demo scene (spectral
+  radius ρ ≈ 0.88 means ~73 iterations to reach 100 ppm with direct sub).
+  It is insurance for Phase 2 (Wegstein fix), giving the accelerator an
+  easier target.
+
+  Benchmark (demo scene, 44 units, Ideal gas, direct substitution):
+    Before: 150 iterations (maxIter hit, did not converge at 1 ppm), ~1750 ms
+    After:  95 iterations (CONVERGED at 100 ppm), ~2120 ms, mass green
+    (Still too slow — Wegstein in Phase 2 targets ≤12 iterations)
 
   ─── v14.1.2 — Mass Conservation: Check-Valve Physics & Backpressure ───────
   468 tests, 2564 assertions, 0 failures.
@@ -17652,19 +17670,20 @@ function streamSignature(stream) {
  *
  * This ensures that:
  *   - Near-zero values use the absolute floor (e.g. 1e-12 mol/s)
- *   - Large values use proportional tolerance (1 ppm of 3 mol/s ≈ 3e-6)
+ *   - Large values use proportional tolerance (100 ppm of 3 mol/s ≈ 3e-4)
  *
  * Without the relative component, a recycle loop with ratio r needs
  * ~log(atol/F)/log(r) iterations (F=feed).  For 50% recycle at 10 mol/s
  * with atol=1e-12 that's ~40 iterations — far exceeding MAX_ITER.
- * With rel_tol=1e-6, convergence occurs at ~21 iterations for 50% recycle
- * and ~13 for 30% recycle, well within MAX_ITER=50.
+ * [v14.2.0] Relaxed from 1e-6 (1 ppm) to 1e-4 (100 ppm).  Still 10×
+ * tighter than Aspen Plus defaults (1000 ppm).  For a game engine,
+ * indistinguishable from 1 ppm.  Matches tear convergence tolerance.
  *
  * Absolute tolerances (floors for near-zero values):
  *   Temperature:  0.001 K       Pressure:  0.1 Pa
  *   Molar flow:   1e-12 mol/s   Enthalpy:  0.01 J/s
  *   Power fields:  0.01 W       Fractions: 1e-8
- * Relative tolerance: 1e-6 (1 ppm) for all numeric fields
+ * Relative tolerance: 1e-4 (100 ppm) for all numeric fields
  */
 function portsChanged(oldPorts, newPorts) {
   const ABS_TOL = {
@@ -17675,7 +17694,7 @@ function portsChanged(oldPorts, newPorts) {
     // [v13.1.0 S2-pre] available (S1-pre-5) and curtailmentFactor removed
   };
   const FLOW_ABS_TOL = 1e-12;  // mol/s — absolute floor for near-zero flows
-  const REL_TOL = 1e-6;         // 1 ppm — relative tolerance for all numerics
+  const REL_TOL = 1e-4;         // [v14.2.0] 100 ppm — relaxed from 1 ppm (1e-6)
 
   const allKeys = new Set([...Object.keys(oldPorts), ...Object.keys(newPorts)]);
   for (const portId of allKeys) {
@@ -19154,7 +19173,7 @@ function solveScene(scene, options = {}) {
         for (const sp of allSpecies) {
           const a = snap.n[sp] || 0;
           const b = stream.n[sp] || 0;
-          const tol = Math.max(1e-12, 1e-6 * Math.max(Math.abs(a), Math.abs(b)));
+          const tol = Math.max(1e-12, 1e-4 * Math.max(Math.abs(a), Math.abs(b)));  // [v14.2.0] 100 ppm
           if (Math.abs(a - b) > tol) { tearsStable = false; break; }
         }
         if (!tearsStable) break;
