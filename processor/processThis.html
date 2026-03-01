@@ -302,7 +302,7 @@
   ═══════════════════════════════════════════════════════════════════════════
 
   ─── v14.1.2 — Mass Conservation: Check-Valve Physics & Backpressure ───────
-  467 tests, 2560 assertions, 0 failures.
+  468 tests, 2564 assertions, 0 failures.
 
   Mass balance bug hunt: user scene showed 13.6 g/s residual (10% of
   throughput).  Root cause was two independent bugs — both fixed, plus a
@@ -376,6 +376,26 @@
   - T350 (valve): expects pass-through mode, verifies mass flows, alarm.
   - T351 (mixer): expects source blocked by backpressure propagation,
     verifies mixer output = high-P source only.
+  - T351b (splitter-behind-mixer): Source→Splitter→Mixer(blocked by
+    higher-P source). Backward trace stops at splitter.  Trap audit
+    detects mass gap → status=amber, trapped>0, closed=true.
+
+  Mass trap audit in computeSystemBalance.
+  Scans all non-boundary, non-inventory units for mass_in > mass_out.
+  Detected traps are summed as `trapped` in the balance report.  Three-
+  state mass status replaces boolean closed:
+    green — residual ≈ 0, no traps → perfectly closed
+    amber — residual accounted for by identified traps → we know where
+            and why (check-valve behind splitter)
+    red   — unaccounted residual remains → something is wrong
+  `closed` remains true for green and amber (both accounted for).
+
+  Balance report UI: amber badge "⚠ Mass Trapped" with per-unit trap
+  breakdown (unit name + trapped g/s) in the mass table.  Residual line
+  color: green/amber/red matching status.
+
+  Alarm system: WARNING severity for amber ("X g/s trapped at: [units]")
+  with remediation hint.  CATASTROPHIC remains for red (unaccounted).
 
   ─── v14.1.1 — Reservoir Flash, P_atm Floor, Restriction Inspector ────────
   467 tests, 2557 assertions, 0 failures.
@@ -19997,10 +20017,59 @@ function computeSystemBalance(scene) {
   const energyResidual = energyBalance - accumulation.energy_W;
   const massTolAccum = Math.max(totalMassIn, totalMassOut, Math.abs(accumulation.mass_kgps)) * 1e-4 + 1e-10;
 
+  // [v14.1.2] Mass trap audit: scan non-boundary, non-inventory units for
+  // mass_in > mass_out (unit swallows mass).  Known cause: mixer/turbine
+  // check-valve behind a splitter — blocked branch mass has nowhere to go.
+  // Trapped mass is accounted for separately so the balance report can
+  // distinguish "we know where it went" (amber) from "unaccounted loss" (red).
+  const massTraps = [];
+  let totalTrapped = 0;
+  for (const [id, u] of scene.units) {
+    const def = UnitRegistry.get(u.defId);
+    if (!def) continue;
+    const ud = scene.runtime.unitData.get(id);
+    if (!ud) continue;
+    // Skip boundary units and inventory — already handled above
+    if (def.category === UnitCategories.SOURCE.name ||
+        def.category === UnitCategories.SINK.name ||
+        def.category === UnitCategories.POWER_SOURCE.name ||
+        def.category === UnitCategories.POWER_MANAGEMENT.name ||
+        def.category === UnitCategories.VESSEL.name) continue;
+    if (def.inventory) continue;
+
+    let m_in = 0, m_out = 0;
+    for (const p of def.ports) {
+      const stream = ud.ports?.[p.portId];
+      if (!stream || stream.type !== StreamType.MATERIAL || !stream.n) continue;
+      const m = streamMass_kgps(stream);
+      if (p.dir === PortDir.IN) m_in += m; else m_out += m;
+    }
+    const deficit = m_in - m_out;
+    const trapTol = Math.max(1e-9, 1e-6 * Math.max(m_in, m_out));
+    if (deficit > trapTol) {
+      const uName = u.name || def.name;
+      massTraps.push({ unitId: id, unitName: uName, m_in, m_out, trapped_kgps: deficit });
+      totalTrapped += deficit;
+    }
+  }
+
+  // Three-state mass status:
+  //   green — residual ≈ 0, no traps → perfectly closed
+  //   amber — residual ≈ 0 after subtracting traps → we know where and why
+  //   red   — unaccounted residual remains
+  const residualAfterTraps = massResidual - totalTrapped;
+  const massStatus = (Math.abs(massResidual) < massTolAccum)
+    ? 'green'
+    : (Math.abs(residualAfterTraps) < massTolAccum && totalTrapped > massTolAccum)
+      ? 'amber'
+      : 'red';
+
   return {
     mass: { inItems: massInItems, outItems: massOutItems, totalIn: totalMassIn, totalOut: totalMassOut,
             balance: massBalance, accumulation: accumulation.mass_kgps, residual: massResidual,
-            closed: Math.abs(massResidual) < massTolAccum },
+            trapped: totalTrapped, traps: massTraps, residualAfterTraps,
+            status: massStatus,
+            closed: massStatus !== 'red' },
     energy: { in: energyIn, out: energyOut, totalIn: totalEnergyIn, totalOut: totalEnergyOut,
               balance: energyBalance, accumulation: accumulation.energy_W, residual: energyResidual,
               relError: totalEnergyIn !== 0 ? Math.abs(energyResidual / totalEnergyIn) : 0,
@@ -20330,8 +20399,14 @@ AlarmSystem.register((scene) => {
 AlarmSystem.register((scene) => {
   const bal = computeSystemBalance(scene);
   if (!bal) return [];
-  if (bal.mass.closed) return [{ id: 'mass_closed', domain: AlarmDomain.PLANT, category: AlarmCategory.MASS_BALANCE,
+  if (bal.mass.status === 'green') return [{ id: 'mass_closed', domain: AlarmDomain.PLANT, category: AlarmCategory.MASS_BALANCE,
     severity: AlarmSeverity.OK, message: `Closed — residual ${(Math.abs(bal.mass.residual)*1e6).toFixed(2)} mg/s.` }];
+  if (bal.mass.status === 'amber') {
+    const trapNames = bal.mass.traps.map(t => t.unitName).join(', ');
+    return [{ id: 'mass_trapped', domain: AlarmDomain.PLANT, category: AlarmCategory.MASS_BALANCE,
+      severity: AlarmSeverity.WARNING, message: `${(bal.mass.trapped*1000).toFixed(4)} g/s trapped at: ${trapNames}.`,
+      remediation: 'Mass is being destroyed at identified units (check-valve behind splitter). Fix pressure conflicts to resolve.' }];
+  }
   return [{ id: 'mass_open', domain: AlarmDomain.PLANT, category: AlarmCategory.MASS_BALANCE,
     severity: AlarmSeverity.CATASTROPHIC, message: `Open — residual ${(bal.mass.residual*1000).toFixed(4)} g/s.`,
     remediation: 'Ensure all sources have matching sinks. Check for unconnected material ports.' }];
@@ -21158,8 +21233,10 @@ function openBalanceModal() {
 
   // ── Summary badges ──
   const sumDiv = el('div', { style: 'display:flex; gap:12px; margin-bottom:12px; flex-wrap:wrap;' });
-  const mBadge = balance.mass.closed
+  const mBadge = balance.mass.status === 'green'
     ? '<span class="ins-badge good" style="font-size:12px;">✓ Mass Closed</span>'
+    : balance.mass.status === 'amber'
+    ? '<span class="ins-badge" style="font-size:12px; background:#fbbf24; color:#000;">⚠ Mass Trapped</span>'
     : '<span class="ins-badge bad" style="font-size:12px;">✗ Mass Open</span>';
   const eBadge = balance.energy.closed
     ? '<span class="ins-badge good" style="font-size:12px;">✓ Energy Closed</span>'
@@ -21193,8 +21270,16 @@ function openBalanceModal() {
       addRow('', '');
       addRow('⟳ Accumulation', fmtM(balance.mass.accumulation), false, '#60a5fa');
     }
+    if (balance.mass.trapped > 1e-9) {
+      addRow('', '');
+      addRow('⚠ Trapped (known)', '', true, '#fbbf24');
+      for (const trap of balance.mass.traps) addRow('  ' + trap.unitName, fmtM(trap.trapped_kgps), false, '#fbbf24');
+      addRow('Σ Trapped', fmtM(balance.mass.trapped), true, '#fbbf24');
+    }
     addRow('', '');
-    const resColor = balance.mass.closed ? '#6ee7b7' : '#fca5a5';
+    const resColor = balance.mass.status === 'green' ? '#6ee7b7'
+                   : balance.mass.status === 'amber' ? '#fbbf24'
+                   : '#fca5a5';
     addRow('Residual', fmtM(balance.mass.residual), true, resColor);
     panel.appendChild(tbl);
   }
@@ -40595,6 +40680,34 @@ function runTests() {
     const outN = mixUD.ports?.out?.n || {};
     const nTotal = Object.values(outN).reduce((s, v) => s + v, 0);
     t.assertClose(nTotal, 1.0, 0.01, 'Mixer output = src1 only (1 mol/s)');
+  });
+
+  test('351b: v14.1.2 — mass trap audit: splitter behind mixer → amber status', t => {
+    // Source1 (1 bar) → Splitter(50/50) → out1 → Mixer ← Source2 (5 bar) → Sink1
+    //                                   → out2 → Sink2
+    // Mixer blocks in1 (lower P). Backward trace stops at splitter.
+    // Splitter out1 mass destroyed at mixer → trap audit detects → amber.
+    const src1 = t.place('source', 0, 0, { species: 'N2', nDot: 1, T: 300, P: 101325, phaseConstraint: 'V' });
+    const spl  = t.place('splitter', 3, 0, { splitPct: 50 });
+    const src2 = t.place('source', 0, 5, { species: 'N2', nDot: 1, T: 300, P: 500000, phaseConstraint: 'V' });
+    const mix  = t.place('mixer', 6, 0);
+    const snk1 = t.place('sink', 9, 0);
+    const snk2 = t.place('sink', 6, 5);
+    t.wire(src1, 'out', spl, 'in');
+    t.wire(spl, 'out1', mix, 'in1');
+    t.wire(src2, 'out', mix, 'in2');
+    t.wire(mix, 'out', snk1, 'in');
+    t.wire(spl, 'out2', snk2, 'in');
+    t.solve();
+    const bal = computeSystemBalance(scene);
+    t.assertOK(bal.mass.status === 'amber',
+      `Status is amber (got "${bal.mass.status}")`);
+    t.assertOK(bal.mass.traps.length > 0,
+      `Has mass traps (${bal.mass.traps.length})`);
+    t.assertOK(bal.mass.trapped > 1e-6,
+      `Trapped mass > 0 (${(bal.mass.trapped*1000).toFixed(4)} g/s)`);
+    t.assertOK(bal.mass.closed,
+      'closed=true (amber is accounted-for, not red)');
   });
 
   test('352: v13.0.8 — tank level limits: L/H templates evaluate fillPct', t => {
