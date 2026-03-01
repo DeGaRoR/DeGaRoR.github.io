@@ -318,7 +318,25 @@
   PlaceUnit defaults: valve, gas_turbine, source_multi now use
   SimSettings.getAtmosphere() instead of hardcoded Earth values.
 
+  _specInfo bar: always visible (removed dev guard), shows ⚙ icon, cursor:help.
+  Tooltip lists all locked/current params with names and values.
+  Now on: sealed tank (V, Cv_gas, Cv_liq, P_relief), open tank (V, Cv_liq),
+  reservoir (P, Cv, opening%). Dev profiles say "all editable".
+
   Restriction placeUnit case added (was missing, defaulted to empty params).
+
+  Atmospheric Sink (was "Sink"):
+  - Renamed to "Atmospheric Sink" — makes P_atm anchoring explicit.
+  - Tick computes full inlet/outlet structs: T, P, phase, Q, composition.
+    Outlet flashed at P_atm to determine phase (for future smoke/effects).
+  - Inspector overrides auto-stream (was showing misleading inlet P):
+    Conditions: T out / T in, P out / P in, Phase out / Phase in —
+    paired left/right in 2-column grid, all draggable sticker badges.
+    KPIs: absorbed flow, expansion ratio.
+    Outlet data (ud.last.outlet) includes full flash for future effects.
+
+  Reservoir icon: fountain (4 jets — arcs left/straight/right/right + droplets).
+  Tank icon: reverted to original cylinder (was accidentally changed).
 
   ─── v14.1.0 — Tank Architecture: Profiles, Safety, Open Tank ────────────
   467 tests, 2557 assertions, 0 failures.
@@ -6829,18 +6847,22 @@
           <path d="M40 22 L34 28 L34 36 L40 42" fill="none" stroke="currentColor" stroke-width="2.5"/>
         </symbol>
 
-        <!-- Reservoir (wellhead / supply boundary) [v14.1.1] — underground source -->
+        <!-- Reservoir (fountain / supply boundary) [v14.1.1] — 4 jets -->
         <symbol id="ico-reservoir" viewBox="0 0 64 64">
-          <!-- Ground line -->
-          <line x1="8" y1="36" x2="56" y2="36" stroke="currentColor" stroke-width="2" stroke-dasharray="4,3"/>
-          <!-- Underground reservoir shape -->
-          <ellipse cx="32" cy="50" rx="20" ry="8" fill="currentColor" opacity="0.3" stroke="currentColor" stroke-width="2"/>
-          <!-- Wellhead pipe up -->
-          <rect x="29" y="14" width="6" height="24" fill="currentColor" opacity="0.7"/>
-          <!-- Outlet arrow -->
-          <path d="M42 20 L50 20 L46 14 M50 20 L46 26" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/>
-          <!-- Infinity hint (∞) -->
-          <text x="32" y="54" text-anchor="middle" font-size="10" fill="currentColor" font-weight="bold">∞</text>
+          <!-- Base / nozzle plate -->
+          <path d="M12 56 Q32 52, 52 56" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+          <!-- Jet 1: medium, arcs left -->
+          <path d="M18 54 Q14 36, 8 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          <!-- Jet 2: tall, nearly straight -->
+          <path d="M26 54 L26 12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+          <!-- Jet 3: tall, arcs right -->
+          <path d="M36 54 Q40 30, 44 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          <!-- Jet 4: shorter, arcs right more -->
+          <path d="M46 54 Q50 40, 56 28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          <!-- Droplets -->
+          <circle cx="6" cy="14" r="1.2" fill="currentColor" opacity="0.4"/>
+          <circle cx="46" cy="8" r="1.2" fill="currentColor" opacity="0.4"/>
+          <circle cx="58" cy="24" r="1.2" fill="currentColor" opacity="0.4"/>
         </symbol>
         
         <!-- Single Stream Heater -->
@@ -12882,9 +12904,9 @@ UnitRegistry.register('source_air', {
   }
 });
 
-// Sink - Stream terminator
+// Atmospheric Sink — stream terminator at atmospheric conditions [v14.1.1]
 UnitRegistry.register('sink', {
-  name: 'Sink',
+  name: 'Atmospheric Sink',
   category: UnitCategories.SINK,
   w: 2,
   h: 2,
@@ -12902,21 +12924,47 @@ UnitRegistry.register('sink', {
 
     const atm = SimSettings.getAtmosphere();
     const P_atm = atm.P_Pa;
+    const T_atm = atm.T_K;
     const absorbed = Object.values(sIn.n || {}).reduce((a,b) => a+b, 0);
 
-    // Process side
-    const inlet = { T_K: sIn.T, P_Pa: sIn.P, Q_mol_s: absorbed };
+    // ── Inlet conditions (process side) ──
+    const inlet = {
+      T_K: sIn.T,
+      P_Pa: sIn.P,
+      phase: sIn.phase || '—',
+      Q_mol_s: absorbed,
+      composition: { ...(sIn.n || {}) }
+    };
 
-    // Atmosphere side (isenthalpic expansion)
-    // Ideal gas: T_out ≈ T_in. Real gas J-T correction deferred.
-    const outlet = { T_K: sIn.T, P_Pa: P_atm };
+    // ── Outlet conditions (atmospheric expansion) ──
+    // Isenthalpic expansion to P_atm. Flash to determine phase.
+    let T_out = sIn.T;  // ideal gas: T unchanged
+    let phase_out = 'V';
+    if (absorbed > 1e-12) {
+      try {
+        const flashResult = thermo.tpFlash({ T: sIn.T, P: P_atm, n: { ...(sIn.n || {}) } });
+        if (flashResult) {
+          phase_out = flashResult.phase || (flashResult.beta >= 0.999 ? 'V' : flashResult.beta <= 0.001 ? 'L' : 'VL');
+        }
+      } catch(e) { /* flash fail — default to V */ }
+    }
+
+    const outlet = {
+      T_K: T_out,
+      P_Pa: P_atm,
+      phase: phase_out,
+      Q_mol_s: absorbed,
+      composition: { ...(sIn.n || {}) }
+    };
+
+    const expansion_ratio = sIn.P > 0 ? sIn.P / P_atm : 1;
 
     u.last = {
       absorbed_mol_s: absorbed,
       inlet,
       outlet,
       P_atm_bar: P_atm / 1e5,
-      expansion_ratio: sIn.P > 0 ? (sIn.P / P_atm).toFixed(2) : '—',
+      expansion_ratio: expansion_ratio.toFixed(2),
       stream: { ...sIn }  // backward compat fallback
     };
 
@@ -12924,7 +12972,7 @@ UnitRegistry.register('sink', {
       u.last.error = {
         severity: ErrorSeverity.MINOR,
         message: `Stream at ${(sIn.P/1e5).toFixed(1)} bar expanding `
-               + `to ${(P_atm/1e5).toFixed(2)} bar at process boundary`
+               + `to ${(P_atm/1e5).toFixed(2)} bar at atmospheric boundary`
       };
     }
   }
@@ -25032,7 +25080,32 @@ UnitInspector.source_multi = {
 };
 
 // ── Sinks ──
-UnitInspector.sink = {};
+UnitInspector.sink = {
+  // All conditions as draggable badges — paired outlet (left) / inlet (right)
+  conditions(u, ud) {
+    if (!ud?.last) return [];
+    const i = ud.last.inlet;
+    const o = ud.last.outlet;
+    return [
+      // Row 1: T
+      { label: 'T out', value: fmt.T(o.T_K) },
+      { label: 'T in', value: fmt.T(i.T_K) },
+      // Row 2: P
+      { label: 'P out', value: fmt.P(o.P_Pa) },
+      { label: 'P in', value: fmt.P(i.P_Pa) },
+      // Row 3: Phase
+      { label: 'Phase out', value: o.phase || '—' },
+      { label: 'Phase in', value: i.phase || '—' },
+    ];
+  },
+  kpis(u, ud) {
+    if (!ud?.last) return [];
+    return [
+      { label: 'Absorbed', value: `${(ud.last.absorbed_mol_s||0).toFixed(3)}<span class="propUnit">mol/s</span>` },
+      { label: 'Expansion', value: `${ud.last.expansion_ratio}×` },
+    ];
+  }
+};
 
 // [v12.6.0] sink_heat inspector deleted
 
@@ -25198,17 +25271,6 @@ UnitInspector.tank = {
 
     return items;
   },
-  // [v14.0.1] Show locked specs (volume, Cv) as read-only info for non-dev profiles
-  _specInfo(u) {
-    const profile = ProfileRegistry.get(u.profileId || u.defId);
-    if (profile?.config?.dev) return null;
-    const V = u.params.volume_m3 || 0.15;
-    const isVented = !!u.params.vented;
-    let info = `${(V * 1000).toFixed(0)} L`;
-    info += ` · Cv ${u.params.Cv_gas ?? 30}/${u.params.Cv_liq ?? 30}`;
-    if (isVented) info += ' · vented';
-    return info;
-  },
   conditions(u, ud) {
     if (!ud?.last) return [];
     return [
@@ -25271,12 +25333,6 @@ UnitInspector.open_tank = {
     );
 
     return items;
-  },
-  _specInfo(u) {
-    const profile = ProfileRegistry.get(u.profileId || u.defId);
-    if (profile?.config?.dev) return null;
-    const V = u.params.volume_m3 || 0.15;
-    return `${(V * 1000).toFixed(0)} L · Cv ${u.params.Cv_liq ?? 30} · open to atmosphere`;
   },
   conditions(u, ud) {
     if (!ud?.last) return [];
@@ -25900,18 +25956,33 @@ function hideTip() {
   _ptip.style.opacity = '0';
 }
 
-// [v13.1.3] Build hover tooltip text for palette tile: key limits in display units
+// [v13.1.3] Build hover tooltip text for palette tile: key limits + specs in display units
 function _buildTileTooltip(profile, tier) {
   const lines = [];
   const lim = profile.limits?.[tier];
   const defs = profile.defaults?.[tier];
   const us = models.getActive('units');
 
+  // Equipment specs from defaults
+  if (defs) {
+    if (defs.volume_m3 != null) lines.push(`Volume: ${(defs.volume_m3 * 1000).toFixed(0)} L`);
+    if (defs.Cv_gas != null && defs.Cv_liq != null) lines.push(`Cv: ${defs.Cv_gas} (gas) / ${defs.Cv_liq} (liq)`);
+    else if (defs.Cv_liq != null) lines.push(`Cv: ${defs.Cv_liq}`);
+    else if (defs.Cv != null) lines.push(`Cv: ${defs.Cv}`);
+    if (defs.P_bar != null) lines.push(`P: ${defs.P_bar} bar`);
+    if (defs.opening_pct != null) lines.push(`Opening: ${defs.opening_pct}%`);
+  }
+
+  // Operating limits
   if (lim) {
     if (lim.T_HH != null)    lines.push(`T max: ${us.temperature.from(lim.T_HH).toFixed(0)} ${us.temperature.symbol}`);
+    if (lim.T_LL != null)    lines.push(`T min: ${us.temperature.from(lim.T_LL).toFixed(0)} ${us.temperature.symbol}`);
     if (lim.P_HH != null)    lines.push(`P max: ${us.pressure.from(lim.P_HH).toFixed(0)} ${us.pressure.symbol}`);
+    if (lim.P_LL != null)    lines.push(`P min: ${us.pressure.from(lim.P_LL).toFixed(0)} ${us.pressure.symbol}`);
     if (lim.mass_HH != null) lines.push(`Flow max: ${us.massFlow.from(lim.mass_HH).toFixed(0)} ${us.massFlow.symbol}`);
   }
+
+  // Battery / electrical specs
   if (defs) {
     if (defs.peakPower_kW != null) lines.push(`Power: ${defs.peakPower_kW} kW`);
     if (defs.capacity_J != null) {
@@ -26295,16 +26366,6 @@ function _rebuildInspectorContent() {
     }
 
     // ── Parameters (flat zone, distinct background) [v10.2.2] ──
-    // [v14.0.1] Show locked specs as read-only info bar for non-dev tank profiles
-    if (config?._specInfo) {
-      const specText = config._specInfo(u);
-      if (specText) {
-        propEditor.appendChild(el('div', {
-          style: 'font-size:10px; color:#94a3b8; padding:4px 12px 0; letter-spacing:0.3px;',
-          html: specText
-        }));
-      }
-    }
     if (config?.params || config?.customParams) {
       const paramsZone = el('div', { class: 'ins-params-zone' });
       if (config.customParams) {
