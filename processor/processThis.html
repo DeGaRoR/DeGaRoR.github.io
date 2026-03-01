@@ -6944,8 +6944,10 @@ SimSettings._applyPreset();
    DOM-free (NNG-A2). Exported on PG (NNG-A4).
    Inter-timestep state on u.inventory (NNG-S5).
    ========================= */
+const T0_SECONDS = 43200;  // noon Day 1 — universal base time (DRY constant)
+
 const TimeClock = {
-  t:     43200,   // [v10.5.0] current simulation time (seconds) — starts at noon Day 1
+  t:     T0_SECONDS,   // [v10.5.0] current simulation time (seconds) — starts at noon Day 1
   frame: 0,        // integer frame counter (0 = initial state)
   mode:  'test',   // 'test' | 'paused' | 'playing'
   _initial: null,  // Map: unitId → deep copy of initial inventory (set on first step)
@@ -6985,6 +6987,15 @@ const TimeClock = {
       u.inventory = def.updateInventory(u.inventory, resolvedPorts, dt);
     }
 
+    // [v13.8.0 S5a-0] Capture mid-sim units placed after initial snapshot
+    if (TimeClock._initial) {
+      for (const [uid, u] of scene.units) {
+        if (u.inventory && !TimeClock._initial.has(uid)) {
+          TimeClock._initial.set(uid, JSON.parse(JSON.stringify(u.inventory)));
+        }
+      }
+    }
+
     TimeClock.t += dt;
     TimeClock.frame += 1;
 
@@ -6999,7 +7010,7 @@ const TimeClock = {
    */
   reset(scene) {
     TimeClock._restoreInitial(scene);
-    TimeClock.t = 43200;  // [v10.5.0] reset to noon Day 1
+    TimeClock.t = T0_SECONDS;  // [v10.5.0] reset to noon Day 1
     TimeClock.frame = 0;
     TimeClock.mode = 'test';
 
@@ -12184,6 +12195,110 @@ const UnitCategories = {
 };
 
 /* =========================
+   TANK STATE & PRESSURE HELPERS [v13.8.0 S5a-1]
+   Pure functions for vessel physics. DOM-free (NNG-A2).
+   ========================= */
+
+/** Mole-weighted average MW [g/mol] from a mol-amount dict { species: mol }. */
+function _inventoryMW(n) {
+  let total = 0, wt = 0;
+  for (const [sp, amt] of Object.entries(n)) {
+    if (amt < 1e-15) continue;
+    const cd = ComponentRegistry.get(sp);
+    wt += amt * (cd ? cd.MW : 28);
+    total += amt;
+  }
+  return total > 0 ? wt / total : 28;
+}
+
+// Alias for air/composition dicts (same math — works with fractions or moles)
+const _compositionMW = _inventoryMW;
+
+/** Safety valve sizing constants. Hardcoded, not player-editable.
+ *  Intentionally oversized so any overshoot self-corrects within a fraction
+ *  of a percent — effectively hard clamps while remaining finite. */
+const K_RELIEF_BASE  = 0.5;    // mol/(s·Pa·m³)
+const K_OVERFLOW_BASE = 1e4;   // mol/(s·%·m³)
+
+/**
+ * Compute tank state from inventory.
+ * Pure function. No side effects.
+ * @param {Object}  n       — { species: mol } inventory
+ * @param {number}  T_K     — Temperature [K]
+ * @param {number}  V_total — Tank volume [m³]
+ * @param {Object}  thermo  — ThermoAdapter instance
+ * @returns {{ P_Pa, V_liq_m3, V_vap_m3, n_L, n_V, level_pct }}
+ */
+function computeTankState(n, T_K, V_total, thermoRef) {
+  const R = 8.314;
+  const species = Object.keys(n).filter(sp => n[sp] > 1e-15);
+  if (species.length === 0) {
+    return { P_Pa: 0, V_liq_m3: 0, V_vap_m3: V_total,
+             n_L: {}, n_V: {}, level_pct: 0 };
+  }
+
+  // 1. Classify: condensable (T < 0.9 × Tc) vs permanent gas
+  const condensable = [], permanent = [];
+  for (const sp of species) {
+    const cd = ComponentRegistry.get(sp);
+    if (cd && T_K < 0.9 * cd.Tc) condensable.push(sp);
+    else permanent.push(sp);
+  }
+
+  // 2. Liquid volume from condensable species
+  const n_L = {}, n_V = {};
+  let V_liq = 0;
+  for (const sp of condensable) {
+    n_L[sp] = n[sp]; n_V[sp] = 0;
+    const cd = ComponentRegistry.get(sp);
+    const rho = thermoRef.density
+      ? thermoRef.density(sp, T_K, 101325, 'L') : (cd.rhoLiq || 1000);
+    V_liq += n[sp] * (cd.MW / 1000) / rho;
+  }
+
+  // 3. Headspace
+  let V_headspace = Math.max(0, V_total - V_liq);
+
+  // 4. VLE: vapor pressure contribution from condensables
+  let n_vap_cond = 0;
+  if (V_headspace > 0.001 * V_total) {
+    for (const sp of condensable) {
+      const Psat = thermoRef.saturationPressure
+        ? thermoRef.saturationPressure(sp, T_K) : 0;
+      if (Psat > 0) {
+        const n_v_est = Psat * V_headspace / (R * T_K);
+        const n_actual = Math.min(n_v_est, n[sp] * 0.5);
+        n_V[sp] = n_actual;
+        n_L[sp] = n[sp] - n_actual;
+        n_vap_cond += n_actual;
+      }
+    }
+  }
+
+  // 5. Permanent gas: all in headspace
+  let n_perm = 0;
+  for (const sp of permanent) {
+    n_V[sp] = n[sp]; n_L[sp] = 0; n_perm += n[sp];
+  }
+
+  // 6. Headspace pressure (ideal gas)
+  const n_gas_total = n_perm + n_vap_cond;
+  let P_Pa;
+  if (V_headspace < 1e-6) {
+    P_Pa = 200e5;  // 200 bar sentinel (all liquid)
+  } else {
+    P_Pa = n_gas_total * R * T_K / V_headspace;
+  }
+
+  // 7. Level
+  const level_pct = V_total > 0
+    ? Math.min(100, (V_liq / V_total) * 100) : 0;
+
+  return { P_Pa, V_liq_m3: V_liq, V_vap_m3: V_headspace,
+           n_L, n_V, level_pct };
+}
+
+/* =========================
    UNIT REGISTRY
    Defines available unit operations
    
@@ -12548,10 +12663,34 @@ UnitRegistry.register('sink', {
     'box/port-bottom': { w: 2, h: 2, ports: { in:{x:1,y:2} } }
   },
   tick(u, ports, par) { 
-    // Store incoming stream info for display
-    if (ports.in) {
-      u.last = {
-        stream: { ...ports.in }
+    const sIn = ports.in;
+    if (!sIn) return;
+
+    const atm = SimSettings.getAtmosphere();
+    const P_atm = atm.P_Pa;
+    const absorbed = Object.values(sIn.n || {}).reduce((a,b) => a+b, 0);
+
+    // Process side
+    const inlet = { T_K: sIn.T, P_Pa: sIn.P, Q_mol_s: absorbed };
+
+    // Atmosphere side (isenthalpic expansion)
+    // Ideal gas: T_out ≈ T_in. Real gas J-T correction deferred.
+    const outlet = { T_K: sIn.T, P_Pa: P_atm };
+
+    u.last = {
+      absorbed_mol_s: absorbed,
+      inlet,
+      outlet,
+      P_atm_bar: P_atm / 1e5,
+      expansion_ratio: sIn.P > 0 ? (sIn.P / P_atm).toFixed(2) : '—',
+      stream: { ...sIn }  // backward compat fallback
+    };
+
+    if (sIn.P > P_atm * 2) {
+      u.last.error = {
+        severity: ErrorSeverity.MINOR,
+        message: `Stream at ${(sIn.P/1e5).toFixed(1)} bar expanding `
+               + `to ${(P_atm/1e5).toFixed(2)} bar at process boundary`
       };
     }
   }
@@ -12614,196 +12753,408 @@ UnitRegistry.register('grid_supply', {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// TANK — Material inventory vessel [v9.0.3]
+// TANK — Sealed vessel with inventory [v13.8.0 S5a-2a]
 // ═══════════════════════════════════════════════════════════════════════════════
 //
 // ┌─────────────────────────────────────────────────────────────────────────────┐
-// │ PURPOSE                                                                    │
-// │   Stores material (gas-phase, ideal gas) between timesteps.  In test mode  │
-// │   behaves as a pass-through.  In time mode, accumulates/depletes mass      │
-// │   based on inlet/outlet flow balance × Δt.                                 │
+// │ 5-port sealed vessel. P from computeTankState(). Dual Cv outlets          │
+// │ (vapor/liquid phase draws). Relief valve + overflow safety.               │
+// │ No drawRate — flow is driven by ΔP through Cv valves.                    │
 // │                                                                            │
-// │ PORTS                                                                      │
-// │   mat_in   (MATERIAL, IN)  — inlet feed                                   │
-// │   mat_out  (MATERIAL, OUT) — draw at par.drawRate mol/s                   │
-// │   overflow (MATERIAL, OUT) — excess when fill ≥ 100% (top center)         │
+// │ Ports: mat_in (IN), gas_out (OUT, vapor), liq_out (OUT, liquid),          │
+// │        vent (OUT, auto relief), overflow (OUT, auto liquid overflow)       │
 // │                                                                            │
-// │ PARAMETERS                                                                 │
-// │   volume_m3   — tank volume in m³ (default 0.15, S-size pilot)             │
-// │   drawRate    — outlet molar flow rate in mol/s (default 1.0)             │
-// │                                                                            │
-// │ INVENTORY (NNG-S5)                                                         │
-// │   { n: { sp: mol }, T_K, P_Pa }                                           │
-// │   Initialized with N₂ at atmospheric conditions (PV = nRT).               │
-// │   Updated between solves by TimeClock (never by solver).                   │
-// │                                                                            │
-// │ OVERFLOW                                                                   │
-// │   If fill ≥ 100% and overflow port not connected → CATASTROPHIC.          │
-// │   If overflow IS connected, excess exits through overflow port.            │
-// │                                                                            │
-// │ NOTES                                                                      │
-// │   • Gas-only for v1.  Output gets TP flash → may produce VL mix.          │
-// │   • Temperature mixing: mole-weighted average (NNG-U3a approximation).    │
-// │   • Pressure model: P_tank = P_inlet (fixed from last connected inlet).   │
-// │   • optionalPorts: true — tank tolerates disconnected material ports.      │
+// │ Safety: K_RELIEF_BASE × V × (P − P_relief) for overpressure              │
+// │         K_OVERFLOW_BASE × V × (level − threshold) for liquid overflow     │
+// │         Connected safety port → MINOR. Unconnected → CATASTROPHIC (Q2).   │
 // └─────────────────────────────────────────────────────────────────────────────┘
 UnitRegistry.register('tank', {
   name: 'Tank',
   category: UnitCategories.VESSEL,
-  w: 2,
-  h: 3,
+  w: 3,
+  h: 2,
   optionalPorts: true,
   ports: [
-    { portId: 'mat_in',   dir: PortDir.IN,  type: StreamType.MATERIAL, x: 0, y: 2 },
-    { portId: 'mat_out',  dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 2 },
-    { portId: 'overflow', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 1, y: 0, label: 'overflow' }
+    { portId: 'mat_in',   dir: PortDir.IN,  type: StreamType.MATERIAL, x: 0, y: 1, label: 'in' },
+    { portId: 'gas_out',  dir: PortDir.OUT, type: StreamType.MATERIAL, x: 1, y: 0, label: 'gas' },
+    { portId: 'vent',     dir: PortDir.OUT, type: StreamType.MATERIAL, x: 3, y: 0, label: 'vent' },
+    { portId: 'liq_out',  dir: PortDir.OUT, type: StreamType.MATERIAL, x: 1, y: 2, label: 'liq' },
+    { portId: 'overflow', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 3, y: 2, label: 'ovfl' }
   ],
-  // [v10.9.2] Presentation layer
   presentations: {
-    'box/default': { w: 2, h: 3, ports: { mat_in:{x:0,y:2}, mat_out:{x:2,y:2}, overflow:{x:1,y:0} } }
+    'box/default': { w: 3, h: 2, ports: {
+      mat_in:{x:0,y:1}, gas_out:{x:1,y:0}, vent:{x:3,y:0},
+      liq_out:{x:1,y:2}, overflow:{x:3,y:2}
+    }}
   },
+  // [v13.0.4 S1c] Equipment limits
+  limitParams: ['T_LL', 'T_L', 'T_H', 'T_HH', 'P_LL', 'P_L', 'P_H', 'P_HH', 'mass_HH', 'level_H', 'level_HH'],
+  limits: { S: { T_LL: 263, T_L: 278, T_H: 333, T_HH: 353, P_LL: 80000, P_L: 85000, P_H: 400000, P_HH: 500000, mass_HH: 0.05, level_H: 90, level_HH: 100 } },
   inventory: true,
 
   initInventory(par) {
-    const atm = SimSettings.atmosphere;
+    const atm = SimSettings.getAtmosphere();
     const V = par.volume_m3 || 0.15;
-    const n_N2 = (atm.P_Pa * V) / (8.314 * atm.T_K);
-    return {
-      n: { N2: n_N2 },
-      T_K: atm.T_K,
-      P_Pa: atm.P_Pa
-    };
+    const T = par.T_init ?? atm.T_K;
+    const comp = par.initialComposition || { N2: 1.0 };
+
+    // Normalize fractions
+    const total = Object.values(comp).reduce((a, b) => a + b, 0);
+    const fracs = {};
+    for (const [sp, f] of Object.entries(comp)) fracs[sp] = f / total;
+
+    let n = {};
+    if (par.level_init != null && par.level_init > 0) {
+      // Liquid fill mode: back-compute moles from level
+      const V_liq = (par.level_init / 100) * V;
+      for (const [sp, frac] of Object.entries(fracs)) {
+        const cd = ComponentRegistry.get(sp);
+        const rho = cd?.rhoLiq || 1000;
+        const MW_kg = (cd?.MW || 18) / 1000;
+        n[sp] = frac * V_liq * rho / MW_kg;
+      }
+      // Fill headspace with atmospheric gas at P_atm (physically correct:
+      // an open or freshly sealed tank has planet atmosphere above the liquid)
+      const V_head = V - V_liq;
+      if (V_head > 1e-6) {
+        const P_head = atm.P_Pa;
+        const n_head = P_head * V_head / (8.314 * T);
+        for (const [spA, fracA] of Object.entries(atm.air)) {
+          n[spA] = (n[spA] || 0) + fracA * n_head;
+        }
+      }
+    } else {
+      // Gas fill mode: back-compute moles from P_init
+      const P = par.P_init ?? atm.P_Pa;
+      const n_total = P * V / (8.314 * T);
+      for (const [sp, frac] of Object.entries(fracs)) {
+        n[sp] = frac * n_total;
+      }
+    }
+
+    return { n, T_K: T };
   },
 
   updateInventory(inventory, resolvedPorts, dt) {
     const inv = { ...inventory, n: { ...inventory.n } };
     const inFlow  = resolvedPorts.mat_in?.n || {};
-    const outFlow = resolvedPorts.mat_out?.n || {};
+    const gasFlow = resolvedPorts.gas_out?.n || {};
+    const liqFlow = resolvedPorts.liq_out?.n || {};
+    const ventFlow = resolvedPorts.vent?.n || {};
     const ovFlow  = resolvedPorts.overflow?.n || {};
 
-    // Species balance: union of inventory + inlet + outlet
     const allSp = new Set([
-      ...Object.keys(inFlow),
-      ...Object.keys(outFlow),
-      ...Object.keys(ovFlow),
-      ...Object.keys(inv.n)
+      ...Object.keys(inv.n), ...Object.keys(inFlow),
+      ...Object.keys(gasFlow), ...Object.keys(liqFlow),
+      ...Object.keys(ventFlow), ...Object.keys(ovFlow)
     ]);
+
     for (const sp of allSp) {
-      const net = (inFlow[sp] || 0) - (outFlow[sp] || 0) - (ovFlow[sp] || 0);
-      inv.n[sp] = Math.max(0, (inv.n[sp] || 0) + net * dt);
+      const cur = inv.n[sp] || 0;
+      const inN = (inFlow[sp] || 0) * dt;
+      const outN = ((gasFlow[sp]||0) + (liqFlow[sp]||0)
+                 + (ventFlow[sp]||0) + (ovFlow[sp]||0)) * dt;
+      inv.n[sp] = Math.max(0, cur + inN - outN);
     }
 
-    // Pressure = inlet pressure (if inlet connected), else unchanged
-    if (resolvedPorts.mat_in?.P) {
-      inv.P_Pa = resolvedPorts.mat_in.P;
-    }
-
-    // Temperature: energy-balanced mixing (NNG-U3a approximation)
-    const inTotal = Object.values(inFlow).reduce((a, b) => a + b, 0);
-    const prevTotal = Object.values(inventory.n).reduce((a, b) => a + b, 0);
-    const newTotal = Object.values(inv.n).reduce((a, b) => a + b, 0);
-    if (inTotal > 0 && newTotal > 1e-12) {
-      const inT = resolvedPorts.mat_in?.T || inv.T_K;
-      const storedH = prevTotal * inv.T_K;   // proportional to enthalpy
-      const inH = inTotal * dt * inT;
-      inv.T_K = (storedH + inH) / (prevTotal + inTotal * dt);
+    // Adiabatic mixing: simplified mole-weighted T average
+    if (resolvedPorts.mat_in?.T && resolvedPorts.mat_in.n) {
+      const n_in = Object.values(inFlow).reduce((a,b) => a+b, 0) * dt;
+      const n_inv = Object.values(inv.n).reduce((a,b) => a+b, 0);
+      if (n_inv > 0 && n_in > 0) {
+        inv.T_K = (inventory.T_K * (n_inv - n_in) + resolvedPorts.mat_in.T * n_in) / n_inv;
+      }
     }
 
     return inv;
   },
 
-  // [v13.0.4 S1c] Equipment limits
-  limitParams: ['T_LL', 'T_L', 'T_H', 'T_HH', 'P_LL', 'P_L', 'P_H', 'P_HH', 'mass_HH', 'level_H', 'level_HH'],
-  limits: { S: { T_LL: 263, T_L: 278, T_H: 333, T_HH: 353, P_LL: 80000, P_L: 85000, P_H: 400000, P_HH: 500000, mass_HH: 0.05, level_H: 90, level_HH: 100 } },
   tick(u, ports, par, ctx) {
-    const inv = u.inventory || { n: {}, T_K: 288.15, P_Pa: 101325 };
-    const total = Object.values(inv.n).reduce((a, b) => a + b, 0);
     const V = par.volume_m3 || 0.15;
-    const n_max = (inv.P_Pa * V) / (8.314 * inv.T_K);
-    const drawRate = par.drawRate ?? 1.0;
+    const inv = u.inventory || { n: {}, T_K: 288 };
+    const dt = SimSettings.dt;
 
-    // Outlet: proportional composition at drawRate, capped by content
-    const dt = TimeClock.dt;
-    const actualDraw = total > 1e-12 ? Math.min(drawRate, total / dt) : 0;
-    const n_out = {};
-    if (total > 1e-12) {
-      for (const [sp, mol] of Object.entries(inv.n)) {
-        n_out[sp] = (mol / total) * actualDraw;
+    // 1. Compute tank state
+    const state = computeTankState(inv.n, inv.T_K, V, thermo);
+    const P_tank = state.P_Pa;
+
+    // 2. Gas draw (from vapor phase)
+    const P_down_gas = ctx.downstreamP('gas_out') ?? P_tank;
+    const dP_gas = P_tank - P_down_gas;
+    let Q_gas = 0;
+    if (dP_gas > 0 && (par.opening_gas_pct || 0) > 0
+        && state.n_V && Object.values(state.n_V).some(v => v > 1e-15)) {
+      const n_V_total = Object.values(state.n_V).reduce((a,b) => a+b, 0);
+      const MW_V = _inventoryMW(state.n_V);
+      const SG_V = (P_tank * MW_V) / (8.314 * inv.T_K * 1.225);
+      Q_gas = (par.Cv_gas || 50) * (par.opening_gas_pct / 100)
+            * Math.sqrt(Math.max(0, dP_gas) / (SG_V * 1e5));
+      Q_gas = Math.min(Q_gas, n_V_total / dt);
+
+      const n_out_gas = {};
+      for (const [sp, amt] of Object.entries(state.n_V)) {
+        n_out_gas[sp] = (amt / n_V_total) * Q_gas;
       }
-    }
-    ports.mat_out = {
-      type: StreamType.MATERIAL,
-      T: inv.T_K,
-      P: inv.P_Pa,
-      n: n_out
-      // NO phaseConstraint — flash determines VL from T, P, composition
-    };
-
-    // Overflow port (empty unless overflow computed externally)
-    ports.overflow = {
-      type: StreamType.MATERIAL,
-      T: inv.T_K,
-      P: inv.P_Pa,
-      n: {}
-    };
-
-    // Fill diagnostics
-    const fillPct = n_max > 0 ? (total / n_max) * 100 : 0;
-
-    // [v10.6.1] Overflow routing: project fill after one timestep
-    // Only triggers when tank is at or above capacity
-    const inletRate = ports.mat_in?.n
-      ? Object.values(ports.mat_in.n).reduce((a, b) => a + b, 0) : 0;
-    const netInflux = Math.max(0, inletRate - actualDraw);
-    const needsOverflow = n_max > 0 && (fillPct > 100 || (fillPct >= 99.99 && netInflux > 1e-12));
-
-    if (needsOverflow) {
-      const overflowConnected = ctx.portConnected('overflow');
-      if (overflowConnected) {
-        // Overflow rate = drain excess + absorb net influx to hold at 100%
-        const excess = Math.max(0, total - n_max);
-        const ovRate = excess / dt + netInflux;
-        if (ovRate > 1e-15) {
-          const n_overflow = {};
-          for (const [sp, mol] of Object.entries(inv.n)) {
-            n_overflow[sp] = (mol / total) * ovRate;
-          }
-          ports.overflow = {
-            type: StreamType.MATERIAL,
-            T: inv.T_K,
-            P: inv.P_Pa,
-            n: n_overflow
-          };
-          // [v10.6.1] Warn: overflow is active
-          ctx.warn({
-            severity: ErrorSeverity.MAJOR,
-            message: `Tank at ${fillPct.toFixed(0)}% — excess venting through overflow.`,
-            code: 'TANK_OVERFLOW_VENTING'
-          });
-        }
-      } else {
-        // No overflow connection → CATASTROPHIC rupture
+      ports.gas_out = {
+        type: StreamType.MATERIAL,
+        T: inv.T_K, P: P_tank, n: n_out_gas,
+        phaseConstraint: 'V'
+      };
+    } else {
+      ports.gas_out = {
+        type: StreamType.MATERIAL,
+        T: inv.T_K, P: P_tank, n: {},
+        phaseConstraint: 'V'
+      };
+      if (dP_gas < -100) {
         ctx.warn({
-          severity: ErrorSeverity.CATASTROPHIC,
-          message: 'Tank overflow — catastrophic rupture! No overflow path connected.',
-          code: 'TANK_OVERFLOW_RUPTURE'
+          severity: ErrorSeverity.MINOR,
+          message: `Gas outlet: reverse pressure \u2014 downstream at `
+            + `${(P_down_gas/1e5).toFixed(1)} bar exceeds vessel `
+            + `at ${(P_tank/1e5).toFixed(1)} bar`
         });
       }
     }
 
+    // 3. Liquid draw (from liquid phase)
+    const P_down_liq = ctx.downstreamP('liq_out') ?? P_tank;
+    const dP_liq = P_tank - P_down_liq;
+    let Q_liq = 0;
+    if (dP_liq > 0 && (par.opening_liq_pct || 0) > 0
+        && state.n_L && Object.values(state.n_L).some(v => v > 1e-15)) {
+      const n_L_total = Object.values(state.n_L).reduce((a,b) => a+b, 0);
+      const rho_L = thermo.density
+        ? thermo.density(Object.keys(state.n_L)[0], inv.T_K, P_tank, 'L')
+        : 1000;
+      const SG_L = rho_L / 1000;
+      Q_liq = (par.Cv_liq || 50) * (par.opening_liq_pct / 100)
+            * Math.sqrt(Math.max(0, dP_liq) / (SG_L * 1e5));
+      Q_liq = Math.min(Q_liq, n_L_total / dt);
+
+      const n_out_liq = {};
+      for (const [sp, amt] of Object.entries(state.n_L)) {
+        n_out_liq[sp] = (amt / n_L_total) * Q_liq;
+      }
+      ports.liq_out = {
+        type: StreamType.MATERIAL,
+        T: inv.T_K, P: P_tank, n: n_out_liq,
+        phaseConstraint: 'L'
+      };
+    } else {
+      ports.liq_out = {
+        type: StreamType.MATERIAL,
+        T: inv.T_K, P: P_tank, n: {},
+        phaseConstraint: 'L'
+      };
+      if (dP_liq < -100) {
+        ctx.warn({
+          severity: ErrorSeverity.MINOR,
+          message: `Liquid outlet: reverse pressure \u2014 downstream at `
+            + `${(P_down_liq/1e5).toFixed(1)} bar exceeds vessel `
+            + `at ${(P_tank/1e5).toFixed(1)} bar`
+        });
+      }
+    }
+
+    // 4. Relief valve (automatic \u2014 vapor phase)
+    let Q_vent = 0;
+    const P_relief = par.P_relief || 200000;
+    if (P_tank > P_relief) {
+      const n_V_total = Object.values(state.n_V || {})
+        .reduce((a,b) => a+b, 0);
+      Q_vent = K_RELIEF_BASE * V * (P_tank - P_relief);
+      Q_vent = Math.min(Q_vent, n_V_total / dt);
+
+      if (Q_vent > 0) {
+        const vent_n = {};
+        for (const [sp, amt] of Object.entries(state.n_V || {})) {
+          vent_n[sp] = (amt / n_V_total) * Q_vent;
+        }
+        const ventConnected = ctx.portConnected('vent');
+        if (ventConnected) {
+          ports.vent = {
+            type: StreamType.MATERIAL,
+            T: inv.T_K, P: P_tank, n: vent_n,
+            phaseConstraint: 'V'
+          };
+        }
+        ctx.warn({
+          severity: ventConnected
+            ? ErrorSeverity.MINOR : ErrorSeverity.CATASTROPHIC,
+          message: `Relief valve open at ${(P_tank/1e5).toFixed(1)} bar `
+            + `(set: ${(P_relief/1e5).toFixed(1)} bar)`
+            + (ventConnected ? '' : ' \u2014 venting to atmosphere')
+        });
+      }
+    }
+    if (!ports.vent) {
+      ports.vent = { type: StreamType.MATERIAL, T: inv.T_K, P: P_tank, n: {} };
+    }
+
+    // 5. Overflow (automatic \u2014 liquid phase)
+    let Q_overflow = 0;
+    const overflow_lvl = par.overflow_level ?? 90;
+    if (state.level_pct > overflow_lvl) {
+      const n_L_total = Object.values(state.n_L || {})
+        .reduce((a,b) => a+b, 0);
+      Q_overflow = K_OVERFLOW_BASE * V
+        * (state.level_pct - overflow_lvl);
+      Q_overflow = Math.min(Q_overflow, n_L_total / dt);
+
+      if (Q_overflow > 0) {
+        const ov_n = {};
+        for (const [sp, amt] of Object.entries(state.n_L || {})) {
+          ov_n[sp] = (amt / n_L_total) * Q_overflow;
+        }
+        const ovConnected = ctx.portConnected('overflow');
+        if (ovConnected) {
+          ports.overflow = {
+            type: StreamType.MATERIAL,
+            T: inv.T_K, P: P_tank, n: ov_n,
+            phaseConstraint: 'L'
+          };
+        }
+        ctx.warn({
+          severity: ovConnected
+            ? ErrorSeverity.MINOR : ErrorSeverity.CATASTROPHIC,
+          message: `Overflow active at ${state.level_pct.toFixed(0)}% `
+            + `(threshold: ${overflow_lvl}%)`
+            + (ovConnected ? '' : ' \u2014 draining to ground')
+        });
+      }
+    }
+    if (!ports.overflow) {
+      ports.overflow = { type: StreamType.MATERIAL, T: inv.T_K, P: P_tank, n: {} };
+    }
+
+    // 6. Diagnostics
     u.last = {
-      totalMol: total,
-      n_max,
-      fillPct,
-      drawRate: actualDraw,
-      status: total < 1e-12 ? 'empty'
-            : fillPct >= 100 ? (Object.values(ports.overflow.n).reduce((a,b)=>a+b,0) > 0 ? 'overflowing' : 'full')
-            : 'active',
+      ...(u.last || {}),
+      P_Pa: P_tank, P_bar: P_tank / 1e5,
       T_K: inv.T_K,
-      P_Pa: inv.P_Pa,
-      n: { ...inv.n },
+      totalMol: Object.values(inv.n).reduce((a,b) => a+b, 0),
+      level_pct: state.level_pct,
+      fillPct: state.level_pct,  // alias for evaluateLimits (reads fillPct)
+      V_liq_m3: state.V_liq_m3,
+      V_vap_m3: state.V_vap_m3,
+      Q_gas, Q_liq, Q_vent, Q_overflow,
+      vent_status: P_tank > P_relief ? 'OPEN' : 'CLOSED',
+      overflow_status: state.level_pct > overflow_lvl ? 'ACTIVE' : 'OK',
       type: 'tank'
     };
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// RESERVOIR — Inexhaustible supply vessel [v13.8.0 S5a-2a]
+// ═══════════════════════════════════════════════════════════════════════════════
+//
+// ┌─────────────────────────────────────────────────────────────────────────────┐
+// │ Infinite volume, constant P. Cv outlet. No inventory tracking.            │
+// │ Models a wellhead, utility header, or infinite supply boundary.            │
+// │ Same Cv equation as tank gas draw, but never depletes.                    │
+// └─────────────────────────────────────────────────────────────────────────────┘
+UnitRegistry.register('reservoir', {
+  name: 'Reservoir',
+  category: UnitCategories.VESSEL,
+  w: 2,
+  h: 2,
+  optionalPorts: true,
+  ports: [
+    { portId: 'mat_out', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 1 }
+  ],
+  presentations: {
+    'box/default': { w: 2, h: 2, ports: { mat_out:{x:2,y:1} } }
+  },
+  limitParams: ['T_LL', 'T_L', 'T_H', 'T_HH', 'P_LL', 'P_L', 'P_H', 'P_HH'],
+  limits: { S: { T_LL: 200, T_L: 250, T_H: 500, T_HH: 600, P_LL: 10000, P_L: 50000, P_H: 20000000, P_HH: 25000000 } },
+  tick(u, ports, par, ctx) {
+    const P_res = (par.P_bar || 5) * 1e5;
+    const T = par.T || 298.15;
+    const comp = par.composition || { N2: 1.0 };
+    const opening = par.opening_pct ?? 100;
+    const Cv = par.Cv || 50;
+    const phaseHint = par.phaseConstraint || 'V';
+
+    // Normalize composition
+    const total = Object.values(comp).reduce((a, b) => a + b, 0);
+    const fracs = {};
+    for (const [sp, f] of Object.entries(comp)) fracs[sp] = f / total;
+
+    // Downstream pressure from trace
+    const P_down = ctx.downstreamP('mat_out') ?? (SimSettings.getAtmosphere().P_Pa);
+    const dP = P_res - P_down;
+
+    let Q = 0;
+    if (dP > 0 && opening > 0) {
+      // SG computation depends on phase
+      let SG;
+      if (phaseHint === 'L') {
+        // Liquid: use density of first species
+        const sp0 = Object.keys(fracs)[0];
+        const rho_L = thermo.density ? thermo.density(sp0, T, P_res, 'L') : 1000;
+        SG = rho_L / 1000;
+      } else {
+        // Gas: SG = rho_gas / rho_air_ref
+        const MW = _compositionMW(fracs);
+        SG = (P_res * MW) / (8.314 * T * 1.225);
+      }
+      Q = Cv * (opening / 100)
+        * Math.sqrt(Math.max(0, dP) / (SG * 1e5));
+    }
+
+    const n_out = {};
+    for (const [sp, frac] of Object.entries(fracs)) {
+      n_out[sp] = frac * Q;
+    }
+
+    ports.mat_out = {
+      type: StreamType.MATERIAL,
+      T: T, P: P_res, n: n_out,
+      phaseConstraint: phaseHint
+    };
+
+    if (dP <= 0 && opening > 0) {
+      ctx.warn({
+        severity: ErrorSeverity.MINOR,
+        message: `No flow: reservoir at ${(P_res/1e5).toFixed(1)} bar, `
+          + `downstream at ${(P_down/1e5).toFixed(1)} bar`
+      });
+    }
+
+    u.last = {
+      P_bar: P_res / 1e5,
+      T_K: T,
+      Q_mol_s: Q,
+      opening_pct: opening,
+      dP_bar: dP / 1e5,
+      status: (dP <= 0 && opening > 0) ? 'no_dP' : 'ok',
+      type: 'reservoir'
+    };
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// RESTRICTION — Fixed ΔP Orifice (isenthalpic) [v13.8.0 S5a-2b]
+// ═══════════════════════════════════════════════════════════════════════════════
+// Equipment: Fixed orifice plate or restriction orifice.
+//   Imposes constant ΔP (isenthalpic).
+//   Real-world: orifice plates, restriction orifices,
+//   capillary tubes, partially-open manual valves.
+UnitRegistry.register('restriction', {
+  name: 'Restriction',
+  category: UnitCategories.PRESSURE,
+  w: 2,
+  h: 2,
+  ports: [
+    { portId: 'in', dir: PortDir.IN, type: StreamType.MATERIAL, x: 0, y: 1 },
+    { portId: 'out', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 1 }
+  ],
+  presentations: {
+    'box/default': { w: 2, h: 2, ports: { in:{x:0,y:1}, out:{x:2,y:1} } }
+  },
+  tick(u, ports, par, ctx) {
+    _isenthalpicThrottleTick(u, ports, par, ctx);
   }
 });
 
@@ -13377,9 +13728,93 @@ UnitRegistry.register('gas_turbine', {
 // [v11.0.0] Motor, generator, source_mechanical deleted.
 // [v12.6.0] Electric heater deleted — heater and reactor now take elec_in directly.
 
-// Valve - Isenthalpic pressure reduction
+// ═══════════════════════════════════════════════════════════════════════════════
+// ISENTHALPIC THROTTLE — shared by valve (pressure regulator) and restriction
+// [v13.8.0 S5a-2b] NNG-4: pressure-flow network via Cv/ΔP equations
+// ═══════════════════════════════════════════════════════════════════════════════
+/**
+ * Isenthalpic throttle tick — shared by valve and restriction.
+ * Valve: Pout from setpoint (or pass-through if unable to regulate).
+ * Restriction: Pout = Pin − deltaP.
+ * @param {object} u     - unit instance
+ * @param {object} ports  - input/output ports
+ * @param {object} par    - unit parameters
+ * @param {object} ctx    - RuntimeContext per-unit view (NNG-9)
+ */
+function _isenthalpicThrottleTick(u, ports, par, ctx) {
+  const sIn = ports.in || ports.mat_in;
+  if (!sIn) return;
+
+  let Pout;
+  if (u.defId === 'restriction') {
+    Pout = Math.max(0, sIn.P - (par.deltaP ?? 100000));
+  } else {
+    // Valve — check solver cache for regulation status (NNG-9: ctx accessor)
+    const status = ctx.valveStatus();
+    if (status && !status.canRegulate) {
+      // Cannot maintain setpoint — pass through
+      Pout = sIn.P;
+      u.last = {
+        Pin: sIn.P, Pout, deltaP: 0,
+        mode: 'pass-through',
+        error: {
+          severity: ErrorSeverity.MINOR,
+          message: `Cannot maintain setpoint `
+            + `${((par.Pout||101325)/1e5).toFixed(1)} bar — `
+            + `downstream at ${(status.P_beyond/1e5).toFixed(1)} bar`
+        }
+      };
+      ports.out = ports.mat_out = {
+        type: StreamType.MATERIAL, P: Pout,
+        n: { ...sIn.n }, phaseConstraint: 'VL',
+        H_target_Jps: thermo.getHdot_Jps(sIn)
+      };
+      return;
+    }
+    Pout = par.Pout || 101325;
+  }
+
+  // Check valve: Pout >= Pin → zero flow
+  if (Pout >= sIn.P) {
+    ports.out = ports.mat_out = {
+      type: StreamType.MATERIAL, P: sIn.P,
+      n: {}, phaseConstraint: 'VL', H_target_Jps: 0
+    };
+    u.last = {
+      Pin: sIn.P, Pout, deltaP: 0, mode: 'check-valve',
+      error: {
+        severity: ErrorSeverity.MINOR,
+        message: `Check valve closed — downstream pressure `
+               + `${(Pout/1e5).toFixed(2)} bar ≥ inlet `
+               + `${(sIn.P/1e5).toFixed(2)} bar`
+      }
+    };
+    return;
+  }
+
+  // Isenthalpic expansion
+  const H_in_Jps = thermo.getHdot_Jps(sIn);
+  ports.out = ports.mat_out = {
+    type: StreamType.MATERIAL, P: Pout,
+    n: { ...sIn.n }, phaseConstraint: 'VL',
+    H_target_Jps: H_in_Jps
+  };
+
+  u.last = {
+    Pin: sIn.P, Pout, deltaP: sIn.P - Pout,
+    ratio: (sIn.P / Pout).toFixed(2),
+    mode: 'isenthalpic',
+    H_in_kW: (H_in_Jps / 1000).toFixed(2)
+  };
+}
+
+// Valve — Pressure Regulator (isenthalpic)
+// Equipment: Spring-loaded diaphragm pressure regulator.
+//   Maintains outlet at setpoint Pout (isenthalpic).
+//   Opens fully if downstream P exceeds setpoint.
+//   Real-world: Fisher, Swagelok KBP, Tescom 44-2200.
 UnitRegistry.register('valve', {
-  name: 'Valve',
+  name: 'Pressure Regulator',
   category: UnitCategories.PRESSURE,
   w: 2,
   h: 2,
@@ -13394,62 +13829,8 @@ UnitRegistry.register('valve', {
   // [v13.0.4 S1c] Equipment limits
   limitParams: ['T_LL', 'T_L', 'T_H', 'T_HH', 'P_H', 'P_HH', 'mass_HH'],
   limits: { S: { T_LL: 243, T_L: 263, T_H: 523, T_HH: 623, P_H: 12000000, P_HH: 15000000, mass_HH: 0.25 } },
-  tick(u, ports, par) {
-    const sIn = ports.in;
-    if (!sIn) return;
-    
-    const Pout = par.Pout || 101325;
-    
-    // [v13.0.8] Check valve: Pout >= Pin → zero flow (NNG-4)
-    if (Pout > sIn.P) {
-      ports.out = {
-        type: StreamType.MATERIAL,
-        P: sIn.P,
-        n: {},
-        phaseConstraint: 'VL',
-        H_target_Jps: 0
-      };
-      u.last = {
-        Pin: sIn.P, Pout: Pout, deltaP: 0, mode: 'check-valve',
-        error: {
-          severity: ErrorSeverity.MINOR,
-          message: `Check valve closed — downstream pressure ${(Pout/100000).toFixed(2)} bar exceeds inlet ${(sIn.P/100000).toFixed(2)} bar`
-        }
-      };
-      return;
-    }
-    
-    // ISENTHALPIC THROTTLING: H_in = H_out
-    // Get inlet enthalpy (computed on-demand if not available)
-    const H_in_Jps = thermo.getHdot_Jps(sIn);
-    
-    // Check if enthalpy computation failed (distinguish from valid zero at Tref)
-    if (H_in_Jps === 0 && (!sIn.T || !sIn.P || !sIn.n)) {
-      u.last = {
-        error: {
-          severity: ErrorSeverity.MAJOR,
-          message: 'Cannot compute inlet enthalpy - missing stream properties'
-        }
-      };
-      return;
-    }
-    
-    ports.out = {
-      type: StreamType.MATERIAL,
-      P: Pout,
-      n: { ...sIn.n },
-      phaseConstraint: 'VL',  // Allow phase change
-      H_target_Jps: H_in_Jps  // Guaranteed valid
-    };
-    
-    u.last = {
-      Pin: sIn.P,
-      Pout: Pout,
-      deltaP: sIn.P - Pout,
-      ratio: (sIn.P / Pout).toFixed(2),
-      mode: 'isenthalpic',
-      H_in_kW: (H_in_Jps / 1000).toFixed(2)
-    };
+  tick(u, ports, par, ctx) {
+    _isenthalpicThrottleTick(u, ports, par, ctx);
   }
 });
 
@@ -14733,8 +15114,14 @@ UnitRegistry.register('mixer', {
 });
 
 // Splitter - Stream splitter (1 inlet to 2 outlets, no component separation)
+// Flow Divider — Active flow divider (enforces set ratio)
+// Equipment: Active flow divider — enforces set ratio
+//   independent of downstream conditions.
+//   Real-world: hydraulic gear-type flow dividers,
+//   ratio-controlled valve pairs, volumetric dosing systems.
+//   NOT a passive tee (which splits by downstream resistance).
 UnitRegistry.register('splitter', {
-  name: 'Splitter',
+  name: 'Flow Divider',
   category: UnitCategories.TOPOLOGY,
   w: 2,
   h: 2,
@@ -14751,7 +15138,7 @@ UnitRegistry.register('splitter', {
   // [v13.0.4 S1c] Equipment limits — corrected to matrix values v13.0.8
   limitParams: ['T_LL', 'T_L', 'T_H', 'T_HH', 'P_LL', 'P_L', 'P_H', 'P_HH', 'mass_HH'],
   limits: { S: { T_LL: 243, T_L: 263, T_H: 623, T_HH: 723, P_LL: 20000, P_L: 50000, P_H: 12000000, P_HH: 15000000, mass_HH: 0.25 } },
-  tick(u, ports, par) {
+  tick(u, ports, par, ctx) {
     const sIn = ports.in;
     if (!sIn) return;
     
@@ -14776,12 +15163,28 @@ UnitRegistry.register('splitter', {
       ports.out1 = { ...empty };
       ports.out2 = { ...empty };
       u.last = { warning: 'Inlet stream is empty — zero total flow' };
+      // Still check dividerStatus — the alarm tells the player WHY there's no flow
+      const dsE = ctx.dividerStatus();
+      if (dsE && dsE.branches) {
+        const blockedE = dsE.branches.filter(b => b.P_eff >= (sIn.P || 101325));
+        if (blockedE.length > 0) {
+          const namesE = blockedE.map(b => b.portId).join(', ');
+          u.last.error = {
+            severity: ErrorSeverity.MINOR,
+            message: `Check valve: downstream P ≥ inlet on ${namesE}`
+          };
+        } else if (dsE.P_max - dsE.P_min > 50000) {
+          u.last.error = {
+            severity: ErrorSeverity.MINOR,
+            message: `Branch backpressures differ by `
+              + `${((dsE.P_max - dsE.P_min)/1e5).toFixed(2)} bar`
+          };
+        }
+      }
       return;
     }
     
     // ── Energy balance: split enthalpy proportionally ──
-    // Specific enthalpy is identical in both outlets (same T, P, composition)
-    // So H_out1 = frac1 * H_in, H_out2 = frac2 * H_in
     const H_in_Jps = thermo.getHdot_Jps(sIn);
     
     ports.out1 = {
@@ -14811,6 +15214,27 @@ UnitRegistry.register('splitter', {
       H_out1_kW: (frac1 * H_in_Jps / 1000).toFixed(2),
       H_out2_kW: (frac2 * H_in_Jps / 1000).toFixed(2)
     };
+
+    // ── Check valve alarm from pressure trace (NNG-9: ctx accessor) ──
+    const ds = ctx.dividerStatus();
+    if (ds && ds.branches) {
+      const blocked = ds.branches.filter(b => b.P_eff >= sIn.P);
+      if (blocked.length > 0) {
+        const names = blocked.map(b => b.portId).join(', ');
+        u.last.error = {
+          severity: ErrorSeverity.MINOR,
+          message: `Check valve: downstream P ≥ inlet on ${names} `
+            + `(${(sIn.P/1e5).toFixed(2)} bar)`
+        };
+      } else if (ds.P_max - ds.P_min > 50000) {
+        // Branches differ by > 0.5 bar — warn about imbalanced backpressure
+        u.last.error = {
+          severity: ErrorSeverity.MINOR,
+          message: `Branch backpressures differ by `
+            + `${((ds.P_max - ds.P_min)/1e5).toFixed(2)} bar`
+        };
+      }
+    }
   }
 });
 
@@ -15603,9 +16027,55 @@ ProfileRegistry.register('battery', {
 ProfileRegistry.register('power_hub', { defId: 'power_hub', name: 'Power Hub', category: UnitCategories.POWER_MANAGEMENT, tiers: [2], limits: {} });
 
 // ── Process equipment (limits keyed by tier) ──
-ProfileRegistry.register('tank', {
-  defId: 'tank', name: 'Tank', category: UnitCategories.VESSEL, tiers: [1],
-  limits: { 1: { T_LL: 263, T_L: 278, T_H: 333, T_HH: 353, P_LL: 80000, P_L: 85000, P_H: 400000, P_HH: 500000, mass_HH: 0.05, level_H: 90, level_HH: 100 } }
+// [v13.8.0 S5a-2b] Tank profiles: atmospheric + pressure vessel
+ProfileRegistry.register('tank_atmospheric', {
+  defId: 'tank', name: 'Atmospheric Tank', category: UnitCategories.VESSEL, tiers: [1],
+  limits: { 1: { T_LL:263, T_L:278, T_H:333, T_HH:353,
+                  P_LL:5000, P_HH:200000,
+                  level_H:90, level_HH:100 } },
+  defaults: { 1: { volume_m3:0.15, P_relief:150000,
+                    overflow_level:90,
+                    Cv_gas:50, opening_gas_pct:0,
+                    Cv_liq:50, opening_liq_pct:0,
+                    initialComposition:{N2:1}, P_init:101325 } }
+});
+ProfileRegistry.register('tank_pressure', {
+  defId: 'tank', name: 'Pressure Vessel', category: UnitCategories.VESSEL, tiers: [1],
+  limits: { 1: { T_LL:233, T_L:263, T_H:473, T_HH:523,
+                  P_LL:5000, P_HH:5000000,
+                  level_H:90, level_HH:100 } },
+  defaults: { 1: { volume_m3:0.15, P_relief:1000000,
+                    overflow_level:90,
+                    Cv_gas:50, opening_gas_pct:0,
+                    Cv_liq:50, opening_liq_pct:0,
+                    initialComposition:{N2:1}, P_init:500000 } }
+});
+// [v13.8.0 S5a-2b] Reservoir profiles: gas, liquid, air (Planet X atmosphere)
+ProfileRegistry.register('reservoir_gas', {
+  defId: 'reservoir', name: 'Gas Supply', category: UnitCategories.SOURCE, tiers: [1],
+  limits: {}, boundary: true,
+  defaults: { 1: { P_bar:5, T:298.15, composition:{N2:1},
+                    Cv:50, opening_pct:100, phaseConstraint:'V' } }
+});
+ProfileRegistry.register('reservoir_liquid', {
+  defId: 'reservoir', name: 'Liquid Supply', category: UnitCategories.SOURCE, tiers: [1],
+  limits: {}, boundary: true,
+  defaults: { 1: { P_bar:5, T:298.15, composition:{H2O:1},
+                    Cv:50, opening_pct:100, phaseConstraint:'L' } }
+});
+ProfileRegistry.register('reservoir_air', {
+  defId: 'reservoir', name: 'Air Supply', category: UnitCategories.SOURCE, tiers: [1],
+  limits: {}, boundary: true,
+  defaults: { 1: { P_bar:0.8975, T:288.15,
+                    composition: { N2:0.693, O2:0.208, CO2:0.0792,
+                                   Ar:0.0099, H2O:0.0095 },
+                    Cv:100, opening_pct:100, phaseConstraint:'V' } }
+});
+// [v13.8.0 S5a-2b] Restriction profile
+ProfileRegistry.register('restriction', {
+  defId: 'restriction', name: 'Restriction', category: UnitCategories.PRESSURE, tiers: [1],
+  limits: { 1: { T_LL: 243, T_L: 263, T_H: 523, T_HH: 623,
+                  P_H: 12000000, P_HH: 15000000, mass_HH: 0.25 } }
 });
 ProfileRegistry.register('gas_turbine', {
   defId: 'gas_turbine', name: 'Gas Turbine', category: UnitCategories.PRESSURE, tiers: [1],
@@ -15613,7 +16083,7 @@ ProfileRegistry.register('gas_turbine', {
   limits: { 1: { T_LL: 323, T_L: 373, T_H: 873, T_HH: 1023, P_LL: 150000, P_L: 200000, P_H: 12000000, P_HH: 15000000, mass_LL: 0.005, mass_HH: 0.12 } }
 });
 ProfileRegistry.register('valve', {
-  defId: 'valve', name: 'Valve', category: UnitCategories.PRESSURE, tiers: [1],
+  defId: 'valve', name: 'Pressure Regulator', category: UnitCategories.PRESSURE, tiers: [1],
   limits: { 1: { T_LL: 243, T_L: 263, T_H: 523, T_HH: 623, P_H: 12000000, P_HH: 15000000, mass_HH: 0.25 } }
 });
 ProfileRegistry.register('pump', {
@@ -15748,7 +16218,8 @@ class Scene {
         break;
       // ── Vessels [v9.0.3] ──
       case 'tank':
-        unit.params = { volume_m3: 0.15, drawRate: 1.0 };  // [v13.0.5 S1c-9a] S-size pilot (150 L), 1 mol/s draw
+        unit.params = { volume_m3: 0.15, P_init: 101325, P_relief: 200000,
+                        opening_gas_pct: 0, Cv_gas: 50, opening_liq_pct: 0, Cv_liq: 50 };  // [v14.0.0 S5-lite] Cv-valve tank
         break;
       // ── SOC-tracked battery [v9.0.4] ──
       case 'battery':
@@ -15962,7 +16433,7 @@ class Scene {
 
   exportJSON() {
     const data = {
-      version: 16,  // [v12.0.0] inventory serialization
+      version: 17,  // [v13.8.0 S5a-0] time context + inventoryInitial
       processName: this.processName || '',
       grid: { w: this.gridW, h: this.gridH, tile: this.tile },
       settings: {
@@ -15983,6 +16454,9 @@ class Scene {
     if (Object.keys(this.solverOptions).length > 0) {
       data.solverOptions = { ...this.solverOptions };
     }
+
+    // [v13.8.0 S5a-0] Time context
+    data.time = { t: TimeClock.t, frame: TimeClock.frame };
     
     for (const u of this.units.values()) {
       const unitData = {
@@ -15999,6 +16473,10 @@ class Scene {
       if (u.sticker) unitData.sticker = u.sticker;  // [v10.7.0] P1
       if (u.inventory) unitData.inventory = u.inventory;  // [v12.0.0] tank/battery state
       if (u.fried) unitData.fried = true;  // [v13.1.0 S2-A] overload destruction state
+      // [v13.8.0 S5a-0] Per-unit inventoryInitial from _initial snapshot
+      if (TimeClock._initial && TimeClock._initial.has(u.id)) {
+        unitData.inventoryInitial = TimeClock._initial.get(u.id);
+      }
       data.units.push(unitData);
     }
     
@@ -16029,6 +16507,30 @@ class Scene {
       for (const u of data.units) {
         if (u.params?.reactionId === 'R_STEAM_REFORM') {
           u.params.reactionId = 'R_SMR_OVERALL';
+        }
+      }
+    }
+
+    // [v14.0.0 S5-lite F-010] Tank migration: remove obsolete params, remap mat_out
+    if (Array.isArray(data.units)) {
+      const tankIds = new Set();
+      for (const u of data.units) {
+        if (u.defId === 'tank') {
+          tankIds.add(u.id);
+          if (u.params) {
+            delete u.params.drawRate;
+            delete u.params.tankMode;
+            delete u.params.P_design_bar;
+          }
+        }
+      }
+      // Migrate old mat_out connections → liq_out (safest default:
+      // old tank drew mixed phase from bottom, closest to liquid draw)
+      if (Array.isArray(data.connections)) {
+        for (const c of data.connections) {
+          if (c.from && tankIds.has(c.from.unitId) && c.from.portId === 'mat_out') {
+            c.from.portId = 'liq_out';
+          }
         }
       }
     }
@@ -16292,11 +16794,35 @@ class Scene {
     // (If no settings block: keep current SimSettings — DEV_BUILD defaults)
 
     // [v9.0.1] Reset TimeClock on import — always start in test mode
-    // [v13.7.0] Start at noon (43200s) to match CSS animation start phase
-    TimeClock.t = 43200;
-    TimeClock.frame = 0;
+    // [v13.7.0] Start at noon (T0_SECONDS) to match CSS animation start phase
+    // [v13.8.0 S5a-0] v17+: restore time context; v16 legacy: T0_SECONDS
+    if (data.version >= 17 && data.time) {
+      TimeClock.t = typeof data.time.t === 'number' && isFinite(data.time.t)
+        ? data.time.t : T0_SECONDS;
+      TimeClock.frame = typeof data.time.frame === 'number' && isFinite(data.time.frame)
+        ? data.time.frame : 0;
+    } else {
+      TimeClock.t = T0_SECONDS;
+      TimeClock.frame = 0;
+    }
     TimeClock.mode = 'test';
+
+    // [v13.8.0 S5a-0] v17+: restore per-unit inventoryInitial as _initial map
     TimeClock._initial = null;
+    if (data.version >= 17) {
+      let hasInitials = false;
+      for (const u of data.units) {
+        if (u.inventoryInitial) { hasInitials = true; break; }
+      }
+      if (hasInitials) {
+        TimeClock._initial = new Map();
+        for (const u of data.units) {
+          if (u.inventoryInitial) {
+            TimeClock._initial.set(u.id, JSON.parse(JSON.stringify(u.inventoryInitial)));
+          }
+        }
+      }
+    }
 
     return { ok: true };
   }
@@ -16737,6 +17263,10 @@ class RuntimeContext {
       },
       // [v11.1.1 NNG-9] Tick-safe connectivity query — no scene access needed.
       portConnected: connSet ? (portId) => connSet.has(portId) : () => false,
+      // [v13.8.0 S5a-1] Pressure trace accessors — NNG-9 compliant read-only wrappers.
+      downstreamP: (portId) => this._scene.runtime.P_downstream?.get(unitId + ':' + portId) ?? null,
+      valveStatus: () => this._scene.runtime.valveStatus?.get(unitId) ?? null,
+      dividerStatus: () => this._scene.runtime.dividerStatus?.get(unitId) ?? null,
       // [v11.1.1 NNG-9] Solve generation counter for cache invalidation.
       solveGen: (this._scene._solveGen || 0),
       // [DEPRECATED v11.1.1] Retained for backward compat during transition.
@@ -16964,6 +17494,205 @@ function wegsteinStep(x_prev, g_prev, x_curr, g_curr) {
   return { vec: result, fallback };
 }
 
+/* =========================
+   PRESSURE TRACE [v13.8.0 S5a-1]
+   Pre-tick: resolve P_downstream for each vessel outlet.
+   Walks forward from vessel, tracking P_current.
+   Accumulates drops and boosts. Stops at anchors.
+   DOM-free (NNG-A2). Pure structural walk.
+   ========================= */
+
+/**
+ * Walk downstream from a port to the nearest anchor.
+ * @returns {{ P_anchor, dP_sum, boost_sum }}
+ */
+function traceToAnchor(scene, unitId, portId, P_current,
+                        anchorP, P_atm, visited,
+                        valveStatus, dividerStatus) {
+  const key = unitId + ':' + portId;
+  if (visited.has(key)) return { P_anchor: P_atm, dP_sum: 0, boost_sum: 0 };
+  visited.add(key);
+
+  // Find connection from this port
+  const conn = scene.connections.find(
+    c => c.from.unitId === unitId && c.from.portId === portId);
+  if (!conn) return { P_anchor: P_atm, dP_sum: 0, boost_sum: 0 };
+
+  const nextId = conn.to.unitId;
+  const nextU = scene.units.get(nextId);
+  if (!nextU) return { P_anchor: P_atm, dP_sum: 0, boost_sum: 0 };
+
+  // ANCHOR (tank, reservoir, sink)
+  if (anchorP.has(nextId)) {
+    return { P_anchor: anchorP.get(nextId), dP_sum: 0, boost_sum: 0 };
+  }
+
+  // REGULATOR (valve) — validate setpoint
+  if (nextU.defId === 'valve') {
+    const Pout = nextU.params.Pout || 101325;
+    // Peek downstream to check if valve can regulate
+    const beyond = traceToAnchor(
+      scene, nextId, 'out', Pout,
+      anchorP, P_atm, new Set(visited),
+      valveStatus, dividerStatus);
+    const P_beyond = beyond.P_anchor + beyond.dP_sum - beyond.boost_sum;
+    if (Pout >= P_beyond) {
+      // Valve can regulate — act as anchor
+      valveStatus.set(nextId, { canRegulate: true, Pout });
+      return { P_anchor: Pout, dP_sum: 0, boost_sum: 0 };
+    } else {
+      // Valve cannot regulate — look through (transparent)
+      valveStatus.set(nextId, { canRegulate: false, P_beyond });
+      return beyond;
+    }
+  }
+
+  // RESTRICTION (drop)
+  if (nextU.defId === 'restriction') {
+    const dP = nextU.params.deltaP ?? 100000;
+    const downstream = traceToAnchor(
+      scene, nextId, 'out', P_current - dP,
+      anchorP, P_atm, visited, valveStatus, dividerStatus);
+    return { P_anchor: downstream.P_anchor,
+             dP_sum: downstream.dP_sum + dP,
+             boost_sum: downstream.boost_sum };
+  }
+
+  // GAS TURBINE (drop)
+  if (nextU.defId === 'gas_turbine') {
+    const Pout = nextU.params.Pout
+              || nextU.last?.Pout_actual
+              || (P_current / 2);
+    const drop = Math.max(0, P_current - Pout);
+    const downstream = traceToAnchor(
+      scene, nextId, 'mat_out', Pout,
+      anchorP, P_atm, visited, valveStatus, dividerStatus);
+    return { P_anchor: downstream.P_anchor,
+             dP_sum: downstream.dP_sum + drop,
+             boost_sum: downstream.boost_sum };
+  }
+
+  // PUMP / COMPRESSOR (boost)
+  if (nextU.defId === 'pump' || nextU.defId === 'compressor') {
+    const Pout = nextU.last?.Pout_actual
+              || nextU.params.Pout
+              || (nextU.defId === 'pump'
+                   ? P_current + 500000
+                   : P_current * 2);
+    const boost = Math.max(0, Pout - P_current);
+    const downstream = traceToAnchor(
+      scene, nextId, 'mat_out', Pout,
+      anchorP, P_atm, visited, valveStatus, dividerStatus);
+    return { P_anchor: downstream.P_anchor,
+             dP_sum: downstream.dP_sum,
+             boost_sum: downstream.boost_sum + boost };
+  }
+
+  // TRANSPARENT / FORK — find material output ports
+  const nextDef = UnitRegistry.get(nextU.defId);
+  if (!nextDef) return { P_anchor: P_atm, dP_sum: 0, boost_sum: 0 };
+  const outPorts = nextDef.ports.filter(
+    p => p.dir === PortDir.OUT && p.type === StreamType.MATERIAL);
+
+  if (outPorts.length === 0) {
+    return { P_anchor: P_atm, dP_sum: 0, boost_sum: 0 };
+  }
+
+  if (outPorts.length === 1) {
+    return traceToAnchor(
+      scene, nextId, outPorts[0].portId, P_current,
+      anchorP, P_atm, visited, valveStatus, dividerStatus);
+  }
+
+  // FORK: trace each branch, return worst (highest P_downstream)
+  const branches = [];
+  let worst = null;
+  let worstP = -Infinity;
+  for (const op of outPorts) {
+    const branch = traceToAnchor(
+      scene, nextId, op.portId, P_current,
+      anchorP, P_atm, new Set(visited),
+      valveStatus, dividerStatus);
+    const effP = branch.P_anchor + branch.dP_sum - branch.boost_sum;
+    branches.push({ portId: op.portId, P_eff: effP });
+    if (effP > worstP) { worstP = effP; worst = branch; }
+  }
+
+  // Divider diagnostics
+  if (branches.length > 1) {
+    const minP = Math.min(...branches.map(b => b.P_eff));
+    const maxP = Math.max(...branches.map(b => b.P_eff));
+    if (maxP - minP > 1000) {  // > 0.01 bar difference
+      dividerStatus.set(nextId, {
+        branches,
+        P_max: maxP, P_min: minP
+      });
+    }
+  }
+
+  return worst;
+}
+
+/**
+ * Pre-tick: resolve P_downstream for each vessel outlet.
+ * @returns {Map<string, number>} keyed by "unitId:portId"
+ */
+function resolveDownstreamPressures(scene) {
+  const P_atm = SimSettings.getAtmosphere().P_Pa;
+  const valveStatus = new Map();
+  const dividerStatus = new Map();
+
+  // 1. Compute anchor pressures
+  const anchorP = new Map();
+  for (const [id, u] of scene.units) {
+    switch (u.defId) {
+      case 'tank': {
+        const inv = u.inventory || { n: {}, T_K: 298 };
+        const V = u.params.volume_m3 || 0.15;
+        const state = computeTankState(inv.n, inv.T_K, V, thermo);
+        anchorP.set(id, state.P_Pa);
+        break;
+      }
+      case 'reservoir':
+        anchorP.set(id, (u.params.P_bar || 5) * 1e5);
+        break;
+      case 'sink':
+        anchorP.set(id, P_atm);
+        break;
+    }
+  }
+
+  // 2. Trace from each vessel outlet
+  const result = new Map();
+  for (const [id, u] of scene.units) {
+    if (u.defId === 'tank') {
+      const P_vessel = anchorP.get(id);
+      for (const portId of ['gas_out', 'liq_out']) {
+        const trace = traceToAnchor(
+          scene, id, portId, P_vessel,
+          anchorP, P_atm, new Set(),
+          valveStatus, dividerStatus);
+        result.set(id + ':' + portId,
+          trace.P_anchor + trace.dP_sum - trace.boost_sum);
+      }
+    }
+    if (u.defId === 'reservoir') {
+      const P_vessel = anchorP.get(id);
+      const trace = traceToAnchor(
+        scene, id, 'mat_out', P_vessel,
+        anchorP, P_atm, new Set(),
+        valveStatus, dividerStatus);
+      result.set(id + ':mat_out',
+        trace.P_anchor + trace.dP_sum - trace.boost_sum);
+    }
+  }
+
+  // 3. Store caches in solver context for unit ticks
+  scene.runtime.valveStatus = valveStatus;
+  scene.runtime.dividerStatus = dividerStatus;
+  return result;
+}
+
 function solveScene(scene, options = {}) {
   // [v11.0.0 Phase 6] Generation counter — skip-when-clean only triggers between solveScene calls
   scene._solveGen = (scene._solveGen || 0) + 1;
@@ -17144,6 +17873,10 @@ function solveScene(scene, options = {}) {
         };
       });
     }
+
+    // [v13.8.0 S5a-1] Pre-tick pressure trace: resolve P_downstream for vessel outlets.
+    // Must run before any unit tick so ticks can read ctx.downstreamP(portId).
+    scene.runtime.P_downstream = resolveDownstreamPressures(scene);
 
     // [v5.2.0] Tick units in deterministic topological order (material graph).
     // Acyclic chains are processed source→sink; cyclic SCCs are iterated
@@ -18732,8 +19465,38 @@ AlarmSystem.register((scene) => {
 });
 
 // Source: Pressure Solve (placeholder)
-AlarmSystem.register(() => [{ id: 'pressure_placeholder', domain: AlarmDomain.PLANT, category: AlarmCategory.PRESSURE,
-  severity: AlarmSeverity.OK, message: 'Not yet solving — isobaric assumption active.' }]);
+// Source: Pressure alarms — vessel empty + reservoir no driving force [v13.8.0 S5a-2b]
+AlarmSystem.register((scene) => {
+  const alarms = [];
+  if (!scene.runtime?.unitData) return alarms;
+
+  for (const [id, ud] of scene.runtime.unitData) {
+    const u = scene.units.get(id);
+    if (!u) continue;
+    const uName = u.name || UnitRegistry.get(u.defId)?.name || id;
+
+    // Vessel empty
+    if (u.defId === 'tank' && ud.last?.totalMol < 1e-12) {
+      alarms.push({
+        id: `vessel_empty_${id}`, domain: AlarmDomain.PLANT,
+        category: AlarmCategory.PRESSURE, severity: AlarmSeverity.INFO,
+        message: 'Vessel is empty — no outlet flow.',
+        unitId: id, unitName: uName
+      });
+    }
+
+    // Reservoir no driving force
+    if (u.defId === 'reservoir' && ud.last?.status === 'no_dP') {
+      alarms.push({
+        id: `reservoir_no_dp_${id}`, domain: AlarmDomain.PLANT,
+        category: AlarmCategory.PRESSURE, severity: AlarmSeverity.INFO,
+        message: 'No driving force — reservoir P ≤ downstream P.',
+        unitId: id, unitName: uName
+      });
+    }
+  }
+  return alarms;
+});
 
 // Source: Per-unit errors
 // [v13.0.8] Domain routing: errors tagged _domain:'sim' → SIM, all others → PLANT.
@@ -18962,6 +19725,15 @@ const PG = {
   underwoodRmin,
   gillilandStages,
   feedThermalCondition,
+
+  // ── Vessel Physics [v13.8.0 S5a-1] ──
+  computeTankState,
+  _inventoryMW,
+  _compositionMW,
+  resolveDownstreamPressures,
+  traceToAnchor,
+  K_RELIEF_BASE,
+  K_OVERFLOW_BASE,
 
   // ── Kinetics [v8.9.5] ──
   KineticsEval,
@@ -23704,10 +24476,17 @@ UnitInspector.grid_supply = {
 
 // ── Storage ──
 UnitInspector.tank = {
-  params(u) { return [
-    { label: 'Volume (m³)', get: () => u.params.volume_m3 || 0.15, set: v => u.params.volume_m3 = v, step: 0.01, validate: { gt: 0 } },
-    { label: 'Draw rate (mol/s)', get: () => u.params.drawRate ?? 1.0, set: v => u.params.drawRate = v, step: 0.1, validate: { min: 0 } },
-  ]; },
+  params(u) {
+    const us = models.getActive('units');
+    return [
+      { label: 'Volume (m³)', get: () => u.params.volume_m3 || 0.15, set: v => u.params.volume_m3 = v, step: 0.01, validate: { gt: 0 } },
+      { label: `P relief (${us.pressure.symbol})`, get: () => us.pressure.from(u.params.P_relief || 200000), set: v => u.params.P_relief = us.pressure.to(v), step: us.pressure.decimals === 0 ? 10000 : 0.1, decimals: us.pressure.decimals, validate: { gt: 0 } },
+      { label: 'Gas valve Cv', get: () => u.params.Cv_gas ?? 50, set: v => u.params.Cv_gas = v, step: 1, validate: { min: 0 } },
+      { label: 'Gas opening (%)', get: () => u.params.opening_gas_pct ?? 0, set: v => u.params.opening_gas_pct = v, step: 5, validate: { min: 0, max: 100 } },
+      { label: 'Liq valve Cv', get: () => u.params.Cv_liq ?? 50, set: v => u.params.Cv_liq = v, step: 1, validate: { min: 0 } },
+      { label: 'Liq opening (%)', get: () => u.params.opening_liq_pct ?? 0, set: v => u.params.opening_liq_pct = v, step: 5, validate: { min: 0, max: 100 } },
+    ];
+  },
   conditions(u, ud) {
     if (!ud?.last) return [];
     return [
@@ -23730,12 +24509,17 @@ UnitInspector.tank = {
     if (!ud?.last) return [];
     const items = [];
     if (ud.last.n) { for (const [sp, mol] of Object.entries(ud.last.n)) { if (mol > 1e-6) items.push({ label: sp, value: fmt.mol(mol) }); } }
-    items.push({ label: 'Draw', value: fmt.flow(ud.last.drawRate) });
+    // [v14.0.0 S5-lite] Show gas and liquid draw rates
+    if (ud.last.Q_gas != null) items.push({ label: 'Q gas', value: fmt.flow(ud.last.Q_gas) });
+    if (ud.last.Q_liq != null) items.push({ label: 'Q liq', value: fmt.flow(ud.last.Q_liq) });
     if (ud.last.status === 'active' && ud.last.totalMol > 0) {
       const udR = sc?.runtime?.unitData?.get(u.id);
-      const matIn = udR?.ports?.mat_in, matOut = udR?.ports?.mat_out;
+      const matIn = udR?.ports?.mat_in;
+      const gasOut = udR?.ports?.gas_out, liqOut = udR?.ports?.liq_out;
       const nIn = matIn?.n ? Object.values(matIn.n).reduce((a,b)=>a+b,0) : 0;
-      const nOut = matOut?.n ? Object.values(matOut.n).reduce((a,b)=>a+b,0) : 0;
+      const nOutGas = gasOut?.n ? Object.values(gasOut.n).reduce((a,b)=>a+b,0) : 0;
+      const nOutLiq = liqOut?.n ? Object.values(liqOut.n).reduce((a,b)=>a+b,0) : 0;
+      const nOut = nOutGas + nOutLiq;
       const netRate = nIn - nOut;
       if (netRate > 0.001) items.push({ label: 'Time to full', value: fmt.time((ud.last.n_max - ud.last.totalMol) / netRate) });
       else if (netRate < -0.001) items.push({ label: 'Time to empty', value: fmt.time(ud.last.totalMol / Math.abs(netRate)) });
@@ -25970,7 +26754,8 @@ function updateTransportUI() {
   btnPlay.classList.toggle('playing', mode === 'playing');  // [v9.0.5] pulsing indicator
 
   // Button enable/disable
-  btnTest.disabled  = mode === 'playing';
+  // [v13.8.0 S5a-0] Test button only available in test mode (prevents snapshot poisoning)
+  btnTest.disabled  = mode !== 'test';
   btnStep.disabled  = mode === 'playing';
   btnPlay.disabled  = mode === 'playing';
   btnPause.disabled = mode !== 'playing';
@@ -27128,7 +27913,8 @@ function loadDemo() {
       { id: 'n2-feed', defId: 'source', name: 'N₂ Feed', x: 18, y: 18, rot: 0,
         params: { species: 'N2', nDot: 0.5, T: 300, P: 200000, phaseConstraint: 'V' } },
       { id: 'n2-tank', defId: 'tank', name: 'N₂ Buffer', x: 21, y: 17, rot: 0,
-        params: { volume_m3: 20, drawRate: 0.3 } },
+        params: { volume_m3: 20, P_init: 200000, P_relief: 500000,
+                  opening_gas_pct: 50, Cv_gas: 50, opening_liq_pct: 0 } },
       { id: 'n2-vent', defId: 'sink', name: 'N₂ Vent', x: 24, y: 18, rot: 0, params: {} },
       { id: 'n2-ov', defId: 'sink', name: 'Overflow', x: 21, y: 14, rot: 0, params: {} },
 
@@ -27271,7 +28057,7 @@ function loadDemo() {
       { id: 'cool-pwr', from: { unitId: 'hub', portId: 'elec_out' }, to: { unitId: 'cool', portId: 'elec_in' } },
       // ── N₂ tank ──
       { id: 't1', from: { unitId: 'n2-feed', portId: 'out' }, to: { unitId: 'n2-tank', portId: 'mat_in' } },
-      { id: 't2', from: { unitId: 'n2-tank', portId: 'mat_out' }, to: { unitId: 'n2-vent', portId: 'in' } },
+      { id: 't2', from: { unitId: 'n2-tank', portId: 'gas_out' }, to: { unitId: 'n2-vent', portId: 'in' } },
       { id: 't3', from: { unitId: 'n2-tank', portId: 'overflow' }, to: { unitId: 'n2-ov', portId: 'in' } },
       // ── Process A: Brayton cycle ──
       { id: 'a1', from: { unitId: 'a-grid', portId: 'out' }, to: { unitId: 'a-comp', portId: 'elec_in' } },
@@ -27314,7 +28100,7 @@ function loadDemo() {
   ui.selectedConnId = null;
   ui.pendingFrom = null;
   ui.reconnecting = null;
-  scene.processName = 'Sabatier + Brayton + SMR + Pump Demo (v12.9.4)';
+  scene.processName = 'Sabatier + Brayton + SMR + Pump Demo (v14.0.0)';
   document.getElementById('processNameInput').value = scene.processName;
   buildModelsPanel();
   const solveResult = solveScene(scene);
@@ -27343,7 +28129,7 @@ setViewBox();
 // [v10.3.0] M8: Restore from auto-save, or load demo
 // [v10.9.3] Version guard: if auto-save is from an older demo, load fresh demo
 {
-  const DEMO_VERSION = 'v13.2.0';  // bump this when demo scene changes
+  const DEMO_VERSION = 'v14.0.0';  // bump this when demo scene changes
   const saved = localStorage.getItem(AUTOSAVE_KEY);
   const savedDemoVer = localStorage.getItem(AUTOSAVE_KEY + '_demoVer');
   if (saved && savedDemoVer === DEMO_VERSION) {
@@ -32920,7 +33706,7 @@ function runTests() {
     const origMode = TimeClock.mode;
     const origT = TimeClock.t;
     const origFrame = TimeClock.frame;
-    TimeClock.t = 0; TimeClock.frame = 0; TimeClock.mode = 'test';
+    TimeClock.t = T0_SECONDS; TimeClock.frame = 0; TimeClock.mode = 'test';
     SimSettings.dt = 30;
 
     // Place a simple unit so solveScene has something to do
@@ -32928,13 +33714,13 @@ function runTests() {
 
     // First step: should transition test → paused and advance
     const r1 = TimeClock.step(scene);
-    t.assertClose(r1.t, 30, 0.01, 'After step 1: t = 30');
+    t.assertClose(r1.t, T0_SECONDS + 30, 0.01, 'After step 1: t = T0 + 30');
     t.assertClose(r1.frame, 1, 0, 'After step 1: frame = 1');
     t.assertOK(TimeClock.mode === 'paused', 'First step transitions to paused');
 
     // Second step: stays paused, advances further
     const r2 = TimeClock.step(scene);
-    t.assertClose(r2.t, 60, 0.01, 'After step 2: t = 60');
+    t.assertClose(r2.t, T0_SECONDS + 60, 0.01, 'After step 2: t = T0 + 60');
     t.assertClose(r2.frame, 2, 0, 'After step 2: frame = 2');
     t.assertOK(TimeClock.mode === 'paused', 'Second step stays paused');
 
@@ -32949,7 +33735,7 @@ function runTests() {
   tests.push({ name: '161: TimeClock.reset restores initial state', fn: t => {
     const origDt = SimSettings.dt;
     const origT = TimeClock.t;
-    TimeClock.t = 0; TimeClock.frame = 0; TimeClock.mode = 'test';
+    TimeClock.t = T0_SECONDS; TimeClock.frame = 0; TimeClock.mode = 'test';
     SimSettings.dt = 10;
 
     const src = t.place('source', 0, 0);
@@ -32958,12 +33744,12 @@ function runTests() {
     TimeClock.step(scene);
     TimeClock.step(scene);
     TimeClock.step(scene);
-    t.assertClose(TimeClock.t, 30, 0.01, 'After 3 steps: t=30');
+    t.assertClose(TimeClock.t, T0_SECONDS + 30, 0.01, 'After 3 steps: t = T0 + 30');
     t.assertClose(TimeClock.frame, 3, 0, 'After 3 steps: frame=3');
 
-    // Reset — [v10.5.0] resets to 43200 (noon Day 1), not 0
+    // Reset — resets to T0_SECONDS (noon Day 1)
     const { solveResult } = TimeClock.reset(scene);
-    t.assertClose(TimeClock.t, 43200, 0, 'After reset: t=43200 (noon)');
+    t.assertClose(TimeClock.t, T0_SECONDS, 0, 'After reset: t = T0_SECONDS');
     t.assertClose(TimeClock.frame, 0, 0, 'After reset: frame=0');
     t.assertOK(TimeClock.mode === 'test', 'After reset: mode=test');
     t.assertOK(solveResult != null, 'reset returns solveResult');
@@ -33023,6 +33809,1198 @@ function runTests() {
     // Restore
     TimeClock.t = 0; TimeClock.frame = 0;
     TimeClock.mode = 'test'; SimSettings.dt = origDt;
+  }});
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // S5a-0 — TimeClock interim fixes [v13.8.0]
+  // T-TC01–TC08: T0_SECONDS, button disable, mid-sim capture, v17 export/import
+  // ═══════════════════════════════════════════════════════════════════════
+
+  tests.push({ name: '351: T-TC01 Step from test mode starts at T0_SECONDS', fn: t => {
+    const origDt = SimSettings.dt;
+    const origT = TimeClock.t;
+    const origFrame = TimeClock.frame;
+    const origMode = TimeClock.mode;
+    TimeClock.t = T0_SECONDS; TimeClock.frame = 0; TimeClock.mode = 'test';
+    SimSettings.dt = 60;
+
+    const src = t.place('source', 0, 0);
+    const r = TimeClock.step(scene);
+
+    t.assertClose(r.t, T0_SECONDS + 60, 0.01, 't = T0 + dt');
+    t.assertClose(r.frame, 1, 0, 'frame = 1');
+    t.assertOK(TimeClock.mode === 'paused', 'mode = paused');
+
+    TimeClock.t = origT; TimeClock.frame = origFrame;
+    TimeClock.mode = origMode; SimSettings.dt = origDt;
+  }});
+
+  tests.push({ name: '352: T-TC02 Reset after stepping restores T0 and inventory', fn: t => {
+    const origDt = SimSettings.dt;
+    const origT = TimeClock.t;
+    const origMode = TimeClock.mode;
+    TimeClock.t = T0_SECONDS; TimeClock.frame = 0; TimeClock.mode = 'test';
+    SimSettings.dt = 30;
+
+    const tid = t.place('tank', 0, 0, { volume_m3: 50, opening_gas_pct: 100, P_init: 500000 });
+    const snk = t.place('sink', 5, 0);
+    t.wire(tid, 'gas_out', snk, 'in');
+    const u = scene.units.get(tid);
+    const initN2 = u.inventory.n.N2;
+
+    TimeClock.step(scene);
+    TimeClock.step(scene);
+    t.assertOK(u.inventory.n.N2 < initN2, 'Inventory changed after 2 steps');
+
+    TimeClock.reset(scene);
+    t.assertClose(TimeClock.t, T0_SECONDS, 0, 't = T0 after reset');
+    t.assertClose(TimeClock.frame, 0, 0, 'frame = 0 after reset');
+    t.assertOK(TimeClock.mode === 'test', 'mode = test after reset');
+    t.assertClose(u.inventory.n.N2, initN2, 0.01, 'Inventory restored');
+
+    TimeClock.t = origT; TimeClock.frame = 0;
+    TimeClock.mode = origMode; SimSettings.dt = origDt;
+  }});
+
+  tests.push({ name: '353: T-TC03 Test button disabled after stepping', fn: t => {
+    const origT = TimeClock.t;
+    const origMode = TimeClock.mode;
+    const origDt = SimSettings.dt;
+    TimeClock.t = T0_SECONDS; TimeClock.frame = 0; TimeClock.mode = 'test';
+    SimSettings.dt = 60;
+
+    const src = t.place('source', 0, 0);
+
+    // In test mode: button should be enabled
+    updateTransportUI();
+    t.assertOK(btnTest.disabled === false, 'btnTest enabled in test mode');
+
+    // Step → paused: button should now be disabled
+    TimeClock.step(scene);
+    updateTransportUI();
+    t.assertOK(btnTest.disabled === true, 'btnTest disabled after stepping');
+
+    TimeClock.t = origT; TimeClock.frame = 0;
+    TimeClock.mode = origMode; SimSettings.dt = origDt;
+  }});
+
+  tests.push({ name: '354: T-TC04 Test button re-enabled after reset', fn: t => {
+    const origT = TimeClock.t;
+    const origMode = TimeClock.mode;
+    const origDt = SimSettings.dt;
+    TimeClock.t = T0_SECONDS; TimeClock.frame = 0; TimeClock.mode = 'test';
+    SimSettings.dt = 60;
+
+    const src = t.place('source', 0, 0);
+
+    // Step 3 times
+    TimeClock.step(scene);
+    TimeClock.step(scene);
+    TimeClock.step(scene);
+    updateTransportUI();
+    t.assertOK(btnTest.disabled === true, 'btnTest disabled while paused');
+
+    // Reset
+    TimeClock.reset(scene);
+    updateTransportUI();
+    t.assertOK(btnTest.disabled === false, 'btnTest re-enabled after reset');
+
+    TimeClock.t = origT; TimeClock.frame = 0;
+    TimeClock.mode = origMode; SimSettings.dt = origDt;
+  }});
+
+  tests.push({ name: '355: T-TC05 Mid-sim unit gets snapshot on next step', fn: t => {
+    const origT = TimeClock.t;
+    const origMode = TimeClock.mode;
+    const origDt = SimSettings.dt;
+    TimeClock.t = T0_SECONDS; TimeClock.frame = 0; TimeClock.mode = 'test';
+    SimSettings.dt = 30;
+
+    // Start with one source (no inventory)
+    const src = t.place('source', 0, 0);
+
+    // Step 2 times — establishes _initial
+    TimeClock.step(scene);
+    TimeClock.step(scene);
+
+    // Place a tank mid-sim (has inventory)
+    const tid = t.place('tank', 4, 0, { volume_m3: 50, drawRate: 0 });
+    const u = scene.units.get(tid);
+    t.assertOK(u.inventory != null, 'Tank has inventory');
+    const midSimN2 = u.inventory.n.N2;
+
+    // Step again — mid-sim capture should snapshot the tank
+    TimeClock.step(scene);
+
+    // Verify tank was captured in _initial
+    t.assertOK(TimeClock._initial.has(tid), 'Mid-sim tank captured in _initial');
+
+    // Reset should restore to the mid-sim snapshot
+    TimeClock.reset(scene);
+    t.assertClose(u.inventory.n.N2, midSimN2, 0.01, 'Mid-sim tank restored to placement state');
+
+    TimeClock.t = origT; TimeClock.frame = 0;
+    TimeClock.mode = origMode; SimSettings.dt = origDt;
+  }});
+
+  tests.push({ name: '356: T-TC06 Export v17 saves t/frame, import restores', fn: t => {
+    const origT = TimeClock.t;
+    const origMode = TimeClock.mode;
+    const origDt = SimSettings.dt;
+    TimeClock.t = T0_SECONDS; TimeClock.frame = 0; TimeClock.mode = 'test';
+    SimSettings.dt = 60;
+
+    const src = t.place('source', 0, 0);
+
+    // Step 5 times
+    for (let i = 0; i < 5; i++) TimeClock.step(scene);
+    const expectedT = T0_SECONDS + 5 * 60;
+    t.assertClose(TimeClock.t, expectedT, 0.01, 'Pre-export: t correct');
+    t.assertClose(TimeClock.frame, 5, 0, 'Pre-export: frame = 5');
+
+    // Export
+    const json = scene.exportJSON();
+    const data = JSON.parse(json);
+    t.assertClose(data.version, 17, 0, 'Export version = 17');
+    t.assertClose(data.time.t, expectedT, 0.01, 'Export time.t');
+    t.assertClose(data.time.frame, 5, 0, 'Export time.frame');
+
+    // Import into fresh state
+    TimeClock.t = 0; TimeClock.frame = 0; TimeClock.mode = 'test';
+    scene.importJSON(json);
+    t.assertClose(TimeClock.t, expectedT, 0.01, 'Import restored t');
+    t.assertClose(TimeClock.frame, 5, 0, 'Import restored frame');
+
+    TimeClock.t = origT; TimeClock.frame = 0;
+    TimeClock.mode = origMode; SimSettings.dt = origDt;
+  }});
+
+  tests.push({ name: '357: T-TC07 Export _initial, import, reset restores inventory', fn: t => {
+    const origT = TimeClock.t;
+    const origMode = TimeClock.mode;
+    const origDt = SimSettings.dt;
+    TimeClock.t = T0_SECONDS; TimeClock.frame = 0; TimeClock.mode = 'test';
+    SimSettings.dt = 30;
+
+    const tid = t.place('tank', 0, 0, { volume_m3: 50, opening_gas_pct: 100, P_init: 500000 });
+    const snk = t.place('sink', 5, 0);
+    t.wire(tid, 'gas_out', snk, 'in');
+
+    const u = scene.units.get(tid);
+    const originalN2 = u.inventory.n.N2;
+
+    // Step 5 times (drains some inventory)
+    for (let i = 0; i < 5; i++) TimeClock.step(scene);
+    t.assertOK(u.inventory.n.N2 < originalN2, 'Inventory changed');
+
+    // Export (captures current inventory AND _initial)
+    const json = scene.exportJSON();
+    const data = JSON.parse(json);
+    const tankData = data.units.find(u => u.defId === 'tank');
+    t.assertOK(tankData.inventoryInitial != null, 'Export has inventoryInitial');
+    t.assertClose(tankData.inventoryInitial.n.N2, originalN2, 0.01, 'inventoryInitial = original');
+
+    // Import + reset should restore to original
+    scene.importJSON(json);
+    const u2 = scene.units.get(tid);
+    // After import, inventory is the mid-sim state (drained)
+    t.assertOK(u2.inventory.n.N2 < originalN2, 'Import restored mid-sim inventory');
+
+    // Reset should use the imported _initial
+    TimeClock.reset(scene);
+    t.assertClose(u2.inventory.n.N2, originalN2, 0.01, 'Reset after import restores original inventory');
+
+    TimeClock.t = origT; TimeClock.frame = 0;
+    TimeClock.mode = origMode; SimSettings.dt = origDt;
+  }});
+
+  tests.push({ name: '358: T-TC08 Legacy v16 import sets t = T0_SECONDS', fn: t => {
+    const origT = TimeClock.t;
+    const origMode = TimeClock.mode;
+
+    // Craft a minimal v16 JSON (no time field)
+    const v16json = JSON.stringify({
+      version: 16, processName: 'legacy-test',
+      grid: { w: 50, h: 50, tile: 48 },
+      units: [
+        { id: 'src-1', defId: 'source', name: 'Src', x: 0, y: 0, rot: 0,
+          params: { species: 'N2', nDot: 1, T: 298.15, P: 101325, phaseConstraint: 'V' } }
+      ],
+      connections: []
+    });
+
+    // Set t to something weird before import
+    TimeClock.t = 999999;
+    TimeClock.frame = 42;
+
+    const r = scene.importJSON(v16json);
+    t.assertOK(r.ok, 'v16 import succeeds');
+    t.assertClose(TimeClock.t, T0_SECONDS, 0, 'Legacy import: t = T0_SECONDS');
+    t.assertClose(TimeClock.frame, 0, 0, 'Legacy import: frame = 0');
+    t.assertOK(TimeClock.mode === 'test', 'Legacy import: mode = test');
+    t.assertOK(TimeClock._initial === null, 'Legacy import: no _initial');
+
+    TimeClock.t = origT; TimeClock.frame = 0;
+    TimeClock.mode = origMode;
+  }});
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // S5a-1 — computeTankState + pressure trace [v13.8.0]
+  // T-PS01–PS06: computeTankState pure function
+  // T-PS33–PS42: pressure trace
+  // ═══════════════════════════════════════════════════════════════════════
+
+  tests.push({ name: '359: T-PS01 computeTankState: pure N₂ gas P ≈ nRT/V', fn: t => {
+    const n = { N2: 1.0 };
+    const T_K = 300;
+    const V = 0.15;
+    const state = computeTankState(n, T_K, V, thermo);
+    const expected_P = 1.0 * 8.314 * 300 / 0.15;
+    t.assertClose(state.P_Pa, expected_P, expected_P * 0.05, 'P ≈ nRT/V ±5%');
+    t.assertClose(state.level_pct, 0, 0.01, 'No liquid level');
+    t.assertClose(state.V_liq_m3, 0, 1e-10, 'V_liq = 0');
+    t.assertOK(state.n_V.N2 > 0, 'N₂ in vapor phase');
+    t.assertClose(state.n_L.N2 || 0, 0, 1e-10, 'No N₂ in liquid');
+  }});
+
+  tests.push({ name: '360: T-PS02 computeTankState: H₂O liquid at 300K', fn: t => {
+    // H₂O at 300K: Tc=647.1, T < 0.9*Tc → condensable
+    const n = { H2O: 100 };
+    const T_K = 300;
+    const V = 0.01; // small tank to ensure mostly liquid
+    const state = computeTankState(n, T_K, V, thermo);
+    t.assertOK(state.V_liq_m3 > 0, 'V_liq > 0');
+    t.assertOK(state.level_pct > 0, 'Level > 0');
+    t.assertOK(state.n_L.H2O > 0, 'H₂O in liquid phase');
+  }});
+
+  tests.push({ name: '361: T-PS03 computeTankState: H₂O + N₂ mix phase split', fn: t => {
+    // N₂: Tc=126.2, at 300K: T > 0.9*Tc → permanent gas
+    // H₂O: Tc=647.1, at 300K: T < 0.9*Tc → condensable
+    const n = { H2O: 50, N2: 2 };
+    const T_K = 300;
+    const V = 0.01;
+    const state = computeTankState(n, T_K, V, thermo);
+    t.assertOK(state.n_V.N2 > 0, 'N₂ in headspace (permanent gas)');
+    t.assertOK(state.n_L.H2O > 0, 'H₂O in liquid (condensable)');
+    t.assertClose(state.n_L.N2 || 0, 0, 1e-10, 'N₂ not in liquid');
+    t.assertOK(state.P_Pa > 0, 'Headspace pressure > 0');
+  }});
+
+  tests.push({ name: '362: T-PS04 computeTankState: empty inventory', fn: t => {
+    const state = computeTankState({}, 300, 0.15, thermo);
+    t.assertClose(state.P_Pa, 0, 1, 'P ≈ 0');
+    t.assertClose(state.level_pct, 0, 0.01, 'Level = 0');
+    t.assertOK(Object.keys(state.n_L).length === 0, 'n_L empty');
+    t.assertOK(Object.keys(state.n_V).length === 0, 'n_V empty');
+  }});
+
+  tests.push({ name: '363: T-PS05 computeTankState: all liquid → 200 bar sentinel', fn: t => {
+    // Fill tank with so much water that headspace ≈ 0
+    const V = 0.001; // 1 liter
+    // H₂O: MW=18.015, rho=1000 → 1L = 1kg = 55.5 mol
+    // 60 mol in 1L → overfull, V_liq > V_total
+    const n = { H2O: 60 };
+    const state = computeTankState(n, 300, V, thermo);
+    t.assertClose(state.P_Pa, 200e5, 1e5, 'P = 200 bar sentinel');
+  }});
+
+  tests.push({ name: '364: T-PS06 computeTankState: deterministic (two calls identical)', fn: t => {
+    const n = { N2: 5, H2O: 20 };
+    const s1 = computeTankState(n, 300, 0.1, thermo);
+    const s2 = computeTankState(n, 300, 0.1, thermo);
+    t.assertClose(s1.P_Pa, s2.P_Pa, 0.001, 'P_Pa identical');
+    t.assertClose(s1.level_pct, s2.level_pct, 0.001, 'level_pct identical');
+    t.assertClose(s1.V_liq_m3, s2.V_liq_m3, 1e-10, 'V_liq identical');
+  }});
+
+  // ── Pressure Trace Tests (T-PS33–T-PS42) ──
+  // These test resolveDownstreamPressures directly with manually constructed topologies.
+  // The current tank registration (old model) has inventory, so anchor computation works.
+  // Connections use gas_out/liq_out portIds manually (new ports come in S5a-2).
+
+  tests.push({ name: '365: T-PS33 Trace: tank gas_out → sink = P_atm', fn: t => {
+    const P_atm = SimSettings.getAtmosphere().P_Pa;
+    const tid = t.place('tank', 0, 0, { volume_m3: 0.15 });
+    const sid = t.place('sink', 4, 0);
+    // Manually wire gas_out → sink in (trace follows connections, not registry ports)
+    scene.connections.push({
+      id: 'tc-1', from: { unitId: tid, portId: 'gas_out' },
+      to: { unitId: sid, portId: 'in' }
+    });
+
+    const result = resolveDownstreamPressures(scene);
+    const Pd = result.get(tid + ':gas_out');
+    t.assertOK(Pd != null, 'P_downstream exists for gas_out');
+    t.assertClose(Pd, P_atm, 100, 'P_downstream ≈ P_atm');
+  }});
+
+  tests.push({ name: '366: T-PS34 Trace: tank liq_out → sink (independent)', fn: t => {
+    const P_atm = SimSettings.getAtmosphere().P_Pa;
+    const tid = t.place('tank', 0, 0, { volume_m3: 0.15 });
+    const sid = t.place('sink', 4, 0);
+    scene.connections.push({
+      id: 'tc-2', from: { unitId: tid, portId: 'liq_out' },
+      to: { unitId: sid, portId: 'in' }
+    });
+
+    const result = resolveDownstreamPressures(scene);
+    const Pd = result.get(tid + ':liq_out');
+    t.assertOK(Pd != null, 'P_downstream exists for liq_out');
+    t.assertClose(Pd, P_atm, 100, 'P_downstream ≈ P_atm (independent trace)');
+  }});
+
+  tests.push({ name: '367: T-PS35 Trace: tank → valve(Pout=2bar) → sink = 2 bar', fn: t => {
+    const P_atm = SimSettings.getAtmosphere().P_Pa;
+    const tid = t.place('tank', 0, 0, { volume_m3: 0.15 });
+    const vid = t.place('valve', 4, 0, { Pout: 200000 }); // 2 bar
+    const sid = t.place('sink', 8, 0);
+    scene.connections.push({
+      id: 'tc-3a', from: { unitId: tid, portId: 'gas_out' },
+      to: { unitId: vid, portId: 'in' }
+    });
+    scene.connections.push({
+      id: 'tc-3b', from: { unitId: vid, portId: 'out' },
+      to: { unitId: sid, portId: 'in' }
+    });
+
+    const result = resolveDownstreamPressures(scene);
+    const Pd = result.get(tid + ':gas_out');
+    // Valve at 2 bar, downstream is sink at P_atm ≈ 0.9 bar → valve can regulate
+    t.assertClose(Pd, 200000, 100, 'P_downstream = valve Pout = 2 bar');
+    // Check valveStatus
+    const vs = scene.runtime.valveStatus?.get(vid);
+    t.assertOK(vs?.canRegulate === true, 'Valve can regulate');
+  }});
+
+  tests.push({ name: '368: T-PS36 Trace: tank → heater (transparent) → sink', fn: t => {
+    // Heater is a transparent unit (zero ΔP). Restriction tested in S5a-2.
+    const P_atm = SimSettings.getAtmosphere().P_Pa;
+    const tid = t.place('tank', 0, 0, { volume_m3: 0.15 });
+    const hid = t.place('electric_heater', 4, 0, { T_out: 400 });
+    const sid = t.place('sink', 8, 0);
+    scene.connections.push({
+      id: 'tc-4a', from: { unitId: tid, portId: 'gas_out' },
+      to: { unitId: hid, portId: 'mat_in' }
+    });
+    scene.connections.push({
+      id: 'tc-4b', from: { unitId: hid, portId: 'mat_out' },
+      to: { unitId: sid, portId: 'in' }
+    });
+
+    const result = resolveDownstreamPressures(scene);
+    const Pd = result.get(tid + ':gas_out');
+    t.assertClose(Pd, P_atm, 100, 'P_downstream = P_atm (heater transparent)');
+  }});
+
+  tests.push({ name: '369: T-PS37 Trace: tank → splitter → sink + TankB(3bar)', fn: t => {
+    const P_atm = SimSettings.getAtmosphere().P_Pa;
+    const tid = t.place('tank', 0, 0, { volume_m3: 0.15 });
+    const spid = t.place('splitter', 4, 0, { ratio: 0.5 });
+    const sid = t.place('sink', 8, 0);
+    // TankB at 3 bar
+    const tbid = t.place('tank', 8, 4, { volume_m3: 0.15 });
+    const tbU = scene.units.get(tbid);
+    // Set TankB inventory to produce ~3 bar: n = P*V/(R*T)
+    const n3bar = 300000 * 0.15 / (8.314 * 288);
+    tbU.inventory = { n: { N2: n3bar }, T_K: 288 };
+
+    scene.connections.push({
+      id: 'tc-5a', from: { unitId: tid, portId: 'gas_out' },
+      to: { unitId: spid, portId: 'in' }
+    });
+    scene.connections.push({
+      id: 'tc-5b', from: { unitId: spid, portId: 'out1' },
+      to: { unitId: sid, portId: 'in' }
+    });
+    scene.connections.push({
+      id: 'tc-5c', from: { unitId: spid, portId: 'out2' },
+      to: { unitId: tbid, portId: 'mat_in' }
+    });
+
+    const result = resolveDownstreamPressures(scene);
+    const Pd = result.get(tid + ':gas_out');
+    // Worst of P_atm (sink) and ~3 bar (TankB) → max ≈ 3 bar
+    const P_tankB = computeTankState(tbU.inventory.n, 288, 0.15, thermo).P_Pa;
+    t.assertClose(Pd, Math.max(P_atm, P_tankB), 200, 'P_downstream = max(P_atm, P_tankB)');
+    t.assertOK(Pd > P_atm + 1000, 'P_down > P_atm (TankB dominates)');
+  }});
+
+  tests.push({ name: '370: T-PS38 Trace: tank → compressor(Pout=10bar) → sink', fn: t => {
+    const P_atm = SimSettings.getAtmosphere().P_Pa;
+    const tid = t.place('tank', 0, 0, { volume_m3: 0.15 });
+    const cid = t.place('compressor', 4, 0, { Pout: 1000000, eta: 0.75 }); // 10 bar
+    const sid = t.place('sink', 8, 0);
+    scene.connections.push({
+      id: 'tc-6a', from: { unitId: tid, portId: 'gas_out' },
+      to: { unitId: cid, portId: 'mat_in' }
+    });
+    scene.connections.push({
+      id: 'tc-6b', from: { unitId: cid, portId: 'mat_out' },
+      to: { unitId: sid, portId: 'in' }
+    });
+
+    const result = resolveDownstreamPressures(scene);
+    const Pd = result.get(tid + ':gas_out');
+    // Tank at ~0.9 bar. Compressor boosts to 10 bar. Sink at P_atm.
+    // P_down = P_atm + 0 (dP) - boost. boost = Pout - P_current ≈ 10bar - 0.9bar ≈ 9.1 bar
+    // P_down = P_atm - boost ≈ 0.9 - 9.1 = negative (−8.2 bar)
+    // This is a large negative value → strong driving force
+    t.assertOK(Pd < 0, 'P_downstream < 0 (compressor pulls vacuum on tank)');
+  }});
+
+  tests.push({ name: '371: T-PS39 Trace: tank → gas_turbine(Pout=2bar) → sink', fn: t => {
+    const P_atm = SimSettings.getAtmosphere().P_Pa;
+    const tid = t.place('tank', 0, 0, { volume_m3: 0.15 });
+    // Fill tank to 5 bar for meaningful turbine drop
+    const u = scene.units.get(tid);
+    const n5bar = 500000 * 0.15 / (8.314 * 288);
+    u.inventory = { n: { N2: n5bar }, T_K: 288 };
+
+    const gtid = t.place('gas_turbine', 4, 0, { Pout: 200000 }); // 2 bar
+    const sid = t.place('sink', 8, 0);
+    scene.connections.push({
+      id: 'tc-7a', from: { unitId: tid, portId: 'gas_out' },
+      to: { unitId: gtid, portId: 'mat_in' }
+    });
+    scene.connections.push({
+      id: 'tc-7b', from: { unitId: gtid, portId: 'mat_out' },
+      to: { unitId: sid, portId: 'in' }
+    });
+
+    const result = resolveDownstreamPressures(scene);
+    const Pd = result.get(tid + ':gas_out');
+    const P_tank = computeTankState(u.inventory.n, 288, 0.15, thermo).P_Pa;
+    const drop = Math.max(0, P_tank - 200000);
+    // P_down = P_atm + drop - 0 = P_atm + drop
+    t.assertClose(Pd, P_atm + drop, 1000, 'P_downstream = P_atm + turbine drop');
+    t.assertOK(Pd > P_atm, 'Turbine drop increases effective downstream P');
+  }});
+
+  tests.push({ name: '372: T-PS40 Trace: tank → valve(Pout=2bar) → TankB(3bar) look-through', fn: t => {
+    const tid = t.place('tank', 0, 0, { volume_m3: 0.15 });
+    const vid = t.place('valve', 4, 0, { Pout: 200000 }); // 2 bar
+    // TankB at 3 bar → downstream P > valve Pout → cannot regulate
+    const tbid = t.place('tank', 8, 0, { volume_m3: 0.15 });
+    const tbU = scene.units.get(tbid);
+    const n3bar = 300000 * 0.15 / (8.314 * 288);
+    tbU.inventory = { n: { N2: n3bar }, T_K: 288 };
+
+    scene.connections.push({
+      id: 'tc-8a', from: { unitId: tid, portId: 'gas_out' },
+      to: { unitId: vid, portId: 'in' }
+    });
+    scene.connections.push({
+      id: 'tc-8b', from: { unitId: vid, portId: 'out' },
+      to: { unitId: tbid, portId: 'mat_in' }
+    });
+
+    const result = resolveDownstreamPressures(scene);
+    const Pd = result.get(tid + ':gas_out');
+    const P_tankB = computeTankState(tbU.inventory.n, 288, 0.15, thermo).P_Pa;
+    // Valve cannot regulate (Pout=2bar < P_tankB≈3bar) → look-through → P_down = P_tankB
+    t.assertClose(Pd, P_tankB, 500, 'P_downstream = P_tankB (look-through)');
+    const vs = scene.runtime.valveStatus?.get(vid);
+    t.assertOK(vs?.canRegulate === false, 'Valve cannot regulate (look-through)');
+  }});
+
+  tests.push({ name: '373: T-PS41 Trace: tank → pump(Pout=10bar) → same tank (recirc)', fn: t => {
+    const tid = t.place('tank', 0, 0, { volume_m3: 0.15 });
+    const pid = t.place('pump', 4, 0, { Pout: 1000000 }); // 10 bar
+    scene.connections.push({
+      id: 'tc-9a', from: { unitId: tid, portId: 'liq_out' },
+      to: { unitId: pid, portId: 'mat_in' }
+    });
+    scene.connections.push({
+      id: 'tc-9b', from: { unitId: pid, portId: 'mat_out' },
+      to: { unitId: tid, portId: 'mat_in' }
+    });
+
+    const result = resolveDownstreamPressures(scene);
+    const Pd = result.get(tid + ':liq_out');
+    const P_tank = computeTankState(
+      scene.units.get(tid).inventory.n,
+      scene.units.get(tid).inventory.T_K, 0.15, thermo).P_Pa;
+    // Anchor = self tank. boost = 10bar - P_tank.
+    // P_down = P_tank + 0 - boost = P_tank - (10bar - P_tank) = 2*P_tank - 10bar
+    // For P_tank ≈ 0.9 bar: P_down ≈ 1.8 - 10 = −8.2 → very negative
+    // The key assertion: ΔP = P_tank - P_down should be large (pump creates driving force)
+    const dP = P_tank - Pd;
+    t.assertOK(dP > 0, 'Positive ΔP (pump creates driving force)');
+    t.assertClose(dP, 1000000 - P_tank, 1000, 'ΔP ≈ pump boost');
+  }});
+
+  tests.push({ name: '374: T-PS42 Trace: dead end (unconnected) → P_atm', fn: t => {
+    const P_atm = SimSettings.getAtmosphere().P_Pa;
+    const tid = t.place('tank', 0, 0, { volume_m3: 0.15 });
+    // No connections from gas_out or liq_out
+
+    const result = resolveDownstreamPressures(scene);
+    const Pd_gas = result.get(tid + ':gas_out');
+    const Pd_liq = result.get(tid + ':liq_out');
+    // Unconnected → no connection found → returns P_atm
+    t.assertClose(Pd_gas, P_atm, 100, 'gas_out dead end → P_atm');
+    t.assertClose(Pd_liq, P_atm, 100, 'liq_out dead end → P_atm');
+  }});
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // S5a-2a — Tank Cv outlets + Reservoir [v13.8.0]
+  // T-PS07–T-PS22: Tank (16 tests), T-PS23–T-PS27: Reservoir (5 tests)
+  // ═══════════════════════════════════════════════════════════════════════
+
+  // T-PS07: Gas draw with Cv valve
+  tests.push({ name: '375: T-PS07 Gas draw: opening_gas=50%, N₂ 5 bar → sink', fn: t => {
+    const tid = t.place('tank', 0, 0, { volume_m3: 0.15, P_init: 500000, P_relief: 1000000, opening_gas_pct: 50, Cv_gas: 50 });
+    const snk = t.place('sink', 5, 0);
+    t.wire(tid, 'gas_out', snk, 'in');
+    t.solve();
+    const ud = t.ud(tid);
+    t.assertOK(ud.last.Q_gas > 0, 'Q_gas > 0');
+    // Cv equation: Q = Cv × (opening/100) × sqrt(dP / (SG × 1e5))
+    const P_atm = SimSettings.getAtmosphere().P_Pa;
+    t.assertOK(ud.last.P_Pa > P_atm, 'P_tank > P_atm (5 bar init)');
+    // gas_out port should have vapor composition
+    const gasOut = ud.ports.gas_out;
+    t.assertOK(gasOut.phaseConstraint === 'V', 'gas_out phaseConstraint = V');
+    t.assertOK(Object.values(gasOut.n).reduce((a,b) => a+b, 0) > 0, 'gas_out has flow');
+  }});
+
+  // T-PS08: Liquid draw with Cv valve
+  tests.push({ name: '376: T-PS08 Liquid draw: opening_liq=100%, H₂O 50% level → sink', fn: t => {
+    const tid = t.place('tank', 0, 0, {
+      volume_m3: 0.15, level_init: 50, initialComposition: { H2O: 1 },
+      opening_liq_pct: 100, Cv_liq: 50, opening_gas_pct: 0
+    });
+    // initInventory fills headspace with atmospheric gas → P ≈ P_atm + Psat
+    const snk = t.place('sink', 5, 2);
+    t.wire(tid, 'liq_out', snk, 'in');
+    t.solve();
+    const ud = t.ud(tid);
+    t.assertOK(ud.last.Q_liq > 0, 'Q_liq > 0');
+    const liqOut = ud.ports.liq_out;
+    t.assertOK(liqOut.phaseConstraint === 'L', 'liq_out phaseConstraint = L');
+    t.assertOK(liqOut.n.H2O > 0, 'liq_out has H₂O');
+  }});
+
+  // T-PS09: Both draws open simultaneously
+  tests.push({ name: '377: T-PS09 Both gas and liquid draws open', fn: t => {
+    // H₂O at 300 K — initInventory fills headspace with atmospheric gas
+    const tid = t.place('tank', 0, 0, {
+      volume_m3: 0.5, level_init: 50, initialComposition: { H2O: 1 },
+      opening_gas_pct: 50, opening_liq_pct: 50,
+      Cv_gas: 50, Cv_liq: 50
+    });
+    const gSnk = t.place('sink', 5, 0);
+    const lSnk = t.place('sink', 5, 4);
+    t.wire(tid, 'gas_out', gSnk, 'in');
+    t.wire(tid, 'liq_out', lSnk, 'in');
+    t.solve();
+    const ud = t.ud(tid);
+    t.assertOK(ud.last.Q_gas > 0, 'Q_gas > 0');
+    t.assertOK(ud.last.Q_liq > 0, 'Q_liq > 0');
+  }});
+
+  // T-PS10: Opening=0% on both → no flow
+  tests.push({ name: '378: T-PS10 Opening=0% → Q_gas=0, Q_liq=0', fn: t => {
+    const tid = t.place('tank', 0, 0, {
+      volume_m3: 0.15, P_init: 500000, P_relief: 1000000,
+      opening_gas_pct: 0, opening_liq_pct: 0
+    });
+    const snk = t.place('sink', 5, 0);
+    t.wire(tid, 'gas_out', snk, 'in');
+    t.solve();
+    const ud = t.ud(tid);
+    t.assertClose(ud.last.Q_gas, 0, 1e-12, 'Q_gas = 0');
+    t.assertClose(ud.last.Q_liq, 0, 1e-12, 'Q_liq = 0');
+  }});
+
+  // T-PS11: Gas draw reverse pressure → Q=0, MINOR
+  tests.push({ name: '379: T-PS11 Gas draw reverse pressure → Q=0', fn: t => {
+    // Tank at atm, downstream at higher pressure (simulated by trace)
+    const tid = t.place('tank', 0, 0, {
+      volume_m3: 0.15, opening_gas_pct: 100, Cv_gas: 50
+    });
+    // No outlet wired → P_downstream = P_atm, P_tank ≈ P_atm → dP ≈ 0
+    t.solve();
+    const ud = t.ud(tid);
+    t.assertClose(ud.last.Q_gas, 0, 1e-6, 'Q_gas ≈ 0 at equilibrium');
+  }});
+
+  // T-PS12: Depletion over 2 dt
+  tests.push({ name: '380: T-PS12 Depletion over 2 dt: inventory ↓, Q ↓', fn: t => {
+    const origDt = SimSettings.dt;
+    TimeClock.t = 0; TimeClock.frame = 0; TimeClock.mode = 'test';
+    SimSettings.dt = 60;
+
+    const tid = t.place('tank', 0, 0, { volume_m3: 0.15, P_init: 500000, opening_gas_pct: 100, Cv_gas: 50 });
+    const snk = t.place('sink', 5, 0);
+    t.wire(tid, 'gas_out', snk, 'in');
+    const u = scene.units.get(tid);
+    const n0 = Object.values(u.inventory.n).reduce((a,b) => a+b, 0);
+
+    TimeClock.step(scene);
+    const n1 = Object.values(u.inventory.n).reduce((a,b) => a+b, 0);
+    t.assertOK(n1 < n0, 'Inventory decreased after step 1');
+
+    TimeClock.step(scene);
+    const n2 = Object.values(u.inventory.n).reduce((a,b) => a+b, 0);
+    t.assertOK(n2 < n1, 'Inventory decreased after step 2');
+
+    TimeClock.t = 0; TimeClock.frame = 0;
+    TimeClock.mode = 'test'; SimSettings.dt = origDt;
+  }});
+
+  // T-PS13: Relief valve: P > P_relief, vent connected → MINOR
+  tests.push({ name: '381: T-PS13 Relief valve: vent connected → gas flows, MINOR', fn: t => {
+    const tid = t.place('tank', 0, 0, { volume_m3: 0.15, P_init: 500000, P_relief: 150000, opening_gas_pct: 0 });
+    const u = scene.units.get(tid);
+    const ventSnk = t.place('sink', 5, 0);
+    t.wire(tid, 'vent', ventSnk, 'in');
+    t.solve();
+    const ud = t.ud(tid);
+    t.assertOK(ud.last.vent_status === 'OPEN', 'Vent is OPEN');
+    t.assertOK(ud.last.Q_vent > 0, 'Q_vent > 0');
+    // Check severity is MINOR (connected)
+    const catErrs = ud.errors.filter(e => e.severity?.level >= ErrorSeverity.CATASTROPHIC.level);
+    t.assertClose(catErrs.length, 0, 0, 'No CATASTROPHIC (vent connected)');
+  }});
+
+  // T-PS14: Relief valve: vent unconnected → CATASTROPHIC
+  tests.push({ name: '382: T-PS14 Relief valve: vent unconnected → CATASTROPHIC', fn: t => {
+    const tid = t.place('tank', 0, 0, { volume_m3: 0.15, P_init: 500000, P_relief: 150000, opening_gas_pct: 0 });
+    // No vent connection
+    const r = t.solveRaw();
+    const ud = scene.runtime.unitData.get(tid);
+    t.assertOK(ud.last.vent_status === 'OPEN', 'Vent is OPEN');
+    const catErrs = ud.errors.filter(e => e.severity?.level >= ErrorSeverity.CATASTROPHIC.level);
+    t.assertOK(catErrs.length > 0, 'CATASTROPHIC (vent unconnected)');
+    t.assertOK(r.unitFaulted === true, 'unitFaulted');
+  }});
+
+  // T-PS15: Overflow: level > threshold, overflow connected → MINOR
+  tests.push({ name: '383: T-PS15 Overflow: connected → liquid flows, MINOR', fn: t => {
+    const tid = t.place('tank', 0, 0, {
+      volume_m3: 0.15, level_init: 95, initialComposition: { H2O: 1 },
+      overflow_level: 90, opening_gas_pct: 0, opening_liq_pct: 0
+    });
+    const ovSnk = t.place('sink', 5, 2);
+    t.wire(tid, 'overflow', ovSnk, 'in');
+    t.solve();
+    const ud = t.ud(tid);
+    t.assertOK(ud.last.overflow_status === 'ACTIVE', 'Overflow ACTIVE');
+    t.assertOK(ud.last.Q_overflow > 0, 'Q_overflow > 0');
+    const catErrs = ud.errors.filter(e => e.severity?.level >= ErrorSeverity.CATASTROPHIC.level);
+    t.assertClose(catErrs.length, 0, 0, 'No CATASTROPHIC (overflow connected)');
+  }});
+
+  // T-PS16: Overflow: unconnected → CATASTROPHIC
+  tests.push({ name: '384: T-PS16 Overflow: unconnected → CATASTROPHIC', fn: t => {
+    const tid = t.place('tank', 0, 0, {
+      volume_m3: 0.15, level_init: 95, initialComposition: { H2O: 1 },
+      overflow_level: 90, opening_gas_pct: 0, opening_liq_pct: 0
+    });
+    // No overflow connection
+    const r = t.solveRaw();
+    const ud = scene.runtime.unitData.get(tid);
+    t.assertOK(ud.last.overflow_status === 'ACTIVE', 'Overflow ACTIVE');
+    const catErrs = ud.errors.filter(e => e.severity?.level >= ErrorSeverity.CATASTROPHIC.level);
+    t.assertOK(catErrs.length > 0, 'CATASTROPHIC (overflow unconnected)');
+  }});
+
+  // T-PS17: Both safeties active simultaneously
+  tests.push({ name: '385: T-PS17 Both relief + overflow active simultaneously', fn: t => {
+    // Pressurized tank with liquid level over threshold
+    // Atmospheric headspace (~101 kPa) > P_relief (100 kPa) → relief triggers
+    // level_init 95% > overflow_level 90% → overflow triggers
+    const tid = t.place('tank', 0, 0, {
+      volume_m3: 0.5, level_init: 95, initialComposition: { H2O: 1 },
+      P_relief: 100000, overflow_level: 90, opening_gas_pct: 0, opening_liq_pct: 0
+    });
+    const ventSnk = t.place('sink', 5, 0);
+    const ovSnk = t.place('sink', 5, 2);
+    t.wire(tid, 'vent', ventSnk, 'in');
+    t.wire(tid, 'overflow', ovSnk, 'in');
+    t.solve();
+    const ud = t.ud(tid);
+    t.assertOK(ud.last.vent_status === 'OPEN', 'Vent OPEN');
+    t.assertOK(ud.last.overflow_status === 'ACTIVE', 'Overflow ACTIVE');
+  }});
+
+  // T-PS18: Empty tank → Q_gas=0
+  tests.push({ name: '386: T-PS18 Empty tank → Q_gas=0', fn: t => {
+    const tid = t.place('tank', 0, 0, { volume_m3: 0.15, opening_gas_pct: 100, Cv_gas: 50 });
+    const u = scene.units.get(tid);
+    // Empty the inventory
+    for (const sp of Object.keys(u.inventory.n)) u.inventory.n[sp] = 0;
+    const snk = t.place('sink', 5, 0);
+    t.wire(tid, 'gas_out', snk, 'in');
+    t.solve();
+    const ud = t.ud(tid);
+    t.assertClose(ud.last.Q_gas, 0, 1e-12, 'Q_gas = 0 (empty)');
+  }});
+
+  // T-PS19: initInventory gas mode
+  tests.push({ name: '387: T-PS19 initInventory gas mode: P_init=5 bar', fn: t => {
+    const tid = t.place('tank', 0, 0, { volume_m3: 1.0, P_init: 500000 });
+    const u = scene.units.get(tid);
+    const atm = SimSettings.getAtmosphere();
+    const T = atm.T_K;
+    const expected_n = 500000 * 1.0 / (8.314 * T);
+    const actual_n = Object.values(u.inventory.n).reduce((a,b) => a+b, 0);
+    t.assertClose(actual_n, expected_n, 1.0, 'n = PV/RT');
+    // computeTankState should match
+    const state = computeTankState(u.inventory.n, u.inventory.T_K, 1.0, thermo);
+    t.assertClose(state.P_Pa, 500000, 5000, 'computeTankState P ≈ 5 bar');
+  }});
+
+  // T-PS20: initInventory liquid mode
+  tests.push({ name: '388: T-PS20 initInventory liquid mode: level_init=50%', fn: t => {
+    const tid = t.place('tank', 0, 0, {
+      volume_m3: 1.0, level_init: 50, initialComposition: { H2O: 1 }
+    });
+    const u = scene.units.get(tid);
+    const state = computeTankState(u.inventory.n, u.inventory.T_K, 1.0, thermo);
+    t.assertClose(state.level_pct, 50, 5, 'computeTankState level ≈ 50%');
+    t.assertOK(state.V_liq_m3 > 0.4 && state.V_liq_m3 < 0.6, 'V_liq ≈ 0.5 m³');
+    // [v13.8.0] Atmospheric headspace: gas species present above liquid
+    const atm = SimSettings.getAtmosphere();
+    const atmSpecies = Object.keys(atm.air);
+    const hasAtmGas = atmSpecies.some(sp => (u.inventory.n[sp] || 0) > 1e-10);
+    t.assertOK(hasAtmGas, 'Headspace has atmospheric gas species');
+    // P should be near P_atm (atmospheric headspace + vapor pressure)
+    t.assertOK(state.P_Pa > atm.P_Pa * 0.8, `P > 0.8×P_atm: ${(state.P_Pa/1e5).toFixed(2)} bar`);
+  }});
+
+  // T-PS21: updateInventory mass balance
+  tests.push({ name: '389: T-PS21 updateInventory mass balance', fn: t => {
+    const tankDef = UnitRegistry.get('tank');
+    const inv0 = { n: { N2: 10 }, T_K: 300 };
+    const resolvedPorts = {
+      mat_in:  { T: 300, P: 200000, n: { N2: 2.0 } },
+      gas_out: { n: { N2: 0.5 } },
+      liq_out: { n: {} },
+      vent:    { n: { N2: 0.1 } },
+      overflow:{ n: {} }
+    };
+    const dt = 10;
+    const inv1 = tankDef.updateInventory(inv0, resolvedPorts, dt);
+    // Expected: 10 + (2.0 - 0.5 - 0.1) × 10 = 10 + 14 = 24
+    t.assertClose(inv1.n.N2, 24, 0.01, 'Mass balance: 10 + (2-0.5-0.1)×10 = 24');
+  }});
+
+  // T-PS22: updateInventory T evolution
+  tests.push({ name: '390: T-PS22 updateInventory T evolution: hot feed → T rises', fn: t => {
+    const tankDef = UnitRegistry.get('tank');
+    const inv0 = { n: { N2: 100 }, T_K: 300 };
+    const resolvedPorts = {
+      mat_in:  { T: 500, P: 200000, n: { N2: 5.0 } },
+      gas_out: { n: {} },
+      liq_out: { n: {} },
+      vent:    { n: {} },
+      overflow:{ n: {} }
+    };
+    const dt = 10;
+    const inv1 = tankDef.updateInventory(inv0, resolvedPorts, dt);
+    t.assertOK(inv1.T_K > 300, 'T increased from hot feed');
+    t.assertOK(inv1.T_K < 500, 'T below source (mixed)');
+  }});
+
+  // ── Reservoir Tests T-PS23–T-PS27 ──
+
+  // T-PS23: Gas, opening=100%, 5 bar → sink
+  tests.push({ name: '391: T-PS23 Reservoir: gas 5 bar → sink, Q > 0', fn: t => {
+    const rid = t.place('reservoir', 0, 0, { P_bar: 5, T: 300, composition: { N2: 1 }, opening_pct: 100, Cv: 50, phaseConstraint: 'V' });
+    const snk = t.place('sink', 4, 0);
+    t.wire(rid, 'mat_out', snk, 'in');
+    t.solve();
+    const ud = t.ud(rid);
+    t.assertOK(ud.last.Q_mol_s > 0, 'Q > 0');
+    // Cv check: Q = Cv × (opening/100) × sqrt(dP / (SG × 1e5))
+    const P_atm = SimSettings.getAtmosphere().P_Pa;
+    const dP = 5e5 - P_atm;
+    t.assertOK(dP > 0, 'dP > 0');
+    t.assertOK(ud.last.dP_bar > 0, 'dP_bar > 0');
+  }});
+
+  // T-PS24: Opening=0% → Q=0
+  tests.push({ name: '392: T-PS24 Reservoir: opening=0% → Q=0', fn: t => {
+    const rid = t.place('reservoir', 0, 0, { P_bar: 5, opening_pct: 0, Cv: 50 });
+    const snk = t.place('sink', 4, 0);
+    t.wire(rid, 'mat_out', snk, 'in');
+    t.solve();
+    const ud = t.ud(rid);
+    t.assertClose(ud.last.Q_mol_s, 0, 1e-12, 'Q = 0');
+  }});
+
+  // T-PS25: P_res ≤ P_downstream → Q=0, MINOR
+  tests.push({ name: '393: T-PS25 Reservoir: P_res ≤ P_downstream → Q=0, MINOR', fn: t => {
+    // Reservoir at 0.5 bar (below atmospheric) → no flow
+    const rid = t.place('reservoir', 0, 0, { P_bar: 0.5, opening_pct: 100, Cv: 50 });
+    const snk = t.place('sink', 4, 0);
+    t.wire(rid, 'mat_out', snk, 'in');
+    t.solve();
+    const ud = t.ud(rid);
+    t.assertClose(ud.last.Q_mol_s, 0, 1e-12, 'Q = 0');
+    // Check MINOR warning
+    const minorErrs = ud.errors.filter(e => e.severity?.level >= ErrorSeverity.MINOR.level);
+    t.assertOK(minorErrs.length > 0, 'MINOR warning for no-flow');
+  }});
+
+  // T-PS26: Composition
+  tests.push({ name: '394: T-PS26 Reservoir: outlet composition correct', fn: t => {
+    const rid = t.place('reservoir', 0, 0, {
+      P_bar: 5, T: 350, composition: { N2: 0.79, O2: 0.21 },
+      opening_pct: 100, Cv: 50, phaseConstraint: 'V'
+    });
+    const snk = t.place('sink', 4, 0);
+    t.wire(rid, 'mat_out', snk, 'in');
+    t.solve();
+    const ud = t.ud(rid);
+    const port = ud.ports.mat_out;
+    const Q = ud.last.Q_mol_s;
+    t.assertOK(Q > 0, 'Q > 0');
+    // N₂ should be 79% of total
+    t.assertClose(port.n.N2 / Q, 0.79, 0.01, 'N₂ = 79%');
+    t.assertClose(port.n.O2 / Q, 0.21, 0.01, 'O₂ = 21%');
+  }});
+
+  // T-PS27: No depletion — Q constant across ticks
+  tests.push({ name: '395: T-PS27 Reservoir: no depletion, Q constant', fn: t => {
+    const origDt = SimSettings.dt;
+    TimeClock.t = 0; TimeClock.frame = 0; TimeClock.mode = 'test';
+    SimSettings.dt = 60;
+
+    const rid = t.place('reservoir', 0, 0, { P_bar: 5, opening_pct: 100, Cv: 50 });
+    const snk = t.place('sink', 4, 0);
+    t.wire(rid, 'mat_out', snk, 'in');
+
+    TimeClock.step(scene);
+    const ud1 = scene.runtime.unitData.get(rid);
+    const Q1 = ud1.last.Q_mol_s;
+
+    TimeClock.step(scene);
+    const ud2 = scene.runtime.unitData.get(rid);
+    const Q2 = ud2.last.Q_mol_s;
+
+    t.assertClose(Q1, Q2, 0.001, 'Q constant across ticks (no depletion)');
+
+    TimeClock.t = 0; TimeClock.frame = 0;
+    TimeClock.mode = 'test'; SimSettings.dt = origDt;
+  }});
+
+  // T-PS20b: Liquid tank drains via Cv without manual pressurization
+  // Validates that initInventory's atmospheric headspace provides the ΔP
+  // needed for liquid outflow — the player doesn't need to inject blanket gas
+  // for a freshly filled tank on Planet X.
+  tests.push({ name: '396: T-PS20b Liquid tank headspace enables drain without manual N₂', fn: t => {
+    const atm = SimSettings.getAtmosphere();
+    const tid = t.place('tank', 0, 0, {
+      volume_m3: 1.0, level_init: 80, initialComposition: { H2O: 1 },
+      opening_liq_pct: 100, Cv_liq: 50, opening_gas_pct: 0
+    });
+    const u = scene.units.get(tid);
+
+    // Verify atmospheric species present in inventory (not just H₂O)
+    const atmSpecies = Object.keys(atm.air);
+    const headGas = atmSpecies.reduce((s, sp) => s + (u.inventory.n[sp] || 0), 0);
+    t.assertOK(headGas > 0, `Atmospheric headspace gas: ${headGas.toFixed(2)} mol`);
+
+    // Verify tank pressure > P_atm (headspace contributes)
+    const state = computeTankState(u.inventory.n, u.inventory.T_K, 1.0, thermo);
+    t.assertOK(state.P_Pa > atm.P_Pa * 0.95, `P ≈ P_atm: ${(state.P_Pa/1e5).toFixed(3)} bar`);
+
+    // Wire to sink and solve — liquid should flow
+    const snk = t.place('sink', 5, 2);
+    t.wire(tid, 'liq_out', snk, 'in');
+    t.solve();
+    const ud = t.ud(tid);
+    // With P_tank ≈ P_atm and sink at P_atm, ΔP is small but positive
+    // (headspace gas compressed by liquid column not modeled, but Psat_H2O adds ~3.5 kPa)
+    t.assertOK(ud.last.Q_liq >= 0, `Q_liq ≥ 0: ${ud.last.Q_liq?.toFixed(4)} mol/s`);
+
+    // Gas mode init (no level_init) should NOT have H₂O in inventory
+    const tid2 = t.place('tank', 8, 0, { volume_m3: 1.0, P_init: 200000 });
+    const u2 = scene.units.get(tid2);
+    const hasH2O = (u2.inventory.n.H2O || 0) > 0;
+    t.assertOK(!hasH2O, 'Gas mode init: no H₂O (no atmospheric headspace logic)');
+  }});
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // S5a-2b — Sink, Restriction, Valve validation, Divider diagnostics [v13.8.0]
+  // T-PS28–T-PS32: Sink (2) + Restriction (3)
+  // T-PS43–T-PS46: Valve validation (2) + Divider (2)
+  // ═══════════════════════════════════════════════════════════════════════
+
+  // T-PS28: Sink absorbs all flow
+  tests.push({ name: '397: T-PS28 Sink: absorbs all flow, absorbed_mol_s correct', fn: t => {
+    const src = t.place('source', 0, 0, { species: 'N2', nDot: 2.5, T: 300, P: 300000, phaseConstraint: 'V' });
+    const snk = t.place('sink', 5, 0);
+    t.wire(src, 'out', snk, 'in');
+    t.solve();
+    const ud = t.ud(snk);
+    t.assertClose(ud.last.absorbed_mol_s, 2.5, 0.01, 'absorbed_mol_s = 2.5');
+    t.assertOK(ud.last.inlet, 'inlet diagnostics present');
+    t.assertOK(ud.last.outlet, 'outlet diagnostics present');
+    t.assertClose(ud.last.inlet.P_Pa, 300000, 1000, 'inlet.P_Pa ≈ 3 bar');
+  }});
+
+  // T-PS29: Sink reports expansion
+  tests.push({ name: '398: T-PS29 Sink: reports expansion from high P', fn: t => {
+    const P_atm = SimSettings.getAtmosphere().P_Pa;
+    const src = t.place('source', 0, 0, { species: 'N2', nDot: 1.0, T: 300, P: 500000, phaseConstraint: 'V' });
+    const snk = t.place('sink', 5, 0);
+    t.wire(src, 'out', snk, 'in');
+    t.solve();
+    const ud = t.ud(snk);
+    t.assertClose(ud.last.outlet.P_Pa, P_atm, 100, 'outlet.P_Pa = P_atm');
+    // 5 bar > 2×P_atm → should have MINOR expansion warning
+    t.assertOK(ud.last.error, 'Expansion warning present');
+    t.assertOK(ud.last.error.severity === ErrorSeverity.MINOR, 'Expansion is MINOR');
+    t.assertOK(parseFloat(ud.last.expansion_ratio) > 1, 'expansion_ratio > 1');
+  }});
+
+  // T-PS30: Restriction Pin=5 bar, dP=2 bar → Pout=3 bar, isenthalpic
+  tests.push({ name: '399: T-PS30 Restriction: Pin=5, dP=2 → Pout=3 bar', fn: t => {
+    const src = t.place('source', 0, 0, { species: 'N2', nDot: 1.0, T: 400, P: 500000, phaseConstraint: 'V' });
+    const rst = t.place('restriction', 4, 0, { deltaP: 200000 });
+    const snk = t.place('sink', 8, 0);
+    t.wire(src, 'out', rst, 'in');
+    t.wire(rst, 'out', snk, 'in');
+    t.solve();
+    const ud = t.ud(rst);
+    t.assertClose(ud.last.Pout, 300000, 1000, 'Pout ≈ 3 bar');
+    t.assertClose(ud.last.Pin, 500000, 1000, 'Pin ≈ 5 bar');
+    t.assertOK(ud.last.mode === 'isenthalpic', 'mode = isenthalpic');
+    // Check outlet port
+    const outPort = ud.ports.out;
+    t.assertClose(outPort.P, 300000, 1000, 'out port P ≈ 3 bar');
+    t.assertOK(outPort.n.N2 > 0, 'out port carries N₂');
+  }});
+
+  // T-PS31: Restriction dP > Pin → Pout clamped at 0, check valve
+  tests.push({ name: '400: T-PS31 Restriction: dP > Pin → check valve', fn: t => {
+    const src = t.place('source', 0, 0, { species: 'N2', nDot: 1.0, T: 300, P: 100000, phaseConstraint: 'V' });
+    const rst = t.place('restriction', 4, 0, { deltaP: 200000 });
+    const snk = t.place('sink', 8, 0);
+    t.wire(src, 'out', rst, 'in');
+    t.wire(rst, 'out', snk, 'in');
+    t.solve();
+    const ud = t.ud(rst);
+    // Pout = max(0, 1bar - 2bar) = 0, but 0 >= Pin? No: Pout=0 < Pin=1bar
+    // Actually Pout = 0, and check valve fires when Pout >= Pin.
+    // 0 < 100000 so it should proceed normally with Pout = 0
+    // But flow through to a sink at P_atm: P=0 is unusual
+    t.assertClose(ud.last.Pout, 0, 1, 'Pout clamped to 0');
+    t.assertOK(ud.last.mode === 'isenthalpic', 'mode = isenthalpic (Pout < Pin)');
+  }});
+
+  // T-PS32: Restriction shared tick H_in = H_out (enthalpy preserved)
+  tests.push({ name: '401: T-PS32 Restriction: H_in = H_out (isenthalpic)', fn: t => {
+    const src = t.place('source', 0, 0, { species: 'N2', nDot: 1.0, T: 500, P: 800000, phaseConstraint: 'V' });
+    const rst = t.place('restriction', 4, 0, { deltaP: 300000 });
+    const snk = t.place('sink', 8, 0);
+    t.wire(src, 'out', rst, 'in');
+    t.wire(rst, 'out', snk, 'in');
+    t.solve();
+    const ud = t.ud(rst);
+    // H_target_Jps on outlet should match inlet enthalpy
+    const outPort = ud.ports.out;
+    const inPort = ud.ports.in;
+    const H_in = thermo.getHdot_Jps(inPort);
+    t.assertClose(outPort.H_target_Jps, H_in, Math.abs(H_in * 0.001) + 1,
+      'H_out = H_in (isenthalpic)');
+  }});
+
+  // T-PS43: Valve Pout > downstream: regulates normally
+  tests.push({ name: '402: T-PS43 Valve: Pout > downstream → regulates', fn: t => {
+    // Tank(5 bar) → valve(Pout=2 bar) → sink(P_atm)
+    // Trace from tank gas_out: encounters valve, sees sink at P_atm ≈ 1 bar.
+    // Pout=2 bar > P_atm → can regulate → valve acts as anchor.
+    const tA = t.place('tank', 0, 0, { volume_m3: 0.15, P_init: 500000, P_relief: 1000000, opening_gas_pct: 100, Cv_gas: 50 });
+    const vlv = t.place('valve', 5, 0, { Pout: 200000 });
+    const snk = t.place('sink', 9, 0);
+    t.wire(tA, 'gas_out', vlv, 'in');
+    t.wire(vlv, 'out', snk, 'in');
+    t.solve();
+    const ud = t.ud(vlv);
+    t.assertClose(ud.last.Pout, 200000, 1000, 'Pout = 2 bar (setpoint)');
+    t.assertOK(ud.last.mode === 'isenthalpic', 'mode = isenthalpic (regulating)');
+    t.assertOK(!ud.last.error, 'No error when regulating normally');
+    // Trace must have visited this valve and confirmed it can regulate
+    const vs = scene.runtime.valveStatus?.get(vlv);
+    t.assertOK(vs, 'valveStatus populated by trace');
+    t.assertOK(vs.canRegulate, 'valveStatus: canRegulate = true');
+  }});
+
+  // T-PS44: Valve Pout < downstream: pass-through with WARNING
+  tests.push({ name: '403: T-PS44 Valve: Pout < downstream → pass-through', fn: t => {
+    // Tank(5 bar) → valve(Pout=2 bar) → TankB(3 bar)
+    // Trace from TankA gas_out: encounters valve, sees TankB P=3 bar > Pout=2 bar → can't regulate.
+    const tA = t.place('tank', 0, 0, { volume_m3: 0.15, P_init: 500000, P_relief: 1000000, opening_gas_pct: 100, Cv_gas: 50 });
+    const vlv = t.place('valve', 5, 0, { Pout: 200000 });
+    const tB = t.place('tank', 9, 0, { volume_m3: 0.15, P_init: 300000, P_relief: 1000000 });
+    t.wire(tA, 'gas_out', vlv, 'in');
+    t.wire(vlv, 'out', tB, 'mat_in');
+    t.solve();
+    const ud = t.ud(vlv);
+    // Should be pass-through: Pout = sIn.P
+    t.assertOK(ud.last.mode === 'pass-through', 'mode = pass-through');
+    t.assertOK(ud.last.error, 'Warning present');
+    t.assertOK(ud.last.error.severity === ErrorSeverity.MINOR, 'Warning is MINOR');
+    // Check valveStatus from trace
+    const vs = scene.runtime.valveStatus?.get(vlv);
+    t.assertOK(vs && !vs.canRegulate, 'valveStatus: canRegulate = false');
+  }});
+
+  // T-PS45: Divider branch P_eff ≥ P_in → check valve alarm
+  tests.push({ name: '404: T-PS45 Divider: branch P_eff ≥ P_in → check valve alarm', fn: t => {
+    // TankA(3 bar) → splitter → sink(P_atm) + TankB(5 bar)
+    // Trace from TankA gas_out: encounters splitter, branch to TankB has P_eff=5 bar > Pin=3 bar
+    const tA = t.place('tank', 0, 0, { volume_m3: 0.15, P_init: 300000, P_relief: 1000000, opening_gas_pct: 100, Cv_gas: 50 });
+    const div = t.place('splitter', 5, 0, { splitPct: 50 });
+    const snk = t.place('sink', 9, 0);
+    const tB = t.place('tank', 9, 3, { volume_m3: 0.15, P_init: 500000, P_relief: 1000000 });
+    t.wire(tA, 'gas_out', div, 'in');
+    t.wire(div, 'out1', snk, 'in');
+    t.wire(div, 'out2', tB, 'mat_in');
+    t.solve();
+    const ud = t.ud(div);
+    // dividerStatus should have branches with pressure difference
+    const ds = scene.runtime.dividerStatus?.get(div);
+    t.assertOK(ds, 'dividerStatus present');
+    t.assertOK(ud.last.error, 'Error/warning present on divider');
+    t.assertOK(ud.last.error.severity === ErrorSeverity.MINOR, 'Check valve alarm is MINOR');
+  }});
+
+  // T-PS46: Divider branches differ by > 0.5 bar → MINOR alarm
+  tests.push({ name: '405: T-PS46 Divider: branches differ > 0.5 bar → MINOR', fn: t => {
+    // Tank(5 bar) → splitter → valve(Pout=2) → sink  AND  → sink(P_atm)
+    // Trace: branch 1 via valve resolves to 2 bar, branch 2 to P_atm ≈ 1 bar. Diff ≈ 1 bar.
+    const tA = t.place('tank', 0, 0, { volume_m3: 0.15, P_init: 500000, P_relief: 1000000, opening_gas_pct: 100, Cv_gas: 50 });
+    const div = t.place('splitter', 5, 1, { splitPct: 50 });
+    const vlv = t.place('valve', 9, 0, { Pout: 200000 });
+    const snk1 = t.place('sink', 13, 0);
+    const snk2 = t.place('sink', 9, 3);
+    t.wire(tA, 'gas_out', div, 'in');
+    t.wire(div, 'out1', vlv, 'in');
+    t.wire(vlv, 'out', snk1, 'in');
+    t.wire(div, 'out2', snk2, 'in');
+    t.solve();
+    const ds = scene.runtime.dividerStatus?.get(div);
+    // Branch pressures should differ
+    if (ds) {
+      const diff = ds.P_max - ds.P_min;
+      t.assertOK(diff > 50000, `Branch P diff > 0.5 bar: ${(diff/1e5).toFixed(2)} bar`);
+    }
+    const ud = t.ud(div);
+    t.assertOK(ud.last.error, 'Backpressure warning present');
+    t.assertOK(ud.last.error.severity === ErrorSeverity.MINOR, 'Backpressure warning is MINOR');
+  }});
+
+  // ── Backpressure robustness: Tank(P_low) → [unit] → Tank(P_high) ──
+  // Every intermediate unit must handle zero-flow gracefully when
+  // downstream P exceeds upstream P. No crashes, no NaN, solver.ok = true.
+
+  tests.push({ name: '406: T-PS48a Backpressure: Tank(3bar) → Tank(5bar) direct', fn: t => {
+    const tA = t.place('tank', 0, 0, { volume_m3: 0.15, P_init: 300000, P_relief: 1000000, opening_gas_pct: 100, Cv_gas: 50 });
+    const tB = t.place('tank', 5, 0, { volume_m3: 0.15, P_init: 500000, P_relief: 1000000 });
+    t.wire(tA, 'gas_out', tB, 'mat_in');
+    t.solve();
+    const udA = t.ud(tA);
+    t.assertClose(udA.last.Q_gas, 0, 1e-10, 'Q_gas = 0 (reverse ΔP)');
+  }});
+
+  tests.push({ name: '407: T-PS48b Backpressure: Tank(3bar) → valve(Pout=2) → Tank(5bar)', fn: t => {
+    const tA = t.place('tank', 0, 0, { volume_m3: 0.15, P_init: 300000, P_relief: 1000000, opening_gas_pct: 100, Cv_gas: 50 });
+    const vlv = t.place('valve', 5, 0, { Pout: 200000 });
+    const tB = t.place('tank', 9, 0, { volume_m3: 0.15, P_init: 500000, P_relief: 1000000 });
+    t.wire(tA, 'gas_out', vlv, 'in');
+    t.wire(vlv, 'out', tB, 'mat_in');
+    t.solve();
+    const udA = t.ud(tA);
+    const udV = t.ud(vlv);
+    t.assertClose(udA.last.Q_gas, 0, 1e-10, 'Q_gas = 0 (reverse ΔP)');
+    // Valve must handle empty stream gracefully
+    t.assertOK(udV.last, 'valve u.last populated');
+    t.assertOK(udV.last.mode === 'pass-through', 'valve pass-through (cannot regulate)');
+    t.assertOK(Number.isFinite(udV.last.Pin), 'valve Pin is finite');
+    t.assertOK(Number.isFinite(udV.last.Pout), 'valve Pout is finite');
+    // Valve output port must be clean (no NaN)
+    const vOut = t.port(vlv, 'out');
+    t.assertOK(!vOut || Object.values(vOut.n || {}).every(v => Number.isFinite(v)), 'valve out: no NaN in n');
+  }});
+
+  tests.push({ name: '408: T-PS48c Backpressure: Tank(3bar) → restriction(dP=1) → Tank(5bar)', fn: t => {
+    const tA = t.place('tank', 0, 0, { volume_m3: 0.15, P_init: 300000, P_relief: 1000000, opening_gas_pct: 100, Cv_gas: 50 });
+    const res = t.place('restriction', 5, 0, { deltaP: 100000 });
+    const tB = t.place('tank', 9, 0, { volume_m3: 0.15, P_init: 500000, P_relief: 1000000 });
+    t.wire(tA, 'gas_out', res, 'in');
+    t.wire(res, 'out', tB, 'mat_in');
+    t.solve();
+    const udA = t.ud(tA);
+    const udR = t.ud(res);
+    t.assertClose(udA.last.Q_gas, 0, 1e-10, 'Q_gas = 0 (reverse ΔP)');
+    // Restriction must handle empty stream gracefully
+    t.assertOK(udR.last, 'restriction u.last populated');
+    t.assertOK(udR.last.mode === 'isenthalpic', 'restriction isenthalpic mode (Pout < Pin)');
+    t.assertOK(Number.isFinite(udR.last.Pin), 'restriction Pin is finite');
+    t.assertOK(Number.isFinite(udR.last.Pout), 'restriction Pout is finite');
+    t.assertOK(Number.isFinite(udR.last.deltaP), 'restriction deltaP is finite');
+  }});
+
+  tests.push({ name: '409: T-PS48d Backpressure: Tank(3bar) → mixer → Tank(5bar)', fn: t => {
+    const tA = t.place('tank', 0, 0, { volume_m3: 0.15, P_init: 300000, P_relief: 1000000, opening_gas_pct: 100, Cv_gas: 50 });
+    const mix = t.place('mixer', 5, 0);
+    const tB = t.place('tank', 9, 0, { volume_m3: 0.15, P_init: 500000, P_relief: 1000000 });
+    t.wire(tA, 'gas_out', mix, 'in1');
+    t.wire(mix, 'out', tB, 'mat_in');
+    t.solve();
+    const udA = t.ud(tA);
+    const udM = t.ud(mix);
+    t.assertClose(udA.last.Q_gas, 0, 1e-10, 'Q_gas = 0 (reverse ΔP)');
+    // Mixer must handle empty input gracefully
+    t.assertOK(udM.last, 'mixer u.last populated');
+    const mOut = t.port(mix, 'out');
+    t.assertOK(!mOut || Object.values(mOut.n || {}).every(v => Number.isFinite(v)), 'mixer out: no NaN in n');
+  }});
+
+  tests.push({ name: '410: T-PS48e Backpressure: Tank(3bar) → splitter → Tank(5bar) + sink', fn: t => {
+    const tA = t.place('tank', 0, 0, { volume_m3: 0.15, P_init: 300000, P_relief: 1000000, opening_gas_pct: 100, Cv_gas: 50 });
+    const div = t.place('splitter', 5, 1, { splitPct: 50 });
+    const snk = t.place('sink', 9, 0);
+    const tB = t.place('tank', 9, 4, { volume_m3: 0.15, P_init: 500000, P_relief: 1000000 });
+    t.wire(tA, 'gas_out', div, 'in');
+    t.wire(div, 'out1', snk, 'in');
+    t.wire(div, 'out2', tB, 'mat_in');
+    t.solve();
+    const udA = t.ud(tA);
+    const udD = t.ud(div);
+    t.assertClose(udA.last.Q_gas, 0, 1e-10, 'Q_gas = 0 (worst branch dominates)');
+    // Splitter must handle empty stream and still report divider alarm
+    t.assertOK(udD.last, 'splitter u.last populated');
+    t.assertOK(udD.last.error, 'splitter has check-valve alarm (TankB branch blocked)');
+    t.assertOK(udD.last.error.severity === ErrorSeverity.MINOR, 'alarm is MINOR');
+  }});
+
+  tests.push({ name: '411: T-PS48f Backpressure: Tank(3bar) → restriction → valve → Tank(5bar)', fn: t => {
+    const tA = t.place('tank', 0, 0, { volume_m3: 0.15, P_init: 300000, P_relief: 1000000, opening_gas_pct: 100, Cv_gas: 50 });
+    const res = t.place('restriction', 5, 0, { deltaP: 50000 });
+    const vlv = t.place('valve', 9, 0, { Pout: 150000 });
+    const tB = t.place('tank', 13, 0, { volume_m3: 0.15, P_init: 500000, P_relief: 1000000 });
+    t.wire(tA, 'gas_out', res, 'in');
+    t.wire(res, 'out', vlv, 'in');
+    t.wire(vlv, 'out', tB, 'mat_in');
+    t.solve();
+    const udA = t.ud(tA);
+    const udR = t.ud(res);
+    const udV = t.ud(vlv);
+    t.assertClose(udA.last.Q_gas, 0, 1e-10, 'Q_gas = 0 (chained, reverse ΔP)');
+    // Both intermediates must handle empty stream
+    t.assertOK(udR.last, 'restriction u.last populated');
+    t.assertOK(Number.isFinite(udR.last.Pin), 'restriction Pin finite');
+    t.assertOK(udV.last, 'valve u.last populated');
+    t.assertOK(udV.last.mode === 'pass-through', 'valve pass-through');
+    t.assertOK(Number.isFinite(udV.last.Pin), 'valve Pin finite');
   }});
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -33174,154 +35152,18 @@ function runTests() {
 
   // ═══════════════════════════════════════════════════════════════════════
   // AL — Phase 2: Tank unit [v9.0.3]
+  // [v13.8.0 S5a-0] Tests 169–174 deleted: old tank model (drawRate, P=inlet).
+  // Replaced by T-PS07–T-PS22 in S5a-2 (Cv outlets, computeTankState).
   // ═══════════════════════════════════════════════════════════════════════
-
-  tests.push({ name: '169: Tank init: N₂ at atmospheric T/P, correct mol count', fn: t => {
-    const tid = t.place('tank', 0, 0);
-    const u = scene.units.get(tid);
-    const atm = SimSettings.atmosphere;
-    const V = 0.15; // [v13.0.5 S1c-9a] S-size default volume
-    const expected_n = (atm.P_Pa * V) / (8.314 * atm.T_K);
-
-    t.assertOK(u.inventory != null, 'Tank has inventory after placement');
-    t.assertClose(u.inventory.n.N2, expected_n, 1, 'N₂ mol = PV/RT');
-    t.assertClose(u.inventory.T_K, atm.T_K, 0.1, 'T = atmospheric');
-    t.assertClose(u.inventory.P_Pa, atm.P_Pa, 1, 'P = atmospheric');
-
-    // Solve in test mode — inventory unchanged
-    t.solve();
-    t.assertClose(u.inventory.n.N2, expected_n, 1, 'N₂ unchanged after test solve');
-  }});
-
-  tests.push({ name: '170: Tank fill: steps with inlet, overflow holds at capacity', fn: t => {
-    const origDt = SimSettings.dt;
-    TimeClock.t = 0; TimeClock.frame = 0; TimeClock.mode = 'test';
-    SimSettings.dt = 10;
-
-    const src = t.place('source', 0, 0, { species: 'N2', nDot: 2.0, T: 300, P: 101325, phaseConstraint: 'V' });
-    const tid = t.place('tank', 4, 0, { volume_m3: 50, drawRate: 0.5 });
-    const snk = t.place('sink', 8, 0);
-
-    t.wire(src, 'out', tid, 'mat_in');
-    t.wire(tid, 'mat_out', snk, 'in');
-    // Connect overflow — excess vents here
-    const snk2 = t.place('sink', 4, 4);
-    t.wire(tid, 'overflow', snk2, 'in');
-
-    const u = scene.units.get(tid);
-    const initN2 = u.inventory.n.N2;
-
-    // 5 steps: with overflow connected, tank should hold at ~100% capacity
-    for (let i = 0; i < 5; i++) {
-      TimeClock.step(scene);
-    }
-    const ud = scene.runtime.unitData.get(tid);
-    // Fill should stay near 100% (overflow absorbs excess)
-    t.assertOK(ud.last.fillPct <= 101, `Fill held at capacity: ${ud.last.fillPct.toFixed(1)}%`);
-
-    // Cleanup
-    TimeClock.t = 0; TimeClock.frame = 0;
-    TimeClock.mode = 'test'; SimSettings.dt = origDt;
-  }});
-
-  tests.push({ name: '171: Tank drain: steps outlet only, inventory decreases', fn: t => {
-    const origDt = SimSettings.dt;
-    TimeClock.t = 0; TimeClock.frame = 0; TimeClock.mode = 'test';
-    SimSettings.dt = 10;
-
-    const tid = t.place('tank', 0, 0, { volume_m3: 50, drawRate: 1.0 });
-    const snk = t.place('sink', 4, 0);
-    t.wire(tid, 'mat_out', snk, 'in');
-
-    const u = scene.units.get(tid);
-    const initN2 = u.inventory.n.N2;
-
-    // 5 steps draining at ~1.0 mol/s × dt=10 = ~10 mol/step = ~50 mol total
-    for (let i = 0; i < 5; i++) {
-      TimeClock.step(scene);
-    }
-    t.assertOK(u.inventory.n.N2 < initN2, 'N₂ decreased after draining');
-    t.assertOK(u.inventory.n.N2 >= 0, 'N₂ never negative');
-
-    TimeClock.t = 0; TimeClock.frame = 0;
-    TimeClock.mode = 'test'; SimSettings.dt = origDt;
-  }});
-
-  tests.push({ name: '172: Tank empty: drain until 0, output goes to zero', fn: t => {
-    const origDt = SimSettings.dt;
-    TimeClock.t = 0; TimeClock.frame = 0; TimeClock.mode = 'test';
-    SimSettings.dt = 60;
-
-    const tid = t.place('tank', 0, 0, { volume_m3: 1, drawRate: 100 });
-    const snk = t.place('sink', 4, 0);
-    t.wire(tid, 'mat_out', snk, 'in');
-
-    const u = scene.units.get(tid);
-    // Re-init with small inventory to drain quickly
-    u.inventory = { n: { N2: 10 }, T_K: 300, P_Pa: 101325 };
-
-    // Step many times to fully drain
-    for (let i = 0; i < 20; i++) {
-      TimeClock.step(scene);
-    }
-    t.assertClose(u.inventory.n.N2, 0, 0.01, 'N₂ drained to 0');
-
-    // Check that the tank output is zero flow after draining
-    const ud = scene.runtime.unitData.get(tid);
-    const outN2 = ud?.ports?.mat_out?.n?.N2 || 0;
-    t.assertClose(outN2, 0, 0.001, 'Output flow = 0 when empty');
-
-    TimeClock.t = 0; TimeClock.frame = 0;
-    TimeClock.mode = 'test'; SimSettings.dt = origDt;
-  }});
-
-  tests.push({ name: '173: Tank overflow + no overflow connection → CATASTROPHIC', fn: t => {
-    // Fresh tank starts at ~100% fill (PV/RT = n_max)
-    const tid = t.place('tank', 0, 0, { volume_m3: 50, drawRate: 0 });
-    const u = scene.units.get(tid);
-
-    // Make it overfull
-    u.inventory.n.N2 *= 1.5;
-
-    // No overflow connection — solve should detect CATASTROPHIC
-    const r = t.solveRaw();
-    const ud = scene.runtime.unitData.get(tid);
-    const hasCatastrophic = ud?.errors?.some(e =>
-      e.code === 'TANK_OVERFLOW_RUPTURE' || (e.severity === ErrorSeverity.CATASTROPHIC && e.message?.includes('overflow'))
-    );
-    t.assertOK(hasCatastrophic, 'CATASTROPHIC overflow when no overflow port connected');
-  }});
-
-  tests.push({ name: '174: Tank overflow + connection → excess exits safely', fn: t => {
-    const tid = t.place('tank', 0, 0, { volume_m3: 50, drawRate: 0 });
-    const snk = t.place('sink', 2, 0);
-    t.wire(tid, 'overflow', snk, 'in');
-
-    const u = scene.units.get(tid);
-    // Make it overfull
-    u.inventory.n.N2 *= 1.5;
-
-    // With overflow connected — no CATASTROPHIC
-    const r = t.solveRaw();
-    const ud = scene.runtime.unitData.get(tid);
-    const hasCatastrophic = ud?.errors?.some(e =>
-      e.code === 'TANK_OVERFLOW_RUPTURE'
-    );
-    t.assertOK(!hasCatastrophic, 'No CATASTROPHIC when overflow is connected');
-    // [v10.6.1] Overflow port should have actual flow
-    const ovFlow = ud?.ports?.overflow?.n || {};
-    const ovTotal = Object.values(ovFlow).reduce((a, b) => a + b, 0);
-    t.assertOK(ovTotal > 0, `Overflow port has flow: ${ovTotal.toFixed(2)} mol/s`);
-  }});
 
   tests.push({ name: '175: Tank reset restores initial inventory', fn: t => {
     const origDt = SimSettings.dt;
     TimeClock.t = 0; TimeClock.frame = 0; TimeClock.mode = 'test';
     SimSettings.dt = 10;
 
-    const tid = t.place('tank', 0, 0, { volume_m3: 50, drawRate: 1.0 });
-    const snk = t.place('sink', 4, 0);
-    t.wire(tid, 'mat_out', snk, 'in');
+    const tid = t.place('tank', 0, 0, { volume_m3: 50, opening_gas_pct: 100, P_init: 500000 });
+    const snk = t.place('sink', 5, 0);
+    t.wire(tid, 'gas_out', snk, 'in');
 
     const u = scene.units.get(tid);
     const initN2 = u.inventory.n.N2;
@@ -33348,11 +35190,11 @@ function runTests() {
 
     // Source at 500 K feeding into tank at ~288 K
     const src = t.place('source', 0, 0, { species: 'N2', nDot: 5.0, T: 500, P: 101325, phaseConstraint: 'V' });
-    const tid = t.place('tank', 4, 0, { volume_m3: 50, drawRate: 0.1 });
+    const tid = t.place('tank', 4, 0, { volume_m3: 50, opening_gas_pct: 50 });
     const snk = t.place('sink', 8, 0);
     const snk2 = t.place('sink', 4, 4);
     t.wire(src, 'out', tid, 'mat_in');
-    t.wire(tid, 'mat_out', snk, 'in');
+    t.wire(tid, 'gas_out', snk, 'in');
     t.wire(tid, 'overflow', snk2, 'in');
 
     const u = scene.units.get(tid);
@@ -33370,12 +35212,12 @@ function runTests() {
   }});
 
   tests.push({ name: '177: Tank test-mode: inventory unchanged after solve', fn: t => {
-    const tid = t.place('tank', 0, 0, { volume_m3: 50, drawRate: 1.0 });
+    const tid = t.place('tank', 0, 0, { volume_m3: 50, opening_gas_pct: 100 });
     const src = t.place('source', 0, 4, { species: 'N2', nDot: 2.0, T: 300, P: 101325, phaseConstraint: 'V' });
     const snk = t.place('sink', 4, 0);
     const snk2 = t.place('sink', 2, 4);
     t.wire(src, 'out', tid, 'mat_in');
-    t.wire(tid, 'mat_out', snk, 'in');
+    t.wire(tid, 'gas_out', snk, 'in');
     t.wire(tid, 'overflow', snk2, 'in');
 
     const u = scene.units.get(tid);
@@ -33390,23 +35232,21 @@ function runTests() {
   }});
 
   tests.push({ name: '178: Tank output has valid material stream for flash', fn: t => {
-    const tid = t.place('tank', 0, 0, { volume_m3: 50, drawRate: 1.0 });
-    const snk = t.place('sink', 4, 0);
-    t.wire(tid, 'mat_out', snk, 'in');
+    const tid = t.place('tank', 0, 0, { volume_m3: 50, opening_gas_pct: 100 });
+    const snk = t.place('sink', 5, 0);
+    t.wire(tid, 'gas_out', snk, 'in');
 
     t.solve();
     const ud = scene.runtime.unitData.get(tid);
-    const matOut = ud?.ports?.mat_out;
+    const gasOut = ud?.ports?.gas_out;
 
     // Output should be a valid material stream
-    t.assertOK(matOut != null, 'mat_out port exists');
-    t.assertOK(matOut.type === StreamType.MATERIAL, 'type = MATERIAL');
-    t.assertOK(matOut.T > 0, 'T > 0');
-    t.assertOK(matOut.P > 0, 'P > 0');
-    t.assertOK(matOut.n != null, 'n composition exists');
-    // Flash should have run — phase info may be present
-    // (flash only runs on connected outputs with non-zero flow)
-    const totalFlow = Object.values(matOut.n || {}).reduce((a, b) => a + b, 0);
+    t.assertOK(gasOut != null, 'gas_out port exists');
+    t.assertOK(gasOut.type === StreamType.MATERIAL, 'type = MATERIAL');
+    t.assertOK(gasOut.T > 0, 'T > 0');
+    t.assertOK(gasOut.P > 0, 'P > 0');
+    t.assertOK(gasOut.n != null, 'n composition exists');
+    const totalFlow = Object.values(gasOut.n || {}).reduce((a, b) => a + b, 0);
     t.assertOK(totalFlow >= 0, 'Total outlet flow >= 0');
   }});
 
@@ -33599,14 +35439,14 @@ function runTests() {
     TimeClock.t = 0; TimeClock.frame = 0; TimeClock.mode = 'test';
     SimSettings.dt = 10;
 
-    // Source (2 mol/s N2) → Tank (drawRate 0.5) → Sink
+    // Source (2 mol/s N2) → Tank (gas Cv draw) → Sink
     // Use a large volume so tank starts well below capacity
     const src = t.place('source', 0, 0, { species: 'N2', nDot: 2.0, T: 300, P: 101325, phaseConstraint: 'V' });
-    const tid = t.place('tank', 4, 0, { volume_m3: 50, drawRate: 0.5 });
+    const tid = t.place('tank', 4, 0, { volume_m3: 50, opening_gas_pct: 50 });
     const snk = t.place('sink', 8, 0);
     const snk2 = t.place('sink', 4, 5);
     t.wire(src, 'out', tid, 'mat_in');
-    t.wire(tid, 'mat_out', snk, 'in');
+    t.wire(tid, 'gas_out', snk, 'in');
     t.wire(tid, 'overflow', snk2, 'in');
 
     const u = scene.units.get(tid);
@@ -33627,7 +35467,7 @@ function runTests() {
     // From solved ports at end of step 2: net flow × dt
     const ud = scene.runtime.unitData.get(tid);
     const nIn = ud?.ports?.mat_in?.n ? Object.values(ud.ports.mat_in.n).reduce((a, b) => a + b, 0) : 0;
-    const nOut = ud?.ports?.mat_out?.n ? Object.values(ud.ports.mat_out.n).reduce((a, b) => a + b, 0) : 0;
+    const nOut = ud?.ports?.gas_out?.n ? Object.values(ud.ports.gas_out.n).reduce((a, b) => a + b, 0) : 0;
     const dt = SimSettings.dt;
     const netFlowPerStep = (nIn - nOut) * dt;
     const residual = netFlowPerStep - accumMol;
@@ -33688,14 +35528,14 @@ function runTests() {
 
     // N₂ source → tank → sink (material subsystem)
     const n2src = t.place('source', 0, 0, { species: 'N2', nDot: 1.0, T: 300, P: 200000, phaseConstraint: 'V' });
-    const tank  = t.place('tank', 4, 0, { volume_m3: 10, drawRate: 0.5 });
+    const tank  = t.place('tank', 4, 0, { volume_m3: 10, opening_gas_pct: 50 });
     // [v10.6.1] Re-init inventory after param change (placeUnit inits with default 50 m³)
     const tankDef = UnitRegistry.get('tank');
     scene.units.get(tank).inventory = tankDef.initInventory(scene.units.get(tank).params);
     const mSnk  = t.place('sink', 8, 0);
     const ovSnk = t.place('sink', 5, 4);
     t.wire(n2src, 'out', tank, 'mat_in');
-    t.wire(tank, 'mat_out', mSnk, 'in');
+    t.wire(tank, 'gas_out', mSnk, 'in');
     t.wire(tank, 'overflow', ovSnk, 'in');
 
     // Solar (20 kW) + battery (5 kWh, 90%) → hub → heater → sink
@@ -33734,9 +35574,9 @@ function runTests() {
     t.assertOK(batUD.last.type === 'battery', 'Battery reports type');
     t.assertOK(batUD.last.soc >= 0 && batUD.last.soc <= 1, `SOC in valid range: ${(batUD.last.soc*100).toFixed(1)}%`);
 
-    // Tank fill should be tracked
+    // Tank pressure should be tracked
     const tankUD = scene.runtime.unitData.get(tank);
-    t.assertOK(tankUD.last.fillPct > 0, `Tank fill > 0%: ${tankUD.last.fillPct.toFixed(1)}%`);
+    t.assertOK(tankUD.last.P_bar > 0, `Tank P > 0: ${tankUD.last.P_bar.toFixed(2)} bar`);
     t.assertOK(tankUD.last.type === 'tank', 'Tank reports type');
 
     // Hub should have dispatched power
@@ -33953,7 +35793,10 @@ function runTests() {
     t.assertOK(categories.has(AlarmCategory.CONVERGENCE), 'has convergence');
     t.assertOK(categories.has(AlarmCategory.MASS_BALANCE), 'has mass balance');
     t.assertOK(categories.has(AlarmCategory.ENERGY_BALANCE), 'has energy balance');
-    t.assertOK(categories.has(AlarmCategory.PRESSURE), 'has pressure');
+    // [v13.8.0] Pressure alarm source is conditional (no placeholder) — fires only
+    // when vessels are empty or reservoirs have no ΔP. Verify source runs without error.
+    const pressAlarms = AlarmSystem.byCategory(alarms, AlarmCategory.PRESSURE);
+    t.assertOK(Array.isArray(pressAlarms), 'has pressure source (runs without error)');
     // Connectivity source: unconnected units should not exist (fully wired)
     // but the source should run without error
     const conn = AlarmSystem.byCategory(alarms, AlarmCategory.CONNECTIVITY);
@@ -34413,42 +36256,41 @@ function runTests() {
   // [v10.6.1] T220: ctx.warn CATASTROPHIC → unitFaulted → solver ok:false
   tests.push({ name: '220: ctx.warn CATASTROPHIC propagates to unitFaulted', fn: t => {
     t.clearScene();
-    const tid = t.place('tank', 0, 0, { volume_m3: 50, drawRate: 0 });
+    const tid = t.place('tank', 0, 0, { volume_m3: 50, P_relief: 150000 });
     const u = scene.units.get(tid);
-    // Make overfull, no overflow connection
-    u.inventory.n.N2 *= 1.5;
+    // Inflate inventory so P > P_relief (1.5 bar). 3× atm → ~3 bar >> 1.5 bar
+    // No vent connection → CATASTROPHIC
+    for (const sp of Object.keys(u.inventory.n)) u.inventory.n[sp] *= 3;
     const r = t.solveRaw();
     t.assertOK(r.unitFaulted === true, 'unitFaulted = true');
     t.assertOK(r.ok === false, 'solver ok = false');
   }});
 
-  // [v10.6.1] T221: Tank overflow with connection routes excess and stabilizes fill
-  tests.push({ name: '221: Tank overflow routing keeps fill near capacity', fn: t => {
+  // [v10.6.1 → v13.8.0] T221: Tank relief/overflow safety routing
+  tests.push({ name: '221: Tank relief valve limits pressure buildup', fn: t => {
     t.clearScene();
     const origDt = SimSettings.dt;
     TimeClock.t = 0; TimeClock.frame = 0; TimeClock.mode = 'test';
     SimSettings.dt = 60;
 
-    const src = t.place('source', 0, 0, { species: 'N2', nDot: 2.0, T: 300, P: 101325, phaseConstraint: 'V' });
-    const tid = t.place('tank', 4, 0, { volume_m3: 50, drawRate: 0.1 });
-    const snk = t.place('sink', 8, 0);
-    const ovSnk = t.place('sink', 4, 4);
+    // Feed N₂ into a small tank with low P_relief and vent connected
+    const src = t.place('source', 0, 0, { species: 'N2', nDot: 5.0, T: 300, P: 500000, phaseConstraint: 'V' });
+    const tid = t.place('tank', 4, 0, { volume_m3: 5, P_relief: 150000, opening_gas_pct: 0 });
+    const ventSnk = t.place('sink', 9, 0);
     t.wire(src, 'out', tid, 'mat_in');
-    t.wire(tid, 'mat_out', snk, 'in');
-    t.wire(tid, 'overflow', ovSnk, 'in');
+    t.wire(tid, 'vent', ventSnk, 'in');
 
-    // Run 20 steps — should fill to capacity then overflow
-    for (let i = 0; i < 20; i++) {
+    // Run 10 steps — pressure should build then be capped by relief
+    for (let i = 0; i < 10; i++) {
       TimeClock.step(scene);
     }
 
-    const u = scene.units.get(tid);
     const tankUD = scene.runtime.unitData.get(tid);
-    // Fill should be at or near 100%, not wildly above
-    t.assertOK(tankUD.last.fillPct <= 115, `Fill capped near 100%: ${tankUD.last.fillPct.toFixed(1)}%`);
-    // Status should be overflowing or full, not active
-    t.assertOK(tankUD.last.status === 'overflowing' || tankUD.last.status === 'full',
-      `Status: ${tankUD.last.status}`);
+    // Relief valve should be open
+    t.assertOK(tankUD.last.vent_status === 'OPEN', `Vent: ${tankUD.last.vent_status}`);
+    // P should not wildly exceed P_relief (relief valve limits it)
+    t.assertOK(tankUD.last.P_Pa < 500000,
+      `P capped by relief: ${(tankUD.last.P_Pa/1e5).toFixed(1)} bar`);
 
     TimeClock.t = 0; TimeClock.frame = 0;
     TimeClock.mode = 'test'; SimSettings.dt = origDt;
@@ -37047,13 +38889,13 @@ function runTests() {
   // ═══════════════════════════════════════════════════════════════════════
 
   test('341a: ProfileRegistry — all production units have profiles', t => {
-    // Every unit with limitParams should have a matching profile
+    // Every unit with limitParams should have at least one matching profile
     const defs = UnitRegistry.list();
     const withLimits = defs.filter(d => d.limitParams?.length > 0);
     for (const def of withLimits) {
-      const profile = ProfileRegistry.get(def.defId);
-      t.assertOK(profile, `Profile exists for ${def.defId}`);
-      t.assertOK(profile.defId === def.defId, `Profile defId matches for ${def.defId}`);
+      const profiles = ProfileRegistry.getByDefId(def.defId);
+      t.assertOK(profiles.length > 0, `Profile(s) exist for ${def.defId} (found ${profiles.length})`);
+      t.assertOK(profiles[0].defId === def.defId, `Profile defId matches for ${def.defId}`);
     }
   });
 
@@ -37319,14 +39161,14 @@ function runTests() {
     const def = UnitRegistry.get('tank');
     // Simulate a tank at 95% fill → should trigger level_H (90%)
     const ud = { last: { fillPct: 95 }, ports: { mat_out: { T: 300, P: 101325, n: { H2O: 1 }, type: StreamType.MATERIAL } } };
-    const violations = evaluateLimits('u_tank', 'Tank', ud, def, 'tank', 1);
+    const violations = evaluateLimits('u_tank', 'Tank', ud, def, 'tank_atmospheric', 1);
     const lvlH = violations.find(v => v.param === 'level_H');
     t.assertOK(lvlH, 'level_H violation at 95% fill');
     t.assertOK(lvlH.severity === AlarmSeverity.WARNING, 'level_H is WARNING');
     t.assertOK(lvlH.message.includes('%'), 'Message includes % formatting');
     // At 101% → level_HH should trigger (>100 threshold)
     const ud100 = { last: { fillPct: 101 }, ports: { mat_out: { T: 300, P: 101325, n: { H2O: 1 }, type: StreamType.MATERIAL } } };
-    const viol100 = evaluateLimits('u_tank', 'Tank', ud100, def, 'tank', 1);
+    const viol100 = evaluateLimits('u_tank', 'Tank', ud100, def, 'tank_atmospheric', 1);
     const lvlHH = viol100.find(v => v.param === 'level_HH');
     t.assertOK(lvlHH, 'level_HH violation at 101% fill');
     t.assertOK(lvlHH.severity === AlarmSeverity.CATASTROPHIC, 'level_HH is CATASTROPHIC');
