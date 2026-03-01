@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v14.2.0
+  processThis v14.3.1
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -300,6 +300,45 @@
   ═══════════════════════════════════════════════════════════════════════════
   CHANGELOG
   ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v14.3.1 — Atmosphere Data Quality + NNG-10 Compliance ──────────────
+  475 tests, ~2600 assertions, 0 failures.
+
+  Mars composition fix: dry fractions summed to 0.9975, not 1.0.
+  CO₂ adjusted from 0.9532 → 0.9557 to absorb unmodeled trace gases
+  (CO ~0.06%, Ne, Kr).  Verified all 5 real-planet presets against
+  NASA/ESA/Huygens reference data — all now sum to exactly 1.0.
+
+  NNG-10 compliance: removed _antoineH2O_Psat() which duplicated
+  Antoine range selection already in ThermoAdapter.  getWetAir() now
+  routes through thermo.saturationPressure('H2O', T_K).  getDewPoint()
+  routes through thermo._findSaturationTemperature('H2O', P_H2O).
+  All thermo calcs go through ThermoAdapter — no ad-hoc Antoine calls.
+
+  NNG: NNG-10 (all thermo through ThermoAdapter), NNG-1 (fractions
+  sum to 1.0), NNG-14 (T-TF05/TF06 updated for corrected Mars data).
+
+  ─── v14.3.0 — S-TERRAFORM Phase 1: Atmospheric Display ─────────────────
+  475 tests, ~2600 assertions, 0 failures.
+
+  Phase 1 of PTIS_S_TERRAFORM_SPEC.  Display-only changes — no new physics,
+  no architectural changes.  Pure reads from SimSettings.getAtmosphere().
+
+  §1.1  Hardcoded 101325 defaults — already fixed in prior versions.
+        gas_turbine, valve read SimSettings.  source_multi T/P already
+        from SimSettings; composition intentionally unchanged (custom feed,
+        not atmospheric source).  No code change.  Tests confirm compliance.
+
+  §1.2  RH added to atmosphere presets (Planet X 50%, Earth 60%, others 0%).
+        getWetAir(): Psat-based wet air displacement of dry fractions.
+        getDewPoint(): inverse saturation, returns K or null.
+        source_air tick NOT changed yet — wet air deferred to avoid
+        cascading test impact ("flip the switch" in future session).
+
+  NNG: NNG-1 (wet fractions sum to 1.0), NNG-8 (Pa, K, mol fractions),
+       NNG-9 (SimSettings reads only, no tick coupling), NNG-10 (Antoine
+       from ComponentRegistry), NNG-11 (helpers are DOM-free core),
+       NNG-14 (7 new tests).
 
   ─── v14.2.0 — S5b Phase 1: Convergence Tolerance 1 ppm → 100 ppm ─────────
   468 tests, 2564 assertions, 0 failures.
@@ -7262,17 +7301,17 @@ const SimSettings = {
   _customValues: { T_K: 288.15, P_Pa: 101325, air: { N2: 0.7809, O2: 0.2095, Ar: 0.0093, CO2: 0.0003, CH4: 0 } },
 
   atmospherePresets: {
-    earth_isa: { name: 'Earth (ISA)', T_K: 288.15, P_Pa: 101325,
+    earth_isa: { name: 'Earth (ISA)', T_K: 288.15, P_Pa: 101325, RH: 0.60,
       air: { N2: 0.7809, O2: 0.2095, Ar: 0.0093, CO2: 0.0003 } },
-    mars: { name: 'Mars', T_K: 210, P_Pa: 636,
-      air: { CO2: 0.9532, N2: 0.027, Ar: 0.016, O2: 0.0013 } },
-    titan: { name: 'Titan', T_K: 94, P_Pa: 146700,
+    mars: { name: 'Mars', T_K: 210, P_Pa: 636, RH: 0,
+      air: { CO2: 0.9557, N2: 0.027, Ar: 0.016, O2: 0.0013 } },
+    titan: { name: 'Titan', T_K: 94, P_Pa: 146700, RH: 0,
       air: { N2: 0.95, CH4: 0.05 } },
-    venus: { name: 'Venus (surface)', T_K: 737, P_Pa: 9200000,
+    venus: { name: 'Venus (surface)', T_K: 737, P_Pa: 9200000, RH: 0,
       air: { CO2: 0.965, N2: 0.035 } },
-    planet_x: { name: 'Planet X', T_K: 305.15, P_Pa: 89660,
+    planet_x: { name: 'Planet X', T_K: 305.15, P_Pa: 89660, RH: 0.50,
       air: { N2: 0.70, O2: 0.21, CO2: 0.08, Ar: 0.01 } },
-    custom: { name: 'Custom', T_K: 288.15, P_Pa: 101325,
+    custom: { name: 'Custom', T_K: 288.15, P_Pa: 101325, RH: 0,
       air: { N2: 0.7809, O2: 0.2095, Ar: 0.0093, CO2: 0.0003, CH4: 0 } }
   },
 
@@ -7291,6 +7330,7 @@ const SimSettings = {
     SimSettings.atmosphere = Object.freeze({
       T_K: src.T_K,
       P_Pa: src.P_Pa,
+      RH: src.RH ?? 0,       // [v14.3.0] relative humidity (0–1)
       air: airCopy,
       presetName: (key === 'custom') ? 'Custom' : src.name
     });
@@ -7322,7 +7362,47 @@ const SimSettings = {
   getAtmosphere() { return SimSettings.atmosphere; },
 
   /** Get active preset key */
-  getPresetKey() { return SimSettings._activePreset; }
+  getPresetKey() { return SimSettings._activePreset; },
+
+  // ── [v14.3.0] Wet air composition (displaces dry fractions by H₂O vapor) ──
+  // All thermo calcs route through ThermoAdapter (NNG-10).  getWetAir/getDewPoint
+  // are called lazily — `thermo` is guaranteed to exist by then.
+
+  /** Get wet air composition (dry fractions displaced by H₂O vapor).
+   *  Returns plain object { species: fraction }.  Fractions sum to 1.0.
+   *  If RH ≤ 0 or H₂O not registered, returns a copy of dry air. */
+  getWetAir() {
+    const atm = SimSettings.atmosphere;
+    const RH = atm.RH ?? 0;
+    if (RH <= 0 || !ComponentRegistry.exists('H2O')) return { ...atm.air };
+
+    const Psat = thermo.saturationPressure('H2O', atm.T_K);  // NNG-10
+    if (!Psat || Psat <= 0) return { ...atm.air };
+
+    // Mole fraction of water vapor (capped at saturation)
+    const x_w = Math.min(RH * Psat / atm.P_Pa, Psat / atm.P_Pa);
+    if (x_w <= 0) return { ...atm.air };
+
+    const wet = {};
+    for (const [sp, frac] of Object.entries(atm.air)) {
+      wet[sp] = frac * (1 - x_w);
+    }
+    wet.H2O = x_w;
+    return wet;
+  },
+
+  /** Get dew point temperature (K) from wet composition.
+   *  Returns null if no H₂O in wet air.  Inverse Antoine via ThermoAdapter. */
+  getDewPoint() {
+    const atm = SimSettings.atmosphere;
+    const wet = SimSettings.getWetAir();
+    const x_H2O = wet.H2O || 0;
+    if (x_H2O <= 0) return null;
+
+    // Partial pressure of H₂O → find Tsat via ThermoAdapter (NNG-10)
+    const P_H2O_Pa = x_H2O * atm.P_Pa;
+    return thermo._findSaturationTemperature('H2O', P_H2O_Pa);
+  }
 };
 
 // Initialize default atmosphere
@@ -34975,6 +35055,102 @@ function runTests() {
       t.assertOK(airOut.n[pc.majorSp] >= pc.minFrac, `${pc.key}: air major species`);
     }
 
+    SimSettings.setAtmosphere(origPreset);
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // AJ+ — S-TERRAFORM Phase 1: Atmospheric display helpers [v14.3.0]
+  // ═══════════════════════════════════════════════════════════════════════
+
+  test('T-TF01: gas_turbine default Pout matches atmosphere', t => {
+    const origPreset = SimSettings.getPresetKey();
+    SimSettings.setAtmosphere('planet_x');
+    t.clearScene();
+    const id = scene.placeUnit('gas_turbine', 0, 0);
+    const u = scene.units.get(id);
+    t.assertClose(u.params.Pout, SimSettings.atmosphere.P_Pa, 1,
+      'gas_turbine Pout = Planet X P_Pa');
+    // Restore
+    SimSettings.setAtmosphere(origPreset);
+  });
+
+  test('T-TF02: valve default Pout matches atmosphere', t => {
+    const origPreset = SimSettings.getPresetKey();
+    SimSettings.setAtmosphere('planet_x');
+    t.clearScene();
+    const id = scene.placeUnit('valve', 0, 0);
+    const u = scene.units.get(id);
+    t.assertClose(u.params.Pout, SimSettings.atmosphere.P_Pa, 1,
+      'valve Pout = Planet X P_Pa');
+    // Restore
+    SimSettings.setAtmosphere(origPreset);
+  });
+
+  test('T-TF03: source_multi default T, P from atmosphere', t => {
+    const origPreset = SimSettings.getPresetKey();
+    SimSettings.setAtmosphere('planet_x');
+    t.clearScene();
+    const id = scene.placeUnit('source_multi', 0, 0);
+    const u = scene.units.get(id);
+    t.assertClose(u.params.T, SimSettings.atmosphere.T_K, 0.01,
+      'source_multi T = Planet X T_K');
+    t.assertClose(u.params.P, SimSettings.atmosphere.P_Pa, 1,
+      'source_multi P = Planet X P_Pa');
+    // Restore
+    SimSettings.setAtmosphere(origPreset);
+  });
+
+  test('T-TF04: getWetAir on Planet X includes H₂O ~2.6%', t => {
+    const origPreset = SimSettings.getPresetKey();
+    SimSettings.setAtmosphere('planet_x');
+    const wet = SimSettings.getWetAir();
+    t.assertOK(wet.H2O !== undefined && wet.H2O > 0, 'wet air has H₂O');
+    t.assertOK(wet.H2O > 0.02, 'H₂O > 2% on Planet X at 50% RH');
+    t.assertOK(wet.H2O < 0.04, 'H₂O < 4% on Planet X at 50% RH');
+    // Dry species should be displaced downward
+    t.assertOK(wet.N2 < 0.70, 'N₂ displaced below dry value');
+    t.assertOK(wet.N2 > 0.66, 'N₂ still dominant');
+    // Restore
+    SimSettings.setAtmosphere(origPreset);
+  });
+
+  test('T-TF05: getWetAir on Mars returns dry (no H₂O)', t => {
+    const origPreset = SimSettings.getPresetKey();
+    SimSettings.setAtmosphere('mars');
+    const wet = SimSettings.getWetAir();
+    t.assertOK(wet.H2O === undefined || wet.H2O === 0,
+      'Mars wet air has no H₂O (RH=0)');
+    t.assertClose(wet.CO2, 0.9557, 0.001, 'Mars CO₂ unchanged');
+    // Restore
+    SimSettings.setAtmosphere(origPreset);
+  });
+
+  test('T-TF06: wet fractions sum to 1.0', t => {
+    const origPreset = SimSettings.getPresetKey();
+    const presets = ['earth_isa', 'mars', 'titan', 'venus', 'planet_x'];
+    for (const pk of presets) {
+      SimSettings.setAtmosphere(pk);
+      const wet = SimSettings.getWetAir();
+      const sum = Object.values(wet).reduce((a, b) => a + b, 0);
+      t.assertClose(sum, 1.0, 1e-10, `${pk}: wet fractions sum to 1.0`);
+    }
+    // Restore
+    SimSettings.setAtmosphere(origPreset);
+  });
+
+  test('T-TF07: getDewPoint on Planet X ≈ 293 K', t => {
+    const origPreset = SimSettings.getPresetKey();
+    SimSettings.setAtmosphere('planet_x');
+    const dp = SimSettings.getDewPoint();
+    t.assertOK(dp !== null, 'Dew point exists for Planet X');
+    t.assertOK(Math.abs(dp - 293) < 3,
+      `Dew point ≈ 293 K (got ${dp ? dp.toFixed(1) : 'null'})`);
+
+    // Mars: no dew point (RH=0)
+    SimSettings.setAtmosphere('mars');
+    const dpMars = SimSettings.getDewPoint();
+    t.assertOK(dpMars === null, 'Mars has no dew point');
+    // Restore
     SimSettings.setAtmosphere(origPreset);
   });
 
