@@ -76,11 +76,18 @@
             zero-resistance path, insufficient ΔP — produces a visible
             alarm stating the cause.  The player always knows why a
             connection carries no flow.
-            Check-valve implementation: valve, mixer (per-inlet), and
-            gas_turbine detect backflow (P_downstream ≥ P_inlet) and
-            zero the affected flow with a PLANT/WARNING alarm.  Mixer
-            uses a 0.1 bar (10 kPa) threshold for inlet pressure
-            comparison.  Splitter deferred to full pressure network.
+            Passive devices (restriction, valve): when ΔP is insufficient,
+            device becomes a straight pipe (pass-through at P_in).  Mass
+            always conserved.  Alarm: "insufficient ΔP".
+            Active devices (gas_turbine, mixer): when check-valve fires,
+            a post-tick backward scan traces blocked inlets to their
+            originating boundary source through single-path chains.
+            Blocked sources are zeroed with alarm "Output blocked —
+            downstream path blocked at [unit]".  Multi-output units
+            (splitters) stop the backward trace — cannot zero a source
+            that also feeds an unblocked branch.  The blocking unit
+            retains its own check-valve alarm.  Both alarms are PLANT
+            domain so the alarm center provides full diagnosis.
 
     NNG-5   Power lifecycle.
             Power is the only demand-driven system.  Strict sequence:
@@ -14256,6 +14263,7 @@ UnitRegistry.register('gas_turbine', {
       u.last = {
         Pin: sIn.P, Pout_setpoint: Pout, Pout_actual: sIn.P,
         W_shaft: 0, W_elec: 0, W_isentropic: 0, eta: eta,
+        _blockedInlet: 'mat_in',
         error: {
           severity: ErrorSeverity.MINOR,
           message: `Check valve closed — outlet pressure ${(Pout/100000).toFixed(2)} bar ≥ inlet ${(sIn.P/100000).toFixed(2)} bar`
@@ -15648,14 +15656,17 @@ UnitRegistry.register('mixer', {
     // If ΔP > 0.1 bar (10 kPa), zero the weaker inlet to prevent backflow.
     const CHECK_VALVE_DP = 10000;  // 0.1 bar in Pa
     let checkValveMsg = null;
+    let blockedInlet = null;
     const p1 = (s1 && s1.P > 0) ? s1.P : 0;
     const p2 = (s2 && s2.P > 0) ? s2.P : 0;
     if (s1 && s2 && p1 > 0 && p2 > 0 && Math.abs(p1 - p2) > CHECK_VALVE_DP) {
       if (p1 < p2) {
         eff1 = EMPTY_STREAM;
+        blockedInlet = 'in1';
         checkValveMsg = `Check valve closed on in1 — pressure ${(p1/100000).toFixed(2)} bar vs in2 ${(p2/100000).toFixed(2)} bar`;
       } else {
         eff2 = EMPTY_STREAM;
+        blockedInlet = 'in2';
         checkValveMsg = `Check valve closed on in2 — pressure ${(p2/100000).toFixed(2)} bar vs in1 ${(p1/100000).toFixed(2)} bar`;
       }
     }
@@ -15727,6 +15738,7 @@ UnitRegistry.register('mixer', {
     // [v13.0.8] Check-valve alarm if an inlet was zeroed
     if (checkValveMsg) {
       u.last.error = { severity: ErrorSeverity.MINOR, message: checkValveMsg };
+      u.last._blockedInlet = blockedInlet;
     }
   }
 });
@@ -18522,6 +18534,7 @@ function solveScene(scene, options = {}) {
   runtimeCtx._outPortConn = _outPortConn;
 
   // Iterative successive substitution
+  const blockedSources = new Map();  // [v14.1.1] srcId → blockingName (persists across iterations)
   while (changed && iter < MAX_ITER) {
     changed = false;
     iter++;
@@ -18559,6 +18572,10 @@ function solveScene(scene, options = {}) {
       if (!def.tick) continue;
 
       const ud = scene.runtime.unitData.get(id);
+
+      // [v14.1.1] Skip blocked sources — output stays zeroed, alarm preserved
+      if (blockedSources.has(id)) continue;
+
       const inPorts = {};
 
       // Reset transient state before each tick
@@ -18854,6 +18871,88 @@ function solveScene(scene, options = {}) {
         // but don't crash.  Mark changed so the loop continues (other units
         // may still converge).
         changed = true;
+      }
+    }
+
+    // ── [v14.1.1] Check-valve backpressure propagation (NNG-4 post-pass) ──
+    // After all ticks: active devices (turbine, mixer) may have blocked an
+    // inlet via check-valve, destroying mass from upstream sources.  Walk
+    // backward through single-path chains to find and zero the originating
+    // boundary source.  Alarms on both source (blocked) and blocking unit
+    // (check-valve) give the player full diagnostic visibility.
+    //
+    // blockedSources (Map) persists across iterations to prevent oscillation:
+    // source emits → check-valve fires → post-pass zeros → source re-emits.
+    // Once blocked, a source stays blocked for the rest of the solve.
+    // Only new blocks trigger changed=true.
+    {
+      const blockedInlets = [];
+      for (const [_cvId, _cvU] of scene.units) {
+        const _cvUD = scene.runtime.unitData.get(_cvId);
+        if (!_cvUD?.last?._blockedInlet) continue;
+        const _cvName = _cvU.name || UnitRegistry.get(_cvU.defId)?.name || _cvId;
+        blockedInlets.push({ unitId: _cvId, portId: _cvUD.last._blockedInlet, blockingName: _cvName });
+      }
+
+      if (blockedInlets.length > 0) {
+        const traceBack = (startUnitId, startPortId, visited) => {
+          const conn = scene.connections.find(c => c.to.unitId === startUnitId && c.to.portId === startPortId);
+          if (!conn) return [];
+          const fId = conn.from.unitId;
+          if (visited.has(fId)) return [];
+          visited.add(fId);
+          const fU = scene.units.get(fId);
+          if (!fU) return [];
+          const fDef = UnitRegistry.get(fU.defId);
+          if (!fDef) return [];
+          const dirs = new Set(fDef.ports.map(p => p.dir));
+          if (dirs.size === 1 && dirs.has(PortDir.OUT)) return [fId];
+          if (fDef.inventory) return [];
+          const matOuts = fDef.ports.filter(p => p.dir === PortDir.OUT && p.type === StreamType.MATERIAL);
+          if (matOuts.length > 1) return [];
+          const matIns = fDef.ports.filter(p => p.dir === PortDir.IN && p.type === StreamType.MATERIAL);
+          const found = [];
+          for (const ip of matIns) found.push(...traceBack(fId, ip.portId, visited));
+          return found;
+        };
+
+        for (const bi of blockedInlets) {
+          const visited = new Set([bi.unitId]);
+          const sources = traceBack(bi.unitId, bi.portId, visited);
+          for (const srcId of sources) {
+            if (!blockedSources.has(srcId)) {
+              blockedSources.set(srcId, bi.blockingName);
+              changed = true;  // new block → re-iterate to propagate zeros
+            }
+          }
+        }
+      }
+
+      // Apply all blocked sources: zero outputs + emit alarms
+      for (const [srcId, blockingName] of blockedSources) {
+        const srcU = scene.units.get(srcId);
+        const srcDef = UnitRegistry.get(srcU.defId);
+        const srcUD = scene.runtime.unitData.get(srcId);
+        for (const sp of srcDef.ports) {
+          if (sp.dir === PortDir.OUT && sp.type === StreamType.MATERIAL) {
+            const prev = srcUD.ports[sp.portId];
+            srcUD.ports[sp.portId] = {
+              type: StreamType.MATERIAL,
+              T: prev?.T || 298.15, P: prev?.P || 101325,
+              n: {},
+              phase: 'V', beta: 1, vaporFraction: 1,
+              x: {}, y: {}, nV: {}, nL: {},
+              Hdot_J_s: 0
+            };
+          }
+        }
+        srcU.last = srcU.last || {};
+        srcU.last._backpressureBlocked = true;
+        srcU.last.error = {
+          severity: ErrorSeverity.MINOR,
+          message: `Output blocked — downstream path blocked at ${blockingName}`
+        };
+        srcUD.last = srcU.last;
       }
     }
 
@@ -40386,9 +40485,8 @@ function runTests() {
     t.assertOK(ptAlarm.domain === AlarmDomain.PLANT, 'Pass-through alarm is PLANT domain');
   });
 
-  test('351: v13.0.8 — check-valve: mixer zeroes low-P inlet', t => {
-    // Two sources at different pressures, ΔP > 0.1 bar → weaker inlet zeroed
-    // [fix] source reads par.species/par.nDot, not par.n
+  test('351: v13.0.8 — check-valve: mixer blocks low-P source via backpressure', t => {
+    // Two sources at different pressures, ΔP > 0.1 bar → weaker source blocked
     const src1 = t.place('source', 0, 0, { species: 'N2', nDot: 1, T: 300, P: 500000, phaseConstraint: 'V' });
     const src2 = t.place('source', 0, 3, { species: 'N2', nDot: 1, T: 300, P: 101325, phaseConstraint: 'V' });
     const mix  = t.place('mixer', 3, 0);
@@ -40397,11 +40495,16 @@ function runTests() {
     t.wire(src2, 'out', mix, 'in2');
     t.wire(mix, 'out', snk, 'in');
     t.solve();
-    const ud = t.unit(mix);
-    // Check valve should have closed on in2 (lower pressure)
-    t.assertOK(ud.last.error, 'Has check-valve error');
-    t.assertOK(ud.last.error.message.includes('Check valve closed on in2'),
-      `Message mentions in2: "${ud.last.error.message}"`);
+    // Source 2 should be blocked by backpressure propagation
+    const src2U = t.unit(src2);
+    t.assertOK(src2U.last._backpressureBlocked, 'Low-P source blocked by backpressure');
+    t.assertOK(src2U.last.error?.message?.includes('blocked'),
+      `Source alarm mentions blocked: "${src2U.last.error?.message}"`);
+    // Mixer output should only contain src1's flow (1 mol/s N2)
+    const mixUD = t.ud(mix);
+    const outN = mixUD.ports?.out?.n || {};
+    const nTotal = Object.values(outN).reduce((s, v) => s + v, 0);
+    t.assertClose(nTotal, 1.0, 0.01, 'Mixer output = src1 only (1 mol/s)');
   });
 
   test('352: v13.0.8 — tank level limits: L/H templates evaluate fillPct', t => {
