@@ -12945,16 +12945,18 @@ UnitRegistry.register('sink', {
     };
 
     // ── Outlet conditions (atmospheric expansion) ──
-    // Isenthalpic expansion to P_atm. Flash to determine phase.
-    let T_out = sIn.T;  // ideal gas: T unchanged
+    // Simple phase heuristic: if any condensable species (T < Tc), mark VL
+    let T_out = sIn.T;
     let phase_out = 'V';
     if (absorbed > 1e-12) {
-      try {
-        const flashResult = thermo.tpFlash({ T: sIn.T, P: P_atm, n: { ...(sIn.n || {}) } });
-        if (flashResult) {
-          phase_out = flashResult.phase || (flashResult.beta >= 0.999 ? 'V' : flashResult.beta <= 0.001 ? 'L' : 'VL');
-        }
-      } catch(e) { /* flash fail — default to V */ }
+      let hasCond = false, hasGas = false;
+      for (const sp of Object.keys(sIn.n || {})) {
+        if ((sIn.n[sp] || 0) < 1e-15) continue;
+        const cd = ComponentRegistry.get(sp);
+        if (cd && T_out < cd.Tc) hasCond = true;
+        else hasGas = true;
+      }
+      phase_out = hasCond ? (hasGas ? 'VL' : 'L') : 'V';
     }
 
     const outlet = {
@@ -13424,30 +13426,22 @@ UnitRegistry.register('open_tank', {
       inv.n[sp] = Math.max(0, cur + inN - outN);
     }
 
-    // After accumulation, flash at P_atm to separate liquid/vapor.
+    // After accumulation, separate liquid/vapor using Tc heuristic.
     // Vapor escapes to atmosphere — remove from inventory and track as boundary loss.
+    // Uses same classification as computeTankState: T < 0.9×Tc → condensable (liquid).
     const atm = SimSettings.getAtmosphere();
     const n_total = Object.values(inv.n).reduce((a,b) => a+b, 0);
     const vented_n = {};
     if (n_total > 1e-15) {
-      const flashResult = thermo.tpFlash({
-        T: inv.T_K, P: atm.P_Pa, n: inv.n
-      });
-      if (flashResult && flashResult.nV) {
-        for (const sp of Object.keys(inv.n)) {
-          const vap = flashResult.nV[sp] || 0;
-          if (vap > 1e-15) {
-            vented_n[sp] = vap / dt;  // convert moles to mol/s rate
-          }
-          inv.n[sp] = flashResult.nL?.[sp] || 0;
-        }
-      }
-      if (flashResult && flashResult.beta >= 1) {
-        // All vapor — everything vents
-        for (const sp of Object.keys(inv.n)) {
+      for (const sp of Object.keys(inv.n)) {
+        if (inv.n[sp] < 1e-15) continue;
+        const cd = ComponentRegistry.get(sp);
+        if (!cd || inv.T_K >= 0.9 * cd.Tc) {
+          // Permanent gas at this T → all vents
           vented_n[sp] = inv.n[sp] / dt;
           inv.n[sp] = 0;
         }
+        // Condensable stays as liquid (simplified: ignore partial vaporization)
       }
     }
     inv._vented_n = vented_n;  // store for tick diagnostics
@@ -13648,9 +13642,17 @@ UnitRegistry.register('reservoir', {
     for (const [sp, f] of Object.entries(comp)) fracs[sp] = f / total;
 
     // Flash at reservoir conditions to determine phase split
+    // Cache: composition/T/P don't change between ticks
     const n_flash = {};
     for (const [sp, f] of Object.entries(fracs)) n_flash[sp] = f; // unit moles for flash
-    const flash = thermo.tpFlash({ T, P: P_res, n: n_flash });
+    const cacheKey = `${T}|${P_res}|${Object.entries(fracs).map(([s,f])=>s+f.toFixed(6)).join(',')}`;
+    let flash;
+    if (u._flashCache?.key === cacheKey) {
+      flash = u._flashCache.result;
+    } else {
+      flash = thermo.tpFlash({ T, P: P_res, n: n_flash });
+      u._flashCache = { key: cacheKey, result: flash };
+    }
     const beta = flash?.beta ?? 1.0; // vapor mole fraction
 
     // Downstream pressure from trace
