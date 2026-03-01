@@ -318,10 +318,15 @@
   PlaceUnit defaults: valve, gas_turbine, source_multi now use
   SimSettings.getAtmosphere() instead of hardcoded Earth values.
 
-  _specInfo bar: always visible (removed dev guard), shows ⚙ icon, cursor:help.
-  Tooltip lists all locked/current params with names and values.
-  Now on: sealed tank (V, Cv_gas, Cv_liq, P_relief), open tank (V, Cv_liq),
-  reservoir (P, Cv, opening%). Dev profiles say "all editable".
+  Palette tooltips: _buildTileTooltip now shows volume, Cv, T/P min/max
+  from profile defaults and limits. P_relief excluded (editable param).
+
+  Tank inspectors: customParams with volume header (14px bold), Cv info
+  (10px grey), sectioned params (Draw Rates / Safety). Conditions badges
+  include Q gas and Q liq below T and P. Detail section shows inlet/outlet
+  flow summary with net rate, time-to-full/empty. Content badge shows
+  actual mol vs n_max. Status badge computed from inventory state.
+  Both sealed tank and open_tank follow same structure.
 
   Restriction placeUnit case added (was missing, defaulted to empty params).
 
@@ -373,10 +378,13 @@
 
   INSPECTOR — profile-aware for all tank types:
   - Dev profile: all params exposed (volume, Cv, openings, P_relief, etc).
-  - Game profiles: volume + Cv locked per tier, shown as spec info bar.
+  - Game profiles: volume + Cv locked per tier, shown in palette tooltip.
     Openings, P_relief (capped ≤ P_HH), overflow_level editable.
   - Open tank: T, P (labeled "atm"), fill bar, vented rate, time estimates.
-  - _specInfo() renders locked specs as read-only info line.
+  - Volume header (14px bold) + Cv line (10px grey) always visible.
+  - Params split into "Draw Rates" and "Safety" sections.
+  - Q gas / Q liq as condition badges below T, P.
+  - Detail: inlet/outlet flow summary, net rate, time estimates.
 
   Cv values: T1 = 30 (both phases), T2 = 50 (both phases).
   P_relief ≤ P_HH inline validation on game profiles.
@@ -13303,19 +13311,34 @@ UnitRegistry.register('tank', {
       ports.overflow = { type: StreamType.MATERIAL, T: inv.T_K, P: P_tank, n: {} };
     }
 
-    // 6. Diagnostics
+    // 6. Compute n_max (liquid fill capacity for content display)
+    const n_max = (() => {
+      const sp0 = Object.keys(inv.n).find(sp => inv.n[sp] > 1e-15) || 'N2';
+      const cd = ComponentRegistry.get(sp0);
+      const MW_kg = (cd?.MW || 28) / 1000;
+      const rho = cd?.rhoLiq || 1000;
+      return V * rho / MW_kg;
+    })();
+
+    // 7. Diagnostics
     u.last = {
       ...(u.last || {}),
       P_Pa: P_tank, P_bar: P_tank / 1e5,
       T_K: inv.T_K,
       totalMol: Object.values(inv.n).reduce((a,b) => a+b, 0),
+      n: { ...inv.n },
+      n_max,
       level_pct: state.level_pct,
       fillPct: state.level_pct,  // alias for evaluateLimits (reads fillPct)
+      V_m3: V,
       V_liq_m3: state.V_liq_m3,
       V_vap_m3: state.V_vap_m3,
       Q_gas, Q_liq, Q_vent, Q_overflow,
       vent_status: (ventConnected && P_tank > P_relief) ? 'OPEN' : 'CLOSED',
       overflow_status: (ovConnected && state.level_pct > overflow_lvl) ? 'ACTIVE' : 'OK',
+      status: Object.values(inv.n).reduce((a,b) => a+b, 0) < 1e-12 ? 'empty'
+            : state.level_pct >= 100 ? 'full'
+            : (Q_gas > 0 || Q_liq > 0) ? 'active' : 'idle',
       type: 'tank'
     };
   }
@@ -13571,6 +13594,7 @@ UnitRegistry.register('open_tank', {
       totalMol: n_total,
       n: { ...inv.n },
       n_max,
+      V_m3: V,
       level_pct,
       fillPct: level_pct,
       V_liq_m3: V_liq,
@@ -25216,70 +25240,85 @@ UnitInspector.grid_supply = {
 
 // ── Storage ──
 UnitInspector.tank = {
-  params(u) {
+  customParams(container, u) {
     const us = models.getActive('units');
     const profile = ProfileRegistry.get(u.profileId || u.defId);
     const isDev = profile?.config?.dev;
     const isVented = !!u.params.vented;
     const effLim = getEffectiveLimits(u.profileId || u.defId, u.tier || 1);
     const P_HH_disp = effLim?.P_HH ? us.pressure.from(effLim.P_HH) : Infinity;
+    const V = u.params.volume_m3 || 0.15;
 
-    const items = [];
-
+    // ── Volume header ──
+    const volLine = el('div', {
+      style: 'font-size:14px; font-weight:700; color:#e2e8f0; padding:2px 0 4px; letter-spacing:0.3px;',
+      html: `${(V * 1000).toFixed(0)} L`
+    });
     if (isDev) {
-      // Dev profile: everything editable
-      items.push(
-        { label: 'Volume (m³)', get: () => u.params.volume_m3 || 0.15, set: v => u.params.volume_m3 = v, step: 0.01, validate: { gt: 0 } },
-        { label: 'Gas valve Cv', get: () => u.params.Cv_gas ?? 50, set: v => u.params.Cv_gas = v, step: 1, validate: { min: 0 } },
-        { label: 'Liq valve Cv', get: () => u.params.Cv_liq ?? 50, set: v => u.params.Cv_liq = v, step: 1, validate: { min: 0 } },
-      );
+      volLine.style.cursor = 'pointer';
+      volLine.title = 'Click to edit volume';
+    }
+    container.appendChild(volLine);
+
+    // Cv info (smaller)
+    const cvLine = el('div', {
+      style: 'font-size:10px; color:#64748b; margin-bottom:6px;',
+      html: `Cv gas ${u.params.Cv_gas ?? 30} · liq ${u.params.Cv_liq ?? 30}`
+    });
+    container.appendChild(cvLine);
+
+    // ── Dev-only: volume + Cv editable ──
+    if (isDev) {
+      const devBox = el('div', { style: 'margin-bottom:6px;' });
+      addNumberEditor(devBox, 'Volume (m³)',
+        () => u.params.volume_m3 || 0.15, v => u.params.volume_m3 = v, 0.01, 3);
+      addNumberEditor(devBox, 'Cv gas',
+        () => u.params.Cv_gas ?? 50, v => u.params.Cv_gas = v, 1, 0);
+      addNumberEditor(devBox, 'Cv liq',
+        () => u.params.Cv_liq ?? 50, v => u.params.Cv_liq = v, 1, 0);
+      container.appendChild(devBox);
     }
 
-    // Opening always editable
-    items.push(
-      { label: 'Gas opening (%)', get: () => u.params.opening_gas_pct ?? 0, set: v => u.params.opening_gas_pct = v, step: 5, validate: { min: 0, max: 100 } },
-      { label: 'Liq opening (%)', get: () => u.params.opening_liq_pct ?? 0, set: v => u.params.opening_liq_pct = v, step: 5, validate: { min: 0, max: 100 } },
-    );
+    // ── Section: Draw Rates ──
+    container.appendChild(el('div', { class: 'ins-section-label', html: 'Draw Rates' }));
+    const drawBox = el('div', {});
+    addNumberEditor(drawBox, 'Gas opening (%)',
+      () => u.params.opening_gas_pct ?? 0, v => u.params.opening_gas_pct = v, 5, 0, { min: 0, max: 100 });
+    addNumberEditor(drawBox, 'Liq opening (%)',
+      () => u.params.opening_liq_pct ?? 0, v => u.params.opening_liq_pct = v, 5, 0, { min: 0, max: 100 });
+    container.appendChild(drawBox);
 
-    // P_relief: dev=uncapped, game=capped at P_HH, vented=hidden (always P_atm)
+    // ── Section: Safety ──
+    container.appendChild(el('div', { class: 'ins-section-label', html: 'Safety' }));
+    const safeBox = el('div', {});
     if (!isVented) {
       if (isDev) {
-        items.push(
-          { label: `P relief (${us.pressure.symbol})`,
-            get: () => us.pressure.from(u.params.P_relief || 200000),
-            set: v => u.params.P_relief = us.pressure.to(v),
-            step: us.pressure.decimals === 0 ? 10000 : 0.1,
-            decimals: us.pressure.decimals,
-            validate: { gt: 0 } },
-        );
+        addNumberEditor(safeBox, `P relief (${us.pressure.symbol})`,
+          () => us.pressure.from(u.params.P_relief || 200000),
+          v => u.params.P_relief = us.pressure.to(v),
+          us.pressure.decimals === 0 ? 10000 : 0.1, us.pressure.decimals);
       } else {
-        items.push(
-          { label: `P relief (${us.pressure.symbol})`,
-            get: () => us.pressure.from(u.params.P_relief || 200000),
-            set: v => u.params.P_relief = us.pressure.to(Math.min(v, P_HH_disp)),
-            step: us.pressure.decimals === 0 ? 10000 : 0.1,
-            decimals: us.pressure.decimals,
-            validate: { gt: 0, max: P_HH_disp } },
-        );
+        addNumberEditor(safeBox, `P relief (${us.pressure.symbol})`,
+          () => us.pressure.from(u.params.P_relief || 200000),
+          v => u.params.P_relief = us.pressure.to(Math.min(v, P_HH_disp)),
+          us.pressure.decimals === 0 ? 10000 : 0.1, us.pressure.decimals, { max: P_HH_disp });
       }
     }
-
-    // Overflow level: always editable
-    items.push(
-      { label: 'Overflow level (%)', get: () => u.params.overflow_level ?? 90, set: v => u.params.overflow_level = v, step: 5, validate: { min: 50, max: 100 } },
-    );
-
-    return items;
+    addNumberEditor(safeBox, 'Overflow level (%)',
+      () => u.params.overflow_level ?? 90, v => u.params.overflow_level = v, 5, 0, { min: 50, max: 100 });
+    container.appendChild(safeBox);
   },
   conditions(u, ud) {
     if (!ud?.last) return [];
     return [
       { label: 'T', value: fmt.T(ud.last.T_K) },
       { label: 'P', value: fmt.P(ud.last.P_Pa) },
+      { label: 'Q gas', value: fmt.flow(ud.last.Q_gas ?? 0) },
+      { label: 'Q liq', value: fmt.flow(ud.last.Q_liq ?? 0) },
     ];
   },
   kpis(u, ud) {
-    if (!ud.last) return [];
+    if (!ud?.last) return [];
     const fillPct = ud.last.fillPct || 0;
     const barColor = fillPct >= 100 ? '#ef4444' : fillPct >= 80 ? '#f59e0b' : '#06b6d4';
     const statusColor = ud.last.status === 'full' ? '#ef4444' : ud.last.status === 'overflowing' ? '#f59e0b' : ud.last.status === 'empty' ? '#64748b' : '#06b6d4';
@@ -25292,53 +25331,88 @@ UnitInspector.tank = {
   detail(u, ud, sc) {
     if (!ud?.last) return [];
     const items = [];
-    if (ud.last.n) { for (const [sp, mol] of Object.entries(ud.last.n)) { if (mol > 1e-6) items.push({ label: sp, value: fmt.mol(mol) }); } }
-    // [v14.0.0 S5-lite] Show gas and liquid draw rates
-    if (ud.last.Q_gas != null) items.push({ label: 'Q gas', value: fmt.flow(ud.last.Q_gas) });
-    if (ud.last.Q_liq != null) items.push({ label: 'Q liq', value: fmt.flow(ud.last.Q_liq) });
-    if (ud.last.status === 'active' && ud.last.totalMol > 0) {
-      const udR = sc?.runtime?.unitData?.get(u.id);
-      const matIn = udR?.ports?.mat_in;
-      const gasOut = udR?.ports?.gas_out, liqOut = udR?.ports?.liq_out;
+
+    // Species inventory
+    if (ud.last.n) {
+      for (const [sp, mol] of Object.entries(ud.last.n)) {
+        if (mol > 1e-6) items.push({ label: sp, value: fmt.mol(mol) });
+      }
+    }
+
+    // Inlet/outlet flow summary
+    const udR = sc?.runtime?.unitData?.get(u.id);
+    if (udR) {
+      const matIn = udR.ports?.mat_in;
+      const gasOut = udR.ports?.gas_out;
+      const liqOut = udR.ports?.liq_out;
       const nIn = matIn?.n ? Object.values(matIn.n).reduce((a,b)=>a+b,0) : 0;
       const nOutGas = gasOut?.n ? Object.values(gasOut.n).reduce((a,b)=>a+b,0) : 0;
       const nOutLiq = liqOut?.n ? Object.values(liqOut.n).reduce((a,b)=>a+b,0) : 0;
       const nOut = nOutGas + nOutLiq;
+      if (nIn > 1e-6) items.push({ label: 'Inlet', value: `${nIn.toFixed(3)}<span class="propUnit">mol/s</span>`, tone: 'good' });
+      if (nOutGas > 1e-6) items.push({ label: 'Gas out', value: `${nOutGas.toFixed(3)}<span class="propUnit">mol/s</span>` });
+      if (nOutLiq > 1e-6) items.push({ label: 'Liq out', value: `${nOutLiq.toFixed(3)}<span class="propUnit">mol/s</span>` });
       const netRate = nIn - nOut;
-      if (netRate > 0.001) items.push({ label: 'Time to full', value: fmt.time((ud.last.n_max - ud.last.totalMol) / netRate) });
-      else if (netRate < -0.001) items.push({ label: 'Time to empty', value: fmt.time(ud.last.totalMol / Math.abs(netRate)) });
-      items.push({ label: 'Net flow', value: `${netRate > 0 ? '+' : ''}${netRate.toFixed(3)}<span class="u">mol/s</span>`, tone: netRate > 0 ? 'good' : netRate < 0 ? 'warn' : '' });
+      items.push({ label: 'Net', value: `${netRate > 0 ? '+' : ''}${netRate.toFixed(3)}<span class="propUnit">mol/s</span>`,
+        tone: netRate > 0.001 ? 'good' : netRate < -0.001 ? 'warn' : '' });
+      if (netRate > 0.001 && ud.last.n_max > 0) items.push({ label: 'Time to full', value: fmt.time((ud.last.n_max - ud.last.totalMol) / netRate) });
+      else if (netRate < -0.001 && ud.last.totalMol > 0) items.push({ label: 'Time to empty', value: fmt.time(ud.last.totalMol / Math.abs(netRate)) });
     }
+
+    // Vent / overflow status
+    if (ud.last.Q_vent > 0) items.push({ label: 'Venting', value: fmt.flow(ud.last.Q_vent), tone: 'warn' });
+    if (ud.last.Q_overflow > 0) items.push({ label: 'Overflow', value: fmt.flow(ud.last.Q_overflow), tone: 'warn' });
+
     return items;
   }
 };
 
 // ── Open Tank (open vessel) [v14.0.2] ──
 UnitInspector.open_tank = {
-  params(u) {
+  customParams(container, u) {
     const profile = ProfileRegistry.get(u.profileId || u.defId);
     const isDev = profile?.config?.dev;
-    const items = [];
+    const V = u.params.volume_m3 || 0.15;
+
+    // ── Volume header ──
+    container.appendChild(el('div', {
+      style: 'font-size:14px; font-weight:700; color:#e2e8f0; padding:2px 0 4px;',
+      html: `${(V * 1000).toFixed(0)} L`
+    }));
+    container.appendChild(el('div', {
+      style: 'font-size:10px; color:#64748b; margin-bottom:6px;',
+      html: `Cv liq ${u.params.Cv_liq ?? 30} · open to atmosphere`
+    }));
 
     if (isDev) {
-      items.push(
-        { label: 'Volume (m³)', get: () => u.params.volume_m3 || 0.15, set: v => u.params.volume_m3 = v, step: 0.01, validate: { gt: 0 } },
-        { label: 'Liq valve Cv', get: () => u.params.Cv_liq ?? 30, set: v => u.params.Cv_liq = v, step: 1, validate: { min: 0 } },
-      );
+      const devBox = el('div', { style: 'margin-bottom:6px;' });
+      addNumberEditor(devBox, 'Volume (m³)',
+        () => u.params.volume_m3 || 0.15, v => u.params.volume_m3 = v, 0.01, 3);
+      addNumberEditor(devBox, 'Cv liq',
+        () => u.params.Cv_liq ?? 30, v => u.params.Cv_liq = v, 1, 0);
+      container.appendChild(devBox);
     }
 
-    items.push(
-      { label: 'Liq opening (%)', get: () => u.params.opening_liq_pct ?? 0, set: v => u.params.opening_liq_pct = v, step: 5, validate: { min: 0, max: 100 } },
-      { label: 'Overflow level (%)', get: () => u.params.overflow_level ?? 90, set: v => u.params.overflow_level = v, step: 5, validate: { min: 50, max: 100 } },
-    );
+    // ── Section: Draw Rates ──
+    container.appendChild(el('div', { class: 'ins-section-label', html: 'Draw Rates' }));
+    const drawBox = el('div', {});
+    addNumberEditor(drawBox, 'Liq opening (%)',
+      () => u.params.opening_liq_pct ?? 0, v => u.params.opening_liq_pct = v, 5, 0, { min: 0, max: 100 });
+    container.appendChild(drawBox);
 
-    return items;
+    // ── Section: Safety ──
+    container.appendChild(el('div', { class: 'ins-section-label', html: 'Safety' }));
+    const safeBox = el('div', {});
+    addNumberEditor(safeBox, 'Overflow level (%)',
+      () => u.params.overflow_level ?? 90, v => u.params.overflow_level = v, 5, 0, { min: 50, max: 100 });
+    container.appendChild(safeBox);
   },
   conditions(u, ud) {
     if (!ud?.last) return [];
     return [
       { label: 'T', value: fmt.T(ud.last.T_K) },
       { label: 'P', value: fmt.P(ud.last.P_Pa) + ' (atm)' },
+      { label: 'Q liq', value: fmt.flow(ud.last.Q_liq ?? 0) },
     ];
   },
   kpis(u, ud) {
@@ -25348,30 +25422,41 @@ UnitInspector.open_tank = {
     const statusColor = ud.last.status === 'full' ? '#ef4444' : ud.last.status === 'empty' ? '#64748b' : '#06b6d4';
     return [
       { label: 'Fill', value: fillPct, bar: true, barColor },
-      { label: 'Content', value: `${(ud.last.totalMol||0).toFixed(1)}<span class="propUnit">mol</span>` },
+      { label: 'Content', value: `${(ud.last.totalMol||0).toFixed(1)} / ${(ud.last.n_max||0).toFixed(1)}<span class="propUnit">mol</span>` },
       { label: 'Status', value: `<span style="color:${statusColor}">${ud.last.status || '—'}</span>` },
     ];
   },
   detail(u, ud, sc) {
     if (!ud?.last) return [];
     const items = [];
-    if (ud.last.n) { for (const [sp, mol] of Object.entries(ud.last.n)) { if (mol > 1e-6) items.push({ label: sp, value: fmt.mol(mol) }); } }
-    if (ud.last.Q_liq > 1e-6) items.push({ label: 'Q liq', value: fmt.flow(ud.last.Q_liq) });
-    if (ud.last.Q_vented > 1e-6) {
-      items.push({ label: 'Vented', value: `${ud.last.Q_vented.toFixed(3)}<span class="u">mol/s</span>`, tone: 'warn' });
+
+    // Species inventory
+    if (ud.last.n) {
+      for (const [sp, mol] of Object.entries(ud.last.n)) {
+        if (mol > 1e-6) items.push({ label: sp, value: fmt.mol(mol) });
+      }
     }
-    if (ud.last.status === 'active' && ud.last.totalMol > 0) {
-      const udR = sc?.runtime?.unitData?.get(u.id);
-      const matIn = udR?.ports?.mat_in;
-      const liqOut = udR?.ports?.liq_out;
+
+    // Inlet/outlet flow summary
+    const udR = sc?.runtime?.unitData?.get(u.id);
+    if (udR) {
+      const matIn = udR.ports?.mat_in;
+      const liqOut = udR.ports?.liq_out;
       const nIn = matIn?.n ? Object.values(matIn.n).reduce((a,b)=>a+b,0) : 0;
       const nOutLiq = liqOut?.n ? Object.values(liqOut.n).reduce((a,b)=>a+b,0) : 0;
       const nVented = ud.last.Q_vented || 0;
+      if (nIn > 1e-6) items.push({ label: 'Inlet', value: `${nIn.toFixed(3)}<span class="propUnit">mol/s</span>`, tone: 'good' });
+      if (nOutLiq > 1e-6) items.push({ label: 'Liq out', value: `${nOutLiq.toFixed(3)}<span class="propUnit">mol/s</span>` });
+      if (nVented > 1e-6) items.push({ label: 'Vented', value: `${nVented.toFixed(3)}<span class="propUnit">mol/s</span>`, tone: 'warn' });
       const netRate = nIn - nOutLiq - nVented;
-      if (netRate > 0.001) items.push({ label: 'Time to full', value: fmt.time((ud.last.n_max - ud.last.totalMol) / netRate) });
-      else if (netRate < -0.001) items.push({ label: 'Time to empty', value: fmt.time(ud.last.totalMol / Math.abs(netRate)) });
-      items.push({ label: 'Net flow', value: `${netRate > 0 ? '+' : ''}${netRate.toFixed(3)}<span class="u">mol/s</span>`, tone: netRate > 0 ? 'good' : netRate < 0 ? 'warn' : '' });
+      items.push({ label: 'Net', value: `${netRate > 0 ? '+' : ''}${netRate.toFixed(3)}<span class="propUnit">mol/s</span>`,
+        tone: netRate > 0.001 ? 'good' : netRate < -0.001 ? 'warn' : '' });
+      if (netRate > 0.001 && ud.last.n_max > 0) items.push({ label: 'Time to full', value: fmt.time((ud.last.n_max - ud.last.totalMol) / netRate) });
+      else if (netRate < -0.001 && ud.last.totalMol > 0) items.push({ label: 'Time to empty', value: fmt.time(ud.last.totalMol / Math.abs(netRate)) });
     }
+
+    if (ud.last.Q_overflow > 0) items.push({ label: 'Overflow', value: fmt.flow(ud.last.Q_overflow), tone: 'warn' });
+
     return items;
   }
 };
