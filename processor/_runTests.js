@@ -1,0 +1,90 @@
+const fs = require('fs'), vm = require('vm');
+let src = fs.readFileSync('processThis.html', 'utf8');
+const scripts = []; const re = /<script[^>]*>([\s\S]*?)<\/script>/gi; let m;
+while ((m = re.exec(src)) !== null) scripts.push(m[1]);
+let code = scripts.join(';\n');
+code = code.replace(/^\s*loadDemo\(\);/gm, '').replace(/^\s*initCanvas\(\);/gm, '');
+const noop = function(){};
+const mockEl = function(){return{style:new Proxy({},{set:()=>true,get:()=>''}),classList:{add:noop,remove:noop,toggle:noop,contains:()=>false},dataset:{},children:[],childNodes:[],innerHTML:'',outerHTML:'',textContent:'',innerText:'',value:'',id:'',className:'',tagName:'DIV',nodeName:'DIV',nodeType:1,checked:false,disabled:false,hidden:false,selected:false,scrollTop:0,scrollLeft:0,offsetWidth:100,offsetHeight:100,scrollWidth:100,scrollHeight:100,clientWidth:100,clientHeight:100,appendChild:function(c){return c||mockEl();},removeChild:function(c){return c||mockEl();},insertBefore:function(n){return n||mockEl();},append:noop,prepend:noop,remove:noop,replaceWith:noop,replaceChildren:noop,cloneNode:function(){return mockEl();},addEventListener:noop,removeEventListener:noop,setAttribute:noop,removeAttribute:noop,getAttribute:function(){return null;},hasAttribute:function(){return false;},querySelectorAll:function(){return[];},querySelector:function(){return null;},closest:function(){return null;},matches:function(){return false;},contains:function(){return false;},getBoundingClientRect:function(){return{top:0,left:0,right:100,bottom:100,width:100,height:100,x:0,y:0};},getContext:function(){return new Proxy({canvas:{width:100,height:100}},{get:(t,p)=>{if(p==='canvas')return t.canvas;return()=>({addColorStop:noop,width:10});}});},focus:noop,blur:noop,click:noop,scrollTo:noop,scroll:noop,dispatchEvent:noop,setPointerCapture:noop,releasePointerCapture:noop,parentNode:null,parentElement:null,firstChild:null,lastChild:null,nextSibling:null,previousSibling:null,nextElementSibling:null,previousElementSibling:null,ownerDocument:null,animate:function(){return{finished:Promise.resolve()};}}};
+
+const ctx = vm.createContext({
+  console, setTimeout, clearTimeout, setInterval, clearInterval,
+  Math, Date, JSON, RegExp, Error, TypeError, RangeError, SyntaxError, URIError,
+  Array, Object, String, Number, Boolean, Map, Set, WeakMap, WeakSet, WeakRef,
+  Symbol, BigInt, Promise, Proxy, Reflect,
+  parseInt, parseFloat, isNaN, isFinite, NaN, Infinity, undefined,
+  encodeURIComponent, decodeURIComponent, encodeURI, decodeURI, btoa, atob,
+  URL, URLSearchParams, TextEncoder, TextDecoder,
+  queueMicrotask: (fn) => Promise.resolve().then(fn),
+  structuredClone,
+  Float32Array, Float64Array, Int8Array, Int16Array, Int32Array,
+  Uint8Array, Uint16Array, Uint32Array, DataView, ArrayBuffer
+});
+
+const mockSetup = `
+const noop = ${noop.toString()};
+const mockEl = ${mockEl.toString()};
+this.window = this;
+this.self = this;
+this.globalThis = this;
+this.addEventListener = noop;
+this.removeEventListener = noop;
+this.requestAnimationFrame = function(fn){ fn(); return 1; };
+this.cancelAnimationFrame = noop;
+this.matchMedia = () => ({matches:false, addEventListener:noop, removeEventListener:noop});
+this.getComputedStyle = () => new Proxy({}, {get:()=>""});
+this.innerWidth = 1920; this.innerHeight = 1080; this.devicePixelRatio = 1;
+this.screen = {width:1920, height:1080};
+this.performance = {now:()=>Date.now()};
+this.navigator = {userAgent:"node", clipboard:{writeText:()=>Promise.resolve()}, platform:"Linux"};
+this.localStorage = {getItem:()=>null, setItem:noop, removeItem:noop};
+this.sessionStorage = {getItem:()=>null, setItem:noop, removeItem:noop};
+this.fetch = ()=>Promise.resolve({ok:true, json:()=>({}), text:()=>""});
+this.alert = noop; this.confirm = ()=>true; this.prompt = ()=>"";
+this.open = noop; this.close = noop;
+this.CSS = {supports:()=>false};
+this.HTMLElement = class {};
+this.HTMLCanvasElement = class {};
+this.SVGElement = class {};
+this.ResizeObserver = class { observe(){} disconnect(){} unobserve(){} };
+this.MutationObserver = class { observe(){} disconnect(){} };
+this.IntersectionObserver = class { observe(){} disconnect(){} };
+this.customElements = {define:noop, get:()=>null};
+this.DOMParser = class { parseFromString(){ return {querySelector:()=>null, querySelectorAll:()=>[]}; } };
+this.Blob = class { constructor(p,o){this.size=0;this.type=o?.type||"";} };
+this.FileReader = class { readAsText(){} readAsDataURL(){} addEventListener(){} };
+this.Image = class { set src(v){} addEventListener(){} };
+this.Event = class { constructor(t){this.type=t;} preventDefault(){} stopPropagation(){} };
+this.CustomEvent = class { constructor(t,d){this.type=t;this.detail=d?.detail;} preventDefault(){} stopPropagation(){} };
+this.KeyboardEvent = class { constructor(t,d){Object.assign(this,d||{});this.type=t;} preventDefault(){} stopPropagation(){} };
+this.MouseEvent = class { constructor(t,d){Object.assign(this,d||{});this.type=t;} preventDefault(){} stopPropagation(){} };
+this.PointerEvent = class { constructor(t,d){Object.assign(this,d||{});this.type=t;} preventDefault(){} stopPropagation(){} };
+this.WheelEvent = class { constructor(t,d){Object.assign(this,d||{});this.type=t;} preventDefault(){} stopPropagation(){} };
+this.DragEvent = class { constructor(t,d){Object.assign(this,d||{});this.type=t;this.dataTransfer={getData:()=>"",setData:noop};} preventDefault(){} stopPropagation(){} };
+this.ClipboardEvent = class { constructor(t){this.type=t;} preventDefault(){} stopPropagation(){} };
+this.InputEvent = class { constructor(t){this.type=t;} preventDefault(){} stopPropagation(){} };
+this.document = {
+  createElement:()=>mockEl(), createElementNS:()=>mockEl(),
+  body:mockEl(), head:mockEl(), documentElement:mockEl(),
+  getElementById:()=>mockEl(), querySelector:()=>mockEl(),
+  querySelectorAll:()=>[], getElementsByClassName:()=>[],
+  getElementsByTagName:()=>[], getElementsByName:()=>[],
+  addEventListener:noop, removeEventListener:noop,
+  createTextNode:()=>mockEl(), createComment:()=>mockEl(),
+  createDocumentFragment:()=>mockEl(),
+  createRange:()=>({selectNodeContents:noop, collapse:noop, setStart:noop, setEnd:noop, createContextualFragment:()=>mockEl()}),
+  getSelection:()=>({removeAllRanges:noop, addRange:noop, toString:()=>""}),
+  execCommand:()=>false, hasFocus:()=>true,
+  hidden:false, visibilityState:"visible", readyState:"complete",
+  cookie:"", title:"", activeElement:mockEl(),
+};
+`;
+
+vm.runInContext(mockSetup, ctx);
+try {
+  vm.runInContext(code, ctx, { timeout: 60000 });
+  const r = ctx.runTests();
+  console.log(JSON.stringify({ tests: r.tests || r.total, passed: r.passed, failed: r.failed }));
+} catch(e) {
+  console.log('Error:', String(e.message).substring(0, 500));
+}
