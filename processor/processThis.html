@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v14.5.0
+  processThis v14.6.0
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -300,6 +300,38 @@
   ═══════════════════════════════════════════════════════════════════════════
   CHANGELOG
   ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v14.6.0 — S-CLEAN Phase 2: Source Architecture + Wet Air ────────────────
+  475 tests, 2586 assertions, 0 failures.
+
+  Source architecture (NNG-3 computation branching):
+  - Unified source defId: merged source + source_multi into single source tick.
+    Dispatches by par.n (multi-component) or par.species+par.nDot (single).
+  - Profiles: source_pure (single-species), source_mix (multi-component).
+  - Renamed source_air → source_atm (separate defId, reads planet state).
+  - Profile: source_atmosphere. Name: "Atmospheric Intake".
+  - Removed source_multi and source_air defIds from UnitRegistry.
+
+  Wet air activation (NNG-3):
+  - source_atm tick now uses SimSettings.getWetAir() instead of atm.air.
+  - Planet X emits ~2.6% H₂O at 50% RH, Earth ISA ~1.0% at 60% RH.
+  - Mars/Titan/Venus: RH=0, no change to output composition.
+
+  Inspector & icon routing:
+  - Inspector dispatch: profileId-first lookup with defId fallback.
+  - Inspector: source_atmosphere (shows wet air fractions), source_mix.
+  - SVG: ico-source_air → ico-source_atm. ico-source_multi deleted.
+
+  Display name: sink_electrical → "Power Sink".
+
+  importJSON migration:
+  - source_multi → source (profileId: source_mix).
+  - source_air → source_atm (profileId: source_atmosphere).
+
+  Demo scenes: defIds + profileIds updated.
+
+  NNGs: NNG-3 (computation branching), NNG-8 (SI), NNG-14 (changelog+tests).
+  Tests: 475/475 pass, 2586 checks (+3 wet air assertions).
 
   ─── v14.5.0 — S-CLEAN Phase 1: Port Naming Harmonization ────────────────
   475 tests, 2583 assertions, 0 failures.
@@ -13154,14 +13186,19 @@ function getPresentation(def, unit) {
       || _legacyPresentation(def);
 }
 
-// Source - Generic material stream source
+// ═══════════════════════════════════════════════════════════════════════════════
+// SOURCE — User-configured process feed [v14.6.0 S-CLEAN Phase 2]
+// Unified tick handles two parameterization modes:
+//   par.n (object)             → multi-component (profile: source_mix)
+//   par.species + par.nDot     → single-component backward compat (profile: source_pure)
+// Profiles: source_pure, source_mix.  Same ports, same physics.
+// ═══════════════════════════════════════════════════════════════════════════════
 UnitRegistry.register('source', {
   name: 'Source',
   category: UnitCategories.SOURCE,
   w: 2,
   h: 2,
   ports: [{ portId: 'mat_out', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 1 }],
-  // [v10.9.3] Presentation variants — port on any edge
   presentations: {
     'box/default':     { w: 2, h: 2, ports: { mat_out:{x:2,y:1} } },
     'box/port-left':   { w: 2, h: 2, ports: { mat_out:{x:0,y:1} } },
@@ -13169,16 +13206,29 @@ UnitRegistry.register('source', {
     'box/port-bottom': { w: 2, h: 2, ports: { mat_out:{x:1,y:2} } }
   },
   tick(u, ports, par) {
-    // Create material stream with molar composition
+    // ── Build composition ──
     const n = {};
-    n[par.species] = par.nDot;
-    
-    // [v12.0.0] Source always uses par.T/P with atmospheric defaults
+    if (par.n && typeof par.n === 'object') {
+      // Multi-component: par.n = { species: mol_s, ... }
+      for (const [sp, flow] of Object.entries(par.n)) {
+        if (!ComponentRegistry.exists(sp)) {
+          u.last = { error: { severity: ErrorSeverity.CATASTROPHIC,
+            message: `Unknown species '${sp}' in composition` } };
+          return;
+        }
+        n[sp] = flow;
+      }
+    } else if (par.species && par.nDot != null) {
+      // Single-component: par.species + par.nDot
+      n[par.species] = par.nDot;
+    }
+
+    // ── T, P with atmospheric defaults ──
     const atm = SimSettings.getAtmosphere();
     let T_K = par.T ?? atm.T_K;
     let P_Pa = par.P ?? atm.P_Pa;
 
-    // [v4.0.0] Validate absolute temperature: clamp to [1, 5000] K
+    // Validate absolute temperature: clamp to [1, 5000] K
     if (T_K < 1) {
       u.last = { ...(u.last || {}), warning: `Temperature clamped to 1 K` };
       T_K = 1;
@@ -13186,74 +13236,31 @@ UnitRegistry.register('source', {
       u.last = { ...(u.last || {}), warning: `Temperature clamped to 5000 K` };
       T_K = 5000;
     }
-    
+
     ports.mat_out = {
       type: StreamType.MATERIAL,
       T: T_K,
       P: P_Pa,
-      n: n,               // mol/s for each component
-      phaseConstraint: par.phaseConstraint || 'V' // User-controlled phase constraint
-    };
-  }
-});
-
-// Source (Mix) - Multi-component material stream source [v8.3.0]
-// Default: dry air (N2 78%, O2 21%, Ar 1% at 1 mol/s total)
-UnitRegistry.register('source_multi', {
-  name: 'Source (Mix)',
-  category: UnitCategories.SOURCE,
-  // [v10.0.4] No longer cheat — user-facing multi-component source
-  w: 2,
-  h: 2,
-  ports: [{ portId: 'mat_out', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 1 }],
-  // [v10.9.3] Presentation variants — port on any edge
-  presentations: {
-    'box/default':     { w: 2, h: 2, ports: { mat_out:{x:2,y:1} } },
-    'box/port-left':   { w: 2, h: 2, ports: { mat_out:{x:0,y:1} } },
-    'box/port-top':    { w: 2, h: 2, ports: { mat_out:{x:1,y:0} } },
-    'box/port-bottom': { w: 2, h: 2, ports: { mat_out:{x:1,y:2} } }
-  },
-  tick(u, ports, par) {
-    const n = par.n || { N2: 0.78, O2: 0.21, Ar: 0.01 };
-
-    // Validate all species exist in ComponentRegistry
-    for (const comp of Object.keys(n)) {
-      if (!ComponentRegistry.exists(comp)) {
-        u.last = { error: { severity: ErrorSeverity.CATASTROPHIC,
-          message: `Unknown species '${comp}' in composition` } };
-        return;
-      }
-    }
-
-    let T_K = par.T ?? 298.15;
-    if (T_K < 1) {
-      u.last = { ...(u.last || {}), warning: `Temperature clamped to 1 K` };
-      T_K = 1;
-    } else if (T_K > 5000) {
-      u.last = { ...(u.last || {}), warning: `Temperature clamped to 5000 K` };
-      T_K = 5000;
-    }
-
-    ports.mat_out = {
-      type: StreamType.MATERIAL,
-      T: T_K,
-      P: par.P ?? 101325,
-      n: { ...n },
+      n,
       phaseConstraint: par.phaseConstraint || 'V'
     };
   }
 });
 
-// Air Source — emits atmospheric air at atmospheric T,P [v8.10.0]
-// Composition, T, P all driven by SimSettings.atmosphere (tracks preset).
-// Hard-mode friendly: always available, no cheat params.
-UnitRegistry.register('source_air', {
-  name: 'Air Source',
+// ═══════════════════════════════════════════════════════════════════════════════
+// SOURCE_ATM — Atmospheric intake [v14.6.0 S-CLEAN Phase 2]
+// Reads SimSettings.getWetAir() — composition includes humidity (NNG-3).
+// T, P locked to planet.  Only user param: flowScale.
+// Separate defId from source: different computation branching (planet state,
+// humidity, terraformation hooks) per NNG-3.
+// Profile: source_atmosphere (tierless boundary).
+// ═══════════════════════════════════════════════════════════════════════════════
+UnitRegistry.register('source_atm', {
+  name: 'Atmospheric Intake',
   category: UnitCategories.SOURCE,
   w: 2,
   h: 2,
   ports: [{ portId: 'mat_out', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 1 }],
-  // [v10.9.3] Presentation variants — port on any edge
   presentations: {
     'box/default':     { w: 2, h: 2, ports: { mat_out:{x:2,y:1} } },
     'box/port-left':   { w: 2, h: 2, ports: { mat_out:{x:0,y:1} } },
@@ -13262,10 +13269,11 @@ UnitRegistry.register('source_air', {
   },
   tick(u, ports, par) {
     const atm = SimSettings.getAtmosphere();
+    const wetAir = SimSettings.getWetAir();
     const flowScale = par.flowScale ?? 1.0;
     const n = {};
-    for (const [sp, frac] of Object.entries(atm.air)) {
-      if (!ComponentRegistry.exists(sp)) continue;  // skip unavailable species silently
+    for (const [sp, frac] of Object.entries(wetAir)) {
+      if (!ComponentRegistry.exists(sp)) continue;
       n[sp] = frac * flowScale;
     }
     ports.mat_out = {
@@ -13278,6 +13286,7 @@ UnitRegistry.register('source_air', {
     u.last = { T: atm.T_K, P: atm.P_Pa, flowScale, preset: atm.presetName };
   }
 });
+
 
 // Atmospheric Sink — stream terminator at atmospheric conditions [v14.1.1]
 UnitRegistry.register('sink', {
@@ -14504,7 +14513,7 @@ UnitRegistry.register('power_hub', {
 // ELECTRICAL SINK — Absorbs and accounts for electrical power
 // ═══════════════════════════════════════════════════════════════════════════════
 UnitRegistry.register('sink_electrical', {
-  name: 'Electrical Sink',
+  name: 'Power Sink',
   category: UnitCategories.POWER_MANAGEMENT,
   w: 2,
   h: 2,
@@ -16995,12 +17004,12 @@ UnitRegistry.register('reactor_equilibrium', {
    ========================= */
 
 // ── Boundary units (no limits, no tier progression — always available) ──
-ProfileRegistry.register('source',       { defId: 'source',       name: 'Source',           category: UnitCategories.SOURCE,           tiers: [1], limits: {}, boundary: true });
-ProfileRegistry.register('source_multi', { defId: 'source_multi', name: 'Multi Source',     category: UnitCategories.SOURCE,           tiers: [1], limits: {}, boundary: true });
-ProfileRegistry.register('source_air',   { defId: 'source_air',   name: 'Air Source',       category: UnitCategories.SOURCE,           tiers: [1], limits: {}, boundary: true });
+ProfileRegistry.register('source_pure',  { defId: 'source',     name: 'Source',             category: UnitCategories.SOURCE,           tiers: [1], limits: {}, boundary: true, defaults: { 1: { species: 'N2', nDot: 1.0 } } });
+ProfileRegistry.register('source_mix',   { defId: 'source',     name: 'Multi Source',       category: UnitCategories.SOURCE,           tiers: [1], limits: {}, boundary: true, defaults: { 1: { n: { N2: 0.78, O2: 0.21, Ar: 0.01 } } } });
+ProfileRegistry.register('source_atmosphere', { defId: 'source_atm', name: 'Atmospheric Intake', category: UnitCategories.SOURCE,           tiers: [1], limits: {}, boundary: true, defaults: { 1: { flowScale: 1.0 } } });
 ProfileRegistry.register('sink',         { defId: 'sink',         name: 'Sink',             category: UnitCategories.SINK,             tiers: [1], limits: {}, boundary: true });
 ProfileRegistry.register('grid_supply',  { defId: 'grid_supply',  name: 'Grid Supply',      category: UnitCategories.POWER,            tiers: [1], limits: {}, boundary: true });
-ProfileRegistry.register('sink_electrical', { defId: 'sink_electrical', name: 'Electrical Sink', category: UnitCategories.POWER_MANAGEMENT, tiers: [1], limits: {}, boundary: true });
+ProfileRegistry.register('sink_electrical', { defId: 'sink_electrical', name: 'Power Sink', category: UnitCategories.POWER_MANAGEMENT, tiers: [1], limits: {}, boundary: true });
 
 // ── Power management (tiered) ──
 // Battery: T1 pilot (20 kW / 10 kWh), T2 demo (100 kW / 100 kWh), T3 industrial (500 kW / 1 MWh)
@@ -17219,12 +17228,14 @@ class Scene {
     // [v4.5.0] Every unit gets sensible defaults so it's immediately operational
     // when dropped on the flowsheet — no mandatory manual configuration.
     switch (defId) {
-      // ── Material source: N2 gas at ambient conditions ──
+      // ── Material source [v14.6.0 S-CLEAN profiles] ──
       case 'source':
+        unit.profileId = unit.profileId || 'source_pure';
         unit.params = { species: 'N2', nDot: 1.0,
           T: SimSettings.atmosphere.T_K, P: SimSettings.atmosphere.P_Pa, phaseConstraint: 'V' };
         break;
-      case 'source_air':
+      case 'source_atm':
+        unit.profileId = 'source_atmosphere';
         unit.params = { flowScale: 1.0 };
         break;
       // [v11.0.0] source_mechanical → grid_supply migration
@@ -17279,10 +17290,6 @@ class Scene {
         unit.params = { splitPct: 50 };   // 50/50 split
         break;
       // ── Reactions [v8.6.0] ──
-      case 'source_multi':
-        unit.params = { n: { N2: 0.78, O2: 0.21, Ar: 0.01 },
-          T: SimSettings.getAtmosphere().T_K, P: SimSettings.getAtmosphere().P_Pa, phaseConstraint: 'V' };
-        break;
       case 'reactor_equilibrium':
         unit.params = { reactionId: 'R_H2_COMB', useKinetics: true, volume_m3: 0.003, alpha: 1.0, heatDemand: 'none', variant: 'insulated', powerPriority: 2 };
         break;
@@ -17574,7 +17581,7 @@ class Scene {
         'out1': 'mat_out_1', 'out2': 'mat_out_2',
         'mat_out_D': 'dist_out', 'mat_out_B': 'bot_out'
       };
-      const matOut = new Set(['source','source_multi','source_air','valve','restriction','mixer']);
+      const matOut = new Set(['source','source_multi','source_air','source_atm','valve','restriction','mixer']);
       const matIn = new Set(['sink','valve','restriction','splitter']);
       const elOut = new Set(['grid_supply']);
       const elIn = new Set(['sink_electrical']);
@@ -22931,8 +22938,8 @@ function drawUnits() {
         iconName = 'heater';       // [v12.9.2] renamed unit, icon kept as ico-heater
       } else if (def.defId === 'source') {
         iconName = 'source';
-      } else if (def.defId === 'source_air') {
-        iconName = 'source_air';
+      } else if (def.defId === 'source_atm') {
+        iconName = 'source_atm';
       }
     }
     // Other units use their defId directly (pump, compressor, valve, motor, sink, heater, hex)
@@ -29622,7 +29629,7 @@ function loadDemo() {
       // EXISTING — Sabatier Methanation + Energy Storage
       // ══════════════════════════════════════════════════════════════════
 
-      { id: 'feed', defId: 'source_multi', name: 'CO₂/H₂ Feed', x: 0, y: 3, rot: 0,
+      { id: 'feed', defId: 'source', profileId: 'source_mix', name: 'CO₂/H₂ Feed', x: 0, y: 3, rot: 0,
         params: { n: { CO2: 1, H2: 4 }, T: 523, P: 1000000, phaseConstraint: 'V' } },
       { id: 'mix', defId: 'mixer', name: 'Mixer', x: 4, y: 4, rot: 0, params: { variant: 'top-recycle' } },
       { id: 'rx', defId: 'reactor_equilibrium', name: 'Sabatier Rx', x: 8, y: 4, rot: 0,
@@ -29665,7 +29672,7 @@ function loadDemo() {
       { id: 'a-grid', defId: 'grid_supply', name: 'Grid 20kW', x: 1, y: -20, rot: 0,
         params: { maxPower: 20000 } },
       // [v11.0.0] Motor removed — grid connects directly to compressor
-      { id: 'a-air', defId: 'source_air', name: 'Air Intake', x: 3, y: -15, rot: 0,
+      { id: 'a-air', defId: 'source_atm', profileId: 'source_atmosphere', name: 'Air Intake', x: 3, y: -15, rot: 0,
         params: { flowScale: 1.0 } },
       { id: 'a-comp', defId: 'compressor', name: 'Compressor', x: 8, y: -15, rot: 0,
         params: { Pout: 300000, eta: 0.80 },
@@ -29709,7 +29716,7 @@ function loadDemo() {
       // PROCESS B — Steam Methane Reforming (endothermic)
       // ══════════════════════════════════════════════════════════════════
 
-      { id: 'b-feed', defId: 'source_multi', name: 'CH₄/Steam Feed', x: 4, y: -6, rot: 0,
+      { id: 'b-feed', defId: 'source', profileId: 'source_mix', name: 'CH₄/Steam Feed', x: 4, y: -6, rot: 0,
         params: { n: { CH4: 0.2, H2O: 0.4 }, T: 873, P: 2000000, phaseConstraint: 'V' } },
       { id: 'b-rx', defId: 'reactor_equilibrium', name: 'SMR Reactor', x: 8, y: -6, rot: 0,
         params: { reactionId: 'R_SMR_OVERALL', useKinetics: true, volume_m3: 1.0, heatDemand: 'isothermal', variant: 'elec-top' },
@@ -32977,7 +32984,7 @@ function runTests() {
     // [v13.1.0 S2-pre] Step B now uses generic powerDemand > 0 && isFinite() check
     // instead of hard-coded pump/compressor/heater list.  This test verifies
     // reactor_equilibrium in isothermal mode is properly detected.
-    const src = t.place('source_multi', 0, 0, { n: { CH4: 1, H2O: 3 }, T: 800, P: 300000, phaseConstraint: 'V' });
+    const src = t.place('source', 0, 0, { n: { CH4: 1, H2O: 3 }, T: 800, P: 300000, phaseConstraint: 'V' });
     const rx  = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_SMR_OVERALL', useKinetics: false, alpha: 1.0, heatDemand: 'isothermal' });
     const snk = t.place('sink', 8, 0);
     t.wire(src, 'mat_out', rx, 'mat_in');
@@ -33453,7 +33460,7 @@ function runTests() {
   // ═══════════════════════════════════════════════════════════════════════
 
   test('Source (Mix) — air default composition', t => {
-    const src = t.place('source_multi', 0, 0, { T: 298.15, P: 101325, phaseConstraint: 'V' });
+    const src = t.place('source', 0, 0, { n: { N2: 0.78, O2: 0.21, Ar: 0.01 }, T: 298.15, P: 101325, phaseConstraint: 'V' });
     const snk = t.place('sink', 4, 0);
     t.wire(src, 'mat_out', snk, 'mat_in');
     t.solve();
@@ -33473,7 +33480,7 @@ function runTests() {
   });
 
   test('Source (Mix) — custom H2/O2 at 800K', t => {
-    const src = t.place('source_multi', 0, 0, {
+    const src = t.place('source', 0, 0, {
       n: { H2: 2, O2: 1 }, T: 800, P: 100000, phaseConstraint: 'V'
     });
     const snk = t.place('sink', 4, 0);
@@ -33498,7 +33505,7 @@ function runTests() {
   test('Reactor — full conversion + adiabatic closure', t => {
     // H2:2 + O2:1 + N2:10 at 800K → full conversion → H2O:2 + N2:10
     // N2 dilution keeps adiabatic T_out ~2000K (within PH-flash bracket)
-    const src = t.place('source_multi', 0, 0, {
+    const src = t.place('source', 0, 0, {
       n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
     });
     const rx = t.place('reactor_equilibrium', 4, 0, {
@@ -33549,7 +33556,7 @@ function runTests() {
   });
 
   test('Reactor — partial conversion 25%', t => {
-    const src = t.place('source_multi', 0, 0, {
+    const src = t.place('source', 0, 0, {
       n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
     });
     const rx = t.place('reactor_equilibrium', 4, 0, {
@@ -33585,7 +33592,7 @@ function runTests() {
 
   test('Reactor — limiting reactant', t => {
     // O2 is limiting: only 0.2 mol, so ξ_max = 0.2/1 = 0.2
-    const src = t.place('source_multi', 0, 0, {
+    const src = t.place('source', 0, 0, {
       n: { H2: 2, O2: 0.2, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
     });
     const rx = t.place('reactor_equilibrium', 4, 0, {
@@ -33615,7 +33622,7 @@ function runTests() {
 
   test('Reactor — inactive below T window', t => {
     // T=300K < Tmin=400K → pass-through, no reaction
-    const src = t.place('source_multi', 0, 0, {
+    const src = t.place('source', 0, 0, {
       n: { H2: 2, O2: 1 }, T: 300, P: 100000, phaseConstraint: 'V'
     });
     const rx = t.place('reactor_equilibrium', 4, 0, {
@@ -33641,7 +33648,7 @@ function runTests() {
 
   test('Reactor — inert species pass-through', t => {
     // N2 and Ar are not in the reaction stoich → pass through unchanged
-    const src = t.place('source_multi', 0, 0, {
+    const src = t.place('source', 0, 0, {
       n: { H2: 2, O2: 1, N2: 5, Ar: 2 }, T: 800, P: 100000, phaseConstraint: 'V'
     });
     const rx = t.place('reactor_equilibrium', 4, 0, {
@@ -34103,7 +34110,7 @@ function runTests() {
 
   test('Kinetics — large volume → equilibrium (α_eff > 0.99)', t => {
     // T7: With very large volume, kinetics have enough time → reach equilibrium
-    const src = t.place('source_multi', 0, 0, {
+    const src = t.place('source', 0, 0, {
       n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
     });
     const rx = t.place('reactor_equilibrium', 4, 0, {
@@ -34133,7 +34140,7 @@ function runTests() {
 
   test('Kinetics — small volume → kinetics-limited', t => {
     // T8: Tiny volume → very short residence time → conversion < equilibrium
-    const src = t.place('source_multi', 0, 0, {
+    const src = t.place('source', 0, 0, {
       n: { CO2: 1, H2: 4, N2: 5 }, T: 500, P: 1000000, phaseConstraint: 'V'
     });
     const rx = t.place('reactor_equilibrium', 4, 0, {
@@ -34159,7 +34166,7 @@ function runTests() {
 
   test('Kinetics — zero volume → MAJOR error', t => {
     // T9: Volume ≤ 0 with kinetics enabled → MAJOR error
-    const src = t.place('source_multi', 0, 0, {
+    const src = t.place('source', 0, 0, {
       n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
     });
     const rx = t.place('reactor_equilibrium', 4, 0, {
@@ -34177,7 +34184,7 @@ function runTests() {
       'Error mentions volume');
 
     // Also test negative volume (separate topology)
-    const src2 = t.place('source_multi', 0, 6, {
+    const src2 = t.place('source', 0, 6, {
       n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
     });
     const rx2 = t.place('reactor_equilibrium', 4, 6, {
@@ -34193,7 +34200,7 @@ function runTests() {
 
   test('Kinetics — missing reactant → ξ = 0', t => {
     // T10: Feed has no H2 (reactant) → ξ_max = 0 → no reaction
-    const src = t.place('source_multi', 0, 0, {
+    const src = t.place('source', 0, 0, {
       n: { O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
     });
     const rx = t.place('reactor_equilibrium', 4, 0, {
@@ -34210,7 +34217,7 @@ function runTests() {
   });
 
   test('Kinetics — golden number Sabatier (T=500K, P=10bar, V=1m³)', t => {
-    const src = t.place('source_multi', 0, 0, {
+    const src = t.place('source', 0, 0, {
       n: { CO2: 1, H2: 4, N2: 5 }, T: 500, P: 1000000, phaseConstraint: 'V'
     });
     const rx = t.place('reactor_equilibrium', 4, 0, {
@@ -34247,7 +34254,7 @@ function runTests() {
 
   test('Kinetics — H₂ combustion fast (T=800K, V=1m³, α_eff > 0.99)', t => {
     // T12: H2 combustion kinetics are fast — 1 m³ at 800K should reach equilibrium
-    const src = t.place('source_multi', 0, 0, {
+    const src = t.place('source', 0, 0, {
       n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
     });
     const rx = t.place('reactor_equilibrium', 4, 0, {
@@ -34273,7 +34280,7 @@ function runTests() {
 
   test('Kinetics — Sabatier recycle with kinetics (convergence + balance)', t => {
     // T13: Full recycle loop with kinetics mode active
-    const feed  = t.place('source_multi', 0, 0, {
+    const feed  = t.place('source', 0, 0, {
       n: { CO2: 1, H2: 4 }, T: 900, P: 1000000, phaseConstraint: 'V'
     });
     const mix   = t.place('mixer', 4, 0, {});
@@ -34333,7 +34340,7 @@ function runTests() {
   // ═══════════════════════════════════════════════════════════════════════
 
   test('Reactor Eq. — products strongly favored (insulated, CSTR)', t => {
-    const src = t.place('source_multi', 0, 0, {
+    const src = t.place('source', 0, 0, {
       n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
     });
     const rx = t.place('reactor_equilibrium', 4, 0, {
@@ -34364,7 +34371,7 @@ function runTests() {
   });
 
   test('Reactor Eq. — alpha scaling', t => {
-    const src = t.place('source_multi', 0, 0, {
+    const src = t.place('source', 0, 0, {
       n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
     });
     const rx = t.place('reactor_equilibrium', 4, 0, {
@@ -34397,7 +34404,7 @@ function runTests() {
 
   test('Reactor Eq. — insulated energy closure (H_out ≈ H_in)', t => {
     // [v11.0.0] Insulated reactor: all energy stays in fluid
-    const src = t.place('source_multi', 0, 0, {
+    const src = t.place('source', 0, 0, {
       n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
     });
     const rx = t.place('reactor_equilibrium', 4, 0, {
@@ -34429,7 +34436,7 @@ function runTests() {
 
   test('Reactor Eq. — insulated exothermic → T rises, H conserved', t => {
     // [v11.0.0] No heat_out port. Insulated mode: all energy in fluid.
-    const src = t.place('source_multi', 0, 0, {
+    const src = t.place('source', 0, 0, {
       n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
     });
     const rx = t.place('reactor_equilibrium', 4, 0, {
@@ -34500,7 +34507,7 @@ function runTests() {
   test('Reactor Eq. — VL inlet rejected', t => {
     // Genuine two-phase stream: H₂O + N₂ at 300K, 1 bar.
     // Water dew point ≈ 318K for y_H2O = 0.09 at 1 bar → at 300K, H₂O condenses → VL
-    const src = t.place('source_multi', 0, 0, {
+    const src = t.place('source', 0, 0, {
       n: { H2O: 1, N2: 10 }, T: 300, P: 100000, phaseConstraint: 'VL'
     });
     const rx = t.place('reactor_equilibrium', 4, 0, {
@@ -34582,7 +34589,7 @@ function runTests() {
   });
 
   test('Sabatier — moderate K, CSTR insulated at 800K', t => {
-    const src = t.place('source_multi', 0, 0, {
+    const src = t.place('source', 0, 0, {
       n: { CO2: 1, H2: 4, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
     });
     const rx = t.place('reactor_equilibrium', 4, 0, {
@@ -34627,7 +34634,7 @@ function runTests() {
     const feed = { CO2: 1, H2: 4, N2: 10 };
 
     // Run A: T_in = 900K
-    const srcA = t.place('source_multi', 0, 0, {
+    const srcA = t.place('source', 0, 0, {
       n: { ...feed }, T: 900, P: 100000, phaseConstraint: 'V'
     });
     const rxA = t.place('reactor_equilibrium', 4, 0, {
@@ -34640,7 +34647,7 @@ function runTests() {
     const lastA = t.ud(rxA).last;
 
     // Run B: T_in = 1000K
-    const srcB = t.place('source_multi', 0, 8, {
+    const srcB = t.place('source', 0, 8, {
       n: { ...feed }, T: 1000, P: 100000, phaseConstraint: 'V'
     });
     const rxB = t.place('reactor_equilibrium', 4, 8, {
@@ -34670,7 +34677,7 @@ function runTests() {
     const T_eval = 800;
 
     // Run A: P = 1 bar
-    const srcA = t.place('source_multi', 0, 0, {
+    const srcA = t.place('source', 0, 0, {
       n: { ...feed }, T: T_eval, P: 100000, phaseConstraint: 'V'
     });
     const rxA = t.place('reactor_equilibrium', 4, 0, {
@@ -34683,7 +34690,7 @@ function runTests() {
     const lastA = t.ud(rxA).last;
 
     // Run B: P = 10 bar
-    const srcB = t.place('source_multi', 0, 8, {
+    const srcB = t.place('source', 0, 8, {
       n: { ...feed }, T: T_eval, P: 1000000, phaseConstraint: 'V'
     });
     const rxB = t.place('reactor_equilibrium', 4, 8, {
@@ -34726,7 +34733,7 @@ function runTests() {
     // near-900K inlet. Recycle stream (cooled/flashed) blends with feed,
     // so T_in ≈ 850–900K after convergence.
 
-    const feed  = t.place('source_multi', 0, 0, {
+    const feed  = t.place('source', 0, 0, {
       n: { CO2: 1, H2: 4 }, T: 900, P: 1000000, phaseConstraint: 'V'
     });
     const mix   = t.place('mixer', 4, 0, {});
@@ -34826,7 +34833,7 @@ function runTests() {
   test('Reactor adiabatic — VL inlet rejected', t => {
     // Genuine two-phase stream: H₂O + N₂ at 300K, 1 bar.
     // Water dew point ≈ 318K for y_H2O = 0.09 at 1 bar → at 300K, H₂O condenses → VL
-    const src = t.place('source_multi', 0, 0, {
+    const src = t.place('source', 0, 0, {
       n: { H2O: 1, N2: 10 }, T: 300, P: 100000, phaseConstraint: 'VL'
     });
     const rx = t.place('reactor_equilibrium', 4, 0, {
@@ -34852,7 +34859,7 @@ function runTests() {
   test('Reactor adiabatic — undiluted stoichiometric H2/O2', t => {
     // Extreme case: no diluent → adiabatic flame T very high
     // Equilibrium reactor CSTR may struggle but should not produce NaN or crash
-    const src = t.place('source_multi', 0, 0, {
+    const src = t.place('source', 0, 0, {
       n: { H2: 2, O2: 1 }, T: 800, P: 100000, phaseConstraint: 'V'
     });
     const rx = t.place('reactor_equilibrium', 4, 0, {
@@ -34891,7 +34898,7 @@ function runTests() {
 
   test('Balance report — reactor scene matches engine', t => {
     // Build: source_multi → reactor → sink  (the exact topology that was broken)
-    const src = t.place('source_multi', 0, 0, {
+    const src = t.place('source', 0, 0, {
       n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
     });
     const rx = t.place('reactor_equilibrium', 4, 0, {
@@ -34950,7 +34957,7 @@ function runTests() {
     const snk1  = t.place('sink', 4, 0);
     t.wire(srcN2, 'mat_out', snk1, 'mat_in');
 
-    const srcMix = t.place('source_multi', 0, 4, {
+    const srcMix = t.place('source', 0, 4, {
       n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
     });
     const rx  = t.place('reactor_equilibrium', 4, 4, {
@@ -35072,7 +35079,7 @@ function runTests() {
     t.wire(htr, 'mat_out', snk_h2o, 'mat_in');
 
     // ── Chain E: Reactor ── (y=18)
-    const src_rx = t.place('source_multi', 0, 18, {
+    const src_rx = t.place('source', 0, 18, {
       n: { H2: 2, O2: 1, N2: 8 }, T: 800, P: 100000, phaseConstraint: 'V'
     });
     const rx     = t.place('reactor_equilibrium', 4, 18, {
@@ -35328,19 +35335,22 @@ function runTests() {
     t.assertOK(Object.isFrozen(atm.air), 'Air composition is frozen');
   });
 
-  test('SimSettings — source_air emits atmospheric composition', t => {
-    // T2: source_air tick uses SimSettings.atmosphere
-    const src = t.place('source_air', 0, 0, { flowScale: 2.5 });
+  test('SimSettings — source_atm emits wet atmospheric composition', t => {
+    // T2: source_atm tick uses SimSettings.getWetAir() [v14.6.0]
+    const src = t.place('source_atm', 0, 0, { flowScale: 2.5 });
     const snk = t.place('sink', 4, 0);
     t.wire(src, 'mat_out', snk, 'mat_in');
     t.solve();
 
     const out = t.port(src, 'mat_out');
     const atm = SimSettings.getAtmosphere();
+    const wet = SimSettings.getWetAir();
     t.assertClose(out.T, atm.T_K, 0.01, 'T = atmospheric T');
     t.assertClose(out.P, atm.P_Pa, 1, 'P = atmospheric P');
-    t.assertClose(out.n.N2, 0.7809 * 2.5, 0.01, 'N₂ scaled by flowScale');
-    t.assertClose(out.n.O2, 0.2095 * 2.5, 0.01, 'O₂ scaled by flowScale');
+    t.assertClose(out.n.N2, wet.N2 * 2.5, 0.01, 'N₂ scaled by flowScale (wet)');
+    t.assertClose(out.n.O2, wet.O2 * 2.5, 0.01, 'O₂ scaled by flowScale (wet)');
+    t.assertOK(out.n.H2O > 0, 'Wet air includes H₂O');
+    t.assertClose(out.n.H2O, wet.H2O * 2.5, 0.01, 'H₂O scaled by flowScale');
   });
 
   test('SimSettings — atmosphere preset switch', t => {
@@ -35362,12 +35372,12 @@ function runTests() {
     t.assertClose(restored.P_Pa, origAtm.P_Pa, 1, 'Restored P');
   });
 
-  test('SimSettings — source_air tracks preset change', t => {
-    // T5: Switch atmosphere, source_air output should change
+  test('SimSettings — source_atm tracks preset change', t => {
+    // T5: Switch atmosphere, source_atm output should change
     const origPreset = SimSettings.getPresetKey();
 
     SimSettings.setAtmosphere('mars');
-    const src = t.place('source_air', 0, 0, { flowScale: 1.0 });
+    const src = t.place('source_atm', 0, 0, { flowScale: 1.0 });
     const snk = t.place('sink', 4, 0);
     t.wire(src, 'mat_out', snk, 'mat_in');
     t.solve();
@@ -35407,23 +35417,23 @@ function runTests() {
     t.assertClose(out2.P, atm.P_Pa, 1, 'No par.P → atmospheric P');
   });
 
-  test('SimSettings — all presets propagate to source_air', t => {
-    // T7: [v12.0.0] Rewritten — source_air always tracks atmosphere
+  test('SimSettings — all presets propagate to source_atm (wet air)', t => {
+    // T7: [v14.6.0] source_atm uses getWetAir() — humidity displaces dry fractions
     const origPreset = SimSettings.getPresetKey();
 
     const presetChecks = [
-      { key: 'earth_isa', T: 288.15, P: 101325, majorSp: 'N2',  minFrac: 0.78 },
-      { key: 'mars',      T: 210,    P: 636,    majorSp: 'CO2', minFrac: 0.95 },
-      { key: 'titan',     T: 94,     P: 146700, majorSp: 'N2',  minFrac: 0.95 },
-      { key: 'venus',     T: 737,    P: 9200000,majorSp: 'CO2', minFrac: 0.96 },
-      { key: 'planet_x',  T: 305.15, P: 89660,  majorSp: 'N2',  minFrac: 0.70 }
+      { key: 'earth_isa', T: 288.15, P: 101325, majorSp: 'N2',  minFrac: 0.77, hasH2O: true },
+      { key: 'mars',      T: 210,    P: 636,    majorSp: 'CO2', minFrac: 0.95, hasH2O: false },
+      { key: 'titan',     T: 94,     P: 146700, majorSp: 'N2',  minFrac: 0.95, hasH2O: false },
+      { key: 'venus',     T: 737,    P: 9200000,majorSp: 'CO2', minFrac: 0.96, hasH2O: false },
+      { key: 'planet_x',  T: 305.15, P: 89660,  majorSp: 'N2',  minFrac: 0.68, hasH2O: true }
     ];
 
     for (const pc of presetChecks) {
       SimSettings.setAtmosphere(pc.key);
       t.clearScene();
 
-      const air = t.place('source_air', 0, 0, { flowScale: 1 });
+      const air = t.place('source_atm', 0, 0, { flowScale: 1 });
       const snk = t.place('sink', 4, 0);
       t.wire(air, 'mat_out', snk, 'mat_in');
       t.solve();
@@ -35432,6 +35442,9 @@ function runTests() {
       t.assertClose(airOut.T, pc.T, 1, `${pc.key}: air T`);
       t.assertClose(airOut.P, pc.P, 100, `${pc.key}: air P`);
       t.assertOK(airOut.n[pc.majorSp] >= pc.minFrac, `${pc.key}: air major species`);
+      if (pc.hasH2O) {
+        t.assertOK(airOut.n.H2O > 0, `${pc.key}: wet air has H₂O`);
+      }
     }
 
     SimSettings.setAtmosphere(origPreset);
@@ -35465,16 +35478,16 @@ function runTests() {
     SimSettings.setAtmosphere(origPreset);
   });
 
-  test('T-TF03: source_multi default T, P from atmosphere', t => {
+  test('T-TF03: source default T, P from atmosphere', t => {
     const origPreset = SimSettings.getPresetKey();
     SimSettings.setAtmosphere('planet_x');
     t.clearScene();
-    const id = scene.placeUnit('source_multi', 0, 0);
+    const id = scene.placeUnit('source', 0, 0);
     const u = scene.units.get(id);
     t.assertClose(u.params.T, SimSettings.atmosphere.T_K, 0.01,
-      'source_multi T = Planet X T_K');
+      'source T = Planet X T_K');
     t.assertClose(u.params.P, SimSettings.atmosphere.P_Pa, 1,
-      'source_multi P = Planet X P_Pa');
+      'source P = Planet X P_Pa');
     // Restore
     SimSettings.setAtmosphere(origPreset);
   });
@@ -38029,7 +38042,7 @@ function runTests() {
 
   tests.push({ name: '206: Heated mode — endo + heat → T rises toward isothermal', fn: t => {
     t.clearScene();
-    const src = t.place('source_multi', 0, 0, {
+    const src = t.place('source', 0, 0, {
       n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V'
     });
     const rx = t.place('reactor_equilibrium', 4, 0, {
@@ -38058,7 +38071,7 @@ function runTests() {
 
   tests.push({ name: '207: Heated mode — endo + small heat → T drops less than insulated', fn: t => {
     t.clearScene();
-    const src = t.place('source_multi', 0, 0, {
+    const src = t.place('source', 0, 0, {
       n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V'
     });
     // Insulated reference
@@ -38069,7 +38082,7 @@ function runTests() {
     t.wire(src, 'mat_out', rxIns, 'mat_in');
     t.wire(rxIns, 'mat_out', snkIns, 'mat_in');
     // Heated with small Q — [v12.8.0] grid → reactor elec_in directly
-    const src2 = t.place('source_multi', 0, 6, {
+    const src2 = t.place('source', 0, 6, {
       n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V'
     });
     const rxHeat = t.place('reactor_equilibrium', 4, 6, {
@@ -38093,7 +38106,7 @@ function runTests() {
 
   tests.push({ name: '208: Insulated endo → T drops, still active (no CRITICAL)', fn: t => {
     t.clearScene();
-    const src = t.place('source_multi', 0, 0, {
+    const src = t.place('source', 0, 0, {
       n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V'
     });
     const rx = t.place('reactor_equilibrium', 4, 0, {
@@ -38118,7 +38131,7 @@ function runTests() {
   tests.push({ name: '209: Fixed power exo + bonus → T_out rises, all in fluid', fn: t => {
     t.clearScene();
     // Sabatier at 523K — exothermic, but user injects 10 kW (WYSIWYG)
-    const src = t.place('source_multi', 0, 0, {
+    const src = t.place('source', 0, 0, {
       n: { CO2: 1, H2: 4 }, T: 523, P: 1000000, phaseConstraint: 'V'
     });
     const rx = t.place('reactor_equilibrium', 4, 0, {
@@ -38732,7 +38745,7 @@ function runTests() {
     const b = getPresentation(def, { params: { variant: 'port-bottom' } });
     t.assertOK(b.ports.mat_out.x === 1 && b.ports.mat_out.y === 2, 'port-bottom: bottom edge');
     // All 5 source types have same variant set
-    for (const id of ['source', 'source_multi', 'source_air', 'grid_supply']) {
+    for (const id of ['source', 'source_atm', 'grid_supply']) {
       const d2 = UnitRegistry.get(id);
       t.assertOK(d2.presentations['box/port-left'] !== undefined, id + ' has port-left');
       t.assertOK(d2.presentations['box/port-top'] !== undefined, id + ' has port-top');
@@ -38807,7 +38820,7 @@ function runTests() {
 
   tests.push({ name: '240: Heated endo + small Q → T between insulated and isothermal', fn: t => {
     // [v11.0.0] Heated mode with partial Q: T_out > insulated, < isothermal
-    const feed = t.place('source_multi', 0, 0, { n:{CH4:0.2, H2O:0.4}, T:1000, P:2000000, phaseConstraint:'V' });
+    const feed = t.place('source', 0, 0, { n:{CH4:0.2, H2O:0.4}, T:1000, P:2000000, phaseConstraint:'V' });
     const rx = t.place('reactor_equilibrium', 4, 0, { reactionId:'R_SMR_OVERALL', useKinetics:true, volume_m3:1.0, heatDemand:'isothermal', variant:'elec-top' });
     const snk = t.place('sink', 8, 0);
     // [v12.9.0] grid → hub → reactor elec_in
@@ -38827,7 +38840,7 @@ function runTests() {
 
   tests.push({ name: '241: Heated endo + excess Q → T near isothermal', fn: t => {
     // Endothermic + excess heat → T_out ≈ T_in or slightly above
-    const feed = t.place('source_multi', 0, 0, { n:{CH4:0.2, H2O:0.4}, T:1000, P:2000000, phaseConstraint:'V' });
+    const feed = t.place('source', 0, 0, { n:{CH4:0.2, H2O:0.4}, T:1000, P:2000000, phaseConstraint:'V' });
     const rx = t.place('reactor_equilibrium', 4, 0, { reactionId:'R_SMR_OVERALL', useKinetics:true, volume_m3:1.0, heatDemand:'isothermal', variant:'elec-top' });
     const snk = t.place('sink', 8, 0);
     // [v12.9.0] grid → hub → reactor elec_in
@@ -38846,7 +38859,7 @@ function runTests() {
 
   tests.push({ name: '242: Fixed power exo + Q → T rises above insulated', fn: t => {
     // Exothermic + fixed external heat → T_out higher than insulated case.
-    const feed = t.place('source_multi', 0, 0, { n:{CO2:0.1, H2:0.4}, T:600, P:500000, phaseConstraint:'V' });
+    const feed = t.place('source', 0, 0, { n:{CO2:0.1, H2:0.4}, T:600, P:500000, phaseConstraint:'V' });
     const rxHeat = t.place('reactor_equilibrium', 4, 0, { reactionId:'R_SABATIER', useKinetics:true, volume_m3:1.0, heatDemand:'fixed', Q_fixed_kW:50, variant:'elec-top' });
     const snk = t.place('sink', 8, 0);
     // [v12.9.0] grid → hub → reactor elec_in
@@ -38855,7 +38868,7 @@ function runTests() {
     t.wire(feed,'mat_out', rxHeat,'mat_in'); t.wire(rxHeat,'mat_out', snk,'mat_in');
     t.wire(gs,'elec_out', hub242,'elec_in'); t.wire(hub242,'elec_out', rxHeat,'elec_in');
     // Also build insulated reference
-    const feed2 = t.place('source_multi', 0, 12, { n:{CO2:0.1, H2:0.4}, T:600, P:500000, phaseConstraint:'V' });
+    const feed2 = t.place('source', 0, 12, { n:{CO2:0.1, H2:0.4}, T:600, P:500000, phaseConstraint:'V' });
     const rxIns = t.place('reactor_equilibrium', 4, 12, { reactionId:'R_SABATIER', useKinetics:true, volume_m3:1.0 });
     const snk2 = t.place('sink', 8, 12);
     t.wire(feed2,'mat_out', rxIns,'mat_in'); t.wire(rxIns,'mat_out', snk2,'mat_in');
@@ -38876,7 +38889,7 @@ function runTests() {
     // → Combustor (R_H2_COMB adiabatic) → Gas Turbine (3→1 bar) → Exhaust
     // Turbine shaft → Electrical Sink
     const aGrid  = t.place('grid_supply',      30,  0, { maxPower: 20000 });
-    const aAir   = t.place('source_air',       30,  2, { flowScale: 1.0 });
+    const aAir   = t.place('source_atm',       30,  2, { flowScale: 1.0 });
     const aComp  = t.place('compressor',       34,  2, { Pout: 300000, eta: 0.80 });
     const aFuel  = t.place('source',           38,  8, { species: 'H2', nDot: 0.02, T: 298.15, P: 300000, phaseConstraint: 'V' });
     const aMix   = t.place('mixer',            40,  6);
@@ -38889,7 +38902,7 @@ function runTests() {
     const abHex  = t.place('hex',              38,  4, { T_approach: 10 });
 
     // ── PROCESS B: Steam Methane Reforming (endothermic) ──
-    const bFeed  = t.place('source_multi',     30,  4, { n: { CH4: 0.2, H2O: 0.4 }, T: 873, P: 2000000, phaseConstraint: 'V' });
+    const bFeed  = t.place('source',     30,  4, { n: { CH4: 0.2, H2O: 0.4 }, T: 873, P: 2000000, phaseConstraint: 'V' });
     const bRx    = t.place('reactor_equilibrium', 34, 4, { reactionId: 'R_SMR_OVERALL', useKinetics: true, volume_m3: 1.0, variant: 'elec-top', heatDemand: 'isothermal' });
     const bValve = t.place('valve',            42,  4, { Pout: 200000 });
     const bProd  = t.place('sink',             46,  4);
@@ -39212,7 +39225,7 @@ function runTests() {
 
   tests.push({ name: '253: Reactor exo insulated → T rises, no heat_out port', fn: t => {
     // H2 combustion at 800K: strongly exothermic, insulated mode
-    const src  = t.place('source_multi', 0, 0, { n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V' });
+    const src  = t.place('source', 0, 0, { n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V' });
     const rx   = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_H2_COMB', alpha: 1.0, useKinetics: false });
     const snk  = t.place('sink', 8, 0);
     t.wire(src, 'mat_out', rx, 'mat_in');
@@ -39233,7 +39246,7 @@ function runTests() {
 
   tests.push({ name: '254: Fixed power endo + excess Q → T_out > T_in, energy in fluid', fn: t => {
     // Steam reforming at 1000K with large fixed Q (500 kW, duty ~200 kW). WYSIWYG: all Q enters fluid.
-    const src  = t.place('source_multi', 0, 0, { n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V' });
+    const src  = t.place('source', 0, 0, { n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V' });
     const rx   = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_SMR_OVERALL', useKinetics: false, alpha: 1.0, heatDemand: 'fixed', Q_fixed_kW: 500 });
     const snk  = t.place('sink', 8, 0);
     // Direct grid → reactor (tests direct allocation with finite demand)
@@ -39258,7 +39271,7 @@ function runTests() {
 
   tests.push({ name: '257: No "dissipated" field in system balance', fn: t => {
     // Build a system with an exothermic reactor, heat_out unconnected
-    const src = t.place('source_multi', 0, 0, { n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V' });
+    const src = t.place('source', 0, 0, { n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V' });
     const rx  = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_H2_COMB', alpha: 1.0, useKinetics: false });
     const snk = t.place('sink', 8, 0);
     t.wire(src, 'mat_out', rx, 'mat_in');
@@ -39273,7 +39286,7 @@ function runTests() {
   tests.push({ name: '258: Full system unconnected exo reactor → 0 residual, higher H_out', fn: t => {
     // Exothermic reactor with heat_out unconnected → heat stays in fluid
     // Verify: H_out > H_out_isothermal, system balance closes
-    const src = t.place('source_multi', 0, 0, { n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V' });
+    const src = t.place('source', 0, 0, { n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V' });
     const rx  = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_H2_COMB', alpha: 1.0, useKinetics: false });
     const snk = t.place('sink', 8, 0);
     t.wire(src, 'mat_out', rx, 'mat_in');
@@ -39375,7 +39388,7 @@ function runTests() {
   tests.push({ name: '265: Insulated SMR → T drops, conversion limited', fn: t => {
     // Endothermic: T_out < T_in, conversion reduced vs isothermal
     t.clearScene();
-    const src = t.place('source_multi', 0, 0, {
+    const src = t.place('source', 0, 0, {
       n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V'
     });
     const rx = t.place('reactor_equilibrium', 4, 0, {
@@ -39403,7 +39416,7 @@ function runTests() {
 
   tests.push({ name: '266: Insulated Sabatier (exo) → T rises, conv limited', fn: t => {
     t.clearScene();
-    const src = t.place('source_multi', 0, 0, {
+    const src = t.place('source', 0, 0, {
       n: { CO2: 1, H2: 4 }, T: 523, P: 1000000, phaseConstraint: 'V'
     });
     const rx = t.place('reactor_equilibrium', 4, 0, {
@@ -39431,7 +39444,7 @@ function runTests() {
     // Supply exactly isothermal Q_duty → T_out ≈ T_in
     t.clearScene();
     // First: find isothermal Q_duty
-    const src1 = t.place('source_multi', 0, 0, {
+    const src1 = t.place('source', 0, 0, {
       n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V'
     });
     const rx1 = t.place('reactor_equilibrium', 4, 0, {
@@ -39445,7 +39458,7 @@ function runTests() {
     t.assertOK(Q_iso > 0, 'iso_Q_duty > 0 (endothermic)');
     // Now: heated reactor with that exact Q — [v12.8.0] grid → reactor elec_in
     t.clearScene();
-    const src2 = t.place('source_multi', 0, 0, {
+    const src2 = t.place('source', 0, 0, {
       n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V'
     });
     const rx2 = t.place('reactor_equilibrium', 4, 0, {
@@ -39465,7 +39478,7 @@ function runTests() {
 
   tests.push({ name: '268: Heated mode, unconnected heat_in → Q=0, same as insulated', fn: t => {
     t.clearScene();
-    const srcI = t.place('source_multi', 0, 0, {
+    const srcI = t.place('source', 0, 0, {
       n: { CO2: 1, H2: 4 }, T: 523, P: 1000000, phaseConstraint: 'V'
     });
     const rxI = t.place('reactor_equilibrium', 4, 0, {
@@ -39474,7 +39487,7 @@ function runTests() {
     const snkI = t.place('sink', 8, 0);
     t.wire(srcI, 'mat_out', rxI, 'mat_in');
     t.wire(rxI, 'mat_out', snkI, 'mat_in');
-    const srcH = t.place('source_multi', 0, 6, {
+    const srcH = t.place('source', 0, 6, {
       n: { CO2: 1, H2: 4 }, T: 523, P: 1000000, phaseConstraint: 'V'
     });
     const rxH = t.place('reactor_equilibrium', 4, 6, {
@@ -39492,7 +39505,7 @@ function runTests() {
 
   tests.push({ name: '269: Insulated mode hides elec_in and rejects connection', fn: t => {
     t.clearScene();
-    const src = t.place('source_multi', 0, 0, {
+    const src = t.place('source', 0, 0, {
       n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V'
     });
     // Default mode is insulated — variant should be 'insulated' (no elec_in visible)
@@ -39531,7 +39544,7 @@ function runTests() {
 
   tests.push({ name: '273: Isothermal ref matches legacy Q_duty', fn: t => {
     t.clearScene();
-    const src = t.place('source_multi', 0, 0, {
+    const src = t.place('source', 0, 0, {
       n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
     });
     const rx = t.place('reactor_equilibrium', 4, 0, {
@@ -39556,7 +39569,7 @@ function runTests() {
 
   tests.push({ name: '274: Skip-when-clean — second solve skips reactor', fn: t => {
     t.clearScene();
-    const src = t.place('source_multi', 0, 0, {
+    const src = t.place('source', 0, 0, {
       n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V'
     });
     const rx = t.place('reactor_equilibrium', 4, 0, {
@@ -39580,7 +39593,7 @@ function runTests() {
 
   tests.push({ name: '275: Warm start — used after first solve + convergence', fn: t => {
     t.clearScene();
-    const src = t.place('source_multi', 0, 0, {
+    const src = t.place('source', 0, 0, {
       n: { CO2: 1, H2: 4 }, T: 523, P: 1000000, phaseConstraint: 'V'
     });
     const rx = t.place('reactor_equilibrium', 4, 0, {
@@ -39610,7 +39623,7 @@ function runTests() {
 
   tests.push({ name: '276: Warm start fallback — large inlet change still converges', fn: t => {
     t.clearScene();
-    const src = t.place('source_multi', 0, 0, {
+    const src = t.place('source', 0, 0, {
       n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V'
     });
     const rx = t.place('reactor_equilibrium', 4, 0, {
@@ -39634,7 +39647,7 @@ function runTests() {
 
   tests.push({ name: '277: Skip-when-clean preserves energy balance', fn: t => {
     t.clearScene();
-    const src = t.place('source_multi', 0, 0, {
+    const src = t.place('source', 0, 0, {
       n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
     });
     const rx = t.place('reactor_equilibrium', 4, 0, {
@@ -39662,7 +39675,7 @@ function runTests() {
 
   tests.push({ name: '278: Heated mode reactor accepts elec_in connection', fn: t => {
     t.clearScene();
-    const src = t.place('source_multi', 0, 0, {
+    const src = t.place('source', 0, 0, {
       n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V'
     });
     const rx = t.place('reactor_equilibrium', 4, 0, {
@@ -39685,7 +39698,7 @@ function runTests() {
 
   tests.push({ name: '279: Variant sync — heatDemand:none forces insulated variant', fn: t => {
     t.clearScene();
-    const src = t.place('source_multi', 0, 0, {
+    const src = t.place('source', 0, 0, {
       n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
     });
     // Place with mode:insulated but NO variant set (simulates legacy placement)
@@ -39705,7 +39718,7 @@ function runTests() {
 
   tests.push({ name: '280: Variant sync — heatDemand:isothermal clears insulated variant', fn: t => {
     t.clearScene();
-    const src = t.place('source_multi', 0, 0, {
+    const src = t.place('source', 0, 0, {
       n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
     });
     // Place with mode:heated but variant stuck at 'insulated' (simulates corruption)
@@ -39725,7 +39738,7 @@ function runTests() {
     // pass must remove connections to ports not in the active presentation
     // (insulated hides elec_in).
     t.clearScene();
-    const src = t.place('source_multi', 0, 0, {
+    const src = t.place('source', 0, 0, {
       n: { CH4: 1, H2O: 3 }, T: 900, P: 500000, phaseConstraint: 'V'
     });
     const rx = t.place('reactor_equilibrium', 4, 0, {
@@ -39998,7 +40011,7 @@ function runTests() {
     // Compare insulated vs heated mode.
     t.clearScene();
     // Insulated baseline
-    const src1 = t.place('source_multi', 0, 0, { n: { CO2:1, H2:4 }, T: 523, P: 1000000, phaseConstraint: 'V' });
+    const src1 = t.place('source', 0, 0, { n: { CO2:1, H2:4 }, T: 523, P: 1000000, phaseConstraint: 'V' });
     const rx1  = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_SABATIER', useKinetics: false, alpha: 1.0, heatDemand: 'none', variant: 'insulated' });
     const snk1 = t.place('sink', 8, 0);
     t.wire(src1, 'mat_out', rx1, 'mat_in');
@@ -40008,7 +40021,7 @@ function runTests() {
 
     // Heated mode with fixed power (exo → isothermal demand = 0, must use fixed)
     t.clearScene();
-    const src2 = t.place('source_multi', 0, 0, { n: { CO2:1, H2:4 }, T: 523, P: 1000000, phaseConstraint: 'V' });
+    const src2 = t.place('source', 0, 0, { n: { CO2:1, H2:4 }, T: 523, P: 1000000, phaseConstraint: 'V' });
     const rx2  = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_SABATIER', useKinetics: false, alpha: 1.0, heatDemand: 'fixed', Q_fixed_kW: 100 });
     const snk2 = t.place('sink', 8, 0);
     const gs   = t.place('grid_supply', 4, 5, { maxPower: 100 });
@@ -40029,7 +40042,7 @@ function runTests() {
     // SMR is endothermic. If we supply Q ≈ isothermal duty, T_out ≈ T_in.
     // First get isothermal duty from insulated run.
     t.clearScene();
-    const src1 = t.place('source_multi', 0, 0, { n: { CH4:1, H2O:2 }, T: 1000, P: 500000, phaseConstraint: 'V' });
+    const src1 = t.place('source', 0, 0, { n: { CH4:1, H2O:2 }, T: 1000, P: 500000, phaseConstraint: 'V' });
     const rx1  = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_SMR_OVERALL', useKinetics: false, alpha: 1.0, heatDemand: 'none', variant: 'insulated' });
     const snk1 = t.place('sink', 8, 0);
     t.wire(src1, 'mat_out', rx1, 'mat_in');
@@ -40044,7 +40057,7 @@ function runTests() {
     // Heated mode: supply |Q_iso| of power
     t.clearScene();
     const Q_supply_kW = Math.abs(Q_iso) / 1000;
-    const src2 = t.place('source_multi', 0, 0, { n: { CH4:1, H2O:2 }, T: 1000, P: 500000, phaseConstraint: 'V' });
+    const src2 = t.place('source', 0, 0, { n: { CH4:1, H2O:2 }, T: 1000, P: 500000, phaseConstraint: 'V' });
     const rx2  = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_SMR_OVERALL', useKinetics: false, alpha: 1.0, heatDemand: 'isothermal' });
     const snk2 = t.place('sink', 8, 0);
     const gs   = t.place('grid_supply', 4, 5, { maxPower: Q_supply_kW + 10 });
@@ -40306,7 +40319,7 @@ function runTests() {
     // Sabatier is exothermic. Isothermal mode: iso_Q_duty < 0 → demand = 0.
     // Even with grid connected, hub allocates 0 → reactor runs adiabatic.
     t.clearScene();
-    const src = t.place('source_multi', 0, 0, { n: { CO2: 1, H2: 4 }, T: 523, P: 1000000, phaseConstraint: 'V' });
+    const src = t.place('source', 0, 0, { n: { CO2: 1, H2: 4 }, T: 523, P: 1000000, phaseConstraint: 'V' });
     const rx  = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_SABATIER', useKinetics: false, alpha: 1.0, heatDemand: 'isothermal' });
     const snk = t.place('sink', 8, 0);
     const gs  = t.place('grid_supply', 0, 5, { maxPower: 100 });
@@ -40321,7 +40334,7 @@ function runTests() {
     t.assertOK(L.Q_in_W === 0, 'Q_in = 0 (nothing allocated)');
     // Should match adiabatic result
     t.clearScene();
-    const src2 = t.place('source_multi', 0, 0, { n: { CO2: 1, H2: 4 }, T: 523, P: 1000000, phaseConstraint: 'V' });
+    const src2 = t.place('source', 0, 0, { n: { CO2: 1, H2: 4 }, T: 523, P: 1000000, phaseConstraint: 'V' });
     const rx2  = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_SABATIER', useKinetics: false, alpha: 1.0, heatDemand: 'none', variant: 'insulated' });
     const snk2 = t.place('sink', 8, 0);
     t.wire(src2, 'mat_out', rx2, 'mat_in'); t.wire(rx2, 'mat_out', snk2, 'mat_in');
@@ -40334,7 +40347,7 @@ function runTests() {
     // Sabatier exothermic + 50 kW fixed power. WYSIWYG: T rises beyond adiabatic.
     t.clearScene();
     // Adiabatic baseline
-    const src1 = t.place('source_multi', 0, 0, { n: { CO2: 1, H2: 4 }, T: 523, P: 1000000, phaseConstraint: 'V' });
+    const src1 = t.place('source', 0, 0, { n: { CO2: 1, H2: 4 }, T: 523, P: 1000000, phaseConstraint: 'V' });
     const rx1  = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_SABATIER', useKinetics: false, alpha: 1.0, heatDemand: 'none', variant: 'insulated' });
     const snk1 = t.place('sink', 8, 0);
     t.wire(src1, 'mat_out', rx1, 'mat_in'); t.wire(rx1, 'mat_out', snk1, 'mat_in');
@@ -40342,7 +40355,7 @@ function runTests() {
     const T_adia = t.port(rx1, 'mat_out')?.T;
     // Fixed power run
     t.clearScene();
-    const src2 = t.place('source_multi', 0, 0, { n: { CO2: 1, H2: 4 }, T: 523, P: 1000000, phaseConstraint: 'V' });
+    const src2 = t.place('source', 0, 0, { n: { CO2: 1, H2: 4 }, T: 523, P: 1000000, phaseConstraint: 'V' });
     const rx2  = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_SABATIER', useKinetics: false, alpha: 1.0, heatDemand: 'fixed', Q_fixed_kW: 50 });
     const snk2 = t.place('sink', 8, 0);
     const gs   = t.place('grid_supply', 0, 5, { maxPower: 50 });
@@ -40361,7 +40374,7 @@ function runTests() {
     // Two consumers on one hub: reactor (isothermal endo) + compressor.
     // Grid supply < total demand → both get curtailed. Neither gets NaN.
     t.clearScene();
-    const src = t.place('source_multi', 0, 0, { n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V' });
+    const src = t.place('source', 0, 0, { n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V' });
     const rx  = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_SMR_OVERALL', useKinetics: false, alpha: 1.0, heatDemand: 'isothermal' });
     const snk = t.place('sink', 8, 0);
     t.wire(src, 'mat_out', rx, 'mat_in'); t.wire(rx, 'mat_out', snk, 'mat_in');
@@ -40391,7 +40404,7 @@ function runTests() {
     // If user sets Q_fixed_kW exactly to the isothermal duty, result should match isothermal mode.
     t.clearScene();
     // Get iso_duty from adiabatic run
-    const src1 = t.place('source_multi', 0, 0, { n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V' });
+    const src1 = t.place('source', 0, 0, { n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V' });
     const rx1  = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_SMR_OVERALL', useKinetics: false, alpha: 1.0, heatDemand: 'none', variant: 'insulated' });
     const snk1 = t.place('sink', 8, 0);
     t.wire(src1, 'mat_out', rx1, 'mat_in'); t.wire(rx1, 'mat_out', snk1, 'mat_in');
@@ -40401,7 +40414,7 @@ function runTests() {
 
     // Isothermal mode
     t.clearScene();
-    const src2 = t.place('source_multi', 0, 0, { n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V' });
+    const src2 = t.place('source', 0, 0, { n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V' });
     const rx2  = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_SMR_OVERALL', useKinetics: false, alpha: 1.0, heatDemand: 'isothermal' });
     const snk2 = t.place('sink', 8, 0);
     const gs2  = t.place('grid_supply', 0, 5, { maxPower: iso_duty_kW + 10 });
@@ -40413,7 +40426,7 @@ function runTests() {
 
     // Fixed mode with Q = iso_duty
     t.clearScene();
-    const src3 = t.place('source_multi', 0, 0, { n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V' });
+    const src3 = t.place('source', 0, 0, { n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V' });
     const rx3  = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_SMR_OVERALL', useKinetics: false, alpha: 1.0, heatDemand: 'fixed', Q_fixed_kW: iso_duty_kW });
     const snk3 = t.place('sink', 8, 0);
     const gs3  = t.place('grid_supply', 0, 5, { maxPower: iso_duty_kW + 10 });
@@ -40431,7 +40444,7 @@ function runTests() {
     // Direct connection: grid_supply → reactor elec_in, no hub.
     // With finite demand, no NaN/Infinity in allocation.
     t.clearScene();
-    const src = t.place('source_multi', 0, 0, { n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V' });
+    const src = t.place('source', 0, 0, { n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V' });
     const rx  = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_SMR_OVERALL', useKinetics: false, alpha: 1.0, heatDemand: 'isothermal' });
     const snk = t.place('sink', 8, 0);
     const gs  = t.place('grid_supply', 0, 5, { maxPower: 500 });
@@ -40454,7 +40467,7 @@ function runTests() {
     // Verify computeSystemBalance returns correct structure for UI panel.
     t.clearScene();
     // Exothermic reactor → cooler → sink. Grid → reactor (fixed power).
-    const src = t.place('source_multi', 0, 0, { n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V' });
+    const src = t.place('source', 0, 0, { n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V' });
     const rx  = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_H2_COMB', useKinetics: false, alpha: 1.0, heatDemand: 'fixed', Q_fixed_kW: 5 });
     const clr = t.place('air_cooler', 8, 0, { T_out: 350, max_fan_power_W: 500 });
     const snk = t.place('sink', 12, 0);
@@ -41075,7 +41088,7 @@ function runTests() {
   });
 
   test('341i: ProfileRegistry — boundary units flagged, single-tier, no limits', t => {
-    for (const pId of ['source', 'source_multi', 'source_air', 'sink', 'grid_supply', 'sink_electrical']) {
+    for (const pId of ['source_pure', 'source_mix', 'source_atmosphere', 'sink', 'grid_supply', 'sink_electrical']) {
       const p = ProfileRegistry.get(pId);
       t.assertOK(p, `${pId} profile exists`);
       t.assertOK(p.boundary === true, `${pId}: boundary flag set`);
@@ -41774,7 +41787,7 @@ function runTests() {
 
   test('383: S4a — Column N₂/O₂ separation at 5 bar, distillate enriched in N₂', t => {
     // N₂/O₂ binary at 5 bar: N₂ is more volatile (LK), O₂ is HK
-    const src = t.place('source_multi', 0, 0, {
+    const src = t.place('source', 0, 0, {
       n: { N2: 0.79, O2: 0.21 }, T: 150, P: 500000, phaseConstraint: 'VL'
     });
     const col = t.place('distillation_column', 4, 0, {
@@ -41817,7 +41830,7 @@ function runTests() {
   });
 
   test('384: S4a — Column mass balance: F = D + B per species', t => {
-    const src = t.place('source_multi', 0, 0, {
+    const src = t.place('source', 0, 0, {
       n: { N2: 0.5, O2: 0.3, Ar: 0.2 }, T: 200, P: 500000, phaseConstraint: 'VL'
     });
     const col = t.place('distillation_column', 4, 0, {
@@ -41851,7 +41864,7 @@ function runTests() {
   });
 
   test('385: S4a — Column energy balance: |Q_R − Q_C − ΔH| < 5%', t => {
-    const src = t.place('source_multi', 0, 0, {
+    const src = t.place('source', 0, 0, {
       n: { N2: 0.79, O2: 0.21 }, T: 150, P: 500000, phaseConstraint: 'VL'
     });
     const col = t.place('distillation_column', 4, 0, {
@@ -41883,7 +41896,7 @@ function runTests() {
 
   test('386: S4a — Column undersized: warning when N < N_actual', t => {
     // Use very few stages with high purity — should be undersized
-    const src = t.place('source_multi', 0, 0, {
+    const src = t.place('source', 0, 0, {
       n: { N2: 0.79, O2: 0.21 }, T: 150, P: 500000, phaseConstraint: 'VL'
     });
     const col = t.place('distillation_column', 4, 0, {
