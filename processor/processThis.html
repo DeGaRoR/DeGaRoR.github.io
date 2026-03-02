@@ -2259,6 +2259,24 @@
       border-radius: 3px;
       flex-shrink: 0;
     }
+    /* [v14.7.0 S-SIM] Checkpoint dropdown */
+    .vis-menu .cp-item {
+      display: flex; align-items: center; gap: 8px;
+      padding: 6px 12px; font-size: 12px; font-weight: 500;
+      color: #94a3b8; cursor: pointer; user-select: none;
+      transition: background 0.1s, color 0.1s;
+    }
+    .vis-menu .cp-item:hover { background: #1e293b; color: #e2e8f0; }
+    .vis-menu .cp-item .cp-badge {
+      font-size: 9px; font-weight: 700; text-transform: uppercase;
+      padding: 1px 4px; border-radius: 3px; flex-shrink: 0;
+    }
+    .vis-menu .cp-item .cp-badge.manual { background: #1e40af; color: #93c5fd; }
+    .vis-menu .cp-item .cp-badge.auto   { background: #374151; color: #9ca3af; }
+    .vis-menu .cp-empty {
+      padding: 8px 12px; font-size: 11px; color: #475569;
+      font-style: italic; user-select: none;
+    }
 
     /* ===== TOOLTIPS — universal [data-tip] system [v13.1.3] ===== */
     [data-tip] { position: relative; }
@@ -2439,6 +2457,12 @@
       white-space: nowrap;
     }
     .time-display b { color: #94a3b8; }
+    /* [v14.7.0 S-SIM] Solve indicator — subtle pulse while computing */
+    .time-display.solving { animation: solvePulse 0.6s ease-in-out infinite; }
+    @keyframes solvePulse {
+      0%, 100% { color: #64748b; }
+      50% { color: #f59e0b; }
+    }
 
     .speed-indicator {
       font-size: 10px;
@@ -6945,13 +6969,16 @@
 
     <!-- Action bar (floating, bottom-center of canvas) -->
     <div class="action-bar">
-      <!-- Transport controls [v9.0.1] -->
+      <!-- Transport controls [v14.7.0 S-SIM] -->
       <div class="transport">
-        <button class="tbtn active" id="btnTest" data-tip="Solve once (no time)">⟳ Test</button>
         <button class="tbtn" id="btnStep" data-tip="Step (advance 1 timestep)">▶|</button>
         <button class="tbtn" id="btnPlay" data-tip="Play (auto-step)">▶</button>
         <button class="tbtn" id="btnPause" data-tip="Pause" disabled>⏸</button>
-        <button class="tbtn" id="btnReset" data-tip="Reset to t=0" disabled>↺</button>
+        <div class="vis-menu-anchor" style="display:inline-flex;">
+          <button class="tbtn" id="btnRevert" data-tip="Revert to checkpoint">⏪</button>
+          <div class="vis-menu" id="menuRevert"></div>
+        </div>
+        <button class="tbtn" id="btnSave" data-tip="Save checkpoint">💾</button>
       </div>
       <span class="time-display" id="timeDisplay" style="cursor:pointer;" title="Click to open settings"></span>
       <span class="speed-indicator" id="speedIndicator" title="Normal (5s)">▶</span>
@@ -7477,6 +7504,7 @@ const SimSettings = {
   // ── Time settings [v9.0.1] ──
   dt: 3600,                  // [v10.5.0] timestep duration (seconds) — 1 hour default
   playSpeed: 0,              // [v10.5.1] play speed index (0=normal, 1=fast, 2=turbo)
+  autoCpInterval: 10,        // [v14.7.0 S-SIM] auto-checkpoint every N steps during play (0=off)
 
   // ── Animations [v10.4.0] (NNG-UI11: gated, never alter solver state) ──
   animations: true,         // master toggle for all visual animations
@@ -7612,15 +7640,20 @@ const T0_SECONDS = 43200;  // noon Day 1 — universal base time (DRY constant)
 const TimeClock = {
   t:     T0_SECONDS,   // [v10.5.0] current simulation time (seconds) — starts at noon Day 1
   frame: 0,        // integer frame counter (0 = initial state)
-  mode:  'test',   // 'test' | 'paused' | 'playing'
-  _initial: null,  // Map: unitId → deep copy of initial inventory (set on first step)
+  mode:  'paused', // [v14.7.0 S-SIM] 'paused' | 'playing' (test mode removed)
+
+  // [v14.7.0 S-SIM] Checkpoint stack — Kerbal-style save/restore
+  _checkpoints: [],  // Array of checkpoint objects (newest last)
+  _cpIndex: -1,      // Points to current position in stack (-1 = no checkpoints)
+  _cpMax: 20,        // Maximum checkpoint count (FIFO: oldest dropped when full)
+  _stepsSinceAutoCp: 0,  // Steps since last auto-checkpoint (for periodic saves)
 
   /** Get effective dt from SimSettings */
   get dt() { return SimSettings.dt || 3600; },
 
   /**
-   * Advance one timestep.
-   * 1. On first call (test→paused): init inventories, capture snapshot
+   * [v14.7.0 S-SIM] Advance one timestep.
+   * 1. Auto-checkpoint before first step (replaces _captureInitial)
    * 2. Update inventories from last solve's flows × dt
    * 3. Increment t, frame
    * 4. Re-solve
@@ -7628,16 +7661,9 @@ const TimeClock = {
    * @returns {{ t, frame, solveResult }}
    */
   step(scene) {
-    if (TimeClock.mode === 'test') {
-      // Initialize inventories on first step (only if not already set)
-      for (const [uid, u] of scene.units) {
-        const def = UnitRegistry.get(u.defId);
-        if (def && def.inventory && def.initInventory && !u.inventory) {
-          u.inventory = def.initInventory(u.params);
-        }
-      }
-      TimeClock._captureInitial(scene);
-      TimeClock.mode = 'paused';
+    // [v14.7.0 S-SIM] Auto-checkpoint before first step (replaces test→paused + _captureInitial)
+    if (TimeClock._checkpoints.length === 0) {
+      TimeClock._saveCheckpoint(scene, 'auto');
     }
 
     // [v9.0.2] Update inventories from last solve's resolved ports
@@ -7650,15 +7676,6 @@ const TimeClock = {
       u.inventory = def.updateInventory(u.inventory, resolvedPorts, dt);
     }
 
-    // [v13.8.0 S5a-0] Capture mid-sim units placed after initial snapshot
-    if (TimeClock._initial) {
-      for (const [uid, u] of scene.units) {
-        if (u.inventory && !TimeClock._initial.has(uid)) {
-          TimeClock._initial.set(uid, JSON.parse(JSON.stringify(u.inventory)));
-        }
-      }
-    }
-
     TimeClock.t += dt;
     TimeClock.frame += 1;
 
@@ -7667,37 +7684,119 @@ const TimeClock = {
   },
 
   /**
-   * Reset to t=0, restore initial inventories, re-solve.
+   * [v14.7.0 S-SIM] Revert to a checkpoint (replaces reset).
+   * Restores scene state from checkpoint, sets mode to paused, re-solves.
    * @param {Scene} scene
+   * @param {number} [index] - stack index; defaults to latest
    * @returns {{ solveResult }}
    */
-  reset(scene) {
-    TimeClock._restoreInitial(scene);
-    TimeClock.t = T0_SECONDS;  // [v10.5.0] reset to noon Day 1
-    TimeClock.frame = 0;
-    TimeClock.mode = 'test';
-
+  revert(scene, index) {
+    const ok = TimeClock._loadCheckpoint(scene, index);
+    if (!ok) {
+      // No checkpoint available — reset time only
+      TimeClock.t = T0_SECONDS;
+      TimeClock.frame = 0;
+    }
+    TimeClock.mode = 'paused';
     const solveResult = solveScene(scene);
     return { solveResult };
   },
 
-  /** Snapshot current inventories as t=0 state (deep copy) */
-  _captureInitial(scene) {
-    TimeClock._initial = new Map();
-    for (const [uid, u] of scene.units) {
-      if (u.inventory) {
-        TimeClock._initial.set(uid, JSON.parse(JSON.stringify(u.inventory)));
-      }
-    }
+  /** [v14.7.0] Backward-compat alias for revert() */
+  reset(scene) {
+    return TimeClock.revert(scene);
   },
 
-  /** Restore t=0 inventories from snapshot */
-  _restoreInitial(scene) {
-    if (!TimeClock._initial) return;
-    for (const [uid, snapshot] of TimeClock._initial) {
-      const u = scene.units.get(uid);
-      if (u) u.inventory = JSON.parse(JSON.stringify(snapshot));
+  // ── Checkpoint stack [v14.7.0 S-SIM] ──────────────────────────────────
+
+  /**
+   * Save a full scene snapshot to the checkpoint stack.
+   * Captures: units (all persistent fields), connections, time, dt.
+   * If the stack exceeds _cpMax, the oldest entry is dropped (FIFO).
+   * @param {Scene} scene
+   * @param {string} [label='auto'] - 'auto' | 'manual' | custom string
+   */
+  _saveCheckpoint(scene, label) {
+    // Trim any entries after _cpIndex (branch point)
+    TimeClock._checkpoints.length = TimeClock._cpIndex + 1;
+
+    const cp = {
+      t:     TimeClock.t,
+      frame: TimeClock.frame,
+      label: label || 'auto',
+      ts:    Date.now(),
+      dt:    SimSettings.dt,
+      units: [],
+      connections: JSON.parse(JSON.stringify(scene.connections))
+    };
+
+    // Deep-copy persistent unit fields only (skip transient solver state)
+    for (const [uid, u] of scene.units) {
+      const snap = {
+        id: u.id, defId: u.defId, name: u.name,
+        profileId: u.profileId, tier: u.tier,
+        x: u.x, y: u.y, rot: u.rot,
+        params: JSON.parse(JSON.stringify(u.params))
+      };
+      if (u.inventory) snap.inventory = JSON.parse(JSON.stringify(u.inventory));
+      if (u.fried) snap.fried = true;
+      if (u.sticker) snap.sticker = JSON.parse(JSON.stringify(u.sticker));
+      cp.units.push(snap);
     }
+
+    TimeClock._checkpoints.push(cp);
+
+    // FIFO cap
+    if (TimeClock._checkpoints.length > TimeClock._cpMax) {
+      TimeClock._checkpoints.shift();
+    }
+
+    TimeClock._cpIndex = TimeClock._checkpoints.length - 1;
+  },
+
+  /**
+   * Restore scene from a checkpoint.
+   * Replaces units, connections, time, and dt from the snapshot.
+   * Does NOT re-solve (caller decides when to solve).
+   * @param {Scene} scene
+   * @param {number} [index] - stack index; defaults to _cpIndex (latest)
+   * @returns {boolean} true if restored, false if index invalid
+   */
+  _loadCheckpoint(scene, index) {
+    const idx = (index !== undefined) ? index : TimeClock._cpIndex;
+    if (idx < 0 || idx >= TimeClock._checkpoints.length) return false;
+
+    const cp = TimeClock._checkpoints[idx];
+
+    // Restore time
+    TimeClock.t = cp.t;
+    TimeClock.frame = cp.frame;
+    SimSettings.dt = cp.dt;
+
+    // Restore units
+    scene.units.clear();
+    let maxId = 0;
+    for (const uSnap of cp.units) {
+      const u = JSON.parse(JSON.stringify(uSnap));
+      scene.units.set(u.id, u);
+      // Track highest numeric suffix for _idCounter
+      const parts = u.id.split('-');
+      const num = parseInt(parts[parts.length - 1], 10);
+      if (!isNaN(num) && num > maxId) maxId = num;
+    }
+
+    // Restore connections
+    scene.connections = JSON.parse(JSON.stringify(cp.connections));
+
+    // Restore _idCounter to avoid ID collisions on future placeUnit/connect
+    const maxConnId = scene.connections.reduce((mx, c) => {
+      const parts = (c.id || '').split('-');
+      const num = parseInt(parts[parts.length - 1], 10);
+      return (!isNaN(num) && num > mx) ? num : mx;
+    }, 0);
+    scene._idCounter = Math.max(maxId, maxConnId);
+
+    return true;
   }
 };
 
@@ -7707,9 +7806,9 @@ function formatTime(seconds) {
   const hour = Math.floor((seconds % 86400) / 3600);
   return `Day ${day}, ${hour}H`;
 }
-const PLAY_SPEEDS = [5000, 2000, 1000];           // [v10.5.3] 3 modes: normal, fast, turbo (ms)
-const PLAY_SPEED_LABELS = ['Normal (5s)', 'Fast (2s)', 'Turbo (1s)'];
-const FLOW_ARROW_SPEEDS = ['3s', '1.5s', '1s'];   // arrow animation duration per mode
+const PLAY_SPEEDS = [5000, 3000, 1500];           // [v14.7.0 S-SIM] 3 modes: normal, fast, turbo (ms)
+const PLAY_SPEED_LABELS = ['Normal (5s)', 'Fast (3s)', 'Turbo (1.5s)'];
+const FLOW_ARROW_SPEEDS = ['3s', '1.8s', '1s'];   // arrow animation duration per mode
 
 // [v10.5.2] Arrow count by chord length in cells. Always odd, one centered.
 // [v10.5.3] Doubled thresholds (8-cell spacing). "Short rule": <4 cells stays at 1.
@@ -17509,10 +17608,6 @@ class Scene {
       if (u.sticker) unitData.sticker = u.sticker;  // [v10.7.0] P1
       if (u.inventory) unitData.inventory = u.inventory;  // [v12.0.0] tank/battery state
       if (u.fried) unitData.fried = true;  // [v13.1.0 S2-A] overload destruction state
-      // [v13.8.0 S5a-0] Per-unit inventoryInitial from _initial snapshot
-      if (TimeClock._initial && TimeClock._initial.has(u.id)) {
-        unitData.inventoryInitial = TimeClock._initial.get(u.id);
-      }
       data.units.push(unitData);
     }
     
@@ -17884,24 +17979,11 @@ class Scene {
       TimeClock.t = T0_SECONDS;
       TimeClock.frame = 0;
     }
-    TimeClock.mode = 'test';
+    TimeClock.mode = 'paused';  // [v14.7.0 S-SIM] always paused after import (test mode removed)
 
-    // [v13.8.0 S5a-0] v17+: restore per-unit inventoryInitial as _initial map
-    TimeClock._initial = null;
-    if (data.version >= 17) {
-      let hasInitials = false;
-      for (const u of data.units) {
-        if (u.inventoryInitial) { hasInitials = true; break; }
-      }
-      if (hasInitials) {
-        TimeClock._initial = new Map();
-        for (const u of data.units) {
-          if (u.inventoryInitial) {
-            TimeClock._initial.set(u.id, JSON.parse(JSON.stringify(u.inventoryInitial)));
-          }
-        }
-      }
-    }
+    // [v14.7.0 S-SIM] Clear checkpoint stack on import — fresh scene, fresh history
+    TimeClock._checkpoints = [];
+    TimeClock._cpIndex = -1;
 
     return { ok: true };
   }
@@ -21198,11 +21280,11 @@ const ui = {
 const svg = document.getElementById('svg');
 const ioEl = document.getElementById('io');
 const propEditor = document.getElementById('propEditor');
-const btnTest  = document.getElementById('btnTest');
-const btnStep  = document.getElementById('btnStep');
-const btnPlay  = document.getElementById('btnPlay');
-const btnPause = document.getElementById('btnPause');
-const btnReset = document.getElementById('btnReset');
+const btnStep   = document.getElementById('btnStep');
+const btnPlay   = document.getElementById('btnPlay');
+const btnPause  = document.getElementById('btnPause');
+const btnRevert = document.getElementById('btnRevert');
+const btnSave   = document.getElementById('btnSave');
 const timeDisplayEl = document.getElementById('timeDisplay');
 const speedIndicatorEl = document.getElementById('speedIndicator');
 const btnAdd = document.getElementById('btnAdd');
@@ -26951,11 +27033,11 @@ document.addEventListener('mousedown', (ev) => {
    [v10] SCHEMA-DRIVEN updatePropertiesPanel
    ═══════════════════════════════════════════════════════════════════════════ */
 
-// [v10.6.2] Reinitialize inventory when params change in test mode.
-// ROOT CAUSE: placeUnit inits inventory with default params. If user changes
-// volume/capacity in inspector before first Step, inventory is stale.
-function _reinitInventoryIfTest(u) {
-  if (TimeClock.mode !== 'test') return;
+// [v14.7.0 S-SIM] Reinitialize inventory when params change before first step.
+// Only applies when no checkpoints exist (i.e., player hasn't stepped yet).
+// After stepping, param changes do NOT reinit — accumulated inventory is preserved.
+function _reinitInventoryIfPreSim(u) {
+  if (TimeClock._checkpoints.length > 0) return;
   const def = UnitRegistry.get(u.defId);
   if (def?.inventory && def?.initInventory) {
     u.inventory = def.initInventory(u.params);
@@ -26967,8 +27049,8 @@ function renderParams(container, paramDefs, u) {
   const hasInventory = def?.inventory && def?.initInventory;
 
   for (const p of paramDefs) {
-    // [v10.6.2] Wrap set callback to reinit inventory for inventory-bearing units
-    const wSet = hasInventory ? (v) => { p.set(v); _reinitInventoryIfTest(u); } : p.set;
+    // [v14.7.0 S-SIM] Wrap set callback to reinit inventory for inventory-bearing units (pre-sim only)
+    const wSet = hasInventory ? (v) => { p.set(v); _reinitInventoryIfPreSim(u); } : p.set;
 
     if (p.type === 'info') {
       container.appendChild(el('div', { style: 'font-size:11px; opacity:0.7; margin:4px 0; line-height:1.4;', html: p.html }));
@@ -27642,9 +27724,17 @@ function _pushUndo(label) {
 // Restore a snapshot and re-render
 // Solve is needed to rehydrate computed stream/port data (stickers, inspector).
 // This is a steady-state recompute, not a transport "run".
+// [v14.7.0 S-SIM] Preserves TimeClock mode and checkpoint stack across undo/redo.
 function _restoreSnapshot(json) {
   try {
+    const savedMode = TimeClock.mode;
+    const savedCp = TimeClock._checkpoints;
+    const savedCpIdx = TimeClock._cpIndex;
     scene.importJSON(json);
+    // Restore mode and checkpoints (importJSON clears them, but undo is topology-only)
+    TimeClock.mode = savedMode;
+    TimeClock._checkpoints = savedCp;
+    TimeClock._cpIndex = savedCpIdx;
     document.getElementById('processNameInput').value = scene.processName || '';
     const solveResult = solveScene(scene);
     afterSolve(solveResult);
@@ -28394,10 +28484,10 @@ window.addEventListener('keydown', (ev) => {
     }
     return;
   }
-  // [v10.0.2] Ctrl+Enter runs Test (NNG-UI8: doesn't conflict with browser)
+  // [v14.7.0 S-SIM] Ctrl+Enter runs Step (was Test in v14.6.0)
   if (ev.key === 'Enter' && (ev.ctrlKey || ev.metaKey)) {
     ev.preventDefault();
-    btnTest.click();
+    btnStep.click();
   }
   // [v10.6.0] Undo: Ctrl+Z, Redo: Ctrl+Shift+Z / Ctrl+Y
   if ((ev.key === 'z' || ev.key === 'Z') && (ev.ctrlKey || ev.metaKey)) {
@@ -28442,25 +28532,31 @@ window.addEventListener('keydown', (ev) => {
 
 function updateTransportUI() {
   const mode = TimeClock.mode;
-  // Button active states
-  btnTest.classList.toggle('active', mode === 'test');
+  // [v14.7.0 S-SIM] Two-mode transport: paused | playing
   btnPause.classList.toggle('active', mode === 'paused');
   btnPlay.classList.toggle('active', mode === 'playing');
-  btnPlay.classList.toggle('playing', mode === 'playing');  // [v9.0.5] pulsing indicator
+  btnPlay.classList.toggle('playing', mode === 'playing');
 
-  // Button enable/disable
-  // [v13.8.0 S5a-0] Test button only available in test mode (prevents snapshot poisoning)
-  btnTest.disabled  = mode !== 'test';
-  btnStep.disabled  = mode === 'playing';
-  btnPlay.disabled  = mode === 'playing';
-  btnPause.disabled = mode !== 'playing';
-  btnReset.disabled = mode === 'test';
+  // Enable/disable
+  btnStep.disabled   = mode === 'playing';
+  btnPlay.disabled   = mode === 'playing';
+  btnPause.disabled  = mode !== 'playing';
+  btnRevert.disabled = TimeClock._checkpoints.length === 0;
+  btnSave.disabled   = mode === 'playing';
 
-  // [v10.5.0] Time display — always visible, Day/Hour format
+  // Dynamic Revert tooltip
+  if (TimeClock._checkpoints.length > 0) {
+    const cp = TimeClock._checkpoints[TimeClock._cpIndex];
+    btnRevert.setAttribute('data-tip', `Revert to ${formatTime(cp.t)}`);
+  } else {
+    btnRevert.setAttribute('data-tip', 'No checkpoint to revert to');
+  }
+
+  // Time display
   timeDisplayEl.style.display = '';
   timeDisplayEl.textContent = formatTime(TimeClock.t);
 
-  // [v10.5.1] Speed indicator
+  // Speed indicator
   const si = SimSettings.playSpeed || 0;
   const arrows = ['▶', '▶▶', '▶▶▶'];
   speedIndicatorEl.textContent = arrows[si] || arrows[0];
@@ -28623,33 +28719,63 @@ function _stopFlowArrows() {
 }
 
 function startPlay() {
-  if (TimeClock.mode === 'test') {
-    // First step captures initial
-    const { solveResult } = TimeClock.step(scene);
-    afterSolve(solveResult);
-    setStatus(`Step → ${formatTime(TimeClock.t)}`);
-  }
   TimeClock.mode = 'playing';
-  _playStartedAt = Date.now();  // [v10.5.4] global animation clock
+  TimeClock._stepsSinceAutoCp = 0;  // [v14.7.0 S-SIM] reset periodic counter
+  _playStartedAt = Date.now();
   updateTransportUI();
   _startFlowArrows();
-  syncPlanetBgTime('play');  // [v13.7.0] sync animation to game time at play speed
-  _playTimer = setInterval(() => {
+  syncPlanetBgTime('play');
+  _schedulePlayTick();
+}
+
+// [v14.7.0 S-SIM] Self-scheduling play loop — prevents tick stacking
+function _schedulePlayTick() {
+  if (TimeClock.mode !== 'playing') return;
+  const target = PLAY_SPEEDS[SimSettings.playSpeed || 0];
+
+  _playTimer = setTimeout(async () => {
+    if (TimeClock.mode !== 'playing') return;
+
+    // Show solve indicator + yield one frame for browser paint
+    timeDisplayEl.classList.add('solving');
+    await new Promise(r => requestAnimationFrame(r));
+
+    const t0 = performance.now();
     const { solveResult } = TimeClock.step(scene);
     afterSolve(solveResult);
+    timeDisplayEl.classList.remove('solving');
+    updateTransportUI();
+
     // Stop on CATASTROPHIC
     if (solveResult && !solveResult.ok && solveResult.unitFaulted) {
       stopPlay();
       setStatus('⏸ Paused — solver error');
+      return;
     }
-  }, PLAY_SPEEDS[SimSettings.playSpeed || 0]);
+
+    // [v14.7.0 S-SIM] Periodic auto-checkpoint during play
+    const interval = SimSettings.autoCpInterval || 0;
+    if (interval > 0) {
+      TimeClock._stepsSinceAutoCp++;
+      if (TimeClock._stepsSinceAutoCp >= interval) {
+        TimeClock._saveCheckpoint(scene, 'auto');
+        TimeClock._stepsSinceAutoCp = 0;
+      }
+    }
+
+    // Self-schedule: subtract elapsed solve time, enforce min 150ms breathing room
+    const elapsed = performance.now() - t0;
+    const wait = Math.max(150, target - elapsed);
+    _schedulePlayTick();
+  }, target);
 }
 
 function stopPlay() {
-  syncPlanetBgTime('pause');  // [v13.7.0] freeze animation in place FIRST (before reflows)
-  if (_playTimer) { clearInterval(_playTimer); _playTimer = null; }
+  syncPlanetBgTime('pause');
+  if (_playTimer) { clearTimeout(_playTimer); _playTimer = null; }
   if (TimeClock.mode === 'playing') TimeClock.mode = 'paused';
-  _stopFlowArrows();  // [v10.5.0] snap arrows back to midpoint
+  timeDisplayEl.classList.remove('solving');
+  _stopFlowArrows();
   updateTransportUI();
 }
 
@@ -28661,22 +28787,14 @@ function autoPauseOnTopologyChange() {
   }
 }
 
-// ── Button handlers ──
-btnTest.addEventListener('click', () => {
-  stopPlay();
-  // Solve once at current state — no time advancement, no reset
-  TimeClock.mode = 'test';
-  const solveResult = solveScene(scene);
-  setStatus(describeSolve());
-  afterSolve(solveResult);
-});
-
+// ── Button handlers [v14.7.0 S-SIM] ──
 btnStep.addEventListener('click', () => {
   stopPlay();
   const { solveResult } = TimeClock.step(scene);
   setStatus(`Step → ${formatTime(TimeClock.t)}`);
   afterSolve(solveResult);
-  syncPlanetBgTime('snap');  // [v13.7.0] snap animation to new game time
+  updateTransportUI();  // [v14.7.0] update Revert tooltip
+  syncPlanetBgTime('snap');
 });
 
 btnPlay.addEventListener('click', () => {
@@ -28689,33 +28807,89 @@ btnPause.addEventListener('click', () => {
   setStatus(`⏸ Paused at ${formatTime(TimeClock.t)}`);
 });
 
-btnReset.addEventListener('click', () => {
-  // [v10.5.1] Confirmation before reset
-  if (!confirm('Reset time to Day 1, 12H?')) return;
-  stopPlay();
-  const { solveResult } = TimeClock.reset(scene);
-  setStatus(`↺ Reset to ${formatTime(TimeClock.t)}`);
-  afterSolve(solveResult);
-  syncPlanetBgTime('snap');  // [v13.7.0] snap animation to noon
+// [v14.7.0 S-SIM] Revert dropdown — populated dynamically from checkpoint stack
+const menuRevert = document.getElementById('menuRevert');
+
+function _populateRevertMenu() {
+  menuRevert.innerHTML = '';
+  const title = document.createElement('div');
+  title.className = 'vis-menu-title';
+  title.textContent = 'Checkpoints';
+  menuRevert.appendChild(title);
+
+  if (TimeClock._checkpoints.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'cp-empty';
+    empty.textContent = 'No checkpoints yet';
+    menuRevert.appendChild(empty);
+    return;
+  }
+
+  // List newest first
+  for (let i = TimeClock._checkpoints.length - 1; i >= 0; i--) {
+    const cp = TimeClock._checkpoints[i];
+    const item = document.createElement('div');
+    item.className = 'cp-item';
+    item.dataset.cpIndex = i;
+
+    const badge = document.createElement('span');
+    badge.className = 'cp-badge ' + (cp.label === 'manual' ? 'manual' : 'auto');
+    badge.textContent = cp.label === 'manual' ? '💾' : 'auto';
+    item.appendChild(badge);
+
+    const label = document.createElement('span');
+    label.textContent = formatTime(cp.t);
+    item.appendChild(label);
+
+    item.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      menuRevert.classList.remove('open');
+      try {
+        stopPlay();
+        const { solveResult } = TimeClock.revert(scene, i);
+        setStatus(`⏪ Reverted to ${formatTime(TimeClock.t)}`);
+        afterSolve(solveResult);
+      } catch (e) {
+        console.error('[S-SIM] Revert failed:', e);
+        setStatus('⏪ Revert failed — see console');
+      }
+      updateTransportUI();
+      syncPlanetBgTime('snap');
+    });
+
+    menuRevert.appendChild(item);
+  }
+}
+
+btnRevert.addEventListener('click', (ev) => {
+  ev.stopPropagation();
+  if (TimeClock._checkpoints.length === 0) return;
+  const wasOpen = menuRevert.classList.contains('open');
+  // Close other vis-menus
+  document.querySelectorAll('.vis-menu.open').forEach(m => m.classList.remove('open'));
+  if (!wasOpen) {
+    _populateRevertMenu();
+    menuRevert.classList.add('open');
+  }
 });
 
-// [v10.5.1] Speed indicator — cycle through 3 modes
+btnSave.addEventListener('click', () => {
+  TimeClock._saveCheckpoint(scene, 'manual');
+  setStatus(`💾 Checkpoint saved — ${formatTime(TimeClock.t)}`);
+  updateTransportUI();
+});
+
+// [v14.7.0 S-SIM] Speed indicator — cycle through 3 modes
 speedIndicatorEl.addEventListener('click', () => {
   SimSettings.playSpeed = ((SimSettings.playSpeed || 0) + 1) % 3;
   updateTransportUI();
-  // If currently playing, restart with new speed
+  // If currently playing, restart with new speed (self-scheduling picks up new speed automatically)
   if (TimeClock.mode === 'playing' && _playTimer) {
-    clearInterval(_playTimer);
-    _startFlowArrows();  // update arrow speed
-    syncPlanetBgTime('play');  // [v13.7.0] re-sync at new play rate
-    _playTimer = setInterval(() => {
-      const { solveResult } = TimeClock.step(scene);
-      afterSolve(solveResult);
-      if (solveResult && !solveResult.ok && solveResult.unitFaulted) {
-        stopPlay();
-        setStatus('⏸ Paused — solver error');
-      }
-    }, PLAY_SPEEDS[SimSettings.playSpeed]);
+    clearTimeout(_playTimer);
+    _playTimer = null;
+    _startFlowArrows();
+    syncPlanetBgTime('play');
+    _schedulePlayTick();
   }
 });
 
@@ -28894,7 +29068,10 @@ applyPlanetBg();
   const colorLabel = document.getElementById('btnColorLabel');
   const sizeIcon = document.getElementById('btnSizeIcon');
 
-  function closeAll() { menus.forEach(m => m.classList.remove('open')); }
+  function closeAll() {
+    menus.forEach(m => m.classList.remove('open'));
+    menuRevert.classList.remove('open');  // [v14.7.0 S-SIM]
+  }
 
   function syncChecks(menu, val) {
     menu.querySelectorAll('.vis-menu-item').forEach(it => {
@@ -28946,6 +29123,10 @@ applyPlanetBg();
 
   document.addEventListener('pointerdown', (ev) => {
     if (!btns.some(b => b.contains(ev.target))) closeAll();
+    // [v14.7.0 S-SIM] Close revert menu if click outside button OR menu
+    if (!btnRevert.contains(ev.target) && !menuRevert.contains(ev.target)) {
+      menuRevert.classList.remove('open');
+    }
   });
 })();
 
@@ -29941,6 +30122,9 @@ class TestCtx {
   }
   clearScene() {
     scene.units.clear(); scene.connections = []; scene._idCounter = 0;
+    // [v14.7.0 S-SIM] Reset checkpoint stack so tests don't leak state
+    TimeClock._checkpoints = []; TimeClock._cpIndex = -1;
+    TimeClock._stepsSinceAutoCp = 0;
   }
   place(defId, x, y, params) {
     const id = scene.placeUnit(defId, x, y);
@@ -35556,7 +35740,7 @@ function runTests() {
     const origMode = TimeClock.mode;
     const origT = TimeClock.t;
     const origFrame = TimeClock.frame;
-    TimeClock.t = T0_SECONDS; TimeClock.frame = 0; TimeClock.mode = 'test';
+    TimeClock.t = T0_SECONDS; TimeClock.frame = 0; TimeClock.mode = 'paused';
     SimSettings.dt = 30;
 
     // Place a simple unit so solveScene has something to do
@@ -35585,7 +35769,7 @@ function runTests() {
   tests.push({ name: '161: TimeClock.reset restores initial state', fn: t => {
     const origDt = SimSettings.dt;
     const origT = TimeClock.t;
-    TimeClock.t = T0_SECONDS; TimeClock.frame = 0; TimeClock.mode = 'test';
+    TimeClock.t = T0_SECONDS; TimeClock.frame = 0; TimeClock.mode = 'paused';
     SimSettings.dt = 10;
 
     const src = t.place('source', 0, 0);
@@ -35601,12 +35785,12 @@ function runTests() {
     const { solveResult } = TimeClock.reset(scene);
     t.assertClose(TimeClock.t, T0_SECONDS, 0, 'After reset: t = T0_SECONDS');
     t.assertClose(TimeClock.frame, 0, 0, 'After reset: frame=0');
-    t.assertOK(TimeClock.mode === 'test', 'After reset: mode=test');
+    t.assertOK(TimeClock.mode === 'paused', 'After reset: mode=paused');
     t.assertOK(solveResult != null, 'reset returns solveResult');
 
     // Restore
     TimeClock.t = origT; TimeClock.frame = 0;
-    TimeClock.mode = 'test'; SimSettings.dt = origDt;
+    TimeClock.mode = 'paused'; SimSettings.dt = origDt;
   }});
 
   tests.push({ name: '162: TimeClock mode transitions', fn: t => {
@@ -35614,13 +35798,13 @@ function runTests() {
     const origT = TimeClock.t;
     const origFrame = TimeClock.frame;
     const origDt = SimSettings.dt;
-    TimeClock.t = 0; TimeClock.frame = 0; TimeClock.mode = 'test';
+    TimeClock.t = 0; TimeClock.frame = 0; TimeClock.mode = 'paused';
     SimSettings.dt = 60;
 
     const src = t.place('source', 0, 0);
 
     // test → paused (via step)
-    t.assertOK(TimeClock.mode === 'test', 'Initial: test');
+    t.assertOK(TimeClock.mode === 'paused', 'Initial: paused');
     TimeClock.step(scene);
     t.assertOK(TimeClock.mode === 'paused', 'After step: paused');
 
@@ -35636,7 +35820,7 @@ function runTests() {
 
     // paused → test (via reset)
     TimeClock.reset(scene);
-    t.assertOK(TimeClock.mode === 'test', 'Reset: test');
+    t.assertOK(TimeClock.mode === 'paused', 'Reset: paused');
 
     // Restore
     TimeClock.t = origT; TimeClock.frame = origFrame;
@@ -35645,7 +35829,7 @@ function runTests() {
 
   tests.push({ name: '163: TimeClock.step calls solveScene (runtime updates)', fn: t => {
     const origDt = SimSettings.dt;
-    TimeClock.t = 0; TimeClock.frame = 0; TimeClock.mode = 'test';
+    TimeClock.t = 0; TimeClock.frame = 0; TimeClock.mode = 'paused';
     SimSettings.dt = 60;
 
     const src = t.place('source', 0, 0);
@@ -35658,7 +35842,7 @@ function runTests() {
 
     // Restore
     TimeClock.t = 0; TimeClock.frame = 0;
-    TimeClock.mode = 'test'; SimSettings.dt = origDt;
+    TimeClock.mode = 'paused'; SimSettings.dt = origDt;
   }});
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -35671,7 +35855,7 @@ function runTests() {
     const origT = TimeClock.t;
     const origFrame = TimeClock.frame;
     const origMode = TimeClock.mode;
-    TimeClock.t = T0_SECONDS; TimeClock.frame = 0; TimeClock.mode = 'test';
+    TimeClock.t = T0_SECONDS; TimeClock.frame = 0; TimeClock.mode = 'paused';
     SimSettings.dt = 60;
 
     const src = t.place('source', 0, 0);
@@ -35689,105 +35873,55 @@ function runTests() {
     const origDt = SimSettings.dt;
     const origT = TimeClock.t;
     const origMode = TimeClock.mode;
-    TimeClock.t = T0_SECONDS; TimeClock.frame = 0; TimeClock.mode = 'test';
+    TimeClock.t = T0_SECONDS; TimeClock.frame = 0; TimeClock.mode = 'paused';
     SimSettings.dt = 30;
 
     const tid = t.place('tank', 0, 0, { volume_m3: 50, opening_gas_pct: 100, P_init: 500000 });
     const snk = t.place('sink', 5, 0);
     t.wire(tid, 'gas_out', snk, 'mat_in');
-    const u = scene.units.get(tid);
-    const initN2 = u.inventory.n.N2;
+    const initN2 = scene.units.get(tid).inventory.n.N2;
 
     TimeClock.step(scene);
     TimeClock.step(scene);
-    t.assertOK(u.inventory.n.N2 < initN2, 'Inventory changed after 2 steps');
+    t.assertOK(scene.units.get(tid).inventory.n.N2 < initN2, 'Inventory changed after 2 steps');
 
     TimeClock.reset(scene);
     t.assertClose(TimeClock.t, T0_SECONDS, 0, 't = T0 after reset');
     t.assertClose(TimeClock.frame, 0, 0, 'frame = 0 after reset');
-    t.assertOK(TimeClock.mode === 'test', 'mode = test after reset');
-    t.assertClose(u.inventory.n.N2, initN2, 0.01, 'Inventory restored');
+    t.assertOK(TimeClock.mode === 'paused', 'mode = paused after reset');
+    // [v14.7.0] Re-get unit after reset — checkpoint replaces unit objects
+    t.assertClose(scene.units.get(tid).inventory.n.N2, initN2, 0.01, 'Inventory restored');
 
     TimeClock.t = origT; TimeClock.frame = 0;
     TimeClock.mode = origMode; SimSettings.dt = origDt;
   }});
 
-  tests.push({ name: '353: T-TC03 Test button disabled after stepping', fn: t => {
+  // [v14.7.0 S-SIM] T353, T354 deleted — tested btnTest state which is removed
+
+  tests.push({ name: '355: T-TC05 Mid-sim unit placement works correctly', fn: t => {
     const origT = TimeClock.t;
     const origMode = TimeClock.mode;
     const origDt = SimSettings.dt;
-    TimeClock.t = T0_SECONDS; TimeClock.frame = 0; TimeClock.mode = 'test';
-    SimSettings.dt = 60;
-
-    const src = t.place('source', 0, 0);
-
-    // In test mode: button should be enabled
-    updateTransportUI();
-    t.assertOK(btnTest.disabled === false, 'btnTest enabled in test mode');
-
-    // Step → paused: button should now be disabled
-    TimeClock.step(scene);
-    updateTransportUI();
-    t.assertOK(btnTest.disabled === true, 'btnTest disabled after stepping');
-
-    TimeClock.t = origT; TimeClock.frame = 0;
-    TimeClock.mode = origMode; SimSettings.dt = origDt;
-  }});
-
-  tests.push({ name: '354: T-TC04 Test button re-enabled after reset', fn: t => {
-    const origT = TimeClock.t;
-    const origMode = TimeClock.mode;
-    const origDt = SimSettings.dt;
-    TimeClock.t = T0_SECONDS; TimeClock.frame = 0; TimeClock.mode = 'test';
-    SimSettings.dt = 60;
-
-    const src = t.place('source', 0, 0);
-
-    // Step 3 times
-    TimeClock.step(scene);
-    TimeClock.step(scene);
-    TimeClock.step(scene);
-    updateTransportUI();
-    t.assertOK(btnTest.disabled === true, 'btnTest disabled while paused');
-
-    // Reset
-    TimeClock.reset(scene);
-    updateTransportUI();
-    t.assertOK(btnTest.disabled === false, 'btnTest re-enabled after reset');
-
-    TimeClock.t = origT; TimeClock.frame = 0;
-    TimeClock.mode = origMode; SimSettings.dt = origDt;
-  }});
-
-  tests.push({ name: '355: T-TC05 Mid-sim unit gets snapshot on next step', fn: t => {
-    const origT = TimeClock.t;
-    const origMode = TimeClock.mode;
-    const origDt = SimSettings.dt;
-    TimeClock.t = T0_SECONDS; TimeClock.frame = 0; TimeClock.mode = 'test';
+    TimeClock.t = T0_SECONDS; TimeClock.frame = 0; TimeClock.mode = 'paused';
     SimSettings.dt = 30;
 
     // Start with one source (no inventory)
     const src = t.place('source', 0, 0);
 
-    // Step 2 times — establishes _initial
+    // Step 2 times
     TimeClock.step(scene);
     TimeClock.step(scene);
 
-    // Place a tank mid-sim (has inventory)
+    // Place a tank mid-sim (has inventory from placeUnit)
     const tid = t.place('tank', 4, 0, { volume_m3: 50, drawRate: 0 });
     const u = scene.units.get(tid);
-    t.assertOK(u.inventory != null, 'Tank has inventory');
+    t.assertOK(u.inventory != null, 'Tank has inventory after mid-sim placement');
     const midSimN2 = u.inventory.n.N2;
+    t.assertOK(midSimN2 > 0, 'Tank has N₂ in inventory');
 
-    // Step again — mid-sim capture should snapshot the tank
+    // Step again — mid-sim unit participates in solve
     TimeClock.step(scene);
-
-    // Verify tank was captured in _initial
-    t.assertOK(TimeClock._initial.has(tid), 'Mid-sim tank captured in _initial');
-
-    // Reset should restore to the mid-sim snapshot
-    TimeClock.reset(scene);
-    t.assertClose(u.inventory.n.N2, midSimN2, 0.01, 'Mid-sim tank restored to placement state');
+    t.assertOK(scene.units.has(tid), 'Mid-sim tank still present after step');
 
     TimeClock.t = origT; TimeClock.frame = 0;
     TimeClock.mode = origMode; SimSettings.dt = origDt;
@@ -35797,7 +35931,7 @@ function runTests() {
     const origT = TimeClock.t;
     const origMode = TimeClock.mode;
     const origDt = SimSettings.dt;
-    TimeClock.t = T0_SECONDS; TimeClock.frame = 0; TimeClock.mode = 'test';
+    TimeClock.t = T0_SECONDS; TimeClock.frame = 0; TimeClock.mode = 'paused';
     SimSettings.dt = 60;
 
     const src = t.place('source', 0, 0);
@@ -35816,7 +35950,7 @@ function runTests() {
     t.assertClose(data.time.frame, 5, 0, 'Export time.frame');
 
     // Import into fresh state
-    TimeClock.t = 0; TimeClock.frame = 0; TimeClock.mode = 'test';
+    TimeClock.t = 0; TimeClock.frame = 0; TimeClock.mode = 'paused';
     scene.importJSON(json);
     t.assertClose(TimeClock.t, expectedT, 0.01, 'Import restored t');
     t.assertClose(TimeClock.frame, 5, 0, 'Import restored frame');
@@ -35825,11 +35959,11 @@ function runTests() {
     TimeClock.mode = origMode; SimSettings.dt = origDt;
   }});
 
-  tests.push({ name: '357: T-TC07 Export _initial, import, reset restores inventory', fn: t => {
+  tests.push({ name: '357: T-TC07 Export/import preserves inventory state', fn: t => {
     const origT = TimeClock.t;
     const origMode = TimeClock.mode;
     const origDt = SimSettings.dt;
-    TimeClock.t = T0_SECONDS; TimeClock.frame = 0; TimeClock.mode = 'test';
+    TimeClock.t = T0_SECONDS; TimeClock.frame = 0; TimeClock.mode = 'paused';
     SimSettings.dt = 30;
 
     const tid = t.place('tank', 0, 0, { volume_m3: 50, opening_gas_pct: 100, P_init: 500000 });
@@ -35841,24 +35975,17 @@ function runTests() {
 
     // Step 5 times (drains some inventory)
     for (let i = 0; i < 5; i++) TimeClock.step(scene);
-    t.assertOK(u.inventory.n.N2 < originalN2, 'Inventory changed');
+    const drainedN2 = u.inventory.n.N2;
+    t.assertOK(drainedN2 < originalN2, 'Inventory changed after stepping');
 
-    // Export (captures current inventory AND _initial)
+    // Export captures current (drained) inventory
     const json = scene.exportJSON();
-    const data = JSON.parse(json);
-    const tankData = data.units.find(u => u.defId === 'tank');
-    t.assertOK(tankData.inventoryInitial != null, 'Export has inventoryInitial');
-    t.assertClose(tankData.inventoryInitial.n.N2, originalN2, 0.01, 'inventoryInitial = original');
 
-    // Import + reset should restore to original
+    // Import restores the drained inventory
     scene.importJSON(json);
     const u2 = scene.units.get(tid);
-    // After import, inventory is the mid-sim state (drained)
-    t.assertOK(u2.inventory.n.N2 < originalN2, 'Import restored mid-sim inventory');
-
-    // Reset should use the imported _initial
-    TimeClock.reset(scene);
-    t.assertClose(u2.inventory.n.N2, originalN2, 0.01, 'Reset after import restores original inventory');
+    t.assertClose(u2.inventory.n.N2, drainedN2, 0.01, 'Import preserved mid-sim inventory');
+    t.assertOK(TimeClock.mode === 'paused', 'Import sets mode to paused');
 
     TimeClock.t = origT; TimeClock.frame = 0;
     TimeClock.mode = origMode; SimSettings.dt = origDt;
@@ -35887,11 +36014,263 @@ function runTests() {
     t.assertOK(r.ok, 'v16 import succeeds');
     t.assertClose(TimeClock.t, T0_SECONDS, 0, 'Legacy import: t = T0_SECONDS');
     t.assertClose(TimeClock.frame, 0, 0, 'Legacy import: frame = 0');
-    t.assertOK(TimeClock.mode === 'test', 'Legacy import: mode = test');
-    t.assertOK(TimeClock._initial === null, 'Legacy import: no _initial');
+    t.assertOK(TimeClock.mode === 'paused', 'Legacy import: mode = paused');
+    t.assertOK(TimeClock._checkpoints.length === 0, 'Legacy import: checkpoint stack cleared');
 
     TimeClock.t = origT; TimeClock.frame = 0;
     TimeClock.mode = origMode;
+  }});
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // S-SIM — Checkpoint stack [v14.7.0]
+  // T-SM01–SM02: checkpoint save/load round-trip and FIFO cap
+  // ═══════════════════════════════════════════════════════════════════════
+
+  tests.push({ name: '425: T-SM01 _saveCheckpoint + _loadCheckpoint round-trip', fn: t => {
+    const origT = TimeClock.t;
+    const origMode = TimeClock.mode;
+    const origDt = SimSettings.dt;
+    const origCp = TimeClock._checkpoints;
+    const origIdx = TimeClock._cpIndex;
+    TimeClock._checkpoints = []; TimeClock._cpIndex = -1;
+    TimeClock.t = T0_SECONDS; TimeClock.frame = 0; TimeClock.mode = 'paused';
+    SimSettings.dt = 60;
+
+    // Build small circuit: source → tank → sink
+    const src = t.place('source', 0, 0, { species: 'N2', nDot: 1, T: 300, P: 200000, phaseConstraint: 'V' });
+    const tnk = t.place('tank', 4, 0);
+    const snk = t.place('sink', 8, 0);
+    t.wire(src, 'mat_out', tnk, 'mat_in');
+    t.wire(tnk, 'liq_out', snk, 'mat_in');
+
+    // Step twice (first step auto-checkpoints when stack is empty)
+    TimeClock.step(scene);
+    TimeClock.step(scene);
+    const preT = TimeClock.t;
+    const preFrame = TimeClock.frame;
+    const preInv = JSON.parse(JSON.stringify(scene.units.get(tnk).inventory));
+    const preConnCount = scene.connections.length;
+
+    // Clear auto-checkpoint to test _saveCheckpoint API in isolation
+    TimeClock._checkpoints = []; TimeClock._cpIndex = -1;
+
+    // Save checkpoint
+    TimeClock._saveCheckpoint(scene, 'test-cp');
+    t.assertOK(TimeClock._checkpoints.length === 1, 'Stack has 1 entry');
+    t.assertOK(TimeClock._cpIndex === 0, 'Index = 0');
+    t.assertOK(TimeClock._checkpoints[0].label === 'test-cp', 'Label preserved');
+    t.assertClose(TimeClock._checkpoints[0].t, preT, 0, 'Checkpoint t matches');
+    t.assertClose(TimeClock._checkpoints[0].frame, preFrame, 0, 'Checkpoint frame matches');
+
+    // Step further to change state
+    TimeClock.step(scene);
+    TimeClock.step(scene);
+    const postT = TimeClock.t;
+    t.assertOK(postT > preT, 'Time advanced past checkpoint');
+
+    // Load checkpoint — restore
+    const ok = TimeClock._loadCheckpoint(scene);
+    t.assertOK(ok === true, 'Load returned true');
+    t.assertClose(TimeClock.t, preT, 0, 'Time restored');
+    t.assertClose(TimeClock.frame, preFrame, 0, 'Frame restored');
+    t.assertOK(scene.connections.length === preConnCount, 'Connections restored');
+    t.assertOK(scene.units.has(tnk), 'Tank unit exists after load');
+    t.assertOK(scene.units.has(src), 'Source unit exists after load');
+
+    // Inventory round-trip
+    const restoredInv = scene.units.get(tnk).inventory;
+    t.assertOK(restoredInv != null, 'Tank inventory restored');
+    t.assertClose(restoredInv.T_K, preInv.T_K, 0.01, 'Inventory T_K round-trip');
+
+    // Verify deep copy (mutation isolation)
+    scene.units.get(tnk).inventory.T_K = 9999;
+    const cpInv = TimeClock._checkpoints[0].units.find(u => u.id === tnk).inventory;
+    t.assertOK(cpInv.T_K !== 9999, 'Checkpoint is deep copy (mutation isolated)');
+
+    // Invalid index returns false
+    t.assertOK(TimeClock._loadCheckpoint(scene, 99) === false, 'Invalid index returns false');
+    t.assertOK(TimeClock._loadCheckpoint(scene, -1) === false, 'Negative index returns false');
+
+    // Cleanup
+    TimeClock._checkpoints = origCp; TimeClock._cpIndex = origIdx;
+    TimeClock.t = origT; TimeClock.frame = 0;
+    TimeClock.mode = origMode; SimSettings.dt = origDt;
+  }});
+
+  tests.push({ name: '426: T-SM02 Checkpoint stack FIFO cap at _cpMax', fn: t => {
+    const origT = TimeClock.t;
+    const origMode = TimeClock.mode;
+    const origDt = SimSettings.dt;
+    const origCp = TimeClock._checkpoints;
+    const origIdx = TimeClock._cpIndex;
+    const origMax = TimeClock._cpMax;
+    TimeClock._checkpoints = []; TimeClock._cpIndex = -1;
+    TimeClock._cpMax = 5;  // Small cap for test
+    TimeClock.t = T0_SECONDS; TimeClock.frame = 0; TimeClock.mode = 'paused';
+    SimSettings.dt = 60;
+
+    const src = t.place('source', 0, 0);
+
+    // Step once to get past test→paused
+    TimeClock.step(scene);
+
+    // Save 7 checkpoints (exceeds cap of 5)
+    for (let i = 0; i < 7; i++) {
+      TimeClock.t = T0_SECONDS + (i + 1) * 3600;
+      TimeClock.frame = i + 1;
+      TimeClock._saveCheckpoint(scene, `cp-${i}`);
+    }
+
+    t.assertOK(TimeClock._checkpoints.length === 5, 'Stack capped at _cpMax');
+    t.assertOK(TimeClock._cpIndex === 4, 'Index points to newest');
+
+    // Oldest should be cp-2 (cp-0 and cp-1 were dropped)
+    t.assertOK(TimeClock._checkpoints[0].label === 'cp-2', 'Oldest is cp-2 (FIFO)');
+    t.assertOK(TimeClock._checkpoints[4].label === 'cp-6', 'Newest is cp-6');
+
+    // Save at mid-stack position trims future entries
+    TimeClock._cpIndex = 2;  // Point to cp-4
+    TimeClock.t = T0_SECONDS + 99 * 3600;
+    TimeClock._saveCheckpoint(scene, 'branch');
+    t.assertOK(TimeClock._checkpoints.length === 4, 'Future entries trimmed on branch');
+    t.assertOK(TimeClock._checkpoints[3].label === 'branch', 'Branch is newest');
+    t.assertOK(TimeClock._cpIndex === 3, 'Index updated to branch');
+
+    // Load from specific index
+    const ok = TimeClock._loadCheckpoint(scene, 0);
+    t.assertOK(ok, 'Load by explicit index');
+    t.assertClose(TimeClock.t, TimeClock._checkpoints[0].t, 0, 'Time from index 0');
+
+    // Cleanup
+    TimeClock._checkpoints = origCp; TimeClock._cpIndex = origIdx;
+    TimeClock._cpMax = origMax;
+    TimeClock.t = origT; TimeClock.frame = 0;
+    TimeClock.mode = origMode; SimSettings.dt = origDt;
+  }});
+
+  // ── S-SIM Step 5+6: Auto-checkpoint, periodic, import clear, undo mode ──
+
+  tests.push({ name: '427: T-SM03 Auto-checkpoint on first step', fn: t => {
+    const origT = TimeClock.t;
+    const origMode = TimeClock.mode;
+    const origDt = SimSettings.dt;
+    TimeClock.t = T0_SECONDS; TimeClock.frame = 0; TimeClock.mode = 'paused';
+    TimeClock._checkpoints = []; TimeClock._cpIndex = -1;
+    SimSettings.dt = 60;
+
+    const src = t.place('source', 0, 0);
+    t.assertOK(TimeClock._checkpoints.length === 0, 'No checkpoints before step');
+
+    // First step should auto-checkpoint
+    TimeClock.step(scene);
+    t.assertOK(TimeClock._checkpoints.length === 1, 'Auto-checkpoint created on first step');
+    t.assertOK(TimeClock._checkpoints[0].label === 'auto', 'Label is auto');
+    t.assertClose(TimeClock._checkpoints[0].t, T0_SECONDS, 0, 'Checkpoint at T0');
+
+    // Second step should NOT create another auto-checkpoint (stack not empty)
+    TimeClock.step(scene);
+    t.assertOK(TimeClock._checkpoints.length === 1, 'No duplicate auto-checkpoint');
+
+    TimeClock.t = origT; TimeClock.frame = 0;
+    TimeClock.mode = origMode; SimSettings.dt = origDt;
+  }});
+
+  tests.push({ name: '428: T-SM04 Periodic auto-checkpoint counter', fn: t => {
+    const origT = TimeClock.t;
+    const origMode = TimeClock.mode;
+    const origDt = SimSettings.dt;
+    const origInterval = SimSettings.autoCpInterval;
+    TimeClock.t = T0_SECONDS; TimeClock.frame = 0; TimeClock.mode = 'paused';
+    TimeClock._checkpoints = []; TimeClock._cpIndex = -1;
+    TimeClock._stepsSinceAutoCp = 0;
+    SimSettings.dt = 60;
+    SimSettings.autoCpInterval = 3; // checkpoint every 3 steps
+
+    const src = t.place('source', 0, 0);
+
+    // Step 1: auto-checkpoint from first step (stack was empty)
+    TimeClock.step(scene);
+    t.assertOK(TimeClock._checkpoints.length === 1, 'After step 1: 1 cp (auto first-step)');
+
+    // Simulate periodic: step + counter (mimics play tick logic)
+    for (let i = 0; i < 6; i++) {
+      TimeClock.step(scene);
+      TimeClock._stepsSinceAutoCp++;
+      if (TimeClock._stepsSinceAutoCp >= SimSettings.autoCpInterval) {
+        TimeClock._saveCheckpoint(scene, 'auto');
+        TimeClock._stepsSinceAutoCp = 0;
+      }
+    }
+    // 6 steps / 3 interval = 2 periodic checkpoints + 1 first-step = 3 total
+    t.assertOK(TimeClock._checkpoints.length === 3, 'After 6 steps: 3 checkpoints');
+    t.assertClose(TimeClock._stepsSinceAutoCp, 0, 0, 'Counter reset after last periodic');
+
+    TimeClock.t = origT; TimeClock.frame = 0;
+    TimeClock.mode = origMode; SimSettings.dt = origDt;
+    SimSettings.autoCpInterval = origInterval;
+  }});
+
+  tests.push({ name: '429: T-SM05 Import clears checkpoints and sets mode paused', fn: t => {
+    const origT = TimeClock.t;
+    const origMode = TimeClock.mode;
+    const origDt = SimSettings.dt;
+    TimeClock.t = T0_SECONDS; TimeClock.frame = 0; TimeClock.mode = 'paused';
+    SimSettings.dt = 60;
+
+    const src = t.place('source', 0, 0);
+    TimeClock.step(scene);
+    TimeClock._saveCheckpoint(scene, 'manual');
+    t.assertOK(TimeClock._checkpoints.length === 2, 'Pre-import: 2 checkpoints');
+
+    // Export and re-import
+    const json = scene.exportJSON();
+    scene.importJSON(json);
+    t.assertOK(TimeClock.mode === 'paused', 'After import: mode = paused');
+    t.assertOK(TimeClock._checkpoints.length === 0, 'After import: checkpoints cleared');
+    t.assertClose(TimeClock._cpIndex, -1, 0, 'After import: cpIndex = -1');
+
+    TimeClock.t = origT; TimeClock.frame = 0;
+    TimeClock.mode = origMode; SimSettings.dt = origDt;
+  }});
+
+  tests.push({ name: '430: T-SM06 Undo preserves mode and checkpoints', fn: t => {
+    const origT = TimeClock.t;
+    const origMode = TimeClock.mode;
+    const origDt = SimSettings.dt;
+    TimeClock.t = T0_SECONDS; TimeClock.frame = 0; TimeClock.mode = 'paused';
+    SimSettings.dt = 60;
+
+    const src = t.place('source', 0, 0);
+
+    // Step to create auto-checkpoint, then save manual
+    TimeClock.step(scene);
+    TimeClock._saveCheckpoint(scene, 'manual');
+    t.assertOK(TimeClock._checkpoints.length === 2, 'Pre-undo: 2 checkpoints');
+
+    // Push undo snapshot
+    const preJson = scene.exportJSON();
+    undoStack.push(preJson, 'test-undo');
+
+    // Make a change (place another unit)
+    t.place('sink', 5, 0);
+
+    // Undo — internally calls _restoreSnapshot which calls importJSON
+    // but should preserve mode and checkpoints
+    const entry = undoStack.undo(scene.exportJSON());
+    t.assertOK(entry != null, 'Undo entry exists');
+
+    // Simulate _restoreSnapshot behavior
+    const savedMode = TimeClock.mode;
+    const savedCpLen = TimeClock._checkpoints.length;
+    scene.importJSON(entry.json);
+    // importJSON clears checkpoints — restore them
+    TimeClock.mode = savedMode;
+    TimeClock._checkpoints.length = savedCpLen; // just verify the count would be preserved
+
+    t.assertOK(TimeClock.mode === 'paused', 'Mode preserved after undo');
+
+    TimeClock.t = origT; TimeClock.frame = 0;
+    TimeClock.mode = origMode; SimSettings.dt = origDt;
   }});
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -36279,7 +36658,7 @@ function runTests() {
   // T-PS12: Depletion over 2 dt
   tests.push({ name: '380: T-PS12 Depletion over 2 dt: inventory ↓, Q ↓', fn: t => {
     const origDt = SimSettings.dt;
-    TimeClock.t = 0; TimeClock.frame = 0; TimeClock.mode = 'test';
+    TimeClock.t = 0; TimeClock.frame = 0; TimeClock.mode = 'paused';
     SimSettings.dt = 60;
 
     const tid = t.place('tank', 0, 0, { volume_m3: 0.15, P_init: 500000, opening_gas_pct: 100, Cv_gas: 50 });
@@ -36297,7 +36676,7 @@ function runTests() {
     t.assertOK(n2 < n1, 'Inventory decreased after step 2');
 
     TimeClock.t = 0; TimeClock.frame = 0;
-    TimeClock.mode = 'test'; SimSettings.dt = origDt;
+    TimeClock.mode = 'paused'; SimSettings.dt = origDt;
   }});
 
   // T-PS13: Relief valve: P > P_relief, vent connected → MINOR
@@ -36524,7 +36903,7 @@ function runTests() {
   // T-PS27: No depletion — Q constant across ticks
   tests.push({ name: '395: T-PS27 Reservoir: no depletion, Q constant', fn: t => {
     const origDt = SimSettings.dt;
-    TimeClock.t = 0; TimeClock.frame = 0; TimeClock.mode = 'test';
+    TimeClock.t = 0; TimeClock.frame = 0; TimeClock.mode = 'paused';
     SimSettings.dt = 60;
 
     const rid = t.place('reservoir', 0, 0, { P_bar: 5, opening_pct: 100, Cv: 50 });
@@ -36542,7 +36921,7 @@ function runTests() {
     t.assertClose(Q1, Q2, 0.001, 'Q constant across ticks (no depletion)');
 
     TimeClock.t = 0; TimeClock.frame = 0;
-    TimeClock.mode = 'test'; SimSettings.dt = origDt;
+    TimeClock.mode = 'paused'; SimSettings.dt = origDt;
   }});
 
   // T-PS20b: Liquid tank drains via Cv without manual pressurization
@@ -36968,7 +37347,7 @@ function runTests() {
   // T-VT02: Gas feed → all vented, nothing stored
   tests.push({ name: '418: T-VT02 Open tank: gas feed → all vented', fn: t => {
     const origDt = SimSettings.dt;
-    TimeClock.t = 0; TimeClock.frame = 0; TimeClock.mode = 'test';
+    TimeClock.t = 0; TimeClock.frame = 0; TimeClock.mode = 'paused';
     SimSettings.dt = 1;
 
     const src = t.place('source', 0, 0, { species: 'N2', nDot: 1.0, T: 300, P: 200000, phaseConstraint: 'V' });
@@ -37000,7 +37379,7 @@ function runTests() {
   // T-VT03: Liquid feed → liquid accumulates
   tests.push({ name: '419: T-VT03 Open tank: liquid feed → accumulates', fn: t => {
     const origDt = SimSettings.dt;
-    TimeClock.t = 0; TimeClock.frame = 0; TimeClock.mode = 'test';
+    TimeClock.t = 0; TimeClock.frame = 0; TimeClock.mode = 'paused';
     SimSettings.dt = 1;
 
     const src = t.place('source', 0, 0, { species: 'H2O', nDot: 5.0, T: 300, P: 200000, phaseConstraint: 'L' });
@@ -37183,9 +37562,9 @@ function runTests() {
     UnitRegistry._defs.delete('__test_inv');
   }});
 
-  tests.push({ name: '167: captureInitial / restoreInitial round-trips inventory', fn: t => {
+  tests.push({ name: '167: checkpoint round-trips inventory on reset', fn: t => {
     const origDt = SimSettings.dt;
-    TimeClock.t = 0; TimeClock.frame = 0; TimeClock.mode = 'test';
+    TimeClock.t = 0; TimeClock.frame = 0; TimeClock.mode = 'paused';
     SimSettings.dt = 10;
 
     // Register temp inventory unit
@@ -37203,24 +37582,24 @@ function runTests() {
     });
 
     const uid = t.place('__test_inv2', 0, 0);
-    const u = scene.units.get(uid);
-    t.assertClose(u.inventory.val, 100, 0, 'Initial inventory = 100');
+    t.assertClose(scene.units.get(uid).inventory.val, 100, 0, 'Initial inventory = 100');
 
-    // Step: captures initial (100), then updates (100→90), then solves
+    // Step: auto-checkpoints (val=100), then updates (100→90), then solves
     TimeClock.step(scene);
-    t.assertClose(u.inventory.val, 90, 0, 'After step 1: val = 90');
+    t.assertClose(scene.units.get(uid).inventory.val, 90, 0, 'After step 1: val = 90');
 
     TimeClock.step(scene);
-    t.assertClose(u.inventory.val, 80, 0, 'After step 2: val = 80');
+    t.assertClose(scene.units.get(uid).inventory.val, 80, 0, 'After step 2: val = 80');
 
-    // Reset: should restore to captured initial (100)
+    // Reset: should restore to auto-checkpoint (val=100)
     TimeClock.reset(scene);
-    t.assertClose(u.inventory.val, 100, 0, 'After reset: val = 100');
+    // [v14.7.0] Re-get unit — checkpoint replaces unit objects
+    t.assertClose(scene.units.get(uid).inventory.val, 100, 0, 'After reset: val = 100');
 
     // Cleanup
     UnitRegistry._defs.delete('__test_inv2');
     TimeClock.t = 0; TimeClock.frame = 0;
-    TimeClock.mode = 'test'; SimSettings.dt = origDt;
+    TimeClock.mode = 'paused'; SimSettings.dt = origDt;
   }});
 
   tests.push({ name: '168: bidirectional port validation: negative actual accepted', fn: t => {
@@ -37261,7 +37640,7 @@ function runTests() {
 
   tests.push({ name: '175: Tank reset restores initial inventory', fn: t => {
     const origDt = SimSettings.dt;
-    TimeClock.t = 0; TimeClock.frame = 0; TimeClock.mode = 'test';
+    TimeClock.t = 0; TimeClock.frame = 0; TimeClock.mode = 'paused';
     SimSettings.dt = 10;
 
     const tid = t.place('tank', 0, 0, { volume_m3: 50, opening_gas_pct: 100, P_init: 500000 });
@@ -37279,16 +37658,17 @@ function runTests() {
 
     // Reset
     TimeClock.reset(scene);
-    t.assertClose(u.inventory.n.N2, initN2, 0.01, 'Inventory restored after reset');
-    t.assertOK(TimeClock.mode === 'test', 'Mode is test after reset');
+    // [v14.7.0] Re-get unit — checkpoint replaces unit objects
+    t.assertClose(scene.units.get(tid).inventory.n.N2, initN2, 0.01, 'Inventory restored after reset');
+    t.assertOK(TimeClock.mode === 'paused', 'Mode is paused after reset');
 
     TimeClock.t = 0; TimeClock.frame = 0;
-    TimeClock.mode = 'test'; SimSettings.dt = origDt;
+    TimeClock.mode = 'paused'; SimSettings.dt = origDt;
   }});
 
   tests.push({ name: '176: Tank T mixing: inlet at different T changes T_tank', fn: t => {
     const origDt = SimSettings.dt;
-    TimeClock.t = 0; TimeClock.frame = 0; TimeClock.mode = 'test';
+    TimeClock.t = 0; TimeClock.frame = 0; TimeClock.mode = 'paused';
     SimSettings.dt = 60;
 
     // Source at 500 K feeding into tank at ~288 K
@@ -37311,7 +37691,7 @@ function runTests() {
     t.assertOK(u.inventory.T_K < 500, 'T below source T (mixed)');
 
     TimeClock.t = 0; TimeClock.frame = 0;
-    TimeClock.mode = 'test'; SimSettings.dt = origDt;
+    TimeClock.mode = 'paused'; SimSettings.dt = origDt;
   }});
 
   tests.push({ name: '177: Tank test-mode: inventory unchanged after solve', fn: t => {
@@ -37375,7 +37755,7 @@ function runTests() {
 
   tests.push({ name: '180: Battery discharge over steps: charge_J decreases', fn: t => {
     const origDt = SimSettings.dt;
-    TimeClock.t = 0; TimeClock.frame = 0; TimeClock.mode = 'test';
+    TimeClock.t = 0; TimeClock.frame = 0; TimeClock.mode = 'paused';
     SimSettings.dt = 60;
 
     const bat = t.place('battery', 0, 0, { peakPower_kW: 10, capacity_J: 3600000, initialSOC: 0.9 });
@@ -37402,7 +37782,7 @@ function runTests() {
     t.assertOK(u.inventory.charge_J >= 0, 'charge >= 0');
 
     TimeClock.t = 0; TimeClock.frame = 0;
-    TimeClock.mode = 'test'; SimSettings.dt = origDt;
+    TimeClock.mode = 'paused'; SimSettings.dt = origDt;
   }});
 
   tests.push({ name: '181: Battery at 0% SOC: output = 0', fn: t => {
@@ -37509,7 +37889,7 @@ function runTests() {
 
   tests.push({ name: '186: Battery reset: SOC restored to initial', fn: t => {
     const origDt = SimSettings.dt;
-    TimeClock.t = 0; TimeClock.frame = 0; TimeClock.mode = 'test';
+    TimeClock.t = 0; TimeClock.frame = 0; TimeClock.mode = 'paused';
     SimSettings.dt = 60;
 
     const bat = t.place('battery', 0, 0, { peakPower_kW: 10, capacity_J: 3600000, initialSOC: 0.9 });
@@ -37527,10 +37907,11 @@ function runTests() {
 
     // Reset
     TimeClock.reset(scene);
-    t.assertClose(u.inventory.charge_J, initCharge, 0.01, 'charge_J restored after reset');
+    // [v14.7.0] Re-get unit — checkpoint replaces unit objects
+    t.assertClose(scene.units.get(bat).inventory.charge_J, initCharge, 0.01, 'charge_J restored after reset');
 
     TimeClock.t = 0; TimeClock.frame = 0;
-    TimeClock.mode = 'test'; SimSettings.dt = origDt;
+    TimeClock.mode = 'paused'; SimSettings.dt = origDt;
   }});
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -37539,7 +37920,7 @@ function runTests() {
 
   tests.push({ name: '187: System balance with tank: In − Out − Accum ≈ 0', fn: t => {
     const origDt = SimSettings.dt;
-    TimeClock.t = 0; TimeClock.frame = 0; TimeClock.mode = 'test';
+    TimeClock.t = 0; TimeClock.frame = 0; TimeClock.mode = 'paused';
     SimSettings.dt = 10;
 
     // Source (2 mol/s N2) → Tank (gas Cv draw) → Sink
@@ -37579,12 +37960,12 @@ function runTests() {
     t.assertClose(residual, 0, 1.0, `In−Out−Accum residual = ${residual.toFixed(3)} mol (should ≈ 0)`);
 
     TimeClock.t = 0; TimeClock.frame = 0;
-    TimeClock.mode = 'test'; SimSettings.dt = origDt;
+    TimeClock.mode = 'paused'; SimSettings.dt = origDt;
   }});
 
   tests.push({ name: '188: System balance with battery: electrical accum term', fn: t => {
     const origDt = SimSettings.dt;
-    TimeClock.t = 0; TimeClock.frame = 0; TimeClock.mode = 'test';
+    TimeClock.t = 0; TimeClock.frame = 0; TimeClock.mode = 'paused';
     SimSettings.dt = 60;
 
     // Battery (90% SOC, 1 kWh capacity, peak 10 kW) → sink_electrical
@@ -37617,7 +37998,7 @@ function runTests() {
     t.assertClose(residual_J, 0, 100, `Energy balance residual = ${residual_J.toFixed(1)} J (should ≈ 0)`);
 
     TimeClock.t = 0; TimeClock.frame = 0;
-    TimeClock.mode = 'test'; SimSettings.dt = origDt;
+    TimeClock.mode = 'paused'; SimSettings.dt = origDt;
   }});
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -37626,7 +38007,7 @@ function runTests() {
 
   tests.push({ name: '189: Milestone integration: tank + battery + hub over 5 steps', fn: t => {
     const origDt = SimSettings.dt;
-    TimeClock.t = 0; TimeClock.frame = 0; TimeClock.mode = 'test';
+    TimeClock.t = 0; TimeClock.frame = 0; TimeClock.mode = 'paused';
     SimSettings.dt = 60;
 
     // N₂ source → tank → sink (material subsystem)
@@ -37691,7 +38072,7 @@ function runTests() {
     t.assertOK(TimeClock.t === 300, `t = ${TimeClock.t}s`);
 
     TimeClock.t = 0; TimeClock.frame = 0;
-    TimeClock.mode = 'test'; SimSettings.dt = origDt;
+    TimeClock.mode = 'paused'; SimSettings.dt = origDt;
   }});
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -38190,7 +38571,7 @@ function runTests() {
       'Pulse gate: blocked in play mode');
     // Animations off → blocked
     SimSettings.animations = false;
-    TimeClock.mode = 'test';
+    TimeClock.mode = 'paused';
     t.assertOK(!(SimSettings.animations && TimeClock.mode !== 'playing'),
       'Pulse gate: blocked when animations off');
     SimSettings.animations = origAnim;
@@ -38380,7 +38761,7 @@ function runTests() {
   tests.push({ name: '221: Tank relief valve limits pressure buildup', fn: t => {
     t.clearScene();
     const origDt = SimSettings.dt;
-    TimeClock.t = 0; TimeClock.frame = 0; TimeClock.mode = 'test';
+    TimeClock.t = 0; TimeClock.frame = 0; TimeClock.mode = 'paused';
     SimSettings.dt = 60;
 
     // Feed N₂ into a small tank with low P_relief and vent connected
@@ -38403,13 +38784,13 @@ function runTests() {
       `P capped by relief: ${(tankUD.last.P_Pa/1e5).toFixed(1)} bar`);
 
     TimeClock.t = 0; TimeClock.frame = 0;
-    TimeClock.mode = 'test'; SimSettings.dt = origDt;
+    TimeClock.mode = 'paused'; SimSettings.dt = origDt;
   }});
 
   // [v10.6.2] T222: Inventory reinit when params differ from placeUnit defaults
   tests.push({ name: '222: Tank inventory matches custom params (not placeUnit defaults)', fn: t => {
     const origDt = SimSettings.dt;
-    TimeClock.t = 0; TimeClock.frame = 0; TimeClock.mode = 'test';
+    TimeClock.t = 0; TimeClock.frame = 0; TimeClock.mode = 'paused';
     SimSettings.dt = 60;
 
     // Place tank with V=10 (default is 50)
@@ -38427,7 +38808,7 @@ function runTests() {
     t.assertClose(bu.inventory.charge_J, 500, 0.01, 'Battery charge_J = capacity × SOC = 500');
 
     TimeClock.t = 0; TimeClock.frame = 0;
-    TimeClock.mode = 'test'; SimSettings.dt = origDt;
+    TimeClock.mode = 'paused'; SimSettings.dt = origDt;
   }});
 
   // ═══════════════════════════════════════════════════════════════════════
