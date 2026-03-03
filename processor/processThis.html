@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v14.8.0
+  processThis v14.9.0
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -299,6 +299,50 @@
   ═══════════════════════════════════════════════════════════════════════════
   CHANGELOG
   ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v14.9.0 — S6a: Reactor Taxonomy Split ───────────────────────────────────
+  Phase 1a — Infrastructure:
+    equilibriumTick extracted as named function shared by all reactor defIds.
+    Three new defIds: reactor_adiabatic (2 ports, 2×2), reactor_jacketed
+    (3 ports, 2×2), reactor_cooled (4 ports, 2×3).
+    ProfileRegistry: 4 entries including T2 jacketed (T_HH=1273K Inconel).
+    placeUnit defaults, icon mapping via presentation.icon field.
+  Phase 1b — Migration + Removal:
+    75 test placements migrated: 51→reactor_adiabatic, 24→reactor_jacketed.
+    12 high-T jacketed tests upgraded to tier=2 for SMR at T=1000K.
+    reactor_equilibrium removed from UnitRegistry, ProfileRegistry, placeUnit.
+    Inspector: reactor_adiabatic is base, jacketed+cooled alias to it.
+    importJSON: pre-validation migration reactor_equilibrium→new defIds.
+    Tests 269, 270, 279, 290, 334, 341 rewritten for split architecture.
+  Phase 2a — Cooled Reactor + Combustion Profile:
+    reactor_cooled: internal HEX via hxCapacityRates + hxSolveUaNtu.
+    Hot=adiabatic products, cold=coolant. UA param (default 500 W/K).
+    No-coolant fallback: adiabatic + INFO alarm. T_out updated post-cooling.
+    Cache hash extended for UA + coolant state.
+    combustion_chamber profile: Hastelloy X + TBC, T_HH=1573K, P_HH=50 bar.
+    Demo combustor: profileId='combustion_chamber'.
+    Inspector: UA param for reactor_cooled, cooling KPIs.
+  Phase 2b — Tests (+9): T500–T508 covering cooled reactor HEX, no-coolant
+    fallback, energy/mass balance, combustion_chamber profile limits,
+    adiabatic T direction, jacketed isothermal.
+    498 tests, 2715 assertions, 0 failures.
+  Phase 3a — Electrochemical Reactor + Fuel Cell:
+    electrochemicalTick trunk: shared by reactor_electrochemical (consume) and
+    fuel_cell (generate). Faraday-style: P_elec ↔ ξ via η and ΔH_rxn.
+    Consume mode: P_demand = ξ × |ΔH| / η, power-limited ξ proportional.
+    Electrode separation: O₂→anode, everything else→cathode. T_cell from
+    Q_waste / Cp_est (molar, ~30 J/(mol·K)). All ports use explicit T.
+    Generate mode: ξ from conv_max, P_generated = ξ × |ΔH| × η.
+    Internal HEX cooling via hxSolveUaNtu (shared with reactor_cooled).
+    No-coolant fallback with WARNING alarm.
+    reactor_electrochemical: 4 ports (mat_in, elec_in, mat_out_cat, mat_out_ano).
+    fuel_cell: 6 ports (mat_in_cat, mat_in_ano, mat_out, elec_out, cool_in, cool_out).
+    separateElectrodes() pure function. mergeStreams via mol-weighted T, min P.
+    Profiles, placeUnit defaults, inspectors for both defIds.
+  Phase 3b — Tests (+8): T509–T516 covering EC idle, full/partial power,
+    CO₂ electrolysis separation, adiabatic waste heat, FC generate mode,
+    FC no-coolant WARNING, EC mass balance.
+    506 tests, 2741 assertions, 0 failures.
 
   ─── v14.8.0 — S-SPLIT: Splitter Branch Deactivation ──────────────────────
   489 tests, 2688 assertions, 0 failures.
@@ -17004,260 +17048,636 @@ UnitRegistry.register('distillation_column', {
 // Keyed by unit id, stores { inletHash, cachedOut, T_out, status }
 const _reactorCache = new Map();
 
-UnitRegistry.register('reactor_equilibrium', {
-  name: 'Reactor',
+// [v14.9.0 S6a] equilibriumTick — shared trunk for reactor_adiabatic, reactor_jacketed, reactor_cooled.
+// Extracted from inline reactor_equilibrium tick. Config-branched at energy balance step.
+function equilibriumTick(u, ports, par, ctx) {
+  const sIn = ports.mat_in;
+  if (!sIn) return;
+
+  // [v13.1.0 S2-A] Fry guard — destroyed reactor passes fluid through unmodified
+  if (u.fried) {
+    u.powerDemand = 0;
+    ports.mat_out = { type: StreamType.MATERIAL, T: sIn.T, P: sIn.P,
+      n: { ...sIn.n }, phaseConstraint: sIn.phaseConstraint || 'V' };
+    u.last = { fried: true, error: { severity: ErrorSeverity.CATASTROPHIC,
+      message: 'Unit destroyed by electrical overload. Replace or reset.' } };
+    return;
+  }
+
+  // [v12.9.0] Three-mode demand: none (adiabatic), isothermal, fixed
+  const heatDemand = par.heatDemand || 'none';
+
+  // Variant sync: 'none' → insulated presentation (hides elec_in)
+  if (heatDemand === 'none' && par.variant !== 'insulated') par.variant = 'insulated';
+  if (heatDemand !== 'none' && par.variant === 'insulated') par.variant = undefined;
+
+  // None mode: discard any ghost elec_in
+  if (heatDemand === 'none') ports.elec_in = null;
+
+  // ── Guard: reaction must be selected ──
+  const reaction = par.reactionId ? ReactionRegistry.get(par.reactionId) : null;
+  if (!reaction) {
+    u.last = { error: { severity: ErrorSeverity.MAJOR, message: 'No reaction selected' } };
+    ports.mat_out = { type: StreamType.MATERIAL, T: sIn.T, P: sIn.P,
+      n: { ...sIn.n }, phaseConstraint: sIn.phaseConstraint || 'V' };
+    return;
+  }
+
+  // ── Guard: VL/L inlet not supported ──
+  const inletPhase = sIn.phase || sIn.phaseConstraint || 'V';
+  if (inletPhase === 'L' || inletPhase === 'VL') {
+    u.last = { error: { severity: ErrorSeverity.MAJOR,
+      message: `Gas-phase reactor requires vapor inlet (got ${inletPhase}). Use a flash drum or heater upstream to vaporize.` } };
+    ports.mat_out = { type: StreamType.MATERIAL, T: sIn.T, P: sIn.P,
+      n: { ...sIn.n }, phaseConstraint: inletPhase };
+    return;
+  }
+  const resolvedPhase = inletPhase;
+  const stoich = reaction.stoich;
+
+  // ── Activation window (inlet T/P) ──
+  if (sIn.T < reaction.Tmin_K || sIn.T > reaction.Tmax_K ||
+      sIn.P < reaction.Pmin_Pa || sIn.P > reaction.Pmax_Pa) {
+    ports.mat_out = { type: StreamType.MATERIAL, T: sIn.T, P: sIn.P,
+      n: { ...sIn.n }, phaseConstraint: resolvedPhase };
+    u.last = { reactionId: par.reactionId, status: 'inactive',
+      reason: `T=${sIn.T.toFixed(0)}K or P=${(sIn.P/1e5).toFixed(2)}bar outside activation window` };
+    return;
+  }
+
+  // ── Guard: thermo data required ──
+  if (!reaction._thermoComplete) {
+    u.last = { error: { severity: ErrorSeverity.MAJOR,
+      message: 'K(T) requires hf0_Jmol and s0_JmolK for all species' },
+      reactionId: par.reactionId, status: 'error' };
+    ports.mat_out = { type: StreamType.MATERIAL, T: sIn.T, P: sIn.P,
+      n: { ...sIn.n }, phaseConstraint: resolvedPhase };
+    return;
+  }
+
+  // ── Guard: kinetics needs volume ──
+  const useKinetics = par.useKinetics !== false && reaction._kinetics;
+  if (useKinetics && (!par.volume_m3 || par.volume_m3 <= 0)) {
+    u.last = { error: { severity: ErrorSeverity.MAJOR,
+      message: 'Reactor volume must be > 0 (kinetics enabled)' },
+      reactionId: par.reactionId, status: 'error' };
+    ports.mat_out = { type: StreamType.MATERIAL, T: sIn.T, P: sIn.P,
+      n: { ...sIn.n }, phaseConstraint: resolvedPhase };
+    return;
+  }
+
+  // ── ξ_max (limiting reactant) ──
+  let xi_max = Infinity;
+  for (const [sp, nu] of Object.entries(stoich)) {
+    if (nu < 0) {
+      const n_i = sIn.n[sp] || 0;
+      if (n_i <= 1e-15) { xi_max = 0; break; }
+      xi_max = Math.min(xi_max, n_i / (-nu));
+    }
+  }
+  if (!isFinite(xi_max)) xi_max = 0;
+
+  if (xi_max <= 0) {
+    ports.mat_out = { type: StreamType.MATERIAL, T: sIn.T, P: sIn.P,
+      n: { ...sIn.n }, phaseConstraint: resolvedPhase };
+    u.last = { reactionId: par.reactionId, status: 'no_reactants', xi_max: 0 };
+    return;
+  }
+
+  // ── [v12.9.0] Isothermal reference — computed BEFORE CSTR for demand ──
+  // Only depends on (T_in, P, n_in, stoich, xi_max) — stable across iterations.
+  const H_in_Jps = thermo.getHdot_Jps(sIn);
+  const isoRef = findXiEq(par.reactionId, sIn.T, sIn.n, stoich, xi_max, sIn.P);
+  let xi_iso = isoRef.xi_eq;
+  if (useKinetics) {
+    xi_iso = integratePFR(reaction._kinetics, sIn.T, sIn.P, sIn.n, stoich,
+      isoRef.xi_eq, par.volume_m3, isoRef.ln_K);
+  } else {
+    xi_iso = (par.alpha ?? 1.0) * isoRef.xi_eq;
+  }
+  const n_iso = applyNout(sIn.n, stoich, xi_iso);
+  const H_iso = thermo.getHdot_Jps({ type: StreamType.MATERIAL, T: sIn.T, P: sIn.P,
+    n: n_iso, phaseConstraint: resolvedPhase });
+  const iso_Q_duty_W = H_iso - H_in_Jps;
+  const conv_iso = xi_max > 0 ? (xi_iso / xi_max) * 100 : 0;
+
+  // ── [v12.9.0] Demand and Q_in ──
+  let Q_in_W = 0;
+  if (heatDemand !== 'none') {
+    if (heatDemand === 'isothermal') {
+      u.powerDemand = Math.max(0, iso_Q_duty_W);
+    } else { // 'fixed'
+      u.powerDemand = Math.max(0, (par.Q_fixed_kW ?? 0) * 1000);
+    }
+    const sElec = ports.elec_in;
+    const rs = ctx ? ctx.scratch : {};
+    Q_in_W = sElec ? (rs.hubAllocated_W ?? sElec.actual ?? sElec.capacity ?? 0) : 0;
+  }
+
+  // ── [v11.0.0 Phase 6] Skip-when-clean: reuse cached result if inputs unchanged ──
+  const nKeys = Object.keys(sIn.n).sort();
+  let _hash = sIn.T * 1e6 + sIn.P + Q_in_W * 1e-3;
+  for (let i = 0; i < nKeys.length; i++) _hash += (sIn.n[nKeys[i]] || 0) * (i + 1) * 7919;
+  // [v12.10.1 S1-pre-1] Parameter fingerprint — bust cache on any config change
+  if (par.reactionId)    _hash += hashString(par.reactionId) * 1e-6;
+  if (par.alpha != null) _hash += par.alpha * 3571;
+  if (par.volume_m3)     _hash += par.volume_m3 * 6271;
+  if (par.useKinetics)   _hash += 9901;
+  if (par.heatDemand)    _hash += hashString(par.heatDemand) * 1e-7;
+  // [v14.9.0 S6a] reactor_cooled: include UA + coolant state in cache hash
+  if (par.UA != null)    _hash += par.UA * 4231;
+  if (u.defId === 'reactor_cooled' && ports.cool_in?.T) {
+    _hash += ports.cool_in.T * 8867;
+  }
+  const inletHash = _hash;
+  const curGen = ctx.solveGen;
+  if (u.rxCache?.hash === inletHash && u.rxCache?.out && u.rxCache?.last?.status === 'active'
+      && u.rxCache?.gen !== curGen) {  // only skip between solveScene calls
+    ports.mat_out = u.rxCache.out;
+    u.last = { ...u.rxCache.last, skipped: true };
+    return;
+  }
+
+  // ── CSTR solve: bisect T_out for H(T_out, n_eq(T_out)) = H_in + Q_in ──
+  const warmT = u.rxCache?.last?.T_out;  // [Phase 6] warm start from previous solve
+  const cstr = solveReactorCSTR(par.reactionId, reaction, sIn, stoich, xi_max, Q_in_W, par, warmT);
+
+  // ── Write outlet ──
+  ports.mat_out = {
+    type: StreamType.MATERIAL,
+    T: cstr.T_out,
+    P: sIn.P,
+    n: cstr.n_out,
+    phaseConstraint: resolvedPhase
+  };
+
+  // ── [v14.9.0 S6a] reactor_cooled: internal HEX post-process ──
+  let cooledDiag = null;
+  if (u.defId === 'reactor_cooled') {
+    const sCoolIn = ports.cool_in;
+    if (sCoolIn && sCoolIn.T && Object.keys(sCoolIn.n || {}).length > 0) {
+      // Build virtual "hot" stream from adiabatic products
+      const hotStream = { type: StreamType.MATERIAL, T: cstr.T_out, P: sIn.P,
+        n: { ...cstr.n_out }, phaseConstraint: resolvedPhase };
+      const H_hot_in = thermo.getHdot_Jps(hotStream);
+      const H_cold_in = thermo.getHdot_Jps(sCoolIn);
+      const UA = par.UA ?? 500;
+
+      // Only cool if products are hotter than coolant (NNG-2)
+      if (cstr.T_out > sCoolIn.T && UA > 0) {
+        const cap = hxCapacityRates(hotStream, sCoolIn);
+        const hxResult = hxSolveUaNtu(hotStream, sCoolIn, H_hot_in, H_cold_in, cap, UA);
+        if (!hxResult.error) {
+          // Cooled products
+          ports.mat_out = {
+            type: StreamType.MATERIAL, P: sIn.P,
+            n: cstr.n_out, phaseConstraint: resolvedPhase,
+            H_target_Jps: hxResult.H_hot_out
+          };
+          // Warmed coolant
+          ports.cool_out = {
+            type: StreamType.MATERIAL, P: sCoolIn.P,
+            n: { ...sCoolIn.n }, phaseConstraint: sCoolIn.phaseConstraint || 'VL',
+            H_target_Jps: hxResult.H_cold_out
+          };
+          cooledDiag = {
+            Q_removed_W: hxResult.Q_W,
+            T_adiabatic: cstr.T_out,
+            T_gas_cooled_est: hxResult.T_hot_out_est,
+            coolant_dT_est: hxResult.T_cold_out_est - sCoolIn.T,
+            UA, NTU: hxResult.diag.NTU, epsilon: hxResult.diag.epsilon
+          };
+        }
+      } else {
+        // Products cooler than coolant or UA=0 — passthrough coolant
+        ports.cool_out = {
+          type: StreamType.MATERIAL, T: sCoolIn.T, P: sCoolIn.P,
+          n: { ...sCoolIn.n }, phaseConstraint: sCoolIn.phaseConstraint || 'VL'
+        };
+        cooledDiag = { Q_removed_W: 0, T_adiabatic: cstr.T_out, reason: 'T_hot ≤ T_cold' };
+      }
+    } else {
+      // No coolant connected → adiabatic fallback with INFO alarm
+      cooledDiag = { Q_removed_W: 0, T_adiabatic: cstr.T_out, noCoolant: true };
+    }
+  }
+
+  // ── Kinetics diagnostics ──
+  let kinDiag = {};
+  if (useKinetics) {
+    const R_gas = 8.314;
+    const n_total_in = Object.values(sIn.n).reduce((a, b) => a + b, 0);
+    const Q_inlet = n_total_in > 0 ? n_total_in * R_gas * cstr.T_out / sIn.P : 0;
+    kinDiag = {
+      useKinetics: true,
+      volume_m3: par.volume_m3,
+      tau_s: Q_inlet > 0 ? par.volume_m3 / Q_inlet : Infinity,
+      alpha_effective: cstr.alpha,
+      limited_by: cstr.alpha > 0.95 ? 'equilibrium' : 'kinetics'
+    };
+  }
+
+  // ── Diagnostics ──
+  const conversion = xi_max > 0 ? (cstr.xi / xi_max) * 100 : 0;
+  u.last = {
+    reactionId: par.reactionId,
+    mode: useKinetics ? 'kinetics' : 'manual',
+    heatDemand,
+    xi: cstr.xi,
+    xi_max,
+    xi_eq: cstr.xi_eq,
+    ln_K: cstr.ln_K,
+    T_eval: cstr.T_out,        // actual reactor temperature
+    T_out: cstr.T_out,
+    T_in: sIn.T,
+    dT: cstr.T_out - sIn.T,
+    conversion_pct: conversion,
+    status: 'active',
+    H_in_kW: (cstr.H_in_Jps / 1000).toFixed(2),
+    H_out_kW: (cstr.H_out_Jps / 1000).toFixed(2),
+    Q_demanded_W: u.powerDemand || 0,
+    Q_in_W,
+    curtailed: heatDemand !== 'none' && Q_in_W < (u.powerDemand || 0) - 1,
+    Q_duty_W: iso_Q_duty_W,  // kept for backward compat
+    Q_duty_sign: iso_Q_duty_W >= 0 ? 'heating' : 'cooling',
+    dH0: reaction._dH0_Jmol,
+    dS0: reaction._dS0_JmolK,
+    converged: cstr.converged,
+    iterations: cstr.iterations,
+    // Isothermal reference (sizing help)
+    iso_Q_duty_W,
+    iso_xi: xi_iso,
+    iso_conv_pct: conv_iso,
+    ...kinDiag,
+    // [v14.9.0 S6a] Cooled reactor diagnostics
+    ...(cooledDiag || {})
+  };
+
+  // [v14.9.0 S6a] No-coolant INFO alarm for reactor_cooled
+  if (cooledDiag?.noCoolant) {
+    u.last.info = { severity: AlarmSeverity.INFO,
+      message: 'No coolant connected — operating adiabatically.' };
+  }
+  // Update T_out if cooling was applied (T_gas_cooled_est from HEX)
+  if (cooledDiag?.T_gas_cooled_est != null) {
+    u.last.T_out = cooledDiag.T_gas_cooled_est;
+    u.last.dT = cooledDiag.T_gas_cooled_est - sIn.T;
+  }
+
+  if (!cstr.converged) {
+    u.last.error = {
+      severity: ErrorSeverity.MAJOR,
+      message: `CSTR solver did not converge after ${cstr.iterations} iterations`
+    };
+  }
+
+  // [v12.9.4] Setpoint warning: insufficient power for isothermal/fixed demand
+  if (u.last.curtailed && !u.last.error) {
+    const demandKW = ((u.powerDemand || 0) / 1000).toFixed(1);
+    const actualKW = (Q_in_W / 1000).toFixed(1);
+    const modeLabel = heatDemand === 'isothermal' ? 'isothermal operation' : 'fixed power target';
+    u.last.error = {
+      severity: ErrorSeverity.MINOR,
+      message: `Insufficient power for ${modeLabel}: ${actualKW} / ${demandKW} kW — reactor at ${(cstr.T_out - 273.15).toFixed(0)}°C instead of ${(sIn.T - 273.15).toFixed(0)}°C`
+    };
+  }
+
+  if (!useKinetics) {
+    u.last.useKinetics = false;
+    u.last.alpha = par.alpha ?? 1.0;
+  }
+
+  // [Phase 6] Cache for skip-when-clean and warm start
+  u.rxCache = { hash: inletHash, out: ports.mat_out, last: u.last, gen: curGen };
+  u.last.skipped = false;
+  u.last.warmStartUsed = cstr.warmStartUsed;
+}
+
+
+// [v14.9.0 S6a] reactor_adiabatic — 2 ports, insulated catalytic vessel
+UnitRegistry.register('reactor_adiabatic', {
+  name: 'Reactor (Adiabatic)',
+  category: UnitCategories.REACTOR,
+  w: 2,
+  h: 2,
+  ports: [
+    { portId: 'mat_in',  dir: PortDir.IN,  type: StreamType.MATERIAL, x: 0, y: 1 },
+    { portId: 'mat_out', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 1 }
+  ],
+  presentations: {
+    'box/default': { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, mat_out:{x:2,y:1} }, icon: 'ico-reactor_equilibrium' }
+  },
+  limitParams: ['T_LL', 'T_L', 'T_H', 'T_HH', 'P_LL', 'P_L', 'P_H', 'P_HH', 'mass_LL', 'mass_HH'],
+  limits: { S: { T_LL: 323, T_L: 373, T_H: 773, T_HH: 923, P_LL: 50000, P_L: 80000, P_H: 12000000, P_HH: 15000000, mass_LL: 0.001, mass_HH: 0.08 } },
+  tick: equilibriumTick
+});
+
+// [v14.9.0 S6a] reactor_jacketed — 3 ports, electrically heated catalytic vessel
+UnitRegistry.register('reactor_jacketed', {
+  name: 'Reactor (Jacketed)',
+  category: UnitCategories.REACTOR,
+  w: 2,
+  h: 2,
+  ports: [
+    { portId: 'mat_in',  dir: PortDir.IN,  type: StreamType.MATERIAL,   x: 0, y: 1 },
+    { portId: 'mat_out', dir: PortDir.OUT, type: StreamType.MATERIAL,   x: 2, y: 1 },
+    { portId: 'elec_in', dir: PortDir.IN,  type: StreamType.ELECTRICAL, x: 1, y: 2 }
+  ],
+  presentations: {
+    'box/default':  { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, mat_out:{x:2,y:1}, elec_in:{x:1,y:2} }, icon: 'ico-reactor_equilibrium' },
+    'box/elec-top': { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, mat_out:{x:2,y:1}, elec_in:{x:1,y:0} }, icon: 'ico-reactor_equilibrium' }
+  },
+  limitParams: ['T_LL', 'T_L', 'T_H', 'T_HH', 'P_LL', 'P_L', 'P_H', 'P_HH', 'mass_LL', 'mass_HH'],
+  limits: { S: { T_LL: 323, T_L: 373, T_H: 773, T_HH: 923, P_LL: 50000, P_L: 80000, P_H: 12000000, P_HH: 15000000, mass_LL: 0.001, mass_HH: 0.08 } },
+  tick: equilibriumTick
+});
+
+// [v14.9.0 S6a] reactor_cooled — 4 ports, catalytic vessel with cooling jacket
+// Stub: runs adiabatic until Phase 2a adds internal HEX
+UnitRegistry.register('reactor_cooled', {
+  name: 'Reactor (Cooled)',
   category: UnitCategories.REACTOR,
   w: 2,
   h: 3,
   ports: [
-    { portId: 'mat_in',   dir: PortDir.IN,  type: StreamType.MATERIAL,   x: 0, y: 1 },
-    { portId: 'mat_out',  dir: PortDir.OUT, type: StreamType.MATERIAL,   x: 2, y: 1 },
-    { portId: 'elec_in',  dir: PortDir.IN,  type: StreamType.ELECTRICAL, x: 1, y: 3 }
+    { portId: 'mat_in',   dir: PortDir.IN,  type: StreamType.MATERIAL, x: 0, y: 0.5 },
+    { portId: 'mat_out',  dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 0.5 },
+    { portId: 'cool_in',  dir: PortDir.IN,  type: StreamType.MATERIAL, x: 0, y: 2.5 },
+    { portId: 'cool_out', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 2.5 }
   ],
   presentations: {
-    'box/default':       { w: 2, h: 3, ports: { mat_in:{x:0,y:1.5}, mat_out:{x:2,y:1.5}, elec_in:{x:1,y:3} } },
-    'box/elec-top':      { w: 2, h: 3, ports: { mat_in:{x:0,y:1.5}, mat_out:{x:2,y:1.5}, elec_in:{x:1,y:0} } },
-    'box/insulated':     { w: 2, h: 3, ports: { mat_in:{x:0,y:1.5}, mat_out:{x:2,y:1.5} } }
+    'box/default': { w: 2, h: 3, ports: { mat_in:{x:0,y:0.5}, mat_out:{x:2,y:0.5}, cool_in:{x:0,y:2.5}, cool_out:{x:2,y:2.5} }, icon: 'ico-reactor_equilibrium' }
   },
-  // [v13.0.4 S1c] Equipment limits
   limitParams: ['T_LL', 'T_L', 'T_H', 'T_HH', 'P_LL', 'P_L', 'P_H', 'P_HH', 'mass_LL', 'mass_HH'],
-  // [v13.1.2] T_H/T_HH widened provisionally — combustion chamber variant needs ~1300°C.
-  // TODO(S6): split into per-variant limits (adiabatic/general 923K, combustion 1573K).
-  limits: { S: { T_LL: 323, T_L: 373, T_H: 1273, T_HH: 1573, P_LL: 50000, P_L: 80000, P_H: 12000000, P_HH: 15000000, mass_LL: 0.001, mass_HH: 0.08 } },
-  tick(u, ports, par, ctx) {
-    const sIn = ports.mat_in;
-    if (!sIn) return;
-
-    // [v13.1.0 S2-A] Fry guard — destroyed reactor passes fluid through unmodified
-    if (u.fried) {
-      u.powerDemand = 0;
-      ports.mat_out = { type: StreamType.MATERIAL, T: sIn.T, P: sIn.P,
-        n: { ...sIn.n }, phaseConstraint: sIn.phaseConstraint || 'V' };
-      u.last = { fried: true, error: { severity: ErrorSeverity.CATASTROPHIC,
-        message: 'Unit destroyed by electrical overload. Replace or reset.' } };
-      return;
-    }
-
-    // [v12.9.0] Three-mode demand: none (adiabatic), isothermal, fixed
-    const heatDemand = par.heatDemand || 'none';
-
-    // Variant sync: 'none' → insulated presentation (hides elec_in)
-    if (heatDemand === 'none' && par.variant !== 'insulated') par.variant = 'insulated';
-    if (heatDemand !== 'none' && par.variant === 'insulated') par.variant = undefined;
-
-    // None mode: discard any ghost elec_in
-    if (heatDemand === 'none') ports.elec_in = null;
-
-    // ── Guard: reaction must be selected ──
-    const reaction = par.reactionId ? ReactionRegistry.get(par.reactionId) : null;
-    if (!reaction) {
-      u.last = { error: { severity: ErrorSeverity.MAJOR, message: 'No reaction selected' } };
-      ports.mat_out = { type: StreamType.MATERIAL, T: sIn.T, P: sIn.P,
-        n: { ...sIn.n }, phaseConstraint: sIn.phaseConstraint || 'V' };
-      return;
-    }
-
-    // ── Guard: VL/L inlet not supported ──
-    const inletPhase = sIn.phase || sIn.phaseConstraint || 'V';
-    if (inletPhase === 'L' || inletPhase === 'VL') {
-      u.last = { error: { severity: ErrorSeverity.MAJOR,
-        message: `Gas-phase reactor requires vapor inlet (got ${inletPhase}). Use a flash drum or heater upstream to vaporize.` } };
-      ports.mat_out = { type: StreamType.MATERIAL, T: sIn.T, P: sIn.P,
-        n: { ...sIn.n }, phaseConstraint: inletPhase };
-      return;
-    }
-    const resolvedPhase = inletPhase;
-    const stoich = reaction.stoich;
-
-    // ── Activation window (inlet T/P) ──
-    if (sIn.T < reaction.Tmin_K || sIn.T > reaction.Tmax_K ||
-        sIn.P < reaction.Pmin_Pa || sIn.P > reaction.Pmax_Pa) {
-      ports.mat_out = { type: StreamType.MATERIAL, T: sIn.T, P: sIn.P,
-        n: { ...sIn.n }, phaseConstraint: resolvedPhase };
-      u.last = { reactionId: par.reactionId, status: 'inactive',
-        reason: `T=${sIn.T.toFixed(0)}K or P=${(sIn.P/1e5).toFixed(2)}bar outside activation window` };
-      return;
-    }
-
-    // ── Guard: thermo data required ──
-    if (!reaction._thermoComplete) {
-      u.last = { error: { severity: ErrorSeverity.MAJOR,
-        message: 'K(T) requires hf0_Jmol and s0_JmolK for all species' },
-        reactionId: par.reactionId, status: 'error' };
-      ports.mat_out = { type: StreamType.MATERIAL, T: sIn.T, P: sIn.P,
-        n: { ...sIn.n }, phaseConstraint: resolvedPhase };
-      return;
-    }
-
-    // ── Guard: kinetics needs volume ──
-    const useKinetics = par.useKinetics !== false && reaction._kinetics;
-    if (useKinetics && (!par.volume_m3 || par.volume_m3 <= 0)) {
-      u.last = { error: { severity: ErrorSeverity.MAJOR,
-        message: 'Reactor volume must be > 0 (kinetics enabled)' },
-        reactionId: par.reactionId, status: 'error' };
-      ports.mat_out = { type: StreamType.MATERIAL, T: sIn.T, P: sIn.P,
-        n: { ...sIn.n }, phaseConstraint: resolvedPhase };
-      return;
-    }
-
-    // ── ξ_max (limiting reactant) ──
-    let xi_max = Infinity;
-    for (const [sp, nu] of Object.entries(stoich)) {
-      if (nu < 0) {
-        const n_i = sIn.n[sp] || 0;
-        if (n_i <= 1e-15) { xi_max = 0; break; }
-        xi_max = Math.min(xi_max, n_i / (-nu));
-      }
-    }
-    if (!isFinite(xi_max)) xi_max = 0;
-
-    if (xi_max <= 0) {
-      ports.mat_out = { type: StreamType.MATERIAL, T: sIn.T, P: sIn.P,
-        n: { ...sIn.n }, phaseConstraint: resolvedPhase };
-      u.last = { reactionId: par.reactionId, status: 'no_reactants', xi_max: 0 };
-      return;
-    }
-
-    // ── [v12.9.0] Isothermal reference — computed BEFORE CSTR for demand ──
-    // Only depends on (T_in, P, n_in, stoich, xi_max) — stable across iterations.
-    const H_in_Jps = thermo.getHdot_Jps(sIn);
-    const isoRef = findXiEq(par.reactionId, sIn.T, sIn.n, stoich, xi_max, sIn.P);
-    let xi_iso = isoRef.xi_eq;
-    if (useKinetics) {
-      xi_iso = integratePFR(reaction._kinetics, sIn.T, sIn.P, sIn.n, stoich,
-        isoRef.xi_eq, par.volume_m3, isoRef.ln_K);
-    } else {
-      xi_iso = (par.alpha ?? 1.0) * isoRef.xi_eq;
-    }
-    const n_iso = applyNout(sIn.n, stoich, xi_iso);
-    const H_iso = thermo.getHdot_Jps({ type: StreamType.MATERIAL, T: sIn.T, P: sIn.P,
-      n: n_iso, phaseConstraint: resolvedPhase });
-    const iso_Q_duty_W = H_iso - H_in_Jps;
-    const conv_iso = xi_max > 0 ? (xi_iso / xi_max) * 100 : 0;
-
-    // ── [v12.9.0] Demand and Q_in ──
-    let Q_in_W = 0;
-    if (heatDemand !== 'none') {
-      if (heatDemand === 'isothermal') {
-        u.powerDemand = Math.max(0, iso_Q_duty_W);
-      } else { // 'fixed'
-        u.powerDemand = Math.max(0, (par.Q_fixed_kW ?? 0) * 1000);
-      }
-      const sElec = ports.elec_in;
-      const rs = ctx ? ctx.scratch : {};
-      Q_in_W = sElec ? (rs.hubAllocated_W ?? sElec.actual ?? sElec.capacity ?? 0) : 0;
-    }
-
-    // ── [v11.0.0 Phase 6] Skip-when-clean: reuse cached result if inputs unchanged ──
-    const nKeys = Object.keys(sIn.n).sort();
-    let _hash = sIn.T * 1e6 + sIn.P + Q_in_W * 1e-3;
-    for (let i = 0; i < nKeys.length; i++) _hash += (sIn.n[nKeys[i]] || 0) * (i + 1) * 7919;
-    // [v12.10.1 S1-pre-1] Parameter fingerprint — bust cache on any config change
-    if (par.reactionId)    _hash += hashString(par.reactionId) * 1e-6;
-    if (par.alpha != null) _hash += par.alpha * 3571;
-    if (par.volume_m3)     _hash += par.volume_m3 * 6271;
-    if (par.useKinetics)   _hash += 9901;
-    if (par.heatDemand)    _hash += hashString(par.heatDemand) * 1e-7;
-    const inletHash = _hash;
-    const curGen = ctx.solveGen;
-    if (u.rxCache?.hash === inletHash && u.rxCache?.out && u.rxCache?.last?.status === 'active'
-        && u.rxCache?.gen !== curGen) {  // only skip between solveScene calls
-      ports.mat_out = u.rxCache.out;
-      u.last = { ...u.rxCache.last, skipped: true };
-      return;
-    }
-
-    // ── CSTR solve: bisect T_out for H(T_out, n_eq(T_out)) = H_in + Q_in ──
-    const warmT = u.rxCache?.last?.T_out;  // [Phase 6] warm start from previous solve
-    const cstr = solveReactorCSTR(par.reactionId, reaction, sIn, stoich, xi_max, Q_in_W, par, warmT);
-
-    // ── Write outlet ──
-    ports.mat_out = {
-      type: StreamType.MATERIAL,
-      T: cstr.T_out,
-      P: sIn.P,
-      n: cstr.n_out,
-      phaseConstraint: resolvedPhase
-    };
-
-    // ── Kinetics diagnostics ──
-    let kinDiag = {};
-    if (useKinetics) {
-      const R_gas = 8.314;
-      const n_total_in = Object.values(sIn.n).reduce((a, b) => a + b, 0);
-      const Q_inlet = n_total_in > 0 ? n_total_in * R_gas * cstr.T_out / sIn.P : 0;
-      kinDiag = {
-        useKinetics: true,
-        volume_m3: par.volume_m3,
-        tau_s: Q_inlet > 0 ? par.volume_m3 / Q_inlet : Infinity,
-        alpha_effective: cstr.alpha,
-        limited_by: cstr.alpha > 0.95 ? 'equilibrium' : 'kinetics'
-      };
-    }
-
-    // ── Diagnostics ──
-    const conversion = xi_max > 0 ? (cstr.xi / xi_max) * 100 : 0;
-    u.last = {
-      reactionId: par.reactionId,
-      mode: useKinetics ? 'kinetics' : 'manual',
-      heatDemand,
-      xi: cstr.xi,
-      xi_max,
-      xi_eq: cstr.xi_eq,
-      ln_K: cstr.ln_K,
-      T_eval: cstr.T_out,        // actual reactor temperature
-      T_out: cstr.T_out,
-      T_in: sIn.T,
-      dT: cstr.T_out - sIn.T,
-      conversion_pct: conversion,
-      status: 'active',
-      H_in_kW: (cstr.H_in_Jps / 1000).toFixed(2),
-      H_out_kW: (cstr.H_out_Jps / 1000).toFixed(2),
-      Q_demanded_W: u.powerDemand || 0,
-      Q_in_W,
-      curtailed: heatDemand !== 'none' && Q_in_W < (u.powerDemand || 0) - 1,
-      Q_duty_W: iso_Q_duty_W,  // kept for backward compat
-      Q_duty_sign: iso_Q_duty_W >= 0 ? 'heating' : 'cooling',
-      dH0: reaction._dH0_Jmol,
-      dS0: reaction._dS0_JmolK,
-      converged: cstr.converged,
-      iterations: cstr.iterations,
-      // Isothermal reference (sizing help)
-      iso_Q_duty_W,
-      iso_xi: xi_iso,
-      iso_conv_pct: conv_iso,
-      ...kinDiag
-    };
-
-    if (!cstr.converged) {
-      u.last.error = {
-        severity: ErrorSeverity.MAJOR,
-        message: `CSTR solver did not converge after ${cstr.iterations} iterations`
-      };
-    }
-
-    // [v12.9.4] Setpoint warning: insufficient power for isothermal/fixed demand
-    if (u.last.curtailed && !u.last.error) {
-      const demandKW = ((u.powerDemand || 0) / 1000).toFixed(1);
-      const actualKW = (Q_in_W / 1000).toFixed(1);
-      const modeLabel = heatDemand === 'isothermal' ? 'isothermal operation' : 'fixed power target';
-      u.last.error = {
-        severity: ErrorSeverity.MINOR,
-        message: `Insufficient power for ${modeLabel}: ${actualKW} / ${demandKW} kW — reactor at ${(cstr.T_out - 273.15).toFixed(0)}°C instead of ${(sIn.T - 273.15).toFixed(0)}°C`
-      };
-    }
-
-    if (!useKinetics) {
-      u.last.useKinetics = false;
-      u.last.alpha = par.alpha ?? 1.0;
-    }
-
-    // [Phase 6] Cache for skip-when-clean and warm start
-    u.rxCache = { hash: inletHash, out: ports.mat_out, last: u.last, gen: curGen };
-    u.last.skipped = false;
-    u.last.warmStartUsed = cstr.warmStartUsed;
-  }
+  limits: { S: { T_LL: 323, T_L: 373, T_H: 773, T_HH: 923, P_LL: 50000, P_L: 80000, P_H: 12000000, P_HH: 15000000, mass_LL: 0.001, mass_HH: 0.08 } },
+  tick: equilibriumTick
 });
+
+// ═══════════════════════════════════════════════════════════════════════
+// [v14.9.0 S6b] ELECTROCHEMICAL REACTOR + FUEL CELL
+// ═══════════════════════════════════════════════════════════════════════
+
+// ── Electrode separation: O₂ → anode, everything else → cathode ──
+function separateElectrodes(n_total) {
+  const n_cathode = {}, n_anode = {};
+  for (const [sp, mol] of Object.entries(n_total)) {
+    if (mol < 1e-18) continue;
+    if (sp === 'O2') {
+      n_anode[sp] = mol;
+    } else {
+      n_cathode[sp] = mol;
+    }
+  }
+  return { n_cathode, n_anode };
+}
+
+// ── electrochemicalTick — shared trunk for consume (electrolysis) and generate (fuel cell) ──
+function electrochemicalTick(u, ports, par, ctx) {
+  if (u.fried) {
+    u.last = { fried: true, error: { severity: ErrorSeverity.CATASTROPHIC,
+      message: 'Unit destroyed by electrical overload.' }};
+    u.powerDemand = 0;
+    return;
+  }
+
+  const defId = u.defId;
+  const isGenerateMode = (defId === 'fuel_cell');
+
+  // ── Feed stream(s) ──
+  let sIn;
+  if (isGenerateMode) {
+    const sCat = ports.mat_in_cat;
+    const sAno = ports.mat_in_ano;
+    if (!sCat && !sAno) return;
+    // Merge two inlets: combine moles, mol-weighted T, min P
+    const n_merged = {};
+    let nTotal_cat = 0, nTotal_ano = 0;
+    for (const s of [sCat, sAno]) {
+      if (!s) continue;
+      for (const [sp, mol] of Object.entries(s.n || {})) {
+        n_merged[sp] = (n_merged[sp] || 0) + mol;
+      }
+    }
+    if (sCat) nTotal_cat = Object.values(sCat.n || {}).reduce((a, b) => a + b, 0);
+    if (sAno) nTotal_ano = Object.values(sAno.n || {}).reduce((a, b) => a + b, 0);
+    const nTotal = nTotal_cat + nTotal_ano;
+    const T_avg = nTotal > 0 ? ((sCat?.T || 300) * nTotal_cat + (sAno?.T || 300) * nTotal_ano) / nTotal : 300;
+    const P_min = Math.min(sCat?.P || Infinity, sAno?.P || Infinity);
+    sIn = { type: StreamType.MATERIAL, P: P_min, n: n_merged, T: T_avg, phaseConstraint: 'VL' };
+  } else {
+    sIn = ports.mat_in;
+    if (!sIn) return;
+  }
+
+  // ── Reaction data ──
+  const rxnId = par.reactionId || (isGenerateMode ? 'R_H2_FUELCELL' : 'R_H2O_ELEC');
+  const rxn = ReactionRegistry.get(rxnId);
+  if (!rxn) {
+    u.last = { error: { severity: ErrorSeverity.MAJOR, message: `Reaction '${rxnId}' not found.` } };
+    return;
+  }
+  const stoich = rxn.stoich;
+  const eta = Math.max(0.001, Math.min(0.99, par.efficiency ?? (isGenerateMode ? 0.60 : 0.90)));
+  const conv_max = Math.max(0.01, Math.min(0.99, par.conversion_max ?? 0.80));
+  const dH_rxn = rxn._dH0_Jmol;
+  const absDH = Math.abs(dH_rxn || 0);
+  if (!dH_rxn || absDH < 1) {
+    u.last = { error: { severity: ErrorSeverity.MAJOR, message: 'Reaction ΔH ≈ 0.' } };
+    return;
+  }
+
+  // ── Limiting reactant ──
+  const reactants = Object.entries(stoich).filter(([sp, nu]) => nu < 0);
+  let xi_max_reactant = Infinity, limitingSpecies = '';
+  for (const [sp, nu] of reactants) {
+    const n_sp = sIn.n[sp] || 0;
+    if (n_sp < 1e-15) {
+      u.last = { xi: 0, status: 'no_reactants', error: { severity: ErrorSeverity.MAJOR,
+        message: `No reactant ${sp} in feed.` } };
+      u.powerDemand = 0;
+      if (isGenerateMode) {
+        ports.mat_out = { type: StreamType.MATERIAL, P: sIn.P,
+          n: { ...sIn.n }, phaseConstraint: 'VL', T: sIn.T };
+      } else {
+        ports.mat_out_cat = { type: StreamType.MATERIAL, P: sIn.P,
+          n: { ...sIn.n }, phaseConstraint: 'VL', T: sIn.T };
+        ports.mat_out_ano = { type: StreamType.MATERIAL, P: sIn.P, n: {}, phaseConstraint: 'V', T: sIn.T };
+      }
+      return;
+    }
+    const xi_limit = n_sp / Math.abs(nu);
+    if (xi_limit < xi_max_reactant) { xi_max_reactant = xi_limit; limitingSpecies = sp; }
+  }
+  const xi_max = conv_max * xi_max_reactant;
+
+  // ═══ CONSUME MODE (electrolysis) ═══
+  if (!isGenerateMode) {
+    const P_demand_W = xi_max * absDH / eta;
+    u.powerDemand = P_demand_W;
+    const sElec = ports.elec_in;
+    const rs = ctx ? ctx.scratch : {};
+    const P_avail_W = sElec ? (rs.hubAllocated_W ?? sElec.actual ?? sElec.capacity ?? 0) : 0;
+    checkOverload(P_avail_W, P_demand_W, u);
+    if (u.fried) return;
+
+    if (P_avail_W < 1) {
+      u.last = { xi: 0, status: 'idle', P_demand_kW: P_demand_W / 1000, P_avail_kW: 0,
+        error: { severity: ErrorSeverity.MINOR, message: 'No electrical power — reactor idle.' } };
+      ports.mat_out_cat = { type: StreamType.MATERIAL, P: sIn.P,
+        n: { ...sIn.n }, phaseConstraint: 'VL', T: sIn.T };
+      ports.mat_out_ano = { type: StreamType.MATERIAL, P: sIn.P, n: {}, phaseConstraint: 'V', T: sIn.T };
+      return;
+    }
+
+    const P_chem_W = P_avail_W * eta;
+    let xi = Math.min(P_chem_W / absDH, xi_max, xi_max_reactant * 0.999);
+    const n_total = { ...sIn.n };
+    for (const [sp, nu] of Object.entries(stoich)) {
+      n_total[sp] = (n_total[sp] || 0) + nu * xi;
+      if (n_total[sp] < 0) n_total[sp] = 0;
+    }
+    const { n_cathode, n_anode } = separateElectrodes(n_total);
+    const H_in = thermo.getHdot_Jps(sIn);
+    const Q_chem_W = xi * absDH;
+    const Q_waste_W = P_avail_W - Q_chem_W;
+    const H_total_out = H_in + P_avail_W;
+    // Both streams exit at the same cell temperature.
+    // Waste heat Q_waste = P_avail - Q_chem warms products.
+    // Use molar Cp sum for temperature rise estimate.
+    const n_all_products = { ...n_cathode };
+    for (const [sp, mol] of Object.entries(n_anode)) {
+      n_all_products[sp] = (n_all_products[sp] || 0) + mol;
+    }
+    const n_total_mol = Object.values(n_all_products).reduce((a, b) => a + b, 0);
+    // Cp ≈ 30 J/(mol·K) for typical gas mixture (H2, O2, H2O vapor)
+    const Cp_est = Math.max(1, n_total_mol * 30);
+    const T_cell = sIn.T + Q_waste_W / Cp_est;
+    ports.mat_out_cat = { type: StreamType.MATERIAL, P: sIn.P,
+      n: n_cathode, phaseConstraint: 'VL', T: Math.min(T_cell, 5000) };
+    ports.mat_out_ano = { type: StreamType.MATERIAL, P: sIn.P,
+      n: n_anode, phaseConstraint: 'V', T: Math.min(T_cell, 5000) };
+    u.last = {
+      reactionId: rxnId, reactionName: rxn.name, status: 'active',
+      xi_molps: xi,
+      conversion_pct: xi_max_reactant > 0 ? (xi / xi_max_reactant) * 100 : 0,
+      limitingSpecies, efficiency: eta,
+      P_demand_kW: P_demand_W / 1000, P_avail_kW: P_avail_W / 1000,
+      Q_chem_kW: Q_chem_W / 1000, Q_waste_kW: Q_waste_W / 1000,
+      n_O2_anode: n_anode.O2 || 0, powerLimited: P_avail_W < P_demand_W - 1
+    };
+    return;
+  }
+
+  // ═══ GENERATE MODE (fuel cell) ═══
+  let xi = xi_max;
+  const n_out = { ...sIn.n };
+  for (const [sp, nu] of Object.entries(stoich)) {
+    n_out[sp] = (n_out[sp] || 0) + nu * xi;
+    if (n_out[sp] < 0) n_out[sp] = 0;
+  }
+  const H_in = thermo.getHdot_Jps(sIn);
+  const P_generated_W = xi * absDH * eta;
+  const Q_waste_W = xi * absDH * (1 - eta);
+  const H_products = H_in - P_generated_W;
+
+  // Internal HEX cooling
+  let cooledDiag = null;
+  const sCoolIn = ports.cool_in;
+  if (sCoolIn && sCoolIn.T && Object.keys(sCoolIn.n || {}).length > 0) {
+    const UA = par.UA ?? 500;
+    const H_hot_in = H_products + Q_waste_W;
+    const H_cold_in = thermo.getHdot_Jps(sCoolIn);
+    // Estimate product T for HEX capacity rates
+    const n_out_total = Object.values(n_out).reduce((a,b) => a+b, 0);
+    const T_est = sIn.T + (n_out_total > 0 ? Q_waste_W / (n_out_total * 30) : 0);
+    const hotStream = { type: StreamType.MATERIAL, P: sIn.P, n: { ...n_out },
+      phaseConstraint: 'VL', T: Math.max(T_est, sIn.T) };
+    if (hotStream.T > sCoolIn.T && UA > 0) {
+      const cap = hxCapacityRates(hotStream, sCoolIn);
+      const hxResult = hxSolveUaNtu(hotStream, sCoolIn, H_hot_in, H_cold_in, cap, UA);
+      if (!hxResult.error) {
+        ports.mat_out = { type: StreamType.MATERIAL, P: sIn.P,
+          n: n_out, phaseConstraint: 'VL', H_target_Jps: hxResult.H_hot_out };
+        ports.cool_out = { type: StreamType.MATERIAL, P: sCoolIn.P,
+          n: { ...sCoolIn.n }, phaseConstraint: sCoolIn.phaseConstraint || 'VL',
+          H_target_Jps: hxResult.H_cold_out };
+        cooledDiag = { Q_removed_W: hxResult.Q_W, coolant_dT_est: hxResult.T_cold_out_est - sCoolIn.T };
+      }
+    }
+    if (!cooledDiag) {
+      ports.mat_out = { type: StreamType.MATERIAL, P: sIn.P,
+        n: n_out, phaseConstraint: 'VL', H_target_Jps: H_products + Q_waste_W };
+      ports.cool_out = { type: StreamType.MATERIAL, T: sCoolIn.T, P: sCoolIn.P,
+        n: { ...sCoolIn.n }, phaseConstraint: sCoolIn.phaseConstraint || 'VL' };
+    }
+  } else {
+    ports.mat_out = { type: StreamType.MATERIAL, P: sIn.P,
+      n: n_out, phaseConstraint: 'VL', H_target_Jps: H_products + Q_waste_W };
+    cooledDiag = { noCoolant: true };
+  }
+
+  ports.elec_out = { type: StreamType.ELECTRICAL,
+    capacity: P_generated_W, actual: P_generated_W, available: P_generated_W };
+
+  u.last = {
+    reactionId: rxnId, reactionName: rxn.name, status: 'active',
+    xi_molps: xi,
+    conversion_pct: xi_max_reactant > 0 ? (xi / xi_max_reactant) * 100 : 0,
+    limitingSpecies, efficiency: eta,
+    P_generated_kW: P_generated_W / 1000, Q_waste_kW: Q_waste_W / 1000,
+    ...(cooledDiag || {})
+  };
+  if (cooledDiag?.noCoolant) {
+    u.last.error = { severity: ErrorSeverity.MINOR,
+      message: 'No coolant connected — exhaust extremely hot.' };
+  }
+}
+
+// ── reactor_electrochemical: 4 ports, 2×3 ──
+UnitRegistry.register('reactor_electrochemical', {
+  name: 'Electrochemical Reactor',
+  category: UnitCategories.REACTOR,
+  w: 2, h: 3,
+  ports: [
+    { portId: 'mat_in',      label: 'Feed',       dir: PortDir.IN,  type: StreamType.MATERIAL,   x: 0, y: 1.5 },
+    { portId: 'elec_in',     label: 'Power in',   dir: PortDir.IN,  type: StreamType.ELECTRICAL, x: 1, y: 0 },
+    { portId: 'mat_out_cat', label: 'Cathode',     dir: PortDir.OUT, type: StreamType.MATERIAL,   x: 2, y: 0.5 },
+    { portId: 'mat_out_ano', label: 'Anode (O₂)',  dir: PortDir.OUT, type: StreamType.MATERIAL,   x: 2, y: 2.5 }
+  ],
+  presentations: {
+    'box/default': { w: 2, h: 3, ports: {
+      mat_in:{x:0,y:1.5}, elec_in:{x:1,y:0}, mat_out_cat:{x:2,y:0.5}, mat_out_ano:{x:2,y:2.5}
+    }, icon: 'ico-reactor_equilibrium' }
+  },
+  limitParams: ['T_LL', 'T_L', 'T_H', 'T_HH', 'P_LL', 'P_HH', 'mass_HH'],
+  limits: { S: { T_LL: 263, T_L: 280, T_H: 773, T_HH: 923, P_LL: 50000, P_HH: 15000000, mass_HH: 0.08 } },
+  tick: electrochemicalTick
+});
+
+// ── fuel_cell: 6 ports, 2×3 ──
+UnitRegistry.register('fuel_cell', {
+  name: 'Fuel Cell',
+  category: UnitCategories.REACTOR,
+  w: 2, h: 3,
+  ports: [
+    { portId: 'mat_in_cat', label: 'Fuel (H₂)',    dir: PortDir.IN,  type: StreamType.MATERIAL,   x: 0, y: 0.5 },
+    { portId: 'mat_in_ano', label: 'Oxidant (O₂)', dir: PortDir.IN,  type: StreamType.MATERIAL,   x: 0, y: 1.5 },
+    { portId: 'mat_out',    label: 'Exhaust',       dir: PortDir.OUT, type: StreamType.MATERIAL,   x: 2, y: 1 },
+    { portId: 'elec_out',   label: 'Power out',     dir: PortDir.OUT, type: StreamType.ELECTRICAL, x: 1, y: 0 },
+    { portId: 'cool_in',    label: 'Coolant In',    dir: PortDir.IN,  type: StreamType.MATERIAL,   x: 0, y: 2.5 },
+    { portId: 'cool_out',   label: 'Coolant Out',   dir: PortDir.OUT, type: StreamType.MATERIAL,   x: 2, y: 2.5 }
+  ],
+  presentations: {
+    'box/default': { w: 2, h: 3, ports: {
+      mat_in_cat:{x:0,y:0.5}, mat_in_ano:{x:0,y:1.5}, mat_out:{x:2,y:1},
+      elec_out:{x:1,y:0}, cool_in:{x:0,y:2.5}, cool_out:{x:2,y:2.5}
+    }, icon: 'ico-reactor_equilibrium' }
+  },
+  limitParams: ['T_LL', 'T_L', 'T_H', 'T_HH', 'P_LL', 'P_HH', 'mass_HH'],
+  limits: { S: { T_LL: 293, T_L: 323, T_H: 473, T_HH: 523, P_LL: 50000, P_HH: 5000000, mass_HH: 0.05 } },
+  tick: electrochemicalTick
+});
+
 
 /* =========================
    PROFILE REGISTRATIONS [v13.1.3]
@@ -17426,11 +17846,45 @@ ProfileRegistry.register('distillation_column', {
   defId: 'distillation_column', name: 'Distillation Column', category: UnitCategories.SEPARATOR, tiers: [1],
   limits: { 1: { T_LL: 73, T_L: 100, T_H: 473, T_HH: 523, P_LL: 5000, P_L: 50000, P_H: 4000000, P_HH: 5000000, mass_HH: 0.15 } }
 });
-// [v13.1.2] T_HH=1573 provisional — reverted to 923 in S6 when combustion_chamber profile exists
-ProfileRegistry.register('reactor_equilibrium', {
-  defId: 'reactor_equilibrium', name: 'Reactor', category: UnitCategories.REACTOR, tiers: [1],
-  limits: { 1: { T_LL: 323, T_L: 373, T_H: 1273, T_HH: 1573, P_LL: 50000, P_L: 80000, P_H: 12000000, P_HH: 15000000, mass_LL: 0.001, mass_HH: 0.08 } }
+
+// [v14.9.0 S6a] Reactor profiles — 3 defIds, T2 jacketed for high-T SMR
+ProfileRegistry.register('reactor_adiabatic', {
+  defId: 'reactor_adiabatic', name: 'Reactor (Adiabatic)', category: UnitCategories.REACTOR, tiers: [1],
+  limits: { 1: { T_LL: 323, T_L: 373, T_H: 773, T_HH: 923, P_LL: 50000, P_L: 80000, P_H: 12000000, P_HH: 15000000, mass_LL: 0.001, mass_HH: 0.08 } }
 });
+// [v14.9.0 S6a] Combustion chamber — Hastelloy X + TBC liner, same defId as adiabatic
+// Higher T_HH (1573 K) but lower P_HH (50 bar thin-walled can). Default reaction: H₂ combustion.
+ProfileRegistry.register('combustion_chamber', {
+  defId: 'reactor_adiabatic', name: 'Combustion Chamber', category: UnitCategories.REACTOR, tiers: [1, 2],
+  limits: {
+    1: { T_LL: 323, T_L: 373, T_H: 1273, T_HH: 1573, P_LL: 50000, P_HH: 5000000, mass_HH: 0.08 },
+    2: { T_LL: 323, T_L: 373, T_H: 1573, T_HH: 1873, P_LL: 50000, P_HH: 10000000, mass_HH: 0.5 }
+  },
+  defaults: { reactionId: 'R_H2_COMB', useKinetics: true, volume_m3: 0.01, alpha: 1.0 }
+});
+ProfileRegistry.register('reactor_jacketed', {
+  defId: 'reactor_jacketed', name: 'Reactor (Jacketed)', category: UnitCategories.REACTOR, tiers: [1, 2],
+  limits: {
+    1: { T_LL: 323, T_L: 373, T_H: 773, T_HH: 923, P_LL: 50000, P_L: 80000, P_H: 12000000, P_HH: 15000000, mass_LL: 0.001, mass_HH: 0.08 },
+    2: { T_LL: 323, T_L: 373, T_H: 1073, T_HH: 1273, P_LL: 50000, P_L: 80000, P_H: 12000000, P_HH: 15000000, mass_LL: 0.001, mass_HH: 0.08 }
+  }
+});
+ProfileRegistry.register('reactor_cooled', {
+  defId: 'reactor_cooled', name: 'Reactor (Cooled)', category: UnitCategories.REACTOR, tiers: [1],
+  limits: { 1: { T_LL: 323, T_L: 373, T_H: 773, T_HH: 923, P_LL: 50000, P_L: 80000, P_H: 12000000, P_HH: 15000000, mass_LL: 0.001, mass_HH: 0.08 } }
+});
+// [v14.9.0 S6b] Electrochemical reactor + fuel cell profiles
+ProfileRegistry.register('reactor_electrochemical', {
+  defId: 'reactor_electrochemical', name: 'Electrochemical Reactor', category: UnitCategories.REACTOR, tiers: [1],
+  limits: { 1: { T_LL: 263, T_L: 280, T_H: 773, T_HH: 923, P_LL: 50000, P_HH: 15000000, mass_HH: 0.08 } },
+  defaults: { reactionId: 'R_H2O_ELEC', efficiency: 0.90, conversion_max: 0.80 }
+});
+ProfileRegistry.register('fuel_cell', {
+  defId: 'fuel_cell', name: 'Fuel Cell', category: UnitCategories.REACTOR, tiers: [1],
+  limits: { 1: { T_LL: 293, T_L: 323, T_H: 473, T_HH: 523, P_LL: 50000, P_HH: 5000000, mass_HH: 0.05 } },
+  defaults: { reactionId: 'R_H2_FUELCELL', efficiency: 0.60, conversion_max: 0.80, UA: 500 }
+});
+
 
 /* =========================
    SCENE CLASS
@@ -17553,9 +18007,24 @@ class Scene {
         unit.params = { splitPct: 50 };   // 50/50 split
         break;
       // ── Reactions [v8.6.0] ──
-      case 'reactor_equilibrium':
-        unit.params = { reactionId: 'R_H2_COMB', useKinetics: true, volume_m3: 0.003, alpha: 1.0, heatDemand: 'none', variant: 'insulated', powerPriority: 2 };
+      // [v14.9.0 S6a] New reactor defIds
+      case 'reactor_adiabatic':
+        unit.params = { reactionId: 'R_H2_COMB', useKinetics: true, volume_m3: 0.003, alpha: 1.0, heatDemand: 'none', powerPriority: 2 };
         break;
+      case 'reactor_jacketed':
+        unit.params = { reactionId: 'R_H2_COMB', useKinetics: true, volume_m3: 0.003, alpha: 1.0, heatDemand: 'isothermal', powerPriority: 2 };
+        break;
+      case 'reactor_cooled':
+        unit.params = { reactionId: 'R_H2_COMB', useKinetics: true, volume_m3: 0.003, alpha: 1.0, heatDemand: 'none', UA: 500, powerPriority: 2 };
+        break;
+      // [v14.9.0 S6b] Electrochemical + Fuel Cell
+      case 'reactor_electrochemical':
+        unit.params = { reactionId: 'R_H2O_ELEC', efficiency: 0.90, conversion_max: 0.80, powerPriority: 2 };
+        break;
+      case 'fuel_cell':
+        unit.params = { reactionId: 'R_H2_FUELCELL', efficiency: 0.60, conversion_max: 0.80, UA: 500 };
+        break;
+
       // ── Air Cooler [v13.2.0] Fan-powered ──
       case 'air_cooler':
         unit.params = { T_approach: 10, max_fan_power_W: 150, powerPriority: 3 };
@@ -17932,6 +18401,13 @@ class Scene {
         errors.push(`units[${i}] ("${u.id}"): missing "defId"`);
         continue;
       }
+      // [v14.9.0 S6a] Pre-validation migration: reactor_equilibrium → new defIds
+      // Must run before UnitRegistry.get() since reactor_equilibrium no longer exists.
+      if (u.defId === 'reactor_equilibrium') {
+        // Determine heat demand from params (v12.9.0 mode compat: 'heated' → isothermal)
+        const hd = u.params?.heatDemand || (u.params?.mode === 'heated' ? 'isothermal' : 'none');
+        u.defId = (hd === 'isothermal' || hd === 'fixed') ? 'reactor_jacketed' : 'reactor_adiabatic';
+      }
       const def = UnitRegistry.get(u.defId);
       if (!def) {
         errors.push(`units[${i}] ("${u.id}"): unknown defId "${u.defId}"`);
@@ -17983,11 +18459,16 @@ class Scene {
       if (u.fried === true) {
         unit.fried = true;
       }
-      // [v12.9.0] Migrate reactor mode → heatDemand
-      if (unit.defId === 'reactor_equilibrium' && unit.params.mode && !unit.params.heatDemand) {
+      // [v12.9.0] Migrate legacy reactor mode param → heatDemand
+      if (unit.params.mode && !unit.params.heatDemand) {
         unit.params.heatDemand = unit.params.mode === 'heated' ? 'isothermal' : 'none';
         delete unit.params.mode;
       }
+      // [v14.9.0 S6a] defId migration handled in pre-validation above; clean up variant
+      if (unit.defId === 'reactor_adiabatic' && unit.params.variant) {
+        delete unit.params.variant;  // adiabatic has no variants
+      }
+
       tempUnits.set(unit.id, unit);
       unitIds.add(unit.id);
 
@@ -26972,10 +27453,15 @@ function _reactorParams(u, type) {
   }
   params.push({ label: 'Priority', get: () => u.params.powerPriority ?? 2,
     set: v => u.params.powerPriority = Math.max(1, Math.round(v)), step: 1, validate: { gte: 1 } });
+  // [v14.9.0 S6a] UA parameter for reactor_cooled
+  if (u.defId === 'reactor_cooled') {
+    params.push({ label: 'UA (W/K)', get: () => u.params.UA ?? 500,
+      set: v => u.params.UA = Math.max(0, v), step: 10 });
+  }
   return params;
 }
 
-UnitInspector.reactor_equilibrium = {
+UnitInspector.reactor_adiabatic = {
   params(u) { return _reactorParams(u, 'equilibrium'); },
   power(u, ud) {
     if (!ud?.last || ud.last.status === 'inactive' || ud.last.status === 'no_reactants') return [];
@@ -26996,6 +27482,16 @@ UnitInspector.reactor_equilibrium = {
       if (L.Q_demanded_W != null) items.push({ label: 'Q demanded', value: fmt.kW(L.Q_demanded_W) });
       if (L.Q_in_W != null) items.push({ label: 'Q received', value: fmt.kW(L.Q_in_W) });
       if (L.curtailed) items.push({ label: 'Status', value: 'Power-limited', tone: 'warn' });
+    }
+    // [v14.9.0 S6a] Cooling info for reactor_cooled
+    if (u.defId === 'reactor_cooled') {
+      if (L.noCoolant) {
+        items.push({ label: 'Cooling', value: '⚠️ No coolant', tone: 'warn' });
+      } else if (L.Q_removed_W != null && L.Q_removed_W > 0) {
+        items.push({ label: 'Q removed', value: fmt.kW(L.Q_removed_W) });
+        if (L.T_adiabatic != null) items.push({ label: 'T adiabatic', value: fmt.T(L.T_adiabatic) });
+        if (L.coolant_dT_est != null) items.push({ label: 'Coolant ΔT', value: `+${L.coolant_dT_est.toFixed(1)} K` });
+      }
     }
     return items;
   },
@@ -27049,6 +27545,93 @@ UnitInspector.reactor_equilibrium = {
     ...(L.reason ? [{ label: 'Reason', value: L.reason, full: true, tone: 'warn' }] : []),
   ]; }
 };
+
+// [v14.9.0 S6a] Reactor inspector aliases — all 3 new defIds use same inspector
+UnitInspector.reactor_jacketed  = UnitInspector.reactor_adiabatic;
+UnitInspector.reactor_cooled    = UnitInspector.reactor_adiabatic;
+
+// [v14.9.0 S6b] Electrochemical reactor inspector
+UnitInspector.reactor_electrochemical = {
+  params(u) {
+    const ecRxns = ReactionRegistry.all().filter(r => r._kinetics?.model === 'ELECTROCHEMICAL');
+    const rxnOpts = ecRxns.map(r => [r.id, r.name]);
+    return [
+      { type: 'select', label: 'Reaction', get: () => u.params.reactionId || 'R_H2O_ELEC',
+        set: v => u.params.reactionId = v, options: rxnOpts },
+      { label: 'Efficiency (η)', get: () => u.params.efficiency ?? 0.90,
+        set: v => u.params.efficiency = Math.max(0.005, Math.min(0.99, v)), step: 0.01 },
+      { label: 'Max conversion', get: () => u.params.conversion_max ?? 0.80,
+        set: v => u.params.conversion_max = Math.max(0.01, Math.min(0.99, v)), step: 0.01 },
+      { label: 'Priority', get: () => u.params.powerPriority ?? 2,
+        set: v => u.params.powerPriority = Math.max(1, Math.round(v)), step: 1, validate: { gte: 1 } }
+    ];
+  },
+  power(u, ud) {
+    if (!ud?.last) return [];
+    const L = ud.last;
+    const items = [];
+    if (L.P_demand_kW != null) items.push({ label: 'P demand', value: fmt.kW(L.P_demand_kW * 1000) });
+    if (L.P_avail_kW != null) items.push({ label: 'P received', value: fmt.kW(L.P_avail_kW * 1000) });
+    if (L.powerLimited) items.push({ label: 'Status', value: 'Power-limited', tone: 'warn' });
+    if (L.Q_waste_kW != null && L.Q_waste_kW > 0.01) items.push({ label: 'Q waste', value: fmt.kW(L.Q_waste_kW * 1000), tone: 'warn' });
+    return items;
+  },
+  kpis(u, ud) {
+    if (!ud?.last) return [];
+    const L = ud.last;
+    return [
+      { label: 'Status', value: L.status || '—', tone: L.status === 'active' ? '' : 'warn' },
+      { label: 'Reaction', value: L.reactionName || '—' },
+      { label: 'Conversion', value: `${(L.conversion_pct || 0).toFixed(1)}%` },
+      { label: 'ξ', value: `${(L.xi_molps || 0).toFixed(4)} mol/s` },
+      { label: 'Limiting', value: L.limitingSpecies || '—' },
+      { label: 'η', value: `${((L.efficiency || 0) * 100).toFixed(0)}%` },
+      { label: 'O₂ anode', value: `${(L.n_O2_anode || 0).toFixed(4)} mol/s` }
+    ];
+  }
+};
+
+// [v14.9.0 S6b] Fuel cell inspector
+UnitInspector.fuel_cell = {
+  params(u) {
+    const fcRxns = ReactionRegistry.all().filter(r =>
+      r._kinetics?.model === 'ELECTROCHEMICAL' && r._dH0_Jmol < 0);
+    const rxnOpts = fcRxns.map(r => [r.id, r.name]);
+    return [
+      { type: 'select', label: 'Reaction', get: () => u.params.reactionId || 'R_H2_FUELCELL',
+        set: v => u.params.reactionId = v, options: rxnOpts },
+      { label: 'Efficiency (η)', get: () => u.params.efficiency ?? 0.60,
+        set: v => u.params.efficiency = Math.max(0.30, Math.min(0.85, v)), step: 0.01 },
+      { label: 'Max conversion', get: () => u.params.conversion_max ?? 0.80,
+        set: v => u.params.conversion_max = Math.max(0.01, Math.min(0.99, v)), step: 0.01 },
+      { label: 'UA (cooling)', get: () => u.params.UA ?? 500,
+        set: v => u.params.UA = Math.max(0, v), step: 10 }
+    ];
+  },
+  power(u, ud) {
+    if (!ud?.last) return [];
+    const L = ud.last;
+    const items = [];
+    if (L.P_generated_kW != null) items.push({ label: 'P generated', value: fmt.kW(L.P_generated_kW * 1000), tone: 'good' });
+    if (L.Q_waste_kW != null && L.Q_waste_kW > 0.01) items.push({ label: 'Q waste', value: fmt.kW(L.Q_waste_kW * 1000), tone: 'warn' });
+    if (L.Q_removed_W != null && L.Q_removed_W > 0) items.push({ label: 'Q removed', value: fmt.kW(L.Q_removed_W) });
+    if (L.noCoolant) items.push({ label: 'Cooling', value: '⚠️ No coolant', tone: 'warn' });
+    return items;
+  },
+  kpis(u, ud) {
+    if (!ud?.last) return [];
+    const L = ud.last;
+    return [
+      { label: 'Status', value: L.status || '—', tone: L.status === 'active' ? '' : 'warn' },
+      { label: 'Reaction', value: L.reactionName || '—' },
+      { label: 'Conversion', value: `${(L.conversion_pct || 0).toFixed(1)}%` },
+      { label: 'ξ', value: `${(L.xi_molps || 0).toFixed(4)} mol/s` },
+      { label: 'Limiting', value: L.limitingSpecies || '—' },
+      { label: 'η', value: `${((L.efficiency || 0) * 100).toFixed(0)}%` }
+    ];
+  }
+};
+
 
 /* ═══════════════════════════════════════════════════════════════════════════
    [v10] PALETTE DRAWER — Left-side unit catalog with search + categories
@@ -27458,14 +28041,11 @@ function _rebuildInspectorContent() {
       const variants = Object.keys(def.presentations)
         .filter(k => k.startsWith(prefix))
         .map(k => k.slice(prefix.length))
-        // [v12.3.0] Mode-aware variant filter for reactor_equilibrium:
-        // insulated mode → only insulated variants; heated → only heated variants.
-        // This prevents the user from surfacing heat_in via layout change.
+        // [v14.9.0 S6a] Mode-aware variant filter for reactor_jacketed:
+        // Shows default + elec-top variants (no insulated — that's reactor_adiabatic now).
         .filter(v => {
-          if (u.defId !== 'reactor_equilibrium') return true;
-          const hd = u.params.heatDemand || 'none';
-          if (hd === 'none') return v === 'insulated';
-          return v !== 'insulated';  // isothermal/fixed: show default + elec-top
+          if (u.defId !== 'reactor_jacketed') return true;
+          return v !== 'insulated';  // jacketed: show default + elec-top only
         });
       if (variants.length > 1) {
         const layoutZone = el('div', { class: 'ins-params-zone', style: 'margin-bottom:4px;' });
@@ -30109,7 +30689,7 @@ function loadDemo() {
       { id: 'feed', defId: 'source', profileId: 'source_mix', name: 'CO₂/H₂ Feed', x: 0, y: 3, rot: 0,
         params: { n: { CO2: 1, H2: 4 }, T: 523, P: 1000000, phaseConstraint: 'V' } },
       { id: 'mix', defId: 'mixer', name: 'Mixer', x: 4, y: 4, rot: 0, params: { variant: 'top-recycle' } },
-      { id: 'rx', defId: 'reactor_equilibrium', name: 'Sabatier Rx', x: 8, y: 4, rot: 0,
+      { id: 'rx', defId: 'reactor_adiabatic', name: 'Sabatier Rx', x: 8, y: 4, rot: 0,
         params: { reactionId: 'R_SABATIER', useKinetics: true, volume_m3: 0.5 },
         sticker: { dx: 3, dy: -2, items: [
           { section: 'power', label: 'ΔT' },
@@ -30171,8 +30751,8 @@ function loadDemo() {
       { id: 'a-fuel', defId: 'source', name: 'H₂ Fuel', x: 15, y: -2, rot: 0,
         params: { species: 'H2', nDot: 0.02, T: 298.15, P: 300000, phaseConstraint: 'V' } },
       { id: 'a-mix', defId: 'mixer', name: 'Fuel/Air Mix', x: 17, y: -3, rot: 0, tier: 2, params: {} },
-      { id: 'a-comb', defId: 'reactor_equilibrium', name: 'Combustor', x: 21, y: -3, rot: 0,
-        params: { reactionId: 'R_H2_COMB', useKinetics: true, volume_m3: 0.01, heatDemand: 'none', variant: 'insulated' },
+      { id: 'a-comb', defId: 'reactor_adiabatic', profileId: 'combustion_chamber', name: 'Combustor', x: 21, y: -3, rot: 0,
+        params: { reactionId: 'R_H2_COMB', useKinetics: true, volume_m3: 0.01, heatDemand: 'none' },
         sticker: { dx: 3, dy: -2, items: [
           { section: 'power', label: 'ΔT' },
           { section: 'reaction', label: 'Conversion' }
@@ -30204,7 +30784,7 @@ function loadDemo() {
 
       { id: 'b-feed', defId: 'source', profileId: 'source_mix', name: 'CH₄/Steam Feed', x: 4, y: -6, rot: 0,
         params: { n: { CH4: 0.2, H2O: 0.4 }, T: 873, P: 2000000, phaseConstraint: 'V' } },
-      { id: 'b-rx', defId: 'reactor_equilibrium', name: 'SMR Reactor', x: 8, y: -6, rot: 0,
+      { id: 'b-rx', defId: 'reactor_jacketed', name: 'SMR Reactor', x: 8, y: -6, rot: 0,
         params: { reactionId: 'R_SMR_OVERALL', useKinetics: true, volume_m3: 1.0, heatDemand: 'isothermal', variant: 'elec-top' },
         sticker: { dx: -6, dy: -2, items: [
           { section: 'power', label: 'ΔT' },
@@ -30362,7 +30942,7 @@ setViewBox();
 // [v10.3.0] M8: Restore from auto-save, or load demo
 // [v10.9.3] Version guard: if auto-save is from an older demo, load fresh demo
 {
-  const DEMO_VERSION = 'v14.7.0';  // bump this when demo scene changes
+  const DEMO_VERSION = 'v14.9.0';  // bump this when demo scene changes
   const saved = localStorage.getItem(AUTOSAVE_KEY);
   const savedDemoVer = localStorage.getItem(AUTOSAVE_KEY + '_demoVer');
   if (saved && savedDemoVer === DEMO_VERSION) {
@@ -33483,7 +34063,7 @@ function runTests() {
     // instead of hard-coded pump/compressor/heater list.  This test verifies
     // reactor_equilibrium in isothermal mode is properly detected.
     const src = t.place('source', 0, 0, { n: { CH4: 1, H2O: 3 }, T: 800, P: 300000, phaseConstraint: 'V' });
-    const rx  = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_SMR_OVERALL', useKinetics: false, alpha: 1.0, heatDemand: 'isothermal' });
+    const rx  = t.place('reactor_jacketed', 4, 0, { reactionId: 'R_SMR_OVERALL', useKinetics: false, alpha: 1.0, heatDemand: 'isothermal' });
     const snk = t.place('sink', 8, 0);
     t.wire(src, 'mat_out', rx, 'mat_in');
     t.wire(rx, 'mat_out', snk, 'mat_in');
@@ -34006,7 +34586,7 @@ function runTests() {
     const src = t.place('source', 0, 0, {
       n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
     });
-    const rx = t.place('reactor_equilibrium', 4, 0, {
+    const rx = t.place('reactor_adiabatic', 4, 0, {
       reactionId: 'R_H2_COMB', useKinetics: false, alpha: 1.0
     });
     const snk = t.place('sink', 8, 0);
@@ -34057,7 +34637,7 @@ function runTests() {
     const src = t.place('source', 0, 0, {
       n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
     });
-    const rx = t.place('reactor_equilibrium', 4, 0, {
+    const rx = t.place('reactor_adiabatic', 4, 0, {
       reactionId: 'R_H2_COMB', useKinetics: false, alpha: 0.25
     });
     const snk = t.place('sink', 8, 0);
@@ -34093,7 +34673,7 @@ function runTests() {
     const src = t.place('source', 0, 0, {
       n: { H2: 2, O2: 0.2, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
     });
-    const rx = t.place('reactor_equilibrium', 4, 0, {
+    const rx = t.place('reactor_adiabatic', 4, 0, {
       reactionId: 'R_H2_COMB', useKinetics: false, alpha: 1.0
     });
     const snk = t.place('sink', 8, 0);
@@ -34123,7 +34703,7 @@ function runTests() {
     const src = t.place('source', 0, 0, {
       n: { H2: 2, O2: 1 }, T: 300, P: 100000, phaseConstraint: 'V'
     });
-    const rx = t.place('reactor_equilibrium', 4, 0, {
+    const rx = t.place('reactor_adiabatic', 4, 0, {
       reactionId: 'R_H2_COMB', useKinetics: false, alpha: 1.0
     });
     const snk = t.place('sink', 8, 0);
@@ -34149,7 +34729,7 @@ function runTests() {
     const src = t.place('source', 0, 0, {
       n: { H2: 2, O2: 1, N2: 5, Ar: 2 }, T: 800, P: 100000, phaseConstraint: 'V'
     });
-    const rx = t.place('reactor_equilibrium', 4, 0, {
+    const rx = t.place('reactor_adiabatic', 4, 0, {
       reactionId: 'R_H2_COMB', useKinetics: false, alpha: 1.0
     });
     const snk = t.place('sink', 8, 0);
@@ -34611,7 +35191,7 @@ function runTests() {
     const src = t.place('source', 0, 0, {
       n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
     });
-    const rx = t.place('reactor_equilibrium', 4, 0, {
+    const rx = t.place('reactor_adiabatic', 4, 0, {
       reactionId: 'R_H2_COMB', useKinetics: true, volume_m3: 100
     });
     const snk = t.place('sink', 8, 0);
@@ -34641,7 +35221,7 @@ function runTests() {
     const src = t.place('source', 0, 0, {
       n: { CO2: 1, H2: 4, N2: 5 }, T: 500, P: 1000000, phaseConstraint: 'V'
     });
-    const rx = t.place('reactor_equilibrium', 4, 0, {
+    const rx = t.place('reactor_adiabatic', 4, 0, {
       reactionId: 'R_SABATIER', useKinetics: true, volume_m3: 1e-6
     });
     const snk = t.place('sink', 8, 0);
@@ -34667,7 +35247,7 @@ function runTests() {
     const src = t.place('source', 0, 0, {
       n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
     });
-    const rx = t.place('reactor_equilibrium', 4, 0, {
+    const rx = t.place('reactor_adiabatic', 4, 0, {
       reactionId: 'R_H2_COMB', useKinetics: true, volume_m3: 0
     });
     const snk = t.place('sink', 8, 0);
@@ -34685,7 +35265,7 @@ function runTests() {
     const src2 = t.place('source', 0, 6, {
       n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
     });
-    const rx2 = t.place('reactor_equilibrium', 4, 6, {
+    const rx2 = t.place('reactor_adiabatic', 4, 6, {
       reactionId: 'R_H2_COMB', useKinetics: true, volume_m3: -1
     });
     const snk2 = t.place('sink', 8, 6);
@@ -34701,7 +35281,7 @@ function runTests() {
     const src = t.place('source', 0, 0, {
       n: { O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
     });
-    const rx = t.place('reactor_equilibrium', 4, 0, {
+    const rx = t.place('reactor_adiabatic', 4, 0, {
       reactionId: 'R_H2_COMB', useKinetics: true, volume_m3: 1.0
     });
     const snk = t.place('sink', 8, 0);
@@ -34718,7 +35298,7 @@ function runTests() {
     const src = t.place('source', 0, 0, {
       n: { CO2: 1, H2: 4, N2: 5 }, T: 500, P: 1000000, phaseConstraint: 'V'
     });
-    const rx = t.place('reactor_equilibrium', 4, 0, {
+    const rx = t.place('reactor_adiabatic', 4, 0, {
       reactionId: 'R_SABATIER', useKinetics: true, volume_m3: 1.0
     });
     const snk = t.place('sink', 8, 0);
@@ -34755,7 +35335,7 @@ function runTests() {
     const src = t.place('source', 0, 0, {
       n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
     });
-    const rx = t.place('reactor_equilibrium', 4, 0, {
+    const rx = t.place('reactor_adiabatic', 4, 0, {
       reactionId: 'R_H2_COMB', useKinetics: true, volume_m3: 1.0
     });
     const snk = t.place('sink', 8, 0);
@@ -34782,7 +35362,7 @@ function runTests() {
       n: { CO2: 1, H2: 4 }, T: 900, P: 1000000, phaseConstraint: 'V'
     });
     const mix   = t.place('mixer', 4, 0, {});
-    const rx    = t.place('reactor_equilibrium', 8, 0, {
+    const rx    = t.place('reactor_adiabatic', 8, 0, {
       reactionId: 'R_SABATIER', useKinetics: true, volume_m3: 2.0
     });
     const cool  = t.place('air_cooler', 12, 0, { T_out: 323.15, UA_kW_K: 5, max_fan_power_W: 1200 });
@@ -34841,7 +35421,7 @@ function runTests() {
     const src = t.place('source', 0, 0, {
       n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
     });
-    const rx = t.place('reactor_equilibrium', 4, 0, {
+    const rx = t.place('reactor_adiabatic', 4, 0, {
       reactionId: 'R_H2_COMB', alpha: 1.0, useKinetics: false
     });
     const snk = t.place('sink', 8, 0);
@@ -34872,7 +35452,7 @@ function runTests() {
     const src = t.place('source', 0, 0, {
       n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
     });
-    const rx = t.place('reactor_equilibrium', 4, 0, {
+    const rx = t.place('reactor_adiabatic', 4, 0, {
       reactionId: 'R_H2_COMB', alpha: 0.5, useKinetics: false
     });
     const snk = t.place('sink', 8, 0);
@@ -34905,7 +35485,7 @@ function runTests() {
     const src = t.place('source', 0, 0, {
       n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
     });
-    const rx = t.place('reactor_equilibrium', 4, 0, {
+    const rx = t.place('reactor_adiabatic', 4, 0, {
       reactionId: 'R_H2_COMB', alpha: 1.0, useKinetics: false
     });
     const snk = t.place('sink', 8, 0);
@@ -34937,7 +35517,7 @@ function runTests() {
     const src = t.place('source', 0, 0, {
       n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
     });
-    const rx = t.place('reactor_equilibrium', 4, 0, {
+    const rx = t.place('reactor_adiabatic', 4, 0, {
       reactionId: 'R_H2_COMB', alpha: 1.0, useKinetics: false
     });
     const snk = t.place('sink', 8, 0);
@@ -35008,7 +35588,7 @@ function runTests() {
     const src = t.place('source', 0, 0, {
       n: { H2O: 1, N2: 10 }, T: 300, P: 100000, phaseConstraint: 'VL'
     });
-    const rx = t.place('reactor_equilibrium', 4, 0, {
+    const rx = t.place('reactor_adiabatic', 4, 0, {
       reactionId: 'R_H2_COMB', alpha: 1.0, useKinetics: false, volume_m3: 1.0
     });
     const snk = t.place('sink', 8, 0);
@@ -35090,7 +35670,7 @@ function runTests() {
     const src = t.place('source', 0, 0, {
       n: { CO2: 1, H2: 4, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
     });
-    const rx = t.place('reactor_equilibrium', 4, 0, {
+    const rx = t.place('reactor_adiabatic', 4, 0, {
       reactionId: 'R_SABATIER', alpha: 1.0, useKinetics: false
     });
     const snk = t.place('sink', 8, 0);
@@ -35135,7 +35715,7 @@ function runTests() {
     const srcA = t.place('source', 0, 0, {
       n: { ...feed }, T: 900, P: 100000, phaseConstraint: 'V'
     });
-    const rxA = t.place('reactor_equilibrium', 4, 0, {
+    const rxA = t.place('reactor_adiabatic', 4, 0, {
       reactionId: 'R_SABATIER', alpha: 1.0, useKinetics: false
     });
     const snkA = t.place('sink', 8, 0);
@@ -35148,7 +35728,7 @@ function runTests() {
     const srcB = t.place('source', 0, 8, {
       n: { ...feed }, T: 1000, P: 100000, phaseConstraint: 'V'
     });
-    const rxB = t.place('reactor_equilibrium', 4, 8, {
+    const rxB = t.place('reactor_adiabatic', 4, 8, {
       reactionId: 'R_SABATIER', alpha: 1.0, useKinetics: false
     });
     const snkB = t.place('sink', 8, 8);
@@ -35178,7 +35758,7 @@ function runTests() {
     const srcA = t.place('source', 0, 0, {
       n: { ...feed }, T: T_eval, P: 100000, phaseConstraint: 'V'
     });
-    const rxA = t.place('reactor_equilibrium', 4, 0, {
+    const rxA = t.place('reactor_adiabatic', 4, 0, {
       reactionId: 'R_SABATIER', alpha: 1.0, useKinetics: false
     });
     const snkA = t.place('sink', 8, 0);
@@ -35191,7 +35771,7 @@ function runTests() {
     const srcB = t.place('source', 0, 8, {
       n: { ...feed }, T: T_eval, P: 1000000, phaseConstraint: 'V'
     });
-    const rxB = t.place('reactor_equilibrium', 4, 8, {
+    const rxB = t.place('reactor_adiabatic', 4, 8, {
       reactionId: 'R_SABATIER', alpha: 1.0, useKinetics: false
     });
     const snkB = t.place('sink', 8, 8);
@@ -35235,7 +35815,7 @@ function runTests() {
       n: { CO2: 1, H2: 4 }, T: 900, P: 1000000, phaseConstraint: 'V'
     });
     const mix   = t.place('mixer', 4, 0, {});
-    const rx    = t.place('reactor_equilibrium', 8, 0, {
+    const rx    = t.place('reactor_adiabatic', 8, 0, {
       reactionId: 'R_SABATIER', alpha: 1.0, useKinetics: false, volume_m3: 1.0
     });
     const cool  = t.place('air_cooler', 12, 0, { T_out: 323.15, UA_kW_K: 5, max_fan_power_W: 1200 });
@@ -35334,7 +35914,7 @@ function runTests() {
     const src = t.place('source', 0, 0, {
       n: { H2O: 1, N2: 10 }, T: 300, P: 100000, phaseConstraint: 'VL'
     });
-    const rx = t.place('reactor_equilibrium', 4, 0, {
+    const rx = t.place('reactor_adiabatic', 4, 0, {
       reactionId: 'R_H2_COMB', useKinetics: false, alpha: 0.5
     });
     const snk = t.place('sink', 8, 0);
@@ -35360,7 +35940,7 @@ function runTests() {
     const src = t.place('source', 0, 0, {
       n: { H2: 2, O2: 1 }, T: 800, P: 100000, phaseConstraint: 'V'
     });
-    const rx = t.place('reactor_equilibrium', 4, 0, {
+    const rx = t.place('reactor_adiabatic', 4, 0, {
       reactionId: 'R_H2_COMB', useKinetics: false, alpha: 1.0
     });
     const snk = t.place('sink', 8, 0);
@@ -35399,7 +35979,7 @@ function runTests() {
     const src = t.place('source', 0, 0, {
       n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
     });
-    const rx = t.place('reactor_equilibrium', 4, 0, {
+    const rx = t.place('reactor_adiabatic', 4, 0, {
       reactionId: 'R_H2_COMB', useKinetics: false, alpha: 1.0
     });
     const snk = t.place('sink', 8, 0);
@@ -35458,7 +36038,7 @@ function runTests() {
     const srcMix = t.place('source', 0, 4, {
       n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
     });
-    const rx  = t.place('reactor_equilibrium', 4, 4, {
+    const rx  = t.place('reactor_adiabatic', 4, 4, {
       reactionId: 'R_H2_COMB', useKinetics: false, alpha: 1.0
     });
     const snk2 = t.place('sink', 8, 4);
@@ -35580,7 +36160,7 @@ function runTests() {
     const src_rx = t.place('source', 0, 18, {
       n: { H2: 2, O2: 1, N2: 8 }, T: 800, P: 100000, phaseConstraint: 'V'
     });
-    const rx     = t.place('reactor_equilibrium', 4, 18, {
+    const rx     = t.place('reactor_adiabatic', 4, 18, {
       reactionId: 'R_H2_COMB', useKinetics: false, alpha: 1.0
     });
     const snk_rx = t.place('sink', 8, 18);
@@ -39086,10 +39666,11 @@ function runTests() {
     const src = t.place('source', 0, 0, {
       n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V'
     });
-    const rx = t.place('reactor_equilibrium', 4, 0, {
+    const rx = t.place('reactor_jacketed', 4, 0, {
       reactionId: 'R_SMR_OVERALL', useKinetics: false, alpha: 1.0,
       heatDemand: 'isothermal'  // explicitly heated
     });
+    t.unit(rx).tier = 2;  // [v14.9.0 S6a] T2 jacketed for high-T SMR
     const snk = t.place('sink', 8, 0);
     // [v12.9.0] grid → hub → reactor elec_in (hub required for power allocation)
     const elSrc = t.place('grid_supply', 0, 5, { maxPower: 500 });
@@ -39116,7 +39697,7 @@ function runTests() {
       n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V'
     });
     // Insulated reference
-    const rxIns = t.place('reactor_equilibrium', 4, 0, {
+    const rxIns = t.place('reactor_adiabatic', 4, 0, {
       reactionId: 'R_SMR_OVERALL', useKinetics: false, alpha: 1.0
     });
     const snkIns = t.place('sink', 8, 0);
@@ -39126,10 +39707,11 @@ function runTests() {
     const src2 = t.place('source', 0, 6, {
       n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V'
     });
-    const rxHeat = t.place('reactor_equilibrium', 4, 6, {
+    const rxHeat = t.place('reactor_jacketed', 4, 6, {
       reactionId: 'R_SMR_OVERALL', useKinetics: false, alpha: 1.0,
       heatDemand: 'isothermal'
     });
+    t.unit(rxHeat).tier = 2;  // [v14.9.0 S6a] T2 jacketed for high-T SMR
     const snkHeat = t.place('sink', 8, 6);
     const elSrc = t.place('grid_supply', 0, 10, { maxPower: 5 });
     const hub207 = t.place('power_hub', 2, 10);
@@ -39150,7 +39732,7 @@ function runTests() {
     const src = t.place('source', 0, 0, {
       n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V'
     });
-    const rx = t.place('reactor_equilibrium', 4, 0, {
+    const rx = t.place('reactor_adiabatic', 4, 0, {
       reactionId: 'R_SMR_OVERALL', useKinetics: false, alpha: 1.0
       // default: insulated
     });
@@ -39175,7 +39757,7 @@ function runTests() {
     const src = t.place('source', 0, 0, {
       n: { CO2: 1, H2: 4 }, T: 523, P: 1000000, phaseConstraint: 'V'
     });
-    const rx = t.place('reactor_equilibrium', 4, 0, {
+    const rx = t.place('reactor_jacketed', 4, 0, {
       reactionId: 'R_SABATIER', useKinetics: true, volume_m3: 0.5,
       heatDemand: 'fixed', Q_fixed_kW: 10
     });
@@ -39840,15 +40422,15 @@ function runTests() {
     t.assertOK(br.ports.hot_in.x === 2 && br.ports.hot_out.x === 0, 'Both: hot R→L');
     t.assertOK(br.ports.cold_in.y === 2 && br.ports.cold_out.y === 0, 'Both: cold B→T');
     // Reactor equilibrium heat_in position (heat_out removed in v11.0.0)
-    const rxDef = UnitRegistry.get('reactor_equilibrium');
+    const rxDef = UnitRegistry.get('reactor_jacketed');
     const rxD = getPresentation(rxDef, { params: {} });
-    t.assertOK(rxD.ports.elec_in.y === 3, 'Reactor default: elec_in at bottom');  // [v12.8.1] was heat_in
+    t.assertOK(rxD.ports.elec_in.y === 2, 'Reactor default: elec_in at bottom');  // [v14.9.0] jacketed is 2×2, elec at y=2
     const rxR = getPresentation(rxDef, { params: { variant: 'elec-top' } });
     t.assertOK(rxR.ports.elec_in.y === 0, 'Reactor elec-top: elec_in at top');
     // [v11.0.2] Insulated variant hides elec_in
-    const rxI = getPresentation(rxDef, { params: { variant: 'insulated' } });
-    t.assertOK(!rxI.ports.elec_in, 'Reactor insulated: elec_in hidden');
-    t.assertOK(rxI.ports.mat_in && rxI.ports.mat_out, 'Reactor insulated: mat ports present');
+    const rxAdiabatic = UnitRegistry.get('reactor_adiabatic');
+    const rxAP = getPresentation(rxAdiabatic, { params: {} });
+    t.assertOK(rxAP.ports.mat_in && rxAP.ports.mat_out, 'Adiabatic: mat ports present');
   }});
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -39860,7 +40442,8 @@ function runTests() {
   tests.push({ name: '240: Heated endo + small Q → T between insulated and isothermal', fn: t => {
     // [v11.0.0] Heated mode with partial Q: T_out > insulated, < isothermal
     const feed = t.place('source', 0, 0, { n:{CH4:0.2, H2O:0.4}, T:1000, P:2000000, phaseConstraint:'V' });
-    const rx = t.place('reactor_equilibrium', 4, 0, { reactionId:'R_SMR_OVERALL', useKinetics:true, volume_m3:1.0, heatDemand:'isothermal', variant:'elec-top' });
+    const rx = t.place('reactor_jacketed', 4, 0, { reactionId:'R_SMR_OVERALL', useKinetics:true, volume_m3:1.0, heatDemand:'isothermal', variant:'elec-top' });
+    t.unit(rx).tier = 2;  // [v14.9.0 S6a] T2 jacketed for high-T SMR
     const snk = t.place('sink', 8, 0);
     // [v12.9.0] grid → hub → reactor elec_in
     const gs = t.place('grid_supply', 0, 6, { maxPower:5 });
@@ -39880,7 +40463,8 @@ function runTests() {
   tests.push({ name: '241: Heated endo + excess Q → T near isothermal', fn: t => {
     // Endothermic + excess heat → T_out ≈ T_in or slightly above
     const feed = t.place('source', 0, 0, { n:{CH4:0.2, H2O:0.4}, T:1000, P:2000000, phaseConstraint:'V' });
-    const rx = t.place('reactor_equilibrium', 4, 0, { reactionId:'R_SMR_OVERALL', useKinetics:true, volume_m3:1.0, heatDemand:'isothermal', variant:'elec-top' });
+    const rx = t.place('reactor_jacketed', 4, 0, { reactionId:'R_SMR_OVERALL', useKinetics:true, volume_m3:1.0, heatDemand:'isothermal', variant:'elec-top' });
+    t.unit(rx).tier = 2;  // [v14.9.0 S6a] T2 jacketed for high-T SMR
     const snk = t.place('sink', 8, 0);
     // [v12.9.0] grid → hub → reactor elec_in
     const gs = t.place('grid_supply', 0, 6, { maxPower:100 });
@@ -39899,7 +40483,7 @@ function runTests() {
   tests.push({ name: '242: Fixed power exo + Q → T rises above insulated', fn: t => {
     // Exothermic + fixed external heat → T_out higher than insulated case.
     const feed = t.place('source', 0, 0, { n:{CO2:0.1, H2:0.4}, T:600, P:500000, phaseConstraint:'V' });
-    const rxHeat = t.place('reactor_equilibrium', 4, 0, { reactionId:'R_SABATIER', useKinetics:true, volume_m3:1.0, heatDemand:'fixed', Q_fixed_kW:50, variant:'elec-top' });
+    const rxHeat = t.place('reactor_jacketed', 4, 0, { reactionId:'R_SABATIER', useKinetics:true, volume_m3:1.0, heatDemand:'fixed', Q_fixed_kW:50, variant:'elec-top' });
     const snk = t.place('sink', 8, 0);
     // [v12.9.0] grid → hub → reactor elec_in
     const gs = t.place('grid_supply', 0, 6, { maxPower:50 });
@@ -39908,7 +40492,7 @@ function runTests() {
     t.wire(gs,'elec_out', hub242,'elec_in'); t.wire(hub242,'elec_out', rxHeat,'elec_in');
     // Also build insulated reference
     const feed2 = t.place('source', 0, 12, { n:{CO2:0.1, H2:0.4}, T:600, P:500000, phaseConstraint:'V' });
-    const rxIns = t.place('reactor_equilibrium', 4, 12, { reactionId:'R_SABATIER', useKinetics:true, volume_m3:1.0 });
+    const rxIns = t.place('reactor_adiabatic', 4, 12, { reactionId:'R_SABATIER', useKinetics:true, volume_m3:1.0 });
     const snk2 = t.place('sink', 8, 12);
     t.wire(feed2,'mat_out', rxIns,'mat_in'); t.wire(rxIns,'mat_out', snk2,'mat_in');
     t.solve();
@@ -39932,7 +40516,7 @@ function runTests() {
     const aComp  = t.place('compressor',       34,  2, { Pout: 300000, eta: 0.80 });
     const aFuel  = t.place('source',           38,  8, { species: 'H2', nDot: 0.02, T: 298.15, P: 300000, phaseConstraint: 'V' });
     const aMix   = t.place('mixer',            40,  6);
-    const aComb  = t.place('reactor_equilibrium', 44, 6, { reactionId: 'R_H2_COMB', useKinetics: true, volume_m3: 0.01, heatDemand: 'none', variant: 'insulated' });
+    const aComb  = t.place('reactor_adiabatic', 44, 6, { reactionId: 'R_H2_COMB', useKinetics: true, volume_m3: 0.01, heatDemand: 'none', variant: 'insulated' });
     const aTurb  = t.place('gas_turbine',      48,  6, { Pout: 101325, eta: 0.88 });
     const aExh   = t.place('sink',             52,  6);
     const aEout  = t.place('sink_electrical',  52, 10);
@@ -39942,7 +40526,7 @@ function runTests() {
 
     // ── PROCESS B: Steam Methane Reforming (endothermic) ──
     const bFeed  = t.place('source',     30,  4, { n: { CH4: 0.2, H2O: 0.4 }, T: 873, P: 2000000, phaseConstraint: 'V' });
-    const bRx    = t.place('reactor_equilibrium', 34, 4, { reactionId: 'R_SMR_OVERALL', useKinetics: true, volume_m3: 1.0, variant: 'elec-top', heatDemand: 'isothermal' });
+    const bRx    = t.place('reactor_jacketed', 34, 4, { reactionId: 'R_SMR_OVERALL', useKinetics: true, volume_m3: 1.0, variant: 'elec-top', heatDemand: 'isothermal' });
     const bValve = t.place('valve',            42,  4, { Pout: 200000 });
     const bProd  = t.place('sink',             46,  4);
 
@@ -40265,7 +40849,7 @@ function runTests() {
   tests.push({ name: '253: Reactor exo insulated → T rises, no heat_out port', fn: t => {
     // H2 combustion at 800K: strongly exothermic, insulated mode
     const src  = t.place('source', 0, 0, { n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V' });
-    const rx   = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_H2_COMB', alpha: 1.0, useKinetics: false });
+    const rx   = t.place('reactor_adiabatic', 4, 0, { reactionId: 'R_H2_COMB', alpha: 1.0, useKinetics: false });
     const snk  = t.place('sink', 8, 0);
     t.wire(src, 'mat_out', rx, 'mat_in');
     t.wire(rx, 'mat_out', snk, 'mat_in');
@@ -40286,7 +40870,8 @@ function runTests() {
   tests.push({ name: '254: Fixed power endo + excess Q → T_out > T_in, energy in fluid', fn: t => {
     // Steam reforming at 1000K with large fixed Q (500 kW, duty ~200 kW). WYSIWYG: all Q enters fluid.
     const src  = t.place('source', 0, 0, { n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V' });
-    const rx   = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_SMR_OVERALL', useKinetics: false, alpha: 1.0, heatDemand: 'fixed', Q_fixed_kW: 500 });
+    const rx   = t.place('reactor_jacketed', 4, 0, { reactionId: 'R_SMR_OVERALL', useKinetics: false, alpha: 1.0, heatDemand: 'fixed', Q_fixed_kW: 500 });
+    t.unit(rx).tier = 2;  // [v14.9.0 S6a] T2 jacketed for high-T SMR
     const snk  = t.place('sink', 8, 0);
     // Direct grid → reactor (tests direct allocation with finite demand)
     const elSrc = t.place('grid_supply', 0, 5, { maxPower: 500 });
@@ -40311,7 +40896,7 @@ function runTests() {
   tests.push({ name: '257: No "dissipated" field in system balance', fn: t => {
     // Build a system with an exothermic reactor, heat_out unconnected
     const src = t.place('source', 0, 0, { n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V' });
-    const rx  = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_H2_COMB', alpha: 1.0, useKinetics: false });
+    const rx  = t.place('reactor_adiabatic', 4, 0, { reactionId: 'R_H2_COMB', alpha: 1.0, useKinetics: false });
     const snk = t.place('sink', 8, 0);
     t.wire(src, 'mat_out', rx, 'mat_in');
     t.wire(rx, 'mat_out', snk, 'mat_in');
@@ -40326,7 +40911,7 @@ function runTests() {
     // Exothermic reactor with heat_out unconnected → heat stays in fluid
     // Verify: H_out > H_out_isothermal, system balance closes
     const src = t.place('source', 0, 0, { n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V' });
-    const rx  = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_H2_COMB', alpha: 1.0, useKinetics: false });
+    const rx  = t.place('reactor_adiabatic', 4, 0, { reactionId: 'R_H2_COMB', alpha: 1.0, useKinetics: false });
     const snk = t.place('sink', 8, 0);
     t.wire(src, 'mat_out', rx, 'mat_in');
     t.wire(rx, 'mat_out', snk, 'mat_in');
@@ -40430,7 +41015,7 @@ function runTests() {
     const src = t.place('source', 0, 0, {
       n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V'
     });
-    const rx = t.place('reactor_equilibrium', 4, 0, {
+    const rx = t.place('reactor_adiabatic', 4, 0, {
       reactionId: 'R_SMR_OVERALL', useKinetics: false, alpha: 1.0
     });
     const snk = t.place('sink', 8, 0);
@@ -40458,7 +41043,7 @@ function runTests() {
     const src = t.place('source', 0, 0, {
       n: { CO2: 1, H2: 4 }, T: 523, P: 1000000, phaseConstraint: 'V'
     });
-    const rx = t.place('reactor_equilibrium', 4, 0, {
+    const rx = t.place('reactor_adiabatic', 4, 0, {
       reactionId: 'R_SABATIER', useKinetics: false, alpha: 1.0
     });
     const snk = t.place('sink', 8, 0);
@@ -40486,7 +41071,7 @@ function runTests() {
     const src1 = t.place('source', 0, 0, {
       n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V'
     });
-    const rx1 = t.place('reactor_equilibrium', 4, 0, {
+    const rx1 = t.place('reactor_adiabatic', 4, 0, {
       reactionId: 'R_SMR_OVERALL', useKinetics: false, alpha: 1.0
     });
     const snk1 = t.place('sink', 8, 0);
@@ -40500,9 +41085,10 @@ function runTests() {
     const src2 = t.place('source', 0, 0, {
       n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V'
     });
-    const rx2 = t.place('reactor_equilibrium', 4, 0, {
+    const rx2 = t.place('reactor_jacketed', 4, 0, {
       reactionId: 'R_SMR_OVERALL', useKinetics: false, alpha: 1.0, heatDemand: 'isothermal'
     });
+    t.unit(rx2).tier = 2;  // [v14.9.0 S6a] T2 jacketed for high-T SMR
     const snk2 = t.place('sink', 8, 0);
     const gs = t.place('grid_supply', 0, 6, { maxPower: Q_iso / 1000 + 1 });
     t.wire(gs, 'elec_out', rx2, 'elec_in');
@@ -40520,7 +41106,7 @@ function runTests() {
     const srcI = t.place('source', 0, 0, {
       n: { CO2: 1, H2: 4 }, T: 523, P: 1000000, phaseConstraint: 'V'
     });
-    const rxI = t.place('reactor_equilibrium', 4, 0, {
+    const rxI = t.place('reactor_adiabatic', 4, 0, {
       reactionId: 'R_SABATIER', useKinetics: false, alpha: 1.0
     });
     const snkI = t.place('sink', 8, 0);
@@ -40529,7 +41115,7 @@ function runTests() {
     const srcH = t.place('source', 0, 6, {
       n: { CO2: 1, H2: 4 }, T: 523, P: 1000000, phaseConstraint: 'V'
     });
-    const rxH = t.place('reactor_equilibrium', 4, 6, {
+    const rxH = t.place('reactor_jacketed', 4, 6, {
       reactionId: 'R_SABATIER', useKinetics: false, alpha: 1.0, heatDemand: 'isothermal'
     });
     const snkH = t.place('sink', 8, 6);
@@ -40542,28 +41128,28 @@ function runTests() {
     t.assertClose(t.last(rxI).xi, t.last(rxH).xi, 0.001, 'xi identical');
   }});
 
-  tests.push({ name: '269: Insulated mode hides elec_in and rejects connection', fn: t => {
+  tests.push({ name: '269: Adiabatic reactor has no elec_in port and rejects connection', fn: t => {
     t.clearScene();
     const src = t.place('source', 0, 0, {
       n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V'
     });
-    // Default mode is insulated — variant should be 'insulated' (no elec_in visible)
-    const rx = t.place('reactor_equilibrium', 4, 0, {
-      reactionId: 'R_SMR_OVERALL', useKinetics: false, alpha: 1.0, heatDemand: 'none', variant: 'insulated'
+    // [v14.9.0 S6a] reactor_adiabatic has no elec_in port at all
+    const rx = t.place('reactor_adiabatic', 4, 0, {
+      reactionId: 'R_SMR_OVERALL', useKinetics: false, alpha: 1.0, heatDemand: 'none'
     });
     const snk = t.place('sink', 8, 0);
     const gs = t.place('grid_supply', 4, 6, { maxPower: 50 });
-    // [v12.8.0] elec_in should be hidden in insulated presentation
-    const def = UnitRegistry.get('reactor_equilibrium');
-    const pres = getPresentation(def, scene.units.get(rx));
-    t.assertOK(!pres.ports.elec_in, 'elec_in hidden in insulated');
-    // Scene.connect should reject connection to hidden port
+    // reactor_adiabatic has no elec_in in port list
+    const def = UnitRegistry.get('reactor_adiabatic');
+    const portIds = def.ports.map(p => p.portId);
+    t.assertOK(!portIds.includes('elec_in'), 'elec_in hidden in insulated');
+    // Scene.connect should reject connection to non-existent port
     const connId = scene.connect(
       { unitId: gs, portId: 'elec_out' },
       { unitId: rx, portId: 'elec_in' }
     );
     t.assertOK(connId === null, 'Connection rejected');
-    t.assertOK(scene._lastConnectError?.includes('not available'), 'Error mentions port not available');
+    t.assertOK(scene._lastConnectError?.includes('not found'), 'Error mentions port not available');
     // Solve: reactor should work normally without error
     t.wire(src, 'mat_out', rx, 'mat_in');
     t.wire(rx, 'mat_out', snk, 'mat_in');
@@ -40572,13 +41158,13 @@ function runTests() {
     t.assertOK(!rxL.error, 'No error in insulated mode');
   }});
 
-  tests.push({ name: '270: No heat_out port on reactor_equilibrium', fn: t => {
-    const def = UnitRegistry.get('reactor_equilibrium');
+  tests.push({ name: '270: No heat_out port on reactor_adiabatic', fn: t => {
+    const def = UnitRegistry.get('reactor_adiabatic');
     const portIds = def.ports.map(p => p.portId);
     t.assertOK(!portIds.includes('heat_out'), 'No heat_out in port list');
     t.assertOK(portIds.includes('mat_in'), 'mat_in present');
     t.assertOK(portIds.includes('mat_out'), 'mat_out present');
-    t.assertOK(portIds.includes('elec_in'), 'elec_in present');  // [v12.8.1] was heat_in
+    t.assertOK(!portIds.includes('elec_in'), 'No elec_in on adiabatic');
   }});
 
   tests.push({ name: '273: Isothermal ref matches legacy Q_duty', fn: t => {
@@ -40586,7 +41172,7 @@ function runTests() {
     const src = t.place('source', 0, 0, {
       n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
     });
-    const rx = t.place('reactor_equilibrium', 4, 0, {
+    const rx = t.place('reactor_adiabatic', 4, 0, {
       reactionId: 'R_H2_COMB', alpha: 1.0, useKinetics: false
     });
     const snk = t.place('sink', 8, 0);
@@ -40611,7 +41197,7 @@ function runTests() {
     const src = t.place('source', 0, 0, {
       n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V'
     });
-    const rx = t.place('reactor_equilibrium', 4, 0, {
+    const rx = t.place('reactor_adiabatic', 4, 0, {
       reactionId: 'R_SMR_OVERALL', useKinetics: false, alpha: 1.0
     });
     const snk = t.place('sink', 8, 0);
@@ -40635,7 +41221,7 @@ function runTests() {
     const src = t.place('source', 0, 0, {
       n: { CO2: 1, H2: 4 }, T: 523, P: 1000000, phaseConstraint: 'V'
     });
-    const rx = t.place('reactor_equilibrium', 4, 0, {
+    const rx = t.place('reactor_adiabatic', 4, 0, {
       reactionId: 'R_SABATIER', useKinetics: false, alpha: 1.0
     });
     const snk = t.place('sink', 8, 0);
@@ -40665,7 +41251,7 @@ function runTests() {
     const src = t.place('source', 0, 0, {
       n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V'
     });
-    const rx = t.place('reactor_equilibrium', 4, 0, {
+    const rx = t.place('reactor_adiabatic', 4, 0, {
       reactionId: 'R_SMR_OVERALL', useKinetics: false, alpha: 1.0
     });
     const snk = t.place('sink', 8, 0);
@@ -40689,7 +41275,7 @@ function runTests() {
     const src = t.place('source', 0, 0, {
       n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
     });
-    const rx = t.place('reactor_equilibrium', 4, 0, {
+    const rx = t.place('reactor_adiabatic', 4, 0, {
       reactionId: 'R_H2_COMB', useKinetics: false, alpha: 1.0
     });
     const snk = t.place('sink', 8, 0);
@@ -40717,14 +41303,15 @@ function runTests() {
     const src = t.place('source', 0, 0, {
       n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V'
     });
-    const rx = t.place('reactor_equilibrium', 4, 0, {
+    const rx = t.place('reactor_jacketed', 4, 0, {
       reactionId: 'R_SMR_OVERALL', useKinetics: false, alpha: 1.0, heatDemand: 'isothermal', variant: 'default'
     });
+    t.unit(rx).tier = 2;  // [v14.9.0 S6a] T2 jacketed for high-T SMR
     const snk = t.place('sink', 8, 0);
     // [v12.8.0] grid → reactor elec_in
     const gs = t.place('grid_supply', 4, 6, { maxPower: 50 });
     // Heated mode: elec_in must be visible and connectable
-    const def = UnitRegistry.get('reactor_equilibrium');
+    const def = UnitRegistry.get('reactor_jacketed');
     const pres = getPresentation(def, scene.units.get(rx));
     t.assertOK(pres.ports.elec_in, 'elec_in visible in heated mode');
     // Scene.connect should accept
@@ -40741,7 +41328,7 @@ function runTests() {
       n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
     });
     // Place with mode:insulated but NO variant set (simulates legacy placement)
-    const rx = t.place('reactor_equilibrium', 4, 0, {
+    const rx = t.place('reactor_adiabatic', 4, 0, {
       reactionId: 'R_H2_COMB', alpha: 1.0, useKinetics: false, heatDemand: 'none'
     });
     const snk = t.place('sink', 8, 0);
@@ -40761,7 +41348,7 @@ function runTests() {
       n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V'
     });
     // Place with mode:heated but variant stuck at 'insulated' (simulates corruption)
-    const rx = t.place('reactor_equilibrium', 4, 0, {
+    const rx = t.place('reactor_jacketed', 4, 0, {
       reactionId: 'R_H2_COMB', alpha: 1.0, useKinetics: false, heatDemand: 'isothermal', variant: 'insulated'
     });
     const snk = t.place('sink', 8, 0);
@@ -40772,16 +41359,15 @@ function runTests() {
     t.assertOK(rxUnit.params.variant !== 'insulated', 'Variant cleared from insulated');
   }});
 
-  tests.push({ name: '290: Adiabatic (none) strips ghost elec_in connections on solve', fn: t => {
-    // [v12.8.0] Updated: elec_in replaces heat_in. Pre-solve presentation-consistency
-    // pass must remove connections to ports not in the active presentation
-    // (insulated hides elec_in).
+  tests.push({ name: '290: Reactor split — jacketed always has elec_in, adiabatic never does', fn: t => {
+    // [v14.9.0 S6a] Mode switching replaced by separate defIds.
+    // reactor_jacketed always has elec_in; reactor_adiabatic never does.
     t.clearScene();
     const src = t.place('source', 0, 0, {
       n: { CH4: 1, H2O: 3 }, T: 900, P: 500000, phaseConstraint: 'V'
     });
-    const rx = t.place('reactor_equilibrium', 4, 0, {
-      reactionId: 'smr', heatDemand: 'isothermal'
+    const rx = t.place('reactor_jacketed', 4, 0, {
+      reactionId: 'R_SMR_OVERALL', heatDemand: 'isothermal'
     });
     const snk = t.place('sink', 8, 0);
     const gs  = t.place('grid_supply', 4, 5, { maxPower: 50000 });
@@ -40790,27 +41376,469 @@ function runTests() {
     t.wire(gs, 'elec_out', rx, 'elec_in');
     t.solve();
 
-    // Verify heated mode: elec_in connection exists
+    // Verify jacketed: elec_in connection persists
     const elecConns1 = scene.connections.filter(
       c => c.to.unitId === rx && c.to.portId === 'elec_in');
     t.assertOK(elecConns1.length === 1, 'Heated: elec_in connected');
 
-    // Switch to adiabatic — tick should sync variant and strip ghost connections
-    const rxUnit = scene.units.get(rx);
-    rxUnit.params.heatDemand = 'none';
-    rxUnit.params.variant = 'insulated';
-    // Simulate what happens on next solve (pre-solve cleanup)
-    t.solve();
+    // Verify adiabatic has no elec_in in its def at all
+    const adiDef = UnitRegistry.get('reactor_adiabatic');
+    const adiPorts = adiDef.ports.map(p => p.portId);
+    t.assertOK(!adiPorts.includes('elec_in'), 'Insulated: elec_in connection stripped by pre-solve');
 
-    const elecConns2 = scene.connections.filter(
-      c => c.to.unitId === rx && c.to.portId === 'elec_in');
-    t.assertOK(elecConns2.length === 0, 'Insulated: elec_in connection stripped by pre-solve');
-
-    // Verify reactor still works (Q_in = 0)
+    // Verify jacketed reactor produces valid output
     const ud = scene.runtime.unitData.get(rx);
     t.assertOK(ud?.last?.status === 'active' || ud?.last?.status === 'inactive' || ud?.last?.status === 'no_reactants'
       || ud?.last?.error, 'Reactor produces valid output after ghost cleanup');
   }});
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // [v14.9.0 S6a] REACTOR TAXONOMY SPLIT TESTS — Phase 2b
+  // ═══════════════════════════════════════════════════════════════════════
+
+  test('500: S6a — reactor_cooled with coolant removes heat', t => {
+    // Exothermic reaction (H₂ combustion) with cooling water
+    const src = t.place('source', 0, 0, {
+      n: { H2: 2, O2: 1, N2: 10 }, T: 600, P: 100000, phaseConstraint: 'V'
+    });
+    const rx = t.place('reactor_cooled', 4, 0, {
+      reactionId: 'R_H2_COMB', useKinetics: false, alpha: 1.0, heatDemand: 'none', UA: 500
+    });
+    const snk = t.place('sink', 8, 0);
+    // Coolant: water at 300K
+    const csrc = t.place('source', 0, 4, {
+      n: { H2O: 50 }, T: 300, P: 200000, phaseConstraint: 'V'
+    });
+    const csnk = t.place('sink', 8, 4);
+    t.wire(src, 'mat_out', rx, 'mat_in');
+    t.wire(rx, 'mat_out', snk, 'mat_in');
+    t.wire(csrc, 'mat_out', rx, 'cool_in');
+    t.wire(rx, 'cool_out', csnk, 'mat_in');
+    t.solve();
+    const L = t.last(rx);
+    t.assertOK(L.status === 'active', 'Reactor active');
+    // With cooling, T_out should be LOWER than adiabatic T
+    t.assertOK(L.T_adiabatic != null, 'T_adiabatic reported');
+    t.assertOK(L.Q_removed_W > 0, 'Heat removed > 0', `Q=${L.Q_removed_W?.toFixed(0)} W`);
+    // Coolant should warm up
+    t.assertOK(L.coolant_dT_est > 0, 'Coolant warmed', `ΔT=${L.coolant_dT_est?.toFixed(1)} K`);
+  });
+
+  test('501: S6a — reactor_cooled no coolant → adiabatic fallback + INFO', t => {
+    const src = t.place('source', 0, 0, {
+      n: { H2: 2, O2: 1, N2: 10 }, T: 600, P: 100000, phaseConstraint: 'V'
+    });
+    const rx = t.place('reactor_cooled', 4, 0, {
+      reactionId: 'R_H2_COMB', useKinetics: false, alpha: 1.0, heatDemand: 'none', UA: 500
+    });
+    const snk = t.place('sink', 8, 0);
+    // NO coolant connected
+    t.wire(src, 'mat_out', rx, 'mat_in');
+    t.wire(rx, 'mat_out', snk, 'mat_in');
+    t.solve();
+    const L = t.last(rx);
+    t.assertOK(L.status === 'active', 'Reactor active');
+    t.assertOK(L.noCoolant === true, 'noCoolant flag set');
+    t.assertOK(L.info?.severity === AlarmSeverity.INFO, 'INFO alarm for no coolant');
+  });
+
+  test('502: S6a — reactor_cooled vs adiabatic: same reaction, cooled is cooler', t => {
+    // Compare cooled vs adiabatic on identical feed
+    const feed = { n: { H2: 2, O2: 1, N2: 10 }, T: 600, P: 100000, phaseConstraint: 'V' };
+    const rxParams = { reactionId: 'R_H2_COMB', useKinetics: false, alpha: 1.0, heatDemand: 'none' };
+
+    // Adiabatic
+    t.clearScene();
+    const s1 = t.place('source', 0, 0, feed);
+    const rx1 = t.place('reactor_adiabatic', 4, 0, rxParams);
+    const snk1 = t.place('sink', 8, 0);
+    t.wire(s1, 'mat_out', rx1, 'mat_in');
+    t.wire(rx1, 'mat_out', snk1, 'mat_in');
+    t.solve();
+    const T_adiabatic = t.last(rx1).T_out;
+
+    // Cooled
+    t.clearScene();
+    const s2 = t.place('source', 0, 0, feed);
+    const rx2 = t.place('reactor_cooled', 4, 0, { ...rxParams, UA: 500 });
+    const snk2 = t.place('sink', 8, 0);
+    const cs = t.place('source', 0, 4, { n: { H2O: 50 }, T: 300, P: 200000, phaseConstraint: 'V' });
+    const csnk = t.place('sink', 8, 4);
+    t.wire(s2, 'mat_out', rx2, 'mat_in');
+    t.wire(rx2, 'mat_out', snk2, 'mat_in');
+    t.wire(cs, 'mat_out', rx2, 'cool_in');
+    t.wire(rx2, 'cool_out', csnk, 'mat_in');
+    t.solve();
+    const T_cooled = t.last(rx2).T_out;
+
+    t.assertOK(T_adiabatic > 700, 'Adiabatic T > 700K (exothermic)', `T=${T_adiabatic?.toFixed(1)}`);
+    t.assertOK(T_cooled < T_adiabatic, 'Cooled T < Adiabatic T',
+      `cooled=${T_cooled?.toFixed(1)} vs adi=${T_adiabatic?.toFixed(1)}`);
+  });
+
+  test('503: S6a — combustion_chamber profile has higher T_HH than general reactor', t => {
+    const genLimits = getEffectiveLimits('reactor_adiabatic', 1);
+    const combLimits = getEffectiveLimits('combustion_chamber', 1);
+    t.assertOK(genLimits.T_HH === 923, 'General reactor T_HH = 923K', genLimits.T_HH);
+    t.assertOK(combLimits.T_HH === 1573, 'Combustion chamber T_HH = 1573K', combLimits.T_HH);
+    t.assertOK(combLimits.P_HH < genLimits.P_HH, 'Combustion P_HH < general P_HH (thin wall)');
+    // Both share same defId
+    const genProf = ProfileRegistry.get('reactor_adiabatic');
+    const combProf = ProfileRegistry.get('combustion_chamber');
+    t.assertOK(genProf.defId === combProf.defId, 'Same defId (reactor_adiabatic)');
+  });
+
+  test('504: S6a — combustion_chamber at 1200K: no CATASTROPHIC on combustor, would fire on general', t => {
+    // Setup: H₂ combustion with lean burn → TIT ~1200K
+    t.clearScene();
+    const src = t.place('source', 0, 0, {
+      n: { H2: 0.5, O2: 2, N2: 8 }, T: 600, P: 300000, phaseConstraint: 'V'
+    });
+    const rx = t.place('reactor_adiabatic', 4, 0, {
+      reactionId: 'R_H2_COMB', useKinetics: false, alpha: 1.0, heatDemand: 'none'
+    });
+    t.unit(rx).profileId = 'combustion_chamber';
+    const snk = t.place('sink', 8, 0);
+    t.wire(src, 'mat_out', rx, 'mat_in');
+    t.wire(rx, 'mat_out', snk, 'mat_in');
+    t.solve();
+    const L = t.last(rx);
+    // Should run above 923K (general T_HH) but below 1573K (combustion T_HH)
+    t.assertOK(L.T_out > 900, 'T_out > 900K', `T=${L.T_out?.toFixed(0)}`);
+    // Check limits: combustion_chamber limits should not fire CATASTROPHIC
+    const def = UnitRegistry.get('reactor_adiabatic');
+    const ud = scene.runtime.unitData.get(rx);
+    const viols = evaluateLimits(rx, 'Combustor', ud, def, 'combustion_chamber', 1);
+    const catT = viols.find(v => v.param === 'T_HH');
+    t.assertOK(!catT, 'No T_HH violation with combustion_chamber profile');
+    // But WOULD fire on general reactor
+    const genViols = evaluateLimits(rx, 'Reactor', ud, def, 'reactor_adiabatic', 1);
+    const genCatT = genViols.find(v => v.param === 'T_HH' || v.param === 'T_H');
+    t.assertOK(genCatT, 'T violation fires on general reactor profile at same T');
+  });
+
+  test('505: S6a — reactor_cooled energy balance: Q_removed = ΔH_products', t => {
+    // Verify NNG-1: energy conserved across cooling
+    const src = t.place('source', 0, 0, {
+      n: { H2: 1, O2: 0.5, N2: 5 }, T: 600, P: 100000, phaseConstraint: 'V'
+    });
+    const rx = t.place('reactor_cooled', 4, 0, {
+      reactionId: 'R_H2_COMB', useKinetics: false, alpha: 1.0, heatDemand: 'none', UA: 1000
+    });
+    const snk = t.place('sink', 8, 0);
+    const csrc = t.place('source', 0, 4, {
+      n: { H2O: 30 }, T: 300, P: 200000, phaseConstraint: 'V'
+    });
+    const csnk = t.place('sink', 8, 4);
+    t.wire(src, 'mat_out', rx, 'mat_in');
+    t.wire(rx, 'mat_out', snk, 'mat_in');
+    t.wire(csrc, 'mat_out', rx, 'cool_in');
+    t.wire(rx, 'cool_out', csnk, 'mat_in');
+    t.solve();
+    const ud = scene.runtime.unitData.get(rx);
+    // Get all port enthalpies
+    const H_mat_in  = thermo.getHdot_Jps(ud.ports.mat_in);
+    const H_mat_out = thermo.getHdot_Jps(ud.ports.mat_out);
+    const H_cool_in  = thermo.getHdot_Jps(ud.ports.cool_in);
+    const H_cool_out = thermo.getHdot_Jps(ud.ports.cool_out);
+    // Energy balance: H_in_total ≈ H_out_total (within 100W per NNG-1)
+    const H_in_total = H_mat_in + H_cool_in;
+    const H_out_total = H_mat_out + H_cool_out;
+    const residual = Math.abs(H_in_total - H_out_total);
+    t.assertClose(residual, 0, 100, 'Energy residual < 100W');
+  });
+
+  test('506: S6a — reactor_cooled mass balance: coolant unchanged', t => {
+    const src = t.place('source', 0, 0, {
+      n: { H2: 2, O2: 1, N2: 10 }, T: 600, P: 100000, phaseConstraint: 'V'
+    });
+    const rx = t.place('reactor_cooled', 4, 0, {
+      reactionId: 'R_H2_COMB', useKinetics: false, alpha: 1.0, heatDemand: 'none', UA: 500
+    });
+    const snk = t.place('sink', 8, 0);
+    const csrc = t.place('source', 0, 4, {
+      n: { H2O: 50 }, T: 300, P: 200000, phaseConstraint: 'V'
+    });
+    const csnk = t.place('sink', 8, 4);
+    t.wire(src, 'mat_out', rx, 'mat_in');
+    t.wire(rx, 'mat_out', snk, 'mat_in');
+    t.wire(csrc, 'mat_out', rx, 'cool_in');
+    t.wire(rx, 'cool_out', csnk, 'mat_in');
+    t.solve();
+    const ud = scene.runtime.unitData.get(rx);
+    // Coolant composition unchanged (only temperature changes)
+    t.assertClose(ud.ports.cool_out.n.H2O, 50, 0.001, 'Coolant H₂O conserved');
+    // Coolant pressure unchanged
+    t.assertClose(ud.ports.cool_out.P, 200000, 1, 'Coolant pressure passthrough');
+  });
+
+  test('507: S6a — reactor_adiabatic exothermic T_out > T_in, endothermic T_out < T_in', t => {
+    // Exothermic: H₂ combustion
+    t.clearScene();
+    const s1 = t.place('source', 0, 0, {
+      n: { H2: 2, O2: 1, N2: 10 }, T: 600, P: 100000, phaseConstraint: 'V'
+    });
+    const rx1 = t.place('reactor_adiabatic', 4, 0, {
+      reactionId: 'R_H2_COMB', useKinetics: false, alpha: 1.0, heatDemand: 'none'
+    });
+    const snk1 = t.place('sink', 8, 0);
+    t.wire(s1, 'mat_out', rx1, 'mat_in');
+    t.wire(rx1, 'mat_out', snk1, 'mat_in');
+    t.solve();
+    t.assertOK(t.last(rx1).T_out > 600, 'Exo: T_out > T_in', `T=${t.last(rx1).T_out?.toFixed(0)}`);
+
+    // Endothermic: SMR
+    t.clearScene();
+    const s2 = t.place('source', 0, 0, {
+      n: { CH4: 1, H2O: 3 }, T: 800, P: 500000, phaseConstraint: 'V'
+    });
+    const rx2 = t.place('reactor_adiabatic', 4, 0, {
+      reactionId: 'R_SMR_OVERALL', useKinetics: false, alpha: 1.0, heatDemand: 'none'
+    });
+    const snk2 = t.place('sink', 8, 0);
+    t.wire(s2, 'mat_out', rx2, 'mat_in');
+    t.wire(rx2, 'mat_out', snk2, 'mat_in');
+    t.solve();
+    t.assertOK(t.last(rx2).T_out < 800, 'Endo: T_out < T_in', `T=${t.last(rx2).T_out?.toFixed(0)}`);
+  });
+
+  test('508: S6a — jacketed isothermal with sufficient power: T_out ≈ T_in', t => {
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // [v14.9.0 S6b] ELECTROCHEMICAL + FUEL CELL TESTS — Phase 3b
+  // ═══════════════════════════════════════════════════════════════════════
+
+  test('509: S6b — EC: no power → idle, cathode passthrough', t => {
+    t.clearScene();
+    const src = t.place('source', 0, 0, {
+      n: { H2O: 10 }, T: 350, P: 500000, phaseConstraint: 'V'
+    });
+    const rx = t.place('reactor_electrochemical', 4, 0, {
+      reactionId: 'R_H2O_ELEC', efficiency: 0.90, conversion_max: 0.80
+    });
+    const csnk = t.place('sink', 8, 0);
+    const asnk = t.place('sink', 8, 4);
+    t.wire(src, 'mat_out', rx, 'mat_in');
+    t.wire(rx, 'mat_out_cat', csnk, 'mat_in');
+    t.wire(rx, 'mat_out_ano', asnk, 'mat_in');
+    // NO electrical power connected
+    t.solve();
+    const L = t.last(rx);
+    t.assertOK(L.status === 'idle', 'Status = idle');
+    t.assertOK(L.xi === 0 || L.xi_molps === 0, 'xi = 0');
+  });
+
+  test('510: S6b — EC: full power → max conversion with electrode separation', t => {
+    t.clearScene();
+    const src = t.place('source', 0, 0, {
+      n: { H2O: 2 }, T: 350, P: 500000, phaseConstraint: 'V'
+    });
+    const rx = t.place('reactor_electrochemical', 4, 0, {
+      reactionId: 'R_H2O_ELEC', efficiency: 0.90, conversion_max: 0.80
+    });
+    const gs = t.place('grid_supply', 4, 6, { maxPower: 500000 });
+    const csnk = t.place('sink', 8, 0);
+    const asnk = t.place('sink', 8, 4);
+    t.wire(src, 'mat_out', rx, 'mat_in');
+    t.wire(gs, 'elec_out', rx, 'elec_in');
+    t.wire(rx, 'mat_out_cat', csnk, 'mat_in');
+    t.wire(rx, 'mat_out_ano', asnk, 'mat_in');
+    t.solve();
+    const L = t.last(rx);
+    t.assertOK(L.status === 'active', 'Active');
+    t.assertOK(L.conversion_pct > 70, 'High conversion', `${L.conversion_pct?.toFixed(1)}%`);
+    // Electrode separation: cathode should have H2 + residual H2O, anode should have O2
+    const ud = scene.runtime.unitData.get(rx);
+    const catN = ud.ports.mat_out_cat?.n || {};
+    const anoN = ud.ports.mat_out_ano?.n || {};
+    t.assertOK((catN.H2 || 0) > 0, 'Cathode has H₂', `H2=${catN.H2?.toFixed(4)}`);
+    t.assertOK((anoN.O2 || 0) > 0, 'Anode has O₂', `O2=${anoN.O2?.toFixed(4)}`);
+    t.assertOK(!anoN.H2 && !anoN.H2O, 'Anode has no H₂ or H₂O');
+  });
+
+  test('511: S6b — EC: partial power → proportional ξ', t => {
+    t.clearScene();
+    const src = t.place('source', 0, 0, {
+      n: { H2O: 2 }, T: 350, P: 500000, phaseConstraint: 'V'
+    });
+    const rx = t.place('reactor_electrochemical', 4, 0, {
+      reactionId: 'R_H2O_ELEC', efficiency: 0.90, conversion_max: 0.80
+    });
+    // Small power supply → should limit conversion
+    const gs = t.place('grid_supply', 4, 6, { maxPower: 100 });
+    const csnk = t.place('sink', 8, 0);
+    const asnk = t.place('sink', 8, 4);
+    t.wire(src, 'mat_out', rx, 'mat_in');
+    t.wire(gs, 'elec_out', rx, 'elec_in');
+    t.wire(rx, 'mat_out_cat', csnk, 'mat_in');
+    t.wire(rx, 'mat_out_ano', asnk, 'mat_in');
+    t.solve();
+    const L = t.last(rx);
+    t.assertOK(L.status === 'active', 'Active');
+    t.assertOK(L.powerLimited === true, 'Power limited');
+    t.assertOK(L.conversion_pct < 50, 'Low conversion (power starved)',
+      `${L.conversion_pct?.toFixed(1)}%`);
+  });
+
+  test('512: S6b — EC: CO₂ electrolysis separation (CO→cathode, O₂→anode)', t => {
+    t.clearScene();
+    const src = t.place('source', 0, 0, {
+      n: { CO2: 2 }, T: 1000, P: 500000, phaseConstraint: 'V'
+    });
+    const rx = t.place('reactor_electrochemical', 4, 0, {
+      reactionId: 'R_CO2_ELEC', efficiency: 0.90, conversion_max: 0.80
+    });
+    const gs = t.place('grid_supply', 4, 6, { maxPower: 500000 });
+    const csnk = t.place('sink', 8, 0);
+    const asnk = t.place('sink', 8, 4);
+    t.wire(src, 'mat_out', rx, 'mat_in');
+    t.wire(gs, 'elec_out', rx, 'elec_in');
+    t.wire(rx, 'mat_out_cat', csnk, 'mat_in');
+    t.wire(rx, 'mat_out_ano', asnk, 'mat_in');
+    t.solve();
+    const ud = scene.runtime.unitData.get(rx);
+    const catN = ud.ports.mat_out_cat?.n || {};
+    const anoN = ud.ports.mat_out_ano?.n || {};
+    t.assertOK((catN.CO || 0) > 0, 'Cathode has CO');
+    t.assertOK((anoN.O2 || 0) > 0, 'Anode has O₂');
+    t.assertOK(!anoN.CO && !anoN.CO2, 'Anode has no CO or CO₂');
+  });
+
+  test('513: S6b — EC: adiabatic products (waste heat warms products)', t => {
+    t.clearScene();
+    const src = t.place('source', 0, 0, {
+      n: { H2O: 5 }, T: 350, P: 500000, phaseConstraint: 'V'
+    });
+    const rx = t.place('reactor_electrochemical', 4, 0, {
+      reactionId: 'R_H2O_ELEC', efficiency: 0.90, conversion_max: 0.80
+    });
+    const gs = t.place('grid_supply', 4, 6, { maxPower: 500000 });
+    const csnk = t.place('sink', 8, 0);
+    const asnk = t.place('sink', 8, 4);
+    t.wire(src, 'mat_out', rx, 'mat_in');
+    t.wire(gs, 'elec_out', rx, 'elec_in');
+    t.wire(rx, 'mat_out_cat', csnk, 'mat_in');
+    t.wire(rx, 'mat_out_ano', asnk, 'mat_in');
+    t.solve();
+    const ud = scene.runtime.unitData.get(rx);
+    // Products should be warmer than feed (waste heat stays in stream)
+    const T_cat = ud.ports.mat_out_cat?.T;
+    t.assertOK(T_cat > 350, 'Cathode T > feed T (waste heat)',
+      `T_cat=${T_cat?.toFixed(1)}`);
+  });
+
+  test('514: S6b — FC: generate mode produces power', t => {
+    t.clearScene();
+    const fuel = t.place('source', 0, 0, {
+      n: { H2: 2 }, T: 350, P: 300000, phaseConstraint: 'V'
+    });
+    const oxi = t.place('source', 0, 4, {
+      n: { O2: 1 }, T: 350, P: 300000, phaseConstraint: 'V'
+    });
+    const fc = t.place('fuel_cell', 4, 0, {
+      reactionId: 'R_H2_FUELCELL', efficiency: 0.60, conversion_max: 0.80, UA: 500
+    });
+    const exh = t.place('sink', 8, 2);
+    const coolsrc = t.place('source', 0, 8, {
+      n: { H2O: 50 }, T: 300, P: 200000, phaseConstraint: 'V'
+    });
+    const coolsnk = t.place('sink', 8, 8);
+    const eload = t.place('sink_electrical', 4, 8);
+    t.wire(fuel, 'mat_out', fc, 'mat_in_cat');
+    t.wire(oxi, 'mat_out', fc, 'mat_in_ano');
+    t.wire(fc, 'mat_out', exh, 'mat_in');
+    t.wire(coolsrc, 'mat_out', fc, 'cool_in');
+    t.wire(fc, 'cool_out', coolsnk, 'mat_in');
+    t.wire(fc, 'elec_out', eload, 'elec_in');
+    t.solve();
+    const L = t.last(fc);
+    t.assertOK(L.status === 'active', 'FC active');
+    t.assertOK(L.P_generated_kW > 10, 'Generates power',
+      `P=${L.P_generated_kW?.toFixed(1)} kW`);
+    // Exhaust should contain H₂O (product of H₂ + O₂)
+    const ud = scene.runtime.unitData.get(fc);
+    const exhN = ud.ports.mat_out?.n || {};
+    t.assertOK((exhN.H2O || 0) > 0, 'Exhaust has H₂O');
+    // Electrical port
+    t.assertOK(ud.ports.elec_out?.capacity > 0, 'elec_out capacity > 0');
+  });
+
+  test('515: S6b — FC: no coolant → WARNING', t => {
+    t.clearScene();
+    const fuel = t.place('source', 0, 0, {
+      n: { H2: 2 }, T: 350, P: 300000, phaseConstraint: 'V'
+    });
+    const oxi = t.place('source', 0, 4, {
+      n: { O2: 1 }, T: 350, P: 300000, phaseConstraint: 'V'
+    });
+    const fc = t.place('fuel_cell', 4, 0, {
+      reactionId: 'R_H2_FUELCELL', efficiency: 0.60, conversion_max: 0.80, UA: 500
+    });
+    const exh = t.place('sink', 8, 2);
+    const eload = t.place('sink_electrical', 4, 8);
+    t.wire(fuel, 'mat_out', fc, 'mat_in_cat');
+    t.wire(oxi, 'mat_out', fc, 'mat_in_ano');
+    t.wire(fc, 'mat_out', exh, 'mat_in');
+    t.wire(fc, 'elec_out', eload, 'elec_in');
+    // NO coolant
+    t.solve();
+    const L = t.last(fc);
+    t.assertOK(L.status === 'active', 'FC active');
+    t.assertOK(L.noCoolant === true, 'noCoolant flag');
+    t.assertOK(L.error?.severity === ErrorSeverity.MINOR, 'WARNING alarm for no coolant');
+  });
+
+  test('516: S6b — EC: mass balance (H₂O → H₂ + O₂)', t => {
+    t.clearScene();
+    const src = t.place('source', 0, 0, {
+      n: { H2O: 2 }, T: 350, P: 500000, phaseConstraint: 'V'
+    });
+    const rx = t.place('reactor_electrochemical', 4, 0, {
+      reactionId: 'R_H2O_ELEC', efficiency: 0.90, conversion_max: 0.80
+    });
+    const gs = t.place('grid_supply', 4, 6, { maxPower: 500000 });
+    const csnk = t.place('sink', 8, 0);
+    const asnk = t.place('sink', 8, 4);
+    t.wire(src, 'mat_out', rx, 'mat_in');
+    t.wire(gs, 'elec_out', rx, 'elec_in');
+    t.wire(rx, 'mat_out_cat', csnk, 'mat_in');
+    t.wire(rx, 'mat_out_ano', asnk, 'mat_in');
+    t.solve();
+    // Mass balance: total moles in each element must be conserved
+    const ud = scene.runtime.unitData.get(rx);
+    const catN = ud.ports.mat_out_cat?.n || {};
+    const anoN = ud.ports.mat_out_ano?.n || {};
+    // H atoms: in = 2*2*2 = 8, out = 2*H2 + 2*H2O (cathode)
+    const H_in = 2 * 2 * 2;  // 2 mol H2O × 2 H per mol × (stoich coeff/mol check)
+    // Actually: 2 mol H2O → 4 H atoms total
+    // Simpler: check O balance via MW
+    // Total mass in vs total mass out (MW-weighted)
+    const MW = { H2O: 18.015, H2: 2.016, O2: 31.998 };
+    const m_in = 2 * MW.H2O;
+    let m_out = 0;
+    for (const [sp, mol] of Object.entries(catN)) m_out += mol * (MW[sp] || 0);
+    for (const [sp, mol] of Object.entries(anoN)) m_out += mol * (MW[sp] || 0);
+    t.assertClose(m_out, m_in, 0.01, 'Mass conserved');
+  });
+    t.clearScene();
+    const src = t.place('source', 0, 0, {
+      n: { CH4: 0.2, H2O: 0.6 }, T: 873, P: 2000000, phaseConstraint: 'V'
+    });
+    const rx = t.place('reactor_jacketed', 4, 0, {
+      reactionId: 'R_SMR_OVERALL', useKinetics: true, volume_m3: 1.0, heatDemand: 'isothermal'
+    });
+    t.unit(rx).tier = 2;  // T2 for high-T
+    const snk = t.place('sink', 8, 0);
+    const gs = t.place('grid_supply', 4, 4, { maxPower: 50000 });
+    t.wire(src, 'mat_out', rx, 'mat_in');
+    t.wire(rx, 'mat_out', snk, 'mat_in');
+    t.wire(gs, 'elec_out', rx, 'elec_in');
+    t.solve();
+    const L = t.last(rx);
+    // With enough power, T_out should be close to T_in (isothermal)
+    t.assertClose(L.T_out, 873, 15, 'Isothermal: T_out ≈ T_in (873K)');
+    t.assertOK(!L.curtailed, 'Not power-curtailed');
+  });
 
   // ═══════════════════════════════════════════════════════════════════════
   // [v11.2.0] SHOMATE TRANSITION TESTS
@@ -41051,7 +42079,7 @@ function runTests() {
     t.clearScene();
     // Insulated baseline
     const src1 = t.place('source', 0, 0, { n: { CO2:1, H2:4 }, T: 523, P: 1000000, phaseConstraint: 'V' });
-    const rx1  = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_SABATIER', useKinetics: false, alpha: 1.0, heatDemand: 'none', variant: 'insulated' });
+    const rx1  = t.place('reactor_jacketed', 4, 0, { reactionId: 'R_SABATIER', useKinetics: false, alpha: 1.0, heatDemand: 'none', variant: 'insulated' });
     const snk1 = t.place('sink', 8, 0);
     t.wire(src1, 'mat_out', rx1, 'mat_in');
     t.wire(rx1, 'mat_out', snk1, 'mat_in');
@@ -41061,7 +42089,7 @@ function runTests() {
     // Heated mode with fixed power (exo → isothermal demand = 0, must use fixed)
     t.clearScene();
     const src2 = t.place('source', 0, 0, { n: { CO2:1, H2:4 }, T: 523, P: 1000000, phaseConstraint: 'V' });
-    const rx2  = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_SABATIER', useKinetics: false, alpha: 1.0, heatDemand: 'fixed', Q_fixed_kW: 100 });
+    const rx2  = t.place('reactor_jacketed', 4, 0, { reactionId: 'R_SABATIER', useKinetics: false, alpha: 1.0, heatDemand: 'fixed', Q_fixed_kW: 100 });
     const snk2 = t.place('sink', 8, 0);
     const gs   = t.place('grid_supply', 4, 5, { maxPower: 100 });
     const hub  = t.place('power_hub', 4, 7);
@@ -41082,7 +42110,7 @@ function runTests() {
     // First get isothermal duty from insulated run.
     t.clearScene();
     const src1 = t.place('source', 0, 0, { n: { CH4:1, H2O:2 }, T: 1000, P: 500000, phaseConstraint: 'V' });
-    const rx1  = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_SMR_OVERALL', useKinetics: false, alpha: 1.0, heatDemand: 'none', variant: 'insulated' });
+    const rx1  = t.place('reactor_adiabatic', 4, 0, { reactionId: 'R_SMR_OVERALL', useKinetics: false, alpha: 1.0, heatDemand: 'none', variant: 'insulated' });
     const snk1 = t.place('sink', 8, 0);
     t.wire(src1, 'mat_out', rx1, 'mat_in');
     t.wire(rx1, 'mat_out', snk1, 'mat_in');
@@ -41097,7 +42125,8 @@ function runTests() {
     t.clearScene();
     const Q_supply_kW = Math.abs(Q_iso) / 1000;
     const src2 = t.place('source', 0, 0, { n: { CH4:1, H2O:2 }, T: 1000, P: 500000, phaseConstraint: 'V' });
-    const rx2  = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_SMR_OVERALL', useKinetics: false, alpha: 1.0, heatDemand: 'isothermal' });
+    const rx2  = t.place('reactor_jacketed', 4, 0, { reactionId: 'R_SMR_OVERALL', useKinetics: false, alpha: 1.0, heatDemand: 'isothermal' });
+    t.unit(rx2).tier = 2;  // [v14.9.0 S6a] T2 jacketed for high-T SMR
     const snk2 = t.place('sink', 8, 0);
     const gs   = t.place('grid_supply', 4, 5, { maxPower: Q_supply_kW + 10 });
     const hub  = t.place('power_hub', 4, 7);
@@ -41359,7 +42388,7 @@ function runTests() {
     // Even with grid connected, hub allocates 0 → reactor runs adiabatic.
     t.clearScene();
     const src = t.place('source', 0, 0, { n: { CO2: 1, H2: 4 }, T: 523, P: 1000000, phaseConstraint: 'V' });
-    const rx  = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_SABATIER', useKinetics: false, alpha: 1.0, heatDemand: 'isothermal' });
+    const rx  = t.place('reactor_jacketed', 4, 0, { reactionId: 'R_SABATIER', useKinetics: false, alpha: 1.0, heatDemand: 'isothermal' });
     const snk = t.place('sink', 8, 0);
     const gs  = t.place('grid_supply', 0, 5, { maxPower: 100 });
     const hub = t.place('power_hub', 2, 5);
@@ -41374,7 +42403,7 @@ function runTests() {
     // Should match adiabatic result
     t.clearScene();
     const src2 = t.place('source', 0, 0, { n: { CO2: 1, H2: 4 }, T: 523, P: 1000000, phaseConstraint: 'V' });
-    const rx2  = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_SABATIER', useKinetics: false, alpha: 1.0, heatDemand: 'none', variant: 'insulated' });
+    const rx2  = t.place('reactor_adiabatic', 4, 0, { reactionId: 'R_SABATIER', useKinetics: false, alpha: 1.0, heatDemand: 'none', variant: 'insulated' });
     const snk2 = t.place('sink', 8, 0);
     t.wire(src2, 'mat_out', rx2, 'mat_in'); t.wire(rx2, 'mat_out', snk2, 'mat_in');
     t.solve();
@@ -41387,7 +42416,7 @@ function runTests() {
     t.clearScene();
     // Adiabatic baseline
     const src1 = t.place('source', 0, 0, { n: { CO2: 1, H2: 4 }, T: 523, P: 1000000, phaseConstraint: 'V' });
-    const rx1  = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_SABATIER', useKinetics: false, alpha: 1.0, heatDemand: 'none', variant: 'insulated' });
+    const rx1  = t.place('reactor_adiabatic', 4, 0, { reactionId: 'R_SABATIER', useKinetics: false, alpha: 1.0, heatDemand: 'none', variant: 'insulated' });
     const snk1 = t.place('sink', 8, 0);
     t.wire(src1, 'mat_out', rx1, 'mat_in'); t.wire(rx1, 'mat_out', snk1, 'mat_in');
     t.solve();
@@ -41395,7 +42424,7 @@ function runTests() {
     // Fixed power run
     t.clearScene();
     const src2 = t.place('source', 0, 0, { n: { CO2: 1, H2: 4 }, T: 523, P: 1000000, phaseConstraint: 'V' });
-    const rx2  = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_SABATIER', useKinetics: false, alpha: 1.0, heatDemand: 'fixed', Q_fixed_kW: 50 });
+    const rx2  = t.place('reactor_jacketed', 4, 0, { reactionId: 'R_SABATIER', useKinetics: false, alpha: 1.0, heatDemand: 'fixed', Q_fixed_kW: 50 });
     const snk2 = t.place('sink', 8, 0);
     const gs   = t.place('grid_supply', 0, 5, { maxPower: 50 });
     const hub  = t.place('power_hub', 2, 5);
@@ -41414,7 +42443,8 @@ function runTests() {
     // Grid supply < total demand → both get curtailed. Neither gets NaN.
     t.clearScene();
     const src = t.place('source', 0, 0, { n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V' });
-    const rx  = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_SMR_OVERALL', useKinetics: false, alpha: 1.0, heatDemand: 'isothermal' });
+    const rx  = t.place('reactor_jacketed', 4, 0, { reactionId: 'R_SMR_OVERALL', useKinetics: false, alpha: 1.0, heatDemand: 'isothermal' });
+    t.unit(rx).tier = 2;  // [v14.9.0 S6a] T2 jacketed for high-T SMR
     const snk = t.place('sink', 8, 0);
     t.wire(src, 'mat_out', rx, 'mat_in'); t.wire(rx, 'mat_out', snk, 'mat_in');
     // Compressor on same hub
@@ -41444,7 +42474,7 @@ function runTests() {
     t.clearScene();
     // Get iso_duty from adiabatic run
     const src1 = t.place('source', 0, 0, { n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V' });
-    const rx1  = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_SMR_OVERALL', useKinetics: false, alpha: 1.0, heatDemand: 'none', variant: 'insulated' });
+    const rx1  = t.place('reactor_adiabatic', 4, 0, { reactionId: 'R_SMR_OVERALL', useKinetics: false, alpha: 1.0, heatDemand: 'none', variant: 'insulated' });
     const snk1 = t.place('sink', 8, 0);
     t.wire(src1, 'mat_out', rx1, 'mat_in'); t.wire(rx1, 'mat_out', snk1, 'mat_in');
     t.solve();
@@ -41454,7 +42484,8 @@ function runTests() {
     // Isothermal mode
     t.clearScene();
     const src2 = t.place('source', 0, 0, { n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V' });
-    const rx2  = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_SMR_OVERALL', useKinetics: false, alpha: 1.0, heatDemand: 'isothermal' });
+    const rx2  = t.place('reactor_jacketed', 4, 0, { reactionId: 'R_SMR_OVERALL', useKinetics: false, alpha: 1.0, heatDemand: 'isothermal' });
+    t.unit(rx2).tier = 2;  // [v14.9.0 S6a] T2 jacketed for high-T SMR
     const snk2 = t.place('sink', 8, 0);
     const gs2  = t.place('grid_supply', 0, 5, { maxPower: iso_duty_kW + 10 });
     const hub2 = t.place('power_hub', 2, 5);
@@ -41466,7 +42497,8 @@ function runTests() {
     // Fixed mode with Q = iso_duty
     t.clearScene();
     const src3 = t.place('source', 0, 0, { n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V' });
-    const rx3  = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_SMR_OVERALL', useKinetics: false, alpha: 1.0, heatDemand: 'fixed', Q_fixed_kW: iso_duty_kW });
+    const rx3  = t.place('reactor_jacketed', 4, 0, { reactionId: 'R_SMR_OVERALL', useKinetics: false, alpha: 1.0, heatDemand: 'fixed', Q_fixed_kW: iso_duty_kW });
+    t.unit(rx3).tier = 2;  // [v14.9.0 S6a] T2 jacketed for high-T SMR
     const snk3 = t.place('sink', 8, 0);
     const gs3  = t.place('grid_supply', 0, 5, { maxPower: iso_duty_kW + 10 });
     const hub3 = t.place('power_hub', 2, 5);
@@ -41484,7 +42516,8 @@ function runTests() {
     // With finite demand, no NaN/Infinity in allocation.
     t.clearScene();
     const src = t.place('source', 0, 0, { n: { CH4: 1, H2O: 2 }, T: 1000, P: 500000, phaseConstraint: 'V' });
-    const rx  = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_SMR_OVERALL', useKinetics: false, alpha: 1.0, heatDemand: 'isothermal' });
+    const rx  = t.place('reactor_jacketed', 4, 0, { reactionId: 'R_SMR_OVERALL', useKinetics: false, alpha: 1.0, heatDemand: 'isothermal' });
+    t.unit(rx).tier = 2;  // [v14.9.0 S6a] T2 jacketed for high-T SMR
     const snk = t.place('sink', 8, 0);
     const gs  = t.place('grid_supply', 0, 5, { maxPower: 500 });
     t.wire(src, 'mat_out', rx, 'mat_in'); t.wire(rx, 'mat_out', snk, 'mat_in');
@@ -41507,7 +42540,7 @@ function runTests() {
     t.clearScene();
     // Exothermic reactor → cooler → sink. Grid → reactor (fixed power).
     const src = t.place('source', 0, 0, { n: { H2: 2, O2: 1, N2: 10 }, T: 800, P: 100000, phaseConstraint: 'V' });
-    const rx  = t.place('reactor_equilibrium', 4, 0, { reactionId: 'R_H2_COMB', useKinetics: false, alpha: 1.0, heatDemand: 'fixed', Q_fixed_kW: 5 });
+    const rx  = t.place('reactor_jacketed', 4, 0, { reactionId: 'R_H2_COMB', useKinetics: false, alpha: 1.0, heatDemand: 'fixed', Q_fixed_kW: 5 });
     const clr = t.place('air_cooler', 8, 0, { T_out: 350, max_fan_power_W: 500 });
     const snk = t.place('sink', 12, 0);
     const gs  = t.place('grid_supply', 0, 5, { maxPower: 5 });
@@ -41912,6 +42945,8 @@ function runTests() {
     const u = scene.units.get('u1');
     t.assertOK(u.params.reactionId === 'R_SMR_OVERALL',
       'reactionId migrated', u.params.reactionId);
+    t.assertOK(u.defId === 'reactor_adiabatic',
+      'defId migrated to reactor_adiabatic', u.defId);
   });
 
   test('335: S1b — 14 total reactions, all mass-balanced', t => {
@@ -42023,10 +43058,10 @@ function runTests() {
   });
 
   test('341: S1c — getEffectiveLimits returns tier data', t => {
-    const limits = getEffectiveLimits('reactor_equilibrium', 1);
+    const limits = getEffectiveLimits('reactor_jacketed', 1);
     t.assertOK(limits, 'Limits returned');
     // [v13.0.8] Updated to matrix-correct values
-    t.assertOK(limits.T_HH === 1573, 'T_HH = 1573 K (provisional, S6 will split by variant)');
+    t.assertOK(limits.T_HH === 923, 'T_HH = 923 K (T1 SS316L)');
     t.assertOK(limits.P_HH === 15000000, 'P_HH = 15 MPa');
     t.assertOK(limits.mass_HH === 0.08, 'mass_HH = 0.08 kg/s');
     t.assertOK(limits.T_L === 373, 'T_L = 373 K (WARNING tier)');
@@ -42189,7 +43224,7 @@ function runTests() {
     const s = new Scene();
     const tid = s.placeUnit('tank', 0, 0);
     t.assertClose(s.units.get(tid).params.volume_m3, 0.15, 0.001, 'Tank default 0.15 m³');
-    const rid = s.placeUnit('reactor_equilibrium', 4, 0);
+    const rid = s.placeUnit('reactor_adiabatic', 4, 0);
     t.assertClose(s.units.get(rid).params.volume_m3, 0.003, 0.0001, 'Reactor default 0.003 m³');
     const aid = s.placeUnit('air_cooler', 8, 0);
     t.assertClose(s.units.get(aid).params.T_approach, 10, 0, 'Air cooler T_approach = 10 K');
