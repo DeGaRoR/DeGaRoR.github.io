@@ -3504,6 +3504,33 @@
     .ins-err-box.bad { background: #7f1d1d44; border: 1px solid #ef4444; color: #fca5a5; }
     .ins-err-box.catastrophic { background: #7f1d1d66; border: 1px solid #dc2626; color: #fca5a5; font-weight: 600; animation: catastrophic-pulse-bg 1.2s ease-in-out infinite; }
     @keyframes catastrophic-pulse-bg { 0%,100% { border-color: #dc2626; } 50% { border-color: #fca5a5; } }
+
+    /* [v14.7.0 S-SIM Step 7] Catastrophic event modal */
+    .modal-catastrophe .modalContent {
+      max-width: 480px;
+      border-color: #dc2626;
+      box-shadow: 0 20px 60px rgba(220, 38, 38, 0.3);
+    }
+    .modal-catastrophe .cat-icon { font-size: 48px; text-align: center; margin-bottom: 8px; }
+    .modal-catastrophe .cat-title {
+      color: #fca5a5; font-size: 18px; font-weight: 700; text-align: center; margin-bottom: 12px;
+    }
+    .modal-catastrophe .cat-detail {
+      font-size: 13px; color: #94a3b8; line-height: 1.5; margin-bottom: 20px; text-align: center;
+    }
+    .modal-catastrophe .cat-units {
+      font-size: 12px; color: #e2e8f0; background: #1e1e2e; border-radius: 8px;
+      padding: 10px 14px; margin-bottom: 20px; max-height: 120px; overflow-y: auto;
+    }
+    .modal-catastrophe .cat-actions { display: flex; gap: 12px; justify-content: center; }
+    .modal-catastrophe .cat-btn {
+      padding: 10px 24px; border-radius: 8px; font-size: 14px; font-weight: 600;
+      cursor: pointer; border: 1px solid #2a2f3a; transition: background 0.15s;
+    }
+    .cat-btn-revert { background: #1e3a5f; color: #93c5fd; }
+    .cat-btn-revert:hover { background: #1e4a7f; }
+    .cat-btn-continue { background: #1e1e2e; color: #94a3b8; }
+    .cat-btn-continue:hover { background: #2a2f3a; }
     .ins-err-box.minor { background: #1e3a5f44; border: 1px solid #3b82f6; color: #93c5fd; }
     .propItem.alarm-warn { border-left: 2px solid #fbbf24; padding-left: 6px; }
     .propItem.alarm-warn .propValue { color: #fbbf24; }
@@ -7131,6 +7158,20 @@
       </div>
     </div>
 
+    <!-- [v14.7.0 S-SIM Step 7] Catastrophic event modal -->
+    <div class="modal modal-catastrophe" id="modalCatastrophe">
+      <div class="modalContent">
+        <div class="cat-icon">💥</div>
+        <div class="cat-title">CATASTROPHIC EVENT</div>
+        <div class="cat-detail" id="catDetail">Equipment has exceeded its design limits and is destroyed.</div>
+        <div class="cat-units" id="catUnits"></div>
+        <div class="cat-actions">
+          <button class="cat-btn cat-btn-revert" id="catBtnRevert">⏪ Revert</button>
+          <button class="cat-btn cat-btn-continue" id="catBtnContinue">Continue with damage</button>
+        </div>
+      </div>
+    </div>
+
     <!-- [v10] Palette Drawer — slides over canvas from left -->
     <aside class="paletteDrawer" id="paletteDrawer">
       <div class="pal-header">
@@ -7720,6 +7761,20 @@ const TimeClock = {
     // Trim any entries after _cpIndex (branch point)
     TimeClock._checkpoints.length = TimeClock._cpIndex + 1;
 
+    const cp = TimeClock._createCheckpointData(scene, label);
+
+    TimeClock._checkpoints.push(cp);
+
+    // FIFO cap
+    if (TimeClock._checkpoints.length > TimeClock._cpMax) {
+      TimeClock._checkpoints.shift();
+    }
+
+    TimeClock._cpIndex = TimeClock._checkpoints.length - 1;
+  },
+
+  /** Create a checkpoint data object without pushing to the stack. */
+  _createCheckpointData(scene, label) {
     const cp = {
       t:     TimeClock.t,
       frame: TimeClock.frame,
@@ -7743,15 +7798,7 @@ const TimeClock = {
       if (u.sticker) snap.sticker = JSON.parse(JSON.stringify(u.sticker));
       cp.units.push(snap);
     }
-
-    TimeClock._checkpoints.push(cp);
-
-    // FIFO cap
-    if (TimeClock._checkpoints.length > TimeClock._cpMax) {
-      TimeClock._checkpoints.shift();
-    }
-
-    TimeClock._cpIndex = TimeClock._checkpoints.length - 1;
+    return cp;
   },
 
   /**
@@ -28765,16 +28812,25 @@ function _schedulePlayTick() {
     timeDisplayEl.classList.add('solving');
     await new Promise(r => requestAnimationFrame(r));
 
+    // [v14.7.0 S-SIM Step 7] Capture pre-step snapshot for potential catastrophe revert
+    const preStepSnap = TimeClock._createCheckpointData(scene, 'pre-catastrophe');
+
     const t0 = performance.now();
     const { solveResult } = TimeClock.step(scene);
     afterSolve(solveResult);
     timeDisplayEl.classList.remove('solving');
     updateTransportUI();
 
-    // Stop on CATASTROPHIC
-    if (solveResult && !solveResult.ok && solveResult.unitFaulted) {
+    // [v14.7.0 S-SIM Step 7] Auto-pause on CATASTROPHIC alarm
+    // _lastSolveHadNewErrors is set by afterSolve when new CATASTROPHIC alarms appear
+    if (_lastSolveHadNewErrors) {
+      // Push pre-step snapshot so Revert goes to the state just before catastrophe
+      TimeClock._checkpoints.length = TimeClock._cpIndex + 1;
+      TimeClock._checkpoints.push(preStepSnap);
+      if (TimeClock._checkpoints.length > TimeClock._cpMax) TimeClock._checkpoints.shift();
+      TimeClock._cpIndex = TimeClock._checkpoints.length - 1;
       stopPlay();
-      setStatus('⏸ Paused — solver error');
+      _showCatastrophicModal();
       return;
     }
 
@@ -28812,14 +28868,63 @@ function autoPauseOnTopologyChange() {
   }
 }
 
+// [v14.7.0 S-SIM Step 7] Catastrophic event modal
+const modalCatastrophe = document.getElementById('modalCatastrophe');
+const catDetail = document.getElementById('catDetail');
+const catUnits = document.getElementById('catUnits');
+
+function _showCatastrophicModal() {
+  // Collect affected units from _cachedUnitAlarms
+  const affected = [];
+  for (const [uid, sev] of _cachedUnitAlarms) {
+    if (sev.level >= AlarmSeverity.CATASTROPHIC.level) {
+      const u = scene.units.get(uid);
+      affected.push(u?.name || uid);
+    }
+  }
+  catDetail.textContent = affected.length === 1
+    ? `${affected[0]} has exceeded its design limits.`
+    : `${affected.length} units have exceeded their design limits.`;
+  catUnits.innerHTML = affected.map(n =>
+    `<div style="padding:2px 0;">💥 ${n}</div>`
+  ).join('');
+  modalCatastrophe.classList.add('open');
+  setStatus(`💥 CATASTROPHIC — ${affected.length} unit${affected.length > 1 ? 's' : ''} destroyed`);
+}
+
+document.getElementById('catBtnRevert').addEventListener('click', () => {
+  modalCatastrophe.classList.remove('open');
+  // Revert to latest checkpoint (the pre-catastrophe one we just saved)
+  const { solveResult } = TimeClock.revert(scene);
+  afterSolve(solveResult);
+  updateTransportUI();
+  syncPlanetBgTime('snap');
+  setStatus(`⏪ Reverted to ${formatTime(TimeClock.t)}`);
+});
+
+document.getElementById('catBtnContinue').addEventListener('click', () => {
+  modalCatastrophe.classList.remove('open');
+  setStatus('⚠ Continuing with damaged equipment');
+});
+
 // ── Button handlers [v14.7.0 S-SIM] ──
 btnStep.addEventListener('click', () => {
   stopPlay();
+  // [v14.7.0 S-SIM Step 7] Capture pre-step snapshot for catastrophe revert
+  const preStepSnap = TimeClock._createCheckpointData(scene, 'pre-catastrophe');
   const { solveResult } = TimeClock.step(scene);
   setStatus(`Step → ${formatTime(TimeClock.t)}`);
   afterSolve(solveResult);
-  updateTransportUI();  // [v14.7.0] update Revert tooltip
+  updateTransportUI();
   syncPlanetBgTime('snap');
+  // Show catastrophic modal if new errors appeared
+  if (_lastSolveHadNewErrors) {
+    TimeClock._checkpoints.length = TimeClock._cpIndex + 1;
+    TimeClock._checkpoints.push(preStepSnap);
+    if (TimeClock._checkpoints.length > TimeClock._cpMax) TimeClock._checkpoints.shift();
+    TimeClock._cpIndex = TimeClock._checkpoints.length - 1;
+    _showCatastrophicModal();
+  }
 });
 
 btnPlay.addEventListener('click', () => {
@@ -36320,6 +36425,91 @@ function runTests() {
     TimeClock._checkpoints.length = savedCpLen; // just verify the count would be preserved
 
     t.assertOK(TimeClock.mode === 'paused', 'Mode preserved after undo');
+
+    TimeClock.t = origT; TimeClock.frame = 0;
+    TimeClock.mode = origMode; SimSettings.dt = origDt;
+  }});
+
+  tests.push({ name: '431: T-SM07 _createCheckpointData snapshots without pushing', fn: t => {
+    const origT = TimeClock.t;
+    const origMode = TimeClock.mode;
+    const origDt = SimSettings.dt;
+    TimeClock.t = T0_SECONDS; TimeClock.frame = 0; TimeClock.mode = 'paused';
+    SimSettings.dt = 60;
+    TimeClock._checkpoints = []; TimeClock._cpIndex = -1;
+
+    const srcId = t.place('source', 0, 0);
+    const cpBefore = TimeClock._checkpoints.length;
+
+    const snap = TimeClock._createCheckpointData(scene, 'pre-catastrophe');
+
+    t.assertOK(TimeClock._checkpoints.length === cpBefore, 'Stack unchanged after _createCheckpointData');
+    t.assertClose(snap.t, T0_SECONDS, 0, 'Snapshot captures current t');
+    t.assertOK(snap.label === 'pre-catastrophe', 'Label preserved');
+    t.assertOK(Array.isArray(snap.units), 'Has units array');
+    t.assertOK(snap.units.length === scene.units.size, 'Unit count matches scene');
+    t.assertOK(Array.isArray(snap.connections), 'Has connections array');
+    t.assertClose(snap.dt, 60, 0, 'Captures dt');
+
+    // Verify deep copy — mutating snap doesn't affect scene
+    const snapUnit = snap.units.find(u => u.id === srcId);
+    const origName = scene.units.get(srcId).name;
+    snapUnit.name = 'MUTATED';
+    t.assertOK(scene.units.get(srcId).name === origName, 'Deep copy: scene unaffected by snap mutation');
+
+    TimeClock.t = origT; TimeClock.frame = 0;
+    TimeClock.mode = origMode; SimSettings.dt = origDt;
+  }});
+
+  tests.push({ name: '432: T-SM08 CATASTROPHIC step produces pre-catastrophe checkpoint', fn: t => {
+    const origT = TimeClock.t;
+    const origMode = TimeClock.mode;
+    const origDt = SimSettings.dt;
+    TimeClock.t = T0_SECONDS; TimeClock.frame = 0; TimeClock.mode = 'paused';
+    SimSettings.dt = 60;
+    TimeClock._checkpoints = []; TimeClock._cpIndex = -1;
+
+    // Proven CATASTROPHIC trigger: turbine → hub with unconnected elec_surplus
+    const sSrc = t.place('source', 0, 0, { species:'N2', nDot:2, T:573.15, P:500000, phaseConstraint:'V' });
+    const turb = t.place('gas_turbine', 4, 0, { Pout:100000, eta:0.85 });
+    const skGas = t.place('sink', 8, 0);
+    const hub = t.place('power_hub', 4, 4);
+    t.wire(sSrc, 'mat_out', turb, 'mat_in');
+    t.wire(turb, 'mat_out', skGas, 'mat_in');
+    t.wire(turb, 'elec_out', hub, 'elec_in');
+    // elec_surplus deliberately NOT connected → CATASTROPHIC
+
+    // Seed initial checkpoint
+    TimeClock._saveCheckpoint(scene, 'auto');
+    const cpCountBefore = TimeClock._checkpoints.length;
+    t.assertOK(cpCountBefore === 1, 'Pre-step: 1 auto checkpoint');
+
+    // Capture pre-step snapshot (mimics play loop / step handler)
+    const preSnap = TimeClock._createCheckpointData(scene, 'pre-catastrophe');
+    const preSnapT = preSnap.t;
+
+    // Step — should produce CATASTROPHIC on hub (surplus with no elec_surplus connection)
+    const { solveResult } = TimeClock.step(scene);
+    // CATASTROPHIC is on u.last.error, not solveResult.diagnostics
+    const hubU = scene.units.get(hub);
+    const hasCat = hubU?.last?.error?.severity === ErrorSeverity.CATASTROPHIC;
+    t.assertOK(hasCat, 'Step produced CATASTROPHIC alarm on hub');
+
+    // Push pre-step snapshot (mimics play loop behavior on catastrophe)
+    TimeClock._checkpoints.length = TimeClock._cpIndex + 1;
+    TimeClock._checkpoints.push(preSnap);
+    if (TimeClock._checkpoints.length > TimeClock._cpMax) TimeClock._checkpoints.shift();
+    TimeClock._cpIndex = TimeClock._checkpoints.length - 1;
+
+    t.assertOK(TimeClock._checkpoints.length === cpCountBefore + 1, 'Pre-catastrophe checkpoint pushed');
+    const topCp = TimeClock._checkpoints[TimeClock._cpIndex];
+    t.assertOK(topCp.label === 'pre-catastrophe', 'Top checkpoint labelled pre-catastrophe');
+    t.assertClose(topCp.t, preSnapT, 0, 'Pre-catastrophe at pre-step time');
+
+    // Revert to pre-catastrophe
+    const { solveResult: revResult } = TimeClock.revert(scene);
+    t.assertClose(TimeClock.t, preSnapT, 0, 'Time reverted to pre-catastrophe');
+    t.assertOK(TimeClock.t < preSnapT + 120, 'Reverted before the catastrophic step');
 
     TimeClock.t = origT; TimeClock.frame = 0;
     TimeClock.mode = origMode; SimSettings.dt = origDt;
