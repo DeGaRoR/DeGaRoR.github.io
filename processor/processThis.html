@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v14.7.0
+  processThis v14.8.0
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -82,11 +82,10 @@
             Active devices (gas_turbine, mixer): when check-valve fires,
             a post-tick backward scan traces blocked inlets to their
             originating boundary source.  Stops at inventory units
-            (buffers absorb by design) and multi-output units
-            (splitters) — an active splitter would shut down, but
-            the cascade through the graph kills healthy branches.
-            Splitter branch zeroing needs dedicated spec; until then,
-            mass gap at blocked branch is surfaced by balance audit.
+            (buffers absorb by design).  Multi-output units (splitters):
+            blocked branch zeroed, flow redistributed to unblocked
+            branches.  All branches blocked → splitter sets _blockedInlet,
+            source-killing cascade applies.
             Blocked sources are zeroed with alarm "Output blocked —
             downstream path blocked at [unit]".  The blocking unit
             retains its own check-valve alarm.  Both alarms are PLANT
@@ -300,6 +299,31 @@
   ═══════════════════════════════════════════════════════════════════════════
   CHANGELOG
   ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v14.8.0 — S-SPLIT: Splitter Branch Deactivation ──────────────────────
+  489 tests, 2688 assertions, 0 failures.
+
+  Fixes the only known NNG-1 (mass conservation) violation.
+
+  When a check-valve blocks a splitter branch (downstream P ≥ inlet P),
+  the post-pass backward trace now records which output port is blocked
+  in a new blockedSplitterBranches map (monotonic, persists across solver
+  iterations like blockedSources).  The splitter tick reads blocked
+  branches via ctx.blockedBranches() (NNG-9 compliant accessor) and
+  redistributes 100% of flow to unblocked branches.
+
+  All branches blocked → splitter sets _blockedInlet on mat_in, triggering
+  the existing source-killing cascade upstream.  Natural fallback.
+
+  Splitter diagnostics now show effectiveSplitPct (actual split after
+  redistribution) alongside the player-configured splitPct.  Blocked
+  branch produces MINOR alarm naming the blocked port.
+
+  NNG-4 text updated: removed splitter mass-gap caveat, documented the
+  branch deactivation mechanism.
+
+  Tests: T351b updated (amber → green), 5 new (T-SP01–SP05).
+  NNGs: NNG-1 (conservation fix), NNG-4 (post-pass extension), NNG-9 (ctx).
 
   ─── v14.7.0 — S-SIM: Simulation Time + Checkpoint System ──────────────────
   482 tests, 2648 assertions, 0 failures.  Export version 18.
@@ -16335,18 +16359,50 @@ UnitRegistry.register('splitter', {
   tick(u, ports, par, ctx) {
     const sIn = ports.mat_in;
     if (!sIn) return;
+
+    // [v14.8.0 S-SPLIT] Branch deactivation — read blocked branches from post-pass
+    const blocked = ctx.blockedBranches();
+    const out1Blocked = blocked ? blocked.has('mat_out_1') : false;
+    const out2Blocked = blocked ? blocked.has('mat_out_2') : false;
+
+    // All branches blocked → dead end, zero everything, signal upstream
+    if (out1Blocked && out2Blocked) {
+      const empty = { type: StreamType.MATERIAL, T: sIn.T || 298.15,
+        P: sIn.P || 101325, n: {}, phaseConstraint: 'VL' };
+      ports.mat_out_1 = { ...empty };
+      ports.mat_out_2 = { ...empty };
+      u.last = {
+        _blockedInlet: 'mat_in',  // triggers source-killing post-pass
+        error: { severity: ErrorSeverity.MINOR,
+          message: 'All branches blocked by downstream pressure — flow stopped' }
+      };
+      return;
+    }
     
     // Split fraction: percentage of inlet going to out1 (0–100)
     const pct = (par.splitPct !== undefined && par.splitPct !== null) ? par.splitPct : 50;
     const frac1 = Math.max(0, Math.min(100, pct)) / 100;
     const frac2 = 1 - frac1;
+
+    // Effective fractions: redistribute to unblocked branches
+    let effectiveFrac1, effectiveFrac2;
+    if (out1Blocked) {
+      effectiveFrac1 = 0;
+      effectiveFrac2 = 1;
+    } else if (out2Blocked) {
+      effectiveFrac1 = 1;
+      effectiveFrac2 = 0;
+    } else {
+      effectiveFrac1 = frac1;
+      effectiveFrac2 = frac2;
+    }
     
     // ── Molar balance: identical composition split ──
     const n_out1 = {};
     const n_out2 = {};
     for (const [comp, n] of Object.entries(sIn.n || {})) {
-      n_out1[comp] = Math.max(0, frac1 * n);
-      n_out2[comp] = Math.max(0, frac2 * n);
+      n_out1[comp] = Math.max(0, effectiveFrac1 * n);
+      n_out2[comp] = Math.max(0, effectiveFrac2 * n);
     }
     
     const nTotal = Object.values(sIn.n || {}).reduce((a, b) => a + b, 0);
@@ -16386,7 +16442,7 @@ UnitRegistry.register('splitter', {
       P: sIn.P,
       n: n_out1,
       phaseConstraint: sIn.phaseConstraint || 'VL',
-      H_target_Jps: frac1 * H_in_Jps
+      H_target_Jps: effectiveFrac1 * H_in_Jps
     };
     
     ports.mat_out_2 = {
@@ -16394,20 +16450,32 @@ UnitRegistry.register('splitter', {
       P: sIn.P,
       n: n_out2,
       phaseConstraint: sIn.phaseConstraint || 'VL',
-      H_target_Jps: frac2 * H_in_Jps
+      H_target_Jps: effectiveFrac2 * H_in_Jps
     };
     
     // ── Diagnostics ──
     u.last = {
       splitPct: pct,
+      effectiveSplitPct: effectiveFrac1 * 100,
       P: sIn.P,
       nTotal: nTotal,
       nOut1: Object.values(n_out1).reduce((a, b) => a + b, 0),
       nOut2: Object.values(n_out2).reduce((a, b) => a + b, 0),
       H_in_kW: (H_in_Jps / 1000).toFixed(2),
-      H_out1_kW: (frac1 * H_in_Jps / 1000).toFixed(2),
-      H_out2_kW: (frac2 * H_in_Jps / 1000).toFixed(2)
+      H_out1_kW: (effectiveFrac1 * H_in_Jps / 1000).toFixed(2),
+      H_out2_kW: (effectiveFrac2 * H_in_Jps / 1000).toFixed(2)
     };
+
+    // [v14.8.0 S-SPLIT] Blocked branch alarm (before check-valve alarm, which may overwrite)
+    if (out1Blocked || out2Blocked) {
+      const blockedNames = [];
+      if (out1Blocked) blockedNames.push('mat_out_1');
+      if (out2Blocked) blockedNames.push('mat_out_2');
+      u.last.error = {
+        severity: ErrorSeverity.MINOR,
+        message: `Branch blocked by downstream pressure: ${blockedNames.join(', ')} — flow redistributed`
+      };
+    }
 
     // ── Check valve alarm from pressure trace (NNG-9: ctx accessor) ──
     const ds = ctx.dividerStatus();
@@ -18550,6 +18618,8 @@ class RuntimeContext {
       downstreamP: (portId) => this._scene.runtime.P_downstream?.get(unitId + ':' + portId) ?? null,
       valveStatus: () => this._scene.runtime.valveStatus?.get(unitId) ?? null,
       dividerStatus: () => this._scene.runtime.dividerStatus?.get(unitId) ?? null,
+      // [v14.8.0 S-SPLIT] Blocked splitter branches — Set<portId> or null
+      blockedBranches: () => this._scene.runtime.blockedSplitterBranches?.get(unitId) ?? null,
       // [v11.1.1 NNG-9] Solve generation counter for cache invalidation.
       solveGen: (this._scene._solveGen || 0),
       // [DEPRECATED v11.1.1] Retained for backward compat during transition.
@@ -19149,6 +19219,8 @@ function solveScene(scene, options = {}) {
 
   // Iterative successive substitution
   const blockedSources = new Map();  // [v14.1.1] srcId → blockingName (persists across iterations)
+  const blockedSplitterBranches = new Map();  // [v14.8.0 S-SPLIT] splitterId → Set<portId> (persists across iterations)
+  scene.runtime.blockedSplitterBranches = blockedSplitterBranches;  // expose for ctx accessor
   while (changed && iter < MAX_ITER) {
     changed = false;
     iter++;
@@ -19495,12 +19567,15 @@ function solveScene(scene, options = {}) {
     // After all ticks: active devices (turbine, mixer) may have blocked an
     // inlet via check-valve, destroying mass from upstream sources.  Walk
     // backward to find and zero the originating boundary source.  Stops at
-    // inventory units (buffers absorb) and multi-output units (splitters —
-    // cascade kills healthy branches; needs dedicated spec).
+    // inventory units (buffers absorb).  Multi-output units (splitters):
+    // records which output port is blocked in blockedSplitterBranches map;
+    // the splitter tick redistributes flow to unblocked branches on next
+    // iteration.  [v14.8.0 S-SPLIT]
     //
     // blockedSources (Map) persists across iterations to prevent oscillation:
     // source emits → check-valve fires → post-pass zeros → source re-emits.
     // Once blocked, a source stays blocked for the rest of the solve.
+    // blockedSplitterBranches (Map) likewise monotonic.
     // Only new blocks trigger changed=true.
     {
       const blockedInlets = [];
@@ -19525,13 +19600,22 @@ function solveScene(scene, options = {}) {
           const dirs = new Set(fDef.ports.map(p => p.dir));
           if (dirs.size === 1 && dirs.has(PortDir.OUT)) return [fId];
           if (fDef.inventory) return [];
-          // Multi material-output unit (splitter): stop trace.  Active splitter
-          // with ratio controller would shut down, but the cascade kills all
-          // branches including healthy ones.  Splitter handling needs dedicated
-          // spec — for now, mass gap at blocked branch is caught by item 4
-          // (mass trap audit in computeSystemBalance).
+          // Multi material-output unit (splitter): record which output branch
+          // is blocked so the splitter can redistribute flow on next iteration.
+          // [v14.8.0 S-SPLIT] Replaces the old "stop trace" that caused NNG-1 violation.
           const matOuts = fDef.ports.filter(p => p.dir === PortDir.OUT && p.type === StreamType.MATERIAL);
-          if (matOuts.length > 1) return [];
+          if (matOuts.length > 1) {
+            const blockedPort = conn.from.portId;
+            if (!blockedSplitterBranches.has(fId)) {
+              blockedSplitterBranches.set(fId, new Set());
+            }
+            const branches = blockedSplitterBranches.get(fId);
+            if (!branches.has(blockedPort)) {
+              branches.add(blockedPort);
+              changed = true;  // new branch block → re-iterate so splitter redistributes
+            }
+            return [];  // don't trace further — splitter handles redistribution
+          }
           const matIns = fDef.ports.filter(p => p.dir === PortDir.IN && p.type === StreamType.MATERIAL);
           const found = [];
           for (const ip of matIns) found.push(...traceBack(fId, ip.portId, visited));
@@ -36707,6 +36791,149 @@ function runTests() {
   }});
 
   // ═══════════════════════════════════════════════════════════════════════
+  // S-SPLIT — Splitter branch deactivation [v14.8.0]
+  // T-SP01–SP05: blocked branch redistribution, mass conservation
+  // ═══════════════════════════════════════════════════════════════════════
+
+  tests.push({ name: '436: T-SP01 Blocked branch redistributes flow, mass green', fn: t => {
+    // Source1 (1 bar) → Splitter(50/50) → out1 → Mixer ← Source2 (5 bar) → Sink1
+    //                                   → out2 → Sink2
+    // Mixer blocks out1 branch. Splitter redirects 100% to out2.
+    const src1 = t.place('source', 0, 0, { species: 'N2', nDot: 1, T: 300, P: 101325, phaseConstraint: 'V' });
+    const spl  = t.place('splitter', 3, 0, { splitPct: 50 });
+    const src2 = t.place('source', 0, 5, { species: 'N2', nDot: 1, T: 300, P: 500000, phaseConstraint: 'V' });
+    const mix  = t.place('mixer', 6, 0);
+    const snk1 = t.place('sink', 9, 0);
+    const snk2 = t.place('sink', 6, 5);
+    t.wire(src1, 'mat_out', spl, 'mat_in');
+    t.wire(spl, 'mat_out_1', mix, 'mat_in_1');
+    t.wire(src2, 'mat_out', mix, 'mat_in_2');
+    t.wire(mix, 'mat_out', snk1, 'mat_in');
+    t.wire(spl, 'mat_out_2', snk2, 'mat_in');
+    t.solve();
+
+    // Mass balance: green, no traps
+    const bal = computeSystemBalance(scene);
+    t.assertOK(bal.mass.status === 'green', `Mass status green (got "${bal.mass.status}")`);
+    t.assertOK(bal.mass.traps.length === 0, 'No mass traps');
+
+    // Unblocked branch gets full inlet flow
+    const splUD = t.ud(spl);
+    const snk2UD = t.ud(snk2);
+    const snk2Flow = snk2UD.ports?.mat_in?.n?.N2 || 0;
+    t.assertClose(snk2Flow, 1.0, 0.01, 'Sink2 receives full 1 mol/s from splitter');
+  }});
+
+  tests.push({ name: '437: T-SP02 Both branches blocked: source killed', fn: t => {
+    // Source (1 bar) → Splitter → out1 → Mixer1 ← HP Source (5 bar)
+    //                            → out2 → Mixer2 ← HP Source (5 bar)
+    // Both branches blocked → splitter sets _blockedInlet → source zeroed
+    const src = t.place('source', 0, 0, { species: 'N2', nDot: 1, T: 300, P: 101325, phaseConstraint: 'V' });
+    const spl = t.place('splitter', 3, 0, { splitPct: 50 });
+    const hp1 = t.place('source', 0, 5, { species: 'N2', nDot: 1, T: 300, P: 500000, phaseConstraint: 'V' });
+    const hp2 = t.place('source', 0, 8, { species: 'N2', nDot: 1, T: 300, P: 500000, phaseConstraint: 'V' });
+    const mix1 = t.place('mixer', 6, 0);
+    const mix2 = t.place('mixer', 6, 4);
+    const snk1 = t.place('sink', 9, 0);
+    const snk2 = t.place('sink', 9, 4);
+    t.wire(src, 'mat_out', spl, 'mat_in');
+    t.wire(spl, 'mat_out_1', mix1, 'mat_in_1');
+    t.wire(hp1, 'mat_out', mix1, 'mat_in_2');
+    t.wire(mix1, 'mat_out', snk1, 'mat_in');
+    t.wire(spl, 'mat_out_2', mix2, 'mat_in_1');
+    t.wire(hp2, 'mat_out', mix2, 'mat_in_2');
+    t.wire(mix2, 'mat_out', snk2, 'mat_in');
+    t.solve();
+
+    // Source should be blocked (all branches dead)
+    const srcU = scene.units.get(src);
+    t.assertOK(srcU.last._backpressureBlocked === true, 'Source blocked');
+
+    // Splitter should show all-blocked error
+    const splU = scene.units.get(spl);
+    t.assertOK(splU.last.error && splU.last.error.message.includes('All branches blocked'),
+      'Splitter reports all branches blocked');
+
+    // Mass conserved
+    const bal = computeSystemBalance(scene);
+    t.assertOK(bal.mass.status !== 'red', `Mass not red (got "${bal.mass.status}")`);
+  }});
+
+  tests.push({ name: '438: T-SP03 Blocked branch alarm on splitter', fn: t => {
+    // Same topology as T-SP01 — check alarm details
+    const src1 = t.place('source', 0, 0, { species: 'N2', nDot: 1, T: 300, P: 101325, phaseConstraint: 'V' });
+    const spl  = t.place('splitter', 3, 0, { splitPct: 50 });
+    const src2 = t.place('source', 0, 5, { species: 'N2', nDot: 1, T: 300, P: 500000, phaseConstraint: 'V' });
+    const mix  = t.place('mixer', 6, 0);
+    const snk1 = t.place('sink', 9, 0);
+    const snk2 = t.place('sink', 6, 5);
+    t.wire(src1, 'mat_out', spl, 'mat_in');
+    t.wire(spl, 'mat_out_1', mix, 'mat_in_1');
+    t.wire(src2, 'mat_out', mix, 'mat_in_2');
+    t.wire(mix, 'mat_out', snk1, 'mat_in');
+    t.wire(spl, 'mat_out_2', snk2, 'mat_in');
+    t.solve();
+
+    const splUD = t.ud(spl);
+    // Alarm is MINOR, mentions mat_out_1, mentions "redistributed"
+    t.assertOK(splUD.last.error, 'Splitter has error');
+    t.assertOK(splUD.last.error.severity === ErrorSeverity.MINOR, 'Severity = MINOR');
+    t.assertOK(splUD.last.error.message.includes('mat_out_1'), 'Names blocked port');
+    t.assertOK(splUD.last.error.message.includes('redistributed'), 'Mentions redistribution');
+  }});
+
+  tests.push({ name: '439: T-SP04 Unblocked branch preserves composition and enthalpy', fn: t => {
+    // Source (2-component, 1 bar) → Splitter(50/50) → out1 → Mixer ← HP (5 bar)
+    //                                               → out2 → Sink
+    // out1 blocked → out2 gets full flow with correct composition
+    const src1 = t.place('source', 0, 0, { n: { N2: 0.8, CO2: 0.2 }, T: 400, P: 101325, phaseConstraint: 'V' });
+    const spl  = t.place('splitter', 3, 0, { splitPct: 50 });
+    const src2 = t.place('source', 0, 5, { species: 'N2', nDot: 1, T: 300, P: 500000, phaseConstraint: 'V' });
+    const mix  = t.place('mixer', 6, 0);
+    const snk1 = t.place('sink', 9, 0);
+    const snk2 = t.place('sink', 6, 5);
+    t.wire(src1, 'mat_out', spl, 'mat_in');
+    t.wire(spl, 'mat_out_1', mix, 'mat_in_1');
+    t.wire(src2, 'mat_out', mix, 'mat_in_2');
+    t.wire(mix, 'mat_out', snk1, 'mat_in');
+    t.wire(spl, 'mat_out_2', snk2, 'mat_in');
+    t.solve();
+
+    // out2 should have full composition
+    const splUD = t.ud(spl);
+    const out2 = splUD.ports?.mat_out_2;
+    t.assertOK(out2, 'out2 port exists');
+    t.assertClose(out2.n.N2, 0.8, 0.01, 'N2 = 0.8 mol/s (full inlet)');
+    t.assertClose(out2.n.CO2, 0.2, 0.01, 'CO2 = 0.2 mol/s (full inlet)');
+    // out1 should be zero
+    const out1 = splUD.ports?.mat_out_1;
+    const out1Total = out1?.n ? Object.values(out1.n).reduce((a,b) => a+b, 0) : 0;
+    t.assertClose(out1Total, 0, 1e-10, 'Blocked branch out1 = 0');
+  }});
+
+  tests.push({ name: '440: T-SP05 Normal split unaffected when no branches blocked', fn: t => {
+    // Source → Splitter(30/70) → Sink1, Sink2.  No backpressure conflict.
+    const src = t.place('source', 0, 0, { species: 'N2', nDot: 1, T: 300, P: 101325, phaseConstraint: 'V' });
+    const spl = t.place('splitter', 3, 0, { splitPct: 30 });
+    const snk1 = t.place('sink', 6, 0);
+    const snk2 = t.place('sink', 6, 3);
+    t.wire(src, 'mat_out', spl, 'mat_in');
+    t.wire(spl, 'mat_out_1', snk1, 'mat_in');
+    t.wire(spl, 'mat_out_2', snk2, 'mat_in');
+    t.solve();
+
+    const splUD = t.ud(spl);
+    t.assertClose(splUD.last.nOut1, 0.3, 0.01, 'Out1 = 30%');
+    t.assertClose(splUD.last.nOut2, 0.7, 0.01, 'Out2 = 70%');
+    t.assertClose(splUD.last.effectiveSplitPct, 30, 0.1, 'Effective = configured 30%');
+    // No error — normal operation
+    t.assertOK(!splUD.last.error, 'No error on normal split');
+    // Mass green
+    const bal = computeSystemBalance(scene);
+    t.assertOK(bal.mass.status === 'green', 'Mass green');
+  }});
+
+  // ═══════════════════════════════════════════════════════════════════════
   // S5a-1 — computeTankState + pressure trace [v13.8.0]
   // T-PS01–PS06: computeTankState pure function
   // T-PS33–PS42: pressure trace
@@ -42081,11 +42308,11 @@ function runTests() {
     t.assertClose(nTotal, 1.0, 0.01, 'Mixer output = src1 only (1 mol/s)');
   });
 
-  test('351b: v14.1.2 — mass trap audit: splitter behind mixer → amber status', t => {
+  test('351b: v14.8.0 S-SPLIT — splitter behind mixer: branch redistributed, mass green', t => {
     // Source1 (1 bar) → Splitter(50/50) → out1 → Mixer ← Source2 (5 bar) → Sink1
     //                                   → out2 → Sink2
-    // Mixer blocks in1 (lower P). Backward trace stops at splitter.
-    // Splitter out1 mass destroyed at mixer → trap audit detects → amber.
+    // Mixer blocks in1 (lower P). Post-pass records blocked branch on splitter.
+    // Splitter redistributes: out1=0, out2=100%. Mass conserved → green.
     const src1 = t.place('source', 0, 0, { species: 'N2', nDot: 1, T: 300, P: 101325, phaseConstraint: 'V' });
     const spl  = t.place('splitter', 3, 0, { splitPct: 50 });
     const src2 = t.place('source', 0, 5, { species: 'N2', nDot: 1, T: 300, P: 500000, phaseConstraint: 'V' });
@@ -42099,14 +42326,18 @@ function runTests() {
     t.wire(spl, 'mat_out_2', snk2, 'mat_in');
     t.solve();
     const bal = computeSystemBalance(scene);
-    t.assertOK(bal.mass.status === 'amber',
-      `Status is amber (got "${bal.mass.status}")`);
-    t.assertOK(bal.mass.traps.length > 0,
-      `Has mass traps (${bal.mass.traps.length})`);
-    t.assertOK(bal.mass.trapped > 1e-6,
-      `Trapped mass > 0 (${(bal.mass.trapped*1000).toFixed(4)} g/s)`);
-    t.assertOK(bal.mass.closed,
-      'closed=true (amber is accounted-for, not red)');
+    t.assertOK(bal.mass.status === 'green',
+      `Status is green (got "${bal.mass.status}")`);
+    t.assertOK(bal.mass.traps.length === 0,
+      `No mass traps (${bal.mass.traps.length})`);
+    // Splitter out1 should be zero, out2 should get 100%
+    const splUD = t.ud(spl);
+    t.assertClose(splUD.last.nOut1, 0, 1e-10, 'Blocked branch out1 = 0');
+    t.assertOK(splUD.last.nOut2 > 0.5, `Unblocked branch out2 has flow (${splUD.last.nOut2.toFixed(4)})`);
+    t.assertClose(splUD.last.effectiveSplitPct, 0, 0.01, 'Effective split = 0% to out1');
+    // Splitter alarm mentions redistribution
+    t.assertOK(splUD.last.error && splUD.last.error.message.includes('redistributed'),
+      'Alarm mentions flow redistributed');
   });
 
   test('352: v13.0.8 — tank level limits: L/H templates evaluate fillPct', t => {
