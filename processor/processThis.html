@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v14.16.0
+  processThis v14.17.0
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -299,6 +299,20 @@
   ═══════════════════════════════════════════════════════════════════════════
   CHANGELOG
   ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v14.17.0 — S-HUD Session 8: Layout Persistence in JSON ─────────────────
+  LAYOUT_DEFAULTS constant: frozen object with 11 UI state keys.
+  exportJSON: gathers layout state from DOM + ui + SimSettings into data.layout
+    (viewMode from data-view attr, actionBarCompact from .compact class,
+    survivalStripExpanded from .open class, colorBy/sizeByFlow from ui,
+    stickersVisible/planetBgVisible from flags, inspectorWidth from offsetWidth,
+    paletteOpen from .open class).
+  importJSON: applies data.layout with per-key type checks, value clamping
+    (viewMode to 3 allowed strings, colorBy to 7 modes, sizeByFlow to 4 modes,
+    inspectorWidth clamped 200-800px), and LAYOUT_DEFAULTS fallback for missing
+    or legacy JSON. DOM classes set directly for actionBarCompact, survival
+    strip, palette, and view mode buttons.
+  No physics changes. NNG-12, NNG-14.
 
 
   ─── v14.16.0 — S-HUD Session 7: Shortcuts + Tooltips + Diagnostic Rename ────
@@ -8190,6 +8204,21 @@ const SimSettings = {
 
 // Initialize default atmosphere
 SimSettings._applyPreset();
+
+// [v14.17.0] Layout persistence defaults — governs exportJSON/importJSON UI state
+const LAYOUT_DEFAULTS = Object.freeze({
+  viewMode:              'flowsheet',
+  splitRatio:            0.5,
+  survivalStripExpanded: false,
+  actionBarCompact:      false,
+  colorBy:               'type',
+  sizeByFlow:            'none',
+  stickersVisible:       true,
+  planetBgVisible:       true,
+  inspectorOpen:         true,
+  inspectorWidth:        360,
+  paletteOpen:           false,
+});
 
 /* =========================
    TIME CLOCK [v9.0.1]
@@ -18826,6 +18855,22 @@ class Scene {
     }
     
     data.connections = [...this.connections];
+
+    // [v14.17.0] Layout persistence — gather current UI state
+    data.layout = {
+      viewMode:              document.querySelector('.canvasWrap')?.getAttribute('data-view') || LAYOUT_DEFAULTS.viewMode,
+      splitRatio:            LAYOUT_DEFAULTS.splitRatio,
+      survivalStripExpanded: document.getElementById('survivalExpanded')?.classList.contains('open') || false,
+      actionBarCompact:      document.querySelector('.action-bar')?.classList.contains('compact') || false,
+      colorBy:               ui.colorBy || LAYOUT_DEFAULTS.colorBy,
+      sizeByFlow:            ui.streamSizeBy || LAYOUT_DEFAULTS.sizeByFlow,
+      stickersVisible:       ui.showStickers !== false,
+      planetBgVisible:       SimSettings.showPlanetBg !== false,
+      inspectorOpen:         !(document.getElementById('rightPanel')?.style.display === 'none'),
+      inspectorWidth:        document.getElementById('rightPanel')?.offsetWidth || LAYOUT_DEFAULTS.inspectorWidth,
+      paletteOpen:           document.getElementById('paletteDrawer')?.classList.contains('open') || false,
+    };
+
     return JSON.stringify(data, null, 2);
   }
 
@@ -19229,6 +19274,56 @@ class Scene {
     } else {
       TimeClock._checkpoints = [];
       TimeClock._cpIndex = -1;
+    }
+
+    // [v14.17.0] Layout persistence — apply UI state with defaults + guards
+    {
+      const L = data.layout && typeof data.layout === 'object' ? data.layout : {};
+      const D = LAYOUT_DEFAULTS;
+
+      // viewMode — clamp to allowed values
+      const vm = ['flowsheet','split','3d'].includes(L.viewMode) ? L.viewMode : D.viewMode;
+      const cwrap = document.querySelector('.canvasWrap');
+      if (cwrap) cwrap.setAttribute('data-view', vm);
+      document.querySelectorAll('.vm-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === vm));
+
+      // actionBarCompact
+      const compact = typeof L.actionBarCompact === 'boolean' ? L.actionBarCompact : D.actionBarCompact;
+      const abEl = document.querySelector('.action-bar');
+      const abChev = document.getElementById('barCompactChevron');
+      if (abEl) abEl.classList.toggle('compact', compact);
+      if (abChev) { abChev.textContent = compact ? '\u25B8' : '\u25C2'; abChev.title = compact ? 'Expand toolbar' : 'Collapse toolbar'; }
+
+      // survivalStripExpanded
+      const ssExp = typeof L.survivalStripExpanded === 'boolean' ? L.survivalStripExpanded : D.survivalStripExpanded;
+      const seEl = document.getElementById('survivalExpanded');
+      if (seEl) seEl.classList.toggle('open', ssExp);
+
+      // colorBy — clamp to known values
+      const validColors = ['type','islands','material_electrical','temperature','pressure','phase','composition'];
+      ui.colorBy = validColors.includes(L.colorBy) ? L.colorBy : D.colorBy;
+
+      // sizeByFlow
+      const validSizes = ['none','s','m','l'];
+      ui.streamSizeBy = validSizes.includes(L.sizeByFlow) ? L.sizeByFlow : D.sizeByFlow;
+
+      // stickersVisible
+      ui.showStickers = typeof L.stickersVisible === 'boolean' ? L.stickersVisible : D.stickersVisible;
+      const stickerBtn = document.getElementById('btnStickerLines');
+      if (stickerBtn) stickerBtn.classList.toggle('tbtn-dim', !ui.showStickers);
+
+      // planetBgVisible
+      SimSettings.showPlanetBg = typeof L.planetBgVisible === 'boolean' ? L.planetBgVisible : D.planetBgVisible;
+
+      // inspectorWidth — clamp 200..800
+      const iw = typeof L.inspectorWidth === 'number' ? Math.max(200, Math.min(800, L.inspectorWidth)) : D.inspectorWidth;
+      const rp = document.getElementById('rightPanel');
+      if (rp) rp.style.width = iw + 'px';
+
+      // paletteOpen
+      const palOpen = typeof L.paletteOpen === 'boolean' ? L.paletteOpen : D.paletteOpen;
+      const palEl = document.getElementById('paletteDrawer');
+      if (palEl) palEl.classList.toggle('open', palOpen);
     }
 
     return { ok: true };
