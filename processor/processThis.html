@@ -437,6 +437,12 @@
     prevents multi-depletion across solver convergence iterations.
     dt sourced from SimSettings.dt (not ctx.dt which doesn't exist).
     520 tests, 2802 assertions, 0 failures.
+  Phase 4 — Inspector:
+    UnitInspector.membrane_separator: read-only kpis (target species,
+    extraction %, permeate/retentate flows, consumable gauge with
+    name+remaining+percentage, or "Continuous" label).  Detail section:
+    enthalpy split (H in/perm/ret), pressure, exhaustion status.
+    No params section — composite-internal units are not player-tunable.
 
   ─── v14.9.0 — S6a: Reactor Taxonomy Split ───────────────────────────────────
   Phase 1a — Infrastructure:
@@ -28553,6 +28559,40 @@ UnitInspector.fuel_cell = {
       { label: 'Limiting', value: L.limitingSpecies || '—' },
       { label: 'η', value: `${((L.efficiency || 0) * 100).toFixed(0)}%` }
     ];
+  }
+};
+
+// [v14.10.0 S9] Membrane separator inspector — read-only for composite internals
+UnitInspector.membrane_separator = {
+  kpis(u, ud) {
+    const L = u.last || {};
+    const items = [];
+    // Target species
+    const ts = L.targetSpecies;
+    if (ts) items.push({ label: 'Target', value: Array.isArray(ts) ? ts.join(', ') : ts });
+    items.push({ label: 'Extraction', value: `${((L.extractionFrac ?? 0) * 100).toFixed(0)}%` });
+    if (L.nPerm != null) items.push({ label: 'Permeate', value: fmt.flow(L.nPerm) });
+    if (L.nRet != null)  items.push({ label: 'Retentate', value: fmt.flow(L.nRet) });
+    // Consumable gauge (CO₂ scrubber)
+    const con = u.params?.consumable;
+    if (con) {
+      const pct = con.capacity > 0 ? (con.remaining / con.capacity * 100) : 0;
+      const tone = pct < 20 ? 'warn' : (pct < 5 ? 'bad' : '');
+      items.push({ label: con.name || 'Consumable', value: `${pct.toFixed(0)}%  (${con.remaining.toFixed(1)} mol)`, tone });
+    } else {
+      items.push({ label: 'Mode', value: 'Continuous' });
+    }
+    return items;
+  },
+  detail(u, ud) {
+    const L = u.last || {};
+    const items = [];
+    if (L.H_in_kW)   items.push({ label: 'H in',   value: `${L.H_in_kW}<span class="u">kW</span>` });
+    if (L.H_perm_kW) items.push({ label: 'H perm', value: `${L.H_perm_kW}<span class="u">kW</span>` });
+    if (L.H_ret_kW)  items.push({ label: 'H ret',  value: `${L.H_ret_kW}<span class="u">kW</span>` });
+    if (L.P)         items.push({ label: 'P',       value: fmt.P(L.P) });
+    if (L.consumable_exhausted) items.push({ label: 'Status', value: 'EXHAUSTED — no separation', tone: 'bad' });
+    return items;
   }
 };
 
