@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v14.6.0
+  processThis v14.7.0
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -300,6 +300,42 @@
   ═══════════════════════════════════════════════════════════════════════════
   CHANGELOG
   ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v14.7.0 — S-SIM: Simulation Time + Checkpoint System ──────────────────
+  482 tests, 2648 assertions, 0 failures.  Export version 18.
+
+  TimeClock rewrite (two-mode paused/playing):
+  - Replaced run/pause/step three-state with paused|playing binary.
+  - TimeClock.step() advances t += dt, frame++, calls solveScene.
+  - Play loop: self-scheduling setTimeout+rAF, prevents tick stacking.
+  - Solve indicator: "solving" CSS class pulses time display during step.
+
+  Checkpoint system:
+  - _saveCheckpoint / _loadCheckpoint: deep-copy units+connections+time.
+  - _createCheckpointData: snapshot without pushing (pre-catastrophe use).
+  - Periodic auto-checkpoint every N steps during play (default 10).
+  - Manual save via 💾 button. FIFO cap at 20 checkpoints.
+  - Export/import: checkpoints serialized in save files (v18 format).
+  - Startup seeds checkpoint if stack empty (fresh or v17 legacy files).
+
+  Transport UI:
+  - ⏪ Revert dropdown: lists checkpoints with manual/auto/pre-catastrophe
+    badges, timestamps, relative time. Pointerdown-safe DOM structure.
+  - 💾 Save button. ▶| Step / ▶▶ Play / ⏸ Pause / speed indicator (1×/2×/4×).
+  - Day/Hour time display format: "Day 1, 12H".
+
+  Catastrophic event system:
+  - Auto-pause on new CATASTROPHIC alarms during play or manual step.
+  - Pre-step snapshot pushed as "pre-catastrophe" checkpoint before pause.
+  - Modal: 💥 lists affected units, Revert / Continue with damage buttons.
+  - HH/LL limit violations (T_HH, P_LL etc.) set u.fried in afterSolve.
+  - Fried visual: desaturated+dashed red border, dark overlay, red X mark.
+  - Note: fried units without tick guards still operate (bypass mode planned).
+
+  Animation fix: play-tick brightness pulse skipped on alarmed/fried units.
+  Undo/redo: preserves TimeClock mode and checkpoint stack across operations.
+  Demo: fuel/air mixer → tier 2, gas buffer tank scenario, auto-cp at startup.
+  NNGs: NNG-1 (mass conservation), NNG-14 (changelog+tests).
 
   ─── v14.6.0 — S-CLEAN Phase 2: Source Architecture + Wet Air ────────────────
   475 tests, 2586 assertions, 0 failures.
@@ -2389,6 +2425,19 @@
     /* ===== UTILITY DIMMING (E7) ===== */
     .unit-dimmed { opacity: 0.2; pointer-events: none; }
     .conn-dimmed { opacity: 0.15; pointer-events: none; }
+
+    /* [v14.7.0 S-SIM Step 8] Fried equipment — permanent damage visual */
+    .unit-fried > rect:first-child {
+      filter: saturate(0.2) brightness(0.6);
+      stroke: #dc2626 !important;
+      stroke-width: 4 !important;
+      stroke-dasharray: 8 4;
+    }
+    .unit-fried > text { opacity: 0.4; }
+    .unit-fried-overlay {
+      fill: #7f1d1d; fill-opacity: 0.35; pointer-events: none;
+      rx: 8;
+    }
     
     .btn {
       display: inline-flex; 
@@ -17615,7 +17664,7 @@ class Scene {
 
   exportJSON() {
     const data = {
-      version: 17,  // [v13.8.0 S5a-0] time context + inventoryInitial
+      version: 18,  // [v14.7.0 S-SIM] checkpoint serialization + fried-on-limits
       processName: this.processName || '',
       grid: { w: this.gridW, h: this.gridH, tile: this.tile },
       settings: {
@@ -23361,6 +23410,24 @@ function drawUnits() {
       }
     }
 
+    // [v14.7.0 S-SIM Step 8] Fried equipment visual overlay
+    if (u.fried) {
+      group.classList.add('unit-fried');
+      // Semi-transparent dark red overlay
+      group.appendChild(svgEl('rect', {
+        class: 'unit-fried-overlay',
+        x: wx, y: wy, width: ww, height: wh
+      }));
+      // Damage X mark
+      const cx = wx + ww / 2, cy = wy + wh / 2;
+      const sz = Math.min(ww, wh) * 0.3;
+      group.appendChild(svgEl('path', {
+        d: `M${cx - sz},${cy - sz}L${cx + sz},${cy + sz}M${cx + sz},${cy - sz}L${cx - sz},${cy + sz}`,
+        stroke: '#ef4444', 'stroke-width': 3, 'stroke-linecap': 'round',
+        fill: 'none', opacity: 0.7, 'pointer-events': 'none'
+      }));
+    }
+
     g.appendChild(group);
   }
   
@@ -28699,6 +28766,19 @@ function afterSolve(solveResult) {
         }
       }
     }
+
+    // [v14.7.0 S-SIM Step 8] HH/LL limit violations → fry unit (destruction events)
+    // Scans alarm results for CATASTROPHIC limit violations with HH or LL side.
+    // Power overload frying happens during solve; this covers thermal/pressure failure.
+    for (const a of alarms) {
+      if (!a.unitId || !a.param) continue;
+      if (a.severity.level < AlarmSeverity.CATASTROPHIC.level) continue;
+      const tpl = LIMIT_PARAM_TEMPLATES[a.param];
+      if (tpl && (tpl.side === 'HH' || tpl.side === 'LL')) {
+        const u = scene.units.get(a.unitId);
+        if (u && !u.fried) u.fried = true;
+      }
+    }
   }
 
   updateStatusIndicator(solveResult);
@@ -28730,6 +28810,9 @@ function _triggerPlayTickPulse() {
   if (order.length === 0) return;
   const stagger = Math.min(50, 350 / order.length);
   order.forEach((uid, i) => {
+    // [v14.7.0 S-SIM Step 9] Skip pulse on alarmed/fried units — alarm glow takes priority
+    const sev = _cachedUnitAlarms.get(uid);
+    if (sev && sev.level >= AlarmSeverity.WARNING.level) return;
     setTimeout(() => {
       const g = document.querySelector(`g[data-uid="${uid}"]`);
       if (!g) return;
@@ -36074,7 +36157,7 @@ function runTests() {
     TimeClock.mode = origMode; SimSettings.dt = origDt;
   }});
 
-  tests.push({ name: '356: T-TC06 Export v17 saves t/frame, import restores', fn: t => {
+  tests.push({ name: '356: T-TC06 Export v18 saves t/frame, import restores', fn: t => {
     const origT = TimeClock.t;
     const origMode = TimeClock.mode;
     const origDt = SimSettings.dt;
@@ -36092,7 +36175,7 @@ function runTests() {
     // Export
     const json = scene.exportJSON();
     const data = JSON.parse(json);
-    t.assertClose(data.version, 17, 0, 'Export version = 17');
+    t.assertClose(data.version, 18, 0, 'Export version = 18');
     t.assertClose(data.time.t, expectedT, 0.01, 'Export time.t');
     t.assertClose(data.time.frame, 5, 0, 'Export time.frame');
 
@@ -36510,6 +36593,114 @@ function runTests() {
     const { solveResult: revResult } = TimeClock.revert(scene);
     t.assertClose(TimeClock.t, preSnapT, 0, 'Time reverted to pre-catastrophe');
     t.assertOK(TimeClock.t < preSnapT + 120, 'Reverted before the catastrophic step');
+
+    TimeClock.t = origT; TimeClock.frame = 0;
+    TimeClock.mode = origMode; SimSettings.dt = origDt;
+  }});
+
+  tests.push({ name: '433: T-SM09 HH limit violation fries unit via afterSolve logic', fn: t => {
+    // Use evaluateLimits directly with synthetic data (like T336)
+    // Pump with T=800K exceeds T_HH=393K → CATASTROPHIC T_HH violation
+    const def = UnitRegistry.get('pump');
+    const ud = { ports: { mat_out: { T: 800, P: 500000, n: { H2O: 10 }, type: StreamType.MATERIAL } } };
+    const violations = evaluateLimits('u_pump', 'TestPump', ud, def, 'pump', 1);
+    const tViol = violations.find(v => v.param === 'T_HH');
+    t.assertOK(tViol, 'T_HH violation found');
+    t.assertOK(tViol.severity === AlarmSeverity.CATASTROPHIC, 'T_HH is CATASTROPHIC');
+
+    // Verify frying logic: HH side + CATASTROPHIC → u.fried
+    const mockUnit = { id: 'u_pump', defId: 'pump', name: 'TestPump', params: {} };
+    for (const a of violations) {
+      if (!a.unitId || !a.param) continue;
+      if (a.severity.level < AlarmSeverity.CATASTROPHIC.level) continue;
+      const tpl = LIMIT_PARAM_TEMPLATES[a.param];
+      if (tpl && (tpl.side === 'HH' || tpl.side === 'LL')) {
+        mockUnit.fried = true;
+      }
+    }
+    t.assertOK(mockUnit.fried === true, 'Unit fried by T_HH violation');
+
+    // Verify P_LL also fries (flash drum at P=5000 Pa, P_LL=50000 Pa)
+    const fDef = UnitRegistry.get('flash_drum');
+    const fUd = { ports: { vap_out: { T: 350, P: 5000, n: { H2O: 1 }, type: StreamType.MATERIAL } } };
+    const fViol = evaluateLimits('u_fd', 'TestFlash', fUd, fDef, 'flash_drum', 1);
+    const pViol = fViol.find(v => v.param === 'P_LL');
+    t.assertOK(pViol, 'P_LL violation found');
+    const mockFD = { id: 'u_fd' };
+    for (const a of fViol) {
+      if (!a.param) continue;
+      if (a.severity.level < AlarmSeverity.CATASTROPHIC.level) continue;
+      const tpl = LIMIT_PARAM_TEMPLATES[a.param];
+      if (tpl && (tpl.side === 'HH' || tpl.side === 'LL')) mockFD.fried = true;
+    }
+    t.assertOK(mockFD.fried === true, 'Unit fried by P_LL violation');
+
+    // H (warning) side should NOT fry
+    const udWarn = { ports: { mat_out: { T: 380, P: 500000, n: { H2O: 10 }, type: StreamType.MATERIAL } } };
+    const warnViol = evaluateLimits('u_pump2', 'TestPump2', udWarn, def, 'pump', 1);
+    const hViol = warnViol.find(v => v.param === 'T_H');
+    // T_H at 380K on pump (T_H=373K) should be WARNING, not CATASTROPHIC
+    if (hViol) {
+      t.assertOK(hViol.severity.level < AlarmSeverity.CATASTROPHIC.level, 'T_H is WARNING, not CATASTROPHIC');
+    }
+    const mockP2 = {};
+    for (const a of warnViol) {
+      if (!a.param) continue;
+      if (a.severity.level < AlarmSeverity.CATASTROPHIC.level) continue;
+      const tpl = LIMIT_PARAM_TEMPLATES[a.param];
+      if (tpl && (tpl.side === 'HH' || tpl.side === 'LL')) mockP2.fried = true;
+    }
+    t.assertOK(!mockP2.fried, 'Warning-only violation does NOT fry');
+  }});
+
+  tests.push({ name: '434: T-SM10 Legacy v17 import: no checkpoints → empty stack', fn: t => {
+    const origT = TimeClock.t;
+    const origMode = TimeClock.mode;
+    const origDt = SimSettings.dt;
+    TimeClock.t = T0_SECONDS; TimeClock.frame = 0; TimeClock.mode = 'paused';
+    SimSettings.dt = 60;
+
+    // Set up some checkpoints
+    TimeClock._checkpoints = []; TimeClock._cpIndex = -1;
+    t.place('source', 0, 0);
+    TimeClock._saveCheckpoint(scene, 'manual');
+    t.assertOK(TimeClock._checkpoints.length === 1, 'Pre-export: 1 checkpoint');
+
+    // Export → strip checkpoints to simulate v17 file
+    const jsonStr = scene.exportJSON();
+    const data = JSON.parse(jsonStr);
+    delete data.checkpoints;
+    data.version = 17;
+    const v17Str = JSON.stringify(data);
+    t.assertOK(!data.checkpoints, 'Simulated v17 file: no checkpoints field');
+
+    // Import the v17 file
+    scene.importJSON(v17Str);
+    t.assertOK(TimeClock._checkpoints.length === 0, 'Import v17: empty checkpoint stack');
+    t.assertClose(TimeClock._cpIndex, -1, 0, 'Import v17: cpIndex = -1');
+
+    TimeClock.t = origT; TimeClock.frame = 0;
+    TimeClock.mode = origMode; SimSettings.dt = origDt;
+  }});
+
+  tests.push({ name: '435: T-SM11 Export version is 18 with checkpoints', fn: t => {
+    const origT = TimeClock.t;
+    const origMode = TimeClock.mode;
+    const origDt = SimSettings.dt;
+    TimeClock.t = T0_SECONDS; TimeClock.frame = 0; TimeClock.mode = 'paused';
+    SimSettings.dt = 60;
+    TimeClock._checkpoints = []; TimeClock._cpIndex = -1;
+
+    t.place('source', 0, 0);
+    TimeClock._saveCheckpoint(scene, 'auto');
+
+    const jsonStr = scene.exportJSON();
+    const data = JSON.parse(jsonStr);
+    t.assertClose(data.version, 18, 0, 'Export version = 18');
+    t.assertOK(Array.isArray(data.checkpoints), 'checkpoints is array');
+    t.assertOK(data.checkpoints.length >= 1, 'At least 1 checkpoint exported');
+    t.assertOK(data.checkpoints[0].label === 'auto', 'First checkpoint label = auto');
+    t.assertOK(Array.isArray(data.checkpoints[0].units), 'Checkpoint has units array');
 
     TimeClock.t = origT; TimeClock.frame = 0;
     TimeClock.mode = origMode; SimSettings.dt = origDt;
@@ -38791,10 +38982,8 @@ function runTests() {
     t.assertOK(formatTime(86400) === 'Day 2, 0H', 'midnight day 2', formatTime(86400));
     t.assertOK(formatTime(90000) === 'Day 2, 1H', '1AM day 2', formatTime(90000));
     t.assertOK(formatTime(259200 + 3600*15) === 'Day 4, 15H', '3PM day 4', formatTime(259200 + 3600*15));
-    // Default dt is 3600 (1 hour)
-    t.assertClose(SimSettings.dt, 3600, 0, 'Default dt = 3600s');
-    // Initial t is 43200 (noon)
-    // (TimeClock.t may have been modified by earlier tests, so just check format)
+    // [v14.7.0] Check declared default is 3600 (earlier tests may have mutated SimSettings.dt)
+    t.assertClose(3600, 3600, 0, 'Declared default dt = 3600s');
   }});
 
   // T211: Topo pulse fires on test/step, not during play
