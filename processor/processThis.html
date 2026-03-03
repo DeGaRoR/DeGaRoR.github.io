@@ -426,6 +426,17 @@
     config:{composite:true}.  ProfileRegistry.listByCategory() skips
     composite profiles → never appear in palette.  limitParams restored
     on defId now that profiles provide limits.
+  Phase 3 — Tests (+10, T521–T530):
+    defId registration (521), single-target mass balance (522),
+    multi-target mass balance (523), extraction fraction (524),
+    consumable depletion (525), exhaustion (526), maxRate ceiling (527),
+    consumable WARNING (528), empty feed (529), profile composite
+    exclusion from palette (530).
+    Bug fix: separatorTick dimensional analysis — consumable depletion
+    uses mol (rate × dt), not mol/s.  Snapshot/restore via ctx.scratch
+    prevents multi-depletion across solver convergence iterations.
+    dt sourced from SimSettings.dt (not ctx.dt which doesn't exist).
+    520 tests, 2802 assertions, 0 failures.
 
   ─── v14.9.0 — S6a: Reactor Taxonomy Split ───────────────────────────────────
   Phase 1a — Infrastructure:
@@ -18329,10 +18340,18 @@ function separatorTick(u, ports, par, ctx) {
   let maxCapture = Infinity;  // mol capturable this tick
 
   if (con) {
+    // [NNG-9] Snapshot remaining on first iteration, restore on subsequent.
+    // Prevents multi-depletion across solver convergence passes.
+    const s = ctx ? ctx.scratch : {};
+    if (s._con_pre === undefined) {
+      s._con_pre = con.remaining;   // first iteration: save
+    }
+    con.remaining = s._con_pre;      // always restore from snapshot
+
     if (con.remaining <= 0) {
       frac = 0;  // exhausted — everything permeates
     } else {
-      const dt_hr = ctx.dt / 3600;
+      const dt_hr = SimSettings.dt / 3600;
       maxCapture = Math.min(con.remaining, (con.maxRate ?? Infinity) * dt_hr);
     }
   }
@@ -18340,28 +18359,40 @@ function separatorTick(u, ports, par, ctx) {
   // ── Split feed ──
   const permN = {};
   const retN  = {};
-  let totalCaptured = 0;
+  let totalCaptured_mol = 0;  // mol consumed this tick (for consumable depletion)
+  const dt = SimSettings.dt;  // seconds
 
   for (const [sp, mol] of Object.entries(sIn.n)) {
     if (targets.has(sp) && frac > 0) {
-      let captured = mol * frac;
+      let capturedRate = mol * frac;  // mol/s desired capture rate
       // Rate-limit if consumable active and not yet exhausted
       if (con && con.remaining > 0) {
-        const headroom = maxCapture - totalCaptured;
-        if (captured > headroom) captured = Math.max(0, headroom);
-        totalCaptured += captured;
+        const capturedMol = capturedRate * dt;  // mol this tick at desired rate
+        const headroom = maxCapture - totalCaptured_mol;
+        if (capturedMol > headroom) {
+          // Clamp to headroom, back-calculate rate for output stream
+          const actualMol = Math.max(0, headroom);
+          capturedRate = actualMol / dt;
+          totalCaptured_mol += actualMol;
+        } else {
+          totalCaptured_mol += capturedMol;
+        }
       }
-      retN[sp]  = captured;
-      permN[sp] = mol - captured;   // exact: no floating-point gap
+      retN[sp]  = capturedRate;
+      permN[sp] = mol - capturedRate;   // exact: no floating-point gap
     } else {
       permN[sp] = mol;
       // retN[sp] stays undefined — omitted species = 0
     }
   }
 
-  // ── Decrement consumable ──
-  if (con && totalCaptured > 0) {
-    con.remaining = Math.max(0, con.remaining - totalCaptured);
+  // ── Decrement consumable (in mol, not mol/s) ──
+  // Note: scratch._con_pre is NOT updated here — it preserves the pre-solve
+  // remaining.  Each iteration restores from the same snapshot, depletes the
+  // same amount, and writes the same con.remaining.  The last iteration's
+  // value sticks on u.params.consumable.remaining after solveScene returns.
+  if (con && totalCaptured_mol > 0) {
+    con.remaining = Math.max(0, con.remaining - totalCaptured_mol);
   }
 
   // ── Consumable alarm: WARNING at < 20% ──
@@ -45339,6 +45370,238 @@ function runTests() {
     t.assertOK(vlvOut?.T < 300, `Valve outlet cold: T < 300K (got ${vlvOut?.T?.toFixed(1)}K)`);
 
     thermo.setPackage(idealRaoultPkg);
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // SECTION S9: membrane_separator — separatorTick [v14.10.0]
+  // ═══════════════════════════════════════════════════════════════════════
+
+  test('521: S9 — defId registered with 3 ports', t => {
+    const def = UnitRegistry.get('membrane_separator');
+    t.assertOK(def, 'membrane_separator registered');
+    t.assertOK(def.ports.length === 3, '3 ports');
+    t.assertOK(def.ports.find(p => p.portId === 'mat_in' && p.dir === PortDir.IN), 'mat_in IN');
+    t.assertOK(def.ports.find(p => p.portId === 'perm_out' && p.dir === PortDir.OUT), 'perm_out OUT');
+    t.assertOK(def.ports.find(p => p.portId === 'ret_out' && p.dir === PortDir.OUT), 'ret_out OUT');
+  });
+
+  test('522: S9 — single-target mass balance (kidney: NH₃)', t => {
+    t.clearScene();
+    const src = t.place('source', 0, 0, {
+      n: { N2: 0.78, O2: 0.21, NH3: 0.01 }, T: 310, P: 101325, phaseConstraint: 'V'
+    });
+    const sep = t.place('membrane_separator', 4, 0, {
+      targetSpecies: 'NH3', extractionFrac: 0.99, consumable: null
+    });
+    const snkP = t.place('sink', 8, 0);
+    const snkR = t.place('sink', 8, 2);
+    t.wire(src, 'mat_out', sep, 'mat_in');
+    t.wire(sep, 'perm_out', snkP, 'mat_in');
+    t.wire(sep, 'ret_out', snkR, 'mat_in');
+    t.solve();
+    const perm = t.port(sep, 'perm_out');
+    const ret  = t.port(sep, 'ret_out');
+    // Mass balance: perm + ret = feed for each species
+    t.assertClose((perm.n.N2 || 0) + (ret.n.N2 || 0), 0.78, 1e-10, 'N2 balance');
+    t.assertClose((perm.n.O2 || 0) + (ret.n.O2 || 0), 0.21, 1e-10, 'O2 balance');
+    t.assertClose((perm.n.NH3 || 0) + (ret.n.NH3 || 0), 0.01, 1e-10, 'NH3 balance');
+    // NH3 99% to retentate
+    t.assertClose(ret.n.NH3, 0.01 * 0.99, 1e-6, 'NH3 ret ≈ 99%');
+    // Non-targets 100% to permeate
+    t.assertClose(perm.n.N2, 0.78, 1e-10, 'N2 100% permeate');
+    t.assertClose(perm.n.O2, 0.21, 1e-10, 'O2 100% permeate');
+  });
+
+  test('523: S9 — multi-target mass balance (leaf: 2-target retention)', t => {
+    t.clearScene();
+    // Simulate post-reactor greenhouse stream with registered species.
+    // CH4 stands in for food (CH₂O not yet in ComponentRegistry).
+    const src = t.place('source', 0, 0, {
+      n: { O2: 0.50, CO2: 0.10, CH4: 0.30, NH3: 0.05, H2O: 0.05 },
+      T: 300, P: 101325, phaseConstraint: 'V'
+    });
+    const sep = t.place('membrane_separator', 4, 0, {
+      targetSpecies: ['CH4', 'NH3'], extractionFrac: 0.95, consumable: null
+    });
+    const snkP = t.place('sink', 8, 0);
+    const snkR = t.place('sink', 8, 2);
+    t.wire(src, 'mat_out', sep, 'mat_in');
+    t.wire(sep, 'perm_out', snkP, 'mat_in');
+    t.wire(sep, 'ret_out', snkR, 'mat_in');
+    t.solve();
+    const perm = t.port(sep, 'perm_out');
+    const ret  = t.port(sep, 'ret_out');
+    // Mass balance all species
+    const species = ['O2', 'CO2', 'CH4', 'NH3', 'H2O'];
+    const feed = { O2: 0.50, CO2: 0.10, CH4: 0.30, NH3: 0.05, H2O: 0.05 };
+    for (const sp of species) {
+      t.assertClose((perm.n[sp] || 0) + (ret.n[sp] || 0), feed[sp], 1e-10, `${sp} balance`);
+    }
+    // Targets 95% to retentate
+    t.assertClose(ret.n.CH4, 0.30 * 0.95, 1e-6, 'CH4 ret ≈ 95%');
+    t.assertClose(ret.n.NH3,  0.05 * 0.95, 1e-6, 'NH3 ret ≈ 95%');
+    // Non-targets 100% to permeate
+    t.assertClose(perm.n.O2,  0.50, 1e-10, 'O2 100% permeate');
+    t.assertClose(perm.n.CO2, 0.10, 1e-10, 'CO2 100% permeate');
+    t.assertClose(perm.n.H2O, 0.05, 1e-10, 'H2O 100% permeate');
+  });
+
+  test('524: S9 — extraction fraction accuracy', t => {
+    t.clearScene();
+    const src = t.place('source', 0, 0, {
+      n: { CO2: 1.0, N2: 9.0 }, T: 298, P: 101325, phaseConstraint: 'V'
+    });
+    const sep = t.place('membrane_separator', 4, 0, {
+      targetSpecies: 'CO2', extractionFrac: 0.75, consumable: null
+    });
+    const snkP = t.place('sink', 8, 0);
+    const snkR = t.place('sink', 8, 2);
+    t.wire(src, 'mat_out', sep, 'mat_in');
+    t.wire(sep, 'perm_out', snkP, 'mat_in');
+    t.wire(sep, 'ret_out', snkR, 'mat_in');
+    t.solve();
+    const ret = t.port(sep, 'ret_out');
+    t.assertClose(ret.n.CO2, 0.75, 1e-10, 'CO2 ret = 75% of feed');
+    t.assertClose(ret.n.N2 || 0, 0, 1e-10, 'N2 0% to retentate');
+  });
+
+  test('525: S9 — consumable depletion', t => {
+    t.clearScene();
+    const src = t.place('source', 0, 0, {
+      n: { CO2: 0.001, N2: 0.5 }, T: 298, P: 101325, phaseConstraint: 'V'
+    });
+    const sep = t.place('membrane_separator', 4, 0, {
+      targetSpecies: 'CO2', extractionFrac: 0.99,
+      consumable: { name: 'LiOH', capacity: 100, remaining: 100, maxRate: 1000 }
+    });
+    const snkP = t.place('sink', 8, 0);
+    const snkR = t.place('sink', 8, 2);
+    t.wire(src, 'mat_out', sep, 'mat_in');
+    t.wire(sep, 'perm_out', snkP, 'mat_in');
+    t.wire(sep, 'ret_out', snkR, 'mat_in');
+    t.solve();
+    const con = t.unit(sep).params.consumable;
+    // dt=3600s, captured = 0.001 * 0.99 mol/s → 3.564 mol/tick
+    const expectedDepletion = 0.001 * 0.99 * 3600;
+    t.assertOK(con.remaining < 100, 'remaining decreased');
+    t.assertClose(con.remaining, 100 - expectedDepletion, 0.01, 'depleted by captured moles');
+  });
+
+  test('526: S9 — consumable exhaustion → frac collapses to 0', t => {
+    t.clearScene();
+    const src = t.place('source', 0, 0, {
+      n: { CO2: 1.0, N2: 1.0 }, T: 298, P: 101325, phaseConstraint: 'V'
+    });
+    const sep = t.place('membrane_separator', 4, 0, {
+      targetSpecies: 'CO2', extractionFrac: 0.99,
+      consumable: { name: 'LiOH', capacity: 10, remaining: 0, maxRate: 100 }
+    });
+    const snkP = t.place('sink', 8, 0);
+    const snkR = t.place('sink', 8, 2);
+    t.wire(src, 'mat_out', sep, 'mat_in');
+    t.wire(sep, 'perm_out', snkP, 'mat_in');
+    t.wire(sep, 'ret_out', snkR, 'mat_in');
+    t.solve();
+    const perm = t.port(sep, 'perm_out');
+    const ret  = t.port(sep, 'ret_out');
+    // Exhausted: all CO2 should pass to permeate
+    t.assertClose(perm.n.CO2, 1.0, 1e-10, 'CO2 100% permeate when exhausted');
+    t.assertClose(ret.n.CO2 || 0, 0, 1e-10, 'CO2 0% retentate when exhausted');
+    // N2 still permeates normally
+    t.assertClose(perm.n.N2, 1.0, 1e-10, 'N2 100% permeate');
+  });
+
+  test('527: S9 — consumable maxRate ceiling', t => {
+    t.clearScene();
+    // Feed: 10 mol/s CO2. maxRate: 0.5 mol/hr. dt=3600s.
+    // maxCapture = min(1000, 0.5×1hr) = 0.5 mol/tick.
+    // Desired capture = 9.9 mol/s × 3600 = 35640 mol → clamped.
+    // Actual capture rate = 0.5/3600 mol/s ≈ 1.39e-4.
+    const src = t.place('source', 0, 0, {
+      n: { CO2: 10.0, N2: 1.0 }, T: 298, P: 101325, phaseConstraint: 'V'
+    });
+    const sep = t.place('membrane_separator', 4, 0, {
+      targetSpecies: 'CO2', extractionFrac: 0.99,
+      consumable: { name: 'LiOH', capacity: 1000, remaining: 1000, maxRate: 0.5 }
+    });
+    const snkP = t.place('sink', 8, 0);
+    const snkR = t.place('sink', 8, 2);
+    t.wire(src, 'mat_out', sep, 'mat_in');
+    t.wire(sep, 'perm_out', snkP, 'mat_in');
+    t.wire(sep, 'ret_out', snkR, 'mat_in');
+    t.solve();
+    const ret = t.port(sep, 'ret_out');
+    const cappedRate = 0.5 / 3600; // mol/s — maxRate converted to rate
+    // Capture should be capped at maxRate, not 10 * 0.99
+    t.assertClose(ret.n.CO2, cappedRate, 1e-6, 'CO2 captured capped at maxRate');
+    // Mass balance still holds
+    const perm = t.port(sep, 'perm_out');
+    t.assertClose((perm.n.CO2 || 0) + (ret.n.CO2 || 0), 10.0, 1e-6, 'CO2 total conserved');
+  });
+
+  test('528: S9 — consumable WARNING at < 20%', t => {
+    t.clearScene();
+    const src = t.place('source', 0, 0, {
+      n: { CO2: 0.001, N2: 1.0 }, T: 298, P: 101325, phaseConstraint: 'V'
+    });
+    const sep = t.place('membrane_separator', 4, 0, {
+      targetSpecies: 'CO2', extractionFrac: 0.99,
+      consumable: { name: 'LiOH Cartridges', capacity: 100, remaining: 15, maxRate: 100 }
+    });
+    const snkP = t.place('sink', 8, 0);
+    const snkR = t.place('sink', 8, 2);
+    t.wire(src, 'mat_out', sep, 'mat_in');
+    t.wire(sep, 'perm_out', snkP, 'mat_in');
+    t.wire(sep, 'ret_out', snkR, 'mat_in');
+    t.solve();
+    const L = t.last(sep);
+    t.assertOK(L.error, 'error object present');
+    t.assertOK(L.error?.severity === ErrorSeverity.MINOR, 'severity = MINOR (WARNING)');
+    t.assertOK(L.error?.message?.includes('LiOH'), 'message contains consumable name');
+  });
+
+  test('529: S9 — empty feed → empty outlets, no NaN', t => {
+    t.clearScene();
+    const src = t.place('source', 0, 0, {
+      n: {}, T: 298, P: 101325, phaseConstraint: 'V'
+    });
+    const sep = t.place('membrane_separator', 4, 0, {
+      targetSpecies: 'CO2', extractionFrac: 0.99, consumable: null
+    });
+    const snkP = t.place('sink', 8, 0);
+    const snkR = t.place('sink', 8, 2);
+    t.wire(src, 'mat_out', sep, 'mat_in');
+    t.wire(sep, 'perm_out', snkP, 'mat_in');
+    t.wire(sep, 'ret_out', snkR, 'mat_in');
+    t.solve();
+    const perm = t.port(sep, 'perm_out');
+    const ret  = t.port(sep, 'ret_out');
+    t.assertOK(perm, 'perm_out exists');
+    t.assertOK(ret, 'ret_out exists');
+    const permTotal = Object.values(perm.n || {}).reduce((a, b) => a + b, 0);
+    const retTotal  = Object.values(ret.n || {}).reduce((a, b) => a + b, 0);
+    t.assertClose(permTotal, 0, 1e-15, 'perm total = 0');
+    t.assertClose(retTotal,  0, 1e-15, 'ret total = 0');
+    // No NaN in any field
+    t.assertOK(!isNaN(perm.T) && !isNaN(perm.P), 'perm T,P not NaN');
+    t.assertOK(!isNaN(ret.T) && !isNaN(ret.P), 'ret T,P not NaN');
+  });
+
+  test('530: S9 — profiles: composite flag excludes from palette', t => {
+    const kidney = ProfileRegistry.get('membrane_kidney');
+    const leaf   = ProfileRegistry.get('membrane_leaf');
+    const scrub  = ProfileRegistry.get('co2_scrubber');
+    t.assertOK(kidney, 'membrane_kidney exists');
+    t.assertOK(leaf,   'membrane_leaf exists');
+    t.assertOK(scrub,  'co2_scrubber exists');
+    t.assertOK(kidney.config?.composite === true, 'kidney composite=true');
+    t.assertOK(leaf.config?.composite === true,   'leaf composite=true');
+    t.assertOK(scrub.config?.composite === true,  'scrubber composite=true');
+    // listByCategory should NOT contain any membrane_separator profiles
+    const byCategory = ProfileRegistry.listByCategory();
+    const allProfiles = Object.values(byCategory).flat();
+    const memProfiles = allProfiles.filter(p => p.defId === 'membrane_separator');
+    t.assertOK(memProfiles.length === 0, 'No membrane profiles in palette listing');
   });
 
   // ═══════════════════════════════════════════════════════════════════════
