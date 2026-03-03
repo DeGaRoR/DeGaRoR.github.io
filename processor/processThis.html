@@ -465,7 +465,20 @@
     name+remaining+percentage, or "Continuous" label).  Detail section:
     enthalpy split (H in/perm/ret), pressure, exhaustion status.
     No params section — composite-internal units are not player-tunable.
-  v14.10.1 — Mouse tracking fix after window resize:
+  v14.10.2 — Survival strip merged into info-bar:
+    Eliminated standalone Zone B survival-strip.  Atmospheric readout
+    (planet, T, P, composition) now lives in .info-bar-center between
+    info-bar-left and info-bar-right.  No separate capsule background
+    — content floats as subtle inline text, inheriting info-bar's flex
+    layout.  flex:0 1 auto with overflow:hidden lets browser flex algo
+    decide what fits, eliminating janky high-threshold pixel breakpoints.
+    ResizeObserver now targets info-bar-center itself (not canvasWrap),
+    with thresholds at 350/200/120px matching actual content width.
+    Removed cb-life placeholder section (Room/H₂O/O₂/NH₃/⚡ at 25%
+    opacity) — deferred until life-support system is implemented.
+    --zone-b-h variable removed; --zones-ab-h = --zone-a-h.  Panels
+    (palette, right) start 32px higher.  Expanded overlay repositioned
+    as centered dropdown below info-bar.  No physics changes.
     screenToWorld() rewritten to use svg.getScreenCTM().inverse() — the
     canonical SVG coordinate transform.  Old code assumed viewBox filled
     the entire SVG bounding rect, which broke whenever preserveAspectRatio
@@ -2206,8 +2219,7 @@
     :root {
       color-scheme: dark;
       --zone-a-h: 58px;   /* info-bar: top:10px + ~48px capsule height */
-      --zone-b-h: 32px;   /* survival-strip height */
-      --zones-ab-h: calc(var(--zone-a-h) + var(--zone-b-h)); /* 90px — panels clear below */
+      --zones-ab-h: var(--zone-a-h); /* [v14.10.2] Zone B merged into A */
     }
     * { box-sizing: border-box; }
 
@@ -2319,7 +2331,7 @@
       z-index: 25;
       display: flex; 
       align-items: center;
-      justify-content: space-between;
+      gap: 8px;
       pointer-events: none;
     }
     .info-bar > * { pointer-events: auto; }
@@ -2333,12 +2345,15 @@
       border-radius: 14px; 
       padding: 5px 10px 5px 5px;
       backdrop-filter: blur(10px);
+      flex-shrink: 0;
     }
 
     .info-bar-right {
       display: flex;
       align-items: center;
       pointer-events: auto;
+      flex-shrink: 0;
+      margin-left: auto;
     }
 
     /* ===== ADD BUTTON (left, in group) ===== */
@@ -2390,94 +2405,82 @@
       background: transparent;
     }
 
-    /* ===== SURVIVAL STRIP (full-width, atmospheric + life-support readout) [v14.3.0] ===== */
-    .survival-strip {
-      position: absolute;
-      top: var(--zone-a-h);
-      left: 10px; right: 10px;
-      z-index: 6;
+    /* ===== INFO-BAR CENTER (atmospheric readout, inline in top bar) [v14.10.2] ===== */
+    .info-bar-center {
       display: flex;
-      gap: 14px;
+      gap: 8px;
       align-items: center;
-      background: #0b0e14cc;
-      border: 1px solid #2a2f3a;
-      border-radius: 14px;
-      padding: 5px 14px;
-      backdrop-filter: blur(10px);
       font-size: 11px;
       font-weight: 500;
       color: #94a3b8;
       white-space: nowrap;
-      pointer-events: none;
+      overflow: hidden;
+      pointer-events: auto;
       user-select: none;
-      transition: opacity 0.2s;
+      flex: 0 1 auto;
+      min-width: 0;
     }
-    .survival-strip .cb-planet {
+    .info-bar-center .cb-planet {
       display: flex;
-      gap: 8px;
+      gap: 6px;
       align-items: center;
       color: #e2e8f0;
-      pointer-events: auto;
       cursor: pointer;
-      border-radius: 8px;
-      padding: 2px 6px;
-      margin: -2px -6px;
+      border-radius: 6px;
+      padding: 2px 5px;
+      margin: -2px -5px;
       transition: background 0.15s;
+      min-width: 0;
     }
-    .survival-strip .cb-planet:hover {
+    .info-bar-center .cb-planet:hover {
       background: #1b223066;
     }
-    .survival-strip .cb-planet .cb-name {
+    .info-bar-center .cb-planet .cb-name {
       font-weight: 700;
       letter-spacing: 0.03em;
     }
-    .survival-strip .u { opacity: 0.5; font-size: 10px; margin-left: 1px; font-weight: 400; }
-    .survival-strip .cb-sep {
+    .info-bar-center .u { opacity: 0.5; font-size: 10px; margin-left: 1px; font-weight: 400; }
+    .info-bar-center .cb-sep {
       width: 1px;
-      height: 14px;
+      height: 12px;
       background: #2a2f3a;
       flex-shrink: 0;
     }
-    .survival-strip .cb-life {
-      display: flex;
-      gap: 10px;
-      align-items: center;
-      opacity: 0.25;
-    }
-    .survival-strip .cb-val { font-variant-numeric: tabular-nums; }
+    .info-bar-center .cb-val { font-variant-numeric: tabular-nums; }
 
-    /* Survival strip: chevron expand/collapse button */
-    .survival-strip .ss-chevron {
+    /* Info-bar center: chevron expand/collapse */
+    .info-bar-center .ss-chevron {
       pointer-events: auto;
       cursor: pointer;
       background: none;
       border: 1px solid transparent;
       border-radius: 4px;
       color: #64748b;
-      font-size: 10px;
-      padding: 2px 4px;
-      margin-left: auto;
+      font-size: 9px;
+      padding: 1px 3px;
       flex-shrink: 0;
       transition: color 0.15s, transform 0.2s, border-color 0.15s;
     }
-    .survival-strip .ss-chevron:hover {
+    .info-bar-center .ss-chevron:hover {
       color: #94a3b8;
       border-color: #334155;
     }
-    .survival-strip.expanded .ss-chevron {
+    .info-bar-center.expanded .ss-chevron {
       transform: rotate(180deg);
     }
 
-    /* Survival strip: expanded overlay panel */
+    /* Survival expanded overlay — drops below info bar */
     .survival-expanded {
       position: absolute;
-      top: calc(var(--zone-a-h) + var(--zone-b-h) - 2px);
-      left: 10px; right: 10px;
-      z-index: 7;
-      background: #0b0e14dd;
+      top: calc(var(--zone-a-h) - 2px);
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 26;
+      max-width: 600px;
+      width: calc(100% - 80px);
+      background: #0b0e14ee;
       border: 1px solid #2a2f3a;
-      border-top: none;
-      border-radius: 0 0 14px 14px;
+      border-radius: 12px;
       padding: 8px 14px 10px;
       backdrop-filter: blur(12px);
       font-size: 11px;
@@ -2510,17 +2513,14 @@
       color: #475569;
     }
 
-    /* Survival strip: responsive truncation */
-    .survival-strip[data-bp="3"] .cb-life,
-    .survival-strip[data-bp="3"] .ss-comp { display: none; }
-    .survival-strip[data-bp="2"] .cb-life,
-    .survival-strip[data-bp="2"] .ss-comp,
-    .survival-strip[data-bp="2"] .ss-pressure { display: none; }
-    .survival-strip[data-bp="1"] .cb-life,
-    .survival-strip[data-bp="1"] .ss-comp,
-    .survival-strip[data-bp="1"] .ss-pressure,
-    .survival-strip[data-bp="1"] .ss-temp,
-    .survival-strip[data-bp="1"] .cb-sep { display: none; }
+    /* Info-bar center: responsive truncation (measured on center section itself) */
+    .info-bar-center[data-bp="3"] .ss-comp { display: none; }
+    .info-bar-center[data-bp="2"] .ss-comp,
+    .info-bar-center[data-bp="2"] .ss-pressure { display: none; }
+    .info-bar-center[data-bp="1"] .ss-comp,
+    .info-bar-center[data-bp="1"] .ss-pressure,
+    .info-bar-center[data-bp="1"] .ss-temp,
+    .info-bar-center[data-bp="1"] .cb-sep { display: none; }
 
     /* ===== FLOATING ACTION BAR (bottom-center of canvas) ===== */
     .action-bar {
@@ -7496,6 +7496,13 @@
       <input type="text" id="processNameInput" placeholder="Process name…" spellcheck="false" autocomplete="off">
       </div>
 
+      <!-- [v14.10.2] Atmospheric readout, inline in info-bar -->
+      <div class="info-bar-center" id="survivalStrip">
+        <div class="cb-planet" id="cbPlanet"></div>
+        <div class="cb-sep"></div>
+        <button class="ss-chevron" id="ssChevron" title="Expand atmosphere details">▼</button>
+      </div>
+
       <!-- Diagnostic Light Indicators [v10.3.1] -->
       <div class="info-bar-right">
         <div id="diagnosticLights" class="diagnostic-lights" style="display:none;">
@@ -7515,20 +7522,7 @@
       </div>
     </div>
 
-    <!-- [v14.3.0] Survival strip (full-width atmospheric + life-support readout) -->
-    <div class="survival-strip" id="survivalStrip">
-      <div class="cb-planet" id="cbPlanet"></div>
-      <div class="cb-sep"></div>
-      <div class="cb-life" id="cbLife">
-        <span>Room —</span>
-        <span>H₂O —</span>
-        <span>O₂ —</span>
-        <span>NH₃ —</span>
-        <span>⚡ —</span>
-      </div>
-      <button class="ss-chevron" id="ssChevron" title="Expand survival strip">▼</button>
-    </div>
-    <!-- [v14.10.0] Survival strip expanded overlay -->
+    <!-- [v14.10.2] Survival expanded overlay (drops below info-bar) -->
     <div class="survival-expanded" id="survivalExpanded">
       <div class="se-row" id="seAtmosphere">
         <span class="se-label">Atmosphere</span>
@@ -19560,7 +19554,9 @@ class Scene {
       // survivalStripExpanded
       const ssExp = typeof L.survivalStripExpanded === 'boolean' ? L.survivalStripExpanded : D.survivalStripExpanded;
       const seEl = document.getElementById('survivalExpanded');
+      const ssCenterEl = document.getElementById('survivalStrip');
       if (seEl) seEl.classList.toggle('open', ssExp);
+      if (ssCenterEl) ssCenterEl.classList.toggle('expanded', ssExp);
 
       // colorBy — clamp to known values
       const validColors = ['type','islands','material_electrical','temperature','pressure','phase','composition'];
@@ -30531,18 +30527,19 @@ function updateSurvivalStrip() {
     });
   }
 
-  // Task 2.12: ResizeObserver for responsive truncation breakpoints
-  const _canvasWrap = document.querySelector('.canvasWrap');
-  if (_canvasWrap && _ssStrip) {
+  // [v14.10.2] ResizeObserver for responsive truncation — targets info-bar-center
+  // Measures actual available space, not canvas width.  Lower thresholds because
+  // the center section is squeezed between left (~260px) and right (~140px).
+  if (_ssStrip) {
     const _ssResizeObs = new ResizeObserver((entries) => {
       const w = entries[0].contentRect.width;
-      let bp = '4'; // full: everything visible
-      if (w < 640)       bp = '1'; // emoji + name only
-      else if (w < 800)  bp = '2'; // planet + T only
-      else if (w < 1000) bp = '3'; // planet + T + P, no composition
+      let bp = '4'; // full: planet + T + P + composition
+      if (w < 120)       bp = '1'; // planet name + chevron only
+      else if (w < 200)  bp = '2'; // planet + T
+      else if (w < 350)  bp = '3'; // planet + T + P, no composition
       _ssStrip.setAttribute('data-bp', bp);
     });
-    _ssResizeObs.observe(_canvasWrap);
+    _ssResizeObs.observe(_ssStrip);
   }
 }
 
