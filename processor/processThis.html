@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v14.14.0
+  processThis v14.15.0
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -300,6 +300,18 @@
   CHANGELOG
   ═══════════════════════════════════════════════════════════════════════════
 
+
+  ─── v14.15.0 — S-HUD Session 6: View Mode Buttons + View Containers ─────────
+  View mode toggle [F][S][3D] in Zone A info-bar-right, after diagnostic lights.
+    HTML: .view-mode-btns group with 3 .vm-btn buttons (vmFlowsheet active,
+    vmSplit + vm3D disabled with "Coming soon (S-3D)" tooltip).
+    CSS: .vm-btn joined button-group, .active blue highlight, :disabled 35%.
+    View containers: SVG wrapped in .view-flowsheet div inside .canvasWrap.
+    Empty .view-3d#view3D div added after. CSS data-view attr on .canvasWrap
+    controls visibility for flowsheet/split/3d modes.
+    JS: _setViewMode() updates active class + data-view. Keyboard 1/2/3 with
+    input/modal guard. Pre-3D: only F enabled; S and 3D ready for S-3D.
+  No physics changes. NNG-12, NNG-14.
   ─── v14.14.0 — S-HUD Session 5: Action Bar Responsive Overflow ──────────────
   Responsive overflow: clusters reparented into popover at narrow widths.
     HTML: .bar-c3 and .bar-c45 sub-wrappers (display:contents) inside .bar-tools
@@ -2954,6 +2966,50 @@
       line-height: 1; transition: color 0.15s;
     }
     .tl-gear:hover { color: #e2e8f0; }
+
+    /* ===== VIEW MODE BUTTONS [F][S][3D] in Zone A ===== */
+    .view-mode-btns {
+      display: flex;
+      gap: 2px;
+      align-items: center;
+    }
+    .vm-btn {
+      background: #1c222e;
+      color: #64748b;
+      border: 1px solid #2a2f3a;
+      border-radius: 0;
+      padding: 4px 8px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      cursor: pointer;
+      min-height: 24px;
+      line-height: 1;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .vm-btn:first-child { border-radius: 6px 0 0 6px; }
+    .vm-btn:last-child  { border-radius: 0 6px 6px 0; }
+    .vm-btn:hover:not(:disabled) { background: #283040; color: #e2e8f0; }
+    .vm-btn.active {
+      background: #1e3a5f;
+      color: #60a5fa;
+      border-color: #3b82f6;
+    }
+    .vm-btn:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+    /* View area containers */
+    .view-flowsheet { display: block; width: 100%; height: 100%; }
+    .view-3d {
+      display: none;
+      width: 100%; height: 100%;
+      background: #080a10;
+    }
+    .canvasWrap[data-view="split"] .view-flowsheet { width: 50%; }
+    .canvasWrap[data-view="split"] .view-3d { display: block; width: 50%; }
+    .canvasWrap[data-view="3d"] .view-flowsheet { display: none; }
+    .canvasWrap[data-view="3d"] .view-3d { display: block; }
     
     .pill { 
       padding: 2px 8px; 
@@ -7335,6 +7391,12 @@
           <span class="tl-msg" id="tlMsg"></span>
           <button class="tl-gear" id="tlGear" title="Open Solver…">⚙</button>
         </div>
+        <div class="tl-sep"></div>
+        <div class="view-mode-btns" id="viewModeBtns">
+          <button class="vm-btn active" id="vmFlowsheet" data-mode="flowsheet" title="Flowsheet [1]">F</button>
+          <button class="vm-btn" id="vmSplit" data-mode="split" title="Coming soon (S-3D)" disabled>S</button>
+          <button class="vm-btn" id="vm3D" data-mode="3d" title="Coming soon (S-3D)" disabled>3D</button>
+        </div>
       </div>
     </div>
 
@@ -7595,6 +7657,7 @@
       white-space:pre-line;max-width:200px;line-height:1.5;"></div>
 
     <!-- Main SVG canvas -->
+    <div class="view-flowsheet">
     <svg id="svg" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" aria-label="process grid">
       <defs>
         <!-- [v10.1.0] Hover brightness filter (E2) -->
@@ -7906,6 +7969,8 @@
         </symbol>
       </defs>
     </svg>
+    </div><!-- /view-flowsheet -->
+    <div class="view-3d" id="view3D"></div>
   </div>
 
   <!-- Right panel for properties and unit library -->
@@ -30382,6 +30447,35 @@ document.getElementById('btnResetView').addEventListener('click', () => resetVie
     });
     _barResizeObs.observe(_barEl);
   }
+}
+
+// [v14.15.0] View mode selector [F][S][3D] in Zone A
+{
+  const _vmBtns = document.querySelectorAll('.vm-btn');
+  const _cwrap = document.querySelector('.canvasWrap');
+  let _viewMode = 'flowsheet';
+
+  function _setViewMode(mode) {
+    if (mode === _viewMode) return;
+    const btn = document.querySelector('.vm-btn[data-mode="' + mode + '"]');
+    if (!btn || btn.disabled) return;
+    _viewMode = mode;
+    _vmBtns.forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+    if (_cwrap) _cwrap.setAttribute('data-view', mode);
+  }
+
+  _vmBtns.forEach(b => {
+    b.addEventListener('click', () => _setViewMode(b.dataset.mode));
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.target.matches('input, textarea, select, [contenteditable]')) return;
+    if (document.querySelector('.modal.open')) return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.key === '1') _setViewMode('flowsheet');
+    else if (e.key === '2') _setViewMode('split');
+    else if (e.key === '3') _setViewMode('3d');
+  });
 }
 
 const btnStickerLines = document.getElementById('btnStickerLines');
