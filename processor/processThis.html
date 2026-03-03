@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v14.11.0
+  processThis v14.12.0
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -299,6 +299,18 @@
   ═══════════════════════════════════════════════════════════════════════════
   CHANGELOG
   ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v14.12.0 — S-HUD Session 3: Action Bar Reorder ──────────────────────────
+  Action bar: 5 explicit clusters with .bar-sep separators.
+    C1 Transport (step/play/pause + time + speed) | C2 Checkpoint (revert/save,
+    extracted from .transport div into own .btn-cluster) | C3 Zoom | C4
+    Visibility (stickers + planetBg) | C5 Visual mapping.
+  .bar-sep CSS: 1px × 14px vertical separator, matches existing .cb-sep style.
+  btnUtilities removed: HTML element, JS handler (30-line click handler with
+    deselection logic), all references. ui.showUtilities default (true) and
+    render dimming logic retained as dead code — harmless, removable later.
+    "Color by: Material / Electrical" mode provides sufficient visual separation.
+  No physics changes. NNG-12, NNG-14.
 
   ─── v14.11.0 — S-HUD Session 2: Survival Strip Expand/Collapse ─────────────
   Survival strip expand/collapse + responsive truncation.
@@ -2388,6 +2400,14 @@
       border-radius: 14px;
       padding: 8px 10px;
       backdrop-filter: blur(10px);
+    }
+
+    /* ===== CLUSTER SEPARATORS (thin vertical divider between action bar groups) ===== */
+    .bar-sep {
+      width: 1px;
+      height: 14px;
+      background: #2a2f3a;
+      flex-shrink: 0;
     }
 
     /* ===== BUTTON CLUSTER (joined-button group, used by all action bar groups) ===== */
@@ -7251,34 +7271,45 @@
 
     <!-- Action bar (floating, bottom-center of canvas) -->
     <div class="action-bar">
-      <!-- Transport controls [v14.7.0 S-SIM] -->
+      <!-- C1: Transport [v14.7.0 S-SIM] -->
       <div class="transport">
         <button class="tbtn" id="btnStep" data-tip="Step (advance 1 timestep)">▶|</button>
         <button class="tbtn" id="btnPlay" data-tip="Play (auto-step)">▶</button>
         <button class="tbtn" id="btnPause" data-tip="Pause" disabled>⏸</button>
+      </div>
+      <span class="time-display" id="timeDisplay" style="cursor:pointer;" title="Click to open settings"></span>
+      <span class="speed-indicator" id="speedIndicator" title="Normal (5s)">▶</span>
+
+      <div class="bar-sep"></div>
+
+      <!-- C2: Checkpoint -->
+      <div class="btn-cluster">
         <div class="vis-menu-anchor" style="display:inline-flex;">
           <button class="tbtn" id="btnRevert" data-tip="Revert to checkpoint">⏪</button>
           <div class="vis-menu" id="menuRevert"></div>
         </div>
         <button class="tbtn" id="btnSave" data-tip="Save checkpoint">💾</button>
       </div>
-      <span class="time-display" id="timeDisplay" style="cursor:pointer;" title="Click to open settings"></span>
-      <span class="speed-indicator" id="speedIndicator" title="Normal (5s)">▶</span>
 
-      <!-- Zoom cluster -->
+      <div class="bar-sep"></div>
+
+      <!-- C3: Zoom -->
       <div class="btn-cluster">
         <button class="tbtn" id="btnFit" data-tip="Fit all units"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 5V1h4M11 1h4v4M15 11v4h-4M5 15H1v-4"/></svg></button>
         <button class="tbtn" id="btnResetView" data-tip="Reset view"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="1.5" fill="currentColor" stroke="none"/><path d="M2 5V2h3"/><path d="M11 2h3v3"/><path d="M14 11v3h-3"/><path d="M5 14H2v-3"/></svg></button>
       </div>
 
-      <!-- Visibility cluster -->
+      <div class="bar-sep"></div>
+
+      <!-- C4: Visibility (utilities toggle removed v14.12.0) -->
       <div class="btn-cluster">
-        <button class="tbtn tbtn-emoji" id="btnUtilities" data-tip="Show/hide utilities">⚡</button>
         <button class="tbtn tbtn-emoji" id="btnStickerLines" data-tip="Show/hide stickers">📌</button>
         <button class="tbtn tbtn-emoji tbtn-dim" id="btnPlanetBg" data-tip="Planet background">🌍</button>
       </div>
 
-      <!-- Visual mapping cluster -->
+      <div class="bar-sep"></div>
+
+      <!-- C5: Visual mapping -->
       <div class="btn-cluster">
         <button class="tbtn vis-menu-anchor tbtn-label" id="btnColor" data-tip="Color by…">
           <span id="btnColorLabel">Type</span>
@@ -30168,41 +30199,6 @@ speedIndicatorEl.addEventListener('click', () => {
 // [v10.1.0] Zoom controls (E1)
 document.getElementById('btnFit').addEventListener('click', () => fitView());
 document.getElementById('btnResetView').addEventListener('click', () => resetView());
-
-// [v10.1.1] Utilities toggle (E7)
-const btnUtilities = document.getElementById('btnUtilities');
-btnUtilities.addEventListener('click', () => {
-  ui.showUtilities = !ui.showUtilities;
-  btnUtilities.classList.toggle('tbtn-dim', !ui.showUtilities);
-  // Deselect if current selection is a dimmed utility
-  if (!ui.showUtilities) {
-    if (ui.selectedUnitId) {
-      const u = scene.units.get(ui.selectedUnitId);
-      if (u) {
-        const def = UnitRegistry.get(u.defId);
-        if (def.category === UnitCategories.POWER.name) {
-          ui.selectedUnitId = null;
-          updatePropertiesPanel();
-        }
-      }
-    }
-    if (ui.selectedConnId) {
-      const conn = scene.connections.find(c => c.id === ui.selectedConnId);
-      if (conn) {
-        const fU = scene.units.get(conn.from.unitId);
-        const tU = scene.units.get(conn.to.unitId);
-        const fDef = fU ? UnitRegistry.get(fU.defId) : null;
-        const tDef = tU ? UnitRegistry.get(tU.defId) : null;
-        const _isU = d => d && d.category === UnitCategories.POWER.name;
-        if (_isU(fDef) || _isU(tDef)) {
-          ui.selectedConnId = null;
-          updatePropertiesPanel();
-        }
-      }
-    }
-  }
-  render();
-});
 
 // [v10.7.0] Sticker toggle — show/hide all stickers
 const btnStickerLines = document.getElementById('btnStickerLines');
