@@ -420,6 +420,12 @@
   Profiles deferred to Phase 2.  No limits on defId — all limits on
   profiles (multi-profile defId pattern per tank).  NNG-1, NNG-3,
   NNG-9, NNG-10, NNG-14.
+  Phase 2 — Profiles + palette exclusion:
+    3 profiles: membrane_kidney (NH₃, 0.99), membrane_leaf ([CH₂O,NH₃],
+    0.95), co2_scrubber (CO₂, 0.99, LiOH 268 mol).  All carry
+    config:{composite:true}.  ProfileRegistry.listByCategory() skips
+    composite profiles → never appear in palette.  limitParams restored
+    on defId now that profiles provide limits.
 
   ─── v14.9.0 — S6a: Reactor Taxonomy Split ───────────────────────────────────
   Phase 1a — Infrastructure:
@@ -13847,6 +13853,8 @@ class ProfileRegistry {
     for (const p of this._profiles.values()) {
       // Skip if lowest available tier exceeds filter
       if (Math.min(...p.tiers) > tierFilter) continue;
+      // [v14.10.0] Skip composite-internal profiles (never in palette)
+      if (p.config?.composite) continue;
       const cat = typeof p.category === 'string' ? p.category : (p.category?.name || 'Other');
       if (!byCategory[cat]) {
         byCategory[cat] = [];
@@ -18428,7 +18436,7 @@ UnitRegistry.register('membrane_separator', {
       mat_in: { x: 0, y: 1 }, perm_out: { x: 2, y: 0 }, ret_out: { x: 2, y: 2 }
     }}
   },
-  limitParams: [],  // [v14.10.0] Limits live on profiles (Phase 2) — multi-profile defId pattern
+  limitParams: ['T_LL', 'T_HH', 'P_HH', 'mass_HH'],
   inventory: false,
   tick: separatorTick
 });
@@ -18647,6 +18655,30 @@ ProfileRegistry.register('fuel_cell', {
   defId: 'fuel_cell', name: 'Fuel Cell', category: UnitCategories.REACTOR, tiers: [1],
   limits: { 1: { T_LL: 293, T_L: 323, T_H: 473, T_HH: 523, P_LL: 50000, P_HH: 5000000, mass_HH: 0.05 } },
   defaults: { reactionId: 'R_H2_FUELCELL', efficiency: 0.60, conversion_max: 0.80, UA: 500 }
+});
+
+// ── [v14.10.0 S9] membrane_separator profiles — composite-internal, never in palette ──
+ProfileRegistry.register('membrane_kidney', {
+  defId: 'membrane_separator', name: 'Kidney', category: UnitCategories.SEPARATION,
+  tiers: [1],
+  limits: { 1: { T_LL: 300, T_HH: 320, P_HH: 300000, mass_HH: 0.01 } },
+  defaults: { 1: { targetSpecies: 'NH3', extractionFrac: 0.99, consumable: null } },
+  config: { composite: true }
+});
+ProfileRegistry.register('membrane_leaf', {
+  defId: 'membrane_separator', name: 'Leaf', category: UnitCategories.SEPARATION,
+  tiers: [1],
+  limits: { 1: { T_LL: 270, T_HH: 340, P_HH: 500000, mass_HH: 0.05 } },
+  defaults: { 1: { targetSpecies: ['CH2O', 'NH3'], extractionFrac: 0.95, consumable: null } },
+  config: { composite: true }
+});
+ProfileRegistry.register('co2_scrubber', {
+  defId: 'membrane_separator', name: 'CO\u2082 Scrubber', category: UnitCategories.SEPARATION,
+  tiers: [1],
+  limits: { 1: { T_LL: 220, T_HH: 470, P_HH: 1000000, mass_HH: 0.05 } },
+  defaults: { 1: { targetSpecies: 'CO2', extractionFrac: 0.99,
+    consumable: { name: 'LiOH Cartridges', capacity: 268, remaining: 268, maxRate: 5.0 } } },
+  config: { composite: true }
 });
 
 
