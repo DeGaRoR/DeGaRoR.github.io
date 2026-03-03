@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v14.12.0
+  processThis v14.13.0
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -299,6 +299,18 @@
   ═══════════════════════════════════════════════════════════════════════════
   CHANGELOG
   ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v14.13.0 — S-HUD Session 4: Action Bar Compact Mode ─────────────────────
+  Collapse chevron at right end of action bar toggles compact mode.
+    CSS: .bar-tools wrapper uses display:contents (transparent in flex layout);
+    .action-bar.compact .bar-tools { display:none } hides C3-C5 (zoom,
+    visibility, visual mapping) and their separators in one rule.
+    .bar-compact-chevron styled to match ss-chevron aesthetic.
+    HTML: C3-C5 + their separators wrapped in <div class="bar-tools">.
+    Chevron button #barCompactChevron added as last child of .action-bar.
+    JS: block-scoped toggle flips .compact class, swaps icon (◂/▸) and title.
+    _actionBarCompact state variable for future persistence (Session 8).
+  No physics changes. NNG-12, NNG-14.
 
   ─── v14.12.0 — S-HUD Session 3: Action Bar Reorder ──────────────────────────
   Action bar: 5 explicit clusters with .bar-sep separators.
@@ -2408,6 +2420,29 @@
       height: 14px;
       background: #2a2f3a;
       flex-shrink: 0;
+    }
+    /* Action bar compact mode: hide C3-C5 tools */
+    .bar-tools {
+      display: contents; /* transparent wrapper, children lay out in parent flex */
+    }
+    .action-bar.compact .bar-tools {
+      display: none;
+    }
+    /* Compact/expand chevron */
+    .bar-compact-chevron {
+      background: none;
+      border: 1px solid transparent;
+      border-radius: 4px;
+      color: #64748b;
+      font-size: 10px;
+      padding: 2px 4px;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .bar-compact-chevron:hover {
+      color: #94a3b8;
+      border-color: #334155;
     }
 
     /* ===== BUTTON CLUSTER (joined-button group, used by all action bar groups) ===== */
@@ -7293,6 +7328,8 @@
 
       <div class="bar-sep"></div>
 
+      <!-- C3-C5 wrapped for compact mode -->
+      <div class="bar-tools">
       <!-- C3: Zoom -->
       <div class="btn-cluster">
         <button class="tbtn" id="btnFit" data-tip="Fit all units"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 5V1h4M11 1h4v4M15 11v4h-4M5 15H1v-4"/></svg></button>
@@ -7335,6 +7372,8 @@
           </div>
         </button>
       </div>
+      </div><!-- /bar-tools -->
+      <button class="bar-compact-chevron" id="barCompactChevron" title="Collapse toolbar">◂</button>
     </div>
 
     <!-- Models modal -->
@@ -30201,6 +30240,21 @@ document.getElementById('btnFit').addEventListener('click', () => fitView());
 document.getElementById('btnResetView').addEventListener('click', () => resetView());
 
 // [v10.7.0] Sticker toggle — show/hide all stickers
+// [v14.12.0] Action bar compact mode — hide C3-C5 for peace-of-mind view
+{
+  const _barEl = document.querySelector('.action-bar');
+  const _barChevron = document.getElementById('barCompactChevron');
+  let _actionBarCompact = false;
+  if (_barEl && _barChevron) {
+    _barChevron.addEventListener('click', () => {
+      _actionBarCompact = !_actionBarCompact;
+      _barEl.classList.toggle('compact', _actionBarCompact);
+      _barChevron.textContent = _actionBarCompact ? '▸' : '◂';
+      _barChevron.title = _actionBarCompact ? 'Expand toolbar' : 'Collapse toolbar';
+    });
+  }
+}
+
 const btnStickerLines = document.getElementById('btnStickerLines');
 btnStickerLines.addEventListener('click', () => {
   ui.showStickers = !ui.showStickers;
