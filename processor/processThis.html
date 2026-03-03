@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v14.17.0
+  processThis v14.18.0
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -299,6 +299,28 @@
   ═══════════════════════════════════════════════════════════════════════════
   CHANGELOG
   ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v14.18.0 — Per-connection stream display for hub/direct power buses ──────
+  Bug: When a power hub (or direct grid_supply/battery) feeds multiple
+  consumers, every connection displayed the bus-level aggregate (total supply)
+  instead of the individual per-consumer allocation.  Stream width sizing,
+  inspector properties, and connection stickers all showed the total.
+
+  Root cause: display layer reads ud.ports[portId] for all connections, but
+  multiConnect OUT ports (hub elec_out) and direct multi-consumer sources
+  store only the bus aggregate on the port.  Per-consumer allocation exists
+  in solver scratch (hubAllocated_W), written by Steps C and D — but the
+  display layer never consulted it.
+
+  Fix: new UI helper _getConnStream(conn) synthesises a per-cable stream
+  view for electrical connections where scratch holds hubAllocated_W.
+  Falls through to the port stream for all other connections (zero change).
+  Patched in three display read-sites: drawConnections stream cache,
+  updatePropertiesPanel (selected connection), _evaluateConnStickerItems.
+  No solver changes — reads existing scratch data per NNG-5.
+  NNG-3 (WYSIWYG: cable shows what it carries), NNG-5 (scratch is canonical),
+  NNG-14. Tests: hub_multi_consumer_conn_stream.
+
 
   ─── v14.17.0 — S-HUD Session 8: Layout Persistence in JSON ─────────────────
   LAYOUT_DEFAULTS constant: frozen object with 11 UI state keys.
@@ -22082,6 +22104,33 @@ function calculateStreamFlowrates(stream) {
   return { nTotal, mTotal, vTotal };
 }
 
+// [v14.18.0] Per-connection stream view for power bus fan-out.
+// When a hub (Step C) or direct grid/battery (Step D) feeds multiple consumers,
+// the port stream carries the bus-level aggregate.  This helper synthesises a
+// per-cable view by reading the consumer's hubAllocated_W from solver scratch —
+// the canonical per-consumer allocation per NNG-5.
+// Falls through to the port stream for all non-hub / single-consumer connections.
+function _getConnStream(conn) {
+  const fromUD = scene.runtime?.unitData?.get(conn.from.unitId);
+  if (!fromUD) return null;
+  const portStream = fromUD.ports?.[conn.from.portId];
+
+  if (portStream?.type === StreamType.ELECTRICAL) {
+    const consumerScratch = scene.runtime.ctx?.scratch(conn.to.unitId);
+    const allocated = consumerScratch?.hubAllocated_W;
+    if (allocated !== undefined) {
+      const demand = scene.runtime.unitData.get(conn.to.unitId)?.powerDemand ?? allocated;
+      return {
+        type: StreamType.ELECTRICAL,
+        capacity: demand,
+        actual: allocated
+      };
+    }
+  }
+
+  return portStream ?? null;
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════
    [v10.3.4] ALARM SYSTEM — Engine-level diagnostic infrastructure
    [v13.0.7] Schema hardened per NNG-7: unitName mandatory for unit-scoped alarms.
@@ -22698,6 +22747,7 @@ const PG = {
   streamMass_kgps,
   computeSystemBalance,
   calculateStreamFlowrates,
+  _getConnStream,
   AlarmSeverity,
   AlarmDomain,
   AlarmCategory,
@@ -24185,8 +24235,7 @@ function drawConnections() {
   let mfMin = Infinity, mfMax = -Infinity;
   let pwMin = Infinity, pwMax = -Infinity;
   for (const c of scene.connections) {
-    const ud = scene.runtime?.unitData?.get(c.from.unitId);
-    const stream = ud?.ports?.[c.from.portId];
+    const stream = _getConnStream(c); // [v14.18.0] per-cable view
     if (!stream) continue;
     _streamCache.set(c.id, stream);
     if (stream.type === StreamType.MATERIAL) {
@@ -24994,9 +25043,8 @@ function _clipToRectEdge(cx, cy, hw, hh, targetX, targetY) {
 // [v10.7.2] Evaluate sticker items for a connection sticker
 function _evaluateConnStickerItems(conn) {
   if (!conn.sticker?.items?.length) return [];
-  const ud = scene.runtime?.unitData?.get(conn.from.unitId);
-  if (!ud) return conn.sticker.items.map(it => ({ ...it, value: '—' }));
-  const stream = ud.ports?.[conn.from.portId];
+  const stream = _getConnStream(conn); // [v14.18.0] per-cable view
+  if (!stream) return conn.sticker.items.map(it => ({ ...it, value: '—' }));
   // [v10.8.1] Section-based pools for connections
   const pools = {};
   if (stream) {
@@ -29259,8 +29307,7 @@ function _rebuildInspectorContent() {
     propEditor.appendChild(headerDiv);
     
     // Stream data — uses same auto-stream renderer for consistency
-    const ud = scene.runtime.unitData.get(conn.from.unitId);
-    const stream = ud?.ports?.[conn.from.portId];
+    const stream = _getConnStream(conn); // [v14.18.0] per-cable view
     if (stream) {
       const connStickerCtx = { unitId: conn.from.unitId, section: 'conditions', connId: conn.id };
       if (stream.type === StreamType.MATERIAL) {
@@ -43798,6 +43845,60 @@ function runTests() {
     t.assertClose(L.T_out, 1000, 5, 'T_out ≈ T_in (isothermal)', L.T_out?.toFixed(1));
     // Q_in ≈ iso_duty
     t.assertClose(L.Q_in_W, L.iso_Q_duty_W, L.iso_Q_duty_W * 0.01, 'Q_in ≈ iso_duty');
+  }});
+
+  // [v14.18.0] Per-connection stream display for multi-consumer hub
+  tests.push({ name: '351: Hub multi-consumer _getConnStream shows per-cable allocation', fn: t => {
+    // Grid(50kW) → Hub → pump(~low demand) + compressor(~low demand)
+    // Both consumers should get individual allocation in _getConnStream,
+    // not the bus-level aggregate on the hub's elec_out port.
+    const grid = t.place('grid_supply', 0, 0, { maxPower: 50 });
+    const hub  = t.place('power_hub', 3, 0);
+    const src1 = t.place('source', 7, -3, { species: 'H2O', nDot: 1, T: 298.15, P: 100000, phaseConstraint: 'L' });
+    const pmp  = t.place('pump', 7, 0, { Pout: 200000, eta: 0.75 });
+    const snk1 = t.place('sink', 11, 0);
+    const src2 = t.place('source', 7, 5, { species: 'N2', nDot: 0.5, T: 298.15, P: 100000, phaseConstraint: 'V' });
+    const comp = t.place('compressor', 7, 3, { Pout: 200000, eta: 0.80 });
+    const snk2 = t.place('sink', 11, 3);
+    t.wire(grid, 'elec_out', hub, 'elec_in');
+    t.wire(hub, 'elec_out', pmp, 'elec_in');
+    t.wire(hub, 'elec_out', comp, 'elec_in');
+    t.wire(src1, 'mat_out', pmp, 'mat_in');
+    t.wire(pmp, 'mat_out', snk1, 'mat_in');
+    t.wire(src2, 'mat_out', comp, 'mat_in');
+    t.wire(comp, 'mat_out', snk2, 'mat_in');
+    t.solve();
+
+    // Both should have individual allocation in scratch
+    const pmpAlloc = t.scratch(pmp).hubAllocated_W;
+    const cmpAlloc = t.scratch(comp).hubAllocated_W;
+    t.assertOK(pmpAlloc !== undefined, 'Pump has hubAllocated_W');
+    t.assertOK(cmpAlloc !== undefined, 'Comp has hubAllocated_W');
+    t.assertOK(pmpAlloc > 0, 'Pump allocation > 0');
+    t.assertOK(cmpAlloc > 0, 'Comp allocation > 0');
+
+    // Hub port carries aggregate
+    const hubPort = t.port(hub, 'elec_out');
+    t.assertOK(hubPort.actual > 0, 'Hub port actual > 0');
+    // Sum of individual allocations ≈ hub port actual (conservation)
+    t.assertClose(pmpAlloc + cmpAlloc, hubPort.actual, 1, 'Sum of allocations ≈ hub actual');
+
+    // _getConnStream returns per-cable values, not the aggregate
+    const connToPmp  = scene.connections.find(c => c.to.unitId === pmp && c.from.portId === 'elec_out');
+    const connToComp = scene.connections.find(c => c.to.unitId === comp && c.from.portId === 'elec_out');
+    t.assertOK(connToPmp, 'Connection hub→pump found');
+    t.assertOK(connToComp, 'Connection hub→comp found');
+
+    const pmpStream  = _getConnStream(connToPmp);
+    const compStream = _getConnStream(connToComp);
+    t.assertOK(pmpStream, 'Pump conn stream exists');
+    t.assertOK(compStream, 'Comp conn stream exists');
+    t.assertClose(pmpStream.actual, pmpAlloc, 0.1, 'Pump conn actual = allocation');
+    t.assertClose(compStream.actual, cmpAlloc, 0.1, 'Comp conn actual = allocation');
+    // Neither should equal the bus aggregate (unless one consumer happens to draw total)
+    t.assertOK(Math.abs(pmpStream.actual - hubPort.actual) > 0.1
+            || Math.abs(compStream.actual - hubPort.actual) > 0.1,
+               'At least one conn differs from aggregate');
   }});
 
   tests.push({ name: '316: Balance report — ambient rejection + all categories', fn: t => {
