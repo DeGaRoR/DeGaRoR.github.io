@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v14.10.0
+  processThis v14.11.0
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -299,6 +299,20 @@
   ═══════════════════════════════════════════════════════════════════════════
   CHANGELOG
   ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v14.11.0 — S-HUD Session 2: Survival Strip Expand/Collapse ─────────────
+  Survival strip expand/collapse + responsive truncation.
+    HTML: chevron button (#ssChevron), expanded overlay panel (#survivalExpanded)
+    with 3 rows (atmosphere, room placeholders, reserves placeholders).
+    CSS: chevron styling + rotation on .expanded, .survival-expanded overlay
+    with glass-morphism (backdrop-filter, border-radius), responsive truncation
+    via data-bp attribute (breakpoints at 1000/800/640px).
+    JS: chevron toggle (.expanded class on strip, .open on overlay), click-
+    outside-to-collapse (pointerdown), ResizeObserver on .canvasWrap for
+    responsive breakpoints. updateSurvivalStrip() now adds ss-comp/ss-temp/
+    ss-pressure classes to collapsed-view spans and populates expanded
+    atmosphere row with full composition (all species, 1-2 decimal %).
+  No physics changes. NNG-12, NNG-14.
 
   ─── v14.10.0 — S-HUD Session 1: Foundation ──────────────────────────────────
   HUD redesign Phase 1 structural groundwork (PTIS_S_HUD_SPEC.md Session 1).
@@ -2282,6 +2296,82 @@
       opacity: 0.25;
     }
     .survival-strip .cb-val { font-variant-numeric: tabular-nums; }
+
+    /* Survival strip: chevron expand/collapse button */
+    .survival-strip .ss-chevron {
+      pointer-events: auto;
+      cursor: pointer;
+      background: none;
+      border: 1px solid transparent;
+      border-radius: 4px;
+      color: #64748b;
+      font-size: 10px;
+      padding: 2px 4px;
+      margin-left: auto;
+      flex-shrink: 0;
+      transition: color 0.15s, transform 0.2s, border-color 0.15s;
+    }
+    .survival-strip .ss-chevron:hover {
+      color: #94a3b8;
+      border-color: #334155;
+    }
+    .survival-strip.expanded .ss-chevron {
+      transform: rotate(180deg);
+    }
+
+    /* Survival strip: expanded overlay panel */
+    .survival-expanded {
+      position: absolute;
+      top: calc(var(--zone-a-h) + var(--zone-b-h) - 2px);
+      left: 10px; right: 10px;
+      z-index: 7;
+      background: #0b0e14dd;
+      border: 1px solid #2a2f3a;
+      border-top: none;
+      border-radius: 0 0 14px 14px;
+      padding: 8px 14px 10px;
+      backdrop-filter: blur(12px);
+      font-size: 11px;
+      color: #94a3b8;
+      display: none;
+      flex-direction: column;
+      gap: 6px;
+      user-select: none;
+    }
+    .survival-expanded.open { display: flex; }
+    .survival-expanded .se-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .survival-expanded .se-label {
+      font-weight: 700;
+      color: #64748b;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      min-width: 70px;
+    }
+    .survival-expanded .se-val {
+      font-variant-numeric: tabular-nums;
+      color: #e2e8f0;
+    }
+    .survival-expanded .se-val.placeholder {
+      color: #475569;
+    }
+
+    /* Survival strip: responsive truncation */
+    .survival-strip[data-bp="3"] .cb-life,
+    .survival-strip[data-bp="3"] .ss-comp { display: none; }
+    .survival-strip[data-bp="2"] .cb-life,
+    .survival-strip[data-bp="2"] .ss-comp,
+    .survival-strip[data-bp="2"] .ss-pressure { display: none; }
+    .survival-strip[data-bp="1"] .cb-life,
+    .survival-strip[data-bp="1"] .ss-comp,
+    .survival-strip[data-bp="1"] .ss-pressure,
+    .survival-strip[data-bp="1"] .ss-temp,
+    .survival-strip[data-bp="1"] .cb-sep { display: none; }
 
     /* ===== FLOATING ACTION BAR (bottom-center of canvas) ===== */
     .action-bar {
@@ -7133,6 +7223,29 @@
         <span>O₂ —</span>
         <span>NH₃ —</span>
         <span>⚡ —</span>
+      </div>
+      <button class="ss-chevron" id="ssChevron" title="Expand survival strip">▼</button>
+    </div>
+    <!-- [v14.10.0] Survival strip expanded overlay -->
+    <div class="survival-expanded" id="survivalExpanded">
+      <div class="se-row" id="seAtmosphere">
+        <span class="se-label">Atmosphere</span>
+        <span class="se-val placeholder">—</span>
+      </div>
+      <div class="se-row">
+        <span class="se-label">Room</span>
+        <span class="se-val placeholder">T —</span>
+        <span class="se-val placeholder">P —</span>
+        <span class="se-val placeholder">O₂ —</span>
+        <span class="se-val placeholder">CO₂ —</span>
+        <span class="se-val placeholder">RH —</span>
+      </div>
+      <div class="se-row">
+        <span class="se-label">Reserves</span>
+        <span class="se-val placeholder">⚡ —</span>
+        <span class="se-val placeholder">H₂O —</span>
+        <span class="se-val placeholder">O₂ —</span>
+        <span class="se-val placeholder">NH₃ —</span>
       </div>
     </div>
 
@@ -29614,7 +29727,7 @@ function updateSurvivalStrip() {
   const compParts = sorted.map(([sp, f]) => {
     const name = spNames[sp] || sp;
     const pct = (f * 100).toFixed(f >= 0.01 ? 0 : 1);
-    return `<span class="cb-val">${name}\u2009${pct}%</span>`;
+    return `<span class="cb-val ss-comp">${name}\u2009${pct}%</span>`;
   });
 
   // Planet icon from canonical PLANET_ICONS map
@@ -29622,9 +29735,67 @@ function updateSurvivalStrip() {
 
   _cbPlanet.innerHTML =
     `<span class="cb-name">${em} ${atm.presetName}</span>` +
-    `<span class="cb-val">${fmt.T(atm.T_K)}</span>` +
-    `<span class="cb-val">${fmt.P(atm.P_Pa)}</span>` +
+    `<span class="cb-val ss-temp">${fmt.T(atm.T_K)}</span>` +
+    `<span class="cb-val ss-pressure">${fmt.P(atm.P_Pa)}</span>` +
     compParts.join('');
+
+  // [v14.10.0] Populate expanded atmosphere row (full composition, all species)
+  const _seAtm = document.getElementById('seAtmosphere');
+  if (_seAtm) {
+    const allComp = Object.entries(atm.air)
+      .filter(([, f]) => f > 0)
+      .sort((a, b) => b[1] - a[1])
+      .map(([sp, f]) => {
+        const name = spNames[sp] || sp;
+        const pct = f >= 0.01 ? (f * 100).toFixed(1) : (f * 100).toFixed(2);
+        return `<span class="se-val">${name}\u2009${pct}%</span>`;
+      });
+    _seAtm.innerHTML =
+      `<span class="se-label">Atmosphere</span>` +
+      `<span class="se-val">${fmt.T(atm.T_K)}</span>` +
+      `<span class="se-val">${fmt.P(atm.P_Pa)}</span>` +
+      allComp.join('');
+  }
+}
+
+// [v14.10.0] Survival strip expand/collapse + responsive breakpoints
+{
+  const _ssChevron = document.getElementById('ssChevron');
+  const _ssStrip = document.getElementById('survivalStrip');
+  const _ssExpanded = document.getElementById('survivalExpanded');
+
+  // Task 2.6: Chevron toggles expanded state
+  if (_ssChevron && _ssStrip && _ssExpanded) {
+    _ssChevron.addEventListener('click', () => {
+      const opening = !_ssStrip.classList.contains('expanded');
+      _ssStrip.classList.toggle('expanded', opening);
+      _ssExpanded.classList.toggle('open', opening);
+      _ssChevron.title = opening ? 'Collapse survival strip' : 'Expand survival strip';
+    });
+
+    // Task 2.7: Click outside to collapse
+    document.addEventListener('pointerdown', (e) => {
+      if (!_ssExpanded.classList.contains('open')) return;
+      if (_ssStrip.contains(e.target) || _ssExpanded.contains(e.target)) return;
+      _ssStrip.classList.remove('expanded');
+      _ssExpanded.classList.remove('open');
+      _ssChevron.title = 'Expand survival strip';
+    });
+  }
+
+  // Task 2.12: ResizeObserver for responsive truncation breakpoints
+  const _canvasWrap = document.querySelector('.canvasWrap');
+  if (_canvasWrap && _ssStrip) {
+    const _ssResizeObs = new ResizeObserver((entries) => {
+      const w = entries[0].contentRect.width;
+      let bp = '4'; // full: everything visible
+      if (w < 640)       bp = '1'; // emoji + name only
+      else if (w < 800)  bp = '2'; // planet + T only
+      else if (w < 1000) bp = '3'; // planet + T + P, no composition
+      _ssStrip.setAttribute('data-bp', bp);
+    });
+    _ssResizeObs.observe(_canvasWrap);
+  }
 }
 
 function afterSolve(solveResult) {
