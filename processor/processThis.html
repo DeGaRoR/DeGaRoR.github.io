@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v14.13.0
+  processThis v14.14.0
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -299,6 +299,24 @@
   ═══════════════════════════════════════════════════════════════════════════
   CHANGELOG
   ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v14.14.0 — S-HUD Session 5: Action Bar Responsive Overflow ──────────────
+  Responsive overflow: clusters reparented into popover at narrow widths.
+    HTML: .bar-c3 and .bar-c45 sub-wrappers (display:contents) inside .bar-tools
+    for movable cluster groups. [...] button (#barOverflowBtn) hidden by default.
+    Popover (#barOverflowPopover) positioned above action bar.
+    CSS: .bar-overflow-btn visible class, popover glass-morphism with vertical
+    flex layout overriding display:contents for reparented cluster wrappers.
+    Popover hides .bar-sep separators, maintains btn-cluster border-radius.
+    JS: ResizeObserver on .action-bar:
+      <700px: C3+C4+C5 reparented into popover (overflow level 2)
+      700-900px: C4+C5 reparented into popover (overflow level 1)
+      >900px: all clusters in action bar (overflow level 0)
+    DOM reparenting via appendChild/insertBefore — no duplicate elements,
+    menus and event handlers preserved. [...] toggles popover, pointerdown
+    click-outside closes. Compact mode interaction: overflow disabled when
+    .compact active (bar-tools already hidden), restored on resize.
+  No physics changes. NNG-12, NNG-14.
 
   ─── v14.13.0 — S-HUD Session 4: Action Bar Compact Mode ─────────────────────
   Collapse chevron at right end of action bar toggles compact mode.
@@ -2444,6 +2462,58 @@
       color: #94a3b8;
       border-color: #334155;
     }
+
+    /* Overflow sub-wrappers — transparent in flex, movable as units */
+    .bar-c3, .bar-c45 { display: contents; }
+    /* Overflow [...] button */
+    .bar-overflow-btn {
+      display: none;
+      background: #1c222e;
+      border: 1px solid #2a2f3a;
+      border-radius: 8px;
+      color: #64748b;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 8px;
+      cursor: pointer;
+      letter-spacing: 0.1em;
+      min-height: 28px;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s, color 0.15s;
+    }
+    .bar-overflow-btn:hover { background: #283040; color: #e2e8f0; }
+    .bar-overflow-btn.visible { display: flex; }
+    /* Overflow popover — vertical layout above action bar */
+    .bar-overflow-popover {
+      display: none;
+      position: absolute;
+      bottom: calc(100% + 8px);
+      right: 8px;
+      z-index: 6;
+      background: #0b0e14ee;
+      border: 1px solid #2a2f3a;
+      border-radius: 12px;
+      padding: 8px;
+      backdrop-filter: blur(12px);
+      flex-direction: column;
+      gap: 6px;
+      min-width: 120px;
+    }
+    .bar-overflow-popover.open { display: flex; }
+    .bar-overflow-popover .bar-c3,
+    .bar-overflow-popover .bar-c45 {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .bar-overflow-popover .bar-sep { display: none; }
+    .bar-overflow-popover .btn-cluster {
+      display: flex; gap: 2px;
+    }
+    .bar-overflow-popover .btn-cluster .tbtn:first-child { border-radius: 8px 0 0 8px; }
+    .bar-overflow-popover .btn-cluster .tbtn:last-child  { border-radius: 0 8px 8px 0; }
+    .bar-overflow-popover .btn-cluster .tbtn:only-child  { border-radius: 8px; }
 
     /* ===== BUTTON CLUSTER (joined-button group, used by all action bar groups) ===== */
     .btn-cluster {
@@ -7330,12 +7400,15 @@
 
       <!-- C3-C5 wrapped for compact mode -->
       <div class="bar-tools">
+      <div class="bar-c3">
       <!-- C3: Zoom -->
       <div class="btn-cluster">
         <button class="tbtn" id="btnFit" data-tip="Fit all units"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 5V1h4M11 1h4v4M15 11v4h-4M5 15H1v-4"/></svg></button>
         <button class="tbtn" id="btnResetView" data-tip="Reset view"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="1.5" fill="currentColor" stroke="none"/><path d="M2 5V2h3"/><path d="M11 2h3v3"/><path d="M14 11v3h-3"/><path d="M5 14H2v-3"/></svg></button>
       </div>
+      </div><!-- /bar-c3 -->
 
+      <div class="bar-c45">
       <div class="bar-sep"></div>
 
       <!-- C4: Visibility (utilities toggle removed v14.12.0) -->
@@ -7372,7 +7445,10 @@
           </div>
         </button>
       </div>
+      </div><!-- /bar-c45 -->
       </div><!-- /bar-tools -->
+      <button class="bar-overflow-btn" id="barOverflowBtn" title="More tools">…</button>
+      <div class="bar-overflow-popover" id="barOverflowPopover"></div>
       <button class="bar-compact-chevron" id="barCompactChevron" title="Collapse toolbar">◂</button>
     </div>
 
@@ -30252,6 +30328,59 @@ document.getElementById('btnResetView').addEventListener('click', () => resetVie
       _barChevron.textContent = _actionBarCompact ? '▸' : '◂';
       _barChevron.title = _actionBarCompact ? 'Expand toolbar' : 'Collapse toolbar';
     });
+  }
+}
+
+// [v14.14.0] Action bar responsive overflow — reparent C3/C4+C5 into popover
+{
+  const _barEl = document.querySelector('.action-bar');
+  const _overBtn = document.getElementById('barOverflowBtn');
+  const _overPop = document.getElementById('barOverflowPopover');
+  const _barC3 = _barEl ? _barEl.querySelector('.bar-c3') : null;
+  const _barC45 = _barEl ? _barEl.querySelector('.bar-c45') : null;
+  const _barTools = _barEl ? _barEl.querySelector('.bar-tools') : null;
+  let _overflowLevel = 0; // 0=none, 1=C4+C5 hidden, 2=C3+C4+C5 hidden
+
+  function _closeOverflowPopover() {
+    if (_overPop) _overPop.classList.remove('open');
+  }
+
+  function _applyOverflow(level) {
+    if (level === _overflowLevel) return;
+    _closeOverflowPopover();
+    // Move sections back to bar-tools first
+    if (_barC3 && _barC3.parentNode !== _barTools) _barTools.insertBefore(_barC3, _barTools.firstChild);
+    if (_barC45 && _barC45.parentNode !== _barTools) _barTools.appendChild(_barC45);
+    // Now move into popover based on level
+    if (level >= 1 && _barC45) _overPop.appendChild(_barC45);
+    if (level >= 2 && _barC3) _overPop.appendChild(_barC3);
+    // Show/hide [...] button
+    if (_overBtn) _overBtn.classList.toggle('visible', level > 0);
+    _overflowLevel = level;
+  }
+
+  if (_barEl && _overBtn && _overPop) {
+    // Toggle popover
+    _overBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      _overPop.classList.toggle('open');
+    });
+    // Click outside closes
+    document.addEventListener('pointerdown', (e) => {
+      if (!_overPop.classList.contains('open')) return;
+      if (_overBtn.contains(e.target) || _overPop.contains(e.target)) return;
+      _closeOverflowPopover();
+    });
+    // ResizeObserver on action bar
+    const _barResizeObs = new ResizeObserver((entries) => {
+      const w = entries[0].contentRect.width;
+      // Skip if compact mode is active (bar-tools already hidden)
+      if (_barEl.classList.contains('compact')) { _applyOverflow(0); return; }
+      if (w < 700) _applyOverflow(2);
+      else if (w < 900) _applyOverflow(1);
+      else _applyOverflow(0);
+    });
+    _barResizeObs.observe(_barEl);
   }
 }
 
