@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v14.15.0
+  processThis v14.16.0
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -300,6 +300,18 @@
   CHANGELOG
   ═══════════════════════════════════════════════════════════════════════════
 
+
+  ─── v14.16.0 — S-HUD Session 7: Shortcuts + Tooltips + Diagnostic Rename ────
+  Rename: trafficLights → diagnosticLights (HTML id, CSS class, JS ref).
+  Tooltips updated: Step [Space], Pause [Space], Save [Ctrl+S], Fit [F],
+    Add [/]. Bracket notation per spec.
+  shouldFireTransportKeys() guard: checks activeElement, contentEditable,
+    .modal.open. Used by Space and F shortcuts.
+  New shortcuts: Ctrl+S (save), Space (step/pause toggle), F (fitView),
+    ? (open shortcuts modal).
+  Shortcuts modal: 14-row table (.shortcuts-table). Menu item "Shortcuts ?"
+    added after Settings. mShortcuts click handler opens modal.
+  No physics changes. NNG-12, NNG-14.
 
   ─── v14.15.0 — S-HUD Session 6: View Mode Buttons + View Containers ─────────
   View mode toggle [F][S][3D] in Zone A info-bar-right, after diagnostic lights.
@@ -2910,7 +2922,26 @@
 
     /* ===== STATUS INDICATOR ===== */
     /* ===== TRAFFIC LIGHT INDICATORS [v10.3.1] ===== */
-    .traffic-lights {
+    /* Shortcuts table styling [v14.16.0] */
+    .shortcuts-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      font-size: 13px;
+    }
+    .shortcuts-table td {
+      padding: 5px 8px;
+      border-bottom: 1px solid #1e2538;
+    }
+    .shortcuts-table .sk {
+      font-family: monospace;
+      font-weight: 700;
+      color: #60a5fa;
+      white-space: nowrap;
+      width: 130px;
+    }
+
+    .diagnostic-lights {
       display: flex;
       align-items: center;
       gap: 7px;
@@ -7366,10 +7397,11 @@
           <div class="sep"></div>
           <div class="item" id="mAtmosphere">Atmosphere <span class="hint">🌍</span></div>
           <div class="item" id="mSettings">Settings <span class="hint">⚙</span></div>
+          <div class="item" id="mShortcuts">Shortcuts <span class="hint">?</span></div>
         </div>
       </div>
 
-      <button class="add-btn-left" id="btnAdd" title="Add unit (/ or Tab)">+</button>
+      <button class="add-btn-left" id="btnAdd" title="Add unit [/]">+</button>
 
       <button class="undo-redo-btn" id="btnUndo" title="Undo (Ctrl+Z)">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"/><path d="M3 13a9 9 0 0 1 15.36-6.36L21 9"/></svg>
@@ -7381,9 +7413,9 @@
       <input type="text" id="processNameInput" placeholder="Process name…" spellcheck="false" autocomplete="off">
       </div>
 
-      <!-- Traffic Light Indicators [v10.3.1] -->
+      <!-- Diagnostic Light Indicators [v10.3.1] -->
       <div class="info-bar-right">
-        <div id="trafficLights" class="traffic-lights" style="display:none;">
+        <div id="diagnosticLights" class="diagnostic-lights" style="display:none;">
           <div class="tl-dot grey" id="tlConv" data-target="solver"><div class="tl-tip">Convergence</div></div>
           <div class="tl-dot grey" id="tlBalance" data-target="balance"><div class="tl-tip">Mass &amp; Energy Balance</div></div>
           <div class="tl-dot grey" id="tlPressure" data-target="diagnostic"><div class="tl-tip">Pressure Solve</div></div>
@@ -7440,9 +7472,9 @@
     <div class="action-bar">
       <!-- C1: Transport [v14.7.0 S-SIM] -->
       <div class="transport">
-        <button class="tbtn" id="btnStep" data-tip="Step (advance 1 timestep)">▶|</button>
+        <button class="tbtn" id="btnStep" data-tip="Step [Space]">▶|</button>
         <button class="tbtn" id="btnPlay" data-tip="Play (auto-step)">▶</button>
-        <button class="tbtn" id="btnPause" data-tip="Pause" disabled>⏸</button>
+        <button class="tbtn" id="btnPause" data-tip="Pause [Space]" disabled>⏸</button>
       </div>
       <span class="time-display" id="timeDisplay" style="cursor:pointer;" title="Click to open settings"></span>
       <span class="speed-indicator" id="speedIndicator" title="Normal (5s)">▶</span>
@@ -7455,7 +7487,7 @@
           <button class="tbtn" id="btnRevert" data-tip="Revert to checkpoint">⏪</button>
           <div class="vis-menu" id="menuRevert"></div>
         </div>
-        <button class="tbtn" id="btnSave" data-tip="Save checkpoint">💾</button>
+        <button class="tbtn" id="btnSave" data-tip="Save [Ctrl+S]">💾</button>
       </div>
 
       <div class="bar-sep"></div>
@@ -7465,7 +7497,7 @@
       <div class="bar-c3">
       <!-- C3: Zoom -->
       <div class="btn-cluster">
-        <button class="tbtn" id="btnFit" data-tip="Fit all units"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 5V1h4M11 1h4v4M15 11v4h-4M5 15H1v-4"/></svg></button>
+        <button class="tbtn" id="btnFit" data-tip="Fit [F]"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 5V1h4M11 1h4v4M15 11v4h-4M5 15H1v-4"/></svg></button>
         <button class="tbtn" id="btnResetView" data-tip="Reset view"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="1.5" fill="currentColor" stroke="none"/><path d="M2 5V2h3"/><path d="M11 2h3v3"/><path d="M14 11v3h-3"/><path d="M5 14H2v-3"/></svg></button>
       </div>
       </div><!-- /bar-c3 -->
@@ -7551,6 +7583,30 @@
         <h3>Reaction Library</h3>
         <div class="small">Registered chemical reactions available for reactor units.</div>
         <div class="card" id="reactionsPanel" style="margin-top:10px; max-height:60vh; overflow-y:auto;"></div>
+      </div>
+    </div>
+
+    <!-- Shortcuts modal [v14.16.0] -->
+    <div class="modal" id="modalShortcuts">
+      <div class="modalContent" style="max-width:460px;">
+        <button class="modalClose" onclick="document.getElementById('modalShortcuts').classList.remove('open')">×</button>
+        <h3>Keyboard Shortcuts</h3>
+        <table class="shortcuts-table">
+          <tr><td class="sk">Space</td><td>Step / Pause</td></tr>
+          <tr><td class="sk">Ctrl+S</td><td>Save checkpoint</td></tr>
+          <tr><td class="sk">Ctrl+Z</td><td>Undo</td></tr>
+          <tr><td class="sk">Ctrl+Shift+Z</td><td>Redo</td></tr>
+          <tr><td class="sk">/ or Tab</td><td>Toggle palette</td></tr>
+          <tr><td class="sk">Delete</td><td>Delete selected</td></tr>
+          <tr><td class="sk">F</td><td>Fit all units</td></tr>
+          <tr><td class="sk">1 / 2 / 3</td><td>View: Flowsheet / Split / 3D</td></tr>
+          <tr><td class="sk">Ctrl+C / V</td><td>Copy / Paste</td></tr>
+          <tr><td class="sk">Ctrl+A</td><td>Select all</td></tr>
+          <tr><td class="sk">Ctrl+drag</td><td>Duplicate</td></tr>
+          <tr><td class="sk">Middle-drag</td><td>Pan</td></tr>
+          <tr><td class="sk">Scroll</td><td>Zoom</td></tr>
+          <tr><td class="sk">?</td><td>This dialog</td></tr>
+        </table>
       </div>
     </div>
 
@@ -22346,7 +22402,7 @@ function showToast(message, duration = 2500) {
 
 // [v10.3.1] Traffic light indicator system
 function updateStatusIndicator(solveResult) {
-  const tl = document.getElementById('trafficLights');
+  const tl = document.getElementById('diagnosticLights');
   const tlConv = document.getElementById('tlConv');
   const tlBalance = document.getElementById('tlBalance');
   const tlPressure = document.getElementById('tlPressure');
@@ -29807,6 +29863,17 @@ svg.addEventListener('drop', (ev) => {
 });
 
 // Keyboard shortcuts
+// [v14.16.0] Guard: should transport/canvas keys fire?
+function shouldFireTransportKeys() {
+  const ae = document.activeElement;
+  if (!ae) return true;
+  const tag = ae.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return false;
+  if (ae.isContentEditable) return false;
+  if (document.querySelector('.modal.open')) return false;
+  return true;
+}
+
 window.addEventListener('keydown', (ev) => {
   // Don't intercept when typing in inputs
   const tag = ev.target.tagName;
@@ -29870,6 +29937,30 @@ window.addEventListener('keydown', (ev) => {
     for (const [id] of scene.units) _addSelect(id);
     updatePropertiesPanel();
     render();
+    return;
+  }
+  // [v14.16.0] Ctrl+S: save checkpoint
+  if (ev.key === 's' && (ev.ctrlKey || ev.metaKey)) {
+    ev.preventDefault();
+    btnSave.click();
+    return;
+  }
+  // [v14.16.0] Space: step (paused) / pause (playing)
+  if (ev.key === ' ' && !isInput && shouldFireTransportKeys()) {
+    ev.preventDefault();
+    if (btnPause.disabled) btnStep.click(); else btnPause.click();
+    return;
+  }
+  // [v14.16.0] F: fit all units (canvas context)
+  if (ev.key === 'f' && !isInput && !(ev.ctrlKey || ev.metaKey) && shouldFireTransportKeys()) {
+    ev.preventDefault();
+    fitView();
+    return;
+  }
+  // [v14.16.0] ?: open shortcuts modal
+  if (ev.key === '?' && !isInput) {
+    ev.preventDefault();
+    document.getElementById('modalShortcuts').classList.add('open');
     return;
   }
   if (ev.key === 'Delete' && !isInput) deleteSelected();
@@ -31222,6 +31313,12 @@ document.getElementById('mClear').addEventListener('click', () => {
 });
 
 // [v10.8.1] Clear all stickers from units and connections
+// [v14.16.0] Shortcuts menu item
+document.getElementById('mShortcuts').addEventListener('click', () => {
+  document.getElementById('modalShortcuts').classList.add('open');
+  closeMenus();
+});
+
 document.getElementById('mClearStickers').addEventListener('click', () => {
   let count = 0;
   for (const u of scene.units.values()) { if (u.sticker) count++; }
