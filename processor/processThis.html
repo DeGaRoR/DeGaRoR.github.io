@@ -443,6 +443,16 @@
     name+remaining+percentage, or "Continuous" label).  Detail section:
     enthalpy split (H in/perm/ret), pressure, exhaustion status.
     No params section — composite-internal units are not player-tunable.
+  v14.10.1 — Mouse tracking fix after window resize:
+    screenToWorld() rewritten to use svg.getScreenCTM().inverse() — the
+    canonical SVG coordinate transform.  Old code assumed viewBox filled
+    the entire SVG bounding rect, which broke whenever preserveAspectRatio
+    added letterboxing after resize.  Fixes: marquee selection, connection
+    click detection, unit drag, port wiring, drop placement.
+    setViewBox() now always syncs viewBox width to SVG aspect ratio
+    (height is the zoom anchor).  fitView() expanded to match aspect
+    ratio before setting view, preventing content clipping.  Zoom wheel
+    clamps height only — width derived proportionally.
 
   ─── v14.9.0 — S6a: Reactor Taxonomy Split ───────────────────────────────────
   Phase 1a — Infrastructure:
@@ -23691,6 +23701,17 @@ function clearSVG() {
 }
 
 function screenToWorld(sx, sy) {
+  // [v14.10.0] Use SVG's own coordinate transform matrix — always correct
+  // regardless of viewBox aspect ratio, preserveAspectRatio, or CSS transforms.
+  // Fixes mouse drift after window resize (marquee, connection clicks, drag).
+  const ctm = svg.getScreenCTM();
+  if (ctm) {
+    const pt = svg.createSVGPoint();
+    pt.x = sx; pt.y = sy;
+    const svgP = pt.matrixTransform(ctm.inverse());
+    return { x: svgP.x, y: svgP.y };
+  }
+  // Fallback (SVG not yet in DOM)
   const r = svg.getBoundingClientRect();
   const nx = (sx - r.left) / r.width;
   const ny = (sy - r.top) / r.height;
@@ -23709,14 +23730,22 @@ function worldToCell(wx, wy) {
 
 function setViewBox() {
   const rect = svg.getBoundingClientRect();
+  if (!rect.width || !rect.height) return;
   const aspectRatio = rect.width / rect.height;
   
-  // Initialize view dimensions if needed
-  if (!ui.view.w || !ui.view.h) {
-    const baseHeight = 672;
-    ui.view.w = baseHeight * aspectRatio;
-    ui.view.h = baseHeight;
+  // Initialize view height if needed
+  if (!ui.view.h) {
+    ui.view.h = 672;
   }
+
+  // [v14.10.0] Always sync width to current aspect ratio.
+  // Keeps vertical zoom unchanged; reveals/hides horizontal extent.
+  // Re-center horizontally so the midpoint stays fixed.
+  const newW = ui.view.h * aspectRatio;
+  if (ui.view.w) {
+    ui.view.x += (ui.view.w - newW) / 2;
+  }
+  ui.view.w = newW;
   
   svg.setAttribute('viewBox', `${ui.view.x} ${ui.view.y} ${ui.view.w} ${ui.view.h}`);
 }
@@ -23736,8 +23765,17 @@ function fitView() {
     maxY = Math.max(maxY, (u.y + pres.h) * scene.tile);
   }
   const pad = 0.15; // 15% padding
-  const w = maxX - minX || 200, h = maxY - minY || 200;
-  ui.view = { x: minX - w * pad, y: minY - h * pad, w: w * (1 + 2 * pad), h: h * (1 + 2 * pad) };
+  let w = (maxX - minX || 200) * (1 + 2 * pad);
+  let h = (maxY - minY || 200) * (1 + 2 * pad);
+  // [v14.10.0] Expand to match SVG aspect ratio so setViewBox won't clip
+  const rect = svg.getBoundingClientRect();
+  if (rect.width && rect.height) {
+    const ar = rect.width / rect.height;
+    if (w / h > ar) h = w / ar;   // content wider  → grow h
+    else            w = h * ar;    // content taller → grow w
+  }
+  const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
+  ui.view = { x: cx - w / 2, y: cy - h / 2, w, h };
   render();
 }
 
@@ -30128,9 +30166,10 @@ svg.addEventListener('wheel', (ev) => {
   const m = screenToWorld(ev.clientX, ev.clientY);
   const v = ui.view;
   const MIN_VIEW = 200, MAX_VIEW = 10000;
-  const newW = Math.max(MIN_VIEW, Math.min(MAX_VIEW, v.w * z));
+  // [v14.10.0] Clamp height only — setViewBox derives width from aspect ratio
   const newH = Math.max(MIN_VIEW, Math.min(MAX_VIEW, v.h * z));
-  if (newW === v.w && newH === v.h) return; // at limit, don't pan
+  if (newH === v.h) return; // at limit
+  const newW = v.w * (newH / v.h);  // proportional for centering math
   const rx = (m.x - v.x) / v.w;
   const ry = (m.y - v.y) / v.h;
   v.x = m.x - rx * newW;
