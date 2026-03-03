@@ -17592,6 +17592,11 @@ class Scene {
 
     // [v13.8.0 S5a-0] Time context
     data.time = { t: TimeClock.t, frame: TimeClock.frame };
+
+    // [v14.7.0 S-SIM] Checkpoint stack — serialize for full save/load fidelity
+    if (TimeClock._checkpoints.length > 0) {
+      data.checkpoints = TimeClock._checkpoints;
+    }
     
     for (const u of this.units.values()) {
       const unitData = {
@@ -17915,6 +17920,18 @@ class Scene {
     this.units.clear();
     for (const [id, u] of tempUnits) this.units.set(id, u);
 
+    // [v14.7.0 S-SIM] Initialize inventory for inventory-bearing units that have
+    // no saved inventory (e.g. fresh demo load, or old save that predates tanks).
+    // Mirrors placeUnit behavior: def.initInventory(params) → u.inventory.
+    for (const [id, u] of this.units) {
+      if (!u.inventory) {
+        const def = UnitRegistry.get(u.defId);
+        if (def?.inventory && def?.initInventory) {
+          u.inventory = def.initInventory(u.params);
+        }
+      }
+    }
+
     this.connections = tempConns;
     this._idCounter = Math.max(maxUnitId, maxConnId);
 
@@ -17981,9 +17998,17 @@ class Scene {
     }
     TimeClock.mode = 'paused';  // [v14.7.0 S-SIM] always paused after import (test mode removed)
 
-    // [v14.7.0 S-SIM] Clear checkpoint stack on import — fresh scene, fresh history
-    TimeClock._checkpoints = [];
-    TimeClock._cpIndex = -1;
+    // [v14.7.0 S-SIM] Restore checkpoint stack if present; otherwise seed one at current state
+    if (Array.isArray(data.checkpoints) && data.checkpoints.length > 0) {
+      // Validate and cap at _cpMax
+      TimeClock._checkpoints = data.checkpoints
+        .filter(cp => cp && typeof cp.t === 'number' && Array.isArray(cp.units))
+        .slice(-TimeClock._cpMax);
+      TimeClock._cpIndex = TimeClock._checkpoints.length - 1;
+    } else {
+      TimeClock._checkpoints = [];
+      TimeClock._cpIndex = -1;
+    }
 
     return { ok: true };
   }
@@ -27731,7 +27756,7 @@ function _restoreSnapshot(json) {
     const savedCp = TimeClock._checkpoints;
     const savedCpIdx = TimeClock._cpIndex;
     scene.importJSON(json);
-    // Restore mode and checkpoints (importJSON clears them, but undo is topology-only)
+    // Restore mode and checkpoints (importJSON restores from data, but undo is topology-only)
     TimeClock.mode = savedMode;
     TimeClock._checkpoints = savedCp;
     TimeClock._cpIndex = savedCpIdx;
@@ -29776,7 +29801,7 @@ document.getElementById('processNameInput').addEventListener('input', (e) => {
    DEMO
    ========================= */
 function loadDemo() {
-  // ── [v10.9.3] Full Demo — Sabatier + Brayton + SMR + Pump + Priority ──
+  // ── [v14.7.0] Full Demo — Sabatier + Brayton + SMR + Pump + Priority ──
   //
   // LEFT BLOCK (existing):
   //   Sabatier CO₂ Methanation + Energy Storage
@@ -29785,7 +29810,7 @@ function loadDemo() {
   //            ↑                                     ↓ recycle (85%)
   //   Sabatier reactor heat_out → SMR reactor heat_in (cross-process)
   //   Solar + Battery → Hub → E-Heater → Heat Sink
-  //   N₂ Source → Tank → Vent
+  //   N₂ Source → Gas Buffer Tank → Vent (S-SIM checkpoint test target)
   //
   // RIGHT BLOCK:
   //   A) BRAYTON CYCLE: Air → Compressor → Hex cold → Mixer ← H₂ Fuel
@@ -29801,7 +29826,7 @@ function loadDemo() {
 
   scene.importJSON(JSON.stringify({
     version: 14,
-    processName: 'Sabatier + Brayton + SMR + Pump + Priority Demo (v14.0.0)',
+    processName: 'Sabatier + Brayton + SMR + Buffer Tank Demo (v14.7.0)',
     grid: { w: 56, h: 42, tile: 48 },
     solverOptions: { maxIter: 200 },
     units: [
@@ -29835,15 +29860,24 @@ function loadDemo() {
       { id: 'hub-q', defId: 'sink_electrical', name: 'Surplus Power', x: 6, y: 10, rot: 0,
         params: { ratedPower_kW: 50, powerPriority: 3 } },
 
-      // ── N₂ buffer tank ──
-      { id: 'n2-feed', defId: 'source', name: 'N₂ Feed', x: 18, y: 18, rot: 0,
-        params: { species: 'N2', nDot: 0.5, T: 300, P: 200000, phaseConstraint: 'V' } },
-      { id: 'n2-tank', defId: 'tank', name: 'N₂ Buffer', x: 21, y: 17, rot: 0,
+      // ── Gas Buffer Tank [v14.7.0 S-SIM] ──
+      // Pressurized N₂ storage — fills over time, ideal for testing checkpoint/revert.
+      // Default: stable ~250 kPa steady state (well below 500 kPa relief). No alarms.
+      // Catastrophic triggers: (1) close gas_out → pressure runaway past P_relief
+      //                        (2) crank nDot to 1+ → overwhelms outlet Cv
+      //                        (3) lower P_relief to 100 kPa → immediate overpressure
+      { id: 'buf-src', defId: 'source', name: 'N₂ Feed', x: 18, y: 18, rot: 0,
+        params: { species: 'N2', nDot: 0.05, T: 300, P: 300000, phaseConstraint: 'V' } },
+      { id: 'buf-tank', defId: 'tank', name: 'Gas Buffer', x: 21, y: 17, rot: 0,
         profileId: 'tank_dev',
-        params: { volume_m3: 20, P_init: 200000, P_relief: 500000, overflow_level: 90,
-                  opening_gas_pct: 50, Cv_gas: 50, opening_liq_pct: 0 } },
-      { id: 'n2-vent', defId: 'sink', name: 'N₂ Vent', x: 24, y: 18, rot: 0, params: {} },
-      { id: 'n2-ov', defId: 'sink', name: 'Overflow', x: 21, y: 14, rot: 0, params: {} },
+        params: { volume_m3: 10, P_init: 90000, P_relief: 500000, overflow_level: 90,
+                  opening_gas_pct: 10, Cv_gas: 10, opening_liq_pct: 0, Cv_liq: 30 },
+        sticker: { dx: 3, dy: -2, items: [
+          { section: 'conditions', label: 'Pressure' },
+          { section: 'inventory', label: 'Level' }
+        ]}},
+      { id: 'buf-vent', defId: 'sink', name: 'Gas Vent', x: 24, y: 18, rot: 0, params: {} },
+      { id: 'buf-ov', defId: 'sink', name: 'Overflow', x: 21, y: 14, rot: 0, params: {} },
 
       // ══════════════════════════════════════════════════════════════════
       // PROCESS A — Open Brayton Cycle
@@ -29864,7 +29898,7 @@ function loadDemo() {
       // TIT controlled by fuel/air ratio (player adjusts nDot).
       { id: 'a-fuel', defId: 'source', name: 'H₂ Fuel', x: 15, y: -2, rot: 0,
         params: { species: 'H2', nDot: 0.02, T: 298.15, P: 300000, phaseConstraint: 'V' } },
-      { id: 'a-mix', defId: 'mixer', name: 'Fuel/Air Mix', x: 17, y: -3, rot: 0, params: {} },
+      { id: 'a-mix', defId: 'mixer', name: 'Fuel/Air Mix', x: 17, y: -3, rot: 0, tier: 2, params: {} },
       { id: 'a-comb', defId: 'reactor_equilibrium', name: 'Combustor', x: 21, y: -3, rot: 0,
         params: { reactionId: 'R_H2_COMB', useKinetics: true, volume_m3: 0.01, heatDemand: 'none', variant: 'insulated' },
         sticker: { dx: 3, dy: -2, items: [
@@ -29982,10 +30016,10 @@ function loadDemo() {
       { id: 'e5', from: { unitId: 'hub', portId: 'elec_surplus' }, to: { unitId: 'hub-q', portId: 'elec_in' } },
       // [v13.2.0] Air cooler fan power from hub
       { id: 'cool-pwr', from: { unitId: 'hub', portId: 'elec_out' }, to: { unitId: 'cool', portId: 'elec_in' } },
-      // ── N₂ tank ──
-      { id: 't1', from: { unitId: 'n2-feed', portId: 'mat_out' }, to: { unitId: 'n2-tank', portId: 'mat_in' } },
-      { id: 't2', from: { unitId: 'n2-tank', portId: 'gas_out' }, to: { unitId: 'n2-vent', portId: 'mat_in' } },
-      { id: 't3', from: { unitId: 'n2-tank', portId: 'overflow' }, to: { unitId: 'n2-ov', portId: 'mat_in' } },
+      // ── Gas Buffer Tank ──
+      { id: 't1', from: { unitId: 'buf-src', portId: 'mat_out' }, to: { unitId: 'buf-tank', portId: 'mat_in' } },
+      { id: 't2', from: { unitId: 'buf-tank', portId: 'gas_out' }, to: { unitId: 'buf-vent', portId: 'mat_in' } },
+      { id: 't3', from: { unitId: 'buf-tank', portId: 'overflow' }, to: { unitId: 'buf-ov', portId: 'mat_in' } },
       // ── Process A: Brayton cycle ──
       { id: 'a1', from: { unitId: 'a-grid', portId: 'elec_out' }, to: { unitId: 'a-comp', portId: 'elec_in' } },
       { id: 'a3', from: { unitId: 'a-air', portId: 'mat_out' }, to: { unitId: 'a-comp', portId: 'mat_in' } },
@@ -30027,11 +30061,11 @@ function loadDemo() {
   ui.selectedConnId = null;
   ui.pendingFrom = null;
   ui.reconnecting = null;
-  scene.processName = 'Sabatier + Brayton + SMR + Pump Demo (v14.0.0)';
+  scene.processName = 'Sabatier + Brayton + SMR + Buffer Tank Demo (v14.7.0)';
   document.getElementById('processNameInput').value = scene.processName;
   buildModelsPanel();
   const solveResult = solveScene(scene);
-  setStatus("Demo: Sabatier methanation → SMR heat integration, Brayton power cycle, liquid pump. Step ▶ to watch SOC & tank fill.");
+  setStatus("Demo loaded — Step ▶ to watch tank pressure change, then ⏪ Revert to reset.");
   updateStatusIndicator(solveResult);
   
   updatePropertiesPanel();
@@ -30056,7 +30090,7 @@ setViewBox();
 // [v10.3.0] M8: Restore from auto-save, or load demo
 // [v10.9.3] Version guard: if auto-save is from an older demo, load fresh demo
 {
-  const DEMO_VERSION = 'v14.0.0';  // bump this when demo scene changes
+  const DEMO_VERSION = 'v14.7.0';  // bump this when demo scene changes
   const saved = localStorage.getItem(AUTOSAVE_KEY);
   const savedDemoVer = localStorage.getItem(AUTOSAVE_KEY + '_demoVer');
   if (saved && savedDemoVer === DEMO_VERSION) {
@@ -30086,6 +30120,15 @@ render();
 updateTransportUI();  // [v10.5.0] Show time display immediately
 applyPlanetBg();      // [v13.5.0] Show planet bg if preset is planet_x
 updateClimateBar();   // [v14.3.0] Show atmosphere readout
+
+// [v14.7.0 S-SIM] Seed checkpoint stack with initial state — always revertible to load point
+// Only seed if import didn't already restore checkpoints from the saved file
+if (TimeClock._checkpoints.length === 0) {
+  TimeClock._cpIndex = -1;
+  TimeClock._stepsSinceAutoCp = 0;
+  TimeClock._saveCheckpoint(scene, 'auto');
+}
+updateTransportUI();  // enable Revert button
 
 </script>
 
@@ -36209,7 +36252,7 @@ function runTests() {
     SimSettings.autoCpInterval = origInterval;
   }});
 
-  tests.push({ name: '429: T-SM05 Import clears checkpoints and sets mode paused', fn: t => {
+  tests.push({ name: '429: T-SM05 Import restores checkpoints and sets mode paused', fn: t => {
     const origT = TimeClock.t;
     const origMode = TimeClock.mode;
     const origDt = SimSettings.dt;
@@ -36221,12 +36264,22 @@ function runTests() {
     TimeClock._saveCheckpoint(scene, 'manual');
     t.assertOK(TimeClock._checkpoints.length === 2, 'Pre-import: 2 checkpoints');
 
-    // Export and re-import
+    // Export (should include checkpoints) and re-import
     const json = scene.exportJSON();
+    const parsed = JSON.parse(json);
+    t.assertOK(Array.isArray(parsed.checkpoints), 'Export includes checkpoints array');
+    t.assertOK(parsed.checkpoints.length === 2, 'Export has 2 checkpoints');
+
     scene.importJSON(json);
     t.assertOK(TimeClock.mode === 'paused', 'After import: mode = paused');
-    t.assertOK(TimeClock._checkpoints.length === 0, 'After import: checkpoints cleared');
-    t.assertClose(TimeClock._cpIndex, -1, 0, 'After import: cpIndex = -1');
+    t.assertOK(TimeClock._checkpoints.length === 2, 'After import: checkpoints restored');
+    t.assertClose(TimeClock._cpIndex, 1, 0, 'After import: cpIndex = 1 (last)');
+    t.assertClose(TimeClock._checkpoints[0].t, T0_SECONDS, 0, 'Checkpoint[0] at T0');
+
+    // Import without checkpoints → empty stack
+    scene.importJSON(JSON.stringify({ version: 17, units: [], connections: [] }));
+    t.assertOK(TimeClock._checkpoints.length === 0, 'Import without checkpoints: empty stack');
+    t.assertClose(TimeClock._cpIndex, -1, 0, 'Import without checkpoints: cpIndex = -1');
 
     TimeClock.t = origT; TimeClock.frame = 0;
     TimeClock.mode = origMode; SimSettings.dt = origDt;
