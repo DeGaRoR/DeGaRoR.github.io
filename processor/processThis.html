@@ -30527,20 +30527,30 @@ function updateSurvivalStrip() {
     });
   }
 
-  // [v14.10.2] ResizeObserver for responsive truncation — targets info-bar-center
-  // Measures actual available space, not canvas width.  Lower thresholds because
-  // the center section is squeezed between left (~260px) and right (~140px).
-  if (_ssStrip) {
-    const _ssResizeObs = new ResizeObserver((entries) => {
-      const w = entries[0].contentRect.width;
-      let bp = '4'; // full: planet + T + P + composition
-      if (w < 120)       bp = '1'; // planet name + chevron only
-      else if (w < 200)  bp = '2'; // planet + T
-      else if (w < 350)  bp = '3'; // planet + T + P, no composition
+  // [v14.10.2] Responsive truncation via window resize (not ResizeObserver).
+  // ResizeObserver on any flex participant causes infinite loops because hiding
+  // children changes flex layout → re-triggers observer.  Window resize is the
+  // only external event that changes available space; DOM mutations cannot.
+  const _infoBar = document.querySelector('.info-bar');
+  const _ibLeft = document.querySelector('.info-bar-left');
+  const _ibRight = document.querySelector('.info-bar-right');
+  let _ssBpCurrent = '';
+  function _updateSurvivalBp() {
+    if (!_infoBar || !_ssStrip) return;
+    const total = _infoBar.offsetWidth;
+    const used = (_ibLeft?.offsetWidth || 0) + (_ibRight?.offsetWidth || 0) + 24;
+    const avail = Math.max(0, total - used);
+    let bp = '4';
+    if (avail < 120)       bp = '1';
+    else if (avail < 200)  bp = '2';
+    else if (avail < 350)  bp = '3';
+    if (bp !== _ssBpCurrent) {
+      _ssBpCurrent = bp;
       _ssStrip.setAttribute('data-bp', bp);
-    });
-    _ssResizeObs.observe(_ssStrip);
+    }
   }
+  window.addEventListener('resize', _updateSurvivalBp);
+  _updateSurvivalBp(); // initial
 }
 
 function afterSolve(solveResult) {
@@ -30970,16 +30980,19 @@ document.getElementById('btnResetView').addEventListener('click', () => resetVie
       if (_overBtn.contains(e.target) || _overPop.contains(e.target)) return;
       _closeOverflowPopover();
     });
-    // ResizeObserver on action bar
-    const _barResizeObs = new ResizeObserver((entries) => {
-      const w = entries[0].contentRect.width;
-      // Skip if compact mode is active (bar-tools already hidden)
+    // Responsive overflow via window resize (not ResizeObserver — same flex
+    // feedback loop issue as survival strip: reparenting children changes
+    // the bar's own size, re-triggering the observer endlessly).
+    function _updateBarOverflow() {
+      if (!_barEl) return;
+      const w = _barEl.offsetWidth;
       if (_barEl.classList.contains('compact')) { _applyOverflow(0); return; }
       if (w < 700) _applyOverflow(2);
       else if (w < 900) _applyOverflow(1);
       else _applyOverflow(0);
-    });
-    _barResizeObs.observe(_barEl);
+    }
+    window.addEventListener('resize', _updateBarOverflow);
+    _updateBarOverflow(); // initial
   }
 }
 
