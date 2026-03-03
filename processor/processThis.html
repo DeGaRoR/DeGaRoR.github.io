@@ -478,7 +478,14 @@
     opacity) — deferred until life-support system is implemented.
     --zone-b-h variable removed; --zones-ab-h = --zone-a-h.  Panels
     (palette, right) start 32px higher.  Expanded overlay repositioned
-    as centered dropdown below info-bar.  No physics changes.
+    as centered dropdown below info-bar.
+    Action bar: removed overflow popover system ([...] button, reparenting
+    of bar-c3/bar-c45 into popover, ResizeObserver).  The overflow system
+    reparented children out of .bar-tools, breaking the compact chevron
+    toggle (which hides .bar-tools).  Now only the chevron toggles
+    compact/expanded — C3-C5 stay inside .bar-tools in their original
+    grouping.  Separator between C2 and C3 moved inside .bar-tools so
+    it hides along with the tools.  No physics changes.
     screenToWorld() rewritten to use svg.getScreenCTM().inverse() — the
     canonical SVG coordinate transform.  Old code assumed viewBox filled
     the entire SVG bounding rect, which broke whenever preserveAspectRatio
@@ -2570,57 +2577,8 @@
       border-color: #334155;
     }
 
-    /* Overflow sub-wrappers — transparent in flex, movable as units */
+    /* Sub-wrappers — transparent in flex layout */
     .bar-c3, .bar-c45 { display: contents; }
-    /* Overflow [...] button */
-    .bar-overflow-btn {
-      display: none;
-      background: #1c222e;
-      border: 1px solid #2a2f3a;
-      border-radius: 8px;
-      color: #64748b;
-      font-size: 11px;
-      font-weight: 700;
-      padding: 4px 8px;
-      cursor: pointer;
-      letter-spacing: 0.1em;
-      min-height: 28px;
-      align-items: center;
-      justify-content: center;
-      transition: background 0.15s, color 0.15s;
-    }
-    .bar-overflow-btn:hover { background: #283040; color: #e2e8f0; }
-    .bar-overflow-btn.visible { display: flex; }
-    /* Overflow popover — vertical layout above action bar */
-    .bar-overflow-popover {
-      display: none;
-      position: absolute;
-      bottom: calc(100% + 8px);
-      right: 8px;
-      z-index: 6;
-      background: #0b0e14ee;
-      border: 1px solid #2a2f3a;
-      border-radius: 12px;
-      padding: 8px;
-      backdrop-filter: blur(12px);
-      flex-direction: column;
-      gap: 6px;
-      min-width: 120px;
-    }
-    .bar-overflow-popover.open { display: flex; }
-    .bar-overflow-popover .bar-c3,
-    .bar-overflow-popover .bar-c45 {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-    .bar-overflow-popover .bar-sep { display: none; }
-    .bar-overflow-popover .btn-cluster {
-      display: flex; gap: 2px;
-    }
-    .bar-overflow-popover .btn-cluster .tbtn:first-child { border-radius: 8px 0 0 8px; }
-    .bar-overflow-popover .btn-cluster .tbtn:last-child  { border-radius: 0 8px 8px 0; }
-    .bar-overflow-popover .btn-cluster .tbtn:only-child  { border-radius: 8px; }
 
     /* ===== BUTTON CLUSTER (joined-button group, used by all action bar groups) ===== */
     .btn-cluster {
@@ -7567,10 +7525,9 @@
         <button class="tbtn" id="btnSave" data-tip="Save [Ctrl+S]">💾</button>
       </div>
 
-      <div class="bar-sep"></div>
-
       <!-- C3-C5 wrapped for compact mode -->
       <div class="bar-tools">
+      <div class="bar-sep"></div>
       <div class="bar-c3">
       <!-- C3: Zoom -->
       <div class="btn-cluster">
@@ -7618,8 +7575,6 @@
       </div>
       </div><!-- /bar-c45 -->
       </div><!-- /bar-tools -->
-      <button class="bar-overflow-btn" id="barOverflowBtn" title="More tools">…</button>
-      <div class="bar-overflow-popover" id="barOverflowPopover"></div>
       <button class="bar-compact-chevron" id="barCompactChevron" title="Collapse toolbar">◂</button>
     </div>
 
@@ -30937,62 +30892,6 @@ document.getElementById('btnResetView').addEventListener('click', () => resetVie
       _barChevron.textContent = _actionBarCompact ? '▸' : '◂';
       _barChevron.title = _actionBarCompact ? 'Expand toolbar' : 'Collapse toolbar';
     });
-  }
-}
-
-// [v14.14.0] Action bar responsive overflow — reparent C3/C4+C5 into popover
-{
-  const _barEl = document.querySelector('.action-bar');
-  const _overBtn = document.getElementById('barOverflowBtn');
-  const _overPop = document.getElementById('barOverflowPopover');
-  const _barC3 = _barEl ? _barEl.querySelector('.bar-c3') : null;
-  const _barC45 = _barEl ? _barEl.querySelector('.bar-c45') : null;
-  const _barTools = _barEl ? _barEl.querySelector('.bar-tools') : null;
-  let _overflowLevel = 0; // 0=none, 1=C4+C5 hidden, 2=C3+C4+C5 hidden
-
-  function _closeOverflowPopover() {
-    if (_overPop) _overPop.classList.remove('open');
-  }
-
-  function _applyOverflow(level) {
-    if (level === _overflowLevel) return;
-    _closeOverflowPopover();
-    // Move sections back to bar-tools first
-    if (_barC3 && _barC3.parentNode !== _barTools) _barTools.insertBefore(_barC3, _barTools.firstChild);
-    if (_barC45 && _barC45.parentNode !== _barTools) _barTools.appendChild(_barC45);
-    // Now move into popover based on level
-    if (level >= 1 && _barC45) _overPop.appendChild(_barC45);
-    if (level >= 2 && _barC3) _overPop.appendChild(_barC3);
-    // Show/hide [...] button
-    if (_overBtn) _overBtn.classList.toggle('visible', level > 0);
-    _overflowLevel = level;
-  }
-
-  if (_barEl && _overBtn && _overPop) {
-    // Toggle popover
-    _overBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      _overPop.classList.toggle('open');
-    });
-    // Click outside closes
-    document.addEventListener('pointerdown', (e) => {
-      if (!_overPop.classList.contains('open')) return;
-      if (_overBtn.contains(e.target) || _overPop.contains(e.target)) return;
-      _closeOverflowPopover();
-    });
-    // Responsive overflow via window resize (not ResizeObserver — same flex
-    // feedback loop issue as survival strip: reparenting children changes
-    // the bar's own size, re-triggering the observer endlessly).
-    function _updateBarOverflow() {
-      if (!_barEl) return;
-      const w = _barEl.offsetWidth;
-      if (_barEl.classList.contains('compact')) { _applyOverflow(0); return; }
-      if (w < 700) _applyOverflow(2);
-      else if (w < 900) _applyOverflow(1);
-      else _applyOverflow(0);
-    }
-    window.addEventListener('resize', _updateBarOverflow);
-    _updateBarOverflow(); // initial
   }
 }
 
