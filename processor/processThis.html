@@ -29122,11 +29122,10 @@ applyPlanetBg();
   });
 
   document.addEventListener('pointerdown', (ev) => {
-    if (!btns.some(b => b.contains(ev.target))) closeAll();
-    // [v14.7.0 S-SIM] Close revert menu if click outside button OR menu
-    if (!btnRevert.contains(ev.target) && !menuRevert.contains(ev.target)) {
-      menuRevert.classList.remove('open');
-    }
+    // [v14.7.0 S-SIM] Don't close menus if clicking inside revert dropdown
+    const inRevert = menuRevert.contains(ev.target) || btnRevert.contains(ev.target);
+    if (!btns.some(b => b.contains(ev.target)) && !inRevert) closeAll();
+    if (!inRevert) menuRevert.classList.remove('open');
   });
 })();
 
