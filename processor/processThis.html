@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v14.9.0
+  processThis v14.10.0
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -299,6 +299,19 @@
   ═══════════════════════════════════════════════════════════════════════════
   CHANGELOG
   ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v14.10.0 — S-HUD Session 1: Foundation ──────────────────────────────────
+  HUD redesign Phase 1 structural groundwork (PTIS_S_HUD_SPEC.md Session 1).
+  CSS variables: --zone-a-h (58px), --zone-b-h (32px), --zones-ab-h (90px).
+  Rename: .climate-bar → .survival-strip (CSS, HTML class+id, JS function+calls).
+    - CSS: 8 selectors renamed, section comment updated.
+    - HTML: id="climateBar" → id="survivalStrip", class renamed, comment updated.
+    - JS: updateClimateBar() → updateSurvivalStrip() (1 decl + 7 call sites).
+  Survival strip: full-width (left:10px; right:10px) replacing centered capsule
+    (was left:50% + translateX(-50%)). top now uses var(--zone-a-h).
+  Panel offsets: .paletteDrawer top 50px → var(--zones-ab-h).
+    .rightPanel top 0 → var(--zones-ab-h). Both now clear Zone A + B.
+  No physics changes. NNG-12, NNG-14.
 
   ─── v14.9.0 — S6a: Reactor Taxonomy Split ───────────────────────────────────
   Phase 1a — Infrastructure:
@@ -2027,7 +2040,12 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>processThis — v14.0.0</title>
   <style>
-    :root { color-scheme: dark; }
+    :root {
+      color-scheme: dark;
+      --zone-a-h: 58px;   /* info-bar: top:10px + ~48px capsule height */
+      --zone-b-h: 32px;   /* survival-strip height */
+      --zones-ab-h: calc(var(--zone-a-h) + var(--zone-b-h)); /* 90px — panels clear below */
+    }
     * { box-sizing: border-box; }
 
     /* ===== CHECKBOX ===== */
@@ -2081,7 +2099,7 @@
     
     .rightPanel {
       position: fixed;
-      right: 0; top: 0; bottom: 0;
+      right: 0; top: var(--zones-ab-h); bottom: 0;
       width: var(--panel-width, 360px);
       border-left: 1px solid #2a2f3a;
       background: #0b0e14ee;
@@ -2209,12 +2227,11 @@
       background: transparent;
     }
 
-    /* ===== CLIMATE BAR (top-center, floating atmospheric readout) [v14.3.0] ===== */
-    .climate-bar {
+    /* ===== SURVIVAL STRIP (full-width, atmospheric + life-support readout) [v14.3.0] ===== */
+    .survival-strip {
       position: absolute;
-      top: 58px;
-      left: 50%;
-      transform: translateX(-50%);
+      top: var(--zone-a-h);
+      left: 10px; right: 10px;
       z-index: 6;
       display: flex;
       gap: 14px;
@@ -2232,7 +2249,7 @@
       user-select: none;
       transition: opacity 0.2s;
     }
-    .climate-bar .cb-planet {
+    .survival-strip .cb-planet {
       display: flex;
       gap: 8px;
       align-items: center;
@@ -2244,27 +2261,27 @@
       margin: -2px -6px;
       transition: background 0.15s;
     }
-    .climate-bar .cb-planet:hover {
+    .survival-strip .cb-planet:hover {
       background: #1b223066;
     }
-    .climate-bar .cb-planet .cb-name {
+    .survival-strip .cb-planet .cb-name {
       font-weight: 700;
       letter-spacing: 0.03em;
     }
-    .climate-bar .u { opacity: 0.5; font-size: 10px; margin-left: 1px; font-weight: 400; }
-    .climate-bar .cb-sep {
+    .survival-strip .u { opacity: 0.5; font-size: 10px; margin-left: 1px; font-weight: 400; }
+    .survival-strip .cb-sep {
       width: 1px;
       height: 14px;
       background: #2a2f3a;
       flex-shrink: 0;
     }
-    .climate-bar .cb-life {
+    .survival-strip .cb-life {
       display: flex;
       gap: 10px;
       align-items: center;
       opacity: 0.25;
     }
-    .climate-bar .cb-val { font-variant-numeric: tabular-nums; }
+    .survival-strip .cb-val { font-variant-numeric: tabular-nums; }
 
     /* ===== FLOATING ACTION BAR (bottom-center of canvas) ===== */
     .action-bar {
@@ -3535,7 +3552,7 @@
 
     /* ===== [v10] PALETTE DRAWER ===== */
     .paletteDrawer {
-      position: absolute; left: 0; top: 50px; bottom: 0;
+      position: absolute; left: 0; top: var(--zones-ab-h); bottom: 0;
       width: 264px; z-index: 20;
       background: #0b0e14ee; backdrop-filter: blur(12px);
       border-right: 1px solid #2a2f3a;
@@ -7106,8 +7123,8 @@
       </div>
     </div>
 
-    <!-- [v14.3.0] Climate bar (floating top-center atmospheric readout) -->
-    <div class="climate-bar" id="climateBar">
+    <!-- [v14.3.0] Survival strip (full-width atmospheric + life-support readout) -->
+    <div class="survival-strip" id="survivalStrip">
       <div class="cb-planet" id="cbPlanet"></div>
       <div class="cb-sep"></div>
       <div class="cb-life" id="cbLife">
@@ -24648,7 +24665,7 @@ function buildUnitsPanel() {
       buildUnitsPanel();
       updatePropertiesPanel();
       render();
-      updateClimateBar();  // [v14.3.0] refresh T/P display units
+      updateSurvivalStrip();  // [v14.3.0] refresh T/P display units
     });
     
     panel.appendChild(card);
@@ -29578,12 +29595,12 @@ let _cachedUnitAlarms = new Map(); // unitId → AlarmSeverity
 let _lastSolveHadNewErrors = false;
 
 /* =========================
-   [v14.3.0] CLIMATE BAR — atmospheric readout
+   [v14.3.0] SURVIVAL STRIP — atmospheric readout
    ========================= */
 const _cbPlanet = document.getElementById('cbPlanet');
 if (_cbPlanet) _cbPlanet.addEventListener('click', () => openPlanetModal());
 
-function updateClimateBar() {
+function updateSurvivalStrip() {
   if (!_cbPlanet) return;
   const atm = SimSettings.getAtmosphere();
 
@@ -29656,7 +29673,7 @@ function afterSolve(solveResult) {
   updatePropertiesPanel();
   render();
   updateTransportUI();
-  updateClimateBar();  // [v14.3.0]
+  updateSurvivalStrip();  // [v14.3.0]
 
   // [v10.5.0] Animation triggers — pulse vs continuous
   if (SimSettings.animations && solveResult) {
@@ -30290,7 +30307,7 @@ for (const [menuId, sysId] of [['mPU_SI_bar','SI_bar'], ['mPU_SI','SI'], ['mPU_I
     models.setActive('units', sysId);
     updatePropertiesPanel();
     render();
-    updateClimateBar();
+    updateSurvivalStrip();
     closeMenus();
     setStatus('Units: ' + models.getActive('units').name);
   });
@@ -30393,7 +30410,7 @@ function buildAtmospherePanel() {
     updatePropertiesPanel();
     render();
     applyPlanetBg();
-    updateClimateBar();  // [v14.3.0]
+    updateSurvivalStrip();  // [v14.3.0]
     setStatus('Atmosphere: ' + SimSettings.atmosphere.presetName);
   }
 
@@ -30408,7 +30425,7 @@ function buildAtmospherePanel() {
     updatePropertiesPanel();
     render();
     applyPlanetBg();
-    updateClimateBar();  // [v14.3.0]
+    updateSurvivalStrip();  // [v14.3.0]
     setStatus('Atmosphere: Custom');
   }
 
@@ -30841,7 +30858,7 @@ fileImportInput.addEventListener('change', (ev) => {
       updatePropertiesPanel();
       render();
       applyPlanetBg(); // [v13.5.0]
-      updateClimateBar();  // [v14.3.0]
+      updateSurvivalStrip();  // [v14.3.0]
       setStatus(`Imported: ${file.name} (${scene.units.size} units, ${scene.connections.length} connections)`);
     } catch (err) {
       setStatus('Import failed: ' + err.message);
@@ -31178,7 +31195,7 @@ updatePropertiesPanel();
 render();
 updateTransportUI();  // [v10.5.0] Show time display immediately
 applyPlanetBg();      // [v13.5.0] Show planet bg if preset is planet_x
-updateClimateBar();   // [v14.3.0] Show atmosphere readout
+updateSurvivalStrip();   // [v14.3.0] Show atmosphere readout
 
 // [v14.7.0 S-SIM] Seed checkpoint stack with initial state — always revertible to load point
 // Only seed if import didn't already restore checkpoints from the saved file
