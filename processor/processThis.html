@@ -407,6 +407,20 @@
     .rightPanel top 0 → var(--zones-ab-h). Both now clear Zone A + B.
   No physics changes. NNG-12, NNG-14.
 
+  ─── v14.10.0 — S9: membrane_separator defId + separatorTick ─────────────────
+  New defId: membrane_separator (category SEPARATION, 3 ports: mat_in,
+  perm_out, ret_out).  New dedicated separatorTick trunk.
+  Params: targetSpecies (string|string[]), extractionFrac (0–1),
+  optional consumable object {name, capacity, remaining, maxRate}.
+  Unlisted species → 100% permeate.  Target species → extractionFrac
+  to retentate.  Consumable depletes by actual moles captured; when
+  exhausted, extraction stops (frac→0).  WARNING at <20% remaining.
+  Mass balance exact by construction.  Energy: PH-flash proportional
+  enthalpy split (isothermal isobaric).
+  Profiles deferred to Phase 2.  No limits on defId — all limits on
+  profiles (multi-profile defId pattern per tank).  NNG-1, NNG-3,
+  NNG-9, NNG-10, NNG-14.
+
   ─── v14.9.0 — S6a: Reactor Taxonomy Split ───────────────────────────────────
   Phase 1a — Infrastructure:
     equilibriumTick extracted as named function shared by all reactor defIds.
@@ -18269,6 +18283,154 @@ UnitRegistry.register('fuel_cell', {
   limitParams: ['T_LL', 'T_L', 'T_H', 'T_HH', 'P_LL', 'P_HH', 'mass_HH'],
   limits: { S: { T_LL: 293, T_L: 323, T_H: 473, T_HH: 523, P_LL: 50000, P_HH: 5000000, mass_HH: 0.05 } },
   tick: electrochemicalTick
+});
+
+
+// ── [v14.10.0 S9] separatorTick — dedicated trunk for membrane_separator ──
+// Selective species separation at constant T, P.  N-target retention with
+// optional consumable (finite sorbent).  Mass balance exact by construction.
+// Three campaign instances: kidney (NH₃), leaf (CH₂O+NH₃), LiOH scrubber (CO₂).
+// All hidden inside locked composites — never player-buildable.
+function separatorTick(u, ports, par, ctx) {
+  const sIn = ports.mat_in;
+  if (!sIn || !sIn.n) {
+    ports.perm_out = { type: StreamType.MATERIAL, T: 298.15, P: 101325, n: {} };
+    ports.ret_out  = { type: StreamType.MATERIAL, T: 298.15, P: 101325, n: {} };
+    u.last = {};
+    return;
+  }
+
+  const nTotal = Object.values(sIn.n).reduce((a, b) => a + b, 0);
+  if (nTotal < 1e-15) {
+    const empty = { type: StreamType.MATERIAL, T: sIn.T || 298.15, P: sIn.P || 101325, n: {} };
+    ports.perm_out = { ...empty };
+    ports.ret_out  = { ...empty };
+    u.last = {};
+    return;
+  }
+
+  // ── Normalize targetSpecies to Set ──
+  const raw = par.targetSpecies;
+  const targets = new Set(
+    Array.isArray(raw) ? raw : (raw ? [raw] : [])
+  );
+
+  // ── Resolve extraction fraction (0 if consumable exhausted) ──
+  const con = par.consumable;
+  let frac = Math.max(0, Math.min(1, par.extractionFrac ?? 0.99));
+  let maxCapture = Infinity;  // mol capturable this tick
+
+  if (con) {
+    if (con.remaining <= 0) {
+      frac = 0;  // exhausted — everything permeates
+    } else {
+      const dt_hr = ctx.dt / 3600;
+      maxCapture = Math.min(con.remaining, (con.maxRate ?? Infinity) * dt_hr);
+    }
+  }
+
+  // ── Split feed ──
+  const permN = {};
+  const retN  = {};
+  let totalCaptured = 0;
+
+  for (const [sp, mol] of Object.entries(sIn.n)) {
+    if (targets.has(sp) && frac > 0) {
+      let captured = mol * frac;
+      // Rate-limit if consumable active and not yet exhausted
+      if (con && con.remaining > 0) {
+        const headroom = maxCapture - totalCaptured;
+        if (captured > headroom) captured = Math.max(0, headroom);
+        totalCaptured += captured;
+      }
+      retN[sp]  = captured;
+      permN[sp] = mol - captured;   // exact: no floating-point gap
+    } else {
+      permN[sp] = mol;
+      // retN[sp] stays undefined — omitted species = 0
+    }
+  }
+
+  // ── Decrement consumable ──
+  if (con && totalCaptured > 0) {
+    con.remaining = Math.max(0, con.remaining - totalCaptured);
+  }
+
+  // ── Consumable alarm: WARNING at < 20% ──
+  if (con && con.remaining > 0 && con.remaining < 0.2 * con.capacity) {
+    u.last = u.last || {};
+    u.last.error = {
+      severity: ErrorSeverity.MINOR,
+      message: `${con.name || 'Consumable'} at ${(con.remaining / con.capacity * 100).toFixed(0)}%`
+    };
+  }
+
+  // ── Energy: proportional PH-flash split (isothermal, isobaric) ──
+  const H_in_Jps = thermo.getHdot_Jps(sIn);
+  const nPerm = Object.values(permN).reduce((a, b) => a + b, 0);
+  const nRet  = Object.values(retN).reduce((a, b) => a + b, 0);
+  const nSum  = nPerm + nRet;  // === nTotal by construction
+  const fracPerm = nSum > 0 ? nPerm / nSum : 1;
+  const fracRet  = 1 - fracPerm;
+
+  ports.perm_out = {
+    type: StreamType.MATERIAL,
+    P: sIn.P,
+    n: permN,
+    H_target_Jps: fracPerm * H_in_Jps
+  };
+  ports.ret_out = {
+    type: StreamType.MATERIAL,
+    P: sIn.P,
+    n: retN,
+    H_target_Jps: fracRet * H_in_Jps
+  };
+
+  // ── Diagnostics ──
+  u.last = u.last || {};
+  Object.assign(u.last, {
+    nTotal,
+    nPerm,
+    nRet,
+    extractionFrac: frac,
+    targetSpecies: [...targets],
+    P: sIn.P,
+    H_in_kW:   (H_in_Jps / 1000).toFixed(3),
+    H_perm_kW: (fracPerm * H_in_Jps / 1000).toFixed(3),
+    H_ret_kW:  (fracRet * H_in_Jps / 1000).toFixed(3)
+  });
+  if (con) {
+    u.last.consumable_remaining = con.remaining;
+    u.last.consumable_pct = con.capacity > 0
+      ? (con.remaining / con.capacity * 100).toFixed(1) : '0.0';
+    // Exhaustion diagnostic (no alarm — the effect IS the alarm: separation stops)
+    if (con.remaining <= 0) {
+      u.last.consumable_exhausted = true;
+    }
+  }
+}
+
+// [v14.10.0 S9] membrane_separator — selective species separation
+// Shared trunk: separatorTick.  Three campaign profiles (Phase 2):
+// membrane_kidney, membrane_leaf, co2_scrubber.
+// No limits on defId — all limits live on profiles (multi-profile pattern).
+UnitRegistry.register('membrane_separator', {
+  name: 'Membrane Separator',
+  category: UnitCategories.SEPARATION,
+  w: 2, h: 2,
+  ports: [
+    { portId: 'mat_in',   dir: PortDir.IN,  type: StreamType.MATERIAL, x: 0, y: 1, label: 'Feed' },
+    { portId: 'perm_out', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 0, label: 'Permeate' },
+    { portId: 'ret_out',  dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 2, label: 'Retentate' }
+  ],
+  presentations: {
+    'box/default': { w: 2, h: 2, ports: {
+      mat_in: { x: 0, y: 1 }, perm_out: { x: 2, y: 0 }, ret_out: { x: 2, y: 2 }
+    }}
+  },
+  limitParams: [],  // [v14.10.0] Limits live on profiles (Phase 2) — multi-profile defId pattern
+  inventory: false,
+  tick: separatorTick
 });
 
 
