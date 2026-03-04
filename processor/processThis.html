@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v15.0.0
+  processThis v15.0.1
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -321,7 +321,7 @@
      CH₂O + O₂ → CO₂ + H₂O.  Irreversible.  POWER_LAW kinetics with
      enzyme-catalyzed parameters (Ea = 5000 J/mol, A = 1.0×10⁸) giving
      near-complete conversion at body temperature (310 K).  Activation
-     window 298–320 K.  ΔH° = −519,436 J/mol (from formation enthalpies).
+     window 280–320 K.  ΔH° = −519,436 J/mol (from formation enthalpies).
      Used in the human composite's reactor_adiabatic (metabolism unit).
 
   Validation:
@@ -337,6 +337,43 @@
   Tests: ch2o_species_registration, r_metabolism_registration,
   r_metabolism_mass_balance, r_metabolism_thermodynamics,
   r_metabolism_reactor_conversion.
+
+  ─── v15.0.1 — Ineluctable Fate scene + biosphere profiles ─────────────
+  First playable biosphere scene: 2 colonists (Kael, Vasquez) metabolizing
+  in a sealed room with Day-0 depletable supplies.
+
+  Profiles (2 new, both composite:true — hidden from palette):
+    bio_metabolism  — reactor_adiabatic with body-temperature limits
+      (T_LL=293, T_HH=320).  Default: R_METABOLISM, kinetics, 0.01 m³.
+    bio_mixer       — mixer with physiological T/P envelope.
+
+  Scene: demo_ineluctable (20 units, 21 connections)
+    Topology: Room Air source → splitter (50/50) → 2× human chains
+    (feed_mixer + metabolism reactor + kidney separator + waste mixer)
+    → exhaled air mixer → LiOH scrubber → clean air sink + CO₂ sink.
+    Each human: air+food mixed → R_METABOLISM (100% conversion, 0.84
+    mol/hr CH₂O+O₂ → CO₂+H₂O, 121 W adiabatic heat) → kidney (NH₃
+    to retentate, all gases permeate) → waste mixer with water source.
+    Simplified 6-unit human model (no body_hex, no air split bypass).
+    Metabolic heat exits via warm exhaled air (T_out ≈ 1190 K adiabatic).
+    LiOH scrubber: 268 mol capacity, 99% CO₂ extraction, consumable.
+    Water sources at 0.000278 mol/s (1 mol/hr) — enough for a few hours
+    of steady-state validation before depletion.
+
+  Steady-state validation (per human):
+    CH₂O consumed: 0.000233 mol/s (0.84 mol/hr) ✓
+    O₂ consumed:   0.000233 mol/s               ✓
+    CO₂ produced:  0.000233 mol/s               ✓
+    H₂O produced:  0.000233 mol/s (metabolic)   ✓
+    Mass balance:  total in ≈ total out (< 1%)   ✓
+
+  Accessible from Examples menu (demo_v1 remains default on load).
+  DEMO_VERSION bumped v14.10.5 → v15.0.0 (clears stale autosave).
+  NNG-1 (mass balance), NNG-3 (WYSIWYG), NNG-10 (registry), NNG-14.
+  Tests: bio_metabolism_profile, bio_mixer_profile, bio_palette_exclusion,
+  demo_ineluctable_registration, demo_ineluctable_loads_solves,
+  ineluctable_metabolic_rate, ineluctable_lioh_scrubber,
+  ineluctable_mass_balance.
 
 
   ─── v14.18.0 — Per-connection stream display for hub/direct power buses ──────
@@ -9671,7 +9708,7 @@ ReactionRegistry.register('R_METABOLISM', {
   equation: 'CH₂O + O₂ → CO₂ + H₂O',
   stoich: { CH2O: -1, O2: -1, CO2: 1, H2O: 1 },
   reversible: false,
-  Tmin_K: 298,
+  Tmin_K: 280,
   Tmax_K: 320,
   Pmin_Pa: 50000,
   Pmax_Pa: 200000,
@@ -18975,6 +19012,34 @@ ProfileRegistry.register('co2_scrubber', {
   limits: { 1: { T_LL: 220, T_HH: 470, P_HH: 1000000, mass_HH: 0.05 } },
   defaults: { 1: { targetSpecies: 'CO2', extractionFrac: 0.99,
     consumable: { name: 'LiOH Cartridges', capacity: 268, remaining: 268, maxRate: 5.0 } } },
+  config: { composite: true }
+});
+
+// ── [v15.0.0] Biosphere-internal profiles — human composite (6-unit simplified) ──
+// Bio_metabolism: reactor_adiabatic with body-temperature limits (293–320 K).
+// Standard reactor T_LL=323 K would alarm at body temperature (310 K).
+ProfileRegistry.register('bio_metabolism', {
+  defId: 'reactor_adiabatic',
+  name: 'Metabolism',
+  category: UnitCategories.REACTOR,
+  tiers: [1],
+  limits: { 1: {
+    T_LL: 273, T_L: 283, T_H: 316, T_HH: 320,
+    P_LL: 50000, P_HH: 200000, mass_HH: 0.01
+  }},
+  defaults: { reactionId: 'R_METABOLISM', useKinetics: true, volume_m3: 0.01 },
+  config: { composite: true }
+});
+// Bio_mixer: body-internal mixer. Physiological T/P envelope.
+ProfileRegistry.register('bio_mixer', {
+  defId: 'mixer',
+  name: 'Body Mixer',
+  category: UnitCategories.TOPOLOGY,
+  tiers: [1],
+  limits: { 1: {
+    T_LL: 273, T_HH: 350,
+    P_LL: 50000, P_HH: 200000, mass_HH: 0.05
+  }},
   config: { composite: true }
 });
 
@@ -31994,9 +32059,7 @@ function buildExamplesMenu() {
     item.className = 'item';
     item.textContent = demo.label;
     item.addEventListener('click', () => {
-      if (confirm(`Load "${demo.label}"? This will replace the current scene.`)) {
-        loadExample(demo.id);
-      }
+      loadExample(demo.id);
       closeMenus();
     });
     container.appendChild(item);
@@ -32004,22 +32067,21 @@ function buildExamplesMenu() {
 }
 
 document.getElementById('mClear').addEventListener('click', () => {
-  if (confirm('Clear the entire scene?')) {
-    _pushUndo('Clear scene');
-    scene.importJSON(JSON.stringify({
-      version: 14,
-      processName: '',
-      grid: { w: 22, h: 14, tile: 48 },
-      units: [],
-      connections: [],
-      modelsActive: models.active
-    }));
-    document.getElementById('processNameInput').value = '';
-    clearAutoSave();
-    deselectAll();
-    setStatus('Scene cleared.');
-    showToast('Scene cleared (Ctrl+Z to undo)');
-  }
+  // [v15.0.1] No confirm() — iframes block dialogs. Undo is the safety net.
+  _pushUndo('Clear scene');
+  scene.importJSON(JSON.stringify({
+    version: 14,
+    processName: '',
+    grid: { w: 22, h: 14, tile: 48 },
+    units: [],
+    connections: [],
+    modelsActive: models.active
+  }));
+  document.getElementById('processNameInput').value = '';
+  clearAutoSave();
+  deselectAll();
+  setStatus('Scene cleared.');
+  showToast('Scene cleared (Ctrl+Z to undo)');
   closeMenus();
 });
 
@@ -32135,6 +32197,11 @@ DemoScenes.register('demo_v1', 'Demo V1 — Sabatier / Brayton / SMR / Tank',
   '{"version":18,"processName":"Demo V1 \u2014 Sabatier + Brayton + SMR + Buffer Tank","grid":{"w":56,"h":42,"tile":48},"settings":{"atmospherePreset":"planet_x","dt":3600},"units":[{"id":"feed","defId":"source","profileId":"source_mix","tier":1,"name":"CO\u2082/H\u2082 Feed","x":-23,"y":3,"rot":0,"params":{"n":{"CO2":1,"H2":4},"T":523,"P":1000000,"phaseConstraint":"V"}},{"id":"mix","defId":"mixer","profileId":"mixer","tier":1,"name":"Mixer","x":-19,"y":3,"rot":0,"params":{"variant":"recycle-T"}},{"id":"rx","defId":"reactor_adiabatic","profileId":"reactor_adiabatic","tier":1,"name":"Sabatier Rx","x":-15,"y":4,"rot":0,"params":{"reactionId":"R_SABATIER","useKinetics":true,"volume_m3":0.5,"variant":"insulated"},"sticker":{"dx":-1.5183563232421875,"dy":-2.1808576583862305,"items":[{"section":"power","label":"\u0394T"},{"section":"reaction","label":"Conversion"}]}},{"id":"cool","defId":"air_cooler","profileId":"air_cooler","tier":1,"name":"Cooler","x":-11,"y":4,"rot":0,"params":{"T_out":323.15,"UA_kW_K":5,"max_fan_power_W":1200,"powerPriority":3}},{"id":"flash","defId":"flash_drum","profileId":"flash_drum","tier":1,"name":"Flash Drum","x":-7,"y":4,"rot":0,"params":{}},{"id":"split","defId":"splitter","profileId":"splitter","tier":1,"name":"Purge/Recycle","x":-3,"y":3,"rot":0,"params":{"splitPct":15,"variant":"recycle-T"}},{"id":"snk-ch4","defId":"sink","profileId":"sink","tier":1,"name":"CH\u2084 Product","x":1,"y":3,"rot":0,"params":{}},{"id":"snk-h2o","defId":"sink","profileId":"sink","tier":1,"name":"Water","x":-3,"y":6,"rot":0,"params":{}},{"id":"solar","defId":"grid_supply","profileId":"grid_supply","tier":1,"name":"Solar 30kW","x":26,"y":-5,"rot":0,"params":{"maxPower":100,"variant":"port-left"}},{"id":"batt","defId":"battery","profileId":"battery","tier":1,"name":"Li-Ion 10kWh","x":27,"y":-2,"rot":0,"params":{"peakPower_kW":20,"capacity_J":36000000,"initialSOC":0.9,"variant":"port-left"},"inventory":{"charge_J":25636834.679072794,"capacity_J":36000000}},{"id":"hub","defId":"power_hub","profileId":"power_hub","tier":1,"name":"Power Hub","x":21,"y":-4,"rot":0,"params":{"variant":"mirror"}},{"id":"hub-q","defId":"sink_electrical","profileId":"sink_electrical","tier":1,"name":"Surplus Power","x":21,"y":-8,"rot":0,"params":{"ratedPower_kW":50,"powerPriority":3,"variant":"port-bottom"}},{"id":"buf-tank","defId":"tank","profileId":"tank_dev","tier":1,"name":"Gas Buffer","x":54,"y":2,"rot":0,"params":{"volume_m3":10,"P_init":90000,"P_relief":500000,"overflow_level":90,"opening_gas_pct":10,"Cv_gas":10,"opening_liq_pct":0,"Cv_liq":30},"inventory":{"n":{"N2":946.4720221595039},"T_K":435.06278833461454}},{"id":"buf-vent","defId":"sink","profileId":"sink","tier":1,"name":"Gas Vent","x":57,"y":-1,"rot":0,"params":{}},{"id":"buf-ov","defId":"sink","profileId":"sink","tier":1,"name":"Overflow","x":57,"y":5,"rot":0,"params":{}},{"id":"a-air","defId":"source_atm","profileId":"source_atmosphere","tier":1,"name":"Air Intake","x":13,"y":1,"rot":0,"params":{"flowScale":1}},{"id":"a-comp","defId":"compressor","profileId":"compressor","tier":1,"name":"Compressor","x":16,"y":1,"rot":0,"params":{"Pout":300000,"eta":0.8,"variant":"output-bottom"},"sticker":{"dx":-0.8386917114257814,"dy":-0.9539063771565756,"items":[{"section":"power","label":"Shaft power"}],"display":{"connection":true,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"a-fuel","defId":"source","profileId":"source","tier":1,"name":"H\u2082 Fuel","x":16,"y":8,"rot":0,"params":{"species":"H2","nDot":0.02,"T":298.15,"P":300000,"phaseConstraint":"V"}},{"id":"a-mix","defId":"mixer","profileId":"mixer","tier":2,"name":"Fuel/Air Mix","x":20,"y":7,"rot":0,"params":{}},{"id":"a-comb","defId":"reactor_adiabatic","profileId":"combustion_chamber","tier":1,"name":"Combustor","x":24,"y":7,"rot":0,"params":{"reactionId":"R_H2_COMB","useKinetics":true,"volume_m3":0.01,"heatDemand":"none","variant":"insulated"},"sticker":{"dx":-1.63427734375,"dy":1.471660017967225,"items":[{"section":"power","label":"\u0394T"},{"section":"reaction","label":"Conversion"}]}},{"id":"a-turb","defId":"gas_turbine","profileId":"gas_turbine","tier":1,"name":"Gas Turbine","x":28,"y":7,"rot":0,"params":{"Pout":101325,"eta":0.88,"variant":"elec-T"},"sticker":{"dx":-1.3980865478515623,"dy":1.1773713628451028,"items":[{"section":"power","label":"Shaft power"}],"display":{"connection":false,"label":true,"border":false,"solidBg":false,"textSize":0}}},{"id":"a-exh","defId":"sink","profileId":"sink","tier":1,"name":"Exhaust","x":33,"y":7,"rot":0,"params":{}},{"id":"ab-hex","defId":"hex","profileId":"hex","tier":1,"name":"Recuperator","x":16,"y":4,"rot":0,"params":{"T_approach":10},"sticker":{"dx":-0.815480550130208,"dy":0.12923177083333318,"items":[{"section":"power","label":"Duty"}],"display":{"connection":false,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"b-feed","defId":"source","profileId":"source_mix","tier":1,"name":"CH\u2084/Steam Feed","x":7,"y":4,"rot":0,"params":{"n":{"CH4":0.2,"H2O":0.4},"T":873,"P":2000000,"phaseConstraint":"V"}},{"id":"b-rx","defId":"reactor_jacketed","profileId":"reactor_jacketed","tier":1,"name":"SMR Reactor","x":11,"y":4,"rot":0,"params":{"reactionId":"R_SMR_OVERALL","useKinetics":true,"volume_m3":1,"heatDemand":"isothermal","variant":"elec-T"},"sticker":{"dx":-1.461281776428223,"dy":1.385961850484212,"items":[{"section":"power","label":"\u0394T"},{"section":"reaction","label":"Conversion"}]}},{"id":"b-valve","defId":"valve","profileId":"valve","tier":1,"name":"Letdown Valve","x":20,"y":4,"rot":0,"params":{"Pout":200000}},{"id":"b-prod","defId":"sink","profileId":"sink","tier":1,"name":"Syngas","x":24,"y":4,"rot":0,"params":{}},{"id":"c-src","defId":"source","profileId":"source","tier":1,"name":"Water In","x":45,"y":10,"rot":0,"params":{"species":"H2O","nDot":1,"T":293.15,"P":101325,"phaseConstraint":"L"}},{"id":"c-pump","defId":"pump","profileId":"pump","tier":1,"name":"Feed Pump","x":49,"y":10,"rot":0,"params":{"Pout":500000,"eta":0.75},"sticker":{"dx":-0.8503163655598959,"dy":0.20638402303059866,"items":[{"section":"power","label":"Shaft power"}],"display":{"connection":false,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"c-sink","defId":"sink","profileId":"sink","tier":1,"name":"Pressurized H\u2082O","x":53,"y":10,"rot":0,"params":{}},{"id":"d-grid","defId":"grid_supply","profileId":"grid_supply","tier":1,"name":"Colony 5kW","x":37,"y":5,"rot":0,"params":{"maxPower":5}},{"id":"d-hub","defId":"power_hub","profileId":"power_hub","tier":1,"name":"Priority Hub","x":41,"y":4,"rot":0,"params":{},"sticker":{"dx":-1.605000813802084,"dy":2.0131870110829673,"items":[{"section":"power","label":"Total supply"},{"section":"power","label":"Curtailment"}],"display":{"connection":true,"label":true,"border":true,"solidBg":true,"textSize":0}}},{"id":"d-dump","defId":"sink_electrical","profileId":"sink_electrical","tier":1,"name":"Dump Load 2kW","x":41,"y":0,"rot":0,"params":{"ratedPower_kW":2,"powerPriority":3,"variant":"port-bottom"}},{"id":"d-n2","defId":"source","profileId":"source","tier":1,"name":"N\u2082 In","x":45,"y":2,"rot":0,"params":{"species":"N2","nDot":0.3,"T":298.15,"P":100000,"phaseConstraint":"V"}},{"id":"d-comp","defId":"compressor","profileId":"compressor","tier":1,"name":"Life Support","x":49,"y":2,"rot":0,"params":{"Pout":300000,"eta":0.8,"powerPriority":1,"variant":"elec-B"},"sticker":{"dx":-0.850311279296875,"dy":-0.9749868313471476,"items":[{"section":"power","label":"Shaft power"}],"display":{"connection":false,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"d-h2o","defId":"source","profileId":"source","tier":1,"name":"H\u2082O In","x":45,"y":6,"rot":0,"params":{"species":"H2O","nDot":0.2,"T":293.15,"P":101325,"phaseConstraint":"L"}},{"id":"d-htr","defId":"electric_heater","profileId":"electric_heater","tier":1,"name":"Water Heater","x":49,"y":6,"rot":0,"params":{"T_out":363.15,"powerPriority":2},"sticker":{"dx":-0.8329416910807292,"dy":-0.9749867121378579,"items":[{"section":"power","label":"Q actual"}],"display":{"connection":false,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"d-hsnk","defId":"sink","profileId":"sink","tier":1,"name":"Hot H\u2082O","x":53,"y":6,"rot":0,"params":{}},{"id":"sink-6","defId":"sink","profileId":"sink","tier":1,"name":"Gas Vent (copy)","x":61,"y":1,"rot":0,"params":{}},{"id":"grid_supply-8","defId":"grid_supply","profileId":"grid_supply","tier":1,"name":"Micro fan power","x":-11,"y":8,"rot":0,"params":{"maxPower":5,"variant":"port-top"}}],"connections":[{"id":"c1","from":{"unitId":"feed","portId":"mat_out"},"to":{"unitId":"mix","portId":"mat_in_1"}},{"id":"c2","from":{"unitId":"mix","portId":"mat_out"},"to":{"unitId":"rx","portId":"mat_in"}},{"id":"c3","from":{"unitId":"rx","portId":"mat_out"},"to":{"unitId":"cool","portId":"mat_in"}},{"id":"c4","from":{"unitId":"cool","portId":"mat_out"},"to":{"unitId":"flash","portId":"mat_in"}},{"id":"c5","from":{"unitId":"flash","portId":"vap_out"},"to":{"unitId":"split","portId":"mat_in"}},{"id":"c6","from":{"unitId":"split","portId":"mat_out_1"},"to":{"unitId":"snk-ch4","portId":"mat_in"}},{"id":"c7","from":{"unitId":"flash","portId":"liq_out"},"to":{"unitId":"snk-h2o","portId":"mat_in"}},{"id":"c8","from":{"unitId":"split","portId":"mat_out_2"},"to":{"unitId":"mix","portId":"mat_in_2"}},{"id":"e1","from":{"unitId":"solar","portId":"elec_out"},"to":{"unitId":"hub","portId":"elec_in"}},{"id":"e2","from":{"unitId":"batt","portId":"elec"},"to":{"unitId":"hub","portId":"elec_in"}},{"id":"e5","from":{"unitId":"hub","portId":"elec_surplus"},"to":{"unitId":"hub-q","portId":"elec_in"}},{"id":"t3","from":{"unitId":"buf-tank","portId":"overflow"},"to":{"unitId":"buf-ov","portId":"mat_in"}},{"id":"a3","from":{"unitId":"a-air","portId":"mat_out"},"to":{"unitId":"a-comp","portId":"mat_in"}},{"id":"a4","from":{"unitId":"a-comp","portId":"mat_out"},"to":{"unitId":"ab-hex","portId":"cold_in"},"sticker":{"dx":-0.27618153889973956,"dy":-0.3295599619547526,"items":[{"section":"conditions","label":"Temperature"}],"display":{"connection":true,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"a5","from":{"unitId":"ab-hex","portId":"cold_out"},"to":{"unitId":"a-mix","portId":"mat_in_1"}},{"id":"a5f","from":{"unitId":"a-fuel","portId":"mat_out"},"to":{"unitId":"a-mix","portId":"mat_in_2"}},{"id":"a5m","from":{"unitId":"a-mix","portId":"mat_out"},"to":{"unitId":"a-comb","portId":"mat_in"}},{"id":"a6","from":{"unitId":"a-comb","portId":"mat_out"},"to":{"unitId":"a-turb","portId":"mat_in"}},{"id":"a7","from":{"unitId":"a-turb","portId":"mat_out"},"to":{"unitId":"a-exh","portId":"mat_in"},"sticker":{"dx":-0.7874247233072916,"dy":-0.7261996269226073,"items":[{"section":"conditions","label":"Temperature"}],"display":{"connection":false,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"b1","from":{"unitId":"b-feed","portId":"mat_out"},"to":{"unitId":"b-rx","portId":"mat_in"}},{"id":"b2","from":{"unitId":"b-rx","portId":"mat_out"},"to":{"unitId":"ab-hex","portId":"hot_in"}},{"id":"b3","from":{"unitId":"ab-hex","portId":"hot_out"},"to":{"unitId":"b-valve","portId":"mat_in"},"sticker":{"dx":-0.8208897908528634,"dy":-0.8749574025472004,"items":[{"section":"conditions","label":"Pressure"}],"display":{"connection":false,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"b4","from":{"unitId":"b-valve","portId":"mat_out"},"to":{"unitId":"b-prod","portId":"mat_in"},"sticker":{"dx":-1.005212148030599,"dy":-0.8682047526041666,"items":[{"section":"conditions","label":"Pressure"}],"display":{"connection":false,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"p3","from":{"unitId":"c-src","portId":"mat_out"},"to":{"unitId":"c-pump","portId":"mat_in"},"sticker":{"dx":-0.8011067708333393,"dy":-1.1509173711140952,"items":[{"section":"conditions","label":"Temperature"},{"section":"conditions","label":"Pressure"}],"display":{"connection":true,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"p4","from":{"unitId":"c-pump","portId":"mat_out"},"to":{"unitId":"c-sink","portId":"mat_in"},"sticker":{"dx":-0.8359120686848946,"dy":-1.1509183247884114,"items":[{"section":"conditions","label":"Temperature"},{"section":"conditions","label":"Pressure"}],"display":{"connection":true,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"d1","from":{"unitId":"d-grid","portId":"elec_out"},"to":{"unitId":"d-hub","portId":"elec_in"}},{"id":"d2","from":{"unitId":"d-hub","portId":"elec_surplus"},"to":{"unitId":"d-dump","portId":"elec_in"}},{"id":"d3","from":{"unitId":"d-hub","portId":"elec_out"},"to":{"unitId":"d-comp","portId":"elec_in"}},{"id":"d4","from":{"unitId":"d-hub","portId":"elec_out"},"to":{"unitId":"d-htr","portId":"elec_in"}},{"id":"d5","from":{"unitId":"d-n2","portId":"mat_out"},"to":{"unitId":"d-comp","portId":"mat_in"},"sticker":{"dx":-0.8103027343750036,"dy":-1.1209094524383547,"items":[{"section":"conditions","label":"Temperature"},{"section":"conditions","label":"Pressure"}],"display":{"connection":false,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"d7","from":{"unitId":"d-h2o","portId":"mat_out"},"to":{"unitId":"d-htr","portId":"mat_in"},"sticker":{"dx":-0.8450419108072946,"dy":-1.194587866465251,"items":[{"section":"conditions","label":"Temperature"},{"section":"conditions","label":"Pressure"}],"display":{"connection":false,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"d8","from":{"unitId":"d-htr","portId":"mat_out"},"to":{"unitId":"d-hsnk","portId":"mat_in"},"sticker":{"dx":-0.7829996744791607,"dy":-1.159841537475585,"items":[{"section":"conditions","label":"Temperature"},{"section":"conditions","label":"Pressure"}],"display":{"connection":false,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"conn-1","from":{"unitId":"hub","portId":"elec_out"},"to":{"unitId":"b-rx","portId":"elec_in"}},{"id":"conn-2","from":{"unitId":"hub","portId":"elec_out"},"to":{"unitId":"a-comp","portId":"elec_in"}},{"id":"conn-3","from":{"unitId":"a-turb","portId":"elec_out"},"to":{"unitId":"hub","portId":"elec_in"}},{"id":"conn-4","from":{"unitId":"d-hub","portId":"elec_out"},"to":{"unitId":"c-pump","portId":"elec_in"}},{"id":"conn-5","from":{"unitId":"buf-tank","portId":"vent"},"to":{"unitId":"buf-vent","portId":"mat_in"}},{"id":"conn-7","from":{"unitId":"buf-tank","portId":"gas_out"},"to":{"unitId":"sink-6","portId":"mat_in"}},{"id":"conn-9","from":{"unitId":"grid_supply-8","portId":"elec_out"},"to":{"unitId":"cool","portId":"elec_in"}},{"id":"conn-10","from":{"unitId":"d-comp","portId":"mat_out"},"to":{"unitId":"buf-tank","portId":"mat_in"}}],"modelsActive":{"thermo_package":"ideal_raoult","reaction":null,"hx":"cop_cooling","pressure_drop":"none","units":"SI_bar"},"solverOptions":{"maxIter":200}}'
 );
 
+
+DemoScenes.register('demo_ineluctable', 'Ineluctable Fate — 2 Colonists, Day 0 Depletables',
+  '{"version":18,"processName":"Ineluctable Fate — Day 0","grid":{"w":40,"h":30,"tile":48},"settings":{"atmospherePreset":"planet_x","dt":3600},"units":[{"id":"room_air","defId":"source","profileId":"source_mix","tier":1,"name":"Room Air","x":-12,"y":1,"rot":0,"params":{"n":{"N2":0.00606,"O2":0.001626,"Ar":0.0000722},"T":288,"P":101325,"phaseConstraint":"V"}},{"id":"air_split","defId":"splitter","profileId":"splitter","tier":1,"name":"Air to Humans","x":-8,"y":1,"rot":0,"params":{"splitPct":50}},{"id":"mre","defId":"source","profileId":"source_pure","tier":1,"name":"MRE Crate","x":-12,"y":-4,"rot":0,"params":{"species":"CH2O","nDot":0.000467,"T":288,"P":101325,"phaseConstraint":"V"}},{"id":"food_split","defId":"splitter","profileId":"splitter","tier":1,"name":"Food to Humans","x":-8,"y":-4,"rot":0,"params":{"splitPct":50}},{"id":"h1_feed","defId":"mixer","profileId":"bio_mixer","tier":1,"name":"Kael — Lungs","x":-4,"y":-1,"rot":0,"params":{}},{"id":"h1_metab","defId":"reactor_adiabatic","profileId":"bio_metabolism","tier":1,"name":"Kael — Metabolism","x":0,"y":-1,"rot":0,"params":{"reactionId":"R_METABOLISM","useKinetics":true,"volume_m3":0.01}},{"id":"h1_kidney","defId":"membrane_separator","profileId":"membrane_kidney","tier":1,"name":"Kael — Kidney","x":4,"y":-1,"rot":0,"params":{"targetSpecies":"NH3","extractionFrac":0.99}},{"id":"h1_water","defId":"source","profileId":"source_pure","tier":1,"name":"Kael — Water","x":0,"y":-5,"rot":0,"params":{"species":"H2O","nDot":0.000278,"T":310,"P":101325,"phaseConstraint":"L"}},{"id":"h1_waste","defId":"mixer","profileId":"bio_mixer","tier":1,"name":"Kael — Waste","x":4,"y":-5,"rot":0,"params":{}},{"id":"h1_wsnk","defId":"sink","profileId":"sink","tier":1,"name":"Kael — Waste Out","x":8,"y":-5,"rot":0,"params":{}},{"id":"h2_feed","defId":"mixer","profileId":"bio_mixer","tier":1,"name":"Vasquez — Lungs","x":-4,"y":5,"rot":0,"params":{}},{"id":"h2_metab","defId":"reactor_adiabatic","profileId":"bio_metabolism","tier":1,"name":"Vasquez — Metabolism","x":0,"y":5,"rot":0,"params":{"reactionId":"R_METABOLISM","useKinetics":true,"volume_m3":0.01}},{"id":"h2_kidney","defId":"membrane_separator","profileId":"membrane_kidney","tier":1,"name":"Vasquez — Kidney","x":4,"y":5,"rot":0,"params":{"targetSpecies":"NH3","extractionFrac":0.99}},{"id":"h2_water","defId":"source","profileId":"source_pure","tier":1,"name":"Vasquez — Water","x":0,"y":9,"rot":0,"params":{"species":"H2O","nDot":0.000278,"T":310,"P":101325,"phaseConstraint":"L"}},{"id":"h2_waste","defId":"mixer","profileId":"bio_mixer","tier":1,"name":"Vasquez — Waste","x":4,"y":9,"rot":0,"params":{}},{"id":"h2_wsnk","defId":"sink","profileId":"sink","tier":1,"name":"Vasquez — Waste Out","x":8,"y":9,"rot":0,"params":{}},{"id":"exhale_mix","defId":"mixer","profileId":"mixer","tier":1,"name":"Exhaled Air","x":8,"y":2,"rot":0,"params":{}},{"id":"lioh","defId":"membrane_separator","profileId":"co2_scrubber","tier":1,"name":"LiOH Scrubber","x":12,"y":2,"rot":0,"params":{"targetSpecies":"CO2","extractionFrac":0.99,"consumable":{"name":"LiOH Cartridges","capacity":268,"remaining":268,"maxRate":5}}},{"id":"clean_snk","defId":"sink","profileId":"sink","tier":1,"name":"Clean Air → Room","x":16,"y":1,"rot":0,"params":{}},{"id":"co2_snk","defId":"sink","profileId":"sink","tier":1,"name":"CO₂ Retentate","x":16,"y":4,"rot":0,"params":{}}],"connections":[{"id":"c_air1","from":{"unitId":"room_air","portId":"mat_out"},"to":{"unitId":"air_split","portId":"mat_in"}},{"id":"c_air2","from":{"unitId":"air_split","portId":"mat_out_1"},"to":{"unitId":"h1_feed","portId":"mat_in_1"}},{"id":"c_air3","from":{"unitId":"air_split","portId":"mat_out_2"},"to":{"unitId":"h2_feed","portId":"mat_in_1"}},{"id":"c_food1","from":{"unitId":"mre","portId":"mat_out"},"to":{"unitId":"food_split","portId":"mat_in"}},{"id":"c_food2","from":{"unitId":"food_split","portId":"mat_out_1"},"to":{"unitId":"h1_feed","portId":"mat_in_2"}},{"id":"c_food3","from":{"unitId":"food_split","portId":"mat_out_2"},"to":{"unitId":"h2_feed","portId":"mat_in_2"}},{"id":"c_h1m","from":{"unitId":"h1_feed","portId":"mat_out"},"to":{"unitId":"h1_metab","portId":"mat_in"}},{"id":"c_h1k","from":{"unitId":"h1_metab","portId":"mat_out"},"to":{"unitId":"h1_kidney","portId":"mat_in"}},{"id":"c_h1w1","from":{"unitId":"h1_kidney","portId":"ret_out"},"to":{"unitId":"h1_waste","portId":"mat_in_1"}},{"id":"c_h1w2","from":{"unitId":"h1_water","portId":"mat_out"},"to":{"unitId":"h1_waste","portId":"mat_in_2"}},{"id":"c_h1ws","from":{"unitId":"h1_waste","portId":"mat_out"},"to":{"unitId":"h1_wsnk","portId":"mat_in"}},{"id":"c_h2m","from":{"unitId":"h2_feed","portId":"mat_out"},"to":{"unitId":"h2_metab","portId":"mat_in"}},{"id":"c_h2k","from":{"unitId":"h2_metab","portId":"mat_out"},"to":{"unitId":"h2_kidney","portId":"mat_in"}},{"id":"c_h2w1","from":{"unitId":"h2_kidney","portId":"ret_out"},"to":{"unitId":"h2_waste","portId":"mat_in_1"}},{"id":"c_h2w2","from":{"unitId":"h2_water","portId":"mat_out"},"to":{"unitId":"h2_waste","portId":"mat_in_2"}},{"id":"c_h2ws","from":{"unitId":"h2_waste","portId":"mat_out"},"to":{"unitId":"h2_wsnk","portId":"mat_in"}},{"id":"c_ex1","from":{"unitId":"h1_kidney","portId":"perm_out"},"to":{"unitId":"exhale_mix","portId":"mat_in_1"}},{"id":"c_ex2","from":{"unitId":"h2_kidney","portId":"perm_out"},"to":{"unitId":"exhale_mix","portId":"mat_in_2"}},{"id":"c_scrub","from":{"unitId":"exhale_mix","portId":"mat_out"},"to":{"unitId":"lioh","portId":"mat_in"}},{"id":"c_clean","from":{"unitId":"lioh","portId":"perm_out"},"to":{"unitId":"clean_snk","portId":"mat_in"}},{"id":"c_co2","from":{"unitId":"lioh","portId":"ret_out"},"to":{"unitId":"co2_snk","portId":"mat_in"}}],"modelsActive":{"thermo_package":"ideal_raoult","reaction":null,"hx":"cop_cooling","pressure_drop":"none","units":"SI_bar"},"solverOptions":{"maxIter":200}}'
+);
+
 buildExamplesMenu();
 
 /* =========================
@@ -32145,18 +32212,14 @@ buildComponentsPanel();
 
 // Initialize viewport and handle window resize
 window.addEventListener('resize', () => {
-  setViewBox();
-  render();
+  if (typeof fitView === 'function') fitView();
 });
 
-setViewBox();
-
-// [v10.3.0] M8: Restore from auto-save, or load demo
-// [v10.9.3] Version guard: if auto-save is from an older demo, load fresh demo
+// [v14.10.3] Load on startup: auto-save (if matching DEMO_VERSION) or demo_v1
 {
-  const DEMO_VERSION = 'v14.10.5';  // bump this when demo scene changes
-  const saved = localStorage.getItem(AUTOSAVE_KEY);
-  const savedDemoVer = localStorage.getItem(AUTOSAVE_KEY + '_demoVer');
+  const DEMO_VERSION = 'v15.0.0';  // bump this when demo scene changes
+  const saved = localStorage.getItem('ptis_autosave');
+  const savedDemoVer = localStorage.getItem('ptis_autosave_demo_version');
   if (saved && savedDemoVer === DEMO_VERSION) {
     try {
       const result = scene.importJSON(saved);
@@ -45883,6 +45946,117 @@ function runTests() {
     const ch2o_out = outN.CH2O || 0;
     const conversion = (ch2o_in - ch2o_out) / ch2o_in * 100;
     t.assertOK(conversion > 90, `Conversion > 90% (got ${conversion.toFixed(1)}%)`);
+  });
+
+  // ── v15.0.0 — Biosphere profiles & Ineluctable scene ──────────────────
+
+  test('536: v15 — bio_metabolism profile registered, composite:true', t => {
+    const p = ProfileRegistry.get('bio_metabolism');
+    t.assertOK(p, 'bio_metabolism registered');
+    t.assertOK(p.defId === 'reactor_adiabatic', 'defId = reactor_adiabatic');
+    t.assertOK(p.config?.composite === true, 'composite = true');
+    t.assertOK(p.limits[1].T_LL === 273, 'T_LL = 273 (hypothermia)');
+    t.assertOK(p.limits[1].T_HH === 320, 'T_HH = 320 (lethal hyperthermia)');
+    t.assertOK(p.defaults?.reactionId === 'R_METABOLISM', 'default reactionId');
+  });
+
+  test('537: v15 — bio_mixer profile registered, composite:true', t => {
+    const p = ProfileRegistry.get('bio_mixer');
+    t.assertOK(p, 'bio_mixer registered');
+    t.assertOK(p.defId === 'mixer', 'defId = mixer');
+    t.assertOK(p.config?.composite === true, 'composite = true');
+    t.assertOK(p.limits[1].T_LL === 273, 'T_LL = 273');
+    t.assertOK(p.limits[1].T_HH === 350, 'T_HH = 350');
+  });
+
+  test('538: v15 — bio profiles excluded from palette listing', t => {
+    const cats = ProfileRegistry.listByCategory();
+    let found = false;
+    for (const [cat, profiles] of Object.entries(cats)) {
+      for (const p of profiles) {
+        if (p.id === 'bio_metabolism' || p.id === 'bio_mixer') found = true;
+      }
+    }
+    t.assertOK(!found, 'bio profiles not in palette categories');
+  });
+
+  test('539: v15 — demo_ineluctable registered in DemoScenes', t => {
+    const demo = DemoScenes.get('demo_ineluctable');
+    t.assertOK(demo, 'demo_ineluctable exists in registry');
+    t.assertOK(demo.label.includes('Ineluctable'), 'label contains Ineluctable');
+    const data = JSON.parse(demo.data);
+    t.assertOK(data.units.length === 20, `20 units (got ${data.units.length})`);
+    t.assertOK(data.connections.length === 21, `21 connections (got ${data.connections.length})`);
+  });
+
+  test('540: v15 — demo_ineluctable loads and solves', t => {
+    t.clearScene();
+    const demo = DemoScenes.get('demo_ineluctable');
+    const result = scene.importJSON(demo.data);
+    t.assertOK(!result || result.ok !== false, 'importJSON succeeded');
+    const sr = t.solveRaw();
+    t.assertOK(sr, 'solver returned result');
+    // Check that metabolism reactors ran
+    const h1m = t.unit('h1_metab');
+    t.assertOK(h1m, 'h1_metab unit found');
+    const h1ud = t.ud('h1_metab');
+    t.assertOK(h1ud?.last, 'H1 metabolism has last data');
+  });
+
+  test('541: v15 — ineluctable: metabolic CO₂ production rate', t => {
+    // Scene should already be loaded from test 540, but reload to be safe
+    t.clearScene();
+    const demo = DemoScenes.get('demo_ineluctable');
+    scene.importJSON(demo.data);
+    t.solveRaw();
+    // Each human gets half the air+food. Check H1 metabolism output.
+    const h1ud = t.ud('h1_metab');
+    const outN = h1ud?.ports?.mat_out?.n || {};
+    // CO₂ production per human ≈ 0.000233 mol/s (0.84 mol/hr / 3600)
+    const co2 = outN.CO2 || 0;
+    t.assertOK(co2 > 0.0001, `CO₂ produced > 0.0001 mol/s (got ${co2.toExponential(3)})`);
+    t.assertOK(co2 < 0.001, `CO₂ produced < 0.001 mol/s (got ${co2.toExponential(3)})`);
+  });
+
+  test('542: v15 — ineluctable: LiOH scrubber removes CO₂', t => {
+    t.clearScene();
+    const demo = DemoScenes.get('demo_ineluctable');
+    scene.importJSON(demo.data);
+    t.solveRaw();
+    const lioh_ud = t.ud('lioh');
+    t.assertOK(lioh_ud?.last, 'LiOH scrubber has diagnostics');
+    // Perm out should have reduced CO₂ vs input
+    const permN = lioh_ud?.ports?.perm_out?.n || {};
+    const retN = lioh_ud?.ports?.ret_out?.n || {};
+    const co2_perm = permN.CO2 || 0;
+    const co2_ret = retN.CO2 || 0;
+    t.assertOK(co2_ret > co2_perm, `CO₂ in retentate (${co2_ret.toExponential(3)}) > permeate (${co2_perm.toExponential(3)})`);
+  });
+
+  test('543: v15 — ineluctable: mass balance closes', t => {
+    t.clearScene();
+    const demo = DemoScenes.get('demo_ineluctable');
+    scene.importJSON(demo.data);
+    t.solveRaw();
+    // Sum all source outputs (mol/s)
+    const sources = ['room_air', 'mre', 'h1_water', 'h2_water'];
+    let totalIn = 0;
+    for (const id of sources) {
+      const ud = t.ud(id);
+      const n = ud?.ports?.mat_out?.n || {};
+      totalIn += Object.values(n).reduce((a, b) => a + b, 0);
+    }
+    // Sum all sink inputs
+    const sinks = ['h1_wsnk', 'h2_wsnk', 'clean_snk', 'co2_snk'];
+    let totalOut = 0;
+    for (const id of sinks) {
+      const ud = t.ud(id);
+      const n = ud?.ports?.mat_in?.n || {};
+      totalOut += Object.values(n).reduce((a, b) => a + b, 0);
+    }
+    // Mass balance: in ≈ out (within 1%)
+    const ratio = totalOut / totalIn;
+    t.assertClose(ratio, 1.0, 0.01, `mass balance ratio (in=${totalIn.toExponential(3)}, out=${totalOut.toExponential(3)})`);
   });
 
   // ═══════════════════════════════════════════════════════════════════════
