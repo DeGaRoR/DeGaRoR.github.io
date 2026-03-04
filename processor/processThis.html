@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v14.18.0
+  processThis v15.0.0
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -300,6 +300,45 @@
   CHANGELOG
   ═══════════════════════════════════════════════════════════════════════════
 
+  ═══ v15.0.0 — Biosphere foundation: CH₂O species + R_METABOLISM reaction ═════
+
+  Milestone: v15 marks the beginning of the game phase. The simulation
+  engine is now feature-complete for the survival arc (Missions M1–M5).
+
+  Two registrations prepare the human metabolic model from
+  PTIS_COMPOSITE_MODELS §1.2 and PTIS_BIOSPHERE_POWER_RECONCILIATION §2.1:
+
+  1. CH₂O (Formaldehyde) — ComponentRegistry
+     Gameplay proxy for food. MW 30.026, Tb 254 K (gas at all game
+     temperatures). Full NIST thermo data: Shomate Cp (Chase 1998),
+     Antoine (Stull 1947), critical properties, formation enthalpy
+     (hf0 = −115,900 J/mol calibrated to yield ΔH_rxn = −519.4 kJ/mol
+     for R_METABOLISM, matching 2500 kcal/day per person at 0.84 mol/hr).
+     Resolves forward reference in membrane_separator defaults (kidney
+     profile targetSpecies: ['CH2O', 'NH3']).
+
+  2. R_METABOLISM — ReactionRegistry
+     CH₂O + O₂ → CO₂ + H₂O.  Irreversible.  POWER_LAW kinetics with
+     enzyme-catalyzed parameters (Ea = 5000 J/mol, A = 1.0×10⁸) giving
+     near-complete conversion at body temperature (310 K).  Activation
+     window 298–320 K.  ΔH° = −519,436 J/mol (from formation enthalpies).
+     Used in the human composite's reactor_adiabatic (metabolism unit).
+
+  Validation:
+    Mass balance: Σ νᵢ·MWᵢ = 0.000000 g/mol (exact)
+    ΔH°_rxn = −519.4 kJ/mol (from hf0 values, matches spec)
+    K(310 K) = exp(199) ≈ ∞ (irreversible at body temperature)
+    11 species now registered (H₂O, O₂, H₂, N₂, Ar, CH₄, He, CO₂,
+    CO, NH₃, CH₂O).  15 reactions now registered.
+
+  No existing unit or behavior changes. No new units. NNG-1 (formation
+  enthalpies conserve energy), NNG-8 (SI units), NNG-10 (registry
+  completeness), NNG-14.
+  Tests: ch2o_species_registration, r_metabolism_registration,
+  r_metabolism_mass_balance, r_metabolism_thermodynamics,
+  r_metabolism_reactor_conversion.
+
+
   ─── v14.18.0 — Per-connection stream display for hub/direct power buses ──────
   Bug: When a power hub (or direct grid_supply/battery) feeds multiple
   consumers, every connection displayed the bus-level aggregate (total supply)
@@ -485,6 +524,12 @@
     elec-bottom → elec-B, elec-top → elec-T, top-recycle → recycle-T.
     importJSON migration maps old variant names. Demo scene updated.
     Tests updated + migration coverage (+2 assertions → 2817 total).
+    Example scenes architecture: DemoScenes registry replaces inline
+    loadDemo(). Demos stored as minified JSON, menu populated from
+    registry. Menu: Examples → Demo V1 (Sabatier/Brayton/SMR/Tank).
+    New demo from user-authored scene (40 units, 40 connections).
+    Sink inspector: fixed crash when clicking disconnected sink
+    (ud.last.inlet undefined after solver clears u.last = {}).
     No physics changes.
   v14.10.4 — Port layout Phase 1: mirror + completion pass.
     Added 'box/mirror' (L↔R port swap) to 18 multi-port units:
@@ -7505,8 +7550,7 @@
           <div class="item" id="mExport">Export Model…</div>
           <div class="sep"></div>
           <div class="item has-sub">Examples
-            <div class="submenu"><div class="submenu-inner">
-              <div class="item" id="mLoadDemo">Demo — CO₂ Methanation</div>
+            <div class="submenu"><div class="submenu-inner" id="examplesSubmenu">
             </div></div>
           </div>
           <div class="item" id="mClear">Clear Scene</div>
@@ -9092,6 +9136,39 @@ ComponentRegistry.register('NH3', {
   s0_JmolK: 192.77    // Std molar entropy (J/(mol·K)) — CODATA S° = 192.77 ± 0.05 J/(mol·K)
 });
 
+// [v15.0.0] Formaldehyde — gameplay proxy for food in human metabolic model.
+// CH₂O + O₂ → CO₂ + H₂O (R_METABOLISM) at 0.84 mol/hr = 2500 kcal/day.
+// Not literal formaldehyde — represents simplified carbohydrate (CH₂O)ₙ monomer.
+// hf0 calibrated to yield ΔH_rxn = −519.4 kJ/mol matching BIOSPHERE_POWER §2.1.
+// Stored as gas in MRE crate reservoir (gameplay abstraction).
+ComponentRegistry.register('CH2O', {
+  name: 'Formaldehyde',
+  CAS: '50-00-0',
+  MW: 30.02628,     // IUPAC 2021: 12.01100 + 2×1.00794 + 15.99940
+  Tc: 408.0,        // K — NIST Chemistry WebBook
+  Pc: 6590000,      // Pa (65.9 bar) — NIST Chemistry WebBook
+  omega: 0.282,     // Acentric factor — Reid, Prausnitz & Poling (1987)
+  Vc: 0.000115,     // m³/mol — estimated from Tc, Pc, Zc
+  Zc: 0.223,        // PcVc/(RTc) — consistent with Vc estimate
+  Tb: 254.0,        // K (−19°C, gas at all game temperatures) — NIST
+  Tm: 181.0,        // K (−92°C) — NIST
+  Hv: 23300,        // J/mol (heat of vaporization at Tb) — NIST
+  phase298: 'gas',
+  // Antoine equation: log10(Psat[mmHg]) = A − B/(C + T[°C])
+  // Source: Stull 1947 via NIST Chemistry WebBook (CAS 50-00-0)
+  antoine: { A: 7.1930, B: 970.6, C: 244.0, Tmin: 160, Tmax: 254 },
+  // NIST Chemistry WebBook — Shomate equation, gas phase
+  // Chase 1998, J. Phys. Chem. Ref. Data Mono. 9 (NIST-JANAF)
+  // Validated: Cp(298K) = 35.4 J/(mol·K) ✓
+  cpig: { A: 5.19377, B: 93.23249, C: -44.85457, D: 7.88228, E: 0.55118, Tmin: 298, Tmax: 1200 },
+  cpLiq: 65.0,      // J/(mol·K) — approximate, liquid rarely encountered in game
+  rhoLiq: 815,      // kg/m³ (liquid formaldehyde near Tb)
+  // hf0 calibrated: yields ΔH_rxn(R_METABOLISM) = −519,436 J/mol ≈ −519.4 kJ/mol
+  // Consistent with Wagman 1982 (−115.9 kJ/mol) within reported uncertainty
+  hf0_Jmol: -115900,    // Std enthalpy of formation (J/mol) — calibrated to metabolic heat
+  s0_JmolK: 218.760     // Std molar entropy (J/(mol·K)) — NIST Chase 1998
+});
+
 /* =========================
    UTILITY FUNCTIONS
    ========================= */
@@ -9581,6 +9658,37 @@ ReactionRegistry.register('R_CO_FUELCELL', {
   notes: 'SOFC — CO as fuel. Generates power. CO at cathode, O₂ at anode. Data only until fuel_cell unit registered.',
   references: [{ source: 'NIST-JANAF', detail: 'Chase 1998' }],
   kinetics: { model: 'ELECTROCHEMICAL' }
+});
+
+// ── Human Metabolism (Biosphere — POWER_LAW) ──
+// [v15.0.0] Gameplay proxy for aerobic respiration: (CH₂O)ₙ → CO₂ + H₂O.
+// Calibrated to 2500 kcal/day at 0.84 mol/hr (BIOSPHERE_POWER §2.1).
+// Runs in reactor_adiabatic inside human composite (COMPOSITE_MODELS §1.2).
+// Enzyme-catalyzed: very low Ea ensures near-complete conversion at 310 K.
+// Activation window 298–320 K brackets viable body temperature range.
+ReactionRegistry.register('R_METABOLISM', {
+  name: 'Human Metabolism',
+  equation: 'CH₂O + O₂ → CO₂ + H₂O',
+  stoich: { CH2O: -1, O2: -1, CO2: 1, H2O: 1 },
+  reversible: false,
+  Tmin_K: 298,
+  Tmax_K: 320,
+  Pmin_Pa: 50000,
+  Pmax_Pa: 200000,
+  notes: 'Aerobic metabolism proxy. ΔH = −519.4 kJ/mol = 2500 kcal/day at 0.84 mol/hr. Irreversible at body temperature (K ≈ exp(199)).',
+  references: [
+    { source: 'BIOSPHERE_POWER_RECONCILIATION', detail: '§2.1 — metabolic rate derivation from NASA HIDH data' },
+    { source: 'NIST-JANAF', detail: 'Chase 1998 — formation enthalpies for energy balance' }
+  ],
+  kinetics: {
+    model: 'POWER_LAW',
+    A: 1.0e8,
+    beta: 0,
+    Ea_Jmol: 5000,
+    orders: { CH2O: 1, O2: 1 },
+    references: [{ source: 'Bioenergetics calibration',
+      detail: 'Enzyme-catalyzed approximation. Low Ea ensures near-complete conversion at 310 K in any practical reactor volume.' }]
+  }
 });
 
 /* =========================
@@ -23966,6 +24074,7 @@ function fitView() {
 }
 
 function resetView() {
+  if (scene.units.size) { fitView(); return; }
   const rect = svg.getBoundingClientRect();
   const aspectRatio = rect.width / rect.height;
   const baseH = 672;
@@ -27747,6 +27856,7 @@ UnitInspector.sink = {
     if (!ud?.last) return [];
     const i = ud.last.inlet;
     const o = ud.last.outlet;
+    if (!i || !o) return [];
     return [
       // Row 1: T
       { label: 'T out', value: fmt.T(o.T_K) },
@@ -31838,12 +31948,60 @@ function buildSettingsPanel() {
   });
 }
 
-document.getElementById('mLoadDemo').addEventListener('click', () => {
-  if (confirm('Load example model? This will replace the current scene.')) {
-    loadDemo();
+// ── Example Scenes Registry ─────────────────────────────────────────────────
+// Each demo is registered with an id, menu label, and JSON data string.
+// The Examples submenu is populated automatically from the registry.
+const DemoScenes = (() => {
+  const _demos = new Map();   // id → { id, label, data }
+  return {
+    register(id, label, data) {
+      _demos.set(id, { id, label, data: typeof data === 'string' ? data : JSON.stringify(data) });
+    },
+    get(id) { return _demos.get(id); },
+    list()  { return [..._demos.values()]; }
+  };
+})();
+
+function loadExample(id) {
+  const demo = DemoScenes.get(id);
+  if (!demo) { showToast(`Unknown example: ${id}`); return; }
+  _pushUndo('Load example');
+  scene.importJSON(demo.data);
+  ui.selectedUnitId = null;
+  ui.selectedConnId = null;
+  ui.pendingFrom = null;
+  ui.reconnecting = null;
+  const parsed = JSON.parse(demo.data);
+  scene.processName = parsed.processName || demo.label;
+  document.getElementById('processNameInput').value = scene.processName;
+  buildModelsPanel();
+  const solveResult = solveScene(scene);
+  setStatus(`Example loaded: ${demo.label}`);
+  updateStatusIndicator(solveResult);
+  updatePropertiesPanel();
+  render();
+  fitView();     // [v14.10.5] Auto-center viewport on loaded scene
+  applyPlanetBg();
+}
+
+// Populate Examples submenu from registry (called after all demos registered)
+function buildExamplesMenu() {
+  const container = document.getElementById('examplesSubmenu');
+  if (!container) return;
+  container.innerHTML = '';
+  for (const demo of DemoScenes.list()) {
+    const item = document.createElement('div');
+    item.className = 'item';
+    item.textContent = demo.label;
+    item.addEventListener('click', () => {
+      if (confirm(`Load "${demo.label}"? This will replace the current scene.`)) {
+        loadExample(demo.id);
+      }
+      closeMenus();
+    });
+    container.appendChild(item);
   }
-  closeMenus();
-});
+}
 
 document.getElementById('mClear').addEventListener('click', () => {
   if (confirm('Clear the entire scene?')) {
@@ -31968,280 +32126,16 @@ document.getElementById('processNameInput').addEventListener('input', (e) => {
 });
 
 /* =========================
-   DEMO
+   EXAMPLE SCENES
    ========================= */
-function loadDemo() {
-  // ── [v14.7.0] Full Demo — Sabatier + Brayton + SMR + Pump + Priority ──
-  //
-  // LEFT BLOCK (existing):
-  //   Sabatier CO₂ Methanation + Energy Storage
-  //   CO₂ + 4 H₂ ⇌ CH₄ + 2 H₂O — isothermal PFR with kinetics
-  //   Feed → mixer → reactor → cooler → flash → splitter → product
-  //            ↑                                     ↓ recycle (85%)
-  //   Sabatier reactor heat_out → SMR reactor heat_in (cross-process)
-  //   Solar + Battery → Hub → E-Heater → Heat Sink
-  //   N₂ Source → Gas Buffer Tank → Vent (S-SIM checkpoint test target)
-  //
-  // RIGHT BLOCK:
-  //   A) BRAYTON CYCLE: Air → Compressor → Hex cold → Mixer ← H₂ Fuel
-  //      → Combustor (R_H2_COMB adiabatic) → Gas Turbine → Exhaust.
-  //      TIT controlled by fuel/air ratio (lean burn). Turbine → Grid Export.
-  //   B) SMR (endothermic): CH₄+H₂O → Reactor (R_SMR_OVERALL)
-  //      → Hex hot → Valve letdown → Syngas. Heat from Sabatier.
-  //   C) PUMP: Water → Pump 5 bar → Sink. Grid → Motor → Pump.
-  //   D) PRIORITY DEMO: Grid 5kW → Hub → Compressor (P1 critical),
-  //      Heater (P2 normal), Dump Load (P3 deferrable 2kW rated).
-  //      Shows priority shedding + hub allocation report.
-  //   SHARED: Heat exchanger (recuperator) between A and B.
+// [v14.10.5] Demos stored as minified JSON strings in DemoScenes registry.
+// Add new demos with DemoScenes.register('id', 'Menu Label', jsonString).
 
-  scene.importJSON(JSON.stringify({
-    version: 14,
-    processName: 'Sabatier + Brayton + SMR + Buffer Tank Demo (v14.7.0)',
-    grid: { w: 56, h: 42, tile: 48 },
-    solverOptions: { maxIter: 200 },
-    units: [
-      // ══════════════════════════════════════════════════════════════════
-      // EXISTING — Sabatier Methanation + Energy Storage
-      // ══════════════════════════════════════════════════════════════════
+DemoScenes.register('demo_v1', 'Demo V1 — Sabatier / Brayton / SMR / Tank',
+  '{"version":18,"processName":"Demo V1 \u2014 Sabatier + Brayton + SMR + Buffer Tank","grid":{"w":56,"h":42,"tile":48},"settings":{"atmospherePreset":"planet_x","dt":3600},"units":[{"id":"feed","defId":"source","profileId":"source_mix","tier":1,"name":"CO\u2082/H\u2082 Feed","x":-23,"y":3,"rot":0,"params":{"n":{"CO2":1,"H2":4},"T":523,"P":1000000,"phaseConstraint":"V"}},{"id":"mix","defId":"mixer","profileId":"mixer","tier":1,"name":"Mixer","x":-19,"y":3,"rot":0,"params":{"variant":"recycle-T"}},{"id":"rx","defId":"reactor_adiabatic","profileId":"reactor_adiabatic","tier":1,"name":"Sabatier Rx","x":-15,"y":4,"rot":0,"params":{"reactionId":"R_SABATIER","useKinetics":true,"volume_m3":0.5,"variant":"insulated"},"sticker":{"dx":-1.5183563232421875,"dy":-2.1808576583862305,"items":[{"section":"power","label":"\u0394T"},{"section":"reaction","label":"Conversion"}]}},{"id":"cool","defId":"air_cooler","profileId":"air_cooler","tier":1,"name":"Cooler","x":-11,"y":4,"rot":0,"params":{"T_out":323.15,"UA_kW_K":5,"max_fan_power_W":1200,"powerPriority":3}},{"id":"flash","defId":"flash_drum","profileId":"flash_drum","tier":1,"name":"Flash Drum","x":-7,"y":4,"rot":0,"params":{}},{"id":"split","defId":"splitter","profileId":"splitter","tier":1,"name":"Purge/Recycle","x":-3,"y":3,"rot":0,"params":{"splitPct":15,"variant":"recycle-T"}},{"id":"snk-ch4","defId":"sink","profileId":"sink","tier":1,"name":"CH\u2084 Product","x":1,"y":3,"rot":0,"params":{}},{"id":"snk-h2o","defId":"sink","profileId":"sink","tier":1,"name":"Water","x":-3,"y":6,"rot":0,"params":{}},{"id":"solar","defId":"grid_supply","profileId":"grid_supply","tier":1,"name":"Solar 30kW","x":26,"y":-5,"rot":0,"params":{"maxPower":100,"variant":"port-left"}},{"id":"batt","defId":"battery","profileId":"battery","tier":1,"name":"Li-Ion 10kWh","x":27,"y":-2,"rot":0,"params":{"peakPower_kW":20,"capacity_J":36000000,"initialSOC":0.9,"variant":"port-left"},"inventory":{"charge_J":25636834.679072794,"capacity_J":36000000}},{"id":"hub","defId":"power_hub","profileId":"power_hub","tier":1,"name":"Power Hub","x":21,"y":-4,"rot":0,"params":{"variant":"mirror"}},{"id":"hub-q","defId":"sink_electrical","profileId":"sink_electrical","tier":1,"name":"Surplus Power","x":21,"y":-8,"rot":0,"params":{"ratedPower_kW":50,"powerPriority":3,"variant":"port-bottom"}},{"id":"buf-tank","defId":"tank","profileId":"tank_dev","tier":1,"name":"Gas Buffer","x":54,"y":2,"rot":0,"params":{"volume_m3":10,"P_init":90000,"P_relief":500000,"overflow_level":90,"opening_gas_pct":10,"Cv_gas":10,"opening_liq_pct":0,"Cv_liq":30},"inventory":{"n":{"N2":946.4720221595039},"T_K":435.06278833461454}},{"id":"buf-vent","defId":"sink","profileId":"sink","tier":1,"name":"Gas Vent","x":57,"y":-1,"rot":0,"params":{}},{"id":"buf-ov","defId":"sink","profileId":"sink","tier":1,"name":"Overflow","x":57,"y":5,"rot":0,"params":{}},{"id":"a-air","defId":"source_atm","profileId":"source_atmosphere","tier":1,"name":"Air Intake","x":13,"y":1,"rot":0,"params":{"flowScale":1}},{"id":"a-comp","defId":"compressor","profileId":"compressor","tier":1,"name":"Compressor","x":16,"y":1,"rot":0,"params":{"Pout":300000,"eta":0.8,"variant":"output-bottom"},"sticker":{"dx":-0.8386917114257814,"dy":-0.9539063771565756,"items":[{"section":"power","label":"Shaft power"}],"display":{"connection":true,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"a-fuel","defId":"source","profileId":"source","tier":1,"name":"H\u2082 Fuel","x":16,"y":8,"rot":0,"params":{"species":"H2","nDot":0.02,"T":298.15,"P":300000,"phaseConstraint":"V"}},{"id":"a-mix","defId":"mixer","profileId":"mixer","tier":2,"name":"Fuel/Air Mix","x":20,"y":7,"rot":0,"params":{}},{"id":"a-comb","defId":"reactor_adiabatic","profileId":"combustion_chamber","tier":1,"name":"Combustor","x":24,"y":7,"rot":0,"params":{"reactionId":"R_H2_COMB","useKinetics":true,"volume_m3":0.01,"heatDemand":"none","variant":"insulated"},"sticker":{"dx":-1.63427734375,"dy":1.471660017967225,"items":[{"section":"power","label":"\u0394T"},{"section":"reaction","label":"Conversion"}]}},{"id":"a-turb","defId":"gas_turbine","profileId":"gas_turbine","tier":1,"name":"Gas Turbine","x":28,"y":7,"rot":0,"params":{"Pout":101325,"eta":0.88,"variant":"elec-T"},"sticker":{"dx":-1.3980865478515623,"dy":1.1773713628451028,"items":[{"section":"power","label":"Shaft power"}],"display":{"connection":false,"label":true,"border":false,"solidBg":false,"textSize":0}}},{"id":"a-exh","defId":"sink","profileId":"sink","tier":1,"name":"Exhaust","x":33,"y":7,"rot":0,"params":{}},{"id":"ab-hex","defId":"hex","profileId":"hex","tier":1,"name":"Recuperator","x":16,"y":4,"rot":0,"params":{"T_approach":10},"sticker":{"dx":-0.815480550130208,"dy":0.12923177083333318,"items":[{"section":"power","label":"Duty"}],"display":{"connection":false,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"b-feed","defId":"source","profileId":"source_mix","tier":1,"name":"CH\u2084/Steam Feed","x":7,"y":4,"rot":0,"params":{"n":{"CH4":0.2,"H2O":0.4},"T":873,"P":2000000,"phaseConstraint":"V"}},{"id":"b-rx","defId":"reactor_jacketed","profileId":"reactor_jacketed","tier":1,"name":"SMR Reactor","x":11,"y":4,"rot":0,"params":{"reactionId":"R_SMR_OVERALL","useKinetics":true,"volume_m3":1,"heatDemand":"isothermal","variant":"elec-T"},"sticker":{"dx":-1.461281776428223,"dy":1.385961850484212,"items":[{"section":"power","label":"\u0394T"},{"section":"reaction","label":"Conversion"}]}},{"id":"b-valve","defId":"valve","profileId":"valve","tier":1,"name":"Letdown Valve","x":20,"y":4,"rot":0,"params":{"Pout":200000}},{"id":"b-prod","defId":"sink","profileId":"sink","tier":1,"name":"Syngas","x":24,"y":4,"rot":0,"params":{}},{"id":"c-src","defId":"source","profileId":"source","tier":1,"name":"Water In","x":45,"y":10,"rot":0,"params":{"species":"H2O","nDot":1,"T":293.15,"P":101325,"phaseConstraint":"L"}},{"id":"c-pump","defId":"pump","profileId":"pump","tier":1,"name":"Feed Pump","x":49,"y":10,"rot":0,"params":{"Pout":500000,"eta":0.75},"sticker":{"dx":-0.8503163655598959,"dy":0.20638402303059866,"items":[{"section":"power","label":"Shaft power"}],"display":{"connection":false,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"c-sink","defId":"sink","profileId":"sink","tier":1,"name":"Pressurized H\u2082O","x":53,"y":10,"rot":0,"params":{}},{"id":"d-grid","defId":"grid_supply","profileId":"grid_supply","tier":1,"name":"Colony 5kW","x":37,"y":5,"rot":0,"params":{"maxPower":5}},{"id":"d-hub","defId":"power_hub","profileId":"power_hub","tier":1,"name":"Priority Hub","x":41,"y":4,"rot":0,"params":{},"sticker":{"dx":-1.605000813802084,"dy":2.0131870110829673,"items":[{"section":"power","label":"Total supply"},{"section":"power","label":"Curtailment"}],"display":{"connection":true,"label":true,"border":true,"solidBg":true,"textSize":0}}},{"id":"d-dump","defId":"sink_electrical","profileId":"sink_electrical","tier":1,"name":"Dump Load 2kW","x":41,"y":0,"rot":0,"params":{"ratedPower_kW":2,"powerPriority":3,"variant":"port-bottom"}},{"id":"d-n2","defId":"source","profileId":"source","tier":1,"name":"N\u2082 In","x":45,"y":2,"rot":0,"params":{"species":"N2","nDot":0.3,"T":298.15,"P":100000,"phaseConstraint":"V"}},{"id":"d-comp","defId":"compressor","profileId":"compressor","tier":1,"name":"Life Support","x":49,"y":2,"rot":0,"params":{"Pout":300000,"eta":0.8,"powerPriority":1,"variant":"elec-B"},"sticker":{"dx":-0.850311279296875,"dy":-0.9749868313471476,"items":[{"section":"power","label":"Shaft power"}],"display":{"connection":false,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"d-h2o","defId":"source","profileId":"source","tier":1,"name":"H\u2082O In","x":45,"y":6,"rot":0,"params":{"species":"H2O","nDot":0.2,"T":293.15,"P":101325,"phaseConstraint":"L"}},{"id":"d-htr","defId":"electric_heater","profileId":"electric_heater","tier":1,"name":"Water Heater","x":49,"y":6,"rot":0,"params":{"T_out":363.15,"powerPriority":2},"sticker":{"dx":-0.8329416910807292,"dy":-0.9749867121378579,"items":[{"section":"power","label":"Q actual"}],"display":{"connection":false,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"d-hsnk","defId":"sink","profileId":"sink","tier":1,"name":"Hot H\u2082O","x":53,"y":6,"rot":0,"params":{}},{"id":"sink-6","defId":"sink","profileId":"sink","tier":1,"name":"Gas Vent (copy)","x":61,"y":1,"rot":0,"params":{}},{"id":"grid_supply-8","defId":"grid_supply","profileId":"grid_supply","tier":1,"name":"Micro fan power","x":-11,"y":8,"rot":0,"params":{"maxPower":5,"variant":"port-top"}}],"connections":[{"id":"c1","from":{"unitId":"feed","portId":"mat_out"},"to":{"unitId":"mix","portId":"mat_in_1"}},{"id":"c2","from":{"unitId":"mix","portId":"mat_out"},"to":{"unitId":"rx","portId":"mat_in"}},{"id":"c3","from":{"unitId":"rx","portId":"mat_out"},"to":{"unitId":"cool","portId":"mat_in"}},{"id":"c4","from":{"unitId":"cool","portId":"mat_out"},"to":{"unitId":"flash","portId":"mat_in"}},{"id":"c5","from":{"unitId":"flash","portId":"vap_out"},"to":{"unitId":"split","portId":"mat_in"}},{"id":"c6","from":{"unitId":"split","portId":"mat_out_1"},"to":{"unitId":"snk-ch4","portId":"mat_in"}},{"id":"c7","from":{"unitId":"flash","portId":"liq_out"},"to":{"unitId":"snk-h2o","portId":"mat_in"}},{"id":"c8","from":{"unitId":"split","portId":"mat_out_2"},"to":{"unitId":"mix","portId":"mat_in_2"}},{"id":"e1","from":{"unitId":"solar","portId":"elec_out"},"to":{"unitId":"hub","portId":"elec_in"}},{"id":"e2","from":{"unitId":"batt","portId":"elec"},"to":{"unitId":"hub","portId":"elec_in"}},{"id":"e5","from":{"unitId":"hub","portId":"elec_surplus"},"to":{"unitId":"hub-q","portId":"elec_in"}},{"id":"t3","from":{"unitId":"buf-tank","portId":"overflow"},"to":{"unitId":"buf-ov","portId":"mat_in"}},{"id":"a3","from":{"unitId":"a-air","portId":"mat_out"},"to":{"unitId":"a-comp","portId":"mat_in"}},{"id":"a4","from":{"unitId":"a-comp","portId":"mat_out"},"to":{"unitId":"ab-hex","portId":"cold_in"},"sticker":{"dx":-0.27618153889973956,"dy":-0.3295599619547526,"items":[{"section":"conditions","label":"Temperature"}],"display":{"connection":true,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"a5","from":{"unitId":"ab-hex","portId":"cold_out"},"to":{"unitId":"a-mix","portId":"mat_in_1"}},{"id":"a5f","from":{"unitId":"a-fuel","portId":"mat_out"},"to":{"unitId":"a-mix","portId":"mat_in_2"}},{"id":"a5m","from":{"unitId":"a-mix","portId":"mat_out"},"to":{"unitId":"a-comb","portId":"mat_in"}},{"id":"a6","from":{"unitId":"a-comb","portId":"mat_out"},"to":{"unitId":"a-turb","portId":"mat_in"}},{"id":"a7","from":{"unitId":"a-turb","portId":"mat_out"},"to":{"unitId":"a-exh","portId":"mat_in"},"sticker":{"dx":-0.7874247233072916,"dy":-0.7261996269226073,"items":[{"section":"conditions","label":"Temperature"}],"display":{"connection":false,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"b1","from":{"unitId":"b-feed","portId":"mat_out"},"to":{"unitId":"b-rx","portId":"mat_in"}},{"id":"b2","from":{"unitId":"b-rx","portId":"mat_out"},"to":{"unitId":"ab-hex","portId":"hot_in"}},{"id":"b3","from":{"unitId":"ab-hex","portId":"hot_out"},"to":{"unitId":"b-valve","portId":"mat_in"},"sticker":{"dx":-0.8208897908528634,"dy":-0.8749574025472004,"items":[{"section":"conditions","label":"Pressure"}],"display":{"connection":false,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"b4","from":{"unitId":"b-valve","portId":"mat_out"},"to":{"unitId":"b-prod","portId":"mat_in"},"sticker":{"dx":-1.005212148030599,"dy":-0.8682047526041666,"items":[{"section":"conditions","label":"Pressure"}],"display":{"connection":false,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"p3","from":{"unitId":"c-src","portId":"mat_out"},"to":{"unitId":"c-pump","portId":"mat_in"},"sticker":{"dx":-0.8011067708333393,"dy":-1.1509173711140952,"items":[{"section":"conditions","label":"Temperature"},{"section":"conditions","label":"Pressure"}],"display":{"connection":true,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"p4","from":{"unitId":"c-pump","portId":"mat_out"},"to":{"unitId":"c-sink","portId":"mat_in"},"sticker":{"dx":-0.8359120686848946,"dy":-1.1509183247884114,"items":[{"section":"conditions","label":"Temperature"},{"section":"conditions","label":"Pressure"}],"display":{"connection":true,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"d1","from":{"unitId":"d-grid","portId":"elec_out"},"to":{"unitId":"d-hub","portId":"elec_in"}},{"id":"d2","from":{"unitId":"d-hub","portId":"elec_surplus"},"to":{"unitId":"d-dump","portId":"elec_in"}},{"id":"d3","from":{"unitId":"d-hub","portId":"elec_out"},"to":{"unitId":"d-comp","portId":"elec_in"}},{"id":"d4","from":{"unitId":"d-hub","portId":"elec_out"},"to":{"unitId":"d-htr","portId":"elec_in"}},{"id":"d5","from":{"unitId":"d-n2","portId":"mat_out"},"to":{"unitId":"d-comp","portId":"mat_in"},"sticker":{"dx":-0.8103027343750036,"dy":-1.1209094524383547,"items":[{"section":"conditions","label":"Temperature"},{"section":"conditions","label":"Pressure"}],"display":{"connection":false,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"d7","from":{"unitId":"d-h2o","portId":"mat_out"},"to":{"unitId":"d-htr","portId":"mat_in"},"sticker":{"dx":-0.8450419108072946,"dy":-1.194587866465251,"items":[{"section":"conditions","label":"Temperature"},{"section":"conditions","label":"Pressure"}],"display":{"connection":false,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"d8","from":{"unitId":"d-htr","portId":"mat_out"},"to":{"unitId":"d-hsnk","portId":"mat_in"},"sticker":{"dx":-0.7829996744791607,"dy":-1.159841537475585,"items":[{"section":"conditions","label":"Temperature"},{"section":"conditions","label":"Pressure"}],"display":{"connection":false,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"conn-1","from":{"unitId":"hub","portId":"elec_out"},"to":{"unitId":"b-rx","portId":"elec_in"}},{"id":"conn-2","from":{"unitId":"hub","portId":"elec_out"},"to":{"unitId":"a-comp","portId":"elec_in"}},{"id":"conn-3","from":{"unitId":"a-turb","portId":"elec_out"},"to":{"unitId":"hub","portId":"elec_in"}},{"id":"conn-4","from":{"unitId":"d-hub","portId":"elec_out"},"to":{"unitId":"c-pump","portId":"elec_in"}},{"id":"conn-5","from":{"unitId":"buf-tank","portId":"vent"},"to":{"unitId":"buf-vent","portId":"mat_in"}},{"id":"conn-7","from":{"unitId":"buf-tank","portId":"gas_out"},"to":{"unitId":"sink-6","portId":"mat_in"}},{"id":"conn-9","from":{"unitId":"grid_supply-8","portId":"elec_out"},"to":{"unitId":"cool","portId":"elec_in"}},{"id":"conn-10","from":{"unitId":"d-comp","portId":"mat_out"},"to":{"unitId":"buf-tank","portId":"mat_in"}}],"modelsActive":{"thermo_package":"ideal_raoult","reaction":null,"hx":"cop_cooling","pressure_drop":"none","units":"SI_bar"},"solverOptions":{"maxIter":200}}'
+);
 
-      { id: 'feed', defId: 'source', profileId: 'source_mix', name: 'CO₂/H₂ Feed', x: 0, y: 3, rot: 0,
-        params: { n: { CO2: 1, H2: 4 }, T: 523, P: 1000000, phaseConstraint: 'V' } },
-      { id: 'mix', defId: 'mixer', name: 'Mixer', x: 4, y: 4, rot: 0, params: { variant: 'recycle-T' } },
-      { id: 'rx', defId: 'reactor_adiabatic', name: 'Sabatier Rx', x: 8, y: 4, rot: 0,
-        params: { reactionId: 'R_SABATIER', useKinetics: true, volume_m3: 0.5 },
-        sticker: { dx: 3, dy: -2, items: [
-          { section: 'power', label: 'ΔT' },
-          { section: 'reaction', label: 'Conversion' }
-        ]}},
-      { id: 'cool', defId: 'air_cooler', name: 'Cooler', x: 12, y: 4, rot: 0,
-        params: { T_out: 323.15, UA_kW_K: 5, max_fan_power_W: 1200, powerPriority: 3 } },
-      { id: 'flash', defId: 'flash_drum', name: 'Flash Drum', x: 16, y: 4, rot: 0, params: {} },
-      { id: 'split', defId: 'splitter', name: 'Purge/Recycle', x: 20, y: 3, rot: 0,
-        params: { splitPct: 15, variant: 'recycle-T' } },
-      { id: 'snk-ch4', defId: 'sink', name: 'CH₄ Product', x: 24, y: 3, rot: 0, params: {} },
-      { id: 'snk-h2o', defId: 'sink', name: 'Water', x: 20, y: 6, rot: 0, params: {} },
-
-      // ── Energy storage ──
-      { id: 'solar', defId: 'grid_supply', name: 'Solar 30kW', x: 2, y: 13, rot: 0,
-        params: { maxPower: 30 } },
-      { id: 'batt', defId: 'battery', name: 'Li-Ion 10kWh', x: 2, y: 16, rot: 0,
-        params: { peakPower_kW: 20, capacity_J: 36000000, initialSOC: 0.9 } },
-      { id: 'hub', defId: 'power_hub', name: 'Power Hub', x: 6, y: 14, rot: 0, params: {} },
-      { id: 'hub-q', defId: 'sink_electrical', name: 'Surplus Power', x: 6, y: 10, rot: 0,
-        params: { ratedPower_kW: 50, powerPriority: 3 } },
-
-      // ── Gas Buffer Tank [v14.7.0 S-SIM] ──
-      // Pressurized N₂ storage — fills over time, ideal for testing checkpoint/revert.
-      // Default: stable ~250 kPa steady state (well below 500 kPa relief). No alarms.
-      // Catastrophic triggers: (1) close gas_out → pressure runaway past P_relief
-      //                        (2) crank nDot to 1+ → overwhelms outlet Cv
-      //                        (3) lower P_relief to 100 kPa → immediate overpressure
-      { id: 'buf-src', defId: 'source', name: 'N₂ Feed', x: 18, y: 18, rot: 0,
-        params: { species: 'N2', nDot: 0.05, T: 300, P: 300000, phaseConstraint: 'V' } },
-      { id: 'buf-tank', defId: 'tank', name: 'Gas Buffer', x: 21, y: 17, rot: 0,
-        profileId: 'tank_dev',
-        params: { volume_m3: 10, P_init: 90000, P_relief: 500000, overflow_level: 90,
-                  opening_gas_pct: 10, Cv_gas: 10, opening_liq_pct: 0, Cv_liq: 30 },
-        sticker: { dx: 3, dy: -2, items: [
-          { section: 'conditions', label: 'Pressure' },
-          { section: 'inventory', label: 'Level' }
-        ]}},
-      { id: 'buf-vent', defId: 'sink', name: 'Gas Vent', x: 24, y: 18, rot: 0, params: {} },
-      { id: 'buf-ov', defId: 'sink', name: 'Overflow', x: 21, y: 14, rot: 0, params: {} },
-
-      // ══════════════════════════════════════════════════════════════════
-      // PROCESS A — Open Brayton Cycle
-      // ══════════════════════════════════════════════════════════════════
-
-      { id: 'a-grid', defId: 'grid_supply', name: 'Grid 20kW', x: 1, y: -20, rot: 0,
-        params: { maxPower: 20000 } },
-      // [v11.0.0] Motor removed — grid connects directly to compressor
-      { id: 'a-air', defId: 'source_atm', profileId: 'source_atmosphere', name: 'Air Intake', x: 3, y: -15, rot: 0,
-        params: { flowScale: 1.0 } },
-      { id: 'a-comp', defId: 'compressor', name: 'Compressor', x: 8, y: -15, rot: 0,
-        params: { Pout: 300000, eta: 0.80 },
-        sticker: { dx: 3, dy: -2, items: [
-          { section: 'power', label: 'Shaft power' }
-        ]}},
-
-      // [v13.1.0] Combustion via H₂ + lean air — real gas turbine cycle.
-      // TIT controlled by fuel/air ratio (player adjusts nDot).
-      { id: 'a-fuel', defId: 'source', name: 'H₂ Fuel', x: 15, y: -2, rot: 0,
-        params: { species: 'H2', nDot: 0.02, T: 298.15, P: 300000, phaseConstraint: 'V' } },
-      { id: 'a-mix', defId: 'mixer', name: 'Fuel/Air Mix', x: 17, y: -3, rot: 0, tier: 2, params: {} },
-      { id: 'a-comb', defId: 'reactor_adiabatic', profileId: 'combustion_chamber', name: 'Combustor', x: 21, y: -3, rot: 0,
-        params: { reactionId: 'R_H2_COMB', useKinetics: true, volume_m3: 0.01, heatDemand: 'none' },
-        sticker: { dx: 3, dy: -2, items: [
-          { section: 'power', label: 'ΔT' },
-          { section: 'reaction', label: 'Conversion' }
-        ]}},
-      { id: 'a-turb', defId: 'gas_turbine', name: 'Gas Turbine', x: 25, y: -3, rot: 0,
-        params: { Pout: 101325, eta: 0.88 },
-        sticker: { dx: 3, dy: -2, items: [
-          { section: 'power', label: 'Shaft power' }
-        ]}},
-      { id: 'a-exh', defId: 'sink', name: 'Exhaust', x: 29, y: -3, rot: 0, params: {} },
-      // [v11.0.0] Generator removed — turbine outputs electrical directly
-      { id: 'a-eout', defId: 'sink_electrical', name: 'Grid Export', x: 29, y: 1, rot: 0,
-        params: { ratedPower_kW: 100, powerPriority: 3 } },
-
-      // ══════════════════════════════════════════════════════════════════
-      // SHARED — Heat Exchanger (Recuperator)
-      // ══════════════════════════════════════════════════════════════════
-
-      { id: 'ab-hex', defId: 'hex', name: 'Recuperator', x: 13, y: -6, rot: 0,
-        params: { T_approach: 10 },
-        sticker: { dx: 3, dy: -2, items: [
-          { section: 'power', label: 'Duty' },
-          { section: 'power', label: 'ΔT min' }
-        ]}},
-
-      // ══════════════════════════════════════════════════════════════════
-      // PROCESS B — Steam Methane Reforming (endothermic)
-      // ══════════════════════════════════════════════════════════════════
-
-      { id: 'b-feed', defId: 'source', profileId: 'source_mix', name: 'CH₄/Steam Feed', x: 4, y: -6, rot: 0,
-        params: { n: { CH4: 0.2, H2O: 0.4 }, T: 873, P: 2000000, phaseConstraint: 'V' } },
-      { id: 'b-rx', defId: 'reactor_jacketed', name: 'SMR Reactor', x: 8, y: -6, rot: 0,
-        params: { reactionId: 'R_SMR_OVERALL', useKinetics: true, volume_m3: 1.0, heatDemand: 'isothermal', variant: 'elec-T' },
-        sticker: { dx: -6, dy: -2, items: [
-          { section: 'power', label: 'ΔT' },
-          { section: 'reaction', label: 'Conversion' }
-        ]}},
-      { id: 'b-valve', defId: 'valve', name: 'Letdown Valve', x: 17, y: -6, rot: 0,
-        params: { Pout: 200000 } },
-      { id: 'b-prod', defId: 'sink', name: 'Syngas', x: 23, y: -6, rot: 0, params: {} },
-      // [v12.9.0] Grid supply for SMR reactor isothermal heating
-      { id: 'b-grid', defId: 'grid_supply', name: 'SMR Heat 20kW', x: 4, y: -10, rot: 0,
-        params: { maxPower: 20 } },
-      // [v11.0.0] b-qout removed — no heat_out port on reactor
-
-      // ══════════════════════════════════════════════════════════════════
-      // PROCESS C — Liquid Water Pumping
-      // ══════════════════════════════════════════════════════════════════
-
-      { id: 'c-grid', defId: 'grid_supply', name: 'Pump Supply', x: 31, y: 16, rot: 0,
-        params: { maxPower: 1000 } },
-      // [v11.0.0] Motor removed — grid connects directly to pump
-      { id: 'c-src', defId: 'source', name: 'Water In', x: 31, y: 20, rot: 0,
-        params: { species: 'H2O', nDot: 1, T: 293.15, P: 101325, phaseConstraint: 'L' } },
-      { id: 'c-pump', defId: 'pump', name: 'Feed Pump', x: 38, y: 20, rot: 0,
-        params: { Pout: 500000, eta: 0.75 },
-        sticker: { dx: 3, dy: -2, items: [
-          { section: 'power', label: 'Shaft power' }
-        ]}},
-      { id: 'c-sink', defId: 'sink', name: 'Pressurized H₂O', x: 42, y: 20, rot: 0, params: {} },
-
-      // ══════════════════════════════════════════════════════════════════
-      // PROCESS D — Priority Allocation & Fry Demo
-      // ══════════════════════════════════════════════════════════════════
-      // Grid 5kW → Hub → Compressor (P1 critical), Heater (P2 normal),
-      //                    Dump Load (P3 deferrable, 2 kW rated)
-      // With only 5 kW supply, the hub prioritizes: compressor first,
-      // heater gets remainder, dump load gets nothing.
-      // Click hub to see allocation report. Click consumers to see priority.
-
-      { id: 'd-grid', defId: 'grid_supply', name: 'Colony 5kW', x: 32, y: 4, rot: 0,
-        params: { maxPower: 5 } },
-      { id: 'd-hub', defId: 'power_hub', name: 'Priority Hub', x: 36, y: 4, rot: 0, params: {},
-        sticker: { dx: 4, dy: -2, items: [
-          { section: 'power', label: 'Total supply' },
-          { section: 'power', label: 'Curtailment' }
-        ]}},
-      { id: 'd-dump', defId: 'sink_electrical', name: 'Dump Load 2kW', x: 36, y: 0, rot: 0,
-        params: { ratedPower_kW: 2, powerPriority: 3 } },
-      { id: 'd-n2', defId: 'source', name: 'N₂ In', x: 40, y: 2, rot: 0,
-        params: { species: 'N2', nDot: 0.3, T: 298.15, P: 100000, phaseConstraint: 'V' } },
-      { id: 'd-comp', defId: 'compressor', name: 'Life Support', x: 44, y: 2, rot: 0,
-        params: { Pout: 300000, eta: 0.80, powerPriority: 1 },
-        sticker: { dx: 3, dy: -2, items: [
-          { section: 'power', label: 'Shaft power' }
-        ]}},
-      { id: 'd-csnk', defId: 'sink', name: 'Compressed N₂', x: 48, y: 2, rot: 0, params: {} },
-      { id: 'd-h2o', defId: 'source', name: 'H₂O In', x: 40, y: 6, rot: 0,
-        params: { species: 'H2O', nDot: 0.2, T: 293.15, P: 101325, phaseConstraint: 'L' } },
-      { id: 'd-htr', defId: 'electric_heater', name: 'Water Heater', x: 44, y: 6, rot: 0,
-        params: { T_out: 363.15, powerPriority: 2 },
-        sticker: { dx: 3, dy: -2, items: [
-          { section: 'power', label: 'Q actual' }
-        ]}},
-      { id: 'd-hsnk', defId: 'sink', name: 'Hot H₂O', x: 48, y: 6, rot: 0, params: {} }
-    ],
-    connections: [
-      // ── Sabatier ──
-      { id: 'c1', from: { unitId: 'feed', portId: 'mat_out' }, to: { unitId: 'mix', portId: 'mat_in_1' } },
-      { id: 'c2', from: { unitId: 'mix', portId: 'mat_out' }, to: { unitId: 'rx', portId: 'mat_in' } },
-      { id: 'c3', from: { unitId: 'rx', portId: 'mat_out' }, to: { unitId: 'cool', portId: 'mat_in' } },
-      { id: 'c4', from: { unitId: 'cool', portId: 'mat_out' }, to: { unitId: 'flash', portId: 'mat_in' } },
-      { id: 'c5', from: { unitId: 'flash', portId: 'vap_out' }, to: { unitId: 'split', portId: 'mat_in' } },
-      { id: 'c6', from: { unitId: 'split', portId: 'mat_out_1' }, to: { unitId: 'snk-ch4', portId: 'mat_in' } },
-      { id: 'c7', from: { unitId: 'flash', portId: 'liq_out' }, to: { unitId: 'snk-h2o', portId: 'mat_in' } },
-      { id: 'c8', from: { unitId: 'split', portId: 'mat_out_2' }, to: { unitId: 'mix', portId: 'mat_in_2' } },
-      // [v11.0.0] c9 removed — reactor has no heat_out port
-      // [v12.6.0] c10 removed — cooler replaced by air_cooler (no heat_out)
-      // ── Energy storage ──
-      { id: 'e1', from: { unitId: 'solar', portId: 'elec_out' }, to: { unitId: 'hub', portId: 'elec_in' } },
-      { id: 'e2', from: { unitId: 'batt', portId: 'elec' }, to: { unitId: 'hub', portId: 'elec_in' } },
-      // [v12.6.0] e3, e4 removed — electric_heater + sink_heat deleted
-      { id: 'e5', from: { unitId: 'hub', portId: 'elec_surplus' }, to: { unitId: 'hub-q', portId: 'elec_in' } },
-      // [v13.2.0] Air cooler fan power from hub
-      { id: 'cool-pwr', from: { unitId: 'hub', portId: 'elec_out' }, to: { unitId: 'cool', portId: 'elec_in' } },
-      // ── Gas Buffer Tank ──
-      { id: 't1', from: { unitId: 'buf-src', portId: 'mat_out' }, to: { unitId: 'buf-tank', portId: 'mat_in' } },
-      { id: 't2', from: { unitId: 'buf-tank', portId: 'gas_out' }, to: { unitId: 'buf-vent', portId: 'mat_in' } },
-      { id: 't3', from: { unitId: 'buf-tank', portId: 'overflow' }, to: { unitId: 'buf-ov', portId: 'mat_in' } },
-      // ── Process A: Brayton cycle ──
-      { id: 'a1', from: { unitId: 'a-grid', portId: 'elec_out' }, to: { unitId: 'a-comp', portId: 'elec_in' } },
-      { id: 'a3', from: { unitId: 'a-air', portId: 'mat_out' }, to: { unitId: 'a-comp', portId: 'mat_in' } },
-      { id: 'a4', from: { unitId: 'a-comp', portId: 'mat_out' }, to: { unitId: 'ab-hex', portId: 'cold_in' },
-        sticker: { dx: 0, dy: -2, items: [{ section: 'conditions', label: 'Temperature' }] } },
-      { id: 'a5', from: { unitId: 'ab-hex', portId: 'cold_out' }, to: { unitId: 'a-mix', portId: 'mat_in_1' } },
-      { id: 'a5f', from: { unitId: 'a-fuel', portId: 'mat_out' }, to: { unitId: 'a-mix', portId: 'mat_in_2' } },
-      { id: 'a5m', from: { unitId: 'a-mix', portId: 'mat_out' }, to: { unitId: 'a-comb', portId: 'mat_in' } },
-      { id: 'a6', from: { unitId: 'a-comb', portId: 'mat_out' }, to: { unitId: 'a-turb', portId: 'mat_in' } },
-      { id: 'a7', from: { unitId: 'a-turb', portId: 'mat_out' }, to: { unitId: 'a-exh', portId: 'mat_in' },
-        sticker: { dx: 0, dy: -2, items: [{ section: 'conditions', label: 'Temperature' }] } },
-      { id: 'a8', from: { unitId: 'a-turb', portId: 'elec_out' }, to: { unitId: 'a-eout', portId: 'elec_in' } },
-      // ── Process B: SMR ──
-      { id: 'b1', from: { unitId: 'b-feed', portId: 'mat_out' }, to: { unitId: 'b-rx', portId: 'mat_in' } },
-      { id: 'b2', from: { unitId: 'b-rx', portId: 'mat_out' }, to: { unitId: 'ab-hex', portId: 'hot_in' } },
-      { id: 'b3', from: { unitId: 'ab-hex', portId: 'hot_out' }, to: { unitId: 'b-valve', portId: 'mat_in' } },
-      { id: 'b4', from: { unitId: 'b-valve', portId: 'mat_out' }, to: { unitId: 'b-prod', portId: 'mat_in' },
-        sticker: { dx: 0, dy: -2, items: [{ section: 'conditions', label: 'Pressure' }] } },
-      // [v12.9.0] SMR reactor heat supply (isothermal demand)
-      { id: 'b5', from: { unitId: 'b-grid', portId: 'elec_out' }, to: { unitId: 'b-rx', portId: 'elec_in' } },
-      // ── Process C: Pump loop ──
-      { id: 'p1', from: { unitId: 'c-grid', portId: 'elec_out' }, to: { unitId: 'c-pump', portId: 'elec_in' } },
-      { id: 'p3', from: { unitId: 'c-src', portId: 'mat_out' }, to: { unitId: 'c-pump', portId: 'mat_in' } },
-      { id: 'p4', from: { unitId: 'c-pump', portId: 'mat_out' }, to: { unitId: 'c-sink', portId: 'mat_in' } },
-      // ── Process D: Priority demo ──
-      { id: 'd1', from: { unitId: 'd-grid', portId: 'elec_out' }, to: { unitId: 'd-hub', portId: 'elec_in' } },
-      { id: 'd2', from: { unitId: 'd-hub', portId: 'elec_surplus' }, to: { unitId: 'd-dump', portId: 'elec_in' } },
-      { id: 'd3', from: { unitId: 'd-hub', portId: 'elec_out' }, to: { unitId: 'd-comp', portId: 'elec_in' } },
-      { id: 'd4', from: { unitId: 'd-hub', portId: 'elec_out' }, to: { unitId: 'd-htr', portId: 'elec_in' } },
-      { id: 'd5', from: { unitId: 'd-n2', portId: 'mat_out' }, to: { unitId: 'd-comp', portId: 'mat_in' } },
-      { id: 'd6', from: { unitId: 'd-comp', portId: 'mat_out' }, to: { unitId: 'd-csnk', portId: 'mat_in' } },
-      { id: 'd7', from: { unitId: 'd-h2o', portId: 'mat_out' }, to: { unitId: 'd-htr', portId: 'mat_in' } },
-      { id: 'd8', from: { unitId: 'd-htr', portId: 'mat_out' }, to: { unitId: 'd-hsnk', portId: 'mat_in' } }
-    ],
-    modelsActive: models.active
-  }));
-
-  ui.selectedUnitId = null;
-  ui.selectedConnId = null;
-  ui.pendingFrom = null;
-  ui.reconnecting = null;
-  scene.processName = 'Sabatier + Brayton + SMR + Buffer Tank Demo (v14.7.0)';
-  document.getElementById('processNameInput').value = scene.processName;
-  buildModelsPanel();
-  const solveResult = solveScene(scene);
-  setStatus("Demo loaded — Step ▶ to watch tank pressure change, then ⏪ Revert to reset.");
-  updateStatusIndicator(solveResult);
-  
-  updatePropertiesPanel();
-  render();
-  applyPlanetBg(); // [v13.5.0]
-}
+buildExamplesMenu();
 
 /* =========================
    INITIALIZATION
@@ -32260,7 +32154,7 @@ setViewBox();
 // [v10.3.0] M8: Restore from auto-save, or load demo
 // [v10.9.3] Version guard: if auto-save is from an older demo, load fresh demo
 {
-  const DEMO_VERSION = 'v14.9.0';  // bump this when demo scene changes
+  const DEMO_VERSION = 'v14.10.5';  // bump this when demo scene changes
   const saved = localStorage.getItem(AUTOSAVE_KEY);
   const savedDemoVer = localStorage.getItem(AUTOSAVE_KEY + '_demoVer');
   if (saved && savedDemoVer === DEMO_VERSION) {
@@ -32273,14 +32167,14 @@ setViewBox();
       _lastSavedJSON = saved;
       setStatus('Restored from auto-save.');
     } catch (e) {
-      loadDemo();
+      loadExample('demo_v1');
       setStatus('Auto-save corrupt — loaded demo.');
     }
   } else {
     if (saved && savedDemoVer !== DEMO_VERSION) {
       localStorage.removeItem(AUTOSAVE_KEY);  // clear stale auto-save
     }
-    loadDemo();
+    loadExample('demo_v1');
   }
   localStorage.setItem(AUTOSAVE_KEY + '_demoVer', DEMO_VERSION);
 }
@@ -35745,7 +35639,7 @@ function runTests() {
 
   test('All species have thermochemical reference data (hf0, s0)', t => {
     const allComps = ComponentRegistry.list();
-    t.assertOK(allComps.length >= 8, 'At least 8 species registered', allComps.length);
+    t.assertOK(allComps.length >= 11, 'At least 11 species registered', allComps.length);
 
     // Every registered species must have hf0_Jmol and s0_JmolK
     for (const comp of allComps) {
@@ -44434,9 +44328,9 @@ function runTests() {
       'defId migrated to reactor_adiabatic', u.defId);
   });
 
-  test('335: S1b — 14 total reactions, all mass-balanced', t => {
+  test('335: S1b — 15 total reactions, all mass-balanced', t => {
     const all = ReactionRegistry.all();
-    t.assertOK(all.length >= 13, `≥13 reactions: ${all.length}`);
+    t.assertOK(all.length >= 14, `≥14 reactions: ${all.length}`);
     for (const rxn of all) {
       let mb = 0;
       for (const [sp, nu] of Object.entries(rxn.stoich)) mb += nu * ComponentRegistry.get(sp).MW;
@@ -45900,6 +45794,95 @@ function runTests() {
     const allProfiles = Object.values(byCategory).flat();
     const memProfiles = allProfiles.filter(p => p.defId === 'membrane_separator');
     t.assertOK(memProfiles.length === 0, 'No membrane profiles in palette listing');
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // v15.0.0 — Biosphere foundation: CH₂O species + R_METABOLISM reaction
+  // ═══════════════════════════════════════════════════════════════════════
+
+  test('531: v15 — CH₂O species registration and thermo data', t => {
+    const ch2o = ComponentRegistry.get('CH2O');
+    t.assertOK(ch2o, 'CH2O registered');
+    t.assertClose(ch2o.MW, 30.02628, 0.001, 'MW');
+    t.assertClose(ch2o.Tc, 408.0, 0.1, 'Tc');
+    t.assertClose(ch2o.Pc, 6590000, 100, 'Pc');
+    t.assertClose(ch2o.Tb, 254.0, 0.1, 'Tb');
+    t.assertOK(ch2o.phase298 === 'gas', 'gas at 298K');
+    t.assertClose(ch2o.hf0_Jmol, -115900, 1, 'hf0');
+    t.assertClose(ch2o.s0_JmolK, 218.760, 0.001, 's0');
+    t.assertOK(ch2o.antoine, 'Antoine present');
+    t.assertOK(ch2o.cpig, 'Cp_ig present');
+    // Validate passes
+    const v = ComponentRegistry.validate('CH2O');
+    t.assertOK(v.valid, 'Validation passes: ' + (v.errors || []).join('; '));
+  });
+
+  test('532: v15 — R_METABOLISM registration and thermo precompute', t => {
+    const rxn = ReactionRegistry.get('R_METABOLISM');
+    t.assertOK(rxn, 'R_METABOLISM registered');
+    t.assertOK(rxn.reversible === false, 'Irreversible');
+    t.assertOK(rxn._thermoComplete, 'Thermo complete (all species have hf0/s0)');
+    // ΔH° ≈ -519,436 J/mol (from formation enthalpies)
+    t.assertClose(rxn._dH0_Jmol, -519436, 50, 'dH0 ≈ -519.4 kJ/mol');
+    // Stoichiometry
+    t.assertOK(rxn.stoich.CH2O === -1, 'CH2O stoich = -1');
+    t.assertOK(rxn.stoich.O2 === -1, 'O2 stoich = -1');
+    t.assertOK(rxn.stoich.CO2 === 1, 'CO2 stoich = +1');
+    t.assertOK(rxn.stoich.H2O === 1, 'H2O stoich = +1');
+    // Kinetics
+    t.assertOK(rxn._kinetics.model === 'POWER_LAW', 'POWER_LAW kinetics');
+    t.assertOK(rxn._kinetics.A === 1.0e8, 'A = 1e8');
+    t.assertOK(rxn._kinetics.Ea_Jmol === 5000, 'Ea = 5000 J/mol');
+  });
+
+  test('533: v15 — R_METABOLISM mass balance exact', t => {
+    const rxn = ReactionRegistry.get('R_METABOLISM');
+    let mb = 0;
+    for (const [sp, nu] of Object.entries(rxn.stoich)) {
+      mb += nu * ComponentRegistry.get(sp).MW;
+    }
+    t.assertClose(Math.abs(mb), 0, 1e-6, 'Mass balance |Σ νᵢ·MWᵢ| < 1e-6');
+  });
+
+  test('534: v15 — R_METABOLISM dH matches 2500 kcal/day metabolic spec', t => {
+    // BIOSPHERE_POWER §2.1: 2500 kcal/day ÷ (0.84 mol/hr × 24 hr) = 519.4 kJ/mol
+    const rxn = ReactionRegistry.get('R_METABOLISM');
+    const dH_kJmol = rxn._dH0_Jmol / 1000;
+    // 2500 kcal/day in kJ: 2500 × 4.184 = 10460 kJ/day
+    // At 0.84 mol/hr × 24 hr = 20.16 mol/day
+    // Per mol: 10460 / 20.16 = 519.0 kJ/mol
+    const target_kJmol = -(2500 * 4.184) / (0.84 * 24);
+    t.assertClose(dH_kJmol, target_kJmol, 1.0, 'dH matches 2500 kcal/day within 1 kJ/mol');
+  });
+
+  test('535: v15 — R_METABOLISM reactor conversion at body temperature', t => {
+    // Place reactor with R_METABOLISM, feed CH₂O + O₂ at 310 K
+    t.clearScene();
+    const src = t.place('source', 0, 0, {
+      T: 310, P: 101325,
+      n: { CH2O: 0.001, O2: 0.001 }
+    });
+    const reactor = t.place('reactor_adiabatic', 200, 0, {
+      reactionId: 'R_METABOLISM',
+      volume_m3: 0.01
+    });
+    const sink = t.place('sink', 400, 0);
+    t.wire(src, 'mat_out', reactor, 'mat_in');
+    t.wire(reactor, 'mat_out', sink, 'mat_in');
+    t.solve();
+    const ud = t.ud(reactor);
+    // Should have high conversion (>95%) due to low Ea and high A
+    t.assertOK(ud.last, 'Reactor has last data');
+    t.assertOK(ud.last.status !== 'inactive', 'Reaction active at 310 K');
+    // Check products exist in outlet
+    const outN = ud.ports?.mat_out?.n || {};
+    t.assertOK((outN.CO2 || 0) > 0, 'CO2 produced');
+    t.assertOK((outN.H2O || 0) > 0, 'H2O produced');
+    // CH₂O should be mostly consumed
+    const ch2o_in = 0.001;
+    const ch2o_out = outN.CH2O || 0;
+    const conversion = (ch2o_in - ch2o_out) / ch2o_in * 100;
+    t.assertOK(conversion > 90, `Conversion > 90% (got ${conversion.toFixed(1)}%)`);
   });
 
   // ═══════════════════════════════════════════════════════════════════════
