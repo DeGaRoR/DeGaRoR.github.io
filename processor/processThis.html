@@ -7891,11 +7891,12 @@
         <button class="pal-close" id="palClose" title="Close palette (/)">×</button>
       </div>
       <div class="pal-filter" id="palFilter">
+        <button class="pal-filter-btn" data-tier="dev">Dev</button>
         <button class="pal-filter-btn active" data-tier="all">All</button>
-        <button class="pal-filter-btn" data-tier="boundary">Boundary</button>
-        <button class="pal-filter-btn" data-tier="1">Tier 1</button>
-        <button class="pal-filter-btn" data-tier="2">Tier 2</button>
-        <button class="pal-filter-btn" data-tier="3">Tier 3</button>
+        <button class="pal-filter-btn" data-tier="tierless">Tierless</button>
+        <button class="pal-filter-btn" data-tier="1">T1</button>
+        <button class="pal-filter-btn" data-tier="2">T2</button>
+        <button class="pal-filter-btn" data-tier="3">T3</button>
       </div>
       <div class="pal-tiles" id="palTiles"></div>
     </aside>
@@ -14077,7 +14078,10 @@ class ProfileRegistry {
       // Skip if lowest available tier exceeds filter
       if (Math.min(...p.tiers) > tierFilter) continue;
       // [v14.10.0] Skip composite-internal profiles (never in palette)
-      if (p.config?.composite) continue;
+      // [v15.1.0] Temporarily disabled — all profiles visible during dev.
+      // Re-enable once profile set is stable: if (p.config?.composite) continue;
+      // [v15.1.0] Skip templates from non-Dev listings
+      if (p.config?.template && opts.excludeTemplates) continue;
       const cat = typeof p.category === 'string' ? p.category : (p.category?.name || 'Other');
       if (!byCategory[cat]) {
         byCategory[cat] = [];
@@ -19043,6 +19047,48 @@ ProfileRegistry.register('bio_mixer', {
   config: { composite: true }
 });
 
+// ── [v15.1.0] Template profiles — one per defId, no limits, all params editable ──
+// Template units appear in "Dev" palette tab only.  Inspector shows editable
+// limits fields (writes u.params._limits).  Use to experiment with operating
+// envelopes, then cement values into a named profile via code.
+// config.template = true → Dev-tab visible, limits editor in inspector.
+{
+  const _tpl = (profileId, defId, name, category) =>
+    ProfileRegistry.register(profileId, {
+      defId, name: '\u2699 ' + name, category,
+      tiers: [1], limits: {}, config: { template: true }
+    });
+  _tpl('source_tpl',              'source',                'Source',                UnitCategories.SOURCE);
+  _tpl('source_atm_tpl',         'source_atm',            'Atmospheric Intake',    UnitCategories.SOURCE);
+  _tpl('sink_tpl',               'sink',                  'Sink',                  UnitCategories.SINK);
+  _tpl('grid_supply_tpl',        'grid_supply',           'Grid Supply',           UnitCategories.POWER);
+  _tpl('sink_electrical_tpl',    'sink_electrical',       'Power Sink',            UnitCategories.POWER_MANAGEMENT);
+  _tpl('battery_tpl',            'battery',               'Battery',               UnitCategories.POWER_MANAGEMENT);
+  _tpl('power_hub_tpl',          'power_hub',             'Power Hub',             UnitCategories.POWER_MANAGEMENT);
+  _tpl('tank_tpl',               'tank',                  'Tank',                  UnitCategories.VESSEL);
+  _tpl('open_tank_tpl',          'open_tank',             'Open Tank',             UnitCategories.VESSEL);
+  _tpl('reservoir_tpl',          'reservoir',             'Reservoir',             UnitCategories.SOURCE);
+  _tpl('restriction_tpl',        'restriction',           'Restriction',           UnitCategories.PRESSURE);
+  _tpl('gas_turbine_tpl',        'gas_turbine',           'Gas Turbine',           UnitCategories.PRESSURE);
+  _tpl('valve_tpl',              'valve',                 'Valve',                 UnitCategories.PRESSURE);
+  _tpl('pump_tpl',               'pump',                  'Pump',                  UnitCategories.PRESSURE);
+  _tpl('compressor_tpl',         'compressor',            'Compressor',            UnitCategories.PRESSURE);
+  _tpl('compressor_diaphragm_tpl','compressor_diaphragm','Compressor (Diaphragm)',UnitCategories.PRESSURE);
+  _tpl('electric_heater_tpl',    'electric_heater',       'Electric Heater',       UnitCategories.HEAT_TRANSFER);
+  _tpl('air_cooler_tpl',         'air_cooler',            'Air Cooler',            UnitCategories.HEAT_TRANSFER);
+  _tpl('hex_tpl',                'hex',                   'Heat Exchanger',        UnitCategories.HEAT_EXCHANGER);
+  _tpl('mixer_tpl',              'mixer',                 'Mixer',                 UnitCategories.TOPOLOGY);
+  _tpl('splitter_tpl',           'splitter',              'Splitter',              UnitCategories.TOPOLOGY);
+  _tpl('flash_drum_tpl',         'flash_drum',            'Flash Drum',            UnitCategories.SEPARATOR);
+  _tpl('distillation_column_tpl','distillation_column',   'Distillation Column',   UnitCategories.SEPARATOR);
+  _tpl('reactor_adiabatic_tpl',  'reactor_adiabatic',     'Reactor (Adiabatic)',   UnitCategories.REACTOR);
+  _tpl('reactor_jacketed_tpl',   'reactor_jacketed',      'Reactor (Jacketed)',    UnitCategories.REACTOR);
+  _tpl('reactor_cooled_tpl',     'reactor_cooled',        'Reactor (Cooled)',      UnitCategories.REACTOR);
+  _tpl('reactor_electrochemical_tpl','reactor_electrochemical','Electrochemical Reactor',UnitCategories.REACTOR);
+  _tpl('fuel_cell_tpl',          'fuel_cell',             'Fuel Cell',             UnitCategories.REACTOR);
+  _tpl('membrane_separator_tpl', 'membrane_separator',    'Membrane Separator',    UnitCategories.SEPARATION);
+}
+
 
 /* =========================
    SCENE CLASS
@@ -19204,6 +19250,10 @@ class Scene {
         break;
       // ── Units with no params: sink, sink_heat,
       //    power_hub, mixer, flash_drum — empty params is correct ──
+      // ── [v15.1.0] Membrane separator ──
+      case 'membrane_separator':
+        unit.params = { targetSpecies: 'CO2', extractionFrac: 0.99 };
+        break;
     }
 
     // [v9.0.2] Initialize inventory for inventory-bearing units (NNG-S5)
@@ -22644,14 +22694,20 @@ function getLimitParam(key, ud, def) {
 
 // [S1c-5] getEffectiveLimits — 3-layer merge: definition → mission → player
 // [v13.1.3] Now takes profileId + tier instead of def + size.
-function getEffectiveLimits(profileId, tier) {
+// [v15.1.0] Added unitLimits (from u.params._limits) as player-override layer.
+function getEffectiveLimits(profileId, tier, unitLimits) {
   const profile = ProfileRegistry.get(profileId);
-  if (!profile) return null;
+  if (!profile) {
+    // No profile — unit-level limits only (template units with no base)
+    return (unitLimits && Object.keys(unitLimits).length > 0) ? { ...unitLimits } : null;
+  }
   const t = tier || 1;
   const tierLimits = profile.limits?.[t];
-  if (!tierLimits) return null;
+  if (!tierLimits && (!unitLimits || Object.keys(unitLimits).length === 0)) return null;
   // Future: merge with mission overrides, then player overrides
-  return { ...tierLimits };
+  const merged = { ...(tierLimits || {}) };
+  if (unitLimits) Object.assign(merged, unitLimits);  // player layer wins
+  return Object.keys(merged).length > 0 ? merged : null;
 }
 
 // [S1c-6] evaluateLimits — pure function: unit data + def → violation array
@@ -22666,9 +22722,9 @@ function _fmtLimit(tag, siValue) {
   if (!conv) return `${siValue.toPrecision(4)}`;
   return `${conv.from(siValue).toFixed(conv.decimals)} ${conv.symbol}`;
 }
-function evaluateLimits(unitId, unitName, ud, def, profileId, tier) {
+function evaluateLimits(unitId, unitName, ud, def, profileId, tier, unitLimits) {
   if (!def?.limitParams) return [];
-  const limits = profileId ? getEffectiveLimits(profileId, tier || 1) : null;
+  const limits = profileId ? getEffectiveLimits(profileId, tier || 1, unitLimits) : null;
   if (!limits) return [];
 
   // [v13.1.3] limitPort: profile overrides def
@@ -22873,6 +22929,7 @@ AlarmSystem.register((scene) => {
 
 // [v13.0.4 S1c-7] Source: Equipment Limits
 // [v13.0.7] NNG-7 compliance: passes unitName into evaluateLimits.
+// [v15.1.0] Also checks u.params._limits for template unit-level overrides.
 AlarmSystem.register((scene) => {
   const alarms = [];
   for (const [id, u] of scene.units) {
@@ -22880,11 +22937,14 @@ AlarmSystem.register((scene) => {
     if (!def?.limitParams) continue;
     const pId = u.profileId || u.defId;  // [v13.1.3] backward compat
     const profile = ProfileRegistry.get(pId);
-    if (!profile || !profile.limits || Object.keys(profile.limits).length === 0) continue;
+    const hasProfileLimits = profile?.limits && Object.keys(profile.limits).length > 0;
+    const unitLimits = u.params?._limits;
+    const hasUnitLimits = unitLimits && Object.keys(unitLimits).length > 0;
+    if (!hasProfileLimits && !hasUnitLimits) continue;
     const ud = scene.runtime?.unitData?.get(id);
     if (!ud) continue;
     const uName = u.name || def.name || id;
-    const violations = evaluateLimits(id, uName, ud, def, pId, u.tier || 1);
+    const violations = evaluateLimits(id, uName, ud, def, pId, u.tier || 1, unitLimits);
     alarms.push(...violations);
   }
   return alarms;
@@ -28961,6 +29021,59 @@ UnitInspector.fuel_cell = {
 
 // [v14.10.0 S9] Membrane separator inspector — read-only for composite internals
 UnitInspector.membrane_separator = {
+  // [v15.1.0] Param editor — targetSpecies, extractionFrac, consumable toggle
+  customParams(container, u) {
+    // Target species (text input — comma-separated for multi-target)
+    const tsRow = el('div', { style: 'display:flex; align-items:center; gap:6px; margin:6px 0;' });
+    tsRow.appendChild(el('label', { text: 'Target species', style: 'font-size:12px; color:#94a3b8; flex:0 0 110px;' }));
+    const tsInput = el('input', { type: 'text',
+      value: Array.isArray(u.params.targetSpecies) ? u.params.targetSpecies.join(', ') : (u.params.targetSpecies || ''),
+      style: 'flex:1; background:#1e293b; border:1px solid #334155; border-radius:4px; padding:3px 6px; color:#e2e8f0; font-size:12px; font-family:inherit;'
+    });
+    tsInput.addEventListener('change', () => {
+      _pushUndoDebounced('Set target species');
+      const raw = tsInput.value.split(',').map(s => s.trim()).filter(Boolean);
+      u.params.targetSpecies = raw.length === 1 ? raw[0] : raw;
+    });
+    tsRow.appendChild(tsInput);
+    container.appendChild(tsRow);
+
+    // Extraction fraction (number: 0–1)
+    addNumberEditor(container, 'Extraction fraction',
+      () => u.params.extractionFrac ?? 0.99,
+      v => { u.params.extractionFrac = Math.max(0, Math.min(1, v)); },
+      0.01, 2);
+
+    // Consumable toggle + inline fields
+    const hasCon = !!u.params.consumable;
+    const conRow = el('div', { style: 'display:flex; align-items:center; gap:8px; margin:8px 0;' });
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = hasCon;
+    cb.id = 'con_toggle_' + u.id;
+    cb.addEventListener('change', () => {
+      _pushUndoDebounced('Toggle consumable');
+      if (cb.checked) {
+        u.params.consumable = { name: 'Cartridges', capacity: 268, remaining: 268, maxRate: 5.0 };
+      } else {
+        u.params.consumable = null;
+      }
+      updatePropertiesPanel();
+    });
+    conRow.appendChild(cb);
+    conRow.appendChild(el('label', { text: 'Consumable (depletable)', style: 'font-size:12px; cursor:pointer;', for: cb.id }));
+    container.appendChild(conRow);
+
+    if (hasCon) {
+      const con = u.params.consumable;
+      addNumberEditor(container, 'Capacity (mol)',
+        () => con.capacity, v => { con.capacity = Math.max(0, v); }, 1, 0);
+      addNumberEditor(container, 'Remaining (mol)',
+        () => con.remaining, v => { con.remaining = Math.max(0, v); }, 1, 1);
+      addNumberEditor(container, 'Max rate (mol/hr)',
+        () => con.maxRate ?? 5, v => { con.maxRate = Math.max(0, v); }, 0.1, 1);
+    }
+  },
   kpis(u, ud) {
     const L = u.last || {};
     const items = [];
@@ -29058,26 +29171,41 @@ function populatePalette() {
   const tilesContainer = document.getElementById('palTiles');
   tilesContainer.innerHTML = '';
 
-  // [v13.1.3] Iterate ProfileRegistry — one tile per (profile, tier) pair
+  // [v15.1.0] Filter: Dev | All | Tierless | T1 | T2 | T3
   const tierFilter = ui.paletteTierFilter;
   const byCategory = ProfileRegistry.listByCategory();
   
   for (const [catName, profiles] of Object.entries(byCategory)) {
-    // Build tile list: boundary in all+boundary; process equipment in all+tier filters
+    // Build tile list per filter tab
     const tiles = [];
     for (const profile of profiles) {
-      if (profile.boundary) {
-        // Boundary: visible in 'all' and 'boundary' only, no badge
-        if (tierFilter === 'all' || tierFilter === 'boundary') {
+      const isTpl = !!profile.config?.template;
+      const isBnd = !!profile.boundary;
+
+      if (tierFilter === 'dev') {
+        // Dev: templates only
+        if (!isTpl) continue;
+        tiles.push({ profile, tier: 1, showBadge: false });
+      } else if (tierFilter === 'all') {
+        // All: everything except templates
+        if (isTpl) continue;
+        if (isBnd) {
           tiles.push({ profile, tier: 1, showBadge: false });
+        } else {
+          for (const t of profile.tiers) {
+            tiles.push({ profile, tier: t, showBadge: t > 1 });
+          }
         }
+      } else if (tierFilter === 'tierless') {
+        // Tierless: boundary units only, no templates
+        if (isTpl || !isBnd) continue;
+        tiles.push({ profile, tier: 1, showBadge: false });
       } else {
-        // Process equipment: visible in 'all' and matching tier, never in 'boundary'
-        if (tierFilter === 'boundary') continue;
-        const visibleTiers = tierFilter === 'all' ? profile.tiers
-          : profile.tiers.filter(t => t === parseInt(tierFilter, 10));
-        for (const t of visibleTiers) {
-          tiles.push({ profile, tier: t, showBadge: t > 1 });
+        // T1/T2/T3: non-boundary, non-template, matching tier
+        if (isTpl || isBnd) continue;
+        const tierNum = parseInt(tierFilter, 10);
+        if (profile.tiers.includes(tierNum)) {
+          tiles.push({ profile, tier: tierNum, showBadge: tierNum > 1 });
         }
       }
     }
@@ -29355,7 +29483,13 @@ function _rebuildInspectorContent() {
     const _tierColors = { 2: '#e2e8f0', 3: '#fbbf24' };
     const _showTier = _insTierProfile && !_insTierProfile.boundary && u.tier > 1;
     const _tierLabel = _showTier ? ` · <span style="color:${_tierColors[u.tier] || '#e2e8f0'};font-weight:700;">T${u.tier}</span>` : '';
-    headerDiv.appendChild(el('div', { class: 'unitSubtitle', html: `<span style="color:${def.color}">${def.category}</span> · ${def.name}${_tierLabel}` }));
+    // [v15.1.0] Show "def.name · profile.name" when names differ (e.g. "Reactor (Adiabatic) · Metabolism")
+    const _profileName = _insTierProfile?.name || '';
+    const _defName = def.name || '';
+    const _nameLabel = (_profileName && _profileName !== _defName && !_profileName.startsWith('\u2699'))
+      ? `${_defName} · <span style="color:#79c0ff">${esc(_profileName)}</span>`
+      : _defName;
+    headerDiv.appendChild(el('div', { class: 'unitSubtitle', html: `<span style="color:${def.color}">${def.category}</span> · ${_nameLabel}${_tierLabel}` }));
     propEditor.appendChild(headerDiv);
 
     // ── [v13.0.7] Alarm banners — sourced from AlarmSystem (NNG-7 single source of truth) ──
@@ -29492,72 +29626,137 @@ function _rebuildInspectorContent() {
       _renderDetailSection(propEditor, detailItems);
     }
 
-    // ── [v13.0.7] Equipment Limits (static spec table) ──
-    // Shows ALL stored limit parameters as Variable × LL/L/H/HH grid.
-    // This is a static view of the unit definition — no actual/status comparison.
-    // L/H columns reserved for future user-configurable alarm limits.
+    // ── [v13.0.7] Equipment Limits ──
+    // [v15.1.0] Template units: editable number inputs writing u.params._limits.
+    // Regular units: static read-only grid (original behavior).
     if (def.limitParams?.length > 0) {
       const _pId2 = u.profileId || u.defId;
       const _prof2 = ProfileRegistry.get(_pId2);
-      const _hasLim2 = _prof2 && _prof2.limits && Object.keys(_prof2.limits).length > 0;
-      const effLimits = _hasLim2 ? getEffectiveLimits(_pId2, u.tier || 1) : null;
-      if (effLimits) {
+      const _isTemplate = !!_prof2?.config?.template;
+      const _hasLim2 = _prof2?.limits && Object.keys(_prof2.limits).length > 0;
+      const _unitLimits = u.params?._limits || {};
+      const effLimits = getEffectiveLimits(_pId2, u.tier || 1, _unitLimits);
+
+      if (_isTemplate || effLimits) {
         const unitSys = models.getActive('units');
-        const section = createCollapsibleSection('Equipment Limits', false);
+        const section = createCollapsibleSection(
+          _isTemplate ? 'Operating Limits (editable)' : 'Equipment Limits',
+          !_isTemplate  // collapsed for regular, expanded for templates
+        );
 
-        // Tier indicator
-        const sizeNote = el('div', { style: 'font-size:10px; color:#64748b; margin-bottom:6px;' });
-        sizeNote.textContent = `Tier ${u.tier || 1}  —  limits apply to this equipment tier`;
-        section.content.appendChild(sizeNote);
+        if (_isTemplate) {
+          section.content.appendChild(el('div', {
+            style: 'font-size:10px; color:#64748b; margin-bottom:6px;',
+            text: 'Empty = no limit. Values in display units. Stored in u.params._limits.'
+          }));
+        } else {
+          section.content.appendChild(el('div', {
+            style: 'font-size:10px; color:#64748b; margin-bottom:6px;',
+            text: `Tier ${u.tier || 1}  —  limits apply to this equipment tier`
+          }));
+        }
 
-        // Group limitParams by tag to build one row per variable
-        const tagRows = new Map(); // tag → { LL, L, H, HH }
+        // Group limitParams by tag
+        const tagRows = new Map();
         for (const key of def.limitParams) {
           const tpl = LIMIT_PARAM_TEMPLATES[key];
           if (!tpl) continue;
-          if (!tagRows.has(tpl.tag)) tagRows.set(tpl.tag, {});
-          tagRows.get(tpl.tag)[tpl.side] = effLimits[key] ?? null;
+          if (!tagRows.has(tpl.tag)) tagRows.set(tpl.tag, { keys: {} });
+          tagRows.get(tpl.tag).keys[tpl.side] = key;
         }
 
         const tbl = el('div', { style: 'display:grid; grid-template-columns:auto auto auto auto auto; gap:2px 8px; font-size:11px; padding:4px 0;' });
 
         // Header
         const hdrStyle = 'color:#64748b; font-weight:600; padding-bottom:4px; text-align:center;';
-        tbl.appendChild(el('div', { style: 'color:#64748b; font-weight:600; padding-bottom:4px;', text: '' }));
-        tbl.appendChild(el('div', { style: hdrStyle, html: '<span title="Catastrophic low — equipment destruction">LL</span>' }));
-        tbl.appendChild(el('div', { style: hdrStyle, html: '<span title="Alarm low — user-configurable (future)">L</span>' }));
-        tbl.appendChild(el('div', { style: hdrStyle, html: '<span title="Alarm high — user-configurable (future)">H</span>' }));
-        tbl.appendChild(el('div', { style: hdrStyle, html: '<span title="Catastrophic high — equipment destruction">HH</span>' }));
+        tbl.appendChild(el('div', { style: hdrStyle, text: '' }));
+        tbl.appendChild(el('div', { style: hdrStyle, html: '<span title="Catastrophic low">LL</span>' }));
+        tbl.appendChild(el('div', { style: hdrStyle, html: '<span title="Alarm low">L</span>' }));
+        tbl.appendChild(el('div', { style: hdrStyle, html: '<span title="Alarm high">H</span>' }));
+        tbl.appendChild(el('div', { style: hdrStyle, html: '<span title="Catastrophic high">HH</span>' }));
 
-        const tagLabels = { T: 'Temperature', P: 'Pressure', mass: 'Mass flow' };
-        for (const [tag, sides] of tagRows) {
+        const tagLabels = { T: 'Temperature', P: 'Pressure', mass: 'Mass flow', level: 'Level' };
+        for (const [tag, rowData] of tagRows) {
           const unitKey = _limitTagToUnit[tag];
           const conv = unitSys[unitKey];
-          const fmtVal = (v) => {
-            if (v == null) return '—';
-            return conv ? `${conv.from(v).toFixed(conv.decimals)}` : `${v}`;
-          };
-          const unitLabel = conv ? conv.symbol : '';
+          const unitLabel = conv ? conv.symbol : (tag === 'level' ? '%' : '');
 
-          // Row label
           tbl.appendChild(el('div', { style: 'color:#94a3b8; font-weight:500;', text: `${tagLabels[tag] || tag} (${unitLabel})` }));
 
-          // LL, L, H, HH cells
-          const cellStyle = (side) => {
-            const val = sides[side];
-            if (val == null) return 'color:#334155; text-align:center;'; // dimmed placeholder
-            const isCatastrophic = side === 'LL' || side === 'HH';
-            return `color:${isCatastrophic ? '#fca5a5' : '#fbbf24'}; text-align:center;`;
-          };
-          tbl.appendChild(el('div', { style: cellStyle('LL'), text: fmtVal(sides.LL) }));
-          tbl.appendChild(el('div', { style: cellStyle('L'),  text: fmtVal(sides.L) }));
-          tbl.appendChild(el('div', { style: cellStyle('H'),  text: fmtVal(sides.H) }));
-          tbl.appendChild(el('div', { style: cellStyle('HH'), text: fmtVal(sides.HH) }));
+          for (const side of ['LL', 'L', 'H', 'HH']) {
+            const key = rowData.keys[side];
+            if (!key) {
+              tbl.appendChild(el('div', { style: 'color:#334155; text-align:center;', text: '—' }));
+              continue;
+            }
+
+            if (_isTemplate) {
+              // Editable input for template units
+              const siVal = _unitLimits[key] ?? null;
+              const displayVal = (siVal != null && conv) ? conv.from(siVal).toFixed(conv.decimals)
+                               : (siVal != null ? String(siVal) : '');
+              const inp = el('input', { type: 'text', value: displayVal,
+                style: 'width:56px; background:#1e293b; border:1px solid #334155; border-radius:3px; padding:1px 4px; '
+                     + 'color:#e2e8f0; font-size:10px; text-align:center; font-family:inherit;',
+                placeholder: '—'
+              });
+              inp.addEventListener('change', () => {
+                _pushUndoDebounced('Set limit ' + key);
+                const raw = inp.value.trim();
+                if (!raw) {
+                  delete _unitLimits[key];
+                } else {
+                  const num = parseFloat(raw);
+                  if (!isNaN(num)) {
+                    _unitLimits[key] = (conv && tag !== 'level') ? conv.to(num) : num;
+                  }
+                }
+                if (Object.keys(_unitLimits).length > 0) {
+                  u.params._limits = _unitLimits;
+                } else {
+                  delete u.params._limits;
+                }
+              });
+              const isCatastrophic = side === 'LL' || side === 'HH';
+              if (siVal != null) inp.style.borderColor = isCatastrophic ? '#f87171' : '#fbbf24';
+              tbl.appendChild(inp);
+            } else {
+              // Static read-only display for regular profiles
+              const val = effLimits?.[key] ?? null;
+              const fmtVal = val == null ? '—' : (conv ? `${conv.from(val).toFixed(conv.decimals)}` : `${val}`);
+              const isCatastrophic = side === 'LL' || side === 'HH';
+              const style = val == null
+                ? 'color:#334155; text-align:center;'
+                : `color:${isCatastrophic ? '#fca5a5' : '#fbbf24'}; text-align:center;`;
+              tbl.appendChild(el('div', { style, text: fmtVal }));
+            }
+          }
         }
 
         section.content.appendChild(tbl);
         propEditor.appendChild(section.section);
       }
+    }
+
+    // ── [v15.1.0] Export Config (template units only) — collapsible JSON view ──
+    if (_insTierProfile?.config?.template) {
+      const expSection = createCollapsibleSection('Export Config', false);
+      const _buildExport = () => {
+        const out = { defId: u.defId, params: { ...u.params } };
+        delete out.params._limits;  // shown separately
+        if (u.params._limits && Object.keys(u.params._limits).length > 0) {
+          out.limits = { ...u.params._limits };
+        }
+        return JSON.stringify(out, null, 2);
+      };
+      const pre = el('pre', {
+        text: _buildExport(),
+        style: 'font-size:10px; color:#94a3b8; background:#0d1117; border:1px solid #21262d; '
+             + 'border-radius:4px; padding:8px; overflow-x:auto; white-space:pre-wrap; '
+             + 'cursor:text; user-select:all; max-height:200px; overflow-y:auto;'
+      });
+      expSection.content.appendChild(pre);
+      propEditor.appendChild(expSection.section);
     }
 
     // ── Connections (hidden by default, preserved for debug) ──
@@ -45842,7 +46041,7 @@ function runTests() {
     t.assertOK(!isNaN(ret.T) && !isNaN(ret.P), 'ret T,P not NaN');
   });
 
-  test('530: S9 — profiles: composite flag excludes from palette', t => {
+  test('530: S9 — profiles: composite flag set; templates excluded via excludeTemplates', t => {
     const kidney = ProfileRegistry.get('membrane_kidney');
     const leaf   = ProfileRegistry.get('membrane_leaf');
     const scrub  = ProfileRegistry.get('co2_scrubber');
@@ -45852,11 +46051,15 @@ function runTests() {
     t.assertOK(kidney.config?.composite === true, 'kidney composite=true');
     t.assertOK(leaf.config?.composite === true,   'leaf composite=true');
     t.assertOK(scrub.config?.composite === true,  'scrubber composite=true');
-    // listByCategory should NOT contain any membrane_separator profiles
+    // [v15.1.0] Composite skip disabled — composites now visible in listByCategory
     const byCategory = ProfileRegistry.listByCategory();
     const allProfiles = Object.values(byCategory).flat();
     const memProfiles = allProfiles.filter(p => p.defId === 'membrane_separator');
-    t.assertOK(memProfiles.length === 0, 'No membrane profiles in palette listing');
+    t.assertOK(memProfiles.length >= 3, 'Composite membrane profiles visible (got ' + memProfiles.length + ')');
+    // Templates are excluded when excludeTemplates is set
+    const filtered = Object.values(ProfileRegistry.listByCategory({ excludeTemplates: true })).flat();
+    const tplProfiles = filtered.filter(p => p.config?.template);
+    t.assertOK(tplProfiles.length === 0, 'No templates when excludeTemplates=true');
   });
 
   // ═══════════════════════════════════════════════════════════════════════
