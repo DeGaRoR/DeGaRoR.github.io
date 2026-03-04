@@ -465,6 +465,61 @@
     name+remaining+percentage, or "Continuous" label).  Detail section:
     enthalpy split (H in/perm/ret), pressure, exhaustion status.
     No params section — composite-internal units are not player-tunable.
+  v14.10.5 — Port layout Phases 2-5: electrical matrix + renames.
+    Phase 2-3 (electrical flexibility): Added elec T/B × mirror matrix
+    to all 11 units with utility ports. Every electrical port can now
+    reach either top or bottom edge, combined with L→R or R→L flow:
+    pump (+2: elec-B, mirror-elec-B), compressor (+2),
+    electric_heater (+1: mirror-elec-B),
+    air_cooler (+2: elec-T, mirror-elec-T),
+    gas_turbine (+2: elec-T, mirror-elec-T),
+    reactor_jacketed (+1: mirror-elec-T),
+    compressor_diaphragm (+2: elec-T, mirror-elec-T),
+    distillation_column (+2: elec-B, mirror-elec-B),
+    reactor_electrochemical (+2: elec-B, mirror-elec-B),
+    fuel_cell (+2: elec-B, mirror-elec-B),
+    power_hub (+2: surplus-B, mirror-surplus-B).
+    Phase 4 (recycle-B): mixer, splitter each gain recycle-B
+    (second port on bottom edge for downward loop routing).
+    Phase 5 (naming consistency): Renamed 4 presentation keys:
+    elec-bottom → elec-B, elec-top → elec-T, top-recycle → recycle-T.
+    importJSON migration maps old variant names. Demo scene updated.
+    Tests updated + migration coverage (+2 assertions → 2817 total).
+    No physics changes.
+  v14.10.4 — Port layout Phase 1: mirror + completion pass.
+    Added 'box/mirror' (L↔R port swap) to 18 multi-port units:
+    valve, restriction, reactor_adiabatic, reactor_jacketed, reactor_cooled,
+    reactor_electrochemical, fuel_cell, pump, compressor, compressor_diaphragm,
+    electric_heater, air_cooler, gas_turbine, mixer, splitter, flash_drum,
+    distillation_column, membrane_separator, tank, open_tank, power_hub.
+    Gravity-constrained units (flash_drum, distillation_column, tank,
+    open_tank) mirror L↔R only — vertical port positions preserved.
+    Valve gets full 4-way rotation: default, mirror, down, up (simplest
+    inline unit, often placed in vertical headers).
+    Reservoir: completed 4-way (port-left/top/bottom) matching source.
+    Battery: completed 4-way matching grid_supply.
+    Total presentation configs: ~48 → ~72. Zero units with only box/default.
+    Pure presentation changes — no tick logic, no physics impact.
+  v14.10.3 — Info-bar unified capsule redesign:
+    Single glass capsule for entire top bar (was: 3 competing visual
+    treatments — left capsule, diagnostic lights capsule, bare view btns).
+    .info-bar gets background/border/blur/radius; nested bg removed from
+    .info-bar-left and .diagnostic-lights.  All inner elements are now
+    ghost-style content within the unified bar.
+    (+) button: 36px circle → 28px rounded-rect, same teal accent but
+    matching bar language (8px radius, 1px border).  Still pops via teal
+    tint — notable without being alien.  Undo/redo: 30→28px.
+    Process name: fixed 320px → flex:0 1 200px (min 80, max 240px).
+    Shrinks smoothly, hides entirely below 900px bar width.
+    Font sizes unified: ☰ btn, name input, tl-msg, center readout all
+    11px.  Border radii unified: outer bar 14px, all inner elements 8px.
+    Diagnostic dots: 14→12px.  tl-msg max-width: 280→200px.
+    Thin .ib-sep dividers between left|center and center|right sections.
+    Two-level responsive cascade via single window.resize handler:
+    Bar-level (data-bp on .info-bar): >900=full, 700-900=hide name,
+    550-700=also hide tl-msg, <550=also hide view mode btns.
+    Center-level (data-bp on .info-bar-center): unchanged 350/200/120.
+    No physics changes.
   v14.10.2 — Survival strip merged into info-bar:
     Eliminated standalone Zone B survival-strip.  Atmospheric readout
     (planet, T, P, composition) now lives in .info-bar-center between
@@ -2225,7 +2280,7 @@
   <style>
     :root {
       color-scheme: dark;
-      --zone-a-h: 58px;   /* info-bar: top:10px + ~48px capsule height */
+      --zone-a-h: 52px;   /* info-bar: top:10px + ~40px capsule height */
       --zones-ab-h: var(--zone-a-h); /* [v14.10.2] Zone B merged into A */
     }
     * { box-sizing: border-box; }
@@ -2338,45 +2393,65 @@
       z-index: 25;
       display: flex; 
       align-items: center;
-      gap: 8px;
-      pointer-events: none;
+      gap: 6px;
+      /* [v14.10.3] Single unified capsule — no nested glass backgrounds */
+      background: #0b0e14cc;
+      border: 1px solid #2a2f3a;
+      border-radius: 14px;
+      padding: 5px 8px;
+      backdrop-filter: blur(10px);
+      font-size: 11px;
     }
-    .info-bar > * { pointer-events: auto; }
 
     .info-bar-left {
       display: flex;
-      gap: 6px;
+      gap: 4px;
       align-items: center;
-      background: #0b0e14cc; 
-      border: 1px solid #2a2f3a; 
-      border-radius: 14px; 
-      padding: 5px 10px 5px 5px;
-      backdrop-filter: blur(10px);
       flex-shrink: 0;
     }
 
     .info-bar-right {
       display: flex;
+      gap: 4px;
       align-items: center;
-      pointer-events: auto;
       flex-shrink: 0;
       margin-left: auto;
     }
 
-    /* ===== ADD BUTTON (left, in group) ===== */
+    /* Thin vertical separators between info-bar sections */
+    .ib-sep {
+      width: 1px;
+      height: 16px;
+      background: #2a2f3a;
+      flex-shrink: 0;
+    }
+
+    /* [v14.10.3] Info-bar responsive cascade (driven by window resize) */
+    .info-bar[data-bp="3"] .ib-name,
+    .info-bar[data-bp="3"] .ib-sep-l { display: none; }
+    .info-bar[data-bp="2"] .ib-name,
+    .info-bar[data-bp="2"] .ib-sep-l,
+    .info-bar[data-bp="2"] .tl-msg { display: none; }
+    .info-bar[data-bp="1"] .ib-name,
+    .info-bar[data-bp="1"] .ib-sep-l,
+    .info-bar[data-bp="1"] .tl-msg,
+    .info-bar[data-bp="1"] .view-mode-btns,
+    .info-bar[data-bp="1"] .info-bar-right .tl-sep { display: none; }
+
+    /* ===== ADD BUTTON (left, in group) [v14.10.3] ===== */
     .add-btn-left {
-      width: 36px; height: 36px;
-      border-radius: 50%;
-      border: 2px solid #134e4a;
-      background: #0b1e1eee;
+      width: 28px; height: 28px;
+      border-radius: 8px;
+      border: 1px solid #134e4a;
+      background: #0d2626;
       color: #5eead4;
-      font-size: 22px;
-      font-weight: 300;
+      font-size: 16px;
+      font-weight: 400;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: background 0.15s, border-color 0.15s, transform 0.15s;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
       line-height: 1;
       flex-shrink: 0;
     }
@@ -2384,12 +2459,11 @@
       background: #134e4a;
       border-color: #5eead4;
       color: #99f6e4;
-      transform: scale(1.08);
     }
 
     /* ===== UNDO/REDO BUTTONS [v10.8.1] ===== */
     .undo-redo-btn {
-      width: 30px; height: 30px;
+      width: 28px; height: 28px;
       border-radius: 8px;
       border: none;
       background: transparent;
@@ -2422,7 +2496,6 @@
       color: #94a3b8;
       white-space: nowrap;
       overflow: hidden;
-      pointer-events: auto;
       user-select: none;
       flex: 0 1 auto;
       min-width: 0;
@@ -2457,7 +2530,6 @@
 
     /* Info-bar center: chevron expand/collapse */
     .info-bar-center .ss-chevron {
-      pointer-events: auto;
       cursor: pointer;
       background: none;
       border: 1px solid transparent;
@@ -2816,27 +2888,32 @@
       display: inline-flex; 
       align-items: center; 
       gap: 8px;
-      background: #1c222e; 
-      color: #e7e7e7; 
-      border: 1px solid #2a2f3a;
-      border-radius: 12px; 
-      padding: 9px 12px; 
+      background: transparent; 
+      color: #94a3b8; 
+      border: none;
+      border-radius: 8px; 
+      padding: 5px 7px; 
       cursor: pointer; 
+      font-size: 14px;
       font-weight: 700;
       user-select: none;
+      transition: color 0.15s, background 0.15s;
     }
     
     .btn:hover { 
-      border-color: #475068; 
+      color: #e2e8f0;
+      background: #1e293b;
     }
     
     .btn.primary { 
       background: #2563eb; 
-      border-color: #2563eb; 
+      border: 1px solid #2563eb;
+      color: #fff;
     }
     
     .btn.primary:hover { 
       filter: brightness(1.05); 
+      background: #3b82f6;
     }
 
     /* ===== TRANSPORT CONTROLS [v9.0.1] ===== */
@@ -2939,15 +3016,17 @@
     .propItem[draggable="true"] { cursor: grab; }
     .propItem[draggable="true"]:active { cursor: grabbing; opacity: 0.6; }
     
-    /* ===== PROCESS NAME INPUT ===== */
+    /* ===== PROCESS NAME INPUT [v14.10.3] ===== */
     #processNameInput {
-      width: 320px;
-      background: #0b0e14;
+      flex: 0 1 200px;
+      min-width: 80px;
+      max-width: 240px;
+      background: transparent;
       color: #e7e7e7;
       border: 1px solid #2a2f3a;
-      border-radius: 10px;
-      padding: 8px 10px;
-      font-size: 13px;
+      border-radius: 8px;
+      padding: 5px 8px;
+      font-size: 11px;
       font-weight: 600;
       font-family: inherit;
       outline: none;
@@ -2985,14 +3064,11 @@
     .diagnostic-lights {
       display: flex;
       align-items: center;
-      gap: 7px;
-      padding: 7px 12px;
-      border-radius: 10px;
-      background: #0b0e14cc;
-      backdrop-filter: blur(6px);
+      gap: 6px;
+      padding: 0 4px;
     }
     .tl-dot {
-      width: 14px; height: 14px; border-radius: 50%;
+      width: 12px; height: 12px; border-radius: 50%;
       background: #334155;
       transition: background 0.2s, box-shadow 0.2s;
       position: relative;
@@ -3015,9 +3091,9 @@
       width: 1px; height: 14px; background: #334155; margin: 0 2px;
     }
     .tl-msg {
-      font-size: 12px; color: #94a3b8; white-space: nowrap;
-      max-width: 280px; overflow: hidden; text-overflow: ellipsis;
-      margin-left: 4px; cursor: pointer;
+      font-size: 11px; color: #94a3b8; white-space: nowrap;
+      max-width: 200px; overflow: hidden; text-overflow: ellipsis;
+      margin-left: 2px; cursor: pointer;
     }
     .tl-msg:hover { text-decoration: underline; }
     .tl-msg.warn { color: #fbbf24; }
@@ -3034,7 +3110,7 @@
     .tl-dot:hover .tl-tip { display: block; }
     .tl-gear {
       background: transparent; border: none; color: #64748b;
-      cursor: pointer; font-size: 14px; padding: 0 0 0 3px;
+      cursor: pointer; font-size: 12px; padding: 0 0 0 2px;
       line-height: 1; transition: color 0.15s;
     }
     .tl-gear:hover { color: #e2e8f0; }
@@ -3046,21 +3122,21 @@
       align-items: center;
     }
     .vm-btn {
-      background: #1c222e;
+      background: transparent;
       color: #64748b;
       border: 1px solid #2a2f3a;
       border-radius: 0;
-      padding: 4px 8px;
+      padding: 3px 7px;
       font-size: 10px;
       font-weight: 700;
       letter-spacing: 0.04em;
       cursor: pointer;
-      min-height: 24px;
+      min-height: 22px;
       line-height: 1;
       transition: background 0.15s, color 0.15s, border-color 0.15s;
     }
-    .vm-btn:first-child { border-radius: 6px 0 0 6px; }
-    .vm-btn:last-child  { border-radius: 0 6px 6px 0; }
+    .vm-btn:first-child { border-radius: 8px 0 0 8px; }
+    .vm-btn:last-child  { border-radius: 0 8px 8px 0; }
     .vm-btn:hover:not(:disabled) { background: #283040; color: #e2e8f0; }
     .vm-btn.active {
       background: #1e3a5f;
@@ -3098,7 +3174,7 @@
     
     .menu {
       position: absolute; 
-      top: 46px; 
+      top: 38px; 
       left: 0;
       min-width: 230px;
       background: #0b0e14f2;
@@ -7445,14 +7521,16 @@
       <button class="add-btn-left" id="btnAdd" title="Add unit [/]">+</button>
 
       <button class="undo-redo-btn" id="btnUndo" title="Undo (Ctrl+Z)">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"/><path d="M3 13a9 9 0 0 1 15.36-6.36L21 9"/></svg>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"/><path d="M3 13a9 9 0 0 1 15.36-6.36L21 9"/></svg>
       </button>
       <button class="undo-redo-btn" id="btnRedo" title="Redo (Ctrl+Shift+Z)">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 7v6h-6"/><path d="M21 13a9 9 0 0 0-15.36-6.36L3 9"/></svg>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 7v6h-6"/><path d="M21 13a9 9 0 0 0-15.36-6.36L3 9"/></svg>
       </button>
 
-      <input type="text" id="processNameInput" placeholder="Process name…" spellcheck="false" autocomplete="off">
+      <input type="text" id="processNameInput" class="ib-name" placeholder="Process name…" spellcheck="false" autocomplete="off">
       </div>
+
+      <div class="ib-sep ib-sep-l"></div>
 
       <!-- [v14.10.2] Atmospheric readout, inline in info-bar -->
       <div class="info-bar-center" id="survivalStrip">
@@ -7460,6 +7538,8 @@
         <div class="cb-sep"></div>
         <button class="ss-chevron" id="ssChevron" title="Expand atmosphere details">▼</button>
       </div>
+
+      <div class="ib-sep"></div>
 
       <!-- Diagnostic Light Indicators [v10.3.1] -->
       <div class="info-bar-right">
@@ -14170,6 +14250,10 @@ UnitRegistry.register('tank', {
     'box/default': { w: 3, h: 2, ports: {
       mat_in:{x:0,y:1}, gas_out:{x:3,y:0}, vent:{x:1,y:0},
       liq_out:{x:3,y:2}, overflow:{x:1,y:2}
+    }},
+    'box/mirror':  { w: 3, h: 2, ports: {
+      mat_in:{x:3,y:1}, gas_out:{x:0,y:0}, vent:{x:2,y:0},
+      liq_out:{x:0,y:2}, overflow:{x:2,y:2}
     }}
   },
   // [v13.0.4 S1c] Equipment limits
@@ -14468,6 +14552,9 @@ UnitRegistry.register('open_tank', {
   presentations: {
     'box/default': { w: 3, h: 2, ports: {
       mat_in:{x:0,y:1}, liq_out:{x:3,y:2}, overflow:{x:1,y:2}
+    }},
+    'box/mirror':  { w: 3, h: 2, ports: {
+      mat_in:{x:3,y:1}, liq_out:{x:0,y:2}, overflow:{x:2,y:2}
     }}
   },
   limitParams: ['T_LL', 'T_L', 'T_H', 'T_HH', 'level_H', 'level_HH'],
@@ -14718,7 +14805,10 @@ UnitRegistry.register('reservoir', {
     { portId: 'mat_out', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 1 }
   ],
   presentations: {
-    'box/default': { w: 2, h: 2, ports: { mat_out:{x:2,y:1} } }
+    'box/default':     { w: 2, h: 2, ports: { mat_out:{x:2,y:1} } },
+    'box/port-left':   { w: 2, h: 2, ports: { mat_out:{x:0,y:1} } },
+    'box/port-top':    { w: 2, h: 2, ports: { mat_out:{x:1,y:0} } },
+    'box/port-bottom': { w: 2, h: 2, ports: { mat_out:{x:1,y:2} } }
   },
   limitParams: ['T_LL', 'T_L', 'T_H', 'T_HH', 'P_LL', 'P_L', 'P_H', 'P_HH'],
   limits: { S: { T_LL: 200, T_L: 250, T_H: 500, T_HH: 600, P_LL: 10000, P_L: 50000, P_H: 20000000, P_HH: 25000000 } },
@@ -14831,7 +14921,8 @@ UnitRegistry.register('restriction', {
     { portId: 'mat_out', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 1 }
   ],
   presentations: {
-    'box/default': { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, mat_out:{x:2,y:1} } }
+    'box/default': { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, mat_out:{x:2,y:1} } },
+    'box/mirror':  { w: 2, h: 2, ports: { mat_in:{x:2,y:1}, mat_out:{x:0,y:1} } }
   },
   tick(u, ports, par, ctx) {
     _isenthalpicThrottleTick(u, ports, par, ctx);
@@ -14878,7 +14969,10 @@ UnitRegistry.register('battery', {
   ports: [{ portId: 'elec', dir: PortDir.OUT, type: StreamType.ELECTRICAL, x: 2, y: 1, bidirectional: true }],
   // [v10.9.2] Presentation layer
   presentations: {
-    'box/default': { w: 2, h: 2, ports: { elec:{x:2,y:1} } }
+    'box/default':     { w: 2, h: 2, ports: { elec:{x:2,y:1} } },
+    'box/port-left':   { w: 2, h: 2, ports: { elec:{x:0,y:1} } },
+    'box/port-top':    { w: 2, h: 2, ports: { elec:{x:1,y:0} } },
+    'box/port-bottom': { w: 2, h: 2, ports: { elec:{x:1,y:2} } }
   },
 
   initInventory(par) {
@@ -15190,7 +15284,10 @@ UnitRegistry.register('power_hub', {
   ],
   // [v10.9.2] Presentation layer
   presentations: {
-    'box/default': { w: 2, h: 3, ports: { elec_in:{x:0,y:1.5}, elec_out:{x:2,y:1.5}, elec_surplus:{x:1,y:0} } }
+    'box/default':        { w: 2, h: 3, ports: { elec_in:{x:0,y:1.5}, elec_out:{x:2,y:1.5}, elec_surplus:{x:1,y:0} } },
+    'box/mirror':         { w: 2, h: 3, ports: { elec_in:{x:2,y:1.5}, elec_out:{x:0,y:1.5}, elec_surplus:{x:1,y:0} } },
+    'box/surplus-B':      { w: 2, h: 3, ports: { elec_in:{x:0,y:1.5}, elec_out:{x:2,y:1.5}, elec_surplus:{x:1,y:3} } },
+    'box/mirror-surplus-B': { w: 2, h: 3, ports: { elec_in:{x:2,y:1.5}, elec_out:{x:0,y:1.5}, elec_surplus:{x:1,y:3} } }
   },
   // [v13.0.4 S1c] Equipment limits (electrical only)
   limitParams: [],
@@ -15310,7 +15407,10 @@ UnitRegistry.register('gas_turbine', {
   ],
   // [v11.0.0] elec_out replaces mech_out
   presentations: {
-    'box/default': { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, mat_out:{x:2,y:1}, elec_out:{x:1,y:2} } }
+    'box/default':       { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, mat_out:{x:2,y:1}, elec_out:{x:1,y:2} } },
+    'box/mirror':        { w: 2, h: 2, ports: { mat_in:{x:2,y:1}, mat_out:{x:0,y:1}, elec_out:{x:1,y:2} } },
+    'box/elec-T':        { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, mat_out:{x:2,y:1}, elec_out:{x:1,y:0} } },
+    'box/mirror-elec-T': { w: 2, h: 2, ports: { mat_in:{x:2,y:1}, mat_out:{x:0,y:1}, elec_out:{x:1,y:0} } }
   },
   // [v13.0.4 S1c] Equipment limits
   limitParams: ['T_LL', 'T_L', 'T_H', 'T_HH', 'P_LL', 'P_L', 'P_H', 'P_HH', 'mass_LL', 'mass_HH'],
@@ -15536,7 +15636,10 @@ UnitRegistry.register('valve', {
   ],
   // [v10.9.2] Presentation layer
   presentations: {
-    'box/default': { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, mat_out:{x:2,y:1} } }
+    'box/default': { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, mat_out:{x:2,y:1} } },
+    'box/mirror':  { w: 2, h: 2, ports: { mat_in:{x:2,y:1}, mat_out:{x:0,y:1} } },
+    'box/down':    { w: 2, h: 2, ports: { mat_in:{x:1,y:0}, mat_out:{x:1,y:2} } },
+    'box/up':      { w: 2, h: 2, ports: { mat_in:{x:1,y:2}, mat_out:{x:1,y:0} } }
   },
   // [v13.0.4 S1c] Equipment limits
   limitParams: ['T_LL', 'T_L', 'T_H', 'T_HH', 'P_H', 'P_HH', 'mass_HH'],
@@ -15560,6 +15663,9 @@ UnitRegistry.register('pump', {
   // [v11.0.0] Presentation variants — elec_in replaces power_in
   presentations: {
     'box/default':       { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, elec_in:{x:1,y:0}, mat_out:{x:2,y:1} } },
+    'box/mirror':        { w: 2, h: 2, ports: { mat_in:{x:2,y:1}, elec_in:{x:1,y:0}, mat_out:{x:0,y:1} } },
+    'box/elec-B':        { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, elec_in:{x:1,y:2}, mat_out:{x:2,y:1} } },
+    'box/mirror-elec-B': { w: 2, h: 2, ports: { mat_in:{x:2,y:1}, elec_in:{x:1,y:2}, mat_out:{x:0,y:1} } },
     'box/output-top':    { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, elec_in:{x:2,y:1}, mat_out:{x:1,y:0} } },
     'box/output-bottom': { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, elec_in:{x:1,y:0}, mat_out:{x:1,y:2} } }
   },
@@ -15710,6 +15816,9 @@ UnitRegistry.register('compressor', {
   // [v11.0.0] Presentation variants — elec_in replaces power_in
   presentations: {
     'box/default':       { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, elec_in:{x:1,y:0}, mat_out:{x:2,y:1} } },
+    'box/mirror':        { w: 2, h: 2, ports: { mat_in:{x:2,y:1}, elec_in:{x:1,y:0}, mat_out:{x:0,y:1} } },
+    'box/elec-B':        { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, elec_in:{x:1,y:2}, mat_out:{x:2,y:1} } },
+    'box/mirror-elec-B': { w: 2, h: 2, ports: { mat_in:{x:2,y:1}, elec_in:{x:1,y:2}, mat_out:{x:0,y:1} } },
     'box/output-top':    { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, elec_in:{x:2,y:1}, mat_out:{x:1,y:0} } },
     'box/output-bottom': { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, elec_in:{x:1,y:0}, mat_out:{x:1,y:2} } }
   },
@@ -15869,9 +15978,21 @@ UnitRegistry.register('compressor_diaphragm', {
     { portId: 'elec_in', dir: PortDir.IN,  type: StreamType.ELECTRICAL, x: 1, y: 3 }
   ],
   presentations: {
-    'box/default': { w: 2, h: 3, ports: {
+    'box/default':       { w: 2, h: 3, ports: {
       mat_in:{x:0,y:1}, mat_out:{x:2,y:1}, cool_in:{x:0,y:2},
       cool_out:{x:2,y:2}, elec_in:{x:1,y:3}
+    }, icon: 'ico-compressor' },
+    'box/mirror':        { w: 2, h: 3, ports: {
+      mat_in:{x:2,y:1}, mat_out:{x:0,y:1}, cool_in:{x:2,y:2},
+      cool_out:{x:0,y:2}, elec_in:{x:1,y:3}
+    }, icon: 'ico-compressor' },
+    'box/elec-T':        { w: 2, h: 3, ports: {
+      mat_in:{x:0,y:1}, mat_out:{x:2,y:1}, cool_in:{x:0,y:2},
+      cool_out:{x:2,y:2}, elec_in:{x:1,y:0}
+    }, icon: 'ico-compressor' },
+    'box/mirror-elec-T': { w: 2, h: 3, ports: {
+      mat_in:{x:2,y:1}, mat_out:{x:0,y:1}, cool_in:{x:2,y:2},
+      cool_out:{x:0,y:2}, elec_in:{x:1,y:0}
     }, icon: 'ico-compressor' }
   },
   limitParams: ['T_LL', 'T_L', 'T_H', 'T_HH', 'P_LL', 'P_L', 'P_H', 'P_HH', 'mass_HH'],
@@ -16030,7 +16151,9 @@ UnitRegistry.register('electric_heater', {
   ],
   presentations: {
     'box/default':       { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, elec_in:{x:1,y:0}, mat_out:{x:2,y:1} } },
-    'box/elec-bottom':   { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, elec_in:{x:1,y:2}, mat_out:{x:2,y:1} } }
+    'box/mirror':        { w: 2, h: 2, ports: { mat_in:{x:2,y:1}, elec_in:{x:1,y:0}, mat_out:{x:0,y:1} } },
+    'box/elec-B':        { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, elec_in:{x:1,y:2}, mat_out:{x:2,y:1} } },
+    'box/mirror-elec-B': { w: 2, h: 2, ports: { mat_in:{x:2,y:1}, elec_in:{x:1,y:2}, mat_out:{x:0,y:1} } }
   },
   // [v13.0.4 S1c] Equipment limits
   limitParams: ['T_LL', 'T_L', 'T_H', 'T_HH', 'P_LL', 'P_L', 'P_H', 'P_HH', 'mass_LL', 'mass_HH'],
@@ -16169,8 +16292,11 @@ UnitRegistry.register('air_cooler', {
     { portId: 'elec_in', dir: PortDir.IN,  type: StreamType.ELECTRICAL, x: 1, y: 2 }
   ],
   presentations: {
-    'box/default':     { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, mat_out:{x:2,y:1}, elec_in:{x:1,y:2} } },
-    'box/port-top':    { w: 2, h: 2, ports: { mat_in:{x:1,y:0}, mat_out:{x:1,y:2}, elec_in:{x:0,y:1} } }
+    'box/default':       { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, mat_out:{x:2,y:1}, elec_in:{x:1,y:2} } },
+    'box/mirror':        { w: 2, h: 2, ports: { mat_in:{x:2,y:1}, mat_out:{x:0,y:1}, elec_in:{x:1,y:2} } },
+    'box/elec-T':        { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, mat_out:{x:2,y:1}, elec_in:{x:1,y:0} } },
+    'box/mirror-elec-T': { w: 2, h: 2, ports: { mat_in:{x:2,y:1}, mat_out:{x:0,y:1}, elec_in:{x:1,y:0} } },
+    'box/port-top':      { w: 2, h: 2, ports: { mat_in:{x:1,y:0}, mat_out:{x:1,y:2}, elec_in:{x:0,y:1} } }
   },
   // [v13.0.4 S1c] Equipment limits — corrected to matrix values v13.0.8
   limitParams: ['T_LL', 'T_L', 'T_H', 'T_HH', 'P_LL', 'P_L', 'P_H', 'P_HH', 'mass_HH'],
@@ -16877,7 +17003,9 @@ UnitRegistry.register('mixer', {
   // [v10.9.1] Presentation layer — visual configs by theme/variant
   presentations: {
     'box/default':     { w: 2, h: 2, ports: { mat_in_1: {x:0,y:0}, mat_in_2: {x:0,y:2}, mat_out:{x:2,y:1} }, icon: 'ico-mixer' },
-    'box/top-recycle': { w: 2, h: 2, ports: { mat_in_1: {x:0,y:1}, mat_in_2: {x:1,y:0}, mat_out:{x:2,y:1} }, icon: 'ico-mixer--top' }
+    'box/mirror':      { w: 2, h: 2, ports: { mat_in_1: {x:2,y:0}, mat_in_2: {x:2,y:2}, mat_out:{x:0,y:1} }, icon: 'ico-mixer' },
+    'box/recycle-T':   { w: 2, h: 2, ports: { mat_in_1: {x:0,y:1}, mat_in_2: {x:1,y:0}, mat_out:{x:2,y:1} }, icon: 'ico-mixer--top' },
+    'box/recycle-B':   { w: 2, h: 2, ports: { mat_in_1: {x:0,y:1}, mat_in_2: {x:1,y:2}, mat_out:{x:2,y:1} }, icon: 'ico-mixer--top' }
   },
   // [v13.0.4 S1c] Equipment limits — corrected to matrix values v13.0.8
   limitParams: ['T_LL', 'T_L', 'T_H', 'T_HH', 'P_LL', 'P_L', 'P_H', 'P_HH', 'mass_HH'],
@@ -17008,7 +17136,9 @@ UnitRegistry.register('splitter', {
   // [v10.9.1] Presentation layer — visual configs by theme/variant
   presentations: {
     'box/default':     { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, mat_out_1: {x:2,y:0}, mat_out_2: {x:2,y:2} }, icon: 'ico-splitter' },
-    'box/top-recycle': { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, mat_out_1: {x:2,y:1}, mat_out_2: {x:1,y:0} }, icon: 'ico-splitter--top' }
+    'box/mirror':      { w: 2, h: 2, ports: { mat_in:{x:2,y:1}, mat_out_1: {x:0,y:0}, mat_out_2: {x:0,y:2} }, icon: 'ico-splitter' },
+    'box/recycle-T':   { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, mat_out_1: {x:2,y:1}, mat_out_2: {x:1,y:0} }, icon: 'ico-splitter--top' },
+    'box/recycle-B':   { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, mat_out_1: {x:2,y:1}, mat_out_2: {x:1,y:2} }, icon: 'ico-splitter--top' }
   },
   // [v13.0.4 S1c] Equipment limits — corrected to matrix values v13.0.8
   limitParams: ['T_LL', 'T_L', 'T_H', 'T_HH', 'P_LL', 'P_L', 'P_H', 'P_HH', 'mass_HH'],
@@ -17174,7 +17304,8 @@ UnitRegistry.register('flash_drum', {
   ],
   // [v10.9.2] Presentation layer
   presentations: {
-    'box/default': { w: 2, h: 3, ports: { mat_in:{x:0,y:1}, vap_out:{x:2,y:0}, liq_out:{x:2,y:3} } }
+    'box/default': { w: 2, h: 3, ports: { mat_in:{x:0,y:1}, vap_out:{x:2,y:0}, liq_out:{x:2,y:3} } },
+    'box/mirror':  { w: 2, h: 3, ports: { mat_in:{x:2,y:1}, vap_out:{x:0,y:0}, liq_out:{x:0,y:3} } }
   },
   // [v13.0.4 S1c] Equipment limits
   limitParams: ['T_LL', 'T_L', 'T_H', 'T_HH', 'P_LL', 'P_L', 'P_H', 'P_HH', 'mass_HH'],
@@ -17443,9 +17574,21 @@ UnitRegistry.register('distillation_column', {
     { portId: 'bot_out', dir: PortDir.OUT, type: StreamType.MATERIAL,   x: 2, y: 2, label: 'B' }
   ],
   presentations: {
-    'box/default': { w: 2, h: 3, ports: {
+    'box/default':       { w: 2, h: 3, ports: {
       mat_in:{x:0,y:1.5}, elec_in:{x:1,y:0}, dist_out:{x:2,y:0.5},
       bot_out:{x:2,y:2.5}
+    }},
+    'box/mirror':        { w: 2, h: 3, ports: {
+      mat_in:{x:2,y:1.5}, elec_in:{x:1,y:0}, dist_out:{x:0,y:0.5},
+      bot_out:{x:0,y:2.5}
+    }},
+    'box/elec-B':        { w: 2, h: 3, ports: {
+      mat_in:{x:0,y:1.5}, elec_in:{x:1,y:3}, dist_out:{x:2,y:0.5},
+      bot_out:{x:2,y:2.5}
+    }},
+    'box/mirror-elec-B': { w: 2, h: 3, ports: {
+      mat_in:{x:2,y:1.5}, elec_in:{x:1,y:3}, dist_out:{x:0,y:0.5},
+      bot_out:{x:0,y:2.5}
     }}
   },
   limitParams: ['T_LL', 'T_L', 'T_H', 'T_HH', 'P_LL', 'P_L', 'P_H', 'P_HH', 'mass_HH'],
@@ -17978,7 +18121,8 @@ UnitRegistry.register('reactor_adiabatic', {
     { portId: 'mat_out', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 1 }
   ],
   presentations: {
-    'box/default': { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, mat_out:{x:2,y:1} }, icon: 'ico-reactor_equilibrium' }
+    'box/default': { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, mat_out:{x:2,y:1} }, icon: 'ico-reactor_equilibrium' },
+    'box/mirror':  { w: 2, h: 2, ports: { mat_in:{x:2,y:1}, mat_out:{x:0,y:1} }, icon: 'ico-reactor_equilibrium' }
   },
   limitParams: ['T_LL', 'T_L', 'T_H', 'T_HH', 'P_LL', 'P_L', 'P_H', 'P_HH', 'mass_LL', 'mass_HH'],
   limits: { S: { T_LL: 323, T_L: 373, T_H: 773, T_HH: 923, P_LL: 50000, P_L: 80000, P_H: 12000000, P_HH: 15000000, mass_LL: 0.001, mass_HH: 0.08 } },
@@ -17997,8 +18141,10 @@ UnitRegistry.register('reactor_jacketed', {
     { portId: 'elec_in', dir: PortDir.IN,  type: StreamType.ELECTRICAL, x: 1, y: 2 }
   ],
   presentations: {
-    'box/default':  { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, mat_out:{x:2,y:1}, elec_in:{x:1,y:2} }, icon: 'ico-reactor_equilibrium' },
-    'box/elec-top': { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, mat_out:{x:2,y:1}, elec_in:{x:1,y:0} }, icon: 'ico-reactor_equilibrium' }
+    'box/default':       { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, mat_out:{x:2,y:1}, elec_in:{x:1,y:2} }, icon: 'ico-reactor_equilibrium' },
+    'box/mirror':        { w: 2, h: 2, ports: { mat_in:{x:2,y:1}, mat_out:{x:0,y:1}, elec_in:{x:1,y:2} }, icon: 'ico-reactor_equilibrium' },
+    'box/elec-T':        { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, mat_out:{x:2,y:1}, elec_in:{x:1,y:0} }, icon: 'ico-reactor_equilibrium' },
+    'box/mirror-elec-T': { w: 2, h: 2, ports: { mat_in:{x:2,y:1}, mat_out:{x:0,y:1}, elec_in:{x:1,y:0} }, icon: 'ico-reactor_equilibrium' }
   },
   limitParams: ['T_LL', 'T_L', 'T_H', 'T_HH', 'P_LL', 'P_L', 'P_H', 'P_HH', 'mass_LL', 'mass_HH'],
   limits: { S: { T_LL: 323, T_L: 373, T_H: 773, T_HH: 923, P_LL: 50000, P_L: 80000, P_H: 12000000, P_HH: 15000000, mass_LL: 0.001, mass_HH: 0.08 } },
@@ -18019,7 +18165,8 @@ UnitRegistry.register('reactor_cooled', {
     { portId: 'cool_out', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 2.5 }
   ],
   presentations: {
-    'box/default': { w: 2, h: 3, ports: { mat_in:{x:0,y:0.5}, mat_out:{x:2,y:0.5}, cool_in:{x:0,y:2.5}, cool_out:{x:2,y:2.5} }, icon: 'ico-reactor_equilibrium' }
+    'box/default': { w: 2, h: 3, ports: { mat_in:{x:0,y:0.5}, mat_out:{x:2,y:0.5}, cool_in:{x:0,y:2.5}, cool_out:{x:2,y:2.5} }, icon: 'ico-reactor_equilibrium' },
+    'box/mirror':  { w: 2, h: 3, ports: { mat_in:{x:2,y:0.5}, mat_out:{x:0,y:0.5}, cool_in:{x:2,y:2.5}, cool_out:{x:0,y:2.5} }, icon: 'ico-reactor_equilibrium' }
   },
   limitParams: ['T_LL', 'T_L', 'T_H', 'T_HH', 'P_LL', 'P_L', 'P_H', 'P_HH', 'mass_LL', 'mass_HH'],
   limits: { S: { T_LL: 323, T_L: 373, T_H: 773, T_HH: 923, P_LL: 50000, P_L: 80000, P_H: 12000000, P_HH: 15000000, mass_LL: 0.001, mass_HH: 0.08 } },
@@ -18258,8 +18405,17 @@ UnitRegistry.register('reactor_electrochemical', {
     { portId: 'mat_out_ano', label: 'Anode (O₂)',  dir: PortDir.OUT, type: StreamType.MATERIAL,   x: 2, y: 2.5 }
   ],
   presentations: {
-    'box/default': { w: 2, h: 3, ports: {
+    'box/default':       { w: 2, h: 3, ports: {
       mat_in:{x:0,y:1.5}, elec_in:{x:1,y:0}, mat_out_cat:{x:2,y:0.5}, mat_out_ano:{x:2,y:2.5}
+    }, icon: 'ico-reactor_equilibrium' },
+    'box/mirror':        { w: 2, h: 3, ports: {
+      mat_in:{x:2,y:1.5}, elec_in:{x:1,y:0}, mat_out_cat:{x:0,y:0.5}, mat_out_ano:{x:0,y:2.5}
+    }, icon: 'ico-reactor_equilibrium' },
+    'box/elec-B':        { w: 2, h: 3, ports: {
+      mat_in:{x:0,y:1.5}, elec_in:{x:1,y:3}, mat_out_cat:{x:2,y:0.5}, mat_out_ano:{x:2,y:2.5}
+    }, icon: 'ico-reactor_equilibrium' },
+    'box/mirror-elec-B': { w: 2, h: 3, ports: {
+      mat_in:{x:2,y:1.5}, elec_in:{x:1,y:3}, mat_out_cat:{x:0,y:0.5}, mat_out_ano:{x:0,y:2.5}
     }, icon: 'ico-reactor_equilibrium' }
   },
   limitParams: ['T_LL', 'T_L', 'T_H', 'T_HH', 'P_LL', 'P_HH', 'mass_HH'],
@@ -18281,9 +18437,21 @@ UnitRegistry.register('fuel_cell', {
     { portId: 'cool_out',   label: 'Coolant Out',   dir: PortDir.OUT, type: StreamType.MATERIAL,   x: 2, y: 2.5 }
   ],
   presentations: {
-    'box/default': { w: 2, h: 3, ports: {
+    'box/default':       { w: 2, h: 3, ports: {
       mat_in_cat:{x:0,y:0.5}, mat_in_ano:{x:0,y:1.5}, mat_out:{x:2,y:1},
       elec_out:{x:1,y:0}, cool_in:{x:0,y:2.5}, cool_out:{x:2,y:2.5}
+    }, icon: 'ico-reactor_equilibrium' },
+    'box/mirror':        { w: 2, h: 3, ports: {
+      mat_in_cat:{x:2,y:0.5}, mat_in_ano:{x:2,y:1.5}, mat_out:{x:0,y:1},
+      elec_out:{x:1,y:0}, cool_in:{x:2,y:2.5}, cool_out:{x:0,y:2.5}
+    }, icon: 'ico-reactor_equilibrium' },
+    'box/elec-B':        { w: 2, h: 3, ports: {
+      mat_in_cat:{x:0,y:0.5}, mat_in_ano:{x:0,y:1.5}, mat_out:{x:2,y:1},
+      elec_out:{x:1,y:3}, cool_in:{x:0,y:2.5}, cool_out:{x:2,y:2.5}
+    }, icon: 'ico-reactor_equilibrium' },
+    'box/mirror-elec-B': { w: 2, h: 3, ports: {
+      mat_in_cat:{x:2,y:0.5}, mat_in_ano:{x:2,y:1.5}, mat_out:{x:0,y:1},
+      elec_out:{x:1,y:3}, cool_in:{x:2,y:2.5}, cool_out:{x:0,y:2.5}
     }, icon: 'ico-reactor_equilibrium' }
   },
   limitParams: ['T_LL', 'T_L', 'T_H', 'T_HH', 'P_LL', 'P_HH', 'mass_HH'],
@@ -18452,6 +18620,9 @@ UnitRegistry.register('membrane_separator', {
   presentations: {
     'box/default': { w: 2, h: 2, ports: {
       mat_in: { x: 0, y: 1 }, perm_out: { x: 2, y: 0 }, ret_out: { x: 2, y: 2 }
+    }},
+    'box/mirror':  { w: 2, h: 2, ports: {
+      mat_in: { x: 2, y: 1 }, perm_out: { x: 0, y: 0 }, ret_out: { x: 0, y: 2 }
     }}
   },
   limitParams: ['T_LL', 'T_HH', 'P_HH', 'mass_HH'],
@@ -19176,6 +19347,20 @@ class Scene {
         if (u.defId === 'distillation_column' && u.params && u.params.P_column_bar != null) {
           u.params.P_column = u.params.P_column_bar * 1e5;
           delete u.params.P_column_bar;
+        }
+      }
+    }
+
+    // [v14.10.5] Presentation variant name migration
+    if (Array.isArray(data.units)) {
+      const variantMap = {
+        'elec-bottom': 'elec-B',     // electric_heater
+        'elec-top':    'elec-T',     // reactor_jacketed
+        'top-recycle': 'recycle-T'   // mixer, splitter
+      };
+      for (const u of data.units) {
+        if (u.params?.variant && variantMap[u.params.variant]) {
+          u.params.variant = variantMap[u.params.variant];
         }
       }
     }
@@ -29043,10 +29228,10 @@ function _rebuildInspectorContent() {
         .filter(k => k.startsWith(prefix))
         .map(k => k.slice(prefix.length))
         // [v14.9.0 S6a] Mode-aware variant filter for reactor_jacketed:
-        // Shows default + elec-top variants (no insulated — that's reactor_adiabatic now).
+        // Shows default + elec-T variants (no insulated — that's reactor_adiabatic now).
         .filter(v => {
           if (u.defId !== 'reactor_jacketed') return true;
-          return v !== 'insulated';  // jacketed: show default + elec-top only
+          return v !== 'insulated';  // jacketed: show default + elec-T only
         });
       if (variants.length > 1) {
         const layoutZone = el('div', { class: 'ins-params-zone', style: 'margin-bottom:4px;' });
@@ -30482,30 +30667,43 @@ function updateSurvivalStrip() {
     });
   }
 
-  // [v14.10.2] Responsive truncation via window resize (not ResizeObserver).
-  // ResizeObserver on any flex participant causes infinite loops because hiding
-  // children changes flex layout → re-triggers observer.  Window resize is the
-  // only external event that changes available space; DOM mutations cannot.
+  // [v14.10.3] Unified responsive cascade — bar-level + center-level breakpoints
+  // Single window resize handler (no ResizeObserver — avoids flex feedback loops).
+  // Bar bp: controls name input, tl-msg, view-mode-btns visibility.
+  // Center bp: controls atmosphere T, P, composition visibility.
   const _infoBar = document.querySelector('.info-bar');
   const _ibLeft = document.querySelector('.info-bar-left');
   const _ibRight = document.querySelector('.info-bar-right');
+  let _barBpCurrent = '';
   let _ssBpCurrent = '';
-  function _updateSurvivalBp() {
-    if (!_infoBar || !_ssStrip) return;
-    const total = _infoBar.offsetWidth;
-    const used = (_ibLeft?.offsetWidth || 0) + (_ibRight?.offsetWidth || 0) + 24;
-    const avail = Math.max(0, total - used);
-    let bp = '4';
-    if (avail < 120)       bp = '1';
-    else if (avail < 200)  bp = '2';
-    else if (avail < 350)  bp = '3';
-    if (bp !== _ssBpCurrent) {
-      _ssBpCurrent = bp;
-      _ssStrip.setAttribute('data-bp', bp);
+  function _updateBarBreakpoints() {
+    if (!_infoBar) return;
+    const barW = _infoBar.offsetWidth;
+    // Bar-level breakpoints (total bar width)
+    let bbp = '4';
+    if (barW < 550)       bbp = '1'; // hide name + tl-msg + view mode
+    else if (barW < 700)  bbp = '2'; // hide name + tl-msg
+    else if (barW < 900)  bbp = '3'; // hide name only
+    if (bbp !== _barBpCurrent) {
+      _barBpCurrent = bbp;
+      _infoBar.setAttribute('data-bp', bbp);
+    }
+    // Center-level breakpoints (available space between left + right)
+    if (_ssStrip) {
+      const used = (_ibLeft?.offsetWidth || 0) + (_ibRight?.offsetWidth || 0) + 30;
+      const avail = Math.max(0, barW - used);
+      let cbp = '4';
+      if (avail < 120)       cbp = '1';
+      else if (avail < 200)  cbp = '2';
+      else if (avail < 350)  cbp = '3';
+      if (cbp !== _ssBpCurrent) {
+        _ssBpCurrent = cbp;
+        _ssStrip.setAttribute('data-bp', cbp);
+      }
     }
   }
-  window.addEventListener('resize', _updateSurvivalBp);
-  _updateSurvivalBp(); // initial
+  window.addEventListener('resize', _updateBarBreakpoints);
+  _updateBarBreakpoints(); // initial
 }
 
 function afterSolve(solveResult) {
@@ -31808,7 +32006,7 @@ function loadDemo() {
 
       { id: 'feed', defId: 'source', profileId: 'source_mix', name: 'CO₂/H₂ Feed', x: 0, y: 3, rot: 0,
         params: { n: { CO2: 1, H2: 4 }, T: 523, P: 1000000, phaseConstraint: 'V' } },
-      { id: 'mix', defId: 'mixer', name: 'Mixer', x: 4, y: 4, rot: 0, params: { variant: 'top-recycle' } },
+      { id: 'mix', defId: 'mixer', name: 'Mixer', x: 4, y: 4, rot: 0, params: { variant: 'recycle-T' } },
       { id: 'rx', defId: 'reactor_adiabatic', name: 'Sabatier Rx', x: 8, y: 4, rot: 0,
         params: { reactionId: 'R_SABATIER', useKinetics: true, volume_m3: 0.5 },
         sticker: { dx: 3, dy: -2, items: [
@@ -31819,7 +32017,7 @@ function loadDemo() {
         params: { T_out: 323.15, UA_kW_K: 5, max_fan_power_W: 1200, powerPriority: 3 } },
       { id: 'flash', defId: 'flash_drum', name: 'Flash Drum', x: 16, y: 4, rot: 0, params: {} },
       { id: 'split', defId: 'splitter', name: 'Purge/Recycle', x: 20, y: 3, rot: 0,
-        params: { splitPct: 15, variant: 'top-recycle' } },
+        params: { splitPct: 15, variant: 'recycle-T' } },
       { id: 'snk-ch4', defId: 'sink', name: 'CH₄ Product', x: 24, y: 3, rot: 0, params: {} },
       { id: 'snk-h2o', defId: 'sink', name: 'Water', x: 20, y: 6, rot: 0, params: {} },
 
@@ -31905,7 +32103,7 @@ function loadDemo() {
       { id: 'b-feed', defId: 'source', profileId: 'source_mix', name: 'CH₄/Steam Feed', x: 4, y: -6, rot: 0,
         params: { n: { CH4: 0.2, H2O: 0.4 }, T: 873, P: 2000000, phaseConstraint: 'V' } },
       { id: 'b-rx', defId: 'reactor_jacketed', name: 'SMR Reactor', x: 8, y: -6, rot: 0,
-        params: { reactionId: 'R_SMR_OVERALL', useKinetics: true, volume_m3: 1.0, heatDemand: 'isothermal', variant: 'elec-top' },
+        params: { reactionId: 'R_SMR_OVERALL', useKinetics: true, volume_m3: 1.0, heatDemand: 'isothermal', variant: 'elec-T' },
         sticker: { dx: -6, dy: -2, items: [
           { section: 'power', label: 'ΔT' },
           { section: 'reaction', label: 'Conversion' }
@@ -41410,11 +41608,11 @@ function runTests() {
     t.assertOK(mixPres.ports.mat_in_1.y === 0, 'Mixer default in1.y=0 (left-top)');
     t.assertOK(mixPres.ports.mat_in_2.y === 2, 'Mixer default in2.y=2 (left-bottom)');
 
-    // Presentation lookup: mixer top-recycle variant
-    const mixPresTR = getPresentation(mixDef, { params: { variant: 'top-recycle' } });
-    t.assertOK(mixPresTR.ports.mat_in_2.y === 0, 'Mixer top-recycle in2.y=0 (top)');
-    t.assertOK(mixPresTR.ports.mat_in_2.x === 1, 'Mixer top-recycle in2.x=1 (center)');
-    t.assertOK(mixPresTR.ports.mat_in_1.y === 1, 'Mixer top-recycle in1.y=1 (left-center)');
+    // Presentation lookup: mixer recycle-T variant
+    const mixPresTR = getPresentation(mixDef, { params: { variant: 'recycle-T' } });
+    t.assertOK(mixPresTR.ports.mat_in_2.y === 0, 'Mixer recycle-T in2.y=0 (top)');
+    t.assertOK(mixPresTR.ports.mat_in_2.x === 1, 'Mixer recycle-T in2.x=1 (center)');
+    t.assertOK(mixPresTR.ports.mat_in_1.y === 1, 'Mixer recycle-T in1.y=1 (left-center)');
 
     // Fallback: unknown variant falls back to theme/default
     const mixBad = getPresentation(mixDef, { params: { variant: 'nonexistent' } });
@@ -41424,13 +41622,13 @@ function runTests() {
   tests.push({ name: '230: Splitter variant port positions differ from default', fn: t => {
     const splDef = UnitRegistry.get('splitter');
     const splDefault = getPresentation(splDef, { params: {} });
-    const splTR = getPresentation(splDef, { params: { variant: 'top-recycle' } });
+    const splTR = getPresentation(splDef, { params: { variant: 'recycle-T' } });
 
     // Default: out1 at right-top (2,0), out2 at right-bottom (2,2)
     t.assertOK(splDefault.ports.mat_out_1.x === 2 && splDefault.ports.mat_out_1.y === 0, 'Splitter default out1 at (2,0)');
     t.assertOK(splDefault.ports.mat_out_2.x === 2 && splDefault.ports.mat_out_2.y === 2, 'Splitter default out2 at (2,2)');
 
-    // Top-recycle: out1 at right-center (2,1), out2 at top-center (1,0)
+    // recycle-T: out1 at right-center (2,1), out2 at top-center (1,0)
     t.assertOK(splTR.ports.mat_out_1.x === 2 && splTR.ports.mat_out_1.y === 1, 'Splitter TR out1 at (2,1)');
     t.assertOK(splTR.ports.mat_out_2.x === 1 && splTR.ports.mat_out_2.y === 0, 'Splitter TR out2 at (1,0)');
 
@@ -41442,19 +41640,19 @@ function runTests() {
     t.clearScene();
     const mix = t.place('mixer', 0, 0);
     const mixU = scene.units.get(mix);
-    mixU.params.variant = 'top-recycle';
+    mixU.params.variant = 'recycle-T';
 
     const spl = t.place('splitter', 4, 0);
     const splU = scene.units.get(spl);
-    splU.params.variant = 'top-recycle';
+    splU.params.variant = 'recycle-T';
 
     // Export
     const json = scene.exportJSON();
     const parsed = JSON.parse(json);
     const mixExport = parsed.units.find(u => u.defId === 'mixer');
     const splExport = parsed.units.find(u => u.defId === 'splitter');
-    t.assertOK(mixExport.params.variant === 'top-recycle', 'Mixer variant exported');
-    t.assertOK(splExport.params.variant === 'top-recycle', 'Splitter variant exported');
+    t.assertOK(mixExport.params.variant === 'recycle-T', 'Mixer variant exported');
+    t.assertOK(splExport.params.variant === 'recycle-T', 'Splitter variant exported');
 
     // Import
     t.clearScene();
@@ -41462,13 +41660,24 @@ function runTests() {
     t.assertOK(result.ok, 'Import succeeds');
     const mixImported = Array.from(scene.units.values()).find(u => u.defId === 'mixer');
     const splImported = Array.from(scene.units.values()).find(u => u.defId === 'splitter');
-    t.assertOK(mixImported.params.variant === 'top-recycle', 'Mixer variant survived import');
-    t.assertOK(splImported.params.variant === 'top-recycle', 'Splitter variant survived import');
+    t.assertOK(mixImported.params.variant === 'recycle-T', 'Mixer variant survived import');
+    t.assertOK(splImported.params.variant === 'recycle-T', 'Splitter variant survived import');
 
     // Verify presentation resolves correctly after import
     const def = UnitRegistry.get('mixer');
     const pres = getPresentation(def, mixImported);
-    t.assertOK(pres.ports.mat_in_2.y === 0, 'Imported mixer resolves top-recycle presentation');
+    t.assertOK(pres.ports.mat_in_2.y === 0, 'Imported mixer resolves recycle-T presentation');
+
+    // [v14.10.5] Test migration: old 'top-recycle' → 'recycle-T'
+    t.clearScene();
+    const migJson = JSON.stringify({
+      units: [{ id:'m1', defId:'mixer', name:'M', x:0, y:0, rot:0, params:{ variant:'top-recycle' } }],
+      connections: []
+    });
+    const migResult = scene.importJSON(migJson);
+    t.assertOK(migResult.ok, 'Migration import succeeds');
+    const migMix = Array.from(scene.units.values()).find(u => u.defId === 'mixer');
+    t.assertOK(migMix.params.variant === 'recycle-T', 'Old top-recycle migrated to recycle-T');
   }});
 
   tests.push({ name: '232: Source 4-direction variants', fn: t => {
@@ -41545,7 +41754,7 @@ function runTests() {
     const rxDef = UnitRegistry.get('reactor_jacketed');
     const rxD = getPresentation(rxDef, { params: {} });
     t.assertOK(rxD.ports.elec_in.y === 2, 'Reactor default: elec_in at bottom');  // [v14.9.0] jacketed is 2×2, elec at y=2
-    const rxR = getPresentation(rxDef, { params: { variant: 'elec-top' } });
+    const rxR = getPresentation(rxDef, { params: { variant: 'elec-T' } });
     t.assertOK(rxR.ports.elec_in.y === 0, 'Reactor elec-top: elec_in at top');
     // [v11.0.2] Insulated variant hides elec_in
     const rxAdiabatic = UnitRegistry.get('reactor_adiabatic');
@@ -41562,7 +41771,7 @@ function runTests() {
   tests.push({ name: '240: Heated endo + small Q → T between insulated and isothermal', fn: t => {
     // [v11.0.0] Heated mode with partial Q: T_out > insulated, < isothermal
     const feed = t.place('source', 0, 0, { n:{CH4:0.2, H2O:0.4}, T:1000, P:2000000, phaseConstraint:'V' });
-    const rx = t.place('reactor_jacketed', 4, 0, { reactionId:'R_SMR_OVERALL', useKinetics:true, volume_m3:1.0, heatDemand:'isothermal', variant:'elec-top' });
+    const rx = t.place('reactor_jacketed', 4, 0, { reactionId:'R_SMR_OVERALL', useKinetics:true, volume_m3:1.0, heatDemand:'isothermal', variant:'elec-T' });
     t.unit(rx).tier = 2;  // [v14.9.0 S6a] T2 jacketed for high-T SMR
     const snk = t.place('sink', 8, 0);
     // [v12.9.0] grid → hub → reactor elec_in
@@ -41583,7 +41792,7 @@ function runTests() {
   tests.push({ name: '241: Heated endo + excess Q → T near isothermal', fn: t => {
     // Endothermic + excess heat → T_out ≈ T_in or slightly above
     const feed = t.place('source', 0, 0, { n:{CH4:0.2, H2O:0.4}, T:1000, P:2000000, phaseConstraint:'V' });
-    const rx = t.place('reactor_jacketed', 4, 0, { reactionId:'R_SMR_OVERALL', useKinetics:true, volume_m3:1.0, heatDemand:'isothermal', variant:'elec-top' });
+    const rx = t.place('reactor_jacketed', 4, 0, { reactionId:'R_SMR_OVERALL', useKinetics:true, volume_m3:1.0, heatDemand:'isothermal', variant:'elec-T' });
     t.unit(rx).tier = 2;  // [v14.9.0 S6a] T2 jacketed for high-T SMR
     const snk = t.place('sink', 8, 0);
     // [v12.9.0] grid → hub → reactor elec_in
@@ -41603,7 +41812,7 @@ function runTests() {
   tests.push({ name: '242: Fixed power exo + Q → T rises above insulated', fn: t => {
     // Exothermic + fixed external heat → T_out higher than insulated case.
     const feed = t.place('source', 0, 0, { n:{CO2:0.1, H2:0.4}, T:600, P:500000, phaseConstraint:'V' });
-    const rxHeat = t.place('reactor_jacketed', 4, 0, { reactionId:'R_SABATIER', useKinetics:true, volume_m3:1.0, heatDemand:'fixed', Q_fixed_kW:50, variant:'elec-top' });
+    const rxHeat = t.place('reactor_jacketed', 4, 0, { reactionId:'R_SABATIER', useKinetics:true, volume_m3:1.0, heatDemand:'fixed', Q_fixed_kW:50, variant:'elec-T' });
     const snk = t.place('sink', 8, 0);
     // [v12.9.0] grid → hub → reactor elec_in
     const gs = t.place('grid_supply', 0, 6, { maxPower:50 });
@@ -41646,7 +41855,7 @@ function runTests() {
 
     // ── PROCESS B: Steam Methane Reforming (endothermic) ──
     const bFeed  = t.place('source',     30,  4, { n: { CH4: 0.2, H2O: 0.4 }, T: 873, P: 2000000, phaseConstraint: 'V' });
-    const bRx    = t.place('reactor_jacketed', 34, 4, { reactionId: 'R_SMR_OVERALL', useKinetics: true, volume_m3: 1.0, variant: 'elec-top', heatDemand: 'isothermal' });
+    const bRx    = t.place('reactor_jacketed', 34, 4, { reactionId: 'R_SMR_OVERALL', useKinetics: true, volume_m3: 1.0, variant: 'elec-T', heatDemand: 'isothermal' });
     const bValve = t.place('valve',            42,  4, { Pout: 200000 });
     const bProd  = t.place('sink',             46,  4);
 
