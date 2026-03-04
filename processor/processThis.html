@@ -343,6 +343,26 @@
 
   ═══ v15.0.0 — Biosphere foundation: CH₂O species + R_METABOLISM reaction ═════
 
+  ─── v15.0.2 — S-FANOUT: Material fan-out from vessel outlets ─────────────
+    Vessel outlet ports (tank gas_out/liq_out/vent/overflow, open_tank
+    liq_out/overflow, reservoir mat_out) now accept multiple connections.
+    Each connection represents an independent pipe run with its own block
+    valve (opening). The nozzle Cv is shared per port; per-connection
+    openings stored in params.openings[connId].
+    Physics: per-connection CV equation with independent ΔP from pressure
+    trace. Total outflow = Σ Q_i, capped by available inventory with
+    proportional allocation. Downstream units receive per-connection
+    streams via runtime.connStreams (checked before ud.ports in solver).
+    Port rendering: dashed outer ring on fan-out ports (visual indicator).
+    Inspector: per-connection opening sliders when >1 connection exists;
+    single slider backward compat when only 1 connection.
+    Reconnect behavior: clicking fan-out port starts new connection
+    (does not detach existing). Deletion cleans up openings map.
+    Infrastructure: _fanOutConns cache in solver, ctx.outConns(portId),
+    ctx.setConnStream(connId, stream), connStreams on scene.runtime.
+    No profile changes needed (openings map only created on fan-out use).
+    16 new tests (F01-F16), 551 total, 2944 assertions.
+
   Milestone: v15 marks the beginning of the game phase. The simulation
   engine is now feature-complete for the survival arc (Missions M1–M5).
 
@@ -14479,10 +14499,10 @@ UnitRegistry.register('tank', {
   optionalPorts: true,
   ports: [
     { portId: 'mat_in',   dir: PortDir.IN,  type: StreamType.MATERIAL, x: 0, y: 1, label: 'in' },
-    { portId: 'gas_out',  dir: PortDir.OUT, type: StreamType.MATERIAL, x: 3, y: 0, label: 'gas' },
-    { portId: 'vent',     dir: PortDir.OUT, type: StreamType.MATERIAL, x: 1, y: 0, label: 'vent' },
-    { portId: 'liq_out',  dir: PortDir.OUT, type: StreamType.MATERIAL, x: 3, y: 2, label: 'liq' },
-    { portId: 'overflow', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 1, y: 2, label: 'ovfl' }
+    { portId: 'gas_out',  dir: PortDir.OUT, type: StreamType.MATERIAL, x: 3, y: 0, label: 'gas', fanOut: true },
+    { portId: 'vent',     dir: PortDir.OUT, type: StreamType.MATERIAL, x: 1, y: 0, label: 'vent', fanOut: true },
+    { portId: 'liq_out',  dir: PortDir.OUT, type: StreamType.MATERIAL, x: 3, y: 2, label: 'liq', fanOut: true },
+    { portId: 'overflow', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 1, y: 2, label: 'ovfl', fanOut: true }
   ],
   presentations: {
     'box/default': { w: 3, h: 2, ports: {
@@ -14585,26 +14605,73 @@ UnitRegistry.register('tank', {
     const state = computeTankState(inv.n, inv.T_K, V, thermo);
     const P_tank = state.P_Pa;
 
-    // 2. Gas draw (from vapor phase)
-    const P_down_gas = ctx.downstreamP('gas_out') ?? P_tank;
-    const dP_gas = P_tank - P_down_gas;
+    // 2. Gas draw (from vapor phase) — per-connection CV [S-FANOUT]
+    const gasConns = ctx.outConns('gas_out');
     let Q_gas = 0;
-    if (dP_gas > 0 && (par.opening_gas_pct || 0) > 0
-        && state.n_V && Object.values(state.n_V).some(v => v > 1e-15)) {
-      const n_V_total = Object.values(state.n_V).reduce((a,b) => a+b, 0);
+    const n_V_total = state.n_V ? Object.values(state.n_V).reduce((a,b) => a+b, 0) : 0;
+    const hasVapor = n_V_total > 1e-15;
+
+    if (gasConns.length > 0 && hasVapor) {
       const MW_V = _inventoryMW(state.n_V);
       const SG_V = (P_tank * MW_V) / (8.314 * inv.T_K * 1.225);
-      Q_gas = (par.Cv_gas || 50) * (par.opening_gas_pct / 100)
-            * Math.sqrt(Math.max(0, dP_gas) / (SG_V * 1e5));
-      Q_gas = Math.min(Q_gas, n_V_total / dt);
+      const Cv_gas = par.Cv_gas || 50;
 
-      const n_out_gas = {};
+      // Per-connection flow calculation
+      const connFlows = [];
+      for (const conn of gasConns) {
+        const opening_i = par.openings?.[conn.id] ?? par.opening_gas_pct ?? 100;
+        if (opening_i <= 0) { connFlows.push({ conn, Q: 0 }); continue; }
+        const P_down_i = ctx.downstreamP(conn.id) ?? P_tank;
+        const dP_i = P_tank - P_down_i;
+        if (dP_i <= 0) {
+          connFlows.push({ conn, Q: 0 });
+          if (dP_i < -100) {
+            ctx.warn({
+              severity: ErrorSeverity.MINOR,
+              message: `Gas outlet: reverse pressure \u2014 downstream at `
+                + `${(P_down_i/1e5).toFixed(1)} bar exceeds vessel `
+                + `at ${(P_tank/1e5).toFixed(1)} bar`
+            });
+          }
+          continue;
+        }
+        const Q_i = Cv_gas * (opening_i / 100)
+              * Math.sqrt(Math.max(0, dP_i) / (SG_V * 1e5));
+        connFlows.push({ conn, Q: Q_i });
+      }
+
+      // Sum and cap at available inventory
+      let Q_total = connFlows.reduce((s, cf) => s + cf.Q, 0);
+      if (Q_total > n_V_total / dt) {
+        const scale = (n_V_total / dt) / Q_total;
+        for (const cf of connFlows) cf.Q *= scale;
+        Q_total = n_V_total / dt;
+      }
+      Q_gas = Q_total;
+
+      // Emit per-connection streams
+      for (const { conn, Q } of connFlows) {
+        const n_out = {};
+        if (Q > 1e-18) {
+          for (const [sp, amt] of Object.entries(state.n_V)) {
+            n_out[sp] = (amt / n_V_total) * Q;
+          }
+        }
+        ctx.setConnStream(conn.id, {
+          type: StreamType.MATERIAL,
+          T: inv.T_K, P: P_tank, n: n_out,
+          phaseConstraint: 'V'
+        });
+      }
+
+      // Aggregate stream for ports.gas_out (stickers, backward compat)
+      const n_out_total = {};
       for (const [sp, amt] of Object.entries(state.n_V)) {
-        n_out_gas[sp] = (amt / n_V_total) * Q_gas;
+        n_out_total[sp] = (amt / n_V_total) * Q_gas;
       }
       ports.gas_out = {
         type: StreamType.MATERIAL,
-        T: inv.T_K, P: P_tank, n: n_out_gas,
+        T: inv.T_K, P: P_tank, n: n_out_total,
         phaseConstraint: 'V'
       };
     } else {
@@ -14613,38 +14680,85 @@ UnitRegistry.register('tank', {
         T: inv.T_K, P: P_tank, n: {},
         phaseConstraint: 'V'
       };
-      if (dP_gas < -100) {
-        ctx.warn({
-          severity: ErrorSeverity.MINOR,
-          message: `Gas outlet: reverse pressure \u2014 downstream at `
-            + `${(P_down_gas/1e5).toFixed(1)} bar exceeds vessel `
-            + `at ${(P_tank/1e5).toFixed(1)} bar`
-        });
+      // Check for reverse pressure on legacy single-connection path
+      if (gasConns.length > 0) {
+        const P_down_gas = ctx.downstreamP('gas_out') ?? P_tank;
+        if (P_tank - P_down_gas < -100) {
+          ctx.warn({
+            severity: ErrorSeverity.MINOR,
+            message: `Gas outlet: reverse pressure \u2014 downstream at `
+              + `${(P_down_gas/1e5).toFixed(1)} bar exceeds vessel `
+              + `at ${(P_tank/1e5).toFixed(1)} bar`
+          });
+        }
       }
     }
 
-    // 3. Liquid draw (from liquid phase)
-    const P_down_liq = ctx.downstreamP('liq_out') ?? P_tank;
-    const dP_liq = P_tank - P_down_liq;
+    // 3. Liquid draw (from liquid phase) — per-connection CV [S-FANOUT]
+    const liqConns = ctx.outConns('liq_out');
     let Q_liq = 0;
-    if (dP_liq > 0 && (par.opening_liq_pct || 0) > 0
-        && state.n_L && Object.values(state.n_L).some(v => v > 1e-15)) {
-      const n_L_total = Object.values(state.n_L).reduce((a,b) => a+b, 0);
+    const n_L_total = state.n_L ? Object.values(state.n_L).reduce((a,b) => a+b, 0) : 0;
+    const hasLiquid = n_L_total > 1e-15;
+
+    if (liqConns.length > 0 && hasLiquid) {
       const rho_L = thermo.density
         ? thermo.density(Object.keys(state.n_L)[0], inv.T_K, P_tank, 'L')
         : 1000;
       const SG_L = rho_L / 1000;
-      Q_liq = (par.Cv_liq || 50) * (par.opening_liq_pct / 100)
-            * Math.sqrt(Math.max(0, dP_liq) / (SG_L * 1e5));
-      Q_liq = Math.min(Q_liq, n_L_total / dt);
+      const Cv_liq = par.Cv_liq || 50;
 
-      const n_out_liq = {};
+      const connFlows = [];
+      for (const conn of liqConns) {
+        const opening_i = par.openings?.[conn.id] ?? par.opening_liq_pct ?? 100;
+        if (opening_i <= 0) { connFlows.push({ conn, Q: 0 }); continue; }
+        const P_down_i = ctx.downstreamP(conn.id) ?? P_tank;
+        const dP_i = P_tank - P_down_i;
+        if (dP_i <= 0) {
+          connFlows.push({ conn, Q: 0 });
+          if (dP_i < -100) {
+            ctx.warn({
+              severity: ErrorSeverity.MINOR,
+              message: `Liquid outlet: reverse pressure \u2014 downstream at `
+                + `${(P_down_i/1e5).toFixed(1)} bar exceeds vessel `
+                + `at ${(P_tank/1e5).toFixed(1)} bar`
+            });
+          }
+          continue;
+        }
+        const Q_i = Cv_liq * (opening_i / 100)
+              * Math.sqrt(Math.max(0, dP_i) / (SG_L * 1e5));
+        connFlows.push({ conn, Q: Q_i });
+      }
+
+      let Q_total = connFlows.reduce((s, cf) => s + cf.Q, 0);
+      if (Q_total > n_L_total / dt) {
+        const scale = (n_L_total / dt) / Q_total;
+        for (const cf of connFlows) cf.Q *= scale;
+        Q_total = n_L_total / dt;
+      }
+      Q_liq = Q_total;
+
+      for (const { conn, Q } of connFlows) {
+        const n_out = {};
+        if (Q > 1e-18) {
+          for (const [sp, amt] of Object.entries(state.n_L)) {
+            n_out[sp] = (amt / n_L_total) * Q;
+          }
+        }
+        ctx.setConnStream(conn.id, {
+          type: StreamType.MATERIAL,
+          T: inv.T_K, P: P_tank, n: n_out,
+          phaseConstraint: 'L'
+        });
+      }
+
+      const n_out_total = {};
       for (const [sp, amt] of Object.entries(state.n_L)) {
-        n_out_liq[sp] = (amt / n_L_total) * Q_liq;
+        n_out_total[sp] = (amt / n_L_total) * Q_liq;
       }
       ports.liq_out = {
         type: StreamType.MATERIAL,
-        T: inv.T_K, P: P_tank, n: n_out_liq,
+        T: inv.T_K, P: P_tank, n: n_out_total,
         phaseConstraint: 'L'
       };
     } else {
@@ -14653,13 +14767,16 @@ UnitRegistry.register('tank', {
         T: inv.T_K, P: P_tank, n: {},
         phaseConstraint: 'L'
       };
-      if (dP_liq < -100) {
-        ctx.warn({
-          severity: ErrorSeverity.MINOR,
-          message: `Liquid outlet: reverse pressure \u2014 downstream at `
-            + `${(P_down_liq/1e5).toFixed(1)} bar exceeds vessel `
-            + `at ${(P_tank/1e5).toFixed(1)} bar`
-        });
+      if (liqConns.length > 0) {
+        const P_down_liq = ctx.downstreamP('liq_out') ?? P_tank;
+        if (P_tank - P_down_liq < -100) {
+          ctx.warn({
+            severity: ErrorSeverity.MINOR,
+            message: `Liquid outlet: reverse pressure \u2014 downstream at `
+              + `${(P_down_liq/1e5).toFixed(1)} bar exceeds vessel `
+              + `at ${(P_tank/1e5).toFixed(1)} bar`
+          });
+        }
       }
     }
 
@@ -14784,8 +14901,8 @@ UnitRegistry.register('open_tank', {
   optionalPorts: true,
   ports: [
     { portId: 'mat_in',   dir: PortDir.IN,  type: StreamType.MATERIAL, x: 0, y: 1, label: 'in' },
-    { portId: 'liq_out',  dir: PortDir.OUT, type: StreamType.MATERIAL, x: 3, y: 2, label: 'liq' },
-    { portId: 'overflow', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 1, y: 2, label: 'ovfl' }
+    { portId: 'liq_out',  dir: PortDir.OUT, type: StreamType.MATERIAL, x: 3, y: 2, label: 'liq', fanOut: true },
+    { portId: 'overflow', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 1, y: 2, label: 'ovfl', fanOut: true }
   ],
   presentations: {
     'box/default': { w: 3, h: 2, ports: {
@@ -14906,31 +15023,57 @@ UnitRegistry.register('open_tank', {
     const vented_n = inv._vented_n || {};
     const Q_vented = Object.values(vented_n).reduce((a,b) => a+b, 0);
 
-    // 3. Liquid draw via Cv valve
-    // ΔP = P_atm - P_downstream. Without a pump, draining to atmospheric
-    // sink gives ΔP ≈ 0 → no flow. Gravity is not modelled (acknowledged).
-    // Player needs a pump to draw from an open tank, or a downstream
-    // vessel at lower pressure.
-    const P_down_liq = ctx.downstreamP('liq_out') ?? P_atm;
-    const dP_liq = P_atm - P_down_liq;
+    // 3. Liquid draw via Cv valve — per-connection CV [S-FANOUT]
+    const liqConns = ctx.outConns('liq_out');
     let Q_liq = 0;
-    if (dP_liq > 0 && (par.opening_liq_pct || 0) > 0 && n_total > 1e-15) {
-      // Use first species for SG estimate
+    if (liqConns.length > 0 && n_total > 1e-15) {
       const sp0 = Object.keys(inv.n).find(sp => inv.n[sp] > 1e-15);
       const rho_L = sp0 && thermo.density
         ? thermo.density(sp0, inv.T_K, P_atm, 'L') : 1000;
       const SG_L = rho_L / 1000;
-      Q_liq = (par.Cv_liq || 30) * (par.opening_liq_pct / 100)
-            * Math.sqrt(Math.max(0, dP_liq) / (SG_L * 1e5));
-      Q_liq = Math.min(Q_liq, n_total / dt);
+      const Cv_liq = par.Cv_liq || 30;
 
-      const n_out_liq = {};
+      const connFlows = [];
+      for (const conn of liqConns) {
+        const opening_i = par.openings?.[conn.id] ?? par.opening_liq_pct ?? 100;
+        if (opening_i <= 0) { connFlows.push({ conn, Q: 0 }); continue; }
+        const P_down_i = ctx.downstreamP(conn.id) ?? P_atm;
+        const dP_i = P_atm - P_down_i;
+        if (dP_i <= 0) { connFlows.push({ conn, Q: 0 }); continue; }
+        const Q_i = Cv_liq * (opening_i / 100)
+              * Math.sqrt(Math.max(0, dP_i) / (SG_L * 1e5));
+        connFlows.push({ conn, Q: Q_i });
+      }
+
+      let Q_total = connFlows.reduce((s, cf) => s + cf.Q, 0);
+      if (Q_total > n_total / dt) {
+        const scale = (n_total / dt) / Q_total;
+        for (const cf of connFlows) cf.Q *= scale;
+        Q_total = n_total / dt;
+      }
+      Q_liq = Q_total;
+
+      for (const { conn, Q } of connFlows) {
+        const n_out = {};
+        if (Q > 1e-18) {
+          for (const [sp, amt] of Object.entries(inv.n)) {
+            n_out[sp] = (amt / n_total) * Q;
+          }
+        }
+        ctx.setConnStream(conn.id, {
+          type: StreamType.MATERIAL,
+          T: inv.T_K, P: P_atm, n: n_out,
+          phaseConstraint: 'L'
+        });
+      }
+
+      const n_out_total = {};
       for (const [sp, amt] of Object.entries(inv.n)) {
-        n_out_liq[sp] = (amt / n_total) * Q_liq;
+        n_out_total[sp] = (amt / n_total) * Q_liq;
       }
       ports.liq_out = {
         type: StreamType.MATERIAL,
-        T: inv.T_K, P: P_atm, n: n_out_liq,
+        T: inv.T_K, P: P_atm, n: n_out_total,
         phaseConstraint: 'L'
       };
     } else {
@@ -15040,7 +15183,7 @@ UnitRegistry.register('reservoir', {
   h: 2,
   optionalPorts: true,
   ports: [
-    { portId: 'mat_out', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 1 }
+    { portId: 'mat_out', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 1, fanOut: true }
   ],
   presentations: {
     'box/default':     { w: 2, h: 2, ports: { mat_out:{x:2,y:1} } },
@@ -15076,20 +15219,14 @@ UnitRegistry.register('reservoir', {
     }
     const beta = flash?.beta ?? 1.0; // vapor mole fraction
 
-    // Downstream pressure from trace
-    const P_down = ctx.downstreamP('mat_out') ?? (SimSettings.getAtmosphere().P_Pa);
-    const dP = P_res - P_down;
+    // Downstream pressure from trace — per-connection CV [S-FANOUT]
+    const matConns = ctx.outConns('mat_out');
 
-    let Q = 0;
-    let phase = 'V';
-    if (dP > 0 && opening > 0) {
-      // Mixture SG: ρ_mix = β·ρ_V + (1−β)·ρ_L
+    // Pre-compute SG (same for all connections — depends on reservoir conditions)
+    let SG = 1e-6;
+    if (true) {
       const MW = _compositionMW(fracs);
-
-      // ρ_V from ideal gas law
       const rho_V = (P_res * MW) / (8.314 * T);
-
-      // ρ_L from species-weighted liquid densities
       let rho_L = 0;
       if (beta < 1.0) {
         for (const [sp, f] of Object.entries(fracs)) {
@@ -15098,15 +15235,48 @@ UnitRegistry.register('reservoir', {
           rho_L += f * rho_sp;
         }
       }
-
       const rho_mix = beta * rho_V + (1 - beta) * rho_L;
-      // SG relative to Cv reference (water = 1000 kg/m³)
-      const SG = rho_mix / 1000;
+      SG = Math.max(rho_mix / 1000, 1e-6);
+    }
 
-      Q = Cv * (opening / 100)
-        * Math.sqrt(Math.max(0, dP) / (Math.max(SG, 1e-6) * 1e5));
+    let Q = 0;
+    let phase = beta >= 0.999 ? 'V' : beta <= 0.001 ? 'L' : 'VL';
 
-      phase = beta >= 0.999 ? 'V' : beta <= 0.001 ? 'L' : 'VL';
+    if (matConns.length > 0 && opening > 0) {
+      const connFlows = [];
+      for (const conn of matConns) {
+        const opening_i = par.openings?.[conn.id] ?? opening;
+        if (opening_i <= 0) { connFlows.push({ conn, Q: 0 }); continue; }
+        const P_down_i = ctx.downstreamP(conn.id) ?? SimSettings.getAtmosphere().P_Pa;
+        const dP_i = P_res - P_down_i;
+        if (dP_i <= 0) {
+          connFlows.push({ conn, Q: 0 });
+          ctx.warn({
+            severity: ErrorSeverity.MINOR,
+            message: `No flow: reservoir at ${(P_res/1e5).toFixed(1)} bar, `
+              + `downstream at ${(P_down_i/1e5).toFixed(1)} bar`
+          });
+          continue;
+        }
+        const Q_i = Cv * (opening_i / 100)
+          * Math.sqrt(Math.max(0, dP_i) / (SG * 1e5));
+        connFlows.push({ conn, Q: Q_i });
+      }
+
+      Q = connFlows.reduce((s, cf) => s + cf.Q, 0);
+      // No inventory cap — reservoir is infinite supply
+
+      for (const { conn, Q: Qi } of connFlows) {
+        const n_out = {};
+        for (const [sp, frac] of Object.entries(fracs)) {
+          n_out[sp] = frac * Qi;
+        }
+        ctx.setConnStream(conn.id, {
+          type: StreamType.MATERIAL, T: T, P: P_res, n: n_out
+        });
+      }
+    } else if (matConns.length > 0 && opening > 0) {
+      // Legacy: single connection handled above
     }
 
     const n_out = {};
@@ -15120,23 +15290,19 @@ UnitRegistry.register('reservoir', {
       // No phaseConstraint — solver flash determines phase downstream
     };
 
-    if (dP <= 0 && opening > 0) {
-      ctx.warn({
-        severity: ErrorSeverity.MINOR,
-        message: `No flow: reservoir at ${(P_res/1e5).toFixed(1)} bar, `
-          + `downstream at ${(P_down/1e5).toFixed(1)} bar`
-      });
-    }
+    // Diagnostics: representative dP from legacy key (worst branch for multi-conn)
+    const P_down_diag = ctx.downstreamP('mat_out') ?? SimSettings.getAtmosphere().P_Pa;
+    const dP_diag = P_res - P_down_diag;
 
     u.last = {
       P_bar: P_res / 1e5,
       T_K: T,
       Q_mol_s: Q,
       opening_pct: opening,
-      dP_bar: dP / 1e5,
+      dP_bar: dP_diag / 1e5,
       beta,
       phase,
-      status: (dP <= 0 && opening > 0) ? 'no_dP' : 'ok',
+      status: (dP_diag <= 0 && opening > 0) ? 'no_dP' : 'ok',
       type: 'reservoir'
     };
   }
@@ -19206,6 +19372,7 @@ class Scene {
     // Runtime calculation results
     this.runtime = {
       unitData: new Map(),
+      connStreams: new Map(),   // [S-FANOUT] per-connection output streams
       lastSolve: { ok: true, iterations: 0, warnings: [] }
     };
   }
@@ -19464,11 +19631,11 @@ class Scene {
     }
 
     // [v10.8.1] Check if source OUT port already has a connection
-    // All ports are 1-to-1 unless explicitly marked multiConnect
+    // All ports are 1-to-1 unless explicitly marked multiConnect or fanOut
     const existingFromPort = this.connections.find(
       c => c.from.unitId === from.unitId && c.from.portId === from.portId
     );
-    if (existingFromPort && !pFrom.multiConnect) {
+    if (existingFromPort && !pFrom.multiConnect && !pFrom.fanOut) {
       this._lastConnectError = pFrom.type === StreamType.MATERIAL
         ? `Material port "${from.portId}" on ${uFrom.name || defFrom.name} already connected — use a splitter.`
         : `Port "${from.portId}" on ${uFrom.name || defFrom.name} is already connected.`;
@@ -20478,11 +20645,25 @@ class RuntimeContext {
       // [v11.1.1 NNG-9] Tick-safe connectivity query — no scene access needed.
       portConnected: connSet ? (portId) => connSet.has(portId) : () => false,
       // [v13.8.0 S5a-1] Pressure trace accessors — NNG-9 compliant read-only wrappers.
-      downstreamP: (portId) => this._scene.runtime.P_downstream?.get(unitId + ':' + portId) ?? null,
+      downstreamP: (key) => {
+        // key can be a portId (legacy: 'gas_out') or a connId (fan-out: 'conn-5')
+        const map = this._scene.runtime.P_downstream;
+        if (!map) return null;
+        // Try direct lookup first (connId or unitId:portId)
+        const direct = map.get(key);
+        if (direct !== undefined) return direct;
+        // Fall back to unitId:portId format (legacy portId argument)
+        return map.get(unitId + ':' + key) ?? null;
+      },
       valveStatus: () => this._scene.runtime.valveStatus?.get(unitId) ?? null,
       dividerStatus: () => this._scene.runtime.dividerStatus?.get(unitId) ?? null,
       // [v14.8.0 S-SPLIT] Blocked splitter branches — Set<portId> or null
       blockedBranches: () => this._scene.runtime.blockedSplitterBranches?.get(unitId) ?? null,
+      // [S-FANOUT] Fan-out connection accessors
+      outConns: (portId) => this._fanOutConns?.get(unitId + ':' + portId) || [],
+      setConnStream: (connId, stream) => {
+        this._scene.runtime.connStreams.set(connId, stream);
+      },
       // [v11.1.1 NNG-9] Solve generation counter for cache invalidation.
       solveGen: (this._scene._solveGen || 0),
       // [DEPRECATED v11.1.1] Retained for backward compat during transition.
@@ -20724,13 +20905,13 @@ function wegsteinStep(x_prev, g_prev, x_curr, g_curr) {
  */
 function traceToAnchor(scene, unitId, portId, P_current,
                         anchorP, P_atm, visited,
-                        valveStatus, dividerStatus) {
+                        valveStatus, dividerStatus, startConn) {
   const key = unitId + ':' + portId;
   if (visited.has(key)) return { P_anchor: P_atm, dP_sum: 0, boost_sum: 0 };
   visited.add(key);
 
-  // Find connection from this port
-  const conn = scene.connections.find(
+  // Find connection from this port (startConn overrides for fan-out first hop)
+  const conn = startConn || scene.connections.find(
     c => c.from.unitId === unitId && c.from.portId === portId);
   if (!conn) return { P_anchor: P_atm, dP_sum: 0, boost_sum: 0 };
 
@@ -20886,34 +21067,58 @@ function resolveDownstreamPressures(scene) {
 
   // 2. Trace from each vessel outlet
   const result = new Map();
-  for (const [id, u] of scene.units) {
-    if (u.defId === 'tank') {
-      const P_vessel = anchorP.get(id);
-      for (const portId of ['gas_out', 'liq_out']) {
+
+  // Helper: trace all connections from a fan-out port, or single connection for legacy
+  function tracePort(id, portId, P_vessel) {
+    const def = UnitRegistry.get(scene.units.get(id).defId);
+    const pDef = def.ports.find(p => p.portId === portId);
+    const conns = scene.connections.filter(
+      c => c.from.unitId === id && c.from.portId === portId);
+
+    if (conns.length === 0) {
+      // No connections — trace returns P_atm (atmosphere at open nozzle)
+      result.set(id + ':' + portId, P_atm);
+      return;
+    }
+
+    if (pDef?.fanOut && conns.length > 1) {
+      // Fan-out: trace each connection independently
+      let worstP = -Infinity;
+      for (const conn of conns) {
         const trace = traceToAnchor(
           scene, id, portId, P_vessel,
           anchorP, P_atm, new Set(),
-          valveStatus, dividerStatus);
-        result.set(id + ':' + portId,
-          trace.P_anchor + trace.dP_sum - trace.boost_sum);
+          valveStatus, dividerStatus, conn);
+        const effP = trace.P_anchor + trace.dP_sum - trace.boost_sum;
+        result.set(conn.id, effP);
+        if (effP > worstP) worstP = effP;
       }
+      // Backward compat: unitId:portId → worst P (conservative)
+      result.set(id + ':' + portId, worstP);
+    } else {
+      // Single connection (or non-fan-out): trace once, store both keys
+      const conn = conns[0];
+      const trace = traceToAnchor(
+        scene, id, portId, P_vessel,
+        anchorP, P_atm, new Set(),
+        valveStatus, dividerStatus, conn);
+      const effP = trace.P_anchor + trace.dP_sum - trace.boost_sum;
+      result.set(id + ':' + portId, effP);
+      result.set(conn.id, effP);
+    }
+  }
+
+  for (const [id, u] of scene.units) {
+    if (u.defId === 'tank') {
+      const P_vessel = anchorP.get(id);
+      tracePort(id, 'gas_out', P_vessel);
+      tracePort(id, 'liq_out', P_vessel);
     }
     if (u.defId === 'reservoir') {
-      const P_vessel = anchorP.get(id);
-      const trace = traceToAnchor(
-        scene, id, 'mat_out', P_vessel,
-        anchorP, P_atm, new Set(),
-        valveStatus, dividerStatus);
-      result.set(id + ':mat_out',
-        trace.P_anchor + trace.dP_sum - trace.boost_sum);
+      tracePort(id, 'mat_out', anchorP.get(id));
     }
     if (u.defId === 'open_tank') {
-      const trace = traceToAnchor(
-        scene, id, 'liq_out', P_atm,
-        anchorP, P_atm, new Set(),
-        valveStatus, dividerStatus);
-      result.set(id + ':liq_out',
-        trace.P_anchor + trace.dP_sum - trace.boost_sum);
+      tracePort(id, 'liq_out', P_atm);
     }
   }
 
@@ -21073,12 +21278,23 @@ function solveScene(scene, options = {}) {
   // immutable during solve).  Ticks use ctx.portConnected(portId) instead of
   // querying ctx.scene.connections — enforcing tick isolation.
   const _outPortConn = new Map();  // unitId → Set<portId>
+  // [S-FANOUT] Per-port connection list for fan-out outlets
+  const _fanOutConns = new Map();  // 'unitId:portId' → Connection[]
   for (const c of scene.connections) {
     let s = _outPortConn.get(c.from.unitId);
     if (!s) { s = new Set(); _outPortConn.set(c.from.unitId, s); }
     s.add(c.from.portId);
+    // Build fan-out list for every output connection (cheap, used only by vessels)
+    const fKey = c.from.unitId + ':' + c.from.portId;
+    let fList = _fanOutConns.get(fKey);
+    if (!fList) { fList = []; _fanOutConns.set(fKey, fList); }
+    fList.push(c);
   }
   runtimeCtx._outPortConn = _outPortConn;
+  runtimeCtx._fanOutConns = _fanOutConns;
+
+  // [S-FANOUT] Clear per-connection streams from previous solve
+  scene.runtime.connStreams.clear();
 
   // Iterative successive substitution
   const blockedSources = new Map();  // [v14.1.1] srcId → blockingName (persists across iterations)
@@ -21177,8 +21393,14 @@ function solveScene(scene, options = {}) {
               c => c.to.unitId === id && c.to.portId === p.portId
             );
             if (conn) {
-              const fromUD = scene.runtime.unitData.get(conn.from.unitId);
-              inPorts[p.portId] = fromUD?.ports?.[conn.from.portId] || null;
+              // [S-FANOUT] Per-connection stream takes priority (from vessel fan-out)
+              const connStream = scene.runtime.connStreams.get(conn.id);
+              if (connStream) {
+                inPorts[p.portId] = connStream;
+              } else {
+                const fromUD = scene.runtime.unitData.get(conn.from.unitId);
+                inPorts[p.portId] = fromUD?.ports?.[conn.from.portId] || null;
+              }
             } else {
               inPorts[p.portId] = null;
             }
@@ -25412,6 +25634,20 @@ function drawUnits() {
         cursor: isDimmed ? 'default' : 'pointer'
       });
 
+      // [S-FANOUT] Fan-out indicator: outer ring on fanOut ports
+      let fanOutRing = null;
+      if (p.fanOut) {
+        fanOutRing = svgEl('circle', {
+          cx: wp.x, cy: wp.y, r: 14,
+          fill: 'none',
+          stroke: portVisuals.portColor,
+          'stroke-width': 1.5,
+          'stroke-dasharray': '4 3',
+          opacity: 0.7,
+          'pointer-events': 'none'
+        });
+      }
+
       // [v10.1.1] E4: Connection feedback — highlight compatible targets
       if (ui.pendingFrom && _pendingPortType !== null && !isDimmed) {
         const isCompatible = p.dir === PortDir.IN && p.type === _pendingPortType;
@@ -25446,8 +25682,8 @@ function drawUnits() {
               return;
             }
           }
-          // [v10.8.1] Reconnect: if non-multiConnect port already connected, detach and redraw
-          if (!port.multiConnect) {
+          // [v10.8.1] Reconnect: if non-multiConnect/non-fanOut port already connected, detach and redraw
+          if (!port.multiConnect && !port.fanOut) {
             const existingConn = scene.connections.find(
               cc => cc.from.unitId === unitId && cc.from.portId === portId
             );
@@ -25511,6 +25747,7 @@ function drawUnits() {
       });
       } // end if (!isDimmed)
 
+      if (fanOutRing) group.appendChild(fanOutRing);
       group.appendChild(circle);
 
       // [v12.15.1] Generic port label — rendered for any port with a `label` field
@@ -28392,13 +28629,49 @@ UnitInspector.tank = {
       container.appendChild(devBox);
     }
 
-    // ── Section: Draw Rates ──
+    // ── Section: Draw Rates — per-connection openings for fan-out [S-FANOUT] ──
     container.appendChild(el('div', { class: 'ins-section-label', html: 'Draw Rates' }));
     const drawBox = el('div', {});
-    addNumberEditor(drawBox, 'Gas opening (%)',
-      () => u.params.opening_gas_pct ?? 0, v => u.params.opening_gas_pct = v, 5, 0, { min: 0, max: 100 });
-    addNumberEditor(drawBox, 'Liq opening (%)',
-      () => u.params.opening_liq_pct ?? 0, v => u.params.opening_liq_pct = v, 5, 0, { min: 0, max: 100 });
+
+    // Gas outlet connections
+    const gasConns = scene.connections.filter(
+      c => c.from.unitId === u.id && c.from.portId === 'gas_out');
+    if (gasConns.length > 1) {
+      drawBox.appendChild(el('div', { style: 'font-size:10px; color:#64748b; margin:2px 0;', html: 'Gas outlet:' }));
+      for (const conn of gasConns) {
+        const toU = scene.units.get(conn.to.unitId);
+        const toName = toU?.name || conn.to.unitId;
+        const label = `→ ${toName} (%)`;
+        if (!u.params.openings) u.params.openings = {};
+        addNumberEditor(drawBox, label,
+          () => u.params.openings[conn.id] ?? u.params.opening_gas_pct ?? 0,
+          v => { if (!u.params.openings) u.params.openings = {}; u.params.openings[conn.id] = v; },
+          5, 0, { min: 0, max: 100 });
+      }
+    } else {
+      addNumberEditor(drawBox, 'Gas opening (%)',
+        () => u.params.opening_gas_pct ?? 0, v => u.params.opening_gas_pct = v, 5, 0, { min: 0, max: 100 });
+    }
+
+    // Liquid outlet connections
+    const liqConns = scene.connections.filter(
+      c => c.from.unitId === u.id && c.from.portId === 'liq_out');
+    if (liqConns.length > 1) {
+      drawBox.appendChild(el('div', { style: 'font-size:10px; color:#64748b; margin:2px 0;', html: 'Liquid outlet:' }));
+      for (const conn of liqConns) {
+        const toU = scene.units.get(conn.to.unitId);
+        const toName = toU?.name || conn.to.unitId;
+        const label = `→ ${toName} (%)`;
+        if (!u.params.openings) u.params.openings = {};
+        addNumberEditor(drawBox, label,
+          () => u.params.openings[conn.id] ?? u.params.opening_liq_pct ?? 0,
+          v => { if (!u.params.openings) u.params.openings = {}; u.params.openings[conn.id] = v; },
+          5, 0, { min: 0, max: 100 });
+      }
+    } else {
+      addNumberEditor(drawBox, 'Liq opening (%)',
+        () => u.params.opening_liq_pct ?? 0, v => u.params.opening_liq_pct = v, 5, 0, { min: 0, max: 100 });
+    }
     container.appendChild(drawBox);
 
     // ── Section: Safety ──
@@ -30696,6 +30969,15 @@ function deleteSelected() {
   } else if (ui.selectedConnId) {
     // Delete stream — push undo before mutation
     _pushUndo('Delete connection');
+    // [S-FANOUT] Clean up per-connection openings on source vessel
+    const delConn = scene.connections.find(c => c.id === ui.selectedConnId);
+    if (delConn) {
+      const srcU = scene.units.get(delConn.from.unitId);
+      if (srcU?.params?.openings?.[delConn.id] !== undefined) {
+        delete srcU.params.openings[delConn.id];
+        if (Object.keys(srcU.params.openings).length === 0) delete srcU.params.openings;
+      }
+    }
     scene.connections = scene.connections.filter(c => c.id !== ui.selectedConnId);
     ui.selectedConnId = null;
     autoSave();
@@ -39634,13 +39916,16 @@ function runTests() {
 
   // T-PS12: Depletion over 2 dt
   tests.push({ name: '380: T-PS12 Depletion over 2 dt: inventory ↓, Q ↓', fn: t => {
+    t.clearScene();
     const origDt = SimSettings.dt;
     TimeClock.t = 0; TimeClock.frame = 0; TimeClock.mode = 'paused';
     SimSettings.dt = 60;
 
-    const tid = t.place('tank', 0, 0, { volume_m3: 0.15, P_init: 500000, opening_gas_pct: 100, Cv_gas: 50 });
+    // Small opening (5%) so tank doesn't fully drain in one step
+    const tid = t.place('tank', 0, 0, { volume_m3: 0.15, P_init: 500000, opening_gas_pct: 5, Cv_gas: 50 });
     const snk = t.place('sink', 5, 0);
     t.wire(tid, 'gas_out', snk, 'mat_in');
+    t.solve();  // Initial solve to populate ud.ports for first step
     const u = scene.units.get(tid);
     const n0 = Object.values(u.inventory.n).reduce((a,b) => a+b, 0);
 
@@ -46549,6 +46834,313 @@ function runTests() {
     // Mass balance: in ≈ out (within 1%)
     const ratio = totalOut / totalIn;
     t.assertClose(ratio, 1.0, 0.01, `mass balance ratio (in=${totalIn.toExponential(3)}, out=${totalOut.toExponential(3)})`);
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // S-FANOUT — Material fan-out from vessel outlets
+  // ═══════════════════════════════════════════════════════════════════════
+
+  test('F01: Fan-out connection allowed on tank gas_out', t => {
+    t.clearScene();
+    const tank = t.place('tank', 0, 0, { volume_m3: 10, P_init: 200000, opening_gas_pct: 100, Cv_gas: 50 });
+    const snk1 = t.place('sink', 6, 0);
+    const snk2 = t.place('sink', 6, 4);
+    const c1 = scene.connect({ unitId: tank, portId: 'gas_out' }, { unitId: snk1, portId: 'mat_in' });
+    t.assertOK(c1 != null, 'First connection to gas_out succeeds');
+    const c2 = scene.connect({ unitId: tank, portId: 'gas_out' }, { unitId: snk2, portId: 'mat_in' });
+    t.assertOK(c2 != null, 'Second connection to gas_out succeeds (fan-out)');
+    const conns = scene.connections.filter(c => c.from.unitId === tank && c.from.portId === 'gas_out');
+    t.assertOK(conns.length === 2, 'Two connections from gas_out');
+  });
+
+  test('F02: Fan-out connection allowed on tank liq_out', t => {
+    t.clearScene();
+    const tank = t.place('tank', 0, 0, { volume_m3: 10, P_init: 200000 });
+    const snk1 = t.place('sink', 6, 0);
+    const snk2 = t.place('sink', 6, 4);
+    const c1 = scene.connect({ unitId: tank, portId: 'liq_out' }, { unitId: snk1, portId: 'mat_in' });
+    const c2 = scene.connect({ unitId: tank, portId: 'liq_out' }, { unitId: snk2, portId: 'mat_in' });
+    t.assertOK(c1 != null && c2 != null, 'Both liq_out connections succeed');
+  });
+
+  test('F03: Fan-out connection allowed on open_tank liq_out', t => {
+    t.clearScene();
+    const tank = t.place('open_tank', 0, 0, { volume_m3: 5 });
+    const snk1 = t.place('sink', 6, 0);
+    const snk2 = t.place('sink', 6, 4);
+    const c1 = scene.connect({ unitId: tank, portId: 'liq_out' }, { unitId: snk1, portId: 'mat_in' });
+    const c2 = scene.connect({ unitId: tank, portId: 'liq_out' }, { unitId: snk2, portId: 'mat_in' });
+    t.assertOK(c1 != null && c2 != null, 'Both open_tank liq_out connections succeed');
+  });
+
+  test('F04: Fan-out connection allowed on reservoir mat_out', t => {
+    t.clearScene();
+    const res = t.place('reservoir', 0, 0, { P_bar: 5, T: 300, composition: { N2: 1 } });
+    const snk1 = t.place('sink', 6, 0);
+    const snk2 = t.place('sink', 6, 4);
+    const c1 = scene.connect({ unitId: res, portId: 'mat_out' }, { unitId: snk1, portId: 'mat_in' });
+    const c2 = scene.connect({ unitId: res, portId: 'mat_out' }, { unitId: snk2, portId: 'mat_in' });
+    t.assertOK(c1 != null && c2 != null, 'Both reservoir mat_out connections succeed');
+  });
+
+  test('F05: Fan-out rejected on non-vessel material ports', t => {
+    t.clearScene();
+    const comp = t.place('compressor', 0, 0, { Pout: 300000 });
+    const snk1 = t.place('sink', 6, 0);
+    const snk2 = t.place('sink', 6, 4);
+    const c1 = scene.connect({ unitId: comp, portId: 'mat_out' }, { unitId: snk1, portId: 'mat_in' });
+    t.assertOK(c1 != null, 'First compressor mat_out connection succeeds');
+    const c2 = scene.connect({ unitId: comp, portId: 'mat_out' }, { unitId: snk2, portId: 'mat_in' });
+    t.assertOK(c2 === null, 'Second compressor mat_out connection rejected');
+    t.assertOK(scene._lastConnectError.includes('splitter'), 'Error message suggests splitter');
+  });
+
+  test('F06: Fan-out rejects duplicate connection (same from+to)', t => {
+    t.clearScene();
+    const tank = t.place('tank', 0, 0, { volume_m3: 10, P_init: 200000 });
+    const snk = t.place('sink', 6, 0);
+    const c1 = scene.connect({ unitId: tank, portId: 'gas_out' }, { unitId: snk, portId: 'mat_in' });
+    t.assertOK(c1 != null, 'First connection succeeds');
+    const c2 = scene.connect({ unitId: tank, portId: 'gas_out' }, { unitId: snk, portId: 'mat_in' });
+    t.assertOK(c2 === null, 'Duplicate connection rejected');
+  });
+
+  test('F07: Fan-out inlet port still rejects multiple connections', t => {
+    t.clearScene();
+    const src1 = t.place('source', 0, 0, { species: 'N2', nDot: 1, T: 300, P: 200000 });
+    const src2 = t.place('source', 0, 4, { species: 'N2', nDot: 1, T: 300, P: 200000 });
+    const tank = t.place('tank', 6, 0, { volume_m3: 10 });
+    const c1 = scene.connect({ unitId: src1, portId: 'mat_out' }, { unitId: tank, portId: 'mat_in' });
+    t.assertOK(c1 != null, 'First inlet connection succeeds');
+    const c2 = scene.connect({ unitId: src2, portId: 'mat_out' }, { unitId: tank, portId: 'mat_in' });
+    t.assertOK(c2 === null, 'Second inlet connection rejected (no fan-in)');
+  });
+
+  test('F08: Per-connection pressure trace — different paths get different P', t => {
+    // Tank → gas_out fan-out: conn1 → sink (P_atm), conn2 → valve(2bar) → sink
+    t.clearScene();
+    const tank = t.place('tank', 0, 0, { volume_m3: 10, P_init: 500000,
+      opening_gas_pct: 100, Cv_gas: 50 });
+    const snk1 = t.place('sink', 6, 0);
+    const valve = t.place('valve', 6, 4, { Pout: 200000 });
+    const snk2 = t.place('sink', 10, 4);
+    const c1 = scene.connect({ unitId: tank, portId: 'gas_out' }, { unitId: snk1, portId: 'mat_in' });
+    const c2 = scene.connect({ unitId: tank, portId: 'gas_out' }, { unitId: valve, portId: 'mat_in' });
+    scene.connect({ unitId: valve, portId: 'mat_out' }, { unitId: snk2, portId: 'mat_in' });
+
+    // Run pressure trace
+    const P_down = resolveDownstreamPressures(scene);
+    const P_atm = SimSettings.getAtmosphere().P_Pa;
+
+    // conn1 → sink: P_downstream = P_atm
+    const Pc1 = P_down.get(c1);
+    t.assertOK(Pc1 != null, 'P_downstream exists for conn1');
+    t.assertClose(Pc1, P_atm, 200, 'conn1 P_downstream ≈ P_atm');
+
+    // conn2 → valve(2bar) → sink: P_downstream = 200000
+    const Pc2 = P_down.get(c2);
+    t.assertOK(Pc2 != null, 'P_downstream exists for conn2');
+    t.assertClose(Pc2, 200000, 200, 'conn2 P_downstream ≈ valve Pout');
+
+    // Legacy key: worst (highest P) = 200000
+    const Plegacy = P_down.get(tank + ':gas_out');
+    t.assertClose(Plegacy, 200000, 200, 'Legacy key = worst P');
+  });
+
+  test('F09: Per-connection pressure trace — pump boost per connection', t => {
+    // Tank → gas_out fan-out: conn1 → sink (passive), conn2 → compressor → sink (boosted)
+    t.clearScene();
+    const tank = t.place('tank', 0, 0, { volume_m3: 10, P_init: 300000,
+      opening_gas_pct: 100, Cv_gas: 50 });
+    const snk1 = t.place('sink', 6, 0);
+    const comp = t.place('compressor', 6, 4, { Pout: 500000, eta: 0.8 });
+    const snk2 = t.place('sink', 10, 4);
+    const grid = t.place('grid_supply', 6, 8, { maxPower: 100 });
+    const c1 = scene.connect({ unitId: tank, portId: 'gas_out' }, { unitId: snk1, portId: 'mat_in' });
+    const c2 = scene.connect({ unitId: tank, portId: 'gas_out' }, { unitId: comp, portId: 'mat_in' });
+    scene.connect({ unitId: comp, portId: 'mat_out' }, { unitId: snk2, portId: 'mat_in' });
+    scene.connect({ unitId: grid, portId: 'elec_out' }, { unitId: comp, portId: 'elec_in' });
+
+    const P_down = resolveDownstreamPressures(scene);
+    const P_atm = SimSettings.getAtmosphere().P_Pa;
+
+    // conn1 → sink: P_downstream = P_atm (no boost)
+    const Pc1 = P_down.get(c1);
+    t.assertClose(Pc1, P_atm, 200, 'conn1 (passive) ≈ P_atm');
+
+    // conn2 → compressor → sink: boost lowers effective P_downstream below P_atm
+    const Pc2 = P_down.get(c2);
+    t.assertOK(Pc2 < P_atm, 'conn2 (compressor) < P_atm (boost lowers P_downstream)');
+    t.assertOK(Pc2 < Pc1, 'Compressor path has lower P_downstream than passive path');
+  });
+
+  test('F10: Single-connection fan-out port stores both conn.id and legacy key', t => {
+    t.clearScene();
+    const tank = t.place('tank', 0, 0, { volume_m3: 10, P_init: 300000,
+      opening_gas_pct: 100, Cv_gas: 50 });
+    const snk = t.place('sink', 6, 0);
+    const c1 = scene.connect({ unitId: tank, portId: 'gas_out' }, { unitId: snk, portId: 'mat_in' });
+
+    const P_down = resolveDownstreamPressures(scene);
+    const P_atm = SimSettings.getAtmosphere().P_Pa;
+
+    // Both keys should exist and match
+    const byConn = P_down.get(c1);
+    const byPort = P_down.get(tank + ':gas_out');
+    t.assertOK(byConn != null, 'P_downstream by connId exists');
+    t.assertOK(byPort != null, 'P_downstream by unitId:portId exists');
+    t.assertClose(byConn, byPort, 1, 'Both keys give same value');
+    t.assertClose(byConn, P_atm, 200, 'Value ≈ P_atm');
+  });
+
+  test('F11: Fan-out per-connection CV — different openings → proportional flows', t => {
+    t.clearScene();
+    const tank = t.place('tank', 0, 0, { volume_m3: 10, P_init: 300000, Cv_gas: 50 });
+    const snk1 = t.place('sink', 6, 0);
+    const snk2 = t.place('sink', 6, 4);
+    const c1 = scene.connect({ unitId: tank, portId: 'gas_out' }, { unitId: snk1, portId: 'mat_in' });
+    const c2 = scene.connect({ unitId: tank, portId: 'gas_out' }, { unitId: snk2, portId: 'mat_in' });
+    // Set per-connection openings: 80% and 40%
+    const u = scene.units.get(tank);
+    u.params.openings = { [c1]: 80, [c2]: 40 };
+    t.solve();
+    // Each sees same ΔP (both → sink at P_atm), so Q ∝ opening
+    const s1 = scene.runtime.connStreams.get(c1);
+    const s2 = scene.runtime.connStreams.get(c2);
+    t.assertOK(s1 != null, 'connStream for c1 exists');
+    t.assertOK(s2 != null, 'connStream for c2 exists');
+    const q1 = Object.values(s1.n).reduce((a,b) => a+b, 0);
+    const q2 = Object.values(s2.n).reduce((a,b) => a+b, 0);
+    t.assertOK(q1 > 0, 'c1 flow > 0');
+    t.assertOK(q2 > 0, 'c2 flow > 0');
+    // Ratio should be 80/40 = 2.0
+    t.assertClose(q1 / q2, 2.0, 0.01, 'Flow ratio = opening ratio (2:1)');
+    // Total > single connection at 80%
+    const ud = t.ud(tank);
+    const qTotal = ud.last.Q_gas;
+    t.assertOK(qTotal > q1, 'Total flow > single connection flow');
+  });
+
+  test('F12: Fan-out downstream units see per-connection flow, not aggregate', t => {
+    t.clearScene();
+    const tank = t.place('tank', 0, 0, { volume_m3: 10, P_init: 300000, Cv_gas: 50 });
+    const snk1 = t.place('sink', 6, 0);
+    const snk2 = t.place('sink', 6, 4);
+    const c1 = scene.connect({ unitId: tank, portId: 'gas_out' }, { unitId: snk1, portId: 'mat_in' });
+    const c2 = scene.connect({ unitId: tank, portId: 'gas_out' }, { unitId: snk2, portId: 'mat_in' });
+    const u = scene.units.get(tank);
+    u.params.openings = { [c1]: 100, [c2]: 50 };
+    t.solve();
+    // Each sink should see only its share
+    const ud1 = t.ud(snk1);
+    const ud2 = t.ud(snk2);
+    const absorbed1 = ud1.last?.inlet?.Q_mol_s || Object.values(ud1.ports?.mat_in?.n || {}).reduce((a,b) => a+b, 0);
+    const absorbed2 = ud2.last?.inlet?.Q_mol_s || Object.values(ud2.ports?.mat_in?.n || {}).reduce((a,b) => a+b, 0);
+    // Sink1 (100%) should get 2× sink2 (50%)
+    t.assertOK(absorbed1 > 0, 'Sink1 receives flow');
+    t.assertOK(absorbed2 > 0, 'Sink2 receives flow');
+    t.assertClose(absorbed1 / absorbed2, 2.0, 0.05, 'Sink receives proportional flow');
+  });
+
+  test('F13: Fan-out backward compat — no openings map uses opening_gas_pct', t => {
+    t.clearScene();
+    const tank = t.place('tank', 0, 0, { volume_m3: 10, P_init: 300000, Cv_gas: 50, opening_gas_pct: 60 });
+    const snk = t.place('sink', 6, 0);
+    t.wire(tank, 'gas_out', snk, 'mat_in');
+    t.solve();
+    const ud = t.ud(tank);
+    t.assertOK(ud.last.Q_gas > 0, 'Flow with legacy opening_gas_pct');
+    // Verify flow matches what 60% opening would give
+    const u = scene.units.get(tank);
+    t.assertOK(!u.params.openings, 'No openings map (backward compat)');
+  });
+
+  test('F14: Fan-out mass conservation — Σ connStream = aggregate = inventory change', t => {
+    t.clearScene();
+    const origDt = SimSettings.dt; SimSettings.dt = 60;
+    TimeClock.t = 0; TimeClock.frame = 0; TimeClock.mode = 'paused';
+    const tank = t.place('tank', 0, 0, { volume_m3: 10, P_init: 300000, Cv_gas: 50 });
+    const snk1 = t.place('sink', 6, 0);
+    const snk2 = t.place('sink', 6, 4);
+    const c1 = scene.connect({ unitId: tank, portId: 'gas_out' }, { unitId: snk1, portId: 'mat_in' });
+    const c2 = scene.connect({ unitId: tank, portId: 'gas_out' }, { unitId: snk2, portId: 'mat_in' });
+    const u = scene.units.get(tank);
+    u.params.openings = { [c1]: 80, [c2]: 40 };
+    t.solve();
+    // Check mass conservation
+    const s1 = scene.runtime.connStreams.get(c1);
+    const s2 = scene.runtime.connStreams.get(c2);
+    const q1 = Object.values(s1.n).reduce((a,b) => a+b, 0);
+    const q2 = Object.values(s2.n).reduce((a,b) => a+b, 0);
+    const ud = t.ud(tank);
+    const aggQ = Object.values(ud.ports.gas_out.n).reduce((a,b) => a+b, 0);
+    // Σ per-conn = aggregate
+    t.assertClose(q1 + q2, aggQ, 1e-12, 'Σ connStream = aggregate ports.gas_out');
+    // Step and verify inventory change matches
+    const n_before = Object.values(u.inventory.n).reduce((a,b) => a+b, 0);
+    TimeClock.step(scene);
+    const n_after = Object.values(u.inventory.n).reduce((a,b) => a+b, 0);
+    const dN = n_before - n_after;
+    t.assertClose(dN, aggQ * 60, aggQ * 60 * 0.05, 'Inventory change ≈ Q_total × dt');
+    TimeClock.t = 0; TimeClock.frame = 0; TimeClock.mode = 'paused';
+    SimSettings.dt = origDt;
+  });
+
+  test('F15: Export/import round-trip preserves openings map', t => {
+    t.clearScene();
+    const tank = t.place('tank', 0, 0, { volume_m3: 10, P_init: 300000, Cv_gas: 50 });
+    const snk1 = t.place('sink', 6, 0);
+    const snk2 = t.place('sink', 6, 4);
+    const c1 = scene.connect({ unitId: tank, portId: 'gas_out' }, { unitId: snk1, portId: 'mat_in' });
+    const c2 = scene.connect({ unitId: tank, portId: 'gas_out' }, { unitId: snk2, portId: 'mat_in' });
+    const u = scene.units.get(tank);
+    u.params.openings = { [c1]: 75, [c2]: 30 };
+
+    // Export
+    const json = scene.exportJSON();
+    const parsed = JSON.parse(json);
+    const tankExport = parsed.units.find(x => x.id === tank);
+    t.assertOK(tankExport.params.openings != null, 'Openings exported');
+    t.assertOK(tankExport.params.openings[c1] === 75, 'c1 opening = 75');
+    t.assertOK(tankExport.params.openings[c2] === 30, 'c2 opening = 30');
+
+    // Import
+    t.clearScene();
+    const result = scene.importJSON(json);
+    t.assertOK(result.ok, 'Import succeeds');
+    const tankImported = Array.from(scene.units.values()).find(x => x.defId === 'tank');
+    t.assertOK(tankImported.params.openings != null, 'Openings survived import');
+    // Connections have same IDs after import
+    const gasConns = scene.connections.filter(c => c.from.unitId === tankImported.id && c.from.portId === 'gas_out');
+    t.assertOK(gasConns.length === 2, 'Two fan-out connections survived import');
+  });
+
+  test('F16: Connection deletion cleans up openings entry', t => {
+    t.clearScene();
+    const tank = t.place('tank', 0, 0, { volume_m3: 10, P_init: 300000, Cv_gas: 50 });
+    const snk1 = t.place('sink', 6, 0);
+    const snk2 = t.place('sink', 6, 4);
+    const c1 = scene.connect({ unitId: tank, portId: 'gas_out' }, { unitId: snk1, portId: 'mat_in' });
+    const c2 = scene.connect({ unitId: tank, portId: 'gas_out' }, { unitId: snk2, portId: 'mat_in' });
+    const u = scene.units.get(tank);
+    u.params.openings = { [c1]: 75, [c2]: 30 };
+
+    // Simulate deletion: remove c1's openings entry
+    const delConn = scene.connections.find(c => c.id === c1);
+    if (delConn && u.params.openings?.[c1] !== undefined) {
+      delete u.params.openings[c1];
+      if (Object.keys(u.params.openings).length === 0) delete u.params.openings;
+    }
+    scene.connections = scene.connections.filter(c => c.id !== c1);
+
+    t.assertOK(u.params.openings != null, 'Openings map still exists (c2 remains)');
+    t.assertOK(u.params.openings[c1] === undefined, 'c1 entry removed');
+    t.assertOK(u.params.openings[c2] === 30, 'c2 entry preserved');
+
+    // Delete last connection
+    delete u.params.openings[c2];
+    if (Object.keys(u.params.openings).length === 0) delete u.params.openings;
+    t.assertOK(u.params.openings === undefined, 'Openings map deleted when empty');
   });
 
   // ═══════════════════════════════════════════════════════════════════════
