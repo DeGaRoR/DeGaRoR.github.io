@@ -344,8 +344,10 @@
   ═══ v15.0.0 — Biosphere foundation: CH₂O species + R_METABOLISM reaction ═════
 
   ─── v15.0.2 — S-FANOUT: Material fan-out from vessel outlets ─────────────
-    Vessel outlet ports (tank gas_out/liq_out/vent/overflow, open_tank
-    liq_out/overflow, reservoir mat_out) now accept multiple connections.
+    Vessel outlet ports (tank gas_out/liq_out, open_tank
+    liq_out, reservoir mat_out) now accept multiple connections.
+    Vent and overflow are excluded — they are safety mechanisms,
+    not process draw-off points.
     Each connection represents an independent pipe run with its own block
     valve (opening). The nozzle Cv is shared per port; per-connection
     openings stored in params.openings[connId].
@@ -353,7 +355,8 @@
     trace. Total outflow = Σ Q_i, capped by available inventory with
     proportional allocation. Downstream units receive per-connection
     streams via runtime.connStreams (checked before ud.ports in solver).
-    Port rendering: dashed outer ring on fan-out ports (visual indicator).
+    Port rendering: double-arrow icon on fan-out ports (same visual
+    language as power hub multiConnect ports).
     Inspector: per-connection opening sliders when >1 connection exists;
     single slider backward compat when only 1 connection.
     Reconnect behavior: clicking fan-out port starts new connection
@@ -14500,9 +14503,9 @@ UnitRegistry.register('tank', {
   ports: [
     { portId: 'mat_in',   dir: PortDir.IN,  type: StreamType.MATERIAL, x: 0, y: 1, label: 'in' },
     { portId: 'gas_out',  dir: PortDir.OUT, type: StreamType.MATERIAL, x: 3, y: 0, label: 'gas', fanOut: true },
-    { portId: 'vent',     dir: PortDir.OUT, type: StreamType.MATERIAL, x: 1, y: 0, label: 'vent', fanOut: true },
+    { portId: 'vent',     dir: PortDir.OUT, type: StreamType.MATERIAL, x: 1, y: 0, label: 'vent' },
     { portId: 'liq_out',  dir: PortDir.OUT, type: StreamType.MATERIAL, x: 3, y: 2, label: 'liq', fanOut: true },
-    { portId: 'overflow', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 1, y: 2, label: 'ovfl', fanOut: true }
+    { portId: 'overflow', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 1, y: 2, label: 'ovfl' }
   ],
   presentations: {
     'box/default': { w: 3, h: 2, ports: {
@@ -14902,7 +14905,7 @@ UnitRegistry.register('open_tank', {
   ports: [
     { portId: 'mat_in',   dir: PortDir.IN,  type: StreamType.MATERIAL, x: 0, y: 1, label: 'in' },
     { portId: 'liq_out',  dir: PortDir.OUT, type: StreamType.MATERIAL, x: 3, y: 2, label: 'liq', fanOut: true },
-    { portId: 'overflow', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 1, y: 2, label: 'ovfl', fanOut: true }
+    { portId: 'overflow', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 1, y: 2, label: 'ovfl' }
   ],
   presentations: {
     'box/default': { w: 3, h: 2, ports: {
@@ -25634,25 +25637,11 @@ function drawUnits() {
         cursor: isDimmed ? 'default' : 'pointer'
       });
 
-      // [S-FANOUT] Fan-out indicator: outer ring on fanOut ports
-      let fanOutRing = null;
-      if (p.fanOut) {
-        fanOutRing = svgEl('circle', {
-          cx: wp.x, cy: wp.y, r: 14,
-          fill: 'none',
-          stroke: portVisuals.portColor,
-          'stroke-width': 1.5,
-          'stroke-dasharray': '4 3',
-          opacity: 0.7,
-          'pointer-events': 'none'
-        });
-      }
-
       // [v10.1.1] E4: Connection feedback — highlight compatible targets
       if (ui.pendingFrom && _pendingPortType !== null && !isDimmed) {
         const isCompatible = p.dir === PortDir.IN && p.type === _pendingPortType;
         // [v10.8.1] multiConnect ports are never "occupied"
-        const isOccupied = isCompatible && !p.multiConnect && scene.connections.some(
+        const isOccupied = isCompatible && !p.multiConnect && !p.fanOut && scene.connections.some(
           cc => cc.to.unitId === u.id && cc.to.portId === p.portId
             && !(ui.reconnecting && cc.id === ui.reconnecting.connId)
         );
@@ -25747,7 +25736,6 @@ function drawUnits() {
       });
       } // end if (!isDimmed)
 
-      if (fanOutRing) group.appendChild(fanOutRing);
       group.appendChild(circle);
 
       // [v12.15.1] Generic port label — rendered for any port with a `label` field
@@ -25766,8 +25754,8 @@ function drawUnits() {
       // Directional arrow - orient based on which edge the port is on
       const portEdge = getPortEdge(portPos, pres);
 
-      // [v10.8.1] Multi-connect ports show double arrows side-by-side
-      const isMulti = !!p.multiConnect;
+      // [v10.8.1] Multi-connect / fan-out ports show double arrows side-by-side
+      const isMulti = !!(p.multiConnect || p.fanOut);
       const offsets = isMulti ? [-2.5, 2.5] : [0];  // perpendicular offsets
       const arrowFill = p.dir === PortDir.OUT ? '#0b0e14' : portVisuals.portColor;
 
