@@ -31716,6 +31716,10 @@ function startPlay() {
   updateTransportUI();
   _startFlowArrows();
   syncPlanetBgTime('play');
+  // [v15.0.3] Unfreeze smoke animations
+  for (const el of svg.querySelectorAll('.smoke-puff-active')) {
+    el.style.animationPlayState = '';  // remove inline override, CSS class takes over
+  }
   _schedulePlayTick();
 }
 
@@ -31777,6 +31781,10 @@ function stopPlay() {
   timeDisplayEl.classList.remove('solving');
   _stopFlowArrows();
   updateTransportUI();
+  // [v15.0.3] Freeze smoke animations in place (don't re-render — that resets positions)
+  for (const el of svg.querySelectorAll('.smoke-puff-active')) {
+    el.style.animationPlayState = 'paused';
+  }
 }
 
 /** Auto-pause on topology changes (called from connection/delete/place) */
