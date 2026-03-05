@@ -356,11 +356,14 @@
     (green/amber/red) was masking real NNG-1 violations as "known traps."
     Now two-state (green/red). Per-unit mass balance diagnostics in the
     Diagnostic Center identify individual offending units.
-    Alarm system updated: amber case removed, red remediation text
-    points to Diagnostic Center.
-    Known remaining: ~6 mg/s residual in Sabatier recycle loop from
-    PH-flash iteration divergence (cooler in/out n mismatch across
-    solver iterations). Tracked as open investigation item.
+    Fix 3: cacheResolvedInputPorts reads connStreams for fan-out connections
+    (was reading aggregate port → double-counting outflow at balance boundary).
+    Fix 4: Smoke animations freeze in place on pause (CSS animationPlayState
+    toggle instead of re-render). Resume unfreezes from same position.
+    Fix 5: Reactor inspector cleanup after defId split. Heat demand selector
+    and priority field removed from reactor_adiabatic and reactor_cooled
+    (no elec_in port). _reactorParams rewritten as defId-aware. Dead
+    `type` parameter removed. Inspector power section gated on defId.
     Vessel outlet ports (tank gas_out/liq_out, open_tank
     liq_out, reservoir mat_out) now accept multiple connections.
     Vent and overflow are excluded — they are safety mechanisms,
@@ -29280,21 +29283,23 @@ UnitInspector.distillation_column = {
 };
 
 // ── Reactors ──
-function _reactorParams(u, type) {
+function _reactorParams(u) {
   const params = [];
+  const defId = u.defId;
+  const hasElec = (defId === 'reactor_jacketed');
+
+  // ── Reaction selector (all types) ──
   const allRxns = ReactionRegistry.all(); const rxnOpts = allRxns.map(r => [r.id, r.name]);
   if (rxnOpts.length === 0) rxnOpts.push(['', '— No reactions —']);
   params.push({ type: 'select', label: 'Reaction', get: () => u.params.reactionId || '', set: v => u.params.reactionId = v, options: rxnOpts });
   const rxn = u.params.reactionId ? ReactionRegistry.get(u.params.reactionId) : null;
   if (rxn) params.push({ type: 'info', html: `<div class="rxnEquation">${formatReactionHTML(rxn.equation)}</div>` });
-  if (type === 'adiabatic') {
-    params.push({ type: 'slider', label: 'Conversion', get: () => u.params.conversion ?? 0.5, set: v => u.params.conversion = v, min: 0, max: 1, step: 0.01 });
-  } else {
-    // [v12.9.0] Three-mode demand selector
+
+  // ── Heat demand mode (reactor_jacketed only — requires elec_in) ──
+  if (hasElec) {
     params.push({ type: 'select', label: 'Heat demand', get: () => u.params.heatDemand || 'none',
       set: v => {
         if (v === 'none') {
-          // Disconnect elec_in when switching to none (adiabatic)
           const elecConns = scene.connections.filter(
             c => c.to.unitId === u.id && c.to.portId === 'elec_in');
           if (elecConns.length > 0) {
@@ -29315,19 +29320,25 @@ function _reactorParams(u, type) {
         ['isothermal', '🎯 Isothermal demand'],
         ['fixed', '⚡ Fixed power']
       ] });
-    // Fixed power input (only in fixed mode)
     if (u.params.heatDemand === 'fixed') {
       params.push({ label: 'Q fixed (kW)', get: () => u.params.Q_fixed_kW ?? 0,
         set: v => u.params.Q_fixed_kW = v, step: 1 });
     }
-    params.push({ type: 'toggle', label: 'Kinetics (PFR)', get: () => u.params.useKinetics !== false, set: v => { u.params.useKinetics = v; updatePropertiesPanel(); } });
-    if (u.params.useKinetics !== false) params.push({ label: 'Volume (m³)', get: () => u.params.volume_m3 ?? 0.003, set: v => u.params.volume_m3 = v, step: 0.001 });
-    else params.push({ type: 'slider', label: 'Alpha (approach)', get: () => u.params.alpha ?? 1.0, set: v => u.params.alpha = v, min: 0, max: 1, step: 0.01 });
   }
-  params.push({ label: 'Priority', get: () => u.params.powerPriority ?? 2,
-    set: v => u.params.powerPriority = Math.max(1, Math.round(v)), step: 1, validate: { gte: 1 } });
-  // [v14.9.0 S6a] UA parameter for reactor_cooled
-  if (u.defId === 'reactor_cooled') {
+
+  // ── Kinetics / approach (all equilibrium types) ──
+  params.push({ type: 'toggle', label: 'Kinetics (PFR)', get: () => u.params.useKinetics !== false, set: v => { u.params.useKinetics = v; updatePropertiesPanel(); } });
+  if (u.params.useKinetics !== false) params.push({ label: 'Volume (m³)', get: () => u.params.volume_m3 ?? 0.003, set: v => u.params.volume_m3 = v, step: 0.001 });
+  else params.push({ type: 'slider', label: 'Alpha (approach)', get: () => u.params.alpha ?? 1.0, set: v => u.params.alpha = v, min: 0, max: 1, step: 0.01 });
+
+  // ── Priority (only units with elec_in) ──
+  if (hasElec) {
+    params.push({ label: 'Priority', get: () => u.params.powerPriority ?? 2,
+      set: v => u.params.powerPriority = Math.max(1, Math.round(v)), step: 1, validate: { gte: 1 } });
+  }
+
+  // ── UA parameter (reactor_cooled only) ──
+  if (defId === 'reactor_cooled') {
     params.push({ label: 'UA (W/K)', get: () => u.params.UA ?? 500,
       set: v => u.params.UA = Math.max(0, v), step: 10 });
   }
@@ -29335,14 +29346,16 @@ function _reactorParams(u, type) {
 }
 
 UnitInspector.reactor_adiabatic = {
-  params(u) { return _reactorParams(u, 'equilibrium'); },
+  params(u) { return _reactorParams(u); },
   power(u, ud) {
     if (!ud?.last || ud.last.status === 'inactive' || ud.last.status === 'no_reactants') return [];
     const L = ud.last;
     const items = [];
-    // [v12.9.0] Heat demand mode badge
-    const demandLabels = { none: '❄️ Adiabatic', isothermal: '🎯 Isothermal', fixed: '⚡ Fixed' };
-    items.push({ label: 'Heat demand', value: demandLabels[L.heatDemand] || demandLabels.none });
+    // [v15.0.3] Heat demand mode only for reactor_jacketed (has elec_in)
+    if (u.defId === 'reactor_jacketed') {
+      const demandLabels = { none: '❄️ Adiabatic', isothermal: '🎯 Isothermal', fixed: '⚡ Fixed' };
+      items.push({ label: 'Heat demand', value: demandLabels[L.heatDemand] || demandLabels.none });
+    }
     // Temperature result
     if (L.T_out != null && L.T_in != null) {
       const dT = L.T_out - L.T_in;
@@ -29350,8 +29363,8 @@ UnitInspector.reactor_adiabatic = {
       items.push({ label: 'T out', value: fmt.T(L.T_out) });
       items.push({ label: 'ΔT', value: `${arrow} ${dT > 0 ? '+' : ''}${dT.toFixed(1)} K`, tone: Math.abs(dT) > 50 ? 'warn' : '' });
     }
-    // Heat input (non-adiabatic only)
-    if (L.heatDemand && L.heatDemand !== 'none') {
+    // Heat input (reactor_jacketed non-adiabatic only)
+    if (u.defId === 'reactor_jacketed' && L.heatDemand && L.heatDemand !== 'none') {
       if (L.Q_demanded_W != null) items.push({ label: 'Q demanded', value: fmt.kW(L.Q_demanded_W) });
       if (L.Q_in_W != null) items.push({ label: 'Q received', value: fmt.kW(L.Q_in_W) });
       if (L.curtailed) items.push({ label: 'Status', value: 'Power-limited', tone: 'warn' });
