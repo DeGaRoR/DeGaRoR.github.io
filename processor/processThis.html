@@ -25073,6 +25073,7 @@ function drawConnections() {
 
     // [v15.3.0 S-ICONS] Ragtag: thick dual-stroke pipe / wavy cable rendering
     // Colors match _rtNozzle for seamless join; gradient colorBy modes override inner color
+    let _rtWavyD = null; // stored for arrow offsetPath
     if (ui.theme === 'ragtag') {
       const _rtElec = isPowerStream;
       const _selCol = isSelected ? '#60a5fa' : null;
@@ -25102,6 +25103,7 @@ function drawConnections() {
           pts.push([bx + px * wave, by + py * wave]);
         }
         const wavyD = 'M' + pts.map(p => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' L');
+        _rtWavyD = wavyD;
         const _elecInner = _gradientMode ? mappedColor : '#eab308';
         const _elecOuter = _gradientMode ? _darken(mappedColor, 0.4) : '#92400e';
         g.appendChild(svgEl('path', {
@@ -25222,7 +25224,9 @@ function drawConnections() {
           arrowAttrs['stroke-linejoin'] = 'round';
         }
         arrowG.appendChild(svgEl('path', arrowAttrs));
-        arrowG.style.offsetPath = `path('${pathD}')`;
+        // [v15.3.0] Ragtag electrical: arrows follow wavy cable path
+        const _arrowPathD = _rtWavyD || pathD;
+        arrowG.style.offsetPath = `path('${_arrowPathD}')`;
         // [v10.5.4] Reversed arrows flip position (e.g. 25% → 75%)
         const displayPct = isReversed ? (1 - pct) : pct;
         arrowG.style.offsetDistance = `${(displayPct * 100).toFixed(1)}%`;
@@ -25545,20 +25549,41 @@ function _rtAmb(g, x, y, w, h) {
 // Ragtag pipe-nozzle stubs — dual-stroke lines from body edge to port position,
 // same technique and colors as the ragtag pipe in drawConnections().
 // Drawn BEFORE body so body overlaps the inner end. Connection meets the outer end.
-function _rtNozzle(g, wx, wy, ww, wh, bx, by, bw, bh, def, pres) {
+function _rtNozzle(g, wx, wy, ww, wh, bx, by, bw, bh, def, pres, pal, unitId) {
   const t = scene.tile;
+  const _gradMode = ui.colorBy === 'temperature' || ui.colorBy === 'pressure'
+    || ui.colorBy === 'phase' || ui.colorBy === 'composition';
+  // Per-port runtime data for gradient coloring
+  const _ud = _gradMode && unitId ? scene.runtime?.unitData?.get(unitId) : null;
   for (const p of def.ports) {
     const pp = pres.ports[p.portId];
     if (!pp) continue;
     const px = wx + pp.x * t, py = wy + pp.y * t;
     const isElec = p.type === StreamType.ELECTRICAL;
-    // Outer/inner colors + widths — identical to ragtag drawConnections pipe
-    const outerCol = isElec ? '#92400e' : '#374151';
-    const innerCol = isElec ? '#eab308' : '#4b5563';
-    const outerW   = isElec ? 8 : 10;
-    const innerW   = isElec ? 4 : 6;
+    // Per-port gradient color from actual stream conditions on THIS port
+    let outerCol, innerCol;
+    if (_gradMode && !isElec && _ud?.ports) {
+      const ps = _ud.ports[p.portId];
+      let portColor = null;
+      if (ps) {
+        if (ui.colorBy === 'temperature' && ps.T != null) portColor = _visTempColor(ps.T);
+        else if (ui.colorBy === 'pressure' && ps.P != null) portColor = _visPressColor(ps.P);
+        else if (ui.colorBy === 'phase' && ps.phase) portColor = _VIS_PHASE[ps.phase];
+        else if (ui.colorBy === 'composition') portColor = _visCompColor(ps);
+      }
+      if (portColor) {
+        outerCol = _darken(portColor, 0.4);
+        innerCol = portColor;
+      } else {
+        outerCol = '#374151'; innerCol = '#4b5563'; // no data → metal grey
+      }
+    } else {
+      outerCol = isElec ? '#92400e' : '#374151';
+      innerCol = isElec ? '#eab308' : '#4b5563';
+    }
+    const outerW = isElec ? 8 : 10;
+    const innerW = isElec ? 4 : 6;
     const edge = getPortEdge(pp, pres);
-    // Line endpoints: from body edge to port position
     let x1, y1, x2, y2;
     if (edge === 'left') {
       x1 = bx; y1 = py; x2 = px; y2 = py;
@@ -25566,43 +25591,44 @@ function _rtNozzle(g, wx, wy, ww, wh, bx, by, bw, bh, def, pres) {
       x1 = bx + bw; y1 = py; x2 = px; y2 = py;
     } else if (edge === 'top') {
       x1 = px; y1 = by; x2 = px; y2 = py;
-    } else { // bottom
+    } else {
       x1 = px; y1 = by + bh; x2 = px; y2 = py;
     }
     const len = Math.hypot(x2-x1, y2-y1);
     if (len < 1) continue;
-    // Outer stroke
     g.appendChild(svgEl('line', { x1, y1, x2, y2,
       stroke: outerCol, 'stroke-width': outerW, 'stroke-linecap': 'butt', 'pointer-events': 'none' }));
-    // Inner stroke
     g.appendChild(svgEl('line', { x1, y1, x2, y2,
       stroke: innerCol, 'stroke-width': innerW, 'stroke-linecap': 'butt', 'pointer-events': 'none' }));
-    // Directional arrow at port end — same shape as flow arrows (M-5,-4 L5,0 L-5,4 Z)
-    const isOut = p.dir === PortDir.OUT;
-    const ac = isElec ? '#fbbf24' : '#94a3b8';
-    // Rotation: 0=right, 180=left, 90=down, -90=up
-    let rot;
-    if (edge === 'right')     rot = isOut ? 0 : 180;
-    else if (edge === 'left') rot = isOut ? 180 : 0;
-    else if (edge === 'bottom') rot = isOut ? 90 : -90;
-    else /* top */              rot = isOut ? -90 : 90;
-    g.appendChild(svgEl('path', {
-      d: 'M-5,-4 L5,0 L-5,4 Z', fill: ac,
-      transform: `translate(${px},${py}) rotate(${rot})`,
-      'pointer-events': 'none'
-    }));
+    // Directional arrow — only show on unconnected ports
+    const _isConnected = unitId && scene.connections.some(c =>
+      (c.from.unitId === unitId && c.from.portId === p.portId) ||
+      (c.to.unitId === unitId && c.to.portId === p.portId));
+    if (!_isConnected) {
+      const isOut = p.dir === PortDir.OUT;
+      const ac = isElec ? '#fbbf24' : '#94a3b8';
+      let rot;
+      if (edge === 'right')     rot = isOut ? 0 : 180;
+      else if (edge === 'left') rot = isOut ? 180 : 0;
+      else if (edge === 'bottom') rot = isOut ? 90 : -90;
+      else                        rot = isOut ? -90 : 90;
+      g.appendChild(svgEl('path', {
+        d: 'M-5,-4 L5,0 L-5,4 Z', fill: ac,
+        transform: `translate(${px},${py}) rotate(${rot})`,
+        'pointer-events': 'none'
+      }));
+    }
   }
 }
 
 // ── RAGTAG SYMBOLS ──
 const _RAGTAG_SYMBOLS = {
-  // ── Pump (sheet lines 163-177, centered dx+5 dy+3) ──
-  // 2×2: body 58×58 centered at (48,48), viewport cx:48 cy:39 r:14,
-  // 4-blade impeller, motor housing centered on elec port, 5 vent slots
+  // ── Pump (sheet 163-177, centered dx+5 dy+3) ──
+  // 2×2 body 58×58, viewport cx:48 cy:39 r:14, 4-blade impeller,
+  // motor housing + 5 vents positioned on whichever edge the elec port is on
   pump(g, wx, wy, ww, wh, pal, def, unitId) {
     const pres = getPresentation(def, scene.units.get(unitId));
-    _rtNozzle(g, wx, wy, ww, wh, wx+19, wy+19, 58, 58, def, pres);
-    // Feet
+    _rtNozzle(g, wx, wy, ww, wh, wx+19, wy+19, 58, 58, def, pres, pal, unitId);
     // Body
     g.appendChild(svgEl('rect', { x:wx+19, y:wy+19, width:58, height:58, rx:10, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'pointer-events':'none' }));
     _rtChip(g, wx+61, wy+25);
@@ -25622,42 +25648,48 @@ const _RAGTAG_SYMBOLS = {
     impG.appendChild(svgEl('line', { x1:wx+39, y1:wy+47, x2:wx+57, y2:wy+31, stroke:impCol, 'stroke-width':2, opacity:0.45, 'stroke-linecap':'round' }));
     impG.appendChild(svgEl('circle', { cx:wx+48, cy:wy+39, r:4, fill:impCol, opacity:0.5 }));
     g.appendChild(impG);
-    // Motor housing centered on elec port (x=48)
-    g.appendChild(svgEl('rect', { x:wx+35, y:wy+5, width:26, height:16, rx:6, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2, 'pointer-events':'none' }));
-    // 5 motor vent slots
-    [40,44,48,52,56].forEach(x => g.appendChild(svgEl('line', { x1:wx+x, y1:wy+9, x2:wx+x, y2:wy+17, stroke:pal.stroke, 'stroke-width':1.5, opacity:0.5, 'pointer-events':'none' })));
+    // Motor housing — positioned on whichever edge the elec port sits
+    const _elecPos = pres.ports.elec_in;
+    const _elecEdge = _elecPos ? getPortEdge(_elecPos, pres) : 'top';
+    if (_elecEdge === 'bottom') {
+      g.appendChild(svgEl('rect', { x:wx+35, y:wy+77, width:26, height:16, rx:6, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2, 'pointer-events':'none' }));
+      [40,44,48,52,56].forEach(x => g.appendChild(svgEl('line', { x1:wx+x, y1:wy+81, x2:wx+x, y2:wy+89, stroke:pal.stroke, 'stroke-width':1.5, opacity:0.5, 'pointer-events':'none' })));
+    } else if (_elecEdge === 'right') {
+      g.appendChild(svgEl('rect', { x:wx+77, y:wy+35, width:16, height:26, rx:6, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2, 'pointer-events':'none' }));
+      [40,44,48,52,56].forEach(y => g.appendChild(svgEl('line', { x1:wx+81, y1:wy+y, x2:wx+89, y2:wy+y, stroke:pal.stroke, 'stroke-width':1.5, opacity:0.5, 'pointer-events':'none' })));
+    } else if (_elecEdge === 'left') {
+      g.appendChild(svgEl('rect', { x:wx+3, y:wy+35, width:16, height:26, rx:6, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2, 'pointer-events':'none' }));
+      [40,44,48,52,56].forEach(y => g.appendChild(svgEl('line', { x1:wx+7, y1:wy+y, x2:wx+15, y2:wy+y, stroke:pal.stroke, 'stroke-width':1.5, opacity:0.5, 'pointer-events':'none' })));
+    } else {
+      // Top (default)
+      g.appendChild(svgEl('rect', { x:wx+35, y:wy+5, width:26, height:16, rx:6, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2, 'pointer-events':'none' }));
+      [40,44,48,52,56].forEach(x => g.appendChild(svgEl('line', { x1:wx+x, y1:wy+9, x2:wx+x, y2:wy+17, stroke:pal.stroke, 'stroke-width':1.5, opacity:0.5, 'pointer-events':'none' })));
+    }
     // LED
     g.appendChild(svgEl('circle', { cx:wx+67, cy:wy+59, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0', 'pointer-events':'none' }));
   },
 
-  // ── Reactor Adiabatic (sheet lines 341-348, centered dy+7) ──
-  // 2×2: body 76×66 centered at (48,48), viewport cx:48 cy:47 r:18,
-  // 6 bubbles, pressure gauge, 4 warning stripes
+  // ── Reactor Adiabatic (sheet 341-348, centered dy+7) ──
+  // 2×2 body 76×66 rx:14, vp cx:48 cy:47 r:18, 6 bubbles, gauge, 4 warning stripes
   reactor_adiabatic(g, wx, wy, ww, wh, pal, def, unitId) {
     const pres = getPresentation(def, scene.units.get(unitId));
-    _engStubs(g, wx, wy, ww, wh, wx+10, wy+15, 76, 66, def, pres);
-    // Feet
-    // Body
+    _rtNozzle(g, wx, wy, ww, wh, wx+10, wy+15, 76, 66, def, pres, pal, unitId);
     g.appendChild(svgEl('rect', { x:wx+10, y:wy+15, width:76, height:66, rx:14, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'pointer-events':'none' }));
     _rtChip(g, wx+66, wy+23);
-    // Viewport
     _rtVp(g, wx+48, wy+47, 18, pal.rim);
-    // 6 animated bubbles (yT=31, yB=61)
+    // 6 bubbles (bubs helper: cx=48, yT=31, yB=61)
     g.appendChild(svgEl('circle', { cx:wx+38, cy:wy+61, r:4.5, fill:'#fbbf24', 'data-anim':'reactor-bubble', 'data-ytop':wy+31, 'data-ybot':wy+61, 'data-phase':'0', 'data-speed':'0.5', 'pointer-events':'none' }));
     g.appendChild(svgEl('circle', { cx:wx+54, cy:wy+61, r:3.5, fill:'#fbbf24', 'data-anim':'reactor-bubble', 'data-ytop':wy+31, 'data-ybot':wy+61, 'data-phase':'0.25', 'data-speed':'0.55', 'pointer-events':'none' }));
     g.appendChild(svgEl('circle', { cx:wx+44, cy:wy+61, r:4, fill:'#f97316', 'data-anim':'reactor-bubble', 'data-ytop':wy+31, 'data-ybot':wy+61, 'data-phase':'0.5', 'data-speed':'0.6', 'pointer-events':'none' }));
     g.appendChild(svgEl('circle', { cx:wx+58, cy:wy+61, r:3, fill:'#f97316', 'data-anim':'reactor-bubble', 'data-ytop':wy+31, 'data-ybot':wy+61, 'data-phase':'0.7', 'data-speed':'0.64', 'pointer-events':'none' }));
     g.appendChild(svgEl('circle', { cx:wx+50, cy:wy+61, r:3.5, fill:'#fbbf24', 'data-anim':'reactor-bubble', 'data-ytop':wy+31, 'data-ybot':wy+61, 'data-phase':'0.35', 'data-speed':'0.57', 'pointer-events':'none' }));
     g.appendChild(svgEl('circle', { cx:wx+40, cy:wy+61, r:2.5, fill:'#f97316', 'data-anim':'reactor-bubble', 'data-ytop':wy+31, 'data-ybot':wy+61, 'data-phase':'0.85', 'data-speed':'0.67', 'pointer-events':'none' }));
-    // 4 corner bolts
     _rtBolt(g, wx+18, wy+23); _rtBolt(g, wx+78, wy+23);
     _rtBolt(g, wx+18, wy+73); _rtBolt(g, wx+78, wy+73);
-    // Pressure gauge
+    // Pressure gauge + needle
     g.appendChild(svgEl('circle', { cx:wx+74, cy:wy+29, r:5, fill:'#1f2937', stroke:'#4b5563', 'stroke-width':1.5, 'pointer-events':'none' }));
     g.appendChild(svgEl('line', { x1:wx+74, y1:wy+29, x2:wx+74, y2:wy+25, stroke:'#ef4444', 'stroke-width':1.5, 'stroke-linecap':'round', 'pointer-events':'none' }));
-    // 4 warning stripes
     [12,20,28,36].forEach(x => g.appendChild(svgEl('line', { x1:wx+x, y1:wy+69, x2:wx+x+6, y2:wy+75, stroke:'#fbbf24', 'stroke-width':1.5, opacity:0.12, 'pointer-events':'none' })));
-    // LED
     g.appendChild(svgEl('circle', { cx:wx+26, cy:wy+25, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.3', 'pointer-events':'none' }));
   },
 
@@ -25712,74 +25744,70 @@ const _RAGTAG_SYMBOLS = {
     g.appendChild(svgEl('circle', { cx: bx + 8, cy: by + bh*0.25, r: 2.5, fill: '#22c55e', 'data-anim': 'led-blink', 'data-phase': '0.7', 'pointer-events': 'none' }));
   },
 
-  // ── Valve (sheet lines 193-200, centered dy+3) ──
-  // 2×2: bowtie centered at (48,48), metal stem rect, handwheel circle+hub
+  // ── Valve (sheet 193-200, centered dy+3) ──
+  // 2×2 bowtie at (48,48), metal stem rect, handwheel circle+hub
   valve(g, wx, wy, ww, wh, pal, def, unitId) {
     const pres = getPresentation(def, scene.units.get(unitId));
-    _engStubs(g, wx, wy, ww, wh, wx+24, wy+31, 48, 34, def, pres);
-    // Left triangle
+    _rtNozzle(g, wx, wy, ww, wh, wx+24, wy+31, 48, 34, def, pres, pal, unitId);
     g.appendChild(svgEl('polygon', { points:`${wx+24},${wy+31} ${wx+48},${wy+48} ${wx+24},${wy+65}`, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'stroke-linejoin':'round', 'pointer-events':'none' }));
-    // Right triangle
     g.appendChild(svgEl('polygon', { points:`${wx+72},${wy+31} ${wx+48},${wy+48} ${wx+72},${wy+65}`, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'stroke-linejoin':'round', 'pointer-events':'none' }));
-    // Stem rect (bare metal)
     g.appendChild(svgEl('rect', { x:wx+44, y:wy+21, width:8, height:27, rx:2, fill:'#4b5563', stroke:'#374151', 'stroke-width':1.5, 'pointer-events':'none' }));
-    // Handwheel circle (bare metal)
     g.appendChild(svgEl('circle', { cx:wx+48, cy:wy+17, r:8, fill:'#4b5563', stroke:'#374151', 'stroke-width':2, 'pointer-events':'none' }));
-    // Handwheel hub
     g.appendChild(svgEl('circle', { cx:wx+48, cy:wy+17, r:3, fill:'#1f2937', stroke:'#4b5563', 'stroke-width':1, 'pointer-events':'none' }));
-    // LED
     g.appendChild(svgEl('circle', { cx:wx+66, cy:wy+59, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.2', 'pointer-events':'none' }));
   },
 
+  // ── Grid Supply / Generator (sheet 428-445, centered dy+5) ──
+  // 2×2 body 80×62 rx:12, viewport with rotor shimmer, motor housing top, HV hint
   grid_supply(g, wx, wy, ww, wh, pal, def, unitId) {
-    const cx = wx + ww/2, cy = wy + wh/2;
-    const bx = wx + 4, by = wy + 4, bw = ww - 8;
-    const bodyBot = wy + wh - 14;
-    const bh = bodyBot - by;
     const pres = getPresentation(def, scene.units.get(unitId));
-    _engStubs(g, wx, wy, ww, wh, bx, by + 4, bw, bh - 4, def, pres);
-    // Housing
-    g.appendChild(svgEl('rect', { x: bx, y: by + 4, width: bw, height: bh - 4, rx: 10, fill: pal.fillUrl, stroke: pal.stroke, 'stroke-width': 2.5, 'pointer-events': 'none' }));
-    _rtChip(g, bx + bw - 14, by + 6, 8, 4);
-    _rtBolt(g, bx + 6, by + 8); _rtBolt(g, bx + bw - 6, by + 8);
-    _rtBolt(g, bx + 6, by + bh - 8); _rtBolt(g, bx + bw - 6, by + bh - 8);
-    // Viewport (rotor) — centered in body box
-    const bodyCY = by + 4 + (bh - 4) / 2;
-    _rtVp(g, cx, bodyCY, ww*0.16, pal.rim);
-    g.appendChild(svgEl('circle', { cx, cy: bodyCY, r: ww*0.10, fill: 'none', stroke: '#fbbf24', 'stroke-width': 1.5, 'data-anim': 'rotor-pulse', 'data-opbase': '0.25', 'pointer-events': 'none' }));
-    g.appendChild(svgEl('circle', { cx, cy: bodyCY, r: ww*0.05, fill: 'none', stroke: '#f59e0b', 'stroke-width': 2, 'data-anim': 'rotor-pulse', 'data-opbase': '0.35', 'pointer-events': 'none' }));
-    g.appendChild(svgEl('circle', { cx, cy: bodyCY, r: 2, fill: '#fbbf24', opacity: 0.5, 'pointer-events': 'none' }));
-    // Motor on top
-    g.appendChild(svgEl('rect', { x: cx - ww*0.18, y: by - 6, width: ww*0.36, height: 10, rx: 4, fill: pal.fillUrl, stroke: pal.stroke, 'stroke-width': 2, 'pointer-events': 'none' }));
-    // Vent slots
-    for (let i = 0; i < 4; i++) {
-      const vx = cx - ww*0.12 + i * ww*0.08;
-      g.appendChild(svgEl('line', { x1: vx, y1: by - 3, x2: vx, y2: by + 1, stroke: pal.stroke, 'stroke-width': 1.5, opacity: 0.5, 'pointer-events': 'none' }));
-    }
-    // High voltage hint
-    g.appendChild(svgEl('path', { d: `M${bx+bw-14},${by+bh-16} L${bx+bw-18},${by+bh-8} L${bx+bw-14},${by+bh-8} L${bx+bw-16},${by+bh-2}`, fill: 'none', stroke: '#fbbf24', 'stroke-width': 1.5, 'stroke-linejoin': 'round', opacity: 0.25, 'pointer-events': 'none' }));
-    // LED
-    g.appendChild(svgEl('circle', { cx: bx + 8, cy: by + 10, r: 2.5, fill: '#22c55e', 'data-anim': 'led-blink', 'data-phase': '0.5', 'pointer-events': 'none' }));
+    _rtNozzle(g, wx, wy, ww, wh, wx+8, wy+17, 80, 62, def, pres, pal, unitId);
+    g.appendChild(svgEl('rect', { x:wx+8, y:wy+17, width:80, height:62, rx:12, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'pointer-events':'none' }));
+    _rtChip(g, wx+68, wy+23, 10, 5); _rtChip(g, wx+14, wy+63, 7, 4);
+    _rtBolt(g, wx+16, wy+25); _rtBolt(g, wx+80, wy+25);
+    _rtBolt(g, wx+16, wy+71); _rtBolt(g, wx+80, wy+71);
+    // Viewport with rotor shimmer
+    _rtVp(g, wx+48, wy+45, 16, pal.rim);
+    g.appendChild(svgEl('circle', { cx:wx+48, cy:wy+45, r:10, fill:'none', stroke:'#fbbf24', 'stroke-width':1.5, 'data-anim':'rotor-pulse', 'data-opbase':'0.2', 'pointer-events':'none' }));
+    g.appendChild(svgEl('circle', { cx:wx+48, cy:wy+45, r:5, fill:'none', stroke:'#f59e0b', 'stroke-width':2, 'data-anim':'rotor-pulse', 'data-opbase':'0.3', 'pointer-events':'none' }));
+    g.appendChild(svgEl('circle', { cx:wx+48, cy:wy+45, r:2, fill:'#fbbf24', opacity:0.5, 'pointer-events':'none' }));
+    // Sine wave hint
+    g.appendChild(svgEl('path', { d:`M${wx+36},${wy+45} Q${wx+42},${wy+37} ${wx+48},${wy+45} Q${wx+54},${wy+53} ${wx+60},${wy+45}`, fill:'none', stroke:'#fde68a', 'stroke-width':1.5, 'data-anim':'rotor-pulse', 'data-opbase':'0.2', 'pointer-events':'none' }));
+    // High voltage lightning bolt hint
+    g.appendChild(svgEl('path', { d:`M${wx+72},${wy+59} L${wx+68},${wy+67} L${wx+72},${wy+67} L${wx+70},${wy+73}`, fill:'none', stroke:'#fbbf24', 'stroke-width':1.5, 'stroke-linejoin':'round', opacity:0.25, 'pointer-events':'none' }));
+    // Motor housing on top
+    g.appendChild(svgEl('rect', { x:wx+30, y:wy+5, width:36, height:14, rx:5, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2, 'pointer-events':'none' }));
+    [36,42,48,54,60].forEach(x => g.appendChild(svgEl('line', { x1:wx+x, y1:wy+9, x2:wx+x, y2:wy+15, stroke:pal.stroke, 'stroke-width':1.5, opacity:0.5, 'pointer-events':'none' })));
+    g.appendChild(svgEl('circle', { cx:wx+24, cy:wy+27, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.5', 'pointer-events':'none' }));
   },
-  // ── Source (sheet lines 92-99, centered dx+10) ──
-  // 2×2: circle centered at (48,48) r:28, viewport r:14, 4 bolts, flow arrow
+  // ── Source (sheet 92-99, centered, visually rotated per variant) ──
+  // 2×2: circle r:28 at (48,48), viewport r:14, flow arrow + bolts rotate with port
   source(g, wx, wy, ww, wh, pal, def, unitId) {
     const pres = getPresentation(def, scene.units.get(unitId));
-    _rtNozzle(g, wx, wy, ww, wh, wx+20, wy+20, 56, 56, def, pres);
-    // Circle body
+    _rtNozzle(g, wx, wy, ww, wh, wx+20, wy+20, 56, 56, def, pres, pal, unitId);
+    // Circle body (rotationally symmetric)
     g.appendChild(svgEl('circle', { cx:wx+48, cy:wy+48, r:28, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'pointer-events':'none' }));
-    _rtChip(g, wx+60, wy+30);
-    // Viewport
+    // Viewport (rotationally symmetric)
     g.appendChild(svgEl('circle', { cx:wx+48, cy:wy+48, r:14, fill:'#052e16', stroke:pal.rim, 'stroke-width':2, 'pointer-events':'none' }));
-    g.appendChild(svgEl('path', { d:`M${wx+44},${wy+38}Q${wx+46},${wy+36} ${wx+48},${wy+38}`, fill:'none', stroke:'#fff', 'stroke-width':0.8, opacity:0.12, 'pointer-events':'none' }));
+    // Determine rotation from port edge: default=right→0°, left→180°, top→-90°, bottom→90°
+    const _outPos = pres.ports.mat_out;
+    const _outEdge = _outPos ? getPortEdge(_outPos, pres) : 'right';
+    const _rot = _outEdge === 'right' ? 0 : _outEdge === 'left' ? 180 : _outEdge === 'top' ? -90 : 90;
+    // Directional sub-group: arrow, chip, bolts, highlight, LED — all rotate together
+    const dg = svgEl('g', { transform:`rotate(${_rot},${wx+48},${wy+48})`, 'pointer-events':'none' });
+    // Glass highlight
+    dg.appendChild(svgEl('path', { d:`M${wx+44},${wy+38}Q${wx+46},${wy+36} ${wx+48},${wy+38}`, fill:'none', stroke:'#fff', 'stroke-width':0.8, opacity:0.12 }));
+    // Paint chip
+    _rtChip(dg, wx+60, wy+30);
     // Flow arrow (pulsing)
-    g.appendChild(svgEl('line', { x1:wx+38, y1:wy+48, x2:wx+56, y2:wy+48, stroke:'#6ee7b7', 'stroke-width':2.5, 'stroke-linecap':'round', 'data-anim':'rotor-pulse', 'data-opbase':'0.35', 'pointer-events':'none' }));
-    g.appendChild(svgEl('polygon', { points:`${wx+53},${wy+44} ${wx+59},${wy+48} ${wx+53},${wy+52}`, fill:'#6ee7b7', 'data-anim':'rotor-pulse', 'data-opbase':'0.35', 'pointer-events':'none' }));
+    dg.appendChild(svgEl('line', { x1:wx+38, y1:wy+48, x2:wx+56, y2:wy+48, stroke:'#6ee7b7', 'stroke-width':2.5, 'stroke-linecap':'round', 'data-anim':'rotor-pulse', 'data-opbase':'0.35' }));
+    dg.appendChild(svgEl('polygon', { points:`${wx+53},${wy+44} ${wx+59},${wy+48} ${wx+53},${wy+52}`, fill:'#6ee7b7', 'data-anim':'rotor-pulse', 'data-opbase':'0.35' }));
     // 4 bolts
-    _rtBolt(g, wx+26, wy+34); _rtBolt(g, wx+26, wy+62);
-    _rtBolt(g, wx+70, wy+34); _rtBolt(g, wx+70, wy+62);
+    _rtBolt(dg, wx+26, wy+34); _rtBolt(dg, wx+26, wy+62);
+    _rtBolt(dg, wx+70, wy+34); _rtBolt(dg, wx+70, wy+62);
     // LED
-    g.appendChild(svgEl('circle', { cx:wx+64, cy:wy+66, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0', 'pointer-events':'none' }));
+    dg.appendChild(svgEl('circle', { cx:wx+64, cy:wy+66, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0' }));
+    g.appendChild(dg);
   },
   source_atm(g,wx,wy,ww,wh,pal,def,unitId){const cx=wx+ww/2,cy=wy+wh/2;const pres=getPresentation(def,scene.units.get(unitId));
     // Body: wide opening on left, narrows to right where port is
@@ -25790,69 +25818,228 @@ const _RAGTAG_SYMBOLS = {
     // Wind streaks rushing in from left
     [0,.25,.5,.75].forEach((ph,i)=>{const yOff=(i-1.5)*wh*0.14;g.appendChild(svgEl('line',{x1:wx+10,y1:cy+yOff,x2:wx+ww*0.35,y2:cy+yOff*0.5,stroke:'#6ee7b7','stroke-width':1.5,opacity:.25,'stroke-linecap':'round','pointer-events':'none'}));g.appendChild(svgEl('polygon',{points:`${wx+ww*0.35},${cy+yOff*0.5-2} ${wx+ww*0.4},${cy+yOff*0.5} ${wx+ww*0.35},${cy+yOff*0.5+2}`,fill:'#6ee7b7',opacity:.2,'pointer-events':'none'}));});
     g.appendChild(svgEl('circle',{cx:wx+nr-6,cy:cy+8,r:2.5,fill:'#22c55e','data-anim':'led-blink','data-phase':'0.4','pointer-events':'none'}));},
-  sink(g,wx,wy,ww,wh,pal,def,unitId){const cx=wx+ww/2,cy=wy+wh/2;const bx=wx+ww*0.3,by=wy+4,bw=ww*0.4,bh=wh-8;const pres=getPresentation(def,scene.units.get(unitId));_engStubs(g,wx,wy,ww,wh,bx,by,bw,bh,def,pres);g.appendChild(svgEl('rect',{x:bx,y:by,width:bw,height:bh,rx:4,fill:pal.fillUrl,stroke:pal.stroke,'stroke-width':2.5,'pointer-events':'none'}));g.appendChild(svgEl('path',{d:`M${bx-4},${by-2} L${cx},${by-8} L${bx+bw+4},${by-2}`,fill:'none',stroke:pal.stroke,'stroke-width':2,opacity:.5,'pointer-events':'none'}));_rtBolt(g,bx+6,by+8);_rtBolt(g,bx+bw-6,by+bh-8);g.appendChild(svgEl('line',{x1:wx+ww*0.2,y1:wy+wh-6,x2:wx+ww*0.8,y2:wy+wh-6,stroke:pal.stroke,'stroke-width':2,'pointer-events':'none'}));g.appendChild(svgEl('circle',{cx:bx+bw-6,cy:by+bh-8,r:2.5,fill:'#22c55e','data-anim':'led-blink','data-phase':'0.6','pointer-events':'none'}));},
-  sink_electrical(g,wx,wy,ww,wh,pal,def,unitId){const cx=wx+ww/2,cy=wy+wh/2;const bx=wx+6,by=wy+6,bw=ww-12,bh=wh-12;const pres=getPresentation(def,scene.units.get(unitId));_engStubs(g,wx,wy,ww,wh,bx,by,bw,bh,def,pres);g.appendChild(svgEl('rect',{x:bx,y:by,width:bw,height:bh,rx:6,fill:pal.fillUrl,stroke:pal.stroke,'stroke-width':2.5,'pointer-events':'none'}));const gx=bx+6,gy=by+6,gw=bw*0.55,gh=bh-12;g.appendChild(svgEl('rect',{x:gx,y:gy,width:gw,height:gh,rx:3,fill:'#1a1000',stroke:pal.stroke,'stroke-width':1.2,'pointer-events':'none'}));for(let i=0;i<5;i++){const ly=gy+6+i*(gh-12)/4;g.appendChild(svgEl('line',{x1:gx+2,y1:ly,x2:gx+gw-2,y2:ly,stroke:pal.stroke,'stroke-width':1.2,opacity:.4,'pointer-events':'none'}));}g.appendChild(svgEl('path',{d:`M${gx+4},${gy+gh*0.35} Q${gx+gw/2},${gy+gh*0.3} ${gx+gw-4},${gy+gh*0.35}`,fill:'none',stroke:'#fca5a5','stroke-width':2,'stroke-linecap':'round','data-anim':'rotor-pulse','data-opbase':'0.4','pointer-events':'none'}));g.appendChild(svgEl('circle',{cx:bx+bw-14,cy,r:8,fill:'#1a1000',stroke:pal.stroke,'stroke-width':1.5,'pointer-events':'none'}));_rtBolt(g,bx+6,by+6);_rtBolt(g,bx+bw-6,by+bh-6);g.appendChild(svgEl('circle',{cx:bx+8,cy:by+8,r:2.5,fill:'#22c55e','data-anim':'led-blink','data-phase':'0.1','pointer-events':'none'}));},
+  // ── Sink (sheet 130-138, centered dy+8, mirrors for port-right) ──
+  // 2×2 body rect 32×68, grate top, ground line, tap, mirrored when port on right
+  sink(g, wx, wy, ww, wh, pal, def, unitId) {
+    const pres = getPresentation(def, scene.units.get(unitId));
+    _rtNozzle(g, wx, wy, ww, wh, wx+32, wy+14, 32, 68, def, pres, pal, unitId);
+    // Mirror detection: flip icon when port is on right edge
+    const _inPos = pres.ports.mat_in;
+    const _inEdge = _inPos ? getPortEdge(_inPos, pres) : 'left';
+    const _mirror = _inEdge === 'right';
+    // Visual sub-group with optional horizontal flip around center (48)
+    const vg = svgEl('g', _mirror
+      ? { transform: `translate(${wx + wx + 96},0) scale(-1,1)`, 'pointer-events': 'none' }
+      : { 'pointer-events': 'none' });
+    // Body
+    vg.appendChild(svgEl('rect', { x:wx+32, y:wy+14, width:32, height:68, rx:4, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5 }));
+    _rtChip(vg, wx+52, wy+28);
+    // Grate top (metal bar)
+    vg.appendChild(svgEl('rect', { x:wx+28, y:wy+12, width:40, height:6, rx:2, fill:'#4b5563', stroke:'#374151', 'stroke-width':1.5 }));
+    // Grate peak
+    vg.appendChild(svgEl('path', { d:`M${wx+30},${wy+10} L${wx+48},${wy+6} L${wx+66},${wy+10}`, fill:'none', stroke:'#4b5563', 'stroke-width':2, 'stroke-linecap':'round' }));
+    // Ground: extended grey line + diagonal hatching (standard schematic ground)
+    vg.appendChild(svgEl('line', { x1:wx+16, y1:wy+82, x2:wx+80, y2:wy+82, stroke:'#6b7280', 'stroke-width':2.5, 'stroke-linecap':'round' }));
+    [20,28,36,44,52,60,68,76].forEach(x => vg.appendChild(svgEl('line', { x1:wx+x, y1:wy+82, x2:wx+x-6, y2:wy+90, stroke:'#6b7280', 'stroke-width':1, opacity:0.4 })));
+    // Tap on right side, mid-height
+    vg.appendChild(svgEl('line', { x1:wx+64, y1:wy+48, x2:wx+76, y2:wy+48, stroke:'#374151', 'stroke-width':4, 'stroke-linecap':'round' }));
+    vg.appendChild(svgEl('line', { x1:wx+64, y1:wy+48, x2:wx+76, y2:wy+48, stroke:'#4b5563', 'stroke-width':2, 'stroke-linecap':'round' }));
+    vg.appendChild(svgEl('line', { x1:wx+76, y1:wy+48, x2:wx+76, y2:wy+56, stroke:'#374151', 'stroke-width':3, 'stroke-linecap':'round' }));
+    vg.appendChild(svgEl('line', { x1:wx+76, y1:wy+48, x2:wx+76, y2:wy+56, stroke:'#4b5563', 'stroke-width':1.5, 'stroke-linecap':'round' }));
+    vg.appendChild(svgEl('circle', { cx:wx+72, cy:wy+44, r:4, fill:'#4b5563', stroke:'#374151', 'stroke-width':1.5 }));
+    vg.appendChild(svgEl('circle', { cx:wx+72, cy:wy+44, r:1.5, fill:'#1f2937' }));
+    // 4 bolts
+    _rtBolt(vg, wx+36, wy+24); _rtBolt(vg, wx+60, wy+24);
+    _rtBolt(vg, wx+36, wy+70); _rtBolt(vg, wx+60, wy+70);
+    // LED
+    vg.appendChild(svgEl('circle', { cx:wx+56, cy:wy+64, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.6' }));
+    g.appendChild(vg);
+  },
+  // ── Sink Electrical / Dump Load (sheet 460-483, centered dy+5) ──
+  // 2×2 body 76×62 rx:6, grille viewport with coils, fan housing with 4-blade impeller
+  sink_electrical(g, wx, wy, ww, wh, pal, def, unitId) {
+    const pres = getPresentation(def, scene.units.get(unitId));
+    _rtNozzle(g, wx, wy, ww, wh, wx+10, wy+17, 76, 62, def, pres, pal, unitId);
+    g.appendChild(svgEl('rect', { x:wx+10, y:wy+17, width:76, height:62, rx:6, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'pointer-events':'none' }));
+    _rtChip(g, wx+68, wy+23, 10, 4);
+    _rtBolt(g, wx+16, wy+23); _rtBolt(g, wx+80, wy+23);
+    _rtBolt(g, wx+16, wy+73); _rtBolt(g, wx+80, wy+73);
+    // Grille viewport
+    g.appendChild(svgEl('rect', { x:wx+18, y:wy+25, width:44, height:46, rx:3, fill:'#1a1000', stroke:pal.stroke, 'stroke-width':1.5, 'pointer-events':'none' }));
+    g.appendChild(svgEl('path', { d:`M${wx+22},${wy+29} Q${wx+26},${wy+27} ${wx+30},${wy+29}`, fill:'none', stroke:'#fff', 'stroke-width':0.8, opacity:0.1, 'pointer-events':'none' }));
+    // 7 horizontal grille bars
+    [31,37,43,49,55,61,65].forEach(y => g.appendChild(svgEl('line', { x1:wx+20, y1:wy+y, x2:wx+60, y2:wy+y, stroke:pal.stroke, 'stroke-width':1.5, opacity:0.5, 'pointer-events':'none' })));
+    // 3 glowing coils (animated pulse)
+    g.appendChild(svgEl('path', { d:`M${wx+26},${wy+35} Q${wx+30},${wy+33} ${wx+34},${wy+35} Q${wx+38},${wy+37} ${wx+42},${wy+35} Q${wx+46},${wy+33} ${wx+50},${wy+35} Q${wx+54},${wy+37} ${wx+58},${wy+35}`, fill:'none', stroke:'#fca5a5', 'stroke-width':2, 'stroke-linecap':'round', 'data-anim':'rotor-pulse', 'data-opbase':'0.35', 'pointer-events':'none' }));
+    g.appendChild(svgEl('path', { d:`M${wx+26},${wy+47} Q${wx+30},${wy+45} ${wx+34},${wy+47} Q${wx+38},${wy+49} ${wx+42},${wy+47} Q${wx+46},${wy+45} ${wx+50},${wy+47} Q${wx+54},${wy+49} ${wx+58},${wy+47}`, fill:'none', stroke:'#f97316', 'stroke-width':2, 'stroke-linecap':'round', 'data-anim':'rotor-pulse', 'data-opbase':'0.28', 'pointer-events':'none' }));
+    g.appendChild(svgEl('path', { d:`M${wx+26},${wy+59} Q${wx+30},${wy+57} ${wx+34},${wy+59} Q${wx+38},${wy+61} ${wx+42},${wy+59} Q${wx+46},${wy+57} ${wx+50},${wy+59} Q${wx+54},${wy+61} ${wx+58},${wy+59}`, fill:'none', stroke:'#fca5a5', 'stroke-width':2, 'stroke-linecap':'round', 'data-anim':'rotor-pulse', 'data-opbase':'0.21', 'pointer-events':'none' }));
+    // Fan housing on right side
+    g.appendChild(svgEl('circle', { cx:wx+74, cy:wy+47, r:10, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2, 'pointer-events':'none' }));
+    g.appendChild(svgEl('circle', { cx:wx+74, cy:wy+47, r:6, fill:'#1a1000', stroke:pal.stroke, 'stroke-width':1.5, 'pointer-events':'none' }));
+    // 4-blade fan (animated)
+    const fanG = svgEl('g', { 'data-anim':'pump-impeller', 'data-cx':wx+74, 'data-cy':wy+47, 'pointer-events':'none' });
+    [0,90,180,270].forEach(a => { const r = a * Math.PI / 180; fanG.appendChild(svgEl('line', { x1:wx+74, y1:wy+47, x2:wx+74+Math.sin(r)*5, y2:wy+47-Math.cos(r)*5, stroke:'#fde047', 'stroke-width':2, opacity:0.4, 'stroke-linecap':'round' })); });
+    fanG.appendChild(svgEl('circle', { cx:wx+74, cy:wy+47, r:1.5, fill:'#fbbf24', opacity:0.5 }));
+    g.appendChild(fanG);
+    g.appendChild(svgEl('circle', { cx:wx+62, cy:wy+67, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.1', 'pointer-events':'none' }));
+  },
   reservoir(g,wx,wy,ww,wh,pal,def,unitId){const cx=wx+ww/2,cy=wy+wh/2;const pres=getPresentation(def,scene.units.get(unitId));_engStubs(g,wx,wy,ww,wh,cx-8,wy+wh*0.2,16,wh*0.5,def,pres);g.appendChild(svgEl('line',{x1:wx+8,y1:wy+wh*0.65,x2:wx+ww-8,y2:wy+wh*0.65,stroke:'#4b5563','stroke-width':2,'pointer-events':'none'}));g.appendChild(svgEl('rect',{x:cx-6,y:wy+wh*0.2,width:12,height:wh*0.46,rx:3,fill:pal.fillUrl,stroke:pal.stroke,'stroke-width':2,'pointer-events':'none'}));g.appendChild(svgEl('rect',{x:cx-12,y:wy+wh*0.15,width:24,height:8,rx:3,fill:pal.fillUrl,stroke:pal.stroke,'stroke-width':2,'pointer-events':'none'}));g.appendChild(svgEl('circle',{cx,cy:wy+wh*0.19,r:3,fill:'#6b7280',stroke:'#374151','stroke-width':1,'pointer-events':'none'}));g.appendChild(svgEl('circle',{cx:cx+8,cy:wy+wh*0.55,r:2.5,fill:'#22c55e','data-anim':'led-blink','data-phase':'0.8','pointer-events':'none'}));},
-  // ── Compressor (sheet lines 179-191, centered dx+8 dy+6) ──
-  // 2×2: body 60×48 centered at (48,48), rect viewport with piston+crank,
-  // motor housing centered on elec port, 5 vent slots
+  // ── Compressor (sheet 179-191, centered dx+8 dy+6, icon mirrored) ──
+  // 2×2 body 60×48 rx:6, rect viewport with animated piston+crank (mirrored),
+  // motor housing + 5 vents on elec port edge
   compressor(g, wx, wy, ww, wh, pal, def, unitId) {
     const pres = getPresentation(def, scene.units.get(unitId));
-    _engStubs(g, wx, wy, ww, wh, wx+18, wy+24, 60, 48, def, pres);
-    // Feet
-    // Body
+    _rtNozzle(g, wx, wy, ww, wh, wx+18, wy+24, 60, 48, def, pres, pal, unitId);
     g.appendChild(svgEl('rect', { x:wx+18, y:wy+24, width:60, height:48, rx:6, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'pointer-events':'none' }));
-    _rtChip(g, wx+60, wy+30);
-    // Rectangular viewport (piston chamber)
+    _rtChip(g, wx+36, wy+30);
     _rtVpR(g, wx+28, wy+32, 36, 32, '#0f0820', pal.rim);
-    // Piston
     const impCol = _lighten(pal.stroke, 0.6);
-    g.appendChild(svgEl('rect', { x:wx+40, y:wy+38, width:6, height:20, rx:1.5, fill:impCol, opacity:0.35, 'pointer-events':'none' }));
-    // Crank rod + circle
-    g.appendChild(svgEl('line', { x1:wx+46, y1:wy+48, x2:wx+69, y2:wy+48, stroke:impCol, 'stroke-width':1.5, opacity:0.3, 'pointer-events':'none' }));
-    g.appendChild(svgEl('circle', { cx:wx+64, cy:wy+48, r:6, fill:'none', stroke:impCol, 'stroke-width':1.5, opacity:0.3, 'pointer-events':'none' }));
-    // 4 corner bolts
+    // Piston (mirrored: right side of viewport)
+    g.appendChild(svgEl('rect', { x:wx+50, y:wy+38, width:6, height:20, rx:1.5, fill:impCol, opacity:0.35,
+      'data-anim':'piston-recip', 'data-basex':wx+50, 'data-amp':'6', 'data-speed':'1.5',
+      'pointer-events':'none' }));
+    // Crank rod (mirrored: crank on left)
+    g.appendChild(svgEl('line', { x1:wx+50, y1:wy+48, x2:wx+27, y2:wy+48, stroke:impCol, 'stroke-width':1.5, opacity:0.3,
+      'data-anim':'crank-rod', 'data-basex1':wx+50, 'data-cx2':wx+32, 'data-cy2':wy+48, 'data-rodlen':'5', 'data-amp':'6', 'data-speed':'1.5',
+      'pointer-events':'none' }));
+    // Crank circle (mirrored: left)
+    g.appendChild(svgEl('circle', { cx:wx+32, cy:wy+48, r:6, fill:'none', stroke:impCol, 'stroke-width':1.5, opacity:0.3, 'pointer-events':'none' }));
     _rtBolt(g, wx+24, wy+30); _rtBolt(g, wx+72, wy+30);
     _rtBolt(g, wx+24, wy+66); _rtBolt(g, wx+72, wy+66);
-    // Motor housing centered on elec port (x=48)
-    g.appendChild(svgEl('rect', { x:wx+35, y:wy+10, width:26, height:16, rx:5, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2, 'pointer-events':'none' }));
-    // 5 motor vent slots
-    [40,44,48,52,56].forEach(x => g.appendChild(svgEl('line', { x1:wx+x, y1:wy+14, x2:wx+x, y2:wy+22, stroke:pal.stroke, 'stroke-width':1.5, opacity:0.5, 'pointer-events':'none' })));
-    // LED
-    g.appendChild(svgEl('circle', { cx:wx+68, cy:wy+62, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.2', 'pointer-events':'none' }));
+    const _elecPos = pres.ports.elec_in;
+    const _elecEdge = _elecPos ? getPortEdge(_elecPos, pres) : 'top';
+    if (_elecEdge === 'bottom') {
+      g.appendChild(svgEl('rect', { x:wx+35, y:wy+72, width:26, height:16, rx:5, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2, 'pointer-events':'none' }));
+      [40,44,48,52,56].forEach(x => g.appendChild(svgEl('line', { x1:wx+x, y1:wy+76, x2:wx+x, y2:wy+84, stroke:pal.stroke, 'stroke-width':1.5, opacity:0.5, 'pointer-events':'none' })));
+    } else if (_elecEdge === 'right') {
+      g.appendChild(svgEl('rect', { x:wx+78, y:wy+35, width:16, height:26, rx:5, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2, 'pointer-events':'none' }));
+      [40,44,48,52,56].forEach(y => g.appendChild(svgEl('line', { x1:wx+82, y1:wy+y, x2:wx+90, y2:wy+y, stroke:pal.stroke, 'stroke-width':1.5, opacity:0.5, 'pointer-events':'none' })));
+    } else {
+      g.appendChild(svgEl('rect', { x:wx+35, y:wy+10, width:26, height:16, rx:5, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2, 'pointer-events':'none' }));
+      [40,44,48,52,56].forEach(x => g.appendChild(svgEl('line', { x1:wx+x, y1:wy+14, x2:wx+x, y2:wy+22, stroke:pal.stroke, 'stroke-width':1.5, opacity:0.5, 'pointer-events':'none' })));
+    }
+    g.appendChild(svgEl('circle', { cx:wx+28, cy:wy+62, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.2', 'pointer-events':'none' }));
   },
   compressor_diaphragm(g,wx,wy,ww,wh,pal,def,unitId){const cx=wx+ww/2;const bx=wx+6,by=wy+4,bw=ww-12,bh=wh*0.5;const pres=getPresentation(def,scene.units.get(unitId));_engStubs(g,wx,wy,ww,wh,bx,by,bw,wh-8,def,pres);g.appendChild(svgEl('rect',{x:bx,y:by,width:bw,height:bh,rx:6,fill:pal.fillUrl,stroke:pal.stroke,'stroke-width':2.5,'pointer-events':'none'}));g.appendChild(svgEl('path',{d:`M${bx+4},${by+bh/2} Q${cx},${by+bh/2-8} ${bx+bw-4},${by+bh/2}`,fill:'none',stroke:_lighten(pal.stroke,0.6),'stroke-width':2.5,opacity:.6,'pointer-events':'none'}));_rtBolt(g,bx+6,by+6);_rtBolt(g,bx+bw-6,by+bh-6);const coilY=wy+wh*0.6;g.appendChild(svgEl('path',{d:`M${wx},${coilY+8} L${bx+4},${coilY+8} L${bx+4},${coilY} L${bx+14},${coilY} L${bx+14},${coilY+16} L${bx+24},${coilY+16} L${bx+24},${coilY} L${bx+34},${coilY} L${bx+34},${coilY+16} L${bx+44},${coilY+16} L${bx+44},${coilY} L${bx+bw-4},${coilY} L${bx+bw-4},${coilY+8} L${wx+ww},${coilY+8}`,fill:'none',stroke:'#93c5fd','stroke-width':2.5,'stroke-linecap':'round','stroke-linejoin':'round','pointer-events':'none'}));g.appendChild(svgEl('circle',{cx:bx+bw-8,cy:by+8,r:2.5,fill:'#22c55e','data-anim':'led-blink','data-phase':'0.5','pointer-events':'none'}));},
   restriction(g,wx,wy,ww,wh,pal,def,unitId){const cx=wx+ww/2,cy=wy+wh/2;const pres=getPresentation(def,scene.units.get(unitId));_engStubs(g,wx,wy,ww,wh,cx-ww*0.2,cy-wh*0.3,ww*0.4,wh*0.6,def,pres);g.appendChild(svgEl('path',{d:`M${cx-ww*0.2},${cy-wh*0.3} L${cx},${cy} L${cx-ww*0.2},${cy+wh*0.3} L${cx+ww*0.2},${cy+wh*0.3} L${cx},${cy} L${cx+ww*0.2},${cy-wh*0.3} Z`,fill:pal.fillUrl,stroke:pal.stroke,'stroke-width':2.5,'stroke-linejoin':'round','pointer-events':'none'}));_rtBolt(g,cx-6,cy-wh*0.2);_rtBolt(g,cx+6,cy+wh*0.2);},
-  compressor(g,wx,wy,ww,wh,pal,def,unitId){const cx=wx+ww/2,cy=wy+wh/2;const bx=wx+6,by=wy+8,bw=ww-12,bh=wh-20;const pres=getPresentation(def,scene.units.get(unitId));_engStubs(g,wx,wy,ww,wh,bx,by,bw,bh,def,pres);_rtFoot(g,wx+ww*0.25,by+bh);_rtFoot(g,wx+ww*0.75,by+bh);g.appendChild(svgEl('rect',{x:bx,y:by,width:bw,height:bh,rx:6,fill:pal.fillUrl,stroke:pal.stroke,'stroke-width':2.5,'pointer-events':'none'}));_rtBolt(g,bx+6,by+6);_rtBolt(g,bx+bw-6,by+6);_rtBolt(g,bx+6,by+bh-6);_rtBolt(g,bx+bw-6,by+bh-6);_rtVp(g,cx,by+bh/2,ww*0.14,pal.rim);const impG=svgEl('g',{'data-anim':'pump-impeller','data-cx':cx,'data-cy':by+bh/2,'pointer-events':'none'});impG.appendChild(svgEl('rect',{x:cx-3,y:by+bh/2-ww*0.1,width:6,height:ww*0.2,rx:1,fill:_lighten(pal.stroke,0.8),opacity:.5}));g.appendChild(impG);g.appendChild(svgEl('circle',{cx:bx+bw-8,cy:by+bh-8,r:2.5,fill:'#22c55e','data-anim':'led-blink','data-phase':'0.2','pointer-events':'none'}));},
-  gas_turbine(g,wx,wy,ww,wh,pal,def,unitId){const cx=wx+ww/2,cy=wy+wh/2;const bx=wx+6,by=wy+8,bw=ww-12,bh=wh-20;const pres=getPresentation(def,scene.units.get(unitId));_engStubs(g,wx,wy,ww,wh,bx,by,bw,bh,def,pres);_rtFoot(g,wx+ww*0.25,by+bh);_rtFoot(g,wx+ww*0.75,by+bh);g.appendChild(svgEl('rect',{x:bx,y:by,width:bw,height:bh,rx:6,fill:pal.fillUrl,stroke:pal.stroke,'stroke-width':2.5,'pointer-events':'none'}));_rtBolt(g,bx+6,by+6);_rtBolt(g,bx+bw-6,by+bh-6);_rtVp(g,cx,by+bh/2,ww*0.16,pal.rim);const impG=svgEl('g',{'data-anim':'pump-impeller','data-cx':cx,'data-cy':by+bh/2,'pointer-events':'none'});const ic=_lighten(pal.stroke,0.8);[0,60,120,180,240,300].forEach(a=>{const r2=a*Math.PI/180;impG.appendChild(svgEl('line',{x1:cx,y1:by+bh/2,x2:cx+Math.cos(r2)*ww*0.1,y2:by+bh/2+Math.sin(r2)*ww*0.1,stroke:ic,'stroke-width':1.5,opacity:.5,'stroke-linecap':'round'}));});g.appendChild(impG);g.appendChild(svgEl('circle',{cx:bx+8,cy:by+8,r:2.5,fill:'#22c55e','data-anim':'led-blink','data-phase':'0.3','pointer-events':'none'}));},
-  // ── Gas Turbine (sheet lines 214-222, centered dy+4) ──
-  // 2×2: body 68×52 centered at (48,46), rect viewport with 3 blade lines,
-  // axle, amber terminal toward elec_out at bottom
+  // ── Gas Turbine (sheet 214-222, centered dy+6) ──
+  // 2×2 body 68×52 rx:8, rect viewport with 3 blade lines + axle, amber terminal
   gas_turbine(g, wx, wy, ww, wh, pal, def, unitId) {
     const pres = getPresentation(def, scene.units.get(unitId));
-    _engStubs(g, wx, wy, ww, wh, wx+14, wy+20, 68, 52, def, pres);
-    // Feet
-    // Body
-    g.appendChild(svgEl('rect', { x:wx+14, y:wy+20, width:68, height:52, rx:8, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'pointer-events':'none' }));
-    _rtChip(g, wx+64, wy+26);
-    // Rectangular viewport (turbine chamber)
-    _rtVpR(g, wx+24, wy+28, 48, 36, '#0f0820', pal.rim);
-    // 3 angled turbine blade lines
+    _rtNozzle(g, wx, wy, ww, wh, wx+14, wy+22, 68, 52, def, pres, pal, unitId);
+    g.appendChild(svgEl('rect', { x:wx+14, y:wy+22, width:68, height:52, rx:8, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'pointer-events':'none' }));
+    _rtChip(g, wx+64, wy+28);
+    _rtVpR(g, wx+24, wy+30, 48, 36, '#0f0820', pal.rim);
     const impCol = _lighten(pal.stroke, 0.6);
-    [36,48,60].forEach(x => g.appendChild(svgEl('line', { x1:wx+x, y1:wy+32, x2:wx+x-4, y2:wy+60, stroke:impCol, 'stroke-width':2, opacity:0.25, 'stroke-linecap':'round', 'data-anim':'rotor-pulse', 'data-opbase':'0.25', 'pointer-events':'none' })));
-    // Horizontal axle
-    g.appendChild(svgEl('line', { x1:wx+28, y1:wy+46, x2:wx+68, y2:wy+46, stroke:impCol, 'stroke-width':2.5, 'stroke-linecap':'round', opacity:0.4, 'pointer-events':'none' }));
-    // 4 corner bolts
-    _rtBolt(g, wx+20, wy+26); _rtBolt(g, wx+76, wy+26);
-    _rtBolt(g, wx+20, wy+66); _rtBolt(g, wx+76, wy+66);
-    // Amber terminal (toward elec_out port at bottom)
-    _rtAmb(g, wx+40, wy+70, 16, 24);
-    // LED
-    g.appendChild(svgEl('circle', { cx:wx+28, cy:wy+62, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.3', 'pointer-events':'none' }));
+    [36,48,60].forEach(x => g.appendChild(svgEl('line', { x1:wx+x, y1:wy+34, x2:wx+x-4, y2:wy+62, stroke:impCol, 'stroke-width':2, opacity:0.25, 'stroke-linecap':'round', 'data-anim':'rotor-pulse', 'data-opbase':'0.25', 'pointer-events':'none' })));
+    g.appendChild(svgEl('line', { x1:wx+28, y1:wy+48, x2:wx+68, y2:wy+48, stroke:impCol, 'stroke-width':2.5, 'stroke-linecap':'round', opacity:0.4, 'pointer-events':'none' }));
+    _rtBolt(g, wx+20, wy+28); _rtBolt(g, wx+76, wy+28);
+    _rtBolt(g, wx+20, wy+68); _rtBolt(g, wx+76, wy+68);
+    // Lightning bolt hints — electricity generation, pulsing from turbine downward
+    [[38,0],[50,0.3],[62,0.6]].forEach(([x, ph]) => {
+      g.appendChild(svgEl('path', { d:`M${wx+x},${wy+68} L${wx+x-2},${wy+74} L${wx+x+2},${wy+74} L${wx+x},${wy+80}`,
+        fill:'none', stroke:'#fbbf24', 'stroke-width':1.5, 'stroke-linejoin':'round', 'stroke-linecap':'round',
+        'data-anim':'rotor-pulse', 'data-opbase': (0.15 + ph * 0.05).toFixed(2), 'pointer-events':'none' }));
+    });
+    g.appendChild(svgEl('circle', { cx:wx+28, cy:wy+64, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.3', 'pointer-events':'none' }));
   },
-  electric_heater(g,wx,wy,ww,wh,pal,def,unitId){const cx=wx+ww/2,cy=wy+wh/2;const bx=wx+6,by=wy+8,bw=ww-12,bh=wh-16;const pres=getPresentation(def,scene.units.get(unitId));_engStubs(g,wx,wy,ww,wh,bx,by,bw,bh,def,pres);g.appendChild(svgEl('rect',{x:bx,y:by,width:bw,height:bh,rx:6,fill:pal.fillUrl,stroke:pal.stroke,'stroke-width':2.5,'pointer-events':'none'}));_rtBolt(g,bx+6,by+6);_rtBolt(g,bx+bw-6,by+bh-6);g.appendChild(svgEl('path',{d:`M${bx+8},${cy} L${bx+14},${cy-8} L${bx+22},${cy+8} L${bx+30},${cy-8} L${bx+38},${cy+8} L${bx+46},${cy-8} L${bx+54},${cy+8} L${bx+bw-8},${cy}`,fill:'none',stroke:'#fca5a5','stroke-width':2.5,'stroke-linejoin':'round','stroke-linecap':'round','data-anim':'rotor-pulse','data-opbase':'0.5','pointer-events':'none'}));g.appendChild(svgEl('circle',{cx:bx+bw-8,cy:by+bh-8,r:2.5,fill:'#22c55e','data-anim':'led-blink','data-phase':'0.7','pointer-events':'none'}));},
-  air_cooler(g,wx,wy,ww,wh,pal,def,unitId){const cx=wx+ww/2;const bx=wx+4,by=wy+4,bw=ww-8,tbH=wh*0.35;const pres=getPresentation(def,scene.units.get(unitId));_engStubs(g,wx,wy,ww,wh,bx,by,bw,wh-8,def,pres);g.appendChild(svgEl('rect',{x:bx,y:by,width:bw,height:tbH,rx:4,fill:pal.fillUrl,stroke:pal.stroke,'stroke-width':2.5,'pointer-events':'none'}));[0.2,0.4,0.6,0.8].forEach(f=>{g.appendChild(svgEl('line',{x1:bx+bw*f,y1:by+4,x2:bx+bw*f,y2:by+tbH-4,stroke:pal.stroke,'stroke-width':1,opacity:.3,'pointer-events':'none'}));});const fanCY=by+tbH+wh*0.25;g.appendChild(svgEl('circle',{cx,cy:fanCY,r:ww*0.2,fill:'#0f172a',stroke:pal.stroke,'stroke-width':2,'pointer-events':'none'}));const impG=svgEl('g',{'data-anim':'pump-impeller','data-cx':cx,'data-cy':fanCY,'pointer-events':'none'});const ic=_lighten(pal.stroke,0.8);[0,72,144,216,288].forEach(a=>{const r2=a*Math.PI/180;impG.appendChild(svgEl('line',{x1:cx+Math.cos(r2)*3,y1:fanCY+Math.sin(r2)*3,x2:cx+Math.cos(r2)*ww*0.16,y2:fanCY+Math.sin(r2)*ww*0.16,stroke:ic,'stroke-width':3,opacity:.4,'stroke-linecap':'round'}));});impG.appendChild(svgEl('circle',{cx,cy:fanCY,r:2.5,fill:ic,opacity:.5}));g.appendChild(impG);_rtBolt(g,bx+6,by+6);_rtBolt(g,bx+bw-6,by+6);g.appendChild(svgEl('circle',{cx:bx+bw-8,cy:by+tbH-8,r:2.5,fill:'#22c55e','data-anim':'led-blink','data-phase':'0.4','pointer-events':'none'}));},
-  hex(g,wx,wy,ww,wh,pal,def,unitId){const cx=wx+ww/2,cy=wy+wh/2,rx=ww*0.42,ry=wh*0.3;const pres=getPresentation(def,scene.units.get(unitId));_engStubs(g,wx,wy,ww,wh,cx-rx,cy-ry,rx*2,ry*2,def,pres);g.appendChild(svgEl('ellipse',{cx,cy,rx,ry,fill:pal.fillUrl,stroke:pal.stroke,'stroke-width':2.5,'pointer-events':'none'}));_rtVp(g,cx,cy,Math.min(rx,ry)*0.65,pal.rim);g.appendChild(svgEl('path',{d:`M${cx-12},${cy} Q${cx-4},${cy-8} ${cx+4},${cy} Q${cx+12},${cy+8} ${cx+16},${cy}`,fill:'none',stroke:'#fca5a5','stroke-width':1.5,opacity:.35,'pointer-events':'none'}));g.appendChild(svgEl('path',{d:`M${cx-12},${cy} Q${cx-4},${cy+8} ${cx+4},${cy} Q${cx+12},${cy-8} ${cx+16},${cy}`,fill:'none',stroke:'#93c5fd','stroke-width':1.5,opacity:.25,'pointer-events':'none'}));_rtBolt(g,cx-rx+8,cy);_rtBolt(g,cx+rx-8,cy);_rtBolt(g,cx,cy-ry+6);_rtBolt(g,cx,cy+ry-6);g.appendChild(svgEl('circle',{cx:cx+rx-12,cy:cy+ry-8,r:2.5,fill:'#22c55e','data-anim':'led-blink','data-phase':'0.5','pointer-events':'none'}));},
+  // ── Electric Heater (sheet 241-248, no offset) ──
+  // 2×2 body 76×44 rx:8 at (10,26), rect viewport with zigzag heating element, amber terminal top
+  electric_heater(g, wx, wy, ww, wh, pal, def, unitId) {
+    const pres = getPresentation(def, scene.units.get(unitId));
+    _rtNozzle(g, wx, wy, ww, wh, wx+10, wy+26, 76, 44, def, pres, pal, unitId);
+    g.appendChild(svgEl('rect', { x:wx+10, y:wy+26, width:76, height:44, rx:8, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'pointer-events':'none' }));
+    _rtChip(g, wx+66, wy+32);
+    _rtVpR(g, wx+22, wy+34, 52, 28, '#0c1a2e', pal.rim);
+    // Zigzag heating element (animated pulse)
+    g.appendChild(svgEl('path', { d:`M${wx+28},${wy+48} L${wx+34},${wy+36} L${wx+40},${wy+60} L${wx+46},${wy+36} L${wx+52},${wy+60} L${wx+58},${wy+36} L${wx+64},${wy+48}`, fill:'none', stroke:'#fca5a5', 'stroke-width':2.5, 'stroke-linejoin':'round', 'stroke-linecap':'round', 'data-anim':'rotor-pulse', 'data-opbase':'0.4', 'pointer-events':'none' }));
+    _rtBolt(g, wx+16, wy+32); _rtBolt(g, wx+80, wy+32);
+    _rtBolt(g, wx+16, wy+64); _rtBolt(g, wx+80, wy+64);
+    // Amber terminal on top (elec port)
+    const _elecPos = pres.ports.elec_in;
+    const _elecEdge = _elecPos ? getPortEdge(_elecPos, pres) : 'top';
+    if (_elecEdge === 'bottom') {
+      _rtAmb(g, wx+40, wy+70, 16, 26);
+    } else {
+      _rtAmb(g, wx+40, wy+2, 16, 26);
+    }
+    g.appendChild(svgEl('circle', { cx:wx+76, cy:wy+58, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.7', 'pointer-events':'none' }));
+  },
+  // ── Air Cooler (sheet 250-260, layout-aware) ──
+  // Radiator rect spans between mat ports (flat edges); fan circle on elec edge, overlapping
+  air_cooler(g, wx, wy, ww, wh, pal, def, unitId) {
+    const pres = getPresentation(def, scene.units.get(unitId));
+    // Determine material flow axis and elec edge
+    const _matIn = pres.ports.mat_in, _matOut = pres.ports.mat_out;
+    const _elecPos = pres.ports.elec_in;
+    const _elecEdge = _elecPos ? getPortEdge(_elecPos, pres) : 'bottom';
+    const _horiz = _matIn && _matOut && _matIn.y === _matOut.y; // horizontal material flow
+    let rx, ry, rw, rh, fcx, fcy; // radiator rect, fan center
+    if (_horiz) {
+      // Radiator: wide rect, flat left/right edges near ports
+      rx = wx + 2; rw = 92;
+      if (_elecEdge === 'top') {
+        ry = wy + 38; rh = 38; fcx = wx + 48; fcy = wy + 24;
+      } else {
+        ry = wy + 20; rh = 38; fcx = wx + 48; fcy = wy + 72;
+      }
+    } else {
+      // Vertical flow: tall rect, flat top/bottom edges near ports
+      ry = wy + 2; rh = 92;
+      if (_elecEdge === 'left') {
+        rx = wx + 34; rw = 38; fcx = wx + 22; fcy = wy + 48;
+      } else {
+        rx = wx + 24; rw = 38; fcx = wx + 74; fcy = wy + 48;
+      }
+    }
+    // Unified body bbox for nozzles
+    const bx = Math.min(rx, fcx - 18), by = Math.min(ry, fcy - 18);
+    const bx2 = Math.max(rx + rw, fcx + 18), by2 = Math.max(ry + rh, fcy + 18);
+    _rtNozzle(g, wx, wy, ww, wh, bx, by, bx2 - bx, by2 - by, def, pres, pal, unitId);
+    // Radiator body (drawn first, fan overlaps)
+    g.appendChild(svgEl('rect', { x:rx, y:ry, width:rw, height:rh, rx:2, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'pointer-events':'none' }));
+    // Tube lines inside radiator
+    if (_horiz) {
+      const nTubes = 5, spacing = (rw - 12) / (nTubes - 1);
+      for (let i = 0; i < nTubes; i++) {
+        const tx = rx + 6 + i * spacing;
+        g.appendChild(svgEl('line', { x1:tx, y1:ry+4, x2:tx, y2:ry+rh-4, stroke:'#0c1a2e', 'stroke-width':2.5, opacity:0.4, 'pointer-events':'none' }));
+      }
+    } else {
+      const nTubes = 5, spacing = (rh - 12) / (nTubes - 1);
+      for (let i = 0; i < nTubes; i++) {
+        const ty = ry + 6 + i * spacing;
+        g.appendChild(svgEl('line', { x1:rx+4, y1:ty, x2:rx+rw-4, y2:ty, stroke:'#0c1a2e', 'stroke-width':2.5, opacity:0.4, 'pointer-events':'none' }));
+      }
+    }
+    // Fan housing (in front, overlapping radiator)
+    g.appendChild(svgEl('circle', { cx:fcx, cy:fcy, r:18, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'pointer-events':'none' }));
+    _rtVp(g, fcx, fcy, 12, pal.rim);
+    // 5-blade fan (animated)
+    const fanG = svgEl('g', { 'data-anim':'pump-impeller', 'data-cx':fcx, 'data-cy':fcy, 'pointer-events':'none' });
+    const fc = _lighten(pal.stroke, 0.6);
+    [0,72,144,216,288].forEach(a => { const r = a * Math.PI / 180; fanG.appendChild(svgEl('line', { x1:fcx, y1:fcy, x2:fcx+Math.sin(r)*10, y2:fcy-Math.cos(r)*10, stroke:fc, 'stroke-width':3, opacity:0.5, 'stroke-linecap':'round' })); });
+    fanG.appendChild(svgEl('circle', { cx:fcx, cy:fcy, r:3, fill:'#60a5fa', opacity:0.5 }));
+    g.appendChild(fanG);
+    g.appendChild(svgEl('circle', { cx:fcx+14, cy:fcy+14, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.4', 'pointer-events':'none' }));
+  },
+  // ── Heat Exchanger (sheet 262-271, centered dy+4) ──
+  // 2×2 ellipse cx:48 cy:48 rx:40 ry:30, viewport r:18, hot/cold flow paths
+  hex(g, wx, wy, ww, wh, pal, def, unitId) {
+    const pres = getPresentation(def, scene.units.get(unitId));
+    _rtNozzle(g, wx, wy, ww, wh, wx+8, wy+18, 80, 60, def, pres, pal, unitId);
+    g.appendChild(svgEl('ellipse', { cx:wx+48, cy:wy+48, rx:40, ry:30, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'pointer-events':'none' }));
+    _rtChip(g, wx+68, wy+28);
+    _rtVp(g, wx+48, wy+48, 18, pal.rim);
+    // Hot stream — horizontal wavy path (left→right ports), slow pulse
+    g.appendChild(svgEl('path', { d:`M${wx+32},${wy+48} Q${wx+40},${wy+42} ${wx+48},${wy+48} Q${wx+56},${wy+54} ${wx+64},${wy+48}`, fill:'none', stroke:'#fca5a5', 'stroke-width':2, 'stroke-linecap':'round', 'data-anim':'rotor-pulse', 'data-opbase':'0.3', 'data-speed':'0.4', 'data-phase':'0', 'data-amp':'0.2', 'pointer-events':'none' }));
+    // Cold stream — vertical wavy path (top→bottom ports), opposite phase
+    g.appendChild(svgEl('path', { d:`M${wx+48},${wy+32} Q${wx+42},${wy+40} ${wx+48},${wy+48} Q${wx+54},${wy+56} ${wx+48},${wy+64}`, fill:'none', stroke:'#93c5fd', 'stroke-width':1.5, 'stroke-linecap':'round', 'data-anim':'rotor-pulse', 'data-opbase':'0.25', 'data-speed':'0.4', 'data-phase':'0.5', 'data-amp':'0.2', 'pointer-events':'none' }));
+    // 4 bolts at cardinal points
+    _rtBolt(g, wx+14, wy+48); _rtBolt(g, wx+82, wy+48);
+    _rtBolt(g, wx+48, wy+20); _rtBolt(g, wx+48, wy+76);
+    g.appendChild(svgEl('circle', { cx:wx+70, cy:wy+62, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.5', 'pointer-events':'none' }));
+  },
   mixer(g,wx,wy,ww,wh,pal,def,unitId){const cx=wx+ww/2,cy=wy+wh/2;const pres=getPresentation(def,scene.units.get(unitId));const bx=wx+ww*0.3,bw=ww*0.5;_engStubs(g,wx,wy,ww,wh,bx,wy+4,bw,wh-8,def,pres);g.appendChild(svgEl('path',{d:`M${bx},${wy+4} L${bx},${wy+wh-4} L${bx+bw},${cy+wh*0.2} L${bx+bw},${cy-wh*0.2} Z`,fill:pal.fillUrl,stroke:pal.stroke,'stroke-width':2.5,'stroke-linejoin':'round','pointer-events':'none'}));_rtBolt(g,bx+6,wy+12);_rtBolt(g,bx+6,wy+wh-12);_rtBolt(g,bx+bw-8,cy);g.appendChild(svgEl('circle',{cx:bx+bw-10,cy:cy+10,r:2.5,fill:'#22c55e','data-anim':'led-blink','data-phase':'0.1','pointer-events':'none'}));},
   splitter(g,wx,wy,ww,wh,pal,def,unitId){const cx=wx+ww/2,cy=wy+wh/2;const pres=getPresentation(def,scene.units.get(unitId));const bx=wx+ww*0.15,bw=ww*0.5;_engStubs(g,wx,wy,ww,wh,bx,wy+4,bw,wh-8,def,pres);g.appendChild(svgEl('path',{d:`M${bx},${cy-wh*0.2} L${bx},${cy+wh*0.2} L${bx+bw},${wy+wh-4} L${bx+bw},${wy+4} Z`,fill:pal.fillUrl,stroke:pal.stroke,'stroke-width':2.5,'stroke-linejoin':'round','pointer-events':'none'}));_rtBolt(g,bx+6,cy);_rtBolt(g,bx+bw-6,wy+12);_rtBolt(g,bx+bw-6,wy+wh-12);g.appendChild(svgEl('text',{x:bx+bw*0.3,y:cy+4,'text-anchor':'middle','font-size':10,'font-weight':700,fill:_lighten(pal.stroke,0.5),opacity:.5,'pointer-events':'none','font-family':'Inter,system-ui'})).textContent='%';g.appendChild(svgEl('circle',{cx:bx+8,cy:cy+10,r:2.5,fill:'#22c55e','data-anim':'led-blink','data-phase':'0.9','pointer-events':'none'}));},
   distillation_column(g,wx,wy,ww,wh,pal,def,unitId){const cx=wx+ww/2;const bw=ww*0.5,bh=wh*0.9,bx=cx-bw/2,by=wy+wh*0.05;const pres=getPresentation(def,scene.units.get(unitId));_engStubs(g,wx,wy,ww,wh,bx,by,bw,bh,def,pres);g.appendChild(svgEl('rect',{x:bx,y:by,width:bw,height:bh,rx:bw*0.3,fill:pal.fillUrl,stroke:pal.stroke,'stroke-width':2.5,'pointer-events':'none'}));[0.2,0.35,0.5,0.65,0.8].forEach(f=>{g.appendChild(svgEl('line',{x1:bx+4,y1:by+bh*f,x2:bx+bw-4,y2:by+bh*f,stroke:pal.stroke,'stroke-width':1,opacity:.25,'pointer-events':'none'}));});_rtBolt(g,bx+6,by+8);_rtBolt(g,bx+bw-6,by+bh-8);g.appendChild(svgEl('rect',{x:cx+2,y:by+bh*0.15,width:5,height:bh*0.6,rx:2,fill:'#0a1a1a',stroke:pal.stroke,'stroke-width':1,'pointer-events':'none'}));g.appendChild(svgEl('rect',{x:cx+3,y:by+bh*0.5,width:3,height:bh*0.22,rx:1,fill:'#2dd4bf',opacity:.3,'data-anim':'level-shimmer','data-ybase':by+bh*0.5,'pointer-events':'none'}));g.appendChild(svgEl('circle',{cx:bx+8,cy:by+bh*0.15,r:2.5,fill:'#22c55e','data-anim':'led-blink','data-phase':'0.6','pointer-events':'none'}));},
@@ -25861,10 +26048,148 @@ const _RAGTAG_SYMBOLS = {
   reactor_cooled(g,wx,wy,ww,wh,pal,def,unitId){const cx=wx+ww/2;const bx=wx+6,by=wy+4,bw=ww-12,bh=wh*0.52;const pres=getPresentation(def,scene.units.get(unitId));_engStubs(g,wx,wy,ww,wh,bx,by,bw,wh-8,def,pres);g.appendChild(svgEl('rect',{x:bx,y:by,width:bw,height:bh,rx:10,fill:pal.fillUrl,stroke:pal.stroke,'stroke-width':2.5,'pointer-events':'none'}));_rtVp(g,cx,by+bh/2,ww*0.14,pal.rim);g.appendChild(svgEl('circle',{cx:cx-3,cy:by+bh/2,r:3,fill:'#fbbf24','data-anim':'reactor-bubble','data-ytop':by+bh/2-ww*0.1,'data-ybot':by+bh/2+ww*0.1,'data-phase':'0','data-speed':'0.6','pointer-events':'none'}));_rtBolt(g,bx+6,by+6);_rtBolt(g,bx+bw-6,by+bh-6);const coilY=by+bh+8;g.appendChild(svgEl('path',{d:`M${wx},${coilY+8} L${bx+4},${coilY+8} L${bx+4},${coilY} L${bx+14},${coilY} L${bx+14},${coilY+16} L${bx+24},${coilY+16} L${bx+24},${coilY} L${bx+34},${coilY} L${bx+34},${coilY+16} L${bx+44},${coilY+16} L${bx+44},${coilY} L${bx+bw-4},${coilY} L${bx+bw-4},${coilY+8} L${wx+ww},${coilY+8}`,fill:'none',stroke:'#93c5fd','stroke-width':2.5,'stroke-linecap':'round','stroke-linejoin':'round','pointer-events':'none'}));g.appendChild(svgEl('circle',{cx:bx+8,cy:by+8,r:2.5,fill:'#22c55e','data-anim':'led-blink','data-phase':'0.7','pointer-events':'none'}));},
   reactor_electrochemical(g,wx,wy,ww,wh,pal,def,unitId){const cx=wx+ww/2,cy=wy+wh/2;const bx=wx+8,by=wy+6,bw=ww-16,bh=wh-12;const pres=getPresentation(def,scene.units.get(unitId));_engStubs(g,wx,wy,ww,wh,bx,by,bw,bh,def,pres);g.appendChild(svgEl('rect',{x:bx,y:by,width:bw,height:bh,rx:6,fill:pal.fillUrl,stroke:pal.stroke,'stroke-width':2.5,'pointer-events':'none'}));g.appendChild(svgEl('line',{x1:bx+4,y1:cy,x2:bx+bw-4,y2:cy,stroke:pal.stroke,'stroke-width':2,'stroke-dasharray':'5 3',opacity:.5,'pointer-events':'none'}));g.appendChild(svgEl('rect',{x:bx+bw-10,y:by+bh*0.15,width:4,height:bh*0.28,rx:1,fill:'#fca5a5',opacity:.4,'pointer-events':'none'}));g.appendChild(svgEl('rect',{x:bx+bw-10,y:cy+bh*0.05,width:4,height:bh*0.28,rx:1,fill:'#fca5a5',opacity:.3,'pointer-events':'none'}));_rtBolt(g,bx+6,by+8);_rtBolt(g,bx+bw-6,by+bh-8);g.appendChild(svgEl('circle',{cx,cy:cy-bh*0.15,r:2.5,fill:'#fbbf24','data-anim':'reactor-bubble','data-ytop':by+6,'data-ybot':cy-4,'data-phase':'0','data-speed':'0.5','pointer-events':'none'}));g.appendChild(svgEl('circle',{cx,cy:cy+bh*0.15,r:2.5,fill:'#fbbf24','data-anim':'reactor-bubble','data-ytop':cy+4,'data-ybot':by+bh-6,'data-phase':'0.5','data-speed':'0.6','pointer-events':'none'}));g.appendChild(svgEl('circle',{cx:bx+8,cy:by+8,r:2.5,fill:'#f97316','data-anim':'led-blink','data-phase':'0.1','pointer-events':'none'}));},
   fuel_cell(g,wx,wy,ww,wh,pal,def,unitId){const cx=wx+ww/2;const bx=wx+8,by=wy+6,bw=ww-16,bh=wh*0.55;const pres=getPresentation(def,scene.units.get(unitId));_engStubs(g,wx,wy,ww,wh,bx,by,bw,wh-12,def,pres);g.appendChild(svgEl('rect',{x:bx,y:by,width:bw,height:bh,rx:6,fill:pal.fillUrl,stroke:pal.stroke,'stroke-width':2.5,'pointer-events':'none'}));[0.2,0.4,0.6,0.8].forEach(f=>{g.appendChild(svgEl('rect',{x:bx+6,y:by+bh*f-3,width:bw-12,height:6,rx:1,fill:_lighten(pal.stroke,0.5),opacity:.12,'pointer-events':'none'}));});_rtBolt(g,bx+6,by+6);_rtBolt(g,bx+bw-6,by+bh-6);const coilY=by+bh+10;g.appendChild(svgEl('path',{d:`M${wx},${coilY+8} L${bx+4},${coilY+8} L${bx+4},${coilY} L${bx+14},${coilY} L${bx+14},${coilY+16} L${bx+24},${coilY+16} L${bx+24},${coilY} L${bx+34},${coilY} L${bx+34},${coilY+16} L${bx+44},${coilY+16} L${bx+44},${coilY} L${bx+bw-4},${coilY} L${bx+bw-4},${coilY+8} L${wx+ww},${coilY+8}`,fill:'none',stroke:'#93c5fd','stroke-width':2.5,'stroke-linecap':'round','stroke-linejoin':'round','pointer-events':'none'}));g.appendChild(svgEl('circle',{cx:bx+bw-8,cy:by+bh-8,r:2.5,fill:'#22c55e','data-anim':'led-blink','data-phase':'0.4','pointer-events':'none'}));},
-  tank(g,wx,wy,ww,wh,pal,def,unitId){const cx=wx+ww/2,cy=wy+wh/2;const bx=wx+4,by=wy+6,bw=ww-8,bh=wh-18;const pres=getPresentation(def,scene.units.get(unitId));g.appendChild(svgEl('path',{d:`M${bx+10},${by+bh} L${bx+6},${by+bh+10} L${bx+20},${by+bh+10} L${bx+16},${by+bh}`,fill:'#4b5563',stroke:'#374151','stroke-width':1,'stroke-linejoin':'round','pointer-events':'none'}));g.appendChild(svgEl('path',{d:`M${bx+bw-18},${by+bh} L${bx+bw-22},${by+bh+10} L${bx+bw-8},${by+bh+10} L${bx+bw-12},${by+bh}`,fill:'#4b5563',stroke:'#374151','stroke-width':1,'stroke-linejoin':'round','pointer-events':'none'}));_engStubs(g,wx,wy,ww,wh,bx,by,bw,bh,def,pres);g.appendChild(svgEl('ellipse',{cx,cy:by+bh/2,rx:bw/2,ry:bh/2,fill:pal.fillUrl,stroke:pal.stroke,'stroke-width':2.5,'pointer-events':'none'}));_rtBolt(g,bx+bw*0.25,by+6);_rtBolt(g,bx+bw*0.75,by+bh-6);g.appendChild(svgEl('rect',{x:cx-3,y:by+bh*0.15,width:6,height:bh*0.65,rx:3,fill:'#0a1515',stroke:pal.stroke,'stroke-width':1,'pointer-events':'none'}));const _ud=scene.runtime?.unitData?.get(unitId);let fPct=_ud?.last?.fillPct;if(fPct==null||!Number.isFinite(fPct))fPct=50;fPct=Math.max(0,Math.min(100,fPct));const sgH=bh*0.6,sgTop=by+bh*0.18,fillH=sgH*fPct/100;if(fillH>0)g.appendChild(svgEl('rect',{x:cx-2,y:sgTop+sgH-fillH,width:4,height:fillH,rx:1.5,fill:'#22d3ee',opacity:.3,'data-anim':'level-shimmer','data-ybase':sgTop+sgH-fillH,'pointer-events':'none'}));g.appendChild(svgEl('circle',{cx:cx+bw*0.3,cy:by+bh*0.7,r:2.5,fill:'#22c55e','data-anim':'led-blink','data-phase':'0.8','pointer-events':'none'}));},
-  open_tank(g,wx,wy,ww,wh,pal,def,unitId){const cx=wx+ww/2;const bx=wx+6,by=wy+6,bw=ww-12,bh=wh-16;const pres=getPresentation(def,scene.units.get(unitId));g.appendChild(svgEl('path',{d:`M${bx+8},${by+bh} L${bx+4},${by+bh+10} L${bx+18},${by+bh+10} L${bx+14},${by+bh}`,fill:'#4b5563',stroke:'#374151','stroke-width':1,'stroke-linejoin':'round','pointer-events':'none'}));g.appendChild(svgEl('path',{d:`M${bx+bw-16},${by+bh} L${bx+bw-20},${by+bh+10} L${bx+bw-6},${by+bh+10} L${bx+bw-10},${by+bh}`,fill:'#4b5563',stroke:'#374151','stroke-width':1,'stroke-linejoin':'round','pointer-events':'none'}));_engStubs(g,wx,wy,ww,wh,bx,by,bw,bh,def,pres);g.appendChild(svgEl('path',{d:`M${bx},${by} L${bx},${by+bh*0.85} Q${bx},${by+bh} ${cx},${by+bh} Q${bx+bw},${by+bh} ${bx+bw},${by+bh*0.85} L${bx+bw},${by}`,fill:pal.fillUrl,stroke:pal.stroke,'stroke-width':2.5,'stroke-linecap':'round','pointer-events':'none'}));_rtBolt(g,bx+6,by+8);_rtBolt(g,bx+bw-6,by+8);g.appendChild(svgEl('rect',{x:bx+bw-14,y:by+bh*0.1,width:6,height:bh*0.7,rx:3,fill:'#0a1515',stroke:pal.stroke,'stroke-width':1,'pointer-events':'none'}));const _ud=scene.runtime?.unitData?.get(unitId);let fPct=_ud?.last?.fillPct;if(fPct==null||!Number.isFinite(fPct))fPct=50;fPct=Math.max(0,Math.min(100,fPct));const sgH=bh*0.65,sgTop=by+bh*0.12,fillH=sgH*fPct/100;if(fillH>0)g.appendChild(svgEl('rect',{x:bx+bw-13,y:sgTop+sgH-fillH,width:4,height:fillH,rx:1.5,fill:'#22d3ee',opacity:.3,'data-anim':'level-shimmer','data-ybase':sgTop+sgH-fillH,'pointer-events':'none'}));g.appendChild(svgEl('circle',{cx:bx+bw-8,cy:by+12,r:2.5,fill:'#22c55e','data-anim':'led-blink','data-phase':'0.3','pointer-events':'none'}));},
-  battery(g,wx,wy,ww,wh,pal,def,unitId){const cx=wx+ww/2,cy=wy+wh/2;const bx=wx+8,by=wy+12,bw=ww-16,bh=wh-16;const pres=getPresentation(def,scene.units.get(unitId));_engStubs(g,wx,wy,ww,wh,bx,by,bw,bh,def,pres);g.appendChild(svgEl('rect',{x:bx,y:by,width:bw,height:bh,rx:8,fill:pal.fillUrl,stroke:pal.stroke,'stroke-width':2.5,'pointer-events':'none'}));g.appendChild(svgEl('rect',{x:cx-10,y:by-6,width:20,height:8,rx:3,fill:'#4b5563',stroke:'#374151','stroke-width':1.5,'pointer-events':'none'}));_rtBolt(g,bx+6,by+6);_rtBolt(g,bx+bw-6,by+bh-6);[0,1,2].forEach(i=>{g.appendChild(svgEl('rect',{x:bx+8,y:by+bh-12-i*10,width:bw-16,height:6,rx:2,fill:'#fbbf24',opacity:i<2?.4:.1,'pointer-events':'none'}));});g.appendChild(svgEl('circle',{cx:bx+bw-8,cy:by+bh-8,r:2.5,fill:'#22c55e','data-anim':'led-blink','data-phase':'0.6','pointer-events':'none'}));},
-  power_hub(g,wx,wy,ww,wh,pal,def,unitId){const cx=wx+ww/2,cy=wy+wh/2;const bx=wx+6,by=wy+6,bw=ww-12,bh=wh-12;const pres=getPresentation(def,scene.units.get(unitId));_engStubs(g,wx,wy,ww,wh,bx,by,bw,bh,def,pres);g.appendChild(svgEl('rect',{x:bx,y:by,width:bw,height:bh,rx:6,fill:pal.fillUrl,stroke:pal.stroke,'stroke-width':2.5,'pointer-events':'none'}));_rtBolt(g,bx+6,by+6);_rtBolt(g,bx+bw-6,by+bh-6);g.appendChild(svgEl('line',{x1:bx+8,y1:cy,x2:bx+bw-8,y2:cy,stroke:'#fde047','stroke-width':3,opacity:.5,'pointer-events':'none'}));[cy-bh*0.25,cy,cy+bh*0.25].forEach((y,i)=>{g.appendChild(svgEl('line',{x1:bx+bw*0.3,y1:y-6,x2:bx+bw*0.3,y2:y+6,stroke:'#fde047','stroke-width':2,opacity:.4,'pointer-events':'none'}));g.appendChild(svgEl('circle',{cx:bx+bw*0.3,cy:y-8,r:2.5,fill:'#fde047',opacity:.3,'pointer-events':'none'}));});g.appendChild(svgEl('circle',{cx:bx+bw*0.65,cy:cy-bh*0.15,r:2.5,fill:'#22c55e','data-anim':'led-blink','data-phase':'0','pointer-events':'none'}));g.appendChild(svgEl('circle',{cx:bx+bw*0.65,cy:cy+bh*0.15,r:2.5,fill:'#22c55e','data-anim':'led-blink','data-phase':'0.33','pointer-events':'none'}));}
+  // ── Tank (sheet 391-405, 3×2, centered dy+4) ──
+  // 3×2 horizontal vessel with saddles, sight glass with data-driven level
+  tank(g, wx, wy, ww, wh, pal, def, unitId) {
+    const pres = getPresentation(def, scene.units.get(unitId));
+    // Saddles (behind body)
+    g.appendChild(svgEl('path', { d:`M${wx+24},${wy+80} L${wx+20},${wy+92} L${wx+36},${wy+92} L${wx+32},${wy+80}`, fill:'#4b5563', stroke:'#374151', 'stroke-width':1, 'stroke-linejoin':'round', 'pointer-events':'none' }));
+    g.appendChild(svgEl('path', { d:`M${wx+112},${wy+80} L${wx+108},${wy+92} L${wx+124},${wy+92} L${wx+120},${wy+80}`, fill:'#4b5563', stroke:'#374151', 'stroke-width':1, 'stroke-linejoin':'round', 'pointer-events':'none' }));
+    _rtNozzle(g, wx, wy, ww, wh, wx+4, wy+16, 136, 64, def, pres, pal, unitId);
+    // Body (capsule shape)
+    g.appendChild(svgEl('path', { d:`M${wx+18},${wy+16} Q${wx+4},${wy+16} ${wx+4},${wy+48} Q${wx+4},${wy+80} ${wx+18},${wy+80} L${wx+126},${wy+80} Q${wx+140},${wy+80} ${wx+140},${wy+48} Q${wx+140},${wy+16} ${wx+126},${wy+16} Z`, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'pointer-events':'none' }));
+    _rtChip(g, wx+110, wy+22, 10, 5);
+    _rtBoltS(g, wx+22, wy+48); _rtBoltS(g, wx+122, wy+48);
+    _rtBolt(g, wx+42, wy+20); _rtBolt(g, wx+102, wy+20);
+    _rtBolt(g, wx+42, wy+76); _rtBolt(g, wx+102, wy+76);
+    // Sight glass
+    g.appendChild(svgEl('rect', { x:wx+64, y:wy+22, width:10, height:52, rx:4, fill:'#0a1515', stroke:pal.stroke, 'stroke-width':1.5, 'pointer-events':'none' }));
+    // Data-driven level
+    const _ud = scene.runtime?.unitData?.get(unitId);
+    let fPct = _ud?.last?.fillPct;
+    if (fPct == null || !Number.isFinite(fPct)) fPct = 50;
+    fPct = Math.max(0, Math.min(100, fPct));
+    const sgH = 48, sgTop = wy + 24;
+    const fillH = sgH * fPct / 100;
+    if (fillH > 0) g.appendChild(svgEl('rect', { x:wx+66, y:sgTop+sgH-fillH, width:6, height:fillH, rx:2, fill:'#22d3ee', opacity:0.3, 'data-anim':'level-shimmer', 'data-ybase':sgTop+sgH-fillH, 'pointer-events':'none' }));
+    g.appendChild(svgEl('circle', { cx:wx+96, cy:wy+62, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.8', 'pointer-events':'none' }));
+  },
+  // ── Open Tank (sheet 407-423, 3×2, no offset) ──
+  // 3×2 U-shaped vessel with feet, right-side sight glass + tick marks, data-driven level
+  open_tank(g, wx, wy, ww, wh, pal, def, unitId) {
+    const pres = getPresentation(def, scene.units.get(unitId));
+    // Feet (behind body)
+    g.appendChild(svgEl('path', { d:`M${wx+24},${wy+72} L${wx+20},${wy+84} L${wx+36},${wy+84} L${wx+32},${wy+72}`, fill:'#4b5563', stroke:'#374151', 'stroke-width':1, 'stroke-linejoin':'round', 'pointer-events':'none' }));
+    g.appendChild(svgEl('path', { d:`M${wx+112},${wy+72} L${wx+108},${wy+84} L${wx+124},${wy+84} L${wx+120},${wy+72}`, fill:'#4b5563', stroke:'#374151', 'stroke-width':1, 'stroke-linejoin':'round', 'pointer-events':'none' }));
+    _rtNozzle(g, wx, wy, ww, wh, wx+14, wy+14, 116, 68, def, pres, pal, unitId);
+    // Body (open-top U-shape)
+    g.appendChild(svgEl('path', { d:`M${wx+14},${wy+14} L${wx+14},${wy+68} Q${wx+14},${wy+82} ${wx+72},${wy+82} Q${wx+130},${wy+82} ${wx+130},${wy+68} L${wx+130},${wy+14}`, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'stroke-linecap':'round', 'pointer-events':'none' }));
+    _rtChip(g, wx+108, wy+22, 10, 5);
+    _rtBolt(g, wx+22, wy+22); _rtBolt(g, wx+122, wy+22);
+    _rtBolt(g, wx+44, wy+76); _rtBolt(g, wx+100, wy+76);
+    // Sight glass (right side)
+    g.appendChild(svgEl('rect', { x:wx+92, y:wy+20, width:10, height:52, rx:4, fill:'#0a1515', stroke:pal.stroke, 'stroke-width':1.5, 'pointer-events':'none' }));
+    // Level tick marks
+    [28,38,48,58,66].forEach(y => g.appendChild(svgEl('line', { x1:wx+104, y1:wy+y, x2:wx+107, y2:wy+y, stroke:pal.stroke, 'stroke-width':0.8, opacity:0.3, 'pointer-events':'none' })));
+    // Data-driven level
+    const _ud = scene.runtime?.unitData?.get(unitId);
+    let fPct = _ud?.last?.fillPct;
+    if (fPct == null || !Number.isFinite(fPct)) fPct = 50;
+    fPct = Math.max(0, Math.min(100, fPct));
+    const sgH = 48, sgTop = wy + 22;
+    const fillH = sgH * fPct / 100;
+    if (fillH > 0) g.appendChild(svgEl('rect', { x:wx+94, y:sgTop+sgH-fillH, width:6, height:fillH, rx:2, fill:'#22d3ee', opacity:0.3, 'data-anim':'level-shimmer', 'data-ybase':sgTop+sgH-fillH, 'pointer-events':'none' }));
+    g.appendChild(svgEl('circle', { cx:wx+108, cy:wy+34, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.3', 'pointer-events':'none' }));
+  },
+  // ── Battery (sheet 447-458, centered dx+8) ──
+  // 2×2 body 52×60 rx:8, metal terminal cap, rect viewport with 3 charge bars
+  battery(g, wx, wy, ww, wh, pal, def, unitId) {
+    const pres = getPresentation(def, scene.units.get(unitId));
+    _rtNozzle(g, wx, wy, ww, wh, wx+22, wy+18, 52, 60, def, pres, pal, unitId);
+    g.appendChild(svgEl('rect', { x:wx+22, y:wy+18, width:52, height:60, rx:8, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'pointer-events':'none' }));
+    // Metal terminal cap on top
+    g.appendChild(svgEl('rect', { x:wx+36, y:wy+10, width:24, height:10, rx:4, fill:'#4b5563', stroke:'#374151', 'stroke-width':2, 'pointer-events':'none' }));
+    // Rectangular viewport
+    _rtVpR(g, wx+30, wy+28, 36, 42, '#1a1000', pal.rim);
+    // SOC-driven charge bars (bottom=bar1 y:56, mid=bar2 y:46, top=bar3 y:36)
+    const _ud = scene.runtime?.unitData?.get(unitId);
+    const soc = (_ud?.last?.soc ?? 0.5) * 100; // 0-100%
+    // <20: 1 red blink | 20-40: 1 bar, blinks | 40-60: 2 bars, bar2 blinks | 60-80: 3 bars, bar3 blinks | >80: 3 solid
+    const barY = [56, 46, 36]; // bottom to top
+    let nSolid, nBlink; // nSolid = full bars, nBlink = 0 or 1 (the blinking one is on top)
+    let barCol = '#fbbf24';
+    if (soc < 20) { nSolid = 0; nBlink = 1; barCol = '#ef4444'; }
+    else if (soc < 40) { nSolid = 0; nBlink = 1; }
+    else if (soc < 60) { nSolid = 1; nBlink = 1; }
+    else if (soc < 80) { nSolid = 2; nBlink = 1; }
+    else { nSolid = 3; nBlink = 0; }
+    for (let i = 0; i < nSolid; i++) {
+      g.appendChild(svgEl('rect', { x:wx+34, y:wy+barY[i], width:28, height:6, rx:2, fill:barCol, opacity:0.5, 'pointer-events':'none' }));
+    }
+    if (nBlink) {
+      const bi = nSolid; // index of the blinking bar
+      g.appendChild(svgEl('rect', { x:wx+34, y:wy+barY[bi], width:28, height:6, rx:2, fill:barCol,
+        'data-anim':'rotor-pulse', 'data-opbase':'0.3', 'data-amp':'0.2', 'data-speed':'0.8', 'data-phase':'0',
+        'pointer-events':'none' }));
+    }
+    // 4 small bolts
+    _rtBoltS(g, wx+28, wy+24); _rtBoltS(g, wx+68, wy+24);
+    _rtBoltS(g, wx+28, wy+72); _rtBoltS(g, wx+68, wy+72);
+    // Charging lightning bolt on terminal cap (mobile phone style)
+    if (_ud?.last?.status === 'charging') {
+      g.appendChild(svgEl('path', { d:`M${wx+46},${wy+6} L${wx+44},${wy+12} L${wx+49},${wy+12} L${wx+47},${wy+18}`,
+        fill:'none', stroke:'#fbbf24', 'stroke-width':2, 'stroke-linejoin':'round', 'stroke-linecap':'round',
+        'data-anim':'rotor-pulse', 'data-opbase':'0.6', 'data-amp':'0.25', 'data-speed':'1.2', 'data-phase':'0',
+        'pointer-events':'none' }));
+    }
+    g.appendChild(svgEl('circle', { cx:wx+64, cy:wy+68, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.6', 'pointer-events':'none' }));
+  },
+  // ── Power Hub (sheet 485-499, 2×3, no offset needed) ──
+  // 2×3 body 72×124 rx:6, rect viewport 56×108, 3 breakers, busbar, status LEDs, relays
+  power_hub(g, wx, wy, ww, wh, pal, def, unitId) {
+    const pres = getPresentation(def, scene.units.get(unitId));
+    _rtNozzle(g, wx, wy, ww, wh, wx+12, wy+10, 72, 124, def, pres, pal, unitId);
+    g.appendChild(svgEl('rect', { x:wx+12, y:wy+10, width:72, height:124, rx:6, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'pointer-events':'none' }));
+    _rtChip(g, wx+64, wy+18);
+    // Large rectangular viewport
+    _rtVpR(g, wx+20, wy+18, 56, 108, '#1a1000', pal.rim);
+    // 3 breaker lines (vertical bars, animated pulse)
+    [34,48,62].forEach((x, i) => {
+      g.appendChild(svgEl('line', { x1:wx+x, y1:wy+32, x2:wx+x, y2:wy+48, stroke:'#fde047', 'stroke-width':2.5, 'stroke-linecap':'round', 'data-anim':'rotor-pulse', 'data-opbase':'0.4', 'pointer-events':'none' }));
+      g.appendChild(svgEl('circle', { cx:wx+x, cy:wy+28, r:3, fill:'#fbbf24', opacity:0.3, 'pointer-events':'none' }));
+    });
+    // Horizontal busbar
+    g.appendChild(svgEl('line', { x1:wx+24, y1:wy+64, x2:wx+72, y2:wy+64, stroke:'#fde047', 'stroke-width':3, 'stroke-linecap':'round', opacity:0.4, 'pointer-events':'none' }));
+    // 3 status LEDs — turn red when curtailing
+    const _hubUd = scene.runtime?.unitData?.get(unitId);
+    const _curtailed = _hubUd?.last?.curtailed;
+    const _ledCol1 = _curtailed ? '#ef4444' : '#22c55e';
+    const _ledCol2 = _curtailed ? '#ef4444' : '#22c55e';
+    const _ledCol3 = _curtailed ? '#ef4444' : '#fbbf24';
+    g.appendChild(svgEl('circle', { cx:wx+34, cy:wy+84, r:3, fill:_ledCol1, 'data-anim':'led-blink', 'data-phase':'0', 'pointer-events':'none' }));
+    g.appendChild(svgEl('circle', { cx:wx+48, cy:wy+84, r:3, fill:_ledCol2, 'data-anim':'led-blink', 'data-phase':'0.33', 'pointer-events':'none' }));
+    g.appendChild(svgEl('circle', { cx:wx+62, cy:wy+84, r:3, fill:_ledCol3, 'data-anim':'rotor-pulse', 'data-opbase':'0.2', 'pointer-events':'none' }));
+    // Curtailment warning: red triangle + exclamation, pulsing
+    if (_curtailed) {
+      g.appendChild(svgEl('path', { d:`M${wx+48},${wy+92} L${wx+40},${wy+106} L${wx+56},${wy+106} Z`,
+        fill:'none', stroke:'#ef4444', 'stroke-width':1.5, 'stroke-linejoin':'round',
+        'data-anim':'rotor-pulse', 'data-opbase':'0.5', 'data-amp':'0.3', 'data-speed':'2', 'data-phase':'0',
+        'pointer-events':'none' }));
+      g.appendChild(svgEl('line', { x1:wx+48, y1:wy+96, x2:wx+48, y2:wy+101,
+        stroke:'#ef4444', 'stroke-width':2, 'stroke-linecap':'round',
+        'data-anim':'rotor-pulse', 'data-opbase':'0.5', 'data-amp':'0.3', 'data-speed':'2', 'data-phase':'0',
+        'pointer-events':'none' }));
+      g.appendChild(svgEl('circle', { cx:wx+48, cy:wy+104, r:1,
+        fill:'#ef4444',
+        'data-anim':'rotor-pulse', 'data-opbase':'0.5', 'data-amp':'0.3', 'data-speed':'2', 'data-phase':'0',
+        'pointer-events':'none' }));
+    }
+    // 3 relay blocks at bottom
+    [28,42,56].forEach(x => g.appendChild(svgEl('rect', { x:wx+x, y:wy+100, width:12, height:6, rx:1, fill:'#78350f', opacity:0.3, stroke:'#fde047', 'stroke-width':0.8, 'pointer-events':'none' })));
+    // 4 corner bolts
+    _rtBolt(g, wx+16, wy+16); _rtBolt(g, wx+80, wy+16);
+    _rtBolt(g, wx+16, wy+128); _rtBolt(g, wx+80, wy+128);
+  }
 };
 
 // ── ENGINEERING SYMBOLS ──
@@ -26367,6 +26692,15 @@ function drawUnits() {
       } // end if (!isDimmed)
 
       group.appendChild(circle);
+
+      // [v15.3.0] Ragtag: subtle hint dot at port position for reconnection UX
+      if (_rtPort) {
+        group.appendChild(svgEl('circle', {
+          cx: wp.x, cy: wp.y, r: 3,
+          fill: portVisuals.portColor, opacity: 0.15,
+          'pointer-events': 'none'
+        }));
+      }
 
       // [v12.15.1] Generic port label — rendered for any port with a `label` field
       if (p.label) {
@@ -26895,10 +27229,10 @@ function render() {
     svg.appendChild(marquee);
   }
 
-  // [v15.2.0 S-ICONS] Apply animation state immediately after rebuilding DOM
-  // so freshly created data-anim elements don't flash at static positions
-  if (ui.theme !== 'box' && SimSettings.animations && TimeClock.mode === 'playing') {
-    _updateIconAnimations(_computeAnimT());
+  // [v15.4.0 S-ICONS] Apply animation state after DOM rebuild
+  // Uses _lastAnimT from the decoupled rAF clock (playing) or frozen value (paused)
+  if (ui.theme !== 'box' && SimSettings.animations && _lastAnimT > 0) {
+    _updateIconAnimations(_lastAnimT);
   }
 }
 
@@ -30629,7 +30963,11 @@ function _rebuildInspectorContent() {
     // ── [v10.9.1] Layout variant selector (NNG-P4) ──
     if (def.presentations) {
       const theme = ui.theme || 'box';
-      const prefix = theme + '/';
+      let prefix = theme + '/';
+      // [v15.3.0] Fall back to box/ if current theme has no dedicated presentations
+      if (!Object.keys(def.presentations).some(k => k.startsWith(prefix))) {
+        prefix = 'box/';
+      }
       const variants = Object.keys(def.presentations)
         .filter(k => k.startsWith(prefix))
         .map(k => k.slice(prefix.length))
@@ -32321,39 +32659,41 @@ function _stopFlowArrows() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// [v15.2.0 S-ICONS Phase 2] Icon animation loop
-// Lightweight rAF that updates ONLY data-anim elements — no full render().
-// Runs during play when theme !== 'box' and SimSettings.animations is true.
-// animT = fractional frame counter = TimeClock.t / SimSettings.dt
+// [v15.4.0 S-ICONS] Decoupled icon animation clock
+// Purely cosmetic animations (impellers, bubbles, pistons, pulses, LEDs) run on
+// an accumulated rAF clock, completely independent of sim TimeClock.
+// This eliminates backward jumps at tick boundaries caused by frac/base desync.
+// Physics-driven properties (SOC, fill level, curtailment) are set at render time.
 // ═══════════════════════════════════════════════════════════════════════════════
 
 let _iconAnimRafId = null;
+let _animClockSec = 0;       // accumulated play-animation seconds
+let _animLastFrameTs = 0;    // rAF DOMHighResTimeStamp of previous frame (0 = break chain)
+let _lastAnimT = 0;          // last computed animT, reused on pause/drag for freeze-in-place
+const _ANIM_DELTA_CAP = 0.1; // 100ms — caps jump after solver blocking or tab background
 
-function _computeAnimT() {
-  // Interpolate between solver steps for smooth animation
-  const base = TimeClock.t / SimSettings.dt;
-  if (TimeClock.mode === 'playing' && _playStartedAt > 0) {
-    const elapsedMs = Date.now() - _playStartedAt;
-    const stepMs = PLAY_SPEEDS[SimSettings.playSpeed || 0];
-    const frac = Math.min(1, (elapsedMs % stepMs) / stepMs);
-    return base + frac;
-  }
-  return base;
-}
-
-function _iconAnimFrame() {
+function _iconAnimFrame(timestamp) {
   if (TimeClock.mode !== 'playing' || !SimSettings.animations || ui.theme === 'box') {
     _iconAnimRafId = null;
     return;
   }
-  const at = _computeAnimT();
-  _updateIconAnimations(at);
+  // Accumulate delta from rAF timestamp (monotonic, sub-ms precision)
+  if (_animLastFrameTs > 0) {
+    const deltaSec = Math.min(_ANIM_DELTA_CAP, (timestamp - _animLastFrameTs) / 1000);
+    _animClockSec += deltaSec;
+  }
+  _animLastFrameTs = timestamp;
+  // Convert to animT units: at 1× (5000ms/step) 5 wall-seconds = 1 animT unit
+  const stepSec = PLAY_SPEEDS[SimSettings.playSpeed || 0] / 1000;
+  _lastAnimT = _animClockSec / stepSec;
+  _updateIconAnimations(_lastAnimT);
   _iconAnimRafId = requestAnimationFrame(_iconAnimFrame);
 }
 
 function _startIconAnim() {
   if (ui.theme === 'box' || !SimSettings.animations) return;
   if (_iconAnimRafId) return; // already running
+  _animLastFrameTs = 0;      // break delta chain — first frame just records timestamp
   _iconAnimRafId = requestAnimationFrame(_iconAnimFrame);
 }
 
@@ -32362,6 +32702,7 @@ function _stopIconAnim() {
     cancelAnimationFrame(_iconAnimRafId);
     _iconAnimRafId = null;
   }
+  // _lastAnimT stays frozen for pause/drag reapplication
 }
 
 function _updateIconAnimations(at) {
@@ -32394,7 +32735,10 @@ function _updateIconAnimations(at) {
   // Grid supply rotor pulse
   for (const el of svg.querySelectorAll('[data-anim="rotor-pulse"]')) {
     const base = +el.dataset.opbase || 0.25;
-    const pulse = Math.sin(((at * 1.5) % 1) * Math.PI * 2) * 0.1;
+    const speed = +el.dataset.speed || 1.5;
+    const phase = +el.dataset.phase || 0;
+    const amp = +el.dataset.amp || 0.1;
+    const pulse = Math.sin(((at * speed + phase) % 1) * Math.PI * 2) * amp;
     el.setAttribute('opacity', (base + pulse).toFixed(2));
   }
 
@@ -32404,6 +32748,30 @@ function _updateIconAnimations(at) {
     const p = ((at * 1.5 + phase) % 1);
     const op = p < 0.9 ? 0.6 : 0.1;
     el.setAttribute('opacity', op.toFixed(2));
+  }
+
+  // [v15.3.0] Compressor piston reciprocation
+  for (const el of svg.querySelectorAll('[data-anim="piston-recip"]')) {
+    const baseX = +el.dataset.basex;
+    const amp = +el.dataset.amp || 6;
+    const speed = +el.dataset.speed || 1.5;
+    const phase = ((at * speed) % 1);
+    const dx = Math.sin(phase * Math.PI * 2) * amp;
+    el.setAttribute('x', (baseX + dx).toFixed(1));
+  }
+  // Crank connecting rod (x1 follows piston, x2 orbits crank center)
+  for (const el of svg.querySelectorAll('[data-anim="crank-rod"]')) {
+    const baseX1 = +el.dataset.basex1;
+    const cx2 = +el.dataset.cx2, cy2 = +el.dataset.cy2;
+    const rodLen = +el.dataset.rodlen || 5;
+    const amp = +el.dataset.amp || 6;
+    const speed = +el.dataset.speed || 1.5;
+    const phase = ((at * speed) % 1);
+    const angle = phase * Math.PI * 2;
+    const dx = Math.sin(angle) * amp;
+    el.setAttribute('x1', (baseX1 + dx).toFixed(1));
+    el.setAttribute('x2', (cx2 + Math.cos(angle) * rodLen).toFixed(1));
+    el.setAttribute('y2', (cy2 + Math.sin(angle) * rodLen).toFixed(1));
   }
 }
 
@@ -32717,6 +33085,11 @@ btnTheme.addEventListener('click', () => {
   btnTheme.textContent = _THEME_EMOJI[ui.theme];
   btnTheme.setAttribute('data-tip', `Theme: ${_THEME_LABEL[ui.theme]}`);
   render();
+  // [v15.3.0] Restart icon anim loop — theme switch kills rAF when going through box
+  if (TimeClock.mode === 'playing') {
+    _stopIconAnim();
+    _startIconAnim();
+  }
 });
 
 // [v13.5.0+v13.6.0] Planet background toggle — multi-planet animated backdrop
@@ -47892,12 +48265,12 @@ function runTests() {
     t.assertOK(typeof _startIconAnim === 'function', '_startIconAnim exists');
     t.assertOK(typeof _stopIconAnim === 'function', '_stopIconAnim exists');
     t.assertOK(typeof _updateIconAnimations === 'function', '_updateIconAnimations exists');
-    t.assertOK(typeof _computeAnimT === 'function', '_computeAnimT exists');
+    t.assertOK(typeof _iconAnimFrame === 'function', '_iconAnimFrame exists');
   });
 
-  test('552: S-ICONS Phase 2 — _computeAnimT returns number', t => {
-    const at = _computeAnimT();
-    t.assertOK(typeof at === 'number' && Number.isFinite(at), 'animT is finite number: ' + at);
+  test('552: S-ICONS Phase 2 — decoupled anim clock variables exist', t => {
+    t.assertOK(typeof _animClockSec === 'number' && Number.isFinite(_animClockSec), '_animClockSec is finite: ' + _animClockSec);
+    t.assertOK(typeof _lastAnimT === 'number' && Number.isFinite(_lastAnimT), '_lastAnimT is finite: ' + _lastAnimT);
   });
 
   test('553: S-ICONS Phase 3 — all real units have ragtag symbols', t => {
