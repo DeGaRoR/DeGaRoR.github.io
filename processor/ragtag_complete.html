@@ -1,0 +1,1156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>PTIS Ragtag — Complete 28-Unit Set</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0b0e14; color: #e2e8f0; font-family: 'Inter', system-ui, sans-serif; padding: 20px; }
+  @keyframes blink { 0%,90%,100% { opacity: 0.7; } 95% { opacity: 0.1; } }
+</style>
+</head>
+<body>
+
+<svg xmlns="http://www.w3.org/2000/svg" width="1140" height="1700">
+  <defs>
+    <pattern id="g" width="48" height="48" patternUnits="userSpaceOnUse">
+      <rect width="48" height="48" fill="none" stroke="#1e293b" stroke-width="0.5" opacity="0.15"/>
+    </pattern>
+    <linearGradient id="m" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#374151"/><stop offset="50%" stop-color="#4b5563"/><stop offset="100%" stop-color="#374151"/>
+    </linearGradient>
+    <linearGradient id="mH" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#374151"/><stop offset="40%" stop-color="#6b7280"/><stop offset="100%" stop-color="#374151"/>
+    </linearGradient>
+    <!-- Green (Boundary) -->
+    <linearGradient id="pG" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0%" stop-color="#059669"/><stop offset="50%" stop-color="#10b981"/><stop offset="100%" stop-color="#047857"/>
+    </linearGradient>
+    <!-- Purple (Pressure) -->
+    <linearGradient id="pP" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0%" stop-color="#7c3aed"/><stop offset="50%" stop-color="#8b5cf6"/><stop offset="100%" stop-color="#6d28d9"/>
+    </linearGradient>
+    <!-- Blue (Heat Transfer) -->
+    <linearGradient id="pB" x1="0" y1="0" x2="0.2" y2="1">
+      <stop offset="0%" stop-color="#2563eb"/><stop offset="50%" stop-color="#3b82f6"/><stop offset="100%" stop-color="#1d4ed8"/>
+    </linearGradient>
+    <!-- Teal (Separation) -->
+    <linearGradient id="pT" x1="0" y1="0" x2="0.2" y2="1">
+      <stop offset="0%" stop-color="#0d9488"/><stop offset="50%" stop-color="#14b8a6"/><stop offset="100%" stop-color="#0f766e"/>
+    </linearGradient>
+    <!-- Red (Reactor) -->
+    <linearGradient id="pR" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0%" stop-color="#dc2626"/><stop offset="50%" stop-color="#ef4444"/><stop offset="100%" stop-color="#b91c1c"/>
+    </linearGradient>
+    <!-- Cyan (Storage) -->
+    <linearGradient id="pC" x1="0" y1="0" x2="0.2" y2="1">
+      <stop offset="0%" stop-color="#0891b2"/><stop offset="50%" stop-color="#06b6d4"/><stop offset="100%" stop-color="#0e7490"/>
+    </linearGradient>
+    <!-- Amber (Power) -->
+    <linearGradient id="pA" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0%" stop-color="#d97706"/><stop offset="50%" stop-color="#f59e0b"/><stop offset="100%" stop-color="#b45309"/>
+    </linearGradient>
+    <clipPath id="ct"><path d="M28,12 Q8,12 8,48 Q8,84 28,84 L116,84 Q136,84 136,48 Q136,12 116,12 Z"/></clipPath>
+    <clipPath id="co"><path d="M14,14 L14,68 Q14,82 72,82 Q130,82 130,68 L130,14 Z"/></clipPath>
+  </defs>
+
+  <rect width="1140" height="1700" fill="#0b0e14"/>
+  <rect width="1140" height="1700" fill="url(#g)"/>
+  <text x="16" y="20" font-size="16" font-weight="700" fill="#e2e8f0" font-family="Inter, system-ui">PTIS — Ragtag Theme — Complete 28-Unit Set</text>
+  <text x="16" y="36" font-size="10" fill="#64748b" font-family="Inter, system-ui">Crash-salvage painted by category · Viewports into internals · Bare metal pipes/bolts · Status LEDs · 7 categories</text>
+
+  <!-- ═══════ SHEET 1 CONTENT (Boundary + Pressure) ═══════ -->
+  <g transform="translate(0, 30)">
+  <!-- ════════ BOUNDARY (green) ════════ -->
+  <rect x="12" y="34" width="1116" height="16" rx="3" fill="#10b981" opacity="0.06"/>
+  <text x="20" y="46" font-size="10" font-weight="700" fill="#6ee7b7" font-family="Inter, system-ui">BOUNDARY</text>
+
+  <!-- SOURCE 2×2 -->
+  <g transform="translate(24, 60)">
+    <!-- Painted circle body -->
+    <circle cx="38" cy="48" r="28" fill="url(#pG)" stroke="#065f46" stroke-width="2.5"/>
+    <!-- Paint chip -->
+    <rect x="50" y="30" width="8" height="5" rx="2" fill="url(#m)" opacity="0.6"/>
+    <!-- Viewport -->
+    <circle cx="38" cy="48" r="14" fill="#052e16" stroke="#065f46" stroke-width="2"/>
+    <!-- Flow arrow inside viewport -->
+    <line x1="30" y1="48" x2="44" y2="48" stroke="#6ee7b7" stroke-width="2.5" opacity="0.5" stroke-linecap="round"/>
+    <polygon points="42,44 48,48 42,52" fill="#6ee7b7" opacity="0.5"/>
+    <!-- Glass highlight -->
+    <path d="M32,42 Q34,40 36,42" fill="none" stroke="#fff" stroke-width="0.8" opacity="0.12"/>
+    <!-- Bolts -->
+    <circle cx="16" cy="34" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <circle cx="60" cy="34" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <circle cx="16" cy="62" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <circle cx="60" cy="62" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <!-- Pipe stub -->
+    <rect x="64" y="42" width="32" height="12" rx="4" fill="url(#mH)" stroke="#4b5563" stroke-width="2"/>
+    <circle cx="66" cy="46" r="1.5" fill="#374151"/><circle cx="66" cy="50" r="1.5" fill="#374151"/>
+    <!-- LED -->
+    <circle cx="54" cy="66" r="2.5" fill="#22c55e" opacity="0.7" style="animation: blink 3s infinite"/>
+    <!-- Scratch -->
+    <line x1="22" y1="56" x2="30" y2="58" stroke="#065f46" stroke-width="0.7" opacity="0.4"/>
+    <text x="48" y="100" text-anchor="middle" font-size="8" font-weight="600" fill="#6ee7b7" font-family="Inter, system-ui">Source</text>
+  </g>
+
+  <!-- ATM INTAKE 2×2 -->
+  <g transform="translate(148, 60)">
+    <!-- Painted funnel body -->
+    <path d="M8,14 L8,82 L64,64 L64,32 Z" fill="url(#pG)" stroke="#065f46" stroke-width="2.5" stroke-linejoin="round"/>
+    <!-- Paint chip -->
+    <rect x="42" y="38" width="8" height="4" rx="1" fill="url(#m)" opacity="0.5"/>
+    <!-- Open mouth (dashed = open to atmosphere) -->
+    <line x1="8" y1="14" x2="8" y2="82" stroke="#065f46" stroke-width="2" stroke-dasharray="4 4" opacity="0.5"/>
+    <!-- Mesh/screen across mouth -->
+    <line x1="10" y1="26" x2="10" y2="70" stroke="#6ee7b7" stroke-width="0.8" opacity="0.2"/>
+    <line x1="14" y1="22" x2="14" y2="74" stroke="#6ee7b7" stroke-width="0.8" opacity="0.2"/>
+    <!-- Intake flow lines -->
+    <line x1="18" y1="38" x2="48" y2="44" stroke="#6ee7b7" stroke-width="1" opacity="0.15"/>
+    <line x1="18" y1="48" x2="48" y2="48" stroke="#6ee7b7" stroke-width="1" opacity="0.15"/>
+    <line x1="18" y1="58" x2="48" y2="52" stroke="#6ee7b7" stroke-width="1" opacity="0.15"/>
+    <!-- Bolts on funnel body -->
+    <circle cx="48" cy="36" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <circle cx="48" cy="60" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <!-- Pipe stub -->
+    <rect x="62" y="42" width="34" height="12" rx="4" fill="url(#mH)" stroke="#4b5563" stroke-width="2"/>
+    <!-- LED -->
+    <circle cx="36" cy="68" r="2.5" fill="#22c55e" opacity="0.7" style="animation: blink 4s infinite 1s"/>
+    <text x="48" y="100" text-anchor="middle" font-size="8" font-weight="600" fill="#6ee7b7" font-family="Inter, system-ui">Atm. Intake</text>
+  </g>
+
+  <!-- SINK 2×2 -->
+  <g transform="translate(272, 60)">
+    <!-- Stack body (painted green) -->
+    <rect x="32" y="6" width="32" height="68" rx="4" fill="url(#pG)" stroke="#065f46" stroke-width="2.5"/>
+    <!-- Paint chip -->
+    <rect x="52" y="20" width="6" height="4" rx="1" fill="url(#m)" opacity="0.5"/>
+    <!-- Stack top rim -->
+    <rect x="28" y="4" width="40" height="6" rx="2" fill="url(#mH)" stroke="#4b5563" stroke-width="1.5"/>
+    <!-- Rain cap -->
+    <path d="M30,2 L48,-2 L66,2" fill="none" stroke="#4b5563" stroke-width="2" stroke-linecap="round"/>
+    <!-- Base plate -->
+    <rect x="24" y="74" width="48" height="8" rx="2" fill="url(#m)" stroke="#4b5563" stroke-width="1.5"/>
+    <circle cx="30" cy="78" r="1.5" fill="#1f2937" stroke="#6b7280" stroke-width="0.8"/>
+    <circle cx="66" cy="78" r="1.5" fill="#1f2937" stroke="#6b7280" stroke-width="0.8"/>
+    <!-- Feet -->
+    <line x1="28" y1="82" x2="24" y2="90" stroke="#4b5563" stroke-width="1.5"/>
+    <line x1="68" y1="82" x2="72" y2="90" stroke="#4b5563" stroke-width="1.5"/>
+    <line x1="20" y1="90" x2="76" y2="90" stroke="#4b5563" stroke-width="1.5" stroke-linecap="round"/>
+    <!-- Bolts on stack -->
+    <circle cx="36" cy="16" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <circle cx="60" cy="16" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <circle cx="36" cy="62" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <circle cx="60" cy="62" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <!-- Inlet pipe -->
+    <rect x="-4" y="42" width="38" height="12" rx="4" fill="url(#mH)" stroke="#4b5563" stroke-width="2"/>
+    <!-- Smoke puffs -->
+    <circle cx="48" cy="-8" r="4" fill="#6b7280" opacity="0.10"/>
+    <circle cx="44" cy="-16" r="5" fill="#6b7280" opacity="0.06"/>
+    <!-- LED -->
+    <circle cx="56" cy="56" r="2.5" fill="#22c55e" opacity="0.7" style="animation: blink 5s infinite 2s"/>
+    <text x="48" y="100" text-anchor="middle" font-size="8" font-weight="600" fill="#6ee7b7" font-family="Inter, system-ui">Sink</text>
+  </g>
+
+  <!-- RESERVOIR 2×2 (simplified wellhead, painted green) -->
+  <g transform="translate(396, 60)">
+    <!-- Ground line -->
+    <line x1="10" y1="72" x2="70" y2="72" stroke="#4b5563" stroke-width="2" stroke-linecap="round"/>
+    <!-- Hatch below -->
+    <line x1="16" y1="76" x2="24" y2="84" stroke="#4b5563" stroke-width="0.8" opacity="0.12"/>
+    <line x1="28" y1="76" x2="36" y2="84" stroke="#4b5563" stroke-width="0.8" opacity="0.12"/>
+    <line x1="40" y1="76" x2="48" y2="84" stroke="#4b5563" stroke-width="0.8" opacity="0.12"/>
+    <line x1="52" y1="76" x2="60" y2="84" stroke="#4b5563" stroke-width="0.8" opacity="0.12"/>
+    <!-- Casing below ground -->
+    <line x1="40" y1="72" x2="40" y2="88" stroke="#4b5563" stroke-width="4" opacity="0.3"/>
+    <!-- Vertical bore (painted green) -->
+    <rect x="34" y="36" width="12" height="36" rx="2" fill="url(#pG)" stroke="#065f46" stroke-width="2"/>
+    <!-- Master valves (circles) -->
+    <circle cx="40" cy="62" r="5" fill="#059669" stroke="#065f46" stroke-width="2"/>
+    <circle cx="40" cy="62" r="2" fill="#065f46" opacity="0.5"/>
+    <circle cx="40" cy="50" r="5" fill="#059669" stroke="#065f46" stroke-width="2"/>
+    <circle cx="40" cy="50" r="2" fill="#065f46" opacity="0.5"/>
+    <!-- Cross block (painted) -->
+    <rect x="28" y="32" width="24" height="10" rx="3" fill="url(#pG)" stroke="#065f46" stroke-width="2"/>
+    <!-- Wing stubs -->
+    <line x1="28" y1="37" x2="12" y2="37" stroke="#065f46" stroke-width="3"/>
+    <circle cx="20" cy="37" r="4" fill="#059669" stroke="#065f46" stroke-width="1.5"/>
+    <circle cx="20" cy="37" r="1.5" fill="#065f46" opacity="0.5"/>
+    <rect x="6" y="33" width="5" height="8" rx="1" fill="url(#m)" opacity="0.5"/>
+    <line x1="52" y1="37" x2="68" y2="37" stroke="#065f46" stroke-width="3"/>
+    <circle cx="60" cy="37" r="4" fill="#059669" stroke="#065f46" stroke-width="1.5"/>
+    <circle cx="60" cy="37" r="1.5" fill="#065f46" opacity="0.5"/>
+    <!-- Flow line to port -->
+    <rect x="68" y="34" width="28" height="10" rx="3" fill="url(#mH)" stroke="#4b5563" stroke-width="1.5"/>
+    <!-- Top spool + cap -->
+    <line x1="40" y1="32" x2="40" y2="16" stroke="#065f46" stroke-width="4"/>
+    <circle cx="40" cy="20" r="4" fill="#059669" stroke="#065f46" stroke-width="1.5"/>
+    <circle cx="40" cy="20" r="1.5" fill="#065f46" opacity="0.5"/>
+    <rect x="34" y="6" width="12" height="8" rx="3" fill="url(#pG)" stroke="#065f46" stroke-width="1.5"/>
+    <line x1="32" y1="6" x2="48" y2="6" stroke="#4b5563" stroke-width="1.5" stroke-linecap="round"/>
+    <!-- Paint chip -->
+    <rect x="44" y="40" width="5" height="3" rx="1" fill="url(#m)" opacity="0.5"/>
+    <!-- LED -->
+    <circle cx="60" cy="48" r="2.5" fill="#22c55e" opacity="0.7" style="animation: blink 4s infinite 3s"/>
+    <text x="48" y="100" text-anchor="middle" font-size="8" font-weight="600" fill="#6ee7b7" font-family="Inter, system-ui">Reservoir</text>
+  </g>
+
+
+  <!-- ════════ PRESSURE (purple) ════════ -->
+  <rect x="12" y="182" width="1116" height="16" rx="3" fill="#8b5cf6" opacity="0.06"/>
+  <text x="20" y="194" font-size="10" font-weight="700" fill="#c4b5fd" font-family="Inter, system-ui">PRESSURE</text>
+
+  <!-- PUMP 2×2 (same as concept) -->
+  <g transform="translate(24, 208)">
+    <rect x="10" y="74" width="76" height="10" rx="2" fill="url(#m)" stroke="#4b5563" stroke-width="1.5"/>
+    <circle cx="18" cy="79" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <circle cx="78" cy="79" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <rect x="14" y="16" width="58" height="58" rx="10" fill="url(#pP)" stroke="#4c1d95" stroke-width="2.5"/>
+    <rect x="56" y="22" width="10" height="6" rx="2" fill="url(#m)" opacity="0.7"/>
+    <rect x="18" y="58" width="7" height="4" rx="1" fill="url(#m)" opacity="0.5"/>
+    <line x1="14" y1="44" x2="72" y2="44" stroke="#4c1d95" stroke-width="1" opacity="0.5"/>
+    <circle cx="20" cy="22" r="2.5" fill="#1f2937" stroke="#6b7280" stroke-width="1.2"/>
+    <circle cx="66" cy="22" r="2.5" fill="#1f2937" stroke="#6b7280" stroke-width="1.2"/>
+    <circle cx="20" cy="66" r="2.5" fill="#1f2937" stroke="#6b7280" stroke-width="1.2"/>
+    <circle cx="66" cy="66" r="2.5" fill="#1f2937" stroke="#6b7280" stroke-width="1.2"/>
+    <circle cx="43" cy="36" r="13" fill="#0f0820" stroke="#4c1d95" stroke-width="2"/>
+    <line x1="43" y1="25" x2="43" y2="47" stroke="#c4b5fd" stroke-width="2" opacity="0.5" stroke-linecap="round"/>
+    <line x1="32" y1="36" x2="54" y2="36" stroke="#c4b5fd" stroke-width="2" opacity="0.5" stroke-linecap="round"/>
+    <line x1="35" y1="29" x2="51" y2="43" stroke="#c4b5fd" stroke-width="1.5" opacity="0.4" stroke-linecap="round"/>
+    <line x1="35" y1="43" x2="51" y2="29" stroke="#c4b5fd" stroke-width="1.5" opacity="0.4" stroke-linecap="round"/>
+    <circle cx="43" cy="36" r="3.5" fill="#a78bfa" opacity="0.5"/>
+    <path d="M37,30 Q39,28 41,30" fill="none" stroke="#fff" stroke-width="0.8" opacity="0.12"/>
+    <rect x="-4" y="38" width="20" height="14" rx="5" fill="url(#mH)" stroke="#4b5563" stroke-width="2"/>
+    <rect x="70" y="38" width="28" height="14" rx="5" fill="url(#mH)" stroke="#4b5563" stroke-width="2"/>
+    <circle cx="14" cy="42" r="1.5" fill="#374151"/><circle cx="14" cy="48" r="1.5" fill="#374151"/>
+    <circle cx="72" cy="42" r="1.5" fill="#374151"/><circle cx="72" cy="48" r="1.5" fill="#374151"/>
+    <rect x="30" y="2" width="26" height="16" rx="6" fill="url(#pP)" stroke="#4c1d95" stroke-width="2"/>
+    <line x1="35" y1="6" x2="35" y2="14" stroke="#4c1d95" stroke-width="1.5" opacity="0.5"/>
+    <line x1="39" y1="6" x2="39" y2="14" stroke="#4c1d95" stroke-width="1.5" opacity="0.5"/>
+    <line x1="43" y1="6" x2="43" y2="14" stroke="#4c1d95" stroke-width="1.5" opacity="0.5"/>
+    <line x1="47" y1="6" x2="47" y2="14" stroke="#4c1d95" stroke-width="1.5" opacity="0.5"/>
+    <line x1="51" y1="6" x2="51" y2="14" stroke="#4c1d95" stroke-width="1.5" opacity="0.5"/>
+    <circle cx="62" cy="56" r="2.5" fill="#22c55e" opacity="0.7" style="animation: blink 3s infinite"/>
+    <text x="48" y="100" text-anchor="middle" font-size="8" font-weight="600" fill="#c4b5fd" font-family="Inter, system-ui">Pump</text>
+  </g>
+
+  <!-- COMPRESSOR (piston) 2×2 -->
+  <g transform="translate(148, 208)">
+    <rect x="8" y="74" width="80" height="10" rx="2" fill="url(#m)" stroke="#4b5563" stroke-width="1.5"/>
+    <circle cx="16" cy="79" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <circle cx="80" cy="79" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <!-- Cylinder body (painted purple) -->
+    <rect x="10" y="18" width="60" height="48" rx="6" fill="url(#pP)" stroke="#4c1d95" stroke-width="2.5"/>
+    <!-- Paint chip -->
+    <rect x="52" y="24" width="8" height="4" rx="1" fill="url(#m)" opacity="0.6"/>
+    <!-- Viewport (see piston inside) -->
+    <rect x="24" y="28" width="32" height="28" rx="6" fill="#0f0820" stroke="#4c1d95" stroke-width="2"/>
+    <!-- Piston visible -->
+    <rect x="42" y="32" width="6" height="20" rx="1.5" fill="#c4b5fd" opacity="0.3"/>
+    <line x1="48" y1="42" x2="58" y2="50" stroke="#c4b5fd" stroke-width="1.5" opacity="0.3"/>
+    <!-- Crank circle visible -->
+    <circle cx="62" cy="52" r="5" fill="none" stroke="#c4b5fd" stroke-width="1.5" opacity="0.3"/>
+    <!-- Glass highlight -->
+    <path d="M28,32 Q32,30 36,32" fill="none" stroke="#fff" stroke-width="0.8" opacity="0.1"/>
+    <!-- Bolts -->
+    <circle cx="16" cy="24" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <circle cx="64" cy="24" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <circle cx="16" cy="60" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <circle cx="64" cy="60" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <!-- Pipes -->
+    <rect x="-4" y="38" width="16" height="12" rx="4" fill="url(#mH)" stroke="#4b5563" stroke-width="2"/>
+    <rect x="68" y="38" width="28" height="12" rx="4" fill="url(#mH)" stroke="#4b5563" stroke-width="2"/>
+    <!-- Motor top (painted) -->
+    <rect x="30" y="4" width="26" height="16" rx="5" fill="url(#pP)" stroke="#4c1d95" stroke-width="2"/>
+    <line x1="35" y1="8" x2="35" y2="16" stroke="#4c1d95" stroke-width="1.5" opacity="0.5"/>
+    <line x1="39" y1="8" x2="39" y2="16" stroke="#4c1d95" stroke-width="1.5" opacity="0.5"/>
+    <line x1="43" y1="8" x2="43" y2="16" stroke="#4c1d95" stroke-width="1.5" opacity="0.5"/>
+    <line x1="47" y1="8" x2="47" y2="16" stroke="#4c1d95" stroke-width="1.5" opacity="0.5"/>
+    <line x1="51" y1="8" x2="51" y2="16" stroke="#4c1d95" stroke-width="1.5" opacity="0.5"/>
+    <!-- LED -->
+    <circle cx="60" cy="56" r="2.5" fill="#22c55e" opacity="0.7" style="animation: blink 3.5s infinite 0.5s"/>
+    <text x="48" y="100" text-anchor="middle" font-size="8" font-weight="600" fill="#c4b5fd" font-family="Inter, system-ui">Compressor</text>
+  </g>
+
+  <!-- VALVE 2×2 -->
+  <g transform="translate(272, 208)">
+    <!-- Bowtie body (painted purple) -->
+    <polygon points="24,28 48,48 24,68" fill="url(#pP)" stroke="#4c1d95" stroke-width="2.5" stroke-linejoin="round"/>
+    <polygon points="72,28 48,48 72,68" fill="url(#pP)" stroke="#4c1d95" stroke-width="2.5" stroke-linejoin="round"/>
+    <!-- Paint chip on triangle -->
+    <rect x="56" y="34" width="6" height="4" rx="1" fill="url(#m)" opacity="0.5"/>
+    <!-- Stem (bare metal) -->
+    <rect x="44" y="22" width="8" height="26" rx="2" fill="url(#mH)" stroke="#4b5563" stroke-width="1.5"/>
+    <!-- Handwheel -->
+    <circle cx="48" cy="18" r="8" fill="url(#m)" stroke="#4b5563" stroke-width="2"/>
+    <circle cx="48" cy="18" r="3" fill="#1f2937" stroke="#4b5563" stroke-width="1"/>
+    <!-- Spokes -->
+    <line x1="48" y1="12" x2="48" y2="24" stroke="#4b5563" stroke-width="1.5"/>
+    <line x1="42" y1="18" x2="54" y2="18" stroke="#4b5563" stroke-width="1.5"/>
+    <!-- Pipes -->
+    <rect x="-4" y="42" width="30" height="12" rx="4" fill="url(#mH)" stroke="#4b5563" stroke-width="2"/>
+    <rect x="70" y="42" width="28" height="12" rx="4" fill="url(#mH)" stroke="#4b5563" stroke-width="2"/>
+    <!-- Flange bolts -->
+    <circle cx="24" cy="46" r="1.5" fill="#374151"/><circle cx="24" cy="50" r="1.5" fill="#374151"/>
+    <circle cx="72" cy="46" r="1.5" fill="#374151"/><circle cx="72" cy="50" r="1.5" fill="#374151"/>
+    <!-- LED -->
+    <circle cx="66" cy="62" r="2.5" fill="#22c55e" opacity="0.7" style="animation: blink 6s infinite 1s"/>
+    <!-- Scratch -->
+    <line x1="30" y1="56" x2="38" y2="58" stroke="#4c1d95" stroke-width="0.7" opacity="0.3"/>
+    <text x="48" y="100" text-anchor="middle" font-size="8" font-weight="600" fill="#c4b5fd" font-family="Inter, system-ui">Valve</text>
+  </g>
+
+  <!-- RESTRICTION 2×2 -->
+  <g transform="translate(396, 208)">
+    <!-- The plate itself (painted purple, vertical) -->
+    <rect x="40" y="16" width="16" height="64" rx="3" fill="url(#pP)" stroke="#4c1d95" stroke-width="2.5"/>
+    <!-- The HOLE (dark cutout in the middle) -->
+    <ellipse cx="48" cy="48" rx="5" ry="12" fill="#0b0e14" stroke="#4c1d95" stroke-width="1.5"/>
+    <!-- Paint chip on plate -->
+    <rect x="44" y="22" width="6" height="4" rx="1" fill="url(#m)" opacity="0.5"/>
+    <!-- Pipes -->
+    <rect x="-4" y="42" width="46" height="12" rx="4" fill="url(#mH)" stroke="#4b5563" stroke-width="2"/>
+    <rect x="54" y="42" width="44" height="12" rx="4" fill="url(#mH)" stroke="#4b5563" stroke-width="2"/>
+    <!-- Flange bolts where pipe meets plate -->
+    <circle cx="40" cy="42" r="1.5" fill="#374151"/><circle cx="40" cy="52" r="1.5" fill="#374151"/>
+    <circle cx="56" cy="42" r="1.5" fill="#374151"/><circle cx="56" cy="52" r="1.5" fill="#374151"/>
+    <!-- Bolts on plate corners -->
+    <circle cx="44" cy="20" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <circle cx="52" cy="20" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <circle cx="44" cy="76" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <circle cx="52" cy="76" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <!-- LED -->
+    <circle cx="32" cy="28" r="2.5" fill="#22c55e" opacity="0.7" style="animation: blink 5s infinite 2.5s"/>
+    <text x="48" y="100" text-anchor="middle" font-size="8" font-weight="600" fill="#c4b5fd" font-family="Inter, system-ui">Restriction</text>
+  </g>
+
+  <!-- GAS TURBINE 2×2 -->
+  <g transform="translate(520, 208)">
+    <rect x="6" y="74" width="84" height="10" rx="2" fill="url(#m)" stroke="#4b5563" stroke-width="1.5"/>
+    <circle cx="14" cy="79" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <circle cx="82" cy="79" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <!-- Housing (painted purple) -->
+    <rect x="14" y="16" width="68" height="52" rx="8" fill="url(#pP)" stroke="#4c1d95" stroke-width="2.5"/>
+    <!-- Paint chip -->
+    <rect x="64" y="22" width="8" height="4" rx="1" fill="url(#m)" opacity="0.6"/>
+    <!-- Viewport (see blade rows) -->
+    <rect x="24" y="24" width="48" height="36" rx="6" fill="#0f0820" stroke="#4c1d95" stroke-width="2"/>
+    <!-- Blade cascade visible through glass -->
+    <line x1="36" y1="28" x2="32" y2="56" stroke="#c4b5fd" stroke-width="2" opacity="0.4" stroke-linecap="round"/>
+    <line x1="48" y1="28" x2="44" y2="56" stroke="#c4b5fd" stroke-width="2" opacity="0.4" stroke-linecap="round"/>
+    <line x1="60" y1="28" x2="56" y2="56" stroke="#c4b5fd" stroke-width="2" opacity="0.4" stroke-linecap="round"/>
+    <!-- Shaft -->
+    <line x1="28" y1="42" x2="68" y2="42" stroke="#c4b5fd" stroke-width="2.5" stroke-linecap="round" opacity="0.4"/>
+    <!-- Glass highlight -->
+    <path d="M28,28 Q32,26 36,28" fill="none" stroke="#fff" stroke-width="0.8" opacity="0.1"/>
+    <!-- Bolts -->
+    <circle cx="20" cy="22" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <circle cx="76" cy="22" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <circle cx="20" cy="62" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <circle cx="76" cy="62" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <!-- Pipes -->
+    <rect x="-4" y="36" width="20" height="12" rx="4" fill="url(#mH)" stroke="#4b5563" stroke-width="2"/>
+    <rect x="80" y="36" width="18" height="12" rx="4" fill="url(#mH)" stroke="#4b5563" stroke-width="2"/>
+    <!-- Power shaft out bottom (amber colored terminal) -->
+    <rect x="42" y="66" width="12" height="28" rx="3" fill="#78350f" stroke="#92400e" stroke-width="2"/>
+    <circle cx="48" cy="74" r="3" fill="#fbbf24" opacity="0.3"/>
+    <!-- LED -->
+    <circle cx="28" cy="58" r="2.5" fill="#22c55e" opacity="0.7" style="animation: blink 3s infinite 1.5s"/>
+    <text x="48" y="100" text-anchor="middle" font-size="8" font-weight="600" fill="#c4b5fd" font-family="Inter, system-ui">Gas Turbine</text>
+  </g>
+
+  <!-- COMPRESSOR DIAPHRAGM 2×3 -->
+  <g transform="translate(644, 208)">
+    <!-- Container -->
+    <rect x="-2" y="-2" width="100" height="148" rx="4" fill="none" stroke="#4c1d95" stroke-width="1" stroke-dasharray="4 3" opacity="0.12"/>
+    <!-- Compression chamber (painted purple, top section) -->
+    <rect x="14" y="8" width="68" height="64" rx="8" fill="url(#pP)" stroke="#4c1d95" stroke-width="2.5"/>
+    <!-- Paint chip -->
+    <rect x="64" y="16" width="8" height="4" rx="1" fill="url(#m)" opacity="0.6"/>
+    <!-- Viewport -->
+    <rect x="24" y="16" width="48" height="48" rx="6" fill="#0f0820" stroke="#4c1d95" stroke-width="2"/>
+    <!-- Diaphragm membrane visible -->
+    <path d="M28,40 Q36,30 48,40 Q60,50 68,40" fill="none" stroke="#c4b5fd" stroke-width="2.5" opacity="0.5" stroke-linecap="round"/>
+    <!-- Gas bubbles above membrane -->
+    <circle cx="38" cy="26" r="2.5" fill="#c4b5fd" opacity="0.2"/>
+    <circle cx="54" cy="22" r="2" fill="#c4b5fd" opacity="0.15"/>
+    <!-- Piston below membrane -->
+    <rect x="36" y="48" width="24" height="10" rx="2" fill="#c4b5fd" opacity="0.15" stroke="#c4b5fd" stroke-width="1" opacity="0.3"/>
+    <!-- Glass highlight -->
+    <path d="M28,20 Q32,18 36,20" fill="none" stroke="#fff" stroke-width="0.8" opacity="0.1"/>
+    <!-- Bolts -->
+    <circle cx="20" cy="14" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <circle cx="76" cy="14" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <circle cx="20" cy="66" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <circle cx="76" cy="66" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <!-- Pipes -->
+    <rect x="-4" y="30" width="20" height="10" rx="4" fill="url(#mH)" stroke="#4b5563" stroke-width="1.5"/>
+    <rect x="80" y="30" width="18" height="10" rx="4" fill="url(#mH)" stroke="#4b5563" stroke-width="1.5"/>
+    <!-- Cooling coil section (bare metal serpentine) -->
+    <path d="M0,120 L14,120 L14,100 L22,100 L22,120 L30,120 L30,100 L38,100 L38,120 L46,120 L46,100 L54,100 L54,120 L62,120 L62,100 L70,100 L70,120 L78,120 L78,100 L86,100 L86,120 L96,120" fill="none" stroke="#67e8f9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.6"/>
+    <!-- Motor (amber terminal at bottom) -->
+    <rect x="40" y="130" width="16" height="14" rx="3" fill="#78350f" stroke="#92400e" stroke-width="2"/>
+    <circle cx="48" cy="136" r="3" fill="#fbbf24" opacity="0.3"/>
+    <!-- LED -->
+    <circle cx="70" cy="58" r="2.5" fill="#22c55e" opacity="0.7" style="animation: blink 4s infinite 2s"/>
+    <text x="48" y="164" text-anchor="middle" font-size="8" font-weight="600" fill="#c4b5fd" font-family="Inter, system-ui">Diaphragm Comp.</text>
+  </g>
+
+  </g>
+
+  <!-- ═══════ SHEET 2 CONTENT (Heat Transfer + Separation) ═══════ -->
+  <g transform="translate(0, 470)">
+  <!-- ════════ HEAT TRANSFER (blue) ════════ -->
+  <rect x="12" y="34" width="1116" height="16" rx="3" fill="#3b82f6" opacity="0.06"/>
+  <text x="20" y="46" font-size="10" font-weight="700" fill="#93c5fd" font-family="Inter, system-ui">HEAT TRANSFER</text>
+
+  <!-- ELECTRIC HEATER 2×2 -->
+  <g transform="translate(24, 60)">
+    <!-- Pipe body (painted blue, horizontal barrel shape) -->
+    <rect x="10" y="26" width="76" height="44" rx="8" fill="url(#pB)" stroke="#1e3a5f" stroke-width="2.5"/>
+    <!-- Paint chips -->
+    <rect x="66" y="32" width="8" height="4" rx="1" fill="url(#m)" opacity="0.6"/>
+    <rect x="16" y="56" width="6" height="3" rx="1" fill="url(#m)" opacity="0.4"/>
+    <!-- Viewport (see heating element) -->
+    <rect x="22" y="34" width="52" height="28" rx="6" fill="#0c1a2e" stroke="#1e3a5f" stroke-width="2"/>
+    <!-- Zigzag resistance visible through glass -->
+    <path d="M28,48 L34,36 L40,60 L46,36 L52,60 L58,36 L64,48" fill="none" stroke="#fca5a5" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" opacity="0.5"/>
+    <!-- Glass highlight -->
+    <path d="M26,38 Q30,36 34,38" fill="none" stroke="#fff" stroke-width="0.8" opacity="0.1"/>
+    <!-- Bolts -->
+    <circle cx="16" cy="32" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <circle cx="80" cy="32" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <circle cx="16" cy="64" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <circle cx="80" cy="64" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <!-- Seam -->
+    <line x1="10" y1="48" x2="22" y2="48" stroke="#1e3a5f" stroke-width="1" opacity="0.4"/>
+    <line x1="74" y1="48" x2="86" y2="48" stroke="#1e3a5f" stroke-width="1" opacity="0.4"/>
+    <!-- Pipes (bare metal) -->
+    <rect x="-4" y="42" width="16" height="12" rx="4" fill="url(#mH)" stroke="#4b5563" stroke-width="2"/>
+    <rect x="84" y="42" width="14" height="12" rx="4" fill="url(#mH)" stroke="#4b5563" stroke-width="2"/>
+    <circle cx="10" cy="46" r="1.5" fill="#374151"/><circle cx="10" cy="50" r="1.5" fill="#374151"/>
+    <circle cx="86" cy="46" r="1.5" fill="#374151"/><circle cx="86" cy="50" r="1.5" fill="#374151"/>
+    <!-- Electrical terminal on top (amber) -->
+    <rect x="40" y="2" width="16" height="26" rx="4" fill="#78350f" stroke="#92400e" stroke-width="2"/>
+    <circle cx="48" cy="10" r="3" fill="#fbbf24" opacity="0.3"/>
+    <!-- LED -->
+    <circle cx="76" cy="58" r="2.5" fill="#22c55e" opacity="0.7" style="animation: blink 3s infinite"/>
+    <text x="48" y="100" text-anchor="middle" font-size="8" font-weight="600" fill="#93c5fd" font-family="Inter, system-ui">Electric Heater</text>
+  </g>
+
+  <!-- AIR COOLER 2×2 -->
+  <g transform="translate(160, 60)">
+    <!-- Container -->
+    <rect x="-2" y="-2" width="100" height="100" rx="4" fill="none" stroke="#1e3a5f" stroke-width="1" stroke-dasharray="4 3" opacity="0.12"/>
+    <!-- Fin bank (painted blue, top) -->
+    <rect x="10" y="12" width="76" height="32" rx="5" fill="url(#pB)" stroke="#1e3a5f" stroke-width="2.5"/>
+    <!-- Paint chip -->
+    <rect x="66" y="18" width="8" height="4" rx="1" fill="url(#m)" opacity="0.6"/>
+    <!-- Fin slots (dark gaps in the painted surface) -->
+    <line x1="22" y1="16" x2="22" y2="40" stroke="#0c1a2e" stroke-width="2.5" opacity="0.4"/>
+    <line x1="34" y1="16" x2="34" y2="40" stroke="#0c1a2e" stroke-width="2.5" opacity="0.4"/>
+    <line x1="46" y1="16" x2="46" y2="40" stroke="#0c1a2e" stroke-width="2.5" opacity="0.4"/>
+    <line x1="58" y1="16" x2="58" y2="40" stroke="#0c1a2e" stroke-width="2.5" opacity="0.4"/>
+    <line x1="70" y1="16" x2="70" y2="40" stroke="#0c1a2e" stroke-width="2.5" opacity="0.4"/>
+    <!-- Bolts on fin bank -->
+    <circle cx="14" cy="16" r="1.5" fill="#1f2937" stroke="#6b7280" stroke-width="0.8"/>
+    <circle cx="82" cy="16" r="1.5" fill="#1f2937" stroke="#6b7280" stroke-width="0.8"/>
+    <!-- Fan housing (painted blue, circular) -->
+    <circle cx="48" cy="66" r="18" fill="url(#pB)" stroke="#1e3a5f" stroke-width="2.5"/>
+    <!-- Viewport into fan -->
+    <circle cx="48" cy="66" r="12" fill="#0c1a2e" stroke="#1e3a5f" stroke-width="1.5"/>
+    <!-- Fan blades visible -->
+    <path d="M48,66 Q56,56 48,52" fill="none" stroke="#93c5fd" stroke-width="3" stroke-linecap="round" opacity="0.4"/>
+    <path d="M48,66 Q38,62 36,70" fill="none" stroke="#93c5fd" stroke-width="3" stroke-linecap="round" opacity="0.4"/>
+    <path d="M48,66 Q56,74 60,68" fill="none" stroke="#93c5fd" stroke-width="3" stroke-linecap="round" opacity="0.4"/>
+    <circle cx="48" cy="66" r="3" fill="#60a5fa" opacity="0.4"/>
+    <!-- Glass highlight -->
+    <path d="M42,58 Q44,56 46,58" fill="none" stroke="#fff" stroke-width="0.8" opacity="0.1"/>
+    <!-- Pipes (bare metal, angled to fin bank) -->
+    <rect x="-4" y="24" width="16" height="10" rx="4" fill="url(#mH)" stroke="#4b5563" stroke-width="2"/>
+    <rect x="84" y="24" width="14" height="10" rx="4" fill="url(#mH)" stroke="#4b5563" stroke-width="2"/>
+    <!-- Electrical terminal bottom (amber) -->
+    <rect x="42" y="84" width="12" height="12" rx="3" fill="#78350f" stroke="#92400e" stroke-width="1.5"/>
+    <circle cx="48" cy="90" r="2" fill="#fbbf24" opacity="0.3"/>
+    <!-- LED -->
+    <circle cx="68" cy="76" r="2.5" fill="#22c55e" opacity="0.7" style="animation: blink 4s infinite 1s"/>
+    <text x="48" y="108" text-anchor="middle" font-size="8" font-weight="600" fill="#93c5fd" font-family="Inter, system-ui">Air Cooler</text>
+  </g>
+
+  <!-- HEX 2×2 -->
+  <g transform="translate(296, 60)">
+    <!-- Shell body (painted blue, horizontal oval) -->
+    <ellipse cx="48" cy="44" rx="40" ry="30" fill="url(#pB)" stroke="#1e3a5f" stroke-width="2.5"/>
+    <!-- Paint chips -->
+    <rect x="68" y="24" width="8" height="4" rx="1" fill="url(#m)" opacity="0.6"/>
+    <rect x="18" y="58" width="6" height="3" rx="1" fill="url(#m)" opacity="0.4"/>
+    <!-- Dent -->
+    <ellipse cx="28" cy="26" rx="5" ry="3" fill="#1d4ed8" opacity="0.4" stroke="#1e3a5f" stroke-width="0.5" opacity="0.3"/>
+    <!-- Viewport (see tubes inside) -->
+    <ellipse cx="48" cy="44" rx="22" ry="16" fill="#0c1a2e" stroke="#1e3a5f" stroke-width="2"/>
+    <!-- Tube S-curves visible -->
+    <path d="M30,44 C38,34 42,52 48,40 C54,28 58,50 66,44" fill="none" stroke="#fca5a5" stroke-width="2" opacity="0.4" stroke-linecap="round"/>
+    <path d="M30,44 C38,54 42,36 48,48 C54,60 58,38 66,44" fill="none" stroke="#93c5fd" stroke-width="1.5" opacity="0.25" stroke-linecap="round"/>
+    <!-- Glass highlight -->
+    <path d="M38,34 Q42,31 46,34" fill="none" stroke="#fff" stroke-width="0.8" opacity="0.1"/>
+    <!-- Bolt ring -->
+    <circle cx="14" cy="44" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <circle cx="82" cy="44" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <circle cx="48" cy="16" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <circle cx="48" cy="72" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <!-- Head seam bolts -->
+    <circle cx="22" cy="28" r="1.5" fill="#1e3a5f"/>
+    <circle cx="74" cy="28" r="1.5" fill="#1e3a5f"/>
+    <circle cx="22" cy="60" r="1.5" fill="#1e3a5f"/>
+    <circle cx="74" cy="60" r="1.5" fill="#1e3a5f"/>
+    <!-- 4 pipe stubs (bare metal) -->
+    <rect x="-4" y="40" width="14" height="10" rx="3" fill="url(#mH)" stroke="#4b5563" stroke-width="1.5"/>
+    <rect x="86" y="40" width="12" height="10" rx="3" fill="url(#mH)" stroke="#4b5563" stroke-width="1.5"/>
+    <rect x="44" y="-2" width="10" height="14" rx="3" fill="url(#mH)" stroke="#4b5563" stroke-width="1.5"/>
+    <rect x="44" y="72" width="10" height="14" rx="3" fill="url(#mH)" stroke="#4b5563" stroke-width="1.5"/>
+    <!-- LED -->
+    <circle cx="70" cy="58" r="2.5" fill="#22c55e" opacity="0.7" style="animation: blink 5s infinite 2s"/>
+    <!-- Scratch -->
+    <line x1="56" y1="60" x2="64" y2="62" stroke="#1e3a5f" stroke-width="0.7" opacity="0.3"/>
+    <text x="48" y="100" text-anchor="middle" font-size="8" font-weight="600" fill="#93c5fd" font-family="Inter, system-ui">Heat Exchanger</text>
+  </g>
+
+
+  <!-- ════════ SEPARATION (teal) ════════ -->
+  <rect x="12" y="182" width="1116" height="16" rx="3" fill="#14b8a6" opacity="0.06"/>
+  <text x="20" y="194" font-size="10" font-weight="700" fill="#5eead4" font-family="Inter, system-ui">SEPARATION &amp; MIXING</text>
+
+  <!-- MIXER 2×2 (Y-pipe + helix through viewport) -->
+  <g transform="translate(24, 208)">
+    <!-- Y-junction pipes (bare metal routing) -->
+    <!-- Upper inlet -->
+    <rect x="-4" y="-4" width="18" height="10" rx="4" fill="url(#mH)" stroke="#4b5563" stroke-width="1.5"/>
+    <path d="M14,0 Q28,0 32,18" fill="none" stroke="#4b5563" stroke-width="5"/>
+    <path d="M14,0 Q28,0 32,18" fill="none" stroke="url(#mH)" stroke-width="3"/>
+    <!-- Lower inlet -->
+    <rect x="-4" y="90" width="18" height="10" rx="4" fill="url(#mH)" stroke="#4b5563" stroke-width="1.5"/>
+    <path d="M14,96 Q28,96 32,78" fill="none" stroke="#4b5563" stroke-width="5"/>
+    <path d="M14,96 Q28,96 32,78" fill="none" stroke="url(#mH)" stroke-width="3"/>
+    <!-- Merge line -->
+    <line x1="32" y1="18" x2="32" y2="78" stroke="#4b5563" stroke-width="5"/>
+    <line x1="32" y1="18" x2="32" y2="78" stroke="url(#mH)" stroke-width="3"/>
+
+    <!-- Mixing chamber (painted teal) -->
+    <rect x="30" y="28" width="56" height="40" rx="6" fill="url(#pT)" stroke="#134e4a" stroke-width="2.5"/>
+    <!-- Paint chip -->
+    <rect x="70" y="34" width="6" height="3" rx="1" fill="url(#m)" opacity="0.5"/>
+    <!-- Viewport (see helix inside) -->
+    <rect x="36" y="34" width="44" height="28" rx="5" fill="#0a1a1a" stroke="#134e4a" stroke-width="1.5"/>
+    <!-- Helix elements visible -->
+    <path d="M42,36 Q46,48 42,60" fill="none" stroke="#5eead4" stroke-width="2" opacity="0.45"/>
+    <path d="M42,36 Q38,48 42,60" fill="none" stroke="#5eead4" stroke-width="2" opacity="0.2"/>
+    <path d="M52,36 Q56,48 52,60" fill="none" stroke="#5eead4" stroke-width="2" opacity="0.45"/>
+    <path d="M52,36 Q48,48 52,60" fill="none" stroke="#5eead4" stroke-width="2" opacity="0.2"/>
+    <path d="M62,36 Q66,48 62,60" fill="none" stroke="#5eead4" stroke-width="2" opacity="0.45"/>
+    <path d="M62,36 Q58,48 62,60" fill="none" stroke="#5eead4" stroke-width="2" opacity="0.2"/>
+    <path d="M72,36 Q76,48 72,60" fill="none" stroke="#5eead4" stroke-width="2" opacity="0.45"/>
+    <path d="M72,36 Q68,48 72,60" fill="none" stroke="#5eead4" stroke-width="2" opacity="0.2"/>
+    <!-- Glass highlight -->
+    <path d="M40,38 Q44,36 48,38" fill="none" stroke="#fff" stroke-width="0.8" opacity="0.1"/>
+    <!-- Bolts on chamber -->
+    <circle cx="34" cy="32" r="1.5" fill="#1f2937" stroke="#6b7280" stroke-width="0.8"/>
+    <circle cx="82" cy="32" r="1.5" fill="#1f2937" stroke="#6b7280" stroke-width="0.8"/>
+    <circle cx="34" cy="64" r="1.5" fill="#1f2937" stroke="#6b7280" stroke-width="0.8"/>
+    <circle cx="82" cy="64" r="1.5" fill="#1f2937" stroke="#6b7280" stroke-width="0.8"/>
+    <!-- Outlet pipe -->
+    <rect x="84" y="42" width="14" height="12" rx="4" fill="url(#mH)" stroke="#4b5563" stroke-width="2"/>
+    <!-- LED -->
+    <circle cx="78" cy="58" r="2.5" fill="#22c55e" opacity="0.7" style="animation: blink 3s infinite"/>
+    <text x="48" y="106" text-anchor="middle" font-size="8" font-weight="600" fill="#5eead4" font-family="Inter, system-ui">Mixer</text>
+  </g>
+
+  <!-- SPLITTER 2×2 (manifold + control valves) -->
+  <g transform="translate(160, 208)">
+    <!-- Inlet pipe -->
+    <rect x="-4" y="42" width="36" height="12" rx="4" fill="url(#mH)" stroke="#4b5563" stroke-width="2"/>
+    <!-- Manifold bar (painted teal) -->
+    <rect x="26" y="14" width="14" height="68" rx="4" fill="url(#pT)" stroke="#134e4a" stroke-width="2.5"/>
+    <!-- Paint chip -->
+    <rect x="30" y="20" width="5" height="3" rx="1" fill="url(#m)" opacity="0.5"/>
+    <!-- % (ratio indicator) -->
+    <text x="30" y="52" font-size="10" font-weight="700" fill="#5eead4" opacity="0.35" font-family="Inter, system-ui">%</text>
+    <!-- Bolts on manifold -->
+    <circle cx="33" cy="18" r="1.5" fill="#1f2937" stroke="#6b7280" stroke-width="0.8"/>
+    <circle cx="33" cy="78" r="1.5" fill="#1f2937" stroke="#6b7280" stroke-width="0.8"/>
+
+    <!-- Upper branch: pipe → mini valve (painted teal bowtie) → out -->
+    <rect x="38" y="24" width="14" height="8" rx="3" fill="url(#mH)" stroke="#4b5563" stroke-width="1.5"/>
+    <polygon points="52,18 64,28 52,38" fill="url(#pT)" stroke="#134e4a" stroke-width="1.5" stroke-linejoin="round"/>
+    <polygon points="76,18 64,28 76,38" fill="url(#pT)" stroke="#134e4a" stroke-width="1.5" stroke-linejoin="round"/>
+    <!-- Actuator circle -->
+    <circle cx="64" cy="10" r="4" fill="url(#m)" stroke="#4b5563" stroke-width="1.5"/>
+    <circle cx="64" cy="10" r="1.5" fill="#374151"/>
+    <line x1="64" y1="18" x2="64" y2="14" stroke="#4b5563" stroke-width="1.5"/>
+    <!-- Pipe to port -->
+    <rect x="74" y="24" width="8" height="8" rx="2" fill="url(#mH)" stroke="#4b5563" stroke-width="1"/>
+    <line x1="82" y1="28" x2="82" y2="0" stroke="#4b5563" stroke-width="3"/>
+    <line x1="82" y1="28" x2="82" y2="0" stroke="url(#mH)" stroke-width="2"/>
+    <rect x="80" y="-4" width="18" height="8" rx="3" fill="url(#mH)" stroke="#4b5563" stroke-width="1.5"/>
+
+    <!-- Lower branch: pipe → mini valve → out -->
+    <rect x="38" y="64" width="14" height="8" rx="3" fill="url(#mH)" stroke="#4b5563" stroke-width="1.5"/>
+    <polygon points="52,58 64,68 52,78" fill="url(#pT)" stroke="#134e4a" stroke-width="1.5" stroke-linejoin="round"/>
+    <polygon points="76,58 64,68 76,78" fill="url(#pT)" stroke="#134e4a" stroke-width="1.5" stroke-linejoin="round"/>
+    <circle cx="64" cy="86" r="4" fill="url(#m)" stroke="#4b5563" stroke-width="1.5"/>
+    <circle cx="64" cy="86" r="1.5" fill="#374151"/>
+    <line x1="64" y1="78" x2="64" y2="82" stroke="#4b5563" stroke-width="1.5"/>
+    <rect x="74" y="64" width="8" height="8" rx="2" fill="url(#mH)" stroke="#4b5563" stroke-width="1"/>
+    <line x1="82" y1="68" x2="82" y2="96" stroke="#4b5563" stroke-width="3"/>
+    <line x1="82" y1="68" x2="82" y2="96" stroke="url(#mH)" stroke-width="2"/>
+    <rect x="80" y="92" width="18" height="8" rx="3" fill="url(#mH)" stroke="#4b5563" stroke-width="1.5"/>
+
+    <!-- LED -->
+    <circle cx="44" cy="56" r="2.5" fill="#22c55e" opacity="0.7" style="animation: blink 4s infinite 0.5s"/>
+    <text x="48" y="106" text-anchor="middle" font-size="8" font-weight="600" fill="#5eead4" font-family="Inter, system-ui">Splitter</text>
+  </g>
+
+  <!-- FLASH DRUM 2×3 -->
+  <g transform="translate(296, 208)">
+    <!-- Vessel (painted teal, tall capsule) -->
+    <rect x="22" y="6" width="52" height="132" rx="26" fill="url(#pT)" stroke="#134e4a" stroke-width="2.5"/>
+    <!-- Paint chips -->
+    <rect x="58" y="16" width="8" height="4" rx="1" fill="url(#m)" opacity="0.6"/>
+    <rect x="26" y="118" width="6" height="3" rx="1" fill="url(#m)" opacity="0.4"/>
+    <!-- Dent -->
+    <ellipse cx="34" cy="28" rx="4" ry="3" fill="#0f766e" opacity="0.4" stroke="#134e4a" stroke-width="0.5" opacity="0.3"/>
+    <!-- Sight glass (tall narrow viewport) -->
+    <rect x="42" y="14" width="10" height="116" rx="4" fill="#0a1a1a" stroke="#134e4a" stroke-width="1.5"/>
+    <!-- Liquid visible in sight glass -->
+    <rect x="44" y="74" width="6" height="54" rx="2" fill="#2dd4bf" opacity="0.3"/>
+    <!-- Vapor space -->
+    <rect x="44" y="16" width="6" height="56" rx="2" fill="#5eead4" opacity="0.06"/>
+    <!-- Bubble at interface -->
+    <circle cx="47" cy="74" r="2" fill="#5eead4" opacity="0.25"/>
+    <circle cx="47" cy="70" r="1.5" fill="#5eead4" opacity="0.15"/>
+    <!-- Level tick marks alongside glass -->
+    <line x1="54" y1="30" x2="57" y2="30" stroke="#134e4a" stroke-width="0.8" opacity="0.3"/>
+    <line x1="54" y1="50" x2="57" y2="50" stroke="#134e4a" stroke-width="0.8" opacity="0.3"/>
+    <line x1="54" y1="70" x2="57" y2="70" stroke="#134e4a" stroke-width="0.8" opacity="0.3"/>
+    <line x1="54" y1="90" x2="57" y2="90" stroke="#134e4a" stroke-width="0.8" opacity="0.3"/>
+    <line x1="54" y1="110" x2="57" y2="110" stroke="#134e4a" stroke-width="0.8" opacity="0.3"/>
+    <!-- Bolts -->
+    <circle cx="30" cy="16" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <circle cx="66" cy="16" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <circle cx="30" cy="126" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <circle cx="66" cy="126" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <!-- Seam -->
+    <line x1="22" y1="72" x2="42" y2="72" stroke="#134e4a" stroke-width="1" opacity="0.3"/>
+    <!-- Pipes (bare metal) -->
+    <rect x="-4" y="42" width="28" height="12" rx="4" fill="url(#mH)" stroke="#4b5563" stroke-width="2"/>
+    <!-- Vapor out nozzle (angled to top-right) -->
+    <line x1="68" y1="18" x2="96" y2="0" stroke="#4b5563" stroke-width="4"/>
+    <line x1="68" y1="18" x2="96" y2="0" stroke="url(#m)" stroke-width="2.5"/>
+    <!-- Liquid out nozzle (angled to bottom-right) -->
+    <line x1="68" y1="126" x2="96" y2="144" stroke="#4b5563" stroke-width="4"/>
+    <line x1="68" y1="126" x2="96" y2="144" stroke="url(#m)" stroke-width="2.5"/>
+    <!-- LED -->
+    <circle cx="34" cy="40" r="2.5" fill="#22c55e" opacity="0.7" style="animation: blink 5s infinite 2s"/>
+    <text x="48" y="158" text-anchor="middle" font-size="8" font-weight="600" fill="#5eead4" font-family="Inter, system-ui">Flash Drum</text>
+  </g>
+
+  <!-- DISTILLATION COLUMN 2×3 -->
+  <g transform="translate(432, 208)">
+    <!-- Vessel (painted teal, tall narrow) -->
+    <rect x="20" y="4" width="56" height="136" rx="28" fill="url(#pT)" stroke="#134e4a" stroke-width="2.5"/>
+    <!-- Paint chips -->
+    <rect x="60" y="14" width="6" height="4" rx="1" fill="url(#m)" opacity="0.6"/>
+    <rect x="24" y="120" width="8" height="3" rx="1" fill="url(#m)" opacity="0.4"/>
+    <!-- Tray viewport windows (small round portholes at tray positions) -->
+    <circle cx="48" cy="30" r="6" fill="#0a1a1a" stroke="#134e4a" stroke-width="1.5"/>
+    <line x1="44" y1="30" x2="52" y2="30" stroke="#5eead4" stroke-width="1" opacity="0.3"/>
+    <circle cx="48" cy="50" r="6" fill="#0a1a1a" stroke="#134e4a" stroke-width="1.5"/>
+    <line x1="44" y1="50" x2="52" y2="50" stroke="#5eead4" stroke-width="1" opacity="0.3"/>
+    <circle cx="48" cy="70" r="6" fill="#0a1a1a" stroke="#134e4a" stroke-width="1.5"/>
+    <line x1="44" y1="70" x2="52" y2="70" stroke="#5eead4" stroke-width="1" opacity="0.3"/>
+    <!-- Feed tray porthole (slightly bigger, highlighted) -->
+    <circle cx="48" cy="90" r="7" fill="#0a1a1a" stroke="#134e4a" stroke-width="2"/>
+    <line x1="43" y1="90" x2="53" y2="90" stroke="#5eead4" stroke-width="1.5" opacity="0.4"/>
+    <circle cx="48" cy="110" r="6" fill="#0a1a1a" stroke="#134e4a" stroke-width="1.5"/>
+    <line x1="44" y1="110" x2="52" y2="110" stroke="#5eead4" stroke-width="1" opacity="0.3"/>
+    <!-- Bolts along vessel -->
+    <circle cx="28" cy="20" r="1.5" fill="#1f2937" stroke="#6b7280" stroke-width="0.8"/>
+    <circle cx="68" cy="20" r="1.5" fill="#1f2937" stroke="#6b7280" stroke-width="0.8"/>
+    <circle cx="28" cy="124" r="1.5" fill="#1f2937" stroke="#6b7280" stroke-width="0.8"/>
+    <circle cx="68" cy="124" r="1.5" fill="#1f2937" stroke="#6b7280" stroke-width="0.8"/>
+    <!-- Feed pipe (bare metal) -->
+    <rect x="-4" y="66" width="26" height="10" rx="4" fill="url(#mH)" stroke="#4b5563" stroke-width="2"/>
+    <!-- Overhead vapor → condenser nib → distillate -->
+    <line x1="60" y1="10" x2="80" y2="10" stroke="#4b5563" stroke-width="3"/>
+    <line x1="80" y1="10" x2="80" y2="24" stroke="#4b5563" stroke-width="3"/>
+    <rect x="84" y="20" width="14" height="8" rx="3" fill="url(#mH)" stroke="#4b5563" stroke-width="1.5"/>
+    <!-- Condenser nib (small blue circle) -->
+    <circle cx="80" cy="16" r="4" fill="#1d4ed8" opacity="0.4" stroke="#1e3a5f" stroke-width="1.5"/>
+    <!-- Bottoms → reboiler nib → bot out -->
+    <line x1="60" y1="134" x2="80" y2="134" stroke="#4b5563" stroke-width="3"/>
+    <line x1="80" y1="134" x2="80" y2="120" stroke="#4b5563" stroke-width="3"/>
+    <rect x="84" y="116" width="14" height="8" rx="3" fill="url(#mH)" stroke="#4b5563" stroke-width="1.5"/>
+    <!-- Reboiler nib (small red circle) -->
+    <circle cx="80" cy="128" r="4" fill="#dc2626" opacity="0.4" stroke="#7f1d1d" stroke-width="1.5"/>
+    <!-- Electrical terminal top (amber) -->
+    <rect x="42" y="-2" width="12" height="8" rx="3" fill="#78350f" stroke="#92400e" stroke-width="1.5"/>
+    <circle cx="48" cy="2" r="2" fill="#fbbf24" opacity="0.3"/>
+    <!-- LED -->
+    <circle cx="34" cy="42" r="2.5" fill="#22c55e" opacity="0.7" style="animation: blink 4s infinite 3s"/>
+    <text x="48" y="158" text-anchor="middle" font-size="8" font-weight="600" fill="#5eead4" font-family="Inter, system-ui">Dist. Column</text>
+  </g>
+
+  <!-- MEMBRANE SEPARATOR 2×2 -->
+  <g transform="translate(568, 208)">
+    <!-- Module casing (painted teal) -->
+    <rect x="10" y="6" width="76" height="84" rx="6" fill="url(#pT)" stroke="#134e4a" stroke-width="2.5"/>
+    <!-- Paint chip -->
+    <rect x="68" y="14" width="8" height="4" rx="1" fill="url(#m)" opacity="0.6"/>
+    <!-- Viewport showing membrane inside -->
+    <rect x="18" y="14" width="60" height="68" rx="4" fill="#0a1a1a" stroke="#134e4a" stroke-width="1.5"/>
+    <!-- Diagonal membrane visible through glass -->
+    <line x1="22" y1="18" x2="74" y2="78" stroke="#5eead4" stroke-width="2.5" stroke-dasharray="5 3" opacity="0.5"/>
+    <!-- Permeate dots crossing -->
+    <circle cx="46" cy="30" r="1.5" fill="#5eead4" opacity="0.35"/>
+    <circle cx="52" cy="26" r="1.2" fill="#5eead4" opacity="0.25"/>
+    <circle cx="58" cy="24" r="1.5" fill="#5eead4" opacity="0.3"/>
+    <!-- Glass highlight -->
+    <path d="M22,18 Q26,16 30,18" fill="none" stroke="#fff" stroke-width="0.8" opacity="0.1"/>
+    <!-- Bolts -->
+    <circle cx="14" cy="12" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <circle cx="82" cy="12" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <circle cx="14" cy="84" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <circle cx="82" cy="84" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <!-- Feed pipe (left, bare metal) -->
+    <rect x="-4" y="42" width="16" height="12" rx="4" fill="url(#mH)" stroke="#4b5563" stroke-width="2"/>
+    <!-- Permeate out (top right, angled) -->
+    <line x1="76" y1="16" x2="96" y2="0" stroke="#4b5563" stroke-width="3"/>
+    <line x1="76" y1="16" x2="96" y2="0" stroke="url(#m)" stroke-width="2"/>
+    <!-- Retentate out (bottom right) -->
+    <line x1="18" y1="86" x2="82" y2="86" stroke="#4b5563" stroke-width="3"/>
+    <line x1="82" y1="86" x2="96" y2="96" stroke="#4b5563" stroke-width="3"/>
+    <line x1="18" y1="86" x2="82" y2="86" stroke="url(#m)" stroke-width="2"/>
+    <line x1="82" y1="86" x2="96" y2="96" stroke="url(#m)" stroke-width="2"/>
+    <!-- LED -->
+    <circle cx="72" cy="74" r="2.5" fill="#22c55e" opacity="0.7" style="animation: blink 6s infinite 1s"/>
+    <text x="48" y="106" text-anchor="middle" font-size="8" font-weight="600" fill="#5eead4" font-family="Inter, system-ui">Membrane</text>
+  </g>
+
+
+  </g>
+
+  <!-- ═══════ SHEET 3 CONTENT (Reactors + Storage + Power) ═══════ -->
+  <g transform="translate(0, 940)">
+  <!-- ════════ REACTORS (red) ════════ -->
+  <rect x="12" y="34" width="1116" height="16" rx="3" fill="#ef4444" opacity="0.06"/>
+  <text x="20" y="46" font-size="10" font-weight="700" fill="#fca5a5" font-family="Inter, system-ui">REACTORS</text>
+
+  <!-- ADIABATIC 2×2 -->
+  <g transform="translate(24, 60)">
+    <rect x="6" y="74" width="84" height="10" rx="2" fill="url(#m)" stroke="#4b5563" stroke-width="1.5"/>
+    <circle cx="14" cy="79" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <circle cx="82" cy="79" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <!-- Vessel (painted red) -->
+    <rect x="10" y="8" width="76" height="66" rx="14" fill="url(#pR)" stroke="#7f1d1d" stroke-width="2.5"/>
+    <rect x="66" y="16" width="10" height="5" rx="2" fill="url(#m)" opacity="0.7"/>
+    <rect x="14" y="58" width="7" height="4" rx="1" fill="url(#m)" opacity="0.5"/>
+    <!-- Viewport -->
+    <circle cx="48" cy="40" r="18" fill="#1a0505" stroke="#7f1d1d" stroke-width="2"/>
+    <!-- Bubbles visible -->
+    <circle cx="40" cy="34" r="4" fill="#fbbf24" opacity="0.4"/>
+    <circle cx="54" cy="42" r="3.5" fill="#f97316" opacity="0.35"/>
+    <circle cx="44" cy="50" r="3" fill="#fbbf24" opacity="0.3"/>
+    <circle cx="56" cy="32" r="2" fill="#fb923c" opacity="0.25"/>
+    <path d="M40,30 Q44,27 48,30" fill="none" stroke="#fff" stroke-width="0.8" opacity="0.1"/>
+    <!-- Bolts -->
+    <circle cx="18" cy="16" r="2.5" fill="#1f2937" stroke="#6b7280" stroke-width="1.2"/>
+    <circle cx="78" cy="16" r="2.5" fill="#1f2937" stroke="#6b7280" stroke-width="1.2"/>
+    <circle cx="18" cy="66" r="2.5" fill="#1f2937" stroke="#6b7280" stroke-width="1.2"/>
+    <circle cx="78" cy="66" r="2.5" fill="#1f2937" stroke="#6b7280" stroke-width="1.2"/>
+    <!-- Warning stripe -->
+    <line x1="12" y1="62" x2="18" y2="68" stroke="#fbbf24" stroke-width="1.5" opacity="0.15"/>
+    <line x1="20" y1="62" x2="26" y2="68" stroke="#fbbf24" stroke-width="1.5" opacity="0.15"/>
+    <line x1="28" y1="62" x2="34" y2="68" stroke="#fbbf24" stroke-width="1.5" opacity="0.15"/>
+    <!-- Pipes -->
+    <rect x="-4" y="38" width="16" height="12" rx="4" fill="url(#mH)" stroke="#4b5563" stroke-width="2"/>
+    <rect x="84" y="38" width="14" height="12" rx="4" fill="url(#mH)" stroke="#4b5563" stroke-width="2"/>
+    <!-- Pressure gauge -->
+    <circle cx="74" cy="22" r="5" fill="#1f2937" stroke="#4b5563" stroke-width="1.5"/>
+    <line x1="74" y1="22" x2="74" y2="18" stroke="#ef4444" stroke-width="1.5" stroke-linecap="round"/>
+    <!-- LED -->
+    <circle cx="26" cy="18" r="2.5" fill="#22c55e" opacity="0.7" style="animation: blink 3s infinite"/>
+    <text x="48" y="100" text-anchor="middle" font-size="8" font-weight="600" fill="#fca5a5" font-family="Inter, system-ui">Adiabatic</text>
+  </g>
+
+  <!-- JACKETED 2×3 -->
+  <g transform="translate(148, 60)">
+    <rect x="-2" y="-2" width="100" height="148" rx="4" fill="none" stroke="#7f1d1d" stroke-width="1" stroke-dasharray="4 3" opacity="0.12"/>
+    <!-- Jacket (outer wall, dashed paint) -->
+    <rect x="4" y="4" width="88" height="72" rx="16" fill="#b91c1c" opacity="0.1" stroke="#7f1d1d" stroke-width="2" stroke-dasharray="6 3" opacity="0.4"/>
+    <!-- Inner vessel (painted red) -->
+    <rect x="14" y="14" width="68" height="52" rx="12" fill="url(#pR)" stroke="#7f1d1d" stroke-width="2.5"/>
+    <rect x="64" y="20" width="8" height="4" rx="1" fill="url(#m)" opacity="0.6"/>
+    <!-- Viewport -->
+    <circle cx="48" cy="38" r="14" fill="#1a0505" stroke="#7f1d1d" stroke-width="2"/>
+    <circle cx="42" cy="34" r="3.5" fill="#fbbf24" opacity="0.35"/>
+    <circle cx="54" cy="40" r="3" fill="#f97316" opacity="0.3"/>
+    <circle cx="46" cy="48" r="2.5" fill="#fbbf24" opacity="0.25"/>
+    <path d="M40,30 Q44,28 48,30" fill="none" stroke="#fff" stroke-width="0.8" opacity="0.1"/>
+    <!-- Bolts -->
+    <circle cx="20" cy="20" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <circle cx="76" cy="20" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <circle cx="20" cy="60" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <circle cx="76" cy="60" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <!-- Zigzag resistance (red, same as heater) -->
+    <path d="M18,108 L24,96 L30,108 L36,96 L42,108 L48,96 L54,108 L60,96 L66,108 L72,96 L78,108" fill="none" stroke="#fca5a5" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" opacity="0.5"/>
+    <!-- Amber terminal at bottom -->
+    <rect x="40" y="130" width="16" height="14" rx="3" fill="#78350f" stroke="#92400e" stroke-width="2"/>
+    <circle cx="48" cy="136" r="3" fill="#fbbf24" opacity="0.3"/>
+    <!-- Pipes -->
+    <rect x="-4" y="30" width="20" height="10" rx="4" fill="url(#mH)" stroke="#4b5563" stroke-width="1.5"/>
+    <rect x="80" y="30" width="18" height="10" rx="4" fill="url(#mH)" stroke="#4b5563" stroke-width="1.5"/>
+    <!-- LED -->
+    <circle cx="28" cy="22" r="2.5" fill="#22c55e" opacity="0.7" style="animation: blink 3.5s infinite 0.5s"/>
+    <!-- Pressure gauge -->
+    <circle cx="70" cy="24" r="4" fill="#1f2937" stroke="#4b5563" stroke-width="1"/>
+    <line x1="70" y1="24" x2="70" y2="21" stroke="#ef4444" stroke-width="1" stroke-linecap="round"/>
+    <text x="48" y="160" text-anchor="middle" font-size="8" font-weight="600" fill="#fca5a5" font-family="Inter, system-ui">Jacketed</text>
+  </g>
+
+  <!-- COOLED 2×3 -->
+  <g transform="translate(272, 60)">
+    <rect x="-2" y="-2" width="100" height="148" rx="4" fill="none" stroke="#1e3a5f" stroke-width="1" stroke-dasharray="4 3" opacity="0.12"/>
+    <!-- Vessel (painted red, top portion) -->
+    <rect x="12" y="4" width="72" height="68" rx="14" fill="url(#pR)" stroke="#7f1d1d" stroke-width="2.5"/>
+    <rect x="64" y="12" width="8" height="4" rx="1" fill="url(#m)" opacity="0.6"/>
+    <!-- Viewport -->
+    <circle cx="48" cy="36" r="16" fill="#1a0505" stroke="#7f1d1d" stroke-width="2"/>
+    <circle cx="42" cy="30" r="4" fill="#fbbf24" opacity="0.35"/>
+    <circle cx="54" cy="38" r="3" fill="#f97316" opacity="0.3"/>
+    <circle cx="46" cy="48" r="3" fill="#fbbf24" opacity="0.25"/>
+    <path d="M40,26 Q44,24 48,26" fill="none" stroke="#fff" stroke-width="0.8" opacity="0.1"/>
+    <!-- Bolts -->
+    <circle cx="18" cy="12" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <circle cx="78" cy="12" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <circle cx="18" cy="66" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <circle cx="78" cy="66" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <!-- Pipes to vessel -->
+    <rect x="-4" y="18" width="18" height="10" rx="4" fill="url(#mH)" stroke="#4b5563" stroke-width="1.5"/>
+    <rect x="82" y="18" width="16" height="10" rx="4" fill="url(#mH)" stroke="#4b5563" stroke-width="1.5"/>
+    <!-- Cooling serpentine (bare metal pipe, blue-tinted) -->
+    <path d="M0,120 L14,120 L14,100 L22,100 L22,120 L30,120 L30,100 L38,100 L38,120 L46,120 L46,100 L54,100 L54,120 L62,120 L62,100 L70,100 L70,120 L78,120 L78,100 L86,100 L86,120 L96,120" fill="none" stroke="#67e8f9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.6"/>
+    <!-- LED -->
+    <circle cx="28" cy="16" r="2.5" fill="#22c55e" opacity="0.7" style="animation: blink 4s infinite 1s"/>
+    <text x="48" y="160" text-anchor="middle" font-size="8" font-weight="600" fill="#fca5a5" font-family="Inter, system-ui">Cooled</text>
+  </g>
+
+  <!-- ELECTROCHEMICAL 2×3 -->
+  <g transform="translate(396, 60)">
+    <!-- Cell casing (painted red) -->
+    <rect x="14" y="8" width="68" height="128" rx="8" fill="url(#pR)" stroke="#7f1d1d" stroke-width="2.5"/>
+    <rect x="64" y="16" width="8" height="4" rx="1" fill="url(#m)" opacity="0.6"/>
+    <!-- Viewport (tall, showing both halves) -->
+    <rect x="22" y="18" width="52" height="108" rx="5" fill="#1a0505" stroke="#7f1d1d" stroke-width="1.5"/>
+    <!-- Membrane visible -->
+    <line x1="26" y1="72" x2="70" y2="72" stroke="#fca5a5" stroke-width="2.5" stroke-dasharray="5 3" opacity="0.5"/>
+    <!-- Electrode plates visible -->
+    <rect x="58" y="30" width="4" height="30" rx="1" fill="#fca5a5" opacity="0.3"/>
+    <rect x="58" y="84" width="4" height="30" rx="1" fill="#fca5a5" opacity="0.3"/>
+    <!-- Bubbles -->
+    <circle cx="38" cy="40" r="2.5" fill="#fbbf24" opacity="0.25"/>
+    <circle cx="44" cy="54" r="2" fill="#fbbf24" opacity="0.2"/>
+    <circle cx="38" cy="94" r="2.5" fill="#fbbf24" opacity="0.25"/>
+    <circle cx="44" cy="108" r="2" fill="#fbbf24" opacity="0.2"/>
+    <!-- +/- hints -->
+    <line x1="64" y1="44" x2="68" y2="44" stroke="#fca5a5" stroke-width="1.5" opacity="0.3"/>
+    <line x1="64" y1="98" x2="68" y2="98" stroke="#fca5a5" stroke-width="1.5" opacity="0.3"/>
+    <line x1="66" y1="96" x2="66" y2="100" stroke="#fca5a5" stroke-width="1.5" opacity="0.3"/>
+    <!-- Glass highlight -->
+    <path d="M26,22 Q30,20 34,22" fill="none" stroke="#fff" stroke-width="0.8" opacity="0.08"/>
+    <!-- Bolts -->
+    <circle cx="18" cy="14" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <circle cx="78" cy="14" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <circle cx="18" cy="130" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <circle cx="78" cy="130" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <!-- Pipes -->
+    <rect x="-4" y="66" width="20" height="10" rx="4" fill="url(#mH)" stroke="#4b5563" stroke-width="1.5"/>
+    <rect x="80" y="18" width="18" height="10" rx="4" fill="url(#mH)" stroke="#4b5563" stroke-width="1.5"/>
+    <rect x="80" y="114" width="18" height="10" rx="4" fill="url(#mH)" stroke="#4b5563" stroke-width="1.5"/>
+    <!-- Amber terminal top -->
+    <rect x="42" y="-2" width="12" height="12" rx="3" fill="#78350f" stroke="#92400e" stroke-width="1.5"/>
+    <circle cx="48" cy="4" r="2" fill="#fbbf24" opacity="0.3"/>
+    <!-- LED -->
+    <circle cx="28" cy="26" r="2.5" fill="#f97316" opacity="0.7" style="animation: blink 1.5s infinite"/>
+    <text x="48" y="160" text-anchor="middle" font-size="8" font-weight="600" fill="#fca5a5" font-family="Inter, system-ui">Electrochem.</text>
+  </g>
+
+  <!-- FUEL CELL 2×3 -->
+  <g transform="translate(520, 60)">
+    <rect x="-2" y="-2" width="100" height="148" rx="4" fill="none" stroke="#1e3a5f" stroke-width="1" stroke-dasharray="4 3" opacity="0.12"/>
+    <!-- Stack casing (painted red) -->
+    <rect x="14" y="6" width="68" height="74" rx="6" fill="url(#pR)" stroke="#7f1d1d" stroke-width="2.5"/>
+    <rect x="64" y="14" width="8" height="4" rx="1" fill="url(#m)" opacity="0.6"/>
+    <!-- Viewport showing cell layers -->
+    <rect x="22" y="14" width="52" height="58" rx="4" fill="#1a0505" stroke="#7f1d1d" stroke-width="1.5"/>
+    <!-- Stacked plates visible through glass -->
+    <rect x="26" y="20" width="44" height="6" rx="1" fill="#fca5a5" opacity="0.15"/>
+    <rect x="26" y="30" width="44" height="6" rx="1" fill="#fca5a5" opacity="0.10"/>
+    <rect x="26" y="40" width="44" height="6" rx="1" fill="#fca5a5" opacity="0.15"/>
+    <rect x="26" y="50" width="44" height="6" rx="1" fill="#fca5a5" opacity="0.10"/>
+    <rect x="26" y="60" width="44" height="6" rx="1" fill="#fca5a5" opacity="0.15"/>
+    <path d="M26,18 Q30,16 34,18" fill="none" stroke="#fff" stroke-width="0.8" opacity="0.08"/>
+    <!-- Bolts -->
+    <circle cx="18" cy="12" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <circle cx="78" cy="12" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <circle cx="18" cy="74" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <circle cx="78" cy="74" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <!-- Power terminals top (amber) -->
+    <rect x="30" y="-2" width="12" height="10" rx="3" fill="#78350f" stroke="#92400e" stroke-width="1.5"/>
+    <rect x="54" y="-2" width="12" height="10" rx="3" fill="#78350f" stroke="#92400e" stroke-width="1.5"/>
+    <line x1="42" y1="2" x2="54" y2="2" stroke="#92400e" stroke-width="2"/>
+    <!-- Pipes -->
+    <rect x="-4" y="18" width="20" height="10" rx="4" fill="url(#mH)" stroke="#4b5563" stroke-width="1.5"/>
+    <rect x="-4" y="54" width="20" height="10" rx="4" fill="url(#mH)" stroke="#4b5563" stroke-width="1.5"/>
+    <rect x="80" y="42" width="18" height="10" rx="4" fill="url(#mH)" stroke="#4b5563" stroke-width="1.5"/>
+    <!-- Cooling serpentine -->
+    <path d="M0,120 L14,120 L14,100 L22,100 L22,120 L30,120 L30,100 L38,100 L38,120 L46,120 L46,100 L54,100 L54,120 L62,120 L62,100 L70,100 L70,120 L78,120 L78,100 L86,100 L86,120 L96,120" fill="none" stroke="#67e8f9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.6"/>
+    <!-- LED -->
+    <circle cx="72" cy="68" r="2.5" fill="#22c55e" opacity="0.7" style="animation: blink 4s infinite 2s"/>
+    <text x="48" y="160" text-anchor="middle" font-size="8" font-weight="600" fill="#fca5a5" font-family="Inter, system-ui">Fuel Cell</text>
+  </g>
+
+
+  <!-- ════════ STORAGE (cyan) ════════ -->
+  <rect x="12" y="242" width="1116" height="16" rx="3" fill="#06b6d4" opacity="0.06"/>
+  <text x="20" y="254" font-size="10" font-weight="700" fill="#67e8f9" font-family="Inter, system-ui">STORAGE</text>
+
+  <!-- TANK 3×2 (with fill ~40%) -->
+  <g transform="translate(24, 268)">
+    <!-- Saddle supports -->
+    <path d="M38,84 L34,96 L50,96 L46,84" fill="url(#m)" stroke="#4b5563" stroke-width="1.5" stroke-linejoin="round"/>
+    <path d="M98,84 L94,96 L110,96 L106,84" fill="url(#m)" stroke="#4b5563" stroke-width="1.5" stroke-linejoin="round"/>
+    <!-- Horizontal drum (painted cyan) -->
+    <ellipse cx="72" cy="44" rx="58" ry="34" fill="url(#pC)" stroke="#155e75" stroke-width="2.5"/>
+    <!-- Paint chips -->
+    <rect x="104" y="18" width="10" height="5" rx="2" fill="url(#m)" opacity="0.6"/>
+    <rect x="24" y="62" width="8" height="4" rx="1" fill="url(#m)" opacity="0.4"/>
+    <!-- Dent -->
+    <ellipse cx="50" cy="22" rx="5" ry="3" fill="#0e7490" opacity="0.4" stroke="#155e75" stroke-width="0.5" opacity="0.3"/>
+    <!-- Head seam bolts -->
+    <circle cx="22" cy="44" r="2" fill="#155e75"/>
+    <circle cx="122" cy="44" r="2" fill="#155e75"/>
+    <!-- Sight glass (vertical) -->
+    <rect x="60" y="14" width="10" height="60" rx="4" fill="#0a1515" stroke="#155e75" stroke-width="1.5"/>
+    <!-- Liquid in sight glass (~40%) -->
+    <rect x="62" y="44" width="6" height="28" rx="2" fill="#22d3ee" opacity="0.3"/>
+    <!-- Level ticks -->
+    <line x1="72" y1="22" x2="74" y2="22" stroke="#155e75" stroke-width="0.8" opacity="0.3"/>
+    <line x1="72" y1="36" x2="74" y2="36" stroke="#155e75" stroke-width="0.8" opacity="0.3"/>
+    <line x1="72" y1="50" x2="74" y2="50" stroke="#155e75" stroke-width="0.8" opacity="0.3"/>
+    <line x1="72" y1="64" x2="74" y2="64" stroke="#155e75" stroke-width="0.8" opacity="0.3"/>
+    <!-- Bolts around vessel -->
+    <circle cx="42" cy="14" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <circle cx="102" cy="14" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <circle cx="42" cy="74" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <circle cx="102" cy="74" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <!-- Nozzle stubs (bare metal) -->
+    <rect x="-4" y="40" width="16" height="10" rx="3" fill="url(#mH)" stroke="#4b5563" stroke-width="1.5"/>
+    <line x1="124" y1="18" x2="144" y2="0" stroke="#4b5563" stroke-width="3"/>
+    <line x1="124" y1="18" x2="144" y2="0" stroke="url(#m)" stroke-width="2"/>
+    <rect x="42" y="-4" width="10" height="14" rx="3" fill="url(#mH)" stroke="#4b5563" stroke-width="1.5"/>
+    <line x1="124" y1="70" x2="144" y2="88" stroke="#4b5563" stroke-width="3"/>
+    <line x1="124" y1="70" x2="144" y2="88" stroke="url(#m)" stroke-width="2"/>
+    <rect x="42" y="80" width="10" height="14" rx="3" fill="url(#mH)" stroke="#4b5563" stroke-width="1.5"/>
+    <!-- LED -->
+    <circle cx="96" cy="60" r="2.5" fill="#22c55e" opacity="0.7" style="animation: blink 6s infinite 3s"/>
+    <text x="72" y="116" text-anchor="middle" font-size="8" font-weight="600" fill="#67e8f9" font-family="Inter, system-ui">Tank (3×2)</text>
+  </g>
+
+  <!-- OPEN TANK 3×2 (with fill ~50%) -->
+  <g transform="translate(220, 268)">
+    <!-- Open-top U (painted cyan) -->
+    <path d="M14,14 L14,68 Q14,82 72,82 Q130,82 130,68 L130,14" fill="url(#pC)" stroke="#155e75" stroke-width="2.5" stroke-linecap="round"/>
+    <!-- Paint chips -->
+    <rect x="108" y="22" width="10" height="5" rx="2" fill="url(#m)" opacity="0.6"/>
+    <rect x="20" y="64" width="8" height="4" rx="1" fill="url(#m)" opacity="0.4"/>
+    <!-- Liquid fill visible (no sight glass needed — it's open!) -->
+    <rect x="16" y="48" width="112" height="36" fill="#22d3ee" opacity="0.18" clip-path="url(#co)"/>
+    <!-- Bolts -->
+    <circle cx="22" cy="22" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <circle cx="122" cy="22" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <circle cx="44" cy="76" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <circle cx="100" cy="76" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <!-- Feet -->
+    <line x1="26" y1="80" x2="22" y2="92" stroke="#155e75" stroke-width="2" opacity="0.5"/>
+    <line x1="118" y1="80" x2="122" y2="92" stroke="#155e75" stroke-width="2" opacity="0.5"/>
+    <rect x="16" y="90" width="14" height="4" rx="1" fill="url(#m)" stroke="#4b5563" stroke-width="1" opacity="0.5"/>
+    <rect x="114" y="90" width="14" height="4" rx="1" fill="url(#m)" stroke="#4b5563" stroke-width="1" opacity="0.5"/>
+    <!-- Nozzles -->
+    <rect x="-4" y="42" width="20" height="10" rx="4" fill="url(#mH)" stroke="#4b5563" stroke-width="1.5"/>
+    <line x1="130" y1="74" x2="144" y2="88" stroke="#4b5563" stroke-width="3"/>
+    <line x1="130" y1="74" x2="144" y2="88" stroke="url(#m)" stroke-width="2"/>
+    <rect x="42" y="80" width="10" height="14" rx="3" fill="url(#mH)" stroke="#4b5563" stroke-width="1.5"/>
+    <!-- LED -->
+    <circle cx="108" cy="34" r="2.5" fill="#22c55e" opacity="0.7" style="animation: blink 5s infinite 1s"/>
+    <text x="72" y="116" text-anchor="middle" font-size="8" font-weight="600" fill="#67e8f9" font-family="Inter, system-ui">Open Tank (3×2)</text>
+  </g>
+
+
+  <!-- ════════ POWER (amber) ════════ -->
+  <rect x="12" y="416" width="1116" height="16" rx="3" fill="#f59e0b" opacity="0.06"/>
+  <text x="20" y="428" font-size="10" font-weight="700" fill="#fde047" font-family="Inter, system-ui">POWER</text>
+
+  <!-- GRID SUPPLY 2×2 -->
+  <g transform="translate(24, 442)">
+    <rect x="6" y="74" width="84" height="10" rx="2" fill="url(#m)" stroke="#4b5563" stroke-width="1.5"/>
+    <circle cx="14" cy="79" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <circle cx="82" cy="79" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <!-- Generator housing (painted amber) -->
+    <rect x="8" y="12" width="80" height="62" rx="12" fill="url(#pA)" stroke="#78350f" stroke-width="2.5"/>
+    <rect x="68" y="18" width="10" height="5" rx="2" fill="url(#m)" opacity="0.6"/>
+    <rect x="14" y="58" width="7" height="4" rx="1" fill="url(#m)" opacity="0.4"/>
+    <!-- Viewport -->
+    <circle cx="48" cy="40" r="16" fill="#1a1000" stroke="#78350f" stroke-width="2"/>
+    <!-- Stator/rotor visible -->
+    <circle cx="48" cy="40" r="10" fill="none" stroke="#fbbf24" stroke-width="1.5" opacity="0.3"/>
+    <circle cx="48" cy="40" r="5" fill="none" stroke="#f59e0b" stroke-width="2" opacity="0.4"/>
+    <circle cx="48" cy="40" r="2" fill="#fbbf24" opacity="0.5"/>
+    <path d="M36,40 Q42,32 48,40 Q54,48 60,40" fill="none" stroke="#fde68a" stroke-width="1.5" opacity="0.25"/>
+    <path d="M42,34 Q44,32 46,34" fill="none" stroke="#fff" stroke-width="0.8" opacity="0.1"/>
+    <!-- Bolts -->
+    <circle cx="16" cy="20" r="2.5" fill="#1f2937" stroke="#6b7280" stroke-width="1.2"/>
+    <circle cx="80" cy="20" r="2.5" fill="#1f2937" stroke="#6b7280" stroke-width="1.2"/>
+    <circle cx="16" cy="66" r="2.5" fill="#1f2937" stroke="#6b7280" stroke-width="1.2"/>
+    <circle cx="80" cy="66" r="2.5" fill="#1f2937" stroke="#6b7280" stroke-width="1.2"/>
+    <!-- High voltage warning -->
+    <path d="M72" y1="58" fill="none"/>
+    <path d="M72,54 L68,62 L72,62 L70,68" fill="none" stroke="#fbbf24" stroke-width="1.5" stroke-linejoin="round" opacity="0.25"/>
+    <!-- Output terminal (amber, right) -->
+    <rect x="86" y="36" width="12" height="14" rx="3" fill="#92400e" stroke="#78350f" stroke-width="2"/>
+    <circle cx="92" cy="43" r="3" fill="#fbbf24" opacity="0.3"/>
+    <!-- LED -->
+    <circle cx="24" cy="22" r="2.5" fill="#22c55e" opacity="0.7" style="animation: blink 3s infinite"/>
+    <text x="48" y="100" text-anchor="middle" font-size="8" font-weight="600" fill="#fde047" font-family="Inter, system-ui">Grid Supply</text>
+  </g>
+
+  <!-- BATTERY 2×2 -->
+  <g transform="translate(148, 442)">
+    <!-- Battery body (painted amber) -->
+    <rect x="14" y="18" width="52" height="60" rx="8" fill="url(#pA)" stroke="#78350f" stroke-width="2.5"/>
+    <rect x="46" y="24" width="8" height="4" rx="1" fill="url(#m)" opacity="0.5"/>
+    <!-- Terminal nub (bare metal) -->
+    <rect x="28" y="10" width="24" height="10" rx="4" fill="url(#m)" stroke="#4b5563" stroke-width="2"/>
+    <!-- Viewport showing charge bars -->
+    <rect x="22" y="28" width="36" height="42" rx="4" fill="#1a1000" stroke="#78350f" stroke-width="1.5"/>
+    <!-- Charge bars (3 of 4) -->
+    <rect x="26" y="56" width="28" height="6" rx="2" fill="#fbbf24" opacity="0.5"/>
+    <rect x="26" y="46" width="28" height="6" rx="2" fill="#fbbf24" opacity="0.4"/>
+    <rect x="26" y="36" width="28" height="6" rx="2" fill="#fbbf24" opacity="0.15"/>
+    <!-- Glass highlight -->
+    <path d="M26,32 Q30,30 34,32" fill="none" stroke="#fff" stroke-width="0.8" opacity="0.08"/>
+    <!-- Bolts -->
+    <circle cx="20" cy="24" r="1.5" fill="#1f2937" stroke="#6b7280" stroke-width="0.8"/>
+    <circle cx="60" cy="24" r="1.5" fill="#1f2937" stroke="#6b7280" stroke-width="0.8"/>
+    <circle cx="20" cy="72" r="1.5" fill="#1f2937" stroke="#6b7280" stroke-width="0.8"/>
+    <circle cx="60" cy="72" r="1.5" fill="#1f2937" stroke="#6b7280" stroke-width="0.8"/>
+    <!-- Output (amber terminal right, with bidirectional arrows) -->
+    <rect x="64" y="42" width="32" height="12" rx="4" fill="#92400e" stroke="#78350f" stroke-width="2"/>
+    <polygon points="74,44 78,48 74,52" fill="#fbbf24" opacity="0.25"/>
+    <polygon points="90,44 86,48 90,52" fill="#fbbf24" opacity="0.25"/>
+    <!-- LED -->
+    <circle cx="56" cy="68" r="2.5" fill="#22c55e" opacity="0.7" style="animation: blink 4s infinite 1s"/>
+    <text x="48" y="100" text-anchor="middle" font-size="8" font-weight="600" fill="#fde047" font-family="Inter, system-ui">Battery</text>
+  </g>
+
+  <!-- POWER SINK 2×2 -->
+  <g transform="translate(272, 442)">
+    <!-- Circle body (painted amber) -->
+    <circle cx="56" cy="48" r="28" fill="url(#pA)" stroke="#78350f" stroke-width="2.5"/>
+    <rect x="68" y="28" width="8" height="4" rx="1" fill="url(#m)" opacity="0.5"/>
+    <!-- Viewport (see ground cross) -->
+    <circle cx="56" cy="48" r="16" fill="#1a1000" stroke="#78350f" stroke-width="2"/>
+    <!-- Ground cross visible -->
+    <line x1="48" y1="48" x2="64" y2="48" stroke="#fde047" stroke-width="2.5" stroke-linecap="round" opacity="0.5"/>
+    <line x1="56" y1="40" x2="56" y2="56" stroke="#fde047" stroke-width="2.5" stroke-linecap="round" opacity="0.5"/>
+    <!-- Ground bars -->
+    <line x1="50" y1="60" x2="62" y2="60" stroke="#fde047" stroke-width="1.5" stroke-linecap="round" opacity="0.3"/>
+    <line x1="52" y1="63" x2="60" y2="63" stroke="#fde047" stroke-width="1" stroke-linecap="round" opacity="0.2"/>
+    <path d="M50,42 Q52,40 54,42" fill="none" stroke="#fff" stroke-width="0.8" opacity="0.08"/>
+    <!-- Bolts -->
+    <circle cx="36" cy="32" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <circle cx="76" cy="32" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <circle cx="36" cy="64" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <circle cx="76" cy="64" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <!-- Input terminal (amber, left) -->
+    <rect x="-4" y="42" width="32" height="12" rx="4" fill="#92400e" stroke="#78350f" stroke-width="2"/>
+    <!-- LED -->
+    <circle cx="42" cy="36" r="2.5" fill="#22c55e" opacity="0.7" style="animation: blink 5s infinite 2s"/>
+    <text x="48" y="100" text-anchor="middle" font-size="8" font-weight="600" fill="#fde047" font-family="Inter, system-ui">Power Sink</text>
+  </g>
+
+  <!-- POWER HUB 2×3 -->
+  <g transform="translate(396, 442)">
+    <!-- Cabinet (painted amber) -->
+    <rect x="12" y="10" width="72" height="124" rx="6" fill="url(#pA)" stroke="#78350f" stroke-width="2.5"/>
+    <rect x="64" y="18" width="8" height="4" rx="1" fill="url(#m)" opacity="0.6"/>
+    <rect x="16" y="118" width="6" height="3" rx="1" fill="url(#m)" opacity="0.4"/>
+    <!-- Inner panel viewport -->
+    <rect x="20" y="18" width="56" height="108" rx="3" fill="#1a1000" stroke="#78350f" stroke-width="1.5"/>
+    <!-- Breaker handles visible -->
+    <line x1="34" y1="32" x2="34" y2="48" stroke="#fde047" stroke-width="2.5" stroke-linecap="round" opacity="0.5"/>
+    <circle cx="34" cy="28" r="3" fill="#fbbf24" opacity="0.35"/>
+    <line x1="48" y1="32" x2="48" y2="48" stroke="#fde047" stroke-width="2.5" stroke-linecap="round" opacity="0.5"/>
+    <circle cx="48" cy="28" r="3" fill="#fbbf24" opacity="0.35"/>
+    <line x1="62" y1="32" x2="62" y2="48" stroke="#fde047" stroke-width="2.5" stroke-linecap="round" opacity="0.5"/>
+    <circle cx="62" cy="28" r="3" fill="#fbbf24" opacity="0.35"/>
+    <!-- Bus bar -->
+    <line x1="24" y1="64" x2="72" y2="64" stroke="#fde047" stroke-width="3" stroke-linecap="round" opacity="0.4"/>
+    <!-- Status LEDs (visible through panel) -->
+    <circle cx="34" cy="84" r="3" fill="#22c55e" opacity="0.4"/>
+    <circle cx="48" cy="84" r="3" fill="#22c55e" opacity="0.4"/>
+    <circle cx="62" cy="84" r="3" fill="#fbbf24" opacity="0.3"/>
+    <!-- Terminal blocks -->
+    <rect x="28" y="100" width="12" height="6" rx="1" fill="#78350f" opacity="0.3" stroke="#fde047" stroke-width="0.8" opacity="0.2"/>
+    <rect x="42" y="100" width="12" height="6" rx="1" fill="#78350f" opacity="0.3" stroke="#fde047" stroke-width="0.8" opacity="0.2"/>
+    <rect x="56" y="100" width="12" height="6" rx="1" fill="#78350f" opacity="0.3" stroke="#fde047" stroke-width="0.8" opacity="0.2"/>
+    <!-- Glass highlight -->
+    <path d="M24,22 Q28,20 32,22" fill="none" stroke="#fff" stroke-width="0.8" opacity="0.06"/>
+    <!-- Bolts on cabinet -->
+    <circle cx="16" cy="16" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <circle cx="80" cy="16" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <circle cx="16" cy="128" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <circle cx="80" cy="128" r="2" fill="#1f2937" stroke="#6b7280" stroke-width="1"/>
+    <!-- Pipe stubs (amber terminals) -->
+    <rect x="-4" y="58" width="18" height="12" rx="4" fill="#92400e" stroke="#78350f" stroke-width="2"/>
+    <rect x="82" y="58" width="16" height="12" rx="4" fill="#92400e" stroke="#78350f" stroke-width="2"/>
+    <rect x="42" y="-4" width="12" height="16" rx="3" fill="#92400e" stroke="#78350f" stroke-width="2"/>
+    <circle cx="48" cy="4" r="2.5" fill="#fbbf24" opacity="0.3"/>
+    <text x="48" y="160" text-anchor="middle" font-size="8" font-weight="600" fill="#fde047" font-family="Inter, system-ui">Power Hub</text>
+  </g>
+
+
+  </g>
+
+  <!-- ═══════ COMBINED LEGEND ═══════ -->
+  <g transform="translate(16, 1620)">
+    <rect x="0" y="0" width="1100" height="56" rx="6" fill="#0f172a" stroke="#1e293b" stroke-width="1"/>
+    <rect x="16" y="10" width="14" height="10" rx="2" fill="url(#pG)"/><text x="34" y="18" font-size="8" fill="#6ee7b7" font-family="Inter, system-ui">Boundary</text>
+    <rect x="96" y="10" width="14" height="10" rx="2" fill="url(#pP)"/><text x="114" y="18" font-size="8" fill="#c4b5fd" font-family="Inter, system-ui">Pressure</text>
+    <rect x="176" y="10" width="14" height="10" rx="2" fill="url(#pB)"/><text x="194" y="18" font-size="8" fill="#93c5fd" font-family="Inter, system-ui">Heat</text>
+    <rect x="236" y="10" width="14" height="10" rx="2" fill="url(#pT)"/><text x="254" y="18" font-size="8" fill="#5eead4" font-family="Inter, system-ui">Separation</text>
+    <rect x="326" y="10" width="14" height="10" rx="2" fill="url(#pR)"/><text x="344" y="18" font-size="8" fill="#fca5a5" font-family="Inter, system-ui">Reactor</text>
+    <rect x="406" y="10" width="14" height="10" rx="2" fill="url(#pC)"/><text x="424" y="18" font-size="8" fill="#67e8f9" font-family="Inter, system-ui">Storage</text>
+    <rect x="486" y="10" width="14" height="10" rx="2" fill="url(#pA)"/><text x="504" y="18" font-size="8" fill="#fde047" font-family="Inter, system-ui">Power</text>
+    <rect x="566" y="10" width="14" height="10" rx="2" fill="url(#m)"/><text x="584" y="18" font-size="8" fill="#94a3b8" font-family="Inter, system-ui">Bare metal</text>
+    <circle cx="660" cy="14" r="5" fill="#0a1a1a" stroke="#4b5563" stroke-width="1.5"/><text x="670" y="18" font-size="8" fill="#94a3b8" font-family="Inter, system-ui">Viewport</text>
+    <rect x="730" y="10" width="12" height="10" rx="2" fill="#78350f" stroke="#92400e" stroke-width="1"/><text x="746" y="18" font-size="8" fill="#fbbf24" font-family="Inter, system-ui">Elec. terminal</text>
+    <circle cx="836" cy="14" r="3" fill="#22c55e" opacity="0.7"/><text x="844" y="18" font-size="8" fill="#94a3b8" font-family="Inter, system-ui">Status LED</text>
+    <path d="M920,14 L926,8 L932,14 L938,8 L944,14" fill="none" stroke="#fca5a5" stroke-width="2" stroke-linejoin="round" opacity="0.5"/>
+    <text x="950" y="18" font-size="8" fill="#fca5a5" font-family="Inter, system-ui">Resistance</text>
+    <path d="M1020,14 L1020,8 L1028,8 L1028,14 L1036,14 L1036,8 L1044,8 L1044,14" fill="none" stroke="#67e8f9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.6"/>
+    <text x="1050" y="18" font-size="8" fill="#67e8f9" font-family="Inter, system-ui">Cooling</text>
+    <text x="16" y="42" font-size="9" fill="#475569" font-family="Inter, system-ui">28 units · 7 categories · Ragtag theme: crash-salvage painted equipment with viewports, wear marks, status LEDs, bare metal pipes and bolts</text>
+  </g>
+
+</svg>
+
+</body>
+</html>

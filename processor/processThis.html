@@ -7811,6 +7811,7 @@
       <div class="btn-cluster">
         <button class="tbtn tbtn-emoji" id="btnStickerLines" data-tip="Show/hide stickers">📌</button>
         <button class="tbtn tbtn-emoji tbtn-dim" id="btnPlanetBg" data-tip="Planet background">🌍</button>
+        <button class="tbtn tbtn-emoji" id="btnTheme" data-tip="Theme: boxman">📦</button>
       </div>
 
       <div class="bar-sep"></div>
@@ -8533,6 +8534,7 @@ const LAYOUT_DEFAULTS = Object.freeze({
   inspectorOpen:         true,
   inspectorWidth:        360,
   paletteOpen:           false,
+  theme:                 'box',        // [v15.2.0 S-ICONS] 'box' | 'engineering' | 'ragtag'
 });
 
 /* =========================
@@ -14244,6 +14246,7 @@ function getPresentation(def, unit) {
   const variant = unit?.params?.variant || 'default';
   const key = theme + '/' + variant;
   return def.presentations[key]
+      || def.presentations['box/' + variant]   // [v15.2.0 S-ICONS] preserve port layout from box when themed pres not yet defined
       || def.presentations[theme + '/default']
       || def.presentations['box/default']
       || _legacyPresentation(def);
@@ -19760,6 +19763,7 @@ class Scene {
       inspectorOpen:         !(document.getElementById('rightPanel')?.style.display === 'none'),
       inspectorWidth:        document.getElementById('rightPanel')?.offsetWidth || LAYOUT_DEFAULTS.inspectorWidth,
       paletteOpen:           document.getElementById('paletteDrawer')?.classList.contains('open') || false,
+      theme:                 ui.theme || LAYOUT_DEFAULTS.theme,
     };
 
     return JSON.stringify(data, null, 2);
@@ -20233,6 +20237,12 @@ class Scene {
       const palOpen = typeof L.paletteOpen === 'boolean' ? L.paletteOpen : D.paletteOpen;
       const palEl = document.getElementById('paletteDrawer');
       if (palEl) palEl.classList.toggle('open', palOpen);
+
+      // [v15.2.0 S-ICONS] theme
+      const validThemes = ['box','engineering','ragtag'];
+      ui.theme = validThemes.includes(L.theme) ? L.theme : D.theme;
+      const themeBtn = document.getElementById('btnTheme');
+      if (themeBtn) themeBtn.textContent = ui.theme === 'box' ? '📦' : ui.theme === 'ragtag' ? '🔧' : '📐';
     }
 
     return { ok: true };
@@ -24629,6 +24639,60 @@ function _visLerp(c1, c2, t) {
   return `rgb(${Math.round(r1+(r2-r1)*t)},${Math.round(g1+(g2-g1)*t)},${Math.round(b1+(b2-b1)*t)})`;
 }
 
+// ── [v15.2.0 S-ICONS] Color helpers for themed rendering ──
+function _hexToHsl(hex) {
+  let r = parseInt(hex.slice(1,3),16)/255, g = parseInt(hex.slice(3,5),16)/255, b = parseInt(hex.slice(5,7),16)/255;
+  const mx = Math.max(r,g,b), mn = Math.min(r,g,b), l = (mx+mn)/2;
+  let h = 0, s = 0;
+  if (mx !== mn) {
+    const d = mx - mn;
+    s = l > 0.5 ? d/(2-mx-mn) : d/(mx+mn);
+    if (mx === r) h = ((g-b)/d + (g<b?6:0))/6;
+    else if (mx === g) h = ((b-r)/d + 2)/6;
+    else h = ((r-g)/d + 4)/6;
+  }
+  return [h*360, s*100, l*100];
+}
+function _hslToHex(h, s, l) {
+  s /= 100; l /= 100;
+  const a = s * Math.min(l, 1-l);
+  const f = n => { const k = (n + h/30) % 12; return l - a * Math.max(Math.min(k-3,9-k,1),-1); };
+  const toH = x => Math.round(x*255).toString(16).padStart(2,'0');
+  return `#${toH(f(0))}${toH(f(8))}${toH(f(4))}`;
+}
+function _darken(hex, amt) { const [h,s,l] = _hexToHsl(hex); return _hslToHex(h, s, Math.max(0, l - l*amt)); }
+function _lighten(hex, amt) { const [h,s,l] = _hexToHsl(hex); return _hslToHex(h, s, Math.min(100, l + (100-l)*amt)); }
+
+/**
+ * Create a dynamic <linearGradient> in `defsEl` for a themed unit.
+ * Returns { fillUrl, stroke, rim } derived from baseColor.
+ */
+function _makeUnitGradient(defsEl, unitId, baseColor) {
+  const id = `ug-${unitId}`;
+  const existing = defsEl.querySelector(`#${id}`);
+  if (existing) existing.remove();
+  const g = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
+  g.setAttribute('id', id);
+  g.setAttribute('x1', '0'); g.setAttribute('y1', '0');
+  g.setAttribute('x2', '0.3'); g.setAttribute('y2', '1');
+  [[0, _darken(baseColor, 0.15)], [50, baseColor], [100, _darken(baseColor, 0.10)]].forEach(([off, col]) => {
+    const s = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+    s.setAttribute('offset', off + '%'); s.setAttribute('stop-color', col);
+    g.appendChild(s);
+  });
+  defsEl.appendChild(g);
+  return { fillUrl: `url(#${id})`, stroke: _darken(baseColor, 0.35), rim: _darken(baseColor, 0.45) };
+}
+
+// ── Theme palettes (default category colors per theme) ──
+const THEME_PALETTES = Object.freeze({
+  box:         null,  // uses def.color directly (existing behavior)
+  ragtag:      Object.freeze({ SOURCE:'#10b981', PRESSURE:'#8b5cf6', HEAT_TRANSFER:'#3b82f6',
+                 SEPARATION:'#14b8a6', REACTOR:'#ef4444', STORAGE:'#06b6d4', POWER:'#eab308' }),
+  engineering: Object.freeze({ SOURCE:'#10b981', PRESSURE:'#8b5cf6', HEAT_TRANSFER:'#3b82f6',
+                 SEPARATION:'#14b8a6', REACTOR:'#ef4444', STORAGE:'#06b6d4', POWER:'#eab308' }),
+});
+
 // ── Temperature scale: 7 segments, highest resolution in ambient range ──
 // Cryogenic 50–200K, Refrigeration 200–273K, Ambient 273–373K,
 // Combustion 373–873K, High 873–1273K, Very high 1273–2273K, Inferno 2273K+
@@ -25365,6 +25429,330 @@ function _appendSmokeEmitter(parentGroup, cx, cy, cfg, isPlaying, playSpeed) {
   }
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// [v15.2.0 S-ICONS] Themed symbol rendering functions
+// Each: (group, wx, wy, ww, wh, pal, def, unitId)
+// pal = { fillUrl, stroke, rim } from _makeUnitGradient
+// All elements must have 'pointer-events': 'none'
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function _rtBolt(g, cx, cy) {
+  g.appendChild(svgEl('circle', { cx, cy, r: 2.5, fill: '#1f2937', stroke: '#6b7280', 'stroke-width': 1.2, 'pointer-events': 'none' }));
+}
+function _rtChip(g, x, y, w, h) {
+  g.appendChild(svgEl('rect', { x, y, width: w || 8, height: h || 4, rx: 1, fill: '#4b5563', opacity: 0.6, 'pointer-events': 'none' }));
+}
+function _rtVp(g, cx, cy, r, rimColor) {
+  g.appendChild(svgEl('circle', { cx, cy, r, fill: '#0f0820', stroke: rimColor, 'stroke-width': 2, 'pointer-events': 'none' }));
+  g.appendChild(svgEl('path', { d: `M${cx-4},${cy-r+4} Q${cx-2},${cy-r+2} ${cx},${cy-r+4}`, fill: 'none', stroke: '#fff', 'stroke-width': 0.8, opacity: 0.12, 'pointer-events': 'none' }));
+}
+function _rtStub(g, x, y, w, h) {
+  g.appendChild(svgEl('rect', { x, y, width: w, height: h, rx: Math.min(w,h)/2.5, fill: '#4b5563', stroke: '#374151', 'stroke-width': 1.5, 'pointer-events': 'none' }));
+}
+function _rtLed(g, cx, cy) {
+  g.appendChild(svgEl('circle', { cx, cy, r: 2.5, fill: '#22c55e', opacity: 0.6, 'pointer-events': 'none' }));
+}
+function _rtFoot(g, cx, yB) {
+  const hw = 6, bw = 10;
+  g.appendChild(svgEl('path', { d: `M${cx-hw},${yB} L${cx-bw},${yB+10} L${cx+bw},${yB+10} L${cx+hw},${yB} Z`, fill: '#4b5563', stroke: '#374151', 'stroke-width': 1, 'stroke-linejoin': 'round', 'pointer-events': 'none' }));
+}
+
+// ── RAGTAG SYMBOLS ──
+const _RAGTAG_SYMBOLS = {
+  pump(g, wx, wy, ww, wh, pal, def, unitId) {
+    const cx = wx + ww/2, cy = wy + wh/2;
+    const bx = wx + 6, by = wy + 4, bw = ww - 12;
+    const bodyTop = by + 10;  // room for motor above
+    const bodyBot = wy + wh - 12;  // room for feet below
+    const pres = getPresentation(def, scene.units.get(unitId));
+    _engStubs(g, wx, wy, ww, wh, bx, bodyTop, bw, bodyBot - bodyTop, def, pres);
+    // Feet flush under body
+    _rtFoot(g, wx + ww*0.28, bodyBot);
+    _rtFoot(g, wx + ww*0.72, bodyBot);
+    // Body — rx:4 at bottom for tighter fit with feet
+    g.appendChild(svgEl('rect', { x: bx, y: bodyTop, width: bw, height: bodyBot - bodyTop, rx: 6, fill: pal.fillUrl, stroke: pal.stroke, 'stroke-width': 2.5, 'pointer-events': 'none' }));
+    _rtChip(g, bx + bw - 14, bodyTop + 4, 8, 4);
+    // Seam
+    g.appendChild(svgEl('line', { x1: bx, y1: cy, x2: bx + bw, y2: cy, stroke: pal.stroke, 'stroke-width': 1, opacity: 0.5, 'pointer-events': 'none' }));
+    // Bolts
+    _rtBolt(g, bx + 6, bodyTop + 6); _rtBolt(g, bx + bw - 6, bodyTop + 6);
+    _rtBolt(g, bx + 6, bodyBot - 6); _rtBolt(g, bx + bw - 6, bodyBot - 6);
+    // Viewport
+    _rtVp(g, cx, cy, ww*0.14, pal.rim);
+    // Impeller group (animated rotation)
+    const ir = ww*0.1;
+    const impG = svgEl('g', { 'data-anim': 'pump-impeller', 'data-cx': cx, 'data-cy': cy, 'pointer-events': 'none' });
+    const impCol = _lighten(pal.stroke, 0.8);
+    impG.appendChild(svgEl('line', { x1: cx, y1: cy - ir, x2: cx, y2: cy + ir, stroke: impCol, 'stroke-width': 2, opacity: 0.5, 'stroke-linecap': 'round' }));
+    impG.appendChild(svgEl('line', { x1: cx - ir, y1: cy, x2: cx + ir, y2: cy, stroke: impCol, 'stroke-width': 2, opacity: 0.5, 'stroke-linecap': 'round' }));
+    impG.appendChild(svgEl('circle', { cx, cy, r: 3, fill: _lighten(pal.stroke, 0.6), opacity: 0.5 }));
+    g.appendChild(impG);
+    // Motor on top
+    g.appendChild(svgEl('rect', { x: cx - ww*0.16, y: by, width: ww*0.32, height: 10, rx: 4, fill: pal.fillUrl, stroke: pal.stroke, 'stroke-width': 2, 'pointer-events': 'none' }));
+    // LED
+    g.appendChild(svgEl('circle', { cx: bx + bw - 10, cy: bodyBot - 8, r: 2.5, fill: '#22c55e', 'data-anim': 'led-blink', 'data-phase': '0', 'pointer-events': 'none' }));
+  },
+
+  reactor_adiabatic(g, wx, wy, ww, wh, pal, def, unitId) {
+    const cx = wx + ww/2, cy = wy + wh/2;
+    const bx = wx + 4, by = wy + 4, bw = ww - 8;
+    const bodyBot = wy + wh - 14;
+    const bh = bodyBot - by;
+    const pres = getPresentation(def, scene.units.get(unitId));
+    _engStubs(g, wx, wy, ww, wh, bx, by, bw, bh, def, pres);
+    _rtFoot(g, wx + ww*0.25, bodyBot);
+    _rtFoot(g, wx + ww*0.75, bodyBot);
+    g.appendChild(svgEl('rect', { x: bx, y: by, width: bw, height: bh, rx: 12, fill: pal.fillUrl, stroke: pal.stroke, 'stroke-width': 2.5, 'pointer-events': 'none' }));
+    _rtChip(g, bx + bw - 14, by + 6, 8, 4);
+    _rtBolt(g, bx + 6, by + 8); _rtBolt(g, bx + bw - 6, by + 8);
+    _rtBolt(g, bx + 6, by + bh - 8); _rtBolt(g, bx + bw - 6, by + bh - 8);
+    // Viewport — centered in body box
+    const bodyCY = by + bh / 2;
+    _rtVp(g, cx, bodyCY, ww*0.16, pal.rim);
+    // Animated bubbles
+    const vpR = ww*0.16;
+    g.appendChild(svgEl('circle', { cx: cx - 4, cy: bodyCY, r: 3.5, fill: '#fbbf24', 'data-anim': 'reactor-bubble', 'data-ytop': bodyCY - vpR + 4, 'data-ybot': bodyCY + vpR - 4, 'data-phase': '0', 'data-speed': '0.6', 'pointer-events': 'none' }));
+    g.appendChild(svgEl('circle', { cx: cx + 5, cy: bodyCY, r: 3, fill: '#f97316', 'data-anim': 'reactor-bubble', 'data-ytop': bodyCY - vpR + 4, 'data-ybot': bodyCY + vpR - 4, 'data-phase': '0.35', 'data-speed': '0.5', 'pointer-events': 'none' }));
+    g.appendChild(svgEl('circle', { cx: cx - 2, cy: bodyCY, r: 2.5, fill: '#fbbf24', 'data-anim': 'reactor-bubble', 'data-ytop': bodyCY - vpR + 4, 'data-ybot': bodyCY + vpR - 4, 'data-phase': '0.7', 'data-speed': '0.7', 'pointer-events': 'none' }));
+    // Warning stripes
+    for (let i = 0; i < 6; i++) {
+      const sx = bx + 4 + i * (bw - 8) / 6;
+      g.appendChild(svgEl('line', { x1: sx, y1: by + bh - 8, x2: sx + 6, y2: by + bh - 2, stroke: '#fbbf24', 'stroke-width': 1.5, opacity: 0.15, 'pointer-events': 'none' }));
+    }
+    g.appendChild(svgEl('circle', { cx: bx + 8, cy: by + 8, r: 2.5, fill: '#22c55e', 'data-anim': 'led-blink', 'data-phase': '0.3', 'pointer-events': 'none' }));
+  },
+
+  flash_drum(g, wx, wy, ww, wh, pal, def, unitId) {
+    const cx = wx + ww/2, cy = wy + wh/2;
+    // Vessel body centered, narrower than full width to leave room for stubs
+    const bw = ww*0.55, bh = wh*0.88;
+    const bx = cx - bw/2, by = wy + wh*0.06;
+    // Tall vessel
+    g.appendChild(svgEl('rect', { x: bx, y: by, width: bw, height: bh, rx: bw*0.3, fill: pal.fillUrl, stroke: pal.stroke, 'stroke-width': 2.5, 'pointer-events': 'none' }));
+    _rtChip(g, bx + bw - 10, by + 6, 7, 3);
+    _rtBolt(g, bx + 6, by + 8); _rtBolt(g, bx + bw - 6, by + 8);
+    _rtBolt(g, bx + 6, by + bh - 8); _rtBolt(g, bx + bw - 6, by + bh - 8);
+    // Sight glass with data-driven level
+    const sgx = cx + 2, sgy = by + bh*0.1, sgh = bh*0.75;
+    g.appendChild(svgEl('rect', { x: sgx, y: sgy, width: 6, height: sgh, rx: 3, fill: '#0a1a1a', stroke: pal.stroke, 'stroke-width': 1.2, 'pointer-events': 'none' }));
+    // Read actual fill level from runtime
+    let fillFrac = 0.5; // default visual when no data
+    const _ud = scene.runtime?.unitData?.get(unitId);
+    if (_ud?.last?.beta !== undefined && Number.isFinite(_ud.last.beta)) {
+      fillFrac = 1 - _ud.last.beta; // beta=vapor fraction, liquid = 1-beta
+    }
+    fillFrac = Math.max(0, Math.min(1, fillFrac));
+    const fillTop = sgy + sgh * (1 - fillFrac);
+    const fillH = sgy + sgh - fillTop;
+    if (fillH > 0) {
+      g.appendChild(svgEl('rect', { x: sgx + 1, y: fillTop, width: 4, height: fillH, rx: 1.5, fill: '#2dd4bf', opacity: 0.3, 'data-anim': 'level-shimmer', 'data-ybase': fillTop, 'pointer-events': 'none' }));
+    }
+    // Level ticks
+    for (let i = 0; i < 4; i++) {
+      const ty = sgy + sgh*0.15 + i * sgh*0.22;
+      g.appendChild(svgEl('line', { x1: sgx + 7, y1: ty, x2: sgx + 10, y2: ty, stroke: pal.stroke, 'stroke-width': 0.8, opacity: 0.3, 'pointer-events': 'none' }));
+    }
+    // Custom stubs: mat_in horizontal, V/L at 45° to vessel body
+    const t = scene.tile;
+    const pres = getPresentation(def, scene.units.get(unitId));
+    for (const p of def.ports) {
+      const pp = pres.ports[p.portId];
+      if (!pp) continue;
+      const px = wx + pp.x * t, py = wy + pp.y * t;
+      const col = p.type === StreamType.ELECTRICAL ? '#eab308' : '#94a3b8';
+      if (pp.x === 0) {
+        // Left port: horizontal to body left edge
+        g.appendChild(svgEl('line', { x1: px, y1: py, x2: bx, y2: py, stroke: col, 'stroke-width': 3, 'stroke-linecap': 'round', 'pointer-events': 'none' }));
+      } else {
+        // Right ports (V top, L bottom): 45° to body right edge
+        const bodyEdgeX = bx + bw;
+        const bodyEdgeY = py < cy ? by + bh*0.1 : by + bh*0.9; // near top or bottom of vessel
+        g.appendChild(svgEl('line', { x1: px, y1: py, x2: bodyEdgeX, y2: bodyEdgeY, stroke: col, 'stroke-width': 3, 'stroke-linecap': 'round', 'pointer-events': 'none' }));
+      }
+    }
+    g.appendChild(svgEl('circle', { cx: bx + 8, cy: by + bh*0.25, r: 2.5, fill: '#22c55e', 'data-anim': 'led-blink', 'data-phase': '0.7', 'pointer-events': 'none' }));
+  },
+
+  valve(g, wx, wy, ww, wh, pal, def, unitId) {
+    const cx = wx + ww/2, cy = wy + wh/2;
+    const bw = ww*0.35, bh = wh*0.35;
+    const pres = getPresentation(def, scene.units.get(unitId));
+    _engStubs(g, wx, wy, ww, wh, cx-bw, cy-bh, bw*2, bh*2, def, pres);
+    g.appendChild(svgEl('polygon', { points: `${cx-bw},${cy-bh} ${cx},${cy} ${cx-bw},${cy+bh}`, fill: pal.fillUrl, stroke: pal.stroke, 'stroke-width': 2, 'stroke-linejoin': 'round', 'pointer-events': 'none' }));
+    g.appendChild(svgEl('polygon', { points: `${cx+bw},${cy-bh} ${cx},${cy} ${cx+bw},${cy+bh}`, fill: pal.fillUrl, stroke: pal.stroke, 'stroke-width': 2, 'stroke-linejoin': 'round', 'pointer-events': 'none' }));
+    // Stem
+    g.appendChild(svgEl('line', { x1: cx, y1: cy, x2: cx, y2: wy + 6, stroke: '#4b5563', 'stroke-width': 3, 'pointer-events': 'none' }));
+    // Handwheel
+    g.appendChild(svgEl('line', { x1: cx - 10, y1: wy + 6, x2: cx + 10, y2: wy + 6, stroke: '#4b5563', 'stroke-width': 3, 'stroke-linecap': 'round', 'pointer-events': 'none' }));
+    g.appendChild(svgEl('circle', { cx, cy: wy + 6, r: 3, fill: '#6b7280', stroke: '#374151', 'stroke-width': 1, 'pointer-events': 'none' }));
+    // LED
+    g.appendChild(svgEl('circle', { cx: cx + 8, cy: cy + bh + 4, r: 2.5, fill: '#22c55e', 'data-anim': 'led-blink', 'data-phase': '0.2', 'pointer-events': 'none' }));
+  },
+
+  grid_supply(g, wx, wy, ww, wh, pal, def, unitId) {
+    const cx = wx + ww/2, cy = wy + wh/2;
+    const bx = wx + 4, by = wy + 4, bw = ww - 8;
+    const bodyBot = wy + wh - 14;
+    const bh = bodyBot - by;
+    const pres = getPresentation(def, scene.units.get(unitId));
+    _engStubs(g, wx, wy, ww, wh, bx, by + 4, bw, bh - 4, def, pres);
+    _rtFoot(g, wx + ww*0.25, bodyBot);
+    _rtFoot(g, wx + ww*0.75, bodyBot);
+    // Housing
+    g.appendChild(svgEl('rect', { x: bx, y: by + 4, width: bw, height: bh - 4, rx: 10, fill: pal.fillUrl, stroke: pal.stroke, 'stroke-width': 2.5, 'pointer-events': 'none' }));
+    _rtChip(g, bx + bw - 14, by + 6, 8, 4);
+    _rtBolt(g, bx + 6, by + 8); _rtBolt(g, bx + bw - 6, by + 8);
+    _rtBolt(g, bx + 6, by + bh - 8); _rtBolt(g, bx + bw - 6, by + bh - 8);
+    // Viewport (rotor) — centered in body box
+    const bodyCY = by + 4 + (bh - 4) / 2;
+    _rtVp(g, cx, bodyCY, ww*0.16, pal.rim);
+    g.appendChild(svgEl('circle', { cx, cy: bodyCY, r: ww*0.10, fill: 'none', stroke: '#fbbf24', 'stroke-width': 1.5, 'data-anim': 'rotor-pulse', 'data-opbase': '0.25', 'pointer-events': 'none' }));
+    g.appendChild(svgEl('circle', { cx, cy: bodyCY, r: ww*0.05, fill: 'none', stroke: '#f59e0b', 'stroke-width': 2, 'data-anim': 'rotor-pulse', 'data-opbase': '0.35', 'pointer-events': 'none' }));
+    g.appendChild(svgEl('circle', { cx, cy: bodyCY, r: 2, fill: '#fbbf24', opacity: 0.5, 'pointer-events': 'none' }));
+    // Motor on top
+    g.appendChild(svgEl('rect', { x: cx - ww*0.18, y: by - 6, width: ww*0.36, height: 10, rx: 4, fill: pal.fillUrl, stroke: pal.stroke, 'stroke-width': 2, 'pointer-events': 'none' }));
+    // Vent slots
+    for (let i = 0; i < 4; i++) {
+      const vx = cx - ww*0.12 + i * ww*0.08;
+      g.appendChild(svgEl('line', { x1: vx, y1: by - 3, x2: vx, y2: by + 1, stroke: pal.stroke, 'stroke-width': 1.5, opacity: 0.5, 'pointer-events': 'none' }));
+    }
+    // High voltage hint
+    g.appendChild(svgEl('path', { d: `M${bx+bw-14},${by+bh-16} L${bx+bw-18},${by+bh-8} L${bx+bw-14},${by+bh-8} L${bx+bw-16},${by+bh-2}`, fill: 'none', stroke: '#fbbf24', 'stroke-width': 1.5, 'stroke-linejoin': 'round', opacity: 0.25, 'pointer-events': 'none' }));
+    // LED
+    g.appendChild(svgEl('circle', { cx: bx + 8, cy: by + 10, r: 2.5, fill: '#22c55e', 'data-anim': 'led-blink', 'data-phase': '0.5', 'pointer-events': 'none' }));
+  },
+  source(g,wx,wy,ww,wh,pal,def,unitId){const cx=wx+ww/2,cy=wy+wh/2,r=ww*0.28;const pres=getPresentation(def,scene.units.get(unitId));_engStubs(g,wx,wy,ww,wh,cx-r,cy-r,r*2,r*2,def,pres);g.appendChild(svgEl('circle',{cx,cy,r,fill:pal.fillUrl,stroke:pal.stroke,'stroke-width':2.5,'pointer-events':'none'}));_rtVp(g,cx,cy,r*0.55,pal.rim);g.appendChild(svgEl('polygon',{points:`${cx-6},${cy-4} ${cx+6},${cy} ${cx-6},${cy+4}`,fill:'#6ee7b7',opacity:.5,'pointer-events':'none'}));_rtBolt(g,cx-r+6,cy-r+6);_rtBolt(g,cx+r-6,cy+r-6);g.appendChild(svgEl('circle',{cx:cx+r-8,cy:cy+r-8,r:2.5,fill:'#22c55e','data-anim':'led-blink','data-phase':'0','pointer-events':'none'}));},
+  source_atm(g,wx,wy,ww,wh,pal,def,unitId){const cx=wx+ww/2,cy=wy+wh/2;const pres=getPresentation(def,scene.units.get(unitId));
+    // Body: wide opening on left, narrows to right where port is
+    const nr=ww*0.7; // narrow end x from wx
+    g.appendChild(svgEl('path',{d:`M${wx+6},${wy+6} Q${wx+2},${cy} ${wx+6},${wy+wh-6} L${wx+nr},${cy+wh*0.12} Q${wx+nr+4},${cy} ${wx+nr},${cy-wh*0.12} Z`,fill:pal.fillUrl,stroke:pal.stroke,'stroke-width':2.5,'pointer-events':'none'}));
+    // Stubs from narrow end to port
+    _engStubs(g,wx,wy,ww,wh,wx+6,wy+6,nr-2,wh-12,def,pres);
+    // Wind streaks rushing in from left
+    [0,.25,.5,.75].forEach((ph,i)=>{const yOff=(i-1.5)*wh*0.14;g.appendChild(svgEl('line',{x1:wx+10,y1:cy+yOff,x2:wx+ww*0.35,y2:cy+yOff*0.5,stroke:'#6ee7b7','stroke-width':1.5,opacity:.25,'stroke-linecap':'round','pointer-events':'none'}));g.appendChild(svgEl('polygon',{points:`${wx+ww*0.35},${cy+yOff*0.5-2} ${wx+ww*0.4},${cy+yOff*0.5} ${wx+ww*0.35},${cy+yOff*0.5+2}`,fill:'#6ee7b7',opacity:.2,'pointer-events':'none'}));});
+    g.appendChild(svgEl('circle',{cx:wx+nr-6,cy:cy+8,r:2.5,fill:'#22c55e','data-anim':'led-blink','data-phase':'0.4','pointer-events':'none'}));},
+  sink(g,wx,wy,ww,wh,pal,def,unitId){const cx=wx+ww/2,cy=wy+wh/2;const bx=wx+ww*0.3,by=wy+4,bw=ww*0.4,bh=wh-8;const pres=getPresentation(def,scene.units.get(unitId));_engStubs(g,wx,wy,ww,wh,bx,by,bw,bh,def,pres);g.appendChild(svgEl('rect',{x:bx,y:by,width:bw,height:bh,rx:4,fill:pal.fillUrl,stroke:pal.stroke,'stroke-width':2.5,'pointer-events':'none'}));g.appendChild(svgEl('path',{d:`M${bx-4},${by-2} L${cx},${by-8} L${bx+bw+4},${by-2}`,fill:'none',stroke:pal.stroke,'stroke-width':2,opacity:.5,'pointer-events':'none'}));_rtBolt(g,bx+6,by+8);_rtBolt(g,bx+bw-6,by+bh-8);g.appendChild(svgEl('line',{x1:wx+ww*0.2,y1:wy+wh-6,x2:wx+ww*0.8,y2:wy+wh-6,stroke:pal.stroke,'stroke-width':2,'pointer-events':'none'}));g.appendChild(svgEl('circle',{cx:bx+bw-6,cy:by+bh-8,r:2.5,fill:'#22c55e','data-anim':'led-blink','data-phase':'0.6','pointer-events':'none'}));},
+  sink_electrical(g,wx,wy,ww,wh,pal,def,unitId){const cx=wx+ww/2,cy=wy+wh/2;const bx=wx+6,by=wy+6,bw=ww-12,bh=wh-12;const pres=getPresentation(def,scene.units.get(unitId));_engStubs(g,wx,wy,ww,wh,bx,by,bw,bh,def,pres);g.appendChild(svgEl('rect',{x:bx,y:by,width:bw,height:bh,rx:6,fill:pal.fillUrl,stroke:pal.stroke,'stroke-width':2.5,'pointer-events':'none'}));const gx=bx+6,gy=by+6,gw=bw*0.55,gh=bh-12;g.appendChild(svgEl('rect',{x:gx,y:gy,width:gw,height:gh,rx:3,fill:'#1a1000',stroke:pal.stroke,'stroke-width':1.2,'pointer-events':'none'}));for(let i=0;i<5;i++){const ly=gy+6+i*(gh-12)/4;g.appendChild(svgEl('line',{x1:gx+2,y1:ly,x2:gx+gw-2,y2:ly,stroke:pal.stroke,'stroke-width':1.2,opacity:.4,'pointer-events':'none'}));}g.appendChild(svgEl('path',{d:`M${gx+4},${gy+gh*0.35} Q${gx+gw/2},${gy+gh*0.3} ${gx+gw-4},${gy+gh*0.35}`,fill:'none',stroke:'#fca5a5','stroke-width':2,'stroke-linecap':'round','data-anim':'rotor-pulse','data-opbase':'0.4','pointer-events':'none'}));g.appendChild(svgEl('circle',{cx:bx+bw-14,cy,r:8,fill:'#1a1000',stroke:pal.stroke,'stroke-width':1.5,'pointer-events':'none'}));_rtBolt(g,bx+6,by+6);_rtBolt(g,bx+bw-6,by+bh-6);g.appendChild(svgEl('circle',{cx:bx+8,cy:by+8,r:2.5,fill:'#22c55e','data-anim':'led-blink','data-phase':'0.1','pointer-events':'none'}));},
+  reservoir(g,wx,wy,ww,wh,pal,def,unitId){const cx=wx+ww/2,cy=wy+wh/2;const pres=getPresentation(def,scene.units.get(unitId));_engStubs(g,wx,wy,ww,wh,cx-8,wy+wh*0.2,16,wh*0.5,def,pres);g.appendChild(svgEl('line',{x1:wx+8,y1:wy+wh*0.65,x2:wx+ww-8,y2:wy+wh*0.65,stroke:'#4b5563','stroke-width':2,'pointer-events':'none'}));g.appendChild(svgEl('rect',{x:cx-6,y:wy+wh*0.2,width:12,height:wh*0.46,rx:3,fill:pal.fillUrl,stroke:pal.stroke,'stroke-width':2,'pointer-events':'none'}));g.appendChild(svgEl('rect',{x:cx-12,y:wy+wh*0.15,width:24,height:8,rx:3,fill:pal.fillUrl,stroke:pal.stroke,'stroke-width':2,'pointer-events':'none'}));g.appendChild(svgEl('circle',{cx,cy:wy+wh*0.19,r:3,fill:'#6b7280',stroke:'#374151','stroke-width':1,'pointer-events':'none'}));g.appendChild(svgEl('circle',{cx:cx+8,cy:wy+wh*0.55,r:2.5,fill:'#22c55e','data-anim':'led-blink','data-phase':'0.8','pointer-events':'none'}));},
+  compressor(g,wx,wy,ww,wh,pal,def,unitId){const cx=wx+ww/2,cy=wy+wh/2;const bx=wx+6,by=wy+8,bw=ww-12,bh=wh-20;const pres=getPresentation(def,scene.units.get(unitId));_engStubs(g,wx,wy,ww,wh,bx,by,bw,bh,def,pres);_rtFoot(g,wx+ww*0.25,by+bh);_rtFoot(g,wx+ww*0.75,by+bh);g.appendChild(svgEl('rect',{x:bx,y:by,width:bw,height:bh,rx:6,fill:pal.fillUrl,stroke:pal.stroke,'stroke-width':2.5,'pointer-events':'none'}));_rtBolt(g,bx+6,by+6);_rtBolt(g,bx+bw-6,by+6);_rtBolt(g,bx+6,by+bh-6);_rtBolt(g,bx+bw-6,by+bh-6);_rtVp(g,cx,by+bh/2,ww*0.14,pal.rim);const impG=svgEl('g',{'data-anim':'pump-impeller','data-cx':cx,'data-cy':by+bh/2,'pointer-events':'none'});impG.appendChild(svgEl('rect',{x:cx-3,y:by+bh/2-ww*0.1,width:6,height:ww*0.2,rx:1,fill:_lighten(pal.stroke,0.8),opacity:.5}));g.appendChild(impG);g.appendChild(svgEl('circle',{cx:bx+bw-8,cy:by+bh-8,r:2.5,fill:'#22c55e','data-anim':'led-blink','data-phase':'0.2','pointer-events':'none'}));},
+  compressor_diaphragm(g,wx,wy,ww,wh,pal,def,unitId){const cx=wx+ww/2;const bx=wx+6,by=wy+4,bw=ww-12,bh=wh*0.5;const pres=getPresentation(def,scene.units.get(unitId));_engStubs(g,wx,wy,ww,wh,bx,by,bw,wh-8,def,pres);g.appendChild(svgEl('rect',{x:bx,y:by,width:bw,height:bh,rx:6,fill:pal.fillUrl,stroke:pal.stroke,'stroke-width':2.5,'pointer-events':'none'}));g.appendChild(svgEl('path',{d:`M${bx+4},${by+bh/2} Q${cx},${by+bh/2-8} ${bx+bw-4},${by+bh/2}`,fill:'none',stroke:_lighten(pal.stroke,0.6),'stroke-width':2.5,opacity:.6,'pointer-events':'none'}));_rtBolt(g,bx+6,by+6);_rtBolt(g,bx+bw-6,by+bh-6);const coilY=wy+wh*0.6;g.appendChild(svgEl('path',{d:`M${wx},${coilY+8} L${bx+4},${coilY+8} L${bx+4},${coilY} L${bx+14},${coilY} L${bx+14},${coilY+16} L${bx+24},${coilY+16} L${bx+24},${coilY} L${bx+34},${coilY} L${bx+34},${coilY+16} L${bx+44},${coilY+16} L${bx+44},${coilY} L${bx+bw-4},${coilY} L${bx+bw-4},${coilY+8} L${wx+ww},${coilY+8}`,fill:'none',stroke:'#93c5fd','stroke-width':2.5,'stroke-linecap':'round','stroke-linejoin':'round','pointer-events':'none'}));g.appendChild(svgEl('circle',{cx:bx+bw-8,cy:by+8,r:2.5,fill:'#22c55e','data-anim':'led-blink','data-phase':'0.5','pointer-events':'none'}));},
+  restriction(g,wx,wy,ww,wh,pal,def,unitId){const cx=wx+ww/2,cy=wy+wh/2;const pres=getPresentation(def,scene.units.get(unitId));_engStubs(g,wx,wy,ww,wh,cx-ww*0.2,cy-wh*0.3,ww*0.4,wh*0.6,def,pres);g.appendChild(svgEl('path',{d:`M${cx-ww*0.2},${cy-wh*0.3} L${cx},${cy} L${cx-ww*0.2},${cy+wh*0.3} L${cx+ww*0.2},${cy+wh*0.3} L${cx},${cy} L${cx+ww*0.2},${cy-wh*0.3} Z`,fill:pal.fillUrl,stroke:pal.stroke,'stroke-width':2.5,'stroke-linejoin':'round','pointer-events':'none'}));_rtBolt(g,cx-6,cy-wh*0.2);_rtBolt(g,cx+6,cy+wh*0.2);},
+  gas_turbine(g,wx,wy,ww,wh,pal,def,unitId){const cx=wx+ww/2,cy=wy+wh/2;const bx=wx+6,by=wy+8,bw=ww-12,bh=wh-20;const pres=getPresentation(def,scene.units.get(unitId));_engStubs(g,wx,wy,ww,wh,bx,by,bw,bh,def,pres);_rtFoot(g,wx+ww*0.25,by+bh);_rtFoot(g,wx+ww*0.75,by+bh);g.appendChild(svgEl('rect',{x:bx,y:by,width:bw,height:bh,rx:6,fill:pal.fillUrl,stroke:pal.stroke,'stroke-width':2.5,'pointer-events':'none'}));_rtBolt(g,bx+6,by+6);_rtBolt(g,bx+bw-6,by+bh-6);_rtVp(g,cx,by+bh/2,ww*0.16,pal.rim);const impG=svgEl('g',{'data-anim':'pump-impeller','data-cx':cx,'data-cy':by+bh/2,'pointer-events':'none'});const ic=_lighten(pal.stroke,0.8);[0,60,120,180,240,300].forEach(a=>{const r2=a*Math.PI/180;impG.appendChild(svgEl('line',{x1:cx,y1:by+bh/2,x2:cx+Math.cos(r2)*ww*0.1,y2:by+bh/2+Math.sin(r2)*ww*0.1,stroke:ic,'stroke-width':1.5,opacity:.5,'stroke-linecap':'round'}));});g.appendChild(impG);g.appendChild(svgEl('circle',{cx:bx+8,cy:by+8,r:2.5,fill:'#22c55e','data-anim':'led-blink','data-phase':'0.3','pointer-events':'none'}));},
+  electric_heater(g,wx,wy,ww,wh,pal,def,unitId){const cx=wx+ww/2,cy=wy+wh/2;const bx=wx+6,by=wy+8,bw=ww-12,bh=wh-16;const pres=getPresentation(def,scene.units.get(unitId));_engStubs(g,wx,wy,ww,wh,bx,by,bw,bh,def,pres);g.appendChild(svgEl('rect',{x:bx,y:by,width:bw,height:bh,rx:6,fill:pal.fillUrl,stroke:pal.stroke,'stroke-width':2.5,'pointer-events':'none'}));_rtBolt(g,bx+6,by+6);_rtBolt(g,bx+bw-6,by+bh-6);g.appendChild(svgEl('path',{d:`M${bx+8},${cy} L${bx+14},${cy-8} L${bx+22},${cy+8} L${bx+30},${cy-8} L${bx+38},${cy+8} L${bx+46},${cy-8} L${bx+54},${cy+8} L${bx+bw-8},${cy}`,fill:'none',stroke:'#fca5a5','stroke-width':2.5,'stroke-linejoin':'round','stroke-linecap':'round','data-anim':'rotor-pulse','data-opbase':'0.5','pointer-events':'none'}));g.appendChild(svgEl('circle',{cx:bx+bw-8,cy:by+bh-8,r:2.5,fill:'#22c55e','data-anim':'led-blink','data-phase':'0.7','pointer-events':'none'}));},
+  air_cooler(g,wx,wy,ww,wh,pal,def,unitId){const cx=wx+ww/2;const bx=wx+4,by=wy+4,bw=ww-8,tbH=wh*0.35;const pres=getPresentation(def,scene.units.get(unitId));_engStubs(g,wx,wy,ww,wh,bx,by,bw,wh-8,def,pres);g.appendChild(svgEl('rect',{x:bx,y:by,width:bw,height:tbH,rx:4,fill:pal.fillUrl,stroke:pal.stroke,'stroke-width':2.5,'pointer-events':'none'}));[0.2,0.4,0.6,0.8].forEach(f=>{g.appendChild(svgEl('line',{x1:bx+bw*f,y1:by+4,x2:bx+bw*f,y2:by+tbH-4,stroke:pal.stroke,'stroke-width':1,opacity:.3,'pointer-events':'none'}));});const fanCY=by+tbH+wh*0.25;g.appendChild(svgEl('circle',{cx,cy:fanCY,r:ww*0.2,fill:'#0f172a',stroke:pal.stroke,'stroke-width':2,'pointer-events':'none'}));const impG=svgEl('g',{'data-anim':'pump-impeller','data-cx':cx,'data-cy':fanCY,'pointer-events':'none'});const ic=_lighten(pal.stroke,0.8);[0,72,144,216,288].forEach(a=>{const r2=a*Math.PI/180;impG.appendChild(svgEl('line',{x1:cx+Math.cos(r2)*3,y1:fanCY+Math.sin(r2)*3,x2:cx+Math.cos(r2)*ww*0.16,y2:fanCY+Math.sin(r2)*ww*0.16,stroke:ic,'stroke-width':3,opacity:.4,'stroke-linecap':'round'}));});impG.appendChild(svgEl('circle',{cx,cy:fanCY,r:2.5,fill:ic,opacity:.5}));g.appendChild(impG);_rtBolt(g,bx+6,by+6);_rtBolt(g,bx+bw-6,by+6);g.appendChild(svgEl('circle',{cx:bx+bw-8,cy:by+tbH-8,r:2.5,fill:'#22c55e','data-anim':'led-blink','data-phase':'0.4','pointer-events':'none'}));},
+  hex(g,wx,wy,ww,wh,pal,def,unitId){const cx=wx+ww/2,cy=wy+wh/2,rx=ww*0.42,ry=wh*0.3;const pres=getPresentation(def,scene.units.get(unitId));_engStubs(g,wx,wy,ww,wh,cx-rx,cy-ry,rx*2,ry*2,def,pres);g.appendChild(svgEl('ellipse',{cx,cy,rx,ry,fill:pal.fillUrl,stroke:pal.stroke,'stroke-width':2.5,'pointer-events':'none'}));_rtVp(g,cx,cy,Math.min(rx,ry)*0.65,pal.rim);g.appendChild(svgEl('path',{d:`M${cx-12},${cy} Q${cx-4},${cy-8} ${cx+4},${cy} Q${cx+12},${cy+8} ${cx+16},${cy}`,fill:'none',stroke:'#fca5a5','stroke-width':1.5,opacity:.35,'pointer-events':'none'}));g.appendChild(svgEl('path',{d:`M${cx-12},${cy} Q${cx-4},${cy+8} ${cx+4},${cy} Q${cx+12},${cy-8} ${cx+16},${cy}`,fill:'none',stroke:'#93c5fd','stroke-width':1.5,opacity:.25,'pointer-events':'none'}));_rtBolt(g,cx-rx+8,cy);_rtBolt(g,cx+rx-8,cy);_rtBolt(g,cx,cy-ry+6);_rtBolt(g,cx,cy+ry-6);g.appendChild(svgEl('circle',{cx:cx+rx-12,cy:cy+ry-8,r:2.5,fill:'#22c55e','data-anim':'led-blink','data-phase':'0.5','pointer-events':'none'}));},
+  mixer(g,wx,wy,ww,wh,pal,def,unitId){const cx=wx+ww/2,cy=wy+wh/2;const pres=getPresentation(def,scene.units.get(unitId));const bx=wx+ww*0.3,bw=ww*0.5;_engStubs(g,wx,wy,ww,wh,bx,wy+4,bw,wh-8,def,pres);g.appendChild(svgEl('path',{d:`M${bx},${wy+4} L${bx},${wy+wh-4} L${bx+bw},${cy+wh*0.2} L${bx+bw},${cy-wh*0.2} Z`,fill:pal.fillUrl,stroke:pal.stroke,'stroke-width':2.5,'stroke-linejoin':'round','pointer-events':'none'}));_rtBolt(g,bx+6,wy+12);_rtBolt(g,bx+6,wy+wh-12);_rtBolt(g,bx+bw-8,cy);g.appendChild(svgEl('circle',{cx:bx+bw-10,cy:cy+10,r:2.5,fill:'#22c55e','data-anim':'led-blink','data-phase':'0.1','pointer-events':'none'}));},
+  splitter(g,wx,wy,ww,wh,pal,def,unitId){const cx=wx+ww/2,cy=wy+wh/2;const pres=getPresentation(def,scene.units.get(unitId));const bx=wx+ww*0.15,bw=ww*0.5;_engStubs(g,wx,wy,ww,wh,bx,wy+4,bw,wh-8,def,pres);g.appendChild(svgEl('path',{d:`M${bx},${cy-wh*0.2} L${bx},${cy+wh*0.2} L${bx+bw},${wy+wh-4} L${bx+bw},${wy+4} Z`,fill:pal.fillUrl,stroke:pal.stroke,'stroke-width':2.5,'stroke-linejoin':'round','pointer-events':'none'}));_rtBolt(g,bx+6,cy);_rtBolt(g,bx+bw-6,wy+12);_rtBolt(g,bx+bw-6,wy+wh-12);g.appendChild(svgEl('text',{x:bx+bw*0.3,y:cy+4,'text-anchor':'middle','font-size':10,'font-weight':700,fill:_lighten(pal.stroke,0.5),opacity:.5,'pointer-events':'none','font-family':'Inter,system-ui'})).textContent='%';g.appendChild(svgEl('circle',{cx:bx+8,cy:cy+10,r:2.5,fill:'#22c55e','data-anim':'led-blink','data-phase':'0.9','pointer-events':'none'}));},
+  distillation_column(g,wx,wy,ww,wh,pal,def,unitId){const cx=wx+ww/2;const bw=ww*0.5,bh=wh*0.9,bx=cx-bw/2,by=wy+wh*0.05;const pres=getPresentation(def,scene.units.get(unitId));_engStubs(g,wx,wy,ww,wh,bx,by,bw,bh,def,pres);g.appendChild(svgEl('rect',{x:bx,y:by,width:bw,height:bh,rx:bw*0.3,fill:pal.fillUrl,stroke:pal.stroke,'stroke-width':2.5,'pointer-events':'none'}));[0.2,0.35,0.5,0.65,0.8].forEach(f=>{g.appendChild(svgEl('line',{x1:bx+4,y1:by+bh*f,x2:bx+bw-4,y2:by+bh*f,stroke:pal.stroke,'stroke-width':1,opacity:.25,'pointer-events':'none'}));});_rtBolt(g,bx+6,by+8);_rtBolt(g,bx+bw-6,by+bh-8);g.appendChild(svgEl('rect',{x:cx+2,y:by+bh*0.15,width:5,height:bh*0.6,rx:2,fill:'#0a1a1a',stroke:pal.stroke,'stroke-width':1,'pointer-events':'none'}));g.appendChild(svgEl('rect',{x:cx+3,y:by+bh*0.5,width:3,height:bh*0.22,rx:1,fill:'#2dd4bf',opacity:.3,'data-anim':'level-shimmer','data-ybase':by+bh*0.5,'pointer-events':'none'}));g.appendChild(svgEl('circle',{cx:bx+8,cy:by+bh*0.15,r:2.5,fill:'#22c55e','data-anim':'led-blink','data-phase':'0.6','pointer-events':'none'}));},
+  membrane_separator(g,wx,wy,ww,wh,pal,def,unitId){const cx=wx+ww/2,cy=wy+wh/2;const bx=wx+6,by=wy+6,bw=ww-12,bh=wh-12;const pres=getPresentation(def,scene.units.get(unitId));_engStubs(g,wx,wy,ww,wh,bx,by,bw,bh,def,pres);g.appendChild(svgEl('rect',{x:bx,y:by,width:bw,height:bh,rx:6,fill:pal.fillUrl,stroke:pal.stroke,'stroke-width':2.5,'pointer-events':'none'}));g.appendChild(svgEl('line',{x1:bx+4,y1:by+4,x2:bx+bw-4,y2:by+bh-4,stroke:pal.stroke,'stroke-width':2,'stroke-dasharray':'5 3',opacity:.5,'pointer-events':'none'}));_rtBolt(g,bx+6,by+6);_rtBolt(g,bx+bw-6,by+bh-6);g.appendChild(svgEl('circle',{cx:bx+bw-8,cy,r:2.5,fill:'#22c55e','data-anim':'led-blink','data-phase':'0.3','pointer-events':'none'}));},
+  reactor_jacketed(g,wx,wy,ww,wh,pal,def,unitId){const cx=wx+ww/2,cy=wy+wh/2;const bx=wx+6,by=wy+6,bw=ww-12,bh=wh-12;const pres=getPresentation(def,scene.units.get(unitId));_engStubs(g,wx,wy,ww,wh,bx,by,bw,bh,def,pres);g.appendChild(svgEl('rect',{x:bx-2,y:by-2,width:bw+4,height:bh+4,rx:14,fill:'none',stroke:pal.stroke,'stroke-width':2,'stroke-dasharray':'6 3',opacity:.3,'pointer-events':'none'}));g.appendChild(svgEl('rect',{x:bx+4,y:by+4,width:bw-8,height:bh-8,rx:10,fill:pal.fillUrl,stroke:pal.stroke,'stroke-width':2.5,'pointer-events':'none'}));_rtVp(g,cx,cy,ww*0.14,pal.rim);g.appendChild(svgEl('circle',{cx:cx-4,cy,r:3,fill:'#fbbf24','data-anim':'reactor-bubble','data-ytop':cy-ww*0.1,'data-ybot':cy+ww*0.1,'data-phase':'0','data-speed':'0.6','pointer-events':'none'}));g.appendChild(svgEl('circle',{cx:cx+4,cy,r:2.5,fill:'#f97316','data-anim':'reactor-bubble','data-ytop':cy-ww*0.1,'data-ybot':cy+ww*0.1,'data-phase':'0.4','data-speed':'0.5','pointer-events':'none'}));_rtBolt(g,bx+8,by+8);_rtBolt(g,bx+bw-8,by+bh-8);g.appendChild(svgEl('path',{d:`M${bx+8},${by+bh-2} L${bx+16},${by+bh+6} L${bx+24},${by+bh-2} L${bx+32},${by+bh+6} L${bx+40},${by+bh-2} L${bx+48},${by+bh+6} L${bx+bw-8},${by+bh-2}`,fill:'none',stroke:'#fca5a5','stroke-width':2,'stroke-linejoin':'round','data-anim':'rotor-pulse','data-opbase':'0.4','pointer-events':'none'}));g.appendChild(svgEl('circle',{cx:bx+8,cy:by+8,r:2.5,fill:'#22c55e','data-anim':'led-blink','data-phase':'0.2','pointer-events':'none'}));},
+  reactor_cooled(g,wx,wy,ww,wh,pal,def,unitId){const cx=wx+ww/2;const bx=wx+6,by=wy+4,bw=ww-12,bh=wh*0.52;const pres=getPresentation(def,scene.units.get(unitId));_engStubs(g,wx,wy,ww,wh,bx,by,bw,wh-8,def,pres);g.appendChild(svgEl('rect',{x:bx,y:by,width:bw,height:bh,rx:10,fill:pal.fillUrl,stroke:pal.stroke,'stroke-width':2.5,'pointer-events':'none'}));_rtVp(g,cx,by+bh/2,ww*0.14,pal.rim);g.appendChild(svgEl('circle',{cx:cx-3,cy:by+bh/2,r:3,fill:'#fbbf24','data-anim':'reactor-bubble','data-ytop':by+bh/2-ww*0.1,'data-ybot':by+bh/2+ww*0.1,'data-phase':'0','data-speed':'0.6','pointer-events':'none'}));_rtBolt(g,bx+6,by+6);_rtBolt(g,bx+bw-6,by+bh-6);const coilY=by+bh+8;g.appendChild(svgEl('path',{d:`M${wx},${coilY+8} L${bx+4},${coilY+8} L${bx+4},${coilY} L${bx+14},${coilY} L${bx+14},${coilY+16} L${bx+24},${coilY+16} L${bx+24},${coilY} L${bx+34},${coilY} L${bx+34},${coilY+16} L${bx+44},${coilY+16} L${bx+44},${coilY} L${bx+bw-4},${coilY} L${bx+bw-4},${coilY+8} L${wx+ww},${coilY+8}`,fill:'none',stroke:'#93c5fd','stroke-width':2.5,'stroke-linecap':'round','stroke-linejoin':'round','pointer-events':'none'}));g.appendChild(svgEl('circle',{cx:bx+8,cy:by+8,r:2.5,fill:'#22c55e','data-anim':'led-blink','data-phase':'0.7','pointer-events':'none'}));},
+  reactor_electrochemical(g,wx,wy,ww,wh,pal,def,unitId){const cx=wx+ww/2,cy=wy+wh/2;const bx=wx+8,by=wy+6,bw=ww-16,bh=wh-12;const pres=getPresentation(def,scene.units.get(unitId));_engStubs(g,wx,wy,ww,wh,bx,by,bw,bh,def,pres);g.appendChild(svgEl('rect',{x:bx,y:by,width:bw,height:bh,rx:6,fill:pal.fillUrl,stroke:pal.stroke,'stroke-width':2.5,'pointer-events':'none'}));g.appendChild(svgEl('line',{x1:bx+4,y1:cy,x2:bx+bw-4,y2:cy,stroke:pal.stroke,'stroke-width':2,'stroke-dasharray':'5 3',opacity:.5,'pointer-events':'none'}));g.appendChild(svgEl('rect',{x:bx+bw-10,y:by+bh*0.15,width:4,height:bh*0.28,rx:1,fill:'#fca5a5',opacity:.4,'pointer-events':'none'}));g.appendChild(svgEl('rect',{x:bx+bw-10,y:cy+bh*0.05,width:4,height:bh*0.28,rx:1,fill:'#fca5a5',opacity:.3,'pointer-events':'none'}));_rtBolt(g,bx+6,by+8);_rtBolt(g,bx+bw-6,by+bh-8);g.appendChild(svgEl('circle',{cx,cy:cy-bh*0.15,r:2.5,fill:'#fbbf24','data-anim':'reactor-bubble','data-ytop':by+6,'data-ybot':cy-4,'data-phase':'0','data-speed':'0.5','pointer-events':'none'}));g.appendChild(svgEl('circle',{cx,cy:cy+bh*0.15,r:2.5,fill:'#fbbf24','data-anim':'reactor-bubble','data-ytop':cy+4,'data-ybot':by+bh-6,'data-phase':'0.5','data-speed':'0.6','pointer-events':'none'}));g.appendChild(svgEl('circle',{cx:bx+8,cy:by+8,r:2.5,fill:'#f97316','data-anim':'led-blink','data-phase':'0.1','pointer-events':'none'}));},
+  fuel_cell(g,wx,wy,ww,wh,pal,def,unitId){const cx=wx+ww/2;const bx=wx+8,by=wy+6,bw=ww-16,bh=wh*0.55;const pres=getPresentation(def,scene.units.get(unitId));_engStubs(g,wx,wy,ww,wh,bx,by,bw,wh-12,def,pres);g.appendChild(svgEl('rect',{x:bx,y:by,width:bw,height:bh,rx:6,fill:pal.fillUrl,stroke:pal.stroke,'stroke-width':2.5,'pointer-events':'none'}));[0.2,0.4,0.6,0.8].forEach(f=>{g.appendChild(svgEl('rect',{x:bx+6,y:by+bh*f-3,width:bw-12,height:6,rx:1,fill:_lighten(pal.stroke,0.5),opacity:.12,'pointer-events':'none'}));});_rtBolt(g,bx+6,by+6);_rtBolt(g,bx+bw-6,by+bh-6);const coilY=by+bh+10;g.appendChild(svgEl('path',{d:`M${wx},${coilY+8} L${bx+4},${coilY+8} L${bx+4},${coilY} L${bx+14},${coilY} L${bx+14},${coilY+16} L${bx+24},${coilY+16} L${bx+24},${coilY} L${bx+34},${coilY} L${bx+34},${coilY+16} L${bx+44},${coilY+16} L${bx+44},${coilY} L${bx+bw-4},${coilY} L${bx+bw-4},${coilY+8} L${wx+ww},${coilY+8}`,fill:'none',stroke:'#93c5fd','stroke-width':2.5,'stroke-linecap':'round','stroke-linejoin':'round','pointer-events':'none'}));g.appendChild(svgEl('circle',{cx:bx+bw-8,cy:by+bh-8,r:2.5,fill:'#22c55e','data-anim':'led-blink','data-phase':'0.4','pointer-events':'none'}));},
+  tank(g,wx,wy,ww,wh,pal,def,unitId){const cx=wx+ww/2,cy=wy+wh/2;const bx=wx+4,by=wy+6,bw=ww-8,bh=wh-18;const pres=getPresentation(def,scene.units.get(unitId));g.appendChild(svgEl('path',{d:`M${bx+10},${by+bh} L${bx+6},${by+bh+10} L${bx+20},${by+bh+10} L${bx+16},${by+bh}`,fill:'#4b5563',stroke:'#374151','stroke-width':1,'stroke-linejoin':'round','pointer-events':'none'}));g.appendChild(svgEl('path',{d:`M${bx+bw-18},${by+bh} L${bx+bw-22},${by+bh+10} L${bx+bw-8},${by+bh+10} L${bx+bw-12},${by+bh}`,fill:'#4b5563',stroke:'#374151','stroke-width':1,'stroke-linejoin':'round','pointer-events':'none'}));_engStubs(g,wx,wy,ww,wh,bx,by,bw,bh,def,pres);g.appendChild(svgEl('ellipse',{cx,cy:by+bh/2,rx:bw/2,ry:bh/2,fill:pal.fillUrl,stroke:pal.stroke,'stroke-width':2.5,'pointer-events':'none'}));_rtBolt(g,bx+bw*0.25,by+6);_rtBolt(g,bx+bw*0.75,by+bh-6);g.appendChild(svgEl('rect',{x:cx-3,y:by+bh*0.15,width:6,height:bh*0.65,rx:3,fill:'#0a1515',stroke:pal.stroke,'stroke-width':1,'pointer-events':'none'}));const _ud=scene.runtime?.unitData?.get(unitId);let fPct=_ud?.last?.fillPct;if(fPct==null||!Number.isFinite(fPct))fPct=50;fPct=Math.max(0,Math.min(100,fPct));const sgH=bh*0.6,sgTop=by+bh*0.18,fillH=sgH*fPct/100;if(fillH>0)g.appendChild(svgEl('rect',{x:cx-2,y:sgTop+sgH-fillH,width:4,height:fillH,rx:1.5,fill:'#22d3ee',opacity:.3,'data-anim':'level-shimmer','data-ybase':sgTop+sgH-fillH,'pointer-events':'none'}));g.appendChild(svgEl('circle',{cx:cx+bw*0.3,cy:by+bh*0.7,r:2.5,fill:'#22c55e','data-anim':'led-blink','data-phase':'0.8','pointer-events':'none'}));},
+  open_tank(g,wx,wy,ww,wh,pal,def,unitId){const cx=wx+ww/2;const bx=wx+6,by=wy+6,bw=ww-12,bh=wh-16;const pres=getPresentation(def,scene.units.get(unitId));g.appendChild(svgEl('path',{d:`M${bx+8},${by+bh} L${bx+4},${by+bh+10} L${bx+18},${by+bh+10} L${bx+14},${by+bh}`,fill:'#4b5563',stroke:'#374151','stroke-width':1,'stroke-linejoin':'round','pointer-events':'none'}));g.appendChild(svgEl('path',{d:`M${bx+bw-16},${by+bh} L${bx+bw-20},${by+bh+10} L${bx+bw-6},${by+bh+10} L${bx+bw-10},${by+bh}`,fill:'#4b5563',stroke:'#374151','stroke-width':1,'stroke-linejoin':'round','pointer-events':'none'}));_engStubs(g,wx,wy,ww,wh,bx,by,bw,bh,def,pres);g.appendChild(svgEl('path',{d:`M${bx},${by} L${bx},${by+bh*0.85} Q${bx},${by+bh} ${cx},${by+bh} Q${bx+bw},${by+bh} ${bx+bw},${by+bh*0.85} L${bx+bw},${by}`,fill:pal.fillUrl,stroke:pal.stroke,'stroke-width':2.5,'stroke-linecap':'round','pointer-events':'none'}));_rtBolt(g,bx+6,by+8);_rtBolt(g,bx+bw-6,by+8);g.appendChild(svgEl('rect',{x:bx+bw-14,y:by+bh*0.1,width:6,height:bh*0.7,rx:3,fill:'#0a1515',stroke:pal.stroke,'stroke-width':1,'pointer-events':'none'}));const _ud=scene.runtime?.unitData?.get(unitId);let fPct=_ud?.last?.fillPct;if(fPct==null||!Number.isFinite(fPct))fPct=50;fPct=Math.max(0,Math.min(100,fPct));const sgH=bh*0.65,sgTop=by+bh*0.12,fillH=sgH*fPct/100;if(fillH>0)g.appendChild(svgEl('rect',{x:bx+bw-13,y:sgTop+sgH-fillH,width:4,height:fillH,rx:1.5,fill:'#22d3ee',opacity:.3,'data-anim':'level-shimmer','data-ybase':sgTop+sgH-fillH,'pointer-events':'none'}));g.appendChild(svgEl('circle',{cx:bx+bw-8,cy:by+12,r:2.5,fill:'#22c55e','data-anim':'led-blink','data-phase':'0.3','pointer-events':'none'}));},
+  battery(g,wx,wy,ww,wh,pal,def,unitId){const cx=wx+ww/2,cy=wy+wh/2;const bx=wx+8,by=wy+12,bw=ww-16,bh=wh-16;const pres=getPresentation(def,scene.units.get(unitId));_engStubs(g,wx,wy,ww,wh,bx,by,bw,bh,def,pres);g.appendChild(svgEl('rect',{x:bx,y:by,width:bw,height:bh,rx:8,fill:pal.fillUrl,stroke:pal.stroke,'stroke-width':2.5,'pointer-events':'none'}));g.appendChild(svgEl('rect',{x:cx-10,y:by-6,width:20,height:8,rx:3,fill:'#4b5563',stroke:'#374151','stroke-width':1.5,'pointer-events':'none'}));_rtBolt(g,bx+6,by+6);_rtBolt(g,bx+bw-6,by+bh-6);[0,1,2].forEach(i=>{g.appendChild(svgEl('rect',{x:bx+8,y:by+bh-12-i*10,width:bw-16,height:6,rx:2,fill:'#fbbf24',opacity:i<2?.4:.1,'pointer-events':'none'}));});g.appendChild(svgEl('circle',{cx:bx+bw-8,cy:by+bh-8,r:2.5,fill:'#22c55e','data-anim':'led-blink','data-phase':'0.6','pointer-events':'none'}));},
+  power_hub(g,wx,wy,ww,wh,pal,def,unitId){const cx=wx+ww/2,cy=wy+wh/2;const bx=wx+6,by=wy+6,bw=ww-12,bh=wh-12;const pres=getPresentation(def,scene.units.get(unitId));_engStubs(g,wx,wy,ww,wh,bx,by,bw,bh,def,pres);g.appendChild(svgEl('rect',{x:bx,y:by,width:bw,height:bh,rx:6,fill:pal.fillUrl,stroke:pal.stroke,'stroke-width':2.5,'pointer-events':'none'}));_rtBolt(g,bx+6,by+6);_rtBolt(g,bx+bw-6,by+bh-6);g.appendChild(svgEl('line',{x1:bx+8,y1:cy,x2:bx+bw-8,y2:cy,stroke:'#fde047','stroke-width':3,opacity:.5,'pointer-events':'none'}));[cy-bh*0.25,cy,cy+bh*0.25].forEach((y,i)=>{g.appendChild(svgEl('line',{x1:bx+bw*0.3,y1:y-6,x2:bx+bw*0.3,y2:y+6,stroke:'#fde047','stroke-width':2,opacity:.4,'pointer-events':'none'}));g.appendChild(svgEl('circle',{cx:bx+bw*0.3,cy:y-8,r:2.5,fill:'#fde047',opacity:.3,'pointer-events':'none'}));});g.appendChild(svgEl('circle',{cx:bx+bw*0.65,cy:cy-bh*0.15,r:2.5,fill:'#22c55e','data-anim':'led-blink','data-phase':'0','pointer-events':'none'}));g.appendChild(svgEl('circle',{cx:bx+bw*0.65,cy:cy+bh*0.15,r:2.5,fill:'#22c55e','data-anim':'led-blink','data-phase':'0.33','pointer-events':'none'}));}
+};
+
+// ── ENGINEERING SYMBOLS ──
+// Helper: draw grey stubs from body edge to port positions
+function _engStubs(g, wx, wy, ww, wh, bx, by, bw, bh, def, pres) {
+  // bx,by,bw,bh = body bounding box in world px
+  const t = scene.tile;
+  for (const p of def.ports) {
+    const pp = pres.ports[p.portId];
+    if (!pp) continue;
+    const px = wx + pp.x * t, py = wy + pp.y * t;
+    const col = p.type === StreamType.ELECTRICAL ? '#eab308' : '#94a3b8';
+    // Find nearest body edge point
+    let ex, ey;
+    if (pp.x === 0)         { ex = bx; ey = py; }       // left port
+    else if (pp.x >= pres.w) { ex = bx + bw; ey = py; }  // right port
+    else if (pp.y === 0)     { ex = px; ey = by; }        // top port
+    else                     { ex = px; ey = by + bh; }   // bottom port
+    g.appendChild(svgEl('line', { x1: px, y1: py, x2: ex, y2: ey, stroke: col, 'stroke-width': 3, 'stroke-linecap': 'round', 'pointer-events': 'none' }));
+  }
+}
+
+const _ENGINEERING_SYMBOLS = {
+  pump(g, wx, wy, ww, wh, pal, def, unitId) {
+    const cx = wx + ww/2, cy = wy + wh/2 + 2;
+    const r = Math.min(ww, wh) * 0.24;
+    const col = _lighten(pal.stroke, 0.6);
+    const pres = getPresentation(def, scene.units.get(unitId));
+    // Stubs first (behind body)
+    _engStubs(g, wx, wy, ww, wh, cx-r, cy-r, r*2, r*2, def, pres);
+    // Circle casing
+    g.appendChild(svgEl('circle', { cx, cy, r, fill: col, opacity: 0.12, 'pointer-events': 'none' }));
+    g.appendChild(svgEl('circle', { cx, cy, r, fill: 'none', stroke: col, 'stroke-width': 2.5, 'pointer-events': 'none' }));
+    // Impeller cross (animated rotation)
+    const impG = svgEl('g', { 'data-anim': 'pump-impeller', 'data-cx': cx, 'data-cy': cy, 'pointer-events': 'none' });
+    impG.appendChild(svgEl('line', { x1: cx, y1: cy - r*0.7, x2: cx, y2: cy + r*0.7, stroke: col, 'stroke-width': 1.5, opacity: 0.5 }));
+    impG.appendChild(svgEl('line', { x1: cx - r*0.7, y1: cy, x2: cx + r*0.7, y2: cy, stroke: col, 'stroke-width': 1.5, opacity: 0.5 }));
+    g.appendChild(impG);
+    // Base
+    g.appendChild(svgEl('polygon', { points: `${cx-12},${cy+r+2} ${cx+12},${cy+r+2} ${cx+16},${wy+wh-4} ${cx-16},${wy+wh-4}`, fill: 'none', stroke: col, 'stroke-width': 1.5, opacity: 0.5, 'pointer-events': 'none' }));
+    g.appendChild(svgEl('line', { x1: cx-18, y1: wy+wh-4, x2: cx+18, y2: wy+wh-4, stroke: col, 'stroke-width': 1.5, opacity: 0.5, 'pointer-events': 'none' }));
+  },
+
+  reactor_adiabatic(g, wx, wy, ww, wh, pal, def, unitId) {
+    const cx = wx + ww/2, cy = wy + wh/2;
+    const bx = wx + 8, by = wy + 8, bw = ww - 16, bh = wh - 16;
+    const col = _lighten(pal.stroke, 0.6);
+    const pres = getPresentation(def, scene.units.get(unitId));
+    _engStubs(g, wx, wy, ww, wh, bx, by, bw, bh, def, pres);
+    g.appendChild(svgEl('rect', { x: bx, y: by, width: bw, height: bh, rx: 12, fill: col, opacity: 0.12, 'pointer-events': 'none' }));
+    g.appendChild(svgEl('rect', { x: bx, y: by, width: bw, height: bh, rx: 12, fill: 'none', stroke: col, 'stroke-width': 2.5, 'pointer-events': 'none' }));
+    // Animated bubbles
+    const bodyCY = by + bh/2;
+    g.appendChild(svgEl('circle', { cx: cx - 4, cy: bodyCY, r: 3, fill: 'none', stroke: col, 'stroke-width': 1.2, 'data-anim': 'reactor-bubble', 'data-ytop': by + 6, 'data-ybot': by + bh - 6, 'data-phase': '0', 'data-speed': '0.6', 'pointer-events': 'none' }));
+    g.appendChild(svgEl('circle', { cx: cx + 5, cy: bodyCY, r: 2.5, fill: 'none', stroke: col, 'stroke-width': 1.2, 'data-anim': 'reactor-bubble', 'data-ytop': by + 6, 'data-ybot': by + bh - 6, 'data-phase': '0.35', 'data-speed': '0.5', 'pointer-events': 'none' }));
+  },
+
+  flash_drum(g, wx, wy, ww, wh, pal, def, unitId) {
+    const cx = wx + ww/2, cy = wy + wh/2;
+    const bx = wx + ww*0.22, by = wy + 4, bw = ww*0.56, bh = wh - 8;
+    const col = _lighten(pal.stroke, 0.6);
+    const pres = getPresentation(def, scene.units.get(unitId));
+    _engStubs(g, wx, wy, ww, wh, bx, by, bw, bh, def, pres);
+    g.appendChild(svgEl('path', { d: `M${bx+bw*0.3},${by} Q${bx},${by} ${bx},${by+bh*0.1} L${bx},${by+bh*0.9} Q${bx},${by+bh} ${bx+bw*0.3},${by+bh} L${bx+bw*0.7},${by+bh} Q${bx+bw},${by+bh} ${bx+bw},${by+bh*0.9} L${bx+bw},${by+bh*0.1} Q${bx+bw},${by} ${bx+bw*0.7},${by} Z`, fill: col, opacity: 0.12, 'pointer-events': 'none' }));
+    g.appendChild(svgEl('path', { d: `M${bx+bw*0.3},${by} Q${bx},${by} ${bx},${by+bh*0.1} L${bx},${by+bh*0.9} Q${bx},${by+bh} ${bx+bw*0.3},${by+bh} L${bx+bw*0.7},${by+bh} Q${bx+bw},${by+bh} ${bx+bw},${by+bh*0.9} L${bx+bw},${by+bh*0.1} Q${bx+bw},${by} ${bx+bw*0.7},${by} Z`, fill: 'none', stroke: col, 'stroke-width': 2.5, 'pointer-events': 'none' }));
+    // Level line (animated shimmer)
+    g.appendChild(svgEl('line', { x1: bx + 4, y1: cy + bh*0.15, x2: bx + bw - 4, y2: cy + bh*0.15, stroke: col, 'stroke-width': 1, 'stroke-dasharray': '4 3', opacity: 0.4, 'data-anim': 'level-shimmer', 'data-ybase': cy + bh*0.15, 'pointer-events': 'none' }));
+  },
+
+  valve(g, wx, wy, ww, wh, pal, def, unitId) {
+    const cx = wx + ww/2, cy = wy + wh/2;
+    const bw = ww*0.3, bh = wh*0.3;
+    const col = _lighten(pal.stroke, 0.6);
+    const pres = getPresentation(def, scene.units.get(unitId));
+    _engStubs(g, wx, wy, ww, wh, cx-bw, cy-bh, bw*2, bh*2, def, pres);
+    // Bowtie — solid fill + clear outline
+    g.appendChild(svgEl('polygon', { points: `${cx-bw},${cy-bh} ${cx},${cy} ${cx-bw},${cy+bh}`, fill: col, 'fill-opacity': '0.35', stroke: col, 'stroke-width': 3, 'stroke-linejoin': 'round', 'pointer-events': 'none' }));
+    g.appendChild(svgEl('polygon', { points: `${cx+bw},${cy-bh} ${cx},${cy} ${cx+bw},${cy+bh}`, fill: col, 'fill-opacity': '0.35', stroke: col, 'stroke-width': 3, 'stroke-linejoin': 'round', 'pointer-events': 'none' }));
+    // Stem + wheel
+    g.appendChild(svgEl('line', { x1: cx, y1: cy, x2: cx, y2: wy + 8, stroke: col, 'stroke-width': 3, 'pointer-events': 'none' }));
+    g.appendChild(svgEl('line', { x1: cx - 12, y1: wy + 8, x2: cx + 12, y2: wy + 8, stroke: col, 'stroke-width': 3, 'stroke-linecap': 'round', 'pointer-events': 'none' }));
+  },
+
+  grid_supply(g, wx, wy, ww, wh, pal, def, unitId) {
+    const cx = wx + ww/2, cy = wy + wh/2;
+    const bx = wx + 6, by = wy + 8, bw = ww - 12, bh = wh - 16;
+    const col = _lighten(pal.stroke, 0.6);
+    const pres = getPresentation(def, scene.units.get(unitId));
+    _engStubs(g, wx, wy, ww, wh, bx, by, bw, bh, def, pres);
+    g.appendChild(svgEl('rect', { x: bx, y: by, width: bw, height: bh, rx: 8, fill: col, opacity: 0.12, 'pointer-events': 'none' }));
+    g.appendChild(svgEl('rect', { x: bx, y: by, width: bw, height: bh, rx: 8, fill: 'none', stroke: col, 'stroke-width': 2.5, 'pointer-events': 'none' }));
+    // Rotor circles (animated pulse)
+    g.appendChild(svgEl('circle', { cx, cy: cy + 2, r: ww*0.16, fill: 'none', stroke: col, 'stroke-width': 2, 'data-anim': 'rotor-pulse', 'data-opbase': '0.6', 'pointer-events': 'none' }));
+    g.appendChild(svgEl('circle', { cx, cy: cy + 2, r: ww*0.08, fill: 'none', stroke: col, 'stroke-width': 1.5, 'data-anim': 'rotor-pulse', 'data-opbase': '0.4', 'pointer-events': 'none' }));
+    g.appendChild(svgEl('circle', { cx, cy: cy + 2, r: 2, fill: col, 'data-anim': 'rotor-pulse', 'data-opbase': '0.4', 'pointer-events': 'none' }));
+    // Motor housing top
+    g.appendChild(svgEl('rect', { x: cx - ww*0.16, y: by - 4, width: ww*0.32, height: 8, rx: 3, fill: 'none', stroke: col, 'stroke-width': 2, 'pointer-events': 'none' }));
+  }
+};
+
 function drawUnits() {
   const g = svgEl('g', { id: 'units' });
   
@@ -25477,12 +25865,46 @@ function drawUnits() {
 
     group.appendChild(rect);
 
+    // ═══ [v15.2.0 S-ICONS] Themed unit rendering ═══
+    const _isThemed = ui.theme !== 'box';
+    if (_isThemed) {
+      // Make boxman rect invisible — it stays for hit-testing / event handling
+      rect.setAttribute('fill', 'transparent');
+      rect.setAttribute('stroke', isUnitSelected ? '#60a5fa' : 'none');
+      rect.setAttribute('stroke-width', isUnitSelected ? 3 : 0);
+
+      // Get defs for gradient creation
+      const _svgDefs = svg.querySelector('defs');
+      const _pal = _makeUnitGradient(_svgDefs, id, unitFill);
+      // Draw themed symbol
+      const _symbolFn = ui.theme === 'ragtag'
+        ? _RAGTAG_SYMBOLS[def.defId]
+        : _ENGINEERING_SYMBOLS[def.defId];
+      if (_symbolFn) {
+        _symbolFn(group, wx, wy, ww, wh, _pal, def, id);
+      } else {
+        // Generic fallback: outlined body + stubs (covers engineering units without specific symbols)
+        const _fbx = wx + 6, _fby = wy + 6, _fbw = ww - 12, _fbh = wh - 12;
+        const _pres = getPresentation(def, u);
+        _engStubs(group, wx, wy, ww, wh, _fbx, _fby, _fbw, _fbh, def, _pres);
+        if (ui.theme === 'ragtag') {
+          group.appendChild(svgEl('rect', { x: _fbx, y: _fby, width: _fbw, height: _fbh, rx: 8, fill: _pal.fillUrl, stroke: _pal.stroke, 'stroke-width': 2.5, 'pointer-events': 'none' }));
+          _rtBolt(group, _fbx + 6, _fby + 6); _rtBolt(group, _fbx + _fbw - 6, _fby + _fbh - 6);
+        } else {
+          const _fcol = _lighten(_pal.stroke, 0.6);
+          group.appendChild(svgEl('rect', { x: _fbx, y: _fby, width: _fbw, height: _fbh, rx: 8, fill: _fcol, 'fill-opacity': '0.12', stroke: _fcol, 'stroke-width': 2.5, 'pointer-events': 'none' }));
+        }
+      }
+    }
+
     // [v10.1.0] Hover highlight (E2) — skip during drag/connect/dimmed
     if (!ui.isDraggingUnit && !ui.pendingFrom && !isDimmed) {
       group.addEventListener('pointerenter', () => { group.classList.add('unit-hover'); });
       group.addEventListener('pointerleave', () => { group.classList.remove('unit-hover'); });
     }
 
+    // Unit icon — boxman only (themed rendering replaces this)
+    if (!_isThemed) {
     // Unit icon - map defId to icon name with proper precedence
     // [v10.9.1] NNG-P1: Use presentation icon if available, else legacy mapping
     let iconName;
@@ -25518,6 +25940,7 @@ function drawUnits() {
     ico.setAttribute('href', `#ico-${iconName}`);
     
     group.appendChild(ico);
+    } // end if (!_isThemed)
 
     // [v12.15.0] Liquid level rendering (shared by tank & flash drum)
     const _fillPctForUnit = (() => {
@@ -25534,7 +25957,7 @@ function drawUnits() {
       return -1;
     })();
 
-    if (_fillPctForUnit >= 0) {
+    if (_fillPctForUnit >= 0 && !_isThemed) {
       _drawLiquidFill(group, id, _fillPctForUnit, wx, wy, ww, wh);
     }
 
@@ -26234,6 +26657,12 @@ function render() {
       class: 'selection-marquee'
     });
     svg.appendChild(marquee);
+  }
+
+  // [v15.2.0 S-ICONS] Apply animation state immediately after rebuilding DOM
+  // so freshly created data-anim elements don't flash at static positions
+  if (ui.theme !== 'box' && SimSettings.animations && TimeClock.mode === 'playing') {
+    _updateIconAnimations(_computeAnimT());
   }
 }
 
@@ -31655,6 +32084,93 @@ function _stopFlowArrows() {
   });
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// [v15.2.0 S-ICONS Phase 2] Icon animation loop
+// Lightweight rAF that updates ONLY data-anim elements — no full render().
+// Runs during play when theme !== 'box' and SimSettings.animations is true.
+// animT = fractional frame counter = TimeClock.t / SimSettings.dt
+// ═══════════════════════════════════════════════════════════════════════════════
+
+let _iconAnimRafId = null;
+
+function _computeAnimT() {
+  // Interpolate between solver steps for smooth animation
+  const base = TimeClock.t / SimSettings.dt;
+  if (TimeClock.mode === 'playing' && _playStartedAt > 0) {
+    const elapsedMs = Date.now() - _playStartedAt;
+    const stepMs = PLAY_SPEEDS[SimSettings.playSpeed || 0];
+    const frac = Math.min(1, (elapsedMs % stepMs) / stepMs);
+    return base + frac;
+  }
+  return base;
+}
+
+function _iconAnimFrame() {
+  if (TimeClock.mode !== 'playing' || !SimSettings.animations || ui.theme === 'box') {
+    _iconAnimRafId = null;
+    return;
+  }
+  const at = _computeAnimT();
+  _updateIconAnimations(at);
+  _iconAnimRafId = requestAnimationFrame(_iconAnimFrame);
+}
+
+function _startIconAnim() {
+  if (ui.theme === 'box' || !SimSettings.animations) return;
+  if (_iconAnimRafId) return; // already running
+  _iconAnimRafId = requestAnimationFrame(_iconAnimFrame);
+}
+
+function _stopIconAnim() {
+  if (_iconAnimRafId) {
+    cancelAnimationFrame(_iconAnimRafId);
+    _iconAnimRafId = null;
+  }
+}
+
+function _updateIconAnimations(at) {
+  // Pump impeller rotation
+  for (const el of svg.querySelectorAll('[data-anim="pump-impeller"]')) {
+    const cx = +el.dataset.cx, cy = +el.dataset.cy;
+    const angle = (at * 2.5 % 1) * 360;
+    el.setAttribute('transform', `rotate(${angle.toFixed(1)},${cx},${cy})`);
+  }
+
+  // Reactor bubbles
+  for (const el of svg.querySelectorAll('[data-anim="reactor-bubble"]')) {
+    const yTop = +el.dataset.ytop, yBot = +el.dataset.ybot;
+    const phase = +el.dataset.phase || 0;
+    const speed = +el.dataset.speed || 0.6;
+    const p = ((at / speed + phase) % 1);
+    const y = yBot + (yTop - yBot) * p;
+    const opacity = p < 0.8 ? 0.35 : 0.35 * (1 - (p - 0.8) / 0.2);
+    el.setAttribute('cy', y.toFixed(1));
+    el.setAttribute('opacity', opacity.toFixed(2));
+  }
+
+  // Flash drum level shimmer
+  for (const el of svg.querySelectorAll('[data-anim="level-shimmer"]')) {
+    const yBase = +el.dataset.ybase;
+    const wave = Math.sin((at * 0.8) % 1 * Math.PI * 2) * 2;
+    el.setAttribute('y', (yBase + wave).toFixed(1));
+  }
+
+  // Grid supply rotor pulse
+  for (const el of svg.querySelectorAll('[data-anim="rotor-pulse"]')) {
+    const base = +el.dataset.opbase || 0.25;
+    const pulse = Math.sin(((at * 1.5) % 1) * Math.PI * 2) * 0.1;
+    el.setAttribute('opacity', (base + pulse).toFixed(2));
+  }
+
+  // LED blink
+  for (const el of svg.querySelectorAll('[data-anim="led-blink"]')) {
+    const phase = +el.dataset.phase || 0;
+    const p = ((at * 1.5 + phase) % 1);
+    const op = p < 0.9 ? 0.6 : 0.1;
+    el.setAttribute('opacity', op.toFixed(2));
+  }
+}
+
 function startPlay() {
   TimeClock.mode = 'playing';
   TimeClock._stepsSinceAutoCp = 0;  // [v14.7.0 S-SIM] reset periodic counter
@@ -31666,6 +32182,7 @@ function startPlay() {
   for (const el of svg.querySelectorAll('.smoke-puff-active')) {
     el.style.animationPlayState = '';  // remove inline override, CSS class takes over
   }
+  _startIconAnim();  // [v15.2.0 S-ICONS]
   _schedulePlayTick();
 }
 
@@ -31726,6 +32243,7 @@ function stopPlay() {
   if (TimeClock.mode === 'playing') TimeClock.mode = 'paused';
   timeDisplayEl.classList.remove('solving');
   _stopFlowArrows();
+  _stopIconAnim();  // [v15.2.0 S-ICONS]
   updateTransportUI();
   // [v15.0.3] Freeze smoke animations in place (don't re-render — that resets positions)
   for (const el of svg.querySelectorAll('.smoke-puff-active')) {
@@ -31949,6 +32467,19 @@ const btnStickerLines = document.getElementById('btnStickerLines');
 btnStickerLines.addEventListener('click', () => {
   ui.showStickers = !ui.showStickers;
   btnStickerLines.classList.toggle('tbtn-dim', !ui.showStickers);
+  render();
+});
+
+// [v15.2.0 S-ICONS] Theme cycle: box → ragtag → engineering → box
+const btnTheme = document.getElementById('btnTheme');
+const _THEME_CYCLE = ['box', 'ragtag', 'engineering'];
+const _THEME_EMOJI = { box: '📦', ragtag: '🔧', engineering: '📐' };
+const _THEME_LABEL = { box: 'Boxman', ragtag: 'Ragtag', engineering: 'Engineering' };
+btnTheme.addEventListener('click', () => {
+  const idx = _THEME_CYCLE.indexOf(ui.theme);
+  ui.theme = _THEME_CYCLE[(idx + 1) % _THEME_CYCLE.length];
+  btnTheme.textContent = _THEME_EMOJI[ui.theme];
+  btnTheme.setAttribute('data-tip', `Theme: ${_THEME_LABEL[ui.theme]}`);
   render();
 });
 
@@ -47071,6 +47602,74 @@ function runTests() {
     delete u.params.openings[c2];
     if (Object.keys(u.params.openings).length === 0) delete u.params.openings;
     t.assertOK(u.params.openings === undefined, 'Openings map deleted when empty');
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // S-ICONS Phase 0: Theme infrastructure
+  // ═══════════════════════════════════════════════════════════════════════
+
+  test('544: S-ICONS — LAYOUT_DEFAULTS includes theme', t => {
+    t.assertOK(LAYOUT_DEFAULTS.theme === 'box', 'default theme is box');
+  });
+
+  test('545: S-ICONS — ui.theme exists', t => {
+    t.assertOK(typeof ui.theme === 'string', 'ui.theme is string');
+    t.assertOK(['box','engineering','ragtag'].includes(ui.theme), 'ui.theme is valid');
+  });
+
+  test('546: S-ICONS — THEME_PALETTES defined for all themes', t => {
+    t.assertOK(THEME_PALETTES.box === null, 'box palette is null (uses def.color)');
+    t.assertOK(typeof THEME_PALETTES.ragtag === 'object', 'ragtag palette exists');
+    t.assertOK(typeof THEME_PALETTES.engineering === 'object', 'engineering palette exists');
+    t.assertOK(THEME_PALETTES.ragtag.PRESSURE === '#8b5cf6', 'ragtag PRESSURE color correct');
+  });
+
+  test('547: S-ICONS — _darken/_lighten produce valid hex', t => {
+    const d = _darken('#8b5cf6', 0.3);
+    t.assertOK(d.startsWith('#') && d.length === 7, '_darken returns valid hex: ' + d);
+    const l = _lighten('#8b5cf6', 0.3);
+    t.assertOK(l.startsWith('#') && l.length === 7, '_lighten returns valid hex: ' + l);
+  });
+
+  test('548: S-ICONS — _makeUnitGradient creates gradient', t => {
+    const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+    const pal = _makeUnitGradient(defs, 'test-unit', '#8b5cf6');
+    t.assertOK(pal.fillUrl === 'url(#ug-test-unit)', 'fillUrl correct');
+    t.assertOK(pal.stroke.startsWith('#'), 'stroke is hex');
+    t.assertOK(pal.rim.startsWith('#'), 'rim is hex');
+    t.assertOK(defs.querySelector('#ug-test-unit'), 'gradient element created');
+  });
+
+  test('549: S-ICONS — ragtag symbol table has 5 vertical-slice units', t => {
+    ['pump','reactor_adiabatic','flash_drum','valve','grid_supply'].forEach(id => {
+      t.assertOK(typeof _RAGTAG_SYMBOLS[id] === 'function', `ragtag ${id} symbol exists`);
+    });
+  });
+
+  test('550: S-ICONS — engineering symbol table has 5 vertical-slice units', t => {
+    ['pump','reactor_adiabatic','flash_drum','valve','grid_supply'].forEach(id => {
+      t.assertOK(typeof _ENGINEERING_SYMBOLS[id] === 'function', `engineering ${id} symbol exists`);
+    });
+  });
+
+  test('551: S-ICONS Phase 2 — animation functions exist', t => {
+    t.assertOK(typeof _startIconAnim === 'function', '_startIconAnim exists');
+    t.assertOK(typeof _stopIconAnim === 'function', '_stopIconAnim exists');
+    t.assertOK(typeof _updateIconAnimations === 'function', '_updateIconAnimations exists');
+    t.assertOK(typeof _computeAnimT === 'function', '_computeAnimT exists');
+  });
+
+  test('552: S-ICONS Phase 2 — _computeAnimT returns number', t => {
+    const at = _computeAnimT();
+    t.assertOK(typeof at === 'number' && Number.isFinite(at), 'animT is finite number: ' + at);
+  });
+
+  test('553: S-ICONS Phase 3 — all real units have ragtag symbols', t => {
+    const skip = new Set(['__test_inv','__test_inv2','_test_nan_producer','_test_string_flow','_test_throw']);
+    for (const [defId] of UnitRegistry._defs || UnitRegistry.entries?.() || []) {
+      if (skip.has(defId)) continue;
+      t.assertOK(typeof _RAGTAG_SYMBOLS[defId] === 'function', `ragtag symbol for ${defId}`);
+    }
   });
 
   // ═══════════════════════════════════════════════════════════════════════

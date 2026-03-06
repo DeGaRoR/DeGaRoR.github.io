@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>PTIS PFD Symbols — Complete Final</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0b0e14; color: #e2e8f0; font-family: 'Inter', system-ui, sans-serif; padding: 20px; }
+</style>
+</head>
+<body>
+
+<svg xmlns="http://www.w3.org/2000/svg" width="1160" height="2640">
+  <defs>
+    <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse">
+      <rect width="48" height="48" fill="none" stroke="#1e293b" stroke-width="0.5" opacity="0.2"/>
+    </pattern>
+    <clipPath id="cf"><path d="M28,24 Q28,8 48,8 Q68,8 68,24 L68,120 Q68,136 48,136 Q28,136 28,120 Z"/></clipPath>
+    <clipPath id="cc"><path d="M26,20 Q26,6 48,6 Q70,6 70,20 L70,124 Q70,138 48,138 Q26,138 26,124 Z"/></clipPath>
+    <clipPath id="ct"><path d="M28,12 Q8,12 8,48 Q8,84 28,84 L116,84 Q136,84 136,48 Q136,12 116,12 Z"/></clipPath>
+    <clipPath id="co"><path d="M14,14 L14,68 Q14,82 72,82 Q130,82 130,68 L130,14 Z"/></clipPath>
+  </defs>
+
+  <rect width="1160" height="2640" fill="#0b0e14"/>
+  <rect width="1160" height="2640" fill="url(#grid)"/>
+
+  <text x="16" y="22" font-size="16" font-weight="600" fill="#94a3b8" font-family="Inter, system-ui">PTIS — PFD Symbol Set — Final (28 units)</text>
+  <text x="16" y="38" font-size="10" fill="#475569" font-family="Inter, system-ui">Zigzag = resistance · Square serpentine = fluid cooling · Dashed container = multi-part single unit · tile=48px</text>
+
+  <!-- ════════════ BOUNDARY ════════════ -->
+  <rect x="12" y="50" width="1136" height="18" rx="4" fill="#10b981" opacity="0.08"/>
+  <text x="20" y="63" font-size="11" font-weight="700" fill="#6ee7b7" font-family="Inter, system-ui">BOUNDARY / STREAMS</text>
+
+  <!-- Source 2×2 -->
+  <g transform="translate(30, 80)">
+    <circle cx="38" cy="48" r="26" fill="#10b981" opacity="0.12"/>
+    <circle cx="38" cy="48" r="26" fill="none" stroke="#6ee7b7" stroke-width="2.5"/>
+    <line x1="24" y1="48" x2="50" y2="48" stroke="#6ee7b7" stroke-width="2" opacity="0.5"/>
+    <polygon points="46,44 54,48 46,52" fill="#6ee7b7" opacity="0.5"/>
+    <line x1="64" y1="48" x2="96" y2="48" stroke="#94a3b8" stroke-width="2.5"/>
+    <circle cx="96" cy="48" r="10" fill="#94a3b8" stroke="#94a3b8" stroke-width="2.5"/>
+    <text x="48" y="106" text-anchor="middle" font-size="8" font-weight="600" fill="#94a3b8" opacity="0.8" font-family="Inter, system-ui">Source</text>
+  </g>
+
+  <!-- Atm Intake 2×2 -->
+  <g transform="translate(160, 80)">
+    <path d="M8,16 L8,80 L60,62 L60,34 Z" fill="#10b981" opacity="0.10"/>
+    <path d="M8,16 L60,34 L60,62 L8,80" fill="none" stroke="#6ee7b7" stroke-width="2.5" stroke-linejoin="round"/>
+    <line x1="8" y1="16" x2="8" y2="80" stroke="#6ee7b7" stroke-width="2" stroke-dasharray="4 4" opacity="0.4"/>
+    <line x1="16" y1="36" x2="46" y2="42" stroke="#6ee7b7" stroke-width="1" opacity="0.2"/>
+    <line x1="16" y1="48" x2="46" y2="48" stroke="#6ee7b7" stroke-width="1" opacity="0.2"/>
+    <line x1="16" y1="60" x2="46" y2="54" stroke="#6ee7b7" stroke-width="1" opacity="0.2"/>
+    <line x1="60" y1="48" x2="96" y2="48" stroke="#94a3b8" stroke-width="2.5"/>
+    <circle cx="96" cy="48" r="10" fill="#94a3b8" stroke="#94a3b8" stroke-width="2.5"/>
+    <text x="48" y="106" text-anchor="middle" font-size="8" font-weight="600" fill="#94a3b8" opacity="0.8" font-family="Inter, system-ui">Atm. Intake</text>
+  </g>
+
+  <!-- Sink 2×2 -->
+  <g transform="translate(290, 80)">
+    <path d="M36,8 L36,72 L60,72 L60,8 Z" fill="#10b981" opacity="0.08"/>
+    <line x1="0" y1="48" x2="36" y2="48" stroke="#94a3b8" stroke-width="2.5"/>
+    <line x1="36" y1="72" x2="36" y2="8" stroke="#6ee7b7" stroke-width="2.5"/>
+    <line x1="60" y1="72" x2="60" y2="8" stroke="#6ee7b7" stroke-width="2.5"/>
+    <line x1="30" y1="72" x2="66" y2="72" stroke="#6ee7b7" stroke-width="2" stroke-linecap="round"/>
+    <line x1="30" y1="72" x2="26" y2="82" stroke="#6ee7b7" stroke-width="1.5"/>
+    <line x1="66" y1="72" x2="70" y2="82" stroke="#6ee7b7" stroke-width="1.5"/>
+    <line x1="26" y1="82" x2="70" y2="82" stroke="#6ee7b7" stroke-width="2" stroke-linecap="round"/>
+    <line x1="32" y1="8" x2="64" y2="8" stroke="#6ee7b7" stroke-width="2" stroke-linecap="round"/>
+    <path d="M30,4 L48,0 L66,4" fill="none" stroke="#6ee7b7" stroke-width="1.5" stroke-linecap="round" opacity="0.6"/>
+    <circle cx="48" cy="-8" r="4" fill="#94a3b8" opacity="0.12"/>
+    <circle cx="0" cy="48" r="10" fill="#1e293b" stroke="#94a3b8" stroke-width="2.5"/>
+    <text x="48" y="106" text-anchor="middle" font-size="8" font-weight="600" fill="#94a3b8" opacity="0.8" font-family="Inter, system-ui">Sink</text>
+  </g>
+
+  <!-- Reservoir 2×2 (simplified wellhead) -->
+  <g transform="translate(420, 80)">
+    <line x1="40" y1="72" x2="40" y2="90" stroke="#6ee7b7" stroke-width="4" opacity="0.2"/>
+    <line x1="12" y1="72" x2="68" y2="72" stroke="#6ee7b7" stroke-width="2" stroke-linecap="round" opacity="0.4"/>
+    <line x1="16" y1="76" x2="24" y2="84" stroke="#6ee7b7" stroke-width="0.8" opacity="0.12"/>
+    <line x1="28" y1="76" x2="36" y2="84" stroke="#6ee7b7" stroke-width="0.8" opacity="0.12"/>
+    <line x1="40" y1="80" x2="48" y2="84" stroke="#6ee7b7" stroke-width="0.8" opacity="0.12"/>
+    <line x1="52" y1="76" x2="60" y2="84" stroke="#6ee7b7" stroke-width="0.8" opacity="0.12"/>
+    <line x1="40" y1="72" x2="40" y2="38" stroke="#6ee7b7" stroke-width="4"/>
+    <circle cx="40" cy="62" r="5" fill="#10b981" opacity="0.15"/>
+    <circle cx="40" cy="62" r="5" fill="none" stroke="#6ee7b7" stroke-width="2"/>
+    <circle cx="40" cy="50" r="5" fill="#10b981" opacity="0.15"/>
+    <circle cx="40" cy="50" r="5" fill="none" stroke="#6ee7b7" stroke-width="2"/>
+    <rect x="30" y="34" width="20" height="8" rx="2" fill="#10b981" opacity="0.10"/>
+    <rect x="30" y="34" width="20" height="8" rx="2" fill="none" stroke="#6ee7b7" stroke-width="2"/>
+    <line x1="30" y1="38" x2="14" y2="38" stroke="#6ee7b7" stroke-width="3"/>
+    <circle cx="22" cy="38" r="4" fill="#10b981" opacity="0.15"/>
+    <circle cx="22" cy="38" r="4" fill="none" stroke="#6ee7b7" stroke-width="1.5"/>
+    <rect x="8" y="34" width="4" height="8" rx="1" fill="#6ee7b7" opacity="0.15"/>
+    <line x1="50" y1="38" x2="68" y2="38" stroke="#6ee7b7" stroke-width="3"/>
+    <circle cx="58" cy="38" r="4" fill="#10b981" opacity="0.15"/>
+    <circle cx="58" cy="38" r="4" fill="none" stroke="#6ee7b7" stroke-width="1.5"/>
+    <line x1="68" y1="38" x2="74" y2="38" stroke="#6ee7b7" stroke-width="2"/>
+    <line x1="74" y1="38" x2="74" y2="48" stroke="#94a3b8" stroke-width="2"/>
+    <line x1="74" y1="48" x2="96" y2="48" stroke="#94a3b8" stroke-width="2.5"/>
+    <line x1="40" y1="34" x2="40" y2="16" stroke="#6ee7b7" stroke-width="4"/>
+    <circle cx="40" cy="20" r="4" fill="#10b981" opacity="0.15"/>
+    <circle cx="40" cy="20" r="4" fill="none" stroke="#6ee7b7" stroke-width="1.5"/>
+    <rect x="36" y="8" width="8" height="6" rx="2" fill="none" stroke="#6ee7b7" stroke-width="1.5"/>
+    <line x1="34" y1="8" x2="46" y2="8" stroke="#6ee7b7" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
+    <circle cx="96" cy="48" r="10" fill="#94a3b8" stroke="#94a3b8" stroke-width="2.5"/>
+    <text x="48" y="106" text-anchor="middle" font-size="8" font-weight="600" fill="#94a3b8" opacity="0.8" font-family="Inter, system-ui">Reservoir</text>
+  </g>
+
+  <!-- ════════════ PRESSURE ════════════ -->
+  <rect x="12" y="204" width="1136" height="18" rx="4" fill="#8b5cf6" opacity="0.08"/>
+  <text x="20" y="217" font-size="11" font-weight="700" fill="#c4b5fd" font-family="Inter, system-ui">PRESSURE</text>
+
+  <!-- Pump 2×2 -->
+  <g transform="translate(30, 236)">
+    <circle cx="48" cy="46" r="24" fill="#8b5cf6" opacity="0.10"/>
+    <polygon points="36,70 60,70 64,80 32,80" fill="#8b5cf6" opacity="0.08"/>
+    <circle cx="48" cy="46" r="24" fill="none" stroke="#c4b5fd" stroke-width="2.5"/>
+    <line x1="0" y1="48" x2="24" y2="48" stroke="#94a3b8" stroke-width="2.5"/>
+    <line x1="66" y1="30" x2="66" y2="48" stroke="#c4b5fd" stroke-width="2.5"/>
+    <line x1="66" y1="48" x2="96" y2="48" stroke="#94a3b8" stroke-width="2.5"/>
+    <path d="M38,36 A14,14 0 0,1 58,36" fill="none" stroke="#c4b5fd" stroke-width="1.5" opacity="0.5"/>
+    <polygon points="57,33 60,37 55,38" fill="#c4b5fd" opacity="0.5"/>
+    <polygon points="36,70 60,70 64,80 32,80" fill="none" stroke="#c4b5fd" stroke-width="2" stroke-linejoin="round"/>
+    <line x1="28" y1="80" x2="68" y2="80" stroke="#c4b5fd" stroke-width="2" stroke-linecap="round"/>
+    <line x1="48" y1="22" x2="48" y2="0" stroke="#eab308" stroke-width="2" opacity="0.7"/>
+    <circle cx="0" cy="48" r="10" fill="#1e293b" stroke="#94a3b8" stroke-width="2.5"/>
+    <circle cx="48" cy="0" r="10" fill="#1e293b" stroke="#eab308" stroke-width="2.5"/>
+    <circle cx="96" cy="48" r="10" fill="#94a3b8" stroke="#94a3b8" stroke-width="2.5"/>
+    <text x="48" y="106" text-anchor="middle" font-size="8" font-weight="600" fill="#94a3b8" opacity="0.8" font-family="Inter, system-ui">Pump</text>
+  </g>
+
+  <!-- Compressor (piston) 2×2 -->
+  <g transform="translate(160, 236)">
+    <rect x="10" y="10" width="76" height="70" rx="6" fill="#8b5cf6" opacity="0.08"/>
+    <rect x="10" y="22" width="56" height="42" rx="4" fill="none" stroke="#c4b5fd" stroke-width="2.5"/>
+    <rect x="46" y="28" width="8" height="30" rx="2" fill="#c4b5fd" opacity="0.2"/>
+    <rect x="46" y="28" width="8" height="30" rx="2" fill="none" stroke="#c4b5fd" stroke-width="2" opacity="0.5"/>
+    <line x1="54" y1="43" x2="72" y2="54" stroke="#c4b5fd" stroke-width="2" opacity="0.4"/>
+    <circle cx="74" cy="56" r="8" fill="none" stroke="#c4b5fd" stroke-width="2" opacity="0.4"/>
+    <circle cx="74" cy="56" r="2" fill="#c4b5fd" opacity="0.3"/>
+    <line x1="0" y1="48" x2="10" y2="34" stroke="#94a3b8" stroke-width="2.5"/>
+    <line x1="66" y1="36" x2="96" y2="48" stroke="#94a3b8" stroke-width="2.5"/>
+    <line x1="74" y1="48" x2="74" y2="14" stroke="#c4b5fd" stroke-width="2" opacity="0.3"/>
+    <line x1="74" y1="14" x2="48" y2="0" stroke="#eab308" stroke-width="2" opacity="0.7"/>
+    <line x1="14" y1="68" x2="82" y2="68" stroke="#c4b5fd" stroke-width="1.5" stroke-linecap="round" opacity="0.3"/>
+    <circle cx="0" cy="48" r="10" fill="#1e293b" stroke="#94a3b8" stroke-width="2.5"/>
+    <circle cx="48" cy="0" r="10" fill="#1e293b" stroke="#eab308" stroke-width="2.5"/>
+    <circle cx="96" cy="48" r="10" fill="#94a3b8" stroke="#94a3b8" stroke-width="2.5"/>
+    <text x="48" y="106" text-anchor="middle" font-size="8" font-weight="600" fill="#94a3b8" opacity="0.8" font-family="Inter, system-ui">Compressor</text>
+  </g>
+
+  <!-- Valve 2×2 -->
+  <g transform="translate(290, 236)">
+    <polygon points="26,30 48,48 26,66" fill="#8b5cf6" opacity="0.07"/>
+    <polygon points="70,30 48,48 70,66" fill="#8b5cf6" opacity="0.07"/>
+    <line x1="0" y1="48" x2="26" y2="48" stroke="#94a3b8" stroke-width="2.5"/>
+    <line x1="70" y1="48" x2="96" y2="48" stroke="#94a3b8" stroke-width="2.5"/>
+    <polygon points="26,30 48,48 26,66" fill="none" stroke="#c4b5fd" stroke-width="2.5" stroke-linejoin="round"/>
+    <polygon points="70,30 48,48 70,66" fill="none" stroke="#c4b5fd" stroke-width="2.5" stroke-linejoin="round"/>
+    <line x1="48" y1="48" x2="48" y2="22" stroke="#c4b5fd" stroke-width="2"/>
+    <line x1="38" y1="22" x2="58" y2="22" stroke="#c4b5fd" stroke-width="2.5" stroke-linecap="round"/>
+    <circle cx="0" cy="48" r="10" fill="#1e293b" stroke="#94a3b8" stroke-width="2.5"/>
+    <circle cx="96" cy="48" r="10" fill="#94a3b8" stroke="#94a3b8" stroke-width="2.5"/>
+    <text x="48" y="106" text-anchor="middle" font-size="8" font-weight="600" fill="#94a3b8" opacity="0.8" font-family="Inter, system-ui">Valve</text>
+  </g>
+
+  <!-- Restriction 2×2 -->
+  <g transform="translate(420, 236)">
+    <line x1="0" y1="48" x2="40" y2="48" stroke="#94a3b8" stroke-width="2.5"/>
+    <line x1="56" y1="48" x2="96" y2="48" stroke="#94a3b8" stroke-width="2.5"/>
+    <line x1="48" y1="18" x2="48" y2="38" stroke="#c4b5fd" stroke-width="3" stroke-linecap="round"/>
+    <line x1="48" y1="58" x2="48" y2="78" stroke="#c4b5fd" stroke-width="3" stroke-linecap="round"/>
+    <ellipse cx="48" cy="48" rx="4" ry="10" fill="none" stroke="#c4b5fd" stroke-width="1.5" opacity="0.35"/>
+    <line x1="28" y1="34" x2="40" y2="42" stroke="#c4b5fd" stroke-width="1" opacity="0.3"/>
+    <line x1="28" y1="62" x2="40" y2="54" stroke="#c4b5fd" stroke-width="1" opacity="0.3"/>
+    <line x1="56" y1="42" x2="68" y2="34" stroke="#c4b5fd" stroke-width="1" opacity="0.3"/>
+    <line x1="56" y1="54" x2="68" y2="62" stroke="#c4b5fd" stroke-width="1" opacity="0.3"/>
+    <circle cx="0" cy="48" r="10" fill="#1e293b" stroke="#94a3b8" stroke-width="2.5"/>
+    <circle cx="96" cy="48" r="10" fill="#94a3b8" stroke="#94a3b8" stroke-width="2.5"/>
+    <text x="48" y="106" text-anchor="middle" font-size="8" font-weight="600" fill="#94a3b8" opacity="0.8" font-family="Inter, system-ui">Restriction</text>
+  </g>
+
+  <!-- Gas Turbine 2×2 -->
+  <g transform="translate(550, 236)">
+    <rect x="18" y="20" width="60" height="48" rx="6" fill="#8b5cf6" opacity="0.10"/>
+    <rect x="18" y="20" width="60" height="48" rx="6" fill="none" stroke="#c4b5fd" stroke-width="2.5"/>
+    <line x1="34" y1="24" x2="30" y2="64" stroke="#c4b5fd" stroke-width="2" opacity="0.5" stroke-linecap="round"/>
+    <line x1="48" y1="24" x2="44" y2="64" stroke="#c4b5fd" stroke-width="2" opacity="0.5" stroke-linecap="round"/>
+    <line x1="62" y1="24" x2="58" y2="64" stroke="#c4b5fd" stroke-width="2" opacity="0.5" stroke-linecap="round"/>
+    <line x1="26" y1="44" x2="70" y2="44" stroke="#c4b5fd" stroke-width="2.5" stroke-linecap="round"/>
+    <line x1="48" y1="44" x2="48" y2="68" stroke="#c4b5fd" stroke-width="2.5"/>
+    <line x1="48" y1="68" x2="48" y2="96" stroke="#eab308" stroke-width="2.5" opacity="0.7"/>
+    <line x1="0" y1="48" x2="18" y2="44" stroke="#94a3b8" stroke-width="2.5"/>
+    <line x1="78" y1="44" x2="96" y2="48" stroke="#94a3b8" stroke-width="2.5"/>
+    <circle cx="0" cy="48" r="10" fill="#1e293b" stroke="#94a3b8" stroke-width="2.5"/>
+    <circle cx="96" cy="48" r="10" fill="#94a3b8" stroke="#94a3b8" stroke-width="2.5"/>
+    <circle cx="48" cy="96" r="10" fill="#eab308" stroke="#eab308" stroke-width="2.5"/>
+    <text x="48" y="106" text-anchor="middle" font-size="8" font-weight="600" fill="#94a3b8" opacity="0.8" font-family="Inter, system-ui">Gas Turbine</text>
+  </g>
+
+  <!-- ════════════ HEAT TRANSFER ════════════ -->
+  <rect x="12" y="362" width="1136" height="18" rx="4" fill="#3b82f6" opacity="0.08"/>
+  <text x="20" y="375" font-size="11" font-weight="700" fill="#93c5fd" font-family="Inter, system-ui">HEAT TRANSFER</text>
+
+  <!-- Electric Heater 2×2 — HARMONIZED zigzag -->
+  <g transform="translate(30, 396)">
+    <rect x="14" y="28" width="68" height="40" rx="6" fill="#3b82f6" opacity="0.08"/>
+    <rect x="14" y="28" width="68" height="40" rx="6" fill="none" stroke="#93c5fd" stroke-width="2.5"/>
+    <!-- Harmonized zigzag: same period/amplitude as jacketed reactor -->
+    <path d="M22,48 L28,36 L34,60 L40,36 L46,60 L52,36 L58,60 L64,36 L70,48" fill="none" stroke="#fca5a5" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" opacity="0.55"/>
+    <line x1="0" y1="48" x2="14" y2="48" stroke="#94a3b8" stroke-width="2.5"/>
+    <line x1="82" y1="48" x2="96" y2="48" stroke="#94a3b8" stroke-width="2.5"/>
+    <line x1="48" y1="0" x2="48" y2="28" stroke="#eab308" stroke-width="2" opacity="0.7"/>
+    <circle cx="0" cy="48" r="10" fill="#1e293b" stroke="#94a3b8" stroke-width="2.5"/>
+    <circle cx="48" cy="0" r="10" fill="#1e293b" stroke="#eab308" stroke-width="2.5"/>
+    <circle cx="96" cy="48" r="10" fill="#94a3b8" stroke="#94a3b8" stroke-width="2.5"/>
+    <text x="48" y="106" text-anchor="middle" font-size="8" font-weight="600" fill="#94a3b8" opacity="0.8" font-family="Inter, system-ui">Electric Heater</text>
+  </g>
+
+  <!-- Air Cooler 2×2 — subtle container -->
+  <g transform="translate(160, 396)">
+    <!-- Unit container (subtle dashed border) -->
+    <rect x="-2" y="-2" width="100" height="100" rx="6" fill="none" stroke="#93c5fd" stroke-width="1" stroke-dasharray="4 3" opacity="0.15"/>
+    <rect x="12" y="16" width="72" height="30" rx="4" fill="#3b82f6" opacity="0.08"/>
+    <rect x="12" y="16" width="72" height="30" rx="4" fill="none" stroke="#93c5fd" stroke-width="2.5"/>
+    <line x1="24" y1="20" x2="24" y2="42" stroke="#93c5fd" stroke-width="1" opacity="0.25"/>
+    <line x1="36" y1="20" x2="36" y2="42" stroke="#93c5fd" stroke-width="1" opacity="0.25"/>
+    <line x1="48" y1="20" x2="48" y2="42" stroke="#93c5fd" stroke-width="1" opacity="0.25"/>
+    <line x1="60" y1="20" x2="60" y2="42" stroke="#93c5fd" stroke-width="1" opacity="0.25"/>
+    <line x1="72" y1="20" x2="72" y2="42" stroke="#93c5fd" stroke-width="1" opacity="0.25"/>
+    <circle cx="48" cy="66" r="16" fill="none" stroke="#93c5fd" stroke-width="2"/>
+    <circle cx="48" cy="66" r="2.5" fill="#93c5fd" opacity="0.4"/>
+    <path d="M48,66 Q54,58 48,50" fill="none" stroke="#93c5fd" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
+    <path d="M48,66 Q40,62 38,69" fill="none" stroke="#93c5fd" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
+    <path d="M48,66 Q54,74 58,69" fill="none" stroke="#93c5fd" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
+    <line x1="0" y1="48" x2="12" y2="32" stroke="#94a3b8" stroke-width="2.5"/>
+    <line x1="84" y1="32" x2="96" y2="48" stroke="#94a3b8" stroke-width="2.5"/>
+    <line x1="48" y1="82" x2="48" y2="96" stroke="#eab308" stroke-width="2" opacity="0.7"/>
+    <circle cx="0" cy="48" r="10" fill="#1e293b" stroke="#94a3b8" stroke-width="2.5"/>
+    <circle cx="96" cy="48" r="10" fill="#94a3b8" stroke="#94a3b8" stroke-width="2.5"/>
+    <circle cx="48" cy="96" r="10" fill="#1e293b" stroke="#eab308" stroke-width="2.5"/>
+    <text x="48" y="106" text-anchor="middle" font-size="8" font-weight="600" fill="#94a3b8" opacity="0.8" font-family="Inter, system-ui">Air Cooler</text>
+  </g>
+
+  <!-- HEX 2×2 -->
+  <g transform="translate(290, 396)">
+    <ellipse cx="48" cy="48" rx="38" ry="24" fill="#3b82f6" opacity="0.08"/>
+    <ellipse cx="48" cy="48" rx="38" ry="24" fill="none" stroke="#93c5fd" stroke-width="2.5"/>
+    <path d="M10,48 C26,48 26,34 48,34 C70,34 70,48 86,48" fill="none" stroke="#fca5a5" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+    <line x1="0" y1="48" x2="10" y2="48" stroke="#94a3b8" stroke-width="2.5"/>
+    <line x1="86" y1="48" x2="96" y2="48" stroke="#94a3b8" stroke-width="2.5"/>
+    <line x1="48" y1="0" x2="48" y2="24" stroke="#94a3b8" stroke-width="2.5"/>
+    <line x1="48" y1="72" x2="48" y2="96" stroke="#94a3b8" stroke-width="2.5"/>
+    <circle cx="0" cy="48" r="10" fill="#1e293b" stroke="#94a3b8" stroke-width="2.5"/>
+    <circle cx="96" cy="48" r="10" fill="#94a3b8" stroke="#94a3b8" stroke-width="2.5"/>
+    <circle cx="48" cy="0" r="10" fill="#1e293b" stroke="#94a3b8" stroke-width="2.5"/>
+    <circle cx="48" cy="96" r="10" fill="#94a3b8" stroke="#94a3b8" stroke-width="2.5"/>
+    <text x="48" y="106" text-anchor="middle" font-size="8" font-weight="600" fill="#94a3b8" opacity="0.8" font-family="Inter, system-ui">Heat Exchanger</text>
+  </g>
+
+  <!-- ════════════ SEPARATION & MIXING ════════════ -->
+  <rect x="12" y="522" width="1136" height="18" rx="4" fill="#14b8a6" opacity="0.08"/>
+  <text x="20" y="535" font-size="11" font-weight="700" fill="#5eead4" font-family="Inter, system-ui">SEPARATION &amp; MIXING</text>
+
+  <!-- Mixer 2×2 (helix) -->
+  <g transform="translate(30, 556)">
+    <line x1="0" y1="0" x2="14" y2="0" stroke="#94a3b8" stroke-width="2.5"/>
+    <path d="M14,0 Q30,0 32,20" fill="none" stroke="#5eead4" stroke-width="2.5"/>
+    <line x1="0" y1="96" x2="14" y2="96" stroke="#94a3b8" stroke-width="2.5"/>
+    <path d="M14,96 Q30,96 32,76" fill="none" stroke="#5eead4" stroke-width="2.5"/>
+    <path d="M32,20 L32,76" fill="none" stroke="#5eead4" stroke-width="2.5"/>
+    <line x1="32" y1="32" x2="84" y2="32" stroke="#5eead4" stroke-width="2.5"/>
+    <line x1="32" y1="64" x2="84" y2="64" stroke="#5eead4" stroke-width="2.5"/>
+    <rect x="32" y="32" width="52" height="32" fill="#14b8a6" opacity="0.08"/>
+    <!-- Helix twists -->
+    <path d="M38,34 Q42,48 38,62" fill="none" stroke="#5eead4" stroke-width="2" opacity="0.5"/>
+    <path d="M38,34 Q34,48 38,62" fill="none" stroke="#5eead4" stroke-width="2" opacity="0.25"/>
+    <path d="M50,34 Q54,48 50,62" fill="none" stroke="#5eead4" stroke-width="2" opacity="0.5"/>
+    <path d="M50,34 Q46,48 50,62" fill="none" stroke="#5eead4" stroke-width="2" opacity="0.25"/>
+    <path d="M62,34 Q66,48 62,62" fill="none" stroke="#5eead4" stroke-width="2" opacity="0.5"/>
+    <path d="M62,34 Q58,48 62,62" fill="none" stroke="#5eead4" stroke-width="2" opacity="0.25"/>
+    <path d="M74,34 Q78,48 74,62" fill="none" stroke="#5eead4" stroke-width="2" opacity="0.5"/>
+    <path d="M74,34 Q70,48 74,62" fill="none" stroke="#5eead4" stroke-width="2" opacity="0.25"/>
+    <line x1="84" y1="48" x2="96" y2="48" stroke="#94a3b8" stroke-width="2.5"/>
+    <circle cx="0" cy="0" r="10" fill="#1e293b" stroke="#94a3b8" stroke-width="2.5"/>
+    <circle cx="0" cy="96" r="10" fill="#1e293b" stroke="#94a3b8" stroke-width="2.5"/>
+    <circle cx="96" cy="48" r="10" fill="#94a3b8" stroke="#94a3b8" stroke-width="2.5"/>
+    <text x="48" y="106" text-anchor="middle" font-size="8" font-weight="600" fill="#94a3b8" opacity="0.8" font-family="Inter, system-ui">Mixer</text>
+  </g>
+
+  <!-- Splitter 2×2 (manifold + valves + %) -->
+  <g transform="translate(160, 556)">
+    <line x1="0" y1="48" x2="30" y2="48" stroke="#94a3b8" stroke-width="2.5"/>
+    <rect x="28" y="16" width="10" height="64" rx="3" fill="#14b8a6" opacity="0.10"/>
+    <rect x="28" y="16" width="10" height="64" rx="3" fill="none" stroke="#5eead4" stroke-width="2.5"/>
+    <text x="30" y="52" font-size="10" font-weight="700" fill="#5eead4" opacity="0.4" font-family="Inter, system-ui">%</text>
+    <line x1="38" y1="28" x2="50" y2="28" stroke="#5eead4" stroke-width="2"/>
+    <polygon points="50,18 62,28 50,38" fill="none" stroke="#5eead4" stroke-width="2" stroke-linejoin="round"/>
+    <polygon points="74,18 62,28 74,38" fill="none" stroke="#5eead4" stroke-width="2" stroke-linejoin="round"/>
+    <circle cx="62" cy="8" r="3" fill="none" stroke="#5eead4" stroke-width="1.2" opacity="0.4"/>
+    <line x1="74" y1="28" x2="80" y2="28" stroke="#5eead4" stroke-width="2"/>
+    <line x1="80" y1="28" x2="80" y2="0" stroke="#94a3b8" stroke-width="2"/>
+    <line x1="80" y1="0" x2="96" y2="0" stroke="#94a3b8" stroke-width="2.5"/>
+    <line x1="38" y1="68" x2="50" y2="68" stroke="#5eead4" stroke-width="2"/>
+    <polygon points="50,58 62,68 50,78" fill="none" stroke="#5eead4" stroke-width="2" stroke-linejoin="round"/>
+    <polygon points="74,58 62,68 74,78" fill="none" stroke="#5eead4" stroke-width="2" stroke-linejoin="round"/>
+    <circle cx="62" cy="88" r="3" fill="none" stroke="#5eead4" stroke-width="1.2" opacity="0.4"/>
+    <line x1="74" y1="68" x2="80" y2="68" stroke="#5eead4" stroke-width="2"/>
+    <line x1="80" y1="68" x2="80" y2="96" stroke="#94a3b8" stroke-width="2"/>
+    <line x1="80" y1="96" x2="96" y2="96" stroke="#94a3b8" stroke-width="2.5"/>
+    <circle cx="0" cy="48" r="10" fill="#1e293b" stroke="#94a3b8" stroke-width="2.5"/>
+    <circle cx="96" cy="0" r="10" fill="#94a3b8" stroke="#94a3b8" stroke-width="2.5"/>
+    <circle cx="96" cy="96" r="10" fill="#94a3b8" stroke="#94a3b8" stroke-width="2.5"/>
+    <text x="48" y="106" text-anchor="middle" font-size="8" font-weight="600" fill="#94a3b8" opacity="0.8" font-family="Inter, system-ui">Splitter</text>
+  </g>
+
+  <!-- Flash Drum 2×3 with level -->
+  <g transform="translate(290, 556)">
+    <path d="M28,24 Q28,8 48,8 Q68,8 68,24 L68,120 Q68,136 48,136 Q28,136 28,120 Z" fill="#14b8a6" opacity="0.09"/>
+    <rect x="28" y="68" width="40" height="72" fill="#5eead4" opacity="0.22" clip-path="url(#cf)"/>
+    <path d="M28,24 Q28,8 48,8 Q68,8 68,24 L68,120 Q68,136 48,136 Q28,136 28,120 Z" fill="none" stroke="#5eead4" stroke-width="2.5"/>
+    <path d="M32,36 Q40,30 48,36 Q56,42 64,36" fill="none" stroke="#5eead4" stroke-width="1.2" opacity="0.35"/>
+    <line x1="0" y1="48" x2="28" y2="48" stroke="#94a3b8" stroke-width="2.5"/>
+    <line x1="68" y1="20" x2="96" y2="0" stroke="#94a3b8" stroke-width="2"/>
+    <line x1="68" y1="124" x2="96" y2="144" stroke="#94a3b8" stroke-width="2"/>
+    <circle cx="0" cy="48" r="10" fill="#1e293b" stroke="#94a3b8" stroke-width="2.5"/>
+    <circle cx="96" cy="0" r="10" fill="#94a3b8" stroke="#94a3b8" stroke-width="2.5"/>
+    <circle cx="96" cy="144" r="10" fill="#94a3b8" stroke="#94a3b8" stroke-width="2.5"/>
+    <text x="48" y="160" text-anchor="middle" font-size="8" font-weight="600" fill="#94a3b8" opacity="0.8" font-family="Inter, system-ui">Flash Drum</text>
+  </g>
+
+  <!-- Dist Column 2×3 with level -->
+  <g transform="translate(420, 556)">
+    <path d="M26,20 Q26,6 48,6 Q70,6 70,20 L70,124 Q70,138 48,138 Q26,138 26,124 Z" fill="#14b8a6" opacity="0.07"/>
+    <rect x="26" y="84" width="44" height="56" fill="#5eead4" opacity="0.18" clip-path="url(#cc)"/>
+    <path d="M26,20 Q26,6 48,6 Q70,6 70,20 L70,124 Q70,138 48,138 Q26,138 26,124 Z" fill="none" stroke="#5eead4" stroke-width="2.5"/>
+    <line x1="30" y1="30" x2="66" y2="30" stroke="#5eead4" stroke-width="1" opacity="0.25"/>
+    <line x1="30" y1="46" x2="66" y2="46" stroke="#5eead4" stroke-width="1" opacity="0.25"/>
+    <line x1="30" y1="62" x2="66" y2="62" stroke="#5eead4" stroke-width="1" opacity="0.25"/>
+    <line x1="28" y1="78" x2="68" y2="78" stroke="#5eead4" stroke-width="1.5" opacity="0.4"/>
+    <line x1="30" y1="94" x2="66" y2="94" stroke="#5eead4" stroke-width="1" opacity="0.25"/>
+    <line x1="30" y1="110" x2="66" y2="110" stroke="#5eead4" stroke-width="1" opacity="0.25"/>
+    <line x1="0" y1="72" x2="26" y2="72" stroke="#94a3b8" stroke-width="2.5"/>
+    <line x1="58" y1="10" x2="80" y2="10" stroke="#94a3b8" stroke-width="2"/>
+    <line x1="80" y1="10" x2="80" y2="24" stroke="#94a3b8" stroke-width="2"/>
+    <line x1="80" y1="24" x2="96" y2="24" stroke="#94a3b8" stroke-width="2"/>
+    <circle cx="80" cy="16" r="5" fill="none" stroke="#93c5fd" stroke-width="1.2" opacity="0.45"/>
+    <line x1="58" y1="134" x2="80" y2="134" stroke="#94a3b8" stroke-width="2"/>
+    <line x1="80" y1="134" x2="80" y2="120" stroke="#94a3b8" stroke-width="2"/>
+    <line x1="80" y1="120" x2="96" y2="120" stroke="#94a3b8" stroke-width="2"/>
+    <circle cx="80" cy="128" r="5" fill="none" stroke="#fca5a5" stroke-width="1.2" opacity="0.45"/>
+    <line x1="48" y1="0" x2="48" y2="6" stroke="#eab308" stroke-width="2" opacity="0.6"/>
+    <circle cx="0" cy="72" r="10" fill="#1e293b" stroke="#94a3b8" stroke-width="2.5"/>
+    <circle cx="48" cy="0" r="10" fill="#1e293b" stroke="#eab308" stroke-width="2.5"/>
+    <circle cx="96" cy="24" r="10" fill="#94a3b8" stroke="#94a3b8" stroke-width="2.5"/>
+    <circle cx="96" cy="120" r="10" fill="#94a3b8" stroke="#94a3b8" stroke-width="2.5"/>
+    <text x="48" y="160" text-anchor="middle" font-size="8" font-weight="600" fill="#94a3b8" opacity="0.8" font-family="Inter, system-ui">Dist. Column</text>
+  </g>
+
+  <!-- Membrane 2×2 -->
+  <g transform="translate(550, 556)">
+    <rect x="12" y="8" width="72" height="80" rx="4" fill="#14b8a6" opacity="0.09"/>
+    <rect x="12" y="8" width="72" height="80" rx="4" fill="none" stroke="#5eead4" stroke-width="2.5"/>
+    <line x1="16" y1="14" x2="80" y2="82" stroke="#5eead4" stroke-width="2" stroke-dasharray="5 3" opacity="0.6"/>
+    <circle cx="44" cy="26" r="1.5" fill="#5eead4" opacity="0.4"/>
+    <circle cx="50" cy="22" r="1.2" fill="#5eead4" opacity="0.3"/>
+    <circle cx="56" cy="20" r="1.5" fill="#5eead4" opacity="0.35"/>
+    <line x1="0" y1="48" x2="12" y2="48" stroke="#94a3b8" stroke-width="2.5"/>
+    <line x1="72" y1="16" x2="96" y2="0" stroke="#94a3b8" stroke-width="2"/>
+    <line x1="12" y1="84" x2="82" y2="84" stroke="#94a3b8" stroke-width="2"/>
+    <line x1="82" y1="84" x2="96" y2="96" stroke="#94a3b8" stroke-width="2"/>
+    <circle cx="0" cy="48" r="10" fill="#1e293b" stroke="#94a3b8" stroke-width="2.5"/>
+    <circle cx="96" cy="0" r="10" fill="#94a3b8" stroke="#94a3b8" stroke-width="2.5"/>
+    <circle cx="96" cy="96" r="10" fill="#94a3b8" stroke="#94a3b8" stroke-width="2.5"/>
+    <text x="48" y="106" text-anchor="middle" font-size="8" font-weight="600" fill="#94a3b8" opacity="0.8" font-family="Inter, system-ui">Membrane</text>
+  </g>
+
+  <!-- ════════════ REACTORS ════════════ -->
+  <rect x="12" y="738" width="1136" height="18" rx="4" fill="#ef4444" opacity="0.08"/>
+  <text x="20" y="751" font-size="11" font-weight="700" fill="#fca5a5" font-family="Inter, system-ui">REACTORS — Adiabatic 2×2 · Jacketed/Cooled/Electrochem 2×3 · Fuel Cell 2×3</text>
+
+  <!-- Adiabatic 2×2 -->
+  <g transform="translate(30, 772)">
+    <rect x="12" y="8" width="72" height="80" rx="14" fill="#ef4444" opacity="0.09"/>
+    <rect x="12" y="8" width="72" height="80" rx="14" fill="none" stroke="#fca5a5" stroke-width="2.5"/>
+    <circle cx="34" cy="30" r="5" fill="none" stroke="#fca5a5" stroke-width="1.5" opacity="0.4"/>
+    <circle cx="56" cy="42" r="4.5" fill="none" stroke="#fca5a5" stroke-width="1.2" opacity="0.35"/>
+    <circle cx="40" cy="58" r="5" fill="none" stroke="#fca5a5" stroke-width="1.5" opacity="0.35"/>
+    <circle cx="62" cy="26" r="3.5" fill="none" stroke="#fca5a5" stroke-width="1" opacity="0.3"/>
+    <circle cx="28" cy="48" r="3" fill="none" stroke="#fca5a5" stroke-width="1" opacity="0.25"/>
+    <circle cx="58" cy="66" r="3.5" fill="none" stroke="#fca5a5" stroke-width="1" opacity="0.25"/>
+    <line x1="0" y1="48" x2="12" y2="48" stroke="#94a3b8" stroke-width="2.5"/>
+    <line x1="84" y1="48" x2="96" y2="48" stroke="#94a3b8" stroke-width="2.5"/>
+    <circle cx="0" cy="48" r="10" fill="#1e293b" stroke="#94a3b8" stroke-width="2.5"/>
+    <circle cx="96" cy="48" r="10" fill="#94a3b8" stroke="#94a3b8" stroke-width="2.5"/>
+    <text x="48" y="106" text-anchor="middle" font-size="8" font-weight="600" fill="#94a3b8" opacity="0.8" font-family="Inter, system-ui">Adiabatic</text>
+  </g>
+
+  <!-- Jacketed 2×3 with zigzag + container -->
+  <g transform="translate(160, 772)">
+    <!-- Subtle unit container -->
+    <rect x="-2" y="-2" width="100" height="148" rx="6" fill="none" stroke="#fca5a5" stroke-width="1" stroke-dasharray="4 3" opacity="0.15"/>
+    <!-- Vessel -->
+    <rect x="6" y="4" width="84" height="68" rx="14" fill="#ef4444" opacity="0.05"/>
+    <rect x="6" y="4" width="84" height="68" rx="14" fill="none" stroke="#fca5a5" stroke-width="2" stroke-dasharray="6 3" opacity="0.4"/>
+    <rect x="16" y="14" width="64" height="48" rx="10" fill="#ef4444" opacity="0.09"/>
+    <rect x="16" y="14" width="64" height="48" rx="10" fill="none" stroke="#fca5a5" stroke-width="2.5"/>
+    <circle cx="36" cy="30" r="4" fill="none" stroke="#fca5a5" stroke-width="1.2" opacity="0.35"/>
+    <circle cx="56" cy="40" r="3.5" fill="none" stroke="#fca5a5" stroke-width="1" opacity="0.3"/>
+    <circle cx="42" cy="50" r="3" fill="none" stroke="#fca5a5" stroke-width="1" opacity="0.25"/>
+    <!-- ZIGZAG resistance (harmonized with heater) -->
+    <path d="M18,108 L24,96 L30,108 L36,96 L42,108 L48,96 L54,108 L60,96 L66,108 L72,96 L78,108" fill="none" stroke="#fca5a5" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" opacity="0.55"/>
+    <line x1="48" y1="108" x2="48" y2="144" stroke="#eab308" stroke-width="2" opacity="0.7"/>
+    <line x1="0" y1="24" x2="16" y2="38" stroke="#94a3b8" stroke-width="2.5"/>
+    <line x1="80" y1="38" x2="96" y2="24" stroke="#94a3b8" stroke-width="2.5"/>
+    <circle cx="0" cy="24" r="10" fill="#1e293b" stroke="#94a3b8" stroke-width="2.5"/>
+    <circle cx="96" cy="24" r="10" fill="#94a3b8" stroke="#94a3b8" stroke-width="2.5"/>
+    <circle cx="48" cy="144" r="10" fill="#1e293b" stroke="#eab308" stroke-width="2.5"/>
+    <text x="48" y="160" text-anchor="middle" font-size="8" font-weight="600" fill="#94a3b8" opacity="0.8" font-family="Inter, system-ui">Jacketed</text>
+  </g>
+
+  <!-- Cooled 2×3 + container -->
+  <g transform="translate(290, 772)">
+    <rect x="-2" y="-2" width="100" height="148" rx="6" fill="none" stroke="#93c5fd" stroke-width="1" stroke-dasharray="4 3" opacity="0.15"/>
+    <rect x="14" y="4" width="68" height="68" rx="14" fill="#ef4444" opacity="0.09"/>
+    <rect x="14" y="4" width="68" height="68" rx="14" fill="none" stroke="#fca5a5" stroke-width="2.5"/>
+    <circle cx="38" cy="26" r="4.5" fill="none" stroke="#fca5a5" stroke-width="1.2" opacity="0.35"/>
+    <circle cx="56" cy="38" r="4" fill="none" stroke="#fca5a5" stroke-width="1" opacity="0.3"/>
+    <circle cx="44" cy="54" r="3.5" fill="none" stroke="#fca5a5" stroke-width="1" opacity="0.25"/>
+    <line x1="0" y1="24" x2="14" y2="24" stroke="#94a3b8" stroke-width="2.5"/>
+    <line x1="82" y1="24" x2="96" y2="24" stroke="#94a3b8" stroke-width="2.5"/>
+    <!-- Fridge coil -->
+    <path d="M0,120 L14,120 L14,100 L22,100 L22,120 L30,120 L30,100 L38,100 L38,120 L46,120 L46,100 L54,100 L54,120 L62,120 L62,100 L70,100 L70,120 L78,120 L78,100 L86,100 L86,120 L96,120" fill="none" stroke="#93c5fd" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="0" cy="24" r="10" fill="#1e293b" stroke="#94a3b8" stroke-width="2.5"/>
+    <circle cx="96" cy="24" r="10" fill="#94a3b8" stroke="#94a3b8" stroke-width="2.5"/>
+    <circle cx="0" cy="120" r="10" fill="#1e293b" stroke="#94a3b8" stroke-width="2.5"/>
+    <circle cx="96" cy="120" r="10" fill="#94a3b8" stroke="#94a3b8" stroke-width="2.5"/>
+    <text x="48" y="160" text-anchor="middle" font-size="8" font-weight="600" fill="#94a3b8" opacity="0.8" font-family="Inter, system-ui">Cooled</text>
+  </g>
+
+  <!-- Electrochemical 2×3 -->
+  <g transform="translate(420, 772)">
+    <rect x="16" y="10" width="64" height="124" rx="6" fill="#ef4444" opacity="0.08"/>
+    <rect x="16" y="10" width="64" height="124" rx="6" fill="none" stroke="#fca5a5" stroke-width="2.5"/>
+    <line x1="20" y1="72" x2="76" y2="72" stroke="#fca5a5" stroke-width="2" stroke-dasharray="5 3" opacity="0.5"/>
+    <rect x="58" y="24" width="4" height="36" rx="1" fill="#fca5a5" opacity="0.4"/>
+    <rect x="58" y="84" width="4" height="36" rx="1" fill="#fca5a5" opacity="0.4"/>
+    <circle cx="36" cy="36" r="2.5" fill="none" stroke="#fca5a5" stroke-width="1" opacity="0.3"/>
+    <circle cx="36" cy="92" r="2.5" fill="none" stroke="#fca5a5" stroke-width="1" opacity="0.3"/>
+    <line x1="66" y1="38" x2="72" y2="38" stroke="#fca5a5" stroke-width="1.5" opacity="0.35"/>
+    <line x1="66" y1="100" x2="72" y2="100" stroke="#fca5a5" stroke-width="1.5" opacity="0.35"/>
+    <line x1="69" y1="97" x2="69" y2="103" stroke="#fca5a5" stroke-width="1.5" opacity="0.35"/>
+    <line x1="0" y1="72" x2="16" y2="72" stroke="#94a3b8" stroke-width="2.5"/>
+    <line x1="80" y1="24" x2="96" y2="24" stroke="#94a3b8" stroke-width="2.5"/>
+    <line x1="80" y1="120" x2="96" y2="120" stroke="#94a3b8" stroke-width="2.5"/>
+    <line x1="48" y1="14" x2="48" y2="0" stroke="#eab308" stroke-width="2" opacity="0.7"/>
+    <circle cx="0" cy="72" r="10" fill="#1e293b" stroke="#94a3b8" stroke-width="2.5"/>
+    <circle cx="48" cy="0" r="10" fill="#1e293b" stroke="#eab308" stroke-width="2.5"/>
+    <circle cx="96" cy="24" r="10" fill="#94a3b8" stroke="#94a3b8" stroke-width="2.5"/>
+    <circle cx="96" cy="120" r="10" fill="#94a3b8" stroke="#94a3b8" stroke-width="2.5"/>
+    <text x="48" y="160" text-anchor="middle" font-size="8" font-weight="600" fill="#94a3b8" opacity="0.8" font-family="Inter, system-ui">Electrochem.</text>
+  </g>
+
+  <!-- Fuel Cell 2×3 + container -->
+  <g transform="translate(550, 772)">
+    <rect x="-2" y="-2" width="100" height="148" rx="6" fill="none" stroke="#93c5fd" stroke-width="1" stroke-dasharray="4 3" opacity="0.15"/>
+    <rect x="16" y="8" width="64" height="72" rx="4" fill="#ef4444" opacity="0.08"/>
+    <rect x="16" y="8" width="64" height="72" rx="4" fill="none" stroke="#fca5a5" stroke-width="2.5"/>
+    <rect x="22" y="16" width="52" height="8" rx="1" fill="#fca5a5" opacity="0.15"/>
+    <rect x="22" y="28" width="52" height="8" rx="1" fill="#fca5a5" opacity="0.10"/>
+    <rect x="22" y="40" width="52" height="8" rx="1" fill="#fca5a5" opacity="0.15"/>
+    <rect x="22" y="52" width="52" height="8" rx="1" fill="#fca5a5" opacity="0.10"/>
+    <rect x="22" y="64" width="52" height="8" rx="1" fill="#fca5a5" opacity="0.15"/>
+    <line x1="32" y1="8" x2="32" y2="0" stroke="#eab308" stroke-width="2" opacity="0.6"/>
+    <line x1="64" y1="8" x2="64" y2="0" stroke="#eab308" stroke-width="2" opacity="0.6"/>
+    <line x1="32" y1="0" x2="64" y2="0" stroke="#eab308" stroke-width="2" opacity="0.5"/>
+    <line x1="0" y1="24" x2="16" y2="24" stroke="#94a3b8" stroke-width="2.5"/>
+    <line x1="0" y1="72" x2="16" y2="60" stroke="#94a3b8" stroke-width="2.5"/>
+    <line x1="80" y1="48" x2="96" y2="48" stroke="#94a3b8" stroke-width="2.5"/>
+    <path d="M0,120 L14,120 L14,100 L22,100 L22,120 L30,120 L30,100 L38,100 L38,120 L46,120 L46,100 L54,100 L54,120 L62,120 L62,100 L70,100 L70,120 L78,120 L78,100 L86,100 L86,120 L96,120" fill="none" stroke="#93c5fd" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="0" cy="24" r="10" fill="#1e293b" stroke="#94a3b8" stroke-width="2.5"/>
+    <circle cx="0" cy="72" r="10" fill="#1e293b" stroke="#94a3b8" stroke-width="2.5"/>
+    <circle cx="96" cy="48" r="10" fill="#94a3b8" stroke="#94a3b8" stroke-width="2.5"/>
+    <circle cx="48" cy="0" r="10" fill="#eab308" stroke="#eab308" stroke-width="2.5"/>
+    <circle cx="0" cy="120" r="10" fill="#1e293b" stroke="#94a3b8" stroke-width="2.5"/>
+    <circle cx="96" cy="120" r="10" fill="#94a3b8" stroke="#94a3b8" stroke-width="2.5"/>
+    <text x="48" y="160" text-anchor="middle" font-size="8" font-weight="600" fill="#94a3b8" opacity="0.8" font-family="Inter, system-ui">Fuel Cell</text>
+  </g>
+
+  <!-- ════════════ STORAGE ════════════ -->
+  <rect x="12" y="960" width="1136" height="18" rx="4" fill="#06b6d4" opacity="0.08"/>
+  <text x="20" y="973" font-size="11" font-weight="700" fill="#67e8f9" font-family="Inter, system-ui">STORAGE</text>
+
+  <!-- Tank 3×2 with fill -->
+  <g transform="translate(30, 996)">
+    <path d="M28,12 Q8,12 8,48 Q8,84 28,84 L116,84 Q136,84 136,48 Q136,12 116,12 Z" fill="#06b6d4" opacity="0.10"/>
+    <rect x="6" y="54" width="132" height="32" fill="#67e8f9" opacity="0.22" clip-path="url(#ct)"/>
+    <path d="M28,12 Q8,12 8,48 Q8,84 28,84 L116,84 Q136,84 136,48 Q136,12 116,12 Z" fill="none" stroke="#67e8f9" stroke-width="2.5"/>
+    <path d="M28,14 Q28,48 28,82" fill="none" stroke="#67e8f9" stroke-width="1" opacity="0.25"/>
+    <path d="M116,14 Q116,48 116,82" fill="none" stroke="#67e8f9" stroke-width="1" opacity="0.25"/>
+    <path d="M38,84 L34,96 L50,96 L46,84" fill="none" stroke="#67e8f9" stroke-width="1.5" stroke-linejoin="round" opacity="0.5"/>
+    <path d="M98,84 L94,96 L110,96 L106,84" fill="none" stroke="#67e8f9" stroke-width="1.5" stroke-linejoin="round" opacity="0.5"/>
+    <line x1="0" y1="48" x2="8" y2="48" stroke="#94a3b8" stroke-width="2.5"/>
+    <line x1="120" y1="16" x2="144" y2="0" stroke="#94a3b8" stroke-width="2"/>
+    <line x1="48" y1="14" x2="48" y2="0" stroke="#94a3b8" stroke-width="2"/>
+    <line x1="120" y1="80" x2="144" y2="96" stroke="#94a3b8" stroke-width="2"/>
+    <line x1="48" y1="84" x2="48" y2="96" stroke="#94a3b8" stroke-width="2"/>
+    <circle cx="0" cy="48" r="10" fill="#1e293b" stroke="#94a3b8" stroke-width="2.5"/>
+    <circle cx="144" cy="0" r="10" fill="#94a3b8" stroke="#94a3b8" stroke-width="2.5"/>
+    <circle cx="48" cy="0" r="10" fill="#94a3b8" stroke="#94a3b8" stroke-width="2.5"/>
+    <circle cx="144" cy="96" r="10" fill="#94a3b8" stroke="#94a3b8" stroke-width="2.5"/>
+    <circle cx="48" cy="96" r="10" fill="#94a3b8" stroke="#94a3b8" stroke-width="2.5"/>
+    <text x="72" y="122" text-anchor="middle" font-size="8" font-weight="600" fill="#94a3b8" opacity="0.8" font-family="Inter, system-ui">Tank (3×2)</text>
+  </g>
+
+  <!-- Open Tank 3×2 with fill -->
+  <g transform="translate(240, 996)">
+    <path d="M14,14 L14,68 Q14,82 72,82 Q130,82 130,68 L130,14" fill="#06b6d4" opacity="0.10"/>
+    <rect x="14" y="46" width="116" height="38" fill="#67e8f9" opacity="0.22" clip-path="url(#co)"/>
+    <path d="M14,14 L14,68 Q14,82 72,82 Q130,82 130,68 L130,14" fill="none" stroke="#67e8f9" stroke-width="2.5" stroke-linecap="round"/>
+    <line x1="26" y1="80" x2="22" y2="92" stroke="#67e8f9" stroke-width="2" stroke-linecap="round" opacity="0.5"/>
+    <line x1="118" y1="80" x2="122" y2="92" stroke="#67e8f9" stroke-width="2" stroke-linecap="round" opacity="0.5"/>
+    <line x1="16" y1="92" x2="28" y2="92" stroke="#67e8f9" stroke-width="2" stroke-linecap="round" opacity="0.5"/>
+    <line x1="116" y1="92" x2="128" y2="92" stroke="#67e8f9" stroke-width="2" stroke-linecap="round" opacity="0.5"/>
+    <line x1="0" y1="48" x2="14" y2="48" stroke="#94a3b8" stroke-width="2.5"/>
+    <line x1="130" y1="76" x2="144" y2="96" stroke="#94a3b8" stroke-width="2"/>
+    <line x1="48" y1="80" x2="48" y2="96" stroke="#94a3b8" stroke-width="2"/>
+    <circle cx="0" cy="48" r="10" fill="#1e293b" stroke="#94a3b8" stroke-width="2.5"/>
+    <circle cx="144" cy="96" r="10" fill="#94a3b8" stroke="#94a3b8" stroke-width="2.5"/>
+    <circle cx="48" cy="96" r="10" fill="#94a3b8" stroke="#94a3b8" stroke-width="2.5"/>
+    <text x="72" y="122" text-anchor="middle" font-size="8" font-weight="600" fill="#94a3b8" opacity="0.8" font-family="Inter, system-ui">Open Tank (3×2)</text>
+  </g>
+
+  <!-- ════════════ POWER ════════════ -->
+  <rect x="12" y="1142" width="1136" height="18" rx="4" fill="#eab308" opacity="0.08"/>
+  <text x="20" y="1155" font-size="11" font-weight="700" fill="#fde047" font-family="Inter, system-ui">POWER</text>
+
+  <!-- Grid Supply 2×2 -->
+  <g transform="translate(30, 1178)">
+    <circle cx="38" cy="48" r="26" fill="#eab308" opacity="0.10"/>
+    <circle cx="38" cy="48" r="26" fill="none" stroke="#fde047" stroke-width="2.5"/>
+    <path d="M22,48 Q28,34 34,48 Q40,62 46,48 Q52,34 58,48" fill="none" stroke="#fde047" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+    <line x1="64" y1="48" x2="96" y2="48" stroke="#eab308" stroke-width="2.5"/>
+    <circle cx="96" cy="48" r="10" fill="#eab308" stroke="#eab308" stroke-width="2.5"/>
+    <text x="48" y="106" text-anchor="middle" font-size="8" font-weight="600" fill="#94a3b8" opacity="0.8" font-family="Inter, system-ui">Grid Supply</text>
+  </g>
+
+  <!-- Battery 2×2 -->
+  <g transform="translate(160, 1178)">
+    <rect x="16" y="22" width="46" height="52" rx="6" fill="#eab308" opacity="0.10"/>
+    <rect x="16" y="22" width="46" height="52" rx="6" fill="none" stroke="#fde047" stroke-width="2.5"/>
+    <rect x="28" y="16" width="22" height="8" rx="3" fill="none" stroke="#fde047" stroke-width="2"/>
+    <rect x="22" y="56" width="34" height="8" rx="2" fill="#fde047" opacity="0.5"/>
+    <rect x="22" y="44" width="34" height="8" rx="2" fill="#fde047" opacity="0.4"/>
+    <rect x="22" y="32" width="34" height="8" rx="2" fill="#fde047" opacity="0.2"/>
+    <line x1="62" y1="48" x2="96" y2="48" stroke="#eab308" stroke-width="2.5"/>
+    <polygon points="72,44 78,48 72,52" fill="#eab308" opacity="0.3"/>
+    <polygon points="88,44 82,48 88,52" fill="#eab308" opacity="0.3"/>
+    <circle cx="96" cy="48" r="10" fill="#eab308" stroke="#eab308" stroke-width="2.5"/>
+    <text x="48" y="106" text-anchor="middle" font-size="8" font-weight="600" fill="#94a3b8" opacity="0.8" font-family="Inter, system-ui">Battery</text>
+  </g>
+
+  <!-- Power Sink 2×2 -->
+  <g transform="translate(290, 1178)">
+    <circle cx="58" cy="48" r="26" fill="#eab308" opacity="0.10"/>
+    <circle cx="58" cy="48" r="26" fill="none" stroke="#fde047" stroke-width="2.5"/>
+    <line x1="46" y1="48" x2="70" y2="48" stroke="#fde047" stroke-width="2.5" stroke-linecap="round" opacity="0.6"/>
+    <line x1="58" y1="36" x2="58" y2="60" stroke="#fde047" stroke-width="2.5" stroke-linecap="round" opacity="0.6"/>
+    <line x1="50" y1="64" x2="66" y2="64" stroke="#fde047" stroke-width="2" stroke-linecap="round" opacity="0.4"/>
+    <line x1="53" y1="68" x2="63" y2="68" stroke="#fde047" stroke-width="1.5" stroke-linecap="round" opacity="0.3"/>
+    <line x1="56" y1="72" x2="60" y2="72" stroke="#fde047" stroke-width="1" stroke-linecap="round" opacity="0.2"/>
+    <line x1="0" y1="48" x2="32" y2="48" stroke="#eab308" stroke-width="2.5"/>
+    <circle cx="0" cy="48" r="10" fill="#1e293b" stroke="#eab308" stroke-width="2.5"/>
+    <text x="48" y="106" text-anchor="middle" font-size="8" font-weight="600" fill="#94a3b8" opacity="0.8" font-family="Inter, system-ui">Power Sink</text>
+  </g>
+
+  <!-- Power Hub 2×3 -->
+  <g transform="translate(420, 1178)">
+    <rect x="14" y="12" width="68" height="120" rx="4" fill="#eab308" opacity="0.08"/>
+    <rect x="14" y="12" width="68" height="120" rx="4" fill="none" stroke="#fde047" stroke-width="2.5"/>
+    <rect x="20" y="18" width="56" height="108" rx="2" fill="none" stroke="#fde047" stroke-width="1" opacity="0.3"/>
+    <line x1="20" y1="72" x2="76" y2="72" stroke="#fde047" stroke-width="3" stroke-linecap="round"/>
+    <line x1="34" y1="36" x2="34" y2="52" stroke="#fde047" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+    <line x1="34" y1="52" x2="34" y2="72" stroke="#fde047" stroke-width="1" stroke-dasharray="3 2" opacity="0.3"/>
+    <circle cx="34" cy="34" r="3" fill="#fde047" opacity="0.5"/>
+    <line x1="48" y1="36" x2="48" y2="52" stroke="#fde047" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+    <line x1="48" y1="52" x2="48" y2="72" stroke="#fde047" stroke-width="1" stroke-dasharray="3 2" opacity="0.3"/>
+    <circle cx="48" cy="34" r="3" fill="#fde047" opacity="0.5"/>
+    <line x1="62" y1="36" x2="62" y2="52" stroke="#fde047" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+    <line x1="62" y1="52" x2="62" y2="72" stroke="#fde047" stroke-width="1" stroke-dasharray="3 2" opacity="0.3"/>
+    <circle cx="62" cy="34" r="3" fill="#fde047" opacity="0.5"/>
+    <circle cx="34" cy="90" r="3" fill="#4ade80" opacity="0.5"/>
+    <circle cx="48" cy="90" r="3" fill="#4ade80" opacity="0.5"/>
+    <circle cx="62" cy="90" r="3" fill="#fde047" opacity="0.4"/>
+    <rect x="28" y="104" width="12" height="6" rx="1" fill="none" stroke="#fde047" stroke-width="1" opacity="0.35"/>
+    <rect x="42" y="104" width="12" height="6" rx="1" fill="none" stroke="#fde047" stroke-width="1" opacity="0.35"/>
+    <rect x="56" y="104" width="12" height="6" rx="1" fill="none" stroke="#fde047" stroke-width="1" opacity="0.35"/>
+    <line x1="0" y1="72" x2="14" y2="72" stroke="#eab308" stroke-width="2.5"/>
+    <line x1="82" y1="72" x2="96" y2="72" stroke="#eab308" stroke-width="2.5"/>
+    <line x1="48" y1="0" x2="48" y2="12" stroke="#eab308" stroke-width="2.5"/>
+    <circle cx="0" cy="72" r="10" fill="#1e293b" stroke="#eab308" stroke-width="2.5"/>
+    <circle cx="96" cy="72" r="10" fill="#eab308" stroke="#eab308" stroke-width="2.5"/>
+    <circle cx="48" cy="0" r="10" fill="#eab308" stroke="#eab308" stroke-width="2.5"/>
+    <text x="48" y="160" text-anchor="middle" font-size="8" font-weight="600" fill="#94a3b8" opacity="0.8" font-family="Inter, system-ui">Power Hub</text>
+  </g>
+
+  <!-- Diaphragm Compressor 2×3 + container -->
+  <g transform="translate(550, 1178)">
+    <rect x="-2" y="-2" width="100" height="148" rx="6" fill="none" stroke="#93c5fd" stroke-width="1" stroke-dasharray="4 3" opacity="0.15"/>
+    <rect x="16" y="8" width="64" height="68" rx="6" fill="#8b5cf6" opacity="0.08"/>
+    <rect x="16" y="8" width="64" height="68" rx="6" fill="none" stroke="#c4b5fd" stroke-width="2.5"/>
+    <path d="M20,42 Q30,32 40,42 Q50,52 60,42 Q70,32 76,42" fill="none" stroke="#c4b5fd" stroke-width="2.5" stroke-linecap="round" opacity="0.6"/>
+    <circle cx="36" cy="24" r="3" fill="none" stroke="#c4b5fd" stroke-width="1" opacity="0.3"/>
+    <circle cx="52" cy="20" r="2.5" fill="none" stroke="#c4b5fd" stroke-width="1" opacity="0.25"/>
+    <rect x="32" y="52" width="32" height="14" rx="2" fill="#c4b5fd" opacity="0.12"/>
+    <rect x="32" y="52" width="32" height="14" rx="2" fill="none" stroke="#c4b5fd" stroke-width="1.5" opacity="0.4"/>
+    <line x1="0" y1="48" x2="16" y2="28" stroke="#94a3b8" stroke-width="2.5"/>
+    <line x1="80" y1="28" x2="96" y2="48" stroke="#94a3b8" stroke-width="2.5"/>
+    <path d="M0,120 L14,120 L14,100 L22,100 L22,120 L30,120 L30,100 L38,100 L38,120 L46,120 L46,100 L54,100 L54,120 L62,120 L62,100 L70,100 L70,120 L78,120 L78,100 L86,100 L86,120 L96,120" fill="none" stroke="#93c5fd" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <line x1="48" y1="76" x2="48" y2="130" stroke="#c4b5fd" stroke-width="1.5" opacity="0.3"/>
+    <circle cx="48" cy="132" r="5" fill="none" stroke="#c4b5fd" stroke-width="1.5" opacity="0.3"/>
+    <line x1="48" y1="137" x2="48" y2="144" stroke="#eab308" stroke-width="2" opacity="0.7"/>
+    <circle cx="0" cy="48" r="10" fill="#1e293b" stroke="#94a3b8" stroke-width="2.5"/>
+    <circle cx="96" cy="48" r="10" fill="#94a3b8" stroke="#94a3b8" stroke-width="2.5"/>
+    <circle cx="0" cy="120" r="10" fill="#1e293b" stroke="#94a3b8" stroke-width="2.5"/>
+    <circle cx="96" cy="120" r="10" fill="#94a3b8" stroke="#94a3b8" stroke-width="2.5"/>
+    <circle cx="48" cy="144" r="10" fill="#1e293b" stroke="#eab308" stroke-width="2.5"/>
+    <text x="48" y="160" text-anchor="middle" font-size="8" font-weight="600" fill="#94a3b8" opacity="0.8" font-family="Inter, system-ui">Comp. (Diaphragm)</text>
+  </g>
+
+  <!-- ════════════ LEGEND ════════════ -->
+  <g transform="translate(16, 1390)">
+    <rect x="0" y="0" width="740" height="60" rx="6" fill="#0f172a" stroke="#1e293b" stroke-width="1"/>
+    <line x1="16" y1="20" x2="36" y2="20" stroke="#94a3b8" stroke-width="2.5"/>
+    <text x="42" y="24" font-size="9" fill="#94a3b8" font-family="Inter, system-ui">Material stub</text>
+    <line x1="106" y1="20" x2="126" y2="20" stroke="#eab308" stroke-width="2" opacity="0.7"/>
+    <text x="132" y="24" font-size="9" fill="#eab308" font-family="Inter, system-ui">Electrical stub</text>
+    <path d="M210,20 L216,12 L222,20 L228,12 L234,20" fill="none" stroke="#fca5a5" stroke-width="2" stroke-linejoin="round" opacity="0.55"/>
+    <text x="240" y="24" font-size="9" fill="#fca5a5" font-family="Inter, system-ui">Zigzag = resistance</text>
+    <path d="M350,20 L350,12 L358,12 L358,20 L366,20 L366,12 L374,12 L374,20" fill="none" stroke="#93c5fd" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="380" y="24" font-size="9" fill="#93c5fd" font-family="Inter, system-ui">Serpentine = fluid cooling</text>
+    <rect x="510" y="12" width="30" height="16" rx="4" fill="none" stroke="#fca5a5" stroke-width="1" stroke-dasharray="3 2" opacity="0.3"/>
+    <text x="546" y="24" font-size="9" fill="#94a3b8" font-family="Inter, system-ui">Dashed border = multi-part single unit</text>
+    <text x="16" y="48" font-size="9" fill="#475569" font-family="Inter, system-ui">28 units · 7 categories · All at tile=48px grid scale · Shape-conforming tinted fills · Ports: hollow=IN, filled=OUT</text>
+  </g>
+
+</svg>
+
+</body>
+</html>
