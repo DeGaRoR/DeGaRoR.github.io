@@ -7664,6 +7664,9 @@
     <!-- Info bar (full-width, 3 zones) -->
     <div class="info-bar">
       <div class="info-bar-left">
+
+      <button class="add-btn-left" id="btnAdd" title="Add unit [/]">+</button>
+
         <div class="menuWrap">
           <button class="btn" id="btnMenu">☰</button>
         <div class="menu" id="menuMain">
@@ -7705,8 +7708,6 @@
           <div class="item" id="mShortcuts">Shortcuts <span class="hint">?</span></div>
         </div>
       </div>
-
-      <button class="add-btn-left" id="btnAdd" title="Add unit [/]">+</button>
 
       <button class="undo-redo-btn" id="btnUndo" title="Undo (Ctrl+Z)">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"/><path d="M3 13a9 9 0 0 1 15.36-6.36L21 9"/></svg>
@@ -26050,12 +26051,30 @@ const _RAGTAG_SYMBOLS = {
   fuel_cell(g,wx,wy,ww,wh,pal,def,unitId){const cx=wx+ww/2;const bx=wx+8,by=wy+6,bw=ww-16,bh=wh*0.55;const pres=getPresentation(def,scene.units.get(unitId));_engStubs(g,wx,wy,ww,wh,bx,by,bw,wh-12,def,pres);g.appendChild(svgEl('rect',{x:bx,y:by,width:bw,height:bh,rx:6,fill:pal.fillUrl,stroke:pal.stroke,'stroke-width':2.5,'pointer-events':'none'}));[0.2,0.4,0.6,0.8].forEach(f=>{g.appendChild(svgEl('rect',{x:bx+6,y:by+bh*f-3,width:bw-12,height:6,rx:1,fill:_lighten(pal.stroke,0.5),opacity:.12,'pointer-events':'none'}));});_rtBolt(g,bx+6,by+6);_rtBolt(g,bx+bw-6,by+bh-6);const coilY=by+bh+10;g.appendChild(svgEl('path',{d:`M${wx},${coilY+8} L${bx+4},${coilY+8} L${bx+4},${coilY} L${bx+14},${coilY} L${bx+14},${coilY+16} L${bx+24},${coilY+16} L${bx+24},${coilY} L${bx+34},${coilY} L${bx+34},${coilY+16} L${bx+44},${coilY+16} L${bx+44},${coilY} L${bx+bw-4},${coilY} L${bx+bw-4},${coilY+8} L${wx+ww},${coilY+8}`,fill:'none',stroke:'#93c5fd','stroke-width':2.5,'stroke-linecap':'round','stroke-linejoin':'round','pointer-events':'none'}));g.appendChild(svgEl('circle',{cx:bx+bw-8,cy:by+bh-8,r:2.5,fill:'#22c55e','data-anim':'led-blink','data-phase':'0.4','pointer-events':'none'}));},
   // ── Tank (sheet 391-405, 3×2, centered dy+4) ──
   // 3×2 horizontal vessel with saddles, sight glass with data-driven level
+  // Corner ports (gas_out/liq_out) get vertical riser from body + 90° elbow to port
   tank(g, wx, wy, ww, wh, pal, def, unitId) {
     const pres = getPresentation(def, scene.units.get(unitId));
-    // Saddles (behind body)
-    g.appendChild(svgEl('path', { d:`M${wx+24},${wy+80} L${wx+20},${wy+92} L${wx+36},${wy+92} L${wx+32},${wy+80}`, fill:'#4b5563', stroke:'#374151', 'stroke-width':1, 'stroke-linejoin':'round', 'pointer-events':'none' }));
-    g.appendChild(svgEl('path', { d:`M${wx+112},${wy+80} L${wx+108},${wy+92} L${wx+124},${wy+92} L${wx+120},${wy+80}`, fill:'#4b5563', stroke:'#374151', 'stroke-width':1, 'stroke-linejoin':'round', 'pointer-events':'none' }));
-    _rtNozzle(g, wx, wy, ww, wh, wx+4, wy+16, 136, 64, def, pres, pal, unitId);
+    const t = scene.tile;
+    // Body bbox
+    const bx = wx+4, by = wy+16, bw = 136, bh = 64;
+    // Corner port risers: vertical from body flat edge, 90° elbow, horizontal to port
+    // Riser x at 2/3 of body on the port's side (symmetric to vent/overflow at 1/3)
+    for (const p of def.ports) {
+      const pp = pres.ports[p.portId]; if (!pp) continue;
+      const px = wx + pp.x * t, py = wy + pp.y * t;
+      const onLeft = pp.x <= 0.1, onRight = pp.x >= pres.w - 0.1;
+      const onTop = pp.y <= 0.1, onBottom = pp.y >= pres.h - 0.1;
+      if ((onLeft || onRight) && (onTop || onBottom)) {
+        // Riser x: 2/3 of body on the port side
+        const riserX = onRight ? bx + bw * 2/3 : bx + bw * 1/3;
+        const bodyEdgeY = onTop ? by : by + bh;
+        // Path: body edge → vertical to port y → horizontal to port x
+        const Ld = `M${riserX},${bodyEdgeY} L${riserX},${py} L${px},${py}`;
+        g.appendChild(svgEl('path', { d:Ld, fill:'none', stroke:'#374151', 'stroke-width':10, 'stroke-linejoin':'round', 'stroke-linecap':'round', 'pointer-events':'none' }));
+        g.appendChild(svgEl('path', { d:Ld, fill:'none', stroke:'#4b5563', 'stroke-width':6, 'stroke-linejoin':'round', 'stroke-linecap':'butt', 'pointer-events':'none' }));
+      }
+    }
+    _rtNozzle(g, wx, wy, ww, wh, bx, by, bw, bh, def, pres, pal, unitId);
     // Body (capsule shape)
     g.appendChild(svgEl('path', { d:`M${wx+18},${wy+16} Q${wx+4},${wy+16} ${wx+4},${wy+48} Q${wx+4},${wy+80} ${wx+18},${wy+80} L${wx+126},${wy+80} Q${wx+140},${wy+80} ${wx+140},${wy+48} Q${wx+140},${wy+16} ${wx+126},${wy+16} Z`, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'pointer-events':'none' }));
     _rtChip(g, wx+110, wy+22, 10, 5);
@@ -26064,6 +26083,11 @@ const _RAGTAG_SYMBOLS = {
     _rtBolt(g, wx+42, wy+76); _rtBolt(g, wx+102, wy+76);
     // Sight glass
     g.appendChild(svgEl('rect', { x:wx+64, y:wy+22, width:10, height:52, rx:4, fill:'#0a1515', stroke:pal.stroke, 'stroke-width':1.5, 'pointer-events':'none' }));
+    // Graduated tick marks
+    [26,34,42,50,58,66].forEach((y, i) => {
+      const major = i % 2 === 0;
+      g.appendChild(svgEl('line', { x1:wx+76, y1:wy+y, x2:wx+(major?81:79), y2:wy+y, stroke:pal.stroke, 'stroke-width':major?1:0.7, opacity:major?0.4:0.25, 'pointer-events':'none' }));
+    });
     // Data-driven level
     const _ud = scene.runtime?.unitData?.get(unitId);
     let fPct = _ud?.last?.fillPct;
@@ -26078,10 +26102,23 @@ const _RAGTAG_SYMBOLS = {
   // 3×2 U-shaped vessel with feet, right-side sight glass + tick marks, data-driven level
   open_tank(g, wx, wy, ww, wh, pal, def, unitId) {
     const pres = getPresentation(def, scene.units.get(unitId));
-    // Feet (behind body)
-    g.appendChild(svgEl('path', { d:`M${wx+24},${wy+72} L${wx+20},${wy+84} L${wx+36},${wy+84} L${wx+32},${wy+72}`, fill:'#4b5563', stroke:'#374151', 'stroke-width':1, 'stroke-linejoin':'round', 'pointer-events':'none' }));
-    g.appendChild(svgEl('path', { d:`M${wx+112},${wy+72} L${wx+108},${wy+84} L${wx+124},${wy+84} L${wx+120},${wy+72}`, fill:'#4b5563', stroke:'#374151', 'stroke-width':1, 'stroke-linejoin':'round', 'pointer-events':'none' }));
-    _rtNozzle(g, wx, wy, ww, wh, wx+14, wy+14, 116, 68, def, pres, pal, unitId);
+    // Corner port risers (liq_out): vertical from body edge, 90° elbow, horizontal to port
+    const t = scene.tile;
+    const obx = wx+14, obw = 116, oby = wy+14, obh = 68;
+    for (const p of def.ports) {
+      const pp = pres.ports[p.portId]; if (!pp) continue;
+      const px = wx + pp.x * t, py = wy + pp.y * t;
+      const onLeft = pp.x <= 0.1, onRight = pp.x >= pres.w - 0.1;
+      const onTop = pp.y <= 0.1, onBottom = pp.y >= pres.h - 0.1;
+      if ((onLeft || onRight) && (onTop || onBottom)) {
+        const riserX = onRight ? obx + obw * 2/3 : obx + obw * 1/3;
+        const bodyEdgeY = onTop ? oby : oby + obh;
+        const Ld = `M${riserX},${bodyEdgeY} L${riserX},${py} L${px},${py}`;
+        g.appendChild(svgEl('path', { d:Ld, fill:'none', stroke:'#374151', 'stroke-width':10, 'stroke-linejoin':'round', 'stroke-linecap':'round', 'pointer-events':'none' }));
+        g.appendChild(svgEl('path', { d:Ld, fill:'none', stroke:'#4b5563', 'stroke-width':6, 'stroke-linejoin':'round', 'stroke-linecap':'butt', 'pointer-events':'none' }));
+      }
+    }
+    _rtNozzle(g, wx, wy, ww, wh, obx, oby, obw, obh, def, pres, pal, unitId);
     // Body (open-top U-shape)
     g.appendChild(svgEl('path', { d:`M${wx+14},${wy+14} L${wx+14},${wy+68} Q${wx+14},${wy+82} ${wx+72},${wy+82} Q${wx+130},${wy+82} ${wx+130},${wy+68} L${wx+130},${wy+14}`, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'stroke-linecap':'round', 'pointer-events':'none' }));
     _rtChip(g, wx+108, wy+22, 10, 5);
@@ -26089,8 +26126,11 @@ const _RAGTAG_SYMBOLS = {
     _rtBolt(g, wx+44, wy+76); _rtBolt(g, wx+100, wy+76);
     // Sight glass (right side)
     g.appendChild(svgEl('rect', { x:wx+92, y:wy+20, width:10, height:52, rx:4, fill:'#0a1515', stroke:pal.stroke, 'stroke-width':1.5, 'pointer-events':'none' }));
-    // Level tick marks
-    [28,38,48,58,66].forEach(y => g.appendChild(svgEl('line', { x1:wx+104, y1:wy+y, x2:wx+107, y2:wy+y, stroke:pal.stroke, 'stroke-width':0.8, opacity:0.3, 'pointer-events':'none' })));
+    // Graduated tick marks (enhanced)
+    [24,32,40,48,56,64].forEach((y, i) => {
+      const major = i % 2 === 0;
+      g.appendChild(svgEl('line', { x1:wx+104, y1:wy+y, x2:wx+(major?109:107), y2:wy+y, stroke:pal.stroke, 'stroke-width':major?1:0.7, opacity:major?0.4:0.25, 'pointer-events':'none' }));
+    });
     // Data-driven level
     const _ud = scene.runtime?.unitData?.get(unitId);
     let fPct = _ud?.last?.fillPct;
