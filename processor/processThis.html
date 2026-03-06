@@ -25921,8 +25921,8 @@ const _RAGTAG_SYMBOLS = {
     vg.appendChild(svgEl('circle', { cx:wx+56, cy:wy+64, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.6' }));
     g.appendChild(vg);
   },
-  // ── Sink Electrical / Dump Load (sheet 460-483, centered dy+5) ──
-  // 2×2 body 76×62 rx:6, resistor coils scale with absorbed power, exhaust vents on side
+  // ── Sink Electrical / Dump Load ──
+  // Resistor symbol behind protective mesh grid, activates visually when dissipating
   sink_electrical(g, wx, wy, ww, wh, pal, def, unitId) {
     const pres = getPresentation(def, scene.units.get(unitId));
     _rtNozzle(g, wx, wy, ww, wh, wx+10, wy+17, 76, 62, def, pres, pal, unitId);
@@ -25930,43 +25930,38 @@ const _RAGTAG_SYMBOLS = {
     _rtChip(g, wx+68, wy+23, 10, 4);
     _rtBolt(g, wx+16, wy+23); _rtBolt(g, wx+80, wy+23);
     _rtBolt(g, wx+16, wy+73); _rtBolt(g, wx+80, wy+73);
-    // Power level: scale glow with absorbed_W / rated_W
+    // Power state
     const _ud = scene.runtime?.unitData?.get(unitId);
     const absorbed = _ud?.last?.absorbed_W ?? 0;
     const rated = _ud?.last?.rated_W ?? 1000;
     const glowFrac = rated > 0 ? Math.min(1, absorbed / rated) : 0;
-    const isActive = absorbed > 1; // >1W threshold
-    // Dark viewport (resistor bank window)
-    g.appendChild(svgEl('rect', { x:wx+18, y:wy+25, width:48, height:46, rx:4, fill:'#1a0500', stroke:pal.stroke, 'stroke-width':1.5, 'pointer-events':'none' }));
+    const isActive = absorbed > 1;
+    // Dark viewport
+    g.appendChild(svgEl('rect', { x:wx+18, y:wy+25, width:60, height:46, rx:4, fill:'#1a0500', stroke:pal.stroke, 'stroke-width':1.5, 'pointer-events':'none' }));
     g.appendChild(svgEl('path', { d:`M${wx+22},${wy+29} Q${wx+26},${wy+27} ${wx+30},${wy+29}`, fill:'none', stroke:'#fff', 'stroke-width':0.8, opacity:0.1, 'pointer-events':'none' }));
-    // 3 resistor coils — glow intensity scales with power
-    const coilBase = isActive ? 0.15 + glowFrac * 0.5 : 0.04;
-    const coilAmp = isActive ? glowFrac * 0.25 : 0;
-    const coilSpeed = isActive ? 0.6 + glowFrac * 1.5 : 0;
-    g.appendChild(svgEl('path', { d:`M${wx+24},${wy+35} Q${wx+28},${wy+33} ${wx+32},${wy+35} Q${wx+36},${wy+37} ${wx+40},${wy+35} Q${wx+44},${wy+33} ${wx+48},${wy+35} Q${wx+52},${wy+37} ${wx+56},${wy+35} Q${wx+60},${wy+33} ${wx+64},${wy+35}`,
-      fill:'none', stroke:'#fca5a5', 'stroke-width':isActive?2.5:1.5, 'stroke-linecap':'round',
-      'data-anim':'rotor-pulse', 'data-opbase':coilBase.toFixed(2), 'data-amp':coilAmp.toFixed(2), 'data-speed':coilSpeed.toFixed(1), 'data-phase':'0',
-      'pointer-events':'none' }));
-    g.appendChild(svgEl('path', { d:`M${wx+24},${wy+47} Q${wx+28},${wy+45} ${wx+32},${wy+47} Q${wx+36},${wy+49} ${wx+40},${wy+47} Q${wx+44},${wy+45} ${wx+48},${wy+47} Q${wx+52},${wy+49} ${wx+56},${wy+47} Q${wx+60},${wy+45} ${wx+64},${wy+47}`,
-      fill:'none', stroke:'#f97316', 'stroke-width':isActive?2.5:1.5, 'stroke-linecap':'round',
-      'data-anim':'rotor-pulse', 'data-opbase':(coilBase*0.85).toFixed(2), 'data-amp':coilAmp.toFixed(2), 'data-speed':coilSpeed.toFixed(1), 'data-phase':'0.33',
-      'pointer-events':'none' }));
-    g.appendChild(svgEl('path', { d:`M${wx+24},${wy+59} Q${wx+28},${wy+57} ${wx+32},${wy+59} Q${wx+36},${wy+61} ${wx+40},${wy+59} Q${wx+44},${wy+57} ${wx+48},${wy+59} Q${wx+52},${wy+61} ${wx+56},${wy+59} Q${wx+60},${wy+57} ${wx+64},${wy+59}`,
-      fill:'none', stroke:'#fca5a5', 'stroke-width':isActive?2.5:1.5, 'stroke-linecap':'round',
-      'data-anim':'rotor-pulse', 'data-opbase':(coilBase*0.7).toFixed(2), 'data-amp':coilAmp.toFixed(2), 'data-speed':coilSpeed.toFixed(1), 'data-phase':'0.66',
-      'pointer-events':'none' }));
-    // Heat glow behind coils when active (soft red backlight)
+    // Heat glow behind resistor when active
     if (isActive) {
-      g.appendChild(svgEl('rect', { x:wx+20, y:wy+27, width:44, height:42, rx:3, fill:'#fca5a5', opacity:(0.03 + glowFrac * 0.08).toFixed(2), 'pointer-events':'none' }));
+      g.appendChild(svgEl('rect', { x:wx+20, y:wy+27, width:56, height:42, rx:3, fill:'#fca5a5', opacity:(0.03 + glowFrac * 0.1).toFixed(2), 'pointer-events':'none' }));
     }
-    // Protective grille bars over viewport (on top of coils)
-    [29,35,41,47,53,59,65].forEach(y => g.appendChild(svgEl('line', { x1:wx+20, y1:wy+y, x2:wx+64, y2:wy+y, stroke:pal.stroke, 'stroke-width':1.2, opacity:0.35, 'pointer-events':'none' })));
-    // Exhaust vent slots on right side (vertical, heat-sink style)
-    [30,38,46,54,62].forEach(y => g.appendChild(svgEl('line', { x1:wx+70, y1:wy+y, x2:wx+70, y2:wy+y+5, stroke:pal.stroke, 'stroke-width':2.5, opacity:0.35, 'stroke-linecap':'round', 'pointer-events':'none' })));
-    // Status lights (right column, replacing fan)
-    g.appendChild(svgEl('circle', { cx:wx+80, cy:wy+36, r:2.5, fill:isActive?'#ef4444':'#374151', 'data-anim':isActive?'rotor-pulse':'', 'data-opbase':'0.5', 'data-amp':'0.3', 'data-speed':'2', 'pointer-events':'none' }));
-    g.appendChild(svgEl('circle', { cx:wx+80, cy:wy+48, r:2.5, fill:isActive?'#f97316':'#374151', 'data-anim':isActive?'led-blink':'', 'data-phase':'0.2', 'pointer-events':'none' }));
-    g.appendChild(svgEl('circle', { cx:wx+80, cy:wy+60, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.6', 'pointer-events':'none' }));
+    // Resistor symbol: stub → zigzag → stub (centered at y:48, within y:40–56)
+    const rCol = isActive ? '#fca5a5' : '#4b5563';
+    const rW = isActive ? 2 : 1.5;
+    const rBase = isActive ? (0.2 + glowFrac * 0.45) : 0.12;
+    const rAmp = isActive ? glowFrac * 0.2 : 0;
+    const rSpd = isActive ? (0.8 + glowFrac * 1.5) : 0;
+    g.appendChild(svgEl('path', {
+      d: `M${wx+22},${wy+48} L${wx+28},${wy+48} L${wx+31},${wy+40} L${wx+35},${wy+56} L${wx+39},${wy+40} L${wx+43},${wy+56} L${wx+47},${wy+40} L${wx+51},${wy+56} L${wx+55},${wy+40} L${wx+59},${wy+56} L${wx+62},${wy+48} L${wx+68},${wy+48} L${wx+74},${wy+48}`,
+      fill:'none', stroke:rCol, 'stroke-width':rW, 'stroke-linejoin':'round', 'stroke-linecap':'round',
+      'data-anim': isActive ? 'rotor-pulse' : '', 'data-opbase':rBase.toFixed(2), 'data-amp':rAmp.toFixed(2), 'data-speed':rSpd.toFixed(1), 'data-phase':'0',
+      'pointer-events':'none' }));
+    // Protective mesh grid — horizontal + vertical = wire mesh over the viewport
+    [30,37,44,51,58,65].forEach(y => g.appendChild(svgEl('line', { x1:wx+20, y1:wy+y, x2:wx+76, y2:wy+y, stroke:pal.stroke, 'stroke-width':0.8, opacity:0.3, 'pointer-events':'none' })));
+    [24,32,40,48,56,64,72].forEach(x => g.appendChild(svgEl('line', { x1:wx+x, y1:wy+27, x2:wx+x, y2:wy+69, stroke:pal.stroke, 'stroke-width':0.8, opacity:0.3, 'pointer-events':'none' })));
+    // Status lights
+    g.appendChild(svgEl('circle', { cx:wx+82, cy:wy+40, r:2.5, fill:isActive?'#ef4444':'#374151',
+      'data-anim':isActive?'rotor-pulse':'', 'data-opbase':'0.5', 'data-amp':'0.3', 'data-speed':'2',
+      'pointer-events':'none' }));
+    g.appendChild(svgEl('circle', { cx:wx+82, cy:wy+56, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.6', 'pointer-events':'none' }));
   },
   reservoir(g,wx,wy,ww,wh,pal,def,unitId){const cx=wx+ww/2,cy=wy+wh/2;const pres=getPresentation(def,scene.units.get(unitId));_engStubs(g,wx,wy,ww,wh,cx-8,wy+wh*0.2,16,wh*0.5,def,pres);g.appendChild(svgEl('line',{x1:wx+8,y1:wy+wh*0.65,x2:wx+ww-8,y2:wy+wh*0.65,stroke:'#4b5563','stroke-width':2,'pointer-events':'none'}));g.appendChild(svgEl('rect',{x:cx-6,y:wy+wh*0.2,width:12,height:wh*0.46,rx:3,fill:pal.fillUrl,stroke:pal.stroke,'stroke-width':2,'pointer-events':'none'}));g.appendChild(svgEl('rect',{x:cx-12,y:wy+wh*0.15,width:24,height:8,rx:3,fill:pal.fillUrl,stroke:pal.stroke,'stroke-width':2,'pointer-events':'none'}));g.appendChild(svgEl('circle',{cx,cy:wy+wh*0.19,r:3,fill:'#6b7280',stroke:'#374151','stroke-width':1,'pointer-events':'none'}));g.appendChild(svgEl('circle',{cx:cx+8,cy:wy+wh*0.55,r:2.5,fill:'#22c55e','data-anim':'led-blink','data-phase':'0.8','pointer-events':'none'}));},
   // ── Compressor (sheet 179-191, centered dx+8 dy+6, icon mirrored) ──
