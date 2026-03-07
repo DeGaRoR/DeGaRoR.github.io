@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v16.2.0
+  processThis v16.6.0
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -299,6 +299,52 @@
   ═══════════════════════════════════════════════════════════════════════════
   CHANGELOG
   ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v16.6.0 — S-LOOP: Closed Loop Source ────────────────────────────────
+  - New unit defId `closed_loop_source` (2×2, mat_in + mat_out).
+    Anchors closed material loops (refrigeration, heat pump, ORC).
+    Both ports connected = closed loop with return T/P passthrough.
+    Only mat_out connected = open-loop source at atmospheric defaults.
+  - New category CLOSED_LOOP (orange #f97316, palette order 8).
+  - CLOSED_LOOP added to mass balance skip list (no boundary flow).
+  - Profile: closed_loop_source, non-boundary, defaults NH3 @ 1.0 mol/s.
+  - Inspector: species picker, ṅ editor, conditions (supply/return T,P),
+    KPIs (supply rate, return rate, loop closure %, status).
+  - Ragtag icon: circular body matching source shape, dark viewport with
+    orange 270° loop arrow + arrowhead (pulsing), 4 bolts, orange LED.
+    Rotates with port edge like source. Added to _BODY_BBOX + _NO_GAUGE.
+  - 4 presentations: default, vertical, reversed, vertical-rev.
+  - 4 tests (560–563): open-loop usage, disconnected return, category/
+    profile registration, closed loop with compressor+valve.
+  - Fixed: T-VT04 now tests gravity-driven flow (was zero-flow assertion).
+    Category ordering test updated 7→8 for CLOSED_LOOP.
+  - Tests: 565 / 3007 passed / 12 failures (was 13 — net -1).
+
+  ─── v16.5.0 — Color by flow rate ────────────────────────────────────────
+  - New colorBy:'flowrate' mode in the Color by dropdown (label "Flow").
+    Material streams: mass flow (kg/s) → gradient dark blue → blue → cyan →
+    green → yellow → orange. Electrical: maps power magnitude to same scale.
+    Both normalized to scene min/max so full range is always used.
+  - Unit bodies colored by primary stream flow rate (same as T/P/phase).
+  - Zero-flow connections and units dim to _VIS_DIM.
+  - 'flowrate' in validColors import whitelist for layout persistence.
+  - _visFlowColor + _FLOW_COLORS gradient. drawConnections stores mfMin/Max
+    and pwMin/Max for _visStreamColor and unit body color to reference.
+  - Added to all _gradientMode checks (drawConnections pipe coloring,
+    _rtNozzle stub coloring, _rtPortColors L-bend coloring).
+
+  ─── v16.4.0 — Open tank gravity drain + planet surface gravity ──────────
+  - Atmosphere presets now include g (m/s²): Earth 9.81, Mars 3.72,
+    Titan 1.35, Venus 8.87, Planet X 8.7 (derived from 0.897 bar surface
+    pressure with heavier atmosphere MW ≈ 30.3 g/mol).
+  - Open tank liquid draw includes hydrostatic head: dP = P_atm + ρgh − P_down.
+    Tank height estimated from volume as cylinder H = (4V/π)^(1/3).
+    Tanks now self-drain by gravity — flow decreases as level drops.
+  - Vent test updated: P_relief 100→80 kPa to work on Planet X (P_atm 89.7 kPa).
+
+  ─── v16.3.0 — Electrical cables render behind material connections ───────
+  - drawConnections now sorts: electrical first (bottom of SVG z-order),
+    material second. Power cables sit behind material pipes and units.
 
   ─── v16.2.0 — Tank fixes: phase, overflow, fan-out display ──────────────
   - Tank/open_tank output streams now include explicit phase field ('L'/'V')
@@ -7924,6 +7970,7 @@
             <div class="vis-menu-item" data-val="pressure" data-label="P"><span class="vm-check"></span><span class="vm-swatch" style="background:linear-gradient(90deg,#1e3a5f,#06d6a0 25%,#34d399 35%,#fde047,#ef4444)"></span>Pressure</div>
             <div class="vis-menu-item" data-val="phase" data-label="φ"><span class="vm-check"></span><span class="vm-swatch" style="background:linear-gradient(90deg,#60a5fa 33%,#c084fc 66%,#f87171)"></span>Phase</div>
             <div class="vis-menu-item" data-val="composition" data-label="Mix"><span class="vm-check"></span><span class="vm-swatch" style="background:linear-gradient(90deg,#3b82f6,#84cc16,#f97316,#ef4444)"></span>Composition</div>
+            <div class="vis-menu-item" data-val="flowrate" data-label="Flow"><span class="vm-check"></span><span class="vm-swatch" style="background:linear-gradient(90deg,#1e3a5f,#3b82f6,#22d3ee,#22c55e,#fde047,#f97316)"></span>Flow rate</div>
           </div>
         </button>
         <button class="tbtn vis-menu-anchor tbtn-dim" id="btnStreamSize" data-tip="Size streams by…">
@@ -8506,20 +8553,20 @@ const SimSettings = {
 
   // ── Presets ──
   _activePreset: 'earth_isa',
-  _customValues: { T_K: 288.15, P_Pa: 101325, air: { N2: 0.7809, O2: 0.2095, Ar: 0.0093, CO2: 0.0003, CH4: 0 } },
+  _customValues: { T_K: 288.15, P_Pa: 101325, g: 9.81, air: { N2: 0.7809, O2: 0.2095, Ar: 0.0093, CO2: 0.0003, CH4: 0 } },
 
   atmospherePresets: {
-    earth_isa: { name: 'Earth (ISA)', T_K: 288.15, P_Pa: 101325, RH: 0.60,
+    earth_isa: { name: 'Earth (ISA)', T_K: 288.15, P_Pa: 101325, RH: 0.60, g: 9.81,
       air: { N2: 0.7809, O2: 0.2095, Ar: 0.0093, CO2: 0.0003 } },
-    mars: { name: 'Mars', T_K: 210, P_Pa: 636, RH: 0,
+    mars: { name: 'Mars', T_K: 210, P_Pa: 636, RH: 0, g: 3.72,
       air: { CO2: 0.9557, N2: 0.027, Ar: 0.016, O2: 0.0013 } },
-    titan: { name: 'Titan', T_K: 94, P_Pa: 146700, RH: 0,
+    titan: { name: 'Titan', T_K: 94, P_Pa: 146700, RH: 0, g: 1.35,
       air: { N2: 0.95, CH4: 0.05 } },
-    venus: { name: 'Venus (surface)', T_K: 737, P_Pa: 9200000, RH: 0,
+    venus: { name: 'Venus (surface)', T_K: 737, P_Pa: 9200000, RH: 0, g: 8.87,
       air: { CO2: 0.965, N2: 0.035 } },
-    planet_x: { name: 'Planet X', T_K: 305.15, P_Pa: 89660, RH: 0.50,
+    planet_x: { name: 'Planet X', T_K: 305.15, P_Pa: 89660, RH: 0.50, g: 8.7,
       air: { N2: 0.70, O2: 0.21, CO2: 0.08, Ar: 0.01 } },
-    custom: { name: 'Custom', T_K: 288.15, P_Pa: 101325, RH: 0,
+    custom: { name: 'Custom', T_K: 288.15, P_Pa: 101325, RH: 0, g: 9.81,
       air: { N2: 0.7809, O2: 0.2095, Ar: 0.0093, CO2: 0.0003, CH4: 0 } }
   },
 
@@ -13997,6 +14044,7 @@ const UnitCategories = {
   SEPARATION:     { name: 'Separation & Mixing',  color: '#14b8a6', order: 5 },  // Teal
   STORAGE:        { name: 'Storage',              color: '#06b6d4', order: 6 },  // Cyan
   POWER:          { name: 'Power',                color: '#eab308', order: 7 },  // Amber
+  CLOSED_LOOP:    { name: 'Closed Loop',          color: '#f97316', order: 8 },  // Orange
 
   // ── Legacy aliases (resolve to new categories) ──
   get SOURCE()           { return this.BOUNDARY; },
@@ -15158,6 +15206,9 @@ UnitRegistry.register('open_tank', {
     const Q_vented = Object.values(vented_n).reduce((a,b) => a+b, 0);
 
     // 3. Liquid draw via Cv valve — per-connection CV [S-FANOUT]
+    // [v16.4.0] Hydrostatic head: open tanks drain by gravity
+    const g_mps2 = atm.g || 9.81;
+    const H_tank = Math.cbrt(4 * V / Math.PI); // cylinder H ≈ D assumption
     const liqConns = ctx.outConns('liq_out');
     let Q_liq = 0;
     if (liqConns.length > 0 && n_total > 1e-15) {
@@ -15166,13 +15217,15 @@ UnitRegistry.register('open_tank', {
         ? thermo.density(sp0, inv.T_K, P_atm, 'L') : 1000;
       const SG_L = rho_L / 1000;
       const Cv_liq = par.Cv_liq || 30;
+      const h_liq = (level_pct / 100) * H_tank;
+      const P_head = rho_L * g_mps2 * h_liq; // hydrostatic pressure (Pa)
 
       const connFlows = [];
       for (const conn of liqConns) {
         const opening_i = par.openings?.[conn.id] ?? par.opening_liq_pct ?? 100;
         if (opening_i <= 0) { connFlows.push({ conn, Q: 0 }); continue; }
         const P_down_i = ctx.downstreamP(conn.id) ?? P_atm;
-        const dP_i = P_atm - P_down_i;
+        const dP_i = P_atm + P_head - P_down_i;
         if (dP_i <= 0) { connFlows.push({ conn, Q: 0 }); continue; }
         const Q_i = Cv_liq * (opening_i / 100)
               * Math.sqrt(Math.max(0, dP_i) / (SG_L * 1e5));
@@ -15444,6 +15497,68 @@ UnitRegistry.register('reservoir', {
       status: (dP_diag <= 0 && opening > 0) ? 'no_dP' : 'ok',
       type: 'reservoir'
     };
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CLOSED LOOP SOURCE — Working fluid charge point for closed loops [v16.6.0]
+// ═══════════════════════════════════════════════════════════════════════════════
+//
+// ┌─────────────────────────────────────────────────────────────────────────────┐
+// │ 2-port loop anchor. Returns incoming T/P/phase to output at fixed nDot.   │
+// │ Both ports connected = closed loop (refrigeration, ORC, heat pump).       │
+// │ Only mat_out connected = open-loop source at atmospheric conditions.      │
+// │ Mass-balance exempt (CLOSED_LOOP category).                               │
+// └─────────────────────────────────────────────────────────────────────────────┘
+UnitRegistry.register('closed_loop_source', {
+  name: 'Closed Loop Source',
+  category: UnitCategories.CLOSED_LOOP,
+  w: 2,
+  h: 2,
+  ports: [
+    { portId: 'mat_in',  dir: PortDir.IN,  type: StreamType.MATERIAL, x: 0, y: 1 },
+    { portId: 'mat_out', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 1 }
+  ],
+  presentations: {
+    'box/default':      { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, mat_out:{x:2,y:1} } },
+    'box/vertical':     { w: 2, h: 2, ports: { mat_in:{x:1,y:0}, mat_out:{x:1,y:2} } },
+    'box/reversed':     { w: 2, h: 2, ports: { mat_in:{x:2,y:1}, mat_out:{x:0,y:1} } },
+    'box/vertical-rev': { w: 2, h: 2, ports: { mat_in:{x:1,y:2}, mat_out:{x:1,y:0} } }
+  },
+  limitParams: [],
+  tick(u, ports, par, ctx) {
+    const species = par.species || 'NH3';
+    const nDot = par.nDot || 1.0;
+    const sIn = ports.mat_in;
+    const atm = SimSettings.getAtmosphere();
+
+    const T = sIn?.T || atm.T_K;
+    const P = sIn?.P || atm.P_Pa;
+    const phase = sIn?.phase || 'V';
+
+    ports.mat_out = {
+      type: StreamType.MATERIAL,
+      T, P,
+      n: { [species]: nDot },
+      phaseConstraint: phase === 'VL' ? 'VL' : phase
+    };
+
+    u.powerDemand = 0;
+
+    if (sIn?.n) {
+      const nIn = Object.values(sIn.n).reduce((a, b) => a + b, 0);
+      const speciesReturn = sIn.n[species] || 0;
+      u.last = {
+        status: 'active',
+        nDot_supply: nDot,
+        nDot_return: nIn,
+        T_supply: T, T_return: sIn.T,
+        P_supply: P, P_return: sIn.P,
+        loopClosure_pct: nIn > 1e-12 ? speciesReturn / nDot * 100 : 0
+      };
+    } else {
+      u.last = { status: 'open', nDot_supply: nDot, T_supply: T, P_supply: P };
+    }
   }
 });
 
@@ -19298,6 +19413,13 @@ ProfileRegistry.register('reservoir', {
   defaults: { 1: { P_bar:5, T:298.15, composition:{N2:1},
                     Cv:50, opening_pct:100 } }
 });
+// [v16.6.0] Closed Loop Source profile
+ProfileRegistry.register('closed_loop_source', {
+  defId: 'closed_loop_source', name: 'Closed Loop Source',
+  category: UnitCategories.CLOSED_LOOP, tiers: [1],
+  limits: {}, boundary: false,
+  defaults: { 1: { species: 'NH3', nDot: 1.0 } }
+});
 // [v13.8.0 S5a-2b] Restriction profile
 ProfileRegistry.register('restriction', {
   defId: 'restriction', name: 'Restriction', category: UnitCategories.PRESSURE, tiers: [1],
@@ -20342,7 +20464,7 @@ class Scene {
       if (ssCenterEl) ssCenterEl.classList.toggle('expanded', ssExp);
 
       // colorBy — clamp to known values
-      const validColors = ['type','islands','material_electrical','temperature','pressure','phase','composition'];
+      const validColors = ['type','islands','material_electrical','temperature','pressure','phase','composition','flowrate'];
       ui.colorBy = validColors.includes(L.colorBy) ? L.colorBy : D.colorBy;
 
       // sizeByFlow
@@ -22583,7 +22705,8 @@ function solveScene(scene, options = {}) {
         def.category === UnitCategories.SINK.name ||
         def.category === UnitCategories.POWER_SOURCE.name ||
         def.category === UnitCategories.POWER_MANAGEMENT.name ||
-        def.category === UnitCategories.VESSEL.name) {  // [v9.0.3] NNG-L1: inventory units exempt
+        def.category === UnitCategories.VESSEL.name ||  // [v9.0.3] NNG-L1: inventory units exempt
+        def.category === UnitCategories.CLOSED_LOOP.name) {  // [v16.6.0] loop charge exempt
       continue;
     }
 
@@ -23717,7 +23840,7 @@ const ui = {
   showStickers: true, // [v10.7.0] P1: show/hide stickers entirely
   paletteTierFilter: 'all',  // [v13.1.3] 'all' | '1' | '2' | '3'
   // [v12.11.0] Unified visual mapping
-  colorBy: 'type',          // 'type' | 'islands' | 'material_electrical' | 'temperature' | 'pressure' | 'phase' | 'composition'
+  colorBy: 'type',          // 'type' | 'islands' | 'material_electrical' | 'temperature' | 'pressure' | 'phase' | 'composition' | 'flowrate'
   showFlanges: true,       // [v15.4.0] bolted flange visuals on material ports
   streamSizeBy: 'none',     // 'none' | 's' | 'm' | 'l'
   reconnecting: null,     // [v10.1.1] {connId} when reconnecting a stream
@@ -25032,6 +25155,25 @@ function _visUnitColor(u, def, islands) {
     return _visCompColor(ps) || _VIS_DIM;
   }
 
+  if (mode === 'flowrate') {
+    if (ps?.n) {
+      const fr = calculateStreamFlowrates(ps);
+      if (fr && Number.isFinite(fr.mTotal) && fr.mTotal > 0) {
+        const lo = drawConnections._mfMin || 0, hi = drawConnections._mfMax || 1;
+        return _visFlowColor(_visNormLinear(fr.mTotal, lo, hi));
+      }
+    }
+    // Electrical-only units: check power
+    if (ps?.type === StreamType.ELECTRICAL) {
+      const pw = Math.abs(ps.actual ?? ps.capacity ?? 0);
+      if (pw > 0) {
+        const lo = drawConnections._pwMin || 0, hi = drawConnections._pwMax || 1;
+        return _visFlowColor(_visNormLinear(pw, lo, hi));
+      }
+    }
+    return _VIS_DIM;
+  }
+
   return def.color;
 }
 
@@ -25039,6 +25181,13 @@ function _visUnitColor(u, def, islands) {
 // streamType: StreamType.MATERIAL or ELECTRICAL
 // stream: runtime stream data (may be null)
 // connFromUnitId, connToUnitId: for island lookup
+// ── Flow rate scale: relative (0 = scene min, 1 = scene max) ──
+const _FLOW_COLORS = [
+  [0.00, '#1e3a5f'], [0.15, '#3b82f6'], [0.35, '#22d3ee'],
+  [0.55, '#22c55e'], [0.75, '#fde047'], [1.00, '#f97316']
+];
+function _visFlowColor(t) { return _gradientColor(t, _FLOW_COLORS); }
+
 function _visStreamColor(streamType, stream, connFromUnitId, islands) {
   const mode = ui.colorBy;
 
@@ -25056,6 +25205,24 @@ function _visStreamColor(streamType, stream, connFromUnitId, islands) {
 
   if (mode === 'material_electrical') {
     return streamType === StreamType.ELECTRICAL ? _VIS_ELEC : '#3b82f6';
+  }
+
+  // [v16.5.0] Flow rate: maps mass flow (material) or power (electrical) to gradient
+  if (mode === 'flowrate' && stream) {
+    if (streamType === StreamType.MATERIAL) {
+      const fr = calculateStreamFlowrates(stream);
+      if (fr && Number.isFinite(fr.mTotal) && fr.mTotal > 0) {
+        const lo = drawConnections._mfMin || 0, hi = drawConnections._mfMax || 1;
+        return _visFlowColor(_visNormLinear(fr.mTotal, lo, hi));
+      }
+    } else if (streamType === StreamType.ELECTRICAL) {
+      const pw = Math.abs(stream.actual ?? stream.capacity ?? 0);
+      if (pw > 0) {
+        const lo = drawConnections._pwMin || 0, hi = drawConnections._pwMax || 1;
+        return _visFlowColor(_visNormLinear(pw, lo, hi));
+      }
+    }
+    return _VIS_DIM;
   }
 
   // T, P, Phase, Composition: only material streams have this data
@@ -25145,9 +25312,19 @@ function drawConnections() {
   const _islands = (ui.colorBy === 'islands') ? _visIslands() : null;
   // Store on drawConnections for drawUnits to reuse
   drawConnections._islands = _islands;
+  // [v16.5.0] Flow rate min/max for colorBy:'flowrate'
+  drawConnections._mfMin = mfMin; drawConnections._mfMax = mfMax;
+  drawConnections._pwMin = pwMin; drawConnections._pwMax = pwMax;
   
-  // Draw existing connections
-  for (const c of scene.connections) {
+  // Draw existing connections — electrical first (behind), then material
+  const _sortedConns = [...scene.connections].sort((a, b) => {
+    const aElec = UnitRegistry.get(scene.units.get(a.from.unitId)?.defId)
+      ?.ports.find(p => p.portId === a.from.portId)?.type === StreamType.ELECTRICAL ? 0 : 1;
+    const bElec = UnitRegistry.get(scene.units.get(b.from.unitId)?.defId)
+      ?.ports.find(p => p.portId === b.from.portId)?.type === StreamType.ELECTRICAL ? 0 : 1;
+    return aElec - bElec;
+  });
+  for (const c of _sortedConns) {
     // [v10.1.1] Hide connection being reconnected
     if (ui.reconnecting && c.id === ui.reconnecting.connId) continue;
     
@@ -25217,7 +25394,7 @@ function drawConnections() {
       const _selCol = isSelected ? '#60a5fa' : null;
       // Gradient colorBy modes use mappedColor for inner pipe; default modes use metal grey
       const _gradientMode = ui.colorBy === 'temperature' || ui.colorBy === 'pressure'
-        || ui.colorBy === 'phase' || ui.colorBy === 'composition';
+        || ui.colorBy === 'phase' || ui.colorBy === 'composition' || ui.colorBy === 'flowrate';
       if (_rtElec) {
         // Wavy electrical cable
         const chordEst = Math.hypot(tx - fx, ty - fy);
@@ -25688,6 +25865,7 @@ function _rtChip(g, x, y, w, h) {
 const _BODY_BBOX = {
   pump:                     { x:20, y:11, w:56, h:56 },
   source:                   { x:20, y:20, w:56, h:56 },
+  closed_loop_source:       { x:20, y:20, w:56, h:56 },
   source_atm:               { x:4,  y:10, w:58, h:76 },
   sink:                     { x:32, y:14, w:32, h:68 },
   sink_electrical:          { x:18, y:8,  w:60, h:52 },
@@ -25785,7 +25963,7 @@ function _rtTempGauge(g, cx, cy, unitId) {
     stroke:needleCol, 'stroke-width':1.2, 'stroke-linecap':'round', 'pointer-events':'none' }));
 }
 // Units that should NOT have temperature gauges (boundary, electrical-only, no T data)
-const _NO_GAUGE = new Set(['source','source_atm','sink','sink_electrical','grid_supply','battery','power_hub','reservoir','mixer','splitter','restriction','valve']);
+const _NO_GAUGE = new Set(['source','source_atm','sink','sink_electrical','grid_supply','battery','power_hub','reservoir','mixer','splitter','restriction','valve','closed_loop_source']);
 // Master instrument placer — LED bottom-left, nameplate top-right, gauge top-left
 function _rtInstruments(g, wx, wy, defId, unitId) {
   const bb = _BODY_BBOX[defId];
@@ -25884,7 +26062,7 @@ function _rtReactorVessel(g, wx, wy, pal, unitId) {
 // [v15.4.0] Get per-port colors for color-by mode (used by L-bend risers and custom piping)
 function _rtPortColors(unitId, portId, isElec) {
   const _gradMode = ui.colorBy === 'temperature' || ui.colorBy === 'pressure'
-    || ui.colorBy === 'phase' || ui.colorBy === 'composition';
+    || ui.colorBy === 'phase' || ui.colorBy === 'composition' || ui.colorBy === 'flowrate';
   if (_gradMode) {
     if (isElec) return { outer: _darken(_VIS_DIM, 0.4), inner: _VIS_DIM };
     if (unitId) {
@@ -25906,7 +26084,7 @@ function _rtPortColors(unitId, portId, isElec) {
 function _rtNozzle(g, wx, wy, ww, wh, bx, by, bw, bh, def, pres, pal, unitId) {
   const t = scene.tile;
   const _gradMode = ui.colorBy === 'temperature' || ui.colorBy === 'pressure'
-    || ui.colorBy === 'phase' || ui.colorBy === 'composition';
+    || ui.colorBy === 'phase' || ui.colorBy === 'composition' || ui.colorBy === 'flowrate';
   // Per-port runtime data for gradient coloring
   const _ud = _gradMode && unitId ? scene.runtime?.unitData?.get(unitId) : null;
   for (const p of def.ports) {
@@ -27292,6 +27470,45 @@ const _RAGTAG_SYMBOLS = {
     // 4 corner bolts
     _rtBolt(g, wx+16, wy+16); _rtBolt(g, wx+80, wy+16);
     _rtBolt(g, wx+16, wy+128); _rtBolt(g, wx+80, wy+128);
+  },
+  // ── Closed Loop Source (2×2 = 96×96 canvas) ──
+  // Circular body with a loop-arrow inside a dark viewport showing recirculation.
+  // Orange-tinted chip. Directional sub-group rotates with port edge.
+  closed_loop_source(g, wx, wy, ww, wh, pal, def, unitId) {
+    const pres = getPresentation(def, scene.units.get(unitId));
+    _rtNozzle(g, wx, wy, ww, wh, wx+20, wy+20, 56, 56, def, pres, pal, unitId);
+    // Outer body ring
+    g.appendChild(svgEl('circle', { cx:wx+48, cy:wy+48, r:28, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'pointer-events':'none' }));
+    // Dark viewport
+    g.appendChild(svgEl('circle', { cx:wx+48, cy:wy+48, r:16, fill:'#1a0a00', stroke:pal.rim, 'stroke-width':2, 'pointer-events':'none' }));
+    // Loop arrow (circular recycle symbol) — drawn in viewport space
+    // Arc: ~270° CCW circle, arrowhead at top
+    const cx = wx+48, cy = wy+48, lr = 10;
+    g.appendChild(svgEl('path', {
+      d: `M${cx},${cy-lr} A${lr},${lr} 0 1,0 ${cx+lr*0.7},${cy-lr*0.7}`,
+      fill:'none', stroke:'#f97316', 'stroke-width':2, 'stroke-linecap':'round', 'pointer-events':'none',
+      'data-anim':'rotor-pulse', 'data-opbase':'0.5'
+    }));
+    // Arrowhead at the gap (pointing clockwise at top)
+    g.appendChild(svgEl('polygon', {
+      points:`${cx-1},${cy-lr-4} ${cx+4},${cy-lr} ${cx-1},${cy-lr+4}`,
+      fill:'#f97316', 'data-anim':'rotor-pulse', 'data-opbase':'0.5', 'pointer-events':'none'
+    }));
+    // Glass highlight
+    g.appendChild(svgEl('path', { d:`M${wx+44},${wy+36}Q${wx+46},${wy+34} ${wx+48},${wy+36}`, fill:'none', stroke:'#fff', 'stroke-width':0.7, opacity:0.1, 'pointer-events':'none' }));
+    // Determine rotation for directional elements
+    const _outPos = pres.ports.mat_out;
+    const _outEdge = _outPos ? getPortEdge(_outPos, pres) : 'right';
+    const _rot = _outEdge === 'right' ? 0 : _outEdge === 'left' ? 180 : _outEdge === 'top' ? -90 : 90;
+    const dg = svgEl('g', { transform:`rotate(${_rot},${wx+48},${wy+48})`, 'pointer-events':'none' });
+    // Paint chip (orange tint)
+    _rtChip(dg, wx+60, wy+30);
+    // 4 bolts
+    _rtBolt(dg, wx+26, wy+34); _rtBolt(dg, wx+26, wy+62);
+    _rtBolt(dg, wx+70, wy+34); _rtBolt(dg, wx+70, wy+62);
+    // LED
+    dg.appendChild(svgEl('circle', { cx:wx+64, cy:wy+66, r:2.5, fill:'#f97316', 'data-anim':'led-blink', 'data-phase':'0', 'pointer-events':'none' }));
+    g.appendChild(dg);
   }
 };
 
@@ -30583,6 +30800,43 @@ UnitInspector.reservoir = {
       { label: 'Flow', value: `${(ud.last.Q_mol_s||0).toFixed(3)}<span class="propUnit">mol/s</span>` },
       { label: 'ΔP', value: `${(ud.last.dP_bar||0).toFixed(2)}<span class="propUnit">bar</span>` },
     ];
+  }
+};
+
+// ── Closed Loop ──
+UnitInspector.closed_loop_source = {
+  params(u) {
+    const unitSys = models.getActive('units');
+    const speciesOpts = ComponentRegistry.list().map(c => [c.formula, c.formula]);
+    return [
+      { type: 'select', label: 'Species', get: () => u.params.species || 'NH3', set: v => u.params.species = v, options: speciesOpts },
+      { label: `ṅ (${unitSys.molarFlow.symbol})`, get: () => unitSys.molarFlow.from(u.params.nDot || 1), set: v => u.params.nDot = unitSys.molarFlow.to(v), step: 0.1, validate: { gt: 0 } },
+    ];
+  },
+  conditions(u, ud) {
+    if (!ud?.last) return [];
+    const items = [
+      { label: 'T supply', value: fmt.T(ud.last.T_supply) },
+      { label: 'P supply', value: fmt.P(ud.last.P_supply) },
+    ];
+    if (ud.last.T_return != null) items.push({ label: 'T return', value: fmt.T(ud.last.T_return) });
+    if (ud.last.P_return != null) items.push({ label: 'P return', value: fmt.P(ud.last.P_return) });
+    return items;
+  },
+  kpis(u, ud) {
+    if (!ud?.last) return [];
+    const items = [
+      { label: 'Supply', value: `${(ud.last.nDot_supply||0).toFixed(3)}<span class="propUnit">mol/s</span>` },
+    ];
+    if (ud.last.nDot_return != null) {
+      items.push({ label: 'Return', value: `${ud.last.nDot_return.toFixed(3)}<span class="propUnit">mol/s</span>` });
+      const closure = ud.last.loopClosure_pct ?? 0;
+      const tone = closure > 99 ? 'good' : closure > 90 ? '' : 'warn';
+      items.push({ label: 'Closure', value: `${closure.toFixed(1)}%`, tone });
+    }
+    const statusColor = ud.last.status === 'active' ? '#22c55e' : '#f59e0b';
+    items.push({ label: 'Status', value: `<span style="color:${statusColor}">${ud.last.status}</span>` });
+    return items;
   }
 };
 
@@ -35281,7 +35535,7 @@ window.addEventListener('resize', () => {
 
 // [v14.10.3] Load on startup: auto-save (if matching DEMO_VERSION) or demo_v1
 {
-  const DEMO_VERSION = 'v16.2.0';  // bump this when demo scene changes
+  const DEMO_VERSION = 'v16.6.0';  // bump this when demo scene changes
   const saved = localStorage.getItem('ptis_autosave');
   const savedDemoVer = localStorage.getItem('ptis_autosave_demo_version');
   if (saved && savedDemoVer === DEMO_VERSION) {
@@ -42332,11 +42586,11 @@ function runTests() {
   // T-PS17: Both safeties active simultaneously
   tests.push({ name: '385: T-PS17 Both relief + overflow active simultaneously', fn: t => {
     // Pressurized tank with liquid level over threshold
-    // Atmospheric headspace (~101 kPa) > P_relief (100 kPa) → relief triggers
+    // Headspace at ~P_atm → relief triggers when P_relief < P_atm
     // level_init 95% > overflow_level 90% → overflow triggers
     const tid = t.place('tank', 0, 0, {
       volume_m3: 0.5, level_init: 95, initialComposition: { H2O: 1 },
-      P_relief: 100000, overflow_level: 90, opening_gas_pct: 0, opening_liq_pct: 0
+      P_relief: 80000, overflow_level: 90, opening_gas_pct: 0, opening_liq_pct: 0
     });
     const ventSnk = t.place('sink', 5, 0);
     const ovSnk = t.place('sink', 5, 2);
@@ -42997,7 +43251,7 @@ function runTests() {
 
   // T-VT04: Liquid draw via Cv valve — needs ΔP (pump or lower-P downstream)
   // Draining to atmospheric sink gives ΔP = 0 → no flow (gravity not modelled)
-  tests.push({ name: '420: T-VT04 Open tank: no Cv flow to atmospheric sink', fn: t => {
+  tests.push({ name: '420: T-VT04 Open tank: gravity-driven flow to atmospheric sink', fn: t => {
     const tid = t.place('open_tank', 0, 0, {
       volume_m3: 0.15, level_init: 80, initialComposition: { H2O: 1 },
       Cv_liq: 30, opening_liq_pct: 50
@@ -43006,8 +43260,8 @@ function runTests() {
     t.wire(tid, 'liq_out', snk, 'mat_in');
     t.solve();
     const ud = t.ud(tid);
-    // ΔP = P_atm - P_atm = 0 → no flow without pump
-    t.assertClose(ud.last.Q_liq, 0, 1e-6, 'Q_liq ≈ 0 (no ΔP without pump)');
+    // [v16.4.0] Hydrostatic head ρgh → gravity-driven flow even at atmospheric downstream
+    t.assertOK(ud.last.Q_liq > 0.01, `Q_liq > 0 (gravity drain, got ${ud.last.Q_liq.toFixed(3)})`);
   }});
 
   // T-VT05: Overflow connected-only
@@ -43770,8 +44024,8 @@ function runTests() {
   tests.push({ name: '196: Category ordering follows defined order', fn: t => {
     const cats = UnitRegistry.listByCategory();
     const catNames = Object.keys(cats);
-    // Verify first 7 categories match expected order
-    const expected = ['Streams', 'Heat', 'Pressure', 'Reactor', 'Separation & Mixing', 'Storage', 'Power'];
+    // Verify first 8 categories match expected order
+    const expected = ['Streams', 'Heat', 'Pressure', 'Reactor', 'Separation & Mixing', 'Storage', 'Power', 'Closed Loop'];
     for (let i = 0; i < expected.length; i++) {
       t.assertOK(catNames[i] === expected[i], `Category ${i}: "${catNames[i]}" = "${expected[i]}"`);
     }
@@ -49501,6 +49755,65 @@ function runTests() {
     t.assertOK(pal.stroke.startsWith('#'), 'stroke is hex');
     t.assertOK(pal.rim.startsWith('#'), 'rim is hex');
     t.assertOK(defs.querySelector('#ug-test-unit'), 'gradient element created');
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // S-LOOP — Closed Loop Source [v16.6.0]
+  // ═══════════════════════════════════════════════════════════════════════
+
+  test('560: S-LOOP open-loop usage: CLS → valve → sink', t => {
+    t.clearScene();
+    const cls = t.place('closed_loop_source', 0, 0, { species: 'NH3', nDot: 1.0 });
+    const vlv = t.place('valve', 4, 0, { Pout: 100000 });
+    const snk = t.place('sink', 8, 0);
+    t.wire(cls, 'mat_out', vlv, 'mat_in');
+    t.wire(vlv, 'mat_out', snk, 'mat_in');
+    t.solve();
+    const ud = t.ud(cls);
+    t.assertOK(ud.last, 'closed_loop_source has last');
+    t.assertOK(ud.last.status === 'open', `Status = open (got ${ud.last.status})`);
+    t.assertClose(ud.last.nDot_supply, 1.0, 0.01, 'Supply = 1 mol/s');
+    const atm = SimSettings.getAtmosphere();
+    t.assertClose(ud.last.T_supply, atm.T_K, 1, 'T_supply = T_atm');
+  });
+
+  test('561: S-LOOP disconnected return → emits at atmospheric T,P', t => {
+    t.clearScene();
+    const cls = t.place('closed_loop_source', 0, 0, { species: 'NH3', nDot: 0.5 });
+    const snk = t.place('sink', 4, 0);
+    t.wire(cls, 'mat_out', snk, 'mat_in');
+    t.solve();
+    const ud = t.ud(cls);
+    t.assertOK(ud.last.status === 'open', 'Status = open');
+    const atm = SimSettings.getAtmosphere();
+    t.assertClose(ud.last.T_supply, atm.T_K, 1, 'T = T_atm');
+    t.assertClose(ud.last.P_supply, atm.P_Pa, 100, 'P = P_atm');
+  });
+
+  test('562: S-LOOP mass balance exempt (CLOSED_LOOP category)', t => {
+    const def = UnitRegistry.get('closed_loop_source');
+    t.assertOK(def, 'closed_loop_source registered');
+    t.assertOK(def.category === UnitCategories.CLOSED_LOOP.name, 'Category = Closed Loop');
+    const profile = ProfileRegistry.get('closed_loop_source');
+    t.assertOK(profile, 'Profile registered');
+    t.assertOK(profile.boundary === false, 'Not boundary');
+  });
+
+  test('563: S-LOOP closed loop: CLS(NH3) → compressor → valve → back', t => {
+    t.clearScene();
+    const cls = t.place('closed_loop_source', 0, 0, { species: 'NH3', nDot: 0.5 });
+    const comp = t.place('compressor', 4, 0, { Pout: 2000000, eta: 0.8 });
+    const grid = t.place('grid_supply', 4, -3, { maxPower: 50 });
+    const vlv = t.place('valve', 8, 0, { Pout: 200000 });
+    t.wire(cls, 'mat_out', comp, 'mat_in');
+    t.wire(grid, 'elec_out', comp, 'elec_in');
+    t.wire(comp, 'mat_out', vlv, 'mat_in');
+    t.wire(vlv, 'mat_out', cls, 'mat_in');
+    t.solve();
+    const ud = t.ud(cls);
+    t.assertOK(ud.last.status === 'active', `Status = active (got ${ud.last.status})`);
+    t.assertOK(ud.last.loopClosure_pct > 90, `Loop closure > 90% (got ${(ud.last.loopClosure_pct||0).toFixed(1)}%)`);
+    t.assertClose(ud.last.nDot_supply, 0.5, 0.01, 'Supply = 0.5 mol/s');
   });
 
   test('549: S-ICONS — ragtag symbol table has 5 vertical-slice units', t => {
