@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v15.1.0
+  processThis v16.0.0
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -299,6 +299,73 @@
   ═══════════════════════════════════════════════════════════════════════════
   CHANGELOG
   ═══════════════════════════════════════════════════════════════════════════
+
+  ═══ v16.0.0 — S-VISUAL: Port overlays, flanges, sink liquid, polish ═══════
+
+  Major visual overhaul of the ragtag theme: bolted flange connection system,
+  electrical port terminals, sink liquid stream physics, and broad polish pass.
+
+  ─── Bolted flanges ─────────────────────────────────────────────────────
+  - Material ports show bolted flanges: full 4-bolt flange on connected ports,
+    half-flange with red gasket edge on unconnected ports. Toggle with J key.
+  - ui.showFlanges persisted in LAYOUT_DEFAULTS + exportJSON/importJSON.
+  - Ghost connection styled as dual-stroke ragtag pipe (butt caps) with
+    half-flange at cursor end, oriented along pipe tangent.
+  - During reconnect drag, TO endpoint shows half-flange (FROM keeps full).
+  - White spark burst animation on both endpoints when connection completes
+    (flange-spark CSS + _flangeSnapPorts one-shot set).
+
+  ─── Electrical port terminals ──────────────────────────────────────────
+  - ⚡ Amber screw terminal (10×10 rounded rect + lightning bolt) on every
+    electrical port, rendered via _rtPortOverlays post-pass on top of body.
+  - Electrical stubs now follow color-by rules: gradient modes (T/P/phase/
+    composition) dim to _VIS_DIM matching connection line behavior.
+  - _rtPortColors and _rtNozzle both updated for electrical gradient support.
+
+  ─── Port overlay system (_rtPortOverlays) ──────────────────────────────
+  - Unified post-pass renders flanges → electrical terminals → arrows.
+  - All unconnected port arrows moved here from _rtNozzle and manual calls
+    in mixer/splitter. Arrows always on top, never hidden by body.
+  - Arrows get 50% opacity when flanges active so flange detail shows through.
+  - Removed _rtPortArrow helper (consolidated into _rtPortOverlays).
+
+  ─── Sink liquid stream ─────────────────────────────────────────────────
+  - Sink tick now calls thermo.tpFlash() at (T_atm, P_atm) for proper L/V
+    split. Stores outlet.nL, outlet.nV, outlet.mDot_liq_kgs, mDot_vap_kgs.
+    Replaces heuristic Tc-based phase guess.
+  - Liquid stream rendered as animated sinusoidal path from tap bore to ground.
+    Width ∝ √(ṁ_liq / ṁ_liq_max) — cylinder cross-section scaling.
+    Wobble speed driven by inlet pressure (data-pspeed attribute).
+  - Redesigned tap: raised to wy+30 for longer jet (~50px fall), wider L-spout
+    with elbow cover circle overlapping 90° joint, dark bore opening ellipse.
+  - SVG clipPath ensures liquid visible through bore but not on metal.
+  - Splash particles (sink-splash): pseudo-random parabolic arcs from ground,
+    count/spread/arc-height scale with √(ṁ) and P/P_atm.
+  - No stream shown for full-vapor outlets (e.g. N₂ at 5 bar → dry tap).
+
+  ─── Instrument system (helpers ready, disabled) ────────────────────────
+  - _rtStatusLED: alarm-aware LED (green/amber/red, speed scales with severity).
+  - _rtNameplate: tier-colored chip (grey T1 / blue T2 / purple T3).
+  - _rtTempGauge: 3-zone arc gauge (blue/green/red) with data-driven needle.
+  - _BODY_BBOX: lookup table of solid body bounds for all 30 defIds.
+  - _rtInstruments master placer: LED bottom-left, nameplate top-right,
+    gauge top-left. Call commented out pending visual tuning.
+
+  ─── Animation & UX polish ──────────────────────────────────────────────
+  - Smooth flow arrow fade: CSS keyframe 0%→10% opacity ramp in, 90%→100%
+    ramp out. Arrows dissolve at segment boundaries instead of snapping.
+  - Arrow tinting: arrowColor = _lighten(mappedColor, 0.25) so arrows visible
+    against colored streams in all color-by modes.
+  - Port labels: edge-aware positioning (top-right for right/top ports,
+    bottom-left for left/bottom ports), gap reduced from 12px to 3px.
+  - Inspector dropdown guard: _rebuildInspectorContent skips DOM rebuild
+    while a <select> is focused during play mode. No more dropdown closure
+    on auto-step.
+  - Lost lightning bolt fix: spark-emit particles hidden when not playing.
+  - led-blink handler now reads data-speed attribute (was hardcoded 1.5).
+  - Sticker close × button removed (select + Delete key to remove).
+
+  Tests: 561 / 2990 passed / 13 pre-existing failures unchanged.
 
   ═══ v15.1.0 — S-SMOKE: Smoke/plume visual effects ══════════════════════
 
@@ -2971,6 +3038,11 @@
       90%  { offset-distance: 86%; opacity: 1; }
       100% { offset-distance: 95%; opacity: 0; }
     }
+    @keyframes flange-spark-fly {
+      0%   { opacity: 1; }
+      100% { opacity: 0; }
+    }
+    .flange-spark { animation: flange-spark-fly 0.4s ease-out forwards; }
     .flow-arrow-active {
       animation: arrow-flow var(--flow-duration, 1.5s) linear infinite;
     }
@@ -8537,6 +8609,7 @@ const LAYOUT_DEFAULTS = Object.freeze({
   inspectorOpen:         true,
   inspectorWidth:        360,
   paletteOpen:           false,
+  showFlanges:           true,          // [v15.4.0] bolted flange visuals on material ports
   theme:                 'ragtag',        // [v15.2.0 S-ICONS] 'box' | 'engineering' | 'ragtag'
 });
 
@@ -14393,26 +14466,41 @@ UnitRegistry.register('sink', {
     };
 
     // ── Outlet conditions (atmospheric expansion) ──
-    // Simple phase heuristic: if any condensable species (T < Tc), mark VL
-    let T_out = sIn.T;
+    // [v15.4.0] Proper TP flash at atmospheric conditions for L/V split
     let phase_out = 'V';
+    let nL = {}, nV = {};
+    let mDot_liq_kgs = 0, mDot_vap_kgs = 0;
     if (absorbed > 1e-12) {
-      let hasCond = false, hasGas = false;
-      for (const sp of Object.keys(sIn.n || {})) {
-        if ((sIn.n[sp] || 0) < 1e-15) continue;
-        const cd = ComponentRegistry.get(sp);
-        if (cd && T_out < cd.Tc) hasCond = true;
-        else hasGas = true;
+      try {
+        const flashResult = thermo.tpFlash({ T: T_atm, P: P_atm, n: { ...(sIn.n || {}) } });
+        phase_out = flashResult.phase || 'V';
+        nL = flashResult.nL || {};
+        nV = flashResult.nV || {};
+      } catch (e) {
+        // Fallback: assume all vapor on flash failure
+        phase_out = 'V';
+        nV = { ...(sIn.n || {}) };
       }
-      phase_out = hasCond ? (hasGas ? 'VL' : 'L') : 'V';
+      // Compute mass flows
+      for (const [sp, n] of Object.entries(nL)) {
+        const cd = ComponentRegistry.get(sp);
+        if (cd && n > 1e-15) mDot_liq_kgs += n * cd.MW / 1000;
+      }
+      for (const [sp, n] of Object.entries(nV)) {
+        const cd = ComponentRegistry.get(sp);
+        if (cd && n > 1e-15) mDot_vap_kgs += n * cd.MW / 1000;
+      }
     }
 
     const outlet = {
-      T_K: T_out,
+      T_K: T_atm,
       P_Pa: P_atm,
       phase: phase_out,
       Q_mol_s: absorbed,
-      composition: { ...(sIn.n || {}) }
+      composition: { ...(sIn.n || {}) },
+      nL, nV,
+      mDot_liq_kgs,
+      mDot_vap_kgs
     };
 
     const expansion_ratio = sIn.P > 0 ? sIn.P / P_atm : 1;
@@ -19769,6 +19857,7 @@ class Scene {
       inspectorOpen:         !(document.getElementById('rightPanel')?.style.display === 'none'),
       inspectorWidth:        document.getElementById('rightPanel')?.offsetWidth || LAYOUT_DEFAULTS.inspectorWidth,
       paletteOpen:           document.getElementById('paletteDrawer')?.classList.contains('open') || false,
+      showFlanges:           ui.showFlanges || false,
       theme:                 ui.theme || LAYOUT_DEFAULTS.theme,
     };
 
@@ -20249,6 +20338,9 @@ class Scene {
       ui.theme = validThemes.includes(L.theme) ? L.theme : D.theme;
       const themeBtn = document.getElementById('btnTheme');
       if (themeBtn) themeBtn.textContent = ui.theme === 'box' ? '📦' : ui.theme === 'ragtag' ? '🔧' : '📐';
+
+      // [v15.4.0] Flanges
+      ui.showFlanges = typeof L.showFlanges === 'boolean' ? L.showFlanges : D.showFlanges;
     }
 
     return { ok: true };
@@ -23587,6 +23679,7 @@ const ui = {
   paletteTierFilter: 'all',  // [v13.1.3] 'all' | '1' | '2' | '3'
   // [v12.11.0] Unified visual mapping
   colorBy: 'type',          // 'type' | 'islands' | 'material_electrical' | 'temperature' | 'pressure' | 'phase' | 'composition'
+  showFlanges: true,       // [v15.4.0] bolted flange visuals on material ports
   streamSizeBy: 'none',     // 'none' | 's' | 'm' | 'l'
   reconnecting: null,     // [v10.1.1] {connId} when reconnecting a stream
   // [v10.8.1] Sticker selection
@@ -25287,14 +25380,39 @@ function drawConnections() {
         const pathD = `M${fx},${fy} C${c1x},${c1y} ${mx},${my} ${mx},${my}`;
         
         const visuals = StreamVisuals[port.type];
+        const isRagtag = ui.theme === 'ragtag';
+        const isElecGhost = port.type === StreamType.ELECTRICAL;
         
-        g.appendChild(svgEl('path', {
-          d: pathD,
-          fill: 'none',
-          stroke: visuals.color,
-          'stroke-width': 3,
-          opacity: 0.7
-        }));
+        if (isRagtag && !isElecGhost) {
+          // Dual-stroke pipe matching connection style
+          g.appendChild(svgEl('path', { d: pathD, fill: 'none', stroke: '#374151', 'stroke-width': 10,
+            'stroke-linecap': 'butt', 'stroke-linejoin': 'round', opacity: 0.5, 'pointer-events': 'none' }));
+          g.appendChild(svgEl('path', { d: pathD, fill: 'none', stroke: '#4b5563', 'stroke-width': 6,
+            'stroke-linecap': 'butt', 'stroke-linejoin': 'round', opacity: 0.5, 'pointer-events': 'none' }));
+          // Half-flange at cursor end
+          if (ui.showFlanges) {
+            const dx = mx - c1x, dy = my - c1y;
+            const len = Math.hypot(dx, dy) || 1;
+            const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+            const fg = svgEl('g', { transform:`translate(${mx},${my}) rotate(${angle})`, 'pointer-events':'none', opacity:'0.6' });
+            fg.appendChild(svgEl('rect', { x:-3, y:-7, width:3, height:14, rx:1, fill:'#4b5563', stroke:'#374151', 'stroke-width':1 }));
+            fg.appendChild(svgEl('line', { x1:0, y1:-6, x2:0, y2:6, stroke:'#ef4444', 'stroke-width':0.7, opacity:0.5 }));
+            [[-1.5,-5],[-1.5,5]].forEach(([bx,by]) =>
+              fg.appendChild(svgEl('circle', { cx:bx, cy:by, r:1.2, fill:'#9ca3af', stroke:'#374151', 'stroke-width':0.5 })));
+            g.appendChild(fg);
+          }
+        } else if (isRagtag && isElecGhost) {
+          // Wavy amber cable for electrical ghost
+          g.appendChild(svgEl('path', { d: pathD, fill: 'none', stroke: '#92400e', 'stroke-width': 8,
+            'stroke-linecap': 'butt', opacity: 0.4, 'pointer-events': 'none' }));
+          g.appendChild(svgEl('path', { d: pathD, fill: 'none', stroke: '#eab308', 'stroke-width': 4,
+            'stroke-linecap': 'butt', opacity: 0.4, 'pointer-events': 'none' }));
+        } else {
+          g.appendChild(svgEl('path', {
+            d: pathD, fill: 'none', stroke: visuals.color,
+            'stroke-width': 3, opacity: 0.7, 'pointer-events': 'none'
+          }));
+        }
       }
     }
   }
@@ -25526,6 +25644,126 @@ function _rtBolt(g, cx, cy) {
 function _rtChip(g, x, y, w, h) {
   g.appendChild(svgEl('rect', { x, y, width: w || 8, height: h || 4, rx: 1, fill: '#4b5563', opacity: 0.6, 'pointer-events': 'none' }));
 }
+// [v15.4.0] Standardized instrument system — LED, nameplate, gauge
+// Body bounding boxes per defId (x,y,w,h offsets from wx,wy)
+const _BODY_BBOX = {
+  pump:                     { x:20, y:11, w:56, h:56 },
+  source:                   { x:20, y:20, w:56, h:56 },
+  source_atm:               { x:4,  y:10, w:58, h:76 },
+  sink:                     { x:32, y:14, w:32, h:68 },
+  sink_electrical:          { x:18, y:8,  w:60, h:52 },
+  valve:                    { x:24, y:18, w:48, h:52 },
+  restriction:              { x:38, y:16, w:20, h:64 },
+  reservoir:                { x:28, y:6,  w:40, h:66 },
+  compressor:               { x:14, y:12, w:68, h:46 },
+  compressor_diaphragm:     { x:14, y:8,  w:68, h:64 },
+  gas_turbine:              { x:14, y:16, w:68, h:52 },
+  electric_heater:          { x:14, y:8,  w:68, h:52 },
+  air_cooler:               { x:12, y:20, w:72, h:38 },
+  hex:                      { x:14, y:6,  w:68, h:84 },
+  grid_supply:              { x:8,  y:14, w:80, h:40 },
+  battery:                  { x:14, y:6,  w:68, h:56 },
+  power_hub:                { x:12, y:10, w:72, h:124 },
+  mixer:                    { x:14, y:32, w:56, h:32 },
+  splitter:                 { x:26, y:14, w:14, h:68 },
+  flash_drum:               { x:22, y:8,  w:44, h:80 },
+  tank:                     { x:4,  y:16, w:136, h:64 },
+  open_tank:                { x:14, y:14, w:116, h:68 },
+  reactor_adiabatic:        { x:10, y:8,  w:76, h:66 },
+  reactor_jacketed:         { x:12, y:4,  w:72, h:68 },
+  reactor_cooled:           { x:12, y:4,  w:72, h:68 },
+  reactor_electrochemical:  { x:14, y:8,  w:68, h:128 },
+  fuel_cell:                { x:14, y:6,  w:68, h:74 },
+  distillation_column:      { x:20, y:4,  w:56, h:136 },
+  membrane_separator:       { x:10, y:6,  w:76, h:84 },
+  combustion_chamber:       { x:10, y:8,  w:76, h:66 },
+};
+// Tier nameplate colors
+const _TIER_COLORS = { 1:'#4b5563', 2:'#2563eb', 3:'#9333ea' };
+// Status LED: color + speed from alarm severity
+function _rtStatusLED(g, cx, cy, unitId) {
+  const sev = _cachedUnitAlarms.get(unitId);
+  let fill, speed;
+  if (sev && sev.level >= AlarmSeverity.CATASTROPHIC.level) {
+    fill = '#ef4444'; speed = '4';
+  } else if (sev && sev.level >= AlarmSeverity.WARNING.level) {
+    fill = '#fbbf24'; speed = '2.5';
+  } else {
+    fill = '#22c55e'; speed = '1.5';
+  }
+  g.appendChild(svgEl('circle', { cx, cy, r:2.5, fill, 'data-anim':'led-blink', 'data-phase':'0', 'data-speed':speed, 'pointer-events':'none' }));
+}
+// Tier nameplate
+function _rtNameplate(g, x, y, unitId, large) {
+  const u = scene.units.get(unitId);
+  const tier = u?.tier || 1;
+  const profile = u ? ProfileRegistry?.get(u.profileId || u.defId) : null;
+  const isBoundary = profile?.boundary;
+  const fill = isBoundary ? '#4b5563' : (_TIER_COLORS[tier] || '#4b5563');
+  const w = large ? 10 : 8, h = large ? 5 : 4;
+  g.appendChild(svgEl('rect', { x, y, width:w, height:h, rx:1, fill, opacity:0.6, 'pointer-events':'none' }));
+}
+// Temperature gauge: arc with color zones + data-driven needle
+function _rtTempGauge(g, cx, cy, unitId) {
+  const r = 6;
+  // Color zone arcs: blue (cold) → green (normal) → red (hot)
+  // Sweep from 225° (min) to -45° (max), 270° total, clockwise
+  const arcPt = (angle) => {
+    const a = angle * Math.PI / 180;
+    return [cx + r * Math.cos(a), cy - r * Math.sin(a)];
+  };
+  // Blue: 225° → 165° (cold zone, 100K-300K)
+  const [b1x,b1y] = arcPt(225), [b2x,b2y] = arcPt(165);
+  g.appendChild(svgEl('path', { d:`M${b1x},${b1y} A${r},${r} 0 0,1 ${b2x},${b2y}`,
+    fill:'none', stroke:'#3b82f6', 'stroke-width':2, opacity:0.3, 'pointer-events':'none' }));
+  // Green: 165° → 45° (normal zone, 300K-800K)
+  const [g1x,g1y] = arcPt(165), [g2x,g2y] = arcPt(45);
+  g.appendChild(svgEl('path', { d:`M${g1x},${g1y} A${r},${r} 0 0,1 ${g2x},${g2y}`,
+    fill:'none', stroke:'#22c55e', 'stroke-width':2, opacity:0.3, 'pointer-events':'none' }));
+  // Red: 45° → -45° (hot zone, 800K-1500K)
+  const [r1x,r1y] = arcPt(45), [r2x,r2y] = arcPt(-45);
+  g.appendChild(svgEl('path', { d:`M${r1x},${r1y} A${r},${r} 0 0,1 ${r2x},${r2y}`,
+    fill:'none', stroke:'#ef4444', 'stroke-width':2, opacity:0.3, 'pointer-events':'none' }));
+  // Hub
+  g.appendChild(svgEl('circle', { cx, cy, r:1.5, fill:'#1f2937', stroke:'#6b7280', 'stroke-width':0.8, 'pointer-events':'none' }));
+  // Data-driven needle: T mapped to angle
+  let T = null;
+  const _ud = scene.runtime?.unitData?.get(unitId);
+  if (_ud?.last?.T != null) T = _ud.last.T;
+  else if (_ud?.ports) {
+    for (const ps of Object.values(_ud.ports)) { if (ps?.T != null) { T = ps.T; break; } }
+  }
+  T = T ?? 300; // default 300K
+  const clampT = Math.max(100, Math.min(1500, T));
+  const frac = (clampT - 100) / 1400; // 0→1
+  const needleAngle = 225 - frac * 270; // 225° → -45°
+  const na = needleAngle * Math.PI / 180;
+  const nl = r - 1.5;
+  const nx = cx + nl * Math.cos(na), ny = cy - nl * Math.sin(na);
+  // Needle color matches zone
+  const needleCol = clampT < 300 ? '#60a5fa' : clampT < 800 ? '#4ade80' : '#f87171';
+  g.appendChild(svgEl('line', { x1:cx, y1:cy, x2:nx, y2:ny,
+    stroke:needleCol, 'stroke-width':1.2, 'stroke-linecap':'round', 'pointer-events':'none' }));
+}
+// Units that should NOT have temperature gauges (boundary, electrical-only, no T data)
+const _NO_GAUGE = new Set(['source','source_atm','sink','sink_electrical','grid_supply','battery','power_hub','reservoir','mixer','splitter','restriction','valve']);
+// Master instrument placer — LED bottom-left, nameplate top-right, gauge top-left
+function _rtInstruments(g, wx, wy, defId, unitId) {
+  const bb = _BODY_BBOX[defId];
+  if (!bb) return;
+  const BX = wx + bb.x, BY = wy + bb.y;
+  const BX2 = BX + bb.w, BY2 = BY + bb.h;
+  const large = bb.w > 80 || bb.h > 80;
+  // LED: bottom-left, 6px inset
+  _rtStatusLED(g, BX + 6, BY2 - 6, unitId);
+  // Nameplate: top-right, 4px inset
+  const npW = large ? 10 : 8;
+  _rtNameplate(g, BX2 - npW - 4, BY + 4, unitId, large);
+  // Gauge: top-left, only for process units with T data
+  if (!_NO_GAUGE.has(defId)) {
+    _rtTempGauge(g, BX + 10, BY + 10, unitId);
+  }
+}
 function _rtVp(g, cx, cy, r, rimColor) {
   g.appendChild(svgEl('circle', { cx, cy, r, fill: '#0f0820', stroke: rimColor, 'stroke-width': 2, 'pointer-events': 'none' }));
   g.appendChild(svgEl('path', { d: `M${cx-4},${cy-r+4} Q${cx-2},${cy-r+2} ${cx},${cy-r+4}`, fill: 'none', stroke: '#fff', 'stroke-width': 0.8, opacity: 0.12, 'pointer-events': 'none' }));
@@ -25574,14 +25812,19 @@ function _rtCoolCoilExact(g, wx, wy) {
     fill:'none', stroke:'#67e8f9', 'stroke-width':2.5, 'stroke-linecap':'round', 'stroke-linejoin':'round', opacity:0.6, 'pointer-events':'none' }));
 }
 // [v15.4.0] Shared reactor vessel (rVessel from design sheet) — upper body for 2×3 reactors
-// Draws: body rect, 2 chips, circular viewport with clipped bubbles, 4 bolts, gauge, warning stripes, LED, mat nozzle stubs
+// Draws: body rect, circular viewport with clipped bubbles, 4 bolts, warning stripes
 function _rtReactorVessel(g, wx, wy, pal, unitId) {
   // Body: rect 72×68 rx:14 at (12,4)
   g.appendChild(svgEl('rect', { x:wx+12, y:wy+4, width:72, height:68, rx:14, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'pointer-events':'none' }));
-  // Chips
-  _rtChip(g, wx+64, wy+12); _rtChip(g, wx+16, wy+56, 7, 4);
   // Circular viewport cx:48 cy:36 r:16
   _rtVp(g, wx+48, wy+36, 16, pal.rim);
+  // Chips
+  _rtChip(g, wx+64, wy+12); _rtChip(g, wx+16, wy+56, 7, 4);
+  // Pressure gauge
+  g.appendChild(svgEl('circle', { cx:wx+74, cy:wy+18, r:5, fill:'#1f2937', stroke:'#4b5563', 'stroke-width':1.5, 'pointer-events':'none' }));
+  g.appendChild(svgEl('line', { x1:wx+74, y1:wy+18, x2:wx+74, y2:wy+14, stroke:'#ef4444', 'stroke-width':1.5, 'stroke-linecap':'round', 'pointer-events':'none' }));
+  // LED
+  g.appendChild(svgEl('circle', { cx:wx+28, cy:wy+16, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.3', 'pointer-events':'none' }));
   // 6 bubbles clipped to viewport (exact BUB array from sheet)
   const bg = _rtVpClipGroup(g, wx+48, wy+36, 16, unitId, pal.rim);
   bg.appendChild(svgEl('circle', { cx:wx+38, cy:wy+50, r:4.5, fill:'#fbbf24', 'data-anim':'reactor-bubble', 'data-ytop':wy+20, 'data-ybot':wy+50, 'data-phase':'0', 'data-speed':'0.5', 'pointer-events':'none' }));
@@ -25595,11 +25838,6 @@ function _rtReactorVessel(g, wx, wy, pal, unitId) {
   _rtBolt(g, wx+18, wy+66); _rtBolt(g, wx+78, wy+66);
   // Warning stripes
   [12,20,28,36].forEach(x => g.appendChild(svgEl('line', { x1:wx+x, y1:wy+62, x2:wx+x+6, y2:wy+68, stroke:'#fbbf24', 'stroke-width':1.5, opacity:0.12, 'pointer-events':'none' })));
-  // Pressure gauge
-  g.appendChild(svgEl('circle', { cx:wx+74, cy:wy+18, r:5, fill:'#1f2937', stroke:'#4b5563', 'stroke-width':1.5, 'pointer-events':'none' }));
-  g.appendChild(svgEl('line', { x1:wx+74, y1:wy+18, x2:wx+74, y2:wy+14, stroke:'#ef4444', 'stroke-width':1.5, 'stroke-linecap':'round', 'pointer-events':'none' }));
-  // LED
-  g.appendChild(svgEl('circle', { cx:wx+28, cy:wy+16, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.3', 'pointer-events':'none' }));
 }
 // Ragtag pipe-nozzle stubs — dual-stroke lines from body edge to port position,
 // same technique and colors as the ragtag pipe in drawConnections().
@@ -25682,14 +25920,89 @@ function _rtNozzle(g, wx, wy, ww, wh, bx, by, bw, bh, def, pres, pal, unitId) {
   }
 }
 
-// [v15.4.0] Port overlays rendered ON TOP of everything — elec terminals + unconnected arrows
+// [v15.4.0] Flange snap animation — ports that just got connected
+let _flangeSnapPorts = new Set(); // 'unitId:portId' strings, cleared after render
+// [v15.4.0] Port overlays rendered ON TOP of everything — flanges + elec terminals + arrows
 function _rtPortOverlays(g, wx, wy, def, pres, unitId) {
   const t = scene.tile;
+  const flanges = ui.showFlanges && ui.theme === 'ragtag';
+  // Pre-compute connection status for all ports
+  const portConnected = {};
+  for (const p of def.ports) {
+    let conn = unitId && scene.connections.some(c =>
+      (c.from.unitId === unitId && c.from.portId === p.portId) ||
+      (c.to.unitId === unitId && c.to.portId === p.portId));
+    // During reconnect, the TO endpoint of the dragged connection shows half-flange
+    if (conn && ui.reconnecting) {
+      const rc = scene.connections.find(c => c.id === ui.reconnecting.connId);
+      if (rc && rc.to.unitId === unitId && rc.to.portId === p.portId) {
+        conn = false; // only the destination port, not the source
+      }
+    }
+    portConnected[p.portId] = conn;
+  }
+  // Pass 1: Flanges (behind arrows)
+  if (flanges) {
+    for (const p of def.ports) {
+      if (p.type === StreamType.ELECTRICAL) continue;
+      const pp = pres.ports[p.portId]; if (!pp) continue;
+      const px = wx + pp.x * t, py = wy + pp.y * t;
+      const edge = getPortEdge(pp, pres);
+      const isVert = edge === 'top' || edge === 'bottom';
+      const connected = portConnected[p.portId];
+      const fg = svgEl('g', { transform:`translate(${px},${py})`, 'pointer-events':'none' });
+      // Spark particles on freshly connected ports
+      const snapKey = unitId + ':' + p.portId;
+      if (connected && _flangeSnapPorts.has(snapKey)) {
+        _flangeSnapPorts.delete(snapKey);
+        const sparkG = svgEl('g', { class:'flange-spark', 'pointer-events':'none' });
+        [0, 50, 100, 155, 205, 260, 310].forEach((a, i) => {
+          const rad = a * Math.PI / 180;
+          const dist = 6 + (i % 3) * 3;
+          const sx = Math.cos(rad) * dist, sy = Math.sin(rad) * dist;
+          const r = 1 + (i % 2) * 0.8;
+          const col = '#ffffff';
+          sparkG.appendChild(svgEl('circle', { cx:sx, cy:sy, r, fill:col }));
+        });
+        fg.appendChild(sparkG);
+      }
+      if (connected) {
+        if (isVert) {
+          fg.appendChild(svgEl('rect', { x:-7, y:-4, width:14, height:8, rx:1.5, fill:'#4b5563', stroke:'#374151', 'stroke-width':1.2 }));
+          fg.appendChild(svgEl('line', { x1:-7, y1:0, x2:7, y2:0, stroke:'#6b7280', 'stroke-width':0.8, 'stroke-dasharray':'2 1.5' }));
+          [[-5,-2],[5,-2],[-5,2],[5,2]].forEach(([bx,by]) =>
+            fg.appendChild(svgEl('circle', { cx:bx, cy:by, r:1.3, fill:'#9ca3af', stroke:'#374151', 'stroke-width':0.6 })));
+        } else {
+          fg.appendChild(svgEl('rect', { x:-4, y:-7, width:8, height:14, rx:1.5, fill:'#4b5563', stroke:'#374151', 'stroke-width':1.2 }));
+          fg.appendChild(svgEl('line', { x1:0, y1:-7, x2:0, y2:7, stroke:'#6b7280', 'stroke-width':0.8, 'stroke-dasharray':'2 1.5' }));
+          [[-2,-5],[-2,5],[2,-5],[2,5]].forEach(([bx,by]) =>
+            fg.appendChild(svgEl('circle', { cx:bx, cy:by, r:1.3, fill:'#9ca3af', stroke:'#374151', 'stroke-width':0.6 })));
+        }
+      } else {
+        if (isVert) {
+          const hy = edge === 'top' ? 0 : -3;
+          fg.appendChild(svgEl('rect', { x:-7, y:hy, width:14, height:3, rx:1, fill:'#4b5563', stroke:'#374151', 'stroke-width':1 }));
+          [[-5, hy+1.5],[5, hy+1.5]].forEach(([bx,by]) =>
+            fg.appendChild(svgEl('circle', { cx:bx, cy:by, r:1.2, fill:'#9ca3af', stroke:'#374151', 'stroke-width':0.5 })));
+          const gy = edge === 'top' ? hy : hy + 3;
+          fg.appendChild(svgEl('line', { x1:-6, y1:gy, x2:6, y2:gy, stroke:'#ef4444', 'stroke-width':0.7, opacity:0.4 }));
+        } else {
+          const hx = edge === 'left' ? 0 : -3;
+          fg.appendChild(svgEl('rect', { x:hx, y:-7, width:3, height:14, rx:1, fill:'#4b5563', stroke:'#374151', 'stroke-width':1 }));
+          [[hx+1.5, -5],[hx+1.5, 5]].forEach(([bx,by]) =>
+            fg.appendChild(svgEl('circle', { cx:bx, cy:by, r:1.2, fill:'#9ca3af', stroke:'#374151', 'stroke-width':0.5 })));
+          const gx = edge === 'left' ? hx : hx + 3;
+          fg.appendChild(svgEl('line', { x1:gx, y1:-6, x2:gx, y2:6, stroke:'#ef4444', 'stroke-width':0.7, opacity:0.4 }));
+        }
+      }
+      g.appendChild(fg);
+    }
+  }
+  // Pass 2: Electrical terminals + directional arrows (on top)
   for (const p of def.ports) {
     const pp = pres.ports[p.portId]; if (!pp) continue;
     const px = wx + pp.x * t, py = wy + pp.y * t;
     const isElec = p.type === StreamType.ELECTRICAL;
-    // ⚡ Electrical terminal marker
     if (isElec) {
       const eg = svgEl('g', { transform:`translate(${px},${py})`, 'pointer-events':'none' });
       eg.appendChild(svgEl('rect', { x:-5, y:-5, width:10, height:10, rx:2.5, fill:'#92400e', stroke:'#fbbf24', 'stroke-width':1.2 }));
@@ -25700,11 +26013,7 @@ function _rtPortOverlays(g, wx, wy, def, pres, unitId) {
       eg.setAttribute('data-speed', '1.5');
       g.appendChild(eg);
     }
-    // Directional arrow on unconnected ports
-    const connected = unitId && scene.connections.some(c =>
-      (c.from.unitId === unitId && c.from.portId === p.portId) ||
-      (c.to.unitId === unitId && c.to.portId === p.portId));
-    if (!connected) {
+    if (!portConnected[p.portId]) {
       const edge = getPortEdge(pp, pres);
       const isOut = p.dir === PortDir.OUT;
       const ac = isElec ? '#fbbf24' : '#94a3b8';
@@ -25714,7 +26023,7 @@ function _rtPortOverlays(g, wx, wy, def, pres, unitId) {
       else if (edge === 'bottom') rot = isOut ? 90 : -90;
       else                        rot = isOut ? -90 : 90;
       g.appendChild(svgEl('path', {
-        d: 'M-5,-4 L5,0 L-5,4 Z', fill: ac,
+        d: 'M-5,-4 L5,0 L-5,4 Z', fill: ac, opacity: flanges ? '0.5' : '1',
         transform: `translate(${px},${py}) rotate(${rot})`,
         'pointer-events': 'none'
       }));
@@ -25732,7 +26041,6 @@ const _RAGTAG_SYMBOLS = {
     _rtNozzle(g, wx, wy, ww, wh, wx+19, wy+19, 58, 58, def, pres, pal, unitId);
     // Body
     g.appendChild(svgEl('rect', { x:wx+19, y:wy+19, width:58, height:58, rx:10, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'pointer-events':'none' }));
-    _rtChip(g, wx+61, wy+25);
     // Seam line
     g.appendChild(svgEl('line', { x1:wx+19, y1:wy+47, x2:wx+77, y2:wy+47, stroke:pal.stroke, 'stroke-width':1, opacity:0.5, 'pointer-events':'none' }));
     // 4 corner bolts
@@ -25766,7 +26074,7 @@ const _RAGTAG_SYMBOLS = {
       g.appendChild(svgEl('rect', { x:wx+35, y:wy+5, width:26, height:16, rx:6, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2, 'pointer-events':'none' }));
       [40,44,48,52,56].forEach(x => g.appendChild(svgEl('line', { x1:wx+x, y1:wy+9, x2:wx+x, y2:wy+17, stroke:pal.stroke, 'stroke-width':1.5, opacity:0.5, 'pointer-events':'none' })));
     }
-    // LED
+    _rtChip(g, wx+61, wy+25);
     g.appendChild(svgEl('circle', { cx:wx+67, cy:wy+59, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0', 'pointer-events':'none' }));
   },
 
@@ -25776,7 +26084,6 @@ const _RAGTAG_SYMBOLS = {
     const pres = getPresentation(def, scene.units.get(unitId));
     _rtNozzle(g, wx, wy, ww, wh, wx+10, wy+15, 76, 66, def, pres, pal, unitId);
     g.appendChild(svgEl('rect', { x:wx+10, y:wy+15, width:76, height:66, rx:14, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'pointer-events':'none' }));
-    _rtChip(g, wx+66, wy+23);
     _rtVp(g, wx+48, wy+47, 18, pal.rim);
     // 6 bubbles clipped to viewport circle
     const bg = _rtVpClipGroup(g, wx+48, wy+47, 18, unitId, pal.rim);
@@ -25788,10 +26095,8 @@ const _RAGTAG_SYMBOLS = {
     bg.appendChild(svgEl('circle', { cx:wx+40, cy:wy+61, r:2.5, fill:'#f97316', 'data-anim':'reactor-bubble', 'data-ytop':wy+31, 'data-ybot':wy+61, 'data-phase':'0.85', 'data-speed':'0.67', 'pointer-events':'none' }));
     _rtBolt(g, wx+18, wy+23); _rtBolt(g, wx+78, wy+23);
     _rtBolt(g, wx+18, wy+73); _rtBolt(g, wx+78, wy+73);
-    // Pressure gauge + needle
-    g.appendChild(svgEl('circle', { cx:wx+74, cy:wy+29, r:5, fill:'#1f2937', stroke:'#4b5563', 'stroke-width':1.5, 'pointer-events':'none' }));
-    g.appendChild(svgEl('line', { x1:wx+74, y1:wy+29, x2:wx+74, y2:wy+25, stroke:'#ef4444', 'stroke-width':1.5, 'stroke-linecap':'round', 'pointer-events':'none' }));
     [12,20,28,36].forEach(x => g.appendChild(svgEl('line', { x1:wx+x, y1:wy+69, x2:wx+x+6, y2:wy+75, stroke:'#fbbf24', 'stroke-width':1.5, opacity:0.12, 'pointer-events':'none' })));
+    _rtChip(g, wx+66, wy+23);
     g.appendChild(svgEl('circle', { cx:wx+26, cy:wy+25, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.3', 'pointer-events':'none' }));
   },
 
@@ -25800,7 +26105,6 @@ const _RAGTAG_SYMBOLS = {
     const pres = getPresentation(def, scene.units.get(unitId));
     _rtNozzle(g, wx, wy, ww, wh, wx+10, wy+15, 76, 66, def, pres, pal, unitId);
     g.appendChild(svgEl('rect', { x:wx+10, y:wy+15, width:76, height:66, rx:14, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'pointer-events':'none' }));
-    _rtChip(g, wx+66, wy+23);
     // Viewport with warm glow background
     g.appendChild(svgEl('circle', { cx:wx+48, cy:wy+47, r:18, fill:'#1a0800', stroke:pal.rim, 'stroke-width':2, 'pointer-events':'none' }));
     g.appendChild(svgEl('path', { d:`M${wx+44},${wy+33} Q${wx+46},${wy+31} ${wx+48},${wy+33}`, fill:'none', stroke:'#fff', 'stroke-width':0.8, opacity:0.12, 'pointer-events':'none' }));
@@ -25830,10 +26134,8 @@ const _RAGTAG_SYMBOLS = {
     });
     _rtBolt(g, wx+18, wy+23); _rtBolt(g, wx+78, wy+23);
     _rtBolt(g, wx+18, wy+73); _rtBolt(g, wx+78, wy+73);
-    // Pressure gauge + needle
-    g.appendChild(svgEl('circle', { cx:wx+74, cy:wy+29, r:5, fill:'#1f2937', stroke:'#4b5563', 'stroke-width':1.5, 'pointer-events':'none' }));
-    g.appendChild(svgEl('line', { x1:wx+74, y1:wy+29, x2:wx+74, y2:wy+25, stroke:'#ef4444', 'stroke-width':1.5, 'stroke-linecap':'round', 'pointer-events':'none' }));
     [12,20,28,36].forEach(x => g.appendChild(svgEl('line', { x1:wx+x, y1:wy+69, x2:wx+x+6, y2:wy+75, stroke:'#fbbf24', 'stroke-width':1.5, opacity:0.12, 'pointer-events':'none' })));
+    _rtChip(g, wx+66, wy+23);
     g.appendChild(svgEl('circle', { cx:wx+26, cy:wy+25, r:2.5, fill:'#f97316', 'data-anim':'led-blink', 'data-phase':'0.3', 'pointer-events':'none' }));
   },
 
@@ -25882,7 +26184,6 @@ const _RAGTAG_SYMBOLS = {
     // 3. Stack body: rect(14,6, 68,74, rx:6)
     g.appendChild(svgEl('rect', { x:wx+14, y:wy+6, width:68, height:74, rx:6, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'pointer-events':'none' }));
     // 4. chip(64,14)
-    _rtChip(g, wx+64, wy+14);
     // 5. vpR(22,14, 52,58, '#1a0505','#7f1d1d')
     _rtVpR(g, wx+22, wy+14, 52, 58, '#1a0505', pal.rim);
     // 6. MEA plate layers: [20,30,40,50,60] — rect(26,y, 44,6, rx:1)
@@ -25897,7 +26198,7 @@ const _RAGTAG_SYMBOLS = {
     _rtBolt(g, wx+18, wy+74); _rtBolt(g, wx+78, wy+74);
     // 8. Exact coolCoil path
     _rtCoolCoilExact(g, wx, wy);
-    // 10. led(72,68)
+    _rtChip(g, wx+64, wy+14);
     g.appendChild(svgEl('circle', { cx:wx+72, cy:wy+68, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.4', 'pointer-events':'none' }));
   },
 
@@ -25913,7 +26214,6 @@ const _RAGTAG_SYMBOLS = {
     // 3. Body: rect(14,8, 68,64, rx:8)
     g.appendChild(svgEl('rect', { x:wx+14, y:wy+8, width:68, height:64, rx:8, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'pointer-events':'none' }));
     // 4. chip(64,16)
-    _rtChip(g, wx+64, wy+16);
     // 5. vpR(22,16, 52,48, '#0f0820','#4c1d95')
     _rtVpR(g, wx+22, wy+16, 52, 48, '#0f0820', pal.rim);
     // 6. Diaphragm curve: M26,40 Q36,40 48,40 Q60,40 70,40 (static center, animated via rotor-pulse)
@@ -25936,7 +26236,7 @@ const _RAGTAG_SYMBOLS = {
     g.appendChild(svgEl('line', { x1:wx+48, y1:wy+76, x2:wx+48, y2:wy+128, stroke:_lighten(pal.stroke, 0.6), 'stroke-width':1.5, opacity:0.3, 'pointer-events':'none' }));
     // 13. Flywheel: circle(48,130, r:5, unfilled)
     g.appendChild(svgEl('circle', { cx:wx+48, cy:wy+130, r:5, fill:'none', stroke:_lighten(pal.stroke, 0.6), 'stroke-width':1.5, opacity:0.3, 'pointer-events':'none' }));
-    // 14. led(70,58)
+    _rtChip(g, wx+64, wy+16);
     g.appendChild(svgEl('circle', { cx:wx+70, cy:wy+58, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.5', 'pointer-events':'none' }));
   },
   // ── Reservoir (sheet L140-158) ──
@@ -25998,10 +26298,10 @@ const _RAGTAG_SYMBOLS = {
     g.appendChild(svgEl('circle', { cx:wx+80, cy:wy+128, r:4, fill:'#dc2626', opacity:0.4, stroke:'#7f1d1d', 'stroke-width':1.5, 'pointer-events':'none' }));
     // Column body ON TOP
     g.appendChild(svgEl('rect', { x:wx+20, y:wy+4, width:56, height:136, rx:28, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'pointer-events':'none' }));
-    _rtChip(g, wx+60, wy+14, 6, 4);
     [30,50,70,90,110].forEach((y, i) => { const r = y === 90 ? 7 : 6;
       g.appendChild(svgEl('circle', { cx:wx+48, cy:wy+y, r, fill:'#0a1a1a', stroke:pal.stroke, 'stroke-width': y === 90 ? 2 : 1.5, 'pointer-events':'none' }));
       g.appendChild(svgEl('line', { x1:wx+44, y1:wy+y, x2:wx+52, y2:wy+y, stroke:'#5eead4', 'stroke-width': y === 90 ? 1.5 : 1, 'data-anim':'rotor-pulse', 'data-opbase':'0.2', 'data-amp':'0.1', 'data-speed':'1.2', 'data-phase':String(i*0.2), 'pointer-events':'none' })); });
+    _rtChip(g, wx+60, wy+14, 6, 4);
     g.appendChild(svgEl('circle', { cx:wx+34, cy:wy+42, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.6', 'pointer-events':'none' }));
   },
   // ── Membrane Separator (sheet L328-336) ──
@@ -26023,11 +26323,11 @@ const _RAGTAG_SYMBOLS = {
     g.appendChild(svgEl('path', { d:retD, fill:'none', stroke:retCol.outer, 'stroke-width':10, 'stroke-linejoin':'round', 'stroke-linecap':'butt', 'pointer-events':'none' }));
     g.appendChild(svgEl('path', { d:retD, fill:'none', stroke:retCol.inner, 'stroke-width':6, 'stroke-linejoin':'round', 'stroke-linecap':'butt', 'pointer-events':'none' }));
     g.appendChild(svgEl('rect', { x:wx+10, y:wy+6, width:76, height:84, rx:6, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'pointer-events':'none' }));
-    _rtChip(g, wx+68, wy+14);
     _rtVpR(g, wx+18, wy+14, 60, 68);
     g.appendChild(svgEl('line', { x1:wx+22, y1:wy+18, x2:wx+74, y2:wy+78, stroke:'#5eead4', 'stroke-width':2.5, 'stroke-dasharray':'5 3', opacity:0.5, 'pointer-events':'none' }));
     [0,0.3,0.6].forEach(ph => { g.appendChild(svgEl('circle', { cx:wx+48, cy:wy+48, r:1.5, fill:'#5eead4', 'data-anim':'reactor-bubble', 'data-ytop':wy+18, 'data-ybot':wy+48, 'data-phase':String(ph), 'data-speed':'1.5', opacity:0.35, 'pointer-events':'none' })); });
     _rtBolt(g, wx+14, wy+12); _rtBolt(g, wx+82, wy+12); _rtBolt(g, wx+14, wy+84); _rtBolt(g, wx+82, wy+84);
+    _rtChip(g, wx+68, wy+14);
     g.appendChild(svgEl('circle', { cx:wx+72, cy:wy+74, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.3', 'pointer-events':'none' }));
   },
   // ── Reactor Electrochemical 2×3 (sheet L364-375) ──
@@ -26036,7 +26336,6 @@ const _RAGTAG_SYMBOLS = {
     // Nozzle stubs from body bbox to all ports (mat + elec)
     _rtNozzle(g, wx, wy, ww, wh, wx+14, wy+8, 68, 128, def, pres, pal, unitId);
     g.appendChild(svgEl('rect', { x:wx+14, y:wy+8, width:68, height:128, rx:8, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'pointer-events':'none' }));
-    _rtChip(g, wx+64, wy+16);
     _rtVpR(g, wx+22, wy+18, 52, 108, '#1a0505', pal.rim);
     g.appendChild(svgEl('line', { x1:wx+26, y1:wy+72, x2:wx+70, y2:wy+72, stroke:'#fca5a5', 'stroke-width':2.5, 'stroke-dasharray':'5 3', opacity:0.5, 'pointer-events':'none' }));
     g.appendChild(svgEl('rect', { x:wx+58, y:wy+30, width:4, height:30, rx:1, fill:'#fca5a5', opacity:0.3, 'pointer-events':'none' }));
@@ -26049,6 +26348,7 @@ const _RAGTAG_SYMBOLS = {
     [[38,0],[44,0.3],[34,0.6]].forEach(([bx,ph]) => { g.appendChild(svgEl('circle', { cx:wx+bx, cy:wy+60, r:2.5, fill:'#fbbf24', 'data-anim':'reactor-bubble', 'data-ytop':wy+30, 'data-ybot':wy+60, 'data-phase':String(ph), 'data-speed':'0.5', opacity:0.3, 'pointer-events':'none' })); });
     [[38,0.15],[44,0.5],[34,0.8]].forEach(([bx,ph]) => { g.appendChild(svgEl('circle', { cx:wx+bx, cy:wy+118, r:2.5, fill:'#fbbf24', 'data-anim':'reactor-bubble', 'data-ytop':wy+88, 'data-ybot':wy+118, 'data-phase':String(ph), 'data-speed':'0.5', opacity:0.3, 'pointer-events':'none' })); });
     _rtBolt(g, wx+18, wy+14); _rtBolt(g, wx+78, wy+14); _rtBolt(g, wx+18, wy+130); _rtBolt(g, wx+78, wy+130);
+    _rtChip(g, wx+64, wy+16);
     g.appendChild(svgEl('circle', { cx:wx+28, cy:wy+26, r:2.5, fill:'#f97316', 'data-anim':'led-blink', 'data-phase':'0.1', 'pointer-events':'none' }));
   },
 
@@ -26087,7 +26387,6 @@ const _RAGTAG_SYMBOLS = {
     g.appendChild(svgEl('path', {
       d: `M${bx},${by+16} Q${bx},${by} ${bcx},${by} Q${bx+bw},${by} ${bx+bw},${by+16} L${bx+bw},${by+bh-16} Q${bx+bw},${by+bh} ${bcx},${by+bh} Q${bx},${by+bh} ${bx},${by+bh-16} Z`,
       fill: pal.fillUrl, stroke: pal.stroke, 'stroke-width': 2.5, 'pointer-events': 'none' }));
-    _rtChip(g, bx + bw - 12, by + 8, 7, 3);
     // 4. Bolts
     _rtBolt(g, bx + 6, by + 10); _rtBolt(g, bx + bw - 6, by + 10);
     _rtBolt(g, bx + 6, by + bh - 10); _rtBolt(g, bx + bw - 6, by + bh - 10);
@@ -26121,6 +26420,7 @@ const _RAGTAG_SYMBOLS = {
         'data-anim':'reactor-bubble', 'data-ytop':sgy+4, 'data-ybot':fillTop > sgy + 8 ? fillTop - 4 : sgy + sgh * 0.4,
         'data-phase':ph.toFixed(1), 'data-speed':'0.7', 'pointer-events':'none' }));
     });
+    _rtChip(g, bx + bw - 12, by + 8, 7, 3);
     g.appendChild(svgEl('circle', { cx:bx + 8, cy:by + bh * 0.3, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.7', 'pointer-events':'none' }));
   },
 
@@ -26159,7 +26459,6 @@ const _RAGTAG_SYMBOLS = {
     const pres = getPresentation(def, scene.units.get(unitId));
     _rtNozzle(g, wx, wy, ww, wh, wx+8, wy+17, 80, 62, def, pres, pal, unitId);
     g.appendChild(svgEl('rect', { x:wx+8, y:wy+17, width:80, height:62, rx:12, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'pointer-events':'none' }));
-    _rtChip(g, wx+68, wy+23, 10, 5); _rtChip(g, wx+14, wy+63, 7, 4);
     _rtBolt(g, wx+16, wy+25); _rtBolt(g, wx+80, wy+25);
     _rtBolt(g, wx+16, wy+71); _rtBolt(g, wx+80, wy+71);
     // Viewport with rotor shimmer — background first, rim drawn after sine wave
@@ -26180,6 +26479,8 @@ const _RAGTAG_SYMBOLS = {
     // Motor housing on top
     g.appendChild(svgEl('rect', { x:wx+30, y:wy+5, width:36, height:14, rx:5, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2, 'pointer-events':'none' }));
     [36,42,48,54,60].forEach(x => g.appendChild(svgEl('line', { x1:wx+x, y1:wy+9, x2:wx+x, y2:wy+15, stroke:pal.stroke, 'stroke-width':1.5, opacity:0.5, 'pointer-events':'none' })));
+    _rtChip(g, wx+68, wy+23, 10, 5);
+    _rtChip(g, wx+14, wy+63, 7, 4);
     g.appendChild(svgEl('circle', { cx:wx+24, cy:wy+27, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.5', 'pointer-events':'none' }));
   },
   // ── Source (sheet 92-99, centered, visually rotated per variant) ──
@@ -26208,8 +26509,9 @@ const _RAGTAG_SYMBOLS = {
     _rtBolt(dg, wx+26, wy+34); _rtBolt(dg, wx+26, wy+62);
     _rtBolt(dg, wx+70, wy+34); _rtBolt(dg, wx+70, wy+62);
     // LED
-    dg.appendChild(svgEl('circle', { cx:wx+64, cy:wy+66, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0' }));
     g.appendChild(dg);
+    _rtChip(dg, wx+60, wy+30);
+    dg.appendChild(svgEl('circle', { cx:wx+64, cy:wy+66, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0', 'pointer-events':'none' }));
   },
   // ── Atmospheric Intake (sheet 101-128) ──
   // Bell mouth body, dashed open mouth, louver slats, animated wind streaks, chip, bolts, pipe, led
@@ -26241,10 +26543,9 @@ const _RAGTAG_SYMBOLS = {
       g.appendChild(sg);
     });
     // 6. chip(46,34,6,3)
-    _rtChip(g, wx+46, wy+34, 6, 3);
     // 7. bolt(50,38), bolt(50,58)
     _rtBolt(g, wx+50, wy+38); _rtBolt(g, wx+50, wy+58);
-    // 8. led(36,74)
+    _rtChip(g, wx+46, wy+34, 6, 3);
     g.appendChild(svgEl('circle', { cx:wx+36, cy:wy+74, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.4', 'pointer-events':'none' }));
   },
   // ── Sink (sheet 130-138, centered dy+8, mirrors for port-right) ──
@@ -26262,27 +26563,87 @@ const _RAGTAG_SYMBOLS = {
       : { 'pointer-events': 'none' });
     // Body
     vg.appendChild(svgEl('rect', { x:wx+32, y:wy+14, width:32, height:68, rx:4, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5 }));
-    _rtChip(vg, wx+52, wy+28);
     // Grate top (metal bar)
     vg.appendChild(svgEl('rect', { x:wx+28, y:wy+12, width:40, height:6, rx:2, fill:'#4b5563', stroke:'#374151', 'stroke-width':1.5 }));
     // Grate peak
     vg.appendChild(svgEl('path', { d:`M${wx+30},${wy+10} L${wx+48},${wy+6} L${wx+66},${wy+10}`, fill:'none', stroke:'#4b5563', 'stroke-width':2, 'stroke-linecap':'round' }));
-    // Ground: extended grey line + diagonal hatching (standard schematic ground)
+    // Ground: extended grey line + diagonal hatching
     vg.appendChild(svgEl('line', { x1:wx+16, y1:wy+82, x2:wx+80, y2:wy+82, stroke:'#6b7280', 'stroke-width':2.5, 'stroke-linecap':'round' }));
     [20,28,36,44,52,60,68,76].forEach(x => vg.appendChild(svgEl('line', { x1:wx+x, y1:wy+82, x2:wx+x-6, y2:wy+90, stroke:'#6b7280', 'stroke-width':1, opacity:0.4 })));
-    // Tap on right side, mid-height
-    vg.appendChild(svgEl('line', { x1:wx+64, y1:wy+48, x2:wx+76, y2:wy+48, stroke:'#374151', 'stroke-width':4, 'stroke-linecap':'round' }));
-    vg.appendChild(svgEl('line', { x1:wx+64, y1:wy+48, x2:wx+76, y2:wy+48, stroke:'#4b5563', 'stroke-width':2, 'stroke-linecap':'round' }));
-    vg.appendChild(svgEl('line', { x1:wx+76, y1:wy+48, x2:wx+76, y2:wy+56, stroke:'#374151', 'stroke-width':3, 'stroke-linecap':'round' }));
-    vg.appendChild(svgEl('line', { x1:wx+76, y1:wy+48, x2:wx+76, y2:wy+56, stroke:'#4b5563', 'stroke-width':1.5, 'stroke-linecap':'round' }));
-    vg.appendChild(svgEl('circle', { cx:wx+72, cy:wy+44, r:4, fill:'#4b5563', stroke:'#374151', 'stroke-width':1.5 }));
-    vg.appendChild(svgEl('circle', { cx:wx+72, cy:wy+44, r:1.5, fill:'#1f2937' }));
+    // ── Tap — L-shaped spout, higher up for longer jet ──
+    const tapX = wx + 64, tapY = wy + 30;
+    // Horizontal arm (connects to body)
+    vg.appendChild(svgEl('rect', { x:tapX, y:tapY, width:16, height:8, rx:1.5, fill:'#374151', stroke:'#4b5563', 'stroke-width':1 }));
+    // Vertical spout
+    vg.appendChild(svgEl('rect', { x:tapX+8, y:tapY+4, width:8, height:16, rx:1.5, fill:'#374151', stroke:'#4b5563', 'stroke-width':1 }));
+    // Elbow cover — circle overlapping the 90° joint
+    vg.appendChild(svgEl('circle', { cx:tapX+12, cy:tapY+5, r:5, fill:'#374151', stroke:'#4b5563', 'stroke-width':1 }));
+    // Handwheel
+    vg.appendChild(svgEl('circle', { cx:tapX+4, cy:tapY-4, r:5, fill:'#4b5563', stroke:'#374151', 'stroke-width':1.5 }));
+    vg.appendChild(svgEl('circle', { cx:tapX+4, cy:tapY-4, r:2, fill:'#1f2937' }));
+    // Bore opening (dark hole at spout bottom)
+    const boreX = tapX + 12, boreY = tapY + 20;
+    vg.appendChild(svgEl('ellipse', { cx:boreX, cy:boreY, rx:3, ry:1.5, fill:'#0f172a', opacity:0.8 }));
+    // ── Liquid stream (reads pre-computed flash from sink tick) ──
+    const _sinkUd = scene.runtime?.unitData?.get(unitId);
+    const _mDot_liq_kgs = _sinkUd?.last?.outlet?.mDot_liq_kgs || 0;
+    const _sinkP = _sinkUd?.last?.inlet?.P_Pa || 101325;
+    if (_mDot_liq_kgs > 1e-9) {
+      // Max liquid mass flow across all sinks for normalization
+      let _maxMdot = _mDot_liq_kgs;
+      for (const [uid, uu] of scene.units) {
+        if (uu.defId !== 'sink' || uid === unitId) continue;
+        const md = scene.runtime?.unitData?.get(uid)?.last?.outlet?.mDot_liq_kgs || 0;
+        if (md > _maxMdot) _maxMdot = md;
+      }
+      const _frac = Math.sqrt(_mDot_liq_kgs / _maxMdot);
+      const _maxW = 6;
+      const _streamW = Math.max(0.8, _frac * _maxW);
+      const _spoutY = boreY + 1;
+      const _groundY = wy + 82;
+      const _pRatio = Math.min(5, _sinkP / 101325);
+      // Clip: liquid visible inside bore opening but not on metal
+      const clipId = 'sink-clip-' + unitId;
+      const clipEl = svgEl('clipPath', { id: clipId });
+      // Bore hole + full rectangle below it
+      clipEl.appendChild(svgEl('ellipse', { cx:boreX, cy:boreY, rx:3, ry:1.5 }));
+      clipEl.appendChild(svgEl('rect', { x:boreX - _maxW, y:_spoutY, width:_maxW * 2, height:_groundY - _spoutY + 4 }));
+      // Add clip to SVG defs
+      let defsEl = g.closest('svg')?.querySelector('defs');
+      if (defsEl) defsEl.appendChild(clipEl);
+      // Stream path
+      const _streamPath = svgEl('path', {
+        fill: 'none', stroke: '#60a5fa', 'stroke-width': _streamW,
+        'stroke-linecap': 'round', opacity: 0.5,
+        'clip-path': `url(#${clipId})`,
+        'data-anim': 'sink-stream',
+        'data-sx': boreX, 'data-sy0': boreY - 1,
+        'data-sy1': _groundY,
+        'data-pspeed': _pRatio.toFixed(2),
+        'pointer-events': 'none'
+      });
+      vg.appendChild(_streamPath);
+      // Splash particles — many, fast, wide
+      const _nSplash = Math.max(5, Math.round(12 * _frac));
+      for (let si = 0; si < _nSplash; si++) {
+        vg.appendChild(svgEl('circle', {
+          cx: boreX, cy: _groundY, r: 0.8 + _frac * 0.8,
+          fill: '#93c5fd', opacity: 0,
+          'data-anim': 'sink-splash',
+          'data-sx': boreX, 'data-gy': _groundY,
+          'data-phase': (si / _nSplash).toFixed(3),
+          'data-spread': (14 * _frac * _pRatio).toFixed(1),
+          'pointer-events': 'none'
+        }));
+      }
+    }
     // 4 bolts
     _rtBolt(vg, wx+36, wy+24); _rtBolt(vg, wx+60, wy+24);
     _rtBolt(vg, wx+36, wy+70); _rtBolt(vg, wx+60, wy+70);
-    // LED
-    vg.appendChild(svgEl('circle', { cx:wx+56, cy:wy+64, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.6' }));
+    // LED + chip
     g.appendChild(vg);
+    _rtChip(vg, wx+52, wy+28);
+    vg.appendChild(svgEl('circle', { cx:wx+56, cy:wy+64, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.6', 'pointer-events':'none' }));
   },
   // ── Sink Electrical / Dump Load ──
   // Resistor symbol behind protective mesh grid, activates visually when dissipating
@@ -26290,7 +26651,6 @@ const _RAGTAG_SYMBOLS = {
     const pres = getPresentation(def, scene.units.get(unitId));
     _rtNozzle(g, wx, wy, ww, wh, wx+10, wy+17, 76, 62, def, pres, pal, unitId);
     g.appendChild(svgEl('rect', { x:wx+10, y:wy+17, width:76, height:62, rx:6, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'pointer-events':'none' }));
-    _rtChip(g, wx+68, wy+23, 10, 4);
     _rtBolt(g, wx+16, wy+23); _rtBolt(g, wx+80, wy+23);
     _rtBolt(g, wx+16, wy+73); _rtBolt(g, wx+80, wy+73);
     // Power state
@@ -26324,6 +26684,7 @@ const _RAGTAG_SYMBOLS = {
     g.appendChild(svgEl('circle', { cx:wx+82, cy:wy+40, r:2.5, fill:isActive?'#ef4444':'#374151',
       'data-anim':isActive?'rotor-pulse':'', 'data-opbase':'0.5', 'data-amp':'0.3', 'data-speed':'2',
       'pointer-events':'none' }));
+    _rtChip(g, wx+68, wy+23, 10, 5);
     g.appendChild(svgEl('circle', { cx:wx+82, cy:wy+56, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.6', 'pointer-events':'none' }));
   },
   // ── Compressor (sheet 179-191, centered dx+8 dy+6, icon mirrored) ──
@@ -26333,7 +26694,6 @@ const _RAGTAG_SYMBOLS = {
     const pres = getPresentation(def, scene.units.get(unitId));
     _rtNozzle(g, wx, wy, ww, wh, wx+18, wy+24, 60, 48, def, pres, pal, unitId);
     g.appendChild(svgEl('rect', { x:wx+18, y:wy+24, width:60, height:48, rx:6, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'pointer-events':'none' }));
-    _rtChip(g, wx+36, wy+30);
     _rtVpR(g, wx+28, wy+32, 36, 32, '#0f0820', pal.rim);
     const impCol = _lighten(pal.stroke, 0.6);
     // Piston (mirrored: right side of viewport)
@@ -26360,6 +26720,7 @@ const _RAGTAG_SYMBOLS = {
       g.appendChild(svgEl('rect', { x:wx+35, y:wy+10, width:26, height:16, rx:5, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2, 'pointer-events':'none' }));
       [40,44,48,52,56].forEach(x => g.appendChild(svgEl('line', { x1:wx+x, y1:wy+14, x2:wx+x, y2:wy+22, stroke:pal.stroke, 'stroke-width':1.5, opacity:0.5, 'pointer-events':'none' })));
     }
+    _rtChip(g, wx+36, wy+30);
     g.appendChild(svgEl('circle', { cx:wx+28, cy:wy+62, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.2', 'pointer-events':'none' }));
   },
   // ── Gas Turbine (sheet 214-222, centered dy+6) ──
@@ -26368,7 +26729,6 @@ const _RAGTAG_SYMBOLS = {
     const pres = getPresentation(def, scene.units.get(unitId));
     _rtNozzle(g, wx, wy, ww, wh, wx+14, wy+22, 68, 52, def, pres, pal, unitId);
     g.appendChild(svgEl('rect', { x:wx+14, y:wy+22, width:68, height:52, rx:8, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'pointer-events':'none' }));
-    _rtChip(g, wx+64, wy+28);
     _rtVpR(g, wx+24, wy+30, 48, 36, '#0f0820', pal.rim);
     const impCol = _lighten(pal.stroke, 0.6);
     // Rotating 5-blade turbine impeller (curved airfoil shapes)
@@ -26412,6 +26772,7 @@ const _RAGTAG_SYMBOLS = {
         'data-dx':dx, 'data-dy':dy, 'data-phase':ph, 'data-drift':'20', 'data-speed':'0.45',
         'pointer-events':'none' }));
     });
+    _rtChip(g, wx+64, wy+28);
     g.appendChild(svgEl('circle', { cx:wx+28, cy:wy+64, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.3', 'pointer-events':'none' }));
   },
   // ── Electric Heater (sheet 241-248, no offset) ──
@@ -26421,7 +26782,6 @@ const _RAGTAG_SYMBOLS = {
     const pres = getPresentation(def, scene.units.get(unitId));
     _rtNozzle(g, wx, wy, ww, wh, wx+10, wy+26, 76, 44, def, pres, pal, unitId);
     g.appendChild(svgEl('rect', { x:wx+10, y:wy+26, width:76, height:44, rx:8, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'pointer-events':'none' }));
-    _rtChip(g, wx+66, wy+32);
     _rtVpR(g, wx+22, wy+34, 52, 28, '#0c1a2e', pal.rim);
     // Resistor element: straight stubs → centered zigzag → straight stubs
     // Viewport is (22,34) 52×28, center (48,48). Keep zigzag within y:40→56 (±8 from center)
@@ -26438,6 +26798,7 @@ const _RAGTAG_SYMBOLS = {
       g.appendChild(svgEl('rect', { x:wx+35, y:wy+12, width:26, height:14, rx:5, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2, 'pointer-events':'none' }));
       [40,44,48,52,56].forEach(x => g.appendChild(svgEl('line', { x1:wx+x, y1:wy+16, x2:wx+x, y2:wy+22, stroke:pal.stroke, 'stroke-width':1.5, opacity:0.5, 'pointer-events':'none' })));
     }
+    _rtChip(g, wx+66, wy+32);
     g.appendChild(svgEl('circle', { cx:wx+76, cy:wy+58, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.7', 'pointer-events':'none' }));
   },
   // ── Air Cooler (sheet 250-260, layout-aware) ──
@@ -26528,7 +26889,6 @@ const _RAGTAG_SYMBOLS = {
     const pres = getPresentation(def, scene.units.get(unitId));
     _rtNozzle(g, wx, wy, ww, wh, wx+8, wy+18, 80, 60, def, pres, pal, unitId);
     g.appendChild(svgEl('ellipse', { cx:wx+48, cy:wy+48, rx:40, ry:30, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'pointer-events':'none' }));
-    _rtChip(g, wx+68, wy+28);
     _rtVp(g, wx+48, wy+48, 18, pal.rim);
     // Hot stream — horizontal S-curve with flowing dashes
     g.appendChild(svgEl('path', { d:`M${wx+30},${wy+48} C${wx+36},${wy+40} ${wx+42},${wy+56} ${wx+48},${wy+48} C${wx+54},${wy+40} ${wx+60},${wy+56} ${wx+66},${wy+48}`, fill:'none', stroke:'#fca5a5', 'stroke-width':2, 'stroke-linecap':'round', 'stroke-dasharray':'6 4',
@@ -26543,6 +26903,7 @@ const _RAGTAG_SYMBOLS = {
     // 4 bolts at cardinal points
     _rtBolt(g, wx+14, wy+48); _rtBolt(g, wx+82, wy+48);
     _rtBolt(g, wx+48, wy+20); _rtBolt(g, wx+48, wy+76);
+    _rtChip(g, wx+68, wy+28);
     g.appendChild(svgEl('circle', { cx:wx+70, cy:wy+62, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.5', 'pointer-events':'none' }));
   },
   // ── Mixer (sheet 276-286, layout-aware) ──
@@ -26738,7 +27099,6 @@ const _RAGTAG_SYMBOLS = {
       g.appendChild(svgEl('path', { d:cp.d, fill:'none', stroke:col.outer, 'stroke-width':10, 'stroke-linejoin':'round', 'stroke-linecap':'butt', 'pointer-events':'none' }));
       g.appendChild(svgEl('path', { d:cp.d, fill:'none', stroke:col.inner, 'stroke-width':6, 'stroke-linejoin':'round', 'stroke-linecap':'butt', 'pointer-events':'none' }));
     }
-    _rtChip(g, wx+110, wy+22, 10, 5);
     _rtBoltS(g, wx+22, wy+48); _rtBoltS(g, wx+122, wy+48);
     _rtBolt(g, wx+42, wy+20); _rtBolt(g, wx+102, wy+20);
     _rtBolt(g, wx+42, wy+76); _rtBolt(g, wx+102, wy+76);
@@ -26757,6 +27117,7 @@ const _RAGTAG_SYMBOLS = {
     const sgH = 48, sgTop = wy + 24;
     const fillH = sgH * fPct / 100;
     if (fillH > 0) g.appendChild(svgEl('rect', { x:wx+66, y:sgTop+sgH-fillH, width:6, height:fillH, rx:2, fill:'#22d3ee', opacity:0.3, 'data-anim':'level-shimmer', 'data-ybase':sgTop+sgH-fillH, 'pointer-events':'none' }));
+    _rtChip(g, wx+110, wy+22, 10, 5);
     g.appendChild(svgEl('circle', { cx:wx+96, cy:wy+62, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.8', 'pointer-events':'none' }));
   },
   // ── Open Tank (sheet 407-423, 3×2, no offset) ──
@@ -26791,7 +27152,6 @@ const _RAGTAG_SYMBOLS = {
       g.appendChild(svgEl('path', { d:cp.d, fill:'none', stroke:col.outer, 'stroke-width':10, 'stroke-linejoin':'round', 'stroke-linecap':'butt', 'pointer-events':'none' }));
       g.appendChild(svgEl('path', { d:cp.d, fill:'none', stroke:col.inner, 'stroke-width':6, 'stroke-linejoin':'round', 'stroke-linecap':'butt', 'pointer-events':'none' }));
     }
-    _rtChip(g, wx+108, wy+22, 10, 5);
     _rtBolt(g, wx+22, wy+22); _rtBolt(g, wx+122, wy+22);
     _rtBolt(g, wx+44, wy+76); _rtBolt(g, wx+100, wy+76);
     // Sight glass (right side)
@@ -26809,6 +27169,7 @@ const _RAGTAG_SYMBOLS = {
     const sgH = 48, sgTop = wy + 22;
     const fillH = sgH * fPct / 100;
     if (fillH > 0) g.appendChild(svgEl('rect', { x:wx+94, y:sgTop+sgH-fillH, width:6, height:fillH, rx:2, fill:'#22d3ee', opacity:0.3, 'data-anim':'level-shimmer', 'data-ybase':sgTop+sgH-fillH, 'pointer-events':'none' }));
+    _rtChip(g, wx+108, wy+22, 10, 5);
     g.appendChild(svgEl('circle', { cx:wx+108, cy:wy+34, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.3', 'pointer-events':'none' }));
   },
   // ── Battery (sheet 447-458, centered dx+8) ──
@@ -26860,7 +27221,6 @@ const _RAGTAG_SYMBOLS = {
     const pres = getPresentation(def, scene.units.get(unitId));
     _rtNozzle(g, wx, wy, ww, wh, wx+12, wy+10, 72, 124, def, pres, pal, unitId);
     g.appendChild(svgEl('rect', { x:wx+12, y:wy+10, width:72, height:124, rx:6, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'pointer-events':'none' }));
-    _rtChip(g, wx+64, wy+18);
     // Large rectangular viewport
     _rtVpR(g, wx+20, wy+18, 56, 108, '#1a1000', pal.rim);
     // 3 breaker lines (vertical bars, animated pulse)
@@ -26873,12 +27233,6 @@ const _RAGTAG_SYMBOLS = {
     // 3 status LEDs — turn red when curtailing
     const _hubUd = scene.runtime?.unitData?.get(unitId);
     const _curtailed = _hubUd?.last?.curtailed;
-    const _ledCol1 = _curtailed ? '#ef4444' : '#22c55e';
-    const _ledCol2 = _curtailed ? '#ef4444' : '#22c55e';
-    const _ledCol3 = _curtailed ? '#ef4444' : '#fbbf24';
-    g.appendChild(svgEl('circle', { cx:wx+34, cy:wy+84, r:3, fill:_ledCol1, 'data-anim':'led-blink', 'data-phase':'0', 'pointer-events':'none' }));
-    g.appendChild(svgEl('circle', { cx:wx+48, cy:wy+84, r:3, fill:_ledCol2, 'data-anim':'led-blink', 'data-phase':'0.33', 'pointer-events':'none' }));
-    g.appendChild(svgEl('circle', { cx:wx+62, cy:wy+84, r:3, fill:_ledCol3, 'data-anim':'rotor-pulse', 'data-opbase':'0.2', 'pointer-events':'none' }));
     // Curtailment warning: red triangle + exclamation, pulsing
     if (_curtailed) {
       g.appendChild(svgEl('path', { d:`M${wx+48},${wy+92} L${wx+40},${wy+106} L${wx+56},${wy+106} Z`,
@@ -26941,6 +27295,13 @@ const _ENGINEERING_SYMBOLS = {
     // Base
     g.appendChild(svgEl('polygon', { points: `${cx-12},${cy+r+2} ${cx+12},${cy+r+2} ${cx+16},${wy+wh-4} ${cx-16},${wy+wh-4}`, fill: 'none', stroke: col, 'stroke-width': 1.5, opacity: 0.5, 'pointer-events': 'none' }));
     g.appendChild(svgEl('line', { x1: cx-18, y1: wy+wh-4, x2: cx+18, y2: wy+wh-4, stroke: col, 'stroke-width': 1.5, opacity: 0.5, 'pointer-events': 'none' }));
+    _rtChip(g, wx+64, wy+18);
+    const _ledCol1 = _curtailed ? '#ef4444' : '#22c55e';
+    const _ledCol2 = _curtailed ? '#ef4444' : '#22c55e';
+    const _ledCol3 = _curtailed ? '#ef4444' : '#fbbf24';
+    g.appendChild(svgEl('circle', { cx:wx+34, cy:wy+84, r:3, fill:_ledCol1, 'data-anim':'led-blink', 'data-phase':'0', 'pointer-events':'none' }));
+    g.appendChild(svgEl('circle', { cx:wx+48, cy:wy+84, r:3, fill:_ledCol2, 'data-anim':'led-blink', 'data-phase':'0.33', 'pointer-events':'none' }));
+    g.appendChild(svgEl('circle', { cx:wx+62, cy:wy+84, r:3, fill:_ledCol3, 'data-anim':'rotor-pulse', 'data-opbase':'0.2', 'pointer-events':'none' }));
   },
 
   reactor_adiabatic(g, wx, wy, ww, wh, pal, def, unitId) {
@@ -27129,9 +27490,10 @@ function drawUnits() {
         : _ENGINEERING_SYMBOLS[def.defId];
       if (_symbolFn) {
         _symbolFn(group, wx, wy, ww, wh, _pal, def, id);
-        // ⚡ Electrical port terminals — always on top of symbol
+        // Standardized instruments — helpers ready but disabled pending visual tuning
         if (ui.theme === 'ragtag') {
           const _pres = getPresentation(def, u);
+          // _rtInstruments(group, wx, wy, u.profileId || def.defId, id);
           _rtPortOverlays(group, wx, wy, def, _pres, id);
         }
       } else {
@@ -27386,6 +27748,11 @@ function drawUnits() {
             const id = scene.connect(ui.pendingFrom, { unitId, portId });
             if (id) autoPauseOnTopologyChange();
           }
+          // [v15.4.0] Trigger flange snap animation on both endpoints
+          if (ui.pendingFrom) {
+            _flangeSnapPorts.add(ui.pendingFrom.unitId + ':' + ui.pendingFrom.portId);
+          }
+          _flangeSnapPorts.add(unitId + ':' + portId);
           ui.pendingFrom = null;
           updatePropertiesPanel();
           render();
@@ -27817,25 +28184,6 @@ function drawStickerCards() {
         stickerG.appendChild(rowX);
       }
     }
-
-    // Close × button — positioned just outside the top-right corner
-    const closeX = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    closeX.setAttribute('x', stickerX + W + 2);
-    closeX.setAttribute('y', stickerY - 2);
-    closeX.setAttribute('font-size', '11');
-    closeX.setAttribute('fill', '#94a3b8');
-    closeX.setAttribute('text-anchor', 'middle');
-    closeX.setAttribute('class', 'sticker-close');
-    closeX.textContent = '×';
-    const onClose = s.onClose;
-    closeX.addEventListener('pointerdown', (ev) => {
-      ev.stopPropagation();
-      _pushUndo('Remove sticker');
-      onClose();
-      autoSave();
-      render();
-    });
-    stickerG.appendChild(closeX);
 
     // Sticker drag (reposition) — whole card is the drag surface
     _setupStickerDrag(stickerG, s);
@@ -33089,6 +33437,14 @@ window.addEventListener('keydown', (ev) => {
     document.getElementById('modalShortcuts').classList.add('open');
     return;
   }
+  // [v15.4.0] J: toggle bolted flanges
+  if (ev.key === 'j' && !isInput && !(ev.ctrlKey || ev.metaKey) && shouldFireTransportKeys()) {
+    ev.preventDefault();
+    ui.showFlanges = !ui.showFlanges;
+    showToast(ui.showFlanges ? 'Flanges ON' : 'Flanges OFF');
+    render();
+    return;
+  }
   if (ev.key === 'Delete' && !isInput) deleteSelected();
 });
 
@@ -33471,7 +33827,8 @@ function _updateIconAnimations(at) {
   // LED blink
   for (const el of svg.querySelectorAll('[data-anim="led-blink"]')) {
     const phase = +el.dataset.phase || 0;
-    const p = ((at * 1.5 + phase) % 1);
+    const speed = +el.dataset.speed || 1.5;
+    const p = ((at * speed + phase) % 1);
     const op = p < 0.9 ? 0.6 : 0.1;
     el.setAttribute('opacity', op.toFixed(2));
   }
@@ -33573,6 +33930,44 @@ function _updateIconAnimations(at) {
     const sy = cy + yoff * (1 - p * 0.6);
     const op = p < 0.2 ? p * 4 : p > 0.8 ? (1 - p) * 4 : 0.5;
     el.setAttribute('transform', `translate(${sx.toFixed(1)},${sy.toFixed(1)})`);
+    el.setAttribute('opacity', op > 0.02 ? op.toFixed(2) : '0');
+  }
+  // [v15.4.0] Sink liquid stream — sinusoidal wobble, pressure-driven speed
+  for (const el of svg.querySelectorAll('[data-anim="sink-stream"]')) {
+    const sx = +el.dataset.sx, sy0 = +el.dataset.sy0, sy1 = +el.dataset.sy1;
+    const pSpeed = +el.dataset.pspeed || 1;
+    const h = sy1 - sy0;
+    const segs = 14;
+    let d = `M${sx},${sy0}`;
+    for (let i = 1; i <= segs; i++) {
+      const t = i / segs;
+      const y = sy0 + h * t;
+      // Wobble grows with depth², pressure multiplies frequency
+      const amp = 0.5 + t * t * 2.5;
+      const wobble = Math.sin(at * (3 + pSpeed * 2) + t * 12) * amp;
+      d += ` L${(sx + wobble).toFixed(1)},${y.toFixed(1)}`;
+    }
+    el.setAttribute('d', d);
+  }
+  // [v15.4.0] Sink splash particles — random bounce off ground
+  for (const el of svg.querySelectorAll('[data-anim="sink-splash"]')) {
+    const sx = +el.dataset.sx, gy = +el.dataset.gy;
+    const phase = +el.dataset.phase || 0;
+    const spread = +el.dataset.spread || 8;
+    const speed = 2 + spread * 0.15;
+    const p = ((at * speed + phase) % 1);
+    // Pseudo-random angle per particle using phase as seed
+    const hash = Math.sin(phase * 127.1 + 311.7) * 43758.5453;
+    const rand = hash - Math.floor(hash); // 0-1
+    const angle = -Math.PI * (0.05 + 0.9 * rand); // nearly full upward hemisphere
+    const dirX = (rand < 0.5 ? -1 : 1); // random left/right
+    const dist = spread * (0.4 + 0.6 * rand) * p;
+    const px = sx + dirX * Math.abs(Math.cos(angle)) * dist;
+    const arcH = 4 + spread * 0.5 * (0.3 + 0.7 * rand);
+    const py = gy + Math.sin(angle) * dist - 4 * p * (1 - p) * arcH;
+    const op = p < 0.1 ? p * 6 : 0.6 * (1 - (p - 0.1) / 0.9);
+    el.setAttribute('cx', px.toFixed(1));
+    el.setAttribute('cy', py.toFixed(1));
     el.setAttribute('opacity', op > 0.02 ? op.toFixed(2) : '0');
   }
 }
@@ -34829,7 +35224,7 @@ window.addEventListener('resize', () => {
 
 // [v14.10.3] Load on startup: auto-save (if matching DEMO_VERSION) or demo_v1
 {
-  const DEMO_VERSION = 'v15.0.0';  // bump this when demo scene changes
+  const DEMO_VERSION = 'v16.0.0';  // bump this when demo scene changes
   const saved = localStorage.getItem('ptis_autosave');
   const savedDemoVer = localStorage.getItem('ptis_autosave_demo_version');
   if (saved && savedDemoVer === DEMO_VERSION) {
