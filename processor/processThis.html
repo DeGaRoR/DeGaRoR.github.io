@@ -15802,8 +15802,8 @@ UnitRegistry.register('atmosphere', {
     const atm = SimSettings.getAtmosphere();
     const T = atm.T_K;
     const P = atm.P_Pa;
-    const opening = par.opening_pct ?? 100;
-    const Cv = par.Cv || 0.5;
+    const opening = 100;  // Internal constant — not player-editable
+    const Cv = 0.5;       // Internal constant — sized for gas at ~P_atm
 
     // Wet air composition (live T/RH for Psat)
     const RH = atm.RH ?? 0;
@@ -15836,17 +15836,15 @@ UnitRegistry.register('atmosphere', {
     const matConns = ctx.outConns('mat_out');
     let Q = 0;
 
-    if (matConns.length > 0 && opening > 0) {
+    if (matConns.length > 0) {
       const connFlows = [];
       for (const conn of matConns) {
-        const opening_i = par.openings?.[conn.id] ?? opening;
-        if (opening_i <= 0) { connFlows.push({ conn, Q: 0 }); continue; }
         const P_down_raw = ctx.downstreamP(conn.id) ?? P;
         // Clamp: compressor suction can't pull below absolute vacuum.
         const P_down_i = Math.max(0, P_down_raw);
         const dP_i = P - P_down_i;
         if (dP_i <= 0) { connFlows.push({ conn, Q: 0 }); continue; }
-        const Q_i = Cv * (opening_i / 100) * Math.sqrt(Math.max(0, dP_i) / (SG * 1e5));
+        const Q_i = Cv * Math.sqrt(Math.max(0, dP_i) / (SG * 1e5));
         connFlows.push({ conn, Q: Q_i });
       }
 
@@ -19898,7 +19896,7 @@ ProfileRegistry.register('reservoir', {
 ProfileRegistry.register('atmosphere', {
   defId: 'atmosphere', name: 'Atmosphere', category: UnitCategories.BOUNDARY, tiers: [1],
   limits: {}, boundary: true,
-  defaults: { 1: { Cv: 0.5, opening_pct: 100 } }
+  defaults: { 1: {} }  // Cv and opening are internal constants
 });
 // [v16.6.0] Closed Loop Source profile
 ProfileRegistry.register('closed_loop_source', {
@@ -31461,46 +31459,13 @@ UnitInspector.reservoir = {
 // [v16.8.0] Atmosphere inspector
 UnitInspector.atmosphere = {
   customParams(container, u) {
-    const profile = ProfileRegistry.get(u.profileId || u.defId);
-    const isDev = profile?.config?.dev;
-
     // Atmospheric info header
     const atm = SimSettings.getAtmosphere();
     container.appendChild(el('div', {
       style: 'font-size:12px; color:#94a3b8; margin-bottom:6px;',
       html: `${atm.presetName} · T ${atm.T_K.toFixed(1)} K · P ${(atm.P_Pa/1e5).toFixed(3)} bar`
     }));
-
-    if (isDev) {
-      const devBox = el('div', { style: 'margin-bottom:6px;' });
-      addNumberEditor(devBox, 'Cv',
-        () => u.params.Cv ?? 0.5, v => u.params.Cv = v, 0.1, 0);
-      container.appendChild(devBox);
-    }
-
-    // Per-connection or single opening
-    container.appendChild(el('div', { class: 'ins-section-label', html: 'Draw Rates' }));
-    const drawBox = el('div', {});
-
-    const matConns = scene.connections.filter(
-      c => c.from.unitId === u.id && c.from.portId === 'mat_out');
-    if (matConns.length > 1) {
-      drawBox.appendChild(el('div', { style: 'font-size:10px; color:#64748b; margin:2px 0;', html: 'Outlet:' }));
-      for (const conn of matConns) {
-        const toU = scene.units.get(conn.to.unitId);
-        const toName = toU?.name || conn.to.unitId;
-        const label = `→ ${toName} (%)`;
-        if (!u.params.openings) u.params.openings = {};
-        addNumberEditor(drawBox, label,
-          () => u.params.openings[conn.id] ?? u.params.opening_pct ?? 100,
-          v => { if (!u.params.openings) u.params.openings = {}; u.params.openings[conn.id] = v; },
-          5, 0, { min: 0, max: 100 });
-      }
-    } else {
-      addNumberEditor(drawBox, 'Opening (%)',
-        () => u.params.opening_pct ?? 100, v => u.params.opening_pct = v, 5, 0, { min: 0, max: 100 });
-    }
-    container.appendChild(drawBox);
+    // No user-editable params — Cv and opening are internal modeling constants
   },
   conditions(u, ud) {
     if (!ud?.last) return [];
@@ -50739,7 +50704,7 @@ function runTests() {
 
   test('576: Atmosphere → compressor → sink: Cv-driven flow', t => {
     t.clearScene();
-    const atmos = t.place('atmosphere', 0, 0, { Cv: 0.5, opening_pct: 100 });
+    const atmos = t.place('atmosphere', 0, 0, {});
     const comp = t.place('compressor', 4, 0, { Pout: 300000, eta: 0.8 });
     const hub = t.place('power_hub', 4, -3);
     const grid = t.place('grid_supply', 4, -6, { maxPower: 100 });
@@ -50762,7 +50727,7 @@ function runTests() {
 
   test('577: Atmosphere without downstream pull: zero flow', t => {
     t.clearScene();
-    const atmos = t.place('atmosphere', 0, 0, { Cv: 0.5, opening_pct: 100 });
+    const atmos = t.place('atmosphere', 0, 0, {});
     const snk = t.place('sink', 4, 0);
     t.wire(atmos, 'mat_out', snk, 'mat_in');
     t.solve();
@@ -50773,7 +50738,7 @@ function runTests() {
 
   test('578: Atmosphere output has explicit phase V', t => {
     t.clearScene();
-    const atmos = t.place('atmosphere', 0, 0, { Cv: 0.5, opening_pct: 100 });
+    const atmos = t.place('atmosphere', 0, 0, {});
     const comp = t.place('compressor', 4, 0, { Pout: 300000, eta: 0.8 });
     const hub = t.place('power_hub', 4, -3);
     const grid = t.place('grid_supply', 4, -6, { maxPower: 100 });
@@ -50792,7 +50757,7 @@ function runTests() {
   test('579: Atmosphere T/P tracks live diurnal', t => {
     const atm = SimSettings.getAtmosphere();
     t.clearScene();
-    const atmos = t.place('atmosphere', 0, 0, { Cv: 0.5 });
+    const atmos = t.place('atmosphere', 0, 0, {});
     const comp = t.place('compressor', 4, 0, { Pout: 300000, eta: 0.8 });
     const hub = t.place('power_hub', 4, -3);
     const grid = t.place('grid_supply', 4, -6, { maxPower: 100 });
@@ -50827,7 +50792,7 @@ function runTests() {
   test('581: Atmosphere → fan → sink: end-to-end airflow', t => {
     t.clearScene();
     const atm = SimSettings.getAtmosphere();
-    const atmos = t.place('atmosphere', 0, 0, { Cv: 0.5, opening_pct: 100 });
+    const atmos = t.place('atmosphere', 0, 0, {});
     const fan = t.place('fan', 4, 0, { deltaP: 1000, eta: 0.6 });
     const hub = t.place('power_hub', 4, -3);
     const grid = t.place('grid_supply', 4, -6, { maxPower: 10 });
