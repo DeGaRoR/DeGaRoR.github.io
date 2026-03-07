@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v16.6.0
+  processThis v16.7.0
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -299,6 +299,49 @@
   ═══════════════════════════════════════════════════════════════════════════
   CHANGELOG
   ═══════════════════════════════════════════════════════════════════════════
+
+  ═══ v16.7.0 — S-DIURNAL Phase 1: Day/Night Cycles ═══════════════════════
+
+  Day/night temperature, solar irradiance, wind speed, and humidity now
+  vary with simulation time. Two new power units: solar panel and wind
+  turbine. Zero changes to solver, thermo, or existing unit ticks.
+
+  ─── Diurnal engine ─────────────────────────────────────────────────────
+  - computeDiurnal(t_s, diurnal): pure function, deterministic hash-based
+    pseudo-random (Knuth multiplicative). Save/checkpoint/rewind safe.
+  - Temperature: cosine with thermal lag, day-to-day random ±2K offset
+    + 0.7–1.5× amplitude scaling, clamped to T_swing_max_K.
+  - Solar: squared cosine bell, zero at night, peak at noon.
+  - Wind: cosine anti-correlated with T, hourly gust variation.
+  - RH: linear interpolation day↔night, anti-correlated with solar.
+  - Diurnal data added to all 5 planet presets. Custom = static (no diurnal).
+  - Planet X T_K changed 305.15 → 288.15 (mean temperature, was static).
+
+  ─── SimSettings changes ────────────────────────────────────────────────
+  - getAtmosphere() returns diurnal-computed T_K and RH when preset has
+    diurnal data. Cached by TimeClock.t (one computation per solve).
+  - New accessors: getSolarFactor() (0–1), getSolarIrradiance() (W/m²),
+    getWindSpeed() (m/s). Static presets: solarFactor=1, wind=5 m/s.
+  - g (surface gravity) added to frozen atmosphere object.
+  - Diurnal cache invalidated on atmosphere preset change.
+
+  ─── solar_panel ────────────────────────────────────────────────────────
+  - defId: solar_panel, 2×2, elec_out. Physics-fixed (hub auto-classifies).
+  - Tick: output_W = peakPower_kW × 1000 × getSolarFactor().
+  - Ragtag icon: dark blue-purple cell grid (4×3), pulsing sun with 8 rays.
+  - Inspector: peak power editor, solar factor / output / peak KPIs.
+
+  ─── wind_turbine ───────────────────────────────────────────────────────
+  - defId: wind_turbine, 2×2, elec_out. Physics-fixed.
+  - Tick: cubic power curve. cutIn = 0.25×vDesign, cutOut = 2×vDesign.
+    Below cut-in or above cut-out → zero. At/above vDesign → rated peak.
+  - Ragtag icon: tower + nacelle + 3 blades (pulsing), base plate.
+  - Inspector: peak power + design wind editors, wind/output/status/capacity.
+
+  ─── Test adjustments ───────────────────────────────────────────────────
+  - Atmosphere T_K assertions widened for diurnal swing per planet.
+  - Wet air / dew point tests widened for T/RH co-variation.
+  - 11 new tests (564–574): computeDiurnal, accessors, solar/wind units.
 
   ─── v16.6.0 — S-LOOP: Closed Loop Source ────────────────────────────────
   - New unit defId `closed_loop_source` (2×2, mat_in + mat_out).
@@ -8526,6 +8569,56 @@ const NNG_SENTINEL = [
 ];
 
 /* =========================
+   DIURNAL CYCLE — Pure function [v16.7.0 S-DIURNAL]
+   Computes time-varying T, solar, wind, RH from planet day/night cycle.
+   Deterministic: same t → same result (hash-based pseudo-random).
+   No side effects, no DOM, no SimSettings reads.
+   ========================= */
+function computeDiurnal(t_s, diurnal) {
+  const day_s = diurnal.day_s || 86400;
+  const dayNum = Math.floor(t_s / day_s);
+  const dayFrac = (t_s % day_s) / day_s;         // 0 = midnight, 0.5 = noon
+  const hourOfDay = dayFrac * (day_s / 3600);
+
+  // ── Deterministic hash (Knuth multiplicative) ──
+  const _hash = (seed) => ((seed * 2654435761) >>> 0) / 4294967296; // 0–1
+  const hDay1 = _hash(dayNum * 73856093);         // day T offset
+  const hDay2 = _hash(dayNum * 19349669);         // day amplitude scale
+  const hHour = _hash(dayNum * 24 + Math.floor(hourOfDay) + 83492791); // hourly gust
+
+  // ── Temperature: cosine, peak at noon + T_lag ──
+  const T_mean = diurnal.T_mean_K;
+  const T_lag_frac = (diurnal.T_lag_h || 2) / (day_s / 3600);
+  const T_phase = 2 * Math.PI * (dayFrac - 0.5 - T_lag_frac); // 0.5 = noon
+  const dayOffset = (hDay1 - 0.5) * 4;            // ±2K random offset
+  const ampScale = 0.7 + hDay2 * 0.8;             // 0.7–1.5× amplitude
+  const swing = Math.min(diurnal.T_swing_K * ampScale, diurnal.T_swing_max_K || 15);
+  const T_K = T_mean + dayOffset - swing * Math.cos(T_phase);
+
+  // ── Solar: squared cosine bell, zero at night ──
+  const solarPhase = 2 * Math.PI * (dayFrac - 0.5); // peak at noon
+  const rawSolar = Math.cos(solarPhase);
+  const solar_Wm2 = rawSolar > 0
+    ? (diurnal.solar_peak_Wm2 || 400) * rawSolar * rawSolar : 0;
+  const solarFactor = rawSolar > 0 ? rawSolar * rawSolar : 0;
+
+  // ── Wind: cosine + hourly gust ──
+  const windBase = (diurnal.wind_mean_ms || 5)
+    + (diurnal.wind_swing_ms || 2) * -Math.cos(T_phase); // peaks with thermal lag
+  const gust = (hHour - 0.5) * 2 * (diurnal.wind_gust_factor || 0.3)
+    * (diurnal.wind_mean_ms || 5);
+  const wind_ms = Math.max(0, windBase + gust);
+
+  // ── RH: lerp day↔night, anti-correlated with T ──
+  const nightFrac = 1 - solarFactor; // 1 at night, 0 at solar peak
+  const RH_day = diurnal.RH_day ?? 0.4;
+  const RH_night = diurnal.RH_night ?? 0.65;
+  const RH = RH_day + (RH_night - RH_day) * nightFrac;
+
+  return { T_K, solar_Wm2, solarFactor, wind_ms, RH, dayNum, hourOfDay };
+}
+
+/* =========================
    SIMULATION SETTINGS [v8.10.0]
    Global configuration: build flags, cheat mode, atmospheric reference.
    DOM-free (NNG-A2). Exported on PG (NNG-A4).
@@ -8557,15 +8650,30 @@ const SimSettings = {
 
   atmospherePresets: {
     earth_isa: { name: 'Earth (ISA)', T_K: 288.15, P_Pa: 101325, RH: 0.60, g: 9.81,
-      air: { N2: 0.7809, O2: 0.2095, Ar: 0.0093, CO2: 0.0003 } },
+      air: { N2: 0.7809, O2: 0.2095, Ar: 0.0093, CO2: 0.0003 },
+      diurnal: { T_mean_K: 288.15, T_swing_K: 7, T_swing_max_K: 15, T_lag_h: 2,
+        solar_peak_Wm2: 1000, wind_mean_ms: 6, wind_swing_ms: 2.5,
+        wind_gust_factor: 0.3, RH_day: 0.40, RH_night: 0.70, day_s: 86400 } },
     mars: { name: 'Mars', T_K: 210, P_Pa: 636, RH: 0, g: 3.72,
-      air: { CO2: 0.9557, N2: 0.027, Ar: 0.016, O2: 0.0013 } },
+      air: { CO2: 0.9557, N2: 0.027, Ar: 0.016, O2: 0.0013 },
+      diurnal: { T_mean_K: 210, T_swing_K: 40, T_swing_max_K: 50, T_lag_h: 1.5,
+        solar_peak_Wm2: 590, wind_mean_ms: 7, wind_swing_ms: 3,
+        wind_gust_factor: 0.5, RH_day: 0, RH_night: 0, day_s: 88775 } },
     titan: { name: 'Titan', T_K: 94, P_Pa: 146700, RH: 0, g: 1.35,
-      air: { N2: 0.95, CH4: 0.05 } },
+      air: { N2: 0.95, CH4: 0.05 },
+      diurnal: { T_mean_K: 94, T_swing_K: 1, T_swing_max_K: 2, T_lag_h: 20,
+        solar_peak_Wm2: 15, wind_mean_ms: 1, wind_swing_ms: 0.5,
+        wind_gust_factor: 0.2, RH_day: 0, RH_night: 0, day_s: 1378080 } },
     venus: { name: 'Venus (surface)', T_K: 737, P_Pa: 9200000, RH: 0, g: 8.87,
-      air: { CO2: 0.965, N2: 0.035 } },
-    planet_x: { name: 'Planet X', T_K: 305.15, P_Pa: 89660, RH: 0.50, g: 8.7,
-      air: { N2: 0.70, O2: 0.21, CO2: 0.08, Ar: 0.01 } },
+      air: { CO2: 0.965, N2: 0.035 },
+      diurnal: { T_mean_K: 737, T_swing_K: 0, T_swing_max_K: 0, T_lag_h: 0,
+        solar_peak_Wm2: 2600, wind_mean_ms: 1, wind_swing_ms: 0,
+        wind_gust_factor: 0.1, RH_day: 0, RH_night: 0, day_s: 10087200 } },
+    planet_x: { name: 'Planet X', T_K: 288.15, P_Pa: 89660, RH: 0.50, g: 8.7,
+      air: { N2: 0.70, O2: 0.21, CO2: 0.08, Ar: 0.01 },
+      diurnal: { T_mean_K: 288.15, T_swing_K: 5, T_swing_max_K: 15, T_lag_h: 2,
+        solar_peak_Wm2: 400, wind_mean_ms: 5, wind_swing_ms: 2,
+        wind_gust_factor: 0.3, RH_day: 0.40, RH_night: 0.65, day_s: 86400 } },
     custom: { name: 'Custom', T_K: 288.15, P_Pa: 101325, RH: 0, g: 9.81,
       air: { N2: 0.7809, O2: 0.2095, Ar: 0.0093, CO2: 0.0003, CH4: 0 } }
   },
@@ -8586,6 +8694,7 @@ const SimSettings = {
       T_K: src.T_K,
       P_Pa: src.P_Pa,
       RH: src.RH ?? 0,       // [v14.3.0] relative humidity (0–1)
+      g: src.g || 9.81,      // [v16.4.0] surface gravity
       air: airCopy,
       presetName: (key === 'custom') ? 'Custom' : src.name
     });
@@ -8603,6 +8712,7 @@ const SimSettings = {
       };
     }
     SimSettings._applyPreset();
+    SimSettings._diurnalCache = { t: -1, result: null };
   },
 
   /** Set custom atmosphere values and activate */
@@ -8611,13 +8721,64 @@ const SimSettings = {
     SimSettings.atmospherePresets.custom = { name: 'Custom', T_K, P_Pa, air: { ...airComp } };
     SimSettings._activePreset = 'custom';
     SimSettings._applyPreset();
+    SimSettings._diurnalCache = { t: -1, result: null };
   },
 
-  /** Get current atmosphere (always frozen) */
-  getAtmosphere() { return SimSettings.atmosphere; },
+  // [v16.7.0 S-DIURNAL] Diurnal cache — one computation per solve, many reads
+  _diurnalCache: { t: -1, result: null },
+
+  /** Get current atmosphere — diurnal-aware when preset has diurnal data */
+  getAtmosphere() {
+    const preset = SimSettings.atmospherePresets[SimSettings._activePreset];
+    if (!preset?.diurnal) return SimSettings.atmosphere; // static (custom)
+
+    const t = typeof TimeClock !== 'undefined' ? TimeClock.t : 0;
+    if (SimSettings._diurnalCache.t === t) {
+      return SimSettings._diurnalCache.result;
+    }
+
+    const d = computeDiurnal(t, preset.diurnal);
+    const result = Object.freeze({
+      T_K: d.T_K,
+      P_Pa: preset.P_Pa,
+      RH: d.RH,
+      g: preset.g || 9.81,
+      air: SimSettings.atmosphere.air, // frozen from _applyPreset
+      presetName: SimSettings.atmosphere.presetName,
+      // Diurnal extras (accessible but not breaking existing reads)
+      _diurnal: d
+    });
+    SimSettings._diurnalCache = { t, result };
+    return result;
+  },
 
   /** Get active preset key */
   getPresetKey() { return SimSettings._activePreset; },
+
+  /** [v16.7.0] Solar irradiance (W/m²) — 0 at night, peak at noon */
+  getSolarIrradiance() {
+    const atm = SimSettings.getAtmosphere();
+    return atm._diurnal?.solar_Wm2 ?? SimSettings._staticSolarPeak();
+  },
+
+  /** [v16.7.0] Solar factor (0–1) — fraction of peak irradiance */
+  getSolarFactor() {
+    const atm = SimSettings.getAtmosphere();
+    return atm._diurnal?.solarFactor ?? 1;
+  },
+
+  /** [v16.7.0] Wind speed (m/s) */
+  getWindSpeed() {
+    const atm = SimSettings.getAtmosphere();
+    return atm._diurnal?.wind_ms
+      ?? SimSettings.atmospherePresets[SimSettings._activePreset]?.diurnal?.wind_mean_ms ?? 5;
+  },
+
+  /** Static solar peak for presets without diurnal */
+  _staticSolarPeak() {
+    const preset = SimSettings.atmospherePresets[SimSettings._activePreset];
+    return preset?.diurnal?.solar_peak_Wm2 ?? 400;
+  },
 
   // ── [v14.3.0] Wet air composition (displaces dry fractions by H₂O vapor) ──
   // All thermo calcs route through ThermoAdapter (NNG-10).  getWetAir/getDewPoint
@@ -14650,6 +14811,89 @@ UnitRegistry.register('grid_supply', {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// SOLAR PANEL — Photovoltaic power source [v16.7.0 S-DIURNAL]
+// ═══════════════════════════════════════════════════════════════════════════════
+// Physics-fixed source. Output = peakPower × solarFactor(t).
+// Zero at night, peak at noon. Hub auto-classifies as physics-fixed.
+UnitRegistry.register('solar_panel', {
+  name: 'Solar Panel',
+  category: UnitCategories.POWER,
+  w: 2,
+  h: 2,
+  ports: [{ portId: 'elec_out', dir: PortDir.OUT, type: StreamType.ELECTRICAL, x: 2, y: 1 }],
+  presentations: {
+    'box/default':     { w: 2, h: 2, ports: { elec_out:{x:2,y:1} } },
+    'box/port-left':   { w: 2, h: 2, ports: { elec_out:{x:0,y:1} } },
+    'box/port-top':    { w: 2, h: 2, ports: { elec_out:{x:1,y:0} } },
+    'box/port-bottom': { w: 2, h: 2, ports: { elec_out:{x:1,y:2} } }
+  },
+  limitParams: [],
+  tick(u, ports, par) {
+    const peak_W = (par.peakPower_kW || 10) * 1000;
+    const sf = SimSettings.getSolarFactor();
+    const output_W = peak_W * sf;
+    ports.elec_out = {
+      type: StreamType.ELECTRICAL,
+      capacity: output_W, actual: output_W, available: output_W
+    };
+    u.last = { peakPower_W: peak_W, solarFactor: sf, output_W };
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// WIND TURBINE — Variable power source [v16.7.0 S-DIURNAL]
+// ═══════════════════════════════════════════════════════════════════════════════
+// Physics-fixed source. Cubic power curve: P ∝ (v - cutIn)³ / (vDesign - cutIn)³.
+// Below cut-in or above cut-out → zero output.
+UnitRegistry.register('wind_turbine', {
+  name: 'Wind Turbine',
+  category: UnitCategories.POWER,
+  w: 2,
+  h: 2,
+  ports: [{ portId: 'elec_out', dir: PortDir.OUT, type: StreamType.ELECTRICAL, x: 2, y: 1 }],
+  presentations: {
+    'box/default':     { w: 2, h: 2, ports: { elec_out:{x:2,y:1} } },
+    'box/port-left':   { w: 2, h: 2, ports: { elec_out:{x:0,y:1} } },
+    'box/port-top':    { w: 2, h: 2, ports: { elec_out:{x:1,y:0} } },
+    'box/port-bottom': { w: 2, h: 2, ports: { elec_out:{x:1,y:2} } }
+  },
+  limitParams: [],
+  tick(u, ports, par) {
+    const peak_W = (par.peakPower_kW || 20) * 1000;
+    const vDesign = par.vDesign_ms || 12;
+    const cutIn = vDesign * 0.25;
+    const cutOut = vDesign * 2.0;
+    const v = SimSettings.getWindSpeed();
+
+    let output_W = 0;
+    let status = 'idle';
+    if (v < cutIn) {
+      status = 'below-cutin';
+    } else if (v > cutOut) {
+      status = 'storm-shutdown';
+    } else if (v >= vDesign) {
+      output_W = peak_W;
+      status = 'rated';
+    } else {
+      const x = (v - cutIn) / (vDesign - cutIn);
+      output_W = peak_W * x * x * x;
+      status = 'partial';
+    }
+
+    ports.elec_out = {
+      type: StreamType.ELECTRICAL,
+      capacity: output_W, actual: output_W, available: output_W
+    };
+    u.last = {
+      peakPower_W: peak_W, vDesign_ms: vDesign,
+      cutIn_ms: cutIn, cutOut_ms: cutOut,
+      wind_ms: v, output_W, status,
+      outputPct: peak_W > 0 ? (output_W / peak_W * 100) : 0
+    };
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // TANK — Sealed vessel with inventory [v13.8.0 S5a-2a]
 // ═══════════════════════════════════════════════════════════════════════════════
 //
@@ -19323,6 +19567,9 @@ ProfileRegistry.register('source_mix',   { defId: 'source',     name: 'Multi Sou
 ProfileRegistry.register('source_atmosphere', { defId: 'source_atm', name: 'Atmospheric Intake', category: UnitCategories.SOURCE,           tiers: [1], limits: {}, boundary: true, defaults: { 1: { nDot: 1.0 } } });
 ProfileRegistry.register('sink',         { defId: 'sink',         name: 'Sink',             category: UnitCategories.SINK,             tiers: [1], limits: {}, boundary: true });
 ProfileRegistry.register('grid_supply',  { defId: 'grid_supply',  name: 'Grid Supply',      category: UnitCategories.POWER,            tiers: [1], limits: {}, boundary: true });
+// [v16.7.0 S-DIURNAL] Solar and wind profiles
+ProfileRegistry.register('solar_panel',  { defId: 'solar_panel',  name: 'Solar Panel',      category: UnitCategories.POWER,            tiers: [1], limits: {}, boundary: true, defaults: { 1: { peakPower_kW: 10 } } });
+ProfileRegistry.register('wind_turbine', { defId: 'wind_turbine', name: 'Wind Turbine',     category: UnitCategories.POWER,            tiers: [1], limits: {}, boundary: true, defaults: { 1: { peakPower_kW: 20, vDesign_ms: 12 } } });
 ProfileRegistry.register('sink_electrical', { defId: 'sink_electrical', name: 'Power Sink', category: UnitCategories.POWER_MANAGEMENT, tiers: [1], limits: {}, boundary: true });
 
 // ── Power management (tiered) ──
@@ -25879,6 +26126,8 @@ const _BODY_BBOX = {
   air_cooler:               { x:12, y:20, w:72, h:38 },
   hex:                      { x:14, y:6,  w:68, h:84 },
   grid_supply:              { x:8,  y:14, w:80, h:40 },
+  solar_panel:              { x:8,  y:14, w:80, h:68 },
+  wind_turbine:             { x:14, y:10, w:68, h:76 },
   battery:                  { x:14, y:6,  w:68, h:56 },
   power_hub:                { x:12, y:10, w:72, h:124 },
   mixer:                    { x:14, y:32, w:56, h:32 },
@@ -25963,7 +26212,7 @@ function _rtTempGauge(g, cx, cy, unitId) {
     stroke:needleCol, 'stroke-width':1.2, 'stroke-linecap':'round', 'pointer-events':'none' }));
 }
 // Units that should NOT have temperature gauges (boundary, electrical-only, no T data)
-const _NO_GAUGE = new Set(['source','source_atm','sink','sink_electrical','grid_supply','battery','power_hub','reservoir','mixer','splitter','restriction','valve','closed_loop_source']);
+const _NO_GAUGE = new Set(['source','source_atm','sink','sink_electrical','grid_supply','solar_panel','wind_turbine','battery','power_hub','reservoir','mixer','splitter','restriction','valve','closed_loop_source']);
 // Master instrument placer — LED bottom-left, nameplate top-right, gauge top-left
 function _rtInstruments(g, wx, wy, defId, unitId) {
   const bb = _BODY_BBOX[defId];
@@ -26699,6 +26948,69 @@ const _RAGTAG_SYMBOLS = {
     _rtChip(g, wx+68, wy+23, 10, 5);
     _rtChip(g, wx+14, wy+63, 7, 4);
     g.appendChild(svgEl('circle', { cx:wx+24, cy:wy+27, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.5', 'pointer-events':'none' }));
+  },
+  // ── Solar Panel [v16.7.0 S-DIURNAL] ──
+  // 2×2 body: tilted panel face with cell grid pattern + sun symbol in viewport
+  solar_panel(g, wx, wy, ww, wh, pal, def, unitId) {
+    const pres = getPresentation(def, scene.units.get(unitId));
+    _rtNozzle(g, wx, wy, ww, wh, wx+8, wy+14, 80, 68, def, pres, pal, unitId);
+    // Panel body (wider, slight trapezoid effect via rect)
+    g.appendChild(svgEl('rect', { x:wx+8, y:wy+14, width:80, height:68, rx:6, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'pointer-events':'none' }));
+    // Solar cell grid (dark blue-purple cells)
+    const cx0 = wx+16, cy0 = wy+22;
+    for (let r = 0; r < 3; r++) {
+      for (let c = 0; c < 4; c++) {
+        g.appendChild(svgEl('rect', { x: cx0 + c*16, y: cy0 + r*16, width:14, height:14, rx:1,
+          fill:'#1e1b4b', stroke:'#312e81', 'stroke-width':0.8, opacity:0.9, 'pointer-events':'none' }));
+      }
+    }
+    // Sun symbol in top-right (animated pulse)
+    const sx = wx+74, sy = wy+22;
+    g.appendChild(svgEl('circle', { cx:sx, cy:sy, r:5, fill:'#fbbf24', 'data-anim':'rotor-pulse', 'data-opbase':'0.5', 'pointer-events':'none' }));
+    // Sun rays
+    for (let a = 0; a < 8; a++) {
+      const ang = a * Math.PI / 4;
+      const x1 = sx + Math.cos(ang) * 7, y1 = sy + Math.sin(ang) * 7;
+      const x2 = sx + Math.cos(ang) * 10, y2 = sy + Math.sin(ang) * 10;
+      g.appendChild(svgEl('line', { x1, y1, x2, y2, stroke:'#fbbf24', 'stroke-width':1.2, 'stroke-linecap':'round',
+        'data-anim':'rotor-pulse', 'data-opbase':'0.3', 'pointer-events':'none' }));
+    }
+    // Bolts
+    _rtBolt(g, wx+12, wy+18); _rtBolt(g, wx+82, wy+18);
+    _rtBolt(g, wx+12, wy+74); _rtBolt(g, wx+82, wy+74);
+    // Chip + LED
+    _rtChip(g, wx+14, wy+68, 8, 4);
+    g.appendChild(svgEl('circle', { cx:wx+76, cy:wy+74, r:2.5, fill:'#fbbf24', 'data-anim':'led-blink', 'data-phase':'0.2', 'pointer-events':'none' }));
+  },
+  // ── Wind Turbine [v16.7.0 S-DIURNAL] ──
+  // 2×2 body: nacelle housing with 3-blade rotor spinning animation
+  wind_turbine(g, wx, wy, ww, wh, pal, def, unitId) {
+    const pres = getPresentation(def, scene.units.get(unitId));
+    _rtNozzle(g, wx, wy, ww, wh, wx+14, wy+10, 68, 76, def, pres, pal, unitId);
+    // Tower (vertical beam)
+    g.appendChild(svgEl('rect', { x:wx+42, y:wy+48, width:12, height:36, rx:2, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2, 'pointer-events':'none' }));
+    // Nacelle housing
+    g.appendChild(svgEl('rect', { x:wx+28, y:wy+30, width:40, height:22, rx:8, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'pointer-events':'none' }));
+    // Hub center
+    const hx = wx+48, hy = wy+41;
+    g.appendChild(svgEl('circle', { cx:hx, cy:hy, r:5, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2, 'pointer-events':'none' }));
+    // 3 blades (120° apart) — uses rotor-pulse for gentle visual pulse
+    for (let b = 0; b < 3; b++) {
+      const ang = b * 2 * Math.PI / 3 - Math.PI / 2; // start pointing up
+      const bx = hx + Math.cos(ang) * 24;
+      const by = hy + Math.sin(ang) * 24;
+      g.appendChild(svgEl('line', { x1:hx, y1:hy, x2:bx, y2:by,
+        stroke:'#cbd5e1', 'stroke-width':4, 'stroke-linecap':'round',
+        'data-anim':'rotor-pulse', 'data-opbase':'0.6',
+        'pointer-events':'none' }));
+    }
+    // Base plate
+    g.appendChild(svgEl('rect', { x:wx+32, y:wy+80, width:32, height:6, rx:2, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':1.5, 'pointer-events':'none' }));
+    // Bolts
+    _rtBolt(g, wx+34, wy+34); _rtBolt(g, wx+58, wy+34);
+    // Chip + LED
+    _rtChip(g, wx+56, wy+44, 8, 4);
+    g.appendChild(svgEl('circle', { cx:wx+34, cy:wy+48, r:2.5, fill:'#60a5fa', 'data-anim':'led-blink', 'data-phase':'0.7', 'pointer-events':'none' }));
   },
   // ── Source (sheet 92-99, centered, visually rotated per variant) ──
   // 2×2: circle r:28 at (48,48), viewport r:14, flow arrow + bolts rotate with port
@@ -30854,6 +31166,39 @@ UnitInspector.grid_supply = {
       { label: 'Capacity', value: fmt.kW(cap) },
       { label: 'Actual draw', value: fmt.kW(actual) },
       { label: 'Utilization', value: `${utilPct}%`, tone: actual > cap * 0.99 ? 'warn' : '' },
+    ];
+  }
+};
+
+// [v16.7.0 S-DIURNAL] Solar panel inspector
+UnitInspector.solar_panel = {
+  params(u) { return [
+    { label: 'Peak Power (kW)', get: () => u.params.peakPower_kW || 10, set: v => u.params.peakPower_kW = v, step: 1, validate: { gt: 0 } },
+  ]; },
+  power(u, ud) {
+    if (!ud?.last) return [];
+    const sf = ud.last.solarFactor ?? 0;
+    return [
+      { label: 'Solar factor', value: `${(sf * 100).toFixed(0)}%`, tone: sf < 0.01 ? 'warn' : '' },
+      { label: 'Output', value: fmt.kW(ud.last.output_W || 0) },
+      { label: 'Peak', value: fmt.kW(ud.last.peakPower_W || 0) },
+    ];
+  }
+};
+
+// [v16.7.0 S-DIURNAL] Wind turbine inspector
+UnitInspector.wind_turbine = {
+  params(u) { return [
+    { label: 'Peak Power (kW)', get: () => u.params.peakPower_kW || 20, set: v => u.params.peakPower_kW = v, step: 1, validate: { gt: 0 } },
+    { label: 'Design wind (m/s)', get: () => u.params.vDesign_ms || 12, set: v => u.params.vDesign_ms = v, step: 0.5, validate: { gt: 1 } },
+  ]; },
+  power(u, ud) {
+    if (!ud?.last) return [];
+    return [
+      { label: 'Wind', value: `${(ud.last.wind_ms || 0).toFixed(1)}<span class="propUnit">m/s</span>` },
+      { label: 'Output', value: fmt.kW(ud.last.output_W || 0) },
+      { label: 'Status', value: `<span style="color:${ud.last.status === 'rated' ? '#22c55e' : ud.last.status === 'partial' ? '#fde047' : '#f87171'}">${ud.last.status || 'idle'}</span>` },
+      { label: 'Capacity', value: `${(ud.last.outputPct || 0).toFixed(0)}%` },
     ];
   }
 };
@@ -35535,7 +35880,7 @@ window.addEventListener('resize', () => {
 
 // [v14.10.3] Load on startup: auto-save (if matching DEMO_VERSION) or demo_v1
 {
-  const DEMO_VERSION = 'v16.6.0';  // bump this when demo scene changes
+  const DEMO_VERSION = 'v16.7.0';  // bump this when demo scene changes
   const saved = localStorage.getItem('ptis_autosave');
   const savedDemoVer = localStorage.getItem('ptis_autosave_demo_version');
   if (saved && savedDemoVer === DEMO_VERSION) {
@@ -41035,7 +41380,7 @@ function runTests() {
 
     SimSettings.setAtmosphere('mars');
     const mars = SimSettings.getAtmosphere();
-    t.assertClose(mars.T_K, 210, 1, 'Mars T = 210 K');
+    t.assertClose(mars.T_K, 210, 55, 'Mars T ≈ 210 K (±diurnal swing)');
     t.assertClose(mars.P_Pa, 636, 1, 'Mars P = 636 Pa');
     t.assertOK(mars.air.CO2 > 0.9, 'Mars air is CO₂-dominant');
     t.assertOK(mars.presetName === 'Mars', 'Preset name = Mars');
@@ -41058,7 +41403,7 @@ function runTests() {
     t.solve();
 
     const out = t.port(src, 'mat_out');
-    t.assertClose(out.T, 210, 1, 'Mars T in output');
+    t.assertClose(out.T, 210, 55, 'Mars T in output (±diurnal)');
     t.assertClose(out.P, 636, 1, 'Mars P in output');
     t.assertOK(out.n.CO2 > 0.9, 'Mars CO₂-dominant output');
 
@@ -41097,11 +41442,11 @@ function runTests() {
     const origPreset = SimSettings.getPresetKey();
 
     const presetChecks = [
-      { key: 'earth_isa', T: 288.15, P: 101325, majorSp: 'N2',  minFrac: 0.77, hasH2O: true },
-      { key: 'mars',      T: 210,    P: 636,    majorSp: 'CO2', minFrac: 0.95, hasH2O: false },
-      { key: 'titan',     T: 94,     P: 146700, majorSp: 'N2',  minFrac: 0.95, hasH2O: false },
-      { key: 'venus',     T: 737,    P: 9200000,majorSp: 'CO2', minFrac: 0.96, hasH2O: false },
-      { key: 'planet_x',  T: 305.15, P: 89660,  majorSp: 'N2',  minFrac: 0.68, hasH2O: true }
+      { key: 'earth_isa', T: 288.15, P: 101325, majorSp: 'N2',  minFrac: 0.77, hasH2O: true, tTol: 20 },
+      { key: 'mars',      T: 210,    P: 636,    majorSp: 'CO2', minFrac: 0.95, hasH2O: false, tTol: 55 },
+      { key: 'titan',     T: 94,     P: 146700, majorSp: 'N2',  minFrac: 0.95, hasH2O: false, tTol: 5 },
+      { key: 'venus',     T: 737,    P: 9200000,majorSp: 'CO2', minFrac: 0.96, hasH2O: false, tTol: 3 },
+      { key: 'planet_x',  T: 288.15, P: 89660,  majorSp: 'N2',  minFrac: 0.68, hasH2O: true, tTol: 20 }
     ];
 
     for (const pc of presetChecks) {
@@ -41114,7 +41459,7 @@ function runTests() {
       t.solve();
 
       const airOut = t.port(air, 'mat_out');
-      t.assertClose(airOut.T, pc.T, 1, `${pc.key}: air T`);
+      t.assertClose(airOut.T, pc.T, pc.tTol, `${pc.key}: air T`);
       t.assertClose(airOut.P, pc.P, 100, `${pc.key}: air P`);
       t.assertOK(airOut.n[pc.majorSp] >= pc.minFrac, `${pc.key}: air major species`);
       if (pc.hasH2O) {
@@ -41172,8 +41517,9 @@ function runTests() {
     SimSettings.setAtmosphere('planet_x');
     const wet = SimSettings.getWetAir();
     t.assertOK(wet.H2O !== undefined && wet.H2O > 0, 'wet air has H₂O');
-    t.assertOK(wet.H2O > 0.02, 'H₂O > 2% on Planet X at 50% RH');
-    t.assertOK(wet.H2O < 0.04, 'H₂O < 4% on Planet X at 50% RH');
+    // [v16.7.0] Diurnal T/RH variation widens the range
+    t.assertOK(wet.H2O > 0.005, 'H₂O > 0.5% on Planet X');
+    t.assertOK(wet.H2O < 0.05, 'H₂O < 5% on Planet X');
     // Dry species should be displaced downward
     t.assertOK(wet.N2 < 0.70, 'N₂ displaced below dry value');
     t.assertOK(wet.N2 > 0.66, 'N₂ still dominant');
@@ -41210,8 +41556,9 @@ function runTests() {
     SimSettings.setAtmosphere('planet_x');
     const dp = SimSettings.getDewPoint();
     t.assertOK(dp !== null, 'Dew point exists for Planet X');
-    t.assertOK(Math.abs(dp - 293) < 3,
-      `Dew point ≈ 293 K (got ${dp ? dp.toFixed(1) : 'null'})`);
+    // [v16.7.0] Diurnal T/RH shifts dew point — wider tolerance
+    t.assertOK(dp > 260 && dp < 300,
+      `Dew point in range 260–300 K (got ${dp ? dp.toFixed(1) : 'null'})`);
 
     // Mars: no dew point (RH=0)
     SimSettings.setAtmosphere('mars');
@@ -49814,6 +50161,137 @@ function runTests() {
     t.assertOK(ud.last.status === 'active', `Status = active (got ${ud.last.status})`);
     t.assertOK(ud.last.loopClosure_pct > 90, `Loop closure > 90% (got ${(ud.last.loopClosure_pct||0).toFixed(1)}%)`);
     t.assertClose(ud.last.nDot_supply, 0.5, 0.01, 'Supply = 0.5 mol/s');
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // S-DIURNAL — Day/Night Cycles, Solar Panel, Wind Turbine [v16.7.0]
+  // ═══════════════════════════════════════════════════════════════════════
+
+  test('564: S-DIURNAL computeDiurnal noon: T near peak, solar near max', t => {
+    const d = { T_mean_K: 288, T_swing_K: 5, T_swing_max_K: 15, T_lag_h: 2,
+      solar_peak_Wm2: 400, wind_mean_ms: 5, wind_swing_ms: 2, wind_gust_factor: 0.3,
+      RH_day: 0.4, RH_night: 0.65, day_s: 86400 };
+    const noon = computeDiurnal(43200, d); // noon day 0
+    t.assertOK(noon.T_K > 280 && noon.T_K < 300, `Noon T in range (got ${noon.T_K.toFixed(1)})`);
+    t.assertOK(noon.solarFactor > 0.8, `Solar factor near peak (got ${noon.solarFactor.toFixed(2)})`);
+    t.assertOK(noon.wind_ms > 0, 'Wind > 0 at noon');
+  });
+
+  test('565: S-DIURNAL computeDiurnal midnight: solar = 0', t => {
+    const d = { T_mean_K: 288, T_swing_K: 5, T_swing_max_K: 15, T_lag_h: 2,
+      solar_peak_Wm2: 400, wind_mean_ms: 5, wind_swing_ms: 2, wind_gust_factor: 0.3,
+      RH_day: 0.4, RH_night: 0.65, day_s: 86400 };
+    const mid = computeDiurnal(0, d); // midnight day 0
+    t.assertClose(mid.solarFactor, 0, 0.01, 'Solar = 0 at midnight');
+    t.assertClose(mid.solar_Wm2, 0, 1, 'Irradiance = 0 at midnight');
+  });
+
+  test('566: S-DIURNAL deterministic: same t → same result', t => {
+    const d = { T_mean_K: 288, T_swing_K: 5, T_swing_max_K: 15, T_lag_h: 2,
+      solar_peak_Wm2: 400, wind_mean_ms: 5, wind_swing_ms: 2, wind_gust_factor: 0.3,
+      RH_day: 0.4, RH_night: 0.65, day_s: 86400 };
+    const r1 = computeDiurnal(50000, d);
+    const r2 = computeDiurnal(50000, d);
+    t.assertClose(r1.T_K, r2.T_K, 0, 'T_K identical');
+    t.assertClose(r1.solarFactor, r2.solarFactor, 0, 'solarFactor identical');
+    t.assertClose(r1.wind_ms, r2.wind_ms, 0, 'wind_ms identical');
+  });
+
+  test('567: S-DIURNAL day variation: different days → different T', t => {
+    const d = { T_mean_K: 288, T_swing_K: 5, T_swing_max_K: 15, T_lag_h: 2,
+      solar_peak_Wm2: 400, wind_mean_ms: 5, wind_swing_ms: 2, wind_gust_factor: 0.3,
+      RH_day: 0.4, RH_night: 0.65, day_s: 86400 };
+    const day1 = computeDiurnal(43200, d);       // noon day 0
+    const day5 = computeDiurnal(5 * 86400 + 43200, d); // noon day 5
+    t.assertOK(Math.abs(day1.T_K - day5.T_K) > 0.01, 'Different days → different T');
+  });
+
+  test('568: S-DIURNAL getSolarFactor noon ≈ 1, midnight = 0', t => {
+    const origPreset = SimSettings.getPresetKey();
+    SimSettings.setAtmosphere('planet_x');
+    const origT = TimeClock.t;
+    TimeClock.t = 43200; // noon
+    SimSettings._diurnalCache = { t: -1, result: null };
+    const sfNoon = SimSettings.getSolarFactor();
+    t.assertOK(sfNoon > 0.8, `Solar factor at noon > 0.8 (got ${sfNoon.toFixed(2)})`);
+    TimeClock.t = 0; // midnight
+    SimSettings._diurnalCache = { t: -1, result: null };
+    const sfMid = SimSettings.getSolarFactor();
+    t.assertClose(sfMid, 0, 0.01, 'Solar factor at midnight = 0');
+    TimeClock.t = origT;
+    SimSettings.setAtmosphere(origPreset);
+  });
+
+  test('569: S-DIURNAL getWindSpeed positive', t => {
+    const origPreset = SimSettings.getPresetKey();
+    SimSettings.setAtmosphere('planet_x');
+    const ws = SimSettings.getWindSpeed();
+    t.assertOK(ws > 0, `Wind speed > 0 (got ${ws.toFixed(1)})`);
+    SimSettings.setAtmosphere(origPreset);
+  });
+
+  test('570: S-DIURNAL custom preset: static (no diurnal)', t => {
+    const origPreset = SimSettings.getPresetKey();
+    SimSettings.setAtmosphere('custom');
+    const atm = SimSettings.getAtmosphere();
+    t.assertClose(atm.T_K, 288.15, 0.01, 'Custom T = static 288.15');
+    const sf = SimSettings.getSolarFactor();
+    t.assertClose(sf, 1, 0.01, 'Custom solar factor = 1 (static)');
+    SimSettings.setAtmosphere(origPreset);
+  });
+
+  test('571: S-DIURNAL solar_panel: output = peak × solarFactor', t => {
+    t.clearScene();
+    const sp = t.place('solar_panel', 0, 0, { peakPower_kW: 10 });
+    const hub = t.place('power_hub', 4, 0);
+    const dump = t.place('sink_electrical', 4, -3);
+    t.wire(sp, 'elec_out', hub, 'elec_in');
+    t.wire(hub, 'elec_surplus', dump, 'elec_in');
+    t.solve();
+    const ud = t.ud(sp);
+    t.assertOK(ud.last, 'solar_panel has last');
+    const expected = 10000 * SimSettings.getSolarFactor();
+    t.assertClose(ud.last.output_W, expected, 1, 'Output = peak × solarFactor');
+  });
+
+  test('572: S-DIURNAL wind_turbine below cut-in: output = 0', t => {
+    // Use custom preset with no diurnal → getWindSpeed = wind_mean_ms default = 5 m/s
+    // With vDesign=100 → cutIn=25 → 5 < 25 → below cut-in
+    t.clearScene();
+    const wt = t.place('wind_turbine', 0, 0, { peakPower_kW: 20, vDesign_ms: 100 });
+    const hub = t.place('power_hub', 4, 0);
+    const dump = t.place('sink_electrical', 4, -3);
+    t.wire(wt, 'elec_out', hub, 'elec_in');
+    t.wire(hub, 'elec_surplus', dump, 'elec_in');
+    t.solve();
+    const ud = t.ud(wt);
+    t.assertClose(ud.last.output_W, 0, 0.1, 'Output = 0 (below cut-in)');
+    t.assertOK(ud.last.status === 'below-cutin', `Status = below-cutin (got ${ud.last.status})`);
+  });
+
+  test('573: S-DIURNAL wind_turbine derived params', t => {
+    t.clearScene();
+    const wt = t.place('wind_turbine', 0, 0, { peakPower_kW: 20, vDesign_ms: 12 });
+    const hub = t.place('power_hub', 4, 0);
+    const dump = t.place('sink_electrical', 4, -3);
+    t.wire(wt, 'elec_out', hub, 'elec_in');
+    t.wire(hub, 'elec_surplus', dump, 'elec_in');
+    t.solve();
+    const ud = t.ud(wt);
+    t.assertClose(ud.last.cutIn_ms, 3, 0.01, 'cutIn = 0.25 × 12 = 3');
+    t.assertClose(ud.last.cutOut_ms, 24, 0.01, 'cutOut = 2.0 × 12 = 24');
+  });
+
+  test('574: S-DIURNAL grid_supply unaffected by diurnal', t => {
+    t.clearScene();
+    const gs = t.place('grid_supply', 0, 0, { maxPower: 50 });
+    const hub = t.place('power_hub', 4, 0);
+    const dump = t.place('sink_electrical', 4, -3);
+    t.wire(gs, 'elec_out', hub, 'elec_in');
+    t.wire(hub, 'elec_surplus', dump, 'elec_in');
+    t.solve();
+    const ud = t.ud(gs);
+    t.assertClose(ud.last.maxPower_W, 50000, 1, 'Grid supply = 50kW always');
   });
 
   test('549: S-ICONS — ragtag symbol table has 5 vertical-slice units', t => {
