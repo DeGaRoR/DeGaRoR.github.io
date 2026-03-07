@@ -300,27 +300,32 @@
   CHANGELOG
   ═══════════════════════════════════════════════════════════════════════════
 
-  ─── v16.8.0 — Atmosphere unit ───────────────────────────────────────────
-  - New defId `atmosphere` (2×2, mat_out with fanOut). Infinite atmospheric
-    reservoir at live T_K/P_Pa/wet composition from getAtmosphere().
-    Pressure-responsive via Cv valve (default Cv=100, opening=100%).
-  - Flow requires downstream suction (compressor/fan creating dP > 0).
-    Direct connection to sink = zero flow (both at P_atm).
-    Pressure trace integration deferred — needs SG/boost investigation
-    for atmospheric-pressure Cv sources. Works in practice when player
-    places a fan profile compressor (Pout slightly above P_atm).
-  - Category: BOUNDARY (Streams). Profile: boundary=true, no limits.
-  - Wet air computed live from diurnal T_K and RH (Psat-based humidity).
-  - Per-connection fan-out openings (same as reservoir/tank pattern).
-  - Output streams have explicit phase:'V' and phaseConstraint:'V'.
-  - Inspector: atmospheric info header, Cv editor (dev), per-connection
-    opening sliders, T/P/RH conditions, flow/status KPIs.
-  - Ragtag icon: rectangular housing with mesh/grate top (4 vertical bars
-    + 2 cross bars), dark viewport with cloud wisps (pulsing), downward
-    arrow hint, 4 bolts, green LED.
-  - Added to _BODY_BBOX, _NO_GAUGE.
-  - 5 tests (575–579): registration, zero-flow, phase V, T/P tracking,
-    closed-opening.
+  ─── v16.8.0 — Atmosphere unit + Fan ─────────────────────────────────────
+
+  **Atmosphere** — infinite atmospheric reservoir at live T/P/wet composition.
+  - defId `atmosphere`, 2×2, mat_out with fanOut. Category BOUNDARY.
+  - Cv valve (default 0.5), dP from pressure trace + vacuum clamp.
+  - SG fix: MW g/mol → kg/mol in ideal gas density (was 1000× off for gas).
+  - Pressure anchor at P_atm. Registered in resolveDownstreamPressures.
+  - Inspector: atm info header, Cv (dev), opening sliders, T/P/RH, flow.
+  - Ragtag: mesh-grate top, cloud wisps viewport, airflow arrow.
+
+  **Fan** — low-deltaP air mover, planet-adaptive (Pout = Pin + deltaP).
+  - defId `fan`, 2×2, mat_in/mat_out/elec_in. Category PRESSURE.
+  - T1 "Vent Fan": deltaP=1000 Pa, η=0.6 (pilot plant, ~65 W).
+  - T2 "Blower": deltaP=3000 Pa, η=0.7 (demo plant, ~300 W).
+  - No user params except power priority. Curtails gracefully on low power.
+  - Added to traceToAnchor as boost device with deltaP-based Pout estimate.
+  - Inspector: priority param, ΔP set/actual, shaft power, status.
+  - Ragtag: rounded cylindrical housing, dark viewport with 5 curved fan
+    blades (pulsing), airflow arrows, motor housing on top.
+
+  **Pressure trace fixes:**
+  - Atmosphere tick clamps P_downstream ≥ 0 (physical vacuum limit).
+  - Fan recognized as boost device in traceToAnchor alongside pump/compressor.
+
+  8 tests (575–582): atmosphere registration/flow/phase/T-P tracking,
+  fan registration/tiers, atmosphere→fan end-to-end, fan without power.
 
   ═══ v16.7.0 — S-DIURNAL Phase 1: Day/Night Cycles ═══════════════════════
 
@@ -17006,6 +17011,98 @@ UnitRegistry.register('compressor', {
   }
 });
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// FAN — Low-deltaP air mover [v16.8.0]
+// ═══════════════════════════════════════════════════════════════════════════════
+// Same physics as compressor but Pout = Pin + deltaP (planet-adaptive).
+// No user-editable params — everything from profile defaults.
+// Pairs with atmosphere unit: atmosphere(Cv) → fan → downstream.
+UnitRegistry.register('fan', {
+  name: 'Fan',
+  category: UnitCategories.PRESSURE,
+  w: 2,
+  h: 2,
+  ports: [
+    { portId: 'mat_in',  dir: PortDir.IN,  type: StreamType.MATERIAL,   x: 0, y: 1 },
+    { portId: 'mat_out', dir: PortDir.OUT, type: StreamType.MATERIAL,   x: 2, y: 1 },
+    { portId: 'elec_in', dir: PortDir.IN,  type: StreamType.ELECTRICAL, x: 1, y: 0 }
+  ],
+  presentations: {
+    'box/default':       { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, mat_out:{x:2,y:1}, elec_in:{x:1,y:0} } },
+    'box/elec-B':        { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, mat_out:{x:2,y:1}, elec_in:{x:1,y:2} } },
+    'box/output-bottom': { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, mat_out:{x:1,y:2}, elec_in:{x:1,y:0} } }
+  },
+  limitParams: ['T_LL', 'T_L', 'T_H', 'T_HH', 'P_LL', 'P_L', 'P_H', 'P_HH'],
+  limits: { S: { T_LL: 243, T_L: 263, T_H: 373, T_HH: 423, P_LL: 50000, P_L: 80000, P_H: 200000, P_HH: 250000 } },
+  tick(u, ports, par, ctx) {
+    const sIn = ports.mat_in;
+    const sElec = ports.elec_in;
+    if (!sIn) return;
+
+    // Fry guard
+    if (u.fried) {
+      u.powerDemand = 0;
+      ports.mat_out = { type: StreamType.MATERIAL, P: sIn.P, n: { ...sIn.n },
+        phaseConstraint: 'V', H_target_Jps: thermo.getHdot_Jps(sIn) };
+      u.last = { fried: true, error: { severity: ErrorSeverity.CATASTROPHIC,
+        message: 'Fan destroyed by electrical overload. Replace or reset.' } };
+      return;
+    }
+
+    const deltaP = par.deltaP || 1000;
+    const eta = par.eta || 0.6;
+    const Pout = sIn.P + deltaP;
+
+    // Require electrical input
+    if (!sElec) {
+      u.powerDemand = 0;
+      ports.mat_out = { type: StreamType.MATERIAL, P: sIn.P, n: { ...sIn.n },
+        phaseConstraint: 'V', H_target_Jps: thermo.getHdot_Jps(sIn) };
+      u.last = { Pin: sIn.P, Pout, deltaP, W_shaft: 0, curtailed: true,
+        error: { severity: ErrorSeverity.MAJOR,
+          message: 'No electrical supply — fan cannot operate' } };
+      return;
+    }
+
+    const workFull = thermo.computeCompressorWork(sIn, Pout, eta);
+    u.powerDemand = workFull.W_shaft_W;
+
+    const s = ctx ? ctx.scratch : {};
+    const W_avail = s.hubAllocated_W ?? (sElec.actual ?? sElec.capacity ?? 0);
+
+    let Pout_actual, W_actual;
+    if (W_avail >= workFull.W_shaft_W * 0.999) {
+      // Full power — reach target deltaP
+      Pout_actual = Pout;
+      W_actual = workFull.W_shaft_W;
+    } else if (W_avail > 0) {
+      // Curtailed — find achievable Pout from available power
+      const rev = thermo.reverseCompressorFromPower(sIn, W_avail, eta);
+      Pout_actual = Math.min(rev.P_actual, Pout);
+      W_actual = W_avail;
+    } else {
+      Pout_actual = sIn.P;
+      W_actual = 0;
+    }
+
+    ports.mat_out = {
+      type: StreamType.MATERIAL,
+      P: Pout_actual,
+      n: { ...sIn.n },
+      H_target_Jps: thermo.computeCompressorWork(sIn, Pout_actual, eta).H_target_Jps
+    };
+
+    const curtailed = Pout_actual < Pout * 0.999;
+    u.last = {
+      Pin: sIn.P, Pout_setpoint: Pout, Pout_actual,
+      deltaP, deltaP_actual: Pout_actual - sIn.P,
+      W_shaft: W_actual, W_avail,
+      eta, curtailed,
+      status: W_actual < 1 ? 'off' : curtailed ? 'curtailed' : 'running'
+    };
+  }
+});
+
 // ═══════════════════════════════════════════════════════════════════════
 // [v14.9.0 S6 Amendment] COMPRESSOR (DIAPHRAGM) — cooled variant
 // 5 ports: gas in/out + cooling water in/out + electrical motor
@@ -19833,6 +19930,19 @@ ProfileRegistry.register('compressor', {
   defId: 'compressor', name: 'Compressor (Piston)', category: UnitCategories.PRESSURE, tiers: [1],
   limits: { 1: { T_LL: 243, T_L: 263, T_H: 473, T_HH: 523, P_LL: 50000, P_L: 80000, P_H: 1200000, P_HH: 1500000, mass_HH: 0.08 } }
 });
+// [v16.8.0] Fan profiles — low-deltaP air movers
+ProfileRegistry.register('fan', {
+  defId: 'fan', name: 'Vent Fan', category: UnitCategories.PRESSURE, tiers: [1, 2],
+  limits: {
+    1: { T_LL: 243, T_L: 263, T_H: 373, T_HH: 423, P_LL: 50000, P_L: 80000, P_H: 200000, P_HH: 250000 },
+    2: { T_LL: 243, T_L: 263, T_H: 373, T_HH: 423, P_LL: 50000, P_L: 80000, P_H: 200000, P_HH: 250000 }
+  },
+  defaults: {
+    1: { deltaP: 1000, eta: 0.6 },
+    2: { deltaP: 3000, eta: 0.7 }
+  },
+  tierNames: { 1: 'Vent Fan', 2: 'Blower' }
+});
 // [v14.9.0 S6 Amendment] Diaphragm compressor — cooled, high-P capable
 ProfileRegistry.register('compressor_diaphragm', {
   defId: 'compressor_diaphragm', name: 'Compressor (Diaphragm)', category: UnitCategories.PRESSURE, tiers: [1, 2],
@@ -21658,10 +21768,12 @@ function traceToAnchor(scene, unitId, portId, P_current,
   }
 
   // PUMP / COMPRESSOR (boost)
-  if (nextU.defId === 'pump' || nextU.defId === 'compressor') {
+  if (nextU.defId === 'pump' || nextU.defId === 'compressor' || nextU.defId === 'fan') {
     const Pout = nextU.last?.Pout_actual
               || nextU.params.Pout
-              || (nextU.defId === 'pump'
+              || (nextU.defId === 'fan'
+                   ? P_current + (nextU.params.deltaP || 1000)
+                   : nextU.defId === 'pump'
                    ? P_current + 500000
                    : P_current * 2);
     const boost = Math.max(0, Pout - P_current);
@@ -26270,6 +26382,7 @@ const _BODY_BBOX = {
   reservoir:                { x:28, y:6,  w:40, h:66 },
   atmosphere:               { x:14, y:16, w:68, h:64 },
   compressor:               { x:14, y:12, w:68, h:46 },
+  fan:                      { x:16, y:18, w:64, h:60 },
   compressor_diaphragm:     { x:14, y:8,  w:68, h:64 },
   gas_turbine:              { x:14, y:16, w:68, h:52 },
   electric_heater:          { x:14, y:8,  w:68, h:52 },
@@ -27401,6 +27514,46 @@ const _RAGTAG_SYMBOLS = {
     }
     _rtChip(g, wx+36, wy+30);
     g.appendChild(svgEl('circle', { cx:wx+28, cy:wy+62, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.2', 'pointer-events':'none' }));
+  },
+  // ── Fan [v16.8.0] (2×2 = 96×96 canvas) ──
+  // Cylindrical housing with spinning fan blades inside dark viewport
+  fan(g, wx, wy, ww, wh, pal, def, unitId) {
+    const pres = getPresentation(def, scene.units.get(unitId));
+    _rtNozzle(g, wx, wy, ww, wh, wx+16, wy+18, 64, 60, def, pres, pal, unitId);
+    // Cylindrical housing
+    g.appendChild(svgEl('rect', { x:wx+16, y:wy+18, width:64, height:60, rx:14, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'pointer-events':'none' }));
+    // Dark viewport (circular — fan chamber)
+    const cx = wx+48, cy = wy+48;
+    g.appendChild(svgEl('circle', { cx, cy, r:20, fill:'#06101e', stroke:pal.rim, 'stroke-width':1.5, 'pointer-events':'none' }));
+    // Hub center
+    g.appendChild(svgEl('circle', { cx, cy, r:4, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':1.5, 'pointer-events':'none' }));
+    // 5 fan blades (72° apart) — curved, thinner than turbine blades
+    for (let b = 0; b < 5; b++) {
+      const ang = b * 2 * Math.PI / 5 - Math.PI / 2;
+      const angOff = ang + 0.3; // slight curve
+      const bx1 = cx + Math.cos(ang) * 6, by1 = cy + Math.sin(ang) * 6;
+      const bx2 = cx + Math.cos(angOff) * 18, by2 = cy + Math.sin(angOff) * 18;
+      const cpx = cx + Math.cos(ang + 0.15) * 14, cpy = cy + Math.sin(ang + 0.15) * 14;
+      g.appendChild(svgEl('path', {
+        d: `M${bx1},${by1} Q${cpx},${cpy} ${bx2},${by2}`,
+        fill: 'none', stroke: '#94a3b8', 'stroke-width': 3, 'stroke-linecap': 'round',
+        'data-anim': 'rotor-pulse', 'data-opbase': '0.5',
+        'pointer-events': 'none'
+      }));
+    }
+    // Airflow arrows (intake left, exhaust right)
+    g.appendChild(svgEl('path', { d:`M${wx+22},${wy+48} L${wx+30},${wy+48}`, fill:'none', stroke:'#60a5fa', 'stroke-width':1.2, 'stroke-linecap':'round', opacity:0.4, 'pointer-events':'none' }));
+    g.appendChild(svgEl('polygon', { points:`${wx+28},${wy+45} ${wx+32},${wy+48} ${wx+28},${wy+51}`, fill:'#60a5fa', opacity:0.3, 'pointer-events':'none' }));
+    g.appendChild(svgEl('path', { d:`M${wx+64},${wy+48} L${wx+72},${wy+48}`, fill:'none', stroke:'#60a5fa', 'stroke-width':1.2, 'stroke-linecap':'round', opacity:0.4, 'pointer-events':'none' }));
+    g.appendChild(svgEl('polygon', { points:`${wx+70},${wy+45} ${wx+74},${wy+48} ${wx+70},${wy+51}`, fill:'#60a5fa', opacity:0.3, 'pointer-events':'none' }));
+    // Bolts
+    _rtBolt(g, wx+20, wy+22); _rtBolt(g, wx+72, wy+22);
+    _rtBolt(g, wx+20, wy+70); _rtBolt(g, wx+72, wy+70);
+    // Motor housing on top
+    g.appendChild(svgEl('rect', { x:wx+36, y:wy+6, width:24, height:14, rx:4, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':1.5, 'pointer-events':'none' }));
+    [40,46,52].forEach(x => g.appendChild(svgEl('line', { x1:wx+x, y1:wy+9, x2:wx+x, y2:wy+16, stroke:pal.stroke, 'stroke-width':1.2, opacity:0.5, 'pointer-events':'none' })));
+    // LED
+    g.appendChild(svgEl('circle', { cx:wx+24, cy:wy+26, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.4', 'pointer-events':'none' }));
   },
   // ── Gas Turbine (sheet 214-222, centered dy+6) ──
   // 2×2 body 68×52 rx:8, rotating 3-blade impeller, spark-emit lightning particles
@@ -31836,6 +31989,30 @@ UnitInspector.compressor = {
     if (ud.last.Pout_actual != null) items.push({ label: 'P actual', value: fmt.P(ud.last.Pout_actual), tone: ud.last.curtailed ? 'warn' : '' });
     if (ud.last.W_isentropic != null) items.push({ label: 'Isentropic', value: fmt.kW(ud.last.W_isentropic) });
     return items;
+  }
+};
+
+// [v16.8.0] Fan inspector — no user params, status-only
+UnitInspector.fan = {
+  params(u) { return [
+    { label: 'Priority', get: () => u.params.powerPriority ?? 2,
+      set: v => u.params.powerPriority = Math.max(1, Math.round(v)), step: 1, validate: { gte: 1 } },
+  ]; },
+  conditions(u, ud) {
+    if (!ud?.last) return [];
+    return [
+      { label: 'ΔP set', value: `${(ud.last.deltaP || 0).toFixed(0)}<span class="propUnit">Pa</span>` },
+      { label: 'ΔP actual', value: `${(ud.last.deltaP_actual || 0).toFixed(0)}<span class="propUnit">Pa</span>` },
+    ];
+  },
+  power(u, ud) {
+    if (!ud?.last) return [];
+    const statusColor = ud.last.status === 'running' ? '#22c55e'
+      : ud.last.status === 'curtailed' ? '#fde047' : '#f87171';
+    return [
+      { label: 'Shaft power', value: fmt.kW(ud.last.W_shaft || 0) },
+      { label: 'Status', value: `<span style="color:${statusColor}">${ud.last.status || 'off'}</span>` },
+    ];
   }
 };
 
@@ -50630,6 +50807,59 @@ function runTests() {
     const ud = t.ud(atmos);
     t.assertClose(ud.last.T_K, atm.T_K, 0.1, 'T matches live atmosphere');
     t.assertClose(ud.last.P_Pa, atm.P_Pa, 1, 'P matches live atmosphere');
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // Fan unit [v16.8.0]
+  // ═══════════════════════════════════════════════════════════════════════
+
+  test('580: Fan: registration, profile tiers, and defaults', t => {
+    const def = UnitRegistry.get('fan');
+    t.assertOK(def, 'fan registered');
+    t.assertOK(def.category === UnitCategories.PRESSURE.name, 'Category = Pressure');
+    const profile = ProfileRegistry.get('fan');
+    t.assertOK(profile, 'Profile registered');
+    t.assertOK(profile.tiers.includes(1) && profile.tiers.includes(2), 'Has T1 and T2');
+    t.assertClose(profile.defaults[1].deltaP, 1000, 0.01, 'T1 deltaP = 1000');
+    t.assertClose(profile.defaults[2].deltaP, 3000, 0.01, 'T2 deltaP = 3000');
+  });
+
+  test('581: Atmosphere → fan → sink: end-to-end airflow', t => {
+    t.clearScene();
+    const atm = SimSettings.getAtmosphere();
+    const atmos = t.place('atmosphere', 0, 0, { Cv: 0.5, opening_pct: 100 });
+    const fan = t.place('fan', 4, 0, { deltaP: 1000, eta: 0.6 });
+    const hub = t.place('power_hub', 4, -3);
+    const grid = t.place('grid_supply', 4, -6, { maxPower: 10 });
+    const dump = t.place('sink_electrical', 8, -3, { ratedPower_kW: 5 });
+    const snk = t.place('sink', 8, 0);
+    t.wire(atmos, 'mat_out', fan, 'mat_in');
+    t.wire(grid, 'elec_out', hub, 'elec_in');
+    t.wire(hub, 'elec_out', fan, 'elec_in');
+    t.wire(hub, 'elec_surplus', dump, 'elec_in');
+    t.wire(fan, 'mat_out', snk, 'mat_in');
+    t.solve({ maxIter: 200 });
+    const udAtm = t.ud(atmos);
+    const udFan = t.ud(fan);
+    t.assertOK(udAtm.last.Q_mol_s > 0.1, `Atmosphere flow > 0.1 (got ${(udAtm.last.Q_mol_s||0).toFixed(3)})`);
+    t.assertOK(udFan?.last, 'Fan has last');
+    t.assertOK(udFan.last.status === 'running', `Fan running (got ${udFan.last.status})`);
+    t.assertOK(udFan.last.W_shaft > 0, 'Fan draws power');
+    t.assertOK(udFan.last.W_shaft < 1000, `Fan power < 1kW for vent (got ${(udFan.last.W_shaft||0).toFixed(0)} W)`);
+  });
+
+  test('582: Fan without power: passthrough, no boost', t => {
+    t.clearScene();
+    const src = t.place('source', 0, 0, { species: 'N2', nDot: 1, T: 300, P: 100000, phaseConstraint: 'V' });
+    const fan = t.place('fan', 4, 0, { deltaP: 1000, eta: 0.6 });
+    const snk = t.place('sink', 8, 0);
+    t.wire(src, 'mat_out', fan, 'mat_in');
+    t.wire(fan, 'mat_out', snk, 'mat_in');
+    t.solve();
+    const ud = t.ud(fan);
+    t.assertOK(ud?.last?.curtailed === true || ud?.last?.status === 'off', 'Fan off without power');
+    const port = t.port(fan, 'mat_out');
+    t.assertClose(port.P, 100000, 100, 'No pressure boost without power');
   });
 
   test('549: S-ICONS — ragtag symbol table has 5 vertical-slice units', t => {
