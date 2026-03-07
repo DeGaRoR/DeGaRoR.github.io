@@ -25574,13 +25574,6 @@ function _rtCoolCoilExact(g, wx, wy) {
 // [v15.4.0] Shared reactor vessel (rVessel from design sheet) — upper body for 2×3 reactors
 // Draws: body rect, 2 chips, circular viewport with clipped bubbles, 4 bolts, gauge, warning stripes, LED, mat nozzle stubs
 function _rtReactorVessel(g, wx, wy, pal, unitId) {
-  // Mat port nozzle stubs (behind body) — dual-stroke butt caps
-  // Left stub: port (wx, wy+24) → body edge (wx+12)
-  g.appendChild(svgEl('line', { x1:wx, y1:wy+24, x2:wx+12, y2:wy+24, stroke:'#374151', 'stroke-width':10, 'stroke-linecap':'butt', 'pointer-events':'none' }));
-  g.appendChild(svgEl('line', { x1:wx, y1:wy+24, x2:wx+12, y2:wy+24, stroke:'#4b5563', 'stroke-width':6, 'stroke-linecap':'butt', 'pointer-events':'none' }));
-  // Right stub: body edge (wx+84) → port (wx+96)
-  g.appendChild(svgEl('line', { x1:wx+84, y1:wy+24, x2:wx+96, y2:wy+24, stroke:'#374151', 'stroke-width':10, 'stroke-linecap':'butt', 'pointer-events':'none' }));
-  g.appendChild(svgEl('line', { x1:wx+84, y1:wy+24, x2:wx+96, y2:wy+24, stroke:'#4b5563', 'stroke-width':6, 'stroke-linecap':'butt', 'pointer-events':'none' }));
   // Body: rect 72×68 rx:14 at (12,4)
   g.appendChild(svgEl('rect', { x:wx+12, y:wy+4, width:72, height:68, rx:14, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'pointer-events':'none' }));
   // Chips
@@ -25609,6 +25602,38 @@ function _rtReactorVessel(g, wx, wy, pal, unitId) {
 // Ragtag pipe-nozzle stubs — dual-stroke lines from body edge to port position,
 // same technique and colors as the ragtag pipe in drawConnections().
 // Drawn BEFORE body so body overlaps the inner end. Connection meets the outer end.
+// [v15.4.0] Get per-port colors for color-by mode (used by L-bend risers and custom piping)
+function _rtPortColors(unitId, portId, isElec) {
+  const _gradMode = ui.colorBy === 'temperature' || ui.colorBy === 'pressure'
+    || ui.colorBy === 'phase' || ui.colorBy === 'composition';
+  if (_gradMode && !isElec && unitId) {
+    const _ud = scene.runtime?.unitData?.get(unitId);
+    const ps = _ud?.ports?.[portId];
+    if (ps) {
+      let c = null;
+      if (ui.colorBy === 'temperature' && ps.T != null) c = _visTempColor(ps.T);
+      else if (ui.colorBy === 'pressure' && ps.P != null) c = _visPressColor(ps.P);
+      else if (ui.colorBy === 'phase' && ps.phase) c = _VIS_PHASE[ps.phase];
+      else if (ui.colorBy === 'composition') c = _visCompColor(ps);
+      if (c) return { outer: _darken(c, 0.4), inner: c };
+    }
+  }
+  return isElec ? { outer:'#92400e', inner:'#eab308' } : { outer:'#374151', inner:'#4b5563' };
+}
+// [v15.4.0] Draw directional arrow on unconnected port
+function _rtPortArrow(g, unitId, portId, px, py, edge, isOut, isElec) {
+  const connected = unitId && scene.connections.some(c =>
+    (c.from.unitId === unitId && c.from.portId === portId) ||
+    (c.to.unitId === unitId && c.to.portId === portId));
+  if (connected) return;
+  const ac = isElec ? '#fbbf24' : '#94a3b8';
+  let rot;
+  if (edge === 'right')     rot = isOut ? 0 : 180;
+  else if (edge === 'left') rot = isOut ? 180 : 0;
+  else if (edge === 'bottom') rot = isOut ? 90 : -90;
+  else                        rot = isOut ? -90 : 90;
+  g.appendChild(svgEl('path', { d:'M-5,-4 L5,0 L-5,4 Z', fill:ac, transform:`translate(${px},${py}) rotate(${rot})`, 'pointer-events':'none' }));
+}
 function _rtNozzle(g, wx, wy, ww, wh, bx, by, bw, bh, def, pres, pal, unitId) {
   const t = scene.tile;
   const _gradMode = ui.colorBy === 'temperature' || ui.colorBy === 'pressure'
@@ -25655,12 +25680,7 @@ function _rtNozzle(g, wx, wy, ww, wh, bx, by, bw, bh, def, pres, pal, unitId) {
       x1 = px; y1 = by + bh; x2 = px; y2 = py;
     }
     const len = Math.hypot(x2-x1, y2-y1);
-    if (len < 1) continue;
-    g.appendChild(svgEl('line', { x1, y1, x2, y2,
-      stroke: outerCol, 'stroke-width': outerW, 'stroke-linecap': 'butt', 'pointer-events': 'none' }));
-    g.appendChild(svgEl('line', { x1, y1, x2, y2,
-      stroke: innerCol, 'stroke-width': innerW, 'stroke-linecap': 'butt', 'pointer-events': 'none' }));
-    // Directional arrow — only show on unconnected ports
+    // Directional arrow — show on unconnected ports even if stub is zero-length
     const _isConnected = unitId && scene.connections.some(c =>
       (c.from.unitId === unitId && c.from.portId === p.portId) ||
       (c.to.unitId === unitId && c.to.portId === p.portId));
@@ -25678,6 +25698,11 @@ function _rtNozzle(g, wx, wy, ww, wh, bx, by, bw, bh, def, pres, pal, unitId) {
         'pointer-events': 'none'
       }));
     }
+    if (len < 1) continue;
+    g.appendChild(svgEl('line', { x1, y1, x2, y2,
+      stroke: outerCol, 'stroke-width': outerW, 'stroke-linecap': 'butt', 'pointer-events': 'none' }));
+    g.appendChild(svgEl('line', { x1, y1, x2, y2,
+      stroke: innerCol, 'stroke-width': innerW, 'stroke-linecap': 'butt', 'pointer-events': 'none' }));
   }
 }
 
@@ -25801,19 +25826,12 @@ const _RAGTAG_SYMBOLS = {
   reactor_jacketed(g, wx, wy, ww, wh, pal, def, unitId) {
     const pres = getPresentation(def, scene.units.get(unitId));
     const t = scene.tile;
-    // 1. Dashed frame: rect(-2,-2, 100,148)
+    // 1. Dashed frame
     g.appendChild(svgEl('rect', { x:wx-2, y:wy-2, width:100, height:148, rx:4, fill:'none', stroke:'#7f1d1d', 'stroke-width':1, 'stroke-dasharray':'4 3', opacity:0.12, 'pointer-events':'none' }));
-    // 2. Dashed jacket outline around vessel zone: rect(4,0, 88,76)
+    // 2. Dashed jacket outline
     g.appendChild(svgEl('rect', { x:wx+4, y:wy, width:88, height:76, rx:18, fill:'#b91c1c', opacity:0.08, stroke:'#7f1d1d', 'stroke-width':2, 'stroke-dasharray':'6 3', 'pointer-events':'none' }));
-    // 3. Electrical stub (behind everything) — dual-stroke yellow from port to resistor zone
-    const elecP = pres.ports.elec_in;
-    const elecTop = elecP && elecP.y < 1;
-    const epy = elecP ? wy + elecP.y * t : (elecTop ? wy : wy + 144);
-    const epx = elecP ? wx + elecP.x * t : wx + 48;
-    const resistorCy = elecTop ? wy + 102 : wy + 102;
-    // Vertical elec stub from port to resistor center
-    g.appendChild(svgEl('line', { x1:epx, y1:epy, x2:epx, y2:elecTop ? wy+102 : wy+102, stroke:'#92400e', 'stroke-width':10, 'stroke-linecap':'butt', 'pointer-events':'none' }));
-    g.appendChild(svgEl('line', { x1:epx, y1:epy, x2:epx, y2:elecTop ? wy+102 : wy+102, stroke:'#eab308', 'stroke-width':6, 'stroke-linecap':'butt', 'pointer-events':'none' }));
+    // 3. Nozzle stubs (behind body) — handles all ports with color-by + arrows
+    _rtNozzle(g, wx, wy, ww, wh, wx+12, wy+4, 72, 68, def, pres, pal, unitId);
     // 4. Shared reactor vessel (body+chips+vp+bubbles+bolts+stripes+gauge+led+mat stubs)
     _rtReactorVessel(g, wx, wy, pal, unitId);
     // 5. Heating resistor — flat stubs + 9 zigzag peaks at cy:102 ±6
@@ -25826,8 +25844,11 @@ const _RAGTAG_SYMBOLS = {
   // ── Reactor Cooled 2×3 — sheet line 359-362 ──
   // dashed frame, rVessel, coolCoil, led
   reactor_cooled(g, wx, wy, ww, wh, pal, def, unitId) {
-    // 1. Dashed frame: rect(-2,-2, 100,148) stroke:#1e3a5f
+    const pres = getPresentation(def, scene.units.get(unitId));
+    // 1. Dashed frame
     g.appendChild(svgEl('rect', { x:wx-2, y:wy-2, width:100, height:148, rx:4, fill:'none', stroke:'#1e3a5f', 'stroke-width':1, 'stroke-dasharray':'4 3', opacity:0.12, 'pointer-events':'none' }));
+    // 2. Nozzle stubs (behind body) — handles all ports
+    _rtNozzle(g, wx, wy, ww, wh, wx+12, wy+4, 72, 68, def, pres, pal, unitId);
     // 2. Shared reactor vessel
     _rtReactorVessel(g, wx, wy, pal, unitId);
     // 3. Exact coolCoil path from sheet: M0,120 → zigzag → 96,120
@@ -25837,25 +25858,11 @@ const _RAGTAG_SYMBOLS = {
   // ── Fuel Cell 2×3 — sheet line 377-386 ──
   // dashed frame, stack body, chip, vpR, MEA plates, bolts, amber terminals, 3 pipe stubs, coolCoil, led
   fuel_cell(g, wx, wy, ww, wh, pal, def, unitId) {
-    // 1. Dashed frame: rect(-2,-2, 100,148) stroke:#1e3a5f
+    const pres = getPresentation(def, scene.units.get(unitId));
+    // 1. Dashed frame
     g.appendChild(svgEl('rect', { x:wx-2, y:wy-2, width:100, height:148, rx:4, fill:'none', stroke:'#1e3a5f', 'stroke-width':1, 'stroke-dasharray':'4 3', opacity:0.12, 'pointer-events':'none' }));
-    // 2. Mat port nozzle stubs (behind body) — pipe(-4,18,20,10), pipe(-4,54,20,10), pipe(80,42,18,10)
-    // Left stub mat_in_cat y:18 center=23 ≈ port y:0.5*48=24
-    g.appendChild(svgEl('line', { x1:wx, y1:wy+23, x2:wx+14, y2:wy+23, stroke:'#374151', 'stroke-width':10, 'stroke-linecap':'butt', 'pointer-events':'none' }));
-    g.appendChild(svgEl('line', { x1:wx, y1:wy+23, x2:wx+14, y2:wy+23, stroke:'#4b5563', 'stroke-width':6, 'stroke-linecap':'butt', 'pointer-events':'none' }));
-    // Left stub mat_in_ano y:54 center=59 ≈ port y:1.5*48=72... sheet draws at y:54 center=59
-    g.appendChild(svgEl('line', { x1:wx, y1:wy+59, x2:wx+14, y2:wy+59, stroke:'#374151', 'stroke-width':10, 'stroke-linecap':'butt', 'pointer-events':'none' }));
-    g.appendChild(svgEl('line', { x1:wx, y1:wy+59, x2:wx+14, y2:wy+59, stroke:'#4b5563', 'stroke-width':6, 'stroke-linecap':'butt', 'pointer-events':'none' }));
-    // Right stub mat_out y:42 center=47 ≈ port y:1*48=48
-    g.appendChild(svgEl('line', { x1:wx+82, y1:wy+47, x2:wx+96, y2:wy+47, stroke:'#374151', 'stroke-width':10, 'stroke-linecap':'butt', 'pointer-events':'none' }));
-    g.appendChild(svgEl('line', { x1:wx+82, y1:wy+47, x2:wx+96, y2:wy+47, stroke:'#4b5563', 'stroke-width':6, 'stroke-linecap':'butt', 'pointer-events':'none' }));
-    // 2b. Electrical stub for elec_out — dual-stroke yellow from port to body edge (behind body)
-    const fcElecP = pres.ports.elec_out;
-    if (fcElecP) {
-      const fepx = wx + fcElecP.x * t, fepy = wy + fcElecP.y * t;
-      g.appendChild(svgEl('line', { x1:fepx, y1:fepy, x2:fepx, y2:wy+6, stroke:'#92400e', 'stroke-width':10, 'stroke-linecap':'butt', 'pointer-events':'none' }));
-      g.appendChild(svgEl('line', { x1:fepx, y1:fepy, x2:fepx, y2:wy+6, stroke:'#eab308', 'stroke-width':6, 'stroke-linecap':'butt', 'pointer-events':'none' }));
-    }
+    // 2. Nozzle stubs (behind body) — handles all ports with color-by + arrows
+    _rtNozzle(g, wx, wy, ww, wh, wx+14, wy+6, 68, 74, def, pres, pal, unitId);
     // 3. Stack body: rect(14,6, 68,74, rx:6)
     g.appendChild(svgEl('rect', { x:wx+14, y:wy+6, width:68, height:74, rx:6, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'pointer-events':'none' }));
     // 4. chip(64,14)
@@ -25882,15 +25889,11 @@ const _RAGTAG_SYMBOLS = {
   // dashed frame, body rect, chip, vpR, diaphragm curve, bubbles, bottom plate,
   // bolts, pipe stubs, coolCoil, drive shaft+flywheel, amb, led
   compressor_diaphragm(g, wx, wy, ww, wh, pal, def, unitId) {
-    // 1. Dashed frame: rect(-2,-2, 100,148) stroke:#4c1d95
+    const pres = getPresentation(def, scene.units.get(unitId));
+    // 1. Dashed frame
     g.appendChild(svgEl('rect', { x:wx-2, y:wy-2, width:100, height:148, rx:4, fill:'none', stroke:pal.stroke, 'stroke-width':1, 'stroke-dasharray':'4 3', opacity:0.12, 'pointer-events':'none' }));
-    // 2. Mat port nozzle stubs — pipe(-4,30,20,10) and pipe(80,30,18,10) → center y:35
-    // Left: port y:1*48=48, sheet pipe at y:30 center=35
-    g.appendChild(svgEl('line', { x1:wx, y1:wy+35, x2:wx+14, y2:wy+35, stroke:'#374151', 'stroke-width':10, 'stroke-linecap':'butt', 'pointer-events':'none' }));
-    g.appendChild(svgEl('line', { x1:wx, y1:wy+35, x2:wx+14, y2:wy+35, stroke:'#4b5563', 'stroke-width':6, 'stroke-linecap':'butt', 'pointer-events':'none' }));
-    // Right:
-    g.appendChild(svgEl('line', { x1:wx+82, y1:wy+35, x2:wx+96, y2:wy+35, stroke:'#374151', 'stroke-width':10, 'stroke-linecap':'butt', 'pointer-events':'none' }));
-    g.appendChild(svgEl('line', { x1:wx+82, y1:wy+35, x2:wx+96, y2:wy+35, stroke:'#4b5563', 'stroke-width':6, 'stroke-linecap':'butt', 'pointer-events':'none' }));
+    // 2. Nozzle stubs (behind body) — handles all ports with color-by + arrows
+    _rtNozzle(g, wx, wy, ww, wh, wx+14, wy+8, 68, 64, def, pres, pal, unitId);
     // 3. Body: rect(14,8, 68,64, rx:8)
     g.appendChild(svgEl('rect', { x:wx+14, y:wy+8, width:68, height:64, rx:8, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'pointer-events':'none' }));
     // 4. chip(64,16)
@@ -25913,14 +25916,7 @@ const _RAGTAG_SYMBOLS = {
     _rtBolt(g, wx+18, wy+66); _rtBolt(g, wx+78, wy+66);
     // 10. Exact coolCoil path
     _rtCoolCoilExact(g, wx, wy);
-    // 11. Electrical stub — dual-stroke yellow from port to flywheel area (behind shaft/flywheel)
-    const dcElecP = pres.ports.elec_in;
-    if (dcElecP) {
-      const depx = wx + dcElecP.x * t, depy = wy + dcElecP.y * t;
-      g.appendChild(svgEl('line', { x1:depx, y1:depy, x2:depx, y2:wy+130, stroke:'#92400e', 'stroke-width':10, 'stroke-linecap':'butt', 'pointer-events':'none' }));
-      g.appendChild(svgEl('line', { x1:depx, y1:depy, x2:depx, y2:wy+130, stroke:'#eab308', 'stroke-width':6, 'stroke-linecap':'butt', 'pointer-events':'none' }));
-    }
-    // 12. Drive shaft: line(48,76 → 48,128)
+    // 11. Drive shaft: line(48,76 → 48,128)
     g.appendChild(svgEl('line', { x1:wx+48, y1:wy+76, x2:wx+48, y2:wy+128, stroke:_lighten(pal.stroke, 0.6), 'stroke-width':1.5, opacity:0.3, 'pointer-events':'none' }));
     // 13. Flywheel: circle(48,130, r:5, unfilled)
     g.appendChild(svgEl('circle', { cx:wx+48, cy:wy+130, r:5, fill:'none', stroke:_lighten(pal.stroke, 0.6), 'stroke-width':1.5, opacity:0.3, 'pointer-events':'none' }));
@@ -25966,28 +25962,25 @@ const _RAGTAG_SYMBOLS = {
   // ── Distillation Column 2×3 (sheet L316-326) ──
   distillation_column(g, wx, wy, ww, wh, pal, def, unitId) {
     const pres = getPresentation(def, scene.units.get(unitId)); const t = scene.tile;
-    // Compute port positions
-    const feedP = pres.ports.mat_in, topP = pres.ports.dist_top, botP = pres.ports.dist_bot;
-    const feedY = feedP ? wy + feedP.y * t : wy + 72;
+    // Nozzle stubs for ALL ports (color-by + arrows) — drawn behind everything
+    _rtNozzle(g, wx, wy, ww, wh, wx+20, wy+4, 56, 136, def, pres, pal, unitId);
+    // Compute port positions for L-bend piping
+    const topP = pres.ports.dist_top, botP = pres.ports.dist_bot;
     const topPx = topP ? wx + topP.x * t : wx + 96, topPy = topP ? wy + topP.y * t : wy + 24;
     const botPx = botP ? wx + botP.x * t : wx + 96, botPy = botP ? wy + botP.y * t : wy + 120;
-    // Feed stub behind body
-    g.appendChild(svgEl('line', { x1:wx, y1:feedY, x2:wx+20, y2:feedY, stroke:'#374151', 'stroke-width':10, 'stroke-linecap':'butt', 'pointer-events':'none' }));
-    g.appendChild(svgEl('line', { x1:wx, y1:feedY, x2:wx+20, y2:feedY, stroke:'#4b5563', 'stroke-width':6, 'stroke-linecap':'butt', 'pointer-events':'none' }));
-    // Top product L-bend from body to port
+    // Top product L-bend from body to port — color-aware
     const topD = `M${wx+60},${wy+10} L${wx+80},${wy+10} L${wx+80},${topPy} L${topPx},${topPy}`;
-    g.appendChild(svgEl('path', { d:topD, fill:'none', stroke:'#374151', 'stroke-width':10, 'stroke-linejoin':'round', 'stroke-linecap':'butt', 'pointer-events':'none' }));
-    g.appendChild(svgEl('path', { d:topD, fill:'none', stroke:'#4b5563', 'stroke-width':6, 'stroke-linejoin':'round', 'stroke-linecap':'butt', 'pointer-events':'none' }));
+    const topCol = _rtPortColors(unitId, 'dist_top', false);
+    g.appendChild(svgEl('path', { d:topD, fill:'none', stroke:topCol.outer, 'stroke-width':10, 'stroke-linejoin':'round', 'stroke-linecap':'butt', 'pointer-events':'none' }));
+    g.appendChild(svgEl('path', { d:topD, fill:'none', stroke:topCol.inner, 'stroke-width':6, 'stroke-linejoin':'round', 'stroke-linecap':'butt', 'pointer-events':'none' }));
     g.appendChild(svgEl('circle', { cx:wx+80, cy:wy+16, r:4, fill:'#1d4ed8', opacity:0.4, stroke:'#1e3a5f', 'stroke-width':1.5, 'pointer-events':'none' }));
-    // Bottom product L-bend from body to port
+    // Bottom product L-bend from body to port — color-aware
     const botD = `M${wx+60},${wy+134} L${wx+80},${wy+134} L${wx+80},${botPy} L${botPx},${botPy}`;
-    g.appendChild(svgEl('path', { d:botD, fill:'none', stroke:'#374151', 'stroke-width':10, 'stroke-linejoin':'round', 'stroke-linecap':'butt', 'pointer-events':'none' }));
-    g.appendChild(svgEl('path', { d:botD, fill:'none', stroke:'#4b5563', 'stroke-width':6, 'stroke-linejoin':'round', 'stroke-linecap':'butt', 'pointer-events':'none' }));
+    const botCol = _rtPortColors(unitId, 'dist_bot', false);
+    g.appendChild(svgEl('path', { d:botD, fill:'none', stroke:botCol.outer, 'stroke-width':10, 'stroke-linejoin':'round', 'stroke-linecap':'butt', 'pointer-events':'none' }));
+    g.appendChild(svgEl('path', { d:botD, fill:'none', stroke:botCol.inner, 'stroke-width':6, 'stroke-linejoin':'round', 'stroke-linecap':'butt', 'pointer-events':'none' }));
     g.appendChild(svgEl('circle', { cx:wx+80, cy:wy+128, r:4, fill:'#dc2626', opacity:0.4, stroke:'#7f1d1d', 'stroke-width':1.5, 'pointer-events':'none' }));
-    const elecP = pres.ports.elec_in;
-    if (elecP) { const epx = wx + elecP.x * t, epy = wy + elecP.y * t;
-      g.appendChild(svgEl('line', { x1:epx, y1:epy, x2:epx, y2:wy+4, stroke:'#92400e', 'stroke-width':10, 'stroke-linecap':'butt', 'pointer-events':'none' }));
-      g.appendChild(svgEl('line', { x1:epx, y1:epy, x2:epx, y2:wy+4, stroke:'#eab308', 'stroke-width':6, 'stroke-linecap':'butt', 'pointer-events':'none' })); }
+    // Column body ON TOP
     g.appendChild(svgEl('rect', { x:wx+20, y:wy+4, width:56, height:136, rx:28, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'pointer-events':'none' }));
     _rtChip(g, wx+60, wy+14, 6, 4);
     [30,50,70,90,110].forEach((y, i) => { const r = y === 90 ? 7 : 6;
@@ -25998,20 +25991,21 @@ const _RAGTAG_SYMBOLS = {
   // ── Membrane Separator (sheet L328-336) ──
   membrane_separator(g, wx, wy, ww, wh, pal, def, unitId) {
     const pres = getPresentation(def, scene.units.get(unitId)); const t = scene.tile;
-    const feedP = pres.ports.mat_in, permP = pres.ports.perm_out, retP = pres.ports.ret_out;
-    const feedPy = feedP ? wy + feedP.y * t : wy + 48;
+    // Nozzle stubs for ALL ports (color-by + arrows) — drawn behind everything
+    _rtNozzle(g, wx, wy, ww, wh, wx+10, wy+6, 76, 84, def, pres, pal, unitId);
+    // Custom piping decoration (L-bends for permeate/retentate)
+    const permP = pres.ports.perm_out, retP = pres.ports.ret_out;
     const permPx = permP ? wx + permP.x * t : wx + 96, permPy = permP ? wy + permP.y * t : wy;
     const retPx = retP ? wx + retP.x * t : wx + 96, retPy = retP ? wy + retP.y * t : wy + 96;
-    // Feed stub
-    g.appendChild(svgEl('line', { x1:wx, y1:feedPy, x2:wx+10, y2:feedPy, stroke:'#374151', 'stroke-width':10, 'stroke-linecap':'butt', 'pointer-events':'none' }));
-    g.appendChild(svgEl('line', { x1:wx, y1:feedPy, x2:wx+10, y2:feedPy, stroke:'#4b5563', 'stroke-width':6, 'stroke-linecap':'butt', 'pointer-events':'none' }));
-    // Permeate: diagonal from body top-right to port
-    g.appendChild(svgEl('line', { x1:wx+76, y1:wy+16, x2:permPx, y2:permPy, stroke:'#374151', 'stroke-width':10, 'stroke-linecap':'butt', 'pointer-events':'none' }));
-    g.appendChild(svgEl('line', { x1:wx+76, y1:wy+16, x2:permPx, y2:permPy, stroke:'#4b5563', 'stroke-width':6, 'stroke-linecap':'butt', 'pointer-events':'none' }));
-    // Retentate: L-bend from body bottom to port
+    // Permeate: diagonal from body top-right to port — color-aware
+    const permCol = _rtPortColors(unitId, 'perm_out', false);
+    g.appendChild(svgEl('line', { x1:wx+76, y1:wy+16, x2:permPx, y2:permPy, stroke:permCol.outer, 'stroke-width':10, 'stroke-linecap':'butt', 'pointer-events':'none' }));
+    g.appendChild(svgEl('line', { x1:wx+76, y1:wy+16, x2:permPx, y2:permPy, stroke:permCol.inner, 'stroke-width':6, 'stroke-linecap':'butt', 'pointer-events':'none' }));
+    // Retentate: L-bend from body bottom to port — color-aware
+    const retCol = _rtPortColors(unitId, 'ret_out', false);
     const retD = `M${wx+18},${wy+86} L${wx+82},${wy+86} L${retPx},${retPy}`;
-    g.appendChild(svgEl('path', { d:retD, fill:'none', stroke:'#374151', 'stroke-width':10, 'stroke-linejoin':'round', 'stroke-linecap':'butt', 'pointer-events':'none' }));
-    g.appendChild(svgEl('path', { d:retD, fill:'none', stroke:'#4b5563', 'stroke-width':6, 'stroke-linejoin':'round', 'stroke-linecap':'butt', 'pointer-events':'none' }));
+    g.appendChild(svgEl('path', { d:retD, fill:'none', stroke:retCol.outer, 'stroke-width':10, 'stroke-linejoin':'round', 'stroke-linecap':'butt', 'pointer-events':'none' }));
+    g.appendChild(svgEl('path', { d:retD, fill:'none', stroke:retCol.inner, 'stroke-width':6, 'stroke-linejoin':'round', 'stroke-linecap':'butt', 'pointer-events':'none' }));
     g.appendChild(svgEl('rect', { x:wx+10, y:wy+6, width:76, height:84, rx:6, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'pointer-events':'none' }));
     _rtChip(g, wx+68, wy+14);
     _rtVpR(g, wx+18, wy+14, 60, 68);
@@ -26031,6 +26025,11 @@ const _RAGTAG_SYMBOLS = {
     g.appendChild(svgEl('line', { x1:wx+26, y1:wy+72, x2:wx+70, y2:wy+72, stroke:'#fca5a5', 'stroke-width':2.5, 'stroke-dasharray':'5 3', opacity:0.5, 'pointer-events':'none' }));
     g.appendChild(svgEl('rect', { x:wx+58, y:wy+30, width:4, height:30, rx:1, fill:'#fca5a5', opacity:0.3, 'pointer-events':'none' }));
     g.appendChild(svgEl('rect', { x:wx+58, y:wy+84, width:4, height:30, rx:1, fill:'#fca5a5', opacity:0.3, 'pointer-events':'none' }));
+    // Cathode (−) upper, Anode (+) lower
+    const _mEl = g.appendChild(svgEl('text', { x:wx+66, y:wy+49, 'font-size':14, 'font-weight':700, fill:'#fca5a5', opacity:0.4, 'font-family':'Inter,system-ui', 'pointer-events':'none' }));
+    _mEl.textContent = '−';
+    const _pEl = g.appendChild(svgEl('text', { x:wx+66, y:wy+103, 'font-size':14, 'font-weight':700, fill:'#fca5a5', opacity:0.4, 'font-family':'Inter,system-ui', 'pointer-events':'none' }));
+    _pEl.textContent = '+';
     [[38,0],[44,0.3],[34,0.6]].forEach(([bx,ph]) => { g.appendChild(svgEl('circle', { cx:wx+bx, cy:wy+60, r:2.5, fill:'#fbbf24', 'data-anim':'reactor-bubble', 'data-ytop':wy+30, 'data-ybot':wy+60, 'data-phase':String(ph), 'data-speed':'0.5', opacity:0.3, 'pointer-events':'none' })); });
     [[38,0.15],[44,0.5],[34,0.8]].forEach(([bx,ph]) => { g.appendChild(svgEl('circle', { cx:wx+bx, cy:wy+118, r:2.5, fill:'#fbbf24', 'data-anim':'reactor-bubble', 'data-ytop':wy+88, 'data-ybot':wy+118, 'data-phase':String(ph), 'data-speed':'0.5', opacity:0.3, 'pointer-events':'none' })); });
     _rtBolt(g, wx+18, wy+14); _rtBolt(g, wx+78, wy+14); _rtBolt(g, wx+18, wy+130); _rtBolt(g, wx+78, wy+130);
@@ -26057,15 +26056,16 @@ const _RAGTAG_SYMBOLS = {
         if (onLeft && px < nzBx) { nzBw += nzBx - px; nzBx = px; }
         const riserX = onRight ? bx + bw * 0.7 : bx + bw * 0.3;
         const bodyEdgeY = onTop ? by + 12 : by + bh - 12;
-        cornerPaths.push(`M${riserX},${bodyEdgeY} L${riserX},${py} L${px},${py}`);
+        cornerPaths.push({ d:`M${riserX},${bodyEdgeY} L${riserX},${py} L${px},${py}`, portId: p.portId });
       }
     }
     // 1. Nozzle stubs (corner ports suppressed by expanded bbox)
     _rtNozzle(g, wx, wy, ww, wh, nzBx, by, nzBw, bh, def, pres, pal, unitId);
-    // 2. Corner risers BEHIND body (butt caps for seamless connection)
-    for (const d of cornerPaths) {
-      g.appendChild(svgEl('path', { d, fill:'none', stroke:'#374151', 'stroke-width':10, 'stroke-linejoin':'round', 'stroke-linecap':'butt', 'pointer-events':'none' }));
-      g.appendChild(svgEl('path', { d, fill:'none', stroke:'#4b5563', 'stroke-width':6, 'stroke-linejoin':'round', 'stroke-linecap':'butt', 'pointer-events':'none' }));
+    // 2. Corner risers BEHIND body — color-aware
+    for (const cp of cornerPaths) {
+      const col = _rtPortColors(unitId, cp.portId, false);
+      g.appendChild(svgEl('path', { d:cp.d, fill:'none', stroke:col.outer, 'stroke-width':10, 'stroke-linejoin':'round', 'stroke-linecap':'butt', 'pointer-events':'none' }));
+      g.appendChild(svgEl('path', { d:cp.d, fill:'none', stroke:col.inner, 'stroke-width':6, 'stroke-linejoin':'round', 'stroke-linecap':'butt', 'pointer-events':'none' }));
     }
     // 3. Vessel body ON TOP of risers (Q-curve caps like design sheet)
     g.appendChild(svgEl('path', {
@@ -26199,14 +26199,8 @@ const _RAGTAG_SYMBOLS = {
   // Bell mouth body, dashed open mouth, louver slats, animated wind streaks, chip, bolts, pipe, led
   source_atm(g, wx, wy, ww, wh, pal, def, unitId) {
     const pres = getPresentation(def, scene.units.get(unitId));
-    const t = scene.tile;
-    // 1. Mat_out nozzle stub (behind body): pipe(54,42,42) → center y:48
-    const outP = pres.ports.mat_out;
-    const px = outP ? wx + outP.x * t : wx + 96;
-    const py = outP ? wy + outP.y * t : wy + 48;
-    const stubY = wy + 48;
-    g.appendChild(svgEl('line', { x1:wx+56, y1:stubY, x2:px, y2:stubY, stroke:'#374151', 'stroke-width':10, 'stroke-linecap':'butt', 'pointer-events':'none' }));
-    g.appendChild(svgEl('line', { x1:wx+56, y1:stubY, x2:px, y2:stubY, stroke:'#4b5563', 'stroke-width':6, 'stroke-linecap':'butt', 'pointer-events':'none' }));
+    // 1. Nozzle stubs (behind body) — handles color-by + arrows
+    _rtNozzle(g, wx, wy, ww, wh, wx+4, wy+10, 58, 76, def, pres, pal, unitId);
     // 2. Bell mouth body: path d='M4,10 Q2,48 4,86 L56,66 Q62,48 56,30 Z'
     g.appendChild(svgEl('path', { d:`M${wx+4},${wy+10} Q${wx+2},${wy+48} ${wx+4},${wy+86} L${wx+56},${wy+66} Q${wx+62},${wy+48} ${wx+56},${wy+30} Z`,
       fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'stroke-linejoin':'round', 'pointer-events':'none' }));
@@ -26441,16 +26435,16 @@ const _RAGTAG_SYMBOLS = {
     const _horiz = _matIn && _matOut && _matIn.y === _matOut.y; // horizontal material flow
     let rx, ry, rw, rh, fcx, fcy; // radiator rect, fan center
     if (_horiz) {
-      // Radiator: wide rect, flat left/right edges near ports
-      rx = wx + 2; rw = 92;
+      // Radiator: inset from port edges so stubs are visible
+      rx = wx + 12; rw = 72;
       if (_elecEdge === 'top') {
         ry = wy + 38; rh = 38; fcx = wx + 48; fcy = wy + 24;
       } else {
         ry = wy + 20; rh = 38; fcx = wx + 48; fcy = wy + 72;
       }
     } else {
-      // Vertical flow: tall rect, flat top/bottom edges near ports
-      ry = wy + 2; rh = 92;
+      // Vertical flow: inset from port edges
+      ry = wy + 12; rh = 72;
       if (_elecEdge === 'left') {
         rx = wx + 34; rw = 38; fcx = wx + 22; fcy = wy + 48;
       } else {
@@ -26549,34 +26543,40 @@ const _RAGTAG_SYMBOLS = {
     const bw = 56, bh = 32;
     const bx = wx + (ww - bw) / 2 + (isYjunction ? (in1E === 'left' ? 6 : -6) : 0);
     const by = wy + (wh - bh) / 2;
-    // Dual-stroke pipe
-    const drawPipe = (d) => {
-      g.appendChild(svgEl('path', { d, fill:'none', stroke:'#374151', 'stroke-width':10, 'stroke-linejoin':'round', 'stroke-linecap':'butt', 'pointer-events':'none' }));
-      g.appendChild(svgEl('path', { d, fill:'none', stroke:'#4b5563', 'stroke-width':6, 'stroke-linejoin':'round', 'stroke-linecap':'butt', 'pointer-events':'none' }));
+    // Port-aware pipe drawing
+    const drawPortPipe = (d, portId) => {
+      const col = _rtPortColors(unitId, portId, false);
+      g.appendChild(svgEl('path', { d, fill:'none', stroke:col.outer, 'stroke-width':10, 'stroke-linejoin':'round', 'stroke-linecap':'butt', 'pointer-events':'none' }));
+      g.appendChild(svgEl('path', { d, fill:'none', stroke:col.inner, 'stroke-width':6, 'stroke-linejoin':'round', 'stroke-linecap':'butt', 'pointer-events':'none' }));
     };
     if (isYjunction) {
       const in1x = wx + (in1?.x ?? 0) * t, in1y = wy + (in1?.y ?? 0) * t;
       const in2x = wx + (in2?.x ?? 0) * t, in2y = wy + (in2?.y ?? 2) * t;
       const outx = wx + (out?.x ?? 2) * t, outy = wy + (out?.y ?? 1) * t;
       const inLeft = in1E === 'left';
-      const mfX = inLeft ? bx : bx + bw; // manifold at body inlet face
+      const mfX = inLeft ? bx : bx + bw;
       const mfTop = by + 2, mfBot = by + bh - 2;
       const curveEnd = inLeft ? mfX - 14 : mfX + 14;
-      // Input pipe stubs
-      drawPipe(`M${in1x},${in1y} L${curveEnd},${in1y}`);
-      drawPipe(`M${in2x},${in2y} L${curveEnd},${in2y}`);
-      // Curved connectors sweeping into manifold
-      const drawCurve = (d) => {
-        g.appendChild(svgEl('path', { d, fill:'none', stroke:'#374151', 'stroke-width':10, 'stroke-linecap':'butt', 'pointer-events':'none' }));
-        g.appendChild(svgEl('path', { d, fill:'none', stroke:'#4b5563', 'stroke-width':6, 'stroke-linecap':'butt', 'pointer-events':'none' }));
-      };
-      drawCurve(`M${curveEnd},${in1y} Q${inLeft ? mfX - 2 : mfX + 2},${in1y} ${mfX},${mfTop}`);
-      drawCurve(`M${curveEnd},${in2y} Q${inLeft ? mfX - 2 : mfX + 2},${in2y} ${mfX},${mfBot}`);
-      // Vertical manifold behind body
-      drawPipe(`M${mfX},${mfTop} L${mfX},${mfBot}`);
+      // Input pipe stubs + curves (per-port coloring)
+      const col1 = _rtPortColors(unitId, 'mat_in_1', false);
+      const col2 = _rtPortColors(unitId, 'mat_in_2', false);
+      drawPortPipe(`M${in1x},${in1y} L${curveEnd},${in1y}`, 'mat_in_1');
+      drawPortPipe(`M${in2x},${in2y} L${curveEnd},${in2y}`, 'mat_in_2');
+      // Curved connectors — use each input's color
+      g.appendChild(svgEl('path', { d:`M${curveEnd},${in1y} Q${inLeft ? mfX - 2 : mfX + 2},${in1y} ${mfX},${mfTop}`, fill:'none', stroke:col1.outer, 'stroke-width':10, 'stroke-linecap':'butt', 'pointer-events':'none' }));
+      g.appendChild(svgEl('path', { d:`M${curveEnd},${in1y} Q${inLeft ? mfX - 2 : mfX + 2},${in1y} ${mfX},${mfTop}`, fill:'none', stroke:col1.inner, 'stroke-width':6, 'stroke-linecap':'butt', 'pointer-events':'none' }));
+      g.appendChild(svgEl('path', { d:`M${curveEnd},${in2y} Q${inLeft ? mfX - 2 : mfX + 2},${in2y} ${mfX},${mfBot}`, fill:'none', stroke:col2.outer, 'stroke-width':10, 'stroke-linecap':'butt', 'pointer-events':'none' }));
+      g.appendChild(svgEl('path', { d:`M${curveEnd},${in2y} Q${inLeft ? mfX - 2 : mfX + 2},${in2y} ${mfX},${mfBot}`, fill:'none', stroke:col2.inner, 'stroke-width':6, 'stroke-linecap':'butt', 'pointer-events':'none' }));
+      // Vertical manifold (output color)
+      drawPortPipe(`M${mfX},${mfTop} L${mfX},${mfBot}`, 'mat_out');
       // Output stub
       const outFace = inLeft ? bx + bw : bx;
-      drawPipe(`M${outFace},${outy} L${outx},${outy}`);
+      drawPortPipe(`M${outFace},${outy} L${outx},${outy}`, 'mat_out');
+      // Unconnected arrows
+      _rtPortArrow(g, unitId, 'mat_in_1', in1x, in1y, in1E, false, false);
+      _rtPortArrow(g, unitId, 'mat_in_2', in2x, in2y, in2E, false, false);
+      const outE = out ? getPortEdge(out, pres) : 'right';
+      _rtPortArrow(g, unitId, 'mat_out', outx, outy, outE, true, false);
     } else {
       // T-junction (recycle): straight stubs via _rtNozzle
       _rtNozzle(g, wx, wy, ww, wh, bx, by, bw, bh, def, pres, pal, unitId);
@@ -26621,20 +26621,22 @@ const _RAGTAG_SYMBOLS = {
     const colW = 14, colH = 68;
     const colX = inE === 'left' ? wx + 26 : wx + ww - 26 - colW;
     const colY = wy + (wh - colH) / 2;
-    const colOutX = inE === 'left' ? colX + colW : colX; // edge facing outlets
-    const colInX = inE === 'left' ? colX : colX + colW;  // edge facing inlet
-    // Dual-stroke pipe helper (matches connection pipe style: 10px outer, 6px inner)
-    const drawPipe = (d) => {
-      g.appendChild(svgEl('path', { d, fill:'none', stroke:'#374151', 'stroke-width':10, 'stroke-linejoin':'round', 'stroke-linecap':'butt', 'pointer-events':'none' }));
-      g.appendChild(svgEl('path', { d, fill:'none', stroke:'#4b5563', 'stroke-width':6, 'stroke-linejoin':'round', 'stroke-linecap':'butt', 'pointer-events':'none' }));
+    const colOutX = inE === 'left' ? colX + colW : colX;
+    const colInX = inE === 'left' ? colX : colX + colW;
+    // Port-aware pipe drawing
+    const drawPortPipe = (d, portId) => {
+      const col = _rtPortColors(unitId, portId, false);
+      g.appendChild(svgEl('path', { d, fill:'none', stroke:col.outer, 'stroke-width':10, 'stroke-linejoin':'round', 'stroke-linecap':'butt', 'pointer-events':'none' }));
+      g.appendChild(svgEl('path', { d, fill:'none', stroke:col.inner, 'stroke-width':6, 'stroke-linejoin':'round', 'stroke-linecap':'butt', 'pointer-events':'none' }));
     };
     // 1. Input stub: port → column inlet edge
     if (inP) {
       const ipx = wx + inP.x * t, ipy = wy + inP.y * t;
-      drawPipe(`M${ipx},${ipy} L${colInX},${ipy}`);
+      drawPortPipe(`M${ipx},${ipy} L${colInX},${ipy}`, 'mat_in');
+      _rtPortArrow(g, unitId, 'mat_in', ipx, ipy, inE, false, false);
     }
     // 2. Output branches: column outlet edge → bowtie → L-bend → port
-    const drawBranch = (outPort, branchY, label) => {
+    const drawBranch = (outPort, portId, branchY, label) => {
       if (!outPort) return;
       const outEdge = getPortEdge(outPort, pres);
       const px = wx + outPort.x * t, py = wy + outPort.y * t;
@@ -26643,40 +26645,32 @@ const _RAGTAG_SYMBOLS = {
       if (!isVert) {
         const bendX = colOutX + dir * 34;
         const vcx = colOutX + dir * 18;
-        drawPipe(`M${colOutX},${branchY} L${bendX},${branchY} L${bendX},${py} L${px},${py}`);
+        drawPortPipe(`M${colOutX},${branchY} L${bendX},${branchY} L${bendX},${py} L${px},${py}`, portId);
         // Horizontal bowtie valve
         const bs = 7;
-        // Stem + handwheel (behind bowtie)
         g.appendChild(svgEl('line', { x1:vcx, y1:branchY-12, x2:vcx, y2:branchY, stroke:'#4b5563', 'stroke-width':1.5, 'pointer-events':'none' }));
         g.appendChild(svgEl('circle', { cx:vcx, cy:branchY-12, r:3.5, fill:'#4b5563', stroke:'#374151', 'stroke-width':1.5, 'pointer-events':'none' }));
-        // Bowtie on top
         g.appendChild(svgEl('polygon', { points:`${vcx-bs},${branchY-bs} ${vcx},${branchY} ${vcx-bs},${branchY+bs}`,
           fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':1.5, 'stroke-linejoin':'round', 'pointer-events':'none' }));
         g.appendChild(svgEl('polygon', { points:`${vcx+bs},${branchY-bs} ${vcx},${branchY} ${vcx+bs},${branchY+bs}`,
           fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':1.5, 'stroke-linejoin':'round', 'pointer-events':'none' }));
-        // Branch label near port
         const lbl = g.appendChild(svgEl('text', { x:px - dir * 6, y:py - 7, 'text-anchor':'middle', 'font-size':8, 'font-weight':700, fill:pal.stroke, opacity:0.5, 'font-family':'Inter,system-ui', 'pointer-events':'none' }));
         lbl.textContent = label;
       } else {
-        // Vertical output (recycle tap): column → horizontal to port x → vertical to port
-        drawPipe(`M${colOutX},${branchY} L${px},${branchY} L${px},${py}`);
-        // Vertical bowtie valve
+        drawPortPipe(`M${colOutX},${branchY} L${px},${branchY} L${px},${py}`, portId);
         const vcy = (branchY + py) / 2;
         const bs = 7;
-        // Stem + handwheel (behind bowtie)
         g.appendChild(svgEl('line', { x1:px+12, y1:vcy, x2:px, y2:vcy, stroke:'#4b5563', 'stroke-width':1.5, 'pointer-events':'none' }));
         g.appendChild(svgEl('circle', { cx:px + 12, cy:vcy, r:3.5, fill:'#4b5563', stroke:'#374151', 'stroke-width':1.5, 'pointer-events':'none' }));
-        // Bowtie on top
         g.appendChild(svgEl('polygon', { points:`${px-bs},${vcy-bs} ${px},${vcy} ${px+bs},${vcy-bs}`,
           fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':1.5, 'stroke-linejoin':'round', 'pointer-events':'none' }));
         g.appendChild(svgEl('polygon', { points:`${px-bs},${vcy+bs} ${px},${vcy} ${px+bs},${vcy+bs}`,
           fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':1.5, 'stroke-linejoin':'round', 'pointer-events':'none' }));
-        // Branch label near port
-        const lx = outEdge === 'top' ? px + 10 : px + 10;
-        const ly = outEdge === 'top' ? py + 10 : py - 6;
+        const lx = px + 10, ly = outEdge === 'top' ? py + 10 : py - 6;
         const lbl = g.appendChild(svgEl('text', { x:lx, y:ly, 'text-anchor':'middle', 'font-size':8, 'font-weight':700, fill:pal.stroke, opacity:0.5, 'font-family':'Inter,system-ui', 'pointer-events':'none' }));
         lbl.textContent = label;
       }
+      _rtPortArrow(g, unitId, portId, px, py, outEdge, true, false);
     };
     // Branch Y positions on column — spread wider for recycle to avoid valve overlap
     const out1E = out1 ? getPortEdge(out1, pres) : 'right';
@@ -26693,8 +26687,8 @@ const _RAGTAG_SYMBOLS = {
       by1 = colY + colH / 2;      // main horizontal — centered
       by2 = out2Top ? colY + 10 : colY + colH - 10; // recycle — near the edge it exits from
     }
-    drawBranch(out1, by1, '1');
-    drawBranch(out2, by2, '2');
+    drawBranch(out1, 'mat_out_1', by1, '1');
+    drawBranch(out2, 'mat_out_2', by2, '2');
     // 3. Column on top of all piping
     g.appendChild(svgEl('rect', { x:colX, y:colY, width:colW, height:colH, rx:4, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'pointer-events':'none' }));
     const tEl = g.appendChild(svgEl('text', { x:colX+3, y:wy+wh/2+4, 'font-size':10, 'font-weight':700, fill:'#5eead4', opacity:0.35, 'font-family':'Inter,system-ui', 'pointer-events':'none' }));
@@ -26722,17 +26716,18 @@ const _RAGTAG_SYMBOLS = {
         if (onLeft && px < nzBx) { nzBw += nzBx - px; nzBx = px; }
         const riserX = onRight ? bx + bw * 2/3 : bx + bw * 1/3;
         const bodyEdgeY = onTop ? by : by + bh;
-        cornerPaths.push(`M${riserX},${bodyEdgeY} L${riserX},${py} L${px},${py}`);
+        cornerPaths.push({ d:`M${riserX},${bodyEdgeY} L${riserX},${py} L${px},${py}`, portId: p.portId });
       }
     }
     // 1. Nozzles (behind body — corner ports produce zero-length stubs)
     _rtNozzle(g, wx, wy, ww, wh, nzBx, by, nzBw, bh, def, pres, pal, unitId);
     // 2. Body (capsule shape — covers nozzle bases)
     g.appendChild(svgEl('path', { d:`M${wx+18},${wy+16} Q${wx+4},${wy+16} ${wx+4},${wy+48} Q${wx+4},${wy+80} ${wx+18},${wy+80} L${wx+126},${wy+80} Q${wx+140},${wy+80} ${wx+140},${wy+48} Q${wx+140},${wy+16} ${wx+126},${wy+16} Z`, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'pointer-events':'none' }));
-    // 3. Corner risers ON TOP of body (round caps blend with connections)
-    for (const Ld of cornerPaths) {
-      g.appendChild(svgEl('path', { d:Ld, fill:'none', stroke:'#374151', 'stroke-width':10, 'stroke-linejoin':'round', 'stroke-linecap':'butt', 'pointer-events':'none' }));
-      g.appendChild(svgEl('path', { d:Ld, fill:'none', stroke:'#4b5563', 'stroke-width':6, 'stroke-linejoin':'round', 'stroke-linecap':'butt', 'pointer-events':'none' }));
+    // 3. Corner risers ON TOP of body — color-aware
+    for (const cp of cornerPaths) {
+      const col = _rtPortColors(unitId, cp.portId, false);
+      g.appendChild(svgEl('path', { d:cp.d, fill:'none', stroke:col.outer, 'stroke-width':10, 'stroke-linejoin':'round', 'stroke-linecap':'butt', 'pointer-events':'none' }));
+      g.appendChild(svgEl('path', { d:cp.d, fill:'none', stroke:col.inner, 'stroke-width':6, 'stroke-linejoin':'round', 'stroke-linecap':'butt', 'pointer-events':'none' }));
     }
     _rtChip(g, wx+110, wy+22, 10, 5);
     _rtBoltS(g, wx+22, wy+48); _rtBoltS(g, wx+122, wy+48);
@@ -26774,17 +26769,18 @@ const _RAGTAG_SYMBOLS = {
         if (onLeft && px < nzBx) { nzBw += nzBx - px; nzBx = px; }
         const riserX = onRight ? obx + obw * 2/3 : obx + obw * 1/3;
         const bodyEdgeY = onTop ? oby : oby + obh;
-        cornerPaths.push(`M${riserX},${bodyEdgeY} L${riserX},${py} L${px},${py}`);
+        cornerPaths.push({ d:`M${riserX},${bodyEdgeY} L${riserX},${py} L${px},${py}`, portId: p.portId });
       }
     }
     // 1. Nozzles (corner ports suppressed by expanded bbox)
     _rtNozzle(g, wx, wy, ww, wh, nzBx, oby, nzBw, obh, def, pres, pal, unitId);
     // 2. Body (open-top U-shape)
     g.appendChild(svgEl('path', { d:`M${wx+14},${wy+14} L${wx+14},${wy+68} Q${wx+14},${wy+82} ${wx+72},${wy+82} Q${wx+130},${wy+82} ${wx+130},${wy+68} L${wx+130},${wy+14}`, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'stroke-linecap':'round', 'pointer-events':'none' }));
-    // 3. Corner risers on top
-    for (const Ld of cornerPaths) {
-      g.appendChild(svgEl('path', { d:Ld, fill:'none', stroke:'#374151', 'stroke-width':10, 'stroke-linejoin':'round', 'stroke-linecap':'butt', 'pointer-events':'none' }));
-      g.appendChild(svgEl('path', { d:Ld, fill:'none', stroke:'#4b5563', 'stroke-width':6, 'stroke-linejoin':'round', 'stroke-linecap':'butt', 'pointer-events':'none' }));
+    // 3. Corner risers on top — color-aware
+    for (const cp of cornerPaths) {
+      const col = _rtPortColors(unitId, cp.portId, false);
+      g.appendChild(svgEl('path', { d:cp.d, fill:'none', stroke:col.outer, 'stroke-width':10, 'stroke-linejoin':'round', 'stroke-linecap':'butt', 'pointer-events':'none' }));
+      g.appendChild(svgEl('path', { d:cp.d, fill:'none', stroke:col.inner, 'stroke-width':6, 'stroke-linejoin':'round', 'stroke-linecap':'butt', 'pointer-events':'none' }));
     }
     _rtChip(g, wx+108, wy+22, 10, 5);
     _rtBolt(g, wx+22, wy+22); _rtBolt(g, wx+122, wy+22);
