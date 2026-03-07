@@ -2966,8 +2966,10 @@
 
     /* ===== ARROW FLOW ANIMATION [v10.5.0] (AN-1 replacement) ===== */
     @keyframes arrow-flow {
-      from { offset-distance: 5%; }
-      to   { offset-distance: 95%; }
+      0%   { offset-distance: 5%; opacity: 0; }
+      10%  { offset-distance: 14%; opacity: 1; }
+      90%  { offset-distance: 86%; opacity: 1; }
+      100% { offset-distance: 95%; opacity: 0; }
     }
     .flow-arrow-active {
       animation: arrow-flow var(--flow-duration, 1.5s) linear infinite;
@@ -25202,7 +25204,7 @@ function drawConnections() {
       const chordCells = chordPx / scene.tile;
       const nArrows = _arrowCount(chordCells);
       const arrowPositions = _arrowPositions(nArrows);
-      const arrowColor = isSelected ? '#60a5fa' : mappedColor;
+      const arrowColor = isSelected ? '#60a5fa' : _lighten(mappedColor, 0.25);
       // [v12.14.0] Bordered arrows when stream is wide (≥6px), so arrows
       // remain visible against the thick line. No scaling — consistent size.
       const _arrowBordered = mappedWidth >= 6;
@@ -25606,16 +25608,19 @@ function _rtReactorVessel(g, wx, wy, pal, unitId) {
 function _rtPortColors(unitId, portId, isElec) {
   const _gradMode = ui.colorBy === 'temperature' || ui.colorBy === 'pressure'
     || ui.colorBy === 'phase' || ui.colorBy === 'composition';
-  if (_gradMode && !isElec && unitId) {
-    const _ud = scene.runtime?.unitData?.get(unitId);
-    const ps = _ud?.ports?.[portId];
-    if (ps) {
-      let c = null;
-      if (ui.colorBy === 'temperature' && ps.T != null) c = _visTempColor(ps.T);
-      else if (ui.colorBy === 'pressure' && ps.P != null) c = _visPressColor(ps.P);
-      else if (ui.colorBy === 'phase' && ps.phase) c = _VIS_PHASE[ps.phase];
-      else if (ui.colorBy === 'composition') c = _visCompColor(ps);
-      if (c) return { outer: _darken(c, 0.4), inner: c };
+  if (_gradMode) {
+    if (isElec) return { outer: _darken(_VIS_DIM, 0.4), inner: _VIS_DIM };
+    if (unitId) {
+      const _ud = scene.runtime?.unitData?.get(unitId);
+      const ps = _ud?.ports?.[portId];
+      if (ps) {
+        let c = null;
+        if (ui.colorBy === 'temperature' && ps.T != null) c = _visTempColor(ps.T);
+        else if (ui.colorBy === 'pressure' && ps.P != null) c = _visPressColor(ps.P);
+        else if (ui.colorBy === 'phase' && ps.phase) c = _VIS_PHASE[ps.phase];
+        else if (ui.colorBy === 'composition') c = _visCompColor(ps);
+        if (c) return { outer: _darken(c, 0.4), inner: c };
+      }
     }
   }
   return isElec ? { outer:'#92400e', inner:'#eab308' } : { outer:'#374151', inner:'#4b5563' };
@@ -25647,7 +25652,9 @@ function _rtNozzle(g, wx, wy, ww, wh, bx, by, bw, bh, def, pres, pal, unitId) {
     const isElec = p.type === StreamType.ELECTRICAL;
     // Per-port gradient color from actual stream conditions on THIS port
     let outerCol, innerCol;
-    if (_gradMode && !isElec && _ud?.ports) {
+    if (_gradMode && isElec) {
+      outerCol = _darken(_VIS_DIM, 0.4); innerCol = _VIS_DIM;
+    } else if (_gradMode && !isElec && _ud?.ports) {
       const ps = _ud.ports[p.portId];
       let portColor = null;
       if (ps) {
@@ -25703,6 +25710,25 @@ function _rtNozzle(g, wx, wy, ww, wh, bx, by, bw, bh, def, pres, pal, unitId) {
       stroke: outerCol, 'stroke-width': outerW, 'stroke-linecap': 'butt', 'pointer-events': 'none' }));
     g.appendChild(svgEl('line', { x1, y1, x2, y2,
       stroke: innerCol, 'stroke-width': innerW, 'stroke-linecap': 'butt', 'pointer-events': 'none' }));
+  }
+}
+
+// [v15.4.0] ⚡ Electrical port terminals — rendered ON TOP of everything
+// Called after symbol function to ensure markers aren't covered by body
+function _rtElecTerminals(g, wx, wy, def, pres, unitId) {
+  const t = scene.tile;
+  for (const p of def.ports) {
+    if (p.type !== StreamType.ELECTRICAL) continue;
+    const pp = pres.ports[p.portId]; if (!pp) continue;
+    const px = wx + pp.x * t, py = wy + pp.y * t;
+    const eg = svgEl('g', { transform:`translate(${px},${py})`, 'pointer-events':'none' });
+    eg.appendChild(svgEl('rect', { x:-5, y:-5, width:10, height:10, rx:2.5, fill:'#92400e', stroke:'#fbbf24', 'stroke-width':1.2 }));
+    eg.appendChild(svgEl('path', { d:'M-1.5,-3 L0.5,-0.5 L-0.5,0.5 L1.5,3', fill:'none', stroke:'#fde047', 'stroke-width':1.5, 'stroke-linecap':'round', 'stroke-linejoin':'round' }));
+    eg.setAttribute('data-anim', 'rotor-pulse');
+    eg.setAttribute('data-opbase', '0.75');
+    eg.setAttribute('data-amp', '0.2');
+    eg.setAttribute('data-speed', '1.5');
+    g.appendChild(eg);
   }
 }
 
@@ -27120,6 +27146,11 @@ function drawUnits() {
         : _ENGINEERING_SYMBOLS[def.defId];
       if (_symbolFn) {
         _symbolFn(group, wx, wy, ww, wh, _pal, def, id);
+        // ⚡ Electrical port terminals — always on top of symbol
+        if (ui.theme === 'ragtag') {
+          const _pres = getPresentation(def, u);
+          _rtElecTerminals(group, wx, wy, def, _pres, id);
+        }
       } else {
         // Generic fallback: outlined body + stubs (covers engineering units without specific symbols)
         const _fbx = wx + 6, _fby = wy + 6, _fbw = ww - 12, _fbh = wh - 12;
@@ -27403,11 +27434,20 @@ function drawUnits() {
         }));
       }
 
-      // [v12.15.1] Generic port label — rendered for any port with a `label` field
+      // [v12.15.1] Generic port label — edge-aware positioning
       if (p.label) {
+        const portEdge = getPortEdge(portPos, pres);
+        let lx, ly, anchor;
+        if (portEdge === 'right' || portEdge === 'top') {
+          lx = wp.x + 3; ly = wp.y - 8;
+          anchor = 'start';
+        } else {
+          lx = wp.x - 3; ly = wp.y + 12;
+          anchor = 'end';
+        }
         const plbl = svgEl('text', {
-          x: wp.x + 12, y: wp.y - 12,
-          'text-anchor': 'start', 'dominant-baseline': 'central',
+          x: lx, y: ly,
+          'text-anchor': anchor, 'dominant-baseline': 'central',
           'font-size': 9, 'font-weight': 600,
           fill: portVisuals.portColor, opacity: 0.65,
           'pointer-events': 'none'
@@ -31577,6 +31617,8 @@ function updatePropertiesPanel() {
 }
 
 function _rebuildInspectorContent() {
+  // [v15.4.0] Don't destroy DOM while a dropdown is open during auto-play
+  if (TimeClock.mode === 'playing' && propEditor.querySelector('select:focus')) return;
   propEditor.innerHTML = '';
   
   // ═══ UNIT SELECTED ═══
@@ -33477,6 +33519,7 @@ function _updateIconAnimations(at) {
 
   // [v15.4.0] Spark emit — particles spawn at center, drift outward, grow, fade
   for (const el of svg.querySelectorAll('[data-anim="spark-emit"]')) {
+    if (TimeClock.mode !== 'playing') { el.setAttribute('opacity', '0'); continue; }
     const cx = +el.dataset.cx, cy = +el.dataset.cy;
     const dx = +el.dataset.dx || 0, dy = +el.dataset.dy || -1;
     const drift = +el.dataset.drift || 12;
