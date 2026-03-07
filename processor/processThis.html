@@ -302,7 +302,20 @@
 
   ─── v16.8.0 — Atmosphere unit + Fan ─────────────────────────────────────
 
-  **Atmosphere** — infinite atmospheric reservoir at live T/P/wet composition.
+  **Compressor max compression ratio** — physical machine constraint per tier.
+  - `maxRatio` param: tick clamps Pout ≤ Pin × maxRatio. WARNING alarm when
+    player's setpoint exceeds achievable pressure.
+  - T1 "Pilot Piston": maxRatio=4, η=0.65, default 3 bar. Single-stage.
+  - T2 "Standard Piston": maxRatio=10, η=0.75, default 8 bar. Two-stage.
+  - T3 "Industrial Screw": maxRatio=30, η=0.82, default 20 bar. Multi-stage.
+  - Planet-adaptive: same T1 on Mars (0.006 bar) maxes at 0.025 bar.
+  - Inspector shows "max N:1" in Pout label, detail section shows P max and
+    ratio-limited status when capped.
+  - Diaphragm compressor unchanged (specialty high-P, no ratio cap).
+  - 3 tests (583–585): ratio cap enforcement, legacy uncapped, tier defaults.
+
+  **Atmosphere** — Cv and opening locked as internal constants (0.5, 100%).
+  Inspector stripped to conditions/KPIs only — no player-editable valve params.
   - defId `atmosphere`, 2×2, mat_out with fanOut. Category BOUNDARY.
   - Cv valve (default 0.5), dP from pressure trace + vacuum clamp.
   - SG fix: MW g/mol → kg/mol in ideal gas density (was 1000× off for gas).
@@ -326,6 +339,7 @@
 
   8 tests (575–582): atmosphere registration/flow/phase/T-P tracking,
   fan registration/tiers, atmosphere→fan end-to-end, fan without power.
+  3 tests (583–585): compressor ratio cap, legacy uncapped, tier defaults.
 
   ═══ v16.7.0 — S-DIURNAL Phase 1: Day/Night Cycles ═══════════════════════
 
@@ -16909,8 +16923,13 @@ UnitRegistry.register('compressor', {
       return;
     }
     
-    const Pout_setpoint = par.Pout || (sIn.P * 2);
+    const Pout_raw = par.Pout || (sIn.P * 2);
     const eta = par.eta || 0.80;
+    // [v16.8.0] Max compression ratio — physical machine limit per tier
+    const maxRatio = par.maxRatio || Infinity;
+    const Pout_maxFromRatio = sIn.P * maxRatio;
+    const ratioCapped = isFinite(maxRatio) && Pout_raw > Pout_maxFromRatio * 1.001;
+    const Pout_setpoint = ratioCapped ? Pout_maxFromRatio : Pout_raw;
     
     if (sIn.phase === 'L' || (sIn.phase === 'VL' && sIn.vaporFraction < 0.9)) {
       ports.mat_out = { type: StreamType.MATERIAL, P: sIn.P, n: { ...sIn.n },
@@ -16997,10 +17016,19 @@ UnitRegistry.register('compressor', {
       eta_pct: (eta * 100).toFixed(0),
       H_in_kW: (workFull.H_in_Jps / 1000).toFixed(2),
       H_out_kW: (H_target_Jps / 1000).toFixed(2),
-      curtailed: curtailed
+      curtailed,
+      maxRatio: isFinite(maxRatio) ? maxRatio : null,
+      Pout_max: isFinite(maxRatio) ? Pout_maxFromRatio : null,
+      ratioCapped
     };
     
-    if (curtailed) {
+    if (ratioCapped && !curtailed) {
+      u.last.error = {
+        severity: ErrorSeverity.WARNING,
+        message: `Ratio-limited: max ${maxRatio}:1 → ${(Pout_maxFromRatio/1e5).toFixed(2)} bar `
+          + `(setpoint ${(Pout_raw/1e5).toFixed(2)} bar)`
+      };
+    } else if (curtailed) {
       u.last.error = {
         severity: ErrorSeverity.MINOR,
         message: `Power-limited: ${(Pout_actual/100000).toFixed(2)} bar actual vs ${(Pout_setpoint/100000).toFixed(2)} bar setpoint (${(W_shaft_actual/1000).toFixed(1)} / ${(workFull.W_shaft_W/1000).toFixed(1)} kW)`
@@ -19925,8 +19953,18 @@ ProfileRegistry.register('pump', {
   limits: { 1: { T_LL: 263, T_L: 278, T_H: 353, T_HH: 393, P_LL: 50000, P_L: 80000, P_H: 4000000, P_HH: 5000000, mass_HH: 0.12 } }
 });
 ProfileRegistry.register('compressor', {
-  defId: 'compressor', name: 'Compressor (Piston)', category: UnitCategories.PRESSURE, tiers: [1],
-  limits: { 1: { T_LL: 243, T_L: 263, T_H: 473, T_HH: 523, P_LL: 50000, P_L: 80000, P_H: 1200000, P_HH: 1500000, mass_HH: 0.08 } }
+  defId: 'compressor', name: 'Compressor (Piston)', category: UnitCategories.PRESSURE, tiers: [1, 2, 3],
+  limits: {
+    1: { T_LL: 243, T_L: 263, T_H: 473, T_HH: 523, P_LL: 50000, P_L: 80000, P_H: 400000, P_HH: 500000, mass_HH: 0.04 },
+    2: { T_LL: 243, T_L: 263, T_H: 473, T_HH: 523, P_LL: 50000, P_L: 80000, P_H: 1200000, P_HH: 1500000, mass_HH: 0.08 },
+    3: { T_LL: 243, T_L: 263, T_H: 423, T_HH: 473, P_LL: 50000, P_L: 80000, P_H: 3500000, P_HH: 4500000, mass_HH: 0.2 }
+  },
+  defaults: {
+    1: { Pout: 300000, eta: 0.65, maxRatio: 4 },
+    2: { Pout: 800000, eta: 0.75, maxRatio: 10 },
+    3: { Pout: 2000000, eta: 0.82, maxRatio: 30 }
+  },
+  tierNames: { 1: 'Pilot Piston', 2: 'Standard Piston', 3: 'Industrial Screw' }
 });
 // [v16.8.0] Fan profiles — low-deltaP air movers
 ProfileRegistry.register('fan', {
@@ -27482,20 +27520,56 @@ const _RAGTAG_SYMBOLS = {
   // motor housing + 5 vents on elec port edge
   compressor(g, wx, wy, ww, wh, pal, def, unitId) {
     const pres = getPresentation(def, scene.units.get(unitId));
+    const tier = scene.units.get(unitId)?.tier || 1;
     _rtNozzle(g, wx, wy, ww, wh, wx+18, wy+24, 60, 48, def, pres, pal, unitId);
+    // Shared body
     g.appendChild(svgEl('rect', { x:wx+18, y:wy+24, width:60, height:48, rx:6, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'pointer-events':'none' }));
-    _rtVpR(g, wx+28, wy+32, 36, 32, '#0f0820', pal.rim);
     const impCol = _lighten(pal.stroke, 0.6);
-    // Piston (mirrored: right side of viewport)
-    g.appendChild(svgEl('rect', { x:wx+50, y:wy+38, width:6, height:20, rx:1.5, fill:impCol, opacity:0.35,
-      'data-anim':'piston-recip', 'data-basex':wx+50, 'data-amp':'6', 'data-speed':'1.5',
-      'pointer-events':'none' }));
-    // Crank rod (mirrored: crank on left)
-    g.appendChild(svgEl('line', { x1:wx+50, y1:wy+48, x2:wx+27, y2:wy+48, stroke:impCol, 'stroke-width':1.5, opacity:0.3,
-      'data-anim':'crank-rod', 'data-basex1':wx+50, 'data-cx2':wx+32, 'data-cy2':wy+48, 'data-rodlen':'5', 'data-amp':'6', 'data-speed':'1.5',
-      'pointer-events':'none' }));
-    // Crank circle (mirrored: left)
-    g.appendChild(svgEl('circle', { cx:wx+32, cy:wy+48, r:6, fill:'none', stroke:impCol, 'stroke-width':1.5, opacity:0.3, 'pointer-events':'none' }));
+
+    if (tier === 3) {
+      // ── T3 Industrial Screw: oval viewport, twin helical lobes ──
+      _rtVpR(g, wx+28, wy+32, 36, 32, '#0f0820', pal.rim);
+      // Twin meshing rotors (two overlapping ovals with helical lines)
+      g.appendChild(svgEl('ellipse', { cx:wx+40, cy:wy+48, rx:8, ry:12, fill:'none', stroke:impCol, 'stroke-width':1.5, opacity:0.4,
+        'data-anim':'rotor-pulse', 'data-opbase':'0.3', 'pointer-events':'none' }));
+      g.appendChild(svgEl('ellipse', { cx:wx+52, cy:wy+48, rx:8, ry:12, fill:'none', stroke:impCol, 'stroke-width':1.5, opacity:0.4,
+        'data-anim':'rotor-pulse', 'data-opbase':'0.3', 'pointer-events':'none' }));
+      // Helical groove lines on each rotor
+      for (let i = -1; i <= 1; i++) {
+        const y0 = wy+48 + i*7;
+        g.appendChild(svgEl('path', { d:`M${wx+33},${y0} Q${wx+40},${y0-4} ${wx+47},${y0}`, fill:'none', stroke:impCol, 'stroke-width':1, opacity:0.25, 'pointer-events':'none' }));
+        g.appendChild(svgEl('path', { d:`M${wx+45},${y0} Q${wx+52},${y0-4} ${wx+59},${y0}`, fill:'none', stroke:impCol, 'stroke-width':1, opacity:0.25, 'pointer-events':'none' }));
+      }
+      // Center mesh point
+      g.appendChild(svgEl('circle', { cx:wx+46, cy:wy+48, r:2, fill:impCol, opacity:0.3, 'pointer-events':'none' }));
+    } else if (tier === 2) {
+      // ── T2 Standard Piston: dual cylinder, intercooler fin between ──
+      _rtVpR(g, wx+28, wy+32, 36, 32, '#0f0820', pal.rim);
+      // Left piston
+      g.appendChild(svgEl('rect', { x:wx+31, y:wy+38, width:5, height:16, rx:1, fill:impCol, opacity:0.35,
+        'data-anim':'piston-recip', 'data-basex':wx+31, 'data-amp':'4', 'data-speed':'1.5', 'pointer-events':'none' }));
+      // Right piston (anti-phase)
+      g.appendChild(svgEl('rect', { x:wx+55, y:wy+38, width:5, height:16, rx:1, fill:impCol, opacity:0.35,
+        'data-anim':'piston-recip', 'data-basex':wx+55, 'data-amp':'4', 'data-speed':'1.5', 'data-phase':'0.5', 'pointer-events':'none' }));
+      // Shared crank
+      g.appendChild(svgEl('circle', { cx:wx+46, cy:wy+56, r:4, fill:'none', stroke:impCol, 'stroke-width':1.2, opacity:0.3, 'pointer-events':'none' }));
+      // Intercooler fins between cylinders (3 horizontal lines)
+      for (let i = 0; i < 3; i++) {
+        const fy = wy+40 + i*6;
+        g.appendChild(svgEl('line', { x1:wx+42, y1:fy, x2:wx+50, y2:fy, stroke:'#3b82f6', 'stroke-width':1, opacity:0.3, 'pointer-events':'none' }));
+      }
+    } else {
+      // ── T1 Pilot Piston: single cylinder (original design) ──
+      _rtVpR(g, wx+28, wy+32, 36, 32, '#0f0820', pal.rim);
+      g.appendChild(svgEl('rect', { x:wx+50, y:wy+38, width:6, height:20, rx:1.5, fill:impCol, opacity:0.35,
+        'data-anim':'piston-recip', 'data-basex':wx+50, 'data-amp':'6', 'data-speed':'1.5', 'pointer-events':'none' }));
+      g.appendChild(svgEl('line', { x1:wx+50, y1:wy+48, x2:wx+27, y2:wy+48, stroke:impCol, 'stroke-width':1.5, opacity:0.3,
+        'data-anim':'crank-rod', 'data-basex1':wx+50, 'data-cx2':wx+32, 'data-cy2':wy+48, 'data-rodlen':'5', 'data-amp':'6', 'data-speed':'1.5',
+        'pointer-events':'none' }));
+      g.appendChild(svgEl('circle', { cx:wx+32, cy:wy+48, r:6, fill:'none', stroke:impCol, 'stroke-width':1.5, opacity:0.3, 'pointer-events':'none' }));
+    }
+
+    // Shared: bolts, motor housing, chip, LED
     _rtBolt(g, wx+24, wy+30); _rtBolt(g, wx+72, wy+30);
     _rtBolt(g, wx+24, wy+66); _rtBolt(g, wx+72, wy+66);
     const _elecPos = pres.ports.elec_in;
@@ -31938,21 +32012,34 @@ UnitInspector.pump = {
 };
 
 UnitInspector.compressor = {
-  params(u) { const us = models.getActive('units'); return [
-    ..._pEtaParams(u, us, 300000, 0.80),
-    { label: 'Priority', get: () => u.params.powerPriority ?? 2,
-      set: v => u.params.powerPriority = Math.max(1, Math.round(v)), step: 1, validate: { gte: 1 } },
-  ]; },
+  params(u) {
+    const us = models.getActive('units');
+    const maxRatio = u.params.maxRatio || Infinity;
+    const maxRatioLabel = isFinite(maxRatio) ? ` (max ${maxRatio}:1)` : '';
+    return [
+      { label: `P outlet (${us.pressure.symbol})${maxRatioLabel}`,
+        get: () => us.pressure.from(u.params.Pout || 300000),
+        set: v => u.params.Pout = us.pressure.to(v),
+        step: us.pressure.decimals === 0 ? 1000 : 0.1, decimals: us.pressure.decimals, validate: { gt: 0 } },
+      { label: 'Efficiency (-)',
+        get: () => u.params.eta || 0.80,
+        set: v => u.params.eta = v, step: 0.01, min: 0, max: 1 },
+      { label: 'Priority', get: () => u.params.powerPriority ?? 2,
+        set: v => u.params.powerPriority = Math.max(1, Math.round(v)), step: 1, validate: { gte: 1 } },
+    ];
+  },
   power(u, ud) { return !ud?.last ? [] : [
     { label: 'Shaft power', value: fmt.kW(ud.last.W_shaft) },
     ...(ud.last.eta != null ? [{ label: 'Efficiency', value: fmt.pct(ud.last.eta) }] : []),
   ]; },
   detail(u, ud) {
-    if (!ud.last) return [];
+    if (!ud?.last) return [];
     const items = [];
-    if (ud.last.Pout_setpoint != null) items.push({ label: 'P setpoint', value: fmt.P(ud.last.Pout_setpoint) });
-    if (ud.last.Pout_actual != null) items.push({ label: 'P actual', value: fmt.P(ud.last.Pout_actual), tone: ud.last.curtailed ? 'warn' : '' });
+    if (ud.last.Pout_actual != null) items.push({ label: 'P actual', value: fmt.P(ud.last.Pout_actual), tone: (ud.last.curtailed || ud.last.ratioCapped) ? 'warn' : '' });
+    if (ud.last.ratio_actual != null) items.push({ label: 'Ratio', value: ud.last.ratio_actual + ':1' });
+    if (ud.last.Pout_max != null) items.push({ label: 'P max (ratio)', value: fmt.P(ud.last.Pout_max) });
     if (ud.last.W_isentropic != null) items.push({ label: 'Isentropic', value: fmt.kW(ud.last.W_isentropic) });
+    if (ud.last.ratioCapped) items.push({ label: 'Status', value: '<span style="color:#f59e0b">ratio-limited</span>' });
     return items;
   }
 };
@@ -50825,6 +50912,59 @@ function runTests() {
     t.assertOK(ud?.last?.curtailed === true || ud?.last?.status === 'off', 'Fan off without power');
     const port = t.port(fan, 'mat_out');
     t.assertClose(port.P, 100000, 100, 'No pressure boost without power');
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // Compressor max ratio [v16.8.0]
+  // ═══════════════════════════════════════════════════════════════════════
+
+  test('583: Compressor T1 ratio cap: Pout clamped at 4× Pin', t => {
+    t.clearScene();
+    // T1 pilot piston: maxRatio=4. Pin≈90 kPa → max Pout≈360 kPa
+    // Set Pout=800 kPa → should clamp
+    const src = t.place('source', 0, 0, { species: 'N2', nDot: 1, T: 300, P: 90000, phaseConstraint: 'V' });
+    const comp = t.place('compressor', 4, 0, { Pout: 800000, eta: 0.65, maxRatio: 4 });
+    const hub = t.place('power_hub', 4, -3);
+    const grid = t.place('grid_supply', 4, -6, { maxPower: 50 });
+    const dump = t.place('sink_electrical', 8, -3, { ratedPower_kW: 25 });
+    const snk = t.place('sink', 8, 0);
+    t.wire(src, 'mat_out', comp, 'mat_in');
+    t.wire(grid, 'elec_out', hub, 'elec_in');
+    t.wire(hub, 'elec_out', comp, 'elec_in');
+    t.wire(hub, 'elec_surplus', dump, 'elec_in');
+    t.wire(comp, 'mat_out', snk, 'mat_in');
+    t.solve();
+    const ud = t.ud(comp);
+    t.assertOK(ud.last.ratioCapped === true, 'Ratio-capped flag set');
+    t.assertClose(ud.last.Pout_actual, 360000, 1000, 'Pout ≈ 4 × 90 kPa = 360 kPa');
+    t.assertOK(ud.last.maxRatio === 4, 'maxRatio = 4');
+  });
+
+  test('584: Compressor without maxRatio: uncapped (legacy)', t => {
+    t.clearScene();
+    const src = t.place('source', 0, 0, { species: 'N2', nDot: 0.5, T: 300, P: 100000, phaseConstraint: 'V' });
+    const comp = t.place('compressor', 4, 0, { Pout: 2000000, eta: 0.80 });
+    const hub = t.place('power_hub', 4, -3);
+    const grid = t.place('grid_supply', 4, -6, { maxPower: 50 });
+    const dump = t.place('sink_electrical', 8, -3, { ratedPower_kW: 25 });
+    const snk = t.place('sink', 8, 0);
+    t.wire(src, 'mat_out', comp, 'mat_in');
+    t.wire(grid, 'elec_out', hub, 'elec_in');
+    t.wire(hub, 'elec_out', comp, 'elec_in');
+    t.wire(hub, 'elec_surplus', dump, 'elec_in');
+    t.wire(comp, 'mat_out', snk, 'mat_in');
+    t.solve();
+    const ud = t.ud(comp);
+    t.assertOK(!ud.last.ratioCapped, 'Not ratio-capped (no maxRatio)');
+    t.assertClose(ud.last.Pout_actual, 2000000, 1000, 'Reaches 20 bar uncapped');
+  });
+
+  test('585: Compressor profile tiers: T1/T2/T3 maxRatio defaults', t => {
+    const profile = ProfileRegistry.get('compressor');
+    t.assertOK(profile.tiers.length === 3, '3 tiers');
+    t.assertClose(profile.defaults[1].maxRatio, 4, 0, 'T1 maxRatio = 4');
+    t.assertClose(profile.defaults[2].maxRatio, 10, 0, 'T2 maxRatio = 10');
+    t.assertClose(profile.defaults[3].maxRatio, 30, 0, 'T3 maxRatio = 30');
   });
 
   test('549: S-ICONS — ragtag symbol table has 5 vertical-slice units', t => {
