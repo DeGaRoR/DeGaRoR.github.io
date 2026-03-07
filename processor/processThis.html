@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v16.8.0
+  processThis v16.9.0
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -187,6 +187,10 @@
             renderers consume — never crossed.
             Standardized format is the foundation for future condensation,
             aggregation, and global diagnosis layers.
+            AlarmSeverity is the sole severity taxonomy.  ErrorSeverity
+            is a deprecated alias mapping MINOR/MAJOR → WARNING and
+            CATASTROPHIC → CATASTROPHIC.  New code uses AlarmSeverity
+            directly.  [v16.8.3]
 
   ARCHITECTURE — How Code Is Organized:
 
@@ -203,6 +207,23 @@
             does that between solves).  It never writes to scratch (that
             is solver-internal).  If a tick needs external context, it
             comes through a port.
+            Environmental context (atmosphere, dt, solar/wind factors)
+            is provided through ctx — never read from SimSettings.  The
+            solver snapshots these once per solve and passes them to all
+            ticks via ctx.atmosphere, ctx.dt, ctx.solarFactor,
+            ctx.windSpeed, ctx.wetAir.  [v16.8.2]
+            Ticks never mutate params.  Legacy parameter migration
+            belongs in importJSON, not in tick execution.  [v16.8.2]
+
+            Data authority (informative — not an NNG, but governs debugging):
+              ud.ports       stream state     set: tick+flash     read: solver, downstream ticks
+              ctx.scratch    dispatch metadata set: solver B-E     read: ticks (power allocation)
+              u.last         display metadata  set: tick           read: inspector, alarms, stickers
+              runtime maps   P/valve/divider   set: solver pre-pass read: ticks via ctx accessors
+              ud.errors      error collection  set: tick           read: alarm system
+            Rule: u.last is NEVER read by the solver or any tick.  It is
+            display-only.  If something in the solver reads u.last to make
+            a physics decision, that is a bug.  [v16.8.3]
 
     NNG-10  Registries, adapters, and data integrity.
             Every extensible data domain has a static registry class
@@ -299,6 +320,149 @@
   ═══════════════════════════════════════════════════════════════════════════
   CHANGELOG
   ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v16.9.0 — S-STATUS: Unit Operating Modes ───────────────────────────
+
+  **Phase B — on/bypass/off operating modes + fried override.**
+
+  Three operating modes for every non-boundary unit:
+  - **on** (default): tick runs normally.
+  - **bypass**: fluid passes straight through (primary mat_in → mat_out),
+    T/P/n/H preserved.  Zero power demand.  Tick skipped entirely.
+  - **off**: all outputs zeroed.  Post-pass source-killing via
+    `_blockedInlet` (same mechanism as check-valve blocking).
+
+  **Fried override:** `u.fried` forces bypass regardless of `u.mode`.
+  Inspector locks the mode dropdown and shows "Bypass 🔒" when fried.
+  Reset Equipment clears fried, then u.mode takes effect again.
+
+  **Solver integration:**
+  - Mode guard in solveScene iteration loop, between input gathering
+    and tick dispatch.  `_applyBypass(u, def, ud, inPorts)` and
+    `_applyOff(u, def, ud, inPorts)` as solver-level helpers.
+  - `_BYPASS_PATHS` map for non-standard port layouts: hex (2 paths),
+    flash_drum (mat_in→vap_out), distillation (→dist_out), tank
+    (→gas_out), open_tank (→liq_out), electrical-only units (no
+    material passthrough).
+  - Mixer bypass: secondary inlets trigger `_blockedInlet` for
+    upstream source-killing.
+  - Convergence tracked: `portsChanged()` runs on bypass/off outputs.
+
+  **Entry-level fried guards removed** from 9 tick functions:
+  sink_electrical, pump, compressor, fan, compressor_diaphragm,
+  electric_heater, air_cooler, distillation_column, equilibriumTick,
+  electrochemicalTick.  Replaced by solver-level mode guard.
+  Post-checkOverload fried guards retained in air_cooler and
+  electrochemicalTick (mid-tick destruction reaction).
+
+  **TimeClock.step():** `updateInventory` skipped for bypass/off units.
+  Inventory frozen when not in `on` mode.
+
+  **Inspector:** Mode dropdown (On/Bypass/Off) below unit subtitle.
+  Boundary units (sources/sinks) excluded.  Fried: locked display.
+  
+  **Canvas:** Bypass = dashed blue border + 50% opacity.
+  Off = power icon + 25% opacity.  Fried overlay takes precedence.
+
+  **Serialization:** `u.mode` exported when not 'on', imported on load.
+
+  NNGs: NNG-1 (mass conserved in bypass/off), NNG-2 (no work in bypass),
+  NNG-3 (mode visible on canvas + inspector), NNG-9 (mode check is
+  solver-level, ticks never run for bypass/off), NNG-14.
+  9 tests (586–594): bypass passthrough, powerDemand=0, off zeroing,
+  fried override, fried reset, HEX bypass, source-killing, GT bypass,
+  export/import.
+
+  ─── v16.8.3 — Severity unification + NNG-5/6 cleanup ───────────────────
+
+  **Phase A, Session 3 — NNG boundary restoration.**
+
+  **Severity unification (NNG-7)** — One severity taxonomy, not two.
+  - AlarmDomain, AlarmSeverity, AlarmCategory moved from alarm system block
+    to core definitions (L13484) — single source of truth.
+  - ErrorSeverity redefined as deprecated alias:
+      MINOR → AlarmSeverity.WARNING,  MAJOR → AlarmSeverity.WARNING,
+      CATASTROPHIC → AlarmSeverity.CATASTROPHIC.
+    Level numbers now consistent: WARNING=2, CATASTROPHIC=4 everywhere.
+  - Alarm bridge simplified: uses AlarmSeverity.CATASTROPHIC.level directly.
+  - Diagnostic center magic numbers replaced with AlarmSeverity refs.
+  - 221 existing ErrorSeverity.* references continue working via alias.
+    New code should use AlarmSeverity directly.
+
+  **normalizeNonMaterialStream cleanup (NNG-5/6)** — Legacy shim removed.
+  - curtailmentFactor derivation (v6.4) deleted from stream normalization.
+    Was a compatibility layer for pre-v13.1.0 code that moved dispatch
+    metadata off ports.  The v13.1.0 migration was complete — the shim
+    was dead weight.
+  - available → capacity alias retained (still needed).
+  - Tests updated to expect curtailmentFactor NOT derived on streams.
+
+  **NNG text amendments:**
+  - NNG-9: ctx environment routing documented.  "Ticks never mutate params."
+  - NNG-7: AlarmSeverity sole taxonomy, ErrorSeverity deprecated.
+  - Data authority table added (informative): who sets/reads ports, scratch,
+    u.last, runtime maps, errors.  "u.last is NEVER read by the solver."
+
+  NNGs: NNG-7 (severity), NNG-5/6 (dispatch metadata), NNG-9 (text), NNG-14.
+  Tests: 585 tests expected to pass — ErrorSeverity alias is transparent,
+  curtailmentFactor test expectations updated.
+
+  ─── v16.8.2 — NNG-9 ctx routing + tick isolation ───────────────────────
+
+  **Phase A, Session 2 — NNG boundary restoration.**
+
+  **ctx environment routing (NNG-9)** — Ticks no longer read SimSettings.
+  - RuntimeContext snapshots atmosphere, wetAir, dt, solarFactor, windSpeed
+    once per solve.  Available as ctx.atmosphere, ctx.wetAir, ctx.dt,
+    ctx.solarFactor, ctx.windSpeed in all tick functions.
+  - 22 SimSettings.* calls replaced across 12 defIds/helpers:
+    source, source_atm, sink, solar_panel, wind_turbine, tank, open_tank,
+    reservoir, atmosphere, closed_loop_source, gas_turbine, air_cooler,
+    _isenthalpicThrottleTick.
+  - 6 tick signatures updated to accept ctx: source, source_atm, sink,
+    solar_panel, wind_turbine, gas_turbine.
+  - initInventory/updateInventory remain on SimSettings (non-tick lifecycle).
+
+  **ctx.scene removed** — Deprecated escape hatch deleted from forUnit().
+  Zero tick-level usages existed.  Solver-internal accessors
+  (downstreamP, valveStatus, etc.) are the correct NNG-9 pattern.
+
+  **Reservoir flash cache** moved from u._flashCache to ctx.scratch.flashCache.
+  No unit state writes inside tick functions.
+
+  **source_atm param migration** moved from tick to importJSON.
+  - `flowScale → nDot` migration now runs at load time, not runtime.
+  - UnitInspector.source_atm updated: reads/writes u.params.nDot.
+  - Demo scene JSON updated (both main + checkpoint).
+
+  NNGs: NNG-9 (tick isolation), NNG-14 (changelog+tests).
+  Tests: 585 tests expected to pass unchanged — zero behavioral change
+  to any computed value.  All ticks receive identical environment data
+  as before, just through ctx instead of SimSettings global.
+
+  ─── v16.8.1 — NNG-15 XSS fix + esc() unification ─────────────────────
+
+  **Phase A, Session 1 — NNG boundary restoration.**
+
+  **XSS fix** — Two confirmed unescaped user-name injection paths fixed.
+  - Balance modal: `addRow()` now wraps `label` in `esc()` before innerHTML.
+    Both mass table (~L24778) and energy table (~L24805) `addRow` definitions.
+    `item.name` flows from `u.name || def.name` in `computeSystemBalance()`.
+  - Diagnostic center: `d.unitName` and `d.originalMessage` in `el({html:})`
+    at ~L24703 now escaped.  `d.unitName` flows from `u.name || def.name`
+    in `diagnoseErrors()`.
+  - Full audit: all 25 `el({html:})` calls and key `innerHTML` assignments
+    reviewed.  Two dangerous, remainder verified safe (registry data, numbers,
+    hardcoded strings).
+
+  **esc() unification** — Two competing escape functions merged.
+  - `esc()` rewritten from DOM-based (`createElement→textContent→innerHTML`)
+    to portable string-based implementation (same logic as old `escapeHtml()`).
+  - `escapeHtml()` deleted.  Tests updated to call `esc()`.
+
+  NNGs: NNG-15 (XSS defense), NNG-14 (changelog+tests).
+  Tests: existing escapeHtml tests updated to esc(); all 585 tests expected
+  to pass unchanged (no behavioral change to any unit tick or solver path).
 
   ─── v16.8.0 — Atmosphere unit + Fan ─────────────────────────────────────
 
@@ -8925,6 +9089,9 @@ const TimeClock = {
     for (const [uid, u] of scene.units) {
       const def = UnitRegistry.get(u.defId);
       if (!def || !def.inventory || !def.updateInventory || !u.inventory) continue;
+      // [v16.9.0 S-STATUS] Skip inventory update for bypass/off units — inventory frozen.
+      const em = u.fried ? 'bypass' : (u.mode || 'on');
+      if (em !== 'on') continue;
       const ud = scene.runtime.unitData.get(uid);
       const resolvedPorts = ud ? ud.ports : {};
       u.inventory = def.updateInventory(u.inventory, resolvedPorts, dt);
@@ -13420,28 +13587,44 @@ models.register('units', {
 });
 
 /* =========================
-   ERROR SEVERITY SYSTEM
-   Categorizes operational errors by damage level
+   ALARM SEVERITY / DOMAIN / CATEGORY (NNG-7)
+   [v16.8.3] Moved up from alarm system block for single-source-of-truth.
+   Canonical severity taxonomy: CATASTROPHIC > WARNING > INFO > OK.
+   ========================= */
+const AlarmDomain = Object.freeze({
+  PLANT: 'plant',   // Physical events on simulated equipment — player-visible
+  SIM:   'sim',     // Simulation engine health — dev-visible
+});
+
+const AlarmSeverity = Object.freeze({
+  CATASTROPHIC: { level: 4, key: 'catastrophic', icon: '🔴', color: '#fca5a5', label: 'Catastrophic' },
+  WARNING:  { level: 2, key: 'warning',  icon: '🟡', color: '#fde68a', label: 'Warning' },
+  INFO:     { level: 1, key: 'info',     icon: 'ℹ️', color: '#93c5fd', label: 'Info' },
+  OK:       { level: 0, key: 'ok',       icon: '🟢', color: '#6ee7b7', label: 'OK' },
+});
+
+const AlarmCategory = Object.freeze({
+  CONVERGENCE:   'Convergence',
+  MASS_BALANCE:  'Mass Balance',
+  ENERGY_BALANCE:'Energy Balance',
+  PRESSURE:      'Pressure Solve',
+  UNIT:          'Unit',
+  CONNECTIVITY:  'Connectivity',
+  CONFIGURATION: 'Configuration',
+  THERMO_CONVERGENCE: 'Thermo Convergence',
+  THERMO_RANGE:       'Thermo Range',
+});
+
+/* =========================
+   [v16.8.3] ErrorSeverity — DEPRECATED alias for AlarmSeverity.
+   Retained so existing code continues to work identically.
+   MINOR and MAJOR both map to WARNING (NNG-7 canonical taxonomy).
+   New code should use AlarmSeverity directly.
    ========================= */
 const ErrorSeverity = {
-  MINOR: { 
-    icon: '⚠️', 
-    color: '#fbbf24', 
-    prefix: 'WARNING',
-    level: 1
-  },
-  MAJOR: { 
-    icon: '🔧', 
-    color: '#f97316', 
-    prefix: 'MAJOR DAMAGE',
-    level: 2
-  },
-  CATASTROPHIC: { 
-    icon: '💥', 
-    color: '#ef4444', 
-    prefix: 'CATASTROPHIC',
-    level: 3
-  }
+  MINOR:       AlarmSeverity.WARNING,
+  MAJOR:       AlarmSeverity.WARNING,
+  CATASTROPHIC: AlarmSeverity.CATASTROPHIC
 };
 
 /* =========================
@@ -13671,12 +13854,9 @@ function normalizeNonMaterialStream(stream) {
   if (stream.capacity === undefined && stream.available !== undefined) {
     stream.capacity = stream.available;
   }
-  // [v6.4] Derive curtailmentFactor from actual / demand when missing
-  if (stream.curtailmentFactor === undefined &&
-      typeof stream.actual === 'number' && isFinite(stream.actual) &&
-      typeof stream.demand === 'number' && stream.demand > 0 && isFinite(stream.demand)) {
-    stream.curtailmentFactor = Math.max(0, Math.min(1, stream.actual / stream.demand));
-  }
+  // [v16.8.3] curtailmentFactor derivation removed — dispatch metadata lives in
+  // ud.last/scratch only (NNG-5/6).  Was a v6.4 compatibility shim that outlived
+  // the v13.1.0 migration.
   return stream;
 }
 
@@ -14618,7 +14798,7 @@ UnitRegistry.register('source', {
     'box/port-top':    { w: 2, h: 2, ports: { mat_out:{x:1,y:0} } },
     'box/port-bottom': { w: 2, h: 2, ports: { mat_out:{x:1,y:2} } }
   },
-  tick(u, ports, par) {
+  tick(u, ports, par, ctx) {
     // ── Build composition ──
     const n = {};
     if (par.n && typeof par.n === 'object') {
@@ -14637,7 +14817,7 @@ UnitRegistry.register('source', {
     }
 
     // ── T, P with atmospheric defaults ──
-    const atm = SimSettings.getAtmosphere();
+    const atm = ctx.atmosphere;
     let T_K = par.T ?? atm.T_K;
     let P_Pa = par.P ?? atm.P_Pa;
 
@@ -14681,11 +14861,10 @@ UnitRegistry.register('source_atm', {
     'box/port-top':    { w: 2, h: 2, ports: { mat_out:{x:1,y:0} } },
     'box/port-bottom': { w: 2, h: 2, ports: { mat_out:{x:1,y:2} } }
   },
-  tick(u, ports, par) {
-    const atm = SimSettings.getAtmosphere();
-    const wetAir = SimSettings.getWetAir();
-    // nDot is the canonical param; flowScale is legacy alias
-    if (par.flowScale != null && par.nDot == null) { par.nDot = par.flowScale; delete par.flowScale; }
+  tick(u, ports, par, ctx) {
+    const atm = ctx.atmosphere;
+    const wetAir = ctx.wetAir;
+    // [v16.8.2] flowScale→nDot migration moved to importJSON (NNG-9: no param mutation in tick)
     const nDot = par.nDot ?? 1.0;
     const n = {};
     for (const [sp, frac] of Object.entries(wetAir)) {
@@ -14718,11 +14897,11 @@ UnitRegistry.register('sink', {
     'box/port-top':    { w: 2, h: 2, ports: { mat_in:{x:1,y:0} } },
     'box/port-bottom': { w: 2, h: 2, ports: { mat_in:{x:1,y:2} } }
   },
-  tick(u, ports, par) { 
+  tick(u, ports, par, ctx) { 
     const sIn = ports.mat_in;
     if (!sIn) return;
 
-    const atm = SimSettings.getAtmosphere();
+    const atm = ctx.atmosphere;
     const P_atm = atm.P_Pa;
     const T_atm = atm.T_K;
     const absorbed = Object.values(sIn.n || {}).reduce((a,b) => a+b, 0);
@@ -14869,9 +15048,9 @@ UnitRegistry.register('solar_panel', {
     'box/port-bottom': { w: 2, h: 2, ports: { elec_out:{x:1,y:2} } }
   },
   limitParams: [],
-  tick(u, ports, par) {
+  tick(u, ports, par, ctx) {
     const peak_W = (par.peakPower_kW || 10) * 1000;
-    const sf = SimSettings.getSolarFactor();
+    const sf = ctx.solarFactor;
     const output_W = peak_W * sf;
     ports.elec_out = {
       type: StreamType.ELECTRICAL,
@@ -14899,12 +15078,12 @@ UnitRegistry.register('wind_turbine', {
     'box/port-bottom': { w: 2, h: 2, ports: { elec_out:{x:1,y:2} } }
   },
   limitParams: [],
-  tick(u, ports, par) {
+  tick(u, ports, par, ctx) {
     const peak_W = (par.peakPower_kW || 20) * 1000;
     const vDesign = par.vDesign_ms || 12;
     const cutIn = vDesign * 0.25;
     const cutOut = vDesign * 2.0;
-    const v = SimSettings.getWindSpeed();
+    const v = ctx.windSpeed;
 
     let output_W = 0;
     let status = 'idle';
@@ -15057,8 +15236,8 @@ UnitRegistry.register('tank', {
 
   tick(u, ports, par, ctx) {
     const V = par.volume_m3 || 0.15;
-    const inv = u.inventory || { n: {}, T_K: SimSettings.getAtmosphere().T_K };
-    const dt = SimSettings.dt;
+    const inv = u.inventory || { n: {}, T_K: ctx.atmosphere.T_K };
+    const dt = ctx.dt;
 
     // 1. Compute tank state
     const state = computeTankState(inv.n, inv.T_K, V, thermo);
@@ -15462,9 +15641,9 @@ UnitRegistry.register('open_tank', {
 
   tick(u, ports, par, ctx) {
     const V = par.volume_m3 || 0.15;
-    const inv = u.inventory || { n: {}, T_K: SimSettings.getAtmosphere().T_K };
-    const dt = SimSettings.dt;
-    const atm = SimSettings.getAtmosphere();
+    const inv = u.inventory || { n: {}, T_K: ctx.atmosphere.T_K };
+    const dt = ctx.dt;
+    const atm = ctx.atmosphere;
     const P_atm = atm.P_Pa;
 
     // 1. Compute liquid volume and level
@@ -15672,7 +15851,7 @@ UnitRegistry.register('reservoir', {
   limits: { S: { T_LL: 200, T_L: 250, T_H: 500, T_HH: 600, P_LL: 10000, P_L: 50000, P_H: 20000000, P_HH: 25000000 } },
   tick(u, ports, par, ctx) {
     const P_res = (par.P_bar || 5) * 1e5;
-    const T = par.T || SimSettings.getAtmosphere().T_K;
+    const T = par.T || ctx.atmosphere.T_K;
     const comp = par.composition || { N2: 1.0 };
     const opening = par.opening_pct ?? 100;
     const Cv = par.Cv || 50;
@@ -15683,16 +15862,17 @@ UnitRegistry.register('reservoir', {
     for (const [sp, f] of Object.entries(comp)) fracs[sp] = f / total;
 
     // Flash at reservoir conditions to determine phase split
-    // Cache: composition/T/P don't change between ticks
+    // [v16.8.2 NNG-9] Cache in ctx.scratch (was u._flashCache — no unit state writes in tick)
     const n_flash = {};
     for (const [sp, f] of Object.entries(fracs)) n_flash[sp] = f; // unit moles for flash
     const cacheKey = `${T}|${P_res}|${Object.entries(fracs).map(([s,f])=>s+f.toFixed(6)).join(',')}`;
     let flash;
-    if (u._flashCache?.key === cacheKey) {
-      flash = u._flashCache.result;
+    const _fc = ctx.scratch.flashCache;
+    if (_fc?.key === cacheKey) {
+      flash = _fc.result;
     } else {
       flash = thermo.tpFlash({ T, P: P_res, n: n_flash });
-      u._flashCache = { key: cacheKey, result: flash };
+      ctx.scratch.flashCache = { key: cacheKey, result: flash };
     }
     const beta = flash?.beta ?? 1.0; // vapor mole fraction
 
@@ -15724,7 +15904,7 @@ UnitRegistry.register('reservoir', {
       for (const conn of matConns) {
         const opening_i = par.openings?.[conn.id] ?? opening;
         if (opening_i <= 0) { connFlows.push({ conn, Q: 0 }); continue; }
-        const P_down_i = ctx.downstreamP(conn.id) ?? SimSettings.getAtmosphere().P_Pa;
+        const P_down_i = ctx.downstreamP(conn.id) ?? ctx.atmosphere.P_Pa;
         const dP_i = P_res - P_down_i;
         if (dP_i <= 0) {
           connFlows.push({ conn, Q: 0 });
@@ -15768,7 +15948,7 @@ UnitRegistry.register('reservoir', {
     };
 
     // Diagnostics: representative dP from legacy key (worst branch for multi-conn)
-    const P_down_diag = ctx.downstreamP('mat_out') ?? SimSettings.getAtmosphere().P_Pa;
+    const P_down_diag = ctx.downstreamP('mat_out') ?? ctx.atmosphere.P_Pa;
     const dP_diag = P_res - P_down_diag;
 
     u.last = {
@@ -15813,7 +15993,7 @@ UnitRegistry.register('atmosphere', {
   },
   limitParams: [],
   tick(u, ports, par, ctx) {
-    const atm = SimSettings.getAtmosphere();
+    const atm = ctx.atmosphere;
     const T = atm.T_K;
     const P = atm.P_Pa;
     const opening = 100;  // Internal constant — not player-editable
@@ -15928,7 +16108,7 @@ UnitRegistry.register('closed_loop_source', {
     const species = par.species || 'NH3';
     const nDot = par.nDot || 1.0;
     const sIn = ports.mat_in;
-    const atm = SimSettings.getAtmosphere();
+    const atm = ctx.atmosphere;
 
     const T = sIn?.T || atm.T_K;
     const P = sIn?.P || atm.P_Pa;
@@ -16399,14 +16579,7 @@ UnitRegistry.register('sink_electrical', {
     const sIn = ports.elec_in;
     const rated_W = ((par.ratedPower_kW ?? 1000) * 1000);
 
-    // [v13.1.0 S2-A] Fry guard
-    if (u.fried) {
-      u.last = { fried: true, absorbed_W: 0, rated_W,
-        error: { severity: ErrorSeverity.CATASTROPHIC,
-          message: 'Unit destroyed by electrical overload. Replace or reset.' } };
-      u.powerDemand = 0;
-      return;
-    }
+    // [v16.9.0 S-STATUS] Fried guard removed — handled by solver mode guard.
 
     // [v13.1.0 S2-A] Finite demand replaces Infinity
     u.powerDemand = rated_W;
@@ -16471,11 +16644,11 @@ UnitRegistry.register('gas_turbine', {
   // [v13.0.4 S1c] Equipment limits
   limitParams: ['T_LL', 'T_L', 'T_H', 'T_HH', 'P_LL', 'P_L', 'P_H', 'P_HH', 'mass_LL', 'mass_HH'],
   limits: { S: { T_LL: 323, T_L: 373, T_H: 873, T_HH: 1023, P_LL: 150000, P_L: 200000, P_H: 12000000, P_HH: 15000000, mass_LL: 0.005, mass_HH: 0.12 } },
-  tick(u, ports, par) {
+  tick(u, ports, par, ctx) {
     const sIn = ports.mat_in;
     if (!sIn) return;
     
-    const P_atm = SimSettings.getAtmosphere().P_Pa;
+    const P_atm = ctx.atmosphere.P_Pa;
     const rawPout = par.Pout || (sIn.P / 2);
     const Pout = Math.max(P_atm, rawPout);
     const gtClamped = rawPout < P_atm;
@@ -16591,7 +16764,7 @@ UnitRegistry.register('gas_turbine', {
 function _isenthalpicThrottleTick(u, ports, par, ctx) {
   const sIn = ports.mat_in;
   if (!sIn) return;
-  const P_atm = SimSettings.getAtmosphere().P_Pa;
+  const P_atm = ctx.atmosphere.P_Pa;
 
   let Pout;
   let clamped = false;
@@ -16735,15 +16908,7 @@ UnitRegistry.register('pump', {
     const sElec = ports.elec_in;
     if (!sIn) return;
     
-    // [v13.1.0 S2-A] Fry guard — destroyed equipment passes fluid through unmodified
-    if (u.fried) {
-      u.powerDemand = 0;
-      ports.mat_out = { type: StreamType.MATERIAL, P: sIn.P, n: { ...sIn.n },
-        phaseConstraint: 'L', H_target_Jps: thermo.getHdot_Jps(sIn) };
-      u.last = { fried: true, error: { severity: ErrorSeverity.CATASTROPHIC,
-        message: 'Unit destroyed by electrical overload. Replace or reset.' } };
-      return;
-    }
+    // [v16.9.0 S-STATUS] Fried guard removed — handled by solver mode guard.
     
     // [v11.0.0] Require electrical input — pump cannot operate without power
     if (!sElec) {
@@ -16892,15 +17057,7 @@ UnitRegistry.register('compressor', {
     const sElec = ports.elec_in;
     if (!sIn) return;
     
-    // [v13.1.0 S2-A] Fry guard
-    if (u.fried) {
-      u.powerDemand = 0;
-      ports.mat_out = { type: StreamType.MATERIAL, P: sIn.P, n: { ...sIn.n },
-        phaseConstraint: 'V', H_target_Jps: thermo.getHdot_Jps(sIn) };
-      u.last = { fried: true, error: { severity: ErrorSeverity.CATASTROPHIC,
-        message: 'Unit destroyed by electrical overload. Replace or reset.' } };
-      return;
-    }
+    // [v16.9.0 S-STATUS] Fried guard removed — handled by solver mode guard.
     
     // [v11.0.0] Require electrical input — compressor cannot operate without power
     if (!sElec) {
@@ -17065,17 +17222,7 @@ UnitRegistry.register('fan', {
     const sElec = ports.elec_in;
     if (!sIn) return;
 
-    // Fry guard
-    if (u.fried) {
-      u.powerDemand = 0;
-      ports.mat_out = { type: StreamType.MATERIAL, P: sIn.P, n: { ...sIn.n },
-        phaseConstraint: 'V', H_target_Jps: thermo.getHdot_Jps(sIn) };
-      u.last = { fried: true, error: { severity: ErrorSeverity.CATASTROPHIC,
-        message: 'Fan destroyed by electrical overload. Replace or reset.' } };
-      return;
-    }
-
-    const deltaP = par.deltaP || 1000;
+    // [v16.9.0 S-STATUS] Fried guard removed — handled by solver mode guard.
     const eta = par.eta || 0.6;
     const Pout = sIn.P + deltaP;
 
@@ -17170,17 +17317,7 @@ UnitRegistry.register('compressor_diaphragm', {
     const sElec = ports.elec_in;
     if (!sIn) return;
 
-    // Fry guard
-    if (u.fried) {
-      u.powerDemand = 0;
-      ports.mat_out = { type: StreamType.MATERIAL, P: sIn.P, n: { ...sIn.n },
-        phaseConstraint: 'V', T: sIn.T };
-      u.last = { fried: true, error: { severity: ErrorSeverity.CATASTROPHIC,
-        message: 'Unit destroyed by electrical overload.' } };
-      return;
-    }
-
-    // No power
+    // [v16.9.0 S-STATUS] Fried guard removed — handled by solver mode guard.
     if (!sElec) {
       u.powerDemand = 0;
       ports.mat_out = { type: StreamType.MATERIAL, P: sIn.P, n: { ...sIn.n },
@@ -17330,17 +17467,7 @@ UnitRegistry.register('electric_heater', {
     const sIn = ports.mat_in;
     if (!sIn) return;
 
-    // [v13.1.0 S2-A] Fry guard
-    if (u.fried) {
-      u.powerDemand = 0;
-      ports.mat_out = { type: StreamType.MATERIAL, P: sIn.P, n: { ...sIn.n },
-        phaseConstraint: 'VL', H_target_Jps: thermo.getHdot_Jps(sIn) };
-      u.last = { fried: true, error: { severity: ErrorSeverity.CATASTROPHIC,
-        message: 'Unit destroyed by electrical overload. Replace or reset.' } };
-      return;
-    }
-
-    const H_in_Jps = thermo.getHdot_Jps(sIn);
+    // [v16.9.0 S-STATUS] Fried guard removed — handled by solver mode guard.
     if (H_in_Jps === 0 && (!sIn.T || !sIn.P || !sIn.n)) {
       u.last = { error: { severity: ErrorSeverity.MAJOR,
         message: 'Cannot compute inlet enthalpy — missing stream properties' } };
@@ -17473,24 +17600,15 @@ UnitRegistry.register('air_cooler', {
     const sIn = ports.mat_in;
     if (!sIn) return;
 
-    // ── [v13.2.0] Fry guard — destroyed fan motor, passthrough ──
-    if (u.fried) {
-      u.powerDemand = 0;
-      ports.mat_out = { type: StreamType.MATERIAL, P: sIn.P, n: { ...sIn.n },
-        phaseConstraint: 'VL', H_target_Jps: thermo.getHdot_Jps(sIn) };
-      u.last = { fried: true, error: { severity: ErrorSeverity.CATASTROPHIC,
-        message: 'Fan motor destroyed by electrical overload. Replace or reset.' } };
-      return;
-    }
-
-    const H_in_Jps = thermo.getHdot_Jps(sIn);
+    // [v16.9.0 S-STATUS] Entry fried guard removed — handled by solver mode guard.
+    // Post-checkOverload fried guard retained (mid-tick destruction).
     if (H_in_Jps === 0 && (!sIn.T || !sIn.P || !sIn.n)) {
       u.last = { error: { severity: ErrorSeverity.MAJOR,
         message: 'Cannot compute inlet enthalpy — missing stream properties' } };
       return;
     }
 
-    const atm = SimSettings.getAtmosphere();
+    const atm = ctx.atmosphere;
     const T_amb = atm.T_K;
     const T_approach = par.T_approach ?? 10;  // [v13.0.5 S1c-9c] configurable
     const T_setpoint = par.T_out ?? (sIn.T > T_amb + T_approach ? T_amb + T_approach : sIn.T);
@@ -18761,25 +18879,7 @@ UnitRegistry.register('distillation_column', {
   },
   limitParams: ['T_LL', 'T_L', 'T_H', 'T_HH', 'P_LL', 'P_L', 'P_H', 'P_HH', 'mass_HH'],
   tick(u, ports, par, ctx) {
-    // Fry guard (S2)
-    if (u.fried) {
-      u.powerDemand = 0;
-      const sIn = ports.mat_in;
-      if (sIn) {
-        const H_in = thermo.getHdot_Jps(sIn);
-        const nTotal = Object.values(sIn.n).reduce((a, b) => a + b, 0);
-        const halfN = {};
-        for (const sp of Object.keys(sIn.n)) halfN[sp] = sIn.n[sp] * 0.5;
-        ports.dist_out = { type: StreamType.MATERIAL, P: sIn.P, n: { ...halfN },
-          phaseConstraint: 'VL', H_target_Jps: H_in * 0.5 };
-        ports.bot_out = { type: StreamType.MATERIAL, P: sIn.P, n: { ...halfN },
-          phaseConstraint: 'VL', H_target_Jps: H_in * 0.5 };
-      }
-      u.last = { fried: true, error: { severity: ErrorSeverity.CATASTROPHIC,
-        message: 'Column reboiler destroyed by electrical overload. Replace or reset.' } };
-      return;
-    }
-
+    // [v16.9.0 S-STATUS] Fried guard removed — handled by solver mode guard.
     const sIn = ports.mat_in;
     if (!sIn) return;
 
@@ -18993,16 +19093,7 @@ function equilibriumTick(u, ports, par, ctx) {
   const sIn = ports.mat_in;
   if (!sIn) return;
 
-  // [v13.1.0 S2-A] Fry guard — destroyed reactor passes fluid through unmodified
-  if (u.fried) {
-    u.powerDemand = 0;
-    ports.mat_out = { type: StreamType.MATERIAL, T: sIn.T, P: sIn.P,
-      n: { ...sIn.n }, phaseConstraint: sIn.phaseConstraint || 'V' };
-    u.last = { fried: true, error: { severity: ErrorSeverity.CATASTROPHIC,
-      message: 'Unit destroyed by electrical overload. Replace or reset.' } };
-    return;
-  }
-
+  // [v16.9.0 S-STATUS] Fried guard removed — handled by solver mode guard.
   // [v12.9.0] Three-mode demand: none (adiabatic), isothermal, fixed
   const heatDemand = par.heatDemand || 'none';
 
@@ -19376,12 +19467,7 @@ function separateElectrodes(n_total) {
 
 // ── electrochemicalTick — shared trunk for consume (electrolysis) and generate (fuel cell) ──
 function electrochemicalTick(u, ports, par, ctx) {
-  if (u.fried) {
-    u.last = { fried: true, error: { severity: ErrorSeverity.CATASTROPHIC,
-      message: 'Unit destroyed by electrical overload.' }};
-    u.powerDemand = 0;
-    return;
-  }
+  // [v16.9.0 S-STATUS] Fried guard removed — handled by solver mode guard.
 
   const defId = u.defId;
   const isGenerateMode = (defId === 'fuel_cell');
@@ -20486,7 +20572,7 @@ class Scene {
 
   exportJSON() {
     const data = {
-      version: 18,  // [v14.7.0 S-SIM] checkpoint serialization + fried-on-limits
+      version: 19,  // [v16.9.0 S-STATUS] + mode field on units
       processName: this.processName || '',
       grid: { w: this.gridW, h: this.gridH, tile: this.tile },
       settings: {
@@ -20531,6 +20617,7 @@ class Scene {
       if (u.sticker) unitData.sticker = u.sticker;  // [v10.7.0] P1
       if (u.inventory) unitData.inventory = u.inventory;  // [v12.0.0] tank/battery state
       if (u.fried) unitData.fried = true;  // [v13.1.0 S2-A] overload destruction state
+      if (u.mode && u.mode !== 'on') unitData.mode = u.mode;  // [v16.9.0 S-STATUS]
       data.units.push(unitData);
     }
     
@@ -20776,6 +20863,10 @@ class Scene {
       if (u.fried === true) {
         unit.fried = true;
       }
+      // [v16.9.0 S-STATUS] Restore operating mode
+      if (u.mode === 'bypass' || u.mode === 'off') {
+        unit.mode = u.mode;
+      }
       // [v12.9.0] Migrate legacy reactor mode param → heatDemand
       if (unit.params.mode && !unit.params.heatDemand) {
         unit.params.heatDemand = unit.params.mode === 'heated' ? 'isothermal' : 'none';
@@ -20784,6 +20875,11 @@ class Scene {
       // [v14.9.0 S6a] defId migration handled in pre-validation above; clean up variant
       if (unit.defId === 'reactor_adiabatic' && unit.params.variant) {
         delete unit.params.variant;  // adiabatic has no variants
+      }
+      // [v16.8.2 NNG-9] Migrate source_atm flowScale → nDot (was in tick — NNG-9 violation)
+      if (unit.defId === 'source_atm' && unit.params.flowScale != null && unit.params.nDot == null) {
+        unit.params.nDot = unit.params.flowScale;
+        delete unit.params.flowScale;
       }
 
       tempUnits.set(unit.id, unit);
@@ -21437,6 +21533,11 @@ function computeTickOrder(scene) {
 //   ctx.warn(msg)         — push a warning to this unit's diagnostics
 //   ctx.portConnected(id) — [v11.1.1] true if OUT port has downstream connection (NNG-9)
 //   ctx.solveGen          — [v11.1.1] solve generation counter for cache invalidation (NNG-9)
+//   ctx.atmosphere        — [v16.8.2] frozen atmosphere snapshot { T_K, P_Pa, RH, g, air, ... }
+//   ctx.wetAir            — [v16.8.2] wet air composition { species: fraction }
+//   ctx.dt                — [v16.8.2] timestep duration (seconds)
+//   ctx.solarFactor       — [v16.8.2] solar factor (0–1)
+//   ctx.windSpeed         — [v16.8.2] wind speed (m/s)
 //
 // Global structure (scene.runtime.ctx):
 //   runtimeCtx.scratch(unitId) — get or create per-unit scratch store
@@ -21448,7 +21549,13 @@ class RuntimeContext {
     this._scratch = new Map();
     this.iter = 0;
     this.thermo = thermoAdapter;
-    this._scene = scene;  // [v10.6.1] scene reference for tick functions
+    this._scene = scene;  // [v10.6.1] scene reference for solver-internal accessors
+    // [v16.8.2 NNG-9] Snapshot environment once per solve — ticks read ctx, not globals.
+    this._atmosphere  = SimSettings.getAtmosphere();
+    this._wetAir      = SimSettings.getWetAir();
+    this._dt          = SimSettings.dt;
+    this._solarFactor = SimSettings.getSolarFactor();
+    this._windSpeed   = SimSettings.getWindSpeed();
   }
 
   /** Get (or create) the per-unit scratch store. */
@@ -21497,9 +21604,12 @@ class RuntimeContext {
       },
       // [v11.1.1 NNG-9] Solve generation counter for cache invalidation.
       solveGen: (this._scene._solveGen || 0),
-      // [DEPRECATED v11.1.1] Retained for backward compat during transition.
-      // New tick code should use ctx.portConnected() instead of ctx.scene.
-      scene:   this._scene,
+      // [v16.8.2 NNG-9] Environment snapshot — ticks read these, never SimSettings directly.
+      atmosphere:  this._atmosphere,
+      wetAir:      this._wetAir,
+      dt:          this._dt,
+      solarFactor: this._solarFactor,
+      windSpeed:   this._windSpeed,
     };
   }
 }
@@ -21967,6 +22077,153 @@ function resolveDownstreamPressures(scene) {
   return result;
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// S-STATUS: Unit Operating Modes (bypass / off / fried override)
+// [v16.9.0] Solver-level mode guard replaces per-tick fried guards.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Bypass port mapping: { defId → [{ in: portId, out: portId }, ...] }
+ * Units not listed use the default: first mat_in → first mat_out.
+ * Multi-path units (HEX) have multiple entries.
+ * null out means "no material passthrough" (e.g. electrical-only units).
+ */
+const _BYPASS_PATHS = {
+  hex:                  [{ in: 'hot_in', out: 'hot_out' }, { in: 'cold_in', out: 'cold_out' }],
+  flash_drum:           [{ in: 'mat_in', out: 'vap_out' }],
+  distillation_column:  [{ in: 'mat_in', out: 'dist_out' }],
+  tank:                 [{ in: 'mat_in', out: 'gas_out' }],
+  open_tank:            [{ in: 'mat_in', out: 'liq_out' }],
+  battery:              [],   // electrical only — no material passthrough
+  power_hub:            [],
+  sink_electrical:      [],
+};
+
+/**
+ * Apply bypass mode: primary mat_in → mat_out passthrough.  Zero power demand.
+ * Mass conserved (NNG-1).  No work done (NNG-2: T/P/H unchanged).
+ */
+function _applyBypass(u, def, ud, inPorts) {
+  u.powerDemand = 0;
+  ud.powerDemand = 0;
+
+  const paths = _BYPASS_PATHS[u.defId];
+
+  if (paths !== undefined) {
+    // ── Explicit mapping ──
+    for (const path of paths) {
+      const sIn = inPorts[path.in];
+      if (sIn && sIn.n && Object.values(sIn.n).reduce((a, b) => a + b, 0) > 1e-15) {
+        ud.ports[path.out] = {
+          type: StreamType.MATERIAL,
+          T: sIn.T, P: sIn.P,
+          n: { ...sIn.n },
+          phase: sIn.phase, beta: sIn.beta, vaporFraction: sIn.vaporFraction,
+          x: sIn.x, y: sIn.y, nV: sIn.nV, nL: sIn.nL,
+          Hdot_J_s: sIn.Hdot_J_s,
+          phaseConstraint: sIn.phaseConstraint || 'VL',
+        };
+      } else if (sIn) {
+        ud.ports[path.out] = {
+          type: StreamType.MATERIAL, T: sIn.T || 298.15, P: sIn.P || 101325,
+          n: {}, phase: 'V', beta: 1, vaporFraction: 1, Hdot_J_s: 0,
+        };
+      }
+    }
+  } else {
+    // ── Default: first mat_in → first mat_out ──
+    const matIn = def.ports.find(p => p.dir === PortDir.IN && p.type === StreamType.MATERIAL);
+    const matOut = def.ports.find(p => p.dir === PortDir.OUT && p.type === StreamType.MATERIAL);
+    if (matIn && matOut) {
+      const sIn = inPorts[matIn.portId];
+      if (sIn && sIn.n && Object.values(sIn.n).reduce((a, b) => a + b, 0) > 1e-15) {
+        ud.ports[matOut.portId] = {
+          type: StreamType.MATERIAL,
+          T: sIn.T, P: sIn.P,
+          n: { ...sIn.n },
+          phase: sIn.phase, beta: sIn.beta, vaporFraction: sIn.vaporFraction,
+          x: sIn.x, y: sIn.y, nV: sIn.nV, nL: sIn.nL,
+          Hdot_J_s: sIn.Hdot_J_s,
+          phaseConstraint: sIn.phaseConstraint || 'VL',
+        };
+      }
+    }
+    // ── Mixer bypass: secondary inlets blocked ──
+    if (u.defId === 'mixer') {
+      const matIns = def.ports.filter(p => p.dir === PortDir.IN && p.type === StreamType.MATERIAL);
+      for (let i = 1; i < matIns.length; i++) {
+        const sSecondary = inPorts[matIns[i].portId];
+        if (sSecondary && sSecondary.n && Object.values(sSecondary.n).reduce((a, b) => a + b, 0) > 1e-15) {
+          ud.last._blockedInlet = matIns[i].portId;
+        }
+      }
+    }
+  }
+
+  // ── Zero all non-primary material outputs ──
+  const primaryOuts = new Set(
+    paths !== undefined
+      ? paths.map(p => p.out)
+      : [def.ports.find(p => p.dir === PortDir.OUT && p.type === StreamType.MATERIAL)?.portId]
+  );
+  for (const p of def.ports) {
+    if (p.dir !== PortDir.OUT) continue;
+    if (p.type === StreamType.MATERIAL && !primaryOuts.has(p.portId) && !ud.ports[p.portId]) {
+      ud.ports[p.portId] = {
+        type: StreamType.MATERIAL, T: 298.15, P: 101325,
+        n: {}, phase: 'V', beta: 1, vaporFraction: 1, Hdot_J_s: 0,
+      };
+    }
+    if (p.type === StreamType.ELECTRICAL) {
+      ud.ports[p.portId] = {
+        type: StreamType.ELECTRICAL, capacity: 0, available: 0, actual: 0
+      };
+    }
+  }
+
+  // ── Status ──
+  ud.last.mode = 'bypass';
+  if (u.fried) {
+    ud.last.fried = true;
+    ud.last.error = {
+      severity: AlarmSeverity.CATASTROPHIC,
+      message: 'Equipment destroyed — bypassed'
+    };
+  }
+}
+
+/**
+ * Apply off mode: all outputs zeroed.  Unit marked for source-killing post-pass.
+ * Mass conserved (NNG-1: zero output + upstream sources killed by backward scan).
+ */
+function _applyOff(u, def, ud, inPorts) {
+  u.powerDemand = 0;
+  ud.powerDemand = 0;
+
+  // ── All outputs zeroed ──
+  for (const p of def.ports) {
+    if (p.dir !== PortDir.OUT) continue;
+    if (p.type === StreamType.MATERIAL) {
+      ud.ports[p.portId] = {
+        type: StreamType.MATERIAL, T: 298.15, P: 101325,
+        n: {}, phase: 'V', beta: 1, vaporFraction: 1, Hdot_J_s: 0,
+      };
+    }
+    if (p.type === StreamType.ELECTRICAL) {
+      ud.ports[p.portId] = {
+        type: StreamType.ELECTRICAL, capacity: 0, available: 0, actual: 0
+      };
+    }
+  }
+
+  // ── Mark for source-killing post-pass (same as check-valve blocking) ──
+  const matIn = def.ports.find(p => p.dir === PortDir.IN && p.type === StreamType.MATERIAL);
+  if (matIn) {
+    ud.last._blockedInlet = matIn.portId;
+  }
+  ud.last.mode = 'off';
+}
+
 function solveScene(scene, options = {}) {
   // [v11.0.0 Phase 6] Generation counter — skip-when-clean only triggers between solveScene calls
   scene._solveGen = (scene._solveGen || 0) + 1;
@@ -22252,6 +22509,20 @@ function solveScene(scene, options = {}) {
       const oldPortsSnap = {};
       for (const [pk, pv] of Object.entries(ud.ports)) {
         oldPortsSnap[pk] = pv ? { ...pv } : pv;
+      }
+
+      // [v16.9.0 S-STATUS] Mode guard — bypass/off skip tick+validate+flash entirely.
+      // Fried override: hardware destruction forces bypass regardless of player mode.
+      const effectiveMode = u.fried ? 'bypass' : (u.mode || 'on');
+      if (effectiveMode === 'bypass') {
+        _applyBypass(u, def, ud, inPorts);
+        if (portsChanged(oldPortsSnap, ud.ports)) changed = true;
+        continue;
+      }
+      if (effectiveMode === 'off') {
+        _applyOff(u, def, ud, inPorts);
+        if (portsChanged(oldPortsSnap, ud.ports)) changed = true;
+        continue;
       }
 
       // [v5.4.2] Per-unit exception containment: a throwing tick must not
@@ -23632,30 +23903,7 @@ function _getConnStream(conn) {
    Domain rule: "Can the solver produce a valid result? If yes → PLANT. If no → SIM."
    ═══════════════════════════════════════════════════════════════════════════ */
 
-// [v13.0.8] Alarm domains — PLANT (player DCS) vs SIM (engine health)
-const AlarmDomain = Object.freeze({
-  PLANT: 'plant',   // Physical events on simulated equipment — player-visible
-  SIM:   'sim',     // Simulation engine health — dev-visible
-});
-
-const AlarmSeverity = Object.freeze({
-  CATASTROPHIC: { level: 4, key: 'catastrophic', icon: '🔴', color: '#fca5a5', label: 'Catastrophic' },
-  WARNING:  { level: 2, key: 'warning',  icon: '🟡', color: '#fde68a', label: 'Warning' },
-  INFO:     { level: 1, key: 'info',     icon: 'ℹ️', color: '#93c5fd', label: 'Info' },
-  OK:       { level: 0, key: 'ok',       icon: '🟢', color: '#6ee7b7', label: 'OK' },
-});
-
-const AlarmCategory = Object.freeze({
-  CONVERGENCE:   'Convergence',
-  MASS_BALANCE:  'Mass Balance',
-  ENERGY_BALANCE:'Energy Balance',
-  PRESSURE:      'Pressure Solve',
-  UNIT:          'Unit',
-  CONNECTIVITY:  'Connectivity',
-  CONFIGURATION: 'Configuration',
-  THERMO_CONVERGENCE: 'Thermo Convergence',  // [v13.3.0] S3a-8: PR EOS cubic/VLE fallbacks
-  THERMO_RANGE:       'Thermo Range',         // [v13.3.0] S3b-8: Shomate/Antoine extrapolation
-});
+// [v16.8.3] AlarmDomain, AlarmSeverity, AlarmCategory moved to L13484 (single-source-of-truth).
 
 /**
  * An alarm source is a function: (scene) → Alarm[]
@@ -23983,7 +24231,8 @@ AlarmSystem.register((scene) => {
     const uName = u?.name || def?.name || id;
     if (ud?.last?.error) {
       const sev = ud.last.error.severity;
-      const aLevel = (sev?.level >= ErrorSeverity.CATASTROPHIC.level) ? AlarmSeverity.CATASTROPHIC
+      // [v16.8.3] ErrorSeverity is now an alias for AlarmSeverity — direct comparison
+      const aLevel = (sev?.level >= AlarmSeverity.CATASTROPHIC.level) ? AlarmSeverity.CATASTROPHIC
                    : AlarmSeverity.WARNING;
       const domain = ud.last.error._domain === 'sim' ? AlarmDomain.SIM : AlarmDomain.PLANT;
       alarms.push({ id: `unit_${id}_err`, domain, category: AlarmCategory.UNIT,
@@ -23995,7 +24244,7 @@ AlarmSystem.register((scene) => {
         const msg = typeof err === 'string' ? err : err?.message || JSON.stringify(err);
         let aLevel = AlarmSeverity.WARNING;
         if (typeof err === 'object' && err?.severity) {
-          if (err.severity.level >= ErrorSeverity.CATASTROPHIC.level) aLevel = AlarmSeverity.CATASTROPHIC;
+          if (err.severity.level >= AlarmSeverity.CATASTROPHIC.level) aLevel = AlarmSeverity.CATASTROPHIC;
         }
         const domain = (typeof err === 'object' && err?._domain === 'sim') ? AlarmDomain.SIM : AlarmDomain.PLANT;
         alarms.push({ id: `unit_${id}_warn_${i}`, domain, category: AlarmCategory.UNIT,
@@ -24695,12 +24944,13 @@ function buildSolverPanel() {
       const diagList = el('div');
       for (const d of diags) {
         const level = d.severity?.level ?? 0;
-        const cls = level >= 3 ? 'error' : (level >= 2 ? 'warn' : 'minor');
-        const icon = level >= 3 ? '🔧' : (level >= 2 ? '⚠' : 'ℹ');
+        // [v16.8.3] Use canonical AlarmSeverity levels
+        const cls = level >= AlarmSeverity.CATASTROPHIC.level ? 'error' : (level >= AlarmSeverity.WARNING.level ? 'warn' : 'minor');
+        const icon = level >= AlarmSeverity.CATASTROPHIC.level ? '🔧' : (level >= AlarmSeverity.WARNING.level ? '⚠' : 'ℹ');
         const item = el('div', { class: `diagItem ${cls}` });
         item.appendChild(el('span', { class: 'diagIcon', html: icon }));
         item.appendChild(el('div', {
-          html: `<b>${d.unitName || '?'}</b> — ${d.originalMessage || d.explanation || '?'}`
+          html: `<b>${esc(d.unitName || '?')}</b> — ${esc(d.originalMessage || d.explanation || '?')}`
         }));
         diagList.appendChild(item);
       }
@@ -24775,7 +25025,7 @@ function openBalanceModal() {
     const addRow = (label, val, bold, color) => {
       const tr = el('tr');
       const style = `padding:3px 6px; ${bold ? 'font-weight:700;' : ''} ${color ? 'color:'+color+';' : ''}`;
-      tr.innerHTML = `<td style="${style}">${label}</td><td style="${style} text-align:right;">${val}</td>`;
+      tr.innerHTML = `<td style="${style}">${esc(label)}</td><td style="${style} text-align:right;">${val}</td>`;
       tbl.appendChild(tr);
     };
     addRow('→ Mass In', '', true);
@@ -24802,7 +25052,7 @@ function openBalanceModal() {
     const addRow = (label, val, bold, color) => {
       const tr = el('tr');
       const style = `padding:3px 6px; ${bold ? 'font-weight:700;' : ''} ${color ? 'color:'+color+';' : ''}`;
-      tr.innerHTML = `<td style="${style}">${label}</td><td style="${style} text-align:right;">${val}</td>`;
+      tr.innerHTML = `<td style="${style}">${esc(label)}</td><td style="${style} text-align:right;">${val}</td>`;
       tbl.appendChild(tr);
     };
     const fmtE = (W) => `${(W/1000).toFixed(3)} kW`;
@@ -28833,6 +29083,35 @@ function drawUnits() {
       } // end if not ragtag
     }
 
+    // [v16.9.0 S-STATUS] Mode-based visual overlays
+    const _eMode = u.fried ? 'bypass' : (u.mode || 'on');
+    if (_eMode === 'bypass' && !u.fried) {
+      group.classList.add('unit-bypass');
+      group.style.opacity = '0.5';
+      // Dashed border
+      group.appendChild(svgEl('rect', {
+        x: wx, y: wy, width: ww, height: wh,
+        fill: 'none', stroke: '#60a5fa', 'stroke-width': 1.5,
+        'stroke-dasharray': '6 3', rx: 3, 'pointer-events': 'none'
+      }));
+    }
+    if (_eMode === 'off') {
+      group.classList.add('unit-off');
+      group.style.opacity = '0.25';
+      // Power icon
+      const cx = wx + ww / 2, cy = wy + wh / 2;
+      const r = Math.min(ww, wh) * 0.2;
+      group.appendChild(svgEl('circle', {
+        cx, cy, r, fill: 'none', stroke: '#94a3b8', 'stroke-width': 1.5,
+        'pointer-events': 'none', opacity: 0.8
+      }));
+      group.appendChild(svgEl('line', {
+        x1: cx, y1: cy - r * 1.3, x2: cx, y2: cy - r * 0.2,
+        stroke: '#94a3b8', 'stroke-width': 1.5, 'stroke-linecap': 'round',
+        'pointer-events': 'none', opacity: 0.8
+      }));
+    }
+
     // [v14.7.0 S-SIM Step 8] Fried equipment visual overlay
     if (u.fried) {
       group.classList.add('unit-fried');
@@ -30589,15 +30868,7 @@ function showValidationReport(results) {
  * @param {string} s - Untrusted string
  * @returns {string} Safe HTML string
  */
-function escapeHtml(s) {
-  if (typeof s !== 'string') s = String(s ?? '');
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
+// [v17.0.0] escapeHtml() removed — unified into esc() (see L30993+).
 
 function el(tag, attrs = {}, children = []) {
   const e = document.createElement(tag);
@@ -30990,11 +31261,16 @@ function insErr(parent, severity, message) {
 // ═══════════════════════════════════════════════════════════════════════════
 
 // [v10.2.0] XSS-safe HTML escaper for user-editable strings
+// [v17.0.0 NNG-15] Unified HTML escape — string-based, no DOM dependency.
+// Replaces both the old DOM-based esc() and escapeHtml().
 function esc(s) {
   if (s == null) return '';
-  const d = document.createElement('div');
-  d.textContent = String(s);
-  return d.innerHTML;
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 // [v10.2.0] Labeled KPI section (e.g. "Power & Energy")
@@ -31357,7 +31633,7 @@ UnitInspector.source_atm = {
   params(u) {
     const atm = SimSettings.getAtmosphere();
     const params = [
-      { label: 'Flow scale (mol/s)', get: () => u.params.flowScale ?? 1.0, set: v => u.params.flowScale = v, step: 0.1, validate: { gt: 0 } },
+      { label: 'Flow rate (mol/s)', get: () => u.params.nDot ?? 1.0, set: v => u.params.nDot = v, step: 0.1, validate: { gt: 0 } },
       { type: 'info', html: `<b>${atm.presetName}</b><br>T = ${atm.T_K.toFixed(1)} K | P = ${(atm.P_Pa/1e5).toFixed(4)} bar` },
     ];
     let airHtml = '<div style="display:grid;grid-template-columns:36px 1fr;gap:1px 8px;margin-top:4px;font-size:11px;">';
@@ -33133,6 +33409,35 @@ function _rebuildInspectorContent() {
       : _defName;
     headerDiv.appendChild(el('div', { class: 'unitSubtitle', html: `<span style="color:${def.color}">${def.category}</span> · ${_nameLabel}${_tierLabel}` }));
     propEditor.appendChild(headerDiv);
+
+    // ── [v16.9.0 S-STATUS] Mode dropdown (non-boundary units only) ──
+    if (!_insTierProfile?.boundary) {
+      const modeRow = el('div', { style: 'display:flex; align-items:center; gap:8px; margin:4px 0 6px; padding:4px 8px; background:#0f172a; border-radius:4px;' });
+      const modeLabel = el('span', { style: 'font-size:11px; opacity:0.6; min-width:36px;', text: 'Mode' });
+      modeRow.appendChild(modeLabel);
+      if (u.fried) {
+        modeRow.appendChild(el('span', { style: 'font-size:12px; color:#fca5a5; flex:1;', text: 'Bypass 🔒' }));
+        modeRow.title = 'Equipment destroyed — reset to change mode';
+      } else {
+        const modeSelect = document.createElement('select');
+        modeSelect.style.cssText = 'flex:1; font-size:12px; background:#1e293b; color:#e2e8f0; border:1px solid #334155; border-radius:3px; padding:2px 4px;';
+        for (const [val, label] of [['on','On'],['bypass','Bypass'],['off','Off']]) {
+          const opt = document.createElement('option');
+          opt.value = val; opt.textContent = label;
+          if ((u.mode || 'on') === val) opt.selected = true;
+          modeSelect.appendChild(opt);
+        }
+        modeSelect.addEventListener('change', () => {
+          _pushUndoDebounced('Change mode');
+          u.mode = modeSelect.value === 'on' ? undefined : modeSelect.value;
+          if (TimeClock.mode === 'paused') solveScene(scene);
+          _rebuildInspectorContent();
+          renderScene(scene, svg, ui);
+        });
+        modeRow.appendChild(modeSelect);
+      }
+      propEditor.appendChild(modeRow);
+    }
 
     // ── [v13.0.7] Alarm banners — sourced from AlarmSystem (NNG-7 single source of truth) ──
     // [v13.0.8] Phase 5: inspector shows PLANT domain only (player-facing)
@@ -36338,7 +36643,7 @@ document.getElementById('processNameInput').addEventListener('input', (e) => {
 // Add new demos with DemoScenes.register('id', 'Menu Label', jsonString).
 
 DemoScenes.register('demo_v1', 'Demo V1 — Sabatier / Brayton / SMR / Tank',
-  '{"version":18,"processName":"Demo V1 — Sabatier + Brayton + SMR + Buffer Tank","grid":{"w":56,"h":42,"tile":48},"settings":{"atmospherePreset":"planet_x","dt":3600},"units":[{"id":"feed","defId":"source","profileId":"source_mix","tier":1,"name":"CO₂/H₂ Feed","x":-23,"y":3,"rot":0,"params":{"n":{"CO2":1,"H2":4},"T":523,"P":1000000,"phaseConstraint":"V"}},{"id":"mix","defId":"mixer","profileId":"mixer","tier":1,"name":"Mixer","x":-19,"y":3,"rot":0,"params":{"variant":"recycle-T"}},{"id":"rx","defId":"reactor_adiabatic","profileId":"reactor_adiabatic","tier":1,"name":"Sabatier Rx","x":-15,"y":4,"rot":0,"params":{"reactionId":"R_SABATIER","useKinetics":true,"volume_m3":0.5,"variant":"insulated"},"sticker":{"dx":-1.5183563232421875,"dy":-2.1808576583862305,"items":[{"section":"power","label":"ΔT"},{"section":"reaction","label":"Conversion"}]}},{"id":"cool","defId":"air_cooler","profileId":"air_cooler","tier":1,"name":"Cooler","x":-11,"y":4,"rot":0,"params":{"T_out":323.15,"UA_kW_K":5,"max_fan_power_W":1200,"powerPriority":3}},{"id":"flash","defId":"flash_drum","profileId":"flash_drum","tier":1,"name":"Flash Drum","x":-7,"y":4,"rot":0,"params":{}},{"id":"split","defId":"splitter","profileId":"splitter","tier":1,"name":"Purge/Recycle","x":-3,"y":3,"rot":0,"params":{"splitPct":15,"variant":"recycle-T"}},{"id":"snk-ch4","defId":"sink","profileId":"sink","tier":1,"name":"CH₄ Product","x":1,"y":3,"rot":0,"params":{}},{"id":"snk-h2o","defId":"sink","profileId":"sink","tier":1,"name":"Water","x":-3,"y":6,"rot":0,"params":{}},{"id":"solar","defId":"grid_supply","profileId":"grid_supply","tier":1,"name":"Solar 30kW","x":26,"y":-5,"rot":0,"params":{"maxPower":100,"variant":"port-left"}},{"id":"batt","defId":"battery","profileId":"battery","tier":1,"name":"Li-Ion 10kWh","x":27,"y":-2,"rot":0,"params":{"peakPower_kW":20,"capacity_J":36000000,"initialSOC":0.9,"variant":"port-left"},"inventory":{"charge_J":25636834.679072794,"capacity_J":36000000}},{"id":"hub","defId":"power_hub","profileId":"power_hub","tier":1,"name":"Power Hub","x":21,"y":-4,"rot":0,"params":{"variant":"mirror"}},{"id":"hub-q","defId":"sink_electrical","profileId":"sink_electrical","tier":1,"name":"Surplus Power","x":21,"y":-8,"rot":0,"params":{"ratedPower_kW":50,"powerPriority":3,"variant":"port-bottom"}},{"id":"buf-tank","defId":"tank","profileId":"tank_dev","tier":1,"name":"Gas Buffer","x":54,"y":2,"rot":0,"params":{"volume_m3":10,"P_init":90000,"P_relief":500000,"overflow_level":90,"opening_gas_pct":10,"Cv_gas":10,"opening_liq_pct":0,"Cv_liq":30,"openings":{"conn-7":30}},"inventory":{"n":{"N2":1903.4657180040574},"T_K":435.0627883346145}},{"id":"buf-vent","defId":"sink","profileId":"sink","tier":1,"name":"Gas Vent","x":57,"y":-1,"rot":0,"params":{}},{"id":"buf-ov","defId":"sink","profileId":"sink","tier":1,"name":"Overflow","x":57,"y":9,"rot":0,"params":{}},{"id":"a-air","defId":"source_atm","profileId":"source_atmosphere","tier":1,"name":"Air Intake","x":13,"y":1,"rot":0,"params":{"flowScale":1}},{"id":"a-comp","defId":"compressor","profileId":"compressor","tier":1,"name":"Compressor","x":16,"y":1,"rot":0,"params":{"Pout":300000,"eta":0.8,"variant":"output-bottom"},"sticker":{"dx":-0.8386917114257814,"dy":-0.9539063771565756,"items":[{"section":"power","label":"Shaft power"}],"display":{"connection":true,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"a-fuel","defId":"source","profileId":"source","tier":1,"name":"H₂ Fuel","x":16,"y":8,"rot":0,"params":{"species":"H2","nDot":0.02,"T":298.15,"P":300000,"phaseConstraint":"V"}},{"id":"a-mix","defId":"mixer","profileId":"mixer","tier":2,"name":"Fuel/Air Mix","x":20,"y":7,"rot":0,"params":{}},{"id":"a-comb","defId":"reactor_adiabatic","profileId":"combustion_chamber","tier":1,"name":"Combustor","x":24,"y":7,"rot":0,"params":{"reactionId":"R_H2_COMB","useKinetics":true,"volume_m3":0.01,"heatDemand":"none","variant":"insulated"},"sticker":{"dx":-1.63427734375,"dy":1.471660017967225,"items":[{"section":"power","label":"ΔT"},{"section":"reaction","label":"Conversion"}]}},{"id":"a-turb","defId":"gas_turbine","profileId":"gas_turbine","tier":1,"name":"Gas Turbine","x":28,"y":7,"rot":0,"params":{"Pout":101325,"eta":0.88,"variant":"elec-T"},"sticker":{"dx":-1.3980865478515623,"dy":1.1773713628451028,"items":[{"section":"power","label":"Shaft power"}],"display":{"connection":false,"label":true,"border":false,"solidBg":false,"textSize":0}}},{"id":"a-exh","defId":"sink","profileId":"sink","tier":1,"name":"Exhaust","x":33,"y":7,"rot":0,"params":{}},{"id":"ab-hex","defId":"hex","profileId":"hex","tier":1,"name":"Recuperator","x":16,"y":4,"rot":0,"params":{"T_approach":10},"sticker":{"dx":-0.815480550130208,"dy":0.12923177083333318,"items":[{"section":"power","label":"Duty"}],"display":{"connection":false,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"b-feed","defId":"source","profileId":"source_mix","tier":1,"name":"CH₄/Steam Feed","x":7,"y":4,"rot":0,"params":{"n":{"CH4":0.2,"H2O":0.4},"T":873,"P":2000000,"phaseConstraint":"V"}},{"id":"b-rx","defId":"reactor_jacketed","profileId":"reactor_jacketed","tier":1,"name":"SMR Reactor","x":11,"y":4,"rot":0,"params":{"reactionId":"R_SMR_OVERALL","useKinetics":true,"volume_m3":1,"heatDemand":"isothermal","variant":"elec-T"},"sticker":{"dx":-1.461281776428223,"dy":1.385961850484212,"items":[{"section":"power","label":"ΔT"},{"section":"reaction","label":"Conversion"}]}},{"id":"b-valve","defId":"valve","profileId":"valve","tier":1,"name":"Letdown Valve","x":20,"y":4,"rot":0,"params":{"Pout":200000}},{"id":"b-prod","defId":"sink","profileId":"sink","tier":1,"name":"Syngas","x":24,"y":4,"rot":0,"params":{}},{"id":"c-src","defId":"source","profileId":"source","tier":1,"name":"Water In","x":45,"y":10,"rot":0,"params":{"species":"H2O","nDot":1,"T":293.15,"P":101325,"phaseConstraint":"L"}},{"id":"c-pump","defId":"pump","profileId":"pump","tier":1,"name":"Feed Pump","x":49,"y":10,"rot":0,"params":{"Pout":500000,"eta":0.75},"sticker":{"dx":-0.8503163655598959,"dy":0.20638402303059866,"items":[{"section":"power","label":"Shaft power"}],"display":{"connection":false,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"c-sink","defId":"sink","profileId":"sink","tier":1,"name":"Pressurized H₂O","x":53,"y":10,"rot":0,"params":{}},{"id":"d-grid","defId":"grid_supply","profileId":"grid_supply","tier":1,"name":"Colony 5kW","x":37,"y":5,"rot":0,"params":{"maxPower":5}},{"id":"d-hub","defId":"power_hub","profileId":"power_hub","tier":1,"name":"Priority Hub","x":41,"y":4,"rot":0,"params":{},"sticker":{"dx":-1.605000813802084,"dy":2.0131870110829673,"items":[{"section":"power","label":"Total supply"},{"section":"power","label":"Curtailment"}],"display":{"connection":true,"label":true,"border":true,"solidBg":true,"textSize":0}}},{"id":"d-dump","defId":"sink_electrical","profileId":"sink_electrical","tier":1,"name":"Dump Load 2kW","x":41,"y":0,"rot":0,"params":{"ratedPower_kW":2,"powerPriority":3,"variant":"port-bottom"}},{"id":"d-n2","defId":"source","profileId":"source","tier":1,"name":"N₂ In","x":45,"y":2,"rot":0,"params":{"species":"N2","nDot":0.3,"T":298.15,"P":100000,"phaseConstraint":"V"}},{"id":"d-comp","defId":"compressor","profileId":"compressor","tier":1,"name":"Life Support","x":49,"y":2,"rot":0,"params":{"Pout":300000,"eta":0.8,"powerPriority":1,"variant":"elec-B"},"sticker":{"dx":-0.850311279296875,"dy":-0.9749868313471476,"items":[{"section":"power","label":"Shaft power"}],"display":{"connection":false,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"d-h2o","defId":"source","profileId":"source","tier":1,"name":"H₂O In","x":45,"y":6,"rot":0,"params":{"species":"H2O","nDot":0.2,"T":293.15,"P":101325,"phaseConstraint":"L"}},{"id":"d-htr","defId":"electric_heater","profileId":"electric_heater","tier":1,"name":"Water Heater","x":49,"y":6,"rot":0,"params":{"T_out":333.15,"powerPriority":2},"sticker":{"dx":-0.8329416910807292,"dy":-0.9749867121378579,"items":[{"section":"power","label":"Q actual"}],"display":{"connection":false,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"d-hsnk","defId":"sink","profileId":"sink","tier":1,"name":"Hygiene","x":63,"y":7,"rot":0,"params":{}},{"id":"sink-6","defId":"sink","profileId":"sink","tier":1,"name":"Medical","x":63,"y":0,"rot":0,"params":{}},{"id":"grid_supply-8","defId":"grid_supply","profileId":"grid_supply","tier":1,"name":"Micro fan power","x":-11,"y":8,"rot":0,"params":{"maxPower":5,"variant":"port-top"}},{"id":"open_tank-11","defId":"open_tank","profileId":"open_tank","tier":1,"name":"Open Tank 11","x":54,"y":6,"rot":0,"params":{"volume_m3":0.15,"overflow_level":90,"Cv_liq":30,"opening_liq_pct":0,"initialComposition":{"H2O":1},"level_init":0},"inventory":{"n":{},"T_K":305.15,"_vented_n":{}}},{"id":"sink-12","defId":"sink","profileId":"sink","tier":1,"name":"Kitchen","x":63,"y":3,"rot":0,"params":{}}],"connections":[{"id":"c1","from":{"unitId":"feed","portId":"mat_out"},"to":{"unitId":"mix","portId":"mat_in_1"}},{"id":"c2","from":{"unitId":"mix","portId":"mat_out"},"to":{"unitId":"rx","portId":"mat_in"}},{"id":"c3","from":{"unitId":"rx","portId":"mat_out"},"to":{"unitId":"cool","portId":"mat_in"}},{"id":"c4","from":{"unitId":"cool","portId":"mat_out"},"to":{"unitId":"flash","portId":"mat_in"}},{"id":"c5","from":{"unitId":"flash","portId":"vap_out"},"to":{"unitId":"split","portId":"mat_in"}},{"id":"c6","from":{"unitId":"split","portId":"mat_out_1"},"to":{"unitId":"snk-ch4","portId":"mat_in"}},{"id":"c7","from":{"unitId":"flash","portId":"liq_out"},"to":{"unitId":"snk-h2o","portId":"mat_in"}},{"id":"c8","from":{"unitId":"split","portId":"mat_out_2"},"to":{"unitId":"mix","portId":"mat_in_2"}},{"id":"e1","from":{"unitId":"solar","portId":"elec_out"},"to":{"unitId":"hub","portId":"elec_in"}},{"id":"e2","from":{"unitId":"batt","portId":"elec"},"to":{"unitId":"hub","portId":"elec_in"}},{"id":"e5","from":{"unitId":"hub","portId":"elec_surplus"},"to":{"unitId":"hub-q","portId":"elec_in"}},{"id":"a3","from":{"unitId":"a-air","portId":"mat_out"},"to":{"unitId":"a-comp","portId":"mat_in"}},{"id":"a4","from":{"unitId":"a-comp","portId":"mat_out"},"to":{"unitId":"ab-hex","portId":"cold_in"},"sticker":{"dx":-0.27618153889973956,"dy":-0.3295599619547526,"items":[{"section":"conditions","label":"Temperature"}],"display":{"connection":true,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"a5","from":{"unitId":"ab-hex","portId":"cold_out"},"to":{"unitId":"a-mix","portId":"mat_in_1"}},{"id":"a5f","from":{"unitId":"a-fuel","portId":"mat_out"},"to":{"unitId":"a-mix","portId":"mat_in_2"}},{"id":"a5m","from":{"unitId":"a-mix","portId":"mat_out"},"to":{"unitId":"a-comb","portId":"mat_in"}},{"id":"a6","from":{"unitId":"a-comb","portId":"mat_out"},"to":{"unitId":"a-turb","portId":"mat_in"}},{"id":"a7","from":{"unitId":"a-turb","portId":"mat_out"},"to":{"unitId":"a-exh","portId":"mat_in"},"sticker":{"dx":-0.7874247233072916,"dy":-0.7261996269226073,"items":[{"section":"conditions","label":"Temperature"}],"display":{"connection":false,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"b1","from":{"unitId":"b-feed","portId":"mat_out"},"to":{"unitId":"b-rx","portId":"mat_in"}},{"id":"b2","from":{"unitId":"b-rx","portId":"mat_out"},"to":{"unitId":"ab-hex","portId":"hot_in"}},{"id":"b3","from":{"unitId":"ab-hex","portId":"hot_out"},"to":{"unitId":"b-valve","portId":"mat_in"},"sticker":{"dx":-0.8208897908528634,"dy":-0.8749574025472004,"items":[{"section":"conditions","label":"Pressure"}],"display":{"connection":false,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"b4","from":{"unitId":"b-valve","portId":"mat_out"},"to":{"unitId":"b-prod","portId":"mat_in"},"sticker":{"dx":-1.005212148030599,"dy":-0.8682047526041666,"items":[{"section":"conditions","label":"Pressure"}],"display":{"connection":false,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"p3","from":{"unitId":"c-src","portId":"mat_out"},"to":{"unitId":"c-pump","portId":"mat_in"},"sticker":{"dx":-0.8011067708333393,"dy":-1.1509173711140952,"items":[{"section":"conditions","label":"Temperature"},{"section":"conditions","label":"Pressure"}],"display":{"connection":true,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"p4","from":{"unitId":"c-pump","portId":"mat_out"},"to":{"unitId":"c-sink","portId":"mat_in"},"sticker":{"dx":-0.8359120686848946,"dy":-1.1509183247884114,"items":[{"section":"conditions","label":"Temperature"},{"section":"conditions","label":"Pressure"}],"display":{"connection":true,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"d1","from":{"unitId":"d-grid","portId":"elec_out"},"to":{"unitId":"d-hub","portId":"elec_in"}},{"id":"d2","from":{"unitId":"d-hub","portId":"elec_surplus"},"to":{"unitId":"d-dump","portId":"elec_in"}},{"id":"d3","from":{"unitId":"d-hub","portId":"elec_out"},"to":{"unitId":"d-comp","portId":"elec_in"}},{"id":"d4","from":{"unitId":"d-hub","portId":"elec_out"},"to":{"unitId":"d-htr","portId":"elec_in"}},{"id":"d5","from":{"unitId":"d-n2","portId":"mat_out"},"to":{"unitId":"d-comp","portId":"mat_in"},"sticker":{"dx":-0.8103027343750036,"dy":-1.1209094524383547,"items":[{"section":"conditions","label":"Temperature"},{"section":"conditions","label":"Pressure"}],"display":{"connection":false,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"d7","from":{"unitId":"d-h2o","portId":"mat_out"},"to":{"unitId":"d-htr","portId":"mat_in"},"sticker":{"dx":-0.8450419108072946,"dy":-1.194587866465251,"items":[{"section":"conditions","label":"Temperature"},{"section":"conditions","label":"Pressure"}],"display":{"connection":false,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"conn-1","from":{"unitId":"hub","portId":"elec_out"},"to":{"unitId":"b-rx","portId":"elec_in"}},{"id":"conn-2","from":{"unitId":"hub","portId":"elec_out"},"to":{"unitId":"a-comp","portId":"elec_in"}},{"id":"conn-3","from":{"unitId":"a-turb","portId":"elec_out"},"to":{"unitId":"hub","portId":"elec_in"}},{"id":"conn-4","from":{"unitId":"d-hub","portId":"elec_out"},"to":{"unitId":"c-pump","portId":"elec_in"}},{"id":"conn-5","from":{"unitId":"buf-tank","portId":"vent"},"to":{"unitId":"buf-vent","portId":"mat_in"}},{"id":"conn-7","from":{"unitId":"buf-tank","portId":"gas_out"},"to":{"unitId":"sink-6","portId":"mat_in"}},{"id":"conn-9","from":{"unitId":"grid_supply-8","portId":"elec_out"},"to":{"unitId":"cool","portId":"elec_in"}},{"id":"conn-10","from":{"unitId":"d-comp","portId":"mat_out"},"to":{"unitId":"buf-tank","portId":"mat_in"}},{"id":"conn-13","from":{"unitId":"buf-tank","portId":"gas_out"},"to":{"unitId":"sink-12","portId":"mat_in"}},{"id":"conn-14","from":{"unitId":"open_tank-11","portId":"overflow"},"to":{"unitId":"buf-ov","portId":"mat_in"}},{"id":"conn-15","from":{"unitId":"open_tank-11","portId":"liq_out"},"to":{"unitId":"d-hsnk","portId":"mat_in"}},{"id":"conn-16","from":{"unitId":"d-htr","portId":"mat_out"},"to":{"unitId":"open_tank-11","portId":"mat_in"}}],"modelsActive":{"thermo_package":"ideal_raoult","reaction":null,"units":"SI_bar"},"solverOptions":{"maxIter":200},"time":{"t":46800,"frame":1},"checkpoints":[{"t":43200,"frame":0,"label":"auto","ts":1772805484209,"dt":3600,"units":[{"id":"feed","defId":"source","name":"CO₂/H₂ Feed","profileId":"source_mix","tier":1,"x":-23,"y":3,"rot":0,"params":{"n":{"CO2":1,"H2":4},"T":523,"P":1000000,"phaseConstraint":"V"}},{"id":"mix","defId":"mixer","name":"Mixer","profileId":"mixer","tier":1,"x":-19,"y":3,"rot":0,"params":{"variant":"recycle-T"}},{"id":"rx","defId":"reactor_adiabatic","name":"Sabatier Rx","profileId":"reactor_adiabatic","tier":1,"x":-15,"y":4,"rot":0,"params":{"reactionId":"R_SABATIER","useKinetics":true,"volume_m3":0.5,"variant":"insulated"},"sticker":{"dx":-1.5183563232421875,"dy":-2.1808576583862305,"items":[{"section":"power","label":"ΔT"},{"section":"reaction","label":"Conversion"}]}},{"id":"cool","defId":"air_cooler","name":"Cooler","profileId":"air_cooler","tier":1,"x":-11,"y":4,"rot":0,"params":{"T_out":323.15,"UA_kW_K":5,"max_fan_power_W":1200,"powerPriority":3}},{"id":"flash","defId":"flash_drum","name":"Flash Drum","profileId":"flash_drum","tier":1,"x":-7,"y":4,"rot":0,"params":{}},{"id":"split","defId":"splitter","name":"Purge/Recycle","profileId":"splitter","tier":1,"x":-3,"y":3,"rot":0,"params":{"splitPct":15,"variant":"recycle-T"}},{"id":"snk-ch4","defId":"sink","name":"CH₄ Product","profileId":"sink","tier":1,"x":1,"y":3,"rot":0,"params":{}},{"id":"snk-h2o","defId":"sink","name":"Water","profileId":"sink","tier":1,"x":-3,"y":6,"rot":0,"params":{}},{"id":"solar","defId":"grid_supply","name":"Solar 30kW","profileId":"grid_supply","tier":1,"x":26,"y":-5,"rot":0,"params":{"maxPower":100,"variant":"port-left"}},{"id":"batt","defId":"battery","name":"Li-Ion 10kWh","profileId":"battery","tier":1,"x":27,"y":-2,"rot":0,"params":{"peakPower_kW":20,"capacity_J":36000000,"initialSOC":0.9,"variant":"port-left"},"inventory":{"charge_J":25636834.679072794,"capacity_J":36000000}},{"id":"hub","defId":"power_hub","name":"Power Hub","profileId":"power_hub","tier":1,"x":21,"y":-4,"rot":0,"params":{"variant":"mirror"}},{"id":"hub-q","defId":"sink_electrical","name":"Surplus Power","profileId":"sink_electrical","tier":1,"x":21,"y":-8,"rot":0,"params":{"ratedPower_kW":50,"powerPriority":3,"variant":"port-bottom"}},{"id":"buf-tank","defId":"tank","name":"Gas Buffer","profileId":"tank_dev","tier":1,"x":54,"y":2,"rot":0,"params":{"volume_m3":10,"P_init":90000,"P_relief":500000,"overflow_level":90,"opening_gas_pct":10,"Cv_gas":10,"opening_liq_pct":0,"Cv_liq":30},"inventory":{"n":{"N2":946.4720221595039},"T_K":435.06278833461454}},{"id":"buf-vent","defId":"sink","name":"Gas Vent","profileId":"sink","tier":1,"x":57,"y":-1,"rot":0,"params":{}},{"id":"buf-ov","defId":"sink","name":"Overflow","profileId":"sink","tier":1,"x":57,"y":5,"rot":0,"params":{}},{"id":"a-air","defId":"source_atm","name":"Air Intake","profileId":"source_atmosphere","tier":1,"x":13,"y":1,"rot":0,"params":{"flowScale":1}},{"id":"a-comp","defId":"compressor","name":"Compressor","profileId":"compressor","tier":1,"x":16,"y":1,"rot":0,"params":{"Pout":300000,"eta":0.8,"variant":"output-bottom"},"sticker":{"dx":-0.8386917114257814,"dy":-0.9539063771565756,"items":[{"section":"power","label":"Shaft power"}],"display":{"connection":true,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"a-fuel","defId":"source","name":"H₂ Fuel","profileId":"source","tier":1,"x":16,"y":8,"rot":0,"params":{"species":"H2","nDot":0.02,"T":298.15,"P":300000,"phaseConstraint":"V"}},{"id":"a-mix","defId":"mixer","name":"Fuel/Air Mix","profileId":"mixer","tier":2,"x":20,"y":7,"rot":0,"params":{}},{"id":"a-comb","defId":"reactor_adiabatic","name":"Combustor","profileId":"combustion_chamber","tier":1,"x":24,"y":7,"rot":0,"params":{"reactionId":"R_H2_COMB","useKinetics":true,"volume_m3":0.01,"heatDemand":"none","variant":"insulated"},"sticker":{"dx":-1.63427734375,"dy":1.471660017967225,"items":[{"section":"power","label":"ΔT"},{"section":"reaction","label":"Conversion"}]}},{"id":"a-turb","defId":"gas_turbine","name":"Gas Turbine","profileId":"gas_turbine","tier":1,"x":28,"y":7,"rot":0,"params":{"Pout":101325,"eta":0.88,"variant":"elec-T"},"sticker":{"dx":-1.3980865478515623,"dy":1.1773713628451028,"items":[{"section":"power","label":"Shaft power"}],"display":{"connection":false,"label":true,"border":false,"solidBg":false,"textSize":0}}},{"id":"a-exh","defId":"sink","name":"Exhaust","profileId":"sink","tier":1,"x":33,"y":7,"rot":0,"params":{}},{"id":"ab-hex","defId":"hex","name":"Recuperator","profileId":"hex","tier":1,"x":16,"y":4,"rot":0,"params":{"T_approach":10},"sticker":{"dx":-0.815480550130208,"dy":0.12923177083333318,"items":[{"section":"power","label":"Duty"}],"display":{"connection":false,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"b-feed","defId":"source","name":"CH₄/Steam Feed","profileId":"source_mix","tier":1,"x":7,"y":4,"rot":0,"params":{"n":{"CH4":0.2,"H2O":0.4},"T":873,"P":2000000,"phaseConstraint":"V"}},{"id":"b-rx","defId":"reactor_jacketed","name":"SMR Reactor","profileId":"reactor_jacketed","tier":1,"x":11,"y":4,"rot":0,"params":{"reactionId":"R_SMR_OVERALL","useKinetics":true,"volume_m3":1,"heatDemand":"isothermal","variant":"elec-T"},"sticker":{"dx":-1.461281776428223,"dy":1.385961850484212,"items":[{"section":"power","label":"ΔT"},{"section":"reaction","label":"Conversion"}]}},{"id":"b-valve","defId":"valve","name":"Letdown Valve","profileId":"valve","tier":1,"x":20,"y":4,"rot":0,"params":{"Pout":200000}},{"id":"b-prod","defId":"sink","name":"Syngas","profileId":"sink","tier":1,"x":24,"y":4,"rot":0,"params":{}},{"id":"c-src","defId":"source","name":"Water In","profileId":"source","tier":1,"x":45,"y":10,"rot":0,"params":{"species":"H2O","nDot":1,"T":293.15,"P":101325,"phaseConstraint":"L"}},{"id":"c-pump","defId":"pump","name":"Feed Pump","profileId":"pump","tier":1,"x":49,"y":10,"rot":0,"params":{"Pout":500000,"eta":0.75},"sticker":{"dx":-0.8503163655598959,"dy":0.20638402303059866,"items":[{"section":"power","label":"Shaft power"}],"display":{"connection":false,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"c-sink","defId":"sink","name":"Pressurized H₂O","profileId":"sink","tier":1,"x":53,"y":10,"rot":0,"params":{}},{"id":"d-grid","defId":"grid_supply","name":"Colony 5kW","profileId":"grid_supply","tier":1,"x":37,"y":5,"rot":0,"params":{"maxPower":5}},{"id":"d-hub","defId":"power_hub","name":"Priority Hub","profileId":"power_hub","tier":1,"x":41,"y":4,"rot":0,"params":{},"sticker":{"dx":-1.605000813802084,"dy":2.0131870110829673,"items":[{"section":"power","label":"Total supply"},{"section":"power","label":"Curtailment"}],"display":{"connection":true,"label":true,"border":true,"solidBg":true,"textSize":0}}},{"id":"d-dump","defId":"sink_electrical","name":"Dump Load 2kW","profileId":"sink_electrical","tier":1,"x":41,"y":0,"rot":0,"params":{"ratedPower_kW":2,"powerPriority":3,"variant":"port-bottom"}},{"id":"d-n2","defId":"source","name":"N₂ In","profileId":"source","tier":1,"x":45,"y":2,"rot":0,"params":{"species":"N2","nDot":0.3,"T":298.15,"P":100000,"phaseConstraint":"V"}},{"id":"d-comp","defId":"compressor","name":"Life Support","profileId":"compressor","tier":1,"x":49,"y":2,"rot":0,"params":{"Pout":300000,"eta":0.8,"powerPriority":1,"variant":"elec-B"},"sticker":{"dx":-0.850311279296875,"dy":-0.9749868313471476,"items":[{"section":"power","label":"Shaft power"}],"display":{"connection":false,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"d-h2o","defId":"source","name":"H₂O In","profileId":"source","tier":1,"x":45,"y":6,"rot":0,"params":{"species":"H2O","nDot":0.2,"T":293.15,"P":101325,"phaseConstraint":"L"}},{"id":"d-htr","defId":"electric_heater","name":"Water Heater","profileId":"electric_heater","tier":1,"x":49,"y":6,"rot":0,"params":{"T_out":333.15,"powerPriority":2},"sticker":{"dx":-0.8329416910807292,"dy":-0.9749867121378579,"items":[{"section":"power","label":"Q actual"}],"display":{"connection":false,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"d-hsnk","defId":"sink","name":"Hot H₂O","profileId":"sink","tier":1,"x":53,"y":6,"rot":0,"params":{}},{"id":"sink-6","defId":"sink","name":"Gas Vent (copy)","profileId":"sink","tier":1,"x":61,"y":1,"rot":0,"params":{}},{"id":"grid_supply-8","defId":"grid_supply","name":"Micro fan power","profileId":"grid_supply","tier":1,"x":-11,"y":8,"rot":0,"params":{"maxPower":5,"variant":"port-top"}}],"connections":[{"id":"c1","from":{"unitId":"feed","portId":"mat_out"},"to":{"unitId":"mix","portId":"mat_in_1"}},{"id":"c2","from":{"unitId":"mix","portId":"mat_out"},"to":{"unitId":"rx","portId":"mat_in"}},{"id":"c3","from":{"unitId":"rx","portId":"mat_out"},"to":{"unitId":"cool","portId":"mat_in"}},{"id":"c4","from":{"unitId":"cool","portId":"mat_out"},"to":{"unitId":"flash","portId":"mat_in"}},{"id":"c5","from":{"unitId":"flash","portId":"vap_out"},"to":{"unitId":"split","portId":"mat_in"}},{"id":"c6","from":{"unitId":"split","portId":"mat_out_1"},"to":{"unitId":"snk-ch4","portId":"mat_in"}},{"id":"c7","from":{"unitId":"flash","portId":"liq_out"},"to":{"unitId":"snk-h2o","portId":"mat_in"}},{"id":"c8","from":{"unitId":"split","portId":"mat_out_2"},"to":{"unitId":"mix","portId":"mat_in_2"}},{"id":"e1","from":{"unitId":"solar","portId":"elec_out"},"to":{"unitId":"hub","portId":"elec_in"}},{"id":"e2","from":{"unitId":"batt","portId":"elec"},"to":{"unitId":"hub","portId":"elec_in"}},{"id":"e5","from":{"unitId":"hub","portId":"elec_surplus"},"to":{"unitId":"hub-q","portId":"elec_in"}},{"id":"t3","from":{"unitId":"buf-tank","portId":"overflow"},"to":{"unitId":"buf-ov","portId":"mat_in"}},{"id":"a3","from":{"unitId":"a-air","portId":"mat_out"},"to":{"unitId":"a-comp","portId":"mat_in"}},{"id":"a4","from":{"unitId":"a-comp","portId":"mat_out"},"to":{"unitId":"ab-hex","portId":"cold_in"},"sticker":{"dx":-0.27618153889973956,"dy":-0.3295599619547526,"items":[{"section":"conditions","label":"Temperature"}],"display":{"connection":true,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"a5","from":{"unitId":"ab-hex","portId":"cold_out"},"to":{"unitId":"a-mix","portId":"mat_in_1"}},{"id":"a5f","from":{"unitId":"a-fuel","portId":"mat_out"},"to":{"unitId":"a-mix","portId":"mat_in_2"}},{"id":"a5m","from":{"unitId":"a-mix","portId":"mat_out"},"to":{"unitId":"a-comb","portId":"mat_in"}},{"id":"a6","from":{"unitId":"a-comb","portId":"mat_out"},"to":{"unitId":"a-turb","portId":"mat_in"}},{"id":"a7","from":{"unitId":"a-turb","portId":"mat_out"},"to":{"unitId":"a-exh","portId":"mat_in"},"sticker":{"dx":-0.7874247233072916,"dy":-0.7261996269226073,"items":[{"section":"conditions","label":"Temperature"}],"display":{"connection":false,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"b1","from":{"unitId":"b-feed","portId":"mat_out"},"to":{"unitId":"b-rx","portId":"mat_in"}},{"id":"b2","from":{"unitId":"b-rx","portId":"mat_out"},"to":{"unitId":"ab-hex","portId":"hot_in"}},{"id":"b3","from":{"unitId":"ab-hex","portId":"hot_out"},"to":{"unitId":"b-valve","portId":"mat_in"},"sticker":{"dx":-0.8208897908528634,"dy":-0.8749574025472004,"items":[{"section":"conditions","label":"Pressure"}],"display":{"connection":false,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"b4","from":{"unitId":"b-valve","portId":"mat_out"},"to":{"unitId":"b-prod","portId":"mat_in"},"sticker":{"dx":-1.005212148030599,"dy":-0.8682047526041666,"items":[{"section":"conditions","label":"Pressure"}],"display":{"connection":false,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"p3","from":{"unitId":"c-src","portId":"mat_out"},"to":{"unitId":"c-pump","portId":"mat_in"},"sticker":{"dx":-0.8011067708333393,"dy":-1.1509173711140952,"items":[{"section":"conditions","label":"Temperature"},{"section":"conditions","label":"Pressure"}],"display":{"connection":true,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"p4","from":{"unitId":"c-pump","portId":"mat_out"},"to":{"unitId":"c-sink","portId":"mat_in"},"sticker":{"dx":-0.8359120686848946,"dy":-1.1509183247884114,"items":[{"section":"conditions","label":"Temperature"},{"section":"conditions","label":"Pressure"}],"display":{"connection":true,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"d1","from":{"unitId":"d-grid","portId":"elec_out"},"to":{"unitId":"d-hub","portId":"elec_in"}},{"id":"d2","from":{"unitId":"d-hub","portId":"elec_surplus"},"to":{"unitId":"d-dump","portId":"elec_in"}},{"id":"d3","from":{"unitId":"d-hub","portId":"elec_out"},"to":{"unitId":"d-comp","portId":"elec_in"}},{"id":"d4","from":{"unitId":"d-hub","portId":"elec_out"},"to":{"unitId":"d-htr","portId":"elec_in"}},{"id":"d5","from":{"unitId":"d-n2","portId":"mat_out"},"to":{"unitId":"d-comp","portId":"mat_in"},"sticker":{"dx":-0.8103027343750036,"dy":-1.1209094524383547,"items":[{"section":"conditions","label":"Temperature"},{"section":"conditions","label":"Pressure"}],"display":{"connection":false,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"d7","from":{"unitId":"d-h2o","portId":"mat_out"},"to":{"unitId":"d-htr","portId":"mat_in"},"sticker":{"dx":-0.8450419108072946,"dy":-1.194587866465251,"items":[{"section":"conditions","label":"Temperature"},{"section":"conditions","label":"Pressure"}],"display":{"connection":false,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"d8","from":{"unitId":"d-htr","portId":"mat_out"},"to":{"unitId":"d-hsnk","portId":"mat_in"},"sticker":{"dx":-0.7829996744791607,"dy":-1.159841537475585,"items":[{"section":"conditions","label":"Temperature"},{"section":"conditions","label":"Pressure"}],"display":{"connection":false,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"conn-1","from":{"unitId":"hub","portId":"elec_out"},"to":{"unitId":"b-rx","portId":"elec_in"}},{"id":"conn-2","from":{"unitId":"hub","portId":"elec_out"},"to":{"unitId":"a-comp","portId":"elec_in"}},{"id":"conn-3","from":{"unitId":"a-turb","portId":"elec_out"},"to":{"unitId":"hub","portId":"elec_in"}},{"id":"conn-4","from":{"unitId":"d-hub","portId":"elec_out"},"to":{"unitId":"c-pump","portId":"elec_in"}},{"id":"conn-5","from":{"unitId":"buf-tank","portId":"vent"},"to":{"unitId":"buf-vent","portId":"mat_in"}},{"id":"conn-7","from":{"unitId":"buf-tank","portId":"gas_out"},"to":{"unitId":"sink-6","portId":"mat_in"}},{"id":"conn-9","from":{"unitId":"grid_supply-8","portId":"elec_out"},"to":{"unitId":"cool","portId":"elec_in"}},{"id":"conn-10","from":{"unitId":"d-comp","portId":"mat_out"},"to":{"unitId":"buf-tank","portId":"mat_in"}}]}],"layout":{"viewMode":"flowsheet","splitRatio":0.5,"survivalStripExpanded":false,"actionBarCompact":false,"colorBy":"type","sizeByFlow":"none","stickersVisible":true,"planetBgVisible":true,"inspectorOpen":true,"inspectorWidth":360,"paletteOpen":false,"theme":"ragtag"}}'
+  '{"version":18,"processName":"Demo V1 — Sabatier + Brayton + SMR + Buffer Tank","grid":{"w":56,"h":42,"tile":48},"settings":{"atmospherePreset":"planet_x","dt":3600},"units":[{"id":"feed","defId":"source","profileId":"source_mix","tier":1,"name":"CO₂/H₂ Feed","x":-23,"y":3,"rot":0,"params":{"n":{"CO2":1,"H2":4},"T":523,"P":1000000,"phaseConstraint":"V"}},{"id":"mix","defId":"mixer","profileId":"mixer","tier":1,"name":"Mixer","x":-19,"y":3,"rot":0,"params":{"variant":"recycle-T"}},{"id":"rx","defId":"reactor_adiabatic","profileId":"reactor_adiabatic","tier":1,"name":"Sabatier Rx","x":-15,"y":4,"rot":0,"params":{"reactionId":"R_SABATIER","useKinetics":true,"volume_m3":0.5,"variant":"insulated"},"sticker":{"dx":-1.5183563232421875,"dy":-2.1808576583862305,"items":[{"section":"power","label":"ΔT"},{"section":"reaction","label":"Conversion"}]}},{"id":"cool","defId":"air_cooler","profileId":"air_cooler","tier":1,"name":"Cooler","x":-11,"y":4,"rot":0,"params":{"T_out":323.15,"UA_kW_K":5,"max_fan_power_W":1200,"powerPriority":3}},{"id":"flash","defId":"flash_drum","profileId":"flash_drum","tier":1,"name":"Flash Drum","x":-7,"y":4,"rot":0,"params":{}},{"id":"split","defId":"splitter","profileId":"splitter","tier":1,"name":"Purge/Recycle","x":-3,"y":3,"rot":0,"params":{"splitPct":15,"variant":"recycle-T"}},{"id":"snk-ch4","defId":"sink","profileId":"sink","tier":1,"name":"CH₄ Product","x":1,"y":3,"rot":0,"params":{}},{"id":"snk-h2o","defId":"sink","profileId":"sink","tier":1,"name":"Water","x":-3,"y":6,"rot":0,"params":{}},{"id":"solar","defId":"grid_supply","profileId":"grid_supply","tier":1,"name":"Solar 30kW","x":26,"y":-5,"rot":0,"params":{"maxPower":100,"variant":"port-left"}},{"id":"batt","defId":"battery","profileId":"battery","tier":1,"name":"Li-Ion 10kWh","x":27,"y":-2,"rot":0,"params":{"peakPower_kW":20,"capacity_J":36000000,"initialSOC":0.9,"variant":"port-left"},"inventory":{"charge_J":25636834.679072794,"capacity_J":36000000}},{"id":"hub","defId":"power_hub","profileId":"power_hub","tier":1,"name":"Power Hub","x":21,"y":-4,"rot":0,"params":{"variant":"mirror"}},{"id":"hub-q","defId":"sink_electrical","profileId":"sink_electrical","tier":1,"name":"Surplus Power","x":21,"y":-8,"rot":0,"params":{"ratedPower_kW":50,"powerPriority":3,"variant":"port-bottom"}},{"id":"buf-tank","defId":"tank","profileId":"tank_dev","tier":1,"name":"Gas Buffer","x":54,"y":2,"rot":0,"params":{"volume_m3":10,"P_init":90000,"P_relief":500000,"overflow_level":90,"opening_gas_pct":10,"Cv_gas":10,"opening_liq_pct":0,"Cv_liq":30,"openings":{"conn-7":30}},"inventory":{"n":{"N2":1903.4657180040574},"T_K":435.0627883346145}},{"id":"buf-vent","defId":"sink","profileId":"sink","tier":1,"name":"Gas Vent","x":57,"y":-1,"rot":0,"params":{}},{"id":"buf-ov","defId":"sink","profileId":"sink","tier":1,"name":"Overflow","x":57,"y":9,"rot":0,"params":{}},{"id":"a-air","defId":"source_atm","profileId":"source_atmosphere","tier":1,"name":"Air Intake","x":13,"y":1,"rot":0,"params":{"nDot":1}},{"id":"a-comp","defId":"compressor","profileId":"compressor","tier":1,"name":"Compressor","x":16,"y":1,"rot":0,"params":{"Pout":300000,"eta":0.8,"variant":"output-bottom"},"sticker":{"dx":-0.8386917114257814,"dy":-0.9539063771565756,"items":[{"section":"power","label":"Shaft power"}],"display":{"connection":true,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"a-fuel","defId":"source","profileId":"source","tier":1,"name":"H₂ Fuel","x":16,"y":8,"rot":0,"params":{"species":"H2","nDot":0.02,"T":298.15,"P":300000,"phaseConstraint":"V"}},{"id":"a-mix","defId":"mixer","profileId":"mixer","tier":2,"name":"Fuel/Air Mix","x":20,"y":7,"rot":0,"params":{}},{"id":"a-comb","defId":"reactor_adiabatic","profileId":"combustion_chamber","tier":1,"name":"Combustor","x":24,"y":7,"rot":0,"params":{"reactionId":"R_H2_COMB","useKinetics":true,"volume_m3":0.01,"heatDemand":"none","variant":"insulated"},"sticker":{"dx":-1.63427734375,"dy":1.471660017967225,"items":[{"section":"power","label":"ΔT"},{"section":"reaction","label":"Conversion"}]}},{"id":"a-turb","defId":"gas_turbine","profileId":"gas_turbine","tier":1,"name":"Gas Turbine","x":28,"y":7,"rot":0,"params":{"Pout":101325,"eta":0.88,"variant":"elec-T"},"sticker":{"dx":-1.3980865478515623,"dy":1.1773713628451028,"items":[{"section":"power","label":"Shaft power"}],"display":{"connection":false,"label":true,"border":false,"solidBg":false,"textSize":0}}},{"id":"a-exh","defId":"sink","profileId":"sink","tier":1,"name":"Exhaust","x":33,"y":7,"rot":0,"params":{}},{"id":"ab-hex","defId":"hex","profileId":"hex","tier":1,"name":"Recuperator","x":16,"y":4,"rot":0,"params":{"T_approach":10},"sticker":{"dx":-0.815480550130208,"dy":0.12923177083333318,"items":[{"section":"power","label":"Duty"}],"display":{"connection":false,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"b-feed","defId":"source","profileId":"source_mix","tier":1,"name":"CH₄/Steam Feed","x":7,"y":4,"rot":0,"params":{"n":{"CH4":0.2,"H2O":0.4},"T":873,"P":2000000,"phaseConstraint":"V"}},{"id":"b-rx","defId":"reactor_jacketed","profileId":"reactor_jacketed","tier":1,"name":"SMR Reactor","x":11,"y":4,"rot":0,"params":{"reactionId":"R_SMR_OVERALL","useKinetics":true,"volume_m3":1,"heatDemand":"isothermal","variant":"elec-T"},"sticker":{"dx":-1.461281776428223,"dy":1.385961850484212,"items":[{"section":"power","label":"ΔT"},{"section":"reaction","label":"Conversion"}]}},{"id":"b-valve","defId":"valve","profileId":"valve","tier":1,"name":"Letdown Valve","x":20,"y":4,"rot":0,"params":{"Pout":200000}},{"id":"b-prod","defId":"sink","profileId":"sink","tier":1,"name":"Syngas","x":24,"y":4,"rot":0,"params":{}},{"id":"c-src","defId":"source","profileId":"source","tier":1,"name":"Water In","x":45,"y":10,"rot":0,"params":{"species":"H2O","nDot":1,"T":293.15,"P":101325,"phaseConstraint":"L"}},{"id":"c-pump","defId":"pump","profileId":"pump","tier":1,"name":"Feed Pump","x":49,"y":10,"rot":0,"params":{"Pout":500000,"eta":0.75},"sticker":{"dx":-0.8503163655598959,"dy":0.20638402303059866,"items":[{"section":"power","label":"Shaft power"}],"display":{"connection":false,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"c-sink","defId":"sink","profileId":"sink","tier":1,"name":"Pressurized H₂O","x":53,"y":10,"rot":0,"params":{}},{"id":"d-grid","defId":"grid_supply","profileId":"grid_supply","tier":1,"name":"Colony 5kW","x":37,"y":5,"rot":0,"params":{"maxPower":5}},{"id":"d-hub","defId":"power_hub","profileId":"power_hub","tier":1,"name":"Priority Hub","x":41,"y":4,"rot":0,"params":{},"sticker":{"dx":-1.605000813802084,"dy":2.0131870110829673,"items":[{"section":"power","label":"Total supply"},{"section":"power","label":"Curtailment"}],"display":{"connection":true,"label":true,"border":true,"solidBg":true,"textSize":0}}},{"id":"d-dump","defId":"sink_electrical","profileId":"sink_electrical","tier":1,"name":"Dump Load 2kW","x":41,"y":0,"rot":0,"params":{"ratedPower_kW":2,"powerPriority":3,"variant":"port-bottom"}},{"id":"d-n2","defId":"source","profileId":"source","tier":1,"name":"N₂ In","x":45,"y":2,"rot":0,"params":{"species":"N2","nDot":0.3,"T":298.15,"P":100000,"phaseConstraint":"V"}},{"id":"d-comp","defId":"compressor","profileId":"compressor","tier":1,"name":"Life Support","x":49,"y":2,"rot":0,"params":{"Pout":300000,"eta":0.8,"powerPriority":1,"variant":"elec-B"},"sticker":{"dx":-0.850311279296875,"dy":-0.9749868313471476,"items":[{"section":"power","label":"Shaft power"}],"display":{"connection":false,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"d-h2o","defId":"source","profileId":"source","tier":1,"name":"H₂O In","x":45,"y":6,"rot":0,"params":{"species":"H2O","nDot":0.2,"T":293.15,"P":101325,"phaseConstraint":"L"}},{"id":"d-htr","defId":"electric_heater","profileId":"electric_heater","tier":1,"name":"Water Heater","x":49,"y":6,"rot":0,"params":{"T_out":333.15,"powerPriority":2},"sticker":{"dx":-0.8329416910807292,"dy":-0.9749867121378579,"items":[{"section":"power","label":"Q actual"}],"display":{"connection":false,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"d-hsnk","defId":"sink","profileId":"sink","tier":1,"name":"Hygiene","x":63,"y":7,"rot":0,"params":{}},{"id":"sink-6","defId":"sink","profileId":"sink","tier":1,"name":"Medical","x":63,"y":0,"rot":0,"params":{}},{"id":"grid_supply-8","defId":"grid_supply","profileId":"grid_supply","tier":1,"name":"Micro fan power","x":-11,"y":8,"rot":0,"params":{"maxPower":5,"variant":"port-top"}},{"id":"open_tank-11","defId":"open_tank","profileId":"open_tank","tier":1,"name":"Open Tank 11","x":54,"y":6,"rot":0,"params":{"volume_m3":0.15,"overflow_level":90,"Cv_liq":30,"opening_liq_pct":0,"initialComposition":{"H2O":1},"level_init":0},"inventory":{"n":{},"T_K":305.15,"_vented_n":{}}},{"id":"sink-12","defId":"sink","profileId":"sink","tier":1,"name":"Kitchen","x":63,"y":3,"rot":0,"params":{}}],"connections":[{"id":"c1","from":{"unitId":"feed","portId":"mat_out"},"to":{"unitId":"mix","portId":"mat_in_1"}},{"id":"c2","from":{"unitId":"mix","portId":"mat_out"},"to":{"unitId":"rx","portId":"mat_in"}},{"id":"c3","from":{"unitId":"rx","portId":"mat_out"},"to":{"unitId":"cool","portId":"mat_in"}},{"id":"c4","from":{"unitId":"cool","portId":"mat_out"},"to":{"unitId":"flash","portId":"mat_in"}},{"id":"c5","from":{"unitId":"flash","portId":"vap_out"},"to":{"unitId":"split","portId":"mat_in"}},{"id":"c6","from":{"unitId":"split","portId":"mat_out_1"},"to":{"unitId":"snk-ch4","portId":"mat_in"}},{"id":"c7","from":{"unitId":"flash","portId":"liq_out"},"to":{"unitId":"snk-h2o","portId":"mat_in"}},{"id":"c8","from":{"unitId":"split","portId":"mat_out_2"},"to":{"unitId":"mix","portId":"mat_in_2"}},{"id":"e1","from":{"unitId":"solar","portId":"elec_out"},"to":{"unitId":"hub","portId":"elec_in"}},{"id":"e2","from":{"unitId":"batt","portId":"elec"},"to":{"unitId":"hub","portId":"elec_in"}},{"id":"e5","from":{"unitId":"hub","portId":"elec_surplus"},"to":{"unitId":"hub-q","portId":"elec_in"}},{"id":"a3","from":{"unitId":"a-air","portId":"mat_out"},"to":{"unitId":"a-comp","portId":"mat_in"}},{"id":"a4","from":{"unitId":"a-comp","portId":"mat_out"},"to":{"unitId":"ab-hex","portId":"cold_in"},"sticker":{"dx":-0.27618153889973956,"dy":-0.3295599619547526,"items":[{"section":"conditions","label":"Temperature"}],"display":{"connection":true,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"a5","from":{"unitId":"ab-hex","portId":"cold_out"},"to":{"unitId":"a-mix","portId":"mat_in_1"}},{"id":"a5f","from":{"unitId":"a-fuel","portId":"mat_out"},"to":{"unitId":"a-mix","portId":"mat_in_2"}},{"id":"a5m","from":{"unitId":"a-mix","portId":"mat_out"},"to":{"unitId":"a-comb","portId":"mat_in"}},{"id":"a6","from":{"unitId":"a-comb","portId":"mat_out"},"to":{"unitId":"a-turb","portId":"mat_in"}},{"id":"a7","from":{"unitId":"a-turb","portId":"mat_out"},"to":{"unitId":"a-exh","portId":"mat_in"},"sticker":{"dx":-0.7874247233072916,"dy":-0.7261996269226073,"items":[{"section":"conditions","label":"Temperature"}],"display":{"connection":false,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"b1","from":{"unitId":"b-feed","portId":"mat_out"},"to":{"unitId":"b-rx","portId":"mat_in"}},{"id":"b2","from":{"unitId":"b-rx","portId":"mat_out"},"to":{"unitId":"ab-hex","portId":"hot_in"}},{"id":"b3","from":{"unitId":"ab-hex","portId":"hot_out"},"to":{"unitId":"b-valve","portId":"mat_in"},"sticker":{"dx":-0.8208897908528634,"dy":-0.8749574025472004,"items":[{"section":"conditions","label":"Pressure"}],"display":{"connection":false,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"b4","from":{"unitId":"b-valve","portId":"mat_out"},"to":{"unitId":"b-prod","portId":"mat_in"},"sticker":{"dx":-1.005212148030599,"dy":-0.8682047526041666,"items":[{"section":"conditions","label":"Pressure"}],"display":{"connection":false,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"p3","from":{"unitId":"c-src","portId":"mat_out"},"to":{"unitId":"c-pump","portId":"mat_in"},"sticker":{"dx":-0.8011067708333393,"dy":-1.1509173711140952,"items":[{"section":"conditions","label":"Temperature"},{"section":"conditions","label":"Pressure"}],"display":{"connection":true,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"p4","from":{"unitId":"c-pump","portId":"mat_out"},"to":{"unitId":"c-sink","portId":"mat_in"},"sticker":{"dx":-0.8359120686848946,"dy":-1.1509183247884114,"items":[{"section":"conditions","label":"Temperature"},{"section":"conditions","label":"Pressure"}],"display":{"connection":true,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"d1","from":{"unitId":"d-grid","portId":"elec_out"},"to":{"unitId":"d-hub","portId":"elec_in"}},{"id":"d2","from":{"unitId":"d-hub","portId":"elec_surplus"},"to":{"unitId":"d-dump","portId":"elec_in"}},{"id":"d3","from":{"unitId":"d-hub","portId":"elec_out"},"to":{"unitId":"d-comp","portId":"elec_in"}},{"id":"d4","from":{"unitId":"d-hub","portId":"elec_out"},"to":{"unitId":"d-htr","portId":"elec_in"}},{"id":"d5","from":{"unitId":"d-n2","portId":"mat_out"},"to":{"unitId":"d-comp","portId":"mat_in"},"sticker":{"dx":-0.8103027343750036,"dy":-1.1209094524383547,"items":[{"section":"conditions","label":"Temperature"},{"section":"conditions","label":"Pressure"}],"display":{"connection":false,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"d7","from":{"unitId":"d-h2o","portId":"mat_out"},"to":{"unitId":"d-htr","portId":"mat_in"},"sticker":{"dx":-0.8450419108072946,"dy":-1.194587866465251,"items":[{"section":"conditions","label":"Temperature"},{"section":"conditions","label":"Pressure"}],"display":{"connection":false,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"conn-1","from":{"unitId":"hub","portId":"elec_out"},"to":{"unitId":"b-rx","portId":"elec_in"}},{"id":"conn-2","from":{"unitId":"hub","portId":"elec_out"},"to":{"unitId":"a-comp","portId":"elec_in"}},{"id":"conn-3","from":{"unitId":"a-turb","portId":"elec_out"},"to":{"unitId":"hub","portId":"elec_in"}},{"id":"conn-4","from":{"unitId":"d-hub","portId":"elec_out"},"to":{"unitId":"c-pump","portId":"elec_in"}},{"id":"conn-5","from":{"unitId":"buf-tank","portId":"vent"},"to":{"unitId":"buf-vent","portId":"mat_in"}},{"id":"conn-7","from":{"unitId":"buf-tank","portId":"gas_out"},"to":{"unitId":"sink-6","portId":"mat_in"}},{"id":"conn-9","from":{"unitId":"grid_supply-8","portId":"elec_out"},"to":{"unitId":"cool","portId":"elec_in"}},{"id":"conn-10","from":{"unitId":"d-comp","portId":"mat_out"},"to":{"unitId":"buf-tank","portId":"mat_in"}},{"id":"conn-13","from":{"unitId":"buf-tank","portId":"gas_out"},"to":{"unitId":"sink-12","portId":"mat_in"}},{"id":"conn-14","from":{"unitId":"open_tank-11","portId":"overflow"},"to":{"unitId":"buf-ov","portId":"mat_in"}},{"id":"conn-15","from":{"unitId":"open_tank-11","portId":"liq_out"},"to":{"unitId":"d-hsnk","portId":"mat_in"}},{"id":"conn-16","from":{"unitId":"d-htr","portId":"mat_out"},"to":{"unitId":"open_tank-11","portId":"mat_in"}}],"modelsActive":{"thermo_package":"ideal_raoult","reaction":null,"units":"SI_bar"},"solverOptions":{"maxIter":200},"time":{"t":46800,"frame":1},"checkpoints":[{"t":43200,"frame":0,"label":"auto","ts":1772805484209,"dt":3600,"units":[{"id":"feed","defId":"source","name":"CO₂/H₂ Feed","profileId":"source_mix","tier":1,"x":-23,"y":3,"rot":0,"params":{"n":{"CO2":1,"H2":4},"T":523,"P":1000000,"phaseConstraint":"V"}},{"id":"mix","defId":"mixer","name":"Mixer","profileId":"mixer","tier":1,"x":-19,"y":3,"rot":0,"params":{"variant":"recycle-T"}},{"id":"rx","defId":"reactor_adiabatic","name":"Sabatier Rx","profileId":"reactor_adiabatic","tier":1,"x":-15,"y":4,"rot":0,"params":{"reactionId":"R_SABATIER","useKinetics":true,"volume_m3":0.5,"variant":"insulated"},"sticker":{"dx":-1.5183563232421875,"dy":-2.1808576583862305,"items":[{"section":"power","label":"ΔT"},{"section":"reaction","label":"Conversion"}]}},{"id":"cool","defId":"air_cooler","name":"Cooler","profileId":"air_cooler","tier":1,"x":-11,"y":4,"rot":0,"params":{"T_out":323.15,"UA_kW_K":5,"max_fan_power_W":1200,"powerPriority":3}},{"id":"flash","defId":"flash_drum","name":"Flash Drum","profileId":"flash_drum","tier":1,"x":-7,"y":4,"rot":0,"params":{}},{"id":"split","defId":"splitter","name":"Purge/Recycle","profileId":"splitter","tier":1,"x":-3,"y":3,"rot":0,"params":{"splitPct":15,"variant":"recycle-T"}},{"id":"snk-ch4","defId":"sink","name":"CH₄ Product","profileId":"sink","tier":1,"x":1,"y":3,"rot":0,"params":{}},{"id":"snk-h2o","defId":"sink","name":"Water","profileId":"sink","tier":1,"x":-3,"y":6,"rot":0,"params":{}},{"id":"solar","defId":"grid_supply","name":"Solar 30kW","profileId":"grid_supply","tier":1,"x":26,"y":-5,"rot":0,"params":{"maxPower":100,"variant":"port-left"}},{"id":"batt","defId":"battery","name":"Li-Ion 10kWh","profileId":"battery","tier":1,"x":27,"y":-2,"rot":0,"params":{"peakPower_kW":20,"capacity_J":36000000,"initialSOC":0.9,"variant":"port-left"},"inventory":{"charge_J":25636834.679072794,"capacity_J":36000000}},{"id":"hub","defId":"power_hub","name":"Power Hub","profileId":"power_hub","tier":1,"x":21,"y":-4,"rot":0,"params":{"variant":"mirror"}},{"id":"hub-q","defId":"sink_electrical","name":"Surplus Power","profileId":"sink_electrical","tier":1,"x":21,"y":-8,"rot":0,"params":{"ratedPower_kW":50,"powerPriority":3,"variant":"port-bottom"}},{"id":"buf-tank","defId":"tank","name":"Gas Buffer","profileId":"tank_dev","tier":1,"x":54,"y":2,"rot":0,"params":{"volume_m3":10,"P_init":90000,"P_relief":500000,"overflow_level":90,"opening_gas_pct":10,"Cv_gas":10,"opening_liq_pct":0,"Cv_liq":30},"inventory":{"n":{"N2":946.4720221595039},"T_K":435.06278833461454}},{"id":"buf-vent","defId":"sink","name":"Gas Vent","profileId":"sink","tier":1,"x":57,"y":-1,"rot":0,"params":{}},{"id":"buf-ov","defId":"sink","name":"Overflow","profileId":"sink","tier":1,"x":57,"y":5,"rot":0,"params":{}},{"id":"a-air","defId":"source_atm","name":"Air Intake","profileId":"source_atmosphere","tier":1,"x":13,"y":1,"rot":0,"params":{"nDot":1}},{"id":"a-comp","defId":"compressor","name":"Compressor","profileId":"compressor","tier":1,"x":16,"y":1,"rot":0,"params":{"Pout":300000,"eta":0.8,"variant":"output-bottom"},"sticker":{"dx":-0.8386917114257814,"dy":-0.9539063771565756,"items":[{"section":"power","label":"Shaft power"}],"display":{"connection":true,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"a-fuel","defId":"source","name":"H₂ Fuel","profileId":"source","tier":1,"x":16,"y":8,"rot":0,"params":{"species":"H2","nDot":0.02,"T":298.15,"P":300000,"phaseConstraint":"V"}},{"id":"a-mix","defId":"mixer","name":"Fuel/Air Mix","profileId":"mixer","tier":2,"x":20,"y":7,"rot":0,"params":{}},{"id":"a-comb","defId":"reactor_adiabatic","name":"Combustor","profileId":"combustion_chamber","tier":1,"x":24,"y":7,"rot":0,"params":{"reactionId":"R_H2_COMB","useKinetics":true,"volume_m3":0.01,"heatDemand":"none","variant":"insulated"},"sticker":{"dx":-1.63427734375,"dy":1.471660017967225,"items":[{"section":"power","label":"ΔT"},{"section":"reaction","label":"Conversion"}]}},{"id":"a-turb","defId":"gas_turbine","name":"Gas Turbine","profileId":"gas_turbine","tier":1,"x":28,"y":7,"rot":0,"params":{"Pout":101325,"eta":0.88,"variant":"elec-T"},"sticker":{"dx":-1.3980865478515623,"dy":1.1773713628451028,"items":[{"section":"power","label":"Shaft power"}],"display":{"connection":false,"label":true,"border":false,"solidBg":false,"textSize":0}}},{"id":"a-exh","defId":"sink","name":"Exhaust","profileId":"sink","tier":1,"x":33,"y":7,"rot":0,"params":{}},{"id":"ab-hex","defId":"hex","name":"Recuperator","profileId":"hex","tier":1,"x":16,"y":4,"rot":0,"params":{"T_approach":10},"sticker":{"dx":-0.815480550130208,"dy":0.12923177083333318,"items":[{"section":"power","label":"Duty"}],"display":{"connection":false,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"b-feed","defId":"source","name":"CH₄/Steam Feed","profileId":"source_mix","tier":1,"x":7,"y":4,"rot":0,"params":{"n":{"CH4":0.2,"H2O":0.4},"T":873,"P":2000000,"phaseConstraint":"V"}},{"id":"b-rx","defId":"reactor_jacketed","name":"SMR Reactor","profileId":"reactor_jacketed","tier":1,"x":11,"y":4,"rot":0,"params":{"reactionId":"R_SMR_OVERALL","useKinetics":true,"volume_m3":1,"heatDemand":"isothermal","variant":"elec-T"},"sticker":{"dx":-1.461281776428223,"dy":1.385961850484212,"items":[{"section":"power","label":"ΔT"},{"section":"reaction","label":"Conversion"}]}},{"id":"b-valve","defId":"valve","name":"Letdown Valve","profileId":"valve","tier":1,"x":20,"y":4,"rot":0,"params":{"Pout":200000}},{"id":"b-prod","defId":"sink","name":"Syngas","profileId":"sink","tier":1,"x":24,"y":4,"rot":0,"params":{}},{"id":"c-src","defId":"source","name":"Water In","profileId":"source","tier":1,"x":45,"y":10,"rot":0,"params":{"species":"H2O","nDot":1,"T":293.15,"P":101325,"phaseConstraint":"L"}},{"id":"c-pump","defId":"pump","name":"Feed Pump","profileId":"pump","tier":1,"x":49,"y":10,"rot":0,"params":{"Pout":500000,"eta":0.75},"sticker":{"dx":-0.8503163655598959,"dy":0.20638402303059866,"items":[{"section":"power","label":"Shaft power"}],"display":{"connection":false,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"c-sink","defId":"sink","name":"Pressurized H₂O","profileId":"sink","tier":1,"x":53,"y":10,"rot":0,"params":{}},{"id":"d-grid","defId":"grid_supply","name":"Colony 5kW","profileId":"grid_supply","tier":1,"x":37,"y":5,"rot":0,"params":{"maxPower":5}},{"id":"d-hub","defId":"power_hub","name":"Priority Hub","profileId":"power_hub","tier":1,"x":41,"y":4,"rot":0,"params":{},"sticker":{"dx":-1.605000813802084,"dy":2.0131870110829673,"items":[{"section":"power","label":"Total supply"},{"section":"power","label":"Curtailment"}],"display":{"connection":true,"label":true,"border":true,"solidBg":true,"textSize":0}}},{"id":"d-dump","defId":"sink_electrical","name":"Dump Load 2kW","profileId":"sink_electrical","tier":1,"x":41,"y":0,"rot":0,"params":{"ratedPower_kW":2,"powerPriority":3,"variant":"port-bottom"}},{"id":"d-n2","defId":"source","name":"N₂ In","profileId":"source","tier":1,"x":45,"y":2,"rot":0,"params":{"species":"N2","nDot":0.3,"T":298.15,"P":100000,"phaseConstraint":"V"}},{"id":"d-comp","defId":"compressor","name":"Life Support","profileId":"compressor","tier":1,"x":49,"y":2,"rot":0,"params":{"Pout":300000,"eta":0.8,"powerPriority":1,"variant":"elec-B"},"sticker":{"dx":-0.850311279296875,"dy":-0.9749868313471476,"items":[{"section":"power","label":"Shaft power"}],"display":{"connection":false,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"d-h2o","defId":"source","name":"H₂O In","profileId":"source","tier":1,"x":45,"y":6,"rot":0,"params":{"species":"H2O","nDot":0.2,"T":293.15,"P":101325,"phaseConstraint":"L"}},{"id":"d-htr","defId":"electric_heater","name":"Water Heater","profileId":"electric_heater","tier":1,"x":49,"y":6,"rot":0,"params":{"T_out":333.15,"powerPriority":2},"sticker":{"dx":-0.8329416910807292,"dy":-0.9749867121378579,"items":[{"section":"power","label":"Q actual"}],"display":{"connection":false,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"d-hsnk","defId":"sink","name":"Hot H₂O","profileId":"sink","tier":1,"x":53,"y":6,"rot":0,"params":{}},{"id":"sink-6","defId":"sink","name":"Gas Vent (copy)","profileId":"sink","tier":1,"x":61,"y":1,"rot":0,"params":{}},{"id":"grid_supply-8","defId":"grid_supply","name":"Micro fan power","profileId":"grid_supply","tier":1,"x":-11,"y":8,"rot":0,"params":{"maxPower":5,"variant":"port-top"}}],"connections":[{"id":"c1","from":{"unitId":"feed","portId":"mat_out"},"to":{"unitId":"mix","portId":"mat_in_1"}},{"id":"c2","from":{"unitId":"mix","portId":"mat_out"},"to":{"unitId":"rx","portId":"mat_in"}},{"id":"c3","from":{"unitId":"rx","portId":"mat_out"},"to":{"unitId":"cool","portId":"mat_in"}},{"id":"c4","from":{"unitId":"cool","portId":"mat_out"},"to":{"unitId":"flash","portId":"mat_in"}},{"id":"c5","from":{"unitId":"flash","portId":"vap_out"},"to":{"unitId":"split","portId":"mat_in"}},{"id":"c6","from":{"unitId":"split","portId":"mat_out_1"},"to":{"unitId":"snk-ch4","portId":"mat_in"}},{"id":"c7","from":{"unitId":"flash","portId":"liq_out"},"to":{"unitId":"snk-h2o","portId":"mat_in"}},{"id":"c8","from":{"unitId":"split","portId":"mat_out_2"},"to":{"unitId":"mix","portId":"mat_in_2"}},{"id":"e1","from":{"unitId":"solar","portId":"elec_out"},"to":{"unitId":"hub","portId":"elec_in"}},{"id":"e2","from":{"unitId":"batt","portId":"elec"},"to":{"unitId":"hub","portId":"elec_in"}},{"id":"e5","from":{"unitId":"hub","portId":"elec_surplus"},"to":{"unitId":"hub-q","portId":"elec_in"}},{"id":"t3","from":{"unitId":"buf-tank","portId":"overflow"},"to":{"unitId":"buf-ov","portId":"mat_in"}},{"id":"a3","from":{"unitId":"a-air","portId":"mat_out"},"to":{"unitId":"a-comp","portId":"mat_in"}},{"id":"a4","from":{"unitId":"a-comp","portId":"mat_out"},"to":{"unitId":"ab-hex","portId":"cold_in"},"sticker":{"dx":-0.27618153889973956,"dy":-0.3295599619547526,"items":[{"section":"conditions","label":"Temperature"}],"display":{"connection":true,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"a5","from":{"unitId":"ab-hex","portId":"cold_out"},"to":{"unitId":"a-mix","portId":"mat_in_1"}},{"id":"a5f","from":{"unitId":"a-fuel","portId":"mat_out"},"to":{"unitId":"a-mix","portId":"mat_in_2"}},{"id":"a5m","from":{"unitId":"a-mix","portId":"mat_out"},"to":{"unitId":"a-comb","portId":"mat_in"}},{"id":"a6","from":{"unitId":"a-comb","portId":"mat_out"},"to":{"unitId":"a-turb","portId":"mat_in"}},{"id":"a7","from":{"unitId":"a-turb","portId":"mat_out"},"to":{"unitId":"a-exh","portId":"mat_in"},"sticker":{"dx":-0.7874247233072916,"dy":-0.7261996269226073,"items":[{"section":"conditions","label":"Temperature"}],"display":{"connection":false,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"b1","from":{"unitId":"b-feed","portId":"mat_out"},"to":{"unitId":"b-rx","portId":"mat_in"}},{"id":"b2","from":{"unitId":"b-rx","portId":"mat_out"},"to":{"unitId":"ab-hex","portId":"hot_in"}},{"id":"b3","from":{"unitId":"ab-hex","portId":"hot_out"},"to":{"unitId":"b-valve","portId":"mat_in"},"sticker":{"dx":-0.8208897908528634,"dy":-0.8749574025472004,"items":[{"section":"conditions","label":"Pressure"}],"display":{"connection":false,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"b4","from":{"unitId":"b-valve","portId":"mat_out"},"to":{"unitId":"b-prod","portId":"mat_in"},"sticker":{"dx":-1.005212148030599,"dy":-0.8682047526041666,"items":[{"section":"conditions","label":"Pressure"}],"display":{"connection":false,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"p3","from":{"unitId":"c-src","portId":"mat_out"},"to":{"unitId":"c-pump","portId":"mat_in"},"sticker":{"dx":-0.8011067708333393,"dy":-1.1509173711140952,"items":[{"section":"conditions","label":"Temperature"},{"section":"conditions","label":"Pressure"}],"display":{"connection":true,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"p4","from":{"unitId":"c-pump","portId":"mat_out"},"to":{"unitId":"c-sink","portId":"mat_in"},"sticker":{"dx":-0.8359120686848946,"dy":-1.1509183247884114,"items":[{"section":"conditions","label":"Temperature"},{"section":"conditions","label":"Pressure"}],"display":{"connection":true,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"d1","from":{"unitId":"d-grid","portId":"elec_out"},"to":{"unitId":"d-hub","portId":"elec_in"}},{"id":"d2","from":{"unitId":"d-hub","portId":"elec_surplus"},"to":{"unitId":"d-dump","portId":"elec_in"}},{"id":"d3","from":{"unitId":"d-hub","portId":"elec_out"},"to":{"unitId":"d-comp","portId":"elec_in"}},{"id":"d4","from":{"unitId":"d-hub","portId":"elec_out"},"to":{"unitId":"d-htr","portId":"elec_in"}},{"id":"d5","from":{"unitId":"d-n2","portId":"mat_out"},"to":{"unitId":"d-comp","portId":"mat_in"},"sticker":{"dx":-0.8103027343750036,"dy":-1.1209094524383547,"items":[{"section":"conditions","label":"Temperature"},{"section":"conditions","label":"Pressure"}],"display":{"connection":false,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"d7","from":{"unitId":"d-h2o","portId":"mat_out"},"to":{"unitId":"d-htr","portId":"mat_in"},"sticker":{"dx":-0.8450419108072946,"dy":-1.194587866465251,"items":[{"section":"conditions","label":"Temperature"},{"section":"conditions","label":"Pressure"}],"display":{"connection":false,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"d8","from":{"unitId":"d-htr","portId":"mat_out"},"to":{"unitId":"d-hsnk","portId":"mat_in"},"sticker":{"dx":-0.7829996744791607,"dy":-1.159841537475585,"items":[{"section":"conditions","label":"Temperature"},{"section":"conditions","label":"Pressure"}],"display":{"connection":false,"label":false,"border":false,"solidBg":false,"textSize":0}}},{"id":"conn-1","from":{"unitId":"hub","portId":"elec_out"},"to":{"unitId":"b-rx","portId":"elec_in"}},{"id":"conn-2","from":{"unitId":"hub","portId":"elec_out"},"to":{"unitId":"a-comp","portId":"elec_in"}},{"id":"conn-3","from":{"unitId":"a-turb","portId":"elec_out"},"to":{"unitId":"hub","portId":"elec_in"}},{"id":"conn-4","from":{"unitId":"d-hub","portId":"elec_out"},"to":{"unitId":"c-pump","portId":"elec_in"}},{"id":"conn-5","from":{"unitId":"buf-tank","portId":"vent"},"to":{"unitId":"buf-vent","portId":"mat_in"}},{"id":"conn-7","from":{"unitId":"buf-tank","portId":"gas_out"},"to":{"unitId":"sink-6","portId":"mat_in"}},{"id":"conn-9","from":{"unitId":"grid_supply-8","portId":"elec_out"},"to":{"unitId":"cool","portId":"elec_in"}},{"id":"conn-10","from":{"unitId":"d-comp","portId":"mat_out"},"to":{"unitId":"buf-tank","portId":"mat_in"}}]}],"layout":{"viewMode":"flowsheet","splitRatio":0.5,"survivalStripExpanded":false,"actionBarCompact":false,"colorBy":"type","sizeByFlow":"none","stickersVisible":true,"planetBgVisible":true,"inspectorOpen":true,"inspectorWidth":360,"paletteOpen":false,"theme":"ragtag"}}'
 );
 
 
@@ -39803,29 +40108,29 @@ function runTests() {
     const leg1 = { type: StreamType.ELECTRICAL, available: 5000, actual: 3000, demand: 4000 };
     normalizeNonMaterialStream(leg1);
     t.assertOK(leg1.capacity === 5000, 'Legacy: available → capacity');
-    t.assertOK(leg1.curtailmentFactor !== undefined, 'Legacy: curtailmentFactor derived');
-    t.assertClose(leg1.curtailmentFactor, 3000/4000, 0.001, 'Legacy: cf = actual/demand');
+    // [v16.8.3] curtailmentFactor no longer derived on streams (NNG-5/6: dispatch metadata in ud.last only)
+    t.assertOK(leg1.curtailmentFactor === undefined, 'Legacy: cf NOT derived (removed in v16.8.3)');
 
-    // ── Modern form: capacity already set, no curtailmentFactor ──
+    // ── Modern form: capacity already set ──
     const mod1 = { type: StreamType.ELECTRICAL, capacity: 10000, actual: 8000, demand: 8000 };
     normalizeNonMaterialStream(mod1);
     t.assertOK(mod1.capacity === 10000, 'Modern: capacity unchanged');
-    t.assertClose(mod1.curtailmentFactor, 1.0, 0.001, 'Modern: cf derived as 1.0 (no curtailment)');
+    t.assertOK(mod1.curtailmentFactor === undefined, 'Modern: cf NOT derived');
 
-    // ── Zero demand: curtailmentFactor NOT derived (divide by zero guard) ──
+    // ── Zero demand: curtailmentFactor NOT derived ──
     const zeroDemand = { type: StreamType.ELECTRICAL, capacity: 5000, actual: 0, demand: 0 };
     normalizeNonMaterialStream(zeroDemand);
-    t.assertOK(zeroDemand.curtailmentFactor === undefined, 'Zero demand: cf not derived (guard)');
+    t.assertOK(zeroDemand.curtailmentFactor === undefined, 'Zero demand: cf not derived');
 
-    // ── Existing curtailmentFactor preserved ──
+    // ── Existing curtailmentFactor preserved (not stripped) ──
     const withCF = { type: StreamType.ELECTRICAL, capacity: 5000, actual: 3000, demand: 4000, curtailmentFactor: 0.8 };
     normalizeNonMaterialStream(withCF);
     t.assertOK(withCF.curtailmentFactor === 0.8, 'Existing cf not overwritten');
 
-    // ── Infinite demand: cf NOT derived (guard for sink semantics) ──
+    // ── Infinite demand: cf NOT derived ──
     const infDemand = { type: StreamType.ELECTRICAL, capacity: 5000, actual: 5000, demand: Infinity };
     normalizeNonMaterialStream(infDemand);
-    t.assertOK(infDemand.curtailmentFactor === undefined, 'Infinite demand: cf not derived (guard)');
+    t.assertOK(infDemand.curtailmentFactor === undefined, 'Infinite demand: cf not derived');
 
     // ── Missing both available and capacity: neither set ──
     const bare = { type: StreamType.ELECTRICAL, actual: 1000 };
@@ -41848,10 +42153,10 @@ function runTests() {
     const wet = SimSettings.getWetAir();
     t.assertClose(out.T, atm.T_K, 0.01, 'T = atmospheric T');
     t.assertClose(out.P, atm.P_Pa, 1, 'P = atmospheric P');
-    t.assertClose(out.n.N2, wet.N2 * 2.5, 0.01, 'N₂ scaled by flowScale (wet)');
-    t.assertClose(out.n.O2, wet.O2 * 2.5, 0.01, 'O₂ scaled by flowScale (wet)');
+    t.assertClose(out.n.N2, wet.N2 * 2.5, 0.01, 'N₂ scaled by nDot (wet)');
+    t.assertClose(out.n.O2, wet.O2 * 2.5, 0.01, 'O₂ scaled by nDot (wet)');
     t.assertOK(out.n.H2O > 0, 'Wet air includes H₂O');
-    t.assertClose(out.n.H2O, wet.H2O * 2.5, 0.01, 'H₂O scaled by flowScale');
+    t.assertClose(out.n.H2O, wet.H2O * 2.5, 0.01, 'H₂O scaled by nDot');
   });
 
   test('SimSettings — atmosphere preset switch', t => {
@@ -42264,7 +42569,7 @@ function runTests() {
     // Export
     const json = scene.exportJSON();
     const data = JSON.parse(json);
-    t.assertClose(data.version, 18, 0, 'Export version = 18');
+    t.assertClose(data.version, 19, 0, 'Export version = 19');
     t.assertClose(data.time.t, expectedT, 0.01, 'Export time.t');
     t.assertClose(data.time.frame, 5, 0, 'Export time.frame');
 
@@ -42772,7 +43077,7 @@ function runTests() {
     TimeClock.mode = origMode; SimSettings.dt = origDt;
   }});
 
-  tests.push({ name: '435: T-SM11 Export version is 18 with checkpoints', fn: t => {
+  tests.push({ name: '435: T-SM11 Export version is 19 with checkpoints', fn: t => {
     const origT = TimeClock.t;
     const origMode = TimeClock.mode;
     const origDt = SimSettings.dt;
@@ -42785,7 +43090,7 @@ function runTests() {
 
     const jsonStr = scene.exportJSON();
     const data = JSON.parse(jsonStr);
-    t.assertClose(data.version, 18, 0, 'Export version = 18');
+    t.assertClose(data.version, 19, 0, 'Export version = 19');
     t.assertOK(Array.isArray(data.checkpoints), 'checkpoints is array');
     t.assertOK(data.checkpoints.length >= 1, 'At least 1 checkpoint exported');
     t.assertOK(data.checkpoints[0].label === 'auto', 'First checkpoint label = auto');
@@ -50967,6 +51272,160 @@ function runTests() {
     t.assertClose(profile.defaults[3].maxRatio, 30, 0, 'T3 maxRatio = 30');
   });
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // S-STATUS: Unit Operating Modes [v16.9.0]
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  test('586: S-STATUS — bypass mode: pump passthrough preserves T/P/n', t => {
+    const src = t.place('source', 0, 0, { species: 'H2O', nDot: 1.0, T: 350, P: 200000 });
+    const pump = t.place('pump', 4, 0, { Pout: 500000 });
+    const snk = t.place('sink', 8, 0);
+    const grid = t.place('grid_supply', 4, -2, { maxPower: 100 });
+    t.wire(src, 'mat_out', pump, 'mat_in');
+    t.wire(pump, 'mat_out', snk, 'mat_in');
+    t.wire(grid, 'elec_out', pump, 'elec_in');
+    pump.mode = 'bypass';
+    t.solve();
+    const out = t.port(pump, 'mat_out');
+    const inp = t.port(pump, 'mat_in');
+    t.assertOK(out, 'Bypass pump has output');
+    t.assertClose(out.T, inp.T, 0.1, 'Bypass T passthrough');
+    t.assertClose(out.P, inp.P, 1, 'Bypass P passthrough (no work)');
+    t.assertClose(out.n?.H2O || 0, inp.n?.H2O || 0, 0.001, 'Bypass H2O passthrough');
+  });
+
+  test('587: S-STATUS — bypass mode: powerDemand = 0', t => {
+    const src = t.place('source', 0, 0, { species: 'N2', nDot: 0.5 });
+    const comp = t.place('compressor', 4, 0, { Pout: 300000 });
+    const snk = t.place('sink', 8, 0);
+    const grid = t.place('grid_supply', 4, -2, { maxPower: 100 });
+    t.wire(src, 'mat_out', comp, 'mat_in');
+    t.wire(comp, 'mat_out', snk, 'mat_in');
+    t.wire(grid, 'elec_out', comp, 'elec_in');
+    comp.mode = 'bypass';
+    t.solve();
+    t.assertOK(comp.powerDemand === 0, 'Bypass compressor: powerDemand = 0');
+  });
+
+  test('588: S-STATUS — off mode: all outputs zero', t => {
+    const src = t.place('source', 0, 0, { species: 'N2', nDot: 1.0 });
+    const pump = t.place('pump', 4, 0, { Pout: 500000 });
+    const snk = t.place('sink', 8, 0);
+    const grid = t.place('grid_supply', 4, -2, { maxPower: 100 });
+    t.wire(src, 'mat_out', pump, 'mat_in');
+    t.wire(pump, 'mat_out', snk, 'mat_in');
+    t.wire(grid, 'elec_out', pump, 'elec_in');
+    pump.mode = 'off';
+    t.solve();
+    const out = t.port(pump, 'mat_out');
+    const nTotal = out?.n ? Object.values(out.n).reduce((a, b) => a + b, 0) : 0;
+    t.assertOK(nTotal < 1e-15, 'Off pump: zero material output');
+    t.assertOK(pump.powerDemand === 0, 'Off pump: powerDemand = 0');
+  });
+
+  test('589: S-STATUS — fried override: u.fried=true + u.mode=on → bypass forced', t => {
+    const src = t.place('source', 0, 0, { species: 'N2', nDot: 1.0, T: 300, P: 100000 });
+    const comp = t.place('compressor', 4, 0, { Pout: 300000 });
+    const snk = t.place('sink', 8, 0);
+    const grid = t.place('grid_supply', 4, -2, { maxPower: 100 });
+    t.wire(src, 'mat_out', comp, 'mat_in');
+    t.wire(comp, 'mat_out', snk, 'mat_in');
+    t.wire(grid, 'elec_out', comp, 'elec_in');
+    comp.fried = true;
+    comp.mode = undefined;  // default = 'on'
+    t.solve();
+    const ud = scene.runtime.unitData.get(comp.id);
+    t.assertOK(ud.last?.mode === 'bypass', 'Fried forces bypass');
+    t.assertOK(ud.last?.fried === true, 'Fried flag in last');
+    const out = t.port(comp, 'mat_out');
+    t.assertClose(out.P, 100000, 100, 'Fried: P not increased (bypass)');
+  });
+
+  test('590: S-STATUS — fried reset: clear fried → mode takes effect', t => {
+    const src = t.place('source', 0, 0, { species: 'N2', nDot: 1.0, T: 300, P: 100000 });
+    const comp = t.place('compressor', 4, 0, { Pout: 300000 });
+    const snk = t.place('sink', 8, 0);
+    const grid = t.place('grid_supply', 4, -2, { maxPower: 100 });
+    t.wire(src, 'mat_out', comp, 'mat_in');
+    t.wire(comp, 'mat_out', snk, 'mat_in');
+    t.wire(grid, 'elec_out', comp, 'elec_in');
+    comp.fried = true;
+    t.solve();
+    t.assertClose(t.port(comp, 'mat_out').P, 100000, 100, 'Fried: bypass P');
+    delete comp.fried;
+    t.solve();
+    t.assertOK(t.port(comp, 'mat_out').P > 200000, 'After reset: compressor working');
+  });
+
+  test('591: S-STATUS — HEX bypass: both paths independent passthrough', t => {
+    const hotSrc = t.place('source', 0, 0, { species: 'H2O', nDot: 1.0, T: 400, P: 200000 });
+    const coldSrc = t.place('source', 0, 4, { species: 'H2O', nDot: 0.5, T: 300, P: 150000 });
+    const hex = t.place('hex', 4, 2, { T_approach: 10 });
+    const hotSnk = t.place('sink', 8, 0);
+    const coldSnk = t.place('sink', 8, 4);
+    t.wire(hotSrc, 'mat_out', hex, 'hot_in');
+    t.wire(hex, 'hot_out', hotSnk, 'mat_in');
+    t.wire(coldSrc, 'mat_out', hex, 'cold_in');
+    t.wire(hex, 'cold_out', coldSnk, 'mat_in');
+    hex.mode = 'bypass';
+    t.solve();
+    const hotOut = t.port(hex, 'hot_out');
+    const coldOut = t.port(hex, 'cold_out');
+    t.assertClose(hotOut.T, 400, 0.1, 'HEX bypass: hot T unchanged');
+    t.assertClose(coldOut.T, 300, 0.1, 'HEX bypass: cold T unchanged');
+    t.assertClose(hotOut.n?.H2O || 0, 1.0, 0.001, 'HEX bypass: hot flow preserved');
+    t.assertClose(coldOut.n?.H2O || 0, 0.5, 0.001, 'HEX bypass: cold flow preserved');
+  });
+
+  test('592: S-STATUS — off mode: _blockedInlet triggers source-killing', t => {
+    const src = t.place('source', 0, 0, { species: 'N2', nDot: 1.0 });
+    const comp = t.place('compressor', 4, 0, { Pout: 300000 });
+    const snk = t.place('sink', 8, 0);
+    const grid = t.place('grid_supply', 4, -2, { maxPower: 100 });
+    t.wire(src, 'mat_out', comp, 'mat_in');
+    t.wire(comp, 'mat_out', snk, 'mat_in');
+    t.wire(grid, 'elec_out', comp, 'elec_in');
+    comp.mode = 'off';
+    t.solve();
+    // Source should be blocked by post-pass
+    const srcOut = t.port(src, 'mat_out');
+    const srcN = srcOut?.n ? Object.values(srcOut.n).reduce((a, b) => a + b, 0) : 0;
+    t.assertOK(srcN < 1e-12, 'Off comp: upstream source zeroed by post-pass');
+  });
+
+  test('593: S-STATUS — gas turbine bypass: mat passthrough, elec = 0', t => {
+    const src = t.place('source', 0, 0, { species: 'N2', nDot: 0.5, T: 800, P: 300000 });
+    const turb = t.place('gas_turbine', 4, 0, { Pout: 100000 });
+    const snk = t.place('sink', 8, 0);
+    t.wire(src, 'mat_out', turb, 'mat_in');
+    t.wire(turb, 'mat_out', snk, 'mat_in');
+    turb.mode = 'bypass';
+    t.solve();
+    const out = t.port(turb, 'mat_out');
+    t.assertClose(out.T, 800, 0.1, 'GT bypass: T passthrough');
+    t.assertClose(out.P, 300000, 100, 'GT bypass: P unchanged (no expansion)');
+    const elecOut = t.port(turb, 'elec_out');
+    t.assertOK(!elecOut || (elecOut.actual ?? 0) === 0, 'GT bypass: elec_out = 0');
+  });
+
+  test('594: S-STATUS — export/import preserves mode', t => {
+    const src = t.place('source', 0, 0, { species: 'N2', nDot: 1 });
+    const snk = t.place('sink', 4, 0);
+    t.wire(src, 'mat_out', snk, 'mat_in');
+    const comp = t.place('compressor', 8, 0);
+    comp.mode = 'off';
+    const json = scene.exportJSON();
+    const data = JSON.parse(json);
+    const compData = data.units.find(u => u.id === comp.id);
+    t.assertOK(compData.mode === 'off', 'Export: mode=off serialized');
+    // On-mode should not be serialized
+    src.mode = undefined;
+    const json2 = scene.exportJSON();
+    const data2 = JSON.parse(json2);
+    const srcData = data2.units.find(u => u.id === src.id);
+    t.assertOK(srcData.mode === undefined, 'Export: default mode not serialized');
+  });
+
   test('549: S-ICONS — ragtag symbol table has 5 vertical-slice units', t => {
     ['pump','reactor_adiabatic','flash_drum','valve','grid_supply'].forEach(id => {
       t.assertOK(typeof _RAGTAG_SYMBOLS[id] === 'function', `ragtag ${id} symbol exists`);
@@ -51192,14 +51651,14 @@ window.runSecurityTests = function() {
       panelText.includes('<svg'));
   }
 
-  // ── Test 5: escapeHtml correctness ──
-  assert('escapeHtml: & → &amp;', escapeHtml('a&b') === 'a&amp;b');
-  assert('escapeHtml: < → &lt;', escapeHtml('a<b') === 'a&lt;b');
-  assert('escapeHtml: > → &gt;', escapeHtml('a>b') === 'a&gt;b');
-  assert('escapeHtml: " → &quot;', escapeHtml('a"b') === 'a&quot;b');
-  assert('escapeHtml: \' → &#39;', escapeHtml("a'b") === 'a&#39;b');
-  assert('escapeHtml: null → empty', escapeHtml(null) === '');
-  assert('escapeHtml: number → string', escapeHtml(42) === '42');
+  // ── Test 5: esc() correctness (unified escape — v17.0.0) ──
+  assert('esc: & → &amp;', esc('a&b') === 'a&amp;b');
+  assert('esc: < → &lt;', esc('a<b') === 'a&lt;b');
+  assert('esc: > → &gt;', esc('a>b') === 'a&gt;b');
+  assert('esc: " → &quot;', esc('a"b') === 'a&quot;b');
+  assert('esc: \' → &#39;', esc("a'b") === 'a&#39;b');
+  assert('esc: null → empty', esc(null) === '');
+  assert('esc: number → string', esc(42) === '42');
 
   // ── Test 6: el() text attribute is safe ──
   const testEl = el('div', { text: XSS_IMG });
