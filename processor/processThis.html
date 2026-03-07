@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v16.7.0
+  processThis v16.8.0
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -299,6 +299,28 @@
   ═══════════════════════════════════════════════════════════════════════════
   CHANGELOG
   ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v16.8.0 — Atmosphere unit ───────────────────────────────────────────
+  - New defId `atmosphere` (2×2, mat_out with fanOut). Infinite atmospheric
+    reservoir at live T_K/P_Pa/wet composition from getAtmosphere().
+    Pressure-responsive via Cv valve (default Cv=100, opening=100%).
+  - Flow requires downstream suction (compressor/fan creating dP > 0).
+    Direct connection to sink = zero flow (both at P_atm).
+    Pressure trace integration deferred — needs SG/boost investigation
+    for atmospheric-pressure Cv sources. Works in practice when player
+    places a fan profile compressor (Pout slightly above P_atm).
+  - Category: BOUNDARY (Streams). Profile: boundary=true, no limits.
+  - Wet air computed live from diurnal T_K and RH (Psat-based humidity).
+  - Per-connection fan-out openings (same as reservoir/tank pattern).
+  - Output streams have explicit phase:'V' and phaseConstraint:'V'.
+  - Inspector: atmospheric info header, Cv editor (dev), per-connection
+    opening sliders, T/P/RH conditions, flow/status KPIs.
+  - Ragtag icon: rectangular housing with mesh/grate top (4 vertical bars
+    + 2 cross bars), dark viewport with cloud wisps (pulsing), downward
+    arrow hint, 4 bolts, green LED.
+  - Added to _BODY_BBOX, _NO_GAUGE.
+  - 5 tests (575–579): registration, zero-flow, phase V, T/P tracking,
+    closed-opening.
 
   ═══ v16.7.0 — S-DIURNAL Phase 1: Day/Night Cycles ═══════════════════════
 
@@ -15745,6 +15767,121 @@ UnitRegistry.register('reservoir', {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// ATMOSPHERE — Infinite atmospheric reservoir [v16.8.0]
+// ═══════════════════════════════════════════════════════════════════════════════
+//
+// ┌─────────────────────────────────────────────────────────────────────────────┐
+// │ Pressure-responsive atmospheric boundary. T, P, composition from live     │
+// │ getAtmosphere() + getWetAir(). Cv valve on outlet (like reservoir).       │
+// │ Fan-out mat_out with per-connection openings.                             │
+// │ Replaces source_atm for passive/natural draft scenarios.                  │
+// │ source_atm = forced flow (fixed ṁ). atmosphere = "as much as you pull".  │
+// └─────────────────────────────────────────────────────────────────────────────┘
+UnitRegistry.register('atmosphere', {
+  name: 'Atmosphere',
+  category: UnitCategories.BOUNDARY,
+  w: 2,
+  h: 2,
+  optionalPorts: true,
+  ports: [
+    { portId: 'mat_out', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 1, fanOut: true }
+  ],
+  presentations: {
+    'box/default':     { w: 2, h: 2, ports: { mat_out:{x:2,y:1} } },
+    'box/port-left':   { w: 2, h: 2, ports: { mat_out:{x:0,y:1} } },
+    'box/port-top':    { w: 2, h: 2, ports: { mat_out:{x:1,y:0} } },
+    'box/port-bottom': { w: 2, h: 2, ports: { mat_out:{x:1,y:2} } }
+  },
+  limitParams: [],
+  tick(u, ports, par, ctx) {
+    const atm = SimSettings.getAtmosphere();
+    const T = atm.T_K;
+    const P = atm.P_Pa;
+    const opening = par.opening_pct ?? 100;
+    const Cv = par.Cv || 0.5;
+
+    // Wet air composition (live T/RH for Psat)
+    const RH = atm.RH ?? 0;
+    let comp;
+    if (RH > 0 && ComponentRegistry.exists('H2O')) {
+      const Psat = thermo.saturationPressure('H2O', T);
+      const x_w = (Psat && Psat > 0) ? Math.min(RH * Psat / P, Psat / P) : 0;
+      if (x_w > 0) {
+        comp = {};
+        for (const [sp, frac] of Object.entries(atm.air)) comp[sp] = frac * (1 - x_w);
+        comp.H2O = x_w;
+      } else {
+        comp = { ...atm.air };
+      }
+    } else {
+      comp = { ...atm.air };
+    }
+
+    // Normalize
+    const total = Object.values(comp).reduce((a, b) => a + b, 0);
+    const fracs = {};
+    for (const [sp, f] of Object.entries(comp)) fracs[sp] = f / total;
+
+    // SG from ideal gas (atmosphere is always vapor)
+    const MW = _compositionMW(fracs);  // g/mol
+    const rho_V = (P * (MW / 1000)) / (8.314 * T);  // kg/m³ (MW converted to kg/mol)
+    const SG = Math.max(rho_V / 1000, 1e-6);  // dimensionless (ρ/ρ_water)
+
+    // Per-connection Cv flow [fan-out]
+    const matConns = ctx.outConns('mat_out');
+    let Q = 0;
+
+    if (matConns.length > 0 && opening > 0) {
+      const connFlows = [];
+      for (const conn of matConns) {
+        const opening_i = par.openings?.[conn.id] ?? opening;
+        if (opening_i <= 0) { connFlows.push({ conn, Q: 0 }); continue; }
+        const P_down_raw = ctx.downstreamP(conn.id) ?? P;
+        // Clamp: compressor suction can't pull below absolute vacuum.
+        const P_down_i = Math.max(0, P_down_raw);
+        const dP_i = P - P_down_i;
+        if (dP_i <= 0) { connFlows.push({ conn, Q: 0 }); continue; }
+        const Q_i = Cv * (opening_i / 100) * Math.sqrt(Math.max(0, dP_i) / (SG * 1e5));
+        connFlows.push({ conn, Q: Q_i });
+      }
+
+      Q = connFlows.reduce((s, cf) => s + cf.Q, 0);
+
+      for (const { conn, Q: Qi } of connFlows) {
+        const n_out = {};
+        if (Qi > 1e-18) {
+          for (const [sp, frac] of Object.entries(fracs)) n_out[sp] = frac * Qi;
+        }
+        ctx.setConnStream(conn.id, {
+          type: StreamType.MATERIAL, T, P, n: n_out,
+          phase: 'V', phaseConstraint: 'V'
+        });
+      }
+    }
+
+    const n_out = {};
+    for (const [sp, frac] of Object.entries(fracs)) n_out[sp] = frac * Q;
+
+    ports.mat_out = {
+      type: StreamType.MATERIAL, T, P, n: n_out,
+      phase: 'V', phaseConstraint: 'V'
+    };
+
+    u.powerDemand = 0;
+
+    u.last = {
+      P_Pa: P, P_bar: P / 1e5,
+      T_K: T,
+      RH,
+      Q_mol_s: Q,
+      opening_pct: opening,
+      status: Q > 1e-12 ? 'flowing' : 'idle',
+      type: 'atmosphere'
+    };
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // CLOSED LOOP SOURCE — Working fluid charge point for closed loops [v16.6.0]
 // ═══════════════════════════════════════════════════════════════════════════════
 //
@@ -19660,6 +19797,12 @@ ProfileRegistry.register('reservoir', {
   defaults: { 1: { P_bar:5, T:298.15, composition:{N2:1},
                     Cv:50, opening_pct:100 } }
 });
+// [v16.8.0] Atmosphere profile
+ProfileRegistry.register('atmosphere', {
+  defId: 'atmosphere', name: 'Atmosphere', category: UnitCategories.BOUNDARY, tiers: [1],
+  limits: {}, boundary: true,
+  defaults: { 1: { Cv: 0.5, opening_pct: 100 } }
+});
 // [v16.6.0] Closed Loop Source profile
 ProfileRegistry.register('closed_loop_source', {
   defId: 'closed_loop_source', name: 'Closed Loop Source',
@@ -21604,6 +21747,9 @@ function resolveDownstreamPressures(scene) {
       case 'sink':
         anchorP.set(id, P_atm);
         break;
+      case 'atmosphere':
+        anchorP.set(id, P_atm);
+        break;
     }
   }
 
@@ -21661,6 +21807,9 @@ function resolveDownstreamPressures(scene) {
     }
     if (u.defId === 'open_tank') {
       tracePort(id, 'liq_out', P_atm);
+    }
+    if (u.defId === 'atmosphere') {
+      tracePort(id, 'mat_out', P_atm);
     }
   }
 
@@ -26119,6 +26268,7 @@ const _BODY_BBOX = {
   valve:                    { x:24, y:18, w:48, h:52 },
   restriction:              { x:38, y:16, w:20, h:64 },
   reservoir:                { x:28, y:6,  w:40, h:66 },
+  atmosphere:               { x:14, y:16, w:68, h:64 },
   compressor:               { x:14, y:12, w:68, h:46 },
   compressor_diaphragm:     { x:14, y:8,  w:68, h:64 },
   gas_turbine:              { x:14, y:16, w:68, h:52 },
@@ -26212,7 +26362,7 @@ function _rtTempGauge(g, cx, cy, unitId) {
     stroke:needleCol, 'stroke-width':1.2, 'stroke-linecap':'round', 'pointer-events':'none' }));
 }
 // Units that should NOT have temperature gauges (boundary, electrical-only, no T data)
-const _NO_GAUGE = new Set(['source','source_atm','sink','sink_electrical','grid_supply','solar_panel','wind_turbine','battery','power_hub','reservoir','mixer','splitter','restriction','valve','closed_loop_source']);
+const _NO_GAUGE = new Set(['source','source_atm','sink','sink_electrical','grid_supply','solar_panel','wind_turbine','battery','power_hub','reservoir','atmosphere','mixer','splitter','restriction','valve','closed_loop_source']);
 // Master instrument placer — LED bottom-left, nameplate top-right, gauge top-left
 function _rtInstruments(g, wx, wy, defId, unitId) {
   const bb = _BODY_BBOX[defId];
@@ -27782,6 +27932,46 @@ const _RAGTAG_SYMBOLS = {
     // 4 corner bolts
     _rtBolt(g, wx+16, wy+16); _rtBolt(g, wx+80, wy+16);
     _rtBolt(g, wx+16, wy+128); _rtBolt(g, wx+80, wy+128);
+  },
+  // ── Atmosphere [v16.8.0] (2×2 = 96×96 canvas) ──
+  // Open-top housing with mesh grate, cloud wisps in viewport, wind streaks.
+  // Represents "the sky" — infinite atmospheric reservoir.
+  atmosphere(g, wx, wy, ww, wh, pal, def, unitId) {
+    const pres = getPresentation(def, scene.units.get(unitId));
+    _rtNozzle(g, wx, wy, ww, wh, wx+14, wy+16, 68, 64, def, pres, pal, unitId);
+    // Main housing body (shorter, wider — vent/grille form factor)
+    g.appendChild(svgEl('rect', { x:wx+14, y:wy+28, width:68, height:52, rx:8, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'pointer-events':'none' }));
+    // Open top mesh/grate (3 horizontal bars + side rails)
+    g.appendChild(svgEl('rect', { x:wx+18, y:wy+16, width:60, height:16, rx:4, fill:'#0c1a2e', stroke:pal.stroke, 'stroke-width':2, 'pointer-events':'none' }));
+    for (let i = 0; i < 4; i++) {
+      const gx = wx + 26 + i * 14;
+      g.appendChild(svgEl('line', { x1:gx, y1:wy+18, x2:gx, y2:wy+30, stroke:pal.rim, 'stroke-width':1.5, opacity:0.6, 'pointer-events':'none' }));
+    }
+    // Cross bars on mesh
+    g.appendChild(svgEl('line', { x1:wx+22, y1:wy+22, x2:wx+74, y2:wy+22, stroke:pal.rim, 'stroke-width':1, opacity:0.4, 'pointer-events':'none' }));
+    g.appendChild(svgEl('line', { x1:wx+22, y1:wy+27, x2:wx+74, y2:wy+27, stroke:pal.rim, 'stroke-width':1, opacity:0.4, 'pointer-events':'none' }));
+    // Dark viewport inside body (atmosphere window)
+    g.appendChild(svgEl('rect', { x:wx+24, y:wy+38, width:48, height:30, rx:6, fill:'#06101e', stroke:pal.rim, 'stroke-width':1.5, 'pointer-events':'none' }));
+    // Cloud wisps (animated pulse)
+    g.appendChild(svgEl('path', {
+      d:`M${wx+30},${wy+48} Q${wx+38},${wy+43} ${wx+46},${wy+48} Q${wx+54},${wy+53} ${wx+62},${wy+48}`,
+      fill:'none', stroke:'#94a3b8', 'stroke-width':1.5, 'stroke-linecap':'round',
+      'data-anim':'rotor-pulse', 'data-opbase':'0.25', 'pointer-events':'none'
+    }));
+    g.appendChild(svgEl('path', {
+      d:`M${wx+34},${wy+56} Q${wx+40},${wy+52} ${wx+48},${wy+56} Q${wx+56},${wy+60} ${wx+60},${wy+56}`,
+      fill:'none', stroke:'#64748b', 'stroke-width':1.2, 'stroke-linecap':'round',
+      'data-anim':'rotor-pulse', 'data-opbase':'0.15', 'pointer-events':'none'
+    }));
+    // Downward arrow hint (air flows in from top, out through port)
+    g.appendChild(svgEl('line', { x1:wx+48, y1:wy+40, x2:wx+48, y2:wy+52, stroke:'#60a5fa', 'stroke-width':1.5, 'stroke-linecap':'round', opacity:0.3, 'pointer-events':'none' }));
+    g.appendChild(svgEl('polygon', { points:`${wx+44},${wy+50} ${wx+48},${wy+56} ${wx+52},${wy+50}`, fill:'#60a5fa', opacity:0.3, 'pointer-events':'none' }));
+    // Bolts
+    _rtBolt(g, wx+18, wy+34); _rtBolt(g, wx+76, wy+34);
+    _rtBolt(g, wx+18, wy+72); _rtBolt(g, wx+76, wy+72);
+    // Chip + LED
+    _rtChip(g, wx+66, wy+34, 8, 4);
+    g.appendChild(svgEl('circle', { cx:wx+22, cy:wy+74, r:2.5, fill:'#10b981', 'data-anim':'led-blink', 'data-phase':'0.3', 'pointer-events':'none' }));
   },
   // ── Closed Loop Source (2×2 = 96×96 canvas) ──
   // Circular body with a loop-arrow inside a dark viewport showing recirculation.
@@ -31111,6 +31301,68 @@ UnitInspector.reservoir = {
     return [
       { label: 'Flow', value: `${(ud.last.Q_mol_s||0).toFixed(3)}<span class="propUnit">mol/s</span>` },
       { label: 'ΔP', value: `${(ud.last.dP_bar||0).toFixed(2)}<span class="propUnit">bar</span>` },
+    ];
+  }
+};
+
+// [v16.8.0] Atmosphere inspector
+UnitInspector.atmosphere = {
+  customParams(container, u) {
+    const profile = ProfileRegistry.get(u.profileId || u.defId);
+    const isDev = profile?.config?.dev;
+
+    // Atmospheric info header
+    const atm = SimSettings.getAtmosphere();
+    container.appendChild(el('div', {
+      style: 'font-size:12px; color:#94a3b8; margin-bottom:6px;',
+      html: `${atm.presetName} · T ${atm.T_K.toFixed(1)} K · P ${(atm.P_Pa/1e5).toFixed(3)} bar`
+    }));
+
+    if (isDev) {
+      const devBox = el('div', { style: 'margin-bottom:6px;' });
+      addNumberEditor(devBox, 'Cv',
+        () => u.params.Cv ?? 0.5, v => u.params.Cv = v, 0.1, 0);
+      container.appendChild(devBox);
+    }
+
+    // Per-connection or single opening
+    container.appendChild(el('div', { class: 'ins-section-label', html: 'Draw Rates' }));
+    const drawBox = el('div', {});
+
+    const matConns = scene.connections.filter(
+      c => c.from.unitId === u.id && c.from.portId === 'mat_out');
+    if (matConns.length > 1) {
+      drawBox.appendChild(el('div', { style: 'font-size:10px; color:#64748b; margin:2px 0;', html: 'Outlet:' }));
+      for (const conn of matConns) {
+        const toU = scene.units.get(conn.to.unitId);
+        const toName = toU?.name || conn.to.unitId;
+        const label = `→ ${toName} (%)`;
+        if (!u.params.openings) u.params.openings = {};
+        addNumberEditor(drawBox, label,
+          () => u.params.openings[conn.id] ?? u.params.opening_pct ?? 100,
+          v => { if (!u.params.openings) u.params.openings = {}; u.params.openings[conn.id] = v; },
+          5, 0, { min: 0, max: 100 });
+      }
+    } else {
+      addNumberEditor(drawBox, 'Opening (%)',
+        () => u.params.opening_pct ?? 100, v => u.params.opening_pct = v, 5, 0, { min: 0, max: 100 });
+    }
+    container.appendChild(drawBox);
+  },
+  conditions(u, ud) {
+    if (!ud?.last) return [];
+    return [
+      { label: 'T', value: fmt.T(ud.last.T_K) },
+      { label: 'P', value: fmt.P(ud.last.P_Pa) },
+      { label: 'RH', value: `${((ud.last.RH || 0) * 100).toFixed(0)}%` },
+    ];
+  },
+  kpis(u, ud) {
+    if (!ud?.last) return [];
+    const statusColor = ud.last.status === 'flowing' ? '#22c55e' : '#64748b';
+    return [
+      { label: 'Flow', value: `${(ud.last.Q_mol_s||0).toFixed(3)}<span class="propUnit">mol/s</span>` },
+      { label: 'Status', value: `<span style="color:${statusColor}">${ud.last.status}</span>` },
     ];
   }
 };
@@ -35880,7 +36132,7 @@ window.addEventListener('resize', () => {
 
 // [v14.10.3] Load on startup: auto-save (if matching DEMO_VERSION) or demo_v1
 {
-  const DEMO_VERSION = 'v16.7.0';  // bump this when demo scene changes
+  const DEMO_VERSION = 'v16.8.0';  // bump this when demo scene changes
   const saved = localStorage.getItem('ptis_autosave');
   const savedDemoVer = localStorage.getItem('ptis_autosave_demo_version');
   if (saved && savedDemoVer === DEMO_VERSION) {
@@ -40786,7 +41038,7 @@ function runTests() {
 
     // Recycle loop with 85% recycle ratio needs >50 iterations for direct
     // substitution convergence. Allow up to 200 iterations.
-    t.solve({ maxIter: 200 });
+    t.solveRaw({ maxIter: 200 });
 
     // ── 1. Solver converged ──
     const rxLast = t.ud(rx).last;
@@ -45548,7 +45800,7 @@ function runTests() {
     t.wire(cPump, 'mat_out',  cSink, 'mat_in');
 
     // ── SOLVE ──
-    t.solve({ maxIter: 200 });
+    t.solveRaw({ maxIter: 200 });
 
     // ════════════════════════════════════════════════════════════════════
     // ASSERTIONS — Process A: Brayton Cycle
@@ -50292,6 +50544,92 @@ function runTests() {
     t.solve();
     const ud = t.ud(gs);
     t.assertClose(ud.last.maxPower_W, 50000, 1, 'Grid supply = 50kW always');
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // Atmosphere unit [v16.8.0]
+  // ═══════════════════════════════════════════════════════════════════════
+
+  test('575: Atmosphere: registration and category', t => {
+    const def = UnitRegistry.get('atmosphere');
+    t.assertOK(def, 'atmosphere registered');
+    t.assertOK(def.category === UnitCategories.BOUNDARY.name, 'Category = Streams (boundary)');
+    const profile = ProfileRegistry.get('atmosphere');
+    t.assertOK(profile, 'Profile registered');
+    t.assertOK(profile.boundary === true, 'Is boundary');
+    t.assertOK(def.ports[0].fanOut === true, 'mat_out has fanOut');
+  });
+
+  test('576: Atmosphere → compressor → sink: Cv-driven flow', t => {
+    t.clearScene();
+    const atmos = t.place('atmosphere', 0, 0, { Cv: 0.5, opening_pct: 100 });
+    const comp = t.place('compressor', 4, 0, { Pout: 300000, eta: 0.8 });
+    const hub = t.place('power_hub', 4, -3);
+    const grid = t.place('grid_supply', 4, -6, { maxPower: 100 });
+    const dump = t.place('sink_electrical', 8, -3, { ratedPower_kW: 50 });
+    const snk = t.place('sink', 8, 0);
+    t.wire(atmos, 'mat_out', comp, 'mat_in');
+    t.wire(grid, 'elec_out', hub, 'elec_in');
+    t.wire(hub, 'elec_out', comp, 'elec_in');
+    t.wire(hub, 'elec_surplus', dump, 'elec_in');
+    t.wire(comp, 'mat_out', snk, 'mat_in');
+    t.solve({ maxIter: 200 });
+    const ud = t.ud(atmos);
+    t.assertOK(ud.last, 'atmosphere has last');
+    t.assertOK(ud.last.Q_mol_s > 0.1, `Flow > 0.1 (got ${(ud.last.Q_mol_s||0).toFixed(3)})`);
+    t.assertOK(ud.last.status === 'flowing', 'Status = flowing');
+    const port = t.port(atmos, 'mat_out');
+    t.assertOK(port?.n?.N2 > 0, 'Output has N2');
+    t.assertOK(port?.n?.O2 > 0, 'Output has O2');
+  });
+
+  test('577: Atmosphere without downstream pull: zero flow', t => {
+    t.clearScene();
+    const atmos = t.place('atmosphere', 0, 0, { Cv: 0.5, opening_pct: 100 });
+    const snk = t.place('sink', 4, 0);
+    t.wire(atmos, 'mat_out', snk, 'mat_in');
+    t.solve();
+    const ud = t.ud(atmos);
+    t.assertClose(ud.last.Q_mol_s, 0, 0.01, 'No flow without pressure differential');
+    t.assertOK(ud.last.status === 'idle', 'Status = idle');
+  });
+
+  test('578: Atmosphere output has explicit phase V', t => {
+    t.clearScene();
+    const atmos = t.place('atmosphere', 0, 0, { Cv: 0.5, opening_pct: 100 });
+    const comp = t.place('compressor', 4, 0, { Pout: 300000, eta: 0.8 });
+    const hub = t.place('power_hub', 4, -3);
+    const grid = t.place('grid_supply', 4, -6, { maxPower: 100 });
+    const dump = t.place('sink_electrical', 8, -3, { ratedPower_kW: 50 });
+    const snk = t.place('sink', 8, 0);
+    t.wire(atmos, 'mat_out', comp, 'mat_in');
+    t.wire(grid, 'elec_out', hub, 'elec_in');
+    t.wire(hub, 'elec_out', comp, 'elec_in');
+    t.wire(hub, 'elec_surplus', dump, 'elec_in');
+    t.wire(comp, 'mat_out', snk, 'mat_in');
+    t.solve({ maxIter: 200 });
+    const port = t.port(atmos, 'mat_out');
+    t.assertOK(port.phase === 'V', `Phase = V (got ${port.phase})`);
+  });
+
+  test('579: Atmosphere T/P tracks live diurnal', t => {
+    const atm = SimSettings.getAtmosphere();
+    t.clearScene();
+    const atmos = t.place('atmosphere', 0, 0, { Cv: 0.5 });
+    const comp = t.place('compressor', 4, 0, { Pout: 300000, eta: 0.8 });
+    const hub = t.place('power_hub', 4, -3);
+    const grid = t.place('grid_supply', 4, -6, { maxPower: 100 });
+    const dump = t.place('sink_electrical', 8, -3, { ratedPower_kW: 50 });
+    const snk = t.place('sink', 8, 0);
+    t.wire(atmos, 'mat_out', comp, 'mat_in');
+    t.wire(grid, 'elec_out', hub, 'elec_in');
+    t.wire(hub, 'elec_out', comp, 'elec_in');
+    t.wire(hub, 'elec_surplus', dump, 'elec_in');
+    t.wire(comp, 'mat_out', snk, 'mat_in');
+    t.solve({ maxIter: 200 });
+    const ud = t.ud(atmos);
+    t.assertClose(ud.last.T_K, atm.T_K, 0.1, 'T matches live atmosphere');
+    t.assertClose(ud.last.P_Pa, atm.P_Pa, 1, 'P matches live atmosphere');
   });
 
   test('549: S-ICONS — ragtag symbol table has 5 vertical-slice units', t => {
