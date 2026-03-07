@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v16.0.0
+  processThis v16.2.0
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -299,6 +299,26 @@
   ═══════════════════════════════════════════════════════════════════════════
   CHANGELOG
   ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v16.2.0 — Tank fixes: phase, overflow, fan-out display ──────────────
+  - Tank/open_tank output streams now include explicit phase field ('L'/'V')
+    alongside phaseConstraint. Fixes downstream sinks showing phase '—'.
+  - K_OVERFLOW_BASE reduced 1e4 → 10 (was draining tanks in one step).
+    K_RELIEF_BASE reduced 0.5 → 0.01 for same reason on pressure relief.
+  - Hysteresis on overflow (2% deadband below setpoint) and vent (2% of
+    P_relief) to prevent chattering. Flags _overflowActive/_ventActive
+    stored in u.last for state persistence across ticks.
+  - Open tank inspector: per-connection opening sliders for fan-out liq_out
+    (was single global slider). Mirrors closed tank's existing UI pattern.
+  - _getConnStream now checks scene.runtime.connStreams (per-cable data from
+    ctx.setConnStream) before falling back to aggregate port stream.
+    Fixes connection inspector showing total flow instead of per-consumer.
+  - Theme cycle: engineering removed from button (v16.1.0 entry).
+
+  ─── v16.1.0 — Theme cycle cleanup ───────────────────────────────────────
+  - Engineering theme removed from cycle button (box ↔ ragtag only).
+    Engineering symbols kept in code but not user-accessible.
+  - Old saves with theme:'engineering' fall back to ragtag on import.
 
   ═══ v16.0.0 — S-VISUAL: Port overlays, flanges, sink liquid, polish ═══════
 
@@ -7886,7 +7906,7 @@
       <div class="btn-cluster">
         <button class="tbtn tbtn-emoji" id="btnStickerLines" data-tip="Show/hide stickers">📌</button>
         <button class="tbtn tbtn-emoji tbtn-dim" id="btnPlanetBg" data-tip="Planet background">🌍</button>
-        <button class="tbtn tbtn-emoji" id="btnTheme" data-tip="Theme: boxman">📦</button>
+        <button class="tbtn tbtn-emoji" id="btnTheme" data-tip="Theme: ragtag">🔧</button>
       </div>
 
       <div class="bar-sep"></div>
@@ -14016,8 +14036,9 @@ const _compositionMW = _inventoryMW;
 /** Safety valve sizing constants. Hardcoded, not player-editable.
  *  Intentionally oversized so any overshoot self-corrects within a fraction
  *  of a percent — effectively hard clamps while remaining finite. */
-const K_RELIEF_BASE  = 0.5;    // mol/(s·Pa·m³)
-const K_OVERFLOW_BASE = 1e4;   // mol/(s·%·m³)
+const K_RELIEF_BASE  = 0.01;   // mol/(s·Pa·m³) — pressure relief valve proportional gain
+const K_OVERFLOW_BASE = 10;    // mol/(s·%·m³)  — liquid overflow proportional gain
+const K_HYSTERESIS_PCT = 2;    // % deadband below setpoint for valve re-close
 
 /**
  * Compute tank state from inventory.
@@ -14765,7 +14786,7 @@ UnitRegistry.register('tank', {
         ctx.setConnStream(conn.id, {
           type: StreamType.MATERIAL,
           T: inv.T_K, P: P_tank, n: n_out,
-          phaseConstraint: 'V'
+          phase: 'V', phaseConstraint: 'V'
         });
       }
 
@@ -14777,13 +14798,13 @@ UnitRegistry.register('tank', {
       ports.gas_out = {
         type: StreamType.MATERIAL,
         T: inv.T_K, P: P_tank, n: n_out_total,
-        phaseConstraint: 'V'
+        phase: 'V', phaseConstraint: 'V'
       };
     } else {
       ports.gas_out = {
         type: StreamType.MATERIAL,
         T: inv.T_K, P: P_tank, n: {},
-        phaseConstraint: 'V'
+        phase: 'V', phaseConstraint: 'V'
       };
       // Check for reverse pressure on legacy single-connection path
       if (gasConns.length > 0) {
@@ -14853,7 +14874,7 @@ UnitRegistry.register('tank', {
         ctx.setConnStream(conn.id, {
           type: StreamType.MATERIAL,
           T: inv.T_K, P: P_tank, n: n_out,
-          phaseConstraint: 'L'
+          phase: 'L', phaseConstraint: 'L'
         });
       }
 
@@ -14864,13 +14885,13 @@ UnitRegistry.register('tank', {
       ports.liq_out = {
         type: StreamType.MATERIAL,
         T: inv.T_K, P: P_tank, n: n_out_total,
-        phaseConstraint: 'L'
+        phase: 'L', phaseConstraint: 'L'
       };
     } else {
       ports.liq_out = {
         type: StreamType.MATERIAL,
         T: inv.T_K, P: P_tank, n: {},
-        phaseConstraint: 'L'
+        phase: 'L', phaseConstraint: 'L'
       };
       if (liqConns.length > 0) {
         const P_down_liq = ctx.downstreamP('liq_out') ?? P_tank;
@@ -14890,7 +14911,10 @@ UnitRegistry.register('tank', {
     let Q_vent = 0;
     const P_relief = par.P_relief || 200000;
     const ventConnected = ctx.portConnected('vent');
-    if (ventConnected && P_tank > P_relief) {
+    // Hysteresis: opens at P_relief, closes at P_relief × 0.98
+    const _ventWasActive = u.last?._ventActive || false;
+    const _ventActive = ventConnected && (P_tank > P_relief || (_ventWasActive && P_tank > P_relief * 0.98));
+    if (_ventActive) {
       const n_V_total = Object.values(state.n_V || {})
         .reduce((a,b) => a+b, 0);
       Q_vent = K_RELIEF_BASE * V * (P_tank - P_relief);
@@ -14904,7 +14928,7 @@ UnitRegistry.register('tank', {
         ports.vent = {
           type: StreamType.MATERIAL,
           T: inv.T_K, P: P_tank, n: vent_n,
-          phaseConstraint: 'V'
+          phase: 'V', phaseConstraint: 'V'
         };
         ctx.warn({
           severity: ErrorSeverity.MINOR,
@@ -14922,11 +14946,14 @@ UnitRegistry.register('tank', {
     let Q_overflow = 0;
     const overflow_lvl = par.overflow_level ?? 90;
     const ovConnected = ctx.portConnected('overflow');
-    if (ovConnected && state.level_pct > overflow_lvl) {
+    // Hysteresis: opens at overflow_lvl, closes at overflow_lvl - 2%
+    const _ovWasActive = u.last?._overflowActive || false;
+    const _ovActive = ovConnected && (state.level_pct > overflow_lvl || (_ovWasActive && state.level_pct > overflow_lvl - K_HYSTERESIS_PCT));
+    if (_ovActive) {
       const n_L_total = Object.values(state.n_L || {})
         .reduce((a,b) => a+b, 0);
       Q_overflow = K_OVERFLOW_BASE * V
-        * (state.level_pct - overflow_lvl);
+        * Math.max(0, state.level_pct - overflow_lvl);
       Q_overflow = Math.min(Q_overflow, n_L_total / dt);
 
       if (Q_overflow > 0) {
@@ -14937,7 +14964,7 @@ UnitRegistry.register('tank', {
         ports.overflow = {
           type: StreamType.MATERIAL,
           T: inv.T_K, P: P_tank, n: ov_n,
-          phaseConstraint: 'L'
+          phase: 'L', phaseConstraint: 'L'
         };
         ctx.warn({
           severity: ErrorSeverity.MINOR,
@@ -14973,8 +15000,10 @@ UnitRegistry.register('tank', {
       V_liq_m3: state.V_liq_m3,
       V_vap_m3: state.V_vap_m3,
       Q_gas, Q_liq, Q_vent, Q_overflow,
-      vent_status: (ventConnected && P_tank > P_relief) ? 'OPEN' : 'CLOSED',
-      overflow_status: (ovConnected && state.level_pct > overflow_lvl) ? 'ACTIVE' : 'OK',
+      _ventActive,
+      _overflowActive: _ovActive,
+      vent_status: _ventActive ? 'OPEN' : 'CLOSED',
+      overflow_status: _ovActive ? 'ACTIVE' : 'OK',
       status: Object.values(inv.n).reduce((a,b) => a+b, 0) < 1e-12 ? 'empty'
             : state.level_pct >= 100 ? 'full'
             : (Q_gas > 0 || Q_liq > 0) ? 'active' : 'idle',
@@ -15168,7 +15197,7 @@ UnitRegistry.register('open_tank', {
         ctx.setConnStream(conn.id, {
           type: StreamType.MATERIAL,
           T: inv.T_K, P: P_atm, n: n_out,
-          phaseConstraint: 'L'
+          phase: 'L', phaseConstraint: 'L'
         });
       }
 
@@ -15179,13 +15208,13 @@ UnitRegistry.register('open_tank', {
       ports.liq_out = {
         type: StreamType.MATERIAL,
         T: inv.T_K, P: P_atm, n: n_out_total,
-        phaseConstraint: 'L'
+        phase: 'L', phaseConstraint: 'L'
       };
     } else {
       ports.liq_out = {
         type: StreamType.MATERIAL,
         T: inv.T_K, P: P_atm, n: {},
-        phaseConstraint: 'L'
+        phase: 'L', phaseConstraint: 'L'
       };
     }
 
@@ -15193,8 +15222,12 @@ UnitRegistry.register('open_tank', {
     let Q_overflow = 0;
     const overflow_lvl = par.overflow_level ?? 90;
     const ovConnected = ctx.portConnected('overflow');
-    if (ovConnected && level_pct > overflow_lvl && n_total > 1e-15) {
-      Q_overflow = K_OVERFLOW_BASE * V * (level_pct - overflow_lvl);
+    // Hysteresis: opens at overflow_lvl, closes at overflow_lvl - 2%
+    const _otOvWasActive = u.last?._overflowActive || false;
+    const _otOvActive = ovConnected && n_total > 1e-15 &&
+      (level_pct > overflow_lvl || (_otOvWasActive && level_pct > overflow_lvl - K_HYSTERESIS_PCT));
+    if (_otOvActive) {
+      Q_overflow = K_OVERFLOW_BASE * V * Math.max(0, level_pct - overflow_lvl);
       Q_overflow = Math.min(Q_overflow, n_total / dt);
 
       if (Q_overflow > 0) {
@@ -15205,7 +15238,7 @@ UnitRegistry.register('open_tank', {
         ports.overflow = {
           type: StreamType.MATERIAL,
           T: inv.T_K, P: P_atm, n: ov_n,
-          phaseConstraint: 'L'
+          phase: 'L', phaseConstraint: 'L'
         };
         ctx.warn({
           severity: ErrorSeverity.MINOR,
@@ -15261,7 +15294,8 @@ UnitRegistry.register('open_tank', {
       Q_liq, Q_overflow, Q_vented,
       vented_n: { ...vented_n },
       vented_mass_kgps,
-      overflow_status: (ovConnected && level_pct > overflow_lvl) ? 'ACTIVE' : 'OK',
+      _overflowActive: _otOvActive,
+      overflow_status: _otOvActive ? 'ACTIVE' : 'OK',
       status: n_total < 1e-12 ? 'empty'
             : level_pct >= 100 ? 'full'
             : Q_liq > 0 || Q_overflow > 0 ? 'active' : 'idle',
@@ -20334,7 +20368,7 @@ class Scene {
       if (palEl) palEl.classList.toggle('open', palOpen);
 
       // [v15.2.0 S-ICONS] theme
-      const validThemes = ['box','engineering','ragtag'];
+      const validThemes = ['box','ragtag'];
       ui.theme = validThemes.includes(L.theme) ? L.theme : D.theme;
       const themeBtn = document.getElementById('btnTheme');
       if (themeBtn) themeBtn.textContent = ui.theme === 'box' ? '📦' : ui.theme === 'ragtag' ? '🔧' : '📐';
@@ -22880,6 +22914,10 @@ function calculateStreamFlowrates(stream) {
 // the canonical per-consumer allocation per NNG-5.
 // Falls through to the port stream for all non-hub / single-consumer connections.
 function _getConnStream(conn) {
+  // [v16.2.0] Per-cable stream from fan-out (tank, reservoir) takes priority
+  const perCable = scene.runtime?.connStreams?.get(conn.id);
+  if (perCable) return perCable;
+
   const fromUD = scene.runtime?.unitData?.get(conn.from.unitId);
   if (!fromUD) return null;
   const portStream = fromUD.ports?.[conn.from.portId];
@@ -23505,6 +23543,7 @@ const PG = {
   traceToAnchor,
   K_RELIEF_BASE,
   K_OVERFLOW_BASE,
+  K_HYSTERESIS_PCT,
 
   // ── Kinetics [v8.9.5] ──
   KineticsEval,
@@ -30758,11 +30797,29 @@ UnitInspector.open_tank = {
       container.appendChild(devBox);
     }
 
-    // ── Section: Draw Rates ──
+    // ── Section: Draw Rates — per-connection openings for fan-out [v16.2.0] ──
     container.appendChild(el('div', { class: 'ins-section-label', html: 'Draw Rates' }));
     const drawBox = el('div', {});
-    addNumberEditor(drawBox, 'Liq opening (%)',
-      () => u.params.opening_liq_pct ?? 0, v => u.params.opening_liq_pct = v, 5, 0, { min: 0, max: 100 });
+
+    // Liquid outlet connections
+    const liqConns = scene.connections.filter(
+      c => c.from.unitId === u.id && c.from.portId === 'liq_out');
+    if (liqConns.length > 1) {
+      drawBox.appendChild(el('div', { style: 'font-size:10px; color:#64748b; margin:2px 0;', html: 'Liquid outlet:' }));
+      for (const conn of liqConns) {
+        const toU = scene.units.get(conn.to.unitId);
+        const toName = toU?.name || conn.to.unitId;
+        const label = `→ ${toName} (%)`;
+        if (!u.params.openings) u.params.openings = {};
+        addNumberEditor(drawBox, label,
+          () => u.params.openings[conn.id] ?? u.params.opening_liq_pct ?? 0,
+          v => { if (!u.params.openings) u.params.openings = {}; u.params.openings[conn.id] = v; },
+          5, 0, { min: 0, max: 100 });
+      }
+    } else {
+      addNumberEditor(drawBox, 'Liq opening (%)',
+        () => u.params.opening_liq_pct ?? 0, v => u.params.opening_liq_pct = v, 5, 0, { min: 0, max: 100 });
+    }
     container.appendChild(drawBox);
 
     // ── Section: Safety ──
@@ -34271,9 +34328,9 @@ btnStickerLines.addEventListener('click', () => {
   render();
 });
 
-// [v15.2.0 S-ICONS] Theme cycle: box → ragtag → engineering → box
+// [v16.1.0] Theme cycle: box → ragtag → box (engineering hidden, kept internally)
 const btnTheme = document.getElementById('btnTheme');
-const _THEME_CYCLE = ['box', 'ragtag', 'engineering'];
+const _THEME_CYCLE = ['box', 'ragtag'];
 const _THEME_EMOJI = { box: '📦', ragtag: '🔧', engineering: '📐' };
 const _THEME_LABEL = { box: 'Boxman', ragtag: 'Ragtag', engineering: 'Engineering' };
 btnTheme.addEventListener('click', () => {
@@ -35224,7 +35281,7 @@ window.addEventListener('resize', () => {
 
 // [v14.10.3] Load on startup: auto-save (if matching DEMO_VERSION) or demo_v1
 {
-  const DEMO_VERSION = 'v16.0.0';  // bump this when demo scene changes
+  const DEMO_VERSION = 'v16.2.0';  // bump this when demo scene changes
   const saved = localStorage.getItem('ptis_autosave');
   const savedDemoVer = localStorage.getItem('ptis_autosave_demo_version');
   if (saved && savedDemoVer === DEMO_VERSION) {
