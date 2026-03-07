@@ -25626,19 +25626,6 @@ function _rtPortColors(unitId, portId, isElec) {
   return isElec ? { outer:'#92400e', inner:'#eab308' } : { outer:'#374151', inner:'#4b5563' };
 }
 // [v15.4.0] Draw directional arrow on unconnected port
-function _rtPortArrow(g, unitId, portId, px, py, edge, isOut, isElec) {
-  const connected = unitId && scene.connections.some(c =>
-    (c.from.unitId === unitId && c.from.portId === portId) ||
-    (c.to.unitId === unitId && c.to.portId === portId));
-  if (connected) return;
-  const ac = isElec ? '#fbbf24' : '#94a3b8';
-  let rot;
-  if (edge === 'right')     rot = isOut ? 0 : 180;
-  else if (edge === 'left') rot = isOut ? 180 : 0;
-  else if (edge === 'bottom') rot = isOut ? 90 : -90;
-  else                        rot = isOut ? -90 : 90;
-  g.appendChild(svgEl('path', { d:'M-5,-4 L5,0 L-5,4 Z', fill:ac, transform:`translate(${px},${py}) rotate(${rot})`, 'pointer-events':'none' }));
-}
 function _rtNozzle(g, wx, wy, ww, wh, bx, by, bw, bh, def, pres, pal, unitId) {
   const t = scene.tile;
   const _gradMode = ui.colorBy === 'temperature' || ui.colorBy === 'pressure'
@@ -25687,11 +25674,38 @@ function _rtNozzle(g, wx, wy, ww, wh, bx, by, bw, bh, def, pres, pal, unitId) {
       x1 = px; y1 = by + bh; x2 = px; y2 = py;
     }
     const len = Math.hypot(x2-x1, y2-y1);
-    // Directional arrow — show on unconnected ports even if stub is zero-length
-    const _isConnected = unitId && scene.connections.some(c =>
+    if (len < 1) continue;
+    g.appendChild(svgEl('line', { x1, y1, x2, y2,
+      stroke: outerCol, 'stroke-width': outerW, 'stroke-linecap': 'butt', 'pointer-events': 'none' }));
+    g.appendChild(svgEl('line', { x1, y1, x2, y2,
+      stroke: innerCol, 'stroke-width': innerW, 'stroke-linecap': 'butt', 'pointer-events': 'none' }));
+  }
+}
+
+// [v15.4.0] Port overlays rendered ON TOP of everything — elec terminals + unconnected arrows
+function _rtPortOverlays(g, wx, wy, def, pres, unitId) {
+  const t = scene.tile;
+  for (const p of def.ports) {
+    const pp = pres.ports[p.portId]; if (!pp) continue;
+    const px = wx + pp.x * t, py = wy + pp.y * t;
+    const isElec = p.type === StreamType.ELECTRICAL;
+    // ⚡ Electrical terminal marker
+    if (isElec) {
+      const eg = svgEl('g', { transform:`translate(${px},${py})`, 'pointer-events':'none' });
+      eg.appendChild(svgEl('rect', { x:-5, y:-5, width:10, height:10, rx:2.5, fill:'#92400e', stroke:'#fbbf24', 'stroke-width':1.2 }));
+      eg.appendChild(svgEl('path', { d:'M-1.5,-3 L0.5,-0.5 L-0.5,0.5 L1.5,3', fill:'none', stroke:'#fde047', 'stroke-width':1.5, 'stroke-linecap':'round', 'stroke-linejoin':'round' }));
+      eg.setAttribute('data-anim', 'rotor-pulse');
+      eg.setAttribute('data-opbase', '0.75');
+      eg.setAttribute('data-amp', '0.2');
+      eg.setAttribute('data-speed', '1.5');
+      g.appendChild(eg);
+    }
+    // Directional arrow on unconnected ports
+    const connected = unitId && scene.connections.some(c =>
       (c.from.unitId === unitId && c.from.portId === p.portId) ||
       (c.to.unitId === unitId && c.to.portId === p.portId));
-    if (!_isConnected) {
+    if (!connected) {
+      const edge = getPortEdge(pp, pres);
       const isOut = p.dir === PortDir.OUT;
       const ac = isElec ? '#fbbf24' : '#94a3b8';
       let rot;
@@ -25705,30 +25719,6 @@ function _rtNozzle(g, wx, wy, ww, wh, bx, by, bw, bh, def, pres, pal, unitId) {
         'pointer-events': 'none'
       }));
     }
-    if (len < 1) continue;
-    g.appendChild(svgEl('line', { x1, y1, x2, y2,
-      stroke: outerCol, 'stroke-width': outerW, 'stroke-linecap': 'butt', 'pointer-events': 'none' }));
-    g.appendChild(svgEl('line', { x1, y1, x2, y2,
-      stroke: innerCol, 'stroke-width': innerW, 'stroke-linecap': 'butt', 'pointer-events': 'none' }));
-  }
-}
-
-// [v15.4.0] ⚡ Electrical port terminals — rendered ON TOP of everything
-// Called after symbol function to ensure markers aren't covered by body
-function _rtElecTerminals(g, wx, wy, def, pres, unitId) {
-  const t = scene.tile;
-  for (const p of def.ports) {
-    if (p.type !== StreamType.ELECTRICAL) continue;
-    const pp = pres.ports[p.portId]; if (!pp) continue;
-    const px = wx + pp.x * t, py = wy + pp.y * t;
-    const eg = svgEl('g', { transform:`translate(${px},${py})`, 'pointer-events':'none' });
-    eg.appendChild(svgEl('rect', { x:-5, y:-5, width:10, height:10, rx:2.5, fill:'#92400e', stroke:'#fbbf24', 'stroke-width':1.2 }));
-    eg.appendChild(svgEl('path', { d:'M-1.5,-3 L0.5,-0.5 L-0.5,0.5 L1.5,3', fill:'none', stroke:'#fde047', 'stroke-width':1.5, 'stroke-linecap':'round', 'stroke-linejoin':'round' }));
-    eg.setAttribute('data-anim', 'rotor-pulse');
-    eg.setAttribute('data-opbase', '0.75');
-    eg.setAttribute('data-amp', '0.2');
-    eg.setAttribute('data-speed', '1.5');
-    g.appendChild(eg);
   }
 }
 
@@ -26598,11 +26588,6 @@ const _RAGTAG_SYMBOLS = {
       // Output stub
       const outFace = inLeft ? bx + bw : bx;
       drawPortPipe(`M${outFace},${outy} L${outx},${outy}`, 'mat_out');
-      // Unconnected arrows
-      _rtPortArrow(g, unitId, 'mat_in_1', in1x, in1y, in1E, false, false);
-      _rtPortArrow(g, unitId, 'mat_in_2', in2x, in2y, in2E, false, false);
-      const outE = out ? getPortEdge(out, pres) : 'right';
-      _rtPortArrow(g, unitId, 'mat_out', outx, outy, outE, true, false);
     } else {
       // T-junction (recycle): straight stubs via _rtNozzle
       _rtNozzle(g, wx, wy, ww, wh, bx, by, bw, bh, def, pres, pal, unitId);
@@ -26659,7 +26644,6 @@ const _RAGTAG_SYMBOLS = {
     if (inP) {
       const ipx = wx + inP.x * t, ipy = wy + inP.y * t;
       drawPortPipe(`M${ipx},${ipy} L${colInX},${ipy}`, 'mat_in');
-      _rtPortArrow(g, unitId, 'mat_in', ipx, ipy, inE, false, false);
     }
     // 2. Output branches: column outlet edge → bowtie → L-bend → port
     const drawBranch = (outPort, portId, branchY, label) => {
@@ -26696,7 +26680,6 @@ const _RAGTAG_SYMBOLS = {
         const lbl = g.appendChild(svgEl('text', { x:lx, y:ly, 'text-anchor':'middle', 'font-size':8, 'font-weight':700, fill:pal.stroke, opacity:0.5, 'font-family':'Inter,system-ui', 'pointer-events':'none' }));
         lbl.textContent = label;
       }
-      _rtPortArrow(g, unitId, portId, px, py, outEdge, true, false);
     };
     // Branch Y positions on column — spread wider for recycle to avoid valve overlap
     const out1E = out1 ? getPortEdge(out1, pres) : 'right';
@@ -27149,7 +27132,7 @@ function drawUnits() {
         // ⚡ Electrical port terminals — always on top of symbol
         if (ui.theme === 'ragtag') {
           const _pres = getPresentation(def, u);
-          _rtElecTerminals(group, wx, wy, def, _pres, id);
+          _rtPortOverlays(group, wx, wy, def, _pres, id);
         }
       } else {
         // Generic fallback: outlined body + stubs (covers engineering units without specific symbols)
