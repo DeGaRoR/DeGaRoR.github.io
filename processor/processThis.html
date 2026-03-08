@@ -3586,8 +3586,8 @@
 
     /* [v17.0.0 S-FLOW] Flow particles on connections */
     .flow-particle { pointer-events: none; }
-    .flow-particle-gas { opacity: 0.7; }
-    .flow-particle-liq { opacity: 1.0; }
+    .flow-particle-gas { opacity: 0.55; filter: blur(0.4px); }
+    .flow-particle-liq { opacity: 0.9; }
     
     .btn {
       display: inline-flex; 
@@ -35332,18 +35332,22 @@ if (_cbPlanet) _cbPlanet.addEventListener('click', () => openPlanetModal());
 function updateSurvivalStrip() {
   if (!_cbPlanet) return;
   const atm = SimSettings.getAtmosphere();
+  // [v17.0.0] Use wet air (includes H₂O from humidity) — matches what source_atm delivers
+  const wetAir = SimSettings.getWetAir();
 
   // Build composition string: species > 0.5% shown, sorted by fraction desc
-  const sorted = Object.entries(atm.air)
+  const sorted = Object.entries(wetAir)
     .filter(([, f]) => f >= 0.005)
     .sort((a, b) => b[1] - a[1]);
 
   // Species display names with subscripts
-  const spNames = { N2: 'N₂', O2: 'O₂', CO2: 'CO₂', Ar: 'Ar', CH4: 'CH₄', H2: 'H₂', H2O: 'H₂O' };
+  const spNames = { N2: 'N₂', O2: 'O₂', CO2: 'CO₂', Ar: 'Ar', CH4: 'CH₄', H2: 'H₂', H2O: 'H₂O', NH3: 'NH₃', He: 'He', CO: 'CO' };
+  // [v17.0.0 S-FLOW] Species-colored composition entries
   const compParts = sorted.map(([sp, f]) => {
     const name = spNames[sp] || sp;
     const pct = (f * 100).toFixed(f >= 0.01 ? 0 : 1);
-    return `<span class="cb-val ss-comp">${name}\u2009${pct}%</span>`;
+    const rgb = _SPECIES_COLOR[sp] || _SPECIES_DEFAULT_RGB;
+    return `<span class="cb-val ss-comp" style="color:rgb(${rgb[0]},${rgb[1]},${rgb[2]})">${name}\u2009${pct}%</span>`;
   });
 
   // Planet icon from canonical PLANET_ICONS map
@@ -35356,16 +35360,30 @@ function updateSurvivalStrip() {
     compParts.join('');
 
   // [v14.10.0] Populate expanded atmosphere row (full composition, all species)
+  // [v17.0.0 S-FLOW] Shows ALL species from _SPECIES_COLOR as a color legend,
+  // even those at 0% — acts as permanent species color reference.
   const _seAtm = document.getElementById('seAtmosphere');
   if (_seAtm) {
-    const allComp = Object.entries(atm.air)
-      .filter(([, f]) => f > 0)
-      .sort((a, b) => b[1] - a[1])
-      .map(([sp, f]) => {
-        const name = spNames[sp] || sp;
-        const pct = f >= 0.01 ? (f * 100).toFixed(1) : (f * 100).toFixed(2);
-        return `<span class="se-val">${name}\u2009${pct}%</span>`;
-      });
+    // Merge all known colored species with wet atmosphere fractions
+    const knownSpecies = Object.keys(_SPECIES_COLOR);
+    const allFracs = {};
+    for (const sp of knownSpecies) allFracs[sp] = 0;
+    for (const [sp, f] of Object.entries(wetAir)) allFracs[sp] = f;
+    // Sort: present species by fraction desc, then absent species alphabetically
+    const allEntries = Object.entries(allFracs).sort((a, b) => {
+      if (a[1] > 0 && b[1] > 0) return b[1] - a[1];
+      if (a[1] > 0) return -1;
+      if (b[1] > 0) return 1;
+      return a[0].localeCompare(b[0]);
+    });
+    const allComp = allEntries.map(([sp, f]) => {
+      const name = spNames[sp] || sp;
+      const rgb = _SPECIES_COLOR[sp] || _SPECIES_DEFAULT_RGB;
+      const pct = f >= 0.01 ? (f * 100).toFixed(1)
+        : f > 0 ? (f * 100).toFixed(2) : '0';
+      const dimStyle = f <= 0 ? 'opacity:0.35;' : '';
+      return `<span class="se-val" style="color:rgb(${rgb[0]},${rgb[1]},${rgb[2]});${dimStyle}">${name}\u2009${pct}%</span>`;
+    });
     _seAtm.innerHTML =
       `<span class="se-label">Atmosphere</span>` +
       `<span class="se-val">${fmt.T(atm.T_K)}</span>` +
@@ -35590,6 +35608,15 @@ function _bzPt(t, p) {
     y: mt3 * p.fy + 3 * mt2 * t * p.c1y + 3 * mt * t2 * p.c2y + t3 * p.ty
   };
 }
+// [v17.0.0 S-FLOW] Bézier normal vector (unit length, perpendicular to tangent)
+function _bzNormal(t, p) {
+  const mt = 1 - t;
+  // Tangent = first derivative of cubic Bézier
+  const dx = -3*mt*mt*p.fx + 3*(mt*mt - 2*mt*t)*p.c1x + 3*(2*mt*t - t*t)*p.c2x + 3*t*t*p.tx;
+  const dy = -3*mt*mt*p.fy + 3*(mt*mt - 2*mt*t)*p.c1y + 3*(2*mt*t - t*t)*p.c2y + 3*t*t*p.ty;
+  const len = Math.hypot(dx, dy) || 1;
+  return { x: -dy / len, y: dx / len }; // 90° CCW rotation
+}
 function _bzLen(p) {
   const N = 20;
   let len = 0, prev = _bzPt(0, p);
@@ -35688,10 +35715,19 @@ function _rebuildFlowParticles() {
     if (!state || state.particles.length !== nParticles) {
       const particles = [];
       for (let i = 0; i < nParticles; i++) {
-        const t = (i * gapT) % 1;
         const species = _sampleSpeciesAt(anim.speciesFracs, i);
         const isLiq = (((i * 2654435761 + 7) >>> 0) / 4294967296 > (stream.vaporFraction ?? 1));
-        particles.push({ t, species, isLiq });
+        // Per-particle hash for deterministic randomness
+        const h = ((i * 2654435761 + 1013904223) >>> 0) / 4294967296; // [0,1)
+        const h2 = ((i * 1664525 + 1013904223) >>> 0) / 4294967296;
+        const h3 = ((i * 22695477 + 1) >>> 0) / 4294967296;
+        // Turbulence: gas particles get more randomness than liquid
+        const tNoise = isLiq ? (h - 0.5) * 0.06 : (h - 0.5) * 0.25;
+        const t = ((i * gapT) + tNoise + 1) % 1; // noisy initial spacing
+        const jLat = isLiq ? (h2 - 0.5) * 2 : (h2 - 0.5) * 6; // px lateral offset
+        const sMul = isLiq ? 0.92 + h3 * 0.16 : 0.7 + h3 * 0.6; // speed multiplier
+        const r = isLiq ? _FLOW_PARTICLE_R : 1.2 + h * 1.6; // gas: 1.2–2.8, liquid: fixed
+        particles.push({ t, species, isLiq, jLat, sMul, r });
       }
       state = { particles, pathLen, speed, gap };
       _flowState.set(c.id, state);
@@ -35706,12 +35742,13 @@ function _rebuildFlowParticles() {
       }
     }
 
-    // Create SVG circles
+    // Create SVG circles with lateral offset
     for (let i = 0; i < state.particles.length; i++) {
       const p = state.particles[i];
       const pt = _bzPt(p.t, cp);
+      const n = _bzNormal(p.t, cp);
       g.appendChild(svgEl('circle', {
-        cx: pt.x, cy: pt.y, r: _FLOW_PARTICLE_R,
+        cx: pt.x + n.x * p.jLat, cy: pt.y + n.y * p.jLat, r: p.r,
         fill: _flowColor(p.species),
         class: `flow-particle ${p.isLiq ? 'flow-particle-liq' : 'flow-particle-gas'}`,
         'data-conn': c.id, 'data-idx': i
@@ -35741,17 +35778,29 @@ function _advanceFlowParticles(deltaSec) {
     if (state.speed <= 0) continue;
     const cp = paths.get(cid);
     if (!cp || state.pathLen < 5) continue;
-    const dtT = (state.speed * deltaSec) / state.pathLen;
+    const baseDtT = (state.speed * deltaSec) / state.pathLen;
+
     for (let i = 0; i < state.particles.length; i++) {
       const p = state.particles[i];
-      p.t += dtT;
+      // Per-particle speed variation
+      p.t += baseDtT * p.sMul;
       if (p.t > 1) p.t -= 1;
       if (p.t < 0) p.t += 1;
+
+      // Brownian lateral drift for gas (slow random walk)
+      if (!p.isLiq) {
+        p.jLat += (Math.random() - 0.5) * 1.2 * deltaSec * 10;
+        // Soft clamp to ±3px (spring-back)
+        if (Math.abs(p.jLat) > 3) p.jLat *= 0.95;
+      }
+
+      // Update SVG position with lateral offset
       const el = particleG.querySelector(`[data-conn="${cid}"][data-idx="${i}"]`);
       if (el) {
         const pt = _bzPt(p.t, cp);
-        el.setAttribute('cx', pt.x);
-        el.setAttribute('cy', pt.y);
+        const n = _bzNormal(p.t, cp);
+        el.setAttribute('cx', pt.x + n.x * p.jLat);
+        el.setAttribute('cy', pt.y + n.y * p.jLat);
       }
     }
   }
@@ -52248,6 +52297,7 @@ function runTests() {
   test('602: S-FLOW — Bézier helpers exist and compute correctly', t => {
     t.assertOK(typeof _bzPt === 'function', '_bzPt exists');
     t.assertOK(typeof _bzLen === 'function', '_bzLen exists');
+    t.assertOK(typeof _bzNormal === 'function', '_bzNormal exists');
     // Straight line: (0,0) → (100,0) with collinear control points
     const p = { fx:0, fy:0, c1x:33, c1y:0, c2x:67, c2y:0, tx:100, ty:0 };
     const mid = _bzPt(0.5, p);
@@ -52255,6 +52305,10 @@ function runTests() {
     t.assertClose(mid.y, 0, 1, 'Midpoint y ≈ 0');
     const len = _bzLen(p);
     t.assertClose(len, 100, 2, 'Straight line length ≈ 100');
+    // Normal of horizontal line should be vertical
+    const n = _bzNormal(0.5, p);
+    t.assertClose(Math.abs(n.x), 0, 0.01, 'Normal x ≈ 0 for horizontal');
+    t.assertClose(Math.abs(n.y), 1, 0.01, 'Normal y ≈ ±1 for horizontal');
   });
 
   test('603: S-FLOW — LAYOUT_DEFAULTS includes flowMode', t => {
