@@ -200,13 +200,16 @@
             tick boundary.  Never inside core.
 
     NNG-9   Tick isolation.
-            A tick function is a pure computation: inputs → outputs.  It
-            reads only its own ports, params, and u.inventory.  It never
-            reads scene state, other units' outputs, the DOM, or solver
-            internals.  It never writes to u.inventory (only TimeClock
-            does that between solves).  It never writes to scratch (that
-            is solver-internal).  If a tick needs external context, it
-            comes through a port.
+            Ticks are deterministic given (params, resolved inlet ports,
+            RuntimeContext).  They do not mutate any input, do not read
+            global state, and do not produce side effects.  This is
+            controlled purity within a solver-provided context, not
+            mathematical purity.  [v16.9.1 — clarified]
+            A tick reads only its own ports, params, u.inventory, and
+            ctx (RuntimeContext — atmosphere, dt, solar/wind, scratch,
+            runtime maps).  It never reads scene state, other units'
+            outputs, the DOM, or solver internals.  It never writes to
+            u.inventory (only TimeClock does that between solves).
             Environmental context (atmosphere, dt, solar/wind factors)
             is provided through ctx — never read from SimSettings.  The
             solver snapshots these once per solve and passes them to all
@@ -215,15 +218,27 @@
             Ticks never mutate params.  Legacy parameter migration
             belongs in importJSON, not in tick execution.  [v16.8.2]
 
-            Data authority (informative — not an NNG, but governs debugging):
+            Data authority — the solver's semantic layers:
               ud.ports       stream state     set: tick+flash     read: solver, downstream ticks
-              ctx.scratch    dispatch metadata set: solver B-E     read: ticks (power allocation)
-              u.last         display metadata  set: tick           read: inspector, alarms, stickers
+              ctx.scratch    solver memory     set: solver B-E     read: ticks (power allocation, _prevLast)
+              u.last         tick report       set: tick           read: inspector, alarms, stickers
+              ud.errors      error/signal      set: tick+solver    read: alarm system, post-pass (_blockedInlet)
               runtime maps   P/valve/divider   set: solver pre-pass read: ticks via ctx accessors
-              ud.errors      error collection  set: tick           read: alarm system
-            Rule: u.last is NEVER read by the solver or any tick.  It is
-            display-only.  If something in the solver reads u.last to make
-            a physics decision, that is a bug.  [v16.8.3]
+
+            u.last invariant [v16.9.1]:
+              u.last is a FRESH per-iteration report.  Before each tick
+              call, the solver:
+                1. Saves u.last → ctx.scratch._prevLast (frozen)
+                2. Sets u.last = {}
+              Ticks that need cross-iteration memory (hysteresis) read
+              from ctx.scratch._prevLast, never from u.last.
+              Ticks that signal operational state to the post-pass
+              (e.g. _blockedInlet) use ctx.warn() with metadata, never
+              u.last fields.
+              After tick, u.last contains ONLY what the tick wrote this
+              iteration.  No accumulation, no merge-back.
+              Tests: 595 (sentinel junk), 596 (hysteresis via scratch),
+              597 (_blockedInlet via ud.errors).
 
     NNG-10  Registries, adapters, and data integrity.
             Every extensible data domain has a static registry class
@@ -15458,7 +15473,8 @@ UnitRegistry.register('tank', {
     const P_relief = par.P_relief || 200000;
     const ventConnected = ctx.portConnected('vent');
     // Hysteresis: opens at P_relief, closes at P_relief × 0.98
-    const _ventWasActive = u.last?._ventActive || false;
+    // [v16.9.1] Read previous iteration state from ctx.scratch._prevLast (was u.last — NNG-9 violation)
+    const _ventWasActive = ctx.scratch._prevLast?._ventActive || false;
     const _ventActive = ventConnected && (P_tank > P_relief || (_ventWasActive && P_tank > P_relief * 0.98));
     if (!ventConnected && P_tank > P_relief) {
       // [v16.9.1] No relief valve installed — overpressure cannot be relieved
@@ -15509,7 +15525,8 @@ UnitRegistry.register('tank', {
       });
     }
     // Hysteresis: opens at overflow_lvl, closes at overflow_lvl - 2%
-    const _ovWasActive = u.last?._overflowActive || false;
+    // [v16.9.1] Read previous iteration state from ctx.scratch._prevLast (was u.last — NNG-9 violation)
+    const _ovWasActive = ctx.scratch._prevLast?._overflowActive || false;
     const _ovActive = ovConnected && (state.level_pct > overflow_lvl || (_ovWasActive && state.level_pct > overflow_lvl - K_HYSTERESIS_PCT));
     if (_ovActive) {
       const n_L_total = Object.values(state.n_L || {})
@@ -15799,7 +15816,8 @@ UnitRegistry.register('open_tank', {
       });
     }
     // Hysteresis: opens at overflow_lvl, closes at overflow_lvl - 2%
-    const _otOvWasActive = u.last?._overflowActive || false;
+    // [v16.9.1] Read previous iteration state from ctx.scratch._prevLast (was u.last — NNG-9 violation)
+    const _otOvWasActive = ctx.scratch._prevLast?._overflowActive || false;
     const _otOvActive = ovConnected && n_total > 1e-15 &&
       (level_pct > overflow_lvl || (_otOvWasActive && level_pct > overflow_lvl - K_HYSTERESIS_PCT));
     if (_otOvActive) {
@@ -16741,12 +16759,15 @@ UnitRegistry.register('gas_turbine', {
       u.last = {
         Pin: sIn.P, Pout_setpoint: Pout, Pout_actual: sIn.P,
         W_shaft: 0, W_elec: 0, W_isentropic: 0, eta: eta,
-        _blockedInlet: 'mat_in',
         error: {
           severity: ErrorSeverity.MINOR,
           message: `Check valve closed — outlet pressure ${(Pout/100000).toFixed(2)} bar ≥ inlet ${(sIn.P/100000).toFixed(2)} bar`
         }
       };
+      // [v16.9.1] _blockedInlet via ctx.warn (was on u.last — NNG-9 authority fix)
+      ctx.warn({ severity: ErrorSeverity.MINOR,
+        message: `Check valve closed — outlet pressure ${(Pout/100000).toFixed(2)} bar ≥ inlet ${(sIn.P/100000).toFixed(2)} bar`,
+        _blockedInlet: 'mat_in' });
       return;
     }
     
@@ -16791,17 +16812,18 @@ UnitRegistry.register('gas_turbine', {
     };
   },
   // Post-flash check: detect liquid formation in outlet
-  postFlashCheck(u, ports) {
+  // [v16.9.1] tickResult parameter: explicit data flow from tick output, not u.last reads.
+  postFlashCheck(u, ports, tickResult) {
     const matOut = ports.mat_out;
     if (!matOut) return;
     if (matOut.phase === 'L' || matOut.phase === 'VL') {
       const vf = matOut.vaporFraction !== undefined ? matOut.vaporFraction : (matOut.phase === 'L' ? 0 : 0.5);
-      u.last.error = {
+      tickResult.error = {
         severity: ErrorSeverity.MAJOR,
         message: `Liquid forming in turbine exhaust (vapor fraction: ${(vf*100).toFixed(1)}%) — risk of blade erosion`
       };
-      u.last.outletPhase = matOut.phase;
-      u.last.outletVF = vf;
+      tickResult.outletPhase = matOut.phase;
+      tickResult.outletVF = vf;
     }
   }
 });
@@ -18294,8 +18316,9 @@ UnitRegistry.register('hex', {
   // ── Post-flash validation ──
   // Reads PH-flash-resolved outlet temperatures and checks for crosses/violations.
   // Runs after solver has resolved H_target_Jps → T via phFlash.
-  postFlashCheck(u, ports) {
-    if (!u.last || u.last.error) return;
+  // [v16.9.1] tickResult parameter: explicit data flow from tick output, not u.last reads.
+  postFlashCheck(u, ports, tickResult) {
+    if (!tickResult || tickResult.error) return;
 
     const hi = ports.hot_in, ho = ports.hot_out, ci = ports.cold_in, co = ports.cold_out;
     if (!hi || !ho || !ci || !co || !ho.T || !co.T) return;
@@ -18304,20 +18327,20 @@ UnitRegistry.register('hex', {
     const dT2 = ho.T - ci.T;   // hot outlet vs cold inlet
     const dTmin = Math.min(dT1, dT2);
 
-    // Write resolved temperatures
-    u.last.T_hot_out_actual  = ho.T;
-    u.last.T_cold_out_actual = co.T;
-    u.last.dT_end1   = dT1;
-    u.last.dT_end2   = dT2;
-    u.last.hxPinch_K = dTmin;
+    // Write resolved temperatures to tick result
+    tickResult.T_hot_out_actual  = ho.T;
+    tickResult.T_cold_out_actual = co.T;
+    tickResult.dT_end1   = dT1;
+    tickResult.dT_end2   = dT2;
+    tickResult.hxPinch_K = dTmin;
 
     // Cross detection
     const EPS = 1e-3;
-    u.last.hxCross = dTmin < -EPS;
-    if (!u.last.errors) u.last.errors = [];
+    tickResult.hxCross = dTmin < -EPS;
+    if (!tickResult.errors) tickResult.errors = [];
 
-    if (u.last.hxCross) {
-      u.last.errors.push({
+    if (tickResult.hxCross) {
+      tickResult.errors.push({
         severity: ErrorSeverity.MAJOR,
         message: `Temperature cross (ΔTmin = ${dTmin.toFixed(2)} K): ` +
                  `Th ${(hi.T-273.15).toFixed(1)}→${(ho.T-273.15).toFixed(1)}°C, ` +
@@ -18326,11 +18349,11 @@ UnitRegistry.register('hex', {
     }
 
     // Approach violation (approach mode only)
-    if (u.last.mode === 'approach') {
-      const T_app = u.last.T_approach_par || 0;
-      u.last.hxApproachViolation = dTmin < T_app - 0.5;
-      if (u.last.hxApproachViolation) {
-        u.last.errors.push({
+    if (tickResult.mode === 'approach') {
+      const T_app = tickResult.T_approach_par || 0;
+      tickResult.hxApproachViolation = dTmin < T_app - 0.5;
+      if (tickResult.hxApproachViolation) {
+        tickResult.errors.push({
           severity: ErrorSeverity.MINOR,
           message: `Approach violation: pinch ${dTmin.toFixed(2)} K < target ${T_app.toFixed(1)} K`
         });
@@ -18363,7 +18386,7 @@ UnitRegistry.register('mixer', {
   // [v13.0.4 S1c] Equipment limits — corrected to matrix values v13.0.8
   limitParams: ['T_LL', 'T_L', 'T_H', 'T_HH', 'P_LL', 'P_L', 'P_H', 'P_HH', 'mass_HH'],
   limits: { S: { T_LL: 243, T_L: 263, T_H: 623, T_HH: 723, P_LL: 20000, P_L: 50000, P_H: 12000000, P_HH: 15000000, mass_HH: 0.25 } },
-  tick(u, ports, par) {
+  tick(u, ports, par, ctx) {
     const s1 = ports.mat_in_1;
     const s2 = ports.mat_in_2;
     
@@ -18464,7 +18487,8 @@ UnitRegistry.register('mixer', {
     // [v13.0.8] Check-valve alarm if an inlet was zeroed
     if (checkValveMsg) {
       u.last.error = { severity: ErrorSeverity.MINOR, message: checkValveMsg };
-      u.last._blockedInlet = blockedInlet;
+      // [v16.9.1] _blockedInlet via ctx.warn (was on u.last — NNG-9 authority fix)
+      ctx.warn({ severity: ErrorSeverity.MINOR, message: checkValveMsg, _blockedInlet: blockedInlet });
     }
   }
 });
@@ -18512,10 +18536,13 @@ UnitRegistry.register('splitter', {
       ports.mat_out_1 = { ...empty };
       ports.mat_out_2 = { ...empty };
       u.last = {
-        _blockedInlet: 'mat_in',  // triggers source-killing post-pass
         error: { severity: ErrorSeverity.MINOR,
           message: 'All branches blocked by downstream pressure — flow stopped' }
       };
+      // [v16.9.1] _blockedInlet via ctx.warn (was on u.last — NNG-9 authority fix)
+      ctx.warn({ severity: ErrorSeverity.MINOR,
+        message: 'All branches blocked by downstream pressure — flow stopped',
+        _blockedInlet: 'mat_in' });
       return;
     }
     
@@ -22171,7 +22198,10 @@ function _applyBypass(u, def, ud, inPorts) {
       for (let i = 1; i < matIns.length; i++) {
         const sSecondary = inPorts[matIns[i].portId];
         if (sSecondary && sSecondary.n && Object.values(sSecondary.n).reduce((a, b) => a + b, 0) > 1e-15) {
-          ud.last._blockedInlet = matIns[i].portId;
+          // [v16.9.1] _blockedInlet via ud.errors (was ud.last — NNG-9 authority fix)
+          ud.errors.push({ severity: ErrorSeverity.MINOR,
+            message: `Bypass mode: secondary inlet ${matIns[i].portId} blocked`,
+            _blockedInlet: matIns[i].portId });
         }
       }
     }
@@ -22236,7 +22266,10 @@ function _applyOff(u, def, ud, inPorts) {
   // ── Mark for source-killing post-pass (same as check-valve blocking) ──
   const matIn = def.ports.find(p => p.dir === PortDir.IN && p.type === StreamType.MATERIAL);
   if (matIn) {
-    ud.last._blockedInlet = matIn.portId;
+    // [v16.9.1] _blockedInlet via ud.errors (was ud.last — NNG-9 authority fix)
+    ud.errors.push({ severity: ErrorSeverity.MINOR,
+      message: `Unit off: inlet ${matIn.portId} blocked`,
+      _blockedInlet: matIn.portId });
   }
   ud.last.mode = 'off';
 }
@@ -22547,6 +22580,17 @@ function solveScene(scene, options = {}) {
       // unit and continue ticking the remaining units.
       try {
 
+      // [v16.9.1] u.last authority invariant:
+      // 1. Save previous iteration's report to scratch._prevLast (frozen, read-only).
+      //    Ticks that need cross-iteration memory (hysteresis) read from ctx.scratch._prevLast.
+      // 2. Clear u.last to {} — tick writes a FRESH report each iteration.
+      //    No accumulation, no merge-back.  If a tick reads u.last, it gets {}.
+      {
+        const _scratch = runtimeCtx.scratch(id);
+        _scratch._prevLast = Object.freeze(u.last || {});
+        u.last = {};
+      }
+
       // Execute unit calculation (ctx is 4th arg — RuntimeContext per-unit view)
       def.tick(u, inPorts, u.params, unitCtx);
 
@@ -22793,9 +22837,11 @@ function solveScene(scene, options = {}) {
       const blockedInlets = [];
       for (const [_cvId, _cvU] of scene.units) {
         const _cvUD = scene.runtime.unitData.get(_cvId);
-        if (!_cvUD?.last?._blockedInlet) continue;
+        // [v16.9.1] _blockedInlet now lives on ud.errors (was ud.last — NNG-9 authority fix)
+        const _blockedErr = _cvUD?.errors?.find(e => e._blockedInlet);
+        if (!_blockedErr) continue;
         const _cvName = _cvU.name || UnitRegistry.get(_cvU.defId)?.name || _cvId;
-        blockedInlets.push({ unitId: _cvId, portId: _cvUD.last._blockedInlet, blockingName: _cvName });
+        blockedInlets.push({ unitId: _cvId, portId: _blockedErr._blockedInlet, blockingName: _cvName });
       }
 
       if (blockedInlets.length > 0) {
@@ -23496,7 +23542,9 @@ function solveScene(scene, options = {}) {
     const def = UnitRegistry.get(u.defId);
     if (def.postFlashCheck) {
       const ud = scene.runtime.unitData.get(id);
-      def.postFlashCheck(u, ud.ports);
+      // [v16.9.1] Pass u.last (tick's fresh report) as explicit tickResult parameter.
+      // postFlashCheck reads/extends tickResult, not u.last directly.
+      def.postFlashCheck(u, ud.ports, u.last || {});
     }
   }
   
@@ -51608,6 +51656,91 @@ function runTests() {
       if (skip.has(defId)) continue;
       t.assertOK(typeof _RAGTAG_SYMBOLS[defId] === 'function', `ragtag symbol for ${defId}`);
     }
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // [v16.9.1] u.last AUTHORITY INVARIANT — sentinel regression tests
+  // ═══════════════════════════════════════════════════════════════════════
+
+  test('595: u.last authority — sentinel junk does not affect solver decisions', t => {
+    // Seed every unit's u.last with garbage before solving.
+    // If the solver or any tick reads u.last, results would change.
+    const src = t.place('source', 0, 0, { species: 'N2', nDot: 1, T: 300, P: 200000, phaseConstraint: 'V' });
+    const vlv = t.place('valve', 4, 0, { Pout: 100000 });
+    const snk = t.place('sink', 8, 0);
+    t.wire(src, 'mat_out', vlv, 'mat_in');
+    t.wire(vlv, 'mat_out', snk, 'mat_in');
+
+    // Clean solve for reference
+    t.solve();
+    const refT = t.port(vlv, 'mat_out').T;
+    const refP = t.port(vlv, 'mat_out').P;
+
+    // Seed u.last with sentinel junk
+    t.unit(vlv).last = {
+      _SENTINEL: true,
+      Pout_actual: 999999,   // wrong pressure
+      T: 9999,               // wrong temperature
+      _ventActive: true,     // irrelevant hysteresis flag
+      _blockedInlet: 'mat_in', // fake blocked inlet
+      error: { severity: ErrorSeverity.CATASTROPHIC, message: 'SENTINEL JUNK' }
+    };
+
+    // Re-solve — results must match reference (solver ignores u.last junk)
+    t.solve();
+    t.assertClose(t.port(vlv, 'mat_out').T, refT, 0.001, 'T unaffected by u.last junk');
+    t.assertClose(t.port(vlv, 'mat_out').P, refP, 0.001, 'P unaffected by u.last junk');
+    // Sentinel must have been cleared by null guard (u.last = {} before tick)
+    t.assertOK(!t.unit(vlv).last._SENTINEL, 'Sentinel cleared — u.last is fresh report');
+  });
+
+  test('596: u.last authority — tank hysteresis works via ctx.scratch._prevLast', t => {
+    // Tank with relief valve: verify hysteresis operates through scratch, not u.last.
+    // Fill tank well above P_relief so vent activates on first iteration,
+    // then verify _ventActive appears in u.last (display) without reading u.last.
+    t.clearScene();
+    const tank = t.place('tank', 0, 0, {
+      volume_m3: 0.1, P_init: 500000, P_relief: 200000,
+      Cv_gas: 10, opening_gas_pct: 0, Cv_liq: 0, opening_liq_pct: 0
+    });
+    const vent = t.place('sink', 4, -1);
+    t.wire(tank, 'vent', vent, 'mat_in');
+    t.solve();
+    // Tank at 5 bar with P_relief = 2 bar → vent must be active
+    t.assertOK(t.unit(tank).last._ventActive === true, 'Vent active at overpressure');
+    // Seed u.last with _ventActive = false (junk) — should not affect next solve
+    t.unit(tank).last._ventActive = false;
+    t.solve();
+    // Vent should STILL be active (reads scratch._prevLast, not u.last)
+    t.assertOK(t.unit(tank).last._ventActive === true, 'Vent still active — hysteresis via scratch, not u.last');
+  });
+
+  test('597: u.last authority — _blockedInlet via ud.errors, not ud.last', t => {
+    // Verify check-valve _blockedInlet signal travels through ud.errors,
+    // and the post-pass backward trace still works.
+    t.clearScene();
+    const src = t.place('source', 0, 0, { species: 'N2', nDot: 1, T: 300, P: 100000, phaseConstraint: 'V' });
+    // Gas turbine with Pout >= Pin → check valve fires
+    const turb = t.place('gas_turbine', 4, 0, { Pout: 200000, eta: 0.85 });
+    const snk = t.place('sink', 8, 0);
+    t.wire(src, 'mat_out', turb, 'mat_in');
+    t.wire(turb, 'mat_out', snk, 'mat_in');
+    // Need elec connection for turbine
+    const gs = t.place('grid_supply', 4, 4, { maxPower: 50 });
+    const hub = t.place('power_hub', 2, 4);
+    t.wire(gs, 'elec_out', hub, 'elec_in');
+    t.wire(hub, 'elec_out', turb, 'elec_in');
+    t.wire(turb, 'elec_out', hub, 'elec_in');
+    t.solve();
+    // Source should be blocked by backpressure post-pass
+    const srcU = t.unit(src);
+    t.assertOK(srcU.last._backpressureBlocked === true, 'Source blocked by backpressure');
+    // _blockedInlet should NOT be on ud.last
+    const turbUD = t.ud(turb);
+    t.assertOK(turbUD.last._blockedInlet === undefined, '_blockedInlet not on ud.last (moved to ud.errors)');
+    // _blockedInlet SHOULD be on ud.errors
+    const blockedErr = turbUD.errors?.find(e => e._blockedInlet);
+    t.assertOK(!!blockedErr, '_blockedInlet found in ud.errors');
   });
 
   // ═══════════════════════════════════════════════════════════════════════
