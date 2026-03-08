@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v17.0.0
+  processThis v17.0.2
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -394,26 +394,86 @@
   now syncs correctly after undo/redo/autosave restore.
 
   NNGs: NNG-9 (u.last authority), NNG-11 (solver-side _anim), NNG-14 (changelog).
-  Tests: 607 total, 3139 checks, 0 failures.
+  Tests: 607 total, 3144 checks, 0 failures.
   +3 sentinel tests (595–597), +8 S-FLOW tests (598–605).
 
   **S-FLOW: particle flow animation.**  Discrete colored particles
   move along connection Bézier paths, encoding flow rate (speed),
   density (spacing), composition (color), and phase (shape).
-  Solver enrichment: post-flash `stream._anim` block writes nDot,
-  vDot, rho, speciesFracs on every resolved material stream (NNG-11:
-  thermo.density() in Block 1 only).  Particle system: persistent JS
-  state survives render() rebuilds.  rAF shared with icon animations;
-  particles advance only when playing, frozen when paused.
-  Toggle: 💧/➤ button swaps between particle mode (default) and
-  arrow mode.  `flowMode` persisted in LAYOUT_DEFAULTS + export/import.
-  Replaces the old always-on arrow animation — arrows still available
-  as fallback mode.
+  Solver enrichment: post-flash `_enrichAnim()` pass writes _anim on
+  ALL material streams — ud.ports and connStreams (tank fan-out).
+  NNG-11: thermo.density() in Block 1 only.  Particle turbulence:
+  per-particle speed multiplier (gas ±30%, liquid ±8%), lateral jitter
+  via Bézier normal + Brownian drift, variable radius (gas 1.2–2.8px).
+  Gas: translucent blur puffs. Liquid: opaque beads. Electrical: arrows
+  only (no particles).  Toggle: 💧/➤ swaps particles/arrows mode.
 
-  **S-VOICE: unit name renames + content fields.**  18 profile renames
-  (Flash Drum → Vapor-Liquid Separator, Grid Supply → Generator, etc.).
-  `description` (L1) and `selectionGuide` (L2) fields on all 35
-  active profiles.  `config: { deprecated }` on retired profiles.
+  **Elbow nozzle system.**  `_rtElbow()` draws body-colored vertical
+  riser + convex quarter-arc for corner ports on vessels.  Split flange
+  at junction: unit-color half + pipe-color half, exact flange pattern.
+  `_rtElbowRegisterTip()` pre-registers tip so `_rtNozzle` starts
+  straight stubs from elbow endpoint.  Draw order: stubs → elbows → body.
+  Applied to: tank, open_tank, flash_drum, distillation_column,
+  membrane_separator.  Mixer Y-junction: two independent body-colored
+  S-curves replacing the old pipe-colored Y-manifold.
+
+  **Species colors everywhere.** `_SPECIES_COLOR` palette applied to:
+  inspector composition (● dot prefix), sticker composition values
+  (text color), survival strip compact bar, expanded atmosphere legend
+  (all species, 0% dimmed).  Wet air (H₂O humidity) shown in strip.
+
+  **S-VOICE: unit name renames + content fields.**  18 profile renames.
+  `description` (L1) and `selectionGuide` (L2) on all 35 active profiles.
+
+  ─── v17.0.1 — Palette cleanup + category split + tooltips ────────────────
+
+  **Deprecated profiles hidden from palette.**  `listByCategory()` now
+  filters `config: { deprecated: true }` profiles.  Removes duplicate
+  Feed (source_pure alias) and Air Intake (source_atmosphere alias).
+
+  **6 profiles deprecated:** source_pure, source_atmosphere, tank_dev,
+  membrane_kidney, membrane_leaf, bio_metabolism.
+
+  **ENVIRONMENT category.**  New category (blue #60a5fa, order 2) for
+  pressure-sensitive units that interact with the planet: Well
+  (reservoir), Air Intake (atmosphere), Material Dump (sink),
+  Surplus Dump (sink_electrical).  Feed stays in Streams (green) —
+  player-controlled, no pressure trace.  SINK alias → ENVIRONMENT.
+
+  **Air Intake icon swap.**  `atmosphere` defId now uses `source_atm`
+  bell-mouth icon (wind streaks, louvers) instead of the vent/grille.
+
+  **Rich palette tooltip.**  Dark game-like tooltip with tier badge,
+  L1 tagline (italic), L2 selection guide (conversational), and
+  compact specs line (emoji-prefixed T/P ranges, volume, Cv, power).
+
+  **Power Dispatcher → tier 1.**  Available from game start.
+  **Palette dot color** now uses profile category (not def category).
+
+  NNGs: NNG-14 (changelog).
+  Tests: 607 total, 3145 checks, 0 failures.
+
+  ─── v17.0.2 — Category consolidation ──────────────────────────────────
+
+  **9 → 7 categories.**  Merged ENVIRONMENT and CLOSED_LOOP into
+  existing categories.  Supply & Drain (green #10b981) absorbs all
+  plant-edge units: External Feed, Well, Air Intake, Material Dump.
+  Separation & Mixing absorbs Loop Driver (topology helper, not a
+  source).  ENVIRONMENT and CLOSED_LOOP become getter aliases.
+
+  **Color palette optimized via CIELAB perceptual distance.**  All 21
+  pairwise ΔE values > 30 (minimum: Heat↔Reactor = 34.6).  Changes:
+  Heat teal→orange (#f97316), Separation teal→magenta (#e535ab),
+  Storage cyan→blue (#3b82f6).  Reactor red and Pressure purple kept.
+
+  **Feed → External Feed.**  Clarifies the unit brings material from
+  outside the plant boundary, distinct from recirculation.
+
+  **"Boundaries" → "Supply & Drain."**  Player-friendly name for
+  all plant-edge units (feeds, wells, intakes, dumps).
+
+  NNGs: NNG-14 (changelog).
+  Tests: 607 total, 3143 checks, 0 failures.
 
   ─── v16.9.1 — Phase C: NNG-11 DOM extraction + numerical hardening ────
 
@@ -8530,8 +8590,9 @@
 
     <!-- [v13.1.3] Floating tooltip — shared, positioned at body level to avoid clipping -->
     <div id="ptip" style="position:fixed;z-index:100;pointer-events:none;opacity:0;transition:opacity 0.08s;
-      background:#e2e8f0;color:#0f1420;font-size:12px;font-weight:600;padding:5px 9px;border-radius:4px;
-      white-space:pre-line;max-width:200px;line-height:1.5;"></div>
+      background:rgba(15,20,32,0.95);color:#e2e8f0;font-size:12px;font-weight:500;padding:8px 12px;border-radius:6px;
+      border:1px solid #334155;white-space:normal;max-width:240px;line-height:1.4;
+      box-shadow:0 4px 16px rgba(0,0,0,0.5);backdrop-filter:blur(4px);"></div>
 
     <!-- Main SVG canvas -->
     <div class="view-flowsheet">
@@ -14547,20 +14608,20 @@ function diagnoseErrors(scene) {
    Categories for organizing units with color coding
    ========================= */
 const UnitCategories = {
-  // [v10.0.5] Rationalized taxonomy — 7 user-facing categories, ordered for palette display.
-  // order: controls palette display order (ascending).
-  BOUNDARY:       { name: 'Streams',              color: '#10b981', order: 1 },  // Green — material stream sources & sinks
-  HEAT_TRANSFER:  { name: 'Heat',                 color: '#3b82f6', order: 2 },  // Blue
+  // [v17.0.2] 7 categories. All ΔE pairs > 30 (CIELAB perceptual distance).
+  BOUNDARY:       { name: 'Supply & Drain',        color: '#10b981', order: 1 },  // Green
+  HEAT_TRANSFER:  { name: 'Heat',                 color: '#f97316', order: 2 },  // Orange
   PRESSURE:       { name: 'Pressure',             color: '#8b5cf6', order: 3 },  // Purple
   REACTOR:        { name: 'Reactor',              color: '#ef4444', order: 4 },  // Red
-  SEPARATION:     { name: 'Separation & Mixing',  color: '#14b8a6', order: 5 },  // Teal
-  STORAGE:        { name: 'Storage',              color: '#06b6d4', order: 6 },  // Cyan
+  SEPARATION:     { name: 'Separation & Mixing',  color: '#e535ab', order: 5 },  // Magenta
+  STORAGE:        { name: 'Storage',              color: '#3b82f6', order: 6 },  // Blue
   POWER:          { name: 'Power',                color: '#eab308', order: 7 },  // Amber
-  CLOSED_LOOP:    { name: 'Closed Loop',          color: '#f97316', order: 8 },  // Orange
 
-  // ── Legacy aliases (resolve to new categories) ──
+  // ── Legacy aliases (resolve to canonical categories) ──
   get SOURCE()           { return this.BOUNDARY; },
   get SINK()             { return this.BOUNDARY; },
+  get ENVIRONMENT()      { return this.BOUNDARY; },
+  get CLOSED_LOOP()      { return this.SEPARATION; },
   get POWER_SOURCE()     { return this.POWER; },
   get POWER_CONVERSION() { return this.POWER; },
   get POWER_MANAGEMENT() { return this.POWER; },
@@ -14858,6 +14919,8 @@ class ProfileRegistry {
       // Re-enable once profile set is stable: if (p.config?.composite) continue;
       // [v15.1.0] Skip templates from non-Dev listings
       if (p.config?.template && opts.excludeTemplates) continue;
+      // [v17.0.1] Skip deprecated profiles — retired from palette
+      if (p.config?.deprecated) continue;
       const cat = typeof p.category === 'string' ? p.category : (p.category?.name || 'Other');
       if (!byCategory[cat]) {
         byCategory[cat] = [];
@@ -20090,7 +20153,7 @@ ProfileRegistry.register('source_pure',  { defId: 'source',     name: 'Feed',   
   description: 'Pipe from the outside world',
   selectionGuide: 'Delivers whatever you set — species, temperature, pressure, flow rate. Never runs out. For air specifically, use Air Intake.',
   config: { deprecated: true } });
-ProfileRegistry.register('source_mix',   { defId: 'source',     name: 'Feed',               category: UnitCategories.SOURCE,           tiers: [1], limits: {}, boundary: true, defaults: { 1: { n: { N2: 0.78, O2: 0.21, Ar: 0.01 } } },
+ProfileRegistry.register('source_mix',   { defId: 'source',     name: 'External Feed',      category: UnitCategories.SOURCE,           tiers: [1], limits: {}, boundary: true, defaults: { 1: { n: { N2: 0.78, O2: 0.21, Ar: 0.01 } } },
   description: 'Pipe from the outside world',
   selectionGuide: 'Delivers whatever you set — species, temperature, pressure, flow rate. Never runs out. For air specifically, use Air Intake.' });
 // [v17.0.0 S-VOICE] source_atmosphere deprecated — use 'atmosphere' profile (Air Intake)
@@ -20129,7 +20192,7 @@ ProfileRegistry.register('battery', {
   }
 });
 // Power Hub: demo-scale coordination device — tier 2 only
-ProfileRegistry.register('power_hub', { defId: 'power_hub', name: 'Power Dispatcher', category: UnitCategories.POWER_MANAGEMENT, tiers: [2], limits: {},
+ProfileRegistry.register('power_hub', { defId: 'power_hub', name: 'Power Dispatcher', category: UnitCategories.POWER_MANAGEMENT, tiers: [1], limits: {},
   description: 'Fuse box with priorities',
   selectionGuide: 'Collects power from all your sources and hands it out to equipment. Essential gear gets power first — the rest gets what\'s left.' });
 
@@ -20139,7 +20202,7 @@ ProfileRegistry.register('power_hub', { defId: 'power_hub', name: 'Power Dispatc
 // Game profiles lock volume + Cv per tier; dev profile leaves all editable.
 ProfileRegistry.register('tank_dev', {
   defId: 'tank', name: 'Configurable Tank', category: UnitCategories.VESSEL, tiers: [1],
-  config: { dev: true },
+  config: { dev: true, deprecated: true },
   limits: { 1: { T_LL:100, T_L:200, T_H:473, T_HH:523,
                   P_LL:1000, P_L:5000, P_H:4000000, P_HH:5000000,
                   level_H:90, level_HH:100 } },
@@ -20208,7 +20271,7 @@ ProfileRegistry.register('tank_high_pressure', {
 });
 // [v13.8.0 S5a-2b] Reservoir profiles: gas, liquid, air (Planet X atmosphere)
 ProfileRegistry.register('reservoir', {
-  defId: 'reservoir', name: 'Well', category: UnitCategories.SOURCE, tiers: [1],
+  defId: 'reservoir', name: 'Well', category: UnitCategories.BOUNDARY, tiers: [1],
   description: 'Underground gas or liquid tap',
   selectionGuide: 'Your main raw material source. Careful with the valve — crack it open gently or you\'ll flood everything downstream.',
   limits: {}, boundary: true,
@@ -20413,14 +20476,14 @@ ProfileRegistry.register('membrane_kidney', {
   tiers: [1],
   limits: { 1: { T_LL: 273, T_L: 293, T_HH: 320, P_HH: 300000, mass_HH: 0.01 } },
   defaults: { 1: { targetSpecies: 'NH3', extractionFrac: 0.99, consumable: null } },
-  config: { composite: true }
+  config: { composite: true, deprecated: true }
 });
 ProfileRegistry.register('membrane_leaf', {
   defId: 'membrane_separator', name: 'Leaf', category: UnitCategories.SEPARATION,
   tiers: [1],
   limits: { 1: { T_LL: 270, T_HH: 340, P_HH: 500000, mass_HH: 0.05 } },
   defaults: { 1: { targetSpecies: ['CH2O', 'NH3'], extractionFrac: 0.95, consumable: null } },
-  config: { composite: true }
+  config: { composite: true, deprecated: true }
 });
 ProfileRegistry.register('co2_scrubber', {
   defId: 'membrane_separator', name: 'CO\u2082 Absorber', category: UnitCategories.SEPARATION,
@@ -20446,7 +20509,7 @@ ProfileRegistry.register('bio_metabolism', {
     P_LL: 50000, P_HH: 200000, mass_HH: 0.01
   }},
   defaults: { reactionId: 'R_METABOLISM', useKinetics: true, volume_m3: 0.01 },
-  config: { composite: true }
+  config: { composite: true, deprecated: true }
 });
 // Bio_mixer: body-internal mixer. Physiological T/P envelope.
 ProfileRegistry.register('bio_mixer', {
@@ -28883,43 +28946,8 @@ const _RAGTAG_SYMBOLS = {
   // ── Atmosphere [v16.8.0] (2×2 = 96×96 canvas) ──
   // Open-top housing with mesh grate, cloud wisps in viewport, wind streaks.
   // Represents "the sky" — infinite atmospheric reservoir.
-  atmosphere(g, wx, wy, ww, wh, pal, def, unitId) {
-    const pres = getPresentation(def, scene.units.get(unitId));
-    _rtNozzle(g, wx, wy, ww, wh, wx+14, wy+16, 68, 64, def, pres, pal, unitId);
-    // Main housing body (shorter, wider — vent/grille form factor)
-    g.appendChild(svgEl('rect', { x:wx+14, y:wy+28, width:68, height:52, rx:8, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'pointer-events':'none' }));
-    // Open top mesh/grate (3 horizontal bars + side rails)
-    g.appendChild(svgEl('rect', { x:wx+18, y:wy+16, width:60, height:16, rx:4, fill:'#0c1a2e', stroke:pal.stroke, 'stroke-width':2, 'pointer-events':'none' }));
-    for (let i = 0; i < 4; i++) {
-      const gx = wx + 26 + i * 14;
-      g.appendChild(svgEl('line', { x1:gx, y1:wy+18, x2:gx, y2:wy+30, stroke:pal.rim, 'stroke-width':1.5, opacity:0.6, 'pointer-events':'none' }));
-    }
-    // Cross bars on mesh
-    g.appendChild(svgEl('line', { x1:wx+22, y1:wy+22, x2:wx+74, y2:wy+22, stroke:pal.rim, 'stroke-width':1, opacity:0.4, 'pointer-events':'none' }));
-    g.appendChild(svgEl('line', { x1:wx+22, y1:wy+27, x2:wx+74, y2:wy+27, stroke:pal.rim, 'stroke-width':1, opacity:0.4, 'pointer-events':'none' }));
-    // Dark viewport inside body (atmosphere window)
-    g.appendChild(svgEl('rect', { x:wx+24, y:wy+38, width:48, height:30, rx:6, fill:'#06101e', stroke:pal.rim, 'stroke-width':1.5, 'pointer-events':'none' }));
-    // Cloud wisps (animated pulse)
-    g.appendChild(svgEl('path', {
-      d:`M${wx+30},${wy+48} Q${wx+38},${wy+43} ${wx+46},${wy+48} Q${wx+54},${wy+53} ${wx+62},${wy+48}`,
-      fill:'none', stroke:'#94a3b8', 'stroke-width':1.5, 'stroke-linecap':'round',
-      'data-anim':'rotor-pulse', 'data-opbase':'0.25', 'pointer-events':'none'
-    }));
-    g.appendChild(svgEl('path', {
-      d:`M${wx+34},${wy+56} Q${wx+40},${wy+52} ${wx+48},${wy+56} Q${wx+56},${wy+60} ${wx+60},${wy+56}`,
-      fill:'none', stroke:'#64748b', 'stroke-width':1.2, 'stroke-linecap':'round',
-      'data-anim':'rotor-pulse', 'data-opbase':'0.15', 'pointer-events':'none'
-    }));
-    // Downward arrow hint (air flows in from top, out through port)
-    g.appendChild(svgEl('line', { x1:wx+48, y1:wy+40, x2:wx+48, y2:wy+52, stroke:'#60a5fa', 'stroke-width':1.5, 'stroke-linecap':'round', opacity:0.3, 'pointer-events':'none' }));
-    g.appendChild(svgEl('polygon', { points:`${wx+44},${wy+50} ${wx+48},${wy+56} ${wx+52},${wy+50}`, fill:'#60a5fa', opacity:0.3, 'pointer-events':'none' }));
-    // Bolts
-    _rtBolt(g, wx+18, wy+34); _rtBolt(g, wx+76, wy+34);
-    _rtBolt(g, wx+18, wy+72); _rtBolt(g, wx+76, wy+72);
-    // Chip + LED
-    _rtChip(g, wx+66, wy+34, 8, 4);
-    g.appendChild(svgEl('circle', { cx:wx+22, cy:wy+74, r:2.5, fill:'#10b981', 'data-anim':'led-blink', 'data-phase':'0.3', 'pointer-events':'none' }));
-  },
+  // [v17.0.1] Air Intake uses source_atm bell-mouth icon (retired unit's visual)
+  atmosphere: null, // placeholder — assigned after object (needs source_atm reference)
   // ── Closed Loop Source (2×2 = 96×96 canvas) ──
   // Circular body with a loop-arrow inside a dark viewport showing recirculation.
   // Orange-tinted chip. Directional sub-group rotates with port edge.
@@ -28960,6 +28988,8 @@ const _RAGTAG_SYMBOLS = {
     g.appendChild(dg);
   }
 };
+// [v17.0.1] Atmosphere uses source_atm bell-mouth icon (wind streaks + louvers)
+_RAGTAG_SYMBOLS.atmosphere = _RAGTAG_SYMBOLS.source_atm;
 
 // ── ENGINEERING SYMBOLS ──
 // Helper: draw grey stubs from body edge to port positions
@@ -33516,7 +33546,18 @@ function showTip(el, text) {
   if (!text || !_ptip) return;
   clearTimeout(_ptipTimer);
   const r = el.getBoundingClientRect();
-  _ptip.textContent = text;
+  _ptip.innerHTML = text;
+  _ptip.style.left = (r.right + 8) + 'px';
+  _ptip.style.top  = (r.top + r.height / 2) + 'px';
+  _ptip.style.transform = 'translateY(-50%)';
+  _ptip.style.opacity = '1';
+}
+// [v17.0.1] Rich palette tooltip with tier, L1/L2 content, specs
+function showRichTip(el, html) {
+  if (!html || !_ptip) return;
+  clearTimeout(_ptipTimer);
+  const r = el.getBoundingClientRect();
+  _ptip.innerHTML = html;
   _ptip.style.left = (r.right + 8) + 'px';
   _ptip.style.top  = (r.top + r.height / 2) + 'px';
   _ptip.style.transform = 'translateY(-50%)';
@@ -33527,41 +33568,59 @@ function hideTip() {
   _ptip.style.opacity = '0';
 }
 
-// [v13.1.3] Build hover tooltip text for palette tile: key limits + specs in display units
+// [v17.0.1] Build rich HTML tooltip for palette tile
 function _buildTileTooltip(profile, tier) {
+  const parts = [];
+  // Tier badge
+  const tierLabel = profile.boundary ? '' : `<span style="display:inline-block;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:700;background:#1e3a5f;color:#93c5fd;margin-left:4px;">T${tier}</span>`;
+
+  // Header: name + tier
+  parts.push(`<div style="font-size:13px;font-weight:700;color:#f1f5f9;margin-bottom:2px;">${profile.name}${tierLabel}</div>`);
+
+  // L1 tagline
+  if (profile.description) {
+    parts.push(`<div style="font-size:11px;color:#94a3b8;font-style:italic;margin-bottom:4px;">${profile.description}</div>`);
+  }
+
+  // L2 selection guide
+  if (profile.selectionGuide) {
+    parts.push(`<div style="font-size:11px;color:#cbd5e1;line-height:1.4;margin-bottom:4px;">${profile.selectionGuide}</div>`);
+  }
+
+  // Specs section
   const lines = [];
   const lim = profile.limits?.[tier];
   const defs = profile.defaults?.[tier];
   const us = models.getActive('units');
-
-  // Equipment specs from defaults
   if (defs) {
-    if (defs.volume_m3 != null) lines.push(`Volume: ${(defs.volume_m3 * 1000).toFixed(0)} L`);
-    if (defs.Cv_gas != null && defs.Cv_liq != null) lines.push(`Cv: ${defs.Cv_gas} (gas) / ${defs.Cv_liq} (liq)`);
-    else if (defs.Cv_liq != null) lines.push(`Cv: ${defs.Cv_liq}`);
-    else if (defs.Cv != null) lines.push(`Cv: ${defs.Cv}`);
-    if (defs.P_bar != null) lines.push(`P: ${defs.P_bar} bar`);
-    if (defs.opening_pct != null) lines.push(`Opening: ${defs.opening_pct}%`);
-  }
-
-  // Operating limits
-  if (lim) {
-    if (lim.T_HH != null)    lines.push(`T max: ${us.temperature.from(lim.T_HH).toFixed(0)} ${us.temperature.symbol}`);
-    if (lim.T_LL != null)    lines.push(`T min: ${us.temperature.from(lim.T_LL).toFixed(0)} ${us.temperature.symbol}`);
-    if (lim.P_HH != null)    lines.push(`P max: ${us.pressure.from(lim.P_HH).toFixed(0)} ${us.pressure.symbol}`);
-    if (lim.P_LL != null)    lines.push(`P min: ${us.pressure.from(lim.P_LL).toFixed(0)} ${us.pressure.symbol}`);
-    if (lim.mass_HH != null) lines.push(`Flow max: ${us.massFlow.from(lim.mass_HH).toFixed(0)} ${us.massFlow.symbol}`);
-  }
-
-  // Battery / electrical specs
-  if (defs) {
-    if (defs.peakPower_kW != null) lines.push(`Power: ${defs.peakPower_kW} kW`);
+    if (defs.volume_m3 != null) lines.push(`📦 ${(defs.volume_m3 * 1000).toFixed(0)} L`);
+    if (defs.Cv_gas != null && defs.Cv_liq != null) lines.push(`🔧 Cv ${defs.Cv_gas}/${defs.Cv_liq}`);
+    else if (defs.Cv_liq != null) lines.push(`🔧 Cv ${defs.Cv_liq}`);
+    else if (defs.Cv != null) lines.push(`🔧 Cv ${defs.Cv}`);
+    if (defs.P_bar != null) lines.push(`⬆ ${defs.P_bar} bar`);
+    if (defs.peakPower_kW != null) lines.push(`⚡ ${defs.peakPower_kW} kW`);
     if (defs.capacity_J != null) {
       const kWh = defs.capacity_J / 3600000;
-      lines.push(`Capacity: ${kWh >= 1000 ? (kWh/1000).toFixed(0) + ' MWh' : kWh.toFixed(0) + ' kWh'}`);
+      lines.push(`🔋 ${kWh >= 1000 ? (kWh/1000).toFixed(0) + ' MWh' : kWh.toFixed(0) + ' kWh'}`);
     }
   }
-  return lines.length > 0 ? lines.join('\n') : '';
+  if (lim) {
+    const tParts = [];
+    if (lim.T_LL != null) tParts.push(`${us.temperature.from(lim.T_LL).toFixed(0)}`);
+    if (lim.T_HH != null) tParts.push(`${us.temperature.from(lim.T_HH).toFixed(0)}`);
+    if (tParts.length === 2) lines.push(`🌡 ${tParts[0]}–${tParts[1]} ${us.temperature.symbol}`);
+    else if (lim.T_HH != null) lines.push(`🌡 ≤ ${us.temperature.from(lim.T_HH).toFixed(0)} ${us.temperature.symbol}`);
+    const pParts = [];
+    if (lim.P_LL != null) pParts.push(`${us.pressure.from(lim.P_LL).toFixed(0)}`);
+    if (lim.P_HH != null) pParts.push(`${us.pressure.from(lim.P_HH).toFixed(0)}`);
+    if (pParts.length === 2) lines.push(`💨 ${pParts[0]}–${pParts[1]} ${us.pressure.symbol}`);
+    else if (lim.P_HH != null) lines.push(`💨 ≤ ${us.pressure.from(lim.P_HH).toFixed(0)} ${us.pressure.symbol}`);
+  }
+  if (lines.length > 0) {
+    parts.push(`<div style="font-size:10px;color:#64748b;border-top:1px solid #334155;padding-top:3px;margin-top:2px;">${lines.join(' · ')}</div>`);
+  }
+
+  return parts.length > 1 ? parts.join('') : (parts[0] || '');
 }
 
 function populatePalette() {
@@ -33618,12 +33677,12 @@ function populatePalette() {
       const wipTag = def._wip ? ' <span style="color:#f59e0b;font-size:9px;font-weight:700;">WIP</span>' : '';
       const tierBadge = showBadge ? `<span class="pal-tier t${tier}">Tier ${tier}</span>` : '';
 
-      tile.innerHTML = `<div class="pal-tname"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${def.color};margin-right:4px;vertical-align:middle;"></span>${profile.name}${tierBadge}${wipTag}</div>`;
+      const _catColor = typeof profile.category === 'string'
+        ? '#64748b' : (profile.category?.color || def.color || '#64748b');
+      tile.innerHTML = `<div class="pal-tname"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${_catColor};margin-right:4px;vertical-align:middle;"></span>${profile.name}${tierBadge}${wipTag}</div>`;
       const _tip = _buildTileTooltip(profile, tier);
-      if (_tip) {
-        tile.addEventListener('mouseenter', () => showTip(tile, _tip));
-        tile.addEventListener('mouseleave', hideTip);
-      }
+      tile.addEventListener('mouseenter', () => showRichTip(tile, _tip));
+      tile.addEventListener('mouseleave', hideTip);
 
       tile.addEventListener('dragstart', (ev) => {
         hideTip();
@@ -45942,8 +46001,8 @@ function runTests() {
   tests.push({ name: '196: Category ordering follows defined order', fn: t => {
     const cats = UnitRegistry.listByCategory();
     const catNames = Object.keys(cats);
-    // Verify first 8 categories match expected order
-    const expected = ['Streams', 'Heat', 'Pressure', 'Reactor', 'Separation & Mixing', 'Storage', 'Power', 'Closed Loop'];
+    // [v17.0.2] 7 categories after ENVIRONMENT/CLOSED_LOOP merge
+    const expected = ['Supply & Drain', 'Heat', 'Pressure', 'Reactor', 'Separation & Mixing', 'Storage', 'Power'];
     for (let i = 0; i < expected.length; i++) {
       t.assertOK(catNames[i] === expected[i], `Category ${i}: "${catNames[i]}" = "${expected[i]}"`);
     }
@@ -49868,11 +49927,11 @@ function runTests() {
     t.assertOK(d3.capacity_J === 3600000000, 'T3: 1 MWh (3600 MJ)');
   });
 
-  test('341h: ProfileRegistry — power_hub is tier 2 only', t => {
+  test('341h: ProfileRegistry — power_hub is tier 1', t => {
     const profile = ProfileRegistry.get('power_hub');
     t.assertOK(profile, 'Power Hub profile exists');
     t.assertOK(profile.tiers.length === 1, 'Single tier');
-    t.assertOK(profile.tiers[0] === 2, 'Tier 2 only');
+    t.assertOK(profile.tiers[0] === 1, 'Tier 1');
   });
 
   test('341i: ProfileRegistry — boundary units flagged, single-tier, no limits', t => {
@@ -51124,11 +51183,13 @@ function runTests() {
     t.assertOK(kidney.config?.composite === true, 'kidney composite=true');
     t.assertOK(leaf.config?.composite === true,   'leaf composite=true');
     t.assertOK(scrub.config?.composite === true,  'scrubber composite=true');
-    // [v15.1.0] Composite skip disabled — composites now visible in listByCategory
+    // [v17.0.1] Deprecated composites hidden from listByCategory, non-deprecated visible
     const byCategory = ProfileRegistry.listByCategory();
     const allProfiles = Object.values(byCategory).flat();
     const memProfiles = allProfiles.filter(p => p.defId === 'membrane_separator');
-    t.assertOK(memProfiles.length >= 3, 'Composite membrane profiles visible (got ' + memProfiles.length + ')');
+    t.assertOK(memProfiles.length >= 1, 'Non-deprecated membrane profiles visible (got ' + memProfiles.length + ')');
+    t.assertOK(!memProfiles.find(p => p.profileId === 'membrane_kidney'), 'kidney hidden (deprecated)');
+    t.assertOK(!memProfiles.find(p => p.profileId === 'membrane_leaf'), 'leaf hidden (deprecated)');
     // Templates are excluded when excludeTemplates is set
     const filtered = Object.values(ProfileRegistry.listByCategory({ excludeTemplates: true })).flat();
     const tplProfiles = filtered.filter(p => p.config?.template);
