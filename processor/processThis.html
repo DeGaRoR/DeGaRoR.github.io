@@ -8830,7 +8830,7 @@ function computeDiurnal(t_s, diurnal) {
   const dayOffset = (hDay1 - 0.5) * 4;            // ±2K random offset
   const ampScale = 0.7 + hDay2 * 0.8;             // 0.7–1.5× amplitude
   const swing = Math.min(diurnal.T_swing_K * ampScale, diurnal.T_swing_max_K || 15);
-  const T_K = T_mean + dayOffset - swing * Math.cos(T_phase);
+  const T_K = T_mean + dayOffset + swing * Math.cos(T_phase);
 
   // ── Solar: squared cosine bell, zero at night ──
   const solarPhase = 2 * Math.PI * (dayFrac - 0.5); // peak at noon
