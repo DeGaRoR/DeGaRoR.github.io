@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v17.0.3
+  processThis v17.1.0
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -453,6 +453,48 @@
   NNGs: NNG-14 (changelog).
   Tests: 607 total, 3145 checks, 0 failures.
 
+  ─── v17.1.0 — Power Dispatcher T1 + generalized dispatch ──────────────
+
+  **New `power_dispatcher_5` defId.**  2×3 vertical unit with 5
+  explicit input ports (left), 5 output ports (right), and 1 surplus
+  port (top/bottom).  4 presentations: default, mirror, surplus-B,
+  mirror-surplus-B.  Same dispatch logic as the multi-connect hub.
+
+  **Shared `_powerDispatchTick()`.**  Extracted from inline power_hub
+  tick.  Dynamically discovers ports from def — works for any port
+  count.  Both power_hub and power_dispatcher_5 call it.
+
+  **Generalized Step C dispatch.**  `isDispatcher` flag on def (added
+  to UnitRegistry field list) replaces 6 hardcoded `defId === 'power_hub'`
+  checks.  Port discovery uses `def.ports.filter()` instead of hardcoded
+  `'elec_in'`/`'elec_out'`/`'elec_surplus'` names.  Surplus ports
+  identified by `_surplus: true` flag.  Backward-compatible: old
+  power_hub resolves to same port sets as before.
+
+  **Profile changes:**
+  - `power_dispatcher_5` profile: T1 "Power Dispatcher"
+  - `power_hub` profile: T3 "Power Dispatcher (Multi)"
+
+  **Ragtag symbol** for dispatcher T1: breaker lines per port, central
+  busbar, surplus danger triangle (ISO bolt), curtailment warning,
+  relay blocks.  Same design language as T3 hub.
+
+  NNGs: NNG-14 (changelog).
+  Tests: 607 total, 3147 checks, 0 failures.
+
+  ─── v17.0.4 — Mixer S-curve visual fix ─────────────────────────────────
+
+  **Mixer Y-junction S-curves reach ports directly.**  S-curves now
+  extend from port position to body face — no grey procedural stub
+  segment.  Shape is a true cubic S-curve: horizontal tangent at port,
+  vertical tangent at body.  Midpoint control at (portX+bodyX)/2.
+  Elbow tip registered at port position itself so _rtNozzle produces
+  zero-length stub (skipped).  Custom flanges removed — existing port
+  flanges from _rtPortOverlays handle the junction.
+
+  NNGs: NNG-14 (changelog).
+  Tests: 607 total, 3143 checks, 0 failures.
+
   ─── v17.0.3 — rAF-driven smoke system ──────────────────────────────────
 
   **New smoke/plume engine.**  Replaces CSS `@keyframes smoke-rise`
@@ -466,8 +508,12 @@
   `SMOKE_SPEED_SCALE` per play speed.  Fried smoke: always advances
   (rAF chain continues when paused if fried units exist).
 
-  Old CSS smoke system disabled (code preserved, call commented out).
-  Settings sub-toggle `animSmokeEffects` still controls both systems.
+  **Old CSS smoke system retired.**  Removed: `@keyframes smoke-rise`,
+  `.smoke-puff`/`.smoke-puff-active` CSS classes, `_appendSmokeEmitter`
+  function, `_smokePuffBudget` variable, play/pause animation-state
+  toggles.  Kept: SVG filters (shared), `_computeSmokeConfig`,
+  `_smokeRand`, `_FRIED_SMOKE_CFG`, `SMOKE_SPEED_SCALE`, settings
+  sub-toggle `animSmokeEffects`.
 
   NNGs: NNG-14 (changelog).
   Tests: 607 total, 3143 checks, 0 failures.
@@ -3642,25 +3688,6 @@
     .unit-fried-overlay {
       fill: #7f1d1d; fill-opacity: 0.35; pointer-events: none;
       rx: 8;
-    }
-
-    /* ===== S-SMOKE: Smoke/plume visual effects [v15.1.0] ===== */
-    @keyframes smoke-rise {
-      0%   { transform: translate(0, 0) scale(var(--s0, 0.4)); opacity: var(--op0, 0.5); }
-      15%  { opacity: var(--op-peak, 0.6); }
-      100% { transform: translate(var(--dx, 0px), var(--rise, -60px)) scale(var(--s1, 1.4)); opacity: 0; }
-    }
-    .smoke-puff {
-      animation: smoke-rise var(--dur, 3s) ease-out infinite;
-      animation-delay: var(--delay, 0s);
-      animation-play-state: paused;
-      pointer-events: none;
-      will-change: transform, opacity;
-      transform-box: fill-box;
-      transform-origin: center;
-    }
-    .smoke-puff-active {
-      animation-play-state: running;
     }
 
     /* [v17.0.0 S-FLOW] Flow particles on connections */
@@ -14838,7 +14865,9 @@ class UnitRegistry {
       limitParams: spec.limitParams || null,
       limits: spec.limits || null,
       // [v13.1.0] Override which port equipment limits check (default: first material OUT)
-      limitPort: spec.limitPort || null
+      limitPort: spec.limitPort || null,
+      // [v17.0.4] Dispatcher flag — recognized by Step C power dispatch
+      isDispatcher: spec.isDispatcher || false
     };
     this._defs.set(defId, def);
   }
@@ -16755,12 +16784,13 @@ function checkOverload(W_delivered, W_rated, u) {
 UnitRegistry.register('power_hub', {
   name: 'Power Hub',
   category: UnitCategories.POWER_MANAGEMENT,
+  isDispatcher: true,
   w: 2,
   h: 3,
   ports: [
     { portId: 'elec_in',  dir: PortDir.IN,  type: StreamType.ELECTRICAL, x: 0, y: 1.5, multiConnect: true },
     { portId: 'elec_out', dir: PortDir.OUT, type: StreamType.ELECTRICAL, x: 2, y: 1.5, multiConnect: true },
-    { portId: 'elec_surplus', dir: PortDir.OUT, type: StreamType.ELECTRICAL, x: 1, y: 0, label: 'overflow' }
+    { portId: 'elec_surplus', dir: PortDir.OUT, type: StreamType.ELECTRICAL, x: 1, y: 0, label: 'overflow', _surplus: true }
   ],
   // [v10.9.2] Presentation layer
   presentations: {
@@ -16802,6 +16832,107 @@ UnitRegistry.register('power_hub', {
     };
   }
 });
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// POWER DISPATCHER (T1) — Explicit 5-in/5-out busbar with surplus port
+// Shares dispatch logic with power_hub (T3 multi-connect variant).
+// Step C handles the actual allocation — tick just advertises capacity.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Shared tick: works for any dispatcher regardless of port count
+function _powerDispatchTick(u, ports, par, ctx) {
+  const def = UnitRegistry.get(u.defId);
+  // Sum all electrical inputs
+  let totalCapacity_W = 0;
+  for (const p of def.ports) {
+    if (p.dir === PortDir.IN && p.type === StreamType.ELECTRICAL) {
+      const ps = ports[p.portId];
+      totalCapacity_W += ps ? (ps.capacity ?? 0) : 0;
+    }
+  }
+  const s = ctx ? ctx.scratch : {};
+  const distAvail_W = s.hubDistAvail_W !== undefined ? s.hubDistAvail_W : totalCapacity_W;
+
+  // Advertise supply on all electrical output ports (except surplus)
+  for (const p of def.ports) {
+    if (p.dir === PortDir.OUT && p.type === StreamType.ELECTRICAL && !p._surplus) {
+      ports[p.portId] = {
+        type: StreamType.ELECTRICAL,
+        capacity: totalCapacity_W,
+        actual: distAvail_W,
+        available: distAvail_W
+      };
+    }
+  }
+
+  // Surplus: carry forward from Step C scratch
+  const hasSurplusConn = ctx.portConnected('elec_surplus');
+  const surpVal = s.hubSurplus_W ?? 0;
+  ports.elec_surplus = {
+    type: StreamType.ELECTRICAL,
+    capacity: surpVal, actual: surpVal, available: surpVal,
+    _connected: hasSurplusConn
+  };
+
+  u.last = {
+    totalCapacity_W,
+    totalSupply_W: totalCapacity_W,
+    totalDemand_W: 0,
+    curtailmentFactor: 1.0
+  };
+}
+
+{
+  // Generate port array for 5-in/5-out dispatcher
+  const _yPositions = [0.7, 1.1, 1.5, 1.9, 2.3];
+  const _inPorts = _yPositions.map((y, i) => ({
+    portId: `elec_in_${i+1}`, dir: PortDir.IN, type: StreamType.ELECTRICAL, x: 0, y
+  }));
+  const _outPorts = _yPositions.map((y, i) => ({
+    portId: `elec_out_${i+1}`, dir: PortDir.OUT, type: StreamType.ELECTRICAL, x: 2, y
+  }));
+  const _surplusPort = {
+    portId: 'elec_surplus', dir: PortDir.OUT, type: StreamType.ELECTRICAL,
+    x: 1, y: 0, label: 'surplus', _surplus: true
+  };
+  const _allPorts = [..._inPorts, ..._outPorts, _surplusPort];
+
+  // Build presentation port maps
+  const _presDefault = {}, _presReversed = {}, _presSurpB = {}, _presRevSurpB = {};
+  for (const p of _inPorts) {
+    _presDefault[p.portId]     = { x: 0, y: p.y };
+    _presReversed[p.portId]    = { x: 2, y: p.y };
+    _presSurpB[p.portId]       = { x: 0, y: p.y };
+    _presRevSurpB[p.portId]    = { x: 2, y: p.y };
+  }
+  for (const p of _outPorts) {
+    _presDefault[p.portId]     = { x: 2, y: p.y };
+    _presReversed[p.portId]    = { x: 0, y: p.y };
+    _presSurpB[p.portId]       = { x: 2, y: p.y };
+    _presRevSurpB[p.portId]    = { x: 0, y: p.y };
+  }
+  _presDefault['elec_surplus']     = { x: 1, y: 0 };
+  _presReversed['elec_surplus']    = { x: 1, y: 0 };
+  _presSurpB['elec_surplus']       = { x: 1, y: 3 };
+  _presRevSurpB['elec_surplus']    = { x: 1, y: 3 };
+
+  UnitRegistry.register('power_dispatcher_5', {
+    name: 'Power Dispatcher (5)',
+    category: UnitCategories.POWER_MANAGEMENT,
+    isDispatcher: true,
+    w: 2,
+    h: 3,
+    ports: _allPorts,
+    presentations: {
+      'box/default':          { w: 2, h: 3, ports: _presDefault },
+      'box/mirror':           { w: 2, h: 3, ports: _presReversed },
+      'box/surplus-B':        { w: 2, h: 3, ports: _presSurpB },
+      'box/mirror-surplus-B': { w: 2, h: 3, ports: _presRevSurpB }
+    },
+    limitParams: [],
+    tick: _powerDispatchTick
+  });
+}
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // ELECTRICAL SINK — Absorbs and accounts for electrical power
@@ -20210,10 +20341,14 @@ ProfileRegistry.register('battery', {
     3: { peakPower_kW: 500, capacity_J: 3600000000, initialSOC: 0.9 }    // 1 MWh
   }
 });
-// Power Hub: demo-scale coordination device — tier 2 only
-ProfileRegistry.register('power_hub', { defId: 'power_hub', name: 'Power Dispatcher', category: UnitCategories.POWER_MANAGEMENT, tiers: [1], limits: {},
+// [v17.0.4] Power Dispatcher T1: explicit 5+5 ports, available from game start
+ProfileRegistry.register('power_dispatcher_5', { defId: 'power_dispatcher_5', name: 'Power Dispatcher', category: UnitCategories.POWER_MANAGEMENT, tiers: [1], limits: {},
   description: 'Fuse box with priorities',
-  selectionGuide: 'Collects power from all your sources and hands it out to equipment. Essential gear gets power first — the rest gets what\'s left.' });
+  selectionGuide: 'Collects power from up to 5 sources and distributes to 5 consumers. Life support gets power first — the rest gets what\'s left.' });
+// Power Hub: T3 multi-connect — unlimited connections per port, for experienced players
+ProfileRegistry.register('power_hub', { defId: 'power_hub', name: 'Power Dispatcher (Multi)', category: UnitCategories.POWER_MANAGEMENT, tiers: [3], limits: {},
+  description: 'Unlimited-port power bus',
+  selectionGuide: 'Same logic as the standard dispatcher, but each port accepts unlimited connections. For complex grids where 5 slots aren\'t enough.' });
 
 // ── Process equipment (limits keyed by tier) ──
 // [v14.0.1] Tank profiles: dev (unconstrained), vented, atmospheric, pressure vessel
@@ -20886,7 +21021,7 @@ class Scene {
     // [v4.4.0] Hub-to-hub rejection — cascaded hubs silently produce wrong
     // power balances because Step C doesn't propagate demand or curtailment
     // across hub boundaries.  Block until proper hierarchical dispatch exists.
-    if (uFrom.defId === 'power_hub' && uTo.defId === 'power_hub') {
+    if (UnitRegistry.get(uFrom.defId)?.isDispatcher && UnitRegistry.get(uTo.defId)?.isDispatcher) {
       this._lastConnectError = 'Hub-to-hub connection not supported.';
       return null;
     }
@@ -22623,7 +22758,7 @@ function solveScene(scene, options = {}) {
   for (const c of scene.connections) {
     const fromU = scene.units.get(c.from.unitId);
     const toU   = scene.units.get(c.to.unitId);
-    if (fromU?.defId === 'power_hub' && toU?.defId === 'power_hub') {
+    if (UnitRegistry.get(fromU?.defId)?.isDispatcher && UnitRegistry.get(toU?.defId)?.isDispatcher) {
       const msg = 'Hub-to-hub connection not supported — demand and curtailment cannot propagate between hubs.';
       for (const uid of [c.from.unitId, c.to.unitId]) {
         const ud = scene.runtime.unitData.get(uid);
@@ -23295,14 +23430,21 @@ function solveScene(scene, options = {}) {
     }
     
     // Step C: Hub balancing — compute dispatch, curtailment, surplus
+    // [v17.0.4] Generalized: works with any isDispatcher unit (power_hub, power_dispatcher_5, etc.)
     for (const [_id, _u] of scene.units) {
-      if (_u.defId !== 'power_hub') continue;
-      
+      const _hubDef = UnitRegistry.get(_u.defId);
+      if (!_hubDef?.isDispatcher) continue;
+
       const _ud = scene.runtime.unitData.get(_id);
+
+      // Discover port roles from def (not hardcoded names)
+      const _inPortIds = _hubDef.ports.filter(p => p.dir === PortDir.IN && p.type === StreamType.ELECTRICAL).map(p => p.portId);
+      const _surpPortIds = _hubDef.ports.filter(p => p._surplus).map(p => p.portId);
+      const _outPortIds = _hubDef.ports.filter(p => p.dir === PortDir.OUT && p.type === StreamType.ELECTRICAL && !p._surplus).map(p => p.portId);
       
-      // ── Classify sources on elec_in ──
+      // ── Classify sources on electrical input ports ──
       const inConns = scene.connections.filter(
-        c => c.to.unitId === _id && c.to.portId === 'elec_in'
+        c => c.to.unitId === _id && _inPortIds.includes(c.to.portId)
       );
       let physicsFixed_W = 0;   // turbines etc. — output set by fluid, non-throttleable
       let responsiveMax_W = 0;  // grid_supply — demand-responsive, throttleable
@@ -23335,9 +23477,9 @@ function solveScene(scene, options = {}) {
         sources.push(srcInfo);
       }
       
-      // ── Build consumer list from elec_out connections ──
+      // ── Build consumer list from electrical output connections ──
       const outConns = scene.connections.filter(
-        c => c.from.unitId === _id && c.from.portId === 'elec_out'
+        c => c.from.unitId === _id && _outPortIds.includes(c.from.portId)
       );
       const consumers = [];
       let totalDemand_W = 0;
@@ -23425,27 +23567,29 @@ function solveScene(scene, options = {}) {
       // ── Update output ports ──
       // [v13.1.0 S2-pre] Dispatch metadata (demand, CF) removed from ports —
       // now lives in ud.last and scratch only.  Ports carry physical state only.
-      const oldHubPorts = {
-        elec_out: _ud.ports.elec_out ? { ...(_ud.ports.elec_out) } : null,
-        elec_surplus: _ud.ports.elec_surplus ? { ...(_ud.ports.elec_surplus) } : null
-      };
+      const oldHubPorts = {};
+      for (const pid of [..._outPortIds, ..._surpPortIds]) oldHubPorts[pid] = _ud.ports[pid] ? { ..._ud.ports[pid] } : null;
       
-      if (_ud.ports.elec_out) {
-        _ud.ports.elec_out.capacity = physicsFixed_W + responsiveMax_W + batteryMaxDischarge_W;
-        _ud.ports.elec_out.actual = totalSupply_W;
-        _ud.ports.elec_out.available = totalSupply_W;  // deprecated alias
+      for (const pid of _outPortIds) {
+        if (_ud.ports[pid]) {
+          _ud.ports[pid].capacity = physicsFixed_W + responsiveMax_W + batteryMaxDischarge_W;
+          _ud.ports[pid].actual = totalSupply_W;
+          _ud.ports[pid].available = totalSupply_W;  // deprecated alias
+        }
       }
-      // [v11.0.0] elec_surplus: route physics-determined overproduction
-      if (_ud.ports.elec_surplus) {
-        _ud.ports.elec_surplus.capacity = netSurplus_W;
-        _ud.ports.elec_surplus.actual = netSurplus_W;
-        _ud.ports.elec_surplus.available = netSurplus_W;
+      // [v11.0.0] surplus: route physics-determined overproduction
+      for (const pid of _surpPortIds) {
+        if (_ud.ports[pid]) {
+          _ud.ports[pid].capacity = netSurplus_W;
+          _ud.ports[pid].actual = netSurplus_W;
+          _ud.ports[pid].available = netSurplus_W;
+        }
       }
       // [v13.1.0 S2-A] Unified surplus check: unabsorbed energy → bus failure
-      // Sum absorber capacity from all functional sinks on elec_surplus.
+      // Sum absorber capacity from all functional sinks on surplus ports.
       // If surplus exceeds total capacity, the bus has unabsorbed energy:
-      // overvoltage destroys every consumer on the bus (elec_out connections).
-      const surplusConns = scene.connections.filter(c => c.from.unitId === _id && c.from.portId === 'elec_surplus');
+      // overvoltage destroys every consumer on the bus (output connections).
+      const surplusConns = scene.connections.filter(c => c.from.unitId === _id && _surpPortIds.includes(c.from.portId));
       let totalAbsorberCapacity_W = 0;
       for (const conn of surplusConns) {
         const sinkU = scene.units.get(conn.to.unitId);
@@ -23488,10 +23632,8 @@ function solveScene(scene, options = {}) {
         }
       }
       
-      const newHubPorts = {
-        elec_out: _ud.ports.elec_out ? { ...(_ud.ports.elec_out) } : null,
-        elec_surplus: _ud.ports.elec_surplus ? { ...(_ud.ports.elec_surplus) } : null
-      };
+      const newHubPorts = {};
+      for (const pid of [..._outPortIds, ..._surpPortIds]) newHubPorts[pid] = _ud.ports[pid] ? { ..._ud.ports[pid] } : null;
       if (portsChanged(oldHubPorts, newHubPorts)) changed = true;
       
       // ── Demand writeback to sources on elec_in ──
@@ -23575,14 +23717,14 @@ function solveScene(scene, options = {}) {
       // Skip units connected to a hub (hub handles their demand)
       const connectedToHub = outConns.some(c => {
         const targetU = scene.units.get(c.to.unitId);
-        return targetU && targetU.defId === 'power_hub';
+        return targetU && UnitRegistry.get(targetU.defId)?.isDispatcher;
       });
       if (connectedToHub) continue;
       
-      // Also check if connected to hub via elec_in (battery/grid_supply → hub.elec_in)
+      // Also check if connected to hub via any electrical input port
       const hubInConn = scene.connections.some(c =>
-        c.from.unitId === _id && c.to.portId === 'elec_in' &&
-        scene.units.get(c.to.unitId)?.defId === 'power_hub'
+        c.from.unitId === _id &&
+        UnitRegistry.get(scene.units.get(c.to.unitId)?.defId)?.isDispatcher
       );
       if (hubInConn) continue;
       
@@ -23667,7 +23809,7 @@ function solveScene(scene, options = {}) {
       const _ud = scene.runtime.unitData.get(_id);
       const outConns = scene.connections.filter(c => c.from.unitId === _id && c.from.portId === 'elec_out');
       // Skip if connected to a hub (hub handles surplus)
-      const connectedToHub = outConns.some(c => scene.units.get(c.to.unitId)?.defId === 'power_hub');
+      const connectedToHub = outConns.some(c => UnitRegistry.get(scene.units.get(c.to.unitId)?.defId)?.isDispatcher);
       if (connectedToHub) continue;
       // Turbine output (physics-fixed)
       const turbOutput_W = _ud?.ports?.elec_out?.actual ?? 0;
@@ -27045,59 +27187,6 @@ function _computeSmokeConfig(u, def) {
   };
 }
 
-let _smokePuffBudget = 0;
-const _SMOKE_PUFF_CAP = 80;
-
-function _appendSmokeEmitter(parentGroup, cx, cy, cfg, isPlaying, playSpeed) {
-  const available = _SMOKE_PUFF_CAP - _smokePuffBudget;
-  if (available <= 0) return;
-  const count = Math.min(cfg.puffCount, available);
-  _smokePuffBudget += count;
-
-  const speedScale = SMOKE_SPEED_SCALE[playSpeed] || 1.0;
-  const scaledDur = cfg.isFried ? cfg.duration : cfg.duration * speedScale;
-  const filters = cfg.isFried ? ['smoke-fried'] : ['smoke-f1', 'smoke-f2', 'smoke-f3'];
-
-  for (let i = 0; i < count; i++) {
-    const rxVar = cfg.puffRx * (0.7 + _smokeRand(i, 0) * 0.6);
-    const ryVar = cfg.puffRy * (0.7 + _smokeRand(i, 1) * 0.6);
-    const dx = (_smokeRand(i, 2) - 0.5) * cfg.driftRange * 2;
-    const riseVar = 0.85 + _smokeRand(i, 3) * 0.3;
-
-    const puff = svgEl('ellipse', {
-      cx, cy, rx: rxVar, ry: ryVar,
-      fill: cfg.color,
-      filter: `url(#${filters[i % filters.length]})`,
-      class: 'smoke-puff', 'pointer-events': 'none'
-    });
-
-    puff.style.setProperty('--dur', scaledDur + 's');
-    puff.style.setProperty('--dx', dx.toFixed(1) + 'px');
-    puff.style.setProperty('--rise', (-cfg.riseHeight * riseVar).toFixed(1) + 'px');
-    puff.style.setProperty('--s0', cfg.scaleStart.toFixed(2));
-    puff.style.setProperty('--s1', cfg.scaleEnd.toFixed(2));
-    puff.style.setProperty('--op0', cfg.opacityStart.toFixed(2));
-    puff.style.setProperty('--op-peak', cfg.opacityPeak.toFixed(2));
-
-    if (cfg.isFried) {
-      const stagger = (i / count) * scaledDur;
-      puff.style.animationDelay = `${-stagger}s`;
-      puff.style.animationPlayState = 'running';
-    } else if (isPlaying) {
-      const elapsed = (Date.now() - _playStartedAt) / 1000;
-      const stagger = (i / count) * scaledDur;
-      puff.style.animationDelay = `${-(elapsed + stagger)}s`;
-      puff.classList.add('smoke-puff-active');
-    } else {
-      const stagger = (i / count) * scaledDur;
-      puff.style.setProperty('--delay', stagger + 's');
-      puff.style.animationDelay = stagger + 's';
-    }
-
-    parentGroup.appendChild(puff);
-  }
-}
-
 // ═══════════════════════════════════════════════════════════════════════════════
 // [v15.2.0 S-ICONS] Themed symbol rendering functions
 // Each: (group, wx, wy, ww, wh, pal, def, unitId)
@@ -28623,51 +28712,32 @@ const _RAGTAG_SYMBOLS = {
     if (isYjunction) {
       const in1x = wx + (in1?.x ?? 0) * t, in1y = wy + (in1?.y ?? 0) * t;
       const in2x = wx + (in2?.x ?? 0) * t, in2y = wy + (in2?.y ?? 2) * t;
-      const outx = wx + (out?.x ?? 2) * t, outy = wy + (out?.y ?? 1) * t;
       const inLeft = in1E === 'left';
       const bodyFaceX = inLeft ? bx : bx + bw;
-      const dir = inLeft ? 1 : -1;
-      // S-curve tip: 16px from body face, on port centerline
-      const tipOff = 16 * dir;
-      const tip1X = bodyFaceX - tipOff, tip1Y = in1y;
-      const tip2X = bodyFaceX - tipOff, tip2Y = in2y;
-      // Register tips so _rtNozzle starts stubs from here
+
+      // 1. Nozzle stubs for output only — inlet S-curves reach ports directly
+      // Register inlet ports as "handled" so _rtNozzle skips them
       if (!_rtNozzle._elbowTips) _rtNozzle._elbowTips = new Map();
-      _rtNozzle._elbowTips.set(`${unitId}:mat_in_1`, { x: tip1X, y: tip1Y });
-      _rtNozzle._elbowTips.set(`${unitId}:mat_in_2`, { x: tip2X, y: tip2Y });
-      // Output stub tip — straight from body face
-      const outFace = inLeft ? bx + bw : bx;
-      // 1. Nozzle stubs behind everything
+      _rtNozzle._elbowTips.set(`${unitId}:mat_in_1`, { x: in1x, y: in1y });
+      _rtNozzle._elbowTips.set(`${unitId}:mat_in_2`, { x: in2x, y: in2y });
       _rtNozzle(g, wx, wy, ww, wh, bx, by, bw, bh, def, pres, pal, unitId);
-      // 2. Body-colored S-curves: each inlet curves independently into body
+
+      // 2. Body-colored S-curves: port position → body face
+      // Proper S-shape: starts horizontal at port, sweeps into body
       const bodyFill = pal.fillUrl || pal.fill || pal.stroke;
-      // S-curve in1: from tip1 → body top area
       const s1EndY = by + 4;
-      const s1d = `M${tip1X},${tip1Y} C${tip1X + tipOff * 0.6},${tip1Y} ${bodyFaceX - dir * 2},${s1EndY + (tip1Y - s1EndY) * 0.3} ${bodyFaceX},${s1EndY}`;
+      const s2EndY = by + bh - 4;
+      const midX = (in1x + bodyFaceX) / 2;
+
+      // S-curve in1: port → body top
+      const s1d = `M${in1x},${in1y} C${midX},${in1y} ${midX},${s1EndY} ${bodyFaceX},${s1EndY}`;
       g.appendChild(svgEl('path', { d: s1d, fill:'none', stroke: pal.stroke, 'stroke-width':10, 'stroke-linecap':'butt', 'pointer-events':'none' }));
       g.appendChild(svgEl('path', { d: s1d, fill:'none', stroke: bodyFill, 'stroke-width':6, 'stroke-linecap':'butt', 'pointer-events':'none' }));
-      // S-curve in2: from tip2 → body bottom area
-      const s2EndY = by + bh - 4;
-      const s2d = `M${tip2X},${tip2Y} C${tip2X + tipOff * 0.6},${tip2Y} ${bodyFaceX - dir * 2},${s2EndY + (tip2Y - s2EndY) * 0.3} ${bodyFaceX},${s2EndY}`;
+
+      // S-curve in2: port → body bottom
+      const s2d = `M${in2x},${in2y} C${midX},${in2y} ${midX},${s2EndY} ${bodyFaceX},${s2EndY}`;
       g.appendChild(svgEl('path', { d: s2d, fill:'none', stroke: pal.stroke, 'stroke-width':10, 'stroke-linecap':'butt', 'pointer-events':'none' }));
       g.appendChild(svgEl('path', { d: s2d, fill:'none', stroke: bodyFill, 'stroke-width':6, 'stroke-linecap':'butt', 'pointer-events':'none' }));
-      // Split flanges at S-curve tips
-      if (ui.showFlanges) {
-        for (const tipX of [tip1X, tip2X]) {
-          const tipY = tipX === tip1X ? tip1Y : tip2Y;
-          const goRight = !inLeft; // stub goes toward port (away from body)
-          const fShift = goRight ? 4 : -4;
-          const fg = svgEl('g', { transform: `translate(${tipX + fShift},${tipY})`, 'pointer-events': 'none' });
-          const uOff = goRight ? -4 : 0;
-          fg.appendChild(svgEl('rect', { x: uOff, y: -7, width: 4, height: 14, rx: 1.5, fill: bodyFill, stroke: '#374151', 'stroke-width': 1.2 }));
-          const sOff = goRight ? 0 : -4;
-          fg.appendChild(svgEl('rect', { x: sOff, y: -7, width: 4, height: 14, rx: 1.5, fill: '#4b5563', stroke: '#374151', 'stroke-width': 1.2 }));
-          fg.appendChild(svgEl('line', { x1: 0, y1: -7, x2: 0, y2: 7, stroke: '#6b7280', 'stroke-width': 0.8, 'stroke-dasharray': '2 1.5' }));
-          [[-2,-5],[-2,5],[2,-5],[2,5]].forEach(([bx2, by2]) =>
-            fg.appendChild(svgEl('circle', { cx: bx2, cy: by2, r: 1.3, fill: '#9ca3af', stroke: '#374151', 'stroke-width': 0.6 })));
-          g.appendChild(fg);
-        }
-      }
     } else {
       // T-junction (recycle): straight stubs via _rtNozzle
       _rtNozzle(g, wx, wy, ww, wh, bx, by, bw, bh, def, pres, pal, unitId);
@@ -29010,6 +29080,97 @@ const _RAGTAG_SYMBOLS = {
 // [v17.0.1] Atmosphere uses source_atm bell-mouth icon (wind streaks + louvers)
 _RAGTAG_SYMBOLS.atmosphere = _RAGTAG_SYMBOLS.source_atm;
 
+// [v17.0.4] Power Dispatcher T1 — 5+5 explicit ports with visual feedback
+_RAGTAG_SYMBOLS.power_dispatcher_5 = function(g, wx, wy, ww, wh, pal, def, unitId) {
+  const pres = getPresentation(def, scene.units.get(unitId));
+  const t = scene.tile;
+  // Body panel — wider for arrow space on sides
+  const bx = wx+6, by = wy+8, bw = 84, bh = 128;
+  _rtNozzle(g, wx, wy, ww, wh, bx, by, bw, bh, def, pres, pal, unitId);
+  g.appendChild(svgEl('rect', { x:bx, y:by, width:bw, height:bh, rx:6, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'pointer-events':'none' }));
+
+  // Port Y positions (centered: 0.7–2.3, midpoint = 1.5)
+  const _yPos = [0.7, 1.1, 1.5, 1.9, 2.3];
+
+  // ── Status-colored arrows on wide metal margins ──
+  const _ud = scene.runtime?.unitData?.get(unitId);
+  const _conns = scene.connections;
+  const _portStatus = (portId, dir) => {
+    const conn = dir === PortDir.IN
+      ? _conns.find(c => c.to.unitId === unitId && c.to.portId === portId)
+      : _conns.find(c => c.from.unitId === unitId && c.from.portId === portId);
+    if (!conn) return '#4b5563';
+    const remoteId = dir === PortDir.IN ? conn.from.unitId : conn.to.unitId;
+    if (scene.units.get(remoteId)?.fried) return '#ef4444';
+    const ps = _ud?.ports?.[portId];
+    if (Math.abs(ps?.actual ?? 0) > 0.5) return '#22c55e';
+    return '#f97316';
+  };
+  for (let i = 0; i < 5; i++) {
+    const ay = wy + _yPos[i] * t;
+    // Input arrow centered in left margin: body left(6) to panel left(20) → center=13
+    const lx = wx + 13;
+    const colIn = _portStatus(`elec_in_${i+1}`, PortDir.IN);
+    g.appendChild(svgEl('path', { d:`M${lx-4},${ay-4} L${lx+4},${ay} L${lx-4},${ay+4} Z`,
+      fill:colIn, opacity:0.85, 'pointer-events':'none' }));
+    // Output arrow centered in right margin: panel right(76) to body right(90) → center=83
+    const rx = wx + 83;
+    const colOut = _portStatus(`elec_out_${i+1}`, PortDir.OUT);
+    g.appendChild(svgEl('path', { d:`M${rx-4},${ay-4} L${rx+4},${ay} L${rx-4},${ay+4} Z`,
+      fill:colOut, opacity:0.85, 'pointer-events':'none' }));
+  }
+
+  // ── Dark instrument panel — inset within wider body ──
+  const vpx = wx+20, vpy = wy+22, vpw = 56, vph = 104;
+  _rtVpR(g, vpx, vpy, vpw, vph, '#1a1000', pal.rim);
+
+  // 1. Breaker levers
+  [34,48,62].forEach((x, i) => {
+    g.appendChild(svgEl('line', { x1:wx+x, y1:wy+48, x2:wx+x, y2:wy+64, stroke:'#fde047', 'stroke-width':2.5, 'stroke-linecap':'round',
+      'data-anim':'rotor-pulse', 'data-opbase':'0.4', 'pointer-events':'none' }));
+    g.appendChild(svgEl('circle', { cx:wx+x, cy:wy+44, r:3, fill:'#fbbf24', opacity:0.3, 'pointer-events':'none' }));
+  });
+
+  // 2. Horizontal busbar
+  g.appendChild(svgEl('line', { x1:wx+24, y1:wy+78, x2:wx+72, y2:wy+78, stroke:'#fde047', 'stroke-width':3, 'stroke-linecap':'round', opacity:0.4, 'pointer-events':'none' }));
+
+  // 3. 5-segment utilization gauge — 30px span matching relays below
+  const gaugeY = wy + 94;
+  for (let i = 0; i < 5; i++) {
+    const gx = wx + 33 + i * 6.5;
+    const lit = i < Math.round((_ud?.last?.totalDemand_W ?? 0) / Math.max(1, _ud?.last?.totalCapacity_W ?? 1) * 5);
+    const gCol = lit ? (i < 3 ? '#22c55e' : i < 4 ? '#fbbf24' : '#ef4444') : '#1e293b';
+    g.appendChild(svgEl('rect', { x:gx, y:gaugeY, width:4, height:7, rx:1, fill:gCol,
+      stroke: lit ? gCol : '#334155', 'stroke-width':0.8, 'pointer-events':'none' }));
+  }
+
+  // 4. Relay blocks — 3 blocks, same 30px span (33→63)
+  const relayY = wy + 112;
+  [33, 43, 53].forEach(dx => g.appendChild(svgEl('rect', { x:wx+dx, y:relayY, width:10, height:6, rx:1, fill:'#78350f', opacity:0.3, stroke:'#fde047', 'stroke-width':0.8, 'pointer-events':'none' })));
+
+  // ── Surplus warning light (pushed down from top border) ──
+  const surpPort = pres.ports.elec_surplus;
+  const surpActive = (_ud?.last?.surplus_W ?? 0) > 0.5;
+  if (surpPort) {
+    const spx = wx + surpPort.x * t;
+    const spy = surpPort.y < 1 ? wy + 33 : wy + 117;
+    const surpCol = surpActive ? '#ef4444' : '#3b1111';
+    g.appendChild(svgEl('circle', { cx:spx, cy:spy, r:3, fill:surpCol,
+      ...(surpActive ? { 'data-anim':'rotor-pulse', 'data-opbase':'0.5', 'data-amp':'0.4', 'data-speed':'2.5' } : {}),
+      'pointer-events':'none' }));
+    g.appendChild(svgEl('path', { d:`M${spx},${spy-6} L${spx-5},${spy+4} L${spx+5},${spy+4} Z`,
+      fill:'none', stroke: surpActive ? '#ef4444' : '#7f1d1d', 'stroke-width':1.2, 'stroke-linejoin':'round',
+      opacity: surpActive ? 0.8 : 0.3,
+      ...(surpActive ? { 'data-anim':'rotor-pulse', 'data-opbase':'0.5', 'data-amp':'0.3', 'data-speed':'2.5' } : {}),
+      'pointer-events':'none' }));
+  }
+
+  // Corner bolts + chip
+  _rtBolt(g, wx+12, wy+14); _rtBolt(g, wx+84, wy+14);
+  _rtBolt(g, wx+12, wy+130); _rtBolt(g, wx+84, wy+130);
+  _rtChip(g, wx+64, wy+22);
+};
+
 // ── ENGINEERING SYMBOLS ──
 // Helper: draw grey stubs from body edge to port positions
 function _engStubs(g, wx, wy, ww, wh, bx, by, bw, bh, def, pres) {
@@ -29117,12 +29278,6 @@ const _ENGINEERING_SYMBOLS = {
 
 function drawUnits() {
   const g = svgEl('g', { id: 'units' });
-  
-  // [v15.1.0 S-SMOKE] Reset smoke puff budget each render
-  _smokePuffBudget = 0;
-  const _smokeEnabled = SimSettings.animations && SimSettings.animSmokeEffects;
-  const _smokeIsPlaying = TimeClock.mode === 'playing';
-  const _smokePlaySpeed = SimSettings.playSpeed || 0;
 
   // [v12.11.0] Reuse island map computed by drawConnections (runs first in render())
   const _islands = drawConnections._islands;
@@ -29651,14 +29806,6 @@ function drawUnits() {
       }));
     }
 
-    // [v15.1.0 S-SMOKE] Old CSS smoke — disabled, replaced by rAF smoke in v17.0.2
-    // if (_smokeEnabled && !isDimmed) {
-    //   const smokeCfg = _computeSmokeConfig(u, def);
-    //   if (smokeCfg) {
-    //     _appendSmokeEmitter(group, wx + ww / 2, wy, smokeCfg, _smokeIsPlaying, _smokePlaySpeed);
-    //   }
-    // }
-
     g.appendChild(group);
   }
   
@@ -30099,9 +30246,6 @@ function render() {
 
   // [v17.0.2] Rebuild smoke puffs from JS state after SVG rebuild
   _rebuildSmokePuffs();
-
-  // [v17.0.2] Ensure rAF chain runs (fried smoke needs it even when paused)
-  if (typeof requestAnimationFrame !== 'undefined') _startIconAnim();
 }
 
 /* =========================
@@ -35996,6 +36140,7 @@ function _advanceFlowParticles(deltaSec) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 const _smokeState = new Map(); // unitId → { puffs: [...], cfg, cx, cy }
+const _SMOKE_PUFF_CAP = 80;
 const _SMOKE_FILTERS = ['smoke-f1', 'smoke-f2', 'smoke-f3'];
 
 function _rebuildSmokePuffs() {
@@ -36412,10 +36557,6 @@ function startPlay() {
   updateTransportUI();
   _startFlowArrows();
   syncPlanetBgTime('play');
-  // [v15.0.3] Unfreeze smoke animations
-  for (const el of svg.querySelectorAll('.smoke-puff-active')) {
-    el.style.animationPlayState = '';  // remove inline override, CSS class takes over
-  }
   _startIconAnim();  // [v15.2.0 S-ICONS]
   _schedulePlayTick();
 }
@@ -36479,10 +36620,6 @@ function stopPlay() {
   _stopFlowArrows();
   // [v17.0.2] rAF chain keeps running for fried smoke — _stopIconAnim removed from pause
   updateTransportUI();
-  // [v15.0.3] Freeze smoke animations in place (don't re-render — that resets positions)
-  for (const el of svg.querySelectorAll('.smoke-puff-active')) {
-    el.style.animationPlayState = 'paused';
-  }
 }
 
 /** Auto-pause on topology changes (called from connection/delete/place) */
@@ -50132,11 +50269,18 @@ function runTests() {
     t.assertOK(d3.capacity_J === 3600000000, 'T3: 1 MWh (3600 MJ)');
   });
 
-  test('341h: ProfileRegistry — power_hub is tier 1', t => {
-    const profile = ProfileRegistry.get('power_hub');
-    t.assertOK(profile, 'Power Hub profile exists');
-    t.assertOK(profile.tiers.length === 1, 'Single tier');
-    t.assertOK(profile.tiers[0] === 1, 'Tier 1');
+  test('341h: ProfileRegistry — power_hub is tier 3, power_dispatcher_5 is tier 1', t => {
+    const hub = ProfileRegistry.get('power_hub');
+    t.assertOK(hub, 'Power Hub profile exists');
+    t.assertOK(hub.tiers[0] === 3, 'power_hub is Tier 3');
+    const disp = ProfileRegistry.get('power_dispatcher_5');
+    t.assertOK(disp, 'Power Dispatcher T1 profile exists');
+    t.assertOK(disp.tiers[0] === 1, 'power_dispatcher_5 is Tier 1');
+    // Both share isDispatcher flag
+    const hubDef = UnitRegistry.get('power_hub');
+    const dispDef = UnitRegistry.get('power_dispatcher_5');
+    t.assertOK(hubDef.isDispatcher === true, 'power_hub isDispatcher');
+    t.assertOK(dispDef.isDispatcher === true, 'power_dispatcher_5 isDispatcher');
   });
 
   test('341i: ProfileRegistry — boundary units flagged, single-tier, no limits', t => {
