@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v16.9.1
+  processThis v17.0.0
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -220,7 +220,7 @@
 
             Data authority — the solver's semantic layers:
               ud.ports       stream state     set: tick+flash     read: solver, downstream ticks
-              ctx.scratch    solver memory     set: solver B-E     read: ticks (power allocation, _prevLast)
+              ctx.scratch    solver memory     set: solver (B-E + tick wrapper)  read: ticks (power, _prevLast)
               u.last         tick report       set: tick           read: inspector, alarms, stickers
               ud.errors      error/signal      set: tick+solver    read: alarm system, post-pass (_blockedInlet)
               runtime maps   P/valve/divider   set: solver pre-pass read: ticks via ctx accessors
@@ -338,6 +338,64 @@
   ═══════════════════════════════════════════════════════════════════════════
   CHANGELOG
   ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v17.0.0 — u.last Authority Invariant + Playtest Fixes ───────────────
+
+  **u.last authority invariant (NNG-9).**  The solver now enforces a
+  hard boundary: before each tick, `u.last` is saved to
+  `ctx.scratch._prevLast` (frozen) and then cleared to `{}`.  No
+  merge-back.  Ticks write a fresh report every iteration.
+
+  Violations fixed:
+  - 3 hysteresis reads (tank vent, tank overflow, open_tank overflow)
+    migrated from `u.last?._ventActive/_overflowActive` to
+    `ctx.scratch._prevLast?._ventActive/_overflowActive`.
+  - 4 `_blockedInlet` writes (gas_turbine, mixer, splitter, _applyOff/
+    _applyBypass) migrated from `u.last._blockedInlet` to
+    `ctx.warn({ ..., _blockedInlet })` or `ud.errors.push({ ...,
+    _blockedInlet })`.  Post-pass backward trace reads `ud.errors`
+    instead of `ud.last`.
+  - 2 postFlashCheck intra-call reads (HEX, gas_turbine) refactored:
+    `postFlashCheck(u, ports, tickResult)` now receives tick output as
+    explicit parameter, not by reading back from `u.last`.
+
+  NNG-9 updated: tick purity clarified as "controlled purity within a
+  solver-provided context, not mathematical purity."  Data authority
+  table expanded.  `u.last` invariant fully documented.
+
+  3 sentinel regression tests (595–597): junk-in-u.last survives solve,
+  hysteresis via scratch, _blockedInlet via ud.errors.
+
+  **Diurnal temperature bug fix.**  Sign error in `computeDiurnal`:
+  `T_mean - swing * cos(phase)` → `T_mean + swing * cos(phase)`.
+  Temperature was inverted for all planets since S-DIURNAL (coldest at
+  noon, warmest at midnight).  Single-character fix (`-` → `+`).
+
+  **Fried repair + catastrophe revert hardening.**
+  - Reset Equipment button now calls `solveScene()` after clearing
+    `u.fried`, so the unit gets fresh tick output immediately.
+  - For inventory units (tank, open_tank, battery), repair reinitializes
+    inventory via `def.initInventory(u.params)` to clear dangerous
+    conditions that caused the fry.
+  - Catastrophe revert uses `_loadCheckpoint()` directly (not `revert()`
+    which solved prematurely), reinitializes inventory for previously-
+    fried vessels, then does a single clean solve.
+
+  **Tank safety: unconnected safety port warnings.**
+  - Sealed tank: overpressure with no vent connected → MAJOR warning.
+  - Sealed tank: overflow with no overflow connected → MAJOR warning.
+  - Open tank: overflow with no overflow connected → MAJOR warning.
+
+  **Tank limits: `tank_dev` T1 tightened.**
+  P_HH 100,000,000 → 5,000,000 Pa (1000 → 50 bar).
+  T_HH 1000 → 523 K (727 → 250°C).  Pilot plant scale.
+
+  **applyLayout calls applyPlanetBg.**  Planet background visibility
+  now syncs correctly after undo/redo/autosave restore.
+
+  NNGs: NNG-9 (u.last authority), NNG-14 (changelog).
+  Tests: 599 total, 3117 checks, 0 failures.
+  +3 new tests (595–597).
 
   ─── v16.9.1 — Phase C: NNG-11 DOM extraction + numerical hardening ────
 
@@ -20002,21 +20060,43 @@ UnitRegistry.register('membrane_separator', {
    ========================= */
 
 // ── Boundary units (no limits, no tier progression — always available) ──
-ProfileRegistry.register('source_pure',  { defId: 'source',     name: 'Source',             category: UnitCategories.SOURCE,           tiers: [1], limits: {}, boundary: true, defaults: { 1: { species: 'N2', nDot: 1.0 } } });
-ProfileRegistry.register('source_mix',   { defId: 'source',     name: 'Multi Source',       category: UnitCategories.SOURCE,           tiers: [1], limits: {}, boundary: true, defaults: { 1: { n: { N2: 0.78, O2: 0.21, Ar: 0.01 } } } });
-ProfileRegistry.register('source_atmosphere', { defId: 'source_atm', name: 'Atmospheric Intake', category: UnitCategories.SOURCE,           tiers: [1], limits: {}, boundary: true, defaults: { 1: { nDot: 1.0 } } });
-ProfileRegistry.register('sink',         { defId: 'sink',         name: 'Sink',             category: UnitCategories.SINK,             tiers: [1], limits: {}, boundary: true });
-ProfileRegistry.register('grid_supply',  { defId: 'grid_supply',  name: 'Grid Supply',      category: UnitCategories.POWER,            tiers: [1], limits: {}, boundary: true });
+// [v17.0.0 S-VOICE] source_pure retired — source_mix handles pure species via n:{X:1}
+ProfileRegistry.register('source_pure',  { defId: 'source',     name: 'Feed',               category: UnitCategories.SOURCE,           tiers: [1], limits: {}, boundary: true, defaults: { 1: { species: 'N2', nDot: 1.0 } },
+  description: 'Pipe from the outside world',
+  selectionGuide: 'Delivers whatever you set — species, temperature, pressure, flow rate. Never runs out. For air specifically, use Air Intake.',
+  config: { deprecated: true } });
+ProfileRegistry.register('source_mix',   { defId: 'source',     name: 'Feed',               category: UnitCategories.SOURCE,           tiers: [1], limits: {}, boundary: true, defaults: { 1: { n: { N2: 0.78, O2: 0.21, Ar: 0.01 } } },
+  description: 'Pipe from the outside world',
+  selectionGuide: 'Delivers whatever you set — species, temperature, pressure, flow rate. Never runs out. For air specifically, use Air Intake.' });
+// [v17.0.0 S-VOICE] source_atmosphere deprecated — use 'atmosphere' profile (Air Intake)
+ProfileRegistry.register('source_atmosphere', { defId: 'source_atm', name: 'Air Intake', category: UnitCategories.SOURCE, tiers: [1], limits: {}, boundary: true, defaults: { 1: { nDot: 1.0 } },
+  description: 'Breathes in planet air',
+  selectionGuide: 'Automatically gives you whatever\'s in the atmosphere — composition, humidity, temperature all follow the planet and time of day.',
+  config: { deprecated: true } });
+ProfileRegistry.register('sink',         { defId: 'sink',         name: 'Material Dump',    category: UnitCategories.SINK,             tiers: [1], limits: {}, boundary: true,
+  description: 'Where stuff goes to leave',
+  selectionGuide: 'End of the line. Name it something useful ("Exhaust", "Water Out") so you can track what\'s going where.' });
+ProfileRegistry.register('grid_supply',  { defId: 'grid_supply',  name: 'Generator',        category: UnitCategories.POWER,            tiers: [1], limits: {}, boundary: true,
+  description: 'Reliable power, always on',
+  selectionGuide: 'Your baseline electricity. Doesn\'t care about weather or time of day. Set the kW and it delivers.' });
 // [v16.7.0 S-DIURNAL] Solar and wind profiles
-ProfileRegistry.register('solar_panel',  { defId: 'solar_panel',  name: 'Solar Panel',      category: UnitCategories.POWER,            tiers: [1], limits: {}, boundary: true, defaults: { 1: { peakPower_kW: 10 } } });
-ProfileRegistry.register('wind_turbine', { defId: 'wind_turbine', name: 'Wind Turbine',     category: UnitCategories.POWER,            tiers: [1], limits: {}, boundary: true, defaults: { 1: { peakPower_kW: 20, vDesign_ms: 12 } } });
-ProfileRegistry.register('sink_electrical', { defId: 'sink_electrical', name: 'Power Sink', category: UnitCategories.POWER_MANAGEMENT, tiers: [1], limits: {}, boundary: true });
+ProfileRegistry.register('solar_panel',  { defId: 'solar_panel',  name: 'Solar Panel',      category: UnitCategories.POWER,            tiers: [1], limits: {}, boundary: true, defaults: { 1: { peakPower_kW: 10 } },
+  description: 'Free power, but only by day',
+  selectionGuide: 'Full blast at noon, nothing at night. On Planet X the sun is weaker than Earth. Pair with a battery for 24/7 power.' });
+ProfileRegistry.register('wind_turbine', { defId: 'wind_turbine', name: 'Wind Turbine',     category: UnitCategories.POWER,            tiers: [1], limits: {}, boundary: true, defaults: { 1: { peakPower_kW: 20, vDesign_ms: 12 } },
+  description: 'Power from wind, hit or miss',
+  selectionGuide: 'Output swings with wind speed — great on gusty days, useless on calm ones. Less predictable than solar.' });
+ProfileRegistry.register('sink_electrical', { defId: 'sink_electrical', name: 'Surplus Dump', category: UnitCategories.POWER_MANAGEMENT, tiers: [1], limits: {}, boundary: true,
+  description: 'Burns off extra power',
+  selectionGuide: 'Somewhere for leftover electricity to go. Without it, excess power has nowhere to go and the dispatcher complains.' });
 
 // ── Power management (tiered) ──
 // Battery: T1 pilot (20 kW / 10 kWh), T2 demo (100 kW / 100 kWh), T3 industrial (500 kW / 1 MWh)
 ProfileRegistry.register('battery', {
   defId: 'battery', name: 'Battery', category: UnitCategories.POWER_MANAGEMENT,
   tiers: [1, 2, 3], limits: {},
+  description: 'Saves power for later',
+  selectionGuide: 'Charges when there\'s extra, drains when there\'s not enough. Key stats: how much it holds (kWh) and how fast it can charge or drain (kW).',
   defaults: {
     1: { peakPower_kW: 20,  capacity_J: 36000000,   initialSOC: 0.9 },   // 10 kWh
     2: { peakPower_kW: 100, capacity_J: 360000000,  initialSOC: 0.9 },   // 100 kWh
@@ -20024,7 +20104,9 @@ ProfileRegistry.register('battery', {
   }
 });
 // Power Hub: demo-scale coordination device — tier 2 only
-ProfileRegistry.register('power_hub', { defId: 'power_hub', name: 'Power Hub', category: UnitCategories.POWER_MANAGEMENT, tiers: [2], limits: {} });
+ProfileRegistry.register('power_hub', { defId: 'power_hub', name: 'Power Dispatcher', category: UnitCategories.POWER_MANAGEMENT, tiers: [2], limits: {},
+  description: 'Fuse box with priorities',
+  selectionGuide: 'Collects power from all your sources and hands it out to equipment. Essential gear gets power first — the rest gets what\'s left.' });
 
 // ── Process equipment (limits keyed by tier) ──
 // [v14.0.1] Tank profiles: dev (unconstrained), vented, atmospheric, pressure vessel
@@ -20044,6 +20126,8 @@ ProfileRegistry.register('tank_dev', {
 });
 ProfileRegistry.register('open_tank', {
   defId: 'open_tank', name: 'Open Tank', category: UnitCategories.VESSEL, tiers: [1, 2],
+  description: 'A bucket with a tap',
+  selectionGuide: 'For storing liquid at room conditions. Cheap but fragile — melts above 80\u00b0C and can\'t hold pressure.',
   limits: { 1: { T_LL:263, T_L:278, T_H:333, T_HH:353,
                   level_H:90, level_HH:100 },
             2: { T_LL:263, T_L:278, T_H:333, T_HH:353,
@@ -20056,7 +20140,9 @@ ProfileRegistry.register('open_tank', {
                     initialComposition:{H2O:1}, level_init:0 } }
 });
 ProfileRegistry.register('tank_low_pressure', {
-  defId: 'tank', name: 'Low Pressure Tank', category: UnitCategories.VESSEL, tiers: [1, 2],
+  defId: 'tank', name: 'Closed Tank', category: UnitCategories.VESSEL, tiers: [1, 2],
+  description: 'Sealed container with a safety valve',
+  selectionGuide: 'Holds gas or liquid under a bit of pressure. Good up to about 5 bar — beyond that, pick a Pressure Tank.',
   limits: { 1: { T_LL:263, T_L:278, T_H:333, T_HH:353,
                   P_LL:80000, P_L:85000, P_H:400000, P_HH:500000,
                   level_H:90, level_HH:100 },
@@ -20075,7 +20161,9 @@ ProfileRegistry.register('tank_low_pressure', {
                     initialComposition:{N2:1}, P_init:101325 } }
 });
 ProfileRegistry.register('tank_high_pressure', {
-  defId: 'tank', name: 'High Pressure Tank', category: UnitCategories.VESSEL, tiers: [1, 2],
+  defId: 'tank', name: 'Pressure Tank', category: UnitCategories.VESSEL, tiers: [1, 2],
+  description: 'Tough tank for high pressure',
+  selectionGuide: 'Same as a Closed Tank but handles up to 50 bar. For when the regular one keeps popping its safety valve.',
   limits: { 1: { T_LL:233, T_L:263, T_H:473, T_HH:523,
                   P_LL:50000, P_L:80000, P_H:2400000, P_HH:3000000,
                   level_H:90, level_HH:100 },
@@ -20095,45 +20183,61 @@ ProfileRegistry.register('tank_high_pressure', {
 });
 // [v13.8.0 S5a-2b] Reservoir profiles: gas, liquid, air (Planet X atmosphere)
 ProfileRegistry.register('reservoir', {
-  defId: 'reservoir', name: 'Reservoir', category: UnitCategories.SOURCE, tiers: [1],
+  defId: 'reservoir', name: 'Well', category: UnitCategories.SOURCE, tiers: [1],
+  description: 'Underground gas or liquid tap',
+  selectionGuide: 'Your main raw material source. Careful with the valve — crack it open gently or you\'ll flood everything downstream.',
   limits: {}, boundary: true,
   defaults: { 1: { P_bar:5, T:298.15, composition:{N2:1},
                     Cv:50, opening_pct:100 } }
 });
 // [v16.8.0] Atmosphere profile
 ProfileRegistry.register('atmosphere', {
-  defId: 'atmosphere', name: 'Atmosphere', category: UnitCategories.BOUNDARY, tiers: [1],
+  defId: 'atmosphere', name: 'Air Intake', category: UnitCategories.BOUNDARY, tiers: [1],
+  description: 'Breathes in planet air',
+  selectionGuide: 'Automatically gives you whatever\'s in the atmosphere — composition, humidity, temperature all follow the planet and time of day.',
   limits: {}, boundary: true,
   defaults: { 1: {} }  // Cv and opening are internal constants
 });
 // [v16.6.0] Closed Loop Source profile
 ProfileRegistry.register('closed_loop_source', {
-  defId: 'closed_loop_source', name: 'Closed Loop Source',
+  defId: 'closed_loop_source', name: 'Loop Driver',
   category: UnitCategories.CLOSED_LOOP, tiers: [1],
+  description: 'Keeps a loop circulating',
+  selectionGuide: 'Place it in a recycle loop so the solver knows where to start. Not a real device — just a helper for closed circuits.',
   limits: {}, boundary: false,
   defaults: { 1: { species: 'NH3', nDot: 1.0 } }
 });
 // [v13.8.0 S5a-2b] Restriction profile
 ProfileRegistry.register('restriction', {
-  defId: 'restriction', name: 'Restriction', category: UnitCategories.PRESSURE, tiers: [1],
+  defId: 'restriction', name: 'Flow Brake', category: UnitCategories.PRESSURE, tiers: [1],
+  description: 'Pinches the flow',
+  selectionGuide: 'Creates a pressure drop to slow things down. Bigger drop = less flow getting through.',
   limits: { 1: { T_LL: 243, T_L: 263, T_H: 523, T_HH: 623,
                   P_H: 12000000, P_HH: 15000000, mass_HH: 0.25 } }
 });
 ProfileRegistry.register('gas_turbine', {
   defId: 'gas_turbine', name: 'Gas Turbine', category: UnitCategories.PRESSURE, tiers: [1],
+  description: 'Jet engine on a generator',
+  selectionGuide: 'Feed it hot pressurized gas (from a Burner) and it spins out electricity. The exhaust is still hot — great for heat recovery.',
   limitPort: 'mat_in',
   limits: { 1: { T_LL: 173, T_L: 273, T_H: 873, T_HH: 1023, P_LL: 50000, P_L: 80000, P_H: 12000000, P_HH: 15000000, mass_LL: 0.005, mass_HH: 0.12 } }
 });
 ProfileRegistry.register('valve', {
   defId: 'valve', name: 'Pressure Regulator', category: UnitCategories.PRESSURE, tiers: [1],
+  description: 'Turns pressure down',
+  selectionGuide: 'Set the outlet pressure you want. Only goes down, never up — for that you need a compressor.',
   limits: { 1: { T_LL: 243, T_L: 263, T_H: 523, T_HH: 623, P_H: 12000000, P_HH: 15000000, mass_HH: 0.25 } }
 });
 ProfileRegistry.register('pump', {
   defId: 'pump', name: 'Pump', category: UnitCategories.PRESSURE, tiers: [1],
+  description: 'Pushes liquid harder',
+  selectionGuide: 'For liquids only — gas makes it choke. Set the pressure you need at the outlet.',
   limits: { 1: { T_LL: 263, T_L: 278, T_H: 353, T_HH: 393, P_LL: 50000, P_L: 80000, P_H: 4000000, P_HH: 5000000, mass_HH: 0.12 } }
 });
 ProfileRegistry.register('compressor', {
-  defId: 'compressor', name: 'Compressor (Piston)', category: UnitCategories.PRESSURE, tiers: [1, 2, 3],
+  defId: 'compressor', name: 'Compressor (Medium Pressure)', category: UnitCategories.PRESSURE, tiers: [1, 2, 3],
+  description: 'Squeezes gas, gets hot',
+  selectionGuide: 'General-purpose gas compression up to about 30 bar. Above that, you need the high-pressure version. Makes gas hot — plan for cooling downstream.',
   limits: {
     1: { T_LL: 243, T_L: 263, T_H: 473, T_HH: 523, P_LL: 50000, P_L: 80000, P_H: 400000, P_HH: 500000, mass_HH: 0.04 },
     2: { T_LL: 243, T_L: 263, T_H: 473, T_HH: 523, P_LL: 50000, P_L: 80000, P_H: 1200000, P_HH: 1500000, mass_HH: 0.08 },
@@ -20148,7 +20252,9 @@ ProfileRegistry.register('compressor', {
 });
 // [v16.8.0] Fan profiles — low-deltaP air movers
 ProfileRegistry.register('fan', {
-  defId: 'fan', name: 'Vent Fan', category: UnitCategories.PRESSURE, tiers: [1, 2],
+  defId: 'fan', name: 'Fan', category: UnitCategories.PRESSURE, tiers: [1, 2],
+  description: 'Pushes gas gently',
+  selectionGuide: 'For moving gas around at low pressure — vents, ducts, circulation. Needs electricity. Tiny pressure boost compared to a compressor.',
   limits: {
     1: { T_LL: 243, T_L: 263, T_H: 373, T_HH: 423, P_LL: 50000, P_L: 80000, P_H: 200000, P_HH: 250000 },
     2: { T_LL: 243, T_L: 263, T_H: 373, T_HH: 423, P_LL: 50000, P_L: 80000, P_H: 200000, P_HH: 250000 }
@@ -20161,7 +20267,9 @@ ProfileRegistry.register('fan', {
 });
 // [v14.9.0 S6 Amendment] Diaphragm compressor — cooled, high-P capable
 ProfileRegistry.register('compressor_diaphragm', {
-  defId: 'compressor_diaphragm', name: 'Compressor (Diaphragm)', category: UnitCategories.PRESSURE, tiers: [1, 2],
+  defId: 'compressor_diaphragm', name: 'Compressor (High Pressure)', category: UnitCategories.PRESSURE, tiers: [1, 2],
+  description: 'Squeezes gas harder, stays sealed',
+  selectionGuide: 'For the heavy stuff — up to 50 bar, and sealed tight so nothing nasty leaks out. Same idea, tougher build.',
   limits: {
     1: { T_LL: 243, T_L: 263, T_H: 333, T_HH: 353, P_LL: 50000, P_L: 100000, P_H: 12000000, P_HH: 15000000, mass_HH: 0.05 },
     2: { T_LL: 223, T_L: 243, T_H: 373, T_HH: 393, P_LL: 50000, P_L: 100000, P_H: 20000000, P_HH: 25000000, mass_HH: 0.2 }
@@ -20170,10 +20278,14 @@ ProfileRegistry.register('compressor_diaphragm', {
 });
 ProfileRegistry.register('electric_heater', {
   defId: 'electric_heater', name: 'Electric Heater', category: UnitCategories.HEAT_TRANSFER, tiers: [1],
+  description: 'Heats stuff up',
+  selectionGuide: 'Like a kettle element in a pipe. Set the temperature you want, give it enough power, done.',
   limits: { 1: { T_LL: 253, T_L: 273, T_H: 723, T_HH: 823, P_LL: 20000, P_L: 50000, P_H: 12000000, P_HH: 15000000, mass_LL: 0.002, mass_HH: 0.12 } }
 });
 ProfileRegistry.register('air_cooler', {
   defId: 'air_cooler', name: 'Air Cooler', category: UnitCategories.HEAT_TRANSFER, tiers: [1, 2],
+  description: 'Fan that cools stuff down',
+  selectionGuide: 'Blows outside air over your hot pipe. Can\'t go colder than the weather — that\'s physics. Needs electricity for the fan.',
   limits: {
     1: { T_LL: 253, T_L: 273, T_H: 623, T_HH: 723, P_LL: 20000, P_L: 50000, P_H: 12000000, P_HH: 15000000, mass_HH: 0.12 },
     2: { T_LL: 223, T_L: 253, T_H: 773, T_HH: 873, P_LL: 20000, P_L: 50000, P_H: 12000000, P_HH: 15000000, mass_HH: 0.25 }
@@ -20185,11 +20297,15 @@ ProfileRegistry.register('air_cooler', {
 });
 ProfileRegistry.register('hex', {
   defId: 'hex', name: 'Heat Exchanger', category: UnitCategories.HEAT_EXCHANGER, tiers: [1],
+  description: 'Hot meets cold, they swap',
+  selectionGuide: 'Recovers heat between two streams — saves energy by reusing warmth instead of dumping it. No electricity needed.',
   limits: { 1: { T_LL: 243, T_L: 263, T_H: 573, T_HH: 673, P_LL: 20000, P_L: 50000, P_H: 12000000, P_HH: 15000000, mass_HH: 0.12 } }
 });
 // [v13.1.3] T2 mixer: Inconel + PTFE seals — proof of concept for multi-tier profiles
 ProfileRegistry.register('mixer', {
   defId: 'mixer', name: 'Mixer', category: UnitCategories.TOPOLOGY, tiers: [1, 2],
+  description: 'Joins two pipes into one',
+  selectionGuide: 'Everything that flows in gets blended together. If one side has way more pressure, the weak side gets shut off automatically.',
   limits: {
     1: { T_LL: 243, T_L: 263, T_H: 623, T_HH: 723, P_LL: 20000, P_L: 50000, P_H: 12000000, P_HH: 15000000, mass_HH: 0.25 },
     2: { T_LL: 173, T_L: 223, T_H: 773, T_HH: 923, P_LL: 20000, P_L: 50000, P_H: 4000000, P_HH: 5000000, mass_HH: 0.30 }
@@ -20197,28 +20313,38 @@ ProfileRegistry.register('mixer', {
 });
 ProfileRegistry.register('splitter', {
   defId: 'splitter', name: 'Splitter', category: UnitCategories.TOPOLOGY, tiers: [1],
+  description: 'Splits one pipe into two',
+  selectionGuide: 'Choose the percentage that goes to each side. If one path jams, flow reroutes to the other automatically.',
   limits: { 1: { T_LL: 243, T_L: 263, T_H: 623, T_HH: 723, P_LL: 20000, P_L: 50000, P_H: 12000000, P_HH: 15000000, mass_HH: 0.25 } }
 });
 ProfileRegistry.register('flash_drum', {
-  defId: 'flash_drum', name: 'Flash Drum', category: UnitCategories.SEPARATOR, tiers: [1],
+  defId: 'flash_drum', name: 'Vapor-Liquid Separator', category: UnitCategories.SEPARATOR, tiers: [1],
+  description: 'Gas goes up, liquid stays down',
+  selectionGuide: 'Catches the liquid that forms when you cool a gas. Place it after a cooler — that\'s how you harvest water from steam.',
   limits: { 1: { T_LL: 243, T_L: 263, T_H: 523, T_HH: 623, P_LL: 20000, P_L: 50000, P_H: 12000000, P_HH: 15000000, mass_HH: 0.15 } }
 });
 // [v13.4.0] S4a — Distillation column: cryogenic-capable (T_LL=73K for LN₂),
 // moderate-pressure vessel (50 bar max), pilot-plant mass flow.
 ProfileRegistry.register('distillation_column', {
-  defId: 'distillation_column', name: 'Distillation Column', category: UnitCategories.SEPARATOR, tiers: [1],
+  defId: 'distillation_column', name: 'Distillator', category: UnitCategories.SEPARATOR, tiers: [1],
+  description: 'Moonshine still, but precise',
+  selectionGuide: 'When a simple separator isn\'t pure enough. Repeated boiling and condensing gives razor-sharp separation — but it\'s power-hungry and complex.',
   limits: { 1: { T_LL: 73, T_L: 100, T_H: 473, T_HH: 523, P_LL: 5000, P_L: 50000, P_H: 4000000, P_HH: 5000000, mass_HH: 0.15 } }
 });
 
 // [v14.9.0 S6a] Reactor profiles — 3 defIds, T2 jacketed for high-T SMR
 ProfileRegistry.register('reactor_adiabatic', {
-  defId: 'reactor_adiabatic', name: 'Reactor (Adiabatic)', category: UnitCategories.REACTOR, tiers: [1],
+  defId: 'reactor_adiabatic', name: 'Reactor (Insulated)', category: UnitCategories.REACTOR, tiers: [1],
+  description: 'Mix, react, no temp control',
+  selectionGuide: 'The simple one. Whatever heat the reaction makes (or takes) stays inside. Temperature just goes where it goes.',
   limits: { 1: { T_LL: 173, T_L: 273, T_H: 773, T_HH: 923, P_LL: 50000, P_L: 80000, P_H: 12000000, P_HH: 15000000, mass_LL: 0.001, mass_HH: 0.08 } }
 });
 // [v14.9.0 S6a] Combustion chamber — Hastelloy X + TBC liner, same defId as adiabatic
 // Higher T_HH (1573 K) but lower P_HH (50 bar thin-walled can). Default reaction: H₂ combustion.
 ProfileRegistry.register('combustion_chamber', {
-  defId: 'reactor_adiabatic', name: 'Combustion Chamber', category: UnitCategories.REACTOR, tiers: [1, 2],
+  defId: 'reactor_adiabatic', name: 'Burner', category: UnitCategories.REACTOR, tiers: [1, 2],
+  description: 'Sets fuel on fire',
+  selectionGuide: 'Mix fuel and air, light it up, get screaming-hot gas out. Feed it to a Gas Turbine or use the heat somewhere useful.',
   limits: {
     1: { T_LL: 173, T_L: 273, T_H: 1273, T_HH: 1573, P_LL: 50000, P_HH: 5000000, mass_HH: 0.08 },
     2: { T_LL: 173, T_L: 273, T_H: 1573, T_HH: 1873, P_LL: 50000, P_HH: 10000000, mass_HH: 0.5 }
@@ -20226,7 +20352,9 @@ ProfileRegistry.register('combustion_chamber', {
   defaults: { reactionId: 'R_H2_COMB', useKinetics: true, volume_m3: 0.01, alpha: 1.0 }
 });
 ProfileRegistry.register('reactor_jacketed', {
-  defId: 'reactor_jacketed', name: 'Reactor (Jacketed)', category: UnitCategories.REACTOR, tiers: [1, 2],
+  defId: 'reactor_jacketed', name: 'Reactor (Heated)', category: UnitCategories.REACTOR, tiers: [1, 2],
+  description: 'React at the temperature you want',
+  selectionGuide: 'Keeps the reaction at a set temperature using electricity. Needs power — if it runs short, the temperature drifts.',
   limits: {
     1: { T_LL: 173, T_L: 273, T_H: 773, T_HH: 923, P_LL: 50000, P_L: 80000, P_H: 12000000, P_HH: 15000000, mass_LL: 0.001, mass_HH: 0.08 },
     2: { T_LL: 173, T_L: 273, T_H: 1073, T_HH: 1273, P_LL: 50000, P_L: 80000, P_H: 12000000, P_HH: 15000000, mass_LL: 0.001, mass_HH: 0.08 }
@@ -20234,16 +20362,22 @@ ProfileRegistry.register('reactor_jacketed', {
 });
 ProfileRegistry.register('reactor_cooled', {
   defId: 'reactor_cooled', name: 'Reactor (Cooled)', category: UnitCategories.REACTOR, tiers: [1],
+  description: 'React without overheating',
+  selectionGuide: 'For reactions that get dangerously hot. Built-in cooling keeps things under control. Not fully wired up yet.',
   limits: { 1: { T_LL: 173, T_L: 273, T_H: 773, T_HH: 923, P_LL: 50000, P_L: 80000, P_H: 12000000, P_HH: 15000000, mass_LL: 0.001, mass_HH: 0.08 } }
 });
 // [v14.9.0 S6b] Electrochemical reactor + fuel cell profiles
 ProfileRegistry.register('reactor_electrochemical', {
-  defId: 'reactor_electrochemical', name: 'Electrochemical Reactor', category: UnitCategories.REACTOR, tiers: [1],
+  defId: 'reactor_electrochemical', name: 'Electrolyzer', category: UnitCategories.REACTOR, tiers: [1],
+  description: 'Electricity rips molecules apart',
+  selectionGuide: 'The reverse of a fuel cell — pour in power and feedstock, get split products on separate outlets. Essential for making hydrogen.',
   limits: { 1: { T_LL: 263, T_L: 280, T_H: 773, T_HH: 923, P_LL: 50000, P_HH: 15000000, mass_HH: 0.08 } },
   defaults: { reactionId: 'R_H2O_ELEC', efficiency: 0.90, conversion_max: 0.80 }
 });
 ProfileRegistry.register('fuel_cell', {
   defId: 'fuel_cell', name: 'Fuel Cell', category: UnitCategories.REACTOR, tiers: [1],
+  description: 'Hydrogen in, electricity out',
+  selectionGuide: 'Clean power as long as you feed it H\u2082 and O\u2082. Also makes water — handy for life support. Basically a battery that never dies.',
   limits: { 1: { T_LL: 253, T_L: 283, T_H: 473, T_HH: 523, P_LL: 50000, P_HH: 5000000, mass_HH: 0.05 } },
   defaults: { reactionId: 'R_H2_FUELCELL', efficiency: 0.60, conversion_max: 0.80, UA: 500 }
 });
@@ -20264,7 +20398,9 @@ ProfileRegistry.register('membrane_leaf', {
   config: { composite: true }
 });
 ProfileRegistry.register('co2_scrubber', {
-  defId: 'membrane_separator', name: 'CO\u2082 Scrubber', category: UnitCategories.SEPARATION,
+  defId: 'membrane_separator', name: 'CO\u2082 Absorber', category: UnitCategories.SEPARATION,
+  description: 'Scrubs CO\u2082 out of air',
+  selectionGuide: 'Keeps your crew breathing. Eats through cartridges — when they\'re gone, CO\u2082 passes straight through. Watch the gauge.',
   tiers: [1],
   limits: { 1: { T_LL: 220, T_HH: 470, P_HH: 1000000, mass_HH: 0.05 } },
   defaults: { 1: { targetSpecies: 'CO2', extractionFrac: 0.99,
