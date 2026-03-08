@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v17.0.2
+  processThis v17.0.3
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -452,6 +452,25 @@
 
   NNGs: NNG-14 (changelog).
   Tests: 607 total, 3145 checks, 0 failures.
+
+  ─── v17.0.3 — rAF-driven smoke system ──────────────────────────────────
+
+  **New smoke/plume engine.**  Replaces CSS `@keyframes smoke-rise`
+  with rAF-driven parametric animation.  Puff state persists in
+  `_smokeState` Map across render() rebuilds.  SVG ellipses recreated
+  each frame with computed position/scale/opacity from ease-out curve.
+  Reuses `_computeSmokeConfig()` (physics → visual mapping unchanged)
+  and all 4 SVG feTurbulence filters (smoke-f1/f2/f3/smoke-fried).
+
+  Sink plumes: advance only when `TimeClock.mode === 'playing'`, with
+  `SMOKE_SPEED_SCALE` per play speed.  Fried smoke: always advances
+  (rAF chain continues when paused if fried units exist).
+
+  Old CSS smoke system disabled (code preserved, call commented out).
+  Settings sub-toggle `animSmokeEffects` still controls both systems.
+
+  NNGs: NNG-14 (changelog).
+  Tests: 607 total, 3143 checks, 0 failures.
 
   ─── v17.0.2 — Category consolidation ──────────────────────────────────
 
@@ -29632,13 +29651,13 @@ function drawUnits() {
       }));
     }
 
-    // [v15.1.0 S-SMOKE] Smoke/plume effects
-    if (_smokeEnabled && !isDimmed) {
-      const smokeCfg = _computeSmokeConfig(u, def);
-      if (smokeCfg) {
-        _appendSmokeEmitter(group, wx + ww / 2, wy, smokeCfg, _smokeIsPlaying, _smokePlaySpeed);
-      }
-    }
+    // [v15.1.0 S-SMOKE] Old CSS smoke — disabled, replaced by rAF smoke in v17.0.2
+    // if (_smokeEnabled && !isDimmed) {
+    //   const smokeCfg = _computeSmokeConfig(u, def);
+    //   if (smokeCfg) {
+    //     _appendSmokeEmitter(group, wx + ww / 2, wy, smokeCfg, _smokeIsPlaying, _smokePlaySpeed);
+    //   }
+    // }
 
     g.appendChild(group);
   }
@@ -30077,6 +30096,12 @@ function render() {
 
   // [v17.0.0 S-FLOW] Rebuild flow particles from JS state after SVG rebuild
   _rebuildFlowParticles();
+
+  // [v17.0.2] Rebuild smoke puffs from JS state after SVG rebuild
+  _rebuildSmokePuffs();
+
+  // [v17.0.2] Ensure rAF chain runs (fried smoke needs it even when paused)
+  if (typeof requestAnimationFrame !== 'undefined') _startIconAnim();
 }
 
 /* =========================
@@ -35964,6 +35989,177 @@ function _advanceFlowParticles(deltaSec) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// [v17.0.2] rAF-driven smoke/plume system
+// Replaces CSS keyframe smoke. Reuses _computeSmokeConfig() for physics mapping.
+// Puff state persists in JS; SVG ellipses rebuilt each render().
+// Fried smoke advances always; sink plumes only when playing.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const _smokeState = new Map(); // unitId → { puffs: [...], cfg, cx, cy }
+const _SMOKE_FILTERS = ['smoke-f1', 'smoke-f2', 'smoke-f3'];
+
+function _rebuildSmokePuffs() {
+  const old = svg.querySelector('#smoke-puffs');
+  if (old) old.remove();
+
+  if (!SimSettings.animations || !SimSettings.animSmokeEffects) return;
+
+  const g = svgEl('g', { id: 'smoke-puffs' });
+  const activeIds = new Set();
+  let budget = 0;
+
+  for (const [id, u] of scene.units) {
+    const def = UnitRegistry.get(u.defId);
+    const pres = getPresentation(def, u);
+    const wx = u.x * scene.tile;
+    const wy = u.y * scene.tile;
+    const ww = pres.w * scene.tile;
+    const cx = wx + ww / 2;
+    const cy = wy;
+
+    const cfg = _computeSmokeConfig(u, def);
+    if (!cfg) continue;
+    if (budget >= _SMOKE_PUFF_CAP) continue;
+
+    activeIds.add(id);
+    const count = Math.min(cfg.puffCount, _SMOKE_PUFF_CAP - budget);
+    budget += count;
+
+    // Reuse or create puff state
+    let state = _smokeState.get(id);
+    if (!state || state.puffs.length !== count || state.cfg !== cfg) {
+      const puffs = [];
+      for (let i = 0; i < count; i++) {
+        const h = _smokeRand(i, 0);
+        const h2 = _smokeRand(i, 1);
+        const h3 = _smokeRand(i, 2);
+        const h4 = _smokeRand(i, 3);
+        puffs.push({
+          t: i / count,  // staggered start
+          rxBase: cfg.puffRx * (0.7 + h * 0.6),
+          ryBase: cfg.puffRy * (0.7 + h2 * 0.6),
+          dx: (h3 - 0.5) * cfg.driftRange * 2,
+          riseVar: 0.85 + h4 * 0.3,
+          filterIdx: i % (cfg.isFried ? 1 : 3),
+        });
+      }
+      state = { puffs, cfg, cx, cy };
+      _smokeState.set(id, state);
+    } else {
+      // Update position (unit may have moved)
+      state.cx = cx;
+      state.cy = cy;
+    }
+
+    // Render SVG ellipses at current state
+    const filters = cfg.isFried ? ['smoke-fried'] : _SMOKE_FILTERS;
+    for (let i = 0; i < state.puffs.length; i++) {
+      const p = state.puffs[i];
+      const t = p.t;
+
+      // Ease-out curve: progress = 1 - (1-t)^2
+      const eased = 1 - (1 - t) * (1 - t);
+
+      // Position: rise upward, drift laterally
+      const px = state.cx + p.dx * eased;
+      const py = state.cy - cfg.riseHeight * p.riseVar * eased;
+
+      // Scale: scaleStart → scaleEnd
+      const scale = cfg.scaleStart + (cfg.scaleEnd - cfg.scaleStart) * eased;
+      const rx = p.rxBase * scale;
+      const ry = p.ryBase * scale;
+
+      // Opacity: fade in to peak at ~15%, then fade out
+      let opacity;
+      if (t < 0.15) {
+        opacity = cfg.opacityStart + (cfg.opacityPeak - cfg.opacityStart) * (t / 0.15);
+      } else {
+        opacity = cfg.opacityPeak * (1 - (t - 0.15) / 0.85);
+      }
+      opacity = Math.max(0, opacity);
+
+      g.appendChild(svgEl('ellipse', {
+        cx: px, cy: py, rx, ry,
+        fill: cfg.color, opacity: opacity.toFixed(3),
+        filter: `url(#${filters[p.filterIdx % filters.length]})`,
+        'pointer-events': 'none'
+      }));
+    }
+  }
+
+  // Clean up removed units
+  for (const uid of _smokeState.keys()) {
+    if (!activeIds.has(uid)) _smokeState.delete(uid);
+  }
+
+  svg.appendChild(g);
+}
+
+function _advanceSmokePuffs(deltaSec) {
+  if (!SimSettings.animations || !SimSettings.animSmokeEffects) return;
+
+  const speedScale = SMOKE_SPEED_SCALE[SimSettings.playSpeed || 0] || 1.0;
+  const isPlaying = TimeClock.mode === 'playing';
+
+  for (const [, state] of _smokeState) {
+    const cfg = state.cfg;
+    // Fried always advances; sink plumes only when playing
+    if (!cfg.isFried && !isPlaying) continue;
+
+    const dur = cfg.isFried ? cfg.duration : cfg.duration * speedScale;
+    if (dur <= 0) continue;
+    const dt = deltaSec / dur; // parametric advance per frame
+
+    for (const p of state.puffs) {
+      p.t += dt;
+      if (p.t >= 1) p.t -= 1; // wrap around (recycle)
+    }
+  }
+
+  // Update SVG positions — find the smoke group and update ellipses
+  const smokeG = svg.querySelector('#smoke-puffs');
+  if (!smokeG) return;
+
+  // Rebuild is simpler than tracking individual elements for smoke
+  // since ellipses change opacity/size/position every frame.
+  // Remove old, re-render.
+  while (smokeG.firstChild) smokeG.removeChild(smokeG.firstChild);
+
+  const filters = _SMOKE_FILTERS;
+  for (const [, state] of _smokeState) {
+    const cfg = state.cfg;
+    const fltrs = cfg.isFried ? ['smoke-fried'] : filters;
+
+    for (let i = 0; i < state.puffs.length; i++) {
+      const p = state.puffs[i];
+      const t = p.t;
+      const eased = 1 - (1 - t) * (1 - t);
+
+      const px = state.cx + p.dx * eased;
+      const py = state.cy - cfg.riseHeight * p.riseVar * eased;
+      const scale = cfg.scaleStart + (cfg.scaleEnd - cfg.scaleStart) * eased;
+      const rx = p.rxBase * scale;
+      const ry = p.ryBase * scale;
+
+      let opacity;
+      if (t < 0.15) {
+        opacity = cfg.opacityStart + (cfg.opacityPeak - cfg.opacityStart) * (t / 0.15);
+      } else {
+        opacity = cfg.opacityPeak * (1 - (t - 0.15) / 0.85);
+      }
+      opacity = Math.max(0, opacity);
+
+      smokeG.appendChild(svgEl('ellipse', {
+        cx: px, cy: py, rx, ry,
+        fill: cfg.color, opacity: opacity.toFixed(3),
+        filter: `url(#${fltrs[p.filterIdx % fltrs.length]})`,
+        'pointer-events': 'none'
+      }));
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // [v15.4.0 S-ICONS] Decoupled icon animation clock
 // Purely cosmetic animations (impellers, bubbles, pistons, pulses, LEDs) run on
 // an accumulated rAF clock, completely independent of sim TimeClock.
@@ -35978,7 +36174,14 @@ let _lastAnimT = 0;          // last computed animT, reused on pause/drag for fr
 const _ANIM_DELTA_CAP = 0.1; // 100ms — caps jump after solver blocking or tab background
 
 function _iconAnimFrame(timestamp) {
-  if (TimeClock.mode !== 'playing' || !SimSettings.animations) {
+  if (!SimSettings.animations) {
+    _iconAnimRafId = null;
+    return;
+  }
+  const isPlaying = TimeClock.mode === 'playing';
+  // [v17.0.2] Keep running when paused if fried smoke needs animation
+  const hasFriedSmoke = _smokeState.size > 0 && [..._smokeState.values()].some(s => s.cfg.isFried);
+  if (!isPlaying && !hasFriedSmoke) {
     _iconAnimRafId = null;
     return;
   }
@@ -35986,16 +36189,18 @@ function _iconAnimFrame(timestamp) {
   let deltaSec = 0;
   if (_animLastFrameTs > 0) {
     deltaSec = Math.min(_ANIM_DELTA_CAP, (timestamp - _animLastFrameTs) / 1000);
-    _animClockSec += deltaSec;
+    if (isPlaying) _animClockSec += deltaSec;
   }
   _animLastFrameTs = timestamp;
   // Convert to animT units: at 1× (5000ms/step) 5 wall-seconds = 1 animT unit
   const stepSec = PLAY_SPEEDS[SimSettings.playSpeed || 0] / 1000;
   _lastAnimT = _animClockSec / stepSec;
-  // Icon cosmetic animations (theme-gated)
-  if (ui.theme !== 'box') _updateIconAnimations(_lastAnimT);
+  // Icon cosmetic animations (theme-gated, play-only)
+  if (isPlaying && ui.theme !== 'box') _updateIconAnimations(_lastAnimT);
   // [v17.0.0 S-FLOW] Flow particle advancement (all themes)
   if (deltaSec > 0) _advanceFlowParticles(deltaSec);
+  // [v17.0.2] Smoke puff advancement (fried always, sink plumes when playing)
+  if (deltaSec > 0) _advanceSmokePuffs(deltaSec);
   _iconAnimRafId = requestAnimationFrame(_iconAnimFrame);
 }
 
@@ -36272,7 +36477,7 @@ function stopPlay() {
   if (TimeClock.mode === 'playing') TimeClock.mode = 'paused';
   timeDisplayEl.classList.remove('solving');
   _stopFlowArrows();
-  _stopIconAnim();  // [v15.2.0 S-ICONS]
+  // [v17.0.2] rAF chain keeps running for fried smoke — _stopIconAnim removed from pause
   updateTransportUI();
   // [v15.0.3] Freeze smoke animations in place (don't re-render — that resets positions)
   for (const el of svg.querySelectorAll('.smoke-puff-active')) {
