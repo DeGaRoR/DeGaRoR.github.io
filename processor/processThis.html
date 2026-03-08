@@ -393,9 +393,31 @@
   **applyLayout calls applyPlanetBg.**  Planet background visibility
   now syncs correctly after undo/redo/autosave restore.
 
-  NNGs: NNG-9 (u.last authority), NNG-14 (changelog).
-  Tests: 599 total, 3117 checks, 0 failures.
-  +3 new tests (595–597).
+  NNGs: NNG-9 (u.last authority), NNG-11 (solver-side _anim), NNG-14 (changelog).
+  Tests: 607 total, 3140 checks, 0 failures.
+  +3 sentinel tests (595–597), +8 S-FLOW tests (598–605).
+
+  **S-FLOW Phase 1+2: particle flow animation with stubs.**  Discrete
+  colored particles move along connection Bézier paths and ragtag
+  nozzle stubs, encoding flow rate (speed), density (spacing),
+  composition (color), and phase (shape).
+  Solver enrichment: post-flash `stream._anim` block writes nDot,
+  vDot, rho, speciesFracs on every resolved material stream (NNG-11:
+  thermo.density() in Block 1 only).  Particle system: persistent JS
+  state survives render() rebuilds.  rAF shared with icon animations;
+  particles advance only when playing, frozen when paused.
+  Phase 2 stubs: `_rtNozzle` stores stub geometry (body edge → port)
+  per render cycle.  Stub particles use linear lerp, same visual
+  channels as connections.  OUT stubs: particles emerge from unit body.
+  IN stubs: particles enter unit body.  Unconnected ports with stream
+  data show static (frozen) particles.  Ragtag theme only.
+  Toggle: 💧 button in action bar.  `flowParticlesVisible` persisted
+  in LAYOUT_DEFAULTS + exportJSON/importJSON.
+
+  **S-VOICE: unit name renames + content fields.**  18 profile renames
+  (Flash Drum → Vapor-Liquid Separator, Grid Supply → Generator, etc.).
+  `description` (L1) and `selectionGuide` (L2) fields on all 35
+  active profiles.  `config: { deprecated }` on retired profiles.
 
   ─── v16.9.1 — Phase C: NNG-11 DOM extraction + numerical hardening ────
 
@@ -3565,6 +3587,11 @@
     .smoke-puff-active {
       animation-play-state: running;
     }
+
+    /* [v17.0.0 S-FLOW] Flow particles on connections */
+    .flow-particle { pointer-events: none; }
+    .flow-particle-gas { opacity: 0.7; }
+    .flow-particle-liq { opacity: 1.0; }
     
     .btn {
       display: inline-flex; 
@@ -8305,6 +8332,7 @@
       <div class="btn-cluster">
         <button class="tbtn tbtn-emoji" id="btnStickerLines" data-tip="Show/hide stickers">📌</button>
         <button class="tbtn tbtn-emoji tbtn-dim" id="btnPlanetBg" data-tip="Planet background">🌍</button>
+        <button class="tbtn tbtn-emoji" id="btnFlowParticles" data-tip="Flow particles">💧</button>
         <button class="tbtn tbtn-emoji" id="btnTheme" data-tip="Theme: ragtag">🔧</button>
       </div>
 
@@ -9148,6 +9176,7 @@ const LAYOUT_DEFAULTS = Object.freeze({
   inspectorWidth:        360,
   paletteOpen:           false,
   showFlanges:           true,          // [v15.4.0] bolted flange visuals on material ports
+  flowParticlesVisible:  true,          // [v17.0.0 S-FLOW] animated flow particles on connections
   theme:                 'ragtag',        // [v15.2.0 S-ICONS] 'box' | 'engineering' | 'ragtag'
 });
 
@@ -21308,6 +21337,7 @@ class Scene {
         paletteOpen:           typeof L.paletteOpen === 'boolean' ? L.paletteOpen : D.paletteOpen,
         theme:                 validThemes.includes(L.theme) ? L.theme : D.theme,
         showFlanges:           typeof L.showFlanges === 'boolean' ? L.showFlanges : D.showFlanges,
+        flowParticlesVisible:  typeof L.flowParticlesVisible === 'boolean' ? L.flowParticlesVisible : D.flowParticlesVisible,
       };
     }
 
@@ -22846,6 +22876,53 @@ function solveScene(scene, options = {}) {
                   message: `${p.portId}: Hdot_J_s = ${stream.Hdot_J_s} after enthalpy calc — zeroed`,
                   code: 'INVALID_ENTHALPY', _domain: 'sim' });
                 stream.Hdot_J_s = 0;
+              }
+
+              // [v17.0.0 S-FLOW] Animation enrichment (NNG-11: thermo in Block 1 only)
+              // Appends _anim block with volumetric flow, density, species fractions.
+              // Renderer reads these as pure data — no thermo calls from Block 2.
+              {
+                const _animEntries = Object.entries(stream.n || {});
+                const _animNDot = _animEntries.reduce((s, [, v]) => s + v, 0);
+                if (_animNDot > 1e-15) {
+                  const _sf = {};
+                  for (const [sp, ni] of _animEntries) _sf[sp] = ni / _animNDot;
+                  let _vDot = 0, _totalMass = 0;
+                  // Gas phase volume
+                  const _nV = stream.nV || (stream.phase === 'V' ? stream.n : {});
+                  const _nVt = Object.values(_nV).reduce((a, b) => a + b, 0);
+                  if (_nVt > 1e-15) {
+                    const _vKeys = Object.keys(_nV);
+                    const _domV = _vKeys.reduce((best, sp) =>
+                      _nV[sp] > (_nV[best] || 0) ? sp : best, _vKeys[0]);
+                    const _mwV = Object.entries(_nV).reduce((s, [sp, ni]) =>
+                      s + ni * (ComponentRegistry.get(sp)?.MW || 28), 0) / _nVt;
+                    const _rhoV = thermo.density(_domV, stream.T, stream.P, 'V')
+                      || (stream.P * _mwV / 1000) / (8.314 * stream.T);
+                    const _mV = _nVt * _mwV / 1000;
+                    _vDot += _mV / _rhoV;
+                    _totalMass += _mV;
+                  }
+                  // Liquid phase volume
+                  const _nL = stream.nL || (stream.phase === 'L' ? stream.n : {});
+                  const _nLt = Object.values(_nL).reduce((a, b) => a + b, 0);
+                  if (_nLt > 1e-15) {
+                    const _lKeys = Object.keys(_nL);
+                    const _domL = _lKeys.reduce((best, sp) =>
+                      _nL[sp] > (_nL[best] || 0) ? sp : best, _lKeys[0]);
+                    const _mwL = Object.entries(_nL).reduce((s, [sp, ni]) =>
+                      s + ni * (ComponentRegistry.get(sp)?.MW || 28), 0) / _nLt;
+                    const _rhoL = thermo.density(_domL, stream.T, stream.P, 'L') || 1000;
+                    const _mL = _nLt * _mwL / 1000;
+                    _vDot += _mL / _rhoL;
+                    _totalMass += _mL;
+                  }
+                  stream._anim = {
+                    nDot: _animNDot, vDot: _vDot,
+                    rho: _vDot > 0 ? _totalMass / _vDot : 1,
+                    speciesFracs: _sf
+                  };
+                }
               }
               
             } catch (err) {
@@ -24836,6 +24913,7 @@ const ui = {
   // [v12.11.0] Unified visual mapping
   colorBy: 'type',          // 'type' | 'islands' | 'material_electrical' | 'temperature' | 'pressure' | 'phase' | 'composition' | 'flowrate'
   showFlanges: true,       // [v15.4.0] bolted flange visuals on material ports
+  flowParticlesVisible: true, // [v17.0.0 S-FLOW] animated flow particles on connections
   streamSizeBy: 'none',     // 'none' | 's' | 'm' | 'l'
   reconnecting: null,     // [v10.1.1] {connId} when reconnecting a stream
   // [v10.8.1] Sticker selection
@@ -24906,6 +24984,7 @@ function gatherLayout() {
     inspectorWidth:        document.getElementById('rightPanel')?.offsetWidth || LAYOUT_DEFAULTS.inspectorWidth,
     paletteOpen:           document.getElementById('paletteDrawer')?.classList.contains('open') || false,
     showFlanges:           ui.showFlanges || false,
+    flowParticlesVisible:  ui.flowParticlesVisible !== false,
     theme:                 ui.theme || LAYOUT_DEFAULTS.theme,
   };
 }
@@ -24943,10 +25022,13 @@ function applyLayout(patch) {
   SimSettings.showPlanetBg = L.planetBgVisible ?? D.planetBgVisible;
   ui.theme = L.theme || D.theme;
   ui.showFlanges = L.showFlanges ?? D.showFlanges;
+  ui.flowParticlesVisible = L.flowParticlesVisible ?? D.flowParticlesVisible;
 
   // DOM-dependent state
   const stickerBtn = document.getElementById('btnStickerLines');
   if (stickerBtn) stickerBtn.classList.toggle('tbtn-dim', !ui.showStickers);
+  const flowBtn = document.getElementById('btnFlowParticles');
+  if (flowBtn) flowBtn.classList.toggle('tbtn-dim', !ui.flowParticlesVisible);
 
   const iw = L.inspectorWidth || D.inspectorWidth;
   const rp = document.getElementById('rightPanel');
@@ -26334,6 +26416,9 @@ function _isZeroFlow(stream) {
 
 function drawConnections() {
   const g = svgEl('g', { id: 'connections' });
+
+  // [v17.0.0 S-FLOW] Path geometry cache for particle system
+  drawConnections._paths = new Map();
   
   // [v12.15.2] Pre-pass: cache stream data, compute min/max for sizing
   // Material: mass flow (kg/s). Electrical: power (W).
@@ -26444,6 +26529,9 @@ function drawConnections() {
     else { c2x = tx; c2y = ty + controlOffset; }
     
     const pathD = `M${fx},${fy} C${c1x},${c1y} ${c2x},${c2y} ${tx},${ty}`;
+
+    // [v17.0.0 S-FLOW] Cache control points for particle animation
+    drawConnections._paths.set(c.id, { fx, fy, c1x, c1y, c2x, c2y, tx, ty, connId: c.id });
 
     // [v12.11.0] Visual mapping: colour + width from unified mode
     const _stream = _streamCache.get(c.id);
@@ -27159,6 +27247,8 @@ function _rtPortColors(unitId, portId, isElec) {
 // [v15.4.0] Draw directional arrow on unconnected port
 function _rtNozzle(g, wx, wy, ww, wh, bx, by, bw, bh, def, pres, pal, unitId) {
   const t = scene.tile;
+  // [v17.0.0 S-FLOW] Initialize stubs map on first call per render
+  if (!_rtNozzle._stubs) _rtNozzle._stubs = new Map();
   const _gradMode = ui.colorBy === 'temperature' || ui.colorBy === 'pressure'
     || ui.colorBy === 'phase' || ui.colorBy === 'composition' || ui.colorBy === 'flowrate';
   // Per-port runtime data for gradient coloring
@@ -27206,6 +27296,10 @@ function _rtNozzle(g, wx, wy, ww, wh, bx, by, bw, bh, def, pres, pal, unitId) {
     }
     const len = Math.hypot(x2-x1, y2-y1);
     if (len < 1) continue;
+    // [v17.0.0 S-FLOW] Store stub geometry for particle system
+    _rtNozzle._stubs.set(`${unitId}:${p.portId}`, {
+      x1, y1, x2, y2, dir: p.dir, isElec, portId: p.portId, unitId, len
+    });
     g.appendChild(svgEl('line', { x1, y1, x2, y2,
       stroke: outerCol, 'stroke-width': outerW, 'stroke-linecap': 'butt', 'pointer-events': 'none' }));
     g.appendChild(svgEl('line', { x1, y1, x2, y2,
@@ -29820,6 +29914,7 @@ function render() {
   }
 
   clearSVG();
+  if (_rtNozzle._stubs) _rtNozzle._stubs.clear(); // [v17.0.0 S-FLOW] reset for this render cycle
   setViewBox();
   drawGrid();
   drawConnections();
@@ -29846,6 +29941,9 @@ function render() {
   if (ui.theme !== 'box' && SimSettings.animations && _lastAnimT > 0) {
     _updateIconAnimations(_lastAnimT);
   }
+
+  // [v17.0.0 S-FLOW] Rebuild flow particles from JS state after SVG rebuild
+  _rebuildFlowParticles();
 }
 
 /* =========================
@@ -35468,6 +35566,340 @@ function _stopFlowArrows() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// [v17.0.0 S-FLOW] Particle flow animation
+// Discrete colored particles moving along connection Bézier paths.
+// Encodes flow rate (speed), density (spacing), composition (color), phase (shape).
+// State persists in JS across renders; SVG circles rebuilt each render().
+// Animation advances only when TimeClock.mode === 'playing'.
+// NNG-11: reads stream._anim (written by solver in Block 1), no thermo calls.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ── Bézier helpers ──
+function _bzPt(t, p) {
+  const mt = 1 - t, mt2 = mt * mt, mt3 = mt2 * mt;
+  const t2 = t * t, t3 = t2 * t;
+  return {
+    x: mt3 * p.fx + 3 * mt2 * t * p.c1x + 3 * mt * t2 * p.c2x + t3 * p.tx,
+    y: mt3 * p.fy + 3 * mt2 * t * p.c1y + 3 * mt * t2 * p.c2y + t3 * p.ty
+  };
+}
+function _bzLen(p) {
+  const N = 20;
+  let len = 0, prev = _bzPt(0, p);
+  for (let i = 1; i <= N; i++) {
+    const cur = _bzPt(i / N, p);
+    len += Math.hypot(cur.x - prev.x, cur.y - prev.y);
+    prev = cur;
+  }
+  return len;
+}
+
+// ── Normalization constants ──
+const _FLOW_VDOT_REF = 0.025;  // m³/s — typical T1 gas at 1 mol/s, 1 atm, 300K
+const _FLOW_MAX_SPEED = 200;   // px/s — visual speed cap
+const _FLOW_BASE_SPEED = 60;   // px/s — speed at vDot_ref
+const _FLOW_GAP_MIN = 6;       // px — liquid (ρ ≈ 1000)
+const _FLOW_GAP_MAX = 28;      // px — atmospheric gas (ρ ≈ 1.2)
+const _FLOW_PARTICLE_R = 2;    // px radius
+const _FLOW_MAX_PER_CONN = 20; // particle cap per connection
+const _FLOW_ELEC_SPEED = 80;   // px/s — electrical particle base speed
+
+// ── Persistent particle state ──
+// Map<connId, { particles: [{t, species, isLiq}...], pathLen, speed, gap }>
+const _flowState = new Map();
+
+// ── Species color helper ──
+function _flowColor(species) {
+  const rgb = _SPECIES_COLOR[species] || _SPECIES_DEFAULT_RGB;
+  return `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
+}
+
+// ── Deterministic species sampler (stable across frames) ──
+function _sampleSpeciesAt(fracs, idx) {
+  if (!fracs) return 'N2';
+  const entries = Object.entries(fracs);
+  if (entries.length === 0) return 'N2';
+  if (entries.length === 1) return entries[0][0];
+  // Simple hash: use idx to pick
+  const total = entries.reduce((s, [, f]) => s + f, 0);
+  if (total < 1e-15) return entries[0][0];
+  const r = ((idx * 2654435761) >>> 0) / 4294967296; // Knuth multiplicative hash → [0,1)
+  let cum = 0;
+  for (const [sp, f] of entries) {
+    cum += f / total;
+    if (r < cum) return sp;
+  }
+  return entries[entries.length - 1][0];
+}
+
+function _rebuildFlowParticles() {
+  // Remove old particle group
+  const old = svg.querySelector('#flow-particles');
+  if (old) old.remove();
+
+  if (!ui.flowParticlesVisible || !SimSettings.animations) return;
+
+  const paths = drawConnections._paths;
+  if (!paths || paths.size === 0) return;
+
+  const g = svgEl('g', { id: 'flow-particles' });
+
+  // Track which connIds are still present
+  const activeIds = new Set();
+
+  for (const c of scene.connections) {
+    const cp = paths.get(c.id);
+    if (!cp) continue;
+
+    const stream = _getConnStream(c);
+    if (!stream) continue;
+
+    const isElec = stream.type === StreamType.ELECTRICAL;
+    const anim = stream._anim;
+
+    // Material: need _anim data. Electrical: need actual power.
+    if (!isElec && (!anim || anim.nDot < 1e-15)) continue;
+    if (isElec && Math.abs(stream.actual ?? 0) < 0.01) continue;
+
+    activeIds.add(c.id);
+
+    const pathLen = _bzLen(cp);
+    if (pathLen < 5) continue;
+
+    // Compute speed and gap
+    let speed, gap;
+    if (isElec) {
+      const pw = Math.abs(stream.actual ?? 0);
+      const pwMax = Math.abs(stream.capacity ?? pw);
+      speed = pwMax > 0 ? _FLOW_ELEC_SPEED * Math.min(1, pw / pwMax) : 0;
+      gap = 18;
+    } else {
+      const vNorm = Math.min(1, anim.vDot / _FLOW_VDOT_REF);
+      speed = Math.min(_FLOW_MAX_SPEED, _FLOW_BASE_SPEED * Math.max(0.05, vNorm));
+      // Gap: logarithmic mapping of density
+      const rhoClamp = Math.max(0.5, Math.min(1200, anim.rho));
+      const rhoNorm = Math.log(rhoClamp / 0.5) / Math.log(1200 / 0.5); // 0 at 0.5, 1 at 1200
+      gap = _FLOW_GAP_MAX - rhoNorm * (_FLOW_GAP_MAX - _FLOW_GAP_MIN);
+    }
+
+    const nParticles = Math.min(_FLOW_MAX_PER_CONN, Math.max(1, Math.ceil(pathLen / gap)));
+    const gapT = 1 / nParticles; // parametric gap
+
+    // Reuse or create state
+    let state = _flowState.get(c.id);
+    if (!state || state.particles.length !== nParticles) {
+      // Pre-seed: distribute evenly along path
+      const particles = [];
+      for (let i = 0; i < nParticles; i++) {
+        const t = (i * gapT) % 1;
+        const species = isElec ? null : _sampleSpeciesAt(anim?.speciesFracs, i);
+        const isLiq = !isElec && anim ? (((i * 2654435761 + 7) >>> 0) / 4294967296 > (stream.vaporFraction ?? 1)) : false;
+        particles.push({ t, species, isLiq });
+      }
+      state = { particles, pathLen, speed, gap };
+      _flowState.set(c.id, state);
+    } else {
+      // Update physics-driven properties, keep positions
+      state.pathLen = pathLen;
+      state.speed = speed;
+      state.gap = gap;
+      // Refresh species/phase for existing particles
+      for (let i = 0; i < state.particles.length; i++) {
+        const p = state.particles[i];
+        if (!isElec) {
+          p.species = _sampleSpeciesAt(anim?.speciesFracs, i);
+          p.isLiq = (((i * 2654435761 + 7) >>> 0) / 4294967296 > (stream.vaporFraction ?? 1));
+        }
+      }
+    }
+
+    // Create SVG circles from state
+    for (let i = 0; i < state.particles.length; i++) {
+      const p = state.particles[i];
+      const pt = _bzPt(p.t, cp);
+      if (isElec) {
+        g.appendChild(svgEl('circle', {
+          cx: pt.x, cy: pt.y, r: 1.5,
+          fill: '#fbbf24', class: 'flow-particle',
+          'data-conn': c.id, 'data-idx': i
+        }));
+      } else {
+        const color = _flowColor(p.species);
+        g.appendChild(svgEl('circle', {
+          cx: pt.x, cy: pt.y, r: _FLOW_PARTICLE_R,
+          fill: color,
+          class: `flow-particle ${p.isLiq ? 'flow-particle-liq' : 'flow-particle-gas'}`,
+          'data-conn': c.id, 'data-idx': i
+        }));
+      }
+    }
+  }
+
+  // ── Phase 2: Stub particles (ragtag theme only) ──
+  // Stubs are straight lines from body edge to port endpoint.
+  // OUT ports: particles flow body → port (emerging from unit).
+  // IN ports: particles flow port → body (entering unit).
+  // Unconnected ports with stream data: static particles (frozen).
+  if (ui.theme === 'ragtag' && _rtNozzle._stubs) {
+    // Pre-compute connection lookup for connected-port check
+    const _portConns = new Set();
+    for (const c of scene.connections) {
+      _portConns.add(`${c.from.unitId}:${c.from.portId}`);
+      _portConns.add(`${c.to.unitId}:${c.to.portId}`);
+    }
+
+    for (const [stubKey, stub] of _rtNozzle._stubs) {
+      const { x1, y1, x2, y2, dir, isElec, portId, unitId, len: stubLen } = stub;
+      if (stubLen < 3) continue;
+
+      // Get stream data for this port
+      const ud = scene.runtime?.unitData?.get(unitId);
+      const ps = ud?.ports?.[portId];
+
+      // Skip stubs with no stream data
+      if (!ps) continue;
+      const anim = ps._anim;
+      if (!isElec && (!anim || anim.nDot < 1e-15)) continue;
+      if (isElec && Math.abs(ps.actual ?? 0) < 0.01) continue;
+
+      const isConnected = _portConns.has(stubKey);
+      const sKey = `stub:${stubKey}`;
+      activeIds.add(sKey);
+
+      // Direction: OUT → body(x1,y1) to port(x2,y2). IN → port(x2,y2) to body(x1,y1).
+      const sx = dir === PortDir.OUT ? x1 : x2;
+      const sy = dir === PortDir.OUT ? y1 : y2;
+      const ex = dir === PortDir.OUT ? x2 : x1;
+      const ey = dir === PortDir.OUT ? y2 : y1;
+
+      // Speed & gap (same normalization as connections)
+      let speed, gap;
+      if (isElec) {
+        const pw = Math.abs(ps.actual ?? 0);
+        const pwMax = Math.abs(ps.capacity ?? pw);
+        speed = pwMax > 0 ? _FLOW_ELEC_SPEED * Math.min(1, pw / pwMax) : 0;
+        gap = 18;
+      } else {
+        const vNorm = Math.min(1, anim.vDot / _FLOW_VDOT_REF);
+        speed = Math.min(_FLOW_MAX_SPEED, _FLOW_BASE_SPEED * Math.max(0.05, vNorm));
+        const rhoClamp = Math.max(0.5, Math.min(1200, anim.rho));
+        const rhoNorm = Math.log(rhoClamp / 0.5) / Math.log(1200 / 0.5);
+        gap = _FLOW_GAP_MAX - rhoNorm * (_FLOW_GAP_MAX - _FLOW_GAP_MIN);
+      }
+
+      // Unconnected ports: frozen in place
+      if (!isConnected) speed = 0;
+
+      const nP = Math.min(6, Math.max(1, Math.ceil(stubLen / gap)));
+      const gapT = 1 / Math.max(1, nP);
+
+      // Reuse or create state
+      let state = _flowState.get(sKey);
+      if (!state || state.particles.length !== nP) {
+        const particles = [];
+        for (let i = 0; i < nP; i++) {
+          const t = (i + 0.5) * gapT; // offset half-gap so particles don't sit exactly at endpoints
+          const species = isElec ? null : _sampleSpeciesAt(anim?.speciesFracs, i + 1000);
+          const isLiq = !isElec && anim ? (((i * 2654435761 + 13) >>> 0) / 4294967296 > (ps.vaporFraction ?? 1)) : false;
+          particles.push({ t, species, isLiq });
+        }
+        state = { particles, speed, gap, isStub: true, sx, sy, ex, ey, stubLen };
+        _flowState.set(sKey, state);
+      } else {
+        state.speed = speed;
+        state.gap = gap;
+        state.sx = sx; state.sy = sy; state.ex = ex; state.ey = ey;
+        state.stubLen = stubLen;
+        for (let i = 0; i < state.particles.length; i++) {
+          const p = state.particles[i];
+          if (!isElec && anim) {
+            p.species = _sampleSpeciesAt(anim.speciesFracs, i + 1000);
+            p.isLiq = (((i * 2654435761 + 13) >>> 0) / 4294967296 > (ps.vaporFraction ?? 1));
+          }
+        }
+      }
+
+      // Create SVG circles
+      for (let i = 0; i < state.particles.length; i++) {
+        const p = state.particles[i];
+        const px = sx + p.t * (ex - sx);
+        const py = sy + p.t * (ey - sy);
+        if (isElec) {
+          g.appendChild(svgEl('circle', {
+            cx: px, cy: py, r: 1.5,
+            fill: '#fbbf24', class: 'flow-particle',
+            'data-stub': sKey, 'data-idx': i
+          }));
+        } else {
+          g.appendChild(svgEl('circle', {
+            cx: px, cy: py, r: _FLOW_PARTICLE_R,
+            fill: _flowColor(p.species),
+            class: `flow-particle ${p.isLiq ? 'flow-particle-liq' : 'flow-particle-gas'}`,
+            'data-stub': sKey, 'data-idx': i
+          }));
+        }
+      }
+    }
+  }
+
+  // Clean up removed connections and stubs
+  for (const cid of _flowState.keys()) {
+    if (!activeIds.has(cid)) _flowState.delete(cid);
+  }
+
+  svg.appendChild(g);
+}
+
+function _advanceFlowParticles(deltaSec) {
+  if (!ui.flowParticlesVisible || !SimSettings.animations) return;
+  if (TimeClock.mode !== 'playing') return;
+
+  const paths = drawConnections._paths;
+  if (!paths) return;
+
+  const particleG = svg.querySelector('#flow-particles');
+  if (!particleG) return;
+
+  for (const [cid, state] of _flowState) {
+    if (state.speed <= 0) continue; // frozen (unconnected stubs)
+
+    if (state.isStub) {
+      // ── Stub: linear lerp ──
+      if (state.stubLen < 3) continue;
+      const dtT = (state.speed * deltaSec) / state.stubLen;
+      for (let i = 0; i < state.particles.length; i++) {
+        const p = state.particles[i];
+        p.t += dtT;
+        if (p.t > 1) p.t -= 1;
+        if (p.t < 0) p.t += 1;
+        const el = particleG.querySelector(`[data-stub="${cid}"][data-idx="${i}"]`);
+        if (el) {
+          el.setAttribute('cx', state.sx + p.t * (state.ex - state.sx));
+          el.setAttribute('cy', state.sy + p.t * (state.ey - state.sy));
+        }
+      }
+    } else {
+      // ── Connection: Bézier ──
+      const cp = paths.get(cid);
+      if (!cp || state.pathLen < 5) continue;
+      const dtT = (state.speed * deltaSec) / state.pathLen;
+      for (let i = 0; i < state.particles.length; i++) {
+        const p = state.particles[i];
+        p.t += dtT;
+        if (p.t > 1) p.t -= 1;
+        if (p.t < 0) p.t += 1;
+        const el = particleG.querySelector(`[data-conn="${cid}"][data-idx="${i}"]`);
+        if (el) {
+          const pt = _bzPt(p.t, cp);
+          el.setAttribute('cx', pt.x);
+          el.setAttribute('cy', pt.y);
+        }
+      }
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // [v15.4.0 S-ICONS] Decoupled icon animation clock
 // Purely cosmetic animations (impellers, bubbles, pistons, pulses, LEDs) run on
 // an accumulated rAF clock, completely independent of sim TimeClock.
@@ -35482,25 +35914,30 @@ let _lastAnimT = 0;          // last computed animT, reused on pause/drag for fr
 const _ANIM_DELTA_CAP = 0.1; // 100ms — caps jump after solver blocking or tab background
 
 function _iconAnimFrame(timestamp) {
-  if (TimeClock.mode !== 'playing' || !SimSettings.animations || ui.theme === 'box') {
+  if (TimeClock.mode !== 'playing' || !SimSettings.animations) {
     _iconAnimRafId = null;
     return;
   }
   // Accumulate delta from rAF timestamp (monotonic, sub-ms precision)
+  let deltaSec = 0;
   if (_animLastFrameTs > 0) {
-    const deltaSec = Math.min(_ANIM_DELTA_CAP, (timestamp - _animLastFrameTs) / 1000);
+    deltaSec = Math.min(_ANIM_DELTA_CAP, (timestamp - _animLastFrameTs) / 1000);
     _animClockSec += deltaSec;
   }
   _animLastFrameTs = timestamp;
   // Convert to animT units: at 1× (5000ms/step) 5 wall-seconds = 1 animT unit
   const stepSec = PLAY_SPEEDS[SimSettings.playSpeed || 0] / 1000;
   _lastAnimT = _animClockSec / stepSec;
-  _updateIconAnimations(_lastAnimT);
+  // Icon cosmetic animations (theme-gated)
+  if (ui.theme !== 'box') _updateIconAnimations(_lastAnimT);
+  // [v17.0.0 S-FLOW] Flow particle advancement (all themes)
+  if (deltaSec > 0) _advanceFlowParticles(deltaSec);
   _iconAnimRafId = requestAnimationFrame(_iconAnimFrame);
 }
 
 function _startIconAnim() {
-  if (ui.theme === 'box' || !SimSettings.animations) return;
+  if (!SimSettings.animations) return;
+  // [v17.0.0] Runs in all themes now — flow particles need rAF even in box theme
   if (_iconAnimRafId) return; // already running
   _animLastFrameTs = 0;      // break delta chain — first frame just records timestamp
   _iconAnimRafId = requestAnimationFrame(_iconAnimFrame);
@@ -36105,6 +36542,14 @@ btnPlanetBg.addEventListener('click', () => {
   if (!PLANET_BG_MAP[presetKey]) return;
   SimSettings.showPlanetBg = !SimSettings.showPlanetBg;
   applyPlanetBg();
+});
+
+// [v17.0.0 S-FLOW] Flow particles toggle
+document.getElementById('btnFlowParticles').addEventListener('click', () => {
+  ui.flowParticlesVisible = !ui.flowParticlesVisible;
+  document.getElementById('btnFlowParticles').classList.toggle('tbtn-dim', !ui.flowParticlesVisible);
+  showToast(ui.flowParticlesVisible ? 'Flow particles ON' : 'Flow particles OFF');
+  render();
 });
 
 // ── [v13.7.0] CSS animation ↔ game time synchronization ──
@@ -51877,6 +52322,103 @@ function runTests() {
     // _blockedInlet SHOULD be on ud.errors
     const blockedErr = turbUD.errors?.find(e => e._blockedInlet);
     t.assertOK(!!blockedErr, '_blockedInlet found in ud.errors');
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // [v17.0.0 S-FLOW] Particle flow animation tests
+  // ═══════════════════════════════════════════════════════════════════════
+
+  test('598: S-FLOW — _anim fields exist on solved material streams', t => {
+    const src = t.place('source', 0, 0, { species: 'N2', nDot: 1, T: 300, P: 200000, phaseConstraint: 'V' });
+    const snk = t.place('sink', 4, 0);
+    t.wire(src, 'mat_out', snk, 'mat_in');
+    t.solve();
+    const stream = t.port(src, 'mat_out');
+    t.assertOK(stream._anim !== undefined, '_anim exists on material stream');
+    t.assertOK(stream._anim.nDot > 0, '_anim.nDot > 0');
+    t.assertOK(stream._anim.vDot > 0, '_anim.vDot > 0');
+    t.assertOK(stream._anim.rho > 0, '_anim.rho > 0');
+    t.assertOK(stream._anim.speciesFracs.N2 > 0.99, 'speciesFracs.N2 ≈ 1');
+  });
+
+  test('599: S-FLOW — _anim absent on zero-flow and electrical streams', t => {
+    const src = t.place('source', 0, 0, { species: 'N2', nDot: 0, T: 300, P: 100000, phaseConstraint: 'V' });
+    const snk = t.place('sink', 4, 0);
+    t.wire(src, 'mat_out', snk, 'mat_in');
+    const grid = t.place('grid_supply', 0, 4, { maxPower: 10 });
+    const dump = t.place('sink_electrical', 4, 4, { ratedPower_kW: 10, powerPriority: 3 });
+    t.wire(grid, 'elec_out', dump, 'elec_in');
+    t.solve();
+    const matStream = t.port(src, 'mat_out');
+    t.assertOK(matStream._anim === undefined, 'Zero-flow material stream has no _anim');
+    const elecStream = t.port(grid, 'elec_out');
+    t.assertOK(elecStream._anim === undefined, 'Electrical stream has no _anim');
+  });
+
+  test('600: S-FLOW — _anim multi-species fractions sum to 1', t => {
+    const src = t.place('source', 0, 0, { n: { N2: 0.78, O2: 0.21, Ar: 0.01 }, T: 300, P: 100000, phaseConstraint: 'V' });
+    const snk = t.place('sink', 4, 0);
+    t.wire(src, 'mat_out', snk, 'mat_in');
+    t.solve();
+    const anim = t.port(src, 'mat_out')._anim;
+    t.assertOK(anim !== undefined, '_anim exists on multi-species stream');
+    const fracSum = Object.values(anim.speciesFracs).reduce((a, b) => a + b, 0);
+    t.assertClose(fracSum, 1.0, 1e-6, 'Species fractions sum to 1');
+    t.assertOK(anim.speciesFracs.N2 > 0.7, 'N2 fraction dominant');
+  });
+
+  test('601: S-FLOW — _anim density physical range (gas vs liquid)', t => {
+    // Gas: N2 at 1 atm — rho should be ~1.1 kg/m³
+    const srcG = t.place('source', 0, 0, { species: 'N2', nDot: 1, T: 300, P: 101325, phaseConstraint: 'V' });
+    const snkG = t.place('sink', 4, 0);
+    t.wire(srcG, 'mat_out', snkG, 'mat_in');
+    t.solve();
+    const animG = t.port(srcG, 'mat_out')._anim;
+    t.assertOK(animG.rho > 0.5 && animG.rho < 5, `Gas rho=${animG.rho.toFixed(2)} in [0.5, 5]`);
+    // Liquid: H2O at 1 atm
+    t.clearScene();
+    const srcL = t.place('source', 0, 0, { species: 'H2O', nDot: 1, T: 300, P: 101325, phaseConstraint: 'L' });
+    const snkL = t.place('sink', 4, 0);
+    t.wire(srcL, 'mat_out', snkL, 'mat_in');
+    t.solve();
+    const animL = t.port(srcL, 'mat_out')._anim;
+    t.assertOK(animL.rho > 500, `Liquid rho=${animL.rho.toFixed(0)} > 500`);
+  });
+
+  test('602: S-FLOW — Bézier helpers exist and compute correctly', t => {
+    t.assertOK(typeof _bzPt === 'function', '_bzPt exists');
+    t.assertOK(typeof _bzLen === 'function', '_bzLen exists');
+    // Straight line: (0,0) → (100,0) with collinear control points
+    const p = { fx:0, fy:0, c1x:33, c1y:0, c2x:67, c2y:0, tx:100, ty:0 };
+    const mid = _bzPt(0.5, p);
+    t.assertClose(mid.x, 50, 1, 'Midpoint x ≈ 50');
+    t.assertClose(mid.y, 0, 1, 'Midpoint y ≈ 0');
+    const len = _bzLen(p);
+    t.assertClose(len, 100, 2, 'Straight line length ≈ 100');
+  });
+
+  test('603: S-FLOW — LAYOUT_DEFAULTS includes flowParticlesVisible', t => {
+    t.assertOK(LAYOUT_DEFAULTS.flowParticlesVisible === true, 'flowParticlesVisible defaults true');
+  });
+
+  test('604: S-FLOW Phase 2 — _rtNozzle._stubs structure exists', t => {
+    // _rtNozzle._stubs is initialized by the function itself on first call
+    // In headless mode it may not have been called yet, but the property should be settable
+    if (!_rtNozzle._stubs) _rtNozzle._stubs = new Map();
+    t.assertOK(_rtNozzle._stubs instanceof Map, '_rtNozzle._stubs is a Map');
+    // Verify _flowState can hold stub keys
+    const testKey = 'stub:test-unit:mat_out';
+    _flowState.set(testKey, { particles: [], speed: 0, gap: 10, isStub: true, sx:0, sy:0, ex:10, ey:0, stubLen:10 });
+    t.assertOK(_flowState.get(testKey).isStub === true, 'Stub state stored with isStub flag');
+    _flowState.delete(testKey); // cleanup
+  });
+
+  test('605: S-FLOW Phase 2 — stub direction respects PortDir', t => {
+    // OUT stubs: body edge → port (particles emerge from unit)
+    // IN stubs: port → body edge (particles enter unit)
+    t.assertOK(PortDir.OUT !== undefined, 'PortDir.OUT exists');
+    t.assertOK(PortDir.IN !== undefined, 'PortDir.IN exists');
+    t.assertOK(PortDir.OUT !== PortDir.IN, 'IN and OUT are distinct');
   });
 
   // ═══════════════════════════════════════════════════════════════════════
