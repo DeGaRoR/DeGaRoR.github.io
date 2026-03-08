@@ -27253,6 +27253,74 @@ function _rtPortColors(unitId, portId, isElec) {
   }
   return isElec ? { outer:'#92400e', inner:'#eab308' } : { outer:'#374151', inner:'#4b5563' };
 }
+// [v17.0.0 S-FLOW] Body-colored elbow nozzle for corner ports.
+// Draws a solid body-colored path from body edge, curving 90° to align with port.
+// Registers the elbow tip in _rtNozzle._elbowTips so procedural stubs start from the tip.
+// R = bend radius (px).
+// [v17.0.0] Register elbow tip without drawing — lets _rtNozzle know stub origin
+function _rtElbowRegisterTip(unitId, portId, riserX, bodyEdgeY, px, py, R) {
+  if (!R) R = 8;
+  const goDown = py > bodyEdgeY;
+  const goRight = px > riserX;
+  const tipX = goRight ? riserX + R : riserX - R;
+  const tipY = py;
+  if (!_rtNozzle._elbowTips) _rtNozzle._elbowTips = new Map();
+  _rtNozzle._elbowTips.set(`${unitId}:${portId}`, { x: tipX, y: tipY });
+}
+
+function _rtElbow(g, unitId, portId, riserX, bodyEdgeY, px, py, pal, R) {
+  if (!R) R = 8;
+  const goDown = py > bodyEdgeY;   // vertical direction
+  const goRight = px > riserX;     // horizontal direction
+
+  // Arc endpoint (tip): the point where the curve ends and the straight stub begins
+  const tipX = goRight ? riserX + R : riserX - R;
+  const tipY = py;
+
+  // Arc start: end of the vertical segment
+  const arcStartY = goDown ? py - R : py + R;
+
+  // SVG sweep: inverted — arc bulges AWAY from body (convex bend like real pipe)
+  const sweep = (goDown === goRight) ? 0 : 1;
+
+  // Path: vertical line → quarter arc
+  const d = `M${riserX},${bodyEdgeY} L${riserX},${arcStartY} A${R},${R} 0 0 ${sweep} ${tipX},${tipY}`;
+
+  // Draw as body-colored solid (part of the equipment, not pipe)
+  g.appendChild(svgEl('path', {
+    d, fill: 'none', stroke: pal.stroke, 'stroke-width': 10,
+    'stroke-linecap': 'butt', 'stroke-linejoin': 'round', 'pointer-events': 'none'
+  }));
+  g.appendChild(svgEl('path', {
+    d, fill: 'none', stroke: pal.fillUrl || pal.fill || pal.stroke, 'stroke-width': 6,
+    'stroke-linecap': 'butt', 'stroke-linejoin': 'round', 'pointer-events': 'none'
+  }));
+
+  // [v17.0.0] Split flange at junction — exact same pattern as _rtPortOverlays flanges
+  // Unit-color half (body side) + pipe-color half (stub side)
+  if (ui.showFlanges) {
+    const bodyFill = pal.fillUrl || pal.fill || pal.stroke;
+    const fShift = goRight ? 4 : -4; // shift toward stub (away from body)
+    const fg = svgEl('g', { transform: `translate(${tipX + fShift},${tipY})`, 'pointer-events': 'none' });
+    // Unit-side half: 4×14 rect, body-colored
+    const uOff = goRight ? -4 : 0;
+    fg.appendChild(svgEl('rect', { x: uOff, y: -7, width: 4, height: 14, rx: 1.5, fill: bodyFill, stroke: '#374151', 'stroke-width': 1.2 }));
+    // Pipe-side half: 4×14 rect, pipe grey
+    const sOff = goRight ? 0 : -4;
+    fg.appendChild(svgEl('rect', { x: sOff, y: -7, width: 4, height: 14, rx: 1.5, fill: '#4b5563', stroke: '#374151', 'stroke-width': 1.2 }));
+    // Seam line
+    fg.appendChild(svgEl('line', { x1: 0, y1: -7, x2: 0, y2: 7, stroke: '#6b7280', 'stroke-width': 0.8, 'stroke-dasharray': '2 1.5' }));
+    // 4 bolts — same positions as existing vertical flanges: (±2, ±5)
+    [[-2,-5],[-2,5],[2,-5],[2,5]].forEach(([bx, by]) =>
+      fg.appendChild(svgEl('circle', { cx: bx, cy: by, r: 1.3, fill: '#9ca3af', stroke: '#374151', 'stroke-width': 0.6 })));
+    g.appendChild(fg);
+  }
+
+  // Register tip for _rtNozzle to start the stub from
+  if (!_rtNozzle._elbowTips) _rtNozzle._elbowTips = new Map();
+  _rtNozzle._elbowTips.set(`${unitId}:${portId}`, { x: tipX, y: tipY });
+}
+
 // [v15.4.0] Draw directional arrow on unconnected port
 function _rtNozzle(g, wx, wy, ww, wh, bx, by, bw, bh, def, pres, pal, unitId) {
   const t = scene.tile;
@@ -27260,6 +27328,8 @@ function _rtNozzle(g, wx, wy, ww, wh, bx, by, bw, bh, def, pres, pal, unitId) {
     || ui.colorBy === 'phase' || ui.colorBy === 'composition' || ui.colorBy === 'flowrate';
   // Per-port runtime data for gradient coloring
   const _ud = _gradMode && unitId ? scene.runtime?.unitData?.get(unitId) : null;
+  // [v17.0.0 S-FLOW] Per-port stub origin overrides from elbow system
+  const _tips = _rtNozzle._elbowTips;
   for (const p of def.ports) {
     const pp = pres.ports[p.portId];
     if (!pp) continue;
@@ -27290,16 +27360,26 @@ function _rtNozzle(g, wx, wy, ww, wh, bx, by, bw, bh, def, pres, pal, unitId) {
     }
     const outerW = isElec ? 8 : 10;
     const innerW = isElec ? 4 : 6;
-    const edge = getPortEdge(pp, pres);
+
+    // [v17.0.0 S-FLOW] Check for elbow tip override
+    const tipKey = unitId ? `${unitId}:${p.portId}` : null;
+    const tip = tipKey && _tips ? _tips.get(tipKey) : null;
+
     let x1, y1, x2, y2;
-    if (edge === 'left') {
-      x1 = bx; y1 = py; x2 = px; y2 = py;
-    } else if (edge === 'right') {
-      x1 = bx + bw; y1 = py; x2 = px; y2 = py;
-    } else if (edge === 'top') {
-      x1 = px; y1 = by; x2 = px; y2 = py;
+    if (tip) {
+      // Stub from elbow tip to port position (always straight)
+      x1 = tip.x; y1 = tip.y; x2 = px; y2 = py;
     } else {
-      x1 = px; y1 = by + bh; x2 = px; y2 = py;
+      const edge = getPortEdge(pp, pres);
+      if (edge === 'left') {
+        x1 = bx; y1 = py; x2 = px; y2 = py;
+      } else if (edge === 'right') {
+        x1 = bx + bw; y1 = py; x2 = px; y2 = py;
+      } else if (edge === 'top') {
+        x1 = px; y1 = by; x2 = px; y2 = py;
+      } else {
+        x1 = px; y1 = by + bh; x2 = px; y2 = py;
+      }
     }
     const len = Math.hypot(x2-x1, y2-y1);
     if (len < 1) continue;
@@ -27749,31 +27829,25 @@ const _RAGTAG_SYMBOLS = {
     const bw = 44, bh = wh - 16;
     const bx = wx + 22, by = wy + 8;
     const bcx = bx + bw / 2;
-    // Detect corner ports and build riser paths
-    const cornerPaths = [];
-    let nzBx = bx, nzBw = bw;
+    // Pre-compute elbow data for corner ports
+    const _elbows = [];
     for (const p of def.ports) {
       const pp = pres.ports[p.portId]; if (!pp) continue;
       const px = wx + pp.x * t, py = wy + pp.y * t;
       const onLeft = pp.x <= 0.1, onRight = pp.x >= pres.w - 0.1;
       const onTop = pp.y <= 0.1, onBottom = pp.y >= pres.h - 0.1;
       if ((onLeft || onRight) && (onTop || onBottom)) {
-        if (onRight && px >= nzBx + nzBw) nzBw = px - nzBx;
-        if (onLeft && px < nzBx) { nzBw += nzBx - px; nzBx = px; }
         const riserX = onRight ? bx + bw * 0.7 : bx + bw * 0.3;
         const bodyEdgeY = onTop ? by + 12 : by + bh - 12;
-        cornerPaths.push({ d:`M${riserX},${bodyEdgeY} L${riserX},${py} L${px},${py}`, portId: p.portId });
+        _elbows.push({ portId: p.portId, riserX, bodyEdgeY, px, py });
+        _rtElbowRegisterTip(unitId, p.portId, riserX, bodyEdgeY, px, py, 6);
       }
     }
-    // 1. Nozzle stubs (corner ports suppressed by expanded bbox)
-    _rtNozzle(g, wx, wy, ww, wh, nzBx, by, nzBw, bh, def, pres, pal, unitId);
-    // 2. Corner risers BEHIND body — color-aware
-    for (const cp of cornerPaths) {
-      const col = _rtPortColors(unitId, cp.portId, false);
-      g.appendChild(svgEl('path', { d:cp.d, fill:'none', stroke:col.outer, 'stroke-width':10, 'stroke-linejoin':'round', 'stroke-linecap':'butt', 'pointer-events':'none' }));
-      g.appendChild(svgEl('path', { d:cp.d, fill:'none', stroke:col.inner, 'stroke-width':6, 'stroke-linejoin':'round', 'stroke-linecap':'butt', 'pointer-events':'none' }));
-    }
-    // 3. Vessel body ON TOP of risers (Q-curve caps like design sheet)
+    // 1. Nozzle stubs behind everything
+    _rtNozzle(g, wx, wy, ww, wh, bx, by, bw, bh, def, pres, pal, unitId);
+    // 2. Body-colored elbows on top of stubs
+    for (const e of _elbows) _rtElbow(g, unitId, e.portId, e.riserX, e.bodyEdgeY, e.px, e.py, pal, 6);
+    // 3. Vessel body ON TOP of elbows (Q-curve caps like design sheet)
     g.appendChild(svgEl('path', {
       d: `M${bx},${by+16} Q${bx},${by} ${bcx},${by} Q${bx+bw},${by} ${bx+bw},${by+16} L${bx+bw},${by+bh-16} Q${bx+bw},${by+bh} ${bcx},${by+bh} Q${bx},${by+bh} ${bx},${by+bh-16} Z`,
       fill: pal.fillUrl, stroke: pal.stroke, 'stroke-width': 2.5, 'pointer-events': 'none' }));
@@ -28602,32 +28676,27 @@ const _RAGTAG_SYMBOLS = {
     const t = scene.tile;
     // Body bbox
     const bx = wx+4, by = wy+16, bw = 136, bh = 64;
-    // Detect corner ports and expand bbox to suppress their _rtNozzle stubs
-    let nzBx = bx, nzBw = bw;
-    const cornerPaths = [];
+    // Pre-compute elbow data for corner ports
+    const _elbows = [];
     for (const p of def.ports) {
       const pp = pres.ports[p.portId]; if (!pp) continue;
       const px = wx + pp.x * t, py = wy + pp.y * t;
       const onLeft = pp.x <= 0.1, onRight = pp.x >= pres.w - 0.1;
       const onTop = pp.y <= 0.1, onBottom = pp.y >= pres.h - 0.1;
       if ((onLeft || onRight) && (onTop || onBottom)) {
-        if (onRight && px >= nzBx + nzBw) nzBw = px - nzBx;
-        if (onLeft && px < nzBx) { nzBw += nzBx - px; nzBx = px; }
         const riserX = onRight ? bx + bw * 2/3 : bx + bw * 1/3;
         const bodyEdgeY = onTop ? by : by + bh;
-        cornerPaths.push({ d:`M${riserX},${bodyEdgeY} L${riserX},${py} L${px},${py}`, portId: p.portId });
+        _elbows.push({ portId: p.portId, riserX, bodyEdgeY, px, py });
+        // Register tip so _rtNozzle starts stub from elbow endpoint
+        _rtElbowRegisterTip(unitId, p.portId, riserX, bodyEdgeY, px, py, 8);
       }
     }
-    // 1. Nozzles (behind body — corner ports produce zero-length stubs)
-    _rtNozzle(g, wx, wy, ww, wh, nzBx, by, nzBw, bh, def, pres, pal, unitId);
-    // 2. Body (capsule shape — covers nozzle bases)
+    // 1. Nozzle stubs behind everything (reads elbow tips for stub origin)
+    _rtNozzle(g, wx, wy, ww, wh, bx, by, bw, bh, def, pres, pal, unitId);
+    // 2. Body-colored elbows on top of stubs
+    for (const e of _elbows) _rtElbow(g, unitId, e.portId, e.riserX, e.bodyEdgeY, e.px, e.py, pal);
+    // 3. Body (capsule shape — covers elbow roots)
     g.appendChild(svgEl('path', { d:`M${wx+18},${wy+16} Q${wx+4},${wy+16} ${wx+4},${wy+48} Q${wx+4},${wy+80} ${wx+18},${wy+80} L${wx+126},${wy+80} Q${wx+140},${wy+80} ${wx+140},${wy+48} Q${wx+140},${wy+16} ${wx+126},${wy+16} Z`, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'pointer-events':'none' }));
-    // 3. Corner risers ON TOP of body — color-aware
-    for (const cp of cornerPaths) {
-      const col = _rtPortColors(unitId, cp.portId, false);
-      g.appendChild(svgEl('path', { d:cp.d, fill:'none', stroke:col.outer, 'stroke-width':10, 'stroke-linejoin':'round', 'stroke-linecap':'butt', 'pointer-events':'none' }));
-      g.appendChild(svgEl('path', { d:cp.d, fill:'none', stroke:col.inner, 'stroke-width':6, 'stroke-linejoin':'round', 'stroke-linecap':'butt', 'pointer-events':'none' }));
-    }
     _rtBoltS(g, wx+22, wy+48); _rtBoltS(g, wx+122, wy+48);
     _rtBolt(g, wx+42, wy+20); _rtBolt(g, wx+102, wy+20);
     _rtBolt(g, wx+42, wy+76); _rtBolt(g, wx+102, wy+76);
@@ -28655,32 +28724,26 @@ const _RAGTAG_SYMBOLS = {
     const pres = getPresentation(def, scene.units.get(unitId));
     const t = scene.tile;
     const obx = wx+14, obw = 116, oby = wy+14, obh = 68;
-    // Detect corner ports, expand bbox, collect riser paths
-    let nzBx = obx, nzBw = obw;
-    const cornerPaths = [];
+    // Pre-compute elbow data for corner ports
+    const _elbows = [];
     for (const p of def.ports) {
       const pp = pres.ports[p.portId]; if (!pp) continue;
       const px = wx + pp.x * t, py = wy + pp.y * t;
       const onLeft = pp.x <= 0.1, onRight = pp.x >= pres.w - 0.1;
       const onTop = pp.y <= 0.1, onBottom = pp.y >= pres.h - 0.1;
       if ((onLeft || onRight) && (onTop || onBottom)) {
-        if (onRight && px >= nzBx + nzBw) nzBw = px - nzBx;
-        if (onLeft && px < nzBx) { nzBw += nzBx - px; nzBx = px; }
         const riserX = onRight ? obx + obw * 2/3 : obx + obw * 1/3;
         const bodyEdgeY = onTop ? oby : oby + obh;
-        cornerPaths.push({ d:`M${riserX},${bodyEdgeY} L${riserX},${py} L${px},${py}`, portId: p.portId });
+        _elbows.push({ portId: p.portId, riserX, bodyEdgeY, px, py });
+        _rtElbowRegisterTip(unitId, p.portId, riserX, bodyEdgeY, px, py, 8);
       }
     }
-    // 1. Nozzles (corner ports suppressed by expanded bbox)
-    _rtNozzle(g, wx, wy, ww, wh, nzBx, oby, nzBw, obh, def, pres, pal, unitId);
-    // 2. Body (open-top U-shape)
+    // 1. Nozzle stubs behind everything
+    _rtNozzle(g, wx, wy, ww, wh, obx, oby, obw, obh, def, pres, pal, unitId);
+    // 2. Body-colored elbows on top of stubs
+    for (const e of _elbows) _rtElbow(g, unitId, e.portId, e.riserX, e.bodyEdgeY, e.px, e.py, pal);
+    // 3. Body (open-top U-shape)
     g.appendChild(svgEl('path', { d:`M${wx+14},${wy+14} L${wx+14},${wy+68} Q${wx+14},${wy+82} ${wx+72},${wy+82} Q${wx+130},${wy+82} ${wx+130},${wy+68} L${wx+130},${wy+14}`, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'stroke-linecap':'round', 'pointer-events':'none' }));
-    // 3. Corner risers on top — color-aware
-    for (const cp of cornerPaths) {
-      const col = _rtPortColors(unitId, cp.portId, false);
-      g.appendChild(svgEl('path', { d:cp.d, fill:'none', stroke:col.outer, 'stroke-width':10, 'stroke-linejoin':'round', 'stroke-linecap':'butt', 'pointer-events':'none' }));
-      g.appendChild(svgEl('path', { d:cp.d, fill:'none', stroke:col.inner, 'stroke-width':6, 'stroke-linejoin':'round', 'stroke-linecap':'butt', 'pointer-events':'none' }));
-    }
     _rtBolt(g, wx+22, wy+22); _rtBolt(g, wx+122, wy+22);
     _rtBolt(g, wx+44, wy+76); _rtBolt(g, wx+100, wy+76);
     // Sight glass (right side)
@@ -29920,6 +29983,7 @@ function render() {
   }
 
   clearSVG();
+  _rtNozzle._elbowTips = new Map(); // [v17.0.0 S-FLOW] elbow tip overrides, cleared each render
   setViewBox();
   drawGrid();
   drawConnections();
