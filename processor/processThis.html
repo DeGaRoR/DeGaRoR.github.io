@@ -540,6 +540,29 @@
   NNGs: NNG-14 (changelog).
   Tests: 607 total, 3143 checks, 0 failures.
 
+  ─── v16.9.2 — Hub first-iteration overload fix ──────────────────────────
+
+  **BUG FIX: Hub-connected consumers destroyed on first solver iteration.**
+
+  Root cause: power_hub and _powerDispatchTick advertised `actual =
+  totalCapacity_W` as fallback before Step C had run.  On iteration 1,
+  consumers with checkOverload (air_cooler, reactor_electrochemical) saw
+  the full bus capacity (e.g. 20 kW) as delivered power against their
+  small rated motor (e.g. 150 W fan), triggering instant >50% overload
+  destruction.  Direct grid_supply connections were immune because
+  grid_supply defaults `actual = 0` (demand-responsive).
+
+  Fix: changed the pre-Step-C fallback from `totalCapacity_W` to `0` in
+  both power_hub tick and the shared _powerDispatchTick function.  This
+  is safe because:
+  - Consumers compute `u.powerDemand` from material-side needs (cooling
+    duty, shaft work) *before* reading electrical allocation.
+  - Step C reads `u.powerDemand` to allocate, writes `hubAllocated_W`.
+  - Iteration 2 converges with correct allocation.
+  - Direct-connection paths (Step D) are unchanged.
+
+  NNGs: NNG-14 (changelog).
+
   ─── v16.9.1 — Phase C: NNG-11 DOM extraction + numerical hardening ────
 
   **exportJSON DOM extraction (NNG-11)** — Scene.exportJSON no longer
@@ -16807,7 +16830,10 @@ UnitRegistry.register('power_hub', {
     const s = ctx ? ctx.scratch : {};
     
     // Forward: advertise supply on elec_out (use carry-forward from Step C)
-    const distAvail_W = s.hubDistAvail_W !== undefined ? s.hubDistAvail_W : totalCapacity_W;
+    // [v16.9.2] Default to 0 (not capacity) before Step C has run.  Prevents
+    // consumers with checkOverload from seeing full bus capacity as delivered
+    // power on iteration 1, which caused instant fry (e.g. 20 kW on a 150 W fan).
+    const distAvail_W = s.hubDistAvail_W !== undefined ? s.hubDistAvail_W : 0;
     ports.elec_out = {
       type: StreamType.ELECTRICAL,
       capacity: totalCapacity_W,
@@ -16851,7 +16877,8 @@ function _powerDispatchTick(u, ports, par, ctx) {
     }
   }
   const s = ctx ? ctx.scratch : {};
-  const distAvail_W = s.hubDistAvail_W !== undefined ? s.hubDistAvail_W : totalCapacity_W;
+  // [v16.9.2] Default to 0 before Step C — mirrors power_hub fix.
+  const distAvail_W = s.hubDistAvail_W !== undefined ? s.hubDistAvail_W : 0;
 
   // Advertise supply on all electrical output ports (except surplus)
   for (const p of def.ports) {
