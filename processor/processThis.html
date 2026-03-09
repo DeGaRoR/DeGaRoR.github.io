@@ -540,7 +540,7 @@
   NNGs: NNG-14 (changelog).
   Tests: 607 total, 3143 checks, 0 failures.
 
-  ─── v16.9.5 — S-INSPECTOR Wave 1: Gauges, sliders, human labels ─────────
+  ─── v16.9.5 — S-INSPECTOR: Gauges, sliders, human labels (all units) ────
 
   **Visual gauges for T and P.** New `_renderGauge()` SVG component: 56px
   round arc gauge with limit-colored zones (green L→H, orange LL→L / H→HH,
@@ -549,38 +549,60 @@
   `_renderConditionGauges()` orchestrates T+P gauge pair + phase KPI.
   Gauges retain sticker draggability (`_tagDraggableBadge`).
 
+  **Sliders on all bounded parameters.** Every numeric param with a
+  physical range now has `min`/`max`, triggering `addSliderEditor` auto-
+  dispatch (line 34211).  27 params across 20+ inspectors converted.
+
+  **Human-friendly labels — all 30 inspectors.**  Labels rewritten for
+  non-technical players.  Rule: if there's a simpler word, use it.
+  Examples: "P outlet (bar)" → "Outlet pressure [bar]",
+  "Efficiency (-)" → "Efficiency [%]" (display as %, store as fraction),
+  "Priority" → "Power priority", "UA (W/K)" → "Cooling capacity [W/K]",
+  "Cv" → "Valve size (Cv)", "Split to out1 (%)" → "Split ratio [%]",
+  "LK purity in distillate" → "Light key purity in top [%]",
+  "Q fixed (kW)" → "Fixed heat input [kW]".
+
   **Layout variant downsized.** Moved from prominent first-position
   `ins-params-zone` to compact `.ins-layout-compact` row at bottom of
-  params section.  Human-friendly names via `_VARIANT_LABELS` lookup:
-  "Standard", "Mirrored", "Power on top", "Outlet left", etc.
+  params section.  Human-friendly names via `_VARIANT_LABELS` lookup.
 
-  **Power-primary section reorder.** Units with no material ports
-  (`!def.ports.some(p => p.type === StreamType.MATERIAL)`) get Power
-  section rendered first after params.  NNG-13 compliant: Conditions/
-  Flowrates/Composition are empty (omitted) for these units, so Power
-  naturally fills the first content position.
+  **Power-primary section reorder.** Units with no material ports get
+  Power section rendered first.  Detection: same criterion as
+  material_electrical coloring mode.
 
   **INFO severity in inspector banners.** Filter lowered from
-  `>= WARNING` to `>= INFO`.  New `.ins-err-box.info` CSS class
-  (blue-gray, non-alerting).  Enables future downgrades of FYI messages.
+  `>= WARNING` to `>= INFO`.  New `.ins-err-box.info` CSS class.
 
-  **Air cooler inspector revamp:**
-  - Target temperature: slider capped min=ambient, max=T_HH from limits
-  - Auto-mode info text: "Auto: Ambient 16°C + 10K approach = 26°C"
-  - Approach temperature: slider 1–100K
-  - Cooling capacity: slider 0.01–100 kW/K
-  - Fan power limit: slider 1–50000 W
-  - Power priority: slider 1–5
-  - Power section: removed Q demand/Q max (detail-level), kept essentials
+  **Air cooler:** Slider bounds (min=ambient, max=T_HH), approach-mode
+  info text, approach temperature slider 1–100K.
 
-  **Sink inspector redesign:** Inlet T + phase, Outlet T + phase
-  (with atmosphere name tooltip).  Removed Expansion, removed paired
-  Tin/Tout/Pin/Pout, removed "Absorbed" label → renamed to "Flow".
+  **Sink:** Inlet T + phase, Outlet T + phase (with atmosphere tooltip).
+  Removed Expansion, Absorbed, paired T/P rows.
 
-  **Reservoir inspector:** Physical units on T and P via unit system.
-  Cv → "Valve size (Cv)" slider 0.01–100.  Opening → slider 0–100%.
+  **Reservoir:** Physical units on T/P via unit system.  Cv + opening
+  sliders.
 
-  **Grid supply inspector:** "Max power [kW]" slider 0.1–10000.
+  **Compressor/pump/gas_turbine:** `_pEtaParams` efficiency now
+  displayed as % (slider 10–99), stored as fraction.
+
+  **Electric heater:** "Fixed power" mode gets slider 0–500 kW.
+
+  **Reactor:** Volume slider 0.0001–10 m³, approach slider 0–1, heat
+  control renamed, cooling capacity slider 0–5000 W/K.
+
+  **Electrochemical/fuel cell:** Efficiency + conversion as % sliders.
+
+  **Distillation:** Stages slider 3–100, reflux ratio slider 1.05–5,
+  purity displayed as % sliders (50–99.9%).
+
+  **Battery:** Capacity slider 0.01–1000 kWh, charge slider 0–100%,
+  power slider 0.1–1000 kW.
+
+  **Solar/wind:** Peak power slider 0.1–1000 kW, design wind 3–30 m/s.
+
+  **Tank/open_tank:** Dev labels renamed ("Tank volume [m³]", "Gas/Liquid
+  valve size (Cv)", "Gas/Liquid valve opening [%]",
+  "Safety valve opens at [bar]", "Overflow level [%]").
 
   NNGs: NNG-8 (unit system), NNG-13 (inspector, section order),
   NNG-14 (changelog).
@@ -32668,13 +32690,13 @@ const UnitInspector = {};
 // Helper: standard pressure+efficiency editors
 function _pEtaParams(u, unitSys, Pdefault, etaDefault) {
   return [
-    { label: `P outlet (${unitSys.pressure.symbol})`,
+    { label: `Outlet pressure [${unitSys.pressure.symbol}]`,
       get: () => unitSys.pressure.from(u.params.Pout || Pdefault),
       set: v => u.params.Pout = unitSys.pressure.to(v),
       step: unitSys.pressure.decimals === 0 ? 1000 : 0.1, decimals: unitSys.pressure.decimals, validate: { gt: 0 } },
-    { label: 'Efficiency (-)',
-      get: () => u.params.eta || etaDefault,
-      set: v => u.params.eta = v, step: 0.01, min: 0, max: 1 },
+    { type: 'slider', label: 'Efficiency [%]',
+      get: () => (u.params.eta || etaDefault) * 100,
+      set: v => u.params.eta = v / 100, min: 10, max: 99, step: 1 },
   ];
 }
 
@@ -32794,10 +32816,10 @@ UnitInspector.sink = {
 UnitInspector.sink_electrical = {
   params(u) {
     return [
-      { label: 'Rated power (kW)', get: () => u.params.ratedPower_kW ?? 1000,
-        set: v => u.params.ratedPower_kW = Math.max(0.1, v), step: 10, validate: { gt: 0 } },
-      { label: 'Priority', get: () => u.params.powerPriority ?? 3,
-        set: v => u.params.powerPriority = Math.max(1, Math.round(v)), step: 1, validate: { gte: 1 } },
+      { type: 'slider', label: 'Rated power [kW]', get: () => u.params.ratedPower_kW ?? 1000,
+        set: v => u.params.ratedPower_kW = Math.max(0.1, v), min: 0.1, max: 10000, step: 10 },
+      { label: 'Power priority', get: () => u.params.powerPriority ?? 3,
+        set: v => u.params.powerPriority = Math.max(1, Math.round(v)), step: 1, min: 1, max: 5 },
     ];
   },
   power(u, ud) {
@@ -33011,7 +33033,7 @@ UnitInspector.grid_supply = {
 // [v16.7.0 S-DIURNAL] Solar panel inspector
 UnitInspector.solar_panel = {
   params(u) { return [
-    { label: 'Peak Power (kW)', get: () => u.params.peakPower_kW || 10, set: v => u.params.peakPower_kW = v, step: 1, validate: { gt: 0 } },
+    { type: 'slider', label: 'Peak power [kW]', get: () => u.params.peakPower_kW || 10, set: v => u.params.peakPower_kW = v, min: 0.1, max: 1000, step: 1 },
   ]; },
   power(u, ud) {
     if (!ud?.last) return [];
@@ -33027,8 +33049,8 @@ UnitInspector.solar_panel = {
 // [v16.7.0 S-DIURNAL] Wind turbine inspector
 UnitInspector.wind_turbine = {
   params(u) { return [
-    { label: 'Peak Power (kW)', get: () => u.params.peakPower_kW || 20, set: v => u.params.peakPower_kW = v, step: 1, validate: { gt: 0 } },
-    { label: 'Design wind (m/s)', get: () => u.params.vDesign_ms || 12, set: v => u.params.vDesign_ms = v, step: 0.5, validate: { gt: 1 } },
+    { type: 'slider', label: 'Peak power [kW]', get: () => u.params.peakPower_kW || 20, set: v => u.params.peakPower_kW = v, min: 0.1, max: 1000, step: 1 },
+    { type: 'slider', label: 'Design wind speed [m/s]', get: () => u.params.vDesign_ms || 12, set: v => u.params.vDesign_ms = v, min: 3, max: 30, step: 0.5 },
   ]; },
   power(u, ud) {
     if (!ud?.last) return [];
@@ -33075,11 +33097,11 @@ UnitInspector.tank = {
     // ── Dev-only: volume + Cv editable ──
     if (isDev) {
       const devBox = el('div', { style: 'margin-bottom:6px;' });
-      addNumberEditor(devBox, 'Volume (m³)',
+      addNumberEditor(devBox, 'Tank volume [m³]',
         () => u.params.volume_m3 || 0.15, v => u.params.volume_m3 = v, 0.01, 3);
-      addNumberEditor(devBox, 'Cv gas',
+      addNumberEditor(devBox, 'Gas valve size (Cv)',
         () => u.params.Cv_gas ?? 50, v => u.params.Cv_gas = v, 1, 0);
-      addNumberEditor(devBox, 'Cv liq',
+      addNumberEditor(devBox, 'Liquid valve size (Cv)',
         () => u.params.Cv_liq ?? 50, v => u.params.Cv_liq = v, 1, 0);
       container.appendChild(devBox);
     }
@@ -33104,7 +33126,7 @@ UnitInspector.tank = {
           5, 0, { min: 0, max: 100 });
       }
     } else {
-      addNumberEditor(drawBox, 'Gas opening (%)',
+      addNumberEditor(drawBox, 'Gas valve opening [%]',
         () => u.params.opening_gas_pct ?? 0, v => u.params.opening_gas_pct = v, 5, 0, { min: 0, max: 100 });
     }
 
@@ -33124,7 +33146,7 @@ UnitInspector.tank = {
           5, 0, { min: 0, max: 100 });
       }
     } else {
-      addNumberEditor(drawBox, 'Liq opening (%)',
+      addNumberEditor(drawBox, 'Liquid valve opening [%]',
         () => u.params.opening_liq_pct ?? 0, v => u.params.opening_liq_pct = v, 5, 0, { min: 0, max: 100 });
     }
     container.appendChild(drawBox);
@@ -33145,7 +33167,7 @@ UnitInspector.tank = {
           us.pressure.decimals === 0 ? 10000 : 0.1, us.pressure.decimals, { max: P_HH_disp });
       }
     }
-    addNumberEditor(safeBox, 'Overflow level (%)',
+    addNumberEditor(safeBox, 'Overflow level [%]',
       () => u.params.overflow_level ?? 90, v => u.params.overflow_level = v, 5, 0, { min: 50, max: 100 });
     container.appendChild(safeBox);
   },
@@ -33227,9 +33249,9 @@ UnitInspector.open_tank = {
 
     if (isDev) {
       const devBox = el('div', { style: 'margin-bottom:6px;' });
-      addNumberEditor(devBox, 'Volume (m³)',
+      addNumberEditor(devBox, 'Tank volume [m³]',
         () => u.params.volume_m3 || 0.15, v => u.params.volume_m3 = v, 0.01, 3);
-      addNumberEditor(devBox, 'Cv liq',
+      addNumberEditor(devBox, 'Liquid valve size (Cv)',
         () => u.params.Cv_liq ?? 30, v => u.params.Cv_liq = v, 1, 0);
       container.appendChild(devBox);
     }
@@ -33254,7 +33276,7 @@ UnitInspector.open_tank = {
           5, 0, { min: 0, max: 100 });
       }
     } else {
-      addNumberEditor(drawBox, 'Liq opening (%)',
+      addNumberEditor(drawBox, 'Liquid valve opening [%]',
         () => u.params.opening_liq_pct ?? 0, v => u.params.opening_liq_pct = v, 5, 0, { min: 0, max: 100 });
     }
     container.appendChild(drawBox);
@@ -33262,7 +33284,7 @@ UnitInspector.open_tank = {
     // ── Section: Safety ──
     container.appendChild(el('div', { class: 'ins-section-label', html: 'Safety' }));
     const safeBox = el('div', {});
-    addNumberEditor(safeBox, 'Overflow level (%)',
+    addNumberEditor(safeBox, 'Overflow level [%]',
       () => u.params.overflow_level ?? 90, v => u.params.overflow_level = v, 5, 0, { min: 50, max: 100 });
     container.appendChild(safeBox);
   },
@@ -33322,9 +33344,9 @@ UnitInspector.open_tank = {
 
 UnitInspector.battery = {
   params(u) { return [
-    { label: 'Peak power (kW)', get: () => u.params.peakPower_kW || 20, set: v => u.params.peakPower_kW = v, step: 1, validate: { gt: 0 } },
-    { label: 'Capacity (kWh)', get: () => (u.params.capacity_J || 36000000) / 3600000, set: v => u.params.capacity_J = v * 3600000, step: 1, validate: { gt: 0 } },
-    { label: 'Initial SOC (-)', get: () => u.params.initialSOC ?? 0.9, set: v => u.params.initialSOC = v, step: 0.05, min: 0, max: 1 },
+    { type: 'slider', label: 'Max charge/discharge [kW]', get: () => u.params.peakPower_kW || 20, set: v => u.params.peakPower_kW = v, min: 0.1, max: 1000, step: 1 },
+    { type: 'slider', label: 'Capacity [kWh]', get: () => (u.params.capacity_J || 36000000) / 3600000, set: v => u.params.capacity_J = v * 3600000, min: 0.01, max: 1000, step: 1 },
+    { type: 'slider', label: 'Starting charge [%]', get: () => (u.params.initialSOC ?? 0.9) * 100, set: v => u.params.initialSOC = v / 100, min: 0, max: 100, step: 5 },
   ]; },
   power(u, ud) {
     if (!ud.last) return [];
@@ -33362,7 +33384,7 @@ UnitInspector.battery = {
 // ── Restriction (orifice plate / fixed pressure drop) [v14.1.1] ──
 UnitInspector.restriction = {
   params(u) { const us = models.getActive('units'); return [
-    { label: `ΔP (${us.pressure.symbol})`, get: () => us.pressure.from(u.params.deltaP ?? 100000), set: v => u.params.deltaP = us.pressure.to(v), step: us.pressure.decimals === 0 ? 10000 : 0.1, decimals: us.pressure.decimals, validate: { gt: 0 } }
+    { label: `Pressure drop [${us.pressure.symbol}]`, get: () => us.pressure.from(u.params.deltaP ?? 100000), set: v => u.params.deltaP = us.pressure.to(v), step: us.pressure.decimals === 0 ? 10000 : 0.1, decimals: us.pressure.decimals, validate: { gt: 0 } }
   ]; },
   conditions(u, ud) {
     if (!ud?.last) return [];
@@ -33381,14 +33403,14 @@ UnitInspector.restriction = {
 };
 
 UnitInspector.valve = {
-  params(u) { const us = models.getActive('units'); return [{ label: `P outlet (${us.pressure.symbol})`, get: () => us.pressure.from(u.params.Pout || 101325), set: v => u.params.Pout = us.pressure.to(v), step: us.pressure.decimals === 0 ? 1000 : 0.1, decimals: us.pressure.decimals, validate: { gt: 0 } }]; }
+  params(u) { const us = models.getActive('units'); return [{ label: `Outlet pressure [${us.pressure.symbol}]`, get: () => us.pressure.from(u.params.Pout || 101325), set: v => u.params.Pout = us.pressure.to(v), step: us.pressure.decimals === 0 ? 1000 : 0.1, decimals: us.pressure.decimals, validate: { gt: 0 } }]; }
 };
 
 UnitInspector.pump = {
   params(u) { const us = models.getActive('units'); return [
     ..._pEtaParams(u, us, 500000, 0.75),
-    { label: 'Priority', get: () => u.params.powerPriority ?? 2,
-      set: v => u.params.powerPriority = Math.max(1, Math.round(v)), step: 1, validate: { gte: 1 } },
+    { label: 'Power priority', get: () => u.params.powerPriority ?? 2,
+      set: v => u.params.powerPriority = Math.max(1, Math.round(v)), step: 1, min: 1, max: 5 },
   ]; },
   power(u, ud) { return !ud?.last ? [] : [
     { label: 'Shaft power', value: fmt.kW(ud.last.W_shaft) },
@@ -33411,15 +33433,15 @@ UnitInspector.compressor = {
     const maxRatio = u.params.maxRatio || Infinity;
     const maxRatioLabel = isFinite(maxRatio) ? ` (max ${maxRatio}:1)` : '';
     return [
-      { label: `P outlet (${us.pressure.symbol})${maxRatioLabel}`,
+      { label: `Outlet pressure [${us.pressure.symbol}]${maxRatioLabel}`,
         get: () => us.pressure.from(u.params.Pout || 300000),
         set: v => u.params.Pout = us.pressure.to(v),
         step: us.pressure.decimals === 0 ? 1000 : 0.1, decimals: us.pressure.decimals, validate: { gt: 0 } },
-      { label: 'Efficiency (-)',
-        get: () => u.params.eta || 0.80,
-        set: v => u.params.eta = v, step: 0.01, min: 0, max: 1 },
-      { label: 'Priority', get: () => u.params.powerPriority ?? 2,
-        set: v => u.params.powerPriority = Math.max(1, Math.round(v)), step: 1, validate: { gte: 1 } },
+      { type: 'slider', label: 'Efficiency [%]',
+        get: () => (u.params.eta || 0.80) * 100,
+        set: v => u.params.eta = v / 100, min: 10, max: 99, step: 1 },
+      { label: 'Power priority', get: () => u.params.powerPriority ?? 2,
+        set: v => u.params.powerPriority = Math.max(1, Math.round(v)), step: 1, min: 1, max: 5 },
     ];
   },
   power(u, ud) { return !ud?.last ? [] : [
@@ -33441,8 +33463,8 @@ UnitInspector.compressor = {
 // [v16.8.0] Fan inspector — no user params, status-only
 UnitInspector.fan = {
   params(u) { return [
-    { label: 'Priority', get: () => u.params.powerPriority ?? 2,
-      set: v => u.params.powerPriority = Math.max(1, Math.round(v)), step: 1, validate: { gte: 1 } },
+    { label: 'Power priority', get: () => u.params.powerPriority ?? 2,
+      set: v => u.params.powerPriority = Math.max(1, Math.round(v)), step: 1, min: 1, max: 5 },
   ]; },
   conditions(u, ud) {
     if (!ud?.last) return [];
@@ -33466,10 +33488,10 @@ UnitInspector.fan = {
 UnitInspector.compressor_diaphragm = {
   params(u) { const us = models.getActive('units'); return [
     ..._pEtaParams(u, us, 5000000, 0.65),
-    { label: 'UA (W/K)', get: () => u.params.UA ?? 500,
-      set: v => u.params.UA = Math.max(0, v), step: 10 },
-    { label: 'Priority', get: () => u.params.powerPriority ?? 2,
-      set: v => u.params.powerPriority = Math.max(1, Math.round(v)), step: 1, validate: { gte: 1 } },
+    { type: 'slider', label: 'Cooling capacity [W/K]', get: () => u.params.UA ?? 500,
+      set: v => u.params.UA = Math.max(0, v), min: 0, max: 5000, step: 10 },
+    { label: 'Power priority', get: () => u.params.powerPriority ?? 2,
+      set: v => u.params.powerPriority = Math.max(1, Math.round(v)), step: 1, min: 1, max: 5 },
   ]; },
   power(u, ud) { return !ud?.last ? [] : [
     { label: 'Shaft power', value: fmt.kW(ud.last.W_shaft) },
@@ -33508,57 +33530,52 @@ UnitInspector.gas_turbine = {
 
 // ── Heat Equipment ──
 UnitInspector.electric_heater = {
-  // [v12.8.1] Dual mode: T_setpoint / power_setpoint
   params(u) {
     const us = models.getActive('units');
     const mode = u.params.mode || 'T_setpoint';
     const items = [
       { label: 'Mode', type: 'select',
         options: [
-          ['T_setpoint', 'Temperature setpoint'],
-          ['power_setpoint', 'Power setpoint']
+          ['T_setpoint', 'Target temperature'],
+          ['power_setpoint', 'Fixed power']
         ],
         get: () => mode,
         set: v => u.params.mode = v }
     ];
     if (mode === 'T_setpoint') {
-      items.push({ label: `T outlet setpoint (${us.temperature.symbol})`,
+      items.push({ label: `Target temperature [${us.temperature.symbol}]`,
         get: () => us.temperature.from(u.params.T_out ?? 373.15),
         set: v => u.params.T_out = us.temperature.to(v),
         step: 1, decimals: us.temperature.decimals, validate: { gt: 0 } });
     } else {
-      items.push({ label: 'Power (kW)',
+      items.push({ type: 'slider', label: 'Heater power [kW]',
         get: () => u.params.power_kW ?? 10,
         set: v => u.params.power_kW = Math.max(0, v),
-        step: 1, decimals: 1, validate: { gte: 0 } });
+        min: 0, max: 500, step: 1 });
     }
-    items.push({ label: 'Priority', get: () => u.params.powerPriority ?? 2,
-      set: v => u.params.powerPriority = Math.max(1, Math.round(v)), step: 1, validate: { gte: 1 } });
+    items.push({ label: 'Power priority', get: () => u.params.powerPriority ?? 2,
+      set: v => u.params.powerPriority = Math.max(1, Math.round(v)), step: 1, min: 1, max: 5 });
     return items;
   },
   power(u, ud) {
     if (!ud?.last) return [];
     const items = [];
-    if (ud.last.Q_demand_W != null) items.push({ label: 'Q demand', value: fmt.kW(ud.last.Q_demand_W) });
-    if (ud.last.Q_setpoint_W != null) items.push({ label: 'Q setpoint', value: fmt.kW(ud.last.Q_setpoint_W) });
-    if (ud.last.Q_actual_W != null) items.push({ label: 'Q actual', value: fmt.kW(ud.last.Q_actual_W),
+    if (ud.last.Q_actual_W != null) items.push({ label: 'Heat delivered', value: fmt.kW(ud.last.Q_actual_W),
       tone: ud.last.curtailed ? 'warn' : '' });
     return items;
   },
   kpis(u, ud) {
     if (!ud?.last) return [];
     const items = [];
-    if (ud.last.mode) items.push({ label: 'Mode', value: ud.last.mode === 'power_setpoint' ? 'Power' : 'T setpoint' });
-    if (ud.last.T_in_K) items.push({ label: 'T inlet', value: fmt.T(ud.last.T_in_K) });
-    if (ud.last.T_setpoint_K) items.push({ label: 'T setpoint', value: fmt.T(ud.last.T_setpoint_K) });
+    if (ud.last.T_in_K) items.push({ label: 'Inlet', value: fmt.T(ud.last.T_in_K) });
     const matOut = ud.ports?.mat_out;
     if (matOut?.T) {
       const us = models.getActive('units');
       if (ud.last.T_setpoint_K) {
         const dev = Math.abs(us.temperature.from(matOut.T) - us.temperature.from(ud.last.T_setpoint_K));
-        items.push({ label: 'T actual', value: fmt.T(matOut.T), tone: dev > 1 ? 'warn' : 'good' });
+        items.push({ label: 'Outlet', value: fmt.T(matOut.T), tone: dev > 1 ? 'warn' : 'good' });
       } else {
-        items.push({ label: 'T actual', value: fmt.T(matOut.T) });
+        items.push({ label: 'Outlet', value: fmt.T(matOut.T) });
       }
     }
     return items;
@@ -33650,7 +33667,7 @@ UnitInspector.air_cooler = {
 
 // ── Topology ──
 UnitInspector.splitter = {
-  params(u) { return [{ label: 'Split to out1 (%)', get: () => u.params.splitPct ?? 50, set: v => u.params.splitPct = Math.max(0, Math.min(100, v)), step: 1, min: 0, max: 100 }]; },
+  params(u) { return [{ type: 'slider', label: 'Split ratio [%]', get: () => u.params.splitPct ?? 50, set: v => u.params.splitPct = Math.max(0, Math.min(100, v)), min: 0, max: 100, step: 1 }]; },
   kpis(u, ud) { if (!ud?.last) return []; return [
     ...(ud.last.nOut1 != null ? [{ label: 'Out 1', value: fmt.flow(ud.last.nOut1) }] : []),
     ...(ud.last.nOut2 != null ? [{ label: 'Out 2', value: fmt.flow(ud.last.nOut2) }] : []),
@@ -33673,10 +33690,9 @@ UnitInspector.mixer = {
 // ── Heat Exchangers ──
 UnitInspector.hex = {
   params(u) { const us = models.getActive('units'); return [
-    { type: 'info', html: '<span style="opacity:0.6;font-size:11px;">Modes: approach temp · outlet temp · UA/NTU</span>' },
-    { label: 'Approach ΔT (K)', get: () => u.params.T_approach ?? 10, set: v => { u.params.T_approach = v; u.params.T_hot_out = undefined; u.params.T_cold_out = undefined; }, step: 1 },
-    { label: `T hot out (${us.temperature.symbol})`, get: () => u.params.T_hot_out != null ? us.temperature.from(u.params.T_hot_out) : '', set: v => { u.params.T_hot_out = us.temperature.to(v); u.params.T_approach = 0; u.params.T_cold_out = undefined; }, step: 1, decimals: us.temperature.decimals },
-    { label: `T cold out (${us.temperature.symbol})`, get: () => u.params.T_cold_out != null ? us.temperature.from(u.params.T_cold_out) : '', set: v => { u.params.T_cold_out = us.temperature.to(v); u.params.T_approach = 0; u.params.T_hot_out = undefined; }, step: 1, decimals: us.temperature.decimals },
+    { type: 'slider', label: 'Approach temperature [K]', get: () => u.params.T_approach ?? 10, set: v => { u.params.T_approach = v; u.params.T_hot_out = undefined; u.params.T_cold_out = undefined; }, min: 1, max: 100, step: 1 },
+    { label: `Hot side outlet [${us.temperature.symbol}]`, get: () => u.params.T_hot_out != null ? us.temperature.from(u.params.T_hot_out) : '', set: v => { u.params.T_hot_out = us.temperature.to(v); u.params.T_approach = 0; u.params.T_cold_out = undefined; }, step: 1, decimals: us.temperature.decimals },
+    { label: `Cold side outlet [${us.temperature.symbol}]`, get: () => u.params.T_cold_out != null ? us.temperature.from(u.params.T_cold_out) : '', set: v => { u.params.T_cold_out = us.temperature.to(v); u.params.T_approach = 0; u.params.T_hot_out = undefined; }, step: 1, decimals: us.temperature.decimals },
   ]; },
   conditions(u, ud) {
     if (ud?.last?.Q === undefined) return [];
@@ -33757,7 +33773,6 @@ UnitInspector.flash_drum = {
 // [v13.4.0] S4a — Distillation Column Inspector
 UnitInspector.distillation_column = {
   params(u) {
-    // Find feed species from resolved inlet stream (after solve)
     const ud = scene.runtime?.unitData?.get(u.id);
     const sIn = ud?.ports?.mat_in;
     const feedSpecies = sIn ? Object.keys(sIn.n).filter(sp => sIn.n[sp] > 1e-15) : [];
@@ -33766,29 +33781,29 @@ UnitInspector.distillation_column = {
       : [['', '— solve first —']];
 
     return [
-      { label: 'Theoretical stages', get: () => u.params.N_stages ?? 20,
+      { type: 'slider', label: 'Theoretical stages', get: () => u.params.N_stages ?? 20,
         set: v => u.params.N_stages = Math.max(3, Math.min(100, Math.round(v))),
-        step: 1, decimals: 0 },
-      { label: 'R / R_min', get: () => u.params.R_over_Rmin ?? 1.3,
+        min: 3, max: 100, step: 1 },
+      { type: 'slider', label: 'Reflux ratio (R / R_min)', get: () => u.params.R_over_Rmin ?? 1.3,
         set: v => u.params.R_over_Rmin = Math.max(1.05, Math.min(5, v)),
-        step: 0.05, decimals: 2 },
-      { label: 'Column P (bar)', get: () => (u.params.P_column ?? 1e5) / 1e5,
+        min: 1.05, max: 5, step: 0.05 },
+      { type: 'slider', label: 'Column pressure [bar]', get: () => (u.params.P_column ?? 1e5) / 1e5,
         set: v => u.params.P_column = Math.max(0.1, Math.min(50, v)) * 1e5,
-        step: 0.5, decimals: 1 },
+        min: 0.1, max: 50, step: 0.5 },
       { label: 'Light key', type: 'select',
         options: speciesOpts, get: () => u.params.lightKey,
         set: v => u.params.lightKey = v },
       { label: 'Heavy key', type: 'select',
         options: speciesOpts, get: () => u.params.heavyKey,
         set: v => u.params.heavyKey = v },
-      { label: 'LK purity in distillate', get: () => u.params.xD_lightKey ?? 0.95,
-        set: v => u.params.xD_lightKey = Math.max(0.5, Math.min(0.999, v)),
-        step: 0.01, decimals: 3 },
-      { label: 'HK purity in bottoms', get: () => u.params.xB_heavyKey ?? 0.95,
-        set: v => u.params.xB_heavyKey = Math.max(0.5, Math.min(0.999, v)),
-        step: 0.01, decimals: 3 },
-      { label: 'Priority', get: () => u.params.powerPriority ?? 2,
-        set: v => u.params.powerPriority = Math.max(1, Math.round(v)), step: 1, validate: { gte: 1 } }
+      { type: 'slider', label: 'Light key purity in top [%]', get: () => (u.params.xD_lightKey ?? 0.95) * 100,
+        set: v => u.params.xD_lightKey = Math.max(0.5, Math.min(0.999, v / 100)),
+        min: 50, max: 99.9, step: 0.1 },
+      { type: 'slider', label: 'Heavy key purity in bottom [%]', get: () => (u.params.xB_heavyKey ?? 0.95) * 100,
+        set: v => u.params.xB_heavyKey = Math.max(0.5, Math.min(0.999, v / 100)),
+        min: 50, max: 99.9, step: 0.1 },
+      { label: 'Power priority', get: () => u.params.powerPriority ?? 2,
+        set: v => u.params.powerPriority = Math.max(1, Math.round(v)), step: 1, min: 1, max: 5 }
     ];
   },
   kpis(u, ud) {
@@ -33828,7 +33843,7 @@ function _reactorParams(u) {
 
   // ── Heat demand mode (reactor_jacketed only — requires elec_in) ──
   if (hasElec) {
-    params.push({ type: 'select', label: 'Heat demand', get: () => u.params.heatDemand || 'none',
+    params.push({ type: 'select', label: 'Heat control', get: () => u.params.heatDemand || 'none',
       set: v => {
         if (v === 'none') {
           const elecConns = scene.connections.filter(
@@ -33847,31 +33862,31 @@ function _reactorParams(u) {
         updatePropertiesPanel();
       },
       options: [
-        ['none', '❄️ Adiabatic (no elec)'],
-        ['isothermal', '🎯 Isothermal demand'],
+        ['none', '❄️ No heating (adiabatic)'],
+        ['isothermal', '🎯 Hold temperature'],
         ['fixed', '⚡ Fixed power']
       ] });
     if (u.params.heatDemand === 'fixed') {
-      params.push({ label: 'Q fixed (kW)', get: () => u.params.Q_fixed_kW ?? 0,
-        set: v => u.params.Q_fixed_kW = v, step: 1 });
+      params.push({ type: 'slider', label: 'Fixed heat input [kW]', get: () => u.params.Q_fixed_kW ?? 0,
+        set: v => u.params.Q_fixed_kW = v, min: -100, max: 100, step: 1 });
     }
   }
 
   // ── Kinetics / approach (all equilibrium types) ──
-  params.push({ type: 'toggle', label: 'Kinetics (PFR)', get: () => u.params.useKinetics !== false, set: v => { u.params.useKinetics = v; updatePropertiesPanel(); } });
-  if (u.params.useKinetics !== false) params.push({ label: 'Volume (m³)', get: () => u.params.volume_m3 ?? 0.003, set: v => u.params.volume_m3 = v, step: 0.001 });
-  else params.push({ type: 'slider', label: 'Alpha (approach)', get: () => u.params.alpha ?? 1.0, set: v => u.params.alpha = v, min: 0, max: 1, step: 0.01 });
+  params.push({ type: 'toggle', label: 'Use kinetics (PFR model)', get: () => u.params.useKinetics !== false, set: v => { u.params.useKinetics = v; updatePropertiesPanel(); } });
+  if (u.params.useKinetics !== false) params.push({ type: 'slider', label: 'Reactor volume [m³]', get: () => u.params.volume_m3 ?? 0.003, set: v => u.params.volume_m3 = v, min: 0.0001, max: 10, step: 0.001 });
+  else params.push({ type: 'slider', label: 'Equilibrium approach [0–1]', get: () => u.params.alpha ?? 1.0, set: v => u.params.alpha = v, min: 0, max: 1, step: 0.01 });
 
   // ── Priority (only units with elec_in) ──
   if (hasElec) {
-    params.push({ label: 'Priority', get: () => u.params.powerPriority ?? 2,
-      set: v => u.params.powerPriority = Math.max(1, Math.round(v)), step: 1, validate: { gte: 1 } });
+    params.push({ label: 'Power priority', get: () => u.params.powerPriority ?? 2,
+      set: v => u.params.powerPriority = Math.max(1, Math.round(v)), step: 1, min: 1, max: 5 });
   }
 
   // ── UA parameter (reactor_cooled only) ──
   if (defId === 'reactor_cooled') {
-    params.push({ label: 'UA (W/K)', get: () => u.params.UA ?? 500,
-      set: v => u.params.UA = Math.max(0, v), step: 10 });
+    params.push({ type: 'slider', label: 'Cooling capacity [W/K]', get: () => u.params.UA ?? 500,
+      set: v => u.params.UA = Math.max(0, v), min: 0, max: 5000, step: 10 });
   }
   return params;
 }
@@ -33975,12 +33990,12 @@ UnitInspector.reactor_electrochemical = {
     return [
       { type: 'select', label: 'Reaction', get: () => u.params.reactionId || 'R_H2O_ELEC',
         set: v => u.params.reactionId = v, options: rxnOpts },
-      { label: 'Efficiency (η)', get: () => u.params.efficiency ?? 0.90,
-        set: v => u.params.efficiency = Math.max(0.005, Math.min(0.99, v)), step: 0.01 },
-      { label: 'Max conversion', get: () => u.params.conversion_max ?? 0.80,
-        set: v => u.params.conversion_max = Math.max(0.01, Math.min(0.99, v)), step: 0.01 },
-      { label: 'Priority', get: () => u.params.powerPriority ?? 2,
-        set: v => u.params.powerPriority = Math.max(1, Math.round(v)), step: 1, validate: { gte: 1 } }
+      { type: 'slider', label: 'Efficiency [%]', get: () => (u.params.efficiency ?? 0.90) * 100,
+        set: v => u.params.efficiency = Math.max(0.005, Math.min(0.99, v / 100)), min: 10, max: 99, step: 1 },
+      { type: 'slider', label: 'Max conversion [%]', get: () => (u.params.conversion_max ?? 0.80) * 100,
+        set: v => u.params.conversion_max = Math.max(0.01, Math.min(0.99, v / 100)), min: 1, max: 99, step: 1 },
+      { label: 'Power priority', get: () => u.params.powerPriority ?? 2,
+        set: v => u.params.powerPriority = Math.max(1, Math.round(v)), step: 1, min: 1, max: 5 }
     ];
   },
   power(u, ud) {
@@ -34017,12 +34032,12 @@ UnitInspector.fuel_cell = {
     return [
       { type: 'select', label: 'Reaction', get: () => u.params.reactionId || 'R_H2_FUELCELL',
         set: v => u.params.reactionId = v, options: rxnOpts },
-      { label: 'Efficiency (η)', get: () => u.params.efficiency ?? 0.60,
-        set: v => u.params.efficiency = Math.max(0.30, Math.min(0.85, v)), step: 0.01 },
-      { label: 'Max conversion', get: () => u.params.conversion_max ?? 0.80,
-        set: v => u.params.conversion_max = Math.max(0.01, Math.min(0.99, v)), step: 0.01 },
-      { label: 'UA (cooling)', get: () => u.params.UA ?? 500,
-        set: v => u.params.UA = Math.max(0, v), step: 10 }
+      { type: 'slider', label: 'Efficiency [%]', get: () => (u.params.efficiency ?? 0.60) * 100,
+        set: v => u.params.efficiency = Math.max(0.30, Math.min(0.85, v / 100)), min: 30, max: 85, step: 1 },
+      { type: 'slider', label: 'Max conversion [%]', get: () => (u.params.conversion_max ?? 0.80) * 100,
+        set: v => u.params.conversion_max = Math.max(0.01, Math.min(0.99, v / 100)), min: 1, max: 99, step: 1 },
+      { type: 'slider', label: 'Cooling capacity [W/K]', get: () => u.params.UA ?? 500,
+        set: v => u.params.UA = Math.max(0, v), min: 0, max: 5000, step: 10 }
     ];
   },
   power(u, ud) {
