@@ -540,6 +540,57 @@
   NNGs: NNG-14 (changelog).
   Tests: 607 total, 3143 checks, 0 failures.
 
+  ─── v16.9.11 — S-PARTICLES Phase 3: Transforms ──────────────────────────
+
+  Phase 3A: Morph (reactors).  Each particle gets `destSpecies` sampled
+  from OUTLET composition at spawn.  During transit, color interpolates
+  `lerp(inletRGB, outletRGB, morphProgress)` where morphProgress is 0
+  before morphZone[0], 1 after morphZone[1], linear in between.  Visual:
+  reactant colors enter from one side, gradually shift to product colors
+  exiting the other side.  Applied to all 6 reactor types + combustion
+  chamber.  Stoichiometrically defensible — conversion increases along
+  reactor length (plug flow analogy).
+
+  Phase 3B: Split (separation).  `_bodyTransitPath` now handles
+  `type:'split'` — entry from mat_in, two exits (vap_out/liq_out or
+  dist_out/bot_out or perm_out/ret_out).  Two-segment path geometry:
+  entry → viewport center (t=0→0.5), center → exit (t=0.5→1).  Each
+  particle follows its own exit based on isLiq flag.  Gas bubbles rise
+  toward upper exit, liquid droplets sink toward lower.  Applied to
+  flash_drum, distillation_column, membrane_separator.  Viewports added
+  for distillation_column (44×112 rect) and membrane_separator (60×68).
+
+  Phase 3C: Absorb + merge.  CO₂ scrubber (`co2_scrubber` profile of
+  membrane_separator) uses `transform:'absorb'` — particles whose species
+  matches `absorbSpecies` fade opacity to 0 across the body length
+  (α × max(0, 1 − 1.5t), fully invisible by t≈0.67).  Non-matched
+  species pass through at full opacity.  Mixer uses `type:'merge'` —
+  two sub-paths from mat_in_1 and mat_in_2, each converging to mat_out.
+  Behavior lookup now checks `u.profileId` before `u.defId`, allowing
+  profile-specific particle behavior overrides (co2_scrubber ≠ generic
+  membrane_separator).
+
+  ─── v16.9.10 — S-PARTICLES Phase 2: Body transit paths ───────────────────
+
+  Phase 2A: Port-aware linear transit.  New `_bodyTransitPath(unitId, cfg)`
+  computes entry/exit points by projecting material port positions onto
+  viewport boundaries.  `_projectPortToVP()` handles both circle and rect
+  viewports via ray-boundary intersection.  `_transitPos(sp, t, jLat)`
+  interpolates position along any path type.  Particles now respect
+  mirrored/rotated variants — entry follows the actual mat_in port side.
+
+  Phase 2B: Swirl + dual-transit.  Pump/fan use `path:'swirl'` —
+  parametric angular sweep around circular viewport center with damped
+  radial oscillation (entry edge → inward dip → exit edge).
+  HEX uses `type:'dual-transit'` — viewport split into top 45% (hot
+  stream) and bottom 45% (cold stream) with 10% visual divider gap.
+  Each half gets independent particle set reading its own port stream.
+
+  State refactor: `_bodyParticleState` Map values changed from flat
+  `{ particles, speed, vp }` to `{ subPaths: [{ particles, entry, exit,
+  pathType, swirlTurns, vp, speed, dwellFactor, streamKey }] }`.
+  Single-transit units have 1 subPath; HEX has 2.
+
   ─── v16.9.9 — S-PARTICLES Phase 1: Viewports + engine core ──────────────
 
   **Phase 1A: Reactor viewport enlargement.**  All 4 reactor types
@@ -27702,6 +27753,8 @@ const _UNIT_VIEWPORT = {
   pump:                     { type: 'circle', cx: 48, cy: 39, r: 20 },
   fan:                      { type: 'circle', cx: 48, cy: 48, r: 18 },
   electric_heater:          { type: 'rect', x: 24, y: 20, w: 48, h: 32 },
+  distillation_column:      { type: 'rect', x: 26, y: 14, w: 44, h: 112 },
+  membrane_separator:       { type: 'rect', x: 18, y: 14, w: 60, h: 68 },
   // Opaque (null): valve, restriction, splitter, tank, open_tank, battery, all power/boundary
 };
 
@@ -37005,8 +37058,12 @@ const _FLOW_PARTICLE_R = 2;    // px radius
 const _FLOW_MAX_PER_CONN = 20; // particle cap per connection
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// [v16.9.9 S-PARTICLES Phase 1C] Unified particle behavior registry
-// Global constants + per-unit configs for body transit, transforms, etc.
+// [v16.9.11 S-PARTICLES Phase 3] Body particle system with transforms
+// Species-colored particles inside unit viewports with morph/split/absorb.
+// Morph: reactor particles interpolate inlet→outlet species color across morphZone.
+// Split: flash drum/distillation particles diverge at split center (gas up, liquid down).
+// Absorb: CO₂ scrubber fades matched species to invisible.
+// Merge: mixer particles from two inlets converge to one exit.
 // ═══════════════════════════════════════════════════════════════════════════════
 
 const _PARTICLE_BEHAVIORS = {
@@ -37052,6 +37109,10 @@ const _PARTICLE_BEHAVIORS = {
     // Separation
     flash_drum:         { type:'split', dwellFactor:2.0 },
     distillation_column:{ type:'split', dwellFactor:3.0 },
+    membrane_separator: { type:'split', dwellFactor:2.0 },
+
+    // Profile overrides (profileId checked before defId)
+    co2_scrubber:       { type:'transit', path:'linear', transform:'absorb', absorbSpecies:['CO2'], dwellFactor:2.5 },
 
     // Mixer / splitter
     mixer:    { type:'merge', dwellFactor:1.5 },
@@ -37081,8 +37142,9 @@ const _PARTICLE_BEHAVIORS = {
 // Map<connId, { particles: [{t, species, isLiq}...], pathLen, speed, gap }>
 const _flowState = new Map();
 
-// [v16.9.9 S-PARTICLES Phase 1C] Body particle state
-// Map<unitId, { particles: [{t, species, isLiq, jLat}...], speed, vp }>
+// [v16.9.11 S-PARTICLES Phase 3] Body particle state
+// Map<unitId, { subPaths: [{ particles, entry, exit, pathType, vp, speed, dwellFactor, streamKey,
+//   transform, morphZone, absorbSpecies, splitCenter, vapExit, liqExit, splitZone }] }>
 const _bodyParticleState = new Map();
 
 // ── Species color helper ──
@@ -37107,6 +37169,167 @@ function _sampleSpeciesAt(fracs, idx) {
     if (r < cum) return sp;
   }
   return entries[entries.length - 1][0];
+}
+
+// ── [v16.9.10 S-PARTICLES Phase 2] Port-to-viewport projection ──
+// Projects a port's world position onto the viewport boundary.
+// Returns {x,y} on the viewport edge closest to the port.
+function _projectPortToVP(portId, pres, wx, wy, tile, vp) {
+  const pp = pres.ports?.[portId];
+  const vcx = vp.type === 'circle' ? vp.cx : vp.x + vp.w / 2;
+  const vcy = vp.type === 'circle' ? vp.cy : vp.y + vp.h / 2;
+  if (!pp) return { x: vcx, y: vcy };
+
+  const px = wx + pp.x * tile;
+  const py = wy + pp.y * tile;
+  const dx = px - vcx, dy = py - vcy;
+  const len = Math.sqrt(dx * dx + dy * dy);
+  if (len < 0.1) return { x: vcx, y: vcy };
+
+  if (vp.type === 'circle') {
+    const nx = dx / len, ny = dy / len;
+    return { x: vp.cx + nx * vp.r * 0.88, y: vp.cy + ny * vp.r * 0.88 };
+  }
+  // Rect: ray from center toward port, intersect with rect edges
+  let t = Infinity;
+  if (dx > 0) t = Math.min(t, (vp.x + vp.w - vcx) / dx);
+  else if (dx < 0) t = Math.min(t, (vp.x - vcx) / dx);
+  if (dy > 0) t = Math.min(t, (vp.y + vp.h - vcy) / dy);
+  else if (dy < 0) t = Math.min(t, (vp.y - vcy) / dy);
+  return { x: vcx + dx * t * 0.88, y: vcy + dy * t * 0.88 };
+}
+
+// Compute body transit path(s) for a unit. Returns { subPaths: [...] } or null.
+// Each subPath: { entry, exit, pathType, swirlTurns, vp, streamKey, ... }
+// Split subPaths add: splitCenter, vapExit, liqExit, splitZone
+function _bodyTransitPath(unitId, cfg) {
+  const u = scene.units.get(unitId);
+  if (!u) return null;
+  const def = UnitRegistry.get(u.defId);
+  const pres = getPresentation(def, u);
+  const tile = scene.tile;
+  const wx = u.x * tile, wy = u.y * tile;
+  const vp = _getUnitViewport(unitId);
+  if (!vp) return null;
+
+  if (cfg.type === 'dual-transit') {
+    // HEX: split viewport into top/bottom halves (hot / cold)
+    if (vp.type !== 'rect') return null;
+    const topVP = { type: 'rect', x: vp.x, y: vp.y, w: vp.w, h: vp.h * 0.45 };
+    const botVP = { type: 'rect', x: vp.x, y: vp.y + vp.h * 0.55, w: vp.w, h: vp.h * 0.45 };
+    return { subPaths: [
+      { entry: _projectPortToVP('hot_in', pres, wx, wy, tile, topVP),
+        exit:  _projectPortToVP('hot_out', pres, wx, wy, tile, topVP),
+        pathType: 'linear', swirlTurns: 0, vp: topVP, streamKey: 'hot_in' },
+      { entry: _projectPortToVP('cold_in', pres, wx, wy, tile, botVP),
+        exit:  _projectPortToVP('cold_out', pres, wx, wy, tile, botVP),
+        pathType: 'linear', swirlTurns: 0, vp: botVP, streamKey: 'cold_in' }
+    ]};
+  }
+
+  if (cfg.type === 'split') {
+    // Separation: one inlet → two outlets (vapor up, liquid down)
+    const matIn = def.ports.find(p => p.dir === PortDir.IN && p.type === StreamType.MATERIAL);
+    const matOuts = def.ports.filter(p => p.dir === PortDir.OUT && p.type === StreamType.MATERIAL);
+    if (!matIn || matOuts.length < 2) return null;
+    // First OUT port = vapor/upper exit, second = liquid/lower exit
+    const vapPort = matOuts[0], liqPort = matOuts[1];
+    const entry = _projectPortToVP(matIn.portId, pres, wx, wy, tile, vp);
+    const vapExit = _projectPortToVP(vapPort.portId, pres, wx, wy, tile, vp);
+    const liqExit = _projectPortToVP(liqPort.portId, pres, wx, wy, tile, vp);
+    const cx = vp.type === 'circle' ? vp.cx : vp.x + vp.w / 2;
+    const cy = vp.type === 'circle' ? vp.cy : vp.y + vp.h / 2;
+    return { subPaths: [{
+      entry, exit: vapExit, // exit used as fallback; actual routing uses vapExit/liqExit
+      vapExit, liqExit,
+      splitCenter: { x: cx, y: cy },
+      splitZone: cfg.splitZone || [0.3, 0.5],
+      pathType: 'split', swirlTurns: 0, vp,
+      streamKey: matIn.portId,
+      vapStreamKey: vapPort.portId,
+      liqStreamKey: liqPort.portId
+    }]};
+  }
+
+  if (cfg.type === 'merge') {
+    // Mixer: two inlets → one outlet, two sub-paths
+    const matIns = def.ports.filter(p => p.dir === PortDir.IN && p.type === StreamType.MATERIAL);
+    const matOut = def.ports.find(p => p.dir === PortDir.OUT && p.type === StreamType.MATERIAL);
+    if (matIns.length < 2 || !matOut) return null;
+    const exit = _projectPortToVP(matOut.portId, pres, wx, wy, tile, vp);
+    return { subPaths: matIns.map(pin => ({
+      entry: _projectPortToVP(pin.portId, pres, wx, wy, tile, vp),
+      exit, pathType: 'linear', swirlTurns: 0, vp, streamKey: pin.portId
+    }))};
+  }
+
+  // Single transit: first material IN → first material OUT
+  const matIn = def.ports.find(p => p.dir === PortDir.IN && p.type === StreamType.MATERIAL);
+  const matOut = def.ports.find(p => p.dir === PortDir.OUT && p.type === StreamType.MATERIAL);
+  if (!matIn || !matOut) return null;
+
+  return { subPaths: [{
+    entry: _projectPortToVP(matIn.portId, pres, wx, wy, tile, vp),
+    exit:  _projectPortToVP(matOut.portId, pres, wx, wy, tile, vp),
+    pathType: cfg.path || 'linear',
+    swirlTurns: cfg.swirlTurns || 0.5,
+    vp, streamKey: matIn.portId,
+    transform: cfg.transform || 'none',
+    morphZone: cfg.morphZone || [0.3, 0.7],
+    absorbSpecies: cfg.absorbSpecies || null
+  }]};
+}
+
+// Compute particle position along a sub-path at parameter t ∈ [0,1].
+// For split paths, pass isLiq to determine exit direction.
+function _transitPos(sp, t, jLat, isLiq) {
+  const e = sp.entry, x = sp.exit;
+
+  if (sp.pathType === 'split') {
+    // Two-segment path: entry → center (t=0→0.5), center → exit (t=0.5→1)
+    const c = sp.splitCenter;
+    const ex = isLiq ? sp.liqExit : sp.vapExit;
+    let px, py;
+    if (t < 0.5) {
+      const f = t * 2; // 0→1 over first half
+      px = e.x + (c.x - e.x) * f;
+      py = e.y + (c.y - e.y) * f;
+    } else {
+      const f = (t - 0.5) * 2; // 0→1 over second half
+      px = c.x + (ex.x - c.x) * f;
+      py = c.y + (ex.y - c.y) * f;
+    }
+    // Perpendicular jitter relative to the current segment direction
+    let sdx, sdy;
+    if (t < 0.5) { sdx = c.x - e.x; sdy = c.y - e.y; }
+    else { sdx = ex.x - c.x; sdy = ex.y - c.y; }
+    const sLen = Math.sqrt(sdx * sdx + sdy * sdy) || 1;
+    return { x: px + (-sdy / sLen) * jLat, y: py + (sdx / sLen) * jLat };
+  }
+
+  if (sp.pathType === 'swirl' && sp.vp.type === 'circle') {
+    // Angular sweep around circular viewport center
+    const vp = sp.vp;
+    const entryAng = Math.atan2(e.y - vp.cy, e.x - vp.cx);
+    const exitAng  = Math.atan2(x.y - vp.cy, x.x - vp.cx);
+    const totalAngle = sp.swirlTurns * Math.PI * 2;
+    let delta = exitAng - entryAng;
+    if (delta > Math.PI) delta -= Math.PI * 2;
+    if (delta < -Math.PI) delta += Math.PI * 2;
+    const angle = entryAng + t * (totalAngle + delta);
+    const rBase = vp.r * 0.82;
+    const rDip = 0.35 * Math.sin(t * Math.PI);
+    const r = rBase * (1 - rDip) + jLat * 0.15;
+    return { x: vp.cx + Math.cos(angle) * r, y: vp.cy + Math.sin(angle) * r };
+  }
+
+  // Linear (default): straight lerp entry→exit with lateral jitter
+  const mx = e.x + (x.x - e.x) * t;
+  const my = e.y + (x.y - e.y) * t;
+  const pdx = x.x - e.x, pdy = x.y - e.y;
+  const pLen = Math.sqrt(pdx * pdx + pdy * pdy) || 1;
+  const nx = -pdy / pLen, ny = pdx / pLen;
+  return { x: mx + nx * jLat, y: my + ny * jLat };
 }
 
 function _rebuildFlowParticles() {
@@ -37206,9 +37429,7 @@ function _advanceFlowParticles(deltaSec) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// [v16.9.9 S-PARTICLES Phase 1C] Body particle system
-// Species-colored particles inside unit viewports, driven by inlet stream data.
-// Linear transit: particles traverse entry→exit through viewport.
+// [v16.9.11] Body particle rebuild / advance
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function _rebuildBodyParticles() {
@@ -37221,59 +37442,88 @@ function _rebuildBodyParticles() {
   const B = _PARTICLE_BEHAVIORS;
 
   for (const [id, u] of scene.units) {
-    const cfg = B.units[u.defId];
+    const cfg = B.units[u.profileId] || B.units[u.defId];
     if (!cfg) continue;
-    if (cfg.type !== 'transit' && cfg.type !== 'merge' && cfg.type !== 'split') continue;
+    if (cfg.type !== 'transit' && cfg.type !== 'dual-transit' &&
+        cfg.type !== 'merge' && cfg.type !== 'split') continue;
 
-    const vp = _getUnitViewport(id);
-    if (!vp) continue;
+    const transit = _bodyTransitPath(id, cfg);
+    if (!transit || transit.subPaths.length === 0) continue;
 
-    // Get inlet stream data
     const ud = scene.runtime?.unitData?.get(id);
     if (!ud) continue;
 
-    // Find first material inlet port with data
-    const def = UnitRegistry.get(u.defId);
-    let inStream = null;
-    for (const p of def.ports) {
-      if (p.dir === PortDir.IN && p.type === StreamType.MATERIAL) {
-        const ps = ud.ports?.[p.portId];
-        if (ps?._anim?.nDot > 1e-15) { inStream = ps; break; }
-      }
+    // Check that at least one sub-path has flowing material
+    let anyFlow = false;
+    for (const sp of transit.subPaths) {
+      const ps = ud.ports?.[sp.streamKey];
+      if (ps?._anim?.nDot > 1e-15) { anyFlow = true; break; }
     }
-    if (!inStream) continue;
+    if (!anyFlow) continue;
 
     activeIds.add(id);
-    const anim = inStream._anim;
-    const vNorm = Math.min(1, anim.vDot / B.VDOT_REF);
-    const speed = Math.min(B.MAX_SPEED, B.BASE_SPEED * Math.max(0.05, vNorm));
     const dwellFactor = cfg.dwellFactor || 1.2;
 
-    // Compute viewport dimension for particle count
-    const vpDim = vp.type === 'circle' ? vp.r * 2 : Math.max(vp.w, vp.h);
-    const nParticles = Math.min(B.MAX_PER_SEGMENT, Math.max(3, Math.ceil(vpDim / B.DENSITY_SPACING)));
+    // [Phase 3] Get outlet stream for morph destSpecies
+    const def = UnitRegistry.get(u.defId);
+    let outletAnim = null;
+    if (cfg.transform === 'morph') {
+      const matOut = def.ports.find(p => p.dir === PortDir.OUT && p.type === StreamType.MATERIAL);
+      if (matOut) outletAnim = ud.ports?.[matOut.portId]?._anim;
+    }
 
     let state = _bodyParticleState.get(id);
-    if (!state || state.particles.length !== nParticles) {
-      const particles = [];
-      for (let i = 0; i < nParticles; i++) {
-        const species = _sampleSpeciesAt(anim.speciesFracs, i + 1000);
-        const isLiq = (((i * 2654435761 + 31) >>> 0) / 4294967296 > (inStream.vaporFraction ?? 1));
-        const h = ((i * 2654435761 + 500) >>> 0) / 4294967296;
-        const h2 = ((i * 1664525 + 500) >>> 0) / 4294967296;
-        const t = (i / nParticles + (h - 0.5) * 0.15 + 1) % 1;
-        const jLat = (h2 - 0.5) * (isLiq ? 2 : 5);
-        const r = isLiq ? 2 : 1.2 + h * 1.6;
-        particles.push({ t, species, isLiq, jLat, r });
+    const needsRebuild = !state || state.subPaths.length !== transit.subPaths.length;
+
+    if (needsRebuild) {
+      const subPaths = [];
+      for (let si = 0; si < transit.subPaths.length; si++) {
+        const sp = transit.subPaths[si];
+        const ps = ud.ports?.[sp.streamKey];
+        const anim = ps?._anim;
+        const vNorm = anim ? Math.min(1, anim.vDot / B.VDOT_REF) : 0.1;
+        const speed = Math.min(B.MAX_SPEED, B.BASE_SPEED * Math.max(0.05, vNorm));
+        const vpDim = sp.vp.type === 'circle' ? sp.vp.r * 2 : Math.max(sp.vp.w, sp.vp.h);
+        const nParticles = Math.min(B.MAX_PER_SEGMENT, Math.max(3, Math.ceil(vpDim / B.DENSITY_SPACING)));
+
+        const particles = [];
+        for (let i = 0; i < nParticles; i++) {
+          const seed = i + si * 500 + 1000;
+          const species = anim ? _sampleSpeciesAt(anim.speciesFracs, seed) : 'N2';
+          const isLiq = (((seed * 2654435761 + 31) >>> 0) / 4294967296 > (ps?.vaporFraction ?? 1));
+          const h = ((seed * 2654435761 + 500) >>> 0) / 4294967296;
+          const h2 = ((seed * 1664525 + 500) >>> 0) / 4294967296;
+          const t = (i / nParticles + (h - 0.5) * 0.15 + 1) % 1;
+          const isSwirl = sp.pathType === 'swirl';
+          const maxLat = isSwirl ? 1 : (isLiq ? 2 : 5);
+          const jLat = (h2 - 0.5) * maxLat;
+          const r = isLiq ? 2 : 1.2 + h * 1.6;
+          // [Phase 3A] Morph: destSpecies from outlet composition
+          const destSpecies = outletAnim ? _sampleSpeciesAt(outletAnim.speciesFracs, seed + 7777) : species;
+          particles.push({ t, species, isLiq, jLat, r, destSpecies });
+        }
+        subPaths.push({ ...sp, particles, speed, dwellFactor });
       }
-      state = { particles, speed, vp, dwellFactor };
+      state = { subPaths };
       _bodyParticleState.set(id, state);
     } else {
-      state.speed = speed;
-      state.vp = vp;
-      for (let i = 0; i < state.particles.length; i++) {
-        state.particles[i].species = _sampleSpeciesAt(anim.speciesFracs, i + 1000);
-        state.particles[i].isLiq = (((i * 2654435761 + 31) >>> 0) / 4294967296 > (inStream.vaporFraction ?? 1));
+      // Update stream data + viewport positions
+      for (let si = 0; si < state.subPaths.length; si++) {
+        const sp = state.subPaths[si];
+        const tsp = transit.subPaths[si];
+        sp.entry = tsp.entry; sp.exit = tsp.exit; sp.vp = tsp.vp;
+        // [Phase 3B] Sync split-specific data
+        if (tsp.splitCenter) { sp.splitCenter = tsp.splitCenter; sp.vapExit = tsp.vapExit; sp.liqExit = tsp.liqExit; sp.splitZone = tsp.splitZone; }
+        const ps = ud.ports?.[sp.streamKey];
+        const anim = ps?._anim;
+        const vNorm = anim ? Math.min(1, anim.vDot / B.VDOT_REF) : 0.1;
+        sp.speed = Math.min(B.MAX_SPEED, B.BASE_SPEED * Math.max(0.05, vNorm));
+        for (let i = 0; i < sp.particles.length; i++) {
+          const seed = i + si * 500 + 1000;
+          sp.particles[i].species = anim ? _sampleSpeciesAt(anim.speciesFracs, seed) : 'N2';
+          sp.particles[i].isLiq = (((seed * 2654435761 + 31) >>> 0) / 4294967296 > (ps?.vaporFraction ?? 1));
+          sp.particles[i].destSpecies = outletAnim ? _sampleSpeciesAt(outletAnim.speciesFracs, seed + 7777) : sp.particles[i].species;
+        }
       }
     }
   }
@@ -37288,20 +37538,25 @@ function _advanceBodyParticles(deltaSec) {
   if (TimeClock.mode !== 'playing') return;
 
   for (const [, state] of _bodyParticleState) {
-    const vpDim = state.vp.type === 'circle' ? state.vp.r * 2 : Math.max(state.vp.w, state.vp.h);
-    if (vpDim < 1) continue;
-    const transitTime = (vpDim / state.speed) * state.dwellFactor;
-    if (transitTime <= 0) continue;
-    const dt = deltaSec / transitTime;
+    for (const sp of state.subPaths) {
+      const vpDim = sp.vp.type === 'circle' ? sp.vp.r * 2 : Math.max(sp.vp.w, sp.vp.h);
+      if (vpDim < 1) continue;
+      const transitTime = (vpDim / sp.speed) * sp.dwellFactor;
+      if (transitTime <= 0) continue;
+      const dt = deltaSec / transitTime;
 
-    for (const p of state.particles) {
-      p.t += dt;
-      if (p.t > 1) p.t -= 1;
-      if (p.t < 0) p.t += 1;
-      if (!p.isLiq) {
-        p.jLat += (Math.random() - 0.5) * 1.0 * deltaSec * 8;
-        const maxJ = state.vp.type === 'circle' ? state.vp.r * 0.5 : Math.min(state.vp.w, state.vp.h) * 0.3;
-        if (Math.abs(p.jLat) > maxJ) p.jLat *= 0.92;
+      for (const p of sp.particles) {
+        p.t += dt;
+        if (p.t > 1) p.t -= 1;
+        if (p.t < 0) p.t += 1;
+        // Gas jitter (lateral for linear, radial for swirl)
+        if (!p.isLiq) {
+          p.jLat += (Math.random() - 0.5) * 1.0 * deltaSec * 8;
+          const maxJ = sp.pathType === 'swirl' ? 2
+            : sp.vp.type === 'circle' ? sp.vp.r * 0.5
+            : Math.min(sp.vp.w, sp.vp.h) * 0.3;
+          if (Math.abs(p.jLat) > maxJ) p.jLat *= 0.92;
+        }
       }
     }
   }
@@ -37464,57 +37719,75 @@ function _drawParticleCanvas() {
     }
   }
 
-  // ── Draw body particles (viewport-clipped) ──
+  // ── Draw body particles (viewport-clipped, with transforms) ──
+  // [v16.9.11 S-PARTICLES Phase 3] Morph, split, absorb transforms
   for (const [, state] of _bodyParticleState) {
-    const vp = state.vp;
-    if (!vp) continue;
+    for (const sp of state.subPaths) {
+      const vp = sp.vp;
+      if (!vp) continue;
 
-    // Set up viewport clip
-    ctx.save();
-    ctx.beginPath();
-    if (vp.type === 'circle') {
-      ctx.arc(vp.cx, vp.cy, vp.r, 0, TAU);
-    } else {
-      ctx.rect(vp.x, vp.y, vp.w, vp.h);
-    }
-    ctx.clip();
-
-    // Compute linear transit path: left→right for rect, left arc→right arc for circle
-    for (const p of state.particles) {
-      let px, py;
+      // Clip to this sub-path's viewport region
+      ctx.save();
+      ctx.beginPath();
       if (vp.type === 'circle') {
-        // Left to right across viewport circle
-        const xStart = vp.cx - vp.r * 0.85;
-        const xEnd = vp.cx + vp.r * 0.85;
-        px = xStart + p.t * (xEnd - xStart);
-        py = vp.cy + p.jLat;
+        ctx.arc(vp.cx, vp.cy, vp.r, 0, TAU);
       } else {
-        // Left to right across viewport rect
-        px = vp.x + p.t * vp.w;
-        py = vp.y + vp.h / 2 + p.jLat;
+        ctx.rect(vp.x, vp.y, vp.w, vp.h);
+      }
+      ctx.clip();
+
+      const isMorph = sp.transform === 'morph';
+      const morphZone = sp.morphZone || [0.3, 0.7];
+      const isAbsorb = sp.transform === 'absorb' && sp.absorbSpecies;
+      const isSplit = sp.pathType === 'split';
+
+      for (const p of sp.particles) {
+        const pos = _transitPos(sp, p.t, p.jLat, p.isLiq);
+
+        // ── Compute color: morph interpolates inlet→outlet species ──
+        let rgb;
+        if (isMorph && p.destSpecies !== p.species) {
+          let mp = 0;
+          if (p.t >= morphZone[1]) mp = 1;
+          else if (p.t > morphZone[0]) mp = (p.t - morphZone[0]) / (morphZone[1] - morphZone[0]);
+          const src = _SPECIES_COLOR[p.species] || _SPECIES_DEFAULT_RGB;
+          const dst = _SPECIES_COLOR[p.destSpecies] || _SPECIES_DEFAULT_RGB;
+          rgb = [
+            Math.round(src[0] + (dst[0] - src[0]) * mp),
+            Math.round(src[1] + (dst[1] - src[1]) * mp),
+            Math.round(src[2] + (dst[2] - src[2]) * mp)
+          ];
+        } else {
+          rgb = _SPECIES_COLOR[p.species] || _SPECIES_DEFAULT_RGB;
+        }
+
+        // ── Compute opacity: absorb fades matched species ──
+        let baseAlpha = p.isLiq ? 0.9 : 0.55;
+        if (isAbsorb && sp.absorbSpecies.includes(p.species)) {
+          baseAlpha *= Math.max(0, 1 - p.t * 1.5); // fully faded by t≈0.67
+        }
+        if (baseAlpha < 0.01) continue; // skip invisible
+
+        if (p.isLiq) {
+          ctx.globalAlpha = baseAlpha;
+          ctx.fillStyle = `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
+          ctx.beginPath();
+          ctx.arc(pos.x, pos.y, p.r, 0, TAU);
+          ctx.fill();
+        } else {
+          ctx.globalAlpha = baseAlpha;
+          const grad = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, p.r * 1.5);
+          grad.addColorStop(0, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0.9)`);
+          grad.addColorStop(1, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0.0)`);
+          ctx.fillStyle = grad;
+          ctx.beginPath();
+          ctx.arc(pos.x, pos.y, p.r * 1.5, 0, TAU);
+          ctx.fill();
+        }
       }
 
-      const rgb = _SPECIES_COLOR[p.species] || _SPECIES_DEFAULT_RGB;
-
-      if (p.isLiq) {
-        ctx.globalAlpha = 0.9;
-        ctx.fillStyle = `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
-        ctx.beginPath();
-        ctx.arc(px, py, p.r, 0, TAU);
-        ctx.fill();
-      } else {
-        ctx.globalAlpha = 0.55;
-        const grad = ctx.createRadialGradient(px, py, 0, px, py, p.r * 1.5);
-        grad.addColorStop(0, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0.9)`);
-        grad.addColorStop(1, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0.0)`);
-        ctx.fillStyle = grad;
-        ctx.beginPath();
-        ctx.arc(px, py, p.r * 1.5, 0, TAU);
-        ctx.fill();
-      }
+      ctx.restore();
     }
-
-    ctx.restore();
   }
 
   // ── Draw smoke puffs ──
