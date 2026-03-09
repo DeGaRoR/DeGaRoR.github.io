@@ -540,6 +540,27 @@
   NNGs: NNG-14 (changelog).
   Tests: 607 total, 3143 checks, 0 failures.
 
+  ─── v16.9.3 — Remove checkOverload (redundant with demand-driven dispatch) ─
+
+  **checkOverload function deleted.**  The per-consumer overload check was
+  redundant with the demand-driven allocation system:
+  - Consumers set `u.powerDemand` from material-side needs (cooling duty,
+    shaft work).  Step C/D allocates `hubAllocated_W ≤ demand ≤ rated`.
+    By construction, `W_avail` can never exceed rated capacity.
+  - The only scenario where checkOverload fired was the first-iteration
+    hub bug (fixed in v16.9.2).  Under correct operation it was dead code.
+  - Legitimate forced-power overproduction (turbine surplus without dump
+    load) is handled by Step E, which operates on the bus level with full
+    information — not inside individual ticks with partial information.
+  - Only 2 of 9 electrical consumers had the check (air_cooler,
+    reactor_electrochemical), making it inconsistent as a safety net.
+
+  Removed: `checkOverload()` function, calls in air_cooler and
+  electrochemicalTick, PG.checkOverload export, threshold tier test.
+  Tests: 607 → 606 (1 test removed), remaining checks adjusted.
+
+  NNGs: NNG-5 (power lifecycle simplification), NNG-14 (changelog).
+
   ─── v16.9.2 — Hub first-iteration overload fix + S-HYDROVENT ─────────────
 
   **BUG FIX: Hub-connected consumers destroyed on first solver iteration.**
@@ -635,8 +656,8 @@
   sink_electrical, pump, compressor, fan, compressor_diaphragm,
   electric_heater, air_cooler, distillation_column, equilibriumTick,
   electrochemicalTick.  Replaced by solver-level mode guard.
-  Post-checkOverload fried guards retained in air_cooler and
-  electrochemicalTick (mid-tick destruction reaction).
+  Post-checkOverload fried guards in air_cooler and
+  electrochemicalTick removed in v16.9.3 (checkOverload deleted).
 
   **TimeClock.step():** `updateInventory` skipped for bypass/off units.
   Inventory frozen when not in `on` mode.
@@ -16772,58 +16793,6 @@ function allocatePower(consumers, totalSupply_W) {
   return allocation;
 }
 
-// ── [v13.1.0 S2-A] Overload detection ──────────────────────────────────────
-// Pure function: compares delivered power to rated capacity.
-// Returns overload info object.  Caller spreads result into u.last.
-// Uses ErrorSeverity objects so the per-unit alarm bridge (NNG-7) handles alarms.
-//
-// Thresholds:
-//   ≤5%  over rated → OK (within tolerance)
-//   5-20%           → WARNING (insulation stress, bearing wear)
-//   20-50%          → WARNING (severe, imminent failure)
-//   >50%            → CATASTROPHIC + sets u.fried (equipment destroyed)
-//
-function checkOverload(W_delivered, W_rated, u, scratch) {
-  // [v16.9.2] Pre-allocation safety: on cold-solve iteration 1, hub has not
-  // yet run Step C, so consumers read bus capacity (e.g. 20 kW) as W_delivered
-  // instead of their actual allocation (e.g. 150 W).  A demand-responsive bus
-  // cannot cause overload — overload requires forced power injection (surplus).
-  // Skip check until Step C has written hubAllocated_W.
-  if (scratch && scratch.hubAllocated_W === undefined) {
-    return { overload: false };
-  }
-  if (!isFinite(W_rated) || W_rated <= 0 || !isFinite(W_delivered) || W_delivered <= 0) {
-    return { overload: false };
-  }
-  const ratio = W_delivered / W_rated;
-  const excess_pct = (ratio - 1) * 100;
-
-  if (excess_pct <= 5) {
-    return { overload: false, headroom_pct: -excess_pct };
-  }
-  if (excess_pct <= 20) {
-    return {
-      overload: true, overload_pct: excess_pct, W_delivered, W_rated,
-      error: { severity: ErrorSeverity.MINOR,
-        message: `Overloaded ${excess_pct.toFixed(0)}% above rated ${(W_rated/1000).toFixed(1)} kW — reduce load` }
-    };
-  }
-  if (excess_pct <= 50) {
-    return {
-      overload: true, overload_pct: excess_pct, W_delivered, W_rated,
-      error: { severity: ErrorSeverity.MAJOR,
-        message: `Severe overload ${excess_pct.toFixed(0)}% above rated ${(W_rated/1000).toFixed(1)} kW — imminent failure` }
-    };
-  }
-  // >50%: destroy the unit
-  u.fried = true;
-  return {
-    overload: true, overload_pct: excess_pct, W_delivered, W_rated, fried: true,
-    error: { severity: ErrorSeverity.CATASTROPHIC,
-      message: `Destroyed by ${excess_pct.toFixed(0)}% overload (${(W_delivered/1000).toFixed(1)} kW on ${(W_rated/1000).toFixed(1)} kW rated)` }
-  };
-}
-
 UnitRegistry.register('power_hub', {
   name: 'Power Hub',
   category: UnitCategories.POWER_MANAGEMENT,
@@ -18027,7 +17996,7 @@ UnitRegistry.register('air_cooler', {
     if (!sIn) return;
 
     // [v16.9.0 S-STATUS] Entry fried guard removed — handled by solver mode guard.
-    // Post-checkOverload fried guard retained (mid-tick destruction).
+    // [v16.9.3] checkOverload removed — demand-driven allocation prevents overload by design.
 
     const H_in_Jps = thermo.getHdot_Jps(sIn);
     if (H_in_Jps === 0 && (!sIn.T || !sIn.P || !sIn.n)) {
@@ -18130,15 +18099,6 @@ UnitRegistry.register('air_cooler', {
     // ── Power read from hub allocation ──
     const s = ctx ? ctx.scratch : {};
     const W_avail = s.hubAllocated_W ?? (sElec.actual ?? sElec.capacity ?? 0);
-
-    // ── Overload check ──
-    const olResult = checkOverload(W_avail, max_fan_W, u, s);
-    if (u.fried) {
-      u.powerDemand = 0;
-      ports.mat_out = passthrough();
-      u.last = { fried: true, error: olResult.error };
-      return;
-    }
 
     // ── Derive actual airflow from delivered power ──
     const W_fan_actual = Math.min(W_avail, W_fan_demand);
@@ -18248,9 +18208,7 @@ UnitRegistry.register('air_cooler', {
       ntu: ntuDiag
     };
 
-    if (olResult.overload && olResult.error) {
-      u.last.error = olResult.error;
-    } else if (capacityLimited) {
+    if (capacityLimited) {
       u.last.error = { severity: ErrorSeverity.MINOR,
         message: `Capacity-limited: ${(Q_actual_W/1000).toFixed(1)} / ${(Q_demand_W/1000).toFixed(1)} kW` +
           (ntuDiag ? ` (ε=${ntuDiag.epsilon?.toFixed(2)}, NTU=${ntuDiag.NTU?.toFixed(1)})` : '') +
@@ -19979,8 +19937,7 @@ function electrochemicalTick(u, ports, par, ctx) {
     const sElec = ports.elec_in;
     const rs = ctx ? ctx.scratch : {};
     const P_avail_W = sElec ? (rs.hubAllocated_W ?? sElec.actual ?? sElec.capacity ?? 0) : 0;
-    checkOverload(P_avail_W, P_demand_W, u, rs);
-    if (u.fried) return;
+    // [v16.9.3] checkOverload removed — allocation ≤ demand by design.
 
     if (P_avail_W < 1) {
       u.last = { xi: 0, status: 'idle', P_demand_kW: P_demand_W / 1000, P_avail_kW: 0,
@@ -24980,7 +24937,6 @@ const PG = {
   clamp,
   allocatePower,
   allocateByPriority,
-  checkOverload,
   getEffectiveLimits,
   evaluateLimits,
   buildMaterialGraph,
@@ -41121,32 +41077,7 @@ function runTests() {
   // ═══════════════════════════════════════════════════════════════════════
   // SECTION: S2-A — Overload, Fry, Serialization
   // ═══════════════════════════════════════════════════════════════════════
-
-  test('checkOverload — threshold tiers', t => {
-    // [v13.1.0 S2-A] Pure function thresholds: ≤5% OK, 5-20% MINOR, 20-50% MAJOR, >50% CATASTROPHIC
-    const u = {};
-    const ok = PG.checkOverload(1000, 1000, u);
-    t.assertOK(!ok.overload, '1:1 ratio → no overload');
-    t.assertOK(!u.fried, 'Not fried at 1:1');
-
-    const u2 = {};
-    const warn = PG.checkOverload(1100, 1000, u2);  // 10% over
-    t.assertOK(warn.overload, '10% over → overload');
-    t.assertOK(warn.error.severity === ErrorSeverity.MINOR, '10% → MINOR');
-    t.assertOK(!u2.fried, 'Not fried at 10%');
-
-    const u3 = {};
-    const major = PG.checkOverload(1300, 1000, u3);  // 30% over
-    t.assertOK(major.overload, '30% over → overload');
-    t.assertOK(major.error.severity === ErrorSeverity.MAJOR, '30% → MAJOR');
-    t.assertOK(!u3.fried, 'Not fried at 30%');
-
-    const u4 = {};
-    const cata = PG.checkOverload(1600, 1000, u4);  // 60% over
-    t.assertOK(cata.overload, '60% over → overload');
-    t.assertOK(cata.error.severity === ErrorSeverity.CATASTROPHIC, '60% → CATASTROPHIC');
-    t.assertOK(u4.fried === true, 'Fried at 60%');
-  });
+  // [v16.9.3] checkOverload test removed — function deleted (redundant with demand-driven allocation).
 
   test('sink_electrical — finite demand and ratedPower_kW', t => {
     // [v13.1.0 S2-A] sink_electrical now uses finite demand based on ratedPower_kW
