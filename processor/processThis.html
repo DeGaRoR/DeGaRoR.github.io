@@ -540,6 +540,33 @@
   NNGs: NNG-14 (changelog).
   Tests: 607 total, 3143 checks, 0 failures.
 
+  ─── v16.9.12 — S-PARTICLES Phase 4: Boundaries ──────────────────────────
+
+  Phase 4A: Sources + convergence.  Viewports added for source (circle
+  r=22), source_atm (rect 40×56), closed_loop_source (circle r=22),
+  reservoir (rect 32×48).  New `type:'source'` in _bodyTransitPath
+  routes to two path geometries:
+  - `emerge`: particles spawn clustered near viewport center, stream
+    outward toward mat_out with ease-in acceleration and narrowing
+    lateral spread (funnel shape).  Fade-in at t<0.15.
+  - `converge`: source_atm particles start scattered on a perimeter
+    circle (jLat = angular position in radians), spiral inward to
+    viewport center (t=0→0.6 with ease-in), then stream to mat_out
+    exit (t=0.6→1).  No brownian jitter — angular positions stable.
+
+  Phase 4B: Sinks + dispersal.  Viewport added for sink (rect 28×56).
+  New `type:'sink'` with `pathType:'disperse'`: particles enter from
+  mat_in, traverse to viewport center (t=0→0.4), then diverge — gas
+  particles rise toward viewport top, liquid particles fall toward
+  viewport bottom (t=0.4→1 with ease-out).  Opacity fades linearly
+  to 0 across the dispersal region.  Species-colored and phase-aware:
+  player sees actual composition rising/falling, not generic gray puffs.
+
+  `_computeSmokeConfig` now returns only for fried units (2 lines).
+  Sink plume smoke system (~50 lines) removed — replaced by the
+  species-accurate dispersal particles above.  `_smokeState` is now
+  fried-only.  Behavior lookup checks `u.profileId` before `u.defId`.
+
   ─── v16.9.11 — S-PARTICLES Phase 3: Transforms ──────────────────────────
 
   Phase 3A: Morph (reactors).  Each particle gets `destSpecies` sampled
@@ -27611,72 +27638,9 @@ const _FRIED_SMOKE_CFG = {
 };
 
 function _computeSmokeConfig(u, def) {
+  // [v16.9.12 Phase 4B] Fried-only: sink plumes replaced by species-accurate dispersal particles
   if (u.fried) return _FRIED_SMOKE_CFG;
-  if (def.defId !== 'sink') return null;
-  if (!u.last) return null;
-  const flow = u.last.absorbed_mol_s || 0;
-  if (flow < 1e-9) return null;
-  const outPhase = u.last.outlet && u.last.outlet.phase;
-  if (outPhase === 'L') return null;
-
-  const inlet = u.last.inlet || {};
-  const P_Pa = inlet.P_Pa || 101325;
-  const T_K = inlet.T_K || 298;
-  const comp = inlet.composition || {};
-  const atm = SimSettings.getAtmosphere();
-  const P_atm = atm.P_Pa || 101325;
-
-  const P_ratio = P_Pa / P_atm;
-  const velFactor = Math.max(0.2, Math.min(3.0, Math.log10(P_ratio) * 1.8 + 0.3));
-  const riseHeight = 25 + velFactor * 38;
-  const duration = Math.max(0.8, 4.5 / (velFactor + 0.3));
-
-  const flowClamped = Math.max(0.01, Math.min(5, flow));
-  const sqrtFlow = Math.sqrt(flowClamped);
-  const puffCount = Math.min(8, Math.round(2 + sqrtFlow * 3.5));
-  const puffRx = Math.min(24, 6 + sqrtFlow * 8);
-  const puffRy = puffRx * 0.7;
-  const spreadX = 3 + sqrtFlow * 6;
-
-  let r, g, b;
-  if (T_K < 350) {
-    r = 160; g = 168; b = 184;
-  } else if (T_K < 600) {
-    const t = (T_K - 350) / 250;
-    r = Math.round(160 + t * 60); g = Math.round(168 - t * 40); b = Math.round(184 - t * 100);
-  } else if (T_K < 1000) {
-    const t = (T_K - 600) / 400;
-    r = Math.round(220 + t * 30); g = Math.round(128 + t * 80); b = Math.round(84 - t * 30);
-  } else {
-    r = 240; g = 208; b = 144;
-  }
-
-  const totalMol = Object.values(comp).reduce((a, v) => a + v, 0);
-  const yH2O = totalMol > 0 ? (comp.H2O || 0) / totalMol : 0;
-  let opacityStart = 0.3 + sqrtFlow * 0.08;
-  let opacityPeak = opacityStart + 0.15;
-  if (yH2O > 0.3) {
-    const steamBoost = (yH2O - 0.3) / 0.7;
-    opacityStart += steamBoost * 0.2;
-    opacityPeak += steamBoost * 0.25;
-    r = Math.round(r + (240 - r) * steamBoost * 0.6);
-    g = Math.round(g + (240 - g) * steamBoost * 0.6);
-    b = Math.round(b + (240 - b) * steamBoost * 0.6);
-  }
-
-  let filter = 'smoke-f1';
-  let scaleEnd = 1.3;
-  if (outPhase === 'VL') { filter = 'smoke-f3'; scaleEnd *= 1.3; }
-  else if (P_ratio > 5) { filter = 'smoke-f2'; }
-
-  return {
-    isFried: false, puffCount, riseHeight, duration,
-    puffRx, puffRy, spreadX, scaleStart: 0.3, scaleEnd,
-    opacityStart: Math.min(0.8, opacityStart),
-    opacityPeak: Math.min(0.9, opacityPeak),
-    color: `rgb(${r},${g},${b})`, filter,
-    driftRange: spreadX * 0.8
-  };
+  return null;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -27755,6 +27719,12 @@ const _UNIT_VIEWPORT = {
   electric_heater:          { type: 'rect', x: 24, y: 20, w: 48, h: 32 },
   distillation_column:      { type: 'rect', x: 26, y: 14, w: 44, h: 112 },
   membrane_separator:       { type: 'rect', x: 18, y: 14, w: 60, h: 68 },
+  // [v16.9.12 Phase 4] Boundary unit viewports
+  source:                   { type: 'circle', cx: 48, cy: 48, r: 22 },
+  source_atm:               { type: 'rect', x: 14, y: 20, w: 40, h: 56 },
+  closed_loop_source:       { type: 'circle', cx: 48, cy: 48, r: 22 },
+  reservoir:                { type: 'rect', x: 32, y: 16, w: 32, h: 48 },
+  sink:                     { type: 'rect', x: 34, y: 18, w: 28, h: 56 },
   // Opaque (null): valve, restriction, splitter, tank, open_tank, battery, all power/boundary
 };
 
@@ -37122,15 +37092,15 @@ const _PARTICLE_BEHAVIORS = {
     tank:      null,
     open_tank: null,
 
-    // Sources (future Phase 4)
-    source:    { type:'source' },
-    source_atm:{ type:'source' },
-    atmosphere:{ type:'source' },
-    closed_loop_source: { type:'source' },
-    reservoir: { type:'source' },
+    // Sources (Phase 4A)
+    source:    { type:'source', path:'emerge', dwellFactor:1.5 },
+    source_atm:{ type:'source', path:'converge', convergeRadius:40, dwellFactor:2.0 },
+    atmosphere:{ type:'source', path:'converge', convergeRadius:40, dwellFactor:2.0 },
+    closed_loop_source: { type:'source', path:'emerge', dwellFactor:1.5 },
+    reservoir: { type:'source', path:'emerge', dwellFactor:1.8 },
 
-    // Sinks (future Phase 4)
-    sink: { type:'sink' },
+    // Sinks (Phase 4B)
+    sink: { type:'sink', dwellFactor:1.5 },
 
     // Electrical (no material particles)
     grid_supply:null, solar_panel:null, wind_turbine:null,
@@ -37263,6 +37233,38 @@ function _bodyTransitPath(unitId, cfg) {
     }))};
   }
 
+  if (cfg.type === 'source') {
+    // Source: particles emerge from center → mat_out exit
+    const matOut = def.ports.find(p => p.dir === PortDir.OUT && p.type === StreamType.MATERIAL);
+    if (!matOut) return null;
+    const vcx = vp.type === 'circle' ? vp.cx : vp.x + vp.w / 2;
+    const vcy = vp.type === 'circle' ? vp.cy : vp.y + vp.h / 2;
+    const exit = _projectPortToVP(matOut.portId, pres, wx, wy, tile, vp);
+    const pathType = cfg.path === 'converge' ? 'converge' : 'emerge';
+    return { subPaths: [{
+      entry: { x: vcx, y: vcy }, exit,
+      pathType, swirlTurns: 0, vp, streamKey: matOut.portId,
+      convergeRadius: cfg.convergeRadius || 40
+    }]};
+  }
+
+  if (cfg.type === 'sink') {
+    // Sink: mat_in entry → center → disperse (gas rises, liquid falls)
+    const matIn = def.ports.find(p => p.dir === PortDir.IN && p.type === StreamType.MATERIAL);
+    if (!matIn) return null;
+    const vcx = vp.type === 'circle' ? vp.cx : vp.x + vp.w / 2;
+    const vcy = vp.type === 'circle' ? vp.cy : vp.y + vp.h / 2;
+    const vpTop = vp.type === 'circle' ? vp.cy - vp.r * 0.85 : vp.y + 2;
+    const vpBot = vp.type === 'circle' ? vp.cy + vp.r * 0.85 : vp.y + vp.h - 2;
+    const entry = _projectPortToVP(matIn.portId, pres, wx, wy, tile, vp);
+    return { subPaths: [{
+      entry, exit: { x: vcx, y: vcy },
+      disperseTop: { x: vcx, y: vpTop },
+      disperseBot: { x: vcx, y: vpBot },
+      pathType: 'disperse', swirlTurns: 0, vp, streamKey: matIn.portId
+    }]};
+  }
+
   // Single transit: first material IN → first material OUT
   const matIn = def.ports.find(p => p.dir === PortDir.IN && p.type === StreamType.MATERIAL);
   const matOut = def.ports.find(p => p.dir === PortDir.OUT && p.type === StreamType.MATERIAL);
@@ -37321,6 +37323,57 @@ function _transitPos(sp, t, jLat, isLiq) {
     const rDip = 0.35 * Math.sin(t * Math.PI);
     const r = rBase * (1 - rDip) + jLat * 0.15;
     return { x: vp.cx + Math.cos(angle) * r, y: vp.cy + Math.sin(angle) * r };
+  }
+
+  if (sp.pathType === 'emerge') {
+    // Source emerge: center (t=0) → exit (t=1), spreading outward
+    // Early t: clustered near center; late t: approaching exit
+    const eased = t * t; // ease-in: slow near center, fast toward exit
+    const px = e.x + (x.x - e.x) * eased;
+    const py = e.y + (x.y - e.y) * eased;
+    // Radial spread decreases toward exit (funnel shape)
+    const spread = (1 - t) * jLat;
+    const pdx = x.x - e.x, pdy = x.y - e.y;
+    const pLen = Math.sqrt(pdx * pdx + pdy * pdy) || 1;
+    return { x: px + (-pdy / pLen) * spread, y: py + (pdx / pLen) * spread };
+  }
+
+  if (sp.pathType === 'converge') {
+    // Source_atm converge: scattered perimeter (t=0) → center (t=0.6) → exit (t=1)
+    // jLat encodes the angular position on the perimeter (set at spawn)
+    const vp = sp.vp;
+    const vcx = vp.type === 'circle' ? vp.cx : vp.x + vp.w / 2;
+    const vcy = vp.type === 'circle' ? vp.cy : vp.y + vp.h / 2;
+    const R = sp.convergeRadius || 30;
+    if (t < 0.6) {
+      // Converge: perimeter angle (jLat as radians) → center
+      const f = t / 0.6; // 0→1
+      const eased = f * f; // ease-in toward center
+      const r = R * (1 - eased);
+      return { x: vcx + Math.cos(jLat) * r, y: vcy + Math.sin(jLat) * r };
+    }
+    // After convergence: center → exit port
+    const f = (t - 0.6) / 0.4;
+    return { x: vcx + (x.x - vcx) * f, y: vcy + (x.y - vcy) * f };
+  }
+
+  if (sp.pathType === 'disperse') {
+    // Sink disperse: entry (t=0) → center (t=0.4) → rise/fall (t=0.4→1)
+    if (t < 0.4) {
+      const f = t / 0.4;
+      const px = e.x + (x.x - e.x) * f;
+      const py = e.y + (x.y - e.y) * f;
+      const pdx = x.x - e.x, pdy = x.y - e.y;
+      const pLen = Math.sqrt(pdx * pdx + pdy * pdy) || 1;
+      return { x: px + (-pdy / pLen) * jLat, y: py + (pdx / pLen) * jLat };
+    }
+    // After center: gas rises, liquid falls
+    const f = (t - 0.4) / 0.6; // 0→1
+    const eased = 1 - (1 - f) * (1 - f); // ease-out
+    const target = isLiq ? sp.disperseBot : sp.disperseTop;
+    const px = x.x + (target.x - x.x) * eased + jLat * (1 - f);
+    const py = x.y + (target.y - x.y) * eased;
+    return { x: px, y: py };
   }
 
   // Linear (default): straight lerp entry→exit with lateral jitter
@@ -37445,7 +37498,8 @@ function _rebuildBodyParticles() {
     const cfg = B.units[u.profileId] || B.units[u.defId];
     if (!cfg) continue;
     if (cfg.type !== 'transit' && cfg.type !== 'dual-transit' &&
-        cfg.type !== 'merge' && cfg.type !== 'split') continue;
+        cfg.type !== 'merge' && cfg.type !== 'split' &&
+        cfg.type !== 'source' && cfg.type !== 'sink') continue;
 
     const transit = _bodyTransitPath(id, cfg);
     if (!transit || transit.subPaths.length === 0) continue;
@@ -37495,8 +37549,14 @@ function _rebuildBodyParticles() {
           const h2 = ((seed * 1664525 + 500) >>> 0) / 4294967296;
           const t = (i / nParticles + (h - 0.5) * 0.15 + 1) % 1;
           const isSwirl = sp.pathType === 'swirl';
-          const maxLat = isSwirl ? 1 : (isLiq ? 2 : 5);
-          const jLat = (h2 - 0.5) * maxLat;
+          const isConverge = sp.pathType === 'converge';
+          let jLat;
+          if (isConverge) {
+            jLat = h2 * Math.PI * 2; // angular position on convergence perimeter
+          } else {
+            const maxLat = isSwirl ? 1 : (isLiq ? 2 : 5);
+            jLat = (h2 - 0.5) * maxLat;
+          }
           const r = isLiq ? 2 : 1.2 + h * 1.6;
           // [Phase 3A] Morph: destSpecies from outlet composition
           const destSpecies = outletAnim ? _sampleSpeciesAt(outletAnim.speciesFracs, seed + 7777) : species;
@@ -37514,6 +37574,9 @@ function _rebuildBodyParticles() {
         sp.entry = tsp.entry; sp.exit = tsp.exit; sp.vp = tsp.vp;
         // [Phase 3B] Sync split-specific data
         if (tsp.splitCenter) { sp.splitCenter = tsp.splitCenter; sp.vapExit = tsp.vapExit; sp.liqExit = tsp.liqExit; sp.splitZone = tsp.splitZone; }
+        // [Phase 4] Sync disperse/converge data
+        if (tsp.disperseTop) { sp.disperseTop = tsp.disperseTop; sp.disperseBot = tsp.disperseBot; }
+        if (tsp.convergeRadius) sp.convergeRadius = tsp.convergeRadius;
         const ps = ud.ports?.[sp.streamKey];
         const anim = ps?._anim;
         const vNorm = anim ? Math.min(1, anim.vDot / B.VDOT_REF) : 0.1;
@@ -37549,8 +37612,8 @@ function _advanceBodyParticles(deltaSec) {
         p.t += dt;
         if (p.t > 1) p.t -= 1;
         if (p.t < 0) p.t += 1;
-        // Gas jitter (lateral for linear, radial for swirl)
-        if (!p.isLiq) {
+        // Gas jitter (skip for converge — jLat is angular position)
+        if (!p.isLiq && sp.pathType !== 'converge') {
           p.jLat += (Math.random() - 0.5) * 1.0 * deltaSec * 8;
           const maxJ = sp.pathType === 'swirl' ? 2
             : sp.vp.type === 'circle' ? sp.vp.r * 0.5
@@ -37564,9 +37627,10 @@ function _advanceBodyParticles(deltaSec) {
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // [v17.0.2] rAF-driven smoke/plume system
-// Replaces CSS keyframe smoke. Reuses _computeSmokeConfig() for physics mapping.
-// Puff state persists in JS; SVG ellipses rebuilt each render().
-// Fried smoke advances always; sink plumes only when playing.
+// [v16.9.12] rAF-driven smoke system (fried units only)
+// Sink plumes replaced by species-accurate dispersal particles (Phase 4B).
+// Puff state persists in JS; canvas draws from _smokeState each frame.
+// Fried smoke advances always regardless of play state.
 // ═══════════════════════════════════════════════════════════════════════════════
 
 const _smokeState = new Map(); // unitId → { puffs: [...], cfg, cx, cy }
@@ -37739,7 +37803,8 @@ function _drawParticleCanvas() {
       const isMorph = sp.transform === 'morph';
       const morphZone = sp.morphZone || [0.3, 0.7];
       const isAbsorb = sp.transform === 'absorb' && sp.absorbSpecies;
-      const isSplit = sp.pathType === 'split';
+      const isDisperse = sp.pathType === 'disperse';
+      const isEmerge = sp.pathType === 'emerge';
 
       for (const p of sp.particles) {
         const pos = _transitPos(sp, p.t, p.jLat, p.isLiq);
@@ -37761,10 +37826,18 @@ function _drawParticleCanvas() {
           rgb = _SPECIES_COLOR[p.species] || _SPECIES_DEFAULT_RGB;
         }
 
-        // ── Compute opacity: absorb fades matched species ──
+        // ── Compute opacity ──
         let baseAlpha = p.isLiq ? 0.9 : 0.55;
         if (isAbsorb && sp.absorbSpecies.includes(p.species)) {
           baseAlpha *= Math.max(0, 1 - p.t * 1.5); // fully faded by t≈0.67
+        }
+        if (isDisperse && p.t > 0.4) {
+          // Sink dispersal: fade out as particles rise/fall away from center
+          baseAlpha *= Math.max(0, 1 - (p.t - 0.4) / 0.6);
+        }
+        if (isEmerge && p.t < 0.15) {
+          // Source emerge: fade in from spawn point
+          baseAlpha *= p.t / 0.15;
         }
         if (baseAlpha < 0.01) continue; // skip invisible
 
