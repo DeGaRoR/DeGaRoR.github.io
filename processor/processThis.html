@@ -540,6 +540,52 @@
   NNGs: NNG-14 (changelog).
   Tests: 607 total, 3143 checks, 0 failures.
 
+  ─── v16.9.4 — S-CATASTROPHIC: Visual failure feedback replaces modal ──────
+
+  **Catastrophic modal deleted.** Replaced by three non-blocking visual
+  feedback mechanisms that communicate failure severity without
+  interrupting player flow:
+
+  1. **Red workspace flash** — 3-pulse semi-transparent red overlay on
+     the SVG canvas (CSS `catastrophic-flash`, 0.9s).  Fires once per
+     catastrophic event, removed on animationend.
+
+  2. **Animated destruction sequence** — newly fried units get:
+     - Shake (existing `unit-shake`, 0.4s)
+     - Crack drawing (`fried-crack-anim`, stroke-dashoffset, 0.3s)
+     - Red tint fade-in (`fried-overlay-enter`, 0.2s)
+     - Smoke burst (S-SMOKE system, unchanged)
+     `_newlyFriedIds` Set tracks which units need entry animation vs
+     static fried state.  Cleared after render consumes it.
+
+  3. **Diagnostic badge** — 12px icon on bottom-right of fried unit.
+     5 cause categories from LIMIT_PARAM_TEMPLATES.tag + message match:
+     thermometer (T), gauge (P), water drop (level), lightning (elec),
+     X-mark fallback (mech).  Dark circular badge with cause-colored
+     border.  SVG `<title>` tooltip shows `ud.last.error.message`.
+
+  **Diagnostic toast** — aggregated from `diagnoseErrors()` / ErrorCatalog.
+  Single failure: "💥 Unit: Title".  Same-cause multi: "💥 N units: Title".
+  Mixed: first + count.  Red-accented `.toast-catastrophic` style, 5s
+  display.  Replaces the modal's dumb unit name list.
+
+  **Cause detection** (`u._friedCause`):
+  - Limit violations: `LIMIT_PARAM_TEMPLATES[param].tag` (T/P/level)
+  - Message patterns: electrical, mechanical fallback
+  - Set in `afterSolve` (UI layer, NNG-9 compliant), not serialized.
+
+  **Auto-pause preserved.** Play stops on catastrophic, pre-step snapshot
+  pushed for revert via transport bar.  No forced modal choice.
+
+  Removed: `#modalCatastrophe` HTML, `.modal-catastrophe` CSS (10 rules),
+  `_showCatastrophicModal()`, catBtnRevert/catBtnContinue handlers,
+  3 DOM refs.  `_triggerFailureShakes` replaced by
+  `_triggerCatastrophicFeedback`.
+
+  NNGs: NNG-7 (alarm architecture — badge reads AlarmSystem),
+  NNG-9 (_friedCause set in UI layer), NNG-11 (DOM-free core preserved),
+  NNG-15 (tooltip uses SVG title, no innerHTML), NNG-14 (changelog).
+
   ─── v16.9.3 — Remove checkOverload + hydrovent inspector ─────────────────
 
   **checkOverload function deleted.**  The per-consumer overload check was
@@ -3763,6 +3809,51 @@
       rx: 8;
     }
 
+    /* [v16.9.4 S-CATASTROPHIC] Red workspace flash — 3 pulses on catastrophic event */
+    @keyframes catastrophic-flash {
+      0%   { fill-opacity: 0; }
+      10%  { fill-opacity: 0.2; }
+      20%  { fill-opacity: 0; }
+      40%  { fill-opacity: 0.2; }
+      50%  { fill-opacity: 0; }
+      70%  { fill-opacity: 0.2; }
+      80%  { fill-opacity: 0; }
+      100% { fill-opacity: 0; }
+    }
+    .catastrophic-flash {
+      fill: #dc2626; pointer-events: none;
+      animation: catastrophic-flash 0.9s ease-out forwards;
+    }
+
+    /* [v16.9.4] Crack drawing animation — X-mark draws itself */
+    @keyframes crack-draw {
+      to { stroke-dashoffset: 0; }
+    }
+    .fried-crack-anim {
+      stroke-dasharray: 100;
+      stroke-dashoffset: 100;
+      animation: crack-draw 0.3s ease-in forwards;
+      animation-delay: 0.1s;
+    }
+
+    /* [v16.9.4] Fried overlay fade-in */
+    @keyframes fried-fade {
+      to { fill-opacity: 0.35; }
+    }
+    .fried-overlay-enter {
+      fill-opacity: 0;
+      animation: fried-fade 0.2s ease-in forwards;
+      animation-delay: 0.2s;
+    }
+
+    /* [v16.9.4] Catastrophic toast styling */
+    .toast-catastrophic {
+      background: #1e293b;
+      border: 1.5px solid #dc2626;
+      color: #fca5a5;
+      font-weight: 600;
+    }
+
     /* [v17.0.0 S-FLOW] Flow particles on connections */
     .flow-particle { pointer-events: none; }
     .flow-particle-gas { opacity: 0.55; filter: blur(0.4px); }
@@ -4950,32 +5041,7 @@
     .ins-err-box.catastrophic { background: #7f1d1d66; border: 1px solid #dc2626; color: #fca5a5; font-weight: 600; animation: catastrophic-pulse-bg 1.2s ease-in-out infinite; }
     @keyframes catastrophic-pulse-bg { 0%,100% { border-color: #dc2626; } 50% { border-color: #fca5a5; } }
 
-    /* [v14.7.0 S-SIM Step 7] Catastrophic event modal */
-    .modal-catastrophe .modalContent {
-      max-width: 480px;
-      border-color: #dc2626;
-      box-shadow: 0 20px 60px rgba(220, 38, 38, 0.3);
-    }
-    .modal-catastrophe .cat-icon { font-size: 48px; text-align: center; margin-bottom: 8px; }
-    .modal-catastrophe .cat-title {
-      color: #fca5a5; font-size: 18px; font-weight: 700; text-align: center; margin-bottom: 12px;
-    }
-    .modal-catastrophe .cat-detail {
-      font-size: 13px; color: #94a3b8; line-height: 1.5; margin-bottom: 20px; text-align: center;
-    }
-    .modal-catastrophe .cat-units {
-      font-size: 12px; color: #e2e8f0; background: #1e1e2e; border-radius: 8px;
-      padding: 10px 14px; margin-bottom: 20px; max-height: 120px; overflow-y: auto;
-    }
-    .modal-catastrophe .cat-actions { display: flex; gap: 12px; justify-content: center; }
-    .modal-catastrophe .cat-btn {
-      padding: 10px 24px; border-radius: 8px; font-size: 14px; font-weight: 600;
-      cursor: pointer; border: 1px solid #2a2f3a; transition: background 0.15s;
-    }
-    .cat-btn-revert { background: #1e3a5f; color: #93c5fd; }
-    .cat-btn-revert:hover { background: #1e4a7f; }
-    .cat-btn-continue { background: #1e1e2e; color: #94a3b8; }
-    .cat-btn-continue:hover { background: #2a2f3a; }
+    /* [v16.9.4 S-CATASTROPHIC] Modal CSS removed — see catastrophic-flash, fried-crack-anim, toast-catastrophic */
     .ins-err-box.minor { background: #1e3a5f44; border: 1px solid #3b82f6; color: #93c5fd; }
     .propItem.alarm-warn { border-left: 2px solid #fbbf24; padding-left: 6px; }
     .propItem.alarm-warn .propValue { color: #fbbf24; }
@@ -8676,19 +8742,7 @@
       </div>
     </div>
 
-    <!-- [v14.7.0 S-SIM Step 7] Catastrophic event modal -->
-    <div class="modal modal-catastrophe" id="modalCatastrophe">
-      <div class="modalContent">
-        <div class="cat-icon">💥</div>
-        <div class="cat-title">CATASTROPHIC EVENT</div>
-        <div class="cat-detail" id="catDetail">Equipment has exceeded its design limits and is destroyed.</div>
-        <div class="cat-units" id="catUnits"></div>
-        <div class="cat-actions">
-          <button class="cat-btn cat-btn-revert" id="catBtnRevert">⏪ Revert</button>
-          <button class="cat-btn cat-btn-continue" id="catBtnContinue">Continue with damage</button>
-        </div>
-      </div>
-    </div>
+    <!-- [v16.9.4 S-CATASTROPHIC] Modal removed — replaced by flash + toast + badge -->
 
     <!-- [v10] Palette Drawer — slides over canvas from left -->
     <aside class="paletteDrawer" id="paletteDrawer">
@@ -27237,7 +27291,7 @@ const _BODY_BBOX = {
   valve:                    { x:24, y:18, w:48, h:52 },
   restriction:              { x:38, y:16, w:20, h:64 },
   reservoir:                { x:28, y:6,  w:40, h:66 },
-  hydrovent:                { x:24, y:16, w:48, h:50 },
+  hydrovent:                { x:24, y:22, w:48, h:46 },
   atmosphere:               { x:14, y:16, w:68, h:64 },
   compressor:               { x:14, y:12, w:68, h:46 },
   fan:                      { x:16, y:18, w:64, h:60 },
@@ -27944,8 +27998,8 @@ const _RAGTAG_SYMBOLS = {
   hydrovent(g, wx, wy, ww, wh, pal, def, unitId) {
     const pres = getPresentation(def, scene.units.get(unitId));
     const valveCol = _lighten(pal.stroke, 0.3);
-    // Nozzle stubs — body bbox matches pipe assembly
-    _rtNozzle(g, wx, wy, ww, wh, wx+24, wy+16, 48, 50, def, pres, pal, unitId);
+    // Nozzle stubs — body bbox right edge at wx+72, port at wx+96
+    _rtNozzle(g, wx, wy, ww, wh, wx+24, wy+22, 48, 46, def, pres, pal, unitId);
     // ── Hull plate (cracked ground) ──
     g.appendChild(svgEl('rect', { x:wx+4, y:wy+64, width:88, height:24, rx:3, fill:'#1f2937', stroke:'#374151', 'stroke-width':2, 'pointer-events':'none' }));
     // Hull surface texture
@@ -27957,24 +28011,24 @@ const _RAGTAG_SYMBOLS = {
       fill:'none', stroke:'#ef4444', 'stroke-width':2, 'stroke-linecap':'round', opacity:0.7, 'pointer-events':'none' }));
     g.appendChild(svgEl('path', { d:`M${wx+38},${wy+64} L${wx+42},${wy+70} L${wx+37},${wy+76} L${wx+43},${wy+82} L${wx+39},${wy+88}`,
       fill:'none', stroke:'#fbbf24', 'stroke-width':1, 'stroke-linecap':'round', opacity:0.5, 'pointer-events':'none' }));
-    // ── Salvaged pipe rising from crack ──
-    g.appendChild(svgEl('line', { x1:wx+40, y1:wy+64, x2:wx+40, y2:wy+34, stroke:pal.stroke, 'stroke-width':6, 'pointer-events':'none' }));
-    g.appendChild(svgEl('line', { x1:wx+40, y1:wy+64, x2:wx+40, y2:wy+34, stroke:pal.fillUrl, 'stroke-width':3, 'pointer-events':'none' }));
+    // ── Salvaged pipe rising from crack to valve ──
+    g.appendChild(svgEl('line', { x1:wx+40, y1:wy+64, x2:wx+40, y2:wy+40, stroke:pal.stroke, 'stroke-width':6, 'pointer-events':'none' }));
+    g.appendChild(svgEl('line', { x1:wx+40, y1:wy+64, x2:wx+40, y2:wy+40, stroke:pal.fillUrl, 'stroke-width':3, 'pointer-events':'none' }));
     // Flange bolted to hull
     g.appendChild(svgEl('rect', { x:wx+30, y:wy+58, width:20, height:8, rx:2, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2, 'pointer-events':'none' }));
     _rtBolt(g, wx+32, wy+62); _rtBolt(g, wx+48, wy+62);
-    // ── Valve body (T-junction) ──
-    g.appendChild(svgEl('rect', { x:wx+30, y:wy+28, width:20, height:14, rx:3, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2, 'pointer-events':'none' }));
-    // Valve handle (wheel)
-    g.appendChild(svgEl('circle', { cx:wx+40, cy:wy+20, r:7, fill:'none', stroke:valveCol, 'stroke-width':2.5, 'pointer-events':'none' }));
-    g.appendChild(svgEl('line', { x1:wx+40, y1:wy+14, x2:wx+40, y2:wy+26, stroke:valveCol, 'stroke-width':1.5, 'pointer-events':'none' }));
-    g.appendChild(svgEl('line', { x1:wx+34, y1:wy+20, x2:wx+46, y2:wy+20, stroke:valveCol, 'stroke-width':1.5, 'pointer-events':'none' }));
-    g.appendChild(svgEl('circle', { cx:wx+40, cy:wy+20, r:2, fill:valveCol, 'pointer-events':'none' }));
-    // Stem from valve to pipe
-    g.appendChild(svgEl('line', { x1:wx+40, y1:wy+27, x2:wx+40, y2:wy+34, stroke:pal.stroke, 'stroke-width':2, 'pointer-events':'none' }));
-    // ── Horizontal outlet pipe (to port) ──
-    g.appendChild(svgEl('line', { x1:wx+50, y1:wy+35, x2:wx+72, y2:wy+35, stroke:pal.stroke, 'stroke-width':4, 'pointer-events':'none' }));
-    g.appendChild(svgEl('line', { x1:wx+50, y1:wy+35, x2:wx+72, y2:wy+35, stroke:pal.fillUrl, 'stroke-width':2, 'pointer-events':'none' }));
+    // ── Valve body (T-junction) — centered at wy+48 to align with port ──
+    g.appendChild(svgEl('rect', { x:wx+30, y:wy+40, width:20, height:16, rx:3, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2, 'pointer-events':'none' }));
+    // Valve handle (wheel) — above valve body
+    g.appendChild(svgEl('circle', { cx:wx+40, cy:wy+28, r:7, fill:'none', stroke:valveCol, 'stroke-width':2.5, 'pointer-events':'none' }));
+    g.appendChild(svgEl('line', { x1:wx+40, y1:wy+22, x2:wx+40, y2:wy+34, stroke:valveCol, 'stroke-width':1.5, 'pointer-events':'none' }));
+    g.appendChild(svgEl('line', { x1:wx+34, y1:wy+28, x2:wx+46, y2:wy+28, stroke:valveCol, 'stroke-width':1.5, 'pointer-events':'none' }));
+    g.appendChild(svgEl('circle', { cx:wx+40, cy:wy+28, r:2, fill:valveCol, 'pointer-events':'none' }));
+    // Stem from wheel to valve body
+    g.appendChild(svgEl('line', { x1:wx+40, y1:wy+35, x2:wx+40, y2:wy+40, stroke:pal.stroke, 'stroke-width':2, 'pointer-events':'none' }));
+    // ── Horizontal outlet pipe at wy+48 (matches port y=1) ──
+    g.appendChild(svgEl('line', { x1:wx+50, y1:wy+48, x2:wx+72, y2:wy+48, stroke:pal.stroke, 'stroke-width':4, 'pointer-events':'none' }));
+    g.appendChild(svgEl('line', { x1:wx+50, y1:wy+48, x2:wx+72, y2:wy+48, stroke:pal.fillUrl, 'stroke-width':2, 'pointer-events':'none' }));
     // ── Steam/spray jet (animated particles rising from crack) ──
     [0, 0.25, 0.5, 0.75].forEach(ph => {
       g.appendChild(svgEl('circle', { cx:wx+38+Math.sin(ph*12)*5, cy:wy+60, r:1.5,
@@ -27988,8 +28042,8 @@ const _RAGTAG_SYMBOLS = {
         'data-phase':String(ph), 'data-speed':'0.5', opacity:0.15, 'pointer-events':'none' }));
     });
     // Paint chip + LED
-    _rtChip(g, wx+52, wy+30, 5, 3);
-    g.appendChild(svgEl('circle', { cx:wx+66, cy:wy+28, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.6', 'pointer-events':'none' }));
+    _rtChip(g, wx+52, wy+42, 5, 3);
+    g.appendChild(svgEl('circle', { cx:wx+66, cy:wy+40, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.6', 'pointer-events':'none' }));
   },
   // ── Restriction (sheet L202-212) ──
   restriction(g, wx, wy, ww, wh, pal, def, unitId) {
@@ -29876,22 +29930,56 @@ function drawUnits() {
       }));
     }
 
-    // [v14.7.0 S-SIM Step 8] Fried equipment visual overlay
+    // [v16.9.4 S-CATASTROPHIC] Fried equipment visual overlay + diagnostic badge
     if (u.fried) {
       group.classList.add('unit-fried');
-      // Semi-transparent dark red overlay
+      const _isNewlyFried = _newlyFriedIds.has(id);
+      // Semi-transparent dark red overlay (animated on first render after fry)
       group.appendChild(svgEl('rect', {
-        class: 'unit-fried-overlay',
+        class: `unit-fried-overlay${_isNewlyFried ? ' fried-overlay-enter' : ''}`,
         x: wx, y: wy, width: ww, height: wh
       }));
-      // Damage X mark
+      // Damage X mark (animated crack draw on first render)
       const cx = wx + ww / 2, cy = wy + wh / 2;
       const sz = Math.min(ww, wh) * 0.3;
       group.appendChild(svgEl('path', {
         d: `M${cx - sz},${cy - sz}L${cx + sz},${cy + sz}M${cx + sz},${cy - sz}L${cx - sz},${cy + sz}`,
         stroke: '#ef4444', 'stroke-width': 3, 'stroke-linecap': 'round',
-        fill: 'none', opacity: 0.7, 'pointer-events': 'none'
+        fill: 'none', opacity: 0.7, 'pointer-events': 'none',
+        class: _isNewlyFried ? 'fried-crack-anim' : ''
       }));
+      // [v16.9.4] Diagnostic badge — cause icon bottom-right of unit bbox
+      const _cause = u._friedCause || 'mech';
+      const bx = wx + ww - 12, by = wy + wh - 12;
+      const badgeG = svgEl('g', { 'pointer-events': 'none' });
+      const causeColor = _cause === 'T' ? '#ef4444' : _cause === 'P' ? '#f97316'
+        : _cause === 'level' ? '#3b82f6' : _cause === 'elec' ? '#eab308' : '#9ca3af';
+      badgeG.appendChild(svgEl('circle', { cx: bx, cy: by, r: 8, fill: '#0f172a', stroke: causeColor, 'stroke-width': 1.5 }));
+      if (_cause === 'T') {
+        // Thermometer: vertical bar + bulb
+        badgeG.appendChild(svgEl('line', { x1: bx, y1: by - 4, x2: bx, y2: by + 2, stroke: '#fff', 'stroke-width': 2, 'stroke-linecap': 'round' }));
+        badgeG.appendChild(svgEl('circle', { cx: bx, cy: by + 3.5, r: 2, fill: '#ef4444' }));
+      } else if (_cause === 'P') {
+        // Pressure gauge: circle + needle
+        badgeG.appendChild(svgEl('circle', { cx: bx, cy: by, r: 4, fill: 'none', stroke: '#fff', 'stroke-width': 1 }));
+        badgeG.appendChild(svgEl('line', { x1: bx, y1: by, x2: bx + 2.5, y2: by - 2.5, stroke: '#f97316', 'stroke-width': 1.5, 'stroke-linecap': 'round' }));
+      } else if (_cause === 'level') {
+        // Water drop
+        badgeG.appendChild(svgEl('path', { d: `M${bx},${by - 4}Q${bx + 3},${by}  ${bx},${by + 4}Q${bx - 3},${by}  ${bx},${by - 4}Z`, fill: '#3b82f6', stroke: '#fff', 'stroke-width': 0.5 }));
+      } else if (_cause === 'elec') {
+        // Lightning bolt
+        badgeG.appendChild(svgEl('path', { d: `M${bx + 1},${by - 5}L${bx - 2},${by}L${bx + 1},${by}L${bx - 1},${by + 5}`, fill: 'none', stroke: '#eab308', 'stroke-width': 1.5, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }));
+      } else {
+        // Gear/crack fallback: simple X
+        badgeG.appendChild(svgEl('path', { d: `M${bx - 3},${by - 3}L${bx + 3},${by + 3}M${bx + 3},${by - 3}L${bx - 3},${by + 3}`, stroke: '#fff', 'stroke-width': 1.5, 'stroke-linecap': 'round' }));
+      }
+      group.appendChild(badgeG);
+      // Tooltip with diagnostic message
+      const ud_fry = scene.runtime?.unitData?.get(id);
+      const tipMsg = ud_fry?.last?.error?.message || 'Equipment destroyed';
+      const titleEl = svgEl('title', {});
+      titleEl.textContent = tipMsg;
+      group.appendChild(titleEl);
     }
 
     g.appendChild(group);
@@ -35783,6 +35871,9 @@ function updateTransportUI() {
 // [v10.4.1] Cached per-unit alarm severity for render (NNG-AL2, NNG-AL5)
 let _cachedUnitAlarms = new Map(); // unitId → AlarmSeverity
 let _lastSolveHadNewErrors = false;
+// [v16.9.4 S-CATASTROPHIC] Track which units were fried in this solve cycle
+// Used by renderer to apply entry animations. Cleared after render.
+let _newlyFriedIds = new Set();
 
 /* =========================
    [v14.3.0] SURVIVAL STRIP — atmospheric readout
@@ -35922,6 +36013,7 @@ function afterSolve(solveResult) {
   const prevAlarms = _cachedUnitAlarms;
   _cachedUnitAlarms = new Map();
   _lastSolveHadNewErrors = false;
+  _newlyFriedIds = new Set();  // [v16.9.4] reset per solve
 
   if (solveResult) {
     const alarms = AlarmSystem.evaluate(scene);
@@ -35946,15 +36038,39 @@ function afterSolve(solveResult) {
     }
 
     // [v14.7.0 S-SIM Step 8] HH/LL limit violations → fry unit (destruction events)
-    // Scans alarm results for CATASTROPHIC limit violations with HH or LL side.
-    // Power overload frying happens during solve; this covers thermal/pressure failure.
+    // [v16.9.4 S-CATASTROPHIC] Also sets _friedCause and tracks newly fried units.
     for (const a of alarms) {
       if (!a.unitId || !a.param) continue;
       if (a.severity.level < AlarmSeverity.CATASTROPHIC.level) continue;
       const tpl = LIMIT_PARAM_TEMPLATES[a.param];
       if (tpl && (tpl.side === 'HH' || tpl.side === 'LL')) {
         const u = scene.units.get(a.unitId);
-        if (u && !u.fried) u.fried = true;
+        if (u && !u.fried) {
+          u.fried = true;
+          u._friedCause = tpl.tag;  // 'T', 'P', 'level'
+          _newlyFriedIds.add(a.unitId);
+        }
+      }
+    }
+    // [v16.9.4] Detect electrical/mechanical fries from solver (already fried by tick)
+    // These were fried during solve, not by limit alarms — detect by checking
+    // fried units without _friedCause already set.
+    for (const [id, u] of scene.units) {
+      if (u.fried && !u._friedCause) {
+        const ud = scene.runtime?.unitData?.get(id);
+        const msg = ud?.last?.error?.message?.toLowerCase() || '';
+        if (/no.*electrical|fan.*offline|power|surplus|overspeed|dump/.test(msg)) {
+          u._friedCause = 'elec';
+        } else if (/liquid.*ingestion|cavitation/.test(msg)) {
+          u._friedCause = 'mech';
+        } else {
+          u._friedCause = 'mech';  // fallback
+        }
+        // If this unit wasn't in prevAlarms as CATASTROPHIC, it's newly fried
+        const prev = prevAlarms.get(id);
+        if (!prev || prev.level < AlarmSeverity.CATASTROPHIC.level) {
+          _newlyFriedIds.add(id);
+        }
       }
     }
   }
@@ -35962,6 +36078,7 @@ function afterSolve(solveResult) {
   updateStatusIndicator(solveResult);
   updatePropertiesPanel();
   render();
+  _newlyFriedIds = new Set();  // [v16.9.4] clear after render consumed it
   updateTransportUI();
   updateSurvivalStrip();  // [v14.3.0]
 
@@ -35974,9 +36091,9 @@ function afterSolve(solveResult) {
       // Topo flash pulse: only on manual test/step
       _triggerTopoPulse();
     }
-    // Failure shake: fires on new errors in any mode
+    // [v16.9.4 S-CATASTROPHIC] Replaces _triggerFailureShakes + modal
     if (SimSettings.animFailureEffects && _lastSolveHadNewErrors) {
-      _triggerFailureShakes();
+      _triggerCatastrophicFeedback();
     }
   }
 }
@@ -36019,8 +36136,10 @@ function _triggerTopoPulse() {
   });
 }
 
-// [v10.4.1] AN-4a: Shake units with new errors
-function _triggerFailureShakes() {
+// [v16.9.4 S-CATASTROPHIC] Replaces _triggerFailureShakes + catastrophic modal.
+// Orchestrates: shake → red flash → toast. No modal.
+function _triggerCatastrophicFeedback() {
+  // 1. Shake all newly catastrophic units (existing animation)
   for (const [uid, sev] of _cachedUnitAlarms) {
     if (sev.level < AlarmSeverity.CATASTROPHIC.level) continue;
     const unitG = document.querySelector(`g[data-uid="${uid}"]`);
@@ -36028,6 +36147,64 @@ function _triggerFailureShakes() {
     unitG.classList.add('unit-shake');
     unitG.addEventListener('animationend', () => unitG.classList.remove('unit-shake'), { once: true });
   }
+
+  // 2. Red workspace flash — full-canvas SVG overlay, 3 pulses
+  const flashRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+  flashRect.setAttribute('x', ui.view.x);
+  flashRect.setAttribute('y', ui.view.y);
+  flashRect.setAttribute('width', ui.view.w);
+  flashRect.setAttribute('height', ui.view.h);
+  flashRect.classList.add('catastrophic-flash');
+  flashRect.addEventListener('animationend', () => flashRect.remove(), { once: true });
+  svg.appendChild(flashRect);
+
+  // 3. Diagnostic toast (aggregated from diagnoseErrors)
+  const toastMsg = _buildCatastrophicToast();
+  _showCatastrophicToast(toastMsg);
+}
+
+// [v16.9.4] Build aggregated diagnostic toast from ErrorCatalog
+function _buildCatastrophicToast() {
+  const diagnostics = diagnoseErrors(scene);
+  const catDiags = diagnostics.filter(d =>
+    d.severity?.level >= AlarmSeverity.CATASTROPHIC.level
+  );
+
+  if (catDiags.length === 0) {
+    // Fallback: count from cached alarms
+    const count = [..._cachedUnitAlarms.values()]
+      .filter(s => s.level >= AlarmSeverity.CATASTROPHIC.level).length;
+    return `💥 ${count} unit${count !== 1 ? 's' : ''} destroyed — hover for details`;
+  }
+
+  if (catDiags.length === 1) {
+    return `💥 ${catDiags[0].unitName}: ${catDiags[0].title}`;
+  }
+
+  // Multiple: group by title if same root cause
+  const titles = [...new Set(catDiags.map(d => d.title))];
+  if (titles.length === 1) {
+    return `💥 ${catDiags.length} units: ${titles[0]}`;
+  }
+
+  return `💥 ${catDiags[0].unitName}: ${catDiags[0].title} (+${catDiags.length - 1} more)`;
+}
+
+// [v16.9.4] Catastrophic toast variant — red accent, 5s duration
+function _showCatastrophicToast(message) {
+  const container = document.getElementById('toastContainer');
+  if (!container) return;
+  // Remove any existing catastrophic toast
+  container.querySelectorAll('.toast-catastrophic').forEach(t => t.remove());
+  const toast = document.createElement('div');
+  toast.className = 'toast toast-catastrophic';
+  toast.textContent = message;
+  container.appendChild(toast);
+  setTimeout(() => {
+    toast.classList.add('toast-out');
+    toast.addEventListener('animationend', () => toast.remove(), { once: true });
+  }, 5000);
+  while (container.children.length > 3) container.firstChild.remove();
 }
 
 // ── Play loop ── (PLAY_SPEEDS and FLOW_ARROW_SPEEDS moved to block 1)
@@ -36719,6 +36896,7 @@ function _schedulePlayTick() {
 
     // [v14.7.0 S-SIM Step 7] Auto-pause on CATASTROPHIC alarm
     // _lastSolveHadNewErrors is set by afterSolve when new CATASTROPHIC alarms appear
+    // [v16.9.4 S-CATASTROPHIC] afterSolve triggers flash+toast; no modal.
     if (_lastSolveHadNewErrors) {
       // Push pre-step snapshot so Revert goes to the state just before catastrophe
       TimeClock._checkpoints.length = TimeClock._cpIndex + 1;
@@ -36726,7 +36904,6 @@ function _schedulePlayTick() {
       if (TimeClock._checkpoints.length > TimeClock._cpMax) TimeClock._checkpoints.shift();
       TimeClock._cpIndex = TimeClock._checkpoints.length - 1;
       stopPlay();
-      _showCatastrophicModal();
       return;
     }
 
@@ -36765,76 +36942,8 @@ function autoPauseOnTopologyChange() {
   }
 }
 
-// [v14.7.0 S-SIM Step 7] Catastrophic event modal
-const modalCatastrophe = document.getElementById('modalCatastrophe');
-const catDetail = document.getElementById('catDetail');
-const catUnits = document.getElementById('catUnits');
-
-function _showCatastrophicModal() {
-  // Collect affected units from _cachedUnitAlarms
-  const affected = [];
-  for (const [uid, sev] of _cachedUnitAlarms) {
-    if (sev.level >= AlarmSeverity.CATASTROPHIC.level) {
-      const u = scene.units.get(uid);
-      affected.push(u?.name || uid);
-    }
-  }
-  catDetail.textContent = affected.length === 1
-    ? `${affected[0]} has exceeded its design limits.`
-    : `${affected.length} units have exceeded their design limits.`;
-  catUnits.innerHTML = affected.map(n =>
-    `<div style="padding:2px 0;">💥 ${n}</div>`
-  ).join('');
-  modalCatastrophe.classList.add('open');
-  setStatus(`💥 CATASTROPHIC — ${affected.length} unit${affected.length > 1 ? 's' : ''} destroyed`);
-}
-
-document.getElementById('catBtnRevert').addEventListener('click', () => {
-  modalCatastrophe.classList.remove('open');
-
-  // [v16.9.1] Clean revert after catastrophe:
-  // 1. Snapshot which units are currently fried
-  // 2. Load checkpoint (restores pre-catastrophe state)
-  // 3. Reinit inventory for units that were fried (pre-catastrophe inventory
-  //    was already at dangerous levels — reinit gives player a clean slate)
-  // 4. Solve once with clean inventory
-
-  const _friedBefore = new Set();
-  for (const [uid, u] of scene.units) {
-    if (u.fried) _friedBefore.add(uid);
-  }
-
-  // Load checkpoint directly (not via revert() which solves prematurely)
-  const loaded = TimeClock._loadCheckpoint(scene);
-  if (!loaded) {
-    TimeClock.t = T0_SECONDS;
-    TimeClock.frame = 0;
-  }
-  TimeClock.mode = 'paused';
-
-  // Reinit inventory for units that were fried — their checkpoint inventory
-  // was one step before destruction, typically already at dangerous levels.
-  for (const uid of _friedBefore) {
-    const u = scene.units.get(uid);
-    if (!u) continue;
-    const def = UnitRegistry.get(u.defId);
-    if (def?.inventory && def?.initInventory && !u.fried) {
-      u.inventory = def.initInventory(u.params);
-    }
-  }
-
-  // Single solve with clean state
-  const solveResult = solveScene(scene);
-  afterSolve(solveResult);
-  updateTransportUI();
-  syncPlanetBgTime('snap');
-  setStatus(`⏪ Reverted to ${formatTime(TimeClock.t)} (inventories reset)`);
-});
-
-document.getElementById('catBtnContinue').addEventListener('click', () => {
-  modalCatastrophe.classList.remove('open');
-  setStatus('⚠ Continuing with damaged equipment');
-});
+// [v16.9.4 S-CATASTROPHIC] Modal removed — feedback via flash + toast + badge.
+// Revert available from transport bar (btnRevert → checkpoint dropdown).
 
 // ── Button handlers [v14.7.0 S-SIM] ──
 btnStep.addEventListener('click', () => {
@@ -36846,13 +36955,12 @@ btnStep.addEventListener('click', () => {
   afterSolve(solveResult);
   updateTransportUI();
   syncPlanetBgTime('snap');
-  // Show catastrophic modal if new errors appeared
+  // [v16.9.4 S-CATASTROPHIC] Push pre-step snapshot for revert; afterSolve handles feedback.
   if (_lastSolveHadNewErrors) {
     TimeClock._checkpoints.length = TimeClock._cpIndex + 1;
     TimeClock._checkpoints.push(preStepSnap);
     if (TimeClock._checkpoints.length > TimeClock._cpMax) TimeClock._checkpoints.shift();
     TimeClock._cpIndex = TimeClock._checkpoints.length - 1;
-    _showCatastrophicModal();
   }
 });
 
