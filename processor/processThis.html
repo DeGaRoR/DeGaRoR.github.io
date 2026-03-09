@@ -540,6 +540,30 @@
   NNGs: NNG-14 (changelog).
   Tests: 607 total, 3143 checks, 0 failures.
 
+  ─── v16.9.7 — S-VOICE: Tooltip fix + L3/L4/L5 in profiles + inspector ────
+
+  **ProfileRegistry freeze bug fixed.**  `description` and `selectionGuide`
+  were set on profile registration specs but never copied into the frozen
+  profile object.  All palette tooltips showed only name+tier+limits — no
+  human text.  Added 5 new fields to the freeze block: `description` (L1),
+  `selectionGuide` (L2), `equipmentNote` (L3), `operatingNote` (L4),
+  `modelNote` (L5).
+
+  **Tooltip hierarchy redesigned.**  L1 tagline is now the hero (14px
+  bold white).  L2 selection guide is the body (12px, near-white).
+  Name+tier badge moved to secondary position below.  Background
+  lightened to rgba(40,50,70) — clearly distinct from dark palette.
+
+  **L3/L4/L5 content added to 36 profiles** from S-VOICE content guide.
+
+  **Inspector voice content integration:**
+  - L3 (equipment note) shown as italic gray line below subtitle header
+  - L4 (operating tips) shown as boxed note after params section
+  - L5 (modeling) in collapsed "How it works" section at inspector bottom
+  - "✓ OK" status line removed — alarm banners handle all feedback
+
+  NNGs: NNG-13 (inspector), NNG-14 (changelog).
+
   ─── v16.9.6 — Polish pass + pipe drag/delete interaction ─────────────────
 
   **Pipe drag-to-connect.** Connections can now be completed by dragging
@@ -570,6 +594,11 @@
 
   **Palette tooltip upgraded.** Darker bg, blue left accent border,
   +16px offset.  T2+ upgrade note: "⬆ T2 upgrade: T max 450→600°C".
+  [v16.9.7] Tooltip redesigned: L1 tagline (14px bold, hero) →
+  L2 selection guide (12px, decision-focused body text from S-VOICE) →
+  name+tier (small, secondary).  Background lightened to rgba(40,50,70)
+  with brighter border (#64748b) — clearly distinct from the dark
+  palette panel (#0f172a).  Max-width 280px.
 
   **Solar + wind in climate bar.** "☀ 73%" and "💨 8.2 m/s".
 
@@ -8879,9 +8908,9 @@
 
     <!-- [v13.1.3] Floating tooltip — shared, positioned at body level to avoid clipping -->
     <div id="ptip" style="position:fixed;z-index:100;pointer-events:none;opacity:0;transition:opacity 0.08s;
-      background:rgba(10,15,25,0.97);color:#e2e8f0;font-size:12px;font-weight:500;padding:10px 14px;border-radius:8px;
-      border:1px solid #475569;border-left:3px solid #60a5fa;white-space:normal;max-width:260px;line-height:1.4;
-      box-shadow:0 8px 24px rgba(0,0,0,0.6);backdrop-filter:blur(6px);"></div>
+      background:rgba(40,50,70,0.97);color:#f1f5f9;font-size:12px;font-weight:500;padding:10px 14px;border-radius:8px;
+      border:1px solid #64748b;border-left:3px solid #60a5fa;white-space:normal;max-width:280px;line-height:1.4;
+      box-shadow:0 8px 24px rgba(0,0,0,0.5);backdrop-filter:blur(6px);"></div>
 
     <!-- Main SVG canvas -->
     <div class="view-flowsheet">
@@ -15184,6 +15213,12 @@ class ProfileRegistry {
       limitPort: spec.limitPort || null,
       milestone: spec.milestone || null,
       boundary:  !!spec.boundary,         // [v13.1.3] true = tool (source/sink), no tier badge
+      // [v16.9.7] Voice content fields (S-VOICE)
+      description:    spec.description || null,     // L1 tagline
+      selectionGuide: spec.selectionGuide || null,  // L2 why pick this one
+      equipmentNote:  spec.equipmentNote || null,   // L3 real equipment
+      operatingNote:  spec.operatingNote || null,    // L4 operating manual
+      modelNote:      spec.modelNote || null,        // L5 modeling
     });
     ProfileRegistry._profiles.set(profileId, profile);
   }
@@ -20492,7 +20527,10 @@ ProfileRegistry.register('source_pure',  { defId: 'source',     name: 'Feed',   
   config: { deprecated: true } });
 ProfileRegistry.register('source_mix',   { defId: 'source',     name: 'External Feed',      category: UnitCategories.SOURCE,           tiers: [1], limits: {}, boundary: true, defaults: { 1: { n: { N2: 0.78, O2: 0.21, Ar: 0.01 } } },
   description: 'Pipe from the outside world',
-  selectionGuide: 'Delivers whatever you set — species, temperature, pressure, flow rate. Never runs out. For air specifically, use Air Intake.' });
+  selectionGuide: 'Delivers whatever you set — species, temperature, pressure, flow rate. Never runs out. For air specifically, use Air Intake.' ,
+  equipmentNote: "Idealized pipeline or supply depot. Fixed rate, infinite supply.",
+  operatingNote: "No pressure interaction, no depletion. If downstream path is blocked, the feed shuts off with alarm.",
+  modelNote: "Boundary: fixed-rate emission. No Cv. Blocked by post-pass if downstream check valve fires."});
 // [v17.0.0 S-VOICE] source_atmosphere deprecated — use 'atmosphere' profile (Air Intake)
 ProfileRegistry.register('source_atmosphere', { defId: 'source_atm', name: 'Air Intake', category: UnitCategories.SOURCE, tiers: [1], limits: {}, boundary: true, defaults: { 1: { nDot: 1.0 } },
   description: 'Breathes in planet air',
@@ -20500,20 +20538,35 @@ ProfileRegistry.register('source_atmosphere', { defId: 'source_atm', name: 'Air 
   config: { deprecated: true } });
 ProfileRegistry.register('sink',         { defId: 'sink',         name: 'Material Dump',    category: UnitCategories.SINK,             tiers: [1], limits: {}, boundary: true,
   description: 'Where stuff goes to leave',
-  selectionGuide: 'End of the line. Name it something useful ("Exhaust", "Water Out") so you can track what\'s going where.' });
+  selectionGuide: 'End of the line. Name it something useful ("Exhaust", "Water Out") so you can track what\'s going where.' ,
+  equipmentNote: "Vent, drain, or product collection point.",
+  operatingNote: "Accepts anything. Zero backpressure.",
+  modelNote: "Boundary sink. Flash at ambient for phase display."});
 ProfileRegistry.register('grid_supply',  { defId: 'grid_supply',  name: 'Generator',        category: UnitCategories.POWER,            tiers: [1], limits: {}, boundary: true,
   description: 'Reliable power, always on',
-  selectionGuide: 'Your baseline electricity. Doesn\'t care about weather or time of day. Set the kW and it delivers.' });
+  selectionGuide: 'Your baseline electricity. Doesn\'t care about weather or time of day. Set the kW and it delivers.' ,
+  equipmentNote: "Diesel generator or baseline power plant.",
+  operatingNote: "Always available regardless of weather. Consumers draw what they need up to the limit.",
+  modelNote: "Boundary: responsive source, output = min(demand, capacity)."});
 // [v16.7.0 S-DIURNAL] Solar and wind profiles
 ProfileRegistry.register('solar_panel',  { defId: 'solar_panel',  name: 'Solar Panel',      category: UnitCategories.POWER,            tiers: [1], limits: {}, boundary: true, defaults: { 1: { peakPower_kW: 10 } },
   description: 'Free power, but only by day',
-  selectionGuide: 'Full blast at noon, nothing at night. On Planet X the sun is weaker than Earth. Pair with a battery for 24/7 power.' });
+  selectionGuide: 'Full blast at noon, nothing at night. On Planet X the sun is weaker than Earth. Pair with a battery for 24/7 power.' ,
+  equipmentNote: "Photovoltaic panel array.",
+  operatingNote: "Output follows day-night cycle automatically. On Planet X: peak ~400 W/m².",
+  modelNote: "Output = peakPower × solarFactor. Squared cosine bell from computeDiurnal()."});
 ProfileRegistry.register('wind_turbine', { defId: 'wind_turbine', name: 'Wind Turbine',     category: UnitCategories.POWER,            tiers: [1], limits: {}, boundary: true, defaults: { 1: { peakPower_kW: 20, vDesign_ms: 12 } },
   description: 'Power from wind, hit or miss',
-  selectionGuide: 'Output swings with wind speed — great on gusty days, useless on calm ones. Less predictable than solar.' });
+  selectionGuide: 'Output swings with wind speed — great on gusty days, useless on calm ones. Less predictable than solar.' ,
+  equipmentNote: "Horizontal-axis wind turbine with generator.",
+  operatingNote: "Output varies with wind speed. Pair with Battery or Generator for stable supply.",
+  modelNote: "Output = peakPower × windFactor. Wind from computeDiurnal() with hourly gust hash."});
 ProfileRegistry.register('sink_electrical', { defId: 'sink_electrical', name: 'Surplus Dump', category: UnitCategories.POWER_MANAGEMENT, tiers: [1], limits: {}, boundary: true,
   description: 'Burns off extra power',
-  selectionGuide: 'Somewhere for leftover electricity to go. Without it, excess power has nowhere to go and the dispatcher complains.' });
+  selectionGuide: 'Somewhere for leftover electricity to go. Without it, excess power has nowhere to go and the dispatcher complains.' ,
+  equipmentNote: "Resistive load bank.",
+  operatingNote: "Connect to surplus port of a Power Dispatcher. Size it to handle your peak excess.",
+  modelNote: "Consumes min(available, rated). Always lowest priority."});
 
 // ── Power management (tiered) ──
 // Battery: T1 pilot (20 kW / 10 kWh), T2 demo (100 kW / 100 kWh), T3 industrial (500 kW / 1 MWh)
@@ -20526,16 +20579,25 @@ ProfileRegistry.register('battery', {
     1: { peakPower_kW: 20,  capacity_J: 36000000,   initialSOC: 0.9 },   // 10 kWh
     2: { peakPower_kW: 100, capacity_J: 360000000,  initialSOC: 0.9 },   // 100 kWh
     3: { peakPower_kW: 500, capacity_J: 3600000000, initialSOC: 0.9 }    // 1 MWh
-  }
+  },
+  equipmentNote: "Lithium-ion or lead-acid battery bank. Bidirectional.",
+  operatingNote: "At SOC = 0%, no more output. At SOC = 100%, no more charging. Charge/discharge rate limited by peak power.",
+  modelNote: "Inventory-based: charge_J advanced by TimeClock.step(). SOC = charge/capacity. Participates in dispatch step E.",
 });
 // [v17.0.4] Power Dispatcher T1: explicit 5+5 ports, available from game start
 ProfileRegistry.register('power_dispatcher_5', { defId: 'power_dispatcher_5', name: 'Power Dispatcher', category: UnitCategories.POWER_MANAGEMENT, tiers: [1], limits: {},
   description: 'Fuse box with priorities',
-  selectionGuide: 'Collects power from up to 5 sources and distributes to 5 consumers. Life support gets power first — the rest gets what\'s left.' });
+  selectionGuide: 'Collects power from up to 5 sources and distributes to 5 consumers. Life support gets power first — the rest gets what\'s left.',
+  equipmentNote: "Electrical bus with priority-based load shedding.",
+  operatingNote: "Each consumer has a priority (1=essential, 3=expendable). When supply < demand, low-priority equipment gets cut first. Surplus port must be connected.",
+  modelNote: "Five-step dispatch: capacity poll → demand collection → priority-sorted allocation → curtailment factor → battery balancing." });
 // Power Hub: T3 multi-connect — unlimited connections per port, for experienced players
 ProfileRegistry.register('power_hub', { defId: 'power_hub', name: 'Power Dispatcher (Multi)', category: UnitCategories.POWER_MANAGEMENT, tiers: [3], limits: {},
   description: 'Unlimited-port power bus',
-  selectionGuide: 'Same logic as the standard dispatcher, but each port accepts unlimited connections. For complex grids where 5 slots aren\'t enough.' });
+  selectionGuide: 'Same logic as the standard dispatcher, but each port accepts unlimited connections. For complex grids where 5 slots aren\'t enough.' ,
+  equipmentNote: "Electrical bus with priority-based load shedding. Unlimited ports.",
+  operatingNote: "Same as standard dispatcher but each port accepts unlimited connections.",
+  modelNote: "Same dispatch algorithm. MultiConnect ports bypass connection limits."});
 
 // ── Process equipment (limits keyed by tier) ──
 // [v14.0.1] Tank profiles: dev (unconstrained), vented, atmospheric, pressure vessel
@@ -20551,7 +20613,10 @@ ProfileRegistry.register('tank_dev', {
                     overflow_level:90,
                     Cv_gas:50, opening_gas_pct:0,
                     Cv_liq:50, opening_liq_pct:0,
-                    initialComposition:{N2:1}, P_init:101325 } }
+                    initialComposition:{N2:1}, P_init:101325 } },
+  equipmentNote: "Electrical bus with priority-based load shedding.",
+  operatingNote: "Each consumer has a priority (1=essential, 3=expendable). When supply < demand, low-priority equipment gets cut first. Surplus port must be connected.",
+  modelNote: "Five-step dispatch: capacity poll → demand collection → priority-sorted allocation → curtailment factor → battery balancing.",
 });
 ProfileRegistry.register('open_tank', {
   defId: 'open_tank', name: 'Open Tank', category: UnitCategories.VESSEL, tiers: [1, 2],
@@ -20566,7 +20631,10 @@ ProfileRegistry.register('open_tank', {
                     initialComposition:{H2O:1}, level_init:0 },
               2: { volume_m3:1.0, overflow_level:90,
                     Cv_liq:50, opening_liq_pct:0,
-                    initialComposition:{H2O:1}, level_init:0 } }
+                    initialComposition:{H2O:1}, level_init:0 } },
+  equipmentNote: "Atmospheric polyethylene/polypropylene (T1) or stainless steel (T2) storage vessel.",
+  operatingNote: "Overflow port must be connected. Hot inlet will melt T1 plastic. No pressure buildup — gas vents freely. Liquid draw from bottom via Cv valve; zero flow if empty.",
+  modelNote: "Level from molar inventory ÷ liquid density. Outlet flow via Cv equation on hydrostatic head. Overflow with hysteresis ±2%.",
 });
 ProfileRegistry.register('tank_low_pressure', {
   defId: 'tank', name: 'Closed Tank', category: UnitCategories.VESSEL, tiers: [1, 2],
@@ -20587,7 +20655,10 @@ ProfileRegistry.register('tank_low_pressure', {
                     overflow_level:90,
                     Cv_gas:50, opening_gas_pct:0,
                     Cv_liq:50, opening_liq_pct:0,
-                    initialComposition:{N2:1}, P_init:101325 } }
+                    initialComposition:{N2:1}, P_init:101325 } },
+  equipmentNote: "Flanged steel storage vessel with relief valve and overflow drain.",
+  operatingNote: "Pressure builds from accumulated gas — vent and overflow ports are safety devices. Exceeding P_HH or T_HH destroys the tank. Dual outlet: gas from top, liquid from bottom.",
+  modelNote: "P from ideal gas law (nRT/V). Dual-phase inventory via flash. Cv-driven outlets with per-connection opening. Relief valve hysteresis at P_relief ±2%.",
 });
 ProfileRegistry.register('tank_high_pressure', {
   defId: 'tank', name: 'Pressure Tank', category: UnitCategories.VESSEL, tiers: [1, 2],
@@ -20608,7 +20679,10 @@ ProfileRegistry.register('tank_high_pressure', {
                     overflow_level:90,
                     Cv_gas:50, opening_gas_pct:0,
                     Cv_liq:50, opening_liq_pct:0,
-                    initialComposition:{N2:1}, P_init:500000 } }
+                    initialComposition:{N2:1}, P_init:500000 } },
+  equipmentNote: "Thick-wall carbon steel (T1) or alloy steel (T2) pressure vessel.",
+  operatingNote: "Same behavior as Closed Tank — higher pressure/temperature envelope. Use when Closed Tank keeps blowing its relief valve.",
+  modelNote: "Same model as Closed Tank. Only limit envelope differs.",
 });
 // [v13.8.0 S5a-2b] Reservoir profiles: gas, liquid, air (Planet X atmosphere)
 ProfileRegistry.register('reservoir', {
@@ -20617,7 +20691,10 @@ ProfileRegistry.register('reservoir', {
   selectionGuide: 'Your main raw material source. Careful with the valve — crack it open gently or you\'ll flood everything downstream.',
   limits: {}, boundary: true,
   defaults: { 1: { P_bar:5, T:298.15, composition:{N2:1},
-                    Cv:50, opening_pct:100 } }
+                    Cv:50, opening_pct:100 } },
+  equipmentNote: "Subsurface wellhead with choke valve. Geothermal vent, gas well, or pressurized aquifer.",
+  operatingNote: "Start with low opening (10–20%) — high opening at high reservoir pressure produces enormous flow. Flow depends on pressure difference between reservoir and connected network.",
+  modelNote: "Infinite inventory at fixed (P, T, composition). Outlet via Cv restriction: Q ∝ Cv × √ΔP.",
 });
 // [v16.9.2] Hydrovent — geothermal vent profile for Mission 1
 ProfileRegistry.register('hydrovent', {
@@ -20634,7 +20711,10 @@ ProfileRegistry.register('atmosphere', {
   description: 'Breathes in planet air',
   selectionGuide: 'Automatically gives you whatever\'s in the atmosphere — composition, humidity, temperature all follow the planet and time of day.',
   limits: {}, boundary: true,
-  defaults: { 1: {} }  // Cv and opening are internal constants
+  defaults: { 1: {} },  // Cv and opening are internal constants
+  equipmentNote: "Atmospheric inlet with pressure-sensitive valve.",
+  operatingNote: "Composition includes humidity — varies with planet and time of day. T and P follow the diurnal cycle.",
+  modelNote: "T, P, composition from getAtmosphere()/getWetAir() via ctx. Flow via Cv if modeled.",
 });
 // [v16.6.0] Closed Loop Source profile
 ProfileRegistry.register('closed_loop_source', {
@@ -20643,7 +20723,10 @@ ProfileRegistry.register('closed_loop_source', {
   description: 'Keeps a loop circulating',
   selectionGuide: 'Place it in a recycle loop so the solver knows where to start. Not a real device — just a helper for closed circuits.',
   limits: {}, boundary: false,
-  defaults: { 1: { species: 'NH3', nDot: 1.0 } }
+  defaults: { 1: { species: 'NH3', nDot: 1.0 } },
+  equipmentNote: "Not a physical device — represents the circulating inventory in a recycle loop.",
+  operatingNote: "If the solver struggles to converge, adjust the species and flow rate closer to expected conditions.",
+  modelNote: "Tear-stream bootstrap. Initial guess on first iteration, overwritten by converged upstream on subsequent iterations.",
 });
 // [v13.8.0 S5a-2b] Restriction profile
 ProfileRegistry.register('restriction', {
@@ -20651,26 +20734,38 @@ ProfileRegistry.register('restriction', {
   description: 'Pinches the flow',
   selectionGuide: 'Creates a pressure drop to slow things down. Bigger drop = less flow getting through.',
   limits: { 1: { T_LL: 243, T_L: 263, T_H: 523, T_HH: 623,
-                  P_H: 12000000, P_HH: 15000000, mass_HH: 0.25 } }
+                  P_H: 12000000, P_HH: 15000000, mass_HH: 0.25 } },
+  equipmentNote: "Fixed orifice plate or manual throttle valve.",
+  operatingNote: "If set ΔP exceeds available inlet pressure → pass-through at inlet P. Flow rate is a consequence of ΔP, not a setpoint.",
+  modelNote: "Isenthalpic: P_out = P_in − ΔP. Same flash model as Pressure Regulator.",
 });
 ProfileRegistry.register('gas_turbine', {
   defId: 'gas_turbine', name: 'Gas Turbine', category: UnitCategories.PRESSURE, tiers: [1],
   description: 'Jet engine on a generator',
   selectionGuide: 'Feed it hot pressurized gas (from a Burner) and it spins out electricity. The exhaust is still hot — great for heat recovery.',
   limitPort: 'mat_in',
-  limits: { 1: { T_LL: 173, T_L: 273, T_H: 873, T_HH: 1023, P_LL: 50000, P_L: 80000, P_H: 12000000, P_HH: 15000000, mass_LL: 0.005, mass_HH: 0.12 } }
+  limits: { 1: { T_LL: 173, T_L: 273, T_H: 873, T_HH: 1023, P_LL: 50000, P_L: 80000, P_H: 12000000, P_HH: 15000000, mass_LL: 0.005, mass_HH: 0.12 } },
+  equipmentNote: "Open-cycle gas turbine with electric generator.",
+  operatingNote: "Inlet must be hot AND pressurized — connect after a Burner. Exhaust is still hot — valuable for heat recovery.",
+  modelNote: "Isentropic expansion: T_out = T_in × (P_out/P_in)^((γ−1)/γ) with η. W = ṅ(H_in − H_out).",
 });
 ProfileRegistry.register('valve', {
   defId: 'valve', name: 'Pressure Regulator', category: UnitCategories.PRESSURE, tiers: [1],
   description: 'Turns pressure down',
   selectionGuide: 'Set the outlet pressure you want. Only goes down, never up — for that you need a compressor.',
-  limits: { 1: { T_LL: 243, T_L: 263, T_H: 523, T_HH: 623, P_H: 12000000, P_HH: 15000000, mass_HH: 0.25 } }
+  limits: { 1: { T_LL: 243, T_L: 263, T_H: 523, T_HH: 623, P_H: 12000000, P_HH: 15000000, mass_HH: 0.25 } },
+  equipmentNote: "Spring-loaded pressure regulating valve.",
+  operatingNote: "If inlet P < setpoint → pass-through at inlet P with alarm. Gas cools slightly on expansion (Joule-Thomson).",
+  modelNote: "Isenthalpic throttle: H_out = H_in. P_out = min(setpoint, P_in). PH-flash for outlet T.",
 });
 ProfileRegistry.register('pump', {
   defId: 'pump', name: 'Pump', category: UnitCategories.PRESSURE, tiers: [1],
   description: 'Pushes liquid harder',
   selectionGuide: 'For liquids only — gas makes it choke. Set the pressure you need at the outlet.',
-  limits: { 1: { T_LL: 263, T_L: 278, T_H: 353, T_HH: 393, P_LL: 50000, P_L: 80000, P_H: 4000000, P_HH: 5000000, mass_HH: 0.12 } }
+  limits: { 1: { T_LL: 263, T_L: 278, T_H: 353, T_HH: 393, P_LL: 50000, P_L: 80000, P_H: 4000000, P_HH: 5000000, mass_HH: 0.12 } },
+  equipmentNote: "Centrifugal pump, electric motor driven.",
+  operatingNote: "For liquids only — vapor causes cavitation damage. If power is curtailed, outlet pressure drops below setpoint.",
+  modelNote: "Isentropic compression with η_pump. W = V̇ΔP/η. Phase check: vapor inlet triggers cavitation alarm.",
 });
 ProfileRegistry.register('compressor', {
   defId: 'compressor', name: 'Compressor (Medium Pressure)', category: UnitCategories.PRESSURE, tiers: [1, 2, 3],
@@ -20686,7 +20781,10 @@ ProfileRegistry.register('compressor', {
     2: { Pout: 800000, eta: 0.75, maxRatio: 10 },
     3: { Pout: 2000000, eta: 0.82, maxRatio: 30 }
   },
-  tierNames: { 1: 'Pilot Piston', 2: 'Standard Piston', 3: 'Industrial Screw' }
+  tierNames: { 1: 'Pilot Piston', 2: 'Standard Piston', 3: 'Industrial Screw' },
+  equipmentNote: "Single-stage centrifugal or axial compressor.",
+  operatingNote: "For gases only — liquid inlet destroys the compressor instantly. If power is curtailed, outlet pressure drops.",
+  modelNote: "Isentropic compression: T_out = T_in × (P_out/P_in)^((γ−1)/γ) with η. Phase check: liquid inlet triggers destruction.",
 });
 // [v16.8.0] Fan profiles — low-deltaP air movers
 ProfileRegistry.register('fan', {
@@ -20701,7 +20799,10 @@ ProfileRegistry.register('fan', {
     1: { deltaP: 1000, eta: 0.6 },
     2: { deltaP: 3000, eta: 0.7 }
   },
-  tierNames: { 1: 'Vent Fan', 2: 'Blower' }
+  tierNames: { 1: 'Vent Fan', 2: 'Blower' },
+  equipmentNote: "Axial or centrifugal duct fan, electric motor driven.",
+  operatingNote: "Very small pressure boost — for ventilation, not compression. Curtailed if power supply is insufficient.",
+  modelNote: "Isentropic compression with η_fan. ΔP typically 1–10 kPa.",
 });
 // [v14.9.0 S6 Amendment] Diaphragm compressor — cooled, high-P capable
 ProfileRegistry.register('compressor_diaphragm', {
@@ -20712,13 +20813,19 @@ ProfileRegistry.register('compressor_diaphragm', {
     1: { T_LL: 243, T_L: 263, T_H: 333, T_HH: 353, P_LL: 50000, P_L: 100000, P_H: 12000000, P_HH: 15000000, mass_HH: 0.05 },
     2: { T_LL: 223, T_L: 243, T_H: 373, T_HH: 393, P_LL: 50000, P_L: 100000, P_H: 20000000, P_HH: 25000000, mass_HH: 0.2 }
   },
-  defaults: { Pout: 5000000, eta: 0.65, UA: 500 }
+  defaults: { Pout: 5000000, eta: 0.65, UA: 500 },
+  equipmentNote: "Multi-stage diaphragm compressor with intercooling.",
+  operatingNote: "Handles much higher pressures than a standard compressor. Built-in cooling between stages keeps gas temperature manageable.",
+  modelNote: "Isentropic compression with UA-based intercooling. Coolant connection optional.",
 });
 ProfileRegistry.register('electric_heater', {
   defId: 'electric_heater', name: 'Electric Heater', category: UnitCategories.HEAT_TRANSFER, tiers: [1],
   description: 'Heats stuff up',
   selectionGuide: 'Like a kettle element in a pipe. Set the temperature you want, give it enough power, done.',
-  limits: { 1: { T_LL: 253, T_L: 273, T_H: 723, T_HH: 823, P_LL: 20000, P_L: 50000, P_H: 12000000, P_HH: 15000000, mass_LL: 0.002, mass_HH: 0.12 } }
+  limits: { 1: { T_LL: 253, T_L: 273, T_H: 723, T_HH: 823, P_LL: 20000, P_L: 50000, P_H: 12000000, P_HH: 15000000, mass_LL: 0.002, mass_HH: 0.12 } },
+  equipmentNote: "Inline electric resistance heater.",
+  operatingNote: "If power supply is curtailed, outlet T falls below target — check power dispatcher allocation. No maximum T limit on the heater itself, but downstream equipment has limits.",
+  modelNote: "Q = ṅCpΔT. Power demand = Q. Curtailable: T_out from available Q if supply < demand.",
 });
 ProfileRegistry.register('air_cooler', {
   defId: 'air_cooler', name: 'Air Cooler', category: UnitCategories.HEAT_TRANSFER, tiers: [1, 2],
@@ -20731,13 +20838,19 @@ ProfileRegistry.register('air_cooler', {
   defaults: {
     1: { UA_kW_K: 1.0, max_fan_power_W: 150, powerPriority: 3 },
     2: { UA_kW_K: 3.0, max_fan_power_W: 500, powerPriority: 3 }
-  }
+  },
+  equipmentNote: "Fin-fan air cooler, forced draft, electric fan.",
+  operatingNote: "Cannot cool below ambient temperature. If the fan is at max speed and cannot reach target T, the outlet floats above setpoint. More fan power or more UA = more cooling capacity.",
+  modelNote: "ε-NTU method. Air-side flow from fan power. Effectiveness determines actual duty. T_out ≥ T_ambient enforced.",
 });
 ProfileRegistry.register('hex', {
   defId: 'hex', name: 'Heat Exchanger', category: UnitCategories.HEAT_EXCHANGER, tiers: [1],
   description: 'Hot meets cold, they swap',
   selectionGuide: 'Recovers heat between two streams — saves energy by reusing warmth instead of dumping it. No electricity needed.',
-  limits: { 1: { T_LL: 243, T_L: 263, T_H: 573, T_HH: 673, P_LL: 20000, P_L: 50000, P_H: 12000000, P_HH: 15000000, mass_HH: 0.12 } }
+  limits: { 1: { T_LL: 243, T_L: 263, T_H: 573, T_HH: 673, P_LL: 20000, P_L: 50000, P_H: 12000000, P_HH: 15000000, mass_HH: 0.12 } },
+  equipmentNote: "Shell-and-tube or plate heat exchanger, counter-current.",
+  operatingNote: "Hot and cold streams must not cross temperatures. Smaller approach = more heat recovered but needs larger UA.",
+  modelNote: "Three modes: approach (iterative T-approach), UA (ε-NTU with fixed UA), duty (fixed Q). Counter-current LMTD.",
 });
 // [v13.1.3] T2 mixer: Inconel + PTFE seals — proof of concept for multi-tier profiles
 ProfileRegistry.register('mixer', {
@@ -20747,19 +20860,28 @@ ProfileRegistry.register('mixer', {
   limits: {
     1: { T_LL: 243, T_L: 263, T_H: 623, T_HH: 723, P_LL: 20000, P_L: 50000, P_H: 12000000, P_HH: 15000000, mass_HH: 0.25 },
     2: { T_LL: 173, T_L: 223, T_H: 773, T_HH: 923, P_LL: 20000, P_L: 50000, P_H: 4000000, P_HH: 5000000, mass_HH: 0.30 }
-  }
+  },
+  equipmentNote: "Pipe tee or static mixer with check valves.",
+  operatingNote: "Outlet takes the lower inlet pressure. If one inlet has much lower pressure, its check valve closes. Both inlets blocked = full upstream blockage.",
+  modelNote: "Adiabatic: H_out = ΣH_in. P_out = min(P_in) − ΔP_mix. Per-inlet check valve on pressure.",
 });
 ProfileRegistry.register('splitter', {
   defId: 'splitter', name: 'Splitter', category: UnitCategories.TOPOLOGY, tiers: [1],
   description: 'Splits one pipe into two',
   selectionGuide: 'Choose the percentage that goes to each side. If one path jams, flow reroutes to the other automatically.',
-  limits: { 1: { T_LL: 243, T_L: 263, T_H: 623, T_HH: 723, P_LL: 20000, P_L: 50000, P_H: 12000000, P_HH: 15000000, mass_HH: 0.25 } }
+  limits: { 1: { T_LL: 243, T_L: 263, T_H: 623, T_HH: 723, P_LL: 20000, P_L: 50000, P_H: 12000000, P_HH: 15000000, mass_HH: 0.25 } },
+  equipmentNote: "Pipe tee with flow divider.",
+  operatingNote: "No phase separation — both outlets get identical composition. If one downstream path is blocked, flow auto-redirects.",
+  modelNote: "Isothermal isobaric mole-fraction split. Blocked branch redistribution via solver post-pass.",
 });
 ProfileRegistry.register('flash_drum', {
   defId: 'flash_drum', name: 'Vapor-Liquid Separator', category: UnitCategories.SEPARATOR, tiers: [1],
   description: 'Gas goes up, liquid stays down',
   selectionGuide: 'Catches the liquid that forms when you cool a gas. Place it after a cooler — that\'s how you harvest water from steam.',
-  limits: { 1: { T_LL: 243, T_L: 263, T_H: 523, T_HH: 623, P_LL: 20000, P_L: 50000, P_H: 12000000, P_HH: 15000000, mass_HH: 0.15 } }
+  limits: { 1: { T_LL: 243, T_L: 263, T_H: 523, T_HH: 623, P_LL: 20000, P_L: 50000, P_H: 12000000, P_HH: 15000000, mass_HH: 0.15 } },
+  equipmentNote: "Vertical flash drum, gravity separation.",
+  operatingNote: "Only useful for two-phase inlets. A pure-gas or pure-liquid inlet just passes through one outlet. Place after a cooler that causes partial condensation.",
+  modelNote: "Adiabatic flash at inlet (T, P). Phase split from VLE. β from Rachford-Rice.",
 });
 // [v13.4.0] S4a — Distillation column: cryogenic-capable (T_LL=73K for LN₂),
 // moderate-pressure vessel (50 bar max), pilot-plant mass flow.
@@ -20767,7 +20889,10 @@ ProfileRegistry.register('distillation_column', {
   defId: 'distillation_column', name: 'Distillator', category: UnitCategories.SEPARATOR, tiers: [1],
   description: 'Moonshine still, but precise',
   selectionGuide: 'When a simple separator isn\'t pure enough. Repeated boiling and condensing gives razor-sharp separation — but it\'s power-hungry and complex.',
-  limits: { 1: { T_LL: 73, T_L: 100, T_H: 473, T_HH: 523, P_LL: 5000, P_L: 50000, P_H: 4000000, P_HH: 5000000, mass_HH: 0.15 } }
+  limits: { 1: { T_LL: 73, T_L: 100, T_H: 473, T_HH: 523, P_LL: 5000, P_L: 50000, P_H: 4000000, P_HH: 5000000, mass_HH: 0.15 } },
+  equipmentNote: "Continuous multi-stage distillation column with condenser and reboiler.",
+  operatingNote: "Needs a light key and heavy key species selected. More stages = sharper separation. More reflux = more energy. Column pressure affects boiling points.",
+  modelNote: "FUG shortcut: Fenske N_min, Underwood R_min, Gilliland N_actual. Component distribution via Hengstebeck-Geddes.",
 });
 
 // [v14.9.0 S6a] Reactor profiles — 3 defIds, T2 jacketed for high-T SMR
@@ -20775,7 +20900,10 @@ ProfileRegistry.register('reactor_adiabatic', {
   defId: 'reactor_adiabatic', name: 'Reactor (Insulated)', category: UnitCategories.REACTOR, tiers: [1],
   description: 'Mix, react, no temp control',
   selectionGuide: 'The simple one. Whatever heat the reaction makes (or takes) stays inside. Temperature just goes where it goes.',
-  limits: { 1: { T_LL: 173, T_L: 273, T_H: 773, T_HH: 923, P_LL: 50000, P_L: 80000, P_H: 12000000, P_HH: 15000000, mass_LL: 0.001, mass_HH: 0.08 } }
+  limits: { 1: { T_LL: 173, T_L: 273, T_H: 773, T_HH: 923, P_LL: 50000, P_L: 80000, P_H: 12000000, P_HH: 15000000, mass_LL: 0.001, mass_HH: 0.08 } },
+  equipmentNote: "Adiabatic continuously-stirred tank reactor (CSTR). Insulated walls.",
+  operatingNote: "Temperature shifts with the reaction — exothermic reactions get hot, endothermic get cold. Volume controls conversion: bigger = more conversion = more heat.",
+  modelNote: "Adiabatic energy balance: H_out = H_in + ΔH_rxn × ξ. CSTR kinetics: τ = V/V̇. Optional equilibrium mode (α parameter).",
 });
 // [v14.9.0 S6a] Combustion chamber — Hastelloy X + TBC liner, same defId as adiabatic
 // Higher T_HH (1573 K) but lower P_HH (50 bar thin-walled can). Default reaction: H₂ combustion.
@@ -20787,7 +20915,10 @@ ProfileRegistry.register('combustion_chamber', {
     1: { T_LL: 173, T_L: 273, T_H: 1273, T_HH: 1573, P_LL: 50000, P_HH: 5000000, mass_HH: 0.08 },
     2: { T_LL: 173, T_L: 273, T_H: 1573, T_HH: 1873, P_LL: 50000, P_HH: 10000000, mass_HH: 0.5 }
   },
-  defaults: { reactionId: 'R_H2_COMB', useKinetics: true, volume_m3: 0.01, alpha: 1.0 }
+  defaults: { reactionId: 'R_H2_COMB', useKinetics: true, volume_m3: 0.01, alpha: 1.0 },
+  equipmentNote: "Continuous-flow combustion chamber.",
+  operatingNote: "Feed a premixed fuel+air stream from a Mixer. Outlet is extremely hot — route to a Gas Turbine or Heat Exchanger, never directly to plastic equipment.",
+  modelNote: "Insulated reactor model with combustion kinetics. Adiabatic flame temperature from enthalpy balance.",
 });
 ProfileRegistry.register('reactor_jacketed', {
   defId: 'reactor_jacketed', name: 'Reactor (Heated)', category: UnitCategories.REACTOR, tiers: [1, 2],
@@ -20796,13 +20927,19 @@ ProfileRegistry.register('reactor_jacketed', {
   limits: {
     1: { T_LL: 173, T_L: 273, T_H: 773, T_HH: 923, P_LL: 50000, P_L: 80000, P_H: 12000000, P_HH: 15000000, mass_LL: 0.001, mass_HH: 0.08 },
     2: { T_LL: 173, T_L: 273, T_H: 1073, T_HH: 1273, P_LL: 50000, P_L: 80000, P_H: 12000000, P_HH: 15000000, mass_LL: 0.001, mass_HH: 0.08 }
-  }
+  },
+  equipmentNote: "Jacketed CSTR with electric heating.",
+  operatingNote: "If power supply is curtailed, temperature drifts from setpoint. Endothermic reactions consume a lot of power.",
+  modelNote: "Isothermal: Q = H_out(T_set) − H_in − ΔH_rxn × ξ. Curtailable: T_out from available Q. Fixed-Q mode available.",
 });
 ProfileRegistry.register('reactor_cooled', {
   defId: 'reactor_cooled', name: 'Reactor (Cooled)', category: UnitCategories.REACTOR, tiers: [1],
   description: 'React without overheating',
   selectionGuide: 'For reactions that get dangerously hot. Built-in cooling keeps things under control. Not fully wired up yet.',
-  limits: { 1: { T_LL: 173, T_L: 273, T_H: 773, T_HH: 923, P_LL: 50000, P_L: 80000, P_H: 12000000, P_HH: 15000000, mass_LL: 0.001, mass_HH: 0.08 } }
+  limits: { 1: { T_LL: 173, T_L: 273, T_H: 773, T_HH: 923, P_LL: 50000, P_L: 80000, P_H: 12000000, P_HH: 15000000, mass_LL: 0.001, mass_HH: 0.08 } },
+  equipmentNote: "Catalytic reactor with integrated cooling coils.",
+  operatingNote: "Currently runs as insulated — cooling circuit not yet implemented. Future: coolant connections for active heat removal.",
+  modelNote: "Stub: adiabatic model. Future: internal HEX coupling process-side with coolant-side.",
 });
 // [v14.9.0 S6b] Electrochemical reactor + fuel cell profiles
 ProfileRegistry.register('reactor_electrochemical', {
@@ -20810,14 +20947,20 @@ ProfileRegistry.register('reactor_electrochemical', {
   description: 'Electricity rips molecules apart',
   selectionGuide: 'The reverse of a fuel cell — pour in power and feedstock, get split products on separate outlets. Essential for making hydrogen.',
   limits: { 1: { T_LL: 263, T_L: 280, T_H: 773, T_HH: 923, P_LL: 50000, P_HH: 15000000, mass_HH: 0.08 } },
-  defaults: { reactionId: 'R_H2O_ELEC', efficiency: 0.90, conversion_max: 0.80 }
+  defaults: { reactionId: 'R_H2O_ELEC', efficiency: 0.90, conversion_max: 0.80 },
+  equipmentNote: "PEM or alkaline electrolysis cell stack.",
+  operatingNote: "Products exit through separate electrode ports — not mixed. Higher power = higher production rate. Produces waste heat.",
+  modelNote: "Electrochemical tick with Faradaic efficiency. Electrode separation routing.",
 });
 ProfileRegistry.register('fuel_cell', {
   defId: 'fuel_cell', name: 'Fuel Cell', category: UnitCategories.REACTOR, tiers: [1],
   description: 'Hydrogen in, electricity out',
   selectionGuide: 'Clean power as long as you feed it H\u2082 and O\u2082. Also makes water — handy for life support. Basically a battery that never dies.',
   limits: { 1: { T_LL: 253, T_L: 283, T_H: 473, T_HH: 523, P_LL: 50000, P_HH: 5000000, mass_HH: 0.05 } },
-  defaults: { reactionId: 'R_H2_FUELCELL', efficiency: 0.60, conversion_max: 0.80, UA: 500 }
+  defaults: { reactionId: 'R_H2_FUELCELL', efficiency: 0.60, conversion_max: 0.80, UA: 500 },
+  equipmentNote: "PEM or solid-oxide fuel cell stack.",
+  operatingNote: "Needs H₂ and O₂ on separate electrode inlets — not a mixture. Produces water and electricity. Waste heat must be removed.",
+  modelNote: "Electrochemical tick with Faradaic efficiency. Waste heat = ΔH_rxn − W_elec.",
 });
 
 // ── [v14.10.0 S9] membrane_separator profiles — composite-internal, never in palette ──
@@ -34255,23 +34398,23 @@ function hideTip() {
 }
 
 // [v17.0.1] Build rich HTML tooltip for palette tile
+// [v16.9.7] L1 tagline + L2 guide as hero content, lighter background
 function _buildTileTooltip(profile, tier) {
   const parts = [];
-  // Tier badge
-  const tierLabel = profile.boundary ? '' : `<span style="display:inline-block;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:700;background:#1e3a5f;color:#93c5fd;margin-left:4px;">T${tier}</span>`;
+  const tierLabel = profile.boundary ? '' : `<span style="display:inline-block;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:700;background:#334155;color:#93c5fd;margin-left:4px;">T${tier}</span>`;
 
-  // Header: name + tier
-  parts.push(`<div style="font-size:13px;font-weight:700;color:#f1f5f9;margin-bottom:2px;">${profile.name}${tierLabel}</div>`);
-
-  // L1 tagline
+  // L1 tagline — the hero
   if (profile.description) {
-    parts.push(`<div style="font-size:11px;color:#94a3b8;font-style:italic;margin-bottom:4px;">${profile.description}</div>`);
+    parts.push(`<div style="font-size:14px;font-weight:700;color:#f8fafc;margin-bottom:3px;">${profile.description}</div>`);
   }
 
-  // L2 selection guide
+  // L2 selection guide — the decision helper
   if (profile.selectionGuide) {
-    parts.push(`<div style="font-size:11px;color:#cbd5e1;line-height:1.4;margin-bottom:4px;">${profile.selectionGuide}</div>`);
+    parts.push(`<div style="font-size:12px;color:#e2e8f0;line-height:1.5;margin-bottom:6px;">${profile.selectionGuide}</div>`);
   }
+
+  // Name + tier (secondary, smaller)
+  parts.push(`<div style="font-size:10px;color:#94a3b8;margin-bottom:2px;">${profile.name}${tierLabel}</div>`);
 
   // Specs section
   const lines = [];
@@ -34303,7 +34446,7 @@ function _buildTileTooltip(profile, tier) {
     else if (lim.P_HH != null) lines.push(`💨 ≤ ${us.pressure.from(lim.P_HH).toFixed(0)} ${us.pressure.symbol}`);
   }
   if (lines.length > 0) {
-    parts.push(`<div style="font-size:10px;color:#64748b;border-top:1px solid #334155;padding-top:3px;margin-top:2px;">${lines.join(' · ')}</div>`);
+    parts.push(`<div style="font-size:10px;color:#94a3b8;border-top:1px solid #475569;padding-top:3px;margin-top:2px;">${lines.join(' · ')}</div>`);
   }
 
   // [v16.9.6] Tier upgrade note — show what T2/T3 gets you vs T1
@@ -34656,6 +34799,11 @@ function _rebuildInspectorContent() {
     headerDiv.appendChild(el('div', { class: 'unitSubtitle', html: `<span style="color:${def.color}">${def.category}</span> · ${_nameLabel}${_tierLabel}` }));
     propEditor.appendChild(headerDiv);
 
+    // [v16.9.7 S-VOICE] L3 equipment note — factual one-liner below subtitle
+    if (_insTierProfile?.equipmentNote) {
+      propEditor.appendChild(el('div', { style: 'font-size:11px; color:#94a3b8; font-style:italic; padding:0 0 4px; line-height:1.3;', text: _insTierProfile.equipmentNote }));
+    }
+
     // ── [v16.9.0 S-STATUS] Mode dropdown (non-boundary units only) ──
     if (!_insTierProfile?.boundary) {
       const modeRow = el('div', { style: 'display:flex; align-items:center; gap:8px; margin:4px 0 6px; padding:4px 8px; background:#0f172a; border-radius:4px;' });
@@ -34717,9 +34865,7 @@ function _rebuildInspectorContent() {
         });
         propEditor.appendChild(resetBtn);
       }
-    } else if (ud) {
-      propEditor.appendChild(el('div', { style: 'font-size:11px; color:#6ee7b7; opacity:0.6; padding:2px 0 4px;', html: '✓ OK' }));
-    }
+    } // [v16.9.7] "✓ OK" status removed — alarm banners handle all feedback
 
     // ── [v13.0.7] Build limit context for property highlighting ──
     const _limitViolations = _unitAlarms.filter(a => a.id?.startsWith('limit_'));
@@ -34773,6 +34919,13 @@ function _rebuildInspectorContent() {
         paramsZone.appendChild(lRow);
       }
       propEditor.appendChild(paramsZone);
+    }
+
+    // [v16.9.7 S-VOICE] L4 operating note — tips, edge cases, what breaks
+    if (_insTierProfile?.operatingNote) {
+      const l4Box = el('div', { style: 'font-size:11px; color:#cbd5e1; background:#1e293b; padding:6px 8px; border-radius:4px; margin-bottom:4px; line-height:1.4; border-left:2px solid #475569;' });
+      l4Box.textContent = _insTierProfile.operatingNote;
+      propEditor.appendChild(l4Box);
     }
 
     // ── [v11.0.2] Standard section order ──
@@ -35004,6 +35157,16 @@ function _rebuildInspectorContent() {
         cc.appendChild(row);
       }
       propEditor.appendChild(connSection.section);
+    }
+
+    // [v16.9.7 S-VOICE] L5 modeling note — collapsed at bottom
+    if (_insTierProfile?.modelNote) {
+      const l5Section = createCollapsibleSection('How it works', false);
+      l5Section.content.appendChild(el('div', {
+        style: 'font-size:11px; color:#94a3b8; line-height:1.4; font-family:ui-monospace,"SF Mono",monospace; font-size:10px;',
+        text: _insTierProfile.modelNote
+      }));
+      propEditor.appendChild(l5Section.section);
     }
   }
   
