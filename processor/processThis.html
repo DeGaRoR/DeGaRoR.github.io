@@ -540,6 +540,51 @@
   NNGs: NNG-14 (changelog).
   Tests: 607 total, 3143 checks, 0 failures.
 
+  ─── v16.9.5 — S-INSPECTOR Wave 1: Gauges, sliders, human labels ─────────
+
+  **Visual gauges for T and P.** New `_renderGauge()` SVG component: 56px
+  round arc gauge with limit-colored zones (green L→H, orange LL→L / H→HH,
+  red beyond LL/HH).  Needle + centered value with unit.  Replaces auto-
+  stream T/P KPI cards for all units that have equipment limits.
+  `_renderConditionGauges()` orchestrates T+P gauge pair + phase KPI.
+  Gauges retain sticker draggability (`_tagDraggableBadge`).
+
+  **Layout variant downsized.** Moved from prominent first-position
+  `ins-params-zone` to compact `.ins-layout-compact` row at bottom of
+  params section.  Human-friendly names via `_VARIANT_LABELS` lookup:
+  "Standard", "Mirrored", "Power on top", "Outlet left", etc.
+
+  **Power-primary section reorder.** Units with no material ports
+  (`!def.ports.some(p => p.type === StreamType.MATERIAL)`) get Power
+  section rendered first after params.  NNG-13 compliant: Conditions/
+  Flowrates/Composition are empty (omitted) for these units, so Power
+  naturally fills the first content position.
+
+  **INFO severity in inspector banners.** Filter lowered from
+  `>= WARNING` to `>= INFO`.  New `.ins-err-box.info` CSS class
+  (blue-gray, non-alerting).  Enables future downgrades of FYI messages.
+
+  **Air cooler inspector revamp:**
+  - Target temperature: slider capped min=ambient, max=T_HH from limits
+  - Auto-mode info text: "Auto: Ambient 16°C + 10K approach = 26°C"
+  - Approach temperature: slider 1–100K
+  - Cooling capacity: slider 0.01–100 kW/K
+  - Fan power limit: slider 1–50000 W
+  - Power priority: slider 1–5
+  - Power section: removed Q demand/Q max (detail-level), kept essentials
+
+  **Sink inspector redesign:** Inlet T + phase, Outlet T + phase
+  (with atmosphere name tooltip).  Removed Expansion, removed paired
+  Tin/Tout/Pin/Pout, removed "Absorbed" label → renamed to "Flow".
+
+  **Reservoir inspector:** Physical units on T and P via unit system.
+  Cv → "Valve size (Cv)" slider 0.01–100.  Opening → slider 0–100%.
+
+  **Grid supply inspector:** "Max power [kW]" slider 0.1–10000.
+
+  NNGs: NNG-8 (unit system), NNG-13 (inspector, section order),
+  NNG-14 (changelog).
+
   ─── v16.9.4 — S-CATASTROPHIC: Visual failure feedback replaces modal ──────
 
   **Catastrophic modal deleted.** Replaced by three non-blocking visual
@@ -5048,6 +5093,20 @@
     .propItem.alarm-bad { border-left: 2px solid #ef4444; padding-left: 6px; }
     .propItem.alarm-bad .propValue { color: #fca5a5; }
     .propItem .limit-hint { font-size: 9px; color: #64748b; margin-top: 1px; }
+
+    /* [v16.9.5 S-INSPECTOR] Round gauge component */
+    .ins-gauge-wrap { display: flex; flex-direction: column; align-items: center; padding: 4px; }
+    .ins-gauge-label { font-size: 10px; opacity: 0.6; margin-bottom: 2px; }
+    .ins-gauge-value { font-size: 13px; font-weight: 600; font-family: ui-monospace, 'SF Mono', monospace; margin-top: -2px; }
+    .ins-gauge-value .u { opacity: 0.5; font-size: 10px; margin-left: 1px; font-weight: 400; }
+    .ins-gauges-row { display: flex; justify-content: center; gap: 12px; margin-bottom: 4px; }
+
+    /* [v16.9.5] INFO severity banner */
+    .ins-err-box.info { background: #1e293b44; border: 1px solid #475569; color: #94a3b8; font-size: 12px; }
+
+    /* [v16.9.5] Compact layout variant selector */
+    .ins-layout-compact { display: flex; align-items: center; gap: 6px; font-size: 11px; opacity: 0.6; margin: 2px 0; }
+    .ins-layout-compact select { font-size: 11px; background: #1e293b; color: #94a3b8; border: 1px solid #334155; border-radius: 3px; padding: 1px 4px; max-width: 140px; }
     .ins-bar-track {
       display: inline-block; width: 100px; height: 10px; background: #334155;
       border-radius: 3px; overflow: hidden; vertical-align: middle;
@@ -32348,6 +32407,161 @@ function _compositionToItems(stream) {
   return items;
 }
 
+// [v16.9.5 S-INSPECTOR] Round SVG gauge component for T/P conditions
+// Renders a 60px diameter arc gauge colored by equipment limits.
+// Green (L→H), orange (LL→L / H→HH), red (beyond LL/HH).
+// Returns the wrapper div for sticker tagging by caller.
+function _renderGauge(container, value, unitSymbol, limits, label, stickerCtx) {
+  const wrap = el('div', { class: 'ins-gauge-wrap' });
+  wrap.appendChild(el('div', { class: 'ins-gauge-label', text: label }));
+
+  const sz = 56, cx = sz / 2, cy = sz / 2, r = 22;
+  const startAngle = 135, endAngle = 405, sweep = endAngle - startAngle;
+  const svgNS = 'http://www.w3.org/2000/svg';
+  const svgE = document.createElementNS(svgNS, 'svg');
+  svgE.setAttribute('width', sz); svgE.setAttribute('height', sz);
+  svgE.setAttribute('viewBox', `0 0 ${sz} ${sz}`);
+  svgE.style.display = 'block';
+
+  // Arc path helper
+  const arcPath = (a1Deg, a2Deg) => {
+    const a1 = a1Deg * Math.PI / 180, a2 = a2Deg * Math.PI / 180;
+    const x1 = cx + r * Math.cos(a1), y1 = cy + r * Math.sin(a1);
+    const x2 = cx + r * Math.cos(a2), y2 = cy + r * Math.sin(a2);
+    const large = (a2Deg - a1Deg) > 180 ? 1 : 0;
+    return `M${x1},${y1} A${r},${r} 0 ${large} 1 ${x2},${y2}`;
+  };
+
+  // Determine ranges from limits (LL, L, H, HH)
+  const LL = limits?.LL, L = limits?.L, H = limits?.H, HH = limits?.HH;
+  const lo = LL ?? (L ? L * 0.5 : 0);
+  const hi = HH ?? (H ? H * 2 : 1000);
+  const range = hi - lo || 1;
+
+  const valToAngle = (v) => startAngle + Math.max(0, Math.min(1, (v - lo) / range)) * sweep;
+
+  // Background arc (dim)
+  const bgArc = document.createElementNS(svgNS, 'path');
+  bgArc.setAttribute('d', arcPath(startAngle, endAngle));
+  bgArc.setAttribute('fill', 'none');
+  bgArc.setAttribute('stroke', '#334155');
+  bgArc.setAttribute('stroke-width', '5');
+  bgArc.setAttribute('stroke-linecap', 'round');
+  svgE.appendChild(bgArc);
+
+  // Colored zone arcs
+  const zones = [];
+  if (LL != null) zones.push({ from: lo, to: LL, color: '#ef4444' });
+  if (LL != null && L != null) zones.push({ from: LL, to: L, color: '#f97316' });
+  else if (L != null) zones.push({ from: lo, to: L, color: '#f97316' });
+  if (L != null && H != null) zones.push({ from: L, to: H, color: '#22c55e' });
+  else if (H != null) zones.push({ from: lo, to: H, color: '#22c55e' });
+  if (H != null && HH != null) zones.push({ from: H, to: HH, color: '#f97316' });
+  if (HH != null) zones.push({ from: HH, to: hi, color: '#ef4444' });
+
+  // Fallback: all green if no limits
+  if (zones.length === 0) zones.push({ from: lo, to: hi, color: '#22c55e' });
+
+  for (const z of zones) {
+    const a1 = valToAngle(z.from), a2 = valToAngle(z.to);
+    if (a2 - a1 < 0.5) continue;
+    const zArc = document.createElementNS(svgNS, 'path');
+    zArc.setAttribute('d', arcPath(a1, a2));
+    zArc.setAttribute('fill', 'none');
+    zArc.setAttribute('stroke', z.color);
+    zArc.setAttribute('stroke-width', '5');
+    zArc.setAttribute('stroke-linecap', 'butt');
+    zArc.setAttribute('opacity', '0.7');
+    svgE.appendChild(zArc);
+  }
+
+  // Needle
+  if (value != null && isFinite(value)) {
+    const needleAngle = valToAngle(value) * Math.PI / 180;
+    const nx = cx + (r - 2) * Math.cos(needleAngle);
+    const ny = cy + (r - 2) * Math.sin(needleAngle);
+    const needle = document.createElementNS(svgNS, 'line');
+    needle.setAttribute('x1', cx); needle.setAttribute('y1', cy);
+    needle.setAttribute('x2', nx); needle.setAttribute('y2', ny);
+    needle.setAttribute('stroke', '#e2e8f0');
+    needle.setAttribute('stroke-width', '1.5');
+    needle.setAttribute('stroke-linecap', 'round');
+    svgE.appendChild(needle);
+    // Center dot
+    const dot = document.createElementNS(svgNS, 'circle');
+    dot.setAttribute('cx', cx); dot.setAttribute('cy', cy);
+    dot.setAttribute('r', '2');
+    dot.setAttribute('fill', '#e2e8f0');
+    svgE.appendChild(dot);
+  }
+
+  wrap.appendChild(svgE);
+
+  // Value text
+  const valDiv = el('div', { class: 'ins-gauge-value' });
+  if (value != null && isFinite(value)) {
+    const us = models.getActive('units');
+    let displayVal, displayUnit;
+    if (unitSymbol === 'T') {
+      displayVal = us.temperature.from(value).toFixed(us.temperature.decimals);
+      displayUnit = us.temperature.symbol;
+    } else if (unitSymbol === 'P') {
+      displayVal = us.pressure.from(value).toFixed(us.pressure.decimals);
+      displayUnit = us.pressure.symbol;
+    } else {
+      displayVal = value.toFixed(1);
+      displayUnit = unitSymbol || '';
+    }
+    valDiv.innerHTML = `${displayVal}<span class="u">${displayUnit}</span>`;
+  } else {
+    valDiv.textContent = '—';
+  }
+  wrap.appendChild(valDiv);
+
+  if (stickerCtx) _tagDraggableBadge(wrap, stickerCtx, label);
+  container.appendChild(wrap);
+  return wrap;
+}
+
+// [v16.9.5 S-INSPECTOR] Render T and P gauges from primary stream + limits
+function _renderConditionGauges(container, ud, def, u, stickerCtx) {
+  const ps = _findPrimaryStream(ud, def);
+  if (!ps) return false;
+  const pId = u.profileId || u.defId;
+  const lim = getEffectiveLimits(pId, u.tier || 1);
+  if (!lim) return false;
+
+  const row = el('div', { class: 'ins-gauges-row' });
+  if (ps.T != null) {
+    _renderGauge(row, ps.T, 'T', { LL: lim.T_LL, L: lim.T_L, H: lim.T_H, HH: lim.T_HH },
+      'Temperature', stickerCtx ? { ...stickerCtx, section: 'conditions' } : null);
+  }
+  if (ps.P != null) {
+    _renderGauge(row, ps.P, 'P', { LL: lim.P_LL, L: lim.P_L, H: lim.P_H, HH: lim.P_HH },
+      'Pressure', stickerCtx ? { ...stickerCtx, section: 'conditions' } : null);
+  }
+  container.appendChild(row);
+
+  // Phase KPI below gauges
+  if (ps.phase) {
+    const phaseLabel = ps.phase === 'V' ? 'Vapor' : ps.phase === 'L' ? 'Liquid' : 'Vapor-Liquid';
+    _renderKPIGrid(container, [{ label: 'Phase', value: phaseLabel }], stickerCtx);
+  }
+  return true;
+}
+
+// [v16.9.5 S-INSPECTOR] Human-friendly layout variant names
+const _VARIANT_LABELS = {
+  'default': 'Standard', 'mirror': 'Mirrored',
+  'elec-T': 'Power on top', 'elec-B': 'Power on bottom',
+  'mirror-elec-T': 'Mirrored, power top', 'mirror-elec-T-elec-B': 'Mirrored, power bottom',
+  'port-left': 'Outlet left', 'port-right': 'Outlet right',
+  'port-top': 'Outlet top', 'port-bottom': 'Outlet bottom',
+  'output-bottom': 'Output bottom', 'surplus-B': 'Surplus bottom',
+  'mirror-surplus-B': 'Mirrored, surplus bottom', 'insulated': 'Insulated',
+  'recycle-T': 'Recycle top',
+};
+
 // [v10.7.0] Evaluate sticker items against live solver data
 function _evaluateStickerItems(u) {
   if (!u.sticker?.items?.length) return [];
@@ -32548,29 +32762,29 @@ UnitInspector.source_multi = {
 
 // ── Sinks ──
 UnitInspector.sink = {
-  // All conditions as draggable badges — paired outlet (left) / inlet (right)
+  // [v16.9.5 S-INSPECTOR] Clean inlet/outlet sections, no solver internals
   conditions(u, ud) {
     if (!ud?.last) return [];
     const i = ud.last.inlet;
     const o = ud.last.outlet;
-    if (!i || !o) return [];
-    return [
-      // Row 1: T
-      { label: 'T out', value: fmt.T(o.T_K) },
-      { label: 'T in', value: fmt.T(i.T_K) },
-      // Row 2: P
-      { label: 'P out', value: fmt.P(o.P_Pa) },
-      { label: 'P in', value: fmt.P(i.P_Pa) },
-      // Row 3: Phase
-      { label: 'Phase out', value: o.phase || '—' },
-      { label: 'Phase in', value: i.phase || '—' },
-    ];
+    const items = [];
+    if (i) {
+      items.push({ label: 'Inlet T', value: fmt.T(i.T_K) });
+      const phIn = i.phase === 'V' ? 'Vapor' : i.phase === 'L' ? 'Liquid' : 'Vapor-Liquid';
+      items.push({ label: 'Inlet phase', value: phIn });
+    }
+    if (o) {
+      const atm = SimSettings.getAtmosphere();
+      items.push({ label: `Outlet T`, value: fmt.T(o.T_K) });
+      const phOut = o.phase === 'V' ? 'Vapor' : o.phase === 'L' ? 'Liquid' : 'Vapor-Liquid';
+      items.push({ label: `Outlet phase`, value: phOut, tooltip: `At ${atm.presetName} atmospheric pressure` });
+    }
+    return items;
   },
   kpis(u, ud) {
     if (!ud?.last) return [];
     return [
-      { label: 'Absorbed', value: `${(ud.last.absorbed_mol_s||0).toFixed(3)}<span class="propUnit">mol/s</span>` },
-      { label: 'Expansion', value: `${ud.last.expansion_ratio}×` },
+      { label: 'Flow', value: `${(ud.last.absorbed_mol_s||0).toFixed(3)}<span class="propUnit">mol/s</span>` },
     ];
   }
 };
@@ -32635,15 +32849,18 @@ UnitInspector.reservoir = {
     }
     container.appendChild(compBox);
 
-    // T, P, Cv, opening
-    addNumberEditor(container, 'T (K)',
-      () => u.params.T ?? SimSettings.getAtmosphere().T_K, v => u.params.T = v, 1, 1);
-    addNumberEditor(container, 'P (bar)',
-      () => u.params.P_bar ?? 5, v => u.params.P_bar = v, 0.1, 2);
-    addNumberEditor(container, 'Cv',
-      () => u.params.Cv ?? 50, v => u.params.Cv = v, 1, 0);
-    addNumberEditor(container, 'Opening (%)',
-      () => u.params.opening_pct ?? 100, v => u.params.opening_pct = v, 5, 0);
+    // [v16.9.5 S-INSPECTOR] Human labels, slider bounds, physical units
+    addNumberEditor(container, `Temperature [${unitSys.temperature.symbol}]`,
+      () => unitSys.temperature.from(u.params.T ?? SimSettings.getAtmosphere().T_K),
+      v => u.params.T = unitSys.temperature.to(v), 1, unitSys.temperature.decimals);
+    addNumberEditor(container, `Pressure [${unitSys.pressure.symbol}]`,
+      () => unitSys.pressure.from((u.params.P_bar ?? 5) * 1e5),
+      v => u.params.P_bar = unitSys.pressure.to(v) / 1e5,
+      0.1, unitSys.pressure.decimals);
+    addSliderEditor(container, 'Valve size (Cv)',
+      () => u.params.Cv ?? 50, v => u.params.Cv = v, 0.01, 100, 0.1);
+    addSliderEditor(container, 'Valve opening [%]',
+      () => u.params.opening_pct ?? 100, v => u.params.opening_pct = v, 0, 100, 5);
   },
   conditions(u, ud) {
     if (!ud?.last) return [];
@@ -32775,7 +32992,8 @@ UnitInspector.closed_loop_source = {
 // ── Power Sources ──
 UnitInspector.grid_supply = {
   params(u) { return [
-    { label: 'Max Power (kW)', get: () => u.params.maxPower || 50, set: v => u.params.maxPower = v, step: 10, validate: { gt: 0 } },
+    { type: 'slider', label: 'Max power [kW]', get: () => u.params.maxPower || 50, set: v => u.params.maxPower = v,
+      min: 0.1, max: 10000, step: 10 },
   ]; },
   power(u, ud) {
     if (!ud.last) return [];
@@ -33354,65 +33572,66 @@ UnitInspector.air_cooler = {
   params(u) {
     const us = models.getActive('units');
     const atm = SimSettings.getAtmosphere();
-    return [
-      { label: `T outlet setpoint (${us.temperature.symbol})`,
-        get: () => us.temperature.from(u.params.T_out ?? (atm.T_K + 10)),
+    const pId = u.profileId || u.defId;
+    const lim = getEffectiveLimits(pId, u.tier || 1);
+    const T_amb = atm.T_K;
+    const T_approach = u.params.T_approach ?? 10;
+    const T_default = T_amb + T_approach;
+    const hasExplicitTout = u.params.T_out != null;
+    const items = [
+      { type: 'slider', label: `Target temperature [${us.temperature.symbol}]`,
+        get: () => us.temperature.from(u.params.T_out ?? T_default),
         set: v => u.params.T_out = us.temperature.to(v),
-        step: 1, decimals: us.temperature.decimals, validate: { gt: 0 } },
-      { label: 'UA capacity (kW/K)',
-        get: () => u.params.UA_kW_K ?? 1.0,
-        set: v => u.params.UA_kW_K = Math.max(0.001, v),
-        step: 0.1, decimals: 1, min: 0.001 },
-      { label: 'Max fan power (W)',
-        get: () => u.params.max_fan_power_W ?? 150,
-        set: v => u.params.max_fan_power_W = Math.max(1, Math.round(v)),
-        step: 10 },
-      { label: 'Priority', get: () => u.params.powerPriority ?? 3,
-        set: v => u.params.powerPriority = Math.max(1, Math.round(v)), step: 1, validate: { gte: 1 } },
-      { type: 'info', html: `Ambient: ${(atm.T_K - 273.15).toFixed(1)}°C, ${(atm.P_Pa/1000).toFixed(1)} kPa (${atm.presetName})<br><span style="opacity:0.5">T<sub>out</sub> ≥ T<sub>ambient</sub> required</span>` }
+        min: us.temperature.from(T_amb), max: us.temperature.from(lim?.T_HH || 723),
+        step: 1 },
     ];
+    if (!hasExplicitTout) {
+      items.push({ type: 'info', html: `<span class="ins-hint">Auto: Ambient ${us.temperature.from(T_amb).toFixed(0)}${us.temperature.symbol} + ${T_approach}K approach = ${us.temperature.from(T_default).toFixed(0)}${us.temperature.symbol}</span>` });
+    }
+    items.push(
+      { type: 'slider', label: 'Approach temperature [K]',
+        get: () => u.params.T_approach ?? 10, set: v => u.params.T_approach = v,
+        min: 1, max: 100, step: 1 },
+      { type: 'slider', label: 'Cooling capacity [kW/K]',
+        get: () => u.params.UA_kW_K ?? 1.0, set: v => u.params.UA_kW_K = Math.max(0.001, v),
+        min: 0.01, max: 100, step: 0.1 },
+      { type: 'slider', label: 'Fan power limit [W]',
+        get: () => u.params.max_fan_power_W ?? 150, set: v => u.params.max_fan_power_W = Math.max(1, Math.round(v)),
+        min: 1, max: 50000, step: 10 },
+      { label: 'Power priority', get: () => u.params.powerPriority ?? 3,
+        set: v => u.params.powerPriority = Math.max(1, Math.round(v)), step: 1, min: 1, max: 5 },
+    );
+    return items;
   },
   power(u, ud) {
     if (!ud?.last) return [];
     const items = [];
-    if (ud.last.W_fan_demand != null) {
-      items.push({ label: 'Fan demand', value: `${ud.last.W_fan_demand.toFixed(0)}<span class="u">W</span>`, tone: '' });
-    }
-    if (ud.last.W_fan_actual != null) {
+    if (ud.last.W_fan_demand != null)
+      items.push({ label: 'Fan demand', value: `${ud.last.W_fan_demand.toFixed(0)}<span class="u">W</span>` });
+    if (ud.last.W_fan_actual != null)
       items.push({ label: 'Fan actual', value: `${ud.last.W_fan_actual.toFixed(0)}<span class="u">W</span>`,
         tone: ud.last.power_curtailed ? 'warn' : 'good' });
-    }
-    if (ud.last.Q_rejected_W != null) {
-      items.push({ label: 'Q rejected', value: fmt.kW(ud.last.Q_rejected_W), tone: 'info' });
-    }
-    if (ud.last.Q_demand_W != null) {
-      items.push({ label: 'Q demand', value: fmt.kW(ud.last.Q_demand_W), tone: '' });
-    }
-    if (ud.last.ntu?.Qmax_W != null) items.push({ label: 'Q max', value: fmt.kW(ud.last.ntu.Qmax_W), tone: ud.last.capacityLimited ? 'warn' : '' });
-    if (ud.last.fan_limited) {
+    if (ud.last.Q_rejected_W != null)
+      items.push({ label: 'Heat rejected', value: fmt.kW(ud.last.Q_rejected_W), tone: 'info' });
+    if (ud.last.fan_limited)
       items.push({ label: 'Fan status', value: 'At max power', tone: 'warn' });
-    }
     return items;
   },
   kpis(u, ud) {
     if (!ud?.last?.T_setpoint_K) return [];
     const items = [
-      { label: 'T setpoint', value: fmt.T(ud.last.T_setpoint_K) },
-      { label: 'T ambient', value: fmt.T(ud.last.T_ambient_K) }
+      { label: 'Setpoint', value: fmt.T(ud.last.T_setpoint_K) },
+      { label: 'Ambient', value: fmt.T(ud.last.T_ambient_K) }
     ];
     const matOut = ud.ports?.mat_out;
     if (matOut?.T) {
       const us = models.getActive('units');
       const dev = Math.abs(us.temperature.from(matOut.T) - us.temperature.from(ud.last.T_setpoint_K));
-      items.push({ label: 'T actual', value: fmt.T(matOut.T), tone: dev > 1 ? 'warn' : 'good' });
+      items.push({ label: 'Actual outlet', value: fmt.T(matOut.T), tone: dev > 1 ? 'warn' : 'good' });
     }
-    if (ud.last.airflow_actual_kgps != null) {
-      items.push({ label: 'Air flow', value: `${ud.last.airflow_actual_kgps.toFixed(2)}<span class="u">kg/s</span>` });
-    }
-    if (ud.last.ntu?.epsilon != null) {
+    if (ud.last.ntu?.epsilon != null)
       items.push({ label: 'Effectiveness', value: `${(ud.last.ntu.epsilon*100).toFixed(1)}%`,
         tone: ud.last.capacityLimited ? 'warn' : 'good' });
-    }
     return items;
   },
   detail(u, ud) {
@@ -33422,14 +33641,9 @@ UnitInspector.air_cooler = {
     if (ud.last.airflow_actual_kgps != null) items.push({ label: 'Air actual', value: `${ud.last.airflow_actual_kgps.toFixed(2)}<span class="u">kg/s</span>` });
     const n = ud.last.ntu;
     if (n) {
-      if (n.epsilon != null) items.push({ label: 'Effectiveness', value: `${(n.epsilon*100).toFixed(1)}<span class="u">%</span>` });
       if (n.NTU != null) items.push({ label: 'NTU', value: n.NTU.toFixed(2) });
       if (n.Cr != null) items.push({ label: 'C ratio', value: n.Cr.toFixed(3) });
-      if (n.C_process != null) items.push({ label: 'C process', value: `${(n.C_process/1000).toFixed(2)}<span class="u">kW/K</span>` });
-      if (n.C_air != null) items.push({ label: 'C air', value: `${(n.C_air/1000).toFixed(2)}<span class="u">kW/K</span>` });
-      if (n.T_air_out_est != null) items.push({ label: 'T air out', value: fmt.T(n.T_air_out_est) });
     }
-    items.push({ label: 'SFP', value: '120<span class="u">W/(kg/s)</span>' });
     return items;
   }
 };
@@ -34373,11 +34587,13 @@ function _rebuildInspectorContent() {
 
     // ── [v13.0.7] Alarm banners — sourced from AlarmSystem (NNG-7 single source of truth) ──
     // [v13.0.8] Phase 5: inspector shows PLANT domain only (player-facing)
+    // [v16.9.5 S-INSPECTOR] Filter includes INFO level (was WARNING+)
     const _unitAlarms = AlarmSystem.evaluate(scene).filter(a => a.unitId === u.id && a.domain === AlarmDomain.PLANT);
-    const _unitIssues = _unitAlarms.filter(a => a.severity.level >= AlarmSeverity.WARNING.level);
+    const _unitIssues = _unitAlarms.filter(a => a.severity.level >= AlarmSeverity.INFO.level);
     if (_unitIssues.length > 0) {
       for (const alarm of _unitIssues) {
-        const cls = alarm.severity.level >= AlarmSeverity.CATASTROPHIC.level ? 'catastrophic' : 'warn';
+        const cls = alarm.severity.level >= AlarmSeverity.CATASTROPHIC.level ? 'catastrophic'
+          : alarm.severity.level >= AlarmSeverity.WARNING.level ? 'warn' : 'info';
         const box = el('div', { class: `ins-err-box ${cls}` });
         box.textContent = `${alarm.severity.icon} ${alarm.message}`;
         propEditor.appendChild(box);
@@ -34414,59 +34630,72 @@ function _rebuildInspectorContent() {
     const _limitCtx = (_limitViolations.length > 0 || _effectiveLimits)
       ? { violations: _limitViolations, limits: _effectiveLimits } : null;
 
-    // ── [v10.9.1] Layout variant selector (NNG-P4) ──
+    // ── [v10.9.1] Layout variant selector — [v16.9.5] moved to bottom of params, compact ──
+    let _layoutHtml = null;
     if (def.presentations) {
       const theme = ui.theme || 'box';
       let prefix = theme + '/';
-      // [v15.3.0] Fall back to box/ if current theme has no dedicated presentations
-      if (!Object.keys(def.presentations).some(k => k.startsWith(prefix))) {
-        prefix = 'box/';
-      }
+      if (!Object.keys(def.presentations).some(k => k.startsWith(prefix))) prefix = 'box/';
       const variants = Object.keys(def.presentations)
         .filter(k => k.startsWith(prefix))
         .map(k => k.slice(prefix.length))
-        // [v14.9.0 S6a] Mode-aware variant filter for reactor_jacketed:
-        // Shows default + elec-T variants (no insulated — that's reactor_adiabatic now).
-        .filter(v => {
-          if (u.defId !== 'reactor_jacketed') return true;
-          return v !== 'insulated';  // jacketed: show default + elec-T only
-        });
+        .filter(v => { if (u.defId !== 'reactor_jacketed') return true; return v !== 'insulated'; });
       if (variants.length > 1) {
-        const layoutZone = el('div', { class: 'ins-params-zone', style: 'margin-bottom:4px;' });
-        const currentVariant = u.params.variant || 'default';
-        addSelectEditor(layoutZone, 'Layout',
-          () => currentVariant,
-          (v) => {
-            u.params.variant = (v === 'default') ? undefined : v;
-            render();
-          },
-          variants.map(v => [v, v === 'default' ? 'Default' : v.split('-').map(w => w[0].toUpperCase() + w.slice(1)).join(' ')])
-        );
-        propEditor.appendChild(layoutZone);
+        _layoutHtml = { variants, currentVariant: u.params.variant || 'default' };
       }
     }
 
     // ── Parameters (flat zone, distinct background) [v10.2.2] ──
-    if (config?.params || config?.customParams) {
+    if (config?.params || config?.customParams || _layoutHtml) {
       const paramsZone = el('div', { class: 'ins-params-zone' });
-      if (config.customParams) {
+      if (config?.customParams) {
         config.customParams(paramsZone, u, scene);
-      } else {
+      } else if (config?.params) {
         renderParams(paramsZone, config.params(u), u);
+      }
+      // [v16.9.5] Layout variant compact row at bottom of params
+      if (_layoutHtml) {
+        const lRow = el('div', { class: 'ins-layout-compact' });
+        lRow.appendChild(el('span', { text: 'Port layout' }));
+        const lSel = document.createElement('select');
+        for (const v of _layoutHtml.variants) {
+          const opt = document.createElement('option');
+          opt.value = v;
+          opt.textContent = _VARIANT_LABELS[v] || v.split('-').map(w => w[0].toUpperCase() + w.slice(1)).join(' ');
+          if (v === _layoutHtml.currentVariant) opt.selected = true;
+          lSel.appendChild(opt);
+        }
+        lSel.addEventListener('change', () => {
+          u.params.variant = (lSel.value === 'default') ? undefined : lSel.value;
+          render();
+        });
+        lRow.appendChild(lSel);
+        paramsZone.appendChild(lRow);
       }
       propEditor.appendChild(paramsZone);
     }
 
     // ── [v11.0.2] Standard section order ──
     // params → conditions → flowrates → composition → reaction → power → sizing → kpis → detail
+    // [v16.9.5] Power-primary units: power before conditions (NNG-13 OK — conditions empty for no-material units)
+    const _isPowerPrimary = !def.ports.some(p => p.type === StreamType.MATERIAL);
     if (ud) {
       const _sCtx = { unitId: u.id, section: 'conditions' };
       const primaryStream = _findPrimaryStream(ud, def);
 
-      // ── Process Conditions ──
+      // ── Power & Energy (first for power-primary units) ──
+      if (_isPowerPrimary && config?.power) {
+        const items = config.power(u, ud);
+        if (items?.length) _renderLabeledSection(propEditor, 'Power & Energy', items, { unitId: u.id, section: 'power' });
+      }
+
+      // ── Process Conditions — [v16.9.5] gauges when limits exist ──
       if (config?.conditions) {
         const items = config.conditions(u, ud);
         if (items?.length) _renderKPIGrid(propEditor, items, _sCtx);
+      } else if (_effectiveLimits && primaryStream) {
+        // Use gauges for T/P when we have limits
+        _renderConditionGauges(propEditor, ud, def, u, _sCtx);
       } else if (primaryStream) {
         _renderStreamConditions(propEditor, primaryStream, _sCtx, _limitCtx);
       }
@@ -34487,8 +34716,8 @@ function _rebuildInspectorContent() {
         if (items?.length) _renderLabeledSection(propEditor, 'Reaction Data', items, { unitId: u.id, section: 'reaction' });
       }
 
-      // ── Power & Energy ──
-      if (config?.power) {
+      // ── Power & Energy — [v16.9.5] skip for power-primary (already rendered above) ──
+      if (config?.power && !_isPowerPrimary) {
         const items = config.power(u, ud);
         if (items?.length) _renderLabeledSection(propEditor, 'Power & Energy', items, { unitId: u.id, section: 'power' });
       }
