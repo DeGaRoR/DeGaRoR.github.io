@@ -540,6 +540,41 @@
   NNGs: NNG-14 (changelog).
   Tests: 607 total, 3143 checks, 0 failures.
 
+  ─── v16.9.6 — Polish pass + pipe drag/delete interaction ─────────────────
+
+  **Pipe drag-to-connect.** Connections can now be completed by dragging
+  from an OUT port and releasing on an IN port (pointerup), in addition
+  to the existing click-click behavior.  Both paths produce identical
+  results.  `ui._pendingStartClient` tracks screen position at wire
+  start for drag distance detection (>10px threshold).
+
+  **Pipe deletion via canvas click/release.** When a wire is being drawn
+  (pendingFrom set):
+  - Reconnecting: click/release on empty canvas → deletes the old
+    connection (with undo).  Auto-pauses if playing.
+  - New wire: click/release on empty canvas → cancels (no deletion).
+  - Click original port → reverts to pre-reconnect state (old
+    connection stays intact).
+
+  Added `pointerup` handler on IN port circles (drag-to-complete).
+  Added pending connection handling in SVG `pointerup` (drag-release-
+  on-canvas with distance threshold).  SVG pointerup now receives `ev`.
+  Fan-out per-connection openings cleaned up on delete (both paths,
+  mirrors deleteSelected).
+
+  **Heat transfer category → teal** (#14b8a6). Was orange (#f97316).
+
+  **Fried smoke lighter.** #444 → #9ca3af.
+
+  **Tank/open_tank fill = 0% before solve.** Was 50%.
+
+  **Palette tooltip upgraded.** Darker bg, blue left accent border,
+  +16px offset.  T2+ upgrade note: "⬆ T2 upgrade: T max 450→600°C".
+
+  **Solar + wind in climate bar.** "☀ 73%" and "💨 8.2 m/s".
+
+  NNGs: NNG-3 (WYSIWYG — delete removes what you see), NNG-14.
+
   ─── v16.9.5 — S-INSPECTOR: Gauges, sliders, human labels (all units) ────
 
   **Visual gauges for T and P.** New `_renderGauge()` SVG component: 56px
@@ -8844,9 +8879,9 @@
 
     <!-- [v13.1.3] Floating tooltip — shared, positioned at body level to avoid clipping -->
     <div id="ptip" style="position:fixed;z-index:100;pointer-events:none;opacity:0;transition:opacity 0.08s;
-      background:rgba(15,20,32,0.95);color:#e2e8f0;font-size:12px;font-weight:500;padding:8px 12px;border-radius:6px;
-      border:1px solid #334155;white-space:normal;max-width:240px;line-height:1.4;
-      box-shadow:0 4px 16px rgba(0,0,0,0.5);backdrop-filter:blur(4px);"></div>
+      background:rgba(10,15,25,0.97);color:#e2e8f0;font-size:12px;font-weight:500;padding:10px 14px;border-radius:8px;
+      border:1px solid #475569;border-left:3px solid #60a5fa;white-space:normal;max-width:260px;line-height:1.4;
+      box-shadow:0 8px 24px rgba(0,0,0,0.6);backdrop-filter:blur(6px);"></div>
 
     <!-- Main SVG canvas -->
     <div class="view-flowsheet">
@@ -14864,7 +14899,7 @@ function diagnoseErrors(scene) {
 const UnitCategories = {
   // [v17.0.2] 7 categories. All ΔE pairs > 30 (CIELAB perceptual distance).
   BOUNDARY:       { name: 'Supply & Drain',        color: '#10b981', order: 1 },  // Green
-  HEAT_TRANSFER:  { name: 'Heat',                 color: '#f97316', order: 2 },  // Orange
+  HEAT_TRANSFER:  { name: 'Heat',                 color: '#14b8a6', order: 2 },  // Teal
   PRESSURE:       { name: 'Pressure',             color: '#8b5cf6', order: 3 },  // Purple
   REACTOR:        { name: 'Reactor',              color: '#ef4444', order: 4 },  // Red
   SEPARATION:     { name: 'Separation & Mixing',  color: '#e535ab', order: 5 },  // Magenta
@@ -25284,6 +25319,7 @@ const ui = {
   _rubberBand: null,            // [v12.10.0] {x,y,x2,y2} world coords for marquee
   _groupDragStarts: null,       // [v12.10.0] Map<id,{x,y}> original positions for undo
   pendingFrom: null, // Connection mode: {unitId, portId}
+  _pendingStartClient: null, // [v16.9.6] {x,y} screen coords at pendingFrom start for drag detection
   isPanning: false,
   panStart: null,
   isDraggingUnit: false,
@@ -27274,7 +27310,7 @@ function _smokeRand(i, offset) {
 const _FRIED_SMOKE_CFG = {
   isFried: true, puffCount: 7, riseHeight: 80, duration: 4.5,
   puffRx: 16, puffRy: 12, spreadX: 14, scaleStart: 0.5, scaleEnd: 1.8,
-  opacityStart: 0.55, opacityPeak: 0.65, color: '#444', filter: 'smoke-fried',
+  opacityStart: 0.55, opacityPeak: 0.65, color: '#9ca3af', filter: 'smoke-fried',
   driftRange: 11
 };
 
@@ -29119,7 +29155,7 @@ const _RAGTAG_SYMBOLS = {
     // Data-driven level
     const _ud = scene.runtime?.unitData?.get(unitId);
     let fPct = _ud?.last?.fillPct;
-    if (fPct == null || !Number.isFinite(fPct)) fPct = 50;
+    if (fPct == null || !Number.isFinite(fPct)) fPct = 0;  // [v16.9.6] empty before first solve
     fPct = Math.max(0, Math.min(100, fPct));
     const sgH = 48, sgTop = wy + 24;
     const fillH = sgH * fPct / 100;
@@ -29165,7 +29201,7 @@ const _RAGTAG_SYMBOLS = {
     // Data-driven level
     const _ud = scene.runtime?.unitData?.get(unitId);
     let fPct = _ud?.last?.fillPct;
-    if (fPct == null || !Number.isFinite(fPct)) fPct = 50;
+    if (fPct == null || !Number.isFinite(fPct)) fPct = 0;  // [v16.9.6] empty before first solve
     fPct = Math.max(0, Math.min(100, fPct));
     const sgH = 48, sgTop = wy + 22;
     const fillH = sgH * fPct / 100;
@@ -29827,8 +29863,10 @@ function drawUnits() {
         
         if (port.dir === PortDir.OUT) {
           if (ui.pendingFrom) {
-            // Already connecting — clicking same OUT port cancels
+            // Already connecting — clicking same OUT port cancels / reverts
             if (ui.pendingFrom.unitId === unitId && ui.pendingFrom.portId === portId) {
+              // [v16.9.6] If reconnecting, restore the old connection (revert)
+              // If new wire, just cancel
               ui.pendingFrom = null;
               ui.reconnecting = null;
               render();
@@ -29845,6 +29883,7 @@ function drawUnits() {
               ui.selectedUnitId = null;
               ui.selectedConnId = null;
               ui.pendingFrom = { unitId, portId };
+              ui._pendingStartClient = { x: ev.clientX, y: ev.clientY };
               render();
               return;
             }
@@ -29852,6 +29891,7 @@ function drawUnits() {
           // Normal connect start
           ui.selectedUnitId = null;
           ui.pendingFrom = { unitId, portId };
+          ui._pendingStartClient = { x: ev.clientX, y: ev.clientY };
           ui.selectedConnId = null;
           ui.reconnecting = null;
           render();
@@ -29898,10 +29938,38 @@ function drawUnits() {
             ui.selectedUnitId = null;
             ui.selectedConnId = null;
             ui.pendingFrom = { unitId: existingConn.from.unitId, portId: existingConn.from.portId };
+            ui._pendingStartClient = { x: ev.clientX, y: ev.clientY };
             render();
             return;
           }
         }
+      });
+
+      // [v16.9.6] Drag-to-connect: complete connection on pointerup over IN port
+      circle.addEventListener('pointerup', (ev) => {
+        if (ev.button !== 0) return;
+        if (!ui.pendingFrom) return;
+        const port = p;
+        if (port.dir !== PortDir.IN) return;
+        // Same logic as pointerdown on IN port with pendingFrom
+        ev.stopPropagation();
+        if (ui.reconnecting) {
+          const oldIdx = scene.connections.findIndex(c => c.id === ui.reconnecting.connId);
+          let oldConn = null;
+          if (oldIdx >= 0) { oldConn = scene.connections[oldIdx]; scene.connections.splice(oldIdx, 1); }
+          const id = scene.connect(ui.pendingFrom, { unitId, portId });
+          if (id) { autoPauseOnTopologyChange(); }
+          else { if (oldConn) scene.connections.push(oldConn); }
+          ui.reconnecting = null;
+        } else {
+          const id = scene.connect(ui.pendingFrom, { unitId, portId });
+          if (id) autoPauseOnTopologyChange();
+        }
+        if (ui.pendingFrom) _flangeSnapPorts.add(ui.pendingFrom.unitId + ':' + ui.pendingFrom.portId);
+        _flangeSnapPorts.add(unitId + ':' + portId);
+        ui.pendingFrom = null;
+        updatePropertiesPanel();
+        render();
       });
       } // end if (!isDimmed)
 
@@ -34165,7 +34233,7 @@ function showTip(el, text) {
   clearTimeout(_ptipTimer);
   const r = el.getBoundingClientRect();
   _ptip.innerHTML = text;
-  _ptip.style.left = (r.right + 8) + 'px';
+  _ptip.style.left = (r.right + 16) + 'px';
   _ptip.style.top  = (r.top + r.height / 2) + 'px';
   _ptip.style.transform = 'translateY(-50%)';
   _ptip.style.opacity = '1';
@@ -34176,7 +34244,7 @@ function showRichTip(el, html) {
   clearTimeout(_ptipTimer);
   const r = el.getBoundingClientRect();
   _ptip.innerHTML = html;
-  _ptip.style.left = (r.right + 8) + 'px';
+  _ptip.style.left = (r.right + 16) + 'px';
   _ptip.style.top  = (r.top + r.height / 2) + 'px';
   _ptip.style.transform = 'translateY(-50%)';
   _ptip.style.opacity = '1';
@@ -34236,6 +34304,23 @@ function _buildTileTooltip(profile, tier) {
   }
   if (lines.length > 0) {
     parts.push(`<div style="font-size:10px;color:#64748b;border-top:1px solid #334155;padding-top:3px;margin-top:2px;">${lines.join(' · ')}</div>`);
+  }
+
+  // [v16.9.6] Tier upgrade note — show what T2/T3 gets you vs T1
+  if (tier > 1 && profile.limits) {
+    const t1Lim = profile.limits[1];
+    if (t1Lim) {
+      const upgrades = [];
+      if (t1Lim.T_HH != null && lim?.T_HH != null && lim.T_HH > t1Lim.T_HH)
+        upgrades.push(`T max ${us.temperature.from(t1Lim.T_HH).toFixed(0)}→${us.temperature.from(lim.T_HH).toFixed(0)}${us.temperature.symbol}`);
+      if (t1Lim.P_HH != null && lim?.P_HH != null && lim.P_HH > t1Lim.P_HH)
+        upgrades.push(`P max ${us.pressure.from(t1Lim.P_HH).toFixed(0)}→${us.pressure.from(lim.P_HH).toFixed(0)}${us.pressure.symbol}`);
+      if (t1Lim.mass_HH != null && lim?.mass_HH != null && lim.mass_HH > t1Lim.mass_HH)
+        upgrades.push(`flow ×${(lim.mass_HH / t1Lim.mass_HH).toFixed(1)}`);
+      if (upgrades.length > 0) {
+        parts.push(`<div style="font-size:10px;color:#60a5fa;margin-top:2px;">⬆ T${tier} upgrade: ${upgrades.join(', ')}</div>`);
+      }
+    }
   }
 
   return parts.length > 1 ? parts.join('') : (parts[0] || '');
@@ -35629,10 +35714,30 @@ svg.addEventListener('pointerdown', (ev) => {
   
   if (!existing) {
     if (ui.pendingFrom) {
+      // [v16.9.6] Click on empty canvas during connection mode:
+      // - Reconnecting an existing pipe → delete it
+      // - Drawing a new pipe → cancel
+      if (ui.reconnecting) {
+        _pushUndo('Delete connection');
+        const oldIdx = scene.connections.findIndex(c => c.id === ui.reconnecting.connId);
+        if (oldIdx >= 0) {
+          // [v16.9.6] Clean up fan-out openings (mirrors deleteSelected)
+          const oldConn = scene.connections[oldIdx];
+          const srcU = scene.units.get(oldConn.from.unitId);
+          if (srcU?.params?.openings?.[oldConn.id] !== undefined) {
+            delete srcU.params.openings[oldConn.id];
+            if (Object.keys(srcU.params.openings).length === 0) delete srcU.params.openings;
+          }
+          scene.connections.splice(oldIdx, 1);
+        }
+        autoPauseOnTopologyChange();
+      }
       ui.pendingFrom = null;
       ui.reconnecting = null;
+      ui._pendingStartClient = null;
       
       render();
+      updatePropertiesPanel();
       return;
     }
 
@@ -35746,7 +35851,7 @@ svg.addEventListener('pointermove', (ev) => {
   if (ui.pendingFrom) render();
 });
 
-svg.addEventListener('pointerup', () => {
+svg.addEventListener('pointerup', (ev) => {
   ui.isPanning = false;
   ui.panStart = null;
 
@@ -35791,6 +35896,44 @@ svg.addEventListener('pointerup', () => {
     
     updatePropertiesPanel();
     render();
+  }
+
+  // [v16.9.6] Drag-release on canvas: cancel new wire, delete reconnected wire
+  // Only fires if pointer moved significantly (> 10px screen distance) — avoids
+  // interfering with click-to-start behavior where pointerup fires immediately.
+  if (ui.pendingFrom && ui._pendingStartClient) {
+    const sc = ui._pendingStartClient;
+    const dist = Math.hypot(ev.clientX - sc.x, ev.clientY - sc.y);
+    if (dist > 10) {
+      // Pointer was dragged — treat release-on-canvas as cancel/delete
+      const mw = ui._mouseWorld;
+      if (mw) {
+        const cell = worldToCell(mw.x, mw.y);
+        const existing = scene.unitAt(cell.x, cell.y);
+        if (!existing) {
+          if (ui.reconnecting) {
+            _pushUndo('Delete connection');
+            const oldIdx = scene.connections.findIndex(c => c.id === ui.reconnecting.connId);
+            if (oldIdx >= 0) {
+              // [v16.9.6] Clean up fan-out openings (mirrors deleteSelected)
+              const oldConn = scene.connections[oldIdx];
+              const srcU = scene.units.get(oldConn.from.unitId);
+              if (srcU?.params?.openings?.[oldConn.id] !== undefined) {
+                delete srcU.params.openings[oldConn.id];
+                if (Object.keys(srcU.params.openings).length === 0) delete srcU.params.openings;
+              }
+              scene.connections.splice(oldIdx, 1);
+            }
+            autoPauseOnTopologyChange();
+          }
+          ui.pendingFrom = null;
+          ui.reconnecting = null;
+          ui._pendingStartClient = null;
+          render();
+          updatePropertiesPanel();
+        }
+      }
+    }
   }
 
   // [v12.10.0] Rubber-band selection finalization
@@ -36153,6 +36296,8 @@ function updateSurvivalStrip() {
     `<span class="cb-name">${em} ${atm.presetName}</span>` +
     `<span class="cb-val ss-temp">${fmt.T(atm.T_K)}</span>` +
     `<span class="cb-val ss-pressure">${fmt.P(atm.P_Pa)}</span>` +
+    `<span class="cb-val" style="color:#fbbf24">☀ ${(SimSettings.getSolarFactor() * 100).toFixed(0)}%</span>` +
+    `<span class="cb-val" style="color:#93c5fd">💨 ${SimSettings.getWindSpeed().toFixed(1)} m/s</span>` +
     compParts.join('');
 
   // [v14.10.0] Populate expanded atmosphere row (full composition, all species)
