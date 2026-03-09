@@ -540,7 +540,7 @@
   NNGs: NNG-14 (changelog).
   Tests: 607 total, 3143 checks, 0 failures.
 
-  ─── v16.9.3 — Remove checkOverload (redundant with demand-driven dispatch) ─
+  ─── v16.9.3 — Remove checkOverload + hydrovent inspector ─────────────────
 
   **checkOverload function deleted.**  The per-consumer overload check was
   redundant with the demand-driven allocation system:
@@ -556,10 +556,27 @@
     reactor_electrochemical), making it inconsistent as a safety net.
 
   Removed: `checkOverload()` function, calls in air_cooler and
-  electrochemicalTick, PG.checkOverload export, threshold tier test.
-  Tests: 607 → 606 (1 test removed), remaining checks adjusted.
+  electrochemicalTick, `olResult` reference in air_cooler error
+  propagation, PG.checkOverload export, threshold tier test.
+  Tests: 607 → 606 (1 test removed).
 
-  NNGs: NNG-5 (power lifecycle simplification), NNG-14 (changelog).
+  **Profile-first inspector dispatch.**  Both dispatch points
+  (`_evaluateStickerItems` and main inspector) now resolve
+  `UnitInspector[u.profileId] || UnitInspector[u.defId]`, mirroring
+  the ragtag icon pattern (line 29429).  A profile inspector is a
+  complete config object — no inheritance from defId.  Falls back to
+  defId if no profile-specific inspector exists.  Enables profiles to
+  constrain which parameters are editable without paramLocks overhead.
+
+  **Hydrovent inspector** (`UnitInspector.hydrovent`).  Shows geology
+  (T, P, composition) as read-only info using `insBox`/`insKV` helpers
+  (NNG-13 styling compliance).  Valve opening is the only editable
+  control, rendered as slider (0–100%, step 5).  `conditions()` and
+  `kpis()` mirror reservoir (identical solver output).  Species names
+  XSS-escaped via `esc()` (NNG-15).
+
+  NNGs: NNG-5 (power lifecycle), NNG-13 (inspector), NNG-15 (XSS),
+  NNG-14 (changelog).
 
   ─── v16.9.2 — Hub first-iteration overload fix + S-HYDROVENT ─────────────
 
@@ -32248,7 +32265,7 @@ function _evaluateStickerItems(u) {
   if (!u.sticker?.items?.length) return [];
   const def = UnitRegistry.get(u.defId);
   const ud = scene.runtime.unitData.get(u.id);
-  const cfg = UnitInspector[u.defId];
+  const cfg = UnitInspector[u.profileId] || UnitInspector[u.defId];
   if (!ud) return u.sticker.items.map(it => ({ ...it, value: '—' }));
 
   // Collect all available badges by section
@@ -32539,6 +32556,50 @@ UnitInspector.reservoir = {
       () => u.params.Cv ?? 50, v => u.params.Cv = v, 1, 0);
     addNumberEditor(container, 'Opening (%)',
       () => u.params.opening_pct ?? 100, v => u.params.opening_pct = v, 5, 0);
+  },
+  conditions(u, ud) {
+    if (!ud?.last) return [];
+    return [
+      { label: 'T', value: fmt.T(ud.last.T_K) },
+      { label: 'P', value: fmt.P(ud.last.P_bar * 1e5) },
+      { label: 'Phase', value: ud.last.phase || '—' },
+    ];
+  },
+  kpis(u, ud) {
+    if (!ud?.last) return [];
+    return [
+      { label: 'Flow', value: `${(ud.last.Q_mol_s||0).toFixed(3)}<span class="propUnit">mol/s</span>` },
+      { label: 'ΔP', value: `${(ud.last.dP_bar||0).toFixed(2)}<span class="propUnit">bar</span>` },
+    ];
+  }
+};
+
+// [v16.9.3] Hydrovent inspector — profile-specific for 'hydrovent' (defId=reservoir).
+// Geology (T, P, composition) shown as read-only info. Only valve opening is editable.
+// Same conditions/kpis interface as reservoir — solver output is identical.
+UnitInspector.hydrovent = {
+  customParams(container, u) {
+    const T = u.params.T ?? 450;
+    const P_bar = u.params.P_bar ?? 15;
+    const comp = u.params.composition || {};
+
+    // Geology info block (read-only) — uses ins-box/ins-kv system (NNG-13)
+    const geoGrid = insBox(container, 'Vent geology');
+    insKV(geoGrid, 'Temperature', fmt.T(T));
+    insKV(geoGrid, 'Pressure', fmt.P(P_bar * 1e5));
+    const compEntries = Object.entries(comp).filter(([, f]) => f > 0);
+    if (compEntries.length > 0) {
+      insKV(geoGrid, 'Mix',
+        compEntries.map(([sp, f]) => `${esc(sp)} ${(f * 100).toFixed(0)}%`).join(' · '),
+        { full: true });
+    }
+    container.appendChild(el('div', { class: 'ins-hint', html: 'Fixed by geology — control the valve below' }));
+
+    // Valve opening — the only player control
+    addSliderEditor(container, 'Valve opening [%]',
+      () => u.params.opening_pct ?? 50,
+      v => u.params.opening_pct = v,
+      0, 100, 5);
   },
   conditions(u, ud) {
     if (!ud?.last) return [];
@@ -34151,7 +34212,10 @@ function _rebuildInspectorContent() {
     if (!u) { ui.selectedUnitId = null; return updatePropertiesPanel(); }
     const def = UnitRegistry.get(u.defId);
     const ud = scene.runtime.unitData.get(u.id);
-    const config = UnitInspector[u.defId];
+    // [v16.9.3] Profile-first inspector dispatch — mirrors ragtag icon pattern.
+    // A profile inspector is a complete config object (no inheritance from defId).
+    // Falls back to defId if no profile-specific inspector exists.
+    const config = UnitInspector[u.profileId] || UnitInspector[u.defId];
     
     // ── Header: Name + Delete ──
     const headerDiv = el('div', { class: 'unitHeader' });
