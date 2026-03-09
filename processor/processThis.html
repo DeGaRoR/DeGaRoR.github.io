@@ -540,6 +540,81 @@
   NNGs: NNG-14 (changelog).
   Tests: 607 total, 3143 checks, 0 failures.
 
+  ─── v16.9.9 — S-PARTICLES Phase 1: Viewports + engine core ──────────────
+
+  **Phase 1A: Reactor viewport enlargement.**  All 4 reactor types
+  (adiabatic, jacketed, cooled, combustion) share `_rtReactorVessel`:
+  viewport enlarged from r=16 to r=26, center shifted to (48,38).
+  6 hardcoded SVG bubble elements retired — canvas particles replace
+  them.  Bolts pushed to frame corners (16,8)/(80,8)/(16,68)/(80,68).
+  Chips and LED repositioned for larger window.  Inner glow overlay
+  via `vp-depth` gradient.
+
+  **Phase 1B: Flash drum + HEX + air cooler viewports.**
+  - Flash drum: sight glass enlarged from 12×~52px to 28×56px rect.
+    Tick marks moved inside viewport right edge.  SVG vapor bubble
+    hints retired.  Inner glow overlay added.
+  - HEX: circle r=18 replaced with rect 52×50 at (22,23).  Horizontal
+    divider line separates hot (top) and cold (bottom) halves.  Subtle
+    S-curve flow hints replace animated dash paths.
+  - Air cooler: fan housing enlarged r=18→22, viewport r=12→16.  Fan
+    blades extended to r=14.  Inner glow overlay added.
+  Viewport registry (_UNIT_VIEWPORT) updated for all enlarged units.
+
+  **Phase 1C: Unified particle engine.**
+  - `_PARTICLE_BEHAVIORS` registry: global tuning constants (density
+    spacing, speed, gap, phase appearance, jitter) + per-unit configs
+    for 30 defIds.  Types: transit, dual-transit, split, merge, source,
+    sink.  Transform modes: morph, split, absorb.
+  - `_bodyParticleState` Map: per-unit particle state for viewport
+    transit animations.  Particles traverse entry→exit linearly inside
+    viewport, species-colored from inlet stream `_anim.speciesFracs`.
+  - `_rebuildBodyParticles()`: populates state from solver data.
+    Reads first material inlet port per unit.  Respects viewport
+    geometry and `dwellFactor` config.
+  - `_advanceBodyParticles()`: advances particle `t` parameter
+    scaled by viewport dimension / speed / dwellFactor.
+  - Canvas viewport clipping: `ctx.save/clip/restore` per unit.
+    Circle viewports use `ctx.arc` clip, rect viewports use `ctx.rect`.
+  - Gas particles: radial gradient (soft glow, clipped to viewport).
+    Liquid particles: flat fill (sharp, 0.9 opacity).
+  - Brownian lateral jitter clamped to viewport radius.
+
+  NNGs: NNG-11 (renderer reads state), NNG-14 (changelog), NNG-16
+  (parameterized configs, sight-glass clipping).
+
+  ─── v16.9.8 — S-PARTICLES Phase 0: Canvas overlay + pipe windows + depth ─
+
+  **Phase 0A: Canvas particle layer.**  New `<canvas id="particleCanvas">`
+  overlays SVG flowsheet.  All particles (flow + smoke) now render to
+  Canvas 2D context.  `_rebuildFlowParticles()`, `_rebuildSmokePuffs()`,
+  `_advanceFlowParticles()`, `_advanceSmokePuffs()` all become state-only
+  (no SVG DOM).  New `_drawParticleCanvas()` draws everything each frame.
+  Gas particles: per-particle radial gradient (soft glow edge).
+  Liquid particles: flat fill at 0.9 opacity.
+  Smoke: gradient ellipses with 3-stop falloff (replaces SVG filters).
+  Headless guard for test environment (no real canvas context).
+
+  **Phase 0B: Pipe windows.**  Ragtag material connections now have 3
+  strokes: outer wall (10px, #374151), inner bore (6px, #4b5563),
+  sight window (5px, #0f172a, 10–90% of path).  Window sub-path via
+  new `_bzSplit(bz, t0, t1)` de Casteljau extraction.  Canvas flow
+  particles clipped to window range (t < 0.1 or t > 0.9 → not drawn
+  in ragtag theme).  `_bzPathD(bz)` helper for SVG path strings.
+  Window bounds stored as `cp._window` for future canvas clip paths.
+
+  **Phase 0C: Unit depth + viewport infrastructure.**
+  - Shadow plates: dark rect behind every ragtag unit body, offset
+    (3,3)px, from `_BODY_BBOX`.  First child of unit group.
+  - `_UNIT_VIEWPORT` registry: viewport geometry (circle or rect) per
+    defId in local coords.  16 units with viewports defined.  null =
+    opaque (valve, splitter, tanks, battery, power).
+  - `_getUnitViewport(unitId)`: returns world-coord viewport or null.
+  - `vp-depth` SVG radialGradient: inner glow for viewport panels
+    (dark edges, transparent center).
+
+  NNGs: NNG-11 (renderer reads state, no thermo), NNG-14 (changelog).
+
   ─── v16.9.7 — S-VOICE: Tooltip fix + L3/L4/L5 in profiles + inspector ────
 
   **ProfileRegistry freeze bug fixed.**  `description` and `selectionGuide`
@@ -4254,7 +4329,9 @@
       cursor: not-allowed;
     }
     /* View area containers */
-    .view-flowsheet { display: block; width: 100%; height: 100%; }
+    .view-flowsheet { display: block; width: 100%; height: 100%; position: relative; }
+    /* [v16.9.8 S-PARTICLES Phase 0A] Canvas particle overlay */
+    #particleCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
     .view-3d {
       display: none;
       width: 100%; height: 100%;
@@ -8925,6 +9002,13 @@
           </feComponentTransfer>
         </filter>
 
+        <!-- [v16.9.8 S-PARTICLES Phase 0C] Viewport inner glow (depth cue) -->
+        <radialGradient id="vp-depth">
+          <stop offset="0%" stop-color="#0f172a" stop-opacity="0"/>
+          <stop offset="80%" stop-color="#000" stop-opacity="0.15"/>
+          <stop offset="100%" stop-color="#000" stop-opacity="0.3"/>
+        </radialGradient>
+
         <!-- [v10.1.0] Flow direction markers (E3) — one per stream type -->
         <marker id="flow-material" viewBox="0 0 8 6" refX="4" refY="3"
                 markerWidth="8" markerHeight="6" orient="auto">
@@ -9252,6 +9336,7 @@
 
       </defs>
     </svg>
+    <canvas id="particleCanvas"></canvas>
     </div><!-- /view-flowsheet -->
     <div class="view-3d" id="view3D"></div>
   </div>
@@ -25500,6 +25585,9 @@ const ui = {
    DOM REFERENCES
    ========================= */
 const svg = document.getElementById('svg');
+// [v16.9.8 S-PARTICLES Phase 0A] Canvas overlay for particles + smoke
+const _particleCanvas = document.getElementById('particleCanvas');
+const _particleCtx = _particleCanvas ? _particleCanvas.getContext('2d') : null;
 const ioEl = document.getElementById('io');
 const propEditor = document.getElementById('propEditor');
 const btnStep   = document.getElementById('btnStep');
@@ -27163,19 +27251,33 @@ function drawConnections() {
           'pointer-events': 'none'
         }));
       } else {
-        // Material: straight dual-stroke pipe
+        // Material: dual-stroke pipe with sight window
         const _matInner = _gradientMode ? mappedColor : '#4b5563';
         const _matOuter = _gradientMode ? _darken(mappedColor, 0.4) : '#374151';
+        // Outer wall
         g.appendChild(svgEl('path', {
           d: pathD, fill: 'none',
           stroke: _selCol || _matOuter, 'stroke-width': 10,
           'stroke-linecap': 'round', 'pointer-events': 'none'
         }));
+        // Inner bore
         g.appendChild(svgEl('path', {
           d: pathD, fill: 'none',
           stroke: _selCol || _matInner, 'stroke-width': 6,
           'stroke-linecap': 'round', 'pointer-events': 'none'
         }));
+        // [v16.9.8 S-PARTICLES Phase 0B] Pipe window: 10-90% sub-path, dark bore visible
+        const cp = drawConnections._paths.get(c.id);
+        if (cp && !isSelected) {
+          const winBz = _bzSplit(cp, 0.1, 0.9);
+          g.appendChild(svgEl('path', {
+            d: _bzPathD(winBz), fill: 'none',
+            stroke: '#0f172a', 'stroke-width': 5,
+            'stroke-linecap': 'round', 'pointer-events': 'none'
+          }));
+          // Store window bounds for canvas particle clipping
+          cp._window = winBz;
+        }
       }
     }
 
@@ -27558,7 +27660,7 @@ const _BODY_BBOX = {
   compressor_diaphragm:     { x:14, y:8,  w:68, h:64 },
   gas_turbine:              { x:14, y:16, w:68, h:52 },
   electric_heater:          { x:14, y:8,  w:68, h:52 },
-  air_cooler:               { x:12, y:20, w:72, h:38 },
+  air_cooler:               { x:12, y:2,  w:72, h:74 },
   hex:                      { x:14, y:6,  w:68, h:84 },
   grid_supply:              { x:8,  y:14, w:80, h:40 },
   solar_panel:              { x:8,  y:14, w:80, h:68 },
@@ -27579,6 +27681,42 @@ const _BODY_BBOX = {
   membrane_separator:       { x:10, y:6,  w:76, h:84 },
   combustion_chamber:       { x:10, y:8,  w:76, h:66 },
 };
+
+// [v16.9.8 S-PARTICLES Phase 0C] Unit viewport geometry for particle clipping
+// Returns { type: 'circle'|'rect', ... } in local coords (add wx, wy to get world).
+// null = opaque unit (no viewport).
+const _UNIT_VIEWPORT = {
+  reactor_adiabatic:        { type: 'circle', cx: 48, cy: 38, r: 26 },
+  reactor_jacketed:         { type: 'circle', cx: 48, cy: 38, r: 26 },
+  reactor_cooled:           { type: 'circle', cx: 48, cy: 38, r: 26 },
+  combustion_chamber:       { type: 'circle', cx: 48, cy: 38, r: 26 },
+  reactor_electrochemical:  { type: 'rect', x: 18, y: 14, w: 60, h: 68 },
+  fuel_cell:                { type: 'rect', x: 22, y: 20, w: 52, h: 40 },
+  compressor:               { type: 'rect', x: 28, y: 32, w: 36, h: 32 },
+  compressor_diaphragm:     { type: 'rect', x: 28, y: 24, w: 36, h: 40 },
+  gas_turbine:              { type: 'rect', x: 24, y: 30, w: 48, h: 36 },
+  flash_drum:               { type: 'rect', x: 30, y: 20, w: 28, h: 56 },
+  hex:                      { type: 'rect', x: 22, y: 23, w: 52, h: 50 },
+  air_cooler:               { type: 'circle', cx: 48, cy: 24, r: 16 },  // fan center varies by layout
+  mixer:                    { type: 'rect', x: 20, y: 38, w: 44, h: 20 },
+  pump:                     { type: 'circle', cx: 48, cy: 39, r: 20 },
+  fan:                      { type: 'circle', cx: 48, cy: 48, r: 18 },
+  electric_heater:          { type: 'rect', x: 24, y: 20, w: 48, h: 32 },
+  // Opaque (null): valve, restriction, splitter, tank, open_tank, battery, all power/boundary
+};
+
+// [v16.9.8] Get unit viewport in world coords, or null.
+function _getUnitViewport(unitId) {
+  const u = scene.units.get(unitId);
+  if (!u) return null;
+  const vp = _UNIT_VIEWPORT[u.defId];
+  if (!vp) return null;
+  const wx = u.x * scene.tile;
+  const wy = u.y * scene.tile;
+  if (vp.type === 'circle') return { type: 'circle', cx: wx + vp.cx, cy: wy + vp.cy, r: vp.r };
+  return { type: 'rect', x: wx + vp.x, y: wy + vp.y, w: vp.w, h: vp.h };
+}
+
 // Tier nameplate colors
 const _TIER_COLORS = { 1:'#4b5563', 2:'#2563eb', 3:'#9333ea' };
 // Status LED: color + speed from alarm severity
@@ -27717,26 +27855,21 @@ function _rtCoolCoilExact(g, wx, wy) {
 function _rtReactorVessel(g, wx, wy, pal, unitId) {
   // Body: rect 72×68 rx:14 at (12,4)
   g.appendChild(svgEl('rect', { x:wx+12, y:wy+4, width:72, height:68, rx:14, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'pointer-events':'none' }));
-  // Circular viewport cx:48 cy:36 r:16
-  _rtVp(g, wx+48, wy+36, 16, pal.rim);
-  // Chips
-  _rtChip(g, wx+64, wy+12); _rtChip(g, wx+16, wy+56, 7, 4);
-  // Pressure gauge
-  g.appendChild(svgEl('circle', { cx:wx+74, cy:wy+18, r:5, fill:'#1f2937', stroke:'#4b5563', 'stroke-width':1.5, 'pointer-events':'none' }));
-  g.appendChild(svgEl('line', { x1:wx+74, y1:wy+18, x2:wx+74, y2:wy+14, stroke:'#ef4444', 'stroke-width':1.5, 'stroke-linecap':'round', 'pointer-events':'none' }));
+  // [v16.9.9 S-PARTICLES Phase 1A] Enlarged circular viewport cx:48 cy:38 r:26
+  _rtVp(g, wx+48, wy+38, 26, pal.rim);
+  // Viewport inner glow overlay
+  g.appendChild(svgEl('circle', { cx:wx+48, cy:wy+38, r:25, fill:'url(#vp-depth)', 'pointer-events':'none' }));
+  // Chips — moved to frame area
+  _rtChip(g, wx+18, wy+10); _rtChip(g, wx+16, wy+60, 7, 4);
+  // Pressure gauge — stays top-right frame
+  g.appendChild(svgEl('circle', { cx:wx+76, cy:wy+14, r:5, fill:'#1f2937', stroke:'#4b5563', 'stroke-width':1.5, 'pointer-events':'none' }));
+  g.appendChild(svgEl('line', { x1:wx+76, y1:wy+14, x2:wx+76, y2:wy+10, stroke:'#ef4444', 'stroke-width':1.5, 'stroke-linecap':'round', 'pointer-events':'none' }));
   // LED
-  g.appendChild(svgEl('circle', { cx:wx+28, cy:wy+16, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.3', 'pointer-events':'none' }));
-  // 6 bubbles clipped to viewport (exact BUB array from sheet)
-  const bg = _rtVpClipGroup(g, wx+48, wy+36, 16, unitId, pal.rim);
-  bg.appendChild(svgEl('circle', { cx:wx+38, cy:wy+50, r:4.5, fill:'#fbbf24', 'data-anim':'reactor-bubble', 'data-ytop':wy+20, 'data-ybot':wy+50, 'data-phase':'0', 'data-speed':'0.5', 'pointer-events':'none' }));
-  bg.appendChild(svgEl('circle', { cx:wx+54, cy:wy+50, r:3.5, fill:'#fbbf24', 'data-anim':'reactor-bubble', 'data-ytop':wy+20, 'data-ybot':wy+50, 'data-phase':'0.25', 'data-speed':'0.55', 'pointer-events':'none' }));
-  bg.appendChild(svgEl('circle', { cx:wx+44, cy:wy+50, r:4, fill:'#f97316', 'data-anim':'reactor-bubble', 'data-ytop':wy+20, 'data-ybot':wy+50, 'data-phase':'0.5', 'data-speed':'0.6', 'pointer-events':'none' }));
-  bg.appendChild(svgEl('circle', { cx:wx+58, cy:wy+50, r:3, fill:'#f97316', 'data-anim':'reactor-bubble', 'data-ytop':wy+20, 'data-ybot':wy+50, 'data-phase':'0.7', 'data-speed':'0.55', 'pointer-events':'none' }));
-  bg.appendChild(svgEl('circle', { cx:wx+50, cy:wy+50, r:3.5, fill:'#fbbf24', 'data-anim':'reactor-bubble', 'data-ytop':wy+20, 'data-ybot':wy+50, 'data-phase':'0.35', 'data-speed':'0.57', 'pointer-events':'none' }));
-  bg.appendChild(svgEl('circle', { cx:wx+40, cy:wy+50, r:2.5, fill:'#f97316', 'data-anim':'reactor-bubble', 'data-ytop':wy+20, 'data-ybot':wy+50, 'data-phase':'0.85', 'data-speed':'0.6', 'pointer-events':'none' }));
-  // 4 bolts
-  _rtBolt(g, wx+18, wy+12); _rtBolt(g, wx+78, wy+12);
-  _rtBolt(g, wx+18, wy+66); _rtBolt(g, wx+78, wy+66);
+  g.appendChild(svgEl('circle', { cx:wx+22, cy:wy+14, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.3', 'pointer-events':'none' }));
+  // [v16.9.9] SVG bubbles retired — canvas particles replace them via _UNIT_VIEWPORT
+  // 4 bolts — pushed to frame corners
+  _rtBolt(g, wx+16, wy+8); _rtBolt(g, wx+80, wy+8);
+  _rtBolt(g, wx+16, wy+68); _rtBolt(g, wx+80, wy+68);
   // Warning stripes
   [12,20,28,36].forEach(x => g.appendChild(svgEl('line', { x1:wx+x, y1:wy+62, x2:wx+x+6, y2:wy+68, stroke:'#fbbf24', 'stroke-width':1.5, opacity:0.12, 'pointer-events':'none' })));
 }
@@ -28442,9 +28575,11 @@ const _RAGTAG_SYMBOLS = {
     // 4. Bolts
     _rtBolt(g, bx + 6, by + 10); _rtBolt(g, bx + bw - 6, by + 10);
     _rtBolt(g, bx + 6, by + bh - 10); _rtBolt(g, bx + bw - 6, by + bh - 10);
-    // 5. Sight glass — wider and more prominent than tank
-    const sgx = bcx - 2, sgw = 12, sgy = by + 14, sgh = bh - 28;
-    g.appendChild(svgEl('rect', { x:sgx, y:sgy, width:sgw, height:sgh, rx:5, fill:'#0a1515', stroke:pal.stroke, 'stroke-width':1.5, 'pointer-events':'none' }));
+    // 5. Viewport — enlarged sight glass window for particle visualization
+    const sgx = bcx - 14, sgw = 28, sgy = by + 12, sgh = bh - 24;
+    g.appendChild(svgEl('rect', { x:sgx, y:sgy, width:sgw, height:sgh, rx:6, fill:'#0a1515', stroke:pal.stroke, 'stroke-width':1.5, 'pointer-events':'none' }));
+    // Inner glow
+    g.appendChild(svgEl('rect', { x:sgx+1, y:sgy+1, width:sgw-2, height:sgh-2, rx:5, fill:'url(#vp-depth)', 'pointer-events':'none' }));
     // Data-driven liquid level
     let fillFrac = 0.5;
     const _ud = scene.runtime?.unitData?.get(unitId);
@@ -28455,23 +28590,17 @@ const _RAGTAG_SYMBOLS = {
     const fillTop = sgy + sgh * (1 - fillFrac);
     const fillH = sgy + sgh - fillTop;
     if (fillH > 0) {
-      g.appendChild(svgEl('rect', { x:sgx+2, y:fillTop, width:sgw-4, height:fillH, rx:3, fill:'#2dd4bf', opacity:0.35, 'data-anim':'level-shimmer', 'data-ybase':fillTop, 'pointer-events':'none' }));
+      g.appendChild(svgEl('rect', { x:sgx+2, y:fillTop, width:sgw-4, height:fillH, rx:4, fill:'#2dd4bf', opacity:0.2, 'data-anim':'level-shimmer', 'data-ybase':fillTop, 'pointer-events':'none' }));
     }
-    // 6. Graduated tick marks — alternating major/minor, prominent
+    // 6. Graduated tick marks — inside viewport right edge
     const tickCount = 7;
     for (let i = 0; i < tickCount; i++) {
-      const ty = sgy + 6 + i * (sgh - 12) / (tickCount - 1);
+      const ty = sgy + 4 + i * (sgh - 8) / (tickCount - 1);
       const isMajor = i % 2 === 0;
-      g.appendChild(svgEl('line', { x1:sgx + sgw + 2, y1:ty, x2:sgx + sgw + (isMajor ? 7 : 4), y2:ty,
-        stroke:pal.stroke, 'stroke-width':isMajor ? 1.2 : 0.8, opacity:isMajor ? 0.5 : 0.3, 'pointer-events':'none' }));
+      g.appendChild(svgEl('line', { x1:sgx + sgw - (isMajor ? 7 : 4), y1:ty, x2:sgx + sgw - 2, y2:ty,
+        stroke:pal.stroke, 'stroke-width':isMajor ? 1 : 0.7, opacity:isMajor ? 0.35 : 0.2, 'pointer-events':'none' }));
     }
-    // 7. Vapor bubble hints in upper region of sight glass
-    const sgcx = sgx + sgw / 2;
-    [0, 0.35, 0.7].forEach(ph => {
-      g.appendChild(svgEl('circle', { cx:sgcx, cy:sgy + sgh * 0.2, r:1.5, fill:'#5eead4',
-        'data-anim':'reactor-bubble', 'data-ytop':sgy+4, 'data-ybot':fillTop > sgy + 8 ? fillTop - 4 : sgy + sgh * 0.4,
-        'data-phase':ph.toFixed(1), 'data-speed':'0.7', 'pointer-events':'none' }));
-    });
+    // [v16.9.9] SVG vapor bubbles retired — canvas particles replace them
     _rtChip(g, bx + bw - 12, by + 8, 7, 3);
     g.appendChild(svgEl('circle', { cx:bx + 8, cy:by + bh * 0.3, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.7', 'pointer-events':'none' }));
   },
@@ -29040,12 +29169,14 @@ const _RAGTAG_SYMBOLS = {
       }
     }
     // Fan housing (in front, overlapping radiator)
-    g.appendChild(svgEl('circle', { cx:fcx, cy:fcy, r:18, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'pointer-events':'none' }));
-    _rtVp(g, fcx, fcy, 12, pal.rim);
-    // 5-blade fan (animated)
+    g.appendChild(svgEl('circle', { cx:fcx, cy:fcy, r:22, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'pointer-events':'none' }));
+    // [v16.9.9 S-PARTICLES Phase 1B] Enlarged viewport r=16
+    _rtVp(g, fcx, fcy, 16, pal.rim);
+    g.appendChild(svgEl('circle', { cx:fcx, cy:fcy, r:15, fill:'url(#vp-depth)', 'pointer-events':'none' }));
+    // 5-blade fan (animated) — extended to r=14
     const fanG = svgEl('g', { 'data-anim':'pump-impeller', 'data-cx':fcx, 'data-cy':fcy, 'pointer-events':'none' });
     const fc = _lighten(pal.stroke, 0.6);
-    [0,72,144,216,288].forEach(a => { const r = a * Math.PI / 180; fanG.appendChild(svgEl('line', { x1:fcx, y1:fcy, x2:fcx+Math.sin(r)*10, y2:fcy-Math.cos(r)*10, stroke:fc, 'stroke-width':3, opacity:0.5, 'stroke-linecap':'round' })); });
+    [0,72,144,216,288].forEach(a => { const r = a * Math.PI / 180; fanG.appendChild(svgEl('line', { x1:fcx, y1:fcy, x2:fcx+Math.sin(r)*14, y2:fcy-Math.cos(r)*14, stroke:fc, 'stroke-width':3, opacity:0.5, 'stroke-linecap':'round' })); });
     fanG.appendChild(svgEl('circle', { cx:fcx, cy:fcy, r:3, fill:'#60a5fa', opacity:0.5 }));
     g.appendChild(fanG);
     // Heat shimmer — 5 short vertical wavy lines rising from radiator
@@ -29080,17 +29211,16 @@ const _RAGTAG_SYMBOLS = {
     const pres = getPresentation(def, scene.units.get(unitId));
     _rtNozzle(g, wx, wy, ww, wh, wx+8, wy+18, 80, 60, def, pres, pal, unitId);
     g.appendChild(svgEl('ellipse', { cx:wx+48, cy:wy+48, rx:40, ry:30, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'pointer-events':'none' }));
-    _rtVp(g, wx+48, wy+48, 18, pal.rim);
-    // Hot stream — horizontal S-curve with flowing dashes
-    g.appendChild(svgEl('path', { d:`M${wx+30},${wy+48} C${wx+36},${wy+40} ${wx+42},${wy+56} ${wx+48},${wy+48} C${wx+54},${wy+40} ${wx+60},${wy+56} ${wx+66},${wy+48}`, fill:'none', stroke:'#fca5a5', 'stroke-width':2, 'stroke-linecap':'round', 'stroke-dasharray':'6 4',
-      'data-anim':'flow-dash', 'data-speed':'15', 'data-dir':'1',
-      'data-anim2':'rotor-pulse', 'data-opbase':'0.35', 'data-amp2':'0.15', 'data-speed2':'0.4', 'data-phase2':'0',
-      'pointer-events':'none' }));
-    // Cold stream — vertical S-curve with flowing dashes, opposite direction
-    g.appendChild(svgEl('path', { d:`M${wx+48},${wy+30} C${wx+40},${wy+36} ${wx+56},${wy+42} ${wx+48},${wy+48} C${wx+40},${wy+54} ${wx+56},${wy+60} ${wx+48},${wy+66}`, fill:'none', stroke:'#93c5fd', 'stroke-width':1.5, 'stroke-linecap':'round', 'stroke-dasharray':'6 4',
-      'data-anim':'flow-dash', 'data-speed':'15', 'data-dir':'-1',
-      'data-anim2':'rotor-pulse', 'data-opbase':'0.3', 'data-amp2':'0.15', 'data-speed2':'0.4', 'data-phase2':'0.5',
-      'pointer-events':'none' }));
+    // [v16.9.9 S-PARTICLES Phase 1B] Enlarged rectangular viewport 52×50
+    _rtVpR(g, wx+22, wy+23, 52, 50, '#0f0820', pal.rim);
+    // Inner glow
+    g.appendChild(svgEl('rect', { x:wx+23, y:wy+24, width:50, height:48, rx:4, fill:'url(#vp-depth)', 'pointer-events':'none' }));
+    // Horizontal divider — hot (top) / cold (bottom)
+    g.appendChild(svgEl('line', { x1:wx+26, y1:wy+48, x2:wx+70, y2:wy+48, stroke:pal.stroke, 'stroke-width':1, opacity:0.4, 'stroke-dasharray':'3 2', 'pointer-events':'none' }));
+    // Hot stream label hint
+    g.appendChild(svgEl('path', { d:`M${wx+30},${wy+36} C${wx+38},${wy+30} ${wx+58},${wy+42} ${wx+66},${wy+36}`, fill:'none', stroke:'#fca5a5', 'stroke-width':1.5, 'stroke-linecap':'round', opacity:0.3, 'pointer-events':'none' }));
+    // Cold stream label hint
+    g.appendChild(svgEl('path', { d:`M${wx+30},${wy+60} C${wx+38},${wy+54} ${wx+58},${wy+66} ${wx+66},${wy+60}`, fill:'none', stroke:'#93c5fd', 'stroke-width':1.5, 'stroke-linecap':'round', opacity:0.3, 'pointer-events':'none' }));
     // 4 bolts at cardinal points
     _rtBolt(g, wx+14, wy+48); _rtBolt(g, wx+82, wy+48);
     _rtBolt(g, wx+48, wy+20); _rtBolt(g, wx+48, wy+76);
@@ -29800,6 +29930,17 @@ function drawUnits() {
         ? (_RAGTAG_SYMBOLS[u.profileId] || _RAGTAG_SYMBOLS[def.defId])
         : _ENGINEERING_SYMBOLS[def.defId];
       if (_symbolFn) {
+        // [v16.9.8 S-PARTICLES Phase 0C] Shadow plate — depth cue behind body
+        if (ui.theme === 'ragtag') {
+          const _bb = _BODY_BBOX[u.profileId] || _BODY_BBOX[def.defId];
+          if (_bb) {
+            group.insertBefore(svgEl('rect', {
+              x: wx + _bb.x + 3, y: wy + _bb.y + 3,
+              width: _bb.w, height: _bb.h, rx: 8,
+              fill: '#000', opacity: 0.18, 'pointer-events': 'none'
+            }), group.firstChild);
+          }
+        }
         _symbolFn(group, wx, wy, ww, wh, _pal, def, id);
         // Standardized instruments — helpers ready but disabled pending visual tuning
         if (ui.theme === 'ragtag') {
@@ -30714,6 +30855,12 @@ function render() {
 
   // [v17.0.2] Rebuild smoke puffs from JS state after SVG rebuild
   _rebuildSmokePuffs();
+
+  // [v16.9.9 S-PARTICLES Phase 1C] Rebuild body particles inside unit viewports
+  _rebuildBodyParticles();
+
+  // [v16.9.8 S-PARTICLES] One-shot canvas draw after state rebuild (handles paused state)
+  _drawParticleCanvas();
 }
 
 /* =========================
@@ -36818,6 +36965,36 @@ function _bzLen(p) {
   return len;
 }
 
+// [v16.9.8 S-PARTICLES Phase 0B] De Casteljau split — extract sub-Bézier t0→t1
+// Returns { fx, fy, c1x, c1y, c2x, c2y, tx, ty } for the sub-curve.
+function _bzSplit(p, t0, t1) {
+  // Split at t1 first (right portion discarded), then split remainder at t0/t1
+  function _splitAt(bz, t) {
+    // De Casteljau: left half of split
+    const { fx, fy, c1x, c1y, c2x, c2y, tx, ty } = bz;
+    const ax = fx + (c1x - fx) * t, ay = fy + (c1y - fy) * t;
+    const bx = c1x + (c2x - c1x) * t, by = c1y + (c2y - c1y) * t;
+    const cx = c2x + (tx - c2x) * t, cy = c2y + (ty - c2y) * t;
+    const dx = ax + (bx - ax) * t, dy = ay + (by - ay) * t;
+    const ex = bx + (cx - bx) * t, ey = by + (cy - by) * t;
+    const mx = dx + (ex - dx) * t, my = dy + (ey - dy) * t;
+    return {
+      left:  { fx, fy, c1x: ax, c1y: ay, c2x: dx, c2y: dy, tx: mx, ty: my },
+      right: { fx: mx, fy: my, c1x: ex, c1y: ey, c2x: cx, c2y: cy, tx, ty }
+    };
+  }
+  // Split at t1 → take left
+  const { left: first } = _splitAt(p, t1);
+  // Re-parametrize: t0 in original = t0/t1 in the left portion
+  const { right: sub } = _splitAt(first, t0 / t1);
+  return sub;
+}
+
+// [v16.9.8 S-PARTICLES Phase 0B] Build SVG path string from Bézier control points
+function _bzPathD(bz) {
+  return `M${bz.fx},${bz.fy} C${bz.c1x},${bz.c1y} ${bz.c2x},${bz.c2y} ${bz.tx},${bz.ty}`;
+}
+
 // ── Normalization constants ──
 const _FLOW_VDOT_REF = 0.025;  // m³/s — typical T1 gas at 1 mol/s, 1 atm, 300K
 const _FLOW_MAX_SPEED = 200;   // px/s — visual speed cap
@@ -36827,9 +37004,86 @@ const _FLOW_GAP_MAX = 28;      // px — atmospheric gas (ρ ≈ 1.2)
 const _FLOW_PARTICLE_R = 2;    // px radius
 const _FLOW_MAX_PER_CONN = 20; // particle cap per connection
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// [v16.9.9 S-PARTICLES Phase 1C] Unified particle behavior registry
+// Global constants + per-unit configs for body transit, transforms, etc.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const _PARTICLE_BEHAVIORS = {
+  // Density
+  DENSITY_SPACING: 12,  MAX_PER_SEGMENT: 20,
+
+  // Speed / gap
+  VDOT_REF: 0.025,  BASE_SPEED: 60,  MAX_SPEED: 200,
+  GAP_MIN: 6,  GAP_MAX: 28,
+
+  // Phase appearance
+  GAS_OPACITY: 0.55,  LIQ_OPACITY: 0.9,
+  GAS_GRADIENT_FALLOFF: 0.0,  LIQ_GRADIENT_FALLOFF: 0.7,
+
+  // Jitter
+  JITTER_BASE_GAS: 3,  JITTER_BASE_LIQ: 0.8,
+  JITTER_T_REF: 300,
+
+  // Per-unit configs (only type + key overrides)
+  units: {
+    // Transit (linear passthrough)
+    valve:          null,  // opaque — no body particles
+    restriction:    null,
+    pump:           { type:'transit', path:'swirl', dwellFactor:1.3, swirlTurns:0.75 },
+    fan:            { type:'transit', path:'swirl', dwellFactor:1.0, swirlTurns:0.5 },
+    compressor:     { type:'transit', path:'linear', dwellFactor:1.5 },
+    compressor_diaphragm: { type:'transit', path:'linear', dwellFactor:1.5 },
+    electric_heater:{ type:'transit', path:'linear', dwellFactor:1.0 },
+    air_cooler:     { type:'transit', path:'linear', dwellFactor:1.0 },
+    gas_turbine:    { type:'transit', path:'linear', dwellFactor:0.8 },
+
+    // HEX: dual transit
+    hex: { type:'dual-transit', dwellFactor:1.5 },
+
+    // Reactors: morph
+    reactor_adiabatic:       { type:'transit', path:'linear', transform:'morph', dwellFactor:2.0, morphZone:[0.2,0.8] },
+    reactor_jacketed:        { type:'transit', path:'linear', transform:'morph', dwellFactor:2.0, morphZone:[0.2,0.8] },
+    reactor_cooled:          { type:'transit', path:'linear', transform:'morph', dwellFactor:2.0, morphZone:[0.2,0.8] },
+    combustion_chamber:      { type:'transit', path:'linear', transform:'morph', dwellFactor:2.0, morphZone:[0.2,0.8] },
+    reactor_electrochemical: { type:'transit', path:'linear', transform:'morph', dwellFactor:2.5, morphZone:[0.3,0.7] },
+    fuel_cell:               { type:'transit', path:'linear', transform:'morph', dwellFactor:2.5, morphZone:[0.3,0.7] },
+
+    // Separation
+    flash_drum:         { type:'split', dwellFactor:2.0 },
+    distillation_column:{ type:'split', dwellFactor:3.0 },
+
+    // Mixer / splitter
+    mixer:    { type:'merge', dwellFactor:1.5 },
+    splitter: null,  // opaque
+
+    // Storage (deferred)
+    tank:      null,
+    open_tank: null,
+
+    // Sources (future Phase 4)
+    source:    { type:'source' },
+    source_atm:{ type:'source' },
+    atmosphere:{ type:'source' },
+    closed_loop_source: { type:'source' },
+    reservoir: { type:'source' },
+
+    // Sinks (future Phase 4)
+    sink: { type:'sink' },
+
+    // Electrical (no material particles)
+    grid_supply:null, solar_panel:null, wind_turbine:null,
+    battery:null, power_hub:null, power_dispatcher_5:null, sink_electrical:null,
+  }
+};
+
 // ── Persistent particle state ──
 // Map<connId, { particles: [{t, species, isLiq}...], pathLen, speed, gap }>
 const _flowState = new Map();
+
+// [v16.9.9 S-PARTICLES Phase 1C] Body particle state
+// Map<unitId, { particles: [{t, species, isLiq, jLat}...], speed, vp }>
+const _bodyParticleState = new Map();
 
 // ── Species color helper ──
 function _flowColor(species) {
@@ -36856,18 +37110,17 @@ function _sampleSpeciesAt(fracs, idx) {
 }
 
 function _rebuildFlowParticles() {
-  // Remove old particle group
-  const old = svg.querySelector('#flow-particles');
-  if (old) old.remove();
+  // [v16.9.8 S-PARTICLES] State-only — canvas draws from _flowState each frame.
+  // No SVG group creation. Called from render() to sync state with scene.
 
-  if (ui.flowMode !== 'particles' || !SimSettings.animations) return;
+  if (ui.flowMode !== 'particles' || !SimSettings.animations) {
+    _flowState.clear();
+    return;
+  }
 
   const paths = drawConnections._paths;
-  if (!paths || paths.size === 0) return;
+  if (!paths || paths.size === 0) { _flowState.clear(); return; }
 
-  const g = svgEl('g', { id: 'flow-particles' });
-
-  // Track which connIds are still present
   const activeIds = new Set();
 
   for (const c of scene.connections) {
@@ -36876,13 +37129,8 @@ function _rebuildFlowParticles() {
 
     const stream = _getConnStream(c);
     if (!stream) continue;
-
-    const isElec = stream.type === StreamType.ELECTRICAL;
-    // [v17.0.0] Electrical connections use arrows only, no particles
-    if (isElec) continue;
+    if (stream.type === StreamType.ELECTRICAL) continue;
     const anim = stream._anim;
-
-    // Material: need _anim data
     if (!anim || anim.nDot < 1e-15) continue;
 
     activeIds.add(c.id);
@@ -36890,7 +37138,6 @@ function _rebuildFlowParticles() {
     const pathLen = _bzLen(cp);
     if (pathLen < 5) continue;
 
-    // Compute speed and gap from _anim (material only)
     const vNorm = Math.min(1, anim.vDot / _FLOW_VDOT_REF);
     const speed = Math.min(_FLOW_MAX_SPEED, _FLOW_BASE_SPEED * Math.max(0.05, vNorm));
     const rhoClamp = Math.max(0.5, Math.min(1200, anim.rho));
@@ -36900,97 +37147,161 @@ function _rebuildFlowParticles() {
     const nParticles = Math.min(_FLOW_MAX_PER_CONN, Math.max(1, Math.ceil(pathLen / gap)));
     const gapT = 1 / nParticles;
 
-    // Reuse or create state
     let state = _flowState.get(c.id);
     if (!state || state.particles.length !== nParticles) {
       const particles = [];
       for (let i = 0; i < nParticles; i++) {
         const species = _sampleSpeciesAt(anim.speciesFracs, i);
         const isLiq = (((i * 2654435761 + 7) >>> 0) / 4294967296 > (stream.vaporFraction ?? 1));
-        // Per-particle hash for deterministic randomness
-        const h = ((i * 2654435761 + 1013904223) >>> 0) / 4294967296; // [0,1)
+        const h = ((i * 2654435761 + 1013904223) >>> 0) / 4294967296;
         const h2 = ((i * 1664525 + 1013904223) >>> 0) / 4294967296;
         const h3 = ((i * 22695477 + 1) >>> 0) / 4294967296;
-        // Turbulence: gas particles get more randomness than liquid
         const tNoise = isLiq ? (h - 0.5) * 0.06 : (h - 0.5) * 0.25;
-        const t = ((i * gapT) + tNoise + 1) % 1; // noisy initial spacing
-        const jLat = isLiq ? (h2 - 0.5) * 2 : (h2 - 0.5) * 6; // px lateral offset
-        const sMul = isLiq ? 0.92 + h3 * 0.16 : 0.7 + h3 * 0.6; // speed multiplier
-        const r = isLiq ? _FLOW_PARTICLE_R : 1.2 + h * 1.6; // gas: 1.2–2.8, liquid: fixed
+        const t = ((i * gapT) + tNoise + 1) % 1;
+        const jLat = isLiq ? (h2 - 0.5) * 2 : (h2 - 0.5) * 6;
+        const sMul = isLiq ? 0.92 + h3 * 0.16 : 0.7 + h3 * 0.6;
+        const r = isLiq ? _FLOW_PARTICLE_R : 1.2 + h * 1.6;
         particles.push({ t, species, isLiq, jLat, sMul, r });
       }
-      state = { particles, pathLen, speed, gap };
+      state = { particles, pathLen, speed, gap, connPath: cp };
       _flowState.set(c.id, state);
     } else {
       state.pathLen = pathLen;
       state.speed = speed;
       state.gap = gap;
+      state.connPath = cp;
       for (let i = 0; i < state.particles.length; i++) {
         const p = state.particles[i];
         p.species = _sampleSpeciesAt(anim.speciesFracs, i);
         p.isLiq = (((i * 2654435761 + 7) >>> 0) / 4294967296 > (stream.vaporFraction ?? 1));
       }
     }
-
-    // Create SVG circles with lateral offset
-    for (let i = 0; i < state.particles.length; i++) {
-      const p = state.particles[i];
-      const pt = _bzPt(p.t, cp);
-      const n = _bzNormal(p.t, cp);
-      g.appendChild(svgEl('circle', {
-        cx: pt.x + n.x * p.jLat, cy: pt.y + n.y * p.jLat, r: p.r,
-        fill: _flowColor(p.species),
-        class: `flow-particle ${p.isLiq ? 'flow-particle-liq' : 'flow-particle-gas'}`,
-        'data-conn': c.id, 'data-idx': i
-      }));
-    }
   }
 
-  // Clean up removed connections
   for (const cid of _flowState.keys()) {
     if (!activeIds.has(cid)) _flowState.delete(cid);
   }
-
-  svg.appendChild(g);
 }
 
 function _advanceFlowParticles(deltaSec) {
+  // [v16.9.8 S-PARTICLES] State-only advancement — canvas draws separately.
   if (ui.flowMode !== 'particles' || !SimSettings.animations) return;
   if (TimeClock.mode !== 'playing') return;
 
-  const paths = drawConnections._paths;
-  if (!paths) return;
-
-  const particleG = svg.querySelector('#flow-particles');
-  if (!particleG) return;
-
   for (const [cid, state] of _flowState) {
-    if (state.speed <= 0) continue;
-    const cp = paths.get(cid);
-    if (!cp || state.pathLen < 5) continue;
+    if (state.speed <= 0 || state.pathLen < 5) continue;
     const baseDtT = (state.speed * deltaSec) / state.pathLen;
 
-    for (let i = 0; i < state.particles.length; i++) {
-      const p = state.particles[i];
-      // Per-particle speed variation
+    for (const p of state.particles) {
       p.t += baseDtT * p.sMul;
       if (p.t > 1) p.t -= 1;
       if (p.t < 0) p.t += 1;
-
-      // Brownian lateral drift for gas (slow random walk)
+      // Brownian lateral drift for gas
       if (!p.isLiq) {
         p.jLat += (Math.random() - 0.5) * 1.2 * deltaSec * 10;
-        // Soft clamp to ±3px (spring-back)
         if (Math.abs(p.jLat) > 3) p.jLat *= 0.95;
       }
+    }
+  }
+}
 
-      // Update SVG position with lateral offset
-      const el = particleG.querySelector(`[data-conn="${cid}"][data-idx="${i}"]`);
-      if (el) {
-        const pt = _bzPt(p.t, cp);
-        const n = _bzNormal(p.t, cp);
-        el.setAttribute('cx', pt.x + n.x * p.jLat);
-        el.setAttribute('cy', pt.y + n.y * p.jLat);
+// ═══════════════════════════════════════════════════════════════════════════════
+// [v16.9.9 S-PARTICLES Phase 1C] Body particle system
+// Species-colored particles inside unit viewports, driven by inlet stream data.
+// Linear transit: particles traverse entry→exit through viewport.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function _rebuildBodyParticles() {
+  if (ui.flowMode !== 'particles' || !SimSettings.animations) {
+    _bodyParticleState.clear();
+    return;
+  }
+
+  const activeIds = new Set();
+  const B = _PARTICLE_BEHAVIORS;
+
+  for (const [id, u] of scene.units) {
+    const cfg = B.units[u.defId];
+    if (!cfg) continue;
+    if (cfg.type !== 'transit' && cfg.type !== 'merge' && cfg.type !== 'split') continue;
+
+    const vp = _getUnitViewport(id);
+    if (!vp) continue;
+
+    // Get inlet stream data
+    const ud = scene.runtime?.unitData?.get(id);
+    if (!ud) continue;
+
+    // Find first material inlet port with data
+    const def = UnitRegistry.get(u.defId);
+    let inStream = null;
+    for (const p of def.ports) {
+      if (p.dir === PortDir.IN && p.type === StreamType.MATERIAL) {
+        const ps = ud.ports?.[p.portId];
+        if (ps?._anim?.nDot > 1e-15) { inStream = ps; break; }
+      }
+    }
+    if (!inStream) continue;
+
+    activeIds.add(id);
+    const anim = inStream._anim;
+    const vNorm = Math.min(1, anim.vDot / B.VDOT_REF);
+    const speed = Math.min(B.MAX_SPEED, B.BASE_SPEED * Math.max(0.05, vNorm));
+    const dwellFactor = cfg.dwellFactor || 1.2;
+
+    // Compute viewport dimension for particle count
+    const vpDim = vp.type === 'circle' ? vp.r * 2 : Math.max(vp.w, vp.h);
+    const nParticles = Math.min(B.MAX_PER_SEGMENT, Math.max(3, Math.ceil(vpDim / B.DENSITY_SPACING)));
+
+    let state = _bodyParticleState.get(id);
+    if (!state || state.particles.length !== nParticles) {
+      const particles = [];
+      for (let i = 0; i < nParticles; i++) {
+        const species = _sampleSpeciesAt(anim.speciesFracs, i + 1000);
+        const isLiq = (((i * 2654435761 + 31) >>> 0) / 4294967296 > (inStream.vaporFraction ?? 1));
+        const h = ((i * 2654435761 + 500) >>> 0) / 4294967296;
+        const h2 = ((i * 1664525 + 500) >>> 0) / 4294967296;
+        const t = (i / nParticles + (h - 0.5) * 0.15 + 1) % 1;
+        const jLat = (h2 - 0.5) * (isLiq ? 2 : 5);
+        const r = isLiq ? 2 : 1.2 + h * 1.6;
+        particles.push({ t, species, isLiq, jLat, r });
+      }
+      state = { particles, speed, vp, dwellFactor };
+      _bodyParticleState.set(id, state);
+    } else {
+      state.speed = speed;
+      state.vp = vp;
+      for (let i = 0; i < state.particles.length; i++) {
+        state.particles[i].species = _sampleSpeciesAt(anim.speciesFracs, i + 1000);
+        state.particles[i].isLiq = (((i * 2654435761 + 31) >>> 0) / 4294967296 > (inStream.vaporFraction ?? 1));
+      }
+    }
+  }
+
+  for (const uid of _bodyParticleState.keys()) {
+    if (!activeIds.has(uid)) _bodyParticleState.delete(uid);
+  }
+}
+
+function _advanceBodyParticles(deltaSec) {
+  if (ui.flowMode !== 'particles' || !SimSettings.animations) return;
+  if (TimeClock.mode !== 'playing') return;
+
+  for (const [, state] of _bodyParticleState) {
+    const vpDim = state.vp.type === 'circle' ? state.vp.r * 2 : Math.max(state.vp.w, state.vp.h);
+    if (vpDim < 1) continue;
+    const transitTime = (vpDim / state.speed) * state.dwellFactor;
+    if (transitTime <= 0) continue;
+    const dt = deltaSec / transitTime;
+
+    for (const p of state.particles) {
+      p.t += dt;
+      if (p.t > 1) p.t -= 1;
+      if (p.t < 0) p.t += 1;
+      if (!p.isLiq) {
+        p.jLat += (Math.random() - 0.5) * 1.0 * deltaSec * 8;
+        const maxJ = state.vp.type === 'circle' ? state.vp.r * 0.5 : Math.min(state.vp.w, state.vp.h) * 0.3;
+        if (Math.abs(p.jLat) > maxJ) p.jLat *= 0.92;
       }
     }
   }
@@ -37008,12 +37319,12 @@ const _SMOKE_PUFF_CAP = 80;
 const _SMOKE_FILTERS = ['smoke-f1', 'smoke-f2', 'smoke-f3'];
 
 function _rebuildSmokePuffs() {
-  const old = svg.querySelector('#smoke-puffs');
-  if (old) old.remove();
+  // [v16.9.8 S-PARTICLES] State-only — canvas draws from _smokeState each frame.
+  if (!SimSettings.animations || !SimSettings.animSmokeEffects) {
+    _smokeState.clear();
+    return;
+  }
 
-  if (!SimSettings.animations || !SimSettings.animSmokeEffects) return;
-
-  const g = svgEl('g', { id: 'smoke-puffs' });
   const activeIds = new Set();
   let budget = 0;
 
@@ -37034,7 +37345,6 @@ function _rebuildSmokePuffs() {
     const count = Math.min(cfg.puffCount, _SMOKE_PUFF_CAP - budget);
     budget += count;
 
-    // Reuse or create puff state
     let state = _smokeState.get(id);
     if (!state || state.puffs.length !== count || state.cfg !== cfg) {
       const puffs = [];
@@ -37044,67 +37354,28 @@ function _rebuildSmokePuffs() {
         const h3 = _smokeRand(i, 2);
         const h4 = _smokeRand(i, 3);
         puffs.push({
-          t: i / count,  // staggered start
+          t: i / count,
           rxBase: cfg.puffRx * (0.7 + h * 0.6),
           ryBase: cfg.puffRy * (0.7 + h2 * 0.6),
           dx: (h3 - 0.5) * cfg.driftRange * 2,
           riseVar: 0.85 + h4 * 0.3,
-          filterIdx: i % (cfg.isFried ? 1 : 3),
         });
       }
       state = { puffs, cfg, cx, cy };
       _smokeState.set(id, state);
     } else {
-      // Update position (unit may have moved)
       state.cx = cx;
       state.cy = cy;
     }
-
-    // Render SVG ellipses at current state
-    const filters = cfg.isFried ? ['smoke-fried'] : _SMOKE_FILTERS;
-    for (let i = 0; i < state.puffs.length; i++) {
-      const p = state.puffs[i];
-      const t = p.t;
-
-      // Ease-out curve: progress = 1 - (1-t)^2
-      const eased = 1 - (1 - t) * (1 - t);
-
-      // Position: rise upward, drift laterally
-      const px = state.cx + p.dx * eased;
-      const py = state.cy - cfg.riseHeight * p.riseVar * eased;
-
-      // Scale: scaleStart → scaleEnd
-      const scale = cfg.scaleStart + (cfg.scaleEnd - cfg.scaleStart) * eased;
-      const rx = p.rxBase * scale;
-      const ry = p.ryBase * scale;
-
-      // Opacity: fade in to peak at ~15%, then fade out
-      let opacity;
-      if (t < 0.15) {
-        opacity = cfg.opacityStart + (cfg.opacityPeak - cfg.opacityStart) * (t / 0.15);
-      } else {
-        opacity = cfg.opacityPeak * (1 - (t - 0.15) / 0.85);
-      }
-      opacity = Math.max(0, opacity);
-
-      g.appendChild(svgEl('ellipse', {
-        cx: px, cy: py, rx, ry,
-        fill: cfg.color, opacity: opacity.toFixed(3),
-        filter: `url(#${filters[p.filterIdx % filters.length]})`,
-        'pointer-events': 'none'
-      }));
-    }
   }
 
-  // Clean up removed units
   for (const uid of _smokeState.keys()) {
     if (!activeIds.has(uid)) _smokeState.delete(uid);
   }
-
-  svg.appendChild(g);
 }
 
 function _advanceSmokePuffs(deltaSec) {
+  // [v16.9.8 S-PARTICLES] State-only — canvas draws separately.
   if (!SimSettings.animations || !SimSettings.animSmokeEffects) return;
 
   const speedScale = SMOKE_SPEED_SCALE[SimSettings.playSpeed || 0] || 1.0;
@@ -37112,35 +37383,145 @@ function _advanceSmokePuffs(deltaSec) {
 
   for (const [, state] of _smokeState) {
     const cfg = state.cfg;
-    // Fried always advances; sink plumes only when playing
     if (!cfg.isFried && !isPlaying) continue;
-
     const dur = cfg.isFried ? cfg.duration : cfg.duration * speedScale;
     if (dur <= 0) continue;
-    const dt = deltaSec / dur; // parametric advance per frame
-
+    const dt = deltaSec / dur;
     for (const p of state.puffs) {
       p.t += dt;
-      if (p.t >= 1) p.t -= 1; // wrap around (recycle)
+      if (p.t >= 1) p.t -= 1;
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// [v16.9.8 S-PARTICLES Phase 0A] Canvas draw — both flow particles and smoke
+// Called every rAF frame. Syncs canvas to SVG viewBox, clears, draws all.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function _drawParticleCanvas() {
+  if (!_particleCtx || !_particleCanvas) return;
+  if (typeof _particleCtx.createRadialGradient !== 'function') return; // headless guard
+  const ctx = _particleCtx;
+  const vb = ui.view;
+  if (!vb || !vb.w || !vb.h) return;
+
+  // ── Sync canvas size to container (HiDPI) ──
+  const dpr = window.devicePixelRatio || 1;
+  const cw = _particleCanvas.clientWidth;
+  const ch = _particleCanvas.clientHeight;
+  if (cw === 0 || ch === 0) return;
+  const pw = cw * dpr;
+  const ph = ch * dpr;
+  if (_particleCanvas.width !== pw || _particleCanvas.height !== ph) {
+    _particleCanvas.width = pw;
+    _particleCanvas.height = ph;
+  }
+
+  // ── Clear ──
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, pw, ph);
+
+  // ── Transform: SVG viewBox → canvas pixels ──
+  const sx = pw / vb.w;
+  const sy = ph / vb.h;
+  ctx.setTransform(sx, 0, 0, sy, -vb.x * sx, -vb.y * sy);
+
+  // ── Draw flow particles ──
+  const TAU = Math.PI * 2;
+  const isRagtag = ui.theme === 'ragtag';
+  for (const [, state] of _flowState) {
+    const cp = state.connPath;
+    if (!cp) continue;
+    for (const p of state.particles) {
+      // [v16.9.8] Ragtag: only draw particles inside pipe window (10-90%)
+      if (isRagtag && (p.t < 0.1 || p.t > 0.9)) continue;
+
+      const pt = _bzPt(p.t, cp);
+      const n = _bzNormal(p.t, cp);
+      const px = pt.x + n.x * p.jLat;
+      const py = pt.y + n.y * p.jLat;
+      const rgb = _SPECIES_COLOR[p.species] || _SPECIES_DEFAULT_RGB;
+
+      if (p.isLiq) {
+        // Liquid: opaque, sharp edge
+        ctx.globalAlpha = 0.9;
+        ctx.fillStyle = `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
+        ctx.beginPath();
+        ctx.arc(px, py, p.r, 0, TAU);
+        ctx.fill();
+      } else {
+        // Gas: soft radial gradient, translucent
+        ctx.globalAlpha = 0.55;
+        const grad = ctx.createRadialGradient(px, py, 0, px, py, p.r);
+        grad.addColorStop(0, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0.9)`);
+        grad.addColorStop(1, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0.0)`);
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(px, py, p.r * 1.5, 0, TAU);  // wider draw area for gradient fade
+        ctx.fill();
+      }
     }
   }
 
-  // Update SVG positions — find the smoke group and update ellipses
-  const smokeG = svg.querySelector('#smoke-puffs');
-  if (!smokeG) return;
+  // ── Draw body particles (viewport-clipped) ──
+  for (const [, state] of _bodyParticleState) {
+    const vp = state.vp;
+    if (!vp) continue;
 
-  // Rebuild is simpler than tracking individual elements for smoke
-  // since ellipses change opacity/size/position every frame.
-  // Remove old, re-render.
-  while (smokeG.firstChild) smokeG.removeChild(smokeG.firstChild);
+    // Set up viewport clip
+    ctx.save();
+    ctx.beginPath();
+    if (vp.type === 'circle') {
+      ctx.arc(vp.cx, vp.cy, vp.r, 0, TAU);
+    } else {
+      ctx.rect(vp.x, vp.y, vp.w, vp.h);
+    }
+    ctx.clip();
 
-  const filters = _SMOKE_FILTERS;
+    // Compute linear transit path: left→right for rect, left arc→right arc for circle
+    for (const p of state.particles) {
+      let px, py;
+      if (vp.type === 'circle') {
+        // Left to right across viewport circle
+        const xStart = vp.cx - vp.r * 0.85;
+        const xEnd = vp.cx + vp.r * 0.85;
+        px = xStart + p.t * (xEnd - xStart);
+        py = vp.cy + p.jLat;
+      } else {
+        // Left to right across viewport rect
+        px = vp.x + p.t * vp.w;
+        py = vp.y + vp.h / 2 + p.jLat;
+      }
+
+      const rgb = _SPECIES_COLOR[p.species] || _SPECIES_DEFAULT_RGB;
+
+      if (p.isLiq) {
+        ctx.globalAlpha = 0.9;
+        ctx.fillStyle = `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
+        ctx.beginPath();
+        ctx.arc(px, py, p.r, 0, TAU);
+        ctx.fill();
+      } else {
+        ctx.globalAlpha = 0.55;
+        const grad = ctx.createRadialGradient(px, py, 0, px, py, p.r * 1.5);
+        grad.addColorStop(0, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0.9)`);
+        grad.addColorStop(1, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0.0)`);
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(px, py, p.r * 1.5, 0, TAU);
+        ctx.fill();
+      }
+    }
+
+    ctx.restore();
+  }
+
+  // ── Draw smoke puffs ──
+  ctx.globalAlpha = 1;
   for (const [, state] of _smokeState) {
     const cfg = state.cfg;
-    const fltrs = cfg.isFried ? ['smoke-fried'] : filters;
-
-    for (let i = 0; i < state.puffs.length; i++) {
-      const p = state.puffs[i];
+    for (const p of state.puffs) {
       const t = p.t;
       const eased = 1 - (1 - t) * (1 - t);
 
@@ -37157,15 +37538,37 @@ function _advanceSmokePuffs(deltaSec) {
         opacity = cfg.opacityPeak * (1 - (t - 0.15) / 0.85);
       }
       opacity = Math.max(0, opacity);
+      if (opacity < 0.01) continue;
 
-      smokeG.appendChild(svgEl('ellipse', {
-        cx: px, cy: py, rx, ry,
-        fill: cfg.color, opacity: opacity.toFixed(3),
-        filter: `url(#${fltrs[p.filterIdx % fltrs.length]})`,
-        'pointer-events': 'none'
-      }));
+      // Parse color once
+      const _c = cfg._rgb || (cfg._rgb = _parseColorRGB(cfg.color));
+
+      ctx.globalAlpha = opacity;
+      // Approximate ellipse with soft gradient for smoke feel
+      const grad = ctx.createRadialGradient(px, py, 0, px, py, Math.max(rx, ry));
+      grad.addColorStop(0, `rgba(${_c[0]},${_c[1]},${_c[2]},0.6)`);
+      grad.addColorStop(0.5, `rgba(${_c[0]},${_c[1]},${_c[2]},0.3)`);
+      grad.addColorStop(1, `rgba(${_c[0]},${_c[1]},${_c[2]},0.0)`);
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.ellipse(px, py, rx * 1.3, ry * 1.3, 0, 0, TAU);
+      ctx.fill();
     }
   }
+
+  ctx.globalAlpha = 1;
+}
+
+// Helper: parse hex/named color to [r,g,b]
+function _parseColorRGB(color) {
+  if (color.startsWith('#')) {
+    const hex = color.length === 4
+      ? color[1]+color[1]+color[2]+color[2]+color[3]+color[3]
+      : color.slice(1);
+    return [parseInt(hex.slice(0,2),16), parseInt(hex.slice(2,4),16), parseInt(hex.slice(4,6),16)];
+  }
+  // Fallback: gray
+  return [156, 163, 175];
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -37189,8 +37592,10 @@ function _iconAnimFrame(timestamp) {
   }
   const isPlaying = TimeClock.mode === 'playing';
   // [v17.0.2] Keep running when paused if fried smoke needs animation
+  // [v16.9.8] Also keep running when flow particles exist (canvas needs redraw on pan/zoom)
   const hasFriedSmoke = _smokeState.size > 0 && [..._smokeState.values()].some(s => s.cfg.isFried);
-  if (!isPlaying && !hasFriedSmoke) {
+  const hasFlowParticles = _flowState.size > 0 || _bodyParticleState.size > 0;
+  if (!isPlaying && !hasFriedSmoke && !hasFlowParticles) {
     _iconAnimRafId = null;
     return;
   }
@@ -37208,8 +37613,12 @@ function _iconAnimFrame(timestamp) {
   if (isPlaying && ui.theme !== 'box') _updateIconAnimations(_lastAnimT);
   // [v17.0.0 S-FLOW] Flow particle advancement (all themes)
   if (deltaSec > 0) _advanceFlowParticles(deltaSec);
+  // [v16.9.9 S-PARTICLES Phase 1C] Body particle advancement
+  if (deltaSec > 0) _advanceBodyParticles(deltaSec);
   // [v17.0.2] Smoke puff advancement (fried always, sink plumes when playing)
   if (deltaSec > 0) _advanceSmokePuffs(deltaSec);
+  // [v16.9.8 S-PARTICLES] Canvas draw — both flow particles and smoke
+  _drawParticleCanvas();
   _iconAnimRafId = requestAnimationFrame(_iconAnimFrame);
 }
 
