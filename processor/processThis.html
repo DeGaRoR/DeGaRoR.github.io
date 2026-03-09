@@ -540,7 +540,7 @@
   NNGs: NNG-14 (changelog).
   Tests: 607 total, 3143 checks, 0 failures.
 
-  ─── v16.9.2 — Hub first-iteration overload fix ──────────────────────────
+  ─── v16.9.2 — Hub first-iteration overload fix + S-HYDROVENT ─────────────
 
   **BUG FIX: Hub-connected consumers destroyed on first solver iteration.**
 
@@ -560,6 +560,18 @@
   - Step C reads `u.powerDemand` to allocate, writes `hubAllocated_W`.
   - Iteration 2 converges with correct allocation.
   - Direct-connection paths (Step D) are unchanged.
+
+  **S-HYDROVENT: New `hydrovent` profile for Mission 1.**
+
+  - New profile: `hydrovent` (defId=reservoir), name "Hydrothermal Vent".
+    Defaults: Cv=0.3, opening_pct=50, T=450K, P=15bar,
+    composition {H2O:0.6, CH4:0.3, H2:0.1}.
+  - New ragtag icon: cracked hull plate with orange/red fissure glow,
+    salvaged pipe + valve wheel assembly, animated steam/spray particles.
+    Body bbox 24,16,48,50.
+  - Reservoir icon fixes: all 5 valve circle fills changed from hardcoded
+    `#059669` to palette-derived `_lighten(pal.stroke, 0.3)`.  Body bbox
+    unchanged (28,6,40,66), nozzle call recentered to match.
 
   NNGs: NNG-14 (changelog).
 
@@ -16771,7 +16783,15 @@ function allocatePower(consumers, totalSupply_W) {
 //   20-50%          → WARNING (severe, imminent failure)
 //   >50%            → CATASTROPHIC + sets u.fried (equipment destroyed)
 //
-function checkOverload(W_delivered, W_rated, u) {
+function checkOverload(W_delivered, W_rated, u, scratch) {
+  // [v16.9.2] Pre-allocation safety: on cold-solve iteration 1, hub has not
+  // yet run Step C, so consumers read bus capacity (e.g. 20 kW) as W_delivered
+  // instead of their actual allocation (e.g. 150 W).  A demand-responsive bus
+  // cannot cause overload — overload requires forced power injection (surplus).
+  // Skip check until Step C has written hubAllocated_W.
+  if (scratch && scratch.hubAllocated_W === undefined) {
+    return { overload: false };
+  }
   if (!isFinite(W_rated) || W_rated <= 0 || !isFinite(W_delivered) || W_delivered <= 0) {
     return { overload: false };
   }
@@ -16830,10 +16850,7 @@ UnitRegistry.register('power_hub', {
     const s = ctx ? ctx.scratch : {};
     
     // Forward: advertise supply on elec_out (use carry-forward from Step C)
-    // [v16.9.2] Default to 0 (not capacity) before Step C has run.  Prevents
-    // consumers with checkOverload from seeing full bus capacity as delivered
-    // power on iteration 1, which caused instant fry (e.g. 20 kW on a 150 W fan).
-    const distAvail_W = s.hubDistAvail_W !== undefined ? s.hubDistAvail_W : 0;
+    const distAvail_W = s.hubDistAvail_W !== undefined ? s.hubDistAvail_W : totalCapacity_W;
     ports.elec_out = {
       type: StreamType.ELECTRICAL,
       capacity: totalCapacity_W,
@@ -16877,8 +16894,7 @@ function _powerDispatchTick(u, ports, par, ctx) {
     }
   }
   const s = ctx ? ctx.scratch : {};
-  // [v16.9.2] Default to 0 before Step C — mirrors power_hub fix.
-  const distAvail_W = s.hubDistAvail_W !== undefined ? s.hubDistAvail_W : 0;
+  const distAvail_W = s.hubDistAvail_W !== undefined ? s.hubDistAvail_W : totalCapacity_W;
 
   // Advertise supply on all electrical output ports (except surplus)
   for (const p of def.ports) {
@@ -18116,7 +18132,7 @@ UnitRegistry.register('air_cooler', {
     const W_avail = s.hubAllocated_W ?? (sElec.actual ?? sElec.capacity ?? 0);
 
     // ── Overload check ──
-    const olResult = checkOverload(W_avail, max_fan_W, u);
+    const olResult = checkOverload(W_avail, max_fan_W, u, s);
     if (u.fried) {
       u.powerDemand = 0;
       ports.mat_out = passthrough();
@@ -19963,7 +19979,7 @@ function electrochemicalTick(u, ports, par, ctx) {
     const sElec = ports.elec_in;
     const rs = ctx ? ctx.scratch : {};
     const P_avail_W = sElec ? (rs.hubAllocated_W ?? sElec.actual ?? sElec.capacity ?? 0) : 0;
-    checkOverload(P_avail_W, P_demand_W, u);
+    checkOverload(P_avail_W, P_demand_W, u, rs);
     if (u.fried) return;
 
     if (P_avail_W < 1) {
@@ -20458,6 +20474,15 @@ ProfileRegistry.register('reservoir', {
   limits: {}, boundary: true,
   defaults: { 1: { P_bar:5, T:298.15, composition:{N2:1},
                     Cv:50, opening_pct:100 } }
+});
+// [v16.9.2] Hydrovent — geothermal vent profile for Mission 1
+ProfileRegistry.register('hydrovent', {
+  defId: 'reservoir', name: 'Hydrothermal Vent', category: UnitCategories.BOUNDARY, tiers: [1],
+  description: 'Cracked hull over a hydrothermal reservoir — hot pressurized mix of steam, methane and hydrogen',
+  selectionGuide: 'Your lifeline. Hot pressurized fluid shoots up through a crack in the hull. Keep the valve tight or you\'ll scald everything downstream. Cool before collecting.',
+  limits: {}, boundary: true,
+  defaults: { 1: { P_bar:15, T:450, composition:{H2O:0.6, CH4:0.3, H2:0.1},
+                    Cv:0.3, opening_pct:50 } }
 });
 // [v16.8.0] Atmosphere profile
 ProfileRegistry.register('atmosphere', {
@@ -27239,6 +27264,7 @@ const _BODY_BBOX = {
   valve:                    { x:24, y:18, w:48, h:52 },
   restriction:              { x:38, y:16, w:20, h:64 },
   reservoir:                { x:28, y:6,  w:40, h:66 },
+  hydrovent:                { x:24, y:16, w:48, h:50 },
   atmosphere:               { x:14, y:16, w:68, h:64 },
   compressor:               { x:14, y:12, w:68, h:46 },
   fan:                      { x:16, y:18, w:64, h:60 },
@@ -27907,28 +27933,90 @@ const _RAGTAG_SYMBOLS = {
     _rtChip(g, wx+64, wy+16);
     g.appendChild(svgEl('circle', { cx:wx+70, cy:wy+58, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.5', 'pointer-events':'none' }));
   },
-  // ── Reservoir (sheet L140-158) ──
+  // ── Reservoir / Well (sheet L140-158) — [v16.9.2] palette-driven colors, recentered ──
   reservoir(g, wx, wy, ww, wh, pal, def, unitId) {
     const pres = getPresentation(def, scene.units.get(unitId));
-    // Nozzle stubs from body bbox to port positions
-    _rtNozzle(g, wx, wy, ww, wh, wx+6, wy+32, 62, 42, def, pres, pal, unitId);
+    const valveCol = _lighten(pal.stroke, 0.3);
+    // Body bbox: centered column with valve assembly
+    _rtNozzle(g, wx, wy, ww, wh, wx+28, wy+6, 40, 66, def, pres, pal, unitId);
+    // Ground line + hatch marks
     g.appendChild(svgEl('line', { x1:wx+10, y1:wy+72, x2:wx+70, y2:wy+72, stroke:'#4b5563', 'stroke-width':2, 'stroke-linecap':'round', 'pointer-events':'none' }));
     [16,28,40,52].forEach(x => g.appendChild(svgEl('line', { x1:wx+x, y1:wy+76, x2:wx+x+8, y2:wy+84, stroke:'#4b5563', 'stroke-width':0.8, opacity:0.12, 'pointer-events':'none' })));
+    // Wellhead pipe (vertical)
     g.appendChild(svgEl('line', { x1:wx+40, y1:wy+72, x2:wx+40, y2:wy+88, stroke:'#4b5563', 'stroke-width':4, opacity:0.3, 'pointer-events':'none' }));
+    // Valve body column
     g.appendChild(svgEl('rect', { x:wx+34, y:wy+36, width:12, height:36, rx:2, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2, 'pointer-events':'none' }));
-    [62,50].forEach(y => { g.appendChild(svgEl('circle', { cx:wx+40, cy:wy+y, r:5, fill:'#059669', stroke:pal.stroke, 'stroke-width':2, 'pointer-events':'none' })); g.appendChild(svgEl('circle', { cx:wx+40, cy:wy+y, r:2, fill:pal.stroke, opacity:0.5, 'pointer-events':'none' })); });
+    // Valve handle circles (on column) — palette-driven
+    [62,50].forEach(y => { g.appendChild(svgEl('circle', { cx:wx+40, cy:wy+y, r:5, fill:valveCol, stroke:pal.stroke, 'stroke-width':2, 'pointer-events':'none' })); g.appendChild(svgEl('circle', { cx:wx+40, cy:wy+y, r:2, fill:pal.stroke, opacity:0.5, 'pointer-events':'none' })); });
+    // Crossbar + valve body
     g.appendChild(svgEl('rect', { x:wx+28, y:wy+32, width:24, height:10, rx:3, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2, 'pointer-events':'none' }));
+    // Left arm + valve — palette-driven
     g.appendChild(svgEl('line', { x1:wx+28, y1:wy+37, x2:wx+12, y2:wy+37, stroke:pal.stroke, 'stroke-width':3, 'pointer-events':'none' }));
-    g.appendChild(svgEl('circle', { cx:wx+20, cy:wy+37, r:4, fill:'#059669', stroke:pal.stroke, 'stroke-width':1.5, 'pointer-events':'none' }));
+    g.appendChild(svgEl('circle', { cx:wx+20, cy:wy+37, r:4, fill:valveCol, stroke:pal.stroke, 'stroke-width':1.5, 'pointer-events':'none' }));
     g.appendChild(svgEl('rect', { x:wx+6, y:wy+33, width:5, height:8, rx:1, fill:'#4b5563', opacity:0.5, 'pointer-events':'none' }));
+    // Right arm + valve — palette-driven
     g.appendChild(svgEl('line', { x1:wx+52, y1:wy+37, x2:wx+68, y2:wy+37, stroke:pal.stroke, 'stroke-width':3, 'pointer-events':'none' }));
-    g.appendChild(svgEl('circle', { cx:wx+60, cy:wy+37, r:4, fill:'#059669', stroke:pal.stroke, 'stroke-width':1.5, 'pointer-events':'none' }));
+    g.appendChild(svgEl('circle', { cx:wx+60, cy:wy+37, r:4, fill:valveCol, stroke:pal.stroke, 'stroke-width':1.5, 'pointer-events':'none' }));
+    // Top riser + valve — palette-driven
     g.appendChild(svgEl('line', { x1:wx+40, y1:wy+32, x2:wx+40, y2:wy+16, stroke:pal.stroke, 'stroke-width':4, 'pointer-events':'none' }));
-    g.appendChild(svgEl('circle', { cx:wx+40, cy:wy+20, r:4, fill:'#059669', stroke:pal.stroke, 'stroke-width':1.5, 'pointer-events':'none' }));
+    g.appendChild(svgEl('circle', { cx:wx+40, cy:wy+20, r:4, fill:valveCol, stroke:pal.stroke, 'stroke-width':1.5, 'pointer-events':'none' }));
+    // Top cap
     g.appendChild(svgEl('rect', { x:wx+34, y:wy+6, width:12, height:8, rx:3, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':1.5, 'pointer-events':'none' }));
+    // Rising bubbles (animated)
     [0,0.4,0.7].forEach(ph => { g.appendChild(svgEl('circle', { cx:wx+38+Math.sin(ph*10)*4, cy:wy+4, r:1.5, fill:'#6ee7b7', 'data-anim':'reactor-bubble', 'data-ytop':wy-8, 'data-ybot':wy+4, 'data-phase':String(ph), 'data-speed':'0.6', opacity:0.2, 'pointer-events':'none' })); });
     _rtChip(g, wx+44, wy+40, 5, 3);
     g.appendChild(svgEl('circle', { cx:wx+60, cy:wy+48, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.8', 'pointer-events':'none' }));
+  },
+  // ── Hydrovent [v16.9.2] — cracked hull over hydrothermal reservoir ──
+  hydrovent(g, wx, wy, ww, wh, pal, def, unitId) {
+    const pres = getPresentation(def, scene.units.get(unitId));
+    const valveCol = _lighten(pal.stroke, 0.3);
+    // Nozzle stubs — body bbox matches pipe assembly
+    _rtNozzle(g, wx, wy, ww, wh, wx+24, wy+16, 48, 50, def, pres, pal, unitId);
+    // ── Hull plate (cracked ground) ──
+    g.appendChild(svgEl('rect', { x:wx+4, y:wy+64, width:88, height:24, rx:3, fill:'#1f2937', stroke:'#374151', 'stroke-width':2, 'pointer-events':'none' }));
+    // Hull surface texture
+    g.appendChild(svgEl('line', { x1:wx+8, y1:wy+70, x2:wx+32, y2:wy+70, stroke:'#374151', 'stroke-width':1, opacity:0.4, 'pointer-events':'none' }));
+    g.appendChild(svgEl('line', { x1:wx+60, y1:wy+74, x2:wx+88, y2:wy+74, stroke:'#374151', 'stroke-width':1, opacity:0.4, 'pointer-events':'none' }));
+    // ── Crack / fissure (jagged line with glow) ──
+    g.appendChild(svgEl('line', { x1:wx+40, y1:wy+64, x2:wx+40, y2:wy+88, stroke:'#f97316', 'stroke-width':4, opacity:0.25, 'pointer-events':'none' }));
+    g.appendChild(svgEl('path', { d:`M${wx+38},${wy+64} L${wx+42},${wy+70} L${wx+37},${wy+76} L${wx+43},${wy+82} L${wx+39},${wy+88}`,
+      fill:'none', stroke:'#ef4444', 'stroke-width':2, 'stroke-linecap':'round', opacity:0.7, 'pointer-events':'none' }));
+    g.appendChild(svgEl('path', { d:`M${wx+38},${wy+64} L${wx+42},${wy+70} L${wx+37},${wy+76} L${wx+43},${wy+82} L${wx+39},${wy+88}`,
+      fill:'none', stroke:'#fbbf24', 'stroke-width':1, 'stroke-linecap':'round', opacity:0.5, 'pointer-events':'none' }));
+    // ── Salvaged pipe rising from crack ──
+    g.appendChild(svgEl('line', { x1:wx+40, y1:wy+64, x2:wx+40, y2:wy+34, stroke:pal.stroke, 'stroke-width':6, 'pointer-events':'none' }));
+    g.appendChild(svgEl('line', { x1:wx+40, y1:wy+64, x2:wx+40, y2:wy+34, stroke:pal.fillUrl, 'stroke-width':3, 'pointer-events':'none' }));
+    // Flange bolted to hull
+    g.appendChild(svgEl('rect', { x:wx+30, y:wy+58, width:20, height:8, rx:2, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2, 'pointer-events':'none' }));
+    _rtBolt(g, wx+32, wy+62); _rtBolt(g, wx+48, wy+62);
+    // ── Valve body (T-junction) ──
+    g.appendChild(svgEl('rect', { x:wx+30, y:wy+28, width:20, height:14, rx:3, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2, 'pointer-events':'none' }));
+    // Valve handle (wheel)
+    g.appendChild(svgEl('circle', { cx:wx+40, cy:wy+20, r:7, fill:'none', stroke:valveCol, 'stroke-width':2.5, 'pointer-events':'none' }));
+    g.appendChild(svgEl('line', { x1:wx+40, y1:wy+14, x2:wx+40, y2:wy+26, stroke:valveCol, 'stroke-width':1.5, 'pointer-events':'none' }));
+    g.appendChild(svgEl('line', { x1:wx+34, y1:wy+20, x2:wx+46, y2:wy+20, stroke:valveCol, 'stroke-width':1.5, 'pointer-events':'none' }));
+    g.appendChild(svgEl('circle', { cx:wx+40, cy:wy+20, r:2, fill:valveCol, 'pointer-events':'none' }));
+    // Stem from valve to pipe
+    g.appendChild(svgEl('line', { x1:wx+40, y1:wy+27, x2:wx+40, y2:wy+34, stroke:pal.stroke, 'stroke-width':2, 'pointer-events':'none' }));
+    // ── Horizontal outlet pipe (to port) ──
+    g.appendChild(svgEl('line', { x1:wx+50, y1:wy+35, x2:wx+72, y2:wy+35, stroke:pal.stroke, 'stroke-width':4, 'pointer-events':'none' }));
+    g.appendChild(svgEl('line', { x1:wx+50, y1:wy+35, x2:wx+72, y2:wy+35, stroke:pal.fillUrl, 'stroke-width':2, 'pointer-events':'none' }));
+    // ── Steam/spray jet (animated particles rising from crack) ──
+    [0, 0.25, 0.5, 0.75].forEach(ph => {
+      g.appendChild(svgEl('circle', { cx:wx+38+Math.sin(ph*12)*5, cy:wy+60, r:1.5,
+        fill:'#fbbf24', 'data-anim':'reactor-bubble', 'data-ytop':wy+8, 'data-ybot':wy+60,
+        'data-phase':String(ph), 'data-speed':'0.8', opacity:0.3, 'pointer-events':'none' }));
+    });
+    // Wider steam plume
+    [0.15, 0.6].forEach(ph => {
+      g.appendChild(svgEl('circle', { cx:wx+34+Math.sin(ph*8)*8, cy:wy+56, r:2,
+        fill:'#d1d5db', 'data-anim':'reactor-bubble', 'data-ytop':wy+4, 'data-ybot':wy+56,
+        'data-phase':String(ph), 'data-speed':'0.5', opacity:0.15, 'pointer-events':'none' }));
+    });
+    // Paint chip + LED
+    _rtChip(g, wx+52, wy+30, 5, 3);
+    g.appendChild(svgEl('circle', { cx:wx+66, cy:wy+28, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.6', 'pointer-events':'none' }));
   },
   // ── Restriction (sheet L202-212) ──
   restriction(g, wx, wy, ww, wh, pal, def, unitId) {
