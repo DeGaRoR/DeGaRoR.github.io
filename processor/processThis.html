@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v17.2.1
+  processThis v17.2.2
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -346,6 +346,50 @@
   ═══════════════════════════════════════════════════════════════════════════
   CHANGELOG  (latest first)
   ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v17.2.2 — Visual polish: clustering, reactors, combustor ───────────
+
+  **Particle clustering fix.**  sMul range widened from [0.95,1.05] to
+  [0.75,1.25] for liquid and [0.6,1.4] for gas.  Wider speed variation
+  between individual particles prevents lock-step synchronization that
+  caused visible "packs of 3-7" with gaps between them.
+
+  **Sink disperse restored.**  Gas up + liquid down behavior restored
+  (v17.2.1 had changed liquid to straight).  Immediate diverge at t=0.15
+  from entry point.  Both phases fade across dispersal zone.
+
+  **Electric heater viewport fix.**  _UNIT_VIEWPORT for electric_heater
+  was (24,20) 48×32 but the visual dark rect is at (22,34) 52×28.
+  Fixed to match — particles now centered on body and stubs.
+
+  **Source viewport fix.**  Viewport color changed from #052e16 (green) to
+  #0f0820 (matches _rtVp helper used by all other circular viewports).
+  Enlarged from r=14 to r=22 (matches _UNIT_VIEWPORT).  Flow arrow
+  removed — was obscuring particles.  Inner glow overlay added.
+
+  **Reactor 3-stream magnifying glass.**  Reactor configs (adiabatic,
+  jacketed, cooled, combustion_chamber) now set `streams:3`.
+  _bodyTransitPath generates 3 parallel horizontal sub-paths at
+  y-offsets [-0.4, 0, +0.4] × viewport radius within the circle.
+  Each stream gets its own particle set with independent morph colors.
+  Entry/exit x computed by circle intersection at each y-offset.
+  dwellFactor reduced to 1.5 for faster throughput.  Result: viewport
+  "bubbles with particles changing colors" instead of sparse single lane.
+
+  **Combustion chamber viewport enlarged.**  SVG viewport r=18 → r=28
+  (matching _UNIT_VIEWPORT).  4 flames (was 3) with smaller profiles
+  anchored at bottom of the bigger viewport.  3 glow layers, 3 core
+  layers.  Canvas morph particles flow through the top part while flames
+  burn at the bottom.
+
+  **Air intake bell-shaped viewport.**  Rectangular viewport replaced
+  with bell-shaped SVG path inset from the body bell contour (parallel
+  borders).  Path: M12,18 Q10,48 12,78 L48,60 Q52,48 48,36 Z.
+  Canvas clip rect tightened to inscribed rect (16,24) 28×48.
+  Viewport fill uses #0f0820 (matches _rtVp) with vp-depth overlay.
+
+  NNGs: NNG-3 (visual fidelity), NNG-14 (changelog).
+  Tests: 606 total, 3136 checks, 0 failures.
 
   ─── v17.2.1 — Particle polish: tuning, clipping, viewport fixes ────────
 
@@ -27857,12 +27901,12 @@ const _UNIT_VIEWPORT = {
   mixer:                    { type: 'rect', x: 20, y: 38, w: 44, h: 20 },
   pump:                     { type: 'circle', cx: 48, cy: 39, r: 20 },
   fan:                      { type: 'circle', cx: 48, cy: 48, r: 18 },
-  electric_heater:          { type: 'rect', x: 24, y: 20, w: 48, h: 32 },
+  electric_heater:          { type: 'rect', x: 22, y: 34, w: 52, h: 28 },
   distillation_column:      { type: 'rect', x: 26, y: 14, w: 44, h: 112 },
   membrane_separator:       { type: 'rect', x: 18, y: 14, w: 60, h: 68 },
   // [v16.9.12 Phase 4] Boundary unit viewports
   source:                   { type: 'circle', cx: 48, cy: 48, r: 22 },
-  source_atm:               { type: 'rect', x: 14, y: 20, w: 40, h: 56 },
+  source_atm:               { type: 'rect', x: 16, y: 24, w: 28, h: 48 },
   closed_loop_source:       { type: 'circle', cx: 48, cy: 48, r: 22 },
   reservoir:                { type: 'rect', x: 32, y: 16, w: 32, h: 48 },
   sink:                     { type: 'rect', x: 34, y: 18, w: 28, h: 36 },
@@ -28377,30 +28421,29 @@ const _RAGTAG_SYMBOLS = {
     const pres = getPresentation(def, scene.units.get(unitId));
     _rtNozzle(g, wx, wy, ww, wh, wx+10, wy+15, 76, 66, def, pres, pal, unitId);
     g.appendChild(svgEl('rect', { x:wx+10, y:wy+15, width:76, height:66, rx:14, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'pointer-events':'none' }));
-    // Viewport with warm glow background
-    g.appendChild(svgEl('circle', { cx:wx+48, cy:wy+47, r:18, fill:'#1a0800', stroke:pal.rim, 'stroke-width':2, 'pointer-events':'none' }));
-    g.appendChild(svgEl('path', { d:`M${wx+44},${wy+33} Q${wx+46},${wy+31} ${wx+48},${wy+33}`, fill:'none', stroke:'#fff', 'stroke-width':0.8, opacity:0.12, 'pointer-events':'none' }));
-    // Warm inner glow (static)
-    g.appendChild(svgEl('circle', { cx:wx+48, cy:wy+52, r:10, fill:'#f97316', opacity:0.08, 'pointer-events':'none' }));
-    // Clipped flame group
-    const fg = _rtVpClipGroup(g, wx+48, wy+47, 17, unitId, pal.rim);
-    // 3 flames anchored at bottom of viewport, each with independent flicker
-    const flameBase = wy + 61; // bottom of viewport circle
+    // [v17.2.2] Enlarged viewport r=28 — canvas morph particles + SVG flames at bottom
+    g.appendChild(svgEl('circle', { cx:wx+48, cy:wy+47, r:28, fill:'#1a0800', stroke:pal.rim, 'stroke-width':2, 'pointer-events':'none' }));
+    g.appendChild(svgEl('circle', { cx:wx+48, cy:wy+47, r:27, fill:'url(#vp-depth)', 'pointer-events':'none' }));
+    // Warm inner glow (static, at bottom)
+    g.appendChild(svgEl('circle', { cx:wx+48, cy:wy+60, r:12, fill:'#f97316', opacity:0.06, 'pointer-events':'none' }));
+    // Clipped flame group — flames at bottom of enlarged viewport
+    const fg = _rtVpClipGroup(g, wx+48, wy+47, 27, unitId, pal.rim);
+    const flameBase = wy + 71; // bottom of viewport circle
     // Outer glow layer per flame (softer, larger)
-    [[wx+40,0],[wx+48,0.33],[wx+56,0.66]].forEach(([fx, ph]) => {
-      fg.appendChild(svgEl('path', { d:`M${fx},${flameBase} Q${fx-6},${flameBase-10} ${fx},${flameBase-20} Q${fx+6},${flameBase-10} ${fx},${flameBase} Z`,
-        fill:'#f97316', opacity:0.15, 'pointer-events':'none',
+    [[wx+36,0],[wx+44,0.33],[wx+52,0.66],[wx+60,0.9]].forEach(([fx, ph]) => {
+      fg.appendChild(svgEl('path', { d:`M${fx},${flameBase} Q${fx-5},${flameBase-8} ${fx},${flameBase-16} Q${fx+5},${flameBase-8} ${fx},${flameBase} Z`,
+        fill:'#f97316', opacity:0.12, 'pointer-events':'none',
         'data-anim':'flame-flicker', 'data-cx':fx, 'data-cy':flameBase, 'data-phase':ph, 'data-speed':'2.0' }));
     });
     // Main flame bodies
-    [[wx+40, 0, '#f97316', '#fbbf24'], [wx+48, 0.33, '#fb923c', '#fde68a'], [wx+56, 0.66, '#f97316', '#fbbf24']].forEach(([fx, ph, fill, stroke]) => {
-      fg.appendChild(svgEl('path', { d:`M${fx},${flameBase} Q${fx-4},${flameBase-7} ${fx-2},${flameBase-15} Q${fx},${flameBase-19} ${fx},${flameBase-19} Q${fx},${flameBase-19} ${fx+2},${flameBase-15} Q${fx+4},${flameBase-7} ${fx},${flameBase} Z`,
+    [[wx+36, 0, '#f97316', '#fbbf24'], [wx+44, 0.33, '#fb923c', '#fde68a'], [wx+52, 0.66, '#f97316', '#fbbf24'], [wx+60, 0.9, '#fb923c', '#fde68a']].forEach(([fx, ph, fill, stroke]) => {
+      fg.appendChild(svgEl('path', { d:`M${fx},${flameBase} Q${fx-3},${flameBase-5} ${fx-1.5},${flameBase-12} Q${fx},${flameBase-15} ${fx},${flameBase-15} Q${fx},${flameBase-15} ${fx+1.5},${flameBase-12} Q${fx+3},${flameBase-5} ${fx},${flameBase} Z`,
         fill, stroke, 'stroke-width':0.5, 'pointer-events':'none',
         'data-anim':'flame-flicker', 'data-cx':fx, 'data-cy':flameBase, 'data-phase':ph, 'data-speed':'2.8' }));
     });
     // Bright inner cores (smaller, faster flicker)
-    [[wx+40, 0.15, '#fbbf24'], [wx+48, 0.5, '#fde68a'], [wx+56, 0.8, '#fbbf24']].forEach(([fx, ph, fill]) => {
-      fg.appendChild(svgEl('path', { d:`M${fx},${flameBase-2} Q${fx-2},${flameBase-7} ${fx},${flameBase-13} Q${fx+2},${flameBase-7} ${fx},${flameBase-2} Z`,
+    [[wx+36, 0.15, '#fbbf24'], [wx+44, 0.5, '#fde68a'], [wx+52, 0.8, '#fbbf24'], [wx+60, 0.1, '#fde68a']].forEach(([fx, ph, fill]) => {
+      fg.appendChild(svgEl('path', { d:`M${fx},${flameBase-1} Q${fx-1.5},${flameBase-5} ${fx},${flameBase-10} Q${fx+1.5},${flameBase-5} ${fx},${flameBase-1} Z`,
         fill, opacity:0.6, 'pointer-events':'none',
         'data-anim':'flame-flicker', 'data-cx':fx, 'data-cy':flameBase, 'data-phase':ph, 'data-speed':'4.0' }));
     });
@@ -28892,21 +28935,19 @@ const _RAGTAG_SYMBOLS = {
     _rtNozzle(g, wx, wy, ww, wh, wx+20, wy+20, 56, 56, def, pres, pal, unitId);
     // Circle body (rotationally symmetric)
     g.appendChild(svgEl('circle', { cx:wx+48, cy:wy+48, r:28, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'pointer-events':'none' }));
-    // Viewport (rotationally symmetric)
-    g.appendChild(svgEl('circle', { cx:wx+48, cy:wy+48, r:14, fill:'#052e16', stroke:pal.rim, 'stroke-width':2, 'pointer-events':'none' }));
+    // Viewport (rotationally symmetric) — [v17.2.2] color matches _rtVp, enlarged to r=22
+    _rtVp(g, wx+48, wy+48, 22, pal.rim);
+    g.appendChild(svgEl('circle', { cx:wx+48, cy:wy+48, r:21, fill:'url(#vp-depth)', 'pointer-events':'none' }));
     // Determine rotation from port edge: default=right→0°, left→180°, top→-90°, bottom→90°
     const _outPos = pres.ports.mat_out;
     const _outEdge = _outPos ? getPortEdge(_outPos, pres) : 'right';
     const _rot = _outEdge === 'right' ? 0 : _outEdge === 'left' ? 180 : _outEdge === 'top' ? -90 : 90;
-    // Directional sub-group: arrow, chip, bolts, highlight, LED — all rotate together
+    // Directional sub-group: chip, bolts, LED — all rotate together (arrow removed for particle visibility)
     const dg = svgEl('g', { transform:`rotate(${_rot},${wx+48},${wy+48})`, 'pointer-events':'none' });
     // Glass highlight
     dg.appendChild(svgEl('path', { d:`M${wx+44},${wy+38}Q${wx+46},${wy+36} ${wx+48},${wy+38}`, fill:'none', stroke:'#fff', 'stroke-width':0.8, opacity:0.12 }));
     // Paint chip
     _rtChip(dg, wx+60, wy+30);
-    // Flow arrow (pulsing)
-    dg.appendChild(svgEl('line', { x1:wx+38, y1:wy+48, x2:wx+56, y2:wy+48, stroke:'#6ee7b7', 'stroke-width':2.5, 'stroke-linecap':'round', 'data-anim':'rotor-pulse', 'data-opbase':'0.35' }));
-    dg.appendChild(svgEl('polygon', { points:`${wx+53},${wy+44} ${wx+59},${wy+48} ${wx+53},${wy+52}`, fill:'#6ee7b7', 'data-anim':'rotor-pulse', 'data-opbase':'0.35' }));
     // 4 bolts
     _rtBolt(dg, wx+26, wy+34); _rtBolt(dg, wx+26, wy+62);
     _rtBolt(dg, wx+70, wy+34); _rtBolt(dg, wx+70, wy+62);
@@ -28924,9 +28965,10 @@ const _RAGTAG_SYMBOLS = {
     // 2. Bell mouth body: path d='M4,10 Q2,48 4,86 L56,66 Q62,48 56,30 Z'
     g.appendChild(svgEl('path', { d:`M${wx+4},${wy+10} Q${wx+2},${wy+48} ${wx+4},${wy+86} L${wx+56},${wy+66} Q${wx+62},${wy+48} ${wx+56},${wy+30} Z`,
       fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'stroke-linejoin':'round', 'pointer-events':'none' }));
-    // [v17.2.1] Viewport panel — dark recessed window for particle clipping
-    g.appendChild(svgEl('rect', { x:wx+14, y:wy+20, width:40, height:56, rx:4, fill:'#0f172a', opacity:0.8, 'pointer-events':'none' }));
-    g.appendChild(svgEl('rect', { x:wx+14, y:wy+20, width:40, height:56, rx:4, fill:'url(#vp-depth)', 'pointer-events':'none' }));
+    // [v17.2.2] Bell-shaped viewport — inset from body bell, parallel borders
+    const _bellVp = `M${wx+12},${wy+18} Q${wx+10},${wy+48} ${wx+12},${wy+78} L${wx+48},${wy+60} Q${wx+52},${wy+48} ${wx+48},${wy+36} Z`;
+    g.appendChild(svgEl('path', { d:_bellVp, fill:'#0f0820', 'pointer-events':'none' }));
+    g.appendChild(svgEl('path', { d:_bellVp, fill:'url(#vp-depth)', 'pointer-events':'none' }));
     // 3. Open mouth edge — dashed to show it's open to atmosphere
     g.appendChild(svgEl('line', { x1:wx+4, y1:wy+10, x2:wx+4, y2:wy+86, stroke:'#6ee7b7', 'stroke-width':2, 'stroke-dasharray':'3 3', opacity:0.4, 'pointer-events':'none' }));
     // 4. Intake louver slats: y=[24,36,48,60,72], x1=8, x2=32+(48-|y-48|)*0.4
@@ -37224,10 +37266,10 @@ const _PARTICLE_BEHAVIORS = {
     hex: { type:'dual-transit', dwellFactor:1.5 },
 
     // Reactors: morph
-    reactor_adiabatic:       { type:'transit', path:'linear', transform:'morph', dwellFactor:2.0, morphZone:[0.2,0.8] },
-    reactor_jacketed:        { type:'transit', path:'linear', transform:'morph', dwellFactor:2.0, morphZone:[0.2,0.8] },
-    reactor_cooled:          { type:'transit', path:'linear', transform:'morph', dwellFactor:2.0, morphZone:[0.2,0.8] },
-    combustion_chamber:      { type:'transit', path:'linear', transform:'morph', dwellFactor:2.0, morphZone:[0.2,0.8] },
+    reactor_adiabatic:       { type:'transit', path:'linear', transform:'morph', dwellFactor:1.5, morphZone:[0.2,0.8], streams:3 },
+    reactor_jacketed:        { type:'transit', path:'linear', transform:'morph', dwellFactor:1.5, morphZone:[0.2,0.8], streams:3 },
+    reactor_cooled:          { type:'transit', path:'linear', transform:'morph', dwellFactor:1.5, morphZone:[0.2,0.8], streams:3 },
+    combustion_chamber:      { type:'transit', path:'linear', transform:'morph', dwellFactor:1.5, morphZone:[0.2,0.8], streams:3 },
     reactor_electrochemical: { type:'transit', path:'linear', transform:'morph', dwellFactor:2.5, morphZone:[0.3,0.7] },
     fuel_cell:               { type:'transit', path:'linear', transform:'morph', dwellFactor:2.5, morphZone:[0.3,0.7] },
 
@@ -37419,10 +37461,35 @@ function _bodyTransitPath(unitId, cfg) {
     }]};
   }
 
-  // Single transit: first material IN → first material OUT
+  // Single or multi-stream transit: first material IN → first material OUT
   const matIn = def.ports.find(p => p.dir === PortDir.IN && p.type === StreamType.MATERIAL);
   const matOut = def.ports.find(p => p.dir === PortDir.OUT && p.type === StreamType.MATERIAL);
   if (!matIn || !matOut) return null;
+
+  const nStreams = cfg.streams || 1;
+  if (nStreams > 1 && vp.type === 'circle') {
+    // [v17.2.2] Multi-stream: N parallel horizontal paths within viewport circle
+    const subPaths = [];
+    const offsets = nStreams === 3 ? [-0.4, 0, 0.4] : nStreams === 2 ? [-0.3, 0.3] : [0];
+    for (const yFrac of offsets) {
+      const sy = vp.cy + vp.r * yFrac;
+      const dx = Math.sqrt(Math.max(0, vp.r * vp.r - (vp.r * yFrac) * (vp.r * yFrac))) * 0.88;
+      // Determine entry/exit side from port positions
+      const entryPt = _projectPortToVP(matIn.portId, pres, wx, wy, tile, vp);
+      const exitPt = _projectPortToVP(matOut.portId, pres, wx, wy, tile, vp);
+      const entryLeft = entryPt.x < exitPt.x;
+      subPaths.push({
+        entry: { x: vp.cx + (entryLeft ? -dx : dx), y: sy },
+        exit:  { x: vp.cx + (entryLeft ? dx : -dx), y: sy },
+        pathType: cfg.path || 'linear',
+        swirlTurns: 0, vp, streamKey: matIn.portId,
+        transform: cfg.transform || 'none',
+        morphZone: cfg.morphZone || [0.3, 0.7],
+        absorbSpecies: cfg.absorbSpecies || null
+      });
+    }
+    return { subPaths };
+  }
 
   return { subPaths: [{
     entry: _projectPortToVP(matIn.portId, pres, wx, wy, tile, vp),
@@ -37512,26 +37579,19 @@ function _transitPos(sp, t, jLat, isLiq) {
   }
 
   if (sp.pathType === 'disperse') {
-    // [v17.2.1] Liquid: straight transit entry→exit (no falling)
-    if (isLiq) {
-      const mx = e.x + (x.x - e.x) * t;
-      const my = e.y + (x.y - e.y) * t;
-      const pdx = x.x - e.x, pdy = x.y - e.y;
-      const pLen = Math.sqrt(pdx * pdx + pdy * pdy) || 1;
-      return { x: mx + (-pdy / pLen) * jLat, y: my + (pdx / pLen) * jLat };
-    }
-    // Gas: entry (t=0) → center (t=0.3) → rise (t=0.3→1)
-    if (t < 0.3) {
-      const f = t / 0.3;
+    // Sink disperse: entry (t=0) → center (t=0.15) → gas rises / liquid falls (t=0.15→1)
+    if (t < 0.15) {
+      const f = t / 0.15;
       const px = e.x + (x.x - e.x) * f;
       const py = e.y + (x.y - e.y) * f;
       const pdx = x.x - e.x, pdy = x.y - e.y;
       const pLen = Math.sqrt(pdx * pdx + pdy * pdy) || 1;
       return { x: px + (-pdy / pLen) * jLat, y: py + (pdx / pLen) * jLat };
     }
-    const f = (t - 0.3) / 0.7;
+    // After center: gas rises, liquid falls
+    const f = (t - 0.15) / 0.85;
     const eased = 1 - (1 - f) * (1 - f);
-    const target = sp.disperseTop;
+    const target = isLiq ? sp.disperseBot : sp.disperseTop;
     const px = x.x + (target.x - x.x) * eased + jLat * (1 - f);
     const py = x.y + (target.y - x.y) * eased;
     return { x: px, y: py };
@@ -37595,7 +37655,7 @@ function _rebuildFlowParticles() {
         const tNoise = isLiq ? (h - 0.5) * 0.06 : (h - 0.5) * 0.25;
         const t = ((i * gapT) + tNoise + 1) % 1;
         const jLat = isLiq ? (h2 - 0.5) * 1.5 : (h2 - 0.5) * 6;
-        const sMul = isLiq ? 0.95 + h3 * 0.1 : 0.7 + h3 * 0.6;
+        const sMul = isLiq ? 0.75 + h3 * 0.5 : 0.6 + h3 * 0.8;
         const r = isLiq ? B.CONN_PARTICLE_R : B.GAS_R_MIN + h * B.GAS_R_VAR;
         const aspect = isLiq ? 1.0 : B.GAS_ASPECT_MIN + h2 * (B.GAS_ASPECT_MAX - B.GAS_ASPECT_MIN);
         const rotAngle = isLiq ? 0 : h3 * Math.PI * 2;
@@ -38137,8 +38197,8 @@ function _bodyParticleAlpha(sp, p, baseAlpha) {
   if (sp.transform === 'absorb' && sp.absorbSpecies?.includes(p.species)) {
     a *= Math.max(0, 1 - p.t * 1.5);
   }
-  if (sp.pathType === 'disperse' && !p.isLiq && p.t > 0.3) {
-    a *= Math.max(0, 1 - (p.t - 0.3) / 0.7);
+  if (sp.pathType === 'disperse' && p.t > 0.15) {
+    a *= Math.max(0, 1 - (p.t - 0.15) / 0.85);
   }
   if (sp.pathType === 'emerge' && p.t < 0.15) {
     a *= p.t / 0.15;
