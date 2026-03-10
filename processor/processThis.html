@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v17.3.2
+  processThis v17.3.3
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -346,6 +346,44 @@
   ═══════════════════════════════════════════════════════════════════════════
   CHANGELOG  (latest first)
   ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v17.3.3 — Species colors, viewports, magnify, editable palette ─────
+
+  **Species color redesign.**  Perceptual color science audit for all 11
+  registered species.  Critical game pairs maximally distinguished:
+    CO₂ red [239,68,68] vs CH₄ golden [240,196,48] — Sabatier clarity
+    H₂O blue [59,130,246] vs O₂ teal [100,210,230] — electrolysis
+    H₂ chartreuse [168,230,90] vs NH₃ bright green [34,197,94] — Haber
+    CO copper [210,120,60] vs CH₄ gold — SMR/syngas
+    CH₂O tan [180,140,90] added for food/organic
+  Colors stored as `_SPECIES_COLOR_DEFAULTS` with runtime-mutable
+  `_SPECIES_COLOR`.  Ar violet, He pink, N₂ grey unchanged.
+
+  **Editable species + category colors.**  Both are now serialized in
+  `settings.speciesColors` and `settings.categoryColors` in export JSON.
+  On import, `_applySpeciesColors()` and `_applyCategoryColors()` restore
+  overrides.  Users can edit colors in the JSON and reload.
+
+  **HEX elliptical viewport.**  Viewport changed from rect (22,23)52×50
+  to ellipse cx:48 cy:48 rx:34 ry:24 — follows body ellipse shape with
+  constant 6px inset.  New 'ellipse' type added to _UNIT_VIEWPORT,
+  _getUnitViewport, _projectPortToVP, _clipToVp, _vpDim.  Canvas clips
+  via ctx.ellipse().  SVG icon draws matching ellipse viewport.
+
+  **Reactor magnifying glass.**  `magnify:2.5` added to reactor_adiabatic,
+  reactor_jacketed, reactor_cooled, combustion_chamber particle configs.
+  Applied in body particle draw (both liquid and gas passes).  Particles
+  inside reactor viewports render at 2.5× radius, simulating a magnifying
+  glass effect on the reaction happening inside.
+
+  **Air cooler radiator viewport.**  The viewport was on the fan circle
+  (decorative) but particles flow through the radiator body.  Added dark
+  rect viewport (_rtVpR + vp-depth) inset 4px from radiator edges.  Tube
+  lines now render as dimmed hints inside the viewport.  _UNIT_VIEWPORT
+  changed from circle (fan) to rect (16,24) 64×30 (radiator).
+
+  NNGs: NNG-3 (WYSIWYG), NNG-14 (changelog).
+  Tests: 606 total, 3136 checks, 0 failures.
 
   ─── v17.3.2 — Particle density + speed boost ───────────────────────────
 
@@ -21754,7 +21792,12 @@ class Scene {
       grid: { w: this.gridW, h: this.gridH, tile: this.tile },
       settings: {
         atmospherePreset: SimSettings.getPresetKey(),
-        dt: SimSettings.dt  // [v9.0.1]
+        dt: SimSettings.dt,  // [v9.0.1]
+        speciesColors: { ..._SPECIES_COLOR },  // [v17.3.3] editable species particle colors
+        categoryColors: { ..._CATEGORY_COLOR_DEFAULTS, ...Object.fromEntries(
+          Object.entries(UnitCategories).filter(([k,v]) => v && typeof v === 'object' && v.color && !k.startsWith('_'))
+            .map(([k,v]) => [k, v.color])
+        ) },  // [v17.3.3] editable unit category colors
       },
       units: [],
       connections: [],
@@ -22205,6 +22248,9 @@ class Scene {
       if (typeof data.settings.dt === 'number' && data.settings.dt >= 1) {
         SimSettings.dt = data.settings.dt;
       }
+      // [v17.3.3] Import species and category colors
+      if (data.settings.speciesColors) _applySpeciesColors(data.settings.speciesColors);
+      if (data.settings.categoryColors) _applyCategoryColors(data.settings.categoryColors);
     }
     // (If no settings block: keep current SimSettings — DEV_BUILD defaults)
 
@@ -27096,19 +27142,47 @@ const _VIS_ELEC = '#eab308';      // unified electrical colour (amber)
 const _VIS_MAT_STREAM = '#94a3b8'; // default material stream grey
 
 // [v12.16.0] Per-species colour palette for composition mode
-const _SPECIES_COLOR = {
-  H2O: [59, 130, 246],   // blue — water
-  CO2: [239, 68,  68],   // red — greenhouse
-  CH4: [249, 115, 22],   // orange — fuel gas
-  H2:  [132, 204, 22],   // lime — hydrogen
-  N2:  [148, 163, 184],  // silver — inert
-  O2:  [34, 211, 238],   // cyan — oxidiser
-  NH3: [20, 184, 166],   // teal — ammonia
-  Ar:  [139, 92, 246],   // violet — noble
-  He:  [236, 72, 153],   // pink — noble
-  CO:  [251, 191, 36],   // amber — syngas
+// [v17.3.3] Species colors — perceptually spaced for maximum distinguishability.
+// Critical pairs: CO₂/CH₄ (Sabatier), H₂O/O₂ (electrolysis), H₂/NH₃ (Haber).
+// Editable: overridden by scene.settings.speciesColors at import.
+const _SPECIES_COLOR_DEFAULTS = {
+  H2O: [59, 130, 246],    // blue — water (keep)
+  N2:  [148, 163, 184],   // silver-grey — inert (keep)
+  CO2: [239, 68,  68],    // red — greenhouse gas (keep)
+  O2:  [100, 210, 230],   // light teal — shifted from H₂O's blue
+  CH4: [240, 196, 48],    // golden yellow — clearly not CO₂ red
+  H2:  [168, 230, 90],    // chartreuse — light, energetic
+  NH3: [34,  197, 94],    // bright green — fertilizer (reserved)
+  Ar:  [139, 92,  246],   // violet — noble gas (keep)
+  He:  [236, 72,  153],   // pink — noble gas (keep)
+  CO:  [210, 120, 60],    // copper — syngas, distinct from CH₄ gold
+  CH2O:[180, 140, 90],    // tan — organic/food
 };
+const _SPECIES_COLOR = { ..._SPECIES_COLOR_DEFAULTS };
 const _SPECIES_DEFAULT_RGB = [148, 163, 184]; // grey for unknown species
+
+// [v17.3.3] Unit category colors — editable: overridden by scene.settings.categoryColors at import.
+const _CATEGORY_COLOR_DEFAULTS = {
+  BOUNDARY:      '#10b981',
+  HEAT_TRANSFER: '#14b8a6',
+  PRESSURE:      '#8b5cf6',
+  REACTOR:       '#ef4444',
+  SEPARATION:    '#e535ab',
+  STORAGE:       '#3b82f6',
+  POWER:         '#eab308',
+};
+function _applyCategoryColors(overrides) {
+  if (!overrides) return;
+  for (const [key, color] of Object.entries(overrides)) {
+    if (UnitCategories[key]) UnitCategories[key].color = color;
+  }
+}
+function _applySpeciesColors(overrides) {
+  if (!overrides) return;
+  for (const [sp, rgb] of Object.entries(overrides)) {
+    if (Array.isArray(rgb) && rgb.length === 3) _SPECIES_COLOR[sp] = rgb;
+  }
+}
 
 function _visCompColor(stream) {
   if (!stream || stream.type !== StreamType.MATERIAL || !stream.n) return null;
@@ -27981,8 +28055,8 @@ const _UNIT_VIEWPORT = {
   compressor_diaphragm:     { type: 'rect', x: 28, y: 24, w: 36, h: 40 },
   gas_turbine:              { type: 'rect', x: 24, y: 30, w: 48, h: 36 },
   flash_drum:               { type: 'rect', x: 30, y: 20, w: 28, h: 56 },
-  hex:                      { type: 'rect', x: 22, y: 23, w: 52, h: 50 },
-  air_cooler:               { type: 'circle', cx: 48, cy: 24, r: 16 },  // fan center varies by layout
+  hex:                      { type: 'ellipse', cx: 48, cy: 48, rx: 34, ry: 24 },  // [v17.3.3] follows body ellipse
+  air_cooler:               { type: 'rect', x: 16, y: 24, w: 64, h: 30 },  // [v17.3.3] radiator body, not fan
   mixer:                    { type: 'rect', x: 20, y: 38, w: 44, h: 20 },
   pump:                     { type: 'circle', cx: 48, cy: 39, r: 20 },
   fan:                      { type: 'circle', cx: 48, cy: 48, r: 18 },
@@ -28009,6 +28083,7 @@ function _getUnitViewport(unitId) {
   const wx = u.x * scene.tile;
   const wy = u.y * scene.tile;
   if (vp.type === 'circle') return { type: 'circle', cx: wx + vp.cx, cy: wy + vp.cy, r: vp.r };
+  if (vp.type === 'ellipse') return { type: 'ellipse', cx: wx + vp.cx, cy: wy + vp.cy, rx: vp.rx, ry: vp.ry };
   return { type: 'rect', x: wx + vp.x, y: wy + vp.y, w: vp.w, h: vp.h };
 }
 
@@ -29434,18 +29509,22 @@ const _RAGTAG_SYMBOLS = {
     _rtNozzle(g, wx, wy, ww, wh, bx, by, bx2 - bx, by2 - by, def, pres, pal, unitId);
     // Radiator body (drawn first, fan overlaps)
     g.appendChild(svgEl('rect', { x:rx, y:ry, width:rw, height:rh, rx:2, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'pointer-events':'none' }));
-    // Tube lines inside radiator
+    // [v17.3.3] Viewport on radiator body — where particles actually flow
+    const _vpInset = 4;
+    _rtVpR(g, rx+_vpInset, ry+_vpInset, rw-_vpInset*2, rh-_vpInset*2, '#0f0820', pal.rim);
+    g.appendChild(svgEl('rect', { x:rx+_vpInset+1, y:ry+_vpInset+1, width:rw-_vpInset*2-2, height:rh-_vpInset*2-2, rx:4, fill:'url(#vp-depth)', 'pointer-events':'none' }));
+    // Tube lines inside viewport (dimmed hints)
     if (_horiz) {
       const nTubes = 5, spacing = (rw - 12) / (nTubes - 1);
       for (let i = 0; i < nTubes; i++) {
         const tx = rx + 6 + i * spacing;
-        g.appendChild(svgEl('line', { x1:tx, y1:ry+4, x2:tx, y2:ry+rh-4, stroke:'#0c1a2e', 'stroke-width':2.5, opacity:0.4, 'pointer-events':'none' }));
+        g.appendChild(svgEl('line', { x1:tx, y1:ry+_vpInset+2, x2:tx, y2:ry+rh-_vpInset-2, stroke:'#1e3a5f', 'stroke-width':1.5, opacity:0.25, 'pointer-events':'none' }));
       }
     } else {
       const nTubes = 5, spacing = (rh - 12) / (nTubes - 1);
       for (let i = 0; i < nTubes; i++) {
         const ty = ry + 6 + i * spacing;
-        g.appendChild(svgEl('line', { x1:rx+4, y1:ty, x2:rx+rw-4, y2:ty, stroke:'#0c1a2e', 'stroke-width':2.5, opacity:0.4, 'pointer-events':'none' }));
+        g.appendChild(svgEl('line', { x1:rx+_vpInset+2, y1:ty, x2:rx+rw-_vpInset-2, y2:ty, stroke:'#1e3a5f', 'stroke-width':1.5, opacity:0.25, 'pointer-events':'none' }));
       }
     }
     // Fan housing (in front, overlapping radiator)
@@ -29491,16 +29570,15 @@ const _RAGTAG_SYMBOLS = {
     const pres = getPresentation(def, scene.units.get(unitId));
     _rtNozzle(g, wx, wy, ww, wh, wx+8, wy+18, 80, 60, def, pres, pal, unitId);
     g.appendChild(svgEl('ellipse', { cx:wx+48, cy:wy+48, rx:40, ry:30, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'pointer-events':'none' }));
-    // [v16.9.9 S-PARTICLES Phase 1B] Enlarged rectangular viewport 52×50
-    _rtVpR(g, wx+22, wy+23, 52, 50, '#0f0820', pal.rim);
-    // Inner glow
-    g.appendChild(svgEl('rect', { x:wx+23, y:wy+24, width:50, height:48, rx:4, fill:'url(#vp-depth)', 'pointer-events':'none' }));
+    // [v17.3.3] Elliptical viewport — follows body shape with constant inset
+    g.appendChild(svgEl('ellipse', { cx:wx+48, cy:wy+48, rx:34, ry:24, fill:'#0f0820', stroke:pal.rim, 'stroke-width':2, 'pointer-events':'none' }));
+    g.appendChild(svgEl('ellipse', { cx:wx+48, cy:wy+48, rx:33, ry:23, fill:'url(#vp-depth)', 'pointer-events':'none' }));
     // Horizontal divider — hot (top) / cold (bottom)
-    g.appendChild(svgEl('line', { x1:wx+26, y1:wy+48, x2:wx+70, y2:wy+48, stroke:pal.stroke, 'stroke-width':1, opacity:0.4, 'stroke-dasharray':'3 2', 'pointer-events':'none' }));
+    g.appendChild(svgEl('line', { x1:wx+18, y1:wy+48, x2:wx+78, y2:wy+48, stroke:pal.stroke, 'stroke-width':1, opacity:0.4, 'stroke-dasharray':'3 2', 'pointer-events':'none' }));
     // Hot stream label hint
-    g.appendChild(svgEl('path', { d:`M${wx+30},${wy+36} C${wx+38},${wy+30} ${wx+58},${wy+42} ${wx+66},${wy+36}`, fill:'none', stroke:'#fca5a5', 'stroke-width':1.5, 'stroke-linecap':'round', opacity:0.3, 'pointer-events':'none' }));
+    g.appendChild(svgEl('path', { d:`M${wx+22},${wy+36} C${wx+34},${wy+30} ${wx+62},${wy+42} ${wx+74},${wy+36}`, fill:'none', stroke:'#fca5a5', 'stroke-width':1.5, 'stroke-linecap':'round', opacity:0.3, 'pointer-events':'none' }));
     // Cold stream label hint
-    g.appendChild(svgEl('path', { d:`M${wx+30},${wy+60} C${wx+38},${wy+54} ${wx+58},${wy+66} ${wx+66},${wy+60}`, fill:'none', stroke:'#93c5fd', 'stroke-width':1.5, 'stroke-linecap':'round', opacity:0.3, 'pointer-events':'none' }));
+    g.appendChild(svgEl('path', { d:`M${wx+22},${wy+60} C${wx+34},${wy+54} ${wx+62},${wy+66} ${wx+74},${wy+60}`, fill:'none', stroke:'#93c5fd', 'stroke-width':1.5, 'stroke-linecap':'round', opacity:0.3, 'pointer-events':'none' }));
     // 4 bolts at cardinal points
     _rtBolt(g, wx+14, wy+48); _rtBolt(g, wx+82, wy+48);
     _rtBolt(g, wx+48, wy+20); _rtBolt(g, wx+48, wy+76);
@@ -37374,10 +37452,10 @@ const _PARTICLE_BEHAVIORS = {
     hex: { type:'dual-transit', dwellFactor:1.5 },
 
     // Reactors: morph
-    reactor_adiabatic:       { type:'transit', path:'linear', transform:'morph', dwellFactor:1.5, morphZone:[0.2,0.8], streams:3 },
-    reactor_jacketed:        { type:'transit', path:'linear', transform:'morph', dwellFactor:1.5, morphZone:[0.2,0.8], streams:3 },
-    reactor_cooled:          { type:'transit', path:'linear', transform:'morph', dwellFactor:1.5, morphZone:[0.2,0.8], streams:3 },
-    combustion_chamber:      { type:'transit', path:'linear', transform:'morph', dwellFactor:1.5, morphZone:[0.2,0.8], streams:3 },
+    reactor_adiabatic:       { type:'transit', path:'linear', transform:'morph', dwellFactor:1.5, morphZone:[0.2,0.8], streams:3, magnify:2.5 },
+    reactor_jacketed:        { type:'transit', path:'linear', transform:'morph', dwellFactor:1.5, morphZone:[0.2,0.8], streams:3, magnify:2.5 },
+    reactor_cooled:          { type:'transit', path:'linear', transform:'morph', dwellFactor:1.5, morphZone:[0.2,0.8], streams:3, magnify:2.5 },
+    combustion_chamber:      { type:'transit', path:'linear', transform:'morph', dwellFactor:1.5, morphZone:[0.2,0.8], streams:3, magnify:2.5 },
     reactor_electrochemical: { type:'transit', path:'linear', transform:'morph', dwellFactor:2.5, morphZone:[0.3,0.7] },
     fuel_cell:               { type:'transit', path:'linear', transform:'morph', dwellFactor:2.5, morphZone:[0.3,0.7] },
 
@@ -37451,8 +37529,8 @@ function _sampleSpeciesAt(fracs, idx) {
 // Returns {x,y} on the viewport edge closest to the port.
 function _projectPortToVP(portId, pres, wx, wy, tile, vp) {
   const pp = pres.ports?.[portId];
-  const vcx = vp.type === 'circle' ? vp.cx : vp.x + vp.w / 2;
-  const vcy = vp.type === 'circle' ? vp.cy : vp.y + vp.h / 2;
+  const vcx = vp.cx != null ? vp.cx : vp.x + vp.w / 2;
+  const vcy = vp.cy != null ? vp.cy : vp.y + vp.h / 2;
   if (!pp) return { x: vcx, y: vcy };
 
   const px = wx + pp.x * tile;
@@ -37464,6 +37542,11 @@ function _projectPortToVP(portId, pres, wx, wy, tile, vp) {
   if (vp.type === 'circle') {
     const nx = dx / len, ny = dy / len;
     return { x: vp.cx + nx * vp.r * 0.88, y: vp.cy + ny * vp.r * 0.88 };
+  }
+  if (vp.type === 'ellipse') {
+    // [v17.3.3] Ellipse boundary: normalize direction by radii, then scale back
+    const ang = Math.atan2(dy / vp.ry, dx / vp.rx);
+    return { x: vp.cx + Math.cos(ang) * vp.rx * 0.88, y: vp.cy + Math.sin(ang) * vp.ry * 0.88 };
   }
   // Rect: ray from center toward port, intersect with rect edges
   let t = Infinity;
@@ -37512,8 +37595,8 @@ function _bodyTransitPath(unitId, cfg) {
     const entry = _projectPortToVP(matIn.portId, pres, wx, wy, tile, vp);
     const vapExit = _projectPortToVP(vapPort.portId, pres, wx, wy, tile, vp);
     const liqExit = _projectPortToVP(liqPort.portId, pres, wx, wy, tile, vp);
-    const cx = vp.type === 'circle' ? vp.cx : vp.x + vp.w / 2;
-    const cy = vp.type === 'circle' ? vp.cy : vp.y + vp.h / 2;
+    const cx = vp.cx != null ? vp.cx : vp.x + vp.w / 2;
+    const cy = vp.cy != null ? vp.cy : vp.y + vp.h / 2;
     return { subPaths: [{
       entry, exit: vapExit, // exit used as fallback; actual routing uses vapExit/liqExit
       vapExit, liqExit,
@@ -37542,8 +37625,8 @@ function _bodyTransitPath(unitId, cfg) {
     // Source: particles emerge from center → mat_out exit
     const matOut = def.ports.find(p => p.dir === PortDir.OUT && p.type === StreamType.MATERIAL);
     if (!matOut) return null;
-    const vcx = vp.type === 'circle' ? vp.cx : vp.x + vp.w / 2;
-    const vcy = vp.type === 'circle' ? vp.cy : vp.y + vp.h / 2;
+    const vcx = vp.cx != null ? vp.cx : vp.x + vp.w / 2;
+    const vcy = vp.cy != null ? vp.cy : vp.y + vp.h / 2;
     const exit = _projectPortToVP(matOut.portId, pres, wx, wy, tile, vp);
     const pathType = cfg.path === 'converge' ? 'converge' : 'emerge';
     return { subPaths: [{
@@ -37570,10 +37653,10 @@ function _bodyTransitPath(unitId, cfg) {
     // Sink: mat_in entry → center → disperse (gas rises, liquid falls)
     const matIn = def.ports.find(p => p.dir === PortDir.IN && p.type === StreamType.MATERIAL);
     if (!matIn) return null;
-    const vcx = vp.type === 'circle' ? vp.cx : vp.x + vp.w / 2;
-    const vcy = vp.type === 'circle' ? vp.cy : vp.y + vp.h / 2;
-    const vpTop = vp.type === 'circle' ? vp.cy - vp.r * 0.85 : vp.y + 2;
-    const vpBot = vp.type === 'circle' ? vp.cy + vp.r * 0.85 : vp.y + vp.h - 2;
+    const vcx = vp.cx != null ? vp.cx : vp.x + vp.w / 2;
+    const vcy = vp.cy != null ? vp.cy : vp.y + vp.h / 2;
+    const vpTop = (vp.type === 'circle' || vp.type === 'ellipse') ? vp.cy - (vp.r || vp.ry) * 0.85 : vp.y + 2;
+    const vpBot = (vp.type === 'circle' || vp.type === 'ellipse') ? vp.cy + (vp.r || vp.ry) * 0.85 : vp.y + vp.h - 2;
     const entry = _projectPortToVP(matIn.portId, pres, wx, wy, tile, vp);
     return { subPaths: [{
       entry, exit: { x: vcx, y: vcy },
@@ -37684,8 +37767,8 @@ function _transitPos(sp, t, jLat, isLiq) {
     // Source_atm converge: scattered perimeter (t=0) → center (t=0.6) → exit (t=1)
     // jLat encodes the angular position on the perimeter (set at spawn)
     const vp = sp.vp;
-    const vcx = vp.type === 'circle' ? vp.cx : vp.x + vp.w / 2;
-    const vcy = vp.type === 'circle' ? vp.cy : vp.y + vp.h / 2;
+    const vcx = vp.cx != null ? vp.cx : vp.x + vp.w / 2;
+    const vcy = vp.cy != null ? vp.cy : vp.y + vp.h / 2;
     const R = sp.convergeRadius || 30;
     if (t < 0.6) {
       // Converge: perimeter angle (jLat as radians) → center
@@ -37912,7 +37995,7 @@ function _rebuildBodyParticles() {
         }
         const vNorm = anim ? Math.min(1, anim.vDot / B.VDOT_REF) : 0.1;
         const speed = Math.min(B.MAX_SPEED, B.BASE_SPEED * Math.max(0.05, vNorm));
-        const vpDim = sp.vp.type === 'circle' ? sp.vp.r * 2 : Math.max(sp.vp.w, sp.vp.h);
+        const vpDim = _vpDim(sp.vp);
         const nParticles = Math.min(B.MAX_PER_SEGMENT, Math.max(3, Math.ceil(vpDim / B.DENSITY_SPACING)));
 
         const particles = [];
@@ -37942,7 +38025,7 @@ function _rebuildBodyParticles() {
         subPaths.push({ ...sp, particles, speed, dwellFactor,
           T: ps?.T || 300, P: ps?.P || 101325, vDot: anim?.vDot || 0 });
       }
-      state = { subPaths };
+      state = { subPaths, magnify: cfg.magnify || 1 };
       _bodyParticleState.set(id, state);
     } else {
       // Update stream data + viewport positions
@@ -37993,7 +38076,7 @@ function _advanceBodyParticles(deltaSec) {
 
   for (const [, state] of _bodyParticleState) {
     for (const sp of state.subPaths) {
-      const vpDim = sp.vp.type === 'circle' ? sp.vp.r * 2 : Math.max(sp.vp.w, sp.vp.h);
+      const vpDim = _vpDim(sp.vp);
       if (vpDim < 1) continue;
       const transitTime = (vpDim / sp.speed) * sp.dwellFactor;
       if (transitTime <= 0) continue;
@@ -38009,6 +38092,7 @@ function _advanceBodyParticles(deltaSec) {
           p.jLat += (Math.random() - 0.5) * 1.0 * deltaSec * 8 * tScale;
           const maxJ = sp.pathType === 'swirl' ? 2
             : sp.vp.type === 'circle' ? sp.vp.r * 0.5
+            : sp.vp.type === 'ellipse' ? Math.min(sp.vp.rx, sp.vp.ry) * 0.5
             : Math.min(sp.vp.w, sp.vp.h) * 0.3;
           p.jLat *= B.BROWNIAN_SPRING;
           if (Math.abs(p.jLat) > maxJ) p.jLat *= 0.90;
@@ -38113,6 +38197,20 @@ function _advanceSmokePuffs(deltaSec) {
 // §PARTICLE-TUNING constants control all visual parameters.
 // ═══════════════════════════════════════════════════════════════════════════════
 
+// [v17.3.3] Viewport clip helper — handles circle, ellipse, rect
+function _clipToVp(ctx, vp, TAU) {
+  ctx.beginPath();
+  if (vp.type === 'circle') ctx.arc(vp.cx, vp.cy, vp.r, 0, TAU);
+  else if (vp.type === 'ellipse') ctx.ellipse(vp.cx, vp.cy, vp.rx, vp.ry, 0, 0, TAU);
+  else ctx.rect(vp.x, vp.y, vp.w, vp.h);
+  ctx.clip();
+}
+function _vpDim(vp) {
+  if (vp.type === 'circle') return vp.r * 2;
+  if (vp.type === 'ellipse') return Math.max(vp.rx, vp.ry) * 2;
+  return Math.max(vp.w, vp.h);
+}
+
 function _drawParticleCanvas() {
   if (!_particleCtx || !_particleCanvas) return;
   if (typeof _particleCtx.createRadialGradient !== 'function') return; // headless guard
@@ -38166,6 +38264,7 @@ function _drawParticleCanvas() {
 
   // ── Liquid: body particles (viewport-clipped) ──
   for (const [, state] of _bodyParticleState) {
+    const magnify = state.magnify || 1;
     for (const sp of state.subPaths) {
       if (!sp.vp) continue;
       // Collect liquid particles for this sub-path
@@ -38173,17 +38272,14 @@ function _drawParticleCanvas() {
       if (liqParticles.length === 0) continue;
 
       ctx.save();
-      ctx.beginPath();
-      if (sp.vp.type === 'circle') ctx.arc(sp.vp.cx, sp.vp.cy, sp.vp.r, 0, TAU);
-      else ctx.rect(sp.vp.x, sp.vp.y, sp.vp.w, sp.vp.h);
-      ctx.clip();
+      _clipToVp(ctx, sp.vp, TAU);
 
       for (const p of liqParticles) {
         const pos = _transitPos(sp, p.t, p.jLat, true);
         const rgb = _bodyParticleColor(sp, p);
         const alpha = _bodyParticleAlpha(sp, p, B.LIQ_OPACITY);
         if (alpha < 0.01) continue;
-        _drawLiquidParticle(ctx, pos.x, pos.y, p.r, rgb, alpha, B, TAU);
+        _drawLiquidParticle(ctx, pos.x, pos.y, p.r * magnify, rgb, alpha, B, TAU);
       }
       ctx.restore();
     }
@@ -38221,20 +38317,17 @@ function _drawParticleCanvas() {
 
   // ── Gas: body particles (viewport-clipped) ──
   for (const [, state] of _bodyParticleState) {
+    const magnify = state.magnify || 1;
     for (const sp of state.subPaths) {
       if (!sp.vp) continue;
       const gasParticles = sp.particles.filter(p => !p.isLiq);
       if (gasParticles.length === 0) continue;
 
       ctx.save();
-      ctx.beginPath();
-      if (sp.vp.type === 'circle') ctx.arc(sp.vp.cx, sp.vp.cy, sp.vp.r, 0, TAU);
-      else ctx.rect(sp.vp.x, sp.vp.y, sp.vp.w, sp.vp.h);
-      ctx.clip();
+      _clipToVp(ctx, sp.vp, TAU);
 
       const spT = sp.T || 300;
       const spP = sp.P || 101325;
-      const spPSizeMul = 1; // [v17.3.1] Pressure sizing removed
       const spTRatio = Math.max(0.5, spT / B.JITTER_T_REF);
       const spGlowR = B.GAS_GLOW_RADIUS_BASE * Math.pow(spTRatio, B.GAS_GLOW_RADIUS_T_SCALE);
       const spAdditive = spT > B.ADDITIVE_T_THRESHOLD;
@@ -38245,7 +38338,7 @@ function _drawParticleCanvas() {
         const rgb = _bodyParticleColor(sp, p);
         const alpha = _bodyParticleAlpha(sp, p, B.GAS_OPACITY);
         if (alpha < 0.01) continue;
-        const r = p.r * spPSizeMul;
+        const r = p.r * magnify;
         _drawGasParticle(ctx, pos.x, pos.y, r, p.aspect || 0.7, p.rotAngle || 0, rgb, alpha, spGlowR, B, TAU);
       }
       if (spAdditive) ctx.globalCompositeOperation = 'source-over';
