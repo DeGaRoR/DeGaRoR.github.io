@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v17.3.3
+  processThis v17.3.4
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -346,6 +346,31 @@
   ═══════════════════════════════════════════════════════════════════════════
   CHANGELOG  (latest first)
   ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v17.3.4 — Reactor scale-back, HEX fix, lateral pipe clipping ────────
+
+  **Reactor magnify 2.5 → 1.5.**  2.5× was too bulky — particles were
+  blobs.  1.5× gives a subtle magnifying-glass effect without distortion.
+
+  **HEX particles restored.**  The dual-transit path code had
+  `if (vp.type !== 'rect') return null` — rejected the new ellipse
+  viewport, so zero particles rendered.  Added ellipse branch: splits
+  the parent ellipse into top/bottom sub-ellipses (±0.25ry offset,
+  0.92rx × 0.42ry each) with a small equator gap for the divider line.
+
+  **Lateral pipe clipping.**  Gas particles were escaping the sides of
+  the pipe bore (top/bottom of horizontal pipes, left/right of vertical).
+  Root cause: gas jLat initialized to ±3px and brownian drift clamped at
+  ±3px, but the pipe bore is only 5px wide (half = 2.5px), and gas glow
+  (shadowBlur) extends further.  Three fixes:
+  1. Initial gas jLat range: ±3 → ±1.5 (fits inside bore).
+  2. Brownian drift hard clamp: 3px soft → 1.5px hard.
+  3. Draw-time skip: gas |jLat| > 1.5 and liquid |jLat| > 2.0.
+  t-range clipping reverted to original 0.13/0.87 (longitudinal ends
+  were fine; the problem was lateral bleed).
+
+  NNGs: NNG-3 (visual fidelity), NNG-14 (changelog).
+  Tests: 606 total, 3136 checks, 0 failures.
 
   ─── v17.3.3 — Species colors, viewports, magnify, editable palette ─────
 
@@ -37452,10 +37477,10 @@ const _PARTICLE_BEHAVIORS = {
     hex: { type:'dual-transit', dwellFactor:1.5 },
 
     // Reactors: morph
-    reactor_adiabatic:       { type:'transit', path:'linear', transform:'morph', dwellFactor:1.5, morphZone:[0.2,0.8], streams:3, magnify:2.5 },
-    reactor_jacketed:        { type:'transit', path:'linear', transform:'morph', dwellFactor:1.5, morphZone:[0.2,0.8], streams:3, magnify:2.5 },
-    reactor_cooled:          { type:'transit', path:'linear', transform:'morph', dwellFactor:1.5, morphZone:[0.2,0.8], streams:3, magnify:2.5 },
-    combustion_chamber:      { type:'transit', path:'linear', transform:'morph', dwellFactor:1.5, morphZone:[0.2,0.8], streams:3, magnify:2.5 },
+    reactor_adiabatic:       { type:'transit', path:'linear', transform:'morph', dwellFactor:1.5, morphZone:[0.2,0.8], streams:3, magnify:1.5 },
+    reactor_jacketed:        { type:'transit', path:'linear', transform:'morph', dwellFactor:1.5, morphZone:[0.2,0.8], streams:3, magnify:1.5 },
+    reactor_cooled:          { type:'transit', path:'linear', transform:'morph', dwellFactor:1.5, morphZone:[0.2,0.8], streams:3, magnify:1.5 },
+    combustion_chamber:      { type:'transit', path:'linear', transform:'morph', dwellFactor:1.5, morphZone:[0.2,0.8], streams:3, magnify:1.5 },
     reactor_electrochemical: { type:'transit', path:'linear', transform:'morph', dwellFactor:2.5, morphZone:[0.3,0.7] },
     fuel_cell:               { type:'transit', path:'linear', transform:'morph', dwellFactor:2.5, morphZone:[0.3,0.7] },
 
@@ -37572,6 +37597,20 @@ function _bodyTransitPath(unitId, cfg) {
 
   if (cfg.type === 'dual-transit') {
     // HEX: split viewport into top/bottom halves (hot / cold)
+    // [v17.3.4] Support ellipse viewport — split into top/bottom sub-ellipses
+    if (vp.type === 'ellipse') {
+      const gapFrac = 0.08; // small gap at equator for divider line
+      const topVP = { type: 'ellipse', cx: vp.cx, cy: vp.cy - vp.ry * 0.25, rx: vp.rx * 0.92, ry: vp.ry * 0.42 };
+      const botVP = { type: 'ellipse', cx: vp.cx, cy: vp.cy + vp.ry * 0.25, rx: vp.rx * 0.92, ry: vp.ry * 0.42 };
+      return { subPaths: [
+        { entry: _projectPortToVP('hot_in', pres, wx, wy, tile, topVP),
+          exit:  _projectPortToVP('hot_out', pres, wx, wy, tile, topVP),
+          pathType: 'linear', swirlTurns: 0, vp: topVP, streamKey: 'hot_in' },
+        { entry: _projectPortToVP('cold_in', pres, wx, wy, tile, botVP),
+          exit:  _projectPortToVP('cold_out', pres, wx, wy, tile, botVP),
+          pathType: 'linear', swirlTurns: 0, vp: botVP, streamKey: 'cold_in' }
+      ]};
+    }
     if (vp.type !== 'rect') return null;
     const topVP = { type: 'rect', x: vp.x, y: vp.y, w: vp.w, h: vp.h * 0.45 };
     const botVP = { type: 'rect', x: vp.x, y: vp.y + vp.h * 0.55, w: vp.w, h: vp.h * 0.45 };
@@ -37865,7 +37904,7 @@ function _rebuildFlowParticles() {
         const h3 = ((i * 22695477 + 1) >>> 0) / 4294967296;
         const tNoise = isLiq ? (h - 0.5) * 0.06 : (h - 0.5) * 0.25;
         const t = ((i * gapT) + tNoise + 1) % 1;
-        const jLat = isLiq ? (h2 - 0.5) * 1.5 : (h2 - 0.5) * 6;
+        const jLat = isLiq ? (h2 - 0.5) * 1.5 : (h2 - 0.5) * 3;  // [v17.3.4] gas ±1.5 (bore clamp)
         const sMul = isLiq ? 0.75 + h3 * 0.5 : 0.6 + h3 * 0.8;
         const r = isLiq ? B.CONN_PARTICLE_R : B.GAS_R_MIN + h * B.GAS_R_VAR;
         const aspect = isLiq ? 1.0 : B.GAS_ASPECT_MIN + h2 * (B.GAS_ASPECT_MAX - B.GAS_ASPECT_MIN);
@@ -37914,7 +37953,9 @@ function _advanceFlowParticles(deltaSec) {
       if (!p.isLiq) {
         p.jLat += (Math.random() - 0.5) * 1.2 * deltaSec * 10 * tScale;
         p.jLat *= B.BROWNIAN_SPRING;
-        if (Math.abs(p.jLat) > 3) p.jLat *= 0.93;
+        // [v17.3.4] Hard clamp to pipe bore half-width (2.5px bore → ±1.5 for gas glow)
+        if (p.jLat > 1.5) p.jLat = 1.5;
+        else if (p.jLat < -1.5) p.jLat = -1.5;
         // Gas ellipse rotation drift
         p.rotAngle += (Math.random() - 0.5) * B.GAS_ROTATION_DRIFT * deltaSec;
       }
@@ -38253,6 +38294,7 @@ function _drawParticleCanvas() {
     for (const p of state.particles) {
       if (!p.isLiq) continue;
       if (isRagtag && (p.t < 0.13 || p.t > 0.87)) continue;
+      if (Math.abs(p.jLat) > 2.0) continue;  // [v17.3.4] lateral clip — stay inside pipe bore
       const pt = _bzPt(p.t, cp);
       const n = _bzNormal(p.t, cp);
       const px = pt.x + n.x * p.jLat;
@@ -38304,6 +38346,7 @@ function _drawParticleCanvas() {
     for (const p of state.particles) {
       if (p.isLiq) continue;
       if (isRagtag && (p.t < 0.13 || p.t > 0.87)) continue;
+      if (Math.abs(p.jLat) > 1.5) continue;  // [v17.3.4] lateral clip — gas glow must stay inside bore
       const pt = _bzPt(p.t, cp);
       const n = _bzNormal(p.t, cp);
       const px = pt.x + n.x * p.jLat;
