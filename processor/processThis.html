@@ -1,12 +1,20 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v17.1.0
+  processThis v17.2.0
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
   New code references NNG-1 through NNG-15. Legacy tags (NNG-L1, NNG-W3,
   NNG-AL2, etc.) in older comments map to these per the v11.1.0 changelog.
+
+  ─── Key code sections ──────────────────────────────────────────────────
+
+    §PARTICLE-TUNING  All particle visual constants live in the
+                      `_PARTICLE_BEHAVIORS` object.  Connection density,
+                      gas/liquid appearance, pressure sizing, jitter,
+                      glow, additive thresholds, per-unit configs.
+                      Search: "§PARTICLE-TUNING" to jump there.
 
   PHYSICS — The Game's Promises:
 
@@ -452,6 +460,58 @@
 
   NNGs: NNG-14 (changelog).
   Tests: 607 total, 3145 checks, 0 failures.
+
+  ─── v17.2.0 — Phase 6: Visual physics + particle polish ─────────────────
+
+  **Particle canvas z-index fix.**  `#particleCanvas` z-index 1 → 3 (SVG
+  is at 2).  Particles were rendering behind the opaque SVG background.
+
+  **Shadow plates removed.**  Dark offset rects behind ragtag unit bodies
+  looked visually poor.  Removed from drawUnits.
+
+  **Sink viewport panel.**  Material Dump now has a dark recessed viewport
+  (28×56 rect) with `vp-depth` inner glow.  Dispersal particles clip to it.
+
+  **Sink plume smoke restored.**  `_computeSmokeConfig` returns plume
+  configs for non-fried sinks with gas flow.  P→rise height, flow→puff
+  count, T→color, H₂O>0.3→steam whiteness.  Pure liquid sinks silent.
+
+  **§PARTICLE-TUNING consolidation.**  All standalone `_FLOW_*` constants
+  merged into `_PARTICLE_BEHAVIORS` as `CONN_*` fields (legacy aliases
+  retained).  New constants: `GAS_ASPECT_*`, `GAS_ROTATION_DRIFT`,
+  `LIQ_BLOB_OVERDRAW`, `LIQ_GRADIENT_*`, `LIQ_HIGHLIGHT_*`,
+  `PRESSURE_SIZE_*`, `BROWNIAN_SPRING`, `GAS_GLOW_*`, `ADDITIVE_T_*`.
+  Cross-reference in file header: search "§PARTICLE-TUNING".
+
+  **Species sampling fix.**  Golden-ratio offset in `_sampleSpeciesAt`
+  breaks clustering at low particle counts (air on short pipes no longer
+  shows all-N₂).  New `_stratifiedSpecies()` guarantees proportional
+  representation: minority species (>2% fraction) get ≥1 particle.
+
+  **Golden-ratio spacing.**  Connection particles now use φ-offset
+  positioning (i×0.618… mod 1) instead of linear spacing with small noise.
+  Eliminates the "emitted by 3" clustering pattern.  Minimum 4 particles
+  per connection (`CONN_MIN_PER`) ensures species variety on short pipes.
+
+  **Two-pass rendering.**  _drawParticleCanvas rewritten:
+    Pass 1 (liquid): cohesive gradient (opaque core → soft edge at
+    `LIQ_GRADIENT_INNER`/`LIQ_GRADIENT_EDGE`), overdraw radius (1.25×),
+    specular highlight dot (small white offset circle).  Liquid rendered
+    first so gas wisps layer on top.
+    Pass 2 (gas): pressure-sized (r × (P_ref/P)^0.2), per-particle
+    radial gradient with ellipse rotation (aspect 0.6–0.85, slow drift),
+    ambient glow (`ctx.shadowBlur ∝ √(T/300)`), additive blending above
+    500K.  Helper functions: `_drawLiquidParticle`, `_drawGasParticle`,
+    `_bodyParticleColor`, `_bodyParticleAlpha`.
+
+  **Temperature-driven jitter.**  Brownian amplitude scales with √(T/300).
+  Spring constant (0.95) prevents accumulation.  Gas ellipse rotation
+  drifts at `GAS_ROTATION_DRIFT` rad/s.  Both connection and body
+  particles.  T, P, vDot now stored on flow state and body sub-paths.
+
+  NNGs: NNG-3 (monotonic physics→visual), NNG-9 (particles never affect
+  solver), NNG-11 (renderer reads stream fields), NNG-14 (changelog).
+  Tests: 606 total, 3136 checks, 0 failures.
 
   ─── v17.1.0 — Power Dispatcher T1 + generalized dispatch ──────────────
 
@@ -4408,8 +4468,8 @@
     }
     /* View area containers */
     .view-flowsheet { display: block; width: 100%; height: 100%; position: relative; }
-    /* [v16.9.8 S-PARTICLES Phase 0A] Canvas particle overlay */
-    #particleCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
+    /* [v17.2.0] Canvas particle overlay — z-index 3: above SVG (2).  See §PARTICLE-TUNING. */
+    #particleCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 3; }
     .view-3d {
       display: none;
       width: 100%; height: 100%;
@@ -27638,8 +27698,42 @@ const _FRIED_SMOKE_CFG = {
 };
 
 function _computeSmokeConfig(u, def) {
-  // [v16.9.12 Phase 4B] Fried-only: sink plumes replaced by species-accurate dispersal particles
   if (u.fried) return _FRIED_SMOKE_CFG;
+  // [v17.2.0] Sink plumes — gas/steam rising from material dumps
+  if (def.defId === 'sink') {
+    const ud = scene.runtime?.unitData?.get(u.id);
+    const last = ud?.last;
+    if (!last || !last.inlet) return null;
+    const absorbed = last.absorbed_mol_s || 0;
+    if (absorbed < 1e-12) return null;
+    const phase = last.outlet?.phase || 'V';
+    if (phase === 'L') return null;
+    const T = last.inlet.T_K || 300;
+    const P_in = last.inlet.P_Pa || 101325;
+    const P_atm = (last.P_atm_bar || 1.01325) * 1e5;
+    const pRatio = Math.max(1, P_in / P_atm);
+    const comp = last.inlet.composition || {};
+    const totalMol = Object.values(comp).reduce((a, b) => a + b, 0) || 1;
+    const y_H2O = (comp.H2O || 0) / totalMol;
+    let color;
+    if (T < 350) color = '#9ca3af';
+    else if (T < 500) color = '#d4a574';
+    else if (T < 800) color = '#e8a040';
+    else color = '#f0c878';
+    if (y_H2O > 0.3) color = '#d1d5db';
+    const flowScale = Math.sqrt(Math.min(absorbed, 10));
+    return {
+      isFried: false,
+      puffCount: Math.max(3, Math.min(12, Math.round(3 + flowScale * 3))),
+      riseHeight: 30 + Math.log(pRatio) * 25,
+      duration: Math.max(2, 5 - Math.log(pRatio) * 1.5),
+      puffRx: 8 + flowScale * 3, puffRy: 6 + flowScale * 2,
+      spreadX: 8, scaleStart: 0.4, scaleEnd: 1.5,
+      opacityStart: 0.25, opacityPeak: y_H2O > 0.3 ? 0.55 : 0.4,
+      color, filter: phase === 'VL' ? 'smoke-f3' : 'smoke-f2',
+      driftRange: 8
+    };
+  }
   return null;
 }
 
@@ -28830,6 +28924,9 @@ const _RAGTAG_SYMBOLS = {
       : { 'pointer-events': 'none' });
     // Body
     vg.appendChild(svgEl('rect', { x:wx+32, y:wy+14, width:32, height:68, rx:4, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5 }));
+    // [v17.2.0] Viewport panel — dark recessed window for particle clipping
+    vg.appendChild(svgEl('rect', { x:wx+34, y:wy+18, width:28, height:56, rx:3, fill:'#0f172a', opacity:0.85, 'pointer-events':'none' }));
+    vg.appendChild(svgEl('rect', { x:wx+34, y:wy+18, width:28, height:56, rx:3, fill:'url(#vp-depth)', 'pointer-events':'none' }));
     // Grate top (metal bar)
     vg.appendChild(svgEl('rect', { x:wx+28, y:wy+12, width:40, height:6, rx:2, fill:'#4b5563', stroke:'#374151', 'stroke-width':1.5 }));
     // Grate peak
@@ -29953,17 +30050,6 @@ function drawUnits() {
         ? (_RAGTAG_SYMBOLS[u.profileId] || _RAGTAG_SYMBOLS[def.defId])
         : _ENGINEERING_SYMBOLS[def.defId];
       if (_symbolFn) {
-        // [v16.9.8 S-PARTICLES Phase 0C] Shadow plate — depth cue behind body
-        if (ui.theme === 'ragtag') {
-          const _bb = _BODY_BBOX[u.profileId] || _BODY_BBOX[def.defId];
-          if (_bb) {
-            group.insertBefore(svgEl('rect', {
-              x: wx + _bb.x + 3, y: wy + _bb.y + 3,
-              width: _bb.w, height: _bb.h, rx: 8,
-              fill: '#000', opacity: 0.18, 'pointer-events': 'none'
-            }), group.firstChild);
-          }
-        }
         _symbolFn(group, wx, wy, ww, wh, _pal, def, id);
         // Standardized instruments — helpers ready but disabled pending visual tuning
         if (ui.theme === 'ragtag') {
@@ -37019,13 +37105,14 @@ function _bzPathD(bz) {
 }
 
 // ── Normalization constants ──
-const _FLOW_VDOT_REF = 0.025;  // m³/s — typical T1 gas at 1 mol/s, 1 atm, 300K
-const _FLOW_MAX_SPEED = 200;   // px/s — visual speed cap
-const _FLOW_BASE_SPEED = 60;   // px/s — speed at vDot_ref
-const _FLOW_GAP_MIN = 6;       // px — liquid (ρ ≈ 1000)
-const _FLOW_GAP_MAX = 28;      // px — atmospheric gas (ρ ≈ 1.2)
-const _FLOW_PARTICLE_R = 2;    // px radius
-const _FLOW_MAX_PER_CONN = 20; // particle cap per connection
+// [v17.2.0] Connection particle constants — canonical values in §PARTICLE-TUNING
+const _FLOW_VDOT_REF = 0.025;
+const _FLOW_MAX_SPEED = 200;
+const _FLOW_BASE_SPEED = 60;
+const _FLOW_GAP_MIN = 6;
+const _FLOW_GAP_MAX = 20;
+const _FLOW_PARTICLE_R = 2;
+const _FLOW_MAX_PER_CONN = 24;
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // [v16.9.11 S-PARTICLES Phase 3] Body particle system with transforms
@@ -37036,21 +37123,49 @@ const _FLOW_MAX_PER_CONN = 20; // particle cap per connection
 // Merge: mixer particles from two inlets converge to one exit.
 // ═══════════════════════════════════════════════════════════════════════════════
 
+// ── §PARTICLE-TUNING — All particle visual constants (see file header) ──
 const _PARTICLE_BEHAVIORS = {
-  // Density
+  // ── Connection (pipe) particles ──
+  CONN_VDOT_REF: 0.025,    // m³/s — typical T1 gas at 1 mol/s, 1 atm, 300K
+  CONN_BASE_SPEED: 60,     // px/s at vDot_ref
+  CONN_MAX_SPEED: 200,     // px/s cap
+  CONN_GAP_MIN: 6,         // px — liquid (ρ ≈ 1000)
+  CONN_GAP_MAX: 20,        // px — atmospheric gas (ρ ≈ 1.2)
+  CONN_PARTICLE_R: 2,      // px base radius (liquid)
+  CONN_MAX_PER: 24,        // max particles per connection
+  CONN_MIN_PER: 4,         // min particles per connection (species representation)
+
+  // ── Body (viewport) particles ──
   DENSITY_SPACING: 12,  MAX_PER_SEGMENT: 20,
-
-  // Speed / gap
   VDOT_REF: 0.025,  BASE_SPEED: 60,  MAX_SPEED: 200,
-  GAP_MIN: 6,  GAP_MAX: 28,
 
-  // Phase appearance
-  GAS_OPACITY: 0.55,  LIQ_OPACITY: 0.9,
-  GAS_GRADIENT_FALLOFF: 0.0,  LIQ_GRADIENT_FALLOFF: 0.7,
+  // ── Gas appearance ──
+  GAS_OPACITY: 0.55,
+  GAS_R_MIN: 1.2,  GAS_R_VAR: 1.6,     // radius = GAS_R_MIN + h * GAS_R_VAR
+  GAS_ASPECT_MIN: 0.6, GAS_ASPECT_MAX: 0.85,  // ellipse aspect ratio range
+  GAS_ROTATION_DRIFT: 1.5,                     // rad/s rotation speed
 
-  // Jitter
-  JITTER_BASE_GAS: 3,  JITTER_BASE_LIQ: 0.8,
+  // ── Liquid appearance ──
+  LIQ_OPACITY: 0.92,
+  LIQ_BLOB_OVERDRAW: 1.25,     // radius multiplier for overlap/merge
+  LIQ_GRADIENT_INNER: 0.65,    // gradient stop: full opacity up to this fraction of r
+  LIQ_GRADIENT_EDGE: 0.35,     // opacity at r (creates soft-but-cohesive edge)
+  LIQ_HIGHLIGHT_R: 0.35,       // specular highlight radius as fraction of particle r
+  LIQ_HIGHLIGHT_OFFSET: 0.25,  // offset from center as fraction of r
+  LIQ_HIGHLIGHT_ALPHA: 0.5,    // specular brightness
+
+  // ── Pressure sizing (gas only) ──
+  PRESSURE_SIZE_EXP: 0.2,  PRESSURE_SIZE_REF: 101325,
+  PRESSURE_SIZE_MIN: 0.5,  PRESSURE_SIZE_MAX: 2.0,
+
+  // ── Temperature-driven jitter ──
   JITTER_T_REF: 300,
+  BROWNIAN_SPRING: 0.95,        // damping per frame (prevents drift accumulation)
+
+  // ── Glow + additive blending ──
+  GAS_GLOW_RADIUS_BASE: 2,  GAS_GLOW_RADIUS_T_SCALE: 0.5,
+  GAS_GLOW_OPACITY: 0.15,
+  ADDITIVE_T_THRESHOLD: 500,   // K — above this, use 'lighter' composite mode
 
   // Per-unit configs (only type + key overrides)
   units: {
@@ -37124,21 +37239,47 @@ function _flowColor(species) {
 }
 
 // ── Deterministic species sampler (stable across frames) ──
+// [v17.2.0] Golden-ratio offset prevents clustering at low particle counts.
 function _sampleSpeciesAt(fracs, idx) {
   if (!fracs) return 'N2';
   const entries = Object.entries(fracs);
   if (entries.length === 0) return 'N2';
   if (entries.length === 1) return entries[0][0];
-  // Simple hash: use idx to pick
   const total = entries.reduce((s, [, f]) => s + f, 0);
   if (total < 1e-15) return entries[0][0];
-  const r = ((idx * 2654435761) >>> 0) / 4294967296; // Knuth multiplicative hash → [0,1)
+  const r = (((idx * 2654435761) >>> 0) / 4294967296 + idx * 0.6180339887) % 1;
   let cum = 0;
   for (const [sp, f] of entries) {
     cum += f / total;
     if (r < cum) return sp;
   }
   return entries[entries.length - 1][0];
+}
+
+// ── Stratified species for N particles (proportional representation) ──
+// [v17.2.0] Minority species (>2% frac) guaranteed ≥1 particle.
+function _stratifiedSpecies(fracs, nParticles, seed) {
+  if (!fracs) return Array(nParticles).fill('N2');
+  const entries = Object.entries(fracs);
+  if (entries.length === 0) return Array(nParticles).fill('N2');
+  if (entries.length === 1) return Array(nParticles).fill(entries[0][0]);
+  const total = entries.reduce((s, [, f]) => s + f, 0);
+  if (total < 1e-15) return Array(nParticles).fill(entries[0][0]);
+  const result = [];
+  let assigned = 0;
+  for (const [sp, f] of entries) {
+    const frac = f / total;
+    const count = frac > 0.02 ? Math.max(1, Math.round(nParticles * frac)) : 0;
+    for (let j = 0; j < count && assigned < nParticles; j++) { result.push(sp); assigned++; }
+  }
+  const dominant = entries.reduce((a, b) => b[1] > a[1] ? b : a, entries[0])[0];
+  while (result.length < nParticles) result.push(dominant);
+  result.length = nParticles;
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = ((seed * 2654435761 + i * 7919) >>> 0) % (i + 1);
+    const tmp = result[i]; result[i] = result[j]; result[j] = tmp;
+  }
+  return result;
 }
 
 // ── [v16.9.10 S-PARTICLES Phase 2] Port-to-viewport projection ──
@@ -37386,9 +37527,6 @@ function _transitPos(sp, t, jLat, isLiq) {
 }
 
 function _rebuildFlowParticles() {
-  // [v16.9.8 S-PARTICLES] State-only — canvas draws from _flowState each frame.
-  // No SVG group creation. Called from render() to sync state with scene.
-
   if (ui.flowMode !== 'particles' || !SimSettings.animations) {
     _flowState.clear();
     return;
@@ -37398,6 +37536,8 @@ function _rebuildFlowParticles() {
   if (!paths || paths.size === 0) { _flowState.clear(); return; }
 
   const activeIds = new Set();
+  const B = _PARTICLE_BEHAVIORS;
+  const PHI_FRAC = 0.6180339887; // golden ratio fractional part
 
   for (const c of scene.connections) {
     const cp = paths.get(c.id);
@@ -37414,42 +37554,57 @@ function _rebuildFlowParticles() {
     const pathLen = _bzLen(cp);
     if (pathLen < 5) continue;
 
-    const vNorm = Math.min(1, anim.vDot / _FLOW_VDOT_REF);
-    const speed = Math.min(_FLOW_MAX_SPEED, _FLOW_BASE_SPEED * Math.max(0.05, vNorm));
+    const vNorm = Math.min(1, anim.vDot / B.CONN_VDOT_REF);
+    const speed = Math.min(B.CONN_MAX_SPEED, B.CONN_BASE_SPEED * Math.max(0.05, vNorm));
     const rhoClamp = Math.max(0.5, Math.min(1200, anim.rho));
     const rhoNorm = Math.log(rhoClamp / 0.5) / Math.log(1200 / 0.5);
-    const gap = _FLOW_GAP_MAX - rhoNorm * (_FLOW_GAP_MAX - _FLOW_GAP_MIN);
+    const gap = B.CONN_GAP_MAX - rhoNorm * (B.CONN_GAP_MAX - B.CONN_GAP_MIN);
 
-    const nParticles = Math.min(_FLOW_MAX_PER_CONN, Math.max(1, Math.ceil(pathLen / gap)));
-    const gapT = 1 / nParticles;
+    const nParticles = Math.min(B.CONN_MAX_PER, Math.max(B.CONN_MIN_PER, Math.ceil(pathLen / gap)));
+
+    // [v17.2.0] Connection seed for stratified shuffle
+    let connSeed = 0;
+    for (let ci = 0; ci < c.id.length; ci++) connSeed = ((connSeed * 31 + c.id.charCodeAt(ci)) >>> 0);
 
     let state = _flowState.get(c.id);
     if (!state || state.particles.length !== nParticles) {
+      // [v17.2.0] Stratified species assignment — proportional representation
+      const speciesList = _stratifiedSpecies(anim.speciesFracs, nParticles, connSeed);
       const particles = [];
+      // [v17.2.0] Golden-ratio offset per connection for quasi-random initial positions
+      const tOffset = ((connSeed * 2654435761) >>> 0) / 4294967296;
       for (let i = 0; i < nParticles; i++) {
-        const species = _sampleSpeciesAt(anim.speciesFracs, i);
-        const isLiq = (((i * 2654435761 + 7) >>> 0) / 4294967296 > (stream.vaporFraction ?? 1));
+        const species = speciesList[i];
+        const isLiq = (((i * 2654435761 + connSeed + 7) >>> 0) / 4294967296 > (stream.vaporFraction ?? 1));
         const h = ((i * 2654435761 + 1013904223) >>> 0) / 4294967296;
         const h2 = ((i * 1664525 + 1013904223) >>> 0) / 4294967296;
         const h3 = ((i * 22695477 + 1) >>> 0) / 4294967296;
-        const tNoise = isLiq ? (h - 0.5) * 0.06 : (h - 0.5) * 0.25;
-        const t = ((i * gapT) + tNoise + 1) % 1;
+        // Golden-ratio spacing: i*φ mod 1, then add per-connection offset
+        const t = ((i * PHI_FRAC + tOffset) % 1 + 1) % 1;
         const jLat = isLiq ? (h2 - 0.5) * 2 : (h2 - 0.5) * 6;
         const sMul = isLiq ? 0.92 + h3 * 0.16 : 0.7 + h3 * 0.6;
-        const r = isLiq ? _FLOW_PARTICLE_R : 1.2 + h * 1.6;
-        particles.push({ t, species, isLiq, jLat, sMul, r });
+        const r = isLiq ? B.CONN_PARTICLE_R : B.GAS_R_MIN + h * B.GAS_R_VAR;
+        // [v17.2.0] Gas ellipse: aspect ratio and initial rotation angle
+        const aspect = isLiq ? 1.0 : B.GAS_ASPECT_MIN + h2 * (B.GAS_ASPECT_MAX - B.GAS_ASPECT_MIN);
+        const rotAngle = isLiq ? 0 : h3 * Math.PI * 2;
+        particles.push({ t, species, isLiq, jLat, sMul, r, aspect, rotAngle });
       }
-      state = { particles, pathLen, speed, gap, connPath: cp };
+      state = { particles, pathLen, speed, gap, connPath: cp,
+                T: stream.T || 300, P: stream.P || 101325, vDot: anim.vDot || 0 };
       _flowState.set(c.id, state);
     } else {
       state.pathLen = pathLen;
       state.speed = speed;
       state.gap = gap;
       state.connPath = cp;
+      state.T = stream.T || 300;
+      state.P = stream.P || 101325;
+      state.vDot = anim.vDot || 0;
+      // [v17.2.0] Re-assign species with stratification
+      const speciesList = _stratifiedSpecies(anim.speciesFracs, state.particles.length, connSeed);
       for (let i = 0; i < state.particles.length; i++) {
-        const p = state.particles[i];
-        p.species = _sampleSpeciesAt(anim.speciesFracs, i);
-        p.isLiq = (((i * 2654435761 + 7) >>> 0) / 4294967296 > (stream.vaporFraction ?? 1));
+        state.particles[i].species = speciesList[i];
+        state.particles[i].isLiq = (((i * 2654435761 + connSeed + 7) >>> 0) / 4294967296 > (stream.vaporFraction ?? 1));
       }
     }
   }
@@ -37460,22 +37615,26 @@ function _rebuildFlowParticles() {
 }
 
 function _advanceFlowParticles(deltaSec) {
-  // [v16.9.8 S-PARTICLES] State-only advancement — canvas draws separately.
   if (ui.flowMode !== 'particles' || !SimSettings.animations) return;
   if (TimeClock.mode !== 'playing') return;
+  const B = _PARTICLE_BEHAVIORS;
 
   for (const [cid, state] of _flowState) {
     if (state.speed <= 0 || state.pathLen < 5) continue;
     const baseDtT = (state.speed * deltaSec) / state.pathLen;
+    const tScale = Math.sqrt(Math.max(0.5, (state.T || 300) / B.JITTER_T_REF));
 
     for (const p of state.particles) {
       p.t += baseDtT * p.sMul;
       if (p.t > 1) p.t -= 1;
       if (p.t < 0) p.t += 1;
-      // Brownian lateral drift for gas
+      // [v17.2.0] Temperature-driven brownian drift for gas
       if (!p.isLiq) {
-        p.jLat += (Math.random() - 0.5) * 1.2 * deltaSec * 10;
-        if (Math.abs(p.jLat) > 3) p.jLat *= 0.95;
+        p.jLat += (Math.random() - 0.5) * 1.2 * deltaSec * 10 * tScale;
+        p.jLat *= B.BROWNIAN_SPRING;
+        if (Math.abs(p.jLat) > 3) p.jLat *= 0.93;
+        // Gas ellipse rotation drift
+        p.rotAngle += (Math.random() - 0.5) * B.GAS_ROTATION_DRIFT * deltaSec;
       }
     }
   }
@@ -37557,12 +37716,15 @@ function _rebuildBodyParticles() {
             const maxLat = isSwirl ? 1 : (isLiq ? 2 : 5);
             jLat = (h2 - 0.5) * maxLat;
           }
-          const r = isLiq ? 2 : 1.2 + h * 1.6;
+          const r = isLiq ? 2 : B.GAS_R_MIN + h * B.GAS_R_VAR;
+          const aspect = isLiq ? 1.0 : B.GAS_ASPECT_MIN + h2 * (B.GAS_ASPECT_MAX - B.GAS_ASPECT_MIN);
+          const rotAngle = isLiq ? 0 : h * Math.PI * 2;
           // [Phase 3A] Morph: destSpecies from outlet composition
           const destSpecies = outletAnim ? _sampleSpeciesAt(outletAnim.speciesFracs, seed + 7777) : species;
-          particles.push({ t, species, isLiq, jLat, r, destSpecies });
+          particles.push({ t, species, isLiq, jLat, r, destSpecies, aspect, rotAngle });
         }
-        subPaths.push({ ...sp, particles, speed, dwellFactor });
+        subPaths.push({ ...sp, particles, speed, dwellFactor,
+          T: ps?.T || 300, P: ps?.P || 101325, vDot: anim?.vDot || 0 });
       }
       state = { subPaths };
       _bodyParticleState.set(id, state);
@@ -37581,6 +37743,7 @@ function _rebuildBodyParticles() {
         const anim = ps?._anim;
         const vNorm = anim ? Math.min(1, anim.vDot / B.VDOT_REF) : 0.1;
         sp.speed = Math.min(B.MAX_SPEED, B.BASE_SPEED * Math.max(0.05, vNorm));
+        sp.T = ps?.T || 300; sp.P = ps?.P || 101325; sp.vDot = anim?.vDot || 0;
         for (let i = 0; i < sp.particles.length; i++) {
           const seed = i + si * 500 + 1000;
           sp.particles[i].species = anim ? _sampleSpeciesAt(anim.speciesFracs, seed) : 'N2';
@@ -37599,6 +37762,7 @@ function _rebuildBodyParticles() {
 function _advanceBodyParticles(deltaSec) {
   if (ui.flowMode !== 'particles' || !SimSettings.animations) return;
   if (TimeClock.mode !== 'playing') return;
+  const B = _PARTICLE_BEHAVIORS;
 
   for (const [, state] of _bodyParticleState) {
     for (const sp of state.subPaths) {
@@ -37607,18 +37771,21 @@ function _advanceBodyParticles(deltaSec) {
       const transitTime = (vpDim / sp.speed) * sp.dwellFactor;
       if (transitTime <= 0) continue;
       const dt = deltaSec / transitTime;
+      const tScale = Math.sqrt(Math.max(0.5, (sp.T || 300) / B.JITTER_T_REF));
 
       for (const p of sp.particles) {
         p.t += dt;
         if (p.t > 1) p.t -= 1;
         if (p.t < 0) p.t += 1;
-        // Gas jitter (skip for converge — jLat is angular position)
+        // [v17.2.0] Temperature-driven gas jitter (skip converge — jLat is angular)
         if (!p.isLiq && sp.pathType !== 'converge') {
-          p.jLat += (Math.random() - 0.5) * 1.0 * deltaSec * 8;
+          p.jLat += (Math.random() - 0.5) * 1.0 * deltaSec * 8 * tScale;
           const maxJ = sp.pathType === 'swirl' ? 2
             : sp.vp.type === 'circle' ? sp.vp.r * 0.5
             : Math.min(sp.vp.w, sp.vp.h) * 0.3;
-          if (Math.abs(p.jLat) > maxJ) p.jLat *= 0.92;
+          p.jLat *= B.BROWNIAN_SPRING;
+          if (Math.abs(p.jLat) > maxJ) p.jLat *= 0.90;
+          p.rotAngle = (p.rotAngle || 0) + (Math.random() - 0.5) * B.GAS_ROTATION_DRIFT * deltaSec;
         }
       }
     }
@@ -37714,8 +37881,8 @@ function _advanceSmokePuffs(deltaSec) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// [v16.9.8 S-PARTICLES Phase 0A] Canvas draw — both flow particles and smoke
-// Called every rAF frame. Syncs canvas to SVG viewBox, clears, draws all.
+// [v17.2.0] Canvas draw — two-pass: liquid (cohesive blobs) then gas (soft glow).
+// §PARTICLE-TUNING constants control all visual parameters.
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function _drawParticleCanvas() {
@@ -37725,7 +37892,6 @@ function _drawParticleCanvas() {
   const vb = ui.view;
   if (!vb || !vb.w || !vb.h) return;
 
-  // ── Sync canvas size to container (HiDPI) ──
   const dpr = window.devicePixelRatio || 1;
   const cw = _particleCanvas.clientWidth;
   const ch = _particleCanvas.clientHeight;
@@ -37737,160 +37903,153 @@ function _drawParticleCanvas() {
     _particleCanvas.height = ph;
   }
 
-  // ── Clear ──
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.clearRect(0, 0, pw, ph);
-
-  // ── Transform: SVG viewBox → canvas pixels ──
   const sx = pw / vb.w;
   const sy = ph / vb.h;
   ctx.setTransform(sx, 0, 0, sy, -vb.x * sx, -vb.y * sy);
 
-  // ── Draw flow particles ──
   const TAU = Math.PI * 2;
   const isRagtag = ui.theme === 'ragtag';
+  const B = _PARTICLE_BEHAVIORS;
+
+  // ════════════════════════════════════════════════════════════
+  // PASS 1: LIQUID — cohesive blobs with specular highlight
+  // Drawn first so gas wisps render on top.
+  // ════════════════════════════════════════════════════════════
+  ctx.shadowBlur = 0;
+  ctx.globalCompositeOperation = 'source-over';
+
+  // ── Liquid: flow particles ──
   for (const [, state] of _flowState) {
     const cp = state.connPath;
     if (!cp) continue;
     for (const p of state.particles) {
-      // [v16.9.8] Ragtag: only draw particles inside pipe window (10-90%)
+      if (!p.isLiq) continue;
       if (isRagtag && (p.t < 0.1 || p.t > 0.9)) continue;
-
       const pt = _bzPt(p.t, cp);
       const n = _bzNormal(p.t, cp);
       const px = pt.x + n.x * p.jLat;
       const py = pt.y + n.y * p.jLat;
       const rgb = _SPECIES_COLOR[p.species] || _SPECIES_DEFAULT_RGB;
-
-      if (p.isLiq) {
-        // Liquid: opaque, sharp edge
-        ctx.globalAlpha = 0.9;
-        ctx.fillStyle = `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
-        ctx.beginPath();
-        ctx.arc(px, py, p.r, 0, TAU);
-        ctx.fill();
-      } else {
-        // Gas: soft radial gradient, translucent
-        ctx.globalAlpha = 0.55;
-        const grad = ctx.createRadialGradient(px, py, 0, px, py, p.r);
-        grad.addColorStop(0, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0.9)`);
-        grad.addColorStop(1, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0.0)`);
-        ctx.fillStyle = grad;
-        ctx.beginPath();
-        ctx.arc(px, py, p.r * 1.5, 0, TAU);  // wider draw area for gradient fade
-        ctx.fill();
-      }
+      _drawLiquidParticle(ctx, px, py, p.r, rgb, B.LIQ_OPACITY, B, TAU);
     }
   }
 
-  // ── Draw body particles (viewport-clipped, with transforms) ──
-  // [v16.9.11 S-PARTICLES Phase 3] Morph, split, absorb transforms
+  // ── Liquid: body particles (viewport-clipped) ──
   for (const [, state] of _bodyParticleState) {
     for (const sp of state.subPaths) {
-      const vp = sp.vp;
-      if (!vp) continue;
+      if (!sp.vp) continue;
+      // Collect liquid particles for this sub-path
+      const liqParticles = sp.particles.filter(p => p.isLiq);
+      if (liqParticles.length === 0) continue;
 
-      // Clip to this sub-path's viewport region
       ctx.save();
       ctx.beginPath();
-      if (vp.type === 'circle') {
-        ctx.arc(vp.cx, vp.cy, vp.r, 0, TAU);
-      } else {
-        ctx.rect(vp.x, vp.y, vp.w, vp.h);
-      }
+      if (sp.vp.type === 'circle') ctx.arc(sp.vp.cx, sp.vp.cy, sp.vp.r, 0, TAU);
+      else ctx.rect(sp.vp.x, sp.vp.y, sp.vp.w, sp.vp.h);
       ctx.clip();
 
-      const isMorph = sp.transform === 'morph';
-      const morphZone = sp.morphZone || [0.3, 0.7];
-      const isAbsorb = sp.transform === 'absorb' && sp.absorbSpecies;
-      const isDisperse = sp.pathType === 'disperse';
-      const isEmerge = sp.pathType === 'emerge';
-
-      for (const p of sp.particles) {
-        const pos = _transitPos(sp, p.t, p.jLat, p.isLiq);
-
-        // ── Compute color: morph interpolates inlet→outlet species ──
-        let rgb;
-        if (isMorph && p.destSpecies !== p.species) {
-          let mp = 0;
-          if (p.t >= morphZone[1]) mp = 1;
-          else if (p.t > morphZone[0]) mp = (p.t - morphZone[0]) / (morphZone[1] - morphZone[0]);
-          const src = _SPECIES_COLOR[p.species] || _SPECIES_DEFAULT_RGB;
-          const dst = _SPECIES_COLOR[p.destSpecies] || _SPECIES_DEFAULT_RGB;
-          rgb = [
-            Math.round(src[0] + (dst[0] - src[0]) * mp),
-            Math.round(src[1] + (dst[1] - src[1]) * mp),
-            Math.round(src[2] + (dst[2] - src[2]) * mp)
-          ];
-        } else {
-          rgb = _SPECIES_COLOR[p.species] || _SPECIES_DEFAULT_RGB;
-        }
-
-        // ── Compute opacity ──
-        let baseAlpha = p.isLiq ? 0.9 : 0.55;
-        if (isAbsorb && sp.absorbSpecies.includes(p.species)) {
-          baseAlpha *= Math.max(0, 1 - p.t * 1.5); // fully faded by t≈0.67
-        }
-        if (isDisperse && p.t > 0.4) {
-          // Sink dispersal: fade out as particles rise/fall away from center
-          baseAlpha *= Math.max(0, 1 - (p.t - 0.4) / 0.6);
-        }
-        if (isEmerge && p.t < 0.15) {
-          // Source emerge: fade in from spawn point
-          baseAlpha *= p.t / 0.15;
-        }
-        if (baseAlpha < 0.01) continue; // skip invisible
-
-        if (p.isLiq) {
-          ctx.globalAlpha = baseAlpha;
-          ctx.fillStyle = `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
-          ctx.beginPath();
-          ctx.arc(pos.x, pos.y, p.r, 0, TAU);
-          ctx.fill();
-        } else {
-          ctx.globalAlpha = baseAlpha;
-          const grad = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, p.r * 1.5);
-          grad.addColorStop(0, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0.9)`);
-          grad.addColorStop(1, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0.0)`);
-          ctx.fillStyle = grad;
-          ctx.beginPath();
-          ctx.arc(pos.x, pos.y, p.r * 1.5, 0, TAU);
-          ctx.fill();
-        }
+      for (const p of liqParticles) {
+        const pos = _transitPos(sp, p.t, p.jLat, true);
+        const rgb = _bodyParticleColor(sp, p);
+        const alpha = _bodyParticleAlpha(sp, p, B.LIQ_OPACITY);
+        if (alpha < 0.01) continue;
+        _drawLiquidParticle(ctx, pos.x, pos.y, p.r, rgb, alpha, B, TAU);
       }
-
       ctx.restore();
     }
   }
 
-  // ── Draw smoke puffs ──
+  // ════════════════════════════════════════════════════════════
+  // PASS 2: GAS — soft gradient wisps, pressure-sized, glow
+  // ════════════════════════════════════════════════════════════
+
+  // ── Gas: flow particles ──
+  for (const [, state] of _flowState) {
+    const cp = state.connPath;
+    if (!cp) continue;
+    const T = state.T || 300;
+    const P = state.P || 101325;
+    const pSizeMul = Math.max(B.PRESSURE_SIZE_MIN,
+      Math.min(B.PRESSURE_SIZE_MAX, Math.pow(B.PRESSURE_SIZE_REF / P, B.PRESSURE_SIZE_EXP)));
+    const tRatio = Math.max(0.5, T / B.JITTER_T_REF);
+    const glowR = B.GAS_GLOW_RADIUS_BASE * Math.pow(tRatio, B.GAS_GLOW_RADIUS_T_SCALE);
+    const useAdditive = T > B.ADDITIVE_T_THRESHOLD;
+    if (useAdditive) ctx.globalCompositeOperation = 'lighter';
+
+    for (const p of state.particles) {
+      if (p.isLiq) continue;
+      if (isRagtag && (p.t < 0.1 || p.t > 0.9)) continue;
+      const pt = _bzPt(p.t, cp);
+      const n = _bzNormal(p.t, cp);
+      const px = pt.x + n.x * p.jLat;
+      const py = pt.y + n.y * p.jLat;
+      const rgb = _SPECIES_COLOR[p.species] || _SPECIES_DEFAULT_RGB;
+      const r = p.r * pSizeMul;
+      _drawGasParticle(ctx, px, py, r, p.aspect || 0.7, p.rotAngle || 0, rgb, B.GAS_OPACITY, glowR, B, TAU);
+    }
+    if (useAdditive) ctx.globalCompositeOperation = 'source-over';
+  }
+
+  // ── Gas: body particles (viewport-clipped) ──
+  for (const [, state] of _bodyParticleState) {
+    for (const sp of state.subPaths) {
+      if (!sp.vp) continue;
+      const gasParticles = sp.particles.filter(p => !p.isLiq);
+      if (gasParticles.length === 0) continue;
+
+      ctx.save();
+      ctx.beginPath();
+      if (sp.vp.type === 'circle') ctx.arc(sp.vp.cx, sp.vp.cy, sp.vp.r, 0, TAU);
+      else ctx.rect(sp.vp.x, sp.vp.y, sp.vp.w, sp.vp.h);
+      ctx.clip();
+
+      const spT = sp.T || 300;
+      const spP = sp.P || 101325;
+      const spPSizeMul = Math.max(B.PRESSURE_SIZE_MIN,
+        Math.min(B.PRESSURE_SIZE_MAX, Math.pow(B.PRESSURE_SIZE_REF / spP, B.PRESSURE_SIZE_EXP)));
+      const spTRatio = Math.max(0.5, spT / B.JITTER_T_REF);
+      const spGlowR = B.GAS_GLOW_RADIUS_BASE * Math.pow(spTRatio, B.GAS_GLOW_RADIUS_T_SCALE);
+      const spAdditive = spT > B.ADDITIVE_T_THRESHOLD;
+      if (spAdditive) ctx.globalCompositeOperation = 'lighter';
+
+      for (const p of gasParticles) {
+        const pos = _transitPos(sp, p.t, p.jLat, false);
+        const rgb = _bodyParticleColor(sp, p);
+        const alpha = _bodyParticleAlpha(sp, p, B.GAS_OPACITY);
+        if (alpha < 0.01) continue;
+        const r = p.r * spPSizeMul;
+        _drawGasParticle(ctx, pos.x, pos.y, r, p.aspect || 0.7, p.rotAngle || 0, rgb, alpha, spGlowR, B, TAU);
+      }
+      if (spAdditive) ctx.globalCompositeOperation = 'source-over';
+      ctx.restore();
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════
+  // Smoke puffs (fried + sink plumes)
+  // ════════════════════════════════════════════════════════════
+  ctx.shadowBlur = 0;
+  ctx.globalCompositeOperation = 'source-over';
   ctx.globalAlpha = 1;
   for (const [, state] of _smokeState) {
     const cfg = state.cfg;
     for (const p of state.puffs) {
       const t = p.t;
       const eased = 1 - (1 - t) * (1 - t);
-
       const px = state.cx + p.dx * eased;
       const py = state.cy - cfg.riseHeight * p.riseVar * eased;
       const scale = cfg.scaleStart + (cfg.scaleEnd - cfg.scaleStart) * eased;
       const rx = p.rxBase * scale;
       const ry = p.ryBase * scale;
-
       let opacity;
-      if (t < 0.15) {
-        opacity = cfg.opacityStart + (cfg.opacityPeak - cfg.opacityStart) * (t / 0.15);
-      } else {
-        opacity = cfg.opacityPeak * (1 - (t - 0.15) / 0.85);
-      }
+      if (t < 0.15) opacity = cfg.opacityStart + (cfg.opacityPeak - cfg.opacityStart) * (t / 0.15);
+      else opacity = cfg.opacityPeak * (1 - (t - 0.15) / 0.85);
       opacity = Math.max(0, opacity);
       if (opacity < 0.01) continue;
-
-      // Parse color once
       const _c = cfg._rgb || (cfg._rgb = _parseColorRGB(cfg.color));
-
       ctx.globalAlpha = opacity;
-      // Approximate ellipse with soft gradient for smoke feel
       const grad = ctx.createRadialGradient(px, py, 0, px, py, Math.max(rx, ry));
       grad.addColorStop(0, `rgba(${_c[0]},${_c[1]},${_c[2]},0.6)`);
       grad.addColorStop(0.5, `rgba(${_c[0]},${_c[1]},${_c[2]},0.3)`);
@@ -37901,8 +38060,79 @@ function _drawParticleCanvas() {
       ctx.fill();
     }
   }
-
   ctx.globalAlpha = 1;
+}
+
+// ── Liquid particle: cohesive blob with specular highlight ──
+function _drawLiquidParticle(ctx, px, py, r, rgb, alpha, B, TAU) {
+  const drawR = r * B.LIQ_BLOB_OVERDRAW;
+  ctx.globalAlpha = alpha;
+  // Cohesive gradient: opaque core → slightly soft edge (surface tension look)
+  const grad = ctx.createRadialGradient(px, py, 0, px, py, drawR);
+  grad.addColorStop(0, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},1.0)`);
+  grad.addColorStop(B.LIQ_GRADIENT_INNER, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},1.0)`);
+  grad.addColorStop(1, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${B.LIQ_GRADIENT_EDGE})`);
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(px, py, drawR, 0, TAU);
+  ctx.fill();
+  // Specular highlight — small bright dot offset from center
+  const hlR = r * B.LIQ_HIGHLIGHT_R;
+  const hlOff = r * B.LIQ_HIGHLIGHT_OFFSET;
+  ctx.globalAlpha = alpha * B.LIQ_HIGHLIGHT_ALPHA;
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.arc(px - hlOff, py - hlOff, hlR, 0, TAU);
+  ctx.fill();
+}
+
+// ── Gas particle: soft gradient wisp with glow + ellipse rotation ──
+function _drawGasParticle(ctx, px, py, r, aspect, rotAngle, rgb, alpha, glowR, B, TAU) {
+  ctx.globalAlpha = alpha;
+  ctx.shadowBlur = glowR;
+  ctx.shadowColor = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${B.GAS_GLOW_OPACITY})`;
+  const grad = ctx.createRadialGradient(px, py, 0, px, py, r * 1.5);
+  grad.addColorStop(0, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0.9)`);
+  grad.addColorStop(1, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0.0)`);
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  // Ellipse: aspect < 1 squishes one axis, rotAngle tumbles it
+  ctx.ellipse(px, py, r * 1.5, r * 1.5 * aspect, rotAngle, 0, TAU);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+}
+
+// ── Body particle color (handles morph transform) ──
+function _bodyParticleColor(sp, p) {
+  if (sp.transform === 'morph' && p.destSpecies !== p.species) {
+    const morphZone = sp.morphZone || [0.3, 0.7];
+    let mp = 0;
+    if (p.t >= morphZone[1]) mp = 1;
+    else if (p.t > morphZone[0]) mp = (p.t - morphZone[0]) / (morphZone[1] - morphZone[0]);
+    const src = _SPECIES_COLOR[p.species] || _SPECIES_DEFAULT_RGB;
+    const dst = _SPECIES_COLOR[p.destSpecies] || _SPECIES_DEFAULT_RGB;
+    return [
+      Math.round(src[0] + (dst[0] - src[0]) * mp),
+      Math.round(src[1] + (dst[1] - src[1]) * mp),
+      Math.round(src[2] + (dst[2] - src[2]) * mp)
+    ];
+  }
+  return _SPECIES_COLOR[p.species] || _SPECIES_DEFAULT_RGB;
+}
+
+// ── Body particle opacity (handles absorb/disperse/emerge) ──
+function _bodyParticleAlpha(sp, p, baseAlpha) {
+  let a = baseAlpha;
+  if (sp.transform === 'absorb' && sp.absorbSpecies?.includes(p.species)) {
+    a *= Math.max(0, 1 - p.t * 1.5);
+  }
+  if (sp.pathType === 'disperse' && p.t > 0.4) {
+    a *= Math.max(0, 1 - (p.t - 0.4) / 0.6);
+  }
+  if (sp.pathType === 'emerge' && p.t < 0.15) {
+    a *= p.t / 0.15;
+  }
+  return a;
 }
 
 // Helper: parse hex/named color to [r,g,b]

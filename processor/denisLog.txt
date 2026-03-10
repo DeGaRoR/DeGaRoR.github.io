@@ -1,0 +1,130 @@
+We will do implementation work. 
+Attached are the spec, the basecode, and the procedure for running tests.
+
+1. you will critically review the spec, and identify possible stale references, especially in line numbers. Test numbers might also differ, as well as version numbers. Check that you can access all referenced documents, or ask explicitely.
+
+2. you will ask all relevant questions to avoid making silent assumptions. You will nevertheless make suggestions so all questions do not need explicit answers
+
+3. you will run the tests to be a baseline to compare with before we start implementation
+
+4. you will assess the risks of this phase
+
+5. You will evaluate wether there are existing patterns, standards or formats in the codebase that already exist that might condition this implementation. Are we fully consistent with the product philosophy and archtectural guidelines?
+
+6. you will confirm you understand the specification and the meaningfulness of it regarding the codebase (why are we doing that, what are we trying to achieve with this phase)
+
+7. You will then evaluate wether any important component might have been missed or overlooked and report on these. You will evalaute this from a logical and engineering perspective, as well as from a software development perspective.
+
+8. you will produce a very simple phase tracker using a markdown document formatted in such a way that you can easily edit it as we go, without the need for reconstructing it everytime. It only serves as a visualization of the progress, do not overdo it.
+
+9. you will explicitely verify that the spec does not reinvent mechanisms in place, or bypasses established methods
+
+10. You will review and identify any NNG violation in the spec
+
+You will slice the tasks into individual steps designed to be manageable for processing in a single message, and ideally producing all green tests (so we never save a broken copy)
+
+You will report explicitely on all tasks listed here and wait for my validation before starting any coding work.
+
+
+for reactors:
+- you will ensure that the inspector's display is appropriate for every reactor type, not losing information, but also not showing anything irrelevant. You may proceed to a little analysis of the current layout and propose some streamlining.
+_________________________
+
+
+ The spectral radius of the Jacobian is around 0.94, which explains the slow linear convergence
+ 
+
+
+OK, good. Another thing: It's startign to get confusing with the defid's and the profiles in the palette. I think we should have, for all units the following catgories (and associated filtering options in the palette):
+- Dev (no limits, no fixed parameters, no profiles. What we used to have as pure "defIDs" before profiles). Unconstrained boundary units there too. All defID's get an entry.
+- All (all but dev, preview of the game full palette. Should all go through profiles for at least having a set of limits)
+- Tierless units (from profiles but without tier; atmosphere in, reservoirs, etc.)
+- 1, 2, 3 (from profiles, with tiers, like now but condensed writing)
+Can you do a state of things showing visulaly clearly what are the defid's, what are the profiles spun out of them and their declination in tiers?
+You can suggest other ways to organize, I think you understand the concern.
+Ultimately, only units with profiles will be available, but for dev purposes, we need to see all "pure" defIDs, and maybe for an unbounded sandbox (pure defIDs are what would be used by typical process sims, while the units with profiles are more game-oriented and tied to physical equipment).
+
+
+
+viz feature: 
+- more port layouts for the hub, for the turbine, for everything (assessment and review) - rename default to something more descriptive
+- Where to include control hints?
+- boundary around process islands
+- Elbow connectors
+- Bridges on crossing for elbow connections
+- Smoke on broken units
+- smoke and liquid effects on sinks, linked to actual parameters
+
+
+reactor: need to remove ghost connection code, reactor modes, etc. Verify no artifact at the end
+
+Liquid tank does not show different CV!!!! Can't open its liquid inlet
+Overflow empties tank totally rather than capping to overflow percent (possibly specify an hysteresis here?)
+Tank fan-out: the stream data shows total output, not rate per consumer (similar to opwer hub back in the day). Actual consumers seem to receive the right amount though
+
+
+
+
+There is a little lost lightning bolt on start (same as the one emitted by the turbine) that renders before play has ever been triggered. It renders on top right of the sabatier process. It should not be there.
+
+Update demo to include membrane sep, membrane comp, electrolyzer, reservoir, restriction, distillation column, cooled reactor, fuel cell
+
+
+
+Very strange behaviour. When pausing, then playi,ng, I have to wait for my changes to take effect on the next run. Intuitively, I'd expect my changes to be instantaneously computed. It feels like a lack of response form the machine, almost feels like a lag
+
+Update demo to include all units
+Haber-bosch
+Closed loop
+Electrolysis
+Membrane sep
+Distillation
+Restriction
+
+We forgot about T1-T2 explanatory text (from the spec voice-content), at least t1+t2 have been implemented in code I think and should be shown on hover in the palette. We can keep your subtle layout for T and P limits, it's good
+When clicking an existing pipe's connection and clicking on the canvas, the pipe should delete.
+Show solar and wind data in the climate bar
+Open tank level visual: ragtag icon should respect actual fillPct (currently may show static 50% fill before solve runs) - it currently shows half full when dragged. If difficult, at least show zero when dragged.
+Use teal again for heat exchangers, orange screams hot, and most of the time, we want it to cool down. Or a distinguishable blue. Don't geenrate exceptions, change the whole category.
+Tooltip visual should be more dinstinct from palette panel and should avoid rendering on the same grid as the palette, as it completel covers palette entries
+Fried smoke should be a little more white, it is barely visible
+
+TESTS
+Test charge cycle of battery
+Test new inspector
+Test catastrophic sequence
+Test constrained params on hydrovent
+Test particles
+I need to access the key particle's visual parameters by myslef for fine tuning. I also need access to categories' colors to change them myself if required. I also need the main visual tuning parameters on pipes and stub isolated and clearly accessible for a human. I need access to the color of the chemical species too. That's all fine tuning where I don't need your resources.
+
+PROTOTYPE
+Human model
+Room model
+Greenhouse modelMissions 1-5 (process only)
+Starting scene
+
+FEATURES NO ONE ASKED FOR
+lights as a power consumer unit with visible effects (icon light up at the beginning, simple, but fun and tasteful ragtag icon.
+Visual representation in the palette
+
+UTILS
+Easier access to running tests and getting diagnostics
+Revamp of solver interface and diagnostics
+
+NEED AUDIT
+rework the sad styling of inspector and palette (requires styling/art/game design audit first)
+have to constrain more unit param, UA of HTX, etc. These are all contained within the profile, should not be editable. Templates are there for full editability, this needs little audit and scrutiny
+Extract tunable visual parameters
+
+Big next steps
+COMPOSITES
+Reactor performance maps (S7)
+CONTROLLER
+MISSION FRAMEWORK
+HUMAN-ROOM MODEL (find schematic back)
+FLOW
+3D?
+
+Everything from feedback
+
+You misunderstood me with the tooltip content on the palette. I meant use L1 + L2 levels in the attached document, and show this as the primary tooltip message. You can keep your T/P tier messaging though, it's good, we just need human language first. And change the tooltip background color so it is clearly different from the palette, something lighter
