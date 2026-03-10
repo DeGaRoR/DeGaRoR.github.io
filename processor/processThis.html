@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v17.2.2
+  processThis v17.3.1
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -347,48 +347,68 @@
   CHANGELOG  (latest first)
   ═══════════════════════════════════════════════════════════════════════════
 
-  ─── v17.2.2 — Visual polish: clustering, reactors, combustor ───────────
+  ─── v17.3.1 — Pressure physics fix + v17.2.2 merge ─────────────────────
 
-  **Particle clustering fix.**  sMul range widened from [0.95,1.05] to
-  [0.75,1.25] for liquid and [0.6,1.4] for gas.  Wider speed variation
-  between individual particles prevents lock-step synchronization that
-  caused visible "packs of 3-7" with gaps between them.
+  **Pressure sizing removed.**  `PRESSURE_SIZE_*` constants and all
+  `pSizeMul` / `spPSizeMul` computation deleted.  Molecules don't shrink
+  under pressure — only their spacing does.  The system now correctly
+  conveys "how many molecules pass, and how fast":
+  - Gap (density-driven): high ρ → tight packing → pipe looks full
+  - Speed (vDot-driven): high P → low vDot → slow particles
+  - Size: constant regardless of P — no visual inversion
+  Before: high-P gas had tiny particles far apart (looked empty).
+  After: high-P gas has normal particles packed tight (looks full).
 
-  **Sink disperse restored.**  Gas up + liquid down behavior restored
-  (v17.2.1 had changed liquid to straight).  Immediate diverge at t=0.15
-  from entry point.  Both phases fade across dispersal zone.
-
-  **Electric heater viewport fix.**  _UNIT_VIEWPORT for electric_heater
-  was (24,20) 48×32 but the visual dark rect is at (22,34) 52×28.
-  Fixed to match — particles now centered on body and stubs.
-
-  **Source viewport fix.**  Viewport color changed from #052e16 (green) to
-  #0f0820 (matches _rtVp helper used by all other circular viewports).
-  Enlarged from r=14 to r=22 (matches _UNIT_VIEWPORT).  Flow arrow
-  removed — was obscuring particles.  Inner glow overlay added.
-
-  **Reactor 3-stream magnifying glass.**  Reactor configs (adiabatic,
-  jacketed, cooled, combustion_chamber) now set `streams:3`.
-  _bodyTransitPath generates 3 parallel horizontal sub-paths at
-  y-offsets [-0.4, 0, +0.4] × viewport radius within the circle.
-  Each stream gets its own particle set with independent morph colors.
-  Entry/exit x computed by circle intersection at each y-offset.
-  dwellFactor reduced to 1.5 for faster throughput.  Result: viewport
-  "bubbles with particles changing colors" instead of sparse single lane.
-
-  **Combustion chamber viewport enlarged.**  SVG viewport r=18 → r=28
-  (matching _UNIT_VIEWPORT).  4 flames (was 3) with smaller profiles
-  anchored at bottom of the bigger viewport.  3 glow layers, 3 core
-  layers.  Canvas morph particles flow through the top part while flames
-  burn at the bottom.
-
-  **Air intake bell-shaped viewport.**  Rectangular viewport replaced
-  with bell-shaped SVG path inset from the body bell contour (parallel
-  borders).  Path: M12,18 Q10,48 12,78 L48,60 Q52,48 48,36 Z.
-  Canvas clip rect tightened to inscribed rect (16,24) 28×48.
-  Viewport fill uses #0f0820 (matches _rtVp) with vp-depth overlay.
+  **v17.2.2 merge.**  v17.3.0 was built on v17.2.1 and missed v17.2.2
+  changes.  All now merged:
+  - Clustering fix: sMul range widened [0.75,1.25] / [0.6,1.4]
+  - Heater VP fix: (22,34) 52×28 matches visual dark rect
+  - Source VP: color→_rtVp navy, r→22, arrow removed, vp-depth glow
+  - Reactor 3-stream: streams:3 config, multi-stream _bodyTransitPath
+  - Combustion chamber: VP r=28, 4 flames at bottom (flameBase=wy+71)
+  - Air intake: bell-shaped VP path, clip rect (16,24) 28×48
+  - Disperse alpha: both phases, t>0.15 threshold
 
   NNGs: NNG-3 (visual fidelity), NNG-14 (changelog).
+  Tests: 606 total, 3136 checks, 0 failures.
+
+  ─── v17.3.0 — Open tank love + NNG-1 overfill fix ──────────────────────
+
+  **NNG-1: Open tank overfill alarm.**  `level_pct` was clamped to 100%
+  via `Math.min(100, ...)` — the alarm system could never see level > 100,
+  so `level_HH` (CATASTROPHIC) never fired.  Material accumulated past
+  full volume with no alarm, no fried trigger, no visible consequence.
+  Fix: clamp removed.  `fillPct` in u.last now reflects true physical
+  level.  At level > level_HH (100%), evaluateLimits fires CATASTROPHIC,
+  triggering fried/bypass.  SVG display still clamps for visual drawing.
+
+  **Overflow valve tuning.**  `K_OVERFLOW_BASE` reduced 10→1.0,
+  `K_HYSTERESIS_PCT` widened 2→5%.  The old gain caused the overflow to
+  flush the tank in one go (Q = 10 × V × excess%).  New gain provides
+  gentle proportional regulation — the overflow valve maintains the tank
+  near the threshold (opens at 90%, closes at ~85%), not drains it.
+
+  **Open tank venting smoke.**  `_computeSmokeConfig` now returns plume
+  configs for open_tank when `_vented_n` has gas flow.  Wide drift
+  (driftRange:40) spans the open top of the body.  Config fields `_cx`,
+  `_cy` override default smoke position (top-center of unit → top of
+  body at y:14).  T→color, H₂O→steam whiteness same as sink plumes.
+
+  **Open tank vent gas particles.**  New `type:'vent'` in
+  _PARTICLE_BEHAVIORS.  _UNIT_VIEWPORT added for open_tank: rect (20,4)
+  104×18 — a wide strip above the open top.  _bodyTransitPath creates
+  a linear upward path from bottom→top of viewport.  Synthetic anim
+  object constructed from `u.last.vented_n` (no port stream needed).
+  Species-colored gas particles rise from the tank top, synchronized
+  with the smoke below.
+
+  **Liquid gauge species-colored.**  Both sealed tank and open tank sight
+  glass fill rects now colored by dominant inventory species via
+  `_SPECIES_COLOR` instead of hardcoded `#22d3ee`.
+
+  **Deferred:** Flange border coloring (all units' port overlays).
+
+  NNGs: NNG-1 (conservation — overfill alarm), NNG-14 (changelog).
   Tests: 606 total, 3136 checks, 0 failures.
 
   ─── v17.2.1 — Particle polish: tuning, clipping, viewport fixes ────────
@@ -15290,8 +15310,8 @@ const _compositionMW = _inventoryMW;
  *  Intentionally oversized so any overshoot self-corrects within a fraction
  *  of a percent — effectively hard clamps while remaining finite. */
 const K_RELIEF_BASE  = 0.01;   // mol/(s·Pa·m³) — pressure relief valve proportional gain
-const K_OVERFLOW_BASE = 10;    // mol/(s·%·m³)  — liquid overflow proportional gain
-const K_HYSTERESIS_PCT = 2;    // % deadband below setpoint for valve re-close
+const K_OVERFLOW_BASE = 1.0;   // mol/(s·%·m³)  — [v17.2.3] reduced from 10 for gentle regulation
+const K_HYSTERESIS_PCT = 5;    // [v17.2.3] % deadband below setpoint (was 2%) — overflow maintains ~85-90% level
 
 /**
  * Compute tank state from inventory.
@@ -16516,7 +16536,8 @@ UnitRegistry.register('open_tank', {
           V_liq += mol * MW_kg / rho;
         }
       }
-      level_pct = Math.min(100, (V_liq / V) * 100);
+      // [v17.2.3 NNG-1] level_pct NOT clamped — overfill above 100% triggers level_HH CATASTROPHIC
+      level_pct = (V_liq / V) * 100;
     }
 
     // 2. Read vented gas from last updateInventory (boundary loss to atmosphere)
@@ -27825,6 +27846,39 @@ function _computeSmokeConfig(u, def) {
       driftRange: 8
     };
   }
+  // [v17.2.3] Open tank — gas venting smoke from open top
+  if (def.defId === 'open_tank') {
+    const ud = scene.runtime?.unitData?.get(u.id);
+    const vented = ud?.last?.vented_n;
+    if (!vented) return null;
+    const Q_vented = Object.values(vented).reduce((a,b) => a+b, 0);
+    if (Q_vented < 1e-6) return null;
+    const T = ud?.last?.T_K || 300;
+    const totalMol = Q_vented;
+    const y_H2O = (vented.H2O || 0) / totalMol;
+    let color;
+    if (T < 350) color = '#9ca3af';
+    else if (T < 500) color = '#d4a574';
+    else color = '#e8a040';
+    if (y_H2O > 0.3) color = '#d1d5db';
+    const flowScale = Math.sqrt(Math.min(Q_vented, 10));
+    const pres = getPresentation(def, u);
+    const wx = u.x * scene.tile;
+    const wy = u.y * scene.tile;
+    return {
+      isFried: false,
+      puffCount: Math.max(4, Math.min(14, Math.round(4 + flowScale * 4))),
+      riseHeight: 25 + Math.log(Math.max(1, Q_vented)) * 15,
+      duration: Math.max(2.5, 5 - flowScale * 0.5),
+      puffRx: 12 + flowScale * 4, puffRy: 8 + flowScale * 2,
+      spreadX: 6, scaleStart: 0.4, scaleEnd: 1.4,
+      opacityStart: 0.2, opacityPeak: y_H2O > 0.3 ? 0.45 : 0.3,
+      color, filter: 'smoke-f2',
+      driftRange: 40,  // wide — spans open top
+      _cx: wx + pres.w * scene.tile / 2,
+      _cy: wy + 14  // top of body
+    };
+  }
   return null;
 }
 
@@ -27910,7 +27964,9 @@ const _UNIT_VIEWPORT = {
   closed_loop_source:       { type: 'circle', cx: 48, cy: 48, r: 22 },
   reservoir:                { type: 'rect', x: 32, y: 16, w: 32, h: 48 },
   sink:                     { type: 'rect', x: 34, y: 18, w: 28, h: 36 },
-  // Opaque (null): valve, restriction, splitter, tank, open_tank, battery, all power/boundary
+  // Opaque (null): valve, restriction, splitter, tank, battery, all power/boundary
+  // [v17.2.3] Open tank viewport at open top for vent gas particles
+  open_tank:                { type: 'rect', x: 20, y: 4, w: 104, h: 18 },
 };
 
 // [v16.9.8] Get unit viewport in world coords, or null.
@@ -28424,24 +28480,19 @@ const _RAGTAG_SYMBOLS = {
     // [v17.2.2] Enlarged viewport r=28 — canvas morph particles + SVG flames at bottom
     g.appendChild(svgEl('circle', { cx:wx+48, cy:wy+47, r:28, fill:'#1a0800', stroke:pal.rim, 'stroke-width':2, 'pointer-events':'none' }));
     g.appendChild(svgEl('circle', { cx:wx+48, cy:wy+47, r:27, fill:'url(#vp-depth)', 'pointer-events':'none' }));
-    // Warm inner glow (static, at bottom)
     g.appendChild(svgEl('circle', { cx:wx+48, cy:wy+60, r:12, fill:'#f97316', opacity:0.06, 'pointer-events':'none' }));
-    // Clipped flame group — flames at bottom of enlarged viewport
     const fg = _rtVpClipGroup(g, wx+48, wy+47, 27, unitId, pal.rim);
-    const flameBase = wy + 71; // bottom of viewport circle
-    // Outer glow layer per flame (softer, larger)
+    const flameBase = wy + 71;
     [[wx+36,0],[wx+44,0.33],[wx+52,0.66],[wx+60,0.9]].forEach(([fx, ph]) => {
       fg.appendChild(svgEl('path', { d:`M${fx},${flameBase} Q${fx-5},${flameBase-8} ${fx},${flameBase-16} Q${fx+5},${flameBase-8} ${fx},${flameBase} Z`,
         fill:'#f97316', opacity:0.12, 'pointer-events':'none',
         'data-anim':'flame-flicker', 'data-cx':fx, 'data-cy':flameBase, 'data-phase':ph, 'data-speed':'2.0' }));
     });
-    // Main flame bodies
     [[wx+36, 0, '#f97316', '#fbbf24'], [wx+44, 0.33, '#fb923c', '#fde68a'], [wx+52, 0.66, '#f97316', '#fbbf24'], [wx+60, 0.9, '#fb923c', '#fde68a']].forEach(([fx, ph, fill, stroke]) => {
       fg.appendChild(svgEl('path', { d:`M${fx},${flameBase} Q${fx-3},${flameBase-5} ${fx-1.5},${flameBase-12} Q${fx},${flameBase-15} ${fx},${flameBase-15} Q${fx},${flameBase-15} ${fx+1.5},${flameBase-12} Q${fx+3},${flameBase-5} ${fx},${flameBase} Z`,
         fill, stroke, 'stroke-width':0.5, 'pointer-events':'none',
         'data-anim':'flame-flicker', 'data-cx':fx, 'data-cy':flameBase, 'data-phase':ph, 'data-speed':'2.8' }));
     });
-    // Bright inner cores (smaller, faster flicker)
     [[wx+36, 0.15, '#fbbf24'], [wx+44, 0.5, '#fde68a'], [wx+52, 0.8, '#fbbf24'], [wx+60, 0.1, '#fde68a']].forEach(([fx, ph, fill]) => {
       fg.appendChild(svgEl('path', { d:`M${fx},${flameBase-1} Q${fx-1.5},${flameBase-5} ${fx},${flameBase-10} Q${fx+1.5},${flameBase-5} ${fx},${flameBase-1} Z`,
         fill, opacity:0.6, 'pointer-events':'none',
@@ -28935,25 +28986,21 @@ const _RAGTAG_SYMBOLS = {
     _rtNozzle(g, wx, wy, ww, wh, wx+20, wy+20, 56, 56, def, pres, pal, unitId);
     // Circle body (rotationally symmetric)
     g.appendChild(svgEl('circle', { cx:wx+48, cy:wy+48, r:28, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'pointer-events':'none' }));
-    // Viewport (rotationally symmetric) — [v17.2.2] color matches _rtVp, enlarged to r=22
+    // [v17.2.2] Viewport — color matches _rtVp, enlarged to r=22
     _rtVp(g, wx+48, wy+48, 22, pal.rim);
     g.appendChild(svgEl('circle', { cx:wx+48, cy:wy+48, r:21, fill:'url(#vp-depth)', 'pointer-events':'none' }));
-    // Determine rotation from port edge: default=right→0°, left→180°, top→-90°, bottom→90°
+    // Determine rotation from port edge
     const _outPos = pres.ports.mat_out;
     const _outEdge = _outPos ? getPortEdge(_outPos, pres) : 'right';
     const _rot = _outEdge === 'right' ? 0 : _outEdge === 'left' ? 180 : _outEdge === 'top' ? -90 : 90;
-    // Directional sub-group: chip, bolts, LED — all rotate together (arrow removed for particle visibility)
+    // Directional sub-group: chip, bolts, LED (arrow removed for particle visibility)
     const dg = svgEl('g', { transform:`rotate(${_rot},${wx+48},${wy+48})`, 'pointer-events':'none' });
-    // Glass highlight
     dg.appendChild(svgEl('path', { d:`M${wx+44},${wy+38}Q${wx+46},${wy+36} ${wx+48},${wy+38}`, fill:'none', stroke:'#fff', 'stroke-width':0.8, opacity:0.12 }));
-    // Paint chip
     _rtChip(dg, wx+60, wy+30);
     // 4 bolts
     _rtBolt(dg, wx+26, wy+34); _rtBolt(dg, wx+26, wy+62);
     _rtBolt(dg, wx+70, wy+34); _rtBolt(dg, wx+70, wy+62);
-    // LED
     g.appendChild(dg);
-    _rtChip(dg, wx+60, wy+30);
     dg.appendChild(svgEl('circle', { cx:wx+64, cy:wy+66, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0', 'pointer-events':'none' }));
   },
   // ── Atmospheric Intake (sheet 101-128) ──
@@ -29634,7 +29681,22 @@ const _RAGTAG_SYMBOLS = {
     fPct = Math.max(0, Math.min(100, fPct));
     const sgH = 48, sgTop = wy + 24;
     const fillH = sgH * fPct / 100;
-    if (fillH > 0) g.appendChild(svgEl('rect', { x:wx+66, y:sgTop+sgH-fillH, width:6, height:fillH, rx:2, fill:'#22d3ee', opacity:0.3, 'data-anim':'level-shimmer', 'data-ybase':sgTop+sgH-fillH, 'pointer-events':'none' }));
+    if (fillH > 0) {
+      // [v17.2.3] Color by dominant species in inventory
+      let _gaugeColor = '#22d3ee';
+      const _invN = _ud?.last?.n;
+      if (_invN) {
+        let _maxSp = null, _maxAmt = 0;
+        for (const [sp, amt] of Object.entries(_invN)) {
+          if (amt > _maxAmt) { _maxSp = sp; _maxAmt = amt; }
+        }
+        if (_maxSp && _SPECIES_COLOR[_maxSp]) {
+          const rgb = _SPECIES_COLOR[_maxSp];
+          _gaugeColor = `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
+        }
+      }
+      g.appendChild(svgEl('rect', { x:wx+66, y:sgTop+sgH-fillH, width:6, height:fillH, rx:2, fill:_gaugeColor, opacity:0.4, 'data-anim':'level-shimmer', 'data-ybase':sgTop+sgH-fillH, 'pointer-events':'none' }));
+    }
     _rtChip(g, wx+110, wy+22, 10, 5);
     g.appendChild(svgEl('circle', { cx:wx+96, cy:wy+62, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.8', 'pointer-events':'none' }));
   },
@@ -29680,7 +29742,22 @@ const _RAGTAG_SYMBOLS = {
     fPct = Math.max(0, Math.min(100, fPct));
     const sgH = 48, sgTop = wy + 22;
     const fillH = sgH * fPct / 100;
-    if (fillH > 0) g.appendChild(svgEl('rect', { x:wx+94, y:sgTop+sgH-fillH, width:6, height:fillH, rx:2, fill:'#22d3ee', opacity:0.3, 'data-anim':'level-shimmer', 'data-ybase':sgTop+sgH-fillH, 'pointer-events':'none' }));
+    if (fillH > 0) {
+      // [v17.2.3] Color by dominant species in inventory
+      let _gaugeColor = '#22d3ee';
+      const _invN = _ud?.last?.n;
+      if (_invN) {
+        let _maxSp = null, _maxAmt = 0;
+        for (const [sp, amt] of Object.entries(_invN)) {
+          if (amt > _maxAmt) { _maxSp = sp; _maxAmt = amt; }
+        }
+        if (_maxSp && _SPECIES_COLOR[_maxSp]) {
+          const rgb = _SPECIES_COLOR[_maxSp];
+          _gaugeColor = `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
+        }
+      }
+      g.appendChild(svgEl('rect', { x:wx+94, y:sgTop+sgH-fillH, width:6, height:fillH, rx:2, fill:_gaugeColor, opacity:0.4, 'data-anim':'level-shimmer', 'data-ybase':sgTop+sgH-fillH, 'pointer-events':'none' }));
+    }
     _rtChip(g, wx+108, wy+22, 10, 5);
     g.appendChild(svgEl('circle', { cx:wx+108, cy:wy+34, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.3', 'pointer-events':'none' }));
   },
@@ -37236,9 +37313,9 @@ const _PARTICLE_BEHAVIORS = {
   LIQ_HIGHLIGHT_OFFSET: 0.2,           // offset from center as fraction of r
   LIQ_HIGHLIGHT_ALPHA: 0.4,            // specular brightness
 
-  // ── Pressure sizing (gas only) ──
-  PRESSURE_SIZE_EXP: 0.2,  PRESSURE_SIZE_REF: 101325,
-  PRESSURE_SIZE_MIN: 0.5,  PRESSURE_SIZE_MAX: 2.0,
+  // ── Pressure sizing: REMOVED (v17.3.1) ──
+  // Molecules don't shrink under pressure. Gap (density-driven) handles
+  // the "packed vs sparse" distinction. Speed handles "slow vs fast".
 
   // ── Temperature-driven jitter ──
   JITTER_T_REF: 300,
@@ -37287,7 +37364,8 @@ const _PARTICLE_BEHAVIORS = {
 
     // Storage (deferred)
     tank:      null,
-    open_tank: null,
+    // [v17.2.3] Open tank — vent gas particles rising from open top
+    open_tank: { type:'vent', dwellFactor:2.0 },
 
     // Sources (Phase 4A)
     source:    { type:'source', path:'emerge', dwellFactor:1.5 },
@@ -37444,6 +37522,19 @@ function _bodyTransitPath(unitId, cfg) {
     }]};
   }
 
+  // [v17.2.3] Open tank vent: gas particles rise from bottom to top of viewport
+  if (cfg.type === 'vent') {
+    const vpBot = vp.y + vp.h;
+    const vpTop = vp.y + 2;
+    const vcx = vp.x + vp.w / 2;
+    return { subPaths: [{
+      entry: { x: vcx, y: vpBot },
+      exit:  { x: vcx, y: vpTop },
+      pathType: 'linear', swirlTurns: 0, vp,
+      streamKey: '_vent',  // special: read from u.last.vented_n
+    }]};
+  }
+
   if (cfg.type === 'sink') {
     // Sink: mat_in entry → center → disperse (gas rises, liquid falls)
     const matIn = def.ports.find(p => p.dir === PortDir.IN && p.type === StreamType.MATERIAL);
@@ -37474,7 +37565,6 @@ function _bodyTransitPath(unitId, cfg) {
     for (const yFrac of offsets) {
       const sy = vp.cy + vp.r * yFrac;
       const dx = Math.sqrt(Math.max(0, vp.r * vp.r - (vp.r * yFrac) * (vp.r * yFrac))) * 0.88;
-      // Determine entry/exit side from port positions
       const entryPt = _projectPortToVP(matIn.portId, pres, wx, wy, tile, vp);
       const exitPt = _projectPortToVP(matOut.portId, pres, wx, wy, tile, vp);
       const entryLeft = entryPt.x < exitPt.x;
@@ -37579,19 +37669,26 @@ function _transitPos(sp, t, jLat, isLiq) {
   }
 
   if (sp.pathType === 'disperse') {
-    // Sink disperse: entry (t=0) → center (t=0.15) → gas rises / liquid falls (t=0.15→1)
-    if (t < 0.15) {
-      const f = t / 0.15;
+    // [v17.2.1] Liquid: straight transit entry→exit (no falling)
+    if (isLiq) {
+      const mx = e.x + (x.x - e.x) * t;
+      const my = e.y + (x.y - e.y) * t;
+      const pdx = x.x - e.x, pdy = x.y - e.y;
+      const pLen = Math.sqrt(pdx * pdx + pdy * pdy) || 1;
+      return { x: mx + (-pdy / pLen) * jLat, y: my + (pdx / pLen) * jLat };
+    }
+    // Gas: entry (t=0) → center (t=0.3) → rise (t=0.3→1)
+    if (t < 0.3) {
+      const f = t / 0.3;
       const px = e.x + (x.x - e.x) * f;
       const py = e.y + (x.y - e.y) * f;
       const pdx = x.x - e.x, pdy = x.y - e.y;
       const pLen = Math.sqrt(pdx * pdx + pdy * pdy) || 1;
       return { x: px + (-pdy / pLen) * jLat, y: py + (pdx / pLen) * jLat };
     }
-    // After center: gas rises, liquid falls
-    const f = (t - 0.15) / 0.85;
+    const f = (t - 0.3) / 0.7;
     const eased = 1 - (1 - f) * (1 - f);
-    const target = isLiq ? sp.disperseBot : sp.disperseTop;
+    const target = sp.disperseTop;
     const px = x.x + (target.x - x.x) * eased + jLat * (1 - f);
     const py = x.y + (target.y - x.y) * eased;
     return { x: px, y: py };
@@ -37729,7 +37826,7 @@ function _rebuildBodyParticles() {
     if (!cfg) continue;
     if (cfg.type !== 'transit' && cfg.type !== 'dual-transit' &&
         cfg.type !== 'merge' && cfg.type !== 'split' &&
-        cfg.type !== 'source' && cfg.type !== 'sink') continue;
+        cfg.type !== 'source' && cfg.type !== 'sink' && cfg.type !== 'vent') continue;
 
     const transit = _bodyTransitPath(id, cfg);
     if (!transit || transit.subPaths.length === 0) continue;
@@ -37740,8 +37837,14 @@ function _rebuildBodyParticles() {
     // Check that at least one sub-path has flowing material
     let anyFlow = false;
     for (const sp of transit.subPaths) {
-      const ps = ud.ports?.[sp.streamKey];
-      if (ps?._anim?.nDot > 1e-15) { anyFlow = true; break; }
+      if (sp.streamKey === '_vent') {
+        // [v17.2.3] Open tank vent — check u.last.vented_n
+        const vn = ud.last?.vented_n;
+        if (vn && Object.values(vn).reduce((a,b)=>a+b,0) > 1e-6) { anyFlow = true; break; }
+      } else {
+        const ps = ud.ports?.[sp.streamKey];
+        if (ps?._anim?.nDot > 1e-15) { anyFlow = true; break; }
+      }
     }
     if (!anyFlow) continue;
 
@@ -37763,8 +37866,19 @@ function _rebuildBodyParticles() {
       const subPaths = [];
       for (let si = 0; si < transit.subPaths.length; si++) {
         const sp = transit.subPaths[si];
-        const ps = ud.ports?.[sp.streamKey];
-        const anim = ps?._anim;
+        // [v17.2.3] _vent: synthetic anim from u.last.vented_n
+        let ps, anim;
+        if (sp.streamKey === '_vent') {
+          const vn = ud.last?.vented_n || {};
+          const nDot = Object.values(vn).reduce((a,b)=>a+b,0);
+          const sf = {};
+          if (nDot > 1e-15) for (const [s,v] of Object.entries(vn)) sf[s] = v / nDot;
+          anim = nDot > 1e-6 ? { nDot, vDot: nDot * 0.024, speciesFracs: sf } : null;
+          ps = { vaporFraction: 1, T: ud.last?.T_K || 300, P: 101325 };
+        } else {
+          ps = ud.ports?.[sp.streamKey];
+          anim = ps?._anim;
+        }
         const vNorm = anim ? Math.min(1, anim.vDot / B.VDOT_REF) : 0.1;
         const speed = Math.min(B.MAX_SPEED, B.BASE_SPEED * Math.max(0.05, vNorm));
         const vpDim = sp.vp.type === 'circle' ? sp.vp.r * 2 : Math.max(sp.vp.w, sp.vp.h);
@@ -37810,8 +37924,19 @@ function _rebuildBodyParticles() {
         // [Phase 4] Sync disperse/converge data
         if (tsp.disperseTop) { sp.disperseTop = tsp.disperseTop; sp.disperseBot = tsp.disperseBot; }
         if (tsp.convergeRadius) sp.convergeRadius = tsp.convergeRadius;
-        const ps = ud.ports?.[sp.streamKey];
-        const anim = ps?._anim;
+        // [v17.2.3] _vent: synthetic anim from u.last.vented_n
+        let ps, anim;
+        if (sp.streamKey === '_vent') {
+          const vn = ud.last?.vented_n || {};
+          const nDot = Object.values(vn).reduce((a,b)=>a+b,0);
+          const sf = {};
+          if (nDot > 1e-15) for (const [s,v] of Object.entries(vn)) sf[s] = v / nDot;
+          anim = nDot > 1e-6 ? { nDot, vDot: nDot * 0.024, speciesFracs: sf } : null;
+          ps = { vaporFraction: 1, T: ud.last?.T_K || 300, P: 101325 };
+        } else {
+          ps = ud.ports?.[sp.streamKey];
+          anim = ps?._anim;
+        }
         const vNorm = anim ? Math.min(1, anim.vDot / B.VDOT_REF) : 0.1;
         sp.speed = Math.min(B.MAX_SPEED, B.BASE_SPEED * Math.max(0.05, vNorm));
         sp.T = ps?.T || 300; sp.P = ps?.P || 101325; sp.vDot = anim?.vDot || 0;
@@ -37891,12 +38016,13 @@ function _rebuildSmokePuffs() {
     const wx = u.x * scene.tile;
     const wy = u.y * scene.tile;
     const ww = pres.w * scene.tile;
-    const cx = wx + ww / 2;
-    const cy = wy;
 
     const cfg = _computeSmokeConfig(u, def);
     if (!cfg) continue;
     if (budget >= _SMOKE_PUFF_CAP) continue;
+
+    const cx = cfg._cx ?? (wx + ww / 2);
+    const cy = cfg._cy ?? wy;
 
     activeIds.add(id);
     const count = Math.min(cfg.puffCount, _SMOKE_PUFF_CAP - budget);
@@ -38042,8 +38168,7 @@ function _drawParticleCanvas() {
     if (!cp) continue;
     const T = state.T || 300;
     const P = state.P || 101325;
-    const pSizeMul = Math.max(B.PRESSURE_SIZE_MIN,
-      Math.min(B.PRESSURE_SIZE_MAX, Math.pow(B.PRESSURE_SIZE_REF / P, B.PRESSURE_SIZE_EXP)));
+    const pSizeMul = 1; // [v17.3.1] Molecules dont shrink under pressure — removed
     const tRatio = Math.max(0.5, T / B.JITTER_T_REF);
     const glowR = B.GAS_GLOW_RADIUS_BASE * Math.pow(tRatio, B.GAS_GLOW_RADIUS_T_SCALE);
     const useAdditive = T > B.ADDITIVE_T_THRESHOLD;
@@ -38078,8 +38203,7 @@ function _drawParticleCanvas() {
 
       const spT = sp.T || 300;
       const spP = sp.P || 101325;
-      const spPSizeMul = Math.max(B.PRESSURE_SIZE_MIN,
-        Math.min(B.PRESSURE_SIZE_MAX, Math.pow(B.PRESSURE_SIZE_REF / spP, B.PRESSURE_SIZE_EXP)));
+      const spPSizeMul = 1; // [v17.3.1] Pressure sizing removed
       const spTRatio = Math.max(0.5, spT / B.JITTER_T_REF);
       const spGlowR = B.GAS_GLOW_RADIUS_BASE * Math.pow(spTRatio, B.GAS_GLOW_RADIUS_T_SCALE);
       const spAdditive = spT > B.ADDITIVE_T_THRESHOLD;
