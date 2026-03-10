@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v17.2.0
+  processThis v17.2.1
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -344,8 +344,55 @@
     Old NNG-13 (test discipline)       → now part of new NNG-14
 
   ═══════════════════════════════════════════════════════════════════════════
-  CHANGELOG
+  CHANGELOG  (latest first)
   ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v17.2.1 — Particle polish: tuning, clipping, viewport fixes ────────
+
+  **Sampling reverted.**  Removed _stratifiedSpecies and golden-ratio
+  offset in _sampleSpeciesAt — original Knuth hash restored.  Species
+  variety improved by increasing particle count: CONN_GAP_MAX 20→14,
+  CONN_MAX_PER 24→30, CONN_MIN_PER 4→6.  More particles = better
+  minority species visibility without confusing distribution logic.
+
+  **Liquid tuning.**  Smaller (r 2→1.5), faster (sMul 0.95 base),
+  softer (opacity 0.92→0.7, overdraw 1.25→1.1, gradient edge 0.35→0.25).
+  Liquid no longer overwhelms gas visually.
+
+  **Flash drum split — immediate divergence.**  Split transition changed
+  from 50/50 to 15/85: particles barely enter before separating.  Gas
+  rises and liquid sinks almost from the viewport entry point.
+
+  **Pump body particles disabled.**  Set null in _PARTICLE_BEHAVIORS —
+  swirl animation looked bad at current scale.
+
+  **Pipe clipping tightened.**  Window range 10-90% → 13-87%.  Gas glow
+  (shadowBlur) no longer bleeds past pipe window edges.
+
+  **Sink rework.**  Viewport shortened (h 56→36) — no falling particles
+  needed.  Liquid goes straight through (linear transit) instead of
+  falling; gas still rises and disperses.  Tap repositioned to body
+  center with vertical spout, inline with water stream.
+
+  **Reactor viewports enlarged.**  reactor_adiabatic and combustion_chamber
+  viewports changed from r=26 at (48,38) to r=28 at (48,47) — much
+  bigger.  Old SVG bubble animation (6 circles, data-anim:reactor-bubble)
+  retired from reactor_adiabatic — canvas morph particles replace them.
+  Jacketed/cooled reactors unchanged at r=26.
+
+  **Source_atm viewport panel.**  Dark recessed viewport (40×56 rect)
+  added inside the bell-mouth body, with vp-depth inner glow.
+
+  **Shadow plates removed.**  (from v17.2.0, retained)
+
+  **Deferred to next session:**
+  - Metaball liquid rendering (offscreen canvas blur composite)
+  - Combustion chamber flame positioning at viewport bottom
+  - Open tank outgassing smoke + gas particles
+  - Viewport border z-layering above canvas particles
+
+  NNGs: NNG-3 (visual fidelity), NNG-14 (changelog).
+  Tests: 606 total, 3136 checks, 0 failures.
 
   ─── v17.0.0 — u.last Authority Invariant + Playtest Fixes ───────────────
 
@@ -27795,10 +27842,10 @@ const _BODY_BBOX = {
 // Returns { type: 'circle'|'rect', ... } in local coords (add wx, wy to get world).
 // null = opaque unit (no viewport).
 const _UNIT_VIEWPORT = {
-  reactor_adiabatic:        { type: 'circle', cx: 48, cy: 38, r: 26 },
+  reactor_adiabatic:        { type: 'circle', cx: 48, cy: 47, r: 28 },
   reactor_jacketed:         { type: 'circle', cx: 48, cy: 38, r: 26 },
   reactor_cooled:           { type: 'circle', cx: 48, cy: 38, r: 26 },
-  combustion_chamber:       { type: 'circle', cx: 48, cy: 38, r: 26 },
+  combustion_chamber:       { type: 'circle', cx: 48, cy: 47, r: 28 },
   reactor_electrochemical:  { type: 'rect', x: 18, y: 14, w: 60, h: 68 },
   fuel_cell:                { type: 'rect', x: 22, y: 20, w: 52, h: 40 },
   compressor:               { type: 'rect', x: 28, y: 32, w: 36, h: 32 },
@@ -27818,7 +27865,7 @@ const _UNIT_VIEWPORT = {
   source_atm:               { type: 'rect', x: 14, y: 20, w: 40, h: 56 },
   closed_loop_source:       { type: 'circle', cx: 48, cy: 48, r: 22 },
   reservoir:                { type: 'rect', x: 32, y: 16, w: 32, h: 48 },
-  sink:                     { type: 'rect', x: 34, y: 18, w: 28, h: 56 },
+  sink:                     { type: 'rect', x: 34, y: 18, w: 28, h: 36 },
   // Opaque (null): valve, restriction, splitter, tank, open_tank, battery, all power/boundary
 };
 
@@ -28315,15 +28362,9 @@ const _RAGTAG_SYMBOLS = {
     const pres = getPresentation(def, scene.units.get(unitId));
     _rtNozzle(g, wx, wy, ww, wh, wx+10, wy+15, 76, 66, def, pres, pal, unitId);
     g.appendChild(svgEl('rect', { x:wx+10, y:wy+15, width:76, height:66, rx:14, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'pointer-events':'none' }));
-    _rtVp(g, wx+48, wy+47, 18, pal.rim);
-    // 6 bubbles clipped to viewport circle
-    const bg = _rtVpClipGroup(g, wx+48, wy+47, 18, unitId, pal.rim);
-    bg.appendChild(svgEl('circle', { cx:wx+38, cy:wy+61, r:4.5, fill:'#fbbf24', 'data-anim':'reactor-bubble', 'data-ytop':wy+31, 'data-ybot':wy+61, 'data-phase':'0', 'data-speed':'0.5', 'pointer-events':'none' }));
-    bg.appendChild(svgEl('circle', { cx:wx+54, cy:wy+61, r:3.5, fill:'#fbbf24', 'data-anim':'reactor-bubble', 'data-ytop':wy+31, 'data-ybot':wy+61, 'data-phase':'0.25', 'data-speed':'0.55', 'pointer-events':'none' }));
-    bg.appendChild(svgEl('circle', { cx:wx+44, cy:wy+61, r:4, fill:'#f97316', 'data-anim':'reactor-bubble', 'data-ytop':wy+31, 'data-ybot':wy+61, 'data-phase':'0.5', 'data-speed':'0.6', 'pointer-events':'none' }));
-    bg.appendChild(svgEl('circle', { cx:wx+58, cy:wy+61, r:3, fill:'#f97316', 'data-anim':'reactor-bubble', 'data-ytop':wy+31, 'data-ybot':wy+61, 'data-phase':'0.7', 'data-speed':'0.64', 'pointer-events':'none' }));
-    bg.appendChild(svgEl('circle', { cx:wx+50, cy:wy+61, r:3.5, fill:'#fbbf24', 'data-anim':'reactor-bubble', 'data-ytop':wy+31, 'data-ybot':wy+61, 'data-phase':'0.35', 'data-speed':'0.57', 'pointer-events':'none' }));
-    bg.appendChild(svgEl('circle', { cx:wx+40, cy:wy+61, r:2.5, fill:'#f97316', 'data-anim':'reactor-bubble', 'data-ytop':wy+31, 'data-ybot':wy+61, 'data-phase':'0.85', 'data-speed':'0.67', 'pointer-events':'none' }));
+    // [v17.2.1] Enlarged viewport r=28 — canvas particles replace old SVG bubbles
+    _rtVp(g, wx+48, wy+47, 28, pal.rim);
+    g.appendChild(svgEl('circle', { cx:wx+48, cy:wy+47, r:27, fill:'url(#vp-depth)', 'pointer-events':'none' }));
     _rtBolt(g, wx+18, wy+23); _rtBolt(g, wx+78, wy+23);
     _rtBolt(g, wx+18, wy+73); _rtBolt(g, wx+78, wy+73);
     [12,20,28,36].forEach(x => g.appendChild(svgEl('line', { x1:wx+x, y1:wy+69, x2:wx+x+6, y2:wy+75, stroke:'#fbbf24', 'stroke-width':1.5, opacity:0.12, 'pointer-events':'none' })));
@@ -28883,6 +28924,9 @@ const _RAGTAG_SYMBOLS = {
     // 2. Bell mouth body: path d='M4,10 Q2,48 4,86 L56,66 Q62,48 56,30 Z'
     g.appendChild(svgEl('path', { d:`M${wx+4},${wy+10} Q${wx+2},${wy+48} ${wx+4},${wy+86} L${wx+56},${wy+66} Q${wx+62},${wy+48} ${wx+56},${wy+30} Z`,
       fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'stroke-linejoin':'round', 'pointer-events':'none' }));
+    // [v17.2.1] Viewport panel — dark recessed window for particle clipping
+    g.appendChild(svgEl('rect', { x:wx+14, y:wy+20, width:40, height:56, rx:4, fill:'#0f172a', opacity:0.8, 'pointer-events':'none' }));
+    g.appendChild(svgEl('rect', { x:wx+14, y:wy+20, width:40, height:56, rx:4, fill:'url(#vp-depth)', 'pointer-events':'none' }));
     // 3. Open mouth edge — dashed to show it's open to atmosphere
     g.appendChild(svgEl('line', { x1:wx+4, y1:wy+10, x2:wx+4, y2:wy+86, stroke:'#6ee7b7', 'stroke-width':2, 'stroke-dasharray':'3 3', opacity:0.4, 'pointer-events':'none' }));
     // 4. Intake louver slats: y=[24,36,48,60,72], x1=8, x2=32+(48-|y-48|)*0.4
@@ -28924,9 +28968,9 @@ const _RAGTAG_SYMBOLS = {
       : { 'pointer-events': 'none' });
     // Body
     vg.appendChild(svgEl('rect', { x:wx+32, y:wy+14, width:32, height:68, rx:4, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5 }));
-    // [v17.2.0] Viewport panel — dark recessed window for particle clipping
-    vg.appendChild(svgEl('rect', { x:wx+34, y:wy+18, width:28, height:56, rx:3, fill:'#0f172a', opacity:0.85, 'pointer-events':'none' }));
-    vg.appendChild(svgEl('rect', { x:wx+34, y:wy+18, width:28, height:56, rx:3, fill:'url(#vp-depth)', 'pointer-events':'none' }));
+    // [v17.2.1] Viewport panel — dark recessed window (shorter: gas rises, liquid exits via tap)
+    vg.appendChild(svgEl('rect', { x:wx+34, y:wy+18, width:28, height:36, rx:3, fill:'#0f172a', opacity:0.85, 'pointer-events':'none' }));
+    vg.appendChild(svgEl('rect', { x:wx+34, y:wy+18, width:28, height:36, rx:3, fill:'url(#vp-depth)', 'pointer-events':'none' }));
     // Grate top (metal bar)
     vg.appendChild(svgEl('rect', { x:wx+28, y:wy+12, width:40, height:6, rx:2, fill:'#4b5563', stroke:'#374151', 'stroke-width':1.5 }));
     // Grate peak
@@ -28934,19 +28978,15 @@ const _RAGTAG_SYMBOLS = {
     // Ground: extended grey line + diagonal hatching
     vg.appendChild(svgEl('line', { x1:wx+16, y1:wy+82, x2:wx+80, y2:wy+82, stroke:'#6b7280', 'stroke-width':2.5, 'stroke-linecap':'round' }));
     [20,28,36,44,52,60,68,76].forEach(x => vg.appendChild(svgEl('line', { x1:wx+x, y1:wy+82, x2:wx+x-6, y2:wy+90, stroke:'#6b7280', 'stroke-width':1, opacity:0.4 })));
-    // ── Tap — L-shaped spout, higher up for longer jet ──
-    const tapX = wx + 64, tapY = wy + 30;
-    // Horizontal arm (connects to body)
-    vg.appendChild(svgEl('rect', { x:tapX, y:tapY, width:16, height:8, rx:1.5, fill:'#374151', stroke:'#4b5563', 'stroke-width':1 }));
-    // Vertical spout
-    vg.appendChild(svgEl('rect', { x:tapX+8, y:tapY+4, width:8, height:16, rx:1.5, fill:'#374151', stroke:'#4b5563', 'stroke-width':1 }));
-    // Elbow cover — circle overlapping the 90° joint
-    vg.appendChild(svgEl('circle', { cx:tapX+12, cy:tapY+5, r:5, fill:'#374151', stroke:'#4b5563', 'stroke-width':1 }));
-    // Handwheel
-    vg.appendChild(svgEl('circle', { cx:tapX+4, cy:tapY-4, r:5, fill:'#4b5563', stroke:'#374151', 'stroke-width':1.5 }));
-    vg.appendChild(svgEl('circle', { cx:tapX+4, cy:tapY-4, r:2, fill:'#1f2937' }));
+    // ── Tap — centered vertical spout below viewport ──
+    const tapX = wx + 44, tapY = wy + 54;
+    // Vertical spout (centered on body)
+    vg.appendChild(svgEl('rect', { x:tapX, y:tapY, width:8, height:14, rx:1.5, fill:'#374151', stroke:'#4b5563', 'stroke-width':1 }));
+    // Handwheel (to the side)
+    vg.appendChild(svgEl('circle', { cx:tapX+12, cy:tapY+4, r:4.5, fill:'#4b5563', stroke:'#374151', 'stroke-width':1.5 }));
+    vg.appendChild(svgEl('circle', { cx:tapX+12, cy:tapY+4, r:1.8, fill:'#1f2937' }));
     // Bore opening (dark hole at spout bottom)
-    const boreX = tapX + 12, boreY = tapY + 20;
+    const boreX = tapX + 4, boreY = tapY + 14;
     vg.appendChild(svgEl('ellipse', { cx:boreX, cy:boreY, rx:3, ry:1.5, fill:'#0f172a', opacity:0.8 }));
     // ── Liquid stream (reads pre-computed flash from sink tick) ──
     const _sinkUd = scene.runtime?.unitData?.get(unitId);
@@ -37109,10 +37149,10 @@ function _bzPathD(bz) {
 const _FLOW_VDOT_REF = 0.025;
 const _FLOW_MAX_SPEED = 200;
 const _FLOW_BASE_SPEED = 60;
-const _FLOW_GAP_MIN = 6;
-const _FLOW_GAP_MAX = 20;
-const _FLOW_PARTICLE_R = 2;
-const _FLOW_MAX_PER_CONN = 24;
+const _FLOW_GAP_MIN = 5;
+const _FLOW_GAP_MAX = 14;
+const _FLOW_PARTICLE_R = 1.5;
+const _FLOW_MAX_PER_CONN = 30;
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // [v16.9.11 S-PARTICLES Phase 3] Body particle system with transforms
@@ -37129,14 +37169,14 @@ const _PARTICLE_BEHAVIORS = {
   CONN_VDOT_REF: 0.025,    // m³/s — typical T1 gas at 1 mol/s, 1 atm, 300K
   CONN_BASE_SPEED: 60,     // px/s at vDot_ref
   CONN_MAX_SPEED: 200,     // px/s cap
-  CONN_GAP_MIN: 6,         // px — liquid (ρ ≈ 1000)
-  CONN_GAP_MAX: 20,        // px — atmospheric gas (ρ ≈ 1.2)
-  CONN_PARTICLE_R: 2,      // px base radius (liquid)
-  CONN_MAX_PER: 24,        // max particles per connection
-  CONN_MIN_PER: 4,         // min particles per connection (species representation)
+  CONN_GAP_MIN: 5,         // px — liquid (ρ ≈ 1000)
+  CONN_GAP_MAX: 14,        // px — atmospheric gas (ρ ≈ 1.2) — denser for species variety
+  CONN_PARTICLE_R: 1.5,    // px base radius (liquid) — smaller than gas
+  CONN_MAX_PER: 30,        // max particles per connection
+  CONN_MIN_PER: 6,         // min particles per connection — species variety on short pipes
 
   // ── Body (viewport) particles ──
-  DENSITY_SPACING: 12,  MAX_PER_SEGMENT: 20,
+  DENSITY_SPACING: 10,  MAX_PER_SEGMENT: 24,
   VDOT_REF: 0.025,  BASE_SPEED: 60,  MAX_SPEED: 200,
 
   // ── Gas appearance ──
@@ -37146,13 +37186,13 @@ const _PARTICLE_BEHAVIORS = {
   GAS_ROTATION_DRIFT: 1.5,                     // rad/s rotation speed
 
   // ── Liquid appearance ──
-  LIQ_OPACITY: 0.92,
-  LIQ_BLOB_OVERDRAW: 1.25,     // radius multiplier for overlap/merge
-  LIQ_GRADIENT_INNER: 0.65,    // gradient stop: full opacity up to this fraction of r
-  LIQ_GRADIENT_EDGE: 0.35,     // opacity at r (creates soft-but-cohesive edge)
-  LIQ_HIGHLIGHT_R: 0.35,       // specular highlight radius as fraction of particle r
-  LIQ_HIGHLIGHT_OFFSET: 0.25,  // offset from center as fraction of r
-  LIQ_HIGHLIGHT_ALPHA: 0.5,    // specular brightness
+  LIQ_OPACITY: 0.7,                    // lower than gas to avoid overwhelming
+  LIQ_BLOB_OVERDRAW: 1.1,              // slight overlap for cohesion
+  LIQ_GRADIENT_INNER: 0.6,             // gradient stop: full opacity up to this fraction
+  LIQ_GRADIENT_EDGE: 0.25,             // opacity at edge (soft boundary)
+  LIQ_HIGHLIGHT_R: 0.3,               // specular highlight radius as fraction of r
+  LIQ_HIGHLIGHT_OFFSET: 0.2,           // offset from center as fraction of r
+  LIQ_HIGHLIGHT_ALPHA: 0.4,            // specular brightness
 
   // ── Pressure sizing (gas only) ──
   PRESSURE_SIZE_EXP: 0.2,  PRESSURE_SIZE_REF: 101325,
@@ -37172,7 +37212,7 @@ const _PARTICLE_BEHAVIORS = {
     // Transit (linear passthrough)
     valve:          null,  // opaque — no body particles
     restriction:    null,
-    pump:           { type:'transit', path:'swirl', dwellFactor:1.3, swirlTurns:0.75 },
+    pump:           null,  // [v17.2.1] hidden — looks bad at current scale
     fan:            { type:'transit', path:'swirl', dwellFactor:1.0, swirlTurns:0.5 },
     compressor:     { type:'transit', path:'linear', dwellFactor:1.5 },
     compressor_diaphragm: { type:'transit', path:'linear', dwellFactor:1.5 },
@@ -37239,7 +37279,6 @@ function _flowColor(species) {
 }
 
 // ── Deterministic species sampler (stable across frames) ──
-// [v17.2.0] Golden-ratio offset prevents clustering at low particle counts.
 function _sampleSpeciesAt(fracs, idx) {
   if (!fracs) return 'N2';
   const entries = Object.entries(fracs);
@@ -37247,39 +37286,13 @@ function _sampleSpeciesAt(fracs, idx) {
   if (entries.length === 1) return entries[0][0];
   const total = entries.reduce((s, [, f]) => s + f, 0);
   if (total < 1e-15) return entries[0][0];
-  const r = (((idx * 2654435761) >>> 0) / 4294967296 + idx * 0.6180339887) % 1;
+  const r = ((idx * 2654435761) >>> 0) / 4294967296; // Knuth multiplicative hash → [0,1)
   let cum = 0;
   for (const [sp, f] of entries) {
     cum += f / total;
     if (r < cum) return sp;
   }
   return entries[entries.length - 1][0];
-}
-
-// ── Stratified species for N particles (proportional representation) ──
-// [v17.2.0] Minority species (>2% frac) guaranteed ≥1 particle.
-function _stratifiedSpecies(fracs, nParticles, seed) {
-  if (!fracs) return Array(nParticles).fill('N2');
-  const entries = Object.entries(fracs);
-  if (entries.length === 0) return Array(nParticles).fill('N2');
-  if (entries.length === 1) return Array(nParticles).fill(entries[0][0]);
-  const total = entries.reduce((s, [, f]) => s + f, 0);
-  if (total < 1e-15) return Array(nParticles).fill(entries[0][0]);
-  const result = [];
-  let assigned = 0;
-  for (const [sp, f] of entries) {
-    const frac = f / total;
-    const count = frac > 0.02 ? Math.max(1, Math.round(nParticles * frac)) : 0;
-    for (let j = 0; j < count && assigned < nParticles; j++) { result.push(sp); assigned++; }
-  }
-  const dominant = entries.reduce((a, b) => b[1] > a[1] ? b : a, entries[0])[0];
-  while (result.length < nParticles) result.push(dominant);
-  result.length = nParticles;
-  for (let i = result.length - 1; i > 0; i--) {
-    const j = ((seed * 2654435761 + i * 7919) >>> 0) % (i + 1);
-    const tmp = result[i]; result[i] = result[j]; result[j] = tmp;
-  }
-  return result;
 }
 
 // ── [v16.9.10 S-PARTICLES Phase 2] Port-to-viewport projection ──
@@ -37429,22 +37442,22 @@ function _transitPos(sp, t, jLat, isLiq) {
   const e = sp.entry, x = sp.exit;
 
   if (sp.pathType === 'split') {
-    // Two-segment path: entry → center (t=0→0.5), center → exit (t=0.5→1)
+    // [v17.2.1] Particles diverge almost immediately from entry (15/85 split)
     const c = sp.splitCenter;
     const ex = isLiq ? sp.liqExit : sp.vapExit;
+    const SPLIT_T = 0.15; // fraction of path before divergence starts
     let px, py;
-    if (t < 0.5) {
-      const f = t * 2; // 0→1 over first half
+    if (t < SPLIT_T) {
+      const f = t / SPLIT_T;
       px = e.x + (c.x - e.x) * f;
       py = e.y + (c.y - e.y) * f;
     } else {
-      const f = (t - 0.5) * 2; // 0→1 over second half
+      const f = (t - SPLIT_T) / (1 - SPLIT_T);
       px = c.x + (ex.x - c.x) * f;
       py = c.y + (ex.y - c.y) * f;
     }
-    // Perpendicular jitter relative to the current segment direction
     let sdx, sdy;
-    if (t < 0.5) { sdx = c.x - e.x; sdy = c.y - e.y; }
+    if (t < SPLIT_T) { sdx = c.x - e.x; sdy = c.y - e.y; }
     else { sdx = ex.x - c.x; sdy = ex.y - c.y; }
     const sLen = Math.sqrt(sdx * sdx + sdy * sdy) || 1;
     return { x: px + (-sdy / sLen) * jLat, y: py + (sdx / sLen) * jLat };
@@ -37499,19 +37512,26 @@ function _transitPos(sp, t, jLat, isLiq) {
   }
 
   if (sp.pathType === 'disperse') {
-    // Sink disperse: entry (t=0) → center (t=0.4) → rise/fall (t=0.4→1)
-    if (t < 0.4) {
-      const f = t / 0.4;
+    // [v17.2.1] Liquid: straight transit entry→exit (no falling)
+    if (isLiq) {
+      const mx = e.x + (x.x - e.x) * t;
+      const my = e.y + (x.y - e.y) * t;
+      const pdx = x.x - e.x, pdy = x.y - e.y;
+      const pLen = Math.sqrt(pdx * pdx + pdy * pdy) || 1;
+      return { x: mx + (-pdy / pLen) * jLat, y: my + (pdx / pLen) * jLat };
+    }
+    // Gas: entry (t=0) → center (t=0.3) → rise (t=0.3→1)
+    if (t < 0.3) {
+      const f = t / 0.3;
       const px = e.x + (x.x - e.x) * f;
       const py = e.y + (x.y - e.y) * f;
       const pdx = x.x - e.x, pdy = x.y - e.y;
       const pLen = Math.sqrt(pdx * pdx + pdy * pdy) || 1;
       return { x: px + (-pdy / pLen) * jLat, y: py + (pdx / pLen) * jLat };
     }
-    // After center: gas rises, liquid falls
-    const f = (t - 0.4) / 0.6; // 0→1
-    const eased = 1 - (1 - f) * (1 - f); // ease-out
-    const target = isLiq ? sp.disperseBot : sp.disperseTop;
+    const f = (t - 0.3) / 0.7;
+    const eased = 1 - (1 - f) * (1 - f);
+    const target = sp.disperseTop;
     const px = x.x + (target.x - x.x) * eased + jLat * (1 - f);
     const py = x.y + (target.y - x.y) * eased;
     return { x: px, y: py };
@@ -37537,7 +37557,6 @@ function _rebuildFlowParticles() {
 
   const activeIds = new Set();
   const B = _PARTICLE_BEHAVIORS;
-  const PHI_FRAC = 0.6180339887; // golden ratio fractional part
 
   for (const c of scene.connections) {
     const cp = paths.get(c.id);
@@ -37560,31 +37579,24 @@ function _rebuildFlowParticles() {
     const rhoNorm = Math.log(rhoClamp / 0.5) / Math.log(1200 / 0.5);
     const gap = B.CONN_GAP_MAX - rhoNorm * (B.CONN_GAP_MAX - B.CONN_GAP_MIN);
 
+    // [v17.2.1] More particles for better minority species representation
     const nParticles = Math.min(B.CONN_MAX_PER, Math.max(B.CONN_MIN_PER, Math.ceil(pathLen / gap)));
-
-    // [v17.2.0] Connection seed for stratified shuffle
-    let connSeed = 0;
-    for (let ci = 0; ci < c.id.length; ci++) connSeed = ((connSeed * 31 + c.id.charCodeAt(ci)) >>> 0);
+    const gapT = 1 / nParticles;
 
     let state = _flowState.get(c.id);
     if (!state || state.particles.length !== nParticles) {
-      // [v17.2.0] Stratified species assignment — proportional representation
-      const speciesList = _stratifiedSpecies(anim.speciesFracs, nParticles, connSeed);
       const particles = [];
-      // [v17.2.0] Golden-ratio offset per connection for quasi-random initial positions
-      const tOffset = ((connSeed * 2654435761) >>> 0) / 4294967296;
       for (let i = 0; i < nParticles; i++) {
-        const species = speciesList[i];
-        const isLiq = (((i * 2654435761 + connSeed + 7) >>> 0) / 4294967296 > (stream.vaporFraction ?? 1));
+        const species = _sampleSpeciesAt(anim.speciesFracs, i);
+        const isLiq = (((i * 2654435761 + 7) >>> 0) / 4294967296 > (stream.vaporFraction ?? 1));
         const h = ((i * 2654435761 + 1013904223) >>> 0) / 4294967296;
         const h2 = ((i * 1664525 + 1013904223) >>> 0) / 4294967296;
         const h3 = ((i * 22695477 + 1) >>> 0) / 4294967296;
-        // Golden-ratio spacing: i*φ mod 1, then add per-connection offset
-        const t = ((i * PHI_FRAC + tOffset) % 1 + 1) % 1;
-        const jLat = isLiq ? (h2 - 0.5) * 2 : (h2 - 0.5) * 6;
-        const sMul = isLiq ? 0.92 + h3 * 0.16 : 0.7 + h3 * 0.6;
+        const tNoise = isLiq ? (h - 0.5) * 0.06 : (h - 0.5) * 0.25;
+        const t = ((i * gapT) + tNoise + 1) % 1;
+        const jLat = isLiq ? (h2 - 0.5) * 1.5 : (h2 - 0.5) * 6;
+        const sMul = isLiq ? 0.95 + h3 * 0.1 : 0.7 + h3 * 0.6;
         const r = isLiq ? B.CONN_PARTICLE_R : B.GAS_R_MIN + h * B.GAS_R_VAR;
-        // [v17.2.0] Gas ellipse: aspect ratio and initial rotation angle
         const aspect = isLiq ? 1.0 : B.GAS_ASPECT_MIN + h2 * (B.GAS_ASPECT_MAX - B.GAS_ASPECT_MIN);
         const rotAngle = isLiq ? 0 : h3 * Math.PI * 2;
         particles.push({ t, species, isLiq, jLat, sMul, r, aspect, rotAngle });
@@ -37600,11 +37612,10 @@ function _rebuildFlowParticles() {
       state.T = stream.T || 300;
       state.P = stream.P || 101325;
       state.vDot = anim.vDot || 0;
-      // [v17.2.0] Re-assign species with stratification
-      const speciesList = _stratifiedSpecies(anim.speciesFracs, state.particles.length, connSeed);
       for (let i = 0; i < state.particles.length; i++) {
-        state.particles[i].species = speciesList[i];
-        state.particles[i].isLiq = (((i * 2654435761 + connSeed + 7) >>> 0) / 4294967296 > (stream.vaporFraction ?? 1));
+        const p = state.particles[i];
+        p.species = _sampleSpeciesAt(anim.speciesFracs, i);
+        p.isLiq = (((i * 2654435761 + 7) >>> 0) / 4294967296 > (stream.vaporFraction ?? 1));
       }
     }
   }
@@ -37716,7 +37727,7 @@ function _rebuildBodyParticles() {
             const maxLat = isSwirl ? 1 : (isLiq ? 2 : 5);
             jLat = (h2 - 0.5) * maxLat;
           }
-          const r = isLiq ? 2 : B.GAS_R_MIN + h * B.GAS_R_VAR;
+          const r = isLiq ? B.CONN_PARTICLE_R : B.GAS_R_MIN + h * B.GAS_R_VAR;
           const aspect = isLiq ? 1.0 : B.GAS_ASPECT_MIN + h2 * (B.GAS_ASPECT_MAX - B.GAS_ASPECT_MIN);
           const rotAngle = isLiq ? 0 : h * Math.PI * 2;
           // [Phase 3A] Morph: destSpecies from outlet composition
@@ -37926,7 +37937,7 @@ function _drawParticleCanvas() {
     if (!cp) continue;
     for (const p of state.particles) {
       if (!p.isLiq) continue;
-      if (isRagtag && (p.t < 0.1 || p.t > 0.9)) continue;
+      if (isRagtag && (p.t < 0.13 || p.t > 0.87)) continue;
       const pt = _bzPt(p.t, cp);
       const n = _bzNormal(p.t, cp);
       const px = pt.x + n.x * p.jLat;
@@ -37980,7 +37991,7 @@ function _drawParticleCanvas() {
 
     for (const p of state.particles) {
       if (p.isLiq) continue;
-      if (isRagtag && (p.t < 0.1 || p.t > 0.9)) continue;
+      if (isRagtag && (p.t < 0.13 || p.t > 0.87)) continue;
       const pt = _bzPt(p.t, cp);
       const n = _bzNormal(p.t, cp);
       const px = pt.x + n.x * p.jLat;
@@ -38126,8 +38137,8 @@ function _bodyParticleAlpha(sp, p, baseAlpha) {
   if (sp.transform === 'absorb' && sp.absorbSpecies?.includes(p.species)) {
     a *= Math.max(0, 1 - p.t * 1.5);
   }
-  if (sp.pathType === 'disperse' && p.t > 0.4) {
-    a *= Math.max(0, 1 - (p.t - 0.4) / 0.6);
+  if (sp.pathType === 'disperse' && !p.isLiq && p.t > 0.3) {
+    a *= Math.max(0, 1 - (p.t - 0.3) / 0.7);
   }
   if (sp.pathType === 'emerge' && p.t < 0.15) {
     a *= p.t / 0.15;
