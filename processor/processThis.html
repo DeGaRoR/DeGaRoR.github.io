@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v17.3.1
+  processThis v17.3.2
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -346,6 +346,37 @@
   ═══════════════════════════════════════════════════════════════════════════
   CHANGELOG  (latest first)
   ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v17.3.2 — Particle density + speed boost ───────────────────────────
+
+  Particle budget analysis: demo scene had ~350 particles using 1.8ms
+  of a 10ms canvas budget (18% utilization).  Speed is absolute — each
+  particle's visual speed maps vDot to a fixed physical reference
+  (VDOT_REF = 0.025 m³/s ≈ 1 mol/s atmospheric), not normalized to
+  scene min/max.  This ensures consistent visual meaning across scenes.
+
+  New budget: ~543 particles, 3.3ms draw.  2× scene = 6.5ms, comfortable
+  headroom within 10ms budget.  1.6× more particles, 1.7× faster.
+
+  **Connection particles — denser and faster:**
+    CONN_GAP_MAX:   14 → 8   (1.8× denser atmospheric gas)
+    CONN_GAP_MIN:    5 → 4   (1.25× denser liquid)
+    CONN_MIN_PER:    6 → 14  (short pipes get enough for species variety)
+    CONN_MAX_PER:   30 → 45  (long pipes fill up)
+    CONN_BASE_SPEED: 60 → 100 (pipe crossing: 1.7s → 1.0s)
+    CONN_MAX_SPEED: 200 → 280 (fast flows proportionate, not extreme)
+
+  **Body particles — denser:**
+    DENSITY_SPACING: 10 → 8  (1.25× more per viewport)
+    MAX_PER_SEGMENT: 24 → 28 (fuller reactor streams)
+    BASE_SPEED/MAX_SPEED: matched to connection values
+
+  **Species visibility (probability of seeing species on pipe):**
+    5% species on 1-tile: 26% → 51%
+    2% species on 3-tile: 22% → 33%
+
+  NNGs: NNG-14 (changelog).
+  Tests: 606 total, 3136 checks, 0 failures.
 
   ─── v17.3.1 — Pressure physics fix + v17.2.2 merge ─────────────────────
 
@@ -37266,12 +37297,12 @@ function _bzPathD(bz) {
 // ── Normalization constants ──
 // [v17.2.0] Connection particle constants — canonical values in §PARTICLE-TUNING
 const _FLOW_VDOT_REF = 0.025;
-const _FLOW_MAX_SPEED = 200;
-const _FLOW_BASE_SPEED = 60;
-const _FLOW_GAP_MIN = 5;
-const _FLOW_GAP_MAX = 14;
+const _FLOW_MAX_SPEED = 280;
+const _FLOW_BASE_SPEED = 100;
+const _FLOW_GAP_MIN = 4;
+const _FLOW_GAP_MAX = 8;
 const _FLOW_PARTICLE_R = 1.5;
-const _FLOW_MAX_PER_CONN = 30;
+const _FLOW_MAX_PER_CONN = 45;
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // [v16.9.11 S-PARTICLES Phase 3] Body particle system with transforms
@@ -37286,17 +37317,17 @@ const _FLOW_MAX_PER_CONN = 30;
 const _PARTICLE_BEHAVIORS = {
   // ── Connection (pipe) particles ──
   CONN_VDOT_REF: 0.025,    // m³/s — typical T1 gas at 1 mol/s, 1 atm, 300K
-  CONN_BASE_SPEED: 60,     // px/s at vDot_ref
-  CONN_MAX_SPEED: 200,     // px/s cap
-  CONN_GAP_MIN: 5,         // px — liquid (ρ ≈ 1000)
-  CONN_GAP_MAX: 14,        // px — atmospheric gas (ρ ≈ 1.2) — denser for species variety
-  CONN_PARTICLE_R: 1.5,    // px base radius (liquid) — smaller than gas
-  CONN_MAX_PER: 30,        // max particles per connection
-  CONN_MIN_PER: 6,         // min particles per connection — species variety on short pipes
+  CONN_BASE_SPEED: 100,    // px/s at vDot_ref — [v17.3.2] middle: 60→100
+  CONN_MAX_SPEED: 280,     // px/s cap — [v17.3.2] middle: 200→280
+  CONN_GAP_MIN: 4,         // px — liquid (ρ ≈ 1000)
+  CONN_GAP_MAX: 8,         // px — atmospheric gas — [v17.3.2] 14→8
+  CONN_PARTICLE_R: 1.5,    // px base radius (liquid)
+  CONN_MAX_PER: 45,        // max particles per connection
+  CONN_MIN_PER: 14,        // min per connection — 5% species visible on 1-tile (51%)
 
   // ── Body (viewport) particles ──
-  DENSITY_SPACING: 10,  MAX_PER_SEGMENT: 24,
-  VDOT_REF: 0.025,  BASE_SPEED: 60,  MAX_SPEED: 200,
+  DENSITY_SPACING: 8,  MAX_PER_SEGMENT: 28,  // [v17.3.2] 10→8, 24→28
+  VDOT_REF: 0.025,  BASE_SPEED: 100,  MAX_SPEED: 280,  // matched to conn
 
   // ── Gas appearance ──
   GAS_OPACITY: 0.55,
