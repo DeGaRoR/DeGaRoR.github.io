@@ -1,0 +1,253 @@
+Playtets session 3
+
+I place a hydrothermal vent, connect to source directly.
+
+- selected pipe looks odd without the cutout
+- wells do not have the same color as sources, they should
+- Make sink anim more conherent, make sink look more like a chimney. Right now it's not clear
+- inspector: mass flox dominant + volume and molar
+- gauge on well for pressure - warning on very high
+- particle should clip on lteral borders
+- Ellipses for gas look cheap
+- Ensure all particles line up with stubs (sink)
+- Well animation not interesting, should come from reservoir
+- Sink should represent outlet conditions for particles? Or should it?
+- The sink should be represented with a valve at the inlet, suggesting gas is decompressed and explaining the difference between the pipe content and the sink content. Right now, some sinks produce a lot of liquid through non-particle animation, and no liquid is present in the particles
+- Details should be placed manually (led, boiler plates, exact viewing pane
+- T,P on streams should be gauges too
+- The pipe says "-" for phase, why did it not determine it? The sink correctly computes both inlet and outlet phases
+
+I place an open tank directly, expect it to fry with the new toast system
+
+- I drag the open tank and nothing happens the first time. It works only the second times, and works all the times after this
+- On new connections, both click-click and drage works well, but on disconnect from existing, only drag works. When trying click-click, the pipe reconnects as soon as I release. The perception is that I click on it and I get the welding animation and that's all. I'd like both to work in the new connection and the reconnection scenario. Possible? On the new, it looks like you do something clever ignoring a first quick realease or soemthing like that, we need the same on reconnection
+- The tank ends up frying, but it took a long time. There are 2 things, one is good, one is bad. The bad things is that I have to wait for the run to happen after I press play. I would naturally expect play to first behave like step (compute the next hour as soon as I push on the button. The good thing is that we have a little delay before the fry animation. That works well.
+- The cause for frying should be more clear. The icon should be in the middle, glowing and pulsing. Shouting at you really.
+- There are little bright yellow things in the middle, I have no idea what they are or meant at representing
+- The led remains green while the equipment is fried
+- I have seen no toast. Right now it's good for players experimenting, but too dry for new players who need diagnostic
+- Venting really needs to stop being a warning for the tank. We can have a venting section though for all tanks and put the data there, also for the open tank
+- Heat category has the same color as supply and drain, confusing
+- I have a mass imbalance warning all throughout, this should not happen
+			Mass Balance
+			→ Mass In	
+			Reservoir 1	3.5389 g/s
+			Σ In	3.5389 g/s
+			← Mass Out	
+			Open Tank 4 (vented)	1.1215 g/s
+			Σ Out	1.1215 g/s
+			⟳ Accumulation	2.4175 g/s
+			Residual	1.1215 g/s
+
+I place an air cooler
+
+- I did not plug my air cooler in electricty source, so not workingg, but nothings tells me. When I click on the cooler, I see it, but I would have expected to be more brutally reminded. Maybe unconnected ports should pulse after a moment? Maybe a clear big icon on top should say what happens?
+- I switch to color by temeprature and it helps me a lot. Everytime I have to wait a bit before I see my changes when I puch play, that's really disturbing.
+- The stickers should be reworked, they have very old styling and should come in minimal form. Probably only the number, physical unit and a dash to the unit, and that's it. I wonder if we should not render them as litttle gauges, but it could get messy. That would be a lot more friendly
+
+I plug it to a generator
+
+- The names the app auto produces on drag does not match the name in the palette, very confusing
+- rather than giving instances laconic numbers (compressor 12), we could givre them semantic codenames auti generated from a predefined list, like (compressor "eagle" anf compressor "cornserstone". or is it confusing?
+- I am wondering how we can lead the player to use the stickers and the temperature view. I think the first mission should really be guided. Or the first mission could simply be to connect elements already on the grid. I worry about the initial step, and maybe have the player simply connect, play and place a sticker is enough at first.M SOmething very basic, but no one struggles, no one fails, and something is learnt about the game. It also helps with the feeling "I can do this"
+- I realize now that the bright little yellow stuff are the smoke animation. Very wrong. It does not start form the top, it should have multiple emission points scattered over the open top of the icon, these multiple emission points should have low emission settings and alternate between them rapidly, so it really looks like a whole surface emits smoke rather than individual emitters (like nozzles). The sizing of the moke is much too small. Try and ensure ocnsistency with our previou smoke simulations in temrs of size and velocities
+- Now everything works, I still have the mass imbalance; I get the first copy of the file
+
+I get a "snap" window from the browser, looks like connection interupts. I'm looking on a local copy, so I really don't get it, but here it is, black screen, sorry face, only option to reload. I run chrome. I click "reload", my only option. And there I get the demo again, while I expect my model to be auto-saved. Frustration as a player. I have lost everything, we were meant at preventing that. There was ample time to autosave, we even had some explicit one before compressor failure...
+
+I start over again.
+
+- Clear scene could really be "new process", would be more clear.
+- I don't like material dump, it's not clear as a name. Maybe just dump, or chimney or sewer, or out or discharge?
+- Still far too many knobs to the air cooler. And air cooler tier 1 should only have power priority and target outlet temperature, that's all, the rest is fixed
+- Love the sliders. Temprature should only have 1 digit for setpoints
+- Air cooler mentions auto, but there's no auto mode. 10 K approach means nothing to non-technical. Does it mean it can only get 10K above ambient? We should just say it's how the min of the slider is computed is all.
+- The open tank does not have sliders, while these are all percent (very easy to figure out the bounds). Why are we not conherent on all units here?
+- The generator should be limited in power. We should make it tier 1 (if not already), and limit the max power to something that makes sense for our scenario. And the slider should only allow to limit further would you need to (I don't even think we need that, they all auto-adjust).
+- I push play and need to wait while looking at the equipment animated and seeing no particles whatsoever. This play behaviour is really a big issue. I understand that we are at risk of generating a time discontinuity, and we may not want that for our background animation. Yet we could just say the the "still of a frame" is the end state of the frame, and not the beginning state of that frame, so play immediately triggers a new run, then the period where we simply watch the naimation, then run again, etc.
+
+I play and my cooler again silently fails. It says that my setpoint temperature is lower than ambient and it violates the second law. What do I care really? I set the slider at min, I expect the game iteslef to figure out what is a reasonnable min. Very frustrating.
+I put it to 33C hoping the atmosphere does not go up to that temperature. I have no way to know. I'm angry.
+Play
+
+Well, I break my tank, why the hell? I can see blue on the pipe, so my temeprature should be right, what happens? The tank is itself not blue, it's orange
+BUG: now the tank says 284.1C exceeds destruction limiuts. The feed is coming in at 33C, and even the original feed is at 176. And it did not complain before. What the hell happens here? Breaking point in the session again.
+
+defrying
+play
+OK things work now. I'm pissed, but it works, finally. Pretty buggy.
+
+I look at the gauge rising and it's satisfying.
+I see the gauge oscillates and that's nice, but it goes too high, and its bottom goes above the bottom of the viewing glass, leaving a dark gap and breaking the illusion. The gauge should simply be placed a little lower.
+At this point, I'd expect the game to reward me dearly.
+I have not plugged the overflows, and I would have no idea doing so, I'll need help to prevent the next catastrophe, because it would be too frustrating to break this bloody tank again.
+
+I decide to let it run and see if the tank fails on too high level, I know we had a lot of issues with that. Maybe it should be another catastrophe, like water getting everywhere.
+OK, the catastrophic is there, cool. I have barely seen the tpoast. It's really not what we need. We need something persistent and clearly visible. Right now, it spawns right on top of the action bar and is invisible. We also need to be able to dismiss it manually, and to say "not not pop back anymore" easily
+I have imbalance again, IDK since when.
+I decidde to plug the tank to the already existing sink (the well was lpugged to it originally).
+Launch the sequence again
+The amplitude of the wobbling of the liquid in the gauge is too high. Reduce by 2 or 3. It should be a subtle detail, not a source for false reading
+I need the composition of the liquid in the tank
+I get it now, the tank smokes nicely actually, could be a little more visible? I see you alternate the direction of the emission from a fixed point. That's cool, now we need 3 of those scattered on the top edge of the icon, with different phases. The bright thing are the particles themselves. The look really bad, they're all emitted in a straight line, they are not spaced apart enough. They should follow roughly the same dispersion rules as the smoke animation
+I think we should represent a little expansion valve at the inlet of all ui-nits constrained to atmospheric conditions. Other wise the discrepancy between the particles before and after is difficult to see.
+All flanges should be colored grey, including in units. Forget about colored half-flanges, that was a bad idea.
+There are still little faint circles on material and electrical ports. I don't think we need that anymore.
+I have thought for a long time that having male and female power plugs, like in real like, would help. And maybe the ports could mimic the typical electrical inlets people are familiar with. We can keep a lighting bolt somewhere elegant too.
+The particles's speed does not size with simulation speed, it should. Equipment animation does, as well as arrows, so we need this for consistency, it's an important point. 
+
+It's now day 17, my litle plant runs well.
+The auto save went a little crazy with 20 autosaves. IOt's not bad, but nothing really changed, I would expect the auto-saves to sort of manage themselves better, or to limit to 10 saves, at the same time of the day everyday for example. This one looks random, and the list is daunting.
+I also think I made a manual save and can't see it. I think oit's buried down below, and I can't access it anymore. Frustration. I would have expected this to be available and positioned appropriately in the timeline. You dropped the one I cared about and replaced with 20 I don't care about, that's bad.
+
+I realize we need the mission framework very soon, becasue I'd like to rewarded here, even as a developer. 
+
+I'm gonna try the electrolysis now that I have water! I will axtually send a bit of water in an other open tank to drink and feed the rest to my electrolyzer. I will also need a hub. Normally it was placed already. Let me place the new tier 1 hub and see if it all still works, that was the issue last time
+
+Upgrading current setup to power dispatcher
+I'd like the functionnality of auto insertigng in the middle of an existing connection if dragging on it form the palette, I think we should have that, feels pro
+We need a surplus bottom representation for the new tier 1 dispatcher
+The hub is cluttering its inspector with unconnected port info. I can see it, i don't care, it's normal. So many that I did not see that it already had representations. The new port layout option is a little buried now. Maybe we should keep it at the top but make it collapsible? And find a better, more telling word that "port setup", which is vague even to me...
+
+That seems to work! And I can see the little lights showing some consumption. Actually it disappeared. And it reappears as the simulation goes... Strange. It's now on and constant. The power draw of the air cooler is really low. I'm gonne watch it through a full day/night cycle.
+The unconnected ports of the power dispatcher keep pulsing. I understand the original idea, but here it's normal that some remain unconnected, and I don't want those to pulse and get my attention. Plus and the concumer ones also pulse, even though they're connected, that's massive distraction. What robust logic can we implement there? Exception for power dispatchers?
+The surplus port icon should be different from the otehr power icons, right now it is too easy to get confused. Can you propose a strategy for distinguishing, a strategy so the power sink also has the matching port, and relevant icons (I'm thinking lightning bolt + skull, should do the trick, recognizable and game friendly).
+
+I still have an imbalance, I'm very pissed about that. Something seems off in the calculations. Mass balance report needs update after a change we've made?
+	Mass Balance
+	→ Mass In	
+	Reservoir 1	3.5389 g/s
+	Σ In	3.5389 g/s
+	← Mass Out	
+	Open Tank 3 (vented)	1.1215 g/s
+	Σ Out	1.1215 g/s
+	⟳ Accumulation	2.4175 g/s
+	Residual	1.1215 g/s
+The energy balance sheet shows a massive energy accumulation while I have no battery in the system, very confusing, and again worrying since we just walk all over NNG1, the most important one here...
+	Energy Balance
+	→ Energy In	
+	Reservoir 1 (material)	-36.281 kW
+	Grid Supply 7 (electrical)	0.010 kW
+	Σ In	-36.271 kW
+	← Energy Out	
+	Atmospheric Sink 2 (material)	0.000 kW
+	Air Cooler 4 (ambient)	6.982 kW
+	Σ Out	6.982 kW
+	⟳ Accumulation	-43.262 kW
+	Residual	0.010 kW
+
+Allright, it works anyways, or so it pretends. It does not block me at least, but is it still honnest? Onto the electrolysis
+The splitter should indicate the branch it refers to regarding the split ratio. The branches are labeled, that's good, but the inspector should also mention it directly in the label
+Editing parameters in play mode is a pain because the focus on input box is lost on recalculation, that message in the inspector make the layout shift. It's a problem worth a thorough re-design of the inspector. Editing parameters live should be possible easily and flawlessly.
+I lugged my tank and it does not flow. That's because default opening is 0% I think that's confusign. Default opening should be 50%, so it flows as soon as I plug it, and we should be clever enough not to compute anything if not connected.
+
+Setting the tank liquid opening to 50% for both tanks (I went with a splitter 30/70 at the outlet of my tank, 70 to another tank for drinking, 30 to the electrolyzer.
+If I was a player, I wouldn't really know where to plug the outlets I don't care about for now. I think we should help by providing a sort of discharge manifold where everything you don't know what to do with can be plugged. A massive mixer acting like a discharge hub. For the time being, I'll add a sink. I think the base scene should come with a few sinks, locked in position (everything placed initially should be locked in position I think).
+
+adding 2 sinks and connecting to anode cathode. No idea how to size this. I am conscious that it might suck up all my power, but let's see. What are my power settings anyways? I should have a couple of kW tops from the generator. Googling electrical geenrator, a serious one for domestic purposes already produces 2.2-5.5 kW nominal, so let's go with 5 kW as max ower for my geenrator.
+Confusing on the generator. First of all default was 0.1 kW. Quite low. Then, it says kW, but goes to 9990. That's madness. I'll assume these are really kW and not watts, and go with 5 as a setting.
+aaaand play
+
+OK, little particles everywhere, cool!. Not everywhere actually, my anode does not show anything. I have never really tested the elctrolyzer so I'm not sure. My little hub shows no lights again, I would expect at least 1 light from the concumption indicator to be lit if there is any draw. We should remove the 3 lights/square below, it is just confusing.
+
+Aaaaaw I forgot to plug my electrolyzer. There should really be a big glowing pulsating icon reminding you that. I'm ok that it behave as pass-through in this case, it is right, but it should say something visually that can't be missed. Equivalent to the icons I suggested for the reasons for catastrophic failure. Same size, same pulse, just not the red  glow.
+Plugging my electrolyzer
+I confirm it was much easier to configure the ports when I knew I could find them at the same place on all units. lLooks like theyy belong to the top of the inspetor in the end.
+All port layout descriptions should be... descriptive, no "standard" and "mirrrored" but "Right to left and left to right (possibly abbreviated). No one know what stadard means in terms of configuration.
+
+I can see my particles
+
+Aaaargh catastrophic failure on the tank, what the hell happened?
+It got destroyed by temperature again! Why? Really seems like a bug, it's fully isolated the downstream temeprature conditions.
+OK, I see. The electrolyzer go whole the power.
+The power dispatcher does not show its curtailment factor! Its inspector is beyond useless, while it's important we get the data right.
+Ultimately, the clever layer of the diagnosis should relate the 2 veents. Could we do that and how to architect meanigful, helpful messages?
+
+Trying power priority 1 to the fan, that should do it. Yeah, I see it has cut the distribuiton to the fan. Everything is perfectly good, but far too silent. Every unit having unexpected behaviour should report, and a top layer should analyze and gove a macro recommendation.
+Let's try with the new priority settings
+
+Unfry tank
+start again
+Setting the second tank liquid opening at 50%, leaving the port unconnected. Just to check that it does not empty stupidly.
+Need another sink for the overflow of the second tank. We need a drain manifold.
+
+The electrolyzer is power limited, it's good. It wants 8.65 kW and we feed it 2.61 kg an hour. Too much apparently. Something a little odd. On non-complete conversion, H2O escapes with H2. I guess it's OK?
+
+I'm just gonna push the reactor to 100% completeness, so I have clean outlet stream, which wuold be the case with an electrolyzer. These should be locked params, but I'm happy I can tune them here. Electrolyzer --> 100%, clean outlet streams. If power limited, what you do is good I think.
+
+Reducng flowrate, boosting conversion
+10% splitter ratio, let's see if that works
+
+Max conversion limits me to 99. Let's just hardcode 100% here. Efficicny should also be hard-coded. So no parameters. Maybe a power cap if needed, but not even sure. I think not, we teach through failure, let it fail.
+The ectrolyzer animation is wrong, all particles follow the same trajectory. Anyways it's wrong, I think that H2 and O2 molecules should spawn from the anode and cathode elements of the icons. Ideally, they spawn just next to it, touching it, like bubbles, then they release. Or even better. Creation next to the anode.cathode, get bigger to reach standard particle size. Stay static, then get release towards the right outlet port. Make the little bubbling animation blue like liiquid water, so we understand the functionng.
+
+OK, my little plant works nicely. Let's replace my sinks with proper tanks and get my H2/O2
+
+Argh, broke my 2 new tanks, what happened?
+Temperature. These exhaust of the electrolyzer are bloofy hot! Did not realize that...
+My whole system has auto shut down from the tanks, that works well. Ver silent again though, at least visually.
+All streams deactivated should explain why
+
+ok, intersting. I replug electrolyzer outputs to sinks, put my broken tanks on the side, thinking they can stay broken until later, good roleplay. but they throow a catastrophic failure the next run too! They have thrown their failure, and they're not connected to the main graph anyumore, they should remain silent and content to be broken, no?
+I'l defry them for now, leave them isolated from the main graph.
+Wait! I have an actual fried equipment, my second open tank. Maybe it was him?
+Let's check what happens to that guy
+It just says equipment detroyed bypassed. I don't get it. It's OK. It has a sink plugged in on its overflow. It has 50% valve opening, but that should not matter, liquid outlet is not plugged in. Save the file for inspection.
+
+defry.
+Step
+No failure, good. What happened to thhat poor tank?
+Gonna let it run to be sure
+
+OK, 390C for electrolyzer outlet. hot hot hot. 0.11 kg/h though, should be coolable. Let's get the air coolers!
+I think we need an horizontal power dispatcher actually. Many consumers on the process chain, producers mostly external.
+
+All target temp to 40C, priority 1.
+And play!
+
+BUG: the 2 new air coolers report lacking power, while there is ample power available (geenrator reports 3.58kW used VS 5kW capacity). I save the model again.
+Could it be because I copied the original one rather than putting fresh ones in? Is the dispatcher doing a bad job? They're both priority 1... Let's tweak priorities.
+I set priorities 1-2-3-4, but that changes nothing. My first air cooler works with no issue. What's the problem? It looks like the dispatcher cannot handle more than 1 air cooler.
+I want to continue here. Gonna power them with their individual geenrators, should be the safest fro now.
+Still not working. The issue is not related to the dispatcher. I try adding fresh air coller from the palette.
+Nope same result. " Insufficient power — fan stalled, no cooling". They're plugged directly into 20 kW generators.... Save file again for analysis.
+
+I'd like to continue my play session. I'll try cooling this by heating water on the other side with a proper hex, let's see!
+YES! it works. 43C outlet. and 48C for my water. Let it cool both outlet, and I might get hot water for showers!
+That works too! 55C. Let's reconnect to the tank
+
+I decide to normalize rpessure in the netwrok, because right now everything is at atmospheric pressure (the pressure form the head calculation of the reservoir does not trickle down the pipe, so we have flow without visible delta P. That's odd...
+
+The pump also does not work. It also says that there is no power available anymore. Since I added the leectrolyzer, no one gets power anymore. I'll try with a direct generator see if it changes anything. Note that the pump almost always report 0.00 kW. We should make it a watt display then , because if it consumes, I don't want to see 0. Same for air coolers.
+No, still no power. That's really a major bug. We keep having issues with the electrical system...
+OK, well at least it doesn't hurt. Saving file again.
+Note that the pump animation is working. If the pump does not work, the animation shouldn't work either...
+Try to put it in bypass mode to test.
+Bypass mode should draw a pipe from in to out port on top of the greyed out unit.
+
+Replugging the pressurized tanks
+mmmm - the whole system shuts down and closes flows. I gues it's because they're initialize at 5 bar and they push against the system. Let me delete them and hope that fresh one initialize at Patm... I don't even know where these 5 bar come from... Saving file for analysis. 1:19AM
+
+Gonna try to put Prelease at 0.8 and see what happens
+woops, they started emptying and it was good, then on second iteration, they broke reaching vacuum... Why?. I told them to sit at 0.8 bar, plus maybe a little hysteresis, why the hell did they reach vacuum? Anyways, gonne unfry them and hope the vaccuum will suckk it all up... 
+Nope, they're stuck at 5 bar. Delete an,d replace with fresh ones, let's see....
+
+
+Ok, new tanks in place. They don't report any pressure, hope they'll do the right thing. Step
+Nothing broke so far, good. They reach atmospheric pressure. I can't see their composition and I should see that in the inspector, that's essential.
+Next step stops my whole system. OK, let's say I have atmospheric pressure in my system and therefore can't push into the pressurized tank. I thought that tanks were absorbing whatever came, and we not applying back-pressure, so what happens here? I'll try a compressor, but I'm pretty sure it won't get its power like the rest...
+
+Surprisingly, the compressor gets its powwer from the hub, madness... These are the pumps and air collers which fail...
+The compressor is not clear about what it wants and what iot receives.
+
+Trying 1.2 bar outlet pressure for the pump
+No matter what, the pump will ot get its power, either though direct generator or thourgh the hub... Saving file for analysis 1:31AM
+
+I change the compressor before the heat exchanger. And there, potentilal bug. The clena O2 oultet stream reports 0.23 kg/h, while the H2 stream (which I expect to be the same, or maybe half because of the numbers of atoms, I'm not sure, but related), and I get 0.03 kg/h. Composition is H2 + 1% H2O (bacause the reactor wouldn't let me go to 100 conversion). I have the feeling it reports H2O mass flow? So 0,23 kg/h O2 vs 0,03 kg/h H2. That does not make sense.
+Saving file for analysis, 1:36 AM
+
+Let's see if I can push into a pressurized tank now.
+Got a 1.5 bar outlet. Let's plug a pressurized tank.
+And step.
+First step, apparently filling, reports atmospheric pressure and N2 on detial. Step again. And there it stops all my network, not explanation, all flows with little corsses. Looks like we won't manage to have things from an open tank flowing into a pressurized tank, no matter how many pumps or compressors we put in the way. Very frustrating. More or less rage quitting here. Saving the file a last time 1:40AM.
+Noticing that the sover reports failing after 3 iteration, I missed that
