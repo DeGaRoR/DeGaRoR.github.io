@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v17.4.4
+  processThis v17.5.0
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -346,6 +346,28 @@
   ═══════════════════════════════════════════════════════════════════════════
   CHANGELOG  (latest first)
   ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v17.5.0 — Pipe Bend + mirrored recycle layouts ─────────────────────
+
+  **New defId: bend.**  90° pipe routing element.  Pure passthrough:
+  zero ΔP, zero ΔT, zero work.  Stream copied unchanged from mat_in
+  to mat_out.  Exists solely to allow clean 90° turns on the grid
+  without abusing mixer/splitter for routing.  Four presentation
+  variants: default (left→down), left-up, right-down, right-up.
+  Ragtag icon: bolted curved elbow with flanges and bore center line.
+  No limits (boundary: true), no gauge, no body particles.
+
+  **Mirrored recycle presentations.**  Mixer, simple_mixer, and
+  splitter each gain two new layout variants: mirror-recycle-T and
+  mirror-recycle-B.  These allow right→left flow with a recycle port
+  on top or bottom — essential for collector networks where the main
+  flow runs right-to-left.
+
+  **Variant labels.**  `_VARIANT_LABELS` extended for all new variants
+  plus the previously-unlabeled `recycle-B`.
+
+  NNGs: NNG-14 (changelog).
+  Tests: 618 total (3 new: T616-T618), 0 failures.
 
   ─── v17.4.4 — Playtest polish batch (UX fixes from PT3/PT4/PT5) ────────
 
@@ -19539,7 +19561,9 @@ UnitRegistry.register('mixer', {
     'box/default':     { w: 2, h: 2, ports: { mat_in_1: {x:0,y:0}, mat_in_2: {x:0,y:2}, mat_out:{x:2,y:1} }, icon: 'ico-mixer' },
     'box/mirror':      { w: 2, h: 2, ports: { mat_in_1: {x:2,y:0}, mat_in_2: {x:2,y:2}, mat_out:{x:0,y:1} }, icon: 'ico-mixer' },
     'box/recycle-T':   { w: 2, h: 2, ports: { mat_in_1: {x:0,y:1}, mat_in_2: {x:1,y:0}, mat_out:{x:2,y:1} }, icon: 'ico-mixer--top' },
-    'box/recycle-B':   { w: 2, h: 2, ports: { mat_in_1: {x:0,y:1}, mat_in_2: {x:1,y:2}, mat_out:{x:2,y:1} }, icon: 'ico-mixer--top' }
+    'box/recycle-B':   { w: 2, h: 2, ports: { mat_in_1: {x:0,y:1}, mat_in_2: {x:1,y:2}, mat_out:{x:2,y:1} }, icon: 'ico-mixer--top' },
+    'box/mirror-recycle-T': { w: 2, h: 2, ports: { mat_in_1: {x:2,y:1}, mat_in_2: {x:1,y:0}, mat_out:{x:0,y:1} }, icon: 'ico-mixer--top' },
+    'box/mirror-recycle-B': { w: 2, h: 2, ports: { mat_in_1: {x:2,y:1}, mat_in_2: {x:1,y:2}, mat_out:{x:0,y:1} }, icon: 'ico-mixer--top' }
   },
   // [v13.0.4 S1c] Equipment limits — corrected to matrix values v13.0.8
   limitParams: ['T_LL', 'T_L', 'T_H', 'T_HH', 'P_LL', 'P_L', 'P_H', 'P_HH', 'mass_HH'],
@@ -19671,7 +19695,9 @@ UnitRegistry.register('simple_mixer', {
     'box/default':     { w: 2, h: 2, ports: { mat_in_1: {x:0,y:0}, mat_in_2: {x:0,y:2}, mat_out:{x:2,y:1} }, icon: 'ico-mixer' },
     'box/mirror':      { w: 2, h: 2, ports: { mat_in_1: {x:2,y:0}, mat_in_2: {x:2,y:2}, mat_out:{x:0,y:1} }, icon: 'ico-mixer' },
     'box/recycle-T':   { w: 2, h: 2, ports: { mat_in_1: {x:0,y:1}, mat_in_2: {x:1,y:0}, mat_out:{x:2,y:1} }, icon: 'ico-mixer--top' },
-    'box/recycle-B':   { w: 2, h: 2, ports: { mat_in_1: {x:0,y:1}, mat_in_2: {x:1,y:2}, mat_out:{x:2,y:1} }, icon: 'ico-mixer--top' }
+    'box/recycle-B':   { w: 2, h: 2, ports: { mat_in_1: {x:0,y:1}, mat_in_2: {x:1,y:2}, mat_out:{x:2,y:1} }, icon: 'ico-mixer--top' },
+    'box/mirror-recycle-T': { w: 2, h: 2, ports: { mat_in_1: {x:2,y:1}, mat_in_2: {x:1,y:0}, mat_out:{x:0,y:1} }, icon: 'ico-mixer--top' },
+    'box/mirror-recycle-B': { w: 2, h: 2, ports: { mat_in_1: {x:2,y:1}, mat_in_2: {x:1,y:2}, mat_out:{x:0,y:1} }, icon: 'ico-mixer--top' }
   },
   limitParams: ['T_LL', 'T_L', 'T_H', 'T_HH', 'P_LL', 'P_L', 'P_H', 'P_HH', 'mass_HH'],
   limits: { S: { T_LL: 243, T_L: 263, T_H: 623, T_HH: 723, P_LL: 20000, P_L: 50000, P_H: 12000000, P_HH: 15000000, mass_HH: 0.25 } },
@@ -19764,7 +19790,9 @@ UnitRegistry.register('splitter', {
     'box/default':     { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, mat_out_1: {x:2,y:0}, mat_out_2: {x:2,y:2} }, icon: 'ico-splitter' },
     'box/mirror':      { w: 2, h: 2, ports: { mat_in:{x:2,y:1}, mat_out_1: {x:0,y:0}, mat_out_2: {x:0,y:2} }, icon: 'ico-splitter' },
     'box/recycle-T':   { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, mat_out_1: {x:2,y:1}, mat_out_2: {x:1,y:0} }, icon: 'ico-splitter--top' },
-    'box/recycle-B':   { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, mat_out_1: {x:2,y:1}, mat_out_2: {x:1,y:2} }, icon: 'ico-splitter--top' }
+    'box/recycle-B':   { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, mat_out_1: {x:2,y:1}, mat_out_2: {x:1,y:2} }, icon: 'ico-splitter--top' },
+    'box/mirror-recycle-T': { w: 2, h: 2, ports: { mat_in:{x:2,y:1}, mat_out_1: {x:0,y:1}, mat_out_2: {x:1,y:0} }, icon: 'ico-splitter--top' },
+    'box/mirror-recycle-B': { w: 2, h: 2, ports: { mat_in:{x:2,y:1}, mat_out_1: {x:0,y:1}, mat_out_2: {x:1,y:2} }, icon: 'ico-splitter--top' }
   },
   // [v13.0.4 S1c] Equipment limits — corrected to matrix values v13.0.8
   limitParams: ['T_LL', 'T_L', 'T_H', 'T_HH', 'P_LL', 'P_L', 'P_H', 'P_HH', 'mass_HH'],
@@ -19913,6 +19941,37 @@ UnitRegistry.register('splitter', {
         };
       }
     }
+  }
+});
+
+// ─── [v17.5.0] Pipe Bend — 90° routing element ──────────────────────────────
+// Pure topology: zero pressure drop, zero heat loss, zero work.
+// Copies mat_in → mat_out unchanged.  Exists solely to allow clean 90°
+// turns on the flowsheet grid without abusing mixer/splitter for routing.
+UnitRegistry.register('bend', {
+  name: 'Pipe Bend',
+  category: UnitCategories.TOPOLOGY,
+  w: 2,
+  h: 2,
+  ports: [
+    { portId: 'mat_in',  dir: PortDir.IN,  type: StreamType.MATERIAL, x: 0, y: 1 },
+    { portId: 'mat_out', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 1, y: 2 }
+  ],
+  presentations: {
+    'box/default':   { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, mat_out:{x:1,y:2} }, icon: 'ico-bend' },
+    'box/left-up':   { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, mat_out:{x:1,y:0} }, icon: 'ico-bend' },
+    'box/right-down':{ w: 2, h: 2, ports: { mat_in:{x:2,y:1}, mat_out:{x:1,y:2} }, icon: 'ico-bend' },
+    'box/right-up':  { w: 2, h: 2, ports: { mat_in:{x:2,y:1}, mat_out:{x:1,y:0} }, icon: 'ico-bend' }
+  },
+  tick(u, ports, par) {
+    const sIn = ports.mat_in;
+    if (!sIn) return;
+    ports.mat_out = {
+      type: StreamType.MATERIAL,
+      T: sIn.T, P: sIn.P,
+      n: { ...sIn.n },
+      phaseConstraint: sIn.phaseConstraint || 'VL'
+    };
   }
 });
 
@@ -21611,6 +21670,17 @@ ProfileRegistry.register('simple_mixer', {
   operatingNote: "All inlets merge unconditionally. Outlet takes the lower inlet pressure as metadata. No backflow protection.",
   modelNote: "Adiabatic: H_out = ΣH_in. P_out = min(P_in). No check valve.",
 });
+// [v17.5.0] Pipe Bend — 90° routing element
+ProfileRegistry.register('bend', {
+  defId: 'bend', name: 'Pipe Bend', category: UnitCategories.TOPOLOGY, tiers: [1],
+  description: '90° pipe turn',
+  selectionGuide: 'Does nothing to the flow — just lets you turn a corner cleanly on the grid.',
+  limits: {},
+  boundary: true,
+  equipmentNote: "Bolted pipe elbow, standard flange.",
+  operatingNote: "Zero pressure drop, zero heat loss. Pure routing element.",
+  modelNote: "Passthrough: stream copied unchanged. No physics.",
+});
 ProfileRegistry.register('splitter', {
   defId: 'splitter', name: 'Splitter', category: UnitCategories.TOPOLOGY, tiers: [1],
   description: 'Splits one pipe into two',
@@ -21795,6 +21865,7 @@ ProfileRegistry.register('bio_mixer', {
   _tpl('hex_tpl',                'hex',                   'Heat Exchanger',        UnitCategories.HEAT_EXCHANGER);
   _tpl('mixer_tpl',              'mixer',                 'Mixer',                 UnitCategories.TOPOLOGY);
   _tpl('simple_mixer_tpl',       'simple_mixer',          'Simple Mixer',          UnitCategories.TOPOLOGY);
+  _tpl('bend_tpl',              'bend',                  'Pipe Bend',             UnitCategories.TOPOLOGY);
   _tpl('splitter_tpl',           'splitter',              'Splitter',              UnitCategories.TOPOLOGY);
   _tpl('flash_drum_tpl',         'flash_drum',            'Flash Drum',            UnitCategories.SEPARATOR);
   _tpl('distillation_column_tpl','distillation_column',   'Distillation Column',   UnitCategories.SEPARATOR);
@@ -22254,7 +22325,7 @@ class Scene {
         'out1': 'mat_out_1', 'out2': 'mat_out_2',
         'mat_out_D': 'dist_out', 'mat_out_B': 'bot_out'
       };
-      const matOut = new Set(['source','source_multi','source_air','source_atm','valve','restriction','mixer','simple_mixer']);
+      const matOut = new Set(['source','source_multi','source_air','source_atm','valve','restriction','mixer','simple_mixer','bend']);
       const matIn = new Set(['sink','valve','restriction','splitter']);
       const elOut = new Set(['grid_supply']);
       const elIn = new Set(['sink_electrical']);
@@ -23614,6 +23685,8 @@ const _BYPASS_PATHS = {
   battery:              [],   // electrical only — no material passthrough
   power_hub:            [],
   sink_electrical:      [],
+  simple_mixer:         [],   // both inlets blocked on bypass
+  bend:                 [{ in: 'mat_in', out: 'mat_out' }],
 };
 
 /**
@@ -28551,7 +28624,7 @@ function _rtTempGauge(g, cx, cy, unitId) {
     stroke:needleCol, 'stroke-width':1.2, 'stroke-linecap':'round', 'pointer-events':'none' }));
 }
 // Units that should NOT have temperature gauges (boundary, electrical-only, no T data)
-const _NO_GAUGE = new Set(['source','source_atm','sink','sink_electrical','grid_supply','solar_panel','wind_turbine','battery','power_hub','reservoir','atmosphere','mixer','simple_mixer','splitter','restriction','valve','closed_loop_source']);
+const _NO_GAUGE = new Set(['source','source_atm','sink','sink_electrical','grid_supply','solar_panel','wind_turbine','battery','power_hub','reservoir','atmosphere','mixer','simple_mixer','bend','splitter','restriction','valve','closed_loop_source']);
 // Master instrument placer — LED bottom-left, nameplate top-right, gauge top-left
 function _rtInstruments(g, wx, wy, defId, unitId) {
   const bb = _BODY_BBOX[defId];
@@ -30397,6 +30470,103 @@ const _RAGTAG_SYMBOLS = {
 _RAGTAG_SYMBOLS.atmosphere = _RAGTAG_SYMBOLS.source_atm;
 // [v17.4.0] simple_mixer reuses mixer icon (same physical topology, no visual distinction needed)
 _RAGTAG_SYMBOLS.simple_mixer = _RAGTAG_SYMBOLS.mixer;
+
+// [v17.5.0] Pipe Bend — 90° bolted elbow
+_RAGTAG_SYMBOLS.bend = function(g, wx, wy, ww, wh, pal, def, unitId) {
+  const pres = getPresentation(def, scene.units.get(unitId));
+  const t = scene.tile;
+  // Determine bend geometry from port layout
+  const pIn = pres.ports.mat_in, pOut = pres.ports.mat_out;
+  const fromLeft = pIn.x < 1, fromRight = pIn.x > 1;
+  const toBottom = pOut.y > 1, toTop = pOut.y < 1;
+  // Center of the 2×2 cell
+  const cx = wx + ww/2, cy = wy + wh/2;
+  // Pipe half-width
+  const pw = 8;
+  // Corner of the bend (where the two pipe runs meet at 90°)
+  const cornerX = fromLeft ? wx + 20 : wx + ww - 20;
+  const cornerY = toBottom ? wy + wh - 20 : wy + 20;
+
+  // Nozzle stubs to ports
+  _rtNozzle(g, wx, wy, ww, wh, wx+10, wy+10, ww-20, wh-20, def, pres, pal, unitId);
+
+  // Outer arc (pipe wall)
+  const outerR = 36 + pw;
+  const innerR = 36 - pw;
+  // Determine arc sweep based on orientation
+  // We draw two concentric arcs to form a thick pipe bend
+  const pipeColor = pal.fillUrl || pal.fill;
+  const pipeStroke = pal.stroke;
+
+  // Horizontal pipe run (from port to corner)
+  const hRunY = cy;  // horizontal run always at vertical center
+  const hStartX = fromLeft ? wx - 2 : wx + ww + 2;
+  const hEndX = cornerX;
+
+  // Vertical pipe run (from corner to port)
+  const vRunX = cx;  // vertical run at horizontal center  
+  const vStartY = toBottom ? wy + wh + 2 : wy - 2;
+  const vEndY = cornerY;
+
+  // Draw as a single swept path — thick pipe bend with fill
+  // Use a quadratic bezier for the smooth 90° turn
+  const bendR = 28;
+  // Pipe outer edges
+  const oX1 = fromLeft ? wx + 4 : wx + ww - 4;  // horizontal entry
+  const oX2 = fromLeft ? cornerX + bendR : cornerX - bendR;
+  const oY1 = toBottom ? wy + wh - 4 : wy + 4;  // vertical exit
+  const oY2 = toBottom ? cornerY - bendR : cornerY + bendR;
+
+  // Draw the pipe body as a fat stroked path
+  const entryX = fromLeft ? wx + 2 : wx + ww - 2;
+  const exitY = toBottom ? wy + wh - 2 : wy + 2;
+  const elbowPath = `M${entryX},${cy} L${cornerX},${cy} Q${cornerX},${cornerY} ${cx},${cornerY} L${cx},${exitY}`;
+
+  // Pipe body (thick stroke = pipe wall)
+  g.appendChild(svgEl('path', {
+    d: elbowPath, fill: 'none',
+    stroke: pipeColor, 'stroke-width': pw * 2, 'stroke-linecap': 'butt',
+    'stroke-linejoin': 'round', 'pointer-events': 'none'
+  }));
+  // Pipe outline
+  g.appendChild(svgEl('path', {
+    d: elbowPath, fill: 'none',
+    stroke: pipeStroke, 'stroke-width': pw * 2 + 3, 'stroke-linecap': 'butt',
+    'stroke-linejoin': 'round', opacity: 0.3, 'pointer-events': 'none'
+  }));
+  // Inner bore (dark center line)
+  g.appendChild(svgEl('path', {
+    d: elbowPath, fill: 'none',
+    stroke: '#0f172a', 'stroke-width': pw * 0.8, 'stroke-linecap': 'butt',
+    'stroke-linejoin': 'round', opacity: 0.4, 'pointer-events': 'none'
+  }));
+
+  // Flanges — short wide rectangles at each end
+  const flangeW = pw * 2 + 8, flangeH = 5;
+  // Entry flange (horizontal)
+  const fEntryX = fromLeft ? wx + 8 : wx + ww - 8;
+  g.appendChild(svgEl('rect', {
+    x: fEntryX - flangeH/2, y: cy - flangeW/2,
+    width: flangeH, height: flangeW, rx: 1,
+    fill: _lighten(pal.stroke, 0.4), stroke: pal.stroke, 'stroke-width': 1.2,
+    'pointer-events': 'none'
+  }));
+  // Exit flange (vertical)
+  const fExitY = toBottom ? wy + wh - 8 : wy + 8;
+  g.appendChild(svgEl('rect', {
+    x: cx - flangeW/2, y: fExitY - flangeH/2,
+    width: flangeW, height: flangeH, rx: 1,
+    fill: _lighten(pal.stroke, 0.4), stroke: pal.stroke, 'stroke-width': 1.2,
+    'pointer-events': 'none'
+  }));
+
+  // Flange bolts (2 per flange)
+  const bOff = pw * 0.7;
+  _rtBoltS(g, fEntryX, cy - bOff);
+  _rtBoltS(g, fEntryX, cy + bOff);
+  _rtBoltS(g, cx - bOff, fExitY);
+  _rtBoltS(g, cx + bOff, fExitY);
+};
 
 // [v17.0.4] Power Dispatcher T1 — 5+5 explicit ports with visual feedback
 _RAGTAG_SYMBOLS.power_dispatcher_5 = function(g, wx, wy, ww, wh, pal, def, unitId) {
@@ -33719,7 +33889,9 @@ const _VARIANT_LABELS = {
   'port-top': 'Outlet top', 'port-bottom': 'Outlet bottom',
   'output-bottom': 'Output bottom', 'surplus-B': 'Surplus bottom',
   'mirror-surplus-B': 'Mirrored, surplus bottom', 'insulated': 'Insulated',
-  'recycle-T': 'Recycle top',
+  'recycle-T': 'Recycle top', 'recycle-B': 'Recycle bottom',
+  'mirror-recycle-T': 'Mirror recycle top', 'mirror-recycle-B': 'Mirror recycle bottom',
+  'left-up': 'Left → Up', 'right-down': 'Right → Down', 'right-up': 'Right → Up',
 };
 
 // [v10.7.0] Evaluate sticker items against live solver data
@@ -37906,7 +38078,9 @@ const _PARTICLE_BEHAVIORS = {
 
     // Mixer / splitter
     mixer:    { type:'merge', dwellFactor:1.5 },
+    simple_mixer: { type:'merge', dwellFactor:1.5 },
     splitter: null,  // opaque
+    bend:     null,  // opaque — pipe particles handle the turn
 
     // Storage (deferred)
     tank:      null,
@@ -55535,6 +55709,41 @@ function runTests() {
     t.assertOK(solveResult !== undefined, 'solve produced result');
     // Restore mode
     TimeClock.mode = 'paused';
+  });
+
+  // v17.5.0 — Pipe Bend + mirrored recycle presentations
+  test('616: bend — registration and profile exist', t => {
+    const def = UnitRegistry.get('bend');
+    t.assertOK(!!def, 'bend defId registered');
+    t.assertOK(def.ports.length === 2, 'bend has 2 ports');
+    const prof = ProfileRegistry.get('bend');
+    t.assertOK(!!prof, 'bend profile registered');
+    t.assertOK(prof.defId === 'bend', 'profile defId matches');
+  });
+
+  test('617: bend — passthrough conserves T, P, composition', t => {
+    const src = t.place('source', 0, 0, { species: 'CO2', nDot: 2, T: 400, P: 300000, phaseConstraint: 'V' });
+    const bnd = t.place('bend', 4, 0);
+    const snk = t.place('sink', 8, 0);
+    t.wire(src, 'mat_out', bnd, 'mat_in');
+    t.wire(bnd, 'mat_out', snk, 'mat_in');
+    t.solve();
+    const out = t.port(bnd, 'mat_out');
+    t.assertClose(out.T, 400, 0.01, 'T preserved');
+    t.assertClose(out.P, 300000, 1, 'P preserved');
+    t.assertClose(out.n?.CO2 || 0, 2, 0.001, 'CO2 moles preserved');
+  });
+
+  test('618: bend — mass balance is zero residual', t => {
+    const src = t.place('source', 0, 0, { species: 'H2O', nDot: 0.5, T: 350, P: 101325, phaseConstraint: 'V' });
+    const bnd = t.place('bend', 4, 0);
+    const snk = t.place('sink', 8, 0);
+    t.wire(src, 'mat_out', bnd, 'mat_in');
+    t.wire(bnd, 'mat_out', snk, 'mat_in');
+    t.solve();
+    const bal = computeSystemBalance(scene);
+    t.assertOK(bal != null, 'balance computed');
+    t.assertClose(bal.mass.residual, 0, 0.001, 'mass residual ≈ 0 g/s');
   });
 
   // ═══════════════════════════════════════════════════════════════════════
