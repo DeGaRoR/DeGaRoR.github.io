@@ -366,8 +366,34 @@
   **Variant labels.**  `_VARIANT_LABELS` extended for all new variants
   plus the previously-unlabeled `recycle-B`.
 
+  **Electrical microgrid test suite (T619-T628).**  Comprehensive
+  coverage of power dispatch, battery charge/discharge, priority-based
+  curtailment, solar diurnal swing, wind storm shutdown, and hub
+  diagnostic reporting.  Standard rig: grid_supply + battery →
+  power_hub → 3 consumers at priority 1/2/3 + dump load.
+  Key findings validated: (1) responsive sources throttle to demand
+  (no surplus from grid_supply), (2) battery SOC correctly limits
+  max discharge/charge, (3) priority dispatch serves P1 fully before
+  P2, P2 before P3, (4) battery inventory updates require a prior
+  solve to populate resolved ports, (5) solar/wind environment
+  factors correctly gate output.
+
   NNGs: NNG-14 (changelog).
-  Tests: 618 total (3 new: T616-T618), 0 failures.
+  Tests: 628 total (13 new: T616-T628), 0 failures.
+
+  T616-T618: bend registration, passthrough, mass balance.
+  T619-T628: Electrical microgrid test suite.
+    T619: Ample supply — all 3 priority levels fully served.
+    T620: Priority curtailment — P1 full, P2 partial, P3 zero.
+    T621: Battery fills demand gap (SOC-limited discharge).
+    T622: Battery depleted (SOC=0) — no discharge, grid only.
+    T623: Zero sources — all consumers starved, hub reports 0.
+    T624: Battery full (SOC=1.0) — refuses charge, surplus to dump.
+    T625: Battery SOC tracking — discharge over one timestep,
+          inventory update verified, SOC reporting consistency.
+    T626: Solar noon vs midnight — output swings peak to 0.
+    T627: Wind storm shutdown — output = 0 above cut-out.
+    T628: Hub diagnostics — all ud.last fields populated and correct.
 
   ─── v17.4.4 — Playtest polish batch (UX fixes from PT3/PT4/PT5) ────────
 
@@ -55744,6 +55770,303 @@ function runTests() {
     const bal = computeSystemBalance(scene);
     t.assertOK(bal != null, 'balance computed');
     t.assertClose(bal.mass.residual, 0, 0.001, 'mass residual ≈ 0 g/s');
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // v17.5.0 — Electrical microgrid tests: dispatch, battery, solar, wind
+  // ═══════════════════════════════════════════════════════════════════════
+  //
+  // Standard rig: grid_supply → power_hub → consumers (3 priority levels) + dump
+  // Battery on hub input for charge/discharge scenarios.
+  //
+  // Helper: builds the standard microgrid, returns all unit IDs.
+  function _buildMicrogrid(t, opts = {}) {
+    t.clearScene();
+    const grid = t.place('grid_supply', 0, 0, { maxPower: opts.gridKW ?? 30 });
+    const batt = opts.battery !== false
+      ? t.place('battery', 0, 4, {
+          peakPower_kW: opts.battPeakKW ?? 5,
+          capacity_J: (opts.battCapKWh ?? 5) * 3600000,
+          initialSOC: opts.battSOC ?? 0.5
+        })
+      : null;
+    const hub = t.place('power_hub', 4, 0);
+    const consA = t.place('sink_electrical', 8, -2, { ratedPower_kW: opts.consAkW ?? 3, powerPriority: 1 });
+    const consB = t.place('sink_electrical', 8, 1, { ratedPower_kW: opts.consBkW ?? 8, powerPriority: 2 });
+    const consC = t.place('sink_electrical', 8, 4, { ratedPower_kW: opts.consCkW ?? 15, powerPriority: 3 });
+    const dump = t.place('sink_electrical', 4, -4, { ratedPower_kW: 50, powerPriority: 3 });
+
+    t.wire(grid, 'elec_out', hub, 'elec_in');
+    if (batt) t.wire(batt, 'elec', hub, 'elec_in');
+    t.wire(hub, 'elec_out', consA, 'elec_in');
+    t.wire(hub, 'elec_out', consB, 'elec_in');
+    t.wire(hub, 'elec_out', consC, 'elec_in');
+    t.wire(hub, 'elec_surplus', dump, 'elec_in');
+
+    return { grid, batt, hub, consA, consB, consC, dump };
+  }
+
+  test('619: Microgrid — ample supply, all consumers fully served', t => {
+    const { hub, consA, consB, consC } = _buildMicrogrid(t, {
+      gridKW: 30, battery: false
+    });
+    t.solve();
+    const hLast = t.last(hub);
+    // Total demand = 3+8+15 = 26 kW
+    t.assertClose(hLast.totalDemand_W, 26000, 10, 'Hub total demand = 26 kW');
+    t.assertClose(hLast.curtailmentFactor, 1.0, 0.001, 'No curtailment');
+    // Each consumer gets full allocation
+    const allocA = hLast.consumerAllocation?.[consA];
+    const allocB = hLast.consumerAllocation?.[consB];
+    const allocC = hLast.consumerAllocation?.[consC];
+    t.assertOK(allocA && allocA.factor >= 0.999, `ConsA factor = ${allocA?.factor?.toFixed(3)}`);
+    t.assertOK(allocB && allocB.factor >= 0.999, `ConsB factor = ${allocB?.factor?.toFixed(3)}`);
+    t.assertOK(allocC && allocC.factor >= 0.999, `ConsC factor = ${allocC?.factor?.toFixed(3)}`);
+  });
+
+  test('620: Microgrid — curtailment with priority, P1 fully served first', t => {
+    // 10 kW grid, no battery → demand 26 kW, supply 10 kW
+    const { hub, consA, consB, consC } = _buildMicrogrid(t, {
+      gridKW: 10, battery: false
+    });
+    t.solve();
+    const hLast = t.last(hub);
+    t.assertOK(hLast.curtailmentFactor < 1, `Curtailment active (CF=${hLast.curtailmentFactor.toFixed(3)})`);
+    // Priority 1 (3 kW) should be fully served (10 > 3)
+    const allocA = hLast.consumerAllocation?.[consA];
+    t.assertClose(allocA.allocated_W, 3000, 1, 'P1 consumer fully served (3 kW)');
+    // Priority 2 (8 kW) should get remainder: 10-3 = 7 kW
+    const allocB = hLast.consumerAllocation?.[consB];
+    t.assertClose(allocB.allocated_W, 7000, 1, 'P2 consumer gets 7 kW (remainder)');
+    // Priority 3 should get nothing
+    const allocC = hLast.consumerAllocation?.[consC];
+    t.assertClose(allocC.allocated_W, 0, 1, 'P3 consumer gets 0 (exhausted)');
+  });
+
+  test('621: Microgrid — battery fills demand gap', t => {
+    // 10 kW grid + 5 kW battery (SOC=0.9) → 15 kW available
+    // Demand 26 kW → still short, but battery contributes
+    const { hub, batt, consA, consB, consC } = _buildMicrogrid(t, {
+      gridKW: 10, battSOC: 0.9, battPeakKW: 5
+    });
+    t.solve();
+    const hLast = t.last(hub);
+    const bLast = t.last(batt);
+    // Grid (responsive) fills demand first: 10 kW
+    // Battery fills gap: min(26-10, maxDischarge_W). SOC-limited:
+    //   charge = 0.9 × 5kWh × 3.6MJ = 16.2 MJ, maxDischarge = min(5000, 16.2M/3600) = 4500 W
+    t.assertClose(hLast.responsiveDraw_W, 10000, 100, 'Grid supplies 10 kW');
+    t.assertClose(hLast.batteryDraw_W, 4500, 100, 'Battery discharges 4.5 kW (SOC-limited)');
+    t.assertClose(hLast.totalSupply_W, 14500, 100, 'Total supply = 14.5 kW');
+    // Battery status should be discharging
+    t.assertOK(bLast.status === 'discharging', `Battery status = ${bLast.status}`);
+    // Priority dispatch: P1(3)+P2(8)=11 served, P3 gets 14.5-11=3.5 kW
+    const allocC = hLast.consumerAllocation?.[consC];
+    t.assertClose(allocC.allocated_W, 3500, 100, 'P3 gets remainder after P1+P2');
+  });
+
+  test('622: Microgrid — battery depleted (SOC=0), no discharge', t => {
+    const { hub, batt, consA, consB, consC } = _buildMicrogrid(t, {
+      gridKW: 5, battSOC: 0, battPeakKW: 5
+    });
+    t.solve();
+    const hLast = t.last(hub);
+    const bLast = t.last(batt);
+    // Battery can't discharge — maxDischarge = 0
+    t.assertClose(bLast.maxDischarge_W, 0, 1, 'Battery maxDischarge = 0 (empty)');
+    t.assertClose(hLast.batteryDraw_W, 0, 1, 'Hub gets 0 from battery');
+    // Only 5 kW grid for 26 kW demand → severe curtailment
+    t.assertClose(hLast.totalSupply_W, 5000, 100, 'Total supply = 5 kW (grid only)');
+    // P1 (3 kW) fully served, P2 gets 2 kW
+    const allocA = hLast.consumerAllocation?.[consA];
+    const allocB = hLast.consumerAllocation?.[consB];
+    t.assertClose(allocA.allocated_W, 3000, 1, 'P1 fully served');
+    t.assertClose(allocB.allocated_W, 2000, 1, 'P2 gets 2 kW remainder');
+  });
+
+  test('623: Microgrid — zero power, all consumers starved', t => {
+    // No sources connected to hub at all
+    t.clearScene();
+    const hub = t.place('power_hub', 4, 0);
+    const consA = t.place('sink_electrical', 8, -2, { ratedPower_kW: 3, powerPriority: 1 });
+    const consB = t.place('sink_electrical', 8, 1, { ratedPower_kW: 8, powerPriority: 2 });
+    const consC = t.place('sink_electrical', 8, 4, { ratedPower_kW: 15, powerPriority: 3 });
+    const dump = t.place('sink_electrical', 4, -4, { ratedPower_kW: 50, powerPriority: 3 });
+    t.wire(hub, 'elec_out', consA, 'elec_in');
+    t.wire(hub, 'elec_out', consB, 'elec_in');
+    t.wire(hub, 'elec_out', consC, 'elec_in');
+    t.wire(hub, 'elec_surplus', dump, 'elec_in');
+    t.solve();
+    const hLast = t.last(hub);
+    t.assertClose(hLast.totalSupply_W, 0, 1, 'Total supply = 0');
+    const allocA = hLast.consumerAllocation?.[consA];
+    const allocB = hLast.consumerAllocation?.[consB];
+    const allocC = hLast.consumerAllocation?.[consC];
+    t.assertClose(allocA.allocated_W, 0, 1, 'P1 gets 0');
+    t.assertClose(allocB.allocated_W, 0, 1, 'P2 gets 0');
+    t.assertClose(allocC.allocated_W, 0, 1, 'P3 gets 0');
+  });
+
+  test('624: Microgrid — battery full (SOC=1), refuses charge, surplus to dump', t => {
+    // Use solar_panel (physics-fixed) to generate surplus
+    t.clearScene();
+    // Switch to planet_x for diurnal — tests start at noon (solarFactor ≈ 1.0)
+    const origPreset = SimSettings._activePreset;
+    SimSettings._activePreset = 'planet_x'; SimSettings._applyPreset();
+    SimSettings._diurnalCache = { t: -1, result: null };
+
+    const solar = t.place('solar_panel', 0, 0, { peakPower_kW: 20 });
+    const batt = t.place('battery', 0, 4, {
+      peakPower_kW: 5, capacity_J: 5 * 3600000, initialSOC: 1.0
+    });
+    const hub = t.place('power_hub', 4, 0);
+    const cons = t.place('sink_electrical', 8, 0, { ratedPower_kW: 3, powerPriority: 1 });
+    const dump = t.place('sink_electrical', 4, -4, { ratedPower_kW: 50, powerPriority: 3 });
+    t.wire(solar, 'elec_out', hub, 'elec_in');
+    t.wire(batt, 'elec', hub, 'elec_in');
+    t.wire(hub, 'elec_out', cons, 'elec_in');
+    t.wire(hub, 'elec_surplus', dump, 'elec_in');
+    t.solve();
+
+    const bLast = t.last(batt);
+    const hLast = t.last(hub);
+    // Battery full — maxCharge = 0
+    t.assertClose(bLast.maxCharge_W, 0, 1, 'Battery maxCharge = 0 (full)');
+    // Surplus = physicsFixed - demand. Solar ≈ 20kW (noon), demand = 3 kW → surplus ≈ 17 kW
+    t.assertOK(hLast.surplus_W > 10000, `Surplus ${(hLast.surplus_W/1000).toFixed(1)} kW > 10 kW`);
+    // Battery charge should be 0
+    t.assertClose(hLast.batteryCharge_W, 0, 1, 'Hub routes 0 to battery');
+
+    // Restore preset
+    SimSettings._activePreset = origPreset; SimSettings._applyPreset();
+    SimSettings._diurnalCache = { t: -1, result: null };
+  });
+
+  test('625: Battery SOC tracking — discharge over one timestep', t => {
+    // Battery-only: 5 kW peak, 5 kWh capacity, SOC=0.5 → 2.5 kWh charge
+    // Consumer: 3 kW. Battery discharges 3 kW for 1 hour = 10.8 MJ
+    t.clearScene();
+
+    const batt = t.place('battery', 0, 4, {
+      peakPower_kW: 5, capacity_J: 36000000, initialSOC: 0.9 // 10kWh, 90%
+    });
+    const hub = t.place('power_hub', 4, 0);
+    const cons = t.place('sink_electrical', 8, 0, { ratedPower_kW: 3, powerPriority: 1 });
+    const dump = t.place('sink_electrical', 4, -4, { ratedPower_kW: 50, powerPriority: 3 });
+    t.wire(batt, 'elec', hub, 'elec_in');
+    t.wire(hub, 'elec_out', cons, 'elec_in');
+    t.wire(hub, 'elec_surplus', dump, 'elec_in');
+
+    // Must solve first — TimeClock.step updates inventory from PREVIOUS solve's ports
+    t.solve();
+
+    // Initial SOC
+    const soc0 = scene.units.get(batt).inventory.charge_J;
+    t.assertClose(soc0 / 36000000, 0.9, 0.001, 'Initial SOC = 90%');
+
+    // Step: inventory update uses resolved ports from t.solve() above,
+    // then advances time and re-solves.
+    TimeClock.mode = 'playing';
+    TimeClock.step(scene);
+    TimeClock.mode = 'paused';
+
+    const soc1 = scene.units.get(batt).inventory.charge_J;
+    const bLast = t.last(batt);
+    // Battery should have discharged 3 kW × 3600s = 10.8 MJ
+    t.assertOK(soc1 < soc0, `SOC decreased: ${(soc1/36000000*100).toFixed(1)}% < 90%`);
+    const energyDelta = soc0 - soc1;
+    t.assertClose(energyDelta, 3 * 3600000, 500000, 'Discharged ≈ 3 kWh (3kW × 1hr)');
+
+    // Check SOC reported in battery last
+    const expectedSOC = soc1 / 36000000;
+    t.assertClose(bLast.soc, expectedSOC, 0.01, `Reported SOC matches inventory (${(expectedSOC*100).toFixed(1)}%)`);
+  });
+
+  test('626: Solar noon vs midnight — output swings to zero', t => {
+    t.clearScene();
+    const origPreset = SimSettings._activePreset;
+    const origT = TimeClock.t;
+    SimSettings._activePreset = 'planet_x'; SimSettings._applyPreset();
+
+    // Noon: t=43200
+    TimeClock.t = 43200;
+    SimSettings._diurnalCache = { t: -1, result: null };
+    const sfNoon = SimSettings.getSolarFactor();
+
+    const sp = t.place('solar_panel', 0, 0, { peakPower_kW: 10 });
+    const hub = t.place('power_hub', 4, 0);
+    const dump = t.place('sink_electrical', 4, -3, { ratedPower_kW: 50 });
+    t.wire(sp, 'elec_out', hub, 'elec_in');
+    t.wire(hub, 'elec_surplus', dump, 'elec_in');
+    t.solve();
+    const noonOutput = t.last(sp).output_W;
+    t.assertOK(noonOutput > 5000, `Noon output ${(noonOutput/1000).toFixed(1)} kW > 5 kW`);
+
+    // Midnight: t=0
+    t.clearScene();
+    TimeClock.t = 0;
+    SimSettings._diurnalCache = { t: -1, result: null };
+
+    const sp2 = t.place('solar_panel', 0, 0, { peakPower_kW: 10 });
+    const hub2 = t.place('power_hub', 4, 0);
+    const dump2 = t.place('sink_electrical', 4, -3, { ratedPower_kW: 50 });
+    t.wire(sp2, 'elec_out', hub2, 'elec_in');
+    t.wire(hub2, 'elec_surplus', dump2, 'elec_in');
+    t.solve();
+    const midOutput = t.last(sp2).output_W;
+    t.assertClose(midOutput, 0, 1, 'Midnight output = 0');
+
+    // Restore
+    TimeClock.t = origT;
+    SimSettings._activePreset = origPreset; SimSettings._applyPreset();
+    SimSettings._diurnalCache = { t: -1, result: null };
+  });
+
+  test('627: Wind storm shutdown — output = 0 above cut-out', t => {
+    t.clearScene();
+    // vDesign=4 → cutIn=1, cutOut=8. Default wind ≈ 5 m/s on earth_isa.
+    // But for storm: need wind > cutOut. Set vDesign very low so cutOut < actual wind.
+    // Default wind = 5 m/s. Set vDesign=2 → cutOut=4 → 5 > 4 → storm shutdown
+    const wt = t.place('wind_turbine', 0, 0, { peakPower_kW: 20, vDesign_ms: 2 });
+    const hub = t.place('power_hub', 4, 0);
+    const dump = t.place('sink_electrical', 4, -3, { ratedPower_kW: 50 });
+    t.wire(wt, 'elec_out', hub, 'elec_in');
+    t.wire(hub, 'elec_surplus', dump, 'elec_in');
+    t.solve();
+    const wtLast = t.last(wt);
+    t.assertClose(wtLast.output_W, 0, 0.1, 'Output = 0 (storm shutdown)');
+    t.assertOK(wtLast.status === 'storm-shutdown', `Status = ${wtLast.status}`);
+  });
+
+  test('628: Hub diagnostics — ud.last fields populated correctly', t => {
+    const { hub, grid, consA, consB, consC, dump } = _buildMicrogrid(t, {
+      gridKW: 30, battery: false
+    });
+    t.solve();
+    const hLast = t.last(hub);
+    // Verify all diagnostic fields exist and are reasonable
+    t.assertOK(hLast.totalCapacity_W != null, 'totalCapacity_W present');
+    t.assertOK(hLast.totalSupply_W != null, 'totalSupply_W present');
+    t.assertOK(hLast.totalDemand_W != null, 'totalDemand_W present');
+    t.assertOK(hLast.curtailmentFactor != null, 'curtailmentFactor present');
+    t.assertOK(hLast.responsiveMax_W != null, 'responsiveMax_W present');
+    t.assertOK(hLast.responsiveDraw_W != null, 'responsiveDraw_W present');
+    t.assertOK(hLast.surplus_W != null, 'surplus_W present');
+    t.assertOK(hLast.consumerAllocation != null, 'consumerAllocation present');
+    // Grid = 30 kW responsive
+    t.assertClose(hLast.responsiveMax_W, 30000, 100, 'responsiveMax = 30 kW');
+    // Demand = 26 kW, grid responsive → draws exactly 26 kW
+    t.assertClose(hLast.responsiveDraw_W, 26000, 100, 'responsiveDraw = 26 kW');
+    // No physics-fixed → 0 surplus
+    t.assertClose(hLast.surplus_W, 0, 1, 'No surplus (no physics-fixed sources)');
+    // Allocation map has entries for all 3 consumers
+    t.assertOK(hLast.consumerAllocation[consA] != null, 'Allocation entry for consA');
+    t.assertOK(hLast.consumerAllocation[consB] != null, 'Allocation entry for consB');
+    t.assertOK(hLast.consumerAllocation[consC] != null, 'Allocation entry for consC');
+    // Verify allocated_W matches demand for fully-served case
+    t.assertClose(hLast.consumerAllocation[consA].allocated_W, 3000, 1, 'ConsA allocated = demand');
+    t.assertClose(hLast.consumerAllocation[consB].allocated_W, 8000, 1, 'ConsB allocated = demand');
+    t.assertClose(hLast.consumerAllocation[consC].allocated_W, 15000, 1, 'ConsC allocated = demand');
   });
 
   // ═══════════════════════════════════════════════════════════════════════
