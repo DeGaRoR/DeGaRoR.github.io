@@ -378,11 +378,15 @@
 
   **Known latent gap (Class 3):**  Non-inventory multi-output units
   (flash_drum, hex, reactor_electrochemical, membrane_separator,
-  distillation_column) do not yet read `blockedBranches()`.  If one
-  output branch blocks in a pressure-enabled scenario, the post-pass
-  records it but the tick keeps producing flow on that branch.  This
-  cannot occur in the pressure-disabled early game (no check valves).
-  Flagged for future hardening.
+  distillation_column) do not yet handle blocked output branches.
+  The post-pass backward trace stops at these units (same as pre-v17.4).
+  If one output branch blocks in a pressure-enabled scenario, mass may
+  be lost on that branch.  Root cause: the source-killing mechanism is
+  monotonic (once killed, a source stays dead).  Properly fixing Class 3
+  requires non-monotonic source-killing with convergence damping, which
+  is a solver-level refactor.  This cannot occur in the pressure-disabled
+  early game (no check valves = no blocked branches).  Flagged for
+  future hardening alongside the non-monotonic solver work.
 
   **New defId: simple_mixer.**  Pressure-disabled mixer for early game.
   Same physical topology (2-in, 1-out, adiabatic merge) but NO
@@ -392,6 +396,19 @@
 
   NNGs: NNG-1 (conservation — 3 independent fixes), NNG-4 (pressure
   network — inventory branch blocking), NNG-14 (changelog).
+
+  **CRITICAL: Auto-save key mismatch — all work lost on reload.**
+  `autoSave()` wrote to localStorage key `'processThis_autosave'`.
+  Startup read from `'ptis_autosave'`.  Different strings.  Every
+  autosave was faithfully stored but never found on reload — demo
+  loaded instead.  Same mismatch for the version key: wrote
+  `'processThis_autosave_demoVer'`, read `'ptis_autosave_demo_version'`.
+  Fix: startup now uses `AUTOSAVE_KEY` constant.  Legacy keys checked
+  as fallback for existing saves under old keys.  Additionally:
+  `autoSave()` error handler now shows a visible toast on first failure
+  instead of silently swallowing — catches iframe sandbox or quota
+  issues.
+
   Tests: 612 total (6 new), 0 failures.
 
   ─── v17.3.4 — Reactor scale-back, HEX fix, lateral pipe clipping ────────
@@ -19219,7 +19236,7 @@ UnitRegistry.register('hex', {
   // [v13.0.4 S1c] Equipment limits — corrected to matrix values v13.0.8
   limitParams: ['T_LL', 'T_L', 'T_H', 'T_HH', 'P_LL', 'P_L', 'P_H', 'P_HH', 'mass_HH'],
   limits: { S: { T_LL: 243, T_L: 263, T_H: 573, T_HH: 673, P_LL: 20000, P_L: 50000, P_H: 12000000, P_HH: 15000000, mass_HH: 0.12 } },
-  tick(u, ports, par) {
+  tick(u, ports, par, ctx) {
     const sHot = ports.hot_in, sCold = ports.cold_in;
     if (!sHot || !sCold) return;
 
@@ -19790,7 +19807,7 @@ UnitRegistry.register('flash_drum', {
   // [v13.0.4 S1c] Equipment limits
   limitParams: ['T_LL', 'T_L', 'T_H', 'T_HH', 'P_LL', 'P_L', 'P_H', 'P_HH', 'mass_HH'],
   limits: { S: { T_LL: 243, T_L: 263, T_H: 523, T_HH: 623, P_LL: 20000, P_L: 50000, P_H: 12000000, P_HH: 15000000, mass_HH: 0.15 } },
-  tick(u, ports, par) {
+  tick(u, ports, par, ctx) {
     const sIn = ports.mat_in;
     if (!sIn) return;
     
@@ -24206,23 +24223,31 @@ function solveScene(scene, options = {}) {
           if (!fDef) return [];
           const dirs = new Set(fDef.ports.map(p => p.dir));
           if (dirs.size === 1 && dirs.has(PortDir.OUT)) return [fId];
-          // [v17.x] Multi material-output unit (splitter, inventory vessel):
-          // record which output branch is blocked.  Splitters redistribute flow
-          // to unblocked branches; inventory units zero the blocked port and
-          // absorb mass (level rises).  Both read ctx.blockedBranches().
-          // [v14.8.0 S-SPLIT] Replaces the old "stop trace" that caused NNG-1 violation.
+          // [v17.4.0 NNG-1] Multi material-output unit: how to handle blocked branch
+          // depends on whether the unit can absorb or redistribute.
           const matOuts = fDef.ports.filter(p => p.dir === PortDir.OUT && p.type === StreamType.MATERIAL);
           if (matOuts.length > 1) {
-            const blockedPort = conn.from.portId;
-            if (!blockedSplitterBranches.has(fId)) {
-              blockedSplitterBranches.set(fId, new Set());
+            // Splitter + inventory vessels: persistent record in blockedSplitterBranches.
+            // Splitter: redistributes flow to unblocked branches.
+            // Inventory (tank, open_tank): zeros blocked port, mass accumulates.
+            // Both read ctx.blockedBranches() in their tick.
+            if (fU.defId === 'splitter' || fDef.inventory) {
+              const blockedPort = conn.from.portId;
+              if (!blockedSplitterBranches.has(fId)) {
+                blockedSplitterBranches.set(fId, new Set());
+              }
+              const branches = blockedSplitterBranches.get(fId);
+              if (!branches.has(blockedPort)) {
+                branches.add(blockedPort);
+                changed = true;
+              }
             }
-            const branches = blockedSplitterBranches.get(fId);
-            if (!branches.has(blockedPort)) {
-              branches.add(blockedPort);
-              changed = true;  // new branch block → re-iterate
-            }
-            return [];  // don't trace further — unit handles it internally
+            // Non-inventory multi-output (hex, flash_drum, etc.): trace stops here.
+            // Known Class 3 gap: if one output branch blocks, the unit still produces
+            // flow on that branch from its input.  Proper fix requires non-monotonic
+            // source-killing (future refactor).  Cannot trace through because monotonic
+            // blockedSources permanently kills sources on transient check-valve firings.
+            return [];
           }
           // Inventory unit with ≤1 material output: absorbs by design
           if (fDef.inventory) return [];
@@ -36163,6 +36188,7 @@ const AUTOSAVE_DELAY = 2000; // ms debounce
 let _autosaveTimer = null;
 let _lastSavedJSON = null;
 
+let _autoSaveFailCount = 0;
 function autoSave() {
   clearTimeout(_autosaveTimer);
   _autosaveTimer = setTimeout(() => {
@@ -36171,7 +36197,14 @@ function autoSave() {
       const json = scene.exportJSON(gatherLayout());
       localStorage.setItem(AUTOSAVE_KEY, json);
       _lastSavedJSON = json;
-    } catch (e) { /* quota exceeded — silently fail */ }
+      _autoSaveFailCount = 0;
+    } catch (e) {
+      // [v17.4.0] Don't silently fail — warn once so player knows saves aren't persisting
+      _autoSaveFailCount++;
+      if (_autoSaveFailCount === 1) {
+        showToast('⚠ Auto-save failed — use File → Save to export your work');
+      }
+    }
   }, AUTOSAVE_DELAY);
 }
 
@@ -36182,7 +36215,13 @@ function autoSaveNow() {
     const json = scene.exportJSON(gatherLayout());
     localStorage.setItem(AUTOSAVE_KEY, json);
     _lastSavedJSON = json;
-  } catch (e) { /* silently fail */ }
+    _autoSaveFailCount = 0;
+  } catch (e) {
+    _autoSaveFailCount++;
+    if (_autoSaveFailCount <= 2) {
+      showToast('⚠ Auto-save failed — use File → Save to export your work');
+    }
+  }
 }
 
 function clearAutoSave() {
@@ -40186,29 +40225,40 @@ window.addEventListener('resize', () => {
 // [v14.10.3] Load on startup: auto-save (if matching DEMO_VERSION) or demo_v1
 {
   const DEMO_VERSION = 'v16.8.0';  // bump this when demo scene changes
-  const saved = localStorage.getItem('ptis_autosave');
-  const savedDemoVer = localStorage.getItem('ptis_autosave_demo_version');
-  if (saved && savedDemoVer === DEMO_VERSION) {
+  const _AUTOSAVE_VER_KEY = AUTOSAVE_KEY + '_demoVer';
+  // [v17.4.0] Read using AUTOSAVE_KEY constant — was hardcoded 'ptis_autosave'
+  // which never matched the write key 'processThis_autosave'. All autosaves
+  // were silently lost on reload.
+  const saved = localStorage.getItem(AUTOSAVE_KEY);
+  const savedDemoVer = localStorage.getItem(_AUTOSAVE_VER_KEY);
+  // [v17.4.0] Also check legacy wrong keys in case user has a save under old key
+  const savedLegacy = !saved ? (localStorage.getItem('ptis_autosave') || localStorage.getItem('processGrid_autosave')) : null;
+  const effectiveSaved = saved || savedLegacy;
+  if (effectiveSaved && (savedDemoVer === DEMO_VERSION || savedLegacy)) {
     try {
-      const result = scene.importJSON(saved);
+      const result = scene.importJSON(effectiveSaved);
       if (result && !result.ok) throw new Error(result.error);
       if (result.layoutPatch) applyLayout(result.layoutPatch);
       document.getElementById('processNameInput').value = scene.processName || '';
       const solveResult = solveScene(scene);
       updateStatusIndicator(solveResult);
-      _lastSavedJSON = saved;
+      _lastSavedJSON = effectiveSaved;
       setStatus('Restored from auto-save.');
+      // Migrate legacy key to current key
+      if (savedLegacy && !saved) {
+        try { localStorage.setItem(AUTOSAVE_KEY, savedLegacy); } catch(e) {}
+      }
     } catch (e) {
       loadExample('demo_v1');
       setStatus('Auto-save corrupt — loaded demo.');
     }
   } else {
-    if (saved && savedDemoVer !== DEMO_VERSION) {
+    if (effectiveSaved && savedDemoVer !== DEMO_VERSION) {
       localStorage.removeItem(AUTOSAVE_KEY);  // clear stale auto-save
     }
     loadExample('demo_v1');
   }
-  localStorage.setItem(AUTOSAVE_KEY + '_demoVer', DEMO_VERSION);
+  localStorage.setItem(_AUTOSAVE_VER_KEY, DEMO_VERSION);
 }
 
 updatePropertiesPanel();
