@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v17.4.0
+  processThis v17.4.1
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -346,6 +346,28 @@
   ═══════════════════════════════════════════════════════════════════════════
   CHANGELOG  (latest first)
   ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v17.4.1 — Power dispatch: iteration-1 starvation + sub-watt threshold ──
+
+  **Bug A: Iteration-1 power starvation.**  On solver iteration 1,
+  generators write `actual: 0` (no demand received yet).  Consumers
+  read `hubAllocated_W ?? (sElec.actual ?? sElec.capacity ?? 0)`.
+  The nullish coalescing `??` does not replace 0 (only null/undefined),
+  so `0 ?? 20000 = 0`.  Consumer sees 0W available on iter 1, reports
+  "No power available" even with a 20kW generator connected directly.
+  Fix: replaced `??` with `||` in the actual→capacity fallback chain
+  (10 locations across pump, compressor, compressor_diaphragm, air_cooler,
+  electric_heater, gas_turbine, reactor_jacketed, reactor_cooled,
+  electrochemical).  Now `0 || 20000 = 20000` — consumer optimistically
+  sees full capacity on iter 1, corrected by hub allocation on iter 2+.
+
+  **Bug B: 1W minimum threshold.**  Pump, compressor, and
+  compressor_diaphragm had `if (W_avail < 1)` — a 1 Watt minimum.
+  At atmospheric ΔP, pumps need milliwatts (0.033W in playtest save).
+  Air cooler had 0.1W threshold.  All changed to 1e-3 (1 milliwatt).
+
+  NNGs: NNG-5 (power lifecycle), NNG-14 (changelog).
+  Tests: 612 total, 0 failures.
 
   ─── v17.4.0 — NNG-1 mass balance fixes + simple_mixer ─────────────────
 
@@ -17701,7 +17723,7 @@ UnitRegistry.register('sink_electrical', {
     u.powerDemand = rated_W;
 
     const s = ctx ? ctx.scratch : {};
-    const W_avail = s.hubAllocated_W ?? (sIn ? (sIn.actual ?? sIn.capacity ?? 0) : 0);
+    const W_avail = s.hubAllocated_W ?? (sIn ? (sIn.actual || sIn.capacity || 0) : 0);
     // Self-limit: never absorb more than rated
     const absorbed = Math.min(W_avail, rated_W);
 
@@ -18071,12 +18093,12 @@ UnitRegistry.register('pump', {
     
     // [v12.10.1 S1-pre-3] Standardized power read: actual → capacity → 0 (fail safe)
     const s = ctx ? ctx.scratch : {};
-    const W_avail = s.hubAllocated_W ?? (sElec.actual ?? sElec.capacity ?? 0);
+    const W_avail = s.hubAllocated_W ?? (sElec.actual || sElec.capacity || 0);
     
     const curtailed = W_avail < workFull.W_shaft_W - 1;
     const W_shaft_actual = Math.min(workFull.W_shaft_W, W_avail);
     
-    if (W_avail < 1) {
+    if (W_avail < 1e-3) {  // [v17.4.1] was < 1 — rejected sub-watt pumps
       ports.mat_out = {
         type: StreamType.MATERIAL,
         P: sIn.P,
@@ -18225,12 +18247,12 @@ UnitRegistry.register('compressor', {
     
     // [v12.10.1 S1-pre-3] Standardized power read: actual → capacity → 0 (fail safe)
     const s = ctx ? ctx.scratch : {};
-    const W_avail = s.hubAllocated_W ?? (sElec.actual ?? sElec.capacity ?? 0);
+    const W_avail = s.hubAllocated_W ?? (sElec.actual || sElec.capacity || 0);
     
     const curtailed = W_avail < workFull.W_shaft_W - 1;
     const W_shaft_actual = Math.min(workFull.W_shaft_W, W_avail);
     
-    if (W_avail < 1) {
+    if (W_avail < 1e-3) {  // [v17.4.1] was < 1 — rejected sub-watt pumps
       ports.mat_out = {
         type: StreamType.MATERIAL,
         P: sIn.P,
@@ -18363,7 +18385,7 @@ UnitRegistry.register('fan', {
     u.powerDemand = workFull.W_shaft_W;
 
     const s = ctx ? ctx.scratch : {};
-    const W_avail = s.hubAllocated_W ?? (sElec.actual ?? sElec.capacity ?? 0);
+    const W_avail = s.hubAllocated_W ?? (sElec.actual || sElec.capacity || 0);
 
     let Pout_actual, W_actual;
     if (W_avail >= workFull.W_shaft_W * 0.999) {
@@ -18466,11 +18488,11 @@ UnitRegistry.register('compressor_diaphragm', {
     u.powerDemand = workFull.W_shaft_W;
 
     const s = ctx ? ctx.scratch : {};
-    const W_avail = s.hubAllocated_W ?? (sElec.actual ?? sElec.capacity ?? 0);
+    const W_avail = s.hubAllocated_W ?? (sElec.actual || sElec.capacity || 0);
     const curtailed = W_avail < workFull.W_shaft_W - 1;
     const W_shaft_actual = Math.min(workFull.W_shaft_W, W_avail);
 
-    if (W_avail < 1) {
+    if (W_avail < 1e-3) {  // [v17.4.1] was < 1 — rejected sub-watt pumps
       ports.mat_out = { type: StreamType.MATERIAL, P: sIn.P, n: { ...sIn.n },
         phaseConstraint: 'V', T: sIn.T };
       u.last = { Pin: sIn.P, Pout_setpoint, Pout_actual: sIn.P,
@@ -18615,7 +18637,7 @@ UnitRegistry.register('electric_heater', {
 
     // [v12.10.1 S1-pre-3] Standardized power read: actual → capacity → 0 (fail safe)
     const s = ctx ? ctx.scratch : {};
-    const W_avail = s.hubAllocated_W ?? sElec.actual ?? sElec.capacity ?? 0;
+    const W_avail = s.hubAllocated_W ?? (sElec.actual || sElec.capacity || 0);
 
     if (mode === 'power_setpoint') {
       // ── POWER SETPOINT MODE ──
@@ -18827,7 +18849,7 @@ UnitRegistry.register('air_cooler', {
 
     // ── Power read from hub allocation ──
     const s = ctx ? ctx.scratch : {};
-    const W_avail = s.hubAllocated_W ?? (sElec.actual ?? sElec.capacity ?? 0);
+    const W_avail = s.hubAllocated_W ?? (sElec.actual || sElec.capacity || 0);
 
     // ── Derive actual airflow from delivered power ──
     const W_fan_actual = Math.min(W_avail, W_fan_demand);
@@ -18835,7 +18857,7 @@ UnitRegistry.register('air_cooler', {
     const power_curtailed = W_fan_actual < W_fan_demand - 0.1;
 
     // ── No power delivered → passthrough ──
-    if (W_fan_actual < 0.1) {
+    if (W_fan_actual < 1e-3) {  // [v17.4.1] was < 0.1
       ports.mat_out = passthrough();
       u.last = {
         T_in_K: sIn.T, T_setpoint_K: T_setpoint, T_ambient_K: T_amb,
@@ -20208,7 +20230,7 @@ UnitRegistry.register('distillation_column', {
     const sElec = ports.elec_in;
     const s = ctx ? ctx.scratch : {};
     const W_avail = Math.min(
-      s.hubAllocated_W ?? (sElec?.actual ?? sElec?.available ?? 0),
+      s.hubAllocated_W ?? (sElec?.actual || sElec?.available || 0),
       Q_reboiler_W > 0 ? Q_reboiler_W : Infinity
     );
 
@@ -20412,7 +20434,7 @@ function equilibriumTick(u, ports, par, ctx) {
     }
     const sElec = ports.elec_in;
     const rs = ctx ? ctx.scratch : {};
-    Q_in_W = sElec ? (rs.hubAllocated_W ?? sElec.actual ?? sElec.capacity ?? 0) : 0;
+    Q_in_W = sElec ? (rs.hubAllocated_W ?? (sElec.actual || sElec.capacity || 0)) : 0;
   }
 
   // ── [v11.0.0 Phase 6] Skip-when-clean: reuse cached result if inputs unchanged ──
@@ -20756,7 +20778,7 @@ function electrochemicalTick(u, ports, par, ctx) {
     u.powerDemand = P_demand_W;
     const sElec = ports.elec_in;
     const rs = ctx ? ctx.scratch : {};
-    const P_avail_W = sElec ? (rs.hubAllocated_W ?? sElec.actual ?? sElec.capacity ?? 0) : 0;
+    const P_avail_W = sElec ? (rs.hubAllocated_W ?? (sElec.actual || sElec.capacity || 0)) : 0;
     // [v16.9.3] checkOverload removed — allocation ≤ demand by design.
 
     if (P_avail_W < 1) {
