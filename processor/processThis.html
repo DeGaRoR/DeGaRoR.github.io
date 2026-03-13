@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v17.4.1
+  processThis v17.4.2
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -346,6 +346,32 @@
   ═══════════════════════════════════════════════════════════════════════════
   CHANGELOG  (latest first)
   ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v17.4.2 — HEX phase detection + electrolyzer 100% conversion ───────
+
+  **HEX phase constraint bug.**  HEX tick copied inlet `phaseConstraint`
+  to outlets (e.g. `'V'` from a steam source).  When steam condenses
+  through the exchanger, the PH-flash saw `'V'` constraint and forced
+  vapor phase at impossible temperatures (35°C "vapor" at 1 atm).
+  Denis reported "H₂O at 130°C in liquid phase" — same root cause.
+  Fix: HEX always sets `phaseConstraint: 'VL'` on both outlets.  The
+  PH-flash now correctly detects condensation/vaporization.
+
+  **Electrolyzer conversion cap.**  `conversion_max` was clamped to 0.99
+  (line 20743), and an additional `xi_max_reactant * 0.999` guard
+  prevented true 100%.  Denis: "Max conversion limits me to 99."
+  Fix: ceiling raised to 1.0.  At 100% conversion, cathode is pure H₂,
+  anode is pure O₂, zero unreacted H₂O — clean electrode separation.
+
+  **Electrolyzer rate asymmetry — not a bug.**  Denis noted cathode
+  0.03 kg/h vs anode 0.23 kg/h looked wrong.  Physics: H₂ (MW=2) vs
+  O₂ (MW=32) with 2:1 stoichiometry gives 1:8 mass ratio.  Molar
+  rates are symmetric (2× H₂ : 1× O₂).  Future UX: inspector should
+  show molar rates prominently for electrochemical units.
+
+  NNGs: NNG-2 (second law — phase determination), NNG-3 (WYSIWYG —
+  phase display), NNG-14 (changelog).
+  Tests: 614 total (2 new), 0 failures.
 
   ─── v17.4.1 — Power dispatch: iteration-1 starvation + sub-watt threshold ──
 
@@ -19317,13 +19343,17 @@ UnitRegistry.register('hex', {
     if (fErr) { u.last = { error: fErr }; return; }
 
     // ── Write outlet streams (PH flash resolves actual T and phase) ──
+    // [v17.4.2] phaseConstraint always 'VL' — heat exchange can cause condensation
+    // or vaporization.  Inheriting inlet constraint (e.g. 'V' from a steam source)
+    // would prevent the PH-flash from detecting phase change, causing impossible
+    // states like "liquid water at 130°C reported as vapor".
     ports.hot_out = {
       type: StreamType.MATERIAL, P: sHot.P, n: { ...sHot.n },
-      phaseConstraint: sHot.phaseConstraint || 'VL', H_target_Jps: H_hot_out
+      phaseConstraint: 'VL', H_target_Jps: H_hot_out
     };
     ports.cold_out = {
       type: StreamType.MATERIAL, P: sCold.P, n: { ...sCold.n },
-      phaseConstraint: sCold.phaseConstraint || 'VL', H_target_Jps: H_cold_out
+      phaseConstraint: 'VL', H_target_Jps: H_cold_out
     };
 
     // ── Effectiveness (Cp approximation, display only) ──
@@ -20740,7 +20770,9 @@ function electrochemicalTick(u, ports, par, ctx) {
   }
   const stoich = rxn.stoich;
   const eta = Math.max(0.001, Math.min(0.99, par.efficiency ?? (isGenerateMode ? 0.60 : 0.90)));
-  const conv_max = Math.max(0.01, Math.min(0.99, par.conversion_max ?? 0.80));
+  // [v17.4.2] Allow 100% conversion — electrolyzer for early game simplicity.
+  // 0.99 cap removed.  Numerical guard uses 1e-12 floor on remaining reactant.
+  const conv_max = Math.max(0.01, Math.min(1.0, par.conversion_max ?? 0.80));
   const dH_rxn = rxn._dH0_Jmol;
   const absDH = Math.abs(dH_rxn || 0);
   if (!dH_rxn || absDH < 1) {
@@ -20791,7 +20823,9 @@ function electrochemicalTick(u, ports, par, ctx) {
     }
 
     const P_chem_W = P_avail_W * eta;
-    let xi = Math.min(P_chem_W / absDH, xi_max, xi_max_reactant * 0.999);
+    // [v17.4.2] xi_max_reactant cap removed (was * 0.999).  At 100% conversion,
+    // unconverted reactant is zero — handled naturally by mol composition.
+    let xi = Math.min(P_chem_W / absDH, xi_max);
     const n_total = { ...sIn.n };
     for (const [sp, nu] of Object.entries(stoich)) {
       n_total[sp] = (n_total[sp] || 0) + nu * xi;
@@ -55320,6 +55354,46 @@ function runTests() {
     // Residual must be near zero — vented gas counted once, not double
     const relRes = bal.mass.totalIn > 0 ? Math.abs(bal.mass.residual / bal.mass.totalIn) : 0;
     t.assertOK(relRes < 0.01, 'mass residual < 1% (' + (relRes*100).toFixed(2) + '%)');
+  });
+
+  test('613: v17.4.2 — HEX phase: steam cooled below boiling → not forced vapor', t => {
+    // Steam at 200°C through HEX cooled by cold water — outlet must not be 'V' below Tboil
+    const hotSrc = t.place('source', 0, 0, { species: 'H2O', nDot: 0.01, T: 473.15, P: 101325, phaseConstraint: 'V' });
+    const coldSrc = t.place('source', 0, 4, { species: 'H2O', nDot: 0.5, T: 298.15, P: 101325, phaseConstraint: 'L' });
+    const hex = t.place('hex', 4, 0, { T_approach: 10 });
+    const hotSnk = t.place('sink', 8, 0);
+    const coldSnk = t.place('sink', 8, 4);
+    t.wire(hotSrc, 'mat_out', hex, 'hot_in');
+    t.wire(hex, 'hot_out', hotSnk, 'mat_in');
+    t.wire(coldSrc, 'mat_out', hex, 'cold_in');
+    t.wire(hex, 'cold_out', coldSnk, 'mat_in');
+    t.solve();
+    const hotOut = t.ud(hex).ports?.hot_out;
+    // Key assertion: phase must NOT be pure vapor below boiling point
+    // With 'VL' constraint, PH-flash detects condensation at ~373K
+    t.assertOK(hotOut.phase !== 'V' || hotOut.T > 373, 'hot_out not forced vapor below Tboil');
+    t.assertOK(hotOut.T >= 370, 'hot_out T >= 370K (at or above condensation)');
+  });
+
+  test('614: v17.4.2 — Electrolyzer 100% conversion: pure H₂ cathode, pure O₂ anode', t => {
+    const src = t.place('source', 0, 0, { species: 'H2O', nDot: 0.1, T: 350, P: 101325, phaseConstraint: 'V' });
+    const elec = t.place('reactor_electrochemical', 4, 0, { reactionId: 'R_H2O_ELEC', efficiency: 0.90, conversion_max: 1.0, powerPriority: 1 });
+    const gen = t.place('grid_supply', 0, 4, { maxPower: 100 });
+    const snk1 = t.place('sink', 8, 0);
+    const snk2 = t.place('sink', 8, 4);
+    t.wire(src, 'mat_out', elec, 'mat_in');
+    t.wire(elec, 'mat_out_cat', snk1, 'mat_in');
+    t.wire(elec, 'mat_out_ano', snk2, 'mat_in');
+    t.wire(gen, 'elec_out', elec, 'elec_in');
+    t.solve();
+    const eud = t.ud(elec);
+    t.assertClose(eud.last.conversion_pct, 100, 0.1, 'conversion = 100%');
+    const cat = eud.ports?.mat_out_cat?.n || {};
+    const ano = eud.ports?.mat_out_ano?.n || {};
+    t.assertOK((cat.H2O || 0) < 1e-12, 'cathode: no residual H₂O');
+    t.assertOK((cat.H2 || 0) > 0.09, 'cathode: H₂ present');
+    t.assertOK((ano.O2 || 0) > 0.04, 'anode: O₂ present');
+    t.assertOK(!ano.H2 && !ano.H2O, 'anode: only O₂');
   });
 
   // ═══════════════════════════════════════════════════════════════════════
