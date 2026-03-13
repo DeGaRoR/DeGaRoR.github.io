@@ -379,7 +379,7 @@
   factors correctly gate output.
 
   NNGs: NNG-14 (changelog).
-  Tests: 628 total (13 new: T616-T628), 0 failures.
+  Tests: 638 total (23 new: T616-T638), 0 failures.
 
   T616-T618: bend registration, passthrough, mass balance.
   T619-T628: Electrical microgrid test suite.
@@ -394,6 +394,17 @@
     T626: Solar noon vs midnight — output swings peak to 0.
     T627: Wind storm shutdown — output = 0 above cut-out.
     T628: Hub diagnostics — all ud.last fields populated and correct.
+  T629-T638: Advanced electrical tests.
+    T629: Multi-battery proportional discharge (2/3 + 1/3 share).
+    T630: Multi-battery — one depleted, other compensates.
+    T631: Multi-battery proportional charge from solar surplus.
+    T632: Direct battery → consumer (no hub, Step D path).
+    T633: Direct battery curtails when demand > peak.
+    T634: Direct grid → pump (material consumer, no hub).
+    T635: Direct grid 1W → pump curtailed but functional.
+    T636: Mixed sources — solar + wind + grid + battery on one hub.
+    T637: Micro-power pump (sub-watt shaft power, no clamping).
+    T638: Micro-power compressor (milliwatt regime, no clamping).
 
   ─── v17.4.4 — Playtest polish batch (UX fixes from PT3/PT4/PT5) ────────
 
@@ -56067,6 +56078,279 @@ function runTests() {
     t.assertClose(hLast.consumerAllocation[consA].allocated_W, 3000, 1, 'ConsA allocated = demand');
     t.assertClose(hLast.consumerAllocation[consB].allocated_W, 8000, 1, 'ConsB allocated = demand');
     t.assertClose(hLast.consumerAllocation[consC].allocated_W, 15000, 1, 'ConsC allocated = demand');
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // T629-T638: Multi-battery, direct connections, mixed sources, micro-power
+  // ═══════════════════════════════════════════════════════════════════════
+
+  test('629: Multi-battery — proportional discharge sharing', t => {
+    // Two batteries: A (10kW peak, 10kWh, SOC=0.8) and B (5kW peak, 5kWh, SOC=0.8)
+    // No other sources. Demand = 12 kW. Both discharge proportionally.
+    t.clearScene();
+    const battA = t.place('battery', 0, 0, {
+      peakPower_kW: 10, capacity_J: 36000000, initialSOC: 0.8
+    });
+    const battB = t.place('battery', 0, 4, {
+      peakPower_kW: 5, capacity_J: 18000000, initialSOC: 0.8
+    });
+    const hub = t.place('power_hub', 4, 0);
+    const cons = t.place('sink_electrical', 8, 0, { ratedPower_kW: 12, powerPriority: 1 });
+    const dump = t.place('sink_electrical', 4, -4, { ratedPower_kW: 50, powerPriority: 3 });
+    t.wire(battA, 'elec', hub, 'elec_in');
+    t.wire(battB, 'elec', hub, 'elec_in');
+    t.wire(hub, 'elec_out', cons, 'elec_in');
+    t.wire(hub, 'elec_surplus', dump, 'elec_in');
+    t.solve();
+
+    const hLast = t.last(hub);
+    const aLast = t.last(battA);
+    const bLast = t.last(battB);
+    // maxDischarge: A=min(10000, 0.8×36M/3600)=8000, B=min(5000, 0.8×18M/3600)=4000
+    // Total battery capacity: 12000 W. Demand: 12000 W. Both fully tapped.
+    t.assertClose(hLast.batteryDraw_W, 12000, 100, 'Hub draws 12 kW from batteries');
+    // Proportional: A share = 8000/12000 = 2/3, B share = 4000/12000 = 1/3
+    t.assertClose(aLast.discharge_W, 8000, 100, 'BattA discharges 8 kW (2/3 share)');
+    t.assertClose(bLast.discharge_W, 4000, 100, 'BattB discharges 4 kW (1/3 share)');
+    t.assertOK(aLast.status === 'discharging', `BattA status = ${aLast.status}`);
+    t.assertOK(bLast.status === 'discharging', `BattB status = ${bLast.status}`);
+  });
+
+  test('630: Multi-battery — one depleted, other compensates', t => {
+    // BattA SOC=0 (empty), BattB SOC=0.9. Only B discharges.
+    t.clearScene();
+    const battA = t.place('battery', 0, 0, {
+      peakPower_kW: 10, capacity_J: 36000000, initialSOC: 0
+    });
+    const battB = t.place('battery', 0, 4, {
+      peakPower_kW: 5, capacity_J: 18000000, initialSOC: 0.9
+    });
+    const hub = t.place('power_hub', 4, 0);
+    const cons = t.place('sink_electrical', 8, 0, { ratedPower_kW: 3, powerPriority: 1 });
+    const dump = t.place('sink_electrical', 4, -4, { ratedPower_kW: 50, powerPriority: 3 });
+    t.wire(battA, 'elec', hub, 'elec_in');
+    t.wire(battB, 'elec', hub, 'elec_in');
+    t.wire(hub, 'elec_out', cons, 'elec_in');
+    t.wire(hub, 'elec_surplus', dump, 'elec_in');
+    t.solve();
+
+    const aLast = t.last(battA);
+    const bLast = t.last(battB);
+    t.assertClose(aLast.maxDischarge_W, 0, 1, 'BattA maxDischarge = 0 (empty)');
+    t.assertOK(bLast.discharge_W > 2500, `BattB discharges ${bLast.discharge_W.toFixed(0)} W`);
+    t.assertOK(aLast.status === 'idle', `BattA status = ${aLast.status}`);
+  });
+
+  test('631: Multi-battery — proportional charge from solar surplus', t => {
+    // Solar 20 kW, demand 3 kW → surplus 17 kW.
+    // BattA (10kWh, SOC=0.2, peak 8kW) and BattB (5kWh, SOC=0.3, peak 4kW).
+    // Both should charge proportionally.
+    t.clearScene();
+    const origPreset = SimSettings._activePreset;
+    SimSettings._activePreset = 'planet_x'; SimSettings._applyPreset();
+    SimSettings._diurnalCache = { t: -1, result: null };
+
+    const solar = t.place('solar_panel', 0, 0, { peakPower_kW: 20 });
+    const battA = t.place('battery', 0, 4, {
+      peakPower_kW: 8, capacity_J: 36000000, initialSOC: 0.2
+    });
+    const battB = t.place('battery', 0, 8, {
+      peakPower_kW: 4, capacity_J: 18000000, initialSOC: 0.3
+    });
+    const hub = t.place('power_hub', 4, 0);
+    const cons = t.place('sink_electrical', 8, 0, { ratedPower_kW: 3, powerPriority: 1 });
+    const dump = t.place('sink_electrical', 4, -4, { ratedPower_kW: 50, powerPriority: 3 });
+    t.wire(solar, 'elec_out', hub, 'elec_in');
+    t.wire(battA, 'elec', hub, 'elec_in');
+    t.wire(battB, 'elec', hub, 'elec_in');
+    t.wire(hub, 'elec_out', cons, 'elec_in');
+    t.wire(hub, 'elec_surplus', dump, 'elec_in');
+    t.solve();
+
+    const aLast = t.last(battA);
+    const bLast = t.last(battB);
+    const hLast = t.last(hub);
+    // Both should be charging (netPower < 0)
+    t.assertOK(aLast.status === 'charging', `BattA status = ${aLast.status}`);
+    t.assertOK(bLast.status === 'charging', `BattB status = ${bLast.status}`);
+    // Total charge should equal batteryCharge_W from hub
+    t.assertOK(hLast.batteryCharge_W > 0, `Hub batteryCharge = ${hLast.batteryCharge_W.toFixed(0)} W`);
+    // Charge is proportional to maxCharge_W
+    const totalMaxCharge = aLast.maxCharge_W + bLast.maxCharge_W;
+    if (totalMaxCharge > 0) {
+      const aExpectedShare = aLast.maxCharge_W / totalMaxCharge;
+      const aActualShare = aLast.charge_W / (aLast.charge_W + bLast.charge_W);
+      t.assertClose(aActualShare, aExpectedShare, 0.05, `BattA charge share ≈ ${(aExpectedShare*100).toFixed(0)}%`);
+    }
+
+    SimSettings._activePreset = origPreset; SimSettings._applyPreset();
+    SimSettings._diurnalCache = { t: -1, result: null };
+  });
+
+  test('632: Direct connection — battery to single consumer, no hub', t => {
+    // Battery directly powering a sink_electrical (Step D path)
+    t.clearScene();
+    const batt = t.place('battery', 0, 0, {
+      peakPower_kW: 5, capacity_J: 36000000, initialSOC: 0.8
+    });
+    const cons = t.place('sink_electrical', 4, 0, { ratedPower_kW: 3, powerPriority: 1 });
+    t.wire(batt, 'elec', cons, 'elec_in');
+    t.solve();
+
+    const bLast = t.last(batt);
+    const cLast = t.last(cons);
+    // Battery should supply 3 kW (Step D direct path)
+    t.assertOK(bLast.netPower_W > 2500, `Battery net = ${bLast.netPower_W.toFixed(0)} W`);
+    t.assertClose(cLast.absorbed_W, 3000, 100, 'Consumer absorbs 3 kW');
+  });
+
+  test('633: Direct connection — battery curtails when demand > capacity', t => {
+    // Battery 2kW peak, consumer wants 5kW → curtailed to 2kW
+    t.clearScene();
+    const batt = t.place('battery', 0, 0, {
+      peakPower_kW: 2, capacity_J: 36000000, initialSOC: 0.8
+    });
+    const cons = t.place('sink_electrical', 4, 0, { ratedPower_kW: 5, powerPriority: 1 });
+    t.wire(batt, 'elec', cons, 'elec_in');
+    t.solve();
+
+    const cLast = t.last(cons);
+    // Consumer gets at most 2 kW (battery peak)
+    t.assertOK(cLast.absorbed_W <= 2000 + 1, `Consumer absorbed ${cLast.absorbed_W.toFixed(0)} W ≤ 2 kW`);
+  });
+
+  test('634: Direct connection — grid_supply to pump (material consumer)', t => {
+    // Pump powered directly by grid_supply, no hub
+    t.clearScene();
+    const src = t.place('source', 0, 0, { species: 'H2O', nDot: 0.1, T: 293, P: 101325, phaseConstraint: 'L' });
+    const pump = t.place('pump', 4, 0, { Pout: 200000, eta: 0.75, powerPriority: 1 });
+    const snk = t.place('sink', 8, 0);
+    const grid = t.place('grid_supply', 4, -4, { maxPower: 5 });
+    t.wire(src, 'mat_out', pump, 'mat_in');
+    t.wire(pump, 'mat_out', snk, 'mat_in');
+    t.wire(grid, 'elec_out', pump, 'elec_in');
+    t.solve();
+
+    const pLast = t.last(pump);
+    const out = t.port(pump, 'mat_out');
+    t.assertOK(out.P > 150000, `Pump outlet P = ${out.P.toFixed(0)} Pa > 150 kPa`);
+    t.assertOK(pLast.W_shaft > 0, `Shaft power = ${pLast.W_shaft?.toFixed(2)} W`);
+    t.assertOK(!pLast.error, 'No error on pump');
+  });
+
+  test('635: Direct connection — grid_supply too small → pump curtailed', t => {
+    // Grid 0.001 kW = 1 W. Pump needs more → curtailed output
+    t.clearScene();
+    const src = t.place('source', 0, 0, { species: 'H2O', nDot: 1, T: 293, P: 101325, phaseConstraint: 'L' });
+    const pump = t.place('pump', 4, 0, { Pout: 500000, eta: 0.75, powerPriority: 1 });
+    const snk = t.place('sink', 8, 0);
+    const grid = t.place('grid_supply', 4, -4, { maxPower: 0.001 }); // 1 W
+    t.wire(src, 'mat_out', pump, 'mat_in');
+    t.wire(pump, 'mat_out', snk, 'mat_in');
+    t.wire(grid, 'elec_out', pump, 'elec_in');
+    t.solve();
+
+    const pLast = t.last(pump);
+    // Pump should still work but at reduced pressure (power-limited)
+    t.assertOK(pLast.curtailed === true, 'Pump reports curtailed');
+    // Output should still have some pressure above inlet
+    const out = t.port(pump, 'mat_out');
+    t.assertOK(out.P > 101325, `Outlet P = ${out.P.toFixed(0)} > atmospheric`);
+  });
+
+  test('636: Mixed sources — solar + wind + grid + battery all on one hub', t => {
+    // Noon on planet_x: solar ≈ 20kW, wind at default ≈ some output
+    // Grid 5 kW responsive, battery 3 kW peak.
+    // Consumer 8 kW at P1. Should be fully served from combination.
+    t.clearScene();
+    const origPreset = SimSettings._activePreset;
+    SimSettings._activePreset = 'planet_x'; SimSettings._applyPreset();
+    SimSettings._diurnalCache = { t: -1, result: null };
+
+    const solar = t.place('solar_panel', 0, 0, { peakPower_kW: 20 });
+    const wind = t.place('wind_turbine', 0, 4, { peakPower_kW: 10, vDesign_ms: 12 });
+    const grid = t.place('grid_supply', 0, 8, { maxPower: 5 });
+    const batt = t.place('battery', 0, 12, {
+      peakPower_kW: 3, capacity_J: 18000000, initialSOC: 0.5
+    });
+    const hub = t.place('power_hub', 6, 4);
+    const cons = t.place('sink_electrical', 10, 4, { ratedPower_kW: 8, powerPriority: 1 });
+    const dump = t.place('sink_electrical', 6, -2, { ratedPower_kW: 50, powerPriority: 3 });
+    t.wire(solar, 'elec_out', hub, 'elec_in');
+    t.wire(wind, 'elec_out', hub, 'elec_in');
+    t.wire(grid, 'elec_out', hub, 'elec_in');
+    t.wire(batt, 'elec', hub, 'elec_in');
+    t.wire(hub, 'elec_out', cons, 'elec_in');
+    t.wire(hub, 'elec_surplus', dump, 'elec_in');
+    t.solve();
+
+    const hLast = t.last(hub);
+    const solarLast = t.last(solar);
+    const windLast = t.last(wind);
+    const gridLast = t.last(grid);
+    const battLast = t.last(batt);
+
+    // Solar output > 0 (noon)
+    t.assertOK(solarLast.output_W > 0, `Solar output = ${(solarLast.output_W/1000).toFixed(1)} kW`);
+    // Hub classifies: solar + wind as physicsFixed, grid as responsive, battery as SOC
+    t.assertClose(hLast.physicsFixed_W, solarLast.output_W + windLast.output_W, 100,
+      `physicsFixed = solar + wind (${(hLast.physicsFixed_W/1000).toFixed(1)} kW)`);
+    t.assertClose(hLast.responsiveMax_W, 5000, 100, 'responsiveMax = 5 kW (grid)');
+    // Consumer fully served (lots of power available at noon)
+    const alloc = hLast.consumerAllocation?.[cons];
+    t.assertClose(alloc.allocated_W, 8000, 1, 'Consumer fully served (8 kW)');
+    // If physicsFixed > demand, surplus exists, battery should be charging
+    if (hLast.physicsFixed_W > 8000) {
+      t.assertOK(hLast.surplus_W > 0, `Surplus = ${(hLast.surplus_W/1000).toFixed(1)} kW`);
+      // Battery should be charging or idle (surplus absorbed)
+      t.assertOK(battLast.status === 'charging' || battLast.status === 'idle',
+        `Battery status = ${battLast.status} (expected charging/idle)`);
+    }
+
+    SimSettings._activePreset = origPreset; SimSettings._applyPreset();
+    SimSettings._diurnalCache = { t: -1, result: null };
+  });
+
+  test('637: Micro-power — pump at 0.01 mol/s water (sub-watt shaft power)', t => {
+    // Tiny flow → sub-watt shaft power. Verify no clamping to 0.
+    t.clearScene();
+    const src = t.place('source', 0, 0, { species: 'H2O', nDot: 0.01, T: 293, P: 101325, phaseConstraint: 'L' });
+    const pump = t.place('pump', 4, 0, { Pout: 200000, eta: 0.75, powerPriority: 1 });
+    const snk = t.place('sink', 8, 0);
+    const grid = t.place('grid_supply', 4, -4, { maxPower: 1 }); // 1 kW — plenty
+    t.wire(src, 'mat_out', pump, 'mat_in');
+    t.wire(pump, 'mat_out', snk, 'mat_in');
+    t.wire(grid, 'elec_out', pump, 'elec_in');
+    t.solve();
+
+    const pLast = t.last(pump);
+    const out = t.port(pump, 'mat_out');
+    // Should work — shaft power will be milliwatts
+    t.assertOK(pLast.W_shaft > 0, `Shaft power = ${pLast.W_shaft?.toFixed(4)} W (> 0)`);
+    t.assertOK(pLast.W_shaft < 1, `Shaft power = ${pLast.W_shaft?.toFixed(4)} W (< 1 W)`);
+    t.assertClose(out.P, 200000, 1000, 'Outlet at target pressure');
+    t.assertOK(!pLast.curtailed, 'Not curtailed (plenty of power)');
+    t.assertOK(!pLast.error, 'No error message');
+  });
+
+  test('638: Micro-power — compressor at tiny flow (milliwatt regime)', t => {
+    // Very small gas flow → milliwatt shaft power
+    t.clearScene();
+    const src = t.place('source', 0, 0, { species: 'N2', nDot: 0.001, T: 300, P: 101325, phaseConstraint: 'V' });
+    const comp = t.place('compressor', 4, 0, { Pout: 200000, eta: 0.8, powerPriority: 1 });
+    const snk = t.place('sink', 8, 0);
+    const grid = t.place('grid_supply', 4, -4, { maxPower: 1 }); // 1 kW
+    t.wire(src, 'mat_out', comp, 'mat_in');
+    t.wire(comp, 'mat_out', snk, 'mat_in');
+    t.wire(grid, 'elec_out', comp, 'elec_in');
+    t.solve();
+
+    const cLast = t.last(comp);
+    const out = t.port(comp, 'mat_out');
+    t.assertOK(cLast.W_shaft > 0, `Shaft power = ${cLast.W_shaft?.toFixed(4)} W (> 0)`);
+    t.assertOK(cLast.W_shaft < 10, `Shaft power = ${cLast.W_shaft?.toFixed(4)} W (< 10 W)`);
+    t.assertClose(out.P, 200000, 5000, 'Outlet near target pressure');
+    t.assertOK(!cLast.error, 'No error message');
   });
 
   // ═══════════════════════════════════════════════════════════════════════
