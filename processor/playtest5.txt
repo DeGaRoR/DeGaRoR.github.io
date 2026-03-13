@@ -1,0 +1,9 @@
+playtest 5
+BUilt the full condensator + electrolyzer.
+
+Massive maas balance issues, especially since the recycle introduction hot watr tank overflow back to cold water tank
+I have seen H2O at 130C in liquid phase at the outlet of the heat exchangers
+I have seen liquid water represented as gas at the liquid outlet of the tank
+Rates at the outlet of electrolyzer are doubtful, looks like ony H2O rate is reported
+All open tanks should have 50% opening default
+Electrolyzer animation is wrong

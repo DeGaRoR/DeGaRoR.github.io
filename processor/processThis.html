@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v17.3.4
+  processThis v17.4.0
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -346,6 +346,53 @@
   ═══════════════════════════════════════════════════════════════════════════
   CHANGELOG  (latest first)
   ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v17.4.0 — NNG-1 mass balance fixes + simple_mixer ─────────────────
+
+  Three independent NNG-1 violations discovered via playtest save file
+  analysis (8 PT3 saves + TestGeyserSep).  All caused mass destruction
+  that the balance report either miscounted or failed to prevent.
+
+  **Bug 1: Balance report ordering.**  `computeSystemBalance` computed
+  `massBalance = totalMassIn - totalMassOut` BEFORE the accumulation
+  loop added open_tank vented gas to `totalMassOut`.  The stale
+  `massBalance` inflated the residual by exactly the vented amount.
+  Fix: moved `massBalance` computation to after the accumulation loop.
+
+  **Bug 2a: Bypass routing to unconnected ports.**  `_applyBypass`
+  routed `mat_in → liq_out` (per `_BYPASS_PATHS`) without checking
+  `portConnected()`.  A fried open_tank with unconnected `liq_out`
+  destroyed mass silently.  Fix: `_applyBypass` now receives `unitCtx`,
+  checks connectivity, zeros unconnected outputs, and pushes
+  `_blockedInlet` to trigger source-killing post-pass.
+
+  **Bug 2b: Post-pass inventory branch blocking.**  The backward trace
+  stopped at inventory units (`if (fDef.inventory) return []`) before
+  checking for multi-output branch blocking.  An inventory unit
+  (open_tank overflow → mixer check valve) could leak mass because
+  the blocked branch was never recorded.  Fix: multi-output check now
+  runs BEFORE the inventory stop, so inventory vessels participate in
+  `blockedSplitterBranches`.  open_tank and sealed tank ticks now read
+  `ctx.blockedBranches()` and zero blocked ports (mass accumulates in
+  tank — level rises, physically correct).
+
+  **Known latent gap (Class 3):**  Non-inventory multi-output units
+  (flash_drum, hex, reactor_electrochemical, membrane_separator,
+  distillation_column) do not yet read `blockedBranches()`.  If one
+  output branch blocks in a pressure-enabled scenario, the post-pass
+  records it but the tick keeps producing flow on that branch.  This
+  cannot occur in the pressure-disabled early game (no check valves).
+  Flagged for future hardening.
+
+  **New defId: simple_mixer.**  Pressure-disabled mixer for early game.
+  Same physical topology (2-in, 1-out, adiabatic merge) but NO
+  check-valve logic.  P_out = min(P_in) as metadata only.  Mass and
+  energy balance exact by construction.  Profile, template, limits,
+  presentations, _NO_GAUGE, bypass all registered.
+
+  NNGs: NNG-1 (conservation — 3 independent fixes), NNG-4 (pressure
+  network — inventory branch blocking), NNG-14 (changelog).
+  Tests: 612 total (6 new), 0 failures.
 
   ─── v17.3.4 — Reactor scale-back, HEX fix, lateral pipe clipping ────────
 
@@ -16193,12 +16240,19 @@ UnitRegistry.register('tank', {
     const P_tank = state.P_Pa;
 
     // 2. Gas draw (from vapor phase) — per-connection CV [S-FANOUT]
+    // [v17.x NNG-1] Read downstream blockage from post-pass.
+    const _blocked = ctx.blockedBranches();
+    const gasBlocked = _blocked ? _blocked.has('gas_out') : false;
+    const liqBlocked = _blocked ? _blocked.has('liq_out') : false;
+    const ventBlocked = _blocked ? _blocked.has('vent') : false;
+    const ovBlocked  = _blocked ? _blocked.has('overflow') : false;
+
     const gasConns = ctx.outConns('gas_out');
     let Q_gas = 0;
     const n_V_total = state.n_V ? Object.values(state.n_V).reduce((a,b) => a+b, 0) : 0;
     const hasVapor = n_V_total > 1e-15;
 
-    if (gasConns.length > 0 && hasVapor) {
+    if (gasConns.length > 0 && hasVapor && !gasBlocked) {
       const MW_V = _inventoryMW(state.n_V);
       const SG_V = (P_tank * MW_V) / (8.314 * inv.T_K * 1.225);
       const Cv_gas = par.Cv_gas || 50;
@@ -16287,7 +16341,7 @@ UnitRegistry.register('tank', {
     const n_L_total = state.n_L ? Object.values(state.n_L).reduce((a,b) => a+b, 0) : 0;
     const hasLiquid = n_L_total > 1e-15;
 
-    if (liqConns.length > 0 && hasLiquid) {
+    if (liqConns.length > 0 && hasLiquid && !liqBlocked) {
       const rho_L = thermo.density
         ? thermo.density(Object.keys(state.n_L)[0], inv.T_K, P_tank, 'L')
         : 1000;
@@ -16375,7 +16429,7 @@ UnitRegistry.register('tank', {
     // Hysteresis: opens at P_relief, closes at P_relief × 0.98
     // [v16.9.1] Read previous iteration state from ctx.scratch._prevLast (was u.last — NNG-9 violation)
     const _ventWasActive = ctx.scratch._prevLast?._ventActive || false;
-    const _ventActive = ventConnected && (P_tank > P_relief || (_ventWasActive && P_tank > P_relief * 0.98));
+    const _ventActive = ventConnected && !ventBlocked && (P_tank > P_relief || (_ventWasActive && P_tank > P_relief * 0.98));
     if (!ventConnected && P_tank > P_relief) {
       // [v16.9.1] No relief valve installed — overpressure cannot be relieved
       ctx.warn({
@@ -16427,7 +16481,7 @@ UnitRegistry.register('tank', {
     // Hysteresis: opens at overflow_lvl, closes at overflow_lvl - 2%
     // [v16.9.1] Read previous iteration state from ctx.scratch._prevLast (was u.last — NNG-9 violation)
     const _ovWasActive = ctx.scratch._prevLast?._overflowActive || false;
-    const _ovActive = ovConnected && (state.level_pct > overflow_lvl || (_ovWasActive && state.level_pct > overflow_lvl - K_HYSTERESIS_PCT));
+    const _ovActive = ovConnected && !ovBlocked && (state.level_pct > overflow_lvl || (_ovWasActive && state.level_pct > overflow_lvl - K_HYSTERESIS_PCT));
     if (_ovActive) {
       const n_L_total = Object.values(state.n_L || {})
         .reduce((a,b) => a+b, 0);
@@ -16640,11 +16694,18 @@ UnitRegistry.register('open_tank', {
 
     // 3. Liquid draw via Cv valve — per-connection CV [S-FANOUT]
     // [v16.4.0] Hydrostatic head: open tanks drain by gravity
+    // [v17.x NNG-1] Downstream blockage: post-pass records blocked ports in
+    // blockedBranches.  If liq_out or overflow is blocked, zero that port and
+    // let mass accumulate in the tank (level rises).
+    const _blocked = ctx.blockedBranches();
+    const liqBlocked = _blocked ? _blocked.has('liq_out') : false;
+    const ovBlocked  = _blocked ? _blocked.has('overflow') : false;
+
     const g_mps2 = atm.g || 9.81;
     const H_tank = Math.cbrt(4 * V / Math.PI); // cylinder H ≈ D assumption
     const liqConns = ctx.outConns('liq_out');
     let Q_liq = 0;
-    if (liqConns.length > 0 && n_total > 1e-15) {
+    if (liqConns.length > 0 && n_total > 1e-15 && !liqBlocked) {
       const sp0 = Object.keys(inv.n).find(sp => inv.n[sp] > 1e-15);
       const rho_L = sp0 && thermo.density
         ? thermo.density(sp0, inv.T_K, P_atm, 'L') : 1000;
@@ -16719,7 +16780,7 @@ UnitRegistry.register('open_tank', {
     // Hysteresis: opens at overflow_lvl, closes at overflow_lvl - 2%
     // [v16.9.1] Read previous iteration state from ctx.scratch._prevLast (was u.last — NNG-9 violation)
     const _otOvWasActive = ctx.scratch._prevLast?._overflowActive || false;
-    const _otOvActive = ovConnected && n_total > 1e-15 &&
+    const _otOvActive = ovConnected && !ovBlocked && n_total > 1e-15 &&
       (level_pct > overflow_lvl || (_otOvWasActive && level_pct > overflow_lvl - K_HYSTERESIS_PCT));
     if (_otOvActive) {
       Q_overflow = K_OVERFLOW_BASE * V * Math.max(0, level_pct - overflow_lvl);
@@ -19441,6 +19502,97 @@ UnitRegistry.register('mixer', {
   }
 });
 
+// ─── [v17.x] Simple Mixer — pressure-disabled set for early game ────────────
+// Same physical topology as mixer (2-in, 1-out, adiabatic merge) but with
+// NO check-valve logic.  P_out = min(P_in) as metadata only — pressure never
+// drives flow decisions.  Mass and energy balance exact by construction.
+// Intended for early missions where pressure gameplay is not yet relevant.
+// Fry guards: same limitParams/limits as mixer (material constraints are real).
+UnitRegistry.register('simple_mixer', {
+  name: 'Simple Mixer',
+  category: UnitCategories.TOPOLOGY,
+  w: 2,
+  h: 2,
+  ports: [
+    { portId: 'mat_in_1', dir: PortDir.IN, type: StreamType.MATERIAL, x: 0, y: 0 },
+    { portId: 'mat_in_2', dir: PortDir.IN, type: StreamType.MATERIAL, x: 0, y: 2 },
+    { portId: 'mat_out', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 1 }
+  ],
+  presentations: {
+    'box/default':     { w: 2, h: 2, ports: { mat_in_1: {x:0,y:0}, mat_in_2: {x:0,y:2}, mat_out:{x:2,y:1} }, icon: 'ico-mixer' },
+    'box/mirror':      { w: 2, h: 2, ports: { mat_in_1: {x:2,y:0}, mat_in_2: {x:2,y:2}, mat_out:{x:0,y:1} }, icon: 'ico-mixer' },
+    'box/recycle-T':   { w: 2, h: 2, ports: { mat_in_1: {x:0,y:1}, mat_in_2: {x:1,y:0}, mat_out:{x:2,y:1} }, icon: 'ico-mixer--top' },
+    'box/recycle-B':   { w: 2, h: 2, ports: { mat_in_1: {x:0,y:1}, mat_in_2: {x:1,y:2}, mat_out:{x:2,y:1} }, icon: 'ico-mixer--top' }
+  },
+  limitParams: ['T_LL', 'T_L', 'T_H', 'T_HH', 'P_LL', 'P_L', 'P_H', 'P_HH', 'mass_HH'],
+  limits: { S: { T_LL: 243, T_L: 263, T_H: 623, T_HH: 723, P_LL: 20000, P_L: 50000, P_H: 12000000, P_HH: 15000000, mass_HH: 0.25 } },
+  tick(u, ports, par, ctx) {
+    const s1 = ports.mat_in_1;
+    const s2 = ports.mat_in_2;
+
+    if (!s1 && !s2) return;
+
+    const EMPTY_STREAM = { type: StreamType.MATERIAL, T: 298.15, P: 101325, n: {} };
+    const eff1 = s1 || EMPTY_STREAM;
+    const eff2 = s2 || EMPTY_STREAM;
+
+    // ── No check-valve logic — both inlets always accepted ──
+
+    // ── Pressure: minimum of inlets that have real data (metadata only) ──
+    const pressures = [];
+    if (eff1 !== EMPTY_STREAM && eff1.P > 0) pressures.push(eff1.P);
+    if (eff2 !== EMPTY_STREAM && eff2.P > 0) pressures.push(eff2.P);
+    const P_out = pressures.length > 0 ? Math.min(...pressures) : 101325;
+
+    // ── Molar balance: merge compositions ──
+    const n_out = {};
+    for (const [comp, n] of Object.entries(eff1.n || {})) {
+      n_out[comp] = (n_out[comp] || 0) + n;
+    }
+    for (const [comp, n] of Object.entries(eff2.n || {})) {
+      n_out[comp] = (n_out[comp] || 0) + n;
+    }
+    for (const comp in n_out) {
+      if (n_out[comp] < 0) n_out[comp] = 0;
+    }
+
+    const nTotal = Object.values(n_out).reduce((a, b) => a + b, 0);
+
+    if (nTotal < 1e-15) {
+      ports.mat_out = {
+        type: StreamType.MATERIAL, T: 298.15, P: P_out,
+        n: {}, phaseConstraint: 'VL'
+      };
+      u.last = { warning: 'All inlets are empty — zero total flow' };
+      return;
+    }
+
+    // ── Energy balance: adiabatic mixer (Q = 0, W = 0) ──
+    const hasFlow1 = eff1 !== EMPTY_STREAM && Object.values(eff1.n || {}).some(v => v > 0);
+    const hasFlow2 = eff2 !== EMPTY_STREAM && Object.values(eff2.n || {}).some(v => v > 0);
+    const H_in1 = hasFlow1 ? thermo.getHdot_Jps(eff1) : 0;
+    const H_in2 = hasFlow2 ? thermo.getHdot_Jps(eff2) : 0;
+    const H_out_Jps = H_in1 + H_in2;
+
+    ports.mat_out = {
+      type: StreamType.MATERIAL,
+      P: P_out,
+      n: n_out,
+      phaseConstraint: 'VL',
+      H_target_Jps: H_out_Jps
+    };
+
+    u.last = {
+      P_out: P_out,
+      nTotal: nTotal,
+      H_in1_kW: (H_in1 / 1000).toFixed(2),
+      H_in2_kW: (H_in2 / 1000).toFixed(2),
+      H_out_kW: (H_out_Jps / 1000).toFixed(2),
+      nComponents: Object.keys(n_out).length
+    };
+  }
+});
+
 // Splitter - Stream splitter (1 inlet to 2 outlets, no component separation)
 // Flow Divider — Active flow divider (enforces set ratio)
 // Equipment: Active flow divider — enforces set ratio
@@ -21294,6 +21446,18 @@ ProfileRegistry.register('mixer', {
   operatingNote: "Outlet takes the lower inlet pressure. If one inlet has much lower pressure, its check valve closes. Both inlets blocked = full upstream blockage.",
   modelNote: "Adiabatic: H_out = ΣH_in. P_out = min(P_in) − ΔP_mix. Per-inlet check valve on pressure.",
 });
+// [v17.x] Simple Mixer — pressure-disabled variant for early game
+ProfileRegistry.register('simple_mixer', {
+  defId: 'simple_mixer', name: 'Simple Mixer', category: UnitCategories.TOPOLOGY, tiers: [1],
+  description: 'Joins two pipes into one',
+  selectionGuide: 'Everything that flows in gets blended together. No pressure tricks — just merges.',
+  limits: {
+    1: { T_LL: 243, T_L: 263, T_H: 623, T_HH: 723, P_LL: 20000, P_L: 50000, P_H: 12000000, P_HH: 15000000, mass_HH: 0.25 },
+  },
+  equipmentNote: "Pipe tee or static mixer. No check valves.",
+  operatingNote: "All inlets merge unconditionally. Outlet takes the lower inlet pressure as metadata. No backflow protection.",
+  modelNote: "Adiabatic: H_out = ΣH_in. P_out = min(P_in). No check valve.",
+});
 ProfileRegistry.register('splitter', {
   defId: 'splitter', name: 'Splitter', category: UnitCategories.TOPOLOGY, tiers: [1],
   description: 'Splits one pipe into two',
@@ -21477,6 +21641,7 @@ ProfileRegistry.register('bio_mixer', {
   _tpl('air_cooler_tpl',         'air_cooler',            'Air Cooler',            UnitCategories.HEAT_TRANSFER);
   _tpl('hex_tpl',                'hex',                   'Heat Exchanger',        UnitCategories.HEAT_EXCHANGER);
   _tpl('mixer_tpl',              'mixer',                 'Mixer',                 UnitCategories.TOPOLOGY);
+  _tpl('simple_mixer_tpl',       'simple_mixer',          'Simple Mixer',          UnitCategories.TOPOLOGY);
   _tpl('splitter_tpl',           'splitter',              'Splitter',              UnitCategories.TOPOLOGY);
   _tpl('flash_drum_tpl',         'flash_drum',            'Flash Drum',            UnitCategories.SEPARATOR);
   _tpl('distillation_column_tpl','distillation_column',   'Distillation Column',   UnitCategories.SEPARATOR);
@@ -21936,7 +22101,7 @@ class Scene {
         'out1': 'mat_out_1', 'out2': 'mat_out_2',
         'mat_out_D': 'dist_out', 'mat_out_B': 'bot_out'
       };
-      const matOut = new Set(['source','source_multi','source_air','source_atm','valve','restriction','mixer']);
+      const matOut = new Set(['source','source_multi','source_air','source_atm','valve','restriction','mixer','simple_mixer']);
       const matIn = new Set(['sink','valve','restriction','splitter']);
       const elOut = new Set(['grid_supply']);
       const elIn = new Set(['sink_electrical']);
@@ -23302,17 +23467,26 @@ const _BYPASS_PATHS = {
  * Apply bypass mode: primary mat_in → mat_out passthrough.  Zero power demand.
  * Mass conserved (NNG-1).  No work done (NNG-2: T/P/H unchanged).
  */
-function _applyBypass(u, def, ud, inPorts) {
+function _applyBypass(u, def, ud, inPorts, unitCtx) {
   u.powerDemand = 0;
   ud.powerDemand = 0;
 
   const paths = _BYPASS_PATHS[u.defId];
 
+  // [v17.x] NNG-1 fix: bypass must check output port connectivity.
+  // If the output port has no downstream connection, flow cannot exit —
+  // zero the output and mark the inlet as blocked so the solver post-pass
+  // kills the upstream source.  Without this, mass leaks into the void.
+  const _portConn = unitCtx ? ((pid) => unitCtx.portConnected(pid)) : (() => true);
+
   if (paths !== undefined) {
     // ── Explicit mapping ──
     for (const path of paths) {
       const sIn = inPorts[path.in];
-      if (sIn && sIn.n && Object.values(sIn.n).reduce((a, b) => a + b, 0) > 1e-15) {
+      const hasFlow = sIn && sIn.n && Object.values(sIn.n).reduce((a, b) => a + b, 0) > 1e-15;
+      const outConnected = _portConn(path.out);
+
+      if (hasFlow && outConnected) {
         ud.ports[path.out] = {
           type: StreamType.MATERIAL,
           T: sIn.T, P: sIn.P,
@@ -23322,6 +23496,15 @@ function _applyBypass(u, def, ud, inPorts) {
           Hdot_J_s: sIn.Hdot_J_s,
           phaseConstraint: sIn.phaseConstraint || 'VL',
         };
+      } else if (hasFlow && !outConnected) {
+        // Output not connected — zero output and block inlet for source-killing
+        ud.ports[path.out] = {
+          type: StreamType.MATERIAL, T: sIn.T || 298.15, P: sIn.P || 101325,
+          n: {}, phase: 'V', beta: 1, vaporFraction: 1, Hdot_J_s: 0,
+        };
+        ud.errors.push({ severity: ErrorSeverity.MINOR,
+          message: `Bypass: output ${path.out} not connected — inlet ${path.in} blocked`,
+          _blockedInlet: path.in });
       } else if (sIn) {
         ud.ports[path.out] = {
           type: StreamType.MATERIAL, T: sIn.T || 298.15, P: sIn.P || 101325,
@@ -23335,7 +23518,10 @@ function _applyBypass(u, def, ud, inPorts) {
     const matOut = def.ports.find(p => p.dir === PortDir.OUT && p.type === StreamType.MATERIAL);
     if (matIn && matOut) {
       const sIn = inPorts[matIn.portId];
-      if (sIn && sIn.n && Object.values(sIn.n).reduce((a, b) => a + b, 0) > 1e-15) {
+      const hasFlow = sIn && sIn.n && Object.values(sIn.n).reduce((a, b) => a + b, 0) > 1e-15;
+      const outConnected = _portConn(matOut.portId);
+
+      if (hasFlow && outConnected) {
         ud.ports[matOut.portId] = {
           type: StreamType.MATERIAL,
           T: sIn.T, P: sIn.P,
@@ -23345,10 +23531,18 @@ function _applyBypass(u, def, ud, inPorts) {
           Hdot_J_s: sIn.Hdot_J_s,
           phaseConstraint: sIn.phaseConstraint || 'VL',
         };
+      } else if (hasFlow && !outConnected) {
+        ud.ports[matOut.portId] = {
+          type: StreamType.MATERIAL, T: sIn.T || 298.15, P: sIn.P || 101325,
+          n: {}, phase: 'V', beta: 1, vaporFraction: 1, Hdot_J_s: 0,
+        };
+        ud.errors.push({ severity: ErrorSeverity.MINOR,
+          message: `Bypass: output ${matOut.portId} not connected — inlet ${matIn.portId} blocked`,
+          _blockedInlet: matIn.portId });
       }
     }
     // ── Mixer bypass: secondary inlets blocked ──
-    if (u.defId === 'mixer') {
+    if (u.defId === 'mixer' || u.defId === 'simple_mixer') {
       const matIns = def.ports.filter(p => p.dir === PortDir.IN && p.type === StreamType.MATERIAL);
       for (let i = 1; i < matIns.length; i++) {
         const sSecondary = inPorts[matIns[i].portId];
@@ -23720,7 +23914,7 @@ function solveScene(scene, options = {}) {
       // Fried override: hardware destruction forces bypass regardless of player mode.
       const effectiveMode = u.fried ? 'bypass' : (u.mode || 'on');
       if (effectiveMode === 'bypass') {
-        _applyBypass(u, def, ud, inPorts);
+        _applyBypass(u, def, ud, inPorts, unitCtx);
         if (portsChanged(oldPortsSnap, ud.ports)) changed = true;
         continue;
       }
@@ -24012,9 +24206,10 @@ function solveScene(scene, options = {}) {
           if (!fDef) return [];
           const dirs = new Set(fDef.ports.map(p => p.dir));
           if (dirs.size === 1 && dirs.has(PortDir.OUT)) return [fId];
-          if (fDef.inventory) return [];
-          // Multi material-output unit (splitter): record which output branch
-          // is blocked so the splitter can redistribute flow on next iteration.
+          // [v17.x] Multi material-output unit (splitter, inventory vessel):
+          // record which output branch is blocked.  Splitters redistribute flow
+          // to unblocked branches; inventory units zero the blocked port and
+          // absorb mass (level rises).  Both read ctx.blockedBranches().
           // [v14.8.0 S-SPLIT] Replaces the old "stop trace" that caused NNG-1 violation.
           const matOuts = fDef.ports.filter(p => p.dir === PortDir.OUT && p.type === StreamType.MATERIAL);
           if (matOuts.length > 1) {
@@ -24025,10 +24220,12 @@ function solveScene(scene, options = {}) {
             const branches = blockedSplitterBranches.get(fId);
             if (!branches.has(blockedPort)) {
               branches.add(blockedPort);
-              changed = true;  // new branch block → re-iterate so splitter redistributes
+              changed = true;  // new branch block → re-iterate
             }
-            return [];  // don't trace further — splitter handles redistribution
+            return [];  // don't trace further — unit handles it internally
           }
+          // Inventory unit with ≤1 material output: absorbs by design
+          if (fDef.inventory) return [];
           const matIns = fDef.ports.filter(p => p.dir === PortDir.IN && p.type === StreamType.MATERIAL);
           const found = [];
           for (const ip of matIns) found.push(...traceBack(fId, ip.portId, visited));
@@ -25019,8 +25216,8 @@ function computeSystemBalance(scene) {
     }
   }
 
-  const massBalance = totalMassIn - totalMassOut;
-  const massTol = Math.max(totalMassIn, totalMassOut) * 1e-4 + 1e-10;
+  // [v17.x] massBalance computed AFTER accumulation loop — open_tank vented gas
+  // adds to totalMassOut inside that loop, so computing here would be stale.
 
   // [v12.4.0] Ambient heat rejection — air_cooler rejects heat to environment.
   // This energy leaves the system boundary without a port; tracked via u.last.Q_rejected_W.
@@ -25087,6 +25284,11 @@ function computeSystemBalance(scene) {
       if (Math.abs(accumRate) > 0.01) { accumulation.energy_W += accumRate; accumulation.items.push({ name: uName, type: 'battery_energy', value_kgps: 0, value_W: accumRate }); }
     }
   }
+
+  // [v17.x] Compute massBalance AFTER the accumulation loop — open_tank vented
+  // gas is added to totalMassOut inside the loop above.  Previously this was
+  // computed before the loop, causing vented mass to inflate the residual.
+  const massBalance = totalMassIn - totalMassOut;
 
   const massResidual = massBalance - accumulation.mass_kgps;
   const energyResidual = energyBalance - accumulation.energy_W;
@@ -28180,7 +28382,7 @@ function _rtTempGauge(g, cx, cy, unitId) {
     stroke:needleCol, 'stroke-width':1.2, 'stroke-linecap':'round', 'pointer-events':'none' }));
 }
 // Units that should NOT have temperature gauges (boundary, electrical-only, no T data)
-const _NO_GAUGE = new Set(['source','source_atm','sink','sink_electrical','grid_supply','solar_panel','wind_turbine','battery','power_hub','reservoir','atmosphere','mixer','splitter','restriction','valve','closed_loop_source']);
+const _NO_GAUGE = new Set(['source','source_atm','sink','sink_electrical','grid_supply','solar_panel','wind_turbine','battery','power_hub','reservoir','atmosphere','mixer','simple_mixer','splitter','restriction','valve','closed_loop_source']);
 // Master instrument placer — LED bottom-left, nameplate top-right, gauge top-left
 function _rtInstruments(g, wx, wy, defId, unitId) {
   const bb = _BODY_BBOX[defId];
@@ -30024,6 +30226,8 @@ const _RAGTAG_SYMBOLS = {
 };
 // [v17.0.1] Atmosphere uses source_atm bell-mouth icon (wind streaks + louvers)
 _RAGTAG_SYMBOLS.atmosphere = _RAGTAG_SYMBOLS.source_atm;
+// [v17.4.0] simple_mixer reuses mixer icon (same physical topology, no visual distinction needed)
+_RAGTAG_SYMBOLS.simple_mixer = _RAGTAG_SYMBOLS.mixer;
 
 // [v17.0.4] Power Dispatcher T1 — 5+5 explicit ports with visual feedback
 _RAGTAG_SYMBOLS.power_dispatcher_5 = function(g, wx, wy, ww, wh, pal, def, unitId) {
@@ -54950,6 +55154,100 @@ function runTests() {
     t.assertOK(validModes.includes('arrows'), 'arrows is valid mode');
     t.assertOK(validModes.includes('particles'), 'particles is valid mode');
     t.assertOK(!validModes.includes('off'), 'off is not a valid mode');
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // v17.4.0 — simple_mixer + NNG-1 regression tests
+  // ═══════════════════════════════════════════════════════════════════════
+
+  test('607: simple_mixer — registration and profile exist', t => {
+    const def = UnitRegistry.get('simple_mixer');
+    t.assertOK(!!def, 'simple_mixer defId registered');
+    t.assertOK(def.ports.length === 3, '3 ports (2 in + 1 out)');
+    t.assertOK(def.limitParams.includes('T_HH'), 'has fry guard T_HH');
+    const prof = ProfileRegistry.get('simple_mixer');
+    t.assertOK(!!prof, 'simple_mixer profile registered');
+    t.assertOK(prof.defId === 'simple_mixer', 'profile defId matches');
+  });
+
+  test('608: simple_mixer — basic merge, mass conserved', t => {
+    const src1 = t.place('source', 0, 0, { species: 'H2O', nDot: 0.5, T: 300, P: 101325, phaseConstraint: 'V' });
+    const src2 = t.place('source', 0, 2, { species: 'N2', nDot: 0.3, T: 350, P: 101325, phaseConstraint: 'V' });
+    const mix = t.place('simple_mixer', 4, 1);
+    const snk = t.place('sink', 8, 1);
+    t.wire(src1, 'mat_out', mix, 'mat_in_1');
+    t.wire(src2, 'mat_out', mix, 'mat_in_2');
+    t.wire(mix, 'mat_out', snk, 'mat_in');
+    t.solve();
+    const ud = t.ud(mix);
+    const outN = ud.ports.mat_out?.n || {};
+    t.assertClose(outN.H2O || 0, 0.5, 1e-6, 'H2O = 0.5 mol/s');
+    t.assertClose(outN.N2 || 0, 0.3, 1e-6, 'N2 = 0.3 mol/s');
+    t.assertOK(ud.ports.mat_out.P === 101325, 'P_out = min(Pin) = 101325');
+  });
+
+  test('609: simple_mixer — pressure mismatch, NO check valve, both merge', t => {
+    // Two inlets at very different pressures — simple_mixer merges both
+    const src1 = t.place('source', 0, 0, { species: 'H2O', nDot: 0.5, T: 300, P: 200000, phaseConstraint: 'V' });
+    const src2 = t.place('source', 0, 2, { species: 'N2', nDot: 0.3, T: 300, P: 100000, phaseConstraint: 'V' });
+    const mix = t.place('simple_mixer', 4, 1);
+    const snk = t.place('sink', 8, 1);
+    t.wire(src1, 'mat_out', mix, 'mat_in_1');
+    t.wire(src2, 'mat_out', mix, 'mat_in_2');
+    t.wire(mix, 'mat_out', snk, 'mat_in');
+    t.solve();
+    const ud = t.ud(mix);
+    const outN = ud.ports.mat_out?.n || {};
+    // Both species present — no check valve fired
+    t.assertClose(outN.H2O || 0, 0.5, 1e-6, 'H2O = 0.5 (not zeroed)');
+    t.assertClose(outN.N2 || 0, 0.3, 1e-6, 'N2 = 0.3 (not zeroed)');
+    t.assertOK(ud.ports.mat_out.P === 100000, 'P_out = min = 100000');
+    // No _blockedInlet error
+    const blocked = ud.errors?.find(e => e._blockedInlet);
+    t.assertOK(!blocked, 'no _blockedInlet error — no check valve');
+  });
+
+  test('610: simple_mixer — single inlet, other null', t => {
+    const src = t.place('source', 0, 0, { species: 'CH4', nDot: 1.0, T: 400, P: 300000, phaseConstraint: 'V' });
+    const mix = t.place('simple_mixer', 4, 1);
+    const snk = t.place('sink', 8, 1);
+    t.wire(src, 'mat_out', mix, 'mat_in_1');
+    t.wire(mix, 'mat_out', snk, 'mat_in');
+    t.solve();
+    const outN = t.ud(mix).ports.mat_out?.n || {};
+    t.assertClose(outN.CH4 || 0, 1.0, 1e-6, 'CH4 passthrough');
+  });
+
+  test('611: NNG-1 regression — bypass unconnected port zeros output', t => {
+    // open_tank with liq_out unconnected, fried → bypass must zero liq_out
+    const src = t.place('source', 0, 0, { species: 'H2O', nDot: 0.1, T: 300, P: 101325, phaseConstraint: 'L' });
+    const otk = t.place('open_tank', 4, 0, { volume_m3: 0.15, opening_liq_pct: 50, level_init: 50, initialComposition: { H2O: 1 } });
+    const ovSnk = t.place('sink', 4, 4);
+    t.wire(src, 'mat_out', otk, 'mat_in');
+    t.wire(otk, 'overflow', ovSnk, 'mat_in');
+    // liq_out deliberately NOT connected
+    // Fry the tank
+    scene.units.get(otk).fried = true;
+    t.solve();
+    const ud = t.ud(otk);
+    const liqN = ud.ports?.liq_out?.n || {};
+    const liqTotal = Object.values(liqN).reduce((a,b) => a+b, 0);
+    t.assertClose(liqTotal, 0, 1e-12, 'liq_out zeroed (unconnected + bypassed)');
+  });
+
+  test('612: NNG-1 regression — balance report vented gas not double-counted', t => {
+    // Open tank with inlet flow — vented gas should appear in massOut
+    // but NOT inflate the residual
+    const src = t.place('source', 0, 0, { species: 'H2O', nDot: 0.1, T: 380, P: 101325, phaseConstraint: 'V' });
+    const otk = t.place('open_tank', 4, 0, { volume_m3: 0.15, opening_liq_pct: 50, level_init: 10, initialComposition: { H2O: 1 } });
+    const snk = t.place('sink', 8, 1);
+    t.wire(src, 'mat_out', otk, 'mat_in');
+    t.wire(otk, 'liq_out', snk, 'mat_in');
+    t.solve();
+    const bal = computeSystemBalance(scene);
+    // Residual must be near zero — vented gas counted once, not double
+    const relRes = bal.mass.totalIn > 0 ? Math.abs(bal.mass.residual / bal.mass.totalIn) : 0;
+    t.assertOK(relRes < 0.01, 'mass residual < 1% (' + (relRes*100).toFixed(2) + '%)');
   });
 
   // ═══════════════════════════════════════════════════════════════════════
