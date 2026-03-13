@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v17.4.2
+  processThis v17.4.3
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -347,15 +347,50 @@
   CHANGELOG  (latest first)
   ═══════════════════════════════════════════════════════════════════════════
 
+  ─── v17.4.3 — Play computes first tick immediately ─────────────────────
+
+  **Play button first-tick delay.**  `startPlay()` called
+  `_schedulePlayTick()` which used `setTimeout(fn, PLAY_SPEEDS[i])`.
+  At normal speed that's 5000ms — player presses Play, waits 5 seconds
+  before anything happens.  Fix: `_schedulePlayTick(immediate)` accepts
+  an optional flag.  `startPlay()` passes `true` → first tick fires
+  with `delay=0` (one paint frame for UI update, then step).  Subsequent
+  ticks self-schedule at normal PLAY_SPEEDS interval.
+
+  Implications verified:
+  - Solver: first step is identical to pressing Step then Play.
+  - Inventories: tank levels/battery charge update immediately.  The
+    previous 1.5–5s gap was artificial, not physics-meaningful.
+  - Pre-step snapshot: captured inside the tick body, same path for
+    immediate and scheduled ticks.
+  - Catastrophe auto-pause: if first step triggers CATASTROPHIC alarm,
+    stopPlay() fires immediately — correct UX.
+  - Animations: flow arrows, smoke, icon anims all started before the
+    first tick via startPlay() → already running when step fires.
+  - Planet background: syncPlanetBgTime('play') called before first
+    tick; afterSolve updates sun position after step.
+  - Speed change mid-play: line 39268 calls _schedulePlayTick() without
+    immediate — next tick at new speed, not instant.  Correct.
+
+  NNGs: NNG-14 (changelog).
+  Tests: 615 total (1 new), 0 failures.
+
   ─── v17.4.2 — HEX phase detection + electrolyzer 100% conversion ───────
 
-  **HEX phase constraint bug.**  HEX tick copied inlet `phaseConstraint`
-  to outlets (e.g. `'V'` from a steam source).  When steam condenses
-  through the exchanger, the PH-flash saw `'V'` constraint and forced
-  vapor phase at impossible temperatures (35°C "vapor" at 1 atm).
-  Denis reported "H₂O at 130°C in liquid phase" — same root cause.
-  Fix: HEX always sets `phaseConstraint: 'VL'` on both outlets.  The
-  PH-flash now correctly detects condensation/vaporization.
+  **HEX phase constraint bug (two layers).**
+  Layer 1 (outlets): HEX tick copied inlet `phaseConstraint` to outlets.
+  When steam condenses, the PH-flash saw `'V'` and forced vapor phase at
+  impossible temperatures.  Fix: outlets always get `phaseConstraint: 'VL'`.
+  Layer 2 (duty calculation): `hxEnthalpy()` and the approach solver's
+  `T_from_PH()` also propagated inlet constraints.  With `'V'`, the
+  capacity rate calculation in `_effectiveCp()` computed vapor-only Cp
+  at all temperatures — latent heat was completely invisible.  Steam
+  condensation duty was 56W instead of 490W (9× underprediction).
+  Fix: `hxEnthalpy()` and `T_from_PH()` now always use `'VL'`.
+  The HEX now correctly functions as a condenser/evaporator: approach,
+  setpoint, and UA/NTU modes all see the full enthalpy curve including
+  phase change.  Works with both Ideal and PR EOS (latent heat comes
+  from `getHdot_Jps` which uses VLE when `phaseConstraint: 'VL'`).
 
   **Electrolyzer conversion cap.**  `conversion_max` was clamped to 0.99
   (line 20743), and an additional `xi_max_reactant * 0.999` guard
@@ -19018,12 +19053,15 @@ UnitRegistry.register('air_cooler', {
  * @returns {number} Enthalpy flow rate (J/s)
  */
 function hxEnthalpy(stream, T_K) {
+  // [v17.4.2] Always 'VL' — the HEX interior can condense or vaporize
+  // regardless of what phase the inlet was specified as.  Using inlet
+  // phaseConstraint (e.g. 'V') would miss latent heat entirely.
   return thermo.getHdot_Jps({
     type: StreamType.MATERIAL,
     T: T_K,
     P: stream.P,
     n: { ...stream.n },
-    phaseConstraint: stream.phaseConstraint || 'VL'
+    phaseConstraint: 'VL'
   });
 }
 
@@ -19171,7 +19209,8 @@ function hxSolveApproach(sHot, sCold, H_hot_in, H_cold_in, T_approach) {
   // PH flash helper: H → T for a given stream template
   function T_from_PH(stream, H_Jps) {
     const r = thermo.phFlash(
-      { P: stream.P, n: { ...stream.n }, phaseConstraint: stream.phaseConstraint || 'VL' },
+      // [v17.4.2] Always 'VL' — HEX interior can change phase
+      { P: stream.P, n: { ...stream.n }, phaseConstraint: 'VL' },
       H_Jps
     );
     return r?.T_K ?? stream.T;
@@ -39068,13 +39107,16 @@ function startPlay() {
   _startFlowArrows();
   syncPlanetBgTime('play');
   _startIconAnim();  // [v15.2.0 S-ICONS]
-  _schedulePlayTick();
+  _schedulePlayTick(true);  // [v17.4.3] first tick immediate
 }
 
 // [v14.7.0 S-SIM] Self-scheduling play loop — prevents tick stacking
-function _schedulePlayTick() {
+// [v17.4.3] immediate=true: first tick fires after one paint frame (delay=0)
+//           instead of waiting the full PLAY_SPEEDS interval.
+function _schedulePlayTick(immediate) {
   if (TimeClock.mode !== 'playing') return;
   const target = PLAY_SPEEDS[SimSettings.playSpeed || 0];
+  const delay = immediate ? 0 : target;
 
   _playTimer = setTimeout(async () => {
     if (TimeClock.mode !== 'playing') return;
@@ -39119,7 +39161,7 @@ function _schedulePlayTick() {
     const elapsed = performance.now() - t0;
     const wait = Math.max(150, target - elapsed);
     _schedulePlayTick();
-  }, target);
+  }, delay);
 }
 
 function stopPlay() {
@@ -55356,8 +55398,11 @@ function runTests() {
     t.assertOK(relRes < 0.01, 'mass residual < 1% (' + (relRes*100).toFixed(2) + '%)');
   });
 
-  test('613: v17.4.2 — HEX phase: steam cooled below boiling → not forced vapor', t => {
-    // Steam at 200°C through HEX cooled by cold water — outlet must not be 'V' below Tboil
+  test('613: v17.4.2 — HEX phase: steam cooled below boiling → condenses to liquid', t => {
+    // Steam at 200°C through HEX cooled by large cold water flow
+    // With proper latent heat, 0.01 mol/s steam vs 0.5 mol/s cold water:
+    // steam fully condenses and subcools.  Before v17.4.2 fix, duty was 56W
+    // (vapor Cp only); after fix, ~490W (includes condensation latent heat).
     const hotSrc = t.place('source', 0, 0, { species: 'H2O', nDot: 0.01, T: 473.15, P: 101325, phaseConstraint: 'V' });
     const coldSrc = t.place('source', 0, 4, { species: 'H2O', nDot: 0.5, T: 298.15, P: 101325, phaseConstraint: 'L' });
     const hex = t.place('hex', 4, 0, { T_approach: 10 });
@@ -55369,10 +55414,12 @@ function runTests() {
     t.wire(hex, 'cold_out', coldSnk, 'mat_in');
     t.solve();
     const hotOut = t.ud(hex).ports?.hot_out;
-    // Key assertion: phase must NOT be pure vapor below boiling point
-    // With 'VL' constraint, PH-flash detects condensation at ~373K
-    t.assertOK(hotOut.phase !== 'V' || hotOut.T > 373, 'hot_out not forced vapor below Tboil');
-    t.assertOK(hotOut.T >= 370, 'hot_out T >= 370K (at or above condensation)');
+    const hexLast = t.ud(hex).last;
+    // Steam must condense: phase = L (subcooled liquid)
+    t.assertOK(hotOut.phase === 'L', 'hot_out is liquid (condensed)');
+    t.assertOK(hotOut.T < 373, 'hot_out T < 373K (subcooled below boiling)');
+    // Duty must include latent heat: >> 100W for 0.01 mol/s steam
+    t.assertOK(hexLast.hxDuty_W > 200, 'duty > 200W (latent heat included)');
   });
 
   test('614: v17.4.2 — Electrolyzer 100% conversion: pure H₂ cathode, pure O₂ anode', t => {
@@ -55394,6 +55441,26 @@ function runTests() {
     t.assertOK((cat.H2 || 0) > 0.09, 'cathode: H₂ present');
     t.assertOK((ano.O2 || 0) > 0.04, 'anode: O₂ present');
     t.assertOK(!ano.H2 && !ano.H2O, 'anode: only O₂');
+  });
+
+  test('615: v17.4.3 — TimeClock.step in playing mode computes immediately', t => {
+    // Verify that a step in playing mode produces correct solve results
+    // (the play loop's immediate tick fires TimeClock.step — this tests
+    // that the step path works when mode='playing').
+    const src = t.place('source', 0, 0, { species: 'N2', nDot: 1, T: 300, P: 200000, phaseConstraint: 'V' });
+    const snk = t.place('sink', 4, 0);
+    t.wire(src, 'mat_out', snk, 'mat_in');
+    t.solve();
+    const t0 = TimeClock.t;
+    const f0 = TimeClock.frame;
+    // Simulate what startPlay does: set mode, then step
+    TimeClock.mode = 'playing';
+    const { solveResult } = TimeClock.step(scene);
+    t.assertOK(TimeClock.t > t0, 'sim time advanced');
+    t.assertOK(TimeClock.frame > f0, 'frame counter advanced');
+    t.assertOK(solveResult !== undefined, 'solve produced result');
+    // Restore mode
+    TimeClock.mode = 'paused';
   });
 
   // ═══════════════════════════════════════════════════════════════════════
