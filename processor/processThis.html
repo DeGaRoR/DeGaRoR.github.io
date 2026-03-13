@@ -377,6 +377,20 @@
   what is a reasonable min."  Now: T_setpoint auto-clamped to T_amb.
   Air cooler cools as close to ambient as its NTU model can achieve.
 
+  **Auto-names match palette.**  Units placed from palette got names
+  from `UnitRegistry.def.name` (e.g. "Electrochemical Reactor 16")
+  instead of the profile name the player saw in the palette (e.g.
+  "Electrolyzer 16").  Now: profile name used when available.
+
+  **Power display auto-scales.**  `fmt.kW()` always showed kW with 2
+  decimals — pumps at 0.03W displayed "0.00 kW".  Denis: "I don't
+  want to see 0."  Now: ≥1000W → kW, 1–999W → W, <1W → mW.
+
+  **Tank composition in inspector.**  Both sealed tank and open tank
+  detail sections now show a "Composition" block with species sorted
+  by abundance, showing mol% and absolute moles.  Previously only
+  showed raw mol counts without percentages.
+
   NNGs: NNG-3 (WYSIWYG — LED reflects state), NNG-14 (changelog).
   Tests: 615 total, 0 failures.
 
@@ -25309,7 +25323,15 @@ function streamMass_kgps(stream) {
 
 // [v10.3.0] Format helpers — moved to engine for headless test access
 const fmt = {
-  kW:  (W) => W == null || isNaN(W) ? '—' : `${(W/1000).toFixed(2)}<span class="u">kW</span>`,
+  // [v17.4.4] Auto-scale power display: kW above 1000W, W above 1W, mW below
+  kW:  (W) => {
+    if (W == null || isNaN(W)) return '—';
+    const a = Math.abs(W);
+    if (a >= 1000) return `${(W/1000).toFixed(2)}<span class="u">kW</span>`;
+    if (a >= 1) return `${W.toFixed(1)}<span class="u">W</span>`;
+    if (a >= 0.001) return `${(W*1000).toFixed(1)}<span class="u">mW</span>`;
+    return `0<span class="u">W</span>`;
+  },
   W:   (W) => W == null || isNaN(W) ? '—' : `${W.toFixed(1)}<span class="u">W</span>`,
   pct: (v) => v == null || isNaN(v) ? '—' : `${(v*100).toFixed(1)}<span class="u">%</span>`,
   pctRaw: (v) => v == null || isNaN(v) ? '—' : `${v.toFixed(1)}<span class="u">%</span>`,
@@ -34311,10 +34333,16 @@ UnitInspector.tank = {
     if (!ud?.last) return [];
     const items = [];
 
-    // Species inventory
+    // Species inventory with composition [v17.4.4]
     if (ud.last.n) {
-      for (const [sp, mol] of Object.entries(ud.last.n)) {
-        if (mol > 1e-6) items.push({ label: sp, value: fmt.mol(mol) });
+      const _totalN = ud.last.totalMol || Object.values(ud.last.n).reduce((a,b) => a+b, 0);
+      const _entries = Object.entries(ud.last.n).filter(([,mol]) => mol > 1e-6).sort((a,b) => b[1] - a[1]);
+      if (_entries.length > 0) {
+        items.push({ label: '── Composition ──', value: '', tone: 'dim' });
+        for (const [sp, mol] of _entries) {
+          const pct = _totalN > 0 ? (mol / _totalN * 100) : 0;
+          items.push({ label: sp, value: `${pct.toFixed(1)}%<span class="propUnit"> (${mol.toFixed(1)} mol)</span>` });
+        }
       }
     }
 
@@ -34427,10 +34455,16 @@ UnitInspector.open_tank = {
     if (!ud?.last) return [];
     const items = [];
 
-    // Species inventory
+    // Species inventory with composition [v17.4.4]
     if (ud.last.n) {
-      for (const [sp, mol] of Object.entries(ud.last.n)) {
-        if (mol > 1e-6) items.push({ label: sp, value: fmt.mol(mol) });
+      const _totalN = ud.last.totalMol || Object.values(ud.last.n).reduce((a,b) => a+b, 0);
+      const _entries = Object.entries(ud.last.n).filter(([,mol]) => mol > 1e-6).sort((a,b) => b[1] - a[1]);
+      if (_entries.length > 0) {
+        items.push({ label: '── Composition ──', value: '', tone: 'dim' });
+        for (const [sp, mol] of _entries) {
+          const pct = _totalN > 0 ? (mol / _totalN * 100) : 0;
+          items.push({ label: sp, value: `${pct.toFixed(1)}%<span class="propUnit"> (${mol.toFixed(1)} mol)</span>` });
+        }
       }
     }
 
@@ -37168,8 +37202,12 @@ svg.addEventListener('drop', (ev) => {
   if (_droppedUnit) {
     _droppedUnit.profileId = ui.dragProfileId || defId;
     _droppedUnit.tier = ui.dragTier || 1;
-    // Apply tier-specific defaults if profile defines them
+    // [v17.4.4] Auto-name from profile name (matches palette label)
     const _dropProfile = ProfileRegistry.get(_droppedUnit.profileId);
+    if (_dropProfile?.name) {
+      _droppedUnit.name = `${_dropProfile.name} ${scene._idCounter}`;
+    }
+    // Apply tier-specific defaults if profile defines them
     if (_dropProfile?.defaults?.[_droppedUnit.tier]) {
       _droppedUnit.params = { ..._droppedUnit.params, ..._dropProfile.defaults[_droppedUnit.tier] };
     }
