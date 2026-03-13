@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v17.5.1
+  processThis v17.5.2
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -347,6 +347,48 @@
   CHANGELOG  (latest first)
   ═══════════════════════════════════════════════════════════════════════════
 
+  ─── v17.5.2 — simple_open_tank (Open Barrel + Open Tank) ────────────────
+
+  **New defId: `simple_open_tank`.**  Pressure-disabled open liquid
+  storage for early game.  Rate-based draw replaces Cv/ΔP:
+  `Q = min(drawRate × opening_pct/100, n_available/dt)`.
+  No gravity, no hydrostatic head, no pressure trace.
+
+  Three ports: mat_in (IN), mat_out (OUT, liquid), overflow (OUT,
+  connected-only).  Tc heuristic vapor stripping (same as open_tank —
+  permanent gases escape to atmosphere).  Overflow with hysteresis
+  (K_OVERFLOW_BASE model, connected-only — unconnected → MAJOR alarm).
+  Blocked branch reading via ctx.blockedBranches().
+
+  **Two profiles:**
+  - **Open Barrel** (T1, 100L, polypropylene): T_HH 353K (80°C),
+    drawRate 0.3 mol/s.  profileId: `simple_open_barrel`.
+  - **Open Tank** (T2, 500L, stainless steel): T_HH 473K (200°C),
+    drawRate 1.0 mol/s.  profileId: `simple_open_tank`.
+  Both `pressureClass: 'simple'`.
+
+  **Infrastructure:** _NO_GAUGE, _BYPASS_PATHS (mat_in→mat_out),
+  _PARTICLE_BEHAVIORS (null — opaque), _BODY_BBOX, _UNIT_VIEWPORT,
+  matOut migration set, ragtag icon (aliased to open_tank for now),
+  template profile, computeSystemBalance vented gas accounting.
+
+  **Inspector:** customParams (drawRate slider, opening slider, overflow
+  level), conditions (T, P, Q out), kpis (fill bar, content, status),
+  detail (composition, inlet/outlet/vented rates, net rate,
+  time-to-empty/full, overflow indicator).
+
+  NNGs: NNG-1 (mass balance — vented gas boundary), NNG-14 (changelog).
+  Tests: 646 total (8 new: T639-T646), 0 failures.
+
+  T639: Registration, profiles, 2 tiers, pressureClass.
+  T640: Fill + level computation from initInventory.
+  T641: Draw at 50% opening — Q = drawRate × 0.5.
+  T642: Draw capped at inventory (nearly empty tank).
+  T643: Overflow at high level (connected port, K_OVERFLOW model).
+  T644: Tc heuristic venting — H₂ fed into H₂O tank → vented.
+  T645: Unconnected mat_out → zero flow, no mass leak.
+  T646: Mass balance over timestep — residual < 1%.
+
   ─── v17.5.1 — Pressure class infrastructure ────────────────────────────
 
   **Three pressure classes.**  Every profile now carries a
@@ -362,10 +404,15 @@
   - neutral (all others — ~20 profiles): sources, sinks, solar, wind,
     battery, hubs, reactors, hex, air_cooler, heater, splitter, etc.
 
-  **Palette filter.**  `SimSettings.pressureNetworkEnabled` (default:
-  false) gates palette visibility.  When false, profiles with
-  `pressureClass: 'network'` are hidden (except in Dev tab).  Missions
-  1–4 keep this false; mission 5+ sets true to unlock pressure equipment.
+  **Palette switch.**  Two-button toggle at the top of the palette:
+  ⚪ Simple (default) and 🔵 Pressure.  Simple mode hides all
+  `pressureClass: 'network'` profiles.  Pressure mode shows everything
+  (superset — simple units remain valid in pressure scenarios).  Dev tab
+  ignores the switch and shows all profiles.  Switch state persists via
+  layout export/import (LAYOUT_DEFAULTS + gatherLayout + applyLayout).
+
+  `SimSettings.pressureNetworkEnabled` retained for future mission
+  system use (can force-set `ui.palettePressureMode` on mission load).
 
   **Air Intake (Simple) un-deprecated.**  `source_atmosphere` profile
   (defId: `source_atm`) restored to palette.  Pressure-disabled nDot-
@@ -5829,6 +5876,12 @@
     .paletteDrawer .pal-tile .pal-tier.t2 { background:#334155; color:#e2e8f0; }
     .paletteDrawer .pal-tile .pal-tier.t3 { background:#422006; color:#fbbf24; }
     .paletteDrawer .pal-filter { display:flex; gap:4px; padding:6px 10px; border-bottom:1px solid #1e293b; }
+    .paletteDrawer .pal-mode-switch { display:flex; align-items:center; gap:0; padding:4px 10px; border-bottom:1px solid #1e293b; }
+    .paletteDrawer .pal-mode-btn { font-size:10px; font-weight:700; padding:3px 10px; border:1px solid #334155; background:transparent; color:#64748b; cursor:pointer; transition: all 0.12s; }
+    .paletteDrawer .pal-mode-btn:first-child { border-radius:4px 0 0 4px; border-right:none; }
+    .paletteDrawer .pal-mode-btn:last-child { border-radius:0 4px 4px 0; }
+    .paletteDrawer .pal-mode-btn.active-simple { background:#1a3329; border-color:#22c55e; color:#4ade80; }
+    .paletteDrawer .pal-mode-btn.active-network { background:#1e293b; border-color:#3b82f6; color:#60a5fa; }
     .paletteDrawer .pal-filter-btn { font-size:10px; font-weight:700; padding:3px 8px; border-radius:4px; border:1px solid #334155; background:transparent; color:#94a3b8; cursor:pointer; }
     .paletteDrawer .pal-filter-btn:hover { border-color:#475569; color:#e2e8f0; }
     .paletteDrawer .pal-filter-btn.active { background:#1e3a5f; border-color:#3b82f6; color:#60a5fa; }
@@ -9607,6 +9660,10 @@
         <span style="font-size:12px; font-weight:700; opacity:0.7;">Add Unit</span>
         <button class="pal-close" id="palClose" title="Close palette (/)">×</button>
       </div>
+      <div class="pal-mode-switch" id="palModeSwitch">
+        <button class="pal-mode-btn active-simple" data-pmode="simple">⚪ Simple</button>
+        <button class="pal-mode-btn" data-pmode="network">🔵 Pressure</button>
+      </div>
       <div class="pal-filter" id="palFilter">
         <button class="pal-filter-btn" data-tier="dev">Dev</button>
         <button class="pal-filter-btn active" data-tier="all">All</button>
@@ -10275,6 +10332,7 @@ const LAYOUT_DEFAULTS = Object.freeze({
   inspectorOpen:         true,
   inspectorWidth:        360,
   paletteOpen:           false,
+  palettePressureMode:   'simple',        // [v17.5.1] 'simple' | 'network'
   showFlanges:           true,          // [v15.4.0] bolted flange visuals on material ports
   flowMode:              'particles',    // [v17.0.0 S-FLOW] 'arrows' | 'particles'
   theme:                 'ragtag',        // [v15.2.0 S-ICONS] 'box' | 'engineering' | 'ragtag'
@@ -17113,7 +17171,261 @@ UnitRegistry.register('open_tank', {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// RESERVOIR — Inexhaustible supply vessel [v14.1.0]
+// SIMPLE OPEN TANK — Rate-based liquid storage vessel [v17.5.2]
+// ═══════════════════════════════════════════════════════════════════════════════
+//
+// ┌─────────────────────────────────────────────────────────────────────────────┐
+// │ Pressure-disabled open tank for early game. Single mat_out port.          │
+// │ Draw: Q = min(drawRate × opening_pct/100, n_available/dt).               │
+// │ No Cv, no gravity, no pressure trace. Tc heuristic strips gases.         │
+// │ Overflow at level threshold (connected-only, same as open_tank).         │
+// │ Fry: T_HH (material failure), level_HH (structural overfill).           │
+// │                                                                           │
+// │ Ports: mat_in (IN), mat_out (OUT, liquid), overflow (OUT, connected-only) │
+// │ Profiles: Open Barrel (100L, T1, PP), Open Tank (500L, T2, SS)           │
+// └─────────────────────────────────────────────────────────────────────────────┘
+UnitRegistry.register('simple_open_tank', {
+  name: 'Simple Open Tank',
+  category: UnitCategories.VESSEL,
+  w: 2,
+  h: 2,
+  optionalPorts: true,
+  ports: [
+    { portId: 'mat_in',   dir: PortDir.IN,  type: StreamType.MATERIAL, x: 0, y: 1, label: 'in' },
+    { portId: 'mat_out',  dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 1, label: 'out' },
+    { portId: 'overflow', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 1, y: 2, label: 'ovfl' }
+  ],
+  presentations: {
+    'box/default': { w: 2, h: 2, ports: {
+      mat_in:{x:0,y:1}, mat_out:{x:2,y:1}, overflow:{x:1,y:2}
+    }},
+    'box/mirror':  { w: 2, h: 2, ports: {
+      mat_in:{x:2,y:1}, mat_out:{x:0,y:1}, overflow:{x:1,y:2}
+    }}
+  },
+  limitParams: ['T_LL', 'T_L', 'T_H', 'T_HH', 'level_H', 'level_HH'],
+  limits: {
+    // Tier limits defined on profiles. DefId carries no tier-specific defaults.
+    S: { T_LL: 243, T_L: 273, T_H: 333, T_HH: 353, level_H: 90, level_HH: 100 }
+  },
+  inventory: true,
+
+  initInventory(par) {
+    const atm = SimSettings.getAtmosphere();
+    const V = par.volume_m3 || 0.1;
+    const T = par.T_init ?? atm.T_K;
+    const comp = par.initialComposition || { H2O: 1.0 };
+
+    const total = Object.values(comp).reduce((a, b) => a + b, 0);
+    const fracs = {};
+    if (total < 1e-30) { for (const sp of Object.keys(comp)) fracs[sp] = 0; }
+    else { for (const [sp, f] of Object.entries(comp)) fracs[sp] = f / total; }
+
+    const n = {};
+    const level = par.level_init ?? 0;
+    if (level > 0) {
+      const V_liq = (level / 100) * V;
+      for (const [sp, frac] of Object.entries(fracs)) {
+        const cd = ComponentRegistry.get(sp);
+        const rho = cd?.rhoLiq || 1000;
+        const MW_kg = (cd?.MW || 18) / 1000;
+        n[sp] = frac * V_liq * rho / MW_kg;
+      }
+    }
+    return { n, T_K: T };
+  },
+
+  updateInventory(inventory, resolvedPorts, dt) {
+    const inv = { ...inventory, n: { ...inventory.n } };
+    const inFlow  = resolvedPorts.mat_in?.n || {};
+    const outFlow = resolvedPorts.mat_out?.n || {};
+    const ovFlow  = resolvedPorts.overflow?.n || {};
+
+    const allSp = new Set([
+      ...Object.keys(inv.n), ...Object.keys(inFlow),
+      ...Object.keys(outFlow), ...Object.keys(ovFlow)
+    ]);
+
+    for (const sp of allSp) {
+      const cur = inv.n[sp] || 0;
+      const inN = (inFlow[sp] || 0) * dt;
+      const outN = ((outFlow[sp]||0) + (ovFlow[sp]||0)) * dt;
+      inv.n[sp] = Math.max(0, cur + inN - outN);
+    }
+
+    // Tc heuristic vapor stripping — permanent gases escape to atmosphere
+    const vented_n = {};
+    const n_total = Object.values(inv.n).reduce((a,b) => a+b, 0);
+    if (n_total > 1e-15) {
+      for (const sp of Object.keys(inv.n)) {
+        if (inv.n[sp] < 1e-15) continue;
+        const cd = ComponentRegistry.get(sp);
+        if (!cd || inv.T_K >= 0.9 * cd.Tc) {
+          vented_n[sp] = inv.n[sp] / dt;
+          inv.n[sp] = 0;
+        }
+      }
+    }
+    inv._vented_n = vented_n;
+
+    // Adiabatic mixing: mole-weighted T average
+    if (resolvedPorts.mat_in?.T && resolvedPorts.mat_in.n) {
+      const n_in = Object.values(inFlow).reduce((a,b) => a+b, 0) * dt;
+      const n_inv = Object.values(inv.n).reduce((a,b) => a+b, 0);
+      if (n_inv > 0 && n_in > 0) {
+        inv.T_K = (inventory.T_K * (n_inv - n_in) + resolvedPorts.mat_in.T * n_in) / n_inv;
+      }
+    }
+
+    return inv;
+  },
+
+  tick(u, ports, par, ctx) {
+    const V = par.volume_m3 || 0.1;
+    const inv = u.inventory || { n: {}, T_K: ctx.atmosphere.T_K };
+    const dt = ctx.dt;
+    const atm = ctx.atmosphere;
+    const P_atm = atm.P_Pa;
+
+    // 1. Compute liquid volume and level
+    const n_total = Object.values(inv.n).reduce((a,b) => a+b, 0);
+    let V_liq = 0;
+    let level_pct = 0;
+    if (n_total > 1e-15) {
+      for (const [sp, mol] of Object.entries(inv.n)) {
+        if (mol > 1e-15) {
+          const cd = ComponentRegistry.get(sp);
+          const MW_kg = (cd?.MW || 18) / 1000;
+          const rho = (thermo.density ? thermo.density(sp, inv.T_K, P_atm, 'L') : null)
+                    || cd?.rhoLiq || 1000;
+          V_liq += mol * MW_kg / rho;
+        }
+      }
+      level_pct = (V_liq / V) * 100;  // NOT clamped — overfill triggers level_HH
+    }
+
+    // 2. Read vented gas from last updateInventory
+    const vented_n = inv._vented_n || {};
+    const Q_vented = Object.values(vented_n).reduce((a,b) => a+b, 0);
+
+    // 3. Liquid draw — rate-based, no Cv, no gravity
+    const _blocked = ctx.blockedBranches();
+    const outBlocked = _blocked ? _blocked.has('mat_out') : false;
+    const ovBlocked  = _blocked ? _blocked.has('overflow') : false;
+
+    const drawRate = par.drawRate ?? 0.3;  // mol/s (default for barrel)
+    const opening = par.opening_pct ?? 100;
+    const outConnected = ctx.portConnected('mat_out');
+    let Q_liq = 0;
+
+    if (outConnected && !outBlocked && n_total > 1e-15 && opening > 0) {
+      Q_liq = Math.min(drawRate * (opening / 100), n_total / dt);
+      const n_out = {};
+      for (const [sp, amt] of Object.entries(inv.n)) {
+        n_out[sp] = (amt / n_total) * Q_liq;
+      }
+      ports.mat_out = {
+        type: StreamType.MATERIAL,
+        T: inv.T_K, P: P_atm, n: n_out,
+        phase: 'L', phaseConstraint: 'L'
+      };
+    } else {
+      ports.mat_out = {
+        type: StreamType.MATERIAL,
+        T: inv.T_K, P: P_atm, n: {},
+        phase: 'L', phaseConstraint: 'L'
+      };
+    }
+
+    // 4. Overflow (connected-only, same model as open_tank)
+    let Q_overflow = 0;
+    const overflow_lvl = par.overflow_level ?? 90;
+    const ovConnected = ctx.portConnected('overflow');
+    if (!ovConnected && n_total > 1e-15 && level_pct > overflow_lvl) {
+      ctx.warn({
+        severity: ErrorSeverity.MAJOR,
+        message: `Liquid overflow at ${level_pct.toFixed(0)}% — no overflow drain connected `
+          + `(threshold: ${overflow_lvl}%)`
+      });
+    }
+    const _otOvWasActive = ctx.scratch._prevLast?._overflowActive || false;
+    const _otOvActive = ovConnected && !ovBlocked && n_total > 1e-15 &&
+      (level_pct > overflow_lvl || (_otOvWasActive && level_pct > overflow_lvl - K_HYSTERESIS_PCT));
+    if (_otOvActive) {
+      Q_overflow = K_OVERFLOW_BASE * V * Math.max(0, level_pct - overflow_lvl);
+      Q_overflow = Math.min(Q_overflow, n_total / dt);
+      if (Q_overflow > 0) {
+        const ov_n = {};
+        for (const [sp, amt] of Object.entries(inv.n)) {
+          ov_n[sp] = (amt / n_total) * Q_overflow;
+        }
+        ports.overflow = {
+          type: StreamType.MATERIAL,
+          T: inv.T_K, P: P_atm, n: ov_n,
+          phase: 'L', phaseConstraint: 'L'
+        };
+        ctx.warn({
+          severity: ErrorSeverity.MINOR,
+          message: `Overflow active at ${level_pct.toFixed(0)}% `
+            + `(threshold: ${overflow_lvl}%)`
+        });
+      }
+    }
+    if (!ports.overflow) {
+      ports.overflow = { type: StreamType.MATERIAL, T: inv.T_K, P: P_atm, n: {} };
+    }
+
+    // 5. Vented gas warning
+    if (Q_vented > 1e-6) {
+      const specList = Object.entries(vented_n)
+        .filter(([,v]) => v > 1e-6)
+        .map(([sp, v]) => `${sp}: ${v.toFixed(3)}`)
+        .join(', ');
+      ctx.warn({
+        severity: ErrorSeverity.INFO,
+        message: `Venting ${Q_vented.toFixed(3)} mol/s to atmosphere (${specList})`
+      });
+    }
+
+    // 6. Diagnostics
+    let vented_mass_kgps = 0;
+    for (const [sp, mol] of Object.entries(vented_n)) {
+      const cd = ComponentRegistry.get(sp);
+      if (cd) vented_mass_kgps += mol * cd.MW / 1000;
+    }
+
+    const n_max = (() => {
+      const sp0 = Object.keys(inv.n).find(sp => inv.n[sp] > 1e-15) || 'H2O';
+      const cd = ComponentRegistry.get(sp0);
+      const MW_kg = (cd?.MW || 18) / 1000;
+      const rho = cd?.rhoLiq || 1000;
+      return V * rho / MW_kg;
+    })();
+
+    u.last = {
+      ...(u.last || {}),
+      P_Pa: P_atm, P_bar: P_atm / 1e5,
+      T_K: inv.T_K,
+      totalMol: n_total,
+      n: { ...inv.n },
+      n_max,
+      V_m3: V,
+      level_pct,
+      fillPct: level_pct,
+      V_liq_m3: V_liq,
+      Q_liq, Q_overflow, Q_vented,
+      vented_n: { ...vented_n },
+      vented_mass_kgps,
+      _overflowActive: _otOvActive,
+      overflow_status: _otOvActive ? 'ACTIVE' : 'OK',
+      drawRate, opening_pct: opening,
+      status: n_total < 1e-12 ? 'empty'
+            : level_pct >= 100 ? 'full'
+            : Q_liq > 0 || Q_overflow > 0 ? 'active' : 'idle',
+      type: 'simple_open_tank'
+    };
+  }
+});
 // ═══════════════════════════════════════════════════════════════════════════════
 //
 // ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -21514,6 +21826,29 @@ ProfileRegistry.register('open_tank', {
   operatingNote: "Overflow port must be connected. Hot inlet will melt T1 plastic. No pressure buildup — gas vents freely. Liquid draw from bottom via Cv valve; zero flow if empty.",
   modelNote: "Level from molar inventory ÷ liquid density. Outlet flow via Cv equation on hydrostatic head. Overflow with hysteresis ±2%.",
 });
+// [v17.5.2] Simple open tank profiles — pressure-disabled, rate-based draw
+ProfileRegistry.register('simple_open_barrel', {
+  defId: 'simple_open_tank', name: 'Open Barrel', pressureClass: 'simple', category: UnitCategories.VESSEL, tiers: [1],
+  description: 'Salvage drum for liquid storage',
+  selectionGuide: 'A 100L polypropylene barrel. Set the draw rate and opening. Melts above 80°C. No pressure — gas vents freely.',
+  limits: { 1: { T_LL:243, T_L:273, T_H:333, T_HH:353, level_H:90, level_HH:100 } },
+  defaults: { 1: { volume_m3:0.1, drawRate:0.3, opening_pct:100, overflow_level:90,
+                    initialComposition:{H2O:1}, level_init:0 } },
+  equipmentNote: "Polypropylene drum, 100L. Band-ring reinforced.",
+  operatingNote: "Set draw rate and opening %. Connect overflow to prevent overfill. Hot feed (>80°C) will destroy the barrel.",
+  modelNote: "Q = min(drawRate × opening/100, n_available/dt). Tc heuristic vapor stripping. Overflow with hysteresis.",
+});
+ProfileRegistry.register('simple_open_tank', {
+  defId: 'simple_open_tank', name: 'Open Tank', pressureClass: 'simple', category: UnitCategories.VESSEL, tiers: [2],
+  description: 'Stainless steel liquid storage',
+  selectionGuide: 'A 500L stainless steel tank. Handles higher temperatures than the barrel. Same rate-based draw.',
+  limits: { 2: { T_LL:233, T_L:263, T_H:423, T_HH:473, level_H:90, level_HH:100 } },
+  defaults: { 2: { volume_m3:0.5, drawRate:1.0, opening_pct:100, overflow_level:90,
+                    initialComposition:{H2O:1}, level_init:0 } },
+  equipmentNote: "304 stainless steel vessel, 500L. Welded construction with sight glass.",
+  operatingNote: "Handles up to 200°C. Same draw model as the barrel but larger capacity. Connect overflow for safety.",
+  modelNote: "Q = min(drawRate × opening/100, n_available/dt). Tc heuristic vapor stripping. Overflow with hysteresis.",
+});
 ProfileRegistry.register('tank_low_pressure', {
   defId: 'tank', name: 'Closed Tank', pressureClass: 'network', category: UnitCategories.VESSEL, tiers: [1, 2],
   description: 'Sealed container with a safety valve',
@@ -21938,6 +22273,7 @@ ProfileRegistry.register('bio_mixer', {
   _tpl('power_hub_tpl',          'power_hub',             'Power Hub',             UnitCategories.POWER_MANAGEMENT);
   _tpl('tank_tpl',               'tank',                  'Tank',                  UnitCategories.VESSEL);
   _tpl('open_tank_tpl',          'open_tank',             'Open Tank',             UnitCategories.VESSEL);
+  _tpl('simple_open_tank_tpl',  'simple_open_tank',      'Simple Open Tank',      UnitCategories.VESSEL);
   _tpl('reservoir_tpl',          'reservoir',             'Reservoir',             UnitCategories.SOURCE);
   _tpl('restriction_tpl',        'restriction',           'Restriction',           UnitCategories.PRESSURE);
   _tpl('gas_turbine_tpl',        'gas_turbine',           'Gas Turbine',           UnitCategories.PRESSURE);
@@ -22410,7 +22746,7 @@ class Scene {
         'out1': 'mat_out_1', 'out2': 'mat_out_2',
         'mat_out_D': 'dist_out', 'mat_out_B': 'bot_out'
       };
-      const matOut = new Set(['source','source_multi','source_air','source_atm','valve','restriction','mixer','simple_mixer','bend']);
+      const matOut = new Set(['source','source_multi','source_air','source_atm','valve','restriction','mixer','simple_mixer','simple_open_tank','bend']);
       const matIn = new Set(['sink','valve','restriction','splitter']);
       const elOut = new Set(['grid_supply']);
       const elIn = new Set(['sink_electrical']);
@@ -22798,6 +23134,7 @@ class Scene {
         planetBgVisible:       typeof L.planetBgVisible === 'boolean' ? L.planetBgVisible : D.planetBgVisible,
         inspectorWidth:        typeof L.inspectorWidth === 'number' ? Math.max(200, Math.min(800, L.inspectorWidth)) : D.inspectorWidth,
         paletteOpen:           typeof L.paletteOpen === 'boolean' ? L.paletteOpen : D.paletteOpen,
+        palettePressureMode:   ['simple','network'].includes(L.palettePressureMode) ? L.palettePressureMode : D.palettePressureMode,
         theme:                 validThemes.includes(L.theme) ? L.theme : D.theme,
         showFlanges:           typeof L.showFlanges === 'boolean' ? L.showFlanges : D.showFlanges,
         flowMode:              ['arrows','particles'].includes(L.flowMode) ? L.flowMode : D.flowMode,
@@ -23767,6 +24104,7 @@ const _BYPASS_PATHS = {
   distillation_column:  [{ in: 'mat_in', out: 'dist_out' }],
   tank:                 [{ in: 'mat_in', out: 'gas_out' }],
   open_tank:            [{ in: 'mat_in', out: 'liq_out' }],
+  simple_open_tank:     [{ in: 'mat_in', out: 'mat_out' }],
   battery:              [],   // electrical only — no material passthrough
   power_hub:            [],
   sink_electrical:      [],
@@ -25605,6 +25943,22 @@ function computeSystemBalance(scene) {
       const H_in = matIn?.Hdot_J_s ?? 0, H_liq = liqOut?.Hdot_J_s ?? 0, H_ov = overflow?.Hdot_J_s ?? 0;
       if (Math.abs(H_in - H_liq - H_ov) > 0.01) accumulation.energy_W += (H_in - H_liq - H_ov);
     }
+    if (u.defId === 'simple_open_tank') {
+      // Same as open_tank but uses mat_out instead of liq_out
+      const matIn = ud.ports?.mat_in, matOut = ud.ports?.mat_out, overflow = ud.ports?.overflow;
+      const m_in = matIn ? streamMass_kgps(matIn) : 0;
+      const m_out = matOut ? streamMass_kgps(matOut) : 0;
+      const m_ov = overflow ? streamMass_kgps(overflow) : 0;
+      const m_vented = ud.last?.vented_mass_kgps || 0;
+      if (m_vented > 1e-15) {
+        totalMassOut += m_vented;
+        massOutItems.push({ name: uName + ' (vented)', mass_kgps: m_vented, detail: { ...(ud.last?.vented_n || {}) } });
+      }
+      const netMass = m_in - m_out - m_ov - m_vented;
+      if (Math.abs(netMass) > 1e-15) { accumulation.mass_kgps += netMass; accumulation.items.push({ name: uName, type: 'simple_open_tank_mass', value_kgps: netMass, value_W: 0 }); }
+      const H_in = matIn?.Hdot_J_s ?? 0, H_out = matOut?.Hdot_J_s ?? 0, H_ov = overflow?.Hdot_J_s ?? 0;
+      if (Math.abs(H_in - H_out - H_ov) > 0.01) accumulation.energy_W += (H_in - H_out - H_ov);
+    }
     if (u.defId === 'battery') {
       const netPower = ud.ports?.elec?.actual || 0;
       const accumRate = -netPower;
@@ -26442,6 +26796,7 @@ const ui = {
   showUtilities: true,    // [v10.1.1] E7: dim power utility units when false
   showStickers: true, // [v10.7.0] P1: show/hide stickers entirely
   paletteTierFilter: 'all',  // [v13.1.3] 'all' | '1' | '2' | '3'
+  palettePressureMode: 'simple',  // [v17.5.1] 'simple' | 'network'
   // [v12.11.0] Unified visual mapping
   colorBy: 'type',          // 'type' | 'islands' | 'material_electrical' | 'temperature' | 'pressure' | 'phase' | 'composition' | 'flowrate'
   showFlanges: true,       // [v15.4.0] bolted flange visuals on material ports
@@ -26518,6 +26873,7 @@ function gatherLayout() {
     inspectorOpen:         !(document.getElementById('rightPanel')?.style.display === 'none'),
     inspectorWidth:        document.getElementById('rightPanel')?.offsetWidth || LAYOUT_DEFAULTS.inspectorWidth,
     paletteOpen:           document.getElementById('paletteDrawer')?.classList.contains('open') || false,
+    palettePressureMode:   ui.palettePressureMode || LAYOUT_DEFAULTS.palettePressureMode,
     showFlanges:           ui.showFlanges || false,
     flowMode:              ui.flowMode || LAYOUT_DEFAULTS.flowMode,
     theme:                 ui.theme || LAYOUT_DEFAULTS.theme,
@@ -26575,6 +26931,15 @@ function applyLayout(patch) {
   const palOpen = L.paletteOpen ?? D.paletteOpen;
   const palEl = document.getElementById('paletteDrawer');
   if (palEl) palEl.classList.toggle('open', palOpen);
+
+  // [v17.5.1] Restore pressure mode switch state
+  const pMode = L.palettePressureMode ?? D.palettePressureMode;
+  ui.palettePressureMode = pMode;
+  for (const b of document.querySelectorAll('#palModeSwitch .pal-mode-btn')) {
+    const isActive = b.dataset.pmode === pMode;
+    b.classList.toggle('active-simple', isActive && pMode === 'simple');
+    b.classList.toggle('active-network', isActive && pMode === 'network');
+  }
 
   const themeBtn = document.getElementById('btnTheme');
   if (themeBtn) themeBtn.textContent = ui.theme === 'box' ? '📦' : ui.theme === 'ragtag' ? '🔧' : '📐';
@@ -28585,6 +28950,7 @@ const _BODY_BBOX = {
   flash_drum:               { x:22, y:8,  w:44, h:80 },
   tank:                     { x:4,  y:16, w:136, h:64 },
   open_tank:                { x:14, y:14, w:116, h:68 },
+  simple_open_tank:         { x:14, y:14, w:116, h:68 },
   reactor_adiabatic:        { x:10, y:8,  w:76, h:66 },
   reactor_jacketed:         { x:12, y:4,  w:72, h:68 },
   reactor_cooled:           { x:12, y:4,  w:72, h:68 },
@@ -28626,6 +28992,7 @@ const _UNIT_VIEWPORT = {
   // Opaque (null): valve, restriction, splitter, tank, battery, all power/boundary
   // [v17.2.3] Open tank viewport at open top for vent gas particles
   open_tank:                { type: 'rect', x: 20, y: 4, w: 104, h: 18 },
+  simple_open_tank:         { type: 'rect', x: 20, y: 4, w: 104, h: 18 },
 };
 
 // [v16.9.8] Get unit viewport in world coords, or null.
@@ -28709,7 +29076,7 @@ function _rtTempGauge(g, cx, cy, unitId) {
     stroke:needleCol, 'stroke-width':1.2, 'stroke-linecap':'round', 'pointer-events':'none' }));
 }
 // Units that should NOT have temperature gauges (boundary, electrical-only, no T data)
-const _NO_GAUGE = new Set(['source','source_atm','sink','sink_electrical','grid_supply','solar_panel','wind_turbine','battery','power_hub','reservoir','atmosphere','mixer','simple_mixer','bend','splitter','restriction','valve','closed_loop_source']);
+const _NO_GAUGE = new Set(['source','source_atm','sink','sink_electrical','grid_supply','solar_panel','wind_turbine','battery','power_hub','reservoir','atmosphere','mixer','simple_mixer','simple_open_tank','bend','splitter','restriction','valve','closed_loop_source']);
 // Master instrument placer — LED bottom-left, nameplate top-right, gauge top-left
 function _rtInstruments(g, wx, wy, defId, unitId) {
   const bb = _BODY_BBOX[defId];
@@ -30555,6 +30922,7 @@ const _RAGTAG_SYMBOLS = {
 _RAGTAG_SYMBOLS.atmosphere = _RAGTAG_SYMBOLS.source_atm;
 // [v17.4.0] simple_mixer reuses mixer icon (same physical topology, no visual distinction needed)
 _RAGTAG_SYMBOLS.simple_mixer = _RAGTAG_SYMBOLS.mixer;
+_RAGTAG_SYMBOLS.simple_open_tank = _RAGTAG_SYMBOLS.open_tank;
 
 // [v17.5.0] Pipe Bend — 90° bolted elbow
 _RAGTAG_SYMBOLS.bend = function(g, wx, wy, ww, wh, pal, def, unitId) {
@@ -34749,6 +35117,96 @@ UnitInspector.open_tank = {
   }
 };
 
+// [v17.5.2] Simple Open Tank inspector — rate-based draw
+UnitInspector.simple_open_tank = {
+  customParams(container, u) {
+    const V = u.params.volume_m3 || 0.1;
+
+    container.appendChild(el('div', {
+      style: 'font-size:14px; font-weight:700; color:#e2e8f0; padding:2px 0 4px;',
+      html: `${(V * 1000).toFixed(0)} L`
+    }));
+    container.appendChild(el('div', {
+      style: 'font-size:10px; color:#64748b; margin-bottom:6px;',
+      html: `open to atmosphere · rate-based draw`
+    }));
+
+    // ── Draw Rate ──
+    container.appendChild(el('div', { class: 'ins-section-label', html: 'Draw Rate' }));
+    const drawBox = el('div', {});
+    addNumberEditor(drawBox, 'Max draw rate [mol/s]',
+      () => u.params.drawRate ?? 0.3, v => u.params.drawRate = v, 0.01, 3, { min: 0 });
+    addNumberEditor(drawBox, 'Valve opening [%]',
+      () => u.params.opening_pct ?? 100, v => u.params.opening_pct = v, 5, 0, { min: 0, max: 100 });
+    container.appendChild(drawBox);
+
+    // ── Safety ──
+    container.appendChild(el('div', { class: 'ins-section-label', html: 'Safety' }));
+    const safeBox = el('div', {});
+    addNumberEditor(safeBox, 'Overflow level [%]',
+      () => u.params.overflow_level ?? 90, v => u.params.overflow_level = v, 5, 0, { min: 50, max: 100 });
+    container.appendChild(safeBox);
+  },
+  conditions(u, ud) {
+    if (!ud?.last) return [];
+    return [
+      { label: 'T', value: fmt.T(ud.last.T_K) },
+      { label: 'P', value: fmt.P(ud.last.P_Pa) + ' (atm)' },
+      { label: 'Q out', value: fmt.flow(ud.last.Q_liq ?? 0) },
+    ];
+  },
+  kpis(u, ud) {
+    if (!ud.last) return [];
+    const fillPct = ud.last.fillPct || 0;
+    const barColor = fillPct >= 100 ? '#ef4444' : fillPct >= 80 ? '#f59e0b' : '#06b6d4';
+    const statusColor = ud.last.status === 'full' ? '#ef4444' : ud.last.status === 'empty' ? '#64748b' : '#06b6d4';
+    return [
+      { label: 'Fill', value: fillPct, bar: true, barColor },
+      { label: 'Content', value: `${(ud.last.totalMol||0).toFixed(1)} / ${(ud.last.n_max||0).toFixed(1)}<span class="propUnit">mol</span>` },
+      { label: 'Status', value: `<span style="color:${statusColor}">${ud.last.status || '—'}</span>` },
+    ];
+  },
+  detail(u, ud, sc) {
+    if (!ud?.last) return [];
+    const items = [];
+
+    // Species inventory with composition
+    if (ud.last.n) {
+      const _totalN = ud.last.totalMol || Object.values(ud.last.n).reduce((a,b) => a+b, 0);
+      const _entries = Object.entries(ud.last.n).filter(([,mol]) => mol > 1e-6).sort((a,b) => b[1] - a[1]);
+      if (_entries.length > 0) {
+        items.push({ label: '── Composition ──', value: '', tone: 'dim' });
+        for (const [sp, mol] of _entries) {
+          const pct = _totalN > 0 ? (mol / _totalN * 100) : 0;
+          items.push({ label: sp, value: `${pct.toFixed(1)}%<span class="propUnit"> (${mol.toFixed(1)} mol)</span>` });
+        }
+      }
+    }
+
+    // Inlet/outlet flow summary
+    const udR = sc?.runtime?.unitData?.get(u.id);
+    if (udR) {
+      const matIn = udR.ports?.mat_in;
+      const matOut = udR.ports?.mat_out;
+      const nIn = matIn?.n ? Object.values(matIn.n).reduce((a,b)=>a+b,0) : 0;
+      const nOut = matOut?.n ? Object.values(matOut.n).reduce((a,b)=>a+b,0) : 0;
+      const nVented = ud.last.Q_vented || 0;
+      if (nIn > 1e-6) items.push({ label: 'Inlet', value: `${nIn.toFixed(3)}<span class="propUnit">mol/s</span>`, tone: 'good' });
+      if (nOut > 1e-6) items.push({ label: 'Outlet', value: `${nOut.toFixed(3)}<span class="propUnit">mol/s</span>` });
+      if (nVented > 1e-6) items.push({ label: 'Vented', value: `${nVented.toFixed(3)}<span class="propUnit">mol/s</span>`, tone: 'info' });
+      const netRate = nIn - nOut - nVented;
+      items.push({ label: 'Net', value: `${netRate > 0 ? '+' : ''}${netRate.toFixed(3)}<span class="propUnit">mol/s</span>`,
+        tone: netRate > 0.001 ? 'good' : netRate < -0.001 ? 'warn' : '' });
+      if (netRate > 0.001 && ud.last.n_max > 0) items.push({ label: 'Time to full', value: fmt.time((ud.last.n_max - ud.last.totalMol) / netRate) });
+      else if (netRate < -0.001 && ud.last.totalMol > 0) items.push({ label: 'Time to empty', value: fmt.time(ud.last.totalMol / Math.abs(netRate)) });
+    }
+
+    if (ud.last.Q_overflow > 0) items.push({ label: 'Overflow', value: fmt.flow(ud.last.Q_overflow), tone: 'warn' });
+
+    return items;
+  }
+};
+
 UnitInspector.battery = {
   params(u) { return [
     { type: 'slider', label: 'Max charge/discharge [kW]', get: () => u.params.peakPower_kW || 20, set: v => u.params.peakPower_kW = v, min: 0.1, max: 1000, step: 1 },
@@ -35680,8 +36138,9 @@ function populatePalette() {
       const isTpl = !!profile.config?.template;
       const isBnd = !!profile.boundary;
 
-      // [v17.5.0] Hide pressure-network profiles when network is disabled (except in dev tab)
-      if (!SimSettings.pressureNetworkEnabled && profile.pressureClass === 'network'
+      // [v17.5.1] Simple mode: hide pressure-network profiles.
+      // Network mode: show everything (superset — simple units still valid).
+      if (ui.palettePressureMode === 'simple' && profile.pressureClass === 'network'
           && tierFilter !== 'dev') continue;
 
       if (tierFilter === 'dev') {
@@ -35813,6 +36272,21 @@ document.getElementById('palFilter').addEventListener('click', (ev) => {
   // Update active state
   for (const b of document.querySelectorAll('#palFilter .pal-filter-btn')) {
     b.classList.toggle('active', b.dataset.tier === tier);
+  }
+  populatePalette();
+});
+
+// [v17.5.1] Pressure mode switch: Simple ↔ Network
+document.getElementById('palModeSwitch').addEventListener('click', (ev) => {
+  const btn = ev.target.closest('.pal-mode-btn');
+  if (!btn) return;
+  const mode = btn.dataset.pmode;
+  if (mode === ui.palettePressureMode) return;
+  ui.palettePressureMode = mode;
+  for (const b of document.querySelectorAll('#palModeSwitch .pal-mode-btn')) {
+    const isActive = b.dataset.pmode === mode;
+    b.classList.toggle('active-simple', isActive && mode === 'simple');
+    b.classList.toggle('active-network', isActive && mode === 'network');
   }
   populatePalette();
 });
@@ -38175,6 +38649,7 @@ const _PARTICLE_BEHAVIORS = {
     tank:      null,
     // [v17.2.3] Open tank — vent gas particles rising from open top
     open_tank: { type:'vent', dwellFactor:2.0 },
+    simple_open_tank: null,  // opaque — no particle effects in v1
 
     // Sources (Phase 4A)
     source:    { type:'source', path:'emerge', dwellFactor:1.5 },
@@ -56403,6 +56878,156 @@ function runTests() {
     t.assertOK(cLast.W_shaft < 10, `Shaft power = ${cLast.W_shaft?.toFixed(4)} W (< 10 W)`);
     t.assertClose(out.P, 200000, 5000, 'Outlet near target pressure');
     t.assertOK(!cLast.error, 'No error message');
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // v17.5.2 — simple_open_tank tests
+  // ═══════════════════════════════════════════════════════════════════════
+
+  test('639: simple_open_tank — registration, profiles, 2 tiers', t => {
+    const def = UnitRegistry.get('simple_open_tank');
+    t.assertOK(!!def, 'simple_open_tank defId registered');
+    t.assertOK(def.inventory === true, 'inventory flag set');
+    t.assertOK(def.ports.length === 3, '3 ports (in + out + overflow)');
+    t.assertOK(def.limitParams.includes('T_HH'), 'has T_HH limit');
+    t.assertOK(def.limitParams.includes('level_HH'), 'has level_HH limit');
+    const barrel = ProfileRegistry.get('simple_open_barrel');
+    t.assertOK(!!barrel && barrel.defId === 'simple_open_tank', 'Open Barrel profile (T1)');
+    t.assertOK(barrel.pressureClass === 'simple', 'pressureClass = simple');
+    const tank = ProfileRegistry.get('simple_open_tank');
+    t.assertOK(!!tank && tank.defId === 'simple_open_tank', 'Open Tank profile (T2)');
+  });
+
+  test('640: simple_open_tank — fill + level computation', t => {
+    t.clearScene();
+    const otk = t.place('simple_open_tank', 0, 0, {
+      volume_m3: 0.1, initialComposition: { H2O: 1 }, level_init: 50,
+      drawRate: 0.3, opening_pct: 0  // closed — no draw
+    });
+    t.solve();
+    const last = t.last(otk);
+    t.assertOK(last.level_pct > 40 && last.level_pct < 60, `Level ≈ 50% (got ${last.level_pct.toFixed(1)}%)`);
+    t.assertOK(last.totalMol > 100, `Has inventory (${last.totalMol.toFixed(0)} mol)`);
+    t.assertOK(last.V_m3 === 0.1, 'Volume = 0.1 m³');
+  });
+
+  test('641: simple_open_tank — draw at 50% opening', t => {
+    t.clearScene();
+    const otk = t.place('simple_open_tank', 0, 0, {
+      volume_m3: 0.1, initialComposition: { H2O: 1 }, level_init: 50,
+      drawRate: 1.0, opening_pct: 50
+    });
+    const snk = t.place('sink', 4, 0);
+    t.wire(otk, 'mat_out', snk, 'mat_in');
+    t.solve();
+    const last = t.last(otk);
+    const out = t.port(otk, 'mat_out');
+    const Q_out = Object.values(out.n || {}).reduce((a,b) => a+b, 0);
+    // Q should be drawRate × opening/100 = 1.0 × 0.5 = 0.5 mol/s (unless inventory-limited)
+    t.assertClose(Q_out, 0.5, 0.01, 'Q ≈ 0.5 mol/s (1.0 × 50%)');
+    t.assertOK(out.phaseConstraint === 'L', 'Output is liquid');
+    t.assertClose(last.Q_liq, Q_out, 0.01, 'last.Q_liq matches port');
+  });
+
+  test('642: simple_open_tank — draw capped at inventory', t => {
+    // Nearly empty tank: level_init=1 → very few moles. drawRate=100 → capped.
+    t.clearScene();
+    const otk = t.place('simple_open_tank', 0, 0, {
+      volume_m3: 0.001, initialComposition: { H2O: 1 }, level_init: 1,
+      drawRate: 100, opening_pct: 100
+    });
+    const snk = t.place('sink', 4, 0);
+    t.wire(otk, 'mat_out', snk, 'mat_in');
+    t.solve();
+    const last = t.last(otk);
+    const out = t.port(otk, 'mat_out');
+    const Q_out = Object.values(out.n || {}).reduce((a,b) => a+b, 0);
+    // Q should be n_total/dt, NOT 100 mol/s
+    const maxQ = last.totalMol / SimSettings.dt;
+    t.assertOK(Q_out <= maxQ + 0.001, `Q capped at inventory (${Q_out.toFixed(4)} ≤ ${maxQ.toFixed(4)})`);
+    t.assertOK(Q_out < 100, 'Q < drawRate (inventory-limited)');
+  });
+
+  test('643: simple_open_tank — overflow at high level', t => {
+    // Fill tank to 95%, overflow_level=90 → overflow should be active
+    t.clearScene();
+    const otk = t.place('simple_open_tank', 0, 0, {
+      volume_m3: 0.1, initialComposition: { H2O: 1 }, level_init: 95,
+      drawRate: 0, opening_pct: 0, overflow_level: 90
+    });
+    const ovSnk = t.place('sink', 2, 4);
+    t.wire(otk, 'overflow', ovSnk, 'mat_in');
+    t.solve();
+    const last = t.last(otk);
+    t.assertOK(last._overflowActive === true, 'Overflow active (level > threshold)');
+    t.assertOK(last.Q_overflow > 0, `Overflow Q = ${(last.Q_overflow||0).toFixed(3)} mol/s`);
+    const ovPort = t.port(otk, 'overflow');
+    const ovQ = Object.values(ovPort.n || {}).reduce((a,b) => a+b, 0);
+    t.assertOK(ovQ > 0, 'Overflow port has flow');
+  });
+
+  test('644: simple_open_tank — venting (Tc heuristic)', t => {
+    // Feed H₂ (Tc=33K, permanent gas) into water tank → H₂ should vent
+    t.clearScene();
+    const src = t.place('source', 0, 0, {
+      species: 'H2', nDot: 0.1, T: 300, P: 101325, phaseConstraint: 'V'
+    });
+    const otk = t.place('simple_open_tank', 4, 0, {
+      volume_m3: 0.1, initialComposition: { H2O: 1 }, level_init: 50,
+      drawRate: 0, opening_pct: 0
+    });
+    t.wire(src, 'mat_out', otk, 'mat_in');
+    // Step to trigger updateInventory (which strips gases)
+    t.solve();
+    TimeClock.mode = 'playing';
+    TimeClock.step(scene);
+    TimeClock.mode = 'paused';
+    const last = t.last(otk);
+    // H₂ should be vented, not in inventory
+    t.assertOK(last.Q_vented > 0, `Venting ${(last.Q_vented||0).toFixed(3)} mol/s`);
+    t.assertOK(last.vented_n?.H2 > 0, 'H₂ appears in vented species');
+    // H₂O should remain in inventory
+    const invH2O = scene.units.get(otk).inventory.n.H2O || 0;
+    t.assertOK(invH2O > 100, `H₂O remains in inventory (${invH2O.toFixed(0)} mol)`);
+  });
+
+  test('645: simple_open_tank — unconnected mat_out → zero flow', t => {
+    t.clearScene();
+    const src = t.place('source', 0, 0, {
+      species: 'H2O', nDot: 0.5, T: 300, P: 101325, phaseConstraint: 'L'
+    });
+    const otk = t.place('simple_open_tank', 4, 0, {
+      volume_m3: 0.1, initialComposition: { H2O: 1 }, level_init: 50,
+      drawRate: 1.0, opening_pct: 100
+    });
+    t.wire(src, 'mat_out', otk, 'mat_in');
+    // mat_out deliberately NOT connected
+    t.solve();
+    const out = t.port(otk, 'mat_out');
+    const Q_out = Object.values(out?.n || {}).reduce((a,b) => a+b, 0);
+    t.assertClose(Q_out, 0, 1e-10, 'No flow to unconnected port');
+    // No mass leak
+    t.assertOK(t.last(otk).Q_liq === 0 || t.last(otk).Q_liq < 1e-10, 'Q_liq = 0');
+  });
+
+  test('646: simple_open_tank — mass balance over timestep', t => {
+    t.clearScene();
+    const src = t.place('source', 0, 0, {
+      species: 'H2O', nDot: 0.5, T: 300, P: 101325, phaseConstraint: 'L'
+    });
+    const otk = t.place('simple_open_tank', 4, 0, {
+      volume_m3: 0.5, initialComposition: { H2O: 1 }, level_init: 30,
+      drawRate: 0.2, opening_pct: 100
+    });
+    const snk = t.place('sink', 8, 0);
+    t.wire(src, 'mat_out', otk, 'mat_in');
+    t.wire(otk, 'mat_out', snk, 'mat_in');
+    t.solve();
+    const bal = computeSystemBalance(scene);
+    t.assertOK(bal != null, 'balance computed');
+    // Check that residual is near zero — mass in ≈ mass out + accumulation
+    const relRes = bal.mass.totalIn > 0 ? Math.abs(bal.mass.residual / bal.mass.totalIn) : 0;
+    t.assertOK(relRes < 0.01, `mass residual < 1% (got ${(relRes*100).toFixed(2)}%)`);
   });
 
   // ═══════════════════════════════════════════════════════════════════════
