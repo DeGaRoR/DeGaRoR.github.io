@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v17.4.3
+  processThis v17.4.4
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -346,6 +346,39 @@
   ═══════════════════════════════════════════════════════════════════════════
   CHANGELOG  (latest first)
   ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v17.4.4 — Playtest polish batch (UX fixes from PT3/PT4/PT5) ────────
+
+  **"Clear Scene" → "New Process"** — menu label renamed.
+
+  **Tank P_init defaults removed from profiles.**  Profiles had
+  hardcoded P_init:101325 (or 500000 for high-pressure).  Now omitted —
+  `initInventory` falls through to `par.P_init ?? atm.P_Pa`, which
+  reads the planet atmosphere pressure from SimSettings.  Tanks on
+  Planet X (0.897 bar) initialize at 89660 Pa, not Earth's 101325.
+
+  **Fried LED turns red.**  LEDs stayed green on destroyed equipment.
+  Now: `fill` set to `#ef4444` (red), `data-anim` removed (stop blink).
+
+  **Isolated fried units silent.**  Already-fried units kept producing
+  CATASTROPHIC alarms every solve, triggering auto-pause during play.
+  Now: `_lastSolveHadNewErrors` skips units with `u.fried === true`.
+
+  **Venting tone: warn → info.**  Both sealed tank and open tank
+  venting displayed as yellow warning in inspector.  Venting is normal
+  open-tank behavior (degassing), not a problem.  Now shows as info.
+
+  **NaN guard in power error messages.**  Pump/compressor with empty
+  feed showed "No power available (need NaN kW)".  Now shows "? kW".
+
+  **Air cooler auto-clamp setpoint to ambient.**  Previously, setting
+  T_out below ambient caused a MAJOR error and silent passthrough.
+  Denis: "I set the slider at min, I expect the game to figure out
+  what is a reasonable min."  Now: T_setpoint auto-clamped to T_amb.
+  Air cooler cools as close to ambient as its NTU model can achieve.
+
+  NNGs: NNG-3 (WYSIWYG — LED reflects state), NNG-14 (changelog).
+  Tests: 615 total, 0 failures.
 
   ─── v17.4.3 — Play computes first tick immediately ─────────────────────
 
@@ -9173,7 +9206,7 @@
             <div class="submenu"><div class="submenu-inner" id="examplesSubmenu">
             </div></div>
           </div>
-          <div class="item" id="mClear">Clear Scene</div>
+          <div class="item" id="mClear">New Process</div>
           <div class="item" id="mClearStickers">Clear Stickers</div>
           <div class="sep"></div>
           <div class="item" id="mAtmosphere">Atmosphere <span class="hint">🌍</span></div>
@@ -18175,7 +18208,7 @@ UnitRegistry.register('pump', {
         eta: eta, eta_pct: (eta * 100).toFixed(0), curtailed: true,
         error: {
           severity: ErrorSeverity.MINOR,
-          message: `No power available (need ${(workFull.W_shaft_W/1000).toFixed(1)} kW)`
+          message: `No power available (need ${(isFinite(workFull.W_shaft_W) ? (workFull.W_shaft_W/1000).toFixed(1) : '?')} kW)`
         }
       };
       return;
@@ -18334,7 +18367,7 @@ UnitRegistry.register('compressor', {
         curtailed: true,
         error: {
           severity: ErrorSeverity.MINOR,
-          message: `No power available (need ${(workFull.W_shaft_W/1000).toFixed(1)} kW)`
+          message: `No power available (need ${(isFinite(workFull.W_shaft_W) ? (workFull.W_shaft_W/1000).toFixed(1) : '?')} kW)`
         }
       };
       return;
@@ -18559,7 +18592,7 @@ UnitRegistry.register('compressor_diaphragm', {
       u.last = { Pin: sIn.P, Pout_setpoint, Pout_actual: sIn.P,
         W_shaft: 0, W_shaft_setpoint: workFull.W_shaft_W, curtailed: true,
         error: { severity: ErrorSeverity.MINOR,
-          message: `No power available (need ${(workFull.W_shaft_W/1000).toFixed(1)} kW)` } };
+          message: `No power available (need ${(isFinite(workFull.W_shaft_W) ? (workFull.W_shaft_W/1000).toFixed(1) : '?')} kW)` } };
       return;
     }
 
@@ -18820,7 +18853,15 @@ UnitRegistry.register('air_cooler', {
     const atm = ctx.atmosphere;
     const T_amb = atm.T_K;
     const T_approach = par.T_approach ?? 10;  // [v13.0.5 S1c-9c] configurable
-    const T_setpoint = par.T_out ?? (sIn.T > T_amb + T_approach ? T_amb + T_approach : sIn.T);
+    // [v17.4.4] 2nd-law enforcement: auto-clamp setpoint to ambient.
+    // Previously this was a hard MAJOR error causing silent passthrough.
+    // Now we clamp to ambient and let the NTU model determine achievable outlet.
+    let T_setpoint = par.T_out ?? (sIn.T > T_amb + T_approach ? T_amb + T_approach : sIn.T);
+    let _clamped = false;
+    if (T_setpoint < T_amb) {
+      T_setpoint = T_amb;
+      _clamped = true;
+    }
 
     // ── Constants ──
     const SFP = 120;           // W/(kg/s) specific fan power
@@ -18830,20 +18871,6 @@ UnitRegistry.register('air_cooler', {
     // Helper: passthrough outlet
     const passthrough = () => ({ type: StreamType.MATERIAL, P: sIn.P,
       n: { ...sIn.n }, phaseConstraint: 'VL', H_target_Jps: H_in_Jps });
-
-    // 2nd-law enforcement: cannot cool below ambient
-    if (T_setpoint < T_amb - 0.01) {
-      u.powerDemand = 0;
-      u.last = {
-        T_in_K: sIn.T, T_setpoint_K: T_setpoint, T_ambient_K: T_amb,
-        Q_rejected_W: 0, W_fan_demand: 0, W_fan_actual: 0,
-        airflow_needed_kgps: 0, airflow_actual_kgps: 0,
-        error: { severity: ErrorSeverity.MAJOR,
-          message: `Setpoint ${(T_setpoint-273.15).toFixed(1)}°C < ambient ${(T_amb-273.15).toFixed(1)}°C — violates 2nd law` }
-      };
-      ports.mat_out = passthrough();
-      return;
-    }
 
     // Cannot heat — setpoint must be ≤ inlet
     if (T_setpoint > sIn.T + 0.01) {
@@ -21306,7 +21333,7 @@ ProfileRegistry.register('tank_dev', {
                     overflow_level:90,
                     Cv_gas:50, opening_gas_pct:0,
                     Cv_liq:50, opening_liq_pct:0,
-                    initialComposition:{N2:1}, P_init:101325 } },
+                    initialComposition:{N2:1} } },
   equipmentNote: "Electrical bus with priority-based load shedding.",
   operatingNote: "Each consumer has a priority (1=essential, 3=expendable). When supply < demand, low-priority equipment gets cut first. Surplus port must be connected.",
   modelNote: "Five-step dispatch: capacity poll → demand collection → priority-sorted allocation → curtailment factor → battery balancing.",
@@ -21343,12 +21370,12 @@ ProfileRegistry.register('tank_low_pressure', {
                     overflow_level:90,
                     Cv_gas:30, opening_gas_pct:0,
                     Cv_liq:30, opening_liq_pct:0,
-                    initialComposition:{N2:1}, P_init:101325 },
+                    initialComposition:{N2:1} },
               2: { volume_m3:1.0, P_relief:400000,
                     overflow_level:90,
                     Cv_gas:50, opening_gas_pct:0,
                     Cv_liq:50, opening_liq_pct:0,
-                    initialComposition:{N2:1}, P_init:101325 } },
+                    initialComposition:{N2:1} } },
   equipmentNote: "Flanged steel storage vessel with relief valve and overflow drain.",
   operatingNote: "Pressure builds from accumulated gas — vent and overflow ports are safety devices. Exceeding P_HH or T_HH destroys the tank. Dual outlet: gas from top, liquid from bottom.",
   modelNote: "P from ideal gas law (nRT/V). Dual-phase inventory via flash. Cv-driven outlets with per-connection opening. Relief valve hysteresis at P_relief ±2%.",
@@ -21367,12 +21394,12 @@ ProfileRegistry.register('tank_high_pressure', {
                     overflow_level:90,
                     Cv_gas:30, opening_gas_pct:0,
                     Cv_liq:30, opening_liq_pct:0,
-                    initialComposition:{N2:1}, P_init:500000 },
+                    initialComposition:{N2:1} },
               2: { volume_m3:1.0, P_relief:4000000,
                     overflow_level:90,
                     Cv_gas:50, opening_gas_pct:0,
                     Cv_liq:50, opening_liq_pct:0,
-                    initialComposition:{N2:1}, P_init:500000 } },
+                    initialComposition:{N2:1} } },
   equipmentNote: "Thick-wall carbon steel (T1) or alloy steel (T2) pressure vessel.",
   operatingNote: "Same behavior as Closed Tank — higher pressure/temperature envelope. Use when Closed Tank keeps blowing its relief valve.",
   modelNote: "Same model as Closed Tank. Only limit envelope differs.",
@@ -31093,6 +31120,11 @@ function drawUnits() {
     if (u.fried) {
       group.classList.add('unit-fried');
       const _isNewlyFried = _newlyFriedIds.has(id);
+      // [v17.4.4] Turn LEDs red when fried
+      for (const led of group.querySelectorAll('[data-anim="led-blink"]')) {
+        led.setAttribute('fill', '#ef4444');
+        led.removeAttribute('data-anim');  // stop blinking — dead unit
+      }
       // Semi-transparent dark red overlay (animated on first render after fry)
       group.appendChild(svgEl('rect', {
         class: `unit-fried-overlay${_isNewlyFried ? ' fried-overlay-enter' : ''}`,
@@ -34307,7 +34339,7 @@ UnitInspector.tank = {
     }
 
     // Vent / overflow status
-    if (ud.last.Q_vent > 0) items.push({ label: 'Venting', value: fmt.flow(ud.last.Q_vent), tone: 'warn' });
+    if (ud.last.Q_vent > 0) items.push({ label: 'Venting', value: fmt.flow(ud.last.Q_vent), tone: 'info' });
     if (ud.last.Q_overflow > 0) items.push({ label: 'Overflow', value: fmt.flow(ud.last.Q_overflow), tone: 'warn' });
 
     return items;
@@ -34412,7 +34444,7 @@ UnitInspector.open_tank = {
       const nVented = ud.last.Q_vented || 0;
       if (nIn > 1e-6) items.push({ label: 'Inlet', value: `${nIn.toFixed(3)}<span class="propUnit">mol/s</span>`, tone: 'good' });
       if (nOutLiq > 1e-6) items.push({ label: 'Liq out', value: `${nOutLiq.toFixed(3)}<span class="propUnit">mol/s</span>` });
-      if (nVented > 1e-6) items.push({ label: 'Vented', value: `${nVented.toFixed(3)}<span class="propUnit">mol/s</span>`, tone: 'warn' });
+      if (nVented > 1e-6) items.push({ label: 'Vented', value: `${nVented.toFixed(3)}<span class="propUnit">mol/s</span>`, tone: 'info' });
       const netRate = nIn - nOutLiq - nVented;
       items.push({ label: 'Net', value: `${netRate > 0 ? '+' : ''}${netRate.toFixed(3)}<span class="propUnit">mol/s</span>`,
         tone: netRate > 0.001 ? 'good' : netRate < -0.001 ? 'warn' : '' });
@@ -37466,8 +37498,12 @@ function afterSolve(solveResult) {
       }
     }
     // Detect new failures for shake trigger
+    // [v17.4.4] Skip already-fried units — they keep producing CATASTROPHIC
+    // alarms from stale inventory but should not re-trigger auto-pause.
     for (const [uid, sev] of _cachedUnitAlarms) {
       if (sev.level >= AlarmSeverity.CATASTROPHIC.level) {
+        const u = scene.units.get(uid);
+        if (u?.fried) continue;  // already destroyed — don't re-trigger
         const prev = prevAlarms.get(uid);
         if (!prev || prev.level < AlarmSeverity.CATASTROPHIC.level) {
           _lastSolveHadNewErrors = true;
