@@ -32473,100 +32473,325 @@ _RAGTAG_SYMBOLS.food_storage = function(g, wx, wy, ww, wh, pal, def, unitId) {
   _rtBolt(g, bx + 10, by + bh - 10); _rtBolt(g, bx + bw - 10, by + bh - 10);
 };
 
-// [v17.6.3 S-ROOM] Crew shelter — thick-walled hull with status LEDs and three zones
-// Shell uses pal (category color, responds to color-by mechanism).
-// LEDs embedded in wall thickness (like power_dispatcher_5 pattern).
+// [v17.6.3 S-ROOM] Crew shelter — thick hull, interior background, diegetic gauges, togglable lights
 _RAGTAG_SYMBOLS.room = function(g, wx, wy, ww, wh, pal, def, unitId) {
   const u = scene.units.get(unitId);
   const last = u?.last || {};
   const pres = getPresentation(def, u);
   const t = scene.tile;
+  const pe = 'none';  // pointer-events shorthand
 
-  // ── Body bounding box (inset from tile boundary for wall thickness) ──
+  // Helper: offset all coords from unit origin
+  const _r = (x, y, w, h, attrs) => g.appendChild(svgEl('rect',
+    { x: wx+x, y: wy+y, width: w, height: h, 'pointer-events': pe, ...attrs }));
+  const _c = (cx, cy, r, attrs) => g.appendChild(svgEl('circle',
+    { cx: wx+cx, cy: wy+cy, r, 'pointer-events': pe, ...attrs }));
+  const _l = (x1, y1, x2, y2, attrs) => g.appendChild(svgEl('line',
+    { x1: wx+x1, y1: wy+y1, x2: wx+x2, y2: wy+y2, 'pointer-events': pe, ...attrs }));
+  const _p = (d, attrs) => g.appendChild(svgEl('path',
+    { d: d.replace(/(\d)([ML])/g, '$1 $2'), fill: 'none', 'pointer-events': pe, ...attrs }));
+
+  // ── Body bounding box ──
   const bx = wx + 6, by = wy + 6, bw = ww - 12, bh = wh - 12;
 
-  // ── Port nozzle stubs (behind hull — handles color-by automatically) ──
+  // ── Port nozzles (behind hull) ──
   _rtNozzle(g, wx, wy, ww, wh, bx, by, bw, bh, def, pres, pal, unitId);
 
-  // ── Triple-layer hull (thick ragtag walls) ──
-  // All pointer-events: none — boxman rect handles interaction
-  // Outer hull plate — category color via pal (responds to color-by)
+  // ── Triple-layer hull ──
   g.appendChild(svgEl('rect', { x: bx, y: by, width: bw, height: bh,
-    rx: 10, fill: pal.fillUrl, stroke: pal.stroke, 'stroke-width': 5, 'pointer-events': 'none' }));
-  // Middle reinforcement ring
-  g.appendChild(svgEl('rect', { x: bx + 5, y: by + 5, width: bw - 10, height: bh - 10,
-    rx: 7, fill: 'none', stroke: pal.rim, 'stroke-width': 2, 'pointer-events': 'none' }));
-  // Inner wall — creates the dark interior cavity
-  const ix = bx + 12, iy = by + 12, iw = bw - 24, ih = bh - 24;
+    rx: 10, fill: pal.fillUrl, stroke: pal.stroke, 'stroke-width': 5, 'pointer-events': pe }));
+  g.appendChild(svgEl('rect', { x: bx+5, y: by+5, width: bw-10, height: bh-10,
+    rx: 7, fill: 'none', stroke: pal.rim, 'stroke-width': 2, 'pointer-events': pe }));
+  const ix = bx+12, iy = by+12, iw = bw-24, ih = bh-24;
   g.appendChild(svgEl('rect', { x: ix, y: iy, width: iw, height: ih,
-    rx: 4, fill: '#0a0c12', stroke: pal.rim, 'stroke-width': 0.5, 'pointer-events': 'none' }));
+    rx: 4, fill: '#0a0c12', stroke: pal.rim, 'stroke-width': 0.5, 'pointer-events': pe }));
 
-  // ── Corner bolts (standard _rtBolt helper) ──
-  _rtBolt(g, bx + 14, by + 14);  _rtBolt(g, bx + bw - 14, by + 14);
-  _rtBolt(g, bx + 14, by + bh - 14);  _rtBolt(g, bx + bw - 14, by + bh - 14);
-  // Mid-wall bolts (thirds)
-  _rtBolt(g, bx + 14, by + Math.round(bh * 0.33));
-  _rtBolt(g, bx + bw - 14, by + Math.round(bh * 0.33));
-  _rtBolt(g, bx + 14, by + Math.round(bh * 0.67));
-  _rtBolt(g, bx + bw - 14, by + Math.round(bh * 0.67));
+  // ═══ INTERIOR BACKGROUND (all pointer-events:none) ═══
 
-  // ── Port status LEDs (embedded in wall, like power_dispatcher_5) ──
+  // ── Back wall (warm brown) ──
+  _r(18, 18, 252, 396, { rx: 4, fill: '#1a1610' });
+
+  // Wall panels
+  _r(44, 46, 200, 50, { fill: '#1e1a14', stroke: '#2a2418', 'stroke-width': 0.5 });
+  _r(44, 96, 200, 4, { fill: '#2a2418' });
+  _r(44, 214, 98, 170, { fill: '#221c14', stroke: '#302820', 'stroke-width': 0.5 });
+  _r(144, 214, 100, 170, { fill: '#201a12', stroke: '#2e2618', 'stroke-width': 0.5 });
+
+  // Safety stripes (orange hazard)
+  _r(44, 93, 200, 3, { fill: '#f97316', opacity: 0.35 });
+  for (let sx = 44; sx < 244; sx += 28) _r(sx, 93, 14, 3, { fill: '#201a14' });
+  _r(44, 210, 200, 4, { fill: '#f97316', opacity: 0.2 });
+
+  // ── Gauge instrument plate ──
+  _r(48, 50, 192, 44, { rx: 3, fill: '#161210', stroke: '#302820', 'stroke-width': 1.2 });
+
+  // 5 gauge mounts — centered: spacing = 192/5 = 38.4, cx = 48 + 19.2 + i*38.4
+  const gaugeLabels = ['O2', 'CO2', 'TEMP', 'H2O', 'PWR'];
+  const gaugeCy = 72;
+  for (let i = 0; i < 5; i++) {
+    const gcx = 48 + 19.2 + i * 38.4;
+    _c(gcx, gaugeCy, 15, { fill: '#141210', stroke: '#4a3e30', 'stroke-width': 1.2 });
+    _c(gcx, gaugeCy, 12, { fill: '#0e0c0a', stroke: '#362e22', 'stroke-width': 0.5 });
+    _c(gcx, gaugeCy, 1.5, { fill: '#6a5a40' });
+    // Tick marks (N/S/E/W)
+    _l(gcx, gaugeCy-13, gcx, gaugeCy-11, { stroke: '#4a3e30', 'stroke-width': 0.4 });
+    _l(gcx, gaugeCy+11, gcx, gaugeCy+13, { stroke: '#4a3e30', 'stroke-width': 0.4 });
+    _l(gcx-13, gaugeCy, gcx-11, gaugeCy, { stroke: '#4a3e30', 'stroke-width': 0.4 });
+    _l(gcx+13, gaugeCy, gcx+11, gaugeCy, { stroke: '#4a3e30', 'stroke-width': 0.4 });
+    // Label
+    const lbl = svgEl('text', { x: wx+gcx, y: wy+gaugeCy-7, 'text-anchor': 'middle',
+      'font-family': 'monospace', 'font-size': '3.5px', fill: '#6a5a40', 'pointer-events': pe });
+    lbl.textContent = gaugeLabels[i];
+    g.appendChild(lbl);
+  }
+  // Plate bolts
+  _c(52, 54, 1.8, { fill: '#1f1a14', stroke: '#5a4a38', 'stroke-width': 0.8 });
+  _c(236, 54, 1.8, { fill: '#1f1a14', stroke: '#5a4a38', 'stroke-width': 0.8 });
+  _c(52, 90, 1.8, { fill: '#1f1a14', stroke: '#5a4a38', 'stroke-width': 0.8 });
+  _c(236, 90, 1.8, { fill: '#1f1a14', stroke: '#5a4a38', 'stroke-width': 0.8 });
+
+  // ── Window (transparent cutout) ──
+  _r(46, 98, 196, 116, { rx: 6, fill: '#1a1610', stroke: '#3a3020', 'stroke-width': 2.5 });
+  g.appendChild(svgEl('rect', { x: wx+49, y: wy+101, width: 190, height: 110, rx: 4,
+    fill: 'none', stroke: '#4a3a28', 'stroke-width': 1, 'pointer-events': pe }));
+  // Transparent glass (shows flowsheet planet bg)
+  g.appendChild(svgEl('rect', { x: wx+50, y: wy+102, width: 188, height: 108, rx: 3,
+    fill: 'none', 'pointer-events': pe }));
+  // Bent mullion
+  _p(`M${wx+50} ${wy+154} Q${wx+144} ${wy+150} ${wx+238} ${wy+156}`,
+    { stroke: '#3a3020', 'stroke-width': 2.5, 'stroke-linecap': 'round' });
+  // Frame bolts
+  _c(52, 104, 2.2, { fill: '#1f1a14', stroke: '#5a4a38', 'stroke-width': 0.8 });
+  _c(236, 104, 2.2, { fill: '#1f1a14', stroke: '#5a4a38', 'stroke-width': 0.8 });
+  _c(52, 206, 2.2, { fill: '#1f1a14', stroke: '#5a4a38', 'stroke-width': 0.8 });
+  _c(236, 206, 2.2, { fill: '#1f1a14', stroke: '#5a4a38', 'stroke-width': 0.8 });
+  // Cracks in glass
+  _p(`M${wx+182} ${wy+103} L${wx+178} ${wy+125} L${wx+184} ${wy+140} L${wx+176} ${wy+155}`,
+    { stroke: '#ffffff', 'stroke-width': 0.3, opacity: 0.25 });
+  _p(`M${wx+178} ${wy+125} L${wx+190} ${wy+130}`,
+    { stroke: '#ffffff', 'stroke-width': 0.2, opacity: 0.15 });
+  // Rust drips from frame
+  _r(60, 208, 8, 18, { fill: '#6a3810', opacity: 0.08, rx: 2 });
+  _r(200, 208, 6, 12, { fill: '#6a3810', opacity: 0.06, rx: 2 });
+
+  // ── Ceiling ──
+  _r(18, 18, 252, 30, { fill: '#2a2520', rx: 4 });
+  // I-beam
+  _r(28, 24, 232, 8, { rx: 2, fill: '#2a2420', stroke: '#3a3228', 'stroke-width': 0.5 });
+  _r(28, 24, 232, 2.5, { rx: 1, fill: '#3a3228' });
+  _r(28, 29.5, 232, 2.5, { rx: 1, fill: '#3a3228' });
+  // Beam rivets
+  for (let rx = 50; rx <= 246; rx += 28) _c(rx, 28, 1.2, { fill: '#504838' });
+
+  // ── Left wall ──
+  _r(18, 46, 28, 340, { fill: '#282420' });
+  // Rivets
+  for (let ry = 80; ry <= 360; ry += 50) _c(32, ry, 1.2, { fill: '#3e3628' });
+  // Rust stain
+  g.appendChild(svgEl('ellipse', { cx: wx+34, cy: wy+155, rx: 8, ry: 22,
+    fill: '#5a3010', opacity: 0.15, 'pointer-events': pe }));
+  // Conduit with colored wires
+  _r(20, 220, 6, 75, { rx: 2.5, fill: '#282028', stroke: '#3e3248', 'stroke-width': 0.8 });
+  _l(22, 225, 22, 290, { stroke: '#ef4444', 'stroke-width': 0.8, opacity: 0.5 });
+  _l(24, 225, 24, 290, { stroke: '#3b82f6', 'stroke-width': 0.8, opacity: 0.5 });
+  _l(26, 228, 26, 288, { stroke: '#22c55e', 'stroke-width': 0.6, opacity: 0.4 });
+  _r(18, 238, 12, 4, { rx: 1, fill: '#4a4838' });
+  _r(18, 275, 12, 4, { rx: 1, fill: '#4a4838' });
+
+  // ── Right wall ──
+  _r(244, 46, 26, 340, { fill: '#282420' });
+  for (const ry of [80, 150, 250, 330]) _c(256, ry, 1.2, { fill: '#3e3628' });
+
+  // ── Crash damage (torn hull upper right) ──
+  _p(`M${wx+252} ${wy+155} L${wx+260} ${wy+148} L${wx+256} ${wy+140} L${wx+264} ${wy+132} L${wx+258} ${wy+124} L${wx+266} ${wy+118} L${wx+260} ${wy+110} L${wx+252} ${wy+108}`,
+    { fill: '#1a1610', stroke: '#6a4a20', 'stroke-width': 3, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' });
+  _p(`M${wx+254} ${wy+148} L${wx+260} ${wy+143} L${wx+257} ${wy+136} L${wx+263} ${wy+130} L${wx+259} ${wy+122} L${wx+264} ${wy+116}`,
+    { stroke: '#8a5a20', 'stroke-width': 1, opacity: 0.5 });
+  // Torn insulation
+  _p(`M${wx+258} ${wy+140} Q${wx+266} ${wy+138} ${wx+264} ${wy+130}`,
+    { stroke: '#eab308', 'stroke-width': 1.5, opacity: 0.4 });
+  // Exposed wiring
+  _p(`M${wx+260} ${wy+128} Q${wx+270} ${wy+126} ${wx+267} ${wy+120}`,
+    { stroke: '#ef4444', 'stroke-width': 1, opacity: 0.5 });
+  _p(`M${wx+258} ${wy+136} Q${wx+268} ${wy+140} ${wx+266} ${wy+132}`,
+    { stroke: '#22c55e', 'stroke-width': 0.8, opacity: 0.4 });
+  // Sparks
+  _c(265, 123, 1.5, { fill: '#fde68a', opacity: 0.7 });
+  _c(268, 127, 1, { fill: '#fbbf24', opacity: 0.5 });
+
+  // ── Wall crack with rust ──
+  _p(`M${wx+130} ${wy+216} L${wx+136} ${wy+230} L${wx+132} ${wy+248} L${wx+138} ${wy+265} L${wx+134} ${wy+278} L${wx+140} ${wy+290}`,
+    { stroke: '#2a2218', 'stroke-width': 1.2, opacity: 0.5 });
+  _p(`M${wx+136} ${wy+230} L${wx+144} ${wy+236}`, { stroke: '#2a2218', 'stroke-width': 0.6, opacity: 0.3 });
+  g.appendChild(svgEl('ellipse', { cx: wx+136, cy: wy+250, rx: 4, ry: 12,
+    fill: '#5a3010', opacity: 0.1, 'pointer-events': pe }));
+
+  // ── Control console (left) ──
+  _r(48, 222, 74, 44, { rx: 3, fill: '#1a1612', stroke: '#3a3020', 'stroke-width': 1.5 });
+  _r(50, 224, 70, 3, { rx: 1, fill: '#3a3228' });
+  // Screen
+  _r(54, 230, 46, 28, { rx: 2, fill: '#0a0e08', stroke: '#1a2818', 'stroke-width': 0.8 });
+  // Mini flowsheet on screen
+  _r(58, 236, 8, 4, { rx: 1, fill: '#2a6030', opacity: 0.5 });
+  _l(66, 238, 72, 238, { stroke: '#2a8040', 'stroke-width': 0.5, opacity: 0.4 });
+  _r(72, 235, 6, 6, { rx: 1, fill: '#2a5040', opacity: 0.4 });
+  _l(78, 238, 84, 238, { stroke: '#2a6030', 'stroke-width': 0.5, opacity: 0.4 });
+  _r(84, 236, 8, 4, { rx: 1, fill: '#204a30', opacity: 0.4 });
+  _r(60, 246, 12, 4, { rx: 1, fill: '#1a3828', opacity: 0.4 });
+  // Buttons
+  _c(108, 236, 3, { fill: '#1a1810', stroke: '#3a3828', 'stroke-width': 0.8 });
+  _c(108, 236, 1.2, { fill: '#22c55e', opacity: 0.5 });
+  _c(108, 248, 3, { fill: '#1a1810', stroke: '#3a3828', 'stroke-width': 0.8 });
+  _c(108, 248, 1.2, { fill: '#f59e0b', opacity: 0.4 });
+  // Slider
+  _r(104, 256, 12, 2, { rx: 1, fill: '#2a2820' });
+  _r(106, 255, 3, 4, { rx: 1, fill: '#6a6050' });
+
+  // ── Side panel (right) ──
+  _r(188, 222, 54, 40, { rx: 3, fill: '#1a1612', stroke: '#3a3020', 'stroke-width': 1.5 });
+  // Status bars
+  _r(194, 228, 20, 3, { rx: 1, fill: '#22c55e', opacity: 0.35 });
+  _r(194, 234, 14, 3, { rx: 1, fill: '#f59e0b', opacity: 0.35 });
+  _r(194, 240, 26, 3, { rx: 1, fill: '#22c55e', opacity: 0.25 });
+  _r(194, 246, 8, 3, { rx: 1, fill: '#ef4444', opacity: 0.3 });
+  // Toggle switches
+  _r(224, 228, 3, 8, { rx: 1, fill: '#5a5040' }); _r(224, 226, 3, 3, { rx: 1, fill: '#8a7a60' });
+  _r(230, 228, 3, 8, { rx: 1, fill: '#5a5040' }); _r(230, 226, 3, 3, { rx: 1, fill: '#6a6050' });
+  _r(236, 228, 3, 8, { rx: 1, fill: '#5a5040' }); _r(236, 230, 3, 3, { rx: 1, fill: '#8a7a60' });
+
+  // ── Broken pipe ──
+  _p(`M${wx+28} ${wy+290} L${wx+28} ${wy+330} Q${wx+28} ${wy+338} ${wx+36} ${wy+338} L${wx+62} ${wy+338}`,
+    { stroke: '#5a5040', 'stroke-width': 4, 'stroke-linecap': 'round' });
+  _p(`M${wx+62} ${wy+338} L${wx+66} ${wy+334} L${wx+64} ${wy+340} L${wx+70} ${wy+336} L${wx+68} ${wy+342} L${wx+72} ${wy+338}`,
+    { stroke: '#5a5040', 'stroke-width': 2, 'stroke-linecap': 'round' });
+  // Drip
+  _p(`M${wx+70} ${wy+340} L${wx+72} ${wy+350} Q${wx+73} ${wy+356} ${wx+70} ${wy+358}`,
+    { stroke: '#3b82f6', 'stroke-width': 1, opacity: 0.25 });
+  _c(70, 360, 2, { fill: '#3b82f6', opacity: 0.12 });
+  _r(24, 308, 12, 4, { rx: 1, fill: '#4a4838' });
+  // Second pipe stub
+  _p(`M${wx+40} ${wy+216} L${wx+40} ${wy+220} Q${wx+40} ${wy+224} ${wx+36} ${wy+224} L${wx+28} ${wy+224}`,
+    { stroke: '#4a4838', 'stroke-width': 3, 'stroke-linecap': 'round' });
+
+  // ── Airlock door ──
+  _r(22, 348, 30, 40, { rx: 2, fill: '#181612', stroke: '#3a3020', 'stroke-width': 1.5 });
+  _r(26, 352, 22, 32, { rx: 1, fill: '#100e0a', stroke: '#28221a', 'stroke-width': 0.5 });
+  // Handle wheel
+  _c(42, 368, 4, { fill: 'none', stroke: '#6a6050', 'stroke-width': 1.2 });
+  _c(42, 368, 1.5, { fill: '#4a4838' });
+  // Lock LED
+  _c(28, 354, 2, { fill: '#ef4444', opacity: 0.5 });
+  // Hazard stripes
+  _r(22, 346, 30, 2, { fill: '#eab308', opacity: 0.3 });
+  for (let hx = 22; hx < 52; hx += 10) _r(hx, 346, 5, 2, { fill: '#1a1610' });
+  // Label
+  const alTxt = svgEl('text', { x: wx+37, y: wy+394, 'text-anchor': 'middle',
+    'font-family': 'monospace', 'font-size': '4px', fill: '#5a5040', 'letter-spacing': '1', 'pointer-events': pe });
+  alTxt.textContent = 'AIRLOCK'; g.appendChild(alTxt);
+
+  // ── Utility shelves (right wall) ──
+  _r(248, 280, 18, 3, { rx: 1, fill: '#28221a', stroke: '#3a3020', 'stroke-width': 0.5 });
+  _r(248, 310, 18, 3, { rx: 1, fill: '#28221a', stroke: '#3a3020', 'stroke-width': 0.5 });
+  _r(250, 273, 7, 7, { rx: 1, fill: '#2a2040', opacity: 0.5 });
+  _r(260, 276, 4, 4, { rx: 1, fill: '#3a2828', opacity: 0.5 });
+  _r(250, 303, 10, 7, { rx: 1, fill: '#2a2418', opacity: 0.5 });
+
+  // ── Scorch marks ──
+  g.appendChild(svgEl('ellipse', { cx: wx+180, cy: wy+300, rx: 14, ry: 10,
+    fill: '#0a0a08', opacity: 0.15, 'pointer-events': pe }));
+  g.appendChild(svgEl('ellipse', { cx: wx+100, cy: wy+350, rx: 8, ry: 6,
+    fill: '#0a0a08', opacity: 0.1, 'pointer-events': pe }));
+
+  // ── Cable runs ──
+  _p(`M${wx+80} ${wy+32} L${wx+80} ${wy+42} Q${wx+80} ${wy+46} ${wx+76} ${wy+46} L${wx+54} ${wy+46} Q${wx+48} ${wy+46} ${wx+48} ${wy+54} L${wx+48} ${wy+222}`,
+    { stroke: '#3a2828', 'stroke-width': 1.5, 'stroke-linecap': 'round', opacity: 0.5 });
+  _p(`M${wx+200} ${wy+32} L${wx+200} ${wy+42} Q${wx+200} ${wy+46} ${wx+204} ${wy+46} L${wx+234} ${wy+46} Q${wx+240} ${wy+46} ${wx+240} ${wy+54} L${wx+240} ${wy+222}`,
+    { stroke: '#282840', 'stroke-width': 1.2, 'stroke-linecap': 'round', opacity: 0.4 });
+
+  // ── Floor ──
+  _r(18, 386, 252, 28, { fill: '#1a1612' });
+  _l(30, 392, 258, 392, { stroke: '#28221a', 'stroke-width': 0.5 });
+  _l(30, 398, 258, 398, { stroke: '#28221a', 'stroke-width': 0.5 });
+  _l(30, 404, 258, 404, { stroke: '#28221a', 'stroke-width': 0.3 });
+  for (let fx = 50; fx <= 230; fx += 30) _l(fx, 388, fx, 410, { stroke: '#1e1a14', 'stroke-width': 0.3 });
+  // Debris
+  _p(`M${wx+90} ${wy+389} L${wx+96} ${wy+386} L${wx+100} ${wy+390} L${wx+94} ${wy+393} Z`,
+    { fill: '#2a2418', opacity: 0.4 });
+  _p(`M${wx+160} ${wy+388} L${wx+164} ${wy+385} L${wx+167} ${wy+390} Z`,
+    { fill: '#282218', opacity: 0.3 });
+
+  // ═══ LIGHTS LAYER (toggleable by power state) ═══
+  const lightsOn = last.fan_frac > 0 || last.fan_frac === undefined;  // on by default pre-sim
+  if (lightsOn) {
+    // Create gradient for light cones (unique per unit to avoid ID conflicts)
+    const lcId = `lc-${unitId}`;
+    const _svgDefs = g.closest('svg')?.querySelector('defs');
+    if (_svgDefs && !_svgDefs.querySelector('#' + lcId)) {
+      const lg = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
+      lg.setAttribute('id', lcId);
+      lg.setAttribute('x1', '0.5'); lg.setAttribute('y1', '0');
+      lg.setAttribute('x2', '0.5'); lg.setAttribute('y2', '1');
+      [[0, '#fef3c7', 0.22], [30, '#fde68a', 0.10], [70, '#fbbf24', 0.03], [100, '#f59e0b', 0]].forEach(([off, col, op]) => {
+        const s = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+        s.setAttribute('offset', off + '%'); s.setAttribute('stop-color', col); s.setAttribute('stop-opacity', op);
+        lg.appendChild(s);
+      });
+      _svgDefs.appendChild(lg);
+    }
+    const lcUrl = `url(#${lcId})`;
+
+    // 3 light fixtures
+    const lightX = [63, 142, 219];
+    const lightW = [10, 12, 10];
+    for (let li = 0; li < 3; li++) {
+      const lx = lightX[li], lw = lightW[li];
+      // Fixture housing
+      _r(lx - lw/2, 34, lw, 4, { rx: 1, fill: '#4a4838' });
+      // Warm bulb
+      _r(lx - lw/2 - 1, 36, lw + 2, 2, { rx: 1, fill: '#fde68a', opacity: 0.9 });
+      // Light cone (polygon from fixture down to window area)
+      const coneW = lw * 3.5;
+      g.appendChild(svgEl('polygon', {
+        points: `${wx+lx-lw/2},${wy+38} ${wx+lx+lw/2},${wy+38} ${wx+lx+coneW/2},${wy+160} ${wx+lx-coneW/2},${wy+160}`,
+        fill: lcUrl, 'pointer-events': pe
+      }));
+    }
+    // Subtle warm ambient fill
+    _r(44, 38, 200, 50, { fill: '#fde68a', opacity: 0.02 });
+    _r(44, 214, 200, 80, { fill: '#fde68a', opacity: 0.015 });
+  }
+
+  // ═══ HULL DETAILS (on top of background) ═══
+
+  // Corner + mid-wall bolts
+  _rtBolt(g, bx+14, by+14);  _rtBolt(g, bx+bw-14, by+14);
+  _rtBolt(g, bx+14, by+bh-14);  _rtBolt(g, bx+bw-14, by+bh-14);
+  _rtBolt(g, bx+14, by+Math.round(bh*0.33));  _rtBolt(g, bx+bw-14, by+Math.round(bh*0.33));
+  _rtBolt(g, bx+14, by+Math.round(bh*0.67));  _rtBolt(g, bx+bw-14, by+Math.round(bh*0.67));
+
+  // Port status LEDs
   const _ledColor = { grey: '#3b4050', green: '#22c55e', yellow: '#f59e0b', red: '#ef4444' };
   const pi = last.portIndicators || {};
   const _led = (portId, cx, cy) => {
     const col = _ledColor[pi[portId]] || '#3b4050';
     const active = pi[portId] === 'green' || pi[portId] === 'yellow';
-    g.appendChild(svgEl('circle', { cx, cy, r: 3, fill: col, opacity: active ? 0.9 : 0.4,
-      'pointer-events': 'none' }));
-    if (active) {
-      g.appendChild(svgEl('circle', { cx, cy, r: 5, fill: 'none', stroke: col,
-        'stroke-width': 0.5, opacity: 0.3, 'pointer-events': 'none' }));
-    }
+    g.appendChild(svgEl('circle', { cx, cy, r: 3, fill: col, opacity: active ? 0.9 : 0.4, 'pointer-events': pe }));
+    if (active) g.appendChild(svgEl('circle', { cx, cy, r: 5, fill: 'none', stroke: col,
+      'stroke-width': 0.5, opacity: 0.3, 'pointer-events': pe }));
   };
-  // Left-wall LEDs (material IN ports) — positioned in wall thickness
-  _led('o2_in',        bx + 8,      wy + pres.ports.o2_in.y * t);
-  _led('food_in',      bx + 8,      wy + pres.ports.food_in.y * t);
-  _led('h2o_in',       bx + 8,      wy + pres.ports.h2o_in.y * t);
-  _led('hot_water_in', bx + 8,      wy + pres.ports.hot_water_in.y * t);
-  // Right-wall LEDs (air ports)
-  _led('air_exhaust',  bx + bw - 8, wy + pres.ports.air_exhaust.y * t);
-  _led('air_return',   bx + bw - 8, wy + pres.ports.air_return.y * t);
-  // Top-wall LED (power)
-  _led('elec_in',      wx + pres.ports.elec_in.x * t, by + 8);
+  _led('o2_in',        bx+8,      wy + pres.ports.o2_in.y * t);
+  _led('food_in',      bx+8,      wy + pres.ports.food_in.y * t);
+  _led('h2o_in',       bx+8,      wy + pres.ports.h2o_in.y * t);
+  _led('hot_water_in', bx+8,      wy + pres.ports.hot_water_in.y * t);
+  _led('air_exhaust',  bx+bw-8,   wy + pres.ports.air_exhaust.y * t);
+  _led('air_return',   bx+bw-8,   wy + pres.ports.air_return.y * t);
+  _led('elec_in',      wx + pres.ports.elec_in.x * t, by+8);
 
-  // ── Zone 3: Indicators panel (top ~2 tiles of interior) ──
-  const z3y = iy + 2, z3h = 2 * t - 28;
-  g.appendChild(svgEl('rect', { x: ix + 2, y: z3y, width: iw - 4, height: z3h,
-    rx: 3, fill: 'rgba(10,12,18,0.85)', stroke: '#1a1f2e', 'stroke-width': 0.5,
-    'pointer-events': 'none' }));
-  // Placeholder label
-  g.appendChild(svgEl('text', { x: ix + iw / 2, y: z3y + z3h / 2 + 1,
-    'text-anchor': 'middle', 'dominant-baseline': 'central',
-    'font-family': 'monospace', 'font-size': '7px', fill: '#475569', 'pointer-events': 'none'
-  })).textContent = 'GAUGES';
-
-  // ── Zone 2: Expression (next ~1.5 tiles — speech bubble area) ──
-  const z2y = z3y + z3h + 4, z2h = Math.round(1.5 * t);
-  // (empty for now — speech bubble rendered here in future)
-
-  // ── Zone 1: Characters (remaining interior space) ──
-  const z1y = z2y + z2h + 4, z1h = iy + ih - z1y - 2;
-
-  // Floor plate at bottom of character zone
-  g.appendChild(svgEl('rect', { x: ix + 2, y: z1y + z1h - 10, width: iw - 4, height: 10,
-    rx: 2, fill: '#12161e', stroke: pal.rim, 'stroke-width': 0.3, 'pointer-events': 'none' }));
-  // Floor grating texture
-  for (let fx = ix + 10; fx < ix + iw - 10; fx += 14) {
-    g.appendChild(svgEl('line', { x1: fx, y1: z1y + z1h - 7, x2: fx + 6, y2: z1y + z1h - 7,
-      stroke: pal.rim, 'stroke-width': 0.3, opacity: 0.25, 'pointer-events': 'none' }));
-  }
-
-  // ── Hull stencil label (ragtag spray-paint on bottom hull plate) ──
-  g.appendChild(svgEl('text', {
-    x: bx + bw / 2, y: by + bh - 8, 'text-anchor': 'middle',
+  // Hull stencil
+  const stencil = svgEl('text', { x: bx+bw/2, y: by+bh-8, 'text-anchor': 'middle',
     'font-family': 'monospace', 'font-size': '8px', fill: pal.stroke, opacity: 0.35,
-    'pointer-events': 'none', 'dominant-baseline': 'auto'
-  })).textContent = 'CREW SHELTER';
+    'pointer-events': pe, 'dominant-baseline': 'auto' });
+  stencil.textContent = 'CREW SHELTER'; g.appendChild(stencil);
 };
 
 // [v17.5.0] Pipe Bend — 90° bolted elbow
