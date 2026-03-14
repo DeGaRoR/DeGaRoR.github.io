@@ -32497,19 +32497,30 @@ _RAGTAG_SYMBOLS.room = function(g, wx, wy, ww, wh, pal, def, unitId) {
   // ── Port nozzles (behind hull) ──
   _rtNozzle(g, wx, wy, ww, wh, bx, by, bw, bh, def, pres, pal, unitId);
 
-  // ── Triple-layer hull ──
-  g.appendChild(svgEl('rect', { x: bx, y: by, width: bw, height: bh,
-    rx: 10, fill: pal.fillUrl, stroke: pal.stroke, 'stroke-width': 5, 'pointer-events': pe }));
+  // ── Triple-layer hull (all with window cutout so planet bg shows through) ──
+  // Window hole coords: (wx+50, wy+102) 188×108
+  const _wh = `M${wx+50},${wy+102} v108 h188 v-108 Z`;
+  g.appendChild(svgEl('path', {
+    d: `M${bx+10},${by} h${bw-20} q10,0 10,10 v${bh-20} q0,10 -10,10 h${-(bw-20)} q-10,0 -10,-10 v${-(bh-20)} q0,-10 10,-10 Z ${_wh}`,
+    'fill-rule': 'evenodd', fill: pal.fillUrl, stroke: pal.stroke, 'stroke-width': 5, 'pointer-events': pe
+  }));
   g.appendChild(svgEl('rect', { x: bx+5, y: by+5, width: bw-10, height: bh-10,
     rx: 7, fill: 'none', stroke: pal.rim, 'stroke-width': 2, 'pointer-events': pe }));
   const ix = bx+12, iy = by+12, iw = bw-24, ih = bh-24;
-  g.appendChild(svgEl('rect', { x: ix, y: iy, width: iw, height: ih,
-    rx: 4, fill: '#0a0c12', stroke: pal.rim, 'stroke-width': 0.5, 'pointer-events': pe }));
+  g.appendChild(svgEl('path', {
+    d: `M${ix},${iy} h${iw} v${ih} h${-iw} Z ${_wh}`,
+    'fill-rule': 'evenodd', fill: '#0a0c12', stroke: pal.rim, 'stroke-width': 0.5, 'pointer-events': pe
+  }));
 
   // ═══ INTERIOR BACKGROUND (all pointer-events:none) ═══
 
-  // ── Back wall (warm brown) ──
-  _r(18, 18, 252, 396, { rx: 4, fill: '#1a1610' });
+  // ── Back wall with window cutout (evenodd: planet bg shows through) ──
+  g.appendChild(svgEl('path', {
+    d: `M${wx+18},${wy+18} h252 v396 h-252 Z ${_wh}`,
+    'fill-rule': 'evenodd', fill: '#1a1610', 'pointer-events': pe
+  }));
+  // Glass tint (very subtle blue over the transparent window)
+  _r(50, 102, 188, 108, { rx: 3, fill: '#1a2840', opacity: 0.12 });
 
   // Wall panels
   _r(44, 46, 200, 50, { fill: '#1e1a14', stroke: '#2a2418', 'stroke-width': 0.5 });
@@ -32550,13 +32561,15 @@ _RAGTAG_SYMBOLS.room = function(g, wx, wy, ww, wh, pal, def, unitId) {
   _c(52, 90, 1.8, { fill: '#1f1a14', stroke: '#5a4a38', 'stroke-width': 0.8 });
   _c(236, 90, 1.8, { fill: '#1f1a14', stroke: '#5a4a38', 'stroke-width': 0.8 });
 
-  // ── Window (transparent cutout) ──
-  _r(46, 98, 196, 116, { rx: 6, fill: '#1a1610', stroke: '#3a3020', 'stroke-width': 2.5 });
+  // ── Window (transparent cutout — planet bg shows through) ──
+  // ── Window frame ring (solid frame, transparent center) ──
+  g.appendChild(svgEl('path', {
+    d: `M${wx+46},${wy+98} h196 v116 h-196 Z ${_wh}`,
+    'fill-rule': 'evenodd', fill: '#2a2218', stroke: '#4a3a28', 'stroke-width': 2.5, 'pointer-events': pe
+  }));
+  // Inner lip
   g.appendChild(svgEl('rect', { x: wx+49, y: wy+101, width: 190, height: 110, rx: 4,
-    fill: 'none', stroke: '#4a3a28', 'stroke-width': 1, 'pointer-events': pe }));
-  // Transparent glass (shows flowsheet planet bg)
-  g.appendChild(svgEl('rect', { x: wx+50, y: wy+102, width: 188, height: 108, rx: 3,
-    fill: 'none', 'pointer-events': pe }));
+    fill: 'none', stroke: '#5a4a38', 'stroke-width': 1, 'pointer-events': pe }));
   // Bent mullion
   _p(`M${wx+50} ${wy+154} Q${wx+144} ${wy+150} ${wx+238} ${wy+156}`,
     { stroke: '#3a3020', 'stroke-width': 2.5, 'stroke-linecap': 'round' });
