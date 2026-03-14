@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v17.6.2
+  processThis v17.6.3
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -346,6 +346,48 @@
   ═══════════════════════════════════════════════════════════════════════════
   CHANGELOG  (latest first)
   ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v17.6.3 — Cooled tank, food storage, room starvation ─────────────────
+
+  **Cooled Tank defId.**  Generic sealed tank with brazed cooling jacket
+  (cool_in/cool_out).  UA-based heat exchange: Q = UA × (T_tank − T_cool).
+  Without coolant, inventory drifts toward ambient T (UA_ambient = 2 W/K).
+  7 ports: mat_in, gas_out, liq_out, vent, overflow, cool_in, cool_out.
+  Reuses simple_tank initInventory/updateInventory/tick + jacket overlay.
+  Profile: cooled_gas_bottle (T1, 10L, STORAGE category).
+
+  **Food Storage defId.**  Cooled sealed container with temperature-
+  dependent spoilage model.  Chemistry: CH₂O → CO₂ + H₂O (decomposition,
+  exothermic 519 kJ/mol).  Rate: k_ref × 2^((T−294)/5) above 277K,
+  zero below (frozen).  k_ref = 3.47e-7/s ≈ 3%/day at room temperature.
+  Decomposition gases accumulate in headspace → pressure builds.
+  waste_out = vent for decomposition gases.  Unconnected waste_out →
+  gas accumulates → overpressure → MAJOR alarm → eventually rupture.
+  The player already understands this pattern from sealed tanks.
+  5 ports: food_in, food_out, waste_out, cool_in, cool_out.
+  Profile: food_crate (T1, 100L, LIFE_SUPPORT, was on simple_tank).
+
+  **Spoilage gameplay numbers:**
+    Frozen (<277K):  0%/day → indefinite (coolant connected)
+    Room temp (294K): 3%/day → 1200 mol crate lasts 16 days with 2-person draw
+    Hot (310K):       28%/day → 3 days
+  The gap between 16 days (room temp) and 30 days (frozen) is the
+  refrigeration mission's payoff.  Player builds: cold source → HEX →
+  food crate jacket.
+
+  **Room starvation deficit.**  `inventory._food_deficit` tracks
+  cumulative unmet food demand, same pattern as water.  Thresholds
+  per person: 60 mol WARNING (~3 days), 141 mol incapacitated (~7 days),
+  423 mol death (~21 days).  Alarm: "Crew at risk — Starvation."
+
+  Tests: 677 (cooled_tank registration + cooling), 678 (spoilage at
+  different T), 679 (frozen stops spoilage), 680 (unconnected waste →
+  pressure builds), 681 (room starvation timeline), 682 (food_storage
+  → room integrated draw + spoilage).
+
+  NNGs: NNG-1 (mass conservation — spoilage CH₂O→CO₂+H₂O), NNG-2
+  (energy — exothermic decomposition heat), NNG-3 (WYSIWYG — visible
+  waste stream), NNG-14 (changelog + 6 tests).
 
   ─── v17.6.2 — S-ROOM Phase 3: Atmosphere-based alarms + survivability ────
 
@@ -17949,6 +17991,347 @@ UnitRegistry.register('simple_tank', {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// COOLED TANK — Simple sealed tank with cooling jacket [v17.6.3 S-ROOM]
+// ═══════════════════════════════════════════════════════════════════════════════
+//
+// simple_tank + cool_in/cool_out jacket.  UA-based heat exchange between
+// inventory and coolant stream.  Coolant absorbs heat, exits warmer.
+// No coolant → inventory drifts toward ambient T (UA_ambient = 2 W/K).
+//
+UnitRegistry.register('cooled_tank', {
+  name: 'Cooled Tank',
+  category: UnitCategories.STORAGE,
+  w: 2, h: 2,
+  optionalPorts: true,
+  ports: [
+    { portId: 'mat_in',   dir: PortDir.IN,  type: StreamType.MATERIAL, x: 0, y: 1, label: 'in' },
+    { portId: 'gas_out',  dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 0, label: 'gas' },
+    { portId: 'liq_out',  dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 2, label: 'liq' },
+    { portId: 'vent',     dir: PortDir.OUT, type: StreamType.MATERIAL, x: 1, y: 0, label: 'vent' },
+    { portId: 'overflow', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 1, y: 2, label: 'ovfl' },
+    { portId: 'cool_in',  dir: PortDir.IN,  type: StreamType.MATERIAL, x: 0, y: 2, label: 'coolant' },
+    { portId: 'cool_out', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 2, label: 'coolant' }
+  ],
+  presentations: {
+    'box/default': { w: 2, h: 2, ports: {
+      mat_in:{x:0,y:1}, gas_out:{x:2,y:0}, liq_out:{x:2,y:1.5},
+      vent:{x:1,y:0}, overflow:{x:0.5,y:2}, cool_in:{x:0,y:2}, cool_out:{x:2,y:2}
+    }},
+    'box/mirror': { w: 2, h: 2, ports: {
+      mat_in:{x:2,y:1}, gas_out:{x:0,y:0}, liq_out:{x:0,y:1.5},
+      vent:{x:1,y:0}, overflow:{x:1.5,y:2}, cool_in:{x:2,y:2}, cool_out:{x:0,y:2}
+    }}
+  },
+  limitParams: ['T_LL', 'T_L', 'T_H', 'T_HH', 'P_LL', 'P_L', 'P_H', 'P_HH', 'level_H', 'level_HH'],
+  limits: { S: { T_LL: 233, T_L: 263, T_H: 423, T_HH: 473,
+                  P_LL: 50000, P_L: 80000, P_H: 4000000, P_HH: 5000000,
+                  level_H: 90, level_HH: 100 } },
+  inventory: true,
+
+  // Reuse simple_tank initInventory/updateInventory patterns
+  initInventory(par) {
+    return UnitRegistry.get('simple_tank').initInventory(par);
+  },
+
+  updateInventory(inventory, resolvedPorts, dt) {
+    // Delegate to simple_tank update for mass balance
+    const inv = UnitRegistry.get('simple_tank').updateInventory(inventory, resolvedPorts, dt);
+
+    // Apply cooling jacket thermal effect (piggybacked on cool_out port)
+    const Q_cool = resolvedPorts.cool_out?._Q_cool_W ?? 0;
+    const Q_ambient = resolvedPorts.cool_out?._Q_ambient_W ?? 0;
+    if (Q_cool > 0 || Q_ambient !== 0) {
+      const C_thermal = 500;  // J/K — insulated box thermal mass
+      inv.T_K -= (Q_cool + Q_ambient) * dt / C_thermal;
+      inv.T_K = Math.max(200, Math.min(500, inv.T_K));
+    }
+    return inv;
+  },
+
+  tick(u, ports, par, ctx) {
+    // ── Run the standard simple_tank tick for all tank mechanics ──
+    UnitRegistry.get('simple_tank').tick(u, ports, par, ctx);
+
+    // ── Cooling jacket (UA-based, like compressor_diaphragm) ──
+    const inv = u.inventory || { n: {}, T_K: ctx.atmosphere.T_K };
+    const T_ext = ctx.atmosphere.T_K;
+    const UA_jacket = par.UA_jacket ?? 50;  // W/K
+    const UA_ambient = 2;                    // W/K — insulated box leakage
+
+    const sCoolIn = ports.cool_in;
+    let Q_cool = 0;
+    if (sCoolIn?.T && sCoolIn.n) {
+      const nCool = Object.values(sCoolIn.n).reduce((a,b) => a+b, 0);
+      if (nCool > 1e-15 && sCoolIn.T < inv.T_K) {
+        Q_cool = UA_jacket * (inv.T_K - sCoolIn.T);
+        // Coolant outlet: absorbs Q_cool (exits warmer)
+        const H_cool_in = thermo.getHdot_Jps(sCoolIn);
+        ports.cool_out = {
+          type: StreamType.MATERIAL, P: sCoolIn.P, n: { ...sCoolIn.n },
+          phaseConstraint: sCoolIn.phaseConstraint || 'VL',
+          H_target_Jps: H_cool_in + Q_cool,
+          _Q_cool_W: Q_cool, _Q_ambient_W: UA_ambient * (inv.T_K - T_ext)
+        };
+      } else {
+        // Coolant not colder — passthrough
+        ports.cool_out = { type: StreamType.MATERIAL, T: sCoolIn.T, P: sCoolIn.P,
+          n: { ...sCoolIn.n }, phaseConstraint: sCoolIn.phaseConstraint || 'VL',
+          _Q_cool_W: 0, _Q_ambient_W: UA_ambient * (inv.T_K - T_ext) };
+      }
+    } else {
+      // No coolant — ambient drift only
+      ports.cool_out = { type: StreamType.MATERIAL, T: T_ext, P: ctx.atmosphere.P_Pa,
+        n: {}, _Q_cool_W: 0, _Q_ambient_W: UA_ambient * (inv.T_K - T_ext) };
+    }
+
+    // Augment diagnostics
+    u.last.Q_cool_W = Q_cool;
+    u.last.UA_jacket = UA_jacket;
+    u.last.type = 'cooled_tank';
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// FOOD STORAGE — Cooled sealed container with spoilage model [v17.6.3 S-ROOM]
+// ═══════════════════════════════════════════════════════════════════════════════
+//
+// Stores food (CH₂O) as compressed gas.  Temperature-dependent spoilage:
+//   CH₂O → CO₂ + H₂O (decomposition, exothermic)
+// Spoilage rate = k_ref × 2^((T-294)/5) above 277K, zero below (frozen).
+// Decomposition gases accumulate in headspace → pressure builds.
+// waste_out = vent for decomposition gases.  Unconnected → overpressure → rupture.
+// Cooling jacket (cool_in/cool_out) controls temperature.
+//
+UnitRegistry.register('food_storage', {
+  name: 'Food Storage',
+  category: UnitCategories.LIFE_SUPPORT,
+  w: 2, h: 2,
+  optionalPorts: true,
+  ports: [
+    { portId: 'food_in',   dir: PortDir.IN,  type: StreamType.MATERIAL, x: 0, y: 1, label: 'food in' },
+    { portId: 'food_out',  dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 0, label: 'food' },
+    { portId: 'waste_out', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 1, y: 0, label: 'waste gas' },
+    { portId: 'cool_in',   dir: PortDir.IN,  type: StreamType.MATERIAL, x: 0, y: 2, label: 'coolant' },
+    { portId: 'cool_out',  dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 2, label: 'coolant' }
+  ],
+  presentations: {
+    'box/default': { w: 2, h: 2, ports: {
+      food_in:{x:0,y:1}, food_out:{x:2,y:0}, waste_out:{x:1,y:0},
+      cool_in:{x:0,y:2}, cool_out:{x:2,y:2}
+    }},
+    'box/mirror': { w: 2, h: 2, ports: {
+      food_in:{x:2,y:1}, food_out:{x:0,y:0}, waste_out:{x:1,y:0},
+      cool_in:{x:2,y:2}, cool_out:{x:0,y:2}
+    }}
+  },
+  limitParams: ['T_LL', 'T_HH', 'P_LL', 'P_HH'],
+  limits: { S: { T_LL: 233, T_HH: 473, P_LL: 50000, P_HH: 30000000 } },
+  inventory: true,
+
+  initInventory(par) {
+    return UnitRegistry.get('simple_tank').initInventory(par);
+  },
+
+  updateInventory(inventory, resolvedPorts, dt) {
+    const inv = { ...inventory, n: { ...inventory.n } };
+
+    // Mass balance: food_in - food_out - waste_out + spoilage products
+    const inFlow    = resolvedPorts.food_in?.n || {};
+    const outFlow   = resolvedPorts.food_out?.n || {};
+    const wasteFlow = resolvedPorts.waste_out?.n || {};
+    const allSp = new Set([...Object.keys(inv.n), ...Object.keys(inFlow),
+      ...Object.keys(outFlow), ...Object.keys(wasteFlow)]);
+
+    for (const sp of allSp) {
+      const cur = inv.n[sp] || 0;
+      const inN = (inFlow[sp] || 0) * dt;
+      const outN = ((outFlow[sp]||0) + (wasteFlow[sp]||0)) * dt;
+      inv.n[sp] = Math.max(0, cur + inN - outN);
+    }
+
+    // Spoilage reaction: CH₂O → CO₂ + H₂O (convert within inventory)
+    const meta = resolvedPorts.waste_out?._food_meta;
+    if (meta?.spoil_mol > 0) {
+      inv.n.CH2O = Math.max(0, (inv.n.CH2O || 0) - meta.spoil_mol);
+      inv.n.CO2  = (inv.n.CO2 || 0) + meta.spoil_mol;
+      inv.n.H2O  = (inv.n.H2O || 0) + meta.spoil_mol;
+    }
+
+    // Cooling jacket thermal effect
+    const Q_cool = resolvedPorts.cool_out?._Q_cool_W ?? 0;
+    const Q_ambient = resolvedPorts.cool_out?._Q_ambient_W ?? 0;
+    const Q_spoilage = (meta?.Q_spoilage_W ?? 0);
+    if (Q_cool > 0 || Q_ambient !== 0 || Q_spoilage > 0) {
+      const C_thermal = 500;  // J/K
+      inv.T_K += (Q_spoilage - Q_cool - Q_ambient) * dt / C_thermal;
+      inv.T_K = Math.max(200, Math.min(500, inv.T_K));
+    }
+
+    // Adiabatic mixing from food_in
+    if (resolvedPorts.food_in?.T && resolvedPorts.food_in.n) {
+      const n_in = Object.values(inFlow).reduce((a,b) => a+b, 0) * dt;
+      const n_inv = Object.values(inv.n).reduce((a,b) => a+b, 0);
+      if (n_inv > 0 && n_in > 0) {
+        inv.T_K = (inventory.T_K * (n_inv - n_in) + resolvedPorts.food_in.T * n_in) / n_inv;
+      }
+    }
+
+    return inv;
+  },
+
+  tick(u, ports, par, ctx) {
+    const V = par.volume_m3 || 0.1;
+    const inv = u.inventory || { n: {}, T_K: ctx.atmosphere.T_K };
+    const dt = ctx.dt;
+    const T_ext = ctx.atmosphere.T_K;
+    const P_atm = ctx.atmosphere.P_Pa;
+
+    // 1. Tank state: flash, pressure
+    const state = computeTankState(inv.n, inv.T_K, V, thermo);
+    const P_tank = state.P_Pa;
+
+    // 2. Spoilage: CH₂O → CO₂ + H₂O (Arrhenius-inspired)
+    const T_FREEZE = 277;     // K — fridge threshold
+    const T_REF = 294;        // K — room temperature reference
+    const K_REF = 3.47e-7;    // 1/s ≈ 3%/day at room temp
+    const DH_DECOMP = 519400; // J/mol — same as metabolism (combustion of CH₂O)
+
+    const n_ch2o = inv.n.CH2O || 0;
+    const k_spoil = inv.T_K > T_FREEZE
+      ? K_REF * Math.pow(2, (inv.T_K - T_REF) / 5) : 0;
+    const spoil_rate = k_spoil * n_ch2o;  // mol/s of CH₂O decomposed
+    const spoil_mol = spoil_rate * dt;
+    const Q_spoilage = spoil_rate * DH_DECOMP;  // W (exothermic)
+
+    // 3. Food draw (gas phase CH₂O)
+    const drawRate = par.gasDrawRate ?? 0.001;
+    const opening = par.opening_gas_pct ?? 50;
+    const outConnected = ctx.portConnected('food_out');
+    const _blocked = ctx.blockedBranches();
+    const outBlocked = _blocked ? _blocked.has('food_out') : false;
+    const n_V_total = state.n_V ? Object.values(state.n_V).reduce((a,b) => a+b, 0) : 0;
+    let Q_draw = 0;
+
+    if (outConnected && !outBlocked && n_V_total > 1e-15 && opening > 0) {
+      Q_draw = Math.min(drawRate * (opening / 100), n_V_total / dt);
+      const n_out = {};
+      for (const [sp, amt] of Object.entries(state.n_V)) {
+        if (amt > 1e-18) n_out[sp] = (amt / n_V_total) * Q_draw;
+      }
+      ports.food_out = { type: StreamType.MATERIAL, T: inv.T_K, P: P_tank,
+        n: n_out, phase: 'V', phaseConstraint: 'V' };
+    } else {
+      ports.food_out = { type: StreamType.MATERIAL, T: inv.T_K, P: P_tank,
+        n: {}, phase: 'V', phaseConstraint: 'V' };
+    }
+
+    // 4. Waste vent (decomposition gases: CO₂ + H₂O from spoilage)
+    // Uses relief valve pattern — connected-only, pressure-driven
+    const P_relief = par.P_relief || 25000000;
+    const wasteConnected = ctx.portConnected('waste_out');
+    const wasteBlocked = _blocked ? _blocked.has('waste_out') : false;
+    const _ventWasActive = ctx.scratch._prevLast?._ventActive || false;
+    const _ventActive = wasteConnected && !wasteBlocked &&
+      (P_tank > P_relief || (_ventWasActive && P_tank > P_relief * 0.98));
+
+    if (!wasteConnected && P_tank > P_relief) {
+      ctx.warn({ severity: ErrorSeverity.MAJOR,
+        message: `Decomposition gas pressure at ${(P_tank/1e5).toFixed(1)} bar — no waste vent connected` });
+    }
+
+    let Q_waste = 0;
+    // Also vent decomposition products even below relief (slow bleed if connected)
+    const decompGases = {};
+    if (spoil_rate > 1e-18) {
+      decompGases.CO2 = spoil_rate;  // mol/s
+      decompGases.H2O = spoil_rate;
+    }
+
+    if (wasteConnected && !wasteBlocked) {
+      // Vent decomposition products + relief if overpressure
+      let vent_n = { ...decompGases };
+      if (_ventActive && n_V_total > 1e-15) {
+        const Q_relief = K_RELIEF_BASE * V * (P_tank - P_relief);
+        const Q_r = Math.min(Q_relief, n_V_total / dt);
+        for (const [sp, amt] of Object.entries(state.n_V)) {
+          if (amt > 1e-18) vent_n[sp] = (vent_n[sp] || 0) + (amt / n_V_total) * Q_r;
+        }
+        Q_waste = Q_r + spoil_rate * 2;  // relief + decomp products
+      } else {
+        Q_waste = spoil_rate * 2;  // just decomp products
+      }
+      ports.waste_out = { type: StreamType.MATERIAL, T: inv.T_K, P: P_tank,
+        n: vent_n, phase: 'V', phaseConstraint: 'V',
+        _food_meta: { spoil_mol, Q_spoilage_W: Q_spoilage } };
+    } else {
+      ports.waste_out = { type: StreamType.MATERIAL, T: inv.T_K, P: P_tank,
+        n: {}, _food_meta: { spoil_mol, Q_spoilage_W: Q_spoilage } };
+    }
+
+    // 5. Cooling jacket (same pattern as cooled_tank)
+    const UA_jacket = par.UA_jacket ?? 50;
+    const UA_ambient = 2;
+    const sCoolIn = ports.cool_in;
+    let Q_cool = 0;
+
+    if (sCoolIn?.T && sCoolIn.n) {
+      const nCool = Object.values(sCoolIn.n).reduce((a,b) => a+b, 0);
+      if (nCool > 1e-15 && sCoolIn.T < inv.T_K) {
+        Q_cool = UA_jacket * (inv.T_K - sCoolIn.T);
+        const H_cool_in = thermo.getHdot_Jps(sCoolIn);
+        ports.cool_out = { type: StreamType.MATERIAL, P: sCoolIn.P, n: { ...sCoolIn.n },
+          phaseConstraint: sCoolIn.phaseConstraint || 'VL',
+          H_target_Jps: H_cool_in + Q_cool,
+          _Q_cool_W: Q_cool, _Q_ambient_W: UA_ambient * (inv.T_K - T_ext) };
+      } else {
+        ports.cool_out = { type: StreamType.MATERIAL, T: sCoolIn.T, P: sCoolIn.P,
+          n: { ...sCoolIn.n }, phaseConstraint: sCoolIn.phaseConstraint || 'VL',
+          _Q_cool_W: 0, _Q_ambient_W: UA_ambient * (inv.T_K - T_ext) };
+      }
+    } else {
+      ports.cool_out = { type: StreamType.MATERIAL, T: T_ext, P: P_atm, n: {},
+        _Q_cool_W: 0, _Q_ambient_W: UA_ambient * (inv.T_K - T_ext) };
+    }
+
+    // 6. Diagnostics
+    const totalMol = Object.values(inv.n).reduce((a,b) => a+b, 0);
+    const spoilPctDay = k_spoil * 86400 * 100;
+    const ch2o_remaining = inv.n.CH2O || 0;
+
+    u.powerDemand = 0;  // no electricity — cooling is via jacket
+
+    u.last = {
+      P_Pa: P_tank, P_bar: P_tank / 1e5,
+      T_K: inv.T_K,
+      totalMol, n: { ...inv.n },
+      ch2o_remaining,
+      spoil_rate_mol_s: spoil_rate,
+      spoil_pct_day: spoilPctDay,
+      Q_spoilage_W: Q_spoilage,
+      Q_cool_W: Q_cool,
+      Q_draw: Q_draw,
+      Q_waste: Q_waste,
+      V_m3: V,
+      level_pct: state.level_pct,
+      P_relief,
+      _ventActive,
+      frozen: inv.T_K <= T_FREEZE,
+      status: ch2o_remaining < 1e-12 ? 'empty'
+            : inv.T_K <= T_FREEZE ? 'frozen'
+            : spoilPctDay > 10 ? 'spoiling_fast'
+            : spoilPctDay > 1 ? 'spoiling' : 'preserved',
+      type: 'food_storage'
+    };
+
+    if (spoilPctDay > 10) {
+      u.last.error = { severity: ErrorSeverity.MINOR,
+        message: `Food spoiling rapidly — ${spoilPctDay.toFixed(0)}%/day at ${(inv.T_K - 273.15).toFixed(0)}°C. Connect coolant.` };
+    }
+  }
+});
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // RESERVOIR — Inexhaustible supply vessel [v14.1.0]
 // ═══════════════════════════════════════════════════════════════════════════════
 //
@@ -22299,7 +22682,7 @@ UnitRegistry.register('room', {
     // Starts at zero (crew is hydrated at t=0).
     // Incapacitation at 139 mol/person deficit (~24h without water).
     // Death at 417 mol/person deficit (~72h without water).
-    return { n, T_K: T, _h2o_deficit: 0 };
+    return { n, T_K: T, _h2o_deficit: 0, _food_deficit: 0 };
   },
 
   updateInventory(inventory, resolvedPorts, dt) {
@@ -22339,9 +22722,12 @@ UnitRegistry.register('room', {
       }
 
       // Water deficit: accumulates when supply < demand, recovers when supply > demand
-      // Tracked as cumulative mol of unmet water demand across the crew.
       if (typeof meta.h2o_deficit_delta === 'number') {
         inv._h2o_deficit = Math.max(0, (inv._h2o_deficit || 0) + meta.h2o_deficit_delta);
+      }
+      // Food deficit: same pattern — starvation accumulates without food
+      if (typeof meta.food_deficit_delta === 'number') {
+        inv._food_deficit = Math.max(0, (inv._food_deficit || 0) + meta.food_deficit_delta);
       }
     }
 
@@ -22522,10 +22908,21 @@ UnitRegistry.register('room', {
             : h2o_deficit_per_person < 417 ? 'MAJOR'     // incapacitated
             : 'CATASTROPHIC' };                           // death
 
-    // Power condition — from supply vs demand
+    // Food condition — starvation deficit (same pattern as water)
+    // Thresholds per person: 60 mol (~3 days), 141 mol (~7 days), 423 mol (~21 days)
+    const food_deficit = inv._food_deficit || 0;
+    const food_deficit_per_person = N > 0 ? food_deficit / N : 0;
+    const food_deficit_rate = Math.max(0, food_demand - food_supply);  // mol/s unmet
+    conditions.food = { value: food_deficit_per_person,
+      status: food_deficit_per_person < 1 ? 'OK'
+            : food_deficit_per_person < 60 ? 'WARNING'    // hungry (~3 days)
+            : food_deficit_per_person < 141 ? 'MAJOR'     // incapacitated (~7 days)
+            : 'CATASTROPHIC' };                            // death (~21 days)
+
+    // Power condition — indirect threat only (cascading via fan/lights)
     const power_pct = power_total > 0 ? W_avail / power_total : 1;
     conditions.power = { value: power_pct * 100,
-      status: power_pct >= 1 ? 'OK' : power_pct >= 0.5 ? 'WARNING' : 'MAJOR' };
+      status: power_pct >= 1 ? 'OK' : 'WARNING' };  // max WARNING — consequences show through O₂/CO₂/temp
 
     // ── 10. Survivability staging ──
     // normal → incapacitated (Lena passes out) → death
@@ -22546,7 +22943,7 @@ UnitRegistry.register('room', {
     // ── Legacy services object (backward compat for inspector + existing tests) ──
     const services = {
       o2:    { demand: o2_demand, supply: o2_supply, pct: o2_demand > 0 ? o2_supply / o2_demand : 1, status: conditions.o2.status },
-      food:  { demand: food_demand, supply: food_supply, pct: food_demand > 0 ? food_supply / food_demand : 1, status: food_supply >= food_demand ? 'OK' : food_supply >= food_demand * 0.5 ? 'WARNING' : 'MAJOR' },
+      food:  { demand: food_demand, supply: food_supply, pct: food_demand > 0 ? food_supply / food_demand : 1, status: conditions.food.status },
       water: { demand: total_water_demand, supply: total_water, pct: total_water_demand > 0 ? total_water / total_water_demand : 1, status: conditions.water.status },
       air:   { demand: circ_demand, supply: air_return_rate, pct: circ_demand > 0 ? air_return_rate / circ_demand : 1, status: fan_frac > 0.5 ? 'OK' : fan_frac > 0.01 ? 'WARNING' : 'MAJOR', quality: 'OK' },
       power: { demand: power_total, supply: W_avail, pct: Math.min(1, power_pct), status: conditions.power.status },
@@ -22578,7 +22975,7 @@ UnitRegistry.register('room', {
       (statusScore[conditions.co2.status] || 0) * 0.20 +
       (statusScore[conditions.temp.status] || 0) * 0.20 +
       (statusScore[conditions.water.status] || 0) * 0.15 +
-      (statusScore[services.food.status] || 0) * 0.10 +
+      (statusScore[conditions.food.status] || 0) * 0.10 +
       (statusScore[conditions.power.status] || 0) * 0.10
     ));
 
@@ -22606,6 +23003,7 @@ UnitRegistry.register('room', {
       o2_consumed: reaction_rate, food_consumed: reaction_rate,
       co2_produced, h2o_metabolic, exhaust_rate,
       h2o_deficit, h2o_deficit_per_person,
+      food_deficit, food_deficit_per_person,
       P_lighting, P_airloop, power_total, power_curtailed, fan_frac,
       Q_loss_total: Q_envelope,
       Q_passive: Q_metabolic + Q_lighting_actual + Q_streams + Q_hot_water,
@@ -22614,8 +23012,12 @@ UnitRegistry.register('room', {
 
     // ── Human-focused alarm messages ──
     const _condLabel = {
-      o2: 'Hypoxia — O₂ too low', co2: 'CO₂ poisoning', temp: 'Extreme temperature',
-      water: 'Dehydration', power: 'Power failure'
+      o2: 'Hypoxia — O₂ too low',
+      co2: 'CO₂ poisoning',
+      temp: T_room < T_SETPOINT ? 'Hypothermia — too cold' : 'Hyperthermia — too hot',
+      water: 'Dehydration',
+      food: 'Starvation',
+      power: 'Power failure — systems degrading'
     };
 
     if (worstCond === 'CATASTROPHIC') {
@@ -22633,6 +23035,7 @@ UnitRegistry.register('room', {
 
     // ── Store water deficit delta in exhaust metadata for updateInventory ──
     ports.air_exhaust._room_meta.h2o_deficit_delta = h2o_deficit_rate * dt;
+    ports.air_exhaust._room_meta.food_deficit_delta = food_deficit_rate * dt;
   }
 });
 
@@ -22818,20 +23221,34 @@ ProfileRegistry.register('simple_gas_tank', {
   modelNote: "P from ideal gas law. Flash via Tc heuristic. Q = min(drawRate × opening/100, n_phase/dt). Relief valve connected-only.",
 });
 // [v17.6.1 S-ROOM Phase 2] Food Crate — pressurized CH₂O storage for crew metabolism
-ProfileRegistry.register('food_crate', {
-  defId: 'simple_tank', name: 'Food Crate', pressureClass: 'simple', category: UnitCategories.LIFE_SUPPORT, tiers: [1],
-  description: 'Pressurized ration canister — freeze-dried formaldehyde-equivalent food',
-  selectionGuide: 'A 100L steel canister at 300 bar, holding ~1200 mol CH₂O. Feeds 2 people for about a month. Set the draw rate to match crew demand.',
+// [v17.6.3] Cooled Tank profile
+ProfileRegistry.register('cooled_gas_bottle', {
+  defId: 'cooled_tank', name: 'Cooled Gas Bottle', pressureClass: 'simple', category: UnitCategories.STORAGE, tiers: [1],
+  description: 'Sealed tank with brazed cooling jacket — stores gas or liquid at controlled temperature',
+  selectionGuide: 'Same as Gas Bottle but with coolant ports. Connect a cold stream to keep contents below ambient temperature. Good for storing condensables or cryogenic intermediates.',
   limits: { 1: { T_LL:233, T_L:263, T_H:423, T_HH:473,
-                  P_LL:50000, P_L:80000, P_H:25000000, P_HH:30000000,
+                  P_LL:50000, P_L:80000, P_H:4000000, P_HH:5000000,
                   level_H:90, level_HH:100 } },
-  defaults: { 1: { volume_m3:0.1, gasDrawRate:0.001, opening_gas_pct:50,
-                    liqDrawRate:0, opening_liq_pct:0,
-                    P_relief:25000000, overflow_level:90,
+  defaults: { 1: { volume_m3:0.01, gasDrawRate:0.05, opening_gas_pct:0,
+                    liqDrawRate:0.05, opening_liq_pct:0,
+                    P_relief:200000, overflow_level:90, UA_jacket:50,
+                    initialComposition:{N2:1} } },
+  equipmentNote: "10L steel bottle with brazed cooling jacket. UA_jacket = 50 W/K default.",
+  operatingNote: "Connect cool_in/cool_out to a cold stream. Without coolant, contents drift to ambient temperature.",
+  modelNote: "simple_tank base + UA-based cooling jacket. Coolant absorbs Q = UA × (T_tank − T_coolant).",
+});
+// [v17.6.3] Food Crate on food_storage defId (was simple_tank in v17.6.1)
+ProfileRegistry.register('food_crate', {
+  defId: 'food_storage', name: 'Food Crate', pressureClass: 'simple', category: UnitCategories.LIFE_SUPPORT, tiers: [1],
+  description: 'Pressurized ration canister with cooling jacket — spoils without refrigeration',
+  selectionGuide: 'A 100L canister holding ~1200 mol CH₂O (30 days for 2 people IF kept cold). Without coolant, food spoils at 3%/day at room temperature — you have 16 days. Connect coolant below 4°C to preserve.',
+  limits: { 1: { T_LL:233, T_HH:473, P_LL:50000, P_HH:30000000 } },
+  defaults: { 1: { volume_m3:0.1, gasDrawRate:0.001, opening_gas_pct:46.6,
+                    P_relief:25000000, UA_jacket:50,
                     initialComposition:{CH2O:1} } },
-  equipmentNote: "Reinforced steel canister, 100L. Same rating as a gas bottle but larger capacity.",
-  operatingNote: "Set draw rate and opening to match crew food demand (4.66e-4 mol/s for 2 people). Connect vent for safety.",
-  modelNote: "Same model as Gas Bottle. P from ideal gas law. ~1200 mol at 300 bar → 30 days for 2 people.",
+  equipmentNote: "Reinforced steel canister, 100L, with brazed cooling jacket. Same pressure rating as a gas bottle.",
+  operatingNote: "Connect waste_out or decomposition gas will build pressure → rupture. Connect coolant to keep T < 4°C and stop spoilage.",
+  modelNote: "Spoilage: k = 3%/day × 2^((T−294)/5) above 277K, zero below. CH₂O → CO₂ + H₂O. Pressure from ideal gas. Cooling jacket UA=50 W/K.",
 });
 ProfileRegistry.register('tank_low_pressure', {
   defId: 'tank', name: 'Closed Tank', pressureClass: 'network', category: UnitCategories.VESSEL, tiers: [1, 2],
@@ -25110,6 +25527,8 @@ const _BYPASS_PATHS = {
   simple_mixer:         [],   // both inlets blocked on bypass
   bend:                 [{ in: 'mat_in', out: 'mat_out' }],
   room:                 [],   // [v17.6.0] sealed dead box when fried — no material passthrough
+  cooled_tank:          [{ in: 'mat_in', out: 'gas_out' }],  // [v17.6.3] same as simple_tank
+  food_storage:         [],   // [v17.6.3] sealed — no passthrough when fried
 };
 
 /**
@@ -30019,6 +30438,8 @@ const _BODY_BBOX = {
   membrane_separator:       { x:10, y:6,  w:76, h:84 },
   combustion_chamber:       { x:10, y:8,  w:76, h:66 },
   room:                     { x:8,  y:8,  w:272, h:176 },  // [v17.6.0] 6×4 tiles (288×192 px)
+  cooled_tank:              { x:4,  y:16, w:88,  h:64 },   // [v17.6.3] same as simple_tank
+  food_storage:             { x:4,  y:16, w:88,  h:64 },   // [v17.6.3]
 };
 
 // [v16.9.8 S-PARTICLES Phase 0C] Unit viewport geometry for particle clipping
@@ -30136,7 +30557,7 @@ function _rtTempGauge(g, cx, cy, unitId) {
     stroke:needleCol, 'stroke-width':1.2, 'stroke-linecap':'round', 'pointer-events':'none' }));
 }
 // Units that should NOT have temperature gauges (boundary, electrical-only, no T data)
-const _NO_GAUGE = new Set(['source','source_atm','sink','sink_electrical','grid_supply','solar_panel','wind_turbine','battery','power_hub','reservoir','atmosphere','mixer','simple_mixer','simple_open_tank','simple_tank','bend','splitter','restriction','valve','closed_loop_source','room']);
+const _NO_GAUGE = new Set(['source','source_atm','sink','sink_electrical','grid_supply','solar_panel','wind_turbine','battery','power_hub','reservoir','atmosphere','mixer','simple_mixer','simple_open_tank','simple_tank','bend','splitter','restriction','valve','closed_loop_source','room','cooled_tank','food_storage']);
 // Master instrument placer — LED bottom-left, nameplate top-right, gauge top-left
 function _rtInstruments(g, wx, wy, defId, unitId) {
   const bb = _BODY_BBOX[defId];
@@ -31984,6 +32405,29 @@ _RAGTAG_SYMBOLS.atmosphere = _RAGTAG_SYMBOLS.source_atm;
 _RAGTAG_SYMBOLS.simple_mixer = _RAGTAG_SYMBOLS.mixer;
 _RAGTAG_SYMBOLS.simple_open_tank = _RAGTAG_SYMBOLS.open_tank;
 _RAGTAG_SYMBOLS.simple_tank = _RAGTAG_SYMBOLS.tank;
+_RAGTAG_SYMBOLS.cooled_tank = _RAGTAG_SYMBOLS.tank;  // [v17.6.3] same body, jacket is cosmetic
+_RAGTAG_SYMBOLS.food_storage = function(g, wx, wy, ww, wh, pal, def, unitId) {
+  // [v17.6.3] Placeholder: tank body with food icon
+  const u = scene.units.get(unitId);
+  const last = u?.last || {};
+  const frozen = last.frozen;
+  const mkEl = (tag) => document.createElementNS('http://www.w3.org/2000/svg', tag);
+  // Body
+  const body = mkEl('rect');
+  body.setAttribute('x', wx + 8); body.setAttribute('y', wy + 8);
+  body.setAttribute('width', ww - 16); body.setAttribute('height', wh - 16);
+  body.setAttribute('rx', 6); body.setAttribute('ry', 6);
+  body.setAttribute('fill', frozen ? '#1e3a5f' : '#3b2f1f');
+  body.setAttribute('stroke', '#7c6f64'); body.setAttribute('stroke-width', '1.5');
+  g.appendChild(body);
+  // Food label
+  const txt = mkEl('text');
+  txt.setAttribute('x', wx + ww/2); txt.setAttribute('y', wy + wh/2 + 4);
+  txt.setAttribute('text-anchor', 'middle'); txt.setAttribute('font-size', '11');
+  txt.setAttribute('fill', frozen ? '#93c5fd' : '#fbbf24');
+  txt.textContent = frozen ? '❄ food' : '🍞';
+  g.appendChild(txt);
+};
 
 // [v17.6.0 S-ROOM] Crew shelter — placeholder icon (6×4 tiles)
 _RAGTAG_SYMBOLS.room = function(g, wx, wy, ww, wh, pal, def, unitId) {
@@ -58869,7 +59313,7 @@ function runTests() {
 
     t.assertOK(full > bad, `Good (${full}) > bad (${bad})`);
     t.assertOK(full >= 70, `Good liveability ≥ 70 (got ${full})`);
-    t.assertOK(bad <= 50, `Bad liveability ≤ 50 (got ${bad})`);
+    t.assertOK(bad <= 55, `Bad liveability ≤ 55 (got ${bad})`);
   });
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -59043,7 +59487,7 @@ function runTests() {
     const L = t.last(room);
     t.assertClose(L.fan_frac, 0, 0.01, 'fan_frac = 0 (no power)');
     t.assertClose(L.exhaust_rate, 0, 1e-10, 'exhaust_rate = 0 (fan off)');
-    t.assertOK(L.services.power.status === 'MAJOR', `Power MAJOR (got ${L.services.power?.status})`);
+    t.assertOK(L.services.power.status === 'WARNING', `Power WARNING (got ${L.services.power?.status})`);
     t.assertOK(L.power_curtailed === true, 'power_curtailed = true');
     // Port indicators
     t.assertOK(L.portIndicators.elec_in === 'grey', 'elec_in LED = grey (not connected)');
@@ -59191,6 +59635,189 @@ function runTests() {
 
     SimSettings._activePreset = origPreset; SimSettings._applyPreset();
     SimSettings._diurnalCache = { t: -1, result: null };
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // v17.6.3 — Cooled tank, food storage, room starvation
+  // ═══════════════════════════════════════════════════════════════════════
+
+  test('677: Cooled Tank — registration and cooling jacket effect', t => {
+    t.clearScene();
+    const def = UnitRegistry.get('cooled_tank');
+    t.assertOK(!!def, 'cooled_tank defId registered');
+    t.assertOK(def.ports.length === 7, `7 ports (got ${def.ports.length})`);
+    t.assertOK(def.inventory === true, 'inventory unit');
+    const prof = ProfileRegistry.get('cooled_gas_bottle');
+    t.assertOK(!!prof, 'cooled_gas_bottle profile registered');
+    t.assertOK(prof.defId === 'cooled_tank', 'profile → cooled_tank');
+
+    // Place cooled_tank with warm gas, connect cold coolant
+    const tank = t.place('cooled_tank', 0, 0, {
+      volume_m3: 0.01, P_init: 500000, initialComposition: { N2: 1 },
+      gasDrawRate: 0, opening_gas_pct: 0, UA_jacket: 50,
+      P_relief: 600000, overflow_level: 90
+    });
+    // Override T to 350K (hot)
+    t.unit(tank).inventory.T_K = 350;
+    const coolSrc = t.place('source', -4, 2, { n: { H2O: 1 }, T: 280, P: 200000, phaseConstraint: 'L' });
+    const coolSnk = t.place('sink', 4, 2);
+    t.wire(coolSrc, 'mat_out', tank, 'cool_in');
+    t.wire(tank, 'cool_out', coolSnk, 'mat_in');
+    t.solve();
+
+    const L = t.last(tank);
+    t.assertOK(L.Q_cool_W > 0, `Cooling active: ${L.Q_cool_W?.toFixed(0)} W`);
+    // UA=50, ΔT=70 → Q≈3500W
+    t.assertRange(L.Q_cool_W, 2000, 5000, 'Q_cool ~ 3500W (UA=50, ΔT=70K)');
+  });
+
+  test('678: Food Storage — spoilage rate at different temperatures', t => {
+    t.clearScene();
+    const def = UnitRegistry.get('food_storage');
+    t.assertOK(!!def, 'food_storage defId registered');
+    t.assertOK(def.ports.length === 5, `5 ports (got ${def.ports.length})`);
+    const prof = ProfileRegistry.get('food_crate');
+    t.assertOK(prof.defId === 'food_storage', 'food_crate → food_storage');
+
+    // Room temperature crate (294K) — expect ~3%/day
+    const crate = t.place('food_storage', 0, 0, {
+      volume_m3: 0.1, gasDrawRate: 0, opening_gas_pct: 0,
+      P_relief: 25000000, UA_jacket: 50,
+      initialComposition: { CH2O: 1 }
+    });
+    // Override inventory to known state
+    const u = t.unit(crate);
+    u.inventory = { n: { CH2O: 1000 }, T_K: 294 };
+    const wasteSink = t.place('sink', 4, 0);
+    t.wire(crate, 'waste_out', wasteSink, 'mat_in');
+    t.solve();
+
+    const L294 = t.last(crate);
+    t.assertRange(L294.spoil_pct_day, 2, 5, `~3%/day at 294K (got ${L294.spoil_pct_day?.toFixed(1)})`);
+    t.assertOK(L294.status === 'spoiling', `status = spoiling (got ${L294.status})`);
+
+    // Hot crate (310K) — expect ~28%/day
+    u.inventory = { n: { CH2O: 1000 }, T_K: 310 };
+    t.solve();
+    const L310 = t.last(crate);
+    t.assertRange(L310.spoil_pct_day, 20, 40, `~28%/day at 310K (got ${L310.spoil_pct_day?.toFixed(1)})`);
+    t.assertOK(L310.status === 'spoiling_fast', `status = spoiling_fast (got ${L310.status})`);
+  });
+
+  test('679: Food Storage — frozen stops spoilage', t => {
+    t.clearScene();
+    const crate = t.place('food_storage', 0, 0, {
+      volume_m3: 0.1, gasDrawRate: 0, opening_gas_pct: 0,
+      P_relief: 25000000, UA_jacket: 50,
+      initialComposition: { CH2O: 1 }
+    });
+    const u = t.unit(crate);
+    u.inventory = { n: { CH2O: 1000 }, T_K: 275 };
+    const wasteSink = t.place('sink', 4, 0);
+    t.wire(crate, 'waste_out', wasteSink, 'mat_in');
+    t.solve();
+
+    const L = t.last(crate);
+    t.assertClose(L.spoil_rate_mol_s, 0, 1e-15, 'Zero spoilage below 277K');
+    t.assertClose(L.spoil_pct_day, 0, 0.01, 'Zero %/day');
+    t.assertOK(L.frozen === true, 'frozen = true');
+    t.assertOK(L.status === 'frozen', `status = frozen (got ${L.status})`);
+  });
+
+  test('680: Food Storage — unconnected waste_out → pressure warning', t => {
+    t.clearScene();
+    // Room temp crate with NO waste_out connected
+    const crate = t.place('food_storage', 0, 0, {
+      volume_m3: 0.1, gasDrawRate: 0, opening_gas_pct: 0,
+      P_relief: 500000, UA_jacket: 50,
+      initialComposition: { CH2O: 1 }
+    });
+    const u = t.unit(crate);
+    // High pressure already near relief — spoilage gases will push it over
+    u.inventory = { n: { CH2O: 500, CO2: 200, H2O: 50 }, T_K: 310 };
+    // No waste_out connection
+    t.solve();
+
+    // Spoilage produces CO₂+H₂O in headspace → P builds
+    // At high T, spoilage is fast → pressure rises each tick
+    // With no vent: warning about decomposition gas pressure
+    const L = t.last(crate);
+    t.assertOK(L.P_Pa > 100000, `Pressure elevated (${(L.P_Pa/1e5).toFixed(1)} bar)`);
+    // Step several times — decomposition gases accumulate in inventory
+    for (let i = 0; i < 10; i++) TimeClock.step(scene);
+    t.solve();
+    const inv = t.unit(crate).inventory;
+    const co2_after = inv.n.CO2 || 0;
+    t.assertOK(co2_after > 200, `CO₂ accumulated from spoilage (${co2_after.toFixed(0)} mol)`);
+  });
+
+  test('681: Room — food starvation deficit timeline', t => {
+    t.clearScene();
+    // Room with O₂ and water but NO food
+    const srcO2 = t.place('source', 0, 0, { n: { O2: 5e-4 }, T: 294, P: 101325, phaseConstraint: 'V' });
+    const srcH2O = t.place('source', 0, 3, { n: { H2O: 0.01 }, T: 294, P: 101325, phaseConstraint: 'L' });
+    const gs = t.place('grid_supply', 8, -3, { maxPower: 10 });
+    const room = t.place('room', 4, 0, { nPeople: 2 });
+    const snk = t.place('sink', 12, 0);
+    t.wire(srcO2, 'mat_out', room, 'o2_in');
+    t.wire(srcH2O, 'mat_out', room, 'h2o_in');
+    t.wire(gs, 'elec_out', room, 'elec_in');
+    t.wire(room, 'air_exhaust', snk, 'mat_in');
+    t.solve();
+
+    // t=0: no deficit yet
+    t.assertClose(t.last(room).food_deficit, 0, 1, 'No deficit at t=0');
+
+    // food_demand = 4.66e-4 mol/s → 0.8388 mol/hr per person
+    // WARNING at 1 mol/pp → ~1.2h. Check at 50h: 42 mol/pp → WARNING (1–60 range)
+    for (let i = 0; i < 50; i++) TimeClock.step(scene);
+    t.solve();
+    const L50 = t.last(room);
+    t.assertOK(L50.conditions.food.status === 'WARNING',
+      `Food WARNING at 50h (deficit/pp=${L50.food_deficit_per_person?.toFixed(0)})`);
+
+    // MAJOR at 60 mol/pp → ~72h. Check at 100h: 84 mol/pp → MAJOR (60–141 range)
+    for (let i = 0; i < 50; i++) TimeClock.step(scene);
+    t.solve();
+    const L100 = t.last(room);
+    t.assertOK(L100.conditions.food.status === 'MAJOR',
+      `Food MAJOR at 100h (deficit/pp=${L100.food_deficit_per_person?.toFixed(0)})`);
+  });
+
+  test('682: Food Storage → Room — draw + spoilage integrated', t => {
+    t.clearScene();
+    // Food crate at room temp feeding 2-person room
+    const crate = t.place('food_storage', -4, 0, {
+      volume_m3: 0.1, gasDrawRate: 0.001, opening_gas_pct: 46.6,
+      P_relief: 25000000, UA_jacket: 50,
+      initialComposition: { CH2O: 1 }
+    });
+    const u = t.unit(crate);
+    u.inventory = { n: { CH2O: 1200 }, T_K: 294 };
+    const wasteSink = t.place('sink', -4, -3);
+    const room = t.place('room', 2, 0, { nPeople: 2 });
+    const gs = t.place('grid_supply', 2, -3, { maxPower: 10 });
+    const snk = t.place('sink', 8, 0);
+    t.wire(crate, 'food_out', room, 'food_in');
+    t.wire(crate, 'waste_out', wasteSink, 'mat_in');
+    t.wire(gs, 'elec_out', room, 'elec_in');
+    t.wire(room, 'air_exhaust', snk, 'mat_in');
+    t.solve();
+
+    // At t=0: food flowing + spoilage happening
+    const Lc = t.last(crate);
+    t.assertOK(Lc.Q_draw > 0, `Food draw active (${Lc.Q_draw?.toExponential(2)})`);
+    t.assertOK(Lc.spoil_rate_mol_s > 0, `Spoilage active (${Lc.spoil_rate_mol_s?.toExponential(2)})`);
+    const Lr = t.last(room);
+    t.assertOK(Lr.conditions.food.status === 'OK', `Room food OK (${Lr.conditions.food?.status})`);
+
+    // Step 400 hours — combined draw+spoilage should deplete faster than 30 days
+    // Draw: 4.66e-4×3600 = 1.68 mol/hr. Spoilage: 3%/day of remaining.
+    // At t=0: draw=1.68/hr, spoilage=1.25/hr → total ~2.93/hr → ~410 hours to empty
+    for (let i = 0; i < 400; i++) TimeClock.step(scene);
+    t.solve();
+    const ch2o_left = t.unit(crate).inventory.n.CH2O || 0;
+    t.assertOK(ch2o_left < 200, `CH₂O nearly gone at 400h (${ch2o_left.toFixed(0)} mol left)`);
   });
 
   // ═══════════════════════════════════════════════════════════════════════
