@@ -379,6 +379,15 @@
     water), <417 mol = MAJOR (incapacitated, ~72h), ≥417 = CATASTROPHIC
     (death).  Recovers when supply exceeds demand.
 
+  **Crew Safety alarm category.**  New `AlarmCategory.CREW_SAFETY`
+  separates life-support conditions from equipment failures.  Room
+  errors tag `_category: 'crew_safety'` — the alarm bridge routes
+  them to the dedicated category.  Status bar shows "Crew in danger"
+  or "Crew at risk" instead of "Unit destroyed."  CREW_SAFETY alarms
+  sort above UNIT alarms at the same severity.  Messages are human-
+  focused: "☠ Crew dead — Hypoxia", "Crew incapacitated — CO₂
+  poisoning", "Crew at risk — Dehydration."
+
   Tests updated: 658 (Earth ISA init), 661 (atmosphere O₂ alarm),
   669 (liveability from conditions), 670 (O₂ bottle + atmosphere
   degradation), 671 (water deficit timeline), 673 (scrubber 6.7 day
@@ -15105,6 +15114,7 @@ const AlarmCategory = Object.freeze({
   ENERGY_BALANCE:'Energy Balance',
   PRESSURE:      'Pressure Solve',
   UNIT:          'Unit',
+  CREW_SAFETY:   'Crew Safety',    // [v17.6.2] Room life-support conditions — not equipment failure
   CONNECTIVITY:  'Connectivity',
   CONFIGURATION: 'Configuration',
   THERMO_CONVERGENCE: 'Thermo Convergence',
@@ -22602,15 +22612,23 @@ UnitRegistry.register('room', {
       type: 'room'
     };
 
+    // ── Human-focused alarm messages ──
+    const _condLabel = {
+      o2: 'Hypoxia — O₂ too low', co2: 'CO₂ poisoning', temp: 'Extreme temperature',
+      water: 'Dehydration', power: 'Power failure'
+    };
+
     if (worstCond === 'CATASTROPHIC') {
-      u.last.error = { severity: ErrorSeverity.CATASTROPHIC,
-        message: `Crew ${crewState}: ${worstLabel} critical` };
+      u.last.error = { severity: ErrorSeverity.CATASTROPHIC, _category: 'crew_safety',
+        message: crewState === 'death'
+          ? `☠ Crew dead — ${_condLabel[worstLabel] || worstLabel}`
+          : `Crew dying — ${_condLabel[worstLabel] || worstLabel}` };
     } else if (worstCond === 'MAJOR') {
-      u.last.error = { severity: ErrorSeverity.MAJOR,
-        message: `Crew ${crewState}: ${worstLabel}` };
+      u.last.error = { severity: ErrorSeverity.MAJOR, _category: 'crew_safety',
+        message: `Crew incapacitated — ${_condLabel[worstLabel] || worstLabel}` };
     } else if (worstCond === 'WARNING') {
-      u.last.error = { severity: ErrorSeverity.MINOR,
-        message: `Life support degraded: ${worstLabel}` };
+      u.last.error = { severity: ErrorSeverity.MINOR, _category: 'crew_safety',
+        message: `Crew at risk — ${_condLabel[worstLabel] || worstLabel}` };
     }
 
     // ── Store water deficit delta in exhaust metadata for updateInventory ──
@@ -27420,7 +27438,9 @@ AlarmSystem.register((scene) => {
       const aLevel = (sev?.level >= AlarmSeverity.CATASTROPHIC.level) ? AlarmSeverity.CATASTROPHIC
                    : AlarmSeverity.WARNING;
       const domain = ud.last.error._domain === 'sim' ? AlarmDomain.SIM : AlarmDomain.PLANT;
-      alarms.push({ id: `unit_${id}_err`, domain, category: AlarmCategory.UNIT,
+      // [v17.6.2] Room errors → CREW_SAFETY category (not equipment failure)
+      const cat = ud.last.error._category === 'crew_safety' ? AlarmCategory.CREW_SAFETY : AlarmCategory.UNIT;
+      alarms.push({ id: `unit_${id}_err`, domain, category: cat,
         severity: aLevel, message: ud.last.error.message, unitId: id, unitName: uName });
     }
     if (ud?.errors?.length) {
@@ -27788,12 +27808,14 @@ function updateStatusIndicator(solveResult) {
     const crit = plantAlarms.find(a => a.severity.level >= AlarmSeverity.CATASTROPHIC.level);
     if (crit?.category === AlarmCategory.CONVERGENCE) { msg = 'Solver failed'; }
     else if (crit?.category === AlarmCategory.MASS_BALANCE) { msg = 'Mass imbalance'; }
+    else if (crit?.category === AlarmCategory.CREW_SAFETY) { msg = 'Crew in danger'; }
     else if (crit?.category === AlarmCategory.UNIT) { msg = 'Unit destroyed'; }
     else { msg = 'Catastrophic failure'; }
     msgClass = 'catastrophic';
   } else {
     const warn = plantAlarms.find(a => a.severity.level >= AlarmSeverity.WARNING.level);
-    if (warn?.category === AlarmCategory.ENERGY_BALANCE) { msg = 'Energy leak'; }
+    if (warn?.category === AlarmCategory.CREW_SAFETY) { msg = 'Crew at risk'; }
+    else if (warn?.category === AlarmCategory.ENERGY_BALANCE) { msg = 'Energy leak'; }
     else if (warn?.category === AlarmCategory.UNIT) { msg = 'Check units'; }
     else if (warnN === 1) { msg = 'Minor issue'; }
     else { msg = `${warnN} warnings`; }
