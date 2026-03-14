@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v17.6.1
+  processThis v17.6.2
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -346,6 +346,47 @@
   ═══════════════════════════════════════════════════════════════════════════
   CHANGELOG  (latest first)
   ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v17.6.2 — S-ROOM Phase 3: Atmosphere-based alarms + survivability ────
+
+  **Earth ISA initialization.**  Room atmosphere starts with breathable
+  ship air (21% O₂, 78% N₂, 0.03% CO₂), NOT planet air.  The crashed
+  ship retains its Earth atmosphere.  Total moles computed at planet
+  surface pressure (PV/RT).  Eliminates the CO₂ purge burden — the
+  scrubber now lasts the theoretical 6.7 days as designed.
+
+  **Atmosphere-based alarms (replaces supply/demand).**  Room conditions
+  derived from actual room atmosphere fractions, not input port ratios:
+    O₂:   19–23%=OK, 17–19%=WARNING, 14–17%=MAJOR, <14%=CATASTROPHIC
+    CO₂:  <0.5%=OK, 0.5–2%=WARNING, 2–5%=MAJOR, >5%=CATASTROPHIC
+    Temp: 288–300K=OK, 283/305=WARNING, 273/313=MAJOR, else CATASTROPHIC
+  These thresholds match spec §6 gauge thresholds from Mission Design V2.
+
+  **Survivability staging.**  `crewState` in u.last tracks:
+    normal → degraded (WARNING) → incapacitated (MAJOR, Lena passes out)
+    → death (CATASTROPHIC).  Driven by worst condition across O₂, CO₂,
+    temperature, water, and power.
+
+  **Metabolism from room atmosphere.**  People breathe ROOM AIR, not
+  piped O₂ directly.  The o2_in port replenishes the atmosphere via
+  updateInventory.  Metabolism consumes O₂ from inventory.  If supply
+  stops, atmosphere O₂ drifts down gradually over hours — matching the
+  real physics of a sealed habitat.
+
+  **Internal body water buffer.**  `inventory._h2o_deficit` tracks
+  cumulative unmet water demand across the crew.  Thresholds per person:
+    <1 mol = OK (hydrated), <139 mol = WARNING (thirsty, ~24h without
+    water), <417 mol = MAJOR (incapacitated, ~72h), ≥417 = CATASTROPHIC
+    (death).  Recovers when supply exceeds demand.
+
+  Tests updated: 658 (Earth ISA init), 661 (atmosphere O₂ alarm),
+  669 (liveability from conditions), 670 (O₂ bottle + atmosphere
+  degradation), 671 (water deficit timeline), 673 (scrubber 6.7 day
+  runway), 676 (milestone timeline with Earth ISA).
+
+  NNGs: NNG-1 (conservation — O₂ consumed from inventory), NNG-3
+  (WYSIWYG — conditions reflect real atmosphere), NNG-7 (alarm
+  architecture — atmosphere thresholds), NNG-14 (changelog).
 
   ─── v17.6.1 — S-ROOM Phase 2: Buffer integration + fan gating ───────────
 
@@ -22233,16 +22274,22 @@ UnitRegistry.register('room', {
     const atm = SimSettings.getAtmosphere();
     const V = 62.5;   // m³ (5×5×2.5 m)
     const T = 294;     // K — initial room temperature (comfort setpoint)
-    const P = atm.P_Pa;
+    const P = atm.P_Pa;  // room sealed at planet surface pressure
     const n_total = P * V / (8.314 * T);
 
-    // Start with planet atmosphere (wet air)
-    const wetAir = SimSettings.getWetAir();
+    // Start with Earth ISA breathable air (the crashed ship's atmosphere),
+    // NOT planet air.  Planet X has 8% CO₂ which would be immediately lethal.
+    const shipAir = { N2: 0.7809, O2: 0.2095, Ar: 0.0093, CO2: 0.0003 };
     const n = {};
-    for (const [sp, frac] of Object.entries(wetAir)) {
+    for (const [sp, frac] of Object.entries(shipAir)) {
       n[sp] = frac * n_total;
     }
-    return { n, T_K: T };
+
+    // Internal body water buffer: tracks cumulative dehydration deficit.
+    // Starts at zero (crew is hydrated at t=0).
+    // Incapacitation at 139 mol/person deficit (~24h without water).
+    // Death at 417 mol/person deficit (~72h without water).
+    return { n, T_K: T, _h2o_deficit: 0 };
   },
 
   updateInventory(inventory, resolvedPorts, dt) {
@@ -22266,7 +22313,7 @@ UnitRegistry.register('room', {
       }
     }
 
-    // ── Metabolism + thermal: read private metadata from air_exhaust port ──
+    // ── Metabolism + thermal + water deficit: read private metadata ──
     // The tick piggybacks _room_meta on the exhaust stream (private convention).
     const meta = s_ex?._room_meta;
     if (meta) {
@@ -22275,11 +22322,16 @@ UnitRegistry.register('room', {
       inv.n.CO2 = (inv.n.CO2 || 0) + (meta.co2_mol || 0);
       inv.n.H2O = (inv.n.H2O || 0) + (meta.h2o_mol || 0);
       // Note: CH₂O (food) is consumed directly — never enters room atmosphere.
-      // It flows in as food_in and is metabolized inline.
 
       // Thermal: apply dT computed by tick
       if (typeof meta.dT === 'number') {
         inv.T_K = Math.max(200, Math.min(400, inv.T_K + meta.dT));
+      }
+
+      // Water deficit: accumulates when supply < demand, recovers when supply > demand
+      // Tracked as cumulative mol of unmet water demand across the crew.
+      if (typeof meta.h2o_deficit_delta === 'number') {
+        inv._h2o_deficit = Math.max(0, (inv._h2o_deficit || 0) + meta.h2o_deficit_delta);
       }
     }
 
@@ -22328,7 +22380,11 @@ UnitRegistry.register('room', {
     const circ_demand = R_CIRC * N;
 
     // ── 3. Inline metabolism ──
-    const o2_consumed   = Math.min(o2_demand, o2_supply);
+    // People breathe ROOM AIR, not piped O₂ directly.
+    // o2_in port replenishes the atmosphere (via updateInventory).
+    // Metabolism consumes O₂ from inventory, food from food_in port.
+    const o2_in_room = (inv.n.O2 || 0) / dt;  // max available from room atmosphere
+    const o2_consumed   = Math.min(o2_demand, o2_in_room);
     const food_consumed = Math.min(food_demand, food_supply);
     // Stoichiometry: min of the two limits actual reaction rate
     const reaction_rate = Math.min(o2_consumed, food_consumed);
@@ -22420,65 +22476,74 @@ UnitRegistry.register('room', {
       }
     };
 
-    // ── 9. Service validation ──
-    const services = {};
+    // ── 9. Atmosphere-based condition assessment (spec §6 gauge thresholds) ──
+    // Alarms derive from ROOM CONDITIONS, not supply/demand ratios.
+    // The atmosphere drifts gradually — that's the real clock.
+    const conditions = {};
 
-    // O₂ service
-    const o2_pct = o2_demand > 0 ? o2_supply / o2_demand : 1;
-    services.o2 = { demand: o2_demand, supply: o2_supply, pct: o2_pct,
-      status: o2_pct >= 1 ? 'OK' : o2_pct >= 0.5 ? 'WARNING' : 'MAJOR' };
+    // O₂ condition — from room atmosphere fraction
+    const o2_pct_atm = room_x_O2 * 100;
+    conditions.o2 = { value: o2_pct_atm,
+      status: o2_pct_atm >= 19 ? 'OK' : o2_pct_atm >= 17 ? 'WARNING'
+            : o2_pct_atm >= 14 ? 'MAJOR' : 'CATASTROPHIC' };
 
-    // O₂ purity (non-O₂ in o2_in stream)
-    if (s_o2?.n) {
-      const o2_total = Object.values(s_o2.n).reduce((a, b) => a + b, 0);
-      const o2_frac = o2_total > 1e-15 ? (s_o2.n.O2 || 0) / o2_total : 0;
-      if (o2_frac < 0.90) services.o2.status = 'MAJOR';
-      else if (o2_frac < 0.95 && services.o2.status === 'OK') services.o2.status = 'WARNING';
-    }
+    // CO₂ condition — from room atmosphere fraction
+    const co2_pct_atm = room_x_CO2 * 100;
+    conditions.co2 = { value: co2_pct_atm,
+      status: co2_pct_atm <= 0.5 ? 'OK' : co2_pct_atm <= 2 ? 'WARNING'
+            : co2_pct_atm <= 5 ? 'MAJOR' : 'CATASTROPHIC' };
 
-    // Food service
-    const food_pct = food_demand > 0 ? food_supply / food_demand : 1;
-    services.food = { demand: food_demand, supply: food_supply, pct: food_pct,
-      status: food_pct >= 1 ? 'OK' : food_pct >= 0.5 ? 'WARNING' : 'MAJOR' };
+    // Temperature condition — from room T
+    conditions.temp = { value: T_room,
+      status: (T_room >= 288 && T_room <= 300) ? 'OK'
+            : (T_room >= 283 && T_room <= 305) ? 'WARNING'
+            : (T_room >= 273 && T_room <= 313) ? 'MAJOR' : 'CATASTROPHIC' };
 
-    // Water service (h2o_in + hot_water_in combined)
+    // Water condition — from body hydration deficit (inventory._h2o_deficit)
+    // Deficit thresholds per person: 139 mol incapacitated (~24h), 417 mol death (~72h)
+    const h2o_deficit = inv._h2o_deficit || 0;
+    const h2o_deficit_per_person = N > 0 ? h2o_deficit / N : 0;
     const total_water = h2o_supply + hw_supply;
     const total_water_demand = h2o_demand + hw_demand;
-    const water_pct = total_water_demand > 0 ? total_water / total_water_demand : 1;
-    services.water = { demand: total_water_demand, supply: total_water, pct: water_pct,
-      status: water_pct >= 1 ? 'OK' : water_pct >= 0.5 ? 'WARNING' : 'MAJOR' };
+    const h2o_deficit_rate = Math.max(0, total_water_demand - total_water);  // mol/s unmet
+    conditions.water = { value: h2o_deficit_per_person,
+      status: h2o_deficit_per_person < 1 ? 'OK'    // fully hydrated
+            : h2o_deficit_per_person < 139 ? 'WARNING'   // deficit building
+            : h2o_deficit_per_person < 417 ? 'MAJOR'     // incapacitated
+            : 'CATASTROPHIC' };                           // death
 
-    // Air return service
-    const air_pct = circ_demand > 0 ? air_return_rate / circ_demand : 1;
-    let air_quality = 'OK';
-    if (s_air?.n) {
-      const air_total = Object.values(s_air.n).reduce((a, b) => a + b, 0);
-      if (air_total > 1e-15) {
-        const ret_o2  = (s_air.n.O2 || 0) / air_total;
-        const ret_co2 = (s_air.n.CO2 || 0) / air_total;
-        if (ret_o2 < 0.14 || ret_co2 > 0.05) air_quality = 'MAJOR';
-        else if (ret_o2 < 0.18 || ret_co2 > 0.005) air_quality = 'WARNING';
-      }
-    }
-    services.air = { demand: circ_demand, supply: air_return_rate, pct: air_pct,
-      status: air_pct < 0.5 ? 'MAJOR' : (air_pct < 1 || air_quality !== 'OK') ? 'WARNING' : 'OK',
-      quality: air_quality };
-
-    // Power service
+    // Power condition — from supply vs demand
     const power_pct = power_total > 0 ? W_avail / power_total : 1;
-    services.power = { demand: power_total, supply: W_avail, pct: Math.min(1, power_pct),
+    conditions.power = { value: power_pct * 100,
       status: power_pct >= 1 ? 'OK' : power_pct >= 0.5 ? 'WARNING' : 'MAJOR' };
 
-    // Temperature service
-    const T_after = T_room + dT;
-    let temp_status = 'OK';
-    if (T_after < 273 || T_after > 313) temp_status = 'CATASTROPHIC';
-    else if (T_after < 283 || T_after > 305) temp_status = 'MAJOR';
-    else if (T_after < 288 || T_after > 300) temp_status = 'WARNING';
-    services.temp = { current: T_room, target: T_SETPOINT, status: temp_status };
+    // ── 10. Survivability staging ──
+    // normal → incapacitated (Lena passes out) → death
+    const sevOrder = { OK: 0, WARNING: 1, MAJOR: 2, CATASTROPHIC: 3 };
+    let worstCond = 'OK';
+    let worstLabel = '';
+    for (const [key, c] of Object.entries(conditions)) {
+      if (sevOrder[c.status] > sevOrder[worstCond]) {
+        worstCond = c.status;
+        worstLabel = key;
+      }
+    }
+    const crewState =
+      worstCond === 'CATASTROPHIC' ? 'death' :
+      worstCond === 'MAJOR' ? 'incapacitated' :
+      worstCond === 'WARNING' ? 'degraded' : 'normal';
 
-    // ── 10. Port indicators (supply/demand LED colors) ──
-    // grey=disconnected, green=95-105%, yellow=excess(>105%), red=deficit(<95%)
+    // ── Legacy services object (backward compat for inspector + existing tests) ──
+    const services = {
+      o2:    { demand: o2_demand, supply: o2_supply, pct: o2_demand > 0 ? o2_supply / o2_demand : 1, status: conditions.o2.status },
+      food:  { demand: food_demand, supply: food_supply, pct: food_demand > 0 ? food_supply / food_demand : 1, status: food_supply >= food_demand ? 'OK' : food_supply >= food_demand * 0.5 ? 'WARNING' : 'MAJOR' },
+      water: { demand: total_water_demand, supply: total_water, pct: total_water_demand > 0 ? total_water / total_water_demand : 1, status: conditions.water.status },
+      air:   { demand: circ_demand, supply: air_return_rate, pct: circ_demand > 0 ? air_return_rate / circ_demand : 1, status: fan_frac > 0.5 ? 'OK' : fan_frac > 0.01 ? 'WARNING' : 'MAJOR', quality: 'OK' },
+      power: { demand: power_total, supply: W_avail, pct: Math.min(1, power_pct), status: conditions.power.status },
+      temp:  { current: T_room, target: T_SETPOINT, status: conditions.temp.status },
+    };
+
+    // ── 11. Port indicators (supply/demand LED colors) ──
     const _portLed = (supply, demand, connected) => {
       if (!connected) return 'grey';
       if (demand < 1e-15) return supply > 1e-15 ? 'yellow' : 'green';
@@ -22496,44 +22561,33 @@ UnitRegistry.register('room', {
       air_exhaust:  fan_frac > 0.5 ? 'green' : fan_frac > 0.01 ? 'yellow' : 'red',
     };
 
-    // ── 10. Liveability score (0–100) ──
+    // ── 12. Liveability score (0–100) ──
     const statusScore = { OK: 1, WARNING: 0.7, MAJOR: 0.3, CATASTROPHIC: 0 };
     const liveability = Math.round(100 * (
-      (statusScore[services.o2.status] || 0) * 0.25 +
-      (statusScore[services.food.status] || 0) * 0.15 +
-      (statusScore[services.water.status] || 0) * 0.15 +
-      (statusScore[services.air.status] || 0) * 0.15 +
-      (statusScore[services.power.status] || 0) * 0.10 +
-      (statusScore[services.temp.status] || 0) * 0.20
+      (statusScore[conditions.o2.status] || 0) * 0.25 +
+      (statusScore[conditions.co2.status] || 0) * 0.20 +
+      (statusScore[conditions.temp.status] || 0) * 0.20 +
+      (statusScore[conditions.water.status] || 0) * 0.15 +
+      (statusScore[services.food.status] || 0) * 0.10 +
+      (statusScore[conditions.power.status] || 0) * 0.10
     ));
 
-    // ── 11. Worst-service alarm ──
-    const severityOrder = ['OK', 'WARNING', 'MAJOR', 'CATASTROPHIC'];
-    let worstSev = 0;
-    let worstMsg = '';
-    for (const [svc, info] of Object.entries(services)) {
-      const idx = severityOrder.indexOf(info.status);
-      if (idx > worstSev) {
-        worstSev = idx;
-        worstMsg = `${svc}: ${info.status}`;
-      }
-    }
-
-    // ── 12. Gauges ──
+    // ── 13. Gauges ──
     const gauges = {
-      o2_pct:    room_x_O2 * 100,
-      co2_pct:   room_x_CO2 * 100,
+      o2_pct:    o2_pct_atm,
+      co2_pct:   co2_pct_atm,
       temp_K:    T_room,
       power_pct: Math.min(100, power_pct * 100),
     };
 
-    // ── 13. Populate u.last ──
+    // ── 14. Room alarm (from worst condition) ──
+    // ── 15. Populate u.last ──
     u.last = {
       nPeople: N,
       T_room_K: T_room, T_ext_K: T_ext,
       room_x_O2, room_x_CO2, room_x_N2, room_x_H2O,
       room_n_total: n_total,
-      services, portIndicators,
+      conditions, services, portIndicators, crewState,
       Q_metabolic, Q_lighting: Q_lighting_actual, Q_streams, Q_hot_water,
       Q_envelope, Q_balance: Q_in - Q_out,
       heating_status: (Q_in - Q_out) > 1 ? 'warming' : (Q_in - Q_out) < -1 ? 'cooling' : 'stable',
@@ -22541,20 +22595,26 @@ UnitRegistry.register('room', {
       o2_demand, food_demand, h2o_demand, hw_demand, circ_demand,
       o2_consumed: reaction_rate, food_consumed: reaction_rate,
       co2_produced, h2o_metabolic, exhaust_rate,
+      h2o_deficit, h2o_deficit_per_person,
       P_lighting, P_airloop, power_total, power_curtailed, fan_frac,
-      // Thermal breakdown for inspector
       Q_loss_total: Q_envelope,
       Q_passive: Q_metabolic + Q_lighting_actual + Q_streams + Q_hot_water,
       type: 'room'
     };
 
-    if (worstSev >= 2) {  // MAJOR or CATASTROPHIC
-      u.last.error = { severity: worstSev >= 3 ? ErrorSeverity.CATASTROPHIC : ErrorSeverity.MAJOR,
-        message: `Life support: ${worstMsg}` };
-    } else if (worstSev >= 1) {
+    if (worstCond === 'CATASTROPHIC') {
+      u.last.error = { severity: ErrorSeverity.CATASTROPHIC,
+        message: `Crew ${crewState}: ${worstLabel} critical` };
+    } else if (worstCond === 'MAJOR') {
+      u.last.error = { severity: ErrorSeverity.MAJOR,
+        message: `Crew ${crewState}: ${worstLabel}` };
+    } else if (worstCond === 'WARNING') {
       u.last.error = { severity: ErrorSeverity.MINOR,
-        message: `Life support: ${worstMsg}` };
+        message: `Life support degraded: ${worstLabel}` };
     }
+
+    // ── Store water deficit delta in exhaust metadata for updateInventory ──
+    ports.air_exhaust._room_meta.h2o_deficit_delta = h2o_deficit_rate * dt;
   }
 });
 
@@ -58522,7 +58582,7 @@ function runTests() {
     t.assertOK(prof.tiers.includes(1), 'T1 available');
   });
 
-  test('658: Room — initInventory starts with planet air at 294K', t => {
+  test('658: Room — initInventory starts with Earth ISA air at 294K', t => {
     t.clearScene();
     const origPreset = SimSettings._activePreset;
     SimSettings._activePreset = 'planet_x'; SimSettings._applyPreset();
@@ -58533,11 +58593,19 @@ function runTests() {
     t.assertOK(!!u.inventory, 'inventory exists');
     t.assertClose(u.inventory.T_K, 294, 0.01, 'T_K = 294');
     const n_total = Object.values(u.inventory.n).reduce((a,b) => a+b, 0);
-    // PV/RT at Planet X: 89660 × 62.5 / (8.314 × 294) ≈ 2293 mol
+    // PV/RT at Planet X pressure: 89660 × 62.5 / (8.314 × 294) ≈ 2293 mol
     t.assertRange(n_total, 2000, 2600, 'n_total ~2293 mol');
+    // Earth ISA air composition (ship atmosphere), NOT planet air
     t.assertOK(u.inventory.n.N2 > 0, 'N₂ present');
     t.assertOK(u.inventory.n.O2 > 0, 'O₂ present');
-    t.assertOK(u.inventory.n.CO2 > 0, 'CO₂ present (Planet X 8%)');
+    // O₂ fraction should be ~21% (Earth ISA), not diluted by 8% CO₂
+    const o2_frac = u.inventory.n.O2 / n_total;
+    t.assertRange(o2_frac, 0.20, 0.22, 'O₂ ~21% (Earth ISA)');
+    // CO₂ should be trace (0.03%), not Planet X 8%
+    const co2_frac = (u.inventory.n.CO2 || 0) / n_total;
+    t.assertOK(co2_frac < 0.01, `CO₂ < 1% (got ${(co2_frac*100).toFixed(2)}% — Earth ISA not planet)`);
+    // Water deficit tracker initialized
+    t.assertClose(u.inventory._h2o_deficit, 0, 0.01, 'h2o_deficit = 0 at t=0');
 
     SimSettings._activePreset = origPreset; SimSettings._applyPreset();
     SimSettings._diurnalCache = { t: -1, result: null };
@@ -58589,19 +58657,23 @@ function runTests() {
     t.assertOK(svc.power?.status === 'OK', `Power status OK (got ${svc.power?.status})`);
   });
 
-  test('661: Room — O₂ missing → WARNING/MAJOR', t => {
+  test('661: Room — low O₂ atmosphere → MAJOR (incapacitated)', t => {
     t.clearScene();
-    // No O₂ connected — only food
-    const srcFood = t.place('source', 0, 3, { n: { CH2O: 1 }, T: 294, P: 101325, phaseConstraint: 'V' });
+    // Room with artificially low O₂ in atmosphere (simulating depleted state)
+    const gs = t.place('grid_supply', 4, -3, { maxPower: 1 });
     const room = t.place('room', 4, 0, { nPeople: 2 });
     const snk = t.place('sink', 12, 0);
-    t.wire(srcFood, 'mat_out', room, 'food_in');
+    t.wire(gs, 'elec_out', room, 'elec_in');
     t.wire(room, 'air_exhaust', snk, 'mat_in');
+    // Override inventory: 15% O₂ (between 14% CATASTROPHIC and 17% WARNING)
+    const u = t.unit(room);
+    const n_total = Object.values(u.inventory.n).reduce((a,b) => a+b, 0);
+    u.inventory.n = { N2: n_total * 0.84, O2: n_total * 0.15, Ar: n_total * 0.01 };
     t.solve();
     const L = t.last(room);
-    const svc = L.services || {};
-    t.assertOK(svc.o2?.status === 'MAJOR', `O₂ missing → MAJOR (got ${svc.o2?.status})`);
-    t.assertClose(L.o2_consumed, 0, 1e-10, 'Zero O₂ consumed');
+    t.assertOK(L.conditions.o2.status === 'MAJOR', `O₂ 15% → MAJOR (got ${L.conditions.o2?.status})`);
+    t.assertOK(L.crewState === 'incapacitated', `crewState = incapacitated (got ${L.crewState})`);
+    t.assertOK(L.room_x_O2 < 0.17, `room O₂ < 17% (got ${(L.room_x_O2*100).toFixed(1)}%)`);
   });
 
   test('662: Room — exhaust composition is CO₂-enriched', t => {
@@ -58737,9 +58809,9 @@ function runTests() {
     t.assertOK(L.nPeople === 3, 'nPeople = 3');
   });
 
-  test('669: Room — liveability degrades with missing services', t => {
+  test('669: Room — liveability degrades with bad atmosphere', t => {
     t.clearScene();
-    // Full supply room
+    // Full supply room → good conditions
     const srcO2 = t.place('source', 0, 0, { n: { O2: 1 }, T: 294, P: 101325, phaseConstraint: 'V' });
     const srcFood = t.place('source', 0, 3, { n: { CH2O: 1 }, T: 294, P: 101325, phaseConstraint: 'V' });
     const srcH2O = t.place('source', 0, 6, { n: { H2O: 1 }, T: 294, P: 101325, phaseConstraint: 'L' });
@@ -58758,24 +58830,31 @@ function runTests() {
     t.solve();
     const full = t.last(room).liveability;
 
-    // Now: room with nothing connected
+    // Bad atmosphere room: low O₂, high CO₂, cold
     t.clearScene();
+    const gs2 = t.place('grid_supply', 4, -3, { maxPower: 1 });
     const room2 = t.place('room', 4, 0, { nPeople: 2 });
     const snk2 = t.place('sink', 12, 0);
+    t.wire(gs2, 'elec_out', room2, 'elec_in');
     t.wire(room2, 'air_exhaust', snk2, 'mat_in');
+    // Override: 16% O₂, 3% CO₂, T=280K
+    const u2 = t.unit(room2);
+    const n2 = Object.values(u2.inventory.n).reduce((a,b) => a+b, 0);
+    u2.inventory.n = { N2: n2 * 0.80, O2: n2 * 0.16, CO2: n2 * 0.03, Ar: n2 * 0.01 };
+    u2.inventory.T_K = 280;
     t.solve();
-    const empty = t.last(room2).liveability;
+    const bad = t.last(room2).liveability;
 
-    t.assertOK(full > empty, `Full (${full}) > empty (${empty})`);
-    t.assertOK(full >= 70, `Full liveability ≥ 70 (got ${full})`);
-    t.assertOK(empty <= 50, `Empty liveability ≤ 50 (got ${empty})`);
+    t.assertOK(full > bad, `Good (${full}) > bad (${bad})`);
+    t.assertOK(full >= 70, `Good liveability ≥ 70 (got ${full})`);
+    t.assertOK(bad <= 50, `Bad liveability ≤ 50 (got ${bad})`);
   });
 
   // ═══════════════════════════════════════════════════════════════════════
   // v17.6.1 — S-ROOM Phase 2: Buffer integration tests
   // ═══════════════════════════════════════════════════════════════════════
 
-  test('670: Room + O₂ bottle — depletion in ~3 days', t => {
+  test('670: Room + O₂ bottle — depletion and atmosphere degradation', t => {
     t.clearScene();
     // O₂ gas bottle: 10L, 300 bar, draw matched to 2-person demand
     const o2 = t.place('simple_tank', 0, 0, {
@@ -58783,33 +58862,38 @@ function runTests() {
       gasDrawRate: 0.001, opening_gas_pct: 46.6,
       liqDrawRate: 0, opening_liq_pct: 0, P_relief: 25000000, overflow_level: 90
     });
+    const srcFood = t.place('source', 0, 3, { n: { CH2O: 5e-4 }, T: 294, P: 101325, phaseConstraint: 'V' });
     const gs = t.place('grid_supply', 8, -3, { maxPower: 1 });
     const room = t.place('room', 4, 0, { nPeople: 2 });
     const snk = t.place('sink', 12, 0);
     t.wire(o2, 'gas_out', room, 'o2_in');
+    t.wire(srcFood, 'mat_out', room, 'food_in');
     t.wire(gs, 'elec_out', room, 'elec_in');
     t.wire(room, 'air_exhaust', snk, 'mat_in');
     t.solve();
 
-    // At t=0: O₂ flowing, service OK
+    // At t=0: O₂ flowing, atmosphere breathable
     const L0 = t.last(room);
-    t.assertOK(L0.services.o2.status === 'OK' || L0.services.o2.pct > 0.9, `t=0 O₂ OK (pct=${L0.services.o2?.pct?.toFixed(2)})`);
+    t.assertOK(L0.conditions.o2.status === 'OK', `t=0 atmosphere OK (${L0.conditions.o2?.status})`);
 
-    // Step 72 hours — bottle should be nearly empty
-    for (let i = 0; i < 72; i++) TimeClock.step(scene);
+    // Step 76 hours — bottle should be empty, but atmosphere still OK
+    for (let i = 0; i < 76; i++) TimeClock.step(scene);
     t.solve();
-    const inv72 = t.unit(o2).inventory;
-    const n72 = Object.values(inv72.n).reduce((a,b) => a+b, 0);
-    t.assertOK(n72 < 10, `O₂ bottle <10 mol at 72h (got ${n72.toFixed(1)})`);
-
-    // Step 4 more hours — should be empty
-    for (let i = 0; i < 4; i++) TimeClock.step(scene);
-    t.solve();
+    const inv76 = t.unit(o2).inventory;
+    const n76 = Object.values(inv76.n).reduce((a,b) => a+b, 0);
+    t.assertOK(n76 < 10, `O₂ bottle <10 mol at 76h (got ${n76.toFixed(1)})`);
     const L76 = t.last(room);
-    t.assertOK(L76.services.o2.status === 'MAJOR', `O₂ MAJOR at 76h (got ${L76.services.o2?.status})`);
+    t.assertOK(L76.portIndicators.o2_in === 'red', `O₂ port LED = red after depletion`);
+
+    // Step 60 more hours (136h total) — room O₂ should have dropped significantly
+    for (let i = 0; i < 60; i++) TimeClock.step(scene);
+    t.solve();
+    const L136 = t.last(room);
+    t.assertOK(L136.room_x_O2 < 0.19, `Room O₂ < 19% at 136h (got ${(L136.room_x_O2*100).toFixed(1)}%)`);
+    t.assertOK(L136.conditions.o2.status !== 'OK', `O₂ degraded at 136h (${L136.conditions.o2?.status})`);
   });
 
-  test('671: Room + water barrel — depletion in ~2 hours', t => {
+  test('671: Room + water barrel — dehydration after depletion', t => {
     t.clearScene();
     // Open barrel: 100L, tiny water fill (~18.6 mol = 0.335% level)
     const h2o = t.place('simple_open_tank', 0, 0, {
@@ -58824,15 +58908,22 @@ function runTests() {
     t.wire(room, 'air_exhaust', snk, 'mat_in');
     t.solve();
 
-    // At t=0: water flowing
+    // At t=0: water flowing, crew hydrated
     const L0 = t.last(room);
-    t.assertOK(L0.services.water.supply > 1e-4, `t=0 water flowing (${L0.services.water?.supply?.toExponential(2)})`);
+    t.assertClose(L0.h2o_deficit, 0, 1, 'Deficit = 0 at t=0');
 
-    // Step 3 hours — barrel empty
+    // Step 3 hours — barrel should be empty, deficit starts building
     for (let i = 0; i < 3; i++) TimeClock.step(scene);
     t.solve();
     const L3 = t.last(room);
-    t.assertOK(L3.services.water.status === 'MAJOR', `Water MAJOR at 3h (got ${L3.services.water?.status})`);
+    t.assertOK(L3.h2o_deficit > 0, `Deficit building at 3h (${L3.h2o_deficit?.toFixed(0)} mol)`);
+
+    // Step to 30 hours total — well into WARNING territory
+    for (let i = 0; i < 27; i++) TimeClock.step(scene);
+    t.solve();
+    const L30 = t.last(room);
+    // Per person deficit after ~28h without water: ~162 mol/person → MAJOR (incapacitated)
+    t.assertOK(L30.conditions.water.status === 'MAJOR', `Water MAJOR at 30h (got ${L30.conditions.water?.status}, deficit/pp=${L30.h2o_deficit_per_person?.toFixed(0)})`);
   });
 
   test('672: Room + food crate — 30-day runway', t => {
@@ -58865,7 +58956,7 @@ function runTests() {
     t.assertRange(runway_hr, 650, 800, `Runway ${runway_hr.toFixed(0)} hr (27-33 days)`);
   });
 
-  test('673: Room + air loop — scrubber depletes (Planet X 8% CO₂ + metabolic)', t => {
+  test('673: Room + air loop — scrubber depletes in ~6.7 days (Earth ISA init)', t => {
     t.clearScene();
     const origPreset = SimSettings._activePreset;
     SimSettings._activePreset = 'planet_x'; SimSettings._applyPreset();
@@ -58891,26 +58982,24 @@ function runTests() {
     t.wire(scrubber, 'ret_out', co2snk, 'mat_in');
     t.solve();
 
-    // At t=0: scrubber near-full (first solve consumes a small amount)
+    // At t=0: scrubber full. Room starts with Earth ISA (0.03% CO₂, not 8%).
     const con0 = t.unit(scrubber).params.consumable;
     t.assertRange(con0.remaining, 260, 268, `Scrubber near-full at t=0 (${con0.remaining.toFixed(0)})`);
 
-    // On Planet X, the room starts with ~183 mol CO₂ (8% of ~2293 mol).
-    // The scrubber must first purge this initial load at maxRate 5 mol/hr (~37h),
-    // then sustain metabolic CO₂ removal at 1.68 mol/hr.
-    // Expected total depletion: ~55-90 hours depending on dynamics.
+    // With Earth ISA air, scrubber only handles metabolic CO₂ (1.68 mol/hr).
+    // Expected life: 268 / 1.68 ≈ 160h (6.7 days).
 
-    // Step 50 hours — scrubber should be substantially depleted
-    for (let i = 0; i < 50; i++) TimeClock.step(scene);
+    // Step 80 hours — about half depleted
+    for (let i = 0; i < 80; i++) TimeClock.step(scene);
     t.solve();
-    const con50 = t.unit(scrubber).params.consumable;
-    t.assertOK(con50.remaining < 100, `Scrubber <100 mol at 50h (got ${con50.remaining.toFixed(0)})`);
+    const con80 = t.unit(scrubber).params.consumable;
+    t.assertRange(con80.remaining, 100, 180, `Scrubber mid-life at 80h (${con80.remaining.toFixed(0)})`);
 
-    // Step to 100 hours total — scrubber should be exhausted
-    for (let i = 0; i < 50; i++) TimeClock.step(scene);
+    // Step to 165 hours total — should be near-exhausted
+    for (let i = 0; i < 85; i++) TimeClock.step(scene);
     t.solve();
-    const con100 = t.unit(scrubber).params.consumable;
-    t.assertClose(con100.remaining, 0, 1, `Scrubber exhausted at 100h (got ${con100.remaining.toFixed(1)})`);
+    const con165 = t.unit(scrubber).params.consumable;
+    t.assertOK(con165.remaining < 15, `Scrubber near-exhausted at 165h (${con165.remaining.toFixed(1)})`);
 
     SimSettings._activePreset = origPreset; SimSettings._applyPreset();
     SimSettings._diurnalCache = { t: -1, result: null };
@@ -59053,11 +59142,11 @@ function runTests() {
     t.wire(disp, 'elec_out_3', heater, 'elec_in');
     t.wire(disp, 'elec_surplus', surp, 'elec_in');
 
-    // ── Milestone 1: Water depletes at ~2-3h ──
+    // ── Milestone 1: Water deficit starts building at ~2-3h (barrel empties) ──
     for (let i = 0; i < 3; i++) TimeClock.step(scene);
     t.solve();
     const Lw = t.last(room);
-    t.assertOK(Lw.services.water.status !== 'OK', `Water degraded at 3h (${Lw.services.water?.status})`);
+    t.assertOK(Lw.h2o_deficit > 0, `Water deficit building at 3h (${Lw.h2o_deficit?.toFixed(0)} mol)`);
 
     // ── Milestone 2: O₂ bottle depletes at ~73-76h ──
     for (let i = 0; i < 73; i++) TimeClock.step(scene);
@@ -59066,17 +59155,17 @@ function runTests() {
     const o2rem = Object.values(o2inv.n).reduce((a,b) => a+b, 0);
     t.assertOK(o2rem < 5, `O₂ bottle near empty at 76h (${o2rem.toFixed(1)} mol)`);
 
-    // ── Milestone 3: Scrubber depleting — step to 200h total ──
-    // Note: after O₂ bottle dies at ~76h, metabolism stops → no new CO₂ produced.
-    // Scrubber continues draining room atmospheric CO₂ (finite pool), so depletion
-    // rate slows significantly. The scrubber outlasts the theoretical 170h.
-    for (let i = 0; i < 124; i++) TimeClock.step(scene);
+    // ── Milestone 3: Scrubber depleting at ~165h total ──
+    // With Earth ISA init, scrubber handles only metabolic CO₂.
+    // After O₂ bottle dies at 76h, room atmosphere O₂ depletes,
+    // metabolism slows, CO₂ production drops — scrubber lasts longer.
+    for (let i = 0; i < 89; i++) TimeClock.step(scene);
     t.solve();
     const con = t.unit(scrubber).params.consumable;
-    t.assertOK(con.remaining < 100, `Scrubber substantially depleted at 200h (${con.remaining.toFixed(1)} mol of 268)`);
+    t.assertOK(con.remaining < 40, `Scrubber depleted at 165h (${con.remaining.toFixed(1)} mol of 268)`);
 
-    // ── Sequence check: water first, then O₂, then scrubber ──
-    t.assertOK(true, 'Depletion order: water(3h) → O₂(76h) → scrubber(~170h)');
+    // ── Sequence: water deficit(3h) → O₂ bottle(76h) → scrubber(165h) ──
+    t.assertOK(true, 'Depletion order: water deficit(3h) → O₂ bottle(76h) → scrubber(~165h)');
 
     SimSettings._activePreset = origPreset; SimSettings._applyPreset();
     SimSettings._diurnalCache = { t: -1, result: null };
