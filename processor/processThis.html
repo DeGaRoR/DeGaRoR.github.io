@@ -32537,24 +32537,92 @@ _RAGTAG_SYMBOLS.room = function(g, wx, wy, ww, wh, pal, def, unitId) {
   _r(48, 50, 192, 44, { rx: 3, fill: '#161210', stroke: '#302820', 'stroke-width': 1.2 });
 
   // 5 gauge mounts — centered: spacing = 192/5 = 38.4, cx = 48 + 19.2 + i*38.4
-  const gaugeLabels = ['O2', 'CO2', 'TEMP', 'H2O', 'PWR'];
-  const gaugeCy = 72;
-  for (let i = 0; i < 5; i++) {
-    const gcx = 48 + 19.2 + i * 38.4;
-    _c(gcx, gaugeCy, 15, { fill: '#141210', stroke: '#4a3e30', 'stroke-width': 1.2 });
-    _c(gcx, gaugeCy, 12, { fill: '#0e0c0a', stroke: '#362e22', 'stroke-width': 0.5 });
-    _c(gcx, gaugeCy, 1.5, { fill: '#6a5a40' });
-    // Tick marks (N/S/E/W)
-    _l(gcx, gaugeCy-13, gcx, gaugeCy-11, { stroke: '#4a3e30', 'stroke-width': 0.4 });
-    _l(gcx, gaugeCy+11, gcx, gaugeCy+13, { stroke: '#4a3e30', 'stroke-width': 0.4 });
-    _l(gcx-13, gaugeCy, gcx-11, gaugeCy, { stroke: '#4a3e30', 'stroke-width': 0.4 });
-    _l(gcx+13, gaugeCy, gcx+11, gaugeCy, { stroke: '#4a3e30', 'stroke-width': 0.4 });
+  // Arc gauge helper: draws 270° arc from -135° to +135°
+  const _arcGauge = (cx, cy, r, label, value, gaugeMin, gaugeMax, bands) => {
+    const gcx = wx + cx, gcy = wy + cy;
+    // Outer bezel
+    _c(cx, cy, r + 2, { fill: '#141210', stroke: '#4a3e30', 'stroke-width': 1.2 });
+    // Face
+    _c(cx, cy, r, { fill: '#0c0a08', stroke: '#2a2418', 'stroke-width': 0.5 });
+    // Colored band arcs (270° sweep, from -135° to +135°)
+    const _a = (frac) => (-135 + frac * 270) * Math.PI / 180;
+    const bandR = r - 2.5;
+    for (const b of bands) {
+      const f0 = Math.max(0, (b.from - gaugeMin) / (gaugeMax - gaugeMin));
+      const f1 = Math.min(1, (b.to - gaugeMin) / (gaugeMax - gaugeMin));
+      if (f1 <= f0) continue;
+      const a0 = _a(f0), a1 = _a(f1);
+      const x0 = gcx + Math.cos(a0) * bandR, y0 = gcy + Math.sin(a0) * bandR;
+      const x1 = gcx + Math.cos(a1) * bandR, y1 = gcy + Math.sin(a1) * bandR;
+      const large = (f1 - f0) > 0.5 ? 1 : 0;
+      g.appendChild(svgEl('path', {
+        d: `M${x0},${y0} A${bandR},${bandR} 0 ${large} 1 ${x1},${y1}`,
+        fill: 'none', stroke: b.color, 'stroke-width': 2.5, opacity: 0.6,
+        'stroke-linecap': 'round', 'pointer-events': pe
+      }));
+    }
+    // Tick marks (8 ticks around the 270° arc)
+    for (let ti = 0; ti <= 8; ti++) {
+      const ta = _a(ti / 8);
+      const t0 = r - 1, t1 = r + 0.5;
+      g.appendChild(svgEl('line', {
+        x1: gcx + Math.cos(ta) * t0, y1: gcy + Math.sin(ta) * t0,
+        x2: gcx + Math.cos(ta) * t1, y2: gcy + Math.sin(ta) * t1,
+        stroke: '#4a3e30', 'stroke-width': 0.4, 'pointer-events': pe
+      }));
+    }
+    // Needle
+    const clampedVal = Math.max(gaugeMin, Math.min(gaugeMax, value));
+    const nFrac = (clampedVal - gaugeMin) / (gaugeMax - gaugeMin);
+    const nAngle = _a(nFrac);
+    const nLen = r - 4;
+    g.appendChild(svgEl('line', {
+      x1: gcx, y1: gcy,
+      x2: gcx + Math.cos(nAngle) * nLen, y2: gcy + Math.sin(nAngle) * nLen,
+      stroke: '#e2e0d8', 'stroke-width': 1, 'stroke-linecap': 'round', 'pointer-events': pe
+    }));
+    // Center pivot
+    _c(cx, cy, 1.8, { fill: '#6a5a40' });
     // Label
-    const lbl = svgEl('text', { x: wx+gcx, y: wy+gaugeCy-7, 'text-anchor': 'middle',
+    const lbl = svgEl('text', { x: gcx, y: gcy + r * 0.45, 'text-anchor': 'middle',
       'font-family': 'monospace', 'font-size': '3.5px', fill: '#6a5a40', 'pointer-events': pe });
-    lbl.textContent = gaugeLabels[i];
-    g.appendChild(lbl);
-  }
+    lbl.textContent = label; g.appendChild(lbl);
+  };
+
+  // Read gauge values from u.last (defaults for pre-sim)
+  const _gv = last.gauges || {};
+  const gO2  = _gv.o2_pct ?? 21;
+  const gCO2 = last.room_x_CO2 != null ? last.room_x_CO2 * 100 : 0.03;
+  const gT   = last.T_room_K != null ? last.T_room_K - 273.15 : 21;
+  const gH2O = last.services?.water ? last.services.water.pct * 100 : 100;
+  const gPwr = _gv.power_pct ?? 100;
+
+  const gR = 12;  // gauge radius
+  const gaugeCy = 72;
+  // Spacing: 5 gauges across 192px plate starting at x=48
+  // cx = 48 + 19.2 + i * 38.4
+  _arcGauge(67.2, gaugeCy, gR, 'O2', gO2, 10, 28, [
+    { from: 10, to: 14, color: '#ef4444' }, { from: 14, to: 17, color: '#f59e0b' },
+    { from: 17, to: 23, color: '#22c55e' }, { from: 23, to: 26, color: '#f59e0b' },
+    { from: 26, to: 28, color: '#ef4444' }
+  ]);
+  _arcGauge(105.6, gaugeCy, gR, 'CO2', gCO2, 0, 6, [
+    { from: 0, to: 0.5, color: '#22c55e' }, { from: 0.5, to: 2, color: '#f59e0b' },
+    { from: 2, to: 6, color: '#ef4444' }
+  ]);
+  _arcGauge(144.0, gaugeCy, gR, 'TEMP', gT, -10, 50, [
+    { from: -10, to: 5, color: '#ef4444' }, { from: 5, to: 15, color: '#f59e0b' },
+    { from: 15, to: 30, color: '#22c55e' }, { from: 30, to: 40, color: '#f59e0b' },
+    { from: 40, to: 50, color: '#ef4444' }
+  ]);
+  _arcGauge(182.4, gaugeCy, gR, 'H2O', gH2O, 0, 120, [
+    { from: 0, to: 30, color: '#ef4444' }, { from: 30, to: 60, color: '#f59e0b' },
+    { from: 60, to: 120, color: '#22c55e' }
+  ]);
+  _arcGauge(220.8, gaugeCy, gR, 'PWR', gPwr, 0, 120, [
+    { from: 0, to: 30, color: '#ef4444' }, { from: 30, to: 70, color: '#f59e0b' },
+    { from: 70, to: 120, color: '#22c55e' }
+  ]);
   // Plate bolts
   _c(52, 54, 1.8, { fill: '#1f1a14', stroke: '#5a4a38', 'stroke-width': 0.8 });
   _c(236, 54, 1.8, { fill: '#1f1a14', stroke: '#5a4a38', 'stroke-width': 0.8 });
@@ -32672,55 +32740,73 @@ _RAGTAG_SYMBOLS.room = function(g, wx, wy, ww, wh, pal, def, unitId) {
   _r(230, 228, 3, 8, { rx: 1, fill: '#5a5040' }); _r(230, 226, 3, 3, { rx: 1, fill: '#6a6050' });
   _r(236, 228, 3, 8, { rx: 1, fill: '#5a5040' }); _r(236, 230, 3, 3, { rx: 1, fill: '#8a7a60' });
 
-  // ── Broken pipe ──
-  _p(`M${wx+28} ${wy+290} L${wx+28} ${wy+330} Q${wx+28} ${wy+338} ${wx+36} ${wy+338} L${wx+62} ${wy+338}`,
-    { stroke: '#5a5040', 'stroke-width': 4, 'stroke-linecap': 'round' });
-  _p(`M${wx+62} ${wy+338} L${wx+66} ${wy+334} L${wx+64} ${wy+340} L${wx+70} ${wy+336} L${wx+68} ${wy+342} L${wx+72} ${wy+338}`,
-    { stroke: '#5a5040', 'stroke-width': 2, 'stroke-linecap': 'round' });
+  // ── Broken pipe (stub from left wall, above airlock) ──
+  _p(`M${wx+28} ${wy+222} L${wx+28} ${wy+250} Q${wx+28} ${wy+256} ${wx+34} ${wy+256} L${wx+55} ${wy+256}`,
+    { stroke: '#5a5040', 'stroke-width': 3.5, 'stroke-linecap': 'round' });
+  _p(`M${wx+55} ${wy+256} L${wx+59} ${wy+252} L${wx+57} ${wy+258} L${wx+63} ${wy+255}`,
+    { stroke: '#5a5040', 'stroke-width': 1.8, 'stroke-linecap': 'round' });
   // Drip
-  _p(`M${wx+70} ${wy+340} L${wx+72} ${wy+350} Q${wx+73} ${wy+356} ${wx+70} ${wy+358}`,
-    { stroke: '#3b82f6', 'stroke-width': 1, opacity: 0.25 });
-  _c(70, 360, 2, { fill: '#3b82f6', opacity: 0.12 });
-  _r(24, 308, 12, 4, { rx: 1, fill: '#4a4838' });
-  // Second pipe stub
-  _p(`M${wx+40} ${wy+216} L${wx+40} ${wy+220} Q${wx+40} ${wy+224} ${wx+36} ${wy+224} L${wx+28} ${wy+224}`,
-    { stroke: '#4a4838', 'stroke-width': 3, 'stroke-linecap': 'round' });
+  _p(`M${wx+61} ${wy+258} L${wx+62} ${wy+268} Q${wx+63} ${wy+274} ${wx+61} ${wy+276}`,
+    { stroke: '#3b82f6', 'stroke-width': 0.8, opacity: 0.25 });
+  _c(61, 279, 1.5, { fill: '#3b82f6', opacity: 0.1 });
+  _r(24, 236, 10, 3, { rx: 1, fill: '#4a4838' });
 
-  // ── Airlock door (slides up when open) ──
+  // ── Airlock door (2.5× taller, slides up when open) ──
   const doorOpen = u?.params?.doorOpen || false;
-  // Dark void behind door (hangar beyond)
-  _r(22, 348, 30, 40, { rx: 2, fill: '#060504' });
+  const _dy = 280, _dh = 100;
+  // Dark void behind door (torn-off hangar beyond)
+  _r(22, _dy, 34, _dh, { rx: 3, fill: '#060504' });
   if (doorOpen) {
-    // Faint orange glow from damaged hangar beyond
-    _r(24, 350, 26, 36, { rx: 1, fill: '#f97316', opacity: 0.06 });
-    // Distant debris silhouette
-    _r(28, 374, 12, 4, { fill: '#0a0908', opacity: 0.4 });
-    _r(36, 370, 6, 8, { fill: '#0a0908', opacity: 0.3 });
+    // Faint orange glow from damaged hangar
+    _r(25, _dy + 4, 28, _dh - 8, { rx: 2, fill: '#f97316', opacity: 0.05 });
+    // Distant wreckage silhouettes
+    _r(28, _dy + _dh - 18, 16, 6, { fill: '#0a0908', opacity: 0.5 });
+    _r(38, _dy + _dh - 30, 8, 14, { fill: '#0a0908', opacity: 0.35 });
+    _r(30, _dy + _dh - 40, 5, 10, { fill: '#080706', opacity: 0.25 });
+    // Faint stars/sparks in the void
+    _c(40, _dy + 20, 0.8, { fill: '#fde68a', opacity: 0.3 });
+    _c(32, _dy + 35, 0.6, { fill: '#fde68a', opacity: 0.2 });
   }
   // Door panel (translates up when open)
-  const doorSlide = doorOpen ? -36 : 0;
+  const doorSlide = doorOpen ? -(_dh - 8) : 0;
   const dg = svgEl('g', { transform: `translate(0,${doorSlide})`, 'pointer-events': pe });
-  dg.appendChild(svgEl('rect', { x: wx+22, y: wy+348, width: 30, height: 40,
-    rx: 2, fill: '#181612', stroke: '#3a3020', 'stroke-width': 1.5 }));
-  dg.appendChild(svgEl('rect', { x: wx+26, y: wy+352, width: 22, height: 32,
-    rx: 1, fill: '#100e0a', stroke: '#28221a', 'stroke-width': 0.5 }));
-  // Handle wheel
-  dg.appendChild(svgEl('circle', { cx: wx+42, cy: wy+368, r: 4,
-    fill: 'none', stroke: '#6a6050', 'stroke-width': 1.2 }));
-  dg.appendChild(svgEl('circle', { cx: wx+42, cy: wy+368, r: 1.5, fill: '#4a4838' }));
-  // Lock LED (green when open, red when closed)
-  dg.appendChild(svgEl('circle', { cx: wx+28, cy: wy+354, r: 2,
-    fill: doorOpen ? '#22c55e' : '#ef4444', opacity: 0.6 }));
-  // Hazard stripes on door top edge
-  dg.appendChild(svgEl('rect', { x: wx+22, y: wy+346, width: 30, height: 2,
+  // Outer frame
+  dg.appendChild(svgEl('rect', { x: wx+22, y: wy+_dy, width: 34, height: _dh,
+    rx: 3, fill: '#181612', stroke: '#3a3020', 'stroke-width': 1.5 }));
+  // Inner recess
+  dg.appendChild(svgEl('rect', { x: wx+26, y: wy+_dy+4, width: 26, height: _dh-8,
+    rx: 2, fill: '#100e0a', stroke: '#28221a', 'stroke-width': 0.5 }));
+  // Horizontal reinforcement ribs
+  for (let rib = _dy + 20; rib < _dy + _dh - 10; rib += 22) {
+    dg.appendChild(svgEl('line', { x1: wx+26, y1: wy+rib, x2: wx+52, y2: wy+rib,
+      stroke: '#28221a', 'stroke-width': 0.5 }));
+  }
+  // Handle wheel (larger, centered vertically)
+  const hwCy = wy + _dy + _dh * 0.45;
+  dg.appendChild(svgEl('circle', { cx: wx+48, cy: hwCy, r: 6,
+    fill: 'none', stroke: '#6a6050', 'stroke-width': 1.5 }));
+  dg.appendChild(svgEl('circle', { cx: wx+48, cy: hwCy, r: 2, fill: '#4a4838' }));
+  // Spokes
+  for (let a = 0; a < 360; a += 90) {
+    const rad = a * Math.PI / 180;
+    dg.appendChild(svgEl('line', {
+      x1: wx+48 + Math.cos(rad)*2.5, y1: hwCy + Math.sin(rad)*2.5,
+      x2: wx+48 + Math.cos(rad)*5.5, y2: hwCy + Math.sin(rad)*5.5,
+      stroke: '#5a5040', 'stroke-width': 0.8 }));
+  }
+  // Lock LED (green open, red closed)
+  dg.appendChild(svgEl('circle', { cx: wx+30, cy: wy+_dy+8, r: 2.5,
+    fill: doorOpen ? '#22c55e' : '#ef4444', opacity: 0.7 }));
+  // Hazard stripes on top edge
+  dg.appendChild(svgEl('rect', { x: wx+22, y: wy+_dy-3, width: 34, height: 3,
     fill: '#eab308', opacity: 0.3 }));
-  for (let hx = 22; hx < 52; hx += 10) {
-    dg.appendChild(svgEl('rect', { x: wx+hx, y: wy+346, width: 5, height: 2, fill: '#1a1610' }));
+  for (let hx = 22; hx < 56; hx += 10) {
+    dg.appendChild(svgEl('rect', { x: wx+hx, y: wy+_dy-3, width: 5, height: 3, fill: '#1a1610' }));
   }
   g.appendChild(dg);
-  // AIRLOCK stencil (stays in place, doesn't move with door)
-  const alTxt = svgEl('text', { x: wx+37, y: wy+394, 'text-anchor': 'middle',
-    'font-family': 'monospace', 'font-size': '4px', fill: '#5a5040', 'letter-spacing': '1', 'pointer-events': pe });
+  // AIRLOCK stencil (stays in place)
+  const alTxt = svgEl('text', { x: wx+39, y: wy+_dy+_dh+8, 'text-anchor': 'middle',
+    'font-family': 'monospace', 'font-size': '4.5px', fill: '#5a5040', 'letter-spacing': '1', 'pointer-events': pe });
   alTxt.textContent = 'AIRLOCK'; g.appendChild(alTxt);
 
   // ── Utility shelves (right wall) ──
@@ -32759,42 +32845,94 @@ _RAGTAG_SYMBOLS.room = function(g, wx, wy, ww, wh, pal, def, unitId) {
   const lightsOn = _lo === 'on' ? true : _lo === 'off' ? false
     : (last.fan_frac > 0 || last.fan_frac === undefined);  // auto: on if powered or pre-sim
   if (lightsOn) {
-    // Create gradient for light cones (unique per unit to avoid ID conflicts)
-    const lcId = `lc-${unitId}`;
+    // Create gradients (unique per unit to avoid ID conflicts)
+    const lcId = `lc-${unitId}`, lcUpId = `lcu-${unitId}`;
     const _svgDefs = g.closest('svg')?.querySelector('defs');
     if (_svgDefs && !_svgDefs.querySelector('#' + lcId)) {
+      // Downward cone gradient (warm, visible)
       const lg = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
       lg.setAttribute('id', lcId);
       lg.setAttribute('x1', '0.5'); lg.setAttribute('y1', '0');
       lg.setAttribute('x2', '0.5'); lg.setAttribute('y2', '1');
-      [[0, '#fef3c7', 0.22], [30, '#fde68a', 0.10], [70, '#fbbf24', 0.03], [100, '#f59e0b', 0]].forEach(([off, col, op]) => {
+      [[0, '#fef3c7', 0.35], [15, '#fde68a', 0.22], [40, '#fbbf24', 0.08], [70, '#f59e0b', 0.03], [100, '#f59e0b', 0]].forEach(([off, col, op]) => {
         const s = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
         s.setAttribute('offset', off + '%'); s.setAttribute('stop-color', col); s.setAttribute('stop-opacity', op);
         lg.appendChild(s);
       });
       _svgDefs.appendChild(lg);
+      // Upward ceiling flood gradient
+      const lgu = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
+      lgu.setAttribute('id', lcUpId);
+      lgu.setAttribute('x1', '0.5'); lgu.setAttribute('y1', '1');
+      lgu.setAttribute('x2', '0.5'); lgu.setAttribute('y2', '0');
+      [[0, '#fef3c7', 0.25], [40, '#fde68a', 0.12], [100, '#f59e0b', 0]].forEach(([off, col, op]) => {
+        const s = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+        s.setAttribute('offset', off + '%'); s.setAttribute('stop-color', col); s.setAttribute('stop-opacity', op);
+        lgu.appendChild(s);
+      });
+      _svgDefs.appendChild(lgu);
     }
-    const lcUrl = `url(#${lcId})`;
+    const lcUrl = `url(#${lcId})`, lcUpUrl = `url(#${lcUpId})`;
 
-    // 3 light fixtures
+    // 3 ceiling light fixtures
     const lightX = [63, 142, 219];
     const lightW = [10, 12, 10];
     for (let li = 0; li < 3; li++) {
       const lx = lightX[li], lw = lightW[li];
-      // Fixture housing
-      _r(lx - lw/2, 34, lw, 4, { rx: 1, fill: '#4a4838' });
-      // Warm bulb
-      _r(lx - lw/2 - 1, 36, lw + 2, 2, { rx: 1, fill: '#fde68a', opacity: 0.9 });
-      // Light cone (polygon from fixture down to window area)
-      const coneW = lw * 3.5;
+      // Fixture housing (metal bracket)
+      _r(lx - lw/2 - 1, 33, lw + 2, 5, { rx: 1, fill: '#3a3830' });
+      // Warm bulb (bright bar)
+      _r(lx - lw/2 - 2, 36, lw + 4, 3, { rx: 1.5, fill: '#fde68a', opacity: 0.95 });
+      // Bulb glow halo
+      _c(lx, 37, lw * 0.6, { fill: '#fde68a', opacity: 0.15 });
+
+      // Upward flood (hits ceiling)
       g.appendChild(svgEl('polygon', {
-        points: `${wx+lx-lw/2},${wy+38} ${wx+lx+lw/2},${wy+38} ${wx+lx+coneW/2},${wy+160} ${wx+lx-coneW/2},${wy+160}`,
+        points: `${wx+lx-lw/2},${wy+36} ${wx+lx+lw/2},${wy+36} ${wx+lx+lw},${wy+20} ${wx+lx-lw},${wy+20}`,
+        fill: lcUpUrl, 'pointer-events': pe
+      }));
+
+      // Main downward cone — extends all the way to the floor
+      const topHW = lw / 2;      // half-width at source
+      const botHW = lw * 5;      // half-width at floor (wide spread)
+      g.appendChild(svgEl('polygon', {
+        points: `${wx+lx-topHW},${wy+39} ${wx+lx+topHW},${wy+39} ${wx+lx+botHW},${wy+386} ${wx+lx-botHW},${wy+386}`,
         fill: lcUrl, 'pointer-events': pe
       }));
     }
-    // Subtle warm ambient fill
-    _r(44, 38, 200, 50, { fill: '#fde68a', opacity: 0.02 });
-    _r(44, 214, 200, 80, { fill: '#fde68a', opacity: 0.015 });
+
+    // Global warm illumination wash (entire interior)
+    _r(18, 20, 252, 16, { fill: '#fde68a', opacity: 0.04 });   // ceiling bounce
+    _r(44, 46, 200, 50, { fill: '#fde68a', opacity: 0.03 });   // gauge zone
+    _r(44, 214, 200, 170, { fill: '#fde68a', opacity: 0.025 }); // cabin area
+    _r(18, 386, 252, 28, { fill: '#fde68a', opacity: 0.03 });   // floor
+
+    // Airlock frame lights (two small warm LEDs above door)
+    _c(28, 276, 1.5, { fill: '#fde68a', opacity: 0.8 });
+    _c(50, 276, 1.5, { fill: '#fde68a', opacity: 0.8 });
+    // Tiny glow pools below airlock lights
+    g.appendChild(svgEl('ellipse', { cx: wx+28, cy: wy+280, rx: 4, ry: 2,
+      fill: '#fde68a', opacity: 0.06, 'pointer-events': pe }));
+    g.appendChild(svgEl('ellipse', { cx: wx+50, cy: wy+280, rx: 4, ry: 2,
+      fill: '#fde68a', opacity: 0.06, 'pointer-events': pe }));
+
+    // Safety LEDs around the room
+    // Console power LED
+    _c(120, 226, 1, { fill: '#22c55e', opacity: 0.6 });
+    // Side panel standby LED
+    _c(240, 224, 1, { fill: '#22c55e', opacity: 0.5 });
+    // Right wall emergency marker (dim red)
+    _c(254, 160, 1.2, { fill: '#ef4444', opacity: 0.25 });
+    // Floor emergency strip lights (along edges)
+    for (let fx = 40; fx <= 240; fx += 50) {
+      _r(fx, 385, 8, 1.5, { rx: 0.5, fill: '#fde68a', opacity: 0.15 });
+    }
+  } else {
+    // Lights off: only dim emergency LEDs remain
+    _c(254, 160, 1.2, { fill: '#ef4444', opacity: 0.12 });
+    for (let fx = 40; fx <= 240; fx += 50) {
+      _r(fx, 385, 8, 1.5, { rx: 0.5, fill: '#ef4444', opacity: 0.06 });
+    }
   }
 
   // ═══ HULL DETAILS (on top of background) ═══
@@ -38111,17 +38249,24 @@ UnitInspector.room = {
     const L = u.last || {};
     const items = [];
     const svc = L.services || {};
-    const _bar = pct => { const n = Math.round(Math.min(1, Math.max(0, pct)) * 10); return '█'.repeat(n) + '░'.repeat(10-n); };
     const _tone = s => s === 'OK' ? '' : s === 'WARNING' ? 'warn' : 'bad';
-    if (svc.o2)    items.push({ label: 'O₂ supply', value: `${_bar(svc.o2.pct)}  ${(svc.o2.pct*100).toFixed(0)}%  ${svc.o2.status}`, tone: _tone(svc.o2.status) });
-    if (svc.food)  items.push({ label: 'Food', value: `${_bar(svc.food.pct)}  ${(svc.food.pct*100).toFixed(0)}%  ${svc.food.status}`, tone: _tone(svc.food.status) });
-    if (svc.water) items.push({ label: 'Water', value: `${_bar(svc.water.pct)}  ${(svc.water.pct*100).toFixed(0)}%  ${svc.water.status}`, tone: _tone(svc.water.status) });
-    if (svc.air)   items.push({ label: 'Air loop', value: `${_bar(svc.air.pct)}  ${svc.air.status}  ${svc.air.quality !== 'OK' ? '(quality: '+svc.air.quality+')' : ''}`, tone: _tone(svc.air.status) });
-    if (svc.power) items.push({ label: 'Power', value: `${_bar(svc.power.pct)}  ${(svc.power.pct*100).toFixed(0)}%  ${svc.power.status}`, tone: _tone(svc.power.status) });
+    const _barColor = s => s === 'OK' ? '#22c55e' : s === 'WARNING' ? '#f59e0b' : '#ef4444';
+    const _barHtml = (pct, status) => {
+      const w = Math.round(Math.min(1, Math.max(0, pct)) * 100);
+      return `<div style="display:inline-flex;align-items:center;gap:6px;width:100%;">`
+        + `<div style="flex:1;height:6px;background:#1e293b;border-radius:3px;overflow:hidden;">`
+        + `<div style="width:${w}%;height:100%;background:${_barColor(status)};border-radius:3px;"></div></div>`
+        + `<span style="min-width:32px;text-align:right;font-size:10px;">${w}%</span></div>`;
+    };
+    if (svc.o2)    items.push({ label: 'O\u2082 supply', value: _barHtml(svc.o2.pct, svc.o2.status), tone: _tone(svc.o2.status) });
+    if (svc.food)  items.push({ label: 'Food', value: _barHtml(svc.food.pct, svc.food.status), tone: _tone(svc.food.status) });
+    if (svc.water) items.push({ label: 'Water', value: _barHtml(svc.water.pct, svc.water.status), tone: _tone(svc.water.status) });
+    if (svc.air)   items.push({ label: 'Air loop', value: _barHtml(svc.air.pct, svc.air.status), tone: _tone(svc.air.status) });
+    if (svc.power) items.push({ label: 'Power', value: _barHtml(svc.power.pct, svc.power.status), tone: _tone(svc.power.status) });
     if (svc.temp)  items.push({ label: 'Temperature', value: `${L.T_room_K?.toFixed(1) || '?'} K  ${svc.temp.status}`, tone: _tone(svc.temp.status) });
     // Atmosphere
-    if (L.room_x_O2 != null)  items.push({ label: 'Room O₂', value: `${(L.room_x_O2*100).toFixed(2)}%` });
-    if (L.room_x_CO2 != null) items.push({ label: 'Room CO₂', value: `${(L.room_x_CO2*100).toFixed(2)}%` });
+    if (L.room_x_O2 != null)  items.push({ label: 'Room O\u2082', value: `${(L.room_x_O2*100).toFixed(2)}%` });
+    if (L.room_x_CO2 != null) items.push({ label: 'Room CO\u2082', value: `${(L.room_x_CO2*100).toFixed(2)}%` });
     return items;
   },
   detail(u, ud) {
