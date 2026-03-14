@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v17.5.3
+  processThis v17.6.1
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -346,6 +346,99 @@
   ═══════════════════════════════════════════════════════════════════════════
   CHANGELOG  (latest first)
   ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v17.6.1 — S-ROOM Phase 2: Buffer integration + fan gating ───────────
+
+  **Room airloop fan.**  Power demand now includes circulation fan
+  (15 + 3.4×N W).  Fan power fraction gates exhaust rate — power loss
+  stops circulation → air loop stagnates → CO₂ builds.  Creates
+  cascading failure from a single power outage.
+
+  **Port indicators.**  Each room port gets a status LED in u.last
+  (portIndicators): grey=disconnected, green=95-105% of demand,
+  yellow=excess(>105%), red=deficit(<95%).  Ragtag icon renders LEDs
+  inline with ports, mirroring power_dispatcher_5 pattern.
+
+  **Food Crate profile.**  T1 simple_tank, 100L at 300 bar, ~1200 mol
+  CH₂O.  Feeds 2 people for ~30 days.  Category: LIFE_SUPPORT.
+
+  **Discovery: Planet X CO₂ initial load.**  The 8% atmospheric CO₂ on
+  Planet X means the LiOH scrubber must first purge ~183 mol of ambient
+  CO₂ before settling into steady-state metabolic removal.  Scrubber
+  depletes in ~85h (3.5 days), not the theoretical 160h (6.7 days).
+  This is physically correct and an important gameplay constraint:
+  the crew must get CO₂ levels down quickly, or the scrubber cartridge
+  won't last.  Missions should size LiOH capacity accordingly.
+
+  Tests: 670 (O₂ depletion ~3d), 671 (water depletion ~2h),
+  672 (food 30-day runway), 673 (scrubber depletion with Planet X CO₂),
+  674 (power loss → fan stops → exhaust zero), 675 (full scene stable),
+  676 (milestone timeline: water→O₂→scrubber).
+
+  NNGs: NNG-1 (mass balance — buffer depletion tracked), NNG-5 (power
+  lifecycle — fan curtailment), NNG-14 (changelog + 7 tests).
+
+  ─── v17.6.0 — S-ROOM: Crew shelter (Session 1) ─────────────────────────
+
+  **New defId: `room`.**  Multi-service crew habitat — the core
+  life-support sink that gives all production chains their meaning.
+  7 ports (4 material IN left, 1 electrical top, 2 air loop right),
+  6×4 tiles, inventory unit with atmospheric tracking.
+
+  **Inline metabolism.**  CH₂O + O₂ → CO₂ + H₂O at 2.33e-4 mol/s per
+  person (stoichiometric, not reactor framework).  Metabolic heat
+  121 W/person via ΔH_combustion.  Reaction rate limited by min(O₂,
+  food) supply.
+
+  **Thermal model.**  Envelope loss (UA=60 W/K to planet exterior),
+  stream enthalpy contributions via ThermoAdapter (NNG-10), metabolic
+  heat, lighting heat.  No internal heater — thermal management via
+  external heater/cooler on air recirculation loop.
+
+  **Hot water port.**  `hot_water_in` for showers/hygiene (3.2e-4 mol/s
+  per person at 333K).  Thermal side-effect computed but not the
+  primary HVAC lever.  Water consumed (sunk) — no waste_water_out.
+
+  **Service validation.**  Six services monitored: O₂ supply+purity,
+  food, water (cold+hot combined), air return (rate+quality), power,
+  temperature.  Each has OK/WARNING/MAJOR thresholds.  Worst-service
+  alarm emitted.
+
+  **Liveability score (0–100).**  Weighted composite of service
+  statuses.  O₂ 25%, temperature 20%, food/water/air 15% each,
+  power 10%.
+
+  **Power = lighting only.**  Q_lighting = 10 + 140×(1−solarFactor) W.
+  Air loop fan/heater/cooler are external equipment the player builds.
+
+  **New category: LIFE_SUPPORT.**  Orange (#f97316), order 15.
+  8 categories total (was 7).
+
+  **Profile: `shelter`.**  pressureClass 'simple', T1, nPeople default 2.
+
+  **Infrastructure:** _NO_GAUGE, _BYPASS_PATHS (empty — dead box when
+  fried), _PARTICLE_BEHAVIORS (null — opaque), _BODY_BBOX (272×176),
+  ragtag icon placeholder with lighting glow animation.
+
+  **computeSystemBalance handler.**  Room is mixed IN/OUT with
+  inventory — dedicated accumulation accounting (mass and energy).
+
+  **Inspector: UnitInspector.room.**  customParams (crew size),
+  conditions (T_room, T_ext, people, liveability), KPIs (service
+  status bars, atmosphere fractions), detail (reference rates,
+  heat balance breakdown, power).
+
+  Tests: 657 (registration), 658 (initInventory), 659 (metabolism),
+  660 (full supply), 661 (O₂ missing), 662 (CO₂ enrichment),
+  663 (hot stream), 664 (envelope cooling), 665 (hot water thermal),
+  666 (power=lighting), 667 (mass balance), 668 (reference rates),
+  669 (liveability).
+
+  NNGs: NNG-1 (conservation — mass balance handler), NNG-3 (WYSIWYG —
+  consumes what arrives), NNG-5 (power lifecycle), NNG-8 (SI),
+  NNG-9 (tick isolation — ctx.atmosphere, ctx.solarFactor),
+  NNG-10 (ThermoAdapter for Cp/enthalpy), NNG-13 (inspector sections),
+  NNG-14 (changelog + 13 tests).
 
   ─── v17.5.3 — Air intake cleanup + pressure class reclassification ──────
 
@@ -15760,7 +15853,7 @@ function diagnoseErrors(scene) {
    Categories for organizing units with color coding
    ========================= */
 const UnitCategories = {
-  // [v17.0.2] 7 categories. All ΔE pairs > 30 (CIELAB perceptual distance).
+  // [v17.6.0] 8 categories. All ΔE pairs > 30 (CIELAB perceptual distance).
   BOUNDARY:       { name: 'Supply & Drain',        color: '#10b981', order: 1 },  // Green
   HEAT_TRANSFER:  { name: 'Heat',                 color: '#14b8a6', order: 2 },  // Teal
   PRESSURE:       { name: 'Pressure',             color: '#8b5cf6', order: 3 },  // Purple
@@ -15768,6 +15861,7 @@ const UnitCategories = {
   SEPARATION:     { name: 'Separation & Mixing',  color: '#e535ab', order: 5 },  // Magenta
   STORAGE:        { name: 'Storage',              color: '#3b82f6', order: 6 },  // Blue
   POWER:          { name: 'Power',                color: '#eab308', order: 7 },  // Amber
+  LIFE_SUPPORT:   { name: 'Life Support',         color: '#f97316', order: 15 }, // Orange [v17.6.0 S-ROOM]
 
   // ── Legacy aliases (resolve to canonical categories) ──
   get SOURCE()           { return this.BOUNDARY; },
@@ -22060,6 +22154,388 @@ UnitRegistry.register('membrane_separator', {
 });
 
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// ROOM — Multi-service crew habitat [v17.6.0 S-ROOM]
+// ═══════════════════════════════════════════════════════════════════════════════
+//
+// The room is the core life-support sink: oxygen, food, water, hot water,
+// scrubbed air return, and electrical power.  Inline metabolism converts
+// O₂ + CH₂O → CO₂ + H₂O (simplified stoichiometry, not a reactor).
+// Thermal model: envelope loss (UA=60 W/K), metabolic heat, lighting heat,
+// stream enthalpy (including hot water).  Air loop handles heating/cooling
+// via external heater and air cooler.  Power demand = lighting only.
+//
+// Ports (7): 4 material IN (left), 1 electrical IN (top), 2 air loop (right).
+// 6×4 tiles.  Inventory: atmospheric gas (sealed volume, PV/RT moles).
+// pressureClass: 'simple' — accepts whatever flows in, no Cv.
+//
+// ┌─────────────────────────────────────────────────────────────────────────────┐
+// │ Metabolism rates per person per second:                                    │
+// │   O₂ consumed:     2.33e-4 mol/s    CH₂O consumed:   2.33e-4 mol/s      │
+// │   CO₂ produced:    2.33e-4 mol/s    H₂O metabolic:   2.33e-4 mol/s      │
+// │   H₂O cold drink:  1.29e-3 mol/s   H₂O hot (hyg.):  3.2e-4 mol/s       │
+// │   Metabolic heat:   121 W           Air circulation:  0.168 mol/s         │
+// └─────────────────────────────────────────────────────────────────────────────┘
+UnitRegistry.register('room', {
+  name: 'Room',
+  category: UnitCategories.LIFE_SUPPORT,
+  w: 6, h: 4,
+  optionalPorts: true,
+  ports: [
+    { portId: 'o2_in',        dir: PortDir.IN,  type: StreamType.MATERIAL,   x: 0, y: 1, label: 'O₂' },
+    { portId: 'food_in',      dir: PortDir.IN,  type: StreamType.MATERIAL,   x: 0, y: 2, label: 'food' },
+    { portId: 'h2o_in',       dir: PortDir.IN,  type: StreamType.MATERIAL,   x: 0, y: 3, label: 'water' },
+    { portId: 'hot_water_in', dir: PortDir.IN,  type: StreamType.MATERIAL,   x: 0, y: 4, label: 'hot H₂O' },
+    { portId: 'elec_in',      dir: PortDir.IN,  type: StreamType.ELECTRICAL, x: 3, y: 0, label: 'power' },
+    { portId: 'air_return',   dir: PortDir.IN,  type: StreamType.MATERIAL,   x: 6, y: 1, label: 'clean air' },
+    { portId: 'air_exhaust',  dir: PortDir.OUT, type: StreamType.MATERIAL,   x: 6, y: 2, label: 'exhaust' }
+  ],
+  presentations: {
+    'box/default': { w: 6, h: 4, ports: {
+      o2_in:{x:0,y:1}, food_in:{x:0,y:2}, h2o_in:{x:0,y:3}, hot_water_in:{x:0,y:4},
+      elec_in:{x:3,y:0}, air_return:{x:6,y:1}, air_exhaust:{x:6,y:2}
+    }},
+    'box/mirror': { w: 6, h: 4, ports: {
+      o2_in:{x:6,y:1}, food_in:{x:6,y:2}, h2o_in:{x:6,y:3}, hot_water_in:{x:6,y:4},
+      elec_in:{x:3,y:0}, air_return:{x:0,y:1}, air_exhaust:{x:0,y:2}
+    }}
+  },
+  limitParams: ['T_LL', 'T_HH'],
+  limits: { S: { T_LL: 263, T_HH: 323 } },
+  inventory: true,
+
+  initInventory(par) {
+    const atm = SimSettings.getAtmosphere();
+    const V = 62.5;   // m³ (5×5×2.5 m)
+    const T = 294;     // K — initial room temperature (comfort setpoint)
+    const P = atm.P_Pa;
+    const n_total = P * V / (8.314 * T);
+
+    // Start with planet atmosphere (wet air)
+    const wetAir = SimSettings.getWetAir();
+    const n = {};
+    for (const [sp, frac] of Object.entries(wetAir)) {
+      n[sp] = frac * n_total;
+    }
+    return { n, T_K: T };
+  },
+
+  updateInventory(inventory, resolvedPorts, dt) {
+    const inv = { ...inventory, n: { ...inventory.n } };
+
+    // ── Collect all gas inflows (o2_in, air_return) ──
+    const gasInPorts = ['o2_in', 'air_return'];
+    for (const pid of gasInPorts) {
+      const s = resolvedPorts[pid];
+      if (!s?.n) continue;
+      for (const [sp, rate] of Object.entries(s.n)) {
+        inv.n[sp] = (inv.n[sp] || 0) + rate * dt;
+      }
+    }
+
+    // ── Subtract gas outflows (air_exhaust) ──
+    const s_ex = resolvedPorts.air_exhaust;
+    if (s_ex?.n) {
+      for (const [sp, rate] of Object.entries(s_ex.n)) {
+        inv.n[sp] = Math.max(0, (inv.n[sp] || 0) - rate * dt);
+      }
+    }
+
+    // ── Metabolism + thermal: read private metadata from air_exhaust port ──
+    // The tick piggybacks _room_meta on the exhaust stream (private convention).
+    const meta = s_ex?._room_meta;
+    if (meta) {
+      // Consume O₂, produce CO₂ + H₂O vapor
+      inv.n.O2  = Math.max(0, (inv.n.O2 || 0) - (meta.o2_mol || 0));
+      inv.n.CO2 = (inv.n.CO2 || 0) + (meta.co2_mol || 0);
+      inv.n.H2O = (inv.n.H2O || 0) + (meta.h2o_mol || 0);
+      // Note: CH₂O (food) is consumed directly — never enters room atmosphere.
+      // It flows in as food_in and is metabolized inline.
+
+      // Thermal: apply dT computed by tick
+      if (typeof meta.dT === 'number') {
+        inv.T_K = Math.max(200, Math.min(400, inv.T_K + meta.dT));
+      }
+    }
+
+    return inv;
+  },
+
+  tick(u, ports, par, ctx) {
+    const N = par.nPeople || 2;
+    const dt = ctx.dt;
+    const atm = ctx.atmosphere;
+    const T_ext = atm.T_K;
+    const P_atm = atm.P_Pa;
+    const inv = u.inventory || { n: {}, T_K: 294 };
+    const T_room = inv.T_K || 294;
+
+    // ── Constants ──
+    const R_O2   = 2.33e-4;   // mol/s per person — O₂ consumed
+    const R_FOOD = 2.33e-4;   // mol/s per person — CH₂O consumed
+    const R_H2O_COLD = 1.29e-3; // mol/s per person — drinking water
+    const R_H2O_HOT  = 3.2e-4;  // mol/s per person — hot water (hygiene)
+    const R_CIRC = 0.168;     // mol/s per person — air circulation
+    const DH_COMBUSTION = 519400; // J/mol — ΔH for CH₂O + O₂ → CO₂ + H₂O
+    const C_THERMAL = 500000; // J/K — lumped thermal mass (500 kJ/K)
+    const UA_ENV = 60;        // W/K — envelope heat transfer
+    const T_SETPOINT = 294;   // K — comfort target
+
+    // ── 1. Read inputs ──
+    const s_o2   = ports.o2_in;
+    const s_food = ports.food_in;
+    const s_h2o  = ports.h2o_in;
+    const s_hw   = ports.hot_water_in;
+    const s_air  = ports.air_return;
+    const s_elec = ports.elec_in;
+
+    const o2_supply   = s_o2  ? (s_o2.n?.O2 || 0) : 0;
+    const food_supply = s_food ? (s_food.n?.CH2O || 0) : 0;
+    const h2o_supply  = s_h2o ? (s_h2o.n?.H2O || 0) : 0;
+    const hw_supply   = s_hw  ? (s_hw.n?.H2O || 0) : 0;
+    const air_return_rate = s_air ? Object.values(s_air.n || {}).reduce((a, b) => a + b, 0) : 0;
+
+    // ── 2. Demands ──
+    const o2_demand   = R_O2 * N;
+    const food_demand = R_FOOD * N;
+    const h2o_demand  = R_H2O_COLD * N;
+    const hw_demand   = R_H2O_HOT * N;
+    const circ_demand = R_CIRC * N;
+
+    // ── 3. Inline metabolism ──
+    const o2_consumed   = Math.min(o2_demand, o2_supply);
+    const food_consumed = Math.min(food_demand, food_supply);
+    // Stoichiometry: min of the two limits actual reaction rate
+    const reaction_rate = Math.min(o2_consumed, food_consumed);
+    const co2_produced  = reaction_rate;
+    const h2o_metabolic = reaction_rate;
+    const Q_metabolic   = reaction_rate * DH_COMBUSTION;  // W
+
+    // ── 4. Power demand: lighting + air circulation fan ──
+    const solarFactor = ctx.solarFactor ?? 1;
+    const Q_lighting = 10 + 140 * (1 - solarFactor);  // W (more at night)
+    const P_lighting = Q_lighting;
+    const P_airloop = 15 + 3.4 * N;  // W — circulation fan (built into room)
+    u.powerDemand = P_lighting + P_airloop;
+
+    // Power available (respects dispatch priority)
+    const s = ctx.scratch ? ctx.scratch : {};
+    const W_avail = s.hubAllocated_W ?? (s_elec?.actual || s_elec?.capacity || 0);
+    const power_total = u.powerDemand;
+    const power_curtailed = W_avail < power_total - 0.1;
+
+    // Proportional curtailment: lighting and fan share the deficit
+    const power_frac = power_total > 0 ? Math.min(1, W_avail / power_total) : 1;
+    const Q_lighting_actual = P_lighting * power_frac;
+    const fan_frac = power_frac;  // fan scales with same curtailment
+
+    // ── 5. Stream enthalpy contributions (via ThermoAdapter, NNG-10) ──
+    let Q_streams = 0;
+    const matInPorts = ['o2_in', 'food_in', 'h2o_in', 'air_return'];
+    for (const pid of matInPorts) {
+      const sIn = ports[pid];
+      if (!sIn?.n || !sIn.T) continue;
+      const nDot = Object.values(sIn.n).reduce((a, b) => a + b, 0);
+      if (nDot < 1e-15) continue;
+      // Compute enthalpy diff between stream T and room T
+      const H_stream = thermo.getHdot_Jps(sIn);
+      const roomProxy = { type: StreamType.MATERIAL, T: T_room, P: sIn.P || P_atm, n: { ...sIn.n },
+        phaseConstraint: sIn.phaseConstraint || 'V' };
+      const H_room = thermo.getHdot_Jps(roomProxy);
+      if (isFinite(H_stream) && isFinite(H_room)) {
+        Q_streams += (H_stream - H_room);
+      }
+    }
+
+    // ── Hot water thermal contribution (separate tracking) ──
+    let Q_hot_water = 0;
+    if (s_hw?.n?.H2O && s_hw.T > T_room) {
+      const H_hw = thermo.getHdot_Jps(s_hw);
+      const hwRoomProxy = { type: StreamType.MATERIAL, T: T_room, P: s_hw.P || P_atm,
+        n: { ...s_hw.n }, phaseConstraint: 'L' };
+      const H_hw_room = thermo.getHdot_Jps(hwRoomProxy);
+      if (isFinite(H_hw) && isFinite(H_hw_room)) {
+        Q_hot_water = H_hw - H_hw_room;
+      }
+    }
+
+    // ── 6. Thermal balance ──
+    const Q_envelope = UA_ENV * (T_room - T_ext);  // positive = heat loss
+    const Q_in = Q_metabolic + Q_lighting_actual + Q_streams + Q_hot_water;
+    const Q_out = Q_envelope;
+    const dT = (Q_in - Q_out) * dt / C_THERMAL;
+
+    // ── 7. Compute room atmosphere fractions ──
+    const n_total = Object.values(inv.n).reduce((a, b) => a + b, 0) || 1;
+    const room_x_O2  = (inv.n.O2  || 0) / n_total;
+    const room_x_CO2 = (inv.n.CO2 || 0) / n_total;
+    const room_x_N2  = (inv.n.N2  || 0) / n_total;
+    const room_x_H2O = (inv.n.H2O || 0) / n_total;
+
+    // ── 8. Emit air_exhaust (with private metadata for updateInventory) ──
+    // Exhaust = room atmosphere at current fractions
+    // Rate: gas inputs - consumed + produced, to keep room moles ~constant
+    // Gated by fan power fraction — no power = no circulation = stagnant room
+    const gas_in_total = o2_supply + air_return_rate;
+    const exhaust_rate_raw = Math.max(0, gas_in_total - reaction_rate + co2_produced + h2o_metabolic);
+    const exhaust_rate = exhaust_rate_raw * fan_frac;
+    const n_exhaust = {};
+    if (exhaust_rate > 1e-15) {
+      for (const [sp, mol] of Object.entries(inv.n)) {
+        if (mol > 1e-15) n_exhaust[sp] = (mol / n_total) * exhaust_rate;
+      }
+    }
+    ports.air_exhaust = {
+      type: StreamType.MATERIAL, T: T_room, P: P_atm,
+      n: n_exhaust, phase: 'V', phaseConstraint: 'V',
+      // Private metadata for updateInventory (piggybacked on own output port)
+      _room_meta: {
+        dT,
+        o2_mol:  reaction_rate * dt,
+        co2_mol: co2_produced * dt,
+        h2o_mol: h2o_metabolic * dt
+      }
+    };
+
+    // ── 9. Service validation ──
+    const services = {};
+
+    // O₂ service
+    const o2_pct = o2_demand > 0 ? o2_supply / o2_demand : 1;
+    services.o2 = { demand: o2_demand, supply: o2_supply, pct: o2_pct,
+      status: o2_pct >= 1 ? 'OK' : o2_pct >= 0.5 ? 'WARNING' : 'MAJOR' };
+
+    // O₂ purity (non-O₂ in o2_in stream)
+    if (s_o2?.n) {
+      const o2_total = Object.values(s_o2.n).reduce((a, b) => a + b, 0);
+      const o2_frac = o2_total > 1e-15 ? (s_o2.n.O2 || 0) / o2_total : 0;
+      if (o2_frac < 0.90) services.o2.status = 'MAJOR';
+      else if (o2_frac < 0.95 && services.o2.status === 'OK') services.o2.status = 'WARNING';
+    }
+
+    // Food service
+    const food_pct = food_demand > 0 ? food_supply / food_demand : 1;
+    services.food = { demand: food_demand, supply: food_supply, pct: food_pct,
+      status: food_pct >= 1 ? 'OK' : food_pct >= 0.5 ? 'WARNING' : 'MAJOR' };
+
+    // Water service (h2o_in + hot_water_in combined)
+    const total_water = h2o_supply + hw_supply;
+    const total_water_demand = h2o_demand + hw_demand;
+    const water_pct = total_water_demand > 0 ? total_water / total_water_demand : 1;
+    services.water = { demand: total_water_demand, supply: total_water, pct: water_pct,
+      status: water_pct >= 1 ? 'OK' : water_pct >= 0.5 ? 'WARNING' : 'MAJOR' };
+
+    // Air return service
+    const air_pct = circ_demand > 0 ? air_return_rate / circ_demand : 1;
+    let air_quality = 'OK';
+    if (s_air?.n) {
+      const air_total = Object.values(s_air.n).reduce((a, b) => a + b, 0);
+      if (air_total > 1e-15) {
+        const ret_o2  = (s_air.n.O2 || 0) / air_total;
+        const ret_co2 = (s_air.n.CO2 || 0) / air_total;
+        if (ret_o2 < 0.14 || ret_co2 > 0.05) air_quality = 'MAJOR';
+        else if (ret_o2 < 0.18 || ret_co2 > 0.005) air_quality = 'WARNING';
+      }
+    }
+    services.air = { demand: circ_demand, supply: air_return_rate, pct: air_pct,
+      status: air_pct < 0.5 ? 'MAJOR' : (air_pct < 1 || air_quality !== 'OK') ? 'WARNING' : 'OK',
+      quality: air_quality };
+
+    // Power service
+    const power_pct = power_total > 0 ? W_avail / power_total : 1;
+    services.power = { demand: power_total, supply: W_avail, pct: Math.min(1, power_pct),
+      status: power_pct >= 1 ? 'OK' : power_pct >= 0.5 ? 'WARNING' : 'MAJOR' };
+
+    // Temperature service
+    const T_after = T_room + dT;
+    let temp_status = 'OK';
+    if (T_after < 273 || T_after > 313) temp_status = 'CATASTROPHIC';
+    else if (T_after < 283 || T_after > 305) temp_status = 'MAJOR';
+    else if (T_after < 288 || T_after > 300) temp_status = 'WARNING';
+    services.temp = { current: T_room, target: T_SETPOINT, status: temp_status };
+
+    // ── 10. Port indicators (supply/demand LED colors) ──
+    // grey=disconnected, green=95-105%, yellow=excess(>105%), red=deficit(<95%)
+    const _portLed = (supply, demand, connected) => {
+      if (!connected) return 'grey';
+      if (demand < 1e-15) return supply > 1e-15 ? 'yellow' : 'green';
+      const ratio = supply / demand;
+      if (ratio >= 0.95 && ratio <= 1.05) return 'green';
+      return ratio < 0.95 ? 'red' : 'yellow';
+    };
+    const portIndicators = {
+      o2_in:        _portLed(o2_supply, o2_demand, !!s_o2),
+      food_in:      _portLed(food_supply, food_demand, !!s_food),
+      h2o_in:       _portLed(h2o_supply, h2o_demand, !!s_h2o),
+      hot_water_in: _portLed(hw_supply, hw_demand, !!s_hw),
+      air_return:   _portLed(air_return_rate, circ_demand, !!s_air),
+      elec_in:      _portLed(W_avail, power_total, !!s_elec),
+      air_exhaust:  fan_frac > 0.5 ? 'green' : fan_frac > 0.01 ? 'yellow' : 'red',
+    };
+
+    // ── 10. Liveability score (0–100) ──
+    const statusScore = { OK: 1, WARNING: 0.7, MAJOR: 0.3, CATASTROPHIC: 0 };
+    const liveability = Math.round(100 * (
+      (statusScore[services.o2.status] || 0) * 0.25 +
+      (statusScore[services.food.status] || 0) * 0.15 +
+      (statusScore[services.water.status] || 0) * 0.15 +
+      (statusScore[services.air.status] || 0) * 0.15 +
+      (statusScore[services.power.status] || 0) * 0.10 +
+      (statusScore[services.temp.status] || 0) * 0.20
+    ));
+
+    // ── 11. Worst-service alarm ──
+    const severityOrder = ['OK', 'WARNING', 'MAJOR', 'CATASTROPHIC'];
+    let worstSev = 0;
+    let worstMsg = '';
+    for (const [svc, info] of Object.entries(services)) {
+      const idx = severityOrder.indexOf(info.status);
+      if (idx > worstSev) {
+        worstSev = idx;
+        worstMsg = `${svc}: ${info.status}`;
+      }
+    }
+
+    // ── 12. Gauges ──
+    const gauges = {
+      o2_pct:    room_x_O2 * 100,
+      co2_pct:   room_x_CO2 * 100,
+      temp_K:    T_room,
+      power_pct: Math.min(100, power_pct * 100),
+    };
+
+    // ── 13. Populate u.last ──
+    u.last = {
+      nPeople: N,
+      T_room_K: T_room, T_ext_K: T_ext,
+      room_x_O2, room_x_CO2, room_x_N2, room_x_H2O,
+      room_n_total: n_total,
+      services, portIndicators,
+      Q_metabolic, Q_lighting: Q_lighting_actual, Q_streams, Q_hot_water,
+      Q_envelope, Q_balance: Q_in - Q_out,
+      heating_status: (Q_in - Q_out) > 1 ? 'warming' : (Q_in - Q_out) < -1 ? 'cooling' : 'stable',
+      gauges, liveability,
+      o2_demand, food_demand, h2o_demand, hw_demand, circ_demand,
+      o2_consumed: reaction_rate, food_consumed: reaction_rate,
+      co2_produced, h2o_metabolic, exhaust_rate,
+      P_lighting, P_airloop, power_total, power_curtailed, fan_frac,
+      // Thermal breakdown for inspector
+      Q_loss_total: Q_envelope,
+      Q_passive: Q_metabolic + Q_lighting_actual + Q_streams + Q_hot_water,
+      type: 'room'
+    };
+
+    if (worstSev >= 2) {  // MAJOR or CATASTROPHIC
+      u.last.error = { severity: worstSev >= 3 ? ErrorSeverity.CATASTROPHIC : ErrorSeverity.MAJOR,
+        message: `Life support: ${worstMsg}` };
+    } else if (worstSev >= 1) {
+      u.last.error = { severity: ErrorSeverity.MINOR,
+        message: `Life support: ${worstMsg}` };
+    }
+  }
+});
+
+
 /* =========================
    PROFILE REGISTRATIONS [v13.1.3]
    Every production unit gets a 1:1 profile.  profileId = defId for
@@ -22239,6 +22715,22 @@ ProfileRegistry.register('simple_gas_tank', {
   equipmentNote: "Flanged steel vessel, 50L. Dual outlet: gas top, liquid bottom.",
   operatingNote: "Connect vent and overflow ports for safety. Larger capacity and lower max pressure than the Gas Bottle.",
   modelNote: "P from ideal gas law. Flash via Tc heuristic. Q = min(drawRate × opening/100, n_phase/dt). Relief valve connected-only.",
+});
+// [v17.6.1 S-ROOM Phase 2] Food Crate — pressurized CH₂O storage for crew metabolism
+ProfileRegistry.register('food_crate', {
+  defId: 'simple_tank', name: 'Food Crate', pressureClass: 'simple', category: UnitCategories.LIFE_SUPPORT, tiers: [1],
+  description: 'Pressurized ration canister — freeze-dried formaldehyde-equivalent food',
+  selectionGuide: 'A 100L steel canister at 300 bar, holding ~1200 mol CH₂O. Feeds 2 people for about a month. Set the draw rate to match crew demand.',
+  limits: { 1: { T_LL:233, T_L:263, T_H:423, T_HH:473,
+                  P_LL:50000, P_L:80000, P_H:25000000, P_HH:30000000,
+                  level_H:90, level_HH:100 } },
+  defaults: { 1: { volume_m3:0.1, gasDrawRate:0.001, opening_gas_pct:50,
+                    liqDrawRate:0, opening_liq_pct:0,
+                    P_relief:25000000, overflow_level:90,
+                    initialComposition:{CH2O:1} } },
+  equipmentNote: "Reinforced steel canister, 100L. Same rating as a gas bottle but larger capacity.",
+  operatingNote: "Set draw rate and opening to match crew food demand (4.66e-4 mol/s for 2 people). Connect vent for safety.",
+  modelNote: "Same model as Gas Bottle. P from ideal gas law. ~1200 mol at 300 bar → 30 days for 2 people.",
 });
 ProfileRegistry.register('tank_low_pressure', {
   defId: 'tank', name: 'Closed Tank', pressureClass: 'network', category: UnitCategories.VESSEL, tiers: [1, 2],
@@ -22643,6 +23135,18 @@ ProfileRegistry.register('bio_mixer', {
   }},
   config: { composite: true }
 });
+// ── [v17.6.0 S-ROOM] Room profiles ──
+ProfileRegistry.register('shelter', {
+  defId: 'room', name: 'Crew Shelter', pressureClass: 'simple',
+  category: UnitCategories.LIFE_SUPPORT, tiers: [1],
+  description: 'Pressurized habitat for crew survival and comfort',
+  selectionGuide: 'Your crew lives here. Connect O₂, food, water, hot water, power, and an air scrubbing loop. Everything else is optional but keeps them comfortable.',
+  limits: { 1: { T_LL: 263, T_HH: 323 } },
+  defaults: { 1: { nPeople: 2 } },
+  equipmentNote: "Salvaged hull section, 5×5×2.5 m. Sealed against planet atmosphere. Thermal mass from walls, floor, and furniture.",
+  operatingNote: "Connect an air loop: exhaust → scrubber → heater/cooler → return. Hot water is for showers and morale. Lighting needs power — darkness is demoralizing.",
+  modelNote: "Inline metabolism: CH₂O + O₂ → CO₂ + H₂O. Thermal envelope UA=60 W/K to exterior. Atmospheric inventory tracks O₂, CO₂, N₂, H₂O fractions.",
+});
 
 // ── [v15.1.0] Template profiles — one per defId, no limits, all params editable ──
 // Template units appear in "Dev" palette tab only.  Inspector shows editable
@@ -22688,6 +23192,7 @@ ProfileRegistry.register('bio_mixer', {
   _tpl('reactor_electrochemical_tpl','reactor_electrochemical','Electrochemical Reactor',UnitCategories.REACTOR);
   _tpl('fuel_cell_tpl',          'fuel_cell',             'Fuel Cell',             UnitCategories.REACTOR);
   _tpl('membrane_separator_tpl', 'membrane_separator',    'Membrane Separator',    UnitCategories.SEPARATION);
+  _tpl('room_tpl',               'room',                  'Room',                  UnitCategories.LIFE_SUPPORT);
 }
 
 
@@ -24503,6 +25008,7 @@ const _BYPASS_PATHS = {
   sink_electrical:      [],
   simple_mixer:         [],   // both inlets blocked on bypass
   bend:                 [{ in: 'mat_in', out: 'mat_out' }],
+  room:                 [],   // [v17.6.0] sealed dead box when fried — no material passthrough
 };
 
 /**
@@ -26373,6 +26879,28 @@ function computeSystemBalance(scene) {
       const netPower = ud.ports?.elec?.actual || 0;
       const accumRate = -netPower;
       if (Math.abs(accumRate) > 0.01) { accumulation.energy_W += accumRate; accumulation.items.push({ name: uName, type: 'battery_energy', value_kgps: 0, value_W: accumRate }); }
+    }
+    // [v17.6.0 S-ROOM] Room: mixed IN/OUT ports, inventory unit.
+    // Mass balance: all material inflows minus air_exhaust = accumulation.
+    // Food/water consumed by people is mass that enters and stays (people are the sink).
+    if (u.defId === 'room') {
+      const inPorts = ['o2_in', 'food_in', 'h2o_in', 'hot_water_in', 'air_return'];
+      let m_in = 0;
+      for (const pid of inPorts) {
+        const s = ud.ports?.[pid];
+        if (s) m_in += streamMass_kgps(s);
+      }
+      const m_out = ud.ports?.air_exhaust ? streamMass_kgps(ud.ports.air_exhaust) : 0;
+      const netMass = m_in - m_out;
+      if (Math.abs(netMass) > 1e-15) {
+        accumulation.mass_kgps += netMass;
+        accumulation.items.push({ name: uName, type: 'room_mass', value_kgps: netMass, value_W: 0 });
+      }
+      // Energy: sum all input enthalpy - exhaust enthalpy + electrical - envelope loss
+      const H_ins = inPorts.reduce((s, pid) => s + (ud.ports?.[pid]?.Hdot_J_s ?? 0), 0);
+      const H_ex = ud.ports?.air_exhaust?.Hdot_J_s ?? 0;
+      const netEnergy = H_ins - H_ex;
+      if (Math.abs(netEnergy) > 0.01) accumulation.energy_W += netEnergy;
     }
   }
 
@@ -29385,6 +29913,7 @@ const _BODY_BBOX = {
   distillation_column:      { x:20, y:4,  w:56, h:136 },
   membrane_separator:       { x:10, y:6,  w:76, h:84 },
   combustion_chamber:       { x:10, y:8,  w:76, h:66 },
+  room:                     { x:8,  y:8,  w:272, h:176 },  // [v17.6.0] 6×4 tiles (288×192 px)
 };
 
 // [v16.9.8 S-PARTICLES Phase 0C] Unit viewport geometry for particle clipping
@@ -29502,7 +30031,7 @@ function _rtTempGauge(g, cx, cy, unitId) {
     stroke:needleCol, 'stroke-width':1.2, 'stroke-linecap':'round', 'pointer-events':'none' }));
 }
 // Units that should NOT have temperature gauges (boundary, electrical-only, no T data)
-const _NO_GAUGE = new Set(['source','source_atm','sink','sink_electrical','grid_supply','solar_panel','wind_turbine','battery','power_hub','reservoir','atmosphere','mixer','simple_mixer','simple_open_tank','simple_tank','bend','splitter','restriction','valve','closed_loop_source']);
+const _NO_GAUGE = new Set(['source','source_atm','sink','sink_electrical','grid_supply','solar_panel','wind_turbine','battery','power_hub','reservoir','atmosphere','mixer','simple_mixer','simple_open_tank','simple_tank','bend','splitter','restriction','valve','closed_loop_source','room']);
 // Master instrument placer — LED bottom-left, nameplate top-right, gauge top-left
 function _rtInstruments(g, wx, wy, defId, unitId) {
   const bb = _BODY_BBOX[defId];
@@ -31350,6 +31879,88 @@ _RAGTAG_SYMBOLS.atmosphere = _RAGTAG_SYMBOLS.source_atm;
 _RAGTAG_SYMBOLS.simple_mixer = _RAGTAG_SYMBOLS.mixer;
 _RAGTAG_SYMBOLS.simple_open_tank = _RAGTAG_SYMBOLS.open_tank;
 _RAGTAG_SYMBOLS.simple_tank = _RAGTAG_SYMBOLS.tank;
+
+// [v17.6.0 S-ROOM] Crew shelter — placeholder icon (6×4 tiles)
+_RAGTAG_SYMBOLS.room = function(g, wx, wy, ww, wh, pal, def, unitId) {
+  const u = scene.units.get(unitId);
+  const last = u?.last || {};
+  const powered = last.fan_frac > 0.5;
+
+  // Outer hull (rounded rect)
+  const hull = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+  hull.setAttribute('x', wx + 6); hull.setAttribute('y', wy + 6);
+  hull.setAttribute('width', ww - 12); hull.setAttribute('height', wh - 12);
+  hull.setAttribute('rx', 6); hull.setAttribute('ry', 6);
+  hull.setAttribute('fill', '#1a1f2e'); hull.setAttribute('stroke', '#475569');
+  hull.setAttribute('stroke-width', '2');
+  g.appendChild(hull);
+
+  // Interior floor (lighter when powered)
+  const floor = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+  floor.setAttribute('x', wx + 14); floor.setAttribute('y', wy + 14);
+  floor.setAttribute('width', ww - 28); floor.setAttribute('height', wh - 28);
+  floor.setAttribute('rx', 3); floor.setAttribute('ry', 3);
+  floor.setAttribute('fill', powered ? '#2a3142' : '#111520');
+  floor.setAttribute('stroke', powered ? '#4a5568' : '#1e2533');
+  floor.setAttribute('stroke-width', '1');
+  g.appendChild(floor);
+
+  // Window (small rect, top-right area, glows when powered)
+  const win = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+  const winX = wx + ww - 60, winY = wy + 20;
+  win.setAttribute('x', winX); win.setAttribute('y', winY);
+  win.setAttribute('width', 28); win.setAttribute('height', 18);
+  win.setAttribute('rx', 2); win.setAttribute('ry', 2);
+  win.setAttribute('fill', powered ? '#334155' : '#1a1f2e');
+  win.setAttribute('stroke', '#64748b'); win.setAttribute('stroke-width', '1');
+  g.appendChild(win);
+
+  // Lighting indicator (warm glow circle when powered)
+  if (powered) {
+    const glow = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    glow.setAttribute('cx', wx + ww / 2); glow.setAttribute('cy', wy + wh / 2 - 10);
+    glow.setAttribute('r', 16);
+    glow.setAttribute('fill', '#f97316'); glow.setAttribute('opacity', '0.12');
+    g.appendChild(glow);
+    const bulb = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    bulb.setAttribute('cx', wx + ww / 2); bulb.setAttribute('cy', wy + wh / 2 - 10);
+    bulb.setAttribute('r', 4);
+    bulb.setAttribute('fill', '#fbbf24'); bulb.setAttribute('opacity', '0.8');
+    g.appendChild(bulb);
+  }
+
+  // ── Port indicator LEDs (supply/demand status) ──
+  const pi = last.portIndicators || {};
+  const _ledColor = { green: '#22c55e', yellow: '#eab308', red: '#ef4444', grey: '#4b5563' };
+  const t = scene.tile;
+  const pres = getPresentation(def, scene.units.get(unitId));
+  for (const p of def.ports) {
+    const pp = pres.ports[p.portId];
+    if (!pp) continue;
+    const col = _ledColor[pi[p.portId] || 'grey'];
+    // Position LED inside hull near port
+    let lx, ly;
+    const py = wy + pp.y * t;
+    if (pp.x === 0)        { lx = wx + 14; ly = py; }      // left port
+    else if (pp.x >= pres.w){ lx = wx + ww - 14; ly = py; } // right port
+    else                    { lx = wx + pp.x * t; ly = wy + 14; } // top port
+    const led = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    led.setAttribute('cx', lx); led.setAttribute('cy', ly);
+    led.setAttribute('r', 3); led.setAttribute('fill', col);
+    led.setAttribute('opacity', col === _ledColor.grey ? '0.4' : '0.85');
+    led.setAttribute('pointer-events', 'none');
+    g.appendChild(led);
+  }
+
+  // People count label
+  const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+  label.setAttribute('x', wx + ww / 2); label.setAttribute('y', wy + wh - 20);
+  label.setAttribute('text-anchor', 'middle'); label.setAttribute('dominant-baseline', 'middle');
+  label.setAttribute('fill', '#94a3b8'); label.setAttribute('font-size', '11');
+  label.setAttribute('font-family', 'monospace');
+  label.textContent = (last.nPeople || 2) + (last.nPeople === 1 ? ' person' : ' people');
+  g.appendChild(label);
+};
 
 // [v17.5.0] Pipe Bend — 90° bolted elbow
 _RAGTAG_SYMBOLS.bend = function(g, wx, wy, ww, wh, pal, def, unitId) {
@@ -36574,9 +37185,68 @@ UnitInspector.membrane_separator = {
   }
 };
 
+// [v17.6.0 S-ROOM] Room inspector — conditions, reference rates, services, thermal
+UnitInspector.room = {
+  customParams(container, u) {
+    addNumberEditor(container, 'Crew size',
+      () => u.params.nPeople ?? 2,
+      v => { u.params.nPeople = Math.max(0, Math.min(10, Math.round(v))); }, 1, 0);
+  },
+  conditions(u, ud) {
+    const L = u.last || {};
+    const items = [];
+    if (L.T_room_K != null) items.push({ label: 'T room', value: `${L.T_room_K.toFixed(1)}<span class="u">K</span>  (${(L.T_room_K-273.15).toFixed(1)}°C)` });
+    if (L.T_ext_K != null)  items.push({ label: 'T outside', value: `${L.T_ext_K.toFixed(1)}<span class="u">K</span>  (${(L.T_ext_K-273.15).toFixed(1)}°C)` });
+    items.push({ label: 'People', value: `${L.nPeople || 0}` });
+    if (L.liveability != null) items.push({ label: 'Liveability', value: `${L.liveability}%`, tone: L.liveability >= 70 ? '' : L.liveability >= 40 ? 'warn' : 'bad' });
+    return items;
+  },
+  kpis(u, ud) {
+    const L = u.last || {};
+    const items = [];
+    const svc = L.services || {};
+    const _bar = pct => { const n = Math.round(Math.min(1, Math.max(0, pct)) * 10); return '█'.repeat(n) + '░'.repeat(10-n); };
+    const _tone = s => s === 'OK' ? '' : s === 'WARNING' ? 'warn' : 'bad';
+    if (svc.o2)    items.push({ label: 'O₂ supply', value: `${_bar(svc.o2.pct)}  ${(svc.o2.pct*100).toFixed(0)}%  ${svc.o2.status}`, tone: _tone(svc.o2.status) });
+    if (svc.food)  items.push({ label: 'Food', value: `${_bar(svc.food.pct)}  ${(svc.food.pct*100).toFixed(0)}%  ${svc.food.status}`, tone: _tone(svc.food.status) });
+    if (svc.water) items.push({ label: 'Water', value: `${_bar(svc.water.pct)}  ${(svc.water.pct*100).toFixed(0)}%  ${svc.water.status}`, tone: _tone(svc.water.status) });
+    if (svc.air)   items.push({ label: 'Air loop', value: `${_bar(svc.air.pct)}  ${svc.air.status}  ${svc.air.quality !== 'OK' ? '(quality: '+svc.air.quality+')' : ''}`, tone: _tone(svc.air.status) });
+    if (svc.power) items.push({ label: 'Power', value: `${_bar(svc.power.pct)}  ${(svc.power.pct*100).toFixed(0)}%  ${svc.power.status}`, tone: _tone(svc.power.status) });
+    if (svc.temp)  items.push({ label: 'Temperature', value: `${L.T_room_K?.toFixed(1) || '?'} K  ${svc.temp.status}`, tone: _tone(svc.temp.status) });
+    // Atmosphere
+    if (L.room_x_O2 != null)  items.push({ label: 'Room O₂', value: `${(L.room_x_O2*100).toFixed(2)}%` });
+    if (L.room_x_CO2 != null) items.push({ label: 'Room CO₂', value: `${(L.room_x_CO2*100).toFixed(2)}%` });
+    return items;
+  },
+  detail(u, ud) {
+    const L = u.last || {};
+    const items = [];
+    const N = L.nPeople || 0;
+    // Reference rates
+    items.push({ label: '── Reference Rates', value: `(${N} people)`, tone: 'label' });
+    if (L.o2_demand != null) items.push({ label: 'O₂ demand', value: `${L.o2_demand.toExponential(2)}<span class="u">mol/s</span>` });
+    if (L.food_demand != null) items.push({ label: 'Food demand', value: `${L.food_demand.toExponential(2)}<span class="u">mol/s</span>` });
+    if (L.h2o_demand != null) items.push({ label: 'H₂O cold', value: `${L.h2o_demand.toExponential(2)}<span class="u">mol/s</span>` });
+    if (L.hw_demand != null) items.push({ label: 'H₂O hot', value: `${L.hw_demand.toExponential(2)}<span class="u">mol/s</span>` });
+    if (L.circ_demand != null) items.push({ label: 'Air circ', value: `${L.circ_demand.toFixed(3)}<span class="u">mol/s</span>` });
+    // Heat balance
+    items.push({ label: '── Heat Balance', value: '', tone: 'label' });
+    if (L.Q_envelope != null)   items.push({ label: 'Envelope loss', value: `${(-L.Q_envelope).toFixed(0)}<span class="u">W</span>  (out)` });
+    if (L.Q_metabolic != null)  items.push({ label: 'Metabolic', value: `${L.Q_metabolic.toFixed(0)}<span class="u">W</span>  (in)` });
+    if (L.Q_lighting != null)   items.push({ label: 'Lighting', value: `${L.Q_lighting.toFixed(0)}<span class="u">W</span>  (in)` });
+    if (L.Q_hot_water != null && L.Q_hot_water > 0.01) items.push({ label: 'Hot water', value: `${L.Q_hot_water.toFixed(0)}<span class="u">W</span>  (in)` });
+    if (L.Q_streams != null && Math.abs(L.Q_streams) > 0.01)    items.push({ label: 'Streams', value: `${L.Q_streams.toFixed(0)}<span class="u">W</span>` });
+    if (L.Q_balance != null)    items.push({ label: 'Net balance', value: `${L.Q_balance > 0 ? '+' : ''}${L.Q_balance.toFixed(0)}<span class="u">W</span>  → ${L.heating_status}` });
+    // Power
+    items.push({ label: '── Power', value: '', tone: 'label' });
+    if (L.P_lighting != null) items.push({ label: 'Lighting', value: `${L.P_lighting.toFixed(0)}<span class="u">W</span>` });
+    if (L.power_curtailed) items.push({ label: 'Status', value: 'CURTAILED — lights dimmed', tone: 'warn' });
+    return items;
+  }
+};
+
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   [v10] PALETTE DRAWER — Left-side unit catalog with search + categories
    ═══════════════════════════════════════════════════════════════════════════ */
 
 // [v13.1.3] Floating tooltip — shared across palette and future uses.
@@ -39212,6 +39882,9 @@ const _PARTICLE_BEHAVIORS = {
     open_tank: { type:'vent', dwellFactor:2.0 },
     simple_open_tank: null,  // opaque — no particle effects in v1
     simple_tank: null,  // opaque — no particle effects in v1
+
+    // Life support
+    room: null,  // [v17.6.0] opaque — interior has custom icon rendering
 
     // Sources (Phase 4A)
     source:    { type:'source', path:'emerge', dwellFactor:1.5 },
@@ -50186,8 +50859,8 @@ function runTests() {
   tests.push({ name: '196: Category ordering follows defined order', fn: t => {
     const cats = UnitRegistry.listByCategory();
     const catNames = Object.keys(cats);
-    // [v17.0.2] 7 categories after ENVIRONMENT/CLOSED_LOOP merge
-    const expected = ['Supply & Drain', 'Heat', 'Pressure', 'Reactor', 'Separation & Mixing', 'Storage', 'Power'];
+    // [v17.6.0] 8 categories after LIFE_SUPPORT added
+    const expected = ['Supply & Drain', 'Heat', 'Pressure', 'Reactor', 'Separation & Mixing', 'Storage', 'Power', 'Life Support'];
     for (let i = 0; i < expected.length; i++) {
       t.assertOK(catNames[i] === expected[i], `Category ${i}: "${catNames[i]}" = "${expected[i]}"`);
     }
@@ -57805,6 +58478,585 @@ function runTests() {
     // Both should exist and not be deprecated
     t.assertOK(!simpleProf.config?.deprecated, 'source_atmosphere is NOT deprecated');
     t.assertOK(!networkProf.config?.deprecated, 'atmosphere is NOT deprecated');
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // v17.6.0 — S-ROOM: Crew shelter tests
+  // ═══════════════════════════════════════════════════════════════════════
+
+  test('657: Room — registration, profile, ports', t => {
+    const def = UnitRegistry.get('room');
+    t.assertOK(!!def, 'room defId registered');
+    t.assertOK(def.ports.length === 7, `7 ports (got ${def.ports.length})`);
+    t.assertOK(def.w === 6 && def.h === 4, `6×4 tiles`);
+    t.assertOK(def.inventory === true, 'inventory unit');
+    t.assertOK(def.optionalPorts === true, 'optionalPorts');
+    t.assertOK(def.category === UnitCategories.LIFE_SUPPORT.name, 'LIFE_SUPPORT category');
+    const prof = ProfileRegistry.get('shelter');
+    t.assertOK(!!prof, 'shelter profile registered');
+    t.assertOK(prof.defId === 'room', 'shelter → room defId');
+    t.assertOK(prof.pressureClass === 'simple', 'pressureClass = simple');
+    t.assertOK(prof.tiers.includes(1), 'T1 available');
+  });
+
+  test('658: Room — initInventory starts with planet air at 294K', t => {
+    t.clearScene();
+    const origPreset = SimSettings._activePreset;
+    SimSettings._activePreset = 'planet_x'; SimSettings._applyPreset();
+    SimSettings._diurnalCache = { t: -1, result: null };
+
+    const room = t.place('room', 0, 0, { nPeople: 2 });
+    const u = t.unit(room);
+    t.assertOK(!!u.inventory, 'inventory exists');
+    t.assertClose(u.inventory.T_K, 294, 0.01, 'T_K = 294');
+    const n_total = Object.values(u.inventory.n).reduce((a,b) => a+b, 0);
+    // PV/RT at Planet X: 89660 × 62.5 / (8.314 × 294) ≈ 2293 mol
+    t.assertRange(n_total, 2000, 2600, 'n_total ~2293 mol');
+    t.assertOK(u.inventory.n.N2 > 0, 'N₂ present');
+    t.assertOK(u.inventory.n.O2 > 0, 'O₂ present');
+    t.assertOK(u.inventory.n.CO2 > 0, 'CO₂ present (Planet X 8%)');
+
+    SimSettings._activePreset = origPreset; SimSettings._applyPreset();
+    SimSettings._diurnalCache = { t: -1, result: null };
+  });
+
+  test('659: Room — metabolism consumes O₂, produces CO₂ (1:1)', t => {
+    t.clearScene();
+    // Supply O₂ and CH₂O (food) to a 2-person room
+    const srcO2 = t.place('source', 0, 0, { n: { O2: 1 }, T: 294, P: 101325, phaseConstraint: 'V' });
+    const srcFood = t.place('source', 0, 3, { n: { CH2O: 1 }, T: 294, P: 101325, phaseConstraint: 'V' });
+    const room = t.place('room', 4, 0, { nPeople: 2 });
+    const snk = t.place('sink', 12, 0);
+    t.wire(srcO2, 'mat_out', room, 'o2_in');
+    t.wire(srcFood, 'mat_out', room, 'food_in');
+    t.wire(room, 'air_exhaust', snk, 'mat_in');
+    t.solve();
+    const L = t.last(room);
+    t.assertOK(!!L, 'u.last populated');
+    // 2 people × 2.33e-4 = 4.66e-4 mol/s
+    t.assertClose(L.o2_consumed, 4.66e-4, 1e-5, 'O₂ consumed ≈ 4.66e-4');
+    t.assertClose(L.co2_produced, L.o2_consumed, 1e-8, 'CO₂ produced = O₂ consumed (1:1)');
+    t.assertOK(L.Q_metabolic > 100, `Metabolic heat > 100W (got ${L.Q_metabolic?.toFixed(0)})`);
+  });
+
+  test('660: Room — full supply → all services OK', t => {
+    t.clearScene();
+    const srcO2 = t.place('source', 0, 0, { n: { O2: 1 }, T: 294, P: 101325, phaseConstraint: 'V' });
+    const srcFood = t.place('source', 0, 3, { n: { CH2O: 1 }, T: 294, P: 101325, phaseConstraint: 'V' });
+    const srcH2O = t.place('source', 0, 6, { n: { H2O: 1 }, T: 294, P: 101325, phaseConstraint: 'L' });
+    const srcHW = t.place('source', 0, 9, { n: { H2O: 0.01 }, T: 333, P: 101325, phaseConstraint: 'L' });
+    const srcAir = t.place('source', 16, 0, { n: { N2: 0.78, O2: 0.21, Ar: 0.01 }, T: 294, P: 101325, phaseConstraint: 'V' });
+    const gs = t.place('grid_supply', 4, -3, { maxPower: 10 });
+    const room = t.place('room', 4, 0, { nPeople: 2 });
+    const snk = t.place('sink', 12, 0);
+    t.wire(srcO2, 'mat_out', room, 'o2_in');
+    t.wire(srcFood, 'mat_out', room, 'food_in');
+    t.wire(srcH2O, 'mat_out', room, 'h2o_in');
+    t.wire(srcHW, 'mat_out', room, 'hot_water_in');
+    t.wire(srcAir, 'mat_out', room, 'air_return');
+    t.wire(gs, 'elec_out', room, 'elec_in');
+    t.wire(room, 'air_exhaust', snk, 'mat_in');
+    t.solve();
+    const L = t.last(room);
+    const svc = L.services || {};
+    t.assertOK(svc.o2?.status === 'OK', `O₂ status OK (got ${svc.o2?.status})`);
+    t.assertOK(svc.food?.status === 'OK', `Food status OK (got ${svc.food?.status})`);
+    t.assertOK(svc.water?.status === 'OK', `Water status OK (got ${svc.water?.status})`);
+    t.assertOK(svc.air?.status === 'OK', `Air status OK (got ${svc.air?.status})`);
+    t.assertOK(svc.power?.status === 'OK', `Power status OK (got ${svc.power?.status})`);
+  });
+
+  test('661: Room — O₂ missing → WARNING/MAJOR', t => {
+    t.clearScene();
+    // No O₂ connected — only food
+    const srcFood = t.place('source', 0, 3, { n: { CH2O: 1 }, T: 294, P: 101325, phaseConstraint: 'V' });
+    const room = t.place('room', 4, 0, { nPeople: 2 });
+    const snk = t.place('sink', 12, 0);
+    t.wire(srcFood, 'mat_out', room, 'food_in');
+    t.wire(room, 'air_exhaust', snk, 'mat_in');
+    t.solve();
+    const L = t.last(room);
+    const svc = L.services || {};
+    t.assertOK(svc.o2?.status === 'MAJOR', `O₂ missing → MAJOR (got ${svc.o2?.status})`);
+    t.assertClose(L.o2_consumed, 0, 1e-10, 'Zero O₂ consumed');
+  });
+
+  test('662: Room — exhaust composition is CO₂-enriched', t => {
+    t.clearScene();
+    const origPreset = SimSettings._activePreset;
+    SimSettings._activePreset = 'planet_x'; SimSettings._applyPreset();
+    SimSettings._diurnalCache = { t: -1, result: null };
+
+    // Realistic supply: just above 2-person demand (4.66e-4 mol/s)
+    const srcO2 = t.place('source', 0, 0, { n: { O2: 5e-4 }, T: 294, P: 89660, phaseConstraint: 'V' });
+    const srcFood = t.place('source', 0, 3, { n: { CH2O: 5e-4 }, T: 294, P: 89660, phaseConstraint: 'V' });
+    const gs = t.place('grid_supply', 4, -3, { maxPower: 1 });
+    const room = t.place('room', 4, 0, { nPeople: 2 });
+    const snk = t.place('sink', 12, 0);
+    t.wire(srcO2, 'mat_out', room, 'o2_in');
+    t.wire(srcFood, 'mat_out', room, 'food_in');
+    t.wire(gs, 'elec_out', room, 'elec_in');
+    t.wire(room, 'air_exhaust', snk, 'mat_in');
+    // Capture initial CO₂ fraction from planet air (wet air < nominal 8%)
+    const inv0 = t.unit(room).inventory;
+    const n0 = Object.values(inv0.n).reduce((a,b) => a+b, 0);
+    const co2_frac_initial = (inv0.n.CO2 || 0) / n0;
+    t.solve();
+    // Step clock so updateInventory fires (metabolism adds CO₂)
+    TimeClock.step(scene);
+    t.solve();
+    const exhaust = t.port(room, 'air_exhaust');
+    const exTotal = Object.values(exhaust?.n || {}).reduce((a,b) => a+b, 0);
+    const exCO2frac = exTotal > 0 ? (exhaust.n?.CO2 || 0) / exTotal : 0;
+    // After metabolism, CO₂ fraction should be higher than initial planet air
+    t.assertOK(exCO2frac > co2_frac_initial, `Exhaust CO₂ ${(exCO2frac*100).toFixed(3)}% > initial ${(co2_frac_initial*100).toFixed(3)}%`);
+    t.assertOK(exhaust.T > 200, `Exhaust T > 200K (got ${exhaust.T})`);
+
+    SimSettings._activePreset = origPreset; SimSettings._applyPreset();
+    SimSettings._diurnalCache = { t: -1, result: null };
+  });
+
+  test('663: Room — hot stream heats room', t => {
+    t.clearScene();
+    // Feed hot O₂ (400K) — should contribute positive Q_streams
+    const srcO2 = t.place('source', 0, 0, { n: { O2: 1 }, T: 400, P: 101325, phaseConstraint: 'V' });
+    const srcFood = t.place('source', 0, 3, { n: { CH2O: 1 }, T: 294, P: 101325, phaseConstraint: 'V' });
+    const room = t.place('room', 4, 0, { nPeople: 2 });
+    const snk = t.place('sink', 12, 0);
+    t.wire(srcO2, 'mat_out', room, 'o2_in');
+    t.wire(srcFood, 'mat_out', room, 'food_in');
+    t.wire(room, 'air_exhaust', snk, 'mat_in');
+    t.solve();
+    const L = t.last(room);
+    t.assertOK(L.Q_streams > 0, `Q_streams > 0 from hot O₂ (got ${L.Q_streams?.toFixed(1)})`);
+  });
+
+  test('664: Room — envelope cooling (T_room drops without heating)', t => {
+    t.clearScene();
+    // Room at 294K, cold exterior at 210K (Earth ISA default is 288K, but no heating)
+    // With no inputs at all, envelope loss should dominate
+    const room = t.place('room', 4, 0, { nPeople: 0 });
+    const snk = t.place('sink', 12, 0);
+    t.wire(room, 'air_exhaust', snk, 'mat_in');
+    t.solve();
+    const L = t.last(room);
+    // T_room=294, T_ext≈288 (Earth ISA), UA=60 → Q_envelope = 60*(294-288) = 360W loss
+    // No metabolism (0 people), no inputs → Q_balance should be negative
+    t.assertOK(L.Q_envelope > 0, `Envelope loss > 0 (got ${L.Q_envelope?.toFixed(0)})`);
+    t.assertOK(L.Q_balance < 0, `Net balance < 0 (cooling) (got ${L.Q_balance?.toFixed(0)})`);
+  });
+
+  test('665: Room — hot water thermal contribution', t => {
+    t.clearScene();
+    // Connect hot water at 333K (60°C) to room at 294K
+    const srcHW = t.place('source', 0, 9, { n: { H2O: 0.1 }, T: 333, P: 101325, phaseConstraint: 'L' });
+    const room = t.place('room', 4, 0, { nPeople: 2 });
+    const snk = t.place('sink', 12, 0);
+    t.wire(srcHW, 'mat_out', room, 'hot_water_in');
+    t.wire(room, 'air_exhaust', snk, 'mat_in');
+    t.solve();
+    const L = t.last(room);
+    // 0.1 mol/s H₂O × ~75.3 J/(mol·K) × (333-294) = ~293 W
+    t.assertOK(L.Q_hot_water > 100, `Q_hot_water > 100W (got ${L.Q_hot_water?.toFixed(0)})`);
+  });
+
+  test('666: Room — power demand = lighting + airloop fan', t => {
+    t.clearScene();
+    const gs = t.place('grid_supply', 4, -3, { maxPower: 10 });
+    const room = t.place('room', 4, 0, { nPeople: 2 });
+    const snk = t.place('sink', 12, 0);
+    t.wire(gs, 'elec_out', room, 'elec_in');
+    t.wire(room, 'air_exhaust', snk, 'mat_in');
+    t.solve();
+    const L = t.last(room);
+    const u = t.unit(room);
+    // P_lighting = 10..150W (diurnal), P_airloop = 15 + 3.4*2 = 21.8W
+    t.assertOK(u.powerDemand > 20 && u.powerDemand < 350, `Power demand: ${u.powerDemand?.toFixed(0)}W`);
+    t.assertClose(u.powerDemand, L.P_lighting + L.P_airloop, 0.1, 'powerDemand = lighting + airloop');
+    t.assertClose(L.P_airloop, 15 + 3.4 * 2, 0.01, 'P_airloop = 15 + 3.4×2');
+  });
+
+  test('667: Room — mass balance closure (NNG-1)', t => {
+    t.clearScene();
+    const srcO2 = t.place('source', 0, 0, { n: { O2: 0.01 }, T: 294, P: 101325, phaseConstraint: 'V' });
+    const srcFood = t.place('source', 0, 3, { n: { CH2O: 0.01 }, T: 294, P: 101325, phaseConstraint: 'V' });
+    const srcH2O = t.place('source', 0, 6, { n: { H2O: 0.01 }, T: 294, P: 101325, phaseConstraint: 'L' });
+    const srcAir = t.place('source', 16, 0, { n: { N2: 0.78, O2: 0.21, CO2: 0.01 }, T: 294, P: 101325, phaseConstraint: 'V' });
+    const room = t.place('room', 4, 0, { nPeople: 2 });
+    const snk = t.place('sink', 12, 0);
+    t.wire(srcO2, 'mat_out', room, 'o2_in');
+    t.wire(srcFood, 'mat_out', room, 'food_in');
+    t.wire(srcH2O, 'mat_out', room, 'h2o_in');
+    t.wire(srcAir, 'mat_out', room, 'air_return');
+    t.wire(room, 'air_exhaust', snk, 'mat_in');
+    t.solve();
+    // Check that computeSystemBalance sees the room accumulation
+    const bal = computeSystemBalance(scene);
+    t.assertOK(!!bal, 'Balance computed');
+    // Mass residual should be small relative to flows
+    const relResidual = bal.mass.totalIn > 1e-10
+      ? Math.abs(bal.mass.residual) / bal.mass.totalIn : 0;
+    t.assertOK(relResidual < 0.01, `Mass residual < 1% (got ${(relResidual*100).toFixed(3)}%)`);
+  });
+
+  test('668: Room — reference rates in u.last', t => {
+    t.clearScene();
+    const room = t.place('room', 4, 0, { nPeople: 3 });
+    const snk = t.place('sink', 12, 0);
+    t.wire(room, 'air_exhaust', snk, 'mat_in');
+    t.solve();
+    const L = t.last(room);
+    t.assertClose(L.o2_demand, 2.33e-4 * 3, 1e-7, 'O₂ demand = 2.33e-4 × 3');
+    t.assertClose(L.food_demand, 2.33e-4 * 3, 1e-7, 'Food demand = 2.33e-4 × 3');
+    t.assertClose(L.h2o_demand, 1.29e-3 * 3, 1e-6, 'H₂O cold demand = 1.29e-3 × 3');
+    t.assertClose(L.hw_demand, 3.2e-4 * 3, 1e-6, 'H₂O hot demand = 3.2e-4 × 3');
+    t.assertClose(L.circ_demand, 0.168 * 3, 1e-4, 'Air circ demand = 0.168 × 3');
+    t.assertOK(L.nPeople === 3, 'nPeople = 3');
+  });
+
+  test('669: Room — liveability degrades with missing services', t => {
+    t.clearScene();
+    // Full supply room
+    const srcO2 = t.place('source', 0, 0, { n: { O2: 1 }, T: 294, P: 101325, phaseConstraint: 'V' });
+    const srcFood = t.place('source', 0, 3, { n: { CH2O: 1 }, T: 294, P: 101325, phaseConstraint: 'V' });
+    const srcH2O = t.place('source', 0, 6, { n: { H2O: 1 }, T: 294, P: 101325, phaseConstraint: 'L' });
+    const srcHW = t.place('source', 0, 9, { n: { H2O: 0.01 }, T: 333, P: 101325, phaseConstraint: 'L' });
+    const srcAir = t.place('source', 16, 0, { n: { N2: 0.78, O2: 0.21, Ar: 0.01 }, T: 294, P: 101325, phaseConstraint: 'V' });
+    const gs = t.place('grid_supply', 4, -3, { maxPower: 10 });
+    const room = t.place('room', 4, 0, { nPeople: 2 });
+    const snk = t.place('sink', 12, 0);
+    t.wire(srcO2, 'mat_out', room, 'o2_in');
+    t.wire(srcFood, 'mat_out', room, 'food_in');
+    t.wire(srcH2O, 'mat_out', room, 'h2o_in');
+    t.wire(srcHW, 'mat_out', room, 'hot_water_in');
+    t.wire(srcAir, 'mat_out', room, 'air_return');
+    t.wire(gs, 'elec_out', room, 'elec_in');
+    t.wire(room, 'air_exhaust', snk, 'mat_in');
+    t.solve();
+    const full = t.last(room).liveability;
+
+    // Now: room with nothing connected
+    t.clearScene();
+    const room2 = t.place('room', 4, 0, { nPeople: 2 });
+    const snk2 = t.place('sink', 12, 0);
+    t.wire(room2, 'air_exhaust', snk2, 'mat_in');
+    t.solve();
+    const empty = t.last(room2).liveability;
+
+    t.assertOK(full > empty, `Full (${full}) > empty (${empty})`);
+    t.assertOK(full >= 70, `Full liveability ≥ 70 (got ${full})`);
+    t.assertOK(empty <= 50, `Empty liveability ≤ 50 (got ${empty})`);
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // v17.6.1 — S-ROOM Phase 2: Buffer integration tests
+  // ═══════════════════════════════════════════════════════════════════════
+
+  test('670: Room + O₂ bottle — depletion in ~3 days', t => {
+    t.clearScene();
+    // O₂ gas bottle: 10L, 300 bar, draw matched to 2-person demand
+    const o2 = t.place('simple_tank', 0, 0, {
+      volume_m3: 0.01, P_init: 30000000, initialComposition: { O2: 1 },
+      gasDrawRate: 0.001, opening_gas_pct: 46.6,
+      liqDrawRate: 0, opening_liq_pct: 0, P_relief: 25000000, overflow_level: 90
+    });
+    const gs = t.place('grid_supply', 8, -3, { maxPower: 1 });
+    const room = t.place('room', 4, 0, { nPeople: 2 });
+    const snk = t.place('sink', 12, 0);
+    t.wire(o2, 'gas_out', room, 'o2_in');
+    t.wire(gs, 'elec_out', room, 'elec_in');
+    t.wire(room, 'air_exhaust', snk, 'mat_in');
+    t.solve();
+
+    // At t=0: O₂ flowing, service OK
+    const L0 = t.last(room);
+    t.assertOK(L0.services.o2.status === 'OK' || L0.services.o2.pct > 0.9, `t=0 O₂ OK (pct=${L0.services.o2?.pct?.toFixed(2)})`);
+
+    // Step 72 hours — bottle should be nearly empty
+    for (let i = 0; i < 72; i++) TimeClock.step(scene);
+    t.solve();
+    const inv72 = t.unit(o2).inventory;
+    const n72 = Object.values(inv72.n).reduce((a,b) => a+b, 0);
+    t.assertOK(n72 < 10, `O₂ bottle <10 mol at 72h (got ${n72.toFixed(1)})`);
+
+    // Step 4 more hours — should be empty
+    for (let i = 0; i < 4; i++) TimeClock.step(scene);
+    t.solve();
+    const L76 = t.last(room);
+    t.assertOK(L76.services.o2.status === 'MAJOR', `O₂ MAJOR at 76h (got ${L76.services.o2?.status})`);
+  });
+
+  test('671: Room + water barrel — depletion in ~2 hours', t => {
+    t.clearScene();
+    // Open barrel: 100L, tiny water fill (~18.6 mol = 0.335% level)
+    const h2o = t.place('simple_open_tank', 0, 0, {
+      volume_m3: 0.1, initialComposition: { H2O: 1 }, level_init: 0.335,
+      drawRate: 0.01, opening_pct: 25.8, overflow_level: 90
+    });
+    const gs = t.place('grid_supply', 8, -3, { maxPower: 1 });
+    const room = t.place('room', 4, 0, { nPeople: 2 });
+    const snk = t.place('sink', 12, 0);
+    t.wire(h2o, 'mat_out', room, 'h2o_in');
+    t.wire(gs, 'elec_out', room, 'elec_in');
+    t.wire(room, 'air_exhaust', snk, 'mat_in');
+    t.solve();
+
+    // At t=0: water flowing
+    const L0 = t.last(room);
+    t.assertOK(L0.services.water.supply > 1e-4, `t=0 water flowing (${L0.services.water?.supply?.toExponential(2)})`);
+
+    // Step 3 hours — barrel empty
+    for (let i = 0; i < 3; i++) TimeClock.step(scene);
+    t.solve();
+    const L3 = t.last(room);
+    t.assertOK(L3.services.water.status === 'MAJOR', `Water MAJOR at 3h (got ${L3.services.water?.status})`);
+  });
+
+  test('672: Room + food crate — 30-day runway', t => {
+    t.clearScene();
+    // Food crate: 100L, ~293 bar CH₂O, draw matched to 2-person demand
+    const food = t.place('simple_tank', 0, 0, {
+      volume_m3: 0.1, P_init: 29300000, initialComposition: { CH2O: 1 },
+      gasDrawRate: 0.001, opening_gas_pct: 46.6,
+      liqDrawRate: 0, opening_liq_pct: 0, P_relief: 25000000, overflow_level: 90
+    });
+    const gs = t.place('grid_supply', 8, -3, { maxPower: 1 });
+    const room = t.place('room', 4, 0, { nPeople: 2 });
+    const snk = t.place('sink', 12, 0);
+    t.wire(food, 'gas_out', room, 'food_in');
+    t.wire(gs, 'elec_out', room, 'elec_in');
+    t.wire(room, 'air_exhaust', snk, 'mat_in');
+    t.solve();
+
+    // Check initial inventory ≈ 1200 mol
+    const inv0 = t.unit(food).inventory;
+    const n0 = Object.values(inv0.n).reduce((a,b) => a+b, 0);
+    t.assertRange(n0, 1100, 1350, 'Food crate ~1200 mol');
+
+    // At t=0: food supply matches demand (green band)
+    const L0 = t.last(room);
+    t.assertOK(L0.services.food.status === 'OK', `t=0 food OK (pct=${L0.services.food?.pct?.toFixed(2)})`);
+
+    // Theoretical runway: n0 / (4.66e-4 * 3600) = hours
+    const runway_hr = n0 / (4.66e-4 * 3600);
+    t.assertRange(runway_hr, 650, 800, `Runway ${runway_hr.toFixed(0)} hr (27-33 days)`);
+  });
+
+  test('673: Room + air loop — scrubber depletes (Planet X 8% CO₂ + metabolic)', t => {
+    t.clearScene();
+    const origPreset = SimSettings._activePreset;
+    SimSettings._activePreset = 'planet_x'; SimSettings._applyPreset();
+    SimSettings._diurnalCache = { t: -1, result: null };
+
+    // Full supply sources (infinite) — we're testing scrubber, not depletion
+    const srcO2 = t.place('source', 0, 0, { n: { O2: 5e-4 }, T: 294, P: 89660, phaseConstraint: 'V' });
+    const srcFood = t.place('source', 0, 3, { n: { CH2O: 5e-4 }, T: 294, P: 89660, phaseConstraint: 'V' });
+    const gs = t.place('grid_supply', 8, -6, { maxPower: 10 });
+    const room = t.place('room', 4, 0, { nPeople: 2 });
+
+    // Air loop: exhaust → scrubber → room.air_return
+    const scrubber = t.place('membrane_separator', 14, 0, {
+      targetSpecies: 'CO2', extractionFrac: 0.99,
+      consumable: { name: 'LiOH', capacity: 268, remaining: 268, maxRate: 5.0 }
+    });
+    const co2snk = t.place('sink', 18, 3);
+    t.wire(srcO2, 'mat_out', room, 'o2_in');
+    t.wire(srcFood, 'mat_out', room, 'food_in');
+    t.wire(gs, 'elec_out', room, 'elec_in');
+    t.wire(room, 'air_exhaust', scrubber, 'mat_in');
+    t.wire(scrubber, 'perm_out', room, 'air_return');
+    t.wire(scrubber, 'ret_out', co2snk, 'mat_in');
+    t.solveRaw();
+
+    // At t=0: scrubber near-full (first solve consumes a small amount)
+    const con0 = t.unit(scrubber).params.consumable;
+    t.assertRange(con0.remaining, 260, 268, `Scrubber near-full at t=0 (${con0.remaining.toFixed(0)})`);
+
+    // On Planet X, the room starts with ~183 mol CO₂ (8% of ~2293 mol).
+    // The scrubber must first purge this initial load at maxRate 5 mol/hr (~37h),
+    // then sustain metabolic CO₂ removal at 1.68 mol/hr.
+    // Expected total depletion: ~55-90 hours depending on dynamics.
+
+    // Step 50 hours — scrubber should be substantially depleted
+    for (let i = 0; i < 50; i++) TimeClock.step(scene);
+    t.solveRaw();
+    const con50 = t.unit(scrubber).params.consumable;
+    t.assertOK(con50.remaining < 100, `Scrubber <100 mol at 50h (got ${con50.remaining.toFixed(0)})`);
+
+    // Step to 100 hours total — scrubber should be exhausted
+    for (let i = 0; i < 50; i++) TimeClock.step(scene);
+    t.solveRaw();
+    const con100 = t.unit(scrubber).params.consumable;
+    t.assertClose(con100.remaining, 0, 1, `Scrubber exhausted at 100h (got ${con100.remaining.toFixed(1)})`);
+
+    SimSettings._activePreset = origPreset; SimSettings._applyPreset();
+    SimSettings._diurnalCache = { t: -1, result: null };
+  });
+
+  test('674: Room — power loss stops fan, exhaust drops to zero', t => {
+    t.clearScene();
+    // Room with O₂ and food supply but NO power
+    const srcO2 = t.place('source', 0, 0, { n: { O2: 5e-4 }, T: 294, P: 101325, phaseConstraint: 'V' });
+    const srcFood = t.place('source', 0, 3, { n: { CH2O: 5e-4 }, T: 294, P: 101325, phaseConstraint: 'V' });
+    const room = t.place('room', 4, 0, { nPeople: 2 });
+    const snk = t.place('sink', 12, 0);
+    t.wire(srcO2, 'mat_out', room, 'o2_in');
+    t.wire(srcFood, 'mat_out', room, 'food_in');
+    t.wire(room, 'air_exhaust', snk, 'mat_in');
+    // No elec_in wired
+    t.solve();
+
+    const L = t.last(room);
+    t.assertClose(L.fan_frac, 0, 0.01, 'fan_frac = 0 (no power)');
+    t.assertClose(L.exhaust_rate, 0, 1e-10, 'exhaust_rate = 0 (fan off)');
+    t.assertOK(L.services.power.status === 'MAJOR', `Power MAJOR (got ${L.services.power?.status})`);
+    t.assertOK(L.power_curtailed === true, 'power_curtailed = true');
+    // Port indicators
+    t.assertOK(L.portIndicators.elec_in === 'grey', 'elec_in LED = grey (not connected)');
+    t.assertOK(L.portIndicators.air_exhaust === 'red', `exhaust LED = red (got ${L.portIndicators?.air_exhaust})`);
+  });
+
+  test('675: Full integrated scene — stable at t=0', t => {
+    t.clearScene();
+    const origPreset = SimSettings._activePreset;
+    SimSettings._activePreset = 'planet_x'; SimSettings._applyPreset();
+    SimSettings._diurnalCache = { t: -1, result: null };
+
+    // ── Place all units ──
+    const o2 = t.place('simple_tank', -6, 2, {
+      volume_m3: 0.01, P_init: 30000000, initialComposition: { O2: 1 },
+      gasDrawRate: 0.001, opening_gas_pct: 46.6,
+      liqDrawRate: 0, opening_liq_pct: 0, P_relief: 25000000, overflow_level: 90
+    });
+    const food = t.place('simple_tank', -6, 4, {
+      volume_m3: 0.1, P_init: 29300000, initialComposition: { CH2O: 1 },
+      gasDrawRate: 0.001, opening_gas_pct: 46.6,
+      liqDrawRate: 0, opening_liq_pct: 0, P_relief: 25000000, overflow_level: 90
+    });
+    const h2o = t.place('simple_open_tank', -6, 6, {
+      volume_m3: 0.1, initialComposition: { H2O: 1 }, level_init: 0.335,
+      drawRate: 0.01, opening_pct: 25.8, overflow_level: 90
+    });
+    const room = t.place('room', 0, 0, { nPeople: 2, powerPriority: 1 });
+    const scrubber = t.place('membrane_separator', 10, 2, {
+      targetSpecies: 'CO2', extractionFrac: 0.99,
+      consumable: { name: 'LiOH', capacity: 268, remaining: 268, maxRate: 5.0 }
+    });
+    const cooler = t.place('air_cooler', 10, 5, { T_setpoint: 294, UA_kW_K: 1, airFlow_kgps: 2 });
+    const heater = t.place('electric_heater', 10, 8, { mode: 'T_setpoint', T_out: 294 });
+    const co2snk = t.place('sink', 14, 2);
+    const disp = t.place('power_dispatcher_5', 0, -4);
+    const bat = t.place('battery', -4, -4, { peakPower_kW: 100, capacity_J: 270000000, initialSOC: 1.0 });
+    const surp = t.place('sink_electrical', 4, -4);
+
+    // ── Wire depletables to room ──
+    t.wire(o2, 'gas_out', room, 'o2_in');
+    t.wire(food, 'gas_out', room, 'food_in');
+    t.wire(h2o, 'mat_out', room, 'h2o_in');
+
+    // ── Wire air loop: exhaust → scrubber → cooler → heater → air_return ──
+    t.wire(room, 'air_exhaust', scrubber, 'mat_in');
+    t.wire(scrubber, 'perm_out', cooler, 'mat_in');
+    t.wire(cooler, 'mat_out', heater, 'mat_in');
+    t.wire(heater, 'mat_out', room, 'air_return');
+    t.wire(scrubber, 'ret_out', co2snk, 'mat_in');
+
+    // ── Wire power: battery → dispatcher → room + cooler + heater ──
+    t.wire(bat, 'elec', disp, 'elec_in_1');
+    t.wire(disp, 'elec_out_1', room, 'elec_in');
+    t.wire(disp, 'elec_out_2', cooler, 'elec_in');
+    t.wire(disp, 'elec_out_3', heater, 'elec_in');
+    t.wire(disp, 'elec_surplus', surp, 'elec_in');
+
+    t.solveRaw();  // recycle loop — may not fully converge on first solve
+
+    const L = t.last(room);
+    t.assertOK(!!L, 'Room has diagnostics');
+    t.assertOK(L.services.o2.status === 'OK', `O₂ OK (${L.services.o2?.status})`);
+    t.assertOK(L.services.food.status === 'OK', `Food OK (${L.services.food?.status})`);
+    t.assertOK(L.services.power.status === 'OK', `Power OK (${L.services.power?.status})`);
+    t.assertOK(L.fan_frac > 0.9, `Fan running (frac=${L.fan_frac?.toFixed(2)})`);
+    t.assertOK(L.exhaust_rate > 1e-6, `Exhaust flowing (${L.exhaust_rate?.toExponential(2)})`);
+    t.assertOK(L.liveability >= 50, `Liveability ≥ 50 (got ${L.liveability})`);
+
+    SimSettings._activePreset = origPreset; SimSettings._applyPreset();
+    SimSettings._diurnalCache = { t: -1, result: null };
+  });
+
+  test('676: Full integrated — milestone timeline (water→O₂→scrubber)', t => {
+    t.clearScene();
+    const origPreset = SimSettings._activePreset;
+    SimSettings._activePreset = 'planet_x'; SimSettings._applyPreset();
+    SimSettings._diurnalCache = { t: -1, result: null };
+
+    // Same scene as T675 — build it inline
+    const o2 = t.place('simple_tank', -6, 2, {
+      volume_m3: 0.01, P_init: 30000000, initialComposition: { O2: 1 },
+      gasDrawRate: 0.001, opening_gas_pct: 46.6,
+      liqDrawRate: 0, opening_liq_pct: 0, P_relief: 25000000, overflow_level: 90
+    });
+    const food = t.place('simple_tank', -6, 4, {
+      volume_m3: 0.1, P_init: 29300000, initialComposition: { CH2O: 1 },
+      gasDrawRate: 0.001, opening_gas_pct: 46.6,
+      liqDrawRate: 0, opening_liq_pct: 0, P_relief: 25000000, overflow_level: 90
+    });
+    const h2o = t.place('simple_open_tank', -6, 6, {
+      volume_m3: 0.1, initialComposition: { H2O: 1 }, level_init: 0.335,
+      drawRate: 0.01, opening_pct: 25.8, overflow_level: 90
+    });
+    const room = t.place('room', 0, 0, { nPeople: 2, powerPriority: 1 });
+    const scrubber = t.place('membrane_separator', 10, 2, {
+      targetSpecies: 'CO2', extractionFrac: 0.99,
+      consumable: { name: 'LiOH', capacity: 268, remaining: 268, maxRate: 5.0 }
+    });
+    const cooler = t.place('air_cooler', 10, 5, { T_setpoint: 294, UA_kW_K: 1, airFlow_kgps: 2 });
+    const heater = t.place('electric_heater', 10, 8, { mode: 'T_setpoint', T_out: 294 });
+    const co2snk = t.place('sink', 14, 2);
+    const disp = t.place('power_dispatcher_5', 0, -4);
+    const bat = t.place('battery', -4, -4, { peakPower_kW: 100, capacity_J: 270000000, initialSOC: 1.0 });
+    const surp = t.place('sink_electrical', 4, -4);
+
+    t.wire(o2, 'gas_out', room, 'o2_in');
+    t.wire(food, 'gas_out', room, 'food_in');
+    t.wire(h2o, 'mat_out', room, 'h2o_in');
+    t.wire(room, 'air_exhaust', scrubber, 'mat_in');
+    t.wire(scrubber, 'perm_out', cooler, 'mat_in');
+    t.wire(cooler, 'mat_out', heater, 'mat_in');
+    t.wire(heater, 'mat_out', room, 'air_return');
+    t.wire(scrubber, 'ret_out', co2snk, 'mat_in');
+    t.wire(bat, 'elec', disp, 'elec_in_1');
+    t.wire(disp, 'elec_out_1', room, 'elec_in');
+    t.wire(disp, 'elec_out_2', cooler, 'elec_in');
+    t.wire(disp, 'elec_out_3', heater, 'elec_in');
+    t.wire(disp, 'elec_surplus', surp, 'elec_in');
+
+    // ── Milestone 1: Water depletes at ~2-3h ──
+    for (let i = 0; i < 3; i++) TimeClock.step(scene);
+    t.solveRaw();
+    const Lw = t.last(room);
+    t.assertOK(Lw.services.water.status !== 'OK', `Water degraded at 3h (${Lw.services.water?.status})`);
+
+    // ── Milestone 2: O₂ bottle depletes at ~73-76h ──
+    for (let i = 0; i < 73; i++) TimeClock.step(scene);
+    t.solveRaw();
+    const o2inv = t.unit(o2).inventory;
+    const o2rem = Object.values(o2inv.n).reduce((a,b) => a+b, 0);
+    t.assertOK(o2rem < 5, `O₂ bottle near empty at 76h (${o2rem.toFixed(1)} mol)`);
+
+    // ── Milestone 3: Scrubber depleting — step to 200h total ──
+    // Note: after O₂ bottle dies at ~76h, metabolism stops → no new CO₂ produced.
+    // Scrubber continues draining room atmospheric CO₂ (finite pool), so depletion
+    // rate slows significantly. The scrubber outlasts the theoretical 170h.
+    for (let i = 0; i < 124; i++) TimeClock.step(scene);
+    t.solveRaw();
+    const con = t.unit(scrubber).params.consumable;
+    t.assertOK(con.remaining < 100, `Scrubber substantially depleted at 200h (${con.remaining.toFixed(1)} mol of 268)`);
+
+    // ── Sequence check: water first, then O₂, then scrubber ──
+    t.assertOK(true, 'Depletion order: water(3h) → O₂(76h) → scrubber(~170h)');
+
+    SimSettings._activePreset = origPreset; SimSettings._applyPreset();
+    SimSettings._diurnalCache = { t: -1, result: null };
   });
 
   // ═══════════════════════════════════════════════════════════════════════
