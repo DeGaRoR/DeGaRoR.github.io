@@ -32686,18 +32686,39 @@ _RAGTAG_SYMBOLS.room = function(g, wx, wy, ww, wh, pal, def, unitId) {
   _p(`M${wx+40} ${wy+216} L${wx+40} ${wy+220} Q${wx+40} ${wy+224} ${wx+36} ${wy+224} L${wx+28} ${wy+224}`,
     { stroke: '#4a4838', 'stroke-width': 3, 'stroke-linecap': 'round' });
 
-  // ── Airlock door ──
-  _r(22, 348, 30, 40, { rx: 2, fill: '#181612', stroke: '#3a3020', 'stroke-width': 1.5 });
-  _r(26, 352, 22, 32, { rx: 1, fill: '#100e0a', stroke: '#28221a', 'stroke-width': 0.5 });
+  // ── Airlock door (slides up when open) ──
+  const doorOpen = u?.params?.doorOpen || false;
+  // Dark void behind door (hangar beyond)
+  _r(22, 348, 30, 40, { rx: 2, fill: '#060504' });
+  if (doorOpen) {
+    // Faint orange glow from damaged hangar beyond
+    _r(24, 350, 26, 36, { rx: 1, fill: '#f97316', opacity: 0.06 });
+    // Distant debris silhouette
+    _r(28, 374, 12, 4, { fill: '#0a0908', opacity: 0.4 });
+    _r(36, 370, 6, 8, { fill: '#0a0908', opacity: 0.3 });
+  }
+  // Door panel (translates up when open)
+  const doorSlide = doorOpen ? -36 : 0;
+  const dg = svgEl('g', { transform: `translate(0,${doorSlide})`, 'pointer-events': pe });
+  dg.appendChild(svgEl('rect', { x: wx+22, y: wy+348, width: 30, height: 40,
+    rx: 2, fill: '#181612', stroke: '#3a3020', 'stroke-width': 1.5 }));
+  dg.appendChild(svgEl('rect', { x: wx+26, y: wy+352, width: 22, height: 32,
+    rx: 1, fill: '#100e0a', stroke: '#28221a', 'stroke-width': 0.5 }));
   // Handle wheel
-  _c(42, 368, 4, { fill: 'none', stroke: '#6a6050', 'stroke-width': 1.2 });
-  _c(42, 368, 1.5, { fill: '#4a4838' });
-  // Lock LED
-  _c(28, 354, 2, { fill: '#ef4444', opacity: 0.5 });
-  // Hazard stripes
-  _r(22, 346, 30, 2, { fill: '#eab308', opacity: 0.3 });
-  for (let hx = 22; hx < 52; hx += 10) _r(hx, 346, 5, 2, { fill: '#1a1610' });
-  // Label
+  dg.appendChild(svgEl('circle', { cx: wx+42, cy: wy+368, r: 4,
+    fill: 'none', stroke: '#6a6050', 'stroke-width': 1.2 }));
+  dg.appendChild(svgEl('circle', { cx: wx+42, cy: wy+368, r: 1.5, fill: '#4a4838' }));
+  // Lock LED (green when open, red when closed)
+  dg.appendChild(svgEl('circle', { cx: wx+28, cy: wy+354, r: 2,
+    fill: doorOpen ? '#22c55e' : '#ef4444', opacity: 0.6 }));
+  // Hazard stripes on door top edge
+  dg.appendChild(svgEl('rect', { x: wx+22, y: wy+346, width: 30, height: 2,
+    fill: '#eab308', opacity: 0.3 }));
+  for (let hx = 22; hx < 52; hx += 10) {
+    dg.appendChild(svgEl('rect', { x: wx+hx, y: wy+346, width: 5, height: 2, fill: '#1a1610' }));
+  }
+  g.appendChild(dg);
+  // AIRLOCK stencil (stays in place, doesn't move with door)
   const alTxt = svgEl('text', { x: wx+37, y: wy+394, 'text-anchor': 'middle',
     'font-family': 'monospace', 'font-size': '4px', fill: '#5a5040', 'letter-spacing': '1', 'pointer-events': pe });
   alTxt.textContent = 'AIRLOCK'; g.appendChild(alTxt);
@@ -32733,8 +32754,10 @@ _RAGTAG_SYMBOLS.room = function(g, wx, wy, ww, wh, pal, def, unitId) {
   _p(`M${wx+160} ${wy+388} L${wx+164} ${wy+385} L${wx+167} ${wy+390} Z`,
     { fill: '#282218', opacity: 0.3 });
 
-  // ═══ LIGHTS LAYER (toggleable by power state) ═══
-  const lightsOn = last.fan_frac > 0 || last.fan_frac === undefined;  // on by default pre-sim
+  // ═══ LIGHTS LAYER (toggleable: auto follows power, or manual override) ═══
+  const _lo = u?.params?.lightsOverride ?? 'auto';
+  const lightsOn = _lo === 'on' ? true : _lo === 'off' ? false
+    : (last.fan_frac > 0 || last.fan_frac === undefined);  // auto: on if powered or pre-sim
   if (lightsOn) {
     // Create gradient for light cones (unique per unit to avoid ID conflicts)
     const lcId = `lc-${unitId}`;
@@ -38039,6 +38062,41 @@ UnitInspector.room = {
     addNumberEditor(container, 'Power priority',
       () => u.params.powerPriority ?? 1,
       v => { u.params.powerPriority = Math.max(1, Math.min(5, Math.round(v))); }, 1, 0);
+
+    // ── Room controls section ──
+    container.appendChild(el('div', { class: 'ins-section-label', html: 'Room Controls' }));
+
+    // Lights toggle (auto / on / off)
+    const lightsRow = el('div', { style: 'display:flex; align-items:center; gap:6px; margin:6px 0;' });
+    lightsRow.appendChild(el('span', { style: 'font-size:11px; color:#94a3b8; min-width:50px;', html: 'Lights' }));
+    const lightsSelect = document.createElement('select');
+    lightsSelect.style.cssText = 'font-size:11px; background:#1e293b; color:#e2e8f0; border:1px solid #334155; border-radius:4px; padding:2px 6px;';
+    [['auto', 'Auto (power)'], ['on', 'On'], ['off', 'Off']].forEach(([val, label]) => {
+      const opt = document.createElement('option');
+      opt.value = val; opt.textContent = label;
+      if ((u.params.lightsOverride ?? 'auto') === val) opt.selected = true;
+      lightsSelect.appendChild(opt);
+    });
+    lightsSelect.addEventListener('change', () => {
+      u.params.lightsOverride = lightsSelect.value;
+      if (typeof render === 'function') render();
+    });
+    lightsRow.appendChild(lightsSelect);
+    container.appendChild(lightsRow);
+
+    // Door toggle
+    const doorRow = el('div', { style: 'display:flex; align-items:center; gap:6px; margin:6px 0;' });
+    doorRow.appendChild(el('span', { style: 'font-size:11px; color:#94a3b8; min-width:50px;', html: 'Airlock' }));
+    const doorBtn = document.createElement('button');
+    doorBtn.style.cssText = 'font-size:11px; background:#1e293b; color:#e2e8f0; border:1px solid #334155; border-radius:4px; padding:3px 10px; cursor:pointer;';
+    doorBtn.textContent = u.params.doorOpen ? 'Close door' : 'Open door';
+    doorBtn.addEventListener('click', () => {
+      u.params.doorOpen = !u.params.doorOpen;
+      doorBtn.textContent = u.params.doorOpen ? 'Close door' : 'Open door';
+      if (typeof render === 'function') render();
+    });
+    doorRow.appendChild(doorBtn);
+    container.appendChild(doorRow);
   },
   conditions(u, ud) {
     const L = u.last || {};
