@@ -349,6 +349,34 @@
 
   ─── v17.6.3 — Cooled tank, food storage, room starvation ─────────────────
 
+  **Room resized to 6x9 tiles** (was 6×4).  Port layout: left material
+  inputs at y=2/4/6/8 (2-tile spacing for 2×2 feed units), right air
+  ports at y=2 (exhaust) and y=8 (return — aligned with hot_water_in),
+  top power at y=0.  The 6-tile right-side span fits 3 recycle units
+  (scrubber→cooler→heater) stacked vertically.
+
+  **Thick-walled ragtag hull.**  Triple-layer shell: 5px outer hull
+  (category color via pal.fillUrl — responds to color-by mechanism),
+  2px reinforcement ring (pal.rim), 0.5px inner cavity wall.  Corner
+  bolts, mid-wall bolts, weld seam dashes.  "CREW SHELTER" stencil
+  label on bottom hull plate.  LIFE_SUPPORT category added to both
+  ragtag and engineering theme palettes (#f97316 orange).
+
+  **Status LEDs embedded in wall thickness.**  Same pattern as
+  power_dispatcher_5: LED dots in hull wall at each port position.
+  Active (green/yellow) LEDs get a subtle glow ring.  Inactive (grey)
+  LEDs dim to 0.4 opacity.
+
+  **Three interior zones defined.**  Zone 3 (top): dark indicator panel
+  for gauges.  Zone 2 (mid): expression area for speech bubble.
+  Zone 1 (bottom): character zone with floor plate and grating texture.
+  All zones are placeholder structure — content fills in subsequent
+  visual sessions.
+
+  **Port nozzles via _rtNozzle.**  Stubs drawn behind hull, fully
+  responsive to color-by modes (temperature, pressure, phase, composition,
+  flowrate).  Electrical stubs render in amber.
+
   **Cooled Tank defId.**  Generic sealed tank with brazed cooling jacket
   (cool_in/cool_out).  UA-based heat exchange: Q = UA × (T_tank − T_cool).
   Without coolant, inventory drifts toward ambient T (UA_ambient = 2 W/K).
@@ -22638,25 +22666,25 @@ UnitRegistry.register('membrane_separator', {
 UnitRegistry.register('room', {
   name: 'Room',
   category: UnitCategories.LIFE_SUPPORT,
-  w: 6, h: 4,
+  w: 6, h: 9,
   optionalPorts: true,
   ports: [
-    { portId: 'o2_in',        dir: PortDir.IN,  type: StreamType.MATERIAL,   x: 0, y: 1, label: 'O₂' },
-    { portId: 'food_in',      dir: PortDir.IN,  type: StreamType.MATERIAL,   x: 0, y: 2, label: 'food' },
-    { portId: 'h2o_in',       dir: PortDir.IN,  type: StreamType.MATERIAL,   x: 0, y: 3, label: 'water' },
-    { portId: 'hot_water_in', dir: PortDir.IN,  type: StreamType.MATERIAL,   x: 0, y: 4, label: 'hot H₂O' },
-    { portId: 'elec_in',      dir: PortDir.IN,  type: StreamType.ELECTRICAL, x: 3, y: 0, label: 'power' },
-    { portId: 'air_return',   dir: PortDir.IN,  type: StreamType.MATERIAL,   x: 6, y: 1, label: 'clean air' },
-    { portId: 'air_exhaust',  dir: PortDir.OUT, type: StreamType.MATERIAL,   x: 6, y: 2, label: 'exhaust' }
+    { portId: 'o2_in',        dir: PortDir.IN,  type: StreamType.MATERIAL,   x: 0, y: 2,  label: 'O₂' },
+    { portId: 'food_in',      dir: PortDir.IN,  type: StreamType.MATERIAL,   x: 0, y: 4,  label: 'food' },
+    { portId: 'h2o_in',       dir: PortDir.IN,  type: StreamType.MATERIAL,   x: 0, y: 6,  label: 'water' },
+    { portId: 'hot_water_in', dir: PortDir.IN,  type: StreamType.MATERIAL,   x: 0, y: 8,  label: 'hot H₂O' },
+    { portId: 'elec_in',      dir: PortDir.IN,  type: StreamType.ELECTRICAL, x: 3, y: 0,  label: 'power' },
+    { portId: 'air_exhaust',  dir: PortDir.OUT, type: StreamType.MATERIAL,   x: 6, y: 2,  label: 'exhaust' },
+    { portId: 'air_return',   dir: PortDir.IN,  type: StreamType.MATERIAL,   x: 6, y: 8,  label: 'clean air' }
   ],
   presentations: {
-    'box/default': { w: 6, h: 4, ports: {
-      o2_in:{x:0,y:1}, food_in:{x:0,y:2}, h2o_in:{x:0,y:3}, hot_water_in:{x:0,y:4},
-      elec_in:{x:3,y:0}, air_return:{x:6,y:1}, air_exhaust:{x:6,y:2}
+    'box/default': { w: 6, h: 9, ports: {
+      o2_in:{x:0,y:2}, food_in:{x:0,y:4}, h2o_in:{x:0,y:6}, hot_water_in:{x:0,y:8},
+      elec_in:{x:3,y:0}, air_exhaust:{x:6,y:2}, air_return:{x:6,y:8}
     }},
-    'box/mirror': { w: 6, h: 4, ports: {
-      o2_in:{x:6,y:1}, food_in:{x:6,y:2}, h2o_in:{x:6,y:3}, hot_water_in:{x:6,y:4},
-      elec_in:{x:3,y:0}, air_return:{x:0,y:1}, air_exhaust:{x:0,y:2}
+    'box/mirror': { w: 6, h: 9, ports: {
+      o2_in:{x:6,y:2}, food_in:{x:6,y:4}, h2o_in:{x:6,y:6}, hot_water_in:{x:6,y:8},
+      elec_in:{x:3,y:0}, air_exhaust:{x:0,y:2}, air_return:{x:0,y:8}
     }}
   },
   limitParams: ['T_LL', 'T_HH'],
@@ -29503,9 +29531,11 @@ function _makeUnitGradient(defsEl, unitId, baseColor) {
 const THEME_PALETTES = Object.freeze({
   box:         null,  // uses def.color directly (existing behavior)
   ragtag:      Object.freeze({ SOURCE:'#10b981', PRESSURE:'#8b5cf6', HEAT_TRANSFER:'#3b82f6',
-                 SEPARATION:'#14b8a6', REACTOR:'#ef4444', STORAGE:'#06b6d4', POWER:'#eab308' }),
+                 SEPARATION:'#14b8a6', REACTOR:'#ef4444', STORAGE:'#06b6d4', POWER:'#eab308',
+                 LIFE_SUPPORT:'#f97316' }),
   engineering: Object.freeze({ SOURCE:'#10b981', PRESSURE:'#8b5cf6', HEAT_TRANSFER:'#3b82f6',
-                 SEPARATION:'#14b8a6', REACTOR:'#ef4444', STORAGE:'#06b6d4', POWER:'#eab308' }),
+                 SEPARATION:'#14b8a6', REACTOR:'#ef4444', STORAGE:'#06b6d4', POWER:'#eab308',
+                 LIFE_SUPPORT:'#f97316' }),
 });
 
 // ── Temperature scale: 7 segments, highest resolution in ambient range ──
@@ -30450,7 +30480,7 @@ const _BODY_BBOX = {
   distillation_column:      { x:20, y:4,  w:56, h:136 },
   membrane_separator:       { x:10, y:6,  w:76, h:84 },
   combustion_chamber:       { x:10, y:8,  w:76, h:66 },
-  room:                     { x:8,  y:8,  w:272, h:176 },  // [v17.6.0] 6×4 tiles (288×192 px)
+  room:                     { x:16, y:16, w:256, h:400 },  // [v17.6.3] 6×9 tiles (288×432 px), 16px wall inset
   cooled_tank:              { x:4,  y:16, w:88,  h:64 },   // [v17.6.3] same as simple_tank
   food_storage:             { x:4,  y:16, w:88,  h:64 },   // [v17.6.3]
 };
@@ -32420,108 +32450,123 @@ _RAGTAG_SYMBOLS.simple_open_tank = _RAGTAG_SYMBOLS.open_tank;
 _RAGTAG_SYMBOLS.simple_tank = _RAGTAG_SYMBOLS.tank;
 _RAGTAG_SYMBOLS.cooled_tank = _RAGTAG_SYMBOLS.tank;  // [v17.6.3] same body, jacket is cosmetic
 _RAGTAG_SYMBOLS.food_storage = function(g, wx, wy, ww, wh, pal, def, unitId) {
-  // [v17.6.3] Placeholder: tank body with food icon
+  // [v17.6.3] Food storage: tank body with pal color + food label
   const u = scene.units.get(unitId);
   const last = u?.last || {};
   const frozen = last.frozen;
-  const mkEl = (tag) => document.createElementNS('http://www.w3.org/2000/svg', tag);
-  // Body
-  const body = mkEl('rect');
-  body.setAttribute('x', wx + 8); body.setAttribute('y', wy + 8);
-  body.setAttribute('width', ww - 16); body.setAttribute('height', wh - 16);
-  body.setAttribute('rx', 6); body.setAttribute('ry', 6);
-  body.setAttribute('fill', frozen ? '#1e3a5f' : '#3b2f1f');
-  body.setAttribute('stroke', '#7c6f64'); body.setAttribute('stroke-width', '1.5');
-  g.appendChild(body);
-  // Food label
-  const txt = mkEl('text');
-  txt.setAttribute('x', wx + ww/2); txt.setAttribute('y', wy + wh/2 + 4);
-  txt.setAttribute('text-anchor', 'middle'); txt.setAttribute('font-size', '11');
-  txt.setAttribute('fill', frozen ? '#93c5fd' : '#fbbf24');
-  txt.textContent = frozen ? '❄ food' : '🍞';
-  g.appendChild(txt);
+  const pres = getPresentation(def, u);
+  const bx = wx + 8, by = wy + 8, bw = ww - 16, bh = wh - 16;
+  _rtNozzle(g, wx, wy, ww, wh, bx, by, bw, bh, def, pres, pal, unitId);
+  g.appendChild(svgEl('rect', { x: bx, y: by, width: bw, height: bh,
+    rx: 6, fill: pal.fillUrl, stroke: pal.stroke, 'stroke-width': 2, 'pointer-events': 'none' }));
+  // Inner dark panel
+  g.appendChild(svgEl('rect', { x: bx + 6, y: by + 6, width: bw - 12, height: bh - 12,
+    rx: 3, fill: frozen ? '#0a1828' : '#1a1008', stroke: pal.rim, 'stroke-width': 0.5, 'pointer-events': 'none' }));
+  // Label
+  g.appendChild(svgEl('text', { x: wx + ww/2, y: wy + wh/2 + 2,
+    'text-anchor': 'middle', 'dominant-baseline': 'central',
+    'font-family': 'monospace', 'font-size': '8px',
+    fill: frozen ? '#93c5fd' : '#fbbf24', 'pointer-events': 'none'
+  })).textContent = frozen ? 'FROZEN' : 'FOOD';
+  // Bolts
+  _rtBolt(g, bx + 10, by + 10); _rtBolt(g, bx + bw - 10, by + 10);
+  _rtBolt(g, bx + 10, by + bh - 10); _rtBolt(g, bx + bw - 10, by + bh - 10);
 };
 
-// [v17.6.0 S-ROOM] Crew shelter — placeholder icon (6×4 tiles)
+// [v17.6.3 S-ROOM] Crew shelter — thick-walled hull with status LEDs and three zones
+// Shell uses pal (category color, responds to color-by mechanism).
+// LEDs embedded in wall thickness (like power_dispatcher_5 pattern).
 _RAGTAG_SYMBOLS.room = function(g, wx, wy, ww, wh, pal, def, unitId) {
   const u = scene.units.get(unitId);
   const last = u?.last || {};
-  const powered = last.fan_frac > 0.5;
-
-  // Outer hull (rounded rect)
-  const hull = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-  hull.setAttribute('x', wx + 6); hull.setAttribute('y', wy + 6);
-  hull.setAttribute('width', ww - 12); hull.setAttribute('height', wh - 12);
-  hull.setAttribute('rx', 6); hull.setAttribute('ry', 6);
-  hull.setAttribute('fill', '#1a1f2e'); hull.setAttribute('stroke', '#475569');
-  hull.setAttribute('stroke-width', '2');
-  g.appendChild(hull);
-
-  // Interior floor (lighter when powered)
-  const floor = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-  floor.setAttribute('x', wx + 14); floor.setAttribute('y', wy + 14);
-  floor.setAttribute('width', ww - 28); floor.setAttribute('height', wh - 28);
-  floor.setAttribute('rx', 3); floor.setAttribute('ry', 3);
-  floor.setAttribute('fill', powered ? '#2a3142' : '#111520');
-  floor.setAttribute('stroke', powered ? '#4a5568' : '#1e2533');
-  floor.setAttribute('stroke-width', '1');
-  g.appendChild(floor);
-
-  // Window (small rect, top-right area, glows when powered)
-  const win = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-  const winX = wx + ww - 60, winY = wy + 20;
-  win.setAttribute('x', winX); win.setAttribute('y', winY);
-  win.setAttribute('width', 28); win.setAttribute('height', 18);
-  win.setAttribute('rx', 2); win.setAttribute('ry', 2);
-  win.setAttribute('fill', powered ? '#334155' : '#1a1f2e');
-  win.setAttribute('stroke', '#64748b'); win.setAttribute('stroke-width', '1');
-  g.appendChild(win);
-
-  // Lighting indicator (warm glow circle when powered)
-  if (powered) {
-    const glow = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-    glow.setAttribute('cx', wx + ww / 2); glow.setAttribute('cy', wy + wh / 2 - 10);
-    glow.setAttribute('r', 16);
-    glow.setAttribute('fill', '#f97316'); glow.setAttribute('opacity', '0.12');
-    g.appendChild(glow);
-    const bulb = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-    bulb.setAttribute('cx', wx + ww / 2); bulb.setAttribute('cy', wy + wh / 2 - 10);
-    bulb.setAttribute('r', 4);
-    bulb.setAttribute('fill', '#fbbf24'); bulb.setAttribute('opacity', '0.8');
-    g.appendChild(bulb);
-  }
-
-  // ── Port indicator LEDs (supply/demand status) ──
-  const pi = last.portIndicators || {};
-  const _ledColor = { green: '#22c55e', yellow: '#eab308', red: '#ef4444', grey: '#4b5563' };
+  const pres = getPresentation(def, u);
   const t = scene.tile;
-  const pres = getPresentation(def, scene.units.get(unitId));
-  for (const p of def.ports) {
-    const pp = pres.ports[p.portId];
-    if (!pp) continue;
-    const col = _ledColor[pi[p.portId] || 'grey'];
-    // Position LED inside hull near port
-    let lx, ly;
-    const py = wy + pp.y * t;
-    if (pp.x === 0)        { lx = wx + 14; ly = py; }      // left port
-    else if (pp.x >= pres.w){ lx = wx + ww - 14; ly = py; } // right port
-    else                    { lx = wx + pp.x * t; ly = wy + 14; } // top port
-    const led = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-    led.setAttribute('cx', lx); led.setAttribute('cy', ly);
-    led.setAttribute('r', 3); led.setAttribute('fill', col);
-    led.setAttribute('opacity', col === _ledColor.grey ? '0.4' : '0.85');
-    led.setAttribute('pointer-events', 'none');
-    g.appendChild(led);
+
+  // ── Body bounding box (inset from tile boundary for wall thickness) ──
+  const bx = wx + 6, by = wy + 6, bw = ww - 12, bh = wh - 12;
+
+  // ── Port nozzle stubs (behind hull — handles color-by automatically) ──
+  _rtNozzle(g, wx, wy, ww, wh, bx, by, bw, bh, def, pres, pal, unitId);
+
+  // ── Triple-layer hull (thick ragtag walls) ──
+  // All pointer-events: none — boxman rect handles interaction
+  // Outer hull plate — category color via pal (responds to color-by)
+  g.appendChild(svgEl('rect', { x: bx, y: by, width: bw, height: bh,
+    rx: 10, fill: pal.fillUrl, stroke: pal.stroke, 'stroke-width': 5, 'pointer-events': 'none' }));
+  // Middle reinforcement ring
+  g.appendChild(svgEl('rect', { x: bx + 5, y: by + 5, width: bw - 10, height: bh - 10,
+    rx: 7, fill: 'none', stroke: pal.rim, 'stroke-width': 2, 'pointer-events': 'none' }));
+  // Inner wall — creates the dark interior cavity
+  const ix = bx + 12, iy = by + 12, iw = bw - 24, ih = bh - 24;
+  g.appendChild(svgEl('rect', { x: ix, y: iy, width: iw, height: ih,
+    rx: 4, fill: '#0a0c12', stroke: pal.rim, 'stroke-width': 0.5, 'pointer-events': 'none' }));
+
+  // ── Corner bolts (standard _rtBolt helper) ──
+  _rtBolt(g, bx + 14, by + 14);  _rtBolt(g, bx + bw - 14, by + 14);
+  _rtBolt(g, bx + 14, by + bh - 14);  _rtBolt(g, bx + bw - 14, by + bh - 14);
+  // Mid-wall bolts (thirds)
+  _rtBolt(g, bx + 14, by + Math.round(bh * 0.33));
+  _rtBolt(g, bx + bw - 14, by + Math.round(bh * 0.33));
+  _rtBolt(g, bx + 14, by + Math.round(bh * 0.67));
+  _rtBolt(g, bx + bw - 14, by + Math.round(bh * 0.67));
+
+  // ── Port status LEDs (embedded in wall, like power_dispatcher_5) ──
+  const _ledColor = { grey: '#3b4050', green: '#22c55e', yellow: '#f59e0b', red: '#ef4444' };
+  const pi = last.portIndicators || {};
+  const _led = (portId, cx, cy) => {
+    const col = _ledColor[pi[portId]] || '#3b4050';
+    const active = pi[portId] === 'green' || pi[portId] === 'yellow';
+    g.appendChild(svgEl('circle', { cx, cy, r: 3, fill: col, opacity: active ? 0.9 : 0.4,
+      'pointer-events': 'none' }));
+    if (active) {
+      g.appendChild(svgEl('circle', { cx, cy, r: 5, fill: 'none', stroke: col,
+        'stroke-width': 0.5, opacity: 0.3, 'pointer-events': 'none' }));
+    }
+  };
+  // Left-wall LEDs (material IN ports) — positioned in wall thickness
+  _led('o2_in',        bx + 8,      wy + pres.ports.o2_in.y * t);
+  _led('food_in',      bx + 8,      wy + pres.ports.food_in.y * t);
+  _led('h2o_in',       bx + 8,      wy + pres.ports.h2o_in.y * t);
+  _led('hot_water_in', bx + 8,      wy + pres.ports.hot_water_in.y * t);
+  // Right-wall LEDs (air ports)
+  _led('air_exhaust',  bx + bw - 8, wy + pres.ports.air_exhaust.y * t);
+  _led('air_return',   bx + bw - 8, wy + pres.ports.air_return.y * t);
+  // Top-wall LED (power)
+  _led('elec_in',      wx + pres.ports.elec_in.x * t, by + 8);
+
+  // ── Zone 3: Indicators panel (top ~2 tiles of interior) ──
+  const z3y = iy + 2, z3h = 2 * t - 28;
+  g.appendChild(svgEl('rect', { x: ix + 2, y: z3y, width: iw - 4, height: z3h,
+    rx: 3, fill: 'rgba(10,12,18,0.85)', stroke: '#1a1f2e', 'stroke-width': 0.5,
+    'pointer-events': 'none' }));
+  // Placeholder label
+  g.appendChild(svgEl('text', { x: ix + iw / 2, y: z3y + z3h / 2 + 1,
+    'text-anchor': 'middle', 'dominant-baseline': 'central',
+    'font-family': 'monospace', 'font-size': '7px', fill: '#475569', 'pointer-events': 'none'
+  })).textContent = 'GAUGES';
+
+  // ── Zone 2: Expression (next ~1.5 tiles — speech bubble area) ──
+  const z2y = z3y + z3h + 4, z2h = Math.round(1.5 * t);
+  // (empty for now — speech bubble rendered here in future)
+
+  // ── Zone 1: Characters (remaining interior space) ──
+  const z1y = z2y + z2h + 4, z1h = iy + ih - z1y - 2;
+
+  // Floor plate at bottom of character zone
+  g.appendChild(svgEl('rect', { x: ix + 2, y: z1y + z1h - 10, width: iw - 4, height: 10,
+    rx: 2, fill: '#12161e', stroke: pal.rim, 'stroke-width': 0.3, 'pointer-events': 'none' }));
+  // Floor grating texture
+  for (let fx = ix + 10; fx < ix + iw - 10; fx += 14) {
+    g.appendChild(svgEl('line', { x1: fx, y1: z1y + z1h - 7, x2: fx + 6, y2: z1y + z1h - 7,
+      stroke: pal.rim, 'stroke-width': 0.3, opacity: 0.25, 'pointer-events': 'none' }));
   }
 
-  // People count label
-  const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-  label.setAttribute('x', wx + ww / 2); label.setAttribute('y', wy + wh - 20);
-  label.setAttribute('text-anchor', 'middle'); label.setAttribute('dominant-baseline', 'middle');
-  label.setAttribute('fill', '#94a3b8'); label.setAttribute('font-size', '11');
-  label.setAttribute('font-family', 'monospace');
-  label.textContent = (last.nPeople || 2) + (last.nPeople === 1 ? ' person' : ' people');
-  g.appendChild(label);
+  // ── Hull stencil label (ragtag spray-paint on bottom hull plate) ──
+  g.appendChild(svgEl('text', {
+    x: bx + bw / 2, y: by + bh - 8, 'text-anchor': 'middle',
+    'font-family': 'monospace', 'font-size': '8px', fill: pal.stroke, opacity: 0.35,
+    'pointer-events': 'none', 'dominant-baseline': 'auto'
+  })).textContent = 'CREW SHELTER';
 };
 
 // [v17.5.0] Pipe Bend — 90° bolted elbow
@@ -37925,7 +37970,7 @@ UnitInspector.food_storage = {
     items.push({ label: '── Thermal ──', value: '', tone: 'dim' });
     items.push({ label: 'T', value: `${((L.T_K||0)-273.15).toFixed(1)}<span class="propUnit">°C</span>  (${(L.T_K||0).toFixed(1)} K)` });
     if (L.Q_cool_W > 0) items.push({ label: 'Cooling', value: `${L.Q_cool_W.toFixed(0)}<span class="propUnit">W</span>`, tone: 'good' });
-    if (L.frozen) items.push({ label: 'Frozen', value: '❄ Yes — no spoilage', tone: 'good' });
+    if (L.frozen) items.push({ label: 'Frozen', value: 'Yes — no spoilage', tone: 'good' });
     // Only show pressure if it's getting dangerous (near relief)
     if (L.P_Pa > L.P_relief * 0.5) {
       items.push({ label: '── WARNING: Gas Buildup ──', value: '', tone: 'warn' });
@@ -37938,6 +37983,7 @@ UnitInspector.food_storage = {
 
 
 /* ═══════════════════════════════════════════════════════════════════════════
+   ═══════════════════════════════════════════════════════════════════════════ */
 
 // [v13.1.3] Floating tooltip — shared across palette and future uses.
 // Positioned at body level to avoid overflow clipping in scrollable containers.
@@ -43059,7 +43105,7 @@ window.addEventListener('resize', () => {
 
 // [v14.10.3] Load on startup: auto-save (if matching DEMO_VERSION) or demo_v1
 {
-  const DEMO_VERSION = 'v16.8.0';  // bump this when demo scene changes
+  const DEMO_VERSION = 'v17.6.3';  // bump this when demo scene changes
   const _AUTOSAVE_VER_KEY = AUTOSAVE_KEY + '_demoVer';
   // [v17.4.0] Read using AUTOSAVE_KEY constant — was hardcoded 'ptis_autosave'
   // which never matched the write key 'processThis_autosave'. All autosaves
@@ -59178,7 +59224,7 @@ function runTests() {
     const def = UnitRegistry.get('room');
     t.assertOK(!!def, 'room defId registered');
     t.assertOK(def.ports.length === 7, `7 ports (got ${def.ports.length})`);
-    t.assertOK(def.w === 6 && def.h === 4, `6×4 tiles`);
+    t.assertOK(def.w === 6 && def.h === 9, `6×9 tiles (got ${def.w}×${def.h})`);
     t.assertOK(def.inventory === true, 'inventory unit');
     t.assertOK(def.optionalPorts === true, 'optionalPorts');
     t.assertOK(def.category === UnitCategories.LIFE_SUPPORT.name, 'LIFE_SUPPORT category');
