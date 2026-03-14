@@ -354,6 +354,22 @@
   stops circulation → air loop stagnates → CO₂ builds.  Creates
   cascading failure from a single power outage.
 
+  **Fan-driven exhaust (convergence fix).**  Exhaust rate changed from
+  feedback-based (gas_in + air_return − consumed + produced) to fan-
+  driven (circ_demand × fan_frac).  The room pushes a fixed rate based
+  on crew size and power.  Mass balance settles through inventory
+  accumulation between timesteps, not within solver iterations.
+  Recycle loop: air_exhaust → scrubber → air_return now converges in
+  3 iterations (cold start), down from 200+ (never converged).
+
+  **Membrane separator isothermal fix.**  Output ports now use explicit
+  T = T_inlet instead of proportional enthalpy splitting (H_target).
+  The old approach was thermodynamically wrong for species separation:
+  pure-CO₂ retentate at trace flow got an impossible H_target that
+  crashed the PH-flash.  Isothermal separation is physically correct
+  for membrane/absorber units.  Eliminates PH-flash errors on the
+  CO₂ scrubber retentate.
+
   **Port indicators.**  Each room port gets a status LED in u.last
   (portIndicators): grey=disconnected, green=95-105% of demand,
   yellow=excess(>105%), red=deficit(<95%).  Ragtag icon renders LEDs
@@ -374,9 +390,12 @@
   672 (food 30-day runway), 673 (scrubber depletion with Planet X CO₂),
   674 (power loss → fan stops → exhaust zero), 675 (full scene stable),
   676 (milestone timeline: water→O₂→scrubber).
+  Integration tests T673/T675/T676 upgraded from solveRaw to solve
+  (convergence fix eliminates the need for raw calls).
 
-  NNGs: NNG-1 (mass balance — buffer depletion tracked), NNG-5 (power
-  lifecycle — fan curtailment), NNG-14 (changelog + 7 tests).
+  NNGs: NNG-1 (conservation — mass balance through inventory, not
+  feedback), NNG-2 (isothermal separation — no heat creation),
+  NNG-5 (power lifecycle — fan curtailment), NNG-14 (changelog).
 
   ─── v17.6.0 — S-ROOM: Crew shelter (Session 1) ─────────────────────────
 
@@ -22082,26 +22101,32 @@ function separatorTick(u, ports, par, ctx) {
     };
   }
 
-  // ── Energy: proportional PH-flash split (isothermal, isobaric) ──
+  // ── Energy: isothermal, isobaric separation ──
+  // Both outputs exit at inlet T and P.  The enthalpy of each stream
+  // is determined by its composition at (T, P) — not by proportional
+  // splitting of inlet enthalpy (which is wrong when species differ).
+  // Using explicit T avoids PH-flash entirely and is physically correct
+  // for membrane/absorber units that do no heat exchange.
   const H_in_Jps = thermo.getHdot_Jps(sIn);
-  const nPerm = Object.values(permN).reduce((a, b) => a + b, 0);
-  const nRet  = Object.values(retN).reduce((a, b) => a + b, 0);
-  const nSum  = nPerm + nRet;  // === nTotal by construction
-  const fracPerm = nSum > 0 ? nPerm / nSum : 1;
-  const fracRet  = 1 - fracPerm;
 
   ports.perm_out = {
     type: StreamType.MATERIAL,
-    P: sIn.P,
+    T: sIn.T, P: sIn.P,
     n: permN,
-    H_target_Jps: fracPerm * H_in_Jps
+    phaseConstraint: sIn.phaseConstraint || 'VL'
   };
   ports.ret_out = {
     type: StreamType.MATERIAL,
-    P: sIn.P,
+    T: sIn.T, P: sIn.P,
     n: retN,
-    H_target_Jps: fracRet * H_in_Jps
+    phaseConstraint: sIn.phaseConstraint || 'VL'
   };
+
+  // Compute output enthalpies for diagnostics (not for flash)
+  const H_perm_Jps = thermo.getHdot_Jps(ports.perm_out);
+  const H_ret_Jps  = thermo.getHdot_Jps(ports.ret_out);
+  const nPerm = Object.values(permN).reduce((a, b) => a + b, 0);
+  const nRet  = Object.values(retN).reduce((a, b) => a + b, 0);
 
   // ── Diagnostics ──
   u.last = u.last || {};
@@ -22113,8 +22138,8 @@ function separatorTick(u, ports, par, ctx) {
     targetSpecies: [...targets],
     P: sIn.P,
     H_in_kW:   (H_in_Jps / 1000).toFixed(3),
-    H_perm_kW: (fracPerm * H_in_Jps / 1000).toFixed(3),
-    H_ret_kW:  (fracRet * H_in_Jps / 1000).toFixed(3)
+    H_perm_kW: (H_perm_Jps / 1000).toFixed(3),
+    H_ret_kW:  (H_ret_Jps / 1000).toFixed(3)
   });
   if (con) {
     u.last.consumable_remaining = con.remaining;
@@ -22373,12 +22398,10 @@ UnitRegistry.register('room', {
     const room_x_H2O = (inv.n.H2O || 0) / n_total;
 
     // ── 8. Emit air_exhaust (with private metadata for updateInventory) ──
-    // Exhaust = room atmosphere at current fractions
-    // Rate: gas inputs - consumed + produced, to keep room moles ~constant
-    // Gated by fan power fraction — no power = no circulation = stagnant room
-    const gas_in_total = o2_supply + air_return_rate;
-    const exhaust_rate_raw = Math.max(0, gas_in_total - reaction_rate + co2_produced + h2o_metabolic);
-    const exhaust_rate = exhaust_rate_raw * fan_frac;
+    // Fan-driven: room pushes circ_demand mol/s of its atmosphere out.
+    // NOT dependent on air_return rate — breaks the circular solver dependency.
+    // Mass balance settles through inventory accumulation between solves.
+    const exhaust_rate = circ_demand * fan_frac;
     const n_exhaust = {};
     if (exhaust_rate > 1e-15) {
       for (const [sp, mol] of Object.entries(inv.n)) {
@@ -58866,7 +58889,7 @@ function runTests() {
     t.wire(room, 'air_exhaust', scrubber, 'mat_in');
     t.wire(scrubber, 'perm_out', room, 'air_return');
     t.wire(scrubber, 'ret_out', co2snk, 'mat_in');
-    t.solveRaw();
+    t.solve();
 
     // At t=0: scrubber near-full (first solve consumes a small amount)
     const con0 = t.unit(scrubber).params.consumable;
@@ -58879,13 +58902,13 @@ function runTests() {
 
     // Step 50 hours — scrubber should be substantially depleted
     for (let i = 0; i < 50; i++) TimeClock.step(scene);
-    t.solveRaw();
+    t.solve();
     const con50 = t.unit(scrubber).params.consumable;
     t.assertOK(con50.remaining < 100, `Scrubber <100 mol at 50h (got ${con50.remaining.toFixed(0)})`);
 
     // Step to 100 hours total — scrubber should be exhausted
     for (let i = 0; i < 50; i++) TimeClock.step(scene);
-    t.solveRaw();
+    t.solve();
     const con100 = t.unit(scrubber).params.consumable;
     t.assertClose(con100.remaining, 0, 1, `Scrubber exhausted at 100h (got ${con100.remaining.toFixed(1)})`);
 
@@ -58968,7 +58991,7 @@ function runTests() {
     t.wire(disp, 'elec_out_3', heater, 'elec_in');
     t.wire(disp, 'elec_surplus', surp, 'elec_in');
 
-    t.solveRaw();  // recycle loop — may not fully converge on first solve
+    t.solve();
 
     const L = t.last(room);
     t.assertOK(!!L, 'Room has diagnostics');
@@ -59032,13 +59055,13 @@ function runTests() {
 
     // ── Milestone 1: Water depletes at ~2-3h ──
     for (let i = 0; i < 3; i++) TimeClock.step(scene);
-    t.solveRaw();
+    t.solve();
     const Lw = t.last(room);
     t.assertOK(Lw.services.water.status !== 'OK', `Water degraded at 3h (${Lw.services.water?.status})`);
 
     // ── Milestone 2: O₂ bottle depletes at ~73-76h ──
     for (let i = 0; i < 73; i++) TimeClock.step(scene);
-    t.solveRaw();
+    t.solve();
     const o2inv = t.unit(o2).inventory;
     const o2rem = Object.values(o2inv.n).reduce((a,b) => a+b, 0);
     t.assertOK(o2rem < 5, `O₂ bottle near empty at 76h (${o2rem.toFixed(1)} mol)`);
@@ -59048,7 +59071,7 @@ function runTests() {
     // Scrubber continues draining room atmospheric CO₂ (finite pool), so depletion
     // rate slows significantly. The scrubber outlasts the theoretical 170h.
     for (let i = 0; i < 124; i++) TimeClock.step(scene);
-    t.solveRaw();
+    t.solve();
     const con = t.unit(scrubber).params.consumable;
     t.assertOK(con.remaining < 100, `Scrubber substantially depleted at 200h (${con.remaining.toFixed(1)} mol of 268)`);
 
