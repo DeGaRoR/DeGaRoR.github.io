@@ -23244,7 +23244,7 @@ ProfileRegistry.register('food_crate', {
   selectionGuide: 'A 100L canister holding ~1200 mol CH₂O (30 days for 2 people IF kept cold). Without coolant, food spoils at 3%/day at room temperature — you have 16 days. Connect coolant below 4°C to preserve.',
   limits: { 1: { T_LL:233, T_HH:473, P_LL:50000, P_HH:30000000 } },
   defaults: { 1: { volume_m3:0.1, gasDrawRate:0.001, opening_gas_pct:46.6,
-                    P_relief:25000000, UA_jacket:50,
+                    P_init:29300000, P_relief:25000000, UA_jacket:50,
                     initialComposition:{CH2O:1} } },
   equipmentNote: "Reinforced steel canister, 100L, with brazed cooling jacket. Same pressure rating as a gas bottle.",
   operatingNote: "Connect waste_out or decomposition gas will build pressure → rupture. Connect coolant to keep T < 4°C and stop spoilage.",
@@ -23657,13 +23657,26 @@ ProfileRegistry.register('bio_mixer', {
 ProfileRegistry.register('shelter', {
   defId: 'room', name: 'Crew Shelter', pressureClass: 'simple',
   category: UnitCategories.LIFE_SUPPORT, tiers: [1],
-  description: 'Pressurized habitat for crew survival and comfort',
-  selectionGuide: 'Your crew lives here. Connect O₂, food, water, hot water, power, and an air scrubbing loop. Everything else is optional but keeps them comfortable.',
+  description: 'Pressurized habitat — the crew lives here. Everything else exists to keep this running.',
+  selectionGuide: 'Connect O₂, food, water, hot water, power, and an air scrubbing loop (exhaust → scrubber → return). '
+    + 'Without power the fan stops and CO₂ builds. Without O₂ the atmosphere degrades over hours. '
+    + 'Without water the crew is incapacitated in 24 hours. The room never breaks — people die inside it.',
   limits: { 1: { T_LL: 263, T_HH: 323 } },
-  defaults: { 1: { nPeople: 2 } },
-  equipmentNote: "Salvaged hull section, 5×5×2.5 m. Sealed against planet atmosphere. Thermal mass from walls, floor, and furniture.",
-  operatingNote: "Connect an air loop: exhaust → scrubber → heater/cooler → return. Hot water is for showers and morale. Lighting needs power — darkness is demoralizing.",
-  modelNote: "Inline metabolism: CH₂O + O₂ → CO₂ + H₂O. Thermal envelope UA=60 W/K to exterior. Atmospheric inventory tracks O₂, CO₂, N₂, H₂O fractions.",
+  defaults: { 1: { nPeople: 2, powerPriority: 1 } },
+  equipmentNote: "Salvaged hull section, 5×5×2.5 m (62.5 m³). Sealed against planet atmosphere. "
+    + "Thermal mass from walls, floor, furniture (C = 500 kJ/K). Envelope UA = 60 W/K. "
+    + "Starts with Earth ISA air (21% O₂, 78% N₂) — the crashed ship's atmosphere.",
+  operatingNote: "Connect an air loop: exhaust → CO₂ scrubber → heater/cooler → return. "
+    + "Hot water is for showers and morale (3.2e-4 mol/s per person at 333K). "
+    + "Lighting needs power — darkness is demoralizing but not lethal. "
+    + "Power priority defaults to 1 (highest) — the dispatcher serves the room first. "
+    + "The room has no fried state — crew dies inside an intact unit.",
+  modelNote: "Inline metabolism: CH₂O + O₂ → CO₂ + H₂O at 2.33e-4 mol/s per person. "
+    + "O₂ consumed from room atmosphere inventory, not from o2_in port directly. "
+    + "Fan-driven exhaust: circ_demand × fan_frac (breaks recycle-loop circular dependency). "
+    + "Atmosphere-based alarms: O₂% (19/17/14%), CO₂% (0.5/2/5%), T (288/283/273K). "
+    + "Body water/food deficit: cumulative unmet demand → 24h/72h dehydration, 3d/7d/21d starvation. "
+    + "Power capped at WARNING — consequences cascade through O₂/CO₂/temperature.",
 });
 
 // ── [v15.1.0] Template profiles — one per defId, no limits, all params editable ──
@@ -37740,6 +37753,9 @@ UnitInspector.room = {
     addNumberEditor(container, 'Crew size',
       () => u.params.nPeople ?? 2,
       v => { u.params.nPeople = Math.max(0, Math.min(10, Math.round(v))); }, 1, 0);
+    addNumberEditor(container, 'Power priority',
+      () => u.params.powerPriority ?? 1,
+      v => { u.params.powerPriority = Math.max(1, Math.min(5, Math.round(v))); }, 1, 0);
   },
   conditions(u, ud) {
     const L = u.last || {};
@@ -37794,9 +37810,134 @@ UnitInspector.room = {
   }
 };
 
+// [v17.6.3] Cooled Tank inspector — generic tank with cooling jacket
+UnitInspector.cooled_tank = {
+  customParams(container, u) {
+    const V = u.params.volume_m3 || 0.01;
+    container.appendChild(el('div', { style: 'font-size:14px; font-weight:700; color:#e2e8f0; padding:2px 0 4px;', html: `${(V * 1000).toFixed(0)} L — cooled` }));
+    container.appendChild(el('div', { style: 'font-size:10px; color:#64748b; margin-bottom:6px;', html: `sealed vessel · cooling jacket · rate-based draw` }));
+    container.appendChild(el('div', { class: 'ins-section-label', html: 'Gas Draw' }));
+    const gasBox = el('div', {});
+    addNumberEditor(gasBox, 'Max gas draw [mol/s]', () => u.params.gasDrawRate ?? 0.05, v => u.params.gasDrawRate = v, 0.01, 3, { min: 0 });
+    addNumberEditor(gasBox, 'Gas valve opening [%]', () => u.params.opening_gas_pct ?? 0, v => u.params.opening_gas_pct = v, 5, 0, { min: 0, max: 100 });
+    container.appendChild(gasBox);
+    container.appendChild(el('div', { class: 'ins-section-label', html: 'Cooling Jacket' }));
+    addNumberEditor(container, 'UA jacket [W/K]', () => u.params.UA_jacket ?? 50, v => u.params.UA_jacket = v, 5, 0, { min: 0, max: 500 });
+    container.appendChild(el('div', { class: 'ins-section-label', html: 'Safety' }));
+    addNumberEditor(container, 'Relief pressure [bar]', () => (u.params.P_relief || 200000) / 1e5, v => u.params.P_relief = v * 1e5, 0.5, 1, { min: 0.5 });
+  },
+  conditions(u, ud) {
+    if (!ud?.last) return [];
+    return [
+      { label: 'T', value: fmt.T(ud.last.T_K) },
+      { label: 'P', value: fmt.P(ud.last.P_Pa) },
+      { label: 'Cooling', value: ud.last.Q_cool_W > 0 ? `${ud.last.Q_cool_W.toFixed(0)} W` : 'none' },
+    ];
+  },
+  kpis(u, ud) {
+    if (!ud?.last) return [];
+    const pGaugePct = Math.min(100, (ud.last.P_Pa || 0) / (ud.last.P_relief || 200000) * 100);
+    const pColor = pGaugePct >= 100 ? '#ef4444' : pGaugePct >= 80 ? '#f59e0b' : '#22c55e';
+    return [
+      { label: 'Pressure', value: pGaugePct, bar: true, barColor: pColor },
+      { label: 'Status', value: `<span style="color:#06b6d4">${ud.last.status || '—'}</span>` },
+    ];
+  },
+  detail(u, ud) {
+    if (!ud?.last) return [];
+    const items = [];
+    items.push({ label: 'T', value: `${(ud.last.T_K||0).toFixed(1)}<span class="propUnit">K</span>  (${((ud.last.T_K||0)-273.15).toFixed(1)}°C)` });
+    items.push({ label: 'P', value: `${((ud.last.P_Pa||0)/1e5).toFixed(2)}<span class="propUnit">bar</span>` });
+    items.push({ label: 'Q cooling', value: `${(ud.last.Q_cool_W||0).toFixed(0)}<span class="propUnit">W</span>` });
+    if (ud.last.n) {
+      const _totalN = ud.last.totalMol || Object.values(ud.last.n).reduce((a,b) => a+b, 0);
+      const _entries = Object.entries(ud.last.n).filter(([,mol]) => mol > 1e-6).sort((a,b) => b[1] - a[1]);
+      if (_entries.length > 0) {
+        items.push({ label: '── Composition ──', value: '', tone: 'dim' });
+        for (const [sp, mol] of _entries) {
+          const pct = _totalN > 0 ? (mol / _totalN * 100) : 0;
+          items.push({ label: sp, value: `${pct.toFixed(1)}%<span class="propUnit"> (${mol.toFixed(1)} mol)</span>` });
+        }
+      }
+    }
+    return items;
+  }
+};
+
+// [v17.6.3] Food Storage inspector — food-focused, not pressure-focused
+UnitInspector.food_storage = {
+  customParams(container, u) {
+    const V = u.params.volume_m3 || 0.1;
+    container.appendChild(el('div', { style: 'font-size:14px; font-weight:700; color:#fbbf24; padding:2px 0 4px;', html: `Food Storage — ${(V * 1000).toFixed(0)} L` }));
+    container.appendChild(el('div', { class: 'ins-section-label', html: 'Food Draw' }));
+    const drawBox = el('div', {});
+    addNumberEditor(drawBox, 'Max draw [mol/s]', () => u.params.gasDrawRate ?? 0.001, v => u.params.gasDrawRate = v, 0.0001, 4, { min: 0 });
+    addNumberEditor(drawBox, 'Draw opening [%]', () => u.params.opening_gas_pct ?? 50, v => u.params.opening_gas_pct = v, 5, 0, { min: 0, max: 100 });
+    container.appendChild(drawBox);
+    container.appendChild(el('div', { class: 'ins-section-label', html: 'Cooling Jacket' }));
+    addNumberEditor(container, 'UA jacket [W/K]', () => u.params.UA_jacket ?? 50, v => u.params.UA_jacket = v, 5, 0, { min: 0, max: 500 });
+  },
+  conditions(u, ud) {
+    if (!ud?.last) return [];
+    const L = ud.last;
+    const ch2o = L.ch2o_remaining || 0;
+    const T_C = (L.T_K || 294) - 273.15;
+    return [
+      { label: 'Food remaining', value: `${ch2o.toFixed(0)} mol` },
+      { label: 'Temperature', value: `${T_C.toFixed(1)} °C` },
+      { label: 'Condition', value: L.frozen ? '❄ Frozen — preserved' : L.spoil_pct_day > 10 ? '⚠ Spoiling fast' : L.spoil_pct_day > 0.1 ? 'Spoiling slowly' : 'Preserved' },
+    ];
+  },
+  kpis(u, ud) {
+    if (!ud?.last) return [];
+    const L = ud.last;
+    // Food remaining gauge — use initial fill as reference
+    const totalMol = L.totalMol || 1;
+    const ch2o = L.ch2o_remaining || 0;
+    const foodPct = Math.min(100, ch2o / totalMol * 100);
+    const foodColor = foodPct <= 10 ? '#ef4444' : foodPct <= 30 ? '#f59e0b' : '#22c55e';
+    // Spoilage rate gauge
+    const spoilPct = Math.min(100, (L.spoil_pct_day || 0) * 3);  // 33%/day = full bar
+    const spoilColor = L.spoil_pct_day > 10 ? '#ef4444' : L.spoil_pct_day > 1 ? '#f59e0b' : '#22c55e';
+    const statusColor = L.status === 'empty' ? '#ef4444' : L.status === 'frozen' ? '#93c5fd' : L.status === 'spoiling_fast' ? '#ef4444' : '#fbbf24';
+    return [
+      { label: 'Food level', value: foodPct, bar: true, barColor: foodColor },
+      { label: 'Spoilage rate', value: spoilPct, bar: true, barColor: spoilColor },
+      { label: 'Status', value: `<span style="color:${statusColor}">${L.status || '—'}</span>` },
+    ];
+  },
+  detail(u, ud) {
+    if (!ud?.last) return [];
+    const L = ud.last;
+    const items = [];
+    // Food inventory — primary concern
+    items.push({ label: '── Food Inventory ──', value: '', tone: 'dim' });
+    items.push({ label: 'CH₂O remaining', value: `${(L.ch2o_remaining||0).toFixed(0)}<span class="propUnit">mol</span>` });
+    items.push({ label: 'Total inventory', value: `${(L.totalMol||0).toFixed(0)}<span class="propUnit">mol</span>` });
+    // Draw rate
+    if (L.Q_draw > 1e-8) items.push({ label: 'Draw rate', value: `${L.Q_draw.toExponential(2)}<span class="propUnit">mol/s</span>`, tone: 'good' });
+    // Spoilage
+    items.push({ label: '── Spoilage ──', value: '', tone: 'dim' });
+    items.push({ label: 'Rate', value: `${(L.spoil_pct_day||0).toFixed(1)}<span class="propUnit">%/day</span>` });
+    items.push({ label: 'Loss', value: `${(L.spoil_rate_mol_s||0).toExponential(2)}<span class="propUnit">mol/s</span>` });
+    items.push({ label: 'Heat from decay', value: `${(L.Q_spoilage_W||0).toFixed(0)}<span class="propUnit">W</span>` });
+    // Temperature + cooling
+    items.push({ label: '── Thermal ──', value: '', tone: 'dim' });
+    items.push({ label: 'T', value: `${((L.T_K||0)-273.15).toFixed(1)}<span class="propUnit">°C</span>  (${(L.T_K||0).toFixed(1)} K)` });
+    if (L.Q_cool_W > 0) items.push({ label: 'Cooling', value: `${L.Q_cool_W.toFixed(0)}<span class="propUnit">W</span>`, tone: 'good' });
+    if (L.frozen) items.push({ label: 'Frozen', value: '❄ Yes — no spoilage', tone: 'good' });
+    // Only show pressure if it's getting dangerous (near relief)
+    if (L.P_Pa > L.P_relief * 0.5) {
+      items.push({ label: '── WARNING: Gas Buildup ──', value: '', tone: 'warn' });
+      items.push({ label: 'P', value: `${((L.P_Pa||0)/1e5).toFixed(1)}<span class="propUnit">bar</span>`, tone: L.P_Pa > L.P_relief * 0.8 ? 'bad' : 'warn' });
+      items.push({ label: 'P relief', value: `${((L.P_relief||0)/1e5).toFixed(0)}<span class="propUnit">bar</span>` });
+    }
+    return items;
+  }
+};
+
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   ═══════════════════════════════════════════════════════════════════════════ */
 
 // [v13.1.3] Floating tooltip — shared across palette and future uses.
 // Positioned at body level to avoid overflow clipping in scrollable containers.
