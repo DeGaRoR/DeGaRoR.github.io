@@ -17490,20 +17490,20 @@ UnitRegistry.register('open_tank', {
 UnitRegistry.register('simple_open_tank', {
   name: 'Simple Open Tank',
   category: UnitCategories.VESSEL,
-  w: 2,
-  h: 2,
+  w: 3,
+  h: 2,  // [v17.7.0] 3×2 — barrel body (T1) or full open-tank (T2), stubs to side ports
   optionalPorts: true,
   ports: [
     { portId: 'mat_in',   dir: PortDir.IN,  type: StreamType.MATERIAL, x: 0, y: 1, label: 'in' },
-    { portId: 'mat_out',  dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 1, label: 'out' },
+    { portId: 'mat_out',  dir: PortDir.OUT, type: StreamType.MATERIAL, x: 3, y: 1, label: 'out' },
     { portId: 'overflow', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 1, y: 2, label: 'ovfl' }
   ],
   presentations: {
-    'box/default': { w: 2, h: 2, ports: {
-      mat_in:{x:0,y:1}, mat_out:{x:2,y:1}, overflow:{x:1,y:2}
+    'box/default': { w: 3, h: 2, ports: {
+      mat_in:{x:0,y:1}, mat_out:{x:3,y:1}, overflow:{x:1,y:2}
     }},
-    'box/mirror':  { w: 2, h: 2, ports: {
-      mat_in:{x:2,y:1}, mat_out:{x:0,y:1}, overflow:{x:1,y:2}
+    'box/mirror':  { w: 3, h: 2, ports: {
+      mat_in:{x:3,y:1}, mat_out:{x:0,y:1}, overflow:{x:2,y:2}
     }}
   },
   limitParams: ['T_LL', 'T_L', 'T_H', 'T_HH', 'level_H', 'level_HH'],
@@ -17749,23 +17749,23 @@ UnitRegistry.register('simple_tank', {
   name: 'Simple Tank',
   category: UnitCategories.VESSEL,
   w: 2,
-  h: 2,
+  h: 3,  // [v17.7.0] 2×3 — bonbonne body in upper zone, stubs reach all ports
   optionalPorts: true,
   ports: [
     { portId: 'mat_in',   dir: PortDir.IN,  type: StreamType.MATERIAL, x: 0, y: 1, label: 'in' },
     { portId: 'gas_out',  dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 0, label: 'gas' },
     { portId: 'liq_out',  dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 2, label: 'liq' },
     { portId: 'vent',     dir: PortDir.OUT, type: StreamType.MATERIAL, x: 1, y: 0, label: 'vent' },
-    { portId: 'overflow', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 1, y: 2, label: 'ovfl' }
+    { portId: 'overflow', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 1, y: 3, label: 'ovfl' }
   ],
   presentations: {
-    'box/default': { w: 2, h: 2, ports: {
+    'box/default': { w: 2, h: 3, ports: {
       mat_in:{x:0,y:1}, gas_out:{x:2,y:0}, liq_out:{x:2,y:2},
-      vent:{x:1,y:0}, overflow:{x:1,y:2}
+      vent:{x:1,y:0}, overflow:{x:1,y:3}
     }},
-    'box/mirror':  { w: 2, h: 2, ports: {
+    'box/mirror':  { w: 2, h: 3, ports: {
       mat_in:{x:2,y:1}, gas_out:{x:0,y:0}, liq_out:{x:0,y:2},
-      vent:{x:1,y:0}, overflow:{x:1,y:2}
+      vent:{x:1,y:0}, overflow:{x:1,y:3}
     }}
   },
   limitParams: ['T_LL', 'T_L', 'T_H', 'T_HH', 'P_LL', 'P_L', 'P_H', 'P_HH', 'level_H', 'level_HH'],
@@ -18047,25 +18047,25 @@ UnitRegistry.register('simple_tank', {
 UnitRegistry.register('cooled_tank', {
   name: 'Cooled Tank',
   category: UnitCategories.STORAGE,
-  w: 2, h: 2,
+  w: 2, h: 3,  // [v17.7.0] 2×3 — bonbonne in upper zone, coil in lower zone, cool ports at base
   optionalPorts: true,
   ports: [
-    { portId: 'mat_in',   dir: PortDir.IN,  type: StreamType.MATERIAL, x: 0, y: 1, label: 'in' },
-    { portId: 'gas_out',  dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 0, label: 'gas' },
-    { portId: 'liq_out',  dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 2, label: 'liq' },
-    { portId: 'vent',     dir: PortDir.OUT, type: StreamType.MATERIAL, x: 1, y: 0, label: 'vent' },
-    { portId: 'overflow', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 1, y: 2, label: 'ovfl' },
-    { portId: 'cool_in',  dir: PortDir.IN,  type: StreamType.MATERIAL, x: 0, y: 2, label: 'coolant' },
-    { portId: 'cool_out', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 2, label: 'coolant' }
+    { portId: 'mat_in',   dir: PortDir.IN,  type: StreamType.MATERIAL, x: 0, y: 1,   label: 'in' },
+    { portId: 'gas_out',  dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 0,   label: 'gas' },
+    { portId: 'liq_out',  dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 1.5, label: 'liq' },
+    { portId: 'vent',     dir: PortDir.OUT, type: StreamType.MATERIAL, x: 1, y: 0,   label: 'vent' },
+    { portId: 'overflow', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 1, y: 2,   label: 'ovfl' },
+    { portId: 'cool_in',  dir: PortDir.IN,  type: StreamType.MATERIAL, x: 0, y: 3,   label: 'cool in' },
+    { portId: 'cool_out', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 3,   label: 'cool out' }
   ],
   presentations: {
-    'box/default': { w: 2, h: 2, ports: {
+    'box/default': { w: 2, h: 3, ports: {
       mat_in:{x:0,y:1}, gas_out:{x:2,y:0}, liq_out:{x:2,y:1.5},
-      vent:{x:1,y:0}, overflow:{x:0.5,y:2}, cool_in:{x:0,y:2}, cool_out:{x:2,y:2}
+      vent:{x:1,y:0}, overflow:{x:1,y:2}, cool_in:{x:0,y:3}, cool_out:{x:2,y:3}
     }},
-    'box/mirror': { w: 2, h: 2, ports: {
+    'box/mirror': { w: 2, h: 3, ports: {
       mat_in:{x:2,y:1}, gas_out:{x:0,y:0}, liq_out:{x:0,y:1.5},
-      vent:{x:1,y:0}, overflow:{x:1.5,y:2}, cool_in:{x:2,y:2}, cool_out:{x:0,y:2}
+      vent:{x:1,y:0}, overflow:{x:1,y:2}, cool_in:{x:2,y:3}, cool_out:{x:0,y:3}
     }}
   },
   limitParams: ['T_LL', 'T_L', 'T_H', 'T_HH', 'P_LL', 'P_L', 'P_H', 'P_HH', 'level_H', 'level_HH'],
@@ -28914,7 +28914,12 @@ function applyLayout(patch) {
 
   const palOpen = L.paletteOpen ?? D.paletteOpen;
   const palEl = document.getElementById('paletteDrawer');
-  if (palEl) palEl.classList.toggle('open', palOpen);
+  if (palEl) {
+    palEl.classList.toggle('open', palOpen);
+    // [v17.7.1] Populate palette when restoring open state — bypassing togglePalette()
+    // means populatePalette() was never called, leaving the drawer visually empty on load.
+    if (palOpen && typeof populatePalette === 'function') populatePalette();
+  }
 
   // [v17.5.1] Restore pressure mode switch state
   const pMode = L.palettePressureMode ?? D.palettePressureMode;
@@ -30935,9 +30940,9 @@ const _BODY_BBOX = {
   splitter:                 { x:26, y:14, w:14, h:68 },
   flash_drum:               { x:22, y:8,  w:44, h:80 },
   tank:                     { x:4,  y:16, w:136, h:64 },
-  simple_tank:              { x:4,  y:16, w:136, h:64 },
+  simple_tank:              { x:22, y:12, w:52,  h:96 },  // [v17.7.0] bonbonne cylinder in 2×3 frame
   open_tank:                { x:14, y:14, w:116, h:68 },
-  simple_open_tank:         { x:14, y:14, w:116, h:68 },
+  simple_open_tank:         { x:30, y:8,  w:84,  h:68 },  // [v17.7.0] barrel body in 3×2 frame
   reactor_adiabatic:        { x:10, y:8,  w:76, h:66 },
   reactor_jacketed:         { x:12, y:4,  w:72, h:68 },
   reactor_cooled:           { x:12, y:4,  w:72, h:68 },
@@ -30947,7 +30952,7 @@ const _BODY_BBOX = {
   membrane_separator:       { x:10, y:6,  w:76, h:84 },
   combustion_chamber:       { x:10, y:8,  w:76, h:66 },
   room:                     { x:16, y:16, w:256, h:400 },  // [v17.6.3] 6×9 tiles (288×432 px), 16px wall inset
-  cooled_tank:              { x:4,  y:16, w:88,  h:64 },   // [v17.6.3] same as simple_tank
+  cooled_tank:              { x:22, y:12, w:52,  h:84  },  // [v17.7.0] bonbonne body, upper zone of 2×3 frame
   food_storage:             { x:4,  y:16, w:88,  h:64 },   // [v17.6.3]
 };
 
@@ -30982,7 +30987,8 @@ const _UNIT_VIEWPORT = {
   // Opaque (null): valve, restriction, splitter, tank, battery, all power/boundary
   // [v17.2.3] Open tank viewport at open top for vent gas particles
   open_tank:                { type: 'rect', x: 20, y: 4, w: 104, h: 18 },
-  simple_open_tank:         { type: 'rect', x: 20, y: 4, w: 104, h: 18 },
+  simple_open_tank:         { type: 'rect', x: 34, y: 2, w:  76, h: 16 },  // [v17.7.0] barrel open-top slot
+  // simple_tank, cooled_tank: closed pressure vessels — no particle viewport
 };
 
 // [v16.9.8] Get unit viewport in world coords, or null.
@@ -32912,9 +32918,222 @@ const _RAGTAG_SYMBOLS = {
 _RAGTAG_SYMBOLS.atmosphere = _RAGTAG_SYMBOLS.source_atm;
 // [v17.4.0] simple_mixer reuses mixer icon (same physical topology, no visual distinction needed)
 _RAGTAG_SYMBOLS.simple_mixer = _RAGTAG_SYMBOLS.mixer;
-_RAGTAG_SYMBOLS.simple_open_tank = _RAGTAG_SYMBOLS.open_tank;
-_RAGTAG_SYMBOLS.simple_tank = _RAGTAG_SYMBOLS.tank;
-_RAGTAG_SYMBOLS.cooled_tank = _RAGTAG_SYMBOLS.tank;  // [v17.6.3] same body, jacket is cosmetic
+// [v17.7.0] simple_tank, simple_open_tank, cooled_tank — dedicated symbol functions below (no longer aliased)
+
+// ── Simple Tank: Gas Bottle / Gas Tank — 2×3 bonbonne ──────────────────────
+// Bonbonne cylinder in the upper 2×2 zone of a 2×3 frame.
+// _rtNozzle stubs bridge body edges to all port positions automatically.
+_RAGTAG_SYMBOLS.simple_tank = function(g, wx, wy, ww, wh, pal, def, unitId) {
+  const pres = getPresentation(def, scene.units.get(unitId));
+  const bx = wx+22, by = wy+12, bw = 52, bh = 96;
+  // Stubs behind body
+  _rtNozzle(g, wx, wy, ww, wh, bx, by, bw, bh, def, pres, pal, unitId);
+  // Cylinder lower body
+  g.appendChild(svgEl('path', {
+    d: `M${wx+22},${wy+50} L${wx+22},${wy+100} Q${wx+22},${wy+114} ${wx+48},${wy+114} Q${wx+74},${wy+114} ${wx+74},${wy+100} L${wx+74},${wy+50} Z`,
+    fill: pal.fillUrl, stroke: pal.stroke, 'stroke-width': 2.5, 'pointer-events': 'none'
+  }));
+  // Shoulder taper
+  g.appendChild(svgEl('path', {
+    d: `M${wx+22},${wy+50} Q${wx+22},${wy+26} ${wx+34},${wy+22} L${wx+62},${wy+22} Q${wx+74},${wy+26} ${wx+74},${wy+50} Z`,
+    fill: pal.fillUrl, stroke: pal.stroke, 'stroke-width': 2.5, 'pointer-events': 'none'
+  }));
+  // Neck
+  g.appendChild(svgEl('rect', { x: wx+36, y: wy+8, width: 24, height: 18, rx: 8,
+    fill: pal.fillUrl, stroke: pal.stroke, 'stroke-width': 2, 'pointer-events': 'none' }));
+  // Hex valve knob
+  const _hx = wx+48, _hy = wy+6, _hr = 7;
+  const _hexPts = [0,1,2,3,4,5].map(i => { const a=(i*60-90)*Math.PI/180; return `${_hx+_hr*Math.cos(a)},${_hy+_hr*Math.sin(a)}`; }).join(' ');
+  g.appendChild(svgEl('polygon', { points: _hexPts, fill: '#374151', stroke: '#6b7280', 'stroke-width': 1.5, 'pointer-events': 'none' }));
+  g.appendChild(svgEl('line', { x1: wx+42, y1: wy+6, x2: wx+54, y2: wy+6, stroke: '#9ca3af', 'stroke-width': 1.2, 'pointer-events': 'none' }));
+  g.appendChild(svgEl('line', { x1: wx+48, y1: wy+1, x2: wx+48, y2: wy+11, stroke: '#9ca3af', 'stroke-width': 1.2, 'pointer-events': 'none' }));
+  // Seam weld
+  g.appendChild(svgEl('line', { x1: wx+22, y1: wy+75, x2: wx+74, y2: wy+75,
+    stroke: pal.stroke, 'stroke-width': 1, opacity: 0.35, 'stroke-dasharray': '3 2', 'pointer-events': 'none' }));
+  // Guard ring
+  g.appendChild(svgEl('rect', { x: wx+22, y: wy+99, width: 52, height: 8, rx: 3,
+    fill: '#374151', stroke: '#4b5563', 'stroke-width': 1.5, 'pointer-events': 'none' }));
+  // Sight glass
+  g.appendChild(svgEl('rect', { x: wx+66, y: wy+52, width: 6, height: 44, rx: 2,
+    fill: '#0a1515', stroke: pal.stroke, 'stroke-width': 1.2, 'pointer-events': 'none' }));
+  [56,64,72,80,88].forEach((y, i) => {
+    const major = i%2===0;
+    g.appendChild(svgEl('line', { x1: wx+74, y1: wy+y, x2: wx+(major?79:77), y2: wy+y,
+      stroke: pal.stroke, 'stroke-width': major?1:0.7, opacity: major?0.4:0.25, 'pointer-events': 'none' }));
+  });
+  // Data-driven level
+  const _ud = scene.runtime?.unitData?.get(unitId);
+  let fPct = _ud?.last?.fillPct;
+  if (fPct == null || !Number.isFinite(fPct)) fPct = 0;
+  fPct = Math.max(0, Math.min(100, fPct));
+  const sgH = 40, sgTop = wy+54;
+  const fillH = sgH * fPct / 100;
+  if (fillH > 0) {
+    let _gaugeColor = '#22d3ee';
+    const _invN = _ud?.last?.n;
+    if (_invN) {
+      let _maxSp = null, _maxAmt = 0;
+      for (const [sp, amt] of Object.entries(_invN)) { if (amt > _maxAmt) { _maxSp = sp; _maxAmt = amt; } }
+      if (_maxSp && _SPECIES_COLOR[_maxSp]) { const rgb = _SPECIES_COLOR[_maxSp]; _gaugeColor = `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`; }
+    }
+    g.appendChild(svgEl('rect', { x: wx+68, y: sgTop+sgH-fillH, width: 2, height: fillH, rx: 1,
+      fill: _gaugeColor, opacity: 0.55, 'data-anim': 'level-shimmer', 'data-ybase': sgTop+sgH-fillH, 'pointer-events': 'none' }));
+  }
+  // Pressure gauge
+  g.appendChild(svgEl('circle', { cx: wx+68, cy: wy+34, r: 5, fill: '#1f2937', stroke: '#4b5563', 'stroke-width': 1.5, 'pointer-events': 'none' }));
+  g.appendChild(svgEl('line', { x1: wx+68, y1: wy+34, x2: wx+68, y2: wy+30, stroke: '#ef4444', 'stroke-width': 1.5, 'stroke-linecap': 'round', 'pointer-events': 'none' }));
+  _rtChip(g, wx+28, wy+36, 8, 5);
+  g.appendChild(svgEl('circle', { cx: wx+30, cy: wy+52, r: 2.5, fill: '#22c55e', 'data-anim': 'led-blink', 'data-phase': '0.6', 'pointer-events': 'none' }));
+};
+
+// ── Cooled Tank — 2×3 bonbonne + cooling serpentine ────────────────────────
+// Upper zone: bonbonne identical to simple_tank.
+// Lower zone (y:112–132): cooling serpentine; cool_in/out stubs at y:3 (bottom edge).
+_RAGTAG_SYMBOLS.cooled_tank = function(g, wx, wy, ww, wh, pal, def, unitId) {
+  const pres = getPresentation(def, scene.units.get(unitId));
+  const bx = wx+22, by = wy+12, bw = 52, bh = 84;
+  // Dashed frame (full 2×3 bounds)
+  g.appendChild(svgEl('rect', { x: wx-2, y: wy-2, width: 100, height: 148, rx: 4,
+    fill: 'none', stroke: '#1e3a5f', 'stroke-width': 1, 'stroke-dasharray': '4 3', opacity: 0.15, 'pointer-events': 'none' }));
+  // Stubs behind body
+  _rtNozzle(g, wx, wy, ww, wh, bx, by, bw, bh, def, pres, pal, unitId);
+  // Cylinder lower body
+  g.appendChild(svgEl('path', {
+    d: `M${wx+22},${wy+50} L${wx+22},${wy+96} Q${wx+22},${wy+110} ${wx+48},${wy+110} Q${wx+74},${wy+110} ${wx+74},${wy+96} L${wx+74},${wy+50} Z`,
+    fill: pal.fillUrl, stroke: pal.stroke, 'stroke-width': 2.5, 'pointer-events': 'none'
+  }));
+  // Shoulder taper
+  g.appendChild(svgEl('path', {
+    d: `M${wx+22},${wy+50} Q${wx+22},${wy+26} ${wx+34},${wy+22} L${wx+62},${wy+22} Q${wx+74},${wy+26} ${wx+74},${wy+50} Z`,
+    fill: pal.fillUrl, stroke: pal.stroke, 'stroke-width': 2.5, 'pointer-events': 'none'
+  }));
+  // Neck
+  g.appendChild(svgEl('rect', { x: wx+36, y: wy+8, width: 24, height: 18, rx: 8,
+    fill: pal.fillUrl, stroke: pal.stroke, 'stroke-width': 2, 'pointer-events': 'none' }));
+  // Hex valve knob
+  const _hx = wx+48, _hy = wy+6, _hr = 7;
+  const _hexPts = [0,1,2,3,4,5].map(i => { const a=(i*60-90)*Math.PI/180; return `${_hx+_hr*Math.cos(a)},${_hy+_hr*Math.sin(a)}`; }).join(' ');
+  g.appendChild(svgEl('polygon', { points: _hexPts, fill: '#374151', stroke: '#6b7280', 'stroke-width': 1.5, 'pointer-events': 'none' }));
+  g.appendChild(svgEl('line', { x1: wx+42, y1: wy+6, x2: wx+54, y2: wy+6, stroke: '#9ca3af', 'stroke-width': 1.2, 'pointer-events': 'none' }));
+  g.appendChild(svgEl('line', { x1: wx+48, y1: wy+1, x2: wx+48, y2: wy+11, stroke: '#9ca3af', 'stroke-width': 1.2, 'pointer-events': 'none' }));
+  // Seam weld
+  g.appendChild(svgEl('line', { x1: wx+22, y1: wy+72, x2: wx+74, y2: wy+72,
+    stroke: pal.stroke, 'stroke-width': 1, opacity: 0.35, 'stroke-dasharray': '3 2', 'pointer-events': 'none' }));
+  // Guard ring
+  g.appendChild(svgEl('rect', { x: wx+22, y: wy+95, width: 52, height: 8, rx: 3,
+    fill: '#374151', stroke: '#4b5563', 'stroke-width': 1.5, 'pointer-events': 'none' }));
+  // Sight glass
+  g.appendChild(svgEl('rect', { x: wx+66, y: wy+52, width: 6, height: 40, rx: 2,
+    fill: '#0a1515', stroke: pal.stroke, 'stroke-width': 1.2, 'pointer-events': 'none' }));
+  [56,64,72,80].forEach((y, i) => {
+    const major = i%2===0;
+    g.appendChild(svgEl('line', { x1: wx+74, y1: wy+y, x2: wx+(major?79:77), y2: wy+y,
+      stroke: pal.stroke, 'stroke-width': major?1:0.7, opacity: major?0.4:0.25, 'pointer-events': 'none' }));
+  });
+  // Data-driven level
+  const _ud = scene.runtime?.unitData?.get(unitId);
+  let fPct = _ud?.last?.fillPct;
+  if (fPct == null || !Number.isFinite(fPct)) fPct = 0;
+  fPct = Math.max(0, Math.min(100, fPct));
+  const sgH = 36, sgTop = wy+54;
+  const fillH = sgH * fPct / 100;
+  if (fillH > 0) {
+    let _gaugeColor = '#22d3ee';
+    const _invN = _ud?.last?.n;
+    if (_invN) {
+      let _maxSp = null, _maxAmt = 0;
+      for (const [sp, amt] of Object.entries(_invN)) { if (amt > _maxAmt) { _maxSp = sp; _maxAmt = amt; } }
+      if (_maxSp && _SPECIES_COLOR[_maxSp]) { const rgb = _SPECIES_COLOR[_maxSp]; _gaugeColor = `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`; }
+    }
+    g.appendChild(svgEl('rect', { x: wx+68, y: sgTop+sgH-fillH, width: 2, height: fillH, rx: 1,
+      fill: _gaugeColor, opacity: 0.55, 'data-anim': 'level-shimmer', 'data-ybase': sgTop+sgH-fillH, 'pointer-events': 'none' }));
+  }
+  // Pressure gauge
+  g.appendChild(svgEl('circle', { cx: wx+68, cy: wy+34, r: 5, fill: '#1f2937', stroke: '#4b5563', 'stroke-width': 1.5, 'pointer-events': 'none' }));
+  g.appendChild(svgEl('line', { x1: wx+68, y1: wy+34, x2: wx+68, y2: wy+30, stroke: '#ef4444', 'stroke-width': 1.5, 'stroke-linecap': 'round', 'pointer-events': 'none' }));
+  _rtChip(g, wx+28, wy+36, 8, 5);
+  g.appendChild(svgEl('circle', { cx: wx+30, cy: wy+50, r: 2.5, fill: '#22c55e', 'data-anim': 'led-blink', 'data-phase': '0.6', 'pointer-events': 'none' }));
+  // Cooling serpentine (lower zone y:112–132)
+  g.appendChild(svgEl('path', {
+    d: `M${wx+2},${wy+128} L${wx+10},${wy+128} L${wx+10},${wy+112} L${wx+18},${wy+112} L${wx+18},${wy+128} L${wx+30},${wy+128} L${wx+30},${wy+112} L${wx+42},${wy+112} L${wx+42},${wy+128} L${wx+54},${wy+128} L${wx+54},${wy+112} L${wx+66},${wy+112} L${wx+66},${wy+128} L${wx+78},${wy+128} L${wx+78},${wy+112} L${wx+88},${wy+112} L${wx+88},${wy+128} L${wx+94},${wy+128}`,
+    fill: 'none', stroke: '#67e8f9', 'stroke-width': 2.5, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', opacity: 0.6, 'pointer-events': 'none'
+  }));
+  g.appendChild(svgEl('text', { x: wx+48, y: wy+142, 'text-anchor': 'middle', 'font-size': '8', fill: '#67e8f9', opacity: 0.5, 'pointer-events': 'none' })).textContent = 'coolant';
+};
+
+// ── Simple Open Tank — 3×2 frame, tier-aware ───────────────────────────────
+// T1 (Open Barrel): barrel silhouette — bulging bezier sides, 3 hoop bands, open ellipse rim.
+// T2 (Open Tank): delegates to open_tank symbol (same 3×2 geometry, already correct).
+_RAGTAG_SYMBOLS.simple_open_tank = function(g, wx, wy, ww, wh, pal, def, unitId) {
+  const pres = getPresentation(def, scene.units.get(unitId));
+  const u = scene.units.get(unitId);
+  const tier = u?.tier ?? 1;
+
+  if (tier >= 2) {
+    _RAGTAG_SYMBOLS.open_tank(g, wx, wy, ww, wh, pal, def, unitId);
+    return;
+  }
+
+  // T1: Barrel
+  const bx = wx+30, by = wy+8, bw = 84, bh = 68;
+  _rtNozzle(g, wx, wy, ww, wh, bx, by, bw, bh, def, pres, pal, unitId);
+
+  // Barrel body — bulging sides via cubic bezier, open top
+  const bLeft = wx+30, bRight = wx+114, bTop = wy+8, bBot = wy+76;
+  const bMidX_L = wx+22, bMidX_R = wx+122;
+  g.appendChild(svgEl('path', {
+    d: `M${bLeft},${bTop} C${bMidX_L},${bTop} ${bMidX_L},${bBot} ${bLeft},${bBot}` +
+       ` Q${wx+72},${wy+84} ${bRight},${bBot}` +
+       ` C${bMidX_R},${bBot} ${bMidX_R},${bTop} ${bRight},${bTop} Z`,
+    fill: pal.fillUrl, stroke: pal.stroke, 'stroke-width': 2.5, 'stroke-linejoin': 'round', 'pointer-events': 'none'
+  }));
+  // Open rim ellipse
+  g.appendChild(svgEl('ellipse', { cx: wx+72, cy: wy+8, rx: 42, ry: 6,
+    fill: 'none', stroke: pal.stroke, 'stroke-width': 2.5, 'pointer-events': 'none' }));
+  g.appendChild(svgEl('ellipse', { cx: wx+72, cy: wy+10, rx: 38, ry: 4,
+    fill: '#0a1a1a', stroke: pal.stroke, 'stroke-width': 1, opacity: 0.6, 'pointer-events': 'none' }));
+
+  // 3 hoop bands
+  [28, 46, 64].forEach(y => {
+    const t = (y - 8) / 68;
+    const bx_h = wx+30 - 8 * 4 * t * (1-t);
+    const ex_h = wx+114 + 8 * 4 * t * (1-t);
+    g.appendChild(svgEl('path', { d: `M${bx_h},${wy+y} Q${wx+72},${wy+y+3} ${ex_h},${wy+y}`,
+      fill: 'none', stroke: '#4b5563', 'stroke-width': 3.5, 'stroke-linecap': 'round', 'pointer-events': 'none' }));
+    g.appendChild(svgEl('path', { d: `M${bx_h},${wy+y} Q${wx+72},${wy+y+3} ${ex_h},${wy+y}`,
+      fill: 'none', stroke: '#6b7280', 'stroke-width': 1.5, 'stroke-linecap': 'round', opacity: 0.5, 'pointer-events': 'none' }));
+  });
+
+  // Sight glass (right side)
+  g.appendChild(svgEl('rect', { x: wx+108, y: wy+14, width: 6, height: 50, rx: 2,
+    fill: '#0a1515', stroke: pal.stroke, 'stroke-width': 1.2, 'pointer-events': 'none' }));
+  [18,28,38,48,56].forEach((y, i) => {
+    const major = i%2===0;
+    g.appendChild(svgEl('line', { x1: wx+116, y1: wy+y, x2: wx+(major?121:119), y2: wy+y,
+      stroke: pal.stroke, 'stroke-width': major?1:0.7, opacity: major?0.4:0.25, 'pointer-events': 'none' }));
+  });
+  // Data-driven level
+  const _ud = scene.runtime?.unitData?.get(unitId);
+  let fPct = _ud?.last?.fillPct;
+  if (fPct == null || !Number.isFinite(fPct)) fPct = 0;
+  fPct = Math.max(0, Math.min(100, fPct));
+  const sgH = 46, sgTop = wy+16;
+  const fillH = sgH * fPct / 100;
+  if (fillH > 0) {
+    let _gaugeColor = '#22d3ee';
+    const _invN = _ud?.last?.n;
+    if (_invN) {
+      let _maxSp = null, _maxAmt = 0;
+      for (const [sp, amt] of Object.entries(_invN)) { if (amt > _maxAmt) { _maxSp = sp; _maxAmt = amt; } }
+      if (_maxSp && _SPECIES_COLOR[_maxSp]) { const rgb = _SPECIES_COLOR[_maxSp]; _gaugeColor = `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`; }
+    }
+    g.appendChild(svgEl('rect', { x: wx+110, y: sgTop+sgH-fillH, width: 2, height: fillH, rx: 1,
+      fill: _gaugeColor, opacity: 0.55, 'data-anim': 'level-shimmer', 'data-ybase': sgTop+sgH-fillH, 'pointer-events': 'none' }));
+  }
+  _rtChip(g, wx+38, wy+60, 8, 5);
+  g.appendChild(svgEl('circle', { cx: wx+40, cy: wy+75, r: 2.5, fill: '#22c55e', 'data-anim': 'led-blink', 'data-phase': '0.3', 'pointer-events': 'none' }));
+};
+
 _RAGTAG_SYMBOLS.food_storage = function(g, wx, wy, ww, wh, pal, def, unitId) {
   // [v17.6.3] Food storage: tank body with pal color + food label
   const u = scene.units.get(unitId);
