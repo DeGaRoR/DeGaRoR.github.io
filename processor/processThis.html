@@ -347,6 +347,16 @@
   CHANGELOG  (latest first)
   ═══════════════════════════════════════════════════════════════════════════
 
+  ─── v17.7.7 — food_storage port/symbol tuning ───────────────────────────
+
+  **food_storage ports tuned.**  food_in/food_out moved from y=2 to
+  y=1 (one tile below top, matching Denis's screenshot annotation).
+  Ragtag crate body extended to span rows 0–2 (was upper 2×2 only).
+  Serpentine baseline moved to y=3×tile (exactly inline with cool_in/
+  cool_out port positions, not offset).
+
+  NNGs: NNG-3 (WYSIWYG), NNG-14 (changelog).
+
   ─── v17.7.6 — Presentation rework: food_storage, bend, membrane, heater/cooler ──
 
   **food_storage resized to 2×3** (was 2×2).  Port layout: waste_out
@@ -18167,19 +18177,19 @@ UnitRegistry.register('food_storage', {
   w: 2, h: 3,  // [v17.7.5] 2×3 — crate body + cooling serpentine at base (matches cooled_tank)
   optionalPorts: true,
   ports: [
-    { portId: 'food_in',   dir: PortDir.IN,  type: StreamType.MATERIAL, x: 0, y: 2, label: 'food in' },
-    { portId: 'food_out',  dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 2, label: 'food' },
+    { portId: 'food_in',   dir: PortDir.IN,  type: StreamType.MATERIAL, x: 0, y: 1, label: 'food in' },
+    { portId: 'food_out',  dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 1, label: 'food' },
     { portId: 'waste_out', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 1, y: 0, label: 'waste gas' },
     { portId: 'cool_in',   dir: PortDir.IN,  type: StreamType.MATERIAL, x: 0, y: 3, label: 'coolant' },
     { portId: 'cool_out',  dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 3, label: 'coolant' }
   ],
   presentations: {
     'box/default': { w: 2, h: 3, ports: {
-      food_in:{x:0,y:2}, food_out:{x:2,y:2}, waste_out:{x:1,y:0},
+      food_in:{x:0,y:1}, food_out:{x:2,y:1}, waste_out:{x:1,y:0},
       cool_in:{x:0,y:3}, cool_out:{x:2,y:3}
     }},
     'box/mirror': { w: 2, h: 3, ports: {
-      food_in:{x:2,y:2}, food_out:{x:0,y:2}, waste_out:{x:1,y:0},
+      food_in:{x:2,y:1}, food_out:{x:0,y:1}, waste_out:{x:1,y:0},
       cool_in:{x:2,y:3}, cool_out:{x:0,y:3}
     }}
   },
@@ -33090,7 +33100,7 @@ _RAGTAG_SYMBOLS.simple_open_tank = function(g, wx, wy, ww, wh, pal, def, unitId)
 };
 
 _RAGTAG_SYMBOLS.food_storage = function(g, wx, wy, ww, wh, pal, def, unitId) {
-  // [v17.7.5] Food storage: 2×3, crate body in upper 2×2 zone, cooling serpentine at base
+  // [v17.7.6] Food storage: 2×3, tall crate body (rows 0–2), serpentine inline with cool ports
   const u = scene.units.get(unitId);
   const last = u?.last || {};
   const frozen = last.frozen;
@@ -33105,8 +33115,8 @@ _RAGTAG_SYMBOLS.food_storage = function(g, wx, wy, ww, wh, pal, def, unitId) {
     _rtNozzle._elbowTips.set(`${unitId}:${pid}`, { x: px, y: py });
   }
 
-  // Body bounding box (upper 2 tiles)
-  const bx = wx + 8, by = wy + 8, bw = ww - 16, bh = _t * 2 - 16;
+  // Body bounding box — tall crate spanning rows 0–2 (leaves row 3 for serpentine)
+  const bx = wx + 8, by = wy + 8, bw = ww - 16, bh = _t * 3 - 24;
   _rtNozzle(g, wx, wy, ww, wh, bx, by, bw, bh, def, pres, pal, unitId);
 
   // Crate body
@@ -33115,23 +33125,23 @@ _RAGTAG_SYMBOLS.food_storage = function(g, wx, wy, ww, wh, pal, def, unitId) {
   // Inner dark panel
   g.appendChild(svgEl('rect', { x: bx + 6, y: by + 6, width: bw - 12, height: bh - 12,
     rx: 3, fill: frozen ? '#0a1828' : '#1a1008', stroke: pal.rim, 'stroke-width': 0.5, 'pointer-events': 'none' }));
-  // Label
-  g.appendChild(svgEl('text', { x: wx + ww/2, y: wy + _t + 2,
+  // Label — centered in the crate body
+  g.appendChild(svgEl('text', { x: wx + ww/2, y: by + bh/2 + 2,
     'text-anchor': 'middle', 'dominant-baseline': 'central',
-    'font-family': 'monospace', 'font-size': '8px',
+    'font-family': 'monospace', 'font-size': '9px',
     fill: frozen ? '#93c5fd' : '#fbbf24', 'pointer-events': 'none'
   })).textContent = frozen ? 'FROZEN' : 'FOOD';
   // Bolts
   _rtBolt(g, bx + 10, by + 10); _rtBolt(g, bx + bw - 10, by + 10);
   _rtBolt(g, bx + 10, by + bh - 10); _rtBolt(g, bx + bw - 10, by + bh - 10);
 
-  // Cooling serpentine at base (row 3, same pattern as cooled_tank)
-  const sy = wy + _t * 2 + _t/2;  // vertical center of bottom tile row
+  // Cooling serpentine — inline with cool ports at y=3 (bottom edge)
+  const sy = wy + _t * 3;  // cool port y-coordinate
   g.appendChild(svgEl('path', {
-    d: `M${wx+2},${sy+2} L${wx+10},${sy+2} L${wx+10},${sy-10} L${wx+18},${sy-10} L${wx+18},${sy+2}` +
-       ` L${wx+30},${sy+2} L${wx+30},${sy-10} L${wx+42},${sy-10} L${wx+42},${sy+2}` +
-       ` L${wx+54},${sy+2} L${wx+54},${sy-10} L${wx+66},${sy-10} L${wx+66},${sy+2}` +
-       ` L${wx+78},${sy+2} L${wx+78},${sy-10} L${wx+88},${sy-10} L${wx+88},${sy+2} L${wx+94},${sy+2}`,
+    d: `M${wx+2},${sy} L${wx+10},${sy} L${wx+10},${sy-12} L${wx+18},${sy-12} L${wx+18},${sy}` +
+       ` L${wx+30},${sy} L${wx+30},${sy-12} L${wx+42},${sy-12} L${wx+42},${sy}` +
+       ` L${wx+54},${sy} L${wx+54},${sy-12} L${wx+66},${sy-12} L${wx+66},${sy}` +
+       ` L${wx+78},${sy} L${wx+78},${sy-12} L${wx+88},${sy-12} L${wx+88},${sy} L${wx+94},${sy}`,
     fill: 'none', stroke: '#67e8f9', 'stroke-width': 2.5,
     'stroke-linecap': 'round', 'stroke-linejoin': 'round', opacity: 0.6, 'pointer-events': 'none'
   }));
@@ -44249,7 +44259,7 @@ window.addEventListener('resize', () => {
 
 // [v14.10.3] Load on startup: auto-save (if matching DEMO_VERSION) or demo_room_survival
 {
-  const DEMO_VERSION = 'v17.7.6';  // [v17.7.6] bumped: presentation rework (food_storage, bend, membrane, heater/cooler)
+  const DEMO_VERSION = 'v17.7.7';  // [v17.7.7] food_storage port/symbol tuning
   const _AUTOSAVE_VER_KEY = AUTOSAVE_KEY + '_demoVer';
   // [v17.4.0] Read using AUTOSAVE_KEY constant — was hardcoded 'ptis_autosave'
   // which never matched the write key 'processThis_autosave'. All autosaves
