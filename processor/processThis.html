@@ -347,6 +347,54 @@
   CHANGELOG  (latest first)
   ═══════════════════════════════════════════════════════════════════════════
 
+  ─── v17.7.11 — Room TTL: time-to-limit for life-critical conditions ─────
+
+  **Room conditions now show TTL (time-to-limit).**  Each life-critical
+  parameter (O₂, CO₂, water, food) computes two timelines:
+  - ttl_h: hours until next worse status (e.g. OK → WARNING)
+  - ttl_death_h: hours until CATASTROPHIC (crew death)
+  Both extrapolate the current drift rate linearly to the threshold.
+  Returns Infinity when stable or improving.
+
+  Calculation basis:
+  - O₂: net rate = supply − consumption, drift in %/s of atmosphere.
+  - CO₂: net rate = produced − exhausted, drift in %/s.
+  - Water: deficit accumulates at (demand − supply) mol/s/person.
+  - Food: same deficit pattern as water.
+
+  **Inspector KPIs updated.**  Each degrading parameter shows a TTL
+  annotation line: "⏱ Dehydration: 24h · ☠ 72h" (next threshold +
+  time to death).  Color-coded: red if <2h, yellow if <24h.  Drift
+  rates shown after atmosphere percentages (+0.012%/h).  Lines hidden
+  when condition is stable (TTL = ∞).
+
+  **Energy balance "closed" threshold fixed.**  The check used
+  |totalEnergyIn| as reference, but when totalIn = 0 (battery-only
+  scene), fell back to |residual| < 1W.  A 2W residual from Cp
+  linearization flagged "Open" despite 0.000% relative error.  Root
+  cause: totalEnergyOut can be tiny (-48W) when large terms cancel
+  (−301W material + 250W ambient).  Fix: use gross energy throughput
+  (sum of |each item|) as reference scale.  2W / 554W gross = 0.4%
+  → correctly reads as closed.
+
+  NNGs: NNG-3 (WYSIWYG — player sees the clock), NNG-14 (changelog).
+
+  ─── v17.7.10 — New demo layout, gas draw P_atm floor ────────────────────
+
+  **Demo scene updated** to Denis's new layout (18 units): hot water
+  barrel, proper waste routing via bends+mixers to single vent/sewer
+  sinks, scrubber in flip variant, vertical cooler, mirror heater.
+  O₂ bottle P_relief raised 250→350 bar (was below P_init 305 bar →
+  relief valve opened immediately, dumping all O₂).
+
+  **simple_tank gas draw: atmospheric pressure floor.**  Gas only flows
+  out when P_tank > P_atm (from SimSettings).  A sealed gas cylinder
+  physically can't push gas against higher downstream pressure — once
+  the tank equilibrates with atmospheric, draw stops.  The remaining
+  gas stays in the bottle.
+
+  NNGs: NNG-3 (WYSIWYG — gas doesn't flow uphill), NNG-14 (changelog).
+
   ─── v17.7.9 — Per-unit mass balance: skip inventory units ───────────────
 
   **Room mass imbalance warning fixed.**  The per-unit mass balance
@@ -17998,13 +18046,15 @@ UnitRegistry.register('simple_tank', {
     const ventBlocked = _blocked ? _blocked.has('vent') : false;
 
     // 3. Gas draw — rate-based (no Cv, no downstreamP)
+    // Gas only flows out when P_tank > P_atm (can't push against atmosphere)
     const gasDrawRate = par.gasDrawRate ?? 0.05;
     const opening_gas = par.opening_gas_pct ?? 0;
     const gasConnected = ctx.portConnected('gas_out');
     const n_V_total = state.n_V ? Object.values(state.n_V).reduce((a,b) => a+b, 0) : 0;
+    const P_atm = ctx.atmosphere.P_Pa;
     let Q_gas = 0;
 
-    if (gasConnected && !gasBlocked && n_V_total > 1e-15 && opening_gas > 0) {
+    if (gasConnected && !gasBlocked && n_V_total > 1e-15 && opening_gas > 0 && P_tank > P_atm) {
       Q_gas = Math.min(gasDrawRate * (opening_gas / 100), n_V_total / dt);
       const n_out = {};
       for (const [sp, amt] of Object.entries(state.n_V)) {
@@ -23054,6 +23104,59 @@ UnitRegistry.register('room', {
     conditions.power = { value: power_pct * 100,
       status: power_pct >= 1 ? 'OK' : 'WARNING' };  // max WARNING — consequences show through O₂/CO₂/temp
 
+    // ── 9b. TTL — time-to-limit for each life-critical condition ──
+    // Extrapolates current drift rate to thresholds.  Returns hours; Infinity if stable.
+    // Two TTLs per condition: ttl_h = next worse status, ttl_death_h = CATASTROPHIC.
+
+    // O₂: depleting when supply < consumption
+    const o2_net = o2_supply - reaction_rate;  // mol/s net into atmosphere
+    const o2_drift = n_total > 0 ? (o2_net / n_total) * 100 : 0;  // %/s
+    if (o2_drift < 0) {
+      const _o2t = [19, 17, 14];  // WARNING, MAJOR, CATASTROPHIC thresholds
+      const _o2next = _o2t.find(t => o2_pct_atm > t);
+      conditions.o2.ttl_h = _o2next != null ? (o2_pct_atm - _o2next) / Math.abs(o2_drift) / 3600 : Infinity;
+      conditions.o2.ttl_death_h = o2_pct_atm > 14 ? (o2_pct_atm - 14) / Math.abs(o2_drift) / 3600 : 0;
+    } else {
+      conditions.o2.ttl_h = Infinity; conditions.o2.ttl_death_h = Infinity;
+    }
+    conditions.o2.drift_per_h = o2_drift * 3600;
+
+    // CO₂: accumulating when production > removal
+    const co2_exhaust_rate = exhaust_rate * room_x_CO2;  // mol/s CO₂ leaving
+    const co2_net = co2_produced - co2_exhaust_rate;
+    const co2_drift = n_total > 0 ? (co2_net / n_total) * 100 : 0;
+    if (co2_drift > 0) {
+      const _co2t = [0.5, 2, 5];
+      const _co2next = _co2t.find(t => co2_pct_atm < t);
+      conditions.co2.ttl_h = _co2next != null ? (_co2next - co2_pct_atm) / co2_drift / 3600 : Infinity;
+      conditions.co2.ttl_death_h = co2_pct_atm < 5 ? (5 - co2_pct_atm) / co2_drift / 3600 : 0;
+    } else {
+      conditions.co2.ttl_h = Infinity; conditions.co2.ttl_death_h = Infinity;
+    }
+    conditions.co2.drift_per_h = co2_drift * 3600;
+
+    // Water: deficit accumulates when supply < demand
+    const h2o_net_pp = N > 0 ? h2o_deficit_rate / N : 0;  // mol/s/person unmet
+    if (h2o_net_pp > 0) {
+      const _h2ot = [1, 139, 417];  // WARNING, MAJOR (impaired), CATASTROPHIC (death)
+      const _h2onext = _h2ot.find(t => h2o_deficit_per_person < t);
+      conditions.water.ttl_h = _h2onext != null ? (_h2onext - h2o_deficit_per_person) / h2o_net_pp / 3600 : Infinity;
+      conditions.water.ttl_death_h = h2o_deficit_per_person < 417 ? (417 - h2o_deficit_per_person) / h2o_net_pp / 3600 : 0;
+    } else {
+      conditions.water.ttl_h = Infinity; conditions.water.ttl_death_h = Infinity;
+    }
+
+    // Food: same pattern as water
+    const food_net_pp = N > 0 ? food_deficit_rate / N : 0;
+    if (food_net_pp > 0) {
+      const _ft = [1, 60, 141, 423];
+      const _fnext = _ft.find(t => food_deficit_per_person < t);
+      conditions.food.ttl_h = _fnext != null ? (_fnext - food_deficit_per_person) / food_net_pp / 3600 : Infinity;
+      conditions.food.ttl_death_h = food_deficit_per_person < 423 ? (423 - food_deficit_per_person) / food_net_pp / 3600 : 0;
+    } else {
+      conditions.food.ttl_h = Infinity; conditions.food.ttl_death_h = Infinity;
+    }
+
     // ── 10. Survivability staging ──
     // normal → incapacitated (Lena passes out) → death
     const sevOrder = { OK: 0, WARNING: 1, MAJOR: 2, CATASTROPHIC: 3 };
@@ -27611,7 +27714,16 @@ function computeSystemBalance(scene) {
     energy: { in: energyIn, out: energyOut, totalIn: totalEnergyIn, totalOut: totalEnergyOut,
               balance: energyBalance, accumulation: accumulation.energy_W, residual: energyResidual,
               relError: totalEnergyIn !== 0 ? Math.abs(energyResidual / totalEnergyIn) : 0,
-              closed: totalEnergyIn !== 0 ? Math.abs(energyResidual / totalEnergyIn) < 0.01 : Math.abs(energyResidual) < 1 },
+              closed: (() => {
+                // Reference = gross energy throughput (sum of |each item|), not net.
+                // Net can be tiny when large terms cancel (e.g. −301W material + 250W ambient),
+                // making a 2W numerical residual look like 4%.  Gross captures true scale.
+                const grossOut = energyOut.items.reduce((s, it) => s + Math.abs(it.value ?? it.value_W ?? 0), 0);
+                const grossIn  = energyIn.items?.reduce((s, it) => s + Math.abs(it.value ?? it.value_W ?? 0), 0) || Math.abs(totalEnergyIn);
+                const grossAcc = Math.abs(accumulation.energy_W);
+                const ref = Math.max(grossOut, grossIn, grossAcc, 1);  // floor at 1W
+                return Math.abs(energyResidual) / ref < 0.01;
+              })() },
     accumulation
   };
 }
@@ -38953,6 +39065,7 @@ UnitInspector.room = {
     const L = u.last || {};
     const items = [];
     const svc = L.services || {};
+    const cond = L.conditions || {};
     const _tone = s => s === 'OK' ? '' : s === 'WARNING' ? 'warn' : 'bad';
     const _barColor = s => s === 'OK' ? '#22c55e' : s === 'WARNING' ? '#f59e0b' : '#ef4444';
     const _barHtml = (pct, status) => {
@@ -38962,15 +39075,51 @@ UnitInspector.room = {
         + `<div style="width:${w}%;height:100%;background:${_barColor(status)};border-radius:3px;"></div></div>`
         + `<span style="min-width:32px;text-align:right;font-size:10px;">${w}%</span></div>`;
     };
+    // Format TTL: "42h" or "3.2d" or "∞"
+    const _fmtTTL = h => {
+      if (!Number.isFinite(h) || h > 99999) return '∞';
+      if (h < 1) return `${(h * 60).toFixed(0)}m`;
+      if (h < 100) return `${h.toFixed(0)}h`;
+      return `${(h / 24).toFixed(1)}d`;
+    };
+    // TTL annotation line: shows next threshold + death timeline
+    const _ttlLine = (c, label) => {
+      if (!c) return null;
+      const ttl = c.ttl_h, death = c.ttl_death_h;
+      if (!Number.isFinite(ttl) || ttl > 99999) return null;  // stable
+      const urgency = ttl < 2 ? 'bad' : ttl < 24 ? 'warn' : '';
+      let text = `⏱ ${label}: ${_fmtTTL(ttl)}`;
+      if (Number.isFinite(death) && death < 99999 && death > ttl) text += ` · ☠ ${_fmtTTL(death)}`;
+      return { label: '', value: `<span style="font-size:10px;opacity:0.85;">${text}</span>`, tone: urgency };
+    };
+
     if (svc.o2)    items.push({ label: 'O\u2082 supply', value: _barHtml(svc.o2.pct, svc.o2.status), tone: _tone(svc.o2.status) });
+    const _o2ttl = _ttlLine(cond.o2, 'Hypoxia');
+    if (_o2ttl) items.push(_o2ttl);
     if (svc.food)  items.push({ label: 'Food', value: _barHtml(svc.food.pct, svc.food.status), tone: _tone(svc.food.status) });
+    const _foodttl = _ttlLine(cond.food, 'Hunger');
+    if (_foodttl) items.push(_foodttl);
     if (svc.water) items.push({ label: 'Water', value: _barHtml(svc.water.pct, svc.water.status), tone: _tone(svc.water.status) });
+    const _h2ottl = _ttlLine(cond.water, 'Dehydration');
+    if (_h2ottl) items.push(_h2ottl);
     if (svc.air)   items.push({ label: 'Air loop', value: _barHtml(svc.air.pct, svc.air.status), tone: _tone(svc.air.status) });
     if (svc.power) items.push({ label: 'Power', value: _barHtml(svc.power.pct, svc.power.status), tone: _tone(svc.power.status) });
     if (svc.temp)  items.push({ label: 'Temperature', value: `${L.T_room_K?.toFixed(1) || '?'} K  ${svc.temp.status}`, tone: _tone(svc.temp.status) });
-    // Atmosphere
-    if (L.room_x_O2 != null)  items.push({ label: 'Room O\u2082', value: `${(L.room_x_O2*100).toFixed(2)}%` });
-    if (L.room_x_CO2 != null) items.push({ label: 'Room CO\u2082', value: `${(L.room_x_CO2*100).toFixed(2)}%` });
+    // Atmosphere with drift rates
+    if (L.room_x_O2 != null) {
+      const drift = cond.o2?.drift_per_h;
+      const driftStr = drift != null && Math.abs(drift) > 0.001
+        ? ` <span style="font-size:9px;opacity:0.6;">(${drift > 0 ? '+' : ''}${drift.toFixed(3)}%/h)</span>` : '';
+      items.push({ label: 'Room O\u2082', value: `${(L.room_x_O2*100).toFixed(2)}%${driftStr}` });
+    }
+    if (L.room_x_CO2 != null) {
+      const drift = cond.co2?.drift_per_h;
+      const driftStr = drift != null && Math.abs(drift) > 0.001
+        ? ` <span style="font-size:9px;opacity:0.6;">(${drift > 0 ? '+' : ''}${drift.toFixed(3)}%/h)</span>` : '';
+      items.push({ label: 'Room CO\u2082', value: `${(L.room_x_CO2*100).toFixed(2)}%${driftStr}` });
+    }
+    const _co2ttl = _ttlLine(cond.co2, 'CO\u2082 poisoning');
+    if (_co2ttl) items.push(_co2ttl);
     return items;
   },
   detail(u, ud) {
@@ -44257,16 +44406,13 @@ DemoScenes.register('demo_v1', 'Demo V1 — Sabatier / Brayton / SMR / Tank',
 );
 
 
-// [v17.7.3] demo_room_survival — replaces old bio-reactor ineluctable demo.
-// The Room unit fully subsumes per-person metabolism. This is the canonical
-// "Day 0 depletables" scenario: 2 crew, fixed consumables, no resupply.
-// Inventories matched to reference timeline:
-//   water barrel  18.6 mol → death h≈93
-//   O₂ bottle    125 mol  → CATASTROPHIC h≈183
-//   LiOH scrubber 268 mol → CO₂ CATASTROPHIC h≈237
-//   food crate   1200 mol → food CATASTROPHIC h≈904
+// [v17.7.9] demo_room_survival — Ineluctable Fate Day 0 with proper layout.
+// 18 units: room + O₂ bottle + water barrel + hot water barrel + food crate +
+// LiOH scrubber + air cooler + heater + battery + dispatcher + surplus +
+// 2 bends + 3 mixers + 2 sinks.  All waste routed to single vent/sewer sinks.
+// O₂ bottle P_relief raised to 350 bar (above P_init 305 bar).
 DemoScenes.register('demo_room_survival', 'Ineluctable Fate — Day 0 (Room)',
-  '{"version":18,"processName":"Ineluctable Fate — Day 0","grid":{"w":40,"h":32,"tile":48},"settings":{"atmospherePreset":"planet_x","dt":3600},"units":[{"id":"room","defId":"room","profileId":"room","tier":1,"name":"Crew Room","x":0,"y":0,"rot":0,"params":{"nPeople":2,"powerPriority":1}},{"id":"o2_bottle","defId":"simple_tank","profileId":"simple_gas_bottle","tier":1,"name":"O₂ Bottle","x":-5,"y":0,"rot":0,"params":{"volume_m3":0.01,"P_init":30553950,"initialComposition":{"O2":1},"gasDrawRate":0.001,"opening_gas_pct":46.6,"P_relief":25000000}},{"id":"water_barrel","defId":"simple_open_tank","profileId":"simple_open_tank","tier":1,"name":"Water Barrel","x":-5,"y":4,"rot":0,"params":{"volume_m3":0.1,"initialComposition":{"H2O":1},"level_init":0.3348,"drawRate":0.01,"opening_pct":25.8,"overflow_level":90}},{"id":"food_crate","defId":"food_storage","profileId":"food_crate","tier":1,"name":"Food Crate","x":-5,"y":7,"rot":0,"params":{"volume_m3":0.1,"gasDrawRate":0.001,"opening_gas_pct":46.6,"P_init":29331792,"initialComposition":{"CH2O":1},"P_relief":32000000,"UA_jacket":50}},{"id":"waste_snk","defId":"sink","profileId":"sink","tier":1,"name":"Food Waste","x":-2,"y":10,"rot":0,"params":{}},{"id":"scrubber","defId":"membrane_separator","profileId":"membrane_separator","tier":1,"name":"LiOH Scrubber","x":8,"y":1,"rot":0,"params":{"targetSpecies":"CO2","extractionFrac":0.99,"consumable":{"name":"LiOH Cartridges","capacity":500,"remaining":500,"maxRate":5}}},{"id":"co2_snk","defId":"sink","profileId":"sink","tier":1,"name":"CO₂ Vent","x":12,"y":1,"rot":0,"params":{}},{"id":"cooler","defId":"air_cooler","profileId":"air_cooler","tier":1,"name":"Air Cooler","x":8,"y":4,"rot":0,"params":{"T_out":294,"UA_kW_K":1,"max_fan_power_W":200,"powerPriority":2}},{"id":"heater","defId":"electric_heater","profileId":"electric_heater","tier":1,"name":"Air Heater","x":8,"y":7,"rot":0,"params":{"T_out":294,"powerPriority":2}},{"id":"battery","defId":"battery","profileId":"battery","tier":1,"name":"Battery","x":0,"y":-5,"rot":0,"params":{"peakPower_kW":100,"capacity_J":1800000000,"initialSOC":1.0}},{"id":"power_disp","defId":"power_dispatcher_5","profileId":"power_dispatcher_5","tier":1,"name":"Power Dispatch","x":3,"y":-5,"rot":0,"params":{}},{"id":"surplus_snk","defId":"sink_electrical","profileId":"sink_electrical","tier":1,"name":"Surplus","x":7,"y":-5,"rot":0,"params":{"ratedPower_kW":50,"powerPriority":5}}],"connections":[{"id":"c_o2","from":{"unitId":"o2_bottle","portId":"gas_out"},"to":{"unitId":"room","portId":"o2_in"}},{"id":"c_h2o","from":{"unitId":"water_barrel","portId":"mat_out"},"to":{"unitId":"room","portId":"h2o_in"}},{"id":"c_food","from":{"unitId":"food_crate","portId":"food_out"},"to":{"unitId":"room","portId":"food_in"}},{"id":"c_waste","from":{"unitId":"food_crate","portId":"waste_out"},"to":{"unitId":"waste_snk","portId":"mat_in"}},{"id":"c_exhaust","from":{"unitId":"room","portId":"air_exhaust"},"to":{"unitId":"scrubber","portId":"mat_in"}},{"id":"c_co2","from":{"unitId":"scrubber","portId":"ret_out"},"to":{"unitId":"co2_snk","portId":"mat_in"}},{"id":"c_cool_in","from":{"unitId":"scrubber","portId":"perm_out"},"to":{"unitId":"cooler","portId":"mat_in"}},{"id":"c_heat_in","from":{"unitId":"cooler","portId":"mat_out"},"to":{"unitId":"heater","portId":"mat_in"}},{"id":"c_return","from":{"unitId":"heater","portId":"mat_out"},"to":{"unitId":"room","portId":"air_return"}},{"id":"e_bat","from":{"unitId":"battery","portId":"elec"},"to":{"unitId":"power_disp","portId":"elec_in_1"}},{"id":"e_room","from":{"unitId":"power_disp","portId":"elec_out_1"},"to":{"unitId":"room","portId":"elec_in"}},{"id":"e_cooler","from":{"unitId":"power_disp","portId":"elec_out_2"},"to":{"unitId":"cooler","portId":"elec_in"}},{"id":"e_heater","from":{"unitId":"power_disp","portId":"elec_out_3"},"to":{"unitId":"heater","portId":"elec_in"}},{"id":"e_surplus","from":{"unitId":"power_disp","portId":"elec_surplus"},"to":{"unitId":"surplus_snk","portId":"elec_in"}}],"modelsActive":{"thermo_package":"ideal_raoult","reaction":null,"units":"SI_bar"},"solverOptions":{"maxIter":200},"layout":{"viewMode":"flowsheet","colorBy":"type","theme":"ragtag","paletteOpen":false,"inspectorOpen":false}}'
+  '{"version":19,"processName":"Ineluctable Fate \u2014 Day 0","grid":{"w":40,"h":32,"tile":48},"settings":{"atmospherePreset":"planet_x","dt":3600},"units":[{"id":"room","defId":"room","profileId":"room","tier":1,"name":"Crew Room","x":0,"y":0,"rot":0,"params":{"nPeople":2,"powerPriority":1}},{"id":"o2_bottle","defId":"simple_tank","profileId":"simple_gas_bottle","tier":1,"name":"O\u2082 Bottle","x":-7,"y":1,"rot":0,"params":{"volume_m3":0.01,"P_init":30553950,"initialComposition":{"O2":1},"gasDrawRate":0.001,"opening_gas_pct":46.6,"P_relief":35000000}},{"id":"water_barrel","defId":"simple_open_tank","profileId":"simple_open_tank","tier":1,"name":"Water Barrel","x":-7,"y":5,"rot":0,"params":{"volume_m3":0.1,"initialComposition":{"H2O":1},"level_init":0.3348,"drawRate":0.01,"opening_pct":25.8,"overflow_level":90}},{"id":"food_crate","defId":"food_storage","profileId":"food_crate","tier":1,"name":"Food Crate","x":-11,"y":3,"rot":0,"params":{"volume_m3":0.1,"gasDrawRate":0.001,"opening_gas_pct":46.6,"P_init":29331792,"initialComposition":{"CH2O":1},"P_relief":32000000,"UA_jacket":50}},{"id":"scrubber","defId":"membrane_separator","profileId":"membrane_separator","tier":1,"name":"LiOH Scrubber","x":8,"y":1,"rot":0,"params":{"targetSpecies":"CO2","extractionFrac":0.99,"consumable":{"name":"LiOH Cartridges","capacity":500,"remaining":499.6407488,"maxRate":5},"variant":"flip"}},{"id":"co2_snk","defId":"sink","profileId":"sink","tier":1,"name":"Vent","x":14,"y":-6,"rot":0,"params":{}},{"id":"cooler","defId":"air_cooler","profileId":"air_cooler","tier":1,"name":"Air Cooler","x":10,"y":5,"rot":0,"params":{"T_out":294,"UA_kW_K":1,"max_fan_power_W":200,"powerPriority":2,"variant":"vert-elec-L"}},{"id":"heater","defId":"electric_heater","profileId":"electric_heater","tier":1,"name":"Air Heater","x":7,"y":7,"rot":0,"params":{"T_out":294,"powerPriority":2,"variant":"mirror"}},{"id":"battery","defId":"battery","profileId":"battery","tier":1,"name":"Battery","x":1,"y":-3,"rot":0,"params":{"peakPower_kW":100,"capacity_J":1800000000,"initialSOC":1}},{"id":"power_disp","defId":"power_dispatcher_5","profileId":"power_dispatcher_5","tier":1,"name":"Power Dispatch","x":4,"y":-3,"rot":0,"params":{}},{"id":"surplus_snk","defId":"sink_electrical","profileId":"sink_electrical","tier":1,"name":"Surplus","x":6,"y":-5,"rot":0,"params":{"ratedPower_kW":50,"powerPriority":5}},{"id":"simple_open_tank-1","defId":"simple_open_tank","profileId":"simple_open_tank","tier":1,"name":"Hot Water Barrel","x":-4,"y":7,"rot":0,"params":{"volume_m3":0.1,"initialComposition":{"H2O":1},"level_init":0.3348,"drawRate":0.01,"opening_pct":25.8,"overflow_level":90}},{"id":"bend-3","defId":"bend","profileId":"bend","tier":1,"name":"Pipe Bend 3","x":-11,"y":-6,"rot":0,"params":{"variant":"down-right"}},{"id":"simple_mixer-5","defId":"simple_mixer","profileId":"simple_mixer","tier":1,"name":"Simple Mixer 5","x":-7,"y":-6,"rot":0,"params":{"variant":"recycle-B"}},{"id":"simple_mixer-8","defId":"simple_mixer","profileId":"simple_mixer","tier":1,"name":"Simple Mixer 5 (copy)","x":10,"y":-6,"rot":0,"params":{"variant":"recycle-B"}},{"id":"bend-12","defId":"bend","profileId":"bend","tier":1,"name":"Pipe Bend 3 (copy)","x":-7,"y":9,"rot":0,"params":{"variant":"up-right"}},{"id":"simple_mixer-14","defId":"simple_mixer","profileId":"simple_mixer","tier":1,"name":"Simple Mixer 5 (copy)","x":-4,"y":9,"rot":0,"params":{"variant":"recycle-T"}},{"id":"sink-17","defId":"sink","profileId":"sink","tier":1,"name":"Sewer","x":14,"y":9,"rot":0,"params":{}}],"connections":[{"id":"c_o2","from":{"unitId":"o2_bottle","portId":"gas_out"},"to":{"unitId":"room","portId":"o2_in"}},{"id":"c_h2o","from":{"unitId":"water_barrel","portId":"mat_out"},"to":{"unitId":"room","portId":"h2o_in"}},{"id":"c_food","from":{"unitId":"food_crate","portId":"food_out"},"to":{"unitId":"room","portId":"food_in"}},{"id":"c_exhaust","from":{"unitId":"room","portId":"air_exhaust"},"to":{"unitId":"scrubber","portId":"mat_in"}},{"id":"c_cool_in","from":{"unitId":"scrubber","portId":"perm_out"},"to":{"unitId":"cooler","portId":"mat_in"}},{"id":"c_heat_in","from":{"unitId":"cooler","portId":"mat_out"},"to":{"unitId":"heater","portId":"mat_in"}},{"id":"c_return","from":{"unitId":"heater","portId":"mat_out"},"to":{"unitId":"room","portId":"air_return"}},{"id":"e_bat","from":{"unitId":"battery","portId":"elec"},"to":{"unitId":"power_disp","portId":"elec_in_1"}},{"id":"e_room","from":{"unitId":"power_disp","portId":"elec_out_1"},"to":{"unitId":"room","portId":"elec_in"}},{"id":"e_cooler","from":{"unitId":"power_disp","portId":"elec_out_2"},"to":{"unitId":"cooler","portId":"elec_in"}},{"id":"e_heater","from":{"unitId":"power_disp","portId":"elec_out_3"},"to":{"unitId":"heater","portId":"elec_in"}},{"id":"e_surplus","from":{"unitId":"power_disp","portId":"elec_surplus"},"to":{"unitId":"surplus_snk","portId":"elec_in"}},{"id":"conn-2","from":{"unitId":"simple_open_tank-1","portId":"mat_out"},"to":{"unitId":"room","portId":"hot_water_in"}},{"id":"conn-4","from":{"unitId":"food_crate","portId":"waste_out"},"to":{"unitId":"bend-3","portId":"mat_in"}},{"id":"conn-6","from":{"unitId":"bend-3","portId":"mat_out"},"to":{"unitId":"simple_mixer-5","portId":"mat_in_1"}},{"id":"conn-7","from":{"unitId":"o2_bottle","portId":"vent"},"to":{"unitId":"simple_mixer-5","portId":"mat_in_2"}},{"id":"conn-9","from":{"unitId":"scrubber","portId":"ret_out"},"to":{"unitId":"simple_mixer-8","portId":"mat_in_2"}},{"id":"conn-10","from":{"unitId":"simple_mixer-5","portId":"mat_out"},"to":{"unitId":"simple_mixer-8","portId":"mat_in_1"}},{"id":"conn-11","from":{"unitId":"simple_mixer-8","portId":"mat_out"},"to":{"unitId":"co2_snk","portId":"mat_in"}},{"id":"conn-13","from":{"unitId":"water_barrel","portId":"overflow"},"to":{"unitId":"bend-12","portId":"mat_in"}},{"id":"conn-15","from":{"unitId":"simple_open_tank-1","portId":"overflow"},"to":{"unitId":"simple_mixer-14","portId":"mat_in_2"}},{"id":"conn-16","from":{"unitId":"bend-12","portId":"mat_out"},"to":{"unitId":"simple_mixer-14","portId":"mat_in_1"}},{"id":"conn-18","from":{"unitId":"simple_mixer-14","portId":"mat_out"},"to":{"unitId":"sink-17","portId":"mat_in"}}],"modelsActive":{"thermo_package":"ideal_raoult","reaction":null,"units":"SI_bar"},"solverOptions":{"maxIter":200},"layout":{"viewMode":"flowsheet","colorBy":"type","theme":"ragtag","paletteOpen":false,"inspectorOpen":false}}'
 );
 
 buildExamplesMenu();
@@ -44284,7 +44430,7 @@ window.addEventListener('resize', () => {
 
 // [v14.10.3] Load on startup: auto-save (if matching DEMO_VERSION) or demo_room_survival
 {
-  const DEMO_VERSION = 'v17.7.9';  // [v17.7.9] per-unit mass balance: skip inventory units
+  const DEMO_VERSION = 'v17.7.11'; // [v17.7.11] room TTL (time-to-limit) for life-critical conditions
   const _AUTOSAVE_VER_KEY = AUTOSAVE_KEY + '_demoVer';
   // [v17.4.0] Read using AUTOSAVE_KEY constant — was hardcoded 'ptis_autosave'
   // which never matched the write key 'processThis_autosave'. All autosaves
