@@ -4858,7 +4858,7 @@
       position: absolute; 
       left: 10px; right: 10px; 
       top: 10px; 
-      z-index: 25;
+      z-index: 35;
       display: flex; 
       align-items: center;
       gap: 6px;
@@ -5643,15 +5643,15 @@
 
     /* [v17.6.3] Lena HUD head — hangs below info-bar */
     #lenaHud {
-      position: fixed;
-      top: 4px;
-      right: 120px;
+      position: relative;
       width: 66px; height: 66px;
+      margin-top: -8px;
+      margin-bottom: -34px;
+      margin-right: 2px;
       flex-shrink: 0;
       cursor: default;
       filter: drop-shadow(0 3px 6px rgba(0,0,0,0.6));
       transition: transform 0.15s;
-      z-index: 50;
     }
     #lenaHud:hover { transform: scale(1.06); }
     #lenaHud svg { overflow: visible; }
@@ -10081,6 +10081,7 @@
 
       <!-- Diagnostic Light Indicators [v10.3.1] -->
       <div class="info-bar-right">
+        <div id="lenaHud" title="Crew status"></div>
         <div id="diagnosticLights" class="diagnostic-lights" style="display:none;">
           <div class="tl-dot grey" id="tlConv" data-target="solver"><div class="tl-tip">Convergence</div></div>
           <div class="tl-dot grey" id="tlBalance" data-target="balance"><div class="tl-tip">Mass &amp; Energy Balance</div></div>
@@ -10097,9 +10098,6 @@
         </div>
       </div>
     </div>
-
-    <!-- [v17.8.0] Lena HUD — own stacking context, above inspector (z-index 50 > rightPanel 30) -->
-    <div id="lenaHud" title="Crew status"></div>
 
     <!-- [v14.10.2] Survival expanded overlay (drops below info-bar) -->
     <div class="survival-expanded" id="survivalExpanded">
