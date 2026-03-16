@@ -347,6 +347,16 @@
   CHANGELOG  (latest first)
   ═══════════════════════════════════════════════════════════════════════════
 
+  ─── v17.7.8 — Bend symbol: simple pipe elbow ────────────────────────────
+
+  **bend ragtag symbol rewritten.**  Now a simple 90° quarter-circle
+  elbow matching pipe rendering style (outer wall #374151 sw:10, inner
+  bore #4b5563 sw:6).  Quadratic bezier with inside-corner control
+  point.  No custom flanges — _rtNozzle draws the standard half-flange
+  stubs at each port, matching all other units.
+
+  NNGs: NNG-3 (WYSIWYG — pipe extension looks like a pipe), NNG-14.
+
   ─── v17.7.7 — food_storage port/symbol tuning ───────────────────────────
 
   **food_storage ports tuned.**  food_in/food_out moved from y=2 to
@@ -33642,75 +33652,38 @@ _RAGTAG_SYMBOLS.room = function(g, wx, wy, ww, wh, pal, def, unitId) {
   stencil.textContent = 'CREW SHELTER'; g.appendChild(stencil);
 };
 
-// [v17.7.5] Pipe Bend — 90° bolted elbow, outside-radius curve for all 8 orientations
+// [v17.7.7] Pipe Bend — simple 90° elbow, pipe-styled, flanges via _rtNozzle
 _RAGTAG_SYMBOLS.bend = function(g, wx, wy, ww, wh, pal, def, unitId) {
   const pres = getPresentation(def, scene.units.get(unitId));
-  const t = scene.tile;
+  const _t = scene.tile;
   const pIn = pres.ports.mat_in, pOut = pres.ports.mat_out;
-  const cx = wx + ww/2, cy = wy + wh/2;
-  const pw = 8;
 
-  // Port pixel positions (at unit edge, slightly inset)
+  // Port pixel positions at unit edge
   const inIsHoriz = (pIn.x === 0 || pIn.x === 2);
+  const entryX = inIsHoriz ? (pIn.x === 0 ? wx : wx + ww) : wx + pIn.x * _t;
+  const entryY = inIsHoriz ? wy + pIn.y * _t : (pIn.y === 0 ? wy : wy + wh);
   const outIsHoriz = (pOut.x === 0 || pOut.x === 2);
-  const entryX = inIsHoriz ? (pIn.x === 0 ? wx + 2 : wx + ww - 2) : cx;
-  const entryY = inIsHoriz ? cy : (pIn.y === 0 ? wy + 2 : wy + wh - 2);
-  const exitX = outIsHoriz ? (pOut.x === 0 ? wx + 2 : wx + ww - 2) : cx;
-  const exitY = outIsHoriz ? cy : (pOut.y === 0 ? wy + 2 : wy + wh - 2);
+  const exitX = outIsHoriz ? (pOut.x === 0 ? wx : wx + ww) : wx + pOut.x * _t;
+  const exitY = outIsHoriz ? wy + pOut.y * _t : (pOut.y === 0 ? wy : wy + wh);
 
-  // Control point: opposite corner from where the two pipe runs would meet.
-  // This makes the bend curve AWAY from the inside corner (outside radius).
-  const ctrlX = (entryX < cx) ? wx + ww : (entryX > cx) ? wx : (exitX < cx) ? wx + ww : wx;
-  const ctrlY = (entryY < cy) ? wy + wh : (entryY > cy) ? wy : (exitY < cy) ? wy + wh : wy;
+  // Q control point: where the two straight pipe axes intersect (inside corner)
+  // Horizontal entry line at entryY meets vertical exit line at exitX (or vice versa)
+  const ctrlX = inIsHoriz ? exitX : entryX;
+  const ctrlY = inIsHoriz ? entryY : exitY;
 
-  // Nozzle stubs
-  _rtNozzle(g, wx, wy, ww, wh, wx+10, wy+10, ww-20, wh-20, def, pres, pal, unitId);
+  // Nozzle stubs + half-flanges (same as every other unit)
+  _rtNozzle(g, wx, wy, ww, wh, wx, wy, ww, wh, def, pres, pal, unitId);
 
-  const elbowPath = `M${entryX},${entryY} Q${ctrlX},${ctrlY} ${exitX},${exitY}`;
-  const pipeColor = pal.fillUrl || pal.fill;
-  const pipeStroke = pal.stroke;
-
-  // Pipe outline (under body)
-  g.appendChild(svgEl('path', { d: elbowPath, fill: 'none',
-    stroke: pipeStroke, 'stroke-width': pw * 2 + 3, 'stroke-linecap': 'butt',
-    'stroke-linejoin': 'round', opacity: 0.3, 'pointer-events': 'none' }));
-  // Pipe body
-  g.appendChild(svgEl('path', { d: elbowPath, fill: 'none',
-    stroke: pipeColor, 'stroke-width': pw * 2, 'stroke-linecap': 'butt',
-    'stroke-linejoin': 'round', 'pointer-events': 'none' }));
+  // Simple quarter-circle elbow — matching pipe rendering style
+  const elbowD = `M${entryX},${entryY} Q${ctrlX},${ctrlY} ${exitX},${exitY}`;
+  // Outer wall
+  g.appendChild(svgEl('path', { d: elbowD, fill: 'none',
+    stroke: '#374151', 'stroke-width': 10,
+    'stroke-linecap': 'round', 'pointer-events': 'none' }));
   // Inner bore
-  g.appendChild(svgEl('path', { d: elbowPath, fill: 'none',
-    stroke: '#0f172a', 'stroke-width': pw * 0.8, 'stroke-linecap': 'butt',
-    'stroke-linejoin': 'round', opacity: 0.4, 'pointer-events': 'none' }));
-
-  // Flanges at entry and exit
-  const flangeW = pw * 2 + 8, flangeH = 5;
-  if (inIsHoriz) {
-    const fx = entryX < cx ? wx + 8 : wx + ww - 8;
-    g.appendChild(svgEl('rect', { x: fx - flangeH/2, y: cy - flangeW/2,
-      width: flangeH, height: flangeW, rx: 1,
-      fill: _lighten(pal.stroke, 0.4), stroke: pal.stroke, 'stroke-width': 1.2, 'pointer-events': 'none' }));
-    _rtBoltS(g, fx, cy - pw * 0.7); _rtBoltS(g, fx, cy + pw * 0.7);
-  } else {
-    const fy = entryY < cy ? wy + 8 : wy + wh - 8;
-    g.appendChild(svgEl('rect', { x: cx - flangeW/2, y: fy - flangeH/2,
-      width: flangeW, height: flangeH, rx: 1,
-      fill: _lighten(pal.stroke, 0.4), stroke: pal.stroke, 'stroke-width': 1.2, 'pointer-events': 'none' }));
-    _rtBoltS(g, cx - pw * 0.7, fy); _rtBoltS(g, cx + pw * 0.7, fy);
-  }
-  if (outIsHoriz) {
-    const fx = exitX < cx ? wx + 8 : wx + ww - 8;
-    g.appendChild(svgEl('rect', { x: fx - flangeH/2, y: cy - flangeW/2,
-      width: flangeH, height: flangeW, rx: 1,
-      fill: _lighten(pal.stroke, 0.4), stroke: pal.stroke, 'stroke-width': 1.2, 'pointer-events': 'none' }));
-    _rtBoltS(g, fx, cy - pw * 0.7); _rtBoltS(g, fx, cy + pw * 0.7);
-  } else {
-    const fy = exitY < cy ? wy + 8 : wy + wh - 8;
-    g.appendChild(svgEl('rect', { x: cx - flangeW/2, y: fy - flangeH/2,
-      width: flangeW, height: flangeH, rx: 1,
-      fill: _lighten(pal.stroke, 0.4), stroke: pal.stroke, 'stroke-width': 1.2, 'pointer-events': 'none' }));
-    _rtBoltS(g, cx - pw * 0.7, fy); _rtBoltS(g, cx + pw * 0.7, fy);
-  }
+  g.appendChild(svgEl('path', { d: elbowD, fill: 'none',
+    stroke: '#4b5563', 'stroke-width': 6,
+    'stroke-linecap': 'round', 'pointer-events': 'none' }));
 };
 
 // [v17.0.4] Power Dispatcher T1 — 5+5 explicit ports with visual feedback
@@ -44259,7 +44232,7 @@ window.addEventListener('resize', () => {
 
 // [v14.10.3] Load on startup: auto-save (if matching DEMO_VERSION) or demo_room_survival
 {
-  const DEMO_VERSION = 'v17.7.7';  // [v17.7.7] food_storage port/symbol tuning
+  const DEMO_VERSION = 'v17.7.8';  // [v17.7.8] bend symbol rewrite
   const _AUTOSAVE_VER_KEY = AUTOSAVE_KEY + '_demoVer';
   // [v17.4.0] Read using AUTOSAVE_KEY constant — was hardcoded 'ptis_autosave'
   // which never matched the write key 'processThis_autosave'. All autosaves
