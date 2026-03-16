@@ -372,6 +372,15 @@
   reported as Q_rejected_W for the balance sheet ambient rejection
   tracking.  food_storage also reports ambient heat loss.
 
+  **Inspector sticky-focus fix.**  Changing a unit's port layout variant
+  called render() but not updatePropertiesPanel(), leaving the variant
+  `<select>` focused.  On next unit click, ev.preventDefault() on
+  pointerdown kept focus on the stale select, and the select:focus
+  guard in _rebuildInspectorContent (play-mode optimization) bailed
+  every rebuild attempt.  Fix: variant handler now blurs the select
+  and calls updatePropertiesPanel(); _selectOnly() blurs any focused
+  select in propEditor before changing selection.
+
   **Test recalibration.**  Tests 675/676 fixed (unit placement overlap
   from v17.7.0 resize: simple_tank h=3, simple_open_tank h=2).  Tests
   687/688 recalibrated to actual engine timelines: O₂ CATASTROPHIC at
@@ -381,7 +390,8 @@
 
   NNGs: NNG-1 (conservation — mass balance closure, spoilage energy
   balance), NNG-2 (second law — realistic decomposition enthalpy),
-  NNG-7 (alarm architecture — pressure limits), NNG-14 (changelog).
+  NNG-7 (alarm architecture — pressure limits), NNG-13 (inspector —
+  variant change focus fix), NNG-14 (changelog).
 
   ─── v17.6.3 — Cooled tank, food storage, room starvation ─────────────────
 
@@ -39716,7 +39726,9 @@ function _rebuildInspectorContent() {
         }
         lSel.addEventListener('change', () => {
           u.params.variant = (lSel.value === 'default') ? undefined : lSel.value;
+          lSel.blur();  // [v17.7.4] release focus so _rebuildInspectorContent doesn't bail
           render();
+          updatePropertiesPanel();  // [v17.7.4] refresh inspector with new port layout
         });
         lRow.appendChild(lSel);
         paramsZone.appendChild(lRow);
@@ -40376,6 +40388,12 @@ document.getElementById('processNameInput').addEventListener('input', () => auto
 
 /** Select exactly one unit (or null to clear). Syncs selectedUnitId for inspector. */
 function _selectOnly(id) {
+  // [v17.7.4] Blur any focused select inside inspector — ev.preventDefault() on
+  // pointerdown prevents the browser from moving focus, leaving the old <select>
+  // focused.  The _rebuildInspectorContent guard (select:focus during play mode)
+  // would then bail, never showing the new unit's inspector.
+  const focusedSel = propEditor.querySelector('select:focus');
+  if (focusedSel) focusedSel.blur();
   ui.selectedUnitIds.clear();
   if (id) ui.selectedUnitIds.add(id);
   ui.selectedUnitId = id || null;
