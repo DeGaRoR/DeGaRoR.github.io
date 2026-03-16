@@ -358,6 +358,20 @@
   at T_KILL=340K (microbes die above ~67°C).  UA_ambient raised from
   2→5 W/K for food crate.
 
+  **Pressure limits raised.**  simple_gas_bottle P_HH raised from 300→350
+  bar (P_H 250→300 bar).  food_crate and food_storage base P_HH raised
+  from 300→350 bar.  O₂ bottle at 305 bar P_init no longer fries on
+  first solve.  Food crate P_relief at 320 bar now triggers before
+  destruction.
+
+  **Balance sheet: food_storage accumulation.**  Added food_storage case
+  to the plant-level balance sheet accumulation loop (was missing, causing
+  mass residual).  Mass balance now closes to green.
+
+  **Room Q_rejected_W.**  Room envelope heat loss (UA_ENV × ΔT) now
+  reported as Q_rejected_W for the balance sheet ambient rejection
+  tracking.  food_storage also reports ambient heat loss.
+
   **Test recalibration.**  Tests 675/676 fixed (unit placement overlap
   from v17.7.0 resize: simple_tank h=3, simple_open_tank h=2).  Tests
   687/688 recalibrated to actual engine timelines: O₂ CATASTROPHIC at
@@ -365,8 +379,9 @@
   because O₂ exhaustion stops metabolism before CO₂ reaches 5%).  Test
   682 threshold adjusted for proper thermal model (no runaway).
 
-  NNGs: NNG-1 (conservation — spoilage energy balance), NNG-2 (second
-  law — realistic decomposition enthalpy), NNG-14 (changelog).
+  NNGs: NNG-1 (conservation — mass balance closure, spoilage energy
+  balance), NNG-2 (second law — realistic decomposition enthalpy),
+  NNG-7 (alarm architecture — pressure limits), NNG-14 (changelog).
 
   ─── v17.6.3 — Cooled tank, food storage, room starvation ─────────────────
 
@@ -18192,7 +18207,7 @@ UnitRegistry.register('food_storage', {
     }}
   },
   limitParams: ['T_LL', 'T_HH', 'P_LL', 'P_HH'],
-  limits: { S: { T_LL: 233, T_HH: 473, P_LL: 50000, P_HH: 30000000 } },
+  limits: { S: { T_LL: 233, T_HH: 473, P_LL: 50000, P_HH: 35000000 } },
   inventory: true,
 
   initInventory(par) {
@@ -18383,6 +18398,7 @@ UnitRegistry.register('food_storage', {
       spoil_pct_day: spoilPctDay,
       Q_spoilage_W: Q_spoilage,
       Q_cool_W: Q_cool,
+      Q_rejected_W: UA_ambient * (inv.T_K - T_ext),  // [v17.7.4] balance sheet ambient
       Q_draw: Q_draw,
       Q_waste: Q_waste,
       V_m3: V,
@@ -23071,6 +23087,7 @@ UnitRegistry.register('room', {
       conditions, services, portIndicators, crewState,
       Q_metabolic, Q_lighting: Q_lighting_actual, Q_streams, Q_hot_water,
       Q_envelope, Q_balance: Q_in - Q_out,
+      Q_rejected_W: Q_envelope,  // [v17.7.4] exposes envelope heat loss to balance sheet
       heating_status: (Q_in - Q_out) > 1 ? 'warming' : (Q_in - Q_out) < -1 ? 'cooling' : 'stable',
       gauges, liveability,
       o2_demand, food_demand, h2o_demand, hw_demand, circ_demand,
@@ -23269,7 +23286,7 @@ ProfileRegistry.register('simple_gas_bottle', {
   description: 'Portable pressurized gas cylinder',
   selectionGuide: 'A 10L steel bottle — think diver\'s oxygen tank. Rated to 300 bar. Set the gas draw rate and opening.',
   limits: { 1: { T_LL:233, T_L:263, T_H:423, T_HH:473,
-                  P_LL:50000, P_L:80000, P_H:25000000, P_HH:30000000,
+                  P_LL:50000, P_L:80000, P_H:30000000, P_HH:35000000,
                   level_H:90, level_HH:100 } },
   defaults: { 1: { volume_m3:0.01, gasDrawRate:0.05, opening_gas_pct:0,
                     liqDrawRate:0.01, opening_liq_pct:0,
@@ -23316,7 +23333,7 @@ ProfileRegistry.register('food_crate', {
   defId: 'food_storage', name: 'Food Crate', pressureClass: 'simple', category: UnitCategories.LIFE_SUPPORT, tiers: [1],
   description: 'Pressurized ration canister with cooling jacket — spoils without refrigeration',
   selectionGuide: 'A 100L canister holding ~1200 mol CH₂O (30 days for 2 people IF kept cold). Without coolant, food spoils at 3%/day at room temperature — you have 16 days. Connect coolant below 4°C to preserve.',
-  limits: { 1: { T_LL:233, T_HH:473, P_LL:50000, P_HH:30000000 } },
+  limits: { 1: { T_LL:233, T_HH:473, P_LL:50000, P_HH:35000000 } },
   defaults: { 1: { volume_m3:0.1, gasDrawRate:0.001, opening_gas_pct:46.6,
                     P_init:29300000, P_relief:25000000, UA_jacket:50,
                     initialComposition:{CH2O:1} } },
@@ -27494,6 +27511,20 @@ function computeSystemBalance(scene) {
       const netPower = ud.ports?.elec?.actual || 0;
       const accumRate = -netPower;
       if (Math.abs(accumRate) > 0.01) { accumulation.energy_W += accumRate; accumulation.items.push({ name: uName, type: 'battery_energy', value_kgps: 0, value_W: accumRate }); }
+    }
+    // [v17.7.4] Food Storage: inventory-bearing unit with food draw + spoilage.
+    // Mass: food_in + cool_in - food_out - waste_out - cool_out = accumulation.
+    if (u.defId === 'food_storage') {
+      const inPorts = ['food_in', 'cool_in'];
+      const outPorts = ['food_out', 'waste_out', 'cool_out'];
+      let m_in = 0, m_out = 0;
+      for (const pid of inPorts) { const s = ud.ports?.[pid]; if (s) m_in += streamMass_kgps(s); }
+      for (const pid of outPorts) { const s = ud.ports?.[pid]; if (s) m_out += streamMass_kgps(s); }
+      const netMass = m_in - m_out;
+      if (Math.abs(netMass) > 1e-15) { accumulation.mass_kgps += netMass; accumulation.items.push({ name: uName, type: 'food_storage_mass', value_kgps: netMass, value_W: 0 }); }
+      const H_in = inPorts.reduce((s, pid) => s + (ud.ports?.[pid]?.Hdot_J_s ?? 0), 0);
+      const H_out = outPorts.reduce((s, pid) => s + (ud.ports?.[pid]?.Hdot_J_s ?? 0), 0);
+      if (Math.abs(H_in - H_out) > 0.01) accumulation.energy_W += (H_in - H_out);
     }
     // [v17.6.0 S-ROOM] Room: mixed IN/OUT ports, inventory unit.
     // Mass balance: all material inflows minus air_exhaust = accumulation.
