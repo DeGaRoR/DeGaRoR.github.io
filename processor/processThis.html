@@ -34251,6 +34251,39 @@ _RAGTAG_SYMBOLS.room = function(g, wx, wy, ww, wh, pal, def, unitId) {
   _c(265, 123, 1.5, { fill: '#fde68a', opacity: 0.7 });
   _c(268, 127, 1, { fill: '#fbbf24', opacity: 0.5 });
 
+  // ── Exhaust fan (on top of crash damage, aligned with air_exhaust port) ──
+  {
+    const fcx = 256, fcy = 96, fr = 12;
+    // Duct from fan housing to hull wall
+    _r(fcx + fr - 2, fcy - 7, 270 - (fcx + fr - 2), 14, { fill: _C.conduit, stroke: _C.conduitStroke, 'stroke-width': 0.5 });
+    // Housing (circular mount)
+    _c(fcx, fcy, fr + 2, { fill: _C.metal, stroke: _C.conduitStroke, 'stroke-width': 1 });
+    _c(fcx, fcy, fr, { fill: _C.dark });
+    // Protective grille (concentric rings)
+    _c(fcx, fcy, fr - 1, { fill: 'none', stroke: _C.bolt, 'stroke-width': 0.5 });
+    _c(fcx, fcy, fr * 0.65, { fill: 'none', stroke: _C.bolt, 'stroke-width': 0.4 });
+    _c(fcx, fcy, fr * 0.3, { fill: 'none', stroke: _C.bolt, 'stroke-width': 0.3 });
+    // Blades (4 blades in rotating group)
+    const fanG = svgEl('g', { 'data-anim': 'room-fan',
+      'data-cx': wx+fcx, 'data-cy': wy+fcy, 'data-ff': (last.fan_frac ?? 0).toFixed(2),
+      transform: `rotate(0,${wx+fcx},${wy+fcy})` });
+    const bladeCol = lightsOn ? '#8090a8' : '#2a3040';
+    const br = fr - 3;
+    for (let i = 0; i < 4; i++) {
+      const a = i * 90 * Math.PI / 180;
+      const tipX = Math.cos(a) * br, tipY = Math.sin(a) * br;
+      const perpX = -Math.sin(a) * 3.5, perpY = Math.cos(a) * 3.5;
+      fanG.appendChild(svgEl('path', {
+        d: `M${wx+fcx} ${wy+fcy} L${wx+fcx+tipX+perpX} ${wy+fcy+tipY+perpY} L${wx+fcx+tipX-perpX} ${wy+fcy+tipY-perpY} Z`,
+        fill: bladeCol, opacity: 0.7, 'pointer-events': pe
+      }));
+    }
+    g.appendChild(fanG);
+    // Center hub
+    _c(fcx, fcy, 2.5, { fill: _C.metal, stroke: _C.conduitStroke, 'stroke-width': 0.6 });
+    _c(fcx, fcy, 1, { fill: _C.bolt });
+  }
+
   // ── Wall crack with rust ──
   _p(`M${wx+130} ${wy+216} L${wx+136} ${wy+230} L${wx+132} ${wy+248} L${wx+138} ${wy+265} L${wx+134} ${wy+278} L${wx+140} ${wy+290}`,
     { stroke: _C.dark, 'stroke-width': 1.2, opacity: 0.5 });
@@ -43969,6 +44002,17 @@ function _updateIconAnimations(at) {
     el.setAttribute('cx', px.toFixed(1));
     el.setAttribute('cy', py.toFixed(1));
     el.setAttribute('opacity', op > 0.02 ? op.toFixed(2) : '0');
+  }
+
+  // [v17.8.1] Room exhaust fan rotation — speed proportional to fan_frac
+  for (const fanG of svg.querySelectorAll('[data-anim="room-fan"]')) {
+    const cx = fanG.dataset.cx, cy = fanG.dataset.cy;
+    const ff = parseFloat(fanG.dataset.ff) || 0;
+    if (ff > 0.01) {
+      const angle = (at * 900 * ff) % 360;  // fast spin when running
+      const pg = fanG.closest('g');  // room group provides wx,wy offset
+      fanG.setAttribute('transform', `rotate(${angle.toFixed(1)},${cx},${cy})`);
+    }
   }
 
   // [v17.8.0] Lena room puppet animations — blink, breathe, pupil drift, expression-specific
