@@ -347,6 +347,18 @@
   CHANGELOG  (latest first)
   ═══════════════════════════════════════════════════════════════════════════
 
+  ─── v17.7.9 — Per-unit mass balance: skip inventory units ───────────────
+
+  **Room mass imbalance warning fixed.**  The per-unit mass balance
+  check flagged room with "Mass imbalance: 9.80 g/s in, 9.73 g/s out
+  (Δ = 71 mg/s)" — but this delta is real accumulation (water consumed
+  by crew, O₂ inventory changes), not an error.  Fix: skip the
+  per-unit mass balance check for all inventory-bearing units
+  (def.inventory === true).  Their m_in ≠ m_out by design; the
+  system-level balance sheet already handles accumulation correctly.
+
+  NNGs: NNG-1 (no false positives), NNG-14 (changelog).
+
   ─── v17.7.8 — Bend symbol: simple pipe elbow ────────────────────────────
 
   **bend ragtag symbol rewritten.**  Now a simple 90° quarter-circle
@@ -27227,7 +27239,9 @@ function solveScene(scene, options = {}) {
     }
 
     // ── Per-unit mass balance (global kg/s) ──
-    if (matIn.length > 0 && matOut.length > 0) {
+    // Skip inventory-bearing units: their m_in ≠ m_out by design
+    // (the difference is accumulation rate, handled by system balance sheet).
+    if (matIn.length > 0 && matOut.length > 0 && !def.inventory) {
       let m_in = 0, m_out = 0;
       for (const s of matIn)  m_in  += streamMass_kgps(s);
       for (const s of matOut) m_out += streamMass_kgps(s);
@@ -44270,7 +44284,7 @@ window.addEventListener('resize', () => {
 
 // [v14.10.3] Load on startup: auto-save (if matching DEMO_VERSION) or demo_room_survival
 {
-  const DEMO_VERSION = 'v17.7.8';  // [v17.7.8] bend symbol rewrite
+  const DEMO_VERSION = 'v17.7.9';  // [v17.7.9] per-unit mass balance: skip inventory units
   const _AUTOSAVE_VER_KEY = AUTOSAVE_KEY + '_demoVer';
   // [v17.4.0] Read using AUTOSAVE_KEY constant — was hardcoded 'ptis_autosave'
   // which never matched the write key 'processThis_autosave'. All autosaves
