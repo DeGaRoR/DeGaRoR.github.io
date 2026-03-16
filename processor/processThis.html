@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v17.8.0
+  processThis v17.8.1
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -351,6 +351,50 @@
   ═══════════════════════════════════════════════════════════════════════════
   CHANGELOG  (latest first)
   ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v17.8.1 — Crew recovery + death permanence ──────────────────────────
+
+  **Body deficit recovery.**  Water and food deficits now recover when
+  supply is adequate (≥95% of demand).  Fixed recovery rate: 0.04 mol/s
+  per person.  139 mol deficit (incapacitation) recovers in ~1h, 417 mol
+  (near-death) in ~3h.  Recovery is an independent term subtracted from
+  the deficit delta — the `Math.max(0, ...)` accumulation clamp stays.
+  Gate: `supply/demand ≥ 0.95`.  This fixes the stuck-deficit bug where
+  crew never recovered from dehydration even when fully supplied, because
+  the game loop has no surplus state (tanks deliver at nominal, not above).
+
+  **Death permanence.**  `inventory._dead` flag set via `_room_meta` when
+  `crewState === 'death'` (any cause).  Once set, never cleared.  Flag
+  persists across save/reload.  Dead room: tick runs normally for field
+  population, crewState forced to 'death', no recovery possible.
+  Metabolism continues computing but recovery is gated out.
+
+  **New expression: recovering.**  Warm half-open eyes (conscious, from
+  warm layer) + wavy mouth (groggy).  Skin tint `#f2d090` between
+  fainting pale and normal warm.  Green ⊕ indicator pulsing near head.
+  Priority 3: between fainting and cold/warm temperature expressions.
+  Slow blink animation (6s period, like disappointed).
+
+  **Status messages.**  Alarm shows "Crew recovering — Xh" or "Xm" when
+  recovering.  Status bar passes through the recovering message from the
+  alarm system.  Recovery timer = max(h2o, food) deficit per person /
+  RECOVERY_RATE.
+
+  **Misc fixes in this batch:**
+  - Gauge band linecap: round → butt (overlap at small radius).
+  - Lena position: shifted right and lower in room.
+  - Earring strokes: 0.4px black outline restored from SVG source.
+  - Pomette gradients: proper radial gradient defs instead of flat color.
+  - Lena render order: after lights layer (fixes transparent feet bug).
+  - HUD z-index: moved out of info-bar stacking context (fixed position,
+    z-index 50 above inspector panel 30).
+  - External Feed inspector: source_mix alias for profileId-first dispatch.
+  - Status bar: "☠ Crew dead" when dead, "Crew recovering" when recovering.
+  - §LENA-PALETTE: auto-derived skin/jacket/pants/tshirt palettes.
+
+  NNGs: NNG-1 (deficit conservation — recovery is a real physical process),
+  NNG-3 (WYSIWYG — Lena reflects recovery state), NNG-14 (changelog +
+  5 new tests: 694–698).
 
   ─── v17.8.0 — Lena full-body puppet in room + color restyle + lighting ───
 
@@ -5599,11 +5643,10 @@
 
     /* [v17.6.3] Lena HUD head — hangs below info-bar */
     #lenaHud {
-      position: relative;
+      position: fixed;
+      top: 4px;
+      right: 120px;
       width: 66px; height: 66px;
-      margin-top: -8px;
-      margin-bottom: -34px;
-      margin-right: 2px;
       flex-shrink: 0;
       cursor: default;
       filter: drop-shadow(0 3px 6px rgba(0,0,0,0.6));
@@ -10038,7 +10081,6 @@
 
       <!-- Diagnostic Light Indicators [v10.3.1] -->
       <div class="info-bar-right">
-        <div id="lenaHud" title="Crew status"></div>
         <div id="diagnosticLights" class="diagnostic-lights" style="display:none;">
           <div class="tl-dot grey" id="tlConv" data-target="solver"><div class="tl-tip">Convergence</div></div>
           <div class="tl-dot grey" id="tlBalance" data-target="balance"><div class="tl-tip">Mass &amp; Energy Balance</div></div>
@@ -10055,6 +10097,9 @@
         </div>
       </div>
     </div>
+
+    <!-- [v17.8.0] Lena HUD — own stacking context, above inspector (z-index 50 > rightPanel 30) -->
+    <div id="lenaHud" title="Crew status"></div>
 
     <!-- [v14.10.2] Survival expanded overlay (drops below info-bar) -->
     <div class="survival-expanded" id="survivalExpanded">
@@ -23057,6 +23102,8 @@ UnitRegistry.register('room', {
       if (typeof meta.food_deficit_delta === 'number') {
         inv._food_deficit = Math.max(0, (inv._food_deficit || 0) + meta.food_deficit_delta);
       }
+      // [v17.8.0] Death permanence — once dead, stays dead
+      if (meta._dead) inv._dead = true;
     }
 
     return inv;
@@ -23071,10 +23118,15 @@ UnitRegistry.register('room', {
     const inv = u.inventory || { n: {}, T_K: 294 };
     const T_room = inv.T_K || 294;
 
+    // ── [v17.8.0] Death permanence — flag read, tick runs normally for field population ──
+    const _isDead = !!inv._dead;
+
     // ── Constants ──
     const R_O2   = 2.33e-4;   // mol/s per person — O₂ consumed
     const R_FOOD = 2.33e-4;   // mol/s per person — CH₂O consumed
     const R_H2O_COLD = 1.29e-3; // mol/s per person — drinking water
+    const RECOVERY_RATE = 0.04;  // mol/s per person — body rehydration/refeeding rate
+    const SUPPLY_GATE = 0.95;    // supply/demand ratio to trigger recovery
     const R_H2O_HOT  = 3.2e-4;  // mol/s per person — hot water (hygiene)
     const R_CIRC = 0.168;     // mol/s per person — air circulation
     const DH_COMBUSTION = 519400; // J/mol — ΔH for CH₂O + O₂ → CO₂ + H₂O
@@ -23322,7 +23374,7 @@ UnitRegistry.register('room', {
         worstLabel = key;
       }
     }
-    const crewState =
+    const crewState = _isDead ? 'death' :
       worstCond === 'CATASTROPHIC' ? 'death' :
       worstCond === 'MAJOR' ? 'incapacitated' :
       worstCond === 'WARNING' ? 'degraded' : 'normal';
@@ -23428,8 +23480,50 @@ UnitRegistry.register('room', {
     }
 
     // ── Store water deficit delta in exhaust metadata for updateInventory ──
-    ports.air_exhaust._room_meta.h2o_deficit_delta = h2o_deficit_rate * dt;
-    ports.air_exhaust._room_meta.food_deficit_delta = food_deficit_rate * dt;
+    // [v17.8.0] Recovery: when supply adequate AND not dead, body rehydrates/refeeds
+    const h2o_supply_ratio = total_water_demand > 0 ? total_water / total_water_demand : 1;
+    const food_supply_ratio = food_demand > 0 ? food_supply / food_demand : 1;
+    const h2o_recovering = !_isDead && h2o_supply_ratio >= SUPPLY_GATE && h2o_deficit > 0;
+    const food_recovering = !_isDead && food_supply_ratio >= SUPPLY_GATE && food_deficit > 0;
+    const h2o_recovery = h2o_recovering ? Math.min(RECOVERY_RATE * N * dt, h2o_deficit) : 0;
+    const food_recovery = food_recovering ? Math.min(RECOVERY_RATE * N * dt, food_deficit) : 0;
+    ports.air_exhaust._room_meta.h2o_deficit_delta = h2o_deficit_rate * dt - h2o_recovery;
+    ports.air_exhaust._room_meta.food_deficit_delta = food_deficit_rate * dt - food_recovery;
+
+    // Recovery state: for expression system and status messages
+    const isRecovering = h2o_recovering || food_recovering;
+    const maxDeficitPP = Math.max(h2o_deficit_per_person, food_deficit_per_person);
+    const recovery_h = isRecovering ? maxDeficitPP / RECOVERY_RATE / 3600 : 0;
+
+    // [v17.8.0] Death permanence — write flag to inventory via metadata
+    if (crewState === 'death') {
+      ports.air_exhaust._room_meta._dead = true;
+    }
+
+    // ── 14. Room alarm ──
+    if (_isDead) {
+      u.last.error = { severity: ErrorSeverity.CATASTROPHIC, _category: 'crew_safety',
+        message: '☠ Crew dead' };
+    } else if (worstCond === 'CATASTROPHIC') {
+      u.last.error = { severity: ErrorSeverity.CATASTROPHIC, _category: 'crew_safety',
+        message: crewState === 'death'
+          ? `☠ Crew dead — ${_condLabel[worstLabel] || worstLabel}`
+          : `Crew dying — ${_condLabel[worstLabel] || worstLabel}` };
+    } else if (isRecovering && (worstCond === 'MAJOR' || worstCond === 'WARNING')) {
+      const rh = recovery_h < 1 ? `${Math.round(recovery_h * 60)}m` : `${recovery_h.toFixed(1)}h`;
+      u.last.error = { severity: worstCond === 'MAJOR' ? ErrorSeverity.MAJOR : ErrorSeverity.MINOR,
+        _category: 'crew_safety',
+        message: `Crew recovering — ${rh}` };
+    } else if (worstCond === 'MAJOR') {
+      u.last.error = { severity: ErrorSeverity.MAJOR, _category: 'crew_safety',
+        message: `Crew incapacitated — ${_condLabel[worstLabel] || worstLabel}` };
+    } else if (worstCond === 'WARNING') {
+      u.last.error = { severity: ErrorSeverity.MINOR, _category: 'crew_safety',
+        message: `Crew at risk — ${_condLabel[worstLabel] || worstLabel}` };
+    }
+
+    u.last.recovering = isRecovering;
+    u.last.recovery_h = recovery_h;
   }
 });
 
@@ -28671,7 +28765,9 @@ function updateStatusIndicator(solveResult) {
     msgClass = 'catastrophic';
   } else {
     const warn = plantAlarms.find(a => a.severity.level >= AlarmSeverity.WARNING.level);
-    if (warn?.category === AlarmCategory.CREW_SAFETY) { msg = 'Crew at risk'; }
+    if (warn?.category === AlarmCategory.CREW_SAFETY) {
+      msg = warn.message?.includes('recovering') ? warn.message : 'Crew at risk';
+    }
     else if (warn?.category === AlarmCategory.ENERGY_BALANCE) { msg = 'Energy leak'; }
     else if (warn?.category === AlarmCategory.UNIT) { msg = 'Check units'; }
     else if (warnN === 1) { msg = 'Minor issue'; }
@@ -28704,7 +28800,8 @@ const _LENA_PALETTE = {
 // Expression skin tint overrides (applied instead of base skin)
 const _LENA_SKIN_TINTS = {
   happy:'#f7c87a', disappointed:'#f7c87a', shouting:'#f7c87a',
-  warm:'#f5b06a', fainting:'#f0dca0', cold:'#dcc4b0', death:'#c8b8a0'
+  warm:'#f5b06a', fainting:'#f0dca0', cold:'#dcc4b0', death:'#c8b8a0',
+  recovering:'#f2d090'  // between fainting pale and normal warm
 };
 
 // Derive skin palette: 7 shades from one base
@@ -28901,9 +28998,9 @@ base: [
   {t:'p',l:'hairSpec1',f:'#524f52',d:'m 92.242403,26.595831 c 0.248974,-0.699364 3.115997,0.261474 4.293418,1.221973 1.177421,0.960499 2.614443,3.686587 2.146707,4.128283 -0.467736,0.441696 -2.428566,-1.813601 -3.500784,-2.708154 -1.072218,-0.894553 -3.188315,-1.942738 -2.939341,-2.642102 z'},
   {t:'p',l:'hairSpec2',f:'#424242',d:'m 72.604812,31.176399 c 0.895884,-0.199163 1.54022,0.521972 1.821542,1.331126 0.281322,0.809154 -0.177837,2.094049 -0.770652,2.77902 -0.592815,0.684971 -1.631685,1.427816 -2.33531,1.027538 -0.703625,-0.400278 -0.455296,-1.379279 -0.280239,-2.288606 0.175057,-0.909327 0.668775,-2.649915 1.564659,-2.849078 z'},
   {t:'p',l:'ear',f:'#f69d4e',d:'m 102.36496,43.082784 c 0.94527,0.03103 1.54221,0.818525 1.70085,1.502695 0.15864,0.68417 0.0797,1.726162 -0.19816,2.394406 -0.27783,0.668244 -0.72482,1.183782 -1.28802,1.502695 -0.5632,0.318913 -1.79065,0.471173 -1.91552,0.26421 -0.12487,-0.206963 0.18651,-0.922861 0.2477,-1.304536 0.0612,-0.381675 0.0559,-0.704485 -0.0661,-1.007303 -0.12202,-0.302818 -0.26068,-0.283184 -0.3798,-0.693552 -0.11912,-0.410368 -0.11294,-0.960408 0.19816,-1.519208 0.3111,-0.5588 0.75561,-1.17044 1.70089,-1.139407 z'},
-  {t:'p',l:'earring1',f:'#ece7da',d:'m 101.98185,49.677972 c -0.18826,-0.0029 0.13403,0.898013 -0.13726,1.152997 -0.27129,0.254984 -0.66332,0.05624 -0.96998,0.04575 -0.30666,-0.01049 0.7734,1.16545 1.49157,0.558198 0.71817,-0.607252 -0.19607,-1.7541 -0.38433,-1.756949 z'},
-  {t:'p',l:'earring2',f:'#ece7da',d:'m 104.72483,44.572999 c 0.005,0.188195 0.8913,-0.173175 1.1579,0.08671 0.2666,0.259882 0.0852,0.660226 0.0881,0.967051 0.003,0.306812 1.13052,-0.82362 0.49244,-1.51455 -0.63807,-0.690932 -1.74385,0.272583 -1.73846,0.460786 z'},
-  {t:'p',l:'earring3',f:'#ece7da',d:'m 104.09416,42.722344 c 0.11095,0.152105 0.63676,-0.647257 1.00364,-0.583914 0.36688,0.06335 0.44394,0.496066 0.62002,0.747353 0.17611,0.251248 0.4658,-1.318882 -0.4513,-1.527317 -0.9171,-0.208436 -1.28333,1.211771 -1.17236,1.363876 z'},
+  {t:'p',l:'earring1',f:'#ece7da',s:'#000000',sw:0.4,d:'m 101.98185,49.677972 c -0.18826,-0.0029 0.13403,0.898013 -0.13726,1.152997 -0.27129,0.254984 -0.66332,0.05624 -0.96998,0.04575 -0.30666,-0.01049 0.7734,1.16545 1.49157,0.558198 0.71817,-0.607252 -0.19607,-1.7541 -0.38433,-1.756949 z'},
+  {t:'p',l:'earring2',f:'#ece7da',s:'#000000',sw:0.4,d:'m 104.72483,44.572999 c 0.005,0.188195 0.8913,-0.173175 1.1579,0.08671 0.2666,0.259882 0.0852,0.660226 0.0881,0.967051 0.003,0.306812 1.13052,-0.82362 0.49244,-1.51455 -0.63807,-0.690932 -1.74385,0.272583 -1.73846,0.460786 z'},
+  {t:'p',l:'earring3',f:'#ece7da',s:'#000000',sw:0.4,d:'m 104.09416,42.722344 c 0.11095,0.152105 0.63676,-0.647257 1.00364,-0.583914 0.36688,0.06335 0.44394,0.496066 0.62002,0.747353 0.17611,0.251248 0.4658,-1.318882 -0.4513,-1.527317 -0.9171,-0.208436 -1.28333,1.211771 -1.17236,1.363876 z'},
 ],
 happy: [
   {t:'p',l:'nose_happy',f:'#feaa5f',d:'m 82.751738,48.352608 c -0.281103,0.144095 -0.196939,0.791044 -0.03503,1.062568 0.161907,0.271524 0.518113,0.655991 0.770651,0.490415 0.252538,-0.165576 -0.09629,-0.554962 -0.245207,-0.817358 -0.148961,-0.262396 -0.209312,-0.87972 -0.490414,-0.735625 z'},
@@ -28990,6 +29087,19 @@ cold: [
   {t:'p',l:'eyebrowL_cold',f:'#000000',d:'m 81.697454,44.491659 c -0.09647,-0.09239 -0.140687,0.440587 -1.229408,0.524116 -1.088721,0.08353 -1.98455,-0.410963 -2.795287,-0.757058 -0.810737,-0.346095 -1.439118,-0.717618 -2.159086,-0.710976 -0.719967,0.0066 -1.778282,0.552078 -1.749142,0.698038 0.02914,0.14596 0.716287,-0.270915 1.604703,-0.129413 0.888417,0.141503 2.521758,1.246053 3.494109,1.462349 0.972352,0.216297 1.350683,0.360394 1.992937,0.06471 0.642253,-0.295687 0.937644,-1.059368 0.841174,-1.151764 z'},
   {t:'p',l:'frownL_cold',f:'#000000',d:'m 82.631472,44.362944 c -0.04957,-0.0033 0.07836,0.753748 -0.02413,1.052988 -0.102487,0.299239 -0.575208,0.650851 -0.552376,0.694809 0.02283,0.04396 0.590366,-0.233948 0.741576,-0.594801 0.15121,-0.360852 -0.115502,-1.14968 -0.165073,-1.152996 z'},
   {t:'p',l:'frownR_cold',f:'#000000',d:'m 83.902312,44.376885 c 0.07181,-0.01467 0.0787,0.633199 0.571405,1.067185 0.492702,0.433986 0.944339,0.387143 0.938896,0.436493 -0.0054,0.04935 -0.680804,0.08117 -1.077461,-0.224823 -0.396657,-0.305986 -0.504649,-1.264185 -0.43284,-1.278855 z',h:1},
+],
+// [v17.8.0] Recovering — waking from deficit impairment. Warm eyes (conscious), wavy mouth (groggy).
+recovering: [
+  {t:'p',l:'nose_warm',f:'#feaa5f',d:'m 82.723261,48.204522 c -0.471959,0.151262 -0.506929,1.174243 -0.325649,1.635926 0.181276,0.46168 0.63448,1.147831 1.067708,0.956025 0.433228,-0.191805 -0.0074,-0.883687 -0.170798,-1.32792 -0.163567,-0.444244 -0.0993,-1.415287 -0.571261,-1.264031 z'},
+  {t:'p',l:'eyeR_warm',f:'#f7f5ec',d:'m 87.790062,44.865851 c 0.187633,1.794906 2.315376,1.719304 3.560749,1.817198 1.245374,0.0979 3.580915,-0.925872 3.471273,-2.475029 -0.109642,-1.549157 -1.804491,-1.798661 -3.408032,-1.707645 -1.603541,0.09102 -3.811622,0.57057 -3.62399,2.365476 z'},
+  {t:'p',l:'eyeL_warm',f:'#f7f5ec',d:'m 78.718609,49.779214 c 1.525459,-0.238498 2.95499,-1.359061 2.665293,-2.982611 -0.289697,-1.623551 -1.928516,-1.302254 -3.499964,-1.112356 -1.571449,0.189898 -3.218527,1.549956 -3.121455,2.352128 0.181926,1.503373 2.430666,1.981337 3.956126,1.742839 z'},
+  {t:'p',l:'eyelashR_warm',f:'#020204',d:'m 87.522387,44.013066 c 0.433809,0.405582 0.5156,-1.046542 3.434615,-1.134383 2.919015,-0.08784 2.974606,0.573227 3.87975,0.633232 0.733694,0.115403 0.795615,-0.638066 1.222694,-1.183607 -0.378615,0.193154 -1.103712,0.116715 -1.509016,0.06605 -1.713208,-0.679914 -3.34667,-0.613549 -4.89242,-0.204537 -1.54575,0.409012 -2.569431,1.417663 -2.135623,1.823245 z'},
+  {t:'e',l:'pupilR_warm',f:'#030204',cx:'91.385',cy:'42.820',rx:'2.825',ry:'2.659'},
+  {t:'p',l:'eyelashL_warm',f:'#020204',d:'m 80.93715,45.962145 c 0.159357,-0.184183 0.122161,-0.539079 -0.176555,-0.718976 -0.03996,-0.02406 -1.916804,-0.351367 -3.744118,0.287772 -1.827313,0.639139 -2.77414,1.550151 -2.929158,1.812765 l -0.971971,0.143928 c 0.59513,0.580806 0.963684,0.918191 1.548262,0.794005 0.584578,-0.124186 0.773944,-1.211044 2.776868,-1.882493 2.002923,-0.671448 3.337314,-0.252817 3.496672,-0.437001 z'},
+  {t:'e',l:'pupilL_warm',f:'#020204',cx:'79.796',cy:'45.932',rx:'2.752',ry:'2.659'},
+  {t:'p',l:'eyebrowR_warm',f:'#040405',d:'m 87.694721,38.812903 c 0.145763,0.282105 0.848497,-0.445152 3.023305,-0.120161 2.174808,0.324987 2.907769,0.972179 3.084483,0.722834 0.176703,-0.249353 -0.735741,-1.121156 -2.264457,-1.488461 -1.528717,-0.367303 -2.948249,-0.329178 -3.476414,0.01005 -0.528166,0.339211 -0.512677,0.593632 -0.366913,0.875737 z'},
+  {t:'p',l:'eyebrowL_warm',f:'#030101',d:'m 79.027263,41.146455 c -0.07076,-0.392449 -1.54388,-0.748203 -3.083145,0.13705 -1.539267,0.885253 -2.171069,2.492995 -1.929651,2.735894 0.241416,0.242902 0.382955,-1.017337 2.386471,-2.063159 2.003516,-1.045822 2.697083,-0.417342 2.626325,-0.809785 z'},
+  {t:'p',l:'mouth_recovering',f:'#1a1210',d:'m 82.5,53.8 c 0.8,-0.4 1.6,0.3 2.4,0 0.8,-0.3 1.4,0.4 2.2,0.1 0.8,-0.3 1.2,0.2 1.8,0 0.6,-0.2 1.0,0.3 1.4,0.1',s:'#1a1210',sw:0.6},
 ],
 };
 (function initLenaHud() {
@@ -33639,18 +33749,27 @@ _RAGTAG_SYMBOLS.food_storage = function(g, wx, wy, ww, wh, pal, def, unitId) {
 function _lenaRoomExpression(u) {
   const last = u?.last || {};
   const cs = last.crewState;
+  const inv = u?.inventory || {};
+  // 1. Death (permanent)
+  if (inv._dead) return 'death';
   if (cs === 'death') return 'death';
-  if (cs === 'incapacitated') return 'fainting';
+  // 2. Fainting (incapacitated AND not recovering from deficit)
+  if (cs === 'incapacitated' && !last.recovering) return 'fainting';
+  // 3. Recovering (deficit present + supply adequate)
+  if (last.recovering) return 'recovering';
+  // 4–5. Temperature
   const tc = last.conditions?.temp;
   if (tc && tc.status !== 'OK')
     return (last.T_room_K || 294) < 288 ? 'cold' : 'warm';
-  // Check for fried equipment in scene
+  // 6. Shouting (equipment destroyed)
   if (typeof scene !== 'undefined' && scene.units) {
     for (const [, su] of scene.units) {
       if (su.defId !== 'room' && su.last?.fried) return 'shouting';
     }
   }
+  // 7. Disappointed (degraded)
   if (cs === 'degraded') return 'disappointed';
+  // 8. Happy
   return 'happy';
 }
 
@@ -33674,17 +33793,57 @@ function _renderLenaInRoom(g, wx, wy, lightsOn, expression, unitId) {
     tshirt:  tp,
   };
 
-  // Gradient remap for blush/pomette (same as HUD)
+  // Gradient remap for blush/pomette — create radial gradients in SVG defs
+  const _pRG = `lrg-${unitId}`;  // unique prefix
+  const _svgDefsP = (typeof svg !== 'undefined' ? svg : g.closest('svg'))?.querySelector('defs');
+  if (_svgDefsP) {
+    // Remove stale pomette gradients
+    for (const old of _svgDefsP.querySelectorAll(`[id^="${_pRG}"]`)) old.remove();
+    // Base linear gradient (color stop source)
+    const blushCol = _dimHex('#e78570', dimFactor);
+    const lgP = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
+    lgP.setAttribute('id', `${_pRG}-base`);
+    [[0, blushCol, 1], [0.765, blushCol, 1], [1, blushCol, 0]].forEach(([off, col, op]) => {
+      const s = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+      s.setAttribute('offset', off); s.setAttribute('stop-color', col); s.setAttribute('stop-opacity', op);
+      lgP.appendChild(s);
+    });
+    _svgDefsP.appendChild(lgP);
+    // 4 radial gradients (warm L/R, faint L/R) with original transforms
+    const rgDefs = [
+      ['51', 'matrix(0.0619,0.925,-0.7709,0.0758,95.768,-26.139)'],
+      ['52', 'matrix(0.0733,0.9327,-0.9133,0.0764,135.442,-56.093)'],
+      ['61', 'matrix(0.0733,0.9327,-0.9133,0.0764,133.82,-55.08)'],
+      ['62', 'matrix(0.0619,0.925,-0.7709,0.0758,94.996,-25.979)'],
+    ];
+    for (const [suffix, tr] of rgDefs) {
+      const rg = document.createElementNS('http://www.w3.org/2000/svg', 'radialGradient');
+      rg.setAttribute('id', `${_pRG}-${suffix}`);
+      rg.setAttribute('href', `#${_pRG}-base`);
+      rg.setAttribute('cx', '96.574'); rg.setAttribute('cy', '48.589');
+      rg.setAttribute('fx', '96.574'); rg.setAttribute('fy', '48.589');
+      rg.setAttribute('r', '2.928');
+      rg.setAttribute('gradientTransform', tr);
+      rg.setAttribute('gradientUnits', 'userSpaceOnUse');
+      _svgDefsP.appendChild(rg);
+    }
+  }
   const _gradMap = {
-    'url(#radialGradient51)':'#e78570', 'url(#radialGradient52)':'#e78570',
-    'url(#radialGradient61)':'#e78570', 'url(#radialGradient62)':'#e78570',
+    'url(#radialGradient51)': `url(#${_pRG}-51)`,
+    'url(#radialGradient52)': `url(#${_pRG}-52)`,
+    'url(#radialGradient61)': `url(#${_pRG}-61)`,
+    'url(#radialGradient62)': `url(#${_pRG}-62)`,
     'url(#linearGradient26)': sp.face,
   };
 
   // Resolve fill color: palette remap + crate recolor + dimming
   const _fill = (f, isCrate) => {
-    // Gradient refs → flat color
-    if (f.startsWith && f.startsWith('url(')) f = _gradMap[f] || sp.face;
+    // Gradient refs → remapped gradient URL or flat color
+    if (f.startsWith && f.startsWith('url(')) {
+      const mapped = _gradMap[f];
+      if (mapped && mapped.startsWith('url(')) return mapped;  // gradient URL — no further processing
+      f = mapped || sp.face;
+    }
     // Palette-based remap
     const role = _LENA_COLOR_ROLES[f];
     if (role) {
@@ -33700,9 +33859,9 @@ function _renderLenaInRoom(g, wx, wy, lightsOn, expression, unitId) {
 
   // Wrapper group: translate + scale to place character in room
   // Character SVG bbox: x=[45,125] y=[22,131], scale 1.5×
-  // Placed: center-x ~175, bottom touching floor at room-local ~400
+  // Placed: center-x ~190, bottom touching floor near hull border
   const lg = svgEl('g', {
-    transform: `translate(${wx+47.5},${wy+198}) scale(1.5)`,
+    transform: `translate(${wx+62},${wy+204}) scale(1.5)`,
     'pointer-events': 'none',
     'data-lena-room': unitId
   });
@@ -33711,17 +33870,20 @@ function _renderLenaInRoom(g, wx, wy, lightsOn, expression, unitId) {
   const _mkPart = (p, isCrate) => {
     if (p.t === 'p') {
       const el = svgEl('path', { d: p.d, fill: _fill(p.f, isCrate) });
+      if (p.s) { el.setAttribute('stroke', _dimHex(p.s, dimFactor)); el.setAttribute('stroke-width', p.sw || 0.4); }
       if (p.op != null) el.setAttribute('opacity', p.op);
       if (p.tr) el.setAttribute('transform', p.tr);
       return el;
     } else if (p.t === 'e') {
       const el = svgEl('ellipse', { cx: p.cx, cy: p.cy, rx: p.rx, ry: p.ry,
         fill: _fill(p.f, isCrate) });
+      if (p.s) { el.setAttribute('stroke', _dimHex(p.s, dimFactor)); el.setAttribute('stroke-width', p.sw || 0.4); }
       if (p.op != null) el.setAttribute('opacity', p.op);
       if (p.tr) el.setAttribute('transform', p.tr);
       return el;
     } else if (p.t === 'c') {
       const el = svgEl('circle', { cx: p.cx, cy: p.cy, r: p.r, fill: _fill(p.f, isCrate) });
+      if (p.s) { el.setAttribute('stroke', _dimHex(p.s, dimFactor)); el.setAttribute('stroke-width', p.sw || 0.4); }
       if (p.op != null) el.setAttribute('opacity', p.op);
       return el;
     } else if (p.t === 'g') {
@@ -33805,6 +33967,18 @@ function _renderLenaInRoom(g, wx, wy, lightsOn, expression, unitId) {
   const armRG = svgEl('g', { 'data-anim': 'lena-armR', 'data-px': '108', 'data-py': '63' });
   for (const p of _LENA_BODY.armR) { const el = _mkPart(p, false); if (el) armRG.appendChild(el); }
   lg.appendChild(armRG);
+
+  // 7. Recovery indicator (green ⊕ pulsing near head, only when recovering)
+  if (expression === 'recovering') {
+    const ri = svgEl('g', { 'data-anim': 'lena-recovery', transform: 'translate(105,28)' });
+    ri.appendChild(svgEl('circle', { cx: 0, cy: 0, r: 4.5, fill: 'none',
+      stroke: '#22c55e', 'stroke-width': 0.8, opacity: 0.8 }));
+    ri.appendChild(svgEl('line', { x1: 0, y1: -2.5, x2: 0, y2: 2.5,
+      stroke: '#22c55e', 'stroke-width': 1.2, 'stroke-linecap': 'round' }));
+    ri.appendChild(svgEl('line', { x1: -2.5, y1: 0, x2: 2.5, y2: 0,
+      stroke: '#22c55e', 'stroke-width': 1.2, 'stroke-linecap': 'round' }));
+    lg.appendChild(ri);
+  }
 
   g.appendChild(lg);
 }
@@ -33946,7 +34120,7 @@ _RAGTAG_SYMBOLS.room = function(g, wx, wy, ww, wh, pal, def, unitId) {
       g.appendChild(svgEl('path', {
         d: `M${x0},${y0} A${bandR},${bandR} 0 ${large} 1 ${x1},${y1}`,
         fill: 'none', stroke: b.color, 'stroke-width': 2.5, opacity: 0.6,
-        'stroke-linecap': 'round', 'pointer-events': pe
+        'stroke-linecap': 'butt', 'pointer-events': pe
       }));
     }
     for (let ti = 0; ti <= 8; ti++) {
@@ -34206,18 +34380,12 @@ _RAGTAG_SYMBOLS.room = function(g, wx, wy, ww, wh, pal, def, unitId) {
   _p(`M${wx+160} ${wy+388} L${wx+164} ${wy+385} L${wx+167} ${wy+390} Z`,
     { fill: _C.dark, opacity: 0.3 });
 
-  // ═══ LENA CHARACTER (between background and lights — she gets illuminated) ═══
-  if ((u?.params?.nPeople ?? 0) > 0) {
-    const _expr = _lenaRoomExpression(u);
-    // Wall shadow behind Lena (soft dark ellipse on back wall, suggests depth)
-    if (lightsOn) {
-      g.appendChild(svgEl('ellipse', { cx: wx+175, cy: wy+345, rx: 55, ry: 70,
-        fill: '#000000', opacity: 0.12, 'pointer-events': pe }));
-      // Smaller sharper shadow core
-      g.appendChild(svgEl('ellipse', { cx: wx+175, cy: wy+360, rx: 38, ry: 50,
-        fill: '#000000', opacity: 0.08, 'pointer-events': pe }));
-    }
-    _renderLenaInRoom(g, wx, wy, lightsOn, _expr, unitId);
+  // ═══ LENA WALL SHADOW (behind lights — shadow is on the wall) ═══
+  if ((u?.params?.nPeople ?? 0) > 0 && lightsOn) {
+    g.appendChild(svgEl('ellipse', { cx: wx+190, cy: wy+345, rx: 55, ry: 70,
+      fill: '#000000', opacity: 0.12, 'pointer-events': pe }));
+    g.appendChild(svgEl('ellipse', { cx: wx+190, cy: wy+360, rx: 38, ry: 50,
+      fill: '#000000', opacity: 0.08, 'pointer-events': pe }));
   }
 
   // ═══ LIGHTS LAYER ═══
@@ -34313,6 +34481,12 @@ _RAGTAG_SYMBOLS.room = function(g, wx, wy, ww, wh, pal, def, unitId) {
         _r(fx, 385, 8, 1.5, { rx: 0.5, fill: '#ef4444', opacity: 0.06 });
       }
     }
+  }
+
+  // ═══ LENA CHARACTER (on top of lights — she sits in front of the illuminated scene) ═══
+  if ((u?.params?.nPeople ?? 0) > 0) {
+    const _expr = _lenaRoomExpression(u);
+    _renderLenaInRoom(g, wx, wy, lightsOn, _expr, unitId);
   }
 
   // ═══ HULL DETAILS (on top of background) ═══
@@ -43835,9 +44009,9 @@ function _updateIconAnimations(at) {
     }
 
     // ── Blink (periodic scaleY collapse on eyes + pupils) ──
-    if (expr === 'happy' || expr === 'disappointed' || expr === 'warm') {
+    if (expr === 'happy' || expr === 'disappointed' || expr === 'warm' || expr === 'recovering') {
       // Use at-based pseudo-periodic blink: blink when fractional part of slow sawtooth passes threshold
-      const blinkPeriod = expr === 'disappointed' ? 6.0 : 4.0;
+      const blinkPeriod = (expr === 'disappointed' || expr === 'recovering') ? 6.0 : 4.0;
       const blinkPhase = (t2 / blinkPeriod) % 1.0;
       const blinking = blinkPhase > 0.97;  // ~3% of cycle = ~120-180ms
       if (blinking) {
@@ -43898,6 +44072,12 @@ function _updateIconAnimations(at) {
         const angle = Math.sin(t2 / 7 + 1.5) * 0.6;
         armL.setAttribute('transform', `rotate(${angle.toFixed(2)},${px},${py})`);
       }
+    }
+
+    // ── Recovery indicator: pulsing green ⊕ ──
+    if (parentG && expr === 'recovering') {
+      const ri = parentG.querySelector('[data-anim="lena-recovery"]');
+      if (ri) ri.setAttribute('opacity', (0.5 + Math.sin(t2 * 2) * 0.4).toFixed(2));
     }
   }
 }
@@ -62135,6 +62315,79 @@ function runTests() {
       conditions: { temp: { status: 'WARNING' } } } };
     const result = _lenaRoomExpression(u);
     t.assertOK(result === 'cold', 'temp priority over degraded: got ' + result);
+  });
+
+  test('694: _LENA_EXPR.recovering exists with correct parts', t => {
+    t.assertOK(Array.isArray(_LENA_EXPR.recovering), 'recovering expression array');
+    t.assertOK(_LENA_EXPR.recovering.length >= 8, 'has eyes+brows+nose+mouth: ' + _LENA_EXPR.recovering.length);
+    const mouth = _LENA_EXPR.recovering.find(p => p.l === 'mouth_recovering');
+    t.assertOK(mouth, 'has mouth_recovering part');
+  });
+
+  test('695: Water deficit recovery when supply adequate', t => {
+    const room = t.place('room', 0, 0, { nPeople: 2 });
+    const src = t.place('source', -7, 5, { species: 'H2O', nDot: 0.01, T: 293.15, P: 101325, phaseConstraint: 'L' });
+    t.wire(src, 'mat_out', room, 'h2o_in');
+    // Inject a deficit into inventory
+    t.unit(room).inventory._h2o_deficit = 100;  // 50 mol/pp
+    t.solve();
+    const L = t.last(room);
+    // Should be recovering (supply adequate, deficit > 1)
+    t.assertOK(L.recovering === true, 'recovering flag set');
+    t.assertOK(L.recovery_h > 0, 'recovery_h > 0: ' + L.recovery_h);
+    // Step one tick — deficit should decrease
+    const defBefore = t.unit(room).inventory._h2o_deficit;
+    TimeClock.mode = 'playing'; TimeClock.step(scene); TimeClock.mode = 'paused';
+    const defAfter = t.unit(room).inventory._h2o_deficit;
+    t.assertOK(defAfter < defBefore, `deficit decreased: ${defBefore.toFixed(1)} → ${defAfter.toFixed(1)}`);
+  });
+
+  test('696: No recovery when supply below gate', t => {
+    const room = t.place('room', 0, 0, { nPeople: 2 });
+    // No water source connected — supply = 0
+    t.unit(room).inventory._h2o_deficit = 100;
+    t.solve();
+    const L = t.last(room);
+    t.assertOK(!L.recovering, 'not recovering without supply');
+    // Step — deficit should not decrease
+    const defBefore = t.unit(room).inventory._h2o_deficit;
+    TimeClock.mode = 'playing'; TimeClock.step(scene); TimeClock.mode = 'paused';
+    t.assertOK(t.unit(room).inventory._h2o_deficit >= defBefore, 'deficit did not decrease without supply');
+  });
+
+  test('697: Death permanence — _dead flag persists', t => {
+    const room = t.place('room', 0, 0, { nPeople: 2 });
+    // Force death via water deficit
+    t.unit(room).inventory._h2o_deficit = 900;  // 450 mol/pp > 417 threshold
+    t.solve();
+    const L1 = t.last(room);
+    t.assertOK(L1.crewState === 'death', 'death from deficit: ' + L1.crewState);
+    // Step to write _dead flag
+    TimeClock.mode = 'playing'; TimeClock.step(scene); TimeClock.mode = 'paused';
+    t.assertOK(t.unit(room).inventory._dead === true, '_dead flag set in inventory');
+    // Now fix conditions — connect water
+    const src = t.place('source', -7, 5, { species: 'H2O', nDot: 0.01, T: 293.15, P: 101325, phaseConstraint: 'L' });
+    t.wire(src, 'mat_out', room, 'h2o_in');
+    t.unit(room).inventory._h2o_deficit = 0;  // even clear the deficit
+    t.solve();
+    const L2 = t.last(room);
+    t.assertOK(L2.crewState === 'death', 'still dead after conditions improve: ' + L2.crewState);
+    t.assertOK(!L2.recovering, 'no recovery from death');
+  });
+
+  test('698: _lenaRoomExpression — recovering priority', t => {
+    // Incapacitated + recovering → recovering (not fainting)
+    const u = { inventory: {}, last: { crewState: 'incapacitated', recovering: true,
+      conditions: { temp: { status: 'OK' } } } };
+    t.assertOK(_lenaRoomExpression(u) === 'recovering', 'incapacitated + recovering → recovering');
+    // Degraded + recovering → recovering (not disappointed)
+    const u2 = { inventory: {}, last: { crewState: 'degraded', recovering: true,
+      conditions: { temp: { status: 'OK' } } } };
+    t.assertOK(_lenaRoomExpression(u2) === 'recovering', 'degraded + recovering → recovering');
+    // Dead → death (not recovering)
+    const u3 = { inventory: { _dead: true }, last: { crewState: 'death', recovering: false,
+      conditions: { temp: { status: 'OK' } } } };
+    t.assertOK(_lenaRoomExpression(u3) === 'death', 'dead → death');
   });
 
   // ═══════════════════════════════════════════════════════════════════════
