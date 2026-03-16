@@ -353,7 +353,10 @@
   elbow matching pipe rendering style (outer wall #374151 sw:10, inner
   bore #4b5563 sw:6).  Quadratic bezier with inside-corner control
   point.  No custom flanges — _rtNozzle draws the standard half-flange
-  stubs at each port, matching all other units.
+  stubs at each port, matching all other units.  Conditional coloring:
+  grey by default, responds to colorBy modes (temperature, pressure,
+  phase, composition, flowrate) via _visStreamColor on the mat_out
+  stream — same logic pipes use.
 
   NNGs: NNG-3 (WYSIWYG — pipe extension looks like a pipe), NNG-14.
 
@@ -33652,7 +33655,7 @@ _RAGTAG_SYMBOLS.room = function(g, wx, wy, ww, wh, pal, def, unitId) {
   stencil.textContent = 'CREW SHELTER'; g.appendChild(stencil);
 };
 
-// [v17.7.7] Pipe Bend — simple 90° elbow, pipe-styled, flanges via _rtNozzle
+// [v17.7.8] Pipe Bend — simple 90° elbow, pipe-styled, flanges via _rtNozzle
 _RAGTAG_SYMBOLS.bend = function(g, wx, wy, ww, wh, pal, def, unitId) {
   const pres = getPresentation(def, scene.units.get(unitId));
   const _t = scene.tile;
@@ -33666,23 +33669,37 @@ _RAGTAG_SYMBOLS.bend = function(g, wx, wy, ww, wh, pal, def, unitId) {
   const exitX = outIsHoriz ? (pOut.x === 0 ? wx : wx + ww) : wx + pOut.x * _t;
   const exitY = outIsHoriz ? wy + pOut.y * _t : (pOut.y === 0 ? wy : wy + wh);
 
-  // Q control point: where the two straight pipe axes intersect (inside corner)
-  // Horizontal entry line at entryY meets vertical exit line at exitX (or vice versa)
+  // Q control point: inside corner where the two straight pipe axes intersect
   const ctrlX = inIsHoriz ? exitX : entryX;
   const ctrlY = inIsHoriz ? entryY : exitY;
 
   // Nozzle stubs + half-flanges (same as every other unit)
   _rtNozzle(g, wx, wy, ww, wh, wx, wy, ww, wh, def, pres, pal, unitId);
 
-  // Simple quarter-circle elbow — matching pipe rendering style
+  // Pipe colors: grey by default, conditional coloring when gradient mode is active
+  const _gradientMode = ui.colorBy === 'temperature' || ui.colorBy === 'pressure'
+    || ui.colorBy === 'phase' || ui.colorBy === 'composition' || ui.colorBy === 'flowrate';
+  let matInner = '#4b5563', matOuter = '#374151';
+  if (_gradientMode) {
+    const _ud = scene.runtime?.unitData?.get(unitId);
+    const _stream = _ud?.ports?.mat_out || _ud?.ports?.mat_in;
+    const _islands = drawConnections._islands;
+    if (_stream) {
+      const mapped = _visStreamColor(StreamType.MATERIAL, _stream, unitId, _islands);
+      matInner = mapped;
+      matOuter = _darken(mapped, 0.4);
+    }
+  }
+
+  // Simple quarter-circle elbow
   const elbowD = `M${entryX},${entryY} Q${ctrlX},${ctrlY} ${exitX},${exitY}`;
   // Outer wall
   g.appendChild(svgEl('path', { d: elbowD, fill: 'none',
-    stroke: '#374151', 'stroke-width': 10,
+    stroke: matOuter, 'stroke-width': 10,
     'stroke-linecap': 'round', 'pointer-events': 'none' }));
   // Inner bore
   g.appendChild(svgEl('path', { d: elbowD, fill: 'none',
-    stroke: '#4b5563', 'stroke-width': 6,
+    stroke: matInner, 'stroke-width': 6,
     'stroke-linecap': 'round', 'pointer-events': 'none' }));
 };
 
