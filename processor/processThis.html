@@ -347,6 +347,93 @@
   CHANGELOG  (latest first)
   ═══════════════════════════════════════════════════════════════════════════
 
+  ─── v17.7.15 — Separate cold/hot water demand, temperature validation ────
+
+  **Hot water temperature validation.**  Hot water port (hot_water_in)
+  now validates temperature: only water at 40–80°C (313–353K) counts
+  as usable hot water.  Below 40°C → "too cold", above 80°C →
+  "scalding", both reject the supply (hw_supply = 0).  Quality flag
+  stored in services.h2o_hot.quality: 'ok', 'cold', 'scalding', 'none'.
+
+  **Services split into h2o_cold and h2o_hot.**  Inspector shows two
+  separate gauges (Cold H₂O, Hot H₂O) and two feed rate bars with
+  independent supply/demand.  Combined `water` service kept for
+  backward compat and dehydration condition (deficit is total).
+
+  **Inspector feed rates** show Cold Water + Hot Water separately.
+  Hot water bar includes temperature quality annotation when outside
+  40–80°C range.  Port LED for hot_water_in shows yellow when
+  temperature is wrong.
+
+  NNGs: NNG-3 (WYSIWYG), NNG-13 (inspector clarity), NNG-14.
+
+  ─── v17.7.14 — Room gauges match diegetic, hot water barrel tuned ────────
+
+  **Inspector gauges now match diegetic room gauges exactly.**
+  `_renderGauge` extended with optional `lo`/`hi` in limits object.
+  All 5 gauges use the same ranges and bands as the room symbol's
+  `_arcGauge` calls:
+  - O₂%: lo=10, LL=14, L=17, H=23, HH=26, hi=28
+  - CO₂%: lo=0, H=0.5, HH=2, hi=6
+  - Temp: lo=263K, LL=278K, L=288K, H=303K, HH=313K, hi=323K
+  - H₂O supply%: lo=0, LL=30, L=60, H=120, hi=120
+  - Power%: lo=0, LL=30, L=70, H=120, hi=120
+
+  **Demo hot water barrel tuned.**  opening_pct 25.8→6.4 to match
+  hot water demand (0.64 mmol/s for 2 crew).  Was oversupplying 4×,
+  pushing H₂O gauge to 160%.  LiOH remaining reset to 500 (was 499.6
+  runtime state).
+
+  NNGs: NNG-3 (WYSIWYG — gauges match), NNG-14 (changelog).
+
+  ─── v17.7.13 — Room inspector: gauge conditions + zone-bar feed rates ────
+
+  **Room Conditions section** — 5 arc gauges matching the diegetic
+  gauges on the room symbol.  Uses `_renderGauge()` with room-specific
+  limit thresholds:
+  - O₂%: LL=14, L=19, H=23 (green 19–23%)
+  - CO₂%: H=0.5, HH=5 (green <0.5%, orange 0.5–5%, red >5%)
+  - Temp: LL=273K, L=288K, H=300K, HH=313K
+  - H₂O supply %: LL=0, L=50, H=100
+  - Power %: LL=0, L=50, H=100
+  Two rows of gauges (3+2), same visual language as the room body.
+  TTL timers only appear at WARNING+ (no false alarms from CO₂
+  equilibrium settling).
+
+  **Feed Rates section** — zone bars with cursor, one per service.
+  Linear scale 0–150%, zones: red <50%, yellow 50–95%, green 95–105%,
+  yellow >105%.  Supply/demand rates shown underneath in auto-scaled
+  units.  Uses `insBox`/`insKV` helpers with `ins-section-label`,
+  `ins-box`, `ins-kv full` CSS classes — no inline styles for layout.
+
+  **kpiHtml hook** added to inspector rendering: called after standard
+  KPIs, allows units to render arbitrary DOM into the panel.
+
+  NNGs: NNG-3 (WYSIWYG — inspector matches diegetic gauges), NNG-13
+  (inspector — proper sections), NNG-14 (changelog).
+
+  ─── v17.7.12 — Room inspector rework: conditions + feed rates ───────────
+
+  **Room inspector restructured** into two clear sections:
+
+  **Room Conditions** — atmospheric state on zone-colored linear bars:
+  - O₂ %: green 19–23, yellow 17–19, red <17 (cursor at current value)
+  - CO₂ %: green 0–0.5, yellow 0.5–2, red 2–5+
+  - Temperature °C: green 10–32, yellow 0–10/32–40, red outside
+  - Water/food deficit only shown when status ≥ WARNING
+  - TTL timers only shown when status ≥ WARNING (not during normal
+    equilibrium settling like CO₂ drift under active scrubber)
+
+  **Feed Rates** (scaled to N crew) — supply vs demand bars:
+  - Bar fills to supply/demand ratio; green ≥95%, yellow ≥50%, red <50%
+  - Text shows "supply / demand" in auto-scaled units (μmol, mmol, mol)
+  - O₂, Food, Water, Air loop, Power — each with its own rate bar
+
+  Detail section: reference rates removed (now visible in feed rates),
+  kept heat balance + power diagnostics.
+
+  NNGs: NNG-3 (WYSIWYG), NNG-13 (inspector clarity), NNG-14.
+
   ─── v17.7.11 — Room TTL: time-to-limit for life-critical conditions ─────
 
   **Room conditions now show TTL (time-to-limit).**  Each life-critical
@@ -22945,7 +23032,13 @@ UnitRegistry.register('room', {
     const o2_supply   = s_o2  ? (s_o2.n?.O2 || 0) : 0;
     const food_supply = s_food ? (s_food.n?.CH2O || 0) : 0;
     const h2o_supply  = s_h2o ? (s_h2o.n?.H2O || 0) : 0;
-    const hw_supply   = s_hw  ? (s_hw.n?.H2O || 0) : 0;
+    const hw_supply_raw = s_hw ? (s_hw.n?.H2O || 0) : 0;
+    // Hot water temperature validation: 40–80°C (313–353K) is usable
+    const hw_T = s_hw?.T ?? 0;
+    const hw_T_ok = hw_T >= 313 && hw_T <= 353;
+    const hw_supply = hw_T_ok ? hw_supply_raw : 0;  // reject if too cold or too hot
+    const hw_quality = !s_hw ? 'none'
+      : hw_T < 313 ? 'cold' : hw_T > 353 ? 'scalding' : 'ok';
     const air_return_rate = s_air ? Object.values(s_air.n || {}).reduce((a, b) => a + b, 0) : 0;
 
     // ── 2. Demands ──
@@ -23175,12 +23268,17 @@ UnitRegistry.register('room', {
 
     // ── Legacy services object (backward compat for inspector + existing tests) ──
     const services = {
-      o2:    { demand: o2_demand, supply: o2_supply, pct: o2_demand > 0 ? o2_supply / o2_demand : 1, status: conditions.o2.status },
-      food:  { demand: food_demand, supply: food_supply, pct: food_demand > 0 ? food_supply / food_demand : 1, status: conditions.food.status },
-      water: { demand: total_water_demand, supply: total_water, pct: total_water_demand > 0 ? total_water / total_water_demand : 1, status: conditions.water.status },
-      air:   { demand: circ_demand, supply: air_return_rate, pct: circ_demand > 0 ? air_return_rate / circ_demand : 1, status: fan_frac > 0.5 ? 'OK' : fan_frac > 0.01 ? 'WARNING' : 'MAJOR', quality: 'OK' },
-      power: { demand: power_total, supply: W_avail, pct: Math.min(1, power_pct), status: conditions.power.status },
-      temp:  { current: T_room, target: T_SETPOINT, status: conditions.temp.status },
+      o2:       { demand: o2_demand, supply: o2_supply, pct: o2_demand > 0 ? o2_supply / o2_demand : 1, status: conditions.o2.status },
+      food:     { demand: food_demand, supply: food_supply, pct: food_demand > 0 ? food_supply / food_demand : 1, status: conditions.food.status },
+      water:    { demand: total_water_demand, supply: total_water, pct: total_water_demand > 0 ? total_water / total_water_demand : 1, status: conditions.water.status },
+      h2o_cold: { demand: h2o_demand, supply: h2o_supply, pct: h2o_demand > 0 ? h2o_supply / h2o_demand : 1,
+                  status: h2o_supply >= h2o_demand * 0.95 ? 'OK' : h2o_supply >= h2o_demand * 0.5 ? 'WARNING' : 'MAJOR' },
+      h2o_hot:  { demand: hw_demand, supply: hw_supply, pct: hw_demand > 0 ? hw_supply / hw_demand : 1,
+                  status: hw_supply >= hw_demand * 0.95 ? (hw_quality === 'ok' ? 'OK' : 'WARNING') : hw_supply >= hw_demand * 0.5 ? 'WARNING' : 'MAJOR',
+                  T: hw_T, quality: hw_quality },
+      air:      { demand: circ_demand, supply: air_return_rate, pct: circ_demand > 0 ? air_return_rate / circ_demand : 1, status: fan_frac > 0.5 ? 'OK' : fan_frac > 0.01 ? 'WARNING' : 'MAJOR', quality: 'OK' },
+      power:    { demand: power_total, supply: W_avail, pct: Math.min(1, power_pct), status: conditions.power.status },
+      temp:     { current: T_room, target: T_SETPOINT, status: conditions.temp.status },
     };
 
     // ── 11. Port indicators (supply/demand LED colors) ──
@@ -23195,7 +23293,8 @@ UnitRegistry.register('room', {
       o2_in:        _portLed(o2_supply, o2_demand, !!s_o2),
       food_in:      _portLed(food_supply, food_demand, !!s_food),
       h2o_in:       _portLed(h2o_supply, h2o_demand, !!s_h2o),
-      hot_water_in: _portLed(hw_supply, hw_demand, !!s_hw),
+      hot_water_in: hw_quality === 'ok' ? _portLed(hw_supply, hw_demand, !!s_hw)
+                   : (hw_quality === 'cold' || hw_quality === 'scalding') ? 'yellow' : _portLed(hw_supply, hw_demand, !!s_hw),
       air_return:   _portLed(air_return_rate, circ_demand, !!s_air),
       elec_in:      _portLed(W_avail, power_total, !!s_elec),
       air_exhaust:  fan_frac > 0.5 ? 'green' : fan_frac > 0.01 ? 'yellow' : 'red',
@@ -37044,10 +37143,10 @@ function _renderGauge(container, value, unitSymbol, limits, label, stickerCtx) {
     return `M${x1},${y1} A${r},${r} 0 ${large} 1 ${x2},${y2}`;
   };
 
-  // Determine ranges from limits (LL, L, H, HH)
+  // Determine ranges from limits (LL, L, H, HH, optional lo/hi overrides)
   const LL = limits?.LL, L = limits?.L, H = limits?.H, HH = limits?.HH;
-  const lo = LL ?? (L ? L * 0.5 : 0);
-  const hi = HH ?? (H ? H * 2 : 1000);
+  const lo = limits?.lo ?? LL ?? (L ? L * 0.5 : 0);
+  const hi = limits?.hi ?? HH ?? (H ? H * 2 : 1000);
   const range = hi - lo || 1;
 
   const valToAngle = (v) => startAngle + Math.max(0, Math.min(1, (v - lo) / range)) * sweep;
@@ -39055,84 +39154,124 @@ UnitInspector.room = {
   conditions(u, ud) {
     const L = u.last || {};
     const items = [];
-    if (L.T_room_K != null) items.push({ label: 'T room', value: `${L.T_room_K.toFixed(1)}<span class="u">K</span>  (${(L.T_room_K-273.15).toFixed(1)}°C)` });
-    if (L.T_ext_K != null)  items.push({ label: 'T outside', value: `${L.T_ext_K.toFixed(1)}<span class="u">K</span>  (${(L.T_ext_K-273.15).toFixed(1)}°C)` });
     items.push({ label: 'People', value: `${L.nPeople || 0}` });
     if (L.liveability != null) items.push({ label: 'Liveability', value: `${L.liveability}%`, tone: L.liveability >= 70 ? '' : L.liveability >= 40 ? 'warn' : 'bad' });
     return items;
   },
   kpis(u, ud) {
+    // Completely custom HTML rendering via kpiHtml — bypasses the label/value item list
+    return [];
+  },
+  kpiHtml(container, u, ud) {
     const L = u.last || {};
-    const items = [];
-    const svc = L.services || {};
     const cond = L.conditions || {};
-    const _tone = s => s === 'OK' ? '' : s === 'WARNING' ? 'warn' : 'bad';
-    const _barColor = s => s === 'OK' ? '#22c55e' : s === 'WARNING' ? '#f59e0b' : '#ef4444';
-    const _barHtml = (pct, status) => {
-      const w = Math.round(Math.min(1, Math.max(0, pct)) * 100);
-      return `<div style="display:inline-flex;align-items:center;gap:6px;width:100%;">`
-        + `<div style="flex:1;height:6px;background:#1e293b;border-radius:3px;overflow:hidden;">`
-        + `<div style="width:${w}%;height:100%;background:${_barColor(status)};border-radius:3px;"></div></div>`
-        + `<span style="min-width:32px;text-align:right;font-size:10px;">${w}%</span></div>`;
-    };
-    // Format TTL: "42h" or "3.2d" or "∞"
+    const svc = L.services || {};
+
+    // ═══ ROOM CONDITIONS — 5 arc gauges matching diegetic room symbol ═══
+    container.appendChild(el('div', { class: 'ins-section-label', html: 'Room Conditions' }));
+
+    // Row 1: O₂, CO₂, Temperature — same ranges and bands as room body _arcGauge
+    const row1 = el('div', { class: 'ins-gauges-row' });
+    const gO2 = L.room_x_O2 != null ? L.room_x_O2 * 100 : 21;
+    _renderGauge(row1, gO2, '%',
+      { lo: 10, LL: 14, L: 17, H: 23, HH: 26, hi: 28 }, 'O₂');
+    const gCO2 = L.room_x_CO2 != null ? L.room_x_CO2 * 100 : 0.03;
+    _renderGauge(row1, gCO2, '%',
+      { lo: 0, H: 0.5, HH: 2, hi: 6 }, 'CO₂');
+    const gT = L.T_room_K ?? 294;
+    _renderGauge(row1, gT, 'T',
+      { lo: 263, LL: 278, L: 288, H: 303, HH: 313, hi: 323 }, 'Temp');
+    container.appendChild(row1);
+
+    // Row 2: Cold Water, Hot Water, Power
+    const row2 = el('div', { class: 'ins-gauges-row' });
+    const gH2Oc = svc.h2o_cold ? svc.h2o_cold.pct * 100 : 100;
+    _renderGauge(row2, gH2Oc, '%',
+      { lo: 0, LL: 30, L: 60, H: 120, hi: 120 }, 'Cold H₂O');
+    const gH2Oh = svc.h2o_hot ? svc.h2o_hot.pct * 100 : 100;
+    _renderGauge(row2, gH2Oh, '%',
+      { lo: 0, LL: 30, L: 60, H: 120, hi: 120 }, 'Hot H₂O');
+    const gPwr = L.gauges?.power_pct ?? 100;
+    _renderGauge(row2, gPwr, '%',
+      { lo: 0, LL: 30, L: 70, H: 120, hi: 120 }, 'Power');
+    container.appendChild(row2);
+
+    // TTL — only when conditions are WARNING or worse
     const _fmtTTL = h => {
-      if (!Number.isFinite(h) || h > 99999) return '∞';
+      if (!Number.isFinite(h) || h > 99999) return null;
       if (h < 1) return `${(h * 60).toFixed(0)}m`;
       if (h < 100) return `${h.toFixed(0)}h`;
       return `${(h / 24).toFixed(1)}d`;
     };
-    // TTL annotation line: shows next threshold + death timeline
-    const _ttlLine = (c, label) => {
-      if (!c) return null;
-      const ttl = c.ttl_h, death = c.ttl_death_h;
-      if (!Number.isFinite(ttl) || ttl > 99999) return null;  // stable
-      const urgency = ttl < 2 ? 'bad' : ttl < 24 ? 'warn' : '';
-      let text = `⏱ ${label}: ${_fmtTTL(ttl)}`;
-      if (Number.isFinite(death) && death < 99999 && death > ttl) text += ` · ☠ ${_fmtTTL(death)}`;
-      return { label: '', value: `<span style="font-size:10px;opacity:0.85;">${text}</span>`, tone: urgency };
+    for (const [key, c] of Object.entries(cond)) {
+      if (!c || c.status === 'OK') continue;
+      const labels = { o2: 'Hypoxia', co2: 'CO₂', temp: 'Temp', water: 'Dehydration', food: 'Starvation' };
+      if (!labels[key]) continue;
+      const ttl = _fmtTTL(c.ttl_h);
+      if (!ttl) continue;
+      const death = _fmtTTL(c.ttl_death_h);
+      let text = `⏱ ${labels[key]}: ${ttl}`;
+      if (death && c.ttl_death_h > c.ttl_h) text += ` · ☠ ${death}`;
+      const color = c.ttl_h < 2 ? '#ef4444' : c.ttl_h < 24 ? '#f59e0b' : '#94a3b8';
+      container.appendChild(el('div', { class: 'ins-hint', html: `<span style="color:${color}">${text}</span>` }));
+    }
+
+    // ═══ FEED RATES — zone bars (supply/demand, green at 100%) ═══
+    const N = L.nPeople || 1;
+    container.appendChild(el('div', { class: 'ins-section-label',
+      html: `Feed Rates <span style="opacity:0.5;font-weight:normal;">(${N} crew)</span>` }));
+
+    const _fmtRate = v => {
+      if (v < 0.001) return (v * 1e6).toFixed(0) + ' μmol/s';
+      if (v < 1) return (v * 1e3).toFixed(1) + ' mmol/s';
+      return v.toFixed(3) + ' mol/s';
     };
 
-    if (svc.o2)    items.push({ label: 'O\u2082 supply', value: _barHtml(svc.o2.pct, svc.o2.status), tone: _tone(svc.o2.status) });
-    const _o2ttl = _ttlLine(cond.o2, 'Hypoxia');
-    if (_o2ttl) items.push(_o2ttl);
-    if (svc.food)  items.push({ label: 'Food', value: _barHtml(svc.food.pct, svc.food.status), tone: _tone(svc.food.status) });
-    const _foodttl = _ttlLine(cond.food, 'Hunger');
-    if (_foodttl) items.push(_foodttl);
-    if (svc.water) items.push({ label: 'Water', value: _barHtml(svc.water.pct, svc.water.status), tone: _tone(svc.water.status) });
-    const _h2ottl = _ttlLine(cond.water, 'Dehydration');
-    if (_h2ottl) items.push(_h2ottl);
-    if (svc.air)   items.push({ label: 'Air loop', value: _barHtml(svc.air.pct, svc.air.status), tone: _tone(svc.air.status) });
-    if (svc.power) items.push({ label: 'Power', value: _barHtml(svc.power.pct, svc.power.status), tone: _tone(svc.power.status) });
-    if (svc.temp)  items.push({ label: 'Temperature', value: `${L.T_room_K?.toFixed(1) || '?'} K  ${svc.temp.status}`, tone: _tone(svc.temp.status) });
-    // Atmosphere with drift rates
-    if (L.room_x_O2 != null) {
-      const drift = cond.o2?.drift_per_h;
-      const driftStr = drift != null && Math.abs(drift) > 0.001
-        ? ` <span style="font-size:9px;opacity:0.6;">(${drift > 0 ? '+' : ''}${drift.toFixed(3)}%/h)</span>` : '';
-      items.push({ label: 'Room O\u2082', value: `${(L.room_x_O2*100).toFixed(2)}%${driftStr}` });
+    const _feedZoneBar = (supply, demand, label) => {
+      const ratio = demand > 1e-15 ? (supply / demand) * 100 : (supply > 0 ? 150 : 100);
+      // Scale 0–150%, zones: red <50, yellow 50–95, green 95–105, yellow 105–150
+      const lo = 0, hi = 150, range = hi - lo;
+      const pct = Math.max(0, Math.min(100, (ratio - lo) / range * 100));
+      const zones = [
+        { min: 0, max: 50, color: '#ef4444' },
+        { min: 50, max: 95, color: '#f59e0b' },
+        { min: 95, max: 105, color: '#22c55e' },
+        { min: 105, max: 150, color: '#f59e0b' }
+      ];
+      let zonesHtml = '';
+      for (const z of zones) {
+        const zl = (z.min - lo) / range * 100;
+        const zw = (z.max - lo) / range * 100 - zl;
+        zonesHtml += `<div style="position:absolute;left:${zl}%;width:${zw}%;height:100%;background:${z.color};opacity:0.25;"></div>`;
+      }
+      const barHtml =
+        `<div style="height:6px;background:#1e293b;border-radius:3px;position:relative;overflow:hidden;">`
+        + zonesHtml
+        + `<div style="position:absolute;left:${pct}%;top:-1px;width:2px;height:8px;background:#e2e8f0;border-radius:1px;transform:translateX(-1px);"></div>`
+        + `</div>`
+        + `<span style="font-size:9px;color:#94a3b8;">${_fmtRate(supply)} / ${_fmtRate(demand)}</span>`;
+      return barHtml;
+    };
+
+    const feedGrid = insBox(container, null);
+    if (svc.o2)       insKV(feedGrid, 'O₂',          _feedZoneBar(svc.o2.supply, svc.o2.demand), { full: true });
+    if (svc.food)     insKV(feedGrid, 'Food',         _feedZoneBar(svc.food.supply, svc.food.demand), { full: true });
+    if (svc.h2o_cold) insKV(feedGrid, 'Cold water',   _feedZoneBar(svc.h2o_cold.supply, svc.h2o_cold.demand), { full: true });
+    if (svc.h2o_hot) {
+      insKV(feedGrid, 'Hot water',    _feedZoneBar(svc.h2o_hot.supply, svc.h2o_hot.demand), { full: true });
+      // Temperature quality indicator
+      const q = svc.h2o_hot.quality;
+      const T_C = svc.h2o_hot.T ? (svc.h2o_hot.T - 273.15).toFixed(0) : '?';
+      if (q === 'cold') insKV(feedGrid, '', `<span style="font-size:10px;color:#60a5fa;">⚠ Too cold (${T_C}°C) — need 40–80°C</span>`, { full: true, tone: 'warn' });
+      else if (q === 'scalding') insKV(feedGrid, '', `<span style="font-size:10px;color:#ef4444;">⚠ Scalding (${T_C}°C) — need 40–80°C</span>`, { full: true, tone: 'bad' });
+      else if (q === 'none') insKV(feedGrid, '', `<span style="font-size:10px;color:#64748b;">No hot water connected</span>`, { full: true });
     }
-    if (L.room_x_CO2 != null) {
-      const drift = cond.co2?.drift_per_h;
-      const driftStr = drift != null && Math.abs(drift) > 0.001
-        ? ` <span style="font-size:9px;opacity:0.6;">(${drift > 0 ? '+' : ''}${drift.toFixed(3)}%/h)</span>` : '';
-      items.push({ label: 'Room CO\u2082', value: `${(L.room_x_CO2*100).toFixed(2)}%${driftStr}` });
-    }
-    const _co2ttl = _ttlLine(cond.co2, 'CO\u2082 poisoning');
-    if (_co2ttl) items.push(_co2ttl);
-    return items;
+    if (svc.air)      insKV(feedGrid, 'Air loop',     _feedZoneBar(svc.air.supply, svc.air.demand), { full: true });
+    if (svc.power)    insKV(feedGrid, 'Power',        _feedZoneBar(svc.power.supply, svc.power.demand), { full: true });
   },
   detail(u, ud) {
     const L = u.last || {};
     const items = [];
-    const N = L.nPeople || 0;
-    // Reference rates
-    items.push({ label: '── Reference Rates', value: `(${N} people)`, tone: 'label' });
-    if (L.o2_demand != null) items.push({ label: 'O₂ demand', value: `${L.o2_demand.toExponential(2)}<span class="u">mol/s</span>` });
-    if (L.food_demand != null) items.push({ label: 'Food demand', value: `${L.food_demand.toExponential(2)}<span class="u">mol/s</span>` });
-    if (L.h2o_demand != null) items.push({ label: 'H₂O cold', value: `${L.h2o_demand.toExponential(2)}<span class="u">mol/s</span>` });
-    if (L.hw_demand != null) items.push({ label: 'H₂O hot', value: `${L.hw_demand.toExponential(2)}<span class="u">mol/s</span>` });
-    if (L.circ_demand != null) items.push({ label: 'Air circ', value: `${L.circ_demand.toFixed(3)}<span class="u">mol/s</span>` });
     // Heat balance
     items.push({ label: '── Heat Balance', value: '', tone: 'label' });
     if (L.Q_envelope != null)   items.push({ label: 'Envelope loss', value: `${(-L.Q_envelope).toFixed(0)}<span class="u">W</span>  (out)` });
@@ -39940,6 +40079,10 @@ function _rebuildInspectorContent() {
       if (config?.kpis) {
         const kpiItems = config.kpis(u, ud);
         if (kpiItems?.length) _renderKPIGrid(propEditor, kpiItems, { unitId: u.id, section: 'kpis' });
+      }
+      // ── Custom KPI HTML (room, etc.) ──
+      if (config?.kpiHtml) {
+        config.kpiHtml(propEditor, u, ud);
       }
     }
     if (!ud) {
@@ -44412,7 +44555,7 @@ DemoScenes.register('demo_v1', 'Demo V1 — Sabatier / Brayton / SMR / Tank',
 // 2 bends + 3 mixers + 2 sinks.  All waste routed to single vent/sewer sinks.
 // O₂ bottle P_relief raised to 350 bar (above P_init 305 bar).
 DemoScenes.register('demo_room_survival', 'Ineluctable Fate — Day 0 (Room)',
-  '{"version":19,"processName":"Ineluctable Fate \u2014 Day 0","grid":{"w":40,"h":32,"tile":48},"settings":{"atmospherePreset":"planet_x","dt":3600},"units":[{"id":"room","defId":"room","profileId":"room","tier":1,"name":"Crew Room","x":0,"y":0,"rot":0,"params":{"nPeople":2,"powerPriority":1}},{"id":"o2_bottle","defId":"simple_tank","profileId":"simple_gas_bottle","tier":1,"name":"O\u2082 Bottle","x":-7,"y":1,"rot":0,"params":{"volume_m3":0.01,"P_init":30553950,"initialComposition":{"O2":1},"gasDrawRate":0.001,"opening_gas_pct":46.6,"P_relief":35000000}},{"id":"water_barrel","defId":"simple_open_tank","profileId":"simple_open_tank","tier":1,"name":"Water Barrel","x":-7,"y":5,"rot":0,"params":{"volume_m3":0.1,"initialComposition":{"H2O":1},"level_init":0.3348,"drawRate":0.01,"opening_pct":25.8,"overflow_level":90}},{"id":"food_crate","defId":"food_storage","profileId":"food_crate","tier":1,"name":"Food Crate","x":-11,"y":3,"rot":0,"params":{"volume_m3":0.1,"gasDrawRate":0.001,"opening_gas_pct":46.6,"P_init":29331792,"initialComposition":{"CH2O":1},"P_relief":32000000,"UA_jacket":50}},{"id":"scrubber","defId":"membrane_separator","profileId":"membrane_separator","tier":1,"name":"LiOH Scrubber","x":8,"y":1,"rot":0,"params":{"targetSpecies":"CO2","extractionFrac":0.99,"consumable":{"name":"LiOH Cartridges","capacity":500,"remaining":499.6407488,"maxRate":5},"variant":"flip"}},{"id":"co2_snk","defId":"sink","profileId":"sink","tier":1,"name":"Vent","x":14,"y":-6,"rot":0,"params":{}},{"id":"cooler","defId":"air_cooler","profileId":"air_cooler","tier":1,"name":"Air Cooler","x":10,"y":5,"rot":0,"params":{"T_out":294,"UA_kW_K":1,"max_fan_power_W":200,"powerPriority":2,"variant":"vert-elec-L"}},{"id":"heater","defId":"electric_heater","profileId":"electric_heater","tier":1,"name":"Air Heater","x":7,"y":7,"rot":0,"params":{"T_out":294,"powerPriority":2,"variant":"mirror"}},{"id":"battery","defId":"battery","profileId":"battery","tier":1,"name":"Battery","x":1,"y":-3,"rot":0,"params":{"peakPower_kW":100,"capacity_J":1800000000,"initialSOC":1}},{"id":"power_disp","defId":"power_dispatcher_5","profileId":"power_dispatcher_5","tier":1,"name":"Power Dispatch","x":4,"y":-3,"rot":0,"params":{}},{"id":"surplus_snk","defId":"sink_electrical","profileId":"sink_electrical","tier":1,"name":"Surplus","x":6,"y":-5,"rot":0,"params":{"ratedPower_kW":50,"powerPriority":5}},{"id":"simple_open_tank-1","defId":"simple_open_tank","profileId":"simple_open_tank","tier":1,"name":"Hot Water Barrel","x":-4,"y":7,"rot":0,"params":{"volume_m3":0.1,"initialComposition":{"H2O":1},"level_init":0.3348,"drawRate":0.01,"opening_pct":25.8,"overflow_level":90}},{"id":"bend-3","defId":"bend","profileId":"bend","tier":1,"name":"Pipe Bend 3","x":-11,"y":-6,"rot":0,"params":{"variant":"down-right"}},{"id":"simple_mixer-5","defId":"simple_mixer","profileId":"simple_mixer","tier":1,"name":"Simple Mixer 5","x":-7,"y":-6,"rot":0,"params":{"variant":"recycle-B"}},{"id":"simple_mixer-8","defId":"simple_mixer","profileId":"simple_mixer","tier":1,"name":"Simple Mixer 5 (copy)","x":10,"y":-6,"rot":0,"params":{"variant":"recycle-B"}},{"id":"bend-12","defId":"bend","profileId":"bend","tier":1,"name":"Pipe Bend 3 (copy)","x":-7,"y":9,"rot":0,"params":{"variant":"up-right"}},{"id":"simple_mixer-14","defId":"simple_mixer","profileId":"simple_mixer","tier":1,"name":"Simple Mixer 5 (copy)","x":-4,"y":9,"rot":0,"params":{"variant":"recycle-T"}},{"id":"sink-17","defId":"sink","profileId":"sink","tier":1,"name":"Sewer","x":14,"y":9,"rot":0,"params":{}}],"connections":[{"id":"c_o2","from":{"unitId":"o2_bottle","portId":"gas_out"},"to":{"unitId":"room","portId":"o2_in"}},{"id":"c_h2o","from":{"unitId":"water_barrel","portId":"mat_out"},"to":{"unitId":"room","portId":"h2o_in"}},{"id":"c_food","from":{"unitId":"food_crate","portId":"food_out"},"to":{"unitId":"room","portId":"food_in"}},{"id":"c_exhaust","from":{"unitId":"room","portId":"air_exhaust"},"to":{"unitId":"scrubber","portId":"mat_in"}},{"id":"c_cool_in","from":{"unitId":"scrubber","portId":"perm_out"},"to":{"unitId":"cooler","portId":"mat_in"}},{"id":"c_heat_in","from":{"unitId":"cooler","portId":"mat_out"},"to":{"unitId":"heater","portId":"mat_in"}},{"id":"c_return","from":{"unitId":"heater","portId":"mat_out"},"to":{"unitId":"room","portId":"air_return"}},{"id":"e_bat","from":{"unitId":"battery","portId":"elec"},"to":{"unitId":"power_disp","portId":"elec_in_1"}},{"id":"e_room","from":{"unitId":"power_disp","portId":"elec_out_1"},"to":{"unitId":"room","portId":"elec_in"}},{"id":"e_cooler","from":{"unitId":"power_disp","portId":"elec_out_2"},"to":{"unitId":"cooler","portId":"elec_in"}},{"id":"e_heater","from":{"unitId":"power_disp","portId":"elec_out_3"},"to":{"unitId":"heater","portId":"elec_in"}},{"id":"e_surplus","from":{"unitId":"power_disp","portId":"elec_surplus"},"to":{"unitId":"surplus_snk","portId":"elec_in"}},{"id":"conn-2","from":{"unitId":"simple_open_tank-1","portId":"mat_out"},"to":{"unitId":"room","portId":"hot_water_in"}},{"id":"conn-4","from":{"unitId":"food_crate","portId":"waste_out"},"to":{"unitId":"bend-3","portId":"mat_in"}},{"id":"conn-6","from":{"unitId":"bend-3","portId":"mat_out"},"to":{"unitId":"simple_mixer-5","portId":"mat_in_1"}},{"id":"conn-7","from":{"unitId":"o2_bottle","portId":"vent"},"to":{"unitId":"simple_mixer-5","portId":"mat_in_2"}},{"id":"conn-9","from":{"unitId":"scrubber","portId":"ret_out"},"to":{"unitId":"simple_mixer-8","portId":"mat_in_2"}},{"id":"conn-10","from":{"unitId":"simple_mixer-5","portId":"mat_out"},"to":{"unitId":"simple_mixer-8","portId":"mat_in_1"}},{"id":"conn-11","from":{"unitId":"simple_mixer-8","portId":"mat_out"},"to":{"unitId":"co2_snk","portId":"mat_in"}},{"id":"conn-13","from":{"unitId":"water_barrel","portId":"overflow"},"to":{"unitId":"bend-12","portId":"mat_in"}},{"id":"conn-15","from":{"unitId":"simple_open_tank-1","portId":"overflow"},"to":{"unitId":"simple_mixer-14","portId":"mat_in_2"}},{"id":"conn-16","from":{"unitId":"bend-12","portId":"mat_out"},"to":{"unitId":"simple_mixer-14","portId":"mat_in_1"}},{"id":"conn-18","from":{"unitId":"simple_mixer-14","portId":"mat_out"},"to":{"unitId":"sink-17","portId":"mat_in"}}],"modelsActive":{"thermo_package":"ideal_raoult","reaction":null,"units":"SI_bar"},"solverOptions":{"maxIter":200},"layout":{"viewMode":"flowsheet","colorBy":"type","theme":"ragtag","paletteOpen":false,"inspectorOpen":false}}'
+  '{"version":19,"processName":"Ineluctable Fate \u2014 Day 0","grid":{"w":40,"h":32,"tile":48},"settings":{"atmospherePreset":"planet_x","dt":3600},"units":[{"id":"room","defId":"room","profileId":"room","tier":1,"name":"Crew Room","x":0,"y":0,"rot":0,"params":{"nPeople":2,"powerPriority":1}},{"id":"o2_bottle","defId":"simple_tank","profileId":"simple_gas_bottle","tier":1,"name":"O\u2082 Bottle","x":-7,"y":1,"rot":0,"params":{"volume_m3":0.01,"P_init":30553950,"initialComposition":{"O2":1},"gasDrawRate":0.001,"opening_gas_pct":46.6,"P_relief":35000000}},{"id":"water_barrel","defId":"simple_open_tank","profileId":"simple_open_tank","tier":1,"name":"Water Barrel","x":-7,"y":5,"rot":0,"params":{"volume_m3":0.1,"initialComposition":{"H2O":1},"level_init":0.3348,"drawRate":0.01,"opening_pct":25.8,"overflow_level":90}},{"id":"food_crate","defId":"food_storage","profileId":"food_crate","tier":1,"name":"Food Crate","x":-11,"y":3,"rot":0,"params":{"volume_m3":0.1,"gasDrawRate":0.001,"opening_gas_pct":46.6,"P_init":29331792,"initialComposition":{"CH2O":1},"P_relief":32000000,"UA_jacket":50}},{"id":"scrubber","defId":"membrane_separator","profileId":"membrane_separator","tier":1,"name":"LiOH Scrubber","x":8,"y":1,"rot":0,"params":{"targetSpecies":"CO2","extractionFrac":0.99,"consumable":{"name":"LiOH Cartridges","capacity":500,"remaining":500,"maxRate":5},"variant":"flip"}},{"id":"co2_snk","defId":"sink","profileId":"sink","tier":1,"name":"Vent","x":14,"y":-6,"rot":0,"params":{}},{"id":"cooler","defId":"air_cooler","profileId":"air_cooler","tier":1,"name":"Air Cooler","x":10,"y":5,"rot":0,"params":{"T_out":294,"UA_kW_K":1,"max_fan_power_W":200,"powerPriority":2,"variant":"vert-elec-L"}},{"id":"heater","defId":"electric_heater","profileId":"electric_heater","tier":1,"name":"Air Heater","x":7,"y":7,"rot":0,"params":{"T_out":294,"powerPriority":2,"variant":"mirror"}},{"id":"battery","defId":"battery","profileId":"battery","tier":1,"name":"Battery","x":1,"y":-3,"rot":0,"params":{"peakPower_kW":100,"capacity_J":1800000000,"initialSOC":1}},{"id":"power_disp","defId":"power_dispatcher_5","profileId":"power_dispatcher_5","tier":1,"name":"Power Dispatch","x":4,"y":-3,"rot":0,"params":{}},{"id":"surplus_snk","defId":"sink_electrical","profileId":"sink_electrical","tier":1,"name":"Surplus","x":6,"y":-5,"rot":0,"params":{"ratedPower_kW":50,"powerPriority":5}},{"id":"simple_open_tank-1","defId":"simple_open_tank","profileId":"simple_open_tank","tier":1,"name":"Hot Water Barrel","x":-4,"y":7,"rot":0,"params":{"volume_m3":0.1,"initialComposition":{"H2O":1},"level_init":0.3348,"drawRate":0.01,"opening_pct":6.4,"overflow_level":90}},{"id":"bend-3","defId":"bend","profileId":"bend","tier":1,"name":"Pipe Bend 3","x":-11,"y":-6,"rot":0,"params":{"variant":"down-right"}},{"id":"simple_mixer-5","defId":"simple_mixer","profileId":"simple_mixer","tier":1,"name":"Simple Mixer 5","x":-7,"y":-6,"rot":0,"params":{"variant":"recycle-B"}},{"id":"simple_mixer-8","defId":"simple_mixer","profileId":"simple_mixer","tier":1,"name":"Simple Mixer 5 (copy)","x":10,"y":-6,"rot":0,"params":{"variant":"recycle-B"}},{"id":"bend-12","defId":"bend","profileId":"bend","tier":1,"name":"Pipe Bend 3 (copy)","x":-7,"y":9,"rot":0,"params":{"variant":"up-right"}},{"id":"simple_mixer-14","defId":"simple_mixer","profileId":"simple_mixer","tier":1,"name":"Simple Mixer 5 (copy)","x":-4,"y":9,"rot":0,"params":{"variant":"recycle-T"}},{"id":"sink-17","defId":"sink","profileId":"sink","tier":1,"name":"Sewer","x":14,"y":9,"rot":0,"params":{}}],"connections":[{"id":"c_o2","from":{"unitId":"o2_bottle","portId":"gas_out"},"to":{"unitId":"room","portId":"o2_in"}},{"id":"c_h2o","from":{"unitId":"water_barrel","portId":"mat_out"},"to":{"unitId":"room","portId":"h2o_in"}},{"id":"c_food","from":{"unitId":"food_crate","portId":"food_out"},"to":{"unitId":"room","portId":"food_in"}},{"id":"c_exhaust","from":{"unitId":"room","portId":"air_exhaust"},"to":{"unitId":"scrubber","portId":"mat_in"}},{"id":"c_cool_in","from":{"unitId":"scrubber","portId":"perm_out"},"to":{"unitId":"cooler","portId":"mat_in"}},{"id":"c_heat_in","from":{"unitId":"cooler","portId":"mat_out"},"to":{"unitId":"heater","portId":"mat_in"}},{"id":"c_return","from":{"unitId":"heater","portId":"mat_out"},"to":{"unitId":"room","portId":"air_return"}},{"id":"e_bat","from":{"unitId":"battery","portId":"elec"},"to":{"unitId":"power_disp","portId":"elec_in_1"}},{"id":"e_room","from":{"unitId":"power_disp","portId":"elec_out_1"},"to":{"unitId":"room","portId":"elec_in"}},{"id":"e_cooler","from":{"unitId":"power_disp","portId":"elec_out_2"},"to":{"unitId":"cooler","portId":"elec_in"}},{"id":"e_heater","from":{"unitId":"power_disp","portId":"elec_out_3"},"to":{"unitId":"heater","portId":"elec_in"}},{"id":"e_surplus","from":{"unitId":"power_disp","portId":"elec_surplus"},"to":{"unitId":"surplus_snk","portId":"elec_in"}},{"id":"conn-2","from":{"unitId":"simple_open_tank-1","portId":"mat_out"},"to":{"unitId":"room","portId":"hot_water_in"}},{"id":"conn-4","from":{"unitId":"food_crate","portId":"waste_out"},"to":{"unitId":"bend-3","portId":"mat_in"}},{"id":"conn-6","from":{"unitId":"bend-3","portId":"mat_out"},"to":{"unitId":"simple_mixer-5","portId":"mat_in_1"}},{"id":"conn-7","from":{"unitId":"o2_bottle","portId":"vent"},"to":{"unitId":"simple_mixer-5","portId":"mat_in_2"}},{"id":"conn-9","from":{"unitId":"scrubber","portId":"ret_out"},"to":{"unitId":"simple_mixer-8","portId":"mat_in_2"}},{"id":"conn-10","from":{"unitId":"simple_mixer-5","portId":"mat_out"},"to":{"unitId":"simple_mixer-8","portId":"mat_in_1"}},{"id":"conn-11","from":{"unitId":"simple_mixer-8","portId":"mat_out"},"to":{"unitId":"co2_snk","portId":"mat_in"}},{"id":"conn-13","from":{"unitId":"water_barrel","portId":"overflow"},"to":{"unitId":"bend-12","portId":"mat_in"}},{"id":"conn-15","from":{"unitId":"simple_open_tank-1","portId":"overflow"},"to":{"unitId":"simple_mixer-14","portId":"mat_in_2"}},{"id":"conn-16","from":{"unitId":"bend-12","portId":"mat_out"},"to":{"unitId":"simple_mixer-14","portId":"mat_in_1"}},{"id":"conn-18","from":{"unitId":"simple_mixer-14","portId":"mat_out"},"to":{"unitId":"sink-17","portId":"mat_in"}}],"modelsActive":{"thermo_package":"ideal_raoult","reaction":null,"units":"SI_bar"},"solverOptions":{"maxIter":200},"layout":{"viewMode":"flowsheet","colorBy":"type","theme":"ragtag","paletteOpen":false,"inspectorOpen":false}}'
 );
 
 buildExamplesMenu();
@@ -44430,7 +44573,7 @@ window.addEventListener('resize', () => {
 
 // [v14.10.3] Load on startup: auto-save (if matching DEMO_VERSION) or demo_room_survival
 {
-  const DEMO_VERSION = 'v17.7.11'; // [v17.7.11] room TTL (time-to-limit) for life-critical conditions
+  const DEMO_VERSION = 'v17.7.15'; // [v17.7.15] separate cold/hot water demand, temperature validation
   const _AUTOSAVE_VER_KEY = AUTOSAVE_KEY + '_demoVer';
   // [v17.4.0] Read using AUTOSAVE_KEY constant — was hardcoded 'ptis_autosave'
   // which never matched the write key 'processThis_autosave'. All autosaves
