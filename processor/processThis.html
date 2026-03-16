@@ -347,6 +347,25 @@
   CHANGELOG  (latest first)
   ═══════════════════════════════════════════════════════════════════════════
 
+  ─── v17.7.5 — simple_tank port simplification ───────────────────────────
+
+  **simple_tank: liq_out and overflow ports removed.**  A gas cylinder
+  has no liquid tap or liquid overflow — you draw vapor from the
+  headspace, pressure drops, any liquid boils off.  The full `tank`
+  defId retains liq_out + overflow for true process vessels.  Ports
+  reduced from 5 to 3 (mat_in, gas_out, vent).  Removed from tick:
+  liquid draw section, overflow section, all n_L_total / liqDrawRate /
+  opening_liq_pct / overflow_level logic.  Removed from inspector:
+  liquid outlet slider, overflow level slider, liquid level bar,
+  overflow detail line.  Removed from updateInventory, balance sheet
+  accumulation.  limitParams reduced (no level_H/level_HH).  Profile
+  defaults cleaned.  Demo scene JSON and all test placements stripped
+  of stale params.  Test 647 updated (3 ports, no level_HH).  Test
+  651 updated (no liq_out/overflow port checks).
+
+  NNGs: NNG-3 (WYSIWYG — ports match physical reality), NNG-14
+  (changelog).
+
   ─── v17.7.4 — Food storage thermal runaway fix, test recalibration ──────
 
   **food_storage thermal runaway fixed.**  Three bugs in the spoilage
@@ -17795,30 +17814,25 @@ UnitRegistry.register('simple_tank', {
   name: 'Simple Tank',
   category: UnitCategories.VESSEL,
   w: 2,
-  h: 3,  // [v17.7.0] 2×3 — bonbonne (T1) or capsule (T2), stubs bridge to all ports
+  h: 3,  // [v17.7.0] 2×3 — bonbonne (T1) or capsule (T2)
   optionalPorts: true,
   ports: [
     { portId: 'mat_in',   dir: PortDir.IN,  type: StreamType.MATERIAL, x: 0, y: 1, label: 'in' },
     { portId: 'gas_out',  dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 1, label: 'gas' },
-    { portId: 'liq_out',  dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 2, label: 'liq' },
-    { portId: 'vent',     dir: PortDir.OUT, type: StreamType.MATERIAL, x: 1, y: 0, label: 'vent' },
-    { portId: 'overflow', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 1, y: 3, label: 'ovfl' }
+    { portId: 'vent',     dir: PortDir.OUT, type: StreamType.MATERIAL, x: 1, y: 0, label: 'vent' }
   ],
   presentations: {
     'box/default': { w: 2, h: 3, ports: {
-      mat_in:{x:0,y:1}, gas_out:{x:2,y:1}, liq_out:{x:2,y:2},
-      vent:{x:1,y:0}, overflow:{x:1,y:3}
+      mat_in:{x:0,y:1}, gas_out:{x:2,y:1}, vent:{x:1,y:0}
     }},
     'box/mirror':  { w: 2, h: 3, ports: {
-      mat_in:{x:2,y:1}, gas_out:{x:0,y:1}, liq_out:{x:0,y:2},
-      vent:{x:1,y:0}, overflow:{x:1,y:3}
+      mat_in:{x:2,y:1}, gas_out:{x:0,y:1}, vent:{x:1,y:0}
     }}
   },
-  limitParams: ['T_LL', 'T_L', 'T_H', 'T_HH', 'P_LL', 'P_L', 'P_H', 'P_HH', 'level_H', 'level_HH'],
+  limitParams: ['T_LL', 'T_L', 'T_H', 'T_HH', 'P_LL', 'P_L', 'P_H', 'P_HH'],
   limits: {
     S: { T_LL: 233, T_L: 263, T_H: 423, T_HH: 473,
-         P_LL: 50000, P_L: 80000, P_H: 4000000, P_HH: 5000000,
-         level_H: 90, level_HH: 100 }
+         P_LL: 50000, P_L: 80000, P_H: 4000000, P_HH: 5000000 }
   },
   inventory: true,
 
@@ -17869,21 +17883,17 @@ UnitRegistry.register('simple_tank', {
     const inv = { ...inventory, n: { ...inventory.n } };
     const inFlow  = resolvedPorts.mat_in?.n || {};
     const gasFlow = resolvedPorts.gas_out?.n || {};
-    const liqFlow = resolvedPorts.liq_out?.n || {};
     const ventFlow = resolvedPorts.vent?.n || {};
-    const ovFlow  = resolvedPorts.overflow?.n || {};
 
     const allSp = new Set([
       ...Object.keys(inv.n), ...Object.keys(inFlow),
-      ...Object.keys(gasFlow), ...Object.keys(liqFlow),
-      ...Object.keys(ventFlow), ...Object.keys(ovFlow)
+      ...Object.keys(gasFlow), ...Object.keys(ventFlow)
     ]);
 
     for (const sp of allSp) {
       const cur = inv.n[sp] || 0;
       const inN = (inFlow[sp] || 0) * dt;
-      const outN = ((gasFlow[sp]||0) + (liqFlow[sp]||0)
-                 + (ventFlow[sp]||0) + (ovFlow[sp]||0)) * dt;
+      const outN = ((gasFlow[sp]||0) + (ventFlow[sp]||0)) * dt;
       inv.n[sp] = Math.max(0, cur + inN - outN);
     }
 
@@ -17911,9 +17921,7 @@ UnitRegistry.register('simple_tank', {
     // 2. Read blocked branches
     const _blocked = ctx.blockedBranches();
     const gasBlocked = _blocked ? _blocked.has('gas_out') : false;
-    const liqBlocked = _blocked ? _blocked.has('liq_out') : false;
     const ventBlocked = _blocked ? _blocked.has('vent') : false;
-    const ovBlocked  = _blocked ? _blocked.has('overflow') : false;
 
     // 3. Gas draw — rate-based (no Cv, no downstreamP)
     const gasDrawRate = par.gasDrawRate ?? 0.05;
@@ -17941,33 +17949,7 @@ UnitRegistry.register('simple_tank', {
       };
     }
 
-    // 4. Liquid draw — rate-based
-    const liqDrawRate = par.liqDrawRate ?? 0.05;
-    const opening_liq = par.opening_liq_pct ?? 0;
-    const liqConnected = ctx.portConnected('liq_out');
-    const n_L_total = state.n_L ? Object.values(state.n_L).reduce((a,b) => a+b, 0) : 0;
-    let Q_liq = 0;
-
-    if (liqConnected && !liqBlocked && n_L_total > 1e-15 && opening_liq > 0) {
-      Q_liq = Math.min(liqDrawRate * (opening_liq / 100), n_L_total / dt);
-      const n_out = {};
-      for (const [sp, amt] of Object.entries(state.n_L)) {
-        if (amt > 1e-18) n_out[sp] = (amt / n_L_total) * Q_liq;
-      }
-      ports.liq_out = {
-        type: StreamType.MATERIAL,
-        T: inv.T_K, P: P_tank, n: n_out,
-        phase: 'L', phaseConstraint: 'L'
-      };
-    } else {
-      ports.liq_out = {
-        type: StreamType.MATERIAL,
-        T: inv.T_K, P: P_tank, n: {},
-        phase: 'L', phaseConstraint: 'L'
-      };
-    }
-
-    // 5. Relief valve (vapor phase) — connected-only
+    // 4. Relief valve (vapor phase) — connected-only
     let Q_vent = 0;
     const P_relief = par.P_relief || 200000;
     const ventConnected = ctx.portConnected('vent');
@@ -18005,45 +17987,7 @@ UnitRegistry.register('simple_tank', {
       ports.vent = { type: StreamType.MATERIAL, T: inv.T_K, P: P_tank, n: {} };
     }
 
-    // 6. Overflow (liquid phase) — connected-only
-    let Q_overflow = 0;
-    const overflow_lvl = par.overflow_level ?? 90;
-    const ovConnected = ctx.portConnected('overflow');
-    if (!ovConnected && state.level_pct > overflow_lvl) {
-      ctx.warn({
-        severity: ErrorSeverity.MAJOR,
-        message: `Liquid overflow at ${state.level_pct.toFixed(0)}% — no overflow drain connected `
-          + `(threshold: ${overflow_lvl}%)`
-      });
-    }
-    const _ovWasActive = ctx.scratch._prevLast?._overflowActive || false;
-    const _ovActive = ovConnected && !ovBlocked &&
-      (state.level_pct > overflow_lvl || (_ovWasActive && state.level_pct > overflow_lvl - K_HYSTERESIS_PCT));
-    if (_ovActive && n_L_total > 1e-15) {
-      Q_overflow = K_OVERFLOW_BASE * V * Math.max(0, state.level_pct - overflow_lvl);
-      Q_overflow = Math.min(Q_overflow, n_L_total / dt);
-      if (Q_overflow > 0) {
-        const ov_n = {};
-        for (const [sp, amt] of Object.entries(state.n_L || {})) {
-          if (amt > 1e-18) ov_n[sp] = (amt / n_L_total) * Q_overflow;
-        }
-        ports.overflow = {
-          type: StreamType.MATERIAL,
-          T: inv.T_K, P: P_tank, n: ov_n,
-          phase: 'L', phaseConstraint: 'L'
-        };
-        ctx.warn({
-          severity: ErrorSeverity.MINOR,
-          message: `Overflow active at ${state.level_pct.toFixed(0)}% `
-            + `(threshold: ${overflow_lvl}%)`
-        });
-      }
-    }
-    if (!ports.overflow) {
-      ports.overflow = { type: StreamType.MATERIAL, T: inv.T_K, P: P_tank, n: {} };
-    }
-
-    // 7. Diagnostics
+    // 6. Diagnostics
     const n_max = (() => {
       const sp0 = Object.keys(inv.n).find(sp => inv.n[sp] > 1e-15) || 'N2';
       const cd = ComponentRegistry.get(sp0);
@@ -18066,17 +18010,13 @@ UnitRegistry.register('simple_tank', {
       V_m3: V,
       V_liq_m3: state.V_liq_m3,
       V_vap_m3: state.V_vap_m3,
-      Q_gas, Q_liq, Q_vent, Q_overflow,
+      Q_gas, Q_vent,
       gasDrawRate, opening_gas_pct: opening_gas,
-      liqDrawRate, opening_liq_pct: opening_liq,
       P_relief,
       _ventActive,
-      _overflowActive: _ovActive,
       vent_status: _ventActive ? 'OPEN' : 'CLOSED',
-      overflow_status: _ovActive ? 'ACTIVE' : 'OK',
       status: totalMol < 1e-12 ? 'empty'
-            : state.level_pct >= 100 ? 'full'
-            : (Q_gas > 0 || Q_liq > 0) ? 'active' : 'idle',
+            : Q_gas > 0 ? 'active' : 'idle',
       type: 'simple_tank'
     };
   }
@@ -23240,10 +23180,9 @@ ProfileRegistry.register('tank_dev', {
   limits: { 1: { T_LL:100, T_L:200, T_H:473, T_HH:523,
                   P_LL:1000, P_L:5000, P_H:4000000, P_HH:5000000,
                   level_H:90, level_HH:100 } },
-  defaults: { 1: { volume_m3:0.15, P_relief:200000,
-                    overflow_level:90,
+  defaults: { 1: { volume_m3:0.15, P_relief:200000, overflow_level:90,
                     Cv_gas:50, opening_gas_pct:0,
-                    Cv_liq:50, opening_liq_pct:0,
+                    Cv_liq:50,
                     initialComposition:{N2:1} } },
   equipmentNote: "Electrical bus with priority-based load shedding.",
   operatingNote: "Each consumer has a priority (1=essential, 3=expendable). When supply < demand, low-priority equipment gets cut first. Surplus port must be connected.",
@@ -23257,11 +23196,11 @@ ProfileRegistry.register('open_tank', {
                   level_H:90, level_HH:100 },
             2: { T_LL:263, T_L:278, T_H:333, T_HH:353,
                   level_H:90, level_HH:100 } },
-  defaults: { 1: { volume_m3:0.15, overflow_level:90,
-                    Cv_liq:30, opening_liq_pct:0,
+  defaults: { 1: { volume_m3:0.15,
+                    Cv_liq:30,
                     initialComposition:{H2O:1}, level_init:0 },
-              2: { volume_m3:1.0, overflow_level:90,
-                    Cv_liq:50, opening_liq_pct:0,
+              2: { volume_m3:1.0,
+                    Cv_liq:50,
                     initialComposition:{H2O:1}, level_init:0 } },
   equipmentNote: "Atmospheric polyethylene/polypropylene (T1) or stainless steel (T2) storage vessel.",
   operatingNote: "Overflow port must be connected. Hot inlet will melt T1 plastic. No pressure buildup — gas vents freely. Liquid draw from bottom via Cv valve; zero flow if empty.",
@@ -23273,7 +23212,7 @@ ProfileRegistry.register('simple_open_barrel', {
   description: 'Salvage drum for liquid storage',
   selectionGuide: 'A 100L polypropylene barrel. Set the draw rate and opening. Melts above 80°C. No pressure — gas vents freely.',
   limits: { 1: { T_LL:243, T_L:273, T_H:333, T_HH:353, level_H:90, level_HH:100 } },
-  defaults: { 1: { volume_m3:0.1, drawRate:0.3, opening_pct:100, overflow_level:90,
+  defaults: { 1: { volume_m3:0.1, drawRate:0.3, opening_pct:100,
                     initialComposition:{H2O:1}, level_init:0 } },
   equipmentNote: "Polypropylene drum, 100L. Band-ring reinforced.",
   operatingNote: "Set draw rate and opening %. Connect overflow to prevent overfill. Hot feed (>80°C) will destroy the barrel.",
@@ -23284,7 +23223,7 @@ ProfileRegistry.register('simple_open_tank', {
   description: 'Stainless steel liquid storage',
   selectionGuide: 'A 500L stainless steel tank. Handles higher temperatures than the barrel. Same rate-based draw.',
   limits: { 2: { T_LL:233, T_L:263, T_H:423, T_HH:473, level_H:90, level_HH:100 } },
-  defaults: { 2: { volume_m3:0.5, drawRate:1.0, opening_pct:100, overflow_level:90,
+  defaults: { 2: { volume_m3:0.5, drawRate:1.0, opening_pct:100,
                     initialComposition:{H2O:1}, level_init:0 } },
   equipmentNote: "304 stainless steel vessel, 500L. Welded construction with sight glass.",
   operatingNote: "Handles up to 200°C. Same draw model as the barrel but larger capacity. Connect overflow for safety.",
@@ -23296,11 +23235,9 @@ ProfileRegistry.register('simple_gas_bottle', {
   description: 'Portable pressurized gas cylinder',
   selectionGuide: 'A 10L steel bottle — think diver\'s oxygen tank. Rated to 300 bar. Set the gas draw rate and opening.',
   limits: { 1: { T_LL:233, T_L:263, T_H:423, T_HH:473,
-                  P_LL:50000, P_L:80000, P_H:30000000, P_HH:35000000,
-                  level_H:90, level_HH:100 } },
+                  P_LL:50000, P_L:80000, P_H:30000000, P_HH:35000000 } },
   defaults: { 1: { volume_m3:0.01, gasDrawRate:0.05, opening_gas_pct:0,
-                    liqDrawRate:0.01, opening_liq_pct:0,
-                    P_relief:25000000, overflow_level:90,
+                    P_relief:25000000,
                     initialComposition:{O2:1} } },
   equipmentNote: "Chrome-molybdenum steel cylinder, 10L. Valve regulator on top.",
   operatingNote: "Connect vent port for pressure relief. Unconnected vent + overpressure → destruction. Gas draw from top, liquid from bottom.",
@@ -23311,13 +23248,11 @@ ProfileRegistry.register('simple_gas_tank', {
   description: 'Medium sealed storage vessel',
   selectionGuide: 'A 50L steel tank. Rated to 50 bar — good for process gas storage and buffering.',
   limits: { 2: { T_LL:233, T_L:263, T_H:423, T_HH:473,
-                  P_LL:50000, P_L:80000, P_H:4000000, P_HH:5000000,
-                  level_H:90, level_HH:100 } },
+                  P_LL:50000, P_L:80000, P_H:4000000, P_HH:5000000 } },
   defaults: { 2: { volume_m3:0.05, gasDrawRate:0.2, opening_gas_pct:0,
-                    liqDrawRate:0.1, opening_liq_pct:0,
-                    P_relief:4000000, overflow_level:90,
+                    P_relief:4000000,
                     initialComposition:{N2:1} } },
-  equipmentNote: "Flanged steel vessel, 50L. Dual outlet: gas top, liquid bottom.",
+  equipmentNote: "Flanged steel vessel, 50L. Gas outlet on top, vent for overpressure.",
   operatingNote: "Connect vent and overflow ports for safety. Larger capacity and lower max pressure than the Gas Bottle.",
   modelNote: "P from ideal gas law. Flash via Tc heuristic. Q = min(drawRate × opening/100, n_phase/dt). Relief valve connected-only.",
 });
@@ -23331,8 +23266,7 @@ ProfileRegistry.register('cooled_gas_bottle', {
                   P_LL:50000, P_L:80000, P_H:4000000, P_HH:5000000,
                   level_H:90, level_HH:100 } },
   defaults: { 1: { volume_m3:0.01, gasDrawRate:0.05, opening_gas_pct:0,
-                    liqDrawRate:0.05, opening_liq_pct:0,
-                    P_relief:200000, overflow_level:90, UA_jacket:50,
+                    P_relief:200000, UA_jacket:50,
                     initialComposition:{N2:1} } },
   equipmentNote: "10L steel bottle with brazed cooling jacket. UA_jacket = 50 W/K default.",
   operatingNote: "Connect cool_in/cool_out to a cold stream. Without coolant, contents drift to ambient temperature.",
@@ -23362,14 +23296,12 @@ ProfileRegistry.register('tank_low_pressure', {
                   P_LL:80000, P_L:85000, P_H:400000, P_HH:500000,
                   level_H:90, level_HH:100 } },
   defaults: { 1: { volume_m3:0.15, P_relief:400000,
-                    overflow_level:90,
                     Cv_gas:30, opening_gas_pct:0,
-                    Cv_liq:30, opening_liq_pct:0,
+                    Cv_liq:30,
                     initialComposition:{N2:1} },
               2: { volume_m3:1.0, P_relief:400000,
-                    overflow_level:90,
                     Cv_gas:50, opening_gas_pct:0,
-                    Cv_liq:50, opening_liq_pct:0,
+                    Cv_liq:50,
                     initialComposition:{N2:1} } },
   equipmentNote: "Flanged steel storage vessel with relief valve and overflow drain.",
   operatingNote: "Pressure builds from accumulated gas — vent and overflow ports are safety devices. Exceeding P_HH or T_HH destroys the tank. Dual outlet: gas from top, liquid from bottom.",
@@ -23386,14 +23318,12 @@ ProfileRegistry.register('tank_high_pressure', {
                   P_LL:50000, P_L:80000, P_H:4000000, P_HH:5000000,
                   level_H:90, level_HH:100 } },
   defaults: { 1: { volume_m3:0.15, P_relief:2500000,
-                    overflow_level:90,
                     Cv_gas:30, opening_gas_pct:0,
-                    Cv_liq:30, opening_liq_pct:0,
+                    Cv_liq:30,
                     initialComposition:{N2:1} },
               2: { volume_m3:1.0, P_relief:4000000,
-                    overflow_level:90,
                     Cv_gas:50, opening_gas_pct:0,
-                    Cv_liq:50, opening_liq_pct:0,
+                    Cv_liq:50,
                     initialComposition:{N2:1} } },
   equipmentNote: "Thick-wall carbon steel (T1) or alloy steel (T2) pressure vessel.",
   operatingNote: "Same behavior as Closed Tank — higher pressure/temperature envelope. Use when Closed Tank keeps blowing its relief valve.",
@@ -23917,12 +23847,11 @@ class Scene {
       // ── Vessels [v9.0.3] ──
       case 'tank':
         unit.params = { volume_m3: 0.15, P_init: SimSettings.getAtmosphere().P_Pa, P_relief: 200000,
-                        overflow_level: 90,
-                        opening_gas_pct: 0, Cv_gas: 30, opening_liq_pct: 0, Cv_liq: 30 };  // [v14.0.2] P_init from SimSettings
+                        opening_gas_pct: 0, Cv_gas: 30, Cv_liq: 30 };  // [v14.0.2] P_init from SimSettings
         break;
       case 'open_tank':
-        unit.params = { volume_m3: 0.15, overflow_level: 90,
-                        Cv_liq: 30, opening_liq_pct: 0,
+        unit.params = { volume_m3: 0.15,
+                        Cv_liq: 30,
                         initialComposition: { H2O: 1 }, level_init: 0 };  // [v14.0.2]
         break;
       // ── SOC-tracked battery [v9.0.4] ──
@@ -27501,21 +27430,19 @@ function computeSystemBalance(scene) {
       if (Math.abs(H_in - H_out - H_ov) > 0.01) accumulation.energy_W += (H_in - H_out - H_ov);
     }
     if (u.defId === 'simple_tank') {
-      // Same structure as sealed tank
+      // Gas-only sealed cylinder: mat_in, gas_out, vent (no liq_out, no overflow)
       const matIn = ud.ports?.mat_in;
-      const gasOut = ud.ports?.gas_out, liqOut = ud.ports?.liq_out;
-      const vent = ud.ports?.vent, overflow = ud.ports?.overflow;
+      const gasOut = ud.ports?.gas_out;
+      const vent = ud.ports?.vent;
       const m_in = matIn ? streamMass_kgps(matIn) : 0;
       const m_gas = gasOut ? streamMass_kgps(gasOut) : 0;
-      const m_liq = liqOut ? streamMass_kgps(liqOut) : 0;
       const m_vent = vent ? streamMass_kgps(vent) : 0;
-      const m_ov = overflow ? streamMass_kgps(overflow) : 0;
-      const netMass = m_in - m_gas - m_liq - m_vent - m_ov;
+      const netMass = m_in - m_gas - m_vent;
       if (Math.abs(netMass) > 1e-15) { accumulation.mass_kgps += netMass; accumulation.items.push({ name: uName, type: 'simple_tank_mass', value_kgps: netMass, value_W: 0 }); }
       const H_in = matIn?.Hdot_J_s ?? 0;
-      const H_gas = gasOut?.Hdot_J_s ?? 0, H_liq = liqOut?.Hdot_J_s ?? 0;
-      const H_vent = vent?.Hdot_J_s ?? 0, H_ov = overflow?.Hdot_J_s ?? 0;
-      if (Math.abs(H_in - H_gas - H_liq - H_vent - H_ov) > 0.01) accumulation.energy_W += (H_in - H_gas - H_liq - H_vent - H_ov);
+      const H_gas = gasOut?.Hdot_J_s ?? 0;
+      const H_vent = vent?.Hdot_J_s ?? 0;
+      if (Math.abs(H_in - H_gas - H_vent) > 0.01) accumulation.energy_W += (H_in - H_gas - H_vent);
     }
     if (u.defId === 'battery') {
       const netPower = ud.ports?.elec?.actual || 0;
@@ -38000,7 +37927,6 @@ UnitInspector.simple_tank = {
     const specGrid = insBox(container, 'Vessel');
     insKV(specGrid, 'Volume', `${(V * 1000).toFixed(0)} L`);
     insKV(specGrid, 'Max gas draw', `${(u.params.gasDrawRate ?? 0.05).toFixed(3)} mol/s`);
-    insKV(specGrid, 'Max liq draw', `${(u.params.liqDrawRate ?? 0.01).toFixed(3)} mol/s`);
     container.appendChild(el('div', { class: 'ins-hint', html: 'Capacity fixed by equipment profile' }));
 
     // Live composition donut
@@ -38012,17 +37938,10 @@ UnitInspector.simple_tank = {
     addSliderEditor(container, 'Gas valve opening [%]',
       () => u.params.opening_gas_pct ?? 0, v => u.params.opening_gas_pct = v, 0, 100, 5);
 
-    // ── Liquid outlet ──
-    container.appendChild(el('div', { class: 'ins-section-label', html: 'Liquid Outlet' }));
-    addSliderEditor(container, 'Liq valve opening [%]',
-      () => u.params.opening_liq_pct ?? 0, v => u.params.opening_liq_pct = v, 0, 100, 5);
-
     // ── Safety ──
     container.appendChild(el('div', { class: 'ins-section-label', html: 'Safety' }));
     addNumberEditor(container, 'Relief pressure [bar]',
       () => (u.params.P_relief || 200000) / 1e5, v => u.params.P_relief = v * 1e5, 0.5, 1, { min: 0.5 });
-    addSliderEditor(container, 'Overflow level [%]',
-      () => u.params.overflow_level ?? 90, v => u.params.overflow_level = v, 50, 100, 5);
   },
   conditions(u, ud) {
     if (!ud?.last) return [];
@@ -38030,22 +37949,17 @@ UnitInspector.simple_tank = {
       { label: 'T', value: fmt.T(ud.last.T_K) },
       { label: 'P', value: fmt.P(ud.last.P_Pa) },
       { label: 'Q gas', value: fmt.flow(ud.last.Q_gas ?? 0) },
-      { label: 'Q liq', value: fmt.flow(ud.last.Q_liq ?? 0) },
     ];
   },
   kpis(u, ud) {
     if (!ud.last) return [];
-    // Liquid level gauge
-    const fillPct = ud.last.fillPct || 0;
-    const fillColor = fillPct >= 100 ? '#ef4444' : fillPct >= 80 ? '#f59e0b' : '#06b6d4';
     // Pressure gauge: P / P_HH
-    const P_HH = ud.last.P_relief || 200000;  // Use relief as reference for gauge
+    const P_HH = ud.last.P_relief || 200000;
     const pGaugePct = P_HH > 0 ? Math.min(100, (ud.last.P_Pa || 0) / P_HH * 100) : 0;
     const pColor = pGaugePct >= 100 ? '#ef4444' : pGaugePct >= 80 ? '#f59e0b' : '#22c55e';
-    const statusColor = ud.last.status === 'full' ? '#ef4444' : ud.last.status === 'empty' ? '#64748b' : '#06b6d4';
+    const statusColor = ud.last.status === 'empty' ? '#64748b' : '#06b6d4';
     return [
       { label: 'Pressure', value: pGaugePct, bar: true, barColor: pColor },
-      { label: 'Level', value: fillPct, bar: true, barColor: fillColor },
       { label: 'Status', value: `<span style="color:${statusColor}">${ud.last.status || '—'}</span>` },
     ];
   },
@@ -38057,7 +37971,6 @@ UnitInspector.simple_tank = {
     items.push({ label: 'P', value: `${(ud.last.P_Pa/1e5).toFixed(2)}<span class="propUnit">bar</span>` });
     items.push({ label: 'P relief', value: `${(ud.last.P_relief/1e5).toFixed(1)}<span class="propUnit">bar</span>` });
     if (ud.last.vent_status === 'OPEN') items.push({ label: 'Vent', value: fmt.flow(ud.last.Q_vent ?? 0), tone: 'warn' });
-    if (ud.last.overflow_status === 'ACTIVE') items.push({ label: 'Overflow', value: fmt.flow(ud.last.Q_overflow ?? 0), tone: 'warn' });
 
     // Species inventory
     if (ud.last.n) {
@@ -38077,16 +37990,13 @@ UnitInspector.simple_tank = {
     if (udR) {
       const matIn = udR.ports?.mat_in;
       const gasOut = udR.ports?.gas_out;
-      const liqOut = udR.ports?.liq_out;
       const nIn = matIn?.n ? Object.values(matIn.n).reduce((a,b)=>a+b,0) : 0;
       const nGas = gasOut?.n ? Object.values(gasOut.n).reduce((a,b)=>a+b,0) : 0;
-      const nLiq = liqOut?.n ? Object.values(liqOut.n).reduce((a,b)=>a+b,0) : 0;
       const nVent = ud.last.Q_vent || 0;
       if (nIn > 1e-6) items.push({ label: 'Inlet', value: `${nIn.toFixed(3)}<span class="propUnit">mol/s</span>`, tone: 'good' });
       if (nGas > 1e-6) items.push({ label: 'Gas out', value: `${nGas.toFixed(3)}<span class="propUnit">mol/s</span>` });
-      if (nLiq > 1e-6) items.push({ label: 'Liq out', value: `${nLiq.toFixed(3)}<span class="propUnit">mol/s</span>` });
       if (nVent > 1e-6) items.push({ label: 'Vented', value: `${nVent.toFixed(3)}<span class="propUnit">mol/s</span>`, tone: 'warn' });
-      const netRate = nIn - nGas - nLiq - nVent;
+      const netRate = nIn - nGas - nVent;
       items.push({ label: 'Net', value: `${netRate > 0 ? '+' : ''}${netRate.toFixed(3)}<span class="propUnit">mol/s</span>`,
         tone: netRate > 0.001 ? 'good' : netRate < -0.001 ? 'warn' : '' });
     }
@@ -44275,7 +44185,7 @@ DemoScenes.register('demo_v1', 'Demo V1 — Sabatier / Brayton / SMR / Tank',
 //   LiOH scrubber 268 mol → CO₂ CATASTROPHIC h≈237
 //   food crate   1200 mol → food CATASTROPHIC h≈904
 DemoScenes.register('demo_room_survival', 'Ineluctable Fate — Day 0 (Room)',
-  '{"version":18,"processName":"Ineluctable Fate — Day 0","grid":{"w":40,"h":32,"tile":48},"settings":{"atmospherePreset":"planet_x","dt":3600},"units":[{"id":"room","defId":"room","profileId":"room","tier":1,"name":"Crew Room","x":0,"y":0,"rot":0,"params":{"nPeople":2,"powerPriority":1}},{"id":"o2_bottle","defId":"simple_tank","profileId":"simple_gas_bottle","tier":1,"name":"O₂ Bottle","x":-5,"y":0,"rot":0,"params":{"volume_m3":0.01,"P_init":30553950,"initialComposition":{"O2":1},"gasDrawRate":0.001,"opening_gas_pct":46.6,"liqDrawRate":0,"opening_liq_pct":0,"P_relief":25000000,"overflow_level":90}},{"id":"water_barrel","defId":"simple_open_tank","profileId":"simple_open_tank","tier":1,"name":"Water Barrel","x":-5,"y":4,"rot":0,"params":{"volume_m3":0.1,"initialComposition":{"H2O":1},"level_init":0.3348,"drawRate":0.01,"opening_pct":25.8,"overflow_level":90}},{"id":"food_crate","defId":"food_storage","profileId":"food_crate","tier":1,"name":"Food Crate","x":-5,"y":7,"rot":0,"params":{"volume_m3":0.1,"gasDrawRate":0.001,"opening_gas_pct":46.6,"P_init":29331792,"initialComposition":{"CH2O":1},"P_relief":32000000,"UA_jacket":50}},{"id":"waste_snk","defId":"sink","profileId":"sink","tier":1,"name":"Food Waste","x":-2,"y":10,"rot":0,"params":{}},{"id":"scrubber","defId":"membrane_separator","profileId":"membrane_separator","tier":1,"name":"LiOH Scrubber","x":8,"y":1,"rot":0,"params":{"targetSpecies":"CO2","extractionFrac":0.99,"consumable":{"name":"LiOH Cartridges","capacity":500,"remaining":500,"maxRate":5}}},{"id":"co2_snk","defId":"sink","profileId":"sink","tier":1,"name":"CO₂ Vent","x":12,"y":1,"rot":0,"params":{}},{"id":"cooler","defId":"air_cooler","profileId":"air_cooler","tier":1,"name":"Air Cooler","x":8,"y":4,"rot":0,"params":{"T_out":294,"UA_kW_K":1,"max_fan_power_W":200,"powerPriority":2}},{"id":"heater","defId":"electric_heater","profileId":"electric_heater","tier":1,"name":"Air Heater","x":8,"y":7,"rot":0,"params":{"T_out":294,"powerPriority":2}},{"id":"battery","defId":"battery","profileId":"battery","tier":1,"name":"Battery","x":0,"y":-5,"rot":0,"params":{"peakPower_kW":100,"capacity_J":1800000000,"initialSOC":1.0}},{"id":"power_disp","defId":"power_dispatcher_5","profileId":"power_dispatcher_5","tier":1,"name":"Power Dispatch","x":3,"y":-5,"rot":0,"params":{}},{"id":"surplus_snk","defId":"sink_electrical","profileId":"sink_electrical","tier":1,"name":"Surplus","x":7,"y":-5,"rot":0,"params":{"ratedPower_kW":50,"powerPriority":5}}],"connections":[{"id":"c_o2","from":{"unitId":"o2_bottle","portId":"gas_out"},"to":{"unitId":"room","portId":"o2_in"}},{"id":"c_h2o","from":{"unitId":"water_barrel","portId":"mat_out"},"to":{"unitId":"room","portId":"h2o_in"}},{"id":"c_food","from":{"unitId":"food_crate","portId":"food_out"},"to":{"unitId":"room","portId":"food_in"}},{"id":"c_waste","from":{"unitId":"food_crate","portId":"waste_out"},"to":{"unitId":"waste_snk","portId":"mat_in"}},{"id":"c_exhaust","from":{"unitId":"room","portId":"air_exhaust"},"to":{"unitId":"scrubber","portId":"mat_in"}},{"id":"c_co2","from":{"unitId":"scrubber","portId":"ret_out"},"to":{"unitId":"co2_snk","portId":"mat_in"}},{"id":"c_cool_in","from":{"unitId":"scrubber","portId":"perm_out"},"to":{"unitId":"cooler","portId":"mat_in"}},{"id":"c_heat_in","from":{"unitId":"cooler","portId":"mat_out"},"to":{"unitId":"heater","portId":"mat_in"}},{"id":"c_return","from":{"unitId":"heater","portId":"mat_out"},"to":{"unitId":"room","portId":"air_return"}},{"id":"e_bat","from":{"unitId":"battery","portId":"elec"},"to":{"unitId":"power_disp","portId":"elec_in_1"}},{"id":"e_room","from":{"unitId":"power_disp","portId":"elec_out_1"},"to":{"unitId":"room","portId":"elec_in"}},{"id":"e_cooler","from":{"unitId":"power_disp","portId":"elec_out_2"},"to":{"unitId":"cooler","portId":"elec_in"}},{"id":"e_heater","from":{"unitId":"power_disp","portId":"elec_out_3"},"to":{"unitId":"heater","portId":"elec_in"}},{"id":"e_surplus","from":{"unitId":"power_disp","portId":"elec_surplus"},"to":{"unitId":"surplus_snk","portId":"elec_in"}}],"modelsActive":{"thermo_package":"ideal_raoult","reaction":null,"units":"SI_bar"},"solverOptions":{"maxIter":200},"layout":{"viewMode":"flowsheet","colorBy":"type","theme":"ragtag","paletteOpen":false,"inspectorOpen":false}}'
+  '{"version":18,"processName":"Ineluctable Fate — Day 0","grid":{"w":40,"h":32,"tile":48},"settings":{"atmospherePreset":"planet_x","dt":3600},"units":[{"id":"room","defId":"room","profileId":"room","tier":1,"name":"Crew Room","x":0,"y":0,"rot":0,"params":{"nPeople":2,"powerPriority":1}},{"id":"o2_bottle","defId":"simple_tank","profileId":"simple_gas_bottle","tier":1,"name":"O₂ Bottle","x":-5,"y":0,"rot":0,"params":{"volume_m3":0.01,"P_init":30553950,"initialComposition":{"O2":1},"gasDrawRate":0.001,"opening_gas_pct":46.6,"P_relief":25000000}},{"id":"water_barrel","defId":"simple_open_tank","profileId":"simple_open_tank","tier":1,"name":"Water Barrel","x":-5,"y":4,"rot":0,"params":{"volume_m3":0.1,"initialComposition":{"H2O":1},"level_init":0.3348,"drawRate":0.01,"opening_pct":25.8,"overflow_level":90}},{"id":"food_crate","defId":"food_storage","profileId":"food_crate","tier":1,"name":"Food Crate","x":-5,"y":7,"rot":0,"params":{"volume_m3":0.1,"gasDrawRate":0.001,"opening_gas_pct":46.6,"P_init":29331792,"initialComposition":{"CH2O":1},"P_relief":32000000,"UA_jacket":50}},{"id":"waste_snk","defId":"sink","profileId":"sink","tier":1,"name":"Food Waste","x":-2,"y":10,"rot":0,"params":{}},{"id":"scrubber","defId":"membrane_separator","profileId":"membrane_separator","tier":1,"name":"LiOH Scrubber","x":8,"y":1,"rot":0,"params":{"targetSpecies":"CO2","extractionFrac":0.99,"consumable":{"name":"LiOH Cartridges","capacity":500,"remaining":500,"maxRate":5}}},{"id":"co2_snk","defId":"sink","profileId":"sink","tier":1,"name":"CO₂ Vent","x":12,"y":1,"rot":0,"params":{}},{"id":"cooler","defId":"air_cooler","profileId":"air_cooler","tier":1,"name":"Air Cooler","x":8,"y":4,"rot":0,"params":{"T_out":294,"UA_kW_K":1,"max_fan_power_W":200,"powerPriority":2}},{"id":"heater","defId":"electric_heater","profileId":"electric_heater","tier":1,"name":"Air Heater","x":8,"y":7,"rot":0,"params":{"T_out":294,"powerPriority":2}},{"id":"battery","defId":"battery","profileId":"battery","tier":1,"name":"Battery","x":0,"y":-5,"rot":0,"params":{"peakPower_kW":100,"capacity_J":1800000000,"initialSOC":1.0}},{"id":"power_disp","defId":"power_dispatcher_5","profileId":"power_dispatcher_5","tier":1,"name":"Power Dispatch","x":3,"y":-5,"rot":0,"params":{}},{"id":"surplus_snk","defId":"sink_electrical","profileId":"sink_electrical","tier":1,"name":"Surplus","x":7,"y":-5,"rot":0,"params":{"ratedPower_kW":50,"powerPriority":5}}],"connections":[{"id":"c_o2","from":{"unitId":"o2_bottle","portId":"gas_out"},"to":{"unitId":"room","portId":"o2_in"}},{"id":"c_h2o","from":{"unitId":"water_barrel","portId":"mat_out"},"to":{"unitId":"room","portId":"h2o_in"}},{"id":"c_food","from":{"unitId":"food_crate","portId":"food_out"},"to":{"unitId":"room","portId":"food_in"}},{"id":"c_waste","from":{"unitId":"food_crate","portId":"waste_out"},"to":{"unitId":"waste_snk","portId":"mat_in"}},{"id":"c_exhaust","from":{"unitId":"room","portId":"air_exhaust"},"to":{"unitId":"scrubber","portId":"mat_in"}},{"id":"c_co2","from":{"unitId":"scrubber","portId":"ret_out"},"to":{"unitId":"co2_snk","portId":"mat_in"}},{"id":"c_cool_in","from":{"unitId":"scrubber","portId":"perm_out"},"to":{"unitId":"cooler","portId":"mat_in"}},{"id":"c_heat_in","from":{"unitId":"cooler","portId":"mat_out"},"to":{"unitId":"heater","portId":"mat_in"}},{"id":"c_return","from":{"unitId":"heater","portId":"mat_out"},"to":{"unitId":"room","portId":"air_return"}},{"id":"e_bat","from":{"unitId":"battery","portId":"elec"},"to":{"unitId":"power_disp","portId":"elec_in_1"}},{"id":"e_room","from":{"unitId":"power_disp","portId":"elec_out_1"},"to":{"unitId":"room","portId":"elec_in"}},{"id":"e_cooler","from":{"unitId":"power_disp","portId":"elec_out_2"},"to":{"unitId":"cooler","portId":"elec_in"}},{"id":"e_heater","from":{"unitId":"power_disp","portId":"elec_out_3"},"to":{"unitId":"heater","portId":"elec_in"}},{"id":"e_surplus","from":{"unitId":"power_disp","portId":"elec_surplus"},"to":{"unitId":"surplus_snk","portId":"elec_in"}}],"modelsActive":{"thermo_package":"ideal_raoult","reaction":null,"units":"SI_bar"},"solverOptions":{"maxIter":200},"layout":{"viewMode":"flowsheet","colorBy":"type","theme":"ragtag","paletteOpen":false,"inspectorOpen":false}}'
 );
 
 buildExamplesMenu();
@@ -44293,7 +44203,7 @@ window.addEventListener('resize', () => {
 
 // [v14.10.3] Load on startup: auto-save (if matching DEMO_VERSION) or demo_room_survival
 {
-  const DEMO_VERSION = 'v17.7.4';  // [v17.7.4] bumped: food_storage thermal runaway fix
+  const DEMO_VERSION = 'v17.7.5';  // [v17.7.5] bumped: simple_tank port simplification
   const _AUTOSAVE_VER_KEY = AUTOSAVE_KEY + '_demoVer';
   // [v17.4.0] Read using AUTOSAVE_KEY constant — was hardcoded 'ptis_autosave'
   // which never matched the write key 'processThis_autosave'. All autosaves
@@ -51229,7 +51139,7 @@ function runTests() {
   tests.push({ name: '378: T-PS10 Opening=0% → Q_gas=0, Q_liq=0', fn: t => {
     const tid = t.place('tank', 0, 0, {
       volume_m3: 0.15, P_init: 500000, P_relief: 1000000,
-      opening_gas_pct: 0, opening_liq_pct: 0
+      opening_gas_pct: 0
     });
     const snk = t.place('sink', 5, 0);
     t.wire(tid, 'gas_out', snk, 'mat_in');
@@ -51311,8 +51221,7 @@ function runTests() {
   // T-PS15: Overflow: level > threshold, overflow connected → MINOR
   tests.push({ name: '383: T-PS15 Overflow: connected → liquid flows, MINOR', fn: t => {
     const tid = t.place('tank', 0, 0, {
-      volume_m3: 0.15, level_init: 95, initialComposition: { H2O: 1 },
-      overflow_level: 90, opening_gas_pct: 0, opening_liq_pct: 0
+      volume_m3: 0.15, level_init: 95, initialComposition: { H2O: 1 }, opening_gas_pct: 0
     });
     const ovSnk = t.place('sink', 5, 2);
     t.wire(tid, 'overflow', ovSnk, 'mat_in');
@@ -51328,8 +51237,7 @@ function runTests() {
   // Limit system handles overfill (level > level_HH). NNG-3: unconnected port = no device.
   tests.push({ name: '384: T-PS16 Overflow: unconnected → no drain device', fn: t => {
     const tid = t.place('tank', 0, 0, {
-      volume_m3: 0.15, level_init: 95, initialComposition: { H2O: 1 },
-      overflow_level: 90, opening_gas_pct: 0, opening_liq_pct: 0
+      volume_m3: 0.15, level_init: 95, initialComposition: { H2O: 1 }, opening_gas_pct: 0
     });
     // No overflow connection — no drain installed
     t.solve();
@@ -51349,7 +51257,7 @@ function runTests() {
     // level_init 95% > overflow_level 90% → overflow triggers
     const tid = t.place('tank', 0, 0, {
       volume_m3: 0.5, level_init: 95, initialComposition: { H2O: 1 },
-      P_relief: 80000, overflow_level: 90, opening_gas_pct: 0, opening_liq_pct: 0
+      P_relief: 80000, opening_gas_pct: 0
     });
     const ventSnk = t.place('sink', 5, 0);
     const ovSnk = t.place('sink', 5, 2);
@@ -51951,8 +51859,7 @@ function runTests() {
 
     const src = t.place('source', 0, 0, { species: 'N2', nDot: 1.0, T: 300, P: 200000, phaseConstraint: 'V' });
     const tid = t.place('open_tank', 4, 0, {
-      volume_m3: 0.15, level_init: 0, initialComposition: { N2: 1 },
-      opening_liq_pct: 0
+      volume_m3: 0.15, level_init: 0, initialComposition: { N2: 1 }
     });
     t.wire(src, 'mat_out', tid, 'mat_in');
 
@@ -51983,8 +51890,7 @@ function runTests() {
 
     const src = t.place('source', 0, 0, { species: 'H2O', nDot: 5.0, T: 300, P: 200000, phaseConstraint: 'L' });
     const tid = t.place('open_tank', 4, 0, {
-      volume_m3: 1.0, level_init: 0, initialComposition: { H2O: 1 },
-      opening_liq_pct: 0
+      volume_m3: 1.0, level_init: 0, initialComposition: { H2O: 1 }
     });
     t.wire(src, 'mat_out', tid, 'mat_in');
 
@@ -52026,8 +51932,7 @@ function runTests() {
   // T-VT05: Overflow connected-only
   tests.push({ name: '421: T-VT05 Open tank: overflow connected-only', fn: t => {
     const tid = t.place('open_tank', 0, 0, {
-      volume_m3: 0.15, level_init: 95, initialComposition: { H2O: 1 },
-      overflow_level: 90, opening_liq_pct: 0
+      volume_m3: 0.15, level_init: 95, initialComposition: { H2O: 1 }
     });
     // No overflow connection
     t.solve();
@@ -52039,8 +51944,7 @@ function runTests() {
   // T-VT06: Overflow connected → flows
   tests.push({ name: '422: T-VT06 Open tank: overflow connected → liquid flows', fn: t => {
     const tid = t.place('open_tank', 0, 0, {
-      volume_m3: 0.15, level_init: 95, initialComposition: { H2O: 1 },
-      overflow_level: 90, opening_liq_pct: 0
+      volume_m3: 0.15, level_init: 95, initialComposition: { H2O: 1 }
     });
     const ovSnk = t.place('sink', 5, 2);
     t.wire(tid, 'overflow', ovSnk, 'mat_in');
@@ -59181,7 +59085,7 @@ function runTests() {
     t.clearScene();
     const tank = t.place('tank', 0, 0, {
       volume_m3: 0.1, P_init: 500000, P_relief: 200000,
-      Cv_gas: 10, opening_gas_pct: 0, Cv_liq: 0, opening_liq_pct: 0
+      Cv_gas: 10, opening_gas_pct: 0, Cv_liq: 0
     });
     const vent = t.place('sink', 4, -1);
     t.wire(tank, 'vent', vent, 'mat_in');
@@ -60154,7 +60058,7 @@ function runTests() {
     t.clearScene();
     const otk = t.place('simple_open_tank', 0, 0, {
       volume_m3: 0.1, initialComposition: { H2O: 1 }, level_init: 95,
-      drawRate: 0, opening_pct: 0, overflow_level: 90
+      drawRate: 0, opening_pct: 0
     });
     const ovSnk = t.place('sink', 2, 4);
     t.wire(otk, 'overflow', ovSnk, 'mat_in');
@@ -60239,10 +60143,9 @@ function runTests() {
     const def = UnitRegistry.get('simple_tank');
     t.assertOK(!!def, 'simple_tank defId registered');
     t.assertOK(def.inventory === true, 'inventory flag set');
-    t.assertOK(def.ports.length === 5, '5 ports (in + gas + liq + vent + overflow)');
+    t.assertOK(def.ports.length === 3, '3 ports (in + gas + vent)');
     t.assertOK(def.limitParams.includes('P_HH'), 'has P_HH limit');
     t.assertOK(def.limitParams.includes('T_HH'), 'has T_HH limit');
-    t.assertOK(def.limitParams.includes('level_HH'), 'has level_HH limit');
     const bottle = ProfileRegistry.get('simple_gas_bottle');
     t.assertOK(!!bottle && bottle.defId === 'simple_tank', 'Gas Bottle profile (T1)');
     t.assertOK(bottle.pressureClass === 'simple', 'pressureClass = simple');
@@ -60269,7 +60172,7 @@ function runTests() {
     // 1m³ tank at 5 bar → ~208 mol O₂ → n_V/dt ≈ 0.058 → rate-limited at 0.05
     const stk = t.place('simple_tank', 0, 0, {
       volume_m3: 1.0, initialComposition: { O2: 1 }, P_init: 500000,
-      gasDrawRate: 0.1, opening_gas_pct: 50, opening_liq_pct: 0
+      gasDrawRate: 0.1, opening_gas_pct: 50
     });
     const snk = t.place('sink', 4, 0);
     t.wire(stk, 'gas_out', snk, 'mat_in');
@@ -60287,7 +60190,7 @@ function runTests() {
     // Fill to very high pressure: 50 bar in a 10L tank with P_relief = 3 bar
     const stk = t.place('simple_tank', 0, 0, {
       volume_m3: 0.01, initialComposition: { N2: 1 }, P_init: 5000000,
-      gasDrawRate: 0, opening_gas_pct: 0, opening_liq_pct: 0,
+      gasDrawRate: 0, opening_gas_pct: 0,
       P_relief: 300000
     });
     const ventSnk = t.place('sink', 2, -2);
@@ -60306,23 +60209,16 @@ function runTests() {
     // Tank with inventory, all ports unconnected
     const stk = t.place('simple_tank', 0, 0, {
       volume_m3: 0.01, initialComposition: { N2: 1 }, P_init: 200000,
-      gasDrawRate: 1, opening_gas_pct: 100,
-      liqDrawRate: 1, opening_liq_pct: 100
+      gasDrawRate: 1, opening_gas_pct: 100
     });
     // Nothing connected
     t.solve();
     const gasPort = t.port(stk, 'gas_out');
-    const liqPort = t.port(stk, 'liq_out');
     const ventPort = t.port(stk, 'vent');
-    const ovPort = t.port(stk, 'overflow');
     const gasQ = Object.values(gasPort?.n || {}).reduce((a,b) => a+b, 0);
-    const liqQ = Object.values(liqPort?.n || {}).reduce((a,b) => a+b, 0);
     const ventQ = Object.values(ventPort?.n || {}).reduce((a,b) => a+b, 0);
-    const ovQ = Object.values(ovPort?.n || {}).reduce((a,b) => a+b, 0);
     t.assertClose(gasQ, 0, 1e-10, 'gas_out: zero flow (unconnected)');
-    t.assertClose(liqQ, 0, 1e-10, 'liq_out: zero flow (unconnected)');
     t.assertClose(ventQ, 0, 1e-10, 'vent: zero flow (unconnected)');
-    t.assertClose(ovQ, 0, 1e-10, 'overflow: zero flow (unconnected)');
   });
 
   test('652: simple_tank — mass balance (gas draw + vent)', t => {
@@ -60332,7 +60228,7 @@ function runTests() {
     });
     const stk = t.place('simple_tank', 4, 0, {
       volume_m3: 0.05, initialComposition: { N2: 1 }, P_init: 200000,
-      gasDrawRate: 0.05, opening_gas_pct: 100, opening_liq_pct: 0,
+      gasDrawRate: 0.05, opening_gas_pct: 100,
       P_relief: 400000
     });
     const snk = t.place('sink', 8, 0);
@@ -60352,7 +60248,7 @@ function runTests() {
     // Very high pressure, no vent connected
     const stk = t.place('simple_tank', 0, 0, {
       volume_m3: 0.01, initialComposition: { N2: 1 }, P_init: 5000000,
-      gasDrawRate: 0, opening_gas_pct: 0, opening_liq_pct: 0,
+      gasDrawRate: 0, opening_gas_pct: 0,
       P_relief: 300000
     });
     // Vent deliberately NOT connected
@@ -60742,8 +60638,7 @@ function runTests() {
     // O₂ gas bottle: 10L, 300 bar, draw matched to 2-person demand
     const o2 = t.place('simple_tank', 0, 0, {
       volume_m3: 0.01, P_init: 30000000, initialComposition: { O2: 1 },
-      gasDrawRate: 0.001, opening_gas_pct: 46.6,
-      liqDrawRate: 0, opening_liq_pct: 0, P_relief: 25000000, overflow_level: 90
+      gasDrawRate: 0.001, opening_gas_pct: 46.6, P_relief: 25000000
     });
     const srcFood = t.place('source', 0, 3, { n: { CH2O: 5e-4 }, T: 294, P: 101325, phaseConstraint: 'V' });
     const gs = t.place('grid_supply', 8, -3, { maxPower: 1 });
@@ -60781,7 +60676,7 @@ function runTests() {
     // Open barrel: 100L, tiny water fill (~18.6 mol = 0.335% level)
     const h2o = t.place('simple_open_tank', 0, 0, {
       volume_m3: 0.1, initialComposition: { H2O: 1 }, level_init: 0.335,
-      drawRate: 0.01, opening_pct: 25.8, overflow_level: 90
+      drawRate: 0.01, opening_pct: 25.8
     });
     const gs = t.place('grid_supply', 8, -3, { maxPower: 1 });
     const room = t.place('room', 4, 0, { nPeople: 2 });
@@ -60814,8 +60709,7 @@ function runTests() {
     // Food crate: 100L, ~293 bar CH₂O, draw matched to 2-person demand
     const food = t.place('simple_tank', 0, 0, {
       volume_m3: 0.1, P_init: 29300000, initialComposition: { CH2O: 1 },
-      gasDrawRate: 0.001, opening_gas_pct: 46.6,
-      liqDrawRate: 0, opening_liq_pct: 0, P_relief: 25000000, overflow_level: 90
+      gasDrawRate: 0.001, opening_gas_pct: 46.6, P_relief: 25000000
     });
     const gs = t.place('grid_supply', 8, -3, { maxPower: 1 });
     const room = t.place('room', 4, 0, { nPeople: 2 });
@@ -60920,17 +60814,15 @@ function runTests() {
     // ── Place all units ──
     const o2 = t.place('simple_tank', -6, 2, {
       volume_m3: 0.01, P_init: 30000000, initialComposition: { O2: 1 },
-      gasDrawRate: 0.001, opening_gas_pct: 46.6,
-      liqDrawRate: 0, opening_liq_pct: 0, P_relief: 25000000, overflow_level: 90
+      gasDrawRate: 0.001, opening_gas_pct: 46.6, P_relief: 25000000
     });
     const food = t.place('simple_tank', -6, 5, {
       volume_m3: 0.1, P_init: 29300000, initialComposition: { CH2O: 1 },
-      gasDrawRate: 0.001, opening_gas_pct: 46.6,
-      liqDrawRate: 0, opening_liq_pct: 0, P_relief: 25000000, overflow_level: 90
+      gasDrawRate: 0.001, opening_gas_pct: 46.6, P_relief: 25000000
     });
     const h2o = t.place('simple_open_tank', -6, 8, {
       volume_m3: 0.1, initialComposition: { H2O: 1 }, level_init: 0.335,
-      drawRate: 0.01, opening_pct: 25.8, overflow_level: 90
+      drawRate: 0.01, opening_pct: 25.8
     });
     const room = t.place('room', 0, 0, { nPeople: 2, powerPriority: 1 });
     const scrubber = t.place('membrane_separator', 10, 2, {
@@ -60987,17 +60879,15 @@ function runTests() {
     // Same scene as T675 — build it inline
     const o2 = t.place('simple_tank', -6, 2, {
       volume_m3: 0.01, P_init: 30000000, initialComposition: { O2: 1 },
-      gasDrawRate: 0.001, opening_gas_pct: 46.6,
-      liqDrawRate: 0, opening_liq_pct: 0, P_relief: 25000000, overflow_level: 90
+      gasDrawRate: 0.001, opening_gas_pct: 46.6, P_relief: 25000000
     });
     const food = t.place('simple_tank', -6, 5, {
       volume_m3: 0.1, P_init: 29300000, initialComposition: { CH2O: 1 },
-      gasDrawRate: 0.001, opening_gas_pct: 46.6,
-      liqDrawRate: 0, opening_liq_pct: 0, P_relief: 25000000, overflow_level: 90
+      gasDrawRate: 0.001, opening_gas_pct: 46.6, P_relief: 25000000
     });
     const h2o = t.place('simple_open_tank', -6, 8, {
       volume_m3: 0.1, initialComposition: { H2O: 1 }, level_init: 0.335,
-      drawRate: 0.01, opening_pct: 25.8, overflow_level: 90
+      drawRate: 0.01, opening_pct: 25.8
     });
     const room = t.place('room', 0, 0, { nPeople: 2, powerPriority: 1 });
     const scrubber = t.place('membrane_separator', 10, 2, {
@@ -61072,7 +60962,7 @@ function runTests() {
     const tank = t.place('cooled_tank', 0, 0, {
       volume_m3: 0.01, P_init: 500000, initialComposition: { N2: 1 },
       gasDrawRate: 0, opening_gas_pct: 0, UA_jacket: 50,
-      P_relief: 600000, overflow_level: 90
+      P_relief: 600000
     });
     // Override T to 350K (hot)
     t.unit(tank).inventory.T_K = 350;
