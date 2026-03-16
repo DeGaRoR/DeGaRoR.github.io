@@ -358,6 +358,18 @@
   phase, composition, flowrate) via _visStreamColor on the mat_out
   stream — same logic pipes use.
 
+  **Energy balance closure fix (room + food_storage).**  The balance
+  sheet residual was -0.263 kW because:
+  (a) Room accumulation omitted W_elec (31.8W electrical input from
+      battery) and didn't subtract Q_rejected_W (289W ambient envelope
+      loss already counted in E_out).
+  (b) Food storage accumulation didn't subtract its Q_rejected_W.
+  (c) Q_metabolic was incorrectly added as a separate term — the
+      reaction energy O₂+CH₂O→CO₂+H₂O is already captured by the
+      formation-enthalpy-corrected Hdot of inlet vs exhaust streams.
+  Fix: room_accum = H_ins − H_ex + W_elec − Q_rejected.
+  food_accum = H_in − H_out − Q_rejected.  Residual now <0.001%.
+
   NNGs: NNG-3 (WYSIWYG — pipe extension looks like a pipe), NNG-14.
 
   ─── v17.7.7 — food_storage port/symbol tuning ───────────────────────────
@@ -27527,7 +27539,9 @@ function computeSystemBalance(scene) {
       if (Math.abs(netMass) > 1e-15) { accumulation.mass_kgps += netMass; accumulation.items.push({ name: uName, type: 'food_storage_mass', value_kgps: netMass, value_W: 0 }); }
       const H_in = inPorts.reduce((s, pid) => s + (ud.ports?.[pid]?.Hdot_J_s ?? 0), 0);
       const H_out = outPorts.reduce((s, pid) => s + (ud.ports?.[pid]?.Hdot_J_s ?? 0), 0);
-      if (Math.abs(H_in - H_out) > 0.01) accumulation.energy_W += (H_in - H_out);
+      const Q_rej_food = ud.last?.Q_rejected_W ?? 0;
+      const netE_food = H_in - H_out - Q_rej_food;
+      if (Math.abs(netE_food) > 0.01) accumulation.energy_W += netE_food;
     }
     // [v17.6.0 S-ROOM] Room: mixed IN/OUT ports, inventory unit.
     // Mass balance: all material inflows minus air_exhaust = accumulation.
@@ -27545,10 +27559,17 @@ function computeSystemBalance(scene) {
         accumulation.mass_kgps += netMass;
         accumulation.items.push({ name: uName, type: 'room_mass', value_kgps: netMass, value_W: 0 });
       }
-      // Energy: sum all input enthalpy - exhaust enthalpy + electrical - envelope loss
+      // Energy: material enthalpy balance + electrical input - ambient rejection.
+      // Q_rejected is already counted in E_out at the system level, but the
+      // room doesn't actually store that heat — it passes through.  So the
+      // TRUE accumulation (dU/dt) subtracts it.  Q_metabolic is NOT added
+      // separately: the reaction O₂+CH₂O→CO₂+H₂O is already captured by
+      // the formation-enthalpy-corrected Hdot of inlet vs exhaust streams.
       const H_ins = inPorts.reduce((s, pid) => s + (ud.ports?.[pid]?.Hdot_J_s ?? 0), 0);
       const H_ex = ud.ports?.air_exhaust?.Hdot_J_s ?? 0;
-      const netEnergy = H_ins - H_ex;
+      const W_elec = ud.ports?.elec_in?.actual ?? 0;
+      const Q_rejected = ud.last?.Q_rejected_W ?? 0;
+      const netEnergy = H_ins - H_ex + W_elec - Q_rejected;
       if (Math.abs(netEnergy) > 0.01) accumulation.energy_W += netEnergy;
     }
   }
