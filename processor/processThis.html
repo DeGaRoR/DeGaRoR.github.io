@@ -347,6 +347,33 @@
   CHANGELOG  (latest first)
   ═══════════════════════════════════════════════════════════════════════════
 
+  ─── v17.7.6 — Presentation rework: food_storage, bend, membrane, heater/cooler ──
+
+  **food_storage resized to 2×3** (was 2×2).  Port layout: waste_out
+  at y=0 (top), food_in/food_out at y=2, cool_in/cool_out at y=3
+  (bottom).  Matches cooled_tank pattern.  Ragtag symbol: crate body
+  in upper 2×2 zone, cooling serpentine at base row (cyan path, same
+  pattern as cooled_tank).  Zero-length cool port stubs via elbowTips.
+
+  **bend: 8 orientations, outside-radius curve.**  4 new reversed
+  variants (up→right, up→left, down→right, down→left) join the
+  existing 4 (left→down, left→up, right→down, right→up).  Ragtag
+  symbol rewritten: generalized port-driven geometry using quadratic
+  bezier with outside control point (curve bends away from the corner
+  where pipes meet, not toward it).  Flanges adapt to horizontal or
+  vertical entry/exit.
+
+  **membrane_separator: flip variants.**  `box/flip` and
+  `box/flip-mirror` swap permeate and retentate vertically (horizontal
+  axis mirror).  Animation follows port positions.
+
+  **air_cooler + electric_heater: vertical variants.**  `vert-elec-L`
+  and `vert-elec-R` provide top→bottom material flow with electrical
+  on the left or right side.
+
+  NNGs: NNG-3 (WYSIWYG — ports match physical layout), NNG-13
+  (inspector — variant labels), NNG-14 (changelog).
+
   ─── v17.7.5 — simple_tank port simplification ───────────────────────────
 
   **simple_tank: liq_out and overflow ports removed.**  A gas cylinder
@@ -18137,23 +18164,23 @@ UnitRegistry.register('cooled_tank', {
 UnitRegistry.register('food_storage', {
   name: 'Food Storage',
   category: UnitCategories.LIFE_SUPPORT,
-  w: 2, h: 2,
+  w: 2, h: 3,  // [v17.7.5] 2×3 — crate body + cooling serpentine at base (matches cooled_tank)
   optionalPorts: true,
   ports: [
-    { portId: 'food_in',   dir: PortDir.IN,  type: StreamType.MATERIAL, x: 0, y: 1, label: 'food in' },
-    { portId: 'food_out',  dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 0, label: 'food' },
+    { portId: 'food_in',   dir: PortDir.IN,  type: StreamType.MATERIAL, x: 0, y: 2, label: 'food in' },
+    { portId: 'food_out',  dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 2, label: 'food' },
     { portId: 'waste_out', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 1, y: 0, label: 'waste gas' },
-    { portId: 'cool_in',   dir: PortDir.IN,  type: StreamType.MATERIAL, x: 0, y: 2, label: 'coolant' },
-    { portId: 'cool_out',  dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 2, label: 'coolant' }
+    { portId: 'cool_in',   dir: PortDir.IN,  type: StreamType.MATERIAL, x: 0, y: 3, label: 'coolant' },
+    { portId: 'cool_out',  dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 3, label: 'coolant' }
   ],
   presentations: {
-    'box/default': { w: 2, h: 2, ports: {
-      food_in:{x:0,y:1}, food_out:{x:2,y:0}, waste_out:{x:1,y:0},
-      cool_in:{x:0,y:2}, cool_out:{x:2,y:2}
+    'box/default': { w: 2, h: 3, ports: {
+      food_in:{x:0,y:2}, food_out:{x:2,y:2}, waste_out:{x:1,y:0},
+      cool_in:{x:0,y:3}, cool_out:{x:2,y:3}
     }},
-    'box/mirror': { w: 2, h: 2, ports: {
-      food_in:{x:2,y:1}, food_out:{x:0,y:0}, waste_out:{x:1,y:0},
-      cool_in:{x:2,y:2}, cool_out:{x:0,y:2}
+    'box/mirror': { w: 2, h: 3, ports: {
+      food_in:{x:2,y:2}, food_out:{x:0,y:2}, waste_out:{x:1,y:0},
+      cool_in:{x:2,y:3}, cool_out:{x:0,y:3}
     }}
   },
   limitParams: ['T_LL', 'T_HH', 'P_LL', 'P_HH'],
@@ -20074,7 +20101,9 @@ UnitRegistry.register('electric_heater', {
     'box/default':       { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, elec_in:{x:1,y:0}, mat_out:{x:2,y:1} } },
     'box/mirror':        { w: 2, h: 2, ports: { mat_in:{x:2,y:1}, elec_in:{x:1,y:0}, mat_out:{x:0,y:1} } },
     'box/elec-B':        { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, elec_in:{x:1,y:2}, mat_out:{x:2,y:1} } },
-    'box/mirror-elec-B': { w: 2, h: 2, ports: { mat_in:{x:2,y:1}, elec_in:{x:1,y:2}, mat_out:{x:0,y:1} } }
+    'box/mirror-elec-B': { w: 2, h: 2, ports: { mat_in:{x:2,y:1}, elec_in:{x:1,y:2}, mat_out:{x:0,y:1} } },
+    'box/vert-elec-L':   { w: 2, h: 2, ports: { mat_in:{x:1,y:0}, elec_in:{x:0,y:1}, mat_out:{x:1,y:2} } },
+    'box/vert-elec-R':   { w: 2, h: 2, ports: { mat_in:{x:1,y:0}, elec_in:{x:2,y:1}, mat_out:{x:1,y:2} } }
   },
   // [v13.0.4 S1c] Equipment limits
   limitParams: ['T_LL', 'T_L', 'T_H', 'T_HH', 'P_LL', 'P_L', 'P_H', 'P_HH', 'mass_LL', 'mass_HH'],
@@ -20209,7 +20238,9 @@ UnitRegistry.register('air_cooler', {
     'box/mirror':        { w: 2, h: 2, ports: { mat_in:{x:2,y:1}, mat_out:{x:0,y:1}, elec_in:{x:1,y:2} } },
     'box/elec-T':        { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, mat_out:{x:2,y:1}, elec_in:{x:1,y:0} } },
     'box/mirror-elec-T': { w: 2, h: 2, ports: { mat_in:{x:2,y:1}, mat_out:{x:0,y:1}, elec_in:{x:1,y:0} } },
-    'box/port-top':      { w: 2, h: 2, ports: { mat_in:{x:1,y:0}, mat_out:{x:1,y:2}, elec_in:{x:0,y:1} } }
+    'box/port-top':      { w: 2, h: 2, ports: { mat_in:{x:1,y:0}, mat_out:{x:1,y:2}, elec_in:{x:0,y:1} } },
+    'box/vert-elec-L':   { w: 2, h: 2, ports: { mat_in:{x:1,y:0}, mat_out:{x:1,y:2}, elec_in:{x:0,y:1} } },
+    'box/vert-elec-R':   { w: 2, h: 2, ports: { mat_in:{x:1,y:0}, mat_out:{x:1,y:2}, elec_in:{x:2,y:1} } }
   },
   // [v13.0.4 S1c] Equipment limits — corrected to matrix values v13.0.8
   limitParams: ['T_LL', 'T_L', 'T_H', 'T_HH', 'P_LL', 'P_L', 'P_H', 'P_HH', 'mass_HH'],
@@ -21300,10 +21331,16 @@ UnitRegistry.register('bend', {
     { portId: 'mat_out', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 1, y: 2 }
   ],
   presentations: {
+    // In from side, out top/bottom
     'box/default':   { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, mat_out:{x:1,y:2} }, icon: 'ico-bend' },
     'box/left-up':   { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, mat_out:{x:1,y:0} }, icon: 'ico-bend' },
     'box/right-down':{ w: 2, h: 2, ports: { mat_in:{x:2,y:1}, mat_out:{x:1,y:2} }, icon: 'ico-bend' },
-    'box/right-up':  { w: 2, h: 2, ports: { mat_in:{x:2,y:1}, mat_out:{x:1,y:0} }, icon: 'ico-bend' }
+    'box/right-up':  { w: 2, h: 2, ports: { mat_in:{x:2,y:1}, mat_out:{x:1,y:0} }, icon: 'ico-bend' },
+    // In from top/bottom, out to side (reversed)
+    'box/up-right':  { w: 2, h: 2, ports: { mat_in:{x:1,y:0}, mat_out:{x:2,y:1} }, icon: 'ico-bend' },
+    'box/up-left':   { w: 2, h: 2, ports: { mat_in:{x:1,y:0}, mat_out:{x:0,y:1} }, icon: 'ico-bend' },
+    'box/down-right':{ w: 2, h: 2, ports: { mat_in:{x:1,y:2}, mat_out:{x:2,y:1} }, icon: 'ico-bend' },
+    'box/down-left': { w: 2, h: 2, ports: { mat_in:{x:1,y:2}, mat_out:{x:0,y:1} }, icon: 'ico-bend' }
   },
   tick(u, ports, par) {
     const sIn = ports.mat_in;
@@ -22645,6 +22682,12 @@ UnitRegistry.register('membrane_separator', {
     }},
     'box/mirror':  { w: 2, h: 2, ports: {
       mat_in: { x: 2, y: 1 }, perm_out: { x: 0, y: 0 }, ret_out: { x: 0, y: 2 }
+    }},
+    'box/flip':    { w: 2, h: 2, ports: {
+      mat_in: { x: 0, y: 1 }, perm_out: { x: 2, y: 2 }, ret_out: { x: 2, y: 0 }
+    }},
+    'box/flip-mirror': { w: 2, h: 2, ports: {
+      mat_in: { x: 2, y: 1 }, perm_out: { x: 0, y: 2 }, ret_out: { x: 0, y: 0 }
     }}
   },
   limitParams: ['T_LL', 'T_HH', 'P_HH', 'mass_HH'],
@@ -33047,20 +33090,33 @@ _RAGTAG_SYMBOLS.simple_open_tank = function(g, wx, wy, ww, wh, pal, def, unitId)
 };
 
 _RAGTAG_SYMBOLS.food_storage = function(g, wx, wy, ww, wh, pal, def, unitId) {
-  // [v17.6.3] Food storage: tank body with pal color + food label
+  // [v17.7.5] Food storage: 2×3, crate body in upper 2×2 zone, cooling serpentine at base
   const u = scene.units.get(unitId);
   const last = u?.last || {};
   const frozen = last.frozen;
   const pres = getPresentation(def, u);
-  const bx = wx + 8, by = wy + 8, bw = ww - 16, bh = wh - 16;
+  const _t = scene.tile;
+
+  // Register cool_in/cool_out as zero-length stub tips (same as cooled_tank)
+  if (!_rtNozzle._elbowTips) _rtNozzle._elbowTips = new Map();
+  for (const pid of ['cool_in','cool_out']) {
+    const pp = pres.ports[pid]; if (!pp) continue;
+    const px = wx + pp.x * _t, py = wy + pp.y * _t;
+    _rtNozzle._elbowTips.set(`${unitId}:${pid}`, { x: px, y: py });
+  }
+
+  // Body bounding box (upper 2 tiles)
+  const bx = wx + 8, by = wy + 8, bw = ww - 16, bh = _t * 2 - 16;
   _rtNozzle(g, wx, wy, ww, wh, bx, by, bw, bh, def, pres, pal, unitId);
+
+  // Crate body
   g.appendChild(svgEl('rect', { x: bx, y: by, width: bw, height: bh,
     rx: 6, fill: pal.fillUrl, stroke: pal.stroke, 'stroke-width': 2, 'pointer-events': 'none' }));
   // Inner dark panel
   g.appendChild(svgEl('rect', { x: bx + 6, y: by + 6, width: bw - 12, height: bh - 12,
     rx: 3, fill: frozen ? '#0a1828' : '#1a1008', stroke: pal.rim, 'stroke-width': 0.5, 'pointer-events': 'none' }));
   // Label
-  g.appendChild(svgEl('text', { x: wx + ww/2, y: wy + wh/2 + 2,
+  g.appendChild(svgEl('text', { x: wx + ww/2, y: wy + _t + 2,
     'text-anchor': 'middle', 'dominant-baseline': 'central',
     'font-family': 'monospace', 'font-size': '8px',
     fill: frozen ? '#93c5fd' : '#fbbf24', 'pointer-events': 'none'
@@ -33068,6 +33124,17 @@ _RAGTAG_SYMBOLS.food_storage = function(g, wx, wy, ww, wh, pal, def, unitId) {
   // Bolts
   _rtBolt(g, bx + 10, by + 10); _rtBolt(g, bx + bw - 10, by + 10);
   _rtBolt(g, bx + 10, by + bh - 10); _rtBolt(g, bx + bw - 10, by + bh - 10);
+
+  // Cooling serpentine at base (row 3, same pattern as cooled_tank)
+  const sy = wy + _t * 2 + _t/2;  // vertical center of bottom tile row
+  g.appendChild(svgEl('path', {
+    d: `M${wx+2},${sy+2} L${wx+10},${sy+2} L${wx+10},${sy-10} L${wx+18},${sy-10} L${wx+18},${sy+2}` +
+       ` L${wx+30},${sy+2} L${wx+30},${sy-10} L${wx+42},${sy-10} L${wx+42},${sy+2}` +
+       ` L${wx+54},${sy+2} L${wx+54},${sy-10} L${wx+66},${sy-10} L${wx+66},${sy+2}` +
+       ` L${wx+78},${sy+2} L${wx+78},${sy-10} L${wx+88},${sy-10} L${wx+88},${sy+2} L${wx+94},${sy+2}`,
+    fill: 'none', stroke: '#67e8f9', 'stroke-width': 2.5,
+    'stroke-linecap': 'round', 'stroke-linejoin': 'round', opacity: 0.6, 'pointer-events': 'none'
+  }));
 };
 
 // [v17.6.3 S-ROOM] Crew shelter — thick hull, interior background, diegetic gauges, togglable lights
@@ -33565,101 +33632,75 @@ _RAGTAG_SYMBOLS.room = function(g, wx, wy, ww, wh, pal, def, unitId) {
   stencil.textContent = 'CREW SHELTER'; g.appendChild(stencil);
 };
 
-// [v17.5.0] Pipe Bend — 90° bolted elbow
+// [v17.7.5] Pipe Bend — 90° bolted elbow, outside-radius curve for all 8 orientations
 _RAGTAG_SYMBOLS.bend = function(g, wx, wy, ww, wh, pal, def, unitId) {
   const pres = getPresentation(def, scene.units.get(unitId));
   const t = scene.tile;
-  // Determine bend geometry from port layout
   const pIn = pres.ports.mat_in, pOut = pres.ports.mat_out;
-  const fromLeft = pIn.x < 1, fromRight = pIn.x > 1;
-  const toBottom = pOut.y > 1, toTop = pOut.y < 1;
-  // Center of the 2×2 cell
   const cx = wx + ww/2, cy = wy + wh/2;
-  // Pipe half-width
   const pw = 8;
-  // Corner of the bend (where the two pipe runs meet at 90°)
-  const cornerX = fromLeft ? wx + 20 : wx + ww - 20;
-  const cornerY = toBottom ? wy + wh - 20 : wy + 20;
 
-  // Nozzle stubs to ports
+  // Port pixel positions (at unit edge, slightly inset)
+  const inIsHoriz = (pIn.x === 0 || pIn.x === 2);
+  const outIsHoriz = (pOut.x === 0 || pOut.x === 2);
+  const entryX = inIsHoriz ? (pIn.x === 0 ? wx + 2 : wx + ww - 2) : cx;
+  const entryY = inIsHoriz ? cy : (pIn.y === 0 ? wy + 2 : wy + wh - 2);
+  const exitX = outIsHoriz ? (pOut.x === 0 ? wx + 2 : wx + ww - 2) : cx;
+  const exitY = outIsHoriz ? cy : (pOut.y === 0 ? wy + 2 : wy + wh - 2);
+
+  // Control point: opposite corner from where the two pipe runs would meet.
+  // This makes the bend curve AWAY from the inside corner (outside radius).
+  const ctrlX = (entryX < cx) ? wx + ww : (entryX > cx) ? wx : (exitX < cx) ? wx + ww : wx;
+  const ctrlY = (entryY < cy) ? wy + wh : (entryY > cy) ? wy : (exitY < cy) ? wy + wh : wy;
+
+  // Nozzle stubs
   _rtNozzle(g, wx, wy, ww, wh, wx+10, wy+10, ww-20, wh-20, def, pres, pal, unitId);
 
-  // Outer arc (pipe wall)
-  const outerR = 36 + pw;
-  const innerR = 36 - pw;
-  // Determine arc sweep based on orientation
-  // We draw two concentric arcs to form a thick pipe bend
+  const elbowPath = `M${entryX},${entryY} Q${ctrlX},${ctrlY} ${exitX},${exitY}`;
   const pipeColor = pal.fillUrl || pal.fill;
   const pipeStroke = pal.stroke;
 
-  // Horizontal pipe run (from port to corner)
-  const hRunY = cy;  // horizontal run always at vertical center
-  const hStartX = fromLeft ? wx - 2 : wx + ww + 2;
-  const hEndX = cornerX;
-
-  // Vertical pipe run (from corner to port)
-  const vRunX = cx;  // vertical run at horizontal center  
-  const vStartY = toBottom ? wy + wh + 2 : wy - 2;
-  const vEndY = cornerY;
-
-  // Draw as a single swept path — thick pipe bend with fill
-  // Use a quadratic bezier for the smooth 90° turn
-  const bendR = 28;
-  // Pipe outer edges
-  const oX1 = fromLeft ? wx + 4 : wx + ww - 4;  // horizontal entry
-  const oX2 = fromLeft ? cornerX + bendR : cornerX - bendR;
-  const oY1 = toBottom ? wy + wh - 4 : wy + 4;  // vertical exit
-  const oY2 = toBottom ? cornerY - bendR : cornerY + bendR;
-
-  // Draw the pipe body as a fat stroked path
-  const entryX = fromLeft ? wx + 2 : wx + ww - 2;
-  const exitY = toBottom ? wy + wh - 2 : wy + 2;
-  const elbowPath = `M${entryX},${cy} L${cornerX},${cy} Q${cornerX},${cornerY} ${cx},${cornerY} L${cx},${exitY}`;
-
-  // Pipe body (thick stroke = pipe wall)
-  g.appendChild(svgEl('path', {
-    d: elbowPath, fill: 'none',
-    stroke: pipeColor, 'stroke-width': pw * 2, 'stroke-linecap': 'butt',
-    'stroke-linejoin': 'round', 'pointer-events': 'none'
-  }));
-  // Pipe outline
-  g.appendChild(svgEl('path', {
-    d: elbowPath, fill: 'none',
+  // Pipe outline (under body)
+  g.appendChild(svgEl('path', { d: elbowPath, fill: 'none',
     stroke: pipeStroke, 'stroke-width': pw * 2 + 3, 'stroke-linecap': 'butt',
-    'stroke-linejoin': 'round', opacity: 0.3, 'pointer-events': 'none'
-  }));
-  // Inner bore (dark center line)
-  g.appendChild(svgEl('path', {
-    d: elbowPath, fill: 'none',
+    'stroke-linejoin': 'round', opacity: 0.3, 'pointer-events': 'none' }));
+  // Pipe body
+  g.appendChild(svgEl('path', { d: elbowPath, fill: 'none',
+    stroke: pipeColor, 'stroke-width': pw * 2, 'stroke-linecap': 'butt',
+    'stroke-linejoin': 'round', 'pointer-events': 'none' }));
+  // Inner bore
+  g.appendChild(svgEl('path', { d: elbowPath, fill: 'none',
     stroke: '#0f172a', 'stroke-width': pw * 0.8, 'stroke-linecap': 'butt',
-    'stroke-linejoin': 'round', opacity: 0.4, 'pointer-events': 'none'
-  }));
+    'stroke-linejoin': 'round', opacity: 0.4, 'pointer-events': 'none' }));
 
-  // Flanges — short wide rectangles at each end
+  // Flanges at entry and exit
   const flangeW = pw * 2 + 8, flangeH = 5;
-  // Entry flange (horizontal)
-  const fEntryX = fromLeft ? wx + 8 : wx + ww - 8;
-  g.appendChild(svgEl('rect', {
-    x: fEntryX - flangeH/2, y: cy - flangeW/2,
-    width: flangeH, height: flangeW, rx: 1,
-    fill: _lighten(pal.stroke, 0.4), stroke: pal.stroke, 'stroke-width': 1.2,
-    'pointer-events': 'none'
-  }));
-  // Exit flange (vertical)
-  const fExitY = toBottom ? wy + wh - 8 : wy + 8;
-  g.appendChild(svgEl('rect', {
-    x: cx - flangeW/2, y: fExitY - flangeH/2,
-    width: flangeW, height: flangeH, rx: 1,
-    fill: _lighten(pal.stroke, 0.4), stroke: pal.stroke, 'stroke-width': 1.2,
-    'pointer-events': 'none'
-  }));
-
-  // Flange bolts (2 per flange)
-  const bOff = pw * 0.7;
-  _rtBoltS(g, fEntryX, cy - bOff);
-  _rtBoltS(g, fEntryX, cy + bOff);
-  _rtBoltS(g, cx - bOff, fExitY);
-  _rtBoltS(g, cx + bOff, fExitY);
+  if (inIsHoriz) {
+    const fx = entryX < cx ? wx + 8 : wx + ww - 8;
+    g.appendChild(svgEl('rect', { x: fx - flangeH/2, y: cy - flangeW/2,
+      width: flangeH, height: flangeW, rx: 1,
+      fill: _lighten(pal.stroke, 0.4), stroke: pal.stroke, 'stroke-width': 1.2, 'pointer-events': 'none' }));
+    _rtBoltS(g, fx, cy - pw * 0.7); _rtBoltS(g, fx, cy + pw * 0.7);
+  } else {
+    const fy = entryY < cy ? wy + 8 : wy + wh - 8;
+    g.appendChild(svgEl('rect', { x: cx - flangeW/2, y: fy - flangeH/2,
+      width: flangeW, height: flangeH, rx: 1,
+      fill: _lighten(pal.stroke, 0.4), stroke: pal.stroke, 'stroke-width': 1.2, 'pointer-events': 'none' }));
+    _rtBoltS(g, cx - pw * 0.7, fy); _rtBoltS(g, cx + pw * 0.7, fy);
+  }
+  if (outIsHoriz) {
+    const fx = exitX < cx ? wx + 8 : wx + ww - 8;
+    g.appendChild(svgEl('rect', { x: fx - flangeH/2, y: cy - flangeW/2,
+      width: flangeH, height: flangeW, rx: 1,
+      fill: _lighten(pal.stroke, 0.4), stroke: pal.stroke, 'stroke-width': 1.2, 'pointer-events': 'none' }));
+    _rtBoltS(g, fx, cy - pw * 0.7); _rtBoltS(g, fx, cy + pw * 0.7);
+  } else {
+    const fy = exitY < cy ? wy + 8 : wy + wh - 8;
+    g.appendChild(svgEl('rect', { x: cx - flangeW/2, y: fy - flangeH/2,
+      width: flangeW, height: flangeH, rx: 1,
+      fill: _lighten(pal.stroke, 0.4), stroke: pal.stroke, 'stroke-width': 1.2, 'pointer-events': 'none' }));
+    _rtBoltS(g, cx - pw * 0.7, fy); _rtBoltS(g, cx + pw * 0.7, fy);
+  }
 };
 
 // [v17.0.4] Power Dispatcher T1 — 5+5 explicit ports with visual feedback
@@ -36986,6 +37027,11 @@ const _VARIANT_LABELS = {
   'recycle-T': 'Recycle top', 'recycle-B': 'Recycle bottom',
   'mirror-recycle-T': 'Mirror recycle top', 'mirror-recycle-B': 'Mirror recycle bottom',
   'left-up': 'Left → Up', 'right-down': 'Right → Down', 'right-up': 'Right → Up',
+  'up-right': 'Up → Right', 'up-left': 'Up → Left',
+  'down-right': 'Down → Right', 'down-left': 'Down → Left',
+  'flip': 'Flipped (perm/ret swap)', 'flip-mirror': 'Flipped + mirrored',
+  'vert-elec-L': 'Vertical, power left', 'vert-elec-R': 'Vertical, power right',
+  'mirror-elec-B': 'Mirrored, power bottom',
 };
 
 // [v10.7.0] Evaluate sticker items against live solver data
@@ -44203,7 +44249,7 @@ window.addEventListener('resize', () => {
 
 // [v14.10.3] Load on startup: auto-save (if matching DEMO_VERSION) or demo_room_survival
 {
-  const DEMO_VERSION = 'v17.7.5';  // [v17.7.5] bumped: simple_tank port simplification
+  const DEMO_VERSION = 'v17.7.6';  // [v17.7.6] bumped: presentation rework (food_storage, bend, membrane, heater/cooler)
   const _AUTOSAVE_VER_KEY = AUTOSAVE_KEY + '_demoVer';
   // [v17.4.0] Read using AUTOSAVE_KEY constant — was hardcoded 'ptis_autosave'
   // which never matched the write key 'processThis_autosave'. All autosaves
