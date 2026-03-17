@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v17.8.1
+  processThis v17.9.0
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -20,6 +20,11 @@
                       jacket, t-shirt, pants, crate.  All shades auto-
                       derived via HSL offsets.  Expression tints override
                       skin base.  Search: "§LENA-PALETTE" to jump there.
+
+    §LENA-SPEECH      Lena speech system: _CHARACTERS registry, LenaEvents
+                      bus, CharacterVoice personality engine, SpeechBubble
+                      display.  ⚠ Read _CHARACTERS.lena before writing
+                      any dialogue.  Search: "§LENA-SPEECH" to jump there.
 
   PHYSICS — The Game's Promises:
 
@@ -351,6 +356,57 @@
   ═══════════════════════════════════════════════════════════════════════════
   CHANGELOG  (latest first)
   ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v17.9.0 — Lena Speech System (§LENA-SPEECH) ──────────────────────────
+  **Speech bubble over room window.** Warm cream chat bubble (#f0e6d6)
+  with sender name "Lena", word-wrapped text, click-to-dismiss.
+  Renders between lights layer and Lena character.
+
+  **Three-layer architecture.** LenaEvents (event bus) → CharacterVoice
+  (personality engine) → SpeechBubble (display).  _CHARACTERS registry
+  supports future multi-character dialogue.
+
+  **_CHARACTERS.lena character sheet.** Personality, escalation map,
+  voice patterns, verbal signature, good/bad examples, never-list.
+  ⚠ All dialogue must conform to this definition.
+
+  **Expression-driven speech.** CharacterVoice.onRoomUpdate(u) called
+  from render().  Expression transitions trigger speech.  She speaks
+  when disappointed (per-condition lines), cold, warm, shouting (fried),
+  recovering, recovery complete, happy (all clear).  Silent when
+  fainting (unconscious) and dead ("...").
+
+  **Condition tracking.** Worsening/improving conditions trigger speech
+  within the same expression.  Solver failure gets commentary.
+
+  **Lights on/off.** Tracks fan_frac; reacts to power loss/restoration.
+
+  **Idle chatter.** 12 lines when stable for >5 ticks.  Frame-gated
+  to prevent render-spam inflation.
+
+  **~75 unique lines** across 14 pools.  Anti-repeat per pool.
+  Cooldown system: 15s global, 60s per condition, 120s all-clear.
+
+  **Messages persist until clicked or replaced.** No auto-dismiss.
+  New message replaces current directly.
+
+  **Source phaseConstraint default VL.** Was 'V' (vapor only), now
+  'VL' (flash).  Phase selector hidden from inspector.  Fixes water
+  source sending steam instead of liquid.
+
+  **SpeechBubble timing.** Wall-clock fade (200ms in, 150ms out),
+  independent of render frequency.
+
+  **Room visual polish:** crate color → #f97316 (LIFE_SUPPORT orange),
+  cable renders below fan/lights, exhaust fan aligned to port,
+  light cones 50% less pronounced, "CREW SHELTER"/"AIRLOCK" text
+  removed, blink timing wall-clock (5s/7s period, ~90ms close),
+  fainting head tilt + arm droop + render order (arm behind head),
+  HUD fainting/death head tilt matching room puppet.
+
+  Tests: 706 (+7).  699: character sheet.  700: SpeechBubble.
+  701: anti-repeat.  702: word wrap.  703: line pools.
+  704: full dehydration→recovery speech cycle.  705: lights on/off.
 
   ─── v17.8.1 — Crew recovery + death permanence ──────────────────────────
 
@@ -16820,7 +16876,7 @@ UnitRegistry.register('source', {
       T: T_K,
       P: P_Pa,
       n,
-      phaseConstraint: par.phaseConstraint || 'V'
+      phaseConstraint: par.phaseConstraint || 'VL'
     };
   }
 });
@@ -23285,7 +23341,7 @@ UnitRegistry.register('room', {
     const h2o_deficit_per_person = N > 0 ? h2o_deficit / N : 0;
     const total_water = h2o_supply + hw_supply;
     const total_water_demand = h2o_demand + hw_demand;
-    const h2o_deficit_rate = Math.max(0, total_water_demand - total_water);  // mol/s unmet
+    const h2o_deficit_rate = Math.max(0, h2o_demand - h2o_supply);  // mol/s unmet COLD water only
     conditions.water = { value: h2o_deficit_per_person,
       status: h2o_deficit_per_person < 1 ? 'OK'    // fully hydrated
             : h2o_deficit_per_person < 139 ? 'WARNING'   // deficit building
@@ -23381,7 +23437,7 @@ UnitRegistry.register('room', {
     const services = {
       o2:       { demand: o2_demand, supply: o2_supply, pct: o2_demand > 0 ? o2_supply / o2_demand : 1, status: conditions.o2.status },
       food:     { demand: food_demand, supply: food_supply, pct: food_demand > 0 ? food_supply / food_demand : 1, status: conditions.food.status },
-      water:    { demand: total_water_demand, supply: total_water, pct: total_water_demand > 0 ? total_water / total_water_demand : 1, status: conditions.water.status },
+      water:    { demand: h2o_demand, supply: h2o_supply, pct: h2o_demand > 0 ? h2o_supply / h2o_demand : 1, status: conditions.water.status },
       h2o_cold: { demand: h2o_demand, supply: h2o_supply, pct: h2o_demand > 0 ? h2o_supply / h2o_demand : 1,
                   status: h2o_supply >= h2o_demand * 0.95 ? 'OK' : h2o_supply >= h2o_demand * 0.5 ? 'WARNING' : 'MAJOR' },
       h2o_hot:  { demand: hw_demand, supply: hw_supply, pct: hw_demand > 0 ? hw_supply / hw_demand : 1,
@@ -23478,10 +23534,11 @@ UnitRegistry.register('room', {
     }
 
     // ── Store water deficit delta in exhaust metadata for updateInventory ──
-    // [v17.8.0] Recovery: when supply adequate AND not dead, body rehydrates/refeeds
-    const h2o_supply_ratio = total_water_demand > 0 ? total_water / total_water_demand : 1;
+    // [v17.9.0] Recovery: gate on COLD water supply only — hot water is optional for survival.
+    // Dehydration is about drinking water (h2o_in), not hygiene (hot_water_in).
+    const h2o_cold_ratio = h2o_demand > 0 ? h2o_supply / h2o_demand : 1;
     const food_supply_ratio = food_demand > 0 ? food_supply / food_demand : 1;
-    const h2o_recovering = !_isDead && h2o_supply_ratio >= SUPPLY_GATE && h2o_deficit > 0;
+    const h2o_recovering = !_isDead && h2o_cold_ratio >= SUPPLY_GATE && h2o_deficit > 0;
     const food_recovering = !_isDead && food_supply_ratio >= SUPPLY_GATE && food_deficit > 0;
     const h2o_recovery = h2o_recovering ? Math.min(RECOVERY_RATE * N * dt, h2o_deficit) : 0;
     const food_recovery = food_recovering ? Math.min(RECOVERY_RATE * N * dt, food_deficit) : 0;
@@ -23522,6 +23579,11 @@ UnitRegistry.register('room', {
 
     u.last.recovering = isRecovering;
     u.last.recovery_h = recovery_h;
+    u.last._dbg_h2o_supply_ratio = h2o_cold_ratio;
+    u.last._dbg_food_supply_ratio = food_supply_ratio;
+    u.last._dbg_h2o_recovering = h2o_recovering;
+    u.last._dbg_h2o_recovery_mol = h2o_recovery;
+    u.last._dbg_h2o_deficit_delta = h2o_deficit_rate * dt - h2o_recovery;
   }
 });
 
@@ -23680,7 +23742,7 @@ ProfileRegistry.register('simple_gas_bottle', {
   description: 'Portable pressurized gas cylinder',
   selectionGuide: 'A 10L steel bottle — think diver\'s oxygen tank. Rated to 300 bar. Set the gas draw rate and opening.',
   limits: { 1: { T_LL:233, T_L:263, T_H:423, T_HH:473,
-                  P_LL:50000, P_L:80000, P_H:30000000, P_HH:35000000 } },
+                  P_LL:0, P_L:80000, P_H:30000000, P_HH:35000000 } },
   defaults: { 1: { volume_m3:0.01, gasDrawRate:0.05, opening_gas_pct:0,
                     P_relief:25000000,
                     initialComposition:{O2:1} } },
@@ -23693,7 +23755,7 @@ ProfileRegistry.register('simple_gas_tank', {
   description: 'Medium sealed storage vessel',
   selectionGuide: 'A 50L steel tank. Rated to 50 bar — good for process gas storage and buffering.',
   limits: { 2: { T_LL:233, T_L:263, T_H:423, T_HH:473,
-                  P_LL:50000, P_L:80000, P_H:4000000, P_HH:5000000 } },
+                  P_LL:0, P_L:80000, P_H:4000000, P_HH:5000000 } },
   defaults: { 2: { volume_m3:0.05, gasDrawRate:0.2, opening_gas_pct:0,
                     P_relief:4000000,
                     initialComposition:{N2:1} } },
@@ -23708,7 +23770,7 @@ ProfileRegistry.register('cooled_gas_bottle', {
   description: 'Sealed tank with brazed cooling jacket — stores gas or liquid at controlled temperature',
   selectionGuide: 'Same as Gas Bottle but with coolant ports. Connect a cold stream to keep contents below ambient temperature. Good for storing condensables or cryogenic intermediates.',
   limits: { 1: { T_LL:233, T_L:263, T_H:423, T_HH:473,
-                  P_LL:50000, P_L:80000, P_H:4000000, P_HH:5000000,
+                  P_LL:0, P_L:80000, P_H:4000000, P_HH:5000000,
                   level_H:90, level_HH:100 } },
   defaults: { 1: { volume_m3:0.01, gasDrawRate:0.05, opening_gas_pct:0,
                     P_relief:200000, UA_jacket:50,
@@ -23722,7 +23784,7 @@ ProfileRegistry.register('food_crate', {
   defId: 'food_storage', name: 'Food Crate', pressureClass: 'simple', category: UnitCategories.LIFE_SUPPORT, tiers: [1],
   description: 'Pressurized ration canister with cooling jacket — spoils without refrigeration',
   selectionGuide: 'A 100L canister holding ~1200 mol CH₂O (30 days for 2 people IF kept cold). Without coolant, food spoils at 3%/day at room temperature — you have 16 days. Connect coolant below 4°C to preserve.',
-  limits: { 1: { T_LL:233, T_HH:473, P_LL:50000, P_HH:35000000 } },
+  limits: { 1: { T_LL:233, T_HH:473, P_LL:0, P_HH:35000000 } },
   defaults: { 1: { volume_m3:0.1, gasDrawRate:0.001, opening_gas_pct:46.6,
                     P_init:29300000, P_relief:25000000, UA_jacket:50,
                     initialComposition:{CH2O:1} } },
@@ -28789,7 +28851,7 @@ const _LENA_PALETTE = {
   jacket:  '#1538a5',  // jumpsuit/jacket — deep blue
   tshirt:  '#e13f23',  // undershirt — red
   pants:   '#1538a5',  // same as jacket (jumpsuit)
-  crate:   '#d87030',  // supply crate — industrial safety orange
+  crate:   '#f97316',  // supply crate — matches LIFE_SUPPORT unit orange
   hair:    '#333332',  // dark brown-black
   cast:    '#fefbea',  // bandage — off-white
   logo:    '#d67f19',  // chest triangle — orange
@@ -29092,9 +29154,9 @@ recovering: [
   {t:'p',l:'eyeR_warm',f:'#f7f5ec',d:'m 87.790062,44.865851 c 0.187633,1.794906 2.315376,1.719304 3.560749,1.817198 1.245374,0.0979 3.580915,-0.925872 3.471273,-2.475029 -0.109642,-1.549157 -1.804491,-1.798661 -3.408032,-1.707645 -1.603541,0.09102 -3.811622,0.57057 -3.62399,2.365476 z'},
   {t:'p',l:'eyeL_warm',f:'#f7f5ec',d:'m 78.718609,49.779214 c 1.525459,-0.238498 2.95499,-1.359061 2.665293,-2.982611 -0.289697,-1.623551 -1.928516,-1.302254 -3.499964,-1.112356 -1.571449,0.189898 -3.218527,1.549956 -3.121455,2.352128 0.181926,1.503373 2.430666,1.981337 3.956126,1.742839 z'},
   {t:'p',l:'eyelashR_warm',f:'#020204',d:'m 87.522387,44.013066 c 0.433809,0.405582 0.5156,-1.046542 3.434615,-1.134383 2.919015,-0.08784 2.974606,0.573227 3.87975,0.633232 0.733694,0.115403 0.795615,-0.638066 1.222694,-1.183607 -0.378615,0.193154 -1.103712,0.116715 -1.509016,0.06605 -1.713208,-0.679914 -3.34667,-0.613549 -4.89242,-0.204537 -1.54575,0.409012 -2.569431,1.417663 -2.135623,1.823245 z'},
-  {t:'e',l:'pupilR_warm',f:'#030204',cx:'91.385',cy:'42.820',rx:'2.825',ry:'2.659'},
+  {t:'p',l:'pupilR_warm',f:'#030204',d:'m 91.385389,42.819609 c -0.172126,-3.2e-5 -0.355276,0.0023 -0.550353,0.0078 -0.987743,0.0278 -1.670685,0.192764 -2.15886,0.391707 -0.08709,0.257366 -0.131992,0.525719 -0.133167,0.795817 -8e-5,1.468208 1.264533,2.658529 2.824697,2.658753 1.56038,6.3e-5 2.82533,-1.190342 2.825249,-2.658753 -2.39e-4,-0.274138 -0.04552,-0.546593 -0.134272,-0.807702 -0.474525,-0.179726 -1.134478,-0.387294 -2.673294,-0.387573 z'},
   {t:'p',l:'eyelashL_warm',f:'#020204',d:'m 80.93715,45.962145 c 0.159357,-0.184183 0.122161,-0.539079 -0.176555,-0.718976 -0.03996,-0.02406 -1.916804,-0.351367 -3.744118,0.287772 -1.827313,0.639139 -2.77414,1.550151 -2.929158,1.812765 l -0.971971,0.143928 c 0.59513,0.580806 0.963684,0.918191 1.548262,0.794005 0.584578,-0.124186 0.773944,-1.211044 2.776868,-1.882493 2.002923,-0.671448 3.337314,-0.252817 3.496672,-0.437001 z'},
-  {t:'e',l:'pupilL_warm',f:'#020204',cx:'79.796',cy:'45.932',rx:'2.752',ry:'2.659'},
+  {t:'p',l:'pupilL_warm',f:'#020204',d:'m 79.795789,45.93208 c -0.629048,0.0023 -1.498118,0.06529 -2.541312,0.401009 -0.919076,0.295779 -1.471324,0.672109 -1.853905,1.011308 0.10669,1.385222 1.299309,2.457629 2.737254,2.461348 1.520104,6.3e-5 2.752405,-1.190341 2.752327,-2.658752 -3.57e-4,-0.416775 -0.102146,-0.827632 -0.297142,-1.19941 -0.189381,-8.77e-4 -0.456598,-0.01675 -0.797222,-0.0155 z'},
   {t:'p',l:'eyebrowR_warm',f:'#040405',d:'m 87.694721,38.812903 c 0.145763,0.282105 0.848497,-0.445152 3.023305,-0.120161 2.174808,0.324987 2.907769,0.972179 3.084483,0.722834 0.176703,-0.249353 -0.735741,-1.121156 -2.264457,-1.488461 -1.528717,-0.367303 -2.948249,-0.329178 -3.476414,0.01005 -0.528166,0.339211 -0.512677,0.593632 -0.366913,0.875737 z'},
   {t:'p',l:'eyebrowL_warm',f:'#030101',d:'m 79.027263,41.146455 c -0.07076,-0.392449 -1.54388,-0.748203 -3.083145,0.13705 -1.539267,0.885253 -2.171069,2.492995 -1.929651,2.735894 0.241416,0.242902 0.382955,-1.017337 2.386471,-2.063159 2.003516,-1.045822 2.697083,-0.417342 2.626325,-0.809785 z'},
   {t:'p',l:'mouth_recovering',f:'#1a1210',d:'m 82.5,53.8 c 0.8,-0.4 1.6,0.3 2.4,0 0.8,-0.3 1.4,0.4 2.2,0.1 0.8,-0.3 1.2,0.2 1.8,0 0.6,-0.2 1.0,0.3 1.4,0.1',s:'#1a1210',sw:0.6},
@@ -29110,7 +29172,8 @@ recovering: [
   // ── Skin tints per expression ──
   const _SKIN = {
     happy:'#f7c87a', disappointed:'#f7c87a', shouting:'#f7c87a',
-    warm:'#f5b06a', fainting:'#f0dca0', cold:'#dcc4b0'
+    warm:'#f5b06a', fainting:'#f0dca0', cold:'#dcc4b0',
+    recovering:'#f2d090', death:'#c8b8a0'
   };
 
   // ── State ──
@@ -29121,7 +29184,8 @@ recovering: [
   function _buildSvg(exprName) {
     const skin = _SKIN[exprName] || '#f7c87a';
     const s = document.createElementNS(svgNS, 'svg');
-    s.setAttribute('viewBox', '56 16 64 58');
+    const isFaintHud = exprName === 'fainting' || exprName === 'death';
+    s.setAttribute('viewBox', isFaintHud ? '43 22 64 58' : '56 16 64 58');
     s.setAttribute('width', '66');
     s.setAttribute('height', '66');
     s.style.overflow = 'visible';
@@ -29209,16 +29273,24 @@ recovering: [
       return null;
     };
 
-    // Render base layer
-    _LENA_EXPR.base.forEach(p => { s.appendChild(_mkEl(p)); });
+    // Render base + expression (tilted for fainting/death)
+    const headWrap = isFaintHud
+      ? (() => { const g = document.createElementNS(svgNS, 'g');
+                  g.setAttribute('transform', 'translate(-10.4,10.4) rotate(-60,85.5,41)'); return g; })()
+      : s;  // no wrapper — append directly to svg
 
-    // Render expression layer (skip hidden unless cold)
-    const exprParts = _LENA_EXPR[exprName] || _LENA_EXPR.happy;
+    // Render base layer
+    _LENA_EXPR.base.forEach(p => { headWrap.appendChild(_mkEl(p)); });
+
+    // Render expression layer (skip hidden unless cold; death uses fainting base)
+    const exprKey = exprName === 'death' ? 'fainting' : exprName;
+    const exprParts = _LENA_EXPR[exprKey] || _LENA_EXPR.happy;
     const exprG = document.createElementNS(svgNS, 'g');
     exprG.setAttribute('id', 'lh_expr');
     _animRefs = {};
     exprParts.forEach(p => {
       if (p.h && exprName !== 'cold') return;
+      if (exprName === 'death' && (p.l || '').match(/^[Ee]ye[Ll]ash/)) return;
       const idTag = 'lh_' + p.l.replace(/[^a-zA-Z0-9_]/g, '_');
       const el = _mkEl(p, idTag);
       if (el) {
@@ -29226,7 +29298,23 @@ recovering: [
         _animRefs[p.l] = el;
       }
     });
-    s.appendChild(exprG);
+    headWrap.appendChild(exprG);
+    // Death: add cross-eyes
+    if (exprName === 'death') {
+      const _xEye = (cx, cy) => {
+        const xg = document.createElementNS(svgNS, 'g');
+        xg.setAttribute('stroke', '#1a1a1a'); xg.setAttribute('stroke-width', '1.2');
+        xg.setAttribute('stroke-linecap', 'round'); xg.setAttribute('fill', 'none');
+        const l1 = document.createElementNS(svgNS, 'line');
+        l1.setAttribute('x1', cx-2.2); l1.setAttribute('y1', cy-2); l1.setAttribute('x2', cx+2.2); l1.setAttribute('y2', cy+2);
+        const l2 = document.createElementNS(svgNS, 'line');
+        l2.setAttribute('x1', cx+2.2); l2.setAttribute('y1', cy-2); l2.setAttribute('x2', cx-2.2); l2.setAttribute('y2', cy+2);
+        xg.appendChild(l1); xg.appendChild(l2); return xg;
+      };
+      headWrap.appendChild(_xEye(91.7, 45.5));
+      headWrap.appendChild(_xEye(78.5, 48.3));
+    }
+    if (isFaintHud) s.appendChild(headWrap);
 
     return s;
   }
@@ -29401,6 +29489,439 @@ recovering: [
   // ── Initial render ──
   _render();
 })();
+
+// ═══ [v17.9.0] Lena Speech System — §LENA-SPEECH (see file header) ═══
+// Architecture: LenaEvents (bus) → CharacterVoice (personality) → SpeechBubble (display)
+// Integration: CharacterVoice.onRoomUpdate(u) called from render(), next to _lenaHudSync.
+// ⚠ All speech text MUST conform to _CHARACTERS.lena — read before writing lines.
+
+// ── Character registry ──
+const _CHARACTERS = {
+  lena: {
+    name: 'Lena', role: 'Crew engineer, sole survivor (with the player)', age: 'Early 30s',
+    background: 'Brilliant aerospace/chemical engineer. Chose deep-space missions over university honors. '
+      + 'Good family, wanted adventure. Supervised ISRU tests from orbit. Now stranded on Planet X with '
+      + 'a broken leg and a resourceful crash buddy (the player). Secretly wanted to build something real '
+      + 'on the ground — the crash gave her the chance she never admitted she wanted.',
+    personality: {
+      core: [
+        'Warm and caring — mothers the plan, not the player',
+        'Extroverted, emotionally present, invested',
+        'Extremely clever, technically brilliant',
+        'High expectations, frames as shared goals',
+        'Humor escalates to dark humor under stress',
+        'Enthusiastic about specific achievements, never generic praise',
+        'Sassy when disappointed — the point lands, never cruel',
+        'Genuine temper on avoidable mistakes, quickly over',
+        'Quiet vulnerability, quickly masked',
+        'Passionate beyond survival — wants to build, to prove the engineering works',
+      ],
+      escalation: {
+        OK: 'Upbeat, encouraging, "we" language, specific excitement',
+        WARNING: 'Mild snark, gentle nudge, positive-then-cut',
+        MAJOR: 'Dark humor, short sentences, "I" not "we", grammar compresses',
+        CATASTROPHIC: 'Quiet, wry, few words',
+        recovering: 'Relieved, grateful, guard briefly down',
+        dead: '"..." — silence',
+      },
+    },
+    voice: {
+      register: 'Casual-technical. Knows engineering cold, talks like texting a friend.',
+      verbal_signature: ['Starts pivots with "OK"/"So"', 'Half-questions: "Maybe...?"',
+        '"yeah?" check-in', 'Drops articles under pressure', 'Sarcastic about PHYSICS not the player'],
+      budget: { typical: '1-2 lines, 15-50 chars', max: '4 lines ~100 chars' },
+      never: ['Robotic/clinical', 'Game mechanics language', 'Generic praise',
+        'Helplessness', 'Fourth wall', 'Self-pity', 'Long speeches', 'Raw panic'],
+    },
+    bubble: { senderName: 'Lena', bgColor: '#f0e6d6', borderColor: '#c8b090',
+      textColor: '#2a2018', nameColor: '#a08060' },
+    silence: '...',
+  },
+};
+
+// ── Event bus ──
+const LenaEvents = {
+  _listeners: {},
+  on(type, fn) { (this._listeners[type] ??= []).push(fn); },
+  emit(type, data) { for (const fn of this._listeners[type] || []) fn(data); }
+};
+
+// ── Cooldowns ──
+const _SPEECH_COOLDOWNS = {
+  global: 15, condition_changed: 60, expression_change: 30,
+  unit_fried: 30, all_clear: 120, idle: 300,
+};
+
+// ── Message durations (ms) ──
+const _SPEECH_DURATIONS = {
+  warning: 8000, major: 10000, recovering: 6000, all_clear: 6000,
+  fried: 5000, idle: 5000, solver: 6000, persistent: 0,
+};
+
+// ── Line pools ──
+const _LENA_LINES = {
+  expr_to_happy: [
+    "All green. Don't jinx it.",
+    "We're stable. Properly, actually stable.",
+    "Look at us. Breathing, drinking, not dying.",
+    "OK. Everything works. I'm suspicious.",
+    "Air, water, power. What a time to be alive. Literally.",
+    "So this is what normal feels like. I forgot.",
+  ],
+  expr_to_disappointed: {
+    water: [
+      "Getting thirsty. Barrel connected?",
+      "Dry mouth. Dry planet. Story of my life.",
+      "Water situation's not great. Just so we're clear.",
+      "My kingdom for a glass of water. Or a puddle.",
+    ],
+    food: [
+      "My stomach's filing a formal complaint.",
+      "Day 3 of the crash diet nobody asked for.",
+      "So we're rationing now. Fun.",
+      "I could eat the crate at this point.",
+    ],
+    o2: [
+      "Is it just me or is it getting stuffy?",
+      "Breathing feels like work. That's new.",
+      "The air's getting thick. Check the O₂, yeah?",
+      "I keep yawning. Not boredom. Hypoxia.",
+    ],
+    co2: [
+      "Headache. The CO₂ kind.",
+      "The scrubber keeping up? My head says no.",
+      "So. The CO₂ situation.",
+      "Getting foggy. Carbon dioxide talking.",
+    ],
+    power: [
+      "Lights flickered. Never good.",
+      "Short on power. Something's getting cut.",
+      "The fan's struggling. Hear that?",
+    ],
+    temp_cold: [
+      "Brr. Did someone open a window? Oh right. The hull.",
+      "I can see my breath. Inside. Not ideal.",
+      "My toes stopped reporting in.",
+    ],
+    temp_hot: [
+      "Getting toasty. At least I'm not cold, I guess.",
+      "Like a sauna without the relaxation.",
+      "The cooler on vacation?",
+    ],
+  },
+  expr_to_cold: [
+    "Brr. Did someone open a window? Oh right. The hull.",
+    "I can see my breath. Inside. Not ideal.",
+    "It's Planet X cold. In the room.",
+    "My toes stopped reporting in. Should I worry?",
+    "The heater's either off or kidding itself.",
+  ],
+  expr_to_warm: [
+    "Getting toasty. At least I'm not cold.",
+    "Like a sauna. Without the relaxation.",
+    "The cooler on vacation? Room's not.",
+    "Sweating in a spacesuit with a broken leg. Peak glamour.",
+  ],
+  expr_to_shouting: [
+    "Something just blew up. Sounded expensive.",
+    "That was loud. What did we lose?",
+    "OK what exploded. Please not the scrubber.",
+    "BANG. I'm fine. The equipment, less so.",
+    "Great. Fewer working parts. Just what we needed.",
+  ],
+  expr_to_fainting: {
+    water: [
+      "Can't feel my lips. Dehydration.",
+      "Things are getting fuzzy. Water. Not tomorrow.",
+      "Going to pass out. That's just a fact now.",
+    ],
+    food: [
+      "Haven't eaten in... stopped counting.",
+      "Running on empty. Actually empty.",
+      "Body's shutting non-essentials. Turns out consciousness is optional.",
+    ],
+    o2: [
+      "Seeing spots. Not the fun kind.",
+      "Hard to think. Hypoxia.",
+      "Room's going dark. That's me, not the lights.",
+    ],
+    co2: [
+      "Can't think straight. CO₂'s winning.",
+      "Everything's slow. Scrubber's gone, right?",
+    ],
+    temp_cold: [
+      "Can't stop shaking. This is bad.",
+      "Hypothermia setting in. I can tell because I don't care anymore.",
+    ],
+    temp_hot: [
+      "Overheating. Brain's cooking.",
+      "Too hot to think. Too hot to joke.",
+    ],
+  },
+  expr_to_recovering: [
+    "Oh thank god. Keep it coming.",
+    "Water. Beautiful, boring, life-saving water.",
+    "OK. Can feel my face again. Progress.",
+    "Still dizzy but... better. Definitely better.",
+    "World's less fuzzy. Good sign, yeah?",
+  ],
+  recovery_complete: [
+    "Back on my feet. Let's not do that again, yeah?",
+    "That was rough. I'm fine. Mostly.",
+    "Hey. Thanks for the water. Seriously.",
+    "Close one. Too close. Moving on.",
+    "Right. Where were we. Before I almost died.",
+  ],
+  expr_to_death: ["..."],
+  condition_worsened: {
+    o2:    ["O₂ dropping further. Getting real.", "Less air. More urgency."],
+    co2:   ["CO₂ still climbing. Math's not on our side.", "Scrubber can't keep up."],
+    water: ["Still no water. Just so we're clear on the timeline.", "Thirstier. Worse."],
+    food:  ["Hunger's not going away by itself. Hint.", "Still no food. Shocking development."],
+    temp:  ["Temperature getting worse. Physics doesn't negotiate.", "Colder. Or hotter. Either way, worse."],
+    power: ["Power situation deteriorating. Priorities, yeah?", "Less power. Less everything."],
+  },
+  condition_improved: {
+    o2:    ["O₂ climbing. Oh that's good.", "Air's improving. Keep going."],
+    co2:   ["CO₂ dropping. Scrubber's earning its keep.", "Breathing easier. Literally."],
+    water: ["Water's flowing. Took you long enough.", "Hydration. What a concept."],
+    food:  ["Food supply's back. My stomach sends regards.", "Eating again. Luxury."],
+    temp:  ["Temperature stabilizing. More like it.", "Getting comfortable. Relatively."],
+    power: ["Power's back up. The fan agrees.", "Lights are happier. So am I."],
+  },
+  solver_failed: [
+    "Something's not adding up. Literally. Check the loops.",
+    "System can't find a balance. Something's fighting itself.",
+    "Numbers aren't converging. Usually means a pipe goes nowhere.",
+  ],
+  lights_off: [
+    "And there go the lights. Great.",
+    "Dark. Very dark. This is fine.",
+    "Power's out. I can't see a thing.",
+    "Well. At least I can still hear the hull creaking.",
+  ],
+  lights_on: [
+    "Lights. Oh I missed lights.",
+    "Power's back. I can see my hands again.",
+    "There we go. Back in business.",
+  ],
+  idle: [
+    "Quiet. I don't trust quiet.",
+    "How long before something breaks, you think?",
+    "You know what I miss? Coffee. Not people. Coffee.",
+    "Stars are something out here. I'll give Planet X that.",
+    "My leg itches. Under the cast. Worst part of the crash.",
+    "I used to supervise this from orbit. Cleaner up there.",
+    "If we get out of this, I'm writing one hell of a paper.",
+    "Longest I've gone without email. Silver lining.",
+    "Think there's anything alive out there? Besides us.",
+    "The silence here is different. Heavier.",
+    "Ran the numbers on food in my head. Twice. We're fine. Probably.",
+    "Did I mention I almost took a desk job? Imagine.",
+  ],
+};
+
+// ── SpeechBubble — pure display (character-agnostic) ──
+const SpeechBubble = {
+  _queue: [],
+  _current: null,    // { text, sender, style, duration, priority, id, _showTime }
+  _opacity: 0,       // 0→1 for fade
+  _dismissing: false,
+
+  push(msg) {
+    msg.id = msg.id || ('sb-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6));
+    msg.priority = msg.priority ?? 1;
+    msg.duration = msg.duration ?? 0;  // 0 = persistent (default now)
+    // Don't push duplicate of current
+    if (this._current?.text === msg.text) return;
+    // New message replaces current directly (no queuing)
+    this._current = msg;
+    this._current._showTime = Date.now();
+    this._opacity = 0;
+    this._dismissing = false;
+    this._queue = [];  // clear any pending
+  },
+
+  dismiss() {
+    if (this._current && !this._dismissing) {
+      this._dismissing = true;
+      this._dismissStart = Date.now();
+    }
+  },
+
+  current() { return this._current; },
+  opacity() { return this._opacity; },
+
+  _advance() {
+    if (this._queue.length === 0) { this._current = null; return; }
+    this._current = this._queue.shift();
+    this._current._showTime = Date.now();
+    this._opacity = 0;
+    this._dismissing = false;
+  },
+
+  tick() {
+    if (!this._current) {
+      if (this._queue.length > 0) this._advance();
+      return;
+    }
+    const now = Date.now();
+    const elapsed = now - this._current._showTime;
+    const FADE_IN_MS = 200, FADE_OUT_MS = 150;
+    if (this._dismissing) {
+      const dismissElapsed = now - (this._dismissStart || now);
+      this._opacity = Math.max(0, 1 - dismissElapsed / FADE_OUT_MS);
+      if (this._opacity <= 0) { this._current = null; this._dismissing = false; this._advance(); }
+    } else if (elapsed < FADE_IN_MS) {
+      this._opacity = Math.min(1, elapsed / FADE_IN_MS);
+    } else {
+      this._opacity = 1;
+      // No auto-dismiss — messages stay until clicked or replaced by new message
+    }
+  }
+};
+
+// ── CharacterVoice — personality engine ──
+const CharacterVoice = {
+  _char: 'lena',
+  _lastPick: {},
+  _cooldownTimers: {},  // event_key → Date.now() of last speech
+  _prevExpr: null,
+  _prevConditions: {},
+  _prevConverged: true,
+  _prevLightsOn: null,
+  _idleCounter: 0,
+  _prevFrame: -1,
+
+  _pick(key, lines) {
+    if (!lines || lines.length === 0) return null;
+    let idx;
+    do { idx = Math.floor(Math.random() * lines.length); }
+    while (lines.length > 1 && idx === this._lastPick[key]);
+    this._lastPick[key] = idx;
+    return lines[idx];
+  },
+
+  _canSpeak(cooldownKey) {
+    const now = Date.now();
+    const globalLast = this._cooldownTimers._global || 0;
+    if (now - globalLast < _SPEECH_COOLDOWNS.global * 1000) return false;
+    const keyLast = this._cooldownTimers[cooldownKey] || 0;
+    const cdSec = _SPEECH_COOLDOWNS[cooldownKey] || _SPEECH_COOLDOWNS.global;
+    if (now - keyLast < cdSec * 1000) return false;
+    return true;
+  },
+
+  _speak(text, priority, duration, cooldownKey) {
+    if (!text) return;
+    const c = _CHARACTERS[this._char];
+    this._cooldownTimers[cooldownKey] = Date.now();
+    this._cooldownTimers._global = Date.now();
+    SpeechBubble.push({
+      text, sender: c.bubble.senderName, style: c.bubble,
+      priority: priority ?? 1, duration: duration ?? 6000,
+    });
+  },
+
+  // ── Main integration hook — called from render() ──
+  onRoomUpdate(u) {
+    if (!u?.last) return;
+    const last = u.last;
+    const expr = _lenaRoomExpression(u);
+    const conds = last.conditions || {};
+    const converged = !last.error?.message?.includes('Solver');
+    const prevExpr = this._prevExpr;
+
+    // ── Expression transitions ──
+    // First call (prevExpr null): if already bad, speak about it immediately
+    const exprChanged = prevExpr !== null ? expr !== prevExpr : expr !== 'happy';
+    if (exprChanged) {
+      if (expr === 'happy' && this._canSpeak('all_clear')) {
+        this._speak(this._pick('happy', _LENA_LINES.expr_to_happy), 1, _SPEECH_DURATIONS.all_clear, 'all_clear');
+      } else if (expr === 'recovering' && this._canSpeak('expression_change')) {
+        this._speak(this._pick('recovering', _LENA_LINES.expr_to_recovering), 2, _SPEECH_DURATIONS.recovering, 'expression_change');
+      } else if (prevExpr === 'recovering' && expr === 'happy' && this._canSpeak('expression_change')) {
+        this._speak(this._pick('recovery_done', _LENA_LINES.recovery_complete), 2, _SPEECH_DURATIONS.all_clear, 'expression_change');
+      } else if (expr === 'cold' && this._canSpeak('expression_change')) {
+        this._speak(this._pick('cold', _LENA_LINES.expr_to_cold), 2, _SPEECH_DURATIONS.warning, 'expression_change');
+      } else if (expr === 'warm' && this._canSpeak('expression_change')) {
+        this._speak(this._pick('warm', _LENA_LINES.expr_to_warm), 2, _SPEECH_DURATIONS.warning, 'expression_change');
+      } else if (expr === 'shouting' && this._canSpeak('unit_fried')) {
+        this._speak(this._pick('shout', _LENA_LINES.expr_to_shouting), 3, _SPEECH_DURATIONS.fried, 'unit_fried');
+      } else if (expr === 'death') {
+        this._speak(_CHARACTERS[this._char].silence, 3, _SPEECH_DURATIONS.persistent, 'expression_change');
+      } else if (expr === 'disappointed' && this._canSpeak('expression_change')) {
+        // Find worst WARNING condition for specific line
+        const worstKey = this._worstCondKey(conds, 'WARNING');
+        const subKey = worstKey === 'temp' ? ((last.T_room_K || 294) < 288 ? 'temp_cold' : 'temp_hot') : worstKey;
+        const pool = _LENA_LINES.expr_to_disappointed[subKey];
+        if (pool) this._speak(this._pick('disap_' + subKey, pool), 2, _SPEECH_DURATIONS.warning, 'expression_change');
+      }
+      // fainting: no speech — she's unconscious
+    }
+
+    // ── Condition worsening/improving (within same expression) ──
+    if (prevExpr === expr) {
+      for (const [key, c] of Object.entries(conds)) {
+        const prev = this._prevConditions[key];
+        if (!prev || !c.status) continue;
+        const sev = { OK: 0, WARNING: 1, MAJOR: 2, CATASTROPHIC: 3 };
+        if (sev[c.status] > sev[prev] && this._canSpeak('condition_changed')) {
+          const pool = _LENA_LINES.condition_worsened[key];
+          if (pool) this._speak(this._pick('worse_' + key, pool), 2, _SPEECH_DURATIONS.warning, 'condition_changed');
+        } else if (sev[c.status] < sev[prev] && sev[prev] >= 2 && this._canSpeak('condition_changed')) {
+          const pool = _LENA_LINES.condition_improved[key];
+          if (pool) this._speak(this._pick('better_' + key, pool), 1, _SPEECH_DURATIONS.all_clear, 'condition_changed');
+        }
+      }
+    }
+
+    // ── Solver failure ──
+    if (!converged && this._prevConverged && this._canSpeak('condition_changed')) {
+      this._speak(this._pick('solver', _LENA_LINES.solver_failed), 2, _SPEECH_DURATIONS.solver, 'condition_changed');
+    }
+
+    // ── Lights on/off ──
+    const lightsOn = (last.fan_frac ?? 1) > 0.01;
+    if (this._prevLightsOn !== null && lightsOn !== this._prevLightsOn && this._canSpeak('expression_change')) {
+      if (!lightsOn) {
+        this._speak(this._pick('lights_off', _LENA_LINES.lights_off), 2, _SPEECH_DURATIONS.warning, 'expression_change');
+      } else {
+        this._speak(this._pick('lights_on', _LENA_LINES.lights_on), 1, _SPEECH_DURATIONS.all_clear, 'expression_change');
+      }
+    }
+
+    // ── Idle chatter (only on actual time steps, not render spam) ──
+    const curFrame = typeof TimeClock !== 'undefined' ? TimeClock.frame : 0;
+    if (expr === 'happy' && prevExpr === 'happy' && curFrame !== this._prevFrame) {
+      this._idleCounter++;
+      if (this._idleCounter > 5 && this._canSpeak('idle')) {
+        this._speak(this._pick('idle', _LENA_LINES.idle), 0, _SPEECH_DURATIONS.idle, 'idle');
+        this._idleCounter = 0;
+      }
+    } else if (expr !== 'happy') {
+      this._idleCounter = 0;
+    }
+    this._prevFrame = curFrame;
+
+    // ── Update state ──
+    this._prevExpr = expr;
+    this._prevConverged = converged;
+    this._prevLightsOn = lightsOn;
+    for (const [key, c] of Object.entries(conds)) {
+      this._prevConditions[key] = c.status;
+    }
+  },
+
+  _worstCondKey(conds, targetStatus) {
+    // Priority order for which condition to mention
+    const priority = ['o2', 'co2', 'water', 'food', 'temp', 'power'];
+    for (const k of priority) {
+      if (conds[k]?.status === targetStatus) return k;
+    }
+    return 'o2';  // fallback
+  },
+};
 
 /* =========================
    UI STATE
@@ -34001,6 +34522,24 @@ function _renderLenaInRoom(g, wx, wy, lightsOn, expression, unitId) {
   g.appendChild(lg);
 }
 
+// [v17.9.0] Word-wrap for speech bubble SVG text
+function _speechWrapText(text, maxChars) {
+  if (!text) return [''];
+  const words = text.split(' ');
+  const lines = [];
+  let line = '';
+  for (const word of words) {
+    if (line.length + word.length + 1 > maxChars && line.length > 0) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = line ? line + ' ' + word : word;
+    }
+  }
+  if (line) lines.push(line);
+  return lines.slice(0, 6);  // max 6 lines
+}
+
 _RAGTAG_SYMBOLS.room = function(g, wx, wy, ww, wh, pal, def, unitId) {
   const u = scene.units.get(unitId);
   const last = u?.last || {};
@@ -34037,8 +34576,8 @@ _RAGTAG_SYMBOLS.room = function(g, wx, wy, ww, wh, pal, def, unitId) {
     hazard:'#f97316',
     bulb:'#fde68a', bulbGlowOp:0.15,
     warmWashOp:0.06,
-    coneStartOp:0.25, coneEndOp:0,
-    upStartOp:0.20, upEndOp:0,
+    coneStartOp:0.125, coneEndOp:0,
+    upStartOp:0.10, upEndOp:0,
   } : {
     wall:'#0e1018', ceiling:'#141820', sideWall:'#10141c',
     panelA:'#0c1018', panelB:'#0a0e14', panelC:'#0a0e12',
@@ -34419,9 +34958,6 @@ _RAGTAG_SYMBOLS.room = function(g, wx, wy, ww, wh, pal, def, unitId) {
     dg.appendChild(svgEl('rect', { x: wx+hx, y: wy+_dy-3, width: 5, height: 3, fill: _C.wall }));
   }
   g.appendChild(dg);
-  const alTxt = svgEl('text', { x: wx+39, y: wy+_dy+_dh+8, 'text-anchor': 'middle',
-    'font-family': 'monospace', 'font-size': '4.5px', fill: _C.bolt, 'letter-spacing': '1', 'pointer-events': pe });
-  alTxt.textContent = 'AIRLOCK'; g.appendChild(alTxt);
 
   // ── Utility shelves (right wall) ──
   _r(248, 280, 18, 3, { rx: 1, fill: _C.shelf, stroke: _C.shelfStroke, 'stroke-width': 0.5 });
@@ -34558,6 +35094,63 @@ _RAGTAG_SYMBOLS.room = function(g, wx, wy, ww, wh, pal, def, unitId) {
     }
   }
 
+  // ═══ SPEECH BUBBLE (on top of lights, behind Lena) ═══
+  {
+    SpeechBubble.tick();
+    const msg = SpeechBubble.current();
+    const bOp = SpeechBubble.opacity();
+    if (msg && bOp > 0) {
+      const st = msg.style || _CHARACTERS.lena.bubble;
+      const bubG = svgEl('g', { opacity: bOp.toFixed(2), 'cursor': 'pointer' });
+      // Shadow
+      bubG.appendChild(svgEl('ellipse', { cx: wx+144, cy: wy+214, rx: 90, ry: 4,
+        fill: '#000000', opacity: 0.08, 'pointer-events': 'none' }));
+      // Bubble body
+      bubG.appendChild(svgEl('rect', { x: wx+38, y: wy+100, width: 212, height: 112,
+        rx: 10, fill: st.bgColor, stroke: st.borderColor, 'stroke-width': 1.5 }));
+      // Tail (triangle pointing toward Lena bottom-right)
+      bubG.appendChild(svgEl('path', {
+        d: `M${wx+200},${wy+212} L${wx+215},${wy+226} L${wx+210},${wy+212} Z`,
+        fill: st.bgColor, stroke: st.borderColor, 'stroke-width': 1.5,
+        'stroke-linejoin': 'round'
+      }));
+      // Cover tail-body seam
+      bubG.appendChild(svgEl('rect', { x: wx+199, y: wy+208, width: 13, height: 5,
+        fill: st.bgColor, 'pointer-events': 'none' }));
+      // Sender name
+      const nameEl = svgEl('text', { x: wx+48, y: wy+114,
+        'font-family': 'sans-serif', 'font-size': '8px', 'font-weight': '700',
+        fill: st.nameColor, 'pointer-events': 'none' });
+      nameEl.textContent = msg.sender || 'Lena';
+      bubG.appendChild(nameEl);
+      // Text content — word wrap into tspans
+      const lines = _speechWrapText(msg.text, 28);
+      const textEl = svgEl('text', { x: wx+48, y: wy+128,
+        'font-family': 'sans-serif', 'font-size': '10px',
+        fill: st.textColor, 'pointer-events': 'none' });
+      lines.forEach((line, i) => {
+        const ts = svgEl('tspan', { x: wx+48, dy: i === 0 ? 0 : 14 });
+        ts.textContent = line;
+        textEl.appendChild(ts);
+      });
+      bubG.appendChild(textEl);
+      // Close button (× in top-right corner)
+      const closeG = svgEl('g', { cursor: 'pointer' });
+      closeG.appendChild(svgEl('circle', { cx: wx+244, cy: wy+108, r: 7,
+        fill: '#e8ddd0', stroke: st.borderColor, 'stroke-width': 1 }));
+      const xTxt = svgEl('text', { x: wx+244, y: wy+112, 'text-anchor': 'middle',
+        'font-family': 'sans-serif', 'font-size': '11px', 'font-weight': '700',
+        fill: '#8a7060', 'pointer-events': 'none' });
+      xTxt.textContent = '×';
+      closeG.appendChild(xTxt);
+      closeG.addEventListener('click', (e) => { e.stopPropagation(); SpeechBubble.dismiss(); });
+      bubG.appendChild(closeG);
+      // Bubble body blocks pan but doesn't dismiss
+      bubG.addEventListener('click', (e) => { e.stopPropagation(); });
+      g.appendChild(bubG);
+    }
+  }
+
   // ═══ LENA CHARACTER (on top of lights — she sits in front of the illuminated scene) ═══
   if ((u?.params?.nPeople ?? 0) > 0) {
     const _expr = _lenaRoomExpression(u);
@@ -34590,11 +35183,6 @@ _RAGTAG_SYMBOLS.room = function(g, wx, wy, ww, wh, pal, def, unitId) {
   _led('air_return',   bx+bw-8,   wy + pres.ports.air_return.y * t);
   _led('elec_in',      wx + pres.ports.elec_in.x * t, by+8);
 
-  // Hull stencil
-  const stencil = svgEl('text', { x: bx+bw/2, y: by+bh-8, 'text-anchor': 'middle',
-    'font-family': 'monospace', 'font-size': '8px', fill: pal.stroke, opacity: 0.35,
-    'pointer-events': pe, 'dominant-baseline': 'auto' });
-  stencil.textContent = 'CREW SHELTER'; g.appendChild(stencil);
 };
 
 // [v17.7.8] Pipe Bend — simple 90° elbow, pipe-styled, flanges via _rtNozzle
@@ -35890,9 +36478,14 @@ function render() {
   _drawParticleCanvas();
 
   // [v17.8.0] Sync Lena HUD expression to room state
+  // [v17.8.1] CharacterVoice speech triggers from room diagnostics
   if (typeof _lenaHudSync === 'function') {
     for (const [, u] of scene.units) {
-      if (u.defId === 'room') { _lenaHudSync(_lenaRoomExpression(u)); break; }
+      if (u.defId === 'room') {
+        _lenaHudSync(_lenaRoomExpression(u));
+        CharacterVoice.onRoomUpdate(u);
+        break;
+      }
     }
   }
 }
@@ -38114,7 +38707,6 @@ UnitInspector.source = {
     );
     params.push(
       { label: `ṅ (${unitSys.molarFlow.symbol})`, get: () => unitSys.molarFlow.from(u.params.nDot), set: v => u.params.nDot = unitSys.molarFlow.to(v), step: 0.1, validate: { gt: 0 } },
-      { type: 'select', label: 'Phase', get: () => u.params.phaseConstraint || 'V', set: v => u.params.phaseConstraint = v, options: [['V','Vapor only'],['L','Liquid only'],['VL','Vapor-Liquid (flash)']] }
     );
     return params;
   }
@@ -38195,9 +38787,8 @@ UnitInspector.source_mix = UnitInspector.source_multi = {
     addNumberEditor(container, `P (${unitSys.pressure.symbol})`,
       () => unitSys.pressure.from(u.params.P ?? 101325), v => u.params.P = unitSys.pressure.to(v),
       unitSys.pressure.decimals === 0 ? 1000 : 0.1, unitSys.pressure.decimals);
-    addSelectEditor(container, 'Phase',
-      () => u.params.phaseConstraint || 'V', v => u.params.phaseConstraint = v,
-      [['V','Vapor only'],['L','Liquid only'],['VL','Vapor-Liquid']]);
+    // Phase always VL — hidden from inspector
+    u.params.phaseConstraint = 'VL';
   }
 };
 
@@ -61890,12 +62481,12 @@ function runTests() {
     const L3 = t.last(room);
     t.assertOK(L3.h2o_deficit > 0, `Deficit building at 3h (${L3.h2o_deficit?.toFixed(0)} mol)`);
 
-    // Step to 30 hours total — well into WARNING territory
-    for (let i = 0; i < 27; i++) TimeClock.step(scene);
+    // Step to 36 hours total — well into MAJOR territory with cold-water-only deficit rate
+    for (let i = 0; i < 33; i++) TimeClock.step(scene);
     t.solve();
     const L30 = t.last(room);
-    // Per person deficit after ~28h without water: ~162 mol/person → MAJOR (incapacitated)
-    t.assertOK(L30.conditions.water.status === 'MAJOR', `Water MAJOR at 30h (got ${L30.conditions.water?.status}, deficit/pp=${L30.h2o_deficit_per_person?.toFixed(0)})`);
+    // Per person deficit after ~34h without cold water: ~158 mol/person → MAJOR (>139)
+    t.assertOK(L30.conditions.water.status === 'MAJOR', `Water MAJOR at 36h (got ${L30.conditions.water?.status}, deficit/pp=${L30.h2o_deficit_per_person?.toFixed(0)})`);
   });
 
   test('672: Room + food crate — 30-day runway', t => {
@@ -62475,6 +63066,189 @@ function runTests() {
     const u3 = { inventory: { _dead: true }, last: { crewState: 'death', recovering: false,
       conditions: { temp: { status: 'OK' } } } };
     t.assertOK(_lenaRoomExpression(u3) === 'death', 'dead → death');
+  });
+
+  test('699: _CHARACTERS.lena — character sheet well-formed', t => {
+    t.assertOK(typeof _CHARACTERS === 'object', '_CHARACTERS exists');
+    const c = _CHARACTERS.lena;
+    t.assertOK(c, 'lena defined');
+    t.assertOK(c.name === 'Lena', 'name');
+    t.assertOK(c.personality?.core?.length >= 8, 'core traits: ' + c.personality.core.length);
+    t.assertOK(c.personality?.escalation?.dead, 'escalation dead');
+    t.assertOK(c.voice?.never?.length >= 5, 'never list');
+    t.assertOK(c.bubble?.bgColor, 'bubble style');
+    t.assertOK(c.silence === '...', 'silence');
+  });
+
+  test('700: SpeechBubble — push, current, dismiss', t => {
+    SpeechBubble._queue = []; SpeechBubble._current = null;
+    SpeechBubble._opacity = 0; SpeechBubble._dismissing = false;
+    SpeechBubble.push({ text: 'Test', priority: 1, duration: 5000,
+      sender: 'Lena', style: _CHARACTERS.lena.bubble });
+    t.assertOK(SpeechBubble.current()?.text === 'Test', 'current after push');
+    // Simulate 300ms elapsed for fade-in
+    SpeechBubble._current._showTime = Date.now() - 300;
+    SpeechBubble.tick();
+    t.assertOK(SpeechBubble.opacity() >= 0.99, 'faded in after 300ms');
+    // Dismiss
+    SpeechBubble.dismiss();
+    t.assertOK(SpeechBubble._dismissing, 'dismissing flag');
+    // Simulate 200ms for fade-out
+    SpeechBubble._dismissStart = Date.now() - 200;
+    SpeechBubble.tick();
+    t.assertOK(!SpeechBubble.current(), 'null after dismiss fade');
+  });
+
+  test('701: CharacterVoice._pick anti-repeat', t => {
+    CharacterVoice._lastPick = {};
+    const results = new Set();
+    for (let i = 0; i < 20; i++) results.add(CharacterVoice._pick('t', ['a','b','c']));
+    t.assertOK(results.size >= 2, 'varied picks: ' + results.size);
+  });
+
+  test('702: _speechWrapText', t => {
+    t.assertOK(_speechWrapText('Hello world', 28).length === 1, 'short: 1 line');
+    t.assertOK(_speechWrapText('Getting thirsty. Barrel connected?', 20).length === 2, 'wrap at 20');
+    t.assertOK(_speechWrapText('', 28)[0] === '', 'empty');
+  });
+
+  test('703: _LENA_LINES pools populated', t => {
+    t.assertOK(_LENA_LINES.expr_to_happy.length >= 4, 'happy');
+    t.assertOK(_LENA_LINES.expr_to_cold.length >= 4, 'cold');
+    t.assertOK(_LENA_LINES.expr_to_shouting.length >= 4, 'shouting');
+    t.assertOK(_LENA_LINES.idle.length >= 10, 'idle');
+    t.assertOK(_LENA_LINES.expr_to_death[0] === '...', 'death silence');
+    t.assertOK(_LENA_LINES.expr_to_disappointed.water.length >= 3, 'disappointed.water');
+    t.assertOK(_LENA_LINES.expr_to_fainting.o2.length >= 1, 'fainting.o2');
+    t.assertOK(_LENA_LINES.condition_worsened.o2.length >= 1, 'worsened.o2');
+  });
+
+  test('704: Speech — full water dehydration→recovery cycle', t => {
+    // Reset speech system
+    SpeechBubble._queue = []; SpeechBubble._current = null;
+    SpeechBubble._opacity = 0; SpeechBubble._dismissing = false;
+    CharacterVoice._prevExpr = null;
+    CharacterVoice._prevConditions = {};
+    CharacterVoice._prevConverged = true;
+    CharacterVoice._prevLightsOn = null;
+    CharacterVoice._cooldownTimers = {};
+    CharacterVoice._idleCounter = 0;
+
+    const okConds = { o2:{status:'OK'}, co2:{status:'OK'}, temp:{status:'OK'},
+      water:{status:'OK'}, food:{status:'OK'}, power:{status:'OK'} };
+    const mkU = (crewState, waterStatus, recovering, deficit) => ({
+      inventory: {}, last: { crewState, recovering: !!recovering, fan_frac: 1, T_room_K: 294,
+        h2o_deficit: deficit || 0,
+        conditions: { ...okConds, water: { status: waterStatus } } }
+    });
+
+    // ── Phase 1: All good — happy, first call ──
+    const u1 = mkU('normal', 'OK', false, 0);
+    t.assertOK(_lenaRoomExpression(u1) === 'happy', 'P1: expr happy');
+    CharacterVoice.onRoomUpdate(u1);
+    t.assertOK(!SpeechBubble.current(), 'P1: no speech on first happy');
+
+    // ── Phase 2: Water WARNING → disappointed ──
+    CharacterVoice._cooldownTimers = {};
+    const u2 = mkU('degraded', 'WARNING', false, 50);
+    t.assertOK(_lenaRoomExpression(u2) === 'disappointed', 'P2: expr disappointed');
+    CharacterVoice.onRoomUpdate(u2);
+    const msg2 = SpeechBubble.current();
+    t.assertOK(msg2 !== null, 'P2: speech triggered');
+    t.assertOK(msg2?.text?.length > 5, 'P2: text: ' + (msg2?.text || 'null'));
+
+    // ── Phase 3: Water MAJOR → fainting (no speech, unconscious) ──
+    CharacterVoice._cooldownTimers = {};
+    SpeechBubble._current = null;
+    const u3 = mkU('incapacitated', 'MAJOR', false, 400);
+    t.assertOK(_lenaRoomExpression(u3) === 'fainting', 'P3: expr fainting');
+    CharacterVoice.onRoomUpdate(u3);
+    t.assertOK(!SpeechBubble.current(), 'P3: silence while unconscious');
+
+    // ── Phase 4: Supply back → recovering ──
+    CharacterVoice._cooldownTimers = {};
+    const u4 = mkU('incapacitated', 'MAJOR', true, 300);
+    t.assertOK(_lenaRoomExpression(u4) === 'recovering', 'P4: expr recovering');
+    CharacterVoice.onRoomUpdate(u4);
+    const msg4 = SpeechBubble.current();
+    t.assertOK(msg4 !== null, 'P4: recovering speech');
+    t.assertOK(msg4?.text?.length > 3, 'P4: text: ' + (msg4?.text || 'null'));
+
+    // ── Phase 5: Deficit cleared → happy ──
+    CharacterVoice._cooldownTimers = {};
+    const u5 = mkU('normal', 'OK', false, 0);
+    t.assertOK(_lenaRoomExpression(u5) === 'happy', 'P5: expr happy');
+    CharacterVoice.onRoomUpdate(u5);
+    const msg5 = SpeechBubble.current();
+    t.assertOK(msg5 !== null, 'P5: happy/recovery speech');
+    t.assertOK(msg5?.text?.length > 5, 'P5: text: ' + (msg5?.text || 'null'));
+
+    // ── Phase 6: Back to deficit → disappointed again ──
+    CharacterVoice._cooldownTimers = {};
+    const u6 = mkU('degraded', 'WARNING', false, 50);
+    CharacterVoice.onRoomUpdate(u6);
+    const msg6 = SpeechBubble.current();
+    t.assertOK(msg6 !== null, 'P6: disappointed speech again');
+  });
+
+  test('705: Speech — lights on/off', t => {
+    SpeechBubble._queue = []; SpeechBubble._current = null;
+    SpeechBubble._opacity = 0; SpeechBubble._dismissing = false;
+    CharacterVoice._prevExpr = 'happy';
+    CharacterVoice._prevConditions = {};
+    CharacterVoice._prevLightsOn = true;
+    CharacterVoice._cooldownTimers = {};
+
+    // Simulate lights going off
+    const u = { inventory: {}, last: {
+      crewState: 'normal', fan_frac: 0,
+      conditions: { o2:{status:'OK'}, co2:{status:'OK'}, temp:{status:'OK'},
+        water:{status:'OK'}, food:{status:'OK'}, power:{status:'WARNING'} }
+    }};
+    CharacterVoice.onRoomUpdate(u);
+    const msg = SpeechBubble.current();
+    t.assertOK(msg !== null, 'lights off speech');
+    t.assertOK(_LENA_LINES.lights_off.includes(msg?.text), 'text from lights_off pool: ' + msg?.text);
+
+    // Simulate lights coming back
+    CharacterVoice._cooldownTimers = {};
+    SpeechBubble._current = null;
+    u.last.fan_frac = 0.8;
+    u.last.conditions.power.status = 'OK';
+    CharacterVoice.onRoomUpdate(u);
+    const msg2 = SpeechBubble.current();
+    t.assertOK(msg2 !== null, 'lights on speech');
+    t.assertOK(_LENA_LINES.lights_on.includes(msg2?.text), 'text from lights_on pool: ' + msg2?.text);
+  });
+
+  test('706: Water recovery via barrel — full chain', t => {
+    const room = t.place('room', 0, 0, { nPeople: 2 });
+    const barrel = t.place('simple_open_tank', -7, 5, {
+      volume_m3: 0.1, initialComposition: { H2O: 1 },
+      level_init: 0.5, drawRate: 0.01, opening_pct: 25, overflow_level: 90
+    });
+    t.wire(barrel, 'mat_out', room, 'h2o_in');
+    // Init barrel inventory
+    t.unit(barrel).inventory = { n: { H2O: 2000 }, T_K: 293, _vented_n: {} };
+    // Inject deficit
+    t.unit(room).inventory._h2o_deficit = 100;
+    t.solve();
+    const L1 = t.last(room);
+    const r1 = L1._dbg_h2o_supply_ratio;
+    t.assertOK(true, 'DBG h2o_supply=' + (L1.h2o_demand ? (r1 * (L1.h2o_demand + (L1.hw_demand||0))).toFixed(6) : '?') 
+      + ' ratio=' + (r1 != null ? r1.toFixed(4) : 'undef') 
+      + ' deficit=' + L1.h2o_deficit + ' delta=' + (L1._dbg_h2o_deficit_delta ?? '?'));
+    t.assertOK(r1 >= 0.95, 'ratio >= 0.95: ' + r1);
+    t.assertOK(L1._dbg_h2o_recovering === true, 'dbg_recovering: ' + L1._dbg_h2o_recovering + ' ratio=' + (L1._dbg_h2o_supply_ratio ?? '?'));
+    t.assertOK(L1.recovering === true, 'recovering flag, deficit=' + L1.h2o_deficit + ' dead=' + (t.unit(room).inventory._dead));
+    // Step and check deficit decreases
+    const defBefore = t.unit(room).inventory._h2o_deficit;
+    TimeClock.mode = 'playing'; TimeClock.step(scene); TimeClock.mode = 'paused';
+    const defAfter = t.unit(room).inventory._h2o_deficit;
+    t.assertOK(defAfter < defBefore, `deficit decreased via barrel: ${defBefore.toFixed(1)} → ${defAfter.toFixed(1)}`);
+    // Expression should go to recovering or happy
+    const expr = _lenaRoomExpression(t.unit(room));
+    t.assertOK(expr === 'recovering' || expr === 'happy', 'expression: ' + expr);
   });
 
   // ═══════════════════════════════════════════════════════════════════════
