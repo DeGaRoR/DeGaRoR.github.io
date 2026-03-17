@@ -29760,6 +29760,51 @@ const _LENA_LINES = {
     "Ran the numbers on food in my head. Twice. We're fine. Probably.",
     "Did I mention I almost took a desk job? Imagine.",
   ],
+  // ── Poke lines (player clicks on Lena) ──
+  poke_annoyed_A: [
+    "Do I look like I have free hands?",
+    "I'm right here. What.",
+    "The leg. Remember the leg? I can't go anywhere.",
+    "Go fix something. Anything. Please.",
+    "You know what would help? Not this.",
+  ],
+  poke_annoyed_B: [
+    "I'm literally sitting on a crate. Where would I go.",
+    "Yes. Hello. Still here. Still broken leg.",
+    "Is this a coping mechanism? Because it's not working.",
+    "I was doing important mental calculations. Was.",
+    "Every poke costs us a calorie I can't afford.",
+  ],
+  poke_angry_A: [
+    "WHAT.",
+    "I swear if you poke me one more time.",
+    "I have one working leg and I WILL use it.",
+    "Stop. Just— stop.",
+  ],
+  poke_angry_B: [
+    "DO I LOOK LIKE A BUTTON.",
+    "That's it. I'm filing a crew complaint. With myself.",
+    "One leg. One. And it's about to be your problem.",
+    "I am THIS close. This close.",
+  ],
+  poke_resigned_A: [
+    "Fine. Keep going. This is clearly more important than air.",
+    "You win. I'll just sit here and be poked. My life now.",
+    "I used to supervise orbital ISRU tests. Now I'm a stress toy.",
+  ],
+  poke_resigned_B: [
+    "OK. I've accepted this. This is who we are now.",
+    "At least you're not bored. One of us should be entertained.",
+    "Sure. This is fine. Everything is fine.",
+  ],
+  poke_unconscious: {
+    water: "Lena is unconscious — dehydration.",
+    food:  "Lena is unconscious — starvation.",
+    o2:    "Lena is unconscious — hypoxia.",
+    co2:   "Lena is unconscious — CO₂ poisoning.",
+    temp:  "Lena is unconscious — exposure.",
+    power: "Lena is unconscious.",
+  },
 };
 
 // ── SpeechBubble — pure display (character-agnostic) ──
@@ -29770,11 +29815,9 @@ const SpeechBubble = {
   _scroll: 0,         // current animated scroll offset
 
   push(msg) {
-    // Dedup: don't append if last message is identical text
-    if (this._history.length > 0 && this._history[this._history.length - 1].text === msg.text) return;
     this._history.push({ text: msg.text, _time: Date.now() });
     if (this._history.length > this._maxHistory) this._history.shift();
-    this._scrollTarget = 0;  // snap to bottom on new message
+    this._scrollTarget = 0;
   },
 
   history() { return this._history; },
@@ -29804,6 +29847,11 @@ const CharacterVoice = {
   _recentTransitions: [],  // [{expr, t}] for oscillation detection
   _idleCounter: 0,
   _prevFrame: -1,
+  _pokeCount: 0,
+  _lastPokeTime: 0,
+  _pokeExprOverride: null,  // temporary expression override from poke
+  _pokeExprTime: 0,         // when override was set
+  _pokeSet: 'A',            // alternates A/B between poke chains
 
   _pick(key, lines) {
     if (!lines || lines.length === 0) return null;
@@ -29834,6 +29882,11 @@ const CharacterVoice = {
   // ── Main integration hook — called from render() ──
   onRoomUpdate(u) {
     if (!u?.last) return;
+    // Only process on actual time steps — not pause/pan/zoom renders
+    const frame = typeof TimeClock !== 'undefined' ? TimeClock.frame : 0;
+    if (frame === this._prevFrame && this._prevExpr !== null) return;
+    this._prevFrame = frame;
+
     const last = u.last;
     const expr = _lenaRoomExpression(u);
     const conds = last.conditions || {};
@@ -29920,9 +29973,8 @@ const CharacterVoice = {
       }
     }
 
-    // ── Idle chatter (only on actual time steps, not render spam) ──
-    const curFrame = typeof TimeClock !== 'undefined' ? TimeClock.frame : 0;
-    if (expr === 'happy' && prevExpr === 'happy' && curFrame !== this._prevFrame) {
+    // ── Idle chatter ──
+    if (expr === 'happy' && prevExpr === 'happy') {
       this._idleCounter++;
       if (this._idleCounter > 5 && this._canSpeak('idle')) {
         this._speak(this._pick('idle', _LENA_LINES.idle), 0, _SPEECH_DURATIONS.idle, 'idle');
@@ -29931,7 +29983,6 @@ const CharacterVoice = {
     } else if (expr !== 'happy') {
       this._idleCounter = 0;
     }
-    this._prevFrame = curFrame;
 
     // ── Update state ──
     this._prevExpr = expr;
@@ -29949,6 +30000,104 @@ const CharacterVoice = {
       if (conds[k]?.status === targetStatus) return k;
     }
     return 'o2';  // fallback
+  },
+
+  // ── Poke system (player clicks on Lena) ──
+  _pokeDiagnostic(conds, irritated) {
+    const priority = ['o2', 'co2', 'water', 'food', 'temp', 'power'];
+    const labels = { water:"Water's low", o2:"O₂'s low", co2:"CO₂'s high",
+      food:"Running low on food", temp:"Temperature's off", power:"Power's shaky" };
+    // Find worst non-OK condition
+    let worst = null;
+    for (const k of priority) {
+      if (conds[k]?.status && conds[k].status !== 'OK') { worst = k; break; }
+    }
+    // Count how many are not OK
+    let badCount = 0;
+    for (const k of priority) { if (conds[k]?.status && conds[k].status !== 'OK') badCount++; }
+
+    if (!worst) {
+      return irritated
+        ? this._pick('poke_diag_ok2', ["I JUST said we're fine.", "Still fine. Still.", "Fine. Fine. FINE."])
+        : this._pick('poke_diag_ok1', ["All green. We're fine.", "Stable. Nothing to report.", "Everything's working. Enjoy it."]);
+    }
+    const base = labels[worst] || "Something's off";
+    if (badCount > 1) {
+      const second = priority.find(k => k !== worst && conds[k]?.status !== 'OK');
+      const lbl2 = labels[second] || '';
+      return irritated
+        ? (base + ". And " + lbl2.toLowerCase() + ". I said this.")
+        : (base + ". Also " + lbl2.toLowerCase() + ".");
+    }
+    return irritated ? (base + ". I said this.") : (base + ".");
+  },
+
+  onPoke(u) {
+    const now = Date.now();
+    const expr = _lenaRoomExpression(u);
+
+    // Death: silence
+    if (expr === 'death') return;
+
+    // Fainting: narrator voice
+    if (expr === 'fainting') {
+      const conds = u?.last?.conditions || {};
+      const worst = this._worstCondKey(conds, 'MAJOR') || this._worstCondKey(conds, 'CATASTROPHIC');
+      const line = _LENA_LINES.poke_unconscious[worst] || "Lena is unconscious.";
+      SpeechBubble.push({ text: line });
+      return;
+    }
+
+    // Reset chain if >5s since last poke
+    if (now - this._lastPokeTime > 5000) {
+      this._pokeCount = 0;
+      this._pokeSet = this._pokeSet === 'A' ? 'B' : 'A';  // alternate set
+    }
+    this._pokeCount++;
+    this._lastPokeTime = now;
+    const pc = this._pokeCount;
+    const set = this._pokeSet;
+    const conds = u?.last?.conditions || {};
+
+    let line, exprOverride = null;
+    if (pc === 1) {
+      // Informative diagnostic
+      line = this._pokeDiagnostic(conds, false);
+    } else if (pc === 2) {
+      // Same info, irritated
+      line = this._pokeDiagnostic(conds, true);
+    } else if (pc <= 5) {
+      // Annoyed
+      const pool = set === 'A' ? _LENA_LINES.poke_annoyed_A : _LENA_LINES.poke_annoyed_B;
+      line = this._pick('poke_ann_' + set, pool);
+      exprOverride = 'disappointed';
+    } else if (pc <= 8) {
+      // Angry
+      const pool = set === 'A' ? _LENA_LINES.poke_angry_A : _LENA_LINES.poke_angry_B;
+      line = this._pick('poke_ang_' + set, pool);
+      exprOverride = 'shouting';
+    } else {
+      // Resigned (9+)
+      const pool = set === 'A' ? _LENA_LINES.poke_resigned_A : _LENA_LINES.poke_resigned_B;
+      line = this._pick('poke_res_' + set, pool);
+      exprOverride = 'disappointed';
+    }
+
+    if (line) SpeechBubble.push({ text: line });
+    if (exprOverride) {
+      this._pokeExprOverride = exprOverride;
+      this._pokeExprTime = now;
+    }
+  },
+
+  // Returns poke expression override if active, null otherwise
+  getPokeExprOverride() {
+    if (!this._pokeExprOverride) return null;
+    if (Date.now() - this._pokeExprTime > 5000) {
+      this._pokeExprOverride = null;
+      return null;
+    }
+    return this._pokeExprOverride;
   },
 };
 
@@ -34305,19 +34454,22 @@ function _lenaRoomExpression(u) {
   if (cs === 'incapacitated' && !last.recovering) return 'fainting';
   // 3. Recovering (deficit present + supply adequate)
   if (last.recovering) return 'recovering';
-  // 4–5. Temperature
+  // 4. Poke override (temporary, from player clicking on Lena — yields only to physical states above)
+  const pokeExpr = CharacterVoice.getPokeExprOverride();
+  if (pokeExpr) return pokeExpr;
+  // 5–6. Temperature
   const tc = last.conditions?.temp;
   if (tc && tc.status !== 'OK')
     return (last.T_room_K || 294) < 288 ? 'cold' : 'warm';
-  // 6. Shouting (equipment destroyed)
+  // 7. Shouting (equipment destroyed)
   if (typeof scene !== 'undefined' && scene.units) {
     for (const [, su] of scene.units) {
       if (su.defId !== 'room' && su.last?.fried) return 'shouting';
     }
   }
-  // 7. Disappointed (degraded)
+  // 8. Disappointed (degraded)
   if (cs === 'degraded') return 'disappointed';
-  // 8. Happy
+  // 9. Happy
   return 'happy';
 }
 
@@ -35129,16 +35281,22 @@ _RAGTAG_SYMBOLS.room = function(g, wx, wy, ww, wh, pal, def, unitId) {
     const hist = SpeechBubble.history();
     if (hist.length > 0) {
       const st = _CHARACTERS.lena.bubble;
-      // Clip zone: window area (38, 102) to (250, 210) in room-local coords
+      // Fade zone: window area with soft gradient fade at top
       const clipX = wx + 38, clipY = wy + 102, clipW = 212, clipH = 108;
-      const clipId = 'speech-clip-' + unitId;
+      const maskId = 'speech-mask-' + unitId;
+      const gradId = 'speech-fade-' + unitId;
       const defs = svgEl('defs', {});
-      const cp = svgEl('clipPath', { id: clipId });
-      cp.appendChild(svgEl('rect', { x: clipX, y: clipY, width: clipW, height: clipH }));
-      defs.appendChild(cp);
+      const grad = svgEl('linearGradient', { id: gradId, x1: 0, y1: 0, x2: 0, y2: 1 });
+      grad.appendChild(svgEl('stop', { offset: '0', 'stop-color': 'white', 'stop-opacity': '0' }));
+      grad.appendChild(svgEl('stop', { offset: '0.18', 'stop-color': 'white', 'stop-opacity': '1' }));
+      grad.appendChild(svgEl('stop', { offset: '1', 'stop-color': 'white', 'stop-opacity': '1' }));
+      defs.appendChild(grad);
+      const mask = svgEl('mask', { id: maskId });
+      mask.appendChild(svgEl('rect', { x: clipX, y: clipY, width: clipW, height: clipH, fill: `url(#${gradId})` }));
+      defs.appendChild(mask);
       g.appendChild(defs);
 
-      const chatG = svgEl('g', { 'clip-path': `url(#${clipId})`, 'pointer-events': 'none' });
+      const chatG = svgEl('g', { mask: `url(#${maskId})`, 'pointer-events': 'none' });
       // Build bubbles bottom-up from newest
       const PAD_X = 8, PAD_Y = 6, GAP = 4, FONT = 10, LINE_H = 13, MAX_CHARS = 26;
       let curY = clipY + clipH - 4;  // start from bottom of clip zone
@@ -35149,20 +35307,16 @@ _RAGTAG_SYMBOLS.room = function(g, wx, wy, ww, wh, pal, def, unitId) {
         const bubH = PAD_Y * 2 + lines.length * LINE_H;
         const bubY = curY - bubH;
         // Fade: newest message may be fading in
-        const age = Date.now() - msg._time;
-        const op = i === hist.length - 1 ? Math.min(1, age / 200) : 1;
-
         // Bubble rect
         chatG.appendChild(svgEl('rect', {
           x: clipX + 4, y: bubY, width: clipW - 8, height: bubH,
           rx: 8, fill: st.bgColor, stroke: st.borderColor, 'stroke-width': 1,
-          opacity: op.toFixed(2)
         }));
         // Text
         const textEl = svgEl('text', {
           x: clipX + 4 + PAD_X, y: bubY + PAD_Y + FONT,
           'font-family': 'sans-serif', 'font-size': FONT + 'px',
-          fill: st.textColor, opacity: op.toFixed(2), 'pointer-events': 'none'
+          fill: st.textColor, 'pointer-events': 'none'
         });
         lines.forEach((line, li) => {
           const ts = svgEl('tspan', { x: clipX + 4 + PAD_X, dy: li === 0 ? 0 : LINE_H });
@@ -35181,6 +35335,17 @@ _RAGTAG_SYMBOLS.room = function(g, wx, wy, ww, wh, pal, def, unitId) {
   if ((u?.params?.nPeople ?? 0) > 0) {
     const _expr = _lenaRoomExpression(u);
     _renderLenaInRoom(g, wx, wy, lightsOn, _expr, unitId);
+    // Clickable overlay for poke interaction
+    const pokeRect = svgEl('rect', {
+      x: wx+110, y: wy+220, width: 150, height: 180,
+      fill: 'transparent', cursor: 'pointer', 'pointer-events': 'all'
+    });
+    pokeRect.addEventListener('click', (e) => {
+      e.stopPropagation();
+      CharacterVoice.onPoke(u);
+      if (typeof render === 'function') render();  // refresh expression
+    });
+    g.appendChild(pokeRect);
   }
 
   // ═══ HULL DETAILS (on top of background) ═══
@@ -63106,19 +63271,16 @@ function runTests() {
     t.assertOK(c.silence === '...', 'silence');
   });
 
-  test('700: SpeechBubble — push, history, dedup', t => {
+  test('700: SpeechBubble — push, history, cap', t => {
     SpeechBubble.clear();
     SpeechBubble.push({ text: 'First message' });
     t.assertOK(SpeechBubble.history().length === 1, 'one message');
     t.assertOK(SpeechBubble.history()[0].text === 'First message', 'text preserved');
     SpeechBubble.push({ text: 'Second message' });
     t.assertOK(SpeechBubble.history().length === 2, 'two messages');
-    // Dedup: same text as last → ignored
+    // Same text allowed (no dedup — anti-repeat in CharacterVoice handles variety)
     SpeechBubble.push({ text: 'Second message' });
-    t.assertOK(SpeechBubble.history().length === 2, 'dedup: still two');
-    // Different text → added
-    SpeechBubble.push({ text: 'Third message' });
-    t.assertOK(SpeechBubble.history().length === 3, 'three messages');
+    t.assertOK(SpeechBubble.history().length === 3, 'repeat accepted');
     // Max history cap
     SpeechBubble.clear();
     for (let i = 0; i < 25; i++) SpeechBubble.push({ text: 'msg ' + i });
@@ -63162,9 +63324,12 @@ function runTests() {
     CharacterVoice._cooldownTimers = {};
     CharacterVoice._recentTransitions = [];
     CharacterVoice._idleCounter = 0;
+    CharacterVoice._prevFrame = -1;
+    let _testFrame = 100;
 
     const _last = () => { const h = SpeechBubble.history(); return h.length > 0 ? h[h.length-1] : null; };
     const _count = () => SpeechBubble.history().length;
+    const _step = () => { TimeClock.frame = ++_testFrame; };  // simulate a time step
 
     const okConds = { o2:{status:'OK'}, co2:{status:'OK'}, temp:{status:'OK'},
       water:{status:'OK'}, food:{status:'OK'}, power:{status:'OK'} };
@@ -63185,7 +63350,7 @@ function runTests() {
     const c0 = _count();
     const u2 = mkU('degraded', 'WARNING', false, 50);
     t.assertOK(_lenaRoomExpression(u2) === 'disappointed', 'P2: expr disappointed');
-    CharacterVoice.onRoomUpdate(u2);
+    _step(); CharacterVoice.onRoomUpdate(u2);
     t.assertOK(_count() > c0, 'P2: speech triggered');
     t.assertOK(_last()?.text?.length > 5, 'P2: text: ' + (_last()?.text || 'null'));
 
@@ -63194,7 +63359,7 @@ function runTests() {
     const c3 = _count();
     const u3 = mkU('incapacitated', 'MAJOR', false, 400);
     t.assertOK(_lenaRoomExpression(u3) === 'fainting', 'P3: expr fainting');
-    CharacterVoice.onRoomUpdate(u3);
+    _step(); CharacterVoice.onRoomUpdate(u3);
     t.assertOK(_count() === c3, 'P3: silence while unconscious');
 
     // ── Phase 4: Supply back → recovering ──
@@ -63202,7 +63367,7 @@ function runTests() {
     const c4 = _count();
     const u4 = mkU('incapacitated', 'MAJOR', true, 300);
     t.assertOK(_lenaRoomExpression(u4) === 'recovering', 'P4: expr recovering');
-    CharacterVoice.onRoomUpdate(u4);
+    _step(); CharacterVoice.onRoomUpdate(u4);
     t.assertOK(_count() > c4, 'P4: recovering speech');
     t.assertOK(_last()?.text?.length > 3, 'P4: text: ' + (_last()?.text || 'null'));
 
@@ -63211,7 +63376,7 @@ function runTests() {
     const c5 = _count();
     const u5 = mkU('normal', 'OK', false, 0);
     t.assertOK(_lenaRoomExpression(u5) === 'happy', 'P5: expr happy');
-    CharacterVoice.onRoomUpdate(u5);
+    _step(); CharacterVoice.onRoomUpdate(u5);
     t.assertOK(_count() > c5, 'P5: happy/recovery speech');
 
     // ── Phase 6: Back to deficit → disappointed again ──
@@ -63219,7 +63384,7 @@ function runTests() {
     CharacterVoice._recentTransitions = [];  // clear oscillation history
     const c6 = _count();
     const u6 = mkU('degraded', 'WARNING', false, 50);
-    CharacterVoice.onRoomUpdate(u6);
+    _step(); CharacterVoice.onRoomUpdate(u6);
     t.assertOK(_count() > c6, 'P6: disappointed speech again');
   });
 
@@ -63230,6 +63395,8 @@ function runTests() {
     CharacterVoice._prevLightsOn = true;
     CharacterVoice._cooldownTimers = {};
     CharacterVoice._recentTransitions = [];
+    CharacterVoice._prevFrame = -1;
+    let _tf = 200;
 
     const _last = () => { const h = SpeechBubble.history(); return h.length > 0 ? h[h.length-1] : null; };
 
@@ -63239,7 +63406,7 @@ function runTests() {
       conditions: { o2:{status:'OK'}, co2:{status:'OK'}, temp:{status:'OK'},
         water:{status:'OK'}, food:{status:'OK'}, power:{status:'WARNING'} }
     }};
-    CharacterVoice.onRoomUpdate(u);
+    TimeClock.frame = ++_tf; CharacterVoice.onRoomUpdate(u);
     const msg = _last();
     t.assertOK(msg !== null, 'lights off speech');
     t.assertOK(_LENA_LINES.lights_off.includes(msg?.text), 'text from lights_off pool: ' + msg?.text);
@@ -63249,7 +63416,7 @@ function runTests() {
     const c1 = SpeechBubble.history().length;
     u.last.fan_frac = 0.8;
     u.last.conditions.power.status = 'OK';
-    CharacterVoice.onRoomUpdate(u);
+    TimeClock.frame = ++_tf; CharacterVoice.onRoomUpdate(u);
     const msg2 = _last();
     t.assertOK(SpeechBubble.history().length > c1, 'lights on speech added');
     t.assertOK(_LENA_LINES.lights_on.includes(msg2?.text), 'text from lights_on pool: ' + msg2?.text);
@@ -63292,6 +63459,8 @@ function runTests() {
     CharacterVoice._cooldownTimers = {};
     CharacterVoice._recentTransitions = [];
     CharacterVoice._prevLightsOn = null;
+    CharacterVoice._prevFrame = -1;
+    let _tf = 300;
 
     const _last = () => { const h = SpeechBubble.history(); return h.length > 0 ? h[h.length-1] : null; };
 
@@ -63302,20 +63471,89 @@ function runTests() {
     const sadU = { inventory: {}, last: { crewState: 'degraded', fan_frac: 1, T_room_K: 294,
       conditions: { ...okConds, water: { status: 'WARNING' } } } };
 
-    // Cycle: happy→disappointed→happy→disappointed→happy→disappointed (4 transitions = oscillation)
-    CharacterVoice.onRoomUpdate(happyU);  // init
+    // Cycle: happy→disappointed→happy→disappointed→happy (4 transitions = oscillation)
+    TimeClock.frame = ++_tf; CharacterVoice.onRoomUpdate(happyU);  // init
     CharacterVoice._cooldownTimers = {};
-    CharacterVoice.onRoomUpdate(sadU);    // transition 1
+    TimeClock.frame = ++_tf; CharacterVoice.onRoomUpdate(sadU);    // transition 1
     CharacterVoice._cooldownTimers = {};
-    CharacterVoice.onRoomUpdate(happyU);  // transition 2
+    TimeClock.frame = ++_tf; CharacterVoice.onRoomUpdate(happyU);  // transition 2
     CharacterVoice._cooldownTimers = {};
-    CharacterVoice.onRoomUpdate(sadU);    // transition 3
+    TimeClock.frame = ++_tf; CharacterVoice.onRoomUpdate(sadU);    // transition 3
     CharacterVoice._cooldownTimers = {};
-    CharacterVoice.onRoomUpdate(happyU);  // transition 4 → oscillation detected
+    TimeClock.frame = ++_tf; CharacterVoice.onRoomUpdate(happyU);  // transition 4 → oscillation
 
     const msg = _last();
     t.assertOK(msg !== null, 'oscillation speech fired');
     t.assertOK(_LENA_LINES.oscillation.includes(msg?.text), 'text from oscillation pool: ' + msg?.text);
+  });
+
+  test('708: Poke — diagnostic, escalation, expression override', t => {
+    SpeechBubble.clear();
+    CharacterVoice._pokeCount = 0;
+    CharacterVoice._lastPokeTime = 0;
+    CharacterVoice._pokeExprOverride = null;
+    CharacterVoice._pokeSet = 'A';
+
+    const _last = () => { const h = SpeechBubble.history(); return h.length > 0 ? h[h.length-1] : null; };
+    const _count = () => SpeechBubble.history().length;
+
+    const okConds = { o2:{status:'OK'}, co2:{status:'OK'}, temp:{status:'OK'},
+      water:{status:'OK'}, food:{status:'OK'}, power:{status:'OK'} };
+    const happyU = { inventory: {}, last: { crewState: 'normal', fan_frac: 1, T_room_K: 294,
+      conditions: { ...okConds } } };
+
+    // Click 1: diagnostic
+    CharacterVoice.onPoke(happyU);
+    t.assertOK(_count() === 1, 'click 1: message added');
+    t.assertOK(!CharacterVoice._pokeExprOverride, 'click 1: no expr override');
+
+    // Click 2: irritated repeat
+    CharacterVoice.onPoke(happyU);
+    t.assertOK(_count() === 2, 'click 2: second message');
+
+    // Click 3: annoyed, expression → disappointed
+    CharacterVoice.onPoke(happyU);
+    t.assertOK(_count() === 3, 'click 3: third message');
+    t.assertOK(CharacterVoice._pokeExprOverride === 'disappointed', 'click 3: disappointed override');
+
+    // Click 6: angry, expression → shouting
+    CharacterVoice.onPoke(happyU);  // 4
+    CharacterVoice.onPoke(happyU);  // 5
+    CharacterVoice.onPoke(happyU);  // 6
+    t.assertOK(CharacterVoice._pokeExprOverride === 'shouting', 'click 6: shouting override');
+
+    // Click 9: resigned, expression → disappointed
+    CharacterVoice.onPoke(happyU);  // 7
+    CharacterVoice.onPoke(happyU);  // 8
+    CharacterVoice.onPoke(happyU);  // 9
+    t.assertOK(CharacterVoice._pokeExprOverride === 'disappointed', 'click 9: resigned → disappointed');
+    t.assertOK(_count() === 9, 'all 9 messages in history');
+  });
+
+  test('709: Poke — fainting gives narrator line, death gives nothing', t => {
+    SpeechBubble.clear();
+    CharacterVoice._pokeCount = 0;
+    CharacterVoice._lastPokeTime = 0;
+
+    const _count = () => SpeechBubble.history().length;
+    const _last = () => { const h = SpeechBubble.history(); return h.length > 0 ? h[h.length-1] : null; };
+
+    // Fainting from water
+    const faintU = { inventory: {}, last: { crewState: 'incapacitated', fan_frac: 1, T_room_K: 294,
+      conditions: { o2:{status:'OK'}, co2:{status:'OK'}, temp:{status:'OK'},
+        water:{status:'MAJOR'}, food:{status:'OK'}, power:{status:'OK'} } } };
+    CharacterVoice.onPoke(faintU);
+    t.assertOK(_count() === 1, 'fainting poke: message added');
+    t.assertOK(_last()?.text?.includes('unconscious'), 'fainting: narrator text: ' + _last()?.text);
+    t.assertOK(_last()?.text?.includes('dehydration'), 'fainting: cause mentioned');
+
+    // Death: nothing
+    const deadU = { inventory: { _dead: true }, last: { crewState: 'death', fan_frac: 0, T_room_K: 280,
+      conditions: { o2:{status:'CATASTROPHIC'}, co2:{status:'OK'}, temp:{status:'OK'},
+        water:{status:'CATASTROPHIC'}, food:{status:'OK'}, power:{status:'OK'} } } };
+    const c = _count();
+    CharacterVoice.onPoke(deadU);
+    t.assertOK(_count() === c, 'death poke: no message added');
   });
 
   // ═══════════════════════════════════════════════════════════════════════
