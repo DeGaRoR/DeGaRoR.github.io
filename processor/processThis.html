@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v17.9.0
+  processThis v17.10.0
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -356,6 +356,39 @@
   ═══════════════════════════════════════════════════════════════════════════
   CHANGELOG  (latest first)
   ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v17.10.0 — Scrolling chat history + oscillation detection ────────────
+  **Scrolling chat.** Speech bubble replaced by scrolling message history
+  in the window zone.  Individual compact bubbles, newest at bottom,
+  older scroll up and clip out.  No close button, no dismiss — messages
+  persist like a messaging app.  Clipped to (38,102)-(250,210), never
+  covers gauges.  Max 20 messages in memory.
+
+  **Oscillation detection.**  If the last 4 expression transitions form
+  an A→B→A→B pattern within 10 minutes, Lena calls it out instead of
+  repeating the normal transition line.  6 oscillation lines.
+  Extended cooldown after oscillation comment.
+
+  **Recovery gate fix.**  Dehydration deficit and recovery gate now use
+  cold water supply only (h2o_in), not combined cold+hot.  Hot water is
+  hygiene, not survival.  Fixes: recovery never triggering when only a
+  water barrel was connected.
+
+  **Source_mix inspector fix.**  Phase selector removed, phaseConstraint
+  forced to 'VL' on inspector open.  Matches source_pure fix.
+
+  **P_LL = 0 on depletable vessels.**  Gas bottle, gas tank, cooled gas
+  bottle, food crate: empty vessel at near-vacuum is not a material
+  failure.  P_HH (overpressure) unchanged.
+
+  **Recovering eyes fix.**  Ellipse pupils → path pupils matching warm
+  expression geometry.  Eyes no longer overflow the half-open eye whites.
+
+  **Close button → removed.**  Chat history pattern makes explicit
+  dismiss unnecessary.
+
+  Tests: 708 (+2).  707: oscillation detection.  706: barrel recovery.
+  700: SpeechBubble history/dedup.  704-705: rewritten for history API.
 
   ─── v17.9.0 — Lena Speech System (§LENA-SPEECH) ──────────────────────────
   **Speech bubble over room window.** Warm cream chat bubble (#f0e6d6)
@@ -29705,6 +29738,14 @@ const _LENA_LINES = {
     "Power's back. I can see my hands again.",
     "There we go. Back in business.",
   ],
+  oscillation: [
+    "Make up your mind. Are we stable or not.",
+    "This on-off thing is not helping my nerves.",
+    "We've been through this three times now. Stabilize it, yeah?",
+    "OK I'm getting whiplash from these swings.",
+    "Pick a state and commit. Please.",
+    "Again? Really? Fix the root cause.",
+  ],
   idle: [
     "Quiet. I don't trust quiet.",
     "How long before something breaks, you think?",
@@ -29723,62 +29764,32 @@ const _LENA_LINES = {
 
 // ── SpeechBubble — pure display (character-agnostic) ──
 const SpeechBubble = {
-  _queue: [],
-  _current: null,    // { text, sender, style, duration, priority, id, _showTime }
-  _opacity: 0,       // 0→1 for fade
-  _dismissing: false,
+  _history: [],       // [{ text, _time }] — newest at end
+  _maxHistory: 20,
+  _scrollTarget: 0,   // target scroll offset (pixels from bottom)
+  _scroll: 0,         // current animated scroll offset
 
   push(msg) {
-    msg.id = msg.id || ('sb-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6));
-    msg.priority = msg.priority ?? 1;
-    msg.duration = msg.duration ?? 0;  // 0 = persistent (default now)
-    // Don't push duplicate of current
-    if (this._current?.text === msg.text) return;
-    // New message replaces current directly (no queuing)
-    this._current = msg;
-    this._current._showTime = Date.now();
-    this._opacity = 0;
-    this._dismissing = false;
-    this._queue = [];  // clear any pending
+    // Dedup: don't append if last message is identical text
+    if (this._history.length > 0 && this._history[this._history.length - 1].text === msg.text) return;
+    this._history.push({ text: msg.text, _time: Date.now() });
+    if (this._history.length > this._maxHistory) this._history.shift();
+    this._scrollTarget = 0;  // snap to bottom on new message
   },
 
-  dismiss() {
-    if (this._current && !this._dismissing) {
-      this._dismissing = true;
-      this._dismissStart = Date.now();
-    }
-  },
-
-  current() { return this._current; },
-  opacity() { return this._opacity; },
-
-  _advance() {
-    if (this._queue.length === 0) { this._current = null; return; }
-    this._current = this._queue.shift();
-    this._current._showTime = Date.now();
-    this._opacity = 0;
-    this._dismissing = false;
-  },
+  history() { return this._history; },
 
   tick() {
-    if (!this._current) {
-      if (this._queue.length > 0) this._advance();
-      return;
-    }
-    const now = Date.now();
-    const elapsed = now - this._current._showTime;
-    const FADE_IN_MS = 200, FADE_OUT_MS = 150;
-    if (this._dismissing) {
-      const dismissElapsed = now - (this._dismissStart || now);
-      this._opacity = Math.max(0, 1 - dismissElapsed / FADE_OUT_MS);
-      if (this._opacity <= 0) { this._current = null; this._dismissing = false; this._advance(); }
-    } else if (elapsed < FADE_IN_MS) {
-      this._opacity = Math.min(1, elapsed / FADE_IN_MS);
+    // Smooth scroll toward target (for future scroll-up support)
+    if (Math.abs(this._scroll - this._scrollTarget) > 0.5) {
+      this._scroll += (this._scrollTarget - this._scroll) * 0.15;
     } else {
-      this._opacity = 1;
-      // No auto-dismiss — messages stay until clicked or replaced by new message
+      this._scroll = this._scrollTarget;
     }
-  }
+  },
+
+  // For tests
+  clear() { this._history = []; this._scroll = 0; this._scrollTarget = 0; },
 };
 
 // ── CharacterVoice — personality engine ──
@@ -29790,6 +29801,7 @@ const CharacterVoice = {
   _prevConditions: {},
   _prevConverged: true,
   _prevLightsOn: null,
+  _recentTransitions: [],  // [{expr, t}] for oscillation detection
   _idleCounter: 0,
   _prevFrame: -1,
 
@@ -29814,13 +29826,9 @@ const CharacterVoice = {
 
   _speak(text, priority, duration, cooldownKey) {
     if (!text) return;
-    const c = _CHARACTERS[this._char];
     this._cooldownTimers[cooldownKey] = Date.now();
     this._cooldownTimers._global = Date.now();
-    SpeechBubble.push({
-      text, sender: c.bubble.senderName, style: c.bubble,
-      priority: priority ?? 1, duration: duration ?? 6000,
-    });
+    SpeechBubble.push({ text });
   },
 
   // ── Main integration hook — called from render() ──
@@ -29835,8 +29843,29 @@ const CharacterVoice = {
     // ── Expression transitions ──
     // First call (prevExpr null): if already bad, speak about it immediately
     const exprChanged = prevExpr !== null ? expr !== prevExpr : expr !== 'happy';
+
+    // Track transitions for oscillation detection
+    if (exprChanged && prevExpr !== null) {
+      this._recentTransitions.push({ expr, t: Date.now() });
+      if (this._recentTransitions.length > 6) this._recentTransitions.shift();
+    }
+
+    // Oscillation: A→B→A→B pattern in last 4 transitions within 10 minutes
+    const _isOscillating = () => {
+      const rt = this._recentTransitions;
+      if (rt.length < 4) return false;
+      const last4 = rt.slice(-4);
+      if (Date.now() - last4[0].t > 600000) return false;  // >10min span
+      return last4[0].expr === last4[2].expr && last4[1].expr === last4[3].expr
+          && last4[0].expr !== last4[1].expr;
+    };
+
     if (exprChanged) {
-      if (expr === 'happy' && this._canSpeak('all_clear')) {
+      // Check oscillation first — replaces normal transition line
+      if (_isOscillating() && this._canSpeak('all_clear')) {
+        this._speak(this._pick('osc', _LENA_LINES.oscillation), 2, _SPEECH_DURATIONS.warning, 'all_clear');
+        // Extended cooldown — she said her piece
+      } else if (expr === 'happy' && this._canSpeak('all_clear')) {
         this._speak(this._pick('happy', _LENA_LINES.expr_to_happy), 1, _SPEECH_DURATIONS.all_clear, 'all_clear');
       } else if (expr === 'recovering' && this._canSpeak('expression_change')) {
         this._speak(this._pick('recovering', _LENA_LINES.expr_to_recovering), 2, _SPEECH_DURATIONS.recovering, 'expression_change');
@@ -35094,60 +35123,57 @@ _RAGTAG_SYMBOLS.room = function(g, wx, wy, ww, wh, pal, def, unitId) {
     }
   }
 
-  // ═══ SPEECH BUBBLE (on top of lights, behind Lena) ═══
+  // ═══ SPEECH CHAT (scrolling message history, clipped to window zone) ═══
   {
     SpeechBubble.tick();
-    const msg = SpeechBubble.current();
-    const bOp = SpeechBubble.opacity();
-    if (msg && bOp > 0) {
-      const st = msg.style || _CHARACTERS.lena.bubble;
-      const bubG = svgEl('g', { opacity: bOp.toFixed(2), 'cursor': 'pointer' });
-      // Shadow
-      bubG.appendChild(svgEl('ellipse', { cx: wx+144, cy: wy+214, rx: 90, ry: 4,
-        fill: '#000000', opacity: 0.08, 'pointer-events': 'none' }));
-      // Bubble body
-      bubG.appendChild(svgEl('rect', { x: wx+38, y: wy+100, width: 212, height: 112,
-        rx: 10, fill: st.bgColor, stroke: st.borderColor, 'stroke-width': 1.5 }));
-      // Tail (triangle pointing toward Lena bottom-right)
-      bubG.appendChild(svgEl('path', {
-        d: `M${wx+200},${wy+212} L${wx+215},${wy+226} L${wx+210},${wy+212} Z`,
-        fill: st.bgColor, stroke: st.borderColor, 'stroke-width': 1.5,
-        'stroke-linejoin': 'round'
-      }));
-      // Cover tail-body seam
-      bubG.appendChild(svgEl('rect', { x: wx+199, y: wy+208, width: 13, height: 5,
-        fill: st.bgColor, 'pointer-events': 'none' }));
-      // Sender name
-      const nameEl = svgEl('text', { x: wx+48, y: wy+114,
-        'font-family': 'sans-serif', 'font-size': '8px', 'font-weight': '700',
-        fill: st.nameColor, 'pointer-events': 'none' });
-      nameEl.textContent = msg.sender || 'Lena';
-      bubG.appendChild(nameEl);
-      // Text content — word wrap into tspans
-      const lines = _speechWrapText(msg.text, 28);
-      const textEl = svgEl('text', { x: wx+48, y: wy+128,
-        'font-family': 'sans-serif', 'font-size': '10px',
-        fill: st.textColor, 'pointer-events': 'none' });
-      lines.forEach((line, i) => {
-        const ts = svgEl('tspan', { x: wx+48, dy: i === 0 ? 0 : 14 });
-        ts.textContent = line;
-        textEl.appendChild(ts);
-      });
-      bubG.appendChild(textEl);
-      // Close button (× in top-right corner)
-      const closeG = svgEl('g', { cursor: 'pointer' });
-      closeG.appendChild(svgEl('circle', { cx: wx+244, cy: wy+108, r: 7,
-        fill: '#e8ddd0', stroke: st.borderColor, 'stroke-width': 1 }));
-      const xTxt = svgEl('text', { x: wx+244, y: wy+112, 'text-anchor': 'middle',
-        'font-family': 'sans-serif', 'font-size': '11px', 'font-weight': '700',
-        fill: '#8a7060', 'pointer-events': 'none' });
-      xTxt.textContent = '×';
-      closeG.appendChild(xTxt);
-      closeG.addEventListener('click', (e) => { e.stopPropagation(); SpeechBubble.dismiss(); });
-      bubG.appendChild(closeG);
-      // Bubble body blocks pan but doesn't dismiss
-      bubG.addEventListener('click', (e) => { e.stopPropagation(); });
-      g.appendChild(bubG);
+    const hist = SpeechBubble.history();
+    if (hist.length > 0) {
+      const st = _CHARACTERS.lena.bubble;
+      // Clip zone: window area (38, 102) to (250, 210) in room-local coords
+      const clipX = wx + 38, clipY = wy + 102, clipW = 212, clipH = 108;
+      const clipId = 'speech-clip-' + unitId;
+      const defs = svgEl('defs', {});
+      const cp = svgEl('clipPath', { id: clipId });
+      cp.appendChild(svgEl('rect', { x: clipX, y: clipY, width: clipW, height: clipH }));
+      defs.appendChild(cp);
+      g.appendChild(defs);
+
+      const chatG = svgEl('g', { 'clip-path': `url(#${clipId})`, 'pointer-events': 'none' });
+      // Build bubbles bottom-up from newest
+      const PAD_X = 8, PAD_Y = 6, GAP = 4, FONT = 10, LINE_H = 13, MAX_CHARS = 26;
+      let curY = clipY + clipH - 4;  // start from bottom of clip zone
+
+      for (let i = hist.length - 1; i >= 0 && curY > clipY - 60; i--) {
+        const msg = hist[i];
+        const lines = _speechWrapText(msg.text, MAX_CHARS);
+        const bubH = PAD_Y * 2 + lines.length * LINE_H;
+        const bubY = curY - bubH;
+        // Fade: newest message may be fading in
+        const age = Date.now() - msg._time;
+        const op = i === hist.length - 1 ? Math.min(1, age / 200) : 1;
+
+        // Bubble rect
+        chatG.appendChild(svgEl('rect', {
+          x: clipX + 4, y: bubY, width: clipW - 8, height: bubH,
+          rx: 8, fill: st.bgColor, stroke: st.borderColor, 'stroke-width': 1,
+          opacity: op.toFixed(2)
+        }));
+        // Text
+        const textEl = svgEl('text', {
+          x: clipX + 4 + PAD_X, y: bubY + PAD_Y + FONT,
+          'font-family': 'sans-serif', 'font-size': FONT + 'px',
+          fill: st.textColor, opacity: op.toFixed(2), 'pointer-events': 'none'
+        });
+        lines.forEach((line, li) => {
+          const ts = svgEl('tspan', { x: clipX + 4 + PAD_X, dy: li === 0 ? 0 : LINE_H });
+          ts.textContent = line;
+          textEl.appendChild(ts);
+        });
+        chatG.appendChild(textEl);
+
+        curY = bubY - GAP;
+      }
+      g.appendChild(chatG);
     }
   }
 
@@ -63080,23 +63106,23 @@ function runTests() {
     t.assertOK(c.silence === '...', 'silence');
   });
 
-  test('700: SpeechBubble — push, current, dismiss', t => {
-    SpeechBubble._queue = []; SpeechBubble._current = null;
-    SpeechBubble._opacity = 0; SpeechBubble._dismissing = false;
-    SpeechBubble.push({ text: 'Test', priority: 1, duration: 5000,
-      sender: 'Lena', style: _CHARACTERS.lena.bubble });
-    t.assertOK(SpeechBubble.current()?.text === 'Test', 'current after push');
-    // Simulate 300ms elapsed for fade-in
-    SpeechBubble._current._showTime = Date.now() - 300;
-    SpeechBubble.tick();
-    t.assertOK(SpeechBubble.opacity() >= 0.99, 'faded in after 300ms');
-    // Dismiss
-    SpeechBubble.dismiss();
-    t.assertOK(SpeechBubble._dismissing, 'dismissing flag');
-    // Simulate 200ms for fade-out
-    SpeechBubble._dismissStart = Date.now() - 200;
-    SpeechBubble.tick();
-    t.assertOK(!SpeechBubble.current(), 'null after dismiss fade');
+  test('700: SpeechBubble — push, history, dedup', t => {
+    SpeechBubble.clear();
+    SpeechBubble.push({ text: 'First message' });
+    t.assertOK(SpeechBubble.history().length === 1, 'one message');
+    t.assertOK(SpeechBubble.history()[0].text === 'First message', 'text preserved');
+    SpeechBubble.push({ text: 'Second message' });
+    t.assertOK(SpeechBubble.history().length === 2, 'two messages');
+    // Dedup: same text as last → ignored
+    SpeechBubble.push({ text: 'Second message' });
+    t.assertOK(SpeechBubble.history().length === 2, 'dedup: still two');
+    // Different text → added
+    SpeechBubble.push({ text: 'Third message' });
+    t.assertOK(SpeechBubble.history().length === 3, 'three messages');
+    // Max history cap
+    SpeechBubble.clear();
+    for (let i = 0; i < 25; i++) SpeechBubble.push({ text: 'msg ' + i });
+    t.assertOK(SpeechBubble.history().length === 20, 'capped at 20: ' + SpeechBubble.history().length);
   });
 
   test('701: CharacterVoice._pick anti-repeat', t => {
@@ -63121,18 +63147,24 @@ function runTests() {
     t.assertOK(_LENA_LINES.expr_to_disappointed.water.length >= 3, 'disappointed.water');
     t.assertOK(_LENA_LINES.expr_to_fainting.o2.length >= 1, 'fainting.o2');
     t.assertOK(_LENA_LINES.condition_worsened.o2.length >= 1, 'worsened.o2');
+    t.assertOK(_LENA_LINES.oscillation.length >= 4, 'oscillation: ' + _LENA_LINES.oscillation.length);
+    t.assertOK(_LENA_LINES.lights_off.length >= 3, 'lights_off');
+    t.assertOK(_LENA_LINES.lights_on.length >= 3, 'lights_on');
   });
 
   test('704: Speech — full water dehydration→recovery cycle', t => {
     // Reset speech system
-    SpeechBubble._queue = []; SpeechBubble._current = null;
-    SpeechBubble._opacity = 0; SpeechBubble._dismissing = false;
+    SpeechBubble.clear();
     CharacterVoice._prevExpr = null;
     CharacterVoice._prevConditions = {};
     CharacterVoice._prevConverged = true;
     CharacterVoice._prevLightsOn = null;
     CharacterVoice._cooldownTimers = {};
+    CharacterVoice._recentTransitions = [];
     CharacterVoice._idleCounter = 0;
+
+    const _last = () => { const h = SpeechBubble.history(); return h.length > 0 ? h[h.length-1] : null; };
+    const _count = () => SpeechBubble.history().length;
 
     const okConds = { o2:{status:'OK'}, co2:{status:'OK'}, temp:{status:'OK'},
       water:{status:'OK'}, food:{status:'OK'}, power:{status:'OK'} };
@@ -63146,58 +63178,60 @@ function runTests() {
     const u1 = mkU('normal', 'OK', false, 0);
     t.assertOK(_lenaRoomExpression(u1) === 'happy', 'P1: expr happy');
     CharacterVoice.onRoomUpdate(u1);
-    t.assertOK(!SpeechBubble.current(), 'P1: no speech on first happy');
+    t.assertOK(_count() === 0, 'P1: no speech on first happy');
 
     // ── Phase 2: Water WARNING → disappointed ──
     CharacterVoice._cooldownTimers = {};
+    const c0 = _count();
     const u2 = mkU('degraded', 'WARNING', false, 50);
     t.assertOK(_lenaRoomExpression(u2) === 'disappointed', 'P2: expr disappointed');
     CharacterVoice.onRoomUpdate(u2);
-    const msg2 = SpeechBubble.current();
-    t.assertOK(msg2 !== null, 'P2: speech triggered');
-    t.assertOK(msg2?.text?.length > 5, 'P2: text: ' + (msg2?.text || 'null'));
+    t.assertOK(_count() > c0, 'P2: speech triggered');
+    t.assertOK(_last()?.text?.length > 5, 'P2: text: ' + (_last()?.text || 'null'));
 
     // ── Phase 3: Water MAJOR → fainting (no speech, unconscious) ──
     CharacterVoice._cooldownTimers = {};
-    SpeechBubble._current = null;
+    const c3 = _count();
     const u3 = mkU('incapacitated', 'MAJOR', false, 400);
     t.assertOK(_lenaRoomExpression(u3) === 'fainting', 'P3: expr fainting');
     CharacterVoice.onRoomUpdate(u3);
-    t.assertOK(!SpeechBubble.current(), 'P3: silence while unconscious');
+    t.assertOK(_count() === c3, 'P3: silence while unconscious');
 
     // ── Phase 4: Supply back → recovering ──
     CharacterVoice._cooldownTimers = {};
+    const c4 = _count();
     const u4 = mkU('incapacitated', 'MAJOR', true, 300);
     t.assertOK(_lenaRoomExpression(u4) === 'recovering', 'P4: expr recovering');
     CharacterVoice.onRoomUpdate(u4);
-    const msg4 = SpeechBubble.current();
-    t.assertOK(msg4 !== null, 'P4: recovering speech');
-    t.assertOK(msg4?.text?.length > 3, 'P4: text: ' + (msg4?.text || 'null'));
+    t.assertOK(_count() > c4, 'P4: recovering speech');
+    t.assertOK(_last()?.text?.length > 3, 'P4: text: ' + (_last()?.text || 'null'));
 
     // ── Phase 5: Deficit cleared → happy ──
     CharacterVoice._cooldownTimers = {};
+    const c5 = _count();
     const u5 = mkU('normal', 'OK', false, 0);
     t.assertOK(_lenaRoomExpression(u5) === 'happy', 'P5: expr happy');
     CharacterVoice.onRoomUpdate(u5);
-    const msg5 = SpeechBubble.current();
-    t.assertOK(msg5 !== null, 'P5: happy/recovery speech');
-    t.assertOK(msg5?.text?.length > 5, 'P5: text: ' + (msg5?.text || 'null'));
+    t.assertOK(_count() > c5, 'P5: happy/recovery speech');
 
     // ── Phase 6: Back to deficit → disappointed again ──
     CharacterVoice._cooldownTimers = {};
+    CharacterVoice._recentTransitions = [];  // clear oscillation history
+    const c6 = _count();
     const u6 = mkU('degraded', 'WARNING', false, 50);
     CharacterVoice.onRoomUpdate(u6);
-    const msg6 = SpeechBubble.current();
-    t.assertOK(msg6 !== null, 'P6: disappointed speech again');
+    t.assertOK(_count() > c6, 'P6: disappointed speech again');
   });
 
   test('705: Speech — lights on/off', t => {
-    SpeechBubble._queue = []; SpeechBubble._current = null;
-    SpeechBubble._opacity = 0; SpeechBubble._dismissing = false;
+    SpeechBubble.clear();
     CharacterVoice._prevExpr = 'happy';
     CharacterVoice._prevConditions = {};
     CharacterVoice._prevLightsOn = true;
     CharacterVoice._cooldownTimers = {};
+    CharacterVoice._recentTransitions = [];
+
+    const _last = () => { const h = SpeechBubble.history(); return h.length > 0 ? h[h.length-1] : null; };
 
     // Simulate lights going off
     const u = { inventory: {}, last: {
@@ -63206,18 +63240,18 @@ function runTests() {
         water:{status:'OK'}, food:{status:'OK'}, power:{status:'WARNING'} }
     }};
     CharacterVoice.onRoomUpdate(u);
-    const msg = SpeechBubble.current();
+    const msg = _last();
     t.assertOK(msg !== null, 'lights off speech');
     t.assertOK(_LENA_LINES.lights_off.includes(msg?.text), 'text from lights_off pool: ' + msg?.text);
 
     // Simulate lights coming back
     CharacterVoice._cooldownTimers = {};
-    SpeechBubble._current = null;
+    const c1 = SpeechBubble.history().length;
     u.last.fan_frac = 0.8;
     u.last.conditions.power.status = 'OK';
     CharacterVoice.onRoomUpdate(u);
-    const msg2 = SpeechBubble.current();
-    t.assertOK(msg2 !== null, 'lights on speech');
+    const msg2 = _last();
+    t.assertOK(SpeechBubble.history().length > c1, 'lights on speech added');
     t.assertOK(_LENA_LINES.lights_on.includes(msg2?.text), 'text from lights_on pool: ' + msg2?.text);
   });
 
@@ -63249,6 +63283,39 @@ function runTests() {
     // Expression should go to recovering or happy
     const expr = _lenaRoomExpression(t.unit(room));
     t.assertOK(expr === 'recovering' || expr === 'happy', 'expression: ' + expr);
+  });
+
+  test('707: Speech — oscillation detection', t => {
+    SpeechBubble.clear();
+    CharacterVoice._prevExpr = null;
+    CharacterVoice._prevConditions = {};
+    CharacterVoice._cooldownTimers = {};
+    CharacterVoice._recentTransitions = [];
+    CharacterVoice._prevLightsOn = null;
+
+    const _last = () => { const h = SpeechBubble.history(); return h.length > 0 ? h[h.length-1] : null; };
+
+    const okConds = { o2:{status:'OK'}, co2:{status:'OK'}, temp:{status:'OK'},
+      water:{status:'OK'}, food:{status:'OK'}, power:{status:'OK'} };
+    const happyU = { inventory: {}, last: { crewState: 'normal', fan_frac: 1, T_room_K: 294,
+      conditions: { ...okConds } } };
+    const sadU = { inventory: {}, last: { crewState: 'degraded', fan_frac: 1, T_room_K: 294,
+      conditions: { ...okConds, water: { status: 'WARNING' } } } };
+
+    // Cycle: happy→disappointed→happy→disappointed→happy→disappointed (4 transitions = oscillation)
+    CharacterVoice.onRoomUpdate(happyU);  // init
+    CharacterVoice._cooldownTimers = {};
+    CharacterVoice.onRoomUpdate(sadU);    // transition 1
+    CharacterVoice._cooldownTimers = {};
+    CharacterVoice.onRoomUpdate(happyU);  // transition 2
+    CharacterVoice._cooldownTimers = {};
+    CharacterVoice.onRoomUpdate(sadU);    // transition 3
+    CharacterVoice._cooldownTimers = {};
+    CharacterVoice.onRoomUpdate(happyU);  // transition 4 → oscillation detected
+
+    const msg = _last();
+    t.assertOK(msg !== null, 'oscillation speech fired');
+    t.assertOK(_LENA_LINES.oscillation.includes(msg?.text), 'text from oscillation pool: ' + msg?.text);
   });
 
   // ═══════════════════════════════════════════════════════════════════════
