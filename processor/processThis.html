@@ -427,7 +427,7 @@
 
   **Crate recolor system.**  `_crateShades(baseHex)` derives 4 shade
   variants (top/front/side/inside) from one color via HSL offsets.  Crate
-  base: warm orange `#b07040` for contrast with cool room.
+  base: industrial safety orange `#d87030` for plastic supply crate look.
 
   **Character lighting.**  `_dimHex(hex, factor)` darkens all character
   fills when lights off (factor 0.2).  Eye whites stay at 0.4 minimum.
@@ -28789,7 +28789,7 @@ const _LENA_PALETTE = {
   jacket:  '#1538a5',  // jumpsuit/jacket — deep blue
   tshirt:  '#e13f23',  // undershirt — red
   pants:   '#1538a5',  // same as jacket (jumpsuit)
-  crate:   '#b07040',  // supply crate — warm orange
+  crate:   '#d87030',  // supply crate — industrial safety orange
   hair:    '#333332',  // dark brown-black
   cast:    '#fefbea',  // bandage — off-white
   logo:    '#d67f19',  // chest triangle — orange
@@ -33912,8 +33912,27 @@ function _renderLenaInRoom(g, wx, wy, lightsOn, expression, unitId) {
     if (el) bodyG.appendChild(el);
   }
   lg.appendChild(bodyG);
-  // 4. FaceBase (from existing _LENA_EXPR.base)
-  _renderLayer(_LENA_EXPR.base, false);
+
+  // Fainting/death pose flag
+  const isFaintPose = expression === 'fainting' || expression === 'death';
+
+  // 4a. Fainting armL — rendered BEFORE head so head overlaps it
+  if (isFaintPose) {
+    const armLWrap = svgEl('g', { transform: 'translate(0,6) rotate(-12,72,66)' });
+    const armLG = svgEl('g', { 'data-anim': 'lena-armL', 'data-px': '72', 'data-py': '66' });
+    for (const p of _LENA_BODY.armL) { const el = _mkPart(p, false); if (el) armLG.appendChild(el); }
+    armLWrap.appendChild(armLG);
+    lg.appendChild(armLWrap);
+  }
+
+  // 4. FaceBase + 5. Expression — wrapped in head group (tilted for fainting/death)
+  const headG = isFaintPose
+    ? svgEl('g', { transform: 'translate(-10.4,10.4) rotate(-60,85.5,41)' })
+    : svgEl('g', {});
+  for (const p of _LENA_EXPR.base) {
+    const el = _mkPart(p, false);
+    if (el) headG.appendChild(el);
+  }
   // 5. Expression (with animation tags for _updateIconAnimations)
   const exprKey = expression === 'death' ? 'fainting' : expression;
   const exprParts = _LENA_EXPR[exprKey] || _LENA_EXPR.happy;
@@ -33943,25 +33962,26 @@ function _renderLenaInRoom(g, wx, wy, lightsOn, expression, unitId) {
       exprG.appendChild(el);
     }
   }
-  lg.appendChild(exprG);
+  headG.appendChild(exprG);
   // 5b. Death: cross-eyes replacing eyelashes
   if (expression === 'death') {
-    // Right eye cross (around cx=91.7, cy=45.5)
     const xR = svgEl('g', { stroke: _dimHex('#1a1a1a', dimFactor), 'stroke-width': '1.2', 'stroke-linecap': 'round', fill: 'none' });
     xR.appendChild(svgEl('line', { x1: 89.5, y1: 43.5, x2: 93.9, y2: 47.5 }));
     xR.appendChild(svgEl('line', { x1: 93.9, y1: 43.5, x2: 89.5, y2: 47.5 }));
-    lg.appendChild(xR);
-    // Left eye cross (around cx=78.5, cy=48.3)
+    headG.appendChild(xR);
     const xL = svgEl('g', { stroke: _dimHex('#1a1a1a', dimFactor), 'stroke-width': '1.2', 'stroke-linecap': 'round', fill: 'none' });
     xL.appendChild(svgEl('line', { x1: 76.3, y1: 46.3, x2: 80.7, y2: 50.3 }));
     xL.appendChild(svgEl('line', { x1: 80.7, y1: 46.3, x2: 76.3, y2: 50.3 }));
-    lg.appendChild(xL);
+    headG.appendChild(xL);
   }
+  lg.appendChild(headG);
   // 6. Arms (on top of face, wrapped for idle animation)
   // armL pivot ~(72,66), armR pivot ~(108,63) in SVG source coords
-  const armLG = svgEl('g', { 'data-anim': 'lena-armL', 'data-px': '72', 'data-py': '66' });
-  for (const p of _LENA_BODY.armL) { const el = _mkPart(p, false); if (el) armLG.appendChild(el); }
-  lg.appendChild(armLG);
+  if (!isFaintPose) {
+    const armLG = svgEl('g', { 'data-anim': 'lena-armL', 'data-px': '72', 'data-py': '66' });
+    for (const p of _LENA_BODY.armL) { const el = _mkPart(p, false); if (el) armLG.appendChild(el); }
+    lg.appendChild(armLG);
+  }
   const armRG = svgEl('g', { 'data-anim': 'lena-armR', 'data-px': '108', 'data-py': '63' });
   for (const p of _LENA_BODY.armR) { const el = _mkPart(p, false); if (el) armRG.appendChild(el); }
   lg.appendChild(armRG);
@@ -34251,6 +34271,29 @@ _RAGTAG_SYMBOLS.room = function(g, wx, wy, ww, wh, pal, def, unitId) {
   _c(265, 123, 1.5, { fill: '#fde68a', opacity: 0.7 });
   _c(268, 127, 1, { fill: '#fbbf24', opacity: 0.5 });
 
+  // ── Electrical cable run (below fan and lights — power entry → lights → fan) ──
+  {
+    const cableCol = lightsOn ? '#c8a020' : '#504018';
+    const cableW = 1.8;
+    const clipCol = _C.clamp;
+    // Entry stub: power port drops into ceiling space
+    _l(144, 20, 144, 30, { stroke: cableCol, 'stroke-width': cableW, 'stroke-linecap': 'round' });
+    // Horizontal trunk along ceiling
+    _p(`M${wx+50} ${wy+30} L${wx+262} ${wy+30}`,
+      { stroke: cableCol, 'stroke-width': cableW, 'stroke-linecap': 'round' });
+    // Cable clips along trunk
+    for (const cx of [70, 110, 170, 200, 245]) _r(cx-3, 28, 6, 4, { rx: 1.5, fill: clipCol, opacity: 0.5 });
+    // Taps down to each light fixture
+    for (const lx of [63, 142, 219]) {
+      _l(lx, 30, lx, 33, { stroke: cableCol, 'stroke-width': 1.4, 'stroke-linecap': 'round' });
+    }
+    // Right wall vertical drop: trunk → fan
+    _p(`M${wx+262} ${wy+30} L${wx+262} ${wy+86} L${wx+256} ${wy+86}`,
+      { stroke: cableCol, 'stroke-width': cableW, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' });
+    // Clips on vertical drop
+    for (const cy of [50, 72]) _r(260, cy-2, 4, 4, { rx: 1.5, fill: clipCol, opacity: 0.5 });
+  }
+
   // ── Exhaust fan (on top of crash damage, aligned with air_exhaust port) ──
   {
     const fcx = 256, fcy = 96, fr = 12;
@@ -34410,6 +34453,7 @@ _RAGTAG_SYMBOLS.room = function(g, wx, wy, ww, wh, pal, def, unitId) {
     { fill: _C.metal, opacity: 0.4 });
   _p(`M${wx+160} ${wy+388} L${wx+164} ${wy+385} L${wx+167} ${wy+390} Z`,
     { fill: _C.dark, opacity: 0.3 });
+
 
   // ═══ LENA WALL SHADOW (behind lights — shadow is on the wall) ═══
   if ((u?.params?.nPeople ?? 0) > 0 && lightsOn) {
@@ -44052,10 +44096,11 @@ function _updateIconAnimations(at) {
 
     // ── Blink (periodic scaleY collapse on eyes + pupils) ──
     if (expr === 'happy' || expr === 'disappointed' || expr === 'warm' || expr === 'recovering') {
-      // Use at-based pseudo-periodic blink: blink when fractional part of slow sawtooth passes threshold
-      const blinkPeriod = (expr === 'disappointed' || expr === 'recovering') ? 6.0 : 4.0;
-      const blinkPhase = (t2 / blinkPeriod) % 1.0;
-      const blinking = blinkPhase > 0.97;  // ~3% of cycle = ~120-180ms
+      // Blink uses wall-clock time (not sim-locked at) so it works when paused and is speed-independent
+      const blinkT = Date.now() / 1000;
+      const blinkPeriod = (expr === 'disappointed' || expr === 'recovering') ? 7.0 : 5.0;
+      const blinkPhase = (blinkT / blinkPeriod) % 1.0;
+      const blinking = blinkPhase > 0.985;  // ~1.5% of cycle ≈ 75-105ms
       if (blinking) {
         const _squish = (sel, cy) => {
           for (const el of exprG.querySelectorAll(sel))
@@ -44099,7 +44144,7 @@ function _updateIconAnimations(at) {
     // ── Death: static (no animation) ──
 
     // ── Idle arm sway (subtle, all non-death expressions) ──
-    if (parentG && expr !== 'death') {
+    if (parentG && expr !== 'death' && expr !== 'fainting') {
       const armR = parentG.querySelector('[data-anim="lena-armR"]');
       if (armR) {
         const px = +armR.dataset.px || 108, py = +armR.dataset.py || 63;
