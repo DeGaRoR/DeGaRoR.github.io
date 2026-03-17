@@ -29710,15 +29710,15 @@ const _LENA_LINES = {
     o2:    ["O₂ dropping further. Getting real.", "Less air. More urgency."],
     co2:   ["CO₂ still climbing. Math's not on our side.", "Scrubber can't keep up."],
     water: ["Still no water. Just so we're clear on the timeline.", "Thirstier. Worse."],
-    food:  ["Hunger's not going away by itself. Hint.", "Still no food. Shocking development."],
+    food:  ["Stomach's not getting any quieter.", "Still no food. Body's starting to notice."],
     temp:  ["Temperature getting worse. Physics doesn't negotiate.", "Colder. Or hotter. Either way, worse."],
     power: ["Power situation deteriorating. Priorities, yeah?", "Less power. Less everything."],
   },
   condition_improved: {
     o2:    ["O₂ climbing. Oh that's good.", "Air's improving. Keep going."],
     co2:   ["CO₂ dropping. Scrubber's earning its keep.", "Breathing easier. Literally."],
-    water: ["Water's flowing. Took you long enough.", "Hydration. What a concept."],
-    food:  ["Food supply's back. My stomach sends regards.", "Eating again. Luxury."],
+    water: ["Water's flowing. That's the stuff.", "Hydration restored. Oh that feels better."],
+    food:  ["Food supply's back. Oh thank god.", "Eating again. Never taking that for granted."],
     temp:  ["Temperature stabilizing. More like it.", "Getting comfortable. Relatively."],
     power: ["Power's back up. The fan agrees.", "Lights are happier. So am I."],
   },
@@ -29744,7 +29744,7 @@ const _LENA_LINES = {
     "We've been through this three times now. Stabilize it, yeah?",
     "OK I'm getting whiplash from these swings.",
     "Pick a state and commit. Please.",
-    "Again? Really? Fix the root cause.",
+    "Again? Really? I'm seeing a pattern here.",
   ],
   idle: [
     "Quiet. I don't trust quiet.",
@@ -31850,15 +31850,17 @@ function drawConnections() {
         _rtWavyD = wavyD;
         const _elecInner = _gradientMode ? mappedColor : '#eab308';
         const _elecOuter = _gradientMode ? _darken(mappedColor, 0.4) : '#92400e';
+        // Outer casing (selection highlight on metal only)
         g.appendChild(svgEl('path', {
           d: wavyD, fill: 'none',
           stroke: _selCol || _elecOuter, 'stroke-width': 8,
           'stroke-linecap': 'round', 'stroke-linejoin': 'round',
           'pointer-events': 'none'
         }));
+        // Inner conductor (always normal color)
         g.appendChild(svgEl('path', {
           d: wavyD, fill: 'none',
-          stroke: _selCol || _elecInner, 'stroke-width': 4,
+          stroke: _elecInner, 'stroke-width': 4,
           'stroke-linecap': 'round', 'stroke-linejoin': 'round',
           'pointer-events': 'none'
         }));
@@ -31866,28 +31868,27 @@ function drawConnections() {
         // Material: dual-stroke pipe with sight window
         const _matInner = _gradientMode ? mappedColor : '#4b5563';
         const _matOuter = _gradientMode ? _darken(mappedColor, 0.4) : '#374151';
-        // Outer wall
+        // Outer wall (selection highlight on metal only)
         g.appendChild(svgEl('path', {
           d: pathD, fill: 'none',
           stroke: _selCol || _matOuter, 'stroke-width': 10,
           'stroke-linecap': 'round', 'pointer-events': 'none'
         }));
-        // Inner bore
+        // Inner bore (always normal color)
         g.appendChild(svgEl('path', {
           d: pathD, fill: 'none',
-          stroke: _selCol || _matInner, 'stroke-width': 6,
+          stroke: _matInner, 'stroke-width': 6,
           'stroke-linecap': 'round', 'pointer-events': 'none'
         }));
         // [v16.9.8 S-PARTICLES Phase 0B] Pipe window: 10-90% sub-path, dark bore visible
         const cp = drawConnections._paths.get(c.id);
-        if (cp && !isSelected) {
+        if (cp) {
           const winBz = _bzSplit(cp, 0.1, 0.9);
           g.appendChild(svgEl('path', {
             d: _bzPathD(winBz), fill: 'none',
             stroke: '#0f172a', 'stroke-width': 5,
             'stroke-linecap': 'round', 'pointer-events': 'none'
           }));
-          // Store window bounds for canvas particle clipping
           cp._window = winBz;
         }
       }
