@@ -18532,32 +18532,36 @@ UnitRegistry.register('cooled_tank', {
 // ═══════════════════════════════════════════════════════════════════════════════
 //
 // Stores food (CH₂O) as compressed gas.  Temperature-dependent spoilage:
-//   CH₂O → CO₂ + H₂O (decomposition, exothermic)
+//   2 CH₂O → CH₄ + CO₂ (anaerobic fermentation, exothermic)
 // Spoilage rate = k_ref × 2^((T-294)/5) above 277K, zero below (frozen).
-// Decomposition gases accumulate in headspace → pressure builds.
-// waste_out = vent for decomposition gases.  Unconnected → overpressure → rupture.
+// Biogas (CH₄+CO₂) accumulates in headspace → pressure builds.
+// biogas_out = continuous drain of non-CH₂O species (capped at 0.01 mol/s).
+// vent = overpressure relief valve (standard relief pattern).
 // Cooling jacket (cool_in/cool_out) controls temperature.
 //
 UnitRegistry.register('food_storage', {
   name: 'Food Storage',
   category: UnitCategories.LIFE_SUPPORT,
-  w: 2, h: 3,  // [v17.7.5] 2×3 — crate body + cooling serpentine at base (matches cooled_tank)
+  w: 2, h: 4,  // [v17.11.0] 2×4 — fridge body (rows 0–3) + cooling serpentine at base (row 4)
   optionalPorts: true,
   ports: [
-    { portId: 'food_in',   dir: PortDir.IN,  type: StreamType.MATERIAL, x: 0, y: 1, label: 'food in' },
-    { portId: 'food_out',  dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 1, label: 'food' },
-    { portId: 'waste_out', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 1, y: 0, label: 'waste gas' },
-    { portId: 'cool_in',   dir: PortDir.IN,  type: StreamType.MATERIAL, x: 0, y: 3, label: 'coolant' },
-    { portId: 'cool_out',  dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 3, label: 'coolant' }
+    { portId: 'biogas_out', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 0, y: 0, label: 'biogas' },
+    { portId: 'vent',       dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 0, label: 'vent' },
+    { portId: 'food_in',    dir: PortDir.IN,  type: StreamType.MATERIAL, x: 0, y: 2, label: 'food in' },
+    { portId: 'food_out',   dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 2, label: 'food' },
+    { portId: 'cool_in',    dir: PortDir.IN,  type: StreamType.MATERIAL, x: 0, y: 4, label: 'coolant' },
+    { portId: 'cool_out',   dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 4, label: 'coolant' }
   ],
   presentations: {
-    'box/default': { w: 2, h: 3, ports: {
-      food_in:{x:0,y:1}, food_out:{x:2,y:1}, waste_out:{x:1,y:0},
-      cool_in:{x:0,y:3}, cool_out:{x:2,y:3}
+    'box/default': { w: 2, h: 4, ports: {
+      biogas_out:{x:0,y:0}, vent:{x:2,y:0},
+      food_in:{x:0,y:2}, food_out:{x:2,y:2},
+      cool_in:{x:0,y:4}, cool_out:{x:2,y:4}
     }},
-    'box/mirror': { w: 2, h: 3, ports: {
-      food_in:{x:2,y:1}, food_out:{x:0,y:1}, waste_out:{x:1,y:0},
-      cool_in:{x:2,y:3}, cool_out:{x:0,y:3}
+    'box/mirror': { w: 2, h: 4, ports: {
+      biogas_out:{x:2,y:0}, vent:{x:0,y:0},
+      food_in:{x:2,y:2}, food_out:{x:0,y:2},
+      cool_in:{x:2,y:4}, cool_out:{x:0,y:4}
     }}
   },
   limitParams: ['T_LL', 'T_HH', 'P_LL', 'P_HH'],
@@ -18571,26 +18575,27 @@ UnitRegistry.register('food_storage', {
   updateInventory(inventory, resolvedPorts, dt) {
     const inv = { ...inventory, n: { ...inventory.n } };
 
-    // Mass balance: food_in - food_out - waste_out + spoilage products
-    const inFlow    = resolvedPorts.food_in?.n || {};
-    const outFlow   = resolvedPorts.food_out?.n || {};
-    const wasteFlow = resolvedPorts.waste_out?.n || {};
+    // Mass balance: food_in - food_out - biogas_out - vent + spoilage products
+    const inFlow     = resolvedPorts.food_in?.n || {};
+    const outFlow    = resolvedPorts.food_out?.n || {};
+    const biogasFlow = resolvedPorts.biogas_out?.n || {};
+    const ventFlow   = resolvedPorts.vent?.n || {};
     const allSp = new Set([...Object.keys(inv.n), ...Object.keys(inFlow),
-      ...Object.keys(outFlow), ...Object.keys(wasteFlow)]);
+      ...Object.keys(outFlow), ...Object.keys(biogasFlow), ...Object.keys(ventFlow)]);
 
     for (const sp of allSp) {
       const cur = inv.n[sp] || 0;
       const inN = (inFlow[sp] || 0) * dt;
-      const outN = ((outFlow[sp]||0) + (wasteFlow[sp]||0)) * dt;
+      const outN = ((outFlow[sp]||0) + (biogasFlow[sp]||0) + (ventFlow[sp]||0)) * dt;
       inv.n[sp] = Math.max(0, cur + inN - outN);
     }
 
-    // Spoilage reaction: CH₂O → CO₂ + H₂O (convert within inventory)
-    const meta = resolvedPorts.waste_out?._food_meta;
+    // Spoilage reaction: 2 CH₂O → CH₄ + CO₂ (anaerobic fermentation)
+    const meta = resolvedPorts.biogas_out?._food_meta;
     if (meta?.spoil_mol > 0) {
       inv.n.CH2O = Math.max(0, (inv.n.CH2O || 0) - meta.spoil_mol);
-      inv.n.CO2  = (inv.n.CO2 || 0) + meta.spoil_mol;
-      inv.n.H2O  = (inv.n.H2O || 0) + meta.spoil_mol;
+      inv.n.CH4  = (inv.n.CH4 || 0) + meta.spoil_mol * 0.5;
+      inv.n.CO2  = (inv.n.CO2 || 0) + meta.spoil_mol * 0.5;
     }
 
     // Cooling jacket thermal effect
@@ -18630,12 +18635,12 @@ UnitRegistry.register('food_storage', {
     const state = computeTankState(inv.n, inv.T_K, V, thermo);
     const P_tank = state.P_Pa;
 
-    // 2. Spoilage: CH₂O → CO₂ + H₂O (Arrhenius-inspired)
+    // 2. Spoilage: 2 CH₂O → CH₄ + CO₂ (anaerobic fermentation, Arrhenius-inspired)
     const T_FREEZE = 277;     // K — fridge threshold
     const T_REF = 294;        // K — room temperature reference
     const K_REF = 3.47e-7;    // 1/s ≈ 3%/day at room temp
     const T_KILL = 340;       // K — microbes die above ~67°C; spoilage rate capped
-    const DH_DECOMP = 15000;  // J/mol — microbial decomposition heat (~3% of combustion)
+    const DH_DECOMP = 15000;  // J/mol — microbial decomposition heat (gameplay calibration)
 
     const n_ch2o = inv.n.CH2O || 0;
     const T_eff = Math.min(inv.T_K, T_KILL);  // [v17.7.4] cap for microbial death
@@ -18644,6 +18649,12 @@ UnitRegistry.register('food_storage', {
     const spoil_rate = k_spoil * n_ch2o;  // mol/s of CH₂O decomposed
     const spoil_mol = spoil_rate * dt;
     const Q_spoilage = spoil_rate * DH_DECOMP;  // W (exothermic)
+    // Per stoichiometry: 1 mol CH₂O → 0.5 mol CH₄ + 0.5 mol CO₂
+    const decompGases = {};
+    if (spoil_rate > 1e-18) {
+      decompGases.CH4 = spoil_rate * 0.5;  // mol/s
+      decompGases.CO2 = spoil_rate * 0.5;
+    }
 
     // 3. Food draw (gas phase CH₂O)
     const drawRate = par.gasDrawRate ?? 0.001;
@@ -18668,47 +18679,70 @@ UnitRegistry.register('food_storage', {
         n: {}, phase: 'V', phaseConstraint: 'V' };
     }
 
-    // 4. Waste vent (decomposition gases: CO₂ + H₂O from spoilage)
-    // Uses relief valve pattern — connected-only, pressure-driven
-    const P_relief = par.P_relief || 25000000;
-    const wasteConnected = ctx.portConnected('waste_out');
-    const wasteBlocked = _blocked ? _blocked.has('waste_out') : false;
-    const _ventWasActive = ctx.scratch._prevLast?._ventActive || false;
-    const _ventActive = wasteConnected && !wasteBlocked &&
-      (P_tank > P_relief || (_ventWasActive && P_tank > P_relief * 0.98));
+    // 4a. Biogas drain (continuous — drains all non-CH₂O species from inventory)
+    const MAX_BIOGAS = 0.01;  // mol/s — cap prevents instant backlog teleport
+    const biogasConnected = ctx.portConnected('biogas_out');
+    const biogasBlocked = _blocked ? _blocked.has('biogas_out') : false;
+    let Q_biogas = 0;
 
-    if (!wasteConnected && P_tank > P_relief) {
-      ctx.warn({ severity: ErrorSeverity.MAJOR,
-        message: `Decomposition gas pressure at ${(P_tank/1e5).toFixed(1)} bar — no waste vent connected` });
-    }
-
-    let Q_waste = 0;
-    // Also vent decomposition products even below relief (slow bleed if connected)
-    const decompGases = {};
-    if (spoil_rate > 1e-18) {
-      decompGases.CO2 = spoil_rate;  // mol/s
-      decompGases.H2O = spoil_rate;
-    }
-
-    if (wasteConnected && !wasteBlocked) {
-      // Vent decomposition products + relief if overpressure
-      let vent_n = { ...decompGases };
-      if (_ventActive && n_V_total > 1e-15) {
-        const Q_relief = K_RELIEF_BASE * V * (P_tank - P_relief);
-        const Q_r = Math.min(Q_relief, n_V_total / dt);
-        for (const [sp, amt] of Object.entries(state.n_V)) {
-          if (amt > 1e-18) vent_n[sp] = (vent_n[sp] || 0) + (amt / n_V_total) * Q_r;
-        }
-        Q_waste = Q_r + spoil_rate * 2;  // relief + decomp products
-      } else {
-        Q_waste = spoil_rate * 2;  // just decomp products
+    if (biogasConnected && !biogasBlocked) {
+      // Collect non-CH₂O inventory + fresh decomp products (not yet in inventory)
+      const biogas_species = {};
+      let n_biogas_total = 0;
+      for (const [sp, amt] of Object.entries(inv.n)) {
+        if (sp === 'CH2O' || amt < 1e-18) continue;
+        biogas_species[sp] = amt;
+        n_biogas_total += amt;
       }
-      ports.waste_out = { type: StreamType.MATERIAL, T: inv.T_K, P: P_tank,
-        n: vent_n, phase: 'V', phaseConstraint: 'V',
+      for (const [sp, rate] of Object.entries(decompGases)) {
+        const fresh = rate * dt;
+        biogas_species[sp] = (biogas_species[sp] || 0) + fresh;
+        n_biogas_total += fresh;
+      }
+      // Proportional drain, capped
+      const drain_total = Math.min(n_biogas_total / dt, MAX_BIOGAS);
+      const drain_n = {};
+      if (n_biogas_total > 1e-18) {
+        for (const [sp, amt] of Object.entries(biogas_species)) {
+          drain_n[sp] = (amt / n_biogas_total) * drain_total;
+        }
+      }
+      Q_biogas = drain_total;
+      ports.biogas_out = { type: StreamType.MATERIAL, T: inv.T_K, P: P_tank,
+        n: drain_n, phase: 'V', phaseConstraint: 'V',
         _food_meta: { spoil_mol, Q_spoilage_W: Q_spoilage } };
     } else {
-      ports.waste_out = { type: StreamType.MATERIAL, T: inv.T_K, P: P_tank,
+      ports.biogas_out = { type: StreamType.MATERIAL, T: inv.T_K, P: P_tank,
         n: {}, _food_meta: { spoil_mol, Q_spoilage_W: Q_spoilage } };
+    }
+
+    // 4b. Overpressure relief valve (standard relief pattern, same as simple_tank)
+    const P_relief = par.P_relief || 25000000;
+    const ventConnected = ctx.portConnected('vent');
+    const ventBlocked = _blocked ? _blocked.has('vent') : false;
+    const _ventWasActive = ctx.scratch._prevLast?._ventActive || false;
+    const _ventActive = ventConnected && !ventBlocked &&
+      (P_tank > P_relief || (_ventWasActive && P_tank > P_relief * 0.98));
+    let Q_vent = 0;
+
+    if (!ventConnected && !biogasConnected && P_tank > P_relief) {
+      ctx.warn({ severity: ErrorSeverity.MAJOR,
+        message: `Overpressure at ${(P_tank/1e5).toFixed(1)} bar — no vent connected` });
+    }
+
+    if (_ventActive && n_V_total > 1e-15) {
+      const Q_relief = K_RELIEF_BASE * V * (P_tank - P_relief);
+      const Q_r = Math.min(Q_relief, n_V_total / dt);
+      const vent_n = {};
+      for (const [sp, amt] of Object.entries(state.n_V)) {
+        if (amt > 1e-18) vent_n[sp] = (amt / n_V_total) * Q_r;
+      }
+      Q_vent = Q_r;
+      ports.vent = { type: StreamType.MATERIAL, T: inv.T_K, P: P_tank,
+        n: vent_n, phase: 'V', phaseConstraint: 'V' };
+    } else {
+      ports.vent = { type: StreamType.MATERIAL, T: inv.T_K, P: P_tank,
+        n: {}, phase: 'V', phaseConstraint: 'V' };
     }
 
     // 5. Cooling jacket (same pattern as cooled_tank)
@@ -18754,7 +18788,8 @@ UnitRegistry.register('food_storage', {
       Q_cool_W: Q_cool,
       Q_rejected_W: UA_ambient * (inv.T_K - T_ext),  // [v17.7.4] balance sheet ambient
       Q_draw: Q_draw,
-      Q_waste: Q_waste,
+      Q_biogas: Q_biogas,
+      Q_vent: Q_vent,
       V_m3: V,
       level_pct: state.level_pct,
       P_relief,
@@ -23822,8 +23857,8 @@ ProfileRegistry.register('food_crate', {
                     P_init:29300000, P_relief:25000000, UA_jacket:50,
                     initialComposition:{CH2O:1} } },
   equipmentNote: "Reinforced steel canister, 100L, with brazed cooling jacket. Same pressure rating as a gas bottle.",
-  operatingNote: "Connect waste_out or decomposition gas will build pressure → rupture. Connect coolant to keep T < 4°C and stop spoilage.",
-  modelNote: "Spoilage: k = 3%/day × 2^((T−294)/5) above 277K, zero below. CH₂O → CO₂ + H₂O. Pressure from ideal gas. Cooling jacket UA=50 W/K.",
+  operatingNote: "Connect biogas_out to drain decomposition gas (CH₄+CO₂). Vent port is overpressure safety only. Connect coolant to keep T < 4°C and stop spoilage.",
+  modelNote: "Spoilage: k = 3%/day × 2^((T−294)/5) above 277K, zero below. 2 CH₂O → CH₄ + CO₂ (anaerobic fermentation). Biogas drain capped at 0.01 mol/s. Cooling jacket UA=50 W/K.",
 });
 ProfileRegistry.register('tank_low_pressure', {
   defId: 'tank', name: 'Closed Tank', pressureClass: 'network', category: UnitCategories.VESSEL, tiers: [1, 2],
@@ -27992,10 +28027,10 @@ function computeSystemBalance(scene) {
       if (Math.abs(accumRate) > 0.01) { accumulation.energy_W += accumRate; accumulation.items.push({ name: uName, type: 'battery_energy', value_kgps: 0, value_W: accumRate }); }
     }
     // [v17.7.4] Food Storage: inventory-bearing unit with food draw + spoilage.
-    // Mass: food_in + cool_in - food_out - waste_out - cool_out = accumulation.
+    // Mass: food_in + cool_in - food_out - biogas_out - vent - cool_out = accumulation.
     if (u.defId === 'food_storage') {
       const inPorts = ['food_in', 'cool_in'];
-      const outPorts = ['food_out', 'waste_out', 'cool_out'];
+      const outPorts = ['food_out', 'biogas_out', 'vent', 'cool_out'];
       let m_in = 0, m_out = 0;
       for (const pid of inPorts) { const s = ud.ports?.[pid]; if (s) m_in += streamMass_kgps(s); }
       for (const pid of outPorts) { const s = ud.ports?.[pid]; if (s) m_out += streamMass_kgps(s); }
@@ -34391,7 +34426,7 @@ _RAGTAG_SYMBOLS.simple_open_tank = function(g, wx, wy, ww, wh, pal, def, unitId)
 };
 
 _RAGTAG_SYMBOLS.food_storage = function(g, wx, wy, ww, wh, pal, def, unitId) {
-  // [v17.7.6] Food storage: 2×3, tall crate body (rows 0–2), serpentine inline with cool ports
+  // [v17.11.0] Food storage: 2×4, tall fridge body (rows 0–3), serpentine inline with cool ports at row 4
   const u = scene.units.get(unitId);
   const last = u?.last || {};
   const frozen = last.frozen;
@@ -34406,8 +34441,8 @@ _RAGTAG_SYMBOLS.food_storage = function(g, wx, wy, ww, wh, pal, def, unitId) {
     _rtNozzle._elbowTips.set(`${unitId}:${pid}`, { x: px, y: py });
   }
 
-  // Body bounding box — tall crate spanning rows 0–2 (leaves row 3 for serpentine)
-  const bx = wx + 8, by = wy + 8, bw = ww - 16, bh = _t * 3 - 24;
+  // Body bounding box — tall fridge spanning rows 0–3 (leaves row 4 for serpentine)
+  const bx = wx + 8, by = wy + 8, bw = ww - 16, bh = _t * 4 - 24;
   _rtNozzle(g, wx, wy, ww, wh, bx, by, bw, bh, def, pres, pal, unitId);
 
   // Crate body
@@ -34426,8 +34461,8 @@ _RAGTAG_SYMBOLS.food_storage = function(g, wx, wy, ww, wh, pal, def, unitId) {
   _rtBolt(g, bx + 10, by + 10); _rtBolt(g, bx + bw - 10, by + 10);
   _rtBolt(g, bx + 10, by + bh - 10); _rtBolt(g, bx + bw - 10, by + bh - 10);
 
-  // Cooling serpentine — inline with cool ports at y=3 (bottom edge)
-  const sy = wy + _t * 3;  // cool port y-coordinate
+  // Cooling serpentine — inline with cool ports at y=4 (bottom edge)
+  const sy = wy + _t * 4;  // cool port y-coordinate
   g.appendChild(svgEl('path', {
     d: `M${wx+2},${sy} L${wx+10},${sy} L${wx+10},${sy-12} L${wx+18},${sy-12} L${wx+18},${sy}` +
        ` L${wx+30},${sy} L${wx+30},${sy-12} L${wx+42},${sy-12} L${wx+42},${sy}` +
@@ -46162,7 +46197,7 @@ DemoScenes.register('demo_v1', 'Demo V1 — Sabatier / Brayton / SMR / Tank',
 // 2 bends + 3 mixers + 2 sinks.  All waste routed to single vent/sewer sinks.
 // O₂ bottle P_relief raised to 350 bar (above P_init 305 bar).
 DemoScenes.register('demo_room_survival', 'Ineluctable Fate — Day 0 (Room)',
-  '{"version":19,"processName":"Ineluctable Fate \u2014 Day 0","grid":{"w":40,"h":32,"tile":48},"settings":{"atmospherePreset":"planet_x","dt":3600},"units":[{"id":"room","defId":"room","profileId":"room","tier":1,"name":"Crew Room","x":0,"y":0,"rot":0,"params":{"nPeople":2,"powerPriority":1}},{"id":"o2_bottle","defId":"simple_tank","profileId":"simple_gas_bottle","tier":1,"name":"O\u2082 Bottle","x":-7,"y":1,"rot":0,"params":{"volume_m3":0.01,"P_init":30553950,"initialComposition":{"O2":1},"gasDrawRate":0.001,"opening_gas_pct":46.6,"P_relief":35000000}},{"id":"water_barrel","defId":"simple_open_tank","profileId":"simple_open_tank","tier":1,"name":"Water Barrel","x":-7,"y":5,"rot":0,"params":{"volume_m3":0.1,"initialComposition":{"H2O":1},"level_init":0.3348,"drawRate":0.01,"opening_pct":25.8,"overflow_level":90}},{"id":"food_crate","defId":"food_storage","profileId":"food_crate","tier":1,"name":"Food Crate","x":-11,"y":3,"rot":0,"params":{"volume_m3":0.1,"gasDrawRate":0.001,"opening_gas_pct":46.6,"P_init":29331792,"initialComposition":{"CH2O":1},"P_relief":32000000,"UA_jacket":50}},{"id":"scrubber","defId":"membrane_separator","profileId":"membrane_separator","tier":1,"name":"LiOH Scrubber","x":8,"y":1,"rot":0,"params":{"targetSpecies":"CO2","extractionFrac":0.99,"consumable":{"name":"LiOH Cartridges","capacity":500,"remaining":500,"maxRate":5},"variant":"flip"}},{"id":"co2_snk","defId":"sink","profileId":"sink","tier":1,"name":"Vent","x":14,"y":-6,"rot":0,"params":{}},{"id":"cooler","defId":"air_cooler","profileId":"air_cooler","tier":1,"name":"Air Cooler","x":10,"y":5,"rot":0,"params":{"T_out":294,"UA_kW_K":1,"max_fan_power_W":200,"powerPriority":2,"variant":"vert-elec-L"}},{"id":"heater","defId":"electric_heater","profileId":"electric_heater","tier":1,"name":"Air Heater","x":7,"y":7,"rot":0,"params":{"T_out":294,"powerPriority":2,"variant":"mirror"}},{"id":"battery","defId":"battery","profileId":"battery","tier":1,"name":"Battery","x":1,"y":-3,"rot":0,"params":{"peakPower_kW":100,"capacity_J":1800000000,"initialSOC":1}},{"id":"power_disp","defId":"power_dispatcher_5","profileId":"power_dispatcher_5","tier":1,"name":"Power Dispatch","x":4,"y":-3,"rot":0,"params":{}},{"id":"surplus_snk","defId":"sink_electrical","profileId":"sink_electrical","tier":1,"name":"Surplus","x":6,"y":-5,"rot":0,"params":{"ratedPower_kW":50,"powerPriority":5}},{"id":"simple_open_tank-1","defId":"simple_open_tank","profileId":"simple_open_tank","tier":1,"name":"Hot Water Barrel","x":-4,"y":7,"rot":0,"params":{"volume_m3":0.1,"initialComposition":{"H2O":1},"level_init":0.3348,"drawRate":0.01,"opening_pct":6.4,"overflow_level":90}},{"id":"bend-3","defId":"bend","profileId":"bend","tier":1,"name":"Pipe Bend 3","x":-11,"y":-6,"rot":0,"params":{"variant":"down-right"}},{"id":"simple_mixer-5","defId":"simple_mixer","profileId":"simple_mixer","tier":1,"name":"Simple Mixer 5","x":-7,"y":-6,"rot":0,"params":{"variant":"recycle-B"}},{"id":"simple_mixer-8","defId":"simple_mixer","profileId":"simple_mixer","tier":1,"name":"Simple Mixer 5 (copy)","x":10,"y":-6,"rot":0,"params":{"variant":"recycle-B"}},{"id":"bend-12","defId":"bend","profileId":"bend","tier":1,"name":"Pipe Bend 3 (copy)","x":-7,"y":9,"rot":0,"params":{"variant":"up-right"}},{"id":"simple_mixer-14","defId":"simple_mixer","profileId":"simple_mixer","tier":1,"name":"Simple Mixer 5 (copy)","x":-4,"y":9,"rot":0,"params":{"variant":"recycle-T"}},{"id":"sink-17","defId":"sink","profileId":"sink","tier":1,"name":"Sewer","x":14,"y":9,"rot":0,"params":{}}],"connections":[{"id":"c_o2","from":{"unitId":"o2_bottle","portId":"gas_out"},"to":{"unitId":"room","portId":"o2_in"}},{"id":"c_h2o","from":{"unitId":"water_barrel","portId":"mat_out"},"to":{"unitId":"room","portId":"h2o_in"}},{"id":"c_food","from":{"unitId":"food_crate","portId":"food_out"},"to":{"unitId":"room","portId":"food_in"}},{"id":"c_exhaust","from":{"unitId":"room","portId":"air_exhaust"},"to":{"unitId":"scrubber","portId":"mat_in"}},{"id":"c_cool_in","from":{"unitId":"scrubber","portId":"perm_out"},"to":{"unitId":"cooler","portId":"mat_in"}},{"id":"c_heat_in","from":{"unitId":"cooler","portId":"mat_out"},"to":{"unitId":"heater","portId":"mat_in"}},{"id":"c_return","from":{"unitId":"heater","portId":"mat_out"},"to":{"unitId":"room","portId":"air_return"}},{"id":"e_bat","from":{"unitId":"battery","portId":"elec"},"to":{"unitId":"power_disp","portId":"elec_in_1"}},{"id":"e_room","from":{"unitId":"power_disp","portId":"elec_out_1"},"to":{"unitId":"room","portId":"elec_in"}},{"id":"e_cooler","from":{"unitId":"power_disp","portId":"elec_out_2"},"to":{"unitId":"cooler","portId":"elec_in"}},{"id":"e_heater","from":{"unitId":"power_disp","portId":"elec_out_3"},"to":{"unitId":"heater","portId":"elec_in"}},{"id":"e_surplus","from":{"unitId":"power_disp","portId":"elec_surplus"},"to":{"unitId":"surplus_snk","portId":"elec_in"}},{"id":"conn-2","from":{"unitId":"simple_open_tank-1","portId":"mat_out"},"to":{"unitId":"room","portId":"hot_water_in"}},{"id":"conn-4","from":{"unitId":"food_crate","portId":"waste_out"},"to":{"unitId":"bend-3","portId":"mat_in"}},{"id":"conn-6","from":{"unitId":"bend-3","portId":"mat_out"},"to":{"unitId":"simple_mixer-5","portId":"mat_in_1"}},{"id":"conn-7","from":{"unitId":"o2_bottle","portId":"vent"},"to":{"unitId":"simple_mixer-5","portId":"mat_in_2"}},{"id":"conn-9","from":{"unitId":"scrubber","portId":"ret_out"},"to":{"unitId":"simple_mixer-8","portId":"mat_in_2"}},{"id":"conn-10","from":{"unitId":"simple_mixer-5","portId":"mat_out"},"to":{"unitId":"simple_mixer-8","portId":"mat_in_1"}},{"id":"conn-11","from":{"unitId":"simple_mixer-8","portId":"mat_out"},"to":{"unitId":"co2_snk","portId":"mat_in"}},{"id":"conn-13","from":{"unitId":"water_barrel","portId":"overflow"},"to":{"unitId":"bend-12","portId":"mat_in"}},{"id":"conn-15","from":{"unitId":"simple_open_tank-1","portId":"overflow"},"to":{"unitId":"simple_mixer-14","portId":"mat_in_2"}},{"id":"conn-16","from":{"unitId":"bend-12","portId":"mat_out"},"to":{"unitId":"simple_mixer-14","portId":"mat_in_1"}},{"id":"conn-18","from":{"unitId":"simple_mixer-14","portId":"mat_out"},"to":{"unitId":"sink-17","portId":"mat_in"}}],"modelsActive":{"thermo_package":"ideal_raoult","reaction":null,"units":"SI_bar"},"solverOptions":{"maxIter":200},"layout":{"viewMode":"flowsheet","colorBy":"type","theme":"ragtag","paletteOpen":false,"inspectorOpen":false}}'
+  '{"version":19,"processName":"Ineluctable Fate \u2014 Day 0","grid":{"w":40,"h":32,"tile":48},"settings":{"atmospherePreset":"planet_x","dt":3600},"units":[{"id":"room","defId":"room","profileId":"room","tier":1,"name":"Crew Room","x":0,"y":0,"rot":0,"params":{"nPeople":2,"powerPriority":1}},{"id":"o2_bottle","defId":"simple_tank","profileId":"simple_gas_bottle","tier":1,"name":"O\u2082 Bottle","x":-7,"y":1,"rot":0,"params":{"volume_m3":0.01,"P_init":30553950,"initialComposition":{"O2":1},"gasDrawRate":0.001,"opening_gas_pct":46.6,"P_relief":35000000}},{"id":"water_barrel","defId":"simple_open_tank","profileId":"simple_open_tank","tier":1,"name":"Water Barrel","x":-7,"y":5,"rot":0,"params":{"volume_m3":0.1,"initialComposition":{"H2O":1},"level_init":0.3348,"drawRate":0.01,"opening_pct":25.8,"overflow_level":90}},{"id":"food_crate","defId":"food_storage","profileId":"food_crate","tier":1,"name":"Food Crate","x":-11,"y":3,"rot":0,"params":{"volume_m3":0.1,"gasDrawRate":0.001,"opening_gas_pct":46.6,"P_init":29331792,"initialComposition":{"CH2O":1},"P_relief":32000000,"UA_jacket":50}},{"id":"scrubber","defId":"membrane_separator","profileId":"membrane_separator","tier":1,"name":"LiOH Scrubber","x":8,"y":1,"rot":0,"params":{"targetSpecies":"CO2","extractionFrac":0.99,"consumable":{"name":"LiOH Cartridges","capacity":500,"remaining":500,"maxRate":5},"variant":"flip"}},{"id":"co2_snk","defId":"sink","profileId":"sink","tier":1,"name":"Vent","x":14,"y":-6,"rot":0,"params":{}},{"id":"cooler","defId":"air_cooler","profileId":"air_cooler","tier":1,"name":"Air Cooler","x":10,"y":5,"rot":0,"params":{"T_out":294,"UA_kW_K":1,"max_fan_power_W":200,"powerPriority":2,"variant":"vert-elec-L"}},{"id":"heater","defId":"electric_heater","profileId":"electric_heater","tier":1,"name":"Air Heater","x":7,"y":7,"rot":0,"params":{"T_out":294,"powerPriority":2,"variant":"mirror"}},{"id":"battery","defId":"battery","profileId":"battery","tier":1,"name":"Battery","x":1,"y":-3,"rot":0,"params":{"peakPower_kW":100,"capacity_J":1800000000,"initialSOC":1}},{"id":"power_disp","defId":"power_dispatcher_5","profileId":"power_dispatcher_5","tier":1,"name":"Power Dispatch","x":4,"y":-3,"rot":0,"params":{}},{"id":"surplus_snk","defId":"sink_electrical","profileId":"sink_electrical","tier":1,"name":"Surplus","x":6,"y":-5,"rot":0,"params":{"ratedPower_kW":50,"powerPriority":5}},{"id":"simple_open_tank-1","defId":"simple_open_tank","profileId":"simple_open_tank","tier":1,"name":"Hot Water Barrel","x":-4,"y":7,"rot":0,"params":{"volume_m3":0.1,"initialComposition":{"H2O":1},"level_init":0.3348,"drawRate":0.01,"opening_pct":6.4,"overflow_level":90}},{"id":"bend-3","defId":"bend","profileId":"bend","tier":1,"name":"Pipe Bend 3","x":-11,"y":-6,"rot":0,"params":{"variant":"down-right"}},{"id":"simple_mixer-5","defId":"simple_mixer","profileId":"simple_mixer","tier":1,"name":"Simple Mixer 5","x":-7,"y":-6,"rot":0,"params":{"variant":"recycle-B"}},{"id":"simple_mixer-8","defId":"simple_mixer","profileId":"simple_mixer","tier":1,"name":"Simple Mixer 5 (copy)","x":10,"y":-6,"rot":0,"params":{"variant":"recycle-B"}},{"id":"bend-12","defId":"bend","profileId":"bend","tier":1,"name":"Pipe Bend 3 (copy)","x":-7,"y":9,"rot":0,"params":{"variant":"up-right"}},{"id":"simple_mixer-14","defId":"simple_mixer","profileId":"simple_mixer","tier":1,"name":"Simple Mixer 5 (copy)","x":-4,"y":9,"rot":0,"params":{"variant":"recycle-T"}},{"id":"sink-17","defId":"sink","profileId":"sink","tier":1,"name":"Sewer","x":14,"y":9,"rot":0,"params":{}}],"connections":[{"id":"c_o2","from":{"unitId":"o2_bottle","portId":"gas_out"},"to":{"unitId":"room","portId":"o2_in"}},{"id":"c_h2o","from":{"unitId":"water_barrel","portId":"mat_out"},"to":{"unitId":"room","portId":"h2o_in"}},{"id":"c_food","from":{"unitId":"food_crate","portId":"food_out"},"to":{"unitId":"room","portId":"food_in"}},{"id":"c_exhaust","from":{"unitId":"room","portId":"air_exhaust"},"to":{"unitId":"scrubber","portId":"mat_in"}},{"id":"c_cool_in","from":{"unitId":"scrubber","portId":"perm_out"},"to":{"unitId":"cooler","portId":"mat_in"}},{"id":"c_heat_in","from":{"unitId":"cooler","portId":"mat_out"},"to":{"unitId":"heater","portId":"mat_in"}},{"id":"c_return","from":{"unitId":"heater","portId":"mat_out"},"to":{"unitId":"room","portId":"air_return"}},{"id":"e_bat","from":{"unitId":"battery","portId":"elec"},"to":{"unitId":"power_disp","portId":"elec_in_1"}},{"id":"e_room","from":{"unitId":"power_disp","portId":"elec_out_1"},"to":{"unitId":"room","portId":"elec_in"}},{"id":"e_cooler","from":{"unitId":"power_disp","portId":"elec_out_2"},"to":{"unitId":"cooler","portId":"elec_in"}},{"id":"e_heater","from":{"unitId":"power_disp","portId":"elec_out_3"},"to":{"unitId":"heater","portId":"elec_in"}},{"id":"e_surplus","from":{"unitId":"power_disp","portId":"elec_surplus"},"to":{"unitId":"surplus_snk","portId":"elec_in"}},{"id":"conn-2","from":{"unitId":"simple_open_tank-1","portId":"mat_out"},"to":{"unitId":"room","portId":"hot_water_in"}},{"id":"conn-4","from":{"unitId":"food_crate","portId":"biogas_out"},"to":{"unitId":"bend-3","portId":"mat_in"}},{"id":"conn-6","from":{"unitId":"bend-3","portId":"mat_out"},"to":{"unitId":"simple_mixer-5","portId":"mat_in_1"}},{"id":"conn-7","from":{"unitId":"o2_bottle","portId":"vent"},"to":{"unitId":"simple_mixer-5","portId":"mat_in_2"}},{"id":"conn-9","from":{"unitId":"scrubber","portId":"ret_out"},"to":{"unitId":"simple_mixer-8","portId":"mat_in_2"}},{"id":"conn-10","from":{"unitId":"simple_mixer-5","portId":"mat_out"},"to":{"unitId":"simple_mixer-8","portId":"mat_in_1"}},{"id":"conn-11","from":{"unitId":"simple_mixer-8","portId":"mat_out"},"to":{"unitId":"co2_snk","portId":"mat_in"}},{"id":"conn-13","from":{"unitId":"water_barrel","portId":"overflow"},"to":{"unitId":"bend-12","portId":"mat_in"}},{"id":"conn-15","from":{"unitId":"simple_open_tank-1","portId":"overflow"},"to":{"unitId":"simple_mixer-14","portId":"mat_in_2"}},{"id":"conn-16","from":{"unitId":"bend-12","portId":"mat_out"},"to":{"unitId":"simple_mixer-14","portId":"mat_in_1"}},{"id":"conn-18","from":{"unitId":"simple_mixer-14","portId":"mat_out"},"to":{"unitId":"sink-17","portId":"mat_in"}}],"modelsActive":{"thermo_package":"ideal_raoult","reaction":null,"units":"SI_bar"},"solverOptions":{"maxIter":200},"layout":{"viewMode":"flowsheet","colorBy":"type","theme":"ragtag","paletteOpen":false,"inspectorOpen":false}}'
 );
 
 buildExamplesMenu();
@@ -62959,7 +62994,7 @@ function runTests() {
     t.clearScene();
     const def = UnitRegistry.get('food_storage');
     t.assertOK(!!def, 'food_storage defId registered');
-    t.assertOK(def.ports.length === 5, `5 ports (got ${def.ports.length})`);
+    t.assertOK(def.ports.length === 6, `6 ports (got ${def.ports.length})`);
     const prof = ProfileRegistry.get('food_crate');
     t.assertOK(prof.defId === 'food_storage', 'food_crate → food_storage');
 
@@ -62972,8 +63007,8 @@ function runTests() {
     // Override inventory to known state
     const u = t.unit(crate);
     u.inventory = { n: { CH2O: 1000 }, T_K: 294 };
-    const wasteSink = t.place('sink', 4, 0);
-    t.wire(crate, 'waste_out', wasteSink, 'mat_in');
+    const biogasSink = t.place('sink', 4, 0);
+    t.wire(crate, 'biogas_out', biogasSink, 'mat_in');
     t.solve();
 
     const L294 = t.last(crate);
@@ -62997,8 +63032,8 @@ function runTests() {
     });
     const u = t.unit(crate);
     u.inventory = { n: { CH2O: 1000 }, T_K: 275 };
-    const wasteSink = t.place('sink', 4, 0);
-    t.wire(crate, 'waste_out', wasteSink, 'mat_in');
+    const biogasSink = t.place('sink', 4, 0);
+    t.wire(crate, 'biogas_out', biogasSink, 'mat_in');
     t.solve();
 
     const L = t.last(crate);
@@ -63008,9 +63043,9 @@ function runTests() {
     t.assertOK(L.status === 'frozen', `status = frozen (got ${L.status})`);
   });
 
-  test('680: Food Storage — unconnected waste_out → pressure warning', t => {
+  test('680: Food Storage — unconnected biogas/vent → pressure warning', t => {
     t.clearScene();
-    // Room temp crate with NO waste_out connected
+    // Room temp crate with NO biogas_out or vent connected
     const crate = t.place('food_storage', 0, 0, {
       volume_m3: 0.1, gasDrawRate: 0, opening_gas_pct: 0,
       P_relief: 500000, UA_jacket: 50,
@@ -63018,13 +63053,13 @@ function runTests() {
     });
     const u = t.unit(crate);
     // High pressure already near relief — spoilage gases will push it over
-    u.inventory = { n: { CH2O: 500, CO2: 200, H2O: 50 }, T_K: 310 };
-    // No waste_out connection
+    u.inventory = { n: { CH2O: 500, CO2: 100, CH4: 100 }, T_K: 310 };
+    // No biogas_out or vent connection
     t.solve();
 
-    // Spoilage produces CO₂+H₂O in headspace → P builds
+    // Spoilage: 2 CH₂O → CH₄ + CO₂ in headspace → P builds
     // At high T, spoilage is fast → pressure rises each tick
-    // With no vent: warning about decomposition gas pressure
+    // With no vent: warning about overpressure
     const L = t.last(crate);
     t.assertOK(L.P_Pa > 100000, `Pressure elevated (${(L.P_Pa/1e5).toFixed(1)} bar)`);
     // Step several times — decomposition gases accumulate in inventory
@@ -63032,7 +63067,9 @@ function runTests() {
     t.solve();
     const inv = t.unit(crate).inventory;
     const co2_after = inv.n.CO2 || 0;
-    t.assertOK(co2_after > 200, `CO₂ accumulated from spoilage (${co2_after.toFixed(0)} mol)`);
+    const ch4_after = inv.n.CH4 || 0;
+    t.assertOK(co2_after > 100, `CO₂ accumulated from spoilage (${co2_after.toFixed(0)} mol)`);
+    t.assertOK(ch4_after > 100, `CH₄ accumulated from spoilage (${ch4_after.toFixed(0)} mol)`);
   });
 
   test('681: Room — food starvation deficit timeline', t => {
@@ -63078,12 +63115,12 @@ function runTests() {
     });
     const u = t.unit(crate);
     u.inventory = { n: { CH2O: 1200 }, T_K: 294 };
-    const wasteSink = t.place('sink', -4, -3);
+    const biogasSink = t.place('sink', -4, -3);
     const room = t.place('room', 2, 0, { nPeople: 2 });
     const gs = t.place('grid_supply', 2, -3, { maxPower: 10 });
     const snk = t.place('sink', 8, 0);
     t.wire(crate, 'food_out', room, 'food_in');
-    t.wire(crate, 'waste_out', wasteSink, 'mat_in');
+    t.wire(crate, 'biogas_out', biogasSink, 'mat_in');
     t.wire(gs, 'elec_out', room, 'elec_in');
     t.wire(room, 'air_exhaust', snk, 'mat_in');
     t.solve();
@@ -63102,6 +63139,80 @@ function runTests() {
     t.solve();
     const ch2o_left = t.unit(crate).inventory.n.CH2O || 0;
     t.assertOK(ch2o_left < 500, `CH₂O significantly depleted at 400h (${ch2o_left.toFixed(0)} mol left of 1200)`);
+  });
+
+  test('682b: Food Storage — anaerobic fermentation produces CH₄+CO₂, not H₂O', t => {
+    t.clearScene();
+    const crate = t.place('food_storage', 0, 0, {
+      volume_m3: 0.1, gasDrawRate: 0, opening_gas_pct: 0,
+      P_relief: 25000000, UA_jacket: 50,
+      initialComposition: { CH2O: 1 }
+    });
+    const u = t.unit(crate);
+    u.inventory = { n: { CH2O: 1000 }, T_K: 310 };  // hot — fast spoilage
+    const biogasSink = t.place('sink', 4, 0);
+    t.wire(crate, 'biogas_out', biogasSink, 'mat_in');
+    // Step 10 ticks to accumulate products
+    for (let i = 0; i < 10; i++) TimeClock.step(scene);
+    t.solve();
+    const inv = t.unit(crate).inventory;
+    // 2 CH₂O → CH₄ + CO₂ — CH₄ and CO₂ should be equal, H₂O should be zero
+    const ch4 = inv.n.CH4 || 0;
+    const co2 = inv.n.CO2 || 0;
+    const h2o = inv.n.H2O || 0;
+    t.assertOK(ch4 > 0.1, `CH₄ produced (${ch4.toFixed(1)} mol)`);
+    t.assertOK(co2 > 0.1, `CO₂ produced (${co2.toFixed(1)} mol)`);
+    t.assertClose(ch4, co2, ch4 * 0.15, `CH₄ ≈ CO₂ (${ch4.toFixed(1)} vs ${co2.toFixed(1)})`);
+    t.assertClose(h2o, 0, 0.01, `No H₂O produced (got ${h2o.toFixed(3)})`);
+  });
+
+  test('682c: Food Storage — biogas drain clears backlog, capped at MAX_BIOGAS', t => {
+    t.clearScene();
+    const crate = t.place('food_storage', 0, 0, {
+      volume_m3: 0.1, gasDrawRate: 0, opening_gas_pct: 0,
+      P_relief: 25000000, UA_jacket: 50,
+      initialComposition: { CH2O: 1 }
+    });
+    const u = t.unit(crate);
+    // Pre-load a large backlog of biogas in inventory (as if disconnected for a while)
+    u.inventory = { n: { CH2O: 500, CO2: 100, CH4: 100 }, T_K: 275 };  // frozen = no new spoilage
+    const biogasSink = t.place('sink', 4, 0);
+    t.wire(crate, 'biogas_out', biogasSink, 'mat_in');
+    t.solve();
+
+    const L = t.last(crate);
+    // Biogas drain should be active — clearing the 200 mol backlog
+    t.assertOK(L.Q_biogas > 0, `Biogas drain active (${L.Q_biogas?.toExponential(2)})`);
+    // Cap is 0.01 mol/s — with 200 mol total biogas and dt=3600, uncapped would be 200/3600 = 0.056 mol/s
+    t.assertOK(L.Q_biogas <= 0.011, `Biogas drain capped at ~0.01 mol/s (got ${L.Q_biogas?.toExponential(2)})`);
+    // Step once (1h) to trigger updateInventory — should drain 0.01×3600 = 36 mol of 200 backlog
+    TimeClock.step(scene);
+    t.solve();
+    const inv = t.unit(crate).inventory;
+    const remaining_biogas = (inv.n.CO2 || 0) + (inv.n.CH4 || 0);
+    t.assertRange(remaining_biogas, 150, 180, `Backlog partially cleared after 1 step (${remaining_biogas.toFixed(0)} mol remaining of 200)`);
+  });
+
+  test('682d: Food Storage — vent fires at overpressure, biogas drains at sub-relief', t => {
+    t.clearScene();
+    const crate = t.place('food_storage', 0, 0, {
+      volume_m3: 0.1, gasDrawRate: 0, opening_gas_pct: 0,
+      P_relief: 25000000, UA_jacket: 50,    // high relief — won't trigger
+      initialComposition: { CH2O: 1 }
+    });
+    const u = t.unit(crate);
+    // Small inventory → low pressure, well below 250 bar relief
+    u.inventory = { n: { CH2O: 50, CH4: 5 }, T_K: 275 };  // frozen, low P
+    const biogasSink = t.place('sink', 4, 0);
+    const ventSink = t.place('sink', 4, 4);
+    t.wire(crate, 'biogas_out', biogasSink, 'mat_in');
+    t.wire(crate, 'vent', ventSink, 'mat_in');
+    t.solve();
+
+    const L = t.last(crate);
+    t.assertOK(L.Q_biogas > 0, 'Biogas drain active at sub-relief P');
+    t.assertOK(L.Q_vent === 0 || L.Q_vent < 1e-18, `Vent inactive at sub-relief P (Q_vent=${L.Q_vent?.toExponential(2)})`);
+    t.assertOK(L._ventActive === false, 'Vent hysteresis inactive');
   });
 
   // ═══════════════════════════════════════════════════════════════════════
