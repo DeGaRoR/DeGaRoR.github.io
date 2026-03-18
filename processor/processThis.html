@@ -18545,21 +18545,21 @@ UnitRegistry.register('food_storage', {
   w: 2, h: 4,  // [v17.11.0] 2×4 — fridge body (rows 0–3) + cooling serpentine at base (row 4)
   optionalPorts: true,
   ports: [
-    { portId: 'biogas_out', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 0, y: 0, label: 'biogas' },
-    { portId: 'vent',       dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 0, label: 'vent' },
+    { portId: 'biogas_out', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 1, y: 0, label: 'rot gas' },
+    { portId: 'vent',       dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 0, label: 'surplus' },
     { portId: 'food_in',    dir: PortDir.IN,  type: StreamType.MATERIAL, x: 0, y: 2, label: 'food in' },
-    { portId: 'food_out',   dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 2, label: 'food' },
-    { portId: 'cool_in',    dir: PortDir.IN,  type: StreamType.MATERIAL, x: 0, y: 4, label: 'coolant' },
-    { portId: 'cool_out',   dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 4, label: 'coolant' }
+    { portId: 'food_out',   dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 2, label: 'food out' },
+    { portId: 'cool_in',    dir: PortDir.IN,  type: StreamType.MATERIAL, x: 0, y: 4, label: 'cool in' },
+    { portId: 'cool_out',   dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 4, label: 'cool out' }
   ],
   presentations: {
     'box/default': { w: 2, h: 4, ports: {
-      biogas_out:{x:0,y:0}, vent:{x:2,y:0},
+      biogas_out:{x:1,y:0}, vent:{x:2,y:0},
       food_in:{x:0,y:2}, food_out:{x:2,y:2},
       cool_in:{x:0,y:4}, cool_out:{x:2,y:4}
     }},
     'box/mirror': { w: 2, h: 4, ports: {
-      biogas_out:{x:2,y:0}, vent:{x:0,y:0},
+      biogas_out:{x:1,y:0}, vent:{x:0,y:0},
       food_in:{x:2,y:2}, food_out:{x:0,y:2},
       cool_in:{x:2,y:4}, cool_out:{x:0,y:4}
     }}
@@ -34463,12 +34463,12 @@ _RAGTAG_SYMBOLS.food_storage = function(g, wx, wy, ww, wh, pal, def, unitId) {
   g.appendChild(svgEl('rect', { x: bx, y: by, width: bw, height: bh,
     rx: 5, fill: pal.fillUrl, stroke: pal.stroke, 'stroke-width': 2.5, 'pointer-events': 'none' }));
 
-  // ── Status LED (top-left, aligned with LCD center) ──
+  // ── Status LED (centered between left bolt and LCD) ──
   const ledColor = frozen ? '#3b82f6' : spoilFast ? '#ef4444' : spoiling ? '#f59e0b' : '#22c55e';
-  g.appendChild(svgEl('circle', { cx: wx + 16, cy: wy + 13, r: 2.5,
+  g.appendChild(svgEl('circle', { cx: wx + 22, cy: wy + 13, r: 2.5,
     fill: ledColor, 'data-anim': 'led-blink', 'data-phase': '0.4', 'pointer-events': 'none' }));
 
-  // ── Temperature LCD display (centered) ──
+  // ── Temperature LCD display (centered, liquid-crystal style) ──
   g.appendChild(svgEl('rect', { x: wx + 30, y: wy + 8, width: 36, height: 10,
     rx: 2.5, fill: '#0a0a0a', stroke: '#333', 'stroke-width': 0.5, 'pointer-events': 'none' }));
   g.appendChild(svgEl('rect', { x: wx + 31, y: wy + 9, width: 34, height: 8,
@@ -34477,8 +34477,8 @@ _RAGTAG_SYMBOLS.food_storage = function(g, wx, wy, ww, wh, pal, def, unitId) {
   const T_C = (T_K - 273.15).toFixed(T_K < 273 ? 0 : 1);
   const lcdColor = frozen ? '#3b82f6' : T_K > 310 ? '#ef4444' : spoiling ? '#f59e0b' : '#22d3ee';
   const lcdText = svgEl('text', { x: wx + 48, y: wy + 15, 'text-anchor': 'middle',
-    'font-family': 'monospace', 'font-size': '5.5px', fill: lcdColor,
-    'letter-spacing': '0.4', 'pointer-events': 'none' });
+    'font-family': "'Courier New', 'Lucida Console', monospace", 'font-size': '5.5px', fill: lcdColor,
+    'letter-spacing': '0.8', 'pointer-events': 'none' });
   lcdText.textContent = T_C + '\u00B0C';
   g.appendChild(lcdText);
 
@@ -34562,7 +34562,7 @@ _RAGTAG_SYMBOLS.food_storage = function(g, wx, wy, ww, wh, pal, def, unitId) {
     fill: 'none', stroke: '#555', 'stroke-width': 1, 'pointer-events': 'none' }));
 
   // ── Handle (rounded bar, right side, centered vertically on body) ──
-  const handleH = 70, handleY = by + (bh - handleH) / 2;
+  const handleH = 70, handleY = by + (bh - handleH) / 2 + 10;
   g.appendChild(svgEl('rect', { x: wx + 78, y: handleY, width: 6, height: handleH,
     rx: 2.5, fill: '#d4a050', stroke: '#a07830', 'stroke-width': 0.6, 'pointer-events': 'none' }));
   g.appendChild(svgEl('line', { x1: wx + 81, y1: handleY + 6, x2: wx + 81, y2: handleY + handleH - 6,
@@ -34630,13 +34630,14 @@ _RAGTAG_SYMBOLS.food_storage = function(g, wx, wy, ww, wh, pal, def, unitId) {
   _hg.appendChild(svgEl('circle', { cx:10,cy:0,r:1.5, fill:_sf?'#6070a0':'#888', stroke:_sf?'#5060a0':'#666', 'stroke-width':0.3 }));
   g.appendChild(_hg);
 
-  // ── Fill level bars (5 bars, food_fill_frac from tick) + FOOD label ──
+  // ── Fill level bars (5 bars, food_fill_frac from tick) + Food Reserves label ──
+  // Centered horizontally on unit (wx+48)
   const litCount = Math.max(0, Math.min(5, Math.ceil(foodFrac * 5)));
-  const barTrayX = wx + 22, barTrayY = wy + 138;
-  // Label
-  const _fl = svgEl('text', { x: barTrayX, y: barTrayY - 2, 'font-family': 'monospace',
-    'font-size': '3.5px', fill: pal.stroke, opacity: 0.6, 'pointer-events': 'none' });
-  _fl.textContent = 'FOOD';
+  const barTrayX = wx + 25, barTrayY = wy + 140;
+  // Label — centered above bars
+  const _fl = svgEl('text', { x: wx + 48, y: barTrayY - 2, 'text-anchor': 'middle',
+    'font-family': 'monospace', 'font-size': '4px', fill: pal.stroke, opacity: 0.8, 'pointer-events': 'none' });
+  _fl.textContent = 'Food Reserves';
   g.appendChild(_fl);
   // Bar tray
   g.appendChild(svgEl('rect', { x: barTrayX, y: barTrayY, width: 46, height: 6,
