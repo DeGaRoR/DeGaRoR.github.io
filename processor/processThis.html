@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v17.11.0
+  processThis v18.0.0
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -4884,6 +4884,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>processThis — v14.0.0</title>
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Baumans&display=swap');
     :root {
       color-scheme: dark;
       --zone-a-h: 52px;   /* info-bar: top:10px + ~40px capsule height */
@@ -4918,11 +4919,61 @@
     /* ===== LAYOUT ===== */
     .app { 
       height: 100vh; 
-      display: grid; 
+      display: none; 
       grid-template-columns: 1fr 0px;
       grid-template-rows: 1fr;
     }
-    
+    .app.active {
+      display: grid;
+    }
+
+    /* ── [v18.0.0 S-TITLE] Title screen styles ─────────────────────────── */
+    #titleScreen {
+      position: absolute; inset: 0; z-index: 1000;
+      overflow: hidden;
+      background: transparent;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+    }
+    #titleScreen .ts-title-wrap {
+      position: relative; z-index: 10;
+      display: flex; flex-direction: column; align-items: center; margin-top: -6vh;
+    }
+    #titleScreen .ts-grid-field {
+      position: absolute; width: 800px; height: 240px;
+      top: 50%; left: 50%; transform: translate(-50%,-55%);
+      pointer-events: none; z-index: 5;
+      mask-image: radial-gradient(ellipse 400px 120px at center, black 40%, transparent 100%);
+      -webkit-mask-image: radial-gradient(ellipse 400px 120px at center, black 40%, transparent 100%);
+    }
+    #titleScreen .pipe-anim { opacity: 0; }
+    #titleScreen .pipe-anim.on { animation: ts-slam .14s cubic-bezier(.2,.8,.3,1.15) forwards; }
+    @keyframes ts-slam {
+      0%  { opacity:0; transform:scale(.6) translateY(8px); }
+      65% { opacity:1; transform:scale(1.06) translateY(-1px); }
+      100%{ opacity:1; transform:scale(1) translateY(0); }
+    }
+    #titleScreen .flange-anim { opacity: 0; }
+    #titleScreen .flange-anim.on { animation: ts-fpop .1s ease-out forwards; }
+    @keyframes ts-fpop { 0%{opacity:0;transform:scale(.4)} 100%{opacity:1;transform:scale(1)} }
+    #titleScreen .ts-tag-wrap {
+      opacity:0; transform:rotate(-2.5deg) translateY(-8px);
+      transition: opacity .35s, transform .45s cubic-bezier(.3,1.3,.4,1);
+    }
+    #titleScreen .ts-tag-wrap.visible { opacity:1; transform:rotate(-2.5deg) translateY(0); }
+    #titleScreen .ts-menu-wrap {
+      display:flex; align-items:center; gap:14px; margin-top:38px;
+      opacity:0; transform:translateY(12px);
+      transition: opacity .4s .3s, transform .4s .3s ease-out;
+    }
+    #titleScreen .ts-menu-wrap.visible { opacity:1; transform:translateY(0); }
+    #titleScreen .ts-menu-wrap svg { cursor: pointer; transition: transform .15s ease-out; }
+    #titleScreen .ts-menu-wrap svg:hover { transform: scale(1.06); }
+    #titleScreen .ts-menu-wrap svg:hover .btn-body { filter: brightness(1.15); }
+    #titleScreen .ts-menu-wrap svg:hover .btn-led { fill: #22c55e; opacity: 0.9; }
+    #titleScreen .ts-menu-wrap svg:hover .btn-vp { fill: #0a2020; }
+    #titleScreen .ts-menu-wrap svg .btn-vp { transition: fill .2s; }
+    #titleScreen .ts-menu-wrap svg .btn-led { transition: fill .15s, opacity .15s; }
+
     .canvasWrap { 
       position: relative;
       overflow: hidden;
@@ -6784,7 +6835,7 @@
 
     /* ===== PLANET BACKGROUND ANIMATION [v13.5.0] ===== */
     #planetBg {
-      position: absolute; inset: 0; z-index: 0;
+      position: fixed; inset: 0; z-index: 0;
       overflow: hidden; pointer-events: none;
       display: none; /* shown via JS when active */
     }
@@ -9838,85 +9889,82 @@
   </style>
 </head>
 <body>
-<div class="app">
-  <div class="canvasWrap">
-    <!-- [v13.5.0+v13.6.0] Planet background animations (behind SVG, z-index:0) -->
-    <div id="planetBg">
-      <!-- Planet X [v13.5.0] -->
-      <div id="bg-planet_x" class="planet-bg-layer">
-      <div class="scene">
-        <div class="px-stars">
-          <div class="px-star"></div><div class="px-star"></div><div class="px-star"></div>
-          <div class="px-star"></div><div class="px-star"></div><div class="px-star"></div>
-          <div class="px-star"></div><div class="px-star"></div><div class="px-star"></div>
-          <div class="px-star"></div><div class="px-star"></div><div class="px-star"></div>
-        </div>
-        <div class="px-nocti-vis"><div class="px-nocti">
-          <div class="px-nocti-s px-nocti-s--1"></div><div class="px-nocti-s px-nocti-s--2"></div>
-          <div class="px-nocti-s px-nocti-s--3"></div><div class="px-nocti-s px-nocti-s--4"></div>
-        </div></div>
-        <div class="px-moon"></div>
-        <div class="px-meteor"></div><div class="px-meteor px-meteor--2"></div>
-        <div class="px-sun"></div><div class="px-hglow"></div>
-        <div class="px-rays">
-          <div class="px-ray"></div><div class="px-ray"></div><div class="px-ray"></div>
-          <div class="px-ray"></div><div class="px-ray"></div><div class="px-ray"></div>
-        </div>
-        <div class="px-clouds px-clouds--cirrus"></div>
-        <div class="px-clouds px-clouds--alto"></div>
-        <div class="px-clouds px-clouds--alto2"></div>
-        <div class="px-clouds px-clouds--stratus"></div>
-        <div class="px-clouds px-clouds--low"></div>
-        <div class="px-cld px-cld--dark"></div>
-        <div class="px-cld px-cld--warm"></div>
-        <div class="px-co2"></div>
-        <div class="px-tw px-tw--5"><div class="px-terrain px-terrain--5"></div></div>
-        <div class="px-mist px-mist--high"></div>
-        <div class="px-tw px-tw--4"><div class="px-terrain px-terrain--4"></div></div>
-        <div class="px-plume px-plume--1"></div><div class="px-vglow px-vglow--1"></div>
-        <div class="px-mist px-mist--mid"></div>
-        <div class="px-tw px-tw--3"><div class="px-terrain px-terrain--3"></div></div>
-        <div class="px-plume px-plume--2"></div><div class="px-vglow px-vglow--2"></div>
-        <div class="px-geyser"></div><div class="px-spark px-spark--1"></div>
-        <div class="px-mist px-mist--low"></div>
-        <div class="px-tw px-tw--2"><div class="px-terrain px-terrain--2"></div></div>
-        <div class="px-plume px-plume--3"></div><div class="px-vglow px-vglow--3"></div>
-        <div class="px-spark px-spark--2"></div>
-        <div class="px-terrain px-terrain--1"></div>
-        <div class="px-bio px-bio--1"></div><div class="px-bio px-bio--4"></div>
-        <div class="px-bio px-bio--2"></div><div class="px-bio px-bio--5"></div>
-        <div class="px-bio px-bio--3"></div>
-        <div class="px-shimmer">
-          <div class="px-shm"></div><div class="px-shm"></div><div class="px-shm"></div>
-          <div class="px-shm"></div><div class="px-shm"></div><div class="px-shm"></div><div class="px-shm"></div>
-        </div>
-        <div class="px-motes">
-          <div class="px-mote"></div><div class="px-mote"></div><div class="px-mote"></div>
-          <div class="px-mote"></div><div class="px-mote"></div><div class="px-mote"></div>
-          <div class="px-mote"></div><div class="px-mote"></div>
-        </div>
-        <div class="px-wash"></div>
-        <div class="px-night"></div><div class="px-day"></div>
-        <div class="px-depth"></div><div class="px-grain"></div>
-      </div>
-      </div><!-- /bg-planet_x -->
+<div id="planetBg">
+  <!-- Planet X [v13.5.0] -->
+  <div id="bg-planet_x" class="planet-bg-layer">
+  <div class="scene">
+    <div class="px-stars">
+      <div class="px-star"></div><div class="px-star"></div><div class="px-star"></div>
+      <div class="px-star"></div><div class="px-star"></div><div class="px-star"></div>
+      <div class="px-star"></div><div class="px-star"></div><div class="px-star"></div>
+      <div class="px-star"></div><div class="px-star"></div><div class="px-star"></div>
+    </div>
+    <div class="px-nocti-vis"><div class="px-nocti">
+      <div class="px-nocti-s px-nocti-s--1"></div><div class="px-nocti-s px-nocti-s--2"></div>
+      <div class="px-nocti-s px-nocti-s--3"></div><div class="px-nocti-s px-nocti-s--4"></div>
+    </div></div>
+    <div class="px-moon"></div>
+    <div class="px-meteor"></div><div class="px-meteor px-meteor--2"></div>
+    <div class="px-sun"></div><div class="px-hglow"></div>
+    <div class="px-rays">
+      <div class="px-ray"></div><div class="px-ray"></div><div class="px-ray"></div>
+      <div class="px-ray"></div><div class="px-ray"></div><div class="px-ray"></div>
+    </div>
+    <div class="px-clouds px-clouds--cirrus"></div>
+    <div class="px-clouds px-clouds--alto"></div>
+    <div class="px-clouds px-clouds--alto2"></div>
+    <div class="px-clouds px-clouds--stratus"></div>
+    <div class="px-clouds px-clouds--low"></div>
+    <div class="px-cld px-cld--dark"></div>
+    <div class="px-cld px-cld--warm"></div>
+    <div class="px-co2"></div>
+    <div class="px-tw px-tw--5"><div class="px-terrain px-terrain--5"></div></div>
+    <div class="px-mist px-mist--high"></div>
+    <div class="px-tw px-tw--4"><div class="px-terrain px-terrain--4"></div></div>
+    <div class="px-plume px-plume--1"></div><div class="px-vglow px-vglow--1"></div>
+    <div class="px-mist px-mist--mid"></div>
+    <div class="px-tw px-tw--3"><div class="px-terrain px-terrain--3"></div></div>
+    <div class="px-plume px-plume--2"></div><div class="px-vglow px-vglow--2"></div>
+    <div class="px-geyser"></div><div class="px-spark px-spark--1"></div>
+    <div class="px-mist px-mist--low"></div>
+    <div class="px-tw px-tw--2"><div class="px-terrain px-terrain--2"></div></div>
+    <div class="px-plume px-plume--3"></div><div class="px-vglow px-vglow--3"></div>
+    <div class="px-spark px-spark--2"></div>
+    <div class="px-terrain px-terrain--1"></div>
+    <div class="px-bio px-bio--1"></div><div class="px-bio px-bio--4"></div>
+    <div class="px-bio px-bio--2"></div><div class="px-bio px-bio--5"></div>
+    <div class="px-bio px-bio--3"></div>
+    <div class="px-shimmer">
+      <div class="px-shm"></div><div class="px-shm"></div><div class="px-shm"></div>
+      <div class="px-shm"></div><div class="px-shm"></div><div class="px-shm"></div><div class="px-shm"></div>
+    </div>
+    <div class="px-motes">
+      <div class="px-mote"></div><div class="px-mote"></div><div class="px-mote"></div>
+      <div class="px-mote"></div><div class="px-mote"></div><div class="px-mote"></div>
+      <div class="px-mote"></div><div class="px-mote"></div>
+    </div>
+    <div class="px-wash"></div>
+    <div class="px-night"></div><div class="px-day"></div>
+    <div class="px-depth"></div><div class="px-grain"></div>
+  </div>
+  </div><!-- /bg-planet_x -->
 
-      <!-- Earth [v13.6.0] -->
+  <!-- Earth [v13.6.0] -->
 <div id="bg-earth" class="planet-bg-layer">
 <div class="scene">
 
   <!-- Layer 1: Stars and moon directly on dark base sky -->
   <div class="stars">
-    <div class="star"></div><div class="star"></div><div class="star"></div>
-    <div class="star"></div><div class="star"></div><div class="star"></div>
-    <div class="star"></div><div class="star"></div><div class="star"></div>
-    <div class="star"></div><div class="star"></div><div class="star"></div>
-    <div class="star"></div><div class="star"></div><div class="star"></div>
-    <div class="star"></div><div class="star"></div><div class="star"></div>
-    <div class="star"></div><div class="star"></div><div class="star"></div>
-    <div class="star"></div><div class="star"></div><div class="star"></div>
-    <div class="star"></div><div class="star"></div><div class="star"></div>
-    <div class="star"></div><div class="star"></div><div class="star"></div>
+<div class="star"></div><div class="star"></div><div class="star"></div>
+<div class="star"></div><div class="star"></div><div class="star"></div>
+<div class="star"></div><div class="star"></div><div class="star"></div>
+<div class="star"></div><div class="star"></div><div class="star"></div>
+<div class="star"></div><div class="star"></div><div class="star"></div>
+<div class="star"></div><div class="star"></div><div class="star"></div>
+<div class="star"></div><div class="star"></div><div class="star"></div>
+<div class="star"></div><div class="star"></div><div class="star"></div>
+<div class="star"></div><div class="star"></div><div class="star"></div>
+<div class="star"></div><div class="star"></div><div class="star"></div>
   </div>
   <div class="milky-way"></div>
   <div class="moon"></div>
@@ -9929,11 +9977,11 @@
   <div class="horizon-glow"></div>
 
   <div class="rays">
-    <div class="ray ray--1"></div>
-    <div class="ray ray--2"></div>
-    <div class="ray ray--3"></div>
-    <div class="ray ray--4"></div>
-    <div class="ray ray--5"></div>
+<div class="ray ray--1"></div>
+<div class="ray ray--2"></div>
+<div class="ray ray--3"></div>
+<div class="ray ray--4"></div>
+<div class="ray ray--5"></div>
   </div>
 
   <div class="clouds clouds--cirrus"></div>
@@ -9947,16 +9995,16 @@
   <div class="virga"></div>
 
   <div class="birds">
-    <svg width="40" height="12" viewBox="0 0 40 12">
-      <path d="M0 6 Q5 2, 10 5"/><path d="M10 5 Q15 2, 20 6"/>
-      <path d="M24 8 Q28 4, 32 7"/><path d="M32 7 Q36 4, 40 8"/>
-    </svg>
+<svg width="40" height="12" viewBox="0 0 40 12">
+  <path d="M0 6 Q5 2, 10 5"/><path d="M10 5 Q15 2, 20 6"/>
+  <path d="M24 8 Q28 4, 32 7"/><path d="M32 7 Q36 4, 40 8"/>
+</svg>
   </div>
   <div class="birds birds--2">
-    <svg width="28" height="10" viewBox="0 0 28 10">
-      <path d="M0 5 Q3.5 2, 7 4.5"/><path d="M7 4.5 Q10.5 2, 14 5"/>
-      <path d="M17 6 Q20 3, 23 5.5"/><path d="M23 5.5 Q26 3, 28 6"/>
-    </svg>
+<svg width="28" height="10" viewBox="0 0 28 10">
+  <path d="M0 5 Q3.5 2, 7 4.5"/><path d="M7 4.5 Q10.5 2, 14 5"/>
+  <path d="M17 6 Q20 3, 23 5.5"/><path d="M23 5.5 Q26 3, 28 6"/>
+</svg>
   </div>
 
   <div class="golden-haze"></div>
@@ -9974,9 +10022,9 @@
   <div class="terrain terrain--1"></div>
 
   <div class="fireflies">
-    <div class="firefly"></div><div class="firefly"></div><div class="firefly"></div>
-    <div class="firefly"></div><div class="firefly"></div><div class="firefly"></div>
-    <div class="firefly"></div><div class="firefly"></div>
+<div class="firefly"></div><div class="firefly"></div><div class="firefly"></div>
+<div class="firefly"></div><div class="firefly"></div><div class="firefly"></div>
+<div class="firefly"></div><div class="firefly"></div>
   </div>
 
   <div class="breeze"></div>
@@ -9989,9 +10037,9 @@
 <div class="scene">
 
   <div class="stars">
-    <div class="star"></div><div class="star"></div><div class="star"></div>
-    <div class="star"></div><div class="star"></div><div class="star"></div>
-    <div class="star"></div><div class="star"></div>
+<div class="star"></div><div class="star"></div><div class="star"></div>
+<div class="star"></div><div class="star"></div><div class="star"></div>
+<div class="star"></div><div class="star"></div>
   </div>
 
   <div class="phobos"></div>
@@ -10013,10 +10061,10 @@
   <div class="terrain terrain--1"></div>
 
   <div class="dust-container">
-    <div class="dust"></div><div class="dust"></div><div class="dust"></div>
-    <div class="dust"></div><div class="dust"></div><div class="dust"></div>
-    <div class="dust"></div><div class="dust"></div><div class="dust"></div>
-    <div class="dust"></div><div class="dust"></div><div class="dust"></div>
+<div class="dust"></div><div class="dust"></div><div class="dust"></div>
+<div class="dust"></div><div class="dust"></div><div class="dust"></div>
+<div class="dust"></div><div class="dust"></div><div class="dust"></div>
+<div class="dust"></div><div class="dust"></div><div class="dust"></div>
   </div>
 
   <div class="dust-wash"></div>
@@ -10047,18 +10095,18 @@
 
   <!-- Methane rain -->
   <div class="rain-container">
-    <div class="rain"></div><div class="rain"></div><div class="rain"></div>
-    <div class="rain"></div><div class="rain"></div><div class="rain"></div>
-    <div class="rain"></div><div class="rain"></div><div class="rain"></div>
-    <div class="rain"></div><div class="rain"></div><div class="rain"></div>
-    <div class="rain"></div><div class="rain"></div><div class="rain"></div>
-    <div class="rain"></div><div class="rain"></div><div class="rain"></div>
-    <div class="rain"></div><div class="rain"></div><div class="rain"></div>
-    <div class="rain"></div><div class="rain"></div><div class="rain"></div>
-    <div class="rain"></div><div class="rain"></div><div class="rain"></div>
-    <div class="rain"></div><div class="rain"></div><div class="rain"></div>
-    <div class="rain"></div><div class="rain"></div><div class="rain"></div>
-    <div class="rain"></div><div class="rain"></div>
+<div class="rain"></div><div class="rain"></div><div class="rain"></div>
+<div class="rain"></div><div class="rain"></div><div class="rain"></div>
+<div class="rain"></div><div class="rain"></div><div class="rain"></div>
+<div class="rain"></div><div class="rain"></div><div class="rain"></div>
+<div class="rain"></div><div class="rain"></div><div class="rain"></div>
+<div class="rain"></div><div class="rain"></div><div class="rain"></div>
+<div class="rain"></div><div class="rain"></div><div class="rain"></div>
+<div class="rain"></div><div class="rain"></div><div class="rain"></div>
+<div class="rain"></div><div class="rain"></div><div class="rain"></div>
+<div class="rain"></div><div class="rain"></div><div class="rain"></div>
+<div class="rain"></div><div class="rain"></div><div class="rain"></div>
+<div class="rain"></div><div class="rain"></div>
   </div>
 
   <!-- Terrain layers with blur wrappers -->
@@ -10096,9 +10144,9 @@
 
   <!-- Lightning flashes -->
   <div class="lightning">
-    <div class="lightning-flash lightning-flash--1"></div>
-    <div class="lightning-flash lightning-flash--2"></div>
-    <div class="lightning-flash lightning-flash--3"></div>
+<div class="lightning-flash lightning-flash--1"></div>
+<div class="lightning-flash lightning-flash--2"></div>
+<div class="lightning-flash lightning-flash--3"></div>
   </div>
 
   <!-- Sulfuric haze -->
@@ -10123,13 +10171,13 @@
 
   <!-- Sulfuric acid rain -->
   <div class="acid-rain">
-    <div class="drop"></div><div class="drop"></div><div class="drop"></div>
-    <div class="drop"></div><div class="drop"></div><div class="drop"></div>
-    <div class="drop"></div><div class="drop"></div><div class="drop"></div>
-    <div class="drop"></div><div class="drop"></div><div class="drop"></div>
-    <div class="drop"></div><div class="drop"></div><div class="drop"></div>
-    <div class="drop"></div><div class="drop"></div><div class="drop"></div>
-    <div class="drop"></div><div class="drop"></div>
+<div class="drop"></div><div class="drop"></div><div class="drop"></div>
+<div class="drop"></div><div class="drop"></div><div class="drop"></div>
+<div class="drop"></div><div class="drop"></div><div class="drop"></div>
+<div class="drop"></div><div class="drop"></div><div class="drop"></div>
+<div class="drop"></div><div class="drop"></div><div class="drop"></div>
+<div class="drop"></div><div class="drop"></div><div class="drop"></div>
+<div class="drop"></div><div class="drop"></div>
   </div>
 
   <!-- Pressure wave + heat -->
@@ -10144,7 +10192,226 @@
   <div class="grain"></div>
 </div>
 </div>
-    </div><!-- /planetBg -->
+</div><!-- /planetBg -->
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<!-- [v18.0.0 S-TITLE] Title screen overlay — renders before script parse      -->
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<div id="titleScreen" data-title="ptis">
+
+  <div class="ts-title-wrap">
+    <svg class="ts-grid-field" viewBox="0 0 800 240" xmlns="http://www.w3.org/2000/svg">
+      <defs><pattern id="tsGd" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="12" cy="12" r=".8" fill="#94a3b8" opacity=".18"/></pattern></defs>
+      <rect width="800" height="240" fill="url(#tsGd)"/>
+      <g stroke="#94a3b8" stroke-width=".3" opacity=".07">
+        <line x1="0" y1="48" x2="800" y2="48"/><line x1="0" y1="96" x2="800" y2="96"/>
+        <line x1="0" y1="144" x2="800" y2="144"/><line x1="0" y1="192" x2="800" y2="192"/>
+      </g>
+    </svg>
+
+    <!-- TITLE: pipe-letter logo -->
+    <svg id="tsTitle" viewBox="-10 -5 650 95" width="650" height="95" xmlns="http://www.w3.org/2000/svg" style="overflow:visible">
+      <!-- P — #8b5cf6 -->
+      <g transform="translate(0,5)">
+        <g class="pipe-anim" data-i="0">
+          <line x1="10" y1="75" x2="10" y2="5" stroke="#374151" stroke-width="10" stroke-linecap="butt"/>
+          <line x1="10" y1="75" x2="10" y2="5" stroke="#8b5cf6" stroke-width="6" stroke-linecap="butt"/>
+          <path d="M10,5 L28,5 C42,5 48,12 48,22 C48,32 42,38 28,38 L10,38" fill="none" stroke="#374151" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M10,5 L28,5 C42,5 48,12 48,22 C48,32 42,38 28,38 L10,38" fill="none" stroke="#8b5cf6" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+        </g>
+        <g transform="translate(10,75) rotate(0)"><g class="flange-anim" data-d="0"><rect x="-7" y="-2" width="14" height="4" rx="1" fill="#4b5563" stroke="#374151" stroke-width="1"/><circle cx="-4" cy="0" r="1.3" fill="#9ca3af" stroke="#374151" stroke-width="0.6"/><circle cx="4" cy="0" r="1.3" fill="#9ca3af" stroke="#374151" stroke-width="0.6"/></g></g>
+      </g>
+      <!-- R — #ef4444 -->
+      <g transform="translate(60,5)">
+        <g class="pipe-anim" data-i="1">
+          <line x1="10" y1="75" x2="10" y2="5" stroke="#374151" stroke-width="10" stroke-linecap="butt"/>
+          <line x1="10" y1="75" x2="10" y2="5" stroke="#ef4444" stroke-width="6" stroke-linecap="butt"/>
+          <path d="M10,5 L26,5 C40,5 46,12 46,20 C46,30 40,36 26,36 L10,36" fill="none" stroke="#374151" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M10,5 L26,5 C40,5 46,12 46,20 C46,30 40,36 26,36 L10,36" fill="none" stroke="#ef4444" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+          <line x1="28" y1="36" x2="48" y2="75" stroke="#374151" stroke-width="10" stroke-linecap="butt"/>
+          <line x1="28" y1="36" x2="48" y2="75" stroke="#ef4444" stroke-width="6" stroke-linecap="butt"/>
+        </g>
+        <g transform="translate(10,75) rotate(0)"><g class="flange-anim" data-d="1"><rect x="-7" y="-2" width="14" height="4" rx="1" fill="#4b5563" stroke="#374151" stroke-width="1"/><circle cx="-4" cy="0" r="1.3" fill="#9ca3af" stroke="#374151" stroke-width="0.6"/><circle cx="4" cy="0" r="1.3" fill="#9ca3af" stroke="#374151" stroke-width="0.6"/></g></g>
+        <g transform="translate(48,75) rotate(0)"><g class="flange-anim" data-d="1"><rect x="-7" y="-2" width="14" height="4" rx="1" fill="#4b5563" stroke="#374151" stroke-width="1"/><circle cx="-4" cy="0" r="1.3" fill="#9ca3af" stroke="#374151" stroke-width="0.6"/><circle cx="4" cy="0" r="1.3" fill="#9ca3af" stroke="#374151" stroke-width="0.6"/></g></g>
+      </g>
+      <!-- O — #f97316 -->
+      <g transform="translate(122,5)">
+        <g class="pipe-anim" data-i="2">
+          <ellipse cx="24" cy="40" rx="20" ry="36" fill="none" stroke="#374151" stroke-width="10"/>
+          <ellipse cx="24" cy="40" rx="20" ry="36" fill="none" stroke="#f97316" stroke-width="6"/>
+        </g>
+      </g>
+      <!-- C — #eab308 -->
+      <g transform="translate(178,5)">
+        <g class="pipe-anim" data-i="3">
+          <path d="M42,12 C34,-1 12,-1 6,18 C1,35 1,45 6,62 C12,81 34,81 42,68" fill="none" stroke="#374151" stroke-width="10" stroke-linecap="butt"/>
+          <path d="M42,12 C34,-1 12,-1 6,18 C1,35 1,45 6,62 C12,81 34,81 42,68" fill="none" stroke="#eab308" stroke-width="6" stroke-linecap="butt"/>
+        </g>
+        <g transform="translate(42,12) rotate(-32)"><g class="flange-anim" data-d="3"><rect x="-7" y="-2" width="14" height="4" rx="1" fill="#4b5563" stroke="#374151" stroke-width="1"/><circle cx="-4" cy="0" r="1.3" fill="#9ca3af" stroke="#374151" stroke-width="0.6"/><circle cx="4" cy="0" r="1.3" fill="#9ca3af" stroke="#374151" stroke-width="0.6"/></g></g>
+        <g transform="translate(42,68) rotate(32)"><g class="flange-anim" data-d="3"><rect x="-7" y="-2" width="14" height="4" rx="1" fill="#4b5563" stroke="#374151" stroke-width="1"/><circle cx="-4" cy="0" r="1.3" fill="#9ca3af" stroke="#374151" stroke-width="0.6"/><circle cx="4" cy="0" r="1.3" fill="#9ca3af" stroke="#374151" stroke-width="0.6"/></g></g>
+      </g>
+      <!-- E — #22c55e -->
+      <g transform="translate(232,5)">
+        <g class="pipe-anim" data-i="4">
+          <line x1="10" y1="75" x2="10" y2="5" stroke="#374151" stroke-width="10" stroke-linecap="butt"/>
+          <line x1="10" y1="75" x2="10" y2="5" stroke="#22c55e" stroke-width="6" stroke-linecap="butt"/>
+          <line x1="10" y1="5" x2="40" y2="5" stroke="#374151" stroke-width="10" stroke-linecap="butt"/>
+          <line x1="10" y1="5" x2="40" y2="5" stroke="#22c55e" stroke-width="6" stroke-linecap="butt"/>
+          <line x1="10" y1="40" x2="34" y2="40" stroke="#374151" stroke-width="10" stroke-linecap="butt"/>
+          <line x1="10" y1="40" x2="34" y2="40" stroke="#22c55e" stroke-width="6" stroke-linecap="butt"/>
+          <line x1="10" y1="75" x2="40" y2="75" stroke="#374151" stroke-width="10" stroke-linecap="butt"/>
+          <line x1="10" y1="75" x2="40" y2="75" stroke="#22c55e" stroke-width="6" stroke-linecap="butt"/>
+        </g>
+        <g transform="translate(40,5) rotate(90)"><g class="flange-anim" data-d="4"><rect x="-7" y="-2" width="14" height="4" rx="1" fill="#4b5563" stroke="#374151" stroke-width="1"/><circle cx="-4" cy="0" r="1.3" fill="#9ca3af" stroke="#374151" stroke-width="0.6"/><circle cx="4" cy="0" r="1.3" fill="#9ca3af" stroke="#374151" stroke-width="0.6"/></g></g>
+        <g transform="translate(34,40) rotate(90)"><g class="flange-anim" data-d="4"><rect x="-7" y="-2" width="14" height="4" rx="1" fill="#4b5563" stroke="#374151" stroke-width="1"/><circle cx="-4" cy="0" r="1.3" fill="#9ca3af" stroke="#374151" stroke-width="0.6"/><circle cx="4" cy="0" r="1.3" fill="#9ca3af" stroke="#374151" stroke-width="0.6"/></g></g>
+        <g transform="translate(40,75) rotate(90)"><g class="flange-anim" data-d="4"><rect x="-7" y="-2" width="14" height="4" rx="1" fill="#4b5563" stroke="#374151" stroke-width="1"/><circle cx="-4" cy="0" r="1.3" fill="#9ca3af" stroke="#374151" stroke-width="0.6"/><circle cx="4" cy="0" r="1.3" fill="#9ca3af" stroke="#374151" stroke-width="0.6"/></g></g>
+      </g>
+      <!-- S1 — #14b8a6 -->
+      <g transform="translate(286,5)">
+        <g class="pipe-anim" data-i="5">
+          <path d="M40,12 C30,-2 8,2 8,20 C8,32 18,36 28,40 C38,44 42,50 42,58 C42,74 22,78 10,68" fill="none" stroke="#374151" stroke-width="10" stroke-linecap="butt"/>
+          <path d="M40,12 C30,-2 8,2 8,20 C8,32 18,36 28,40 C38,44 42,50 42,58 C42,74 22,78 10,68" fill="none" stroke="#14b8a6" stroke-width="6" stroke-linecap="butt"/>
+        </g>
+        <g transform="translate(40,12) rotate(-35)"><g class="flange-anim" data-d="5"><rect x="-7" y="-2" width="14" height="4" rx="1" fill="#4b5563" stroke="#374151" stroke-width="1"/><circle cx="-4" cy="0" r="1.3" fill="#9ca3af" stroke="#374151" stroke-width="0.6"/><circle cx="4" cy="0" r="1.3" fill="#9ca3af" stroke="#374151" stroke-width="0.6"/></g></g>
+        <g transform="translate(10,68) rotate(-50)"><g class="flange-anim" data-d="5"><rect x="-7" y="-2" width="14" height="4" rx="1" fill="#4b5563" stroke="#374151" stroke-width="1"/><circle cx="-4" cy="0" r="1.3" fill="#9ca3af" stroke="#374151" stroke-width="0.6"/><circle cx="4" cy="0" r="1.3" fill="#9ca3af" stroke="#374151" stroke-width="0.6"/></g></g>
+      </g>
+      <!-- S2 — #3b82f6 -->
+      <g transform="translate(338,5)">
+        <g class="pipe-anim" data-i="6">
+          <path d="M40,12 C30,-2 8,2 8,20 C8,32 18,36 28,40 C38,44 42,50 42,58 C42,74 22,78 10,68" fill="none" stroke="#374151" stroke-width="10" stroke-linecap="butt"/>
+          <path d="M40,12 C30,-2 8,2 8,20 C8,32 18,36 28,40 C38,44 42,50 42,58 C42,74 22,78 10,68" fill="none" stroke="#3b82f6" stroke-width="6" stroke-linecap="butt"/>
+        </g>
+        <g transform="translate(40,12) rotate(-35)"><g class="flange-anim" data-d="6"><rect x="-7" y="-2" width="14" height="4" rx="1" fill="#4b5563" stroke="#374151" stroke-width="1"/><circle cx="-4" cy="0" r="1.3" fill="#9ca3af" stroke="#374151" stroke-width="0.6"/><circle cx="4" cy="0" r="1.3" fill="#9ca3af" stroke="#374151" stroke-width="0.6"/></g></g>
+        <g transform="translate(10,68) rotate(-50)"><g class="flange-anim" data-d="6"><rect x="-7" y="-2" width="14" height="4" rx="1" fill="#4b5563" stroke="#374151" stroke-width="1"/><circle cx="-4" cy="0" r="1.3" fill="#9ca3af" stroke="#374151" stroke-width="0.6"/><circle cx="4" cy="0" r="1.3" fill="#9ca3af" stroke="#374151" stroke-width="0.6"/></g></g>
+      </g>
+      <!-- T — #e535ab -->
+      <g transform="translate(410,5)">
+        <g class="pipe-anim" data-i="7">
+          <line x1="0" y1="5" x2="46" y2="5" stroke="#374151" stroke-width="10" stroke-linecap="butt"/>
+          <line x1="0" y1="5" x2="46" y2="5" stroke="#e535ab" stroke-width="6" stroke-linecap="butt"/>
+          <line x1="23" y1="5" x2="23" y2="75" stroke="#374151" stroke-width="10" stroke-linecap="butt"/>
+          <line x1="23" y1="5" x2="23" y2="75" stroke="#e535ab" stroke-width="6" stroke-linecap="butt"/>
+        </g>
+        <g transform="translate(0,5) rotate(90)"><g class="flange-anim" data-d="7"><rect x="-7" y="-2" width="14" height="4" rx="1" fill="#4b5563" stroke="#374151" stroke-width="1"/><circle cx="-4" cy="0" r="1.3" fill="#9ca3af" stroke="#374151" stroke-width="0.6"/><circle cx="4" cy="0" r="1.3" fill="#9ca3af" stroke="#374151" stroke-width="0.6"/></g></g>
+        <g transform="translate(46,5) rotate(90)"><g class="flange-anim" data-d="7"><rect x="-7" y="-2" width="14" height="4" rx="1" fill="#4b5563" stroke="#374151" stroke-width="1"/><circle cx="-4" cy="0" r="1.3" fill="#9ca3af" stroke="#374151" stroke-width="0.6"/><circle cx="4" cy="0" r="1.3" fill="#9ca3af" stroke="#374151" stroke-width="0.6"/></g></g>
+        <g transform="translate(23,5) rotate(0)"><g class="flange-anim" data-d="7"><rect x="-7" y="-7" width="14" height="14" rx="1.5" fill="#4b5563" stroke="#374151" stroke-width="1.2"/><line x1="-7" y1="0" x2="7" y2="0" stroke="#6b7280" stroke-width="0.8" stroke-dasharray="2 1.5"/><circle cx="-4" cy="-4" r="1.3" fill="#9ca3af" stroke="#374151" stroke-width="0.6"/><circle cx="4" cy="-4" r="1.3" fill="#9ca3af" stroke="#374151" stroke-width="0.6"/><circle cx="-4" cy="4" r="1.3" fill="#9ca3af" stroke="#374151" stroke-width="0.6"/><circle cx="4" cy="4" r="1.3" fill="#9ca3af" stroke="#374151" stroke-width="0.6"/></g></g>
+        <g transform="translate(23,75) rotate(0)"><g class="flange-anim" data-d="7"><rect x="-7" y="-2" width="14" height="4" rx="1" fill="#4b5563" stroke="#374151" stroke-width="1"/><circle cx="-4" cy="0" r="1.3" fill="#9ca3af" stroke="#374151" stroke-width="0.6"/><circle cx="4" cy="0" r="1.3" fill="#9ca3af" stroke="#374151" stroke-width="0.6"/></g></g>
+      </g>
+      <!-- H — #06b6d4 -->
+      <g transform="translate(468,5)">
+        <g class="pipe-anim" data-i="8">
+          <line x1="10" y1="75" x2="10" y2="5" stroke="#374151" stroke-width="10" stroke-linecap="butt"/>
+          <line x1="10" y1="75" x2="10" y2="5" stroke="#06b6d4" stroke-width="6" stroke-linecap="butt"/>
+          <line x1="40" y1="75" x2="40" y2="5" stroke="#374151" stroke-width="10" stroke-linecap="butt"/>
+          <line x1="40" y1="75" x2="40" y2="5" stroke="#06b6d4" stroke-width="6" stroke-linecap="butt"/>
+          <line x1="10" y1="40" x2="40" y2="40" stroke="#374151" stroke-width="10" stroke-linecap="butt"/>
+          <line x1="10" y1="40" x2="40" y2="40" stroke="#06b6d4" stroke-width="6" stroke-linecap="butt"/>
+        </g>
+        <g transform="translate(10,5)"><g class="flange-anim" data-d="8"><rect x="-7" y="-2" width="14" height="4" rx="1" fill="#4b5563" stroke="#374151" stroke-width="1"/><circle cx="-4" cy="0" r="1.3" fill="#9ca3af" stroke="#374151" stroke-width="0.6"/><circle cx="4" cy="0" r="1.3" fill="#9ca3af" stroke="#374151" stroke-width="0.6"/></g></g>
+        <g transform="translate(10,75)"><g class="flange-anim" data-d="8"><rect x="-7" y="-2" width="14" height="4" rx="1" fill="#4b5563" stroke="#374151" stroke-width="1"/><circle cx="-4" cy="0" r="1.3" fill="#9ca3af" stroke="#374151" stroke-width="0.6"/><circle cx="4" cy="0" r="1.3" fill="#9ca3af" stroke="#374151" stroke-width="0.6"/></g></g>
+        <g transform="translate(40,5)"><g class="flange-anim" data-d="8"><rect x="-7" y="-2" width="14" height="4" rx="1" fill="#4b5563" stroke="#374151" stroke-width="1"/><circle cx="-4" cy="0" r="1.3" fill="#9ca3af" stroke="#374151" stroke-width="0.6"/><circle cx="4" cy="0" r="1.3" fill="#9ca3af" stroke="#374151" stroke-width="0.6"/></g></g>
+        <g transform="translate(40,75)"><g class="flange-anim" data-d="8"><rect x="-7" y="-2" width="14" height="4" rx="1" fill="#4b5563" stroke="#374151" stroke-width="1"/><circle cx="-4" cy="0" r="1.3" fill="#9ca3af" stroke="#374151" stroke-width="0.6"/><circle cx="4" cy="0" r="1.3" fill="#9ca3af" stroke="#374151" stroke-width="0.6"/></g></g>
+      </g>
+      <!-- I — #f97316 -->
+      <g transform="translate(522,5)">
+        <g class="pipe-anim" data-i="9">
+          <line x1="0" y1="5" x2="28" y2="5" stroke="#374151" stroke-width="10" stroke-linecap="butt"/>
+          <line x1="0" y1="5" x2="28" y2="5" stroke="#f97316" stroke-width="6" stroke-linecap="butt"/>
+          <line x1="14" y1="5" x2="14" y2="75" stroke="#374151" stroke-width="10" stroke-linecap="butt"/>
+          <line x1="14" y1="5" x2="14" y2="75" stroke="#f97316" stroke-width="6" stroke-linecap="butt"/>
+          <line x1="0" y1="75" x2="28" y2="75" stroke="#374151" stroke-width="10" stroke-linecap="butt"/>
+          <line x1="0" y1="75" x2="28" y2="75" stroke="#f97316" stroke-width="6" stroke-linecap="butt"/>
+        </g>
+        <g transform="translate(14,5)"><g class="flange-anim" data-d="9"><rect x="-7" y="-7" width="14" height="14" rx="1.5" fill="#4b5563" stroke="#374151" stroke-width="1.2"/><line x1="-7" y1="0" x2="7" y2="0" stroke="#6b7280" stroke-width="0.8" stroke-dasharray="2 1.5"/><circle cx="-4" cy="-4" r="1.3" fill="#9ca3af" stroke="#374151" stroke-width="0.6"/><circle cx="4" cy="-4" r="1.3" fill="#9ca3af" stroke="#374151" stroke-width="0.6"/><circle cx="-4" cy="4" r="1.3" fill="#9ca3af" stroke="#374151" stroke-width="0.6"/><circle cx="4" cy="4" r="1.3" fill="#9ca3af" stroke="#374151" stroke-width="0.6"/></g></g>
+        <g transform="translate(14,75)"><g class="flange-anim" data-d="9"><rect x="-7" y="-7" width="14" height="14" rx="1.5" fill="#4b5563" stroke="#374151" stroke-width="1.2"/><line x1="-7" y1="0" x2="7" y2="0" stroke="#6b7280" stroke-width="0.8" stroke-dasharray="2 1.5"/><circle cx="-4" cy="-4" r="1.3" fill="#9ca3af" stroke="#374151" stroke-width="0.6"/><circle cx="4" cy="-4" r="1.3" fill="#9ca3af" stroke="#374151" stroke-width="0.6"/><circle cx="-4" cy="4" r="1.3" fill="#9ca3af" stroke="#374151" stroke-width="0.6"/><circle cx="4" cy="4" r="1.3" fill="#9ca3af" stroke="#374151" stroke-width="0.6"/></g></g>
+        <g transform="translate(0,5) rotate(90)"><g class="flange-anim" data-d="9"><rect x="-7" y="-2" width="14" height="4" rx="1" fill="#4b5563" stroke="#374151" stroke-width="1"/><circle cx="-4" cy="0" r="1.3" fill="#9ca3af" stroke="#374151" stroke-width="0.6"/><circle cx="4" cy="0" r="1.3" fill="#9ca3af" stroke="#374151" stroke-width="0.6"/></g></g>
+        <g transform="translate(28,5) rotate(90)"><g class="flange-anim" data-d="9"><rect x="-7" y="-2" width="14" height="4" rx="1" fill="#4b5563" stroke="#374151" stroke-width="1"/><circle cx="-4" cy="0" r="1.3" fill="#9ca3af" stroke="#374151" stroke-width="0.6"/><circle cx="4" cy="0" r="1.3" fill="#9ca3af" stroke="#374151" stroke-width="0.6"/></g></g>
+        <g transform="translate(0,75) rotate(90)"><g class="flange-anim" data-d="9"><rect x="-7" y="-2" width="14" height="4" rx="1" fill="#4b5563" stroke="#374151" stroke-width="1"/><circle cx="-4" cy="0" r="1.3" fill="#9ca3af" stroke="#374151" stroke-width="0.6"/><circle cx="4" cy="0" r="1.3" fill="#9ca3af" stroke="#374151" stroke-width="0.6"/></g></g>
+        <g transform="translate(28,75) rotate(90)"><g class="flange-anim" data-d="9"><rect x="-7" y="-2" width="14" height="4" rx="1" fill="#4b5563" stroke="#374151" stroke-width="1"/><circle cx="-4" cy="0" r="1.3" fill="#9ca3af" stroke="#374151" stroke-width="0.6"/><circle cx="4" cy="0" r="1.3" fill="#9ca3af" stroke="#374151" stroke-width="0.6"/></g></g>
+      </g>
+      <!-- S3 — #8b5cf6 -->
+      <g transform="translate(562,5)">
+        <g class="pipe-anim" data-i="10">
+          <path d="M40,12 C30,-2 8,2 8,20 C8,32 18,36 28,40 C38,44 42,50 42,58 C42,74 22,78 10,68" fill="none" stroke="#374151" stroke-width="10" stroke-linecap="butt"/>
+          <path d="M40,12 C30,-2 8,2 8,20 C8,32 18,36 28,40 C38,44 42,50 42,58 C42,74 22,78 10,68" fill="none" stroke="#8b5cf6" stroke-width="6" stroke-linecap="butt"/>
+        </g>
+        <g transform="translate(40,12) rotate(-35)"><g class="flange-anim" data-d="10"><rect x="-7" y="-2" width="14" height="4" rx="1" fill="#4b5563" stroke="#374151" stroke-width="1"/><circle cx="-4" cy="0" r="1.3" fill="#9ca3af" stroke="#374151" stroke-width="0.6"/><circle cx="4" cy="0" r="1.3" fill="#9ca3af" stroke="#374151" stroke-width="0.6"/></g></g>
+        <g transform="translate(10,68) rotate(-50)"><g class="flange-anim" data-d="10"><rect x="-7" y="-2" width="14" height="4" rx="1" fill="#4b5563" stroke="#374151" stroke-width="1"/><circle cx="-4" cy="0" r="1.3" fill="#9ca3af" stroke="#374151" stroke-width="0.6"/><circle cx="4" cy="0" r="1.3" fill="#9ca3af" stroke="#374151" stroke-width="0.6"/></g></g>
+      </g>
+      <!-- ! — #ef4444 -->
+      <g transform="translate(616,5)">
+        <g class="pipe-anim" data-i="11">
+          <line x1="10" y1="50" x2="10" y2="5" stroke="#374151" stroke-width="10" stroke-linecap="butt"/>
+          <line x1="10" y1="50" x2="10" y2="5" stroke="#ef4444" stroke-width="6" stroke-linecap="butt"/>
+        </g>
+        <g transform="translate(10,5)"><g class="flange-anim" data-d="11"><rect x="-7" y="-2" width="14" height="4" rx="1" fill="#4b5563" stroke="#374151" stroke-width="1"/><circle cx="-4" cy="0" r="1.3" fill="#9ca3af" stroke="#374151" stroke-width="0.6"/><circle cx="4" cy="0" r="1.3" fill="#9ca3af" stroke="#374151" stroke-width="0.6"/></g></g>
+        <g transform="translate(10,50)"><g class="flange-anim" data-d="11"><rect x="-7" y="-2" width="14" height="4" rx="1" fill="#4b5563" stroke="#374151" stroke-width="1"/><circle cx="-4" cy="0" r="1.3" fill="#9ca3af" stroke="#374151" stroke-width="0.6"/><circle cx="4" cy="0" r="1.3" fill="#9ca3af" stroke="#374151" stroke-width="0.6"/></g></g>
+        <g transform="translate(10,66)"><g class="flange-anim" data-d="11.5"><circle cx="0" cy="0" r="9" fill="#0f0820" stroke="#134e4a" stroke-width="2"/><path d="M-5,-7 Q-2.5,-8.5 0,-7" fill="none" stroke="#fff" stroke-width="0.8" opacity="0.12"/><circle id="tsDiagLed" cx="0" cy="0" r="4" fill="#ef4444" opacity="0.85"/></g></g>
+      </g>
+    </svg>
+
+    <!-- IN SPACE tag -->
+    <div class="ts-tag-wrap" id="tsTagWrap" style="margin-top:14px;">
+      <svg viewBox="0 0 180 42" width="180" height="42" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="tsTm" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#606878"/><stop offset="40%" stop-color="#505868"/><stop offset="100%" stop-color="#4a5464"/>
+          </linearGradient>
+        </defs>
+        <line x1="90" y1="0" x2="90" y2="8" stroke="#6a7280" stroke-width="1" stroke-dasharray="2 2"/>
+        <rect x="10" y="8" width="160" height="30" rx="4" fill="url(#tsTm)" stroke="#5a6270" stroke-width="1.8"/>
+        <line x1="10" y1="23" x2="170" y2="23" stroke="#5a6270" stroke-width="0.6" opacity="0.4"/>
+        <circle cx="18" cy="15" r="2.5" fill="#2a3040" stroke="#6a7280" stroke-width="1.2"/>
+        <circle cx="162" cy="15" r="2.5" fill="#2a3040" stroke="#6a7280" stroke-width="1.2"/>
+        <circle cx="18" cy="31" r="2.5" fill="#2a3040" stroke="#6a7280" stroke-width="1.2"/>
+        <circle cx="162" cy="31" r="2.5" fill="#2a3040" stroke="#6a7280" stroke-width="1.2"/>
+        <text x="90" y="28" text-anchor="middle" fill="#eab308" font-family="'Courier New',monospace" font-size="14" font-weight="bold" letter-spacing="5" opacity="0.95">IN SPACE</text>
+      </svg>
+    </div>
+  </div>
+
+  <!-- Menu buttons -->
+  <div class="ts-menu-wrap" id="tsMenuBtns">
+    <!-- Quick Game -->
+    <svg viewBox="0 0 130 50" width="130" height="50" xmlns="http://www.w3.org/2000/svg" data-action="quickgame">
+      <defs><linearGradient id="tsGBlue" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#3b82f6"/><stop offset="100%" stop-color="#2563eb"/></linearGradient></defs>
+      <rect class="btn-body" x="2" y="2" width="126" height="46" rx="8" fill="url(#tsGBlue)" stroke="#1d4ed8" stroke-width="2.5"/>
+      <line x1="2" y1="25" x2="128" y2="25" stroke="#1d4ed8" stroke-width="0.8" opacity="0.35"/>
+      <circle cx="10" cy="10" r="2.5" fill="#1f2937" stroke="#6b7280" stroke-width="1.2"/><circle cx="120" cy="10" r="2.5" fill="#1f2937" stroke="#6b7280" stroke-width="1.2"/>
+      <circle cx="10" cy="40" r="2.5" fill="#1f2937" stroke="#6b7280" stroke-width="1.2"/><circle cx="120" cy="40" r="2.5" fill="#1f2937" stroke="#6b7280" stroke-width="1.2"/>
+      <rect class="btn-vp" x="18" y="11" width="94" height="28" rx="5" fill="#0a1a1a" stroke="#134e4a" stroke-width="2"/>
+      <path d="M24,15 Q30,13 36,15" fill="none" stroke="#fff" stroke-width="0.6" opacity="0.1"/>
+      <circle class="btn-led" cx="22" cy="25" r="2" fill="#1d4ed8" opacity="0.4"/>
+      <text x="65" y="30" text-anchor="middle" fill="#94d8c8" font-family="'Baumans','Trebuchet MS','Courier New',monospace" font-size="11" letter-spacing="2">QUICK GAME</text>
+    </svg>
+    <!-- Career -->
+    <svg viewBox="0 0 160 60" width="160" height="60" xmlns="http://www.w3.org/2000/svg" data-action="career">
+      <defs><linearGradient id="tsGAmber" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#eab308"/><stop offset="100%" stop-color="#ca8a04"/></linearGradient></defs>
+      <rect class="btn-body" x="2" y="2" width="156" height="56" rx="10" fill="url(#tsGAmber)" stroke="#a16207" stroke-width="2.5"/>
+      <line x1="2" y1="30" x2="158" y2="30" stroke="#a16207" stroke-width="0.8" opacity="0.35"/>
+      <circle cx="12" cy="12" r="2.5" fill="#1f2937" stroke="#6b7280" stroke-width="1.2"/><circle cx="148" cy="12" r="2.5" fill="#1f2937" stroke="#6b7280" stroke-width="1.2"/>
+      <circle cx="12" cy="48" r="2.5" fill="#1f2937" stroke="#6b7280" stroke-width="1.2"/><circle cx="148" cy="48" r="2.5" fill="#1f2937" stroke="#6b7280" stroke-width="1.2"/>
+      <rect class="btn-vp" x="22" y="16" width="116" height="28" rx="5" fill="#0a1a1a" stroke="#134e4a" stroke-width="2"/>
+      <path d="M28,20 Q36,18 44,20" fill="none" stroke="#fff" stroke-width="0.6" opacity="0.1"/>
+      <circle class="btn-led" cx="28" cy="30" r="2.5" fill="#a16207" opacity="0.4"/>
+      <text x="80" y="36" text-anchor="middle" fill="#94d8c8" font-family="'Baumans','Trebuchet MS','Courier New',monospace" font-size="16" letter-spacing="4">CAREER</text>
+    </svg>
+    <!-- Sandbox -->
+    <svg viewBox="0 0 130 50" width="130" height="50" xmlns="http://www.w3.org/2000/svg" data-action="sandbox">
+      <defs><linearGradient id="tsGGreen" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#10b981"/><stop offset="100%" stop-color="#059669"/></linearGradient></defs>
+      <rect class="btn-body" x="2" y="2" width="126" height="46" rx="8" fill="url(#tsGGreen)" stroke="#047857" stroke-width="2.5"/>
+      <line x1="2" y1="25" x2="128" y2="25" stroke="#047857" stroke-width="0.8" opacity="0.35"/>
+      <circle cx="10" cy="10" r="2.5" fill="#1f2937" stroke="#6b7280" stroke-width="1.2"/><circle cx="120" cy="10" r="2.5" fill="#1f2937" stroke="#6b7280" stroke-width="1.2"/>
+      <circle cx="10" cy="40" r="2.5" fill="#1f2937" stroke="#6b7280" stroke-width="1.2"/><circle cx="120" cy="40" r="2.5" fill="#1f2937" stroke="#6b7280" stroke-width="1.2"/>
+      <rect class="btn-vp" x="18" y="11" width="94" height="28" rx="5" fill="#0a1a1a" stroke="#134e4a" stroke-width="2"/>
+      <path d="M24,15 Q30,13 36,15" fill="none" stroke="#fff" stroke-width="0.6" opacity="0.1"/>
+      <circle class="btn-led" cx="22" cy="25" r="2" fill="#047857" opacity="0.4"/>
+      <text x="65" y="30" text-anchor="middle" fill="#94d8c8" font-family="'Baumans','Trebuchet MS','Courier New',monospace" font-size="11" letter-spacing="2">SANDBOX</text>
+    </svg>
+  </div>
+</div>
+
+<div class="app">
+  <div class="canvasWrap">
     <!-- [v13.6.0] Overlay — semi-transparent "control room window" between animation and SVG -->
     <div id="canvasOverlay"></div>
 
@@ -10193,6 +10460,8 @@
           <div class="item" id="mAtmosphere">Atmosphere <span class="hint">🌍</span></div>
           <div class="item" id="mSettings">Settings <span class="hint">⚙</span></div>
           <div class="item" id="mShortcuts">Shortcuts <span class="hint">?</span></div>
+          <div class="sep"></div>
+          <div class="item" id="mHome">Home</div>
         </div>
       </div>
 
@@ -10932,7 +11201,7 @@ function computeDiurnal(t_s, diurnal) {
    ========================= */
 const SimSettings = {
   // ── Build configuration ──
-  DEV_BUILD: true,          // true = dev branch, false = shipping
+  DEV_BUILD: false,          // true = dev branch, false = shipping
   AUTO_RUN_TESTS: false,    // [v10.9.3] disabled — run manually via Menu → Run Tests
 
   // ── Time settings [v9.0.1] ──
@@ -36915,6 +37184,7 @@ function _handleStickerDrop(ev, section, label, unitId, connId) {
 }
 
 function render() {
+  if (!_gameActive) return;   // [v18.0.0 S-TITLE] skip while title screen is showing
   // [v12.10.0] Safety: sync selectedUnitIds with selectedUnitId if out of sync
   // (covers code paths that set selectedUnitId directly without going through helpers)
   if (ui.selectedUnitId && !ui.selectedUnitIds.has(ui.selectedUnitId)) {
@@ -42283,6 +42553,9 @@ function _rebuildInspectorContent() {
   });
 }
 
+// [v18.0.0 S-TITLE] Game lifecycle gate — false while title screen is showing
+let _gameActive = false;  // [v18.0.0] set true by enterGame()
+
 /* =========================
    [v10.3.0] AUTO-SAVE (M8)
    ========================= */
@@ -43175,6 +43448,7 @@ svg.addEventListener('drop', (ev) => {
 // Keyboard shortcuts
 // [v14.16.0] Guard: should transport/canvas keys fire?
 function shouldFireTransportKeys() {
+  if (!_gameActive) return false;   // [v18.0.0 S-TITLE] block while on title screen
   const ae = document.activeElement;
   if (!ae) return true;
   const tag = ae.tagName;
@@ -45575,6 +45849,30 @@ function applyPlanetBg() {
     syncPlanetBgTime(m);
   }
 }
+
+/** [v18.0.0 S-TITLE] Show a random planet bg at ambient rate for title screen.
+ *  Picks from all available planet backgrounds. Does NOT touch canvasOverlay
+ *  or svg transparency (game UI only). */
+function _activateTitleBg() {
+  const keys = Object.keys(PLANET_BG_MAP);
+  if (!keys.length) return;
+  const pick = keys[Math.floor(Math.random() * keys.length)];
+  const layerId = PLANET_BG_MAP[pick];
+  const prefix = PLANET_CSS_PREFIX[pick];
+  // Show master container + chosen layer only
+  planetBgEl.classList.add('active');
+  for (const el of planetBgEl.querySelectorAll('.planet-bg-layer')) {
+    el.classList.toggle('active', el.id === layerId);
+  }
+  // Ambient 120s cycle, unpaused, no game-time sync needed
+  const layerEl = document.getElementById(layerId);
+  if (layerEl && prefix) {
+    layerEl.classList.remove('anim-paused');
+    layerEl.style.setProperty(`--${prefix}-cycle`, '120s');
+    layerEl.style.setProperty(`--${prefix}-offset`, `${-60}s`);  // start at ~noon
+  }
+}
+
 btnPlanetBg.addEventListener('click', () => {
   const presetKey = SimSettings.getPresetKey();
   if (!PLANET_BG_MAP[presetKey]) return;
@@ -46318,6 +46616,12 @@ function buildExamplesMenu() {
   }
 }
 
+// [v18.0.0 S-TITLE] Home button — return to title screen
+document.getElementById('mHome').addEventListener('click', () => {
+  closeMenus();
+  goHome();
+});
+
 document.getElementById('mClear').addEventListener('click', () => {
   // [v15.0.1] No confirm() — iframes block dialogs. Undo is the safety net.
   _pushUndo('Clear scene');
@@ -46474,59 +46778,175 @@ window.addEventListener('resize', () => {
   if (typeof fitView === 'function') fitView();
 });
 
-// [v14.10.3] Load on startup: auto-save (if matching DEMO_VERSION) or demo_room_survival
-{
-  const DEMO_VERSION = 'v17.7.15'; // [v17.7.15] separate cold/hot water demand, temperature validation
-  const _AUTOSAVE_VER_KEY = AUTOSAVE_KEY + '_demoVer';
-  // [v17.4.0] Read using AUTOSAVE_KEY constant — was hardcoded 'ptis_autosave'
-  // which never matched the write key 'processThis_autosave'. All autosaves
-  // were silently lost on reload.
-  const saved = localStorage.getItem(AUTOSAVE_KEY);
-  const savedDemoVer = localStorage.getItem(_AUTOSAVE_VER_KEY);
-  // [v17.4.0] Also check legacy wrong keys in case user has a save under old key
-  const savedLegacy = !saved ? (localStorage.getItem('ptis_autosave') || localStorage.getItem('processGrid_autosave')) : null;
-  const effectiveSaved = saved || savedLegacy;
-  if (effectiveSaved && (savedDemoVer === DEMO_VERSION || savedLegacy)) {
-    try {
-      const result = scene.importJSON(effectiveSaved);
-      if (result && !result.ok) throw new Error(result.error);
-      if (result.layoutPatch) applyLayout(result.layoutPatch);
-      document.getElementById('processNameInput').value = scene.processName || '';
-      const solveResult = solveScene(scene);
-      updateStatusIndicator(solveResult);
-      _lastSavedJSON = effectiveSaved;
-      setStatus('Restored from auto-save.');
-      // Migrate legacy key to current key
-      if (savedLegacy && !saved) {
-        try { localStorage.setItem(AUTOSAVE_KEY, savedLegacy); } catch(e) {}
-      }
-    } catch (e) {
-      loadExample('demo_room_survival');
-      setStatus('Auto-save corrupt — loaded demo.');
-    }
-  } else {
-    if (effectiveSaved && savedDemoVer !== DEMO_VERSION) {
-      localStorage.removeItem(AUTOSAVE_KEY);  // clear stale auto-save
-    }
-    loadExample('demo_room_survival');
+// [v18.0.0 S-TITLE] ── Title screen animation & actions ───────────────────────
+
+// Title screen pipe-letter animation sequence
+/** Synchronously strip all title animation classes — prevents flash on re-show */
+function _titleAnimReset() {
+  const titleEl = document.getElementById('titleScreen');
+  if (!titleEl) return;
+  titleEl.querySelectorAll('.pipe-anim').forEach(p => p.classList.remove('on'));
+  titleEl.querySelectorAll('.flange-anim').forEach(f => f.classList.remove('on'));
+  const tg = document.getElementById('tsTagWrap');
+  const mn = document.getElementById('tsMenuBtns');
+  const ld = document.getElementById('tsDiagLed');
+  if (tg) tg.classList.remove('visible');
+  if (mn) mn.classList.remove('visible');
+  if (ld) { ld.setAttribute('fill', '#ef4444'); ld.setAttribute('opacity', '0.85'); }
+}
+
+function _titleAnimPlay() {
+  _titleAnimReset();
+  const titleEl = document.getElementById('titleScreen');
+  if (!titleEl) return;
+  const pp = titleEl.querySelectorAll('.pipe-anim');
+  const ff = titleEl.querySelectorAll('.flange-anim');
+  const tg = document.getElementById('tsTagWrap');
+  const mn = document.getElementById('tsMenuBtns');
+  const ld = document.getElementById('tsDiagLed');
+  // Stagger slam + fpop
+  const t0 = 250, dt = 70;
+  pp.forEach(p => {
+    const i = +(p.getAttribute('data-i') || 0);
+    setTimeout(() => p.classList.add('on'), t0 + i * dt);
+  });
+  ff.forEach(f => {
+    const d = parseFloat(f.getAttribute('data-d') || 0);
+    setTimeout(() => f.classList.add('on'), t0 + d * dt + 50);
+  });
+  // LED: red → amber → green
+  const tL = t0 + 12 * dt + 180;
+  if (ld) {
+    setTimeout(() => {
+      ld.setAttribute('fill', '#fbbf24');
+      setTimeout(() => { ld.setAttribute('fill', '#22c55e'); ld.setAttribute('opacity', '1'); }, 120);
+    }, tL);
   }
-  localStorage.setItem(_AUTOSAVE_VER_KEY, DEMO_VERSION);
+  // Tag + buttons fade in
+  if (tg) setTimeout(() => tg.classList.add('visible'), tL + 250);
+  if (mn) setTimeout(() => mn.classList.add('visible'), tL + 550);
 }
 
-updatePropertiesPanel();
-render();
-updateTransportUI();  // [v10.5.0] Show time display immediately
-applyPlanetBg();      // [v13.5.0] Show planet bg if preset is planet_x
-updateSurvivalStrip();   // [v14.3.0] Show atmosphere readout
+// Action map — each button calls titleAction(key)
+const TITLE_ACTIONS = {
+  sandbox:   () => enterGame('sandbox'),
+  career:    () => showToast('Career mode — coming soon'),
+  quickgame: () => showToast('Quick Game — coming soon'),
+};
 
-// [v14.7.0 S-SIM] Seed checkpoint stack with initial state — always revertible to load point
-// Only seed if import didn't already restore checkpoints from the saved file
-if (TimeClock._checkpoints.length === 0) {
-  TimeClock._cpIndex = -1;
-  TimeClock._stepsSinceAutoCp = 0;
-  TimeClock._saveCheckpoint(scene, 'auto');
+function titleAction(key) {
+  const fn = TITLE_ACTIONS[key];
+  if (fn) fn();
 }
-updateTransportUI();  // enable Revert button
+
+// Wire button clicks via data-action attribute
+(function wireTitleButtons() {
+  const wrap = document.getElementById('tsMenuBtns');
+  if (!wrap) return;
+  wrap.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-action]');
+    if (btn) titleAction(btn.dataset.action);
+  });
+})();
+
+// Activate planet background at ambient rate for title screen
+_activateTitleBg();
+
+// Fire title animation on load (deferred slightly for paint)
+setTimeout(_titleAnimPlay, 150);
+
+// [v18.0.0 S-TITLE] ── Game entry transition ──────────────────────────────────
+// Extracted from the v14.10.3 startup IIFE.  Called by title screen button
+// (sandbox mode) or directly by the sentinel guard (test env / DEV_BUILD).
+
+function enterGame(mode) {
+  if (_gameActive) return;  // already entered
+
+  // 1. Hide title screen, show game UI
+  const titleEl = document.getElementById('titleScreen');
+  if (titleEl) titleEl.style.display = 'none';
+  const appEl = document.querySelector('.app');
+  if (appEl) appEl.classList.add('active');
+
+  // 2. Activate game lifecycle
+  _gameActive = true;
+
+  // 3. Load scene (sandbox mode: autosave or demo fallback)
+  if (mode === 'sandbox') {
+    const DEMO_VERSION = 'v18.0.0'; // [v18.0.0 S-TITLE] bumped — clears stale autosave
+    const _AUTOSAVE_VER_KEY = AUTOSAVE_KEY + '_demoVer';
+    const saved = localStorage.getItem(AUTOSAVE_KEY);
+    const savedDemoVer = localStorage.getItem(_AUTOSAVE_VER_KEY);
+    const savedLegacy = !saved ? (localStorage.getItem('ptis_autosave') || localStorage.getItem('processGrid_autosave')) : null;
+    const effectiveSaved = saved || savedLegacy;
+    if (effectiveSaved && (savedDemoVer === DEMO_VERSION || savedLegacy)) {
+      try {
+        const result = scene.importJSON(effectiveSaved);
+        if (result && !result.ok) throw new Error(result.error);
+        if (result.layoutPatch) applyLayout(result.layoutPatch);
+        document.getElementById('processNameInput').value = scene.processName || '';
+        const solveResult = solveScene(scene);
+        updateStatusIndicator(solveResult);
+        _lastSavedJSON = effectiveSaved;
+        setStatus('Restored from auto-save.');
+        if (savedLegacy && !saved) {
+          try { localStorage.setItem(AUTOSAVE_KEY, savedLegacy); } catch(e) {}
+        }
+      } catch (e) {
+        loadExample('demo_room_survival');
+        setStatus('Auto-save corrupt — loaded demo.');
+      }
+    } else {
+      if (effectiveSaved && savedDemoVer !== DEMO_VERSION) {
+        localStorage.removeItem(AUTOSAVE_KEY);
+      }
+      loadExample('demo_room_survival');
+    }
+    localStorage.setItem(_AUTOSAVE_VER_KEY, DEMO_VERSION);
+  }
+
+  // 4. Refresh UI
+  updatePropertiesPanel();
+  render();
+  updateTransportUI();
+  applyPlanetBg();
+  updateSurvivalStrip();
+
+  // 5. Seed checkpoint stack with initial state
+  if (TimeClock._checkpoints.length === 0) {
+    TimeClock._cpIndex = -1;
+    TimeClock._stepsSinceAutoCp = 0;
+    TimeClock._saveCheckpoint(scene, 'auto');
+  }
+  updateTransportUI();
+}
+
+// [v18.0.0 S-TITLE] Return to title screen
+function goHome() {
+  if (!_gameActive) return;
+  autoSaveNow();
+  stopPlay();
+  _gameActive = false;
+  // Hide game UI
+  const appEl = document.querySelector('.app');
+  if (appEl) appEl.classList.remove('active');
+  // Reset animation state BEFORE showing title (prevents flash)
+  _titleAnimReset();
+  // Show title screen
+  const titleEl = document.getElementById('titleScreen');
+  if (titleEl) titleEl.style.display = '';
+  // Pick a new random planet bg + replay animation
+  _activateTitleBg();
+  _titleAnimPlay();
+}
+
+// [v18.0.0 S-TITLE] Sentinel: detect real title screen vs test/stripped env
+const _hasTitleScreen = document.getElementById('titleScreen')?.dataset?.title === 'ptis';
+if (!_hasTitleScreen || SimSettings.DEV_BUILD) {
+  // No real title screen (test env) or dev build — boot directly, skip title
+  if (_hasTitleScreen) document.getElementById('titleScreen').style.display = 'none';
+  enterGame('sandbox');
+}
 
 </script>
 
