@@ -18717,7 +18717,7 @@ UnitRegistry.register('food_storage', {
     }
 
     // 4b. Overpressure relief valve (standard relief pattern, same as simple_tank)
-    const P_relief = par.P_relief || 25000000;
+    const P_relief = par.P_relief || 30000000;
     const ventConnected = ctx.portConnected('vent');
     const ventBlocked = _blocked ? _blocked.has('vent') : false;
     const _ventWasActive = ctx.scratch._prevLast?._ventActive || false;
@@ -18774,6 +18774,10 @@ UnitRegistry.register('food_storage', {
     const totalMol = Object.values(inv.n).reduce((a,b) => a+b, 0);
     const spoilPctDay = k_spoil * 86400 * 100;
     const ch2o_remaining = inv.n.CH2O || 0;
+    // Food fill gauge: CH₂O fraction relative to rated capacity at P_relief
+    // n_max = P_relief × V / (R × T_REF) — gauge calibration at 294K reference
+    const n_max_ch2o = P_relief * V / (8.314 * 294);
+    const food_fill_frac = Math.min(1, ch2o_remaining / Math.max(1, n_max_ch2o));
 
     u.powerDemand = 0;  // no electricity — cooling is via jacket
 
@@ -18782,6 +18786,7 @@ UnitRegistry.register('food_storage', {
       T_K: inv.T_K,
       totalMol, n: { ...inv.n },
       ch2o_remaining,
+      food_fill_frac,
       spoil_rate_mol_s: spoil_rate,
       spoil_pct_day: spoilPctDay,
       Q_spoilage_W: Q_spoilage,
@@ -23854,7 +23859,7 @@ ProfileRegistry.register('food_crate', {
   selectionGuide: 'A 100L canister holding ~1200 mol CH₂O (30 days for 2 people IF kept cold). Without coolant, food spoils at 3%/day at room temperature — you have 16 days. Connect coolant below 4°C to preserve.',
   limits: { 1: { T_LL:233, T_HH:473, P_LL:0, P_HH:35000000 } },
   defaults: { 1: { volume_m3:0.1, gasDrawRate:0.001, opening_gas_pct:46.6,
-                    P_init:29300000, P_relief:25000000, UA_jacket:50,
+                    P_init:29300000, P_relief:30000000, UA_jacket:50,
                     initialComposition:{CH2O:1} } },
   equipmentNote: "Reinforced steel canister, 100L, with brazed cooling jacket. Same pressure rating as a gas bottle.",
   operatingNote: "Connect biogas_out to drain decomposition gas (CH₄+CO₂). Vent port is overpressure safety only. Connect coolant to keep T < 4°C and stop spoilage.",
@@ -32336,7 +32341,7 @@ const _BODY_BBOX = {
   combustion_chamber:       { x:10, y:8,  w:76, h:66 },
   room:                     { x:16, y:16, w:256, h:400 },  // [v17.6.3] 6×9 tiles (288×432 px), 16px wall inset
   cooled_tank:              { x:22, y:12, w:52,  h:84  },  // [v17.7.0] bonbonne upper zone, 2×3
-  food_storage:             { x:4,  y:16, w:88,  h:64 },   // [v17.6.3]
+  food_storage:             { x:8,  y:4,  w:80,  h:172 },  // [v17.11.0] 2×4 fridge
 };
 
 // [v16.9.8 S-PARTICLES Phase 0C] Unit viewport geometry for particle clipping
@@ -34426,48 +34431,249 @@ _RAGTAG_SYMBOLS.simple_open_tank = function(g, wx, wy, ww, wh, pal, def, unitId)
 };
 
 _RAGTAG_SYMBOLS.food_storage = function(g, wx, wy, ww, wh, pal, def, unitId) {
-  // [v17.11.0] Food storage: 2×4, tall fridge body (rows 0–3), serpentine inline with cool ports at row 4
+  // [v17.11.0] Food storage: 2×4 pressurized fridge — round porthole, postcards, fill bars, grill
+  // Layout: body y=4..176 (rows 0–3), serpentine at y=184 (row 4)
   const u = scene.units.get(unitId);
   const last = u?.last || {};
   const frozen = last.frozen;
+  const spoilFast = (last.spoil_pct_day || 0) > 10;
+  const spoiling = (last.spoil_pct_day || 0) > 1;
   const pres = getPresentation(def, u);
   const _t = scene.tile;
+  const _ud = scene.runtime?.unitData?.get(unitId);
 
-  // Register cool_in/cool_out as zero-length stub tips (same as cooled_tank)
+  // Register cool_in/cool_out as zero-length stub tips
   if (!_rtNozzle._elbowTips) _rtNozzle._elbowTips = new Map();
   for (const pid of ['cool_in','cool_out']) {
     const pp = pres.ports[pid]; if (!pp) continue;
-    const px = wx + pp.x * _t, py = wy + pp.y * _t;
-    _rtNozzle._elbowTips.set(`${unitId}:${pid}`, { x: px, y: py });
+    _rtNozzle._elbowTips.set(`${unitId}:${pid}`, { x: wx + pp.x * _t, y: wy + pp.y * _t });
   }
 
-  // Body bounding box — tall fridge spanning rows 0–3 (leaves row 4 for serpentine)
-  const bx = wx + 8, by = wy + 8, bw = ww - 16, bh = _t * 4 - 24;
+  // Body bounding box — ends before serpentine row
+  const bx = wx + 8, by = wy + 4, bw = ww - 16, bh = 172;
+
+  // ── Dashed outline (cooled_tank style — enclosure hint) ──
+  g.appendChild(svgEl('rect', { x: wx - 2, y: wy - 2, width: ww + 4, height: _t * 4 + 4,
+    rx: 4, fill: 'none', stroke: '#1e3a5f', 'stroke-width': 1, 'stroke-dasharray': '4 3',
+    opacity: 0.15, 'pointer-events': 'none' }));
+
   _rtNozzle(g, wx, wy, ww, wh, bx, by, bw, bh, def, pres, pal, unitId);
 
-  // Crate body
+  // ── Cabinet body (category-colored) ──
   g.appendChild(svgEl('rect', { x: bx, y: by, width: bw, height: bh,
-    rx: 6, fill: pal.fillUrl, stroke: pal.stroke, 'stroke-width': 2, 'pointer-events': 'none' }));
-  // Inner dark panel
-  g.appendChild(svgEl('rect', { x: bx + 6, y: by + 6, width: bw - 12, height: bh - 12,
-    rx: 3, fill: frozen ? '#0a1828' : '#1a1008', stroke: pal.rim, 'stroke-width': 0.5, 'pointer-events': 'none' }));
-  // Label — centered in the crate body
-  g.appendChild(svgEl('text', { x: wx + ww/2, y: by + bh/2 + 2,
-    'text-anchor': 'middle', 'dominant-baseline': 'central',
-    'font-family': 'monospace', 'font-size': '9px',
-    fill: frozen ? '#93c5fd' : '#fbbf24', 'pointer-events': 'none'
-  })).textContent = frozen ? 'FROZEN' : 'FOOD';
-  // Bolts
-  _rtBolt(g, bx + 10, by + 10); _rtBolt(g, bx + bw - 10, by + 10);
-  _rtBolt(g, bx + 10, by + bh - 10); _rtBolt(g, bx + bw - 10, by + bh - 10);
+    rx: 5, fill: pal.fillUrl, stroke: pal.stroke, 'stroke-width': 2.5, 'pointer-events': 'none' }));
 
-  // Cooling serpentine — inline with cool ports at y=4 (bottom edge)
-  const sy = wy + _t * 4;  // cool port y-coordinate
+  // ── Status LED (top-left, aligned with LCD center) ──
+  const ledColor = frozen ? '#3b82f6' : spoilFast ? '#ef4444' : spoiling ? '#f59e0b' : '#22c55e';
+  g.appendChild(svgEl('circle', { cx: wx + 16, cy: wy + 13, r: 2.5,
+    fill: ledColor, 'data-anim': 'led-blink', 'data-phase': '0.4', 'pointer-events': 'none' }));
+
+  // ── Temperature LCD display (centered) ──
+  g.appendChild(svgEl('rect', { x: wx + 30, y: wy + 8, width: 36, height: 10,
+    rx: 2.5, fill: '#0a0a0a', stroke: '#333', 'stroke-width': 0.5, 'pointer-events': 'none' }));
+  g.appendChild(svgEl('rect', { x: wx + 31, y: wy + 9, width: 34, height: 8,
+    rx: 2, fill: '#0c1210', 'pointer-events': 'none' }));
+  const T_K = _ud?.last?.T_K || 294;
+  const T_C = (T_K - 273.15).toFixed(T_K < 273 ? 0 : 1);
+  const lcdColor = frozen ? '#3b82f6' : T_K > 310 ? '#ef4444' : spoiling ? '#f59e0b' : '#22d3ee';
+  const lcdText = svgEl('text', { x: wx + 48, y: wy + 15, 'text-anchor': 'middle',
+    'font-family': 'monospace', 'font-size': '5.5px', fill: lcdColor,
+    'letter-spacing': '0.4', 'pointer-events': 'none' });
+  lcdText.textContent = T_C + '\u00B0C';
+  g.appendChild(lcdText);
+
+  // ── Door hinges (left side, 2 small circles suggesting the face opens) ──
+  g.appendChild(svgEl('circle', { cx: bx, cy: by + bh * 0.30, r: 1.8,
+    fill: pal.stroke, stroke: '#4b4b40', 'stroke-width': 0.4, 'pointer-events': 'none' }));
+  g.appendChild(svgEl('circle', { cx: bx, cy: by + bh * 0.70, r: 1.8,
+    fill: pal.stroke, stroke: '#4b4b40', 'stroke-width': 0.4, 'pointer-events': 'none' }));
+
+  // ── Round viewing porthole ──
+  const pcx = wx + 48, pcy = wy + 52, pr = 26;
+  g.appendChild(svgEl('circle', { cx: pcx, cy: pcy, r: pr,
+    fill: '#060a08', stroke: '#555', 'stroke-width': 1, 'pointer-events': 'none' }));
+  const clipId = 'fc-' + unitId;
+  const clipEl = svgEl('clipPath', { id: clipId });
+  clipEl.appendChild(svgEl('circle', { cx: pcx, cy: pcy, r: pr - 1 }));
+  g.appendChild(clipEl);
+  const cg = svgEl('g', { 'clip-path': `url(#${clipId})`, 'pointer-events': 'none' });
+
+  // Interior glow (status light in the freezer)
+  const glowFill = frozen ? '#081838' : spoilFast ? '#281008' : spoiling ? '#281008' : '#062828';
+  const glowOp = frozen ? 0.4 : 0.3;
+  cg.appendChild(svgEl('rect', { x: pcx - pr, y: pcy - pr, width: pr * 2, height: pr * 2,
+    fill: glowFill, opacity: glowOp }));
+
+  // Shelf lines
+  const shelfColor = frozen ? '#1e3050' : '#333';
+  cg.appendChild(svgEl('line', { x1: wx + 22, y1: wy + 42, x2: wx + 74, y2: wy + 42,
+    stroke: shelfColor, 'stroke-width': 0.6 }));
+  cg.appendChild(svgEl('line', { x1: wx + 22, y1: wy + 58, x2: wx + 74, y2: wy + 58,
+    stroke: shelfColor, 'stroke-width': 0.6 }));
+
+  // Food items — 11 items, varied shapes, positioned ON trays
+  // Each: [type, x, y, params...] where type='r'(rect) or 'c'(circle)
+  const _fi = [
+    // Tray 1 (y=32..41, rests on shelf at y=42)
+    ['r', 28,32, 7,9, 1.5, '#d44030','#9a7030','#5b8aa8', 0.7],  // red can
+    ['c', 42,37, 4,0, 0,   '#e8a030','#8a6828','#6a9ab8', 0.65], // orange fruit
+    ['r', 50,34, 10,7, 2,  '#88b848','#6a8030','#5090a0', 0.6],  // green package
+    ['r', 64,32, 6,9, 1,   '#c89058','#8a7848','#5888a0', 0.55], // brown bottle
+    // Tray 2 (y=46..57, rests on shelf at y=58)
+    ['r', 26,46, 12,11, 2, '#e8c840','#9a8828','#5b8aa8', 0.6],  // yellow block
+    ['c', 46,52, 4,0, 0,   '#d05030','#8a4828','#5878a0', 0.6],  // red fruit
+    ['r', 54,49, 9,8, 1.5, '#a0c050','#6a8030','#5898a8', 0.5],  // green item
+    // Tray 3 (y=61..69, rests on porthole bottom)
+    ['c', 32,65, 3.5,0, 0, '#c04828','#7a3828','#5080a0', 0.6],  // red fruit
+    ['r', 40,62, 11,7, 2,  '#c89860','#8a7840','#5888a0', 0.55], // tan package
+    ['r', 55,61, 7,8, 1.5, '#88b848','#6a8030','#5898a8', 0.5],  // green item
+    ['r', 66,60, 5,9, 1,   '#d4a050','#9a8040','#5888a0', 0.45], // brown jar
+  ];
+  // Food fill fraction — computed in tick(), read from u.last (no thermo in renderer)
+  const foodFrac = _ud?.last?.food_fill_frac ?? 1;
+  const nVisible = Math.max(0, Math.round(foodFrac * _fi.length));
+
+  for (let i = 0; i < nVisible; i++) {
+    const it = _fi[i];
+    const col = frozen ? it[8] : (spoilFast || spoiling) ? it[7] : it[6];
+    const op = frozen ? 0.6 : it[9];
+    if (it[0] === 'r') {
+      cg.appendChild(svgEl('rect', { x: wx + it[1], y: wy + it[2],
+        width: it[3], height: it[4], rx: it[5], fill: col, opacity: op }));
+    } else {
+      cg.appendChild(svgEl('circle', { cx: wx + it[1], cy: wy + it[2],
+        r: it[3], fill: col, opacity: op }));
+    }
+  }
+
+  // Frost crystals when frozen
+  if (frozen) {
+    const _fc = [[32,34],[58,50],[36,62]];
+    for (const [fx,fy] of _fc) {
+      cg.appendChild(svgEl('line', { x1: wx+fx, y1: wy+fy, x2: wx+fx+5, y2: wy+fy-2,
+        stroke: '#93c5fd', 'stroke-width': 0.7, opacity: 0.5, 'stroke-linecap': 'round' }));
+      cg.appendChild(svgEl('line', { x1: wx+fx+1, y1: wy+fy-3, x2: wx+fx+3, y2: wy+fy+1,
+        stroke: '#93c5fd', 'stroke-width': 0.5, opacity: 0.35, 'stroke-linecap': 'round' }));
+    }
+  }
+  g.appendChild(cg);
+  // Porthole rim (on top of clipped content)
+  g.appendChild(svgEl('circle', { cx: pcx, cy: pcy, r: pr,
+    fill: 'none', stroke: '#555', 'stroke-width': 1, 'pointer-events': 'none' }));
+
+  // ── Handle (rounded bar, right side, centered vertically on body) ──
+  const handleH = 70, handleY = by + (bh - handleH) / 2;
+  g.appendChild(svgEl('rect', { x: wx + 78, y: handleY, width: 6, height: handleH,
+    rx: 2.5, fill: '#d4a050', stroke: '#a07830', 'stroke-width': 0.6, 'pointer-events': 'none' }));
+  g.appendChild(svgEl('line', { x1: wx + 81, y1: handleY + 6, x2: wx + 81, y2: handleY + handleH - 6,
+    stroke: '#e8c070', 'stroke-width': 0.8, opacity: 0.4, 'pointer-events': 'none' }));
+
+  // ── Postcards (4 photos with magnets, tilted) ──
+  // 1. Smiley beach photo (top-left of panel)
+  const _pg = svgEl('g', { transform: `translate(${wx+14},${wy+84}) rotate(-7,12,9)`, 'pointer-events': 'none' });
+  const _sf = frozen;
+  _pg.appendChild(svgEl('rect', { x:0,y:0,width:24,height:18,rx:1, fill:_sf?'#c0c8d8':'#d0dce8', stroke:_sf?'#8898a8':'#9aa8b8', 'stroke-width':0.4 }));
+  _pg.appendChild(svgEl('rect', { x:1,y:1,width:22,height:11, fill:_sf?'#3878a0':'#58a8d8' }));
+  _pg.appendChild(svgEl('circle', { cx:8,cy:7,r:3, fill:_sf?'#a0a080':'#f0d848' }));
+  _pg.appendChild(svgEl('path', { d:'M1 11 Q6 8 12 10 Q18 7 23 11 L23 12 L1 12 Z', fill:_sf?'#a0a888':'#e0c870' }));
+  _pg.appendChild(svgEl('circle', { cx:14,cy:6,r:4, fill:_sf?'#d0d8e0':'#f0e0c0', stroke:_sf?'#a0a8b0':'#c8b898', 'stroke-width':0.3 }));
+  _pg.appendChild(svgEl('circle', { cx:12.5,cy:5,r:0.7, fill:_sf?'#446':'#333' }));
+  _pg.appendChild(svgEl('circle', { cx:15.5,cy:5,r:0.7, fill:_sf?'#446':'#333' }));
+  _pg.appendChild(svgEl('path', { d:'M12 7.5 Q14 9.5 16 7.5', fill:'none', stroke:_sf?'#446':'#333', 'stroke-width':0.6, 'stroke-linecap':'round' }));
+  _pg.appendChild(svgEl('circle', { cx:12,cy:0,r:1.8, fill:_sf?'#7080a0':'#d04030', stroke:_sf?'#5060a0':'#a03020', 'stroke-width':0.3 }));
+  g.appendChild(_pg);
+
+  // 2. Mondrian postcard (top-right of panel)
+  const _mg = svgEl('g', { transform: `translate(${wx+42},${wy+82}) rotate(5,12,9)`, 'pointer-events': 'none' });
+  const _mR=_sf?'#8090c0':'#d44030', _mB=_sf?'#4060a0':'#2060c0', _mY=_sf?'#90a0c0':'#e8c840', _mW=_sf?'#c0c8d8':'#f0e8d8';
+  _mg.appendChild(svgEl('rect', { x:0,y:0,width:24,height:18,rx:0.5, fill:_mW, stroke:_sf?'#556':'#222', 'stroke-width':0.4 }));
+  _mg.appendChild(svgEl('rect', { x:1.5,y:1.5,width:8,height:6, fill:_mR }));
+  _mg.appendChild(svgEl('rect', { x:10.5,y:1.5,width:12,height:3, fill:_mB }));
+  _mg.appendChild(svgEl('rect', { x:10.5,y:5,width:5,height:3, fill:_mY }));
+  _mg.appendChild(svgEl('rect', { x:1.5,y:8,width:5,height:8.5, fill:_mB }));
+  _mg.appendChild(svgEl('rect', { x:7,y:8,width:15.5,height:3, fill:_mW }));
+  _mg.appendChild(svgEl('rect', { x:7,y:11.5,width:8,height:5, fill:_mY }));
+  _mg.appendChild(svgEl('rect', { x:15.5,y:11.5,width:7,height:5, fill:_mR }));
+  _mg.appendChild(svgEl('rect', { x:0,y:0,width:24,height:18,rx:0.5, fill:'none', stroke:_sf?'#556':'#222', 'stroke-width':0.4 }));
+  _mg.appendChild(svgEl('circle', { cx:12,cy:0,r:1.8, fill:_sf?'#6070a0':'#888', stroke:_sf?'#5060a0':'#666', 'stroke-width':0.3 }));
+  g.appendChild(_mg);
+
+  // 3. Planet X from orbit (bottom-left of panel)
+  const _xg = svgEl('g', { transform: `translate(${wx+16},${wy+108}) rotate(-4,14,10)`, 'pointer-events': 'none' });
+  const _xbg=_sf?'#100818':'#1a1020', _xpl=_sf?'#4838a0':'#8858a0', _xpi=_sf?'#3828a0':'#7048a0';
+  _xg.appendChild(svgEl('rect', { x:0,y:0,width:28,height:20,rx:1, fill:_xbg, stroke:_sf?'#1a1830':'#3a2840', 'stroke-width':0.4 }));
+  _xg.appendChild(svgEl('circle', { cx:18,cy:11,r:6, fill:_xpl }));
+  _xg.appendChild(svgEl('circle', { cx:18,cy:11,r:5, fill:_xpi }));
+  _xg.appendChild(svgEl('path', { d:'M13 13 Q15.5 9 18 12 Q20.5 9 23 13', fill:_sf?'#685030':'#c87030', opacity:_sf?0.3:0.4 }));
+  _xg.appendChild(svgEl('circle', { cx:18,cy:11,r:3, fill:_sf?'#6858b0':'#c888e0', opacity:_sf?0.2:0.2 }));
+  [{ x:5,y:5,r:0.5,o:0.6 },{ x:10,y:3,r:0.4,o:0.4 },{ x:3,y:12,r:0.4,o:0.5 },
+   { x:25,y:4,r:0.5,o:0.5 },{ x:7,y:16,r:0.3,o:0.3 },{ x:24,y:15,r:0.4,o:0.4 }
+  ].forEach(s => _xg.appendChild(svgEl('circle', { cx:s.x,cy:s.y,r:s.r, fill:_sf?'#88a':'#fff', opacity:_sf?s.o*0.7:s.o })));
+  _xg.appendChild(svgEl('rect', { x:1,y:17,width:26,height:2.5, fill:_xbg }));
+  const _xt = svgEl('text', { x:14,y:19.5, 'text-anchor':'middle', 'font-family':'sans-serif', 'font-size':'2px', fill:_sf?'#405080':'#8060a0', 'letter-spacing':'0.3' });
+  _xt.textContent = 'PLANET X';
+  _xg.appendChild(_xt);
+  _xg.appendChild(svgEl('circle', { cx:14,cy:0,r:1.8, fill:_sf?'#7080a0':'#d04030', stroke:_sf?'#5060a0':'#a03020', 'stroke-width':0.3 }));
+  g.appendChild(_xg);
+
+  // 4. HOME landscape (bottom-right of panel)
+  const _hg = svgEl('g', { transform: `translate(${wx+48},${wy+112}) rotate(3,10,8)`, 'pointer-events': 'none' });
+  _hg.appendChild(svgEl('rect', { x:0,y:0,width:20,height:16,rx:1, fill:_sf?'#d8e0f0':'#f8f0e0', stroke:_sf?'#8898aa':'#c0b090', 'stroke-width':0.3 }));
+  _hg.appendChild(svgEl('rect', { x:1,y:1,width:18,height:10, fill:_sf?'#a0b8d0':'#d8e8f0' }));
+  _hg.appendChild(svgEl('circle', { cx:15,cy:4,r:2, fill:_sf?'#a0a080':'#f0d020' }));
+  _hg.appendChild(svgEl('path', { d:'M1 10 L5 6 L9 8 L14 4 L19 7 L19 11 L1 11 Z', fill:_sf?'#607868':'#508040', opacity:_sf?0.5:0.7 }));
+  _hg.appendChild(svgEl('path', { d:'M1 10 L6 8 L10 9 L14 7 L19 9 L19 11 L1 11 Z', fill:_sf?'#506858':'#407030', opacity:_sf?0.4:0.5 }));
+  _hg.appendChild(svgEl('rect', { x:1,y:11,width:18,height:4, fill:_sf?'#d8e0f0':'#f8f0e0' }));
+  const _ht = svgEl('text', { x:10,y:14.5, 'text-anchor':'middle', 'font-family':'sans-serif', 'font-size':'2px', fill:_sf?'#6878a0':'#8a7a5a', 'letter-spacing':'0.2' });
+  _ht.textContent = 'HOME';
+  _hg.appendChild(_ht);
+  _hg.appendChild(svgEl('circle', { cx:10,cy:0,r:1.5, fill:_sf?'#6070a0':'#888', stroke:_sf?'#5060a0':'#666', 'stroke-width':0.3 }));
+  g.appendChild(_hg);
+
+  // ── Fill level bars (5 bars, food_fill_frac from tick) + FOOD label ──
+  const litCount = Math.max(0, Math.min(5, Math.ceil(foodFrac * 5)));
+  const barTrayX = wx + 22, barTrayY = wy + 138;
+  // Label
+  const _fl = svgEl('text', { x: barTrayX, y: barTrayY - 2, 'font-family': 'monospace',
+    'font-size': '3.5px', fill: pal.stroke, opacity: 0.6, 'pointer-events': 'none' });
+  _fl.textContent = 'FOOD';
+  g.appendChild(_fl);
+  // Bar tray
+  g.appendChild(svgEl('rect', { x: barTrayX, y: barTrayY, width: 46, height: 6,
+    rx: 1.5, fill: '#6a3a12', stroke: '#502a0a', 'stroke-width': 0.4, 'pointer-events': 'none' }));
+  for (let bi = 0; bi < 5; bi++) {
+    const lit = bi < litCount;
+    let barCol;
+    if (!lit) { barCol = '#3a2a0a'; }
+    else if (foodFrac > 0.6) { barCol = '#22c55e'; }
+    else if (foodFrac > 0.2) { barCol = '#f59e0b'; }
+    else { barCol = '#ef4444'; }
+    g.appendChild(svgEl('rect', { x: barTrayX + 2 + bi * 7.5, y: barTrayY + 1.5, width: 6, height: 3,
+      rx: 1, fill: barCol, opacity: lit ? 0.9 : 0.4, 'pointer-events': 'none' }));
+  }
+
+  // ── Aeration grill (centered at bottom of body) ──
+  const grX = wx + 20, grY = wy + 152;
+  g.appendChild(svgEl('rect', { x: grX, y: grY, width: 56, height: 14,
+    rx: 2, fill: '#8a4e1a', stroke: '#6a3a12', 'stroke-width': 0.5, 'pointer-events': 'none' }));
+  g.appendChild(svgEl('line', { x1: grX+4, y1: grY+3.5, x2: grX+52, y2: grY+3.5,
+    stroke: '#6a3a12', 'stroke-width': 0.5, opacity: 0.7, 'pointer-events': 'none' }));
+  g.appendChild(svgEl('line', { x1: grX+4, y1: grY+7, x2: grX+52, y2: grY+7,
+    stroke: '#6a3a12', 'stroke-width': 0.5, opacity: 0.7, 'pointer-events': 'none' }));
+  g.appendChild(svgEl('line', { x1: grX+4, y1: grY+10.5, x2: grX+52, y2: grY+10.5,
+    stroke: '#6a3a12', 'stroke-width': 0.5, opacity: 0.7, 'pointer-events': 'none' }));
+
+  // ── Corner bolts (inset from edges) ──
+  _rtBolt(g, wx + 14, wy + 10);  _rtBolt(g, wx + 82, wy + 10);
+  _rtBolt(g, wx + 14, wy + 170); _rtBolt(g, wx + 82, wy + 170);
+
+  // ── Cooling serpentine (inline with cool ports at y=4 tiles) ──
+  const serpY = wy + _t * 4;
   g.appendChild(svgEl('path', {
-    d: `M${wx+2},${sy} L${wx+10},${sy} L${wx+10},${sy-12} L${wx+18},${sy-12} L${wx+18},${sy}` +
-       ` L${wx+30},${sy} L${wx+30},${sy-12} L${wx+42},${sy-12} L${wx+42},${sy}` +
-       ` L${wx+54},${sy} L${wx+54},${sy-12} L${wx+66},${sy-12} L${wx+66},${sy}` +
-       ` L${wx+78},${sy} L${wx+78},${sy-12} L${wx+88},${sy-12} L${wx+88},${sy} L${wx+94},${sy}`,
+    d: `M${wx+2},${serpY} L${wx+10},${serpY} L${wx+10},${serpY-12} L${wx+18},${serpY-12} L${wx+18},${serpY}` +
+       ` L${wx+30},${serpY} L${wx+30},${serpY-12} L${wx+42},${serpY-12} L${wx+42},${serpY}` +
+       ` L${wx+54},${serpY} L${wx+54},${serpY-12} L${wx+66},${serpY-12} L${wx+66},${serpY}` +
+       ` L${wx+78},${serpY} L${wx+78},${serpY-12} L${wx+88},${serpY-12} L${wx+88},${serpY} L${wx+94},${serpY}`,
     fill: 'none', stroke: '#67e8f9', 'stroke-width': 2.5,
     'stroke-linecap': 'round', 'stroke-linejoin': 'round', opacity: 0.6, 'pointer-events': 'none'
   }));
@@ -46197,7 +46403,7 @@ DemoScenes.register('demo_v1', 'Demo V1 — Sabatier / Brayton / SMR / Tank',
 // 2 bends + 3 mixers + 2 sinks.  All waste routed to single vent/sewer sinks.
 // O₂ bottle P_relief raised to 350 bar (above P_init 305 bar).
 DemoScenes.register('demo_room_survival', 'Ineluctable Fate — Day 0 (Room)',
-  '{"version":19,"processName":"Ineluctable Fate \u2014 Day 0","grid":{"w":40,"h":32,"tile":48},"settings":{"atmospherePreset":"planet_x","dt":3600},"units":[{"id":"room","defId":"room","profileId":"room","tier":1,"name":"Crew Room","x":0,"y":0,"rot":0,"params":{"nPeople":2,"powerPriority":1}},{"id":"o2_bottle","defId":"simple_tank","profileId":"simple_gas_bottle","tier":1,"name":"O\u2082 Bottle","x":-7,"y":1,"rot":0,"params":{"volume_m3":0.01,"P_init":30553950,"initialComposition":{"O2":1},"gasDrawRate":0.001,"opening_gas_pct":46.6,"P_relief":35000000}},{"id":"water_barrel","defId":"simple_open_tank","profileId":"simple_open_tank","tier":1,"name":"Water Barrel","x":-7,"y":5,"rot":0,"params":{"volume_m3":0.1,"initialComposition":{"H2O":1},"level_init":0.3348,"drawRate":0.01,"opening_pct":25.8,"overflow_level":90}},{"id":"food_crate","defId":"food_storage","profileId":"food_crate","tier":1,"name":"Food Crate","x":-11,"y":3,"rot":0,"params":{"volume_m3":0.1,"gasDrawRate":0.001,"opening_gas_pct":46.6,"P_init":29331792,"initialComposition":{"CH2O":1},"P_relief":32000000,"UA_jacket":50}},{"id":"scrubber","defId":"membrane_separator","profileId":"membrane_separator","tier":1,"name":"LiOH Scrubber","x":8,"y":1,"rot":0,"params":{"targetSpecies":"CO2","extractionFrac":0.99,"consumable":{"name":"LiOH Cartridges","capacity":500,"remaining":500,"maxRate":5},"variant":"flip"}},{"id":"co2_snk","defId":"sink","profileId":"sink","tier":1,"name":"Vent","x":14,"y":-6,"rot":0,"params":{}},{"id":"cooler","defId":"air_cooler","profileId":"air_cooler","tier":1,"name":"Air Cooler","x":10,"y":5,"rot":0,"params":{"T_out":294,"UA_kW_K":1,"max_fan_power_W":200,"powerPriority":2,"variant":"vert-elec-L"}},{"id":"heater","defId":"electric_heater","profileId":"electric_heater","tier":1,"name":"Air Heater","x":7,"y":7,"rot":0,"params":{"T_out":294,"powerPriority":2,"variant":"mirror"}},{"id":"battery","defId":"battery","profileId":"battery","tier":1,"name":"Battery","x":1,"y":-3,"rot":0,"params":{"peakPower_kW":100,"capacity_J":1800000000,"initialSOC":1}},{"id":"power_disp","defId":"power_dispatcher_5","profileId":"power_dispatcher_5","tier":1,"name":"Power Dispatch","x":4,"y":-3,"rot":0,"params":{}},{"id":"surplus_snk","defId":"sink_electrical","profileId":"sink_electrical","tier":1,"name":"Surplus","x":6,"y":-5,"rot":0,"params":{"ratedPower_kW":50,"powerPriority":5}},{"id":"simple_open_tank-1","defId":"simple_open_tank","profileId":"simple_open_tank","tier":1,"name":"Hot Water Barrel","x":-4,"y":7,"rot":0,"params":{"volume_m3":0.1,"initialComposition":{"H2O":1},"level_init":0.3348,"drawRate":0.01,"opening_pct":6.4,"overflow_level":90}},{"id":"bend-3","defId":"bend","profileId":"bend","tier":1,"name":"Pipe Bend 3","x":-11,"y":-6,"rot":0,"params":{"variant":"down-right"}},{"id":"simple_mixer-5","defId":"simple_mixer","profileId":"simple_mixer","tier":1,"name":"Simple Mixer 5","x":-7,"y":-6,"rot":0,"params":{"variant":"recycle-B"}},{"id":"simple_mixer-8","defId":"simple_mixer","profileId":"simple_mixer","tier":1,"name":"Simple Mixer 5 (copy)","x":10,"y":-6,"rot":0,"params":{"variant":"recycle-B"}},{"id":"bend-12","defId":"bend","profileId":"bend","tier":1,"name":"Pipe Bend 3 (copy)","x":-7,"y":9,"rot":0,"params":{"variant":"up-right"}},{"id":"simple_mixer-14","defId":"simple_mixer","profileId":"simple_mixer","tier":1,"name":"Simple Mixer 5 (copy)","x":-4,"y":9,"rot":0,"params":{"variant":"recycle-T"}},{"id":"sink-17","defId":"sink","profileId":"sink","tier":1,"name":"Sewer","x":14,"y":9,"rot":0,"params":{}}],"connections":[{"id":"c_o2","from":{"unitId":"o2_bottle","portId":"gas_out"},"to":{"unitId":"room","portId":"o2_in"}},{"id":"c_h2o","from":{"unitId":"water_barrel","portId":"mat_out"},"to":{"unitId":"room","portId":"h2o_in"}},{"id":"c_food","from":{"unitId":"food_crate","portId":"food_out"},"to":{"unitId":"room","portId":"food_in"}},{"id":"c_exhaust","from":{"unitId":"room","portId":"air_exhaust"},"to":{"unitId":"scrubber","portId":"mat_in"}},{"id":"c_cool_in","from":{"unitId":"scrubber","portId":"perm_out"},"to":{"unitId":"cooler","portId":"mat_in"}},{"id":"c_heat_in","from":{"unitId":"cooler","portId":"mat_out"},"to":{"unitId":"heater","portId":"mat_in"}},{"id":"c_return","from":{"unitId":"heater","portId":"mat_out"},"to":{"unitId":"room","portId":"air_return"}},{"id":"e_bat","from":{"unitId":"battery","portId":"elec"},"to":{"unitId":"power_disp","portId":"elec_in_1"}},{"id":"e_room","from":{"unitId":"power_disp","portId":"elec_out_1"},"to":{"unitId":"room","portId":"elec_in"}},{"id":"e_cooler","from":{"unitId":"power_disp","portId":"elec_out_2"},"to":{"unitId":"cooler","portId":"elec_in"}},{"id":"e_heater","from":{"unitId":"power_disp","portId":"elec_out_3"},"to":{"unitId":"heater","portId":"elec_in"}},{"id":"e_surplus","from":{"unitId":"power_disp","portId":"elec_surplus"},"to":{"unitId":"surplus_snk","portId":"elec_in"}},{"id":"conn-2","from":{"unitId":"simple_open_tank-1","portId":"mat_out"},"to":{"unitId":"room","portId":"hot_water_in"}},{"id":"conn-4","from":{"unitId":"food_crate","portId":"biogas_out"},"to":{"unitId":"bend-3","portId":"mat_in"}},{"id":"conn-6","from":{"unitId":"bend-3","portId":"mat_out"},"to":{"unitId":"simple_mixer-5","portId":"mat_in_1"}},{"id":"conn-7","from":{"unitId":"o2_bottle","portId":"vent"},"to":{"unitId":"simple_mixer-5","portId":"mat_in_2"}},{"id":"conn-9","from":{"unitId":"scrubber","portId":"ret_out"},"to":{"unitId":"simple_mixer-8","portId":"mat_in_2"}},{"id":"conn-10","from":{"unitId":"simple_mixer-5","portId":"mat_out"},"to":{"unitId":"simple_mixer-8","portId":"mat_in_1"}},{"id":"conn-11","from":{"unitId":"simple_mixer-8","portId":"mat_out"},"to":{"unitId":"co2_snk","portId":"mat_in"}},{"id":"conn-13","from":{"unitId":"water_barrel","portId":"overflow"},"to":{"unitId":"bend-12","portId":"mat_in"}},{"id":"conn-15","from":{"unitId":"simple_open_tank-1","portId":"overflow"},"to":{"unitId":"simple_mixer-14","portId":"mat_in_2"}},{"id":"conn-16","from":{"unitId":"bend-12","portId":"mat_out"},"to":{"unitId":"simple_mixer-14","portId":"mat_in_1"}},{"id":"conn-18","from":{"unitId":"simple_mixer-14","portId":"mat_out"},"to":{"unitId":"sink-17","portId":"mat_in"}}],"modelsActive":{"thermo_package":"ideal_raoult","reaction":null,"units":"SI_bar"},"solverOptions":{"maxIter":200},"layout":{"viewMode":"flowsheet","colorBy":"type","theme":"ragtag","paletteOpen":false,"inspectorOpen":false}}'
+  '{"version":19,"processName":"Ineluctable Fate \u2014 Day 0","grid":{"w":40,"h":32,"tile":48},"settings":{"atmospherePreset":"planet_x","dt":3600},"units":[{"id":"room","defId":"room","profileId":"room","tier":1,"name":"Crew Room","x":0,"y":0,"rot":0,"params":{"nPeople":2,"powerPriority":1}},{"id":"o2_bottle","defId":"simple_tank","profileId":"simple_gas_bottle","tier":1,"name":"O\u2082 Bottle","x":-7,"y":1,"rot":0,"params":{"volume_m3":0.01,"P_init":30553950,"initialComposition":{"O2":1},"gasDrawRate":0.001,"opening_gas_pct":46.6,"P_relief":35000000}},{"id":"water_barrel","defId":"simple_open_tank","profileId":"simple_open_tank","tier":1,"name":"Water Barrel","x":-7,"y":5,"rot":0,"params":{"volume_m3":0.1,"initialComposition":{"H2O":1},"level_init":0.3348,"drawRate":0.01,"opening_pct":25.8,"overflow_level":90}},{"id":"food_crate","defId":"food_storage","profileId":"food_crate","tier":1,"name":"Food Crate","x":-11,"y":3,"rot":0,"params":{"volume_m3":0.1,"gasDrawRate":0.001,"opening_gas_pct":46.6,"P_init":29331792,"initialComposition":{"CH2O":1},"P_relief":30000000,"UA_jacket":50}},{"id":"scrubber","defId":"membrane_separator","profileId":"membrane_separator","tier":1,"name":"LiOH Scrubber","x":8,"y":1,"rot":0,"params":{"targetSpecies":"CO2","extractionFrac":0.99,"consumable":{"name":"LiOH Cartridges","capacity":500,"remaining":500,"maxRate":5},"variant":"flip"}},{"id":"co2_snk","defId":"sink","profileId":"sink","tier":1,"name":"Vent","x":14,"y":-6,"rot":0,"params":{}},{"id":"cooler","defId":"air_cooler","profileId":"air_cooler","tier":1,"name":"Air Cooler","x":10,"y":5,"rot":0,"params":{"T_out":294,"UA_kW_K":1,"max_fan_power_W":200,"powerPriority":2,"variant":"vert-elec-L"}},{"id":"heater","defId":"electric_heater","profileId":"electric_heater","tier":1,"name":"Air Heater","x":7,"y":7,"rot":0,"params":{"T_out":294,"powerPriority":2,"variant":"mirror"}},{"id":"battery","defId":"battery","profileId":"battery","tier":1,"name":"Battery","x":1,"y":-3,"rot":0,"params":{"peakPower_kW":100,"capacity_J":1800000000,"initialSOC":1}},{"id":"power_disp","defId":"power_dispatcher_5","profileId":"power_dispatcher_5","tier":1,"name":"Power Dispatch","x":4,"y":-3,"rot":0,"params":{}},{"id":"surplus_snk","defId":"sink_electrical","profileId":"sink_electrical","tier":1,"name":"Surplus","x":6,"y":-5,"rot":0,"params":{"ratedPower_kW":50,"powerPriority":5}},{"id":"simple_open_tank-1","defId":"simple_open_tank","profileId":"simple_open_tank","tier":1,"name":"Hot Water Barrel","x":-4,"y":7,"rot":0,"params":{"volume_m3":0.1,"initialComposition":{"H2O":1},"level_init":0.3348,"drawRate":0.01,"opening_pct":6.4,"overflow_level":90}},{"id":"bend-3","defId":"bend","profileId":"bend","tier":1,"name":"Pipe Bend 3","x":-11,"y":-6,"rot":0,"params":{"variant":"down-right"}},{"id":"simple_mixer-5","defId":"simple_mixer","profileId":"simple_mixer","tier":1,"name":"Simple Mixer 5","x":-7,"y":-6,"rot":0,"params":{"variant":"recycle-B"}},{"id":"simple_mixer-8","defId":"simple_mixer","profileId":"simple_mixer","tier":1,"name":"Simple Mixer 5 (copy)","x":10,"y":-6,"rot":0,"params":{"variant":"recycle-B"}},{"id":"bend-12","defId":"bend","profileId":"bend","tier":1,"name":"Pipe Bend 3 (copy)","x":-7,"y":9,"rot":0,"params":{"variant":"up-right"}},{"id":"simple_mixer-14","defId":"simple_mixer","profileId":"simple_mixer","tier":1,"name":"Simple Mixer 5 (copy)","x":-4,"y":9,"rot":0,"params":{"variant":"recycle-T"}},{"id":"sink-17","defId":"sink","profileId":"sink","tier":1,"name":"Sewer","x":14,"y":9,"rot":0,"params":{}}],"connections":[{"id":"c_o2","from":{"unitId":"o2_bottle","portId":"gas_out"},"to":{"unitId":"room","portId":"o2_in"}},{"id":"c_h2o","from":{"unitId":"water_barrel","portId":"mat_out"},"to":{"unitId":"room","portId":"h2o_in"}},{"id":"c_food","from":{"unitId":"food_crate","portId":"food_out"},"to":{"unitId":"room","portId":"food_in"}},{"id":"c_exhaust","from":{"unitId":"room","portId":"air_exhaust"},"to":{"unitId":"scrubber","portId":"mat_in"}},{"id":"c_cool_in","from":{"unitId":"scrubber","portId":"perm_out"},"to":{"unitId":"cooler","portId":"mat_in"}},{"id":"c_heat_in","from":{"unitId":"cooler","portId":"mat_out"},"to":{"unitId":"heater","portId":"mat_in"}},{"id":"c_return","from":{"unitId":"heater","portId":"mat_out"},"to":{"unitId":"room","portId":"air_return"}},{"id":"e_bat","from":{"unitId":"battery","portId":"elec"},"to":{"unitId":"power_disp","portId":"elec_in_1"}},{"id":"e_room","from":{"unitId":"power_disp","portId":"elec_out_1"},"to":{"unitId":"room","portId":"elec_in"}},{"id":"e_cooler","from":{"unitId":"power_disp","portId":"elec_out_2"},"to":{"unitId":"cooler","portId":"elec_in"}},{"id":"e_heater","from":{"unitId":"power_disp","portId":"elec_out_3"},"to":{"unitId":"heater","portId":"elec_in"}},{"id":"e_surplus","from":{"unitId":"power_disp","portId":"elec_surplus"},"to":{"unitId":"surplus_snk","portId":"elec_in"}},{"id":"conn-2","from":{"unitId":"simple_open_tank-1","portId":"mat_out"},"to":{"unitId":"room","portId":"hot_water_in"}},{"id":"conn-4","from":{"unitId":"food_crate","portId":"biogas_out"},"to":{"unitId":"bend-3","portId":"mat_in"}},{"id":"conn-6","from":{"unitId":"bend-3","portId":"mat_out"},"to":{"unitId":"simple_mixer-5","portId":"mat_in_1"}},{"id":"conn-7","from":{"unitId":"o2_bottle","portId":"vent"},"to":{"unitId":"simple_mixer-5","portId":"mat_in_2"}},{"id":"conn-9","from":{"unitId":"scrubber","portId":"ret_out"},"to":{"unitId":"simple_mixer-8","portId":"mat_in_2"}},{"id":"conn-10","from":{"unitId":"simple_mixer-5","portId":"mat_out"},"to":{"unitId":"simple_mixer-8","portId":"mat_in_1"}},{"id":"conn-11","from":{"unitId":"simple_mixer-8","portId":"mat_out"},"to":{"unitId":"co2_snk","portId":"mat_in"}},{"id":"conn-13","from":{"unitId":"water_barrel","portId":"overflow"},"to":{"unitId":"bend-12","portId":"mat_in"}},{"id":"conn-15","from":{"unitId":"simple_open_tank-1","portId":"overflow"},"to":{"unitId":"simple_mixer-14","portId":"mat_in_2"}},{"id":"conn-16","from":{"unitId":"bend-12","portId":"mat_out"},"to":{"unitId":"simple_mixer-14","portId":"mat_in_1"}},{"id":"conn-18","from":{"unitId":"simple_mixer-14","portId":"mat_out"},"to":{"unitId":"sink-17","portId":"mat_in"}}],"modelsActive":{"thermo_package":"ideal_raoult","reaction":null,"units":"SI_bar"},"solverOptions":{"maxIter":200},"layout":{"viewMode":"flowsheet","colorBy":"type","theme":"ragtag","paletteOpen":false,"inspectorOpen":false}}'
 );
 
 buildExamplesMenu();
