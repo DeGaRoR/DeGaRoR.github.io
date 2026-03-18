@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v17.10.0
+  processThis v17.11.0
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -356,6 +356,55 @@
   ═══════════════════════════════════════════════════════════════════════════
   CHANGELOG  (latest first)
   ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v17.11.0 — Food crate rework: chemistry, ports, fridge icon ───────
+  **NNG-1 fix: anaerobic fermentation.**  Spoilage chemistry changed from
+  CH₂O → CO₂ + H₂O (created 2 O atoms from nothing) to the balanced
+  2 CH₂O → CH₄ + CO₂ (anaerobic fermentation).  No external O₂ needed.
+  CH₄ already in ComponentRegistry.  No H₂O produced — cleaner narrative.
+  DH_DECOMP unchanged at 15 kJ/mol.  Kinetics (Arrhenius doubling,
+  T_FREEZE=277K, T_KILL=340K) transfer unchanged.
+
+  **Port split: biogas_out + vent.**  Old waste_out (overloaded steady-state
+  drain + overpressure relief) replaced by two explicit ports:
+  biogas_out = continuous drain of all non-CH₂O species, capped at
+  0.01 mol/s (clears 100 mol backlog in ~3 game-hours).
+  vent = standard relief valve (hysteresis at 0.98× P_relief).
+  biogas_out at (1,0) top-center looking up.  vent at (2,0) top-right.
+
+  **P_relief raised to 300 bar.**  Was 250 bar.  P_init (293 bar) now starts
+  below relief — fill gauge reads ~98% at t=0, never over 100%.
+
+  **food_fill_frac in tick.**  Fill gauge computed in tick as
+  n_CH₂O / (P_relief × V / (R × 294)), exposed in u.last.  Icon reads
+  the pre-computed value — no thermo calculations in the renderer.
+
+  **Fridge icon (ragtag).**  2×4 body with cooling serpentine at row 4.
+  Round viewing porthole (r=26) with 3 trays and 11 food items (varied
+  shapes/colors, count tracks food_fill_frac).  Interior glow tint
+  reflects temperature state (cyan/red/deep blue).  Category-colored
+  plain panel below with: LCD temperature display (Courier font),
+  status LED, brass handle (centered, full-height), two rect hinges
+  on left edge, four tilted postcards with fridge magnets (smiley beach
+  scene, Mondrian, Planet X from orbit, HOME landscape — all shift
+  blue when frozen).  5-bar "Food Reserves" fill gauge.  Aeration grill
+  at bottom.  Dashed outline border.  Convex door shading via dark
+  edge strips.
+
+  Port labels: rot gas, surplus, food in, food out, cool in, cool out.
+
+  Profile: food_crate (T1, 100L, LIFE_SUPPORT, food_storage defId).
+  Mission 0 scene updated: biogas_out wiring, P_relief 300 bar.
+
+  Tests: 713 (+3).  682b (anaerobic products CH₄+CO₂, no H₂O).
+  682c (biogas drain backlog cap 0.01 mol/s).  682d (vent vs biogas
+  separation — vent inactive at sub-relief P).  678–680, 682 updated
+  for new port names and chemistry.
+
+  NNGs: NNG-1 (conservation — 2 CH₂O → CH₄ + CO₂ atom-balanced),
+  NNG-2 (energy — exothermic decomposition heat), NNG-3 (WYSIWYG —
+  two visible ports with distinct functions, fridge icon reflects
+  state), NNG-14 (changelog + 3 new tests).
 
   ─── v17.10.0 — Scrolling chat history + oscillation detection ────────────
   **Scrolling chat.** Speech bubble replaced by scrolling message history
@@ -34459,9 +34508,14 @@ _RAGTAG_SYMBOLS.food_storage = function(g, wx, wy, ww, wh, pal, def, unitId) {
 
   _rtNozzle(g, wx, wy, ww, wh, bx, by, bw, bh, def, pres, pal, unitId);
 
-  // ── Cabinet body (category-colored) ──
+  // ── Cabinet body (category-colored, dynamic gradient) ──
   g.appendChild(svgEl('rect', { x: bx, y: by, width: bw, height: bh,
     rx: 5, fill: pal.fillUrl, stroke: pal.stroke, 'stroke-width': 2.5, 'pointer-events': 'none' }));
+  // ── Door curvature shading (dark edge strips suggest convex panel) ──
+  g.appendChild(svgEl('rect', { x: bx + 1, y: by + 6, width: 4, height: bh - 12,
+    rx: 2, fill: pal.stroke, opacity: 0.25, 'pointer-events': 'none' }));
+  g.appendChild(svgEl('rect', { x: bx + bw - 5, y: by + 6, width: 4, height: bh - 12,
+    rx: 2, fill: pal.stroke, opacity: 0.25, 'pointer-events': 'none' }));
 
   // ── Status LED (centered between left bolt and LCD) ──
   const ledColor = frozen ? '#3b82f6' : spoilFast ? '#ef4444' : spoiling ? '#f59e0b' : '#22c55e';
@@ -34482,11 +34536,11 @@ _RAGTAG_SYMBOLS.food_storage = function(g, wx, wy, ww, wh, pal, def, unitId) {
   lcdText.textContent = T_C + '\u00B0C';
   g.appendChild(lcdText);
 
-  // ── Door hinges (left side, 2 small circles suggesting the face opens) ──
-  g.appendChild(svgEl('circle', { cx: bx, cy: by + bh * 0.30, r: 1.8,
-    fill: pal.stroke, stroke: '#4b4b40', 'stroke-width': 0.4, 'pointer-events': 'none' }));
-  g.appendChild(svgEl('circle', { cx: bx, cy: by + bh * 0.70, r: 1.8,
-    fill: pal.stroke, stroke: '#4b4b40', 'stroke-width': 0.4, 'pointer-events': 'none' }));
+  // ── Door hinges (left side, rounded rectangles suggesting full-face opening) ──
+  g.appendChild(svgEl('rect', { x: bx - 1, y: by + bh * 0.30 - 1.5, width: 5, height: 3,
+    rx: 1, fill: pal.stroke, stroke: '#4b4b40', 'stroke-width': 0.4, 'pointer-events': 'none' }));
+  g.appendChild(svgEl('rect', { x: bx - 1, y: by + bh * 0.70 - 1.5, width: 5, height: 3,
+    rx: 1, fill: pal.stroke, stroke: '#4b4b40', 'stroke-width': 0.4, 'pointer-events': 'none' }));
 
   // ── Round viewing porthole ──
   const pcx = wx + 48, pcy = wy + 52, pr = 26;
