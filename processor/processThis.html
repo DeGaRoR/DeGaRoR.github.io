@@ -32846,12 +32846,12 @@ function _rtReactorVessel(g, wx, wy, pal, unitId) {
   // Viewport inner glow overlay
   g.appendChild(svgEl('circle', { cx:wx+48, cy:wy+38, r:25, fill:'url(#vp-depth)', 'pointer-events':'none' }));
   // Chips — moved to frame area
-  _rtNameplate(g, wx+18, wy+10, unitId); _rtNameplate(g, wx+16, wy+60, unitId);
+  _rtNameplate(g, wx+65, wy+62, unitId);
   // Pressure gauge — stays top-right frame
   g.appendChild(svgEl('circle', { cx:wx+76, cy:wy+14, r:5, fill:'#1f2937', stroke:'#4b5563', 'stroke-width':1.5, 'pointer-events':'none' }));
   g.appendChild(svgEl('line', { x1:wx+76, y1:wy+14, x2:wx+76, y2:wy+10, stroke:'#ef4444', 'stroke-width':1.5, 'stroke-linecap':'round', 'pointer-events':'none' }));
   // LED
-  _rtLED(g, wx+22, wy+14, unitId);
+  _rtLED(g, wx+28, wy+11, unitId);
   // [v16.9.9] SVG bubbles retired — canvas particles replace them via _UNIT_VIEWPORT
   // 4 bolts — pushed to frame corners
   _rtBolt(g, wx+16, wy+8); _rtBolt(g, wx+80, wy+8);
@@ -33170,8 +33170,8 @@ const _RAGTAG_SYMBOLS = {
       g.appendChild(svgEl('rect', { x:wx+35, y:wy+5, width:26, height:16, rx:6, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2, 'pointer-events':'none' }));
       [40,44,48,52,56].forEach(x => g.appendChild(svgEl('line', { x1:wx+x, y1:wy+9, x2:wx+x, y2:wy+17, stroke:pal.stroke, 'stroke-width':1.5, opacity:0.5, 'pointer-events':'none' })));
     }
-    _rtNameplate(g, wx+61, wy+25, unitId);
-    _rtLED(g, wx+67, wy+59, unitId);
+    _rtNameplate(g, wx+55, wy+67, unitId);
+    _rtLED(g, wx+50, wy+69, unitId);
   },
 
   // ── Reactor Adiabatic (sheet 341-348, centered dy+7) ──
@@ -33186,8 +33186,8 @@ const _RAGTAG_SYMBOLS = {
     _rtBolt(g, wx+18, wy+23); _rtBolt(g, wx+78, wy+23);
     _rtBolt(g, wx+18, wy+73); _rtBolt(g, wx+78, wy+73);
     [12,20,28,36].forEach(x => g.appendChild(svgEl('line', { x1:wx+x, y1:wy+69, x2:wx+x+6, y2:wy+75, stroke:'#fbbf24', 'stroke-width':1.5, opacity:0.12, 'pointer-events':'none' })));
-    _rtNameplate(g, wx+66, wy+23, unitId);
-    _rtLED(g, wx+26, wy+25, unitId);
+    _rtNameplate(g, wx+64, wy+73, unitId);
+    _rtLED(g, wx+25, wy+23, unitId);
   },
 
   // ── Combustion Chamber (profile of reactor_adiabatic, flames instead of bubbles) ──
@@ -33219,8 +33219,8 @@ const _RAGTAG_SYMBOLS = {
     _rtBolt(g, wx+18, wy+23); _rtBolt(g, wx+78, wy+23);
     _rtBolt(g, wx+18, wy+73); _rtBolt(g, wx+78, wy+73);
     [12,20,28,36].forEach(x => g.appendChild(svgEl('line', { x1:wx+x, y1:wy+69, x2:wx+x+6, y2:wy+75, stroke:'#fbbf24', 'stroke-width':1.5, opacity:0.12, 'pointer-events':'none' })));
-    _rtNameplate(g, wx+66, wy+23, unitId);
-    _rtLED(g, wx+26, wy+25, unitId);
+    _rtNameplate(g, wx+64, wy+73, unitId);
+    _rtLED(g, wx+25, wy+23, unitId);
   },
 
   // ── Reactor Jacketed 2×3 — sheet line 350-357 ──
@@ -33282,8 +33282,8 @@ const _RAGTAG_SYMBOLS = {
     _rtBolt(g, wx+18, wy+74); _rtBolt(g, wx+78, wy+74);
     // 8. Exact coolCoil path
     _rtCoolCoilExact(g, wx, wy);
-    _rtNameplate(g, wx+64, wy+14, unitId);
-    _rtLED(g, wx+72, wy+68, unitId);
+    _rtNameplate(g, wx+45, wy+8, unitId);
+    _rtLED(g, wx+69, wy+67, unitId);
   },
 
   // ── Compressor Diaphragm 2×3 — sheet line 223-236 ──
@@ -33320,8 +33320,8 @@ const _RAGTAG_SYMBOLS = {
     g.appendChild(svgEl('line', { x1:wx+48, y1:wy+76, x2:wx+48, y2:wy+128, stroke:_lighten(pal.stroke, 0.6), 'stroke-width':1.5, opacity:0.3, 'pointer-events':'none' }));
     // 13. Flywheel: circle(48,130, r:5, unfilled)
     g.appendChild(svgEl('circle', { cx:wx+48, cy:wy+130, r:5, fill:'none', stroke:_lighten(pal.stroke, 0.6), 'stroke-width':1.5, opacity:0.3, 'pointer-events':'none' }));
-    _rtNameplate(g, wx+64, wy+16, unitId);
-    _rtLED(g, wx+70, wy+58, unitId);
+    _rtNameplate(g, wx+63, wy+19, unitId);
+    _rtLED(g, wx+69, wy+59, unitId);
   },
   // ── Reservoir / Well (sheet L140-158) — [v16.9.2] palette-driven colors, recentered ──
   reservoir(g, wx, wy, ww, wh, pal, def, unitId) {
@@ -33354,8 +33354,8 @@ const _RAGTAG_SYMBOLS = {
     g.appendChild(svgEl('rect', { x:wx+34, y:wy+6, width:12, height:8, rx:3, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':1.5, 'pointer-events':'none' }));
     // Rising bubbles (animated)
     [0,0.4,0.7].forEach(ph => { g.appendChild(svgEl('circle', { cx:wx+38+Math.sin(ph*10)*4, cy:wy+4, r:1.5, fill:'#6ee7b7', 'data-anim':'reactor-bubble', 'data-ytop':wy-8, 'data-ybot':wy+4, 'data-phase':String(ph), 'data-speed':'0.6', opacity:0.2, 'pointer-events':'none' })); });
-    _rtNameplate(g, wx+44, wy+40, unitId);
-    _rtLED(g, wx+60, wy+48, unitId);
+    _rtNameplate(g, wx+36, wy+49, unitId);
+    _rtLED(g, wx+40, wy+44, unitId);
   },
   // ── Hydrovent [v16.9.2] — cracked hull over hydrothermal reservoir ──
   hydrovent(g, wx, wy, ww, wh, pal, def, unitId) {
@@ -33405,8 +33405,8 @@ const _RAGTAG_SYMBOLS = {
         'data-phase':String(ph), 'data-speed':'0.5', opacity:0.15, 'pointer-events':'none' }));
     });
     // Paint chip + LED
-    _rtNameplate(g, wx+52, wy+42, unitId);
-    _rtLED(g, wx+66, wy+40, unitId);
+    _rtNameplate(g, wx+36, wy+60, unitId);
+    _rtLED(g, wx+40, wy+47, unitId);
   },
   // ── Restriction (sheet L202-212) ──
   restriction(g, wx, wy, ww, wh, pal, def, unitId) {
@@ -33419,7 +33419,7 @@ const _RAGTAG_SYMBOLS = {
     g.appendChild(svgEl('line', { x1:wx+56, y1:wy+40, x2:wx+72, y2:wy+34, stroke:_lighten(pal.stroke,0.6), 'stroke-width':1, 'data-anim':'rotor-pulse', 'data-opbase':'0.2', 'data-amp':'0.1', 'data-speed':'2', 'pointer-events':'none' }));
     g.appendChild(svgEl('line', { x1:wx+56, y1:wy+50, x2:wx+72, y2:wy+56, stroke:_lighten(pal.stroke,0.6), 'stroke-width':1, 'data-anim':'rotor-pulse', 'data-opbase':'0.2', 'data-amp':'0.1', 'data-speed':'2', 'pointer-events':'none' }));
     _rtBolt(g, wx+42, wy+20); _rtBolt(g, wx+54, wy+20); _rtBolt(g, wx+42, wy+76); _rtBolt(g, wx+54, wy+76);
-    _rtLED(g, wx+28, wy+28, unitId);
+    _rtLED(g, wx+48, wy+27, unitId);
   },
   // ── Distillation Column 2×3 (sheet L316-326) ──
   distillation_column(g, wx, wy, ww, wh, pal, def, unitId) {
@@ -33457,8 +33457,8 @@ const _RAGTAG_SYMBOLS = {
     [30,50,70,90,110].forEach((y, i) => { const r = y === 90 ? 7 : 6;
       g.appendChild(svgEl('circle', { cx:wx+48, cy:wy+y, r, fill:'#0a1a1a', stroke:pal.stroke, 'stroke-width': y === 90 ? 2 : 1.5, 'pointer-events':'none' }));
       g.appendChild(svgEl('line', { x1:wx+44, y1:wy+y, x2:wx+52, y2:wy+y, stroke:'#5eead4', 'stroke-width': y === 90 ? 1.5 : 1, 'data-anim':'rotor-pulse', 'data-opbase':'0.2', 'data-amp':'0.1', 'data-speed':'1.2', 'data-phase':String(i*0.2), 'pointer-events':'none' })); });
-    _rtNameplate(g, wx+60, wy+14, unitId);
-    _rtLED(g, wx+34, wy+42, unitId);
+    _rtNameplate(g, wx+47, wy+8, unitId);
+    _rtLED(g, wx+42, wy+10, unitId);
   },
   // ── Membrane Separator (sheet L328-336) ──
   membrane_separator(g, wx, wy, ww, wh, pal, def, unitId) {
@@ -33488,8 +33488,8 @@ const _RAGTAG_SYMBOLS = {
     g.appendChild(svgEl('line', { x1:wx+22, y1:wy+18, x2:wx+74, y2:wy+78, stroke:'#5eead4', 'stroke-width':2.5, 'stroke-dasharray':'5 3', opacity:0.5, 'pointer-events':'none' }));
     [0,0.3,0.6].forEach(ph => { g.appendChild(svgEl('circle', { cx:wx+48, cy:wy+48, r:1.5, fill:'#5eead4', 'data-anim':'reactor-bubble', 'data-ytop':wy+18, 'data-ybot':wy+48, 'data-phase':String(ph), 'data-speed':'1.5', opacity:0.35, 'pointer-events':'none' })); });
     _rtBolt(g, wx+14, wy+12); _rtBolt(g, wx+82, wy+12); _rtBolt(g, wx+14, wy+84); _rtBolt(g, wx+82, wy+84);
-    _rtNameplate(g, wx+68, wy+14, unitId);
-    _rtLED(g, wx+72, wy+74, unitId);
+    _rtNameplate(g, wx+35, wy+8, unitId);
+    _rtLED(g, wx+30, wy+10, unitId);
   },
   // ── Reactor Electrochemical 2×3 (sheet L364-375) ──
   reactor_electrochemical(g, wx, wy, ww, wh, pal, def, unitId) {
@@ -33509,8 +33509,8 @@ const _RAGTAG_SYMBOLS = {
     [[38,0],[44,0.3],[34,0.6]].forEach(([bx,ph]) => { g.appendChild(svgEl('circle', { cx:wx+bx, cy:wy+60, r:2.5, fill:'#fbbf24', 'data-anim':'reactor-bubble', 'data-ytop':wy+30, 'data-ybot':wy+60, 'data-phase':String(ph), 'data-speed':'0.5', opacity:0.3, 'pointer-events':'none' })); });
     [[38,0.15],[44,0.5],[34,0.8]].forEach(([bx,ph]) => { g.appendChild(svgEl('circle', { cx:wx+bx, cy:wy+118, r:2.5, fill:'#fbbf24', 'data-anim':'reactor-bubble', 'data-ytop':wy+88, 'data-ybot':wy+118, 'data-phase':String(ph), 'data-speed':'0.5', opacity:0.3, 'pointer-events':'none' })); });
     _rtBolt(g, wx+18, wy+14); _rtBolt(g, wx+78, wy+14); _rtBolt(g, wx+18, wy+130); _rtBolt(g, wx+78, wy+130);
-    _rtNameplate(g, wx+64, wy+16, unitId);
-    _rtLED(g, wx+28, wy+26, unitId);
+    _rtNameplate(g, wx+49, wy+11, unitId);
+    _rtLED(g, wx+43, wy+13, unitId);
   },
 
   flash_drum(g, wx, wy, ww, wh, pal, def, unitId) {
@@ -33571,8 +33571,8 @@ const _RAGTAG_SYMBOLS = {
         stroke:pal.stroke, 'stroke-width':isMajor ? 1 : 0.7, opacity:isMajor ? 0.35 : 0.2, 'pointer-events':'none' }));
     }
     // [v16.9.9] SVG vapor bubbles retired — canvas particles replace them
-    _rtNameplate(g, bx + bw - 12, by + 8, unitId);
-    _rtLED(g, bx + 8, by + bh * 0.3, unitId);
+    _rtNameplate(g, wx+44, wy+13, unitId);
+    _rtLED(g, wx+38, wy+15, unitId);
   },
 
   // ── Valve (sheet 193-200, centered dy+3) ──
@@ -33601,7 +33601,8 @@ const _RAGTAG_SYMBOLS = {
     // Bowtie body (on top)
     g.appendChild(svgEl('polygon', { points:`${wx+24},${wy+31} ${cx},${cy} ${wx+24},${wy+65}`, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'stroke-linejoin':'round', 'pointer-events':'none' }));
     g.appendChild(svgEl('polygon', { points:`${wx+72},${wy+31} ${cx},${cy} ${wx+72},${wy+65}`, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'stroke-linejoin':'round', 'pointer-events':'none' }));
-    _rtLED(g, wx+66, wy+59, unitId);
+    _rtLED(g, wx+48, wy+20, unitId);
+    _rtNameplate(g, wx+59, wy+46, unitId);
   },
 
   // ── Grid Supply / Generator (sheet 428-445, centered dy+5) ──
@@ -33630,9 +33631,8 @@ const _RAGTAG_SYMBOLS = {
     // Motor housing on top
     g.appendChild(svgEl('rect', { x:wx+30, y:wy+5, width:36, height:14, rx:5, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2, 'pointer-events':'none' }));
     [36,42,48,54,60].forEach(x => g.appendChild(svgEl('line', { x1:wx+x, y1:wy+9, x2:wx+x, y2:wy+15, stroke:pal.stroke, 'stroke-width':1.5, opacity:0.5, 'pointer-events':'none' })));
-    _rtNameplate(g, wx+68, wy+23, unitId);
-    _rtNameplate(g, wx+14, wy+63, unitId);
-    _rtLED(g, wx+24, wy+27, unitId);
+    _rtNameplate(g, wx+63, wy+67, unitId);
+    _rtLED(g, wx+26, wy+25, unitId);
   },
   // ── Solar Panel [v16.7.0 S-DIURNAL] ──
   // 2×2 body: tilted panel face with cell grid pattern + sun symbol in viewport
@@ -33664,8 +33664,8 @@ const _RAGTAG_SYMBOLS = {
     _rtBolt(g, wx+12, wy+18); _rtBolt(g, wx+82, wy+18);
     _rtBolt(g, wx+12, wy+74); _rtBolt(g, wx+82, wy+74);
     // Chip + LED
-    _rtNameplate(g, wx+14, wy+68, unitId);
-    _rtLED(g, wx+76, wy+74, unitId);
+    _rtNameplate(g, wx+28, wy+16, unitId);
+    _rtLED(g, wx+21, wy+18, unitId);
   },
   // ── Wind Turbine [v16.7.0 S-DIURNAL] ──
   // 2×2 body: nacelle housing with 3-blade rotor spinning animation
@@ -33694,8 +33694,8 @@ const _RAGTAG_SYMBOLS = {
     // Bolts
     _rtBolt(g, wx+34, wy+34); _rtBolt(g, wx+58, wy+34);
     // Chip + LED
-    _rtNameplate(g, wx+56, wy+44, unitId);
-    _rtLED(g, wx+34, wy+48, unitId);
+    _rtNameplate(g, wx+44, wy+73, unitId);
+    _rtLED(g, wx+48, wy+67, unitId);
   },
   // ── Source (sheet 92-99, centered, visually rotated per variant) ──
   // 2×2: circle r:28 at (48,48), viewport r:14, flow arrow + bolts rotate with port
@@ -33757,8 +33757,8 @@ const _RAGTAG_SYMBOLS = {
     // 6. chip(46,34,6,3)
     // 7. bolt(50,38), bolt(50,58)
     _rtBolt(g, wx+50, wy+38); _rtBolt(g, wx+50, wy+58);
-    _rtNameplate(g, wx+46, wy+34, unitId);
-    _rtLED(g, wx+36, wy+74, unitId);
+    _rtNameplate(g, wx+8, wy+73, unitId);
+    _rtLED(g, wx+11, wy+19, unitId);
   },
   // ── Sink (sheet 130-138, centered dy+8, mirrors for port-right) ──
   // 2×2 body rect 32×68, grate top, ground line, tap, mirrored when port on right
@@ -33851,10 +33851,9 @@ const _RAGTAG_SYMBOLS = {
     // 4 bolts
     _rtBolt(vg, wx+36, wy+24); _rtBolt(vg, wx+60, wy+24);
     _rtBolt(vg, wx+36, wy+70); _rtBolt(vg, wx+60, wy+70);
-    // LED + chip
+    // LED
     g.appendChild(vg);
-    _rtNameplate(vg, wx+52, wy+28, unitId);
-    _rtLED(vg, wx+56, wy+64, unitId);
+    _rtLED(vg, wx+39, wy+61, unitId);
   },
   // ── Sink Electrical / Dump Load ──
   // Resistor symbol behind protective mesh grid, activates visually when dissipating
@@ -33895,8 +33894,8 @@ const _RAGTAG_SYMBOLS = {
     g.appendChild(svgEl('circle', { cx:wx+82, cy:wy+40, r:2.5, fill:isActive?'#ef4444':'#374151',
       'data-anim':isActive?'rotor-pulse':'', 'data-opbase':'0.5', 'data-amp':'0.3', 'data-speed':'2',
       'pointer-events':'none' }));
-    _rtNameplate(g, wx+68, wy+23, unitId);
-    _rtLED(g, wx+82, wy+56, unitId);
+    _rtNameplate(g, wx+40, wy+19, unitId);
+    _rtLED(g, wx+35, wy+21, unitId);
   },
   // ── Compressor (sheet 179-191, centered dx+8 dy+6, icon mirrored) ──
   // 2×2 body 60×48 rx:6, rect viewport with animated piston+crank (mirrored),
@@ -33967,8 +33966,8 @@ const _RAGTAG_SYMBOLS = {
       g.appendChild(svgEl('rect', { x:wx+35, y:wy+10, width:26, height:16, rx:5, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2, 'pointer-events':'none' }));
       [40,44,48,52,56].forEach(x => g.appendChild(svgEl('line', { x1:wx+x, y1:wy+14, x2:wx+x, y2:wy+22, stroke:pal.stroke, 'stroke-width':1.5, opacity:0.5, 'pointer-events':'none' })));
     }
-    _rtNameplate(g, wx+36, wy+30, unitId);
-    _rtLED(g, wx+28, wy+62, unitId);
+    _rtNameplate(g, wx+67, wy+52, unitId);
+    _rtLED(g, wx+71, wy+45, unitId);
   },
   // ── Fan [v16.8.0] (2×2 = 96×96 canvas) ──
   // Cylindrical housing with spinning fan blades inside dark viewport
@@ -34008,7 +34007,8 @@ const _RAGTAG_SYMBOLS = {
     g.appendChild(svgEl('rect', { x:wx+36, y:wy+6, width:24, height:14, rx:4, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':1.5, 'pointer-events':'none' }));
     [40,46,52].forEach(x => g.appendChild(svgEl('line', { x1:wx+x, y1:wy+9, x2:wx+x, y2:wy+16, stroke:pal.stroke, 'stroke-width':1.2, opacity:0.5, 'pointer-events':'none' })));
     // LED
-    _rtLED(g, wx+24, wy+26, unitId);
+    _rtLED(g, wx+27, wy+28, unitId);
+    _rtNameplate(g, wx+61, wy+25, unitId);
   },
   // ── Gas Turbine (sheet 214-222, centered dy+6) ──
   // 2×2 body 68×52 rx:8, rotating 3-blade impeller, spark-emit lightning particles
@@ -34059,8 +34059,8 @@ const _RAGTAG_SYMBOLS = {
         'data-dx':dx, 'data-dy':dy, 'data-phase':ph, 'data-drift':'20', 'data-speed':'0.45',
         'pointer-events':'none' }));
     });
-    _rtNameplate(g, wx+64, wy+28, unitId);
-    _rtLED(g, wx+28, wy+64, unitId);
+    _rtNameplate(g, wx+61, wy+33, unitId);
+    _rtLED(g, wx+67, wy+61, unitId);
   },
   // ── Electric Heater (sheet 241-248, no offset) ──
   // 2×2 body 76×44 rx:8 at (10,26), rect viewport with zigzag heating element
@@ -34085,8 +34085,8 @@ const _RAGTAG_SYMBOLS = {
       g.appendChild(svgEl('rect', { x:wx+35, y:wy+12, width:26, height:14, rx:5, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2, 'pointer-events':'none' }));
       [40,44,48,52,56].forEach(x => g.appendChild(svgEl('line', { x1:wx+x, y1:wy+16, x2:wx+x, y2:wy+22, stroke:pal.stroke, 'stroke-width':1.5, opacity:0.5, 'pointer-events':'none' })));
     }
-    _rtNameplate(g, wx+66, wy+32, unitId);
-    _rtLED(g, wx+76, wy+58, unitId);
+    _rtNameplate(g, wx+12, wy+48, unitId);
+    _rtLED(g, wx+16, wy+42, unitId);
   },
   // ── Air Cooler (sheet 250-260, layout-aware) ──
   // Radiator rect spans between mat ports (flat edges); fan circle on elec edge, overlapping
@@ -34174,7 +34174,8 @@ const _RAGTAG_SYMBOLS = {
           'pointer-events':'none' }));
       });
     }
-    _rtLED(g, fcx+14, fcy+14, unitId);
+    _rtLED(g, wx+21, wy+67, unitId);
+    _rtNameplate(g, wx+69, wy+65, unitId);
   },
   // ── Heat Exchanger (sheet 262-271, centered dy+4) ──
   // 2×2 ellipse cx:48 cy:48 rx:40 ry:30, viewport r:18, hot/cold flow paths
@@ -34194,8 +34195,8 @@ const _RAGTAG_SYMBOLS = {
     // 4 bolts at cardinal points
     _rtBolt(g, wx+14, wy+48); _rtBolt(g, wx+82, wy+48);
     _rtBolt(g, wx+48, wy+20); _rtBolt(g, wx+48, wy+76);
-    _rtNameplate(g, wx+68, wy+28, unitId);
-    _rtLED(g, wx+70, wy+62, unitId);
+    _rtNameplate(g, wx+53, wy+19, unitId);
+    _rtLED(g, wx+48, wy+20, unitId);
   },
   // ── Mixer (sheet 276-286, layout-aware) ──
   // Tube body (wider than tall), curved Y-manifold for default, helix mixing element
@@ -34270,7 +34271,7 @@ const _RAGTAG_SYMBOLS = {
         'pointer-events':'none' }));
     }
     _rtBolt(g, bx + 4, by + 4); _rtBolt(g, bx + bw - 4, by + bh - 4);
-    _rtLED(g, bx + bw - 8, by + bh - 6, unitId);
+    _rtLED(g, wx+24, wy+36, unitId);
   },
   // ── Splitter (sheet 288-302, layout-aware) ──
   // All piping is manual — no _rtNozzle (outputs need L-bends that _rtNozzle can't do)
@@ -34354,7 +34355,7 @@ const _RAGTAG_SYMBOLS = {
     g.appendChild(svgEl('rect', { x:colX, y:colY, width:colW, height:colH, rx:4, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'pointer-events':'none' }));
     const tEl = g.appendChild(svgEl('text', { x:colX+3, y:wy+wh/2+4, 'font-size':10, 'font-weight':700, fill:'#5eead4', opacity:0.35, 'font-family':'Inter,system-ui', 'pointer-events':'none' }));
     tEl.textContent = '%';
-    _rtLED(g, colX+colW/2, colY+colH-8, unitId);
+    _rtLED(g, wx+33, wy+74, unitId);
   },
   // ── Tank (sheet 391-405, 3×2, centered dy+4) ──
   // 3×2 horizontal vessel with saddles, sight glass with data-driven level
@@ -34418,8 +34419,8 @@ const _RAGTAG_SYMBOLS = {
       }
       g.appendChild(svgEl('rect', { x:wx+66, y:sgTop+sgH-fillH, width:6, height:fillH, rx:2, fill:_gaugeColor, opacity:0.4, 'data-anim':'level-shimmer', 'data-ybase':sgTop+sgH-fillH, 'pointer-events':'none' }));
     }
-    _rtNameplate(g, wx+110, wy+22, unitId);
-    _rtLED(g, wx+96, wy+62, unitId);
+    _rtNameplate(g, wx+21, wy+27, unitId);
+    _rtLED(g, wx+15, wy+29, unitId);
   },
   // ── Open Tank (sheet 407-423, 3×2, no offset) ──
   // 3×2 U-shaped vessel with feet, right-side sight glass + tick marks, data-driven level
@@ -34479,8 +34480,8 @@ const _RAGTAG_SYMBOLS = {
       }
       g.appendChild(svgEl('rect', { x:wx+94, y:sgTop+sgH-fillH, width:6, height:fillH, rx:2, fill:_gaugeColor, opacity:0.4, 'data-anim':'level-shimmer', 'data-ybase':sgTop+sgH-fillH, 'pointer-events':'none' }));
     }
-    _rtNameplate(g, wx+108, wy+22, unitId);
-    _rtLED(g, wx+108, wy+34, unitId);
+    _rtNameplate(g, wx+34, wy+29, unitId);
+    _rtLED(g, wx+29, wy+31, unitId);
   },
   // ── Battery (sheet 447-458, centered dx+8) ──
   // 2×2 body 52×60 rx:8, metal terminal cap, rect viewport with 3 charge bars
@@ -34523,7 +34524,7 @@ const _RAGTAG_SYMBOLS = {
         'data-anim':'rotor-pulse', 'data-opbase':'0.6', 'data-amp':'0.25', 'data-speed':'1.2', 'data-phase':'0',
         'pointer-events':'none' }));
     }
-    _rtLED(g, wx+64, wy+68, unitId);
+    _rtLED(g, wx+29, wy+24, unitId);
   },
   // ── Power Hub (sheet 485-499, 2×3, no offset needed) ──
   // 2×3 body 72×124 rx:6, rect viewport 56×108, 3 breakers, busbar, status LEDs, relays
@@ -34656,8 +34657,8 @@ _RAGTAG_SYMBOLS.simple_tank = function(g, wx, wy, ww, wh, pal, def, unitId) {
   if(fillH>0){let _gc='#22d3ee';const _n=_ud?.last?.n;if(_n){let _mx=null,_ma=0;for(const[sp,amt]of Object.entries(_n)){if(amt>_ma){_mx=sp;_ma=amt;}}if(_mx&&_SPECIES_COLOR[_mx]){const rgb=_SPECIES_COLOR[_mx];_gc=`rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;}}g.appendChild(svgEl('rect',{x:wx+56,y:sgTop+sgH-fillH,width:2,height:fillH,rx:1,fill:_gc,opacity:0.55,'data-anim':'level-shimmer','data-ybase':sgTop+sgH-fillH,'pointer-events':'none'}));}
   g.appendChild(svgEl('circle',{cx:wx+56,cy:wy+34,r:5,fill:'#1f2937',stroke:'#4b5563','stroke-width':1.5,'pointer-events':'none'}));
   g.appendChild(svgEl('line',{x1:wx+56,y1:wy+34,x2:wx+56,y2:wy+30,stroke:'#ef4444','stroke-width':1.5,'stroke-linecap':'round','pointer-events':'none'}));
-  _rtNameplate(g, wx+28, wy+36, unitId);
-  _rtLED(g, wx+30, wy+52, unitId);
+  _rtNameplate(g, wx+34, wy+32, unitId);
+  _rtLED(g, wx+48, wy+18, unitId);
 };
 
 // ── Cooled Tank — 2×3 bonbonne + cooling serpentine ────────────────────────
@@ -34698,8 +34699,8 @@ _RAGTAG_SYMBOLS.cooled_tank = function(g, wx, wy, ww, wh, pal, def, unitId) {
   if(fillH>0){let _gc='#22d3ee';const _n=_ud?.last?.n;if(_n){let _mx=null,_ma=0;for(const[sp,amt]of Object.entries(_n)){if(amt>_ma){_mx=sp;_ma=amt;}}if(_mx&&_SPECIES_COLOR[_mx]){const rgb=_SPECIES_COLOR[_mx];_gc=`rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;}}g.appendChild(svgEl('rect',{x:wx+56,y:sgTop+sgH-fillH,width:2,height:fillH,rx:1,fill:_gc,opacity:0.55,'data-anim':'level-shimmer','data-ybase':sgTop+sgH-fillH,'pointer-events':'none'}));}
   g.appendChild(svgEl('circle',{cx:wx+56,cy:wy+34,r:5,fill:'#1f2937',stroke:'#4b5563','stroke-width':1.5,'pointer-events':'none'}));
   g.appendChild(svgEl('line',{x1:wx+56,y1:wy+34,x2:wx+56,y2:wy+30,stroke:'#ef4444','stroke-width':1.5,'stroke-linecap':'round','pointer-events':'none'}));
-  _rtNameplate(g, wx+28, wy+36, unitId);
-  _rtLED(g, wx+30, wy+50, unitId);
+  _rtNameplate(g, wx+33, wy+33, unitId);
+  _rtLED(g, wx+48, wy+19, unitId);
   // Serpentine inline with cool ports (bottom edge wy+144)
   g.appendChild(svgEl('path',{
     d:`M${wx+2},${wy+142} L${wx+10},${wy+142} L${wx+10},${wy+130} L${wx+18},${wy+130} L${wx+18},${wy+142}` +
@@ -34737,8 +34738,8 @@ _RAGTAG_SYMBOLS.simple_open_tank = function(g, wx, wy, ww, wh, pal, def, unitId)
   let fPct=_ud?.last?.fillPct; if(fPct==null||!Number.isFinite(fPct))fPct=0; fPct=Math.max(0,Math.min(100,fPct));
   const sgH=46,sgTop=wy+16,fillH=sgH*fPct/100;
   if(fillH>0){let _gc='#22d3ee';const _n=_ud?.last?.n;if(_n){let _mx=null,_ma=0;for(const[sp,amt]of Object.entries(_n)){if(amt>_ma){_mx=sp;_ma=amt;}}if(_mx&&_SPECIES_COLOR[_mx]){const rgb=_SPECIES_COLOR[_mx];_gc=`rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;}}g.appendChild(svgEl('rect',{x:wx+110,y:sgTop+sgH-fillH,width:2,height:fillH,rx:1,fill:_gc,opacity:0.55,'data-anim':'level-shimmer','data-ybase':sgTop+sgH-fillH,'pointer-events':'none'}));}
-  _rtNameplate(g, wx+38, wy+60, unitId);
-  _rtLED(g, wx+40, wy+75, unitId);
+  _rtNameplate(g, wx+43, wy+18, unitId);
+  _rtLED(g, wx+38, wy+20, unitId);
 };
 
 _RAGTAG_SYMBOLS.food_storage = function(g, wx, wy, ww, wh, pal, def, unitId) {
@@ -34780,7 +34781,7 @@ _RAGTAG_SYMBOLS.food_storage = function(g, wx, wy, ww, wh, pal, def, unitId) {
     rx: 2, fill: pal.stroke, opacity: 0.25, 'pointer-events': 'none' }));
 
   // ── Status LED (centered between left bolt and LCD) ──
-  _rtLED(g, wx + 22, wy + 13, unitId);
+  _rtLED(g, wx+22, wy+13, unitId);
 
   // ── Temperature LCD display (centered, liquid-crystal style) ──
   g.appendChild(svgEl('rect', { x: wx + 30, y: wy + 8, width: 36, height: 10,
