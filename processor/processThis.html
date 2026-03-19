@@ -32642,7 +32642,7 @@ const _BODY_BBOX = {
   tank:                     { x:4,  y:16, w:136, h:64 },
   simple_tank:              { x:22, y:12, w:52,  h:96 },  // [v17.7.0] bonbonne (T1) / capsule (T2) in 2×3
   open_tank:                { x:14, y:14, w:116, h:68 },
-  simple_open_tank:         { x:30, y:8,  w:84,  h:68 },  // [v17.7.0] barrel in 3×2 frame
+  simple_open_tank:         { x:44, y:6,  w:56,  h:80 },  // [v17.12.0] HDPE drum in 3×2 frame
   reactor_adiabatic:        { x:10, y:8,  w:76, h:66 },
   reactor_jacketed:         { x:12, y:4,  w:72, h:68 },
   reactor_cooled:           { x:12, y:4,  w:72, h:68 },
@@ -32687,7 +32687,7 @@ const _UNIT_VIEWPORT = {
   // Opaque (null): valve, restriction, splitter, tank, battery, all power/boundary
   // [v17.2.3] Open tank viewport at open top for vent gas particles
   open_tank:                { type: 'rect', x: 20, y: 4, w: 104, h: 18 },
-  simple_open_tank:         { type: 'rect', x: 34, y: 2, w:  76, h: 16 },  // [v17.7.0] barrel open-top slot
+  simple_open_tank:         { type: 'rect', x: 44, y: 2, w:  56, h: 10 },  // [v17.12.0] HDPE drum open-top slot
   // simple_tank, cooled_tank: closed pressure vessels — no particle viewport
 };
 
@@ -34739,34 +34739,46 @@ _RAGTAG_SYMBOLS.cooled_tank = function(g, wx, wy, ww, wh, pal, def, unitId) {
 };
 
 // ── Simple Open Tank — 3×2, tier-aware ─────────────────────────────────────
-// T1: barrel (bulging sides, 3 hoops, open rim, sight glass).
+// T1: HDPE water drum (flat front view, subtle belly swell, rolled rim, on-body sight glass).
 // T2: delegates to open_tank (correct 3×2 geometry).
 _RAGTAG_SYMBOLS.simple_open_tank = function(g, wx, wy, ww, wh, pal, def, unitId) {
   const pres = getPresentation(def, scene.units.get(unitId));
   const u = scene.units.get(unitId);
   const tier = u?.tier ?? 1;
   if (tier >= 2) { _RAGTAG_SYMBOLS.open_tank(g, wx, wy, ww, wh, pal, def, unitId); return; }
-  const bx=wx+30,by=wy+8,bw=84,bh=68;
+  // Body bbox (tall narrow drum filling most of the 3×2 frame)
+  const bx=wx+44,by=wy+6,bw=56,bh=80;
   _rtNozzle(g, wx, wy, ww, wh, bx, by, bw, bh, def, pres, pal, unitId);
-  const bLeft=wx+30,bRight=wx+114,bTop=wy+8,bBot=wy+76,bMidX_L=wx+22,bMidX_R=wx+122;
+  // Body path — subtle ±2px belly swell at midpoint (flat HDPE drum silhouette)
   g.appendChild(svgEl('path',{
-    d:`M${bLeft},${bTop} C${bMidX_L},${bTop} ${bMidX_L},${bBot} ${bLeft},${bBot} Q${wx+72},${wy+84} ${bRight},${bBot} C${bMidX_R},${bBot} ${bMidX_R},${bTop} ${bRight},${bTop} Z`,
+    d:`M${bx},${by} L${bx+bw},${by} Q${bx+bw+2},${by+bh/2} ${bx+bw},${by+bh} L${bx},${by+bh} Q${bx-2},${by+bh/2} ${bx},${by} Z`,
     fill:pal.fillUrl,stroke:pal.stroke,'stroke-width':2.5,'stroke-linejoin':'round','pointer-events':'none'
   }));
-  g.appendChild(svgEl('ellipse',{cx:wx+72,cy:wy+8,rx:42,ry:6,fill:'none',stroke:pal.stroke,'stroke-width':2.5,'pointer-events':'none'}));
-  g.appendChild(svgEl('ellipse',{cx:wx+72,cy:wy+10,rx:38,ry:4,fill:_VP_DARK_R,stroke:pal.stroke,'stroke-width':1,opacity:0.6,'pointer-events':'none'}));
-  [28,46,64].forEach(y=>{const t=(y-8)/68,bx_h=wx+30-8*4*t*(1-t),ex_h=wx+114+8*4*t*(1-t);
-    g.appendChild(svgEl('path',{d:`M${bx_h},${wy+y} Q${wx+72},${wy+y+3} ${ex_h},${wy+y}`,fill:'none',stroke:'#4b5563','stroke-width':3.5,'stroke-linecap':'round','pointer-events':'none'}));
-    g.appendChild(svgEl('path',{d:`M${bx_h},${wy+y} Q${wx+72},${wy+y+3} ${ex_h},${wy+y}`,fill:'none',stroke:'#6b7280','stroke-width':1.5,'stroke-linecap':'round',opacity:0.5,'pointer-events':'none'}));
-  });
-  g.appendChild(svgEl('rect',{x:wx+108,y:wy+14,width:6,height:50,rx:2,fill:_SG_DARK,stroke:pal.stroke,'stroke-width':1.2,'pointer-events':'none'}));
-  [18,28,38,48,56].forEach((y,i)=>{const major=i%2===0;g.appendChild(svgEl('line',{x1:wx+116,y1:wy+y,x2:wx+(major?121:119),y2:wy+y,stroke:pal.stroke,'stroke-width':major?1:0.7,opacity:major?0.4:0.25,'pointer-events':'none'}));});
+  // Dark edge strips (cylindrical shading — same technique as food_storage)
+  g.appendChild(svgEl('rect',{x:bx+1,y:by+6,width:4,height:bh-12,rx:2,fill:pal.stroke,opacity:0.25,'pointer-events':'none'}));
+  g.appendChild(svgEl('rect',{x:bx+bw-5,y:by+6,width:4,height:bh-12,rx:2,fill:pal.stroke,opacity:0.25,'pointer-events':'none'}));
+  // Open top — dark interior visible below rim
+  g.appendChild(svgEl('rect',{x:bx+1,y:by,width:bw-2,height:4,rx:1,fill:_VP_DARK_R,stroke:pal.stroke,'stroke-width':0.8,opacity:0.6,'pointer-events':'none'}));
+  // Rolled rim lip (wider than body, signature HDPE drum feature)
+  g.appendChild(svgEl('rect',{x:wx+40,y:wy+2,width:64,height:6,rx:2,fill:pal.fillUrl,stroke:pal.stroke,'stroke-width':2,'pointer-events':'none'}));
+  g.appendChild(svgEl('line',{x1:wx+44,y1:wy+4,x2:wx+100,y2:wy+4,stroke:_lighten(pal.stroke,0.3),'stroke-width':0.8,opacity:0.5,'pointer-events':'none'}));
+  // Molding seams (subtle horizontal curves following belly)
+  const s1=by+Math.round(bh*0.30),s2=by+Math.round(bh*0.72);
+  g.appendChild(svgEl('path',{d:`M${bx-1},${s1} Q${bx+bw/2},${s1+1} ${bx+bw+1},${s1}`,fill:'none',stroke:pal.stroke,'stroke-width':0.6,opacity:0.3,'pointer-events':'none'}));
+  g.appendChild(svgEl('path',{d:`M${bx-1},${s2} Q${bx+bw/2},${s2+1} ${bx+bw+1},${s2}`,fill:'none',stroke:pal.stroke,'stroke-width':0.6,opacity:0.3,'pointer-events':'none'}));
+  // Sight glass on body face (same _SG_DARK + tick marks + species fill as gas bottle)
+  const sgX=wx+86,sgY=by+8,sgW=6,sgH=60;
+  g.appendChild(svgEl('rect',{x:sgX,y:sgY,width:sgW,height:sgH,rx:2,fill:_SG_DARK,stroke:pal.stroke,'stroke-width':1.2,'pointer-events':'none'}));
+  [0,10,20,30,40,50,58].forEach((dy,i)=>{const major=i%2===0;g.appendChild(svgEl('line',{x1:sgX+sgW+2,y1:sgY+1+dy,x2:sgX+sgW+(major?7:5),y2:sgY+1+dy,stroke:pal.stroke,'stroke-width':major?1:0.7,opacity:major?0.4:0.25,'pointer-events':'none'}));});
+  // Species-colored fill level
   const _ud=scene.runtime?.unitData?.get(unitId);
   let fPct=_ud?.last?.fillPct; if(fPct==null||!Number.isFinite(fPct))fPct=0; fPct=Math.max(0,Math.min(100,fPct));
-  const sgH=46,sgTop=wy+16,fillH=sgH*fPct/100;
-  if(fillH>0){let _gc='#22d3ee';const _n=_ud?.last?.n;if(_n){let _mx=null,_ma=0;for(const[sp,amt]of Object.entries(_n)){if(amt>_ma){_mx=sp;_ma=amt;}}if(_mx&&_SPECIES_COLOR[_mx]){const rgb=_SPECIES_COLOR[_mx];_gc=`rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;}}g.appendChild(svgEl('rect',{x:wx+110,y:sgTop+sgH-fillH,width:2,height:fillH,rx:1,fill:_gc,opacity:0.55,'data-anim':'level-shimmer','data-ybase':sgTop+sgH-fillH,'pointer-events':'none'}));}
-  _rtNameplate(g, wx+41, wy+38, unitId);
-  _rtLED(g, wx+40, wy+75, unitId);
+  const fillH=(sgH-4)*fPct/100;
+  if(fillH>0){let _gc='#22d3ee';const _n=_ud?.last?.n;if(_n){let _mx=null,_ma=0;for(const[sp,amt]of Object.entries(_n)){if(amt>_ma){_mx=sp;_ma=amt;}}if(_mx&&_SPECIES_COLOR[_mx]){const rgb=_SPECIES_COLOR[_mx];_gc=`rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;}}g.appendChild(svgEl('rect',{x:sgX+2,y:sgY+sgH-2-fillH,width:2,height:fillH,rx:1,fill:_gc,opacity:0.55,'data-anim':'level-shimmer','data-ybase':sgY+sgH-2-fillH,'pointer-events':'none'}));}
+  // Scuff mark (ragtag battle damage)
+  g.appendChild(svgEl('line',{x1:bx+8,y1:by+55,x2:bx+14,y2:by+58,stroke:pal.stroke,'stroke-width':1,opacity:0.3,'stroke-linecap':'round','pointer-events':'none'}));
+  _rtNameplate(g, wx+52, wy+38, unitId);
+  _rtLED(g, wx+50, wy+84, unitId);
 };
 
 _RAGTAG_SYMBOLS.food_storage = function(g, wx, wy, ww, wh, pal, def, unitId) {
