@@ -388,9 +388,20 @@
   H_in − P_elec.  Physics-fixed elec_out (like gas_turbine, NNG-5).
   Default η = 0.25, clamped 0.01–0.99.
 
-  **Profiles.**  `simple_burner` (Multi-Fuel Burner, HEAT_TRANSFER T1),
-  `small_gas_engine` (Gas Engine, POWER T1).  Ragtag icons: fallback to
-  reactor_adiabatic and gas_turbine respectively (dedicated icons TBD).
+  **Profiles.**  `simple_burner` (Multi-Fuel Burner, REACTOR T1),
+  `small_gas_engine` (Gas Engine, POWER T1).  Ragtag icons: burner
+  falls back to reactor_adiabatic (dedicated icon TBD).  Engine has a
+  dedicated side-view icon: solid housing with dark viewport showing
+  fuel tank (left), finned engine block (center), alternator drum with
+  concentric rotor circles (right).  Undercarriage: 2 static feet on
+  the left, 1 wheel on the right, connected by axle bar.  Based on
+  real portable multi-fuel generators (Generac GP9500E, DuroMax
+  XP13000HXT form factor).
+
+  **small_gas_engine resized to 3×2** (landscape, was 2×3).  Ports:
+  fuel_in (x:0, y:0.5), air_in (x:0, y:1.5), mat_out (x:3, y:1),
+  elec_out (x:1.5, y:0 — top center).  4 presentation variants:
+  default, mirror, elec-B, mirror-elec-B.
 
   **Energy model note.**  Formation-enthalpy-based thermo means H_in
   already contains the chemical energy of the reactants.  Adiabatic
@@ -23238,7 +23249,7 @@ function _combustionCore(n_in) {
 // ═══════════════════════════════════════════════════════════════════════════════
 UnitRegistry.register('simple_burner', {
   name: 'Simple Burner',
-  category: UnitCategories.HEAT_TRANSFER,
+  category: UnitCategories.REACTOR,
   w: 2,
   h: 2,
   ports: [
@@ -23323,19 +23334,19 @@ UnitRegistry.register('simple_burner', {
 UnitRegistry.register('small_gas_engine', {
   name: 'Small Gas Engine Generator',
   category: UnitCategories.POWER,
-  w: 2,
-  h: 3,
+  w: 3,
+  h: 2,
   ports: [
-    { portId: 'fuel_in', dir: PortDir.IN,  type: StreamType.MATERIAL,   x: 0, y: 1, label: 'fuel' },
-    { portId: 'air_in',  dir: PortDir.IN,  type: StreamType.MATERIAL,   x: 0, y: 2, label: 'air' },
-    { portId: 'mat_out', dir: PortDir.OUT, type: StreamType.MATERIAL,   x: 2, y: 1.5 },
-    { portId: 'elec_out', dir: PortDir.OUT, type: StreamType.ELECTRICAL, x: 1, y: 3 }
+    { portId: 'fuel_in', dir: PortDir.IN,  type: StreamType.MATERIAL,   x: 0, y: 0.5, label: 'fuel' },
+    { portId: 'air_in',  dir: PortDir.IN,  type: StreamType.MATERIAL,   x: 0, y: 1.5, label: 'air' },
+    { portId: 'mat_out', dir: PortDir.OUT, type: StreamType.MATERIAL,   x: 3, y: 1 },
+    { portId: 'elec_out', dir: PortDir.OUT, type: StreamType.ELECTRICAL, x: 1.5, y: 0 }
   ],
   presentations: {
-    'box/default':       { w: 2, h: 3, ports: { fuel_in:{x:0,y:1}, air_in:{x:0,y:2}, mat_out:{x:2,y:1.5}, elec_out:{x:1,y:3} } },
-    'box/mirror':        { w: 2, h: 3, ports: { fuel_in:{x:2,y:1}, air_in:{x:2,y:2}, mat_out:{x:0,y:1.5}, elec_out:{x:1,y:3} } },
-    'box/elec-T':        { w: 2, h: 3, ports: { fuel_in:{x:0,y:1}, air_in:{x:0,y:2}, mat_out:{x:2,y:1.5}, elec_out:{x:1,y:0} } },
-    'box/mirror-elec-T': { w: 2, h: 3, ports: { fuel_in:{x:2,y:1}, air_in:{x:2,y:2}, mat_out:{x:0,y:1.5}, elec_out:{x:1,y:0} } }
+    'box/default':       { w: 3, h: 2, ports: { fuel_in:{x:0,y:0.5}, air_in:{x:0,y:1.5}, mat_out:{x:3,y:1}, elec_out:{x:1.5,y:0} } },
+    'box/mirror':        { w: 3, h: 2, ports: { fuel_in:{x:3,y:0.5}, air_in:{x:3,y:1.5}, mat_out:{x:0,y:1}, elec_out:{x:1.5,y:0} } },
+    'box/elec-B':        { w: 3, h: 2, ports: { fuel_in:{x:0,y:0.5}, air_in:{x:0,y:1.5}, mat_out:{x:3,y:1}, elec_out:{x:1.5,y:2} } },
+    'box/mirror-elec-B': { w: 3, h: 2, ports: { fuel_in:{x:3,y:0.5}, air_in:{x:3,y:1.5}, mat_out:{x:0,y:1}, elec_out:{x:1.5,y:2} } }
   },
   limitParams: ['T_LL', 'T_L', 'T_H', 'T_HH', 'P_LL', 'P_L', 'P_H', 'P_HH', 'mass_LL', 'mass_HH'],
   limits: { S: { T_LL: 200, T_L: 250, T_H: 900, T_HH: 1100, P_LL: 50000, P_L: 70000, P_H: 600000, P_HH: 800000, mass_LL: 0.001, mass_HH: 0.1 } },
@@ -25025,7 +25036,7 @@ ProfileRegistry.register('combustion_chamber', {
 });
 // [v18.1.0 S-BurnerEngine] simple_burner profile
 ProfileRegistry.register('simple_burner', {
-  defId: 'simple_burner', name: 'Multi-Fuel Burner', category: UnitCategories.HEAT_TRANSFER, tiers: [1],
+  defId: 'simple_burner', name: 'Multi-Fuel Burner', category: UnitCategories.REACTOR, tiers: [1],
   description: 'Burns everything that can burn',
   selectionGuide: 'Feed premixed fuel+air and it burns all combustible species at once — H₂, CH₄, CO, NH₃, even food. O₂-limited? It rations proportionally.',
   limits: {
@@ -35223,7 +35234,75 @@ _RAGTAG_SYMBOLS.atmosphere = _RAGTAG_SYMBOLS.source_atm;
 _RAGTAG_SYMBOLS.simple_mixer = _RAGTAG_SYMBOLS.mixer;
 // [v18.1.0] Burner/engine — reuse reactor/turbine icons until dedicated icon session
 _RAGTAG_SYMBOLS.simple_burner = _RAGTAG_SYMBOLS.reactor_adiabatic;
-_RAGTAG_SYMBOLS.small_gas_engine = _RAGTAG_SYMBOLS.gas_turbine;
+_RAGTAG_SYMBOLS.small_gas_engine = function(g, wx, wy, ww, wh, pal, def, unitId) {
+  const pres = getPresentation(def, scene.units.get(unitId));
+  const impCol = _lighten(pal.stroke, 0.6);
+  const darkMetal = _darken(pal.stroke, 0.3);
+  // Body housing: 128×68, raised 4px from top to leave 24px for undercarriage
+  const bx = wx+8, by = wy+4, bw = 128, bh = 68;
+  _rtNozzle(g, wx, wy, ww, wh, bx, by, bw, bh, def, pres, pal, unitId);
+  g.appendChild(svgEl('rect', { x:bx, y:by, width:bw, height:bh, rx:8, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'pointer-events':'none' }));
+  // Inner seam
+  g.appendChild(svgEl('rect', { x:bx+2, y:by+2, width:bw-4, height:bh-4, rx:7, fill:'none', stroke:pal.rim, 'stroke-width':0.5, opacity:0.3, 'pointer-events':'none' }));
+  // 4 corner bolts
+  _rtBolt(g, bx+6, by+6); _rtBolt(g, bx+bw-6, by+6);
+  _rtBolt(g, bx+6, by+bh-6); _rtBolt(g, bx+bw-6, by+bh-6);
+  // ── Dark viewport ──
+  const vx = bx+8, vy = by+10, vw = bw-16, vh = bh-20;
+  _rtVpR(g, vx, vy, vw, vh, '#0f0820', pal.rim);
+  // ── Internal fuel tank (left) ──
+  g.appendChild(svgEl('rect', { x:vx+4, y:vy+4, width:24, height:vh-8, rx:4, fill:impCol, opacity:0.3, 'pointer-events':'none' }));
+  // Fill level lines
+  for (let i = 0; i < 4; i++) {
+    const ly = vy+9 + i*8;
+    g.appendChild(svgEl('line', { x1:vx+8, y1:ly, x2:vx+24, y2:ly, stroke:impCol, 'stroke-width':0.8, opacity:0.4, 'pointer-events':'none' }));
+  }
+  // ── Engine block (center) — fins visible ──
+  const ex = vx+33, ew = 38;
+  g.appendChild(svgEl('rect', { x:ex, y:vy+3, width:ew, height:vh-6, rx:3, fill:impCol, opacity:0.25, 'pointer-events':'none' }));
+  // Cooling fins (horizontal lines)
+  const finCount = Math.max(3, Math.floor((vh-12)/5));
+  for (let i = 0; i < finCount; i++) {
+    const fy = vy+7 + i*((vh-14)/finCount);
+    g.appendChild(svgEl('line', { x1:ex+2, y1:fy, x2:ex+ew-2, y2:fy, stroke:impCol, 'stroke-width':1.2, opacity:0.4, 'pointer-events':'none' }));
+  }
+  // ── Alternator drum (right) — concentric circles ──
+  const acx = vx+vw-20, acy = vy+vh/2;
+  const aRy = vh/2-4;
+  g.appendChild(svgEl('ellipse', { cx:acx, cy:acy, rx:16, ry:aRy, fill:impCol, opacity:0.2, 'pointer-events':'none' }));
+  g.appendChild(svgEl('circle', { cx:acx, cy:acy, r:Math.min(12,aRy-2), fill:'none', stroke:impCol, 'stroke-width':1, opacity:0.4, 'pointer-events':'none' }));
+  g.appendChild(svgEl('circle', { cx:acx, cy:acy, r:Math.min(6,aRy-6), fill:'none', stroke:impCol, 'stroke-width':1, opacity:0.35, 'pointer-events':'none' }));
+  g.appendChild(svgEl('circle', { cx:acx, cy:acy, r:2, fill:impCol, opacity:0.5, 'pointer-events':'none' }));
+  // Cooling vent slots below alternator
+  for (let i = 0; i < 3; i++) {
+    g.appendChild(svgEl('rect', { x:acx-14+i*10, y:vy+vh-5, width:6, height:3, rx:1, fill:impCol, opacity:0.3, 'pointer-events':'none' }));
+  }
+  // ── Undercarriage: 2 feet (left) + 1 wheel (right) — solid, no transparency ──
+  const groundY = by+bh;
+  // Axle/skid bar
+  g.appendChild(svgEl('line', { x1:bx+12, y1:groundY+5, x2:bx+bw-22, y2:groundY+5, stroke:pal.stroke, 'stroke-width':2.5, 'pointer-events':'none' }));
+  // Left foot 1 — leg + pad
+  g.appendChild(svgEl('rect', { x:bx+10, y:groundY, width:6, height:16, rx:1, fill:pal.stroke, 'pointer-events':'none' }));
+  g.appendChild(svgEl('rect', { x:bx+5, y:groundY+14, width:16, height:5, rx:2, fill:darkMetal, 'pointer-events':'none' }));
+  // Left foot 2 — leg + pad
+  g.appendChild(svgEl('rect', { x:bx+36, y:groundY, width:6, height:16, rx:1, fill:pal.stroke, 'pointer-events':'none' }));
+  g.appendChild(svgEl('rect', { x:bx+31, y:groundY+14, width:16, height:5, rx:2, fill:darkMetal, 'pointer-events':'none' }));
+  // Wheel (right side) — solid rubber tire + hub
+  const wcx = bx+bw-18, wcy = groundY+9;
+  g.appendChild(svgEl('circle', { cx:wcx, cy:wcy, r:13, fill:darkMetal, 'pointer-events':'none' }));  // tire
+  g.appendChild(svgEl('circle', { cx:wcx, cy:wcy, r:13, fill:'none', stroke:pal.stroke, 'stroke-width':1.5, 'pointer-events':'none' }));  // rim edge
+  g.appendChild(svgEl('circle', { cx:wcx, cy:wcy, r:9, fill:impCol, 'pointer-events':'none' }));  // hub plate
+  g.appendChild(svgEl('circle', { cx:wcx, cy:wcy, r:9, fill:'none', stroke:pal.stroke, 'stroke-width':1, 'pointer-events':'none' }));
+  g.appendChild(svgEl('circle', { cx:wcx, cy:wcy, r:3, fill:darkMetal, 'pointer-events':'none' }));  // axle nut
+  // Wheel spokes
+  for (let a = 0; a < 4; a++) {
+    const ang = a * Math.PI / 4;
+    g.appendChild(svgEl('line', { x1:wcx+Math.cos(ang)*4, y1:wcy+Math.sin(ang)*4, x2:wcx+Math.cos(ang)*8, y2:wcy+Math.sin(ang)*8, stroke:pal.stroke, 'stroke-width':1.2, 'pointer-events':'none' }));
+  }
+  // Nameplate + LED
+  _rtNameplate(g, bx+40, by+4, unitId);
+  _rtLED(g, bx+8, by+bh-10, unitId);
+};
 // [v17.7.0] simple_tank, simple_open_tank, cooled_tank — dedicated symbol functions below
 
 // ── Simple Tank (Gas Bottle T1 / Gas Tank T2) — 2×3 ───────────────────────
