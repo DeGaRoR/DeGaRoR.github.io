@@ -357,6 +357,25 @@
   CHANGELOG  (latest first)
   ═══════════════════════════════════════════════════════════════════════════
 
+  ─── v17.12.0 — Barrel + Gas Bottle icon redesign ─────────────────────────
+  **Barrel (simple_open_tank T1).**  Complete icon rewrite.  Old pseudo-3D
+  bulging barrel with hoops replaced by flat front-view HDPE water drum.
+  Subtle ±2px belly swell, rolled rim lip wider than body, dark interior
+  strip, on-body sight glass (same _SG_DARK + tick marks as gas bottle),
+  edge shading strips (food_storage pattern), two molding seams, scuff
+  mark.  Body bbox 56×80 (was 84×68), taller-than-wide drum proportions.
+  All colors via pal.fillUrl / pal.stroke — fully dynamic under colorBy.
+
+  **Gas Bottle (simple_tank T1).**  Complete icon rewrite.  Old blobby
+  bonbonne with hex valve replaced by medical O₂ cylinder silhouette.
+  Tall circular-arc shoulder (A-command arcs), narrow neck with forged
+  collar ring, valve handwheel (circle + cross), on-body sight glass,
+  pressure gauge with red needle, domed bottom.  Body bbox 40×112
+  (was 52×96), slender cylinder proportions.  All pal.* dynamic colors.
+
+  _BODY_BBOX, _UNIT_VIEWPORT updated for both units.  No logic changes.
+  Tests: 713 (unchanged).
+
   ─── v17.11.0 — Food crate rework: chemistry, ports, fridge icon ───────
   **NNG-1 fix: anaerobic fermentation.**  Spoilage chemistry changed from
   CH₂O → CO₂ + H₂O (created 2 O atoms from nothing) to the balanced
@@ -22923,15 +22942,15 @@ UnitRegistry.register('reactor_jacketed', {
   w: 2,
   h: 3,
   ports: [
-    { portId: 'mat_in',  dir: PortDir.IN,  type: StreamType.MATERIAL,   x: 0, y: 0.5 },
-    { portId: 'mat_out', dir: PortDir.OUT, type: StreamType.MATERIAL,   x: 2, y: 0.5 },
+    { portId: 'mat_in',  dir: PortDir.IN,  type: StreamType.MATERIAL,   x: 0, y: 1 },
+    { portId: 'mat_out', dir: PortDir.OUT, type: StreamType.MATERIAL,   x: 2, y: 1 },
     { portId: 'elec_in', dir: PortDir.IN,  type: StreamType.ELECTRICAL, x: 1, y: 3 }
   ],
   presentations: {
-    'box/default':       { w: 2, h: 3, ports: { mat_in:{x:0,y:0.5}, mat_out:{x:2,y:0.5}, elec_in:{x:1,y:3} }, icon: 'ico-reactor_equilibrium' },
-    'box/mirror':        { w: 2, h: 3, ports: { mat_in:{x:2,y:0.5}, mat_out:{x:0,y:0.5}, elec_in:{x:1,y:3} }, icon: 'ico-reactor_equilibrium' },
-    'box/elec-T':        { w: 2, h: 3, ports: { mat_in:{x:0,y:0.5}, mat_out:{x:2,y:0.5}, elec_in:{x:1,y:0} }, icon: 'ico-reactor_equilibrium' },
-    'box/mirror-elec-T': { w: 2, h: 3, ports: { mat_in:{x:2,y:0.5}, mat_out:{x:0,y:0.5}, elec_in:{x:1,y:0} }, icon: 'ico-reactor_equilibrium' }
+    'box/default':       { w: 2, h: 3, ports: { mat_in:{x:0,y:1}, mat_out:{x:2,y:1}, elec_in:{x:1,y:3} }, icon: 'ico-reactor_equilibrium' },
+    'box/mirror':        { w: 2, h: 3, ports: { mat_in:{x:2,y:1}, mat_out:{x:0,y:1}, elec_in:{x:1,y:3} }, icon: 'ico-reactor_equilibrium' },
+    'box/elec-T':        { w: 2, h: 3, ports: { mat_in:{x:0,y:1}, mat_out:{x:2,y:1}, elec_in:{x:1,y:0} }, icon: 'ico-reactor_equilibrium' },
+    'box/mirror-elec-T': { w: 2, h: 3, ports: { mat_in:{x:2,y:1}, mat_out:{x:0,y:1}, elec_in:{x:1,y:0} }, icon: 'ico-reactor_equilibrium' }
   },
   limitParams: ['T_LL', 'T_L', 'T_H', 'T_HH', 'P_LL', 'P_L', 'P_H', 'P_HH', 'mass_LL', 'mass_HH'],
   limits: { S: { T_LL: 323, T_L: 373, T_H: 773, T_HH: 923, P_LL: 50000, P_L: 80000, P_H: 12000000, P_HH: 15000000, mass_LL: 0.001, mass_HH: 0.08 } },
@@ -22946,14 +22965,14 @@ UnitRegistry.register('reactor_cooled', {
   w: 2,
   h: 3,
   ports: [
-    { portId: 'mat_in',   dir: PortDir.IN,  type: StreamType.MATERIAL, x: 0, y: 0.5 },
-    { portId: 'mat_out',  dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 0.5 },
+    { portId: 'mat_in',   dir: PortDir.IN,  type: StreamType.MATERIAL, x: 0, y: 1 },
+    { portId: 'mat_out',  dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 1 },
     { portId: 'cool_in',  dir: PortDir.IN,  type: StreamType.MATERIAL, x: 0, y: 2.5 },
     { portId: 'cool_out', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 2.5 }
   ],
   presentations: {
-    'box/default': { w: 2, h: 3, ports: { mat_in:{x:0,y:0.5}, mat_out:{x:2,y:0.5}, cool_in:{x:0,y:2.5}, cool_out:{x:2,y:2.5} }, icon: 'ico-reactor_equilibrium' },
-    'box/mirror':  { w: 2, h: 3, ports: { mat_in:{x:2,y:0.5}, mat_out:{x:0,y:0.5}, cool_in:{x:2,y:2.5}, cool_out:{x:0,y:2.5} }, icon: 'ico-reactor_equilibrium' }
+    'box/default': { w: 2, h: 3, ports: { mat_in:{x:0,y:1}, mat_out:{x:2,y:1}, cool_in:{x:0,y:2.5}, cool_out:{x:2,y:2.5} }, icon: 'ico-reactor_equilibrium' },
+    'box/mirror':  { w: 2, h: 3, ports: { mat_in:{x:2,y:1}, mat_out:{x:0,y:1}, cool_in:{x:2,y:2.5}, cool_out:{x:0,y:2.5} }, icon: 'ico-reactor_equilibrium' }
   },
   limitParams: ['T_LL', 'T_L', 'T_H', 'T_HH', 'P_LL', 'P_L', 'P_H', 'P_HH', 'mass_LL', 'mass_HH'],
   limits: { S: { T_LL: 323, T_L: 373, T_H: 773, T_HH: 923, P_LL: 50000, P_L: 80000, P_H: 12000000, P_HH: 15000000, mass_LL: 0.001, mass_HH: 0.08 } },
@@ -23184,23 +23203,23 @@ UnitRegistry.register('reactor_electrochemical', {
   category: UnitCategories.REACTOR,
   w: 2, h: 3,
   ports: [
-    { portId: 'mat_in',      label: 'Feed',       dir: PortDir.IN,  type: StreamType.MATERIAL,   x: 0, y: 1.5 },
+    { portId: 'mat_in',      label: 'Feed',       dir: PortDir.IN,  type: StreamType.MATERIAL,   x: 0, y: 1 },
     { portId: 'elec_in',     label: 'Power in',   dir: PortDir.IN,  type: StreamType.ELECTRICAL, x: 1, y: 0 },
-    { portId: 'mat_out_cat', label: 'Cathode',     dir: PortDir.OUT, type: StreamType.MATERIAL,   x: 2, y: 0.5 },
-    { portId: 'mat_out_ano', label: 'Anode (O₂)',  dir: PortDir.OUT, type: StreamType.MATERIAL,   x: 2, y: 2.5 }
+    { portId: 'mat_out_cat', label: 'Cathode',     dir: PortDir.OUT, type: StreamType.MATERIAL,   x: 2, y: 1 },
+    { portId: 'mat_out_ano', label: 'Anode (O₂)',  dir: PortDir.OUT, type: StreamType.MATERIAL,   x: 2, y: 2 }
   ],
   presentations: {
     'box/default':       { w: 2, h: 3, ports: {
-      mat_in:{x:0,y:1.5}, elec_in:{x:1,y:0}, mat_out_cat:{x:2,y:0.5}, mat_out_ano:{x:2,y:2.5}
+      mat_in:{x:0,y:1}, elec_in:{x:1,y:0}, mat_out_cat:{x:2,y:1}, mat_out_ano:{x:2,y:2}
     }, icon: 'ico-reactor_equilibrium' },
     'box/mirror':        { w: 2, h: 3, ports: {
-      mat_in:{x:2,y:1.5}, elec_in:{x:1,y:0}, mat_out_cat:{x:0,y:0.5}, mat_out_ano:{x:0,y:2.5}
+      mat_in:{x:2,y:1}, elec_in:{x:1,y:0}, mat_out_cat:{x:0,y:1}, mat_out_ano:{x:0,y:2}
     }, icon: 'ico-reactor_equilibrium' },
     'box/elec-B':        { w: 2, h: 3, ports: {
-      mat_in:{x:0,y:1.5}, elec_in:{x:1,y:3}, mat_out_cat:{x:2,y:0.5}, mat_out_ano:{x:2,y:2.5}
+      mat_in:{x:0,y:1}, elec_in:{x:1,y:3}, mat_out_cat:{x:2,y:1}, mat_out_ano:{x:2,y:2}
     }, icon: 'ico-reactor_equilibrium' },
     'box/mirror-elec-B': { w: 2, h: 3, ports: {
-      mat_in:{x:2,y:1.5}, elec_in:{x:1,y:3}, mat_out_cat:{x:0,y:0.5}, mat_out_ano:{x:0,y:2.5}
+      mat_in:{x:2,y:1}, elec_in:{x:1,y:3}, mat_out_cat:{x:0,y:1}, mat_out_ano:{x:0,y:2}
     }, icon: 'ico-reactor_equilibrium' }
   },
   limitParams: ['T_LL', 'T_L', 'T_H', 'T_HH', 'P_LL', 'P_HH', 'mass_HH'],
@@ -32640,7 +32659,7 @@ const _BODY_BBOX = {
   splitter:                 { x:26, y:14, w:14, h:68 },
   flash_drum:               { x:22, y:8,  w:44, h:80 },
   tank:                     { x:4,  y:16, w:136, h:64 },
-  simple_tank:              { x:22, y:12, w:52,  h:96 },  // [v17.7.0] bonbonne (T1) / capsule (T2) in 2×3
+  simple_tank:              { x:28, y:24, w:40,  h:112 },  // [v17.12.0] O₂ cylinder (T1) / capsule (T2) in 2×3
   open_tank:                { x:14, y:14, w:116, h:68 },
   simple_open_tank:         { x:44, y:6,  w:56,  h:80 },  // [v17.12.0] HDPE drum in 3×2 frame
   reactor_adiabatic:        { x:10, y:8,  w:76, h:66 },
@@ -34644,8 +34663,8 @@ _RAGTAG_SYMBOLS.simple_mixer = _RAGTAG_SYMBOLS.mixer;
 // [v17.7.0] simple_tank, simple_open_tank, cooled_tank — dedicated symbol functions below
 
 // ── Simple Tank (Gas Bottle T1 / Gas Tank T2) — 2×3 ───────────────────────
-// T1: bonbonne cylinder — single unified path (no internal Z-bar), neck rect,
-//     hex valve, sight glass with live level, pressure gauge, chip, LED.
+// T1: O₂ cylinder — circular-arc shoulder, narrow neck, valve handwheel,
+//     on-body sight glass + pressure gauge, domed bottom.
 // T2: delegates to tank symbol (horizontal capsule, same look as sealed tank).
 _RAGTAG_SYMBOLS.simple_tank = function(g, wx, wy, ww, wh, pal, def, unitId) {
   const pres = getPresentation(def, scene.units.get(unitId));
@@ -34657,35 +34676,49 @@ _RAGTAG_SYMBOLS.simple_tank = function(g, wx, wy, ww, wh, pal, def, unitId) {
     return;
   }
 
-  const bx = wx+22, by = wy+12, bw = 52, bh = 96;
+  // Body bbox (slender cylinder filling 2×3 frame)
+  const bx=wx+28,by=wy+24,bw=40,bh=112;
   _rtNozzle(g, wx, wy, ww, wh, bx, by, bw, bh, def, pres, pal, unitId);
-  // Unified bonbonne path — Z closes at shoulder top, hidden under neck rect
+  // Body path — circular-arc shoulder + straight sides + domed bottom
+  // Shoulder arcs (A 20,20) sweep from neck width (14px) to body width (40px)
   g.appendChild(svgEl('path', {
-    d: `M${wx+36},${wy+26} Q${wx+22},${wy+26} ${wx+22},${wy+50}` +
-       ` L${wx+22},${wy+100} Q${wx+22},${wy+114} ${wx+48},${wy+114}` +
-       ` Q${wx+74},${wy+114} ${wx+74},${wy+100} L${wx+74},${wy+50}` +
-       ` Q${wx+74},${wy+26} ${wx+62},${wy+26} Z`,
+    d: `M${wx+41},${wy+26} A 20,20 0 0,0 ${wx+28},${wy+46}` +
+       ` L${wx+28},${wy+128} Q${wx+28},${wy+136} ${wx+48},${wy+136}` +
+       ` Q${wx+68},${wy+136} ${wx+68},${wy+128} L${wx+68},${wy+46}` +
+       ` A 20,20 0 0,0 ${wx+55},${wy+26} Z`,
     fill: pal.fillUrl, stroke: pal.stroke, 'stroke-width': 2.5, 'stroke-linejoin': 'round', 'pointer-events': 'none'
   }));
-  g.appendChild(svgEl('rect', { x: wx+36, y: wy+8, width: 24, height: 20, rx: 8,
-    fill: pal.fillUrl, stroke: pal.stroke, 'stroke-width': 2, 'pointer-events': 'none' }));
-  const _hx=wx+48,_hy=wy+6,_hr=7;
-  const _hexPts=[0,1,2,3,4,5].map(i=>{const a=(i*60-90)*Math.PI/180;return `${_hx+_hr*Math.cos(a)},${_hy+_hr*Math.sin(a)}`;}).join(' ');
-  g.appendChild(svgEl('polygon',{points:_hexPts,fill:'#374151',stroke:'#6b7280','stroke-width':1.5,'pointer-events':'none'}));
-  g.appendChild(svgEl('line',{x1:wx+42,y1:wy+6,x2:wx+54,y2:wy+6,stroke:'#9ca3af','stroke-width':1.2,'pointer-events':'none'}));
-  g.appendChild(svgEl('line',{x1:wx+48,y1:wy+1,x2:wx+48,y2:wy+11,stroke:'#9ca3af','stroke-width':1.2,'pointer-events':'none'}));
-  g.appendChild(svgEl('line',{x1:wx+22,y1:wy+75,x2:wx+74,y2:wy+75,stroke:pal.stroke,'stroke-width':1,opacity:0.3,'stroke-dasharray':'3 2','pointer-events':'none'}));
-  // Gauges shifted left 12px (¼ tile) — sight glass at x:54, pressure gauge at cx:56
-  g.appendChild(svgEl('rect',{x:wx+54,y:wy+52,width:6,height:44,rx:2,fill:_SG_DARK,stroke:pal.stroke,'stroke-width':1.2,'pointer-events':'none'}));
-  [56,64,72,80,88].forEach((y,i)=>{const major=i%2===0;g.appendChild(svgEl('line',{x1:wx+62,y1:wy+y,x2:wx+(major?67:65),y2:wy+y,stroke:pal.stroke,'stroke-width':major?1:0.7,opacity:major?0.4:0.25,'pointer-events':'none'}));});
+  // Dark edge strips (cylindrical shading)
+  g.appendChild(svgEl('rect',{x:bx+1,y:wy+52,width:4,height:70,rx:2,fill:pal.stroke,opacity:0.25,'pointer-events':'none'}));
+  g.appendChild(svgEl('rect',{x:bx+bw-5,y:wy+52,width:4,height:70,rx:2,fill:pal.stroke,opacity:0.25,'pointer-events':'none'}));
+  // Neck (narrow rect connecting shoulder to valve)
+  g.appendChild(svgEl('rect', { x:wx+41, y:wy+10, width:14, height:14, rx:3,
+    fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2, 'pointer-events':'none' }));
+  // Neck collar / forged ring at shoulder junction
+  g.appendChild(svgEl('rect', { x:wx+37, y:wy+23, width:22, height:4, rx:1.5,
+    fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':1.2, 'pointer-events':'none' }));
+  g.appendChild(svgEl('line',{x1:wx+39,y1:wy+24,x2:wx+57,y2:wy+24,stroke:_lighten(pal.stroke,0.3),'stroke-width':0.6,opacity:0.5,'pointer-events':'none'}));
+  g.appendChild(svgEl('line',{x1:wx+39,y1:wy+26.5,x2:wx+57,y2:wy+26.5,stroke:pal.stroke,'stroke-width':0.5,opacity:0.3,'pointer-events':'none'}));
+  // Valve handwheel (circle + cross)
+  g.appendChild(svgEl('circle',{cx:wx+48,cy:wy+5,r:5,fill:'#374151',stroke:'#6b7280','stroke-width':1.5,'pointer-events':'none'}));
+  g.appendChild(svgEl('line',{x1:wx+44,y1:wy+5,x2:wx+52,y2:wy+5,stroke:'#9ca3af','stroke-width':1,'pointer-events':'none'}));
+  g.appendChild(svgEl('line',{x1:wx+48,y1:wy+1,x2:wx+48,y2:wy+9,stroke:'#9ca3af','stroke-width':1,'pointer-events':'none'}));
+  // Sight glass on body face (same _SG_DARK + tick marks as barrel/cooled_tank)
+  const sgX=wx+56,sgY=wy+50,sgW=6,sgH=68;
+  g.appendChild(svgEl('rect',{x:sgX,y:sgY,width:sgW,height:sgH,rx:2,fill:_SG_DARK,stroke:pal.stroke,'stroke-width':1.2,'pointer-events':'none'}));
+  [0,10,20,30,40,50,60,66].forEach((dy,i)=>{const major=i%2===0;g.appendChild(svgEl('line',{x1:sgX+sgW+2,y1:sgY+1+dy,x2:sgX+sgW+(major?7:5),y2:sgY+1+dy,stroke:pal.stroke,'stroke-width':major?1:0.7,opacity:major?0.4:0.25,'pointer-events':'none'}));});
+  // Species-colored fill level
   const _ud=scene.runtime?.unitData?.get(unitId);
   let fPct=_ud?.last?.fillPct; if(fPct==null||!Number.isFinite(fPct))fPct=0; fPct=Math.max(0,Math.min(100,fPct));
-  const sgH=40,sgTop=wy+54,fillH=sgH*fPct/100;
-  if(fillH>0){let _gc='#22d3ee';const _n=_ud?.last?.n;if(_n){let _mx=null,_ma=0;for(const[sp,amt]of Object.entries(_n)){if(amt>_ma){_mx=sp;_ma=amt;}}if(_mx&&_SPECIES_COLOR[_mx]){const rgb=_SPECIES_COLOR[_mx];_gc=`rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;}}g.appendChild(svgEl('rect',{x:wx+56,y:sgTop+sgH-fillH,width:2,height:fillH,rx:1,fill:_gc,opacity:0.55,'data-anim':'level-shimmer','data-ybase':sgTop+sgH-fillH,'pointer-events':'none'}));}
-  g.appendChild(svgEl('circle',{cx:wx+56,cy:wy+34,r:5,fill:'#1f2937',stroke:'#4b5563','stroke-width':1.5,'pointer-events':'none'}));
-  g.appendChild(svgEl('line',{x1:wx+56,y1:wy+34,x2:wx+56,y2:wy+30,stroke:'#ef4444','stroke-width':1.5,'stroke-linecap':'round','pointer-events':'none'}));
-  _rtNameplate(g, wx+28, wy+36, unitId);
-  _rtLED(g, wx+30, wy+52, unitId);
+  const fillH=(sgH-4)*fPct/100;
+  if(fillH>0){let _gc='#22d3ee';const _n=_ud?.last?.n;if(_n){let _mx=null,_ma=0;for(const[sp,amt]of Object.entries(_n)){if(amt>_ma){_mx=sp;_ma=amt;}}if(_mx&&_SPECIES_COLOR[_mx]){const rgb=_SPECIES_COLOR[_mx];_gc=`rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;}}g.appendChild(svgEl('rect',{x:sgX+2,y:sgY+sgH-2-fillH,width:2,height:fillH,rx:1,fill:_gc,opacity:0.55,'data-anim':'level-shimmer','data-ybase':sgY+sgH-2-fillH,'pointer-events':'none'}));}
+  // Pressure gauge (small circle with red needle — above nameplate)
+  g.appendChild(svgEl('circle',{cx:wx+38,cy:wy+58,r:5,fill:'#1f2937',stroke:'#4b5563','stroke-width':1.5,'pointer-events':'none'}));
+  g.appendChild(svgEl('line',{x1:wx+38,y1:wy+58,x2:wx+38,y2:wy+54,stroke:'#ef4444','stroke-width':1.5,'stroke-linecap':'round','pointer-events':'none'}));
+  // Scuff mark (ragtag)
+  g.appendChild(svgEl('line',{x1:bx+6,y1:wy+100,x2:bx+12,y2:wy+103,stroke:pal.stroke,'stroke-width':1,opacity:0.3,'stroke-linecap':'round','pointer-events':'none'}));
+  _rtNameplate(g, wx+34, wy+68, unitId);
+  _rtLED(g, wx+34, wy+132, unitId);
 };
 
 // ── Cooled Tank — 2×3 bonbonne + cooling serpentine ────────────────────────
