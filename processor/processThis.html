@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v18.0.0
+  processThis v18.1.0
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -356,6 +356,56 @@
   ═══════════════════════════════════════════════════════════════════════════
   CHANGELOG  (latest first)
   ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v18.1.0 — S-BurnerEngine: multi-fuel combustion + gas engine ──────
+
+  **ReactionRegistry: tags.**  Optional `tags` array on reaction
+  registration, frozen at registration time.  `getByTag(tag)` returns all
+  reactions carrying a given tag.  Backward-compatible — existing reactions
+  get `_tags: []`.
+
+  **3 new combustion reactions.**  R_CO_COMB (2 CO + O₂ → 2 CO₂),
+  R_NH3_COMB (4 NH₃ + 3 O₂ → 2 N₂ + 6 H₂O), R_CH2O_COMB (CH₂O + O₂ →
+  CO₂ + H₂O).  All tagged `['combustion']`.  Existing R_H2_COMB and
+  R_CH4_COMB also tagged.  Total: 5 combustion-tagged reactions covering
+  all combustible registered species.
+
+  **CombustionCore (`_combustionCore`).**  Shared stoichiometric multi-fuel
+  combustion solver.  Discovers fuels via `getByTag('combustion')`.  O₂
+  allocation: proportional across all active fuels when limited (factor f).
+  Energy from ΔH°_rxn (formation enthalpies, NNG-1/10).  Returns n_out,
+  Q_release_W, extents, o2_status, fuelPower_W, f.
+
+  **`simple_burner` defId.**  Single mat_in → single mat_out.  Calls
+  CombustionCore on inlet composition.  Adiabatic: H_out = H_in with
+  product composition (formation enthalpies encode the chemical energy —
+  PH-flash finds adiabatic flame temperature).  Q_release diagnostic only.
+  limitParams for T/P/mass.
+
+  **`small_gas_engine` defId.**  Two mat_in (fuel_in + air_in), one
+  mat_out (exhaust), one elec_out.  Merges inlets (mol-weighted T, min P),
+  runs CombustionCore, splits energy: P_elec = η × Q_release, H_out =
+  H_in − P_elec.  Physics-fixed elec_out (like gas_turbine, NNG-5).
+  Default η = 0.25, clamped 0.01–0.99.
+
+  **Profiles.**  `simple_burner` (Multi-Fuel Burner, HEAT_TRANSFER T1),
+  `small_gas_engine` (Gas Engine, POWER T1).  Ragtag icons: fallback to
+  reactor_adiabatic and gas_turbine respectively (dedicated icons TBD).
+
+  **Energy model note.**  Formation-enthalpy-based thermo means H_in
+  already contains the chemical energy of the reactants.  Adiabatic
+  combustion = H_out(products) = H_in(reactants) → T rises because
+  products have lower hf0.  CombustionCore's Q_release is a diagnostic
+  (Σ ξ × −ΔH°_rxn), not added to outlet enthalpy.
+
+  Tests: 746 (+33).  33 new tests covering: ReactionRegistry tags (4),
+  CombustionCore basics (6), O₂ limitation (5), energy/mass conservation
+  (5), simple_burner unit (6), small_gas_engine unit (7).
+
+  NNGs: NNG-1 (conservation — formation enthalpies, atom balance),
+  NNG-2 (no cooling without sink), NNG-3 (no implicit connections),
+  NNG-5 (physics-fixed elec_out), NNG-9 (tick isolation),
+  NNG-10 (ReactionRegistry tags, getByTag), NNG-14 (changelog + tests).
 
   ─── v17.12.2 — Bidirectional ambient heat in balance report ──────────────
   **computeSystemBalance:** ambient heat loop now handles negative
@@ -12417,6 +12467,9 @@ class ReactionRegistry {
       }
     }
 
+    // 9. Tags (optional, for cross-cutting classification like 'combustion')
+    const _tags = Object.freeze(Array.isArray(spec.tags) ? [...spec.tags] : []);
+
     // Store validated reaction
     // [v8.9.0] Precompute reaction thermodynamics at registration time
     let _dH0_Jmol = null, _dS0_JmolK = null, _delta_nu = 0, _thermoComplete = true;
@@ -12460,7 +12513,8 @@ class ReactionRegistry {
       _dH0_Jmol,                       // [v8.9.0] standard enthalpy of reaction (J/mol)
       _dS0_JmolK,                      // [v8.9.0] standard entropy of reaction (J/(mol·K))
       _delta_nu,                        // [v8.9.0] Σ νᵢ (mole change, for pressure effects)
-      _thermoComplete                   // [v8.9.0] true if all species have hf0/s0 data
+      _thermoComplete,                   // [v8.9.0] true if all species have hf0/s0 data
+      _tags                              // [v18.1.0] frozen tag array (e.g. ['combustion'])
     };
 
     ReactionRegistry._map.set(id, Object.freeze(reaction));
@@ -12471,6 +12525,15 @@ class ReactionRegistry {
   static exists(id)  { return ReactionRegistry._map.has(id); }
   static all()       { return Array.from(ReactionRegistry._map.values()); }
   static list()      { return ReactionRegistry.all(); }
+
+  // [v18.1.0] Retrieve all reactions carrying a given tag (e.g. 'combustion')
+  static getByTag(tag) {
+    const result = [];
+    for (const rxn of ReactionRegistry._map.values()) {
+      if (rxn._tags.includes(tag)) result.push(rxn);
+    }
+    return result;
+  }
 
   // [v8.9.0] van 't Hoff equilibrium constant: ln K(T) = -ΔH°/(R·T) + ΔS°/R
   static lnK(id, T_K) {
@@ -12503,6 +12566,7 @@ ReactionRegistry.register('R_H2_COMB', {
   equation: '2 H₂ + O₂ → 2 H₂O',
   stoich: { H2: -2, O2: -1, H2O: 2 },
   reversible: true,
+  tags: ['combustion'],
   Tmin_K: 400,
   Tmax_K: 3000,
   Pmin_Pa: 50000,       // 0.5 bar
@@ -12687,6 +12751,7 @@ ReactionRegistry.register('R_CH4_COMB', {
   equation: 'CH₄ + 2 O₂ → CO₂ + 2 H₂O',
   stoich: { CH4: -1, O2: -2, CO2: 1, H2O: 2 },
   reversible: false,
+  tags: ['combustion'],
   Tmin_K: 500,
   Tmax_K: 3000,
   Pmin_Pa: 50000,
@@ -12811,6 +12876,87 @@ ReactionRegistry.register('R_METABOLISM', {
     orders: { CH2O: 1, O2: 1 },
     references: [{ source: 'Bioenergetics calibration',
       detail: 'Enzyme-catalyzed approximation. Low Ea ensures near-complete conversion at 310 K in any practical reactor volume.' }]
+  }
+});
+
+// ── [v18.1.0 S-BurnerEngine] Combustion reactions for CombustionCore ──
+
+// ── Carbon Monoxide Combustion ──
+// 2 CO + O₂ → 2 CO₂
+// ΔH° = 2×(−393510) − 2×(−110530) − 0 = −565 960 J/mol
+ReactionRegistry.register('R_CO_COMB', {
+  name: 'Carbon Monoxide Combustion',
+  equation: '2 CO + O₂ → 2 CO₂',
+  stoich: { CO: -2, O2: -1, CO2: 2 },
+  reversible: false,
+  tags: ['combustion'],
+  Tmin_K: 500,
+  Tmax_K: 3000,
+  Pmin_Pa: 50000,
+  Pmax_Pa: 5000000,
+  notes: 'Strongly exothermic. Complete combustion of CO to CO₂.',
+  references: [{ source: 'NIST-JANAF', detail: 'Chase 1998' }],
+  kinetics: {
+    model: 'POWER_LAW',
+    A: 2.2e6,
+    beta: 0,
+    Ea_Jmol: 100000,
+    orders: { CO: 1, O2: 0.5 },
+    references: [{ source: 'Dryer & Glassman 1973 (adapted)',
+      detail: 'Proc. Combust. Inst. 14, 987-1003. Global power-law fit.' }]
+  }
+});
+
+// ── Ammonia Combustion ──
+// 4 NH₃ + 3 O₂ → 2 N₂ + 6 H₂O
+// ΔH° = 6×(−241826) + 2×0 − 4×(−45940) − 3×0 = −1 267 196 J/mol
+ReactionRegistry.register('R_NH3_COMB', {
+  name: 'Ammonia Combustion',
+  equation: '4 NH₃ + 3 O₂ → 2 N₂ + 6 H₂O',
+  stoich: { NH3: -4, O2: -3, N2: 2, H2O: 6 },
+  reversible: false,
+  tags: ['combustion'],
+  Tmin_K: 500,
+  Tmax_K: 3000,
+  Pmin_Pa: 50000,
+  Pmax_Pa: 5000000,
+  notes: 'Exothermic. Ammonia as fuel — emerging green energy vector. No carbon products.',
+  references: [{ source: 'NIST-JANAF', detail: 'Chase 1998' }],
+  kinetics: {
+    model: 'POWER_LAW',
+    A: 4.0e5,
+    beta: 0,
+    Ea_Jmol: 180000,
+    orders: { NH3: 1, O2: 0.5 },
+    references: [{ source: 'Mathieu & Petersen 2015 (adapted)',
+      detail: 'Combust. Flame 162, 554-570. Global fit for NH₃/air.' }]
+  }
+});
+
+// ── Formaldehyde Combustion ──
+// CH₂O + O₂ → CO₂ + H₂O
+// ΔH° = (−393510) + (−241826) − (−115900) − 0 = −519 436 J/mol
+// Same stoichiometry as R_METABOLISM but at combustion temperatures (500–3000 K).
+ReactionRegistry.register('R_CH2O_COMB', {
+  name: 'Formaldehyde Combustion',
+  equation: 'CH₂O + O₂ → CO₂ + H₂O',
+  stoich: { CH2O: -1, O2: -1, CO2: 1, H2O: 1 },
+  reversible: false,
+  tags: ['combustion'],
+  Tmin_K: 500,
+  Tmax_K: 3000,
+  Pmin_Pa: 50000,
+  Pmax_Pa: 5000000,
+  notes: 'Exothermic. Incinerates food proxy (CH₂O). Same chemistry as metabolism, different regime.',
+  references: [{ source: 'NIST-JANAF', detail: 'Chase 1998' }],
+  kinetics: {
+    model: 'POWER_LAW',
+    A: 1.0e8,
+    beta: 0,
+    Ea_Jmol: 80000,
+    orders: { CH2O: 1, O2: 0.5 },
+    references: [{ source: 'Eiteneer et al. 2003 (adapted)',
+      detail: 'J. Phys. Chem. A 107, 5217-5231. Global fit.' }]
   }
 });
 
@@ -22960,6 +23106,337 @@ function equilibriumTick(u, ports, par, ctx) {
 }
 
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// [v18.1.0 S-BurnerEngine] COMBUSTION CORE — shared multi-fuel stoichiometric solver
+// ═══════════════════════════════════════════════════════════════════════════════
+// Discovers all combustion-tagged reactions from ReactionRegistry.
+// For each: identifies the fuel species (reactant that isn't O₂), checks feed.
+// O₂ allocation: proportional across all active fuels when limited.
+// Energy from formation enthalpies (ΔH°_rxn, precomputed in registry — NNG-1/10).
+//
+// Returns: { n_out, Q_release_W, extents: {rxnId: mol/s}, o2_status, fuelPower_W }
+//   n_out:        outlet mole flow dict
+//   Q_release_W:  total heat released (positive = exothermic) [W = J/s]
+//   extents:      per-reaction extent of reaction [mol/s]
+//   o2_status:    'excess' | 'limited' | 'stoichiometric' | 'no_fuel' | 'no_O2'
+//   fuelPower_W:  total fuel chemical energy at complete combustion (even if O₂-limited)
+//   f:            O₂ limitation factor (1.0 = complete burn)
+// ═══════════════════════════════════════════════════════════════════════════════
+function _combustionCore(n_in) {
+  const TRACE = 1e-15;  // mol/s threshold for "present"
+
+  // ── Discover combustion reactions ──
+  const combRxns = ReactionRegistry.getByTag('combustion');
+
+  // ── Identify active fuels and their O₂ demand ──
+  // Each combustion reaction has exactly one fuel (reactant that isn't O₂)
+  // and O₂ as co-reactant.  Stoichiometry: fuel has ν < 0, O₂ has ν < 0.
+  const activeFuels = [];  // { rxn, fuelSpecies, nu_fuel, nu_O2, xi_max_fuel }
+  for (const rxn of combRxns) {
+    const stoich = rxn.stoich;
+    // Find fuel species (reactant that is not O₂)
+    let fuelSp = null, nu_fuel = 0, nu_O2 = 0;
+    for (const [sp, nu] of Object.entries(stoich)) {
+      if (nu < 0) {
+        if (sp === 'O2') { nu_O2 = nu; }
+        else { fuelSp = sp; nu_fuel = nu; }
+      }
+    }
+    if (!fuelSp || nu_O2 >= 0) continue;  // malformed — skip
+
+    // Check if fuel is present in feed
+    const n_fuel = n_in[fuelSp] || 0;
+    if (n_fuel < TRACE) continue;  // no fuel → skip
+
+    // Max extent limited by fuel availability: ξ_max = n_fuel / |ν_fuel|
+    const xi_max_fuel = n_fuel / (-nu_fuel);
+
+    activeFuels.push({
+      rxn, fuelSpecies: fuelSp,
+      nu_fuel, nu_O2,
+      xi_max_fuel,
+      o2_demand: xi_max_fuel * (-nu_O2)  // O₂ needed for complete burn of this fuel
+    });
+  }
+
+  // ── No fuel → passthrough ──
+  const n_O2 = n_in.O2 || 0;
+  if (activeFuels.length === 0) {
+    return {
+      n_out: { ...n_in },
+      Q_release_W: 0, extents: {},
+      o2_status: n_O2 > TRACE ? 'no_fuel' : 'no_fuel',
+      fuelPower_W: 0, f: 0
+    };
+  }
+
+  // ── No O₂ → passthrough ──
+  if (n_O2 < TRACE) {
+    return {
+      n_out: { ...n_in },
+      Q_release_W: 0, extents: {},
+      o2_status: 'no_O2',
+      fuelPower_W: 0, f: 0
+    };
+  }
+
+  // ── Total O₂ demand ──
+  let totalO2demand = 0;
+  for (const af of activeFuels) totalO2demand += af.o2_demand;
+
+  // ── O₂ limitation factor ──
+  let f, o2_status;
+  if (n_O2 >= totalO2demand - TRACE) {
+    // Enough or excess O₂
+    f = 1.0;
+    o2_status = Math.abs(n_O2 - totalO2demand) < TRACE * 10 ? 'stoichiometric' : 'excess';
+  } else {
+    // O₂ limited — proportional burn
+    f = n_O2 / totalO2demand;
+    o2_status = 'limited';
+  }
+
+  // ── Apply extents ──
+  const n_out = { ...n_in };
+  const extents = {};
+  let Q_release_W = 0;
+  let fuelPower_W = 0;
+
+  for (const af of activeFuels) {
+    const xi = f * af.xi_max_fuel;  // actual extent [mol/s]
+    extents[af.rxn.id] = xi;
+
+    // Apply stoichiometry: Δn_i = ν_i × ξ
+    for (const [sp, nu] of Object.entries(af.rxn.stoich)) {
+      n_out[sp] = (n_out[sp] || 0) + nu * xi;
+    }
+
+    // Energy: Q = ξ × (−ΔH°_rxn)  [positive for exothermic]
+    // ΔH°_rxn is negative for combustion → −ΔH° is positive → Q positive
+    const dH = af.rxn._dH0_Jmol || 0;
+    Q_release_W += xi * (-dH);
+
+    // Fuel power: energy at complete burn (f=1)
+    fuelPower_W += af.xi_max_fuel * (-dH);
+  }
+
+  // ── Clean trace negatives from floating-point ──
+  for (const sp of Object.keys(n_out)) {
+    if (n_out[sp] < TRACE) n_out[sp] = 0;
+  }
+
+  return { n_out, Q_release_W, extents, o2_status, fuelPower_W, f };
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// [v18.1.0 S-BurnerEngine] SIMPLE BURNER — multi-fuel stoichiometric combustor
+// ═══════════════════════════════════════════════════════════════════════════════
+// Single inlet (premixed fuel+air from upstream mixer), single outlet (flue gas).
+// Burns all combustion-tagged species simultaneously. O₂-limited proportional.
+// Adiabatic: all released energy goes to outlet enthalpy.
+// ═══════════════════════════════════════════════════════════════════════════════
+UnitRegistry.register('simple_burner', {
+  name: 'Simple Burner',
+  category: UnitCategories.HEAT_TRANSFER,
+  w: 2,
+  h: 2,
+  ports: [
+    { portId: 'mat_in',  dir: PortDir.IN,  type: StreamType.MATERIAL, x: 0, y: 1 },
+    { portId: 'mat_out', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 1 }
+  ],
+  presentations: {
+    'box/default': { w: 2, h: 2, ports: { mat_in:{x:0,y:1}, mat_out:{x:2,y:1} } },
+    'box/mirror':  { w: 2, h: 2, ports: { mat_in:{x:2,y:1}, mat_out:{x:0,y:1} } }
+  },
+  limitParams: ['T_LL', 'T_L', 'T_H', 'T_HH', 'P_LL', 'P_L', 'P_H', 'P_HH', 'mass_LL', 'mass_HH'],
+  limits: { S: { T_LL: 200, T_L: 250, T_H: 1800, T_HH: 2200, P_LL: 50000, P_L: 80000, P_H: 1000000, P_HH: 1500000, mass_LL: 0.001, mass_HH: 0.15 } },
+  tick(u, ports, par, ctx) {
+    const sIn = ports.mat_in;
+    if (!sIn) return;
+
+    const H_in_Jps = thermo.getHdot_Jps(sIn);
+
+    // Run combustion core on inlet composition
+    const comb = _combustionCore(sIn.n);
+
+    if (comb.Q_release_W < 1e-10) {
+      // No combustion — passthrough
+      ports.mat_out = {
+        type: StreamType.MATERIAL, P: sIn.P,
+        n: { ...sIn.n }, phaseConstraint: 'V',
+        H_target_Jps: H_in_Jps
+      };
+      u.last = {
+        status: comb.o2_status,
+        Q_release_W: 0, fuelPower_W: 0, f: 0,
+        T_in: sIn.T,
+        H_in_kW: (H_in_Jps / 1000).toFixed(2),
+        H_out_kW: (H_in_Jps / 1000).toFixed(2)
+      };
+      if (comb.o2_status === 'no_O2') {
+        u.last.error = { severity: ErrorSeverity.MINOR,
+          message: 'No oxygen in feed — nothing to burn' };
+      }
+      return;
+    }
+
+    // Adiabatic combustion: H_out = H_in with product composition.
+    // Formation enthalpies already encode the chemical energy — products have
+    // lower hf0 than reactants, so the PH-flash finds T_out > T_in.
+    // Q_release is diagnostic only (= Σ ξᵢ × −ΔH°_rxn), not added to enthalpy.
+    const H_out_Jps = H_in_Jps;
+
+    ports.mat_out = {
+      type: StreamType.MATERIAL, P: sIn.P,
+      n: comb.n_out, phaseConstraint: 'V',
+      H_target_Jps: H_out_Jps
+    };
+
+    u.last = {
+      status: comb.o2_status === 'excess' || comb.o2_status === 'stoichiometric'
+        ? 'burning' : 'O2_limited',
+      o2_status: comb.o2_status,
+      Q_release_W: comb.Q_release_W,
+      Q_release_kW: (comb.Q_release_W / 1000).toFixed(2),
+      fuelPower_W: comb.fuelPower_W,
+      f: comb.f,
+      extents: comb.extents,
+      T_in: sIn.T,
+      H_in_kW: (H_in_Jps / 1000).toFixed(2),
+      H_out_kW: (H_out_Jps / 1000).toFixed(2),
+      ...(comb.o2_status === 'limited' ? {
+        error: { severity: ErrorSeverity.MINOR,
+          message: `O₂ limited — combustion at ${(comb.f * 100).toFixed(0)}% of stoichiometric` }
+      } : {})
+    };
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// [v18.1.0 S-BurnerEngine] SMALL GAS ENGINE GENERATOR
+// ═══════════════════════════════════════════════════════════════════════════════
+// Two material inlets (fuel + air), one material outlet (exhaust), one elec_out.
+// Merges inlets, runs CombustionCore, splits energy: P_elec = η × Q_release.
+// Remainder in exhaust enthalpy.  Physics-fixed elec_out (like gas_turbine).
+// ═══════════════════════════════════════════════════════════════════════════════
+UnitRegistry.register('small_gas_engine', {
+  name: 'Small Gas Engine Generator',
+  category: UnitCategories.POWER,
+  w: 2,
+  h: 3,
+  ports: [
+    { portId: 'fuel_in', dir: PortDir.IN,  type: StreamType.MATERIAL,   x: 0, y: 1, label: 'fuel' },
+    { portId: 'air_in',  dir: PortDir.IN,  type: StreamType.MATERIAL,   x: 0, y: 2, label: 'air' },
+    { portId: 'mat_out', dir: PortDir.OUT, type: StreamType.MATERIAL,   x: 2, y: 1.5 },
+    { portId: 'elec_out', dir: PortDir.OUT, type: StreamType.ELECTRICAL, x: 1, y: 3 }
+  ],
+  presentations: {
+    'box/default':       { w: 2, h: 3, ports: { fuel_in:{x:0,y:1}, air_in:{x:0,y:2}, mat_out:{x:2,y:1.5}, elec_out:{x:1,y:3} } },
+    'box/mirror':        { w: 2, h: 3, ports: { fuel_in:{x:2,y:1}, air_in:{x:2,y:2}, mat_out:{x:0,y:1.5}, elec_out:{x:1,y:3} } },
+    'box/elec-T':        { w: 2, h: 3, ports: { fuel_in:{x:0,y:1}, air_in:{x:0,y:2}, mat_out:{x:2,y:1.5}, elec_out:{x:1,y:0} } },
+    'box/mirror-elec-T': { w: 2, h: 3, ports: { fuel_in:{x:2,y:1}, air_in:{x:2,y:2}, mat_out:{x:0,y:1.5}, elec_out:{x:1,y:0} } }
+  },
+  limitParams: ['T_LL', 'T_L', 'T_H', 'T_HH', 'P_LL', 'P_L', 'P_H', 'P_HH', 'mass_LL', 'mass_HH'],
+  limits: { S: { T_LL: 200, T_L: 250, T_H: 900, T_HH: 1100, P_LL: 50000, P_L: 70000, P_H: 600000, P_HH: 800000, mass_LL: 0.001, mass_HH: 0.1 } },
+  tick(u, ports, par, ctx) {
+    const sFuel = ports.fuel_in;
+    const sAir  = ports.air_in;
+
+    // ── No feed at all → zero output ──
+    if (!sFuel && !sAir) {
+      ports.elec_out = { type: StreamType.ELECTRICAL, capacity: 0, actual: 0 };
+      u.last = { status: 'no_feed', P_elec_W: 0, Q_release_W: 0 };
+      return;
+    }
+
+    // ── Merge inlets: combine moles, mol-weighted T, min P ──
+    const n_merged = {};
+    let nTotal_fuel = 0, nTotal_air = 0;
+    for (const s of [sFuel, sAir]) {
+      if (!s) continue;
+      for (const [sp, mol] of Object.entries(s.n || {})) {
+        n_merged[sp] = (n_merged[sp] || 0) + mol;
+      }
+    }
+    if (sFuel) nTotal_fuel = Object.values(sFuel.n || {}).reduce((a, b) => a + b, 0);
+    if (sAir) nTotal_air = Object.values(sAir.n || {}).reduce((a, b) => a + b, 0);
+    const nTotal = nTotal_fuel + nTotal_air;
+    const T_mix = nTotal > 0
+      ? ((sFuel?.T || 300) * nTotal_fuel + (sAir?.T || 300) * nTotal_air) / nTotal
+      : 300;
+    const P_mix = Math.min(sFuel?.P || Infinity, sAir?.P || Infinity);
+    if (!isFinite(P_mix) || P_mix <= 0) {
+      ports.elec_out = { type: StreamType.ELECTRICAL, capacity: 0, actual: 0 };
+      u.last = { status: 'no_feed', P_elec_W: 0, Q_release_W: 0 };
+      return;
+    }
+
+    // ── Run CombustionCore ──
+    const comb = _combustionCore(n_merged);
+
+    // ── Efficiency and energy split ──
+    const eta = Math.max(0.01, Math.min(0.99, par.electricEfficiency ?? 0.25));
+    const P_elec_W = comb.Q_release_W * eta;
+    const Q_exhaust_W = comb.Q_release_W - P_elec_W;
+
+    // ── Inlet enthalpy (from merged virtual stream) ──
+    const mergedStream = {
+      type: StreamType.MATERIAL, T: T_mix, P: P_mix,
+      n: n_merged, phaseConstraint: 'V'
+    };
+    const H_in_Jps = thermo.getHdot_Jps(mergedStream);
+
+    // ── Outlet enthalpy: H_out = H_in - P_elec ──
+    // Formation enthalpies already encode the chemical energy (same as simple_burner).
+    // Work extraction lowers the outlet enthalpy → cooler exhaust than adiabatic flame.
+    const H_out_Jps = H_in_Jps - P_elec_W;
+
+    ports.mat_out = {
+      type: StreamType.MATERIAL, P: P_mix,
+      n: comb.n_out, phaseConstraint: 'V',
+      H_target_Jps: H_out_Jps
+    };
+
+    // ── Physics-fixed electrical output (like gas_turbine) ──
+    ports.elec_out = {
+      type: StreamType.ELECTRICAL,
+      capacity: P_elec_W,
+      actual: P_elec_W,
+      available: P_elec_W
+    };
+
+    u.last = {
+      status: comb.Q_release_W > 0
+        ? (comb.o2_status === 'limited' ? 'O2_limited' : 'running')
+        : 'no_combustion',
+      o2_status: comb.o2_status,
+      electricEfficiency: eta,
+      eta_pct: (eta * 100).toFixed(1),
+      P_elec_W,
+      P_elec_kW: (P_elec_W / 1000).toFixed(2),
+      Q_release_W: comb.Q_release_W,
+      Q_release_kW: (comb.Q_release_W / 1000).toFixed(2),
+      Q_exhaust_W,
+      fuelPower_W: comb.fuelPower_W,
+      f: comb.f,
+      extents: comb.extents,
+      T_mix,
+      H_in_kW: (H_in_Jps / 1000).toFixed(2),
+      H_out_kW: (H_out_Jps / 1000).toFixed(2),
+      ...(comb.o2_status === 'limited' ? {
+        error: { severity: ErrorSeverity.MINOR,
+          message: `O₂ limited — combustion at ${(comb.f * 100).toFixed(0)}% of stoichiometric` }
+      } : {}),
+      ...(comb.Q_release_W < 1 && (sFuel || sAir) ? {
+        error: { severity: ErrorSeverity.MINOR,
+          message: comb.o2_status === 'no_O2' ? 'No oxygen in feed' : 'No fuel in feed' }
+      } : {})
+    };
+  }
+});
+
+
 // [v14.9.0 S6a] reactor_adiabatic — 2 ports, insulated catalytic vessel
 UnitRegistry.register('reactor_adiabatic', {
   name: 'Reactor (Adiabatic)',
@@ -24545,6 +25022,31 @@ ProfileRegistry.register('combustion_chamber', {
   equipmentNote: "Continuous-flow combustion chamber.",
   operatingNote: "Feed a premixed fuel+air stream from a Mixer. Outlet is extremely hot — route to a Gas Turbine or Heat Exchanger, never directly to plastic equipment.",
   modelNote: "Insulated reactor model with combustion kinetics. Adiabatic flame temperature from enthalpy balance.",
+});
+// [v18.1.0 S-BurnerEngine] simple_burner profile
+ProfileRegistry.register('simple_burner', {
+  defId: 'simple_burner', name: 'Multi-Fuel Burner', category: UnitCategories.HEAT_TRANSFER, tiers: [1],
+  description: 'Burns everything that can burn',
+  selectionGuide: 'Feed premixed fuel+air and it burns all combustible species at once — H₂, CH₄, CO, NH₃, even food. O₂-limited? It rations proportionally.',
+  limits: {
+    1: { T_LL: 200, T_L: 250, T_H: 1800, T_HH: 2200, P_LL: 50000, P_L: 80000, P_H: 1000000, P_HH: 1500000, mass_LL: 0.001, mass_HH: 0.15 }
+  },
+  equipmentNote: "Open-flame continuous combustor with auto-ignition.",
+  operatingNote: "Feed premixed fuel+air from a Mixer upstream. Burns all combustible species simultaneously. If O₂ runs short, all fuels burn proportionally less.",
+  modelNote: "CombustionCore: stoichiometric multi-fuel burn, O₂-proportional limitation, adiabatic (all Q → outlet enthalpy).",
+});
+// [v18.1.0 S-BurnerEngine] small_gas_engine profile
+ProfileRegistry.register('small_gas_engine', {
+  defId: 'small_gas_engine', name: 'Gas Engine', category: UnitCategories.POWER, tiers: [1],
+  description: 'Burns fuel, makes electricity',
+  selectionGuide: 'A small generator that burns any fuel and splits the energy — part to electricity, the rest stays in the hot exhaust. Great for early/mid game power from biogas.',
+  limits: {
+    1: { T_LL: 200, T_L: 250, T_H: 900, T_HH: 1100, P_LL: 50000, P_L: 70000, P_H: 600000, P_HH: 800000, mass_LL: 0.001, mass_HH: 0.1 }
+  },
+  defaults: { electricEfficiency: 0.25 },
+  equipmentNote: "Reciprocating gas engine with electric generator.",
+  operatingNote: "Feed fuel on fuel_in, air on air_in. Output is physics-fixed — what burns determines the power. Route exhaust through a HEX or air cooler to recover waste heat.",
+  modelNote: "CombustionCore + energy split: P_elec = η × Q_release. Exhaust H = H_in + Q_release − P_elec.",
 });
 ProfileRegistry.register('reactor_jacketed', {
   defId: 'reactor_jacketed', name: 'Reactor (Heated)', category: UnitCategories.REACTOR, tiers: [1, 2],
@@ -34719,6 +35221,9 @@ const _RAGTAG_SYMBOLS = {
 _RAGTAG_SYMBOLS.atmosphere = _RAGTAG_SYMBOLS.source_atm;
 // [v17.4.0] simple_mixer reuses mixer icon (same physical topology, no visual distinction needed)
 _RAGTAG_SYMBOLS.simple_mixer = _RAGTAG_SYMBOLS.mixer;
+// [v18.1.0] Burner/engine — reuse reactor/turbine icons until dedicated icon session
+_RAGTAG_SYMBOLS.simple_burner = _RAGTAG_SYMBOLS.reactor_adiabatic;
+_RAGTAG_SYMBOLS.small_gas_engine = _RAGTAG_SYMBOLS.gas_turbine;
 // [v17.7.0] simple_tank, simple_open_tank, cooled_tank — dedicated symbol functions below
 
 // ── Simple Tank (Gas Bottle T1 / Gas Tank T2) — 2×3 ───────────────────────
@@ -51663,6 +52168,485 @@ function runTests() {
     // lnK at different T should change monotonically for exothermic rxn
     const lnK_500 = ReactionRegistry.lnK('R_H2_COMB', 500);
     t.assertOK(lnK_500 > lnK_800, 'lnK(500) > lnK(800) for exothermic rxn');
+  });
+
+  // ── [v18.1.0] ReactionRegistry tags ──
+  test('ReactionRegistry — tags: getByTag returns combustion reactions', t => {
+    const comb = ReactionRegistry.getByTag('combustion');
+    t.assertClose(comb.length, 5, 0, '5 combustion-tagged reactions');
+    const ids = comb.map(r => r.id).sort();
+    t.assertOK(ids.includes('R_H2_COMB'), 'has R_H2_COMB');
+    t.assertOK(ids.includes('R_CH4_COMB'), 'has R_CH4_COMB');
+    t.assertOK(ids.includes('R_CO_COMB'), 'has R_CO_COMB');
+    t.assertOK(ids.includes('R_NH3_COMB'), 'has R_NH3_COMB');
+    t.assertOK(ids.includes('R_CH2O_COMB'), 'has R_CH2O_COMB');
+  });
+
+  test('ReactionRegistry — tags: nonexistent tag returns empty', t => {
+    const empty = ReactionRegistry.getByTag('nonexistent_tag_xyz');
+    t.assertClose(empty.length, 0, 0, 'empty array for unknown tag');
+  });
+
+  test('ReactionRegistry — tags: untagged reactions excluded', t => {
+    const comb = ReactionRegistry.getByTag('combustion');
+    const ids = comb.map(r => r.id);
+    t.assertOK(!ids.includes('R_SABATIER'), 'R_SABATIER not combustion-tagged');
+    t.assertOK(!ids.includes('R_METABOLISM'), 'R_METABOLISM not combustion-tagged');
+    t.assertOK(!ids.includes('R_H2O_ELEC'), 'R_H2O_ELEC not combustion-tagged');
+  });
+
+  test('ReactionRegistry — tags: frozen, no mutation', t => {
+    const rxn = ReactionRegistry.get('R_H2_COMB');
+    t.assertOK(Object.isFrozen(rxn._tags), '_tags is frozen');
+    const lenBefore = rxn._tags.length;
+    try { rxn._tags.push('bogus'); } catch(e) { /* expected */ }
+    t.assertClose(rxn._tags.length, lenBefore, 0, 'push did not modify frozen tags');
+    // Untagged reaction has empty frozen array
+    const sab = ReactionRegistry.get('R_SABATIER');
+    t.assertOK(Object.isFrozen(sab._tags), 'untagged reaction has frozen empty _tags');
+    t.assertClose(sab._tags.length, 0, 0, 'untagged _tags is empty');
+  });
+
+  // ── [v18.1.0] CombustionCore basics (T5–T10) ──
+
+  test('CombustionCore — single fuel H₂ + excess O₂', t => {
+    const result = _combustionCore({ H2: 2, O2: 5, N2: 10 });
+    // 2 H₂ + 1 O₂ → 2 H₂O.  O₂ consumed = 1, remaining = 4
+    t.assertClose(result.n_out.H2 || 0, 0, 1e-12, 'H2 fully consumed');
+    t.assertClose(result.n_out.O2, 4, 1e-10, 'O2 remainder = 4');
+    t.assertClose(result.n_out.H2O, 2, 1e-10, 'H2O produced = 2');
+    t.assertClose(result.n_out.N2, 10, 1e-10, 'N2 inert unchanged');
+    t.assertOK(result.Q_release_W > 0, 'Q_release > 0');
+    t.assertOK(result.o2_status === 'excess', 'status = excess');
+    t.assertClose(result.f, 1.0, 1e-10, 'f = 1.0');
+  });
+
+  test('CombustionCore — single fuel CH₄ + excess O₂', t => {
+    const result = _combustionCore({ CH4: 1, O2: 5, N2: 10 });
+    // CH₄ + 2 O₂ → CO₂ + 2 H₂O.  O₂ consumed = 2, remaining = 3
+    t.assertClose(result.n_out.CH4 || 0, 0, 1e-12, 'CH4 fully consumed');
+    t.assertClose(result.n_out.O2, 3, 1e-10, 'O2 remainder = 3');
+    t.assertClose(result.n_out.CO2, 1, 1e-10, 'CO2 produced = 1');
+    t.assertClose(result.n_out.H2O, 2, 1e-10, 'H2O produced = 2');
+    t.assertClose(result.n_out.N2, 10, 1e-10, 'N2 unchanged');
+  });
+
+  test('CombustionCore — no fuel in feed', t => {
+    const n_in = { O2: 5, N2: 10 };
+    const result = _combustionCore(n_in);
+    t.assertClose(result.Q_release_W, 0, 1e-12, 'Q = 0');
+    t.assertOK(result.o2_status === 'no_fuel', 'status = no_fuel');
+    t.assertClose(result.n_out.O2, 5, 1e-12, 'O2 unchanged');
+    t.assertClose(result.n_out.N2, 10, 1e-12, 'N2 unchanged');
+  });
+
+  test('CombustionCore — no O₂ in feed', t => {
+    const n_in = { H2: 2, N2: 10 };
+    const result = _combustionCore(n_in);
+    t.assertClose(result.Q_release_W, 0, 1e-12, 'Q = 0');
+    t.assertOK(result.o2_status === 'no_O2', 'status = no_O2');
+    t.assertClose(result.n_out.H2, 2, 1e-12, 'H2 unchanged');
+  });
+
+  test('CombustionCore — inerts only', t => {
+    const n_in = { N2: 10, Ar: 1 };
+    const result = _combustionCore(n_in);
+    t.assertClose(result.Q_release_W, 0, 1e-12, 'Q = 0');
+    t.assertClose(result.n_out.N2, 10, 1e-12, 'N2 unchanged');
+    t.assertClose(result.n_out.Ar, 1, 1e-12, 'Ar unchanged');
+  });
+
+  test('CombustionCore — all 5 fuels + excess O₂', t => {
+    // H2:2, CH4:1, CO:2, NH3:4, CH2O:1 — use stoichiometric coefficients as feed
+    // O₂ demand: H2→1, CH4→2, CO→1, NH3→3, CH2O→1 = 8 total
+    const n_in = { H2: 2, CH4: 1, CO: 2, NH3: 4, CH2O: 1, O2: 20, N2: 50 };
+    const result = _combustionCore(n_in);
+    // All fuels consumed
+    t.assertClose(result.n_out.H2 || 0, 0, 1e-12, 'H2 consumed');
+    t.assertClose(result.n_out.CH4 || 0, 0, 1e-12, 'CH4 consumed');
+    t.assertClose(result.n_out.CO || 0, 0, 1e-12, 'CO consumed');
+    t.assertClose(result.n_out.NH3 || 0, 0, 1e-12, 'NH3 consumed');
+    t.assertClose(result.n_out.CH2O || 0, 0, 1e-12, 'CH2O consumed');
+    t.assertClose(result.n_out.O2, 12, 1e-10, 'O2 remainder = 20-8 = 12');
+    // 5 extents all positive
+    const extKeys = Object.keys(result.extents);
+    t.assertClose(extKeys.length, 5, 0, '5 reaction extents');
+    for (const k of extKeys) {
+      t.assertOK(result.extents[k] > 0, `extent ${k} > 0`);
+    }
+    t.assertOK(result.o2_status === 'excess', 'status = excess');
+  });
+
+  // ── [v18.1.0] CombustionCore O₂ limitation (T11–T15) ──
+
+  test('CombustionCore — H₂ exact stoichiometric O₂', t => {
+    const result = _combustionCore({ H2: 2, O2: 1 });
+    t.assertClose(result.n_out.H2 || 0, 0, 1e-12, 'H2 consumed');
+    t.assertClose(result.n_out.O2 || 0, 0, 1e-12, 'O2 consumed');
+    t.assertClose(result.n_out.H2O, 2, 1e-10, 'H2O = 2');
+    t.assertOK(result.o2_status === 'stoichiometric' || result.o2_status === 'excess',
+      'status stoichiometric or excess');
+    t.assertClose(result.f, 1.0, 1e-10, 'f = 1.0');
+  });
+
+  test('CombustionCore — H₂ sub-stoichiometric O₂', t => {
+    // 2 H₂ needs 1 O₂, only 0.5 available → f = 0.5
+    const result = _combustionCore({ H2: 2, O2: 0.5 });
+    t.assertClose(result.f, 0.5, 1e-10, 'f = 0.5');
+    t.assertOK(result.o2_status === 'limited', 'status = limited');
+    // H₂ burned = f × 2 = 1, remaining = 1
+    t.assertClose(result.n_out.H2, 1, 1e-10, 'H2 remaining = 1');
+    t.assertClose(result.n_out.H2O, 1, 1e-10, 'H2O produced = 1');
+    t.assertClose(result.n_out.O2 || 0, 0, 1e-10, 'O2 fully consumed');
+  });
+
+  test('CombustionCore — two fuels O₂ limited proportional', t => {
+    // H₂:2 needs O₂=1, CH₄:1 needs O₂=2. Total demand = 3. Available = 2. f = 2/3.
+    const result = _combustionCore({ H2: 2, CH4: 1, O2: 2 });
+    const f = 2 / 3;
+    t.assertClose(result.f, f, 1e-10, 'f = 2/3');
+    t.assertOK(result.o2_status === 'limited', 'status = limited');
+    // H₂: ξ = f × 1 (xi_max=1 from 2/|−2|=1) → H₂ burned = f×2 = 4/3, remaining = 2/3
+    t.assertClose(result.n_out.H2, 2 - f * 2, 1e-10, 'H2 partially burned');
+    // CH₄: ξ = f × 1 → CH₄ remaining = 1 - f
+    t.assertClose(result.n_out.CH4, 1 - f, 1e-10, 'CH4 partially burned');
+    // O₂ consumed = f×1 + f×2 = f×3 = 2 → remainder ≈ 0
+    t.assertClose(result.n_out.O2 || 0, 0, 1e-10, 'O2 fully consumed');
+  });
+
+  test('CombustionCore — trace fuel below threshold', t => {
+    const result = _combustionCore({ H2: 1e-16, O2: 5, N2: 10 });
+    t.assertClose(result.Q_release_W, 0, 1e-10, 'Q ≈ 0');
+    t.assertOK(result.o2_status === 'no_fuel', 'trace fuel = no_fuel');
+  });
+
+  test('CombustionCore — 5 fuels severely O₂ limited', t => {
+    // All at 1 mol/s.  O₂ demand: H₂→0.5, CH₄→2, CO→0.5, NH₃→0.75, CH₂O→1 = 4.75
+    // Supply only 0.475 → f = 0.1
+    const n_in = { H2: 1, CH4: 1, CO: 1, NH3: 1, CH2O: 1, O2: 0.475 };
+    const result = _combustionCore(n_in);
+    t.assertClose(result.f, 0.1, 1e-6, 'f ≈ 0.1');
+    t.assertOK(result.o2_status === 'limited', 'status = limited');
+    // All fuels partially burned: remaining = (1 - f × |ν_fuel|/|ν_fuel|) × ... 
+    // Actually remaining fuel = n_fuel - xi × |ν_fuel|, xi = f × xi_max
+    // H₂: xi_max = 1/2 = 0.5, xi = 0.05, H₂ consumed = 0.05×2 = 0.1, remaining = 0.9
+    t.assertClose(result.n_out.H2, 0.9, 1e-6, 'H2 ≈ 0.9');
+    // CH₄: xi_max = 1, xi = 0.1, consumed = 0.1, remaining = 0.9
+    t.assertClose(result.n_out.CH4, 0.9, 1e-6, 'CH4 ≈ 0.9');
+    // O₂ fully consumed
+    t.assertClose(result.n_out.O2 || 0, 0, 1e-10, 'O2 fully consumed');
+  });
+
+  // ── [v18.1.0] CombustionCore energy and mass conservation (T16–T20) ──
+
+  test('CombustionCore — atom balance H₂ combustion', t => {
+    const n_in = { H2: 2, O2: 5, N2: 10 };
+    const result = _combustionCore(n_in);
+    // Count H atoms: in = 2×2 = 4, out = H₂ leftover×2 + H₂O×2
+    const H_in = (n_in.H2 || 0) * 2;
+    const H_out = (result.n_out.H2 || 0) * 2 + (result.n_out.H2O || 0) * 2;
+    t.assertClose(H_in, H_out, 1e-10, 'H atoms conserved');
+    // Count O atoms: in = O₂×2, out = O₂×2 + H₂O×1
+    const O_in = (n_in.O2 || 0) * 2;
+    const O_out = (result.n_out.O2 || 0) * 2 + (result.n_out.H2O || 0) * 1;
+    t.assertClose(O_in, O_out, 1e-10, 'O atoms conserved');
+  });
+
+  test('CombustionCore — atom balance all 5 fuels', t => {
+    const n_in = { H2: 2, CH4: 1.5, CO: 0.8, NH3: 0.6, CH2O: 0.3, O2: 3, N2: 5 };
+    const result = _combustionCore(n_in);
+    const ni = result.n_out;
+    // C atoms: in = CH₄ + CO + CH₂O, out = CH₄ + CO + CH₂O + CO₂
+    const C_in = (n_in.CH4||0) + (n_in.CO||0) + (n_in.CH2O||0);
+    const C_out = (ni.CH4||0) + (ni.CO||0) + (ni.CH2O||0) + (ni.CO2||0);
+    t.assertClose(C_in, C_out, 1e-10, 'C atoms conserved');
+    // H atoms: in = H₂×2 + CH₄×4 + NH₃×3 + CH₂O×2, out = same residuals + H₂O×2
+    const H_in = (n_in.H2||0)*2 + (n_in.CH4||0)*4 + (n_in.NH3||0)*3 + (n_in.CH2O||0)*2;
+    const H_out = (ni.H2||0)*2 + (ni.CH4||0)*4 + (ni.NH3||0)*3 + (ni.CH2O||0)*2 + (ni.H2O||0)*2;
+    t.assertClose(H_in, H_out, 1e-10, 'H atoms conserved');
+    // O atoms: in = O₂×2 + CO×1 + CH₂O×1, out = O₂×2 + CO×1 + CH₂O×1 + CO₂×2 + H₂O×1
+    const O_in = (n_in.O2||0)*2 + (n_in.CO||0)*1 + (n_in.CH2O||0)*1;
+    const O_out = (ni.O2||0)*2 + (ni.CO||0)*1 + (ni.CH2O||0)*1 + (ni.CO2||0)*2 + (ni.H2O||0)*1;
+    t.assertClose(O_in, O_out, 1e-10, 'O atoms conserved');
+    // N atoms: in = N₂×2 + NH₃×1, out = N₂×2 + NH₃×1
+    const N_in = (n_in.N2||0)*2 + (n_in.NH3||0)*1;
+    const N_out = (ni.N2||0)*2 + (ni.NH3||0)*1;
+    t.assertClose(N_in, N_out, 1e-10, 'N atoms conserved');
+  });
+
+  test('CombustionCore — mass balance (MW)', t => {
+    const n_in = { H2: 1.5, CH4: 0.7, CO: 0.3, NH3: 0.2, CH2O: 0.1, O2: 5, N2: 10, Ar: 0.5 };
+    const result = _combustionCore(n_in);
+    // Mass = Σ n_i × MW_i  (g/s)
+    let mass_in = 0, mass_out = 0;
+    for (const [sp, n] of Object.entries(n_in)) {
+      mass_in += n * ComponentRegistry.get(sp).MW;
+    }
+    for (const [sp, n] of Object.entries(result.n_out)) {
+      if (n > 0) mass_out += n * ComponentRegistry.get(sp).MW;
+    }
+    t.assertClose(mass_in, mass_out, 1e-6, 'total mass conserved');
+  });
+
+  test('CombustionCore — Q_release matches Σ(ξ × −ΔH°)', t => {
+    const n_in = { H2: 1, CH4: 0.5, O2: 10, N2: 20 };
+    const result = _combustionCore(n_in);
+    // Manual: Q = Σ ξ_i × (−ΔH°_rxn_i)
+    let Q_manual = 0;
+    for (const [rxnId, xi] of Object.entries(result.extents)) {
+      const rxn = ReactionRegistry.get(rxnId);
+      Q_manual += xi * (-rxn._dH0_Jmol);
+    }
+    t.assertClose(result.Q_release_W, Q_manual, 1, 'Q matches Σ(ξ × −ΔH°)');
+  });
+
+  test('CombustionCore — energy sign correctness', t => {
+    // With fuel + O₂: Q > 0
+    const r1 = _combustionCore({ H2: 1, O2: 2 });
+    t.assertOK(r1.Q_release_W > 0, 'Q > 0 with fuel + O₂');
+    // No fuel: Q = 0
+    const r2 = _combustionCore({ N2: 10, O2: 5 });
+    t.assertClose(r2.Q_release_W, 0, 1e-12, 'Q = 0 without fuel');
+    // No O₂: Q = 0
+    const r3 = _combustionCore({ H2: 2, N2: 10 });
+    t.assertClose(r3.Q_release_W, 0, 1e-12, 'Q = 0 without O₂');
+  });
+
+  // ── [v18.1.0] simple_burner unit tests (T21–T26) ──
+
+  test('simple_burner — H₂+air combustion, T_out > T_in', t => {
+    const src = t.place('source', 0, 0, {
+      n: { H2: 0.1, O2: 1, N2: 3.76 }, T: 500, P: 200000, phaseConstraint: 'V'
+    });
+    const brn = t.place('simple_burner', 4, 0);
+    const snk = t.place('sink', 8, 0);
+    t.wire(src, 'mat_out', brn, 'mat_in');
+    t.wire(brn, 'mat_out', snk, 'mat_in');
+    t.solve();
+    const out = t.port(brn, 'mat_out');
+    t.assertOK(out.T > 500, 'T_out > T_in (adiabatic flame)');
+    // Mass conservation
+    const sIn = t.port(src, 'mat_out');
+    let massIn = 0, massOut = 0;
+    for (const [sp, n] of Object.entries(sIn.n)) massIn += n * ComponentRegistry.get(sp).MW;
+    for (const [sp, n] of Object.entries(out.n)) if (n > 0) massOut += n * ComponentRegistry.get(sp).MW;
+    t.assertClose(massIn, massOut, 1e-6, 'mass conserved');
+  });
+
+  test('simple_burner — no-flow guard', t => {
+    // Place burner without connecting inlet
+    const brn = t.place('simple_burner', 0, 0);
+    const snk = t.place('sink', 4, 0);
+    t.wire(brn, 'mat_out', snk, 'mat_in');
+    t.solve();  // Should not crash
+    t.assertOK(true, 'no crash with disconnected inlet');
+  });
+
+  test('simple_burner — solver scene mass balance', t => {
+    const src = t.place('source', 0, 0, {
+      n: { CH4: 0.05, O2: 0.5, N2: 2 }, T: 600, P: 300000, phaseConstraint: 'V'
+    });
+    const brn = t.place('simple_burner', 4, 0);
+    const snk = t.place('sink', 8, 0);
+    t.wire(src, 'mat_out', brn, 'mat_in');
+    t.wire(brn, 'mat_out', snk, 'mat_in');
+    t.solve();
+    const sIn = t.port(src, 'mat_out');
+    const out = t.port(brn, 'mat_out');
+    let massIn = 0, massOut = 0;
+    for (const [sp, n] of Object.entries(sIn.n)) massIn += n * ComponentRegistry.get(sp).MW;
+    for (const [sp, n] of Object.entries(out.n)) if (n > 0) massOut += n * ComponentRegistry.get(sp).MW;
+    t.assertClose(massIn, massOut, 1e-6, 'scene mass balance < 1e-6');
+  });
+
+  test('simple_burner — O₂-limited diagnostics', t => {
+    // Excess fuel, little O₂
+    const src = t.place('source', 0, 0, {
+      n: { H2: 2, O2: 0.3, N2: 1 }, T: 500, P: 200000, phaseConstraint: 'V'
+    });
+    const brn = t.place('simple_burner', 4, 0);
+    const snk = t.place('sink', 8, 0);
+    t.wire(src, 'mat_out', brn, 'mat_in');
+    t.wire(brn, 'mat_out', snk, 'mat_in');
+    t.solve();
+    const last = t.last(brn);
+    t.assertOK(last.o2_status === 'limited', 'o2_status = limited');
+    t.assertOK(last.Q_release_W > 0, 'some heat released');
+    t.assertOK(last.error, 'has warning about O₂ limitation');
+  });
+
+  test('simple_burner — pure inert feed passthrough', t => {
+    const src = t.place('source', 0, 0, {
+      n: { N2: 5, Ar: 1 }, T: 400, P: 150000, phaseConstraint: 'V'
+    });
+    const brn = t.place('simple_burner', 4, 0);
+    const snk = t.place('sink', 8, 0);
+    t.wire(src, 'mat_out', brn, 'mat_in');
+    t.wire(brn, 'mat_out', snk, 'mat_in');
+    t.solve();
+    const last = t.last(brn);
+    t.assertOK(last.status === 'no_fuel' || last.status === 'no_O2', 'status indicates no combustion');
+    t.assertClose(last.Q_release_W, 0, 1e-10, 'Q = 0');
+  });
+
+  test('simple_burner — limitParams and limits exist', t => {
+    const def = UnitRegistry.get('simple_burner');
+    t.assertOK(Array.isArray(def.limitParams), 'limitParams is array');
+    t.assertOK(def.limitParams.length > 0, 'limitParams non-empty');
+    t.assertOK(def.limits && def.limits.S, 'limits.S exists');
+    t.assertOK(def.limits.S.T_HH > 0, 'T_HH defined');
+  });
+
+  // ── [v18.1.0] small_gas_engine unit tests (T27–T33) ──
+
+  test('small_gas_engine — CH₄ fuel + air → electricity + exhaust', t => {
+    const fuel = t.place('source', 0, 0, {
+      species: 'CH4', nDot: 0.1, T: 300, P: 200000, phaseConstraint: 'V'
+    });
+    const air = t.place('source', 0, 4, {
+      n: { O2: 1, N2: 3.76 }, T: 300, P: 200000, phaseConstraint: 'V'
+    });
+    const eng = t.place('small_gas_engine', 4, 0, { electricEfficiency: 0.25 });
+    const snk = t.place('sink', 8, 0);
+    const esnk = t.place('sink_electrical', 4, 6, { ratedPower_kW: 100 });
+    t.wire(fuel, 'mat_out', eng, 'fuel_in');
+    t.wire(air, 'mat_out', eng, 'air_in');
+    t.wire(eng, 'mat_out', snk, 'mat_in');
+    t.wire(eng, 'elec_out', esnk, 'elec_in');
+    t.solve();
+    const elec = t.port(eng, 'elec_out');
+    t.assertOK(elec.capacity > 0, 'elec capacity > 0');
+    const last = t.last(eng);
+    t.assertOK(last.Q_release_W > 0, 'Q_release > 0');
+    t.assertClose(last.P_elec_W, last.Q_release_W * 0.25, 1, 'P_elec = η × Q_release');
+  });
+
+  test('small_gas_engine — energy balance: H_in ≈ H_out + P_elec', t => {
+    // Use same T for fuel and air so mol-weighted T merge is exact
+    const fuel = t.place('source', 0, 0, {
+      species: 'CH4', nDot: 0.05, T: 300, P: 150000, phaseConstraint: 'V'
+    });
+    const air = t.place('source', 0, 4, {
+      n: { O2: 0.5, N2: 1.88 }, T: 300, P: 150000, phaseConstraint: 'V'
+    });
+    const eng = t.place('small_gas_engine', 4, 0, { electricEfficiency: 0.30 });
+    const snk = t.place('sink', 8, 0);
+    const esnk = t.place('sink_electrical', 4, 6, { ratedPower_kW: 100 });
+    t.wire(fuel, 'mat_out', eng, 'fuel_in');
+    t.wire(air, 'mat_out', eng, 'air_in');
+    t.wire(eng, 'mat_out', snk, 'mat_in');
+    t.wire(eng, 'elec_out', esnk, 'elec_in');
+    t.solve();
+    // H_in(fuel) + H_in(air) ≈ H_out(exhaust) + P_elec
+    // With equal inlet T, mol-weighted merge is exact → tight tolerance
+    const sFuel = t.port(fuel, 'mat_out');
+    const sAir  = t.port(air, 'mat_out');
+    const sOut  = t.port(eng, 'mat_out');
+    const H_fuel = thermo.getHdot_Jps(sFuel);
+    const H_air  = thermo.getHdot_Jps(sAir);
+    const H_out  = thermo.getHdot_Jps(sOut);
+    const P_elec = t.port(eng, 'elec_out').capacity;
+    const residual = Math.abs((H_fuel + H_air) - (H_out + P_elec));
+    t.assertOK(residual < 100, `energy residual ${residual.toFixed(1)} W < 100 W`);
+  });
+
+  test('small_gas_engine — no fuel_in → zero output', t => {
+    const air = t.place('source', 0, 0, {
+      n: { O2: 1, N2: 3.76 }, T: 300, P: 200000, phaseConstraint: 'V'
+    });
+    const eng = t.place('small_gas_engine', 4, 0);
+    const snk = t.place('sink', 8, 0);
+    const esnk = t.place('sink_electrical', 4, 6, { ratedPower_kW: 100 });
+    t.wire(air, 'mat_out', eng, 'air_in');
+    t.wire(eng, 'mat_out', snk, 'mat_in');
+    t.wire(eng, 'elec_out', esnk, 'elec_in');
+    t.solve();
+    const elec = t.port(eng, 'elec_out');
+    t.assertClose(elec.capacity, 0, 1, 'zero electric output without fuel');
+  });
+
+  test('small_gas_engine — no air_in → zero output', t => {
+    const fuel = t.place('source', 0, 0, {
+      species: 'H2', nDot: 0.5, T: 300, P: 200000, phaseConstraint: 'V'
+    });
+    const eng = t.place('small_gas_engine', 4, 0);
+    const snk = t.place('sink', 8, 0);
+    const esnk = t.place('sink_electrical', 4, 6, { ratedPower_kW: 100 });
+    t.wire(fuel, 'mat_out', eng, 'fuel_in');
+    t.wire(eng, 'mat_out', snk, 'mat_in');
+    t.wire(eng, 'elec_out', esnk, 'elec_in');
+    t.solve();
+    const elec = t.port(eng, 'elec_out');
+    t.assertClose(elec.capacity, 0, 1, 'zero electric output without O₂');
+  });
+
+  test('small_gas_engine — solver scene integration', t => {
+    const fuel = t.place('source', 0, 0, {
+      species: 'H2', nDot: 0.2, T: 300, P: 200000, phaseConstraint: 'V'
+    });
+    const air = t.place('source', 0, 4, {
+      n: { O2: 0.5, N2: 1.88 }, T: 300, P: 200000, phaseConstraint: 'V'
+    });
+    const eng = t.place('small_gas_engine', 4, 0, { electricEfficiency: 0.20 });
+    const snk = t.place('sink', 8, 0);
+    const esnk = t.place('sink_electrical', 4, 6, { ratedPower_kW: 100 });
+    t.wire(fuel, 'mat_out', eng, 'fuel_in');
+    t.wire(air, 'mat_out', eng, 'air_in');
+    t.wire(eng, 'mat_out', snk, 'mat_in');
+    t.wire(eng, 'elec_out', esnk, 'elec_in');
+    t.solve();
+    // Mass balance
+    const sFuel = t.port(fuel, 'mat_out');
+    const sAir  = t.port(air, 'mat_out');
+    const sOut  = t.port(eng, 'mat_out');
+    let massIn = 0, massOut = 0;
+    for (const [sp, n] of Object.entries(sFuel.n)) massIn += n * ComponentRegistry.get(sp).MW;
+    for (const [sp, n] of Object.entries(sAir.n)) massIn += n * ComponentRegistry.get(sp).MW;
+    for (const [sp, n] of Object.entries(sOut.n)) if (n > 0) massOut += n * ComponentRegistry.get(sp).MW;
+    t.assertClose(massIn, massOut, 1e-6, 'mass balance');
+    // Power balance
+    const P_elec = t.port(eng, 'elec_out').capacity;
+    t.assertOK(P_elec > 0, 'non-zero power output');
+  });
+
+  test('small_gas_engine — physics-fixed output (actual = capacity)', t => {
+    const fuel = t.place('source', 0, 0, {
+      species: 'CH4', nDot: 0.05, T: 300, P: 200000, phaseConstraint: 'V'
+    });
+    const air = t.place('source', 0, 4, {
+      n: { O2: 0.5, N2: 1.88 }, T: 300, P: 200000, phaseConstraint: 'V'
+    });
+    const eng = t.place('small_gas_engine', 4, 0, { electricEfficiency: 0.25 });
+    const snk = t.place('sink', 8, 0);
+    const esnk = t.place('sink_electrical', 4, 6, { ratedPower_kW: 100 });
+    t.wire(fuel, 'mat_out', eng, 'fuel_in');
+    t.wire(air, 'mat_out', eng, 'air_in');
+    t.wire(eng, 'mat_out', snk, 'mat_in');
+    t.wire(eng, 'elec_out', esnk, 'elec_in');
+    t.solve();
+    const elec = t.port(eng, 'elec_out');
+    t.assertClose(elec.actual, elec.capacity, 1e-6, 'actual = capacity (physics-fixed)');
+  });
+
+  test('small_gas_engine — efficiency clamp', t => {
+    // η < 0.01 → clamped to 0.01; η > 0.99 → clamped to 0.99
+    const fuel = t.place('source', 0, 0, {
+      species: 'H2', nDot: 0.1, T: 300, P: 200000, phaseConstraint: 'V'
+    });
+    const air = t.place('source', 0, 4, {
+      n: { O2: 0.5, N2: 1.88 }, T: 300, P: 200000, phaseConstraint: 'V'
+    });
+    const eng = t.place('small_gas_engine', 4, 0, { electricEfficiency: 5.0 });
+    const snk = t.place('sink', 8, 0);
+    const esnk = t.place('sink_electrical', 4, 6, { ratedPower_kW: 1000 });
+    t.wire(fuel, 'mat_out', eng, 'fuel_in');
+    t.wire(air, 'mat_out', eng, 'air_in');
+    t.wire(eng, 'mat_out', snk, 'mat_in');
+    t.wire(eng, 'elec_out', esnk, 'elec_in');
+    t.solve();
+    const last = t.last(eng);
+    t.assertOK(last.electricEfficiency <= 0.99, 'η clamped to ≤ 0.99');
+    t.assertOK(last.electricEfficiency >= 0.01, 'η clamped to ≥ 0.01');
   });
 
   test('Reactor Eq. — VL inlet rejected', t => {
