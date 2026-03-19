@@ -33238,6 +33238,7 @@ const _BODY_BBOX = {
   distillation_column:      { x:20, y:4,  w:56, h:136 },
   membrane_separator:       { x:10, y:6,  w:76, h:84 },
   combustion_chamber:       { x:10, y:8,  w:76, h:66 },
+  simple_burner:            { x:10, y:8,  w:76, h:66 },
   room:                     { x:16, y:16, w:256, h:400 },  // [v17.6.3] 6×9 tiles (288×432 px), 16px wall inset
   cooled_tank:              { x:22, y:12, w:52,  h:84  },  // [v17.7.0] bonbonne upper zone, 2×3
   food_storage:             { x:8,  y:4,  w:80,  h:172 },  // [v17.11.0] 2×4 fridge
@@ -33251,6 +33252,7 @@ const _UNIT_VIEWPORT = {
   reactor_jacketed:         { type: 'circle', cx: 48, cy: 38, r: 26 },
   reactor_cooled:           { type: 'circle', cx: 48, cy: 38, r: 26 },
   combustion_chamber:       { type: 'circle', cx: 48, cy: 47, r: 28 },
+  simple_burner:            { type: 'circle', cx: 48, cy: 47, r: 28 },
   reactor_electrochemical:  { type: 'rect', x: 18, y: 14, w: 60, h: 68 },
   fuel_cell:                { type: 'rect', x: 22, y: 20, w: 52, h: 40 },
   compressor:               { type: 'rect', x: 28, y: 32, w: 36, h: 32 },
@@ -35233,7 +35235,7 @@ _RAGTAG_SYMBOLS.atmosphere = _RAGTAG_SYMBOLS.source_atm;
 // [v17.4.0] simple_mixer reuses mixer icon (same physical topology, no visual distinction needed)
 _RAGTAG_SYMBOLS.simple_mixer = _RAGTAG_SYMBOLS.mixer;
 // [v18.1.0] Burner/engine — reuse reactor/turbine icons until dedicated icon session
-_RAGTAG_SYMBOLS.simple_burner = _RAGTAG_SYMBOLS.reactor_adiabatic;
+_RAGTAG_SYMBOLS.simple_burner = _RAGTAG_SYMBOLS.combustion_chamber;
 _RAGTAG_SYMBOLS.small_gas_engine = function(g, wx, wy, ww, wh, pal, def, unitId) {
   const pres = getPresentation(def, scene.units.get(unitId));
   const impCol = _lighten(pal.stroke, 0.6);
@@ -44822,6 +44824,7 @@ const _PARTICLE_BEHAVIORS = {
     reactor_jacketed:        { type:'transit', path:'linear', transform:'morph', dwellFactor:1.5, morphZone:[0.2,0.8], streams:3, magnify:1.5 },
     reactor_cooled:          { type:'transit', path:'linear', transform:'morph', dwellFactor:1.5, morphZone:[0.2,0.8], streams:3, magnify:1.5 },
     combustion_chamber:      { type:'transit', path:'linear', transform:'morph', dwellFactor:1.5, morphZone:[0.2,0.8], streams:3, magnify:1.5 },
+    simple_burner:           { type:'transit', path:'linear', transform:'morph', dwellFactor:1.5, morphZone:[0.2,0.8], streams:3, magnify:1.5 },
     reactor_electrochemical: { type:'transit', path:'linear', transform:'morph', dwellFactor:2.5, morphZone:[0.3,0.7] },
     fuel_cell:               { type:'transit', path:'linear', transform:'morph', dwellFactor:2.5, morphZone:[0.3,0.7] },
 
