@@ -357,23 +357,64 @@
   CHANGELOG  (latest first)
   ═══════════════════════════════════════════════════════════════════════════
 
-  ─── v17.12.0 — Barrel + Gas Bottle icon redesign ─────────────────────────
+  ─── v17.12.2 — Bidirectional ambient heat in balance report ──────────────
+  **computeSystemBalance:** ambient heat loop now handles negative
+  Q_rejected_W (environment heating a cold unit).  Positive values route
+  to energyOut (rejection, existing behavior).  Negative values route to
+  energyIn as ambient absorption.  Fixes energy balance residual in
+  scenes where inventory units (food_storage, room) are colder than
+  Planet X ambient — previously the 40–50 W of environmental heating was
+  invisible to the boundary, creating phantom accumulation.
+
+  Display-only fix — no physics change.  Tests: 713 (unchanged).
+
+  ─── v17.12.1 — Passive unconnected sources ──────────────────────────────
+  **source, source_atm:** emit zero molar flow (n={}) when mat_out has no
+  outgoing connections (ctx.outConns check).  T/P still set for inspector.
+  **solar_panel, wind_turbine:** emit actual=0 when elec_out has no wires.
+  capacity/available preserved for display.  Same pattern used by
+  reservoir and atmosphere units since v14.8.0.
+
+  Fixes phantom mass/energy imbalance in scenes with unconnected boundary
+  units (e.g. Unit Showcase).  No effect on connected scenes — guard only
+  fires when scene graph has zero wires from the port.
+  Tests: 713 (unchanged — all tests wire sources before solving).
+
+  ─── v17.12.0 — Icon redesigns + port grid alignment ─────────────────────
   **Barrel (simple_open_tank T1).**  Complete icon rewrite.  Old pseudo-3D
   bulging barrel with hoops replaced by flat front-view HDPE water drum.
   Subtle ±2px belly swell, rolled rim lip wider than body, dark interior
   strip, on-body sight glass (same _SG_DARK + tick marks as gas bottle),
   edge shading strips (food_storage pattern), two molding seams, scuff
   mark.  Body bbox 56×80 (was 84×68), taller-than-wide drum proportions.
-  All colors via pal.fillUrl / pal.stroke — fully dynamic under colorBy.
 
   **Gas Bottle (simple_tank T1).**  Complete icon rewrite.  Old blobby
   bonbonne with hex valve replaced by medical O₂ cylinder silhouette.
   Tall circular-arc shoulder (A-command arcs), narrow neck with forged
   collar ring, valve handwheel (circle + cross), on-body sight glass,
   pressure gauge with red needle, domed bottom.  Body bbox 40×112
-  (was 52×96), slender cylinder proportions.  All pal.* dynamic colors.
+  (was 52×96), slender cylinder proportions.
 
-  _BODY_BBOX, _UNIT_VIEWPORT updated for both units.  No logic changes.
+  **Atm Intake (source_atm).**  Complete icon rewrite.  Old tapered bell
+  with oddly-shaped viewport replaced by rectangular industrial intake
+  housing.  Solid body rect with flared intake lip on atmosphere edge,
+  proper _rtVpR dark viewport for particle rendering, protective louver
+  slats across viewport, dashed atmosphere-edge line, wind streaks
+  preserved.  Body bbox 54×68 (was 58×76).
+
+  **Port grid alignment.**  reactor_jacketed mat_in/mat_out y:0.5→1.
+  reactor_cooled mat_in/mat_out y:0.5→1 (cool ports stay at y:2.5).
+  reactor_electrochemical feed y:1.5→1, cathode y:0.5→1, anode y:2.5→2.
+  All presentations updated.
+
+  **Battery terminal cap** now uses pal.fillUrl/stroke (was hardcoded
+  grey — didn't match category coloring).
+
+  **Sink viewport** shortened from top (y:18,h:36 → y:28,h:26) to clear
+  grate detail.  Top bolts moved from y:20 → y:25.
+
+  All colors via pal.fillUrl / pal.stroke — fully dynamic under colorBy.
+  _BODY_BBOX, _UNIT_VIEWPORT updated for redesigned units.
   Tests: 713 (unchanged).
 
   ─── v17.11.0 — Food crate rework: chemistry, ports, fridge icon ───────
@@ -17242,7 +17283,7 @@ UnitRegistry.register('source', {
       type: StreamType.MATERIAL,
       T: T_K,
       P: P_Pa,
-      n,
+      n: ctx.outConns('mat_out').length > 0 ? n : {},
       phaseConstraint: par.phaseConstraint || 'VL'
     };
   }
@@ -17283,7 +17324,7 @@ UnitRegistry.register('source_atm', {
       type: StreamType.MATERIAL,
       T: atm.T_K,
       P: atm.P_Pa,
-      n,
+      n: ctx.outConns('mat_out').length > 0 ? n : {},
       phaseConstraint: 'V'
     };
     u.last = { T: atm.T_K, P: atm.P_Pa, nDot, preset: atm.presetName, RH: atm.RH ?? 0 };
@@ -17460,11 +17501,12 @@ UnitRegistry.register('solar_panel', {
     const peak_W = (par.peakPower_kW || 10) * 1000;
     const sf = ctx.solarFactor;
     const output_W = peak_W * sf;
+    const connected = ctx.outConns('elec_out').length > 0;
     ports.elec_out = {
       type: StreamType.ELECTRICAL,
-      capacity: output_W, actual: output_W, available: output_W
+      capacity: output_W, actual: connected ? output_W : 0, available: output_W
     };
-    u.last = { peakPower_W: peak_W, solarFactor: sf, output_W };
+    u.last = { peakPower_W: peak_W, solarFactor: sf, output_W: connected ? output_W : 0 };
   }
 });
 
@@ -17508,14 +17550,16 @@ UnitRegistry.register('wind_turbine', {
       status = 'partial';
     }
 
+    const connected = ctx.outConns('elec_out').length > 0;
+    const actual_W = connected ? output_W : 0;
     ports.elec_out = {
       type: StreamType.ELECTRICAL,
-      capacity: output_W, actual: output_W, available: output_W
+      capacity: output_W, actual: actual_W, available: output_W
     };
     u.last = {
       peakPower_W: peak_W, vDesign_ms: vDesign,
       cutIn_ms: cutIn, cutOut_ms: cutOut,
-      wind_ms: v, output_W, status,
+      wind_ms: v, output_W: actual_W, status,
       outputPct: peak_W > 0 ? (output_W / peak_W * 100) : 0
     };
   }
@@ -28270,21 +28314,32 @@ function computeSystemBalance(scene) {
   // [v17.x] massBalance computed AFTER accumulation loop — open_tank vented gas
   // adds to totalMassOut inside that loop, so computing here would be stale.
 
-  // [v12.4.0] Ambient heat rejection — air_cooler rejects heat to environment.
-  // This energy leaves the system boundary without a port; tracked via u.last.Q_rejected_W.
+  // [v12.4.0] Ambient heat exchange — tracks portless energy crossing the system boundary.
+  // Positive Q_rejected_W = heat rejection to environment (energy OUT).
+  // Negative Q_rejected_W = heat absorption from environment (energy IN).
   let ambientRejection = 0;
-  const ambientItems = [];
+  let ambientAbsorption = 0;
+  const ambientOutItems = [];
+  const ambientInItems = [];
   for (const [id, u] of scene.units) {
     const ud = scene.runtime.unitData.get(id);
-    if (!ud?.last?.Q_rejected_W || ud.last.Q_rejected_W <= 0.01) continue;
+    const Q = ud?.last?.Q_rejected_W;
+    if (Q == null || Math.abs(Q) <= 0.01) continue;
     const uName = u.name || UnitRegistry.get(u.defId)?.name || id;
-    ambientRejection += ud.last.Q_rejected_W;
-    ambientItems.push({ name: uName, type: 'ambient', value: ud.last.Q_rejected_W });
+    if (Q > 0) {
+      ambientRejection += Q;
+      ambientOutItems.push({ name: uName, type: 'ambient', value: Q });
+    } else {
+      ambientAbsorption += -Q;  // store as positive magnitude
+      ambientInItems.push({ name: uName, type: 'ambient', value: -Q });
+    }
   }
   energyOut.ambient = ambientRejection;
-  energyOut.items.push(...ambientItems);
+  energyOut.items.push(...ambientOutItems);
+  energyIn.ambient = ambientAbsorption;
+  energyIn.items.push(...ambientInItems);
 
-  const totalEnergyIn  = energyIn.material + energyIn.electrical;
+  const totalEnergyIn  = energyIn.material + energyIn.electrical + (energyIn.ambient || 0);
   const totalEnergyOut = energyOut.material + energyOut.electrical + energyOut.ambient;
   const energyBalance  = totalEnergyIn - totalEnergyOut;
 
@@ -32635,7 +32690,7 @@ const _BODY_BBOX = {
   pump:                     { x:20, y:11, w:56, h:56 },
   source:                   { x:20, y:20, w:56, h:56 },
   closed_loop_source:       { x:20, y:20, w:56, h:56 },
-  source_atm:               { x:4,  y:10, w:58, h:76 },
+  source_atm:               { x:10, y:14, w:54, h:68 },
   sink:                     { x:32, y:14, w:32, h:68 },
   sink_electrical:          { x:18, y:8,  w:60, h:52 },
   valve:                    { x:24, y:18, w:48, h:52 },
@@ -32652,7 +32707,7 @@ const _BODY_BBOX = {
   hex:                      { x:14, y:6,  w:68, h:84 },
   grid_supply:              { x:8,  y:14, w:80, h:40 },
   solar_panel:              { x:8,  y:14, w:80, h:68 },
-  wind_turbine:             { x:14, y:10, w:68, h:76 },
+  wind_turbine:             { x:14, y:10, w:54, h:76 },
   battery:                  { x:14, y:6,  w:68, h:56 },
   power_hub:                { x:12, y:10, w:72, h:124 },
   mixer:                    { x:14, y:32, w:56, h:32 },
@@ -32699,7 +32754,7 @@ const _UNIT_VIEWPORT = {
   membrane_separator:       { type: 'rect', x: 18, y: 14, w: 60, h: 68 },
   // [v16.9.12 Phase 4] Boundary unit viewports
   source:                   { type: 'circle', cx: 48, cy: 48, r: 22 },
-  source_atm:               { type: 'rect', x: 16, y: 24, w: 28, h: 48 },
+  source_atm:               { type: 'rect', x: 14, y: 22, w: 30, h: 52 },
   closed_loop_source:       { type: 'circle', cx: 48, cy: 48, r: 22 },
   reservoir:                { type: 'rect', x: 32, y: 16, w: 32, h: 48 },
   sink:                     { type: 'rect', x: 34, y: 18, w: 28, h: 36 },
@@ -33717,7 +33772,7 @@ const _RAGTAG_SYMBOLS = {
   // 2×2 body: nacelle housing with 3-blade rotor spinning animation
   wind_turbine(g, wx, wy, ww, wh, pal, def, unitId) {
     const pres = getPresentation(def, scene.units.get(unitId));
-    _rtNozzle(g, wx, wy, ww, wh, wx+14, wy+10, 68, 76, def, pres, pal, unitId);
+    _rtNozzle(g, wx, wy, ww, wh, wx+14, wy+10, 54, 76, def, pres, pal, unitId);
     // Tower (vertical beam)
     g.appendChild(svgEl('rect', { x:wx+42, y:wy+48, width:12, height:36, rx:2, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2, 'pointer-events':'none' }));
     // Nacelle housing
@@ -33737,8 +33792,8 @@ const _RAGTAG_SYMBOLS = {
     }
     // Base plate
     g.appendChild(svgEl('rect', { x:wx+32, y:wy+80, width:32, height:6, rx:2, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':1.5, 'pointer-events':'none' }));
-    // Bolts
-    _rtBolt(g, wx+34, wy+34); _rtBolt(g, wx+58, wy+34);
+    // Bolts (centered on nacelle)
+    _rtBolt(g, wx+36, wy+41); _rtBolt(g, wx+60, wy+41);
     // Chip + LED
     _rtNameplate(g, wx+44, wy+73, unitId);
     _rtLED(g, wx+48, wy+67, unitId);
@@ -33771,40 +33826,44 @@ const _RAGTAG_SYMBOLS = {
   // Bell mouth body, dashed open mouth, louver slats, animated wind streaks, chip, bolts, pipe, led
   source_atm(g, wx, wy, ww, wh, pal, def, unitId) {
     const pres = getPresentation(def, scene.units.get(unitId));
-    // 1. Nozzle stubs (behind body) — handles color-by + arrows
-    _rtNozzle(g, wx, wy, ww, wh, wx+4, wy+10, 58, 76, def, pres, pal, unitId);
-    // 2. Bell mouth body: path d='M4,10 Q2,48 4,86 L56,66 Q62,48 56,30 Z'
-    g.appendChild(svgEl('path', { d:`M${wx+4},${wy+10} Q${wx+2},${wy+48} ${wx+4},${wy+86} L${wx+56},${wy+66} Q${wx+62},${wy+48} ${wx+56},${wy+30} Z`,
-      fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'stroke-linejoin':'round', 'pointer-events':'none' }));
-    // [v17.2.2] Bell-shaped viewport — inset from body bell, parallel borders
-    const _bellVp = `M${wx+12},${wy+18} Q${wx+10},${wy+48} ${wx+12},${wy+78} L${wx+48},${wy+60} Q${wx+52},${wy+48} ${wx+48},${wy+36} Z`;
-    g.appendChild(svgEl('path', { d:_bellVp, fill:'#0f0820', 'pointer-events':'none' }));
-    g.appendChild(svgEl('path', { d:_bellVp, fill:'url(#vp-depth)', 'pointer-events':'none' }));
-    // 3. Open mouth edge — dashed to show it's open to atmosphere
-    g.appendChild(svgEl('line', { x1:wx+4, y1:wy+10, x2:wx+4, y2:wy+86, stroke:'#6ee7b7', 'stroke-width':2, 'stroke-dasharray':'3 3', opacity:0.4, 'pointer-events':'none' }));
-    // 4. Intake louver slats: y=[24,36,48,60,72], x1=8, x2=32+(48-|y-48|)*0.4
-    [24,36,48,60,72].forEach(y => {
-      const x2 = 32 + (48 - Math.abs(y - 48)) * 0.4;
-      g.appendChild(svgEl('line', { x1:wx+8, y1:wy+y, x2:wx+x2, y2:wy+y, stroke:'#065f46', 'stroke-width':1.5, opacity:0.35, 'pointer-events':'none' }));
+    // Body bbox for stubs
+    const bx=wx+10,by=wy+14,bw=54,bh=68;
+    _rtNozzle(g, wx, wy, ww, wh, bx, by, bw, bh, def, pres, pal, unitId);
+    // Intake flare — flared lip on left edge (wider than body, suggests bell mouth)
+    g.appendChild(svgEl('path', {
+      d:`M${wx+12},${wy+10} L${wx+12},${wy+86} L${wx+6},${wy+82} Q${wx+2},${wy+48} ${wx+6},${wy+14} Z`,
+      fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':1.5, 'stroke-linejoin':'round', 'pointer-events':'none'
+    }));
+    // Body rect
+    g.appendChild(svgEl('rect', { x:bx, y:by, width:bw, height:bh, rx:8,
+      fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'pointer-events':'none' }));
+    // Edge shading (cylindrical depth on left)
+    g.appendChild(svgEl('rect', { x:bx+1, y:by+6, width:4, height:bh-12, rx:2,
+      fill:pal.stroke, opacity:0.25, 'pointer-events':'none' }));
+    // Rectangular viewport — proper dark pane for particle rendering
+    _rtVpR(g, wx+14, wy+22, 30, 52);
+    // Protective louver slats across viewport (atmosphere filter / grille)
+    [30,40,50,60,66].forEach(y => {
+      g.appendChild(svgEl('line', { x1:wx+16, y1:wy+y, x2:wx+42, y2:wy+y,
+        stroke:pal.stroke, 'stroke-width':1.5, opacity:0.25, 'pointer-events':'none' }));
     });
-    // 5. Animated wind streaks — 5 groups with line + arrow, animated by wind-streak handler
-    // Sheet: 5 phases [0,0.2,0.4,0.6,0.8], yOff = (i-2)*14 → [-28,-14,0,14,28]
+    // Dashed atmosphere edge — left of flare, shows open-to-atmosphere
+    g.appendChild(svgEl('line', { x1:wx+2, y1:wy+14, x2:wx+2, y2:wy+82,
+      stroke:'#6ee7b7', 'stroke-width':2, 'stroke-dasharray':'3 3', opacity:0.4, 'pointer-events':'none' }));
+    // Wind streaks — 5 animated groups sweeping from left into intake
     [0, 0.2, 0.4, 0.6, 0.8].forEach((ph, i) => {
       const yOff = (i - 2) * 14;
-      const sg = svgEl('g', { 'data-anim':'wind-streak', 'data-cx':String(wx), 'data-cy':String(wy+48),
-        'data-yoff':String(yOff), 'data-phase':String(ph), 'data-speed':'2.5', 'data-range':'60',
+      const sg = svgEl('g', { 'data-anim':'wind-streak', 'data-cx':String(wx-4), 'data-cy':String(wy+48),
+        'data-yoff':String(yOff), 'data-phase':String(ph), 'data-speed':'2.5', 'data-range':'50',
         'pointer-events':'none', opacity:'0' });
-      // Line: 8px long streak ending at origin
       sg.appendChild(svgEl('line', { x1:-8, y1:0, x2:0, y2:0, stroke:'#6ee7b7', 'stroke-width':1.5, 'stroke-linecap':'round' }));
-      // Arrow head
       sg.appendChild(svgEl('polygon', { points:'0,-2 4,0 0,2', fill:'#6ee7b7', opacity:'0.7' }));
       g.appendChild(sg);
     });
-    // 6. chip(46,34,6,3)
-    // 7. bolt(50,38), bolt(50,58)
-    _rtBolt(g, wx+50, wy+38); _rtBolt(g, wx+50, wy+58);
-    _rtNameplate(g, wx+21, wy+29, unitId);
-    _rtLED(g, wx+16, wy+31, unitId);
+    // Bolts (right side, clear of viewport)
+    _rtBolt(g, wx+56, wy+22); _rtBolt(g, wx+56, wy+74);
+    _rtNameplate(g, wx+48, wy+42, unitId);
+    _rtLED(g, wx+48, wy+50, unitId);
   },
   // ── Sink (sheet 130-138, centered dy+8, mirrors for port-right) ──
   // 2×2 body rect 32×68, grate top, ground line, tap, mirrored when port on right
@@ -33821,9 +33880,9 @@ const _RAGTAG_SYMBOLS = {
       : { 'pointer-events': 'none' });
     // Body
     vg.appendChild(svgEl('rect', { x:wx+32, y:wy+14, width:32, height:68, rx:6, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5 }));
-    // [v17.2.1] Viewport panel — dark recessed window (shorter: gas rises, liquid exits via tap)
-    vg.appendChild(svgEl('rect', { x:wx+34, y:wy+18, width:28, height:36, rx:3, fill:'#0f172a', opacity:0.85, 'pointer-events':'none' }));
-    vg.appendChild(svgEl('rect', { x:wx+34, y:wy+18, width:28, height:36, rx:3, fill:'url(#vp-depth)', 'pointer-events':'none' }));
+    // [v17.2.1] Viewport panel — dark recessed window (shortened from top to clear grate)
+    vg.appendChild(svgEl('rect', { x:wx+34, y:wy+28, width:28, height:26, rx:3, fill:'#0f172a', opacity:0.85, 'pointer-events':'none' }));
+    vg.appendChild(svgEl('rect', { x:wx+34, y:wy+28, width:28, height:26, rx:3, fill:'url(#vp-depth)', 'pointer-events':'none' }));
     // Grate top (metal bar)
     vg.appendChild(svgEl('rect', { x:wx+28, y:wy+12, width:40, height:6, rx:2, fill:'#4b5563', stroke:'#374151', 'stroke-width':1.5 }));
     // Grate peak
@@ -33895,7 +33954,7 @@ const _RAGTAG_SYMBOLS = {
       }
     }
     // 4 bolts
-    _rtBolt(vg, wx+36, wy+20); _rtBolt(vg, wx+60, wy+20);
+    _rtBolt(vg, wx+36, wy+25); _rtBolt(vg, wx+60, wy+25);
     _rtBolt(vg, wx+36, wy+76); _rtBolt(vg, wx+60, wy+76);
     // LED
     g.appendChild(vg);
