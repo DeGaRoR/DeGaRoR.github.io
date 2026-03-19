@@ -34535,8 +34535,8 @@ const _RAGTAG_SYMBOLS = {
     const pres = getPresentation(def, scene.units.get(unitId));
     _rtNozzle(g, wx, wy, ww, wh, wx+22, wy+18, 52, 60, def, pres, pal, unitId);
     g.appendChild(svgEl('rect', { x:wx+22, y:wy+18, width:52, height:60, rx:8, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'pointer-events':'none' }));
-    // Metal terminal cap on top
-    g.appendChild(svgEl('rect', { x:wx+36, y:wy+10, width:24, height:10, rx:4, fill:'#4b5563', stroke:'#374151', 'stroke-width':2, 'pointer-events':'none' }));
+    // Metal terminal cap on top (category-colored like body)
+    g.appendChild(svgEl('rect', { x:wx+36, y:wy+10, width:24, height:10, rx:4, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2, 'pointer-events':'none' }));
     // Rectangular viewport
     _rtVpR(g, wx+30, wy+28, 36, 42, '#1a1000', pal.rim);
     // SOC-driven charge bars (bottom=bar1 y:56, mid=bar2 y:46, top=bar3 y:36)
