@@ -32610,9 +32610,6 @@ function _computeSmokeConfig(u, def) {
 function _rtBolt(g, cx, cy) {
   g.appendChild(svgEl('circle', { cx, cy, r: 2.5, fill: '#1f2937', stroke: '#6b7280', 'stroke-width': 1.2, 'pointer-events': 'none' }));
 }
-function _rtChip(g, x, y, w, h) {
-  g.appendChild(svgEl('rect', { x, y, width: w || 8, height: h || 4, rx: 1, fill: '#4b5563', opacity: 0.6, 'pointer-events': 'none' }));
-}
 // [v15.4.0] Standardized instrument system — LED, nameplate, gauge
 // Body bounding boxes per defId (x,y,w,h offsets from wx,wy)
 const _BODY_BBOX = {
@@ -32709,8 +32706,10 @@ function _getUnitViewport(unitId) {
 
 // Tier nameplate colors
 const _TIER_COLORS = { 1:'#4b5563', 2:'#2563eb', 3:'#9333ea' };
-// Status LED: color + speed from alarm severity
-function _rtStatusLED(g, cx, cy, unitId) {
+// [v18.0.0] Unified status LED — alarm-driven color + blink speed.
+// Green (OK) / amber (WARNING) / red (CATASTROPHIC).
+// Food storage override: blue when frozen.
+function _rtLED(g, cx, cy, unitId) {
   const sev = _cachedUnitAlarms.get(unitId);
   let fill, speed;
   if (sev && sev.level >= AlarmSeverity.CATASTROPHIC.level) {
@@ -32720,15 +32719,20 @@ function _rtStatusLED(g, cx, cy, unitId) {
   } else {
     fill = '#22c55e'; speed = '1.5';
   }
+  // Food storage: blue override when frozen (regardless of alarm state)
+  const u = scene.units.get(unitId);
+  if (u?.defId === 'food_storage' && u.last?.frozen) { fill = '#3b82f6'; }
   g.appendChild(svgEl('circle', { cx, cy, r:2.5, fill, 'data-anim':'led-blink', 'data-phase':'0', 'data-speed':speed, 'pointer-events':'none' }));
 }
-// Tier nameplate
-function _rtNameplate(g, x, y, unitId, large) {
+// [v18.0.0] Tier nameplate — replaces _rtChip. Auto-sizes from _BODY_BBOX.
+function _rtNameplate(g, x, y, unitId) {
   const u = scene.units.get(unitId);
   const tier = u?.tier || 1;
   const profile = u ? ProfileRegistry?.get(u.profileId || u.defId) : null;
   const isBoundary = profile?.boundary;
   const fill = isBoundary ? '#4b5563' : (_TIER_COLORS[tier] || '#4b5563');
+  const bb = _BODY_BBOX[u?.defId];
+  const large = bb ? (bb.w > 80 || bb.h > 80) : false;
   const w = large ? 10 : 8, h = large ? 5 : 4;
   g.appendChild(svgEl('rect', { x, y, width:w, height:h, rx:1, fill, opacity:0.6, 'pointer-events':'none' }));
 }
@@ -32784,10 +32788,10 @@ function _rtInstruments(g, wx, wy, defId, unitId) {
   const BX2 = BX + bb.w, BY2 = BY + bb.h;
   const large = bb.w > 80 || bb.h > 80;
   // LED: bottom-left, 6px inset
-  _rtStatusLED(g, BX + 6, BY2 - 6, unitId);
+  _rtLED(g, BX + 6, BY2 - 6, unitId);
   // Nameplate: top-right, 4px inset
   const npW = large ? 10 : 8;
-  _rtNameplate(g, BX2 - npW - 4, BY + 4, unitId, large);
+  _rtNameplate(g, BX2 - npW - 4, BY + 4, unitId);
   // Gauge: top-left, only for process units with T data
   if (!_NO_GAUGE.has(defId)) {
     _rtTempGauge(g, BX + 10, BY + 10, unitId);
@@ -32816,9 +32820,6 @@ function _rtVpClipGroup(g, cx, cy, r, unitId, rimColor) {
 function _rtStub(g, x, y, w, h) {
   g.appendChild(svgEl('rect', { x, y, width: w, height: h, rx: Math.min(w,h)/2.5, fill: '#4b5563', stroke: '#374151', 'stroke-width': 1.5, 'pointer-events': 'none' }));
 }
-function _rtLed(g, cx, cy) {
-  g.appendChild(svgEl('circle', { cx, cy, r: 2.5, fill: '#22c55e', opacity: 0.6, 'pointer-events': 'none' }));
-}
 function _rtFoot(g, cx, yB) {
   const hw = 6, bw = 10;
   g.appendChild(svgEl('path', { d: `M${cx-hw},${yB} L${cx-bw},${yB+10} L${cx+bw},${yB+10} L${cx+hw},${yB} Z`, fill: '#4b5563', stroke: '#374151', 'stroke-width': 1, 'stroke-linejoin': 'round', 'pointer-events': 'none' }));
@@ -32829,11 +32830,6 @@ function _rtBoltS(g, cx, cy) {
 function _rtVpR(g, x, y, w, h, dk, rm) {
   g.appendChild(svgEl('rect', { x, y, width: w, height: h, rx: 5, fill: dk || '#0a1a1a', stroke: rm || '#134e4a', 'stroke-width': 2, 'pointer-events': 'none' }));
   g.appendChild(svgEl('path', { d: `M${x+4},${y+4}Q${x+8},${y+2} ${x+12},${y+4}`, fill: 'none', stroke: '#fff', 'stroke-width': 0.8, opacity: 0.1, 'pointer-events': 'none' }));
-}
-function _rtAmb(g, x, y, w, h) {
-  w = w || 16; h = h || 14;
-  g.appendChild(svgEl('rect', { x, y, width: w, height: h, rx: 3, fill: '#78350f', stroke: '#92400e', 'stroke-width': 2, 'pointer-events': 'none' }));
-  g.appendChild(svgEl('circle', { cx: x + w/2, cy: y + h/2, r: 2.5, fill: '#fbbf24', opacity: 0.3, 'pointer-events': 'none' }));
 }
 // [v15.4.0] Exact coolCoil from design sheet — 9 zigzag runs from x:0 to x:96 at y:100-120
 function _rtCoolCoilExact(g, wx, wy) {
@@ -32850,12 +32846,12 @@ function _rtReactorVessel(g, wx, wy, pal, unitId) {
   // Viewport inner glow overlay
   g.appendChild(svgEl('circle', { cx:wx+48, cy:wy+38, r:25, fill:'url(#vp-depth)', 'pointer-events':'none' }));
   // Chips — moved to frame area
-  _rtChip(g, wx+18, wy+10); _rtChip(g, wx+16, wy+60, 7, 4);
+  _rtNameplate(g, wx+18, wy+10, unitId); _rtNameplate(g, wx+16, wy+60, unitId);
   // Pressure gauge — stays top-right frame
   g.appendChild(svgEl('circle', { cx:wx+76, cy:wy+14, r:5, fill:'#1f2937', stroke:'#4b5563', 'stroke-width':1.5, 'pointer-events':'none' }));
   g.appendChild(svgEl('line', { x1:wx+76, y1:wy+14, x2:wx+76, y2:wy+10, stroke:'#ef4444', 'stroke-width':1.5, 'stroke-linecap':'round', 'pointer-events':'none' }));
   // LED
-  g.appendChild(svgEl('circle', { cx:wx+22, cy:wy+14, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.3', 'pointer-events':'none' }));
+  _rtLED(g, wx+22, wy+14, unitId);
   // [v16.9.9] SVG bubbles retired — canvas particles replace them via _UNIT_VIEWPORT
   // 4 bolts — pushed to frame corners
   _rtBolt(g, wx+16, wy+8); _rtBolt(g, wx+80, wy+8);
@@ -33174,8 +33170,8 @@ const _RAGTAG_SYMBOLS = {
       g.appendChild(svgEl('rect', { x:wx+35, y:wy+5, width:26, height:16, rx:6, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2, 'pointer-events':'none' }));
       [40,44,48,52,56].forEach(x => g.appendChild(svgEl('line', { x1:wx+x, y1:wy+9, x2:wx+x, y2:wy+17, stroke:pal.stroke, 'stroke-width':1.5, opacity:0.5, 'pointer-events':'none' })));
     }
-    _rtChip(g, wx+61, wy+25);
-    g.appendChild(svgEl('circle', { cx:wx+67, cy:wy+59, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0', 'pointer-events':'none' }));
+    _rtNameplate(g, wx+61, wy+25, unitId);
+    _rtLED(g, wx+67, wy+59, unitId);
   },
 
   // ── Reactor Adiabatic (sheet 341-348, centered dy+7) ──
@@ -33190,8 +33186,8 @@ const _RAGTAG_SYMBOLS = {
     _rtBolt(g, wx+18, wy+23); _rtBolt(g, wx+78, wy+23);
     _rtBolt(g, wx+18, wy+73); _rtBolt(g, wx+78, wy+73);
     [12,20,28,36].forEach(x => g.appendChild(svgEl('line', { x1:wx+x, y1:wy+69, x2:wx+x+6, y2:wy+75, stroke:'#fbbf24', 'stroke-width':1.5, opacity:0.12, 'pointer-events':'none' })));
-    _rtChip(g, wx+66, wy+23);
-    g.appendChild(svgEl('circle', { cx:wx+26, cy:wy+25, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.3', 'pointer-events':'none' }));
+    _rtNameplate(g, wx+66, wy+23, unitId);
+    _rtLED(g, wx+26, wy+25, unitId);
   },
 
   // ── Combustion Chamber (profile of reactor_adiabatic, flames instead of bubbles) ──
@@ -33223,8 +33219,8 @@ const _RAGTAG_SYMBOLS = {
     _rtBolt(g, wx+18, wy+23); _rtBolt(g, wx+78, wy+23);
     _rtBolt(g, wx+18, wy+73); _rtBolt(g, wx+78, wy+73);
     [12,20,28,36].forEach(x => g.appendChild(svgEl('line', { x1:wx+x, y1:wy+69, x2:wx+x+6, y2:wy+75, stroke:'#fbbf24', 'stroke-width':1.5, opacity:0.12, 'pointer-events':'none' })));
-    _rtChip(g, wx+66, wy+23);
-    g.appendChild(svgEl('circle', { cx:wx+26, cy:wy+25, r:2.5, fill:'#f97316', 'data-anim':'led-blink', 'data-phase':'0.3', 'pointer-events':'none' }));
+    _rtNameplate(g, wx+66, wy+23, unitId);
+    _rtLED(g, wx+26, wy+25, unitId);
   },
 
   // ── Reactor Jacketed 2×3 — sheet line 350-357 ──
@@ -33286,8 +33282,8 @@ const _RAGTAG_SYMBOLS = {
     _rtBolt(g, wx+18, wy+74); _rtBolt(g, wx+78, wy+74);
     // 8. Exact coolCoil path
     _rtCoolCoilExact(g, wx, wy);
-    _rtChip(g, wx+64, wy+14);
-    g.appendChild(svgEl('circle', { cx:wx+72, cy:wy+68, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.4', 'pointer-events':'none' }));
+    _rtNameplate(g, wx+64, wy+14, unitId);
+    _rtLED(g, wx+72, wy+68, unitId);
   },
 
   // ── Compressor Diaphragm 2×3 — sheet line 223-236 ──
@@ -33324,8 +33320,8 @@ const _RAGTAG_SYMBOLS = {
     g.appendChild(svgEl('line', { x1:wx+48, y1:wy+76, x2:wx+48, y2:wy+128, stroke:_lighten(pal.stroke, 0.6), 'stroke-width':1.5, opacity:0.3, 'pointer-events':'none' }));
     // 13. Flywheel: circle(48,130, r:5, unfilled)
     g.appendChild(svgEl('circle', { cx:wx+48, cy:wy+130, r:5, fill:'none', stroke:_lighten(pal.stroke, 0.6), 'stroke-width':1.5, opacity:0.3, 'pointer-events':'none' }));
-    _rtChip(g, wx+64, wy+16);
-    g.appendChild(svgEl('circle', { cx:wx+70, cy:wy+58, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.5', 'pointer-events':'none' }));
+    _rtNameplate(g, wx+64, wy+16, unitId);
+    _rtLED(g, wx+70, wy+58, unitId);
   },
   // ── Reservoir / Well (sheet L140-158) — [v16.9.2] palette-driven colors, recentered ──
   reservoir(g, wx, wy, ww, wh, pal, def, unitId) {
@@ -33358,8 +33354,8 @@ const _RAGTAG_SYMBOLS = {
     g.appendChild(svgEl('rect', { x:wx+34, y:wy+6, width:12, height:8, rx:3, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':1.5, 'pointer-events':'none' }));
     // Rising bubbles (animated)
     [0,0.4,0.7].forEach(ph => { g.appendChild(svgEl('circle', { cx:wx+38+Math.sin(ph*10)*4, cy:wy+4, r:1.5, fill:'#6ee7b7', 'data-anim':'reactor-bubble', 'data-ytop':wy-8, 'data-ybot':wy+4, 'data-phase':String(ph), 'data-speed':'0.6', opacity:0.2, 'pointer-events':'none' })); });
-    _rtChip(g, wx+44, wy+40, 5, 3);
-    g.appendChild(svgEl('circle', { cx:wx+60, cy:wy+48, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.8', 'pointer-events':'none' }));
+    _rtNameplate(g, wx+44, wy+40, unitId);
+    _rtLED(g, wx+60, wy+48, unitId);
   },
   // ── Hydrovent [v16.9.2] — cracked hull over hydrothermal reservoir ──
   hydrovent(g, wx, wy, ww, wh, pal, def, unitId) {
@@ -33409,8 +33405,8 @@ const _RAGTAG_SYMBOLS = {
         'data-phase':String(ph), 'data-speed':'0.5', opacity:0.15, 'pointer-events':'none' }));
     });
     // Paint chip + LED
-    _rtChip(g, wx+52, wy+42, 5, 3);
-    g.appendChild(svgEl('circle', { cx:wx+66, cy:wy+40, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.6', 'pointer-events':'none' }));
+    _rtNameplate(g, wx+52, wy+42, unitId);
+    _rtLED(g, wx+66, wy+40, unitId);
   },
   // ── Restriction (sheet L202-212) ──
   restriction(g, wx, wy, ww, wh, pal, def, unitId) {
@@ -33423,7 +33419,7 @@ const _RAGTAG_SYMBOLS = {
     g.appendChild(svgEl('line', { x1:wx+56, y1:wy+40, x2:wx+72, y2:wy+34, stroke:_lighten(pal.stroke,0.6), 'stroke-width':1, 'data-anim':'rotor-pulse', 'data-opbase':'0.2', 'data-amp':'0.1', 'data-speed':'2', 'pointer-events':'none' }));
     g.appendChild(svgEl('line', { x1:wx+56, y1:wy+50, x2:wx+72, y2:wy+56, stroke:_lighten(pal.stroke,0.6), 'stroke-width':1, 'data-anim':'rotor-pulse', 'data-opbase':'0.2', 'data-amp':'0.1', 'data-speed':'2', 'pointer-events':'none' }));
     _rtBolt(g, wx+42, wy+20); _rtBolt(g, wx+54, wy+20); _rtBolt(g, wx+42, wy+76); _rtBolt(g, wx+54, wy+76);
-    g.appendChild(svgEl('circle', { cx:wx+28, cy:wy+28, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.3', 'pointer-events':'none' }));
+    _rtLED(g, wx+28, wy+28, unitId);
   },
   // ── Distillation Column 2×3 (sheet L316-326) ──
   distillation_column(g, wx, wy, ww, wh, pal, def, unitId) {
@@ -33461,8 +33457,8 @@ const _RAGTAG_SYMBOLS = {
     [30,50,70,90,110].forEach((y, i) => { const r = y === 90 ? 7 : 6;
       g.appendChild(svgEl('circle', { cx:wx+48, cy:wy+y, r, fill:'#0a1a1a', stroke:pal.stroke, 'stroke-width': y === 90 ? 2 : 1.5, 'pointer-events':'none' }));
       g.appendChild(svgEl('line', { x1:wx+44, y1:wy+y, x2:wx+52, y2:wy+y, stroke:'#5eead4', 'stroke-width': y === 90 ? 1.5 : 1, 'data-anim':'rotor-pulse', 'data-opbase':'0.2', 'data-amp':'0.1', 'data-speed':'1.2', 'data-phase':String(i*0.2), 'pointer-events':'none' })); });
-    _rtChip(g, wx+60, wy+14, 6, 4);
-    g.appendChild(svgEl('circle', { cx:wx+34, cy:wy+42, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.6', 'pointer-events':'none' }));
+    _rtNameplate(g, wx+60, wy+14, unitId);
+    _rtLED(g, wx+34, wy+42, unitId);
   },
   // ── Membrane Separator (sheet L328-336) ──
   membrane_separator(g, wx, wy, ww, wh, pal, def, unitId) {
@@ -33492,8 +33488,8 @@ const _RAGTAG_SYMBOLS = {
     g.appendChild(svgEl('line', { x1:wx+22, y1:wy+18, x2:wx+74, y2:wy+78, stroke:'#5eead4', 'stroke-width':2.5, 'stroke-dasharray':'5 3', opacity:0.5, 'pointer-events':'none' }));
     [0,0.3,0.6].forEach(ph => { g.appendChild(svgEl('circle', { cx:wx+48, cy:wy+48, r:1.5, fill:'#5eead4', 'data-anim':'reactor-bubble', 'data-ytop':wy+18, 'data-ybot':wy+48, 'data-phase':String(ph), 'data-speed':'1.5', opacity:0.35, 'pointer-events':'none' })); });
     _rtBolt(g, wx+14, wy+12); _rtBolt(g, wx+82, wy+12); _rtBolt(g, wx+14, wy+84); _rtBolt(g, wx+82, wy+84);
-    _rtChip(g, wx+68, wy+14);
-    g.appendChild(svgEl('circle', { cx:wx+72, cy:wy+74, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.3', 'pointer-events':'none' }));
+    _rtNameplate(g, wx+68, wy+14, unitId);
+    _rtLED(g, wx+72, wy+74, unitId);
   },
   // ── Reactor Electrochemical 2×3 (sheet L364-375) ──
   reactor_electrochemical(g, wx, wy, ww, wh, pal, def, unitId) {
@@ -33513,8 +33509,8 @@ const _RAGTAG_SYMBOLS = {
     [[38,0],[44,0.3],[34,0.6]].forEach(([bx,ph]) => { g.appendChild(svgEl('circle', { cx:wx+bx, cy:wy+60, r:2.5, fill:'#fbbf24', 'data-anim':'reactor-bubble', 'data-ytop':wy+30, 'data-ybot':wy+60, 'data-phase':String(ph), 'data-speed':'0.5', opacity:0.3, 'pointer-events':'none' })); });
     [[38,0.15],[44,0.5],[34,0.8]].forEach(([bx,ph]) => { g.appendChild(svgEl('circle', { cx:wx+bx, cy:wy+118, r:2.5, fill:'#fbbf24', 'data-anim':'reactor-bubble', 'data-ytop':wy+88, 'data-ybot':wy+118, 'data-phase':String(ph), 'data-speed':'0.5', opacity:0.3, 'pointer-events':'none' })); });
     _rtBolt(g, wx+18, wy+14); _rtBolt(g, wx+78, wy+14); _rtBolt(g, wx+18, wy+130); _rtBolt(g, wx+78, wy+130);
-    _rtChip(g, wx+64, wy+16);
-    g.appendChild(svgEl('circle', { cx:wx+28, cy:wy+26, r:2.5, fill:'#f97316', 'data-anim':'led-blink', 'data-phase':'0.1', 'pointer-events':'none' }));
+    _rtNameplate(g, wx+64, wy+16, unitId);
+    _rtLED(g, wx+28, wy+26, unitId);
   },
 
   flash_drum(g, wx, wy, ww, wh, pal, def, unitId) {
@@ -33575,8 +33571,8 @@ const _RAGTAG_SYMBOLS = {
         stroke:pal.stroke, 'stroke-width':isMajor ? 1 : 0.7, opacity:isMajor ? 0.35 : 0.2, 'pointer-events':'none' }));
     }
     // [v16.9.9] SVG vapor bubbles retired — canvas particles replace them
-    _rtChip(g, bx + bw - 12, by + 8, 7, 3);
-    g.appendChild(svgEl('circle', { cx:bx + 8, cy:by + bh * 0.3, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.7', 'pointer-events':'none' }));
+    _rtNameplate(g, bx + bw - 12, by + 8, unitId);
+    _rtLED(g, bx + 8, by + bh * 0.3, unitId);
   },
 
   // ── Valve (sheet 193-200, centered dy+3) ──
@@ -33605,7 +33601,7 @@ const _RAGTAG_SYMBOLS = {
     // Bowtie body (on top)
     g.appendChild(svgEl('polygon', { points:`${wx+24},${wy+31} ${cx},${cy} ${wx+24},${wy+65}`, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'stroke-linejoin':'round', 'pointer-events':'none' }));
     g.appendChild(svgEl('polygon', { points:`${wx+72},${wy+31} ${cx},${cy} ${wx+72},${wy+65}`, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'stroke-linejoin':'round', 'pointer-events':'none' }));
-    g.appendChild(svgEl('circle', { cx:wx+66, cy:wy+59, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.2', 'pointer-events':'none' }));
+    _rtLED(g, wx+66, wy+59, unitId);
   },
 
   // ── Grid Supply / Generator (sheet 428-445, centered dy+5) ──
@@ -33634,9 +33630,9 @@ const _RAGTAG_SYMBOLS = {
     // Motor housing on top
     g.appendChild(svgEl('rect', { x:wx+30, y:wy+5, width:36, height:14, rx:5, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2, 'pointer-events':'none' }));
     [36,42,48,54,60].forEach(x => g.appendChild(svgEl('line', { x1:wx+x, y1:wy+9, x2:wx+x, y2:wy+15, stroke:pal.stroke, 'stroke-width':1.5, opacity:0.5, 'pointer-events':'none' })));
-    _rtChip(g, wx+68, wy+23, 10, 5);
-    _rtChip(g, wx+14, wy+63, 7, 4);
-    g.appendChild(svgEl('circle', { cx:wx+24, cy:wy+27, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.5', 'pointer-events':'none' }));
+    _rtNameplate(g, wx+68, wy+23, unitId);
+    _rtNameplate(g, wx+14, wy+63, unitId);
+    _rtLED(g, wx+24, wy+27, unitId);
   },
   // ── Solar Panel [v16.7.0 S-DIURNAL] ──
   // 2×2 body: tilted panel face with cell grid pattern + sun symbol in viewport
@@ -33668,8 +33664,8 @@ const _RAGTAG_SYMBOLS = {
     _rtBolt(g, wx+12, wy+18); _rtBolt(g, wx+82, wy+18);
     _rtBolt(g, wx+12, wy+74); _rtBolt(g, wx+82, wy+74);
     // Chip + LED
-    _rtChip(g, wx+14, wy+68, 8, 4);
-    g.appendChild(svgEl('circle', { cx:wx+76, cy:wy+74, r:2.5, fill:'#fbbf24', 'data-anim':'led-blink', 'data-phase':'0.2', 'pointer-events':'none' }));
+    _rtNameplate(g, wx+14, wy+68, unitId);
+    _rtLED(g, wx+76, wy+74, unitId);
   },
   // ── Wind Turbine [v16.7.0 S-DIURNAL] ──
   // 2×2 body: nacelle housing with 3-blade rotor spinning animation
@@ -33698,8 +33694,8 @@ const _RAGTAG_SYMBOLS = {
     // Bolts
     _rtBolt(g, wx+34, wy+34); _rtBolt(g, wx+58, wy+34);
     // Chip + LED
-    _rtChip(g, wx+56, wy+44, 8, 4);
-    g.appendChild(svgEl('circle', { cx:wx+34, cy:wy+48, r:2.5, fill:'#60a5fa', 'data-anim':'led-blink', 'data-phase':'0.7', 'pointer-events':'none' }));
+    _rtNameplate(g, wx+56, wy+44, unitId);
+    _rtLED(g, wx+34, wy+48, unitId);
   },
   // ── Source (sheet 92-99, centered, visually rotated per variant) ──
   // 2×2: circle r:28 at (48,48), viewport r:14, flow arrow + bolts rotate with port
@@ -33718,12 +33714,12 @@ const _RAGTAG_SYMBOLS = {
     // Directional sub-group: chip, bolts, LED (arrow removed for particle visibility)
     const dg = svgEl('g', { transform:`rotate(${_rot},${wx+48},${wy+48})`, 'pointer-events':'none' });
     dg.appendChild(svgEl('path', { d:`M${wx+44},${wy+38}Q${wx+46},${wy+36} ${wx+48},${wy+38}`, fill:'none', stroke:'#fff', 'stroke-width':0.8, opacity:0.12 }));
-    _rtChip(dg, wx+60, wy+30);
+    _rtNameplate(dg, wx+60, wy+30, unitId);
     // 4 bolts
     _rtBolt(dg, wx+26, wy+34); _rtBolt(dg, wx+26, wy+62);
     _rtBolt(dg, wx+70, wy+34); _rtBolt(dg, wx+70, wy+62);
     g.appendChild(dg);
-    dg.appendChild(svgEl('circle', { cx:wx+64, cy:wy+66, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0', 'pointer-events':'none' }));
+    _rtLED(dg, wx+64, wy+66, unitId);
   },
   // ── Atmospheric Intake (sheet 101-128) ──
   // Bell mouth body, dashed open mouth, louver slats, animated wind streaks, chip, bolts, pipe, led
@@ -33761,8 +33757,8 @@ const _RAGTAG_SYMBOLS = {
     // 6. chip(46,34,6,3)
     // 7. bolt(50,38), bolt(50,58)
     _rtBolt(g, wx+50, wy+38); _rtBolt(g, wx+50, wy+58);
-    _rtChip(g, wx+46, wy+34, 6, 3);
-    g.appendChild(svgEl('circle', { cx:wx+36, cy:wy+74, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.4', 'pointer-events':'none' }));
+    _rtNameplate(g, wx+46, wy+34, unitId);
+    _rtLED(g, wx+36, wy+74, unitId);
   },
   // ── Sink (sheet 130-138, centered dy+8, mirrors for port-right) ──
   // 2×2 body rect 32×68, grate top, ground line, tap, mirrored when port on right
@@ -33857,8 +33853,8 @@ const _RAGTAG_SYMBOLS = {
     _rtBolt(vg, wx+36, wy+70); _rtBolt(vg, wx+60, wy+70);
     // LED + chip
     g.appendChild(vg);
-    _rtChip(vg, wx+52, wy+28);
-    vg.appendChild(svgEl('circle', { cx:wx+56, cy:wy+64, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.6', 'pointer-events':'none' }));
+    _rtNameplate(vg, wx+52, wy+28, unitId);
+    _rtLED(vg, wx+56, wy+64, unitId);
   },
   // ── Sink Electrical / Dump Load ──
   // Resistor symbol behind protective mesh grid, activates visually when dissipating
@@ -33899,8 +33895,8 @@ const _RAGTAG_SYMBOLS = {
     g.appendChild(svgEl('circle', { cx:wx+82, cy:wy+40, r:2.5, fill:isActive?'#ef4444':'#374151',
       'data-anim':isActive?'rotor-pulse':'', 'data-opbase':'0.5', 'data-amp':'0.3', 'data-speed':'2',
       'pointer-events':'none' }));
-    _rtChip(g, wx+68, wy+23, 10, 5);
-    g.appendChild(svgEl('circle', { cx:wx+82, cy:wy+56, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.6', 'pointer-events':'none' }));
+    _rtNameplate(g, wx+68, wy+23, unitId);
+    _rtLED(g, wx+82, wy+56, unitId);
   },
   // ── Compressor (sheet 179-191, centered dx+8 dy+6, icon mirrored) ──
   // 2×2 body 60×48 rx:6, rect viewport with animated piston+crank (mirrored),
@@ -33971,8 +33967,8 @@ const _RAGTAG_SYMBOLS = {
       g.appendChild(svgEl('rect', { x:wx+35, y:wy+10, width:26, height:16, rx:5, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2, 'pointer-events':'none' }));
       [40,44,48,52,56].forEach(x => g.appendChild(svgEl('line', { x1:wx+x, y1:wy+14, x2:wx+x, y2:wy+22, stroke:pal.stroke, 'stroke-width':1.5, opacity:0.5, 'pointer-events':'none' })));
     }
-    _rtChip(g, wx+36, wy+30);
-    g.appendChild(svgEl('circle', { cx:wx+28, cy:wy+62, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.2', 'pointer-events':'none' }));
+    _rtNameplate(g, wx+36, wy+30, unitId);
+    _rtLED(g, wx+28, wy+62, unitId);
   },
   // ── Fan [v16.8.0] (2×2 = 96×96 canvas) ──
   // Cylindrical housing with spinning fan blades inside dark viewport
@@ -34012,7 +34008,7 @@ const _RAGTAG_SYMBOLS = {
     g.appendChild(svgEl('rect', { x:wx+36, y:wy+6, width:24, height:14, rx:4, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':1.5, 'pointer-events':'none' }));
     [40,46,52].forEach(x => g.appendChild(svgEl('line', { x1:wx+x, y1:wy+9, x2:wx+x, y2:wy+16, stroke:pal.stroke, 'stroke-width':1.2, opacity:0.5, 'pointer-events':'none' })));
     // LED
-    g.appendChild(svgEl('circle', { cx:wx+24, cy:wy+26, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.4', 'pointer-events':'none' }));
+    _rtLED(g, wx+24, wy+26, unitId);
   },
   // ── Gas Turbine (sheet 214-222, centered dy+6) ──
   // 2×2 body 68×52 rx:8, rotating 3-blade impeller, spark-emit lightning particles
@@ -34063,8 +34059,8 @@ const _RAGTAG_SYMBOLS = {
         'data-dx':dx, 'data-dy':dy, 'data-phase':ph, 'data-drift':'20', 'data-speed':'0.45',
         'pointer-events':'none' }));
     });
-    _rtChip(g, wx+64, wy+28);
-    g.appendChild(svgEl('circle', { cx:wx+28, cy:wy+64, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.3', 'pointer-events':'none' }));
+    _rtNameplate(g, wx+64, wy+28, unitId);
+    _rtLED(g, wx+28, wy+64, unitId);
   },
   // ── Electric Heater (sheet 241-248, no offset) ──
   // 2×2 body 76×44 rx:8 at (10,26), rect viewport with zigzag heating element
@@ -34089,8 +34085,8 @@ const _RAGTAG_SYMBOLS = {
       g.appendChild(svgEl('rect', { x:wx+35, y:wy+12, width:26, height:14, rx:5, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2, 'pointer-events':'none' }));
       [40,44,48,52,56].forEach(x => g.appendChild(svgEl('line', { x1:wx+x, y1:wy+16, x2:wx+x, y2:wy+22, stroke:pal.stroke, 'stroke-width':1.5, opacity:0.5, 'pointer-events':'none' })));
     }
-    _rtChip(g, wx+66, wy+32);
-    g.appendChild(svgEl('circle', { cx:wx+76, cy:wy+58, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.7', 'pointer-events':'none' }));
+    _rtNameplate(g, wx+66, wy+32, unitId);
+    _rtLED(g, wx+76, wy+58, unitId);
   },
   // ── Air Cooler (sheet 250-260, layout-aware) ──
   // Radiator rect spans between mat ports (flat edges); fan circle on elec edge, overlapping
@@ -34178,7 +34174,7 @@ const _RAGTAG_SYMBOLS = {
           'pointer-events':'none' }));
       });
     }
-    g.appendChild(svgEl('circle', { cx:fcx+14, cy:fcy+14, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.4', 'pointer-events':'none' }));
+    _rtLED(g, fcx+14, fcy+14, unitId);
   },
   // ── Heat Exchanger (sheet 262-271, centered dy+4) ──
   // 2×2 ellipse cx:48 cy:48 rx:40 ry:30, viewport r:18, hot/cold flow paths
@@ -34198,8 +34194,8 @@ const _RAGTAG_SYMBOLS = {
     // 4 bolts at cardinal points
     _rtBolt(g, wx+14, wy+48); _rtBolt(g, wx+82, wy+48);
     _rtBolt(g, wx+48, wy+20); _rtBolt(g, wx+48, wy+76);
-    _rtChip(g, wx+68, wy+28);
-    g.appendChild(svgEl('circle', { cx:wx+70, cy:wy+62, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.5', 'pointer-events':'none' }));
+    _rtNameplate(g, wx+68, wy+28, unitId);
+    _rtLED(g, wx+70, wy+62, unitId);
   },
   // ── Mixer (sheet 276-286, layout-aware) ──
   // Tube body (wider than tall), curved Y-manifold for default, helix mixing element
@@ -34274,7 +34270,7 @@ const _RAGTAG_SYMBOLS = {
         'pointer-events':'none' }));
     }
     _rtBolt(g, bx + 4, by + 4); _rtBolt(g, bx + bw - 4, by + bh - 4);
-    g.appendChild(svgEl('circle', { cx:bx + bw - 8, cy:by + bh - 6, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.1', 'pointer-events':'none' }));
+    _rtLED(g, bx + bw - 8, by + bh - 6, unitId);
   },
   // ── Splitter (sheet 288-302, layout-aware) ──
   // All piping is manual — no _rtNozzle (outputs need L-bends that _rtNozzle can't do)
@@ -34358,7 +34354,7 @@ const _RAGTAG_SYMBOLS = {
     g.appendChild(svgEl('rect', { x:colX, y:colY, width:colW, height:colH, rx:4, fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':2.5, 'pointer-events':'none' }));
     const tEl = g.appendChild(svgEl('text', { x:colX+3, y:wy+wh/2+4, 'font-size':10, 'font-weight':700, fill:'#5eead4', opacity:0.35, 'font-family':'Inter,system-ui', 'pointer-events':'none' }));
     tEl.textContent = '%';
-    g.appendChild(svgEl('circle', { cx:colX+colW/2, cy:colY+colH-8, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.9', 'pointer-events':'none' }));
+    _rtLED(g, colX+colW/2, colY+colH-8, unitId);
   },
   // ── Tank (sheet 391-405, 3×2, centered dy+4) ──
   // 3×2 horizontal vessel with saddles, sight glass with data-driven level
@@ -34422,8 +34418,8 @@ const _RAGTAG_SYMBOLS = {
       }
       g.appendChild(svgEl('rect', { x:wx+66, y:sgTop+sgH-fillH, width:6, height:fillH, rx:2, fill:_gaugeColor, opacity:0.4, 'data-anim':'level-shimmer', 'data-ybase':sgTop+sgH-fillH, 'pointer-events':'none' }));
     }
-    _rtChip(g, wx+110, wy+22, 10, 5);
-    g.appendChild(svgEl('circle', { cx:wx+96, cy:wy+62, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.8', 'pointer-events':'none' }));
+    _rtNameplate(g, wx+110, wy+22, unitId);
+    _rtLED(g, wx+96, wy+62, unitId);
   },
   // ── Open Tank (sheet 407-423, 3×2, no offset) ──
   // 3×2 U-shaped vessel with feet, right-side sight glass + tick marks, data-driven level
@@ -34483,8 +34479,8 @@ const _RAGTAG_SYMBOLS = {
       }
       g.appendChild(svgEl('rect', { x:wx+94, y:sgTop+sgH-fillH, width:6, height:fillH, rx:2, fill:_gaugeColor, opacity:0.4, 'data-anim':'level-shimmer', 'data-ybase':sgTop+sgH-fillH, 'pointer-events':'none' }));
     }
-    _rtChip(g, wx+108, wy+22, 10, 5);
-    g.appendChild(svgEl('circle', { cx:wx+108, cy:wy+34, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.3', 'pointer-events':'none' }));
+    _rtNameplate(g, wx+108, wy+22, unitId);
+    _rtLED(g, wx+108, wy+34, unitId);
   },
   // ── Battery (sheet 447-458, centered dx+8) ──
   // 2×2 body 52×60 rx:8, metal terminal cap, rect viewport with 3 charge bars
@@ -34527,7 +34523,7 @@ const _RAGTAG_SYMBOLS = {
         'data-anim':'rotor-pulse', 'data-opbase':'0.6', 'data-amp':'0.25', 'data-speed':'1.2', 'data-phase':'0',
         'pointer-events':'none' }));
     }
-    g.appendChild(svgEl('circle', { cx:wx+64, cy:wy+68, r:2.5, fill:'#22c55e', 'data-anim':'led-blink', 'data-phase':'0.6', 'pointer-events':'none' }));
+    _rtLED(g, wx+64, wy+68, unitId);
   },
   // ── Power Hub (sheet 485-499, 2×3, no offset needed) ──
   // 2×3 body 72×124 rx:6, rect viewport 56×108, 3 breakers, busbar, status LEDs, relays
@@ -34604,12 +34600,12 @@ const _RAGTAG_SYMBOLS = {
     const _rot = _outEdge === 'right' ? 0 : _outEdge === 'left' ? 180 : _outEdge === 'top' ? -90 : 90;
     const dg = svgEl('g', { transform:`rotate(${_rot},${wx+48},${wy+48})`, 'pointer-events':'none' });
     // Paint chip (orange tint)
-    _rtChip(dg, wx+60, wy+30);
+    _rtNameplate(dg, wx+60, wy+30, unitId);
     // 4 bolts
     _rtBolt(dg, wx+26, wy+34); _rtBolt(dg, wx+26, wy+62);
     _rtBolt(dg, wx+70, wy+34); _rtBolt(dg, wx+70, wy+62);
     // LED
-    dg.appendChild(svgEl('circle', { cx:wx+64, cy:wy+66, r:2.5, fill:'#f97316', 'data-anim':'led-blink', 'data-phase':'0', 'pointer-events':'none' }));
+    _rtLED(dg, wx+64, wy+66, unitId);
     g.appendChild(dg);
   }
 };
@@ -34660,8 +34656,8 @@ _RAGTAG_SYMBOLS.simple_tank = function(g, wx, wy, ww, wh, pal, def, unitId) {
   if(fillH>0){let _gc='#22d3ee';const _n=_ud?.last?.n;if(_n){let _mx=null,_ma=0;for(const[sp,amt]of Object.entries(_n)){if(amt>_ma){_mx=sp;_ma=amt;}}if(_mx&&_SPECIES_COLOR[_mx]){const rgb=_SPECIES_COLOR[_mx];_gc=`rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;}}g.appendChild(svgEl('rect',{x:wx+56,y:sgTop+sgH-fillH,width:2,height:fillH,rx:1,fill:_gc,opacity:0.55,'data-anim':'level-shimmer','data-ybase':sgTop+sgH-fillH,'pointer-events':'none'}));}
   g.appendChild(svgEl('circle',{cx:wx+56,cy:wy+34,r:5,fill:'#1f2937',stroke:'#4b5563','stroke-width':1.5,'pointer-events':'none'}));
   g.appendChild(svgEl('line',{x1:wx+56,y1:wy+34,x2:wx+56,y2:wy+30,stroke:'#ef4444','stroke-width':1.5,'stroke-linecap':'round','pointer-events':'none'}));
-  _rtChip(g,wx+28,wy+36,8,5);
-  g.appendChild(svgEl('circle',{cx:wx+30,cy:wy+52,r:2.5,fill:'#22c55e','data-anim':'led-blink','data-phase':'0.6','pointer-events':'none'}));
+  _rtNameplate(g, wx+28, wy+36, unitId);
+  _rtLED(g, wx+30, wy+52, unitId);
 };
 
 // ── Cooled Tank — 2×3 bonbonne + cooling serpentine ────────────────────────
@@ -34702,8 +34698,8 @@ _RAGTAG_SYMBOLS.cooled_tank = function(g, wx, wy, ww, wh, pal, def, unitId) {
   if(fillH>0){let _gc='#22d3ee';const _n=_ud?.last?.n;if(_n){let _mx=null,_ma=0;for(const[sp,amt]of Object.entries(_n)){if(amt>_ma){_mx=sp;_ma=amt;}}if(_mx&&_SPECIES_COLOR[_mx]){const rgb=_SPECIES_COLOR[_mx];_gc=`rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;}}g.appendChild(svgEl('rect',{x:wx+56,y:sgTop+sgH-fillH,width:2,height:fillH,rx:1,fill:_gc,opacity:0.55,'data-anim':'level-shimmer','data-ybase':sgTop+sgH-fillH,'pointer-events':'none'}));}
   g.appendChild(svgEl('circle',{cx:wx+56,cy:wy+34,r:5,fill:'#1f2937',stroke:'#4b5563','stroke-width':1.5,'pointer-events':'none'}));
   g.appendChild(svgEl('line',{x1:wx+56,y1:wy+34,x2:wx+56,y2:wy+30,stroke:'#ef4444','stroke-width':1.5,'stroke-linecap':'round','pointer-events':'none'}));
-  _rtChip(g,wx+28,wy+36,8,5);
-  g.appendChild(svgEl('circle',{cx:wx+30,cy:wy+50,r:2.5,fill:'#22c55e','data-anim':'led-blink','data-phase':'0.6','pointer-events':'none'}));
+  _rtNameplate(g, wx+28, wy+36, unitId);
+  _rtLED(g, wx+30, wy+50, unitId);
   // Serpentine inline with cool ports (bottom edge wy+144)
   g.appendChild(svgEl('path',{
     d:`M${wx+2},${wy+142} L${wx+10},${wy+142} L${wx+10},${wy+130} L${wx+18},${wy+130} L${wx+18},${wy+142}` +
@@ -34741,8 +34737,8 @@ _RAGTAG_SYMBOLS.simple_open_tank = function(g, wx, wy, ww, wh, pal, def, unitId)
   let fPct=_ud?.last?.fillPct; if(fPct==null||!Number.isFinite(fPct))fPct=0; fPct=Math.max(0,Math.min(100,fPct));
   const sgH=46,sgTop=wy+16,fillH=sgH*fPct/100;
   if(fillH>0){let _gc='#22d3ee';const _n=_ud?.last?.n;if(_n){let _mx=null,_ma=0;for(const[sp,amt]of Object.entries(_n)){if(amt>_ma){_mx=sp;_ma=amt;}}if(_mx&&_SPECIES_COLOR[_mx]){const rgb=_SPECIES_COLOR[_mx];_gc=`rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;}}g.appendChild(svgEl('rect',{x:wx+110,y:sgTop+sgH-fillH,width:2,height:fillH,rx:1,fill:_gc,opacity:0.55,'data-anim':'level-shimmer','data-ybase':sgTop+sgH-fillH,'pointer-events':'none'}));}
-  _rtChip(g,wx+38,wy+60,8,5);
-  g.appendChild(svgEl('circle',{cx:wx+40,cy:wy+75,r:2.5,fill:'#22c55e','data-anim':'led-blink','data-phase':'0.3','pointer-events':'none'}));
+  _rtNameplate(g, wx+38, wy+60, unitId);
+  _rtLED(g, wx+40, wy+75, unitId);
 };
 
 _RAGTAG_SYMBOLS.food_storage = function(g, wx, wy, ww, wh, pal, def, unitId) {
@@ -34784,9 +34780,7 @@ _RAGTAG_SYMBOLS.food_storage = function(g, wx, wy, ww, wh, pal, def, unitId) {
     rx: 2, fill: pal.stroke, opacity: 0.25, 'pointer-events': 'none' }));
 
   // ── Status LED (centered between left bolt and LCD) ──
-  const ledColor = frozen ? '#3b82f6' : spoilFast ? '#ef4444' : spoiling ? '#f59e0b' : '#22c55e';
-  g.appendChild(svgEl('circle', { cx: wx + 22, cy: wy + 13, r: 2.5,
-    fill: ledColor, 'data-anim': 'led-blink', 'data-phase': '0.4', 'pointer-events': 'none' }));
+  _rtLED(g, wx + 22, wy + 13, unitId);
 
   // ── Temperature LCD display (centered, liquid-crystal style) ──
   g.appendChild(svgEl('rect', { x: wx + 30, y: wy + 8, width: 36, height: 10,
@@ -36075,7 +36069,7 @@ _RAGTAG_SYMBOLS.power_dispatcher_5 = function(g, wx, wy, ww, wh, pal, def, unitI
   // Corner bolts + chip
   _rtBolt(g, wx+12, wy+14); _rtBolt(g, wx+84, wy+14);
   _rtBolt(g, wx+12, wy+130); _rtBolt(g, wx+84, wy+130);
-  _rtChip(g, wx+64, wy+22);
+  _rtNameplate(g, wx+64, wy+22, unitId);
 };
 
 // ── ENGINEERING SYMBOLS ──
@@ -36117,7 +36111,7 @@ const _ENGINEERING_SYMBOLS = {
     // Base
     g.appendChild(svgEl('polygon', { points: `${cx-12},${cy+r+2} ${cx+12},${cy+r+2} ${cx+16},${wy+wh-4} ${cx-16},${wy+wh-4}`, fill: 'none', stroke: col, 'stroke-width': 1.5, opacity: 0.5, 'pointer-events': 'none' }));
     g.appendChild(svgEl('line', { x1: cx-18, y1: wy+wh-4, x2: cx+18, y2: wy+wh-4, stroke: col, 'stroke-width': 1.5, opacity: 0.5, 'pointer-events': 'none' }));
-    _rtChip(g, wx+64, wy+18);
+    g.appendChild(svgEl('rect', { x:wx+64, y:wy+18, width:8, height:4, rx:1, fill:'#4b5563', opacity:0.6, 'pointer-events':'none' }));
     const _ledCol1 = _curtailed ? '#ef4444' : '#22c55e';
     const _ledCol2 = _curtailed ? '#ef4444' : '#22c55e';
     const _ledCol3 = _curtailed ? '#ef4444' : '#fbbf24';
