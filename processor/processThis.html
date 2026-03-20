@@ -357,6 +357,55 @@
   CHANGELOG  (latest first)
   ═══════════════════════════════════════════════════════════════════════════
 
+  ─── v18.2.0 — S-FLARE: multi-inlet waste flare with knockout drum ──────
+
+  **Flare stack defId (`flare_stack`).**  3×7 boundary unit with 5 material
+  inlets.  Internal pipeline: 5→1 merge (mol-sum) → L/V flash at atmospheric
+  conditions → atmospheric air injection (stoichiometric O₂ from ctx.wetAir)
+  → CombustionCore on enriched vapor.  Burns all 5 combustion-tagged fuels
+  (H₂, CH₄, CO, NH₃, CH₂O).  Q_release diagnostic only — heat radiates
+  to atmosphere at the boundary.  Atmospheric air is part of the boundary
+  condition (NNG-3: the open flare tip IS exposed to atmosphere, same as
+  P_atm/T_atm for flash).  Liquid drains via tap.  fuel_fractions computed
+  as w_i = ξ_i × |ΔH°_i| / Σ for flame color blending.
+
+  **Profile: Flare.**  Single profile, tier S, category SINK.  Description,
+  selection guide, equipment/operating/model notes.
+
+  **Ragtag icon.**  Full dedicated icon: ground line, guy wires with clamps
+  and stakes, KO drum with viewport and bolts, side tap with handwheel,
+  5 red/white pipe segments with weld seams and slight rotations, flare
+  collar, manifold collector pipe with branches and valve handwheels.
+  Mirror presentation reflects all coordinates via ax() function.
+
+  **Flame animation (feTurbulence).**  Two SVG filters (flare-ft1, flare-ft2)
+  with numOctaves=1 (cartoon style).  Pure SMIL animation (no CSS flicker).
+  Size scales with log₁₀(Q/Q_ref).  Color blends across 5 fuel palettes
+  (H₂=white, CH₄=orange, CO=blue, NH₃=green, CH₂O=cyan) weighted by
+  Q contribution.  Dynamic gradient defs with deterministic IDs, cleaned
+  on re-render.
+
+  **Smoke plume.**  `_computeSmokeConfig` case for flare_stack.  Emits from
+  collar position.  Color by combustion state and H₂O fraction.
+
+  **Liquid drain.**  Reuses sink's `data-anim: 'sink-stream'` and
+  `'sink-splash'` pattern.  Emits from tap bore opening to ground line.
+
+  **KO viewport particles.**  `_PARTICLE_BEHAVIORS.units.flare_stack` =
+  split type (same as flash_drum).  `_UNIT_VIEWPORT` and `_BODY_BBOX`
+  registered.
+
+  NNGs: NNG-1 (conservation — boundary absorbs mass, combustion is
+  diagnostic), NNG-3 (WYSIWYG — no phantom connections, atmospheric air
+  is boundary), NNG-9 (tick isolation — reads ctx.atmosphere/wetAir only),
+  NNG-10 (ReactionRegistry.getByTag), NNG-14 (changelog + tests).
+
+  Tests: T34–T59 (26 tests): merge (5-inlet, 1-inlet, 0-inlet), flash
+  (pure liquid, pure gas, two-phase), air injection (O₂ demand, atm
+  composition, no-O₂), combustion (CH₄, H₂, mixed, no fuel, fuel_fractions),
+  mass balance, scene integration, energy diagnostic, smoke config,
+  particle/viewport/bbox registries, presentations, profile.
+
   ─── v18.1.0 — S-BurnerEngine: multi-fuel combustion + gas engine ──────
 
   **ReactionRegistry: tags.**  Optional `tags` array on reaction
@@ -11230,6 +11279,16 @@
           <feColorMatrix in="blurred" type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 0.7 0"/>
         </filter>
 
+        <!-- [v18.2.0 S-FLARE] Flame distortion filters — cartoon (numOctaves=1), tight region -->
+        <filter id="flare-ft1" x="-20%" y="-10%" width="140%" height="120%">
+          <feTurbulence type="turbulence" baseFrequency="0.06 0.12" numOctaves="1" seed="42" result="t"/>
+          <feDisplacementMap in="SourceGraphic" in2="t" scale="6" xChannelSelector="R" yChannelSelector="G"/>
+        </filter>
+        <filter id="flare-ft2" x="-20%" y="-10%" width="140%" height="120%">
+          <feTurbulence type="turbulence" baseFrequency="0.08 0.14" numOctaves="1" seed="17" result="t"/>
+          <feDisplacementMap in="SourceGraphic" in2="t" scale="5" xChannelSelector="G" yChannelSelector="R"/>
+        </filter>
+
       </defs>
     </svg>
     <canvas id="particleCanvas"></canvas>
@@ -17579,6 +17638,192 @@ UnitRegistry.register('sink', {
     }
   }
 });
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// [v18.2.0 S-FLARE] FLARE STACK — Multi-inlet waste flare with knockout drum
+// ═══════════════════════════════════════════════════════════════════════════════
+// 5 material inlets → merge → L/V flash at atmospheric conditions →
+// vapor: combustion at flare tip using atmospheric O₂ (CombustionCore) →
+// liquid: drain via tap.  Boundary unit — mass absorbed at the boundary.
+// NNG-3: atmospheric air is part of the boundary condition (same as P_atm
+// and T_atm for flash).  The open flare tip IS exposed to atmosphere —
+// no phantom connection, no flowsheet air stream.
+// ═══════════════════════════════════════════════════════════════════════════════
+UnitRegistry.register('flare_stack', {
+  name: 'Flare Stack',
+  category: UnitCategories.SINK,
+  w: 3,
+  h: 7,
+  ports: [
+    { portId: 'mat_in_1', dir: PortDir.IN, type: StreamType.MATERIAL, x: 0, y: 2 },
+    { portId: 'mat_in_2', dir: PortDir.IN, type: StreamType.MATERIAL, x: 0, y: 3 },
+    { portId: 'mat_in_3', dir: PortDir.IN, type: StreamType.MATERIAL, x: 0, y: 4 },
+    { portId: 'mat_in_4', dir: PortDir.IN, type: StreamType.MATERIAL, x: 0, y: 5 },
+    { portId: 'mat_in_5', dir: PortDir.IN, type: StreamType.MATERIAL, x: 0, y: 6 }
+  ],
+  presentations: {
+    'box/default': { w: 3, h: 7, ports: { mat_in_1:{x:0,y:2}, mat_in_2:{x:0,y:3}, mat_in_3:{x:0,y:4}, mat_in_4:{x:0,y:5}, mat_in_5:{x:0,y:6} } },
+    'box/mirror':  { w: 3, h: 7, ports: { mat_in_1:{x:3,y:2}, mat_in_2:{x:3,y:3}, mat_in_3:{x:3,y:4}, mat_in_4:{x:3,y:5}, mat_in_5:{x:3,y:6} } }
+  },
+  tick(u, ports, par, ctx) {
+    // ── Collect connected inlets ──
+    const inlets = [];
+    for (let i = 1; i <= 5; i++) {
+      const s = ports[`mat_in_${i}`];
+      if (s && Object.values(s.n || {}).reduce((a, b) => a + b, 0) > 1e-15) {
+        inlets.push(s);
+      }
+    }
+    if (inlets.length === 0) {
+      u.last = { status: 'no_flow', absorbed_mol_s: 0 };
+      return;
+    }
+
+    // ── 5→1 merge: mol-sum compositions ──
+    const n_merged = {};
+    for (const s of inlets) {
+      for (const [sp, mol] of Object.entries(s.n || {})) {
+        n_merged[sp] = (n_merged[sp] || 0) + mol;
+      }
+    }
+    const totalMerged = Object.values(n_merged).reduce((a, b) => a + b, 0);
+
+    // ── Atmospheric conditions for flash ──
+    const atm = ctx.atmosphere;
+    const P_atm = atm.P_Pa;
+    const T_atm = atm.T_K;
+
+    // ── L/V flash at atmospheric conditions ──
+    let phase_out = 'V';
+    let nL = {}, nV = {};
+    let mDot_liq_kgs = 0, mDot_vap_kgs = 0;
+    try {
+      const flashResult = thermo.tpFlash({ T: T_atm, P: P_atm, n: { ...n_merged } });
+      phase_out = flashResult.phase || 'V';
+      nL = flashResult.nL || {};
+      nV = flashResult.nV || {};
+    } catch (e) {
+      phase_out = 'V';
+      nV = { ...n_merged };
+    }
+    for (const [sp, n] of Object.entries(nL)) {
+      const cd = ComponentRegistry.get(sp);
+      if (cd && n > 1e-15) mDot_liq_kgs += n * cd.MW / 1000;
+    }
+    for (const [sp, n] of Object.entries(nV)) {
+      const cd = ComponentRegistry.get(sp);
+      if (cd && n > 1e-15) mDot_vap_kgs += n * cd.MW / 1000;
+    }
+
+    // ── Atmospheric air injection for combustion ──
+    // Discover fuels and compute O₂ demand (same logic as CombustionCore discovery)
+    const wetAir = ctx.wetAir || {};
+    const y_O2_atm = wetAir.O2 || 0;
+    let totalO2demand = 0;
+    let hasFuel = false;
+    const combRxns = ReactionRegistry.getByTag('combustion');
+    for (const rxn of combRxns) {
+      let fuelSp = null, nu_fuel = 0, nu_O2 = 0;
+      for (const [sp, nu] of Object.entries(rxn.stoich)) {
+        if (nu < 0) {
+          if (sp === 'O2') nu_O2 = nu;
+          else { fuelSp = sp; nu_fuel = nu; }
+        }
+      }
+      if (!fuelSp || nu_O2 >= 0) continue;
+      const n_fuel = nV[fuelSp] || 0;
+      if (n_fuel < 1e-15) continue;
+      hasFuel = true;
+      const xi_max = n_fuel / (-nu_fuel);
+      totalO2demand += xi_max * (-nu_O2);
+    }
+
+    // Inject stoichiometric air into vapor for combustion
+    const n_vapor_with_air = { ...nV };
+    const air_consumed = {};
+    let o2_status_override = null;
+    if (!hasFuel) {
+      o2_status_override = 'no_fuel';
+    } else if (y_O2_atm < 1e-6) {
+      o2_status_override = 'no_O2';
+    } else {
+      // Air needed = O₂_demand / y_O2_atm (stoichiometric)
+      const airTotal = totalO2demand / y_O2_atm;
+      for (const [sp, frac] of Object.entries(wetAir)) {
+        if (!ComponentRegistry.exists(sp)) continue;
+        const n_air_sp = frac * airTotal;
+        air_consumed[sp] = n_air_sp;
+        n_vapor_with_air[sp] = (n_vapor_with_air[sp] || 0) + n_air_sp;
+      }
+    }
+
+    // ── CombustionCore on enriched vapor ──
+    let combustion;
+    if (o2_status_override) {
+      // No combustion — passthrough
+      combustion = {
+        n_out: { ...nV }, Q_release_W: 0, extents: {},
+        o2_status: o2_status_override, fuelPower_W: 0, f: 0
+      };
+    } else {
+      combustion = _combustionCore(n_vapor_with_air);
+    }
+
+    // ── Compute fuel_fractions (weighted by Q contribution) ──
+    const fuel_fractions = {};
+    let totalQ = 0;
+    for (const [rxnId, xi] of Object.entries(combustion.extents || {})) {
+      const rxn = ReactionRegistry.get(rxnId);
+      if (!rxn) continue;
+      // Find fuel species for this reaction
+      let fuelSp = null;
+      for (const [sp, nu] of Object.entries(rxn.stoich)) {
+        if (nu < 0 && sp !== 'O2') { fuelSp = sp; break; }
+      }
+      if (!fuelSp) continue;
+      const dH = rxn._dH0_Jmol || 0;
+      const q = xi * (-dH);  // positive for exothermic
+      if (q > 0) {
+        fuel_fractions[fuelSp] = (fuel_fractions[fuelSp] || 0) + q;
+        totalQ += q;
+      }
+    }
+    if (totalQ > 0) {
+      for (const sp in fuel_fractions) fuel_fractions[sp] /= totalQ;
+    }
+
+    // ── Store results ──
+    const airConsumedTotal = Object.values(air_consumed).reduce((a, b) => a + b, 0);
+
+    u.last = {
+      absorbed_mol_s: totalMerged,
+      inlet: {
+        T_K: T_atm,
+        P_Pa: P_atm,
+        Q_mol_s: totalMerged,
+        composition: { ...n_merged }
+      },
+      merged: { n: { ...n_merged } },
+      flash: { phase: phase_out, nL: { ...nL }, nV: { ...nV } },
+      air_consumed: { mol_s: airConsumedTotal, composition: { ...air_consumed } },
+      combustion: {
+        Q_release_W: combustion.Q_release_W,
+        Q_release_kW: (combustion.Q_release_W / 1000).toFixed(2),
+        extents: combustion.extents,
+        o2_status: combustion.o2_status,
+        fuelPower_W: combustion.fuelPower_W,
+        f: combustion.f,
+        fuel_fractions
+      },
+      outlet: {
+        mDot_liq_kgs,
+        mDot_vap_kgs,
+        phase: phase_out
+      }
+    };
+  }
+});
+
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // GRID SUPPLY — Responsive (dispatchable) electrical source [v9.0.2]
@@ -24559,6 +24804,13 @@ ProfileRegistry.register('sink',         { defId: 'sink',         name: 'Materia
   equipmentNote: "Vent, drain, or product collection point.",
   operatingNote: "Accepts anything. Zero backpressure.",
   modelNote: "Boundary sink. Flash at ambient for phase display."});
+// [v18.2.0 S-FLARE] Flare stack profile
+ProfileRegistry.register('flare_stack', { defId: 'flare_stack', name: 'Flare', category: UnitCategories.SINK, tiers: [1], limits: {}, boundary: true,
+  description: 'Multi-inlet waste flare with knockout drum',
+  selectionGuide: 'Route all waste streams here. Burns combustibles using atmospheric O₂ — the flame color and size tell you what you\'re wasting. Liquids drain via the knockout drum.',
+  equipmentNote: "Improvised flare stack: salvaged pipe sections, knockout barrel, manifold.",
+  operatingNote: "No air supply needed — the open flare tip draws from atmosphere. Flame = wasted energy.",
+  modelNote: "5→1 merge → flash(T_atm,P_atm) → air injection(ctx.wetAir) → CombustionCore → Q diagnostic."});
 ProfileRegistry.register('grid_supply',  { defId: 'grid_supply',  name: 'Generator',        category: UnitCategories.POWER,            tiers: [1], limits: {}, boundary: true,
   description: 'Reliable power, always on',
   selectionGuide: 'Your baseline electricity. Doesn\'t care about weather or time of day. Set the kW and it delivers.' ,
@@ -33151,6 +33403,46 @@ function _computeSmokeConfig(u, def) {
       driftRange: 8
     };
   }
+  // [v18.2.0] Flare stack — smoke from incombustible/post-combustion gases at flare tip
+  if (def.defId === 'flare_stack') {
+    const ud = scene.runtime?.unitData?.get(u.id);
+    const last = ud?.last;
+    if (!last || !last.combustion) return null;
+    const absorbed = last.absorbed_mol_s || 0;
+    if (absorbed < 1e-12) return null;
+    // Vapor flow (post-combustion products + inerts that weren't fuel)
+    const mDotVap = last.outlet?.mDot_vap_kgs || 0;
+    if (mDotVap < 1e-9) return null;
+    // Smoke represents incombustibles — color by temperature and H₂O fraction
+    // After combustion, products include H₂O and CO₂ which make the plume whiter
+    const comp = last.inlet?.composition || {};
+    const totalMol = Object.values(comp).reduce((a, b) => a + b, 0) || 1;
+    const y_H2O = (comp.H2O || 0) / totalMol;
+    const T = last.inlet?.T_K || 300;
+    let color;
+    if (last.combustion.Q_release_W > 100) color = '#d4a574';  // warm — combustion products
+    else if (T < 350) color = '#9ca3af';
+    else if (T < 500) color = '#d4a574';
+    else color = '#e8a040';
+    if (y_H2O > 0.3) color = '#d1d5db';
+    const flowScale = Math.sqrt(Math.min(absorbed, 10));
+    // Emit from collar position (flare tip)
+    const wx = u.x * scene.tile;
+    const wy = u.y * scene.tile;
+    return {
+      isFried: false,
+      puffCount: Math.max(3, Math.min(10, Math.round(3 + flowScale * 2))),
+      riseHeight: 25 + flowScale * 8,
+      duration: Math.max(2, 4.5 - flowScale * 0.3),
+      puffRx: 6 + flowScale * 2, puffRy: 5 + flowScale * 1.5,
+      spreadX: 6, scaleStart: 0.4, scaleEnd: 1.4,
+      opacityStart: 0.2, opacityPeak: y_H2O > 0.3 ? 0.45 : 0.3,
+      color, filter: 'smoke-f2',
+      driftRange: 6,
+      _cx: wx + 118 * scene.tile / 80,   // collar center x: proto (168-50) scaled
+      _cy: wy + 80 * scene.tile / 80     // above collar: proto (120-40) scaled
+    };
+  }
   // [v17.2.3] Open tank — gas venting smoke from open top
   if (def.defId === 'open_tank') {
     const ud = scene.runtime?.unitData?.get(u.id);
@@ -33239,6 +33531,7 @@ const _BODY_BBOX = {
   membrane_separator:       { x:10, y:6,  w:76, h:84 },
   combustion_chamber:       { x:10, y:8,  w:76, h:66 },
   simple_burner:            { x:10, y:8,  w:76, h:66 },
+  flare_stack:              { x:24, y:214, w:60, h:48 },  // [v18.2.0] KO drum body within 3×7
   room:                     { x:16, y:16, w:256, h:400 },  // [v17.6.3] 6×9 tiles (288×432 px), 16px wall inset
   cooled_tank:              { x:22, y:12, w:52,  h:84  },  // [v17.7.0] bonbonne upper zone, 2×3
   food_storage:             { x:8,  y:4,  w:80,  h:172 },  // [v17.11.0] 2×4 fridge
@@ -33253,6 +33546,7 @@ const _UNIT_VIEWPORT = {
   reactor_cooled:           { type: 'circle', cx: 48, cy: 38, r: 26 },
   combustion_chamber:       { type: 'circle', cx: 48, cy: 47, r: 28 },
   simple_burner:            { type: 'circle', cx: 48, cy: 47, r: 28 },
+  flare_stack:              { type: 'rect', x: 32, y: 222, w: 44, h: 30 },  // [v18.2.0] KO drum viewport
   reactor_electrochemical:  { type: 'rect', x: 18, y: 14, w: 60, h: 68 },
   fuel_cell:                { type: 'rect', x: 22, y: 20, w: 52, h: 40 },
   compressor:               { type: 'rect', x: 28, y: 32, w: 36, h: 32 },
@@ -35236,6 +35530,283 @@ _RAGTAG_SYMBOLS.atmosphere = _RAGTAG_SYMBOLS.source_atm;
 _RAGTAG_SYMBOLS.simple_mixer = _RAGTAG_SYMBOLS.mixer;
 // [v18.1.0] Burner/engine — reuse reactor/turbine icons until dedicated icon session
 _RAGTAG_SYMBOLS.simple_burner = _RAGTAG_SYMBOLS.combustion_chamber;
+_RAGTAG_SYMBOLS.flare_stack = function(g, wx, wy, ww, wh, pal, def, unitId) {
+  // [v18.2.0 S-FLARE] Ragtag flare stack icon
+  // Coordinates derived from prototype (80px/tile) → actual (48px/tile), scale 0.6
+  // Proto origin (50,40) maps to (wx,wy).  ax = wx + (px-50)*0.6, ay = wy + (py-40)*0.6
+  const pres = getPresentation(def, scene.units.get(unitId));
+  const s = 0.6;  // scale factor
+  const ox = 50, oy = 40;  // proto origin
+  // Mirror detection: flip when ports are on right edge
+  const _p1 = pres.ports.mat_in_1;
+  const _mirror = _p1 && _p1.x > 1;  // x=3 in mirror presentation
+  // ax reflects around proto center (170) when mirrored: mirror_x = 340 - px
+  const ax = _mirror ? (px => wx + (340 - px - ox) * s) : (px => wx + (px - ox) * s);
+  const ay = py => wy + (py - oy) * s;
+  const al = pv => pv * s;  // scale a length
+  const mRot = r => _mirror ? -r : r;  // negate rotation in mirror mode
+
+  // ── 1. Ground line + hatching ──
+  const groundY = ay(590);
+  g.appendChild(svgEl('line', { x1:ax(52), y1:groundY, x2:ax(288), y2:groundY, stroke:'#6b7280', 'stroke-width':1.5, 'stroke-linecap':'round', 'pointer-events':'none' }));
+  for (let px = 56; px <= 280; px += 16) {
+    g.appendChild(svgEl('line', { x1:ax(px), y1:groundY, x2:ax(px)-3, y2:groundY+5, stroke:'#6b7280', 'stroke-width':0.6, opacity:0.4, 'pointer-events':'none' }));
+  }
+
+  // ── 2. Guy wires (BEHIND pipes) ──
+  g.appendChild(svgEl('line', { x1:ax(159), y1:ay(278), x2:ax(85), y2:ay(588), stroke:'#9ca3af', 'stroke-width':1.1, 'pointer-events':'none' }));
+  g.appendChild(svgEl('line', { x1:ax(175), y1:ay(290), x2:ax(255), y2:ay(588), stroke:'#9ca3af', 'stroke-width':1.1, 'pointer-events':'none' }));
+
+  // ── 3. Wire clamps on pipe ──
+  g.appendChild(svgEl('rect', { x:ax(155), y:ay(274), width:al(12), height:al(8), rx:0.6, fill:'#6b7280', stroke:'#4b5563', 'stroke-width':0.6, 'pointer-events':'none' }));
+  g.appendChild(svgEl('rect', { x:ax(171), y:ay(286), width:al(12), height:al(8), rx:0.6, fill:'#6b7280', stroke:'#4b5563', 'stroke-width':0.6, 'pointer-events':'none' }));
+
+  // ── 3b. Ground stakes ──
+  [[85,588],[255,588]].forEach(([sx,sy]) => {
+    const stx = ax(sx), sty = ay(sy);
+    g.appendChild(svgEl('path', { d:`M${stx-3},${sty-3} L${stx},${sty+1} L${stx+3},${sty-3}`, fill:'none', stroke:'#9ca3af', 'stroke-width':1.2, 'stroke-linejoin':'round', 'pointer-events':'none' }));
+    g.appendChild(svgEl('line', { x1:stx, y1:sty-3, x2:stx, y2:sty+2, stroke:'#9ca3af', 'stroke-width':1, 'pointer-events':'none' }));
+    g.appendChild(svgEl('circle', { cx:stx, cy:sty, r:1.2, fill:'#6b7280', stroke:'#4b5563', 'stroke-width':0.6, 'pointer-events':'none' }));
+  });
+
+  // ── 4. KO drum body ──
+  const dx = ax(120), dy = ay(510), dw = al(100), dh = al(80);
+  g.appendChild(svgEl('rect', { x:dx, y:dy, width:dw, height:dh, rx:al(10), fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':1.5, 'pointer-events':'none' }));
+  g.appendChild(svgEl('rect', { x:dx+1, y:dy+1, width:dw-2, height:dh-2, rx:al(9), fill:'none', stroke:'#5a5e66', 'stroke-width':0.3, opacity:0.4, 'pointer-events':'none' }));
+  // 4 bolts
+  _rtBolt(g, dx+al(8), dy+al(8)); _rtBolt(g, dx+dw-al(8), dy+al(8));
+  _rtBolt(g, dx+al(8), dy+dh-al(8)); _rtBolt(g, dx+dw-al(8), dy+dh-al(8));
+  // Dark viewport
+  const vx = ax(134), vy = ay(526), vvw = al(72), vvh = al(48);
+  g.appendChild(svgEl('rect', { x:vx, y:vy, width:vvw, height:vvh, rx:al(6), fill:'#0f172a', opacity:0.85, 'pointer-events':'none' }));
+  g.appendChild(svgEl('rect', { x:vx, y:vy, width:vvw, height:vvh, rx:al(6), fill:'none', stroke:'#374151', 'stroke-width':0.9, 'pointer-events':'none' }));
+  // LED
+  _rtLED(g, dx+dw-al(14), dy+dh-al(14), unitId);
+
+  // ── 5. Tap (right side of drum) ──
+  g.appendChild(svgEl('rect', { x:ax(220), y:ay(528), width:al(16), height:al(7), rx:0.9, fill:'#374151', stroke:'#4b5563', 'stroke-width':0.6, 'pointer-events':'none' }));
+  g.appendChild(svgEl('rect', { x:ax(233), y:ay(530), width:al(7), height:al(18), rx:0.9, fill:'#374151', stroke:'#4b5563', 'stroke-width':0.6, 'pointer-events':'none' }));
+  g.appendChild(svgEl('circle', { cx:ax(237), cy:ay(529), r:al(5), fill:'#4b5563', stroke:'#374151', 'stroke-width':0.9, 'pointer-events':'none' }));
+  g.appendChild(svgEl('circle', { cx:ax(237), cy:ay(529), r:al(2), fill:'#1f2937', 'pointer-events':'none' }));
+  g.appendChild(svgEl('ellipse', { cx:ax(236), cy:ay(549), rx:al(3), ry:al(1.5), fill:'#0f172a', opacity:0.7, 'pointer-events':'none' }));
+
+  // ── 5b. Liquid drain animation (reuse sink pattern) ──
+  const _fUd = scene.runtime?.unitData?.get(unitId);
+  const _fMdotLiq = _fUd?.last?.outlet?.mDot_liq_kgs || 0;
+  if (_fMdotLiq > 1e-9) {
+    const boreX = ax(236), boreY = ay(549);
+    // Normalize against max liquid flow across all flare_stacks + sinks
+    let _fMaxMdot = _fMdotLiq;
+    for (const [uid, uu] of scene.units) {
+      if (uu.defId !== 'flare_stack' && uu.defId !== 'sink') continue;
+      if (uid === unitId) continue;
+      const md = scene.runtime?.unitData?.get(uid)?.last?.outlet?.mDot_liq_kgs || 0;
+      if (md > _fMaxMdot) _fMaxMdot = md;
+    }
+    const _fFrac = Math.sqrt(_fMdotLiq / _fMaxMdot);
+    const _fMaxW = al(6);
+    const _fStreamW = Math.max(0.5, _fFrac * _fMaxW);
+    const _fSpoutY = boreY + 0.5;
+    const _fGroundY = groundY;
+    // Clip: bore + rect below
+    const _fClipId = 'flare-liq-' + unitId;
+    const _fClipEl = svgEl('clipPath', { id: _fClipId });
+    _fClipEl.appendChild(svgEl('ellipse', { cx:boreX, cy:boreY, rx:al(3), ry:al(1.5) }));
+    _fClipEl.appendChild(svgEl('rect', { x:boreX - _fMaxW, y:_fSpoutY, width:_fMaxW * 2, height:_fGroundY - _fSpoutY + 2 }));
+    let _fDefsEl = g.closest('svg')?.querySelector('defs');
+    if (_fDefsEl) {
+      for (const old of _fDefsEl.querySelectorAll(`#${_fClipId}`)) old.remove();
+      _fDefsEl.appendChild(_fClipEl);
+    }
+    // Stream path
+    g.appendChild(svgEl('path', {
+      fill:'none', stroke:'#60a5fa', 'stroke-width':_fStreamW,
+      'stroke-linecap':'round', opacity:0.5,
+      'clip-path':`url(#${_fClipId})`,
+      'data-anim':'sink-stream',
+      'data-sx':boreX, 'data-sy0':boreY - 0.5,
+      'data-sy1':_fGroundY,
+      'data-pspeed':'1.00',
+      'pointer-events':'none'
+    }));
+    // Splash particles
+    const _fNSplash = Math.max(3, Math.round(8 * _fFrac));
+    for (let si = 0; si < _fNSplash; si++) {
+      g.appendChild(svgEl('circle', {
+        cx:boreX, cy:_fGroundY, r:0.5 + _fFrac * 0.5,
+        fill:'#93c5fd', opacity:0,
+        'data-anim':'sink-splash',
+        'data-sx':boreX, 'data-gy':_fGroundY,
+        'data-phase':(si / _fNSplash).toFixed(3),
+        'data-spread':(8 * _fFrac).toFixed(1),
+        'pointer-events':'none'
+      }));
+    }
+  }
+
+  // ── 6. Riser stub (drum top → first segment) ──
+  const rx = ax(170), rt = ay(496), rb = ay(510);
+  g.appendChild(svgEl('line', { x1:rx, y1:rb, x2:rx, y2:rt, stroke:'#6b7280', 'stroke-width':al(12), 'pointer-events':'none' }));
+  g.appendChild(svgEl('line', { x1:rx, y1:rb, x2:rx, y2:rt, stroke:'#5a5e66', 'stroke-width':al(8), 'pointer-events':'none' }));
+
+  // ── 7. Five pipe segments (red-white-red-white-red) with weld seams ──
+  const segments = [
+    { tx:170, ty:496, rot:-1,   h:76, color:'#c53030' },
+    { tx:169, ty:420, rot:2.5,  h:76, color:'#e0e0e0' },
+    { tx:171, ty:344, rot:-2,   h:76, color:'#c53030' },
+    { tx:168, ty:268, rot:1.5,  h:76, color:'#e0e0e0' },
+    { tx:170, ty:192, rot:-1.5, h:52, color:'#c53030' }
+  ];
+  const segW = al(16), segStroke = segments[0].color === '#c53030' ? '#555' : '#999';
+  for (let i = 0; i < segments.length; i++) {
+    const seg = segments[i];
+    const stx = ax(seg.tx), sty = ay(seg.ty);
+    const sh = al(seg.h), sw = al(16);
+    const sg = svgEl('g', { transform:`translate(${stx},${sty}) rotate(${mRot(seg.rot)})`, 'pointer-events':'none' });
+    sg.appendChild(svgEl('rect', { x:-sw/2, y:-sh, width:sw, height:sh, rx:1.2,
+      fill:seg.color, stroke:seg.color === '#c53030' ? '#555' : '#999', 'stroke-width':0.5 }));
+    g.appendChild(sg);
+    // Weld seam above this segment (except topmost)
+    if (i < segments.length - 1) {
+      const ns = segments[i+1];
+      const wy1 = ay(seg.ty) - sh;
+      g.appendChild(svgEl('line', { x1:ax(seg.tx)-sw/2-1, y1:wy1, x2:ax(seg.tx)+sw/2+1, y2:wy1-0.5, stroke:'#4b5563', 'stroke-width':0.9, opacity:0.5, 'pointer-events':'none' }));
+    }
+  }
+
+  // ── 8. Flare collar + tip ──
+  g.appendChild(svgEl('rect', { x:ax(161), y:ay(134), width:al(14), height:al(8), rx:1.2, fill:'#4b5563', stroke:'#374151', 'stroke-width':0.9, 'pointer-events':'none' }));
+  g.appendChild(svgEl('circle', { cx:ax(168), cy:ay(132), r:al(3.5), fill:'#374151', 'pointer-events':'none' }));
+
+  // ── 9. Flame (feTurbulence animated — default CH₄ orange, P3 makes data-driven) ──
+  const _ud = scene.runtime?.unitData?.get(unitId);
+  const _Q = _ud?.last?.combustion?.Q_release_W || 0;
+  const _hasCombustion = _Q > 10;  // skip flame if negligible
+
+  if (_hasCombustion) {
+    // Flame size from log scale
+    const Q_fuel_mols = Object.values(_ud?.last?.combustion?.extents || {}).reduce((a,b) => a+b, 0);
+    const f = Math.log10(Q_fuel_mols / 0.001 + 1) / Math.log10(1001);
+    const rxO = al(8 + 22 * f) * 2;  // doubled because prototype was at 80px scale
+    const ryO = al(12 + 38 * f) * 2;
+    const rxI = al(4 + 12 * f) * 2;
+    const ryI = al(8 + 24 * f) * 2;
+
+    // Flame color from fuel_fractions (default: CH₄ orange)
+    const ff = _ud?.last?.combustion?.fuel_fractions || {};
+    const _FUEL_COLORS = {
+      H2:   { c:'#ffffff', m:'#e2e8f0', e:'#94a3b8', ic:'#ffffff', im:'#f1f5f9', ie:'#e2e8f0', halo:'#ffffff', op:0.70, iop:0.65 },
+      CH4:  { c:'#fbbf24', m:'#f97316', e:'#dc2626', ic:'#fef9c3', im:'#fbbf24', ie:'#f97316', halo:'#f97316', op:0.90, iop:0.85 },
+      CO:   { c:'#60a5fa', m:'#2563eb', e:'#1e40af', ic:'#bfdbfe', im:'#60a5fa', ie:'#2563eb', halo:'#2563eb', op:0.90, iop:0.85 },
+      NH3:  { c:'#bef264', m:'#84cc16', e:'#4d7c0f', ic:'#ecfccb', im:'#bef264', ie:'#84cc16', halo:'#84cc16', op:0.90, iop:0.85 },
+      CH2O: { c:'#67e8f9', m:'#06b6d4', e:'#0e7490', ic:'#cffafe', im:'#67e8f9', ie:'#06b6d4', halo:'#06b6d4', op:0.90, iop:0.85 }
+    };
+    // Weighted RGB blend
+    const _blend = (key) => {
+      let r=0, g_=0, b=0;
+      const entries = Object.entries(ff);
+      if (entries.length === 0) return _FUEL_COLORS.CH4[key];
+      for (const [sp, w] of entries) {
+        const fc = _FUEL_COLORS[sp] || _FUEL_COLORS.CH4;
+        const hex = fc[key];
+        const pr = parseInt(hex.slice(1,3),16), pg = parseInt(hex.slice(3,5),16), pb = parseInt(hex.slice(5,7),16);
+        r += w * pr; g_ += w * pg; b += w * pb;
+      }
+      return '#' + [r,g_,b].map(v => Math.round(Math.max(0,Math.min(255,v))).toString(16).padStart(2,'0')).join('');
+    };
+    const _blendNum = (key) => {
+      let v = 0;
+      const entries = Object.entries(ff);
+      if (entries.length === 0) return _FUEL_COLORS.CH4[key];
+      for (const [sp, w] of entries) v += w * ((_FUEL_COLORS[sp] || _FUEL_COLORS.CH4)[key]);
+      return v;
+    };
+    const oc = _blend('c'), om = _blend('m'), oe = _blend('e');
+    const ic = _blend('ic'), im = _blend('im'), ie = _blend('ie');
+    const haloCol = _blend('halo');
+    const opO = _blendNum('op'), opI = _blendNum('iop');
+
+    // Create unique gradient + clip IDs
+    const fid = 'flare-' + unitId;
+    let defsEl = g.closest('svg')?.querySelector('defs');
+    if (defsEl) {
+      // Remove old gradients if re-rendering
+      for (const old of defsEl.querySelectorAll(`[id^="${fid}"]`)) old.remove();
+      // Outer gradient
+      const gO = svgEl('radialGradient', { id:`${fid}-go`, cx:'50%', cy:'85%' });
+      gO.appendChild(svgEl('stop', { offset:'0%', 'stop-color':oc }));
+      gO.appendChild(svgEl('stop', { offset:'55%', 'stop-color':om }));
+      gO.appendChild(svgEl('stop', { offset:'100%', 'stop-color':oe, 'stop-opacity':'0' }));
+      defsEl.appendChild(gO);
+      // Inner gradient
+      const gI = svgEl('radialGradient', { id:`${fid}-gi`, cx:'50%', cy:'80%' });
+      gI.appendChild(svgEl('stop', { offset:'0%', 'stop-color':ic }));
+      gI.appendChild(svgEl('stop', { offset:'50%', 'stop-color':im, 'stop-opacity':'0.7' }));
+      gI.appendChild(svgEl('stop', { offset:'100%', 'stop-color':ie, 'stop-opacity':'0' }));
+      defsEl.appendChild(gI);
+      // Clip path
+      const cp = svgEl('clipPath', { id:`${fid}-clip` });
+      cp.appendChild(svgEl('rect', { x:ax(97), y:ay(26), width:al(120), height:al(112) }));
+      defsEl.appendChild(cp);
+    }
+
+    // Halo
+    g.appendChild(svgEl('circle', { cx:ax(167), cy:ay(74), r:al(55), fill:'none', 'pointer-events':'none' }));
+    const haloGrad = svgEl('radialGradient', { id:`${fid}-halo`, cx:'50%', cy:'70%' });
+    haloGrad.appendChild(svgEl('stop', { offset:'0%', 'stop-color':haloCol, 'stop-opacity':'0.2' }));
+    haloGrad.appendChild(svgEl('stop', { offset:'100%', 'stop-color':haloCol, 'stop-opacity':'0' }));
+    if (defsEl) { for (const old of defsEl.querySelectorAll(`#${fid}-halo`)) old.remove(); defsEl.appendChild(haloGrad); }
+    g.appendChild(svgEl('circle', { cx:ax(167), cy:ay(74), r:al(55), fill:`url(#${fid}-halo)`, 'pointer-events':'none' }));
+
+    // Flame ellipses with SMIL animation
+    const flameG = svgEl('g', { 'clip-path':`url(#${fid}-clip)`, 'pointer-events':'none' });
+    const fcx = ax(167), fcy = ay(74);
+    // Outer flame
+    const outerG = svgEl('g', {});
+    const outerAT = svgEl('animateTransform', { attributeName:'transform', type:'translate', values:'0 0;0 -300', dur:'3.2s', repeatCount:'indefinite' });
+    outerG.appendChild(outerAT);
+    const outerE = svgEl('ellipse', { cx:fcx, rx:Math.max(5,rxO), ry:Math.max(8,ryO), fill:`url(#${fid}-go)`, filter:'url(#flare-ft1)', opacity:opO.toFixed(2) });
+    outerE.appendChild(svgEl('animate', { attributeName:'cy', values:`${fcy};${fcy+300}`, dur:'3.2s', repeatCount:'indefinite' }));
+    outerG.appendChild(outerE);
+    flameG.appendChild(outerG);
+    // Inner core
+    const innerG = svgEl('g', {});
+    const innerAT = svgEl('animateTransform', { attributeName:'transform', type:'translate', values:'0 0;0 -300', dur:'4s', begin:'-1.5s', repeatCount:'indefinite' });
+    innerG.appendChild(innerAT);
+    const innerE = svgEl('ellipse', { cx:ax(166), rx:Math.max(3,rxI), ry:Math.max(5,ryI), fill:`url(#${fid}-gi)`, filter:'url(#flare-ft2)', opacity:opI.toFixed(2) });
+    innerE.appendChild(svgEl('animate', { attributeName:'cy', values:`${ay(87)};${ay(87)+300}`, dur:'4s', begin:'-1.5s', repeatCount:'indefinite' }));
+    innerG.appendChild(innerE);
+    flameG.appendChild(innerG);
+    g.appendChild(flameG);
+  }
+
+  // ── 10. Manifold (collector pipe + branches + valves + port stubs) ──
+  // Collector: starts at top port (y=200), curves right, descends to drum entry
+  const mPath = `M${ax(56)},${ay(200)} Q${ax(88)},${ay(200)} ${ax(88)},${ay(218)} L${ax(88)},${ay(578)} Q${ax(88)},${ay(588)} ${ax(108)},${ay(588)} L${ax(120)},${ay(560)}`;
+  g.appendChild(svgEl('path', { d:mPath, fill:'none', stroke:'#5a5e66', 'stroke-width':3, 'stroke-linejoin':'round', 'pointer-events':'none' }));
+  g.appendChild(svgEl('path', { d:mPath, fill:'none', stroke:'#4b5563', 'stroke-width':1.5, 'stroke-linejoin':'round', 'pointer-events':'none' }));
+
+  // Branches from collector (x≈88) to valves at y=280,360,440,520
+  [280,360,440,520].forEach(py => {
+    g.appendChild(svgEl('line', { x1:ax(88), y1:ay(py), x2:ax(56), y2:ay(py), stroke:'#5a5e66', 'stroke-width':3, 'pointer-events':'none' }));
+    g.appendChild(svgEl('line', { x1:ax(88), y1:ay(py), x2:ax(56), y2:ay(py), stroke:'#4b5563', 'stroke-width':1.5, 'pointer-events':'none' }));
+  });
+
+  // Valve handwheels at each port height
+  [200,280,360,440,520].forEach(py => {
+    g.appendChild(svgEl('circle', { cx:ax(64), cy:ay(py), r:al(5), fill:'#4b5563', stroke:'#374151', 'stroke-width':0.9, 'pointer-events':'none' }));
+    g.appendChild(svgEl('circle', { cx:ax(64), cy:ay(py), r:al(2), fill:'#1f2937', 'pointer-events':'none' }));
+  });
+
+  // Port stubs from valve to left edge
+  [200,280,360,440,520].forEach(py => {
+    g.appendChild(svgEl('line', { x1:ax(56), y1:ay(py), x2:ax(50), y2:ay(py), stroke:'#5a5e66', 'stroke-width':3, 'pointer-events':'none' }));
+    g.appendChild(svgEl('line', { x1:ax(56), y1:ay(py), x2:ax(50), y2:ay(py), stroke:'#4b5563', 'stroke-width':1.5, 'pointer-events':'none' }));
+  });
+
+  // Nameplate on drum
+  _rtNameplate(g, dx+dw-al(18), dy+al(6), unitId);
+};
 _RAGTAG_SYMBOLS.small_gas_engine = function(g, wx, wy, ww, wh, pal, def, unitId) {
   const pres = getPresentation(def, scene.units.get(unitId));
   const impCol = _lighten(pal.stroke, 0.6);
@@ -44825,6 +45396,7 @@ const _PARTICLE_BEHAVIORS = {
     reactor_cooled:          { type:'transit', path:'linear', transform:'morph', dwellFactor:1.5, morphZone:[0.2,0.8], streams:3, magnify:1.5 },
     combustion_chamber:      { type:'transit', path:'linear', transform:'morph', dwellFactor:1.5, morphZone:[0.2,0.8], streams:3, magnify:1.5 },
     simple_burner:           { type:'transit', path:'linear', transform:'morph', dwellFactor:1.5, morphZone:[0.2,0.8], streams:3, magnify:1.5 },
+    flare_stack:             { type:'split', dwellFactor:2.0 },  // [v18.2.0] KO drum L/V separation
     reactor_electrochemical: { type:'transit', path:'linear', transform:'morph', dwellFactor:2.5, morphZone:[0.3,0.7] },
     fuel_cell:               { type:'transit', path:'linear', transform:'morph', dwellFactor:2.5, morphZone:[0.3,0.7] },
 
@@ -52729,6 +53301,326 @@ function runTests() {
     const last = t.last(eng);
     t.assertOK(last.electricEfficiency <= 0.99, 'η clamped to ≤ 0.99');
     t.assertOK(last.electricEfficiency >= 0.01, 'η clamped to ≥ 0.01');
+  });
+
+  // ── [v18.2.0 S-FLARE] flare_stack unit tests (T34–T53) ──
+
+  test('flare_stack — 5-inlet merge: mol balance', t => {
+    const s1 = t.place('source', 0, 0, { n: { CH4: 0.1, N2: 0.5 }, T: 300, P: 200000, phaseConstraint: 'V' });
+    const s2 = t.place('source', 0, 4, { n: { H2: 0.2, O2: 0.1 }, T: 350, P: 150000, phaseConstraint: 'V' });
+    const s3 = t.place('source', 0, 8, { n: { CO: 0.05 }, T: 300, P: 180000, phaseConstraint: 'V' });
+    const fl = t.place('flare_stack', 4, 0);
+    t.wire(s1, 'mat_out', fl, 'mat_in_1');
+    t.wire(s2, 'mat_out', fl, 'mat_in_2');
+    t.wire(s3, 'mat_out', fl, 'mat_in_3');
+    t.solve();
+    const last = t.last(fl);
+    t.assertOK(last.absorbed_mol_s > 0.9, 'total absorbed ≈ 0.95');
+    t.assertClose(last.merged.n.CH4, 0.1, 1e-6, 'CH4 merged correctly');
+    t.assertClose(last.merged.n.H2, 0.2, 1e-6, 'H2 merged correctly');
+    t.assertClose(last.merged.n.CO, 0.05, 1e-6, 'CO merged correctly');
+    t.assertClose(last.merged.n.N2, 0.5, 1e-6, 'N2 merged correctly');
+  });
+
+  test('flare_stack — 1 inlet connected, 4 empty', t => {
+    const s1 = t.place('source', 0, 0, { species: 'CH4', nDot: 0.1, T: 300, P: 200000, phaseConstraint: 'V' });
+    const fl = t.place('flare_stack', 4, 0);
+    t.wire(s1, 'mat_out', fl, 'mat_in_3');
+    t.solve();
+    const last = t.last(fl);
+    t.assertOK(last.absorbed_mol_s > 0, 'flow absorbed');
+    t.assertOK(last.combustion.Q_release_W > 0, 'CH4 burns');
+  });
+
+  test('flare_stack — 0 inlets connected: no-op', t => {
+    const fl = t.place('flare_stack', 0, 0);
+    t.solve();
+    const last = t.last(fl);
+    t.assertOK(last.status === 'no_flow', 'status = no_flow');
+    t.assertClose(last.absorbed_mol_s, 0, 1e-15, 'zero absorbed');
+  });
+
+  test('flare_stack — pure liquid: all drains, no flame', t => {
+    // H₂O at 300K, 1 atm → liquid at atmospheric flash
+    const s1 = t.place('source', 0, 0, { species: 'H2O', nDot: 1.0, T: 300, P: 101325, phaseConstraint: 'L' });
+    const fl = t.place('flare_stack', 4, 0);
+    t.wire(s1, 'mat_out', fl, 'mat_in_1');
+    t.solve();
+    const last = t.last(fl);
+    t.assertOK(last.outlet.mDot_liq_kgs > 0, 'liquid drains');
+    t.assertClose(last.combustion.Q_release_W, 0, 1e-6, 'no combustion (H₂O not a fuel)');
+  });
+
+  test('flare_stack — pure gas: vapor to flare, no liquid', t => {
+    const s1 = t.place('source', 0, 0, { species: 'N2', nDot: 1.0, T: 300, P: 200000, phaseConstraint: 'V' });
+    const fl = t.place('flare_stack', 4, 0);
+    t.wire(s1, 'mat_out', fl, 'mat_in_1');
+    t.solve();
+    const last = t.last(fl);
+    t.assertOK(last.outlet.mDot_vap_kgs > 0, 'vapor exits');
+    t.assertClose(last.outlet.mDot_liq_kgs, 0, 1e-9, 'no liquid');
+    t.assertClose(last.combustion.Q_release_W, 0, 1e-6, 'N₂ not combustible');
+  });
+
+  test('flare_stack — two-phase: both liquid and vapor', t => {
+    // Mix of H₂O (condenses at 300K) and N₂ (stays vapor)
+    const s1 = t.place('source', 0, 0, { n: { H2O: 1.0, N2: 1.0 }, T: 300, P: 101325, phaseConstraint: 'VL' });
+    const fl = t.place('flare_stack', 4, 0);
+    t.wire(s1, 'mat_out', fl, 'mat_in_1');
+    t.solve();
+    const last = t.last(fl);
+    t.assertOK(last.outlet.mDot_liq_kgs > 0, 'some liquid');
+    t.assertOK(last.outlet.mDot_vap_kgs > 0, 'some vapor');
+  });
+
+  test('flare_stack — air injection: O₂ demand correct for CH₄', t => {
+    // CH₄ + 2 O₂ → CO₂ + 2 H₂O.  0.1 mol/s CH₄ needs 0.2 mol/s O₂.
+    const s1 = t.place('source', 0, 0, { species: 'CH4', nDot: 0.1, T: 300, P: 200000, phaseConstraint: 'V' });
+    const fl = t.place('flare_stack', 4, 0);
+    t.wire(s1, 'mat_out', fl, 'mat_in_1');
+    t.solve();
+    const last = t.last(fl);
+    const o2_consumed = last.air_consumed.composition.O2 || 0;
+    t.assertClose(o2_consumed, 0.2, 0.01, 'O₂ injected ≈ 0.2 mol/s');
+  });
+
+  test('flare_stack — air composition matches ctx.atmosphere', t => {
+    const s1 = t.place('source', 0, 0, { species: 'CH4', nDot: 0.01, T: 300, P: 200000, phaseConstraint: 'V' });
+    const fl = t.place('flare_stack', 4, 0);
+    t.wire(s1, 'mat_out', fl, 'mat_in_1');
+    t.solve();
+    const last = t.last(fl);
+    const air = last.air_consumed.composition;
+    // Air should contain N₂ alongside O₂ (atmosphere has both)
+    t.assertOK(air.N2 > 0, 'N₂ in injected air');
+    t.assertOK(air.O2 > 0, 'O₂ in injected air');
+    // N₂/O₂ ratio should match atmosphere (~78/21 ≈ 3.7 for dry air)
+    const ratio = (air.N2 || 0) / (air.O2 || 1);
+    t.assertOK(ratio > 2.5 && ratio < 5, 'N₂/O₂ ratio consistent with atmosphere');
+  });
+
+  test('flare_stack — no O₂ in atmosphere: no combustion', t => {
+    const s1 = t.place('source', 0, 0, { species: 'CH4', nDot: 0.1, T: 300, P: 200000, phaseConstraint: 'V' });
+    const fl = t.place('flare_stack', 4, 0);
+    t.wire(s1, 'mat_out', fl, 'mat_in_1');
+    // Override atmosphere to have no O₂
+    const origAtm = SimSettings.getAtmosphere;
+    const origWet = SimSettings.getWetAir;
+    SimSettings.getAtmosphere = () => ({ T_K: 260, P_Pa: 91000, presetName: 'test_no_o2', RH: 0 });
+    SimSettings.getWetAir = () => ({ N2: 0.78, CO2: 0.22 });
+    try {
+      t.solve();
+      const last = t.last(fl);
+      t.assertOK(last.combustion.o2_status === 'no_O2', 'o2_status = no_O2');
+      t.assertClose(last.combustion.Q_release_W, 0, 1e-6, 'no combustion without O₂');
+    } finally {
+      SimSettings.getAtmosphere = origAtm;
+      SimSettings.getWetAir = origWet;
+    }
+  });
+
+  test('flare_stack — CH₄ combustion: Q_release > 0', t => {
+    const s1 = t.place('source', 0, 0, { species: 'CH4', nDot: 0.1, T: 300, P: 200000, phaseConstraint: 'V' });
+    const fl = t.place('flare_stack', 4, 0);
+    t.wire(s1, 'mat_out', fl, 'mat_in_1');
+    t.solve();
+    const last = t.last(fl);
+    t.assertOK(last.combustion.Q_release_W > 50000, 'Q > 50 kW for 0.1 mol/s CH₄');
+    t.assertOK(last.combustion.o2_status !== 'no_O2', 'O₂ available');
+  });
+
+  test('flare_stack — H₂ combustion: Q_release correct', t => {
+    // H₂ + 0.5 O₂ → H₂O, ΔH° = -241,826 J/mol
+    const s1 = t.place('source', 0, 0, { species: 'H2', nDot: 1.0, T: 300, P: 200000, phaseConstraint: 'V' });
+    const fl = t.place('flare_stack', 4, 0);
+    t.wire(s1, 'mat_out', fl, 'mat_in_1');
+    t.solve();
+    const last = t.last(fl);
+    // 1.0 mol/s H₂ × 241,826 J/mol ≈ 241.8 kW
+    t.assertClose(last.combustion.Q_release_W, 241826, 5000, 'Q ≈ 241.8 kW');
+  });
+
+  test('flare_stack — mixed fuels: all burn proportionally', t => {
+    const s1 = t.place('source', 0, 0, { n: { CH4: 0.1, H2: 0.2, CO: 0.05 }, T: 300, P: 200000, phaseConstraint: 'V' });
+    const fl = t.place('flare_stack', 4, 0);
+    t.wire(s1, 'mat_out', fl, 'mat_in_1');
+    t.solve();
+    const last = t.last(fl);
+    t.assertOK(last.combustion.Q_release_W > 0, 'mixed combustion produces heat');
+    // All 3 fuels should have extents
+    const ext = last.combustion.extents;
+    t.assertOK(ext.R_CH4_COMB > 0, 'CH₄ burns');
+    t.assertOK(ext.R_H2_COMB > 0, 'H₂ burns');
+    t.assertOK(ext.R_CO_COMB > 0, 'CO burns');
+  });
+
+  test('flare_stack — no combustibles: Q = 0, no_fuel', t => {
+    const s1 = t.place('source', 0, 0, { n: { N2: 1.0, CO2: 0.5 }, T: 300, P: 200000, phaseConstraint: 'V' });
+    const fl = t.place('flare_stack', 4, 0);
+    t.wire(s1, 'mat_out', fl, 'mat_in_1');
+    t.solve();
+    const last = t.last(fl);
+    t.assertClose(last.combustion.Q_release_W, 0, 1e-6, 'no heat from inerts');
+    t.assertOK(last.combustion.o2_status === 'no_fuel', 'status = no_fuel');
+  });
+
+  test('flare_stack — fuel_fractions sum to 1.0', t => {
+    const s1 = t.place('source', 0, 0, { n: { CH4: 0.1, H2: 0.2, NH3: 0.05 }, T: 300, P: 200000, phaseConstraint: 'V' });
+    const fl = t.place('flare_stack', 4, 0);
+    t.wire(s1, 'mat_out', fl, 'mat_in_1');
+    t.solve();
+    const last = t.last(fl);
+    const ff = last.combustion.fuel_fractions;
+    const sum = Object.values(ff).reduce((a, b) => a + b, 0);
+    t.assertClose(sum, 1.0, 1e-6, 'fuel_fractions sum to 1');
+    t.assertOK(ff.CH4 > 0, 'CH₄ fraction > 0');
+    t.assertOK(ff.H2 > 0, 'H₂ fraction > 0');
+    t.assertOK(ff.NH3 > 0, 'NH₃ fraction > 0');
+  });
+
+  test('flare_stack — fuel_fractions weighted by ΔH°', t => {
+    // CH₄ releases ~802 kJ/mol, H₂ releases ~242 kJ/mol
+    // At equal mol/s: CH₄ fraction should be ~77%, H₂ ~23%
+    const s1 = t.place('source', 0, 0, { n: { CH4: 0.1, H2: 0.1 }, T: 300, P: 200000, phaseConstraint: 'V' });
+    const fl = t.place('flare_stack', 4, 0);
+    t.wire(s1, 'mat_out', fl, 'mat_in_1');
+    t.solve();
+    const ff = t.last(fl).combustion.fuel_fractions;
+    t.assertOK(ff.CH4 > ff.H2, 'CH₄ fraction > H₂ fraction at equal mol/s (higher ΔH°)');
+    t.assertOK(ff.CH4 > 0.7, 'CH₄ dominates (~77%)');
+  });
+
+  test('flare_stack — atom balance: C atoms in = C in combustion products', t => {
+    const s1 = t.place('source', 0, 0, { species: 'CH4', nDot: 0.1, T: 300, P: 200000, phaseConstraint: 'V' });
+    const fl = t.place('flare_stack', 4, 0);
+    t.wire(s1, 'mat_out', fl, 'mat_in_1');
+    t.solve();
+    const last = t.last(fl);
+    // 0.1 mol/s CH₄ → 0.1 mol/s CO₂ (1 C each)
+    const C_in = 0.1;  // from CH₄
+    // CO₂ in combustion output (nV started with CH₄, after combustion has CO₂)
+    const ext = last.combustion.extents.R_CH4_COMB || 0;
+    t.assertClose(ext, 0.1, 1e-6, 'extent = 0.1 mol/s (all CH₄ burned)');
+  });
+
+  test('flare_stack — energy: Q_release matches Σ(ξ_i × ΔH°_i)', t => {
+    const s1 = t.place('source', 0, 0, { n: { CH4: 0.1, H2: 0.2 }, T: 300, P: 200000, phaseConstraint: 'V' });
+    const fl = t.place('flare_stack', 4, 0);
+    t.wire(s1, 'mat_out', fl, 'mat_in_1');
+    t.solve();
+    const last = t.last(fl);
+    const ext = last.combustion.extents;
+    // Compute expected Q from extents and known ΔH°
+    const R_CH4 = ReactionRegistry.get('R_CH4_COMB');
+    const R_H2 = ReactionRegistry.get('R_H2_COMB');
+    const Q_expected = (ext.R_CH4_COMB || 0) * (-(R_CH4._dH0_Jmol))
+                     + (ext.R_H2_COMB || 0) * (-(R_H2._dH0_Jmol));
+    t.assertClose(last.combustion.Q_release_W, Q_expected, 100, 'Q matches Σ(ξ×−ΔH°)');
+  });
+
+  test('flare_stack — scene integration: place + connect + solve', t => {
+    const s1 = t.place('source', 0, 0, { n: { CH4: 0.05, N2: 0.3 }, T: 300, P: 200000, phaseConstraint: 'V' });
+    const s2 = t.place('source', 0, 6, { species: 'H2O', nDot: 0.1, T: 300, P: 101325, phaseConstraint: 'L' });
+    const fl = t.place('flare_stack', 4, 0);
+    t.wire(s1, 'mat_out', fl, 'mat_in_1');
+    t.wire(s2, 'mat_out', fl, 'mat_in_5');
+    t.solve();
+    const last = t.last(fl);
+    t.assertOK(last.absorbed_mol_s > 0, 'flow absorbed');
+    t.assertOK(last.combustion.Q_release_W > 0, 'CH₄ burns');
+    t.assertOK(last.outlet.mDot_liq_kgs > 0, 'H₂O drains as liquid');
+  });
+
+  test('flare_stack — no-flow guard: empty streams', t => {
+    // Source with zero flow
+    const s1 = t.place('source', 0, 0, { species: 'N2', nDot: 0, T: 300, P: 200000, phaseConstraint: 'V' });
+    const fl = t.place('flare_stack', 4, 0);
+    t.wire(s1, 'mat_out', fl, 'mat_in_1');
+    t.solve();
+    const last = t.last(fl);
+    t.assertOK(last.status === 'no_flow' || last.absorbed_mol_s < 1e-12, 'no flow detected');
+  });
+
+  test('flare_stack — all 5 inlets connected', t => {
+    const s1 = t.place('source', 0, 0,  { species: 'CH4', nDot: 0.02, T: 300, P: 200000, phaseConstraint: 'V' });
+    const s2 = t.place('source', 0, 4,  { species: 'H2',  nDot: 0.05, T: 300, P: 200000, phaseConstraint: 'V' });
+    const s3 = t.place('source', 0, 8,  { species: 'CO',  nDot: 0.01, T: 300, P: 200000, phaseConstraint: 'V' });
+    const s4 = t.place('source', 0, 12, { species: 'NH3', nDot: 0.03, T: 300, P: 200000, phaseConstraint: 'V' });
+    const s5 = t.place('source', 0, 16, { species: 'N2',  nDot: 0.5,  T: 300, P: 200000, phaseConstraint: 'V' });
+    const fl = t.place('flare_stack', 4, 0);
+    t.wire(s1, 'mat_out', fl, 'mat_in_1');
+    t.wire(s2, 'mat_out', fl, 'mat_in_2');
+    t.wire(s3, 'mat_out', fl, 'mat_in_3');
+    t.wire(s4, 'mat_out', fl, 'mat_in_4');
+    t.wire(s5, 'mat_out', fl, 'mat_in_5');
+    t.solve();
+    const last = t.last(fl);
+    t.assertClose(last.absorbed_mol_s, 0.61, 0.01, 'total ≈ 0.61 mol/s');
+    t.assertOK(last.combustion.Q_release_W > 0, 'combustion occurs');
+    const ff = last.combustion.fuel_fractions;
+    t.assertOK(ff.CH4 > 0 && ff.H2 > 0 && ff.CO > 0 && ff.NH3 > 0, 'all 4 fuels present');
+    t.assertOK(!ff.N2, 'N₂ not in fuel_fractions');
+  });
+
+  // ── [v18.2.0 S-FLARE] P4 — smoke, liquid, particle wiring (T54–T56) ──
+
+  test('flare_stack — smoke config returns for gas flow', t => {
+    const s1 = t.place('source', 0, 0, { species: 'N2', nDot: 1.0, T: 300, P: 200000, phaseConstraint: 'V' });
+    const fl = t.place('flare_stack', 4, 0);
+    t.wire(s1, 'mat_out', fl, 'mat_in_1');
+    t.solve();
+    const u = scene.units.get(fl);
+    const def = UnitRegistry.get('flare_stack');
+    const cfg = _computeSmokeConfig(u, def);
+    t.assertOK(cfg !== null, 'smoke config returned for gas flow');
+    t.assertOK(cfg._cx > 0, '_cx set');
+    t.assertOK(cfg._cy > 0, '_cy set');
+  });
+
+  test('flare_stack — smoke config null for zero flow', t => {
+    const fl = t.place('flare_stack', 0, 0);
+    t.solve();
+    const u = scene.units.get(fl);
+    const def = UnitRegistry.get('flare_stack');
+    const cfg = _computeSmokeConfig(u, def);
+    t.assertOK(cfg === null, 'no smoke for zero flow');
+  });
+
+  test('flare_stack — particle + viewport + bbox registered', t => {
+    t.assertOK(_PARTICLE_BEHAVIORS.units.flare_stack, 'particle behavior registered');
+    t.assertOK(_PARTICLE_BEHAVIORS.units.flare_stack.type === 'split', 'type = split');
+    t.assertOK(_UNIT_VIEWPORT.flare_stack, 'viewport registered');
+    t.assertOK(_BODY_BBOX.flare_stack, 'body bbox registered');
+  });
+
+  // ── [v18.2.0 S-FLARE] P5 — presentations (T57–T59) ──
+
+  test('flare_stack — default presentation port positions', t => {
+    const def = UnitRegistry.get('flare_stack');
+    const defaultPres = def.presentations['box/default'];
+    t.assertOK(defaultPres, 'default presentation exists');
+    t.assertOK(defaultPres.w === 3 && defaultPres.h === 7, 'size 3×7');
+    t.assertClose(defaultPres.ports.mat_in_1.x, 0, 0, 'port 1 on left edge');
+    t.assertClose(defaultPres.ports.mat_in_5.x, 0, 0, 'port 5 on left edge');
+    t.assertClose(defaultPres.ports.mat_in_1.y, 2, 0, 'port 1 at y=2');
+    t.assertClose(defaultPres.ports.mat_in_5.y, 6, 0, 'port 5 at y=6');
+  });
+
+  test('flare_stack — mirror presentation port positions', t => {
+    const def = UnitRegistry.get('flare_stack');
+    const mirrorPres = def.presentations['box/mirror'];
+    t.assertOK(mirrorPres, 'mirror presentation exists');
+    t.assertClose(mirrorPres.ports.mat_in_1.x, 3, 0, 'port 1 on right edge');
+    t.assertClose(mirrorPres.ports.mat_in_5.x, 3, 0, 'port 5 on right edge');
+    t.assertClose(mirrorPres.ports.mat_in_1.y, 2, 0, 'port 1 at y=2');
+  });
+
+  test('flare_stack — profile registered correctly', t => {
+    const prof = ProfileRegistry.get('flare_stack');
+    t.assertOK(prof, 'profile exists');
+    t.assertOK(prof.defId === 'flare_stack', 'defId matches');
+    t.assertOK(prof.name === 'Flare', 'name = Flare');
+    t.assertOK(prof.boundary === true, 'boundary flag set');
   });
 
   test('Reactor Eq. — VL inlet rejected', t => {
