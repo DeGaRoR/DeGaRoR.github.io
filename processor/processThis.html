@@ -35569,6 +35569,38 @@ _RAGTAG_SYMBOLS.flare_stack = function(g, wx, wy, ww, wh, pal, def, unitId) {
     g.appendChild(svgEl('circle', { cx:stx, cy:sty, r:1.2, fill:'#6b7280', stroke:'#4b5563', 'stroke-width':0.6, 'pointer-events':'none' }));
   });
 
+  // ── 3c. Manifold (BELOW drum in draw order — drum overlaps collector entry) ──
+  // Standard pipe style: outer #374151 10px, inner #4b5563 6px, butt caps
+  // Collector: starts at top port (y=200), curves right, descends to last branch (y=520)
+  const mPath = `M${ax(56)},${ay(200)} Q${ax(88)},${ay(200)} ${ax(88)},${ay(218)} L${ax(88)},${ay(520)}`;
+  g.appendChild(svgEl('path', { d:mPath, fill:'none', stroke:'#374151', 'stroke-width':10, 'stroke-linecap':'butt', 'stroke-linejoin':'round', 'pointer-events':'none' }));
+  g.appendChild(svgEl('path', { d:mPath, fill:'none', stroke:'#4b5563', 'stroke-width':6, 'stroke-linecap':'butt', 'stroke-linejoin':'round', 'pointer-events':'none' }));
+
+  // Horizontal entry from collector bottom into drum left wall
+  g.appendChild(svgEl('line', { x1:ax(88), y1:ay(520), x2:ax(120), y2:ay(520), stroke:'#374151', 'stroke-width':10, 'stroke-linecap':'butt', 'pointer-events':'none' }));
+  g.appendChild(svgEl('line', { x1:ax(88), y1:ay(520), x2:ax(120), y2:ay(520), stroke:'#4b5563', 'stroke-width':6, 'stroke-linecap':'butt', 'pointer-events':'none' }));
+
+  // Branches from collector (x≈88) to valves at y=280,360,440
+  [280,360,440].forEach(py => {
+    g.appendChild(svgEl('line', { x1:ax(88), y1:ay(py), x2:ax(56), y2:ay(py), stroke:'#374151', 'stroke-width':10, 'stroke-linecap':'butt', 'pointer-events':'none' }));
+    g.appendChild(svgEl('line', { x1:ax(88), y1:ay(py), x2:ax(56), y2:ay(py), stroke:'#4b5563', 'stroke-width':6, 'stroke-linecap':'butt', 'pointer-events':'none' }));
+  });
+  // Bottom branch at y=520: collector terminus splits left (valve) and right (drum entry)
+  g.appendChild(svgEl('line', { x1:ax(88), y1:ay(520), x2:ax(56), y2:ay(520), stroke:'#374151', 'stroke-width':10, 'stroke-linecap':'butt', 'pointer-events':'none' }));
+  g.appendChild(svgEl('line', { x1:ax(88), y1:ay(520), x2:ax(56), y2:ay(520), stroke:'#4b5563', 'stroke-width':6, 'stroke-linecap':'butt', 'pointer-events':'none' }));
+
+  // Valve handwheels at each port height
+  [200,280,360,440,520].forEach(py => {
+    g.appendChild(svgEl('circle', { cx:ax(64), cy:ay(py), r:al(5), fill:'#4b5563', stroke:'#374151', 'stroke-width':0.9, 'pointer-events':'none' }));
+    g.appendChild(svgEl('circle', { cx:ax(64), cy:ay(py), r:al(2), fill:'#1f2937', 'pointer-events':'none' }));
+  });
+
+  // Port stubs from valve to left edge
+  [200,280,360,440,520].forEach(py => {
+    g.appendChild(svgEl('line', { x1:ax(56), y1:ay(py), x2:ax(50), y2:ay(py), stroke:'#374151', 'stroke-width':10, 'stroke-linecap':'butt', 'pointer-events':'none' }));
+    g.appendChild(svgEl('line', { x1:ax(56), y1:ay(py), x2:ax(50), y2:ay(py), stroke:'#4b5563', 'stroke-width':6, 'stroke-linecap':'butt', 'pointer-events':'none' }));
+  });
+
   // ── 4. KO drum body ──
   const dx = ax(120), dy = ay(510), dw = al(100), dh = al(80);
   g.appendChild(svgEl('rect', { x:dx, y:dy, width:dw, height:dh, rx:al(10), fill:pal.fillUrl, stroke:pal.stroke, 'stroke-width':1.5, 'pointer-events':'none' }));
@@ -35583,9 +35615,9 @@ _RAGTAG_SYMBOLS.flare_stack = function(g, wx, wy, ww, wh, pal, def, unitId) {
   // LED
   _rtLED(g, dx+dw-al(14), dy+dh-al(14), unitId);
 
-  // ── 5. Tap (right side of drum) ──
-  g.appendChild(svgEl('rect', { x:ax(220), y:ay(528), width:al(16), height:al(7), rx:0.9, fill:'#374151', stroke:'#4b5563', 'stroke-width':0.6, 'pointer-events':'none' }));
-  g.appendChild(svgEl('rect', { x:ax(233), y:ay(530), width:al(7), height:al(18), rx:0.9, fill:'#374151', stroke:'#4b5563', 'stroke-width':0.6, 'pointer-events':'none' }));
+  // ── 5. Tap (right side of drum) — standard pipe colors ──
+  g.appendChild(svgEl('rect', { x:ax(220), y:ay(528), width:al(16), height:al(7), rx:0.9, fill:'#4b5563', stroke:'#374151', 'stroke-width':0.6, 'pointer-events':'none' }));
+  g.appendChild(svgEl('rect', { x:ax(233), y:ay(530), width:al(7), height:al(18), rx:0.9, fill:'#4b5563', stroke:'#374151', 'stroke-width':0.6, 'pointer-events':'none' }));
   g.appendChild(svgEl('circle', { cx:ax(237), cy:ay(529), r:al(5), fill:'#4b5563', stroke:'#374151', 'stroke-width':0.9, 'pointer-events':'none' }));
   g.appendChild(svgEl('circle', { cx:ax(237), cy:ay(529), r:al(2), fill:'#1f2937', 'pointer-events':'none' }));
   g.appendChild(svgEl('ellipse', { cx:ax(236), cy:ay(549), rx:al(3), ry:al(1.5), fill:'#0f172a', opacity:0.7, 'pointer-events':'none' }));
@@ -35644,10 +35676,10 @@ _RAGTAG_SYMBOLS.flare_stack = function(g, wx, wy, ww, wh, pal, def, unitId) {
     }
   }
 
-  // ── 6. Riser stub (drum top → first segment) ──
+  // ── 6. Riser stub (drum top → first segment) — standard pipe style ──
   const rx = ax(170), rt = ay(496), rb = ay(510);
-  g.appendChild(svgEl('line', { x1:rx, y1:rb, x2:rx, y2:rt, stroke:'#6b7280', 'stroke-width':al(12), 'pointer-events':'none' }));
-  g.appendChild(svgEl('line', { x1:rx, y1:rb, x2:rx, y2:rt, stroke:'#5a5e66', 'stroke-width':al(8), 'pointer-events':'none' }));
+  g.appendChild(svgEl('line', { x1:rx, y1:rb, x2:rx, y2:rt, stroke:'#374151', 'stroke-width':al(12), 'stroke-linecap':'butt', 'pointer-events':'none' }));
+  g.appendChild(svgEl('line', { x1:rx, y1:rb, x2:rx, y2:rt, stroke:'#4b5563', 'stroke-width':al(8), 'stroke-linecap':'butt', 'pointer-events':'none' }));
 
   // ── 7. Five pipe segments (red-white-red-white-red) with weld seams ──
   const segments = [
@@ -35657,14 +35689,15 @@ _RAGTAG_SYMBOLS.flare_stack = function(g, wx, wy, ww, wh, pal, def, unitId) {
     { tx:168, ty:268, rot:1.5,  h:76, color:'#e0e0e0' },
     { tx:170, ty:192, rot:-1.5, h:52, color:'#c53030' }
   ];
-  const segW = al(16), segStroke = segments[0].color === '#c53030' ? '#555' : '#999';
   for (let i = 0; i < segments.length; i++) {
     const seg = segments[i];
     const stx = ax(seg.tx), sty = ay(seg.ty);
     const sh = al(seg.h), sw = al(16);
+    // Stroke = _darken of fill, same pattern as pal.stroke on unit bodies
+    const segStroke = _darken(seg.color, 0.3);
     const sg = svgEl('g', { transform:`translate(${stx},${sty}) rotate(${mRot(seg.rot)})`, 'pointer-events':'none' });
     sg.appendChild(svgEl('rect', { x:-sw/2, y:-sh, width:sw, height:sh, rx:1.2,
-      fill:seg.color, stroke:seg.color === '#c53030' ? '#555' : '#999', 'stroke-width':0.5 }));
+      fill:seg.color, stroke:segStroke, 'stroke-width':1.5 }));
     g.appendChild(sg);
     // Weld seam above this segment (except topmost)
     if (i < segments.length - 1) {
@@ -35779,30 +35812,6 @@ _RAGTAG_SYMBOLS.flare_stack = function(g, wx, wy, ww, wh, pal, def, unitId) {
     flameG.appendChild(innerG);
     g.appendChild(flameG);
   }
-
-  // ── 10. Manifold (collector pipe + branches + valves + port stubs) ──
-  // Collector: starts at top port (y=200), curves right, descends to drum entry
-  const mPath = `M${ax(56)},${ay(200)} Q${ax(88)},${ay(200)} ${ax(88)},${ay(218)} L${ax(88)},${ay(578)} Q${ax(88)},${ay(588)} ${ax(108)},${ay(588)} L${ax(120)},${ay(560)}`;
-  g.appendChild(svgEl('path', { d:mPath, fill:'none', stroke:'#5a5e66', 'stroke-width':3, 'stroke-linejoin':'round', 'pointer-events':'none' }));
-  g.appendChild(svgEl('path', { d:mPath, fill:'none', stroke:'#4b5563', 'stroke-width':1.5, 'stroke-linejoin':'round', 'pointer-events':'none' }));
-
-  // Branches from collector (x≈88) to valves at y=280,360,440,520
-  [280,360,440,520].forEach(py => {
-    g.appendChild(svgEl('line', { x1:ax(88), y1:ay(py), x2:ax(56), y2:ay(py), stroke:'#5a5e66', 'stroke-width':3, 'pointer-events':'none' }));
-    g.appendChild(svgEl('line', { x1:ax(88), y1:ay(py), x2:ax(56), y2:ay(py), stroke:'#4b5563', 'stroke-width':1.5, 'pointer-events':'none' }));
-  });
-
-  // Valve handwheels at each port height
-  [200,280,360,440,520].forEach(py => {
-    g.appendChild(svgEl('circle', { cx:ax(64), cy:ay(py), r:al(5), fill:'#4b5563', stroke:'#374151', 'stroke-width':0.9, 'pointer-events':'none' }));
-    g.appendChild(svgEl('circle', { cx:ax(64), cy:ay(py), r:al(2), fill:'#1f2937', 'pointer-events':'none' }));
-  });
-
-  // Port stubs from valve to left edge
-  [200,280,360,440,520].forEach(py => {
-    g.appendChild(svgEl('line', { x1:ax(56), y1:ay(py), x2:ax(50), y2:ay(py), stroke:'#5a5e66', 'stroke-width':3, 'pointer-events':'none' }));
-    g.appendChild(svgEl('line', { x1:ax(56), y1:ay(py), x2:ax(50), y2:ay(py), stroke:'#4b5563', 'stroke-width':1.5, 'pointer-events':'none' }));
-  });
 
   // Nameplate on drum
   _rtNameplate(g, dx+dw-al(18), dy+al(6), unitId);
