@@ -47141,13 +47141,19 @@ function applyPlanetBg() {
   }
 }
 
-/** [v18.0.0 S-TITLE] Show a random planet bg at ambient rate for title screen.
- *  Picks from all available planet backgrounds. Does NOT touch canvasOverlay
- *  or svg transparency (game UI only). */
+/** [v18.0.0 S-TITLE] Show a planet bg at ambient rate for title screen.
+ *  First load always shows Planet X. Subsequent returns pick randomly. */
+let _firstTitleBg = true;
 function _activateTitleBg() {
   const keys = Object.keys(PLANET_BG_MAP);
   if (!keys.length) return;
-  const pick = keys[Math.floor(Math.random() * keys.length)];
+  let pick;
+  if (_firstTitleBg) {
+    pick = 'planet_x';
+    _firstTitleBg = false;
+  } else {
+    pick = keys[Math.floor(Math.random() * keys.length)];
+  }
   const layerId = PLANET_BG_MAP[pick];
   const prefix = PLANET_CSS_PREFIX[pick];
   // Show master container + chosen layer only
