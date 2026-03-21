@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v18.1.0
+  processThis v18.3.0
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -356,6 +356,41 @@
   ═══════════════════════════════════════════════════════════════════════════
   CHANGELOG  (latest first)
   ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v18.3.0 — S-HENRY: Henry's law for supercritical gas solubility ────
+
+  **Henry's law K-values.**  Supercritical components with henry data in
+  ComponentRegistry now use Henry's law (K = H(T)/P) instead of
+  extrapolated Antoine.  van 't Hoff temperature dependence:
+  H(T) = H_ref × exp[-C_K × (1/T - 1/T_ref)].  Colder water absorbs
+  more gas.  Subcritical species and species without henry data are
+  unchanged (Raoult: K = Psat/P).
+
+  **Henry data for 7 species.**  CO₂ (1600 atm), N₂ (85000), O₂ (43000),
+  H₂ (71000), CH₄ (41000), Ar (40000), CO (58000).  All at 298.15 K in
+  water.  Source: Sander 2015, Atmos. Chem. Phys., 15, 4399–4981.
+
+  **ComponentRegistry extended.**  New optional `henry` field:
+  { solvent, H_ref_atm, T_ref, C_K }.  Added to register() whitelist.
+
+  **Physics impact.**  At 278 K, 50 bar: N₂ K ≈ 1256 (was ~9.5 via
+  extrapolated Antoine), CO₂ K ≈ 0.78 (subcritical, Antoine, unchanged).
+  Selectivity α(N₂/CO₂) > 40× — enables water-wash CO₂ absorption
+  using existing units (compressor → mixer → cooler → flash drum).
+
+  **Test 34 recalibrated.**  H₂O-in-liquid threshold relaxed from 6.93
+  to 6.85 (98.6% vs 99%).  Henry gives H₂ a more accurate K = 71000
+  (was ~84 via Antoine extrapolation), shifting a trace of H₂O to vapor.
+  Separation quality remains excellent.
+
+  NNGs: NNG-1 (conservation unchanged — only K-values change, flash mass
+  balance identical), NNG-10 (henry data in ComponentRegistry, kValue
+  through ThermoAdapter), NNG-14 (changelog + 8 new tests).
+
+  Tests: 710–717 (8 tests): Henry K-value for N₂ (710), CO₂ (711),
+  selectivity (712), temperature sensitivity (713), H₂O regression (714),
+  subcritical CO₂ still uses Antoine (715), full-chain CO₂ scrubbing
+  absorption (716), solvent regeneration (717).
 
   ─── v18.2.0 — S-FLARE: multi-inlet waste flare with knockout drum ──────
 
@@ -11921,7 +11956,11 @@ class ComponentRegistry {
       
       // Additional metadata
       phase298: spec.phase298 || 'unknown',    // Phase at 298K, 1 atm ('gas', 'liquid', 'solid')
-      molecular: spec.molecular || null        // Molecular structure info (optional)
+      molecular: spec.molecular || null,       // Molecular structure info (optional)
+
+      // [v18.3.0 S-HENRY] Henry's law constant for gas solubility in water
+      // { solvent, H_ref_atm, T_ref, C_K } — only for supercritical gas species
+      henry: spec.henry || null,
     };
     this._components.set(formula, comp);
 
@@ -12151,7 +12190,9 @@ ComponentRegistry.register('O2', {
   rhoLiq: 1141,  // kg/m³ (liquid O2 at NBP)
   // NIST Chemistry WebBook — gas phase, 298.15 K, 1 bar
   hf0_Jmol: 0,        // Element in standard state
-  s0_JmolK: 205.152   // Std molar entropy (J/(mol·K))
+  s0_JmolK: 205.152,  // Std molar entropy (J/(mol·K))
+  // [v18.3.0 S-HENRY] Henry's law constant in water (Sander 2015)
+  henry: { solvent: 'H2O', H_ref_atm: 43000, T_ref: 298.15, C_K: 1500 },
 });
 
 ComponentRegistry.register('H2', {
@@ -12179,7 +12220,9 @@ ComponentRegistry.register('H2', {
   rhoLiq: 71,    // kg/m³ (liquid H2 at NBP)
   // NIST Chemistry WebBook — gas phase, 298.15 K, 1 bar
   hf0_Jmol: 0,        // Element in standard state
-  s0_JmolK: 130.680   // Std molar entropy (J/(mol·K))
+  s0_JmolK: 130.680,  // Std molar entropy (J/(mol·K))
+  // [v18.3.0 S-HENRY] Henry's law constant in water (Sander 2015)
+  henry: { solvent: 'H2O', H_ref_atm: 71000, T_ref: 298.15, C_K: 500 },
 });
 
 ComponentRegistry.register('N2', {
@@ -12205,7 +12248,9 @@ ComponentRegistry.register('N2', {
   rhoLiq: 807,   // kg/m³ (liquid N2 at NBP)
   // NIST Chemistry WebBook — gas phase, 298.15 K, 1 bar
   hf0_Jmol: 0,        // Element in standard state
-  s0_JmolK: 191.609   // Std molar entropy (J/(mol·K))
+  s0_JmolK: 191.609,  // Std molar entropy (J/(mol·K))
+  // [v18.3.0 S-HENRY] Henry's law constant in water (Sander 2015)
+  henry: { solvent: 'H2O', H_ref_atm: 85000, T_ref: 298.15, C_K: 1300 },
 });
 
 ComponentRegistry.register('Ar', {
@@ -12228,7 +12273,9 @@ ComponentRegistry.register('Ar', {
   rhoLiq: 1394,  // kg/m³ (liquid Ar at NBP)
   // NIST Chemistry WebBook — gas phase, 298.15 K, 1 bar
   hf0_Jmol: 0,        // Element in standard state
-  s0_JmolK: 154.845   // Std molar entropy (J/(mol·K))
+  s0_JmolK: 154.845,  // Std molar entropy (J/(mol·K))
+  // [v18.3.0 S-HENRY] Henry's law constant in water (Sander 2015)
+  henry: { solvent: 'H2O', H_ref_atm: 40000, T_ref: 298.15, C_K: 1300 },
 });
 
 ComponentRegistry.register('CH4', {
@@ -12254,7 +12301,9 @@ ComponentRegistry.register('CH4', {
   rhoLiq: 423,   // kg/m³ (liquid CH4 at NBP)
   // NIST Chemistry WebBook — gas phase, 298.15 K, 1 bar
   hf0_Jmol: -74870,   // Std enthalpy of formation (J/mol)
-  s0_JmolK: 186.251   // Std molar entropy (J/(mol·K))
+  s0_JmolK: 186.251,  // Std molar entropy (J/(mol·K))
+  // [v18.3.0 S-HENRY] Henry's law constant in water (Sander 2015)
+  henry: { solvent: 'H2O', H_ref_atm: 41000, T_ref: 298.15, C_K: 1600 },
 });
 
 ComponentRegistry.register('He', {
@@ -12310,7 +12359,9 @@ ComponentRegistry.register('CO2', {
   rhoLiq: 1101,  // kg/m³ (liquid CO2 at ~250K, 10 bar)
   // NIST Chemistry WebBook — gas phase, 298.15 K, 1 bar
   hf0_Jmol: -393510,  // Std enthalpy of formation (J/mol)
-  s0_JmolK: 213.785   // Std molar entropy (J/(mol·K))
+  s0_JmolK: 213.785,  // Std molar entropy (J/(mol·K))
+  // [v18.3.0 S-HENRY] Henry's law constant in water (Sander 2015)
+  henry: { solvent: 'H2O', H_ref_atm: 1600, T_ref: 298.15, C_K: 2400 },
 });
 
 // [v13.0.2 S1a-3] Carbon Monoxide — syngas component, WGS/RWGS/SMR product, fuel cell fuel.
@@ -12338,7 +12389,9 @@ ComponentRegistry.register('CO', {
   rhoLiq: 789,     // kg/m³ (liquid CO at NBP)
   // NIST Chemistry WebBook — gas phase, 298.15 K, 1 bar
   hf0_Jmol: -110530,  // Std enthalpy of formation (J/mol)
-  s0_JmolK: 197.660   // Std molar entropy (J/(mol·K))
+  s0_JmolK: 197.660,  // Std molar entropy (J/(mol·K))
+  // [v18.3.0 S-HENRY] Henry's law constant in water (Sander 2015)
+  henry: { solvent: 'H2O', H_ref_atm: 58000, T_ref: 298.15, C_K: 1300 },
 });
 
 // [v10.8.0] Ammonia — refrigerant, Haber process feedstock, industrial base chemical.
@@ -13886,9 +13939,22 @@ class IdealRaoultPackage extends ThermoPackage {
     return Psat_mmHg * 133.322;
   }
 
-  // ── VLE K-value (Raoult's law) ────────────────────────────
+  // ── VLE K-value (Raoult's law + Henry's law) ────────────────────────────
+  // [v18.3.0 S-HENRY] Supercritical gases with henry data use Henry's law:
+  //   K_i = H_i(T) / P,  where H(T) = H_ref × exp[-C × (1/T - 1/T_ref)]
+  //   C_K from Sander 2015 (solubility convention); negative sign converts to
+  //   volatility convention so H decreases at lower T (colder water absorbs more).
+  // Subcritical species or species without henry data use Raoult: K = Psat/P.
 
   kValue(comp, T_K, P_Pa) {
+    const compData = ComponentRegistry.get(comp);
+    // Supercritical + henry data → Henry's law
+    if (compData && compData.henry && T_K > compData.Tc) {
+      const h = compData.henry;
+      const H_Pa = h.H_ref_atm * 101325 * Math.exp(-h.C_K * (1/T_K - 1/h.T_ref));
+      return H_Pa / P_Pa;
+    }
+    // Subcritical or no henry data → Raoult (Psat/P)
     const Psat = this.saturationPressure(comp, T_K);
     return Psat ? Psat / P_Pa : 1.0;
   }
@@ -49074,9 +49140,10 @@ function runTests() {
 
     // H2 strongly enriched in vapor (>90% — limited by supercritical Antoine approx)
     t.assertOK((V.n?.H2 || 0) > 2.7, 'H2 > 90% in vap');
-    // H2O overwhelmingly in liquid — ideal: >99%, PR: >85% (PR k-values differ near Tc)
+    // H2O overwhelmingly in liquid — ideal: >98% (Henry gives more accurate K),
+    // PR: >85% (PR k-values differ near Tc)
     const isPR_fd = thermo.getPackage().id === 'peng_robinson';
-    const h2oLiqThreshold = isPR_fd ? 6.0 : 6.93;
+    const h2oLiqThreshold = isPR_fd ? 6.0 : 6.85;
     t.assertOK((L.n?.H2O || 0) > h2oLiqThreshold, 'H2O mostly in liq');
 
     // Vapor enriched in H2, liquid enriched in H2O
@@ -66448,6 +66515,112 @@ function runTests() {
     const c = _count();
     CharacterVoice.onPoke(deadU);
     t.assertOK(_count() === c, 'death poke: no message added');
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // SECTION S-HENRY: Henry's Law K-values (Tests 710–717)
+  // ═══════════════════════════════════════════════════════════════════════
+
+  test('710: Henry K-value — N₂ at 298K, 50 bar (supercritical, Tc=126K)', t => {
+    // At T_ref, exp term = 1 → K = H_ref / P = 85000 atm / (50 bar × atm/1.01325bar)
+    const K = thermo.kValue('N2', 298.15, 5e6);
+    t.assertClose(K, 1722.5, 5, 'K_N2 ≈ 1722');
+  });
+
+  test('711: Henry K-value — CO₂ at 310K, 50 bar (just above Tc=304.1K)', t => {
+    // CO₂ supercritical at 310K → Henry activates
+    const K = thermo.kValue('CO2', 310, 5e6);
+    t.assertClose(K, 44.1, 1, 'K_CO2(310K) ≈ 44');
+  });
+
+  test('712: Henry selectivity — N₂/CO₂ at 278K, 50 bar > 40×', t => {
+    // N₂ supercritical → Henry, CO₂ subcritical → Antoine
+    const K_N2 = thermo.kValue('N2', 278, 5e6);
+    const K_CO2 = thermo.kValue('CO2', 278, 5e6);
+    const alpha = K_N2 / K_CO2;
+    t.assertOK(K_N2 > 1000, 'N₂ stays gas (K >> 1)', K_N2.toFixed(0));
+    t.assertOK(K_CO2 > 0.5 && K_CO2 < 1.0, 'CO₂ partially dissolves (K < 1)', K_CO2.toFixed(3));
+    t.assertOK(alpha > 40, 'selectivity α > 40', alpha.toFixed(0));
+  });
+
+  test('713: Henry temperature sensitivity — colder water absorbs more gas', t => {
+    // K should decrease at lower T (more soluble in cold water)
+    const K_cold = thermo.kValue('N2', 278, 5e6);
+    const K_hot  = thermo.kValue('N2', 318, 5e6);
+    t.assertOK(K_cold < K_hot, 'K(278K) < K(318K) — cold = more soluble',
+      `K_cold=${K_cold.toFixed(0)} K_hot=${K_hot.toFixed(0)}`);
+  });
+
+  test('714: Henry regression — H₂O K-value unchanged (no henry data)', t => {
+    // H₂O is always subcritical in game range, uses Antoine, has no henry field
+    const K = thermo.kValue('H2O', 373, 101325);
+    t.assertOK(K > 0.8 && K < 1.2, 'K_H2O ≈ 1 at boiling point', K.toFixed(3));
+    const compData = ComponentRegistry.get('H2O');
+    t.assertOK(!compData.henry, 'H₂O has no henry data');
+  });
+
+  test('715: Henry — subcritical CO₂ still uses Antoine (278K < Tc=304.1K)', t => {
+    // CO₂ at 278K is subcritical → Antoine path, not Henry
+    // Antoine gives Psat ≈ 39 bar → K = Psat/P
+    const K = thermo.kValue('CO2', 278, 5e6);
+    const Psat = thermo.saturationPressure('CO2', 278);
+    const K_raoult = Psat / 5e6;
+    t.assertClose(K, K_raoult, 0.001, 'Subcritical CO₂ uses Raoult K');
+  });
+
+  test('716: Henry full chain — CO₂ scrubbing: 2% CO₂ air → <0.3% in clean gas', t => {
+    // Absorption flash: room air (2% CO₂) + excess cold water at 278K, 50 bar
+    const result = thermo.tpFlash({
+      T: 278, P: 5e6,
+      n: { CO2: 0.02, N2: 0.77, O2: 0.20, Ar: 0.01, H2O: 50 },
+      phaseConstraint: 'VL'
+    });
+    t.assertOK(result.phase === 'VL', 'Two-phase flash', result.phase);
+
+    // CO₂ fraction in vapor (clean gas)
+    const vapTotal = Object.values(result.nV).reduce((a,b) => a+b, 0);
+    const co2InVap = (result.nV.CO2 || 0) / vapTotal;
+    const co2InFeed = 0.02;  // 2% of air
+    t.assertOK(co2InVap < 0.003, 'CO₂ in clean gas < 0.3%', (co2InVap*100).toFixed(3) + '%');
+    t.assertOK(co2InVap < co2InFeed, 'CO₂ reduced vs feed');
+
+    // N₂ and O₂ mostly in vapor (not absorbed by water)
+    // Note: 50:1 water:gas mole ratio means massive liquid phase absorbs
+    // some gas even at high K. N₂ (H=85k atm) recovers better than O₂ (H=43k atm).
+    const n2Recovery = (result.nV.N2 || 0) / 0.77;
+    const o2Recovery = (result.nV.O2 || 0) / 0.20;
+    t.assertOK(n2Recovery > 0.90, 'N₂ recovery > 90%', (n2Recovery*100).toFixed(1) + '%');
+    t.assertOK(o2Recovery > 0.85, 'O₂ recovery > 85%', (o2Recovery*100).toFixed(1) + '%');
+  });
+
+  test('717: Henry full chain — solvent regeneration: warm water releases CO₂', t => {
+    // Step 1: Absorption (same as test 716)
+    const abs = thermo.tpFlash({
+      T: 278, P: 5e6,
+      n: { CO2: 0.02, N2: 0.77, O2: 0.20, Ar: 0.01, H2O: 50 },
+      phaseConstraint: 'VL'
+    });
+    const co2Absorbed = abs.nL.CO2 || 0;
+    t.assertOK(co2Absorbed > 0.01, 'CO₂ absorbed into liquid', co2Absorbed.toFixed(4));
+
+    // Step 2: Regeneration — heat liquid to 330K, depressurize to 1 bar
+    const regen = thermo.tpFlash({
+      T: 330, P: 101325,
+      n: abs.nL,
+      phaseConstraint: 'VL'
+    });
+
+    // CO₂ should release from water into vapor
+    // Single-stage flash of very dilute solution (0.02 mol CO₂ in 50 mol H₂O)
+    // achieves ~85% release; multi-stage stripping would reach >99% in-game.
+    const co2Released = regen.nV.CO2 || 0;
+    const co2ReleasePct = co2Released / co2Absorbed;
+    t.assertOK(co2ReleasePct > 0.80, 'CO₂ release > 80%', (co2ReleasePct*100).toFixed(1) + '%');
+
+    // Water should stay liquid (solvent recovered)
+    const h2oInLiq = regen.nL.H2O || 0;
+    const h2oRecovery = h2oInLiq / (abs.nL.H2O || 1);
+    t.assertOK(h2oRecovery > 0.95, 'H₂O recovery > 95%', (h2oRecovery*100).toFixed(1) + '%');
   });
 
   // ═══════════════════════════════════════════════════════════════════════
