@@ -1,0 +1,18 @@
+A1_shipOrbit
+This all started as a routine srvey mission of Planet X, very promising earth-like planet, but deadly with high CO2 concentration. No doubt it would attract attention, and that's why we started the long voyage to start exploring that planet, its atmosphere. We were the first one to lay our eyes on it, and it's a purple marvel!
+
+A2_K
+I'm K. I'm fixing stuff here. You could call me a space mechanic, I guess? Anyways, I needed to get away from my worries, so what better than a long intergalactic journey? Things are real quiet in here, and I like that.
+
+A3_Lena
+Our mission is directed by Dr. Lena Vasquez. I don't know her too well. She's quite brilliant, that's obvious, but we don't often cross path on this big ship. SHe comes accross as quite direct, but enthusistic and likable. I'm just doing my job you know.
+
+A4_shipCrash
+Things did not go as planned, like really not. Not sure what it was that cause the sudden plumetting of the ship. The only thing I remember is that I was rpeparing for a space walk, and Dr. Vasquez came to check on me. Then everything started shaking crazily. She rushed out, but all doors got auto-locked, and we could just get shaken like crazy.
+
+A5_injured
+Miraculously, we made it! The situation is grim though. The room we were in got ejected from the main ship, and landed a little bit away, miraculously unscathed. The urgency is to attend to Lena whose leg suffered grave injuries. She's gonna be OK, but it will be a while before she can move on her own, for sure...
+
+A6_roleIntro
+Dr. Vasquez (she asked to call her Lena) is quite incredible. She does not seem as affected by the terrible experience we just went through. She told me that she intends to live on no matter what, and that the situation was dire, but not so different from what we originallly planned. Really? When I point out that we are isolated in a small room with nothing on a toxic planet, she just said "Don't worry. We have everyhting we need, we just need to know how to do it. ANd i know it. I'll tell you and we'll both survive, you'll see. We'll find other survivors. But you're gonna have to do the actual work, I can't move, but I'll guide you!"
+
