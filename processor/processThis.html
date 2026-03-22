@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v19.0.0
+  processThis v19.4.0
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -361,6 +361,253 @@
   ═══════════════════════════════════════════════════════════════════════════
   CHANGELOG  (latest first)
   ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v19.4.0 — S-MISSION Phase 5: Duration tracking + trigger fixes ──────
+
+  **SHOWSTOPPER FIX: Condition duration tracking.**  All
+  `maintain_conditions` objectives with `duration_s > 0` (every mission
+  in M1–M3) were impossible to complete — the evaluator read
+  `runtime._conditionTimers` but nothing populated it.
+
+  Fix: `_missionConditionTimers` persistent map, reset in
+  `loadMission()`.  `_missionAfterSolve()` now evaluates every
+  objective and star criterion each tick.  When `_conditionsOk ===
+  true`, the objective's timer accumulates `+= dt`.  When false, timer
+  resets to 0.  Timers passed to all evaluation calls via
+  `runtime._conditionTimers`.  Each objective uses its `id` field as
+  the timer key (evaluators updated: maintain_conditions,
+  depletion_guard, inventory_trend, power_output).
+
+  Star criteria with duration also tracked — key is
+  `star{level}_{type}`.
+
+  All runtime constructions updated: `_missionAfterSolve()`,
+  `updateMissionHUD()`, `completeMission()`,
+  `_checkGuidanceFromScene()`.
+
+  **TriggerEngine depletion_below fix.**  Was reading nonexistent
+  `last.consumableRemaining` / `last.consumableCapacity`.  Fixed to
+  read `last.consumable_remaining` and `u.params.consumable.capacity`
+  (matching membrane_separator tick output).  M2 scrubber depletion
+  triggers now fire correctly.
+
+  **Temperature triggers verified.**  `temperature_above` /
+  `temperature_below` already read the correct fallback chain:
+  `T_room_K → T_K → inventory.T_K`.  `simple_open_tank` writes
+  `T_K` to `u.last`.  M3 barrel overheat trigger works as-is.
+
+  NNGs: NNG-1 (duration tracking is time-accurate: accumulates real
+  dt, resets on condition break), NNG-14 (changelog + 4 new tests).
+
+  Tests: 842 (+4).
+    776: maintain_conditions duration accumulates with timer.
+    777: maintain_conditions timer resets on condition fail.
+    778: TriggerEngine depletion_below reads correct fields.
+    779: evaluateMissionCompletion uses _conditionTimers.
+
+  ─── v19.3.0 — S-MISSION Phase 4: HUD, guards, career list ──────────────
+
+  **Preplaced unit guards.**  Units marked `_preplaced` (room, O₂ bottle,
+  battery, flare, scrubber, hydrovent) are protected in campaign mode:
+  - Delete blocked: `scene.deleteUnit()` override shows toast + returns
+    false.  Multi-delete filters out preplaced IDs.  Delete key via
+    `deleteSelected()` also guarded.
+  - Move blocked: drag handler returns early after selecting (inspection
+    still works).
+  - Inspector: delete button hidden, name input read-only, 🔒 lock badge
+    appended to title.
+  - Disconnect allowed (needed for M3 battery rewiring).
+
+  **Objective panel.**  Fixed-position HUD panel (`#objectivePanel`),
+  top-left corner.  Shows all mission objectives with live progress
+  strings from evaluators.  Met objectives show green ✔, unmet show ○.
+  Updated every afterSolve tick via `updateMissionHUD()`.  Hidden in
+  sandbox mode.
+
+  **Star tracker.**  Live ★/☆ display in objective panel header.  Shows
+  current achievable star count based on real-time evaluation.  Stars
+  dim when conditions drift (spec §7.2).
+
+  **Day counter.**  Bottom of objective panel: "Day N, Hh" computed
+  from `TimeClock.t - _missionStartTime`.
+
+  **Unified HUD update.**  `updateMissionHUD()` evaluates objectives +
+  stars once per tick and updates the objective panel, star tracker,
+  and Complete Mission button visibility in a single pass.  Replaces
+  the separate `updateCompleteMissionButton()` (kept as alias).
+
+  **Career list overlay.**  `#careerListOverlay` shown when clicking
+  "Planet X" on title screen.  Lists saved careers with name, mission
+  count, total stars, and next mission title.  Click to resume.  ×
+  button to delete (with refresh).  "New Career" button creates fresh
+  CampaignState and enters campaign mode.  "Back" returns to title.
+  Reads from `CareerSaveManager.list()`.
+
+  **goHome cleanup.**  Now hides objective panel, Complete button,
+  resets TriggerEngine, GuidanceSystem, and GuidanceHighlighter on
+  return to title.
+
+  NNGs: NNG-3 (WYSIWYG — lock icon reflects immovable state),
+  NNG-14 (changelog, no new tests — changes are UI-layer in script
+  block 2).
+
+  ─── v19.2.0 — S-MISSION Phase 3: Narrative, triggers, guidance ──────────
+
+  **SpeechBubble source tagging.**  Every message now carries `source`
+  ('briefing', 'guidance', 'trigger', 'room_diag', 'system', etc.),
+  `priority` (SpeechPriority level), and `speaker`.  `isSuppressed(p)`
+  checks whether a priority level is currently muted by a higher-priority
+  recent message.  CharacterVoice._speak passes source/priority through.
+  Non-breaking — existing callers get defaults ('system', IDLE).
+
+  **CinematicBeat player.**  Full-screen overlay (`#cinematicOverlay`).
+  Plays arrays of CinematicBeat objects: image, title_card, narrator,
+  pause.  Click-to-advance.  Returns a Promise (async/await).  Images
+  loaded from `img/` folder via `IMG_BASE + src`.  **Graceful degradation:**
+  `<img onerror>` replaces failed image with `fallbackText` as narrator
+  text card.  All arc intro and story beats playable with zero image
+  files.  `CinematicPlayer.skip()` for dev/testing.
+
+  **Image naming convention.**  Flat `img/` folder: `arc_a_1.webp`,
+  `m1_outro_1.webp`, `m2_intro_1.webp`, etc.  All §MISSION-CONTENT
+  beat `src` fields updated from nested paths to flat names.
+
+  **MissionBeat player.**  Plays briefing dialogue sequentially through
+  SpeechBubble with configurable delays.  Priority BRIEFING.  Returns
+  Promise.  `MissionBeatPlayer.skip()` for dev/testing.
+
+  **Full mission narrative flow.**  `startMissionFlow(missionId)` —
+  async orchestrator: arc intro (first mission only) → story intro →
+  loadMission → briefing → BUILD.  `enterGame('campaign')` and
+  `advanceMission()` now call `startMissionFlow` instead of bare
+  `loadMission`.  Victory "Continue" button plays story outro before
+  advancing.  Arc conclusion cinematics wired.
+
+  **Trigger engine.**  `TriggerEngine.init(triggers)` + `.evaluate()`
+  called from afterSolve hook.  17 condition types implemented:
+  time_elapsed, depletion_below, temperature_above/below,
+  level_above/below, species_above/below, crew_state,
+  inventory_above/below, unit_placed, connection_exists.  Actions:
+  dialogue (via SpeechBubble at TRIGGER priority), system_message.
+  `autoPause` flag on action stops sim for critical warnings.
+  `once: true` triggers fire exactly once per mission.
+
+  **Guidance system.**  `GuidanceSystem.init(steps)` — sequential
+  tutorial steps.  Listens for completion events: connection,
+  unit_placed, play_pressed, unit_inspected, palette_opened,
+  objective_complete, acknowledge.  On completion: fires onComplete
+  dialogue, advances to next step with delay.  `_emitGuidanceEvent()`
+  wired into startPlay, autoPauseOnTopologyChange,
+  updatePropertiesPanel, togglePalette.  `_checkGuidanceFromScene()`
+  scans live scene state on topology changes.
+
+  **GuidanceHighlighter.**  Minimal Phase 3 implementation: CSS pulse
+  animation on button targets.  Reads GuidanceSystem.currentStep().
+  SVG unit/port highlighting deferred to Phase 4 visual polish.
+
+  **Victory screen.**  Modal overlay with mission title, animated star
+  display (★/☆), Lena victory line per star count, "Continue" button.
+  Wired to completeMission() result.
+
+  **Game-over overlay.**  Dark overlay on crew death.  "Revert" (loads
+  last checkpoint) and "Restart Mission" (reloads from scratch).
+  Triggered by crewState === 'death' detected in _missionAfterSolve.
+
+  **"Complete Mission" button.**  Fixed-position HUD button, visible
+  only in campaign mode when all primary objectives are met.
+  Evaluates objectives on each afterSolve tick to toggle visibility.
+  Calls completeMission() on click.
+
+  **afterSolve hook.**  `_missionAfterSolve()` called at end of
+  afterSolve: runs trigger evaluation, crew death check, and
+  Complete button visibility update.
+
+  NNGs: NNG-3 (WYSIWYG — graceful image degradation, fallback always
+  available), NNG-11 (TriggerEngine and GuidanceSystem are DOM-free
+  in their core logic), NNG-12 (single file), NNG-14 (changelog +
+  10 new tests: 766–775).
+
+  Tests: 838 (+10).
+    766: SpeechBubble source/priority preserved.
+    767: SpeechBubble.isSuppressed.
+    768: CinematicPlayer skip.  769: MissionBeatPlayer skip.
+    770: TriggerEngine time_elapsed fires once.
+    771: TriggerEngine connection_exists condition.
+    772: GuidanceSystem step advancement on connection.
+    773: GuidanceSystem unit_placed completion.
+    774: Image src flat naming convention.
+    775: All cinematic beats have fallbackText (graceful degradation).
+
+  ─── v19.1.0 — S-MISSION Phase 2: State machine, saves, mission flow ─────
+
+  **Play state machine.**  `_playState` global tracks 14 game states
+  (TITLE, CAREER_LIST, ARC_INTRO, STORY_INTRO, BRIEFING, BUILD, RUN,
+  PAUSED, EVALUATE, VICTORY, STORY_OUTRO, ARC_CONCLUSION,
+  CAMPAIGN_CONCLUSION, GAME_OVER).  `setPlayState()` enforces cinematic
+  safety: any overlay state (STORY_INTRO, BRIEFING, VICTORY, GAME_OVER,
+  etc.) automatically calls `stopPlay()` if the sim is running (§10.2).
+  Checkpoint boundary: BRIEFING→BUILD transition resets the checkpoint
+  stack and seeds a `mission-start` checkpoint.
+
+  **Career save manager.**  `CareerSaveManager` handles up to 10 career
+  saves in localStorage (`ptis_career_{slot}`).  API: save, load, list,
+  delete, findFreeSlot.  Lightweight index rebuilt from stored data.
+  Each save contains: CampaignState (serialized), current scene JSON,
+  career name, timestamp.
+
+  **Mission scene builder.**  `buildMissionScene(campaignState, missionId)`
+  — DOM-free (NNG-11).  Merges inherited end-scene from the previous
+  mission with preplaced unit overlays.  Skips duplicate IDs (inherited
+  units not re-added).  Marks ALL preplaced units (current + all prior
+  missions in arc) with `_preplaced: true` flag.  Returns scene JSON
+  ready for `importJSON()`.
+
+  **Mission completion evaluator.**
+  `evaluateMissionCompletion(missionId, scene, runtime)` — DOM-free.
+  Evaluates all objectives via `evaluateCriterion()`, then evaluates
+  stars 1–3.  Returns `{ passed, objectiveResults, starCount,
+  starResults }` with progress strings for each.  Objective results are
+  injected into star criteria runtime for `all_objectives_complete`.
+
+  **loadMission().**  Full §32 sequence: stopPlay → buildMissionScene →
+  importJSON → mark _preplaced flags on live units → reset checkpoints
+  → solve → seed checkpoint → refresh UI → set BUILD state.
+
+  **completeMission().**  Full §33 sequence: stopPlay → EVALUATE state →
+  evaluateMissionCompletion → if failed: return to BUILD with feedback →
+  if passed: record in CampaignState, save career, VICTORY state.
+
+  **advanceMission().**  Called after victory "Continue": advances
+  CampaignState to next mission/arc/campaign-complete and calls
+  loadMission for the next mission.
+
+  **enterGame('campaign').**  Campaign branch: creates CampaignState,
+  calls loadMission for first mission, saves initial career state.
+  Supports `opts.resumeSlot` for resuming existing careers.  Sandbox
+  branch unchanged.  DEMO_VERSION bumped to v19.0.0.
+
+  **goHome() campaign cleanup.**  Saves career before leaving.  Resets
+  `_activeGameMode`, `_activeCampaignState`, `_activeMissionId`,
+  `_activeCareerSlot` to sandbox defaults.  Sets _playState to TITLE.
+
+  **Title screen career button wired.**  "Planet X" button now calls
+  `enterGame('campaign', { campaignId: 'planet_x' })` instead of
+  showing "coming soon" toast.
+
+  NNGs: NNG-11 (buildMissionScene + evaluateMissionCompletion are
+  DOM-free), NNG-14 (changelog + 10 new tests: 756–765).
+
+  Tests: 828 (+10).
+    756: setPlayState cinematic safety (stops sim on overlays).
+    757: setPlayState checkpoint reset on BRIEFING→BUILD.
+    758: buildMissionScene M1 (3 preplaced, calibrated params).
+    759: buildMissionScene M2 (inherits M1 + 2 new, all _preplaced).
+    760: buildMissionScene dedup (no duplicate preplaced IDs).
+    761: evaluateMissionCompletion M1 (connections met, duration not).
+    762: evaluateMissionCompletion star evaluation structure.
+    763: CareerSaveManager save/list/load/delete.
+    764: CareerSaveManager findFreeSlot.
+    765: buildMissionScene M1 → importJSON roundtrip.
 
   ─── v19.0.0 — S-MISSION Phase 1: Registries, evaluators, campaign state ─
 
@@ -10183,6 +10430,155 @@
     }
 
     /* ===== INSPECTOR TRANSITION ===== */
+
+    /* ===== [v19.2.0] CINEMATIC OVERLAY ===== */
+    #cinematicOverlay {
+      display: none;
+      position: fixed; inset: 0; z-index: 9999;
+      background: #000; color: #e2e8f0;
+      font-family: 'Inter', system-ui, sans-serif;
+      cursor: pointer; user-select: none;
+      overflow: hidden;
+    }
+    #cinematicOverlay.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    #cinematicOverlay .cin-img {
+      max-width: 90vw; max-height: 60vh; object-fit: contain;
+      border-radius: 4px; margin-bottom: 24px;
+      opacity: 0; transition: opacity 0.6s ease;
+    }
+    #cinematicOverlay .cin-img.loaded { opacity: 1; }
+    #cinematicOverlay .cin-text {
+      max-width: 700px; padding: 0 32px;
+      font-size: 15px; line-height: 1.7; text-align: left;
+      color: #cbd5e1; opacity: 0; transition: opacity 0.5s ease;
+    }
+    #cinematicOverlay .cin-text.visible { opacity: 1; }
+    #cinematicOverlay .cin-title {
+      font-size: 28px; font-weight: 700; letter-spacing: 1px;
+      color: #f8fafc; margin-bottom: 8px; text-align: center;
+    }
+    #cinematicOverlay .cin-subtitle {
+      font-size: 16px; color: #94a3b8; text-align: center;
+    }
+    #cinematicOverlay .cin-hint {
+      position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%);
+      font-size: 12px; color: #475569; letter-spacing: 0.5px;
+      opacity: 0; transition: opacity 0.5s ease 2s;
+    }
+    #cinematicOverlay.active .cin-hint { opacity: 1; }
+
+    /* ===== [v19.2.0] VICTORY OVERLAY ===== */
+    #victoryOverlay {
+      display: none;
+      position: fixed; inset: 0; z-index: 9998;
+      background: rgba(0,0,0,0.85); color: #e2e8f0;
+      font-family: 'Inter', system-ui, sans-serif;
+      user-select: none;
+    }
+    #victoryOverlay.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    #victoryOverlay .vic-title { font-size: 24px; font-weight: 700; color: #f8fafc; margin-bottom: 16px; }
+    #victoryOverlay .vic-stars { font-size: 48px; margin-bottom: 16px; letter-spacing: 8px; }
+    #victoryOverlay .vic-line { font-size: 15px; color: #94a3b8; font-style: italic; margin-bottom: 24px; max-width: 500px; text-align: center; }
+    #victoryOverlay .vic-btn {
+      padding: 10px 32px; background: #22c55e; color: #000; border: none;
+      border-radius: 6px; font-size: 15px; font-weight: 600; cursor: pointer;
+    }
+    #victoryOverlay .vic-btn:hover { background: #16a34a; }
+
+    /* ===== [v19.2.0] GAME OVER OVERLAY ===== */
+    #gameOverOverlay {
+      display: none;
+      position: fixed; inset: 0; z-index: 9998;
+      background: rgba(20,0,0,0.9); color: #e2e8f0;
+      font-family: 'Inter', system-ui, sans-serif;
+      user-select: none;
+    }
+    #gameOverOverlay.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    #gameOverOverlay .go-title { font-size: 28px; font-weight: 700; color: #ef4444; margin-bottom: 12px; }
+    #gameOverOverlay .go-text { font-size: 14px; color: #94a3b8; margin-bottom: 24px; max-width: 400px; text-align: center; }
+    #gameOverOverlay .go-btn {
+      padding: 10px 24px; background: #334155; color: #e2e8f0; border: 1px solid #475569;
+      border-radius: 6px; font-size: 14px; cursor: pointer; margin: 4px;
+    }
+    #gameOverOverlay .go-btn:hover { background: #475569; }
+
+    /* ===== [v19.2.0] COMPLETE MISSION BUTTON ===== */
+    #btnCompleteMission {
+      display: none; position: fixed; bottom: 72px; right: 24px; z-index: 900;
+      padding: 10px 24px; background: #22c55e; color: #000; border: none;
+      border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer;
+      box-shadow: 0 2px 12px rgba(34,197,94,0.4);
+      transition: opacity 0.3s;
+    }
+    #btnCompleteMission:hover { background: #16a34a; }
+    #btnCompleteMission.visible { display: block; }
+
+    /* ===== [v19.3.0] OBJECTIVE PANEL ===== */
+    #objectivePanel {
+      display: none; position: fixed; top: 52px; left: 12px; z-index: 800;
+      width: 280px; max-height: 50vh; overflow-y: auto;
+      background: rgba(15,23,42,0.92); border: 1px solid #1e293b;
+      border-radius: 8px; padding: 10px 12px;
+      font-family: 'Inter', system-ui, sans-serif; font-size: 12px;
+      color: #cbd5e1; backdrop-filter: blur(4px);
+      scrollbar-width: thin; scrollbar-color: #334155 transparent;
+    }
+    #objectivePanel.active { display: block; }
+    #objectivePanel .obj-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid #1e293b;
+    }
+    #objectivePanel .obj-title { font-size: 13px; font-weight: 700; color: #f8fafc; }
+    #objectivePanel .obj-stars { font-size: 18px; letter-spacing: 2px; }
+    #objectivePanel .obj-item {
+      padding: 5px 0; border-bottom: 1px solid #0f172a;
+    }
+    #objectivePanel .obj-item:last-child { border-bottom: none; }
+    #objectivePanel .obj-desc { color: #e2e8f0; margin-bottom: 2px; }
+    #objectivePanel .obj-progress { font-size: 11px; color: #64748b; }
+    #objectivePanel .obj-met .obj-desc { color: #22c55e; }
+    #objectivePanel .obj-met .obj-progress { color: #166534; }
+    #objectivePanel .obj-day {
+      font-size: 11px; color: #475569; text-align: right; margin-top: 6px;
+      padding-top: 4px; border-top: 1px solid #1e293b;
+    }
+
+    /* ===== [v19.3.0] CAREER LIST OVERLAY ===== */
+    #careerListOverlay {
+      display: none; position: fixed; inset: 0; z-index: 9997;
+      background: rgba(0,0,0,0.92); color: #e2e8f0;
+      font-family: 'Inter', system-ui, sans-serif;
+    }
+    #careerListOverlay.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    #careerListOverlay .cl-title { font-size: 22px; font-weight: 700; color: #f8fafc; margin-bottom: 20px; }
+    #careerListOverlay .cl-list { width: 360px; max-height: 50vh; overflow-y: auto; }
+    #careerListOverlay .cl-slot {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 10px 14px; margin-bottom: 6px;
+      background: #1e293b; border: 1px solid #334155; border-radius: 6px;
+      cursor: pointer; transition: background 0.15s;
+    }
+    #careerListOverlay .cl-slot:hover { background: #334155; }
+    #careerListOverlay .cl-slot-info { flex: 1; }
+    #careerListOverlay .cl-slot-name { font-weight: 600; font-size: 14px; color: #f8fafc; }
+    #careerListOverlay .cl-slot-detail { font-size: 11px; color: #64748b; margin-top: 2px; }
+    #careerListOverlay .cl-slot-del {
+      background: none; border: none; color: #64748b; font-size: 16px;
+      cursor: pointer; padding: 4px 8px;
+    }
+    #careerListOverlay .cl-slot-del:hover { color: #ef4444; }
+    #careerListOverlay .cl-new {
+      margin-top: 12px; padding: 10px 28px;
+      background: #22c55e; color: #000; border: none; border-radius: 6px;
+      font-size: 14px; font-weight: 600; cursor: pointer;
+    }
+    #careerListOverlay .cl-new:hover { background: #16a34a; }
+    #careerListOverlay .cl-back {
+      margin-top: 10px; padding: 8px 20px;
+      background: none; color: #64748b; border: 1px solid #334155;
+      border-radius: 6px; font-size: 13px; cursor: pointer;
+    }
+    #careerListOverlay .cl-back:hover { color: #e2e8f0; border-color: #64748b; }
   </style>
 </head>
 <body>
@@ -18058,7 +18454,7 @@ const ObjectiveEvaluators = {
 
     // Duration tracking
     const dur_s = params.duration_s || 0;
-    const rKey = params._runtimeKey || ('mc_' + (params.unit || 'shelter'));
+    const rKey = params.id || params._runtimeKey || ('mc_' + (params.unit || 'shelter'));
     const elapsed = runtime?._conditionTimers?.[rKey] || 0;
 
     if (dur_s > 0) {
@@ -18090,7 +18486,7 @@ const ObjectiveEvaluators = {
     }
     const ok = totalMoles >= (params.minMoles || 0);
     const dur = params.duration_s || 0;
-    const elapsed = runtime?._conditionTimers?.['dg_' + params.species] || 0;
+    const elapsed = runtime?._conditionTimers?.[params.id || ('dg_' + params.species)] || 0;
     const met = dur > 0 ? (ok && elapsed >= dur) : ok;
     const progress = `${params.species}: ${totalMoles.toFixed(1)} mol ${ok ? '✓' : `(need ≥ ${params.minMoles})`}`
       + (dur > 0 ? ` ${elapsed.toFixed(0)}s/${dur}s` : '');
@@ -18107,7 +18503,7 @@ const ObjectiveEvaluators = {
     const trend = params.trend; // 'increasing' or 'decreasing'
     const ok = trend === 'increasing' ? moles > prev : moles < prev;
     const dur = params.duration_s || 0;
-    const elapsed = runtime?._conditionTimers?.['it_' + u.id + ':' + params.species] || 0;
+    const elapsed = runtime?._conditionTimers?.[params.id || ('it_' + u.id + ':' + params.species)] || 0;
     const met = dur > 0 ? (ok && elapsed >= dur) : ok;
     const arrow = moles > prev ? '↑' : moles < prev ? '↓' : '→';
     return { met, progress: `${params.species} ${arrow} ${moles.toFixed(1)} mol (want ${trend}) ${met ? '✓' : ''}` };
@@ -18122,7 +18518,7 @@ const ObjectiveEvaluators = {
     }
     const ok = totalPower >= (params.min_W || 0);
     const dur = params.duration_s || 0;
-    const elapsed = runtime?._conditionTimers?.['po'] || 0;
+    const elapsed = runtime?._conditionTimers?.[params.id || 'po'] || 0;
     const met = dur > 0 ? (ok && elapsed >= dur) : ok;
     return {
       met,
@@ -18448,6 +18844,140 @@ class CampaignState {
     state.gameDay = data.gameDay || 0;
     return state;
   }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// [v19.1.0 S-MISSION Phase 2] Mission scene builder & completion evaluator
+// DOM-free — testable headlessly (NNG-11)
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Build a mission scene JSON by merging inherited scene + preplaced units.
+ * @param {CampaignState} campaignState
+ * @param {string} missionId
+ * @returns {string|null} scene JSON string ready for importJSON
+ */
+function buildMissionScene(campaignState, missionId) {
+  const mission = MissionRegistry.get(missionId);
+  if (!mission) return null;
+
+  // Start from inherited or initial scene
+  let baseScene = null;
+  if (mission.inheritScene) {
+    baseScene = campaignState.getStartingScene(missionId);
+  }
+  if (!baseScene && mission.initialScene) {
+    baseScene = mission.initialScene;
+  }
+
+  // Parse base or create empty
+  let sceneData;
+  if (baseScene) {
+    try { sceneData = JSON.parse(baseScene); } catch (e) { sceneData = null; }
+  }
+  if (!sceneData) {
+    sceneData = {
+      version: 19,
+      processName: mission.title,
+      grid: { w: 40, h: 32, tile: 48 },
+      settings: { atmospherePreset: 'planet_x', dt: 3600 },
+      units: [],
+      connections: [],
+      modelsActive: { thermo_package: 'ideal_raoult', reaction: null, units: 'SI_bar' },
+      solverOptions: { maxIter: 200 },
+      layout: { viewMode: 'flowsheet', colorBy: 'type', theme: 'ragtag',
+                paletteOpen: false, inspectorOpen: false },
+    };
+  }
+
+  // Build set of existing unit IDs to avoid collisions
+  const existingIds = new Set((sceneData.units || []).map(u => u.id));
+
+  // Overlay preplaced units (skip if ID already exists — inherited from prior mission)
+  for (const pu of mission.preplacedUnits) {
+    if (existingIds.has(pu.id)) continue;  // already in inherited scene
+    const unitDef = {
+      id: pu.id,
+      defId: pu.defId,
+      profileId: pu.profileId,
+      tier: pu.tier || 1,
+      name: pu.name || (ProfileRegistry.get(pu.profileId)?.name || pu.id),
+      x: pu.x || 0,
+      y: pu.y || 0,
+      rot: 0,
+      params: pu.params ? { ...pu.params } : {},
+      _preplaced: true,
+    };
+    sceneData.units.push(unitDef);
+  }
+
+  // Mark ALL preplaced units (including ones from prior missions)
+  const allPreplacedIds = new Set();
+  // Gather preplaced from this mission
+  for (const pu of mission.preplacedUnits) allPreplacedIds.add(pu.id);
+  // Gather preplaced from all prior missions in the arc
+  const arc = ArcRegistry.get(mission.arcId);
+  if (arc) {
+    for (const mid of arc.missions) {
+      if (mid === missionId) break;  // stop at current mission
+      const prevMission = MissionRegistry.get(mid);
+      if (prevMission) {
+        for (const pu of prevMission.preplacedUnits) allPreplacedIds.add(pu.id);
+      }
+    }
+  }
+  // Set _preplaced flag on all matching units
+  for (const u of sceneData.units) {
+    if (allPreplacedIds.has(u.id)) u._preplaced = true;
+  }
+
+  sceneData.processName = mission.title;
+  return JSON.stringify(sceneData);
+}
+
+/**
+ * Evaluate all objectives and stars for a mission at the current scene state.
+ * @param {string} missionId
+ * @param {Object} scene - the live scene object
+ * @param {Object} runtime - { missionElapsed_s, converged, ... }
+ * @returns {{ passed: boolean, objectiveResults: Array, starCount: number, starResults: Object }}
+ */
+function evaluateMissionCompletion(missionId, scene, runtime) {
+  const mission = MissionRegistry.get(missionId);
+  if (!mission) return { passed: false, objectiveResults: [], starCount: 0, starResults: {} };
+
+  // Evaluate all objectives
+  const objectiveResults = [];
+  for (const obj of mission.objectives) {
+    const r = evaluateCriterion(obj, scene, runtime);
+    objectiveResults.push({ id: obj.id, description: obj.description, ...r });
+  }
+
+  const allPassed = objectiveResults.length > 0 && objectiveResults.every(r => r.met);
+
+  // Inject objective results into runtime for star criteria that need it
+  const runtimeWithObjectives = { ...runtime, _objectiveResults: objectiveResults };
+
+  // Evaluate stars (1, 2, 3)
+  const starResults = {};
+  let starCount = 0;
+  for (const level of [1, 2, 3]) {
+    const star = mission.stars[level];
+    if (!star || !star.criteria) {
+      starResults[level] = { met: false, progress: 'No criteria defined' };
+      continue;
+    }
+    const criteriaResults = star.criteria.map(c => evaluateCriterion(c, scene, runtimeWithObjectives));
+    const allMet = criteriaResults.every(r => r.met);
+    starResults[level] = {
+      met: allMet,
+      description: star.description,
+      criteria: criteriaResults,
+    };
+    if (allMet) starCount = level;  // highest passing star
+  }
+
+  return { passed: allPassed, objectiveResults, starCount, starResults };
 }
 
 /* =========================
@@ -26558,30 +27088,34 @@ ProfileRegistry.register('shelter', {
 
 // ═══ ARC A INTRO ═════════════════════════════════════════════════════════
 const ARC_A_INTRO = [
-  { type: 'image', src: 'intro_1.webp', transition: 'fade', duration_ms: null,
+  { type: 'image', src: 'arc_a_1.webp', transition: 'fade', duration_ms: null,
     fallbackText: 'It started as the mission of a lifetime \u2014 the first crewed survey of Planet X, a promising Earth-like world with one deadly catch: 9% CO\u2082 in the atmosphere. It took years to get here. We were the first humans to lay eyes on it, and it was a purple marvel. A large part of the planet lived in permanent twilight, which made it beautiful and hypnotic.',
     alt: 'Ship in orbit above Planet X' },
-  { type: 'image', src: 'intro_2.webp', transition: 'fade', duration_ms: null,
+  { type: 'image', src: 'arc_a_2.webp', transition: 'fade', duration_ms: null,
     fallbackText: 'I\u2019m K. I fix things \u2014 you could call me a space mechanic, I guess. I had my reasons for signing up for a long interstellar voyage. None of them matter now. Things were real quiet out here, and I liked that.',
     alt: 'K in spacesuit' },
-  { type: 'image', src: 'intro_3.webp', transition: 'fade', duration_ms: null,
+  { type: 'image', src: 'arc_a_3.webp', transition: 'fade', duration_ms: null,
     fallbackText: 'Our mission was directed by Dr. Lena Vasquez. I didn\u2019t know her well. She was brilliant \u2014 that was obvious. She gave a briefing once, about atmospheric chemistry. Half the crew fell asleep. I stayed awake. Not because I understood it, but because she clearly loved every word of it.',
     alt: 'Lena giving a briefing' },
-  { type: 'image', src: 'intro_4.webp', transition: 'fade', duration_ms: null,
+  { type: 'image', src: 'arc_a_4.webp', transition: 'fade', duration_ms: null,
     fallbackText: 'Things did not go as planned. Not sure what caused the ship to plummet \u2014 the only thing I remember is that I was preparing for a space walk, and Dr. Vasquez came to check on me. Then everything started shaking. She rushed out, but all doors auto-locked, and we just got thrown around like cargo.',
     alt: 'Ship crashing' },
-  { type: 'image', src: 'intro_5.webp', transition: 'fade', duration_ms: null,
+  { type: 'image', src: 'arc_a_5.webp', transition: 'fade', duration_ms: null,
     fallbackText: 'Somehow, we made it. The room we were in got ejected from the main ship and landed a short distance away, mostly intact. The urgency was Lena\u2019s leg \u2014 it was bad. I did what I could with bandages and salvage, but she wasn\u2019t going to be walking anytime soon.',
     alt: 'Lena injured in wreckage' },
-  { type: 'image', src: 'intro_6.webp', transition: 'fade', duration_ms: null,
+  { type: 'image', src: 'arc_a_6.webp', transition: 'fade', duration_ms: null,
     fallbackText: 'Dr. Vasquez \u2014 she asked me to call her Lena \u2014 was quite something. She didn\u2019t seem shaken by what we\u2019d just been through. She told me she intended to live, no matter what, and that the situation was dire but not so different from what we\u2019d originally planned. Really? When I pointed out that we were stuck in a tin can on a planet that would kill us the moment we stepped outside, she just said: \u201cDon\u2019t worry. We have everything we need. We just need to know how to use it. And I know how. I\u2019ll guide you, you do the work. We\u2019ll both survive, you\u2019ll see.\u201d',
     alt: 'Lena and K planning' },
 ];
 
 // ═══ M1 — Breathe ═══════════════════════════════════════════════════════
 const M1_BRIEFING = [
-  { type: 'dialogue', speaker: 'lena', expression: 'disappointed',
-    text: 'Alright, let\u2019s get our priorities straight. Do you know the survival rule of three? Three minutes without air, three days without water, three weeks without food. Roughly. Air comes first. As we speak, we\u2019re consuming oxygen and producing CO\u2082. We\u2019ll exhaust what\u2019s in this room in a matter of hours. I spotted an oxygen bottle nearby \u2014 find it and connect it to the room. There\u2019s also a good-sized battery left in here. Plug it in and give us some light. It\u2019s really dark.' },
+  { type: 'dialogue', speaker: 'lena', expression: 'disappointed', delay_ms: 1500,
+    text: 'Alright, let\u2019s get our priorities straight. Do you know the survival rule of three? Three minutes without air, three days without water, three weeks without food.' },
+  { type: 'dialogue', speaker: 'lena', expression: 'disappointed', delay_ms: 2000,
+    text: 'Air comes first. As we speak, we\u2019re consuming oxygen and producing CO\u2082. We\u2019ll exhaust what\u2019s in this room in a matter of hours.' },
+  { type: 'dialogue', speaker: 'lena', expression: 'happy', delay_ms: 2000,
+    text: 'I spotted an oxygen bottle nearby \u2014 find it and connect it to the room. There\u2019s also a good-sized battery left in here. Plug it in and give us some light. It\u2019s really dark.' },
 ];
 
 const M1_VICTORY_LINES = {
@@ -26591,7 +27125,7 @@ const M1_VICTORY_LINES = {
 };
 
 const M1_OUTRO = [
-  { type: 'image', src: 'story_outro_1.webp', transition: 'fade', duration_ms: null,
+  { type: 'image', src: 'm1_outro_1.webp', transition: 'fade', duration_ms: null,
     fallbackText: 'The first step done. I wasn\u2019t sure where we were going, but Lena seemed very clear on the direction. That made me feel hopeful, as I plugged in that oxygen bottle and gave us fresh air to breathe. It was dark outside, but the lights were on inside.',
     alt: 'Shelter with lights on' },
 ];
@@ -26625,14 +27159,18 @@ const M1_GUIDANCE = [
 
 // ═══ M2 — Clear the Air ═════════════════════════════════════════════════
 const M2_INTRO = [
-  { type: 'image', src: 'story_intro_1.webp', transition: 'fade', duration_ms: null,
+  { type: 'image', src: 'm2_intro_1.webp', transition: 'fade', duration_ms: null,
     fallbackText: 'While Lena slept, I started putting pipes together from the wreckage and made a big chimney. Lena had said we were going to work with gases, and I figured it wasn\u2019t a good idea to have flammable mixtures building up around the shelter. We could dump everything we didn\u2019t need up there, and maybe even burn it. I think it\u2019s called a flare.',
     alt: 'Flare stack construction' },
 ];
 
 const M2_BRIEFING = [
-  { type: 'dialogue', speaker: 'lena', expression: 'happy',
-    text: 'Excellent work on the tower. Now, air. We\u2019re halfway there \u2014 sort of. We have oxygen, but the poison building up is CO\u2082. That\u2019s the real problem inside this room, and even more so on the planet. We can\u2019t tolerate much more than 1% CO\u2082 in the air, and this planet\u2019s atmosphere has nearly 10%. We\u2019d last minutes outside. Apart from that, Planet X has perfectly good air. I salvaged the ship\u2019s CO\u2082 removal system. It runs on LiOH cartridges, and they\u2019re not going to last long \u2014 maybe days if we\u2019re lucky. But it\u2019ll buy us time, and I have more ideas.' },
+  { type: 'dialogue', speaker: 'lena', expression: 'happy', delay_ms: 1500,
+    text: 'Excellent work on the tower. Now, air. We\u2019re halfway there \u2014 sort of. We have oxygen, but the poison building up is CO\u2082.' },
+  { type: 'dialogue', speaker: 'lena', expression: 'disappointed', delay_ms: 2000,
+    text: 'We can\u2019t tolerate much more than 1% CO\u2082 in the air, and this planet\u2019s atmosphere has nearly 10%. We\u2019d last minutes outside. Apart from that, Planet X has perfectly good air.' },
+  { type: 'dialogue', speaker: 'lena', expression: 'happy', delay_ms: 2000,
+    text: 'I salvaged the ship\u2019s CO\u2082 removal system. It runs on LiOH cartridges, and they\u2019re not going to last long \u2014 maybe days if we\u2019re lucky. But it\u2019ll buy us time.' },
 ];
 
 const M2_VICTORY_LINES = {
@@ -26642,7 +27180,7 @@ const M2_VICTORY_LINES = {
 };
 
 const M2_OUTRO = [
-  { type: 'image', src: 'story_outro_1.webp', transition: 'fade', duration_ms: null,
+  { type: 'image', src: 'm2_outro_1.webp', transition: 'fade', duration_ms: null,
     fallbackText: 'With the CO\u2082 scrubber in place, I felt proud of myself. But only an hour later, I already had to replace the first cartridge. And we didn\u2019t have many. I felt a mild panic changing them again and again, but Lena stayed calm and self-assured. What was she going to think of next? I felt lucky she was there, but a bit fearful of her next idea.',
     alt: 'CO2 scrubber installed' },
 ];
@@ -26676,22 +27214,24 @@ const M2_GUIDANCE = [
 
 // ═══ M3 — Find Water ════════════════════════════════════════════════════
 const M3_INTRO = [
-  { type: 'image', src: 'story_intro_1.webp', transition: 'fade', duration_ms: null,
+  { type: 'image', src: 'm3_intro_1.webp', transition: 'fade', duration_ms: null,
     fallbackText: 'Lena didn\u2019t disappoint. She\u2019d spotted a hydrothermal vent not far from the shelter. She said it had plenty of water vapor, and might even carry useful gases \u2014 natural gas, hydrogen. She wanted me to \u201ctame it,\u201d whatever that meant.',
     alt: 'Hydrothermal vent' },
-  { type: 'image', src: 'story_intro_2.webp', transition: 'fade', duration_ms: null,
+  { type: 'image', src: 'm3_intro_2.webp', transition: 'fade', duration_ms: null,
     fallbackText: 'She explained that the vent threw out high-pressure, high-temperature water along with other gases. We needed to cool it down before we could get liquid water out of it. I patched together a fan and some cooling fins from the wreckage. I thought it should work to bring the fluid down to ambient temperature.',
     alt: 'Air cooler construction' },
-  { type: 'image', src: 'story_intro_3.webp', transition: 'fade', duration_ms: null,
+  { type: 'image', src: 'm3_intro_3.webp', transition: 'fade', duration_ms: null,
     fallbackText: 'Lena also pointed out some salvaged parts near the shelter that could be welded together into \u2014 well, the only word for it is a wellhead. I didn\u2019t drill it, but I capped it, and I can tell you it was a lot of hard work. I routed everything to the flare chimney for now, and lit it on fire. Judging by the flames, there was definitely natural gas in there.',
     alt: 'Wellhead construction' },
 ];
 
 const M3_BRIEFING = [
-  { type: 'dialogue', speaker: 'lena', expression: 'happy',
-    text: 'I\u2019m really impressed. There\u2019s everything we need in that vent. It\u2019s not very powerful right now, but more than enough for the two of us. Water is becoming urgent \u2014 I\u2019m lightheaded already. The principle is simple: take what comes out of the well, run it through your new air cooler, and collect the condensed water in a barrel. Then connect the barrel to the shelter\u2019s water port.' },
-  { type: 'dialogue', speaker: 'lena', expression: 'disappointed',
-    text: 'But there\u2019s a problem. The battery can only connect to one thing, and right now it\u2019s connected to the room. The air cooler needs electricity too, for its fan. We need a power dispatcher \u2014 it takes electricity in and splits it out to multiple consumers. You should set that up first.' },
+  { type: 'dialogue', speaker: 'lena', expression: 'happy', delay_ms: 1500,
+    text: 'I\u2019m really impressed. There\u2019s everything we need in that vent. It\u2019s not very powerful right now, but more than enough for the two of us.' },
+  { type: 'dialogue', speaker: 'lena', expression: 'happy', delay_ms: 2000,
+    text: 'Water is becoming urgent \u2014 I\u2019m lightheaded already. Take what comes out of the well, run it through your air cooler, and collect the condensed water in a barrel. Then connect the barrel to the shelter\u2019s water port.' },
+  { type: 'dialogue', speaker: 'lena', expression: 'disappointed', delay_ms: 2000,
+    text: 'But there\u2019s a problem. The battery can only connect to one thing, and right now it\u2019s connected to the room. The air cooler needs electricity too. We need a power dispatcher \u2014 set that up first.' },
 ];
 
 const M3_VICTORY_LINES = {
@@ -26701,7 +27241,7 @@ const M3_VICTORY_LINES = {
 };
 
 const M3_OUTRO = [
-  { type: 'image', src: 'story_outro_1.webp', transition: 'fade', duration_ms: null,
+  { type: 'image', src: 'm3_outro_1.webp', transition: 'fade', duration_ms: null,
     fallbackText: 'Finally, water. I felt real proud plugging that barrel into our shelter. I felt like I could do anything, and we were going to make it for sure. I wanted a hot drink, but we only had cold water. I really enjoyed my glass of water though. Best water ever.',
     alt: 'Water barrel connected to shelter' },
 ];
@@ -32552,15 +33092,33 @@ const _LENA_LINES = {
 
 // ── SpeechBubble — pure display (character-agnostic) ──
 const SpeechBubble = {
-  _history: [],       // [{ text, _time }] — newest at end
+  _history: [],       // [{ text, source, priority, speaker, _time }] — newest at end
   _maxHistory: 20,
   _scrollTarget: 0,   // target scroll offset (pixels from bottom)
   _scroll: 0,         // current animated scroll offset
 
+  // [v19.2.0] Last source priority — for external suppression checks
+  _lastSourcePriority: 0,
+  _lastSourceTime: 0,
+
   push(msg) {
-    this._history.push({ text: msg.text, _time: Date.now() });
+    const source = msg.source || 'system';
+    const priority = msg.priority ?? SpeechPriority.IDLE;
+
+    // Track highest recent priority for external suppression queries
+    if (priority > this._lastSourcePriority || (Date.now() - this._lastSourceTime) > 5000) {
+      this._lastSourcePriority = priority;
+    }
+    this._lastSourceTime = Date.now();
+
+    this._history.push({ text: msg.text, source, priority, speaker: msg.speaker || null, _time: Date.now() });
     if (this._history.length > this._maxHistory) this._history.shift();
     this._scrollTarget = 0;
+  },
+
+  // [v19.2.0] Check if a given priority level is currently suppressed
+  isSuppressed(priority) {
+    return this._lastSourcePriority > priority && (Date.now() - this._lastSourceTime) < 5000;
   },
 
   history() { return this._history; },
@@ -32575,7 +33133,7 @@ const SpeechBubble = {
   },
 
   // For tests
-  clear() { this._history = []; this._scroll = 0; this._scrollTarget = 0; },
+  clear() { this._history = []; this._scroll = 0; this._scrollTarget = 0; this._lastSourcePriority = 0; this._lastSourceTime = 0; },
 };
 
 // ── CharacterVoice — personality engine ──
@@ -32619,12 +33177,26 @@ const CharacterVoice = {
     if (!text) return;
     this._cooldownTimers[cooldownKey] = Date.now();
     this._cooldownTimers._global = Date.now();
-    SpeechBubble.push({ text });
+    SpeechBubble.push({ text, source: cooldownKey || 'room_diag', priority: priority || SpeechPriority.ROOM_DIAG });
   },
 
   // ── Main integration hook — called from render() ──
   onRoomUpdate(u) {
     if (!u?.last) return;
+
+    // [v19.2.0] In campaign mode, suppress room diagnostics during narrative states
+    // and while guidance system is actively guiding the player
+    if (typeof _activeGameMode !== 'undefined' && _activeGameMode === GameMode.CAMPAIGN) {
+      const suppress = new Set([
+        PlayState.ARC_INTRO, PlayState.STORY_INTRO, PlayState.BRIEFING,
+        PlayState.STORY_OUTRO, PlayState.ARC_CONCLUSION, PlayState.CAMPAIGN_CONCLUSION,
+        PlayState.VICTORY, PlayState.EVALUATE, PlayState.GAME_OVER, PlayState.TITLE,
+      ]);
+      if (suppress.has(_playState)) return;
+      // Also suppress while guidance is active — let guidance speak first
+      if (typeof GuidanceSystem !== 'undefined' && GuidanceSystem._active) return;
+    }
+
     // Only process on actual time steps — not pause/pan/zoom renders
     const frame = typeof TimeClock !== 'undefined' ? TimeClock.frame : 0;
     if (frame === this._prevFrame && this._prevExpr !== null) return;
@@ -39105,6 +39677,13 @@ function drawUnits() {
       }
       // If clicking a unit already in multi-select, keep selection for group drag
 
+      // [v19.3.0] Block dragging preplaced units in campaign mode
+      if (_activeGameMode === GameMode.CAMPAIGN && u._preplaced) {
+        // Allow select (for inspection) but not drag
+        render();
+        return;
+      }
+
       // [v12.10.0] Group drag setup
       ui.isDraggingUnit = true;
       ui.dragUnitId = id;
@@ -44593,6 +45172,7 @@ function togglePalette(forceState) {
   if (shouldOpen) {
     drawer.classList.add('open');
     populatePalette();
+    _emitGuidanceEvent({ type: 'palette_opened' });  // [v19.2.0]
   } else {
     drawer.classList.remove('open');
   }
@@ -44691,6 +45271,12 @@ let _inspTransitioning = false;
 
 function updatePropertiesPanel() {
   const panel = document.getElementById('rightPanel');
+
+  // [v19.2.0] Guidance: check unit_inspected completion
+  if (_activeGameMode === GameMode.CAMPAIGN && ui.selectedUnitId) {
+    const u = scene.units.get(ui.selectedUnitId);
+    if (u) _emitGuidanceEvent({ type: 'unit_inspected', profileId: u.profileId });
+  }
 
   // [v12.10.0] Multi-select summary
   if (ui.selectedUnitIds.size > 1) {
@@ -44796,6 +45382,15 @@ function _rebuildInspectorContent() {
     const delBtn = el('button', { class: 'ins-delete-btn', html: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 4h12M5.3 4V2.7a1 1 0 011-1h3.4a1 1 0 011 1V4M6.5 7v4.5M9.5 7v4.5M3.5 4l.7 9a1.5 1.5 0 001.5 1.4h4.6a1.5 1.5 0 001.5-1.4l.7-9"/></svg>' });
     delBtn.title = 'Delete unit';
     delBtn.addEventListener('click', () => deleteSelected());
+    // [v19.3.0] Preplaced unit guards: lock icon, hide delete, read-only name
+    if (_activeGameMode === GameMode.CAMPAIGN && u._preplaced) {
+      delBtn.style.display = 'none';
+      nameInput.readOnly = true;
+      nameInput.style.opacity = '0.6';
+      const lockBadge = el('span', { html: '\uD83D\uDD12', style: 'font-size:12px; margin-left:4px; opacity:0.5;' });
+      lockBadge.title = 'Preplaced \u2014 can\u2019t delete or move';
+      titleDiv.appendChild(lockBadge);
+    }
     titleDiv.appendChild(delBtn);
     headerDiv.appendChild(titleDiv);
     const _insTierProfile = ProfileRegistry.get(u.profileId || u.defId);
@@ -45428,6 +46023,134 @@ let _activeGameMode = GameMode.SANDBOX;
 let _activeCampaignState = null;   // CampaignState instance or null
 let _activeMissionId = null;       // current mission id or null
 
+// [v19.1.0 S-MISSION Phase 2] Play state machine
+let _playState = PlayState.TITLE;
+let _missionStartTime = 0;  // TimeClock.t at mission load, for elapsed time
+let _missionConditionTimers = {};  // [v19.4.0] objective id → accumulated seconds when conditions met
+
+// [v19.1.0] Transition the play state with cinematic safety.
+// Overlay states (STORY_INTRO, BRIEFING, VICTORY, etc.) auto-stop the sim.
+function setPlayState(newState) {
+  const prev = _playState;
+  _playState = newState;
+
+  // Cinematic safety (§10.2): stop sim on any overlay state
+  const overlayStates = new Set([
+    PlayState.STORY_INTRO, PlayState.STORY_OUTRO,
+    PlayState.ARC_INTRO, PlayState.ARC_CONCLUSION,
+    PlayState.CAMPAIGN_CONCLUSION, PlayState.BRIEFING,
+    PlayState.VICTORY, PlayState.EVALUATE, PlayState.GAME_OVER,
+  ]);
+  if (overlayStates.has(newState)) {
+    if (typeof stopPlay === 'function' && TimeClock.mode === 'playing') {
+      stopPlay();
+    }
+  }
+
+  // Checkpoint boundary: reset stack at mission start
+  if (newState === PlayState.BUILD && prev === PlayState.BRIEFING) {
+    TimeClock._checkpoints = [];
+    TimeClock._cpIndex = -1;
+    TimeClock._stepsSinceAutoCp = 0;
+    if (typeof scene !== 'undefined') {
+      TimeClock._saveCheckpoint(scene, 'mission-start');
+    }
+  }
+}
+
+// [v19.1.0] Career save manager — localStorage, max 10 careers
+const CareerSaveManager = {
+  _KEY_PREFIX: 'ptis_career_',
+  _INDEX_KEY: 'ptis_career_index',
+  MAX_CAREERS: 10,
+
+  // Get list of saved careers: [{ slot, careerName, campaignId, currentMissionId, stars, timestamp }]
+  list() {
+    const index = this._loadIndex();
+    return index;
+  },
+
+  // Save a career to a slot (0-based). Returns true on success.
+  save(slot, campaignState, currentSceneJSON) {
+    if (slot < 0 || slot >= this.MAX_CAREERS) return false;
+    const data = {
+      careerVersion: 1,
+      careerName: campaignState.careerName,
+      campaignId: campaignState.campaignId,
+      campaignState: campaignState.serialize(),
+      currentScene: currentSceneJSON || null,
+      timestamp: Date.now(),
+    };
+    try {
+      localStorage.setItem(this._KEY_PREFIX + slot, JSON.stringify(data));
+      this._updateIndex();
+      return true;
+    } catch (e) { return false; }
+  },
+
+  // Load a career from a slot. Returns { campaignState: CampaignState, currentScene } or null.
+  load(slot) {
+    try {
+      const raw = localStorage.getItem(this._KEY_PREFIX + slot);
+      if (!raw) return null;
+      const data = JSON.parse(raw);
+      const cs = CampaignState.deserialize(data.campaignState);
+      return { campaignState: cs, currentScene: data.currentScene || null };
+    } catch (e) { return null; }
+  },
+
+  // Delete a career slot.
+  delete(slot) {
+    localStorage.removeItem(this._KEY_PREFIX + slot);
+    this._updateIndex();
+  },
+
+  // Find first free slot. Returns slot number or -1 if full.
+  findFreeSlot() {
+    for (let i = 0; i < this.MAX_CAREERS; i++) {
+      if (!localStorage.getItem(this._KEY_PREFIX + i)) return i;
+    }
+    return -1;
+  },
+
+  // Rebuild the lightweight index from stored data.
+  _updateIndex() {
+    const index = [];
+    for (let i = 0; i < this.MAX_CAREERS; i++) {
+      try {
+        const raw = localStorage.getItem(this._KEY_PREFIX + i);
+        if (!raw) continue;
+        const data = JSON.parse(raw);
+        const cs = data.campaignState || {};
+        // Count total stars
+        let totalStars = 0;
+        if (cs.completed) {
+          for (const v of Object.values(cs.completed)) totalStars += (v.stars || 0);
+        }
+        index.push({
+          slot: i,
+          careerName: data.careerName || cs.careerName || 'Career',
+          campaignId: data.campaignId || cs.campaignId,
+          currentMissionId: cs.currentMissionId || null,
+          totalStars,
+          missionsCompleted: cs.completed ? Object.keys(cs.completed).length : 0,
+          timestamp: data.timestamp || 0,
+        });
+      } catch (e) { /* skip corrupt */ }
+    }
+    try { localStorage.setItem(this._INDEX_KEY, JSON.stringify(index)); } catch (e) {}
+    return index;
+  },
+
+  _loadIndex() {
+    try {
+      const raw = localStorage.getItem(this._INDEX_KEY);
+      if (raw) return JSON.parse(raw);
+    } catch (e) {}
+    return this._updateIndex();
+  },
+};
+
 // [v19.0.0] Count placed units by profileId in current scene
 function _countPlacedByProfile(profileId) {
   let count = 0;
@@ -45582,9 +46305,17 @@ scene.placeUnit = function(...args) {
   return result;
 };
 const _origDeleteUnit = scene.deleteUnit.bind(scene);
-scene.deleteUnit = function(...args) {
+scene.deleteUnit = function(id, ...rest) {
+  // [v19.3.0] Block deletion of preplaced units in campaign mode
+  if (_activeGameMode === GameMode.CAMPAIGN) {
+    const u = scene.units.get(id);
+    if (u?._preplaced) {
+      showToast('Can\u2019t delete \u2014 this unit is part of the mission.');
+      return false;
+    }
+  }
   _pushUndo('Delete unit');
-  const result = _origDeleteUnit(...args);
+  const result = _origDeleteUnit(id, ...rest);
   autoSave();
   return result;
 };
@@ -45872,7 +46603,12 @@ function deleteSelected() {
     // [v12.10.0] Multi-delete
     _pushUndo('Delete units');
     const ids = [...ui.selectedUnitIds];
-    for (const id of ids) {
+    // [v19.3.0] Filter out preplaced units in campaign mode
+    const deletable = _activeGameMode === GameMode.CAMPAIGN
+      ? ids.filter(id => !scene.units.get(id)?._preplaced)
+      : ids;
+    const blocked = ids.length - deletable.length;
+    for (const id of deletable) {
       scene.units.delete(id);
       scene.connections = scene.connections.filter(
         c => c.from.unitId !== id && c.to.unitId !== id
@@ -45883,7 +46619,9 @@ function deleteSelected() {
     autoSave();
     updatePropertiesPanel();
     render();
-    showToast(`Deleted ${ids.length} units`);
+    showToast(blocked > 0
+      ? `Deleted ${deletable.length} units (${blocked} locked)`
+      : `Deleted ${deletable.length} units`);
   } else if (ui.selectedUnitId) {
     scene.deleteUnit(ui.selectedUnitId);
     _clearSelection();
@@ -46712,6 +47450,9 @@ function afterSolve(solveResult) {
       _triggerCatastrophicFeedback();
     }
   }
+
+  // [v19.2.0 S-MISSION] Campaign trigger evaluation + game-over check
+  if (typeof _missionAfterSolve === 'function') _missionAfterSolve();
 }
 
 // [v10.5.4] Subtle play-tick pulse — brief opacity dim, topo-ordered with tight stagger
@@ -48413,6 +49154,7 @@ function startPlay() {
   _startFlowArrows();
   syncPlanetBgTime('play');
   _startIconAnim();  // [v15.2.0 S-ICONS]
+  _emitGuidanceEvent({ type: 'play_pressed' });  // [v19.2.0]
   _schedulePlayTick(true);  // [v17.4.3] first tick immediate
 }
 
@@ -48485,6 +49227,44 @@ function autoPauseOnTopologyChange() {
   if (TimeClock.mode === 'playing') {
     stopPlay();
     setStatus('⏸ Auto-paused — topology changed');
+  }
+  // [v19.2.0] Check guidance completion after any topology change
+  _checkGuidanceFromScene();
+}
+
+// [v19.2.0] Check guidance step completion by scanning current scene state
+function _checkGuidanceFromScene() {
+  if (_activeGameMode !== GameMode.CAMPAIGN) return;
+  const step = GuidanceSystem.currentStep();
+  if (!step?.completion) return;
+  const comp = step.completion;
+
+  switch (comp.type) {
+    case 'connection': {
+      if (_connectionExists(scene, comp.fromProfile, comp.toProfile, { portType: comp.portType })) {
+        _emitGuidanceEvent({ type: 'connection', fromProfile: comp.fromProfile, toProfile: comp.toProfile });
+      }
+      break;
+    }
+    case 'unit_placed': {
+      if (_unitsByProfile(scene, comp.profileId).length > 0) {
+        _emitGuidanceEvent({ type: 'unit_placed', profileId: comp.profileId });
+      }
+      break;
+    }
+    case 'objective_complete': {
+      // Check if this specific objective is met
+      const runtime = { missionElapsed_s: TimeClock.t - _missionStartTime, converged: true, _conditionTimers: _missionConditionTimers };
+      const mission = MissionRegistry.get(_activeMissionId);
+      if (mission) {
+        const obj = mission.objectives.find(o => o.id === comp.objectiveId);
+        if (obj) {
+          const r = evaluateCriterion(obj, scene, runtime);
+          if (r.met) _emitGuidanceEvent({ type: 'objective_complete', objectiveId: comp.objectiveId });
+        }
+      }
+      break;
+    }
   }
 }
 
@@ -49724,7 +50504,7 @@ function _titleAnimPlay() {
 // Action map — each button calls titleAction(key)
 const TITLE_ACTIONS = {
   sandbox:   () => enterGame('sandbox'),
-  career:    () => showToast('Career mode — coming soon'),
+  career:    () => showCareerList(),
   quickgame: () => showToast('Quick Game — coming soon'),
 };
 
@@ -49749,11 +50529,969 @@ _activateTitleBg();
 // Fire title animation on load (deferred slightly for paint)
 setTimeout(_titleAnimPlay, 150);
 
+// ═══════════════════════════════════════════════════════════════════════════
+// [v19.1.0 S-MISSION Phase 2] Mission load & completion
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Load a mission into the game. Full §32 sequence.
+ * Requires _activeCampaignState and _activeMissionId to be set.
+ */
+function loadMission(missionId) {
+  const mission = MissionRegistry.get(missionId);
+  if (!mission || !_activeCampaignState) return false;
+
+  // 1. Stop sim if running (cinematic safety)
+  if (typeof stopPlay === 'function') stopPlay();
+
+  // 2. Build scene from inherited + preplaced
+  const sceneJSON = buildMissionScene(_activeCampaignState, missionId);
+  if (!sceneJSON) return false;
+
+  // 3. Import scene
+  const result = scene.importJSON(sceneJSON);
+  if (result && !result.ok) return false;
+  if (result.layoutPatch) applyLayout(result.layoutPatch);
+
+  // 4. Mark preplaced units on live scene objects
+  const arc = ArcRegistry.get(mission.arcId);
+  const allPreplacedIds = new Set();
+  if (arc) {
+    for (const mid of arc.missions) {
+      const m = MissionRegistry.get(mid);
+      if (m) for (const pu of m.preplacedUnits) allPreplacedIds.add(pu.id);
+      if (mid === missionId) break;
+    }
+  }
+  for (const [id, u] of scene.units) {
+    if (allPreplacedIds.has(id)) u._preplaced = true;
+  }
+
+  // 5. Set campaign globals
+  _activeMissionId = missionId;
+  _missionStartTime = TimeClock.t;
+  _missionConditionTimers = {};  // [v19.4.0] reset duration tracking
+
+  // 6. Effective palette applied via populatePalette() (reads _activeMissionId)
+
+  // 7. Reset checkpoints
+  TimeClock._checkpoints = [];
+  TimeClock._cpIndex = -1;
+  TimeClock._stepsSinceAutoCp = 0;
+
+  // 8. Solve once to populate u.last for all units
+  const solveResult = solveScene(scene);
+
+  // 9. Seed first checkpoint
+  TimeClock._saveCheckpoint(scene, 'mission-start');
+
+  // 10. Update UI
+  document.getElementById('processNameInput').value = mission.title;
+  updatePropertiesPanel();
+  render();
+  if (typeof fitView === 'function') fitView();  // [v19.2.0] auto-center on mission load
+  updateTransportUI();
+  applyPlanetBg();
+  updateSurvivalStrip();
+  if (typeof populatePalette === 'function') populatePalette();
+  if (typeof updateMissionHUD === 'function') updateMissionHUD();  // [v19.3.0] show objectives
+
+  // 11. Set play state to BUILD (briefing will be handled by Phase 3 beat player)
+  setPlayState(PlayState.BUILD);
+
+  return true;
+}
+
+/**
+ * Complete the current mission. Full §33 sequence.
+ * Called when player clicks "Complete Mission" button.
+ * @returns {{ passed, starCount, objectiveResults, starResults } | null}
+ */
+function completeMission() {
+  if (!_activeCampaignState || !_activeMissionId) return null;
+
+  // 1. Pause
+  if (typeof stopPlay === 'function') stopPlay();
+  setPlayState(PlayState.EVALUATE);
+
+  // 2. Evaluate
+  const elapsed = TimeClock.t - _missionStartTime;
+  const runtime = {
+    missionElapsed_s: elapsed,
+    converged: scene.runtime?.lastSolve?.ok !== false,
+    _conditionTimers: _missionConditionTimers,
+  };
+  const result = evaluateMissionCompletion(_activeMissionId, scene, runtime);
+
+  // 3. If failed — return to BUILD with feedback
+  if (!result.passed) {
+    setPlayState(PlayState.BUILD);
+    return result;
+  }
+
+  // 4. Lock stars, record completion
+  const sceneJSON = scene.exportJSON ? scene.exportJSON() : JSON.stringify({ units: [], connections: [] });
+  _activeCampaignState.completeMission(_activeMissionId, result.starCount, sceneJSON);
+
+  // 5. Autosave career
+  const slot = _activeCareerSlot ?? 0;
+  CareerSaveManager.save(slot, _activeCampaignState, sceneJSON);
+
+  // 6. Victory state
+  setPlayState(PlayState.VICTORY);
+
+  return result;
+}
+
+/**
+ * Advance to next mission after victory. Called by "Continue" button.
+ * @returns {{ type: 'mission'|'arc'|'campaign_complete', id? }}
+ */
+function advanceMission() {
+  if (!_activeCampaignState) return null;
+
+  const next = _activeCampaignState.advanceToNext();
+  if (!next) return null;
+
+  if (next.type === 'mission') {
+    startMissionFlow(next.id);  // async — plays story intro, briefing, etc.
+  } else if (next.type === 'arc') {
+    // Arc conclusion → play arc conclusion cinematic, then start first mission of next arc
+    setPlayState(PlayState.ARC_CONCLUSION);
+    const prevArc = ArcRegistry.get(_activeCampaignState.currentArcId);
+    const nextArc = ArcRegistry.get(next.id);
+    (async () => {
+      if (prevArc?.conclusion?.length > 0) {
+        await CinematicPlayer.play(prevArc.conclusion);
+      }
+      if (nextArc?.missions?.length > 0) {
+        startMissionFlow(nextArc.missions[0]);
+      }
+    })();
+  } else {
+    // Campaign complete
+    setPlayState(PlayState.CAMPAIGN_CONCLUSION);
+  }
+
+  return next;
+}
+
+// Career slot tracker
+let _activeCareerSlot = null;
+
+// ═══════════════════════════════════════════════════════════════════════════
+// [v19.2.0 S-MISSION Phase 3] Narrative, triggers, guidance, overlays
+// ═══════════════════════════════════════════════════════════════════════════
+
+const IMG_BASE = 'img/';
+
+// ── CinematicPlayer — full-screen beat overlay ──────────────────────────
+const CinematicPlayer = {
+  _beats: [],
+  _index: 0,
+  _resolve: null,  // Promise resolver for play()
+  _overlay: null,
+
+  /** Play an array of CinematicBeats. Returns a Promise that resolves when done. */
+  play(beats) {
+    if (!beats || beats.length === 0) return Promise.resolve();
+    this._beats = beats;
+    this._index = 0;
+    this._overlay = document.getElementById('cinematicOverlay');
+    if (!this._overlay) return Promise.resolve();
+
+    return new Promise(resolve => {
+      this._resolve = resolve;
+      this._overlay.classList.add('active');
+      this._overlay.onclick = () => this._advance();
+      this._showBeat(0);
+    });
+  },
+
+  _showBeat(idx) {
+    if (idx >= this._beats.length) { this._finish(); return; }
+    this._index = idx;
+    const beat = this._beats[idx];
+    const content = this._overlay.querySelector('.cin-content');
+    if (!content) { this._finish(); return; }
+    content.innerHTML = '';
+
+    if (beat.type === 'image') {
+      // Try to load image; on failure just remove img — text already shown below
+      const img = document.createElement('img');
+      img.className = 'cin-img';
+      img.alt = beat.alt || '';
+      img.onload = () => img.classList.add('loaded');
+      img.onerror = () => img.remove();  // graceful: text already visible
+      img.src = IMG_BASE + beat.src;
+      content.appendChild(img);
+
+      // Narration text — always shown (with or without image)
+      if (beat.fallbackText) {
+        const txt = document.createElement('div');
+        txt.className = 'cin-text';
+        txt.textContent = beat.fallbackText;
+        content.appendChild(txt);
+        requestAnimationFrame(() => requestAnimationFrame(() => txt.classList.add('visible')));
+      }
+
+    } else if (beat.type === 'title_card') {
+      const t = document.createElement('div');
+      t.className = 'cin-title';
+      t.textContent = beat.title || '';
+      content.appendChild(t);
+      if (beat.subtitle) {
+        const s = document.createElement('div');
+        s.className = 'cin-subtitle';
+        s.textContent = beat.subtitle;
+        content.appendChild(s);
+      }
+
+    } else if (beat.type === 'narrator') {
+      this._showFallbackText(content, beat.text || '');
+
+    } else if (beat.type === 'pause') {
+      // Auto-advance after duration
+      if (beat.duration_ms > 0) {
+        setTimeout(() => this._advance(), beat.duration_ms);
+        return;  // no click advance for pauses
+      }
+    }
+
+    // Auto-advance for timed beats (duration_ms !== null)
+    if (beat.duration_ms != null && beat.duration_ms > 0 && beat.type !== 'pause') {
+      setTimeout(() => {
+        if (this._index === idx) this._advance();  // only if still on same beat
+      }, beat.duration_ms);
+    }
+  },
+
+  _showFallbackText(container, text) {
+    const txt = document.createElement('div');
+    txt.className = 'cin-text';
+    txt.textContent = text;
+    container.appendChild(txt);
+    requestAnimationFrame(() => requestAnimationFrame(() => txt.classList.add('visible')));
+  },
+
+  _advance() {
+    this._showBeat(this._index + 1);
+  },
+
+  _finish() {
+    if (this._overlay) {
+      this._overlay.classList.remove('active');
+      this._overlay.onclick = null;
+    }
+    this._beats = [];
+    if (this._resolve) { this._resolve(); this._resolve = null; }
+  },
+
+  // Skip (for dev/testing)
+  skip() { this._finish(); },
+};
+
+// ── MissionBeatPlayer — briefing dialogue via SpeechBubble ──────────────
+const MissionBeatPlayer = {
+  _beats: [],
+  _index: 0,
+  _resolve: null,
+  _timer: null,
+
+  /** Play briefing beats sequentially. Returns Promise resolving when done. */
+  play(beats) {
+    if (!beats || beats.length === 0) return Promise.resolve();
+    this._beats = beats;
+    this._index = 0;
+
+    return new Promise(resolve => {
+      this._resolve = resolve;
+      this._playNext();
+    });
+  },
+
+  _playNext() {
+    if (this._index >= this._beats.length) { this._finish(); return; }
+    const beat = this._beats[this._index];
+    this._index++;
+
+    if (beat.type === 'dialogue' || !beat.type) {
+      SpeechBubble.push({
+        text: beat.text,
+        speaker: beat.speaker || 'lena',
+        source: 'briefing',
+        priority: SpeechPriority.BRIEFING,
+      });
+    } else if (beat.type === 'system') {
+      SpeechBubble.push({
+        text: beat.text,
+        source: 'system',
+        priority: SpeechPriority.BRIEFING,
+      });
+    }
+    // Image beats in briefing — skip (shown in cinematic only)
+
+    const delay = beat.delay_ms || 2000;
+    this._timer = setTimeout(() => this._playNext(), delay);
+  },
+
+  _finish() {
+    if (this._timer) { clearTimeout(this._timer); this._timer = null; }
+    this._beats = [];
+    if (this._resolve) { this._resolve(); this._resolve = null; }
+  },
+
+  skip() { this._finish(); },
+};
+
+// ── TriggerEngine — condition→action evaluation per tick ────────────────
+const TriggerEngine = {
+  _triggers: [],
+  _firedOnce: new Set(),
+
+  init(triggers) {
+    this._triggers = (triggers || []).map(tr => ({ ...tr }));
+    this._firedOnce = new Set();
+  },
+
+  /** Called each tick (from afterSolve or play loop). */
+  evaluate(scene, runtime) {
+    for (const tr of this._triggers) {
+      if (tr.once && this._firedOnce.has(tr.id)) continue;
+      if (!this._checkCondition(tr.condition, scene, runtime)) continue;
+
+      // Fire action
+      this._fireAction(tr.action);
+      if (tr.once) this._firedOnce.add(tr.id);
+    }
+  },
+
+  _checkCondition(cond, scene, runtime) {
+    if (!cond) return false;
+    switch (cond.type) {
+      case 'time_elapsed':
+        return (runtime.missionElapsed_s || 0) >= (cond.seconds || 0);
+
+      case 'depletion_below': {
+        const units = _unitsByProfile(scene, cond.profileId);
+        if (units.length === 0) return false;
+        const u = units[0];
+        const last = u.last || {};
+        // [v19.4.0] consumable depletion: remaining from u.last, capacity from u.params
+        if (last.consumable_remaining != null) {
+          const capacity = u.params?.consumable?.capacity || 1;
+          return (last.consumable_remaining / capacity) < (cond.threshold || 0);
+        }
+        // Generic fill level
+        const fill = (last.fillPct ?? 0) / 100;
+        return fill < (cond.threshold || 0);
+      }
+
+      case 'temperature_above': {
+        const units = _unitsByProfile(scene, cond.location);
+        if (units.length === 0) return false;
+        const T = units[0].last?.T_room_K ?? units[0].last?.T_K ?? units[0].inventory?.T_K ?? 0;
+        return T > (cond.T_K || Infinity);
+      }
+
+      case 'temperature_below': {
+        const units = _unitsByProfile(scene, cond.location);
+        if (units.length === 0) return false;
+        const T = units[0].last?.T_room_K ?? units[0].last?.T_K ?? units[0].inventory?.T_K ?? Infinity;
+        return T < (cond.T_K || 0);
+      }
+
+      case 'level_above': {
+        const units = _unitsByProfile(scene, cond.profileId);
+        if (units.length === 0) return false;
+        const fill = (units[0].last?.fillPct ?? 0) / 100;
+        return fill > (cond.threshold || 0);
+      }
+
+      case 'level_below': {
+        const units = _unitsByProfile(scene, cond.profileId);
+        if (units.length === 0) return false;
+        const fill = (units[0].last?.fillPct ?? 0) / 100;
+        return fill < (cond.threshold || 0);
+      }
+
+      case 'species_above': {
+        const units = _unitsByProfile(scene, cond.location || 'shelter');
+        if (units.length === 0) return false;
+        const last = units[0].last || {};
+        const frac = cond.species === 'O2' ? (last.room_x_O2 || 0)
+                   : cond.species === 'CO2' ? (last.room_x_CO2 || 0) : 0;
+        return frac > (cond.threshold || 0);
+      }
+
+      case 'species_below': {
+        const units = _unitsByProfile(scene, cond.location || 'shelter');
+        if (units.length === 0) return false;
+        const last = units[0].last || {};
+        const frac = cond.species === 'O2' ? (last.room_x_O2 || 0)
+                   : cond.species === 'CO2' ? (last.room_x_CO2 || 0) : 0;
+        return frac < (cond.threshold || 0);
+      }
+
+      case 'crew_state': {
+        const rooms = _unitsByProfile(scene, 'shelter');
+        if (rooms.length === 0) return false;
+        return rooms[0].last?.crewState === cond.state;
+      }
+
+      case 'inventory_above': {
+        const units = _unitsByProfile(scene, cond.profileId);
+        if (units.length === 0) return false;
+        const moles = units[0].inventory?.n?.[cond.species] || 0;
+        return moles > (cond.threshold_mol || 0);
+      }
+
+      case 'inventory_below': {
+        const units = _unitsByProfile(scene, cond.profileId);
+        if (units.length === 0) return false;
+        const moles = units[0].inventory?.n?.[cond.species] || 0;
+        return moles < (cond.threshold_mol || 0);
+      }
+
+      case 'objective_complete': {
+        // Would need runtime._objectiveResults — deferred for now
+        return false;
+      }
+
+      case 'all_objectives_complete':
+        return false;  // evaluated at completion time, not per-tick
+
+      case 'unit_placed': {
+        return _unitsByProfile(scene, cond.profileId).length > 0;
+      }
+
+      case 'connection_exists': {
+        return _connectionExists(scene, cond.fromProfile, cond.toProfile, { portType: cond.portType });
+      }
+
+      default: return false;
+    }
+  },
+
+  _fireAction(action) {
+    if (!action) return;
+    switch (action.type) {
+      case 'dialogue':
+        SpeechBubble.push({
+          text: action.text,
+          speaker: action.speaker || 'lena',
+          source: 'trigger',
+          priority: SpeechPriority.TRIGGER,
+        });
+        if (action.autoPause && typeof stopPlay === 'function') {
+          stopPlay();
+        }
+        break;
+
+      case 'system_message':
+        SpeechBubble.push({
+          text: action.text,
+          source: 'system',
+          priority: SpeechPriority.TRIGGER,
+        });
+        if (action.autoPause && typeof stopPlay === 'function') {
+          stopPlay();
+        }
+        break;
+
+      // unlock_palette, set_param, etc. — deferred to when missions need them
+    }
+  },
+
+  reset() {
+    this._triggers = [];
+    this._firedOnce = new Set();
+  },
+};
+
+// ── GuidanceSystem — sequential tutorial steps ──────────────────────────
+const GuidanceSystem = {
+  _steps: [],
+  _index: 0,
+  _active: false,
+
+  init(steps) {
+    this._steps = steps || [];
+    this._index = 0;
+    this._active = this._steps.length > 0;
+    if (this._active) this._showCurrent();
+  },
+
+  currentStep() {
+    if (!this._active || this._index >= this._steps.length) return null;
+    return this._steps[this._index];
+  },
+
+  _showCurrent() {
+    const step = this.currentStep();
+    if (!step) return;
+    if (step.dialogue) {
+      SpeechBubble.push({
+        text: step.dialogue.text,
+        speaker: step.dialogue.speaker || 'lena',
+        source: 'guidance',
+        priority: SpeechPriority.GUIDANCE,
+      });
+    }
+    // Highlighting handled by GuidanceHighlighter (reads currentStep())
+  },
+
+  /** Check if a game event completes the current guidance step. */
+  checkCompletion(event) {
+    const step = this.currentStep();
+    if (!step) return;
+    const comp = step.completion;
+    if (!comp) return;
+
+    let completed = false;
+    switch (comp.type) {
+      case 'connection':
+        if (event.type === 'connection') {
+          const matchFrom = !comp.fromProfile || event.fromProfile === comp.fromProfile;
+          const matchTo = !comp.toProfile || event.toProfile === comp.toProfile;
+          if (matchFrom && matchTo) completed = true;
+        }
+        break;
+      case 'unit_placed':
+        if (event.type === 'unit_placed' && event.profileId === comp.profileId) completed = true;
+        break;
+      case 'play_pressed':
+        if (event.type === 'play_pressed') completed = true;
+        break;
+      case 'unit_inspected':
+        if (event.type === 'unit_inspected') {
+          const matchProfile = !comp.profileId || event.profileId === comp.profileId;
+          if (matchProfile) completed = true;
+        }
+        break;
+      case 'acknowledge':
+        if (event.type === 'acknowledge') completed = true;
+        break;
+      case 'objective_complete':
+        if (event.type === 'objective_complete' && event.objectiveId === comp.objectiveId) completed = true;
+        break;
+      case 'palette_opened':
+        if (event.type === 'palette_opened') completed = true;
+        break;
+    }
+
+    if (completed) {
+      // Fire onComplete dialogue
+      if (step.onComplete) {
+        SpeechBubble.push({
+          text: step.onComplete.text,
+          speaker: step.onComplete.speaker || 'lena',
+          source: 'guidance',
+          priority: SpeechPriority.GUIDANCE,
+        });
+      }
+      // Advance
+      this._index++;
+      if (this._index < this._steps.length) {
+        const delay = this._steps[this._index].delay_ms || 1500;
+        setTimeout(() => this._showCurrent(), delay);
+      } else {
+        this._active = false;
+      }
+    }
+  },
+
+  reset() {
+    this._steps = [];
+    this._index = 0;
+    this._active = false;
+  },
+};
+
+// ── GuidanceHighlighter — visual pulse/glow on targets ──────────────────
+const GuidanceHighlighter = {
+  _el: null,  // current highlight overlay element
+
+  update() {
+    this.clear();
+    if (_activeGameMode !== GameMode.CAMPAIGN) return;
+    const step = GuidanceSystem.currentStep();
+    if (!step || !step.highlight) return;
+    const h = step.highlight;
+
+    // Button highlight: add a pulsing class
+    if (h.type === 'button' && h.buttonId) {
+      const btn = document.getElementById(h.buttonId);
+      if (btn) {
+        btn.style.animation = 'pulse-glow 1.2s ease-in-out infinite';
+        this._el = btn;
+      }
+    }
+    // Other highlight types (unit, port, palette_tile, connection) would
+    // need SVG overlay rendering — deferred to Phase 4 visual polish.
+    // The guidance dialogue text is sufficient for playability.
+  },
+
+  clear() {
+    if (this._el) {
+      this._el.style.animation = '';
+      this._el = null;
+    }
+  },
+};
+
+// ── Guidance event emitter — wired into game actions ────────────────────
+function _emitGuidanceEvent(event) {
+  if (_activeGameMode !== GameMode.CAMPAIGN) return;
+  GuidanceSystem.checkCompletion(event);
+  GuidanceHighlighter.update();
+}
+
+// ── Victory screen ──────────────────────────────────────────────────────
+function showVictoryScreen(result) {
+  const overlay = document.getElementById('victoryOverlay');
+  if (!overlay) return;
+
+  const mission = MissionRegistry.get(_activeMissionId);
+  overlay.querySelector('.vic-title').textContent = mission?.title || 'Mission Complete';
+
+  const starStr = '★'.repeat(result.starCount) + '☆'.repeat(3 - result.starCount);
+  overlay.querySelector('.vic-stars').textContent = starStr;
+
+  const victoryLine = mission?.victoryLine?.[result.starCount];
+  overlay.querySelector('.vic-line').textContent = victoryLine?.text || 'Well done.';
+
+  overlay.classList.add('active');
+}
+
+function hideVictoryScreen() {
+  const overlay = document.getElementById('victoryOverlay');
+  if (overlay) overlay.classList.remove('active');
+}
+
+// ── Game over screen ────────────────────────────────────────────────────
+function showGameOverScreen(reason) {
+  const overlay = document.getElementById('gameOverOverlay');
+  if (!overlay) return;
+  overlay.querySelector('.go-text').textContent = reason || 'The crew did not survive.';
+  overlay.classList.add('active');
+  setPlayState(PlayState.GAME_OVER);
+}
+
+function hideGameOverScreen() {
+  const overlay = document.getElementById('gameOverOverlay');
+  if (overlay) overlay.classList.remove('active');
+}
+
+// ── Complete Mission button ─────────────────────────────────────────────
+// [v19.3.0] Objective panel + star tracker + complete button — unified update
+let _lastObjResult = null;  // cached for other consumers
+
+function updateMissionHUD() {
+  if (_activeGameMode !== GameMode.CAMPAIGN || !_activeMissionId) {
+    _hideObjectivePanel();
+    _hideCompleteMissionButton();
+    return;
+  }
+
+  const runtime = {
+    missionElapsed_s: TimeClock.t - _missionStartTime,
+    converged: scene.runtime?.lastSolve?.ok !== false,
+    _conditionTimers: _missionConditionTimers,
+  };
+  const result = evaluateMissionCompletion(_activeMissionId, scene, runtime);
+  _lastObjResult = result;
+
+  _updateObjectivePanel(result);
+  _updateCompleteMissionButton(result);
+}
+
+function _updateObjectivePanel(result) {
+  const panel = document.getElementById('objectivePanel');
+  if (!panel) return;
+  panel.classList.add('active');
+
+  // Star tracker
+  const starEl = document.getElementById('objStarTracker');
+  if (starEl) {
+    starEl.textContent = '\u2605'.repeat(result.starCount) + '\u2606'.repeat(3 - result.starCount);
+  }
+
+  // Objective items
+  const container = document.getElementById('objItems');
+  if (container) {
+    container.innerHTML = '';
+    for (const obj of result.objectiveResults) {
+      const item = document.createElement('div');
+      item.className = 'obj-item' + (obj.met ? ' obj-met' : '');
+      const desc = document.createElement('div');
+      desc.className = 'obj-desc';
+      desc.textContent = (obj.met ? '\u2714 ' : '\u25CB ') + (obj.description || obj.id);
+      item.appendChild(desc);
+      const prog = document.createElement('div');
+      prog.className = 'obj-progress';
+      prog.textContent = obj.progress || '';
+      item.appendChild(prog);
+      container.appendChild(item);
+    }
+  }
+
+  // Day counter
+  const dayEl = document.getElementById('objDayCounter');
+  if (dayEl) {
+    const elapsed = TimeClock.t - _missionStartTime;
+    const days = Math.floor(elapsed / 86400);
+    const hours = Math.floor((elapsed % 86400) / 3600);
+    dayEl.textContent = `Day ${days}, ${hours}h`;
+  }
+}
+
+function _hideObjectivePanel() {
+  const panel = document.getElementById('objectivePanel');
+  if (panel) panel.classList.remove('active');
+}
+
+function _updateCompleteMissionButton(result) {
+  const btn = document.getElementById('btnCompleteMission');
+  if (btn) btn.classList.toggle('visible', result.passed);
+}
+
+function _hideCompleteMissionButton() {
+  const btn = document.getElementById('btnCompleteMission');
+  if (btn) btn.classList.remove('visible');
+}
+
+// Keep old name for compatibility (called from _missionAfterSolve)
+function updateCompleteMissionButton() { updateMissionHUD(); }
+
+// ── Wire overlay buttons ────────────────────────────────────────────────
+// Victory "Continue"
+document.getElementById('btnVictoryContinue')?.addEventListener('click', async () => {
+  hideVictoryScreen();
+  const mission = MissionRegistry.get(_activeMissionId);
+
+  // Play story outro if any
+  if (mission?.storyOutro?.length > 0) {
+    setPlayState(PlayState.STORY_OUTRO);
+    await CinematicPlayer.play(mission.storyOutro);
+  }
+
+  // Advance to next
+  const next = advanceMission();
+  if (next?.type === 'campaign_complete') {
+    showToast('Campaign complete! Congratulations!');
+    goHome();
+  }
+});
+
+// Game over buttons
+document.getElementById('btnGameOverRevert')?.addEventListener('click', () => {
+  hideGameOverScreen();
+  // Revert to last checkpoint
+  if (TimeClock._cpIndex >= 0) {
+    TimeClock._loadCheckpoint(scene);
+    render();
+    updatePropertiesPanel();
+    updateTransportUI();
+  }
+  setPlayState(PlayState.BUILD);
+});
+
+document.getElementById('btnGameOverRestart')?.addEventListener('click', () => {
+  hideGameOverScreen();
+  if (_activeMissionId) loadMission(_activeMissionId);
+});
+
+// Complete Mission button
+document.getElementById('btnCompleteMission')?.addEventListener('click', async () => {
+  const result = completeMission();
+  if (!result) return;
+  if (result.passed) {
+    showVictoryScreen(result);
+  } else {
+    // Show feedback toast with first failing objective
+    const failed = result.objectiveResults.find(o => !o.met);
+    showToast(failed ? `Not complete: ${failed.progress}` : 'Objectives not met.');
+  }
+});
+
+// ── Career list overlay ─────────────────────────────────────────────────
+function showCareerList() {
+  const overlay = document.getElementById('careerListOverlay');
+  if (!overlay) return;
+
+  // Patch localStorage for career list in artifact viewer
+  const _store = {};
+  if (typeof localStorage.getItem('_test') === 'undefined') {
+    // No-op localStorage — won't happen in browser, but safe
+  }
+
+  const container = document.getElementById('clSlots');
+  container.innerHTML = '';
+
+  const careers = CareerSaveManager.list();
+  for (const c of careers) {
+    const slot = document.createElement('div');
+    slot.className = 'cl-slot';
+
+    const info = document.createElement('div');
+    info.className = 'cl-slot-info';
+    const name = document.createElement('div');
+    name.className = 'cl-slot-name';
+    name.textContent = c.careerName;
+    info.appendChild(name);
+
+    const detail = document.createElement('div');
+    detail.className = 'cl-slot-detail';
+    const missionTitle = c.currentMissionId ? (MissionRegistry.get(c.currentMissionId)?.title || c.currentMissionId) : '?';
+    detail.textContent = `${c.missionsCompleted} missions · ${c.totalStars}\u2605 · Next: ${missionTitle}`;
+    info.appendChild(detail);
+    slot.appendChild(info);
+
+    // Resume on click
+    slot.addEventListener('click', () => {
+      hideCareerList();
+      enterGame('campaign', { resumeSlot: c.slot });
+    });
+
+    // Delete button
+    const del = document.createElement('button');
+    del.className = 'cl-slot-del';
+    del.textContent = '\u00D7';
+    del.title = 'Delete career';
+    del.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      CareerSaveManager.delete(c.slot);
+      showCareerList();  // refresh
+    });
+    slot.appendChild(del);
+
+    container.appendChild(slot);
+  }
+
+  overlay.classList.add('active');
+}
+
+function hideCareerList() {
+  const overlay = document.getElementById('careerListOverlay');
+  if (overlay) overlay.classList.remove('active');
+}
+
+// New Career button
+document.getElementById('clNewCareer')?.addEventListener('click', () => {
+  hideCareerList();
+  enterGame('campaign', { campaignId: 'planet_x' });
+});
+
+// Back button
+document.getElementById('clBack')?.addEventListener('click', () => {
+  hideCareerList();
+});
+
+// ── Full mission flow integration ───────────────────────────────────────
+
+/**
+ * Start a mission with full narrative flow:
+ * arc intro (if first in arc) → story intro → briefing → BUILD
+ */
+async function startMissionFlow(missionId) {
+  const mission = MissionRegistry.get(missionId);
+  if (!mission) return;
+  const arc = ArcRegistry.get(mission.arcId);
+
+  // Arc intro — only for the first mission in the arc
+  if (arc && arc.missions[0] === missionId && arc.intro?.length > 0) {
+    setPlayState(PlayState.ARC_INTRO);
+    await CinematicPlayer.play(arc.intro);
+  }
+
+  // Story intro
+  if (mission.storyIntro?.length > 0) {
+    setPlayState(PlayState.STORY_INTRO);
+    await CinematicPlayer.play(mission.storyIntro);
+  }
+
+  // Load mission scene (data)
+  loadMission(missionId);
+
+  // Clear stale speech before briefing
+  SpeechBubble.clear();
+
+  // Briefing
+  if (mission.briefing?.length > 0) {
+    setPlayState(PlayState.BRIEFING);
+    await MissionBeatPlayer.play(mission.briefing);
+  }
+
+  // Init triggers and guidance
+  TriggerEngine.init(mission.triggers);
+  GuidanceSystem.init(mission.guidanceSteps);
+  GuidanceHighlighter.update();
+
+  // → BUILD (player takes over)
+  setPlayState(PlayState.BUILD);
+}
+
+// ── Trigger evaluation hook — called after each solve in play mode ──────
+function _missionAfterSolve() {
+  if (_activeGameMode !== GameMode.CAMPAIGN || !_activeMissionId) return;
+
+  const dt = TimeClock.dt || 3600;
+  const runtime = {
+    missionElapsed_s: TimeClock.t - _missionStartTime,
+    converged: scene.runtime?.lastSolve?.ok !== false,
+    _conditionTimers: _missionConditionTimers,
+  };
+
+  // Evaluate triggers
+  TriggerEngine.evaluate(scene, runtime);
+
+  // Check for crew death → game over
+  const rooms = _unitsByProfile(scene, 'shelter');
+  if (rooms.length > 0 && rooms[0].last?.crewState === 'death') {
+    showGameOverScreen('The crew did not survive.');
+    return;
+  }
+
+  // [v19.4.0] Evaluate objectives to update condition timers
+  const mission = MissionRegistry.get(_activeMissionId);
+  if (mission) {
+    for (const obj of mission.objectives) {
+      const r = evaluateCriterion(obj, scene, runtime);
+      const key = obj.id || obj.type;
+      if (r._conditionsOk === true) {
+        _missionConditionTimers[key] = (_missionConditionTimers[key] || 0) + dt;
+      } else if (r._conditionsOk === false) {
+        _missionConditionTimers[key] = 0;
+      }
+      // Also handle star criteria with duration
+    }
+    // Star criteria timers
+    for (const level of [1, 2, 3]) {
+      const star = mission.stars[level];
+      if (star?.criteria) {
+        for (const c of star.criteria) {
+          const r = evaluateCriterion(c, scene, runtime);
+          const key = c.id || ('star' + level + '_' + c.type);
+          if (r._conditionsOk === true) {
+            _missionConditionTimers[key] = (_missionConditionTimers[key] || 0) + dt;
+          } else if (r._conditionsOk === false) {
+            _missionConditionTimers[key] = 0;
+          }
+        }
+      }
+    }
+  }
+
+  // Update HUD (uses updated timers)
+  updateCompleteMissionButton();
+}
+
 // [v18.0.0 S-TITLE] ── Game entry transition ──────────────────────────────────
 // Extracted from the v14.10.3 startup IIFE.  Called by title screen button
 // (sandbox mode) or directly by the sentinel guard (test env / DEV_BUILD).
 
-function enterGame(mode) {
+function enterGame(mode, opts) {
   if (_gameActive) return;  // already entered
 
   // 1. Hide title screen, show game UI
@@ -49765,9 +51503,49 @@ function enterGame(mode) {
   // 2. Activate game lifecycle
   _gameActive = true;
 
-  // 3. Load scene (sandbox mode: autosave or demo fallback)
-  if (mode === 'sandbox') {
-    const DEMO_VERSION = 'v18.0.0'; // [v18.0.0 S-TITLE] bumped — clears stale autosave
+  // 3. Load scene based on mode
+  if (mode === 'campaign') {
+    // [v19.1.0] Campaign mode entry
+    _activeGameMode = GameMode.CAMPAIGN;
+
+    if (opts?.resumeSlot != null) {
+      // Resume existing career
+      const loaded = CareerSaveManager.load(opts.resumeSlot);
+      if (loaded) {
+        _activeCampaignState = loaded.campaignState;
+        _activeCareerSlot = opts.resumeSlot;
+      } else {
+        showToast('Failed to load career save.');
+        _gameActive = false;
+        if (titleEl) titleEl.style.display = '';
+        return;
+      }
+    } else {
+      // New career
+      const campaignId = opts?.campaignId || 'planet_x';
+      const careerName = opts?.careerName || 'Career ' + (CareerSaveManager.list().length + 1);
+      _activeCampaignState = new CampaignState(campaignId, careerName);
+      _activeCareerSlot = CareerSaveManager.findFreeSlot();
+      if (_activeCareerSlot < 0) _activeCareerSlot = 0;  // overwrite oldest if full
+    }
+
+    // Load current mission with full narrative flow
+    const missionId = _activeCampaignState.currentMissionId;
+    if (missionId) {
+      startMissionFlow(missionId);  // async — plays arc intro, story intro, briefing, then BUILD
+      // Save initial state
+      CareerSaveManager.save(_activeCareerSlot, _activeCampaignState, null);
+    }
+
+  } else {
+    // Sandbox mode (default)
+    _activeGameMode = GameMode.SANDBOX;
+    _activeCampaignState = null;
+    _activeMissionId = null;
+    _activeCareerSlot = null;
+    setPlayState(PlayState.BUILD);
+
+    const DEMO_VERSION = 'v19.0.0'; // [v19.0.0] bumped — clears stale autosave
     const _AUTOSAVE_VER_KEY = AUTOSAVE_KEY + '_demoVer';
     const saved = localStorage.getItem(AUTOSAVE_KEY);
     const savedDemoVer = localStorage.getItem(_AUTOSAVE_VER_KEY);
@@ -49799,28 +51577,52 @@ function enterGame(mode) {
     localStorage.setItem(_AUTOSAVE_VER_KEY, DEMO_VERSION);
   }
 
-  // 4. Refresh UI
-  updatePropertiesPanel();
-  render();
-  updateTransportUI();
-  applyPlanetBg();
-  updateSurvivalStrip();
+  // 4. Refresh UI (sandbox-specific; campaign UI already refreshed in loadMission)
+  if (mode !== 'campaign') {
+    updatePropertiesPanel();
+    render();
+    updateTransportUI();
+    applyPlanetBg();
+    updateSurvivalStrip();
 
-  // 5. Seed checkpoint stack with initial state
-  if (TimeClock._checkpoints.length === 0) {
-    TimeClock._cpIndex = -1;
-    TimeClock._stepsSinceAutoCp = 0;
-    TimeClock._saveCheckpoint(scene, 'auto');
+    // 5. Seed checkpoint stack with initial state
+    if (TimeClock._checkpoints.length === 0) {
+      TimeClock._cpIndex = -1;
+      TimeClock._stepsSinceAutoCp = 0;
+      TimeClock._saveCheckpoint(scene, 'auto');
+    }
+    updateTransportUI();
   }
-  updateTransportUI();
 }
 
 // [v18.0.0 S-TITLE] Return to title screen
 function goHome() {
   if (!_gameActive) return;
+
+  // [v19.1.0] Campaign: save career before leaving
+  if (_activeGameMode === GameMode.CAMPAIGN && _activeCampaignState && _activeCareerSlot != null) {
+    const sceneJSON = scene.exportJSON ? scene.exportJSON() : null;
+    CareerSaveManager.save(_activeCareerSlot, _activeCampaignState, sceneJSON);
+  }
+
   autoSaveNow();
   stopPlay();
   _gameActive = false;
+
+  // [v19.1.0] Reset campaign state
+  _activeGameMode = GameMode.SANDBOX;
+  _activeCampaignState = null;
+  _activeMissionId = null;
+  _activeCareerSlot = null;
+  setPlayState(PlayState.TITLE);
+
+  // [v19.3.0] Hide campaign HUD
+  _hideObjectivePanel();
+  _hideCompleteMissionButton();
+  TriggerEngine.reset();
+  GuidanceSystem.reset();
+  GuidanceHighlighter.clear();
+
   // Hide game UI
   const appEl = document.querySelector('.app');
   if (appEl) appEl.classList.remove('active');
@@ -68739,6 +70541,535 @@ function runTests() {
   });
 
   // ═══════════════════════════════════════════════════════════════════════
+  // [v19.1.0] S-MISSION Phase 2 — State machine, scene builder, completion
+  // ═══════════════════════════════════════════════════════════════════════
+
+  test('756: setPlayState — cinematic safety stops sim', t => {
+    // Save and restore state
+    const prevState = _playState;
+    const prevMode = TimeClock.mode;
+
+    // Simulate playing state
+    TimeClock.mode = 'playing';
+    setPlayState(PlayState.STORY_INTRO);
+    t.assertOK(_playState === PlayState.STORY_INTRO, 'state set to STORY_INTRO');
+    t.assertOK(TimeClock.mode === 'paused', 'sim stopped on overlay (STORY_INTRO)');
+
+    TimeClock.mode = 'playing';
+    setPlayState(PlayState.VICTORY);
+    t.assertOK(TimeClock.mode === 'paused', 'sim stopped on overlay (VICTORY)');
+
+    TimeClock.mode = 'playing';
+    setPlayState(PlayState.GAME_OVER);
+    t.assertOK(TimeClock.mode === 'paused', 'sim stopped on overlay (GAME_OVER)');
+
+    // Non-overlay state should NOT stop sim
+    TimeClock.mode = 'playing';
+    setPlayState(PlayState.RUN);
+    t.assertOK(TimeClock.mode === 'playing', 'sim NOT stopped for RUN');
+
+    // Restore
+    _playState = prevState;
+    TimeClock.mode = prevMode;
+  });
+
+  test('757: setPlayState — checkpoint reset on BRIEFING→BUILD', t => {
+    const prevState = _playState;
+    const prevCps = TimeClock._checkpoints;
+    const prevIdx = TimeClock._cpIndex;
+
+    // Seed fake checkpoint stack
+    TimeClock._checkpoints = [{}, {}, {}];
+    TimeClock._cpIndex = 2;
+
+    // BRIEFING → BUILD triggers checkpoint reset
+    _playState = PlayState.BRIEFING;
+    setPlayState(PlayState.BUILD);
+    t.assertOK(TimeClock._checkpoints.length === 1, 'checkpoint stack reset to 1 (mission-start seed)');
+    t.assertOK(TimeClock._cpIndex === 0, 'cpIndex reset to 0');
+
+    // Restore
+    _playState = prevState;
+    TimeClock._checkpoints = prevCps;
+    TimeClock._cpIndex = prevIdx;
+  });
+
+  test('758: buildMissionScene — M1 produces 3 preplaced units', t => {
+    const cs = new CampaignState('planet_x', 'Build Test');
+    const json = buildMissionScene(cs, 'arc_a_m1');
+    t.assertOK(json, 'returns JSON');
+    const data = JSON.parse(json);
+    t.assertOK(data.units.length === 3, '3 units: room, bottle, battery');
+    t.assertOK(data.processName === 'Breathe', 'processName from mission title');
+
+    // Check _preplaced flags
+    const room = data.units.find(u => u.id === 'room');
+    t.assertOK(room, 'room present');
+    t.assertOK(room._preplaced === true, 'room marked preplaced');
+    t.assertOK(room.profileId === 'shelter', 'room profileId = shelter');
+
+    const bottle = data.units.find(u => u.id === 'o2_bottle');
+    t.assertOK(bottle, 'bottle present');
+    t.assertClose(bottle.params.opening_gas_pct, 46.6, 0.01, 'bottle opening calibrated');
+  });
+
+  test('759: buildMissionScene — M2 inherits M1 + adds 2 preplaced', t => {
+    const cs = new CampaignState('planet_x', 'Build M2');
+    // Simulate M1 end scene with 3 units + connections
+    const m1End = JSON.stringify({
+      version: 19, processName: 'M1 Done',
+      grid: { w: 40, h: 32, tile: 48 },
+      settings: { atmospherePreset: 'planet_x', dt: 3600 },
+      units: [
+        { id: 'room', defId: 'room', profileId: 'shelter', tier: 1, x: 0, y: 0, params: {} },
+        { id: 'o2_bottle', defId: 'simple_tank', profileId: 'simple_gas_bottle', tier: 1, x: -7, y: 1, params: {} },
+        { id: 'battery', defId: 'battery', profileId: 'battery', tier: 1, x: 1, y: -3, params: {} },
+      ],
+      connections: [{ id: 'c1', from: { unitId: 'o2_bottle', portId: 'gas_out' }, to: { unitId: 'room', portId: 'o2_in' } }],
+      modelsActive: {}, solverOptions: {}, layout: {},
+    });
+    cs.missionEndScenes.set('arc_a_m1', m1End);
+
+    const json = buildMissionScene(cs, 'arc_a_m2');
+    const data = JSON.parse(json);
+
+    t.assertOK(data.units.length === 5, '3 inherited + 2 new preplaced = 5');
+    t.assertOK(data.connections.length === 1, 'inherited connection preserved');
+
+    // All 5 should be marked preplaced (3 from M1 + 2 from M2)
+    const preplaced = data.units.filter(u => u._preplaced);
+    t.assertOK(preplaced.length === 5, 'all 5 marked _preplaced');
+
+    // New units present
+    t.assertOK(data.units.find(u => u.id === 'flare'), 'flare added');
+    t.assertOK(data.units.find(u => u.id === 'scrubber'), 'scrubber added');
+  });
+
+  test('760: buildMissionScene — M2 skips duplicate preplaced ids', t => {
+    const cs = new CampaignState('planet_x', 'Dedup Test');
+    // M1 end scene already has room, bottle, battery
+    // M2 preplaced adds flare and scrubber — but what if scene already had 'flare'?
+    const m1End = JSON.stringify({
+      version: 19, processName: 'M1',
+      grid: { w: 40, h: 32, tile: 48 },
+      settings: { atmospherePreset: 'planet_x', dt: 3600 },
+      units: [
+        { id: 'room', defId: 'room', profileId: 'shelter', tier: 1, x: 0, y: 0, params: {} },
+        { id: 'flare', defId: 'flare_stack', profileId: 'flare_stack', tier: 1, x: 14, y: -6, params: {} },
+      ],
+      connections: [], modelsActive: {}, solverOptions: {}, layout: {},
+    });
+    cs.missionEndScenes.set('arc_a_m1', m1End);
+    const json = buildMissionScene(cs, 'arc_a_m2');
+    const data = JSON.parse(json);
+
+    // Should NOT duplicate the flare
+    const flares = data.units.filter(u => u.id === 'flare');
+    t.assertOK(flares.length === 1, 'no duplicate flare');
+  });
+
+  test('761: evaluateMissionCompletion — M1 all objectives met', t => {
+    t.clearScene();
+    // Build a minimal scene matching M1 objectives
+    const room = t.place('room', 0, 0, { nPeople: 2, powerPriority: 1 });
+    const bottle = t.place('simple_tank', -7, 0, {
+      volume_m3: 0.01, P_init: 30553950, initialComposition: { O2: 1 },
+      gasDrawRate: 0.001, opening_gas_pct: 46.6, P_relief: 35000000,
+    });
+    const bat = t.place('battery', 0, -4, {
+      peakPower_kW: 100, capacity_J: 1800000000, initialSOC: 1,
+    });
+    // Set correct profileIds (placeUnit defaults differ)
+    scene.units.get(room).profileId = 'shelter';
+    scene.units.get(bottle).profileId = 'simple_gas_bottle';
+    scene.units.get(bat).profileId = 'battery';
+    // Connect
+    t.wire(bat, 'elec', room, 'elec_in');
+    t.wire(bottle, 'gas_out', room, 'o2_in');
+    t.solve();
+
+    // Evaluate — objectives check connections + maintain_conditions
+    // maintain_conditions needs duration tracking (duration_s check) — but at instant t=0
+    // the connections should be met; duration won't be met instantly
+    const result = evaluateMissionCompletion('arc_a_m1', scene, {
+      missionElapsed_s: 0, converged: true,
+    });
+    t.assertOK(result, 'returns result');
+    // Connection objectives should be met
+    const connObj = result.objectiveResults.filter(o => o.id === 'connect_battery' || o.id === 'connect_o2');
+    t.assertOK(connObj.length === 2, '2 connection objectives found');
+    t.assertOK(connObj.every(o => o.met), 'both connection objectives met');
+    // maintain_conditions at t=0 won't be met (needs 3600s)
+    const maintObj = result.objectiveResults.find(o => o.id === 'o2_sustained');
+    t.assertOK(maintObj && !maintObj.met, 'maintain_conditions not met at t=0 (needs duration)');
+    t.assertOK(!result.passed, 'overall not passed (duration not met)');
+  });
+
+  test('762: evaluateMissionCompletion — star evaluation', t => {
+    // Use a mock runtime where all objectives pass
+    t.clearScene();
+    const room = t.place('room', 0, 0, { nPeople: 2, powerPriority: 1 });
+    const bottle = t.place('simple_tank', -7, 0, {
+      volume_m3: 0.01, P_init: 30553950, initialComposition: { O2: 1 },
+      gasDrawRate: 0.001, opening_gas_pct: 46.6, P_relief: 35000000,
+    });
+    const bat = t.place('battery', 0, -4, {
+      peakPower_kW: 100, capacity_J: 1800000000, initialSOC: 1,
+    });
+    scene.units.get(room).profileId = 'shelter';
+    scene.units.get(bottle).profileId = 'simple_gas_bottle';
+    scene.units.get(bat).profileId = 'battery';
+    t.wire(bat, 'elec', room, 'elec_in');
+    t.wire(bottle, 'gas_out', room, 'o2_in');
+    t.solve();
+
+    // Star 2 requires time_limit maxSeconds: 180 — pass with elapsed 100s
+    // Star 1 requires all_objectives_complete — needs maintain_conditions to pass
+    // We can't easily fake duration, so just check star structure
+    const result = evaluateMissionCompletion('arc_a_m1', scene, {
+      missionElapsed_s: 100, converged: true,
+    });
+    t.assertOK(result.starResults[1], 'star 1 result exists');
+    t.assertOK(result.starResults[2], 'star 2 result exists');
+    t.assertOK(result.starResults[3], 'star 3 result exists');
+    // Star 2 criteria includes time_limit 180s — elapsed 100 passes that criterion
+    const star2Time = result.starResults[2].criteria.find(c => c.progress && c.progress.includes('100s'));
+    t.assertOK(star2Time, 'star 2 time criterion evaluated');
+  });
+
+  test('763: CareerSaveManager — save, list, load, delete', t => {
+    // Patch localStorage with in-memory store for this test
+    const _store = {};
+    const _origLS = { getItem: localStorage.getItem, setItem: localStorage.setItem, removeItem: localStorage.removeItem };
+    localStorage.getItem = (k) => _store[k] ?? null;
+    localStorage.setItem = (k, v) => { _store[k] = String(v); };
+    localStorage.removeItem = (k) => { delete _store[k]; };
+
+    const cs = new CampaignState('planet_x', 'Save Test');
+    const ok = CareerSaveManager.save(0, cs, '{"test":1}');
+    t.assertOK(ok, 'save returns true');
+
+    const list = CareerSaveManager.list();
+    t.assertOK(list.length >= 1, 'list has entry');
+    t.assertOK(list[0].careerName === 'Save Test', 'career name in list');
+    t.assertOK(list[0].slot === 0, 'slot = 0');
+
+    const loaded = CareerSaveManager.load(0);
+    t.assertOK(loaded, 'load returns data');
+    t.assertOK(loaded.campaignState.careerName === 'Save Test', 'loaded career name');
+    t.assertOK(loaded.currentScene === '{"test":1}', 'loaded scene');
+
+    CareerSaveManager.delete(0);
+    const loaded2 = CareerSaveManager.load(0);
+    t.assertOK(!loaded2, 'deleted slot returns null');
+
+    // Restore
+    Object.assign(localStorage, _origLS);
+  });
+
+  test('764: CareerSaveManager — findFreeSlot', t => {
+    const _store = {};
+    const _origLS = { getItem: localStorage.getItem, setItem: localStorage.setItem, removeItem: localStorage.removeItem };
+    localStorage.getItem = (k) => _store[k] ?? null;
+    localStorage.setItem = (k, v) => { _store[k] = String(v); };
+    localStorage.removeItem = (k) => { delete _store[k]; };
+
+    t.assertOK(CareerSaveManager.findFreeSlot() === 0, 'first slot free');
+
+    const cs = new CampaignState('planet_x', 'Slot Test');
+    CareerSaveManager.save(0, cs, null);
+    t.assertOK(CareerSaveManager.findFreeSlot() === 1, 'second slot free after saving to 0');
+
+    // Restore
+    Object.assign(localStorage, _origLS);
+  });
+
+  test('765: buildMissionScene — M1 empty campaign produces valid scene', t => {
+    const cs = new CampaignState('planet_x', 'Empty Test');
+    const json = buildMissionScene(cs, 'arc_a_m1');
+    t.assertOK(json, 'returns JSON');
+    // Should be importable
+    t.clearScene();
+    const result = scene.importJSON(json);
+    t.assertOK(result.ok !== false, 'importJSON succeeds');
+    t.assertOK(scene.units.size === 3, '3 units after import');
+    // Verify a unit is present
+    const roomFound = [...scene.units.values()].find(u => u.profileId === 'shelter');
+    t.assertOK(roomFound, 'shelter found in imported scene');
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // [v19.2.0] S-MISSION Phase 3 — Narrative, triggers, guidance
+  // ═══════════════════════════════════════════════════════════════════════
+
+  test('766: SpeechBubble source tagging preserved', t => {
+    SpeechBubble.clear();
+    SpeechBubble.push({ text: 'Test briefing', source: 'briefing', priority: SpeechPriority.BRIEFING });
+    const h = SpeechBubble.history();
+    t.assertOK(h.length === 1, 'one message');
+    t.assertOK(h[0].source === 'briefing', 'source = briefing');
+    t.assertOK(h[0].priority === SpeechPriority.BRIEFING, 'priority = BRIEFING');
+    SpeechBubble.push({ text: 'Room update', source: 'room_diag', priority: SpeechPriority.ROOM_DIAG });
+    t.assertOK(SpeechBubble.history().length === 2, 'two messages');
+    t.assertOK(SpeechBubble.history()[1].source === 'room_diag', 'second source');
+    SpeechBubble.clear();
+  });
+
+  test('767: SpeechBubble isSuppressed', t => {
+    SpeechBubble.clear();
+    SpeechBubble.push({ text: 'high prio', source: 'briefing', priority: SpeechPriority.BRIEFING });
+    t.assertOK(SpeechBubble.isSuppressed(SpeechPriority.IDLE), 'IDLE suppressed by BRIEFING');
+    t.assertOK(SpeechBubble.isSuppressed(SpeechPriority.ROOM_DIAG), 'ROOM_DIAG suppressed');
+    t.assertOK(!SpeechBubble.isSuppressed(SpeechPriority.BRIEFING), 'BRIEFING not self-suppressed');
+    SpeechBubble.clear();
+  });
+
+  test('768: CinematicPlayer — skip resolves immediately', t => {
+    // CinematicPlayer is DOM-dependent; test the skip path
+    const p = CinematicPlayer.play([{ type: 'narrator', text: 'Test' }]);
+    CinematicPlayer.skip();
+    t.assertOK(CinematicPlayer._beats.length === 0, 'beats cleared after skip');
+  });
+
+  test('769: MissionBeatPlayer — skip resolves immediately', t => {
+    const p = MissionBeatPlayer.play([
+      { type: 'dialogue', speaker: 'lena', text: 'Test', delay_ms: 10000 }
+    ]);
+    MissionBeatPlayer.skip();
+    t.assertOK(MissionBeatPlayer._beats.length === 0, 'beats cleared after skip');
+  });
+
+  test('770: TriggerEngine — time_elapsed fires once', t => {
+    SpeechBubble.clear();
+    TriggerEngine.init([
+      { id: 'tr1', once: true,
+        condition: { type: 'time_elapsed', seconds: 10 },
+        action: { type: 'dialogue', speaker: 'lena', text: 'Trigger fired!' } },
+    ]);
+    // Below threshold
+    TriggerEngine.evaluate(scene, { missionElapsed_s: 5 });
+    t.assertOK(SpeechBubble.history().length === 0, 'not fired at 5s');
+    // At threshold
+    TriggerEngine.evaluate(scene, { missionElapsed_s: 15 });
+    t.assertOK(SpeechBubble.history().length === 1, 'fired at 15s');
+    t.assertOK(SpeechBubble.history()[0].text === 'Trigger fired!', 'correct text');
+    // Evaluate again — should not re-fire (once: true)
+    TriggerEngine.evaluate(scene, { missionElapsed_s: 20 });
+    t.assertOK(SpeechBubble.history().length === 1, 'not re-fired (once)');
+    TriggerEngine.reset();
+    SpeechBubble.clear();
+  });
+
+  test('771: TriggerEngine — connection_exists condition', t => {
+    t.clearScene();
+    SpeechBubble.clear();
+    const src = t.place('source', 0, 0, { species: 'N2', nDot: 1 });
+    const snk = t.place('sink', 4, 0);
+    TriggerEngine.init([
+      { id: 'tr_conn', once: true,
+        condition: { type: 'connection_exists', fromProfile: 'source', toProfile: 'sink' },
+        action: { type: 'dialogue', speaker: 'lena', text: 'Connected!' } },
+    ]);
+    TriggerEngine.evaluate(scene, {});
+    t.assertOK(SpeechBubble.history().length === 0, 'not fired without connection');
+    t.wire(src, 'mat_out', snk, 'mat_in');
+    TriggerEngine.evaluate(scene, {});
+    t.assertOK(SpeechBubble.history().length === 1, 'fired after connection');
+    TriggerEngine.reset();
+    SpeechBubble.clear();
+  });
+
+  test('772: GuidanceSystem — step advancement on connection event', t => {
+    SpeechBubble.clear();
+    GuidanceSystem.init([
+      { id: 'step1',
+        dialogue: { speaker: 'lena', text: 'Connect A to B' },
+        completion: { type: 'connection', fromProfile: 'source', toProfile: 'sink' },
+        onComplete: { speaker: 'lena', text: 'Done!' },
+        delay_ms: 0 },
+      { id: 'step2',
+        dialogue: { speaker: 'lena', text: 'Step 2' },
+        completion: { type: 'acknowledge' },
+        delay_ms: 0 },
+    ]);
+    t.assertOK(GuidanceSystem.currentStep()?.id === 'step1', 'starts at step1');
+    // Fire matching event
+    GuidanceSystem.checkCompletion({ type: 'connection', fromProfile: 'source', toProfile: 'sink' });
+    // onComplete should have fired
+    const hist = SpeechBubble.history();
+    t.assertOK(hist.some(m => m.text === 'Done!'), 'onComplete text pushed');
+    GuidanceSystem.reset();
+    SpeechBubble.clear();
+  });
+
+  test('773: GuidanceSystem — unit_placed completion', t => {
+    SpeechBubble.clear();
+    GuidanceSystem.init([
+      { id: 'place_step',
+        dialogue: { speaker: 'lena', text: 'Place it' },
+        completion: { type: 'unit_placed', profileId: 'power_dispatcher_5' },
+        onComplete: { speaker: 'lena', text: 'Placed!' },
+        delay_ms: 0 },
+    ]);
+    GuidanceSystem.checkCompletion({ type: 'unit_placed', profileId: 'power_dispatcher_5' });
+    t.assertOK(SpeechBubble.history().some(m => m.text === 'Placed!'), 'onComplete fired');
+    t.assertOK(GuidanceSystem.currentStep() === null, 'no more steps');
+    GuidanceSystem.reset();
+    SpeechBubble.clear();
+  });
+
+  test('774: Image src uses flat img/ convention', t => {
+    const arc = ArcRegistry.get('arc_a');
+    t.assertOK(arc.intro[0].src === 'arc_a_1.webp', 'arc intro beat 1 src');
+    t.assertOK(arc.intro[5].src === 'arc_a_6.webp', 'arc intro beat 6 src');
+    const m1 = MissionRegistry.get('arc_a_m1');
+    t.assertOK(m1.storyOutro[0].src === 'm1_outro_1.webp', 'M1 outro src');
+    const m3 = MissionRegistry.get('arc_a_m3');
+    t.assertOK(m3.storyIntro[0].src === 'm3_intro_1.webp', 'M3 intro src');
+    t.assertOK(m3.storyIntro[2].src === 'm3_intro_3.webp', 'M3 intro beat 3 src');
+  });
+
+  test('775: All cinematic beats have fallbackText', t => {
+    // Verify graceful degradation — every image beat has fallback
+    const arc = ArcRegistry.get('arc_a');
+    for (const beat of arc.intro) {
+      if (beat.type === 'image') {
+        t.assertOK(beat.fallbackText && beat.fallbackText.length > 10,
+          'arc intro beat has fallbackText: ' + (beat.src || '?'));
+      }
+    }
+    for (const mid of ['arc_a_m1', 'arc_a_m2', 'arc_a_m3']) {
+      const m = MissionRegistry.get(mid);
+      for (const beat of [...(m.storyIntro || []), ...(m.storyOutro || [])]) {
+        if (beat.type === 'image') {
+          t.assertOK(beat.fallbackText && beat.fallbackText.length > 10,
+            mid + ' beat has fallbackText: ' + (beat.src || '?'));
+        }
+      }
+    }
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // [v19.4.0] S-MISSION Phase 5 — Duration tracking + trigger fixes
+  // ═══════════════════════════════════════════════════════════════════════
+
+  test('776: maintain_conditions — duration tracking accumulates', t => {
+    t.clearScene();
+    const room = t.place('room', 0, 0, { nPeople: 2, powerPriority: 1 });
+    const gs = t.place('grid_supply', 3, -3, { maxPower: 200 });
+    t.wire(gs, 'elec_out', room, 'elec_in');
+    t.solve();
+    scene.units.get(room).profileId = 'shelter';
+
+    // Timer at 0 — not met
+    const timers = {};
+    const r1 = ObjectiveEvaluators.maintain_conditions({
+      id: 'test_mc', unit: 'shelter',
+      conditions: { O2_pct_gte: 18 }, duration_s: 7200,
+    }, scene, { _conditionTimers: timers });
+    t.assertOK(!r1.met, 'not met at 0s');
+    t.assertOK(r1._conditionsOk === true, 'conditions OK (O₂ ≥ 18%)');
+
+    // Simulate caller incrementing timer
+    timers.test_mc = 3600;
+    const r2 = ObjectiveEvaluators.maintain_conditions({
+      id: 'test_mc', unit: 'shelter',
+      conditions: { O2_pct_gte: 18 }, duration_s: 7200,
+    }, scene, { _conditionTimers: timers });
+    t.assertOK(!r2.met, 'not met at 3600s (need 7200)');
+    t.assertOK(r2.progress.includes('3600s'), 'progress shows elapsed');
+
+    // At threshold
+    timers.test_mc = 7200;
+    const r3 = ObjectiveEvaluators.maintain_conditions({
+      id: 'test_mc', unit: 'shelter',
+      conditions: { O2_pct_gte: 18 }, duration_s: 7200,
+    }, scene, { _conditionTimers: timers });
+    t.assertOK(r3.met, 'met at 7200s');
+    t.assertOK(r3.progress.includes('\u2713'), 'progress shows checkmark');
+  });
+
+  test('777: maintain_conditions — timer resets on condition fail', t => {
+    t.clearScene();
+    const room = t.place('room', 0, 0, { nPeople: 2, powerPriority: 1 });
+    scene.units.get(room).profileId = 'shelter';
+    t.solve();
+
+    // Impossible condition — O₂ ≥ 99%
+    const r = ObjectiveEvaluators.maintain_conditions({
+      id: 'test_fail', unit: 'shelter',
+      conditions: { O2_pct_gte: 99 }, duration_s: 7200,
+    }, scene, { _conditionTimers: { test_fail: 5000 } });
+    t.assertOK(r._conditionsOk === false, 'impossible condition fails');
+    t.assertOK(!r.met, 'not met when condition fails');
+    t.assertOK(r.progress.includes('0s / 7200s'), 'timer shows 0 on fail');
+  });
+
+  test('778: TriggerEngine depletion_below reads consumable_remaining', t => {
+    t.clearScene();
+    SpeechBubble.clear();
+    const scrub = t.place('membrane_separator', 0, 0, {
+      targetSpecies: 'CO2', extractionFrac: 0.99,
+      consumable: { name: 'LiOH', capacity: 500, remaining: 250, maxRate: 5 },
+    });
+    const src = t.place('source', -4, 0, { species: 'N2', nDot: 0.1 });
+    const snk1 = t.place('sink', 4, 0);
+    const snk2 = t.place('sink', 4, 2);
+    t.wire(src, 'mat_out', scrub, 'mat_in');
+    t.wire(scrub, 'perm_out', snk1, 'mat_in');
+    t.wire(scrub, 'ret_out', snk2, 'mat_in');
+    t.solve();
+
+    const u = scene.units.get(scrub);
+    u.last = u.last || {};
+    u.last.consumable_remaining = 250;
+    u.params.consumable = { name: 'LiOH', capacity: 500, remaining: 250, maxRate: 5 };
+
+    TriggerEngine.init([
+      { id: 'half_gone', once: true,
+        condition: { type: 'depletion_below', profileId: u.profileId, threshold: 0.6 },
+        action: { type: 'dialogue', speaker: 'lena', text: 'Half gone!' } },
+      { id: 'not_yet', once: true,
+        condition: { type: 'depletion_below', profileId: u.profileId, threshold: 0.3 },
+        action: { type: 'dialogue', speaker: 'lena', text: 'Should not fire' } },
+    ]);
+
+    TriggerEngine.evaluate(scene, {});
+    const hist = SpeechBubble.history();
+    t.assertOK(hist.some(m => m.text === 'Half gone!'), '50% < 60% fires');
+    t.assertOK(!hist.some(m => m.text === 'Should not fire'), '50% > 30% does not fire');
+
+    TriggerEngine.reset();
+    SpeechBubble.clear();
+  });
+
+  test('779: evaluateMissionCompletion uses _conditionTimers', t => {
+    t.clearScene();
+    const room = t.place('room', 0, 0, { nPeople: 2, powerPriority: 1 });
+    const gs = t.place('grid_supply', 3, -3, { maxPower: 200 });
+    const bottle = t.place('simple_tank', -7, 0, {
+      volume_m3: 0.01, P_init: 30553950, initialComposition: { O2: 1 },
+      gasDrawRate: 0.001, opening_gas_pct: 46.6, P_relief: 35000000,
+    });
+    scene.units.get(room).profileId = 'shelter';
+    scene.units.get(bottle).profileId = 'simple_gas_bottle';
+    scene.units.get(gs).profileId = 'battery';
+    t.wire(gs, 'elec_out', room, 'elec_in');
+    t.wire(bottle, 'gas_out', room, 'o2_in');
+    t.solve();
+
+    const timers = { o2_sustained: 7200 };
+    const runtime = {
+      missionElapsed_s: 7200, converged: true,
+      _conditionTimers: timers,
+    };
+    const result = evaluateMissionCompletion('arc_a_m1', scene, runtime);
+    const obj = result.objectiveResults.find(o => o.id === 'o2_sustained');
+    t.assertOK(obj, 'o2_sustained objective found');
+    t.assertOK(obj.progress.includes('7200s'), 'timer value in progress');
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
   let totalPass = 0, totalFail = 0;
   let testsPassed = 0, testsFailed = 0;
   const failedTests = [];
@@ -69288,5 +71619,51 @@ if (SimSettings.AUTO_RUN_TESTS) {
 }
 
 </script>
+
+<!-- [v19.2.0 S-MISSION] Cinematic overlay -->
+<div id="cinematicOverlay">
+  <div class="cin-content"></div>
+  <div class="cin-hint">click to continue</div>
+</div>
+
+<!-- [v19.2.0 S-MISSION] Victory overlay -->
+<div id="victoryOverlay">
+  <div class="vic-title"></div>
+  <div class="vic-stars"></div>
+  <div class="vic-line"></div>
+  <button class="vic-btn" id="btnVictoryContinue">Continue</button>
+</div>
+
+<!-- [v19.2.0 S-MISSION] Game over overlay -->
+<div id="gameOverOverlay">
+  <div class="go-title">Mission Failed</div>
+  <div class="go-text"></div>
+  <div style="display:flex;gap:8px;">
+    <button class="go-btn" id="btnGameOverRevert">Revert</button>
+    <button class="go-btn" id="btnGameOverRestart">Restart Mission</button>
+  </div>
+</div>
+
+<!-- [v19.2.0 S-MISSION] Complete Mission button -->
+<button id="btnCompleteMission">★ Complete Mission</button>
+
+<!-- [v19.3.0 S-MISSION] Objective panel -->
+<div id="objectivePanel">
+  <div class="obj-header">
+    <span class="obj-title">Objectives</span>
+    <span class="obj-stars" id="objStarTracker">☆☆☆</span>
+  </div>
+  <div id="objItems"></div>
+  <div class="obj-day" id="objDayCounter"></div>
+</div>
+
+<!-- [v19.3.0 S-MISSION] Career list overlay -->
+<div id="careerListOverlay">
+  <div class="cl-title">Planet X — Careers</div>
+  <div class="cl-list" id="clSlots"></div>
+  <button class="cl-new" id="clNewCareer">New Career</button>
+  <button class="cl-back" id="clBack">Back</button>
+</div>
+
 </body>
 </html>
