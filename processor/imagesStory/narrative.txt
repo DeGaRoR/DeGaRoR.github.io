@@ -1,5 +1,5 @@
 A1_shipOrbit
-This all started as a routine srvey mission of Planet X, very promising earth-like planet, but deadly with high CO2 concentration. No doubt it would attract attention, and that's why we started the long voyage to start exploring that planet, its atmosphere. We were the first one to lay our eyes on it, and it's a purple marvel!
+This all started as a routine srvey mission of Planet X, very promising earth-like planet, but deadly with high CO2 concentration. No doubt it would attract attention, and that's why we started the long voyage to start exploring that planet, its atmosphere. We were the first one to lay our eyes on it, and it's a purple marvel! A large portion of it lives in a permanent dawn, which is making it beautiful and hypnotic.
 
 A2_K
 I'm K. I'm fixing stuff here. You could call me a space mechanic, I guess? Anyways, I needed to get away from my worries, so what better than a long intergalactic journey? Things are real quiet in here, and I like that.
@@ -14,5 +14,66 @@ A5_injured
 Miraculously, we made it! The situation is grim though. The room we were in got ejected from the main ship, and landed a little bit away, miraculously unscathed. The urgency is to attend to Lena whose leg suffered grave injuries. She's gonna be OK, but it will be a while before she can move on her own, for sure...
 
 A6_roleIntro
-Dr. Vasquez (she asked to call her Lena) is quite incredible. She does not seem as affected by the terrible experience we just went through. She told me that she intends to live on no matter what, and that the situation was dire, but not so different from what we originallly planned. Really? When I point out that we are isolated in a small room with nothing on a toxic planet, she just said "Don't worry. We have everyhting we need, we just need to know how to do it. ANd i know it. I'll tell you and we'll both survive, you'll see. We'll find other survivors. But you're gonna have to do the actual work, I can't move, but I'll guide you!"
+Dr. Vasquez (she asked to call her Lena) is quite incredible. She does not seem as affected by the terrible experience we just went through. She told me that she intends to live on no matter what, and that the situation was dire, but not so different from what we originally planned. Really? When I point out that we are isolated in a small room with nothing on a toxic planet, she just said "Don't worry. We have everyhting we need, we just need to know how to do it. ANd i know it. I'll tell you and we'll both survive, you'll see. We'll find other survivors. But you're gonna have to do the actual work, I can't move, but I'll guide you!"
 
+M1_Oxygen
+Story_intro: None
+briefing (Lena): Allright, let's get our priorities straight. Do you know the survival rule of 3? We can make it 3 minutes without air, 3 days without water, and 3 weeks without food, roughly. We need to fix our air first. As we speak, we consume oxygen, and we produce CO2. We will exhaust all of this in a matter of hours. I have seen an oxygen bottle nearby, find it and plug it to the room. There's also a generous battery left in the room that should sustain us for days, plug it and give us some light, it's really dark in here.
+During the mission (tutorial)
+Lena: You can see the room, where I'm sitting. On the left side, there's an oxygen bottle. Click on the connector of the oxygen bottle to the "O2" (Oxygen) port of the room. - relevant ports are highlighted -
+- on wrong connection - That's not the right port, oxygen will not flow there, connect to O2 port
+- on right connection - Great! Now we will test things out. Push on the "play" button at the bottom of the screen.
+- on succesful play for 1 hour - Well done! You can see the room's indicator showing that our oxygen is getting better! We're safe on that side for a little while. You can see the little particles of oxygen moving from the bottle to the room through the pipes.
+On top of the room, there's a battery. You can click on it and inspect its detail. Its charge should be sufficient for a couple of days, but we will need more power as we go, so better keep an eye on it. When you plug it to the room, the lights will turn on and the ventilator will activate, that will feel much better.
+- on good battery connection - Well done! I'm feeling a lot better already. We're just starting though, but this is super encouraging!
+- on both connections successful - Win screen
+
+(I don't see how stars could be awarded, you may help - maybe elapsed time)
+story_outro: M1_Oxygen
+The first step done! I was not sure where we were going at this point, but Lena seemed very clear on the direction, and that made me feel hopeful, as I completed that first task and gave us fresh oxygen to breathe.
+
+M2_co2
+story_intro: M2B_flare "As Lena was sleeping, I started putting pipes together and made a big chimney. Lena said that we were going to work with gases, and I thought it's not a good idea to have lots of explosive mixtures around the shelter, so we can dump everything we don't need in there, and maybe even burn it? I think it's called a flare or something like that.
+briefing (Lena): Well, excellent job, let's say we're halfway there on the air already! Well, sort of... But it's going well, we're gonna it! Now that we have oxygen, the poison in the air is the CO2. That's really the problem inside this room, but even more so on the planet. We can't tolerate more than over a percent CO2 in the air, and this planet atmosphere has almost 10%! We'd die in a matter of minbutes outside. Apart from that, this planet has perfect air. We will first reuse the CO2 removal system of the ship, but it's based on cartridges, and they're not gonna last long. Maybe days, if we are lucky. But that will buy us time, and I have more ideas.
+
+in mission (Lena).
+There is a CO2 absorber on the right of the room, and there are 2 connections; air out, next to the fan, this is where the air exits the room, and air in, where it re-enters the room. 
+We need to do a loop, where the air going out of the room goes through the scrubber, the clean air goes back into the room, and you can send the rejected CO2 to your brand new super tower. Not sure why you have gone through the trouble, but it's looking nice, I'll give you that.
+
+First connect the air_out to the inlet of the CO2 absorber - wait for completion -
+Now connect the "permeate" port to the air inlet of the room, at the bottom right. That's the clean air going back - wait for completion -
+And finally, connect the "retentate" connector to one of your flare tower connector - wait for completion - 
+
+Now you can press play and see the CO2 particles being separated from the ambient air. You may not see dramatic variation, but I can tell you that without that, we'd be passing out tomorrow... Pfiouuuu...
+
+- mission success on 2 consecutive hours with working CO2 remover, and O2 feed -
+story_outro: M2_airRecycling
+With the CO2 remover in place, I felt proud of myself. But only an hour later, I already had to replace the first cartridges. And we did not have so many. I felt a mild panic when changing them again and again, but Lena kept calm and self-assured. What was she gonna think of next? I feel lucky she's there, yet I'm fearful of her next idea!
+
+M3_hydrovent
+story_intro
+M3A_hydrovent
+And indeed, she did not disappoint... Lena has spotted a nearby hydrovent. She says it has plenty of water vapor, and it may even have useful gases too, like natural gas or hydrogen. She wants me to "tame" it she says... No idea what that means.
+M3B_airCooler She said the hydrovent throws out high pressure, high temperature water, along with other gases. She sayd we need to cool it down before we can get liquid water, so I patched together a fan and some cooling fins from the spaceship, and I think it should work to get some fluid down to the ambient temparature.
+M3C_hydrovent: and finally, Lena has pointed out some slavage parts in our rooms that coulb be welded together to do what can only bbe described as a well! I did not drill it, but I capped it, and that's already somehtign, and I can tell you it was a lot of hard work, not really sure how I have done, it, but that's done! For now, I have routed everything to my flmare chimney, and I lit it on fire, no doubt there is some natural gas in there!
+
+Mission briefing (Lena)
+I'm really impressed! There is everything we need in that vent. It is not very powerful as of now, but more than enough for both of us.
+Water is becoming an issue and I feel lightheaded. The principle is simple; take what comes out of your well, have it go through your new air cooler, and put it in that water barrel I just found. Plug the barrel to the water port of the shelter. Bonus points if you separate properly the gas from the liquid beforer the tank, but that's not mandatory, that's just cleaner. You should probably also plug the overflow port to your dump zone, the flare. Tis way, if the hydrovent produces too much, you will not flood the room. That would make the tank unusable for your information, so pay attention.
+in mission
+for this mission, you will need to use the palette. It shows your available pieces of equipment. Right now, you have only a few units available. 
+There's a catch here. You can't supply the room and the air cooler with electricity from a single battery. You will need to use the electrical dispatcher. It takes up to 5 electricty producers s input, and directs the total energy production to up to 5 consumers. You should place that unit first between the room and the battery, so you can distribute electricity now.
+- wait for this to be done-
+Great! For bonus pouints, you can plug a dump load on the top port of the dispatcher. It will serve if an electrical producer produces too much compared to the cosumer's demands. If you don't have this, your systems could all fry. Better to put it. For the rest, show me how you do it! Have the output of the well go through the air cooler, and into the tank. Bonus points again if you plug the overflow of the tank, and if you separate properly the gas and liquid streams
+- on tank placement - That's your barrel. A big blue plastic barrel. The water should not be too hot or it'll melt
+- on air cooler placement - " That's a beautiful air cooler you made there! Don't forget to give its fan some electricity. You can change the position of the port in the "port layout" option when you click on units.
+- On L/V speartor placement - that's how you get those bonus points! This thing is nothing but a big tube closed at both ends, standing upright. The gas rises, the liquid falls, we separate both by drawing from the top and the bottom. Pretty simple really.
+- on destruction by temperature - Mmmmmm, you're trying to fill a plastic bucket with boiling water or steam, not gonna work, far too hot
+- On first water in the tank - Looks goooooood! I'm so thirsty. Let's fill this by half and we'll call this done!
+- on mission completion - 
+story_outro M3D_plugWater
+Finally! Some water. I felt real proud when pluggion this water barrel into our shelter. I felt like I could do anything, and we were gonna make it for sure! I wanted a hot beverage, but we only had cold water. I really enjoyed my glass of water though! Bets water ever!
+
+1 star: half barrel empty
+2 stars: + barrel overflow connected + dump load connected
+3 stars: + L/V separator before the barrel

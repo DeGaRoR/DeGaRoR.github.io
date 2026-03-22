@@ -5,7 +5,8 @@
 ---
 
 > **Single source of truth.** Supersedes all prior drafts.
-> Companion docs: PTIS_ARC_A_MISSION_LIST.md, PTIS_S_HENRY_SPEC.md.
+> Companion docs: PTIS_ARC_A_MISSION_LIST.md, PTIS_S_HENRY_SPEC.md,
+> PTIS_MISSION_CONTENT_M1_M3.md.
 
 ---
 
@@ -118,7 +119,7 @@ MissionDefinition = {
   // ── Scene ──
   inheritScene:    false,
   initialScene:    null,       // JSON string
-  preplacedUnits:  [],         // unitIds player can't delete
+  preplacedUnits:  [],         // unitIds player can't delete or move
 
   // ── Planet overrides ──
   planetOverrides: {},         // T_offset_K, solarMultiplier, windMultiplier
@@ -340,6 +341,9 @@ Trigger = {
 | `alarm_active` | `severity` (WARNING/ERROR/CATASTROPHIC) |
 | `crew_state` | `state` (fainting/recovering/death) |
 | `inventory_below` | `profileId`, `species`, `threshold_mol` |
+| `inventory_above` | `profileId`, `species`, `threshold_mol` |
+| `level_above` | `profileId`, `threshold` (0–1 fill fraction) |
+| `level_below` | `profileId`, `threshold` (0–1 fill fraction) |
 | `objective_complete` | `objectiveId` |
 | `all_objectives_complete` | — |
 | `unit_placed` | `profileId` |
@@ -366,7 +370,7 @@ the game pauses when the trigger fires. Used for critical moments
 
 ## 6. Objective Evaluators
 
-10 types, each pure function `(params, scene, runtime) → { met, progress }`.
+11 types, each pure function `(params, scene, runtime) → { met, progress }`.
 
 Return value includes `met` (boolean) and `progress` (human-readable
 string describing current state vs target, shown in objective panel).
@@ -376,13 +380,19 @@ string describing current state vs target, shown in objective panel).
 | `convergence` | Steady state | — |
 | `connection` | Ports connected | `fromProfile`, `toProfile`, `portType` |
 | `connection_absent` | Ports NOT connected | `fromProfile`, `toProfile` |
-| `store_component` | Moles in tank | `species`, `minMoles`, `minPurity` |
+| `store_component` | Moles in tank at purity | `species`, `minMoles`, `minPurity`, `minLevel` |
 | `maintain_conditions` | Room held for duration | `unit`, `conditions`, `duration_s` |
 | `power_output` | Power ≥ threshold | `min_W`, `duration_s` |
 | `flow_rate` | Flow rate bounds | `species`, `min_molPerS`, `max_molPerS`, `targetProfile`, `portId` |
 | `port_conditions` | Port stream T/P bounds | `targetProfile`, `portId`, `T_gte`, `T_lte`, `P_gte`, `P_lte` |
 | `depletion_guard` | Resource above threshold | `species`, `minMoles`, `duration_s` |
-| `inventory_trend` | Tank level direction | `targetProfile`, `species`, `trend` ('increasing'/'decreasing'), `duration_s` |
+| `inventory_trend` | Tank level direction | `targetProfile`, `species`, `trend`, `duration_s` |
+| `unit_present` | Unit with profile exists | `profileId` |
+
+**`store_component`** supports both moles and fill level:
+- `minMoles`: minimum moles of species (optional)
+- `minPurity`: minimum mol fraction (optional)
+- `minLevel`: minimum fill fraction 0–1 (optional, for "barrel half full")
 
 **`maintain_conditions` keys:**
 
@@ -396,8 +406,9 @@ curtailment_zero               No power consumer curtailed (boolean)
 **Progress strings:** Each evaluator returns a progress description.
 Examples:
 - `connection`: "Not connected" / "Connected ✓"
+- `store_component`: "Barrel: 23% full (need 50%)" / "Barrel: 55% ✓"
 - `maintain_conditions`: "T = 284K (need ≥ 288K)" / "T = 295K ✓ (12s / 120s)"
-- `flow_rate`: "O₂ flow: 0 mol/s (need ≥ 0.001)" / "O₂ flow: 0.003 mol/s ✓"
+- `flow_rate`: "O₂ flow: 0 mol/s (need ≥ 0.001)" / "O₂ flow: 0.003 ✓"
 
 Displayed in the objective panel so the player sees what's missing.
 
@@ -433,21 +444,13 @@ achievable. Stars lock on click. Enables ★★★ pursuit.
 
 ### 7.4 Star Criteria Inspector (Dev Tool)
 
-Available via keyboard shortcut. Shows for the current scene state:
-each star criterion, its current measured value, its threshold, and
-pass/fail. Works in both sandbox and campaign mode. Essential for
-calibrating star thresholds during content authoring.
+Available via keyboard shortcut. Shows per-criterion: current value,
+threshold, pass/fail. Works in sandbox and campaign.
 
 ### 7.5 Content Authoring Rule
 
-All star criteria in content docs are draft values requiring
-playtesting. Each threshold should include a rationale comment:
-
-```javascript
-// ★★★ CO2 < 0.1% for 60s
-//   Rationale: ISS target is 0.4%. 0.1% requires oversized
-//   scrubber — rewards precise engineering.
-```
+All star criteria are draft values requiring playtesting. Each
+threshold should include a rationale comment in §MISSION-CONTENT.
 
 ---
 
@@ -484,15 +487,11 @@ Different missions can use different narrators.
 ### 8.3 Arc B Characters
 
 Arc B adds 4 characters. Each needs a full character sheet
-(personality, voice rules, bubble colors) comparable to Lena's.
-This is a content task, not an architecture change.
+comparable to Lena's. Content task, not architecture change.
 
 ---
 
 ## 9. Speech Priority System
-
-Lena has multiple speech sources that can collide. Priority
-prevents her talking over herself.
 
 ### 9.1 Priority Levels
 
@@ -503,53 +502,44 @@ const SpeechPriority = {
   TRIGGER:      80,
   GAME_OVER:    80,
   HINT:         60,
-  ROOM_DIAG:    40,  // existing CharacterVoice autonomous speech
+  ROOM_DIAG:    40,
   IDLE:         10,
 };
 ```
 
 ### 9.2 Suppression Rules
 
-- Higher-priority message suppresses lower for a cooldown window.
-- During BRIEFING state: ROOM_DIAG and IDLE fully muted.
-- After each guidance step: ROOM_DIAG suppressed for 5 seconds.
-- TRIGGER dialogue suppresses IDLE but not GUIDANCE.
+- Higher-priority suppresses lower for a cooldown window.
+- During BRIEFING: ROOM_DIAG and IDLE fully muted.
+- After guidance step: ROOM_DIAG suppressed 5 seconds.
+- TRIGGER suppresses IDLE but not GUIDANCE.
 
 ### 9.3 Source Tagging
 
-Every SpeechBubble message carries a `source` field:
+Every SpeechBubble message carries `source` and `priority`:
 
 ```javascript
 SpeechBubble.push({
-  text: '...',
+  text: '...', speaker: 'lena',
   source: 'briefing' | 'guidance' | 'trigger' | 'hint' |
           'room_diag' | 'idle' | 'system',
   priority: 100,
-  speaker: 'lena',
 });
 ```
 
-**Visual differentiation:** System messages (objectives) get a
-distinct style. Briefing/guidance messages can have a subtle
-indicator. Room diagnostics are the existing Lena chat style.
+System messages get distinct visual style.
 
 ### 9.4 Poke System — Campaign Extension
 
-Clicking Lena in campaign mode intercepts the existing poke system:
-
 ```
-Poke 1:  Next undelivered hint (if available)
+Poke 1:  Next undelivered hint
 Poke 2:  Restate current objective
-Poke 3:  Recap last guidance step (if guidance active)
-Poke 4+: Existing personality escalation (annoyance tiers)
+Poke 3:  Recap last guidance step
+Poke 4+: Existing personality escalation
 ```
 
-First pokes are always useful ("Lena, help"). The player doesn't
-know the system — they click Lena when stuck, she helps. If they
-keep clicking, she gets sassy. Natural, discoverable, no new UI.
-
-Implementation: `CharacterVoice.onPoke()` checks campaign context
-first, falls back to existing personality poke logic.
+`CharacterVoice.onPoke()` checks campaign context first,
+falls back to existing personality logic.
 
 ---
 
@@ -569,47 +559,31 @@ first, falls back to existing personality poke logic.
 
 ### 10.1 Story Intro vs Outro
 
-| Phase | Purpose | Example |
-|-------|---------|---------|
-| Intro | Set up crisis | M9: "Scrubber gauge red." |
-| Outro | Emotional payoff | M8: "Shower. Coffee." |
-
 Either can be empty. System skips.
 
 ### 10.2 Cinematic Safety Rule
 
-**On entering STORY_INTRO, STORY_OUTRO, ARC_INTRO, ARC_CONCLUSION,
-CAMPAIGN_CONCLUSION, or VICTORY:** if `TimeClock.mode === 'playing'`,
-call `stopPlay()`. Simulation frozen for duration of any overlay.
-On exiting, transition to BUILD. Player must press play to resume.
-
-The player's plant must never silently run while they're reading
-narrative text.
+**On entering any overlay state:** if `TimeClock.mode === 'playing'`,
+call `stopPlay()`. Simulation frozen for duration. On exiting,
+transition to BUILD. Player's plant must never silently run behind
+narrative.
 
 ### 10.3 Victory Screen
 
 Modal overlay: title, animated stars, descriptions, Lena's HUD
-portrait (current expression), victory line per star count,
-"Continue" button.
+portrait, victory line per star count, "Continue" button.
 
 ### 10.4 Game Over
 
-Lena dies (`crewState === 'death'`):
-1. Auto-pause. 1–2s stillness.
-2. Dark overlay. "Lena didn't make it."
-3. "Revert" (last checkpoint) or "Restart Mission."
-4. Career save NOT lost.
-
-Safety: crewState fainting/death at briefing → game-over.
+Lena dies → auto-pause → dark overlay → "Revert" or "Restart
+Mission." Career save NOT lost.
 
 ### 10.5 Beats and Pause/Play
 
-- **Briefing:** BUILD state (paused). Correct.
-- **Guidance:** Works in BUILD and RUN. No auto-pause. Dialogue in
-  chat, highlight on canvas. Player in control.
-- **Trigger dialogue:** No auto-pause by default. Set `autoPause: true`
-  on action for critical moments (crisis, near-death).
-- **Cinematics:** Full-screen overlay, simulation stopped (§10.2).
+- **Briefing:** BUILD state (paused).
+- **Guidance:** Works in BUILD and RUN. No auto-pause.
+- **Trigger dialogue:** No auto-pause default. `autoPause: true` for crises.
+- **Cinematics:** Full-screen, simulation stopped.
 
 ---
 
@@ -667,7 +641,7 @@ Any gameplay → TITLE     (Home; autosave)
 
 - **BUILD:** All edits. Frozen (dt = 0).
 - **RUN/PAUSED:** No add/delete/connect. Params + valves live.
-- **Preplaced units:** Can't delete/disconnect. Lock icon.
+- **Preplaced units:** Can't delete, disconnect, or move. Lock icon.
 
 ### 11.4 Checkpoints
 
@@ -704,14 +678,12 @@ Ideal gas + Antoine for v1. S-HENRY required before M9.
 ## 15. Inherited Health Checks
 
 **Design rule:** Every mission from M3 onwards must include baseline
-health objectives (water flowing, O₂ flowing, air loop intact)
+health objectives (O₂ flowing, CO₂ scrubbing, water supply)
 alongside mission-specific objectives. The player must maintain
-everything they've built while adding new systems.
-
-This prevents: player breaks water supply to make room for food
-crate, clicks "Complete Mission" for M5, advances to M6 with a
-dying crew. With health check objectives, M5 won't complete unless
-water is still flowing.
+everything they've built while adding new systems. The room always
+punishes failures via occupant fainting and death regardless, but
+health check objectives prevent the player from "completing" a
+mission while the shelter is dying.
 
 ## 16. Completion Evaluation
 
@@ -719,15 +691,11 @@ On "Complete Mission" click:
 1. Game pauses.
 2. All objectives re-evaluated at that instant.
 3. All star criteria checked.
-4. If any primary objective fails → feedback with progress strings
-   ("Water: not connected"), return to BUILD.
+4. If any primary objective fails → feedback with progress strings,
+   return to BUILD.
 5. If all pass → stars locked, victory screen.
 
-TOCTOU gap (conditions drift between button appearing and click) is
-handled by re-evaluation at click time. Small gap, caught cleanly.
-
-Career saves record `contentVersion` alongside stars. If mission
-criteria change later, existing completions preserved.
+Career saves record `contentVersion` alongside stars.
 
 ---
 
@@ -735,9 +703,8 @@ criteria change later, existing completions preserved.
 
 ## 17. Hint Escalation
 
-Hints use `idle_seconds` triggers — time since last player action,
-not mission elapsed time. Resets on any canvas action (place, connect,
-select, param change, play/pause).
+Hints use `idle_seconds` triggers — time since last player action.
+Resets on any canvas action.
 
 ```javascript
 hints: [
@@ -757,13 +724,12 @@ Each fires once. Escalates from conceptual to specific.
 
 ## 18. Ask Lena (Poke)
 
-Click Lena → next undelivered hint → objective restate → guidance
-recap → personality escalation. See §9.4.
+Click Lena → next hint → objective restate → guidance recap →
+personality escalation. See §9.4.
 
 ## 19. Objective Panel
 
-Shows each objective with progress string from evaluator:
-"Connect water to shelter — water barrel not placed yet."
+Shows each objective with progress string from evaluator.
 Player always knows what's missing.
 
 ---
@@ -830,12 +796,24 @@ guidance step indicator, day counter.
 ```
 assets/campaigns/planet_x/
   arc_a/
-    intro_1.webp
+    intro_1.webp          A1_shipOrbit
+    intro_2.webp          A2_K
+    intro_3.webp          A3_Lena
+    intro_4.webp          A4_shipCrash
+    intro_5.webp          A5_injured
+    intro_6.webp          A6_roleIntro
     conclusion_1.webp
     m1/
-      story_intro_1.webp
-      story_outro_1.webp
-    m2/ ...
+      story_outro_1.webp  M1_oxygen
+    m2/
+      story_intro_1.webp  M2B_flare
+      story_outro_1.webp  M2_airRecycling
+    m3/
+      story_intro_1.webp  M3A_hydrovent
+      story_intro_2.webp  M3B_airCooler
+      story_intro_3.webp  M3C_hydrovent
+      story_outro_1.webp  M3D_plugWater
+    m4/ ...
 ```
 
 Beat `src` is a filename. Resolved by convention relative to
@@ -854,13 +832,13 @@ Mock star count toggle for victory. Decoupled from game state.
 ## 27. Star Criteria Inspector
 
 Keyboard shortcut. Shows per-criterion: current value, threshold,
-pass/fail. Works in sandbox and campaign. For calibrating thresholds.
+pass/fail. Works in sandbox and campaign.
 
 ## 28. §MISSION-CONTENT Section
 
 All narrative text in one marked section. Indexed in file header.
 Visual dividers: `═══ M{N} — {Title}`. Constants referenced by
-registrations. Separated from structural data.
+registrations. Separated from structural data. Cheatsheet at top:
 
 ```javascript
 // ═══════════════════════════════════════════════════════════════
@@ -878,36 +856,21 @@ registrations. Separated from structural data.
 // Objective types:
 //   connection        { fromProfile, toProfile, portType }
 //   connection_absent { fromProfile, toProfile }
+//   store_component   { species, minMoles, minPurity, minLevel }
 //   maintain_conditions { unit, conditions, duration_s }
 //   power_output      { min_W, duration_s }
 //   flow_rate         { species, min_molPerS, max_molPerS, targetProfile }
 //   port_conditions   { targetProfile, portId, T_gte, T_lte }
-//   store_component   { species, minMoles, minPurity }
 //   convergence       {}
 //   depletion_guard   { species, minMoles, duration_s }
 //   inventory_trend   { targetProfile, species, trend, duration_s }
+//   unit_present      { profileId }
 // ═══════════════════════════════════════════════════════════════
-
-// ─── Arc A Intro ──────────────────────────────────────────────
-const _ARC_A_INTRO = [ /* CinematicBeat[] */ ];
-const _ARC_A_CONCLUSION = [ /* CinematicBeat[] */ ];
-
-// ═══ M1 — Breathe ═════════════════════════════════════════════
-const _M1_STORY_INTRO = [ /* CinematicBeat[] */ ];
-const _M1_BRIEFING    = [ /* MissionBeat[] */ ];
-const _M1_VICTORY     = { 1: {...}, 2: {...}, 3: {...} };
-const _M1_STORY_OUTRO = [ /* CinematicBeat[] */ ];
-
-// ═══ M2 — Clear the Air ══════════════════════════════════════
-// ...
 ```
 
 ## 29. Mission Editor
 
-Deferred. Revisit after authoring M1–M3 manually. If editing
-§MISSION-CONTENT + beat preview + validation is sufficient, no
-editor needed. If frustrating, build a structured form tool that
-generates copy-pasteable code.
+Deferred. Revisit after M1–M3. Beat preview + validation may suffice.
 
 ---
 
@@ -921,8 +884,7 @@ generates copy-pasteable code.
 **Validation at registration:** species/reactions ⊆ campaign pool.
 Palette profileIds exist. Objective types known. Condition keys
 validated. Star criteria types known. Trigger condition/action types
-known. **Clear error messages on failure** with suggestions for
-typos.
+known. **Clear error messages on failure** with typo suggestions.
 
 ## 31. Extended
 
@@ -936,14 +898,14 @@ ProfileRegistry: mission-scoped temp registration (`_missionScoped`).
 
 1. **stopPlay() if running.** (Cinematic safety.)
 2. Play storyIntro (cinematic). Skip if empty.
-3. Load starting scene.
+3. Load starting scene (inherited + preplaced additions).
 4. Custom profiles/icons.
 5. ParamLocks.
 6. Effective palette.
 7. Species/reaction gates.
 8. Planet overrides.
 9. Room occupants.
-10. Preplaced unit flags.
+10. Preplaced unit flags (locked, immovable).
 11. StoryUI.
 12. Clear checkpoint stack.
 13. Init guidance, triggers, hints.
@@ -954,7 +916,7 @@ ProfileRegistry: mission-scoped temp registration (`_missionScoped`).
 ## 33. Mission Completion
 
 1. Pause.
-2. Evaluate objectives (all must pass).
+2. Evaluate all objectives (primary + inherited health).
 3. Lock stars + contentVersion.
 4. Victory screen.
 5. "Continue."
@@ -987,7 +949,7 @@ enterGame/goHome → campaign. Title screen → buttons.
 ProfileRegistry → temp. Inspector → locks.
 
 **New:** All registries, CampaignState, GameMode/PlayState,
-evaluators (10), stars, guidance + highlighter, triggers,
+evaluators (11), stars, guidance + highlighter, triggers,
 cinematic player, mission beat player, career list, save manager,
 HUD (objectives + progress, stars, runway, guidance, Complete
 button), palette scarcity, asset loader, victory/game-over screens,
@@ -1004,7 +966,7 @@ No audio v1. Schema placeholders. No-ops. Ready for future.
 
 # Part XV — Implementation
 
-**Phase 1** — Registries, data layer, validation, evaluators (10),
+**Phase 1** — Registries, data layer, validation, evaluators (11),
 CampaignState, palette computation. Tests.
 
 **Phase 2** — State machine, career saves, checkpoint boundary,
@@ -1020,9 +982,76 @@ Story mode menu/HUD (objectives + progress, stars, Complete button,
 runway, guidance). ParamLock inspector. Victory screen. Game-over
 overlay. Tests.
 
-**Phase 5** — Arc A content. §MISSION-CONTENT text. 10 missions.
-Custom profiles. Objectives with inherited health checks. Stars
-with rationale comments. Triggers. Guidance. Hints with idle
-escalation. Images. Initial scenes. Playtesting + star calibration.
+**Phase 5** — Arc A content: M1–M3 first (full pipeline test), then
+M4–M10. §MISSION-CONTENT text. Custom profiles. Objectives with
+inherited health checks. Stars with rationale comments. Triggers.
+Guidance. Hints with idle escalation. Images. Initial scenes.
+Playtesting + star calibration.
 
 **Prerequisite** — S-HENRY sprint before M9 content.
+
+---
+
+# Part XVI — Implementation Notes from M1–M3 Authoring
+
+Verified constraints and required profile/engine changes discovered
+during content authoring for the first three missions.
+
+## 35. Verified Engine Constraints
+
+**Battery does not fan-out.** `battery.elec` port has no `fanOut`
+flag. One output connection only. This means the power dispatcher
+is required as soon as a second electrical consumer appears.
+Consequence: power dispatcher introduced in M3 (when air cooler
+arrives), not earlier.
+
+**CO₂ scrubber has no elec_in.** The `membrane_separator` defId
+has 3 ports: `mat_in`, `perm_out`, `ret_out`. No electrical port.
+The scrubber is passive — driven by the room's internal fan via
+the air exhaust → scrubber → air return loop. No power wiring
+needed for M2.
+
+**Connection displacement.** When the player connects a source port
+that already has a connection (e.g. battery.elec → room, then
+battery.elec → dispatcher), the engine should either auto-disconnect
+the old connection or block the new one. **Verify behavior** during
+implementation. If auto-disconnect: fine for M3 rewiring tutorial.
+If blocked: guidance must include an explicit "disconnect" step.
+
+## 36. Required Profile Changes
+
+**Water barrel temperature limit.** The `simple_open_tank` profile
+has `T_HH: 473` (200°C). For M3, the barrel should reject
+near-boiling water. Override to `T_HH: 363` (90°C) — the
+deformation threshold for HDPE plastic. Implement as:
+- Custom profile in M3's `customProfiles[]`, OR
+- Permanent change to `simple_open_tank` profile limits (preferred,
+  since a plastic barrel shouldn't survive 200°C in sandbox either)
+
+## 37. Preplaced Units Per Mission
+
+| Mission | Inherits from | Adds (preplaced, locked) | Player places |
+|---------|---------------|--------------------------|---------------|
+| M1 | — | Room (shelter) | O₂ bottle, battery |
+| M2 | M1 scene | Flare stack | CO₂ scrubber |
+| M3 | M2 scene | Hydrovent (well) | Power dispatcher, air cooler, barrel, opt. separator |
+| M4+ | Previous scene | (per mission design) | (per mission palette) |
+
+Preplaced units are locked: cannot be deleted, disconnected, or
+moved. They have a visual lock icon. The player can inspect them
+and connect to their ports.
+
+## 38. Initial Scene Construction
+
+M1's initial scene is authored as a JSON string containing only the
+room (shelter) unit, positioned, with no connections. The O₂ bottle
+and battery are available in the palette but not preplaced — the
+player places them as part of the tutorial.
+
+M2's initial scene = M1's end scene + flare_stack preplaced at a
+fixed position with connections to sink infrastructure if needed.
+
+M3's initial scene = M2's end scene + hydrovent preplaced.
+
+The system loads the inherited scene, then overlays preplaced
+additions. Existing player-built connections are preserved exactly.
