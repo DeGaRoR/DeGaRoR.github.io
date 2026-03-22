@@ -396,14 +396,26 @@
   `T_room_K → T_K → inventory.T_K`.  `simple_open_tank` writes
   `T_K` to `u.last`.  M3 barrel overheat trigger works as-is.
 
+  **Integration playtests (M1, M2, M3).**  Three end-to-end tests
+  simulate actual gameplay: build mission scene from CampaignState,
+  import, wire connections, step through TimeClock, accumulate
+  condition timers, verify objectives flip to met.
+  - M1: wire O₂ + battery → 2 hours → o2_sustained met → passed.
+  - M2: inherit M1 + wire scrubber loop → CO₂ < 2% after 3 hours.
+  - M3: inherit M2 + place dispatcher/cooler/barrel → rewire power
+    → water circuit → barrel fills over 4 hours.
+
   NNGs: NNG-1 (duration tracking is time-accurate: accumulates real
   dt, resets on condition break), NNG-14 (changelog + 4 new tests).
 
-  Tests: 842 (+4).
+  Tests: 845 (+7).
     776: maintain_conditions duration accumulates with timer.
     777: maintain_conditions timer resets on condition fail.
     778: TriggerEngine depletion_below reads correct fields.
     779: evaluateMissionCompletion uses _conditionTimers.
+    780: M1 Playtest — wire + run → objectives met (integration).
+    781: M2 Playtest — inherit M1 + scrubber loop → CO₂ controlled.
+    782: M3 Playtest — dispatcher + cooler + barrel → water flows.
 
   ─── v19.3.0 — S-MISSION Phase 4: HUD, guards, career list ──────────────
 
@@ -71067,6 +71079,266 @@ function runTests() {
     const obj = result.objectiveResults.find(o => o.id === 'o2_sustained');
     t.assertOK(obj, 'o2_sustained objective found');
     t.assertOK(obj.progress.includes('7200s'), 'timer value in progress');
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // [v19.4.0] S-MISSION Phase 5 — Integration playtests (M1, M2, M3)
+  //
+  // These tests simulate actual gameplay: build scene, wire, step through
+  // TimeClock, track condition timers, verify objectives flip to met.
+  // ═══════════════════════════════════════════════════════════════════════
+
+  test('780: M1 Playtest — wire + run → objectives met', t => {
+    // Save state
+    const origT = TimeClock.t, origFrame = TimeClock.frame;
+    const origDt = SimSettings.dt, origMode = TimeClock.mode;
+    TimeClock.t = T0_SECONDS; TimeClock.frame = 0; TimeClock.mode = 'paused';
+    SimSettings.dt = 3600;  // 1-hour steps
+
+    // Build M1 scene
+    const cs = new CampaignState('planet_x', 'M1 Playtest');
+    const sceneJSON = buildMissionScene(cs, 'arc_a_m1');
+    t.assertOK(sceneJSON, 'M1 scene built');
+
+    // Import
+    t.clearScene();
+    const imp = scene.importJSON(sceneJSON);
+    t.assertOK(imp.ok !== false, 'M1 scene imported');
+    t.assertOK(scene.units.size === 3, '3 units: room, bottle, battery');
+
+    // Verify profileIds
+    const room = [...scene.units.values()].find(u => u.profileId === 'shelter');
+    const bottle = [...scene.units.values()].find(u => u.profileId === 'simple_gas_bottle');
+    const battery = [...scene.units.values()].find(u => u.profileId === 'battery');
+    t.assertOK(room, 'room has profileId=shelter');
+    t.assertOK(bottle, 'bottle has profileId=simple_gas_bottle');
+    t.assertOK(battery, 'battery has profileId=battery');
+
+    // Wire connections (player actions)
+    t.wire(battery.id, 'elec', room.id, 'elec_in');
+    t.wire(bottle.id, 'gas_out', room.id, 'o2_in');
+
+    // Check connection objectives before stepping
+    const timers = {};
+    const rt0 = { missionElapsed_s: 0, converged: true, _conditionTimers: timers };
+    const r0 = evaluateMissionCompletion('arc_a_m1', scene, rt0);
+    const connObjs = r0.objectiveResults.filter(o => o.type === 'connection');
+    // Connections should be met immediately
+    t.assertOK(r0.objectiveResults.find(o => o.id === 'connect_battery')?.met, 'battery connected');
+    t.assertOK(r0.objectiveResults.find(o => o.id === 'connect_o2')?.met, 'O₂ connected');
+
+    // Step 2 times (2 hours) — accumulate timer
+    for (let i = 0; i < 2; i++) {
+      TimeClock.step(scene);
+      // Evaluate and update timers (simulating _missionAfterSolve)
+      const rt = { missionElapsed_s: (i + 1) * 3600, converged: true, _conditionTimers: timers };
+      const mission = MissionRegistry.get('arc_a_m1');
+      for (const obj of mission.objectives) {
+        const r = evaluateCriterion(obj, scene, rt);
+        if (r._conditionsOk === true) {
+          timers[obj.id] = (timers[obj.id] || 0) + 3600;
+        } else if (r._conditionsOk === false) {
+          timers[obj.id] = 0;
+        }
+      }
+    }
+
+    // After 2 hours: O₂ sustained needs 3600s — should be met
+    const rtFinal = { missionElapsed_s: 7200, converged: true, _conditionTimers: timers };
+    const rFinal = evaluateMissionCompletion('arc_a_m1', scene, rtFinal);
+    const o2obj = rFinal.objectiveResults.find(o => o.id === 'o2_sustained');
+    t.assertOK(o2obj, 'o2_sustained found');
+    t.assertOK(timers.o2_sustained >= 3600, 'timer accumulated ≥ 3600s: ' + (timers.o2_sustained || 0));
+    t.assertOK(o2obj.met, 'o2_sustained met after 2 hours');
+
+    // All objectives should pass → mission completable
+    t.assertOK(rFinal.passed, 'M1 passed — all objectives met');
+    t.assertOK(rFinal.starCount >= 1, 'at least ★ earned');
+
+    // Restore
+    TimeClock.t = origT; TimeClock.frame = origFrame;
+    SimSettings.dt = origDt; TimeClock.mode = origMode;
+  });
+
+  test('781: M2 Playtest — inherit M1 + scrubber loop → CO₂ controlled', t => {
+    const origT = TimeClock.t, origFrame = TimeClock.frame;
+    const origDt = SimSettings.dt, origMode = TimeClock.mode;
+    TimeClock.t = T0_SECONDS; TimeClock.frame = 0; TimeClock.mode = 'paused';
+    SimSettings.dt = 3600;
+
+    // Simulate M1 end scene: room + bottle + battery, all wired
+    const cs = new CampaignState('planet_x', 'M2 Playtest');
+    const m1JSON = buildMissionScene(cs, 'arc_a_m1');
+    t.clearScene();
+    scene.importJSON(m1JSON);
+    // Wire M1 connections
+    const room1 = [...scene.units.values()].find(u => u.profileId === 'shelter');
+    const bottle1 = [...scene.units.values()].find(u => u.profileId === 'simple_gas_bottle');
+    const battery1 = [...scene.units.values()].find(u => u.profileId === 'battery');
+    t.wire(battery1.id, 'elec', room1.id, 'elec_in');
+    t.wire(bottle1.id, 'gas_out', room1.id, 'o2_in');
+
+    // Save as M1 end scene
+    const m1End = scene.exportJSON();
+    cs.missionEndScenes.set('arc_a_m1', m1End);
+
+    // Build M2 scene (inherits M1 + adds flare + scrubber)
+    const m2JSON = buildMissionScene(cs, 'arc_a_m2');
+    t.clearScene();
+    TimeClock.t = T0_SECONDS; TimeClock.frame = 0;
+    scene.importJSON(m2JSON);
+    t.assertOK(scene.units.size === 5, '5 units: room, bottle, battery, flare, scrubber');
+
+    const room = [...scene.units.values()].find(u => u.profileId === 'shelter');
+    const scrubber = [...scene.units.values()].find(u => u.profileId === 'co2_scrubber');
+    const flare = [...scene.units.values()].find(u => u.profileId === 'flare_stack');
+    t.assertOK(room, 'room present');
+    t.assertOK(scrubber, 'scrubber present');
+    t.assertOK(flare, 'flare present');
+
+    // Wire M2 connections: exhaust → scrubber → return + retentate → flare
+    t.wire(room.id, 'air_exhaust', scrubber.id, 'mat_in');
+    t.wire(scrubber.id, 'perm_out', room.id, 'air_return');
+    t.wire(scrubber.id, 'ret_out', flare.id, 'mat_in');
+
+    // Solve once to initialize
+    solveScene(scene);
+
+    // Check connection objectives
+    const timers = {};
+    const rt0 = { missionElapsed_s: 0, converged: true, _conditionTimers: timers };
+    const r0 = evaluateMissionCompletion('arc_a_m2', scene, rt0);
+    t.assertOK(r0.objectiveResults.find(o => o.id === 'connect_exhaust')?.met, 'exhaust connected');
+    t.assertOK(r0.objectiveResults.find(o => o.id === 'connect_return')?.met, 'return connected');
+
+    // Step 3 times (3 hours) to let CO₂ scrub and accumulate timer
+    for (let i = 0; i < 3; i++) {
+      TimeClock.step(scene);
+      const rt = { missionElapsed_s: (i + 1) * 3600, converged: true, _conditionTimers: timers };
+      const mission = MissionRegistry.get('arc_a_m2');
+      for (const obj of mission.objectives) {
+        const r = evaluateCriterion(obj, scene, rt);
+        if (r._conditionsOk === true) {
+          timers[obj.id] = (timers[obj.id] || 0) + 3600;
+        } else if (r._conditionsOk === false) {
+          timers[obj.id] = 0;
+        }
+      }
+    }
+
+    // Check room CO₂ after scrubbing
+    const roomLast = room.last || {};
+    const co2pct = (roomLast.room_x_CO2 || 0) * 100;
+    t.assertOK(co2pct < 2, 'CO₂ < 2% after scrubbing: ' + co2pct.toFixed(2) + '%');
+
+    // Check O₂ still good
+    const o2pct = (roomLast.room_x_O2 || 0) * 100;
+    t.assertOK(o2pct > 18, 'O₂ > 18%: ' + o2pct.toFixed(2) + '%');
+
+    // Restore
+    TimeClock.t = origT; TimeClock.frame = origFrame;
+    SimSettings.dt = origDt; TimeClock.mode = origMode;
+  });
+
+  test('782: M3 Playtest — dispatcher + cooler + barrel → water flows', t => {
+    const origT = TimeClock.t, origFrame = TimeClock.frame;
+    const origDt = SimSettings.dt, origMode = TimeClock.mode;
+    TimeClock.t = T0_SECONDS; TimeClock.frame = 0; TimeClock.mode = 'paused';
+    SimSettings.dt = 3600;
+
+    // Minimal M2 end scene: room + battery wired (scrubber omitted for test simplicity)
+    const cs = new CampaignState('planet_x', 'M3 Playtest');
+    cs.missionEndScenes.set('arc_a_m2', JSON.stringify({
+      version: 19, processName: 'M2 End', grid: { w: 40, h: 32, tile: 48 },
+      settings: { atmospherePreset: 'planet_x', dt: 3600 },
+      units: [
+        { id: 'room', defId: 'room', profileId: 'shelter', tier: 1, name: 'Shelter',
+          x: 0, y: 0, rot: 0, params: { nPeople: 2, powerPriority: 1 } },
+        { id: 'battery', defId: 'battery', profileId: 'battery', tier: 1, name: 'Battery',
+          x: 1, y: -3, rot: 0, params: { peakPower_kW: 100, capacity_J: 1800000000, initialSOC: 1 } },
+      ],
+      connections: [
+        { id: 'c1', from: { unitId: 'battery', portId: 'elec' }, to: { unitId: 'room', portId: 'elec_in' } },
+      ],
+      modelsActive: { thermo_package: 'ideal_raoult' }, solverOptions: { maxIter: 200 }, layout: {},
+    }));
+
+    // Build M3 scene
+    t.clearScene();
+    const m3JSON = buildMissionScene(cs, 'arc_a_m3');
+    t.assertOK(m3JSON, 'M3 scene built');
+    const m3data = JSON.parse(m3JSON);
+    // Verify hydrovent added
+    t.assertOK(m3data.units.find(u => u.profileId === 'hydrovent'), 'hydrovent in JSON');
+    t.assertOK(m3data.units.length >= 3, 'room + battery + hydrovent = 3+');
+
+    // Import
+    const imp = scene.importJSON(m3JSON);
+    t.assertOK(imp.ok !== false, 'import ok: ' + (imp.error || ''));
+
+    const room = [...scene.units.values()].find(u => u.profileId === 'shelter');
+    const bat = [...scene.units.values()].find(u => u.profileId === 'battery');
+    const hydrovent = [...scene.units.values()].find(u => u.profileId === 'hydrovent');
+    t.assertOK(room && bat && hydrovent, 'all 3 key units present');
+    if (!room || !bat || !hydrovent) {
+      TimeClock.t = origT; TimeClock.frame = origFrame;
+      SimSettings.dt = origDt; TimeClock.mode = origMode;
+      return;
+    }
+
+    // Player: place dispatcher, cooler, barrel, dump
+    const disp = t.place('power_dispatcher_5', 4, -6);
+    scene.units.get(disp).profileId = 'power_dispatcher_5';
+    const cooler = t.place('air_cooler', -14, 3, { T_out: 294, UA_kW_K: 1, max_fan_power_W: 200, powerPriority: 2 });
+    scene.units.get(cooler).profileId = 'air_cooler';
+    const barrel = t.place('simple_open_tank', -10, 3, {
+      volume_m3: 0.1, initialComposition: { H2O: 1 }, level_init: 0,
+      drawRate: 0.01, opening_pct: 25, overflow_level: 90,
+    });
+    scene.units.get(barrel).profileId = 'simple_open_tank';
+    const dump = t.place('sink_electrical', 8, -6, { ratedPower_kW: 50, powerPriority: 5 });
+    scene.units.get(dump).profileId = 'sink_electrical';
+
+    // Rewire battery through dispatcher
+    scene.connections = scene.connections.filter(c =>
+      !(c.from.unitId === bat.id && c.from.portId === 'elec'));
+    t.wire(bat.id, 'elec', disp, 'elec_in_1');
+    t.wire(disp, 'elec_out_1', room.id, 'elec_in');
+    t.wire(disp, 'elec_out_2', cooler, 'elec_in');
+    t.wire(disp, 'elec_surplus', dump, 'elec_in');
+
+    // Water circuit
+    t.wire(hydrovent.id, 'mat_out', cooler, 'mat_in');
+    t.wire(cooler, 'mat_out', barrel, 'mat_in');
+    t.wire(barrel, 'mat_out', room.id, 'h2o_in');
+
+    // Solve and check connections
+    solveScene(scene);
+    const timers = {};
+    const r0 = evaluateMissionCompletion('arc_a_m3', scene,
+      { missionElapsed_s: 0, converged: true, _conditionTimers: timers });
+    t.assertOK(r0.objectiveResults.find(o => o.id === 'power_via_dispatcher')?.met, 'battery→dispatcher');
+    t.assertOK(r0.objectiveResults.find(o => o.id === 'room_powered')?.met, 'dispatcher→room');
+
+    // Step 4 hours
+    for (let i = 0; i < 4; i++) {
+      TimeClock.step(scene);
+      const rt = { missionElapsed_s: (i + 1) * 3600, converged: true, _conditionTimers: timers };
+      for (const obj of MissionRegistry.get('arc_a_m3').objectives) {
+        const r = evaluateCriterion(obj, scene, rt);
+        if (r._conditionsOk === true) timers[obj.id] = (timers[obj.id] || 0) + 3600;
+        else if (r._conditionsOk === false) timers[obj.id] = 0;
+      }
+    }
+
+    // Check barrel
+    const barrelUnit = scene.units.get(barrel);
+    const fillPct = barrelUnit?.last?.fillPct ?? 0;
+    t.assertOK(fillPct > 0, 'barrel has water: ' + fillPct.toFixed(1) + '%');
+
+    // Restore
+    TimeClock.t = origT; TimeClock.frame = origFrame;
+    SimSettings.dt = origDt; TimeClock.mode = origMode;
   });
 
   // ═══════════════════════════════════════════════════════════════════════
