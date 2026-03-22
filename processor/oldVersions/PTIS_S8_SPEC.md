@@ -35,13 +35,13 @@ group templates instead of opaque composite units).
 Map of individual units. `Scene.connections` is a flat array. No
 hierarchy, no grouping, no assembly concept. Composites (greenhouse,
 human) specified in S8 as single-registration units with internal
-physics hidden in bespoke tick functions. ~447 tests.
+physics hidden in bespoke tick functions. ~458 tests.
 
 **After S8:** Group data model in scene. Canvas navigation stack
 with Tab in/out. GroupTemplateRegistry with save/instantiate.
 Palette "Templates" section. Locked groups for campaign composites.
-Scene version bump (16 → 17, `groups` field). NNG-3 updated. ~465
-tests (447 + ~18 new).
+Generic scaling mechanism. Scene version bump (16 → 17, `groups`
+field). NNG-3 updated. ~476 tests (458 + ~18 new).
 
 ---
 
@@ -1234,54 +1234,60 @@ UnitRegistry.register('greenhouse', { tick: greenhouseTick, ... });
 
 New approach:
 ```javascript
-// S10c registers campaign composite templates using S8 infrastructure
+// S10c registers campaign composite templates using S8 infrastructure.
+// Full greenhouse design (7 internal units, 7 boundary ports) in
+// PTIS_COMPOSITE_MODELS.md §1.
+
 GroupTemplateRegistry.register('greenhouse', {
   name: 'Greenhouse',
   category: 'CAMPAIGN',
   locked: true,
   showInPalette: true,
-  w: 3, h: 3,
+  scalable: true,
+  scaleParam: 'racks',
+  scaleDefault: 1,
+  w: 4, h: 3,
+
+  // 7 internal units — see PTIS_COMPOSITE_MODELS.md §1.2
   units: [
-    { localId: 'light_source',  defId: 'grid_supply',
-      x: 0, y: 0,
-      params: { maxPower: 5 },
-      paramLocked: true,
-      editableParams: null },
+    { localId: 'soil_buffer',   defId: 'tank',
+      params: { volume_m3: 0.050 }, paramLocked: true },
+    { localId: 'nutrient_mix',  defId: 'mixer',
+      paramLocked: true },
     { localId: 'photo_reactor', defId: 'reactor_electrochemical',
-      x: 1, y: 0,
-      params: { reaction: 'R_PHOTOSYNTHESIS', efficiency: 0.01,
+      params: { reaction: 'R_PHOTOSYNTHESIS', efficiency: 0.02,
                 conversion_max: 0.95 },
       paramLocked: true,
       editableParams: ['efficiency'] },
+    { localId: 'product_mixer', defId: 'mixer',
+      paramLocked: true },
+    { localId: 'cooling_hex',   defId: 'hex',
+      params: { UA: 'scaled' }, paramLocked: true },
+    { localId: 'fan',           defId: 'compressor',
+      params: { P_ratio: 1.001 }, paramLocked: true },
     { localId: 'leaf',          defId: 'membrane_separator',
-      x: 2, y: 0,
-      params: { membrane: 'gas_exchange', selectivity: { O2: 0.95, H2O: 0.80 } },
-      paramLocked: true,
-      editableParams: null },
-    { localId: 'nutrient_mix',  defId: 'mixer',
-      x: 0, y: 1,
-      params: {},
-      paramLocked: true,
-      editableParams: null }
+      params: { selectivity: { CH2O: 0.05, NH3: 0.05 } },
+      paramLocked: true }
   ],
-  connections: [
-    { from: { localId: 'light_source',  portId: 'out' },
-      to:   { localId: 'photo_reactor', portId: 'elec_in' } },
-    { from: { localId: 'photo_reactor', portId: 'mat_out' },
-      to:   { localId: 'leaf',          portId: 'mat_in' } }
-    // ... remaining internal wiring
-  ],
+
+  // Internal connections — see PTIS_COMPOSITE_MODELS.md §1.3
+  connections: [ /* ... full wiring in composite models spec ... */ ],
+
   boundaryPorts: [
-    { portId: 'air_in',   label: 'Air In',     dir: 'IN',  type: 'MATERIAL',
-      unitLocalId: 'nutrient_mix', unitPortId: 'mat_in_A' },
-    { portId: 'water_in', label: 'Water In',   dir: 'IN',  type: 'MATERIAL',
-      unitLocalId: 'nutrient_mix', unitPortId: 'mat_in_B' },
-    { portId: 'elec_in',  label: 'Power',      dir: 'IN',  type: 'ELECTRICAL',
-      unitLocalId: 'light_source', unitPortId: 'elec_in' },
-    { portId: 'air_out',  label: 'O₂-rich Air', dir: 'OUT', type: 'MATERIAL',
-      unitLocalId: 'leaf',         unitPortId: 'perm_out' },
-    { portId: 'food_out', label: 'Food',        dir: 'OUT', type: 'MATERIAL',
-      unitLocalId: 'leaf',         unitPortId: 'ret_out' }
+    { portId: 'co2_in',     label: 'CO₂ In',     dir: 'IN',  type: 'MATERIAL',
+      unitLocalId: 'nutrient_mix',  unitPortId: 'mat_in_A' },
+    { portId: 'nutrient_in', label: 'Nutrient In', dir: 'IN',  type: 'MATERIAL',
+      unitLocalId: 'soil_buffer',   unitPortId: 'mat_in' },
+    { portId: 'elec_in',    label: 'Power',       dir: 'IN',  type: 'ELECTRICAL',
+      unitLocalId: 'photo_reactor', unitPortId: 'elec_in' },
+    { portId: 'cool_in',    label: 'Coolant In',  dir: 'IN',  type: 'MATERIAL',
+      unitLocalId: 'fan',           unitPortId: 'mat_in' },
+    { portId: 'cool_out',   label: 'Coolant Out', dir: 'OUT', type: 'MATERIAL',
+      unitLocalId: 'cooling_hex',   unitPortId: 'cold_out' },
+    { portId: 'air_out',    label: 'O₂-rich Air', dir: 'OUT', type: 'MATERIAL',
+      unitLocalId: 'leaf',          unitPortId: 'perm_out' },
+    { portId: 'food_out',   label: 'Food',        dir: 'OUT', type: 'MATERIAL',
+      unitLocalId: 'leaf',          unitPortId: 'ret_out' }
   ]
 });
 ```
@@ -1289,38 +1295,49 @@ GroupTemplateRegistry.register('greenhouse', {
 The player places "Greenhouse" from the palette. It appears as a
 locked group box. Tab in → see the electrochemical reactor running
 photosynthesis, the membrane separator acting as a leaf, the mixer
-handling nutrient input. Click any unit → full read-only inspector
-with real stream data: temperatures, compositions, flow rates.
+handling nutrient input, the cooling HEX rejecting waste heat. Click
+any unit → full read-only inspector with real stream data:
+temperatures, compositions, flow rates.
 The efficiency parameter on the photo_reactor is the ONE editable
 control: the player can adjust lighting efficiency (0.5–5%) and
-watch the power demand change in real time. At η = 1%, the
-greenhouse demands ~85 kW for 7 colonists. The physics is fully
-transparent — the player learns that biology is elegant but
-energetically expensive.
+watch the power demand change in real time. At η = 2% (default), the
+greenhouse demands ~42 kW for 7 colonists. At η = 1%, demand rises
+to ~85 kW — a ★★★ challenge. The physics is fully transparent —
+the player learns that biology is elegant but energetically expensive.
 
 ### New Units Required (registered in S9, not S8)
 
-S8 provides the grouping infrastructure. S10c registers the specific
+S8 provides the grouping infrastructure. S9 registers the specific
 units that live inside campaign composites:
 
 | defId | Physical | Purpose | Trunk |
 |-------|----------|---------|-------|
-| `membrane_separator` | Selective membrane unit | Leaf (gas exchange), kidney (metabolic waste) | `separatorTick` (new) |
+| `membrane_separator` | Selective membrane unit | Leaf (gas exchange), kidney (metabolic waste), LiOH scrubber (CO₂ removal) | `separatorTick` (new) |
 
-The `membrane_separator` is the "leaf" and "kidney" Denis described.
+The `membrane_separator` is the "leaf", "kidney", and "LiOH scrubber".
 It is a real registered unit with:
 - `mat_in` (feed), `perm_out` (permeate), `ret_out` (retentate)
-- Params: `membrane` type, `selectivity` map (species → fraction)
+- Params: `selectivity` map (species → fraction to permeate)
+- Optional depletable params: `depletable` (bool), `sorbentCapacity` (mol),
+  `sorbentRemaining` (mol), `maxRate` (mol/hr)
 - Dedicated `separatorTick` trunk (not flash_drum physics — membrane
   permeation, not VLE)
 - S-size limits appropriate for biological membranes
 
-The same `defId` serves both the greenhouse leaf (O₂/H₂O permeation)
-and the human kidney (waste filtration) — different selectivity maps
-via params, same physics trunk. This follows NNG-3: same machine,
-different operating parameters.
+The same `defId` serves the greenhouse leaf (CH₂O/NH₃: 0.05 selectivity),
+the human kidney (NH₃: 0.01 selectivity), and the Day-0 LiOH scrubber
+(CO₂: 0.01 selectivity, depletable=true, 268 mol capacity). Different
+selectivity maps via params, same physics trunk. This follows NNG-3:
+same machine, different operating parameters.
+
+Full composite designs are specified in `PTIS_COMPOSITE_MODELS.md`.
 
 ### old S8c-5 (Human) — Rewritten as Template
+
+The full human composite design (11 internal units, 5 boundary ports)
+is specified in `PTIS_COMPOSITE_MODELS.md` §2. S8 provides the
+GroupTemplateRegistry infrastructure; S10c performs the actual
+registration.
 
 ```javascript
 // Metabolic rates (2500 kcal/day/person, NASA moderate activity):
@@ -1336,50 +1353,60 @@ GroupTemplateRegistry.register('human', {
   category: 'CAMPAIGN',
   locked: true,
   showInPalette: true,
-  w: 3, h: 2,
+  scalable: true,
+  scaleParam: 'population',
+  scaleDefault: 2,
+  w: 4, h: 2,
+
+  // 11 internal units — see PTIS_COMPOSITE_MODELS.md §2.2 for full list
+  // Key units shown here; full template in composite models spec.
   units: [
-    { localId: 'metabolism',  defId: 'reactor_equilibrium',
-      x: 0, y: 0,
-      params: { reaction: 'R_METABOLISM', T: 310 },
-      paramLocked: true,
-      editableParams: null },
-    { localId: 'kidney',     defId: 'membrane_separator',
-      x: 1, y: 0,
-      params: { membrane: 'renal',
-                selectivity: { NH3: 0.01 } },
-      // selectivity = fraction to permeate. Unlisted species default 1.0.
-      // NH₃: 1% permeates → 99% to retentate (waste). All other gases exhaled.
-      paramLocked: true,
-      editableParams: null },
-    { localId: 'waste_mixer', defId: 'mixer',
-      x: 2, y: 0,
-      params: {},
-      // Combines kidney retentate (NH₃) with drinking water → waste_out
-      paramLocked: true,
-      editableParams: null }
+    { localId: 'fan',          defId: 'compressor',
+      params: { P_ratio: 1.001 }, paramLocked: true },
+    { localId: 'air_splitter', defId: 'splitter',
+      params: { splitPct: 8 }, paramLocked: true },
+    { localId: 'air_buffer',   defId: 'tank',
+      params: { volume_m3: 0.005, T: 310, P: 101325 }, paramLocked: true },
+    { localId: 'food_buffer',  defId: 'tank',
+      params: { volume_m3: 0.012 }, paramLocked: true },
+    { localId: 'feed_mixer',   defId: 'mixer', paramLocked: true },
+    { localId: 'metabolism',   defId: 'reactor_adiabatic',
+      params: { reaction: 'R_METABOLISM', T: 310 }, paramLocked: true },
+    { localId: 'body_hex',     defId: 'hex',
+      params: { UA: 'scaled' }, paramLocked: true },
+    { localId: 'kidney',       defId: 'membrane_separator',
+      params: { selectivity: { NH3: 0.01 } }, paramLocked: true },
+    { localId: 'air_mixer',    defId: 'mixer', paramLocked: true },
+    { localId: 'water_buffer', defId: 'tank',
+      params: { volume_m3: 0.0063 }, paramLocked: true },
+    { localId: 'waste_mixer',  defId: 'mixer', paramLocked: true }
   ],
-  connections: [
-    { from: { localId: 'metabolism', portId: 'mat_out' },
-      to:   { localId: 'kidney',    portId: 'mat_in' } },
-    { from: { localId: 'kidney',    portId: 'ret_out' },
-      to:   { localId: 'waste_mixer', portId: 'mat_in_A' } }
-  ],
+
+  // 12 internal connections — see PTIS_COMPOSITE_MODELS.md §2.3
+  connections: [ /* ... full wiring in composite models spec ... */ ],
+
   boundaryPorts: [
     { portId: 'air_in',    label: 'Air In',      dir: 'IN',  type: 'MATERIAL',
-      unitLocalId: 'metabolism', unitPortId: 'mat_in' },
+      unitLocalId: 'fan',          unitPortId: 'mat_in' },
     { portId: 'food_in',   label: 'Food In',     dir: 'IN',  type: 'MATERIAL',
-      unitLocalId: 'metabolism', unitPortId: 'feed_in' },
+      unitLocalId: 'food_buffer',  unitPortId: 'mat_in' },
     { portId: 'water_in',  label: 'Water In',    dir: 'IN',  type: 'MATERIAL',
-      unitLocalId: 'waste_mixer', unitPortId: 'mat_in_B' },
+      unitLocalId: 'water_buffer', unitPortId: 'mat_in' },
     { portId: 'air_out',   label: 'Exhaled Air', dir: 'OUT', type: 'MATERIAL',
-      unitLocalId: 'kidney',      unitPortId: 'perm_out' },
+      unitLocalId: 'air_mixer',    unitPortId: 'mat_out' },
     { portId: 'waste_out', label: 'Waste',        dir: 'OUT', type: 'MATERIAL',
-      unitLocalId: 'waste_mixer', unitPortId: 'mat_out' }
+      unitLocalId: 'waste_mixer',  unitPortId: 'mat_out' }
+  ],
+
+  scaleRules: [
+    { unitLocalId: 'metabolism',    param: 'rate_multiplier', factor: 1.0 },
+    { unitLocalId: 'air_buffer',    param: 'volume_m3',      factor: 1.0 },
+    { unitLocalId: 'food_buffer',   param: 'volume_m3',      factor: 1.0 },
+    { unitLocalId: 'water_buffer',  param: 'volume_m3',      factor: 1.0 },
+    { unitLocalId: 'body_hex',      param: 'UA',             factor: 1.0 },
+    { unitLocalId: 'fan',           param: 'flowTarget',     factor: 1.0 },
+    { unitLocalId: 'air_splitter',  param: 'flowTarget',     factor: 1.0 }
   ]
-  // Internal flow: air+food → metabolism → kidney → permeate=exhaled air
-  //                                                → retentate(NH₃) + water_in → waste_mixer → waste_out
-  // Drinking water (7.0 mol/hr/person) enters water_in, exits as H₂O+NH₃ via waste_out.
-  // All carbon is oxidized by R_METABOLISM — no biomass waste, only urine analogue.
 });
 ```
 
@@ -1395,11 +1422,11 @@ internal structure to expose.
 
 | Session | Tests | Cumulative |
 |---------|-------|------------|
-| S8-1a–e (data model, boundary detection, serialization) | 6 | 453 |
-| S8-2a–i (canvas, templates, palette, edge cases) | 12 | 465 |
-| **Total S8** | **~18** | **~465** |
+| S8-1a–e (data model, boundary detection, serialization) | 6 | 464 |
+| S8-2a–i (canvas, templates, palette, edge cases) | 12 | 476 |
+| **Total S8** | **~18** | **~476** |
 
-**Gate:** All previous (447) + 18 new → 465 cumulative.
+**Gate:** All previous (458) + 18 new → 476 cumulative.
 
 ---
 
@@ -1448,11 +1475,61 @@ S8-2 session 2 (templates + palette):
   [ ] Palette 'Assemblies' / 'My Templates' sections
   [ ] Nested groups with depth limit (3)
   [ ] T-GR-INVARIANT: group/ungroup physics invariant test
+  [ ] Generic scaling: scalable, scaleParam, scaleRules fields
+  [ ] Scaling: instantiateTemplate applies scale × factor to internal params
+  [ ] Scaling: inspector shows scaleParam slider/input
   [ ] Tests 8–12
   [ ] Full regression
 
-Total S8: ~18 new tests → 465 cumulative
+Total S8: ~18 new tests → 476 cumulative
 ```
+
+---
+
+## S8-3. Generic Scaling Mechanism
+
+Any composite can opt into scaling. The template declares which
+internal parameters scale and how:
+
+```javascript
+// Human composite scales with population (2→3→5→7)
+// Greenhouse composite scales with racks
+GroupTemplateRegistry.register('human', {
+  // ...existing definition...
+  scalable: true,
+  scaleParam: 'population',   // inspector label
+  scaleDefault: 2,            // initial value
+
+  scaleRules: [
+    { unitLocalId: 'metabolism',    param: 'rate_multiplier', factor: 1.0 },
+    { unitLocalId: 'air_buffer',    param: 'volume_m3',      factor: 1.0 },
+    { unitLocalId: 'food_buffer',   param: 'volume_m3',      factor: 1.0 },
+    { unitLocalId: 'water_buffer',  param: 'volume_m3',      factor: 1.0 },
+    { unitLocalId: 'body_hex',      param: 'UA',             factor: 1.0 },
+    { unitLocalId: 'fan',           param: 'flowTarget',     factor: 1.0 },
+    { unitLocalId: 'air_splitter',  param: 'flowTarget',     factor: 1.0 }
+  ]
+});
+```
+
+**How it works:** Solver reads `scale` from composite params.
+For each scaleRule: `internalUnit.params[param] = baseValue × scale × factor`.
+Internal units are unaware — they just see their params.
+
+**Generic:** Human: `scaleParam: 'population'`. Greenhouse:
+`scaleParam: 'racks'`. Future power block: `scaleParam: 'trains'`.
+Same mechanism, different label.
+
+**Campaign events:** Rescue events set
+`setParam('human_1', 'population', 3)`. All internal rates
+adjust next tick. One composite, one scaling parameter, no
+duplication.
+
+**Factor:** Default 1.0 (linear). Could support 0.75 for
+sublinear scaling (shared overhead). Not needed for current
+campaign.
+
+~20–30 lines of implementation in the template instantiation path.
 
 ---
 
@@ -1462,9 +1539,9 @@ Total S8: ~18 new tests → 465 cumulative
   functions change. No computed values change.
 - **No campaign content.** Greenhouse/human template registrations
   happen in S10c, not S8. S8 provides the infrastructure only.
+  Full composite designs in `PTIS_COMPOSITE_MODELS.md`.
 - **No new separator unit.** `membrane_separator` is registered in
-  S10c (it's campaign content requiring R_PHOTOSYNTHESIS and
-  R_METABOLISM which are also S10c).
+  S9 (it's an engine extension requiring separatorTick trunk).
 - **No 3D view.** Groups work on the 2D SVG/canvas flowsheet.
 - **No cross-scene templates.** User templates are per-scene (saved
   in exportJSON). A global template library is a post-S8 feature.
@@ -1475,9 +1552,11 @@ Total S8: ~18 new tests → 465 cumulative
 
 | Consumer | What it uses |
 |----------|-------------|
-| S10c (composites) | Locked group templates for greenhouse, human. `membrane_separator` as internal unit. Player can Tab in and inspect real physics. |
+| S9 (Engine extensions) | membrane_separator registered as standalone defId using S8 template infrastructure. |
+| S10c (composites) | Locked group templates for greenhouse, human. Full designs in `PTIS_COMPOSITE_MODELS.md`. Player can Tab in and inspect real physics. |
 | S10b (missions) | Palette `{ templateId: count }` for composite equipment scarcity. |
 | S10c (save/load) | Groups preserved in scene serialization. Templates restored on load. |
+| S9b (validation) | Scaling mechanism used during validation: `setParam('human_1', 'population', N)`. |
 | Sandbox | Player groups sections of complex PFDs. Saves reusable sub-assemblies. |
 | Future | Cross-scene template library. Template sharing/export. |
 
@@ -1497,10 +1576,10 @@ Critical path extends by 4 sessions (S8).
 
 | Stage | Sessions | Cumulative |
 |-------|----------|------------|
-| S0–S7 (unchanged) | 26 | 447 tests |
-| **S8** | **4** | **465 tests** |
-| S9–S10 | 12 | ~495 tests |
-| **Total** | **42** | **~495** |
+| S0–S7 (unchanged) | 26 | 458 tests |
+| **S8** | **4** | **476 tests** |
+| S9–S10 | 12 | ~506 tests |
+| **Total** | **42** | **~506** |
 
 Note: S8 test count increases from 477 to ~495 because the
 greenhouse/human tests now validate template instantiation and

@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v19.4.0
+  processThis v19.5.0
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -361,6 +361,40 @@
   ═══════════════════════════════════════════════════════════════════════════
   CHANGELOG  (latest first)
   ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v19.5.0 — Cinematic overhaul, career naming, ragtag buttons ──────────
+
+  **CinematicPlayer rewrite.**  Full-screen cinematic slideshow with:
+  dual image layers (A/B) for smooth crossfade transitions (0.8s),
+  Ken Burns effect (4 animation variants, slow zoom + drift, 14s),
+  lower-third scrim gradient for text overlay on images,
+  text fade-in with slide-up (staggered 300ms after image).
+  Image beats use `background-size: cover` on div layers instead of
+  inline `<img>` elements.  Title cards and narrator beats centered.
+
+  **Planet X background fallback.**  When images fail to load, the
+  cinematic overlay is transparent — Planet X CSS background shows
+  through instead of solid black.  PlanetBg activated on play().
+
+  **Ragtag button classes.**  `.rt-btn` base class plus modifiers:
+  `.rt-primary` (amber), `.rt-danger` (red), `.rt-ghost` (outline).
+  Uses Baumans font, dark viewport-panel aesthetic, glowing borders.
+  Applied to: career list, victory overlay, game over overlay.
+
+  **Career naming modal.**  "New Career" button opens inline modal
+  with text input (pre-filled "Career N"), Start and Cancel buttons.
+  Enter/Escape keyboard shortcuts.  Cancel returns to career list.
+  `enterGame()` accepts `opts.careerName`.
+
+  **Narrative text pass.**  All Arc A intro + M1–M3 intro/outro text
+  revised: shorter (35–50 words per beat), line-broken for visual
+  rhythm, tighter prose preserving emotional tension.  Paragraph
+  blocks replaced with poetic line structure.
+
+  NNGs: NNG-12 (single file), NNG-14 (changelog, no new tests —
+  changes are CSS/DOM/narrative in script block 2).
+
+  Tests: 845 (unchanged — all pass).
 
   ─── v19.4.0 — S-MISSION Phase 5: Duration tracking + trigger fixes ──────
 
@@ -10443,7 +10477,30 @@
 
     /* ===== INSPECTOR TRANSITION ===== */
 
-    /* ===== [v19.2.0] CINEMATIC OVERLAY ===== */
+    /* ===== [v19.5.0] RAGTAG BUTTON CLASSES ===== */
+    .rt-btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      background: #0a1a1a; color: #94d8c8;
+      font-family: 'Baumans', 'Trebuchet MS', 'Courier New', monospace;
+      font-size: 13px; font-weight: 400; letter-spacing: 2px; text-transform: uppercase;
+      border: 2px solid #134e4a; border-radius: 6px;
+      padding: 10px 24px; cursor: pointer; user-select: none;
+      box-shadow: inset 0 0 10px rgba(20,78,74,0.25), 0 0 4px rgba(20,78,74,0.15);
+      transition: background 0.15s, border-color 0.2s, box-shadow 0.2s, color 0.15s;
+      text-decoration: none; white-space: nowrap;
+    }
+    .rt-btn:hover {
+      background: #0a2020; border-color: #22c55e; color: #a7f3d0;
+      box-shadow: inset 0 0 14px rgba(34,197,94,0.12), 0 0 8px rgba(34,197,94,0.18);
+    }
+    .rt-btn.rt-primary { border-color: #a16207; box-shadow: inset 0 0 10px rgba(161,98,7,0.2); color: #fbbf24; }
+    .rt-btn.rt-primary:hover { border-color: #eab308; color: #fde68a; box-shadow: inset 0 0 14px rgba(234,179,8,0.15), 0 0 8px rgba(234,179,8,0.2); }
+    .rt-btn.rt-danger { border-color: #7f1d1d; color: #f87171; }
+    .rt-btn.rt-danger:hover { border-color: #ef4444; color: #fca5a5; box-shadow: inset 0 0 14px rgba(239,68,68,0.12); }
+    .rt-btn.rt-ghost { background: transparent; border-color: #334155; color: #64748b; box-shadow: none; }
+    .rt-btn.rt-ghost:hover { border-color: #64748b; color: #e2e8f0; box-shadow: none; }
+
+    /* ===== [v19.5.0] CINEMATIC OVERLAY — full-screen slideshow ===== */
     #cinematicOverlay {
       display: none;
       position: fixed; inset: 0; z-index: 9999;
@@ -10452,32 +10509,85 @@
       cursor: pointer; user-select: none;
       overflow: hidden;
     }
-    #cinematicOverlay.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
-    #cinematicOverlay .cin-img {
-      max-width: 90vw; max-height: 60vh; object-fit: contain;
-      border-radius: 4px; margin-bottom: 24px;
+    #cinematicOverlay.active { display: block; }
+    /* Dual image layers for crossfade */
+    #cinematicOverlay .cin-layer {
+      position: absolute; inset: 0;
+      background-size: cover; background-position: center;
+      opacity: 0; transition: opacity 0.8s ease;
+      will-change: opacity, transform;
+    }
+    #cinematicOverlay .cin-layer.active { opacity: 1; }
+    /* Ken Burns slow zoom + drift */
+    @keyframes cin-kb-1 { from { transform: scale(1.0) translate(0,0); } to { transform: scale(1.08) translate(-1%,-0.5%); } }
+    @keyframes cin-kb-2 { from { transform: scale(1.0) translate(0,0); } to { transform: scale(1.06) translate(0.8%,-0.8%); } }
+    @keyframes cin-kb-3 { from { transform: scale(1.0) translate(0,0); } to { transform: scale(1.07) translate(-0.5%,0.6%); } }
+    @keyframes cin-kb-4 { from { transform: scale(1.0) translate(0,0); } to { transform: scale(1.09) translate(0.6%,0.4%); } }
+    .cin-kb-1 { animation: cin-kb-1 14s ease-in-out forwards; }
+    .cin-kb-2 { animation: cin-kb-2 14s ease-in-out forwards; }
+    .cin-kb-3 { animation: cin-kb-3 14s ease-in-out forwards; }
+    .cin-kb-4 { animation: cin-kb-4 14s ease-in-out forwards; }
+    /* Dark fallback with subtle purple tone (Planet X vibes) */
+    #cinematicOverlay .cin-layer.cin-fallback {
+      background: radial-gradient(ellipse at 50% 80%, #1a0a2e 0%, #0a0618 50%, #000 100%);
+      opacity: 1;
+    }
+    /* Lower-third scrim gradient */
+    #cinematicOverlay .cin-scrim {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      height: 62%; pointer-events: none;
+      background: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.6) 35%, rgba(0,0,0,0.88) 100%);
+      opacity: 0; transition: opacity 0.5s ease;
+    }
+    #cinematicOverlay .cin-scrim.visible { opacity: 1; }
+    /* Text positioned in upper-lower zone — top of text near center of screen */
+    #cinematicOverlay .cin-text-wrap {
+      position: absolute; top: 42%; left: 50%;
+      transform: translateX(-50%);
+      width: 90%; max-width: 640px;
+      text-align: center;
+      opacity: 0; transition: opacity 0.35s ease;
+    }
+    #cinematicOverlay .cin-text-wrap.visible { opacity: 1; }
+    #cinematicOverlay .cin-text {
+      font-size: 15px; line-height: 1.9; color: #d1d5db;
+      font-style: italic; letter-spacing: 0.2px;
+    }
+    /* Title card (centered on screen) */
+    #cinematicOverlay .cin-title-wrap {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
       opacity: 0; transition: opacity 0.6s ease;
     }
-    #cinematicOverlay .cin-img.loaded { opacity: 1; }
-    #cinematicOverlay .cin-text {
-      max-width: 700px; padding: 0 32px;
-      font-size: 15px; line-height: 1.7; text-align: left;
-      color: #cbd5e1; opacity: 0; transition: opacity 0.5s ease;
-    }
-    #cinematicOverlay .cin-text.visible { opacity: 1; }
+    #cinematicOverlay .cin-title-wrap.visible { opacity: 1; }
     #cinematicOverlay .cin-title {
-      font-size: 28px; font-weight: 700; letter-spacing: 1px;
-      color: #f8fafc; margin-bottom: 8px; text-align: center;
+      font-size: 32px; font-weight: 700; letter-spacing: 2px;
+      color: #f8fafc; margin-bottom: 10px; text-align: center;
     }
     #cinematicOverlay .cin-subtitle {
-      font-size: 16px; color: #94a3b8; text-align: center;
+      font-size: 16px; color: #94a3b8; text-align: center; font-style: italic;
     }
+    /* Narrator (centered, no image) */
+    #cinematicOverlay .cin-narrator-wrap {
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0; transition: opacity 0.5s ease;
+    }
+    #cinematicOverlay .cin-narrator-wrap.visible { opacity: 1; }
+    #cinematicOverlay .cin-narrator-text {
+      max-width: 600px; padding: 0 32px;
+      font-size: 16px; line-height: 1.9; text-align: center;
+      color: #cbd5e1; font-style: italic;
+    }
+    /* Hint at bottom */
     #cinematicOverlay .cin-hint {
-      position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%);
-      font-size: 12px; color: #475569; letter-spacing: 0.5px;
-      opacity: 0; transition: opacity 0.5s ease 2s;
+      position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+      font-size: 11px; color: #475569; letter-spacing: 1px; text-transform: uppercase;
+      font-family: 'Baumans', 'Trebuchet MS', 'Courier New', monospace;
+      opacity: 0; transition: opacity 0.5s ease;
     }
-    #cinematicOverlay.active .cin-hint { opacity: 1; }
+    @keyframes cin-hint-pulse { 0%,100% { opacity: 0.5; } 50% { opacity: 0.9; } }
+    #cinematicOverlay.active .cin-hint { animation: cin-hint-pulse 3s ease-in-out infinite; animation-delay: 2.5s; }
 
     /* ===== [v19.2.0] VICTORY OVERLAY ===== */
     #victoryOverlay {
@@ -10488,14 +10598,12 @@
       user-select: none;
     }
     #victoryOverlay.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
-    #victoryOverlay .vic-title { font-size: 24px; font-weight: 700; color: #f8fafc; margin-bottom: 16px; }
+    #victoryOverlay .vic-title { font-size: 24px; font-weight: 700; color: #f8fafc; margin-bottom: 16px;
+      font-family: 'Baumans', 'Trebuchet MS', 'Courier New', monospace; letter-spacing: 2px; text-transform: uppercase; }
     #victoryOverlay .vic-stars { font-size: 48px; margin-bottom: 16px; letter-spacing: 8px; }
     #victoryOverlay .vic-line { font-size: 15px; color: #94a3b8; font-style: italic; margin-bottom: 24px; max-width: 500px; text-align: center; }
-    #victoryOverlay .vic-btn {
-      padding: 10px 32px; background: #22c55e; color: #000; border: none;
-      border-radius: 6px; font-size: 15px; font-weight: 600; cursor: pointer;
-    }
-    #victoryOverlay .vic-btn:hover { background: #16a34a; }
+    #victoryOverlay .vic-btn { /* rt-btn handles styling */ }
+    #victoryOverlay .vic-btn:hover { /* rt-btn handles hover */ }
 
     /* ===== [v19.2.0] GAME OVER OVERLAY ===== */
     #gameOverOverlay {
@@ -10506,13 +10614,11 @@
       user-select: none;
     }
     #gameOverOverlay.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
-    #gameOverOverlay .go-title { font-size: 28px; font-weight: 700; color: #ef4444; margin-bottom: 12px; }
+    #gameOverOverlay .go-title { font-size: 28px; font-weight: 700; color: #ef4444; margin-bottom: 12px;
+      font-family: 'Baumans', 'Trebuchet MS', 'Courier New', monospace; letter-spacing: 2px; text-transform: uppercase; }
     #gameOverOverlay .go-text { font-size: 14px; color: #94a3b8; margin-bottom: 24px; max-width: 400px; text-align: center; }
-    #gameOverOverlay .go-btn {
-      padding: 10px 24px; background: #334155; color: #e2e8f0; border: 1px solid #475569;
-      border-radius: 6px; font-size: 14px; cursor: pointer; margin: 4px;
-    }
-    #gameOverOverlay .go-btn:hover { background: #475569; }
+    #gameOverOverlay .go-btn { margin: 4px; /* rt-btn handles the rest */ }
+    #gameOverOverlay .go-btn:hover { /* rt-btn handles hover */ }
 
     /* ===== [v19.2.0] COMPLETE MISSION BUTTON ===== */
     #btnCompleteMission {
@@ -10562,35 +10668,51 @@
       font-family: 'Inter', system-ui, sans-serif;
     }
     #careerListOverlay.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
-    #careerListOverlay .cl-title { font-size: 22px; font-weight: 700; color: #f8fafc; margin-bottom: 20px; }
+    #careerListOverlay .cl-title { font-size: 22px; font-weight: 700; color: #f8fafc; margin-bottom: 20px;
+      font-family: 'Baumans', 'Trebuchet MS', 'Courier New', monospace; letter-spacing: 3px; text-transform: uppercase; }
     #careerListOverlay .cl-list { width: 360px; max-height: 50vh; overflow-y: auto; }
     #careerListOverlay .cl-slot {
       display: flex; justify-content: space-between; align-items: center;
-      padding: 10px 14px; margin-bottom: 6px;
-      background: #1e293b; border: 1px solid #334155; border-radius: 6px;
-      cursor: pointer; transition: background 0.15s;
+      padding: 12px 16px; margin-bottom: 6px; height: 52px; box-sizing: border-box;
+      background: #0a1a1a; border: 2px solid #134e4a; border-radius: 6px;
+      cursor: pointer; transition: background 0.15s, border-color 0.2s;
+      box-shadow: inset 0 0 10px rgba(20,78,74,0.2);
     }
-    #careerListOverlay .cl-slot:hover { background: #334155; }
+    #careerListOverlay .cl-slot:hover { background: #0a2020; border-color: #22c55e; }
     #careerListOverlay .cl-slot-info { flex: 1; }
-    #careerListOverlay .cl-slot-name { font-weight: 600; font-size: 14px; color: #f8fafc; }
+    #careerListOverlay .cl-slot-name { font-weight: 600; font-size: 14px; color: #94d8c8;
+      font-family: 'Baumans', 'Trebuchet MS', 'Courier New', monospace; letter-spacing: 1px; }
     #careerListOverlay .cl-slot-detail { font-size: 11px; color: #64748b; margin-top: 2px; }
     #careerListOverlay .cl-slot-del {
       background: none; border: none; color: #64748b; font-size: 16px;
-      cursor: pointer; padding: 4px 8px;
+      cursor: pointer; padding: 4px 8px; transition: color 0.15s;
     }
     #careerListOverlay .cl-slot-del:hover { color: #ef4444; }
     #careerListOverlay .cl-new {
-      margin-top: 12px; padding: 10px 28px;
-      background: #22c55e; color: #000; border: none; border-radius: 6px;
-      font-size: 14px; font-weight: 600; cursor: pointer;
+      margin-top: 10px; width: 360px; height: 52px; box-sizing: border-box;
     }
-    #careerListOverlay .cl-new:hover { background: #16a34a; }
-    #careerListOverlay .cl-back {
-      margin-top: 10px; padding: 8px 20px;
-      background: none; color: #64748b; border: 1px solid #334155;
-      border-radius: 6px; font-size: 13px; cursor: pointer;
+    #careerListOverlay .cl-back { margin-top: 8px; }
+    /* Career naming modal */
+    #careerListOverlay .cl-name-modal {
+      display: none; width: 360px; margin-top: 10px;
+      background: #0a1a1a; border: 2px solid #134e4a; border-radius: 6px;
+      padding: 16px; box-sizing: border-box;
+      box-shadow: inset 0 0 10px rgba(20,78,74,0.2);
     }
-    #careerListOverlay .cl-back:hover { color: #e2e8f0; border-color: #64748b; }
+    #careerListOverlay .cl-name-modal.active { display: block; }
+    #careerListOverlay .cl-name-modal label {
+      display: block; font-size: 11px; color: #64748b; margin-bottom: 6px;
+      letter-spacing: 1px; text-transform: uppercase;
+      font-family: 'Baumans', 'Trebuchet MS', 'Courier New', monospace;
+    }
+    #careerListOverlay .cl-name-input {
+      width: 100%; box-sizing: border-box; padding: 8px 12px;
+      background: #0f172a; border: 1px solid #334155; border-radius: 4px;
+      color: #f8fafc; font-size: 15px; font-family: inherit;
+      outline: none; margin-bottom: 12px; transition: border-color 0.15s;
+    }
+    #careerListOverlay .cl-name-input:focus { border-color: #22c55e; }
+    #careerListOverlay .cl-name-btns { display: flex; gap: 8px; justify-content: flex-end; }
   </style>
 </head>
 <body>
@@ -27101,22 +27223,22 @@ ProfileRegistry.register('shelter', {
 // ═══ ARC A INTRO ═════════════════════════════════════════════════════════
 const ARC_A_INTRO = [
   { type: 'image', src: 'arc_a_1.webp', transition: 'fade', duration_ms: null,
-    fallbackText: 'It started as the mission of a lifetime \u2014 the first crewed survey of Planet X, a promising Earth-like world with one deadly catch: 9% CO\u2082 in the atmosphere. It took years to get here. We were the first humans to lay eyes on it, and it was a purple marvel. A large part of the planet lived in permanent twilight, which made it beautiful and hypnotic.',
+    fallbackText: 'The mission of a lifetime \u2014\nthe first crewed survey of Planet X.\n\nEarth-like, they said.\nExcept for one deadly catch: 9% CO\u2082 in the atmosphere.\n\nThe planet was a purple marvel,\nhalf-draped in permanent twilight.',
     alt: 'Ship in orbit above Planet X' },
   { type: 'image', src: 'arc_a_2.webp', transition: 'fade', duration_ms: null,
-    fallbackText: 'I\u2019m K. I fix things \u2014 you could call me a space mechanic, I guess. I had my reasons for signing up for a long interstellar voyage. None of them matter now. Things were real quiet out here, and I liked that.',
+    fallbackText: 'I\u2019m K. I fix things \u2014\nspace mechanic, I guess.\n\nI had my reasons for signing up.\nNone of them matter now.\n\nThings were quiet out here. I liked that.',
     alt: 'K in spacesuit' },
   { type: 'image', src: 'arc_a_3.webp', transition: 'fade', duration_ms: null,
-    fallbackText: 'Our mission was directed by Dr. Lena Vasquez. I didn\u2019t know her well. She was brilliant \u2014 that was obvious. She gave a briefing once, about atmospheric chemistry. Half the crew fell asleep. I stayed awake. Not because I understood it, but because she clearly loved every word of it.',
+    fallbackText: 'Dr. Lena Vasquez ran the mission.\nBrilliant \u2014 that was obvious.\n\nShe gave a briefing once, about atmospheric chemistry.\nHalf the crew fell asleep.\nI stayed awake \u2014\nnot because I understood it,\nbut because she loved every word.',
     alt: 'Lena giving a briefing' },
   { type: 'image', src: 'arc_a_4.webp', transition: 'fade', duration_ms: null,
-    fallbackText: 'Things did not go as planned. Not sure what caused the ship to plummet \u2014 the only thing I remember is that I was preparing for a space walk, and Dr. Vasquez came to check on me. Then everything started shaking. She rushed out, but all doors auto-locked, and we just got thrown around like cargo.',
+    fallbackText: 'Things did not go as planned.\n\nI was suiting up for a space walk\nwhen everything started shaking.\nDr. Vasquez rushed out. Doors auto-locked.\nWe got thrown around like cargo.\n\nI don\u2019t remember much after that.',
     alt: 'Ship crashing' },
   { type: 'image', src: 'arc_a_5.webp', transition: 'fade', duration_ms: null,
-    fallbackText: 'Somehow, we made it. The room we were in got ejected from the main ship and landed a short distance away, mostly intact. The urgency was Lena\u2019s leg \u2014 it was bad. I did what I could with bandages and salvage, but she wasn\u2019t going to be walking anytime soon.',
+    fallbackText: 'Somehow, we made it.\n\nOur compartment broke off and landed\na short distance from the main wreck.\nMostly intact.\n\nLena\u2019s leg was bad.\nShe wasn\u2019t going to walk anytime soon.',
     alt: 'Lena injured in wreckage' },
   { type: 'image', src: 'arc_a_6.webp', transition: 'fade', duration_ms: null,
-    fallbackText: 'Dr. Vasquez \u2014 she asked me to call her Lena \u2014 was quite something. She didn\u2019t seem shaken by what we\u2019d just been through. She told me she intended to live, no matter what, and that the situation was dire but not so different from what we\u2019d originally planned. Really? When I pointed out that we were stuck in a tin can on a planet that would kill us the moment we stepped outside, she just said: \u201cDon\u2019t worry. We have everything we need. We just need to know how to use it. And I know how. I\u2019ll guide you, you do the work. We\u2019ll both survive, you\u2019ll see.\u201d',
+    fallbackText: 'She asked me to call her Lena.\nShe didn\u2019t seem shaken.\n\nShe said she intended to live, no matter what.\nWhen I pointed out we were stuck on a planet\nthat would kill us the moment we stepped outside,\nshe just said:\n\n\u201CDon\u2019t worry. I know how.\nI\u2019ll guide you, you do the work.\u201D',
     alt: 'Lena and K planning' },
 ];
 
@@ -27138,7 +27260,7 @@ const M1_VICTORY_LINES = {
 
 const M1_OUTRO = [
   { type: 'image', src: 'm1_outro_1.webp', transition: 'fade', duration_ms: null,
-    fallbackText: 'The first step done. I wasn\u2019t sure where we were going, but Lena seemed very clear on the direction. That made me feel hopeful, as I plugged in that oxygen bottle and gave us fresh air to breathe. It was dark outside, but the lights were on inside.',
+    fallbackText: 'The first step done.\n\nI wasn\u2019t sure where we were going,\nbut Lena was.\n\nOxygen flowing. Lights on.\nDark outside \u2014 but not in here.',
     alt: 'Shelter with lights on' },
 ];
 
@@ -27172,7 +27294,7 @@ const M1_GUIDANCE = [
 // ═══ M2 — Clear the Air ═════════════════════════════════════════════════
 const M2_INTRO = [
   { type: 'image', src: 'm2_intro_1.webp', transition: 'fade', duration_ms: null,
-    fallbackText: 'While Lena slept, I started putting pipes together from the wreckage and made a big chimney. Lena had said we were going to work with gases, and I figured it wasn\u2019t a good idea to have flammable mixtures building up around the shelter. We could dump everything we didn\u2019t need up there, and maybe even burn it. I think it\u2019s called a flare.',
+    fallbackText: 'While Lena slept, I built a chimney from wreckage.\n\nWe\u2019d be working with gases \u2014\nflammable mixtures near the shelter was a bad idea.\nWe could dump what we didn\u2019t need up there,\nand burn it.\n\nI think it\u2019s called a flare.',
     alt: 'Flare stack construction' },
 ];
 
@@ -27193,7 +27315,7 @@ const M2_VICTORY_LINES = {
 
 const M2_OUTRO = [
   { type: 'image', src: 'm2_outro_1.webp', transition: 'fade', duration_ms: null,
-    fallbackText: 'With the CO\u2082 scrubber in place, I felt proud of myself. But only an hour later, I already had to replace the first cartridge. And we didn\u2019t have many. I felt a mild panic changing them again and again, but Lena stayed calm and self-assured. What was she going to think of next? I felt lucky she was there, but a bit fearful of her next idea.',
+    fallbackText: 'With the scrubber running, I felt proud.\n\nBut an hour later,\nI was already replacing the first cartridge.\nAnd we didn\u2019t have many.\n\nLena stayed calm.\nI wondered what she\u2019d think of next.',
     alt: 'CO2 scrubber installed' },
 ];
 
@@ -27227,13 +27349,13 @@ const M2_GUIDANCE = [
 // ═══ M3 — Find Water ════════════════════════════════════════════════════
 const M3_INTRO = [
   { type: 'image', src: 'm3_intro_1.webp', transition: 'fade', duration_ms: null,
-    fallbackText: 'Lena didn\u2019t disappoint. She\u2019d spotted a hydrothermal vent not far from the shelter. She said it had plenty of water vapor, and might even carry useful gases \u2014 natural gas, hydrogen. She wanted me to \u201ctame it,\u201d whatever that meant.',
+    fallbackText: 'Lena spotted a hydrothermal vent\nnot far from the shelter.\n\nPlenty of water vapor in there,\nmaybe natural gas, hydrogen too.\n\nShe wanted me to \u201Ctame it.\u201D\nWhatever that meant.',
     alt: 'Hydrothermal vent' },
   { type: 'image', src: 'm3_intro_2.webp', transition: 'fade', duration_ms: null,
-    fallbackText: 'She explained that the vent threw out high-pressure, high-temperature water along with other gases. We needed to cool it down before we could get liquid water out of it. I patched together a fan and some cooling fins from the wreckage. I thought it should work to bring the fluid down to ambient temperature.',
+    fallbackText: 'The vent threw out high-pressure steam\nmixed with other gases.\nWe needed to cool it down\nbefore we could get liquid water.\n\nI patched together a fan and cooling fins\nfrom the wreckage.',
     alt: 'Air cooler construction' },
   { type: 'image', src: 'm3_intro_3.webp', transition: 'fade', duration_ms: null,
-    fallbackText: 'Lena also pointed out some salvaged parts near the shelter that could be welded together into \u2014 well, the only word for it is a wellhead. I didn\u2019t drill it, but I capped it, and I can tell you it was a lot of hard work. I routed everything to the flare chimney for now, and lit it on fire. Judging by the flames, there was definitely natural gas in there.',
+    fallbackText: 'Lena pointed out salvaged parts\nnear the shelter.\nI welded them into a wellhead.\n\nI routed everything to the flare\nand lit it on fire.\nJudging by the flames \u2014\nthere was gas in there, alright.',
     alt: 'Wellhead construction' },
 ];
 
@@ -27254,7 +27376,7 @@ const M3_VICTORY_LINES = {
 
 const M3_OUTRO = [
   { type: 'image', src: 'm3_outro_1.webp', transition: 'fade', duration_ms: null,
-    fallbackText: 'Finally, water. I felt real proud plugging that barrel into our shelter. I felt like I could do anything, and we were going to make it for sure. I wanted a hot drink, but we only had cold water. I really enjoyed my glass of water though. Best water ever.',
+    fallbackText: 'Finally, water.\n\nI felt proud plugging that barrel\ninto our shelter.\nI wanted a hot drink,\nbut cold water was all we had.\n\nBest water I ever tasted.',
     alt: 'Water barrel connected to shelter' },
 ];
 
@@ -50697,12 +50819,16 @@ let _activeCareerSlot = null;
 
 const IMG_BASE = 'img/';
 
-// ── CinematicPlayer — full-screen beat overlay ──────────────────────────
+// ── CinematicPlayer — full-screen cinematic slideshow ────────────────
 const CinematicPlayer = {
   _beats: [],
   _index: 0,
-  _resolve: null,  // Promise resolver for play()
+  _resolve: null,
   _overlay: null,
+  _layerToggle: false,  // alternates between A and B layers
+  _KB_CLASSES: ['cin-kb-1','cin-kb-2','cin-kb-3','cin-kb-4'],
+  _autoTimer: null,
+  _transitioning: false,  // blocks clicks during transitions
 
   /** Play an array of CinematicBeats. Returns a Promise that resolves when done. */
   play(beats) {
@@ -50714,87 +50840,186 @@ const CinematicPlayer = {
 
     return new Promise(resolve => {
       this._resolve = resolve;
+      this._resetLayers();
       this._overlay.classList.add('active');
       this._overlay.onclick = () => this._advance();
-      this._showBeat(0);
+      this._presentBeat(0, true);  // first beat — no fade-out needed
     });
   },
 
-  _showBeat(idx) {
+  _resetLayers() {
+    const layerA = document.getElementById('cinLayerA');
+    const layerB = document.getElementById('cinLayerB');
+    if (layerA) { layerA.className = 'cin-layer'; layerA.style.backgroundImage = ''; }
+    if (layerB) { layerB.className = 'cin-layer'; layerB.style.backgroundImage = ''; }
+    this._layerToggle = false;
+    this._transitioning = false;
+    ['cinScrim','cinTextWrap','cinTitleWrap','cinNarratorWrap'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.classList.remove('visible');
+    });
+  },
+
+  /**
+   * Present a beat with proper choreography:
+   * 1. Fade out current text (300ms)
+   * 2. Swap image / content
+   * 3. Fade in new text (after image starts loading)
+   */
+  _presentBeat(idx, isFirst) {
+    if (this._autoTimer) { clearTimeout(this._autoTimer); this._autoTimer = null; }
     if (idx >= this._beats.length) { this._finish(); return; }
     this._index = idx;
     const beat = this._beats[idx];
-    const content = this._overlay.querySelector('.cin-content');
-    if (!content) { this._finish(); return; }
-    content.innerHTML = '';
+    const prevBeat = idx > 0 ? this._beats[idx - 1] : null;
+    const prevWasImage = prevBeat?.type === 'image';
+    const nextIsImage = beat.type === 'image';
 
-    if (beat.type === 'image') {
-      // Try to load image; on failure just remove img — text already shown below
-      const img = document.createElement('img');
-      img.className = 'cin-img';
-      img.alt = beat.alt || '';
-      img.onload = () => img.classList.add('loaded');
-      img.onerror = () => img.remove();  // graceful: text already visible
-      img.src = IMG_BASE + beat.src;
-      content.appendChild(img);
-
-      // Narration text — always shown (with or without image)
-      if (beat.fallbackText) {
-        const txt = document.createElement('div');
-        txt.className = 'cin-text';
-        txt.textContent = beat.fallbackText;
-        content.appendChild(txt);
-        requestAnimationFrame(() => requestAnimationFrame(() => txt.classList.add('visible')));
-      }
-
-    } else if (beat.type === 'title_card') {
-      const t = document.createElement('div');
-      t.className = 'cin-title';
-      t.textContent = beat.title || '';
-      content.appendChild(t);
-      if (beat.subtitle) {
-        const s = document.createElement('div');
-        s.className = 'cin-subtitle';
-        s.textContent = beat.subtitle;
-        content.appendChild(s);
-      }
-
-    } else if (beat.type === 'narrator') {
-      this._showFallbackText(content, beat.text || '');
-
-    } else if (beat.type === 'pause') {
-      // Auto-advance after duration
-      if (beat.duration_ms > 0) {
-        setTimeout(() => this._advance(), beat.duration_ms);
-        return;  // no click advance for pauses
-      }
+    if (isFirst) {
+      // First beat — no transition needed, just show
+      this._showContent(beat);
+      this._scheduleAutoAdvance(beat, idx);
+      return;
     }
 
-    // Auto-advance for timed beats (duration_ms !== null)
-    if (beat.duration_ms != null && beat.duration_ms > 0 && beat.type !== 'pause') {
+    // PHASE 1: fade out text (keep scrim if image→image)
+    this._transitioning = true;
+    const textWrap = document.getElementById('cinTextWrap');
+    const titleWrap = document.getElementById('cinTitleWrap');
+    const narratorWrap = document.getElementById('cinNarratorWrap');
+    const scrim = document.getElementById('cinScrim');
+
+    // Fade out all text elements
+    if (textWrap) textWrap.classList.remove('visible');
+    if (titleWrap) titleWrap.classList.remove('visible');
+    if (narratorWrap) narratorWrap.classList.remove('visible');
+
+    // Only hide scrim if leaving image beats
+    if (!nextIsImage && scrim) scrim.classList.remove('visible');
+
+    // PHASE 2: after text fades out, swap content
+    setTimeout(() => {
+      this._showContent(beat);
+      this._transitioning = false;
+      this._scheduleAutoAdvance(beat, idx);
+    }, 350);
+  },
+
+  /** Show the content for a beat (image crossfade, title, narrator) */
+  _showContent(beat) {
+    if (beat.type === 'image') {
+      this._crossfadeImage(beat);
+    } else if (beat.type === 'title_card') {
+      this._showTitleCard(beat);
+    } else if (beat.type === 'narrator') {
+      this._showNarrator(beat);
+    } else if (beat.type === 'pause') {
+      // nothing to show
+    }
+  },
+
+  _crossfadeImage(beat) {
+    // Determine active/inactive layers
+    const aId = this._layerToggle ? 'cinLayerB' : 'cinLayerA';
+    const bId = this._layerToggle ? 'cinLayerA' : 'cinLayerB';
+    this._layerToggle = !this._layerToggle;
+
+    const activeLayer = document.getElementById(aId);
+    const inactiveLayer = document.getElementById(bId);
+    if (!activeLayer) return;
+
+    const kb = this._KB_CLASSES[this._index % this._KB_CLASSES.length];
+    const scrim = document.getElementById('cinScrim');
+    const textWrap = document.getElementById('cinTextWrap');
+    const textEl = document.getElementById('cinText');
+
+    // Prepare text content (hidden — will fade in after image settles)
+    if (textEl) textEl.innerHTML = (beat.fallbackText || '').replace(/\n/g, '<br>');
+
+    // Preload and crossfade image
+    const imgUrl = IMG_BASE + beat.src;
+    const img = new Image();
+    const onImageReady = () => {
+      // Show scrim first (may already be visible for image→image)
+      if (scrim) scrim.classList.add('visible');
+      // Fade in text after image has started appearing
       setTimeout(() => {
-        if (this._index === idx) this._advance();  // only if still on same beat
+        if (textWrap && beat.fallbackText) textWrap.classList.add('visible');
+      }, 400);
+    };
+
+    img.onload = () => {
+      activeLayer.style.backgroundImage = `url('${imgUrl}')`;
+      activeLayer.className = 'cin-layer ' + kb + ' active';
+      inactiveLayer.classList.remove('active');
+      setTimeout(() => { inactiveLayer.style.backgroundImage = ''; }, 900);
+      onImageReady();
+    };
+    img.onerror = () => {
+      activeLayer.style.backgroundImage = '';
+      activeLayer.className = 'cin-layer cin-fallback active';
+      inactiveLayer.classList.remove('active');
+      onImageReady();
+    };
+    img.src = imgUrl;
+  },
+
+  _showTitleCard(beat) {
+    // Fade out image layers
+    const layerA = document.getElementById('cinLayerA');
+    const layerB = document.getElementById('cinLayerB');
+    if (layerA) layerA.classList.remove('active');
+    if (layerB) layerB.classList.remove('active');
+
+    const wrap = document.getElementById('cinTitleWrap');
+    const title = document.getElementById('cinTitle');
+    const subtitle = document.getElementById('cinSubtitle');
+    if (title) title.textContent = beat.title || '';
+    if (subtitle) {
+      subtitle.textContent = beat.subtitle || '';
+      subtitle.style.display = beat.subtitle ? '' : 'none';
+    }
+    requestAnimationFrame(() => {
+      if (wrap) wrap.classList.add('visible');
+    });
+  },
+
+  _showNarrator(beat) {
+    const layerA = document.getElementById('cinLayerA');
+    const layerB = document.getElementById('cinLayerB');
+    if (layerA) layerA.classList.remove('active');
+    if (layerB) layerB.classList.remove('active');
+
+    const wrap = document.getElementById('cinNarratorWrap');
+    const textEl = document.getElementById('cinNarratorText');
+    if (textEl) textEl.innerHTML = (beat.text || '').replace(/\n/g, '<br>');
+    requestAnimationFrame(() => {
+      if (wrap) wrap.classList.add('visible');
+    });
+  },
+
+  _scheduleAutoAdvance(beat, idx) {
+    if (beat.type === 'pause' && beat.duration_ms > 0) {
+      this._autoTimer = setTimeout(() => this._advance(), beat.duration_ms);
+    } else if (beat.duration_ms != null && beat.duration_ms > 0 && beat.type !== 'pause') {
+      this._autoTimer = setTimeout(() => {
+        if (this._index === idx) this._advance();
       }, beat.duration_ms);
     }
   },
 
-  _showFallbackText(container, text) {
-    const txt = document.createElement('div');
-    txt.className = 'cin-text';
-    txt.textContent = text;
-    container.appendChild(txt);
-    requestAnimationFrame(() => requestAnimationFrame(() => txt.classList.add('visible')));
-  },
-
   _advance() {
-    this._showBeat(this._index + 1);
+    if (this._transitioning) return;  // block clicks during transitions
+    this._presentBeat(this._index + 1, false);
   },
 
   _finish() {
+    if (this._autoTimer) { clearTimeout(this._autoTimer); this._autoTimer = null; }
     if (this._overlay) {
       this._overlay.classList.remove('active');
       this._overlay.onclick = null;
     }
+    this._resetLayers();
     this._beats = [];
     if (this._resolve) { this._resolve(); this._resolve = null; }
   },
@@ -51277,60 +51502,104 @@ function _hideCompleteMissionButton() {
 function updateCompleteMissionButton() { updateMissionHUD(); }
 
 // ── Wire overlay buttons ────────────────────────────────────────────────
-// Victory "Continue"
-document.getElementById('btnVictoryContinue')?.addEventListener('click', async () => {
-  hideVictoryScreen();
-  const mission = MissionRegistry.get(_activeMissionId);
+// [v19.4.0 fix] Deferred — overlays are in HTML after all script blocks.
+// _wireOverlayButtons() called from a <script> after the overlay HTML.
+function _wireOverlayButtons() {
+  // Victory "Continue"
+  document.getElementById('btnVictoryContinue')?.addEventListener('click', async () => {
+    hideVictoryScreen();
+    const mission = MissionRegistry.get(_activeMissionId);
+    if (mission?.storyOutro?.length > 0) {
+      setPlayState(PlayState.STORY_OUTRO);
+      await CinematicPlayer.play(mission.storyOutro);
+    }
+    const next = advanceMission();
+    if (next?.type === 'campaign_complete') {
+      showToast('Campaign complete! Congratulations!');
+      goHome();
+    }
+  });
 
-  // Play story outro if any
-  if (mission?.storyOutro?.length > 0) {
-    setPlayState(PlayState.STORY_OUTRO);
-    await CinematicPlayer.play(mission.storyOutro);
-  }
+  // Game over buttons
+  document.getElementById('btnGameOverRevert')?.addEventListener('click', () => {
+    hideGameOverScreen();
+    if (TimeClock._cpIndex >= 0) {
+      TimeClock._loadCheckpoint(scene);
+      render();
+      updatePropertiesPanel();
+      updateTransportUI();
+    }
+    setPlayState(PlayState.BUILD);
+  });
 
-  // Advance to next
-  const next = advanceMission();
-  if (next?.type === 'campaign_complete') {
-    showToast('Campaign complete! Congratulations!');
-    goHome();
-  }
-});
+  document.getElementById('btnGameOverRestart')?.addEventListener('click', () => {
+    hideGameOverScreen();
+    if (_activeMissionId) loadMission(_activeMissionId);
+  });
 
-// Game over buttons
-document.getElementById('btnGameOverRevert')?.addEventListener('click', () => {
-  hideGameOverScreen();
-  // Revert to last checkpoint
-  if (TimeClock._cpIndex >= 0) {
-    TimeClock._loadCheckpoint(scene);
-    render();
-    updatePropertiesPanel();
-    updateTransportUI();
-  }
-  setPlayState(PlayState.BUILD);
-});
+  // Complete Mission button
+  document.getElementById('btnCompleteMission')?.addEventListener('click', async () => {
+    const result = completeMission();
+    if (!result) return;
+    if (result.passed) {
+      showVictoryScreen(result);
+    } else {
+      const failed = result.objectiveResults.find(o => !o.met);
+      showToast(failed ? `Not complete: ${failed.progress}` : 'Objectives not met.');
+    }
+  });
 
-document.getElementById('btnGameOverRestart')?.addEventListener('click', () => {
-  hideGameOverScreen();
-  if (_activeMissionId) loadMission(_activeMissionId);
-});
+  // New Career button → show naming modal
+  document.getElementById('clNewCareer')?.addEventListener('click', () => {
+    const modal = document.getElementById('clNameModal');
+    const input = document.getElementById('clNameInput');
+    const newBtn = document.getElementById('clNewCareer');
+    if (!modal || !input) return;
+    input.value = 'Career ' + (CareerSaveManager.list().length + 1);
+    modal.classList.add('active');
+    if (newBtn) newBtn.style.display = 'none';
+    input.focus();
+    input.select();
+  });
 
-// Complete Mission button
-document.getElementById('btnCompleteMission')?.addEventListener('click', async () => {
-  const result = completeMission();
-  if (!result) return;
-  if (result.passed) {
-    showVictoryScreen(result);
-  } else {
-    // Show feedback toast with first failing objective
-    const failed = result.objectiveResults.find(o => !o.met);
-    showToast(failed ? `Not complete: ${failed.progress}` : 'Objectives not met.');
-  }
-});
+  // Name modal — Start
+  document.getElementById('clNameStart')?.addEventListener('click', () => {
+    const input = document.getElementById('clNameInput');
+    const name = (input?.value || '').trim() || 'Career';
+    document.getElementById('clNameModal')?.classList.remove('active');
+    document.getElementById('clNewCareer').style.display = '';
+    hideCareerList();
+    enterGame('campaign', { campaignId: 'planet_x', careerName: name });
+  });
 
-// ── Career list overlay ─────────────────────────────────────────────────
+  // Name modal — Cancel
+  document.getElementById('clNameCancel')?.addEventListener('click', () => {
+    document.getElementById('clNameModal')?.classList.remove('active');
+    document.getElementById('clNewCareer').style.display = '';
+  });
+
+  // Name modal — Enter key starts
+  document.getElementById('clNameInput')?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') document.getElementById('clNameStart')?.click();
+    if (e.key === 'Escape') document.getElementById('clNameCancel')?.click();
+  });
+
+  // Back button
+  document.getElementById('clBack')?.addEventListener('click', () => {
+    document.getElementById('clNameModal')?.classList.remove('active');
+    document.getElementById('clNewCareer').style.display = '';
+    hideCareerList();
+  });
+}
 function showCareerList() {
   const overlay = document.getElementById('careerListOverlay');
   if (!overlay) return;
+
+  // Reset naming modal state
+  const nameModal = document.getElementById('clNameModal');
+  if (nameModal) nameModal.classList.remove('active');
+  const newBtn = document.getElementById('clNewCareer');
+  if (newBtn) newBtn.style.display = '';
 
   // Patch localStorage for career list in artifact viewer
   const _store = {};
@@ -51389,17 +51658,6 @@ function hideCareerList() {
   if (overlay) overlay.classList.remove('active');
 }
 
-// New Career button
-document.getElementById('clNewCareer')?.addEventListener('click', () => {
-  hideCareerList();
-  enterGame('campaign', { campaignId: 'planet_x' });
-});
-
-// Back button
-document.getElementById('clBack')?.addEventListener('click', () => {
-  hideCareerList();
-});
-
 // ── Full mission flow integration ───────────────────────────────────────
 
 /**
@@ -51442,6 +51700,9 @@ async function startMissionFlow(missionId) {
 
   // → BUILD (player takes over)
   setPlayState(PlayState.BUILD);
+
+  // Force a render so the first guidance speech bubble appears immediately
+  if (typeof render === 'function') render();
 }
 
 // ── Trigger evaluation hook — called after each solve in play mode ──────
@@ -71894,7 +72155,12 @@ if (SimSettings.AUTO_RUN_TESTS) {
 
 <!-- [v19.2.0 S-MISSION] Cinematic overlay -->
 <div id="cinematicOverlay">
-  <div class="cin-content"></div>
+  <div class="cin-layer" id="cinLayerA"></div>
+  <div class="cin-layer" id="cinLayerB"></div>
+  <div class="cin-scrim" id="cinScrim"></div>
+  <div class="cin-text-wrap" id="cinTextWrap"><div class="cin-text" id="cinText"></div></div>
+  <div class="cin-title-wrap" id="cinTitleWrap"><div class="cin-title" id="cinTitle"></div><div class="cin-subtitle" id="cinSubtitle"></div></div>
+  <div class="cin-narrator-wrap" id="cinNarratorWrap"><div class="cin-narrator-text" id="cinNarratorText"></div></div>
   <div class="cin-hint">click to continue</div>
 </div>
 
@@ -71903,7 +72169,7 @@ if (SimSettings.AUTO_RUN_TESTS) {
   <div class="vic-title"></div>
   <div class="vic-stars"></div>
   <div class="vic-line"></div>
-  <button class="vic-btn" id="btnVictoryContinue">Continue</button>
+  <button class="vic-btn rt-btn rt-primary" id="btnVictoryContinue">CONTINUE</button>
 </div>
 
 <!-- [v19.2.0 S-MISSION] Game over overlay -->
@@ -71911,8 +72177,8 @@ if (SimSettings.AUTO_RUN_TESTS) {
   <div class="go-title">Mission Failed</div>
   <div class="go-text"></div>
   <div style="display:flex;gap:8px;">
-    <button class="go-btn" id="btnGameOverRevert">Revert</button>
-    <button class="go-btn" id="btnGameOverRestart">Restart Mission</button>
+    <button class="go-btn rt-btn" id="btnGameOverRevert">REVERT</button>
+    <button class="go-btn rt-btn rt-danger" id="btnGameOverRestart">RESTART MISSION</button>
   </div>
 </div>
 
@@ -71929,13 +72195,26 @@ if (SimSettings.AUTO_RUN_TESTS) {
   <div class="obj-day" id="objDayCounter"></div>
 </div>
 
-<!-- [v19.3.0 S-MISSION] Career list overlay -->
+<!-- [v19.5.0 S-MISSION] Career list overlay -->
 <div id="careerListOverlay">
-  <div class="cl-title">Planet X — Careers</div>
+  <div class="cl-title">Planet X</div>
   <div class="cl-list" id="clSlots"></div>
-  <button class="cl-new" id="clNewCareer">New Career</button>
-  <button class="cl-back" id="clBack">Back</button>
+  <button class="cl-new rt-btn rt-primary" id="clNewCareer">NEW CAREER</button>
+  <div class="cl-name-modal" id="clNameModal">
+    <label for="clNameInput">Name your career</label>
+    <input type="text" class="cl-name-input" id="clNameInput" maxlength="30" spellcheck="false" />
+    <div class="cl-name-btns">
+      <button class="rt-btn rt-ghost" id="clNameCancel">CANCEL</button>
+      <button class="rt-btn rt-primary" id="clNameStart">START</button>
+    </div>
+  </div>
+  <button class="cl-back rt-btn rt-ghost" id="clBack">BACK</button>
 </div>
+
+<!-- [v19.4.0] Wire overlay buttons — must run after overlay HTML exists -->
+<script>
+if (typeof _wireOverlayButtons === 'function') _wireOverlayButtons();
+</script>
 
 </body>
 </html>

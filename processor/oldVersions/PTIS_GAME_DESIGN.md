@@ -803,7 +803,7 @@ cross-validation, see `PTIS_BIOSPHERE_POWER_RECONCILIATION.md`.
 | Abstraction | Engine implementation | Physical analogue |
 |---|---|---|
 | Photosynthesis | reactor_electrochemical (R_PHOTOSYNTHESIS, η) | Chloroplast: light + CO₂ + H₂O → sugar + O₂ |
-| Metabolism | reactor_equilibrium (R_METABOLISM, T=310K) | Mitochondria: sugar + O₂ → CO₂ + H₂O + heat |
+| Metabolism | reactor_adiabatic (R_METABOLISM, T=310K) | Mitochondria: sugar + O₂ → CO₂ + H₂O + heat |
 | Gas exchange | membrane_separator (selectivity map) | Leaf stomata / kidney nephron |
 
 The same engine units serve both composites. membrane_separator with
@@ -908,7 +908,7 @@ mixing H₂ and O₂ is explosive.
 These are the "free" components — Kael can make them from salvaged
 pipe sections.
 
-**Reactor (reactor_equilibrium):** The Sabatier catalyst bed from
+**Reactor (reactor_adiabatic):** The Sabatier catalyst bed from
 life-support spares, later repurposed for combustion (M4) and Haber
 synthesis (M7). Different reactions, same hardware.
 
@@ -1035,13 +1035,13 @@ for future equipment. Sandbox mode: all equipment, unlimited.
 
 Equipment categories match real process engineering:
 - VESSEL (tank, tank_cryo, room)
-- SEPARATOR (flash_drum, membrane_separator)
-- REACTION (reactor_equilibrium, reactor_electrochemical)
+- SEPARATOR (flash_drum, membrane_separator, distillation_column)
+- REACTION (reactor_adiabatic, reactor_jacketed, reactor_cooled, reactor_electrochemical, fuel_cell)
 - TURBOMACHINERY (compressor, gas_turbine, steam_turbine, pump)
-- HEAT TRANSFER (hex, air_cooler, heater)
-- PIPING (mixer, splitter, valve)
+- HEAT TRANSFER (hex, air_cooler, electric_heater)
+- PIPING (mixer, splitter, splitter_manifold, mixer_manifold, valve)
 - SOURCE/SINK (source, atmosphere_sink)
-- POWER (battery, generator)
+- POWER (battery, power_hub)
 - COMPOSITE (greenhouse, human — via S8 templates)
 
 ---

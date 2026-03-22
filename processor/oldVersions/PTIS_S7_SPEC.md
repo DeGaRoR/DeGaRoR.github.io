@@ -13,11 +13,12 @@ boundaries), field maps (reactor feasibility T×P → conversion%), limit
 region overlays, and column operating map. Plus alarm rationalization
 skeleton.
 
-**Sub-sessions:** S7.1 (2), S7.2 (2) — 4 sessions total.
+**Sub-sessions:** S7.1 (2), S7.2 (2), S7.3 (1) — 5 sessions total.
 
 **Risk:** Low-medium. Mostly DOM/canvas rendering (Block 2). Physics
 computations are lightweight (VP from Antoine/PR, reactor grid from
 existing equilibrium solver). No changes to core simulation logic.
+S7.3 (recorder) is self-contained vanilla JS with no external deps.
 
 **Dependencies:**
 - S1 (limit data for overlays, `evaluateLimits()`, `getEffectiveLimits()`)
@@ -26,14 +27,15 @@ existing equilibrium solver). No changes to core simulation logic.
 - S6 optional (electrochemical reactor map: conversion vs power)
 
 **Required by:** S7b (inspector hooks reused for group interior views),
-S8 (maps provide visual feedback during game missions).
+S8 (maps provide visual feedback during game missions), S9b (recorder
+used during validation gate sessions for time-series capture).
 
 **Baseline state (post-S6):**
 - No performance map rendering infrastructure
 - No canvas utilities for maps
 - Limit data exists (S1) but no visual overlays
 - AlarmSystem._rationalize() is a skeleton (S1)
-- ~442 tests
+- ~451 tests
 
 **After S7:**
 - Full rendering infrastructure (pm-* CSS, HiDPI canvas, axes, pointer)
@@ -41,7 +43,8 @@ S8 (maps provide visual feedback during game missions).
 - Limit overlays on all applicable maps
 - Alarm rationalization (dedup by id)
 - Inspector hooks on 7 unit types
-- ~447 tests (442 + 5 new)
+- Time-series recorder (~550 lines vanilla JS, in-house, zero dependencies)
+- ~458 tests (451 + 7 new)
 
 ---
 
@@ -523,9 +526,9 @@ function pmDrawContours(ctx, layout, gridData, levels = [10, 25, 50, 75, 90]) {
 }
 ```
 
-**Inspector hooks:** reactor_equilibrium (both isothermal and adiabatic
-mode maps shown), reactor_electrochemical (conversion vs power curve
-instead of T×P field).
+**Inspector hooks:** reactor_adiabatic, reactor_jacketed, reactor_cooled
+(both isothermal and adiabatic mode maps shown), reactor_electrochemical
+(conversion vs power curve instead of T×P field).
 
 ---
 
@@ -651,7 +654,9 @@ UnitInspector.flash_drum.map = function(u, ud) {
 | valve | VP envelope (PM-1) | Species from inlet |
 | pump | Bubble P curve (PM-2) | Inlet liquid composition |
 | compressor | Dew P curve (PM-3) | Inlet vapor composition |
-| reactor_equilibrium | Reactor T×P (PM-4/5) | Current reaction |
+| reactor_adiabatic | Reactor T×P (PM-4/5) | Current reaction, adiabatic T trajectory |
+| reactor_jacketed | Reactor T×P (PM-4/5) | Current reaction, isothermal/heated |
+| reactor_cooled | Reactor T×P (PM-4/5) | Current reaction, cooled |
 | reactor_electrochemical | Conversion vs power | Linear curve |
 | distillation_column | Gilliland curve | Current FUG data |
 
@@ -683,7 +688,144 @@ rendered at 80vw for detailed inspection. Same data, larger canvas.
 | 4 | Column map: operating point inside feasible | Gilliland X,Y from FUG data | 0 < X_op < 1, 0 < Y_op < 1 |
 | 5 | Alarm rationalization: dedup | Two alarms same id, different severity | 1 alarm, higher severity wins |
 
-**Gate:** All previous (442) + 5 new pass → 447 cumulative.
+**Gate (S7.1+S7.2):** All previous (451) + 5 new pass → 456 cumulative.
+
+---
+
+# S7.3 — Time-Series Recorder (1 session)
+
+**Session:** 1 (self-contained).
+
+**Decision:** Build in-house (~550 lines vanilla JS). No external
+library dependency (Chart.js, uPlot etc.). Preserves zero-dependency
+architecture (NNG-12). The recorder is not a performance map — it's
+a time-domain monitoring tool for validation and gameplay.
+
+## S7.3-1. Recorder Core
+
+```javascript
+/**
+ * Time-series recorder. Records any numeric value from any unit.
+ * In-house implementation: canvas rendering, ring buffer, time axis.
+ * ~550 lines vanilla JS, zero external dependencies.
+ */
+const Recorder = {
+  channels: [],     // [{ unitId, path, label, unit, color }]
+  buffer: null,     // RingBuffer(maxPoints)
+  timeWindow: 3600, // seconds game-time (configurable)
+  maxPoints: 2000,  // ring buffer capacity
+  recording: false,
+
+  addChannel(unitId, path, label, unit, color) {
+    this.channels.push({ unitId, path, label, unit, color });
+  },
+
+  removeChannel(index) {
+    this.channels.splice(index, 1);
+  },
+
+  sample(scene, t) {
+    if (!this.recording || this.channels.length === 0) return;
+    const row = { t };
+    for (const ch of this.channels) {
+      const ud = scene.unitData?.[ch.unitId];
+      row[ch.unitId + '.' + ch.path] = _resolvePath(ud, ch.path) ?? NaN;
+    }
+    this.buffer.push(row);
+  },
+
+  clear() {
+    this.buffer = new RingBuffer(this.maxPoints);
+    this.channels = [];
+  }
+};
+```
+
+## S7.3-2. Ring Buffer
+
+```javascript
+class RingBuffer {
+  constructor(capacity) {
+    this.data = new Array(capacity);
+    this.head = 0;
+    this.size = 0;
+    this.capacity = capacity;
+  }
+  push(item) {
+    this.data[this.head] = item;
+    this.head = (this.head + 1) % this.capacity;
+    if (this.size < this.capacity) this.size++;
+  }
+  toArray() {
+    if (this.size < this.capacity) return this.data.slice(0, this.size);
+    return [...this.data.slice(this.head), ...this.data.slice(0, this.head)];
+  }
+}
+```
+
+## S7.3-3. Canvas Rendering
+
+Reuses `pmSetupCanvas`, `pmAxisLayout`, `pmDrawAxes` from S7.1
+rendering infrastructure. Adds time-specific features:
+
+- **X axis:** Game time (seconds or HH:MM format)
+- **Y axis:** Auto-scaled to data range with 10% padding
+- **Multi-channel:** Each channel draws as a colored polyline
+- **Legend:** Channel labels with color swatches
+- **Scrolling window:** X axis tracks latest `timeWindow` seconds
+- **Pointer readout:** Shows time + all channel values at cursor X
+
+```javascript
+function recorderRender(container, recorder) {
+  const { canvas, ctx, W, H } = pmSetupCanvas(container);
+  const data = recorder.buffer.toArray();
+  if (data.length < 2) return;
+
+  const tMin = data[0].t;
+  const tMax = data[data.length - 1].t;
+  // ... auto-scale Y, draw axes, draw polylines per channel
+}
+```
+
+## S7.3-4. Inspector Integration
+
+Any numeric value in the inspector can be recorded. Player clicks
+"📈 Record" toggle next to any inspector value → channel added.
+Recorder panel opens as a collapsible section below the inspector.
+
+```javascript
+// In inspector value rendering:
+const recordBtn = createEl('button', 'rec-btn', '📈');
+recordBtn.onclick = () => {
+  Recorder.addChannel(unit.id, valuePath, label, unit, nextColor());
+  Recorder.recording = true;
+};
+```
+
+## S7.3-5. CSV Export
+
+For validation gate (S9b), recorder data can be exported as CSV:
+
+```javascript
+Recorder.exportCSV = function() {
+  const data = this.buffer.toArray();
+  const headers = ['time', ...this.channels.map(c => c.label)];
+  const rows = data.map(row => {
+    return [row.t, ...this.channels.map(c =>
+      row[c.unitId + '.' + c.path] ?? '')].join(',');
+  });
+  return headers.join(',') + '\n' + rows.join('\n');
+};
+```
+
+## S7.3 Tests (~2)
+
+| # | Test | Setup | Assert |
+|---|------|-------|--------|
+| 1 | Ring buffer: overflow wraps | Push 2× capacity items | toArray().length === capacity, oldest dropped |
+| 2 | Recorder: sample captures value | Add channel, sample 10 ticks | buffer.size === 10, values match ud.last path |
+
+**Gate (S7.3):** 456 + 2 → 458 cumulative.
 
 ---
 
@@ -725,13 +867,25 @@ S7.2 session 1 (reactor maps):
 S7.2 session 2 (overlays + column + hooks):
   [ ] pmDrawLimitOverlays() (CRIT/WARN bands)
   [ ] pmDrawGillilandMap() (X vs Y curve + operating point)
-  [ ] Inspector .map config on 10 unit types
+  [ ] Inspector .map config on 10+ unit types (incl. 3 reactor defIds)
   [ ] Inspector rendering: pm-container + pmRender()
   [ ] pmOpenExpanded() modal
   [ ] Tests 3, 4
   [ ] Full regression
 
-Total S7: 5 new tests → 447 cumulative
+S7.3 session (recorder):
+  [ ] RingBuffer class (~30 lines)
+  [ ] Recorder object: channels, sample(), clear() (~80 lines)
+  [ ] _resolvePath() helper for nested ud.last access (~20 lines)
+  [ ] recorderRender() canvas with time axis, multi-channel (~200 lines)
+  [ ] Inspector "📈 Record" button integration (~50 lines)
+  [ ] Recorder panel (collapsible, legend, clear button) (~100 lines)
+  [ ] CSV export for validation gate (~40 lines)
+  [ ] Auto-scale Y axis with padding (~30 lines)
+  [ ] Tests: ring buffer + sample
+  [ ] Full regression
+
+Total S7: 7 new tests → 458 cumulative
 ```
 
 ---

@@ -10,35 +10,40 @@
 the campaign but architecturally part of the simulation engine. These
 units share tick trunks with existing units and follow all NNG rules.
 They work in sandbox mode regardless of whether the game layer (S10) is
-loaded. No game mechanics — pure engine registrations and tests.
+loaded. No game mechanics — pure engine registrations and tests. S9b
+adds a validation gate verifying composites and mission flowsheets
+before S10.
 
-**Sub-sessions:** 2 (registrations + trunk wiring, then tests + regression).
+**Sub-sessions:** 2 (registrations + trunk wiring, then tests +
+regression) + 3–5 (validation gate S9b).
 
 **Risk:** Low. All new defIds reuse existing trunk functions with
 config-driven branching. No new solver infrastructure. The membrane
 separator is the only new trunk (`separatorTick`), and it is a simple
-selectivity-map permeation with no iteration.
+selectivity-map permeation with optional depletion logic.
 
 **Dependencies:**
 - S8 (GroupTemplateRegistry — composites in S10c will use these units
   inside group templates, but S9 itself only registers standalone defIds)
-- S6 (electrochemicalTick trunk — shared by fuel_cell)
+- S6 (electrochemicalTick trunk — shared by fuel_cell, includes
+  mandatory cooling water circuit)
 - S2 (power contracts — fuel_cell in generate mode)
 - S1b (reaction registry — R_PHOTOSYNTHESIS and R_METABOLISM follow
   existing ELECTROCHEMICAL and POWER_LAW models)
+- S7.3 (time-series recorder — used during validation gate)
 
 **Required by:** S10c (greenhouse and human composite templates reference
 membrane_separator, and use R_PHOTOSYNTHESIS / R_METABOLISM).
 
 **Baseline state (post-S8):** Full simulation engine with PR EOS,
 distillation, pressure network, electrochemical reactor (2-outlet),
-performance maps, unit grouping with templates. 465 tests. No
-steam_turbine, tank_cryo, membrane_separator, or fuel_cell. No CH₂O
-species. No photosynthesis/metabolism reactions.
+performance maps, unit grouping with templates, scaling mechanism.
+476 tests. No steam_turbine, tank_cryo, membrane_separator, or
+fuel_cell. No CH₂O species. No photosynthesis/metabolism reactions.
 
 **After S9:** All game-required units, species, and reactions registered.
-Sandbox users can place and connect all unit types. ~473 tests
-(465 + ~8 new).
+Sandbox users can place and connect all unit types. Validation gate
+confirms composite and mission correctness. ~486 tests (476 + ~10 new).
 
 ---
 
@@ -82,8 +87,12 @@ function expanderTick(u, ports, par, ctx) {
 | `expanderTick` | gas_turbine, steam_turbine | steam_turbine |
 | `compressorTick` | compressor | — |
 | `electrochemicalTick` | reactor_electrochemical, fuel_cell | fuel_cell |
-| `reactorTick` | reactor_equilibrium | — |
+| `equilibriumTick` | reactor_adiabatic, reactor_jacketed, reactor_cooled | — |
 | `separatorTick` | membrane_separator | membrane_separator (new trunk) |
+
+Note: `fuel_cell` has 6 ports (incl. cool_in/cool_out for mandatory
+cooling water circuit). See S6 spec for full electrochemicalTick
+trunk implementation.
 
 ### When to Create a New defId (NNG-3 Decision Tree)
 
@@ -182,7 +191,7 @@ New defId with new dedicated `separatorTick` trunk.
 | Category | SEPARATOR |
 | Footprint | 2×2 |
 | Physical | Selective membrane unit — not VLE, not flash |
-| Game intro | M10 — internal to greenhouse (leaf) and human (kidney) composites |
+| Game intro | M10 — internal to greenhouse (leaf) and human (kidney) composites. Day-0 LiOH scrubber also uses this defId. |
 | Trunk | `separatorTick` (new, dedicated) |
 
 **Ports:**
@@ -197,8 +206,19 @@ New defId with new dedicated `separatorTick` trunk.
 
 | Param | Default | Unit | Notes |
 |-------|---------|------|-------|
-| membrane | 'generic' | — | Membrane type label (for inspector display) |
 | selectivity | {} | map | `{ species: fraction_to_permeate }`. Unlisted species default to 1.0 (fully permeate). |
+| depletable | false | bool | If true, unit has finite sorbent capacity |
+| sorbentCapacity | 0 | mol | Total sorbent capacity (e.g. 268 mol for LiOH) |
+| sorbentRemaining | 0 | mol | Current sorbent remaining (decremented each tick) |
+| maxRate | Infinity | mol/hr | Maximum absorption rate |
+
+**Configurations:**
+
+| Use case | selectivity | depletable | sorbentCapacity | maxRate | Physical analogue |
+|----------|------------|-----------|----------------|---------|-------------------|
+| Greenhouse leaf | `{ CH2O: 0.05, NH3: 0.05 }` | false | — | — | Stomatal membrane |
+| Human kidney | `{ NH3: 0.01 }` | false | — | — | Renal tubule |
+| Day-0 LiOH scrubber | `{ CO2: 0.01 }` | true | 268 | 5 | LiOH cartridge stack |
 
 **Physics (`separatorTick`):**
 
@@ -211,14 +231,42 @@ function separatorTick(u, ports, par, ctx) {
     return;
   }
 
-  const sel = par.selectivity || {};
+  // Depletion check
+  let effectiveSel = par.selectivity || {};
+  if (par.depletable) {
+    if (par.sorbentRemaining <= 0) {
+      // Sorbent depleted — selectivity drops to 0 for all targeted species
+      effectiveSel = {};  // everything permeates, nothing captured
+    } else {
+      // Rate-limit absorption
+      const dt_hr = ctx.dt / 3600;
+      const maxAbsorb = Math.min(par.sorbentRemaining, par.maxRate * dt_hr);
+      // Decrement sorbent based on actual absorbed amount (computed below)
+    }
+    // WARNING at < 20% remaining
+    if (par.sorbentRemaining > 0 &&
+        par.sorbentRemaining < 0.2 * par.sorbentCapacity) {
+      u._alarms.push({ id: 'sorbent_low', severity: 'WARNING',
+        message: `Sorbent at ${(par.sorbentRemaining/par.sorbentCapacity*100).toFixed(0)}%` });
+    }
+  }
+
   const permN = {};
   const retN  = {};
 
   for (const [sp, mol] of Object.entries(feed.n)) {
-    const frac = (sp in sel) ? sel[sp] : 1.0;  // default: fully permeate
+    const frac = (sp in effectiveSel) ? effectiveSel[sp] : 1.0;
     permN[sp] = mol * frac;
     retN[sp]  = mol * (1 - frac);
+  }
+
+  // Decrement sorbent for depletable units
+  if (par.depletable && par.sorbentRemaining > 0) {
+    const absorbed = Object.entries(retN)
+      .filter(([sp]) => sp in (par.selectivity || {}))
+      .reduce((sum, [, mol]) => sum + mol, 0);
+    const dt_hr = ctx.dt / 3600;
+    par.sorbentRemaining = Math.max(0, par.sorbentRemaining - absorbed * dt_hr);
   }
 
   // Both outlets at feed T, P (no phase change, no energy change)
@@ -233,9 +281,9 @@ species). This is a simplification of real membrane physics (no
 pressure-driven flux, no temperature dependence) appropriate for
 the biological abstractions it models.
 
-**Same defId serves both greenhouse and human** with different
-selectivity maps via params. Follows NNG-3: same machine,
-different operating parameters.
+**Same defId serves greenhouse, human, and LiOH scrubber** with
+different selectivity maps and depletion params via config. Follows
+NNG-3: same machine, different operating parameters.
 
 ---
 
@@ -250,12 +298,12 @@ Registered for sandbox availability and future campaign extensions.
 | defId | `fuel_cell` |
 | Name | Fuel Cell |
 | Category | REACTION |
-| Footprint | 2×3 |
+| Footprint | 2×3, h:3 |
 | Physical | PEM/SOFC stack — reverse electrolysis, generates power |
 | Trunk | `electrochemicalTick` (shared with reactor_electrochemical) |
 | Config | `{ direction: 'generate' }` |
 
-**Ports:**
+**Ports (6):**
 
 | portId | Label | Direction | Type |
 |--------|-------|-----------|------|
@@ -263,11 +311,20 @@ Registered for sandbox availability and future campaign extensions.
 | mat_in_ano | Oxidant (O₂) | IN | MATERIAL |
 | mat_out | Exhaust | OUT | MATERIAL |
 | elec_out | Power out | OUT | ELECTRICAL |
-| heat_out | Waste heat | OUT | HEAT |
+| cool_in | Coolant in | IN | MATERIAL |
+| cool_out | Coolant out | OUT | MATERIAL |
+
+**Mandatory cooling water circuit (NNG-2).** Fuel cell waste heat
+is removed via an internal HEX model using UA parameter. Coolant
+enters cool_in, absorbs waste heat, exits cool_out. If cool_in is
+unconnected, waste heat stays in exhaust products (degraded mode,
+WARNING alarm). No HEAT port type — cooling is material flow through
+a pipe (NNG-3).
 
 **Reactions:** R_H2_FUELCELL (2H₂+O₂→2H₂O), R_CO_FUELCELL
 (2CO+O₂→2CO₂). Both registered in S1b. Trunk detects ΔH<0
-→ generate mode (power OUT via elec_out, waste heat via heat_out).
+→ generate mode (power OUT via elec_out, waste heat removed via
+cool_in/cool_out circuit).
 
 ---
 
@@ -316,7 +373,7 @@ the "electrodes."
 
 **R_METABOLISM** uses POWER_LAW with effectively complete conversion.
 At 310 K (body temperature), the equilibrium constant for combustion
-of CH₂O is astronomical. `reactor_equilibrium` running R_METABOLISM
+of CH₂O is astronomical. `reactor_adiabatic` running R_METABOLISM
 achieves >99.999% conversion automatically via the equilibrium
 calculation — no special-casing needed.
 
@@ -360,7 +417,7 @@ mission briefings.
 
 ---
 
-## Tests (~8)
+## Tests (~10)
 
 | # | Test | Assert |
 |---|------|--------|
@@ -370,10 +427,61 @@ mission briefings.
 | 4 | tank_cryo limits | T_LL=20K, P_HH=10 bar enforced |
 | 5 | membrane_separator mass balance | perm + ret = feed for every species |
 | 6 | membrane_separator selectivity | NH₃ at selectivity 0.01 → 99% to retentate |
-| 7 | CH₂O species registered | ComponentRegistry.get('CH2O') exists, MW ≈ 30.026 |
-| 8 | R_PHOTOSYNTHESIS + R_METABOLISM | Both registered, ΔH equal and opposite |
+| 7 | membrane_separator depletable | sorbentRemaining decrements; selectivity→0 at depletion; WARNING at <20% |
+| 8 | fuel_cell: 6 ports registered | cool_in + cool_out present, no heat_out |
+| 9 | CH₂O species registered | ComponentRegistry.get('CH2O') exists, MW ≈ 30.026 |
+| 10 | R_PHOTOSYNTHESIS + R_METABOLISM | Both registered, ΔH equal and opposite |
 
-**Gate:** All previous (465) + 8 new → 473 cumulative.
+**Gate:** All previous (476) + 10 new → 486 cumulative.
+
+---
+
+# S9b — Validation Gate (3–5 sessions)
+
+**Purpose:** Systematic verification that all composites and mission
+scenarios produce physically correct results before S10 game layer
+development begins. Uses the S7.3 time-series recorder for data capture.
+
+**Dependencies:** All S0–S9 complete. Recorder (S7.3). Composite
+models defined in `PTIS_COMPOSITE_MODELS.md`.
+
+## V-0: Composite Sub-Gate (1 session)
+
+| Step | Test | Pass criteria |
+|------|------|--------------|
+| V-0a | Human standalone (air + food + water connected, 1 hr) | Rates match PTIS_COMPOSITE_MODELS.md §2.6 |
+| V-0b | Human air cut → buffer depletion | WARNING ~3 min, CRITICAL ~5.5 min |
+| V-0c | Human water cut → dehydration | WARNING ~36 hr, CRITICAL ~68 hr |
+| V-0d | Human food cut → starvation | WARNING ~4 days, CRITICAL ~17 days |
+| V-0e | Greenhouse standalone (CO₂ + nutrients + power, 1 hr) | O₂ and CH₂O at expected rates |
+| V-0f | Greenhouse nutrient cut → soil buffer depletion | WARNING ~4 hr |
+| V-0g | Human + Greenhouse closed loop via room | O₂/CO₂ stabilize, mass balance closes |
+
+## V-1: Core Missions (2 sessions)
+
+M1 (water extraction), M4 (Brayton power), M10 (full biosphere).
+End-to-end flowsheets built, run to steady-state, recorder captures
+key variables. Verify against PTIS_COMPOSITE_MODELS.md power
+budgets and the 82 kW NASA validation target.
+
+## V-2: Remaining Missions (1 session)
+
+M2, M3, M5, M6, M7, M8, M9 spot-checked for convergence, mass
+balance closure, and alarm correctness.
+
+## V-gate Session Estimate
+
+| Phase | Sessions |
+|-------|----------|
+| Composite sub-gate (V-0) | 1 |
+| M1, M4, M10 (V-1) | 2 |
+| M2–M9 spot checks (V-2) | 1 |
+| **Total** | **3–5** |
+
+**No new automated tests from V-gate.** Validation is manual
+inspection of recorder traces and mass/energy balances. Results
+documented as validation reports. Issues found feed back as
+spec amendments before S10.
 
 ---
 
@@ -386,8 +494,11 @@ S9-1 (unit registrations):
   [ ] tank_cryo defId registration (vesselTick, cryo limits)
   [ ] tank_cryo limits (T_LL=20K, P_HH=10 bar)
   [ ] membrane_separator defId registration (new separatorTick trunk)
-  [ ] separatorTick implementation (selectivity-map permeation)
+  [ ] separatorTick implementation (selectivity-map permeation + depletion)
+  [ ] Depletable params: sorbentCapacity, sorbentRemaining, maxRate
+  [ ] Sorbent WARNING at < 20%, selectivity → 0 when depleted
   [ ] fuel_cell defId registration (electrochemicalTick, generate config)
+  [ ] fuel_cell: 6 ports incl. cool_in/cool_out (mandatory cooling)
   [ ] Trunk sharing documentation in code comments
 
 S9-2 (species, reactions, tests):
@@ -395,10 +506,18 @@ S9-2 (species, reactions, tests):
   [ ] R_PHOTOSYNTHESIS reaction registration (ELECTROCHEMICAL model)
   [ ] R_METABOLISM reaction registration (POWER_LAW model)
   [ ] friendlyName field on all reactions
-  [ ] Tests S9 1–8
-  [ ] Full regression (465 prior tests pass)
+  [ ] Tests S9 1–10
+  [ ] Full regression (476 prior tests pass)
 
-Total S9: ~8 new tests → 473 cumulative
+S9b (validation gate — 3–5 sessions):
+  [ ] V-0: Composite standalone + closed-loop verification
+  [ ] V-1: M1, M4, M10 end-to-end flowsheets
+  [ ] V-2: M2–M9 spot checks
+  [ ] Recorder traces captured for each validation step
+  [ ] Issues documented, amendments filed before S10
+
+Total S9: ~10 new tests → 486 cumulative
+  + 3–5 validation sessions (no new automated tests)
 ```
 
 ---
@@ -409,6 +528,17 @@ A complete simulation engine with all process units needed for the
 10-mission campaign — plus full sandbox availability. A user who
 never touches the game layer can still place a membrane separator,
 run photosynthesis in an electrochemical reactor, model a Rankine
-cycle with a steam turbine, or store cryogenic fluids in a Dewar
-tank. The engine is game-agnostic; the game layer (S10) is
+cycle with a steam turbine, store cryogenic fluids in a Dewar
+tank, or test a fuel cell with mandatory cooling water circuit.
+
+The membrane_separator supports both continuous operation (greenhouse
+leaf, human kidney) and depletable sorbent mode (Day-0 LiOH scrubber)
+via the same defId with different params.
+
+The validation gate (S9b) confirms that all composite designs from
+`PTIS_COMPOSITE_MODELS.md` produce correct steady-state behavior
+and that mission-critical flowsheets converge with physically
+realistic results before any game layer code is written.
+
+The engine is game-agnostic; the game layer (S10) is
 engine-dependent.

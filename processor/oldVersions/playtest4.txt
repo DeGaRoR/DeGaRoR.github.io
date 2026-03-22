@@ -1,0 +1,21 @@
+I played in front of my girlfriend, she gave useful feedback. I also refelcted on playtest 3, which turned out not catastrphic, but not far.
+I started having real fears about on-boarding. You've deen me struggle with pressurized tanks. They have correct physics, but they are very un-game friendly.
+Also, my gorlfriedn has pointed out that a player wouldn't know where to route the streams, as I was adding sinks to develop my process, she was right.
+Adding sinks to a model is an engineering practice to abstract boundaries, not a natural player behaviour.
+
+So,
+- We need a simpler tank model. It accepts what comes in, it delivers a constant flow out. It does proper balance within. A new defId. The current one is not incorrect, it's just un-game friendly. So just keep it for now, until we validate the new ones are better.
+- Gas tanks should also compute a percentage fill, shown visually
+- The open tank is OK, but it should just have a flow controlled draw, and get rid of its static head calculation. 
+- I doubt the whole pressure update. I think things were better before honestly. Simpler. More to the point. More intuitive. The only thing I like in the current system is the ability to open a valve from 0 to 100%. We could easily do this with a source having a maw output and provide a slider 0-100% too
+- We need a clear destination for the streams, and a clear and easy way to store them and compare agaisnt survival need. So my idea of the "new room model".
+
+The new room model. It is specified in PTIS_S_NEWROOM.md. The idea is a large new unit that serves as the room. It comes with special buffers (not very different from the new tank model mentioned), which give a clear goal to the player (plug a water source to keep that tank filled). The room unit also shows animated Kael and Lena, with Lena expressing herself thorugh text within the unit itself. It gives a little feeling of "let's see what Lena has to say". Lena will become both the tutorial giver and the expert diagnosis from the alarming system.
+We get rid of the super complex human-room-greenhouse models for now, focus on the first 5 missions, use buffers to fulfill both the role of a credible process unit and an inventory unit tied to survival indicators. We introduce full buffer between the room and the process, so the player freely plugs it product output into the tanks.
+
+Overall, the vision becomes
+1. Fix the critical bugs identified in playtest3.
+2. Serious questioning on the role of pressure in the game, discussion on new defIds allowing complete pressure bypass, including the tanks (simple units receiving whatever, storing it and computing mass and energy balance, and providing a constant rate draw)
+2. Develop the room model, as it is not just a new unit, but really the purpose of the missions. We do it as a much simpler unit than anticipated from a physics point of vioew, but it also becomes a central diegetic piece of UI. Life indicators, emotional connect and useful advice all live there.
+3. We also need to question the dump idea. Maybe we should have a clearer, larger icon with manifold inlets, so it's clear thtat the player can route all its waste over there.
+4. Now implement the mission framewrok, because we have clear objects to check against; room conditions must be maintained; reservoirs should be filled to a certain level.

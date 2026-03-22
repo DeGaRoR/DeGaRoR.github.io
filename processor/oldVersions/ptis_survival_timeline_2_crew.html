@@ -1,0 +1,187 @@
+
+<div style="padding: 1rem 0;">
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; margin-bottom: 1.5rem;">
+  <div style="background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 0.75rem 1rem;">
+    <div style="font-size: 12px; color: var(--color-text-secondary);">Water death</div>
+    <div style="font-size: 20px; font-weight: 500; color: #E24B4A;">74 h</div>
+    <div style="font-size: 11px; color: var(--color-text-tertiary);">day 3</div>
+  </div>
+  <div style="background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 0.75rem 1rem;">
+    <div style="font-size: 12px; color: var(--color-text-secondary);">O₂ death</div>
+    <div style="font-size: 20px; font-weight: 500; color: #E24B4A;">169 h</div>
+    <div style="font-size: 11px; color: var(--color-text-tertiary);">day 7</div>
+  </div>
+  <div style="background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 0.75rem 1rem;">
+    <div style="font-size: 12px; color: var(--color-text-secondary);">CO₂ death</div>
+    <div style="font-size: 20px; font-weight: 500; color: #E24B4A;">228 h</div>
+    <div style="font-size: 11px; color: var(--color-text-tertiary);">day 10</div>
+  </div>
+  <div style="background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 0.75rem 1rem;">
+    <div style="font-size: 12px; color: var(--color-text-secondary);">Food death</div>
+    <div style="font-size: 20px; font-weight: 500; color: #E24B4A;">904 h</div>
+    <div style="font-size: 11px; color: var(--color-text-tertiary);">day 38</div>
+  </div>
+</div>
+
+<div style="display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 8px; font-size: 12px; color: var(--color-text-secondary);">
+  <span style="display: flex; align-items: center; gap: 4px;"><span style="width: 10px; height: 10px; border-radius: 2px; background: #378ADD;"></span>Water</span>
+  <span style="display: flex; align-items: center; gap: 4px;"><span style="width: 10px; height: 10px; border-radius: 2px; background: #1D9E75;"></span>O₂ atmosphere</span>
+  <span style="display: flex; align-items: center; gap: 4px;"><span style="width: 10px; height: 10px; border-radius: 2px; background: #D85A30;"></span>CO₂ atmosphere</span>
+  <span style="display: flex; align-items: center; gap: 4px;"><span style="width: 10px; height: 10px; border-radius: 2px; background: #639922;"></span>Food (room temp)</span>
+  <span style="display: flex; align-items: center; gap: 4px;"><span style="width: 10px; height: 10px; border-radius: 2px; background: #888780;"></span>Reserve empty</span>
+  <span style="display: flex; align-items: center; gap: 4px;"><span style="width: 2px; height: 10px; background: #EF9595;"></span>Incapacitated</span>
+  <span style="display: flex; align-items: center; gap: 4px;"><span style="width: 2px; height: 10px; background: #E24B4A;"></span>Death</span>
+</div>
+
+<div style="position: relative; width: 100%; height: 420px;">
+  <canvas id="timeline"></canvas>
+</div>
+
+<div style="font-size: 12px; color: var(--color-text-tertiary); margin-top: 8px;">
+  2-person crew on Planet X · water barrel 18.6 mol · O₂ bottle 125 mol · LiOH scrubber 268 mol · food crate 1200 mol (room temp, 3%/day spoilage) · no resupply
+</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/3.0.1/chartjs-plugin-annotation.min.js"></script>
+<script>
+const N = 2;
+const R_O2 = 2.33e-4, R_FOOD = 2.33e-4, R_H2O = 1.61e-3;
+const room_mol = 2293;
+const maxHr = 260;
+const step = 1;
+
+const waterBarrel = 18.6, waterDraw = 2.58e-3;
+const o2Bottle = 125, o2Draw = 4.66e-4;
+const lioh = 268, co2RateHr = R_O2 * N * 3600;
+const foodMol0 = 1200, foodDrawRate = 4.66e-4;
+const K_REF = 3.47e-7;
+
+const hours = [];
+const waterData = [], o2Data = [], co2Data = [], foodData = [];
+const waterCond = [], o2Cond = [], co2Cond = [], foodCond = [];
+
+let waterInv = waterBarrel;
+let o2Inv = o2Bottle;
+let roomO2frac = 0.2095, roomCO2frac = 0.0003;
+let liohRem = lioh;
+let foodInv = foodMol0;
+let h2oDeficit = 0, foodDeficit = 0;
+
+for (let h = 0; h <= maxHr; h += step) {
+  hours.push(h);
+
+  const waterDrawActual = Math.min(waterDraw * 3600, waterInv);
+  waterInv = Math.max(0, waterInv - waterDrawActual);
+  const waterUnmet = Math.max(0, R_H2O * N * 3600 - waterDrawActual);
+  h2oDeficit += waterUnmet;
+  const h2opp = h2oDeficit / N;
+  waterData.push(Math.round(waterInv * 10) / 10);
+  waterCond.push(h2opp < 1 ? 0 : h2opp < 139 ? 1 : h2opp < 417 ? 2 : 3);
+
+  const o2DrawActual = Math.min(o2Draw * 3600, o2Inv);
+  o2Inv = Math.max(0, o2Inv - o2DrawActual);
+  const metabO2 = R_O2 * N * 3600;
+  const roomO2mol = roomO2frac * room_mol;
+  const consumed = Math.min(metabO2, roomO2mol);
+  roomO2frac = Math.max(0, (roomO2mol - consumed + o2DrawActual) / room_mol);
+  roomO2frac = Math.min(roomO2frac, 0.23);
+  o2Data.push(Math.round(roomO2frac * 1000) / 10);
+  o2Cond.push(roomO2frac >= 0.19 ? 0 : roomO2frac >= 0.17 ? 1 : roomO2frac >= 0.14 ? 2 : 3);
+
+  const co2Produced = consumed;
+  const roomCO2mol = roomCO2frac * room_mol;
+  const scrubbed = liohRem > 0 ? Math.min(co2Produced, 5) : 0;
+  liohRem = Math.max(0, liohRem - scrubbed);
+  roomCO2frac = Math.max(0, (roomCO2mol + co2Produced - scrubbed) / room_mol);
+  co2Data.push(Math.round(roomCO2frac * 1000) / 10);
+  co2Cond.push(roomCO2frac <= 0.005 ? 0 : roomCO2frac <= 0.02 ? 1 : roomCO2frac <= 0.05 ? 2 : 3);
+
+  const kSpoil = 294 > 277 ? K_REF * Math.pow(2, (294 - 294) / 5) : 0;
+  const spoiled = kSpoil * foodInv * 3600;
+  const drawn = Math.min(foodDrawRate * 3600, foodInv);
+  foodInv = Math.max(0, foodInv - spoiled - drawn);
+  const foodUnmet = Math.max(0, R_FOOD * N * 3600 - drawn);
+  foodDeficit += foodUnmet;
+  foodData.push(Math.round(foodInv));
+  const fpp = foodDeficit / N;
+  foodCond.push(fpp < 1 ? 0 : fpp < 60 ? 1 : fpp < 141 ? 2 : 3);
+}
+
+const findHour = (arr, level) => { for (let i = 0; i < arr.length; i++) if (arr[i] >= level) return i; return null; };
+const waterMajor = findHour(waterCond, 2), waterCata = findHour(waterCond, 3);
+const o2Major = findHour(o2Cond, 2), o2Cata = findHour(o2Cond, 3);
+const co2Major = findHour(co2Cond, 2), co2Cata = findHour(co2Cond, 3);
+
+const annotations = {};
+const addLine = (id, x, color, label, dash) => {
+  if (x != null && x <= maxHr) annotations[id] = {
+    type: 'line', xMin: x, xMax: x, borderColor: color, borderWidth: 1.5,
+    borderDash: dash || [], label: { display: true, content: label, position: 'start',
+    font: { size: 11 }, color: color, backgroundColor: 'rgba(0,0,0,0)', padding: 2 }
+  };
+};
+
+addLine('w_empty', Math.round(waterBarrel / (waterDraw * 3600)), '#888780', 'barrel empty', [4,4]);
+addLine('w_major', waterMajor, '#EF9595', 'incapacitated (water)');
+addLine('w_cata', waterCata, '#E24B4A', 'death (water)');
+addLine('o2_empty', Math.round(o2Bottle / (o2Draw * 3600)), '#888780', 'O₂ bottle empty', [4,4]);
+addLine('o2_major', o2Major, '#EF9595', 'incapacitated (O₂)');
+addLine('o2_cata', o2Cata, '#E24B4A', 'death (O₂)');
+addLine('lioh', Math.round(lioh / co2RateHr), '#888780', 'scrubber empty', [4,4]);
+addLine('co2_major', co2Major, '#EF9595', 'incapacitated (CO₂)');
+addLine('co2_cata', co2Cata, '#E24B4A', 'death (CO₂)');
+
+const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+const gridColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
+const tickColor = isDark ? '#94a3b8' : '#64748b';
+
+new Chart(document.getElementById('timeline'), {
+  type: 'line',
+  data: {
+    labels: hours,
+    datasets: [
+      { label: 'O₂ atm %', data: o2Data, borderColor: '#1D9E75', backgroundColor: 'rgba(29,158,117,0.08)',
+        fill: true, tension: 0.3, pointRadius: 0, borderWidth: 2, yAxisID: 'yPct' },
+      { label: 'CO₂ atm %', data: co2Data, borderColor: '#D85A30', backgroundColor: 'rgba(216,90,48,0.08)',
+        fill: true, tension: 0.3, pointRadius: 0, borderWidth: 2, yAxisID: 'yPct' },
+      { label: 'Water (mol)', data: waterData, borderColor: '#378ADD', borderWidth: 2,
+        tension: 0, pointRadius: 0, yAxisID: 'yMol' },
+      { label: 'Food (mol)', data: foodData, borderColor: '#639922', borderWidth: 2, borderDash: [6,3],
+        tension: 0.3, pointRadius: 0, yAxisID: 'yMol' },
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false, animation: false,
+    interaction: { mode: 'index', intersect: false },
+    scales: {
+      x: { title: { display: true, text: 'hours', color: tickColor, font: { size: 12 } },
+        ticks: { color: tickColor, font: { size: 11 }, stepSize: 24,
+          callback: function(v) { return v % 24 === 0 ? v + 'h (d' + Math.round(v/24) + ')' : ''; } },
+        grid: { color: gridColor } },
+      yPct: { type: 'linear', position: 'left', min: 0, max: 25,
+        title: { display: true, text: 'atmosphere %', color: tickColor, font: { size: 12 } },
+        ticks: { color: tickColor, font: { size: 11 }, callback: v => v + '%' },
+        grid: { color: gridColor } },
+      yMol: { type: 'linear', position: 'right', min: 0, max: 1300,
+        title: { display: true, text: 'inventory (mol)', color: tickColor, font: { size: 12 } },
+        ticks: { color: tickColor, font: { size: 11 } },
+        grid: { drawOnChartArea: false } },
+    },
+    plugins: {
+      legend: { display: false },
+      annotation: { annotations },
+      tooltip: {
+        callbacks: {
+          title: items => `Hour ${items[0].label} (day ${Math.round(items[0].label / 24)})`,
+          label: item => {
+            const v = Math.round(item.raw * 10) / 10;
+            if (item.datasetIndex <= 1) return `${item.dataset.label}: ${v}%`;
+            return `${item.dataset.label}: ${v}`;
+          }
+        }
+      }
+    }
+  }
+});
+</script>

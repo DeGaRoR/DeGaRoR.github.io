@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PTIS Human — Implementation Model (11 Units)</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #0a0e14;
+    color: #c5cdd9;
+    font-family: 'IBM Plex Sans', sans-serif;
+    min-height: 100vh;
+    padding: 28px 32px;
+  }
+
+  h1 {
+    font-size: 22px;
+    font-weight: 600;
+    color: #e6edf3;
+    margin-bottom: 4px;
+    letter-spacing: -0.3px;
+  }
+  .subtitle {
+    font-size: 13px;
+    color: #6b7d93;
+    margin-bottom: 20px;
+  }
+
+  .diagram-container {
+    width: 1100px;
+    margin: 0 auto 28px;
+    position: relative;
+  }
+
+  svg.flow {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
+  /* Shared text styles for SVG */
+  .unit-id {
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 600;
+    font-size: 10.5px;
+    fill: #e6edf3;
+    text-anchor: middle;
+    dominant-baseline: middle;
+  }
+  .unit-def {
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 400;
+    font-size: 9px;
+    fill: #8b949e;
+    text-anchor: middle;
+    dominant-baseline: middle;
+  }
+  .unit-num {
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 600;
+    font-size: 8px;
+    fill: #0a0e14;
+    text-anchor: middle;
+    dominant-baseline: middle;
+  }
+  .param-text {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    fill: #79c0ff;
+    dominant-baseline: middle;
+  }
+  .param-dim {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 8.5px;
+    fill: #6b7d93;
+    dominant-baseline: middle;
+  }
+  .port-tag {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-weight: 600;
+    font-size: 11px;
+    dominant-baseline: middle;
+  }
+  .port-in { fill: #58a6ff; }
+  .port-out { fill: #f0883e; }
+  .stream-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 8.5px;
+    fill: #6b7d93;
+    dominant-baseline: middle;
+  }
+
+  .flow-line {
+    fill: none;
+    stroke-width: 1.8;
+  }
+
+  /* ─── Bottom reference tables ─── */
+  .tables-grid {
+    max-width: 1100px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 14px;
+  }
+  .ref-card {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    padding: 14px 16px;
+  }
+  .ref-card h3 {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 8px;
+  }
+  .ref-card h3.blue { color: #58a6ff; }
+  .ref-card h3.green { color: #56d364; }
+  .ref-card h3.amber { color: #d29922; }
+  .ref-card h3.red { color: #f47067; }
+  .ref-card h3.cyan { color: #79c0ff; }
+  .ref-card h3.purple { color: #bc8cff; }
+
+  .r {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 2.5px 0;
+    border-bottom: 1px solid #21262d;
+  }
+  .r:last-child { border-bottom: none; }
+  .r .k {
+    font-size: 11px;
+    color: #8b949e;
+  }
+  .r .v {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: #e6edf3;
+    font-weight: 500;
+    text-align: right;
+  }
+  .r .v.hi { color: #79c0ff; }
+  .r .v.check { color: #56d364; }
+  .r .v.check::after { content: ' ✓'; }
+  .r .v.warn { color: #d29922; }
+
+  .conn-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 10.5px;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  .conn-table th {
+    text-align: left;
+    color: #6b7d93;
+    font-weight: 500;
+    padding: 2px 6px;
+    border-bottom: 1px solid #30363d;
+  }
+  .conn-table td {
+    padding: 2px 6px;
+    color: #c5cdd9;
+    border-bottom: 1px solid #21262d;
+  }
+  .conn-table .from-col { color: #58a6ff; }
+  .conn-table .to-col { color: #f0883e; }
+
+  .wide-card {
+    grid-column: 1 / -1;
+  }
+
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+
+  .alarm-row {
+    display: grid;
+    grid-template-columns: 80px 1fr 1fr 1fr;
+    gap: 4px;
+    font-size: 10px;
+    font-family: 'IBM Plex Mono', monospace;
+    padding: 2px 0;
+    border-bottom: 1px solid #21262d;
+  }
+  .alarm-row:last-child { border-bottom: none; }
+  .alarm-row .lbl { color: #8b949e; }
+  .alarm-row .ok { color: #56d364; }
+  .alarm-row .wrn { color: #d29922; }
+  .alarm-row .err { color: #f47067; }
+  .alarm-row .crit { color: #f47067; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<h1>PTIS Human Composite — Implementation Model</h1>
+<p class="subtitle">§1.2 — 11 internal units, 5 boundary ports, 4×2 footprint. All buffer sizing & rates per person. Population scales via scaleRules.</p>
+
+<div class="diagram-container">
+<svg class="flow" viewBox="0 0 1100 560">
+  <defs>
+    <marker id="a" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto">
+      <path d="M0,0 L7,2.5 L0,5 Z" fill="#484f58"/>
+    </marker>
+    <marker id="a-blue" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto">
+      <path d="M0,0 L7,2.5 L0,5 Z" fill="#58a6ff"/>
+    </marker>
+    <marker id="a-green" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto">
+      <path d="M0,0 L7,2.5 L0,5 Z" fill="#56d364"/>
+    </marker>
+    <marker id="a-red" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto">
+      <path d="M0,0 L7,2.5 L0,5 Z" fill="#f47067"/>
+    </marker>
+    <marker id="a-cyan" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto">
+      <path d="M0,0 L7,2.5 L0,5 Z" fill="#79c0ff"/>
+    </marker>
+    <marker id="a-amber" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto">
+      <path d="M0,0 L7,2.5 L0,5 Z" fill="#d29922"/>
+    </marker>
+    <marker id="a-orange" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto">
+      <path d="M0,0 L7,2.5 L0,5 Z" fill="#f0883e"/>
+    </marker>
+    <marker id="a-purple" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto">
+      <path d="M0,0 L7,2.5 L0,5 Z" fill="#bc8cff"/>
+    </marker>
+  </defs>
+
+  <!-- ═══════ COMPOSITE BOUNDARY ═══════ -->
+  <rect x="82" y="42" width="930" height="478" rx="14" ry="14"
+        fill="none" stroke="#30363d" stroke-width="1.2" stroke-dasharray="8,5"/>
+  <text x="98" y="36" font-family="'IBM Plex Sans'" font-size="10" fill="#484f58"
+        font-weight="600" letter-spacing="1">HUMAN COMPOSITE — 11 UNITS</text>
+
+  <!-- ════════════════════════════════════════════════════════ -->
+  <!--  UNIT BOXES — positioned to match the spec topology      -->
+  <!-- ════════════════════════════════════════════════════════ -->
+
+  <!-- #1 fan (compressor) — top left -->
+  <rect x="130" y="180" width="100" height="56" rx="5" fill="#141d2b" stroke="#58a6ff" stroke-width="1.2"/>
+  <circle cx="135" cy="185" r="8" fill="#58a6ff"/><text class="unit-num" x="135" y="185.5">1</text>
+  <text class="unit-id" x="180" y="200">fan</text>
+  <text class="unit-def" x="180" y="214">compressor</text>
+  <text class="param-text" x="132" y="248" text-anchor="start">P_ratio: 1.001</text>
+  <text class="param-dim" x="132" y="260" text-anchor="start">~1 W / person</text>
+
+  <!-- #2 air_splitter — after fan -->
+  <rect x="272" y="180" width="100" height="56" rx="5" fill="#141d2b" stroke="#58a6ff" stroke-width="1.2"/>
+  <circle cx="277" cy="185" r="8" fill="#58a6ff"/><text class="unit-num" x="277" y="185.5">2</text>
+  <text class="unit-id" x="322" y="200">air_splitter</text>
+  <text class="unit-def" x="322" y="214">splitter</text>
+  <text class="param-text" x="274" y="248" text-anchor="start">splitPct: 8</text>
+  <text class="param-dim" x="274" y="260" text-anchor="start">8% lungs / 92% skin</text>
+
+  <!-- #3 air_buffer (lungs) — above, 8% branch -->
+  <rect x="272" y="76" width="100" height="56" rx="5" fill="#141d2b" stroke="#56d364" stroke-width="1.2"/>
+  <circle cx="277" cy="81" r="8" fill="#56d364"/><text class="unit-num" x="277" y="81.5">3</text>
+  <text class="unit-id" x="322" y="96">air_buffer</text>
+  <text class="unit-def" x="322" y="110">tank (gas)</text>
+  <text class="param-text" x="274" y="68" text-anchor="start">5 L, 310K, 1 atm</text>
+  <text class="param-dim" x="274" y="56" text-anchor="start">21% O₂ / 79% N₂ — ~6 min reserve</text>
+
+  <!-- #4 food_buffer — further above -->
+  <rect x="430" y="76" width="100" height="56" rx="5" fill="#141d2b" stroke="#56d364" stroke-width="1.2"/>
+  <circle cx="435" cy="81" r="8" fill="#56d364"/><text class="unit-num" x="435" y="81.5">4</text>
+  <text class="unit-id" x="480" y="96">food_buffer</text>
+  <text class="unit-def" x="480" y="110">tank (gas)</text>
+  <text class="param-text" x="432" y="68" text-anchor="start">12 L, CH₂O gas</text>
+  <text class="param-dim" x="432" y="56" text-anchor="start">424 mol — 21 day reserve</text>
+
+  <!-- #5 feed_mixer — merges air_buffer + food_buffer -->
+  <rect x="430" y="180" width="100" height="56" rx="5" fill="#141d2b" stroke="#484f58" stroke-width="1.2"/>
+  <circle cx="435" cy="185" r="8" fill="#484f58"/><text class="unit-num" x="435" y="185.5">5</text>
+  <text class="unit-id" x="480" y="200">feed_mixer</text>
+  <text class="unit-def" x="480" y="214">mixer</text>
+
+  <!-- #6 metabolism — central reactor -->
+  <rect x="572" y="180" width="120" height="56" rx="5" fill="#221a1a" stroke="#f47067" stroke-width="1.5"/>
+  <circle cx="577" cy="185" r="8" fill="#f47067"/><text class="unit-num" x="577" y="185.5">6</text>
+  <text class="unit-id" x="632" y="198">metabolism</text>
+  <text class="unit-def" x="632" y="212">reactor_adiabatic</text>
+  <text class="param-text" x="574" y="248" text-anchor="start">R_METABOLISM</text>
+  <text class="param-dim" x="574" y="260" text-anchor="start">complete conv · T_out ≈ 1190K</text>
+
+  <!-- #7 body_hex — below reactor, receives 92% branch too -->
+  <rect x="572" y="310" width="120" height="56" rx="5" fill="#1a1d22" stroke="#bc8cff" stroke-width="1.2"/>
+  <circle cx="577" cy="315" r="8" fill="#bc8cff"/><text class="unit-num" x="577" y="315.5">7</text>
+  <text class="unit-id" x="632" y="330">body_hex</text>
+  <text class="unit-def" x="632" y="344">hex</text>
+  <text class="param-text" x="574" y="378" text-anchor="start">UA: 10 (per person)</text>
+  <text class="param-dim" x="574" y="390" text-anchor="start">hot: metab products · cold: room air</text>
+
+  <!-- #8 kidney — after HEX hot_out -->
+  <rect x="740" y="310" width="106" height="56" rx="5" fill="#1a2220" stroke="#56d364" stroke-width="1.2"/>
+  <circle cx="745" cy="315" r="8" fill="#56d364"/><text class="unit-num" x="745" y="315.5">8</text>
+  <text class="unit-id" x="793" y="330">kidney</text>
+  <text class="unit-def" x="793" y="344">membrane_sep</text>
+  <text class="param-text" x="742" y="378" text-anchor="start">NH₃ selectivity: 0.01</text>
+  <text class="param-dim" x="742" y="390" text-anchor="start">99% NH₃ → retentate</text>
+
+  <!-- #9 air_mixer — merges kidney perm + hex cold_out -->
+  <rect x="890" y="220" width="100" height="56" rx="5" fill="#141d2b" stroke="#f0883e" stroke-width="1.2"/>
+  <circle cx="895" cy="225" r="8" fill="#f0883e"/><text class="unit-num" x="895" y="225.5">9</text>
+  <text class="unit-id" x="940" y="240">air_mixer</text>
+  <text class="unit-def" x="940" y="254">mixer</text>
+
+  <!-- #10 water_buffer — bottom left -->
+  <rect x="272" y="448" width="100" height="56" rx="5" fill="#141d2b" stroke="#79c0ff" stroke-width="1.2"/>
+  <circle cx="277" cy="453" r="8" fill="#79c0ff"/><text class="unit-num" x="277" y="453.5">10</text>
+  <text class="unit-id" x="322" y="468">water_buffer</text>
+  <text class="unit-def" x="322" y="482">tank (liquid)</text>
+  <text class="param-text" x="274" y="440" text-anchor="start">6.3 L, 350 mol H₂O</text>
+  <text class="param-dim" x="274" y="428" text-anchor="start">~3.1 days reserve (net 3.09 mol/hr)</text>
+
+  <!-- #11 waste_mixer — bottom right -->
+  <rect x="740" y="448" width="106" height="56" rx="5" fill="#22201a" stroke="#d29922" stroke-width="1.2"/>
+  <circle cx="745" cy="453" r="8" fill="#d29922"/><text class="unit-num" x="745" y="453.5">11</text>
+  <text class="unit-id" x="793" y="468">waste_mixer</text>
+  <text class="unit-def" x="793" y="482">mixer</text>
+
+  <!-- ════════════════════════════════════════════════════════ -->
+  <!--  CONNECTIONS (13 internal)                                -->
+  <!-- ════════════════════════════════════════════════════════ -->
+
+  <!-- C1: fan.mat_out → air_splitter.mat_in -->
+  <line class="flow-line" x1="230" y1="208" x2="270" y2="208" stroke="#58a6ff" stroke-width="1.8" marker-end="url(#a-blue)"/>
+
+  <!-- C2: air_splitter.mat_out_1 (8%) → air_buffer.mat_in -->
+  <polyline class="flow-line" points="322,180 322,134" stroke="#58a6ff" stroke-width="1.8" marker-end="url(#a-blue)" fill="none"/>
+  <text class="stream-label" x="328" y="156" fill="#58a6ff">8%</text>
+
+  <!-- C3: air_splitter.mat_out_2 (92%) → body_hex.cold_in  -->
+  <polyline class="flow-line" points="352,236 352,338 570,338" stroke="#58a6ff" stroke-width="1.8" marker-end="url(#a-blue)" fill="none"/>
+  <text class="stream-label" x="358" y="290" fill="#58a6ff">92%</text>
+  <text class="param-dim" x="410" y="332" text-anchor="start">~0.155 mol/s</text>
+
+  <!-- C4: air_buffer.gas_out → feed_mixer.mat_in_A -->
+  <polyline class="flow-line" points="372,104 400,104 400,196 428,196" stroke="#58a6ff" stroke-width="1.5" marker-end="url(#a-blue)" fill="none"/>
+
+  <!-- C5: food_buffer.gas_out → feed_mixer.mat_in_B -->
+  <polyline class="flow-line" points="480,132 480,178" stroke="#56d364" stroke-width="1.5" marker-end="url(#a-green)" fill="none"/>
+
+  <!-- C6: feed_mixer.mat_out → metabolism.mat_in -->
+  <line class="flow-line" x1="530" y1="208" x2="570" y2="208" stroke="#484f58" stroke-width="1.8" marker-end="url(#a)"/>
+
+  <!-- C7: metabolism.mat_out → body_hex.hot_in -->
+  <polyline class="flow-line" points="632,236 632,308" stroke="#f47067" stroke-width="2" marker-end="url(#a-red)" fill="none"/>
+  <text class="stream-label" x="638" y="275" fill="#f47067">~1190K</text>
+
+  <!-- C8: body_hex.hot_out → kidney.mat_in -->
+  <line class="flow-line" x1="692" y1="338" x2="738" y2="338" stroke="#bc8cff" stroke-width="1.8" marker-end="url(#a-purple)"/>
+  <text class="stream-label" x="700" y="330" fill="#bc8cff">cooled</text>
+
+  <!-- C9: body_hex.cold_out → air_mixer.mat_in_A  -->
+  <polyline class="flow-line" points="692,322 730,322 730,240 888,240" stroke="#58a6ff" stroke-width="1.5" marker-end="url(#a-blue)" fill="none"/>
+  <text class="stream-label" x="738" y="280" fill="#58a6ff">warm ~320K</text>
+
+  <!-- C10: kidney.perm_out → air_mixer.mat_in_B  -->
+  <polyline class="flow-line" points="846,325 866,325 866,256 888,256" stroke="#f0883e" stroke-width="1.5" marker-end="url(#a-orange)" fill="none"/>
+  <text class="stream-label" x="854" y="292" fill="#f0883e">perm</text>
+
+  <!-- C11: kidney.ret_out → waste_mixer.mat_in_A -->
+  <polyline class="flow-line" points="793,366 793,446" stroke="#d29922" stroke-width="1.8" marker-end="url(#a-amber)" fill="none"/>
+  <text class="stream-label" x="800" y="418" fill="#d29922">NH₃ ret</text>
+
+  <!-- C12: water_buffer.liq_out → waste_mixer.mat_in_B -->
+  <polyline class="flow-line" points="372,476 738,476" stroke="#79c0ff" stroke-width="1.5" marker-end="url(#a-cyan)" fill="none"/>
+
+  <!-- ════════════════════════════════════════════════════════ -->
+  <!--  BOUNDARY PORTS (5)                                      -->
+  <!-- ════════════════════════════════════════════════════════ -->
+
+  <!-- air_in → fan.mat_in -->
+  <text class="port-tag port-in" x="30" y="208" text-anchor="start">air_in</text>
+  <line class="flow-line" x1="72" y1="208" x2="128" y2="208" stroke="#58a6ff" stroke-width="2.2" marker-end="url(#a-blue)"/>
+  <text class="param-dim" x="76" y="196" text-anchor="start">O₂ + N₂, ~298K</text>
+
+  <!-- food_in → food_buffer.mat_in -->
+  <text class="port-tag port-in" x="510" y="52" text-anchor="start">food_in</text>
+  <polyline class="flow-line" points="536,60 536,76" stroke="#56d364" stroke-width="2.2" marker-end="url(#a-green)" fill="none"/>
+  <text class="param-dim" x="542" y="68" text-anchor="start">CH₂O gas</text>
+
+  <!-- water_in → water_buffer.mat_in -->
+  <text class="port-tag port-in" x="115" y="476" text-anchor="start">water_in</text>
+  <line class="flow-line" x1="175" y1="476" x2="270" y2="476" stroke="#79c0ff" stroke-width="2.2" marker-end="url(#a-cyan)"/>
+  <text class="param-dim" x="180" y="464" text-anchor="start">H₂O liquid, 310K</text>
+
+  <!-- air_out ← air_mixer.mat_out -->
+  <text class="port-tag port-out" x="1020" y="248" text-anchor="start">air_out</text>
+  <line class="flow-line" x1="990" y1="248" x2="1016" y2="248" stroke="#f0883e" stroke-width="2.2" marker-end="url(#a-orange)"/>
+  <text class="param-dim" x="920" y="286" text-anchor="start">CO₂ + H₂O + N₂ + O₂</text>
+  <text class="param-text" x="920" y="298" text-anchor="start">≈320K — carries 121 W</text>
+
+  <!-- waste_out ← waste_mixer.mat_out -->
+  <text class="port-tag port-out" x="920" y="476" text-anchor="start">waste_out</text>
+  <line class="flow-line" x1="846" y1="476" x2="916" y2="476" stroke="#d29922" stroke-width="2.2" marker-end="url(#a-amber)"/>
+  <text class="param-dim" x="858" y="464" text-anchor="start">H₂O + NH₃</text>
+
+  <!-- ═══════ LEGEND ═══════ -->
+  <g transform="translate(100, 530)">
+    <text font-family="'IBM Plex Sans'" font-size="9" fill="#484f58" font-weight="600" letter-spacing="0.8">STREAM COLOR KEY:</text>
+    <line x1="140" y1="-3" x2="160" y2="-3" stroke="#58a6ff" stroke-width="2"/>
+    <text x="165" font-family="'IBM Plex Mono'" font-size="9" fill="#58a6ff">Air path</text>
+    <line x1="215" y1="-3" x2="235" y2="-3" stroke="#56d364" stroke-width="2"/>
+    <text x="240" font-family="'IBM Plex Mono'" font-size="9" fill="#56d364">Food / buffer</text>
+    <line x1="310" y1="-3" x2="330" y2="-3" stroke="#f47067" stroke-width="2"/>
+    <text x="335" font-family="'IBM Plex Mono'" font-size="9" fill="#f47067">Hot products</text>
+    <line x1="410" y1="-3" x2="430" y2="-3" stroke="#bc8cff" stroke-width="2"/>
+    <text x="435" font-family="'IBM Plex Mono'" font-size="9" fill="#bc8cff">HEX crossover</text>
+    <line x1="520" y1="-3" x2="540" y2="-3" stroke="#f0883e" stroke-width="2"/>
+    <text x="545" font-family="'IBM Plex Mono'" font-size="9" fill="#f0883e">Exhaled air</text>
+    <line x1="620" y1="-3" x2="640" y2="-3" stroke="#79c0ff" stroke-width="2"/>
+    <text x="645" font-family="'IBM Plex Mono'" font-size="9" fill="#79c0ff">Water</text>
+    <line x1="690" y1="-3" x2="710" y2="-3" stroke="#d29922" stroke-width="2"/>
+    <text x="715" font-family="'IBM Plex Mono'" font-size="9" fill="#d29922">Waste</text>
+  </g>
+</svg>
+</div>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!--  REFERENCE TABLES                                        -->
+<!-- ════════════════════════════════════════════════════════ -->
+
+<div class="tables-grid">
+
+  <!-- UNIT PARAMS -->
+  <div class="ref-card">
+    <h3 class="blue">Unit Parameters (per person)</h3>
+    <div class="r"><span class="k">#1 fan</span><span class="v hi">P_ratio: 1.001 (~1 W)</span></div>
+    <div class="r"><span class="k">#2 air_splitter</span><span class="v hi">splitPct: 8</span></div>
+    <div class="r"><span class="k">#3 air_buffer</span><span class="v hi">5 L, 310K, 1 atm, O₂/N₂</span></div>
+    <div class="r"><span class="k">#4 food_buffer</span><span class="v hi">12 L, CH₂O gas</span></div>
+    <div class="r"><span class="k">#5 feed_mixer</span><span class="v">—</span></div>
+    <div class="r"><span class="k">#6 metabolism</span><span class="v hi">R_METABOLISM, complete</span></div>
+    <div class="r"><span class="k">#7 body_hex</span><span class="v hi">UA: 10</span></div>
+    <div class="r"><span class="k">#8 kidney</span><span class="v hi">NH₃: 0.01 (99% ret)</span></div>
+    <div class="r"><span class="k">#9 air_mixer</span><span class="v">—</span></div>
+    <div class="r"><span class="k">#10 water_buffer</span><span class="v hi">6.3 L, liquid H₂O</span></div>
+    <div class="r"><span class="k">#11 waste_mixer</span><span class="v">—</span></div>
+  </div>
+
+  <!-- BUFFER SIZING -->
+  <div class="ref-card">
+    <h3 class="green">Buffer Sizing & Reserves</h3>
+    <div class="r"><span class="k">Air buffer volume</span><span class="v">5.0 L/pp</span></div>
+    <div class="r"><span class="k">Air O₂ content</span><span class="v">0.041 mol</span></div>
+    <div class="r"><span class="k">Air → death (no supply)</span><span class="v warn">~6 min</span></div>
+    <div class="r"><span class="k">Food buffer volume</span><span class="v">~12 L/pp</span></div>
+    <div class="r"><span class="k">Food CH₂O content</span><span class="v">424 mol</span></div>
+    <div class="r"><span class="k">Food → death (no supply)</span><span class="v warn">21 days</span></div>
+    <div class="r"><span class="k">Water buffer volume</span><span class="v">6.3 L/pp</span></div>
+    <div class="r"><span class="k">Water H₂O content</span><span class="v">350 mol</span></div>
+    <div class="r"><span class="k">Water → death (no supply)</span><span class="v warn">~3.1 days</span></div>
+    <div class="r"><span class="k">Water net loss (no intake)</span><span class="v">3.09 mol/hr</span></div>
+  </div>
+
+  <!-- VALIDATION -->
+  <div class="ref-card">
+    <h3 class="red">Validation Targets</h3>
+    <div class="r"><span class="k">Metabolism conversion</span><span class="v check">100%</span></div>
+    <div class="r"><span class="k">T_out reactor (adiabatic)</span><span class="v check">≈1190 K</span></div>
+    <div class="r"><span class="k">CO₂ at air_out</span><span class="v check">0.84 mol/hr/pp</span></div>
+    <div class="r"><span class="k">H₂O at air_out (metab)</span><span class="v check">0.84 mol/hr/pp</span></div>
+    <div class="r"><span class="k">NH₃ recovery to waste</span><span class="v check">99%</span></div>
+    <div class="r"><span class="k">air_out temperature</span><span class="v check">≈320 K</span></div>
+    <div class="r"><span class="k">Heat in air_out</span><span class="v check">121 W/pp</span></div>
+    <div class="r"><span class="k">Mass balance closure</span><span class="v check">Σin = Σout</span></div>
+    <div class="r"><span class="k">ΔH check</span><span class="v check">−519.4 kJ/mol</span></div>
+  </div>
+
+  <!-- ENERGY CLOSURE -->
+  <div class="ref-card">
+    <h3 class="purple">Energy Closure (§1.4)</h3>
+    <div class="r"><span class="k">Metabolic heat</span><span class="v">121 W/person</span></div>
+    <div class="r"><span class="k">→ into product stream</span><span class="v hi">adiabatic, T ≈ 1190K</span></div>
+    <div class="r"><span class="k">body_hex hot side</span><span class="v">metab products cool down</span></div>
+    <div class="r"><span class="k">body_hex cold side</span><span class="v">92% intake air heats up</span></div>
+    <div class="r"><span class="k">Cold air flow</span><span class="v hi">0.155 mol/s · Cp≈29 · ΔT≈27K</span></div>
+    <div class="r"><span class="k">Q = ṁCpΔT</span><span class="v check">≈121 W</span></div>
+    <div class="r"><span class="k">air_out carries</span><span class="v">ALL heat as warm air</span></div>
+    <div class="r"><span class="k">No heat port needed</span><span class="v check">NNG-4 compliant</span></div>
+  </div>
+
+  <!-- CONNECTIONS TABLE -->
+  <div class="ref-card">
+    <h3 class="amber">Internal Connections (12)</h3>
+    <table class="conn-table">
+      <tr><th>From</th><th>To</th></tr>
+      <tr><td class="from-col">fan.mat_out</td><td class="to-col">air_splitter.mat_in</td></tr>
+      <tr><td class="from-col">air_splitter.mat_out_1</td><td class="to-col">air_buffer.mat_in</td></tr>
+      <tr><td class="from-col">air_splitter.mat_out_2</td><td class="to-col">body_hex.cold_in</td></tr>
+      <tr><td class="from-col">air_buffer.gas_out</td><td class="to-col">feed_mixer.mat_in_A</td></tr>
+      <tr><td class="from-col">food_buffer.gas_out</td><td class="to-col">feed_mixer.mat_in_B</td></tr>
+      <tr><td class="from-col">feed_mixer.mat_out</td><td class="to-col">metabolism.mat_in</td></tr>
+      <tr><td class="from-col">metabolism.mat_out</td><td class="to-col">body_hex.hot_in</td></tr>
+      <tr><td class="from-col">body_hex.hot_out</td><td class="to-col">kidney.mat_in</td></tr>
+      <tr><td class="from-col">body_hex.cold_out</td><td class="to-col">air_mixer.mat_in_A</td></tr>
+      <tr><td class="from-col">kidney.perm_out</td><td class="to-col">air_mixer.mat_in_B</td></tr>
+      <tr><td class="from-col">kidney.ret_out</td><td class="to-col">waste_mixer.mat_in_A</td></tr>
+      <tr><td class="from-col">water_buffer.liq_out</td><td class="to-col">waste_mixer.mat_in_B</td></tr>
+    </table>
+  </div>
+
+  <!-- BOUNDARY PORTS -->
+  <div class="ref-card">
+    <h3 class="cyan">Boundary Ports (5)</h3>
+    <table class="conn-table">
+      <tr><th>portId</th><th>Dir</th><th>Delegates to</th></tr>
+      <tr><td class="from-col">air_in</td><td>IN</td><td class="to-col">fan.mat_in</td></tr>
+      <tr><td class="from-col">food_in</td><td>IN</td><td class="to-col">food_buffer.mat_in</td></tr>
+      <tr><td class="from-col">water_in</td><td>IN</td><td class="to-col">water_buffer.mat_in</td></tr>
+      <tr><td class="from-col">air_out</td><td>OUT</td><td class="to-col">air_mixer.mat_out</td></tr>
+      <tr><td class="from-col">waste_out</td><td>OUT</td><td class="to-col">waste_mixer.mat_out</td></tr>
+    </table>
+
+    <h3 class="cyan" style="margin-top:14px;">Tank Port Mapping</h3>
+    <div class="r"><span class="k">air_buffer (gas tank)</span><span class="v hi">mat_in ← splitter, gas_out → mixer</span></div>
+    <div class="r"><span class="k">food_buffer (gas tank)</span><span class="v hi">mat_in ← food_in, gas_out → mixer</span></div>
+    <div class="r"><span class="k">water_buffer (liq tank)</span><span class="v hi">mat_in ← water_in, liq_out → mixer</span></div>
+    <div class="r"><span class="k">Tank draw is ΔP-driven</span><span class="v warn">Cv & opening_pct TBD</span></div>
+  </div>
+
+</div>
+
+<div class="tables-grid" style="margin-top:14px;">
+  <!-- ALARM ENVELOPES -->
+  <div class="ref-card wide-card">
+    <h3 class="red">Alarm Envelopes (§1.3) — all per person</h3>
+    <div class="two-col">
+      <div>
+        <div style="font-size:11px;color:#8b949e;margin-bottom:6px;font-weight:500;">Air Buffer (O₂ partial pressure)</div>
+        <div class="alarm-row"><span class="lbl">Normal</span><span class="ok">> 16 kPa</span><span></span><span></span></div>
+        <div class="alarm-row"><span class="lbl">WARNING</span><span class="wrn">16 kPa</span><span class="wrn">~3 min</span><span></span></div>
+        <div class="alarm-row"><span class="lbl">ERROR</span><span class="err">10 kPa</span><span class="err">~4.5 min</span><span></span></div>
+        <div class="alarm-row"><span class="lbl">CRITICAL</span><span class="crit">6 kPa</span><span class="crit">~5.5 min</span><span></span></div>
+        <div class="alarm-row"><span class="lbl">Death</span><span class="crit">< 4 kPa</span><span class="crit">~6 min</span><span></span></div>
+
+        <div style="font-size:11px;color:#8b949e;margin:10px 0 6px;font-weight:500;">CO₂ Mirror (exhaust blocked)</div>
+        <div class="alarm-row"><span class="lbl">WARNING</span><span class="wrn">5 kPa</span><span class="wrn">~3 min</span><span></span></div>
+        <div class="alarm-row"><span class="lbl">ERROR</span><span class="err">8 kPa</span><span class="err">~5 min</span><span></span></div>
+        <div class="alarm-row"><span class="lbl">CRITICAL</span><span class="crit">10 kPa</span><span class="crit">~6 min</span><span></span></div>
+      </div>
+      <div>
+        <div style="font-size:11px;color:#8b949e;margin-bottom:6px;font-weight:500;">Water Buffer (level %)</div>
+        <div class="alarm-row"><span class="lbl">Normal</span><span class="ok">> 67%</span><span class="ok">< 5% body loss</span><span></span></div>
+        <div class="alarm-row"><span class="lbl">WARNING</span><span class="wrn">67%</span><span class="wrn">~36 hr</span><span></span></div>
+        <div class="alarm-row"><span class="lbl">ERROR</span><span class="err">33%</span><span class="err">~54 hr</span><span></span></div>
+        <div class="alarm-row"><span class="lbl">CRITICAL</span><span class="crit">10%</span><span class="crit">~68 hr</span><span></span></div>
+        <div class="alarm-row"><span class="lbl">Death</span><span class="crit">0%</span><span class="crit">~75 hr</span><span></span></div>
+
+        <div style="font-size:11px;color:#8b949e;margin:10px 0 6px;font-weight:500;">Food Buffer (level %)</div>
+        <div class="alarm-row"><span class="lbl">WARNING</span><span class="wrn">80%</span><span class="wrn">~4.2 days</span><span></span></div>
+        <div class="alarm-row"><span class="lbl">ERROR</span><span class="err">50%</span><span class="err">~10.5 days</span><span></span></div>
+        <div class="alarm-row"><span class="lbl">CRITICAL</span><span class="crit">20%</span><span class="crit">~16.8 days</span><span></span></div>
+        <div class="alarm-row"><span class="lbl">Death</span><span class="crit">0%</span><span class="crit">21 days</span><span></span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

@@ -31,12 +31,13 @@ and mission chemistry.
 
 **Baseline state (post-S9):** Full simulation engine with PR EOS,
 distillation, pressure network, electrochemical reactor (2-outlet),
-performance maps, unit grouping with templates, all game-required
-units/species/reactions registered. 473 tests. No game state machine,
-no missions, no scarcity system.
+performance maps, unit grouping with templates, scaling mechanism,
+all game-required units/species/reactions registered. Validation gate
+(S9b) complete. 486 tests. No game state machine, no missions, no
+scarcity system.
 
-**After S10:** Playable 10-mission campaign + sandbox mode. ~495 tests
-(473 + ~22 new).
+**After S10:** Playable 10-mission campaign + sandbox mode. ~508 tests
+(486 + ~22 new).
 
 ---
 
@@ -55,6 +56,9 @@ For canonical equipment data (ports, limits, parameters), see
 
 For biosphere derivations (metabolic rates, greenhouse power,
 NASA cross-validation), see `PTIS_BIOSPHERE_POWER_RECONCILIATION.md`.
+
+For composite template designs (human, greenhouse, room, depletable
+room), see `PTIS_COMPOSITE_MODELS.md`.
 
 ---
 
@@ -436,13 +440,15 @@ amber (12–48h), red (<12h), flashing red (<4h).
 ### Greenhouse (S8 Locked Group Template)
 
 Registered via S8 GroupTemplateRegistry using S9-registered units.
-Full template definition in `PTIS_S8_SPEC.md` §S8 Impact on S10 Spec.
+Full template definition in `PTIS_COMPOSITE_MODELS.md` §1.
 
-Internal units: `grid_supply` (grow lights), `reactor_electrochemical`
-(R_PHOTOSYNTHESIS, η=0.01), `membrane_separator` (leaf, gas exchange),
-`mixer` (nutrient input).
+Internal units: `mixer` (nutrient input), `reactor_electrochemical`
+(R_PHOTOSYNTHESIS, η=0.02), `mixer` (product merge), `hex` (cooling),
+`compressor` (fan), `membrane_separator` (leaf, CH₂O/NH₃ selectivity
+0.05), `tank` (soil buffer). 7 units, 7 boundary ports.
 
-Boundary ports: air_in, water_in, elec_in, air_out (O₂-rich), food_out.
+Boundary ports: co2_in, nutrient_in, elec_in, cool_in, cool_out,
+air_out (O₂-rich), food_out.
 
 **Lighting efficiency is the ONE editable parameter** on the locked
 template (via `editableParams: ['efficiency']` on the photo_reactor).
@@ -454,16 +460,20 @@ O₂ production:         5.88 mol/hr
 CH₂O production:       5.88 mol/hr (food)
 Water consumed:         5.88 mol/hr
 Thermodynamic minimum:  848 W  (ξ × |ΔH|)
-Default η:              1.0%   (combined LED + photosynthesis)
-Electrical demand:      85 kW  (848 / 0.01)
-Waste heat:             84.2 kW (exits heat_out port)
+Default η:              2.0%   (combined LED + photosynthesis)
+Electrical demand:      42 kW  (848 / 0.02)
+Waste heat:             ~41 kW (exits via cooling circuit cool_out)
 ```
 
 ### Human (S8 Locked Group Template)
 
-Internal units: `reactor_equilibrium` (R_METABOLISM, T=310K, complete
-conversion), `membrane_separator` (kidney, NH₃ diversion),
-`mixer` (waste — combines kidney retentate with drinking water).
+Full template definition in `PTIS_COMPOSITE_MODELS.md` §2.
+
+Internal units: `compressor` (fan), `splitter` (air 8/92%), `tank`
+(air buffer), `tank` (food buffer), `mixer` (feed), `reactor_adiabatic`
+(R_METABOLISM, T=310K, complete conversion), `hex` (body heat exchange),
+`membrane_separator` (kidney, NH₃: 0.01 selectivity), `mixer` (air merge),
+`tank` (water buffer), `mixer` (waste). 11 units, 5 boundary ports.
 
 Boundary ports: air_in, food_in, water_in, air_out (exhaled), waste_out.
 
@@ -548,7 +558,7 @@ Narrative context and player experience described in `PTIS_GAME_DESIGN.md`.
 - Uses reactor_electrochemical with mat_out_cat (H₂) + mat_out_ano (O₂)
 
 **M3 Fuel** (px_m3_fuel)
-- Palette: +mixer×1, +reactor_equilibrium×1, +hex×1 (inherited)
+- Palette: +mixer×1, +reactor_adiabatic×1, +hex×1 (inherited)
 - Objective: store_component CH₄ ≥ 20 mol (purity ≥ 0.9)
 - Teaching: Sabatier reaction, recycle loop, HEX cooling
 - Stars: ★20mol ★★water recycle 10min ★★★≤85mol H₂ consumed
@@ -557,8 +567,7 @@ Narrative context and player experience described in `PTIS_GAME_DESIGN.md`.
 
 **M4 Power** (px_m4_power)
 - Palette: +source(atm)×1, +source(vent2)×1, +compressor×1,
-  +gas_turbine×1, +reactor_equilibrium×1 (locked: R_CH4_COMB,
-  heatDemand:'none') (inherited)
+  +gas_turbine×1, +reactor_adiabatic×1 (locked: R_CH4_COMB) (inherited)
 - Objective: power_output ≥ 5kW for 300s
 - Teaching: Brayton cycle, combustion, turbine work > compressor work
 - Stars: ★5kW 5min ★★battery charging ★★★≤4 units in loop
@@ -678,7 +687,7 @@ appear in the toolbar.
 | 7 | Greenhouse template: CO₂ consumed, O₂ + CH₂O produced | mass balance |
 | 8 | Human template: O₂ consumed, CO₂ produced, waste = H₂O + NH₃ | mass balance + water_in flows to waste_out |
 
-**Gate:** All previous (473) + 22 new → 495 cumulative.
+**Gate:** All previous (486) + 22 new → 508 cumulative.
 
 ---
 
@@ -752,16 +761,18 @@ S10c session 3 (save/load + integration):
   [ ] HUD: runway display, population, game day
   [ ] Full regression
 
-Total S10: ~22 new tests → 495 cumulative
+Total S10: ~22 new tests → 508 cumulative
 ```
 
 ---
 
 ## Open Questions (flagged, non-blocking for S10)
 
-1. **M10 power requirement (~85 kW) — RESOLVED:**
+1. **M10 power requirement (~42 kW at η=2%) — RESOLVED:**
    See `PTIS_BIOSPHERE_POWER_RECONCILIATION.md` for full derivation
    and resolution via fabrication unlock + S8 templates + editable η.
+   At default η=2%, greenhouse demands ~42 kW (achievable with 2–3
+   combined cycles). Player can chase η=1% (~85 kW) for ★★★ challenge.
 
 2. **3D view:** Game design specifies Three.js 3D plant view as primary
    interface. S10 implements the game logic layer only. 3D visualization
