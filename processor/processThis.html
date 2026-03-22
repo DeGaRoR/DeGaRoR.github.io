@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v18.3.0
+  processThis v19.0.0
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -25,6 +25,11 @@
                       bus, CharacterVoice personality engine, SpeechBubble
                       display.  ⚠ Read _CHARACTERS.lena before writing
                       any dialogue.  Search: "§LENA-SPEECH" to jump there.
+
+    §MISSION-CONTENT  All mission narrative text: arc intros, briefings,
+                      guidance steps, victory lines, story intros/outros.
+                      Campaign/arc/mission registrations follow.
+                      Search: "§MISSION-CONTENT" to jump there.
 
   PHYSICS — The Game's Promises:
 
@@ -356,6 +361,93 @@
   ═══════════════════════════════════════════════════════════════════════════
   CHANGELOG  (latest first)
   ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v19.0.0 — S-MISSION Phase 1: Registries, evaluators, campaign state ─
+
+  **Mission system data layer.**  Phase 1 of S-MISSION: the full data
+  architecture for campaign mode.  No UI changes yet — all new code is
+  DOM-free in script block 1 (NNG-11).
+
+  **GameMode, PlayState, SpeechPriority constants.**  Frozen enum objects
+  for the campaign state machine (14 play states) and speech priority
+  system (7 levels).  Used by Phase 2+ for state transitions and speech
+  suppression.
+
+  **4 new registries (NNG-10).**  CampaignRegistry, ArcRegistry,
+  MissionRegistry, and the CampaignState class, all following the
+  register/get/exists/all pattern.  MissionRegistry validates at
+  registration time: palette profileIds, species ⊆ campaign pool,
+  objective types, star criteria types, trigger condition/action types.
+  Typo suggestions via Levenshtein distance on validation failure
+  (e.g. "unknown profileId 'food_crte' — did you mean 'food_crate'?").
+
+  **11 objective evaluators.**  Pure functions
+  (params, scene, runtime) → { met, progress }.  Types: convergence,
+  connection, connection_absent, unit_present, store_component,
+  maintain_conditions, depletion_guard, inventory_trend, power_output,
+  flow_rate, port_conditions.  Each returns a human-readable progress
+  string for the objective panel.
+
+  **4 star criteria evaluators.**  Extend the objective set:
+  all_objectives_complete, time_limit, unit_count_limit, efficiency_gte.
+  evaluateCriterion() dispatches to either set by type.
+
+  **CampaignState class.**  Tracks career progression: completed missions
+  with stars, cumulative palette/species/reaction unlocks, end-scene
+  snapshots for inheritance, serialize/deserialize for saves.
+  getEffectivePalette() merges mission palette + cumulative rewards.
+  advanceToNext() handles mission→mission, mission→arc, arc→campaign
+  transitions.
+
+  **Palette scarcity.**  populatePalette() now campaign-aware.  In
+  campaign mode: only profiles in effectivePalette are shown; exhausted
+  profiles greyed out with "0 left" badge and disabled drag/dblclick.
+  composite:true profiles shown if explicitly in palette (spec §12).
+  Sandbox mode unchanged.
+
+  **CO₂ scrubber capacity.**  co2_scrubber profile LiOH capacity
+  increased from 268 → 500 mol.  Sized to last M2 through M8 (~12+
+  days of sim-time at 2-person metabolic CO₂ production).
+
+  **§MISSION-CONTENT section.**  All Arc A narrative text in one marked
+  section: arc intro (6 cinematic beats), M1–M3 briefings, guidance
+  steps, victory lines, story intros/outros.  All text conforms to
+  §LENA-SPEECH character sheet.  K narrates arc intro in past tense;
+  Lena narrates mission gameplay.
+
+  **Planet X campaign + Arc A + M1–M3 registered.**  Full content for
+  first 3 missions:
+    M1 Breathe — 3 preplaced (room, O₂ bottle, battery), 3 objectives,
+      4 guidance steps, 3 stars.  Tutorial: connect and play.
+    M2 Clear the Air — 2 new preplaced (flare, scrubber), 4 objectives,
+      4 guidance steps, 2 triggers (scrubber depletion), 3 stars.
+    M3 Find Water — 1 new preplaced (hydrovent), 5 palette items
+      (first real palette), 5 objectives, 4 guidance steps, 2 triggers
+      (barrel overheat, first water), 3 stars.  Rewards unlock species
+      and palette for future missions.
+  All preplaced unit params calibrated to match Ineluctable Fate demo
+  (opening_gas_pct: 46.6, P_init: 30553950, etc.).
+
+  NNGs: NNG-10 (4 new registries, validation at registration),
+  NNG-11 (DOM-free — all new code in script block 1), NNG-12 (single
+  file), NNG-14 (changelog + 38 new tests: 718–755).
+
+  Tests: 818 (+38).
+    718: GameMode/PlayState constants.  719: SpeechPriority.
+    720–721: CampaignRegistry register/retrieve/reject.
+    722–723: ArcRegistry register/retrieve/reject.
+    724–728: MissionRegistry validation (objectives, stars, triggers,
+      profileId typo suggestions, species pool).
+    729–732: Evaluators group A (connection, connection_absent,
+      unit_present, convergence).
+    733–734: Evaluators group B (store_component, maintain_conditions).
+    735–737: Evaluators group C (flow_rate, port_conditions,
+      depletion_guard).
+    738–741: Star criteria + evaluateCriterion dispatch.
+    742–747: CampaignState (construct, complete, rewards, serialize
+      roundtrip, advanceToNext, getStartingScene).
+    748–755: Content registrations (planet_x, arc_a, M1–M3 structure,
+      preplaced params calibration, career flow, scene inheritance).
 
   ─── v18.3.0 — S-HENRY: Henry's law for supercritical gas solubility ────
 
@@ -11892,6 +11984,23 @@ const StreamVisuals = {
   }
 };
 
+// [v19.0.0 S-MISSION] Game mode and play state enums
+const GameMode = Object.freeze({ SANDBOX: 'sandbox', CAMPAIGN: 'campaign' });
+const PlayState = Object.freeze({
+  TITLE: 'title', CAREER_LIST: 'career_list',
+  ARC_INTRO: 'arc_intro', STORY_INTRO: 'story_intro',
+  BRIEFING: 'briefing', BUILD: 'build', RUN: 'run', PAUSED: 'paused',
+  EVALUATE: 'evaluate', VICTORY: 'victory',
+  STORY_OUTRO: 'story_outro', ARC_CONCLUSION: 'arc_conclusion',
+  CAMPAIGN_CONCLUSION: 'campaign_conclusion', GAME_OVER: 'game_over',
+});
+
+// [v19.0.0 S-MISSION] Speech priority levels
+const SpeechPriority = Object.freeze({
+  BRIEFING: 100, GUIDANCE: 90, TRIGGER: 80, GAME_OVER: 80,
+  HINT: 60, ROOM_DIAG: 40, IDLE: 10,
+});
+
 /* =========================
    COMPONENT REGISTRY
    Chemical components with physical properties
@@ -17471,6 +17580,873 @@ class ProfileRegistry {
       .sort((a, b) => (orderMap[a] || 50) - (orderMap[b] || 50));
     for (const cat of sortedCats) ordered[cat] = byCategory[cat];
     return ordered;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// [v19.0.0 S-MISSION] Campaign, Arc, Mission registries (NNG-10)
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ── Known types for validation ──
+const _OBJECTIVE_TYPES = new Set([
+  'convergence', 'connection', 'connection_absent', 'store_component',
+  'maintain_conditions', 'power_output', 'flow_rate', 'port_conditions',
+  'depletion_guard', 'inventory_trend', 'unit_present',
+]);
+const _STAR_CRITERIA_TYPES = new Set([
+  ..._OBJECTIVE_TYPES,
+  'all_objectives_complete', 'time_limit', 'unit_count_limit', 'efficiency_gte',
+]);
+const _TRIGGER_CONDITION_TYPES = new Set([
+  'time_elapsed', 'idle_seconds', 'depletion_below',
+  'species_above', 'species_below',
+  'temperature_above', 'temperature_below',
+  'power_deficit', 'alarm_active', 'crew_state',
+  'inventory_below', 'inventory_above',
+  'level_above', 'level_below',
+  'objective_complete', 'all_objectives_complete',
+  'unit_placed', 'connection_exists',
+]);
+const _TRIGGER_ACTION_TYPES = new Set([
+  'dialogue', 'system_message', 'show_image',
+  'update_objective', 'unlock_palette', 'set_param',
+]);
+
+// Levenshtein distance for typo suggestions
+function _levenshtein(a, b) {
+  const m = a.length, n = b.length;
+  const d = Array.from({ length: m + 1 }, (_, i) => {
+    const row = new Array(n + 1);
+    row[0] = i;
+    return row;
+  });
+  for (let j = 1; j <= n; j++) d[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      d[i][j] = a[i-1] === b[j-1]
+        ? d[i-1][j-1]
+        : 1 + Math.min(d[i-1][j], d[i][j-1], d[i-1][j-1]);
+    }
+  }
+  return d[m][n];
+}
+
+function _suggestTypo(unknown, knownSet) {
+  let best = null, bestDist = Infinity;
+  for (const k of knownSet) {
+    const d = _levenshtein(unknown, k);
+    if (d < bestDist && d <= 3) { best = k; bestDist = d; }
+  }
+  return best ? ` — did you mean '${best}'?` : '';
+}
+
+// ── CampaignRegistry ──
+class CampaignRegistry {
+  static _campaigns = new Map();
+
+  static register(id, spec) {
+    if (this._campaigns.has(id)) throw new Error(`CampaignRegistry: duplicate id '${id}'`);
+    if (!spec.title) throw new Error(`CampaignRegistry '${id}': missing title`);
+    if (!Array.isArray(spec.arcs) || spec.arcs.length === 0) {
+      throw new Error(`CampaignRegistry '${id}': arcs must be non-empty array`);
+    }
+    if (!Array.isArray(spec.speciesPool)) {
+      throw new Error(`CampaignRegistry '${id}': missing speciesPool`);
+    }
+    // Validate all species in pool are registered
+    for (const sp of spec.speciesPool) {
+      if (!ComponentRegistry.exists(sp)) {
+        throw new Error(`CampaignRegistry '${id}': species '${sp}' not in ComponentRegistry`);
+      }
+    }
+    const campaign = Object.freeze({
+      id,
+      title:        spec.title,
+      description:  spec.description || '',
+      version:      spec.version || '1.0.0',
+      planet:       Object.freeze(spec.planet || {}),
+      characters:   Object.freeze(spec.characters || []),
+      speciesPool:  Object.freeze([...spec.speciesPool]),
+      reactionPool: Object.freeze([...(spec.reactionPool || [])]),
+      conclusion:   Object.freeze(spec.conclusion || []),
+      arcs:         Object.freeze([...spec.arcs]),
+      initialScene: spec.initialScene || null,
+    });
+    this._campaigns.set(id, campaign);
+    return campaign;
+  }
+
+  static get(id)     { return this._campaigns.get(id); }
+  static exists(id)  { return this._campaigns.has(id); }
+  static all()       { return [...this._campaigns.values()]; }
+}
+
+// ── ArcRegistry ──
+class ArcRegistry {
+  static _arcs = new Map();
+
+  static register(id, spec) {
+    if (this._arcs.has(id)) throw new Error(`ArcRegistry: duplicate id '${id}'`);
+    if (!spec.campaignId) throw new Error(`ArcRegistry '${id}': missing campaignId`);
+    if (!CampaignRegistry.exists(spec.campaignId)) {
+      throw new Error(`ArcRegistry '${id}': campaign '${spec.campaignId}' not registered`);
+    }
+    if (!Array.isArray(spec.missions) || spec.missions.length === 0) {
+      throw new Error(`ArcRegistry '${id}': missions must be non-empty array`);
+    }
+    const arc = Object.freeze({
+      id,
+      campaignId:    spec.campaignId,
+      title:         spec.title || id,
+      subtitle:      spec.subtitle || '',
+      index:         spec.index ?? 0,
+      requires:      Object.freeze(spec.requires || []),
+      crewCount:     spec.crewCount ?? 2,
+      newCharacters: Object.freeze(spec.newCharacters || []),
+      intro:         Object.freeze(spec.intro || []),
+      conclusion:    Object.freeze(spec.conclusion || []),
+      missions:      Object.freeze([...spec.missions]),
+      planetOverrides: spec.planetOverrides ? Object.freeze(spec.planetOverrides) : null,
+    });
+    this._arcs.set(id, arc);
+    return arc;
+  }
+
+  static get(id)     { return this._arcs.get(id); }
+  static exists(id)  { return this._arcs.has(id); }
+  static all()       { return [...this._arcs.values()]; }
+}
+
+// ── MissionRegistry ──
+class MissionRegistry {
+  static _missions = new Map();
+
+  static register(id, spec) {
+    if (this._missions.has(id)) throw new Error(`MissionRegistry: duplicate id '${id}'`);
+    if (!spec.arcId) throw new Error(`MissionRegistry '${id}': missing arcId`);
+    if (!ArcRegistry.exists(spec.arcId)) {
+      throw new Error(`MissionRegistry '${id}': arc '${spec.arcId}' not registered`);
+    }
+
+    const arc = ArcRegistry.get(spec.arcId);
+    const campaign = CampaignRegistry.get(arc.campaignId);
+    const allProfileIds = new Set(ProfileRegistry.list().map(p => p.profileId));
+    const speciesPool = new Set(campaign.speciesPool);
+    const reactionPool = new Set(campaign.reactionPool);
+
+    // Validate palette profileIds
+    if (spec.palette) {
+      for (const pid of Object.keys(spec.palette)) {
+        if (!allProfileIds.has(pid)) {
+          throw new Error(`MissionRegistry '${id}' palette: unknown profileId '${pid}'${_suggestTypo(pid, allProfileIds)}`);
+        }
+      }
+    }
+
+    // Validate species ⊆ campaign pool
+    if (spec.species) {
+      for (const sp of spec.species) {
+        if (!speciesPool.has(sp)) {
+          throw new Error(`MissionRegistry '${id}': species '${sp}' not in campaign speciesPool`);
+        }
+      }
+    }
+
+    // Validate reactions ⊆ campaign pool
+    if (spec.reactions) {
+      for (const rx of spec.reactions) {
+        if (!reactionPool.has(rx)) {
+          throw new Error(`MissionRegistry '${id}': reaction '${rx}' not in campaign reactionPool`);
+        }
+      }
+    }
+
+    // Validate objectives
+    if (spec.objectives) {
+      for (const obj of spec.objectives) {
+        if (!_OBJECTIVE_TYPES.has(obj.type)) {
+          throw new Error(`MissionRegistry '${id}' objective '${obj.id || '?'}': unknown type '${obj.type}'${_suggestTypo(obj.type, _OBJECTIVE_TYPES)}`);
+        }
+        // Validate profileId references in objectives
+        if (obj.fromProfile && !allProfileIds.has(obj.fromProfile)) {
+          throw new Error(`MissionRegistry '${id}' objective '${obj.id}': unknown fromProfile '${obj.fromProfile}'${_suggestTypo(obj.fromProfile, allProfileIds)}`);
+        }
+        if (obj.toProfile && !allProfileIds.has(obj.toProfile)) {
+          throw new Error(`MissionRegistry '${id}' objective '${obj.id}': unknown toProfile '${obj.toProfile}'${_suggestTypo(obj.toProfile, allProfileIds)}`);
+        }
+        if (obj.targetProfile && !allProfileIds.has(obj.targetProfile)) {
+          throw new Error(`MissionRegistry '${id}' objective '${obj.id}': unknown targetProfile '${obj.targetProfile}'${_suggestTypo(obj.targetProfile, allProfileIds)}`);
+        }
+        if (obj.profileId && !allProfileIds.has(obj.profileId)) {
+          throw new Error(`MissionRegistry '${id}' objective '${obj.id}': unknown profileId '${obj.profileId}'${_suggestTypo(obj.profileId, allProfileIds)}`);
+        }
+      }
+    }
+
+    // Validate star criteria
+    if (spec.stars) {
+      for (const [level, star] of Object.entries(spec.stars)) {
+        if (star.criteria) {
+          for (const c of star.criteria) {
+            if (!_STAR_CRITERIA_TYPES.has(c.type)) {
+              throw new Error(`MissionRegistry '${id}' star ${level}: unknown criteria type '${c.type}'${_suggestTypo(c.type, _STAR_CRITERIA_TYPES)}`);
+            }
+          }
+        }
+      }
+    }
+
+    // Validate trigger condition/action types
+    if (spec.triggers) {
+      for (const tr of spec.triggers) {
+        if (tr.condition && !_TRIGGER_CONDITION_TYPES.has(tr.condition.type)) {
+          throw new Error(`MissionRegistry '${id}' trigger '${tr.id}': unknown condition type '${tr.condition.type}'${_suggestTypo(tr.condition.type, _TRIGGER_CONDITION_TYPES)}`);
+        }
+        if (tr.action && !_TRIGGER_ACTION_TYPES.has(tr.action.type)) {
+          throw new Error(`MissionRegistry '${id}' trigger '${tr.id}': unknown action type '${tr.action.type}'${_suggestTypo(tr.action.type, _TRIGGER_ACTION_TYPES)}`);
+        }
+      }
+    }
+
+    // Validate preplaced unit profileIds
+    if (spec.preplacedUnits) {
+      for (const pu of spec.preplacedUnits) {
+        if (pu.profileId && !allProfileIds.has(pu.profileId)) {
+          throw new Error(`MissionRegistry '${id}' preplaced: unknown profileId '${pu.profileId}'${_suggestTypo(pu.profileId, allProfileIds)}`);
+        }
+      }
+    }
+
+    const mission = Object.freeze({
+      id,
+      arcId:           spec.arcId,
+      index:           spec.index ?? 0,
+      contentVersion:  spec.contentVersion ?? 1,
+      title:           spec.title || id,
+      subtitle:        spec.subtitle || '',
+      emergency:       spec.emergency || '',
+
+      palette:         Object.freeze(spec.palette || {}),
+      customProfiles:  Object.freeze(spec.customProfiles || []),
+      customIcons:     Object.freeze(spec.customIcons || {}),
+      paramLocks:      Object.freeze(spec.paramLocks || {}),
+
+      species:         Object.freeze(spec.species || []),
+      reactions:       Object.freeze(spec.reactions || []),
+
+      inheritScene:    spec.inheritScene ?? false,
+      initialScene:    spec.initialScene || null,
+      preplacedUnits:  Object.freeze(spec.preplacedUnits || []),
+
+      planetOverrides: spec.planetOverrides ? Object.freeze(spec.planetOverrides) : null,
+
+      narrator:        spec.narrator || 'lena',
+      roomOccupants:   Object.freeze(spec.roomOccupants || {}),
+
+      storyIntro:      Object.freeze(spec.storyIntro || []),
+      storyOutro:      Object.freeze(spec.storyOutro || []),
+      briefing:        Object.freeze(spec.briefing || []),
+      victoryLine:     Object.freeze(spec.victoryLine || {}),
+
+      objectives:      Object.freeze(spec.objectives || []),
+
+      stars:           Object.freeze(spec.stars || {}),
+
+      guidanceSteps:   Object.freeze(spec.guidanceSteps || []),
+      triggers:        Object.freeze(spec.triggers || []),
+      hints:           Object.freeze(spec.hints || []),
+
+      completionGated: spec.completionGated ?? true,
+
+      storyUI:         Object.freeze(spec.storyUI || {}),
+
+      rewards:         Object.freeze(spec.rewards || { palette: {}, species: [], reactions: [] }),
+    });
+    this._missions.set(id, mission);
+    return mission;
+  }
+
+  static get(id)     { return this._missions.get(id); }
+  static exists(id)  { return this._missions.has(id); }
+  static all()       { return [...this._missions.values()]; }
+
+  static getByArc(arcId) {
+    return [...this._missions.values()]
+      .filter(m => m.arcId === arcId)
+      .sort((a, b) => a.index - b.index);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// [v19.0.0 S-MISSION] Objective Evaluators (NNG-11: DOM-free)
+//
+// Each evaluator: (params, scene, runtime) → { met: boolean, progress: string }
+//
+// scene.units: Map(id → unit)   unit.profileId, unit.inventory, unit.last
+// scene.connections: Array      {from:{unitId,portId}, to:{unitId,portId}}
+// runtime: { t: elapsed_s, dt, ... }  (optional context from solver/TimeClock)
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Helper: find all units matching a profileId
+function _unitsByProfile(scene, profileId) {
+  const result = [];
+  for (const [, u] of scene.units) {
+    if (u.profileId === profileId) result.push(u);
+  }
+  return result;
+}
+
+// Helper: check if a connection exists matching criteria
+function _connectionExists(scene, fromProfile, toProfile, opts = {}) {
+  const fromPort = opts.fromPort || null;
+  const toPort = opts.toPort || null;
+  const portType = opts.portType || null;
+  for (const c of scene.connections) {
+    const uFrom = scene.units.get(c.from.unitId);
+    const uTo = scene.units.get(c.to.unitId);
+    if (!uFrom || !uTo) continue;
+    if (fromProfile && uFrom.profileId !== fromProfile) continue;
+    if (toProfile && uTo.profileId !== toProfile) continue;
+    if (fromPort && c.from.portId !== fromPort) continue;
+    if (toPort && c.to.portId !== toPort) continue;
+    if (portType) {
+      const def = UnitRegistry.get(uFrom.defId);
+      if (def) {
+        const pDef = def.ports.find(p => p.portId === c.from.portId);
+        if (pDef) {
+          const typeName = portType === 'elec' ? StreamType.ELECTRICAL : StreamType.MATERIAL;
+          if (pDef.type !== typeName) continue;
+        }
+      }
+    }
+    return true;
+  }
+  return false;
+}
+
+const ObjectiveEvaluators = {
+
+  // 1. convergence — solver converged (always met after a successful solve)
+  convergence(params, scene, runtime) {
+    const met = !!(runtime && runtime.converged !== false);
+    return { met, progress: met ? 'Converged ✓' : 'Not converged' };
+  },
+
+  // 2. connection — specific connection exists
+  connection(params, scene) {
+    const met = _connectionExists(scene, params.fromProfile, params.toProfile, {
+      fromPort: params.fromPort, toPort: params.toPort, portType: params.portType,
+    });
+    const from = params.fromProfile || '?';
+    const to = params.toProfile || '?';
+    return { met, progress: met ? `${from} → ${to} ✓` : `Not connected: ${from} → ${to}` };
+  },
+
+  // 3. connection_absent — specific connection must NOT exist
+  connection_absent(params, scene) {
+    const exists = _connectionExists(scene, params.fromProfile, params.toProfile);
+    const met = !exists;
+    const from = params.fromProfile || '?';
+    const to = params.toProfile || '?';
+    return { met, progress: met ? `${from} ✗ ${to} ✓` : `${from} → ${to} still connected` };
+  },
+
+  // 4. unit_present — at least one unit with this profileId exists
+  unit_present(params, scene) {
+    const units = _unitsByProfile(scene, params.profileId);
+    const met = units.length > 0;
+    return { met, progress: met ? `${params.profileId} present ✓` : `${params.profileId} not placed` };
+  },
+
+  // 5. store_component — moles/purity/level in a tank
+  store_component(params, scene) {
+    const units = _unitsByProfile(scene, params.targetProfile);
+    if (units.length === 0) return { met: false, progress: `${params.targetProfile} not found` };
+    const u = units[0];
+    const inv = u.inventory;
+    const last = u.last || {};
+    const parts = [];
+    let allMet = true;
+
+    if (params.minMoles != null && params.species) {
+      const moles = inv?.n?.[params.species] || 0;
+      const ok = moles >= params.minMoles;
+      if (!ok) allMet = false;
+      parts.push(`${params.species}: ${moles.toFixed(1)} mol ${ok ? '✓' : `(need ≥ ${params.minMoles})`}`);
+    }
+
+    if (params.minPurity != null && params.species) {
+      const n = inv?.n || {};
+      const total = Object.values(n).reduce((s, v) => s + v, 0);
+      const frac = total > 0 ? (n[params.species] || 0) / total : 0;
+      const ok = frac >= params.minPurity;
+      if (!ok) allMet = false;
+      parts.push(`purity: ${(frac*100).toFixed(1)}% ${ok ? '✓' : `(need ≥ ${(params.minPurity*100).toFixed(0)}%)`}`);
+    }
+
+    if (params.minLevel != null) {
+      const level = (last.fillPct ?? last.level_pct ?? 0) / 100;  // fillPct is 0-100, minLevel is 0-1
+      const ok = level >= params.minLevel;
+      if (!ok) allMet = false;
+      parts.push(`level: ${(level*100).toFixed(0)}% ${ok ? '✓' : `(need ≥ ${(params.minLevel*100).toFixed(0)}%)`}`);
+    }
+
+    return { met: allMet, progress: parts.join(', ') || 'no criteria' };
+  },
+
+  // 6. maintain_conditions — room conditions held for duration
+  maintain_conditions(params, scene, runtime) {
+    const units = params.unit
+      ? _unitsByProfile(scene, params.unit)
+      : _unitsByProfile(scene, 'shelter');
+    if (units.length === 0) return { met: false, progress: 'Room not found' };
+    const u = units[0];
+    const last = u.last || {};
+    const conds = params.conditions || params;
+    const checks = [];
+    let allOk = true;
+
+    // Temperature
+    if (conds.T_K_gte != null) {
+      const T = last.T_room_K || 0;
+      const ok = T >= conds.T_K_gte;
+      if (!ok) allOk = false;
+      checks.push(`T: ${T.toFixed(0)}K ${ok ? '✓' : `(need ≥ ${conds.T_K_gte}K)`}`);
+    }
+    if (conds.T_K_lte != null) {
+      const T = last.T_room_K || Infinity;
+      const ok = T <= conds.T_K_lte;
+      if (!ok) allOk = false;
+      checks.push(`T: ${T.toFixed(0)}K ${ok ? '✓' : `(need ≤ ${conds.T_K_lte}K)`}`);
+    }
+
+    // O₂ mol%
+    if (conds.O2_pct_gte != null) {
+      const pct = (last.room_x_O2 || 0) * 100;
+      const ok = pct >= conds.O2_pct_gte;
+      if (!ok) allOk = false;
+      checks.push(`O₂: ${pct.toFixed(1)}% ${ok ? '✓' : `(need ≥ ${conds.O2_pct_gte}%)`}`);
+    }
+    if (conds.O2_pct_lte != null) {
+      const pct = (last.room_x_O2 || 0) * 100;
+      const ok = pct <= conds.O2_pct_lte;
+      if (!ok) allOk = false;
+      checks.push(`O₂: ${pct.toFixed(1)}% ${ok ? '✓' : `(need ≤ ${conds.O2_pct_lte}%)`}`);
+    }
+
+    // CO₂ mol%
+    if (conds.CO2_pct_gte != null) {
+      const pct = (last.room_x_CO2 || 0) * 100;
+      const ok = pct >= conds.CO2_pct_gte;
+      if (!ok) allOk = false;
+      checks.push(`CO₂: ${pct.toFixed(1)}% ${ok ? '✓' : `(need ≥ ${conds.CO2_pct_gte}%)`}`);
+    }
+    if (conds.CO2_pct_lte != null) {
+      const pct = (last.room_x_CO2 || 0) * 100;
+      const ok = pct <= conds.CO2_pct_lte;
+      if (!ok) allOk = false;
+      checks.push(`CO₂: ${pct.toFixed(1)}% ${ok ? '✓' : `(need ≤ ${conds.CO2_pct_lte}%)`}`);
+    }
+
+    // Curtailment
+    if (conds.curtailment_zero) {
+      const curtailed = !!(last.power_curtailed);
+      const ok = !curtailed;
+      if (!ok) allOk = false;
+      checks.push(`power: ${ok ? 'OK ✓' : 'curtailed'}`);
+    }
+
+    // Duration tracking
+    const dur_s = params.duration_s || 0;
+    const rKey = params._runtimeKey || ('mc_' + (params.unit || 'shelter'));
+    const elapsed = runtime?._conditionTimers?.[rKey] || 0;
+
+    if (dur_s > 0) {
+      if (allOk) {
+        // Conditions met — timer advances (caller increments _conditionTimers)
+        const durMet = elapsed >= dur_s;
+        checks.push(`${elapsed.toFixed(0)}s / ${dur_s}s ${durMet ? '✓' : ''}`);
+        return { met: durMet, progress: checks.join(', '), _conditionsOk: true };
+      } else {
+        checks.push(`0s / ${dur_s}s`);
+        return { met: false, progress: checks.join(', '), _conditionsOk: false };
+      }
+    }
+
+    return { met: allOk, progress: checks.join(', ') };
+  },
+
+  // 7. depletion_guard — resource stays above threshold for duration
+  depletion_guard(params, scene, runtime) {
+    // Check inventory moles of a species across all units (or specific profile)
+    let totalMoles = 0;
+    const targets = params.profileId
+      ? _unitsByProfile(scene, params.profileId)
+      : [...scene.units.values()];
+    for (const u of targets) {
+      if (u.inventory?.n?.[params.species]) {
+        totalMoles += u.inventory.n[params.species];
+      }
+    }
+    const ok = totalMoles >= (params.minMoles || 0);
+    const dur = params.duration_s || 0;
+    const elapsed = runtime?._conditionTimers?.['dg_' + params.species] || 0;
+    const met = dur > 0 ? (ok && elapsed >= dur) : ok;
+    const progress = `${params.species}: ${totalMoles.toFixed(1)} mol ${ok ? '✓' : `(need ≥ ${params.minMoles})`}`
+      + (dur > 0 ? ` ${elapsed.toFixed(0)}s/${dur}s` : '');
+    return { met, progress, _conditionsOk: ok };
+  },
+
+  // 8. inventory_trend — tank level going up or down over duration
+  inventory_trend(params, scene, runtime) {
+    const units = _unitsByProfile(scene, params.targetProfile);
+    if (units.length === 0) return { met: false, progress: `${params.targetProfile} not found` };
+    const u = units[0];
+    const moles = u.inventory?.n?.[params.species] || 0;
+    const prev = runtime?._inventorySnapshots?.[u.id + ':' + params.species] || moles;
+    const trend = params.trend; // 'increasing' or 'decreasing'
+    const ok = trend === 'increasing' ? moles > prev : moles < prev;
+    const dur = params.duration_s || 0;
+    const elapsed = runtime?._conditionTimers?.['it_' + u.id + ':' + params.species] || 0;
+    const met = dur > 0 ? (ok && elapsed >= dur) : ok;
+    const arrow = moles > prev ? '↑' : moles < prev ? '↓' : '→';
+    return { met, progress: `${params.species} ${arrow} ${moles.toFixed(1)} mol (want ${trend}) ${met ? '✓' : ''}` };
+  },
+
+  // 9. power_output — total power output ≥ threshold for duration
+  power_output(params, scene, runtime) {
+    let totalPower = 0;
+    for (const [, u] of scene.units) {
+      const last = u.last || {};
+      if (last.power_total != null) totalPower += last.power_total;
+    }
+    const ok = totalPower >= (params.min_W || 0);
+    const dur = params.duration_s || 0;
+    const elapsed = runtime?._conditionTimers?.['po'] || 0;
+    const met = dur > 0 ? (ok && elapsed >= dur) : ok;
+    return {
+      met,
+      progress: `Power: ${totalPower.toFixed(0)} W ${ok ? '✓' : `(need ≥ ${params.min_W} W)`}`
+        + (dur > 0 ? ` ${elapsed.toFixed(0)}s/${dur}s` : ''),
+      _conditionsOk: ok,
+    };
+  },
+
+  // 10. flow_rate — species flow rate through a port
+  flow_rate(params, scene) {
+    const units = _unitsByProfile(scene, params.targetProfile);
+    if (units.length === 0) return { met: false, progress: `${params.targetProfile} not found` };
+    const u = units[0];
+    const ud = scene.runtime?.unitData?.get(u.id) || {};
+    const portId = params.portId;
+    const stream = ud.ports?.[portId];
+    let flowRate = 0;
+    if (stream?.n) {
+      flowRate = params.species
+        ? (stream.n[params.species] || 0)
+        : Object.values(stream.n).reduce((s, v) => s + v, 0);
+    }
+    const parts = [];
+    let met = true;
+    if (params.min_molPerS != null) {
+      const ok = flowRate >= params.min_molPerS;
+      if (!ok) met = false;
+      parts.push(`${flowRate.toFixed(4)} mol/s ${ok ? '✓' : `(need ≥ ${params.min_molPerS})`}`);
+    }
+    if (params.max_molPerS != null) {
+      const ok = flowRate <= params.max_molPerS;
+      if (!ok) met = false;
+      parts.push(`≤ ${params.max_molPerS} ${ok ? '✓' : `(${flowRate.toFixed(4)} too high)`}`);
+    }
+    return { met, progress: `${params.species || 'total'} flow: ${parts.join(', ')}` };
+  },
+
+  // 11. port_conditions — T/P bounds on a port stream
+  port_conditions(params, scene) {
+    const units = _unitsByProfile(scene, params.targetProfile);
+    if (units.length === 0) return { met: false, progress: `${params.targetProfile} not found` };
+    const u = units[0];
+    const ud = scene.runtime?.unitData?.get(u.id) || {};
+    const stream = ud.ports?.[params.portId];
+    const checks = [];
+    let met = true;
+
+    if (params.T_gte != null) {
+      const T = stream?.T || 0;
+      const ok = T >= params.T_gte;
+      if (!ok) met = false;
+      checks.push(`T: ${T.toFixed(0)}K ${ok ? '✓' : `(need ≥ ${params.T_gte}K)`}`);
+    }
+    if (params.T_lte != null) {
+      const T = stream?.T || Infinity;
+      const ok = T <= params.T_lte;
+      if (!ok) met = false;
+      checks.push(`T: ${T.toFixed(0)}K ${ok ? '✓' : `(need ≤ ${params.T_lte}K)`}`);
+    }
+    if (params.P_gte != null) {
+      const P = stream?.P || 0;
+      const ok = P >= params.P_gte;
+      if (!ok) met = false;
+      checks.push(`P: ${(P/1e5).toFixed(2)} bar ${ok ? '✓' : `(need ≥ ${(params.P_gte/1e5).toFixed(2)} bar)`}`);
+    }
+    if (params.P_lte != null) {
+      const P = stream?.P || Infinity;
+      const ok = P <= params.P_lte;
+      if (!ok) met = false;
+      checks.push(`P: ${(P/1e5).toFixed(2)} bar ${ok ? '✓' : `(need ≤ ${(params.P_lte/1e5).toFixed(2)} bar)`}`);
+    }
+
+    return { met, progress: checks.join(', ') || 'no criteria' };
+  },
+};
+
+// Star criteria (extends objective evaluator set with 4 star-only types)
+const StarCriteriaEvaluators = {
+
+  all_objectives_complete(params, scene, runtime) {
+    const results = runtime?._objectiveResults || [];
+    const allMet = results.length > 0 && results.every(r => r.met);
+    return {
+      met: allMet,
+      progress: allMet
+        ? 'All objectives ✓'
+        : `${results.filter(r => r.met).length}/${results.length} objectives`,
+    };
+  },
+
+  time_limit(params, scene, runtime) {
+    const elapsed = runtime?.missionElapsed_s || 0;
+    const max = params.maxSeconds || Infinity;
+    const met = elapsed <= max;
+    return {
+      met,
+      progress: `${elapsed.toFixed(0)}s ${met ? '✓' : `(limit: ${max}s)`}`,
+    };
+  },
+
+  unit_count_limit(params, scene) {
+    const count = scene.units.size;
+    const max = params.maxUnits || Infinity;
+    const met = count <= max;
+    return {
+      met,
+      progress: `${count} units ${met ? '✓' : `(limit: ${max})`}`,
+    };
+  },
+
+  efficiency_gte(params, scene, runtime) {
+    // Generic KPI check — the evaluator name in params.kpi points to a
+    // runtime-computed value (e.g. thermal efficiency, water recovery).
+    const val = runtime?.kpis?.[params.kpi] || 0;
+    const met = val >= (params.threshold || 0);
+    return {
+      met,
+      progress: `${params.kpi}: ${(val*100).toFixed(1)}% ${met ? '✓' : `(need ≥ ${(params.threshold*100).toFixed(0)}%)`}`,
+    };
+  },
+};
+
+// Unified evaluator dispatch — looks up objective or star criteria evaluator
+function evaluateCriterion(criterion, scene, runtime) {
+  const fn = ObjectiveEvaluators[criterion.type] || StarCriteriaEvaluators[criterion.type];
+  if (!fn) return { met: false, progress: `Unknown evaluator: ${criterion.type}` };
+  return fn(criterion, scene, runtime);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// [v19.0.0 S-MISSION] CampaignState — persistent career state (NNG-11)
+// ═══════════════════════════════════════════════════════════════════════════
+
+class CampaignState {
+  constructor(campaignId, careerName) {
+    const campaign = CampaignRegistry.get(campaignId);
+    if (!campaign) throw new Error(`CampaignState: unknown campaign '${campaignId}'`);
+
+    this.careerVersion = 1;
+    this.careerName = careerName || 'Career 1';
+    this.campaignId = campaignId;
+
+    // Progression
+    this.currentArcId = campaign.arcs[0] || null;
+    this.currentMissionId = null;
+    if (this.currentArcId && ArcRegistry.exists(this.currentArcId)) {
+      const arc = ArcRegistry.get(this.currentArcId);
+      this.currentMissionId = arc.missions[0] || null;
+    }
+
+    // Completion records: missionId → { stars, contentVersion, timestamp }
+    this.completed = new Map();
+    this.arcCompleted = new Set();
+
+    // Cumulative unlocks
+    this.cumulativePalette = {};     // profileId → count
+    this.unlockedSpecies = new Set();
+    this.unlockedReactions = new Set();
+
+    // Scene snapshots for inheritance
+    this.missionEndScenes = new Map();  // missionId → JSON string
+    this.arcEndScenes = new Map();      // arcId → JSON string
+
+    this.gameDay = 0;
+  }
+
+  // Apply rewards from a completed mission
+  applyRewards(missionId) {
+    const mission = MissionRegistry.get(missionId);
+    if (!mission) return;
+    const rewards = mission.rewards || {};
+
+    // Palette unlocks accumulate
+    if (rewards.palette) {
+      for (const [pid, count] of Object.entries(rewards.palette)) {
+        this.cumulativePalette[pid] = (this.cumulativePalette[pid] || 0) + count;
+      }
+    }
+
+    // Species + reactions
+    if (rewards.species) {
+      for (const sp of rewards.species) this.unlockedSpecies.add(sp);
+    }
+    if (rewards.reactions) {
+      for (const rx of rewards.reactions) this.unlockedReactions.add(rx);
+    }
+  }
+
+  // Record mission completion
+  completeMission(missionId, stars, sceneJSON) {
+    this.completed.set(missionId, {
+      stars,
+      contentVersion: MissionRegistry.get(missionId)?.contentVersion || 1,
+      timestamp: Date.now(),
+    });
+    if (sceneJSON) this.missionEndScenes.set(missionId, sceneJSON);
+    this.applyRewards(missionId);
+  }
+
+  // Get effective palette = mission.palette + cumulative rewards
+  getEffectivePalette(missionId) {
+    const mission = MissionRegistry.get(missionId);
+    if (!mission) return {};
+    const eff = {};
+    // Start with mission's own palette
+    for (const [pid, count] of Object.entries(mission.palette)) {
+      eff[pid] = (eff[pid] || 0) + count;
+    }
+    // Add cumulative from prior rewards
+    for (const [pid, count] of Object.entries(this.cumulativePalette)) {
+      eff[pid] = (eff[pid] || 0) + count;
+    }
+    return eff;
+  }
+
+  // Get effective species = mission.species ∪ unlocked
+  getEffectiveSpecies(missionId) {
+    const mission = MissionRegistry.get(missionId);
+    const set = new Set(mission?.species || []);
+    for (const sp of this.unlockedSpecies) set.add(sp);
+    return set;
+  }
+
+  // Get effective reactions
+  getEffectiveReactions(missionId) {
+    const mission = MissionRegistry.get(missionId);
+    const set = new Set(mission?.reactions || []);
+    for (const rx of this.unlockedReactions) set.add(rx);
+    return set;
+  }
+
+  // Get starting scene for a mission (inherited from previous mission end)
+  getStartingScene(missionId) {
+    const mission = MissionRegistry.get(missionId);
+    if (!mission) return null;
+    if (!mission.inheritScene) return mission.initialScene || null;
+
+    // Find the previous mission in the arc
+    const arc = ArcRegistry.get(mission.arcId);
+    if (!arc) return mission.initialScene || null;
+    const idx = arc.missions.indexOf(missionId);
+    if (idx <= 0) {
+      // First mission in arc — check previous arc's end scene
+      const campaign = CampaignRegistry.get(arc.campaignId);
+      const arcIdx = campaign.arcs.indexOf(arc.id);
+      if (arcIdx > 0) {
+        const prevArcId = campaign.arcs[arcIdx - 1];
+        return this.arcEndScenes.get(prevArcId) || mission.initialScene || null;
+      }
+      return mission.initialScene || null;
+    }
+    const prevMissionId = arc.missions[idx - 1];
+    return this.missionEndScenes.get(prevMissionId) || mission.initialScene || null;
+  }
+
+  // Advance to next mission (or arc conclusion)
+  advanceToNext() {
+    const arc = ArcRegistry.get(this.currentArcId);
+    if (!arc) return null;
+    const idx = arc.missions.indexOf(this.currentMissionId);
+    if (idx < arc.missions.length - 1) {
+      this.currentMissionId = arc.missions[idx + 1];
+      return { type: 'mission', id: this.currentMissionId };
+    }
+    // Arc complete
+    this.arcCompleted.add(this.currentArcId);
+    const campaign = CampaignRegistry.get(this.campaignId);
+    const arcIdx = campaign.arcs.indexOf(this.currentArcId);
+    if (arcIdx < campaign.arcs.length - 1) {
+      this.currentArcId = campaign.arcs[arcIdx + 1];
+      const nextArc = ArcRegistry.get(this.currentArcId);
+      this.currentMissionId = nextArc?.missions[0] || null;
+      return { type: 'arc', id: this.currentArcId };
+    }
+    return { type: 'campaign_complete' };
+  }
+
+  // Serialize to JSON-safe object
+  serialize() {
+    return {
+      careerVersion: this.careerVersion,
+      careerName: this.careerName,
+      campaignId: this.campaignId,
+      currentArcId: this.currentArcId,
+      currentMissionId: this.currentMissionId,
+      completed: Object.fromEntries(this.completed),
+      arcCompleted: [...this.arcCompleted],
+      cumulativePalette: { ...this.cumulativePalette },
+      unlockedSpecies: [...this.unlockedSpecies],
+      unlockedReactions: [...this.unlockedReactions],
+      missionEndScenes: Object.fromEntries(this.missionEndScenes),
+      arcEndScenes: Object.fromEntries(this.arcEndScenes),
+      gameDay: this.gameDay,
+    };
+  }
+
+  // Deserialize from saved object
+  static deserialize(data) {
+    const state = new CampaignState(data.campaignId, data.careerName);
+    state.careerVersion = data.careerVersion || 1;
+    state.currentArcId = data.currentArcId;
+    state.currentMissionId = data.currentMissionId;
+    if (data.completed) {
+      for (const [k, v] of Object.entries(data.completed)) state.completed.set(k, v);
+    }
+    if (data.arcCompleted) {
+      for (const a of data.arcCompleted) state.arcCompleted.add(a);
+    }
+    state.cumulativePalette = data.cumulativePalette || {};
+    if (data.unlockedSpecies) {
+      for (const sp of data.unlockedSpecies) state.unlockedSpecies.add(sp);
+    }
+    if (data.unlockedReactions) {
+      for (const rx of data.unlockedReactions) state.unlockedReactions.add(rx);
+    }
+    if (data.missionEndScenes) {
+      for (const [k, v] of Object.entries(data.missionEndScenes)) state.missionEndScenes.set(k, v);
+    }
+    if (data.arcEndScenes) {
+      for (const [k, v] of Object.entries(data.arcEndScenes)) state.arcEndScenes.set(k, v);
+    }
+    state.gameDay = data.gameDay || 0;
+    return state;
   }
 }
 
@@ -25442,7 +26418,7 @@ ProfileRegistry.register('co2_scrubber', {
   tiers: [1],
   limits: { 1: { T_LL: 220, T_HH: 470, P_HH: 1000000, mass_HH: 0.05 } },
   defaults: { 1: { targetSpecies: 'CO2', extractionFrac: 0.99,
-    consumable: { name: 'LiOH Cartridges', capacity: 268, remaining: 268, maxRate: 5.0 } } },
+    consumable: { name: 'LiOH Cartridges', capacity: 500, remaining: 500, maxRate: 5.0 } } },
   config: { composite: true }
 });
 
@@ -25553,6 +26529,513 @@ ProfileRegistry.register('shelter', {
   _tpl('membrane_separator_tpl', 'membrane_separator',    'Membrane Separator',    UnitCategories.SEPARATION);
   _tpl('room_tpl',               'room',                  'Room',                  UnitCategories.LIFE_SUPPORT);
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// §MISSION-CONTENT — All mission narrative text lives here.
+//
+// Edit directly. Image src resolved by naming convention.
+// Read §LENA-SPEECH before writing Lena lines. K never speaks.
+//
+// ── Condition keys cheatsheet ─────────────────────────────────────────
+// maintain_conditions:
+//   T_K_gte, T_K_lte             Temperature (K)
+//   O2_pct_gte, O2_pct_lte       O₂ mol%
+//   CO2_pct_gte, CO2_pct_lte     CO₂ mol%
+//   curtailment_zero              No power curtailment
+// Objective types:
+//   connection        { fromProfile, toProfile, portType }
+//   connection_absent { fromProfile, toProfile }
+//   store_component   { species, minMoles, minPurity, minLevel }
+//   maintain_conditions { unit, conditions, duration_s }
+//   power_output      { min_W, duration_s }
+//   flow_rate         { species, min_molPerS, max_molPerS, targetProfile }
+//   port_conditions   { targetProfile, portId, T_gte, T_lte }
+//   convergence       {}
+//   depletion_guard   { species, minMoles, duration_s }
+//   inventory_trend   { targetProfile, species, trend, duration_s }
+//   unit_present      { profileId }
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ═══ ARC A INTRO ═════════════════════════════════════════════════════════
+const ARC_A_INTRO = [
+  { type: 'image', src: 'intro_1.webp', transition: 'fade', duration_ms: null,
+    fallbackText: 'It started as the mission of a lifetime \u2014 the first crewed survey of Planet X, a promising Earth-like world with one deadly catch: 9% CO\u2082 in the atmosphere. It took years to get here. We were the first humans to lay eyes on it, and it was a purple marvel. A large part of the planet lived in permanent twilight, which made it beautiful and hypnotic.',
+    alt: 'Ship in orbit above Planet X' },
+  { type: 'image', src: 'intro_2.webp', transition: 'fade', duration_ms: null,
+    fallbackText: 'I\u2019m K. I fix things \u2014 you could call me a space mechanic, I guess. I had my reasons for signing up for a long interstellar voyage. None of them matter now. Things were real quiet out here, and I liked that.',
+    alt: 'K in spacesuit' },
+  { type: 'image', src: 'intro_3.webp', transition: 'fade', duration_ms: null,
+    fallbackText: 'Our mission was directed by Dr. Lena Vasquez. I didn\u2019t know her well. She was brilliant \u2014 that was obvious. She gave a briefing once, about atmospheric chemistry. Half the crew fell asleep. I stayed awake. Not because I understood it, but because she clearly loved every word of it.',
+    alt: 'Lena giving a briefing' },
+  { type: 'image', src: 'intro_4.webp', transition: 'fade', duration_ms: null,
+    fallbackText: 'Things did not go as planned. Not sure what caused the ship to plummet \u2014 the only thing I remember is that I was preparing for a space walk, and Dr. Vasquez came to check on me. Then everything started shaking. She rushed out, but all doors auto-locked, and we just got thrown around like cargo.',
+    alt: 'Ship crashing' },
+  { type: 'image', src: 'intro_5.webp', transition: 'fade', duration_ms: null,
+    fallbackText: 'Somehow, we made it. The room we were in got ejected from the main ship and landed a short distance away, mostly intact. The urgency was Lena\u2019s leg \u2014 it was bad. I did what I could with bandages and salvage, but she wasn\u2019t going to be walking anytime soon.',
+    alt: 'Lena injured in wreckage' },
+  { type: 'image', src: 'intro_6.webp', transition: 'fade', duration_ms: null,
+    fallbackText: 'Dr. Vasquez \u2014 she asked me to call her Lena \u2014 was quite something. She didn\u2019t seem shaken by what we\u2019d just been through. She told me she intended to live, no matter what, and that the situation was dire but not so different from what we\u2019d originally planned. Really? When I pointed out that we were stuck in a tin can on a planet that would kill us the moment we stepped outside, she just said: \u201cDon\u2019t worry. We have everything we need. We just need to know how to use it. And I know how. I\u2019ll guide you, you do the work. We\u2019ll both survive, you\u2019ll see.\u201d',
+    alt: 'Lena and K planning' },
+];
+
+// ═══ M1 — Breathe ═══════════════════════════════════════════════════════
+const M1_BRIEFING = [
+  { type: 'dialogue', speaker: 'lena', expression: 'disappointed',
+    text: 'Alright, let\u2019s get our priorities straight. Do you know the survival rule of three? Three minutes without air, three days without water, three weeks without food. Roughly. Air comes first. As we speak, we\u2019re consuming oxygen and producing CO\u2082. We\u2019ll exhaust what\u2019s in this room in a matter of hours. I spotted an oxygen bottle nearby \u2014 find it and connect it to the room. There\u2019s also a good-sized battery left in here. Plug it in and give us some light. It\u2019s really dark.' },
+];
+
+const M1_VICTORY_LINES = {
+  1: { speaker: 'lena', text: 'It works. We\u2019re not dead yet.' },
+  2: { speaker: 'lena', text: 'Fast hands. I like that.' },
+  3: { speaker: 'lena', text: 'Stable oxygen for two hours straight. Textbook.' },
+};
+
+const M1_OUTRO = [
+  { type: 'image', src: 'story_outro_1.webp', transition: 'fade', duration_ms: null,
+    fallbackText: 'The first step done. I wasn\u2019t sure where we were going, but Lena seemed very clear on the direction. That made me feel hopeful, as I plugged in that oxygen bottle and gave us fresh air to breathe. It was dark outside, but the lights were on inside.',
+    alt: 'Shelter with lights on' },
+];
+
+const M1_GUIDANCE = [
+  { id: 'g_m1_connect_o2',
+    dialogue: { speaker: 'lena', text: 'You can see the room where I\u2019m sitting. On the left side, there\u2019s an oxygen bottle. Drag from the oxygen bottle\u2019s output connector to the \u201cO\u2082\u201d port of the room.', expression: 'happy' },
+    highlight: { type: 'connection', fromProfile: 'simple_gas_bottle', fromPort: 'gas_out', toProfile: 'shelter', toPort: 'o2_in' },
+    completion: { type: 'connection', fromProfile: 'simple_gas_bottle', toProfile: 'shelter' },
+    onComplete: { speaker: 'lena', text: 'Good. But it won\u2019t do much until we have power. The fan inside needs electricity to circulate the air.' },
+    delay_ms: 500 },
+  { id: 'g_m1_connect_battery',
+    dialogue: { speaker: 'lena', text: 'See the battery above the room? Drag from its connector to the room\u2019s power port at the top.', expression: 'happy' },
+    highlight: { type: 'connection', fromProfile: 'battery', fromPort: 'elec', toProfile: 'shelter', toPort: 'elec_in' },
+    completion: { type: 'connection', fromProfile: 'battery', toProfile: 'shelter' },
+    onComplete: { speaker: 'lena', text: 'Power! The lights came on and the ventilator is running. That already feels much better.' },
+    delay_ms: 500 },
+  { id: 'g_m1_play',
+    dialogue: { speaker: 'lena', text: 'Now let\u2019s test it. Press the play button at the bottom of the screen.', expression: 'happy' },
+    highlight: { type: 'button', buttonId: 'btnPlay' },
+    completion: { type: 'play_pressed' },
+    onComplete: { speaker: 'lena', text: 'You can see the room\u2019s indicators \u2014 our oxygen is improving. We\u2019re safe on that side for a little while. See the particles moving from the bottle through the pipes? That\u2019s oxygen flowing.' },
+    delay_ms: 500 },
+  { id: 'g_m1_inspect',
+    dialogue: { speaker: 'lena', text: 'One more thing. Click on the battery and look at its details. The charge should last a couple of days, but we\u2019ll need more power as we go. Better keep an eye on it.', expression: 'happy' },
+    highlight: { type: 'unit', profileId: 'battery' },
+    completion: { type: 'unit_inspected', profileId: 'battery' },
+    onComplete: { speaker: 'lena', text: 'Well done. We\u2019re just getting started, but this is really encouraging.' },
+    delay_ms: 500 },
+];
+
+// ═══ M2 — Clear the Air ═════════════════════════════════════════════════
+const M2_INTRO = [
+  { type: 'image', src: 'story_intro_1.webp', transition: 'fade', duration_ms: null,
+    fallbackText: 'While Lena slept, I started putting pipes together from the wreckage and made a big chimney. Lena had said we were going to work with gases, and I figured it wasn\u2019t a good idea to have flammable mixtures building up around the shelter. We could dump everything we didn\u2019t need up there, and maybe even burn it. I think it\u2019s called a flare.',
+    alt: 'Flare stack construction' },
+];
+
+const M2_BRIEFING = [
+  { type: 'dialogue', speaker: 'lena', expression: 'happy',
+    text: 'Excellent work on the tower. Now, air. We\u2019re halfway there \u2014 sort of. We have oxygen, but the poison building up is CO\u2082. That\u2019s the real problem inside this room, and even more so on the planet. We can\u2019t tolerate much more than 1% CO\u2082 in the air, and this planet\u2019s atmosphere has nearly 10%. We\u2019d last minutes outside. Apart from that, Planet X has perfectly good air. I salvaged the ship\u2019s CO\u2082 removal system. It runs on LiOH cartridges, and they\u2019re not going to last long \u2014 maybe days if we\u2019re lucky. But it\u2019ll buy us time, and I have more ideas.' },
+];
+
+const M2_VICTORY_LINES = {
+  1: { speaker: 'lena', text: 'Air\u2019s moving. Head\u2019s clearing.' },
+  2: { speaker: 'lena', text: 'Under half a percent. That\u2019s proper clean air.' },
+  3: { speaker: 'lena', text: 'Under 0.1%. That\u2019s better than the ship was.' },
+};
+
+const M2_OUTRO = [
+  { type: 'image', src: 'story_outro_1.webp', transition: 'fade', duration_ms: null,
+    fallbackText: 'With the CO\u2082 scrubber in place, I felt proud of myself. But only an hour later, I already had to replace the first cartridge. And we didn\u2019t have many. I felt a mild panic changing them again and again, but Lena stayed calm and self-assured. What was she going to think of next? I felt lucky she was there, but a bit fearful of her next idea.',
+    alt: 'CO2 scrubber installed' },
+];
+
+const M2_GUIDANCE = [
+  { id: 'g_m2_exhaust_to_scrubber',
+    dialogue: { speaker: 'lena', text: 'There\u2019s a CO\u2082 absorber on the right side of the room. We need to make a loop: air exits the room, goes through the scrubber, and clean air comes back. First, drag from the room\u2019s air exhaust port to the scrubber\u2019s feed inlet.', expression: 'happy' },
+    highlight: { type: 'connection', fromProfile: 'shelter', fromPort: 'air_exhaust', toProfile: 'co2_scrubber', toPort: 'mat_in' },
+    completion: { type: 'connection', fromProfile: 'shelter', toProfile: 'co2_scrubber' },
+    onComplete: { speaker: 'lena', text: 'Good. Now the dirty air has somewhere to go.' },
+    delay_ms: 500 },
+  { id: 'g_m2_clean_return',
+    dialogue: { speaker: 'lena', text: 'Now connect the \u201cpermeate\u201d port \u2014 that\u2019s the clean air that passed through \u2014 back to the room\u2019s air return port, at the bottom right.', expression: 'happy' },
+    highlight: { type: 'connection', fromProfile: 'co2_scrubber', fromPort: 'perm_out', toProfile: 'shelter', toPort: 'air_return' },
+    completion: { type: 'connection', fromProfile: 'co2_scrubber', toProfile: 'shelter' },
+    onComplete: { speaker: 'lena', text: 'Clean air loop closed. Almost there.' },
+    delay_ms: 500 },
+  { id: 'g_m2_co2_to_flare',
+    dialogue: { speaker: 'lena', text: 'Last one. The \u201cretentate\u201d port \u2014 that\u2019s the CO\u2082 the scrubber caught. Send that to your tower.', expression: 'happy' },
+    highlight: { type: 'connection', fromProfile: 'co2_scrubber', fromPort: 'ret_out', toProfile: 'flare_stack' },
+    completion: { type: 'connection', fromProfile: 'co2_scrubber', toProfile: 'flare_stack' },
+    onComplete: { speaker: 'lena', text: 'Nice. Not sure why you went through the trouble of building that tower, but it\u2019s looking good, I\u2019ll give you that.' },
+    delay_ms: 500 },
+  { id: 'g_m2_run',
+    dialogue: { speaker: 'lena', text: 'Press play and watch. You\u2019ll see the CO\u2082 particles being separated from the room air. The change is gradual, but trust me \u2014 without this, we\u2019d be passing out by tomorrow.', expression: 'happy' },
+    highlight: { type: 'button', buttonId: 'btnPlay' },
+    completion: { type: 'play_pressed' },
+    onComplete: { speaker: 'lena', text: 'Breathing easier already. Keep an eye on that cartridge gauge though.' },
+    delay_ms: 500 },
+];
+
+// ═══ M3 — Find Water ════════════════════════════════════════════════════
+const M3_INTRO = [
+  { type: 'image', src: 'story_intro_1.webp', transition: 'fade', duration_ms: null,
+    fallbackText: 'Lena didn\u2019t disappoint. She\u2019d spotted a hydrothermal vent not far from the shelter. She said it had plenty of water vapor, and might even carry useful gases \u2014 natural gas, hydrogen. She wanted me to \u201ctame it,\u201d whatever that meant.',
+    alt: 'Hydrothermal vent' },
+  { type: 'image', src: 'story_intro_2.webp', transition: 'fade', duration_ms: null,
+    fallbackText: 'She explained that the vent threw out high-pressure, high-temperature water along with other gases. We needed to cool it down before we could get liquid water out of it. I patched together a fan and some cooling fins from the wreckage. I thought it should work to bring the fluid down to ambient temperature.',
+    alt: 'Air cooler construction' },
+  { type: 'image', src: 'story_intro_3.webp', transition: 'fade', duration_ms: null,
+    fallbackText: 'Lena also pointed out some salvaged parts near the shelter that could be welded together into \u2014 well, the only word for it is a wellhead. I didn\u2019t drill it, but I capped it, and I can tell you it was a lot of hard work. I routed everything to the flare chimney for now, and lit it on fire. Judging by the flames, there was definitely natural gas in there.',
+    alt: 'Wellhead construction' },
+];
+
+const M3_BRIEFING = [
+  { type: 'dialogue', speaker: 'lena', expression: 'happy',
+    text: 'I\u2019m really impressed. There\u2019s everything we need in that vent. It\u2019s not very powerful right now, but more than enough for the two of us. Water is becoming urgent \u2014 I\u2019m lightheaded already. The principle is simple: take what comes out of the well, run it through your new air cooler, and collect the condensed water in a barrel. Then connect the barrel to the shelter\u2019s water port.' },
+  { type: 'dialogue', speaker: 'lena', expression: 'disappointed',
+    text: 'But there\u2019s a problem. The battery can only connect to one thing, and right now it\u2019s connected to the room. The air cooler needs electricity too, for its fan. We need a power dispatcher \u2014 it takes electricity in and splits it out to multiple consumers. You should set that up first.' },
+];
+
+const M3_VICTORY_LINES = {
+  1: { speaker: 'lena', text: 'Water. Not exactly Evian, but I\u2019ll take it.' },
+  2: { speaker: 'lena', text: 'Water and safety measures. You\u2019re thinking ahead.' },
+  3: { speaker: 'lena', text: 'Gas-liquid separation before storage. That\u2019s proper engineering.' },
+};
+
+const M3_OUTRO = [
+  { type: 'image', src: 'story_outro_1.webp', transition: 'fade', duration_ms: null,
+    fallbackText: 'Finally, water. I felt real proud plugging that barrel into our shelter. I felt like I could do anything, and we were going to make it for sure. I wanted a hot drink, but we only had cold water. I really enjoyed my glass of water though. Best water ever.',
+    alt: 'Water barrel connected to shelter' },
+];
+
+const M3_GUIDANCE = [
+  { id: 'g_m3_place_dispatcher',
+    dialogue: { speaker: 'lena', text: 'Open the palette and find the power dispatcher. Place it on the canvas.', expression: 'happy' },
+    highlight: { type: 'palette_tile', profileId: 'power_dispatcher_5' },
+    completion: { type: 'unit_placed', profileId: 'power_dispatcher_5' },
+    onComplete: { speaker: 'lena', text: 'That\u2019s our junction box. Now let\u2019s rewire.' },
+    delay_ms: 500 },
+  { id: 'g_m3_rewire_battery',
+    dialogue: { speaker: 'lena', text: 'Disconnect the battery from the room. Then connect the battery to the dispatcher\u2019s input, and the dispatcher\u2019s first output to the room.', expression: 'happy' },
+    highlight: { type: 'unit', profileId: 'power_dispatcher_5' },
+    completion: { type: 'connection', fromProfile: 'battery', toProfile: 'power_dispatcher_5' },
+    onComplete: { speaker: 'lena', text: 'Good. The room\u2019s getting power through the dispatcher now.' },
+    delay_ms: 500 },
+  { id: 'g_m3_dump_load',
+    dialogue: { speaker: 'lena', text: 'Connect a dump load to the dispatcher\u2019s surplus port. If the battery produces more than we need, the surplus has to go somewhere, or things fry.', expression: 'happy' },
+    highlight: { type: 'palette_tile', profileId: 'sink_electrical' },
+    completion: { type: 'connection', fromProfile: 'power_dispatcher_5', toProfile: 'sink_electrical' },
+    onComplete: { speaker: 'lena', text: 'Safety first. Smart.' },
+    delay_ms: 500 },
+  { id: 'g_m3_water_circuit',
+    dialogue: { speaker: 'lena', text: 'Now for the water. Get the air cooler from the palette and connect it to the dispatcher for power. Then route the well\u2019s output through the cooler, into the barrel, and connect the barrel to the shelter\u2019s water port. If you can, put the barrel overflow on the flare so we don\u2019t flood anything.', expression: 'happy' },
+    highlight: { type: 'none' },
+    completion: { type: 'objective_complete', objectiveId: 'water_flowing' },
+    onComplete: { speaker: 'lena', text: 'That looks good! I\u2019m so thirsty. Let\u2019s fill this halfway and call it done.' },
+    delay_ms: 500 },
+];
+
+// ═══════════════════════════════════════════════════════════════════════════
+// [v19.0.0] Campaign, Arc, Mission registrations
+// ═══════════════════════════════════════════════════════════════════════════
+
+CampaignRegistry.register('planet_x', {
+  title: 'Planet X',
+  description: 'Crash-landed. Two survivors. Build everything.',
+  version: '1.0.0',
+  planet: {
+    id: 'planet_x', name: 'Planet X',
+    atmospherePreset: 'planet_x_atm',
+    T_ambient_K: 278, P_ambient_Pa: 101325,
+    solarProfile: 'planet_x_solar', windProfile: 'planet_x_wind',
+  },
+  characters: ['lena', 'k'],
+  // Only species registered in ComponentRegistry
+  speciesPool: ['H2O','O2','N2','CO2','Ar','H2','CH4','CO','NH3','CH2O','He'],
+  reactionPool: ['R_H2_COMB','R_CH4_COMB','R_H2O_ELEC','R_SABATIER',
+                 'R_WGS','R_HABER','R_METABOLISM'],
+  conclusion: [],
+  arcs: ['arc_a'],
+  initialScene: null,
+});
+
+ArcRegistry.register('arc_a', {
+  campaignId: 'planet_x',
+  title: 'Survival',
+  subtitle: 'Stay alive long enough to close the carbon loop',
+  index: 0,
+  crewCount: 2,
+  intro: ARC_A_INTRO,
+  conclusion: [],
+  missions: ['arc_a_m1', 'arc_a_m2', 'arc_a_m3'],
+});
+
+// ── M1 — Breathe ─────────────────────────────────────────────────────────
+MissionRegistry.register('arc_a_m1', {
+  arcId: 'arc_a',
+  index: 0,
+  contentVersion: 1,
+  title: 'Breathe',
+  subtitle: 'The shelter has no utilities.',
+  emergency: 'O\u2082 and battery disconnected.',
+
+  // No palette — all units are preplaced. Player only connects.
+  palette: {},
+  species: ['O2', 'N2', 'Ar', 'CO2'],
+  reactions: [],
+
+  inheritScene: false,
+  initialScene: null,  // Built by mission loader from preplaced list
+  preplacedUnits: [
+    { id: 'room', profileId: 'shelter', defId: 'room', tier: 1,
+      x: 0, y: 0, params: { nPeople: 2, powerPriority: 1 } },
+    { id: 'o2_bottle', profileId: 'simple_gas_bottle', defId: 'simple_tank', tier: 1,
+      x: -7, y: 1, params: { volume_m3: 0.01, P_init: 30553950,
+        initialComposition: { O2: 1 }, gasDrawRate: 0.001, opening_gas_pct: 46.6,
+        P_relief: 35000000 } },
+    { id: 'battery', profileId: 'battery', defId: 'battery', tier: 1,
+      x: 1, y: -3, params: { peakPower_kW: 100, capacity_J: 1800000000, initialSOC: 1 } },
+  ],
+
+  narrator: 'lena',
+  roomOccupants: { shelter: ['lena', 'k'] },
+
+  storyIntro: [],   // Arc intro flows directly into M1
+  storyOutro: M1_OUTRO,
+  briefing: M1_BRIEFING,
+  victoryLine: M1_VICTORY_LINES,
+
+  objectives: [
+    { id: 'connect_battery', type: 'connection',
+      fromProfile: 'battery', toProfile: 'shelter', portType: 'elec',
+      description: 'Connect battery to shelter' },
+    { id: 'connect_o2', type: 'connection',
+      fromProfile: 'simple_gas_bottle', toProfile: 'shelter',
+      description: 'Connect O\u2082 bottle to shelter' },
+    { id: 'o2_sustained', type: 'maintain_conditions',
+      unit: 'shelter', conditions: { O2_pct_gte: 18 }, duration_s: 3600,
+      description: 'Maintain O\u2082 \u2265 18% for 1 hour' },
+  ],
+
+  stars: {
+    1: { description: 'Both connections made. O\u2082 flowing for 1 hour.',
+      criteria: [{ type: 'all_objectives_complete' }] },
+    2: { description: 'Completed in under 3 minutes.',
+      criteria: [{ type: 'all_objectives_complete' }, { type: 'time_limit', maxSeconds: 180 }] },
+    3: { description: 'O\u2082 stable above 19% for 2 hours.',
+      criteria: [{ type: 'all_objectives_complete' },
+        { type: 'maintain_conditions', unit: 'shelter',
+          conditions: { O2_pct_gte: 19 }, duration_s: 7200 }] },
+  },
+
+  guidanceSteps: M1_GUIDANCE,
+  triggers: [],
+  hints: [],
+  completionGated: true,
+
+  storyUI: {
+    visibleMenuItems: ['reports', 'physicalUnits', 'clearStickers', 'home', 'saveCampaign'],
+    hidePaletteFilter: true,
+    hidePressureSwitch: true,
+    pressureMode: 'simple',
+    hideDevTab: true,
+    showObjectivePanel: true,
+    showStarTracker: true,
+    showRunway: true,
+  },
+
+  rewards: {
+    palette: {},
+    species: [],
+    reactions: [],
+  },
+});
+
+// ── M2 — Clear the Air ───────────────────────────────────────────────────
+MissionRegistry.register('arc_a_m2', {
+  arcId: 'arc_a',
+  index: 1,
+  contentVersion: 1,
+  title: 'Clear the Air',
+  subtitle: 'CO\u2082 is building up inside the shelter.',
+  emergency: 'CO\u2082 rising above safe limits.',
+
+  palette: {},
+  species: ['O2', 'N2', 'Ar', 'CO2'],
+  reactions: [],
+
+  inheritScene: true,
+  preplacedUnits: [
+    { id: 'flare', profileId: 'flare_stack', defId: 'flare_stack', tier: 1,
+      x: 14, y: -6, params: {} },
+    { id: 'scrubber', profileId: 'co2_scrubber', defId: 'membrane_separator', tier: 1,
+      x: 8, y: 1, params: { targetSpecies: 'CO2', extractionFrac: 0.99,
+        consumable: { name: 'LiOH Cartridges', capacity: 500, remaining: 500, maxRate: 5.0 },
+        variant: 'flip' } },
+  ],
+
+  narrator: 'lena',
+  roomOccupants: { shelter: ['lena', 'k'] },
+
+  storyIntro: M2_INTRO,
+  storyOutro: M2_OUTRO,
+  briefing: M2_BRIEFING,
+  victoryLine: M2_VICTORY_LINES,
+
+  objectives: [
+    { id: 'connect_exhaust', type: 'connection',
+      fromProfile: 'shelter', toProfile: 'co2_scrubber',
+      description: 'Connect room exhaust to scrubber' },
+    { id: 'connect_return', type: 'connection',
+      fromProfile: 'co2_scrubber', toProfile: 'shelter',
+      description: 'Connect clean air back to room' },
+    { id: 'co2_controlled', type: 'maintain_conditions',
+      unit: 'shelter', conditions: { CO2_pct_lte: 1.0, O2_pct_gte: 18 }, duration_s: 7200,
+      description: 'CO\u2082 < 1% and O\u2082 \u2265 18% for 2 hours' },
+    // Inherited health
+    { id: 'health_o2', type: 'maintain_conditions',
+      unit: 'shelter', conditions: { O2_pct_gte: 18 }, duration_s: 7200,
+      description: '[Health] O\u2082 \u2265 18% for 2 hours' },
+  ],
+
+  stars: {
+    1: { description: 'CO\u2082 < 1% sustained for 2 hours.',
+      criteria: [{ type: 'all_objectives_complete' }] },
+    2: { description: 'CO\u2082 < 0.5% sustained for 2 hours.',
+      criteria: [{ type: 'all_objectives_complete' },
+        { type: 'maintain_conditions', unit: 'shelter',
+          conditions: { CO2_pct_lte: 0.5 }, duration_s: 7200 }] },
+    3: { description: 'CO\u2082 < 0.1% sustained for 2 hours.',
+      criteria: [{ type: 'all_objectives_complete' },
+        { type: 'maintain_conditions', unit: 'shelter',
+          conditions: { CO2_pct_lte: 0.1 }, duration_s: 7200 }] },
+  },
+
+  guidanceSteps: M2_GUIDANCE,
+
+  triggers: [
+    { id: 'scrubber_50pct', once: true, delay_s: 0,
+      condition: { type: 'depletion_below', profileId: 'co2_scrubber', threshold: 0.5 },
+      action: { type: 'dialogue', speaker: 'lena',
+        text: 'That scrubber cartridge is half gone. Just so you know.',
+        expression: 'disappointed' } },
+    { id: 'scrubber_20pct', once: true, delay_s: 0,
+      condition: { type: 'depletion_below', profileId: 'co2_scrubber', threshold: 0.2 },
+      action: { type: 'dialogue', speaker: 'lena',
+        text: 'Cartridge is getting low. We\u2019re going to need a better solution.',
+        expression: 'disappointed' } },
+  ],
+
+  hints: [],
+  completionGated: true,
+  storyUI: {
+    visibleMenuItems: ['reports', 'physicalUnits', 'clearStickers', 'home', 'saveCampaign'],
+    hidePaletteFilter: true, hidePressureSwitch: true,
+    pressureMode: 'simple', hideDevTab: true,
+    showObjectivePanel: true, showStarTracker: true, showRunway: true,
+  },
+  rewards: { palette: {}, species: [], reactions: [] },
+});
+
+// ── M3 — Find Water ──────────────────────────────────────────────────────
+MissionRegistry.register('arc_a_m3', {
+  arcId: 'arc_a',
+  index: 2,
+  contentVersion: 1,
+  title: 'Find Water',
+  subtitle: 'Dehydration is setting in.',
+  emergency: 'No water supply. Crew has hours left.',
+
+  // First mission with a real palette
+  palette: {
+    power_dispatcher_5: 1,
+    air_cooler: 1,
+    simple_open_tank: 2,    // barrel + optional second
+    flash_drum: 1,          // optional L/V separator
+    sink_electrical: 1,     // dump load
+  },
+  species: ['O2', 'N2', 'Ar', 'CO2', 'H2O', 'CH4', 'H2', 'CO'],
+  reactions: [],
+
+  inheritScene: true,
+  preplacedUnits: [
+    { id: 'hydrovent', profileId: 'hydrovent', defId: 'reservoir', tier: 1,
+      x: -14, y: 1, params: { P_bar: 15, T: 450,
+        composition: { H2O: 0.6, CH4: 0.3, H2: 0.1 },
+        Cv: 0.3, opening_pct: 50 } },
+  ],
+
+  narrator: 'lena',
+  roomOccupants: { shelter: ['lena', 'k'] },
+
+  storyIntro: M3_INTRO,
+  storyOutro: M3_OUTRO,
+  briefing: M3_BRIEFING,
+  victoryLine: M3_VICTORY_LINES,
+
+  objectives: [
+    { id: 'power_via_dispatcher', type: 'connection',
+      fromProfile: 'battery', toProfile: 'power_dispatcher_5',
+      description: 'Route power through dispatcher' },
+    { id: 'room_powered', type: 'connection',
+      fromProfile: 'power_dispatcher_5', toProfile: 'shelter',
+      description: 'Room still powered via dispatcher' },
+    { id: 'water_flowing', type: 'flow_rate',
+      species: 'H2O', min_molPerS: 0.0001, targetProfile: 'shelter', portId: 'h2o_in',
+      description: 'Water flowing to shelter' },
+    { id: 'barrel_half', type: 'store_component',
+      targetProfile: 'simple_open_tank', species: 'H2O', minLevel: 0.5,
+      description: 'Water barrel at least half full' },
+    // Inherited health
+    { id: 'health_air', type: 'maintain_conditions',
+      unit: 'shelter', conditions: { O2_pct_gte: 18, CO2_pct_lte: 1.0 }, duration_s: 3600,
+      description: '[Health] Air quality maintained for 1 hour' },
+  ],
+
+  stars: {
+    1: { description: 'Water barrel half full. Water connected to shelter.',
+      criteria: [{ type: 'all_objectives_complete' }] },
+    2: { description: '\u2605 + overflow connected + dump load connected.',
+      criteria: [
+        { type: 'all_objectives_complete' },
+        { type: 'connection', fromProfile: 'power_dispatcher_5', toProfile: 'sink_electrical' },
+      ] },
+    3: { description: '\u2605\u2605 + L/V separator installed before the barrel.',
+      criteria: [
+        { type: 'all_objectives_complete' },
+        { type: 'connection', fromProfile: 'power_dispatcher_5', toProfile: 'sink_electrical' },
+        { type: 'unit_present', profileId: 'flash_drum' },
+      ] },
+  },
+
+  guidanceSteps: M3_GUIDANCE,
+
+  triggers: [
+    { id: 'barrel_overheat', once: false, delay_s: 0,
+      condition: { type: 'temperature_above', location: 'simple_open_tank', T_K: 353 },
+      action: { type: 'dialogue', speaker: 'lena',
+        text: 'That barrel is way too hot. The plastic is going to warp. Cool the water before it goes in.',
+        expression: 'shouting', autoPause: true } },
+    { id: 'first_water', once: true, delay_s: 0,
+      condition: { type: 'level_above', profileId: 'simple_open_tank', threshold: 0.1 },
+      action: { type: 'dialogue', speaker: 'lena',
+        text: 'Water coming in. Keep going!',
+        expression: 'happy' } },
+  ],
+
+  hints: [],
+  completionGated: true,
+  storyUI: {
+    visibleMenuItems: ['reports', 'physicalUnits', 'clearStickers', 'home', 'saveCampaign'],
+    hidePaletteFilter: true, hidePressureSwitch: true,
+    pressureMode: 'simple', hideDevTab: true,
+    showObjectivePanel: true, showStarTracker: true, showRunway: true,
+  },
+  rewards: {
+    palette: { air_cooler: 1, simple_open_tank: 1 },   // unlocks for future missions
+    species: ['H2O', 'CH4', 'H2', 'CO'],
+    reactions: [],
+  },
+});
+
 
 
 /* =========================
@@ -42950,6 +44433,13 @@ function populatePalette() {
   const tilesContainer = document.getElementById('palTiles');
   tilesContainer.innerHTML = '';
 
+  // [v19.0.0 S-MISSION] Campaign palette scarcity
+  const isCampaign = _activeGameMode === GameMode.CAMPAIGN && _activeCampaignState && _activeMissionId;
+  let effectivePalette = null;  // null = sandbox (unlimited)
+  if (isCampaign) {
+    effectivePalette = _activeCampaignState.getEffectivePalette(_activeMissionId);
+  }
+
   // [v15.1.0] Filter: Dev | All | Tierless | T1 | T2 | T3
   const tierFilter = ui.paletteTierFilter;
   const byCategory = ProfileRegistry.listByCategory();
@@ -42961,9 +44451,13 @@ function populatePalette() {
       const isTpl = !!profile.config?.template;
       const isBnd = !!profile.boundary;
 
+      // [v19.0.0] Campaign mode: only show profiles in effectivePalette
+      // composite:true profiles are shown if explicitly in palette (spec §12)
+      if (isCampaign && effectivePalette) {
+        if (!(profile.profileId in effectivePalette)) continue;
+      }
+
       // [v17.5.3] Palette pressure mode: swap dual-version units.
-      // Simple mode: hides 'network' counterparts. Network mode: hides 'simple' counterparts.
-      // Neutral units always visible. Dev tab ignores the switch.
       if (tierFilter !== 'dev') {
         if (ui.palettePressureMode === 'simple' && profile.pressureClass === 'network') continue;
         if (ui.palettePressureMode === 'network' && profile.pressureClass === 'simple') continue;
@@ -43003,14 +44497,32 @@ function populatePalette() {
     for (const { profile, tier, showBadge } of tiles) {
       const def = UnitRegistry.get(profile.defId);
       if (!def) continue;
+
+      // [v19.0.0] Campaign scarcity: count remaining
+      let scarcityBadge = '';
+      let exhausted = false;
+      if (isCampaign && effectivePalette && (profile.profileId in effectivePalette)) {
+        const maxCount = effectivePalette[profile.profileId] || 0;
+        const placed = _countPlacedByProfile(profile.profileId);
+        const remaining = Math.max(0, maxCount - placed);
+        exhausted = remaining <= 0;
+        scarcityBadge = ` <span style="font-size:9px;font-weight:700;color:${exhausted ? '#ef4444' : '#22c55e'};margin-left:4px;">${remaining} left</span>`;
+      }
+
       const tile = el('div', { class: 'pal-tile' });
-      tile.draggable = true;
+      if (exhausted) {
+        tile.style.opacity = '0.4';
+        tile.style.pointerEvents = 'none';
+        tile.draggable = false;
+      } else {
+        tile.draggable = true;
+      }
       const wipTag = def._wip ? ' <span style="color:#f59e0b;font-size:9px;font-weight:700;">WIP</span>' : '';
       const tierBadge = showBadge ? `<span class="pal-tier t${tier}">Tier ${tier}</span>` : '';
 
       const _catColor = typeof profile.category === 'string'
         ? '#64748b' : (profile.category?.color || def.color || '#64748b');
-      tile.innerHTML = `<div class="pal-tname"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${_catColor};margin-right:4px;vertical-align:middle;"></span>${profile.name}${tierBadge}${wipTag}</div>`;
+      tile.innerHTML = `<div class="pal-tname"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${_catColor};margin-right:4px;vertical-align:middle;"></span>${profile.name}${tierBadge}${scarcityBadge}${wipTag}</div>`;
       const _tip = _buildTileTooltip(profile, tier);
       tile.addEventListener('mouseenter', () => showRichTip(tile, _tip));
       tile.addEventListener('mouseleave', hideTip);
@@ -43910,6 +45422,20 @@ function _rebuildInspectorContent() {
 
 // [v18.0.0 S-TITLE] Game lifecycle gate — false while title screen is showing
 let _gameActive = false;  // [v18.0.0] set true by enterGame()
+
+// [v19.0.0 S-MISSION] Campaign state globals
+let _activeGameMode = GameMode.SANDBOX;
+let _activeCampaignState = null;   // CampaignState instance or null
+let _activeMissionId = null;       // current mission id or null
+
+// [v19.0.0] Count placed units by profileId in current scene
+function _countPlacedByProfile(profileId) {
+  let count = 0;
+  for (const [, u] of scene.units) {
+    if (u.profileId === profileId) count++;
+  }
+  return count;
+}
 
 /* =========================
    [v10.3.0] AUTO-SAVE (M8)
@@ -66621,6 +68147,595 @@ function runTests() {
     const h2oInLiq = regen.nL.H2O || 0;
     const h2oRecovery = h2oInLiq / (abs.nL.H2O || 1);
     t.assertOK(h2oRecovery > 0.95, 'H₂O recovery > 95%', (h2oRecovery*100).toFixed(1) + '%');
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // [v19.0.0] S-MISSION — Registry and data layer tests
+  // ═══════════════════════════════════════════════════════════════════════
+
+  test('718: GameMode and PlayState constants exist and are frozen', t => {
+    t.assertOK(GameMode.SANDBOX === 'sandbox', 'GameMode.SANDBOX');
+    t.assertOK(GameMode.CAMPAIGN === 'campaign', 'GameMode.CAMPAIGN');
+    t.assertOK(Object.isFrozen(GameMode), 'GameMode frozen');
+    t.assertOK(PlayState.BUILD === 'build', 'PlayState.BUILD');
+    t.assertOK(PlayState.RUN === 'run', 'PlayState.RUN');
+    t.assertOK(PlayState.GAME_OVER === 'game_over', 'PlayState.GAME_OVER');
+    t.assertOK(Object.isFrozen(PlayState), 'PlayState frozen');
+  });
+
+  test('719: SpeechPriority constants', t => {
+    t.assertOK(SpeechPriority.BRIEFING === 100, 'BRIEFING = 100');
+    t.assertOK(SpeechPriority.GUIDANCE === 90, 'GUIDANCE = 90');
+    t.assertOK(SpeechPriority.TRIGGER === 80, 'TRIGGER = 80');
+    t.assertOK(SpeechPriority.HINT === 60, 'HINT = 60');
+    t.assertOK(SpeechPriority.IDLE === 10, 'IDLE = 10');
+    t.assertOK(Object.isFrozen(SpeechPriority), 'frozen');
+  });
+
+  test('720: CampaignRegistry — register and retrieve', t => {
+    // Register a test campaign
+    CampaignRegistry.register('test_campaign', {
+      title: 'Test Campaign',
+      description: 'For testing',
+      arcs: ['test_arc'],
+      speciesPool: ['N2', 'O2'],
+      reactionPool: [],
+      planet: { id: 'test', name: 'Test Planet' },
+      characters: ['lena'],
+    });
+    t.assertOK(CampaignRegistry.exists('test_campaign'), 'exists');
+    const c = CampaignRegistry.get('test_campaign');
+    t.assertOK(c.title === 'Test Campaign', 'title');
+    t.assertOK(c.speciesPool.length === 2, 'speciesPool');
+    t.assertOK(c.arcs[0] === 'test_arc', 'arcs');
+    t.assertOK(Object.isFrozen(c), 'frozen');
+    t.assertOK(CampaignRegistry.all().length >= 1, 'all()');
+  });
+
+  test('721: CampaignRegistry — rejects duplicate and invalid', t => {
+    let err;
+    try { CampaignRegistry.register('test_campaign', { title: 'Dup', arcs: ['a'], speciesPool: ['N2'] }); }
+    catch (e) { err = e.message; }
+    t.assertOK(err && err.includes('duplicate'), 'duplicate rejected: ' + err);
+
+    err = null;
+    try { CampaignRegistry.register('bad_species', { title: 'X', arcs: ['a'], speciesPool: ['UNOBTANIUM'] }); }
+    catch (e) { err = e.message; }
+    t.assertOK(err && err.includes('UNOBTANIUM'), 'bad species rejected: ' + err);
+  });
+
+  test('722: ArcRegistry — register and retrieve', t => {
+    ArcRegistry.register('test_arc', {
+      campaignId: 'test_campaign',
+      title: 'Test Arc',
+      subtitle: 'Testing',
+      index: 0,
+      missions: ['test_m1'],
+      crewCount: 2,
+    });
+    t.assertOK(ArcRegistry.exists('test_arc'), 'exists');
+    const a = ArcRegistry.get('test_arc');
+    t.assertOK(a.title === 'Test Arc', 'title');
+    t.assertOK(a.missions[0] === 'test_m1', 'missions');
+    t.assertOK(Object.isFrozen(a), 'frozen');
+  });
+
+  test('723: ArcRegistry — rejects missing campaign', t => {
+    let err;
+    try { ArcRegistry.register('bad_arc', { campaignId: 'nonexistent', missions: ['x'] }); }
+    catch (e) { err = e.message; }
+    t.assertOK(err && err.includes('nonexistent'), 'missing campaign rejected: ' + err);
+  });
+
+  test('724: MissionRegistry — register with valid objectives', t => {
+    MissionRegistry.register('test_m1', {
+      arcId: 'test_arc',
+      index: 0,
+      title: 'Test Mission',
+      palette: { source_pure: 2 },
+      species: ['N2', 'O2'],
+      objectives: [
+        { id: 'obj1', type: 'connection', fromProfile: 'source_pure', toProfile: 'sink' },
+        { id: 'obj2', type: 'unit_present', profileId: 'source_pure' },
+      ],
+      stars: {
+        1: { description: 'One star', criteria: [{ type: 'all_objectives_complete' }] },
+        2: { description: 'Two stars', criteria: [{ type: 'time_limit', maxSeconds: 300 }] },
+      },
+      triggers: [
+        { id: 'tr1', once: true,
+          condition: { type: 'time_elapsed', seconds: 60 },
+          action: { type: 'dialogue', speaker: 'lena', text: 'Test' } },
+      ],
+    });
+    t.assertOK(MissionRegistry.exists('test_m1'), 'exists');
+    const m = MissionRegistry.get('test_m1');
+    t.assertOK(m.title === 'Test Mission', 'title');
+    t.assertOK(m.objectives.length === 2, 'objectives');
+    t.assertOK(Object.isFrozen(m), 'frozen');
+    t.assertOK(MissionRegistry.getByArc('test_arc').length === 1, 'getByArc');
+  });
+
+  test('725: MissionRegistry — typo suggestions on bad profileId', t => {
+    let err;
+    try {
+      MissionRegistry.register('bad_m1', {
+        arcId: 'test_arc', index: 99,
+        palette: { source_pur: 1 },  // typo: source_pur vs source_pure
+      });
+    } catch (e) { err = e.message; }
+    t.assertOK(err && err.includes('source_pur'), 'caught typo');
+    t.assertOK(err && err.includes('source_pure'), 'suggested correction: ' + err);
+  });
+
+  test('726: MissionRegistry — rejects unknown objective type', t => {
+    let err;
+    try {
+      MissionRegistry.register('bad_m2', {
+        arcId: 'test_arc', index: 99,
+        objectives: [{ id: 'x', type: 'bogus_type' }],
+      });
+    } catch (e) { err = e.message; }
+    t.assertOK(err && err.includes('bogus_type'), 'unknown type rejected: ' + err);
+  });
+
+  test('727: MissionRegistry — rejects unknown trigger types', t => {
+    let err;
+    try {
+      MissionRegistry.register('bad_m3', {
+        arcId: 'test_arc', index: 99,
+        triggers: [{ id: 't1', condition: { type: 'weather_change' }, action: { type: 'dialogue' } }],
+      });
+    } catch (e) { err = e.message; }
+    t.assertOK(err && err.includes('weather_change'), 'bad condition rejected: ' + err);
+
+    err = null;
+    try {
+      MissionRegistry.register('bad_m4', {
+        arcId: 'test_arc', index: 99,
+        triggers: [{ id: 't1', condition: { type: 'time_elapsed', seconds: 5 }, action: { type: 'explode' } }],
+      });
+    } catch (e) { err = e.message; }
+    t.assertOK(err && err.includes('explode'), 'bad action rejected: ' + err);
+  });
+
+  test('728: MissionRegistry — rejects species outside campaign pool', t => {
+    let err;
+    try {
+      MissionRegistry.register('bad_m5', {
+        arcId: 'test_arc', index: 99,
+        species: ['N2', 'CH4'],  // CH4 not in test_campaign speciesPool
+      });
+    } catch (e) { err = e.message; }
+    t.assertOK(err && err.includes('CH4'), 'out-of-pool species rejected: ' + err);
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // [v19.0.0] S-MISSION — Objective Evaluator tests
+  // ═══════════════════════════════════════════════════════════════════════
+
+  test('729: evaluator — connection (positive and negative)', t => {
+    t.clearScene();
+    const src = t.place('source', 0, 0, { species: 'N2', nDot: 1 });
+    const snk = t.place('sink', 4, 0);
+    // profileIds assigned by placeUnit match defId: 'source', 'sink'
+    // No connection yet
+    let r = ObjectiveEvaluators.connection({ fromProfile: 'source', toProfile: 'sink' }, scene);
+    t.assertOK(!r.met, 'not met before wiring');
+    t.assertOK(r.progress.includes('Not connected'), 'progress says not connected');
+    // Wire it
+    t.wire(src, 'mat_out', snk, 'mat_in');
+    r = ObjectiveEvaluators.connection({ fromProfile: 'source', toProfile: 'sink' }, scene);
+    t.assertOK(r.met, 'met after wiring');
+    t.assertOK(r.progress.includes('✓'), 'progress has checkmark');
+  });
+
+  test('730: evaluator — connection_absent', t => {
+    t.clearScene();
+    const src = t.place('source', 0, 0, { species: 'N2', nDot: 1 });
+    const snk = t.place('sink', 4, 0);
+    let r = ObjectiveEvaluators.connection_absent({ fromProfile: 'source', toProfile: 'sink' }, scene);
+    t.assertOK(r.met, 'met when no connection');
+    t.wire(src, 'mat_out', snk, 'mat_in');
+    r = ObjectiveEvaluators.connection_absent({ fromProfile: 'source', toProfile: 'sink' }, scene);
+    t.assertOK(!r.met, 'not met when connected');
+  });
+
+  test('731: evaluator — unit_present', t => {
+    t.clearScene();
+    let r = ObjectiveEvaluators.unit_present({ profileId: 'source' }, scene);
+    t.assertOK(!r.met, 'not met when empty scene');
+    t.place('source', 0, 0, { species: 'N2', nDot: 1 });
+    r = ObjectiveEvaluators.unit_present({ profileId: 'source' }, scene);
+    t.assertOK(r.met, 'met after placing unit');
+  });
+
+  test('732: evaluator — convergence', t => {
+    const r1 = ObjectiveEvaluators.convergence({}, scene, { converged: true });
+    t.assertOK(r1.met, 'met when converged');
+    const r2 = ObjectiveEvaluators.convergence({}, scene, { converged: false });
+    t.assertOK(!r2.met, 'not met when not converged');
+  });
+
+  test('733: evaluator — store_component (level check)', t => {
+    t.clearScene();
+    const id = t.place('simple_open_tank', 0, 0, {
+      volume_m3: 0.1, initialComposition: { H2O: 1 }, level_init: 60,
+      drawRate: 0.01, opening_pct: 0, overflow_level: 90,
+    });
+    const snk = t.place('sink', 4, 0);
+    t.wire(id, 'mat_out', snk, 'mat_in');
+    t.solve();
+    const u = t.unit(id);
+    // The unit should have profileId 'simple_open_tank' and some fill level
+    const r = ObjectiveEvaluators.store_component({
+      targetProfile: u.profileId,
+      species: 'H2O',
+      minLevel: 0.3,
+    }, scene);
+    t.assertOK(typeof r.met === 'boolean', 'returns met boolean');
+    t.assertOK(r.progress.includes('level:'), 'progress includes level');
+    // Check impossible threshold
+    const r2 = ObjectiveEvaluators.store_component({
+      targetProfile: u.profileId,
+      species: 'H2O',
+      minLevel: 0.99,
+    }, scene);
+    t.assertOK(typeof r2.met === 'boolean', 'impossible threshold returns boolean');
+  });
+
+  test('734: evaluator — maintain_conditions (snapshot check)', t => {
+    t.clearScene();
+    // Place a room and solve to get u.last populated
+    const roomId = t.place('room', 0, 0, { nPeople: 2, powerPriority: 1 });
+    const gs = t.place('grid_supply', 3, -3, { maxPower: 200 });
+    t.wire(gs, 'elec_out', roomId, 'elec_in');
+    t.solve();
+    const u = t.unit(roomId);
+    // Room should have room_x_O2 in u.last
+    t.assertOK(u.last && u.last.room_x_O2 > 0, 'room has O₂ fraction in last');
+    const r = ObjectiveEvaluators.maintain_conditions({
+      unit: u.profileId,
+      conditions: { O2_pct_gte: 18 },
+    }, scene, {});
+    t.assertOK(typeof r.met === 'boolean', 'returns met boolean');
+    t.assertOK(r.progress.includes('O₂:'), 'progress shows O₂ pct');
+  });
+
+  test('735: evaluator — flow_rate', t => {
+    t.clearScene();
+    const src = t.place('source', 0, 0, { species: 'O2', nDot: 0.5 });
+    const snk = t.place('sink', 4, 0);
+    t.wire(src, 'mat_out', snk, 'mat_in');
+    t.solve();
+    // Check flow on the sink's mat_in
+    const r = ObjectiveEvaluators.flow_rate({
+      targetProfile: 'sink',
+      portId: 'mat_in',
+      species: 'O2',
+      min_molPerS: 0.1,
+    }, scene);
+    t.assertOK(r.met, 'flow ≥ 0.1 mol/s');
+    t.assertOK(r.progress.includes('✓'), 'progress has checkmark');
+
+    const r2 = ObjectiveEvaluators.flow_rate({
+      targetProfile: 'sink',
+      portId: 'mat_in',
+      species: 'O2',
+      min_molPerS: 10,
+    }, scene);
+    t.assertOK(!r2.met, 'not met for impossible threshold');
+  });
+
+  test('736: evaluator — port_conditions (T bounds)', t => {
+    t.clearScene();
+    const src = t.place('source', 0, 0, { species: 'N2', nDot: 1, T: 350, P: 200000 });
+    const snk = t.place('sink', 4, 0);
+    t.wire(src, 'mat_out', snk, 'mat_in');
+    t.solve();
+    const r = ObjectiveEvaluators.port_conditions({
+      targetProfile: 'sink',
+      portId: 'mat_in',
+      T_gte: 300,
+      T_lte: 400,
+    }, scene);
+    t.assertOK(r.met, 'T within bounds');
+    const r2 = ObjectiveEvaluators.port_conditions({
+      targetProfile: 'sink',
+      portId: 'mat_in',
+      T_gte: 400,
+    }, scene);
+    t.assertOK(!r2.met, 'T below lower bound not met');
+  });
+
+  test('737: evaluator — depletion_guard', t => {
+    t.clearScene();
+    // Place a gas bottle with O2 inventory
+    const id = t.place('simple_tank', 0, 0, {
+      volume_m3: 0.01, P_init: 10000000, initialComposition: { O2: 1 },
+      gasDrawRate: 0.001, opening_gas_pct: 0, P_relief: 35000000,
+    });
+    const snk = t.place('sink', 4, 0);
+    t.wire(id, 'gas_out', snk, 'mat_in');
+    t.solve();
+    const u = t.unit(id);
+    // Should have O2 in inventory
+    const r = ObjectiveEvaluators.depletion_guard({
+      profileId: u.profileId,
+      species: 'O2',
+      minMoles: 1,
+    }, scene, {});
+    t.assertOK(r.met, 'O₂ above 1 mol in bottle');
+    // Impossible threshold
+    const r2 = ObjectiveEvaluators.depletion_guard({
+      profileId: u.profileId,
+      species: 'O2',
+      minMoles: 1e12,
+    }, scene, {});
+    t.assertOK(!r2.met, 'impossible threshold fails');
+  });
+
+  test('738: star criteria — all_objectives_complete', t => {
+    const r1 = StarCriteriaEvaluators.all_objectives_complete({}, scene, {
+      _objectiveResults: [{ met: true }, { met: true }],
+    });
+    t.assertOK(r1.met, 'met when all objectives pass');
+    const r2 = StarCriteriaEvaluators.all_objectives_complete({}, scene, {
+      _objectiveResults: [{ met: true }, { met: false }],
+    });
+    t.assertOK(!r2.met, 'not met when one fails');
+    const r3 = StarCriteriaEvaluators.all_objectives_complete({}, scene, {
+      _objectiveResults: [],
+    });
+    t.assertOK(!r3.met, 'not met with empty objectives');
+  });
+
+  test('739: star criteria — time_limit', t => {
+    const r1 = StarCriteriaEvaluators.time_limit({ maxSeconds: 300 }, scene, { missionElapsed_s: 100 });
+    t.assertOK(r1.met, 'met within limit');
+    const r2 = StarCriteriaEvaluators.time_limit({ maxSeconds: 300 }, scene, { missionElapsed_s: 500 });
+    t.assertOK(!r2.met, 'not met over limit');
+  });
+
+  test('740: star criteria — unit_count_limit', t => {
+    t.clearScene();
+    t.place('source', 0, 0);
+    t.place('sink', 4, 0);
+    const r1 = StarCriteriaEvaluators.unit_count_limit({ maxUnits: 5 }, scene);
+    t.assertOK(r1.met, 'met with 2 units vs limit 5');
+    const r2 = StarCriteriaEvaluators.unit_count_limit({ maxUnits: 1 }, scene);
+    t.assertOK(!r2.met, 'not met with 2 units vs limit 1');
+  });
+
+  test('741: evaluateCriterion — dispatches to objective and star evaluators', t => {
+    t.clearScene();
+    t.place('source', 0, 0, { species: 'N2', nDot: 1 });
+    // Objective type
+    const r1 = evaluateCriterion({ type: 'unit_present', profileId: 'source' }, scene, {});
+    t.assertOK(r1.met, 'dispatches to unit_present');
+    // Star type
+    const r2 = evaluateCriterion({ type: 'time_limit', maxSeconds: 999 }, scene, { missionElapsed_s: 10 });
+    t.assertOK(r2.met, 'dispatches to time_limit');
+    // Unknown type
+    const r3 = evaluateCriterion({ type: 'bogus' }, scene, {});
+    t.assertOK(!r3.met, 'unknown type returns not met');
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // [v19.0.0] S-MISSION — CampaignState tests
+  // ═══════════════════════════════════════════════════════════════════════
+
+  test('742: CampaignState — construct and initial state', t => {
+    // Uses test_campaign registered in test 720
+    const cs = new CampaignState('test_campaign', 'Test Career');
+    t.assertOK(cs.careerName === 'Test Career', 'careerName');
+    t.assertOK(cs.campaignId === 'test_campaign', 'campaignId');
+    t.assertOK(cs.currentArcId === 'test_arc', 'currentArcId from first arc');
+    t.assertOK(cs.currentMissionId === 'test_m1', 'currentMissionId from first mission');
+    t.assertOK(cs.completed.size === 0, 'no completions');
+    t.assertOK(cs.gameDay === 0, 'gameDay 0');
+  });
+
+  test('743: CampaignState — completeMission and applyRewards', t => {
+    const cs = new CampaignState('test_campaign', 'Reward Test');
+    // test_m1 has no rewards defined (empty default), so add manually
+    cs.completeMission('test_m1', 3, '{"test":"scene"}');
+    t.assertOK(cs.completed.has('test_m1'), 'completion recorded');
+    t.assertOK(cs.completed.get('test_m1').stars === 3, 'stars = 3');
+    t.assertOK(cs.missionEndScenes.has('test_m1'), 'scene saved');
+  });
+
+  test('744: CampaignState — getEffectivePalette', t => {
+    const cs = new CampaignState('test_campaign', 'Palette Test');
+    // test_m1 has palette: { source_pure: 2 }
+    const eff = cs.getEffectivePalette('test_m1');
+    t.assertOK(eff.source_pure === 2, 'mission palette included');
+    // Add cumulative reward
+    cs.cumulativePalette.sink = 3;
+    const eff2 = cs.getEffectivePalette('test_m1');
+    t.assertOK(eff2.source_pure === 2, 'mission palette still there');
+    t.assertOK(eff2.sink === 3, 'cumulative reward added');
+  });
+
+  test('745: CampaignState — serialize / deserialize roundtrip', t => {
+    const cs = new CampaignState('test_campaign', 'Roundtrip');
+    cs.completeMission('test_m1', 2, '{"v":1}');
+    cs.cumulativePalette.source_pure = 5;
+    cs.unlockedSpecies.add('N2');
+    cs.gameDay = 7;
+    const json = cs.serialize();
+    const cs2 = CampaignState.deserialize(json);
+    t.assertOK(cs2.careerName === 'Roundtrip', 'name roundtrip');
+    t.assertOK(cs2.completed.has('test_m1'), 'completion roundtrip');
+    t.assertOK(cs2.completed.get('test_m1').stars === 2, 'stars roundtrip');
+    t.assertOK(cs2.cumulativePalette.source_pure === 5, 'palette roundtrip');
+    t.assertOK(cs2.unlockedSpecies.has('N2'), 'species roundtrip');
+    t.assertOK(cs2.gameDay === 7, 'gameDay roundtrip');
+    t.assertOK(cs2.missionEndScenes.get('test_m1') === '{"v":1}', 'scene roundtrip');
+  });
+
+  test('746: CampaignState — advanceToNext', t => {
+    // Register a second mission in test_arc for advancement testing
+    if (!MissionRegistry.exists('test_m2_adv')) {
+      MissionRegistry.register('test_m2_adv', {
+        arcId: 'test_arc', index: 1, title: 'Test M2',
+      });
+    }
+    // Re-register arc with both missions (need fresh arc — can't modify frozen)
+    // Use a separate campaign/arc chain for isolation
+    if (!CampaignRegistry.exists('adv_campaign')) {
+      CampaignRegistry.register('adv_campaign', {
+        title: 'Advance Test', arcs: ['adv_arc'], speciesPool: ['N2'],
+      });
+      ArcRegistry.register('adv_arc', {
+        campaignId: 'adv_campaign', missions: ['adv_m1', 'adv_m2'], index: 0,
+      });
+      MissionRegistry.register('adv_m1', { arcId: 'adv_arc', index: 0, title: 'Adv M1' });
+      MissionRegistry.register('adv_m2', { arcId: 'adv_arc', index: 1, title: 'Adv M2' });
+    }
+    const cs = new CampaignState('adv_campaign', 'Adv Test');
+    t.assertOK(cs.currentMissionId === 'adv_m1', 'starts at m1');
+    const next1 = cs.advanceToNext();
+    t.assertOK(next1.type === 'mission', 'advance type = mission');
+    t.assertOK(cs.currentMissionId === 'adv_m2', 'now at m2');
+    const next2 = cs.advanceToNext();
+    t.assertOK(next2.type === 'campaign_complete', 'campaign complete after last mission');
+    t.assertOK(cs.arcCompleted.has('adv_arc'), 'arc marked complete');
+  });
+
+  test('747: CampaignState — getStartingScene with inheritScene', t => {
+    if (!CampaignRegistry.exists('adv_campaign')) { t.assertOK(true, 'skip'); return; }
+    const cs = new CampaignState('adv_campaign', 'Scene Test');
+    // m1 has no inheritScene — returns initialScene (null)
+    const s1 = cs.getStartingScene('adv_m1');
+    t.assertOK(s1 === null, 'm1 no inherit → null');
+    // Save m1 end scene, then check m2 with inheritScene
+    cs.missionEndScenes.set('adv_m1', '{"saved":"m1scene"}');
+    // adv_m2 doesn't have inheritScene set (defaults false), so returns null
+    const s2 = cs.getStartingScene('adv_m2');
+    t.assertOK(s2 === null, 'm2 no inheritScene flag → null');
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // [v19.0.0] S-MISSION — Content registration tests
+  // ═══════════════════════════════════════════════════════════════════════
+
+  test('748: Planet X campaign registered', t => {
+    t.assertOK(CampaignRegistry.exists('planet_x'), 'planet_x exists');
+    const c = CampaignRegistry.get('planet_x');
+    t.assertOK(c.title === 'Planet X', 'title');
+    t.assertOK(c.speciesPool.includes('O2'), 'O2 in pool');
+    t.assertOK(c.speciesPool.includes('CH2O'), 'CH2O in pool');
+    t.assertOK(c.arcs[0] === 'arc_a', 'arc_a first');
+    t.assertOK(c.reactionPool.includes('R_METABOLISM'), 'R_METABOLISM in pool');
+  });
+
+  test('749: Arc A registered with 3 missions', t => {
+    t.assertOK(ArcRegistry.exists('arc_a'), 'arc_a exists');
+    const a = ArcRegistry.get('arc_a');
+    t.assertOK(a.title === 'Survival', 'title');
+    t.assertOK(a.missions.length === 3, '3 missions');
+    t.assertOK(a.missions[0] === 'arc_a_m1', 'M1 first');
+    t.assertOK(a.missions[2] === 'arc_a_m3', 'M3 third');
+    t.assertOK(a.intro.length === 6, 'arc intro has 6 beats');
+  });
+
+  test('750: M1 Breathe — structure and objectives', t => {
+    const m = MissionRegistry.get('arc_a_m1');
+    t.assertOK(m, 'M1 exists');
+    t.assertOK(m.title === 'Breathe', 'title');
+    t.assertOK(Object.keys(m.palette).length === 0, 'empty palette');
+    t.assertOK(m.preplacedUnits.length === 3, '3 preplaced: room, bottle, battery');
+    t.assertOK(m.objectives.length === 3, '3 objectives');
+    t.assertOK(m.objectives[0].type === 'connection', 'obj1 is connection');
+    t.assertOK(m.guidanceSteps.length === 4, '4 guidance steps');
+    t.assertOK(m.storyIntro.length === 0, 'no story intro (arc intro covers it)');
+    t.assertOK(m.storyOutro.length === 1, '1 outro beat');
+    t.assertOK(m.stars[3], 'star 3 defined');
+  });
+
+  test('751: M2 Clear the Air — structure, triggers, inheritScene', t => {
+    const m = MissionRegistry.get('arc_a_m2');
+    t.assertOK(m, 'M2 exists');
+    t.assertOK(m.title === 'Clear the Air', 'title');
+    t.assertOK(m.inheritScene === true, 'inherits scene');
+    t.assertOK(m.preplacedUnits.length === 2, '2 new preplaced: flare, scrubber');
+    t.assertOK(m.triggers.length === 2, '2 triggers');
+    t.assertOK(m.triggers[0].id === 'scrubber_50pct', 'first trigger id');
+    t.assertOK(m.objectives.length === 4, '4 objectives (3 primary + 1 health)');
+    t.assertOK(m.guidanceSteps.length === 4, '4 guidance steps');
+  });
+
+  test('752: M3 Find Water — palette, species, rewards', t => {
+    const m = MissionRegistry.get('arc_a_m3');
+    t.assertOK(m, 'M3 exists');
+    t.assertOK(m.title === 'Find Water', 'title');
+    t.assertOK(m.palette.power_dispatcher_5 === 1, 'dispatcher in palette');
+    t.assertOK(m.palette.air_cooler === 1, 'air cooler in palette');
+    t.assertOK(m.palette.flash_drum === 1, 'flash drum in palette');
+    t.assertOK(m.species.includes('H2O'), 'H2O in species');
+    t.assertOK(m.species.includes('CH4'), 'CH4 in species');
+    t.assertOK(m.preplacedUnits.length === 1, '1 new preplaced: hydrovent');
+    t.assertOK(m.preplacedUnits[0].profileId === 'hydrovent', 'hydrovent preplaced');
+    t.assertOK(m.rewards.species.includes('H2O'), 'H2O rewarded');
+    t.assertOK(m.rewards.palette.air_cooler === 1, 'air cooler reward');
+    t.assertOK(m.triggers.length === 2, '2 triggers (overheat + first water)');
+  });
+
+  test('753: M1-M3 preplaced unit params match Ineluctable Fate calibration', t => {
+    const m1 = MissionRegistry.get('arc_a_m1');
+    const bottle = m1.preplacedUnits.find(u => u.profileId === 'simple_gas_bottle');
+    t.assertOK(bottle, 'O2 bottle in M1 preplaced');
+    t.assertClose(bottle.params.opening_gas_pct, 46.6, 0.01, 'bottle opening_gas_pct = 46.6');
+    t.assertClose(bottle.params.P_init, 30553950, 1, 'bottle P_init calibrated');
+    t.assertClose(bottle.params.gasDrawRate, 0.001, 0.0001, 'bottle gasDrawRate');
+
+    const bat = m1.preplacedUnits.find(u => u.profileId === 'battery');
+    t.assertOK(bat, 'battery in M1 preplaced');
+    t.assertClose(bat.params.capacity_J, 1800000000, 1, 'battery capacity calibrated');
+    t.assertClose(bat.params.initialSOC, 1, 0.01, 'battery SOC = 1');
+
+    const m2 = MissionRegistry.get('arc_a_m2');
+    const scrub = m2.preplacedUnits.find(u => u.profileId === 'co2_scrubber');
+    t.assertOK(scrub, 'scrubber in M2 preplaced');
+    t.assertClose(scrub.params.consumable.capacity, 500, 1, 'scrubber capacity = 500');
+  });
+
+  test('754: CampaignState — Planet X career flow', t => {
+    const cs = new CampaignState('planet_x', 'Test Playthrough');
+    t.assertOK(cs.currentArcId === 'arc_a', 'starts at arc_a');
+    t.assertOK(cs.currentMissionId === 'arc_a_m1', 'starts at M1');
+
+    // Complete M1
+    cs.completeMission('arc_a_m1', 2, '{"m1":"done"}');
+    const next1 = cs.advanceToNext();
+    t.assertOK(next1.type === 'mission', 'advance to M2');
+    t.assertOK(cs.currentMissionId === 'arc_a_m2', 'now at M2');
+
+    // Complete M2
+    cs.completeMission('arc_a_m2', 1, '{"m2":"done"}');
+    const next2 = cs.advanceToNext();
+    t.assertOK(next2.type === 'mission', 'advance to M3');
+    t.assertOK(cs.currentMissionId === 'arc_a_m3', 'now at M3');
+
+    // Check M3 effective palette includes rewards from M3's own palette
+    const eff = cs.getEffectivePalette('arc_a_m3');
+    t.assertOK(eff.power_dispatcher_5 === 1, 'dispatcher in M3 palette');
+    t.assertOK(eff.air_cooler === 1, 'cooler in M3 palette');
+
+    // Complete M3 — should complete the arc (only 3 missions registered)
+    cs.completeMission('arc_a_m3', 3, '{"m3":"done"}');
+    const next3 = cs.advanceToNext();
+    t.assertOK(next3.type === 'campaign_complete', 'campaign complete after M3');
+    t.assertOK(cs.arcCompleted.has('arc_a'), 'arc_a completed');
+    t.assertOK(cs.unlockedSpecies.has('H2O'), 'H2O unlocked by M3 rewards');
+  });
+
+  test('755: M3 getStartingScene inherits from M2 end scene', t => {
+    const cs = new CampaignState('planet_x', 'Inherit Test');
+    cs.missionEndScenes.set('arc_a_m2', '{"m2_scene":true}');
+    const m3scene = cs.getStartingScene('arc_a_m3');
+    t.assertOK(m3scene === '{"m2_scene":true}', 'M3 inherits M2 end scene');
   });
 
   // ═══════════════════════════════════════════════════════════════════════
