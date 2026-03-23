@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v19.6.0
+  processThis v19.8.0
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -361,6 +361,78 @@
   ═══════════════════════════════════════════════════════════════════════════
   CHANGELOG  (latest first)
   ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v19.8.0 — Action bar cleanup + campaign Home button ───────────────────
+
+  **Action bar simplified.**  Removed 8 buttons: reset-view (fit
+  suffices), show/hide stickers, planet background, flow particles,
+  theme cycle, stream size-by dropdown, and the compact/expand chevron.
+  Stickers, planet bg, particles, and ragtag theme are now always on
+  (forced in restoreLayout + gatherLayout).  Compact mode and its
+  CSS/wrappers (.bar-tools, .bar-c3, .bar-c45, .bar-compact-chevron)
+  eliminated.  Resulting bar: Transport | Checkpoint | Fit | Color ▾ | °C.
+
+  **Unit system cycle button.**  New `btnUnits` (tbtn-label) cycles
+  SI (bar) → SI → Imperial on click.  Shows temperature symbol as
+  short label: °C / K / °F.  Tooltip shows full system name.  Uses
+  existing `models.setActive('units', id)` + `render()`.
+
+  **Campaign Home button.**  In story mode, the ☰ sandwich menu is
+  hidden; a 🏠 button replaces it.  Click opens a confirmation modal
+  (using existing .modal/.modalContent styling): "Return to menu?
+  Your progress is auto-saved at each checkpoint.  Any changes since
+  the last checkpoint will be lost."  Cancel closes modal; Leave
+  mission calls goHome().  Sandbox mode: sandwich stays, 🏠 hidden.
+  Modal action buttons: .modal-btn base, .modal-btn-danger red variant.
+
+  **Layout persistence cleaned.**  gatherLayout() returns hardcoded
+  values for removed features (actionBarCompact: false, sizeByFlow:
+  'none', stickersVisible/planetBgVisible: true, theme: 'ragtag',
+  flowMode: 'particles').  applyLayout() ignores saved values for
+  these fields, forcing defaults.  Backwards-compatible on import.
+
+  NNGs: NNG-14 (changelog).
+
+  ─── v19.7.0 — Shelter gauge rotation + body hydration gauge ────────────────
+
+  **Gauge rotation: needle-up = nominal.**  All 5 diegetic shelter
+  gauges now rotate so the needle points straight up (12 o'clock) when
+  conditions are nominal.  `_arcGauge` accepts optional `rot` parameter
+  (degrees) that rotates the entire arc (bands, ticks, needle).
+  O₂ −105°, CO₂ +45°, Temp −101°, H₂O −90°, PWR −90°.  Range widened
+  to 0–200 for H₂O/PWR so nominal (100%) maps to mid-arc (frac=0.5),
+  keeping the gap at the bottom-left rather than at 12 o'clock.
+
+  **CO₂ gauge range shrunk.**  Was 0–6%, now 0–3%.  The old 2–6% red
+  zone was excessive — once you're in the red, the exact reading doesn't
+  matter.  Tighter range gives the green and orange zones more arc space
+  for readable differentiation.
+
+  **H₂O gauge → body hydration, green centered on 12 o'clock.**  Was
+  supply/demand ratio (binary flip), now shows crew body water reserves
+  from `h2o_deficit_per_person`.  Hydration % = `max(0, 1 − deficit/417)
+  × 100`.  Green zone 67–133 on 0–200 range, centered on 100 (12
+  o'clock): red 0–34 (approaching death), orange 34–67 (incapacitated,
+  matches MAJOR at deficit ≥139 = 67% hydration), green 67–133 (crew
+  functional, covers OK + WARNING).  Smooth analog drift over hours/days.
+
+  **TEMP gauge digit readout.**  Integer temperature + unit symbol
+  (°C/K/°F from active unit system) rendered inside the gauge face below
+  the "TEMP" label.  3.2px monospace, 80% opacity.
+
+  **Inspector parity.**  `_renderGauge` extended with `limits.rot`
+  parameter for matching rotation.  Inspector room gauges updated:
+  same rotations, CO₂ range, body hydration source, and H₂O bands.
+  Cold H₂O replaced by Body H₂O; Hot H₂O retained separately.
+  Inspector rot = diegetic rot + 90° (convention difference:
+  _renderGauge starts arc at 6 o'clock, _arcGauge at 9 o'clock).
+
+  **Room port labels.**  Renamed to non-technical friendly names:
+  O₂ → Oxygen, food → Food, water → Water, hot H₂O → Hot water,
+  power → Power, exhaust → Exhaust, clean air → Clean air.
+
+  NNGs: NNG-3 (WYSIWYG — gauges match diegetic and inspector, body
+  hydration reflects real deficit physics), NNG-14 (changelog).
 
   ─── v19.6.0 — Tutorial fixes, room physics, cinematic polish ─────────────
 
@@ -6747,6 +6819,20 @@
       right: 20px;
       background: transparent;
       border: none;
+
+    /* [v19.7.0] Campaign Home button — hidden in sandbox, shown in campaign by applyStoryUI */
+    #btnStoryHome { display: none; }
+
+    /* [v19.7.0] Modal action buttons (confirm/cancel) */
+    .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+    .modal-btn {
+      padding: 8px 16px; border-radius: 8px; border: 1px solid #2a2f3a;
+      background: #1c222e; color: #94a3b8; font-size: 13px; font-weight: 600;
+      cursor: pointer; transition: background 0.15s, color 0.15s;
+    }
+    .modal-btn:hover { background: #283040; color: #e2e8f0; }
+    .modal-btn-danger { background: #7f1d1d; border-color: #991b1b; color: #fca5a5; }
+    .modal-btn-danger:hover { background: #991b1b; color: #fee2e2; }
       color: #e7e7e7;
       font-size: 24px;
       cursor: pointer;
@@ -11469,6 +11555,9 @@
         </div>
       </div>
 
+      <!-- [v19.7.0] Campaign Home button — hidden by default, shown by applyStoryUI -->
+      <button class="btn" id="btnStoryHome" data-tip="Return to menu" title="Return to menu">🏠</button>
+
       <button class="undo-redo-btn" id="btnUndo" title="Undo (Ctrl+Z)">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"/><path d="M3 13a9 9 0 0 1 15.36-6.36L21 9"/></svg>
       </button>
@@ -11555,31 +11644,15 @@
         <button class="tbtn" id="btnSave" data-tip="Save [Ctrl+S]">💾</button>
       </div>
 
-      <!-- C3-C5 wrapped for compact mode -->
-      <div class="bar-tools">
+      <!-- C3: Zoom + Display -->
       <div class="bar-sep"></div>
-      <div class="bar-c3">
-      <!-- C3: Zoom -->
       <div class="btn-cluster">
         <button class="tbtn" id="btnFit" data-tip="Fit [F]"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 5V1h4M11 1h4v4M15 11v4h-4M5 15H1v-4"/></svg></button>
-        <button class="tbtn" id="btnResetView" data-tip="Reset view"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="1.5" fill="currentColor" stroke="none"/><path d="M2 5V2h3"/><path d="M11 2h3v3"/><path d="M14 11v3h-3"/><path d="M5 14H2v-3"/></svg></button>
-      </div>
-      </div><!-- /bar-c3 -->
-
-      <div class="bar-c45">
-      <div class="bar-sep"></div>
-
-      <!-- C4: Visibility (utilities toggle removed v14.12.0) -->
-      <div class="btn-cluster">
-        <button class="tbtn tbtn-emoji" id="btnStickerLines" data-tip="Show/hide stickers">📌</button>
-        <button class="tbtn tbtn-emoji tbtn-dim" id="btnPlanetBg" data-tip="Planet background">🌍</button>
-        <button class="tbtn tbtn-emoji" id="btnFlowParticles" data-tip="Flow: particles">💧</button>
-        <button class="tbtn tbtn-emoji" id="btnTheme" data-tip="Theme: ragtag">🔧</button>
       </div>
 
       <div class="bar-sep"></div>
 
-      <!-- C5: Visual mapping -->
+      <!-- C4: Visual mapping + Units -->
       <div class="btn-cluster">
         <button class="tbtn vis-menu-anchor tbtn-label" id="btnColor" data-tip="Color by…">
           <span id="btnColorLabel">Type</span>
@@ -11595,20 +11668,8 @@
             <div class="vis-menu-item" data-val="flowrate" data-label="Flow"><span class="vm-check"></span><span class="vm-swatch" style="background:linear-gradient(90deg,#1e3a5f,#3b82f6,#22d3ee,#22c55e,#fde047,#f97316)"></span>Flow rate</div>
           </div>
         </button>
-        <button class="tbtn vis-menu-anchor tbtn-dim" id="btnStreamSize" data-tip="Size streams by…">
-          <svg id="btnSizeIcon" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-linecap="round"><line x1="2" y1="8" x2="14" y2="8" stroke-width="2" stroke-dasharray="3 3"/></svg>
-          <div class="vis-menu" id="menuStreamSize">
-            <div class="vis-menu-title">Size by flow</div>
-            <div class="vis-menu-item active" data-val="none"><span class="vm-check">✓</span>None</div>
-            <div class="vis-menu-item" data-val="s"><span class="vm-check"></span>S — subtle</div>
-            <div class="vis-menu-item" data-val="m"><span class="vm-check"></span>M — moderate</div>
-            <div class="vis-menu-item" data-val="l"><span class="vm-check"></span>L — prominent</div>
-          </div>
-        </button>
+        <button class="tbtn tbtn-label" id="btnUnits" data-tip="Unit system">°C</button>
       </div>
-      </div><!-- /bar-c45 -->
-      </div><!-- /bar-tools -->
-      <button class="bar-compact-chevron" id="barCompactChevron" title="Collapse toolbar">◂</button>
     </div>
 
     <!-- Models modal -->
@@ -11738,6 +11799,18 @@
         <div id="settingsPanel" style="flex:1; overflow-y:auto; min-height:0;"></div>
         <div id="settingsFooter" style="padding:10px 0 0; border-top:1px solid #334155; margin-top:8px; flex-shrink:0;">
           <button class="btn" id="settingsApplyBtn" style="width:100%; padding:8px; transition:background 0.2s;">Apply &amp; Re-solve</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- [v19.7.0] Campaign Home confirmation modal -->
+    <div class="modal" id="modalConfirmHome">
+      <div class="modalContent" style="max-width:400px;">
+        <h3>Return to menu?</h3>
+        <div class="small">Your progress is auto-saved at each checkpoint. Any changes since the last checkpoint will be lost.</div>
+        <div class="modal-actions">
+          <button class="modal-btn" id="confirmHomeCancel">Cancel</button>
+          <button class="modal-btn modal-btn-danger" id="confirmHomeOK">Leave mission</button>
         </div>
       </div>
     </div>
@@ -26147,13 +26220,13 @@ UnitRegistry.register('room', {
   w: 6, h: 9,
   optionalPorts: true,
   ports: [
-    { portId: 'o2_in',        dir: PortDir.IN,  type: StreamType.MATERIAL,   x: 0, y: 2,  label: 'O₂' },
-    { portId: 'food_in',      dir: PortDir.IN,  type: StreamType.MATERIAL,   x: 0, y: 4,  label: 'food' },
-    { portId: 'h2o_in',       dir: PortDir.IN,  type: StreamType.MATERIAL,   x: 0, y: 6,  label: 'water' },
-    { portId: 'hot_water_in', dir: PortDir.IN,  type: StreamType.MATERIAL,   x: 0, y: 8,  label: 'hot H₂O' },
-    { portId: 'elec_in',      dir: PortDir.IN,  type: StreamType.ELECTRICAL, x: 3, y: 0,  label: 'power' },
-    { portId: 'air_exhaust',  dir: PortDir.OUT, type: StreamType.MATERIAL,   x: 6, y: 2,  label: 'exhaust' },
-    { portId: 'air_return',   dir: PortDir.IN,  type: StreamType.MATERIAL,   x: 6, y: 8,  label: 'clean air' }
+    { portId: 'o2_in',        dir: PortDir.IN,  type: StreamType.MATERIAL,   x: 0, y: 2,  label: 'Oxygen' },
+    { portId: 'food_in',      dir: PortDir.IN,  type: StreamType.MATERIAL,   x: 0, y: 4,  label: 'Food' },
+    { portId: 'h2o_in',       dir: PortDir.IN,  type: StreamType.MATERIAL,   x: 0, y: 6,  label: 'Water' },
+    { portId: 'hot_water_in', dir: PortDir.IN,  type: StreamType.MATERIAL,   x: 0, y: 8,  label: 'Hot water' },
+    { portId: 'elec_in',      dir: PortDir.IN,  type: StreamType.ELECTRICAL, x: 3, y: 0,  label: 'Power' },
+    { portId: 'air_exhaust',  dir: PortDir.OUT, type: StreamType.MATERIAL,   x: 6, y: 2,  label: 'Exhaust' },
+    { portId: 'air_return',   dir: PortDir.IN,  type: StreamType.MATERIAL,   x: 6, y: 8,  label: 'Clean air' }
   ],
   presentations: {
     'box/default': { w: 6, h: 9, ports: {
@@ -33834,18 +33907,18 @@ function gatherLayout() {
     viewMode:              document.querySelector('.canvasWrap')?.getAttribute('data-view') || LAYOUT_DEFAULTS.viewMode,
     splitRatio:            LAYOUT_DEFAULTS.splitRatio,
     survivalStripExpanded: document.getElementById('survivalExpanded')?.classList.contains('open') || false,
-    actionBarCompact:      document.querySelector('.action-bar')?.classList.contains('compact') || false,
+    actionBarCompact:      false,  // v19.7.0: compact mode removed, kept for backwards compat
     colorBy:               ui.colorBy || LAYOUT_DEFAULTS.colorBy,
-    sizeByFlow:            ui.streamSizeBy || LAYOUT_DEFAULTS.sizeByFlow,
-    stickersVisible:       ui.showStickers !== false,
-    planetBgVisible:       SimSettings.showPlanetBg !== false,
+    sizeByFlow:            'none',  // v19.7.0: stream size removed
+    stickersVisible:       true,
+    planetBgVisible:       true,
     inspectorOpen:         !(document.getElementById('rightPanel')?.style.display === 'none'),
     inspectorWidth:        document.getElementById('rightPanel')?.offsetWidth || LAYOUT_DEFAULTS.inspectorWidth,
     paletteOpen:           document.getElementById('paletteDrawer')?.classList.contains('open') || false,
     palettePressureMode:   ui.palettePressureMode || LAYOUT_DEFAULTS.palettePressureMode,
     showFlanges:           ui.showFlanges || false,
-    flowMode:              ui.flowMode || LAYOUT_DEFAULTS.flowMode,
-    theme:                 ui.theme || LAYOUT_DEFAULTS.theme,
+    flowMode:              'particles',
+    theme:                 'ragtag',
   };
 }
 
@@ -33861,12 +33934,7 @@ function applyLayout(patch) {
   if (cwrap) cwrap.setAttribute('data-view', vm);
   document.querySelectorAll('.vm-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === vm));
 
-  // actionBarCompact
-  const compact = L.actionBarCompact ?? D.actionBarCompact;
-  const abEl = document.querySelector('.action-bar');
-  const abChev = document.getElementById('barCompactChevron');
-  if (abEl) abEl.classList.toggle('compact', compact);
-  if (abChev) { abChev.textContent = compact ? '\u25B8' : '\u25C2'; abChev.title = compact ? 'Expand toolbar' : 'Collapse toolbar'; }
+  // actionBarCompact — removed v19.7.0 (bar is always flat)
 
   // survivalStripExpanded
   const ssExp = L.survivalStripExpanded ?? D.survivalStripExpanded;
@@ -33875,23 +33943,16 @@ function applyLayout(patch) {
   if (seEl) seEl.classList.toggle('open', ssExp);
   if (ssCenterEl) ssCenterEl.classList.toggle('expanded', ssExp);
 
-  // ui flags (non-DOM state)
+  // ui flags (non-DOM state) — stickers/theme/planet/flow forced v19.7.0
   ui.colorBy = L.colorBy || D.colorBy;
-  ui.streamSizeBy = L.sizeByFlow || D.sizeByFlow;
-  ui.showStickers = L.stickersVisible ?? D.stickersVisible;
-  SimSettings.showPlanetBg = L.planetBgVisible ?? D.planetBgVisible;
-  ui.theme = L.theme || D.theme;
+  ui.streamSizeBy = 'none';
+  ui.showStickers = true;
+  SimSettings.showPlanetBg = true;
+  ui.theme = 'ragtag';
   ui.showFlanges = L.showFlanges ?? D.showFlanges;
-  ui.flowMode = L.flowMode ?? D.flowMode;
+  ui.flowMode = 'particles';
 
-  // DOM-dependent state
-  const stickerBtn = document.getElementById('btnStickerLines');
-  if (stickerBtn) stickerBtn.classList.toggle('tbtn-dim', !ui.showStickers);
-  const flowBtn = document.getElementById('btnFlowParticles');
-  if (flowBtn) {
-    flowBtn.textContent = ui.flowMode === 'particles' ? '💧' : '➤';
-    flowBtn.setAttribute('data-tip', ui.flowMode === 'particles' ? 'Flow: particles' : 'Flow: arrows');
-  }
+  // DOM-dependent state — removed dead button refs (sticker/flow/theme) v19.7.0
 
   const iw = L.inspectorWidth || D.inspectorWidth;
   const rp = document.getElementById('rightPanel');
@@ -33914,9 +33975,6 @@ function applyLayout(patch) {
     b.classList.toggle('active-simple', isActive && pMode === 'simple');
     b.classList.toggle('active-network', isActive && pMode === 'network');
   }
-
-  const themeBtn = document.getElementById('btnTheme');
-  if (themeBtn) themeBtn.textContent = ui.theme === 'box' ? '📦' : ui.theme === 'ragtag' ? '🔧' : '📐';
 
   // [v16.9.1] Sync planet background visibility after layout values are applied.
   // applyPlanetBg reads SimSettings.showPlanetBg (set above) and toggles DOM.
@@ -39141,11 +39199,12 @@ _RAGTAG_SYMBOLS.room = function(g, wx, wy, ww, wh, pal, def, unitId) {
   _r(48, 50, 192, 44, { rx: 3, fill: _C.gaugePlate, stroke: _C.dark, 'stroke-width': 1.2 });
 
   // 5 gauge mounts — arc gauge helper
-  const _arcGauge = (cx, cy, r, label, value, gaugeMin, gaugeMax, bands) => {
+  const _arcGauge = (cx, cy, r, label, value, gaugeMin, gaugeMax, bands, rot) => {
     const gcx = wx + cx, gcy = wy + cy;
     _c(cx, cy, r + 2, { fill: _C.gaugePlate, stroke: _C.gaugeBezel, 'stroke-width': 1.2 });
     _c(cx, cy, r, { fill: _C.gaugeFace, stroke: _C.metal, 'stroke-width': 0.5 });
-    const _a = (frac) => (-135 + frac * 270) * Math.PI / 180;
+    const _rotDeg = rot || 0;
+    const _a = (frac) => (-135 + frac * 270 + _rotDeg) * Math.PI / 180;
     const bandR = r - 2.5;
     for (const b of bands) {
       const f0 = Math.max(0, (b.from - gaugeMin) / (gaugeMax - gaugeMin));
@@ -39190,33 +39249,47 @@ _RAGTAG_SYMBOLS.room = function(g, wx, wy, ww, wh, pal, def, unitId) {
   const gO2  = _gv.o2_pct ?? 21;
   const gCO2 = last.room_x_CO2 != null ? last.room_x_CO2 * 100 : 0.03;
   const gT   = last.T_room_K != null ? last.T_room_K - 273.15 : 21;
-  const gH2O = last.services?.water ? last.services.water.pct * 100 : 100;
+  // Body hydration: 100% = fully hydrated (deficit ≤ 0), 0% = death (deficit ≥ 417 mol/pp)
+  const _h2oDefPP = last.h2o_deficit_per_person ?? 0;
+  const gH2O = Math.max(0, (1 - _h2oDefPP / 417)) * 100;
   const gPwr = _gv.power_pct ?? 100;
 
+  // Rotation offsets: nominal value → 12 o'clock (−90° in arc convention)
   const gR = 12;
   const gaugeCy = 72;
   _arcGauge(67.2, gaugeCy, gR, 'O2', gO2, 10, 28, [
     { from: 10, to: 14, color: '#ef4444' }, { from: 14, to: 17, color: '#f59e0b' },
     { from: 17, to: 23, color: '#22c55e' }, { from: 23, to: 26, color: '#f59e0b' },
     { from: 26, to: 28, color: '#ef4444' }
-  ]);
-  _arcGauge(105.6, gaugeCy, gR, 'CO2', gCO2, 0, 6, [
+  ], -105);
+  _arcGauge(105.6, gaugeCy, gR, 'CO2', gCO2, 0, 3, [
     { from: 0, to: 0.5, color: '#22c55e' }, { from: 0.5, to: 2, color: '#f59e0b' },
-    { from: 2, to: 6, color: '#ef4444' }
-  ]);
+    { from: 2, to: 3, color: '#ef4444' }
+  ], 45);
   _arcGauge(144.0, gaugeCy, gR, 'TEMP', gT, -10, 50, [
     { from: -10, to: 5, color: '#ef4444' }, { from: 5, to: 15, color: '#f59e0b' },
     { from: 15, to: 30, color: '#22c55e' }, { from: 30, to: 40, color: '#f59e0b' },
     { from: 40, to: 50, color: '#ef4444' }
-  ]);
-  _arcGauge(182.4, gaugeCy, gR, 'H2O', gH2O, 0, 120, [
-    { from: 0, to: 30, color: '#ef4444' }, { from: 30, to: 60, color: '#f59e0b' },
-    { from: 60, to: 120, color: '#22c55e' }
-  ]);
-  _arcGauge(220.8, gaugeCy, gR, 'PWR', gPwr, 0, 120, [
+  ], -101);
+  // Temperature digit readout inside TEMP gauge face
+  {
+    const _us = models.getActive('units');
+    const _tK = last.T_room_K ?? 294;
+    const _tDisp = Math.round(_us.temperature.from(_tK));
+    const _tLbl = svgEl('text', { x: wx + 144, y: wy + gaugeCy + gR * 0.85,
+      'text-anchor': 'middle', 'font-family': 'monospace', 'font-size': '3.2px',
+      fill: '#e2e0d8', opacity: 0.8, 'pointer-events': pe });
+    _tLbl.textContent = `${_tDisp}${_us.temperature.symbol}`;
+    g.appendChild(_tLbl);
+  }
+  _arcGauge(182.4, gaugeCy, gR, 'H2O', gH2O, 0, 200, [
+    { from: 0, to: 34, color: '#ef4444' }, { from: 34, to: 67, color: '#f59e0b' },
+    { from: 67, to: 133, color: '#22c55e' }
+  ], -90);
+  _arcGauge(220.8, gaugeCy, gR, 'PWR', gPwr, 0, 200, [
     { from: 0, to: 30, color: '#ef4444' }, { from: 30, to: 70, color: '#f59e0b' },
-    { from: 70, to: 120, color: '#22c55e' }
-  ]);
+    { from: 70, to: 200, color: '#22c55e' }
+  ], -90);
   // Plate bolts
   _c(52, 54, 1.8, { fill: _C.boltCenter, stroke: _C.bolt, 'stroke-width': 0.8 });
   _c(236, 54, 1.8, { fill: _C.boltCenter, stroke: _C.bolt, 'stroke-width': 0.8 });
@@ -42922,7 +42995,8 @@ function _renderGauge(container, value, unitSymbol, limits, label, stickerCtx) {
   wrap.appendChild(el('div', { class: 'ins-gauge-label', text: label }));
 
   const sz = 56, cx = sz / 2, cy = sz / 2, r = 22;
-  const startAngle = 135, endAngle = 405, sweep = endAngle - startAngle;
+  const _rotOff = limits?.rot || 0;
+  const startAngle = 135 + _rotOff, endAngle = 405 + _rotOff, sweep = endAngle - startAngle;
   const svgNS = 'http://www.w3.org/2000/svg';
   const svgE = document.createElementNS(svgNS, 'svg');
   svgE.setAttribute('width', sz); svgE.setAttribute('height', sz);
@@ -44964,30 +45038,31 @@ UnitInspector.room = {
     // ═══ ROOM CONDITIONS — 5 arc gauges matching diegetic room symbol ═══
     container.appendChild(el('div', { class: 'ins-section-label', html: 'Room Conditions' }));
 
-    // Row 1: O₂, CO₂, Temperature — same ranges and bands as room body _arcGauge
+    // Row 1: O₂, CO₂, Temperature — same ranges, bands and rotation as room body _arcGauge
     const row1 = el('div', { class: 'ins-gauges-row' });
     const gO2 = L.room_x_O2 != null ? L.room_x_O2 * 100 : 21;
     _renderGauge(row1, gO2, '%',
-      { lo: 10, LL: 14, L: 17, H: 23, HH: 26, hi: 28 }, 'O₂');
+      { lo: 10, LL: 14, L: 17, H: 23, HH: 26, hi: 28, rot: -15 }, 'O₂');
     const gCO2 = L.room_x_CO2 != null ? L.room_x_CO2 * 100 : 0.03;
     _renderGauge(row1, gCO2, '%',
-      { lo: 0, H: 0.5, HH: 2, hi: 6 }, 'CO₂');
+      { lo: 0, H: 0.5, HH: 2, hi: 3, rot: 135 }, 'CO₂');
     const gT = L.T_room_K ?? 294;
     _renderGauge(row1, gT, 'T',
-      { lo: 263, LL: 278, L: 288, H: 303, HH: 313, hi: 323 }, 'Temp');
+      { lo: 263, LL: 278, L: 288, H: 303, HH: 313, hi: 323, rot: -11 }, 'Temp');
     container.appendChild(row1);
 
-    // Row 2: Cold Water, Hot Water, Power
+    // Row 2: Body Hydration (from deficit), Hot Water (supply ratio), Power
     const row2 = el('div', { class: 'ins-gauges-row' });
-    const gH2Oc = svc.h2o_cold ? svc.h2o_cold.pct * 100 : 100;
-    _renderGauge(row2, gH2Oc, '%',
-      { lo: 0, LL: 30, L: 60, H: 120, hi: 120 }, 'Cold H₂O');
+    const _h2oDefPP = L.h2o_deficit_per_person ?? 0;
+    const gH2Ob = Math.max(0, (1 - _h2oDefPP / 417)) * 100;
+    _renderGauge(row2, gH2Ob, '%',
+      { lo: 0, LL: 34, L: 67, H: 133, hi: 200, rot: 0 }, 'Body H₂O');
     const gH2Oh = svc.h2o_hot ? svc.h2o_hot.pct * 100 : 100;
     _renderGauge(row2, gH2Oh, '%',
       { lo: 0, LL: 30, L: 60, H: 120, hi: 120 }, 'Hot H₂O');
     const gPwr = L.gauges?.power_pct ?? 100;
     _renderGauge(row2, gPwr, '%',
-      { lo: 0, LL: 30, L: 70, H: 120, hi: 120 }, 'Power');
+      { lo: 0, LL: 30, L: 70, H: 200, hi: 200, rot: 0 }, 'Power');
     container.appendChild(row2);
 
     // TTL — only when conditions are WARNING or worse
@@ -49724,23 +49799,8 @@ speedIndicatorEl.addEventListener('click', () => {
 
 // [v10.1.0] Zoom controls (E1)
 document.getElementById('btnFit').addEventListener('click', () => fitView());
-document.getElementById('btnResetView').addEventListener('click', () => resetView());
 
-// [v10.7.0] Sticker toggle — show/hide all stickers
-// [v14.12.0] Action bar compact mode — hide C3-C5 for peace-of-mind view
-{
-  const _barEl = document.querySelector('.action-bar');
-  const _barChevron = document.getElementById('barCompactChevron');
-  let _actionBarCompact = false;
-  if (_barEl && _barChevron) {
-    _barChevron.addEventListener('click', () => {
-      _actionBarCompact = !_actionBarCompact;
-      _barEl.classList.toggle('compact', _actionBarCompact);
-      _barChevron.textContent = _actionBarCompact ? '▸' : '◂';
-      _barChevron.title = _actionBarCompact ? 'Expand toolbar' : 'Collapse toolbar';
-    });
-  }
-}
+// [v14.12.0] Compact mode removed in v19.7.0 — bar is always flat
 
 // [v14.15.0] View mode selector [F][S][3D] in Zone A
 {
@@ -49771,35 +49831,37 @@ document.getElementById('btnResetView').addEventListener('click', () => resetVie
   });
 }
 
-const btnStickerLines = document.getElementById('btnStickerLines');
-btnStickerLines.addEventListener('click', () => {
-  ui.showStickers = !ui.showStickers;
-  btnStickerLines.classList.toggle('tbtn-dim', !ui.showStickers);
-  render();
-});
+// [v19.7.0] Stickers, theme, planet bg — always on (removed toggles)
+ui.showStickers = true;
+ui.theme = 'ragtag';
 
-// [v16.1.0] Theme cycle: box → ragtag → box (engineering hidden, kept internally)
-const btnTheme = document.getElementById('btnTheme');
-const _THEME_CYCLE = ['box', 'ragtag'];
-const _THEME_EMOJI = { box: '📦', ragtag: '🔧', engineering: '📐' };
-const _THEME_LABEL = { box: 'Boxman', ragtag: 'Ragtag', engineering: 'Engineering' };
-btnTheme.addEventListener('click', () => {
-  const idx = _THEME_CYCLE.indexOf(ui.theme);
-  ui.theme = _THEME_CYCLE[(idx + 1) % _THEME_CYCLE.length];
-  btnTheme.textContent = _THEME_EMOJI[ui.theme];
-  btnTheme.setAttribute('data-tip', `Theme: ${_THEME_LABEL[ui.theme]}`);
-  render();
-  // [v15.3.0] Restart icon anim loop — theme switch kills rAF when going through box
-  if (TimeClock.mode === 'playing') {
-    _stopIconAnim();
-    _startIconAnim();
+// [v19.7.0] Unit system cycle button (°C → K → °F → °C)
+{
+  const _UNIT_CYCLE = ['SI_bar', 'SI', 'Imperial'];
+  const _UNIT_LABEL = { SI_bar: '°C', SI: 'K', Imperial: '°F' };
+  const _btnUnits = document.getElementById('btnUnits');
+  function _syncUnitsBtn() {
+    const cur = models.getActive('units');
+    _btnUnits.textContent = _UNIT_LABEL[cur.id] || cur.id;
+    _btnUnits.setAttribute('data-tip', `Units: ${cur.name}`);
   }
-});
+  _btnUnits.addEventListener('click', () => {
+    const cur = models.getActive('units');
+    const idx = _UNIT_CYCLE.indexOf(cur.id);
+    const next = _UNIT_CYCLE[(idx + 1) % _UNIT_CYCLE.length];
+    models.setActive('units', next);
+    _syncUnitsBtn();
+    render();
+  });
+  _syncUnitsBtn();
+}
 
-// [v13.5.0+v13.6.0] Planet background toggle — multi-planet animated backdrop
-const btnPlanetBg = document.getElementById('btnPlanetBg');
+// [v13.5.0+v13.6.0] Planet background — always on (toggle removed v19.7.0)
 const planetBgEl = document.getElementById('planetBg');
 const canvasOverlayEl = document.getElementById('canvasOverlay');
+
+// Force planet bg always on
+SimSettings.showPlanetBg = true;
 
 // Preset key → background layer element ID mapping
 const PLANET_BG_MAP = {
@@ -49835,12 +49897,6 @@ function applyPlanetBg() {
   for (const el of planetBgEl.querySelectorAll('.planet-bg-layer')) {
     el.classList.toggle('active', show && el.id === layerId);
   }
-
-  // Button state
-  btnPlanetBg.classList.toggle('tbtn-dim', !SimSettings.showPlanetBg);
-  btnPlanetBg.disabled = !hasBg;
-  btnPlanetBg.style.opacity = hasBg ? '' : '0.2';
-  btnPlanetBg.setAttribute('data-tip', hasBg ? 'Planet background' : 'Planet background (no animation for Custom)');
 
   // [v13.7.0] Sync animation phase after visibility change
   if (show) {
@@ -49878,22 +49934,8 @@ function _activateTitleBg() {
   }
 }
 
-btnPlanetBg.addEventListener('click', () => {
-  const presetKey = SimSettings.getPresetKey();
-  if (!PLANET_BG_MAP[presetKey]) return;
-  SimSettings.showPlanetBg = !SimSettings.showPlanetBg;
-  applyPlanetBg();
-});
-
-// [v17.0.0 S-FLOW] Flow mode toggle: arrows ↔ particles
-document.getElementById('btnFlowParticles').addEventListener('click', () => {
-  ui.flowMode = ui.flowMode === 'particles' ? 'arrows' : 'particles';
-  const btn = document.getElementById('btnFlowParticles');
-  btn.textContent = ui.flowMode === 'particles' ? '💧' : '➤';
-  btn.setAttribute('data-tip', ui.flowMode === 'particles' ? 'Flow: particles' : 'Flow: arrows');
-  showToast(ui.flowMode === 'particles' ? 'Flow: particles' : 'Flow: arrows');
-  render();
-});
+// [v19.7.0] Planet bg toggle removed (always on). Particles toggle removed (always particles).
+ui.flowMode = 'particles';
 
 // ── [v13.7.0] CSS animation ↔ game time synchronization ──
 
@@ -49953,16 +49995,14 @@ function syncPlanetBgTime(mode) {
 applyPlanetBg();
 
 // [v12.11.0] Visual mapping dropdown menus
-// [v12.13.0] Visual mapping dropdown menus with dynamic button content
+// [v19.7.0] Simplified — stream size removed, only color-by remains
 (function initVisMenus() {
   const menuDefs = [
     { btnId: 'btnColor',      menuId: 'menuColor',      stateKey: 'colorBy',      dimVal: null },
-    { btnId: 'btnStreamSize', menuId: 'menuStreamSize',  stateKey: 'streamSizeBy', dimVal: 'none' }
   ];
   const btns = menuDefs.map(d => document.getElementById(d.btnId));
   const menus = menuDefs.map(d => document.getElementById(d.menuId));
   const colorLabel = document.getElementById('btnColorLabel');
-  const sizeIcon = document.getElementById('btnSizeIcon');
 
   function closeAll() {
     menus.forEach(m => m.classList.remove('open'));
@@ -49983,18 +50023,6 @@ applyPlanetBg();
     if (active && colorLabel) colorLabel.textContent = active.dataset.label || 'Type';
   }
 
-  // Update size button icon: dashed=none, thin=s, medium=m, thick=l
-  const _sizeLineWidths = { none: 2, s: 2, m: 3.5, l: 6 };
-  const _sizeDash = { none: '3 3', s: '', m: '', l: '' };
-  function updateSizeIcon() {
-    if (!sizeIcon) return;
-    const line = sizeIcon.querySelector('line');
-    if (!line) return;
-    const mode = ui.streamSizeBy;
-    line.setAttribute('stroke-width', _sizeLineWidths[mode] || 2);
-    line.setAttribute('stroke-dasharray', _sizeDash[mode] || '');
-  }
-
   menuDefs.forEach((d, i) => {
     btns[i].addEventListener('click', (ev) => {
       ev.stopPropagation();
@@ -50010,7 +50038,6 @@ applyPlanetBg();
         syncChecks(menus[i], ui[d.stateKey]);
         if (d.dimVal !== null) btns[i].classList.toggle('tbtn-dim', ui[d.stateKey] === d.dimVal);
         updateColorLabel();
-        updateSizeIcon();
         closeAll();
         render();
       });
@@ -50627,6 +50654,26 @@ document.getElementById('mHome').addEventListener('click', () => {
   goHome();
 });
 
+// [v19.7.0] Campaign Home button with confirmation modal
+{
+  const _btnStoryHome = document.getElementById('btnStoryHome');
+  const _modalConfirmHome = document.getElementById('modalConfirmHome');
+  _btnStoryHome.addEventListener('click', () => {
+    _modalConfirmHome.classList.add('open');
+  });
+  document.getElementById('confirmHomeCancel').addEventListener('click', () => {
+    _modalConfirmHome.classList.remove('open');
+  });
+  document.getElementById('confirmHomeOK').addEventListener('click', () => {
+    _modalConfirmHome.classList.remove('open');
+    goHome();
+  });
+  // Close on backdrop click
+  _modalConfirmHome.addEventListener('click', (e) => {
+    if (e.target === _modalConfirmHome) _modalConfirmHome.classList.remove('open');
+  });
+}
+
 document.getElementById('mClear').addEventListener('click', () => {
   // [v15.0.1] No confirm() — iframes block dialogs. Undo is the safety net.
   _pushUndo('Clear scene');
@@ -50930,6 +50977,12 @@ function applyStoryUI(storyUI) {
   const btnRedo = document.getElementById('btnRedo');
   if (btnUndo) btnUndo.style.display = 'none';
   if (btnRedo) btnRedo.style.display = 'none';
+
+  // 6. [v19.7.0] In campaign: hide sandwich menu, show dedicated Home button
+  const menuWrap = document.querySelector('.menuWrap');
+  if (menuWrap) menuWrap.style.display = 'none';
+  const btnStoryHome = document.getElementById('btnStoryHome');
+  if (btnStoryHome) btnStoryHome.style.display = '';
 }
 
 function resetStoryUI() {
@@ -50956,6 +51009,12 @@ function resetStoryUI() {
   const btnRedo = document.getElementById('btnRedo');
   if (btnUndo) btnUndo.style.display = '';
   if (btnRedo) btnRedo.style.display = '';
+
+  // [v19.7.0] Restore sandwich menu, hide campaign Home button
+  const menuWrap = document.querySelector('.menuWrap');
+  if (menuWrap) menuWrap.style.display = '';
+  const btnStoryHome = document.getElementById('btnStoryHome');
+  if (btnStoryHome) btnStoryHome.style.display = 'none';
 }
 
 /**
