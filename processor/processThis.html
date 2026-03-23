@@ -480,8 +480,10 @@
 
   **Bugfixes.**
   - Inspector resize broken: `overflow:auto` on `.rightPanel` clipped
-    the resize handle at `left:-3px`.  Fix: `overflow:visible` on panel,
-    scrolling moved to `#propEditor` (`overflow-y:auto; flex:1; min-height:0`).
+    the resize handle.  Fix: `overflow:hidden` on panel, scrolling
+    moved to `#propEditor` (`overflow-y:auto; flex:1; min-height:0`),
+    resize handle repositioned to `left:0` (fully inside panel bounds,
+    z-index 31).  Warm scrollbar styling on propEditor.
   - Color-by gradient artifacts on power units: `_VIS_DIM` was
     accidentally set to a CSS var (semi-transparent rgba).  SVG fills
     need opaque hex.  Fixed to `#3d3040` (warm purple-grey).  Two SVG
@@ -6125,7 +6127,7 @@
       border-left: 1px solid var(--rt-panel-border);
       background: var(--rt-panel-bg);
       backdrop-filter: blur(10px);
-      overflow: visible;  /* [v20.0.0] allow resize handle to protrude left */
+      overflow: hidden;  /* [v20.0.0] clips cleanly — scrolling on #propEditor */
       padding: 14px;
       display: flex;
       flex-direction: column;
@@ -6142,14 +6144,16 @@
     }
     #propEditor {
       transition: opacity 0.1s ease;
-      overflow-y: auto;  /* [v20.0.0] scrolling moved from panel to content */
+      overflow-y: auto;  /* [v20.0.0] scrolling on content, not panel */
       flex: 1;
       min-height: 0;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(216,128,64,0.2) transparent;
     }
     
     .panel-resize-handle {
-      position: absolute; left: -3px; top: 0; bottom: 0; width: 6px;
-      cursor: col-resize; z-index: 30;
+      position: absolute; left: 0; top: 0; bottom: 0; width: 6px;
+      cursor: col-resize; z-index: 31;
       background: transparent;
       transition: background 0.15s;
     }
