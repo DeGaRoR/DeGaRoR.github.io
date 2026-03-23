@@ -10532,14 +10532,6 @@
       background: radial-gradient(ellipse at 50% 80%, #1a0a2e 0%, #0a0618 50%, #000 100%);
       opacity: 1;
     }
-    /* Lower-third scrim gradient */
-    #cinematicOverlay .cin-scrim {
-      position: absolute; bottom: 0; left: 0; right: 0;
-      height: 62%; pointer-events: none;
-      background: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.6) 35%, rgba(0,0,0,0.88) 100%);
-      opacity: 0; transition: opacity 0.5s ease;
-    }
-    #cinematicOverlay .cin-scrim.visible { opacity: 1; }
     /* Text positioned in upper-lower zone — top of text near center of screen */
     #cinematicOverlay .cin-text-wrap {
       position: absolute; top: 42%; left: 50%;
@@ -10550,9 +10542,55 @@
     }
     #cinematicOverlay .cin-text-wrap.visible { opacity: 1; }
     #cinematicOverlay .cin-text {
-      font-size: 15px; line-height: 1.9; color: #d1d5db;
+      font-size: 15px; line-height: 1.9; color: #e2e8f0;
       font-style: italic; letter-spacing: 0.2px;
+      text-shadow: 0 1px 3px rgba(0,0,0,1), 0 0 10px rgba(0,0,0,0.95), 0 0 24px rgba(0,0,0,0.7), 0 0 50px rgba(0,0,0,0.4);
     }
+    /* Star Wars wipe variants */
+    @keyframes cin-wipe-kb { from { transform: scale(1.0); } to { transform: scale(1.06); } }
+    /* Diagonal: classic Star Wars left-to-right with slant */
+    @keyframes cin-wipe-diagonal {
+      from { clip-path: polygon(0 0, 0 0, 0 100%, 0 100%); }
+      to   { clip-path: polygon(0 0, 120% 0, 100% 100%, 0 100%); }
+    }
+    #cinematicOverlay .cin-layer.cin-wipe-diagonal {
+      opacity: 1; transition: none;
+      animation: cin-wipe-diagonal 0.9s ease-in-out forwards, cin-wipe-kb 14s ease-in-out forwards;
+    }
+    /* Horizontal: straight left-to-right */
+    @keyframes cin-wipe-horizontal {
+      from { clip-path: inset(0 100% 0 0); }
+      to   { clip-path: inset(0 0 0 0); }
+    }
+    #cinematicOverlay .cin-layer.cin-wipe-horizontal {
+      opacity: 1; transition: none;
+      animation: cin-wipe-horizontal 0.9s ease-in-out forwards, cin-wipe-kb 14s ease-in-out forwards;
+    }
+    /* Iris: circle expanding from center */
+    @keyframes cin-wipe-iris {
+      from { clip-path: circle(0% at 50% 50%); }
+      to   { clip-path: circle(75% at 50% 50%); }
+    }
+    #cinematicOverlay .cin-layer.cin-wipe-iris {
+      opacity: 1; transition: none;
+      animation: cin-wipe-iris 1.0s ease-in-out forwards, cin-wipe-kb 14s ease-in-out forwards;
+    }
+    /* Vertical drop: top-to-bottom curtain */
+    @keyframes cin-wipe-vertical {
+      from { clip-path: inset(0 0 100% 0); }
+      to   { clip-path: inset(0 0 0 0); }
+    }
+    #cinematicOverlay .cin-layer.cin-wipe-vertical {
+      opacity: 1; transition: none;
+      animation: cin-wipe-vertical 0.9s ease-in-out forwards, cin-wipe-kb 14s ease-in-out forwards;
+    }
+    /* Smooth exit — full-screen black fade that covers cinematic → game */
+    #cinematicOverlay .cin-exit {
+      position: absolute; inset: 0; background: #000;
+      opacity: 0; transition: opacity 0.8s ease;
+      pointer-events: none; z-index: 2;
+    }
+    #cinematicOverlay .cin-exit.active { opacity: 1; }
     /* Title card (centered on screen) */
     #cinematicOverlay .cin-title-wrap {
       position: absolute; inset: 0;
@@ -10563,9 +10601,11 @@
     #cinematicOverlay .cin-title {
       font-size: 32px; font-weight: 700; letter-spacing: 2px;
       color: #f8fafc; margin-bottom: 10px; text-align: center;
+      text-shadow: 0 1px 3px rgba(0,0,0,1), 0 0 10px rgba(0,0,0,0.95), 0 0 24px rgba(0,0,0,0.7), 0 0 50px rgba(0,0,0,0.4);
     }
     #cinematicOverlay .cin-subtitle {
       font-size: 16px; color: #94a3b8; text-align: center; font-style: italic;
+      text-shadow: 0 1px 3px rgba(0,0,0,1), 0 0 10px rgba(0,0,0,0.9), 0 0 20px rgba(0,0,0,0.6);
     }
     /* Narrator (centered, no image) */
     #cinematicOverlay .cin-narrator-wrap {
@@ -10578,6 +10618,7 @@
       max-width: 600px; padding: 0 32px;
       font-size: 16px; line-height: 1.9; text-align: center;
       color: #cbd5e1; font-style: italic;
+      text-shadow: 0 1px 3px rgba(0,0,0,1), 0 0 10px rgba(0,0,0,0.95), 0 0 24px rgba(0,0,0,0.7), 0 0 50px rgba(0,0,0,0.4);
     }
     /* Hint at bottom */
     #cinematicOverlay .cin-hint {
@@ -25996,10 +26037,15 @@ UnitRegistry.register('room', {
     }
 
     // Internal body water buffer: tracks cumulative dehydration deficit.
-    // Starts at zero (crew is hydrated at t=0).
-    // Incapacitation at 139 mol/person deficit (~24h without water).
-    // Death at 417 mol/person deficit (~72h without water).
-    return { n, T_K: T, _h2o_deficit: 0, _food_deficit: 0 };
+    // Negative = body reserves (crew ate/drank recently).  Zero = reserves
+    // exhausted.  Positive = actual dehydration accumulating.
+    // Reserve: ~72 hours of body water for drinking (R_H2O_COLD = 1.29e-3 mol/s/person).
+    // Incapacitation at +139 mol/person deficit (~24h beyond reserves).
+    // Death at +417 mol/person deficit (~72h beyond reserves).
+    const nPeople = par.nPeople ?? 2;
+    const h2o_reserve = 1.29e-3 * nPeople * 72 * 3600;   // ~669 mol for 2 people (72h)
+    const food_reserve = 2.33e-4 * nPeople * 168 * 3600;  // ~282 mol for 2 people (7 days)
+    return { n, T_K: T, _h2o_deficit: -h2o_reserve, _food_deficit: -food_reserve };
   },
 
   updateInventory(inventory, resolvedPorts, dt) {
@@ -26039,12 +26085,13 @@ UnitRegistry.register('room', {
       }
 
       // Water deficit: accumulates when supply < demand, recovers when supply > demand
+      // Negative = body reserves remaining.  Crosses zero when reserves exhausted.
       if (typeof meta.h2o_deficit_delta === 'number') {
-        inv._h2o_deficit = Math.max(0, (inv._h2o_deficit || 0) + meta.h2o_deficit_delta);
+        inv._h2o_deficit = (inv._h2o_deficit || 0) + meta.h2o_deficit_delta;
       }
       // Food deficit: same pattern — starvation accumulates without food
       if (typeof meta.food_deficit_delta === 'number') {
-        inv._food_deficit = Math.max(0, (inv._food_deficit || 0) + meta.food_deficit_delta);
+        inv._food_deficit = (inv._food_deficit || 0) + meta.food_deficit_delta;
       }
       // [v17.8.0] Death permanence — once dead, stays dead
       if (meta._dead) inv._dead = true;
@@ -26109,11 +26156,21 @@ UnitRegistry.register('room', {
     // People breathe ROOM AIR, not piped O₂ directly.
     // o2_in port replenishes the atmosphere (via updateInventory).
     // Metabolism consumes O₂ from inventory, food from food_in port.
+    // [v19.5.0] Body reserves: when no food is piped but _food_deficit < 0,
+    // the body burns stored glycogen/fat at basal rate.  This produces
+    // metabolic heat + CO₂ + H₂O, consuming O₂ from room atmosphere.
+    // Without this, the room instantly cools when food is disconnected.
     const o2_in_room = (inv.n.O2 || 0) / dt;  // max available from room atmosphere
     const o2_consumed   = Math.min(o2_demand, o2_in_room);
     const food_consumed = Math.min(food_demand, food_supply);
-    // Stoichiometry: min of the two limits actual reaction rate
-    const reaction_rate = Math.min(o2_consumed, food_consumed);
+    // Body reserve contribution: crew burns stored energy when food port supply is insufficient
+    const food_deficit_current = inv._food_deficit ?? 0;
+    const food_shortfall = food_demand - food_consumed;  // mol/s unmet by pipe
+    const body_food_rate = (food_deficit_current < 0 && food_shortfall > 0 && !_isDead)
+      ? Math.min(food_shortfall, o2_consumed - food_consumed)  // limited by available O₂
+      : 0;
+    // Stoichiometry: total effective reaction rate (piped + body reserves)
+    const reaction_rate = Math.min(o2_consumed, food_consumed + body_food_rate);
     const co2_produced  = reaction_rate;
     const h2o_metabolic = reaction_rate;
     const Q_metabolic   = reaction_rate * DH_COMBUSTION;  // W
@@ -26183,7 +26240,11 @@ UnitRegistry.register('room', {
     // Fan-driven: room pushes circ_demand mol/s of its atmosphere out.
     // NOT dependent on air_return rate — breaks the circular solver dependency.
     // Mass balance settles through inventory accumulation between solves.
-    const exhaust_rate = circ_demand * fan_frac;
+    // [v19.5.0] Fan dead-head: if air_exhaust has no downstream connection,
+    // the fan has nowhere to push.  Zero exhaust flow.  NNG-3 compliant:
+    // unconnected port carries zero.  Prevents room bleeding atmosphere.
+    const exhaustConnected = ctx.portConnected('air_exhaust');
+    const exhaust_rate = exhaustConnected ? circ_demand * fan_frac : 0;
     const n_exhaust = {};
     if (exhaust_rate > 1e-15) {
       for (const [sp, mol] of Object.entries(inv.n)) {
@@ -27115,7 +27176,7 @@ ProfileRegistry.register('bio_mixer', {
 });
 // ── [v17.6.0 S-ROOM] Room profiles ──
 ProfileRegistry.register('shelter', {
-  defId: 'room', name: 'Crew Shelter', pressureClass: 'simple',
+  defId: 'room', name: 'Shelter', pressureClass: 'simple',
   category: UnitCategories.LIFE_SUPPORT, tiers: [1],
   description: 'Pressurized habitat — the crew lives here. Everything else exists to keep this running.',
   selectionGuide: 'Connect O₂, food, water, hot water, power, and an air scrubbing loop (exhaust → scrubber → return). '
@@ -27225,32 +27286,25 @@ const ARC_A_INTRO = [
   { type: 'image', src: 'arc_a_1.webp', transition: 'fade', duration_ms: null,
     fallbackText: 'The mission of a lifetime \u2014\nthe first crewed survey of Planet X.\n\nEarth-like, they said.\nExcept for one deadly catch: 9% CO\u2082 in the atmosphere.\n\nThe planet was a purple marvel,\nhalf-draped in permanent twilight.',
     alt: 'Ship in orbit above Planet X' },
-  { type: 'image', src: 'arc_a_2.webp', transition: 'fade', duration_ms: null,
+  { type: 'image', src: 'arc_a_2.webp', transition: 'wipe-horizontal', duration_ms: null,
     fallbackText: 'I\u2019m K. I fix things \u2014\nspace mechanic, I guess.\n\nI had my reasons for signing up.\nNone of them matter now.\n\nThings were quiet out here. I liked that.',
     alt: 'K in spacesuit' },
-  { type: 'image', src: 'arc_a_3.webp', transition: 'fade', duration_ms: null,
+  { type: 'image', src: 'arc_a_3.webp', transition: 'wipe-iris', duration_ms: null,
     fallbackText: 'Dr. Lena Vasquez ran the mission.\nBrilliant \u2014 that was obvious.\n\nShe gave a briefing once, about atmospheric chemistry.\nHalf the crew fell asleep.\nI stayed awake \u2014\nnot because I understood it,\nbut because she loved every word.',
     alt: 'Lena giving a briefing' },
-  { type: 'image', src: 'arc_a_4.webp', transition: 'fade', duration_ms: null,
+  { type: 'image', src: 'arc_a_4.webp', transition: 'wipe', duration_ms: null,
     fallbackText: 'Things did not go as planned.\n\nI was suiting up for a space walk\nwhen everything started shaking.\nDr. Vasquez rushed out. Doors auto-locked.\nWe got thrown around like cargo.\n\nI don\u2019t remember much after that.',
     alt: 'Ship crashing' },
-  { type: 'image', src: 'arc_a_5.webp', transition: 'fade', duration_ms: null,
+  { type: 'image', src: 'arc_a_5.webp', transition: 'wipe-vertical', duration_ms: null,
     fallbackText: 'Somehow, we made it.\n\nOur compartment broke off and landed\na short distance from the main wreck.\nMostly intact.\n\nLena\u2019s leg was bad.\nShe wasn\u2019t going to walk anytime soon.',
     alt: 'Lena injured in wreckage' },
-  { type: 'image', src: 'arc_a_6.webp', transition: 'fade', duration_ms: null,
+  { type: 'image', src: 'arc_a_6.webp', transition: 'wipe-iris', duration_ms: null,
     fallbackText: 'She asked me to call her Lena.\nShe didn\u2019t seem shaken.\n\nShe said she intended to live, no matter what.\nWhen I pointed out we were stuck on a planet\nthat would kill us the moment we stepped outside,\nshe just said:\n\n\u201CDon\u2019t worry. I know how.\nI\u2019ll guide you, you do the work.\u201D',
     alt: 'Lena and K planning' },
 ];
 
 // ═══ M1 — Breathe ═══════════════════════════════════════════════════════
-const M1_BRIEFING = [
-  { type: 'dialogue', speaker: 'lena', expression: 'disappointed', delay_ms: 1500,
-    text: 'Alright, let\u2019s get our priorities straight. Do you know the survival rule of three? Three minutes without air, three days without water, three weeks without food.' },
-  { type: 'dialogue', speaker: 'lena', expression: 'disappointed', delay_ms: 2000,
-    text: 'Air comes first. As we speak, we\u2019re consuming oxygen and producing CO\u2082. We\u2019ll exhaust what\u2019s in this room in a matter of hours.' },
-  { type: 'dialogue', speaker: 'lena', expression: 'happy', delay_ms: 2000,
-    text: 'I spotted an oxygen bottle nearby \u2014 find it and connect it to the room. There\u2019s also a good-sized battery left in here. Plug it in and give us some light. It\u2019s really dark.' },
-];
+const M1_BRIEFING = [];  // [v19.5.0] No briefing — guidance steps are the tutorial
 
 const M1_VICTORY_LINES = {
   1: { speaker: 'lena', text: 'It works. We\u2019re not dead yet.' },
@@ -27265,46 +27319,36 @@ const M1_OUTRO = [
 ];
 
 const M1_GUIDANCE = [
-  { id: 'g_m1_connect_o2',
-    dialogue: { speaker: 'lena', text: 'You can see the room where I\u2019m sitting. On the left side, there\u2019s an oxygen bottle. Drag from the oxygen bottle\u2019s output connector to the \u201cO\u2082\u201d port of the room.', expression: 'happy' },
-    highlight: { type: 'connection', fromProfile: 'simple_gas_bottle', fromPort: 'gas_out', toProfile: 'shelter', toPort: 'o2_in' },
-    completion: { type: 'connection', fromProfile: 'simple_gas_bottle', toProfile: 'shelter' },
-    onComplete: { speaker: 'lena', text: 'Good. But it won\u2019t do much until we have power. The fan inside needs electricity to circulate the air.' },
-    delay_ms: 500 },
   { id: 'g_m1_connect_battery',
-    dialogue: { speaker: 'lena', text: 'See the battery above the room? Drag from its connector to the room\u2019s power port at the top.', expression: 'happy' },
+    dialogue: { speaker: 'lena', text: 'It\u2019s pitch dark. Battery\u2019s above us \u2014 connect it to the power port.', expression: 'happy' },
     highlight: { type: 'connection', fromProfile: 'battery', fromPort: 'elec', toProfile: 'shelter', toPort: 'elec_in' },
     completion: { type: 'connection', fromProfile: 'battery', toProfile: 'shelter' },
-    onComplete: { speaker: 'lena', text: 'Power! The lights came on and the ventilator is running. That already feels much better.' },
+    onComplete: { speaker: 'lena', text: 'Light! That\u2019s better.' },
+    delay_ms: 500 },
+  { id: 'g_m1_connect_o2',
+    dialogue: { speaker: 'lena', text: 'Now air. Oxygen bottle on the left \u2014 connect it to the O\u2082 port.', expression: 'happy' },
+    highlight: { type: 'connection', fromProfile: 'simple_gas_bottle', fromPort: 'gas_out', toProfile: 'shelter', toPort: 'o2_in' },
+    completion: { type: 'connection', fromProfile: 'simple_gas_bottle', toProfile: 'shelter' },
+    onComplete: { speaker: 'lena', text: 'Oxygen flowing. Good.' },
     delay_ms: 500 },
   { id: 'g_m1_play',
-    dialogue: { speaker: 'lena', text: 'Now let\u2019s test it. Press the play button at the bottom of the screen.', expression: 'happy' },
+    dialogue: { speaker: 'lena', text: 'Press play. Let\u2019s see if this holds.', expression: 'happy' },
     highlight: { type: 'button', buttonId: 'btnPlay' },
     completion: { type: 'play_pressed' },
-    onComplete: { speaker: 'lena', text: 'You can see the room\u2019s indicators \u2014 our oxygen is improving. We\u2019re safe on that side for a little while. See the particles moving from the bottle through the pipes? That\u2019s oxygen flowing.' },
-    delay_ms: 500 },
-  { id: 'g_m1_inspect',
-    dialogue: { speaker: 'lena', text: 'One more thing. Click on the battery and look at its details. The charge should last a couple of days, but we\u2019ll need more power as we go. Better keep an eye on it.', expression: 'happy' },
-    highlight: { type: 'unit', profileId: 'battery' },
-    completion: { type: 'unit_inspected', profileId: 'battery' },
-    onComplete: { speaker: 'lena', text: 'Well done. We\u2019re just getting started, but this is really encouraging.' },
+    onComplete: { speaker: 'lena', text: 'Stable. We might actually make it.' },
     delay_ms: 500 },
 ];
 
 // ═══ M2 — Clear the Air ═════════════════════════════════════════════════
 const M2_INTRO = [
-  { type: 'image', src: 'm2_intro_1.webp', transition: 'fade', duration_ms: null,
+  { type: 'image', src: 'm2_intro_1.webp', transition: 'wipe-horizontal', duration_ms: null,
     fallbackText: 'While Lena slept, I built a chimney from wreckage.\n\nWe\u2019d be working with gases \u2014\nflammable mixtures near the shelter was a bad idea.\nWe could dump what we didn\u2019t need up there,\nand burn it.\n\nI think it\u2019s called a flare.',
     alt: 'Flare stack construction' },
 ];
 
 const M2_BRIEFING = [
   { type: 'dialogue', speaker: 'lena', expression: 'happy', delay_ms: 1500,
-    text: 'Excellent work on the tower. Now, air. We\u2019re halfway there \u2014 sort of. We have oxygen, but the poison building up is CO\u2082.' },
-  { type: 'dialogue', speaker: 'lena', expression: 'disappointed', delay_ms: 2000,
-    text: 'We can\u2019t tolerate much more than 1% CO\u2082 in the air, and this planet\u2019s atmosphere has nearly 10%. We\u2019d last minutes outside. Apart from that, Planet X has perfectly good air.' },
-  { type: 'dialogue', speaker: 'lena', expression: 'happy', delay_ms: 2000,
-    text: 'I salvaged the ship\u2019s CO\u2082 removal system. It runs on LiOH cartridges, and they\u2019re not going to last long \u2014 maybe days if we\u2019re lucky. But it\u2019ll buy us time.' },
+    text: 'CO\u2082 is building up. I salvaged a scrubber \u2014 LiOH cartridges. Won\u2019t last forever.' },
 ];
 
 const M2_VICTORY_LINES = {
@@ -27321,51 +27365,47 @@ const M2_OUTRO = [
 
 const M2_GUIDANCE = [
   { id: 'g_m2_exhaust_to_scrubber',
-    dialogue: { speaker: 'lena', text: 'There\u2019s a CO\u2082 absorber on the right side of the room. We need to make a loop: air exits the room, goes through the scrubber, and clean air comes back. First, drag from the room\u2019s air exhaust port to the scrubber\u2019s feed inlet.', expression: 'happy' },
+    dialogue: { speaker: 'lena', text: 'Connect the shelter\u2019s air exhaust to the scrubber\u2019s inlet. We need a loop.', expression: 'happy' },
     highlight: { type: 'connection', fromProfile: 'shelter', fromPort: 'air_exhaust', toProfile: 'co2_scrubber', toPort: 'mat_in' },
     completion: { type: 'connection', fromProfile: 'shelter', toProfile: 'co2_scrubber' },
-    onComplete: { speaker: 'lena', text: 'Good. Now the dirty air has somewhere to go.' },
+    onComplete: { speaker: 'lena', text: 'Good. Dirty air has somewhere to go.' },
     delay_ms: 500 },
   { id: 'g_m2_clean_return',
-    dialogue: { speaker: 'lena', text: 'Now connect the \u201cpermeate\u201d port \u2014 that\u2019s the clean air that passed through \u2014 back to the room\u2019s air return port, at the bottom right.', expression: 'happy' },
+    dialogue: { speaker: 'lena', text: 'Now the clean side \u2014 \u201Cpermeate\u201D back to the shelter\u2019s air return.', expression: 'happy' },
     highlight: { type: 'connection', fromProfile: 'co2_scrubber', fromPort: 'perm_out', toProfile: 'shelter', toPort: 'air_return' },
     completion: { type: 'connection', fromProfile: 'co2_scrubber', toProfile: 'shelter' },
-    onComplete: { speaker: 'lena', text: 'Clean air loop closed. Almost there.' },
+    onComplete: { speaker: 'lena', text: 'Loop closed. Almost there.' },
     delay_ms: 500 },
   { id: 'g_m2_co2_to_flare',
-    dialogue: { speaker: 'lena', text: 'Last one. The \u201cretentate\u201d port \u2014 that\u2019s the CO\u2082 the scrubber caught. Send that to your tower.', expression: 'happy' },
+    dialogue: { speaker: 'lena', text: 'Last one. Send the \u201Cretentate\u201D \u2014 captured CO\u2082 \u2014 to the flare.', expression: 'happy' },
     highlight: { type: 'connection', fromProfile: 'co2_scrubber', fromPort: 'ret_out', toProfile: 'flare_stack' },
     completion: { type: 'connection', fromProfile: 'co2_scrubber', toProfile: 'flare_stack' },
-    onComplete: { speaker: 'lena', text: 'Nice. Not sure why you went through the trouble of building that tower, but it\u2019s looking good, I\u2019ll give you that.' },
+    onComplete: { speaker: 'lena', text: 'Nice tower. I\u2019ll give you that.' },
     delay_ms: 500 },
   { id: 'g_m2_run',
-    dialogue: { speaker: 'lena', text: 'Press play and watch. You\u2019ll see the CO\u2082 particles being separated from the room air. The change is gradual, but trust me \u2014 without this, we\u2019d be passing out by tomorrow.', expression: 'happy' },
+    dialogue: { speaker: 'lena', text: 'Press play. Watch the CO\u2082 drop.', expression: 'happy' },
     highlight: { type: 'button', buttonId: 'btnPlay' },
     completion: { type: 'play_pressed' },
-    onComplete: { speaker: 'lena', text: 'Breathing easier already. Keep an eye on that cartridge gauge though.' },
+    onComplete: { speaker: 'lena', text: 'Breathing easier. Keep an eye on that cartridge gauge.' },
     delay_ms: 500 },
 ];
 
 // ═══ M3 — Find Water ════════════════════════════════════════════════════
 const M3_INTRO = [
-  { type: 'image', src: 'm3_intro_1.webp', transition: 'fade', duration_ms: null,
+  { type: 'image', src: 'm3_intro_1.webp', transition: 'wipe', duration_ms: null,
     fallbackText: 'Lena spotted a hydrothermal vent\nnot far from the shelter.\n\nPlenty of water vapor in there,\nmaybe natural gas, hydrogen too.\n\nShe wanted me to \u201Ctame it.\u201D\nWhatever that meant.',
     alt: 'Hydrothermal vent' },
-  { type: 'image', src: 'm3_intro_2.webp', transition: 'fade', duration_ms: null,
+  { type: 'image', src: 'm3_intro_2.webp', transition: 'wipe-horizontal', duration_ms: null,
     fallbackText: 'The vent threw out high-pressure steam\nmixed with other gases.\nWe needed to cool it down\nbefore we could get liquid water.\n\nI patched together a fan and cooling fins\nfrom the wreckage.',
     alt: 'Air cooler construction' },
-  { type: 'image', src: 'm3_intro_3.webp', transition: 'fade', duration_ms: null,
+  { type: 'image', src: 'm3_intro_3.webp', transition: 'wipe-iris', duration_ms: null,
     fallbackText: 'Lena pointed out salvaged parts\nnear the shelter.\nI welded them into a wellhead.\n\nI routed everything to the flare\nand lit it on fire.\nJudging by the flames \u2014\nthere was gas in there, alright.',
     alt: 'Wellhead construction' },
 ];
 
 const M3_BRIEFING = [
   { type: 'dialogue', speaker: 'lena', expression: 'happy', delay_ms: 1500,
-    text: 'I\u2019m really impressed. There\u2019s everything we need in that vent. It\u2019s not very powerful right now, but more than enough for the two of us.' },
-  { type: 'dialogue', speaker: 'lena', expression: 'happy', delay_ms: 2000,
-    text: 'Water is becoming urgent \u2014 I\u2019m lightheaded already. Take what comes out of the well, run it through your air cooler, and collect the condensed water in a barrel. Then connect the barrel to the shelter\u2019s water port.' },
-  { type: 'dialogue', speaker: 'lena', expression: 'disappointed', delay_ms: 2000,
-    text: 'But there\u2019s a problem. The battery can only connect to one thing, and right now it\u2019s connected to the room. The air cooler needs electricity too. We need a power dispatcher \u2014 set that up first.' },
+    text: 'Water\u2019s urgent. Cool the vent steam, collect it in a barrel. You\u2019ll need a power dispatcher first.' },
 ];
 
 const M3_VICTORY_LINES = {
@@ -27382,28 +27422,28 @@ const M3_OUTRO = [
 
 const M3_GUIDANCE = [
   { id: 'g_m3_place_dispatcher',
-    dialogue: { speaker: 'lena', text: 'Open the palette and find the power dispatcher. Place it on the canvas.', expression: 'happy' },
+    dialogue: { speaker: 'lena', text: 'Find the power dispatcher in the palette. Place it on the canvas.', expression: 'happy' },
     highlight: { type: 'palette_tile', profileId: 'power_dispatcher_5' },
     completion: { type: 'unit_placed', profileId: 'power_dispatcher_5' },
-    onComplete: { speaker: 'lena', text: 'That\u2019s our junction box. Now let\u2019s rewire.' },
+    onComplete: { speaker: 'lena', text: 'Our junction box. Now let\u2019s rewire.' },
     delay_ms: 500 },
   { id: 'g_m3_rewire_battery',
-    dialogue: { speaker: 'lena', text: 'Disconnect the battery from the room. Then connect the battery to the dispatcher\u2019s input, and the dispatcher\u2019s first output to the room.', expression: 'happy' },
+    dialogue: { speaker: 'lena', text: 'Disconnect battery from the shelter. Rewire: battery \u2192 dispatcher \u2192 shelter.', expression: 'happy' },
     highlight: { type: 'unit', profileId: 'power_dispatcher_5' },
     completion: { type: 'connection', fromProfile: 'battery', toProfile: 'power_dispatcher_5' },
-    onComplete: { speaker: 'lena', text: 'Good. The room\u2019s getting power through the dispatcher now.' },
+    onComplete: { speaker: 'lena', text: 'Power through the dispatcher now. Good.' },
     delay_ms: 500 },
   { id: 'g_m3_dump_load',
-    dialogue: { speaker: 'lena', text: 'Connect a dump load to the dispatcher\u2019s surplus port. If the battery produces more than we need, the surplus has to go somewhere, or things fry.', expression: 'happy' },
+    dialogue: { speaker: 'lena', text: 'Add a dump load to the surplus port. Excess power needs somewhere to go.', expression: 'happy' },
     highlight: { type: 'palette_tile', profileId: 'sink_electrical' },
     completion: { type: 'connection', fromProfile: 'power_dispatcher_5', toProfile: 'sink_electrical' },
     onComplete: { speaker: 'lena', text: 'Safety first. Smart.' },
     delay_ms: 500 },
   { id: 'g_m3_water_circuit',
-    dialogue: { speaker: 'lena', text: 'Now for the water. Get the air cooler from the palette and connect it to the dispatcher for power. Then route the well\u2019s output through the cooler, into the barrel, and connect the barrel to the shelter\u2019s water port. If you can, put the barrel overflow on the flare so we don\u2019t flood anything.', expression: 'happy' },
+    dialogue: { speaker: 'lena', text: 'Now water. Cooler needs power. Route well \u2192 cooler \u2192 barrel \u2192 shelter.', expression: 'happy' },
     highlight: { type: 'none' },
     completion: { type: 'objective_complete', objectiveId: 'water_flowing' },
-    onComplete: { speaker: 'lena', text: 'That looks good! I\u2019m so thirsty. Let\u2019s fill this halfway and call it done.' },
+    onComplete: { speaker: 'lena', text: 'Water! Let\u2019s fill this up and call it done.' },
     delay_ms: 500 },
 ];
 
@@ -27462,6 +27502,7 @@ MissionRegistry.register('arc_a_m1', {
     { id: 'room', profileId: 'shelter', defId: 'room', tier: 1,
       x: 0, y: 0, params: { nPeople: 2, powerPriority: 1 } },
     { id: 'o2_bottle', profileId: 'simple_gas_bottle', defId: 'simple_tank', tier: 1,
+      name: 'Oxygen Bottle',
       x: -7, y: 1, params: { volume_m3: 0.01, P_init: 30553950,
         initialComposition: { O2: 1 }, gasDrawRate: 0.001, opening_gas_pct: 46.6,
         P_relief: 35000000 } },
@@ -49362,6 +49403,10 @@ function autoPauseOnTopologyChange() {
     stopPlay();
     setStatus('⏸ Auto-paused — topology changed');
   }
+  // [v19.5.0] Re-solve on topology change so u.last reflects new connections
+  // (e.g. shelter lights turn on immediately when battery is wired)
+  solveScene(scene);
+  render();
   // [v19.2.0] Check guidance completion after any topology change
   _checkGuidanceFromScene();
 }
@@ -50854,7 +50899,7 @@ const CinematicPlayer = {
     if (layerB) { layerB.className = 'cin-layer'; layerB.style.backgroundImage = ''; }
     this._layerToggle = false;
     this._transitioning = false;
-    ['cinScrim','cinTextWrap','cinTitleWrap','cinNarratorWrap'].forEach(id => {
+    ['cinTextWrap','cinTitleWrap','cinNarratorWrap'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.classList.remove('visible');
     });
@@ -50871,9 +50916,6 @@ const CinematicPlayer = {
     if (idx >= this._beats.length) { this._finish(); return; }
     this._index = idx;
     const beat = this._beats[idx];
-    const prevBeat = idx > 0 ? this._beats[idx - 1] : null;
-    const prevWasImage = prevBeat?.type === 'image';
-    const nextIsImage = beat.type === 'image';
 
     if (isFirst) {
       // First beat — no transition needed, just show
@@ -50882,20 +50924,15 @@ const CinematicPlayer = {
       return;
     }
 
-    // PHASE 1: fade out text (keep scrim if image→image)
+    // PHASE 1: fade out text
     this._transitioning = true;
     const textWrap = document.getElementById('cinTextWrap');
     const titleWrap = document.getElementById('cinTitleWrap');
     const narratorWrap = document.getElementById('cinNarratorWrap');
-    const scrim = document.getElementById('cinScrim');
 
-    // Fade out all text elements
     if (textWrap) textWrap.classList.remove('visible');
     if (titleWrap) titleWrap.classList.remove('visible');
     if (narratorWrap) narratorWrap.classList.remove('visible');
-
-    // Only hide scrim if leaving image beats
-    if (!nextIsImage && scrim) scrim.classList.remove('visible');
 
     // PHASE 2: after text fades out, swap content
     setTimeout(() => {
@@ -50919,6 +50956,15 @@ const CinematicPlayer = {
   },
 
   _crossfadeImage(beat) {
+    // Wipe type map: transition field → CSS class
+    const WIPE_MAP = {
+      'wipe': 'cin-wipe-diagonal',
+      'wipe-diagonal': 'cin-wipe-diagonal',
+      'wipe-horizontal': 'cin-wipe-horizontal',
+      'wipe-iris': 'cin-wipe-iris',
+      'wipe-vertical': 'cin-wipe-vertical',
+    };
+
     // Determine active/inactive layers
     const aId = this._layerToggle ? 'cinLayerB' : 'cinLayerA';
     const bId = this._layerToggle ? 'cinLayerA' : 'cinLayerB';
@@ -50929,30 +50975,38 @@ const CinematicPlayer = {
     if (!activeLayer) return;
 
     const kb = this._KB_CLASSES[this._index % this._KB_CLASSES.length];
-    const scrim = document.getElementById('cinScrim');
+    const wipeClass = WIPE_MAP[beat.transition] || null;
     const textWrap = document.getElementById('cinTextWrap');
     const textEl = document.getElementById('cinText');
 
     // Prepare text content (hidden — will fade in after image settles)
     if (textEl) textEl.innerHTML = (beat.fallbackText || '').replace(/\n/g, '<br>');
 
-    // Preload and crossfade image
+    // Preload and crossfade/wipe image
     const imgUrl = IMG_BASE + beat.src;
     const img = new Image();
+    const textDelay = wipeClass ? 650 : 400;  // wipes take longer to reveal
     const onImageReady = () => {
-      // Show scrim first (may already be visible for image→image)
-      if (scrim) scrim.classList.add('visible');
-      // Fade in text after image has started appearing
       setTimeout(() => {
         if (textWrap && beat.fallbackText) textWrap.classList.add('visible');
-      }, 400);
+      }, textDelay);
     };
 
     img.onload = () => {
       activeLayer.style.backgroundImage = `url('${imgUrl}')`;
-      activeLayer.className = 'cin-layer ' + kb + ' active';
-      inactiveLayer.classList.remove('active');
-      setTimeout(() => { inactiveLayer.style.backgroundImage = ''; }, 900);
+      if (wipeClass) {
+        // Star Wars wipe: new layer sweeps in over old one
+        activeLayer.className = 'cin-layer ' + wipeClass;
+        setTimeout(() => {
+          inactiveLayer.classList.remove('active');
+          inactiveLayer.style.backgroundImage = '';
+        }, 1100);
+      } else {
+        // Standard crossfade
+        activeLayer.className = 'cin-layer ' + kb + ' active';
+        inactiveLayer.classList.remove('active');
+        setTimeout(() => { inactiveLayer.style.backgroundImage = ''; }, 900);
+      }
       onImageReady();
     };
     img.onerror = () => {
@@ -51015,17 +51069,55 @@ const CinematicPlayer = {
 
   _finish() {
     if (this._autoTimer) { clearTimeout(this._autoTimer); this._autoTimer = null; }
+    // Smooth fade to black, then hide overlay
+    const exit = document.getElementById('cinExit');
+    if (exit && this._overlay) {
+      this._transitioning = true;
+      // Fade out text first
+      ['cinTextWrap','cinTitleWrap','cinNarratorWrap'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.remove('visible');
+      });
+      // Fade to black
+      setTimeout(() => { exit.classList.add('active'); }, 200);
+      // After black, tear down
+      setTimeout(() => {
+        exit.classList.remove('active');
+        if (this._overlay) {
+          this._overlay.classList.remove('active');
+          this._overlay.onclick = null;
+        }
+        this._resetLayers();
+        this._transitioning = false;
+        this._beats = [];
+        if (this._resolve) { this._resolve(); this._resolve = null; }
+      }, 1200);
+    } else {
+      // Fallback: instant hide
+      if (this._overlay) {
+        this._overlay.classList.remove('active');
+        this._overlay.onclick = null;
+      }
+      this._resetLayers();
+      this._beats = [];
+      if (this._resolve) { this._resolve(); this._resolve = null; }
+    }
+  },
+
+  // Skip (for dev/testing) — instant, no fade
+  skip() {
+    if (this._autoTimer) { clearTimeout(this._autoTimer); this._autoTimer = null; }
     if (this._overlay) {
       this._overlay.classList.remove('active');
       this._overlay.onclick = null;
     }
+    const exit = document.getElementById('cinExit');
+    if (exit) exit.classList.remove('active');
     this._resetLayers();
     this._beats = [];
+    this._transitioning = false;
     if (this._resolve) { this._resolve(); this._resolve = null; }
   },
-
-  // Skip (for dev/testing)
-  skip() { this._finish(); },
 };
 
 // ── MissionBeatPlayer — briefing dialogue via SpeechBubble ──────────────
@@ -51722,7 +51814,8 @@ function _missionAfterSolve() {
   // Check for crew death → game over
   const rooms = _unitsByProfile(scene, 'shelter');
   if (rooms.length > 0 && rooms[0].last?.crewState === 'death') {
-    showGameOverScreen('The crew did not survive.');
+    const cause = rooms[0].last?.error?.message || 'The crew did not survive.';
+    showGameOverScreen(cause);
     return;
   }
 
@@ -66519,18 +66612,18 @@ function runTests() {
     SimSettings._diurnalCache = { t: -1, result: null };
   });
 
-  test('685: Ineluctable — water CATASTROPHIC by h=96 (barrel empty h≈3, death h≈93)', t => {
+  test('685: Ineluctable — water CATASTROPHIC by h=168 (barrel empty h≈3, +72h body reserves, death h≈165)', t => {
     t.clearScene();
     const origPreset = SimSettings._activePreset;
     SimSettings._activePreset = 'planet_x'; SimSettings._applyPreset();
     SimSettings._diurnalCache = { t: -1, result: null };
     const demo = DemoScenes.get('demo_room_survival');
     scene.importJSON(demo.data);
-    for (let i = 0; i < 96; i++) TimeClock.step(scene);
+    for (let i = 0; i < 168; i++) TimeClock.step(scene);
     t.solve();
     const L = t.last('room');
     t.assertOK(L.conditions.water.status === 'CATASTROPHIC',
-      `Water CATASTROPHIC at h=96 (got ${L.conditions.water?.status}, deficit/pp=${L.h2o_deficit_per_person?.toFixed(0)} mol)`);
+      `Water CATASTROPHIC at h=168 (got ${L.conditions.water?.status}, deficit/pp=${L.h2o_deficit_per_person?.toFixed(0)} mol)`);
     const h2oinv = t.unit('water_barrel').inventory;
     const h2omol = Object.values(h2oinv.n).reduce((a,b)=>a+b,0);
     t.assertOK(h2omol < 1, `water barrel empty at h=96 (${h2omol.toFixed(2)} mol)`);
@@ -68845,8 +68938,9 @@ function runTests() {
     // CO₂ should be trace (0.03%), not Planet X 8%
     const co2_frac = (u.inventory.n.CO2 || 0) / n_total;
     t.assertOK(co2_frac < 0.01, `CO₂ < 1% (got ${(co2_frac*100).toFixed(2)}% — Earth ISA not planet)`);
-    // Water deficit tracker initialized
-    t.assertClose(u.inventory._h2o_deficit, 0, 0.01, 'h2o_deficit = 0 at t=0');
+    // Water deficit tracker initialized with body reserves (negative = hydrated)
+    // Reserve = R_H2O_COLD * nPeople * 72h * 3600 ≈ -669 for nPeople=2
+    t.assertOK(u.inventory._h2o_deficit < -500, `h2o_deficit starts negative (body reserves, got ${u.inventory._h2o_deficit.toFixed(0)})`);
 
     SimSettings._activePreset = origPreset; SimSettings._applyPreset();
     SimSettings._diurnalCache = { t: -1, result: null };
@@ -69148,22 +69242,21 @@ function runTests() {
     t.wire(room, 'air_exhaust', snk, 'mat_in');
     t.solve();
 
-    // At t=0: water flowing, crew hydrated
+    // At t=0: water flowing, crew has body reserves (negative deficit)
     const L0 = t.last(room);
-    t.assertClose(L0.h2o_deficit, 0, 1, 'Deficit = 0 at t=0');
+    t.assertOK(L0.h2o_deficit < 0, `Body reserves at t=0 (deficit=${L0.h2o_deficit?.toFixed(0)} mol)`);
 
-    // Step 3 hours — barrel should be empty, deficit starts building
-    for (let i = 0; i < 3; i++) TimeClock.step(scene);
+    // Step 80 hours — barrel empty at h≈3, then ~72h body reserves exhausted
+    for (let i = 0; i < 80; i++) TimeClock.step(scene);
     t.solve();
-    const L3 = t.last(room);
-    t.assertOK(L3.h2o_deficit > 0, `Deficit building at 3h (${L3.h2o_deficit?.toFixed(0)} mol)`);
+    const L80 = t.last(room);
+    t.assertOK(L80.h2o_deficit > 0, `Reserves exhausted at 80h (${L80.h2o_deficit?.toFixed(0)} mol)`);
 
-    // Step to 36 hours total — well into MAJOR territory with cold-water-only deficit rate
-    for (let i = 0; i < 33; i++) TimeClock.step(scene);
+    // Step to 110 hours total — MAJOR territory (deficit/pp > 139)
+    for (let i = 0; i < 30; i++) TimeClock.step(scene);
     t.solve();
-    const L30 = t.last(room);
-    // Per person deficit after ~34h without cold water: ~158 mol/person → MAJOR (>139)
-    t.assertOK(L30.conditions.water.status === 'MAJOR', `Water MAJOR at 36h (got ${L30.conditions.water?.status}, deficit/pp=${L30.h2o_deficit_per_person?.toFixed(0)})`);
+    const L110 = t.last(room);
+    t.assertOK(L110.conditions.water.status === 'MAJOR', `Water MAJOR at 110h (got ${L110.conditions.water?.status}, deficit/pp=${L110.h2o_deficit_per_person?.toFixed(0)})`);
   });
 
   test('672: Room + food crate — 30-day runway', t => {
@@ -69377,11 +69470,12 @@ function runTests() {
     t.wire(disp, 'elec_out_3', heater, 'elec_in');
     t.wire(disp, 'elec_surplus', surp, 'elec_in');
 
-    // ── Milestone 1: Water deficit starts building at ~2-3h (barrel empties) ──
+    // ── Milestone 1: Water barrel empties at ~2-3h, body reserves start depleting ──
     for (let i = 0; i < 3; i++) TimeClock.step(scene);
     t.solve();
     const Lw = t.last(room);
-    t.assertOK(Lw.h2o_deficit > 0, `Water deficit building at 3h (${Lw.h2o_deficit?.toFixed(0)} mol)`);
+    // With body reserves, deficit is still negative at 3h but increasing
+    t.assertOK(Lw.h2o_deficit < 0, `Body reserves at 3h (${Lw.h2o_deficit?.toFixed(0)} mol — barrel empty, body reserves in use)`);
 
     // ── Milestone 2: O₂ bottle depletes at ~73-76h ──
     for (let i = 0; i < 73; i++) TimeClock.step(scene);
@@ -69399,8 +69493,9 @@ function runTests() {
     const con = t.unit(scrubber).params.consumable;
     t.assertOK(con.remaining < 40, `Scrubber depleted at 165h (${con.remaining.toFixed(1)} mol of 268)`);
 
-    // ── Sequence: water deficit(3h) → O₂ bottle(76h) → scrubber(165h) ──
-    t.assertOK(true, 'Depletion order: water deficit(3h) → O₂ bottle(76h) → scrubber(~165h)');
+    // ── Sequence: water barrel(3h) → O₂ bottle(76h) → scrubber(165h) ──
+    // Body reserves delay water WARNING by ~72h beyond barrel depletion.
+    t.assertOK(true, 'Depletion order: water barrel(3h) → O₂ bottle(76h) → scrubber(~165h)');
 
     SimSettings._activePreset = origPreset; SimSettings._applyPreset();
     SimSettings._diurnalCache = { t: -1, result: null };
@@ -69536,23 +69631,23 @@ function runTests() {
     t.wire(room, 'air_exhaust', snk, 'mat_in');
     t.solve();
 
-    // t=0: no deficit yet
-    t.assertClose(t.last(room).food_deficit, 0, 1, 'No deficit at t=0');
+    // t=0: body food reserves (negative deficit)
+    const L0 = t.last(room);
+    t.assertOK(L0.food_deficit < -200, `Food reserves at t=0 (deficit=${L0.food_deficit?.toFixed(0)} mol)`);
 
-    // food_demand = 4.66e-4 mol/s → 0.8388 mol/hr per person
-    // WARNING at 1 mol/pp → ~1.2h. Check at 50h: 42 mol/pp → WARNING (1–60 range)
-    for (let i = 0; i < 50; i++) TimeClock.step(scene);
+    // Body reserves last ~168h.  At 200h: deficit/pp ≈ (200-168)*0.84/2 ≈ 13 → WARNING (1–60 range)
+    for (let i = 0; i < 200; i++) TimeClock.step(scene);
     t.solve();
-    const L50 = t.last(room);
-    t.assertOK(L50.conditions.food.status === 'WARNING',
-      `Food WARNING at 50h (deficit/pp=${L50.food_deficit_per_person?.toFixed(0)})`);
+    const L200 = t.last(room);
+    t.assertOK(L200.conditions.food.status === 'WARNING',
+      `Food WARNING at 200h (deficit/pp=${L200.food_deficit_per_person?.toFixed(0)})`);
 
-    // MAJOR at 60 mol/pp → ~72h. Check at 100h: 84 mol/pp → MAJOR (60–141 range)
-    for (let i = 0; i < 50; i++) TimeClock.step(scene);
+    // At 320h: deficit/pp ≈ (320-168)*0.84 ≈ 128 → MAJOR (60–141 range)
+    for (let i = 0; i < 120; i++) TimeClock.step(scene);
     t.solve();
-    const L100 = t.last(room);
-    t.assertOK(L100.conditions.food.status === 'MAJOR',
-      `Food MAJOR at 100h (deficit/pp=${L100.food_deficit_per_person?.toFixed(0)})`);
+    const L320 = t.last(room);
+    t.assertOK(L320.conditions.food.status === 'MAJOR',
+      `Food MAJOR at 320h (deficit/pp=${L320.food_deficit_per_person?.toFixed(0)})`);
   });
 
   test('682: Food Storage → Room — draw + spoilage integrated', t => {
@@ -70723,7 +70818,7 @@ function runTests() {
     t.assertOK(m.preplacedUnits.length === 3, '3 preplaced: room, bottle, battery');
     t.assertOK(m.objectives.length === 3, '3 objectives');
     t.assertOK(m.objectives[0].type === 'connection', 'obj1 is connection');
-    t.assertOK(m.guidanceSteps.length === 4, '4 guidance steps');
+    t.assertOK(m.guidanceSteps.length === 3, '3 guidance steps');
     t.assertOK(m.storyIntro.length === 0, 'no story intro (arc intro covers it)');
     t.assertOK(m.storyOutro.length === 1, '1 outro beat');
     t.assertOK(m.stars[3], 'star 3 defined');
@@ -72157,10 +72252,10 @@ if (SimSettings.AUTO_RUN_TESTS) {
 <div id="cinematicOverlay">
   <div class="cin-layer" id="cinLayerA"></div>
   <div class="cin-layer" id="cinLayerB"></div>
-  <div class="cin-scrim" id="cinScrim"></div>
   <div class="cin-text-wrap" id="cinTextWrap"><div class="cin-text" id="cinText"></div></div>
   <div class="cin-title-wrap" id="cinTitleWrap"><div class="cin-title" id="cinTitle"></div><div class="cin-subtitle" id="cinSubtitle"></div></div>
   <div class="cin-narrator-wrap" id="cinNarratorWrap"><div class="cin-narrator-text" id="cinNarratorText"></div></div>
+  <div class="cin-exit" id="cinExit"></div>
   <div class="cin-hint">click to continue</div>
 </div>
 
