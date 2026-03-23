@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v20.0.1
+  processThis v20.0.1  (authoritative version: PTIS_VERSION const in script block 1)
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -5893,7 +5893,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>processThis — v20.0.1</title>
+  <title>processThis</title> <!-- JS sets title from PTIS_VERSION on load -->
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Baumans&display=swap');
     :root {
@@ -12610,11 +12610,15 @@
 <script>
 "use strict";
 
+// [v20.0.1] Single version source — title tag and comment header reference this.
+const PTIS_VERSION = 'v20.0.1';
+document.title = 'processThis — ' + PTIS_VERSION;
+
 // [v12.9.0] NNG sentinel — machine-readable list of all Non-Negotiable rules.
 // Tests check this constant rather than parsing HTML comments (DOM strips them).
 const NNG_SENTINEL = [
   'NNG-1','NNG-2','NNG-3','NNG-4','NNG-5','NNG-6','NNG-7','NNG-8',
-  'NNG-9','NNG-10','NNG-11','NNG-12','NNG-13','NNG-14','NNG-15'
+  'NNG-9','NNG-10','NNG-11','NNG-12','NNG-13','NNG-14','NNG-15','NNG-16'
 ];
 
 /* =========================
@@ -46800,29 +46804,38 @@ function _rebuildInspectorContent() {
 }
 
 /* =========================
-   [v10.3.0] PANEL RESIZE
+   [v10.3.0] PANEL RESIZE — [v20.0.1] rewritten with document-level listeners
    ========================= */
 {
   const handle = document.getElementById('panelResizeHandle');
   const panel = document.getElementById('rightPanel');
-  const MIN_W = 260, MAX_W = 700, DEFAULT_W = 360;
-  let dragging = false, startX = 0, startW = DEFAULT_W;
+  const MIN_W = 260, MAX_W = 700;
+  let dragging = false, startX = 0, startW = 360;
 
-  handle.addEventListener('pointerdown', (e) => {
-    dragging = true; startX = e.clientX;
-    startW = panel.offsetWidth;
-    handle.classList.add('active');
-    handle.setPointerCapture(e.pointerId);
-    e.preventDefault();
-  });
-  handle.addEventListener('pointermove', (e) => {
+  function onMove(e) {
     if (!dragging) return;
     const w = Math.max(MIN_W, Math.min(MAX_W, startW + (startX - e.clientX)));
+    panel.style.width = w + 'px';
     panel.style.setProperty('--panel-width', w + 'px');
-  });
-  handle.addEventListener('pointerup', () => {
+  }
+  function onUp() {
+    if (!dragging) return;
     dragging = false;
     handle.classList.remove('active');
+    document.removeEventListener('pointermove', onMove, true);
+    document.removeEventListener('pointerup', onUp, true);
+  }
+
+  handle.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0) return;
+    dragging = true;
+    startX = e.clientX;
+    startW = panel.getBoundingClientRect().width;
+    handle.classList.add('active');
+    e.preventDefault();
+    e.stopPropagation();
+    document.addEventListener('pointermove', onMove, true);
+    document.addEventListener('pointerup', onUp, true);
   });
 }
 
@@ -65039,16 +65052,16 @@ function runTests() {
     t.assertOK(StreamType.HEAT === undefined, 'StreamType.HEAT is undefined (deleted)');
   }});
 
-  tests.push({ name: '302: NNG sentinel — all 15 rules exist in source', fn: t => {
+  tests.push({ name: '302: NNG sentinel — all 16 rules exist in source', fn: t => {
     // [v13.0.0] Check NNG_SENTINEL constant (HTML comments not readable from DOM).
+    // [v20.0.1] Updated: 15 → 16 rules (NNG-16 visual charter added).
     t.assertOK(typeof NNG_SENTINEL !== 'undefined', 'NNG_SENTINEL constant exists');
-    t.assertOK(NNG_SENTINEL.length === 15, 'NNG_SENTINEL has 15 entries');
-    for (let i = 1; i <= 15; i++) {
+    t.assertOK(NNG_SENTINEL.length === 16, 'NNG_SENTINEL has 16 entries');
+    for (let i = 1; i <= 16; i++) {
       const tag = `NNG-${i}`;
       t.assertOK(NNG_SENTINEL.includes(tag), `${tag} exists in NNG_SENTINEL`);
     }
-    // [v13.0.0] Orphan check: old NNG-16/NNG-17 must not be in sentinel.
-    t.assertOK(!NNG_SENTINEL.includes('NNG-16'), 'NNG-16 not in NNG_SENTINEL');
+    // [v13.0.0] Orphan check: old NNG-17 must not be in sentinel.
     t.assertOK(!NNG_SENTINEL.includes('NNG-17'), 'NNG-17 not in NNG_SENTINEL');
   }});
 
