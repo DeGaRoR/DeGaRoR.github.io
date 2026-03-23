@@ -478,6 +478,18 @@
   `updateTransportUI()`.  Reflow trick restarts animation on
   consecutive ticks.
 
+  **Bugfixes.**
+  - Inspector resize broken: `overflow:auto` on `.rightPanel` clipped
+    the resize handle at `left:-3px`.  Fix: `overflow:visible` on panel,
+    scrolling moved to `#propEditor` (`overflow-y:auto; flex:1; min-height:0`).
+  - Color-by gradient artifacts on power units: `_VIS_DIM` was
+    accidentally set to a CSS var (semi-transparent rgba).  SVG fills
+    need opaque hex.  Fixed to `#3d3040` (warm purple-grey).  Two SVG
+    stroke attributes (gauge bg arc, diagnostic light ring) also fixed.
+  - Emoji button icons (🏠 💾 ⏪) replaced with SVG stroke icons that
+    inherit `currentColor` from the warm palette, matching undo/redo
+    and zoom buttons.  Checkpoint badge 💾 → "save" text.
+
   NNGs: NNG-3 (WYSIWYG — visual state only, no physics), NNG-12
   (single file), NNG-13 (inspector order preserved), NNG-14 (changelog).
 
@@ -6113,7 +6125,7 @@
       border-left: 1px solid var(--rt-panel-border);
       background: var(--rt-panel-bg);
       backdrop-filter: blur(10px);
-      overflow: auto;
+      overflow: visible;  /* [v20.0.0] allow resize handle to protrude left */
       padding: 14px;
       display: flex;
       flex-direction: column;
@@ -6130,6 +6142,9 @@
     }
     #propEditor {
       transition: opacity 0.1s ease;
+      overflow-y: auto;  /* [v20.0.0] scrolling moved from panel to content */
+      flex: 1;
+      min-height: 0;
     }
     
     .panel-resize-handle {
@@ -11928,7 +11943,7 @@
       </div>
 
       <!-- [v19.7.0] Campaign Home button — hidden by default, shown by applyStoryUI -->
-      <button class="btn" id="btnStoryHome" data-tip="Return to menu" title="Return to menu">🏠</button>
+      <button class="btn" id="btnStoryHome" data-tip="Return to menu" title="Return to menu"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12l9-8 9 8"/><path d="M5 10v9a1 1 0 001 1h4v-5h4v5h4a1 1 0 001-1v-9"/></svg></button>
 
       <button class="undo-redo-btn" id="btnUndo" title="Undo (Ctrl+Z)">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"/><path d="M3 13a9 9 0 0 1 15.36-6.36L21 9"/></svg>
@@ -12010,10 +12025,10 @@
       <!-- C2: Checkpoint -->
       <div class="btn-cluster">
         <div class="vis-menu-anchor" style="display:inline-flex;">
-          <button class="tbtn" id="btnRevert" data-tip="Revert to checkpoint">⏪</button>
+          <button class="tbtn" id="btnRevert" data-tip="Revert to checkpoint"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 4v6h6"/><path d="M3.5 15a9 9 0 105-11.5L1 10"/></svg></button>
           <div class="vis-menu" id="menuRevert"></div>
         </div>
-        <button class="tbtn" id="btnSave" data-tip="Save [Ctrl+S]">💾</button>
+        <button class="tbtn" id="btnSave" data-tip="Save [Ctrl+S]"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></button>
       </div>
 
       <!-- C3: Zoom + Display -->
@@ -35468,7 +35483,7 @@ function _visPressColor(P) {
 
 // ── Phase colours ──
 const _VIS_PHASE = { L: '#60a5fa', V: '#f87171', VL: '#c084fc' };
-const _VIS_DIM = 'var(--rt-inner-border)';       // no-data neutral
+const _VIS_DIM = '#3d3040';       // no-data neutral (warm purple-grey, opaque for SVG)
 const _VIS_ELEC = '#eab308';      // unified electrical colour (amber)
 const _VIS_MAT_STREAM = '#94a3b8'; // default material stream grey
 
@@ -40236,7 +40251,7 @@ _RAGTAG_SYMBOLS.power_dispatcher_5 = function(g, wx, wy, ww, wh, pal, def, unitI
     const lit = i < Math.round((_ud?.last?.totalDemand_W ?? 0) / Math.max(1, _ud?.last?.totalCapacity_W ?? 1) * 5);
     const gCol = lit ? (i < 3 ? '#22c55e' : i < 4 ? '#fbbf24' : '#ef4444') : '#1e293b';
     g.appendChild(svgEl('rect', { x:gx, y:gaugeY, width:4, height:7, rx:1, fill:gCol,
-      stroke: lit ? gCol : 'var(--rt-inner-border)', 'stroke-width':0.8, 'pointer-events':'none' }));
+      stroke: lit ? gCol : '#3d3040', 'stroke-width':0.8, 'pointer-events':'none' }));
   }
 
   // 4. Relay blocks — 3 blocks, same 30px span (33→63)
@@ -43402,7 +43417,7 @@ function _renderGauge(container, value, unitSymbol, limits, label, stickerCtx) {
   const bgArc = document.createElementNS(svgNS, 'path');
   bgArc.setAttribute('d', arcPath(startAngle, endAngle));
   bgArc.setAttribute('fill', 'none');
-  bgArc.setAttribute('stroke', 'var(--rt-inner-border)');
+  bgArc.setAttribute('stroke', '#3d3040');
   bgArc.setAttribute('stroke-width', '5');
   bgArc.setAttribute('stroke-linecap', 'round');
   svgE.appendChild(bgArc);
@@ -50201,7 +50216,7 @@ function _populateRevertMenu() {
 
     const badge = document.createElement('span');
     badge.className = 'cp-badge ' + (cp.label === 'manual' ? 'manual' : 'auto');
-    badge.textContent = cp.label === 'manual' ? '💾' : 'auto';
+    badge.textContent = cp.label === 'manual' ? 'save' : 'auto';
     item.appendChild(badge);
 
     const label = document.createElement('span');
