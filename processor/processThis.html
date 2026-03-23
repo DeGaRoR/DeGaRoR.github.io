@@ -445,15 +445,40 @@
   after setting BUILD state so first guidance speech appears without
   requiring a click.
 
+  **Complete Mission hidden during game over.**  `showGameOverScreen()`
+  now calls `_hideCompleteMissionButton()`.
+
+  **Gas bottle pressure gauge.**  `simple_tank` `fillPct` now shows
+  `P/P_relief × 100` for gas-only vessels (no liquid).  Liquid level
+  was meaningless for gas bottles; pressure fill is the relevant metric.
+
+  **O₂ bottle P_init lowered.**  29.5 MPa (was 30.6 MPa) — below the
+  P_H alarm limit (30 MPa) so no false overpressure alarm at t=0.
+
+  **Gas bottle icon alignment.**  LED moved above gauge, both centered
+  on body face above nameplate.  Was: LED at bottom, gauge mid-body,
+  nameplate between them — visually scattered.
+
+  **Wrong-port Lena feedback.**  During guidance, if a connection is
+  made but doesn't match the expected step, Lena says "That's not the
+  right port. I labeled them for a reason!"  `autoPauseOnTopologyChange`
+  now receives event type ('connection' vs deletion/placement) so
+  `_checkGuidanceFromScene` can distinguish new connections from other
+  topology changes.
+
+  **storyUI not yet wired.**  Mission `storyUI` config (palette filter,
+  menu items, dev tab) is defined but no code consumes it.  Flagged
+  for a dedicated session: items 7, 8, 14 on the backlog.
+
   NNGs: NNG-1 (body reserves mass-balanced, basal metabolism conserves
-  O₂/CO₂/H₂O), NNG-3 (fan dead-head — unconnected port = zero flow),
-  NNG-9 (uses ctx.portConnected, no scene access from tick),
-  NNG-11 (all physics changes in script block 1), NNG-12 (single file),
-  NNG-14 (changelog + 7 updated tests).
+  O₂/CO₂/H₂O), NNG-3 (fan dead-head — unconnected port = zero flow;
+  gas bottle gauge respects physics), NNG-9 (uses ctx.portConnected,
+  no scene access from tick), NNG-11 (all physics changes in script
+  block 1), NNG-12 (single file), NNG-14 (changelog + 10 updated tests).
 
   Tests: 845 (7 tests updated for body reserves timeline shift,
   nPeople fix, water/food deficit thresholds; 2 tests updated for
-  checkmark-prefixed onComplete text).
+  checkmark-prefixed onComplete text; 1 test updated for P_init).
 
   ─── v19.5.0 — Cinematic overhaul, career naming, ragtag buttons ──────────
 
@@ -21023,6 +21048,13 @@ UnitRegistry.register('simple_tank', {
     })();
     const totalMol = Object.values(inv.n).reduce((a,b) => a+b, 0);
 
+    // [v19.6.0] For gas-only vessels (no liquid), gauge shows pressure fill
+    // P/P_relief as a percentage.  Liquid level is meaningless for gas bottles.
+    const gasOnly = (state.level_pct ?? 0) < 0.1 && n_V_total > 1e-12;
+    const displayFillPct = gasOnly
+      ? Math.min(100, (P_tank / P_relief) * 100)
+      : state.level_pct;
+
     u.last = {
       ...(u.last || {}),
       P_Pa: P_tank, P_bar: P_tank / 1e5,
@@ -21032,7 +21064,7 @@ UnitRegistry.register('simple_tank', {
       n_V: { ...state.n_V }, n_L: { ...state.n_L },
       n_max,
       level_pct: state.level_pct,
-      fillPct: state.level_pct,
+      fillPct: displayFillPct,
       V_m3: V,
       V_liq_m3: state.V_liq_m3,
       V_vap_m3: state.V_vap_m3,
@@ -27598,7 +27630,7 @@ MissionRegistry.register('arc_a_m1', {
       x: 0, y: 0, params: { nPeople: 2, powerPriority: 1 } },
     { id: 'o2_bottle', profileId: 'simple_gas_bottle', defId: 'simple_tank', tier: 1,
       name: 'Oxygen Bottle',
-      x: -7, y: 1, params: { volume_m3: 0.01, P_init: 30553950,
+      x: -7, y: 1, params: { volume_m3: 0.01, P_init: 29500000,
         initialComposition: { O2: 1 }, gasDrawRate: 0.001, opening_gas_pct: 46.6,
         P_relief: 35000000 } },
     { id: 'battery', profileId: 'battery', defId: 'battery', tier: 1,
@@ -38328,13 +38360,14 @@ _RAGTAG_SYMBOLS.simple_tank = function(g, wx, wy, ww, wh, pal, def, unitId) {
   let fPct=_ud?.last?.fillPct; if(fPct==null||!Number.isFinite(fPct))fPct=0; fPct=Math.max(0,Math.min(100,fPct));
   const fillH=(sgH-4)*fPct/100;
   if(fillH>0){let _gc='#22d3ee';const _n=_ud?.last?.n;if(_n){let _mx=null,_ma=0;for(const[sp,amt]of Object.entries(_n)){if(amt>_ma){_mx=sp;_ma=amt;}}if(_mx&&_SPECIES_COLOR[_mx]){const rgb=_SPECIES_COLOR[_mx];_gc=`rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;}}g.appendChild(svgEl('rect',{x:sgX+2,y:sgY+sgH-2-fillH,width:2,height:fillH,rx:1,fill:_gc,opacity:0.55,'data-anim':'level-shimmer','data-ybase':sgY+sgH-2-fillH,'pointer-events':'none'}));}
-  // Pressure gauge (small circle with red needle — above nameplate)
-  g.appendChild(svgEl('circle',{cx:wx+38,cy:wy+58,r:5,fill:'#1f2937',stroke:'#4b5563','stroke-width':1.5,'pointer-events':'none'}));
-  g.appendChild(svgEl('line',{x1:wx+38,y1:wy+58,x2:wx+38,y2:wy+54,stroke:'#ef4444','stroke-width':1.5,'stroke-linecap':'round','pointer-events':'none'}));
+  // Pressure gauge (small circle with red needle)
+  g.appendChild(svgEl('circle',{cx:wx+38,cy:wy+72,r:5,fill:'#1f2937',stroke:'#4b5563','stroke-width':1.5,'pointer-events':'none'}));
+  g.appendChild(svgEl('line',{x1:wx+38,y1:wy+72,x2:wx+38,y2:wy+68,stroke:'#ef4444','stroke-width':1.5,'stroke-linecap':'round','pointer-events':'none'}));
   // Scuff mark (ragtag)
   g.appendChild(svgEl('line',{x1:bx+6,y1:wy+100,x2:bx+12,y2:wy+103,stroke:pal.stroke,'stroke-width':1,opacity:0.3,'stroke-linecap':'round','pointer-events':'none'}));
-  _rtNameplate(g, wx+34, wy+68, unitId);
-  _rtLED(g, wx+34, wy+132, unitId);
+  // [v19.6.0] LED → gauge → nameplate vertically centered on body face
+  _rtLED(g, wx+34, wy+60, unitId);
+  _rtNameplate(g, wx+34, wy+84, unitId);
 };
 
 // ── Cooled Tank — 2×3 bonbonne + cooling serpentine ────────────────────────
@@ -40248,7 +40281,7 @@ function drawUnits() {
             }
             const id = scene.connect(ui.pendingFrom, { unitId, portId });
             if (id) {
-              autoPauseOnTopologyChange();
+              autoPauseOnTopologyChange('connection');
             } else {
               // Restore old connection on failure
               if (oldConn) scene.connections.push(oldConn);
@@ -40256,7 +40289,7 @@ function drawUnits() {
             ui.reconnecting = null;
           } else {
             const id = scene.connect(ui.pendingFrom, { unitId, portId });
-            if (id) autoPauseOnTopologyChange();
+            if (id) autoPauseOnTopologyChange("connection");
           }
           // [v15.4.0] Trigger flange snap animation on both endpoints
           if (ui.pendingFrom) {
@@ -40296,12 +40329,12 @@ function drawUnits() {
           let oldConn = null;
           if (oldIdx >= 0) { oldConn = scene.connections[oldIdx]; scene.connections.splice(oldIdx, 1); }
           const id = scene.connect(ui.pendingFrom, { unitId, portId });
-          if (id) { autoPauseOnTopologyChange(); }
+          if (id) { autoPauseOnTopologyChange("connection"); }
           else { if (oldConn) scene.connections.push(oldConn); }
           ui.reconnecting = null;
         } else {
           const id = scene.connect(ui.pendingFrom, { unitId, portId });
-          if (id) autoPauseOnTopologyChange();
+          if (id) autoPauseOnTopologyChange("connection");
         }
         if (ui.pendingFrom) _flangeSnapPorts.add(ui.pendingFrom.unitId + ':' + ui.pendingFrom.portId);
         _flangeSnapPorts.add(unitId + ':' + portId);
@@ -49494,21 +49527,20 @@ function stopPlay() {
 }
 
 /** Auto-pause on topology changes (called from connection/delete/place) */
-function autoPauseOnTopologyChange() {
+function autoPauseOnTopologyChange(event) {
   if (TimeClock.mode === 'playing') {
     stopPlay();
     setStatus('⏸ Auto-paused — topology changed');
   }
   // [v19.5.0] Re-solve on topology change so u.last reflects new connections
-  // (e.g. shelter lights turn on immediately when battery is wired)
   solveScene(scene);
   render();
-  // [v19.2.0] Check guidance completion after any topology change
-  _checkGuidanceFromScene();
+  // [v19.6.0] Pass event type so guidance can give wrong-port feedback
+  _checkGuidanceFromScene(event);
 }
 
 // [v19.2.0] Check guidance step completion by scanning current scene state
-function _checkGuidanceFromScene() {
+function _checkGuidanceFromScene(event) {
   if (_activeGameMode !== GameMode.CAMPAIGN) return;
   const step = GuidanceSystem.currentStep();
   if (!step?.completion) return;
@@ -49518,6 +49550,15 @@ function _checkGuidanceFromScene() {
     case 'connection': {
       if (_connectionExists(scene, comp.fromProfile, comp.toProfile, { portType: comp.portType })) {
         _emitGuidanceEvent({ type: 'connection', fromProfile: comp.fromProfile, toProfile: comp.toProfile });
+      } else if (event === 'connection') {
+        // [v19.6.0] Wrong-port feedback: a connection was made but it wasn't the right one
+        SpeechBubble.push({
+          text: 'That\u2019s not the right port. I labeled them for a reason!',
+          speaker: 'lena',
+          source: 'guidance_wrong',
+          priority: SpeechPriority.GUIDANCE,
+        });
+        render();
       }
       break;
     }
@@ -49528,7 +49569,6 @@ function _checkGuidanceFromScene() {
       break;
     }
     case 'objective_complete': {
-      // Check if this specific objective is met
       const runtime = { missionElapsed_s: TimeClock.t - _missionStartTime, converged: true, _conditionTimers: _missionConditionTimers };
       const mission = MissionRegistry.get(_activeMissionId);
       if (mission) {
@@ -51606,6 +51646,7 @@ function showGameOverScreen(reason) {
   if (!overlay) return;
   overlay.querySelector('.go-text').textContent = reason || 'The crew did not survive.';
   overlay.classList.add('active');
+  _hideCompleteMissionButton();  // [v19.6.0] don't show Complete during game over
   setPlayState(PlayState.GAME_OVER);
 }
 
@@ -70994,7 +71035,7 @@ function runTests() {
     const bottle = m1.preplacedUnits.find(u => u.profileId === 'simple_gas_bottle');
     t.assertOK(bottle, 'O2 bottle in M1 preplaced');
     t.assertClose(bottle.params.opening_gas_pct, 46.6, 0.01, 'bottle opening_gas_pct = 46.6');
-    t.assertClose(bottle.params.P_init, 30553950, 1, 'bottle P_init calibrated');
+    t.assertClose(bottle.params.P_init, 29500000, 1, 'bottle P_init calibrated');
     t.assertClose(bottle.params.gasDrawRate, 0.001, 0.0001, 'bottle gasDrawRate');
 
     const bat = m1.preplacedUnits.find(u => u.profileId === 'battery');
