@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v20.0.1  (authoritative version: PTIS_VERSION const in script block 1)
+  processThis v20.0.2  (authoritative version: PTIS_VERSION const in script block 1)
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -401,6 +401,27 @@
   ═══════════════════════════════════════════════════════════════════════════
   CHANGELOG  (latest first)
   ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v20.0.2 — Solve orbit indicator ───────────────────────────────────────
+
+  Replaces the harsh `solvePulse` flicker on the time display with a soft
+  orbital arc that sweeps one full clockwise rotation per simulation tick,
+  giving continuous, non-intrusive feedback that the solver is running.
+
+  - SVG `#solveOrbit` (16×16) inserted between `#timeDisplay` and
+    `#speedIndicator` in the action bar.
+  - Arc and head-dot draw in `--rt-accent`; track in `--rt-inner-border`.
+  - Phase = (Date.now() − _orbitTickTime) / PLAY_SPEEDS[playSpeed], clamped
+    0–1.  Resets to zero on play start, after each auto-step solve, and after
+    each manual step.
+  - Driven by the existing `_iconAnimFrame` RAF loop — no new RAF chain.
+    `_updateOrbitIndicator()` called once per frame when playing, once from
+    `stopPlay()` to freeze the arc at the current phase.
+  - `.solve-orbit.paused` dims to 0.25 opacity via CSS transition (0.4 s).
+  - `solvePulse` CSS animation retained for now (class still toggled during
+    solve) but visually superseded by the orbit.
+  NNGs: NNG-3 (WYSIWYG — visual only, zero solver impact), NNG-12 (single
+  file), NNG-14 (changelog, no new tests — DOM/CSS/RAF only).
 
   ─── v20.0.0 — UI restyling: warm glass panels ─────────────────────────────
 
@@ -6832,6 +6853,13 @@
       100% { border-color: var(--rt-inner-border); box-shadow: none; color: var(--rt-accent); }
     }
 
+    /* [v20.0.2] Solve orbit indicator */
+    .solve-orbit { flex-shrink: 0; margin-left: 1px; transition: opacity 0.4s; }
+    .solve-orbit-track { fill: none; stroke: var(--rt-inner-border); stroke-width: 1.2; }
+    .solve-orbit-arc   { fill: none; stroke: var(--rt-accent);        stroke-width: 1.5; stroke-linecap: round; }
+    .solve-orbit-head  { fill: var(--rt-accent); }
+    .solve-orbit.paused { opacity: 0.25; }
+
     .speed-indicator {
       font-size: 10px;
       color: var(--rt-text-muted);
@@ -12017,6 +12045,12 @@
         <button class="tbtn" id="btnPause" data-tip="Pause [Space]" disabled>⏸</button>
       </div>
       <span class="time-display" id="timeDisplay" style="cursor:pointer;" title="Click to open settings"></span>
+      <!-- [v20.0.2] Solve orbit indicator — arc sweeps one full rotation per tick -->
+      <svg id="solveOrbit" class="solve-orbit" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+        <circle cx="8" cy="8" r="5.5" class="solve-orbit-track"/>
+        <path id="solveOrbitArc" class="solve-orbit-arc" d=""/>
+        <circle id="solveOrbitHead" class="solve-orbit-head" cx="8" cy="2.5" r="2"/>
+      </svg>
       <span class="speed-indicator" id="speedIndicator" title="Normal (5s)">▶</span>
 
       <div class="bar-sep"></div>
@@ -12611,7 +12645,7 @@
 "use strict";
 
 // [v20.0.1] Single version source — title tag and comment header reference this.
-const PTIS_VERSION = 'v20.0.1';
+const PTIS_VERSION = 'v20.0.2';
 document.title = 'processThis — ' + PTIS_VERSION;
 
 // [v12.9.0] NNG sentinel — machine-readable list of all Non-Negotiable rules.
@@ -34273,6 +34307,7 @@ const btnSave   = document.getElementById('btnSave');
 const timeDisplayEl = document.getElementById('timeDisplay');
 let _prevTimeHour = -1;  // [v20.0.0] Track hour for pulse animation
 let _prevTimeDay = -1;   // [v20.0.0] Track day for pulse animation
+let _orbitTickTime = 0;  // [v20.0.2] Wall-clock ms at last tick start (for orbit arc)
 const speedIndicatorEl = document.getElementById('speedIndicator');
 const btnAdd = document.getElementById('btnAdd');
 const btnMenu = document.getElementById('btnMenu');
@@ -48089,6 +48124,43 @@ window.addEventListener('keydown', (ev) => {
 
 // ── Time display ── (formatTime moved to block 1 for headless test access)
 
+// [v20.0.2] Solve orbit indicator ─────────────────────────────────────────
+// Called each frame from _iconAnimFrame (play) and once from stopPlay (freeze).
+const _orbitSvgEl   = document.getElementById('solveOrbit');
+const _orbitArcEl   = document.getElementById('solveOrbitArc');
+const _orbitHeadEl  = document.getElementById('solveOrbitHead');
+(function() {
+  const CX = 8, CY = 8, R = 5.5;
+  const START_ANGLE = -Math.PI / 2;
+  function _arcPath(phase) {
+    if (phase <= 0) return '';
+    if (phase >= 0.999) {
+      const x0 = (CX + R * Math.cos(START_ANGLE)).toFixed(3);
+      const y0 = (CY + R * Math.sin(START_ANGLE)).toFixed(3);
+      return `M ${x0} ${y0} A ${R} ${R} 0 1 1 ${(+x0 - 0.001).toFixed(3)} ${y0}`;
+    }
+    const angle = START_ANGLE + phase * 2 * Math.PI;
+    const x0 = (CX + R * Math.cos(START_ANGLE)).toFixed(3);
+    const y0 = (CY + R * Math.sin(START_ANGLE)).toFixed(3);
+    const x1 = (CX + R * Math.cos(angle)).toFixed(3);
+    const y1 = (CY + R * Math.sin(angle)).toFixed(3);
+    const largeArc = phase > 0.5 ? 1 : 0;
+    return `M ${x0} ${y0} A ${R} ${R} 0 ${largeArc} 1 ${x1} ${y1}`;
+  }
+  window._updateOrbitIndicator = function() {
+    if (!_orbitArcEl || !_orbitHeadEl || !_orbitSvgEl) return;
+    const isPlaying = TimeClock.mode === 'playing';
+    _orbitSvgEl.classList.toggle('paused', !isPlaying);
+    const speed = PLAY_SPEEDS[SimSettings.playSpeed || 0];
+    const phase = _orbitTickTime > 0 ? Math.min(1, (Date.now() - _orbitTickTime) / speed) : 0;
+    _orbitArcEl.setAttribute('d', _arcPath(phase));
+    const headAngle = START_ANGLE + phase * 2 * Math.PI;
+    _orbitHeadEl.setAttribute('cx', (CX + R * Math.cos(headAngle)).toFixed(3));
+    _orbitHeadEl.setAttribute('cy', (CY + R * Math.sin(headAngle)).toFixed(3));
+  };
+})();
+// ─────────────────────────────────────────────────────────────────────────────
+
 function updateTransportUI() {
   const mode = TimeClock.mode;
   // [v14.7.0 S-SIM] Two-mode transport: paused | playing
@@ -49742,6 +49814,7 @@ function _iconAnimFrame(timestamp) {
   if (deltaSec > 0) _advanceSmokePuffs(deltaSec);
   // [v16.9.8 S-PARTICLES] Canvas draw — both flow particles and smoke
   _drawParticleCanvas();
+  _updateOrbitIndicator();  // [v20.0.2] advance orbit arc each frame
   _iconAnimRafId = requestAnimationFrame(_iconAnimFrame);
 }
 
@@ -50070,6 +50143,7 @@ function startPlay() {
   TimeClock.mode = 'playing';
   TimeClock._stepsSinceAutoCp = 0;  // [v14.7.0 S-SIM] reset periodic counter
   _playStartedAt = Date.now();
+  _orbitTickTime = Date.now();  // [v20.0.2] start orbit from zero
   updateTransportUI();
   _startFlowArrows();
   syncPlanetBgTime('play');
@@ -50100,6 +50174,7 @@ function _schedulePlayTick(immediate) {
     const t0 = performance.now();
     const { solveResult } = TimeClock.step(scene);
     afterSolve(solveResult);
+    _orbitTickTime = Date.now();  // [v20.0.2] restart orbit arc from zero after each solved tick
     timeDisplayEl.classList.remove('solving');
     updateTransportUI();
 
@@ -50141,6 +50216,7 @@ function stopPlay() {
   _stopFlowArrows();
   if (svg.pauseAnimations) svg.pauseAnimations();  // [v20.0.1] freeze SMIL (flare flame)
   // [v17.0.2] rAF chain keeps running for fried smoke — _stopIconAnim removed from pause
+  _updateOrbitIndicator();  // [v20.0.2] freeze orbit at current phase
   updateTransportUI();
 }
 
@@ -50210,6 +50286,7 @@ btnStep.addEventListener('click', () => {
   // [v14.7.0 S-SIM Step 7] Capture pre-step snapshot for catastrophe revert
   const preStepSnap = TimeClock._createCheckpointData(scene, 'pre-catastrophe');
   const { solveResult } = TimeClock.step(scene);
+  _orbitTickTime = Date.now();  // [v20.0.2] show fresh orbit after manual step
   setStatus(`Step → ${formatTime(TimeClock.t)}`);
   afterSolve(solveResult);
   updateTransportUI();
