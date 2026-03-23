@@ -12578,11 +12578,11 @@
         <!-- [v18.2.0 S-FLARE] Flame distortion filters — cartoon (numOctaves=1), tight region -->
         <filter id="flare-ft1" x="-20%" y="-10%" width="140%" height="120%">
           <feTurbulence type="turbulence" baseFrequency="0.06 0.12" numOctaves="1" seed="42" result="t"/>
-          <feDisplacementMap in="SourceGraphic" in2="t" scale="6" xChannelSelector="R" yChannelSelector="G"/>
+          <feDisplacementMap in="SourceGraphic" in2="t" scale="10" xChannelSelector="R" yChannelSelector="G"/>
         </filter>
         <filter id="flare-ft2" x="-20%" y="-10%" width="140%" height="120%">
           <feTurbulence type="turbulence" baseFrequency="0.08 0.14" numOctaves="1" seed="17" result="t"/>
-          <feDisplacementMap in="SourceGraphic" in2="t" scale="5" xChannelSelector="G" yChannelSelector="R"/>
+          <feDisplacementMap in="SourceGraphic" in2="t" scale="8" xChannelSelector="G" yChannelSelector="R"/>
         </filter>
 
       </defs>
@@ -19239,10 +19239,10 @@ const ObjectiveEvaluators = {
         // Conditions met — timer advances (caller increments _conditionTimers)
         const durMet = elapsed >= dur_s;
         checks.push(`${elapsed.toFixed(0)}s / ${dur_s}s ${durMet ? '✓' : ''}`);
-        return { met: durMet, progress: checks.join(', '), _conditionsOk: true };
+        return { met: durMet, progress: checks.join(', '), _conditionsOk: true, _runtimeKey: rKey };
       } else {
         checks.push(`0s / ${dur_s}s`);
-        return { met: false, progress: checks.join(', '), _conditionsOk: false };
+        return { met: false, progress: checks.join(', '), _conditionsOk: false, _runtimeKey: rKey };
       }
     }
 
@@ -19263,11 +19263,12 @@ const ObjectiveEvaluators = {
     }
     const ok = totalMoles >= (params.minMoles || 0);
     const dur = params.duration_s || 0;
-    const elapsed = runtime?._conditionTimers?.[params.id || ('dg_' + params.species)] || 0;
+    const rKey = params.id || ('dg_' + params.species);
+    const elapsed = runtime?._conditionTimers?.[rKey] || 0;
     const met = dur > 0 ? (ok && elapsed >= dur) : ok;
     const progress = `${params.species}: ${totalMoles.toFixed(1)} mol ${ok ? '✓' : `(need ≥ ${params.minMoles})`}`
       + (dur > 0 ? ` ${elapsed.toFixed(0)}s/${dur}s` : '');
-    return { met, progress, _conditionsOk: ok };
+    return { met, progress, _conditionsOk: ok, _runtimeKey: rKey };
   },
 
   // 8. inventory_trend — tank level going up or down over duration
@@ -19280,10 +19281,11 @@ const ObjectiveEvaluators = {
     const trend = params.trend; // 'increasing' or 'decreasing'
     const ok = trend === 'increasing' ? moles > prev : moles < prev;
     const dur = params.duration_s || 0;
-    const elapsed = runtime?._conditionTimers?.[params.id || ('it_' + u.id + ':' + params.species)] || 0;
+    const rKey = params.id || ('it_' + u.id + ':' + params.species);
+    const elapsed = runtime?._conditionTimers?.[rKey] || 0;
     const met = dur > 0 ? (ok && elapsed >= dur) : ok;
     const arrow = moles > prev ? '↑' : moles < prev ? '↓' : '→';
-    return { met, progress: `${params.species} ${arrow} ${moles.toFixed(1)} mol (want ${trend}) ${met ? '✓' : ''}` };
+    return { met, progress: `${params.species} ${arrow} ${moles.toFixed(1)} mol (want ${trend}) ${met ? '✓' : ''}`, _conditionsOk: ok, _runtimeKey: rKey };
   },
 
   // 9. power_output — total power output ≥ threshold for duration
@@ -19295,13 +19297,14 @@ const ObjectiveEvaluators = {
     }
     const ok = totalPower >= (params.min_W || 0);
     const dur = params.duration_s || 0;
-    const elapsed = runtime?._conditionTimers?.[params.id || 'po'] || 0;
+    const rKey = params.id || 'po';
+    const elapsed = runtime?._conditionTimers?.[rKey] || 0;
     const met = dur > 0 ? (ok && elapsed >= dur) : ok;
     return {
       met,
       progress: `Power: ${totalPower.toFixed(0)} W ${ok ? '✓' : `(need ≥ ${params.min_W} W)`}`
         + (dur > 0 ? ` ${elapsed.toFixed(0)}s/${dur}s` : ''),
-      _conditionsOk: ok,
+      _conditionsOk: ok, _runtimeKey: rKey,
     };
   },
 
@@ -36258,9 +36261,9 @@ function _smokeRand(i, offset) {
 }
 
 const _FRIED_SMOKE_CFG = {
-  isFried: true, puffCount: 7, riseHeight: 80, duration: 4.5,
-  puffRx: 16, puffRy: 12, spreadX: 14, scaleStart: 0.5, scaleEnd: 1.8,
-  opacityStart: 0.55, opacityPeak: 0.65, color: '#9ca3af', filter: 'smoke-fried',
+  isFried: true, puffCount: 9, riseHeight: 100, duration: 4.5,
+  puffRx: 20, puffRy: 15, spreadX: 16, scaleStart: 0.6, scaleEnd: 2.0,
+  opacityStart: 0.6, opacityPeak: 0.7, color: '#9ca3af', filter: 'smoke-fried',
   driftRange: 11
 };
 
@@ -36291,12 +36294,12 @@ function _computeSmokeConfig(u, def) {
     const flowScale = Math.sqrt(Math.min(absorbed, 10));
     return {
       isFried: false,
-      puffCount: Math.max(3, Math.min(12, Math.round(3 + flowScale * 3))),
-      riseHeight: 30 + Math.log(pRatio) * 25,
+      puffCount: Math.max(4, Math.min(14, Math.round(4 + flowScale * 4))),
+      riseHeight: 60 + Math.log(pRatio) * 35,
       duration: Math.max(2, 5 - Math.log(pRatio) * 1.5),
-      puffRx: 8 + flowScale * 3, puffRy: 6 + flowScale * 2,
-      spreadX: 8, scaleStart: 0.4, scaleEnd: 1.5,
-      opacityStart: 0.25, opacityPeak: y_H2O > 0.3 ? 0.55 : 0.4,
+      puffRx: 14 + flowScale * 4, puffRy: 14 + flowScale * 3,
+      spreadX: 10, scaleStart: 0.5, scaleEnd: 1.8,
+      opacityStart: 0.3, opacityPeak: y_H2O > 0.3 ? 0.6 : 0.45,
       color, filter: phase === 'VL' ? 'smoke-f3' : 'smoke-f2',
       driftRange: 8
     };
@@ -36329,12 +36332,12 @@ function _computeSmokeConfig(u, def) {
     const wy = u.y * scene.tile;
     return {
       isFried: false,
-      puffCount: Math.max(3, Math.min(10, Math.round(3 + flowScale * 2))),
-      riseHeight: 25 + flowScale * 8,
+      puffCount: Math.max(4, Math.min(12, Math.round(4 + flowScale * 3))),
+      riseHeight: 50 + flowScale * 12,
       duration: Math.max(2, 4.5 - flowScale * 0.3),
-      puffRx: 6 + flowScale * 2, puffRy: 5 + flowScale * 1.5,
-      spreadX: 6, scaleStart: 0.4, scaleEnd: 1.4,
-      opacityStart: 0.2, opacityPeak: y_H2O > 0.3 ? 0.45 : 0.3,
+      puffRx: 14 + flowScale * 3, puffRy: 14 + flowScale * 2,
+      spreadX: 8, scaleStart: 0.5, scaleEnd: 1.7,
+      opacityStart: 0.25, opacityPeak: y_H2O > 0.3 ? 0.5 : 0.35,
       color, filter: 'smoke-f2',
       driftRange: 6,
       _cx: wx + 118 * scene.tile / 80,   // collar center x: proto (168-50) scaled
@@ -36362,12 +36365,12 @@ function _computeSmokeConfig(u, def) {
     const wy = u.y * scene.tile;
     return {
       isFried: false,
-      puffCount: Math.max(4, Math.min(14, Math.round(4 + flowScale * 4))),
-      riseHeight: 25 + Math.log(Math.max(1, Q_vented)) * 15,
+      puffCount: Math.max(5, Math.min(16, Math.round(5 + flowScale * 5))),
+      riseHeight: 50 + Math.log(Math.max(1, Q_vented)) * 20,
       duration: Math.max(2.5, 5 - flowScale * 0.5),
-      puffRx: 12 + flowScale * 4, puffRy: 8 + flowScale * 2,
-      spreadX: 6, scaleStart: 0.4, scaleEnd: 1.4,
-      opacityStart: 0.2, opacityPeak: y_H2O > 0.3 ? 0.45 : 0.3,
+      puffRx: 14 + flowScale * 5, puffRy: 14 + flowScale * 3,
+      spreadX: 8, scaleStart: 0.5, scaleEnd: 1.7,
+      opacityStart: 0.25, opacityPeak: y_H2O > 0.3 ? 0.5 : 0.35,
       color, filter: 'smoke-f2',
       driftRange: 40,  // wide — spans open top
       _cx: wx + pres.w * scene.tile / 2,
@@ -37632,7 +37635,7 @@ const _RAGTAG_SYMBOLS = {
       clipEl.appendChild(svgEl('ellipse', { cx:boreX, cy:boreY, rx:3, ry:1.5 }));
       clipEl.appendChild(svgEl('rect', { x:boreX - _maxW, y:_spoutY, width:_maxW * 2, height:_groundY - _spoutY + 4 }));
       // Add clip to SVG defs
-      let defsEl = g.closest('svg')?.querySelector('defs');
+      let defsEl = svg.querySelector('defs');
       if (defsEl) defsEl.appendChild(clipEl);
       // Stream path
       const _streamPath = svgEl('path', {
@@ -38326,6 +38329,11 @@ const _RAGTAG_SYMBOLS = {
         'data-anim':'rotor-pulse', 'data-opbase':'0.3', 'data-amp':'0.2', 'data-speed':'0.8', 'data-phase':'0',
         'pointer-events':'none' }));
     }
+    // [v20.0.1] Numeric SOC percentage — LCD-style readout below bars
+    const socText = Math.round(soc) + '%';
+    g.appendChild(svgEl('text', { x:wx+48, y:wy+72, 'text-anchor':'middle', 'dominant-baseline':'central',
+      'font-size':'9px', 'font-family':'monospace', fill: soc < 20 ? '#ef4444' : '#fbbf24',
+      opacity: 0.7, 'pointer-events':'none' })).textContent = socText;
     // 4 small bolts
     _rtBoltS(g, wx+28, wy+24); _rtBoltS(g, wx+68, wy+24);
     _rtBoltS(g, wx+28, wy+72); _rtBoltS(g, wx+68, wy+72);
@@ -38543,7 +38551,7 @@ _RAGTAG_SYMBOLS.flare_stack = function(g, wx, wy, ww, wh, pal, def, unitId) {
     const _fClipEl = svgEl('clipPath', { id: _fClipId });
     _fClipEl.appendChild(svgEl('ellipse', { cx:boreX, cy:boreY, rx:al(3), ry:al(1.5) }));
     _fClipEl.appendChild(svgEl('rect', { x:boreX - _fMaxW, y:_fSpoutY, width:_fMaxW * 2, height:_fGroundY - _fSpoutY + 2 }));
-    let _fDefsEl = g.closest('svg')?.querySelector('defs');
+    let _fDefsEl = svg.querySelector('defs');
     if (_fDefsEl) {
       for (const old of _fDefsEl.querySelectorAll(`#${_fClipId}`)) old.remove();
       _fDefsEl.appendChild(_fClipEl);
@@ -38615,13 +38623,15 @@ _RAGTAG_SYMBOLS.flare_stack = function(g, wx, wy, ww, wh, pal, def, unitId) {
   const _hasCombustion = _Q > 10;  // skip flame if negligible
 
   if (_hasCombustion) {
-    // Flame size from log scale
+    // Flame size from log scale — clamped [0, 1]
+    // 0.001 mol/s = small pilot flame, 1 mol/s = large industrial flame
     const Q_fuel_mols = Object.values(_ud?.last?.combustion?.extents || {}).reduce((a,b) => a+b, 0);
-    const f = Math.log10(Q_fuel_mols / 0.001 + 1) / Math.log10(1001);
-    const rxO = al(8 + 22 * f) * 2;  // doubled because prototype was at 80px scale
-    const ryO = al(12 + 38 * f) * 2;
-    const rxI = al(4 + 12 * f) * 2;
-    const ryI = al(8 + 24 * f) * 2;
+    const f = Math.min(1, Math.max(0, Math.log10(Q_fuel_mols / 0.001 + 1) / Math.log10(1001)));
+    // Proto scale: outer rx 8-30, ry 12-50; inner rx 4-16, ry 8-32
+    const rxO = al(8 + 22 * f);
+    const ryO = al(12 + 38 * f);
+    const rxI = al(4 + 12 * f);
+    const ryI = al(8 + 24 * f);
 
     // Flame color from fuel_fractions (default: CH₄ orange)
     const ff = _ud?.last?.combustion?.fuel_fractions || {};
@@ -38659,7 +38669,7 @@ _RAGTAG_SYMBOLS.flare_stack = function(g, wx, wy, ww, wh, pal, def, unitId) {
 
     // Create unique gradient + clip IDs
     const fid = 'flare-' + unitId;
-    let defsEl = g.closest('svg')?.querySelector('defs');
+    let defsEl = svg.querySelector('defs');
     if (defsEl) {
       // Remove old gradients if re-rendering
       for (const old of defsEl.querySelectorAll(`[id^="${fid}"]`)) old.remove();
@@ -38675,37 +38685,54 @@ _RAGTAG_SYMBOLS.flare_stack = function(g, wx, wy, ww, wh, pal, def, unitId) {
       gI.appendChild(svgEl('stop', { offset:'50%', 'stop-color':im, 'stop-opacity':'0.7' }));
       gI.appendChild(svgEl('stop', { offset:'100%', 'stop-color':ie, 'stop-opacity':'0' }));
       defsEl.appendChild(gI);
-      // Clip path
+      // Clip path — fixed window above collar (from mockup final_nudge)
       const cp = svgEl('clipPath', { id:`${fid}-clip` });
       cp.appendChild(svgEl('rect', { x:ax(97), y:ay(26), width:al(120), height:al(112) }));
       defsEl.appendChild(cp);
     }
 
     // Halo
-    g.appendChild(svgEl('circle', { cx:ax(167), cy:ay(74), r:al(55), fill:'none', 'pointer-events':'none' }));
+    g.appendChild(svgEl('circle', { cx:ax(168), cy:ay(100), r:al(55), fill:'none', 'pointer-events':'none' }));
     const haloGrad = svgEl('radialGradient', { id:`${fid}-halo`, cx:'50%', cy:'70%' });
     haloGrad.appendChild(svgEl('stop', { offset:'0%', 'stop-color':haloCol, 'stop-opacity':'0.2' }));
     haloGrad.appendChild(svgEl('stop', { offset:'100%', 'stop-color':haloCol, 'stop-opacity':'0' }));
     if (defsEl) { for (const old of defsEl.querySelectorAll(`#${fid}-halo`)) old.remove(); defsEl.appendChild(haloGrad); }
-    g.appendChild(svgEl('circle', { cx:ax(167), cy:ay(74), r:al(55), fill:`url(#${fid}-halo)`, 'pointer-events':'none' }));
+    g.appendChild(svgEl('circle', { cx:ax(168), cy:ay(100), r:al(55), fill:`url(#${fid}-halo)`, 'pointer-events':'none' }));
 
-    // Flame ellipses with SMIL animation
+    // [v20.0.1] Flame — faithful to mockup v11 counter-scroll technique.
+    // Group scrolls UP via animateTransform, ellipse cy scrolls DOWN by same
+    // amount and same duration → net visual position stationary. But the
+    // element physically traverses 300px of feTurbulence displacement field,
+    // creating the alive, flickering look. Clip path is a FIXED window.
+    // Both animations are pure SMIL with matching dur → no desync flicker.
     const flameG = svgEl('g', { 'clip-path':`url(#${fid}-clip)`, 'pointer-events':'none' });
-    const fcx = ax(167), fcy = ay(74);
-    // Outer flame
+    const fcx = ax(168), outerCy = ay(74), innerCy = ay(87);
+    // Outer flame — group scrolls up 300, ellipse cy scrolls down 300
     const outerG = svgEl('g', {});
-    const outerAT = svgEl('animateTransform', { attributeName:'transform', type:'translate', values:'0 0;0 -300', dur:'3.2s', repeatCount:'indefinite' });
-    outerG.appendChild(outerAT);
-    const outerE = svgEl('ellipse', { cx:fcx, rx:Math.max(5,rxO), ry:Math.max(8,ryO), fill:`url(#${fid}-go)`, filter:'url(#flare-ft1)', opacity:opO.toFixed(2) });
-    outerE.appendChild(svgEl('animate', { attributeName:'cy', values:`${fcy};${fcy+300}`, dur:'3.2s', repeatCount:'indefinite' }));
+    outerG.appendChild(svgEl('animateTransform', {
+      attributeName:'transform', type:'translate',
+      values:'0 0;0 -300', dur:'3.2s', repeatCount:'indefinite'
+    }));
+    const outerE = svgEl('ellipse', { cx:fcx, rx:Math.max(5,rxO), ry:Math.max(8,ryO),
+      fill:`url(#${fid}-go)`, filter:'url(#flare-ft1)', opacity:opO.toFixed(2) });
+    outerE.appendChild(svgEl('animate', {
+      attributeName:'cy', values:`${outerCy};${outerCy+300}`,
+      dur:'3.2s', repeatCount:'indefinite'
+    }));
     outerG.appendChild(outerE);
     flameG.appendChild(outerG);
-    // Inner core
+    // Inner core — same technique, different phase
     const innerG = svgEl('g', {});
-    const innerAT = svgEl('animateTransform', { attributeName:'transform', type:'translate', values:'0 0;0 -300', dur:'4s', begin:'-1.5s', repeatCount:'indefinite' });
-    innerG.appendChild(innerAT);
-    const innerE = svgEl('ellipse', { cx:ax(166), rx:Math.max(3,rxI), ry:Math.max(5,ryI), fill:`url(#${fid}-gi)`, filter:'url(#flare-ft2)', opacity:opI.toFixed(2) });
-    innerE.appendChild(svgEl('animate', { attributeName:'cy', values:`${ay(87)};${ay(87)+300}`, dur:'4s', begin:'-1.5s', repeatCount:'indefinite' }));
+    innerG.appendChild(svgEl('animateTransform', {
+      attributeName:'transform', type:'translate',
+      values:'0 0;0 -300', dur:'4s', begin:'-1.5s', repeatCount:'indefinite'
+    }));
+    const innerE = svgEl('ellipse', { cx:ax(167), rx:Math.max(3,rxI), ry:Math.max(5,ryI),
+      fill:`url(#${fid}-gi)`, filter:'url(#flare-ft2)', opacity:opI.toFixed(2) });
+    innerE.appendChild(svgEl('animate', {
+      attributeName:'cy', values:`${innerCy};${innerCy+300}`,
+      dur:'4s', begin:'-1.5s', repeatCount:'indefinite'
+    }));
     innerG.appendChild(innerE);
     flameG.appendChild(innerG);
     g.appendChild(flameG);
@@ -40051,7 +40078,7 @@ _RAGTAG_SYMBOLS.room = function(g, wx, wy, ww, wh, pal, def, unitId) {
     if (hist.length > 0) {
       const st = _CHARACTERS.lena.bubble;
       // Fade zone: window area with soft gradient fade at top
-      const clipX = wx + 38, clipY = wy + 102, clipW = 212, clipH = 108;
+      const clipX = wx + 24, clipY = wy + 102, clipW = 240, clipH = 108;
       const maskId = 'speech-mask-' + unitId;
       const gradId = 'speech-fade-' + unitId;
       const defs = svgEl('defs', {});
@@ -40067,7 +40094,7 @@ _RAGTAG_SYMBOLS.room = function(g, wx, wy, ww, wh, pal, def, unitId) {
 
       const chatG = svgEl('g', { mask: `url(#${maskId})`, 'pointer-events': 'none' });
       // Build bubbles bottom-up from newest
-      const PAD_X = 8, PAD_Y = 6, GAP = 4, FONT = 10, LINE_H = 13, MAX_CHARS = 26;
+      const PAD_X = 8, PAD_Y = 6, GAP = 4, FONT = 10, LINE_H = 13, MAX_CHARS = 36;
       let curY = clipY + clipH - 4;  // start from bottom of clip zone
 
       for (let i = hist.length - 1; i >= 0 && curY > clipY - 60; i--) {
@@ -41456,6 +41483,9 @@ function render() {
       }
     }
   }
+  // [v20.0.1] Re-pause SMIL after render — new <animate> elements start playing
+  // immediately on creation, so we must freeze them if not currently playing.
+  if (TimeClock.mode !== 'playing' && svg.pauseAnimations) svg.pauseAnimations();
 }
 
 /* =========================
@@ -50044,6 +50074,7 @@ function startPlay() {
   _startFlowArrows();
   syncPlanetBgTime('play');
   _startIconAnim();  // [v15.2.0 S-ICONS]
+  if (svg.unpauseAnimations) svg.unpauseAnimations();  // [v20.0.1] resume SMIL (flare flame)
   _emitGuidanceEvent({ type: 'play_pressed' });  // [v19.2.0]
   _schedulePlayTick(true);  // [v17.4.3] first tick immediate
 }
@@ -50108,6 +50139,7 @@ function stopPlay() {
   if (TimeClock.mode === 'playing') TimeClock.mode = 'paused';
   timeDisplayEl.classList.remove('solving');
   _stopFlowArrows();
+  if (svg.pauseAnimations) svg.pauseAnimations();  // [v20.0.1] freeze SMIL (flare flame)
   // [v17.0.2] rAF chain keeps running for fried smoke — _stopIconAnim removed from pause
   updateTransportUI();
 }
@@ -52661,7 +52693,7 @@ function _missionAfterSolve() {
   if (mission) {
     for (const obj of mission.objectives) {
       const r = evaluateCriterion(obj, scene, runtime);
-      const key = obj.id || obj.type;
+      const key = r._runtimeKey || obj.id || obj.type;
       if (r._conditionsOk === true) {
         _missionConditionTimers[key] = (_missionConditionTimers[key] || 0) + dt;
       } else if (r._conditionsOk === false) {
@@ -52675,7 +52707,7 @@ function _missionAfterSolve() {
       if (star?.criteria) {
         for (const c of star.criteria) {
           const r = evaluateCriterion(c, scene, runtime);
-          const key = c.id || ('star' + level + '_' + c.type);
+          const key = r._runtimeKey || c.id || ('star' + level + '_' + c.type);
           if (r._conditionsOk === true) {
             _missionConditionTimers[key] = (_missionConditionTimers[key] || 0) + dt;
           } else if (r._conditionsOk === false) {
@@ -72360,10 +72392,11 @@ function runTests() {
       const mission = MissionRegistry.get('arc_a_m1');
       for (const obj of mission.objectives) {
         const r = evaluateCriterion(obj, scene, rt);
+        const key = r._runtimeKey || obj.id || obj.type;
         if (r._conditionsOk === true) {
-          timers[obj.id] = (timers[obj.id] || 0) + 3600;
+          timers[key] = (timers[key] || 0) + 3600;
         } else if (r._conditionsOk === false) {
-          timers[obj.id] = 0;
+          timers[key] = 0;
         }
       }
     }
@@ -72443,10 +72476,11 @@ function runTests() {
       const mission = MissionRegistry.get('arc_a_m2');
       for (const obj of mission.objectives) {
         const r = evaluateCriterion(obj, scene, rt);
+        const key = r._runtimeKey || obj.id || obj.type;
         if (r._conditionsOk === true) {
-          timers[obj.id] = (timers[obj.id] || 0) + 3600;
+          timers[key] = (timers[key] || 0) + 3600;
         } else if (r._conditionsOk === false) {
-          timers[obj.id] = 0;
+          timers[key] = 0;
         }
       }
     }
