@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v19.8.0
+  processThis v19.8.3
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -361,6 +361,71 @@
   ═══════════════════════════════════════════════════════════════════════════
   CHANGELOG  (latest first)
   ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v19.8.3 — Preplaced unit lock levels + campaign palette fixes ─────────
+
+  **Two-level preplaced unit locking.**  Each `preplacedUnits[]` entry
+  now has a `lock` field: `'full'` (can't move or delete — room, flare)
+  or `'nodelete'` (movable but can't delete — O₂ bottle, battery,
+  scrubber, hydrovent).  Future missions can override lock to `null`
+  to unlock deletion (e.g. scrubber replacement).
+
+  `_getUnitLock(id)` queries MissionRegistry directly (immutable source
+  of truth), walking arc missions up to current.  Last definition wins.
+  All guards use it: pointerdown + pointermove block drag for `'full'`
+  only; deleteUnit override + multi-delete filter block both levels;
+  inspector hides delete for both, makes name readonly + dimmed only
+  for `'full'`, shows 🔒 badge with level-specific tooltip.
+
+  **Campaign palette: T1 only.**  `populatePalette` in campaign mode
+  restricts to tier 1 (air_cooler T2 no longer shown in M3).
+
+  **hidePressureSwitch wired.**  `applyStoryUI` now hides
+  `#palModeSwitch` when truthy; `resetStoryUI` restores it.
+
+  NNGs: NNG-3 (WYSIWYG — lock levels match game design intent),
+  NNG-14 (changelog).
+
+  ─── v19.8.2 — Campaign scarcity enforcement + palette gating ──────────────
+
+  **Palette scarcity enforcement.**  Fixed: placing a unit in campaign
+  mode did not decrement the "X left" badge or block further placement.
+  Root cause: `populatePalette()` was never re-called after placement.
+  Fix: (1) scarcity pre-check in both dblclick and drag-drop handlers —
+  if `_countPlacedByProfile >= max`, placement is blocked with a toast.
+  (2) `populatePalette()` called after every successful placement and
+  deletion in campaign mode, so badges, opacity, and pointerEvents
+  update live.
+
+  **Palette hidden for M1/M2, restored for M3.**  New `storyUI.
+  hidePalette` flag, wired in `applyStoryUI`: hides `#btnAdd` (+)
+  button and closes the drawer.  When absent or false, explicitly
+  restores `#btnAdd` visibility (fixes M2→M3 transition where the
+  hidden state persisted).  Keyboard shortcut `/` and `Tab` guarded.
+
+  **_preplaced flag round-trip.**  `exportJSON` now serializes
+  `_preplaced` flag.  `importJSON` now preserves it during Phase 3
+  unit construction.  This ensures the flag survives through undo/redo
+  (`_restoreSnapshot` → `importJSON`), career saves, and checkpoint
+  round-trips — not just the initial `loadMission` step 4 re-marking.
+
+  **M3 briefing references + button.**  Lena's opening line now says
+  "Hit the green + button — I salvaged some parts" to introduce the
+  palette mechanic when it first becomes available.
+
+  NNGs: NNG-3 (WYSIWYG — scarcity badge matches actual state),
+  NNG-14 (changelog).
+
+  ─── v19.8.1 — H₂O gauge needle clamp ──────────────────────────────────────
+
+  **Body hydration gauge clamped to [0, 100%].**  When crew starts
+  fully hydrated, `h2o_deficit_per_person` is deeply negative (~−334
+  mol/pp from 72h body reserves), producing ~180% and pushing the
+  needle past the green zone center.  Now clamped: deficit ≤ 0 → 100%
+  (needle at 12 o'clock, center of green).  Both diegetic _arcGauge
+  and inspector _renderGauge fixed.
+
+  NNGs: NNG-3 (WYSIWYG — needle matches crew state), NNG-14 (changelog).
 
   ─── v19.8.0 — Action bar cleanup + campaign Home button ───────────────────
 
@@ -27626,7 +27691,7 @@ const M3_INTRO = [
 
 const M3_BRIEFING = [
   { type: 'dialogue', speaker: 'lena', expression: 'happy', delay_ms: 1500,
-    text: 'Water\u2019s urgent. Cool the vent steam, collect it in a barrel. You\u2019ll need a power dispatcher first.' },
+    text: 'Water\u2019s urgent. Hit the green + button \u2014 I salvaged some parts. Cool the vent steam, collect it in a barrel. You\u2019ll need a power dispatcher first.' },
 ];
 
 const M3_VICTORY_LINES = {
@@ -27720,14 +27785,14 @@ MissionRegistry.register('arc_a_m1', {
   inheritScene: false,
   initialScene: null,  // Built by mission loader from preplaced list
   preplacedUnits: [
-    { id: 'room', profileId: 'shelter', defId: 'room', tier: 1,
+    { id: 'room', profileId: 'shelter', defId: 'room', tier: 1, lock: 'full',
       x: 0, y: 0, params: { nPeople: 2, powerPriority: 1 } },
-    { id: 'o2_bottle', profileId: 'simple_gas_bottle', defId: 'simple_tank', tier: 1,
+    { id: 'o2_bottle', profileId: 'simple_gas_bottle', defId: 'simple_tank', tier: 1, lock: 'nodelete',
       name: 'Oxygen Bottle',
       x: -7, y: 1, params: { volume_m3: 0.01, P_init: 29500000,
         initialComposition: { O2: 1 }, gasDrawRate: 0.001, opening_gas_pct: 46.6,
         P_relief: 35000000 } },
-    { id: 'battery', profileId: 'battery', defId: 'battery', tier: 1,
+    { id: 'battery', profileId: 'battery', defId: 'battery', tier: 1, lock: 'nodelete',
       x: 1, y: -3, params: { peakPower_kW: 100, capacity_J: 1800000000, initialSOC: 1 } },
   ],
 
@@ -27773,6 +27838,7 @@ MissionRegistry.register('arc_a_m1', {
     hidePressureSwitch: true,
     pressureMode: 'simple',
     hideDevTab: true,
+    hidePalette: true,
     showObjectivePanel: true,
     showStarTracker: true,
     showRunway: true,
@@ -27800,9 +27866,9 @@ MissionRegistry.register('arc_a_m2', {
 
   inheritScene: true,
   preplacedUnits: [
-    { id: 'flare', profileId: 'flare_stack', defId: 'flare_stack', tier: 1,
+    { id: 'flare', profileId: 'flare_stack', defId: 'flare_stack', tier: 1, lock: 'full',
       x: 14, y: -6, params: {} },
-    { id: 'scrubber', profileId: 'co2_scrubber', defId: 'membrane_separator', tier: 1,
+    { id: 'scrubber', profileId: 'co2_scrubber', defId: 'membrane_separator', tier: 1, lock: 'nodelete',
       x: 8, y: 1, params: { targetSpecies: 'CO2', extractionFrac: 0.99,
         consumable: { name: 'LiOH Cartridges', capacity: 500, remaining: 500, maxRate: 5.0 },
         variant: 'flip' } },
@@ -27865,7 +27931,7 @@ MissionRegistry.register('arc_a_m2', {
   storyUI: {
     visibleMenuItems: ['reports', 'physicalUnits', 'clearStickers', 'home', 'saveCampaign'],
     hidePaletteFilter: true, hidePressureSwitch: true,
-    pressureMode: 'simple', hideDevTab: true,
+    pressureMode: 'simple', hideDevTab: true, hidePalette: true,
     showObjectivePanel: true, showStarTracker: true, showRunway: true,
   },
   rewards: { palette: {}, species: [], reactions: [] },
@@ -27893,7 +27959,7 @@ MissionRegistry.register('arc_a_m3', {
 
   inheritScene: true,
   preplacedUnits: [
-    { id: 'hydrovent', profileId: 'hydrovent', defId: 'reservoir', tier: 1,
+    { id: 'hydrovent', profileId: 'hydrovent', defId: 'reservoir', tier: 1, lock: 'nodelete',
       x: -14, y: 1, params: { P_bar: 15, T: 450,
         composition: { H2O: 0.6, CH4: 0.3, H2: 0.1 },
         Cv: 0.3, opening_pct: 50 } },
@@ -28347,6 +28413,7 @@ class Scene {
       if (u.inventory) unitData.inventory = u.inventory;  // [v12.0.0] tank/battery state
       if (u.fried) unitData.fried = true;  // [v13.1.0 S2-A] overload destruction state
       if (u.mode && u.mode !== 'on') unitData.mode = u.mode;  // [v16.9.0 S-STATUS]
+      if (u._preplaced) unitData._preplaced = true;  // [v19.8.2] campaign lock flag
       data.units.push(unitData);
     }
     
@@ -28558,6 +28625,8 @@ class Scene {
         rot: typeof rot === 'number' && isFinite(rot) ? rot : 0,
         params: (u.params && typeof u.params === 'object') ? u.params : {}
       };
+      // [v19.8.2] Preserve preplaced flag through import round-trip
+      if (u._preplaced) unit._preplaced = true;
       // [v10.7.0] Restore sticker data
       if (u.sticker && typeof u.sticker === 'object' && Array.isArray(u.sticker.items)) {
         unit.sticker = {
@@ -39251,7 +39320,7 @@ _RAGTAG_SYMBOLS.room = function(g, wx, wy, ww, wh, pal, def, unitId) {
   const gT   = last.T_room_K != null ? last.T_room_K - 273.15 : 21;
   // Body hydration: 100% = fully hydrated (deficit ≤ 0), 0% = death (deficit ≥ 417 mol/pp)
   const _h2oDefPP = last.h2o_deficit_per_person ?? 0;
-  const gH2O = Math.max(0, (1 - _h2oDefPP / 417)) * 100;
+  const gH2O = Math.min(100, Math.max(0, (1 - _h2oDefPP / 417) * 100));
   const gPwr = _gv.power_pct ?? 100;
 
   // Rotation offsets: nominal value → 12 o'clock (−90° in arc convention)
@@ -40074,9 +40143,9 @@ function drawUnits() {
       }
       // If clicking a unit already in multi-select, keep selection for group drag
 
-      // [v19.3.0] Block dragging preplaced units in campaign mode
-      if (_activeGameMode === GameMode.CAMPAIGN && u._preplaced) {
-        // Allow select (for inspection) but not drag
+      // [v19.8.3] Block dragging fully-locked preplaced units
+      if (_getUnitLock(id) === 'full') {
+        updatePropertiesPanel();
         render();
         return;
       }
@@ -45054,7 +45123,7 @@ UnitInspector.room = {
     // Row 2: Body Hydration (from deficit), Hot Water (supply ratio), Power
     const row2 = el('div', { class: 'ins-gauges-row' });
     const _h2oDefPP = L.h2o_deficit_per_person ?? 0;
-    const gH2Ob = Math.max(0, (1 - _h2oDefPP / 417)) * 100;
+    const gH2Ob = Math.min(100, Math.max(0, (1 - _h2oDefPP / 417) * 100));
     _renderGauge(row2, gH2Ob, '%',
       { lo: 0, LL: 34, L: 67, H: 133, hi: 200, rot: 0 }, 'Body H₂O');
     const gH2Oh = svc.h2o_hot ? svc.h2o_hot.pct * 100 : 100;
@@ -45451,7 +45520,9 @@ function populatePalette() {
         if (isBnd) {
           tiles.push({ profile, tier: 1, showBadge: false });
         } else {
-          for (const t of profile.tiers) {
+          // [v19.8.3] Campaign mode: T1 only (higher tiers unlocked by future missions)
+          const _tiers = isCampaign ? [1] : profile.tiers;
+          for (const t of _tiers) {
             tiles.push({ profile, tier: t, showBadge: t > 1 });
           }
         }
@@ -45516,6 +45587,16 @@ function populatePalette() {
       });
       
       tile.addEventListener('dblclick', () => {
+        // [v19.8.2] Campaign scarcity enforcement: block placement if exhausted
+        if (isCampaign && effectivePalette && (profile.profileId in effectivePalette)) {
+          const maxCount = effectivePalette[profile.profileId] || 0;
+          const placed = _countPlacedByProfile(profile.profileId);
+          if (placed >= maxCount) {
+            showToast(`Can\u2019t place \u2014 ${profile.name} limit reached (${maxCount}).`);
+            return;
+          }
+        }
+
         const vb = svg.getAttribute('viewBox')?.split(' ').map(Number) || [0,0,1000,600];
         const cx = vb[0] + vb[2] / 2;
         const cy = vb[1] + vb[3] / 2;
@@ -45556,6 +45637,8 @@ function populatePalette() {
         updatePropertiesPanel();
         render();
         setStatus(`Placed ${profile.name}${showBadge ? ' T' + tier : ''}`);
+        // [v19.8.2] Refresh palette to update scarcity badges
+        if (isCampaign) populatePalette();
       });
       
       tilesContainer.appendChild(tile);
@@ -45781,13 +45864,19 @@ function _rebuildInspectorContent() {
     const delBtn = el('button', { class: 'ins-delete-btn', html: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 4h12M5.3 4V2.7a1 1 0 011-1h3.4a1 1 0 011 1V4M6.5 7v4.5M9.5 7v4.5M3.5 4l.7 9a1.5 1.5 0 001.5 1.4h4.6a1.5 1.5 0 001.5-1.4l.7-9"/></svg>' });
     delBtn.title = 'Delete unit';
     delBtn.addEventListener('click', () => deleteSelected());
-    // [v19.3.0] Preplaced unit guards: lock icon, hide delete, read-only name
-    if (_activeGameMode === GameMode.CAMPAIGN && u._preplaced) {
+    // [v19.8.3] Preplaced unit guards: lock level determines restrictions
+    const _unitLock = _getUnitLock(u.id);
+    if (_unitLock === 'full') {
       delBtn.style.display = 'none';
       nameInput.readOnly = true;
       nameInput.style.opacity = '0.6';
       const lockBadge = el('span', { html: '\uD83D\uDD12', style: 'font-size:12px; margin-left:4px; opacity:0.5;' });
-      lockBadge.title = 'Preplaced \u2014 can\u2019t delete or move';
+      lockBadge.title = 'Locked \u2014 can\u2019t delete or move';
+      titleDiv.appendChild(lockBadge);
+    } else if (_unitLock === 'nodelete') {
+      delBtn.style.display = 'none';
+      const lockBadge = el('span', { html: '\uD83D\uDD12', style: 'font-size:12px; margin-left:4px; opacity:0.3;' });
+      lockBadge.title = 'Mission unit \u2014 can\u2019t delete';
       titleDiv.appendChild(lockBadge);
     }
     titleDiv.appendChild(delBtn);
@@ -46560,6 +46649,32 @@ function _countPlacedByProfile(profileId) {
   return count;
 }
 
+// [v19.8.3] Get the lock level for a unit in the current campaign mission.
+// Returns 'full' (no move, no delete), 'nodelete' (movable, no delete), or null (unlocked).
+// Queries MissionRegistry directly — immutable source of truth.
+// Last definition wins: a later mission can override lock (e.g. scrubber → null to allow delete).
+function _getUnitLock(unitId) {
+  if (_activeGameMode !== GameMode.CAMPAIGN || !_activeMissionId) return null;
+  const mission = MissionRegistry.get(_activeMissionId);
+  if (!mission) return null;
+  const arc = ArcRegistry.get(mission.arcId);
+  if (!arc) return null;
+  let lock = null;
+  for (const mid of arc.missions) {
+    const m = MissionRegistry.get(mid);
+    if (m) {
+      for (const pu of m.preplacedUnits) {
+        if (pu.id === unitId) lock = pu.lock || 'full';  // default 'full' for backwards compat
+      }
+    }
+    if (mid === _activeMissionId) break;
+  }
+  return lock;
+}
+
+// Convenience: is this unit preplaced at all?
+function _isPreplacedUnit(unitId) { return _getUnitLock(unitId) != null; }
+
 /* =========================
    [v10.3.0] AUTO-SAVE (M8)
    ========================= */
@@ -46706,13 +46821,11 @@ scene.placeUnit = function(...args) {
 };
 const _origDeleteUnit = scene.deleteUnit.bind(scene);
 scene.deleteUnit = function(id, ...rest) {
-  // [v19.3.0] Block deletion of preplaced units in campaign mode
-  if (_activeGameMode === GameMode.CAMPAIGN) {
-    const u = scene.units.get(id);
-    if (u?._preplaced) {
-      showToast('Can\u2019t delete \u2014 this unit is part of the mission.');
-      return false;
-    }
+  // [v19.8.3] Block deletion of locked preplaced units (full + nodelete)
+  const _lock = _getUnitLock(id);
+  if (_lock === 'full' || _lock === 'nodelete') {
+    showToast('Can\u2019t delete \u2014 this unit is part of the mission.');
+    return false;
   }
   _pushUndo('Delete unit');
   const result = _origDeleteUnit(id, ...rest);
@@ -47003,9 +47116,9 @@ function deleteSelected() {
     // [v12.10.0] Multi-delete
     _pushUndo('Delete units');
     const ids = [...ui.selectedUnitIds];
-    // [v19.3.0] Filter out preplaced units in campaign mode
+    // [v19.8.3] Filter out locked preplaced units (full + nodelete)
     const deletable = _activeGameMode === GameMode.CAMPAIGN
-      ? ids.filter(id => !scene.units.get(id)?._preplaced)
+      ? ids.filter(id => { const lk = _getUnitLock(id); return lk !== 'full' && lk !== 'nodelete'; })
       : ids;
     const blocked = ids.length - deletable.length;
     for (const id of deletable) {
@@ -47022,11 +47135,13 @@ function deleteSelected() {
     showToast(blocked > 0
       ? `Deleted ${deletable.length} units (${blocked} locked)`
       : `Deleted ${deletable.length} units`);
+    if (_activeGameMode === GameMode.CAMPAIGN) populatePalette();  // [v19.8.2] refresh scarcity
   } else if (ui.selectedUnitId) {
     scene.deleteUnit(ui.selectedUnitId);
     _clearSelection();
     updatePropertiesPanel();
     render();
+    if (_activeGameMode === GameMode.CAMPAIGN) populatePalette();  // [v19.8.2] refresh scarcity
   } else if (ui.selectedConnId) {
     // Delete stream — push undo before mutation
     _pushUndo('Delete connection');
@@ -47130,6 +47245,12 @@ svg.addEventListener('pointermove', (ev) => {
   if (ui.isDraggingUnit && ui.dragUnitId && ui.dragOffset) {
     const anchor = scene.units.get(ui.dragUnitId);
     if (anchor) {
+      // [v19.8.3] Block fully-locked preplaced unit movement
+      if (_getUnitLock(ui.dragUnitId) === 'full') {
+        ui.isDraggingUnit = false;
+        ui.dragUnitId = null;
+        return;
+      }
       const wpos = ui._mouseWorld;
       const cellX = (wpos.x / scene.tile) - ui.dragOffset.cellX;
       const cellY = (wpos.y / scene.tile) - ui.dragOffset.cellY;
@@ -47406,6 +47527,20 @@ svg.addEventListener('drop', (ev) => {
 
   const defId = ev.dataTransfer.getData('text/plain') || ui.dragDefId;
   if (!defId) return;
+
+  // [v19.8.2] Campaign scarcity enforcement on drag-drop
+  const _dropProfileId = ui.dragProfileId || defId;
+  if (_activeGameMode === GameMode.CAMPAIGN && _activeCampaignState && _activeMissionId) {
+    const _ep = _activeCampaignState.getEffectivePalette(_activeMissionId);
+    if (_ep && (_dropProfileId in _ep)) {
+      const _max = _ep[_dropProfileId] || 0;
+      if (_countPlacedByProfile(_dropProfileId) >= _max) {
+        showToast(`Can\u2019t place \u2014 ${ProfileRegistry.get(_dropProfileId)?.name || _dropProfileId} limit reached (${_max}).`);
+        ui.dragDefId = null; ui.dragProfileId = null; ui.dragTier = null; ui.isHTML5Dragging = false;
+        return;
+      }
+    }
+  }
   
   const w = screenToWorld(ev.clientX, ev.clientY);
   const cell = worldToCell(w.x, w.y);
@@ -47462,6 +47597,8 @@ svg.addEventListener('drop', (ev) => {
   
   updatePropertiesPanel();
   render();
+  // [v19.8.2] Refresh palette to update scarcity badges
+  if (_activeGameMode === GameMode.CAMPAIGN) populatePalette();
 });
 
 // Keyboard shortcuts
@@ -47496,6 +47633,9 @@ window.addEventListener('keydown', (ev) => {
   }
   // [v10.0.6] "/" toggles palette; [v10.0.7] Tab also toggles palette
   if (ev.key === '/' || ev.key === 'Tab') {
+    // [v19.8.2] Block palette shortcut if hidden by storyUI
+    const _btnAdd = document.getElementById('btnAdd');
+    if (_btnAdd && _btnAdd.style.display === 'none') return;
     const drawer = document.getElementById('paletteDrawer');
     ev.preventDefault();
     if (drawer.classList.contains('open')) {
@@ -50983,6 +51123,17 @@ function applyStoryUI(storyUI) {
   if (menuWrap) menuWrap.style.display = 'none';
   const btnStoryHome = document.getElementById('btnStoryHome');
   if (btnStoryHome) btnStoryHome.style.display = '';
+
+  // 7. [v19.8.2] Palette visibility — hide for connection-only missions, show otherwise
+  const btnAdd = document.getElementById('btnAdd');
+  if (btnAdd) btnAdd.style.display = storyUI.hidePalette ? 'none' : '';
+  if (storyUI.hidePalette) togglePalette(false);
+
+  // 8. [v19.8.3] Hide pressure mode switch in campaign
+  if (storyUI.hidePressureSwitch) {
+    const palModeSwitch = document.getElementById('palModeSwitch');
+    if (palModeSwitch) palModeSwitch.style.display = 'none';
+  }
 }
 
 function resetStoryUI() {
@@ -51015,6 +51166,13 @@ function resetStoryUI() {
   if (menuWrap) menuWrap.style.display = '';
   const btnStoryHome = document.getElementById('btnStoryHome');
   if (btnStoryHome) btnStoryHome.style.display = 'none';
+
+  // [v19.8.2] Restore palette + button
+  const btnAdd = document.getElementById('btnAdd');
+  if (btnAdd) btnAdd.style.display = '';
+  // [v19.8.3] Restore pressure mode switch
+  const palModeSwitch = document.getElementById('palModeSwitch');
+  if (palModeSwitch) palModeSwitch.style.display = '';
 }
 
 /**
