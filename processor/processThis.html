@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v19.5.0
+  processThis v19.6.0
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -361,6 +361,99 @@
   ═══════════════════════════════════════════════════════════════════════════
   CHANGELOG  (latest first)
   ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v19.6.0 — Tutorial fixes, room physics, cinematic polish ─────────────
+
+  **Cinematic transition choreography.**  Three-phase beat transitions:
+  text fades out (350ms) → content swaps (crossfade or wipe) → text
+  fades in (400ms delay).  Click blocked during transitions to prevent
+  skip-through.  Smooth fade-to-black exit (1.2s) replacing hard cut.
+
+  **4 Star Wars wipe variants.**  `transition` field now supports:
+  `wipe`/`wipe-diagonal` (classic slanted sweep), `wipe-horizontal`
+  (left-to-right), `wipe-iris` (circle from center), `wipe-vertical`
+  (top-to-bottom curtain).  All use `clip-path` animation + Ken Burns.
+  Applied selectively: fades for quiet beats, wipes for action/energy.
+
+  **Text shadow legibility.**  4-layer `text-shadow` on all cinematic
+  text (fully opaque tight shadow + 10/24/50px blur layers).  Replaces
+  removed scrim gradient.  Readable on any background including bright.
+
+  **Opaque cinematic overlay.**  `background: #000` with purple radial
+  gradient fallback.  No more inspector/topbar bleed-through.
+
+  **Instant lights.**  `solveScene()` + `render()` added to
+  `autoPauseOnTopologyChange()`.  Wiring battery to shelter updates
+  `fan_frac` and lights immediately — no timestep needed.  Safe:
+  solveScene writes only `u.last`, never touches `u.inventory`.
+
+  **M1 tutorial rewrite.**  Briefing removed (3 beats of 30-45 words
+  nobody could read).  3 guidance steps (was 4): battery first →
+  "Light! That's better." → O₂ → play.  All Lena lines under 15
+  words.  Expression: `happy` throughout (no more hostile face).
+  Inspect-battery step removed (tutorial fatigue).
+
+  **M2/M3 briefings and guidance shortened.**  Briefings: 1 beat each,
+  under 20 words.  All guidance steps under 15 words.
+
+  **Unit renames.**  Profile: "Crew Shelter" → "Shelter".  Preplaced
+  unit: gas bottle → "Oxygen Bottle" (name field on preplaced spec).
+
+  **Room body reserves (NNG-1).**  `initInventory` starts `_h2o_deficit`
+  at -669 mol (72h drinking water for 2 people) and `_food_deficit` at
+  -282 mol (7 days food).  Negative = body has reserves.  Crosses zero
+  when reserves exhaust, then positive = actual deficit.  `Math.max(0)`
+  clamp removed from `updateInventory`.  `nPeople ?? 2` fix (was `|| 2`
+  which turned 0 into 2, producing phantom metabolic heat).
+
+  **Basal metabolic heat from body reserves.**  When no food pipe is
+  connected but `_food_deficit < 0`, metabolism runs at normal rate
+  using body stores + room O₂.  Produces ~170W heat (2 people),
+  preventing instant hypothermia.  CO₂ and H₂O still produced —
+  mass balance correct (NNG-1).
+
+  **Fan dead-head (NNG-3).**  Room exhaust now gated on
+  `ctx.portConnected('air_exhaust')`.  Unconnected exhaust port
+  carries zero flow — fan cannot push against a sealed dead end.
+  Fixes room depressurizing in 2 hours when air loop not yet built.
+  Uses existing NNG-9 compliant `_outPortConn` connectivity query.
+
+  **Game over cause of death.**  `showGameOverScreen()` now receives
+  the room's specific `u.last.error.message` (e.g. "☠ Crew dead —
+  Dehydration") instead of generic "The crew did not survive."
+
+  **Auto-pause on objectives met.**  `_missionAfterSolve` checks if
+  star 1 criteria are met; first time → `stopPlay()`, Lena says
+  "✔ That should do it. Hit ★ Complete Mission when you're ready."
+  Flag `_objectivesMetAutoPaused` prevents repeat triggers, reset
+  on mission load.  Universal for all missions.
+
+  **Star 1 = pass requirement.**  `evaluateMissionCompletion` now
+  returns `passed: true` only when star 1 is earned.  Stars 2-3
+  are bonus — cannot substitute for star 1.  "Complete Mission"
+  button shows specific star 1 unmet criteria on failure.
+
+  **Guidance auto-advance with render.**  `_showCurrent()` calls
+  `render()` so speech bubble appears immediately on delayed step
+  advance.  `GuidanceHighlighter.update()` called after delay too.
+
+  **Completion message visual distinction.**  `onComplete` messages
+  prefixed with ✔ checkmark to distinguish from instruction messages.
+  Source tagged as `guidance_complete` (vs `guidance` for instructions).
+
+  **`render()` after BUILD.**  `startMissionFlow()` calls `render()`
+  after setting BUILD state so first guidance speech appears without
+  requiring a click.
+
+  NNGs: NNG-1 (body reserves mass-balanced, basal metabolism conserves
+  O₂/CO₂/H₂O), NNG-3 (fan dead-head — unconnected port = zero flow),
+  NNG-9 (uses ctx.portConnected, no scene access from tick),
+  NNG-11 (all physics changes in script block 1), NNG-12 (single file),
+  NNG-14 (changelog + 7 updated tests).
+
+  Tests: 845 (7 tests updated for body reserves timeline shift,
+  nPeople fix, water/food deficit thresholds; 2 tests updated for
+  checkmark-prefixed onComplete text).
 
   ─── v19.5.0 — Cinematic overhaul, career naming, ragtag buttons ──────────
 
@@ -19128,8 +19221,6 @@ function evaluateMissionCompletion(missionId, scene, runtime) {
     objectiveResults.push({ id: obj.id, description: obj.description, ...r });
   }
 
-  const allPassed = objectiveResults.length > 0 && objectiveResults.every(r => r.met);
-
   // Inject objective results into runtime for star criteria that need it
   const runtimeWithObjectives = { ...runtime, _objectiveResults: objectiveResults };
 
@@ -19152,7 +19243,11 @@ function evaluateMissionCompletion(missionId, scene, runtime) {
     if (allMet) starCount = level;  // highest passing star
   }
 
-  return { passed: allPassed, objectiveResults, starCount, starResults };
+  // [v19.6.0] Star 1 = pass requirement.  Mission cannot be completed
+  // without earning at least star 1.  Stars 2-3 are bonus.
+  const passed = starResults[1]?.met === true;
+
+  return { passed, objectiveResults, starCount, starResults };
 }
 
 /* =========================
@@ -46202,6 +46297,7 @@ let _activeMissionId = null;       // current mission id or null
 let _playState = PlayState.TITLE;
 let _missionStartTime = 0;  // TimeClock.t at mission load, for elapsed time
 let _missionConditionTimers = {};  // [v19.4.0] objective id → accumulated seconds when conditions met
+let _objectivesMetAutoPaused = false;  // [v19.5.0] true once we've auto-paused for objectives met
 
 // [v19.1.0] Transition the play state with cinematic safety.
 // Overlay states (STORY_INTRO, BRIEFING, VICTORY, etc.) auto-stop the sim.
@@ -50750,6 +50846,7 @@ function loadMission(missionId) {
   _activeMissionId = missionId;
   _missionStartTime = TimeClock.t;
   _missionConditionTimers = {};  // [v19.4.0] reset duration tracking
+  _objectivesMetAutoPaused = false;  // [v19.5.0] reset auto-pause flag
 
   // 6. Effective palette applied via populatePalette() (reads _activeMissionId)
 
@@ -51366,6 +51463,8 @@ const GuidanceSystem = {
         source: 'guidance',
         priority: SpeechPriority.GUIDANCE,
       });
+      // [v19.6.0] Force render so speech bubble appears immediately
+      if (typeof render === 'function') render();
     }
     // Highlighting handled by GuidanceHighlighter (reads currentStep())
   },
@@ -51410,20 +51509,23 @@ const GuidanceSystem = {
     }
 
     if (completed) {
-      // Fire onComplete dialogue
+      // Fire onComplete dialogue with checkmark prefix
       if (step.onComplete) {
         SpeechBubble.push({
-          text: step.onComplete.text,
+          text: '\u2714 ' + step.onComplete.text,
           speaker: step.onComplete.speaker || 'lena',
-          source: 'guidance',
+          source: 'guidance_complete',
           priority: SpeechPriority.GUIDANCE,
         });
       }
-      // Advance
+      // Advance to next step after delay
       this._index++;
       if (this._index < this._steps.length) {
         const delay = this._steps[this._index].delay_ms || 1500;
-        setTimeout(() => this._showCurrent(), delay);
+        setTimeout(() => {
+          this._showCurrent();
+          GuidanceHighlighter.update();
+        }, delay);
       } else {
         this._active = false;
       }
@@ -51636,8 +51738,16 @@ function _wireOverlayButtons() {
     if (result.passed) {
       showVictoryScreen(result);
     } else {
-      const failed = result.objectiveResults.find(o => !o.met);
-      showToast(failed ? `Not complete: ${failed.progress}` : 'Objectives not met.');
+      // [v19.6.0] Show what's preventing star 1 (the pass requirement)
+      const star1 = result.starResults?.[1];
+      if (star1 && !star1.met && star1.criteria) {
+        const unmet = star1.criteria.find(c => !c.met);
+        const msg = unmet?.progress || 'Star 1 criteria not met.';
+        showToast(`Not ready: ${msg}`);
+      } else {
+        const failed = result.objectiveResults.find(o => !o.met);
+        showToast(failed ? `Not complete: ${failed.progress}` : 'Objectives not met.');
+      }
     }
   });
 
@@ -51846,6 +51956,33 @@ function _missionAfterSolve() {
           }
         }
       }
+    }
+  }
+
+  // [v19.6.0] Auto-pause when star 1 (pass condition) is met for the first time.
+  // Prevents new players from running indefinitely without completing.
+  if (mission && !_objectivesMetAutoPaused) {
+    // Evaluate star 1 criteria with full objective context
+    const objResults = mission.objectives.map(obj => {
+      const r = evaluateCriterion(obj, scene, runtime);
+      return { id: obj.id, description: obj.description, ...r };
+    });
+    const rtWithObj = { ...runtime, _objectiveResults: objResults };
+    const star1 = mission.stars[1];
+    let star1Met = false;
+    if (star1?.criteria) {
+      star1Met = star1.criteria.every(c => evaluateCriterion(c, scene, rtWithObj).met);
+    }
+    if (star1Met) {
+      _objectivesMetAutoPaused = true;
+      if (typeof stopPlay === 'function') stopPlay();
+      SpeechBubble.push({
+        text: '\u2714 That should do it. Hit \u2605 Complete Mission when you\u2019re ready.',
+        speaker: 'lena',
+        source: 'mission_complete_prompt',
+        priority: SpeechPriority.GUIDANCE,
+      });
+      render();
     }
   }
 
@@ -71265,7 +71402,7 @@ function runTests() {
     GuidanceSystem.checkCompletion({ type: 'connection', fromProfile: 'source', toProfile: 'sink' });
     // onComplete should have fired
     const hist = SpeechBubble.history();
-    t.assertOK(hist.some(m => m.text === 'Done!'), 'onComplete text pushed');
+    t.assertOK(hist.some(m => m.text.includes('Done!')), 'onComplete text pushed');
     GuidanceSystem.reset();
     SpeechBubble.clear();
   });
@@ -71280,7 +71417,7 @@ function runTests() {
         delay_ms: 0 },
     ]);
     GuidanceSystem.checkCompletion({ type: 'unit_placed', profileId: 'power_dispatcher_5' });
-    t.assertOK(SpeechBubble.history().some(m => m.text === 'Placed!'), 'onComplete fired');
+    t.assertOK(SpeechBubble.history().some(m => m.text.includes('Placed!')), 'onComplete fired');
     t.assertOK(GuidanceSystem.currentStep() === null, 'no more steps');
     GuidanceSystem.reset();
     SpeechBubble.clear();
