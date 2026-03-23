@@ -8,6 +8,8 @@ your context window. Use view and grep on the file on disk.
 copy. Each publish (present_files) becomes your new baseline. Never
 re-read the original upload unless I say I re-uploaded.
 - Do not begin coding until I validate the plan.
+- Follow PTIS rules
+- Version bump and changelog on every publish
 
 BEFORE CODING
 

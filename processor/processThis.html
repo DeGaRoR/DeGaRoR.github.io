@@ -466,9 +466,41 @@
   `_checkGuidanceFromScene` can distinguish new connections from other
   topology changes.
 
-  **storyUI not yet wired.**  Mission `storyUI` config (palette filter,
-  menu items, dev tab) is defined but no code consumes it.  Flagged
-  for a dedicated session: items 7, 8, 14 on the backlog.
+  **Objective panel z-index fix.**  `#objectivePanel` 800→4,
+  `#btnCompleteMission` 900→6.  Both now below action-bar (5), palette
+  (20), and info-bar (35).  Fixes M3 being unfeasible — palette and
+  top bar were hidden behind the objective panel.
+
+  **Diagnostic lights in campaign mode.**  `loadMission()` now calls
+  `updateStatusIndicator(solveResult)` after `solveScene()`.  Traffic
+  light dots (convergence, mass balance, pressure) were permanently
+  hidden in campaign mode because no code path triggered the show.
+
+  **Top bar breakpoint re-trigger.**  `window.dispatchEvent(resize)`
+  fired after `startMissionFlow` and sandbox `enterGame` complete.
+  The responsive breakpoint system (`_updateBarBreakpoints`) needs a
+  resize event after cinematic overlay hides / title screen hides,
+  otherwise it reads a stale narrow width and hides planet conditions.
+
+  **storyUI wiring.**  `applyStoryUI(storyUI)` reads mission config
+  and hides sandbox-only elements: menu items (Registries, Import/
+  Export, Examples, New Process, Atmosphere, Settings, Shortcuts),
+  palette filter bar, Dev tier button, process name input, left
+  separator, undo/redo buttons.  `resetStoryUI()` restores everything
+  on return to sandbox or Home.  Called from `loadMission()`,
+  `enterGame(sandbox)`, and Home button handler.  Orphan menu
+  separators auto-hidden.
+
+  **Deprecated UI removed.**  View mode buttons (F/S/3D) hidden via
+  CSS in both modes — 3D placeholder was never functional.  Chevron
+  expand button (`#ssChevron`) hidden — planet stats always visible
+  in inline strip.  Survival expanded overlay (`#survivalExpanded`)
+  permanently hidden.  Orphan `tl-sep` in info-bar-right hidden.
+
+  **Briefing/guidance overlap fixed.**  `SpeechBubble.clear()` called
+  after briefing `await` completes and before `GuidanceSystem.init()`.
+  In M2/M3, the briefing's last speech bubble no longer overlaps with
+  the first guidance step.
 
   NNGs: NNG-1 (body reserves mass-balanced, basal metabolism conserves
   O₂/CO₂/H₂O), NNG-3 (fan dead-head — unconnected port = zero flow;
@@ -5896,15 +5928,7 @@
 
     /* Info-bar center: chevron expand/collapse */
     .info-bar-center .ss-chevron {
-      cursor: pointer;
-      background: none;
-      border: 1px solid transparent;
-      border-radius: 4px;
-      color: #64748b;
-      font-size: 9px;
-      padding: 1px 3px;
-      flex-shrink: 0;
-      transition: color 0.15s, transform 0.2s, border-color 0.15s;
+      display: none;  /* [v19.6.0] deprecated — planet stats always visible */
     }
     .info-bar-center .ss-chevron:hover {
       color: #94a3b8;
@@ -5914,11 +5938,9 @@
       transform: rotate(180deg);
     }
 
-    /* Survival expanded overlay — drops below info bar */
+    /* Survival expanded overlay — deprecated [v19.6.0] */
     .survival-expanded {
-      position: absolute;
-      top: calc(var(--zone-a-h) - 2px);
-      left: 50%;
+      display: none !important;  /* planet stats always visible in inline strip */
       transform: translateX(-50%);
       z-index: 26;
       max-width: 600px;
@@ -6513,6 +6535,7 @@
     .tl-sep {
       width: 1px; height: 14px; background: #334155; margin: 0 2px;
     }
+    .info-bar-right > .tl-sep { display: none; }  /* [v19.6.0] orphan — viewModeBtns removed */
     .tl-msg {
       font-size: 11px; color: #94a3b8; white-space: nowrap;
       max-width: 200px; overflow: hidden; text-overflow: ellipsis;
@@ -6555,9 +6578,7 @@
 
     /* ===== VIEW MODE BUTTONS [F][S][3D] in Zone A ===== */
     .view-mode-btns {
-      display: flex;
-      gap: 2px;
-      align-items: center;
+      display: none;  /* [v19.6.0] deprecated — removed from both modes */
     }
     .vm-btn {
       background: transparent;
@@ -10781,7 +10802,7 @@
 
     /* ===== [v19.2.0] COMPLETE MISSION BUTTON ===== */
     #btnCompleteMission {
-      display: none; position: fixed; bottom: 72px; right: 24px; z-index: 900;
+      display: none; position: fixed; bottom: 72px; right: 24px; z-index: 6;
       padding: 10px 24px; background: #22c55e; color: #000; border: none;
       border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer;
       box-shadow: 0 2px 12px rgba(34,197,94,0.4);
@@ -10792,7 +10813,7 @@
 
     /* ===== [v19.3.0] OBJECTIVE PANEL ===== */
     #objectivePanel {
-      display: none; position: fixed; top: 52px; left: 12px; z-index: 800;
+      display: none; position: fixed; top: 52px; left: 12px; z-index: 4;
       width: 280px; max-height: 50vh; overflow-y: auto;
       background: rgba(15,23,42,0.92); border: 1px solid #1e293b;
       border-radius: 8px; padding: 10px 12px;
@@ -50848,6 +50869,95 @@ setTimeout(_titleAnimPlay, 150);
 // [v19.1.0 S-MISSION Phase 2] Mission load & completion
 // ═══════════════════════════════════════════════════════════════════════════
 
+// [v19.6.0] storyUI — apply/reset campaign UI restrictions
+// Maps storyUI.visibleMenuItems keys to menu DOM elements.
+const _MENU_KEY_MAP = {
+  registries:   (m) => [...m.children].find(c => c.textContent.startsWith('Registries')),
+  reports:      (m) => [...m.children].find(c => c.textContent.startsWith('Reports')),
+  physicalUnits:(m) => [...m.children].find(c => c.textContent.startsWith('Physical Units')),
+  import:       () => document.getElementById('mImport'),
+  export:       () => document.getElementById('mExport'),
+  examples:     (m) => [...m.children].find(c => c.textContent.startsWith('Examples')),
+  newProcess:   () => document.getElementById('mClear'),
+  clearStickers:() => document.getElementById('mClearStickers'),
+  atmosphere:   () => document.getElementById('mAtmosphere'),
+  settings:     () => document.getElementById('mSettings'),
+  shortcuts:    () => document.getElementById('mShortcuts'),
+  home:         () => document.getElementById('mHome'),
+};
+
+function applyStoryUI(storyUI) {
+  if (!storyUI) return;
+  const menu = document.getElementById('menuMain');
+
+  // 1. Menu item visibility
+  if (menu && storyUI.visibleMenuItems) {
+    const allowed = new Set(storyUI.visibleMenuItems);
+    for (const [key, finder] of Object.entries(_MENU_KEY_MAP)) {
+      const el = finder(menu);
+      if (el) el.style.display = allowed.has(key) ? '' : 'none';
+    }
+    // Hide separators adjacent to hidden items (clean up orphan dividers)
+    for (const sep of menu.querySelectorAll('.sep')) {
+      const prev = sep.previousElementSibling;
+      const next = sep.nextElementSibling;
+      const prevHidden = prev && prev.style.display === 'none';
+      const nextHidden = !next || next.style.display === 'none' || next.classList.contains('sep');
+      sep.style.display = (prevHidden || nextHidden) ? 'none' : '';
+    }
+  }
+
+  // 2. Palette filter
+  const palFilter = document.getElementById('palFilter');
+  if (palFilter && storyUI.hidePaletteFilter) {
+    palFilter.style.display = 'none';
+  }
+
+  // 3. Dev tab in palette filter
+  if (palFilter && storyUI.hideDevTab) {
+    const devBtn = palFilter.querySelector('[data-tier="dev"]');
+    if (devBtn) devBtn.style.display = 'none';
+  }
+
+  // 4. [v19.6.0] Hide process name input + left separator in campaign
+  const nameInput = document.getElementById('processNameInput');
+  if (nameInput) nameInput.style.display = 'none';
+  const sepL = document.querySelector('.ib-sep-l');
+  if (sepL) sepL.style.display = 'none';
+
+  // 5. [v19.6.0] Hide undo/redo in campaign (checkpoint system handles revert)
+  const btnUndo = document.getElementById('btnUndo');
+  const btnRedo = document.getElementById('btnRedo');
+  if (btnUndo) btnUndo.style.display = 'none';
+  if (btnRedo) btnRedo.style.display = 'none';
+}
+
+function resetStoryUI() {
+  const menu = document.getElementById('menuMain');
+  if (menu) {
+    for (const finder of Object.values(_MENU_KEY_MAP)) {
+      const el = finder(menu);
+      if (el) el.style.display = '';
+    }
+    for (const sep of menu.querySelectorAll('.sep')) sep.style.display = '';
+  }
+  const palFilter = document.getElementById('palFilter');
+  if (palFilter) {
+    palFilter.style.display = '';
+    const devBtn = palFilter.querySelector('[data-tier="dev"]');
+    if (devBtn) devBtn.style.display = '';
+  }
+  // [v19.6.0] Restore sandbox-only elements
+  const nameInput = document.getElementById('processNameInput');
+  if (nameInput) nameInput.style.display = '';
+  const sepL = document.querySelector('.ib-sep-l');
+  if (sepL) sepL.style.display = '';
+  const btnUndo = document.getElementById('btnUndo');
+  const btnRedo = document.getElementById('btnRedo');
+  if (btnUndo) btnUndo.style.display = '';
+  if (btnRedo) btnRedo.style.display = '';
+}
+
 /**
  * Load a mission into the game. Full §32 sequence.
  * Requires _activeCampaignState and _activeMissionId to be set.
@@ -50903,6 +51013,7 @@ function loadMission(missionId) {
 
   // 10. Update UI
   document.getElementById('processNameInput').value = mission.title;
+  updateStatusIndicator(solveResult);  // [v19.6.0] show diagnostic lights in campaign mode
   updatePropertiesPanel();
   render();
   if (typeof fitView === 'function') fitView();  // [v19.2.0] auto-center on mission load
@@ -50911,6 +51022,7 @@ function loadMission(missionId) {
   updateSurvivalStrip();
   if (typeof populatePalette === 'function') populatePalette();
   if (typeof updateMissionHUD === 'function') updateMissionHUD();  // [v19.3.0] show objectives
+  applyStoryUI(mission.storyUI);  // [v19.6.0] apply campaign UI restrictions
 
   // 11. Set play state to BUILD (briefing will be handled by Phase 3 beat player)
   setPlayState(PlayState.BUILD);
@@ -51936,6 +52048,9 @@ async function startMissionFlow(missionId) {
     await MissionBeatPlayer.play(mission.briefing);
   }
 
+  // [v19.6.0] Clear briefing speech before guidance starts — prevents overlap
+  SpeechBubble.clear();
+
   // Init triggers and guidance
   TriggerEngine.init(mission.triggers);
   GuidanceSystem.init(mission.guidanceSteps);
@@ -51946,6 +52061,10 @@ async function startMissionFlow(missionId) {
 
   // Force a render so the first guidance speech bubble appears immediately
   if (typeof render === 'function') render();
+
+  // [v19.6.0] Re-trigger responsive breakpoints now that cinematic overlay is gone
+  // and the .app grid is fully laid out.  _updateBarBreakpoints listens on resize.
+  try { window.dispatchEvent(new Event('resize')); } catch(_e) {}
 }
 
 // ── Trigger evaluation hook — called after each solve in play mode ──────
@@ -52087,6 +52206,7 @@ function enterGame(mode, opts) {
     _activeCampaignState = null;
     _activeMissionId = null;
     _activeCareerSlot = null;
+    resetStoryUI();  // [v19.6.0] restore full sandbox UI
     setPlayState(PlayState.BUILD);
 
     const DEMO_VERSION = 'v19.0.0'; // [v19.0.0] bumped — clears stale autosave
@@ -52136,6 +52256,9 @@ function enterGame(mode, opts) {
       TimeClock._saveCheckpoint(scene, 'auto');
     }
     updateTransportUI();
+
+    // [v19.6.0] Re-trigger responsive breakpoints now that title screen is hidden
+    try { window.dispatchEvent(new Event('resize')); } catch(_e) {}
   }
 }
 
@@ -52166,6 +52289,7 @@ function goHome() {
   TriggerEngine.reset();
   GuidanceSystem.reset();
   GuidanceHighlighter.clear();
+  resetStoryUI();  // [v19.6.0] restore full menu for next sandbox session
 
   // Hide game UI
   const appEl = document.querySelector('.app');
