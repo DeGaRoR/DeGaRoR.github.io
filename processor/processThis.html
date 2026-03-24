@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v20.0.2  (authoritative version: PTIS_VERSION const in script block 1)
+  processThis v20.7.0  (authoritative version: PTIS_VERSION const in script block 1)
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -401,6 +401,258 @@
   ═══════════════════════════════════════════════════════════════════════════
   CHANGELOG  (latest first)
   ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v20.7.0 — S-INSPECTOR-V2 Phase 2: per-unit migration ────────────────
+
+  All units now use the canonical inspector layout from Phase 1.
+  Every `conditions()` either deleted (auto-ribbon) or returns ribbon cells.
+  Every `customParams()` contains only controls, no data display.
+
+  **conditions() deleted → auto-ribbon (4 units):**
+  hydrovent, atmosphere, open_tank, tank.  All get T/P/Flow/Phase from
+  their primary outlet stream via the trunk auto-ribbon.
+
+  **customParams() stripped of data display (5 units):**
+  - hydrovent: geology info block removed (T/P/composition now in ribbon)
+  - atmosphere: info header removed (redundant with ribbon)
+  - tank: volume header + Cv display removed, keep valve openings + safety
+  - open_tank: volume header + Cv display removed, keep valve openings + safety
+  - membrane_separator: ALL editors gated behind isDev. Story profiles
+    show no editable params — target species, extraction fraction, and
+    consumable config are equipment specs set by profile.
+
+  **Room: conditions→ribbon, kpiHtml→report() (§2c).**
+  Conditions now returns `[{lbl:'Crew'}, {lbl:'Temp'}, {lbl:'Live'}]` in
+  ribbon format with liveability dot color.  `kpiHtml` renamed to `report()`
+  — uses the new trunk hook from Phase 1.  Arc gauges and feed zone bars
+  render in report() as genuinely custom display.
+
+  **Battery: power ribbon merge (§2e).**
+  power() now shows Discharge/Charging + Charge (kWh) + Status inline on
+  the power ribbon.  kpis() reduced to SOC bar gauge only.
+
+  **power_dispatcher_5: inspector added (§2f).**
+  `UnitInspector.power_dispatcher_5 = UnitInspector.power_hub` — alias.
+  Inspector now shows supply/demand/curtailment/surplus and consumer
+  allocation table in detail.
+
+  NNGs: NNG-3 (WYSIWYG — all conditions from solver), NNG-13 (inspector —
+  canonical layout for all units), NNG-14 (changelog).
+
+  ─── v20.6.0 — S-INSPECTOR-V2 Phase 1: modular architecture ──────────────
+
+  Infrastructure rewrite making ALL inspector components centrally styled.
+  Changing a CSS variable or component function cascades to every unit.
+
+  **Sticker integration (1a+1b).**  `_evaluateStickerItems` auto-bridges
+  ribbon `{lbl,val,unit}` → `{label,value}` for sticker matching.
+  `_renderConditionsRibbon` and `_renderPwrRibbon` now accept `stickerCtx`
+  and call `_tagDraggableBadge` on each cell.  Auto-ribbon cells carry
+  `stickerLabel: 'Temperature'` etc. for drag-to-create.
+
+  **Ribbon 2-line layout (1c).**  CSS upgraded: label 9px uppercase on
+  top line, value 14px mono bold below, 8px padding, `cursor: grab` for
+  sticker drag.
+
+  **Composition bar/legend split (1d).**  CSS changed to `flex-direction:
+  column`: bar spans full width on own line, legend 10px below.
+
+  **KPI grid rewrite (1e).**  `_renderKPIGrid` now produces `.ins-kpi-grid`
+  / `.ins-kpi-item` / `.ins-kpi-lbl` / `.ins-kpi-val` DOM.  Same `{label,
+  value, tone, bar, barColor}` API — zero unit changes needed.  Shares
+  design tokens with ribbons (same font sizes, `--rt-*` variables).  Bar
+  gauges use `.ins-kpi-bar` / `.ins-kpi-bar-fill`.
+
+  **Control upgrade — Option C (1f).**  `addNumberEditor` → `.ins-ctrl-row`
+  + `.ins-ctrl-input`.  `addSliderEditor` → `.ins-slider-row` (range +
+  readout, was `.sliderCombo`).  `addSelectEditor` → `.ins-ctrl-row`.
+  `renderParams` toggle → `.ins-ctrl-row`.  All 46 control instances now
+  share `.ins-ctrl-*` / `.ins-slider-*` CSS families.
+
+  **report() hook (1g).**  New optional `config.report(container, u, ud,
+  scene)` in trunk between power ribbon (§5) and kpis (§6).  For units
+  with genuinely custom display (room services, power allocation).
+
+  **Dead code cleanup (1h).**  `_renderStepper`, `_renderSlider` (0 callers),
+  `insCompositionPie` (0 callers) deleted.  ~120 lines removed.
+
+  **Cascade summary:**  After this version, changing any of these affects
+  ALL units:
+  - `.ins-ribbon-*` → conditions + power display (all units + streams)
+  - `.ins-kpi-*` → kpis + reaction + sizing (17 units)
+  - `.ins-comp-*` → composition bar (all units + streams)
+  - `.ins-ctrl-*` / `.ins-slider-*` → ALL controls (46 instances)
+  - `--rt-inner-bg`, `--rt-text` → ALL backgrounds and text
+  - `.ins-err-box` → ALL alarm banners
+
+  NNGs: NNG-3 (WYSIWYG), NNG-8 (SI), NNG-13 (inspector — modular
+  architecture), NNG-14 (changelog), NNG-16 (visual charter).
+
+  ─── v20.5.0 — S-INSPECTOR-V2 Sessions F+G: final gating + cleanup ────────
+
+  **Additional param gating.**
+  - **food_storage**: gasDrawRate and UA_jacket gated behind isDev (draw
+    opening remains as player control)
+  - **distillation_column**: all design params (N_stages, R/Rmin, P_column,
+    LK/HK, purities) gated behind isDev; only power priority remains for
+    story profiles.  Column pressure editor now uses unitSys instead of
+    hardcoded bar.
+
+  **Hardcoded `bar` purge in editors.**  `simple_tank` and `cooled_tank`
+  P_relief editors converted from manual bar↔Pa conversion to
+  `unitSys.pressure.from()` / `.to()` — now respects unit system switch.
+
+  **Dead code cleanup.**
+  - `fmt.flow` and `fmt.mass` definitions deleted from fmt object — zero
+    callers remain.  All flow formatting goes through `fmt.molarFlow()`
+    (unit-system-aware) since v20.3.0.
+
+  NNGs: NNG-8 (SI — P_relief editors through unitSys, column pressure
+  through unitSys), NNG-13 (inspector — player vs equipment separation),
+  NNG-14 (changelog).
+
+  ─── v20.4.0 — S-INSPECTOR-V2 Session E: param gating + cleanup ───────────
+
+  **Equipment params gated behind isDev.**  Engineering-physical parameters
+  that players shouldn't adjust are now hidden unless the unit's profile has
+  `config.dev` or `config.template`.  Story profiles show only player controls
+  (setpoints, priorities, openings).  Affected units:
+
+  - **battery**: peakPower_kW, capacity_J, initialSOC → hidden
+  - **compressor**: eta → hidden (Pout + priority remain)
+  - **pump**: eta → hidden (Pout + priority remain)
+  - **gas_turbine**: Pout + eta → hidden (no player controls)
+  - **compressor_diaphragm**: eta + UA → hidden (Pout + priority remain)
+  - **air_cooler**: UA_kW_K, T_approach, max_fan_power_W → hidden
+    (target T + priority remain)
+  - **reactor (all)**: useKinetics toggle, volume_m3, alpha, UA → hidden
+    (reaction selector + heat control + priority remain)
+  - **reactor_electrochemical**: efficiency, conversion_max → hidden
+    (reaction + priority remain)
+  - **fuel_cell**: efficiency, conversion_max, UA → hidden
+    (reaction remains)
+  - **hex**: T_approach, T_hot_out, T_cold_out → hidden (no player controls)
+
+  **Room controls cleaned.**  Lights override and airlock toggle removed
+  from customParams — were test features, not player controls.
+
+  **fmt.flow deprecated.**  All 10 remaining `fmt.flow()` calls replaced
+  with `fmt.molarFlow()`.  `fmt.flow` definition kept for now but no longer
+  called anywhere.
+
+  NNGs: NNG-3 (WYSIWYG — params match physical equipment), NNG-13
+  (inspector — player vs equipment separation), NNG-14 (changelog).
+
+  ─── v20.3.0 — S-INSPECTOR-V2 Sessions C+D: streams + unit purge ──────────
+
+  **Stream inspector rewritten.**  Uses `_renderConditionsRibbon` +
+  `_renderCompRibbon` + `_renderPwrRibbon` — same visual as unit inspector.
+  Port-label subtitle breadcrumb removed.  Power stream values use `fmt.kW()`
+  instead of hardcoded `(W/1000).toFixed(1)`.
+
+  **Dead code deleted (~300 lines).**  `renderStreamProperties` (never called),
+  `_renderStreamConditions`, `_renderStreamFlowrates`,
+  `_renderStreamComposition`, `_renderAutoStream`, `_renderConditionGauges`.
+  Sticker helpers preserved: `_autoStreamToItems`, `_powerStreamToItems`,
+  `_compositionToItems`.
+
+  **Hardcoded unit purge (75 replacements).**  All `mol/s`, `bar`, `Pa`, `°C`,
+  and manually formatted `W`/`kW` strings in UnitInspector configs replaced
+  with `fmt.molarFlow()`, `fmt.P()`, `fmt.T()`, `fmt.kW()`.  Covers:
+  source, source_atm, reservoir, hydrovent, atmosphere, closed_loop_source,
+  battery, restriction, fan, air_cooler, HEX, mixer, reactor, electrochemical,
+  fuel_cell, membrane_separator, tank, open_tank, simple_open_tank,
+  simple_tank, cooled_tank, food_storage, room (heat balance).
+
+  Remaining deferred to Session E: room `_fmtRate` helper (auto-scales
+  μmol/mmol/mol — special for feed rates), room hot water °C warnings
+  (display var already in °C), composition section title label.
+
+  NNGs: NNG-8 (SI — all display through unitSys), NNG-13 (inspector —
+  ribbons + consistent units), NNG-14 (changelog).
+
+  ─── v20.2.0 — S-INSPECTOR-V2 Session B: trunk rewrite ─────────────────────
+
+  Rewrites the unit-selected branch of `_rebuildInspectorContent()` with the
+  new canonical section order from S-INSPECTOR-V2 spec.
+
+  **Data-first layout.**  Section order changed from:
+    header → L3 note → mode dropdown → alarms → params → L4 note →
+    conditions → flow → composition → reaction → power → sizing → kpis →
+    detail → limits → export → L5 note
+  to:
+    header (with port pill + mode switch) → alarms (WARNING+) → conditions
+    ribbon → composition ribbon → power ribbon → report (reaction/kpis) →
+    separator → controls → detail → limits → equipment specs (L3+L4) →
+    export → model (L5)
+
+  **Header redesign.**  Port layout pill and mode switch now render inline
+  in the header row via `_renderPortPill()` and `_renderModeSw()` from
+  Session A.  Always at the top, never shifts position.  Subtitle breadcrumb
+  line (category · def · profile · tier) removed — tier badge is a compact
+  label in the control row.
+
+  **Alarm filter tightened.**  `AlarmSeverity.INFO` → `AlarmSeverity.WARNING`.
+  INFO messages (unconnected ports, empty vessels, solver diagnostics) no
+  longer shown as banners.  Their information is implicit from ribbon data
+  (flow=0, fill=0) or belongs in equipment specs.
+
+  **Text descriptions relocated.**  `equipmentNote` (L3) and `operatingNote`
+  (L4) moved from always-visible positions to a collapsed "Equipment specs"
+  section at the bottom.  `modelNote` (L5) stays as collapsed "How it works".
+
+  **Auto-stream ribbon.**  Units without custom `conditions()` get an
+  auto-generated conditions ribbon from their primary outlet stream:
+  T (with limit dot), P (with limit dot), mass flow (via `unitSys.massFlow`),
+  phase.  Composition ribbon auto-generated from stream species fractions.
+
+  **Controls after data.**  `config.params` / `config.customParams` zone
+  moved below the ribbons, separated by dotted line.  Uses `.ins-controls`
+  CSS class instead of `.ins-params-zone`.  Port layout selector removed
+  from params zone (now in header).
+
+  **Fried reset button** now renders independently of alarm banner count
+  (was previously nested inside the alarm block — if no alarms showed,
+  fried button was invisible).
+
+  NNGs: NNG-3 (WYSIWYG — ribbon data from solver), NNG-7 (alarm architecture
+  — WARNING+ filter), NNG-8 (SI — massFlow through unitSys), NNG-13
+  (inspector — new canonical section order), NNG-14 (changelog), NNG-16
+  (visual charter — --rt-* CSS, mode switch).
+
+  ─── v20.1.0 — S-INSPECTOR-V2 Session A: formatters + renderers + labels ──
+
+  Infrastructure for the inspector redesign. Additive only — no existing
+  code removed or changed. All existing tests pass unchanged.
+
+  **New fmt functions (NNG-8).**  `fmt.massFlow(kgs)` and `fmt.molarFlow(mols)`
+  route through `unitSys.massFlow` / `unitSys.molarFlow` for proper unit
+  conversion (kg/h in SI_bar, kg/s in SI).  `fmt.dT(K)` formats temperature
+  deltas with sign prefix, always in K (ΔT in K = ΔT in °C).
+
+  **New CSS classes (NNG-16).**  `.ins-ribbon` / `.ins-ribbon-cell` (conditions
+  + power ribbons), `.ins-comp-ribbon` / `.ins-comp-bar` / `.ins-comp-legend`
+  (composition bar), `.ins-mode` (3-position switch), `.ins-port-pill` (port
+  layout dropdown), `.ins-stepper` (±value control), `.ins-slider-row` (slider
+  + readout), `.ins-controls` / `.ins-ctrl-row` / `.ins-ctrl-lbl` (controls
+  zone), `.ins-sep` (dotted separator).  All use `--rt-*` custom properties.
+
+  **New renderer functions.**  `_renderConditionsRibbon(container, cells)`,
+  `_renderCompRibbon(container, species)`, `_renderPwrRibbon(container, cells)`,
+  `_renderModeSw(container, unit)`, `_renderPortPill(container, unit)`,
+  `_renderStepper(container, label, get, set, step, unit, opts)`,
+  `_renderSlider(container, label, get, set, min, max, step, unit, opts)`,
+  `_limitDotColor(value, tag, limits)`.  Species colors in `_SPECIES_COLORS`.
+
+  **Variant label auto-generator.**  `_variantLabel(defId, variantKey)` reads
+  port coordinates from `def.presentations` and generates directional labels
+  (e.g. `In ← Out →, Elec ↑`).  Override map `_VARIANT_LABEL_OVERRIDES` for
+  non-obvious cases (insulated, flip).  Old `_VARIANT_LABELS` const replaced
+  with Proxy that calls `_variantLabel(null, key)` for backward compat.
+
+  NNGs: NNG-8 (SI internally — fmt functions go through unit system),
+  NNG-13 (inspector — new rendering primitives for Session B),
+  NNG-14 (changelog + 5 new tests), NNG-16 (visual charter — --rt-* CSS).
 
   ─── v20.0.2 — Solve orbit indicator ───────────────────────────────────────
 
@@ -8056,6 +8308,206 @@
     .ins-hint { font-size: 11px; opacity: 0.5; font-style: italic; margin: 4px 0; }
     .ins-divider { border-top: 1px solid #1e2230; margin: 8px 0; }
 
+    /* ═══ [v20.1.0 S-INSPECTOR-V2] New inspector components ═══ */
+
+    /* Conditions / power ribbon — horizontal cell strip, 2-line layout */
+    .ins-ribbon {
+      display: flex; background: var(--rt-inner-bg);
+      border: 1px solid var(--rt-inner-border); border-radius: 6px;
+      margin-bottom: 4px; overflow: hidden;
+    }
+    .ins-ribbon-cell {
+      flex: 1; padding: 8px 6px 6px; text-align: center;
+      border-right: 1px solid var(--rt-inner-border);
+      cursor: grab;
+    }
+    .ins-ribbon-cell:last-child { border-right: none; }
+    .ins-ribbon-cell[draggable="true"]:active { cursor: grabbing; opacity: 0.7; }
+    .ins-ribbon-lbl {
+      font-size: 9px; color: var(--rt-text-muted); text-transform: uppercase;
+      letter-spacing: 0.4px; margin-bottom: 3px; line-height: 1;
+    }
+    .ins-ribbon-val {
+      font-size: 14px; font-family: ui-monospace, 'SF Mono', monospace;
+      font-weight: 600; line-height: 1.2; color: var(--rt-text);
+    }
+    .ins-ribbon-val .u {
+      font-size: 9px; color: var(--rt-text-muted); font-weight: 400; margin-left: 1px;
+    }
+    .ins-ribbon-dot {
+      width: 5px; height: 5px; border-radius: 50%; display: inline-block;
+      margin-right: 2px; vertical-align: middle; position: relative; top: -1px;
+    }
+
+    /* Composition ribbon — bar on own line, legend below */
+    .ins-comp-ribbon {
+      display: flex; flex-direction: column; background: var(--rt-inner-bg);
+      border: 1px solid var(--rt-inner-border); border-radius: 6px;
+      margin-bottom: 4px; padding: 6px 8px; gap: 4px;
+    }
+    .ins-comp-bar {
+      width: 100%; height: 10px; border-radius: 3px; display: flex; overflow: hidden;
+    }
+    .ins-comp-bar div { height: 100%; }
+    .ins-comp-legend {
+      display: flex; flex-wrap: wrap; gap: 1px 8px; font-size: 10px;
+      color: var(--rt-text-muted);
+    }
+    .ins-comp-legend span { display: flex; align-items: center; gap: 3px; white-space: nowrap; }
+    .ins-comp-legend i {
+      width: 7px; height: 7px; border-radius: 2px; display: inline-block;
+    }
+
+    /* KPI grid — 2-col data grid sharing ribbon design tokens */
+    .ins-kpi-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 4px;
+      margin-bottom: 4px;
+    }
+    .ins-kpi-item {
+      background: var(--rt-inner-bg); border: 1px solid var(--rt-inner-border);
+      border-radius: 6px; padding: 6px 8px; overflow: hidden;
+    }
+    .ins-kpi-item.full-row { grid-column: 1 / -1; }
+    .ins-kpi-item[draggable="true"] { cursor: grab; }
+    .ins-kpi-item[draggable="true"]:active { cursor: grabbing; opacity: 0.7; }
+    .ins-kpi-lbl {
+      font-size: 9px; color: var(--rt-text-muted); text-transform: uppercase;
+      letter-spacing: 0.4px; line-height: 1; margin-bottom: 2px;
+    }
+    .ins-kpi-val {
+      font-size: 13px; font-family: ui-monospace, 'SF Mono', monospace;
+      font-weight: 600; line-height: 1.3; color: var(--rt-text);
+    }
+    .ins-kpi-val .u, .ins-kpi-val .propUnit {
+      font-size: 9px; color: var(--rt-text-muted); font-weight: 400; margin-left: 1px;
+    }
+    .ins-kpi-bar {
+      height: 6px; border-radius: 3px; overflow: hidden;
+      background: rgba(255,255,255,0.06); margin-top: 4px;
+    }
+    .ins-kpi-bar-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
+
+    /* 3-position mode switch (on / bypass / off) */
+    .ins-mode {
+      display: flex; align-items: center; cursor: pointer;
+      user-select: none; flex-shrink: 0;
+    }
+    .ins-mode-track {
+      width: 36px; height: 6px; border-radius: 3px;
+      background: rgba(216,128,64,0.15); position: relative;
+    }
+    .ins-mode-dot {
+      width: 14px; height: 14px; border-radius: 50%;
+      position: absolute; top: -4px;
+      transition: left 0.2s, background 0.2s, box-shadow 0.2s;
+    }
+    .ins-mode[data-mode="on"] .ins-mode-track { background: rgba(34,197,94,0.2); }
+    .ins-mode[data-mode="on"] .ins-mode-dot {
+      left: 22px; background: #22c55e; box-shadow: 0 0 6px rgba(34,197,94,0.5);
+    }
+    .ins-mode[data-mode="bypass"] .ins-mode-track { background: rgba(251,191,36,0.15); }
+    .ins-mode[data-mode="bypass"] .ins-mode-dot {
+      left: 11px; background: #fbbf24; box-shadow: 0 0 6px rgba(251,191,36,0.4);
+    }
+    .ins-mode[data-mode="off"] .ins-mode-track { background: rgba(160,136,112,0.15); }
+    .ins-mode[data-mode="off"] .ins-mode-dot {
+      left: 0; background: #6b5e50; box-shadow: none;
+    }
+
+    /* Port layout pill dropdown */
+    .ins-port-pill {
+      font-size: 9px; color: var(--rt-text-muted);
+      background: var(--rt-inner-bg); border: 1px solid var(--rt-inner-border);
+      border-radius: 3px; padding: 0 5px; height: 18px;
+      display: inline-flex; align-items: center; gap: 2px; flex-shrink: 0;
+    }
+    .ins-port-pill select {
+      font-size: 9px; background: transparent; color: var(--rt-text);
+      border: none; outline: none; padding: 0; cursor: pointer;
+      -webkit-appearance: none; appearance: none;
+    }
+
+    /* Stepper control (−/value/unit/+) */
+    .ins-stepper {
+      display: inline-flex; align-items: center;
+      border: 1px solid var(--rt-inner-border); border-radius: 5px;
+      overflow: hidden; height: 24px; background: var(--rt-inner-bg);
+    }
+    .ins-stepper button {
+      width: 22px; height: 24px; border: none; background: transparent;
+      color: var(--rt-text-muted); cursor: pointer; font-size: 13px;
+      padding: 0; display: flex; align-items: center; justify-content: center;
+      font-family: inherit;
+    }
+    .ins-stepper button:hover { background: rgba(216,128,64,0.1); color: var(--rt-accent); }
+    .ins-stepper button:active { background: rgba(216,128,64,0.2); }
+    .ins-stepper-val {
+      font-size: 11px; font-family: ui-monospace, 'SF Mono', monospace;
+      font-weight: 600; color: var(--rt-text); min-width: 32px;
+      text-align: center; padding: 0 2px;
+      border-left: 1px solid rgba(216,128,64,0.06);
+      border-right: 1px solid rgba(216,128,64,0.06);
+    }
+    .ins-stepper-unit {
+      font-size: 9px; color: var(--rt-text-muted); padding: 0 4px 0 0;
+      white-space: nowrap;
+    }
+
+    /* Slider row (label / range / readout) */
+    .ins-slider-row {
+      display: flex; align-items: center; gap: 6px; height: 28px;
+    }
+    .ins-slider-row .ins-slider-lbl {
+      font-size: 11px; color: var(--rt-text-muted); min-width: 52px;
+    }
+    .ins-slider-row input[type=range] {
+      flex: 1; height: 3px; accent-color: var(--rt-accent);
+      -webkit-appearance: none; appearance: none;
+      background: var(--rt-inner-border); border-radius: 2px; outline: none;
+    }
+    .ins-slider-row input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 12px; height: 12px;
+      border-radius: 50%; background: var(--rt-accent); cursor: pointer;
+      box-shadow: 0 0 4px rgba(232,192,112,0.3);
+    }
+    .ins-slider-row .ins-slider-val {
+      font-size: 11px; font-family: ui-monospace, 'SF Mono', monospace;
+      font-weight: 600; color: var(--rt-text); min-width: 40px; text-align: right;
+    }
+    .ins-slider-row .ins-slider-val .u {
+      font-size: 9px; color: var(--rt-text-muted); font-weight: 400;
+    }
+
+    /* Controls zone (player-adjustable params) */
+    .ins-controls {
+      padding: 6px 0; margin-bottom: 4px;
+    }
+    .ins-ctrl-row {
+      display: flex; align-items: center; gap: 8px; min-height: 30px; margin: 4px 0;
+    }
+    .ins-ctrl-lbl {
+      font-size: 11px; color: var(--rt-text-muted); flex: 1; line-height: 1.3;
+    }
+    .ins-ctrl-input {
+      flex: 0 0 110px; margin-left: auto;
+      background: var(--rt-inner-bg); color: var(--rt-text);
+      border: 1px solid var(--rt-inner-border);
+      border-bottom: 1.5px solid var(--rt-btn-border);
+      border-radius: 6px; padding: 5px 8px; font-size: 12px;
+      font-family: inherit; transition: border-color 0.15s;
+    }
+    .ins-ctrl-input:focus { outline: none; border-color: var(--rt-accent-dim); border-bottom-color: #60a5fa; }
+    .ins-ctrl-invalid { border-color: #ef4444 !important; }
+    .ins-ctrl-warn {
+      font-size: 10px; color: #fbbf24; margin: -2px 0 4px; padding-left: 4px;
+    }
+    .ins-ctrl-info {
+      font-size: 11px; color: var(--rt-text-muted); margin: 4px 0; line-height: 1.4;
+    }
+
+    /* Section label (reused from existing, but as class for new code) */
+    .ins-sep { border: none; border-top: 1px dotted rgba(216,128,64,0.18); margin: 8px 0; }
+
     /* ===== PLANET BACKGROUND ANIMATION [v13.5.0] ===== */
     #planetBg {
       position: fixed; inset: 0; z-index: 0;
@@ -12645,7 +13097,7 @@
 "use strict";
 
 // [v20.0.1] Single version source — title tag and comment header reference this.
-const PTIS_VERSION = 'v20.0.2';
+const PTIS_VERSION = 'v20.7.0';
 document.title = 'processThis — ' + PTIS_VERSION;
 
 // [v12.9.0] NNG sentinel — machine-readable list of all Non-Negotiable rules.
@@ -31943,12 +32395,24 @@ const fmt = {
   pct: (v) => v == null || isNaN(v) ? '—' : `${(v*100).toFixed(1)}<span class="u">%</span>`,
   pctRaw: (v) => v == null || isNaN(v) ? '—' : `${v.toFixed(1)}<span class="u">%</span>`,
   mol: (v) => v == null ? '—' : `${v.toFixed(1)}<span class="u">mol</span>`,
-  flow:(v) => v == null ? '—' : `${v.toFixed(3)}<span class="u">mol/s</span>`,
-  mass:(v) => v == null ? '—' : `${(v*1000).toFixed(2)}<span class="u">g/s</span>`,
+  // [v20.5.0] fmt.flow and fmt.mass deleted — replaced by fmt.molarFlow / fmt.massFlow
   T:   (K) => { const us = models.getActive('units'); return K == null ? '—' : `${us.temperature.from(K).toFixed(1)}<span class="u">${us.temperature.symbol}</span>`; },
   P:   (Pa) => { const us = models.getActive('units'); return Pa == null ? '—' : `${us.pressure.from(Pa).toFixed(us.pressure.decimals)}<span class="u">${us.pressure.symbol}</span>`; },
   time:(s) => { if (s == null || !isFinite(s)) return '—'; const h = Math.floor(s/3600), m = Math.floor((s%3600)/60); return `~${h}:${String(m).padStart(2,'0')}`; },
   val: (v, u) => v == null || isNaN(v) ? '—' : `${v}<span class="u">${u||''}</span>`,
+  // [v20.1.0 S-INSPECTOR-V2] Unit-system-aware flow formatters
+  massFlow: (kgs) => {
+    if (kgs == null || isNaN(kgs)) return '—';
+    const us = models.getActive('units');
+    return `${us.massFlow.from(kgs).toFixed(us.massFlow.decimals)}<span class="u">${us.massFlow.symbol}</span>`;
+  },
+  molarFlow: (mols) => {
+    if (mols == null || isNaN(mols)) return '—';
+    const us = models.getActive('units');
+    return `${us.molarFlow.from(mols).toFixed(us.molarFlow.decimals)}<span class="u">${us.molarFlow.symbol}</span>`;
+  },
+  // [v20.1.0] Delta temperature — always K (ΔT in K = ΔT in °C), with sign
+  dT: (K) => K == null || isNaN(K) ? '—' : `${K > 0 ? '+' : ''}${K.toFixed(1)}<span class="u">K</span>`,
 };
 
 // [v10.3.0] computeSystemBalance — moved to engine for headless test access
@@ -33624,7 +34088,9 @@ recovering: [
         }
       }
 
-      requestAnimationFrame(_tick);
+      // [S-PERF P1.5] Throttle to ~10fps — fastest Lena visual (teeth chatter)
+      // is ~3.5Hz, well within 10fps. Saves ~50 DOM mutations/sec.
+      setTimeout(() => requestAnimationFrame(_tick), 84);
     }
     requestAnimationFrame(_tick);
   }
@@ -37669,9 +38135,13 @@ const _RAGTAG_SYMBOLS = {
       // Bore hole + full rectangle below it
       clipEl.appendChild(svgEl('ellipse', { cx:boreX, cy:boreY, rx:3, ry:1.5 }));
       clipEl.appendChild(svgEl('rect', { x:boreX - _maxW, y:_spoutY, width:_maxW * 2, height:_groundY - _spoutY + 4 }));
-      // Add clip to SVG defs
+      // Add clip to SVG defs (remove stale clip from previous render)
       let defsEl = svg.querySelector('defs');
-      if (defsEl) defsEl.appendChild(clipEl);
+      if (defsEl) {
+        const oldClip = defsEl.querySelector('#' + clipId);
+        if (oldClip) oldClip.remove();
+        defsEl.appendChild(clipEl);
+      }
       // Stream path
       const _streamPath = svgEl('path', {
         fill: 'none', stroke: '#60a5fa', 'stroke-width': _streamW,
@@ -42836,19 +43306,17 @@ function el(tag, attrs = {}, children = []) {
 }
 
 function addNumberEditor(container, label, get, set, step = 0.1, decimals, validate) {
-  const row = el('div', { class: 'row' });
-  row.appendChild(el('label', { html: label }));
+  // [v20.6.0] Upgraded to ins-ctrl-* CSS (was .row + raw input)
+  const row = el('div', { class: 'ins-ctrl-row' });
+  row.appendChild(el('div', { class: 'ins-ctrl-lbl', html: label }));
   
-  // [v10.0.5] Use explicit decimals if provided, else derive from step
   const dp = (decimals !== undefined) ? decimals
     : (step >= 1 ? 0 : Math.min(6, Math.max(0, -Math.floor(Math.log10(step)))));
-  const inp = el('input', { type: 'number', step: String(step) });
-  // [v10.9.3] Guard: typeof check prevents crash when getter returns '' (e.g. hex optional T params)
+  const inp = el('input', { type: 'number', step: String(step), class: 'ins-ctrl-input' });
   const rawVal = get();
   inp.value = (rawVal != null && typeof rawVal === 'number' && isFinite(rawVal)) ? rawVal.toFixed(dp) : (typeof rawVal === 'string' ? rawVal : '');
 
-  // [v10.6.0] Validation feedback element
-  const warnEl = el('div', { class: 'param-warn-text' });
+  const warnEl = el('div', { class: 'ins-ctrl-warn' });
   warnEl.style.display = 'none';
 
   function _validate() {
@@ -42859,17 +43327,17 @@ function addNumberEditor(container, label, get, set, step = 0.1, decimals, valid
     else if (validate.min != null && v < validate.min) msg = `Min: ${validate.min}`;
     else if (validate.max != null && v > validate.max) msg = `Max: ${validate.max}`;
     else if (validate.gt != null && v <= validate.gt) msg = `Must be > ${validate.gt}`;
-    inp.classList.toggle('param-invalid', !!msg);
+    inp.classList.toggle('ins-ctrl-invalid', !!msg);
     warnEl.textContent = msg;
     warnEl.style.display = msg ? '' : 'none';
   }
 
   inp.addEventListener('input', () => {
-    _pushUndoDebounced(`Edit ${label}`);  // [v10.6.0]
+    _pushUndoDebounced(`Edit ${label}`);
     set(Number(inp.value));
     _validate();
   });
-  _validate();  // initial check
+  _validate();
   
   row.appendChild(inp);
   container.appendChild(row);
@@ -42877,10 +43345,11 @@ function addNumberEditor(container, label, get, set, step = 0.1, decimals, valid
 }
 
 function addSelectEditor(container, label, get, set, options) {
-  const row = el('div', { class: 'row' });
-  row.appendChild(el('label', { html: label }));
+  // [v20.6.0] Upgraded to ins-ctrl-* CSS
+  const row = el('div', { class: 'ins-ctrl-row' });
+  row.appendChild(el('div', { class: 'ins-ctrl-lbl', html: label }));
   
-  const sel = el('select', {});
+  const sel = el('select', { class: 'ins-ctrl-input' });
   for (const [val, txt] of options) {
     const opt = document.createElement('option');
     opt.value = val;
@@ -42889,7 +43358,7 @@ function addSelectEditor(container, label, get, set, options) {
   }
   sel.value = get();
   sel.addEventListener('change', () => {
-    _pushUndoDebounced(`Change ${label}`);  // [v10.6.0]
+    _pushUndoDebounced(`Change ${label}`);
     set(sel.value);
     updatePropertiesPanel();
   });
@@ -42898,35 +43367,30 @@ function addSelectEditor(container, label, get, set, options) {
   container.appendChild(row);
 }
 
-// [v8.6.3] Slider + number input combo for bounded parameters (0–1)
+// [v20.6.0] Slider + readout combo — upgraded to ins-slider-row CSS
 function addSliderEditor(container, label, get, set, min = 0, max = 1, step = 0.01) {
-  const row = el('div', { class: 'row' });
-  row.appendChild(el('label', { html: label }));
+  const row = el('div', { class: 'ins-slider-row' });
+  row.appendChild(el('div', { class: 'ins-slider-lbl', html: label }));
 
-  const combo = el('div', { class: 'sliderCombo' });
-  const range = el('input', { type: 'range', min: String(min), max: String(max), step: String(step) });
-  const num = el('input', { type: 'number', min: String(min), max: String(max), step: String(step) });
-
+  const range = document.createElement('input');
+  range.type = 'range';
+  range.min = String(min); range.max = String(max); range.step = String(step);
   const val = get() ?? min;
   range.value = String(val);
-  num.value = String(val);
+  row.appendChild(range);
+
+  const dec = step < 1 ? Math.max(1, -Math.floor(Math.log10(step))) : 0;
+  const readout = el('div', { class: 'ins-slider-val' });
+  readout.innerHTML = `${Number(val).toFixed(dec)}<span class="u"></span>`;
 
   range.addEventListener('input', () => {
-    _pushUndoDebounced(`Edit ${label}`);  // [v10.6.0]
+    _pushUndoDebounced(`Edit ${label}`);
     const v = Math.max(min, Math.min(max, Number(range.value)));
-    num.value = String(v);
-    set(v);
-  });
-  num.addEventListener('input', () => {
-    _pushUndoDebounced(`Edit ${label}`);  // [v10.6.0]
-    const v = Math.max(min, Math.min(max, Number(num.value)));
-    range.value = String(v);
+    readout.innerHTML = `${v.toFixed(dec)}<span class="u"></span>`;
     set(v);
   });
 
-  combo.appendChild(range);
-  combo.appendChild(num);
-  row.appendChild(combo);
+  row.appendChild(readout);
   container.appendChild(row);
 }
 
@@ -42983,180 +43447,8 @@ function createCollapsibleSection(title, isOpen = true) {
   return { section, content };
 }
 
-function renderStreamProperties(container, s) {
-  if (!s) {
-    container.appendChild(el('div', { 
-      class: 'small', 
-      html: 'No data available' 
-    }));
-    return;
-  }
-
-  const unitSys = models.getActive('units');
-  const propGrid = el('div', { class: 'propGrid' });
-  
-  if (s.type === StreamType.MATERIAL) {
-    // GROUP 1: Temperature & Pressure
-    propGrid.appendChild(el('div', { 
-      style: 'grid-column:1/-1; margin-top:4px; margin-bottom:6px; font-size:11px; font-weight:700; opacity:0.7; text-transform:uppercase; letter-spacing:0.5px;',
-      html: 'Conditions'
-    }));
-    
-    propGrid.appendChild(el('div', { class: 'propItem' }, [
-      el('div', { class: 'propLabel', html: 'Temperature' }),
-      el('div', { 
-        class: 'propValue', 
-        html: `${unitSys.temperature.from(s.T).toFixed(unitSys.temperature.decimals)}<span class="propUnit">${unitSys.temperature.symbol}</span>` 
-      })
-    ]));
-    
-    propGrid.appendChild(el('div', { class: 'propItem' }, [
-      el('div', { class: 'propLabel', html: 'Pressure' }),
-      el('div', { 
-        class: 'propValue', 
-        html: `${unitSys.pressure.from(s.P).toFixed(unitSys.pressure.decimals)}<span class="propUnit">${unitSys.pressure.symbol}</span>` 
-      })
-    ]));
-    
-    // GROUP 2: Phase & Composition
-    propGrid.appendChild(el('div', { 
-      style: 'grid-column:1/-1; margin-top:12px; margin-bottom:6px; font-size:11px; font-weight:700; opacity:0.7; text-transform:uppercase; letter-spacing:0.5px;',
-      html: 'Phase & Composition'
-    }));
-    
-    const phaseText = s.phase === 'V' ? 'Vapor' : 
-                      s.phase === 'L' ? 'Liquid' : 
-                      s.phase === 'VL' ? `Two-Phase (β=${s.vaporFraction.toFixed(3)})` : 
-                      'Unknown';
-    propGrid.appendChild(el('div', { class: 'propItem' }, [
-      el('div', { class: 'propLabel', html: 'Phase' }),
-      el('div', { 
-        class: 'propValue', 
-        style: 'font-size:12px;',
-        html: phaseText
-      })
-    ]));
-    
-    // Calculate flowrates
-    const flowrates = calculateStreamFlowrates(s);
-    
-    // Composition — use standard propItem layout
-    const compItems = _compositionToItems(s);
-    if (compItems.length) {
-      _renderKPIGrid(propGrid, compItems);
-    }
-    
-    // GROUP 3: Flowrates
-    propGrid.appendChild(el('div', { 
-      style: 'grid-column:1/-1; margin-top:12px; margin-bottom:6px; font-size:11px; font-weight:700; opacity:0.7; text-transform:uppercase; letter-spacing:0.5px;',
-      html: 'Flowrates'
-    }));
-    
-    propGrid.appendChild(el('div', { class: 'propItem' }, [
-      el('div', { class: 'propLabel', html: 'Molar' }),
-      el('div', { 
-        class: 'propValue', 
-        html: `${unitSys.molarFlow.from(flowrates.nTotal).toFixed(unitSys.molarFlow.decimals)}<span class="propUnit">${unitSys.molarFlow.symbol}</span>` 
-      })
-    ]));
-    
-    propGrid.appendChild(el('div', { class: 'propItem' }, [
-      el('div', { class: 'propLabel', html: 'Mass' }),
-      el('div', { 
-        class: 'propValue', 
-        html: `${unitSys.massFlow.from(flowrates.mTotal).toFixed(unitSys.massFlow.decimals)}<span class="propUnit">${unitSys.massFlow.symbol}</span>` 
-      })
-    ]));
-    
-    propGrid.appendChild(el('div', { class: 'propItem' }, [
-      el('div', { class: 'propLabel', html: 'Volumetric' }),
-      el('div', { 
-        class: 'propValue', 
-        html: `${unitSys.volumeFlow.from(flowrates.vTotal).toFixed(unitSys.volumeFlow.decimals)}<span class="propUnit">${unitSys.volumeFlow.symbol}</span>` 
-      })
-    ]));
-    
-    // GROUP 4: Enthalpy (Energy Balance)
-    if (s.hMolarMix !== undefined || s.Hdot_J_s !== undefined) {
-      propGrid.appendChild(el('div', { 
-        style: 'grid-column:1/-1; margin-top:12px; margin-bottom:6px; font-size:11px; font-weight:700; opacity:0.7; text-transform:uppercase; letter-spacing:0.5px;',
-        html: 'Energy (Enthalpy)'
-      }));
-      
-      if (s.hMolarMix !== undefined) {
-        propGrid.appendChild(el('div', { class: 'propItem' }, [
-          el('div', { class: 'propLabel', html: 'Molar Enthalpy' }),
-          el('div', { 
-            class: 'propValue', 
-            html: `${formatEnthalpy_kJmol(s.hMolarMix)}<span class="propUnit">kJ/mol</span>` 
-          })
-        ]));
-      }
-      
-      if (s.Hdot_J_s !== undefined) {
-        propGrid.appendChild(el('div', { class: 'propItem' }, [
-          el('div', { class: 'propLabel', html: 'Enthalpy Flow' }),
-          el('div', { 
-            class: 'propValue', 
-            html: `${formatPower_kW(s.Hdot_J_s)}<span class="propUnit">kW</span>` 
-          })
-        ]));
-      }
-    }
-    
-  } else if (s.type === StreamType.ELECTRICAL) {
-    // Power streams: show capacity, actual, demand (internal W → display kW)
-    const capacity_W = s.capacity ?? s.available ?? 0;
-    const actual_W = s.actual ?? s.available ?? 0;
-    
-    propGrid.appendChild(el('div', { class: 'propItem' }, [
-      el('div', { class: 'propLabel', html: 'Capacity' }),
-      el('div', { 
-        class: 'propValue', 
-        html: `${(capacity_W/1000).toFixed(1)}<span class="propUnit">kW</span>` 
-      })
-    ]));
-    
-    // Show actual if it differs from capacity (demand-limited)
-    if (Math.abs(actual_W - capacity_W) > 1) {
-      propGrid.appendChild(el('div', { class: 'propItem' }, [
-        el('div', { class: 'propLabel', html: 'Actual' }),
-        el('div', { 
-          class: 'propValue', 
-          style: actual_W < capacity_W - 1 ? 'color:#fbbf24' : '',
-          html: `${(actual_W/1000).toFixed(1)}<span class="propUnit">kW</span>` 
-        })
-      ]));
-    }
-    
-    if (s.demand !== undefined) {
-      propGrid.appendChild(el('div', { class: 'propItem' }, [
-        el('div', { class: 'propLabel', html: 'Demand' }),
-        el('div', { 
-          class: 'propValue', 
-          html: `${(s.demand/1000).toFixed(1)}<span class="propUnit">kW</span>` 
-        })
-      ]));
-      
-      // Utilization bar: actual / capacity
-      const util = capacity_W > 0 ? (actual_W / capacity_W) : 0;
-      const bar = el('div', { class: 'bar', style: 'margin-top:8px;' });
-      const fill = el('div', {});
-      fill.style.width = `${clamp(util, 0, 1) * 100}%`;
-      fill.style.background = util > 1.0 ? '#ef4444' : util > 0.8 ? '#f97316' : '#22c55e';
-      bar.appendChild(fill);
-      propGrid.appendChild(bar);
-      propGrid.appendChild(el('div', { 
-        class: 'kv', 
-        style: 'font-size:10px; opacity:0.6; margin-top:4px;', 
-        html: `<span>0%</span><span>${(util * 100).toFixed(0)}%</span><span>100%</span>` 
-      }));
-    }
-  }
-  // [v12.7.0] HEAT stream rendering block deleted — StreamType.HEAT removed
-  
-  container.appendChild(propGrid);
-}
+// [v20.3.0] renderStreamProperties — deleted. Was dead code, never called.
+// Stream data now rendered via ribbons in _rebuildInspectorContent.
 
 // ════════════════════════════════════════════════════════════════════════
 // [v4.6.1] System Balance Report
@@ -43209,9 +43501,181 @@ function insErr(parent, severity, message) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// UNIFIED INSPECTOR v2 — Auto-stream + KPI grid + detail section
-// [v10.2.0] Revised API: conditions() + power() + kpis() + detail()
+// [v20.1.0 S-INSPECTOR-V2] New inspector rendering primitives
+// Ribbon, composition, power, mode switch, port pill, stepper, slider.
+// These are pure DOM builders — no data logic, no solver interaction.
 // ═══════════════════════════════════════════════════════════════════════════
+
+// Species colors — shared with S-PARTICLES palette
+const _SPECIES_COLORS = {
+  O2:'#60a5fa', N2:'#94a3b8', CO2:'#f59e0b', H2O:'#06b6d4',
+  CH4:'#22c55e', H2:'#e879f9', Ar:'#a78bfa', CO:'#f87171',
+  CH2O:'#fbbf24', NH3:'#fb923c', C2H6:'#34d399', SO2:'#f472b6'
+};
+
+// ── Conditions ribbon: [{lbl, val, unit, dotColor?, stickerLabel?}] ──
+// dotColor: '#22c55e'=OK, '#fbbf24'=warning, '#fca5a5'=alarm, null=no dot
+// stickerCtx: optional {unitId, section} for sticker drag
+function _renderConditionsRibbon(container, cells, stickerCtx) {
+  const rib = el('div', { class: 'ins-ribbon' });
+  for (const c of cells) {
+    const cell = el('div', { class: 'ins-ribbon-cell' });
+    cell.appendChild(el('div', { class: 'ins-ribbon-lbl', text: c.lbl }));
+    const valDiv = el('div', { class: 'ins-ribbon-val' });
+    if (c.dotColor) {
+      valDiv.appendChild(el('span', { class: 'ins-ribbon-dot', style: `background:${c.dotColor}` }));
+    }
+    const tmp = el('span', {}); tmp.innerHTML = `${c.val}<span class="u">${c.unit || ''}</span>`;
+    valDiv.appendChild(tmp);
+    cell.appendChild(valDiv);
+    if (stickerCtx) _tagDraggableBadge(cell, stickerCtx, c.stickerLabel || c.lbl);
+    rib.appendChild(cell);
+  }
+  container.appendChild(rib);
+  return rib;
+}
+
+// ── Composition ribbon: {species: fraction, ...} ──
+function _renderCompRibbon(container, species) {
+  const total = Object.values(species).reduce((a, b) => a + b, 0);
+  if (total < 1e-15) return null;
+  const sorted = Object.entries(species).sort((a, b) => b[1] - a[1]);
+
+  const wrap = el('div', { class: 'ins-comp-ribbon' });
+  const bar = el('div', { class: 'ins-comp-bar' });
+  const legend = el('div', { class: 'ins-comp-legend' });
+
+  for (const [sp, v] of sorted) {
+    const pct = v / total * 100;
+    if (pct < 0.5) continue;
+    const color = _SPECIES_COLORS[sp] || '#94a3b8';
+    bar.appendChild(el('div', { style: `width:${pct}%;background:${color}` }));
+    const lSpan = el('span', {});
+    lSpan.appendChild(el('i', { style: `background:${color}` }));
+    lSpan.appendChild(document.createTextNode(` ${sp} ${pct.toFixed(0)}%`));
+    legend.appendChild(lSpan);
+  }
+
+  wrap.appendChild(bar);
+  wrap.appendChild(legend);
+  container.appendChild(wrap);
+  return wrap;
+}
+
+// ── Power ribbon: [{lbl, val, unit, color?}] ──
+// stickerCtx: optional {unitId, section} for sticker drag
+function _renderPwrRibbon(container, cells, stickerCtx) {
+  const rib = el('div', { class: 'ins-ribbon' });
+  for (const c of cells) {
+    const cell = el('div', { class: 'ins-ribbon-cell' });
+    cell.appendChild(el('div', { class: 'ins-ribbon-lbl', text: c.lbl }));
+    const valDiv = el('div', { class: 'ins-ribbon-val' });
+    if (c.color) valDiv.style.color = c.color;
+    const tmp = el('span', {}); tmp.innerHTML = `${c.val}<span class="u">${c.unit || ''}</span>`;
+    valDiv.appendChild(tmp);
+    cell.appendChild(valDiv);
+    if (stickerCtx) _tagDraggableBadge(cell, stickerCtx, c.stickerLabel || c.lbl);
+    rib.appendChild(cell);
+  }
+  container.appendChild(rib);
+  return rib;
+}
+
+// ── Mode switch: 3-position on/bypass/off ──
+// Cycles on click. Writes u.mode and triggers re-solve.
+function _renderModeSw(container, u) {
+  const profile = ProfileRegistry.get(u.profileId || u.defId);
+  if (profile?.boundary) return null;  // boundary units have no mode
+
+  const mode = u.fried ? 'bypass' : (u.mode || 'on');
+  const sw = el('div', { class: 'ins-mode' });
+  sw.dataset.mode = mode;
+  const track = el('div', { class: 'ins-mode-track' });
+  track.appendChild(el('div', { class: 'ins-mode-dot' }));
+  sw.appendChild(track);
+
+  if (u.fried) {
+    sw.style.opacity = '0.5';
+    sw.style.cursor = 'not-allowed';
+    sw.title = 'Equipment destroyed — reset to change mode';
+  } else {
+    sw.addEventListener('click', () => {
+      const modes = ['on', 'bypass', 'off'];
+      const cur = modes.indexOf(sw.dataset.mode);
+      const next = modes[(cur + 1) % 3];
+      sw.dataset.mode = next;
+      _pushUndoDebounced('Change mode');
+      u.mode = next === 'on' ? undefined : next;
+      if (TimeClock.mode === 'paused') solveScene(scene);
+      _rebuildInspectorContent();
+      render();
+    });
+  }
+
+  container.appendChild(sw);
+  return sw;
+}
+
+// ── Port layout pill: dropdown ──
+// Shows only if unit has >1 presentation variant.
+function _renderPortPill(container, u) {
+  const def = UnitRegistry.get(u.defId);
+  if (!def.presentations) return null;
+
+  const theme = ui.theme || 'box';
+  let prefix = theme + '/';
+  if (!Object.keys(def.presentations).some(k => k.startsWith(prefix))) prefix = 'box/';
+  const variants = Object.keys(def.presentations)
+    .filter(k => k.startsWith(prefix))
+    .map(k => k.slice(prefix.length))
+    .filter(v => { if (u.defId !== 'reactor_jacketed') return true; return v !== 'insulated'; });
+  if (variants.length <= 1) return null;
+
+  const currentVariant = u.params.variant || 'default';
+
+  const pill = el('div', { class: 'ins-port-pill' });
+  const sel = document.createElement('select');
+  for (const v of variants) {
+    const opt = document.createElement('option');
+    opt.value = v;
+    opt.textContent = _variantLabel(u.defId, v);
+    if (v === currentVariant) opt.selected = true;
+    sel.appendChild(opt);
+  }
+  sel.addEventListener('change', () => {
+    u.params.variant = (sel.value === 'default') ? undefined : sel.value;
+    sel.blur();
+    render();
+    updatePropertiesPanel();
+  });
+  pill.appendChild(sel);
+  container.appendChild(pill);
+  return pill;
+}
+
+// [v20.6.0] _renderStepper and _renderSlider deleted — their visual
+// was absorbed into addNumberEditor (ins-ctrl-*) and addSliderEditor
+// (ins-slider-row) via Option C upgrade. Zero callers.
+
+// ── Limit dot color for ribbon cells ──
+// Returns '#22c55e' (OK), '#fbbf24' (near limit), '#fca5a5' (violating), or null
+function _limitDotColor(value, tag, limits) {
+  if (!limits || value == null) return null;
+  const ll = limits[tag + '_LL'], l = limits[tag + '_L'];
+  const h = limits[tag + '_H'], hh = limits[tag + '_HH'];
+  if ((hh != null && value >= hh) || (ll != null && value <= ll)) return '#fca5a5';
+  // Near limit: within 10% of range to L or H
+  if (h != null && l != null) {
+    const range = h - l;
+    if (range > 0) {
+      if (value >= h - range * 0.1 || value <= l + range * 0.1) return '#fbbf24';
+    }
+  } else {
+    if (h != null && value >= h) return '#fbbf24';
+    if (l != null && value <= l) return '#fbbf24';
+  }
+  return '#22c55e';
+}
 
 // [v10.2.0] XSS-safe HTML escaper for user-editable strings
 // [v17.0.0 NNG-15] Unified HTML escape — string-based, no DOM dependency.
@@ -43240,153 +43704,9 @@ function _renderLabeledSection(container, title, items, stickerCtx) {
 // [v11.0.2] Composable stream renderers — standard section order
 // Each returns a grid element (or nothing). Sticker context flows through.
 
-// ── Process Conditions: T, P, phase, vapor fraction ──
-function _renderStreamConditions(container, stream, sCtx, limitCtx) {
-  if (!stream || stream.type !== StreamType.MATERIAL) return;
-  const unitSys = models.getActive('units');
-  const grid = el('div', { class: 'propGrid' });
-
-  // Helper: check if a tag (T or P) has violations and get alarm class
-  const alarmClass = (tag) => {
-    if (!limitCtx?.violations) return '';
-    const v = limitCtx.violations.find(v => v.param?.startsWith(tag + '_'));
-    if (!v) return '';
-    if (v.severity.level >= AlarmSeverity.CATASTROPHIC.level) return 'alarm-bad';
-    return 'alarm-warn';
-  };
-
-  // Helper: format limit range annotation for a tag
-  const limitHint = (tag) => {
-    if (!limitCtx?.limits) return null;
-    const unitKey = tag === 'T' ? 'temperature' : 'pressure';
-    const conv = unitSys[unitKey];
-    if (!conv) return null;
-    const pairs = [];
-    const ll = limitCtx.limits[tag + '_LL'];
-    const l  = limitCtx.limits[tag + '_L'];
-    const h  = limitCtx.limits[tag + '_H'];
-    const hh = limitCtx.limits[tag + '_HH'];
-    const lo = ll ?? l;
-    const hi = hh ?? h;
-    if (lo != null) pairs.push(conv.from(lo).toFixed(conv.decimals));
-    if (hi != null) pairs.push(conv.from(hi).toFixed(conv.decimals));
-    if (pairs.length === 0) return null;
-    if (pairs.length === 2) return `limits: ${pairs[0]}–${pairs[1]} ${conv.symbol}`;
-    if (lo != null) return `min: ${pairs[0]} ${conv.symbol}`;
-    return `max: ${pairs[0]} ${conv.symbol}`;
-  };
-  
-  const tCls = alarmClass('T');
-  const tItem = el('div', { class: `propItem${tCls ? ' ' + tCls : ''}` }, [
-    el('div', { class: 'propLabel', html: 'Temperature' }),
-    el('div', { class: 'propValue', 
-      html: `${unitSys.temperature.from(stream.T).toFixed(unitSys.temperature.decimals)}<span class="propUnit">${unitSys.temperature.symbol}</span>` })
-  ]);
-  const tHint = limitHint('T');
-  if (tHint) tItem.appendChild(el('div', { class: 'limit-hint', text: tHint }));
-  if (sCtx) _tagDraggableBadge(tItem, sCtx, 'Temperature');
-  grid.appendChild(tItem);
-
-  const pCls = alarmClass('P');
-  const pItem = el('div', { class: `propItem${pCls ? ' ' + pCls : ''}` }, [
-    el('div', { class: 'propLabel', html: 'Pressure' }),
-    el('div', { class: 'propValue', 
-      html: `${unitSys.pressure.from(stream.P).toFixed(unitSys.pressure.decimals)}<span class="propUnit">${unitSys.pressure.symbol}</span>` })
-  ]);
-  const pHint = limitHint('P');
-  if (pHint) pItem.appendChild(el('div', { class: 'limit-hint', text: pHint }));
-  if (sCtx) _tagDraggableBadge(pItem, sCtx, 'Pressure');
-  grid.appendChild(pItem);
-  
-  const isVL = stream.phase === 'VL';
-  const phaseText = stream.phase === 'V' ? 'Vapor' : stream.phase === 'L' ? 'Liquid' : isVL ? 'Two-Phase' : '—';
-  const phItem = el('div', { class: 'propItem' }, [
-    el('div', { class: 'propLabel', html: 'Phase' }),
-    el('div', { class: 'propValue', style: 'font-size:12px;', html: phaseText })
-  ]);
-  if (sCtx) _tagDraggableBadge(phItem, sCtx, 'Phase');
-  grid.appendChild(phItem);
-  if (isVL) {
-    grid.appendChild(el('div', { class: 'propItem' }, [
-      el('div', { class: 'propLabel', html: 'Vapor fraction' }),
-      el('div', { class: 'propValue', html: `${(stream.vaporFraction||0).toFixed(3)}` })
-    ]));
-  } else {
-    grid.appendChild(el('div')); // empty cell to maintain grid
-  }
-  container.appendChild(grid);
-}
-
-// ── Flowrates: molar, mass ──
-function _renderStreamFlowrates(container, stream, sCtx, limitCtx) {
-  if (!stream || stream.type !== StreamType.MATERIAL) return;
-  const unitSys = models.getActive('units');
-  const flowrates = calculateStreamFlowrates(stream);
-  if (!flowrates) return;
-  const grid = el('div', { class: 'propGrid' });
-  const mfItem = el('div', { class: 'propItem' }, [
-    el('div', { class: 'propLabel', html: 'Molar flow' }),
-    el('div', { class: 'propValue', 
-      html: `${unitSys.molarFlow.from(flowrates.nTotal).toFixed(unitSys.molarFlow.decimals)}<span class="propUnit">${unitSys.molarFlow.symbol}</span>` })
-  ]);
-  if (sCtx) _tagDraggableBadge(mfItem, sCtx, 'Molar flow');
-  grid.appendChild(mfItem);
-
-  // Mass flow — with limit highlighting
-  const massCls = limitCtx?.violations?.some(v => v.param === 'mass_HH')
-    ? 'alarm-warn' : '';
-  const msItem = el('div', { class: `propItem${massCls ? ' ' + massCls : ''}` }, [
-    el('div', { class: 'propLabel', html: 'Mass flow' }),
-    el('div', { class: 'propValue', 
-      html: `${unitSys.massFlow.from(flowrates.mTotal).toFixed(unitSys.massFlow.decimals)}<span class="propUnit">${unitSys.massFlow.symbol}</span>` })
-  ]);
-  // Mass limit hint
-  if (limitCtx?.limits?.mass_HH != null) {
-    const conv = unitSys.massFlow;
-    if (conv) {
-      msItem.appendChild(el('div', { class: 'limit-hint',
-        text: `max: ${conv.from(limitCtx.limits.mass_HH).toFixed(conv.decimals)} ${conv.symbol}` }));
-    }
-  }
-  if (sCtx) _tagDraggableBadge(msItem, sCtx, 'Mass flow');
-  grid.appendChild(msItem);
-  container.appendChild(grid);
-}
-
-// ── Composition: species mol/s ──
-function _renderStreamComposition(container, stream, sCtx) {
-  if (!stream || stream.type !== StreamType.MATERIAL) return;
-  const compItems = _compositionToItems(stream);
-  if (!compItems.length) return;
-  const compCtx = sCtx ? { ...sCtx, section: 'composition' } : null;
-  const lbl = el('div', { class: 'ins-section-label' });
-  lbl.textContent = 'Composition';
-  container.appendChild(lbl);
-  const grid = el('div', { class: 'propGrid' });
-  for (const item of compItems) {
-    const pi = el('div', { class: 'propItem' });
-    // [v17.0.0 S-FLOW] Species color dot from _SPECIES_COLOR palette
-    const sp = item._species || item.label;
-    const rgb = _SPECIES_COLOR[sp] || _SPECIES_DEFAULT_RGB;
-    const dot = `<span style="color:rgb(${rgb[0]},${rgb[1]},${rgb[2]})">●</span> `;
-    pi.appendChild(el('div', { class: 'propLabel', html: dot + esc(item.label) }));
-    const valEl = el('div', { class: 'propValue' });
-    valEl.innerHTML = item.value;
-    pi.appendChild(valEl);
-    if (compCtx) _tagDraggableBadge(pi, compCtx, item.label);
-    grid.appendChild(pi);
-  }
-  container.appendChild(grid);
-}
-
-// Legacy wrapper — backward compat for callers that want the old monolithic render
-function _renderAutoStream(container, stream, unitId, connId) {
-  if (!stream || stream.type !== StreamType.MATERIAL) return;
-  const sCtx = unitId ? { unitId, section: 'conditions', connId: connId || null } : null;
-  _renderStreamConditions(container, stream, sCtx);
-  _renderStreamFlowrates(container, stream, sCtx);
-  _renderStreamComposition(container, stream, sCtx);
-}
+// [v20.3.0] _renderStreamConditions, _renderStreamFlowrates,
+// _renderStreamComposition, _renderAutoStream — deleted.
+// Replaced by _renderConditionsRibbon + _renderCompRibbon in trunk.
 
 // [v10.7.0] Convert auto-stream data to labeled items (same format as inspector hooks)
 function _autoStreamToItems(stream) {
@@ -43565,50 +43885,83 @@ function _renderGauge(container, value, unitSymbol, limits, label, stickerCtx) {
 }
 
 // [v16.9.5 S-INSPECTOR] Render T and P gauges from primary stream + limits
-function _renderConditionGauges(container, ud, def, u, stickerCtx) {
-  const ps = _findPrimaryStream(ud, def);
-  if (!ps) return false;
-  const pId = u.profileId || u.defId;
-  const lim = getEffectiveLimits(pId, u.tier || 1);
-  if (!lim) return false;
-
-  const row = el('div', { class: 'ins-gauges-row' });
-  if (ps.T != null) {
-    _renderGauge(row, ps.T, 'T', { LL: lim.T_LL, L: lim.T_L, H: lim.T_H, HH: lim.T_HH },
-      'Temperature', stickerCtx ? { ...stickerCtx, section: 'conditions' } : null);
-  }
-  if (ps.P != null) {
-    _renderGauge(row, ps.P, 'P', { LL: lim.P_LL, L: lim.P_L, H: lim.P_H, HH: lim.P_HH },
-      'Pressure', stickerCtx ? { ...stickerCtx, section: 'conditions' } : null);
-  }
-  container.appendChild(row);
-
-  // Phase KPI below gauges
-  if (ps.phase) {
-    const phaseLabel = ps.phase === 'V' ? 'Vapor' : ps.phase === 'L' ? 'Liquid' : 'Vapor-Liquid';
-    _renderKPIGrid(container, [{ label: 'Phase', value: phaseLabel }], stickerCtx);
-  }
-  return true;
-}
+// [v20.3.0] _renderConditionGauges — deleted. Replaced by ribbon limit dots.
 
 // [v16.9.5 S-INSPECTOR] Human-friendly layout variant names
-const _VARIANT_LABELS = {
-  'default': 'Standard', 'mirror': 'Mirrored',
-  'elec-T': 'Power on top', 'elec-B': 'Power on bottom',
-  'mirror-elec-T': 'Mirrored, power top', 'mirror-elec-T-elec-B': 'Mirrored, power bottom',
-  'port-left': 'Outlet left', 'port-right': 'Outlet right',
-  'port-top': 'Outlet top', 'port-bottom': 'Outlet bottom',
-  'output-bottom': 'Output bottom', 'surplus-B': 'Surplus bottom',
-  'mirror-surplus-B': 'Mirrored, surplus bottom', 'insulated': 'Insulated',
-  'recycle-T': 'Recycle top', 'recycle-B': 'Recycle bottom',
-  'mirror-recycle-T': 'Mirror recycle top', 'mirror-recycle-B': 'Mirror recycle bottom',
-  'left-up': 'Left → Up', 'right-down': 'Right → Down', 'right-up': 'Right → Up',
-  'up-right': 'Up → Right', 'up-left': 'Up → Left',
-  'down-right': 'Down → Right', 'down-left': 'Down → Left',
-  'flip': 'Flipped (perm/ret swap)', 'flip-mirror': 'Flipped + mirrored',
-  'vert-elec-L': 'Vertical, power left', 'vert-elec-R': 'Vertical, power right',
-  'mirror-elec-B': 'Mirrored, power bottom',
+// [v20.1.0 S-INSPECTOR-V2] Variant label generator — replaces static _VARIANT_LABELS map.
+// Auto-generates directional descriptions from port coordinates.
+// Manual overrides for non-obvious cases.
+const _VARIANT_LABEL_OVERRIDES = {
+  'insulated': 'Insulated (no elec)',
+  'flip': 'Permeate/retentate swapped',
+  'flip-mirror': 'Swapped + mirrored',
 };
+
+// Wall position from port coordinate vs unit dimensions
+function _portWall(x, y, w, h) {
+  if (x <= 0) return '←';
+  if (x >= w) return '→';
+  if (y <= 0) return '↑';
+  if (y >= h) return '↓';
+  return '·';  // interior — shouldn't happen
+}
+
+function _variantLabel(defId, variantKey) {
+  if (_VARIANT_LABEL_OVERRIDES[variantKey]) return _VARIANT_LABEL_OVERRIDES[variantKey];
+  if (variantKey === 'default') variantKey = 'default';  // no-op, but clear intent
+
+  const def = UnitRegistry.get(defId);
+  if (!def?.presentations) return variantKey.split('-').map(w => w[0].toUpperCase() + w.slice(1)).join(' ');
+
+  const theme = (typeof ui !== 'undefined' ? ui.theme : null) || 'box';
+  let key = theme + '/' + variantKey;
+  if (!def.presentations[key]) key = 'box/' + variantKey;
+  const pres = def.presentations[key];
+  if (!pres?.ports) return variantKey.split('-').map(w => w[0].toUpperCase() + w.slice(1)).join(' ');
+
+  const w = pres.w, h = pres.h;
+  const ports = pres.ports;
+
+  // Classify ports by role
+  const matIn = [], matOut = [], elec = [], surplus = [], other = [];
+  const defPorts = def.ports;
+  for (const [pid, pos] of Object.entries(ports)) {
+    const dp = defPorts.find(p => p.portId === pid);
+    if (!dp) continue;
+    const wall = _portWall(pos.x, pos.y, w, h);
+    if (dp.type === StreamType.ELECTRICAL) {
+      if (dp._surplus) surplus.push(wall);
+      else elec.push(wall);
+    } else if (dp.dir === PortDir.IN) {
+      matIn.push(wall);
+    } else {
+      matOut.push(wall);
+    }
+  }
+
+  // Build label
+  const parts = [];
+
+  if (matIn.length === 1 && matOut.length === 1) {
+    parts.push(`In ${matIn[0]} Out ${matOut[0]}`);
+  } else if (matIn.length > 1 && matOut.length === 1) {
+    parts.push(`In ${matIn.join('')} Out ${matOut[0]}`);
+  } else if (matIn.length === 1 && matOut.length > 1) {
+    parts.push(`In ${matIn[0]} Out ${matOut.join('')}`);
+  } else if (matIn.length > 0 || matOut.length > 0) {
+    if (matIn.length) parts.push(`In ${matIn.join('')}`);
+    if (matOut.length) parts.push(`Out ${matOut.join('')}`);
+  }
+
+  if (elec.length === 1) parts.push(`Elec ${elec[0]}`);
+  else if (elec.length > 1) parts.push(`Elec ${elec.join('')}`);
+  if (surplus.length === 1) parts.push(`Surplus ${surplus[0]}`);
+
+  return parts.join(', ') || variantKey.split('-').map(w => w[0].toUpperCase() + w.slice(1)).join(' ');
+}
+
+// [v20.1.0] Backward compat: _VARIANT_LABELS as proxy so old code still works
+const _VARIANT_LABELS = new Proxy({}, { get: (_, key) => _variantLabel(null, key) });
 
 // [v10.7.0] Evaluate sticker items against live solver data
 function _evaluateStickerItems(u) {
@@ -43618,9 +43971,21 @@ function _evaluateStickerItems(u) {
   const cfg = UnitInspector[u.profileId] || UnitInspector[u.defId];
   if (!ud) return u.sticker.items.map(it => ({ ...it, value: '—' }));
 
+  // [v20.6.0] Bridge: normalize ribbon cells {lbl,val,unit} → {label,value} for matching
+  const _bridge = (items) => {
+    if (!items?.length) return [];
+    if (items[0].lbl !== undefined) {
+      return items.map(c => ({
+        label: c.stickerLabel || c.lbl,
+        value: `${c.val}<span class="u">${c.unit || ''}</span>`
+      }));
+    }
+    return items;
+  };
+
   // Collect all available badges by section
   const pools = {};
-  if (cfg?.conditions) pools.conditions = cfg.conditions(u, ud) || [];
+  if (cfg?.conditions) pools.conditions = _bridge(cfg.conditions(u, ud)) || [];
   else {
     const ps = _findPrimaryStream(ud, def);
     pools.conditions = ps ? _autoStreamToItems(ps) : [];
@@ -43643,27 +44008,33 @@ function _evaluateStickerItems(u) {
 // stickerCtx: optional { unitId, section } — makes badges draggable to canvas
 function _renderKPIGrid(container, items, stickerCtx) {
   if (!items || items.length === 0) return;
-  const grid = el('div', { class: 'propGrid' });
+  // [v20.6.0] Rewritten to use ins-kpi-* classes sharing ribbon design tokens
+  const grid = el('div', { class: 'ins-kpi-grid' });
   for (const item of items) {
     if (!item) continue;
     if (item.bar) {
-      const barItem = el('div', { class: 'propItem full-row' });
-      barItem.appendChild(el('div', { class: 'propLabel', html: item.label }));
-      const barWrap = el('div', { style: 'display:flex;align-items:center;gap:8px;' });
-      barWrap.innerHTML = `<span class="ins-bar-track" style="flex:1;"><span class="ins-bar-fill" style="width:${Math.min(100,item.value)}%;background:${item.barColor||'#60a5fa'}"></span></span><span class="propValue" style="font-size:12px;">${item.value.toFixed(1)}%</span>`;
-      barItem.appendChild(barWrap);
-      if (stickerCtx) _tagDraggableBadge(barItem, stickerCtx, item.label);
-      grid.appendChild(barItem);
+      // Bar gauge — full width
+      const card = el('div', { class: 'ins-kpi-item full-row' });
+      card.appendChild(el('div', { class: 'ins-kpi-lbl', html: item.label }));
+      const barOuter = el('div', { class: 'ins-kpi-bar' });
+      const barFill = el('div', { class: 'ins-kpi-bar-fill',
+        style: `width:${Math.min(100, item.value)}%;background:${item.barColor || '#60a5fa'}` });
+      barOuter.appendChild(barFill);
+      card.appendChild(barOuter);
+      card.appendChild(el('div', { class: 'ins-kpi-val', style: 'margin-top:2px;',
+        html: `${typeof item.value === 'number' ? item.value.toFixed(1) : item.value}%` }));
+      if (stickerCtx) _tagDraggableBadge(card, stickerCtx, item.label);
+      grid.appendChild(card);
     } else {
-      const pi = el('div', { class: `propItem${item.full ? ' full-row' : ''}` });
-      if (item.tooltip) pi.title = item.tooltip;  // [v11.0.2] tooltip on hover
-      pi.appendChild(el('div', { class: 'propLabel', html: item.label }));
-      const valEl = el('div', { class: 'propValue', style: item.full ? 'font-size:12px;' : '' });
+      const card = el('div', { class: `ins-kpi-item${item.full ? ' full-row' : ''}` });
+      if (item.tooltip) card.title = item.tooltip;
+      card.appendChild(el('div', { class: 'ins-kpi-lbl', html: item.label }));
+      const valEl = el('div', { class: 'ins-kpi-val' });
       valEl.innerHTML = item.value;
-      if (item.tone) valEl.style.color = item.tone === 'warn' ? '#fbbf24' : item.tone === 'bad' ? '#fca5a5' : item.tone === 'good' ? '#6ee7b7' : item.tone === 'info' ? '#93c5fd' : '';
-      pi.appendChild(valEl);
-      if (stickerCtx) _tagDraggableBadge(pi, stickerCtx, item.label);
-      grid.appendChild(pi);
+      if (item.tone) valEl.style.color = item.tone === 'warn' ? '#fbbf24' : item.tone === 'bad' || item.tone === 'err' ? '#fca5a5' : item.tone === 'good' ? '#6ee7b7' : item.tone === 'info' ? '#93c5fd' : item.tone === 'dim' ? 'var(--rt-text-muted)' : '';
+      card.appendChild(valEl);
+      if (stickerCtx) _tagDraggableBadge(card, stickerCtx, item.label);
+      grid.appendChild(card);
     }
   }
   container.appendChild(grid);
@@ -43766,20 +44137,11 @@ UnitInspector.source_atm = {
     params.push({ type: 'info', html: '<span class="ins-hint">Change atmosphere in ☰ Menu → Settings</span>' });
     return params;
   },
-  conditions(u, ud) {
-    if (!ud?.last) return [];
-    const sf = SimSettings.getSolarFactor();
-    const ws = SimSettings.getWindSpeed();
-    return [
-      { label: 'T', value: fmt.T(ud.last.T) },
-      { label: 'P', value: fmt.P(ud.last.P) },
-      { label: 'RH', value: `${((ud.last.RH || 0) * 100).toFixed(0)}%` },
-    ];
-  },
+  // [v20.6.0] conditions() deleted — auto-ribbon from primary stream
   kpis(u, ud) {
     if (!ud?.last) return [];
     return [
-      { label: 'Flow', value: `${(ud.last.nDot||0).toFixed(3)}<span class="propUnit">mol/s</span>` },
+      { label: 'Flow', value: fmt.molarFlow((ud.last.nDot||0)) },
     ];
   }
 };
@@ -43828,29 +44190,11 @@ UnitInspector.source_mix = UnitInspector.source_multi = {
 
 // ── Sinks ──
 UnitInspector.sink = {
-  // [v16.9.5 S-INSPECTOR] Clean inlet/outlet sections, no solver internals
-  conditions(u, ud) {
-    if (!ud?.last) return [];
-    const i = ud.last.inlet;
-    const o = ud.last.outlet;
-    const items = [];
-    if (i) {
-      items.push({ label: 'Inlet T', value: fmt.T(i.T_K) });
-      const phIn = i.phase === 'V' ? 'Vapor' : i.phase === 'L' ? 'Liquid' : 'Vapor-Liquid';
-      items.push({ label: 'Inlet phase', value: phIn });
-    }
-    if (o) {
-      const atm = SimSettings.getAtmosphere();
-      items.push({ label: `Outlet T`, value: fmt.T(o.T_K) });
-      const phOut = o.phase === 'V' ? 'Vapor' : o.phase === 'L' ? 'Liquid' : 'Vapor-Liquid';
-      items.push({ label: `Outlet phase`, value: phOut, tooltip: `At ${atm.presetName} atmospheric pressure` });
-    }
-    return items;
-  },
+  // [v20.6.0] conditions() deleted — auto-ribbon from inlet stream
   kpis(u, ud) {
     if (!ud?.last) return [];
     return [
-      { label: 'Flow', value: `${(ud.last.absorbed_mol_s||0).toFixed(3)}<span class="propUnit">mol/s</span>` },
+      { label: 'Flow', value: fmt.molarFlow((ud.last.absorbed_mol_s||0)) },
     ];
   }
 };
@@ -43928,19 +44272,12 @@ UnitInspector.reservoir = {
     addSliderEditor(container, 'Valve opening [%]',
       () => u.params.opening_pct ?? 100, v => u.params.opening_pct = v, 0, 100, 5);
   },
-  conditions(u, ud) {
-    if (!ud?.last) return [];
-    return [
-      { label: 'T', value: fmt.T(ud.last.T_K) },
-      { label: 'P', value: fmt.P(ud.last.P_bar * 1e5) },
-      { label: 'Phase', value: ud.last.phase || '—' },
-    ];
-  },
+  // [v20.6.0] conditions() deleted — auto-ribbon from outlet stream
   kpis(u, ud) {
     if (!ud?.last) return [];
     return [
-      { label: 'Flow', value: `${(ud.last.Q_mol_s||0).toFixed(3)}<span class="propUnit">mol/s</span>` },
-      { label: 'ΔP', value: `${(ud.last.dP_bar||0).toFixed(2)}<span class="propUnit">bar</span>` },
+      { label: 'Flow', value: fmt.molarFlow((ud.last.Q_mol_s||0)) },
+      { label: 'ΔP', value: fmt.P((ud.last.dP_bar||0) * 1e5) },
     ];
   }
 };
@@ -43950,69 +44287,31 @@ UnitInspector.reservoir = {
 // Same conditions/kpis interface as reservoir — solver output is identical.
 UnitInspector.hydrovent = {
   customParams(container, u) {
-    const T = u.params.T ?? 450;
-    const P_bar = u.params.P_bar ?? 15;
-    const comp = u.params.composition || {};
-
-    // Geology info block (read-only) — uses ins-box/ins-kv system (NNG-13)
-    const geoGrid = insBox(container, 'Vent geology');
-    insKV(geoGrid, 'Temperature', fmt.T(T));
-    insKV(geoGrid, 'Pressure', fmt.P(P_bar * 1e5));
-    const compEntries = Object.entries(comp).filter(([, f]) => f > 0);
-    if (compEntries.length > 0) {
-      insKV(geoGrid, 'Mix',
-        compEntries.map(([sp, f]) => `${esc(sp)} ${(f * 100).toFixed(0)}%`).join(' · '),
-        { full: true });
-    }
-    container.appendChild(el('div', { class: 'ins-hint', html: 'Fixed by geology — control the valve below' }));
-
-    // Valve opening — the only player control
+    // [v20.6.0] Controls only — geology info removed (shown via auto-ribbon T/P/composition)
     addSliderEditor(container, 'Valve opening [%]',
       () => u.params.opening_pct ?? 50,
       v => u.params.opening_pct = v,
       0, 100, 5);
   },
-  conditions(u, ud) {
-    if (!ud?.last) return [];
-    return [
-      { label: 'T', value: fmt.T(ud.last.T_K) },
-      { label: 'P', value: fmt.P(ud.last.P_bar * 1e5) },
-      { label: 'Phase', value: ud.last.phase || '—' },
-    ];
-  },
+  // [v20.6.0] conditions() deleted — auto-ribbon from outlet stream
   kpis(u, ud) {
     if (!ud?.last) return [];
     return [
-      { label: 'Flow', value: `${(ud.last.Q_mol_s||0).toFixed(3)}<span class="propUnit">mol/s</span>` },
-      { label: 'ΔP', value: `${(ud.last.dP_bar||0).toFixed(2)}<span class="propUnit">bar</span>` },
+      { label: 'Flow', value: fmt.molarFlow((ud.last.Q_mol_s||0)) },
+      { label: 'ΔP', value: fmt.P((ud.last.dP_bar||0) * 1e5) },
     ];
   }
 };
 
 // [v16.8.0] Atmosphere inspector
 UnitInspector.atmosphere = {
-  customParams(container, u) {
-    // Atmospheric info header
-    const atm = SimSettings.getAtmosphere();
-    container.appendChild(el('div', {
-      style: 'font-size:12px; color:var(--rt-text-muted); margin-bottom:6px;',
-      html: `${atm.presetName} · T ${atm.T_K.toFixed(1)} K · P ${(atm.P_Pa/1e5).toFixed(3)} bar`
-    }));
-    // No user-editable params — Cv and opening are internal modeling constants
-  },
-  conditions(u, ud) {
-    if (!ud?.last) return [];
-    return [
-      { label: 'T', value: fmt.T(ud.last.T_K) },
-      { label: 'P', value: fmt.P(ud.last.P_Pa) },
-      { label: 'RH', value: `${((ud.last.RH || 0) * 100).toFixed(0)}%` },
-    ];
-  },
+  // [v20.6.0] customParams stripped — info was redundant with auto-ribbon.
+  // conditions() deleted — auto-ribbon from primary stream.
   kpis(u, ud) {
     if (!ud?.last) return [];
     const statusColor = ud.last.status === 'flowing' ? '#22c55e' : '#64748b';
     return [
-      { label: 'Flow', value: `${(ud.last.Q_mol_s||0).toFixed(3)}<span class="propUnit">mol/s</span>` },
+      { label: 'Flow', value: fmt.molarFlow((ud.last.Q_mol_s||0)) },
       { label: 'Status', value: `<span style="color:${statusColor}">${ud.last.status}</span>` },
     ];
   }
@@ -44028,23 +44327,14 @@ UnitInspector.closed_loop_source = {
       { label: `ṅ (${unitSys.molarFlow.symbol})`, get: () => unitSys.molarFlow.from(u.params.nDot || 1), set: v => u.params.nDot = unitSys.molarFlow.to(v), step: 0.1, validate: { gt: 0 } },
     ];
   },
-  conditions(u, ud) {
-    if (!ud?.last) return [];
-    const items = [
-      { label: 'T supply', value: fmt.T(ud.last.T_supply) },
-      { label: 'P supply', value: fmt.P(ud.last.P_supply) },
-    ];
-    if (ud.last.T_return != null) items.push({ label: 'T return', value: fmt.T(ud.last.T_return) });
-    if (ud.last.P_return != null) items.push({ label: 'P return', value: fmt.P(ud.last.P_return) });
-    return items;
-  },
+  // [v20.6.0] conditions() deleted — auto-ribbon from supply outlet
   kpis(u, ud) {
     if (!ud?.last) return [];
     const items = [
-      { label: 'Supply', value: `${(ud.last.nDot_supply||0).toFixed(3)}<span class="propUnit">mol/s</span>` },
+      { label: 'Supply', value: fmt.molarFlow((ud.last.nDot_supply||0)) },
     ];
     if (ud.last.nDot_return != null) {
-      items.push({ label: 'Return', value: `${ud.last.nDot_return.toFixed(3)}<span class="propUnit">mol/s</span>` });
+      items.push({ label: 'Return', value: fmt.molarFlow(ud.last.nDot_return) });
       const closure = ud.last.loopClosure_pct ?? 0;
       const tone = closure > 99 ? 'good' : closure > 90 ? '' : 'warn';
       items.push({ label: 'Closure', value: `${closure.toFixed(1)}%`, tone });
@@ -44112,33 +44402,14 @@ UnitInspector.wind_turbine = {
 // ── Storage ──
 UnitInspector.tank = {
   customParams(container, u) {
+    // [v20.6.0] Controls only — volume/Cv stripped, conditions via auto-ribbon
     const us = models.getActive('units');
     const profile = ProfileRegistry.get(u.profileId || u.defId);
     const isDev = profile?.config?.dev;
     const isVented = !!u.params.vented;
     const effLim = getEffectiveLimits(u.profileId || u.defId, u.tier || 1);
     const P_HH_disp = effLim?.P_HH ? us.pressure.from(effLim.P_HH) : Infinity;
-    const V = u.params.volume_m3 || 0.15;
 
-    // ── Volume header ──
-    const volLine = el('div', {
-      style: 'font-size:14px; font-weight:700; color:var(--rt-text); padding:2px 0 4px; letter-spacing:0.3px;',
-      html: `${(V * 1000).toFixed(0)} L`
-    });
-    if (isDev) {
-      volLine.style.cursor = 'pointer';
-      volLine.title = 'Click to edit volume';
-    }
-    container.appendChild(volLine);
-
-    // Cv info (smaller)
-    const cvLine = el('div', {
-      style: 'font-size:10px; color:var(--rt-text-muted); margin-bottom:6px;',
-      html: `Cv gas ${u.params.Cv_gas ?? 30} · liq ${u.params.Cv_liq ?? 30}`
-    });
-    container.appendChild(cvLine);
-
-    // ── Dev-only: volume + Cv editable ──
     if (isDev) {
       const devBox = el('div', { style: 'margin-bottom:6px;' });
       addNumberEditor(devBox, 'Tank volume [m³]',
@@ -44150,21 +44421,16 @@ UnitInspector.tank = {
       container.appendChild(devBox);
     }
 
-    // ── Section: Draw Rates — per-connection openings for fan-out [S-FANOUT] ──
-    container.appendChild(el('div', { class: 'ins-section-label', html: 'Draw Rates' }));
+    // ── Draw Rates — per-connection openings for fan-out ──
     const drawBox = el('div', {});
-
-    // Gas outlet connections
     const gasConns = scene.connections.filter(
       c => c.from.unitId === u.id && c.from.portId === 'gas_out');
     if (gasConns.length > 1) {
-      drawBox.appendChild(el('div', { style: 'font-size:10px; color:var(--rt-text-muted); margin:2px 0;', html: 'Gas outlet:' }));
       for (const conn of gasConns) {
         const toU = scene.units.get(conn.to.unitId);
         const toName = toU?.name || conn.to.unitId;
-        const label = `→ ${toName} (%)`;
         if (!u.params.openings) u.params.openings = {};
-        addNumberEditor(drawBox, label,
+        addNumberEditor(drawBox, `Gas → ${toName} (%)`,
           () => u.params.openings[conn.id] ?? u.params.opening_gas_pct ?? 0,
           v => { if (!u.params.openings) u.params.openings = {}; u.params.openings[conn.id] = v; },
           5, 0, { min: 0, max: 100 });
@@ -44173,18 +44439,14 @@ UnitInspector.tank = {
       addNumberEditor(drawBox, 'Gas valve opening [%]',
         () => u.params.opening_gas_pct ?? 0, v => u.params.opening_gas_pct = v, 5, 0, { min: 0, max: 100 });
     }
-
-    // Liquid outlet connections
     const liqConns = scene.connections.filter(
       c => c.from.unitId === u.id && c.from.portId === 'liq_out');
     if (liqConns.length > 1) {
-      drawBox.appendChild(el('div', { style: 'font-size:10px; color:var(--rt-text-muted); margin:2px 0;', html: 'Liquid outlet:' }));
       for (const conn of liqConns) {
         const toU = scene.units.get(conn.to.unitId);
         const toName = toU?.name || conn.to.unitId;
-        const label = `→ ${toName} (%)`;
         if (!u.params.openings) u.params.openings = {};
-        addNumberEditor(drawBox, label,
+        addNumberEditor(drawBox, `Liq → ${toName} (%)`,
           () => u.params.openings[conn.id] ?? u.params.opening_liq_pct ?? 0,
           v => { if (!u.params.openings) u.params.openings = {}; u.params.openings[conn.id] = v; },
           5, 0, { min: 0, max: 100 });
@@ -44195,35 +44457,24 @@ UnitInspector.tank = {
     }
     container.appendChild(drawBox);
 
-    // ── Section: Safety ──
-    container.appendChild(el('div', { class: 'ins-section-label', html: 'Safety' }));
-    const safeBox = el('div', {});
+    // ── Safety ──
     if (!isVented) {
       if (isDev) {
-        addNumberEditor(safeBox, `P relief (${us.pressure.symbol})`,
+        addNumberEditor(container, `P relief (${us.pressure.symbol})`,
           () => us.pressure.from(u.params.P_relief || 200000),
           v => u.params.P_relief = us.pressure.to(v),
           us.pressure.decimals === 0 ? 10000 : 0.1, us.pressure.decimals);
       } else {
-        addNumberEditor(safeBox, `P relief (${us.pressure.symbol})`,
+        addNumberEditor(container, `P relief (${us.pressure.symbol})`,
           () => us.pressure.from(u.params.P_relief || 200000),
           v => u.params.P_relief = us.pressure.to(Math.min(v, P_HH_disp)),
           us.pressure.decimals === 0 ? 10000 : 0.1, us.pressure.decimals, { max: P_HH_disp });
       }
     }
-    addNumberEditor(safeBox, 'Overflow level [%]',
+    addNumberEditor(container, 'Overflow level [%]',
       () => u.params.overflow_level ?? 90, v => u.params.overflow_level = v, 5, 0, { min: 50, max: 100 });
-    container.appendChild(safeBox);
   },
-  conditions(u, ud) {
-    if (!ud?.last) return [];
-    return [
-      { label: 'T', value: fmt.T(ud.last.T_K) },
-      { label: 'P', value: fmt.P(ud.last.P_Pa) },
-      { label: 'Q gas', value: fmt.flow(ud.last.Q_gas ?? 0) },
-      { label: 'Q liq', value: fmt.flow(ud.last.Q_liq ?? 0) },
-    ];
-  },
+  // [v20.6.0] conditions() deleted — auto-ribbon from outlet stream
   kpis(u, ud) {
     if (!ud?.last) return [];
     const fillPct = ud.last.fillPct || 0;
@@ -44262,19 +44513,19 @@ UnitInspector.tank = {
       const nOutGas = gasOut?.n ? Object.values(gasOut.n).reduce((a,b)=>a+b,0) : 0;
       const nOutLiq = liqOut?.n ? Object.values(liqOut.n).reduce((a,b)=>a+b,0) : 0;
       const nOut = nOutGas + nOutLiq;
-      if (nIn > 1e-6) items.push({ label: 'Inlet', value: `${nIn.toFixed(3)}<span class="propUnit">mol/s</span>`, tone: 'good' });
-      if (nOutGas > 1e-6) items.push({ label: 'Gas out', value: `${nOutGas.toFixed(3)}<span class="propUnit">mol/s</span>` });
-      if (nOutLiq > 1e-6) items.push({ label: 'Liq out', value: `${nOutLiq.toFixed(3)}<span class="propUnit">mol/s</span>` });
+      if (nIn > 1e-6) items.push({ label: 'Inlet', value: fmt.molarFlow(nIn), tone: 'good' });
+      if (nOutGas > 1e-6) items.push({ label: 'Gas out', value: fmt.molarFlow(nOutGas) });
+      if (nOutLiq > 1e-6) items.push({ label: 'Liq out', value: fmt.molarFlow(nOutLiq) });
       const netRate = nIn - nOut;
-      items.push({ label: 'Net', value: `${netRate > 0 ? '+' : ''}${netRate.toFixed(3)}<span class="propUnit">mol/s</span>`,
+      items.push({ label: 'Net', value: fmt.molarFlow(netRate),
         tone: netRate > 0.001 ? 'good' : netRate < -0.001 ? 'warn' : '' });
       if (netRate > 0.001 && ud.last.n_max > 0) items.push({ label: 'Time to full', value: fmt.time((ud.last.n_max - ud.last.totalMol) / netRate) });
       else if (netRate < -0.001 && ud.last.totalMol > 0) items.push({ label: 'Time to empty', value: fmt.time(ud.last.totalMol / Math.abs(netRate)) });
     }
 
     // Vent / overflow status
-    if (ud.last.Q_vent > 0) items.push({ label: 'Venting', value: fmt.flow(ud.last.Q_vent), tone: 'info' });
-    if (ud.last.Q_overflow > 0) items.push({ label: 'Overflow', value: fmt.flow(ud.last.Q_overflow), tone: 'warn' });
+    if (ud.last.Q_vent > 0) items.push({ label: 'Venting', value: fmt.molarFlow(ud.last.Q_vent), tone: 'info' });
+    if (ud.last.Q_overflow > 0) items.push({ label: 'Overflow', value: fmt.molarFlow(ud.last.Q_overflow), tone: 'warn' });
 
     return items;
   }
@@ -44283,19 +44534,9 @@ UnitInspector.tank = {
 // ── Open Tank (open vessel) [v14.0.2] ──
 UnitInspector.open_tank = {
   customParams(container, u) {
+    // [v20.6.0] Controls only — volume/Cv stripped, conditions via auto-ribbon
     const profile = ProfileRegistry.get(u.profileId || u.defId);
     const isDev = profile?.config?.dev;
-    const V = u.params.volume_m3 || 0.15;
-
-    // ── Volume header ──
-    container.appendChild(el('div', {
-      style: 'font-size:14px; font-weight:700; color:var(--rt-text); padding:2px 0 4px;',
-      html: `${(V * 1000).toFixed(0)} L`
-    }));
-    container.appendChild(el('div', {
-      style: 'font-size:10px; color:var(--rt-text-muted); margin-bottom:6px;',
-      html: `Cv liq ${u.params.Cv_liq ?? 30} · open to atmosphere`
-    }));
 
     if (isDev) {
       const devBox = el('div', { style: 'margin-bottom:6px;' });
@@ -44306,21 +44547,16 @@ UnitInspector.open_tank = {
       container.appendChild(devBox);
     }
 
-    // ── Section: Draw Rates — per-connection openings for fan-out [v16.2.0] ──
-    container.appendChild(el('div', { class: 'ins-section-label', html: 'Draw Rates' }));
+    // ── Draw Rates — per-connection openings for fan-out ──
     const drawBox = el('div', {});
-
-    // Liquid outlet connections
     const liqConns = scene.connections.filter(
       c => c.from.unitId === u.id && c.from.portId === 'liq_out');
     if (liqConns.length > 1) {
-      drawBox.appendChild(el('div', { style: 'font-size:10px; color:var(--rt-text-muted); margin:2px 0;', html: 'Liquid outlet:' }));
       for (const conn of liqConns) {
         const toU = scene.units.get(conn.to.unitId);
         const toName = toU?.name || conn.to.unitId;
-        const label = `→ ${toName} (%)`;
         if (!u.params.openings) u.params.openings = {};
-        addNumberEditor(drawBox, label,
+        addNumberEditor(drawBox, `→ ${toName} (%)`,
           () => u.params.openings[conn.id] ?? u.params.opening_liq_pct ?? 0,
           v => { if (!u.params.openings) u.params.openings = {}; u.params.openings[conn.id] = v; },
           5, 0, { min: 0, max: 100 });
@@ -44330,22 +44566,10 @@ UnitInspector.open_tank = {
         () => u.params.opening_liq_pct ?? 0, v => u.params.opening_liq_pct = v, 5, 0, { min: 0, max: 100 });
     }
     container.appendChild(drawBox);
-
-    // ── Section: Safety ──
-    container.appendChild(el('div', { class: 'ins-section-label', html: 'Safety' }));
-    const safeBox = el('div', {});
-    addNumberEditor(safeBox, 'Overflow level [%]',
+    addNumberEditor(container, 'Overflow level [%]',
       () => u.params.overflow_level ?? 90, v => u.params.overflow_level = v, 5, 0, { min: 50, max: 100 });
-    container.appendChild(safeBox);
   },
-  conditions(u, ud) {
-    if (!ud?.last) return [];
-    return [
-      { label: 'T', value: fmt.T(ud.last.T_K) },
-      { label: 'P', value: fmt.P(ud.last.P_Pa) + ' (atm)' },
-      { label: 'Q liq', value: fmt.flow(ud.last.Q_liq ?? 0) },
-    ];
-  },
+  // [v20.6.0] conditions() deleted — auto-ribbon from outlet stream
   kpis(u, ud) {
     if (!ud.last) return [];
     const fillPct = ud.last.fillPct || 0;
@@ -44382,17 +44606,17 @@ UnitInspector.open_tank = {
       const nIn = matIn?.n ? Object.values(matIn.n).reduce((a,b)=>a+b,0) : 0;
       const nOutLiq = liqOut?.n ? Object.values(liqOut.n).reduce((a,b)=>a+b,0) : 0;
       const nVented = ud.last.Q_vented || 0;
-      if (nIn > 1e-6) items.push({ label: 'Inlet', value: `${nIn.toFixed(3)}<span class="propUnit">mol/s</span>`, tone: 'good' });
-      if (nOutLiq > 1e-6) items.push({ label: 'Liq out', value: `${nOutLiq.toFixed(3)}<span class="propUnit">mol/s</span>` });
-      if (nVented > 1e-6) items.push({ label: 'Vented', value: `${nVented.toFixed(3)}<span class="propUnit">mol/s</span>`, tone: 'info' });
+      if (nIn > 1e-6) items.push({ label: 'Inlet', value: fmt.molarFlow(nIn), tone: 'good' });
+      if (nOutLiq > 1e-6) items.push({ label: 'Liq out', value: fmt.molarFlow(nOutLiq) });
+      if (nVented > 1e-6) items.push({ label: 'Vented', value: fmt.molarFlow(nVented), tone: 'info' });
       const netRate = nIn - nOutLiq - nVented;
-      items.push({ label: 'Net', value: `${netRate > 0 ? '+' : ''}${netRate.toFixed(3)}<span class="propUnit">mol/s</span>`,
+      items.push({ label: 'Net', value: fmt.molarFlow(netRate),
         tone: netRate > 0.001 ? 'good' : netRate < -0.001 ? 'warn' : '' });
       if (netRate > 0.001 && ud.last.n_max > 0) items.push({ label: 'Time to full', value: fmt.time((ud.last.n_max - ud.last.totalMol) / netRate) });
       else if (netRate < -0.001 && ud.last.totalMol > 0) items.push({ label: 'Time to empty', value: fmt.time(ud.last.totalMol / Math.abs(netRate)) });
     }
 
-    if (ud.last.Q_overflow > 0) items.push({ label: 'Overflow', value: fmt.flow(ud.last.Q_overflow), tone: 'warn' });
+    if (ud.last.Q_overflow > 0) items.push({ label: 'Overflow', value: fmt.molarFlow(ud.last.Q_overflow), tone: 'warn' });
 
     return items;
   }
@@ -44401,90 +44625,25 @@ UnitInspector.open_tank = {
 // [v17.7.2] Shared composition donut chart for inventory-bearing vessels.
 // Renders an SVG donut + species legend using master _SPECIES_COLOR table.
 // inv = { n: {species: mol} } (ud.last from runtime), or null for "no data yet".
-function insCompositionPie(container, inv) {
-  const n = inv?.n ?? {};
-  const entries = Object.entries(n).filter(([, mol]) => mol > 1e-6).sort((a, b) => b[1] - a[1]);
-  const totalMol = entries.reduce((s, [, m]) => s + m, 0);
-
-  const wrap = el('div', { style: 'margin:6px 0 4px;' });
-  wrap.appendChild(el('div', { class: 'ins-box-title', html: 'Composition' }));
-
-  if (entries.length === 0 || totalMol < 1e-9) {
-    wrap.appendChild(el('div', { style: 'font-size:11px;color:var(--rt-text-muted);padding:4px 0;', html: 'Empty — no inventory' }));
-    container.appendChild(wrap);
-    return;
-  }
-
-  // ── SVG donut ──
-  const CX = 44, CY = 44, R_out = 36, R_in = 22, SIZE = 88;
-  let svg = `<svg width="${SIZE}" height="${SIZE}" viewBox="0 0 ${SIZE} ${SIZE}" style="display:block;margin:0 auto 6px;">`;
-  let angleStart = -Math.PI / 2;
-  for (const [sp, mol] of entries) {
-    const frac = mol / totalMol;
-    const angleEnd = angleStart + frac * 2 * Math.PI;
-    // Arc path
-    const x1o = CX + R_out * Math.cos(angleStart), y1o = CY + R_out * Math.sin(angleStart);
-    const x2o = CX + R_out * Math.cos(angleEnd),   y2o = CY + R_out * Math.sin(angleEnd);
-    const x1i = CX + R_in  * Math.cos(angleEnd),   y1i = CY + R_in  * Math.sin(angleEnd);
-    const x2i = CX + R_in  * Math.cos(angleStart), y2i = CY + R_in  * Math.sin(angleStart);
-    const large = frac > 0.5 ? 1 : 0;
-    const rgb = _SPECIES_COLOR[sp] || _SPECIES_DEFAULT_RGB;
-    const fill = `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
-    svg += `<path d="M${x1o.toFixed(2)},${y1o.toFixed(2)} A${R_out},${R_out} 0 ${large},1 ${x2o.toFixed(2)},${y2o.toFixed(2)} L${x1i.toFixed(2)},${y1i.toFixed(2)} A${R_in},${R_in} 0 ${large},0 ${x2i.toFixed(2)},${y2i.toFixed(2)} Z" fill="${fill}" opacity="0.9"/>`;
-    angleStart = angleEnd;
-  }
-  // Centre total mol label
-  svg += `<text x="${CX}" y="${CY+4}" text-anchor="middle" font-size="9" fill="#94a3b8">${totalMol >= 1000 ? (totalMol/1000).toFixed(1)+'k' : totalMol.toFixed(1)}</text>`;
-  svg += `<text x="${CX}" y="${CY+13}" text-anchor="middle" font-size="7" fill="#475569">mol</text>`;
-  svg += '</svg>';
-  const svgWrap = el('div', { html: svg });
-  wrap.appendChild(svgWrap);
-
-  // ── Legend rows ──
-  const legend = el('div', { style: 'display:flex;flex-direction:column;gap:2px;' });
-  for (const [sp, mol] of entries) {
-    const pct = (mol / totalMol * 100).toFixed(1);
-    const rgb = _SPECIES_COLOR[sp] || _SPECIES_DEFAULT_RGB;
-    const swatch = `<span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:rgb(${rgb[0]},${rgb[1]},${rgb[2]});margin-right:5px;flex-shrink:0;vertical-align:middle;"></span>`;
-    const row = el('div', { style: 'display:flex;align-items:center;font-size:11px;' });
-    row.innerHTML = `${swatch}<span style="color:var(--rt-text-muted);min-width:36px;">${sp}</span><span style="color:var(--rt-text);margin-left:auto;">${pct}%</span>`;
-    legend.appendChild(row);
-  }
-  wrap.appendChild(legend);
-  container.appendChild(wrap);
-}
+// [v20.6.0] insCompositionPie deleted — 0 callers. Composition display
+// now handled by auto-ribbon _renderCompRibbon in trunk.
 
 // [v17.5.2] Simple Open Tank inspector — rate-based draw
 UnitInspector.simple_open_tank = {
   customParams(container, u) {
-    const V = u.params.volume_m3 || 0.1;
-
-    // Read-only vessel spec (volume fixed by profile)
-    const specGrid = insBox(container, 'Vessel');
-    insKV(specGrid, 'Volume', `${(V * 1000).toFixed(0)} L`);
-    insKV(specGrid, 'Max draw', `${(u.params.drawRate ?? 0.3).toFixed(3)} mol/s`);
-    container.appendChild(el('div', { class: 'ins-hint', html: 'Capacity fixed by equipment profile' }));
-
-    // Live composition donut (reads last inventory from runtime)
-    const ud = scene.runtime?.unitData?.get(u.id);
-    insCompositionPie(container, ud?.last ?? null);
-
-    // ── Outlet control ──
-    container.appendChild(el('div', { class: 'ins-section-label', html: 'Outlet' }));
+    // [v20.6.0] Controls only — vessel specs in detail, composition via auto-ribbon
     addSliderEditor(container, 'Valve opening [%]',
       () => u.params.opening_pct ?? 100, v => u.params.opening_pct = v, 0, 100, 5);
-
-    // ── Safety ──
-    container.appendChild(el('div', { class: 'ins-section-label', html: 'Safety' }));
     addSliderEditor(container, 'Overflow level [%]',
       () => u.params.overflow_level ?? 90, v => u.params.overflow_level = v, 50, 100, 5);
   },
   conditions(u, ud) {
     if (!ud?.last) return [];
+    const us = models.getActive('units');
     return [
-      { label: 'T', value: fmt.T(ud.last.T_K) },
-      { label: 'P', value: fmt.P(ud.last.P_Pa) + ' (atm)' },
-      { label: 'Q out', value: fmt.flow(ud.last.Q_liq ?? 0) },
+      { lbl: 'Temp', stickerLabel: 'Temperature', val: us.temperature.from(ud.last.T_K).toFixed(1), unit: us.temperature.symbol },
+      { lbl: 'Press', stickerLabel: 'Pressure', val: 'atm', unit: '' },
+      { lbl: 'Fill', stickerLabel: 'Fill level', val: (ud.last.fillPct || 0).toFixed(0), unit: '%' },
     ];
   },
   kpis(u, ud) {
@@ -44523,17 +44682,17 @@ UnitInspector.simple_open_tank = {
       const nIn = matIn?.n ? Object.values(matIn.n).reduce((a,b)=>a+b,0) : 0;
       const nOut = matOut?.n ? Object.values(matOut.n).reduce((a,b)=>a+b,0) : 0;
       const nVented = ud.last.Q_vented || 0;
-      if (nIn > 1e-6) items.push({ label: 'Inlet', value: `${nIn.toFixed(3)}<span class="propUnit">mol/s</span>`, tone: 'good' });
-      if (nOut > 1e-6) items.push({ label: 'Outlet', value: `${nOut.toFixed(3)}<span class="propUnit">mol/s</span>` });
-      if (nVented > 1e-6) items.push({ label: 'Vented', value: `${nVented.toFixed(3)}<span class="propUnit">mol/s</span>`, tone: 'info' });
+      if (nIn > 1e-6) items.push({ label: 'Inlet', value: fmt.molarFlow(nIn), tone: 'good' });
+      if (nOut > 1e-6) items.push({ label: 'Outlet', value: fmt.molarFlow(nOut) });
+      if (nVented > 1e-6) items.push({ label: 'Vented', value: fmt.molarFlow(nVented), tone: 'info' });
       const netRate = nIn - nOut - nVented;
-      items.push({ label: 'Net', value: `${netRate > 0 ? '+' : ''}${netRate.toFixed(3)}<span class="propUnit">mol/s</span>`,
+      items.push({ label: 'Net', value: fmt.molarFlow(netRate),
         tone: netRate > 0.001 ? 'good' : netRate < -0.001 ? 'warn' : '' });
       if (netRate > 0.001 && ud.last.n_max > 0) items.push({ label: 'Time to full', value: fmt.time((ud.last.n_max - ud.last.totalMol) / netRate) });
       else if (netRate < -0.001 && ud.last.totalMol > 0) items.push({ label: 'Time to empty', value: fmt.time(ud.last.totalMol / Math.abs(netRate)) });
     }
 
-    if (ud.last.Q_overflow > 0) items.push({ label: 'Overflow', value: fmt.flow(ud.last.Q_overflow), tone: 'warn' });
+    if (ud.last.Q_overflow > 0) items.push({ label: 'Overflow', value: fmt.molarFlow(ud.last.Q_overflow), tone: 'warn' });
 
     return items;
   }
@@ -44542,34 +44701,23 @@ UnitInspector.simple_open_tank = {
 // [v17.5.2] Simple Tank (sealed) inspector — rate-based gas/liquid draw
 UnitInspector.simple_tank = {
   customParams(container, u) {
-    const V = u.params.volume_m3 || 0.01;
-
-    // Read-only vessel spec
-    const specGrid = insBox(container, 'Vessel');
-    insKV(specGrid, 'Volume', `${(V * 1000).toFixed(0)} L`);
-    insKV(specGrid, 'Max gas draw', `${(u.params.gasDrawRate ?? 0.05).toFixed(3)} mol/s`);
-    container.appendChild(el('div', { class: 'ins-hint', html: 'Capacity fixed by equipment profile' }));
-
-    // Live composition donut
-    const ud = scene.runtime?.unitData?.get(u.id);
-    insCompositionPie(container, ud?.last ?? null);
-
-    // ── Gas outlet ──
-    container.appendChild(el('div', { class: 'ins-section-label', html: 'Gas Outlet' }));
+    // [v20.6.0] Controls only — vessel specs in detail, composition via auto-ribbon
     addSliderEditor(container, 'Gas valve opening [%]',
       () => u.params.opening_gas_pct ?? 0, v => u.params.opening_gas_pct = v, 0, 100, 5);
-
-    // ── Safety ──
-    container.appendChild(el('div', { class: 'ins-section-label', html: 'Safety' }));
-    addNumberEditor(container, 'Relief pressure [bar]',
-      () => (u.params.P_relief || 200000) / 1e5, v => u.params.P_relief = v * 1e5, 0.5, 1, { min: 0.5 });
+    const us = models.getActive('units');
+    addNumberEditor(container, `Relief pressure [${us.pressure.symbol}]`,
+      () => us.pressure.from(u.params.P_relief || 200000), v => u.params.P_relief = us.pressure.to(v),
+      us.pressure.decimals === 0 ? 1000 : 0.5, us.pressure.decimals, { min: us.pressure.from(50000) });
   },
   conditions(u, ud) {
     if (!ud?.last) return [];
+    const us = models.getActive('units');
+    const tDot = _limitDotColor(ud.last.T_K, 'T', getEffectiveLimits(u.profileId || u.defId, u.tier || 1));
+    const pDot = _limitDotColor(ud.last.P_Pa, 'P', getEffectiveLimits(u.profileId || u.defId, u.tier || 1));
     return [
-      { label: 'T', value: fmt.T(ud.last.T_K) },
-      { label: 'P', value: fmt.P(ud.last.P_Pa) },
-      { label: 'Q gas', value: fmt.flow(ud.last.Q_gas ?? 0) },
+      { lbl: 'Temp', stickerLabel: 'Temperature', val: us.temperature.from(ud.last.T_K).toFixed(1), unit: us.temperature.symbol, dotColor: tDot },
+      { lbl: 'Press', stickerLabel: 'Pressure', val: us.pressure.from(ud.last.P_Pa).toFixed(us.pressure.decimals), unit: us.pressure.symbol, dotColor: pDot },
+      { lbl: 'Fill', stickerLabel: 'Fill level', val: (ud.last.fillPct || 0).toFixed(0), unit: '%' },
     ];
   },
   kpis(u, ud) {
@@ -44589,9 +44737,9 @@ UnitInspector.simple_tank = {
     const items = [];
 
     // Pressure detail
-    items.push({ label: 'P', value: `${(ud.last.P_Pa/1e5).toFixed(2)}<span class="propUnit">bar</span>` });
-    items.push({ label: 'P relief', value: `${(ud.last.P_relief/1e5).toFixed(1)}<span class="propUnit">bar</span>` });
-    if (ud.last.vent_status === 'OPEN') items.push({ label: 'Vent', value: fmt.flow(ud.last.Q_vent ?? 0), tone: 'warn' });
+    items.push({ label: 'P', value: fmt.P(ud.last.P_Pa) });
+    items.push({ label: 'P relief', value: fmt.P(ud.last.P_relief) });
+    if (ud.last.vent_status === 'OPEN') items.push({ label: 'Vent', value: fmt.molarFlow(ud.last.Q_vent ?? 0), tone: 'warn' });
 
     // Species inventory
     if (ud.last.n) {
@@ -44614,11 +44762,11 @@ UnitInspector.simple_tank = {
       const nIn = matIn?.n ? Object.values(matIn.n).reduce((a,b)=>a+b,0) : 0;
       const nGas = gasOut?.n ? Object.values(gasOut.n).reduce((a,b)=>a+b,0) : 0;
       const nVent = ud.last.Q_vent || 0;
-      if (nIn > 1e-6) items.push({ label: 'Inlet', value: `${nIn.toFixed(3)}<span class="propUnit">mol/s</span>`, tone: 'good' });
-      if (nGas > 1e-6) items.push({ label: 'Gas out', value: `${nGas.toFixed(3)}<span class="propUnit">mol/s</span>` });
-      if (nVent > 1e-6) items.push({ label: 'Vented', value: `${nVent.toFixed(3)}<span class="propUnit">mol/s</span>`, tone: 'warn' });
+      if (nIn > 1e-6) items.push({ label: 'Inlet', value: fmt.molarFlow(nIn), tone: 'good' });
+      if (nGas > 1e-6) items.push({ label: 'Gas out', value: fmt.molarFlow(nGas) });
+      if (nVent > 1e-6) items.push({ label: 'Vented', value: fmt.molarFlow(nVent), tone: 'warn' });
       const netRate = nIn - nGas - nVent;
-      items.push({ label: 'Net', value: `${netRate > 0 ? '+' : ''}${netRate.toFixed(3)}<span class="propUnit">mol/s</span>`,
+      items.push({ label: 'Net', value: fmt.molarFlow(netRate),
         tone: netRate > 0.001 ? 'good' : netRate < -0.001 ? 'warn' : '' });
     }
 
@@ -44627,32 +44775,43 @@ UnitInspector.simple_tank = {
 };
 
 UnitInspector.battery = {
-  params(u) { return [
-    { type: 'slider', label: 'Max charge/discharge [kW]', get: () => u.params.peakPower_kW || 20, set: v => u.params.peakPower_kW = v, min: 0.1, max: 1000, step: 1 },
-    { type: 'slider', label: 'Capacity [kWh]', get: () => (u.params.capacity_J || 36000000) / 3600000, set: v => u.params.capacity_J = v * 3600000, min: 0.01, max: 1000, step: 1 },
-    { type: 'slider', label: 'Starting charge [%]', get: () => (u.params.initialSOC ?? 0.9) * 100, set: v => u.params.initialSOC = v / 100, min: 0, max: 100, step: 5 },
-  ]; },
+  // [v20.3.0 S-INSPECTOR-V2] Params stripped to player controls only.
+  // peakPower_kW, capacity_J, initialSOC are equipment specs (set by profile defaults).
+  params(u) {
+    const profile = ProfileRegistry.get(u.profileId || u.defId);
+    if (profile?.config?.dev || profile?.config?.template) {
+      return [
+        { type: 'slider', label: 'Max charge/discharge [kW]', get: () => u.params.peakPower_kW || 20, set: v => u.params.peakPower_kW = v, min: 0.1, max: 1000, step: 1 },
+        { type: 'slider', label: 'Capacity [kWh]', get: () => (u.params.capacity_J || 36000000) / 3600000, set: v => u.params.capacity_J = v * 3600000, min: 0.01, max: 1000, step: 1 },
+        { type: 'slider', label: 'Starting charge [%]', get: () => (u.params.initialSOC ?? 0.9) * 100, set: v => u.params.initialSOC = v / 100, min: 0, max: 100, step: 5 },
+      ];
+    }
+    return [];  // story profiles: no editable params
+  },
   power(u, ud) {
     if (!ud.last) return [];
+    // [v20.6.0] Merged: charge/discharge + charge level + status all on power ribbon
+    const soc = ud.last.soc ?? 0;
+    const statusColor = ud.last.status === 'discharging' ? '#f59e0b' : ud.last.status === 'charging' ? '#22c55e' : '#64748b';
     const items = [];
     if (ud.last.status === 'discharging' && ud.last.netPower_W > 0) items.push({ label: 'Discharge', value: fmt.kW(ud.last.netPower_W), tone: 'warn' });
     else if (ud.last.status === 'charging' && ud.last.netPower_W < 0) items.push({ label: 'Charging', value: fmt.kW(Math.abs(ud.last.netPower_W)), tone: 'good' });
+    else items.push({ label: 'Power', value: '0<span class="u">kW</span>' });
+    items.push({ label: 'Charge', value: `${(ud.last.charge_kWh ?? 0).toFixed(1)}<span class="u">kWh</span>` });
+    items.push({ label: 'Status', value: `<span style="color:${statusColor}">${ud.last.status || 'idle'}</span>` });
     return items;
   },
   kpis(u, ud) {
     if (!ud.last) return [];
     const soc = ud.last.soc ?? 0;
     const barColor = soc < 0.2 ? '#ef4444' : soc < 0.5 ? '#f59e0b' : '#22c55e';
-    const statusColor = ud.last.status === 'discharging' ? '#f59e0b' : ud.last.status === 'charging' ? '#22c55e' : '#64748b';
     return [
       { label: 'SOC', value: soc * 100, bar: true, barColor },
-      { label: 'Charge', value: `${(ud.last.charge_kWh ?? 0).toFixed(2)}<span class="propUnit">kWh</span>` },
-      { label: 'Status', value: `<span style="color:${statusColor}">${ud.last.status || 'idle'}</span>` },
     ];
   },
   detail(u, ud) {
     if (!ud.last) return [];
-    const items = [{ label: 'Peak', value: `${(ud.last.peakPower_kW ?? 0).toFixed(1)}<span class="u">kW</span>` }];
+    const items = [{ label: 'Peak', value: fmt.kW((ud.last.peakPower_kW ?? 0) * 1000) }];
     if (ud.last.timeToEmpty_s) items.push({ label: 'Time to empty', value: fmt.time(ud.last.timeToEmpty_s) });
     if (ud.last.timeToFull_s) items.push({ label: 'Time to full', value: fmt.time(ud.last.timeToFull_s) });
     return items;
@@ -44670,17 +44829,11 @@ UnitInspector.restriction = {
   params(u) { const us = models.getActive('units'); return [
     { label: `Pressure drop [${us.pressure.symbol}]`, get: () => us.pressure.from(u.params.deltaP ?? 100000), set: v => u.params.deltaP = us.pressure.to(v), step: us.pressure.decimals === 0 ? 10000 : 0.1, decimals: us.pressure.decimals, validate: { gt: 0 } }
   ]; },
-  conditions(u, ud) {
-    if (!ud?.last) return [];
-    return [
-      { label: 'P in', value: fmt.P(ud.last.Pin) },
-      { label: 'P out', value: fmt.P(ud.last.Pout) },
-    ];
-  },
+  // [v20.6.0] conditions() deleted — auto-ribbon from outlet
   kpis(u, ud) {
     if (!ud?.last) return [];
     return [
-      { label: 'ΔP actual', value: `${((ud.last.deltaP||0)/1e5).toFixed(2)}<span class="propUnit">bar</span>` },
+      { label: 'ΔP actual', value: fmt.P(ud.last.deltaP || 0) },
       { label: 'Mode', value: ud.last.mode || '—' },
     ];
   }
@@ -44691,11 +44844,20 @@ UnitInspector.valve = {
 };
 
 UnitInspector.pump = {
-  params(u) { const us = models.getActive('units'); return [
-    ..._pEtaParams(u, us, 500000, 0.75),
-    { label: 'Power priority', get: () => u.params.powerPriority ?? 2,
-      set: v => u.params.powerPriority = Math.max(1, Math.round(v)), step: 1, min: 1, max: 5 },
-  ]; },
+  params(u) {
+    const us = models.getActive('units');
+    const profile = ProfileRegistry.get(u.profileId || u.defId);
+    const isDev = profile?.config?.dev || profile?.config?.template;
+    const items = isDev ? _pEtaParams(u, us, 500000, 0.75) : [
+      { label: `Outlet pressure [${us.pressure.symbol}]`,
+        get: () => us.pressure.from(u.params.Pout || 500000),
+        set: v => u.params.Pout = us.pressure.to(v),
+        step: us.pressure.decimals === 0 ? 1000 : 0.1, decimals: us.pressure.decimals, validate: { gt: 0 } },
+    ];
+    items.push({ label: 'Power priority', get: () => u.params.powerPriority ?? 2,
+      set: v => u.params.powerPriority = Math.max(1, Math.round(v)), step: 1, min: 1, max: 5 });
+    return items;
+  },
   power(u, ud) { return !ud?.last ? [] : [
     { label: 'Shaft power', value: fmt.kW(ud.last.W_shaft) },
     ...(ud.last.eta != null ? [{ label: 'Efficiency', value: fmt.pct(ud.last.eta) }] : []),
@@ -44714,19 +44876,24 @@ UnitInspector.pump = {
 UnitInspector.compressor = {
   params(u) {
     const us = models.getActive('units');
+    const profile = ProfileRegistry.get(u.profileId || u.defId);
+    const isDev = profile?.config?.dev || profile?.config?.template;
     const maxRatio = u.params.maxRatio || Infinity;
     const maxRatioLabel = isFinite(maxRatio) ? ` (max ${maxRatio}:1)` : '';
-    return [
+    const items = [
       { label: `Outlet pressure [${us.pressure.symbol}]${maxRatioLabel}`,
         get: () => us.pressure.from(u.params.Pout || 300000),
         set: v => u.params.Pout = us.pressure.to(v),
         step: us.pressure.decimals === 0 ? 1000 : 0.1, decimals: us.pressure.decimals, validate: { gt: 0 } },
-      { type: 'slider', label: 'Efficiency [%]',
-        get: () => (u.params.eta || 0.80) * 100,
-        set: v => u.params.eta = v / 100, min: 10, max: 99, step: 1 },
-      { label: 'Power priority', get: () => u.params.powerPriority ?? 2,
-        set: v => u.params.powerPriority = Math.max(1, Math.round(v)), step: 1, min: 1, max: 5 },
     ];
+    if (isDev) {
+      items.push({ type: 'slider', label: 'Efficiency [%]',
+        get: () => (u.params.eta || 0.80) * 100,
+        set: v => u.params.eta = v / 100, min: 10, max: 99, step: 1 });
+    }
+    items.push({ label: 'Power priority', get: () => u.params.powerPriority ?? 2,
+      set: v => u.params.powerPriority = Math.max(1, Math.round(v)), step: 1, min: 1, max: 5 });
+    return items;
   },
   power(u, ud) { return !ud?.last ? [] : [
     { label: 'Shaft power', value: fmt.kW(ud.last.W_shaft) },
@@ -44750,13 +44917,7 @@ UnitInspector.fan = {
     { label: 'Power priority', get: () => u.params.powerPriority ?? 2,
       set: v => u.params.powerPriority = Math.max(1, Math.round(v)), step: 1, min: 1, max: 5 },
   ]; },
-  conditions(u, ud) {
-    if (!ud?.last) return [];
-    return [
-      { label: 'ΔP set', value: `${(ud.last.deltaP || 0).toFixed(0)}<span class="propUnit">Pa</span>` },
-      { label: 'ΔP actual', value: `${(ud.last.deltaP_actual || 0).toFixed(0)}<span class="propUnit">Pa</span>` },
-    ];
-  },
+  // [v20.6.0] conditions() deleted — auto-ribbon from outlet; ΔP in kpis
   power(u, ud) {
     if (!ud?.last) return [];
     const statusColor = ud.last.status === 'running' ? '#22c55e'
@@ -44770,13 +44931,24 @@ UnitInspector.fan = {
 
 // [v14.9.0 S6 Amendment] Diaphragm compressor inspector — adds UA, cooling diagnostics
 UnitInspector.compressor_diaphragm = {
-  params(u) { const us = models.getActive('units'); return [
-    ..._pEtaParams(u, us, 5000000, 0.65),
-    { type: 'slider', label: 'Cooling capacity [W/K]', get: () => u.params.UA ?? 500,
-      set: v => u.params.UA = Math.max(0, v), min: 0, max: 5000, step: 10 },
-    { label: 'Power priority', get: () => u.params.powerPriority ?? 2,
-      set: v => u.params.powerPriority = Math.max(1, Math.round(v)), step: 1, min: 1, max: 5 },
-  ]; },
+  params(u) {
+    const us = models.getActive('units');
+    const profile = ProfileRegistry.get(u.profileId || u.defId);
+    const isDev = profile?.config?.dev || profile?.config?.template;
+    const items = isDev ? [
+      ..._pEtaParams(u, us, 5000000, 0.65),
+      { type: 'slider', label: 'Cooling capacity [W/K]', get: () => u.params.UA ?? 500,
+        set: v => u.params.UA = Math.max(0, v), min: 0, max: 5000, step: 10 },
+    ] : [
+      { label: `Outlet pressure [${us.pressure.symbol}]`,
+        get: () => us.pressure.from(u.params.Pout || 5000000),
+        set: v => u.params.Pout = us.pressure.to(v),
+        step: us.pressure.decimals === 0 ? 1000 : 0.1, decimals: us.pressure.decimals, validate: { gt: 0 } },
+    ];
+    items.push({ label: 'Power priority', get: () => u.params.powerPriority ?? 2,
+      set: v => u.params.powerPriority = Math.max(1, Math.round(v)), step: 1, min: 1, max: 5 });
+    return items;
+  },
   power(u, ud) { return !ud?.last ? [] : [
     { label: 'Shaft power', value: fmt.kW(ud.last.W_shaft) },
     ...(ud.last.eta != null ? [{ label: 'Efficiency', value: fmt.pct(ud.last.eta) }] : []),
@@ -44797,7 +44969,12 @@ UnitInspector.compressor_diaphragm = {
 };
 
 UnitInspector.gas_turbine = {
-  params(u) { const us = models.getActive('units'); return _pEtaParams(u, us, 101325, 0.88); },
+  params(u) {
+    const us = models.getActive('units');
+    const profile = ProfileRegistry.get(u.profileId || u.defId);
+    const isDev = profile?.config?.dev || profile?.config?.template;
+    return isDev ? _pEtaParams(u, us, 101325, 0.88) : [];
+  },
   power(u, ud) { return !ud?.last ? [] : [
     { label: 'Shaft power', value: fmt.kW(ud.last.W_shaft) },
     ...(ud.last.eta != null ? [{ label: 'Efficiency', value: fmt.pct(ud.last.eta) }] : []),
@@ -44872,6 +45049,8 @@ UnitInspector.electric_heater = {
 UnitInspector.air_cooler = {
   params(u) {
     const us = models.getActive('units');
+    const profile = ProfileRegistry.get(u.profileId || u.defId);
+    const isDev = profile?.config?.dev || profile?.config?.template;
     const atm = SimSettings.getAtmosphere();
     const pId = u.profileId || u.defId;
     const lim = getEffectiveLimits(pId, u.tier || 1);
@@ -44886,19 +45065,23 @@ UnitInspector.air_cooler = {
         min: us.temperature.from(T_amb), max: us.temperature.from(lim?.T_HH || 723),
         step: 1 },
     ];
-    if (!hasExplicitTout) {
-      items.push({ type: 'info', html: `<span class="ins-hint">Auto: Ambient ${us.temperature.from(T_amb).toFixed(0)}${us.temperature.symbol} + ${T_approach}K approach = ${us.temperature.from(T_default).toFixed(0)}${us.temperature.symbol}</span>` });
+    if (isDev) {
+      if (!hasExplicitTout) {
+        items.push({ type: 'info', html: `<span class="ins-hint">Auto: Ambient ${us.temperature.from(T_amb).toFixed(0)}${us.temperature.symbol} + ${T_approach}K approach = ${us.temperature.from(T_default).toFixed(0)}${us.temperature.symbol}</span>` });
+      }
+      items.push(
+        { type: 'slider', label: 'Approach temperature [K]',
+          get: () => u.params.T_approach ?? 10, set: v => u.params.T_approach = v,
+          min: 1, max: 100, step: 1 },
+        { type: 'slider', label: 'Cooling capacity [kW/K]',
+          get: () => u.params.UA_kW_K ?? 1.0, set: v => u.params.UA_kW_K = Math.max(0.001, v),
+          min: 0.01, max: 100, step: 0.1 },
+        { type: 'slider', label: 'Fan power limit [W]',
+          get: () => u.params.max_fan_power_W ?? 150, set: v => u.params.max_fan_power_W = Math.max(1, Math.round(v)),
+          min: 1, max: 50000, step: 10 },
+      );
     }
     items.push(
-      { type: 'slider', label: 'Approach temperature [K]',
-        get: () => u.params.T_approach ?? 10, set: v => u.params.T_approach = v,
-        min: 1, max: 100, step: 1 },
-      { type: 'slider', label: 'Cooling capacity [kW/K]',
-        get: () => u.params.UA_kW_K ?? 1.0, set: v => u.params.UA_kW_K = Math.max(0.001, v),
-        min: 0.01, max: 100, step: 0.1 },
-      { type: 'slider', label: 'Fan power limit [W]',
-        get: () => u.params.max_fan_power_W ?? 150, set: v => u.params.max_fan_power_W = Math.max(1, Math.round(v)),
-        min: 1, max: 50000, step: 10 },
       { label: 'Power priority', get: () => u.params.powerPriority ?? 3,
         set: v => u.params.powerPriority = Math.max(1, Math.round(v)), step: 1, min: 1, max: 5 },
     );
@@ -44908,9 +45091,9 @@ UnitInspector.air_cooler = {
     if (!ud?.last) return [];
     const items = [];
     if (ud.last.W_fan_demand != null)
-      items.push({ label: 'Fan demand', value: `${ud.last.W_fan_demand.toFixed(0)}<span class="u">W</span>` });
+      items.push({ label: 'Fan demand', value: fmt.kW(ud.last.W_fan_demand) });
     if (ud.last.W_fan_actual != null)
-      items.push({ label: 'Fan actual', value: `${ud.last.W_fan_actual.toFixed(0)}<span class="u">W</span>`,
+      items.push({ label: 'Fan actual', value: fmt.kW(ud.last.W_fan_actual),
         tone: ud.last.power_curtailed ? 'warn' : 'good' });
     if (ud.last.Q_rejected_W != null)
       items.push({ label: 'Heat rejected', value: fmt.kW(ud.last.Q_rejected_W), tone: 'info' });
@@ -44953,43 +45136,51 @@ UnitInspector.air_cooler = {
 UnitInspector.splitter = {
   params(u) { return [{ type: 'slider', label: 'Split ratio [%]', get: () => u.params.splitPct ?? 50, set: v => u.params.splitPct = Math.max(0, Math.min(100, v)), min: 0, max: 100, step: 1 }]; },
   kpis(u, ud) { if (!ud?.last) return []; return [
-    ...(ud.last.nOut1 != null ? [{ label: 'Out 1', value: fmt.flow(ud.last.nOut1) }] : []),
-    ...(ud.last.nOut2 != null ? [{ label: 'Out 2', value: fmt.flow(ud.last.nOut2) }] : []),
+    ...(ud.last.nOut1 != null ? [{ label: 'Out 1', value: fmt.molarFlow(ud.last.nOut1) }] : []),
+    ...(ud.last.nOut2 != null ? [{ label: 'Out 2', value: fmt.molarFlow(ud.last.nOut2) }] : []),
   ]; },
   detail(u, ud) { if (!ud?.last) return []; return [
     ...(ud.last.P ? [{ label: 'P', value: fmt.P(ud.last.P) }] : []),
-    ...(ud.last.H_in_kW ? [{ label: 'H in', value: `${ud.last.H_in_kW}<span class="u">kW</span>` }] : []),
+    ...(ud.last.H_in_kW ? [{ label: 'H in', value: fmt.kW((ud.last.H_in_kW || 0) * 1000) }] : []),
   ]; }
 };
 
 UnitInspector.mixer = {
   // No kpis — auto-stream trunk covers T, P, total flow via primary OUT port
   detail(u, ud) { return !ud?.last ? [] : [
-    { label: 'H in₁', value: `${ud.last.H_in1_kW}<span class="u">kW</span>` },
-    { label: 'H in₂', value: `${ud.last.H_in2_kW}<span class="u">kW</span>` },
-    { label: 'H out', value: `${ud.last.H_out_kW}<span class="u">kW</span>` },
+    { label: 'H in₁', value: fmt.kW((ud.last.H_in1_kW || 0) * 1000) },
+    { label: 'H in₂', value: fmt.kW((ud.last.H_in2_kW || 0) * 1000) },
+    { label: 'H out', value: fmt.kW((ud.last.H_out_kW || 0) * 1000) },
   ]; }
 };
 
 // ── Heat Exchangers ──
 UnitInspector.hex = {
-  params(u) { const us = models.getActive('units'); return [
-    { type: 'slider', label: 'Approach temperature [K]', get: () => u.params.T_approach ?? 10, set: v => { u.params.T_approach = v; u.params.T_hot_out = undefined; u.params.T_cold_out = undefined; }, min: 1, max: 100, step: 1 },
-    { label: `Hot side outlet [${us.temperature.symbol}]`, get: () => u.params.T_hot_out != null ? us.temperature.from(u.params.T_hot_out) : '', set: v => { u.params.T_hot_out = us.temperature.to(v); u.params.T_approach = 0; u.params.T_cold_out = undefined; }, step: 1, decimals: us.temperature.decimals },
-    { label: `Cold side outlet [${us.temperature.symbol}]`, get: () => u.params.T_cold_out != null ? us.temperature.from(u.params.T_cold_out) : '', set: v => { u.params.T_cold_out = us.temperature.to(v); u.params.T_approach = 0; u.params.T_hot_out = undefined; }, step: 1, decimals: us.temperature.decimals },
-  ]; },
+  params(u) {
+    const us = models.getActive('units');
+    const profile = ProfileRegistry.get(u.profileId || u.defId);
+    const isDev = profile?.config?.dev || profile?.config?.template;
+    if (!isDev) return [];  // story profiles: no editable HEX params
+    return [
+      { type: 'slider', label: 'Approach temperature [K]', get: () => u.params.T_approach ?? 10, set: v => { u.params.T_approach = v; u.params.T_hot_out = undefined; u.params.T_cold_out = undefined; }, min: 1, max: 100, step: 1 },
+      { label: `Hot side outlet [${us.temperature.symbol}]`, get: () => u.params.T_hot_out != null ? us.temperature.from(u.params.T_hot_out) : '', set: v => { u.params.T_hot_out = us.temperature.to(v); u.params.T_approach = 0; u.params.T_cold_out = undefined; }, step: 1, decimals: us.temperature.decimals },
+      { label: `Cold side outlet [${us.temperature.symbol}]`, get: () => u.params.T_cold_out != null ? us.temperature.from(u.params.T_cold_out) : '', set: v => { u.params.T_cold_out = us.temperature.to(v); u.params.T_approach = 0; u.params.T_hot_out = undefined; }, step: 1, decimals: us.temperature.decimals },
+    ];
+  },
   conditions(u, ud) {
     if (ud?.last?.Q === undefined) return [];
+    const us = models.getActive('units');
+    const f = v => v != null ? us.temperature.from(v).toFixed(1) : '—';
     return [
-      { label: 'T hot in', value: fmt.T(ud.last.T_hot_in) },
-      { label: 'T hot out', value: fmt.T(ud.last.T_hot_out_actual ?? ud.last.T_hot_out) },
-      { label: 'T cold in', value: fmt.T(ud.last.T_cold_in) },
-      { label: 'T cold out', value: fmt.T(ud.last.T_cold_out_actual ?? ud.last.T_cold_out) },
+      { lbl: 'Hot in', stickerLabel: 'T hot in', val: f(ud.last.T_hot_in), unit: us.temperature.symbol },
+      { lbl: 'Hot out', stickerLabel: 'T hot out', val: f(ud.last.T_hot_out_actual ?? ud.last.T_hot_out), unit: us.temperature.symbol },
+      { lbl: 'Cold in', stickerLabel: 'T cold in', val: f(ud.last.T_cold_in), unit: us.temperature.symbol },
+      { lbl: 'Cold out', stickerLabel: 'T cold out', val: f(ud.last.T_cold_out_actual ?? ud.last.T_cold_out), unit: us.temperature.symbol },
     ];
   },
   power(u, ud) {
     if (ud?.last?.Q === undefined) return [];
-    const items = [{ label: 'Duty', value: `${ud.last.Q.toFixed(2)}<span class="propUnit">kW</span>` }];
+    const items = [{ label: 'Duty', value: fmt.kW(ud.last.Q * 1000) }];
     if (ud.last.hxPinch_K != null) {
       items.push({ label: 'ΔT min', value: `${ud.last.hxPinch_K.toFixed(2)}<span class="propUnit">K</span>`, tone: ud.last.hxCross ? 'bad' : ud.last.hxPinch_K < 5 ? 'warn' : 'good' });
     }
@@ -45041,15 +45232,18 @@ UnitInspector.power_hub = {
   }
 };
 
+// [v20.6.0] Power dispatcher shares the same tick function as power_hub
+UnitInspector.power_dispatcher_5 = UnitInspector.power_hub;
+
 // ── Separation ──
 UnitInspector.flash_drum = {
   // Auto-stream trunk handles T, P from primary OUT port
   kpis(u, ud) { if (!ud.last || ud.last.nTotal <= 0) return [];
     return [
-      { label: 'Feed', value: fmt.flow(ud.last.nTotal) },
+      { label: 'Feed', value: fmt.molarFlow(ud.last.nTotal) },
       { label: 'Vap fraction', value: fmt.pctRaw(ud.last.vapFraction) },
-      ...(ud.last.phaseSplit?.vap ? [{ label: 'Vapor out', value: fmt.flow(ud.last.phaseSplit.vap) }] : []),
-      ...(ud.last.phaseSplit?.liq ? [{ label: 'Liquid out', value: fmt.flow(ud.last.phaseSplit.liq) }] : []),
+      ...(ud.last.phaseSplit?.vap ? [{ label: 'Vapor out', value: fmt.molarFlow(ud.last.phaseSplit.vap) }] : []),
+      ...(ud.last.phaseSplit?.liq ? [{ label: 'Liquid out', value: fmt.molarFlow(ud.last.phaseSplit.liq) }] : []),
     ];
   }
 };
@@ -45057,6 +45251,15 @@ UnitInspector.flash_drum = {
 // [v13.4.0] S4a — Distillation Column Inspector
 UnitInspector.distillation_column = {
   params(u) {
+    const profile = ProfileRegistry.get(u.profileId || u.defId);
+    const isDev = profile?.config?.dev || profile?.config?.template;
+    if (!isDev) {
+      return [
+        { label: 'Power priority', get: () => u.params.powerPriority ?? 2,
+          set: v => u.params.powerPriority = Math.max(1, Math.round(v)), step: 1, min: 1, max: 5 }
+      ];
+    }
+    const us = models.getActive('units');
     const ud = scene.runtime?.unitData?.get(u.id);
     const sIn = ud?.ports?.mat_in;
     const feedSpecies = sIn ? Object.keys(sIn.n).filter(sp => sIn.n[sp] > 1e-15) : [];
@@ -45071,9 +45274,9 @@ UnitInspector.distillation_column = {
       { type: 'slider', label: 'Reflux ratio (R / R_min)', get: () => u.params.R_over_Rmin ?? 1.3,
         set: v => u.params.R_over_Rmin = Math.max(1.05, Math.min(5, v)),
         min: 1.05, max: 5, step: 0.05 },
-      { type: 'slider', label: 'Column pressure [bar]', get: () => (u.params.P_column ?? 1e5) / 1e5,
-        set: v => u.params.P_column = Math.max(0.1, Math.min(50, v)) * 1e5,
-        min: 0.1, max: 50, step: 0.5 },
+      { type: 'slider', label: `Column pressure [${us.pressure.symbol}]`, get: () => us.pressure.from(u.params.P_column ?? 1e5),
+        set: v => u.params.P_column = us.pressure.to(Math.max(0.1, v)),
+        min: us.pressure.from(10000), max: us.pressure.from(5000000), step: us.pressure.decimals === 0 ? 1000 : 0.5 },
       { label: 'Light key', type: 'select',
         options: speciesOpts, get: () => u.params.lightKey,
         set: v => u.params.lightKey = v },
@@ -45117,6 +45320,8 @@ function _reactorParams(u) {
   const params = [];
   const defId = u.defId;
   const hasElec = (defId === 'reactor_jacketed');
+  const profile = ProfileRegistry.get(u.profileId || u.defId);
+  const isDev = profile?.config?.dev || profile?.config?.template;
 
   // ── Reaction selector (all types) ──
   const allRxns = ReactionRegistry.all(); const rxnOpts = allRxns.map(r => [r.id, r.name]);
@@ -45156,10 +45361,12 @@ function _reactorParams(u) {
     }
   }
 
-  // ── Kinetics / approach (all equilibrium types) ──
-  params.push({ type: 'toggle', label: 'Use kinetics (PFR model)', get: () => u.params.useKinetics !== false, set: v => { u.params.useKinetics = v; updatePropertiesPanel(); } });
-  if (u.params.useKinetics !== false) params.push({ type: 'slider', label: 'Reactor volume [m³]', get: () => u.params.volume_m3 ?? 0.003, set: v => u.params.volume_m3 = v, min: 0.0001, max: 10, step: 0.001 });
-  else params.push({ type: 'slider', label: 'Equilibrium approach [0–1]', get: () => u.params.alpha ?? 1.0, set: v => u.params.alpha = v, min: 0, max: 1, step: 0.01 });
+  // ── Kinetics / approach / UA (dev/template only — equipment specs) ──
+  if (isDev) {
+    params.push({ type: 'toggle', label: 'Use kinetics (PFR model)', get: () => u.params.useKinetics !== false, set: v => { u.params.useKinetics = v; updatePropertiesPanel(); } });
+    if (u.params.useKinetics !== false) params.push({ type: 'slider', label: 'Reactor volume [m³]', get: () => u.params.volume_m3 ?? 0.003, set: v => u.params.volume_m3 = v, min: 0.0001, max: 10, step: 0.001 });
+    else params.push({ type: 'slider', label: 'Equilibrium approach [0–1]', get: () => u.params.alpha ?? 1.0, set: v => u.params.alpha = v, min: 0, max: 1, step: 0.01 });
+  }
 
   // ── Priority (only units with elec_in) ──
   if (hasElec) {
@@ -45167,8 +45374,8 @@ function _reactorParams(u) {
       set: v => u.params.powerPriority = Math.max(1, Math.round(v)), step: 1, min: 1, max: 5 });
   }
 
-  // ── UA parameter (reactor_cooled only) ──
-  if (defId === 'reactor_cooled') {
+  // ── UA parameter (reactor_cooled only, dev only) ──
+  if (defId === 'reactor_cooled' && isDev) {
     params.push({ type: 'slider', label: 'Cooling capacity [W/K]', get: () => u.params.UA ?? 500,
       set: v => u.params.UA = Math.max(0, v), min: 0, max: 5000, step: 10 });
   }
@@ -45245,18 +45452,18 @@ UnitInspector.reactor_adiabatic = {
         tooltip: 'Equilibrium conversion if reactor held at inlet temperature' });
     }
     if (L.iso_xi != null) {
-      items.push({ label: 'ξ at T_in', value: `${L.iso_xi.toExponential(3)}<span class="u">mol/s</span>`,
+      items.push({ label: 'ξ at T_in', value: fmt.molarFlow(L.iso_xi),
         tooltip: 'Extent of reaction at inlet temperature' });
     }
     return items;
   },
   detail(u, ud) { if (!ud.last) return []; const L = ud.last; return [
     ...(L.T_eval ? [{ label: 'T reaction', value: fmt.T(L.T_eval) }] : []),
-    ...(L.xi != null ? [{ label: 'ξ', value: `${L.xi.toExponential(3)}<span class="u">mol/s</span>` }] : []),
-    ...(L.xi_eq != null ? [{ label: 'ξ_eq', value: `${L.xi_eq.toExponential(3)}<span class="u">mol/s</span>` }] : []),
-    ...(L.xi_max != null ? [{ label: 'ξ_max', value: `${L.xi_max.toExponential(3)}<span class="u">mol/s</span>` }] : []),
-    ...(L.H_in_kW ? [{ label: 'H in', value: `${L.H_in_kW}<span class="u">kW</span>` }] : []),
-    ...(L.H_out_kW ? [{ label: 'H out', value: `${L.H_out_kW}<span class="u">kW</span>` }] : []),
+    ...(L.xi != null ? [{ label: 'ξ', value: fmt.molarFlow(L.xi) }] : []),
+    ...(L.xi_eq != null ? [{ label: 'ξ_eq', value: fmt.molarFlow(L.xi_eq) }] : []),
+    ...(L.xi_max != null ? [{ label: 'ξ_max', value: fmt.molarFlow(L.xi_max) }] : []),
+    ...(L.H_in_kW ? [{ label: 'H in', value: fmt.kW((L.H_in_kW || 0) * 1000) }] : []),
+    ...(L.H_out_kW ? [{ label: 'H out', value: fmt.kW((L.H_out_kW || 0) * 1000) }] : []),
     ...(L.rate_inlet != null ? [{ label: 'Rate (inlet)', value: `${L.rate_inlet.toExponential(2)}<span class="u">mol/m³s</span>` }] : []),
     ...(L.reason ? [{ label: 'Reason', value: L.reason, full: true, tone: 'warn' }] : []),
   ]; }
@@ -45269,18 +45476,25 @@ UnitInspector.reactor_cooled    = UnitInspector.reactor_adiabatic;
 // [v14.9.0 S6b] Electrochemical reactor inspector
 UnitInspector.reactor_electrochemical = {
   params(u) {
+    const profile = ProfileRegistry.get(u.profileId || u.defId);
+    const isDev = profile?.config?.dev || profile?.config?.template;
     const ecRxns = ReactionRegistry.all().filter(r => r._kinetics?.model === 'ELECTROCHEMICAL');
     const rxnOpts = ecRxns.map(r => [r.id, r.name]);
-    return [
+    const items = [
       { type: 'select', label: 'Reaction', get: () => u.params.reactionId || 'R_H2O_ELEC',
         set: v => u.params.reactionId = v, options: rxnOpts },
-      { type: 'slider', label: 'Efficiency [%]', get: () => (u.params.efficiency ?? 0.90) * 100,
-        set: v => u.params.efficiency = Math.max(0.005, Math.min(0.99, v / 100)), min: 10, max: 99, step: 1 },
-      { type: 'slider', label: 'Max conversion [%]', get: () => (u.params.conversion_max ?? 0.80) * 100,
-        set: v => u.params.conversion_max = Math.max(0.01, Math.min(0.99, v / 100)), min: 1, max: 99, step: 1 },
-      { label: 'Power priority', get: () => u.params.powerPriority ?? 2,
-        set: v => u.params.powerPriority = Math.max(1, Math.round(v)), step: 1, min: 1, max: 5 }
     ];
+    if (isDev) {
+      items.push(
+        { type: 'slider', label: 'Efficiency [%]', get: () => (u.params.efficiency ?? 0.90) * 100,
+          set: v => u.params.efficiency = Math.max(0.005, Math.min(0.99, v / 100)), min: 10, max: 99, step: 1 },
+        { type: 'slider', label: 'Max conversion [%]', get: () => (u.params.conversion_max ?? 0.80) * 100,
+          set: v => u.params.conversion_max = Math.max(0.01, Math.min(0.99, v / 100)), min: 1, max: 99, step: 1 },
+      );
+    }
+    items.push({ label: 'Power priority', get: () => u.params.powerPriority ?? 2,
+      set: v => u.params.powerPriority = Math.max(1, Math.round(v)), step: 1, min: 1, max: 5 });
+    return items;
   },
   power(u, ud) {
     if (!ud?.last) return [];
@@ -45299,10 +45513,10 @@ UnitInspector.reactor_electrochemical = {
       { label: 'Status', value: L.status || '—', tone: L.status === 'active' ? '' : 'warn' },
       { label: 'Reaction', value: L.reactionName || '—' },
       { label: 'Conversion', value: `${(L.conversion_pct || 0).toFixed(1)}%` },
-      { label: 'ξ', value: `${(L.xi_molps || 0).toFixed(4)} mol/s` },
+      { label: 'ξ', value: fmt.molarFlow((L.xi_molps || 0)) },
       { label: 'Limiting', value: L.limitingSpecies || '—' },
       { label: 'η', value: `${((L.efficiency || 0) * 100).toFixed(0)}%` },
-      { label: 'O₂ anode', value: `${(L.n_O2_anode || 0).toFixed(4)} mol/s` }
+      { label: 'O₂ anode', value: fmt.molarFlow((L.n_O2_anode || 0)) }
     ];
   }
 };
@@ -45310,19 +45524,26 @@ UnitInspector.reactor_electrochemical = {
 // [v14.9.0 S6b] Fuel cell inspector
 UnitInspector.fuel_cell = {
   params(u) {
+    const profile = ProfileRegistry.get(u.profileId || u.defId);
+    const isDev = profile?.config?.dev || profile?.config?.template;
     const fcRxns = ReactionRegistry.all().filter(r =>
       r._kinetics?.model === 'ELECTROCHEMICAL' && r._dH0_Jmol < 0);
     const rxnOpts = fcRxns.map(r => [r.id, r.name]);
-    return [
+    const items = [
       { type: 'select', label: 'Reaction', get: () => u.params.reactionId || 'R_H2_FUELCELL',
         set: v => u.params.reactionId = v, options: rxnOpts },
-      { type: 'slider', label: 'Efficiency [%]', get: () => (u.params.efficiency ?? 0.60) * 100,
-        set: v => u.params.efficiency = Math.max(0.30, Math.min(0.85, v / 100)), min: 30, max: 85, step: 1 },
-      { type: 'slider', label: 'Max conversion [%]', get: () => (u.params.conversion_max ?? 0.80) * 100,
-        set: v => u.params.conversion_max = Math.max(0.01, Math.min(0.99, v / 100)), min: 1, max: 99, step: 1 },
-      { type: 'slider', label: 'Cooling capacity [W/K]', get: () => u.params.UA ?? 500,
-        set: v => u.params.UA = Math.max(0, v), min: 0, max: 5000, step: 10 }
     ];
+    if (isDev) {
+      items.push(
+        { type: 'slider', label: 'Efficiency [%]', get: () => (u.params.efficiency ?? 0.60) * 100,
+          set: v => u.params.efficiency = Math.max(0.30, Math.min(0.85, v / 100)), min: 30, max: 85, step: 1 },
+        { type: 'slider', label: 'Max conversion [%]', get: () => (u.params.conversion_max ?? 0.80) * 100,
+          set: v => u.params.conversion_max = Math.max(0.01, Math.min(0.99, v / 100)), min: 1, max: 99, step: 1 },
+        { type: 'slider', label: 'Cooling capacity [W/K]', get: () => u.params.UA ?? 500,
+          set: v => u.params.UA = Math.max(0, v), min: 0, max: 5000, step: 10 },
+      );
+    }
+    return items;
   },
   power(u, ud) {
     if (!ud?.last) return [];
@@ -45341,7 +45562,7 @@ UnitInspector.fuel_cell = {
       { label: 'Status', value: L.status || '—', tone: L.status === 'active' ? '' : 'warn' },
       { label: 'Reaction', value: L.reactionName || '—' },
       { label: 'Conversion', value: `${(L.conversion_pct || 0).toFixed(1)}%` },
-      { label: 'ξ', value: `${(L.xi_molps || 0).toFixed(4)} mol/s` },
+      { label: 'ξ', value: fmt.molarFlow((L.xi_molps || 0)) },
       { label: 'Limiting', value: L.limitingSpecies || '—' },
       { label: 'η', value: `${((L.efficiency || 0) * 100).toFixed(0)}%` }
     ];
@@ -45350,15 +45571,17 @@ UnitInspector.fuel_cell = {
 
 // [v14.10.0 S9] Membrane separator inspector — read-only for composite internals
 UnitInspector.membrane_separator = {
-  // [v15.1.0] Param editor — targetSpecies, extractionFrac, consumable toggle
+  // [v20.6.0] ALL editors gated behind isDev. Story profiles: no editable params.
   customParams(container, u) {
-    // Target species (text input — comma-separated for multi-target)
-    const tsRow = el('div', { style: 'display:flex; align-items:center; gap:6px; margin:6px 0;' });
-    tsRow.appendChild(el('label', { text: 'Target species', style: 'font-size:12px; color:var(--rt-text-muted); flex:0 0 110px;' }));
-    const tsInput = el('input', { type: 'text',
-      value: Array.isArray(u.params.targetSpecies) ? u.params.targetSpecies.join(', ') : (u.params.targetSpecies || ''),
-      style: 'flex:1; background:var(--rt-inner-bg); border:1px solid var(--rt-inner-border); border-radius:4px; padding:3px 6px; color:var(--rt-text); font-size:12px; font-family:inherit;'
-    });
+    const profile = ProfileRegistry.get(u.profileId || u.defId);
+    const isDev = profile?.config?.dev || profile?.config?.template;
+    if (!isDev) return;  // story profiles: nothing editable
+
+    // Target species
+    const tsRow = el('div', { class: 'ins-ctrl-row' });
+    tsRow.appendChild(el('div', { class: 'ins-ctrl-lbl', text: 'Target species' }));
+    const tsInput = el('input', { type: 'text', class: 'ins-ctrl-input',
+      value: Array.isArray(u.params.targetSpecies) ? u.params.targetSpecies.join(', ') : (u.params.targetSpecies || '') });
     tsInput.addEventListener('change', () => {
       _pushUndoDebounced('Set target species');
       const raw = tsInput.value.split(',').map(s => s.trim()).filter(Boolean);
@@ -45367,15 +45590,14 @@ UnitInspector.membrane_separator = {
     tsRow.appendChild(tsInput);
     container.appendChild(tsRow);
 
-    // Extraction fraction (number: 0–1)
     addNumberEditor(container, 'Extraction fraction',
       () => u.params.extractionFrac ?? 0.99,
       v => { u.params.extractionFrac = Math.max(0, Math.min(1, v)); },
       0.01, 2);
 
-    // Consumable toggle + inline fields
+    // Consumable toggle + fields
     const hasCon = !!u.params.consumable;
-    const conRow = el('div', { style: 'display:flex; align-items:center; gap:8px; margin:8px 0;' });
+    const conRow = el('div', { class: 'ins-ctrl-row' });
     const cb = document.createElement('input');
     cb.type = 'checkbox';
     cb.checked = hasCon;
@@ -45390,7 +45612,7 @@ UnitInspector.membrane_separator = {
       updatePropertiesPanel();
     });
     conRow.appendChild(cb);
-    conRow.appendChild(el('label', { text: 'Consumable (depletable)', style: 'font-size:12px; cursor:pointer;', for: cb.id }));
+    conRow.appendChild(el('label', { text: 'Consumable (depletable)', class: 'ins-ctrl-lbl', style: 'cursor:pointer;', for: cb.id }));
     container.appendChild(conRow);
 
     if (hasCon) {
@@ -45410,8 +45632,8 @@ UnitInspector.membrane_separator = {
     const ts = L.targetSpecies;
     if (ts) items.push({ label: 'Target', value: Array.isArray(ts) ? ts.join(', ') : ts });
     items.push({ label: 'Extraction', value: `${((L.extractionFrac ?? 0) * 100).toFixed(0)}%` });
-    if (L.nPerm != null) items.push({ label: 'Permeate', value: fmt.flow(L.nPerm) });
-    if (L.nRet != null)  items.push({ label: 'Retentate', value: fmt.flow(L.nRet) });
+    if (L.nPerm != null) items.push({ label: 'Permeate', value: fmt.molarFlow(L.nPerm) });
+    if (L.nRet != null)  items.push({ label: 'Retentate', value: fmt.molarFlow(L.nRet) });
     // Consumable gauge (CO₂ scrubber)
     const con = u.params?.consumable;
     if (con) {
@@ -45426,9 +45648,9 @@ UnitInspector.membrane_separator = {
   detail(u, ud) {
     const L = u.last || {};
     const items = [];
-    if (L.H_in_kW)   items.push({ label: 'H in',   value: `${L.H_in_kW}<span class="u">kW</span>` });
-    if (L.H_perm_kW) items.push({ label: 'H perm', value: `${L.H_perm_kW}<span class="u">kW</span>` });
-    if (L.H_ret_kW)  items.push({ label: 'H ret',  value: `${L.H_ret_kW}<span class="u">kW</span>` });
+    if (L.H_in_kW)   items.push({ label: 'H in',   value: fmt.kW((L.H_in_kW || 0) * 1000) });
+    if (L.H_perm_kW) items.push({ label: 'H perm', value: fmt.kW((L.H_perm_kW || 0) * 1000) });
+    if (L.H_ret_kW)  items.push({ label: 'H ret',  value: fmt.kW((L.H_ret_kW || 0) * 1000) });
     if (L.P)         items.push({ label: 'P',       value: fmt.P(L.P) });
     if (L.consumable_exhausted) items.push({ label: 'Status', value: 'EXHAUSTED — no separation', tone: 'bad' });
     return items;
@@ -45444,54 +45666,26 @@ UnitInspector.room = {
     addNumberEditor(container, 'Power priority',
       () => u.params.powerPriority ?? 1,
       v => { u.params.powerPriority = Math.max(1, Math.min(5, Math.round(v))); }, 1, 0);
-
-    // ── Room controls section ──
-    container.appendChild(el('div', { class: 'ins-section-label', html: 'Room Controls' }));
-
-    // Lights toggle (auto / on / off)
-    const lightsRow = el('div', { style: 'display:flex; align-items:center; gap:6px; margin:6px 0;' });
-    lightsRow.appendChild(el('span', { style: 'font-size:11px; color:var(--rt-text-muted); min-width:50px;', html: 'Lights' }));
-    const lightsSelect = document.createElement('select');
-    lightsSelect.style.cssText = 'font-size:11px; background:var(--rt-inner-bg); color:var(--rt-text); border:1px solid var(--rt-inner-border); border-radius:4px; padding:2px 6px;';
-    [['auto', 'Auto (power)'], ['on', 'On'], ['off', 'Off']].forEach(([val, label]) => {
-      const opt = document.createElement('option');
-      opt.value = val; opt.textContent = label;
-      if ((u.params.lightsOverride ?? 'auto') === val) opt.selected = true;
-      lightsSelect.appendChild(opt);
-    });
-    lightsSelect.addEventListener('change', () => {
-      u.params.lightsOverride = lightsSelect.value;
-      if (typeof render === 'function') render();
-    });
-    lightsRow.appendChild(lightsSelect);
-    container.appendChild(lightsRow);
-
-    // Door toggle
-    const doorRow = el('div', { style: 'display:flex; align-items:center; gap:6px; margin:6px 0;' });
-    doorRow.appendChild(el('span', { style: 'font-size:11px; color:var(--rt-text-muted); min-width:50px;', html: 'Airlock' }));
-    const doorBtn = document.createElement('button');
-    doorBtn.style.cssText = 'font-size:11px; background:var(--rt-inner-bg); color:var(--rt-text); border:1px solid var(--rt-inner-border); border-radius:4px; padding:3px 10px; cursor:pointer;';
-    doorBtn.textContent = u.params.doorOpen ? 'Close door' : 'Open door';
-    doorBtn.addEventListener('click', () => {
-      u.params.doorOpen = !u.params.doorOpen;
-      doorBtn.textContent = u.params.doorOpen ? 'Close door' : 'Open door';
-      if (typeof render === 'function') render();
-    });
-    doorRow.appendChild(doorBtn);
-    container.appendChild(doorRow);
+    // [v20.4.0] Lights override and airlock toggle removed — were test features.
+    // Lights follow power state automatically. Airlock is not a player control.
   },
   conditions(u, ud) {
+    // [v20.6.0] Ribbon format
     const L = u.last || {};
-    const items = [];
-    items.push({ label: 'People', value: `${L.nPeople || 0}` });
-    if (L.liveability != null) items.push({ label: 'Liveability', value: `${L.liveability}%`, tone: L.liveability >= 70 ? '' : L.liveability >= 40 ? 'warn' : 'bad' });
-    return items;
+    if (!L.T_K && !L.nPeople) return [];
+    const us = models.getActive('units');
+    const livDot = L.liveability == null ? null : L.liveability >= 70 ? '#22c55e' : L.liveability >= 40 ? '#fbbf24' : '#fca5a5';
+    return [
+      { lbl: 'Crew', val: String(L.nPeople || 0), unit: '', stickerLabel: 'People' },
+      { lbl: 'Temp', val: L.T_K ? us.temperature.from(L.T_K).toFixed(1) : '—', unit: L.T_K ? us.temperature.symbol : '', stickerLabel: 'Temperature' },
+      { lbl: 'Live', val: L.liveability != null ? String(L.liveability) : '—', unit: '%', dotColor: livDot, stickerLabel: 'Liveability' },
+    ];
   },
   kpis(u, ud) {
-    // Completely custom HTML rendering via kpiHtml — bypasses the label/value item list
+    // Completely custom HTML rendering via report — bypasses the label/value item list
     return [];
   },
-  kpiHtml(container, u, ud) {
+  report(container, u, ud) {
     const L = u.last || {};
     const cond = L.conditions || {};
     const svc = L.services || {};
@@ -45604,15 +45798,15 @@ UnitInspector.room = {
     const items = [];
     // Heat balance
     items.push({ label: '── Heat Balance', value: '', tone: 'label' });
-    if (L.Q_envelope != null)   items.push({ label: 'Envelope loss', value: `${(-L.Q_envelope).toFixed(0)}<span class="u">W</span>  (out)` });
-    if (L.Q_metabolic != null)  items.push({ label: 'Metabolic', value: `${L.Q_metabolic.toFixed(0)}<span class="u">W</span>  (in)` });
-    if (L.Q_lighting != null)   items.push({ label: 'Lighting', value: `${L.Q_lighting.toFixed(0)}<span class="u">W</span>  (in)` });
-    if (L.Q_hot_water != null && L.Q_hot_water > 0.01) items.push({ label: 'Hot water', value: `${L.Q_hot_water.toFixed(0)}<span class="u">W</span>  (in)` });
-    if (L.Q_streams != null && Math.abs(L.Q_streams) > 0.01)    items.push({ label: 'Streams', value: `${L.Q_streams.toFixed(0)}<span class="u">W</span>` });
-    if (L.Q_balance != null)    items.push({ label: 'Net balance', value: `${L.Q_balance > 0 ? '+' : ''}${L.Q_balance.toFixed(0)}<span class="u">W</span>  → ${L.heating_status}` });
+    if (L.Q_envelope != null)   items.push({ label: 'Envelope loss', value: fmt.kW((-L.Q_envelope)) });
+    if (L.Q_metabolic != null)  items.push({ label: 'Metabolic', value: fmt.kW(L.Q_metabolic) });
+    if (L.Q_lighting != null)   items.push({ label: 'Lighting', value: fmt.kW(L.Q_lighting) });
+    if (L.Q_hot_water != null && L.Q_hot_water > 0.01) items.push({ label: 'Hot water', value: fmt.kW(L.Q_hot_water) });
+    if (L.Q_streams != null && Math.abs(L.Q_streams) > 0.01)    items.push({ label: 'Streams', value: fmt.kW(L.Q_streams) });
+    if (L.Q_balance != null)    items.push({ label: 'Net balance', value: `${fmt.kW(L.Q_balance)} → ${L.heating_status}` });
     // Power
     items.push({ label: '── Power', value: '', tone: 'label' });
-    if (L.P_lighting != null) items.push({ label: 'Lighting', value: `${L.P_lighting.toFixed(0)}<span class="u">W</span>` });
+    if (L.P_lighting != null) items.push({ label: 'Lighting', value: fmt.kW(L.P_lighting) });
     if (L.power_curtailed) items.push({ label: 'Status', value: 'CURTAILED — lights dimmed', tone: 'warn' });
     return items;
   }
@@ -45621,43 +45815,27 @@ UnitInspector.room = {
 // [v17.6.3] Cooled Tank inspector — generic tank with cooling jacket
 UnitInspector.cooled_tank = {
   customParams(container, u) {
-    const V = u.params.volume_m3 || 0.01;
-
-    // Read-only vessel spec
-    const specGrid = insBox(container, 'Vessel');
-    insKV(specGrid, 'Volume', `${(V * 1000).toFixed(0)} L`);
-    insKV(specGrid, 'Max gas draw', `${(u.params.gasDrawRate ?? 0.05).toFixed(3)} mol/s`);
-    insKV(specGrid, 'Max liq draw', `${(u.params.liqDrawRate ?? 0.05).toFixed(3)} mol/s`);
-    insKV(specGrid, 'Cooling UA', `${(u.params.UA_jacket ?? 50).toFixed(0)} W/K`);
-    container.appendChild(el('div', { class: 'ins-hint', html: 'Capacity fixed by equipment profile' }));
-
-    // Live composition donut
-    const ud = scene.runtime?.unitData?.get(u.id);
-    insCompositionPie(container, ud?.last ?? null);
-
-    // ── Gas outlet ──
-    container.appendChild(el('div', { class: 'ins-section-label', html: 'Gas Outlet' }));
+    // [v20.6.0] Controls only — vessel specs in detail, composition via auto-ribbon
     addSliderEditor(container, 'Gas valve opening [%]',
       () => u.params.opening_gas_pct ?? 0, v => u.params.opening_gas_pct = v, 0, 100, 5);
-
-    // ── Liquid outlet ──
-    container.appendChild(el('div', { class: 'ins-section-label', html: 'Liquid Outlet' }));
     addSliderEditor(container, 'Liq valve opening [%]',
       () => u.params.opening_liq_pct ?? 0, v => u.params.opening_liq_pct = v, 0, 100, 5);
-
-    // ── Safety ──
-    container.appendChild(el('div', { class: 'ins-section-label', html: 'Safety' }));
-    addNumberEditor(container, 'Relief pressure [bar]',
-      () => (u.params.P_relief || 200000) / 1e5, v => u.params.P_relief = v * 1e5, 0.5, 1, { min: 0.5 });
+    const us = models.getActive('units');
+    addNumberEditor(container, `Relief pressure [${us.pressure.symbol}]`,
+      () => us.pressure.from(u.params.P_relief || 200000), v => u.params.P_relief = us.pressure.to(v),
+      us.pressure.decimals === 0 ? 1000 : 0.5, us.pressure.decimals, { min: us.pressure.from(50000) });
     addSliderEditor(container, 'Overflow level [%]',
       () => u.params.overflow_level ?? 90, v => u.params.overflow_level = v, 50, 100, 5);
   },
   conditions(u, ud) {
     if (!ud?.last) return [];
+    const us = models.getActive('units');
+    const tDot = _limitDotColor(ud.last.T_K, 'T', getEffectiveLimits(u.profileId || u.defId, u.tier || 1));
+    const pDot = _limitDotColor(ud.last.P_Pa, 'P', getEffectiveLimits(u.profileId || u.defId, u.tier || 1));
     return [
-      { label: 'T', value: fmt.T(ud.last.T_K) },
-      { label: 'P', value: fmt.P(ud.last.P_Pa) },
-      { label: 'Cooling', value: ud.last.Q_cool_W > 0 ? `${ud.last.Q_cool_W.toFixed(0)} W` : 'none' },
+      { lbl: 'Temp', stickerLabel: 'Temperature', val: us.temperature.from(ud.last.T_K).toFixed(1), unit: us.temperature.symbol, dotColor: tDot },
+      { lbl: 'Press', stickerLabel: 'Pressure', val: us.pressure.from(ud.last.P_Pa).toFixed(us.pressure.decimals), unit: us.pressure.symbol, dotColor: pDot },
+      { lbl: 'Fill', stickerLabel: 'Fill level', val: (ud.last.fillPct || 0).toFixed(0), unit: '%' },
     ];
   },
   kpis(u, ud) {
@@ -45672,9 +45850,9 @@ UnitInspector.cooled_tank = {
   detail(u, ud) {
     if (!ud?.last) return [];
     const items = [];
-    items.push({ label: 'T', value: `${(ud.last.T_K||0).toFixed(1)}<span class="propUnit">K</span>  (${((ud.last.T_K||0)-273.15).toFixed(1)}°C)` });
-    items.push({ label: 'P', value: `${((ud.last.P_Pa||0)/1e5).toFixed(2)}<span class="propUnit">bar</span>` });
-    items.push({ label: 'Q cooling', value: `${(ud.last.Q_cool_W||0).toFixed(0)}<span class="propUnit">W</span>` });
+    items.push({ label: 'T', value: fmt.T(ud.last.T_K || 0) });
+    items.push({ label: 'P', value: fmt.P(ud.last.P_Pa || 0) });
+    items.push({ label: 'Q cooling', value: fmt.kW(ud.last.Q_cool_W || 0) });
     if (ud.last.n) {
       const _totalN = ud.last.totalMol || Object.values(ud.last.n).reduce((a,b) => a+b, 0);
       const _entries = Object.entries(ud.last.n).filter(([,mol]) => mol > 1e-6).sort((a,b) => b[1] - a[1]);
@@ -45693,25 +45871,32 @@ UnitInspector.cooled_tank = {
 // [v17.6.3] Food Storage inspector — food-focused, not pressure-focused
 UnitInspector.food_storage = {
   customParams(container, u) {
+    const profile = ProfileRegistry.get(u.profileId || u.defId);
+    const isDev = profile?.config?.dev || profile?.config?.template;
     const V = u.params.volume_m3 || 0.1;
-    container.appendChild(el('div', { style: 'font-size:14px; font-weight:700; color:#fbbf24; padding:2px 0 4px;', html: `Food Storage — ${(V * 1000).toFixed(0)} L` }));
+    // [v20.6.0] Title removed — profile name shows in header
     container.appendChild(el('div', { class: 'ins-section-label', html: 'Food Draw' }));
     const drawBox = el('div', {});
-    addNumberEditor(drawBox, 'Max draw [mol/s]', () => u.params.gasDrawRate ?? 0.001, v => u.params.gasDrawRate = v, 0.0001, 4, { min: 0 });
+    if (isDev) {
+      addNumberEditor(drawBox, 'Max draw [mol/s]', () => u.params.gasDrawRate ?? 0.001, v => u.params.gasDrawRate = v, 0.0001, 4, { min: 0 });
+    }
     addNumberEditor(drawBox, 'Draw opening [%]', () => u.params.opening_gas_pct ?? 50, v => u.params.opening_gas_pct = v, 5, 0, { min: 0, max: 100 });
     container.appendChild(drawBox);
-    container.appendChild(el('div', { class: 'ins-section-label', html: 'Cooling Jacket' }));
-    addNumberEditor(container, 'UA jacket [W/K]', () => u.params.UA_jacket ?? 50, v => u.params.UA_jacket = v, 5, 0, { min: 0, max: 500 });
+    if (isDev) {
+      container.appendChild(el('div', { class: 'ins-section-label', html: 'Cooling Jacket' }));
+      addNumberEditor(container, 'UA jacket [W/K]', () => u.params.UA_jacket ?? 50, v => u.params.UA_jacket = v, 5, 0, { min: 0, max: 500 });
+    }
   },
   conditions(u, ud) {
     if (!ud?.last) return [];
+    const us = models.getActive('units');
     const L = ud.last;
-    const ch2o = L.ch2o_remaining || 0;
-    const T_C = (L.T_K || 294) - 273.15;
+    const condText = L.frozen ? 'Frozen' : L.spoil_pct_day > 10 ? 'Spoiling!' : L.spoil_pct_day > 0.1 ? 'Spoiling' : 'OK';
+    const condDot = L.frozen ? '#93c5fd' : L.spoil_pct_day > 10 ? '#fca5a5' : L.spoil_pct_day > 0.1 ? '#fbbf24' : '#22c55e';
     return [
-      { label: 'Food remaining', value: `${ch2o.toFixed(0)} mol` },
-      { label: 'Temperature', value: `${T_C.toFixed(1)} °C` },
-      { label: 'Condition', value: L.frozen ? '❄ Frozen — preserved' : L.spoil_pct_day > 10 ? '⚠ Spoiling fast' : L.spoil_pct_day > 0.1 ? 'Spoiling slowly' : 'Preserved' },
+      { lbl: 'Temp', stickerLabel: 'Temperature', val: us.temperature.from(L.T_K || 294).toFixed(1), unit: us.temperature.symbol },
+      { lbl: 'Food', stickerLabel: 'Food remaining', val: (L.ch2o_remaining || 0).toFixed(0), unit: 'mol' },
+      { lbl: 'State', stickerLabel: 'Food state', val: condText, unit: '', dotColor: condDot },
     ];
   },
   kpis(u, ud) {
@@ -45741,22 +45926,22 @@ UnitInspector.food_storage = {
     items.push({ label: 'CH₂O remaining', value: `${(L.ch2o_remaining||0).toFixed(0)}<span class="propUnit">mol</span>` });
     items.push({ label: 'Total inventory', value: `${(L.totalMol||0).toFixed(0)}<span class="propUnit">mol</span>` });
     // Draw rate
-    if (L.Q_draw > 1e-8) items.push({ label: 'Draw rate', value: `${L.Q_draw.toExponential(2)}<span class="propUnit">mol/s</span>`, tone: 'good' });
+    if (L.Q_draw > 1e-8) items.push({ label: 'Draw rate', value: fmt.molarFlow(L.Q_draw), tone: 'good' });
     // Spoilage
     items.push({ label: '── Spoilage ──', value: '', tone: 'dim' });
     items.push({ label: 'Rate', value: `${(L.spoil_pct_day||0).toFixed(1)}<span class="propUnit">%/day</span>` });
-    items.push({ label: 'Loss', value: `${(L.spoil_rate_mol_s||0).toExponential(2)}<span class="propUnit">mol/s</span>` });
-    items.push({ label: 'Heat from decay', value: `${(L.Q_spoilage_W||0).toFixed(0)}<span class="propUnit">W</span>` });
+    items.push({ label: 'Loss', value: fmt.molarFlow(L.spoil_rate_mol_s || 0) });
+    items.push({ label: 'Heat from decay', value: fmt.kW(L.Q_spoilage_W || 0) });
     // Temperature + cooling
     items.push({ label: '── Thermal ──', value: '', tone: 'dim' });
-    items.push({ label: 'T', value: `${((L.T_K||0)-273.15).toFixed(1)}<span class="propUnit">°C</span>  (${(L.T_K||0).toFixed(1)} K)` });
+    items.push({ label: 'T', value: fmt.T(L.T_K || 0) });
     if (L.Q_cool_W > 0) items.push({ label: 'Cooling', value: `${L.Q_cool_W.toFixed(0)}<span class="propUnit">W</span>`, tone: 'good' });
     if (L.frozen) items.push({ label: 'Frozen', value: 'Yes — no spoilage', tone: 'good' });
     // Only show pressure if it's getting dangerous (near relief)
     if (L.P_Pa > L.P_relief * 0.5) {
       items.push({ label: '── WARNING: Gas Buildup ──', value: '', tone: 'warn' });
-      items.push({ label: 'P', value: `${((L.P_Pa||0)/1e5).toFixed(1)}<span class="propUnit">bar</span>`, tone: L.P_Pa > L.P_relief * 0.8 ? 'bad' : 'warn' });
-      items.push({ label: 'P relief', value: `${((L.P_relief||0)/1e5).toFixed(0)}<span class="propUnit">bar</span>` });
+      items.push({ label: 'P', value: fmt.P(L.P_Pa || 0), tone: L.P_Pa > L.P_relief * 0.8 ? 'bad' : 'warn' });
+      items.push({ label: 'P relief', value: fmt.P(L.P_relief || 0) });
     }
     return items;
   }
@@ -46116,20 +46301,20 @@ function renderParams(container, paramDefs, u) {
     const wSet = hasInventory ? (v) => { p.set(v); _reinitInventoryIfPreSim(u); } : p.set;
 
     if (p.type === 'info') {
-      container.appendChild(el('div', { style: 'font-size:11px; opacity:0.7; margin:4px 0; line-height:1.4;', html: p.html }));
+      container.appendChild(el('div', { class: 'ins-ctrl-info', html: p.html }));
     } else if (p.type === 'select') {
       addSelectEditor(container, p.label, p.get, wSet, p.options);
     } else if (p.type === 'slider') {
       addSliderEditor(container, p.label, p.get, wSet, p.min || 0, p.max || 1, p.step || 0.01);
     } else if (p.type === 'toggle') {
-      const row = el('div', { style: 'display:flex; align-items:center; gap:8px; margin:8px 0;' });
+      const row = el('div', { class: 'ins-ctrl-row' });
       const cb = document.createElement('input');
       cb.type = 'checkbox';
       cb.checked = p.get();
       cb.id = 'tog_' + p.label.replace(/\W/g, '_') + '_' + u.id;
       cb.addEventListener('change', () => { _pushUndoDebounced(`Toggle ${p.label}`); wSet(cb.checked); });
       row.appendChild(cb);
-      row.appendChild(el('label', { html: p.label, style: 'font-size:12px; cursor:pointer;', for: cb.id }));
+      row.appendChild(el('label', { html: p.label, class: 'ins-ctrl-lbl', style: 'cursor:pointer;', for: cb.id }));
       container.appendChild(row);
     } else if (p.min != null && p.max != null && !p.validate) {
       // [v10.2.2] Auto-slider for bounded number params (no custom validate)
@@ -46224,22 +46409,31 @@ function _rebuildInspectorContent() {
   propEditor.innerHTML = '';
   
   // ═══ UNIT SELECTED ═══
+  // [v20.1.0 S-INSPECTOR-V2 Session B] Canonical layout rewrite.
+  // Order: header → alarms → ribbons → report → controls → collapsed specs
   if (ui.selectedUnitId) {
     const u = scene.units.get(ui.selectedUnitId);
     if (!u) { ui.selectedUnitId = null; return updatePropertiesPanel(); }
     const def = UnitRegistry.get(u.defId);
     const ud = scene.runtime.unitData.get(u.id);
-    // [v16.9.3] Profile-first inspector dispatch — mirrors ragtag icon pattern.
-    // A profile inspector is a complete config object (no inheritance from defId).
-    // Falls back to defId if no profile-specific inspector exists.
     const config = UnitInspector[u.profileId] || UnitInspector[u.defId];
-    
-    // ── Header: Name + Delete ──
+    const _insTierProfile = ProfileRegistry.get(u.profileId || u.defId);
+    const _unitLock = _getUnitLock(u.id);
+
+    // ── §1 HEADER: name + port pill + mode switch + delete ──
     const headerDiv = el('div', { class: 'unitHeader' });
     const titleDiv = el('div', { class: 'unitTitle' });
+
+    // Zoom button
+    const zoomBtn = el('button', { class: 'ins-zoom-btn', html: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="7" cy="7" r="4.5"/><line x1="10.2" y1="10.2" x2="14" y2="14"/></svg>' });
+    zoomBtn.title = 'Zoom to unit';
+    zoomBtn.addEventListener('click', () => zoomToUnit(u.id));
+    titleDiv.appendChild(zoomBtn);
+
+    // Name input
     const nameInput = el('input', { type: 'text', value: u.name || `${def.name} ${u.id.slice(-2)}` });
     nameInput.addEventListener('input', () => {
-      _pushUndoDebounced('Rename unit');  // [v10.6.0]
+      _pushUndoDebounced('Rename unit');
       u.name = nameInput.value;
       const label = svg.querySelector(`[data-unit-id="${u.id}"]`);
       if (label) label.textContent = u.name;
@@ -46248,234 +46442,172 @@ function _rebuildInspectorContent() {
       if (!nameInput.value.trim()) { u.name = `${def.name} ${u.id.slice(-2)}`; nameInput.value = u.name; }
     });
     titleDiv.appendChild(nameInput);
-    // [v12.12.0] Zoom-to-unit button (left side of title)
-    const zoomBtn = el('button', { class: 'ins-zoom-btn', html: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="7" cy="7" r="4.5"/><line x1="10.2" y1="10.2" x2="14" y2="14"/></svg>' });
-    zoomBtn.title = 'Zoom to unit';
-    zoomBtn.addEventListener('click', () => zoomToUnit(u.id));
-    titleDiv.insertBefore(zoomBtn, nameInput);
+
+    // Lock badges
+    if (_unitLock === 'full') {
+      nameInput.readOnly = true;
+      nameInput.style.opacity = '0.6';
+      titleDiv.appendChild(el('span', { html: '\uD83D\uDD12', style: 'font-size:12px; margin-left:4px; opacity:0.5;' }));
+    } else if (_unitLock === 'nodelete') {
+      titleDiv.appendChild(el('span', { html: '\uD83D\uDD12', style: 'font-size:12px; margin-left:4px; opacity:0.3;' }));
+    }
+
+    // Delete button
     const delBtn = el('button', { class: 'ins-delete-btn', html: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 4h12M5.3 4V2.7a1 1 0 011-1h3.4a1 1 0 011 1V4M6.5 7v4.5M9.5 7v4.5M3.5 4l.7 9a1.5 1.5 0 001.5 1.4h4.6a1.5 1.5 0 001.5-1.4l.7-9"/></svg>' });
     delBtn.title = 'Delete unit';
     delBtn.addEventListener('click', () => deleteSelected());
-    // [v19.8.3] Preplaced unit guards: lock level determines restrictions
-    const _unitLock = _getUnitLock(u.id);
-    if (_unitLock === 'full') {
-      delBtn.style.display = 'none';
-      nameInput.readOnly = true;
-      nameInput.style.opacity = '0.6';
-      const lockBadge = el('span', { html: '\uD83D\uDD12', style: 'font-size:12px; margin-left:4px; opacity:0.5;' });
-      lockBadge.title = 'Locked \u2014 can\u2019t delete or move';
-      titleDiv.appendChild(lockBadge);
-    } else if (_unitLock === 'nodelete') {
-      delBtn.style.display = 'none';
-      const lockBadge = el('span', { html: '\uD83D\uDD12', style: 'font-size:12px; margin-left:4px; opacity:0.3;' });
-      lockBadge.title = 'Mission unit \u2014 can\u2019t delete';
-      titleDiv.appendChild(lockBadge);
-    }
+    if (_unitLock === 'full' || _unitLock === 'nodelete') delBtn.style.display = 'none';
     titleDiv.appendChild(delBtn);
+
     headerDiv.appendChild(titleDiv);
-    const _insTierProfile = ProfileRegistry.get(u.profileId || u.defId);
+
+    // Port pill + mode switch row (below name, inline)
+    const topCtrlRow = el('div', { style: 'display:flex; align-items:center; gap:6px; margin:2px 0 6px;' });
+    _renderPortPill(topCtrlRow, u);
+    _renderModeSw(topCtrlRow, u);
+
+    // Tier badge (compact, after mode switch)
     const _tierColors = { 2: '#e2e8f0', 3: '#fbbf24' };
     const _showTier = _insTierProfile && !_insTierProfile.boundary && u.tier > 1;
-    const _tierLabel = _showTier ? ` · <span style="color:${_tierColors[u.tier] || '#e2e8f0'};font-weight:700;">T${u.tier}</span>` : '';
-    // [v15.1.0] Show "def.name · profile.name" when names differ (e.g. "Reactor (Adiabatic) · Metabolism")
-    const _profileName = _insTierProfile?.name || '';
-    const _defName = def.name || '';
-    const _nameLabel = (_profileName && _profileName !== _defName && !_profileName.startsWith('\u2699'))
-      ? `${_defName} · <span style="color:#79c0ff">${esc(_profileName)}</span>`
-      : _defName;
-    headerDiv.appendChild(el('div', { class: 'unitSubtitle', html: `<span style="color:${def.color}">${def.category}</span> · ${_nameLabel}${_tierLabel}` }));
+    if (_showTier) {
+      topCtrlRow.appendChild(el('span', {
+        style: `font-size:10px; font-weight:700; color:${_tierColors[u.tier] || '#e2e8f0'}; margin-left:auto;`,
+        text: `T${u.tier}`
+      }));
+    }
+    headerDiv.appendChild(topCtrlRow);
     propEditor.appendChild(headerDiv);
 
-    // [v16.9.7 S-VOICE] L3 equipment note — factual one-liner below subtitle
-    if (_insTierProfile?.equipmentNote) {
-      propEditor.appendChild(el('div', { style: 'font-size:11px; color:var(--rt-text-muted); font-style:italic; padding:0 0 4px; line-height:1.3;', text: _insTierProfile.equipmentNote }));
-    }
-
-    // ── [v16.9.0 S-STATUS] Mode dropdown (non-boundary units only) ──
-    if (!_insTierProfile?.boundary) {
-      const modeRow = el('div', { style: 'display:flex; align-items:center; gap:8px; margin:4px 0 6px; padding:4px 8px; background:var(--rt-inner-bg); border-radius:4px;' });
-      const modeLabel = el('span', { style: 'font-size:11px; opacity:0.6; min-width:36px;', text: 'Mode' });
-      modeRow.appendChild(modeLabel);
-      if (u.fried) {
-        modeRow.appendChild(el('span', { style: 'font-size:12px; color:#fca5a5; flex:1;', text: 'Bypass 🔒' }));
-        modeRow.title = 'Equipment destroyed — reset to change mode';
-      } else {
-        const modeSelect = document.createElement('select');
-        modeSelect.style.cssText = 'flex:1; font-size:12px; background:var(--rt-inner-bg); color:var(--rt-text); border:1px solid var(--rt-inner-border); border-radius:3px; padding:2px 4px;';
-        for (const [val, label] of [['on','On'],['bypass','Bypass'],['off','Off']]) {
-          const opt = document.createElement('option');
-          opt.value = val; opt.textContent = label;
-          if ((u.mode || 'on') === val) opt.selected = true;
-          modeSelect.appendChild(opt);
-        }
-        modeSelect.addEventListener('change', () => {
-          _pushUndoDebounced('Change mode');
-          u.mode = modeSelect.value === 'on' ? undefined : modeSelect.value;
-          if (TimeClock.mode === 'paused') solveScene(scene);
-          _rebuildInspectorContent();
-          renderScene(scene, svg, ui);
-        });
-        modeRow.appendChild(modeSelect);
-      }
-      propEditor.appendChild(modeRow);
-    }
-
-    // ── [v13.0.7] Alarm banners — sourced from AlarmSystem (NNG-7 single source of truth) ──
-    // [v13.0.8] Phase 5: inspector shows PLANT domain only (player-facing)
-    // [v16.9.5 S-INSPECTOR] Filter includes INFO level (was WARNING+)
+    // ── §2 ALARM BANNERS — WARNING+ only (was INFO+) ──
     const _unitAlarms = AlarmSystem.evaluate(scene).filter(a => a.unitId === u.id && a.domain === AlarmDomain.PLANT);
-    const _unitIssues = _unitAlarms.filter(a => a.severity.level >= AlarmSeverity.INFO.level);
+    const _unitIssues = _unitAlarms.filter(a => a.severity.level >= AlarmSeverity.WARNING.level);
     if (_unitIssues.length > 0) {
       for (const alarm of _unitIssues) {
-        const cls = alarm.severity.level >= AlarmSeverity.CATASTROPHIC.level ? 'catastrophic'
-          : alarm.severity.level >= AlarmSeverity.WARNING.level ? 'warn' : 'info';
+        const cls = alarm.severity.level >= AlarmSeverity.CATASTROPHIC.level ? 'catastrophic' : 'warn';
         const box = el('div', { class: `ins-err-box ${cls}` });
         box.textContent = `${alarm.severity.icon} ${alarm.message}`;
         propEditor.appendChild(box);
       }
-      // [v13.1.0 S2-C] Reset Fry button for fried consumers
-      if (u.fried) {
-        const resetBtn = el('button', { class: 'btn', style: 'margin:4px 0 8px; padding:4px 12px; font-size:12px; background:#dc2626; color:#fff; border:none; border-radius:4px; cursor:pointer; width:100%;' });
-        resetBtn.textContent = '⚡ Reset Equipment (Clear Fry)';
-        resetBtn.title = 'Restore this unit to working condition';
-        resetBtn.addEventListener('click', () => {
-          _pushUndo('Reset fry');
-          delete u.fried;
-          // [v16.9.1] Reinitialize inventory for vessels — clears dangerous
-          // conditions (overpressure/overflow) that caused the fry.
-          if (def.inventory && def.initInventory) {
-            u.inventory = def.initInventory(u.params);
-          }
-          // Re-solve so the unit gets fresh outputs (was missing → stale u.last)
-          const sr = solveScene(scene);
-          afterSolve(sr);
-        });
-        propEditor.appendChild(resetBtn);
-      }
-    } // [v16.9.7] "✓ OK" status removed — alarm banners handle all feedback
+    }
 
-    // ── [v13.0.7] Build limit context for property highlighting ──
-    const _limitViolations = _unitAlarms.filter(a => a.id?.startsWith('limit_'));
+    // Fried reset button
+    if (u.fried) {
+      const resetBtn = el('button', { class: 'btn', style: 'margin:4px 0 8px; padding:4px 12px; font-size:12px; background:#dc2626; color:#fff; border:none; border-radius:4px; cursor:pointer; width:100%;' });
+      resetBtn.textContent = '\u26A1 Reset Equipment (Clear Fry)';
+      resetBtn.title = 'Restore this unit to working condition';
+      resetBtn.addEventListener('click', () => {
+        _pushUndo('Reset fry');
+        delete u.fried;
+        if (def.inventory && def.initInventory) {
+          u.inventory = def.initInventory(u.params);
+        }
+        const sr = solveScene(scene);
+        afterSolve(sr);
+      });
+      propEditor.appendChild(resetBtn);
+    }
+
+    // ── Build limit context (used by ribbons and limits section) ──
     const _pId = u.profileId || u.defId;
     const _profile = ProfileRegistry.get(_pId);
     const _hasLimits = _profile && _profile.limits && Object.keys(_profile.limits).length > 0;
     const _effectiveLimits = (def.limitParams && _hasLimits) ? getEffectiveLimits(_pId, u.tier || 1) : null;
+    const _limitViolations = _unitAlarms.filter(a => a.id?.startsWith('limit_'));
     const _limitCtx = (_limitViolations.length > 0 || _effectiveLimits)
       ? { violations: _limitViolations, limits: _effectiveLimits } : null;
 
-    // ── [v10.9.1] Layout variant selector — [v16.9.5] moved to bottom of params, compact ──
-    let _layoutHtml = null;
-    if (def.presentations) {
-      const theme = ui.theme || 'box';
-      let prefix = theme + '/';
-      if (!Object.keys(def.presentations).some(k => k.startsWith(prefix))) prefix = 'box/';
-      const variants = Object.keys(def.presentations)
-        .filter(k => k.startsWith(prefix))
-        .map(k => k.slice(prefix.length))
-        .filter(v => { if (u.defId !== 'reactor_jacketed') return true; return v !== 'insulated'; });
-      if (variants.length > 1) {
-        _layoutHtml = { variants, currentVariant: u.params.variant || 'default' };
-      }
-    }
-
-    // ── Parameters (flat zone, distinct background) [v10.2.2] ──
-    if (config?.params || config?.customParams || _layoutHtml) {
-      const paramsZone = el('div', { class: 'ins-params-zone' });
-      if (config?.customParams) {
-        config.customParams(paramsZone, u, scene);
-      } else if (config?.params) {
-        renderParams(paramsZone, config.params(u), u);
-      }
-      // [v16.9.5] Layout variant compact row at bottom of params
-      if (_layoutHtml) {
-        const lRow = el('div', { class: 'ins-layout-compact' });
-        lRow.appendChild(el('span', { text: 'Port layout' }));
-        const lSel = document.createElement('select');
-        for (const v of _layoutHtml.variants) {
-          const opt = document.createElement('option');
-          opt.value = v;
-          opt.textContent = _VARIANT_LABELS[v] || v.split('-').map(w => w[0].toUpperCase() + w.slice(1)).join(' ');
-          if (v === _layoutHtml.currentVariant) opt.selected = true;
-          lSel.appendChild(opt);
-        }
-        lSel.addEventListener('change', () => {
-          u.params.variant = (lSel.value === 'default') ? undefined : lSel.value;
-          lSel.blur();  // [v17.7.4] release focus so _rebuildInspectorContent doesn't bail
-          render();
-          updatePropertiesPanel();  // [v17.7.4] refresh inspector with new port layout
-        });
-        lRow.appendChild(lSel);
-        paramsZone.appendChild(lRow);
-      }
-      propEditor.appendChild(paramsZone);
-    }
-
-    // [v16.9.7 S-VOICE] L4 operating note — tips, edge cases, what breaks
-    if (_insTierProfile?.operatingNote) {
-      const l4Box = el('div', { style: 'font-size:11px; color:var(--rt-text); background:var(--rt-inner-bg); padding:6px 8px; border-radius:4px; margin-bottom:4px; line-height:1.4; border-left:2px solid var(--rt-inner-border);' });
-      l4Box.textContent = _insTierProfile.operatingNote;
-      propEditor.appendChild(l4Box);
-    }
-
-    // ── [v11.0.2] Standard section order ──
-    // params → conditions → flowrates → composition → reaction → power → sizing → kpis → detail
-    // [v16.9.5] Power-primary units: power before conditions (NNG-13 OK — conditions empty for no-material units)
+    // ── §3 CONDITIONS RIBBON — data first ──
+    // [v20.6.0] ALL conditions render through _renderConditionsRibbon.
+    // Units return [{lbl, val, unit, dotColor, stickerLabel}] or are deleted (auto-ribbon).
     const _isPowerPrimary = !def.ports.some(p => p.type === StreamType.MATERIAL);
     if (ud) {
       const _sCtx = { unitId: u.id, section: 'conditions' };
       const primaryStream = _findPrimaryStream(ud, def);
 
-      // ── Power & Energy (first for power-primary units) ──
-      if (_isPowerPrimary && config?.power) {
-        const items = config.power(u, ud);
-        if (items?.length) _renderLabeledSection(propEditor, 'Power & Energy', items, { unitId: u.id, section: 'power' });
-      }
-
-      // ── Process Conditions — [v16.9.5] gauges when limits exist ──
       if (config?.conditions) {
-        const items = config.conditions(u, ud);
-        if (items?.length) _renderKPIGrid(propEditor, items, _sCtx);
-      } else if (_effectiveLimits && primaryStream) {
-        // Use gauges for T/P when we have limits
-        _renderConditionGauges(propEditor, ud, def, u, _sCtx);
+        const cells = config.conditions(u, ud);
+        if (cells?.length) {
+          // [v20.6.0] Auto-detect format: new ribbon {lbl,val,unit} vs legacy {label,value}
+          if (cells[0].lbl !== undefined) {
+            _renderConditionsRibbon(propEditor, cells, _sCtx);
+          } else {
+            _renderKPIGrid(propEditor, cells, _sCtx);
+          }
+        }
       } else if (primaryStream) {
-        _renderStreamConditions(propEditor, primaryStream, _sCtx, _limitCtx);
+        // Auto-generate conditions ribbon from primary stream
+        const unitSys = models.getActive('units');
+        const tDot = _limitDotColor(primaryStream.T, 'T', _effectiveLimits);
+        const pDot = _limitDotColor(primaryStream.P, 'P', _effectiveLimits);
+        const flowN = primaryStream.n ? Object.values(primaryStream.n).reduce((a, b) => a + b, 0) : 0;
+        const flowKg = flowN > 0 ? streamMass_kgps(primaryStream) : 0;
+        const phaseText = primaryStream.phase === 'V' ? 'Vapor' : primaryStream.phase === 'L' ? 'Liquid'
+          : primaryStream.phase === 'VL' ? `VL ${((primaryStream.vapFraction ?? 0) * 100).toFixed(0)}%` : '—';
+        _renderConditionsRibbon(propEditor, [
+          { lbl: 'Temp', val: unitSys.temperature.from(primaryStream.T).toFixed(1), unit: unitSys.temperature.symbol, dotColor: tDot, stickerLabel: 'Temperature' },
+          { lbl: 'Press', val: unitSys.pressure.from(primaryStream.P).toFixed(unitSys.pressure.decimals), unit: unitSys.pressure.symbol, dotColor: pDot, stickerLabel: 'Pressure' },
+          { lbl: 'Flow', val: unitSys.massFlow.from(flowKg).toFixed(unitSys.massFlow.decimals), unit: unitSys.massFlow.symbol, stickerLabel: 'Mass flow' },
+          { lbl: 'Phase', val: phaseText, stickerLabel: 'Phase' }
+        ], _sCtx);
       }
 
-      // ── Flowrates ──
-      if (!config?.conditions && primaryStream) {
-        _renderStreamFlowrates(propEditor, primaryStream, _sCtx, _limitCtx);
+      // ── §4 COMPOSITION RIBBON ──
+      // [v20.6.0] Falls back to ud.last.n (vessel inventory) when outlet has no flow
+      const _compSource = (primaryStream?.n && Object.values(primaryStream.n).reduce((a,b) => a+b, 0) > 1e-15)
+        ? primaryStream.n : (ud.last?.n || null);
+      if (_compSource) {
+        const nTotal = Object.values(_compSource).reduce((a, b) => a + b, 0);
+        if (nTotal > 1e-15) {
+          const species = {};
+          for (const [sp, n] of Object.entries(_compSource)) {
+            if (n / nTotal > 0.005) species[sp] = n / nTotal;
+          }
+          _renderCompRibbon(propEditor, species);
+        }
       }
 
-      // ── Composition ──
-      if (!config?.conditions && primaryStream) {
-        _renderStreamComposition(propEditor, primaryStream, _sCtx);
+      // ── §5 POWER RIBBON ──
+      if (config?.power) {
+        const powerItems = config.power(u, ud);
+        if (powerItems?.length) {
+          const _pwrCtx = { unitId: u.id, section: 'power' };
+          const pwrCells = powerItems.map(it => ({
+            lbl: it.label, val: it.value, unit: '', stickerLabel: it.label,
+            color: it.tone === 'warn' ? '#fbbf24' : it.tone === 'good' ? '#6ee7b7' : it.tone === 'info' ? '#60a5fa' : undefined
+          }));
+          _renderPwrRibbon(propEditor, pwrCells, _pwrCtx);
+        }
+      } else if (_isPowerPrimary) {
+        // Power-primary units with no config.power — nothing to show
       }
 
-      // ── Reaction Data ──
+      // ── §6 UNIT REPORT — unit-specific content ──
+
+      // [v20.6.0] Custom report hook — for units with genuinely custom display
+      // (room services, power_hub allocation). Renders between power and kpis.
+      if (config?.report) {
+        config.report(propEditor, u, ud, scene);
+      }
+
+      // Reaction Data
       if (config?.reaction) {
         const items = config.reaction(u, ud);
         if (items?.length) _renderLabeledSection(propEditor, 'Reaction Data', items, { unitId: u.id, section: 'reaction' });
       }
 
-      // ── Power & Energy — [v16.9.5] skip for power-primary (already rendered above) ──
-      if (config?.power && !_isPowerPrimary) {
-        const items = config.power(u, ud);
-        if (items?.length) _renderLabeledSection(propEditor, 'Power & Energy', items, { unitId: u.id, section: 'power' });
-      }
-
-      // ── [v11.0.2] Sizing Assistance ──
+      // Sizing Assistance
       if (config?.sizing) {
         const items = config.sizing(u, ud);
         if (items?.length) _renderLabeledSection(propEditor, 'Sizing Assistance', items, { unitId: u.id, section: 'sizing' });
       }
 
-      // ── Unit-specific KPIs ──
+      // Unit-specific KPIs
       if (config?.kpis) {
         const kpiItems = config.kpis(u, ud);
         if (kpiItems?.length) _renderKPIGrid(propEditor, kpiItems, { unitId: u.id, section: 'kpis' });
       }
-      // ── Custom KPI HTML (room, etc.) ──
+
+      // Custom KPI HTML (room, etc.)
       if (config?.kpiHtml) {
         config.kpiHtml(propEditor, u, ud);
       }
@@ -46484,15 +46616,25 @@ function _rebuildInspectorContent() {
       propEditor.appendChild(el('div', { class: 'ins-hint', html: 'Not computed yet — press Test/Step' }));
     }
 
-    // ── Detail (collapsible, closed) ──
+    // ── §7 SEPARATOR + CONTROLS ──
+    if (config?.params || config?.customParams) {
+      propEditor.appendChild(el('hr', { class: 'ins-sep' }));
+      const controlsZone = el('div', { class: 'ins-controls' });
+      if (config?.customParams) {
+        config.customParams(controlsZone, u, scene);
+      } else if (config?.params) {
+        renderParams(controlsZone, config.params(u), u);
+      }
+      propEditor.appendChild(controlsZone);
+    }
+
+    // ── §8 COLLAPSED: Detail ──
     if (ud && config?.detail) {
       const detailItems = config.detail(u, ud, scene);
       _renderDetailSection(propEditor, detailItems);
     }
 
-    // ── [v13.0.7] Equipment Limits ──
-    // [v15.1.0] Template units: editable number inputs writing u.params._limits.
-    // Regular units: static read-only grid (original behavior).
+    // ── §9 COLLAPSED: Equipment Limits ──
     if (def.limitParams?.length > 0) {
       const _pId2 = u.profileId || u.defId;
       const _prof2 = ProfileRegistry.get(_pId2);
@@ -46505,18 +46647,13 @@ function _rebuildInspectorContent() {
         const unitSys = models.getActive('units');
         const section = createCollapsibleSection(
           _isTemplate ? 'Operating Limits (editable)' : 'Equipment Limits',
-          !_isTemplate  // collapsed for regular, expanded for templates
+          false  // always collapsed
         );
 
         if (_isTemplate) {
           section.content.appendChild(el('div', {
             style: 'font-size:10px; color:var(--rt-text-muted); margin-bottom:6px;',
             text: 'Empty = no limit. Values in display units. Stored in u.params._limits.'
-          }));
-        } else {
-          section.content.appendChild(el('div', {
-            style: 'font-size:10px; color:var(--rt-text-muted); margin-bottom:6px;',
-            text: `Tier ${u.tier || 1}  —  limits apply to this equipment tier`
           }));
         }
 
@@ -46530,8 +46667,6 @@ function _rebuildInspectorContent() {
         }
 
         const tbl = el('div', { style: 'display:grid; grid-template-columns:auto auto auto auto auto; gap:2px 8px; font-size:11px; padding:4px 0;' });
-
-        // Header
         const hdrStyle = 'color:var(--rt-text-muted); font-weight:600; padding-bottom:4px; text-align:center;';
         tbl.appendChild(el('div', { style: hdrStyle, text: '' }));
         tbl.appendChild(el('div', { style: hdrStyle, html: '<span title="Catastrophic low">LL</span>' }));
@@ -46544,7 +46679,6 @@ function _rebuildInspectorContent() {
           const unitKey = _limitTagToUnit[tag];
           const conv = unitSys[unitKey];
           const unitLabel = conv ? conv.symbol : (tag === 'level' ? '%' : '');
-
           tbl.appendChild(el('div', { style: 'color:var(--rt-text-muted); font-weight:500;', text: `${tagLabels[tag] || tag} (${unitLabel})` }));
 
           for (const side of ['LL', 'L', 'H', 'HH']) {
@@ -46553,9 +46687,7 @@ function _rebuildInspectorContent() {
               tbl.appendChild(el('div', { style: 'color:var(--rt-inner-border); text-align:center;', text: '—' }));
               continue;
             }
-
             if (_isTemplate) {
-              // Editable input for template units
               const siVal = _unitLimits[key] ?? null;
               const displayVal = (siVal != null && conv) ? conv.from(siVal).toFixed(conv.decimals)
                                : (siVal != null ? String(siVal) : '');
@@ -46567,25 +46699,18 @@ function _rebuildInspectorContent() {
               inp.addEventListener('change', () => {
                 _pushUndoDebounced('Set limit ' + key);
                 const raw = inp.value.trim();
-                if (!raw) {
-                  delete _unitLimits[key];
-                } else {
+                if (!raw) { delete _unitLimits[key]; }
+                else {
                   const num = parseFloat(raw);
-                  if (!isNaN(num)) {
-                    _unitLimits[key] = (conv && tag !== 'level') ? conv.to(num) : num;
-                  }
+                  if (!isNaN(num)) { _unitLimits[key] = (conv && tag !== 'level') ? conv.to(num) : num; }
                 }
-                if (Object.keys(_unitLimits).length > 0) {
-                  u.params._limits = _unitLimits;
-                } else {
-                  delete u.params._limits;
-                }
+                if (Object.keys(_unitLimits).length > 0) u.params._limits = _unitLimits;
+                else delete u.params._limits;
               });
               const isCatastrophic = side === 'LL' || side === 'HH';
               if (siVal != null) inp.style.borderColor = isCatastrophic ? '#f87171' : '#fbbf24';
               tbl.appendChild(inp);
             } else {
-              // Static read-only display for regular profiles
               const val = effLimits?.[key] ?? null;
               const fmtVal = val == null ? '—' : (conv ? `${conv.from(val).toFixed(conv.decimals)}` : `${val}`);
               const isCatastrophic = side === 'LL' || side === 'HH';
@@ -46596,40 +46721,64 @@ function _rebuildInspectorContent() {
             }
           }
         }
-
         section.content.appendChild(tbl);
         propEditor.appendChild(section.section);
       }
     }
 
-    // ── [v15.1.0] Export Config (template units only) — collapsible JSON view ──
+    // ── §10 COLLAPSED: Equipment specs (L3 + L4) ──
+    if (_insTierProfile?.equipmentNote || _insTierProfile?.operatingNote) {
+      const specSection = createCollapsibleSection('Equipment specs', false);
+      if (_insTierProfile.equipmentNote) {
+        specSection.content.appendChild(el('div', {
+          style: 'font-size:11px; color:var(--rt-text-muted); font-style:italic; line-height:1.4; margin-bottom:4px;',
+          text: _insTierProfile.equipmentNote
+        }));
+      }
+      if (_insTierProfile.operatingNote) {
+        specSection.content.appendChild(el('div', {
+          style: 'font-size:11px; color:var(--rt-text); line-height:1.4; border-left:2px solid var(--rt-inner-border); padding-left:6px;',
+          text: _insTierProfile.operatingNote
+        }));
+      }
+      propEditor.appendChild(specSection.section);
+    }
+
+    // ── §11 COLLAPSED: Export Config (template units only) ──
     if (_insTierProfile?.config?.template) {
       const expSection = createCollapsibleSection('Export Config', false);
       const _buildExport = () => {
         const out = { defId: u.defId, params: { ...u.params } };
-        delete out.params._limits;  // shown separately
-        if (u.params._limits && Object.keys(u.params._limits).length > 0) {
-          out.limits = { ...u.params._limits };
-        }
+        delete out.params._limits;
+        if (u.params._limits && Object.keys(u.params._limits).length > 0) out.limits = { ...u.params._limits };
         return JSON.stringify(out, null, 2);
       };
-      const pre = el('pre', {
+      expSection.content.appendChild(el('pre', {
         text: _buildExport(),
         style: 'font-size:10px; color:var(--rt-text-muted); background:#0d1117; border:1px solid #21262d; '
              + 'border-radius:4px; padding:8px; overflow-x:auto; white-space:pre-wrap; '
              + 'cursor:text; user-select:all; max-height:200px; overflow-y:auto;'
-      });
-      expSection.content.appendChild(pre);
+      }));
       propEditor.appendChild(expSection.section);
     }
 
-    // ── Connections (hidden by default, preserved for debug) ──
+    // ── §12 COLLAPSED: How it works (L5 model note) ──
+    if (_insTierProfile?.modelNote) {
+      const l5Section = createCollapsibleSection('How it works', false);
+      l5Section.content.appendChild(el('div', {
+        style: 'font-size:11px; color:var(--rt-text-muted); line-height:1.4; font-family:ui-monospace,"SF Mono",monospace; font-size:10px;',
+        text: _insTierProfile.modelNote
+      }));
+      propEditor.appendChild(l5Section.section);
+    }
+
+    // ── Connections (hidden, preserved for debug) ──
     const SHOW_CONNECTIONS = false;
     if (SHOW_CONNECTIONS) {
       const connSection = createCollapsibleSection('Connections', false);
       const cc = connSection.content;
       for (const p of def.ports) {
-        const dirLabel = p.dir === PortDir.OUT ? '→' : '←';
+        const dirLabel = p.dir === PortDir.OUT ? '\u2192' : '\u2190';
         const typeLabel = _streamNames[p.type] ?? '?';
         const conn = p.dir === PortDir.OUT
           ? scene.connections.find(c => c.from.unitId === u.id && c.from.portId === p.portId)
@@ -46639,31 +46788,21 @@ function _rebuildInspectorContent() {
           const otherId = p.dir === PortDir.OUT ? conn.to.unitId : conn.from.unitId;
           const otherU = scene.units.get(otherId);
           const otherDef = otherU ? UnitRegistry.get(otherU.defId) : null;
-          target = `<span style="color:#6ee7b7">● </span>${esc(otherU?.name || otherDef?.name || '?')}`;
+          target = `<span style="color:#6ee7b7">\u25CF </span>${esc(otherU?.name || otherDef?.name || '?')}`;
         } else {
-          target = '<span style="opacity:0.4">○ unconnected</span>';
+          target = '<span style="opacity:0.4">\u25CB unconnected</span>';
         }
-        const row = el('div', {
+        cc.appendChild(el('div', {
           style: 'display:flex; justify-content:space-between; align-items:center; padding:3px 0; font-size:11px;',
           html: `<span style="opacity:0.7">${dirLabel} ${_portLabel(p.portId)} <span style="opacity:0.5">${typeLabel}</span></span><span>${target}</span>`
-        });
-        cc.appendChild(row);
+        }));
       }
       propEditor.appendChild(connSection.section);
-    }
-
-    // [v16.9.7 S-VOICE] L5 modeling note — collapsed at bottom
-    if (_insTierProfile?.modelNote) {
-      const l5Section = createCollapsibleSection('How it works', false);
-      l5Section.content.appendChild(el('div', {
-        style: 'font-size:11px; color:var(--rt-text-muted); line-height:1.4; font-family:ui-monospace,"SF Mono",monospace; font-size:10px;',
-        text: _insTierProfile.modelNote
-      }));
-      propEditor.appendChild(l5Section.section);
     }
   }
   
   // ═══ STREAM SELECTED ═══
+  // [v20.3.0 S-INSPECTOR-V2 Session C] Rewritten with ribbon components.
   else if (ui.selectedConnId) {
     const conn = scene.connections.find(c => c.id === ui.selectedConnId);
     if (!conn) {
@@ -46678,44 +46817,69 @@ function _rebuildInspectorContent() {
     const fromName = fromUnit.name || fromDef.name;
     const toName = toUnit.name || toDef.name;
     
+    // Header: "Source → Dest" + delete
     const headerDiv = el('div', { class: 'unitHeader' });
     const titleDiv = el('div', { class: 'unitTitle', style: 'cursor:default;' });
-    titleDiv.appendChild(el('span', { html: `${esc(fromName)} → ${esc(toName)}`, style: 'flex:1;' }));
+    titleDiv.appendChild(el('span', { html: `${esc(fromName)} \u2192 ${esc(toName)}`, style: 'flex:1;' }));
     const delBtn = el('button', { class: 'ins-delete-btn', html: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 4h12M5.3 4V2.7a1 1 0 011-1h3.4a1 1 0 011 1V4M6.5 7v4.5M9.5 7v4.5M3.5 4l.7 9a1.5 1.5 0 001.5 1.4h4.6a1.5 1.5 0 001.5-1.4l.7-9"/></svg>' });
     delBtn.title = 'Delete connection';
     delBtn.addEventListener('click', () => deleteSelected());
     titleDiv.appendChild(delBtn);
     headerDiv.appendChild(titleDiv);
-    const fromPort = fromDef.ports.find(p => p.portId === conn.from.portId);
-    headerDiv.appendChild(el('div', { class: 'unitSubtitle', html: `${_portLabel(conn.from.portId)} → ${_portLabel(conn.to.portId)} · ${_streamNames[fromPort?.type] ?? 'Unknown'}` }));
     propEditor.appendChild(headerDiv);
     
-    // Stream data — uses same auto-stream renderer for consistency
-    const stream = _getConnStream(conn); // [v14.18.0] per-cable view
+    // Stream data via ribbons
+    const stream = _getConnStream(conn);
     if (stream) {
       const connStickerCtx = { unitId: conn.from.unitId, section: 'conditions', connId: conn.id };
       if (stream.type === StreamType.MATERIAL) {
-        _renderAutoStream(propEditor, stream, conn.from.unitId, conn.id);
-        // Enthalpy in detail
+        // Conditions ribbon
+        const unitSys = models.getActive('units');
+        const flowN = stream.n ? Object.values(stream.n).reduce((a, b) => a + b, 0) : 0;
+        const flowKg = flowN > 0 ? streamMass_kgps(stream) : 0;
+        const phaseText = stream.phase === 'V' ? 'Vapor' : stream.phase === 'L' ? 'Liquid'
+          : stream.phase === 'VL' ? `VL ${((stream.vapFraction ?? 0) * 100).toFixed(0)}%` : '\u2014';
+        _renderConditionsRibbon(propEditor, [
+          { lbl: 'Temp', val: unitSys.temperature.from(stream.T).toFixed(1), unit: unitSys.temperature.symbol, stickerLabel: 'Temperature' },
+          { lbl: 'Press', val: unitSys.pressure.from(stream.P).toFixed(unitSys.pressure.decimals), unit: unitSys.pressure.symbol, stickerLabel: 'Pressure' },
+          { lbl: 'Flow', val: unitSys.massFlow.from(flowKg).toFixed(unitSys.massFlow.decimals), unit: unitSys.massFlow.symbol, stickerLabel: 'Mass flow' },
+          { lbl: 'Phase', val: phaseText, stickerLabel: 'Phase' }
+        ], connStickerCtx);
+
+        // Composition ribbon
+        if (stream.n) {
+          const nTotal = Object.values(stream.n).reduce((a, b) => a + b, 0);
+          if (nTotal > 1e-15) {
+            const species = {};
+            for (const [sp, n] of Object.entries(stream.n)) {
+              if (n / nTotal > 0.005) species[sp] = n / nTotal;
+            }
+            _renderCompRibbon(propEditor, species);
+          }
+        }
+
+        // Enthalpy detail (collapsed)
         if (stream.hMolarMix !== undefined || stream.Hdot_J_s !== undefined) {
           const enthalpyItems = [];
           if (stream.hMolarMix !== undefined) enthalpyItems.push({ label: 'Molar enthalpy', value: `${formatEnthalpy_kJmol(stream.hMolarMix)}<span class="u">kJ/mol</span>` });
-          if (stream.Hdot_J_s !== undefined) enthalpyItems.push({ label: 'Enthalpy flow', value: `${formatPower_kW(stream.Hdot_J_s)}<span class="u">kW</span>` });
+          if (stream.Hdot_J_s !== undefined) enthalpyItems.push({ label: 'Enthalpy flow', value: fmt.kW(stream.Hdot_J_s) });
           _renderDetailSection(propEditor, enthalpyItems);
         }
       } else {
-        // Power/heat streams — render as KPIs
+        // Power/heat streams — render as power ribbon
         const capacity_W = stream.capacity ?? stream.available ?? 0;
         const actual_W = stream.actual ?? stream.available ?? 0;
-        const kpis = [{ label: 'Capacity', value: `${(capacity_W/1000).toFixed(1)}<span class="propUnit">kW</span>` }];
+        const cells = [{ lbl: 'Capacity', val: fmt.kW(capacity_W), unit: '' }];
         if (Math.abs(actual_W - capacity_W) > 1) {
-          kpis.push({ label: 'Actual', value: `${(actual_W/1000).toFixed(1)}<span class="propUnit">kW</span>`, tone: actual_W < capacity_W - 1 ? 'warn' : '' });
+          cells.push({ lbl: 'Actual', val: fmt.kW(actual_W), unit: '', color: actual_W < capacity_W - 1 ? '#fbbf24' : undefined });
         }
-        if (stream.demand !== undefined) kpis.push({ label: 'Demand', value: `${(stream.demand/1000).toFixed(1)}<span class="propUnit">kW</span>` });
-        _renderKPIGrid(propEditor, kpis, connStickerCtx);
+        if (stream.demand !== undefined) {
+          cells.push({ lbl: 'Demand', val: fmt.kW(stream.demand), unit: '' });
+        }
+        _renderPwrRibbon(propEditor, cells, { ...connStickerCtx, section: 'power' });
       }
     } else {
-      propEditor.appendChild(el('div', { class: 'ins-hint', html: 'Not computed yet — press Test/Step' }));
+      propEditor.appendChild(el('div', { class: 'ins-hint', html: 'Not computed yet \u2014 press Test/Step' }));
     }
   }
 
@@ -47563,6 +47727,15 @@ function deleteSelected() {
   }
 }
 
+// [S-PERF P1.4] rAF-batched render — deduplicates multiple render() calls within
+// the same animation frame (pan, drag, zoom all fire from pointermove/wheel).
+let _renderScheduled = false;
+function scheduleRender() {
+  if (_renderScheduled) return;
+  _renderScheduled = true;
+  requestAnimationFrame(() => { _renderScheduled = false; render(); });
+}
+
 // SVG Events
 svg.addEventListener('pointerdown', (ev) => {
   closeMenus();
@@ -47638,7 +47811,7 @@ svg.addEventListener('pointermove', (ev) => {
     const wy = dy / rect.height * ui.panStart.view.h;
     ui.view.x = ui.panStart.view.x - wx;
     ui.view.y = ui.panStart.view.y - wy;
-    render();
+    scheduleRender();
     return;
   }
 
@@ -47693,7 +47866,7 @@ svg.addEventListener('pointermove', (ev) => {
         // Single unit drag (original behavior)
         scene.moveUnit(anchor.id, nx, ny);
       }
-      render();
+      scheduleRender();
     }
     return;
   }
@@ -47703,7 +47876,7 @@ svg.addEventListener('pointermove', (ev) => {
     const w = ui._mouseWorld;
     ui._rubberBand.x2 = w.x;
     ui._rubberBand.y2 = w.y;
-    render();
+    scheduleRender();
     return;
   }
 
@@ -47720,13 +47893,13 @@ svg.addEventListener('pointermove', (ev) => {
       const dy = svgP.y - ui.stickerDragStart.y;
       stk.dx = ui.stickerOrigDx + dx / scene.tile;
       stk.dy = ui.stickerOrigDy + dy / scene.tile;
-      render();
+      scheduleRender();
     }
     return;
   }
 
   // Redraw pending connection
-  if (ui.pendingFrom) render();
+  if (ui.pendingFrom) scheduleRender();
 });
 
 svg.addEventListener('pointerup', (ev) => {
@@ -47897,7 +48070,7 @@ svg.addEventListener('wheel', (ev) => {
   v.y = m.y - ry * newH;
   v.w = newW;
   v.h = newH;
-  render();
+  scheduleRender();
 }, { passive: false });
 
 // Drag & drop from unit library
@@ -49705,20 +49878,19 @@ function _drawLiquidParticle(ctx, px, py, r, rgb, alpha, B, TAU) {
   ctx.fill();
 }
 
-// ── Gas particle: soft gradient wisp with glow + ellipse rotation ──
+// ── Gas particle: soft gradient wisp with ellipse rotation ──
+// [S-PERF P1.2] shadowBlur removed — was a Gaussian blur kernel per particle (~600/frame).
+// The radial gradient already provides the soft-edge glow visual.
 function _drawGasParticle(ctx, px, py, r, aspect, rotAngle, rgb, alpha, glowR, B, TAU) {
   ctx.globalAlpha = alpha;
-  ctx.shadowBlur = glowR;
-  ctx.shadowColor = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${B.GAS_GLOW_OPACITY})`;
-  const grad = ctx.createRadialGradient(px, py, 0, px, py, r * 1.5);
+  const grad = ctx.createRadialGradient(px, py, 0, px, py, r * 1.8);
   grad.addColorStop(0, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0.9)`);
   grad.addColorStop(1, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0.0)`);
   ctx.fillStyle = grad;
   ctx.beginPath();
   // Ellipse: aspect < 1 squishes one axis, rotAngle tumbles it
-  ctx.ellipse(px, py, r * 1.5, r * 1.5 * aspect, rotAngle, 0, TAU);
+  ctx.ellipse(px, py, r * 1.8, r * 1.8 * aspect, rotAngle, 0, TAU);
   ctx.fill();
-  ctx.shadowBlur = 0;
 }
 
 // ── Body particle color (handles morph transform) ──
@@ -50215,7 +50387,15 @@ function stopPlay() {
   timeDisplayEl.classList.remove('solving');
   _stopFlowArrows();
   if (svg.pauseAnimations) svg.pauseAnimations();  // [v20.0.1] freeze SMIL (flare flame)
-  // [v17.0.2] rAF chain keeps running for fried smoke — _stopIconAnim removed from pause
+  // [S-PERF P1.3] Clear flow/body particle state so the rAF chain can die.
+  // Particles are stateless caches rebuilt from solver data on next render().
+  // Fried smoke keeps the chain alive via its own hasFriedSmoke guard.
+  _flowState.clear();
+  _bodyParticleState.clear();
+  if (_particleCtx && _particleCanvas) {
+    _particleCtx.setTransform(1, 0, 0, 1, 0, 0);
+    _particleCtx.clearRect(0, 0, _particleCanvas.width, _particleCanvas.height);
+  }
   _updateOrbitIndicator();  // [v20.0.2] freeze orbit at current phase
   updateTransportUI();
 }
@@ -51432,6 +51612,14 @@ buildComponentsPanel();
 // Initialize viewport and handle window resize
 window.addEventListener('resize', () => {
   if (typeof fitView === 'function') fitView();
+});
+
+// [S-PERF P1.6] Suspend animation when tab is hidden — prevents background CPU/GPU drain.
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    if (TimeClock.mode === 'playing') stopPlay();
+    _stopIconAnim();
+  }
 });
 
 // [v18.0.0 S-TITLE] ── Title screen animation & actions ───────────────────────
@@ -62190,7 +62378,7 @@ function runTests() {
     t.assertOK(typeof fmt.kW(50000) === 'string', 'fmt.kW(50000) is string');
     t.assertOK(typeof fmt.T(300) === 'string', 'fmt.T(300) is string');
     t.assertOK(typeof fmt.P(101325) === 'string', 'fmt.P(101325) is string');
-    t.assertOK(typeof fmt.flow(0.5) === 'string', 'fmt.flow(0.5) is string');
+    t.assertOK(typeof fmt.molarFlow(0.5) === 'string', 'fmt.molarFlow(0.5) is string');
     t.assertOK(typeof fmt.pct(0.85) === 'string', 'fmt.pct(0.85) is string');
     t.assertOK(typeof fmt.time(3661) === 'string', 'fmt.time(3661) is string');
     // Edge values: null/undefined/NaN should return '—'
@@ -62198,7 +62386,7 @@ function runTests() {
     t.assertOK(fmt.kW(NaN) === '—', 'fmt.kW(NaN) = —');
     t.assertOK(fmt.T(null) === '—', 'fmt.T(null) = —');
     t.assertOK(fmt.P(undefined) === '—', 'fmt.P(undefined) = —');
-    t.assertOK(fmt.flow(null) === '—', 'fmt.flow(null) = —');
+    t.assertOK(fmt.molarFlow(null) === '—', 'fmt.molarFlow(null) = —');
   }});
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -63417,7 +63605,7 @@ function runTests() {
     const hexColdOutT = t.port(abHex, 'cold_out')?.T || 300;
     t.assertOK(combOut.T > hexColdOutT, 'A: Combustor T_out > T_in (exothermic)', `${combOut.T?.toFixed(1)}K`);
     // H₂ combustion should produce water in products
-    t.assertOK(combOut.n?.H2O > 0, 'A: Combustion produces H₂O', `${combOut.n?.H2O?.toFixed(4)} mol/s`);
+    t.assertOK(combOut.n?.H2O > 0, 'A: Combustion produces H₂O', fmt.molarFlow(combOut.n?.H2O || 0));
 
     const turbOut = t.port(aTurb, 'mat_out');
     const turbLast = t.last(aTurb);
@@ -72675,6 +72863,70 @@ function runTests() {
     // Restore
     TimeClock.t = origT; TimeClock.frame = origFrame;
     SimSettings.dt = origDt; TimeClock.mode = origMode;
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // S-INSPECTOR-V2 Session A — formatters + variant labels (v20.1.0)
+  // ═══════════════════════════════════════════════════════════════════════
+
+  test('783: fmt.massFlow — uses unitSys.massFlow (SI_bar → kg/h)', t => {
+    const saved = models.getActive('units');
+    // SI_bar system uses kg/h
+    const html = fmt.massFlow(1.0);  // 1 kg/s
+    t.assertOK(html.includes('kg/h') || html.includes('kg/s'), 'has mass flow unit: ' + html);
+    // Null safety
+    t.assertOK(fmt.massFlow(null) === '—', 'null → dash');
+    t.assertOK(fmt.massFlow(NaN) === '—', 'NaN → dash');
+    // Value check: 1 kg/s = 3600 kg/h in SI_bar
+    const us = models.getActive('units');
+    const expected = us.massFlow.from(1.0).toFixed(us.massFlow.decimals);
+    t.assertOK(html.includes(expected), 'correct converted value ' + expected + ' in: ' + html);
+  });
+
+  test('784: fmt.molarFlow — uses unitSys.molarFlow', t => {
+    const html = fmt.molarFlow(1.0);  // 1 mol/s
+    const us = models.getActive('units');
+    t.assertOK(html.includes(us.molarFlow.symbol), 'has molar flow unit: ' + html);
+    t.assertOK(fmt.molarFlow(null) === '—', 'null → dash');
+    t.assertOK(fmt.molarFlow(NaN) === '—', 'NaN → dash');
+    const expected = us.molarFlow.from(1.0).toFixed(us.molarFlow.decimals);
+    t.assertOK(html.includes(expected), 'correct converted value ' + expected);
+  });
+
+  test('785: fmt.dT — delta temperature with sign prefix', t => {
+    const pos = fmt.dT(15.3);
+    t.assertOK(pos.includes('+15.3'), 'positive has + prefix: ' + pos);
+    t.assertOK(pos.includes('K'), 'unit is K');
+    const neg = fmt.dT(-8.2);
+    t.assertOK(neg.includes('-8.2'), 'negative: ' + neg);
+    const zero = fmt.dT(0);
+    t.assertOK(zero.includes('0.0'), 'zero: ' + zero);
+    t.assertOK(fmt.dT(null) === '—', 'null → dash');
+    t.assertOK(fmt.dT(NaN) === '—', 'NaN → dash');
+  });
+
+  test('786: _variantLabel — compressor auto-labels from port positions', t => {
+    // Compressor default: mat_in x=0 (left), mat_out x=2 (right), elec_in y=0 (top)
+    const lbl = _variantLabel('compressor', 'default');
+    t.assertOK(lbl.includes('←') || lbl.includes('→'), 'has arrow: ' + lbl);
+    t.assertOK(lbl.includes('In') && lbl.includes('Out'), 'has In/Out: ' + lbl);
+    // Mirror: mat_in x=2 (right), mat_out x=0 (left)
+    const lblM = _variantLabel('compressor', 'mirror');
+    t.assertOK(lblM !== lbl, 'mirror differs from default');
+    // Overrides
+    const lblI = _variantLabel('reactor_adiabatic', 'insulated');
+    t.assertOK(lblI.includes('Insulated'), 'override works: ' + lblI);
+    // Null defId fallback (backward compat proxy path)
+    const lblNull = _variantLabel(null, 'recycle-T');
+    t.assertOK(typeof lblNull === 'string' && lblNull.length > 0, 'null defId produces string: ' + lblNull);
+  });
+
+  test('787: _variantLabel — mixer recycle variants show second inlet direction', t => {
+    // recycle-T: mat_in_1 x=0 (left), mat_in_2 y=0 (top), mat_out x=2 (right)
+    const lbl = _variantLabel('mixer', 'recycle-T');
+    t.assertOK(lbl.includes('↑'), 'recycle-T has up arrow for 2nd inlet: ' + lbl);
+    const lblB = _variantLabel('mixer', 'recycle-B');
+    t.assertOK(lblB.includes('↓'), 'recycle-B has down arrow: ' + lblB);
   });
 
   // ═══════════════════════════════════════════════════════════════════════
