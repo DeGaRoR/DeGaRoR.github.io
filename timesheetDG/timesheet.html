@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#111827">
+<title>TimeSheet</title>
+<style>
+:root{--bg:#111827;--bg2:#1f2937;--bg3:#374151;--surface:#1e293b;--surface2:#2d3a4d;--accent:#f59e0b;--accent2:#fbbf24;--accent-dim:#d97706;--text:#f1f5f9;--text2:#94a3b8;--text3:#64748b;--success:#34d399;--danger:#f43f5e;--invoiced:#3b82f6;--radius:10px;--nav-h:60px;--safe-b:env(safe-area-inset-bottom,0px);}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);-webkit-tap-highlight-color:transparent;overscroll-behavior:none;}
+body{display:flex;flex-direction:column;}
+.view{display:none;flex:1;overflow-y:auto;padding:16px 16px 24px;-webkit-overflow-scrolling:touch;}
+.view.active{display:block;}
+
+/* NAV */
+nav.bnav{position:fixed;bottom:0;left:0;right:0;height:calc(var(--nav-h)+var(--safe-b));padding-bottom:var(--safe-b);background:var(--bg2);border-top:1px solid var(--bg3);display:flex;z-index:100;}
+nav.bnav button{flex:1;background:none;border:none;color:var(--text3);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:10px;cursor:pointer;transition:color .2s;font-family:inherit;}
+nav.bnav button.active{color:var(--accent);}
+nav.bnav button svg{width:22px;height:22px;}
+
+h2{font-size:20px;font-weight:700;margin-bottom:14px;letter-spacing:-.3px;}
+h3{font-size:13px;font-weight:600;margin-bottom:8px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;}
+.card{background:var(--surface);border-radius:var(--radius);padding:14px;margin-bottom:12px;}
+input,select,textarea{width:100%;padding:10px 12px;background:var(--bg);border:1px solid var(--bg3);border-radius:8px;color:var(--text);font-size:16px;font-family:inherit;outline:none;transition:border-color .2s;}
+input:focus,select:focus,textarea:focus{border-color:var(--accent);}
+textarea{resize:vertical;min-height:50px;}
+select{appearance:none;cursor:pointer;}
+label{display:block;font-size:11px;color:var(--text2);margin-bottom:3px;text-transform:uppercase;letter-spacing:.4px;}
+.field{margin-bottom:12px;}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:11px 18px;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;transition:all .15s;font-family:inherit;}
+.btn-primary{background:var(--accent);color:var(--bg);}
+.btn-primary:active{background:var(--accent-dim);transform:scale(.97);}
+.btn-secondary{background:var(--surface2);color:var(--text);}
+.btn-secondary:active{background:var(--bg3);}
+.btn-danger{background:var(--danger);color:#fff;}
+.btn-full{width:100%;}
+.btn-sm{padding:7px 12px;font-size:12px;}
+
+/* STATS */
+.stats-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px;}
+.stat-card{background:var(--surface);border-radius:var(--radius);padding:12px 10px;text-align:center;}
+.stat-card .val{font-size:20px;font-weight:700;color:var(--accent);font-variant-numeric:tabular-nums;}
+.stat-card .lbl{font-size:10px;color:var(--text3);margin-top:3px;text-transform:uppercase;}
+
+/* CLICKABLE CALENDAR */
+.cal-wrap{background:var(--surface);border-radius:var(--radius);padding:14px;margin-bottom:12px;}
+.cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.cal-nav button{background:none;border:none;color:var(--text2);font-size:20px;cursor:pointer;padding:4px 10px;border-radius:6px;}
+.cal-nav button:active{background:var(--bg3);}
+.cal-nav .cal-title{font-size:15px;font-weight:600;}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;}
+.cal-hdr{text-align:center;font-size:11px;color:var(--text3);padding:4px 0;}
+.cal-day{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:8px;cursor:pointer;font-size:13px;transition:all .15s;position:relative;border:2px solid transparent;background:var(--bg);}
+.cal-day:hover{background:var(--bg3);}
+.cal-day.today{border-color:var(--accent);}
+.cal-day.selected{background:var(--accent);color:var(--bg);font-weight:700;}
+.cal-day.selected .cal-hrs{color:var(--bg);}
+.cal-day.has-hours{background:var(--surface2);}
+.cal-day.invoiced-day{opacity:.5;}
+.cal-day.empty{cursor:default;background:transparent;}
+.cal-day.empty:hover{background:transparent;}
+.cal-hrs{font-size:9px;color:var(--accent);font-weight:700;margin-top:1px;}
+.cal-day.invoiced-day .cal-hrs{color:var(--invoiced);}
+
+/* ENTRY PANEL */
+.entry-panel{background:linear-gradient(135deg,var(--bg3),var(--bg2));border-radius:var(--radius);padding:18px;margin-bottom:14px;}
+.entry-panel .ep-date{font-size:15px;color:var(--accent2);margin-bottom:12px;font-weight:600;}
+.hours-row{display:flex;align-items:center;gap:12px;margin-bottom:14px;}
+.hours-row .h-btn{width:48px;height:48px;border-radius:12px;border:1px solid var(--bg3);background:var(--surface);color:var(--accent);font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:700;user-select:none;}
+.hours-row .h-btn:active{background:var(--bg3);transform:scale(.95);}
+.hours-row .h-val{font-size:40px;font-weight:800;color:var(--accent);min-width:60px;text-align:center;font-variant-numeric:tabular-nums;}
+.hours-row .h-unit{font-size:16px;color:var(--text2);}
+
+/* ENTRY LIST */
+.entry-item{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--surface);border-radius:8px;margin-bottom:5px;cursor:pointer;transition:background .15s;border-left:3px solid transparent;}
+.entry-item:active{background:var(--surface2);}
+.entry-item.invoiced{border-left-color:var(--invoiced);opacity:.6;}
+.entry-item .left{flex:1;min-width:0;}
+.entry-item .date{font-size:13px;color:var(--text2);}
+.entry-item .justification{font-size:12px;color:var(--text3);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.entry-item .hours{font-size:18px;font-weight:700;color:var(--accent);min-width:45px;text-align:right;}
+.entry-item .badge{font-size:9px;background:var(--invoiced);color:#fff;padding:2px 5px;border-radius:3px;margin-left:6px;white-space:nowrap;}
+
+/* INVOICES */
+.invoice-item{display:flex;align-items:center;justify-content:space-between;padding:12px;background:var(--surface);border-radius:8px;margin-bottom:5px;cursor:pointer;}
+.invoice-item:active{background:var(--surface2);}
+.invoice-item .inv-num{font-weight:700;color:var(--accent);}
+.invoice-item .inv-date{font-size:12px;color:var(--text2);}
+.invoice-item .inv-total{font-size:16px;font-weight:700;}
+.uninvoiced-banner{background:linear-gradient(135deg,var(--accent-dim),var(--accent));color:var(--bg);border-radius:var(--radius);padding:14px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;}
+.uninvoiced-banner .ub-label{font-size:12px;font-weight:600;}
+.uninvoiced-banner .ub-amount{font-size:24px;font-weight:800;}
+
+/* MODALS */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;align-items:flex-end;justify-content:center;}
+.modal-overlay.show{display:flex;}
+.modal{background:var(--bg2);border-radius:14px 14px 0 0;padding:20px 18px calc(20px + var(--safe-b));width:100%;max-width:500px;max-height:85vh;overflow-y:auto;}
+.modal h3{margin-bottom:14px;}
+.modal-close{float:right;background:none;border:none;color:var(--text3);font-size:22px;cursor:pointer;padding:0 4px;}
+
+.check-entry{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--bg3);}
+.check-entry input[type="checkbox"]{width:18px;height:18px;accent-color:var(--accent);flex-shrink:0;}
+.check-entry .ce-info{flex:1;min-width:0;}
+.check-entry .ce-date{font-size:12px;color:var(--text2);}
+.check-entry .ce-just{font-size:11px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.check-entry .ce-hrs{font-weight:700;color:var(--accent);font-size:14px;flex-shrink:0;}
+
+.filter-row{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;}
+.filter-row select{width:auto;flex:1;min-width:0;font-size:13px;padding:8px;}
+
+.export-box{background:var(--bg);border:1px solid var(--bg3);border-radius:8px;padding:12px;font-size:13px;color:var(--text);white-space:pre-wrap;word-break:break-word;max-height:300px;overflow-y:auto;font-family:'Courier New',monospace;line-height:1.5;margin-bottom:12px;}
+
+.settings-section{background:var(--surface);border-radius:var(--radius);padding:14px;margin-bottom:14px;}
+.contract-item{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--bg);border-radius:8px;margin-bottom:5px;}
+.contract-item .ci-name{font-weight:600;}
+.contract-item .ci-details{font-size:12px;color:var(--text2);}
+.ci-inactive{opacity:.5;}
+
+.toast{position:fixed;top:16px;left:50%;transform:translateX(-50%);background:var(--success);color:var(--bg);padding:8px 18px;border-radius:8px;font-weight:600;font-size:13px;z-index:300;opacity:0;transition:opacity .3s;pointer-events:none;}
+.toast.show{opacity:1;}
+.toast.error{background:var(--danger);color:#fff;}
+.empty{text-align:center;padding:30px 16px;color:var(--text3);font-size:14px;}
+
+/* SYNC INDICATOR */
+.sync-ind{position:fixed;top:8px;right:8px;font-size:11px;padding:4px 10px;border-radius:6px;z-index:150;display:none;}
+.sync-ind.syncing{display:block;background:var(--accent-dim);color:var(--bg);}
+.sync-ind.synced{display:block;background:var(--success);color:var(--bg);animation:fadeout 2s forwards 1s;}
+.sync-ind.error{display:block;background:var(--danger);color:#fff;}
+@keyframes fadeout{to{opacity:0;}}
+
+/* SETUP SCREEN */
+.setup-screen{position:fixed;inset:0;background:var(--bg);z-index:500;display:flex;align-items:center;justify-content:center;padding:20px;}
+.setup-card{background:var(--surface);border-radius:16px;padding:28px 24px;max-width:420px;width:100%;}
+.setup-card h2{text-align:center;margin-bottom:6px;}
+.setup-card p{color:var(--text2);font-size:14px;line-height:1.5;margin-bottom:16px;}
+.setup-card code{background:var(--bg);padding:2px 6px;border-radius:4px;font-size:13px;}
+.setup-card ol{color:var(--text2);font-size:13px;line-height:1.8;padding-left:20px;margin-bottom:16px;}
+
+/* WEEK BAR */
+.week-chart-wrap{margin-bottom:12px;}
+.week-chart-wrap svg{width:100%;}
+.bar-label{font-size:11px;fill:var(--text3);}
+.bar-val{font-size:11px;fill:var(--text2);font-weight:600;}
+
+/* DESKTOP */
+@media(min-width:768px){
+  body{flex-direction:row;padding-bottom:0;}
+  nav.bnav{position:static;flex-direction:column;width:200px;min-width:200px;height:100vh;border-top:none;border-right:1px solid var(--bg3);padding:20px 0;justify-content:flex-start;gap:2px;}
+  nav.bnav button{flex:none;flex-direction:row;justify-content:flex-start;padding:10px 20px;font-size:14px;gap:10px;border-radius:0;}
+  nav.bnav button.active{background:var(--surface);}
+  nav.bnav button svg{width:20px;height:20px;}
+  .view{max-width:none;margin:0;padding:24px 32px;}
+  .dash-layout{display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:960px;}
+  .dash-layout .dash-left{display:flex;flex-direction:column;gap:12px;}
+  .dash-layout .dash-left>*{margin-bottom:0;}
+  .dash-layout .dash-right{display:flex;flex-direction:column;gap:12px;}
+  .dash-layout .dash-right>*{margin-bottom:0;}
+  #v-history,#v-invoices,#v-settings{max-width:700px;}
+  .modal{border-radius:14px;margin:auto;}
+  .modal-overlay{align-items:center;}
+}
+@media(min-width:1024px){nav.bnav{width:220px;}.view{padding:28px 40px;}}
+@media(max-width:767px){body{padding-bottom:calc(var(--nav-h) + var(--safe-b));}}
+</style>
+</head>
+<body>
+
+<nav class="bnav">
+  <button class="active" onclick="go('v-log',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Saisie</button>
+  <button onclick="go('v-history',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>Historique</button>
+  <button onclick="go('v-invoices',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8M8 10h8M8 14h4"/></svg>Factures</button>
+  <button onclick="go('v-settings',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>Réglages</button>
+</nav>
+
+<div class="toast" id="toast"></div>
+<div class="sync-ind" id="sync-ind"></div>
+
+<!-- SETUP SCREEN -->
+<div class="setup-screen" id="setup-screen" style="display:none;">
+  <div class="setup-card">
+    <h2>⏱ TimeSheet</h2>
+    <p>Les données sont stockées dans un GitHub Gist privé pour être accessibles depuis tous vos appareils.</p>
+    <ol>
+      <li>Allez sur <strong>github.com → Settings → Developer settings → Personal access tokens → Fine-grained tokens</strong></li>
+      <li>Créez un token avec la permission <code>Gists</code> (read/write)</li>
+      <li>Collez-le ci-dessous</li>
+    </ol>
+    <div class="field"><label>GitHub Personal Access Token</label><input type="password" id="setup-token" placeholder="github_pat_..."></div>
+    <button class="btn btn-primary btn-full" onclick="setupGist()">Connecter</button>
+    <p style="margin-top:12px;font-size:12px;color:var(--text3);">Le token reste uniquement dans le navigateur de cet appareil. Les données vont dans un Gist privé sur votre compte.</p>
+  </div>
+</div>
+
+<!-- SAISIE -->
+<div class="view active" id="v-log">
+  <h2>⏱ TimeSheet</h2>
+  <div class="dash-layout">
+    <div class="dash-left">
+      <!-- CLICKABLE CALENDAR -->
+      <div class="cal-wrap">
+        <div class="cal-nav">
+          <button onclick="calNav(-1)">‹</button>
+          <span class="cal-title" id="cal-title"></span>
+          <button onclick="calNav(1)">›</button>
+        </div>
+        <div class="cal-grid" id="cal-grid"></div>
+      </div>
+      <div class="stats-row">
+        <div class="stat-card"><div class="val" id="stat-week">0</div><div class="lbl">Semaine</div></div>
+        <div class="stat-card"><div class="val" id="stat-month">0</div><div class="lbl">Mois</div></div>
+        <div class="stat-card"><div class="val" id="stat-uninvoiced">€0</div><div class="lbl">Non facturé</div></div>
+      </div>
+    </div>
+    <div class="dash-right">
+      <!-- ENTRY PANEL -->
+      <div class="entry-panel" id="entry-panel">
+        <div class="ep-date" id="ep-date"></div>
+        <div class="field"><label>Contrat</label><select id="entry-contract" onchange="onContractChange()"></select></div>
+        <div class="hours-row">
+          <button class="h-btn" onclick="stepH(-1)">−</button>
+          <div class="h-val" id="h-val">8</div>
+          <span class="h-unit">h</span>
+          <button class="h-btn" onclick="stepH(1)">+</button>
+        </div>
+        <div class="field"><label>Commentaire</label><input type="text" id="entry-just"></div>
+        <button class="btn btn-primary btn-full" onclick="saveEntry()">Enregistrer</button>
+      </div>
+      <!-- WEEK CHART -->
+      <div class="card week-chart-wrap">
+        <h3>Cette semaine</h3>
+        <svg id="week-chart" viewBox="0 0 340 110"></svg>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- HISTORIQUE -->
+<div class="view" id="v-history">
+  <h2>Historique</h2>
+  <div class="filter-row">
+    <select id="hist-month"></select>
+    <select id="hist-contract"><option value="">Tous les contrats</option></select>
+  </div>
+  <div id="history-list"></div>
+</div>
+
+<!-- FACTURES -->
+<div class="view" id="v-invoices">
+  <h2>Factures</h2>
+  <div class="uninvoiced-banner" onclick="openCreateInvoice()" id="uninvoiced-banner" style="display:none">
+    <div><div class="ub-label">Total non facturé (HTVA)</div><div class="ub-amount" id="banner-amount">€0</div></div>
+    <div style="font-size:18px;">→</div>
+  </div>
+  <button class="btn btn-primary btn-full" onclick="openCreateInvoice()" style="margin-bottom:14px">+ Préparer une facture</button>
+  <div id="invoices-list"></div>
+</div>
+
+<!-- RÉGLAGES -->
+<div class="view" id="v-settings">
+  <h2>Réglages</h2>
+  <div class="settings-section">
+    <h3>Société</h3>
+    <div class="field"><label>Nom / Société</label><input id="s-company"></div>
+    <div class="field"><label>Adresse</label><textarea id="s-address" rows="2"></textarea></div>
+    <div class="field"><label>N° TVA</label><input id="s-vat"></div>
+    <div class="field"><label>IBAN</label><input id="s-iban"></div>
+    <div class="field"><label>Préfixe facture</label><input id="s-prefix"></div>
+    <div class="field"><label>Prochain n° facture</label><input id="s-next-num" type="number" min="1"></div>
+    <button class="btn btn-primary btn-full" onclick="saveSettings()">Sauvegarder</button>
+  </div>
+  <div class="settings-section">
+    <h3>Contrats</h3>
+    <div id="contracts-list"></div>
+    <button class="btn btn-secondary btn-full" onclick="openContractModal()" style="margin-top:6px">+ Ajouter un contrat</button>
+  </div>
+  <div class="settings-section">
+    <h3>Synchronisation</h3>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:8px;" id="sync-status"></p>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-secondary" onclick="forceSync()" style="flex:1">Forcer la synchro</button>
+      <button class="btn btn-secondary" onclick="exportJSON()" style="flex:1">Export JSON</button>
+    </div>
+    <button class="btn btn-danger btn-sm" onclick="resetToken()" style="margin-top:8px;">Changer le token GitHub</button>
+  </div>
+</div>
+
+<!-- MODAL: Edit Entry -->
+<div class="modal-overlay" id="m-entry"><div class="modal">
+  <button class="modal-close" onclick="cm('m-entry')">×</button>
+  <h3>Modifier l'entrée</h3>
+  <div class="field"><label>Date</label><input type="date" id="ed-date"></div>
+  <div class="field"><label>Contrat</label><select id="ed-contract"></select></div>
+  <div class="field"><label>Heures</label><input type="number" id="ed-hours" step="1" min="0" max="24"></div>
+  <div class="field"><label>Commentaire</label><input type="text" id="ed-just"></div>
+  <input type="hidden" id="ed-id">
+  <div style="display:flex;gap:8px;margin-top:10px;">
+    <button class="btn btn-primary" style="flex:1" onclick="updateEntry()">Sauver</button>
+    <button class="btn btn-danger btn-sm" onclick="deleteEntry()">Supprimer</button>
+  </div>
+</div></div>
+
+<!-- MODAL: Contract -->
+<div class="modal-overlay" id="m-contract"><div class="modal">
+  <button class="modal-close" onclick="cm('m-contract')">×</button>
+  <h3 id="cm-title">Ajouter un contrat</h3>
+  <div class="field"><label>Client</label><input id="c-customer"></div>
+  <div class="field"><label>Projet / Contrat</label><input id="c-project"></div>
+  <div class="field"><label>Taux horaire (€ HTVA)</label><input type="number" id="c-rate" step="0.01" min="0"></div>
+  <div class="field"><label>Commentaire par défaut</label><input id="c-defaultComment" placeholder="Pré-rempli à chaque saisie"></div>
+  <div class="field" style="display:flex;align-items:center;gap:8px;">
+    <input type="checkbox" id="c-active" checked style="width:18px;height:18px;accent-color:var(--accent)">
+    <label style="margin:0" for="c-active">Actif</label>
+  </div>
+  <input type="hidden" id="c-id">
+  <div style="display:flex;gap:8px;margin-top:10px;">
+    <button class="btn btn-primary" style="flex:1" onclick="saveContract()">Sauver</button>
+    <button class="btn btn-danger btn-sm" id="c-del" style="display:none" onclick="deleteContract()">Supprimer</button>
+  </div>
+</div></div>
+
+<!-- MODAL: Create Invoice -->
+<div class="modal-overlay" id="m-invoice"><div class="modal">
+  <button class="modal-close" onclick="cm('m-invoice')">×</button>
+  <h3>Préparer la facture</h3>
+  <div class="field"><label>Contrat</label><select id="inv-contract" onchange="loadInvEntries()"></select></div>
+  <div class="field"><label>Mois</label><select id="inv-month" onchange="loadInvEntries()"></select></div>
+  <div id="inv-entries"></div>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin:10px 0;">
+    <span style="color:var(--text2);font-size:13px;" id="inv-summary"></span>
+    <span style="font-size:13px;cursor:pointer;color:var(--accent);" onclick="toggleAll()">Tout cocher/décocher</span>
+  </div>
+  <div style="background:var(--bg);border-radius:8px;padding:10px;margin-bottom:10px;display:flex;justify-content:space-between;">
+    <span>Total HTVA</span>
+    <span id="inv-total" style="font-weight:700;color:var(--accent);font-size:16px;">€0,00</span>
+  </div>
+  <button class="btn btn-primary btn-full" onclick="generateInvoice()">Marquer comme facturé</button>
+</div></div>
+
+<!-- MODAL: View Invoice -->
+<div class="modal-overlay" id="m-view-inv"><div class="modal">
+  <button class="modal-close" onclick="cm('m-view-inv')">×</button>
+  <h3 id="vi-title">Facture</h3>
+  <div id="vi-details"></div>
+  <h3 style="margin-top:14px;">Descriptif pour ZenFacture</h3>
+  <div class="export-box" id="vi-export"></div>
+  <div style="display:flex;gap:8px;">
+    <button class="btn btn-primary" style="flex:1" onclick="copyExport()">📋 Copier</button>
+    <button class="btn btn-secondary" style="flex:1" onclick="dlExport()">💾 .txt</button>
+  </div>
+</div></div>
+
+
+<script>
+// ═══════════════════════════════════════
+//  GIST STORAGE
+// ═══════════════════════════════════════
+const GIST_FILE = 'timesheet_data.json';
+const LS_TOKEN = 'ts_gh_token';
+const LS_GIST  = 'ts_gh_gist_id';
+
+function getToken() { return localStorage.getItem(LS_TOKEN); }
+function getGistId() { return localStorage.getItem(LS_GIST); }
+
+function showSyncInd(state, msg) {
+  const el = document.getElementById('sync-ind');
+  el.className = 'sync-ind ' + state;
+  el.textContent = msg || '';
+  if (state === 'synced') setTimeout(() => el.style.display = 'none', 3000);
+}
+
+async function gistSave(data) {
+  const token = getToken(), gistId = getGistId();
+  if (!token || !gistId) return;
+  showSyncInd('syncing', 'Synchro...');
+  try {
+    const r = await fetch(`https://api.github.com/gists/${gistId}`, {
+      method: 'PATCH',
+      headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ files: { [GIST_FILE]: { content: JSON.stringify(data) } } })
+    });
+    if (!r.ok) throw new Error(r.status);
+    showSyncInd('synced', '✓ Synchronisé');
+  } catch (e) {
+    console.error('Gist save error:', e);
+    showSyncInd('error', '✗ Erreur synchro');
+  }
+}
+
+async function gistLoad() {
+  const token = getToken(), gistId = getGistId();
+  if (!token || !gistId) return null;
+  try {
+    const r = await fetch(`https://api.github.com/gists/${gistId}`, {
+      headers: { Authorization: 'Bearer ' + token }
+    });
+    if (!r.ok) return null;
+    const g = await r.json();
+    if (g.files && g.files[GIST_FILE]) {
+      return JSON.parse(g.files[GIST_FILE].content);
+    }
+  } catch (e) { console.error('Gist load error:', e); }
+  return null;
+}
+
+async function setupGist() {
+  const token = document.getElementById('setup-token').value.trim();
+  if (!token) { toast('Entrez un token', true); return; }
+  showSyncInd('syncing', 'Connexion...');
+  try {
+    // Try loading existing gists to find our data
+    const listR = await fetch('https://api.github.com/gists?per_page=100', {
+      headers: { Authorization: 'Bearer ' + token }
+    });
+    if (!listR.ok) throw new Error('Token invalide (HTTP ' + listR.status + ')');
+    const gists = await listR.json();
+    const existing = gists.find(g => g.files && g.files[GIST_FILE]);
+
+    if (existing) {
+      // Found existing data
+      localStorage.setItem(LS_TOKEN, token);
+      localStorage.setItem(LS_GIST, existing.id);
+      const data = await gistLoad();
+      if (data) D = mergeData(data);
+      document.getElementById('setup-screen').style.display = 'none';
+      showSyncInd('synced', '✓ Connecté (données existantes)');
+      refreshDash();
+      return;
+    }
+
+    // Create new gist
+    const createR = await fetch('https://api.github.com/gists', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        description: 'TimeSheet Data',
+        public: false,
+        files: { [GIST_FILE]: { content: JSON.stringify(D) } }
+      })
+    });
+    if (!createR.ok) throw new Error('Impossible de créer le Gist');
+    const newGist = await createR.json();
+    localStorage.setItem(LS_TOKEN, token);
+    localStorage.setItem(LS_GIST, newGist.id);
+    document.getElementById('setup-screen').style.display = 'none';
+    showSyncInd('synced', '✓ Gist créé');
+    refreshDash();
+  } catch (e) {
+    showSyncInd('error', e.message);
+    toast(e.message, true);
+  }
+}
+
+function resetToken() {
+  if (!confirm('Changer de token ? Les données resteront dans le Gist.')) return;
+  localStorage.removeItem(LS_TOKEN);
+  localStorage.removeItem(LS_GIST);
+  document.getElementById('setup-screen').style.display = 'flex';
+}
+
+function mergeData(remote) {
+  return { ...DEF(), ...remote, settings: { ...DEF().settings, ...(remote.settings || {}) } };
+}
+
+// ═══════════════════════════════════════
+//  DATA
+// ═══════════════════════════════════════
+const DEF = () => ({
+  settings: { company:'Denis Gauder', address:'Rue des Saules, 2\n4130 Tilff', vat:'TVA 1012.225.385', iban:'BE56.7320.7655.6188', invoicePrefix:'FACT-', nextInvoiceNumber:1 },
+  contracts: [{ id:'cdn1', customer:'CDN Digital', project:'CDN consultance', rate:115, active:true, defaultComment:'Consultance stratégique pour CDN Digital' }],
+  entries: [], invoices: []
+});
+
+let D = DEF();
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+
+function save() { gistSave(D); }
+
+function toast(m, err) {
+  const t = document.getElementById('toast');
+  t.textContent = m;
+  t.className = 'toast show' + (err ? ' error' : '');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+function fmtD(d) { return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
+function niceDate(s) { const d = new Date(s+'T12:00:00'); return d.toLocaleDateString('fr-BE',{weekday:'short',day:'numeric',month:'short'}); }
+const MN = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+
+// ═══════════════════════════════════════
+//  NAV
+// ═══════════════════════════════════════
+function go(id, btn) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  if (id === 'v-log') refreshDash();
+  if (id === 'v-history') refreshHist();
+  if (id === 'v-invoices') refreshInv();
+  if (id === 'v-settings') refreshSet();
+}
+function om(id) { document.getElementById(id).classList.add('show'); }
+function cm(id) { document.getElementById(id).classList.remove('show'); }
+
+// ═══════════════════════════════════════
+//  SELECTS
+// ═══════════════════════════════════════
+function popSel() {
+  const ac = D.contracts.filter(c => c.active);
+  ['entry-contract','ed-contract','inv-contract'].forEach(sid => {
+    const s = document.getElementById(sid); if (!s) return;
+    const cur = s.value;
+    const list = sid === 'inv-contract' ? D.contracts : ac;
+    s.innerHTML = list.map(c => `<option value="${c.id}">${c.customer} — ${c.project} (€${c.rate}/h)</option>`).join('');
+    if (cur && list.find(c => c.id === cur)) s.value = cur;
+  });
+  const hf = document.getElementById('hist-contract');
+  if (hf) { const cur = hf.value; hf.innerHTML = '<option value="">Tous les contrats</option>' + D.contracts.map(c => `<option value="${c.id}">${c.customer} — ${c.project}</option>`).join(''); if (cur) hf.value = cur; }
+}
+
+// ═══════════════════════════════════════
+//  CALENDAR STATE
+// ═══════════════════════════════════════
+let calYear, calMonth, selectedDate;
+function initCal() {
+  const t = new Date();
+  calYear = t.getFullYear(); calMonth = t.getMonth();
+  selectedDate = fmtD(t);
+}
+
+function calNav(dir) {
+  calMonth += dir;
+  if (calMonth < 0) { calMonth = 11; calYear--; }
+  if (calMonth > 11) { calMonth = 0; calYear++; }
+  drawCal();
+}
+
+function selectDay(dateStr) {
+  selectedDate = dateStr;
+  drawCal();
+  updateEntryPanel();
+}
+
+function drawCal() {
+  const title = document.getElementById('cal-title');
+  title.textContent = MN[calMonth] + ' ' + calYear;
+
+  const grid = document.getElementById('cal-grid');
+  const today = fmtD(new Date());
+  const fd = new Date(calYear, calMonth, 1);
+  const dim = new Date(calYear, calMonth + 1, 0).getDate();
+  const sd = (fd.getDay() + 6) % 7;
+
+  // Hours map & invoiced set
+  const dh = {}, di = {};
+  D.entries.forEach(e => {
+    const ed = new Date(e.date + 'T12:00:00');
+    if (ed.getFullYear() === calYear && ed.getMonth() === calMonth) {
+      dh[ed.getDate()] = (dh[ed.getDate()] || 0) + e.hours;
+      if (e.invoiceId) di[ed.getDate()] = true;
+    }
+  });
+
+  const hdrs = ['L','M','M','J','V','S','D'];
+  let html = hdrs.map(h => `<div class="cal-hdr">${h}</div>`).join('');
+
+  // Empty cells before 1st
+  for (let i = 0; i < sd; i++) html += '<div class="cal-day empty"></div>';
+
+  for (let d = 1; d <= dim; d++) {
+    const ds = calYear + '-' + String(calMonth+1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+    const hrs = dh[d] || 0;
+    const isToday = ds === today;
+    const isSel = ds === selectedDate;
+    const isInv = di[d];
+    let cls = 'cal-day';
+    if (isToday) cls += ' today';
+    if (isSel) cls += ' selected';
+    if (hrs > 0 && !isSel) cls += ' has-hours';
+    if (isInv) cls += ' invoiced-day';
+
+    html += `<div class="${cls}" onclick="selectDay('${ds}')">
+      <span>${d}</span>
+      ${hrs > 0 ? `<span class="cal-hrs">${hrs}h</span>` : ''}
+    </div>`;
+  }
+
+  grid.innerHTML = html;
+}
+
+// ═══════════════════════════════════════
+//  ENTRY PANEL
+// ═══════════════════════════════════════
+let entryHours = 8;
+
+function updateEntryPanel() {
+  const d = new Date(selectedDate + 'T12:00:00');
+  document.getElementById('ep-date').textContent = d.toLocaleDateString('fr-BE', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+
+  // Check existing entries for this date
+  const existing = D.entries.filter(e => e.date === selectedDate);
+  const existingHrs = existing.reduce((s, e) => s + e.hours, 0);
+
+  // Pre-fill comment from selected contract
+  onContractChange();
+
+  // If already has hours today, show remaining or 8
+  if (existingHrs > 0) {
+    entryHours = Math.max(0, 8 - existingHrs);
+  } else {
+    entryHours = 8;
+  }
+  document.getElementById('h-val').textContent = entryHours;
+}
+
+function onContractChange() {
+  const cid = document.getElementById('entry-contract').value;
+  const c = D.contracts.find(x => x.id === cid);
+  const justInp = document.getElementById('entry-just');
+  if (c && c.defaultComment && !justInp.dataset.userEdited) {
+    justInp.value = c.defaultComment;
+  }
+}
+
+// Track if user manually edited the comment
+document.getElementById('entry-just').addEventListener('input', function() {
+  this.dataset.userEdited = this.value ? '1' : '';
+});
+
+function stepH(dir) {
+  entryHours = Math.max(0, Math.min(24, entryHours + dir));
+  document.getElementById('h-val').textContent = entryHours;
+}
+
+function saveEntry() {
+  if (!D.contracts.length) { toast('Ajoutez un contrat d\'abord', true); return; }
+  if (entryHours <= 0) { toast('Entrez des heures > 0', true); return; }
+  const cid = document.getElementById('entry-contract').value;
+  const just = document.getElementById('entry-just').value.trim() || 'Travail';
+
+  D.entries.push({ id: uid(), contractId: cid, date: selectedDate, hours: entryHours, justification: just, invoiceId: null });
+  save();
+
+  // Reset for next entry
+  document.getElementById('entry-just').dataset.userEdited = '';
+  toast(entryHours + 'h enregistrées ✓');
+  refreshDash();
+}
+
+// ═══════════════════════════════════════
+//  DASHBOARD
+// ═══════════════════════════════════════
+function refreshDash() {
+  popSel();
+  drawCal();
+  updateEntryPanel();
+
+  const today = new Date();
+  const ws = weekStart(today), ms = new Date(today.getFullYear(), today.getMonth(), 1);
+  let wh = 0, mh = 0, un = 0;
+  D.entries.forEach(e => {
+    const ed = new Date(e.date + 'T12:00:00');
+    if (ed >= ws) wh += e.hours;
+    if (ed >= ms) mh += e.hours;
+    if (!e.invoiceId) { const c = D.contracts.find(x => x.id === e.contractId); un += e.hours * (c ? c.rate : 0); }
+  });
+  document.getElementById('stat-week').textContent = wh.toFixed(0);
+  document.getElementById('stat-month').textContent = mh.toFixed(0);
+  document.getElementById('stat-uninvoiced').textContent = '€' + un.toFixed(0);
+  drawWeek(today);
+}
+
+function weekStart(d) { const s = new Date(d); const day = s.getDay(); s.setDate(s.getDate() - (day === 0 ? 6 : day - 1)); s.setHours(0,0,0,0); return s; }
+
+function drawWeek(today) {
+  const svg = document.getElementById('week-chart'), ws = weekStart(today);
+  const days = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'], data = Array(7).fill(0);
+  D.entries.forEach(e => { const ed = new Date(e.date + 'T12:00:00'), diff = Math.floor((ed - ws) / 864e5); if (diff >= 0 && diff < 7) data[diff] += e.hours; });
+  const maxH = Math.max(8, ...data), bw = 36, gap = 12, sx = 30, h = 80, tp = 12;
+  let html = '';
+  data.forEach((v, i) => {
+    const x = sx + i * (bw + gap), bH = (v / maxH) * (h - tp), y = h - bH;
+    html += `<rect x="${x}" y="${tp}" width="${bw}" height="${h-tp}" rx="4" fill="#1e293b" opacity=".5"/>`;
+    if (v > 0) { html += `<rect x="${x}" y="${y}" width="${bw}" height="${bH}" rx="4" fill="${i<5?'#f59e0b':'#d97706'}"/><text x="${x+bw/2}" y="${y-3}" text-anchor="middle" class="bar-val">${v}</text>`; }
+    const isT = i === ((today.getDay()+6)%7);
+    html += `<text x="${x+bw/2}" y="${h+13}" text-anchor="middle" class="bar-label" ${isT?'fill="#f59e0b" font-weight="700"':''}>${days[i]}</text>`;
+  });
+  svg.innerHTML = html;
+}
+
+// ═══════════════════════════════════════
+//  HISTORY
+// ═══════════════════════════════════════
+function refreshHist() {
+  popSel(); popHM();
+  const mv = document.getElementById('hist-month').value, cv = document.getElementById('hist-contract').value;
+  let entries = [...D.entries].sort((a, b) => b.date.localeCompare(a.date));
+  if (mv) entries = entries.filter(e => e.date.startsWith(mv));
+  if (cv) entries = entries.filter(e => e.contractId === cv);
+  const el = document.getElementById('history-list');
+  if (!entries.length) { el.innerHTML = '<div class="empty">Aucune entrée</div>'; return; }
+  let tot = 0;
+  let html = entries.map(e => {
+    const c = D.contracts.find(x => x.id === e.contractId); tot += e.hours;
+    const badge = e.invoiceId ? (() => { const i = D.invoices.find(x => x.id === e.invoiceId); return `<span class="badge">${i ? i.number : 'FAC'}</span>`; })() : '';
+    return `<div class="entry-item ${e.invoiceId?'invoiced':''}" onclick="openEditEntry('${e.id}')"><div class="left"><div class="date">${niceDate(e.date)} · ${c?c.customer:'?'}</div><div class="justification">${e.justification}</div></div><div class="hours">${e.hours}h</div>${badge}</div>`;
+  }).join('');
+  el.innerHTML = `<div style="margin-bottom:6px;color:var(--text2);font-size:12px;">${entries.length} entrées · ${tot}h</div>` + html;
+}
+function popHM() {
+  const s = document.getElementById('hist-month'), cur = s.value, months = new Set();
+  D.entries.forEach(e => months.add(e.date.substring(0, 7)));
+  s.innerHTML = '<option value="">Tous les mois</option>' + [...months].sort().reverse().map(m => {
+    const [y, mo] = m.split('-'); return `<option value="${m}">${MN[parseInt(mo)-1]} ${y}</option>`;
+  }).join('');
+  if (cur) s.value = cur;
+}
+document.getElementById('hist-month').addEventListener('change', refreshHist);
+document.getElementById('hist-contract').addEventListener('change', refreshHist);
+
+function openEditEntry(id) {
+  const e = D.entries.find(x => x.id === id); if (!e) return;
+  if (e.invoiceId) { toast('Entrée facturée — modification impossible', true); return; }
+  document.getElementById('ed-date').value = e.date; document.getElementById('ed-hours').value = e.hours;
+  document.getElementById('ed-just').value = e.justification; document.getElementById('ed-id').value = e.id;
+  popSel(); document.getElementById('ed-contract').value = e.contractId; om('m-entry');
+}
+function updateEntry() {
+  const id = document.getElementById('ed-id').value, i = D.entries.findIndex(e => e.id === id); if (i < 0) return;
+  D.entries[i].date = document.getElementById('ed-date').value;
+  D.entries[i].contractId = document.getElementById('ed-contract').value;
+  D.entries[i].hours = parseInt(document.getElementById('ed-hours').value) || 0;
+  D.entries[i].justification = document.getElementById('ed-just').value.trim();
+  save(); cm('m-entry'); refreshDash(); refreshHist(); toast('Entrée modifiée');
+}
+function deleteEntry() {
+  const id = document.getElementById('ed-id').value;
+  D.entries = D.entries.filter(e => e.id !== id);
+  save(); cm('m-entry'); refreshDash(); refreshHist(); toast('Entrée supprimée');
+}
+
+// ═══════════════════════════════════════
+//  CONTRACTS
+// ═══════════════════════════════════════
+function refreshCL() {
+  const el = document.getElementById('contracts-list');
+  if (!D.contracts.length) { el.innerHTML = '<div class="empty">Aucun contrat</div>'; return; }
+  el.innerHTML = D.contracts.map(c => `<div class="contract-item ${c.active?'':'ci-inactive'}"><div><div class="ci-name">${c.customer} — ${c.project}</div><div class="ci-details">€${c.rate}/h HTVA${c.active?'':' · inactif'}${c.defaultComment?' · "'+c.defaultComment+'"':''}</div></div><button class="btn btn-sm btn-secondary" onclick="editContract('${c.id}')">Modifier</button></div>`).join('');
+}
+function openContractModal(id) {
+  const e = !!id; document.getElementById('cm-title').textContent = e ? 'Modifier' : 'Ajouter un contrat';
+  document.getElementById('c-del').style.display = e ? 'block' : 'none';
+  if (e) { const c = D.contracts.find(x => x.id === id); document.getElementById('c-customer').value = c.customer; document.getElementById('c-project').value = c.project; document.getElementById('c-rate').value = c.rate; document.getElementById('c-active').checked = c.active; document.getElementById('c-defaultComment').value = c.defaultComment || ''; document.getElementById('c-id').value = c.id; }
+  else { ['c-customer','c-project','c-rate','c-defaultComment'].forEach(x => document.getElementById(x).value = ''); document.getElementById('c-active').checked = true; document.getElementById('c-id').value = ''; }
+  om('m-contract');
+}
+function editContract(id) { openContractModal(id); }
+function saveContract() {
+  const id = document.getElementById('c-id').value;
+  const o = { id: id || uid(), customer: document.getElementById('c-customer').value.trim(), project: document.getElementById('c-project').value.trim(), rate: parseFloat(document.getElementById('c-rate').value) || 0, active: document.getElementById('c-active').checked, defaultComment: document.getElementById('c-defaultComment').value.trim() };
+  if (!o.customer || !o.project) { toast('Remplir client et projet', true); return; }
+  if (id) { const i = D.contracts.findIndex(c => c.id === id); D.contracts[i] = o; } else { D.contracts.push(o); }
+  save(); cm('m-contract'); popSel(); refreshCL(); toast(id ? 'Contrat modifié' : 'Contrat ajouté');
+}
+function deleteContract() {
+  const id = document.getElementById('c-id').value; if (!id) return;
+  if (D.entries.some(e => e.contractId === id)) { toast('Impossible: des entrées existent', true); return; }
+  D.contracts = D.contracts.filter(c => c.id !== id); save(); cm('m-contract'); popSel(); refreshCL(); toast('Contrat supprimé');
+}
+
+// ═══════════════════════════════════════
+//  INVOICES — grouped by month
+// ═══════════════════════════════════════
+function refreshInv() {
+  popSel();
+  let un = 0, uc = 0;
+  D.entries.forEach(e => { if (!e.invoiceId) { const c = D.contracts.find(x => x.id === e.contractId); un += e.hours * (c ? c.rate : 0); uc++; } });
+  const b = document.getElementById('uninvoiced-banner');
+  if (uc > 0) { b.style.display = 'flex'; document.getElementById('banner-amount').textContent = '€' + un.toFixed(2); } else { b.style.display = 'none'; }
+  const el = document.getElementById('invoices-list'), invs = [...D.invoices].sort((a, b) => b.date.localeCompare(a.date));
+  if (!invs.length) { el.innerHTML = '<div class="empty">Aucune facture</div>'; return; }
+  el.innerHTML = invs.map(inv => {
+    const c = D.contracts.find(x => x.id === inv.contractId);
+    return `<div class="invoice-item" onclick="viewInv('${inv.id}')"><div><div class="inv-num">${inv.number}</div><div class="inv-date">${inv.monthLabel || niceDate(inv.date)} · ${c?c.customer:'?'}</div></div><div class="inv-total">€${inv.total.toFixed(2)}</div></div>`;
+  }).join('');
+}
+
+function openCreateInvoice() {
+  popSel();
+  // Populate month selector with uninvoiced months, default = previous month
+  const months = new Set();
+  D.entries.forEach(e => { if (!e.invoiceId) months.add(e.date.substring(0, 7)); });
+  const sorted = [...months].sort().reverse();
+  const sel = document.getElementById('inv-month');
+  sel.innerHTML = sorted.map(m => {
+    const [y, mo] = m.split('-');
+    return `<option value="${m}">${MN[parseInt(mo)-1]} ${y}</option>`;
+  }).join('');
+
+  // Default to previous month if available
+  const today = new Date();
+  const prevM = today.getMonth() === 0 ? 11 : today.getMonth() - 1;
+  const prevY = today.getMonth() === 0 ? today.getFullYear() - 1 : today.getFullYear();
+  const prevKey = prevY + '-' + String(prevM + 1).padStart(2, '0');
+  if (sorted.includes(prevKey)) sel.value = prevKey;
+
+  loadInvEntries();
+  om('m-invoice');
+}
+
+function loadInvEntries() {
+  const cid = document.getElementById('inv-contract').value;
+  const month = document.getElementById('inv-month').value;
+  const entries = D.entries.filter(e => !e.invoiceId && e.contractId === cid && e.date.startsWith(month)).sort((a, b) => a.date.localeCompare(b.date));
+  const el = document.getElementById('inv-entries');
+  if (!entries.length) { el.innerHTML = '<div class="empty">Aucune entrée non facturée pour ce mois</div>'; updateIT(); return; }
+  el.innerHTML = entries.map(e => `<div class="check-entry"><input type="checkbox" checked data-id="${e.id}" data-hours="${e.hours}" onchange="updateIT()"><div class="ce-info"><div class="ce-date">${niceDate(e.date)}</div><div class="ce-just">${e.justification}</div></div><div class="ce-hrs">${e.hours}h</div></div>`).join('');
+  updateIT();
+}
+
+function updateIT() {
+  const cid = document.getElementById('inv-contract').value, c = D.contracts.find(x => x.id === cid), rate = c ? c.rate : 0;
+  let t = 0, n = 0;
+  document.querySelectorAll('#inv-entries input[type="checkbox"]:checked').forEach(cb => { t += parseFloat(cb.dataset.hours); n++; });
+  document.getElementById('inv-total').textContent = '€' + (t * rate).toFixed(2);
+  document.getElementById('inv-summary').textContent = n + ' entrées · ' + t + 'h';
+}
+function toggleAll() {
+  const cbs = document.querySelectorAll('#inv-entries input[type="checkbox"]');
+  const all = [...cbs].every(cb => cb.checked); cbs.forEach(cb => cb.checked = !all); updateIT();
+}
+
+function generateInvoice() {
+  const cid = document.getElementById('inv-contract').value, c = D.contracts.find(x => x.id === cid);
+  if (!c) { toast('Sélectionnez un contrat', true); return; }
+  const month = document.getElementById('inv-month').value;
+  const checked = document.querySelectorAll('#inv-entries input[type="checkbox"]:checked');
+  if (!checked.length) { toast('Sélectionnez au moins une entrée', true); return; }
+  const eids = [...checked].map(cb => cb.dataset.id);
+  const entries = eids.map(id => D.entries.find(e => e.id === id)).filter(Boolean);
+  const totalHrs = entries.reduce((s, e) => s + e.hours, 0), total = totalHrs * c.rate;
+  const s = D.settings, num = s.invoicePrefix + String(s.nextInvoiceNumber).padStart(4, '0');
+  const [my, mm] = month.split('-');
+  const monthLabel = MN[parseInt(mm) - 1] + ' ' + my;
+
+  const inv = { id: uid(), number: num, date: fmtD(new Date()), month, monthLabel, contractId: c.id, entryIds: eids, totalHours: totalHrs, rate: c.rate, total, customer: c.customer, project: c.project };
+  eids.forEach(eid => { const e = D.entries.find(x => x.id === eid); if (e) e.invoiceId = inv.id; });
+  D.invoices.push(inv); D.settings.nextInvoiceNumber++; save();
+  cm('m-invoice'); refreshInv(); refreshDash(); toast(`Facture ${num} créée`);
+  viewInv(inv.id);
+}
+
+let _vInvId = null;
+function viewInv(id) {
+  _vInvId = id;
+  const inv = D.invoices.find(i => i.id === id); if (!inv) return;
+  const c = D.contracts.find(x => x.id === inv.contractId);
+  document.getElementById('vi-title').textContent = inv.number;
+  const entries = inv.entryIds.map(eid => D.entries.find(e => e.id === eid)).filter(Boolean).sort((a, b) => a.date.localeCompare(b.date));
+
+  document.getElementById('vi-details').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
+      <div><span style="color:var(--text2);font-size:11px;">CLIENT</span><div style="font-weight:600;">${inv.customer}</div></div>
+      <div><span style="color:var(--text2);font-size:11px;">MOIS</span><div style="font-weight:600;">${inv.monthLabel || ''}</div></div>
+      <div><span style="color:var(--text2);font-size:11px;">CONTRAT</span><div>${inv.project}</div></div>
+      <div><span style="color:var(--text2);font-size:11px;">FACTURE DU</span><div>${niceDate(inv.date)}</div></div>
+    </div>
+    <div style="background:var(--bg);border-radius:8px;padding:10px;display:flex;justify-content:space-between;align-items:center;">
+      <span>${inv.totalHours}h × €${inv.rate.toFixed(2)}/h</span>
+      <span style="font-weight:700;color:var(--accent);font-size:18px;">€${inv.total.toFixed(2)} HTVA</span>
+    </div>`;
+
+  // ZenFacture export
+  const defComment = c ? c.defaultComment || inv.project : inv.project;
+  let lines = [];
+  lines.push(defComment);
+  lines.push(`Mois : ${inv.monthLabel}`);
+  lines.push(`Réf. : ${inv.number}`);
+  lines.push('');
+  lines.push('Détail des prestations :');
+  entries.forEach(e => {
+    const d = new Date(e.date + 'T12:00:00');
+    const ds = d.toLocaleDateString('fr-BE', { weekday:'long', day:'numeric', month:'long' });
+    lines.push(`  ${ds} : ${e.hours}h — ${e.justification}`);
+  });
+  lines.push('');
+  lines.push(`Total : ${inv.totalHours} heures × €${inv.rate.toFixed(2)} = €${inv.total.toFixed(2)} HTVA`);
+  document.getElementById('vi-export').textContent = lines.join('\n');
+  om('m-view-inv');
+}
+
+function copyExport() {
+  const text = document.getElementById('vi-export').textContent;
+  navigator.clipboard.writeText(text).then(() => toast('Copié !')).catch(() => { const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); toast('Copié !'); });
+}
+function dlExport() {
+  const inv = D.invoices.find(i => i.id === _vInvId); if (!inv) return;
+  const blob = new Blob([document.getElementById('vi-export').textContent], { type:'text/plain' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = inv.number + '.txt'; a.click(); URL.revokeObjectURL(a.href);
+}
+
+// ═══════════════════════════════════════
+//  SETTINGS
+// ═══════════════════════════════════════
+function refreshSet() {
+  const s = D.settings;
+  document.getElementById('s-company').value = s.company || '';
+  document.getElementById('s-address').value = s.address || '';
+  document.getElementById('s-vat').value = s.vat || '';
+  document.getElementById('s-iban').value = s.iban || '';
+  document.getElementById('s-prefix').value = s.invoicePrefix || 'FACT-';
+  document.getElementById('s-next-num').value = s.nextInvoiceNumber || 1;
+  refreshCL();
+  const gid = getGistId();
+  document.getElementById('sync-status').textContent = gid ? `Gist ID: ${gid.substring(0,12)}…` : 'Non connecté';
+}
+function saveSettings() {
+  D.settings.company = document.getElementById('s-company').value.trim();
+  D.settings.address = document.getElementById('s-address').value.trim();
+  D.settings.vat = document.getElementById('s-vat').value.trim();
+  D.settings.iban = document.getElementById('s-iban').value.trim();
+  D.settings.invoicePrefix = document.getElementById('s-prefix').value.trim();
+  D.settings.nextInvoiceNumber = parseInt(document.getElementById('s-next-num').value) || 1;
+  save(); toast('Réglages sauvegardés');
+}
+
+async function forceSync() {
+  const data = await gistLoad();
+  if (data) { D = mergeData(data); refreshDash(); toast('Données rechargées depuis le Gist'); }
+  else { toast('Impossible de charger', true); }
+}
+function exportJSON() {
+  const blob = new Blob([JSON.stringify(D, null, 2)], { type:'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'timesheet_' + fmtD(new Date()) + '.json'; a.click(); URL.revokeObjectURL(a.href); toast('JSON exporté');
+}
+
+// ═══════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════
+initCal();
+
+(async function boot() {
+  if (!getToken() || !getGistId()) {
+    // Show setup
+    document.getElementById('setup-screen').style.display = 'flex';
+    refreshDash();
+    return;
+  }
+  // Load from gist
+  showSyncInd('syncing', 'Chargement...');
+  const data = await gistLoad();
+  if (data) {
+    D = mergeData(data);
+    showSyncInd('synced', '✓ Synchronisé');
+  } else {
+    showSyncInd('error', '✗ Erreur chargement');
+  }
+  refreshDash();
+})();
+</script>
+</body>
+</html>
