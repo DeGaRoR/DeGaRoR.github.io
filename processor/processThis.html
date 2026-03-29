@@ -28630,8 +28630,8 @@ ProfileRegistry.register('membrane_leaf', {
   config: { composite: true, deprecated: true }
 });
 ProfileRegistry.register('co2_scrubber', {
-  defId: 'membrane_separator', name: 'CO\u2082 Absorber', category: UnitCategories.SEPARATION,
-  description: 'Scrubs CO\u2082 out of air',
+  defId: 'membrane_separator', name: 'CO\u2082 Remover', category: UnitCategories.SEPARATION,
+  description: 'Removes CO\u2082 from air',
   selectionGuide: 'Keeps your crew breathing. Eats through cartridges — when they\'re gone, CO\u2082 passes straight through. Watch the gauge.',
   tiers: [1],
   limits: { 1: { T_LL: 220, T_HH: 470, P_HH: 1000000, mass_HH: 0.05 } },
@@ -28672,7 +28672,7 @@ ProfileRegistry.register('shelter', {
   defId: 'room', name: 'Shelter', pressureClass: 'simple',
   category: UnitCategories.LIFE_SUPPORT, tiers: [1],
   description: 'Pressurized habitat — the crew lives here. Everything else exists to keep this running.',
-  selectionGuide: 'Connect O₂, food, water, hot water, power, and an air scrubbing loop (exhaust → scrubber → return). '
+  selectionGuide: 'Connect O₂, food, water, hot water, power, and an air scrubbing loop (exhaust → remover → return). '
     + 'Without power the fan stops and CO₂ builds. Without O₂ the atmosphere degrades over hours. '
     + 'Without water the crew is incapacitated in 24 hours. The room never breaks — people die inside it.',
   limits: { 1: { T_LL: 263, T_HH: 323 } },
@@ -28813,9 +28813,15 @@ const M1_OUTRO = [
 
 const M1_GUIDANCE = [
   { id: 'g_m1_connect_battery',
-    dialogue: { speaker: 'lena', text: 'It\u2019s pitch dark. Battery\u2019s above us \u2014 connect it to the power port.', expression: 'happy' },
-    highlight: { type: 'connection', fromProfile: 'battery', fromPort: 'elec', toProfile: 'shelter', toPort: 'elec_in' },
-    completion: { type: 'connection', fromProfile: 'battery', toProfile: 'shelter' },
+    dialogue: { speaker: 'lena', text: 'It\u2019s pitch dark. Battery\u2019s above us \u2014 connect it to the power dispatcher. Think of it as a big power strip. We\u2019ll need it.', expression: 'happy' },
+    highlight: { type: 'connection', fromProfile: 'battery', fromPort: 'elec', toProfile: 'power_dispatcher_5', toPort: 'elec_in_1' },
+    completion: { type: 'connection', fromProfile: 'battery', toProfile: 'power_dispatcher_5' },
+    onComplete: { speaker: 'lena', text: 'Good. Power\u2019s flowing to the dispatcher.' },
+    delay_ms: 500 },
+  { id: 'g_m1_connect_room_power',
+    dialogue: { speaker: 'lena', text: 'Now connect the dispatcher to the shelter\u2019s power port.', expression: 'happy' },
+    highlight: { type: 'connection', fromProfile: 'power_dispatcher_5', fromPort: 'elec_out_1', toProfile: 'shelter', toPort: 'elec_in' },
+    completion: { type: 'connection', fromProfile: 'power_dispatcher_5', toProfile: 'shelter' },
     onComplete: { speaker: 'lena', text: 'Light! That\u2019s better.' },
     delay_ms: 500 },
   { id: 'g_m1_connect_o2',
@@ -28841,7 +28847,7 @@ const M2_INTRO = [
 
 const M2_BRIEFING = [
   { type: 'dialogue', speaker: 'lena', expression: 'happy', delay_ms: 1500,
-    text: 'CO\u2082 is building up. I salvaged a scrubber \u2014 LiOH cartridges. Won\u2019t last forever.' },
+    text: 'CO\u2082 is building up, and it\u2019s freezing at night. I salvaged a CO\u2082 remover, a cooler, and a heater. Let\u2019s build an air loop.' },
 ];
 
 const M2_VICTORY_LINES = {
@@ -28852,34 +28858,58 @@ const M2_VICTORY_LINES = {
 
 const M2_OUTRO = [
   { type: 'image', src: 'm2_outro_1.webp', transition: 'fade', duration_ms: null,
-    fallbackText: 'With the scrubber running, I felt proud.\n\nBut an hour later,\nI was already replacing the first cartridge.\nAnd we didn\u2019t have many.\n\nLena stayed calm.\nI wondered what she\u2019d think of next.',
-    alt: 'CO2 scrubber installed' },
+    fallbackText: 'With the remover running, I felt proud.\n\nBut an hour later,\nI was already replacing the first cartridge.\nAnd we didn\u2019t have many.\n\nLena stayed calm.\nI wondered what she\u2019d think of next.',
+    alt: 'CO2 remover installed' },
 ];
 
 const M2_GUIDANCE = [
-  { id: 'g_m2_exhaust_to_scrubber',
-    dialogue: { speaker: 'lena', text: 'Connect the shelter\u2019s air exhaust to the scrubber\u2019s inlet. We need a loop.', expression: 'happy' },
+  { id: 'g_m2_exhaust_to_remover',
+    dialogue: { speaker: 'lena', text: 'Connect the shelter\u2019s air exhaust to the CO\u2082 remover. We need a loop.', expression: 'happy' },
     highlight: { type: 'connection', fromProfile: 'shelter', fromPort: 'air_exhaust', toProfile: 'co2_scrubber', toPort: 'mat_in' },
     completion: { type: 'connection', fromProfile: 'shelter', toProfile: 'co2_scrubber' },
     onComplete: { speaker: 'lena', text: 'Good. Dirty air has somewhere to go.' },
     delay_ms: 500 },
-  { id: 'g_m2_clean_return',
-    dialogue: { speaker: 'lena', text: 'Now the clean side \u2014 \u201Cpermeate\u201D back to the shelter\u2019s air return.', expression: 'happy' },
-    highlight: { type: 'connection', fromProfile: 'co2_scrubber', fromPort: 'perm_out', toProfile: 'shelter', toPort: 'air_return' },
-    completion: { type: 'connection', fromProfile: 'co2_scrubber', toProfile: 'shelter' },
-    onComplete: { speaker: 'lena', text: 'Loop closed. Almost there.' },
+  { id: 'g_m2_remover_to_cooler',
+    dialogue: { speaker: 'lena', text: 'Clean air out of the remover \u2014 route it through the cooler next.', expression: 'happy' },
+    highlight: { type: 'connection', fromProfile: 'co2_scrubber', fromPort: 'perm_out', toProfile: 'air_cooler', toPort: 'mat_in' },
+    completion: { type: 'connection', fromProfile: 'co2_scrubber', toProfile: 'air_cooler' },
+    onComplete: { speaker: 'lena', text: 'That\u2019ll handle the hot afternoons.' },
+    delay_ms: 500 },
+  { id: 'g_m2_cooler_to_heater',
+    dialogue: { speaker: 'lena', text: 'Cooler to heater \u2014 so we can warm the air back up at night.', expression: 'happy' },
+    highlight: { type: 'connection', fromProfile: 'air_cooler', fromPort: 'mat_out', toProfile: 'electric_heater', toPort: 'mat_in' },
+    completion: { type: 'connection', fromProfile: 'air_cooler', toProfile: 'electric_heater' },
+    onComplete: { speaker: 'lena', text: 'Good. Both directions covered.' },
+    delay_ms: 500 },
+  { id: 'g_m2_heater_to_return',
+    dialogue: { speaker: 'lena', text: 'Now close the loop \u2014 heater output back to the shelter\u2019s air return.', expression: 'happy' },
+    highlight: { type: 'connection', fromProfile: 'electric_heater', fromPort: 'mat_out', toProfile: 'shelter', toPort: 'air_return' },
+    completion: { type: 'connection', fromProfile: 'electric_heater', toProfile: 'shelter' },
+    onComplete: { speaker: 'lena', text: 'Air loop closed.' },
     delay_ms: 500 },
   { id: 'g_m2_co2_to_flare',
-    dialogue: { speaker: 'lena', text: 'Last one. Send the \u201Cretentate\u201D \u2014 captured CO\u2082 \u2014 to the flare.', expression: 'happy' },
+    dialogue: { speaker: 'lena', text: 'The captured CO\u2082 \u2014 send it to the flare so it doesn\u2019t build up.', expression: 'happy' },
     highlight: { type: 'connection', fromProfile: 'co2_scrubber', fromPort: 'ret_out', toProfile: 'flare_stack' },
     completion: { type: 'connection', fromProfile: 'co2_scrubber', toProfile: 'flare_stack' },
-    onComplete: { speaker: 'lena', text: 'Nice tower. I\u2019ll give you that.' },
+    onComplete: { speaker: 'lena', text: 'CO\u2082 vented. Now power.' },
     delay_ms: 500 },
-  { id: 'g_m2_run',
-    dialogue: { speaker: 'lena', text: 'Press play. Watch the CO\u2082 drop.', expression: 'happy' },
+  { id: 'g_m2_power_cooler',
+    dialogue: { speaker: 'lena', text: 'The cooler needs electricity. Connect it to the power dispatcher.', expression: 'happy' },
+    highlight: { type: 'connection', fromProfile: 'power_dispatcher_5', toProfile: 'air_cooler' },
+    completion: { type: 'connection', fromProfile: 'power_dispatcher_5', toProfile: 'air_cooler' },
+    onComplete: { speaker: 'lena', text: 'Cooler powered.' },
+    delay_ms: 500 },
+  { id: 'g_m2_power_heater',
+    dialogue: { speaker: 'lena', text: 'Same for the heater.', expression: 'happy' },
+    highlight: { type: 'connection', fromProfile: 'power_dispatcher_5', toProfile: 'electric_heater' },
+    completion: { type: 'connection', fromProfile: 'power_dispatcher_5', toProfile: 'electric_heater' },
+    onComplete: { speaker: 'lena', text: 'All powered up.' },
+    delay_ms: 500 },
+  { id: 'g_m2_play',
+    dialogue: { speaker: 'lena', text: 'Hit play. Keep an eye on that cartridge gauge \u2014 it won\u2019t last forever.', expression: 'happy' },
     highlight: { type: 'button', buttonId: 'btnPlay' },
     completion: { type: 'play_pressed' },
-    onComplete: { speaker: 'lena', text: 'Breathing easier. Keep an eye on that cartridge gauge.' },
+    onComplete: { speaker: 'lena', text: 'Breathing easier. Temperature holding. Good work.' },
     delay_ms: 500 },
 ];
 
@@ -29058,6 +29088,9 @@ MissionRegistry.register('arc_a_m1', {
         P_relief: 35000000 } },
     { id: 'battery', profileId: 'battery', defId: 'battery', tier: 1, lock: 'nodelete',
       x: 1, y: -3, params: { peakPower_kW: 100, capacity_J: 1800000000, initialSOC: 1 } },
+    { id: 'power_disp', profileId: 'power_dispatcher_5', defId: 'power_dispatcher_5', tier: 1, lock: 'nodelete',
+      name: 'Power Dispatcher',
+      x: 4, y: -3, params: {} },
   ],
 
   narrator: 'lena',
@@ -29070,8 +29103,11 @@ MissionRegistry.register('arc_a_m1', {
 
   objectives: [
     { id: 'connect_battery', type: 'connection',
-      fromProfile: 'battery', toProfile: 'shelter', portType: 'elec',
-      description: 'Connect battery to shelter' },
+      fromProfile: 'battery', toProfile: 'power_dispatcher_5', portType: 'elec',
+      description: 'Connect battery to power dispatcher' },
+    { id: 'connect_room_power', type: 'connection',
+      fromProfile: 'power_dispatcher_5', toProfile: 'shelter', portType: 'elec',
+      description: 'Connect dispatcher to shelter' },
     { id: 'connect_o2', type: 'connection',
       fromProfile: 'simple_gas_bottle', toProfile: 'shelter',
       description: 'Connect O\u2082 bottle to shelter' },
@@ -29117,8 +29153,8 @@ MissionRegistry.register('arc_a_m2', {
   index: 1,
   contentVersion: 1,
   title: 'Clear the Air',
-  subtitle: 'CO\u2082 is building up inside the shelter.',
-  emergency: 'CO\u2082 rising above safe limits.',
+  subtitle: 'CO\u2082 is building up, and the temperature swings are brutal.',
+  emergency: 'CO\u2082 rising. Temperature unstable.',
 
   palette: {},
   species: ['O2', 'N2', 'Ar', 'CO2'],
@@ -29132,6 +29168,13 @@ MissionRegistry.register('arc_a_m2', {
       x: 8, y: 1, params: { targetSpecies: 'CO2', extractionFrac: 0.99,
         consumable: { name: 'LiOH Cartridges', capacity: 500, remaining: 500, maxRate: 5.0 },
         variant: 'flip' } },
+    { id: 'cooler', profileId: 'air_cooler', defId: 'air_cooler', tier: 1, lock: 'nodelete',
+      name: 'Air Cooler',
+      x: 10, y: 5, params: { T_out: 294, UA_kW_K: 1, max_fan_power_W: 200,
+        powerPriority: 2, variant: 'vert-elec-L' } },
+    { id: 'heater', profileId: 'electric_heater', defId: 'electric_heater', tier: 1, lock: 'nodelete',
+      name: 'Air Heater',
+      x: 7, y: 7, params: { T_out: 294, powerPriority: 2, variant: 'mirror' } },
   ],
 
   narrator: 'lena',
@@ -29145,17 +29188,22 @@ MissionRegistry.register('arc_a_m2', {
   objectives: [
     { id: 'connect_exhaust', type: 'connection',
       fromProfile: 'shelter', toProfile: 'co2_scrubber',
-      description: 'Connect room exhaust to scrubber' },
+      description: 'Connect room exhaust to CO\u2082 remover' },
+    { id: 'connect_remover_to_cooler', type: 'connection',
+      fromProfile: 'co2_scrubber', toProfile: 'air_cooler',
+      description: 'Connect clean air to cooler' },
+    { id: 'connect_cooler_to_heater', type: 'connection',
+      fromProfile: 'air_cooler', toProfile: 'electric_heater',
+      description: 'Connect cooler to heater' },
     { id: 'connect_return', type: 'connection',
-      fromProfile: 'co2_scrubber', toProfile: 'shelter',
-      description: 'Connect clean air back to room' },
+      fromProfile: 'electric_heater', toProfile: 'shelter',
+      description: 'Connect heater back to room' },
+    { id: 'connect_co2_flare', type: 'connection',
+      fromProfile: 'co2_scrubber', toProfile: 'flare_stack',
+      description: 'Send captured CO\u2082 to flare' },
     { id: 'co2_controlled', type: 'maintain_conditions',
       unit: 'shelter', conditions: { CO2_pct_lte: 1.0, O2_pct_gte: 18 }, duration_s: 7200,
       description: 'CO\u2082 < 1% and O\u2082 \u2265 18% for 2 hours' },
-    // Inherited health
-    { id: 'health_o2', type: 'maintain_conditions',
-      unit: 'shelter', conditions: { O2_pct_gte: 18 }, duration_s: 7200,
-      description: '[Health] O\u2082 \u2265 18% for 2 hours' },
   ],
 
   stars: {
@@ -29177,7 +29225,7 @@ MissionRegistry.register('arc_a_m2', {
     { id: 'scrubber_50pct', once: true, delay_s: 0,
       condition: { type: 'depletion_below', profileId: 'co2_scrubber', threshold: 0.5 },
       action: { type: 'dialogue', speaker: 'lena',
-        text: 'That scrubber cartridge is half gone. Just so you know.',
+        text: 'Remover cartridge is half used up. Just so you know.',
         expression: 'disappointed' } },
     { id: 'scrubber_20pct', once: true, delay_s: 0,
       condition: { type: 'depletion_below', profileId: 'co2_scrubber', threshold: 0.2 },
@@ -52319,7 +52367,7 @@ DemoScenes.register('demo_v1', 'Demo V1 — Sabatier / Brayton / SMR / Tank',
 // 2 bends + 3 mixers + 2 sinks.  All waste routed to single vent/sewer sinks.
 // O₂ bottle P_relief raised to 350 bar (above P_init 305 bar).
 DemoScenes.register('demo_room_survival', 'Ineluctable Fate — Day 0 (Room)',
-  '{"version":19,"processName":"Ineluctable Fate \u2014 Day 0","grid":{"w":40,"h":32,"tile":48},"settings":{"atmospherePreset":"planet_x","dt":3600},"units":[{"id":"room","defId":"room","profileId":"room","tier":1,"name":"Crew Room","x":0,"y":0,"rot":0,"params":{"nPeople":2,"powerPriority":1}},{"id":"o2_bottle","defId":"simple_tank","profileId":"simple_gas_bottle","tier":1,"name":"O\u2082 Bottle","x":-7,"y":1,"rot":0,"params":{"volume_m3":0.01,"P_init":30553950,"initialComposition":{"O2":1},"gasDrawRate":0.001,"opening_gas_pct":46.6,"P_relief":35000000}},{"id":"water_barrel","defId":"simple_open_tank","profileId":"simple_open_barrel","tier":1,"name":"Water Barrel","x":-7,"y":5,"rot":0,"params":{"volume_m3":0.1,"initialComposition":{"H2O":1},"level_init":0.3348,"drawRate":0.01,"opening_pct":25.8,"overflow_level":90}},{"id":"food_crate","defId":"food_storage","profileId":"food_crate","tier":1,"name":"Food Crate","x":-11,"y":3,"rot":0,"params":{"volume_m3":0.1,"gasDrawRate":0.001,"opening_gas_pct":46.6,"P_init":29331792,"initialComposition":{"CH2O":1},"P_relief":30000000,"UA_jacket":50}},{"id":"scrubber","defId":"membrane_separator","profileId":"membrane_separator","tier":1,"name":"LiOH Scrubber","x":8,"y":1,"rot":0,"params":{"targetSpecies":"CO2","extractionFrac":0.99,"consumable":{"name":"LiOH Cartridges","capacity":500,"remaining":500,"maxRate":5},"variant":"flip"}},{"id":"co2_snk","defId":"sink","profileId":"sink","tier":1,"name":"Vent","x":14,"y":-6,"rot":0,"params":{}},{"id":"cooler","defId":"air_cooler","profileId":"air_cooler","tier":1,"name":"Air Cooler","x":10,"y":5,"rot":0,"params":{"T_out":294,"UA_kW_K":1,"max_fan_power_W":200,"powerPriority":2,"variant":"vert-elec-L"}},{"id":"heater","defId":"electric_heater","profileId":"electric_heater","tier":1,"name":"Air Heater","x":7,"y":7,"rot":0,"params":{"T_out":294,"powerPriority":2,"variant":"mirror"}},{"id":"battery","defId":"battery","profileId":"battery","tier":1,"name":"Battery","x":1,"y":-3,"rot":0,"params":{"peakPower_kW":100,"capacity_J":1800000000,"initialSOC":1}},{"id":"power_disp","defId":"power_dispatcher_5","profileId":"power_dispatcher_5","tier":1,"name":"Power Dispatch","x":4,"y":-3,"rot":0,"params":{}},{"id":"surplus_snk","defId":"sink_electrical","profileId":"sink_electrical","tier":1,"name":"Surplus","x":6,"y":-5,"rot":0,"params":{"ratedPower_kW":50,"powerPriority":5}},{"id":"simple_open_tank-1","defId":"simple_open_tank","profileId":"simple_open_barrel","tier":1,"name":"Hot Water Barrel","x":-4,"y":7,"rot":0,"params":{"volume_m3":0.1,"initialComposition":{"H2O":1},"level_init":0.3348,"drawRate":0.01,"opening_pct":6.4,"overflow_level":90}},{"id":"bend-3","defId":"bend","profileId":"bend","tier":1,"name":"Pipe Bend 3","x":-11,"y":-6,"rot":0,"params":{"variant":"down-right"}},{"id":"simple_mixer-5","defId":"simple_mixer","profileId":"simple_mixer","tier":1,"name":"Simple Mixer 5","x":-7,"y":-6,"rot":0,"params":{"variant":"recycle-B"}},{"id":"simple_mixer-8","defId":"simple_mixer","profileId":"simple_mixer","tier":1,"name":"Simple Mixer 5 (copy)","x":10,"y":-6,"rot":0,"params":{"variant":"recycle-B"}},{"id":"bend-12","defId":"bend","profileId":"bend","tier":1,"name":"Pipe Bend 3 (copy)","x":-7,"y":9,"rot":0,"params":{"variant":"up-right"}},{"id":"simple_mixer-14","defId":"simple_mixer","profileId":"simple_mixer","tier":1,"name":"Simple Mixer 5 (copy)","x":-4,"y":9,"rot":0,"params":{"variant":"recycle-T"}},{"id":"sink-17","defId":"sink","profileId":"sink","tier":1,"name":"Sewer","x":14,"y":9,"rot":0,"params":{}}],"connections":[{"id":"c_o2","from":{"unitId":"o2_bottle","portId":"gas_out"},"to":{"unitId":"room","portId":"o2_in"}},{"id":"c_h2o","from":{"unitId":"water_barrel","portId":"mat_out"},"to":{"unitId":"room","portId":"h2o_in"}},{"id":"c_food","from":{"unitId":"food_crate","portId":"food_out"},"to":{"unitId":"room","portId":"food_in"}},{"id":"c_exhaust","from":{"unitId":"room","portId":"air_exhaust"},"to":{"unitId":"scrubber","portId":"mat_in"}},{"id":"c_cool_in","from":{"unitId":"scrubber","portId":"perm_out"},"to":{"unitId":"cooler","portId":"mat_in"}},{"id":"c_heat_in","from":{"unitId":"cooler","portId":"mat_out"},"to":{"unitId":"heater","portId":"mat_in"}},{"id":"c_return","from":{"unitId":"heater","portId":"mat_out"},"to":{"unitId":"room","portId":"air_return"}},{"id":"e_bat","from":{"unitId":"battery","portId":"elec"},"to":{"unitId":"power_disp","portId":"elec_in_1"}},{"id":"e_room","from":{"unitId":"power_disp","portId":"elec_out_1"},"to":{"unitId":"room","portId":"elec_in"}},{"id":"e_cooler","from":{"unitId":"power_disp","portId":"elec_out_2"},"to":{"unitId":"cooler","portId":"elec_in"}},{"id":"e_heater","from":{"unitId":"power_disp","portId":"elec_out_3"},"to":{"unitId":"heater","portId":"elec_in"}},{"id":"e_surplus","from":{"unitId":"power_disp","portId":"elec_surplus"},"to":{"unitId":"surplus_snk","portId":"elec_in"}},{"id":"conn-2","from":{"unitId":"simple_open_tank-1","portId":"mat_out"},"to":{"unitId":"room","portId":"hot_water_in"}},{"id":"conn-4","from":{"unitId":"food_crate","portId":"biogas_out"},"to":{"unitId":"bend-3","portId":"mat_in"}},{"id":"conn-6","from":{"unitId":"bend-3","portId":"mat_out"},"to":{"unitId":"simple_mixer-5","portId":"mat_in_1"}},{"id":"conn-7","from":{"unitId":"o2_bottle","portId":"vent"},"to":{"unitId":"simple_mixer-5","portId":"mat_in_2"}},{"id":"conn-9","from":{"unitId":"scrubber","portId":"ret_out"},"to":{"unitId":"simple_mixer-8","portId":"mat_in_2"}},{"id":"conn-10","from":{"unitId":"simple_mixer-5","portId":"mat_out"},"to":{"unitId":"simple_mixer-8","portId":"mat_in_1"}},{"id":"conn-11","from":{"unitId":"simple_mixer-8","portId":"mat_out"},"to":{"unitId":"co2_snk","portId":"mat_in"}},{"id":"conn-13","from":{"unitId":"water_barrel","portId":"overflow"},"to":{"unitId":"bend-12","portId":"mat_in"}},{"id":"conn-15","from":{"unitId":"simple_open_tank-1","portId":"overflow"},"to":{"unitId":"simple_mixer-14","portId":"mat_in_2"}},{"id":"conn-16","from":{"unitId":"bend-12","portId":"mat_out"},"to":{"unitId":"simple_mixer-14","portId":"mat_in_1"}},{"id":"conn-18","from":{"unitId":"simple_mixer-14","portId":"mat_out"},"to":{"unitId":"sink-17","portId":"mat_in"}}],"modelsActive":{"thermo_package":"ideal_raoult","reaction":null,"units":"SI_bar"},"solverOptions":{"maxIter":200},"layout":{"viewMode":"flowsheet","colorBy":"type","theme":"ragtag","paletteOpen":false,"inspectorOpen":false}}'
+  '{"version":19,"processName":"Ineluctable Fate \u2014 Day 0","grid":{"w":40,"h":32,"tile":48},"settings":{"atmospherePreset":"planet_x","dt":3600},"units":[{"id":"room","defId":"room","profileId":"room","tier":1,"name":"Crew Room","x":0,"y":0,"rot":0,"params":{"nPeople":2,"powerPriority":1}},{"id":"o2_bottle","defId":"simple_tank","profileId":"simple_gas_bottle","tier":1,"name":"O\u2082 Bottle","x":-7,"y":1,"rot":0,"params":{"volume_m3":0.01,"P_init":30553950,"initialComposition":{"O2":1},"gasDrawRate":0.001,"opening_gas_pct":46.6,"P_relief":35000000}},{"id":"water_barrel","defId":"simple_open_tank","profileId":"simple_open_barrel","tier":1,"name":"Water Barrel","x":-7,"y":5,"rot":0,"params":{"volume_m3":0.1,"initialComposition":{"H2O":1},"level_init":0.3348,"drawRate":0.01,"opening_pct":25.8,"overflow_level":90}},{"id":"food_crate","defId":"food_storage","profileId":"food_crate","tier":1,"name":"Food Crate","x":-11,"y":3,"rot":0,"params":{"volume_m3":0.1,"gasDrawRate":0.001,"opening_gas_pct":46.6,"P_init":29331792,"initialComposition":{"CH2O":1},"P_relief":30000000,"UA_jacket":50}},{"id":"scrubber","defId":"membrane_separator","profileId":"membrane_separator","tier":1,"name":"CO\u2082 Remover","x":8,"y":1,"rot":0,"params":{"targetSpecies":"CO2","extractionFrac":0.99,"consumable":{"name":"LiOH Cartridges","capacity":500,"remaining":500,"maxRate":5},"variant":"flip"}},{"id":"co2_snk","defId":"sink","profileId":"sink","tier":1,"name":"Vent","x":14,"y":-6,"rot":0,"params":{}},{"id":"cooler","defId":"air_cooler","profileId":"air_cooler","tier":1,"name":"Air Cooler","x":10,"y":5,"rot":0,"params":{"T_out":294,"UA_kW_K":1,"max_fan_power_W":200,"powerPriority":2,"variant":"vert-elec-L"}},{"id":"heater","defId":"electric_heater","profileId":"electric_heater","tier":1,"name":"Air Heater","x":7,"y":7,"rot":0,"params":{"T_out":294,"powerPriority":2,"variant":"mirror"}},{"id":"battery","defId":"battery","profileId":"battery","tier":1,"name":"Battery","x":1,"y":-3,"rot":0,"params":{"peakPower_kW":100,"capacity_J":1800000000,"initialSOC":1}},{"id":"power_disp","defId":"power_dispatcher_5","profileId":"power_dispatcher_5","tier":1,"name":"Power Dispatch","x":4,"y":-3,"rot":0,"params":{}},{"id":"surplus_snk","defId":"sink_electrical","profileId":"sink_electrical","tier":1,"name":"Surplus","x":6,"y":-5,"rot":0,"params":{"ratedPower_kW":50,"powerPriority":5}},{"id":"simple_open_tank-1","defId":"simple_open_tank","profileId":"simple_open_barrel","tier":1,"name":"Hot Water Barrel","x":-4,"y":7,"rot":0,"params":{"volume_m3":0.1,"initialComposition":{"H2O":1},"level_init":0.3348,"drawRate":0.01,"opening_pct":6.4,"overflow_level":90}},{"id":"bend-3","defId":"bend","profileId":"bend","tier":1,"name":"Pipe Bend 3","x":-11,"y":-6,"rot":0,"params":{"variant":"down-right"}},{"id":"simple_mixer-5","defId":"simple_mixer","profileId":"simple_mixer","tier":1,"name":"Simple Mixer 5","x":-7,"y":-6,"rot":0,"params":{"variant":"recycle-B"}},{"id":"simple_mixer-8","defId":"simple_mixer","profileId":"simple_mixer","tier":1,"name":"Simple Mixer 5 (copy)","x":10,"y":-6,"rot":0,"params":{"variant":"recycle-B"}},{"id":"bend-12","defId":"bend","profileId":"bend","tier":1,"name":"Pipe Bend 3 (copy)","x":-7,"y":9,"rot":0,"params":{"variant":"up-right"}},{"id":"simple_mixer-14","defId":"simple_mixer","profileId":"simple_mixer","tier":1,"name":"Simple Mixer 5 (copy)","x":-4,"y":9,"rot":0,"params":{"variant":"recycle-T"}},{"id":"sink-17","defId":"sink","profileId":"sink","tier":1,"name":"Sewer","x":14,"y":9,"rot":0,"params":{}}],"connections":[{"id":"c_o2","from":{"unitId":"o2_bottle","portId":"gas_out"},"to":{"unitId":"room","portId":"o2_in"}},{"id":"c_h2o","from":{"unitId":"water_barrel","portId":"mat_out"},"to":{"unitId":"room","portId":"h2o_in"}},{"id":"c_food","from":{"unitId":"food_crate","portId":"food_out"},"to":{"unitId":"room","portId":"food_in"}},{"id":"c_exhaust","from":{"unitId":"room","portId":"air_exhaust"},"to":{"unitId":"scrubber","portId":"mat_in"}},{"id":"c_cool_in","from":{"unitId":"scrubber","portId":"perm_out"},"to":{"unitId":"cooler","portId":"mat_in"}},{"id":"c_heat_in","from":{"unitId":"cooler","portId":"mat_out"},"to":{"unitId":"heater","portId":"mat_in"}},{"id":"c_return","from":{"unitId":"heater","portId":"mat_out"},"to":{"unitId":"room","portId":"air_return"}},{"id":"e_bat","from":{"unitId":"battery","portId":"elec"},"to":{"unitId":"power_disp","portId":"elec_in_1"}},{"id":"e_room","from":{"unitId":"power_disp","portId":"elec_out_1"},"to":{"unitId":"room","portId":"elec_in"}},{"id":"e_cooler","from":{"unitId":"power_disp","portId":"elec_out_2"},"to":{"unitId":"cooler","portId":"elec_in"}},{"id":"e_heater","from":{"unitId":"power_disp","portId":"elec_out_3"},"to":{"unitId":"heater","portId":"elec_in"}},{"id":"e_surplus","from":{"unitId":"power_disp","portId":"elec_surplus"},"to":{"unitId":"surplus_snk","portId":"elec_in"}},{"id":"conn-2","from":{"unitId":"simple_open_tank-1","portId":"mat_out"},"to":{"unitId":"room","portId":"hot_water_in"}},{"id":"conn-4","from":{"unitId":"food_crate","portId":"biogas_out"},"to":{"unitId":"bend-3","portId":"mat_in"}},{"id":"conn-6","from":{"unitId":"bend-3","portId":"mat_out"},"to":{"unitId":"simple_mixer-5","portId":"mat_in_1"}},{"id":"conn-7","from":{"unitId":"o2_bottle","portId":"vent"},"to":{"unitId":"simple_mixer-5","portId":"mat_in_2"}},{"id":"conn-9","from":{"unitId":"scrubber","portId":"ret_out"},"to":{"unitId":"simple_mixer-8","portId":"mat_in_2"}},{"id":"conn-10","from":{"unitId":"simple_mixer-5","portId":"mat_out"},"to":{"unitId":"simple_mixer-8","portId":"mat_in_1"}},{"id":"conn-11","from":{"unitId":"simple_mixer-8","portId":"mat_out"},"to":{"unitId":"co2_snk","portId":"mat_in"}},{"id":"conn-13","from":{"unitId":"water_barrel","portId":"overflow"},"to":{"unitId":"bend-12","portId":"mat_in"}},{"id":"conn-15","from":{"unitId":"simple_open_tank-1","portId":"overflow"},"to":{"unitId":"simple_mixer-14","portId":"mat_in_2"}},{"id":"conn-16","from":{"unitId":"bend-12","portId":"mat_out"},"to":{"unitId":"simple_mixer-14","portId":"mat_in_1"}},{"id":"conn-18","from":{"unitId":"simple_mixer-14","portId":"mat_out"},"to":{"unitId":"sink-17","portId":"mat_in"}}],"modelsActive":{"thermo_package":"ideal_raoult","reaction":null,"units":"SI_bar"},"solverOptions":{"maxIter":200},"layout":{"viewMode":"flowsheet","colorBy":"type","theme":"ragtag","paletteOpen":false,"inspectorOpen":false}}'
 );
 
 // [v17.12.0] Unit Showcase — every defId×profile displayed in a grid for visual QA
@@ -72747,10 +72795,10 @@ function runTests() {
     t.assertOK(m, 'M1 exists');
     t.assertOK(m.title === 'Breathe', 'title');
     t.assertOK(Object.keys(m.palette).length === 0, 'empty palette');
-    t.assertOK(m.preplacedUnits.length === 3, '3 preplaced: room, bottle, battery');
-    t.assertOK(m.objectives.length === 3, '3 objectives');
+    t.assertOK(m.preplacedUnits.length === 4, '4 preplaced: room, bottle, battery, dispatcher');
+    t.assertOK(m.objectives.length === 4, '4 objectives');
     t.assertOK(m.objectives[0].type === 'connection', 'obj1 is connection');
-    t.assertOK(m.guidanceSteps.length === 3, '3 guidance steps');
+    t.assertOK(m.guidanceSteps.length === 4, '4 guidance steps');
     t.assertOK(m.storyIntro.length === 0, 'no story intro (arc intro covers it)');
     t.assertOK(m.storyOutro.length === 1, '1 outro beat');
     t.assertOK(m.stars[3], 'star 3 defined');
@@ -72761,11 +72809,11 @@ function runTests() {
     t.assertOK(m, 'M2 exists');
     t.assertOK(m.title === 'Clear the Air', 'title');
     t.assertOK(m.inheritScene === true, 'inherits scene');
-    t.assertOK(m.preplacedUnits.length === 2, '2 new preplaced: flare, scrubber');
+    t.assertOK(m.preplacedUnits.length === 4, '4 new preplaced: flare, remover, cooler, heater');
     t.assertOK(m.triggers.length === 2, '2 triggers');
     t.assertOK(m.triggers[0].id === 'scrubber_50pct', 'first trigger id');
-    t.assertOK(m.objectives.length === 4, '4 objectives (3 primary + 1 health)');
-    t.assertOK(m.guidanceSteps.length === 4, '4 guidance steps');
+    t.assertOK(m.objectives.length === 6, '6 objectives');
+    t.assertOK(m.guidanceSteps.length === 8, '8 guidance steps');
   });
 
   test('752: M3 Find Water — palette, species, preplaced', t => {
@@ -72903,7 +72951,7 @@ function runTests() {
     const json = buildMissionScene(cs, 'arc_a_m1');
     t.assertOK(json, 'returns JSON');
     const data = JSON.parse(json);
-    t.assertOK(data.units.length === 3, '3 units: room, bottle, battery');
+    t.assertOK(data.units.length === 4, '4 units: room, bottle, battery, dispatcher');
     t.assertOK(data.processName === 'Breathe', 'processName from mission title');
 
     // Check _preplaced flags
@@ -72928,6 +72976,7 @@ function runTests() {
         { id: 'room', defId: 'room', profileId: 'shelter', tier: 1, x: 0, y: 0, params: {} },
         { id: 'o2_bottle', defId: 'simple_tank', profileId: 'simple_gas_bottle', tier: 1, x: -7, y: 1, params: {} },
         { id: 'battery', defId: 'battery', profileId: 'battery', tier: 1, x: 1, y: -3, params: {} },
+        { id: 'power_disp', defId: 'power_dispatcher_5', profileId: 'power_dispatcher_5', tier: 1, x: 4, y: -3, params: {} },
       ],
       connections: [{ id: 'c1', from: { unitId: 'o2_bottle', portId: 'gas_out' }, to: { unitId: 'room', portId: 'o2_in' } }],
       modelsActive: {}, solverOptions: {}, layout: {},
@@ -72937,12 +72986,12 @@ function runTests() {
     const json = buildMissionScene(cs, 'arc_a_m2');
     const data = JSON.parse(json);
 
-    t.assertOK(data.units.length === 5, '3 inherited + 2 new preplaced = 5');
+    t.assertOK(data.units.length === 8, '4 inherited + 4 new preplaced = 8');
     t.assertOK(data.connections.length === 1, 'inherited connection preserved');
 
     // All 5 should be marked preplaced (3 from M1 + 2 from M2)
     const preplaced = data.units.filter(u => u._preplaced);
-    t.assertOK(preplaced.length === 5, 'all 5 marked _preplaced');
+    t.assertOK(preplaced.length === 8, 'all 8 marked _preplaced');
 
     // New units present
     t.assertOK(data.units.find(u => u.id === 'flare'), 'flare added');
@@ -72987,22 +73036,23 @@ function runTests() {
     scene.units.get(room).profileId = 'shelter';
     scene.units.get(bottle).profileId = 'simple_gas_bottle';
     scene.units.get(bat).profileId = 'battery';
-    // Connect
-    t.wire(bat, 'elec', room, 'elec_in');
+    const disp = t.place('power_dispatcher_5', 4, -4, {});
+    scene.units.get(disp).profileId = 'power_dispatcher_5';
+    // Connect via dispatcher
+    t.wire(bat, 'elec', disp, 'elec_in_1');
+    t.wire(disp, 'elec_out_1', room, 'elec_in');
     t.wire(bottle, 'gas_out', room, 'o2_in');
     t.solve();
 
     // Evaluate — objectives check connections + maintain_conditions
-    // maintain_conditions needs duration tracking (duration_s check) — but at instant t=0
-    // the connections should be met; duration won't be met instantly
     const result = evaluateMissionCompletion('arc_a_m1', scene, {
       missionElapsed_s: 0, converged: true,
     });
     t.assertOK(result, 'returns result');
-    // Connection objectives should be met
-    const connObj = result.objectiveResults.filter(o => o.id === 'connect_battery' || o.id === 'connect_o2');
-    t.assertOK(connObj.length === 2, '2 connection objectives found');
-    t.assertOK(connObj.every(o => o.met), 'both connection objectives met');
+    // Connection objectives should be met (battery→disp, disp→room, o2)
+    const connObj = result.objectiveResults.filter(o => o.id === 'connect_battery' || o.id === 'connect_room_power' || o.id === 'connect_o2');
+    t.assertOK(connObj.length === 3, '3 connection objectives found');
+    t.assertOK(connObj.every(o => o.met), 'all connection objectives met');
     // maintain_conditions at t=0 won't be met (needs 3600s)
     const maintObj = result.objectiveResults.find(o => o.id === 'o2_sustained');
     t.assertOK(maintObj && !maintObj.met, 'maintain_conditions not met at t=0 (needs duration)');
@@ -73096,7 +73146,7 @@ function runTests() {
     t.clearScene();
     const result = scene.importJSON(json);
     t.assertOK(result.ok !== false, 'importJSON succeeds');
-    t.assertOK(scene.units.size === 3, '3 units after import');
+    t.assertOK(scene.units.size === 4, '4 units after import');
     // Verify a unit is present
     const roomFound = [...scene.units.values()].find(u => u.profileId === 'shelter');
     t.assertOK(roomFound, 'shelter found in imported scene');
@@ -73398,27 +73448,30 @@ function runTests() {
     t.clearScene();
     const imp = scene.importJSON(sceneJSON);
     t.assertOK(imp.ok !== false, 'M1 scene imported');
-    t.assertOK(scene.units.size === 3, '3 units: room, bottle, battery');
+    t.assertOK(scene.units.size === 4, '4 units: room, bottle, battery, dispatcher');
 
     // Verify profileIds
     const room = [...scene.units.values()].find(u => u.profileId === 'shelter');
     const bottle = [...scene.units.values()].find(u => u.profileId === 'simple_gas_bottle');
     const battery = [...scene.units.values()].find(u => u.profileId === 'battery');
+    const dispatcher = [...scene.units.values()].find(u => u.profileId === 'power_dispatcher_5');
     t.assertOK(room, 'room has profileId=shelter');
     t.assertOK(bottle, 'bottle has profileId=simple_gas_bottle');
     t.assertOK(battery, 'battery has profileId=battery');
+    t.assertOK(dispatcher, 'dispatcher has profileId=power_dispatcher_5');
 
-    // Wire connections (player actions)
-    t.wire(battery.id, 'elec', room.id, 'elec_in');
+    // Wire connections (player actions): battery→dispatcher→room, O₂→room
+    t.wire(battery.id, 'elec', dispatcher.id, 'elec_in_1');
+    t.wire(dispatcher.id, 'elec_out_1', room.id, 'elec_in');
     t.wire(bottle.id, 'gas_out', room.id, 'o2_in');
 
     // Check connection objectives before stepping
     const timers = {};
     const rt0 = { missionElapsed_s: 0, converged: true, _conditionTimers: timers };
     const r0 = evaluateMissionCompletion('arc_a_m1', scene, rt0);
-    const connObjs = r0.objectiveResults.filter(o => o.type === 'connection');
     // Connections should be met immediately
-    t.assertOK(r0.objectiveResults.find(o => o.id === 'connect_battery')?.met, 'battery connected');
+    t.assertOK(r0.objectiveResults.find(o => o.id === 'connect_battery')?.met, 'battery→dispatcher connected');
+    t.assertOK(r0.objectiveResults.find(o => o.id === 'connect_room_power')?.met, 'dispatcher→room connected');
     t.assertOK(r0.objectiveResults.find(o => o.id === 'connect_o2')?.met, 'O₂ connected');
 
     // Step 2 times (2 hours) — accumulate timer
@@ -73455,13 +73508,13 @@ function runTests() {
     SimSettings.dt = origDt; TimeClock.mode = origMode;
   });
 
-  test('781: M2 Playtest — inherit M1 + scrubber loop → CO₂ controlled', t => {
+  test('781: M2 Playtest — inherit M1 + air loop → CO₂ controlled', t => {
     const origT = TimeClock.t, origFrame = TimeClock.frame;
     const origDt = SimSettings.dt, origMode = TimeClock.mode;
     TimeClock.t = T0_SECONDS; TimeClock.frame = 0; TimeClock.mode = 'paused';
     SimSettings.dt = 3600;
 
-    // Simulate M1 end scene: room + bottle + battery, all wired
+    // Simulate M1 end scene: room + bottle + battery + dispatcher, all wired
     const cs = new CampaignState('planet_x', 'M2 Playtest');
     const m1JSON = buildMissionScene(cs, 'arc_a_m1');
     t.clearScene();
@@ -73470,31 +73523,40 @@ function runTests() {
     const room1 = [...scene.units.values()].find(u => u.profileId === 'shelter');
     const bottle1 = [...scene.units.values()].find(u => u.profileId === 'simple_gas_bottle');
     const battery1 = [...scene.units.values()].find(u => u.profileId === 'battery');
-    t.wire(battery1.id, 'elec', room1.id, 'elec_in');
+    const disp1 = [...scene.units.values()].find(u => u.profileId === 'power_dispatcher_5');
+    t.wire(battery1.id, 'elec', disp1.id, 'elec_in_1');
+    t.wire(disp1.id, 'elec_out_1', room1.id, 'elec_in');
     t.wire(bottle1.id, 'gas_out', room1.id, 'o2_in');
 
     // Save as M1 end scene
     const m1End = scene.exportJSON();
     cs.missionEndScenes.set('arc_a_m1', m1End);
 
-    // Build M2 scene (inherits M1 + adds flare + scrubber)
+    // Build M2 scene (inherits M1 + adds flare, remover, cooler, heater)
     const m2JSON = buildMissionScene(cs, 'arc_a_m2');
     t.clearScene();
     TimeClock.t = T0_SECONDS; TimeClock.frame = 0;
     scene.importJSON(m2JSON);
-    t.assertOK(scene.units.size === 5, '5 units: room, bottle, battery, flare, scrubber');
+    t.assertOK(scene.units.size === 8, '8 units: room, bottle, battery, dispatcher + flare, remover, cooler, heater');
 
     const room = [...scene.units.values()].find(u => u.profileId === 'shelter');
     const scrubber = [...scene.units.values()].find(u => u.profileId === 'co2_scrubber');
     const flare = [...scene.units.values()].find(u => u.profileId === 'flare_stack');
+    const cooler = [...scene.units.values()].find(u => u.profileId === 'air_cooler');
+    const heater = [...scene.units.values()].find(u => u.profileId === 'electric_heater');
+    const disp = [...scene.units.values()].find(u => u.profileId === 'power_dispatcher_5');
     t.assertOK(room, 'room present');
     t.assertOK(scrubber, 'scrubber present');
     t.assertOK(flare, 'flare present');
 
-    // Wire M2 connections: exhaust → scrubber → return + retentate → flare
+    // Wire M2 connections: full air loop + CO₂ to flare + power
     t.wire(room.id, 'air_exhaust', scrubber.id, 'mat_in');
-    t.wire(scrubber.id, 'perm_out', room.id, 'air_return');
+    t.wire(scrubber.id, 'perm_out', cooler.id, 'mat_in');
+    t.wire(cooler.id, 'mat_out', heater.id, 'mat_in');
+    t.wire(heater.id, 'mat_out', room.id, 'air_return');
     t.wire(scrubber.id, 'ret_out', flare.id, 'mat_in');
+    t.wire(disp.id, 'elec_out_2', cooler.id, 'elec_in');
+    t.wire(disp.id, 'elec_out_3', heater.id, 'elec_in');
 
     // Solve once to initialize
     solveScene(scene);
