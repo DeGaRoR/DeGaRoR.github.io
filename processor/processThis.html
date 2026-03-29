@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v20.8.0  (authoritative version: PTIS_VERSION const in script block 1)
+  processThis v20.9.0  (authoritative version: PTIS_VERSION const in script block 1)
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -401,6 +401,90 @@
   ═══════════════════════════════════════════════════════════════════════════
   CHANGELOG  (latest first)
   ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v20.9.0 — M4 Make Oxygen + mission infrastructure ─────────────────────
+
+  **M4 — Make Oxygen.**  Fourth Arc A mission.  Player builds water
+  electrolysis loop: hydrovent → cooler → L/V separator → splitter →
+  electrolyzer → O₂ bottle.  6 guidance steps, 7 objectives, 4 triggers,
+  3 stars.  Second flare stack preplaced (gas flare, y=9, nodelete).
+  Teaching: phase separation, flow splitting, electrode outlets (anode vs
+  cathode), pressure vessel safety (vents/overflows), spaghetti routing.
+
+  **Electrolyzer conversion_max → 1.0.**  Default changed from 0.80 to
+  1.0 in ProfileRegistry, Scene.placeUnit, and inspector slider (max
+  100%, was 99%).  Fuel cell defaults also updated.  100% conversion
+  gives two pure outlet streams — simpler for early-game teaching.
+
+  **Hydrovent rates halved.**  `{H2O: 0.09, CH4: 0.045, H2: 0.015}`
+  mol/s (was 0.18/0.09/0.03).  Reproduces 50% choke from the old
+  reservoir model.  1% splitter split now exactly sustains O₂ demand.
+
+  **Hydrovent inspector locked for preplaced units.**  Campaign mode:
+  read-only "Well composition (fixed)" display instead of editable
+  flow slider.
+
+  **Connection lock mechanism.**  `preplacedConnections` now support
+  `lock: true`.  `_isLockedConnection()` scans arc missions up to
+  active.  `deleteSelected()` guards locked connections with toast.
+  Inspector shows lock icon instead of delete button.  Mission loader
+  matches by port identity (not just connection ID).
+
+  **Retroactive locks.**  M3: barrel→shelter locked.  M2: flare
+  `lock: 'full' → 'nodelete'` (movable).  M4 declares O₂ bottle→shelter
+  lock retroactively.
+
+  **Room contaminant warnings.**  Room tick now detects CO (WARNING at
+  50 ppm, MAJOR at 0.1%, CATASTROPHIC at 1%), H₂ (WARNING at 2%,
+  MAJOR at 4%), CH₄ (WARNING at 1%, MAJOR at 5%), and general
+  contaminants (>1% non-safe species).  Explicit death causes in
+  `_condLabel` map.  Fields exported to `u.last` (room_x_CO, room_x_H2,
+  room_x_CH4).
+
+  **Room inspector body reserves.**  Quantitative display between gauges
+  and TTL: "Water 3.7d" / "Food 21d" with color-coded urgency.
+
+  **Objective progress bars.**  Time-based evaluators now return
+  `_progressFrac` (0–1).  Objective panel renders amber CSS bar for
+  in-progress duration objectives.
+
+  **Human-readable durations.**  `_fmtDuration()` helper.  Evaluator
+  progress shows "2h / 24h" instead of "7200s / 86400s".
+
+  **M3 sustain → 24 hours.**  `health_air` duration changed from 3600s
+  (1h) to 86400s (24h).  Full diurnal cycle sustain.  Timer resets on
+  condition fail (consecutive hours required).  M3 guidance updated:
+  Lena mentions "a full day" in last step onComplete.
+
+  **M3 palette simplified.**  Removed optional items (flash_drum,
+  simple_open_barrel, sink_electrical).  Straight path: dispatcher +
+  cooler only.  Flash drum moved to M4 palette.
+
+  **inventory_trend: non_decreasing.**  New trend option for the
+  `inventory_trend` evaluator.  `moles >= prev - 0.5` tolerance.
+
+  **3 new trigger condition types.**  `inventory_species_fraction`
+  (mole fraction in inventory), `unit_status` (u.last.status check),
+  `port_not_connected` (port wiring check).  Added to whitelist.
+
+  NNGs: NNG-3 (WYSIWYG — contaminants from physics, not scripted),
+  NNG-7 (alarm — explicit death causes), NNG-10 (registries — M4 +
+  trigger types), NNG-13 (inspector — reserves display, lock icon),
+  NNG-14 (changelog + 12 new tests: 788–799).
+
+  Tests: 862 (+12).
+    788: M4 structure and objectives.
+    789: Electrolyzer 100% conversion default.
+    790: Hydrovent rates halved.
+    791: Connection lock — _isLockedConnection.
+    792: inventory_trend non_decreasing evaluator.
+    793: Room contaminant detection (CO, H₂, CH₄).
+    794: Trigger condition — inventory_species_fraction.
+    795: Trigger condition — unit_status.
+    796: M3 sustain duration = 24h.
+    797: M4 sustain durations = 24h.
+    798: M2 flare lock = nodelete.
+    799: _fmtDuration helper.
 
   ─── v20.8.0 — M3 playtest fixes ──────────────────────────────────────────
 
@@ -13203,7 +13287,7 @@
 "use strict";
 
 // [v20.0.1] Single version source — title tag and comment header reference this.
-const PTIS_VERSION = 'v20.8.0';
+const PTIS_VERSION = 'v20.9.0';
 document.title = 'processThis — ' + PTIS_VERSION;
 
 // [v12.9.0] NNG sentinel — machine-readable list of all Non-Negotiable rules.
@@ -19371,6 +19455,7 @@ const _TRIGGER_CONDITION_TYPES = new Set([
   'level_above', 'level_below',
   'objective_complete', 'all_objectives_complete',
   'unit_placed', 'connection_exists',
+  'inventory_species_fraction', 'unit_status', 'port_not_connected',  // [v20.9.0]
 ]);
 const _TRIGGER_ACTION_TYPES = new Set([
   'dialogue', 'system_message', 'show_image',
@@ -19688,6 +19773,13 @@ function _connectionExists(scene, fromProfile, toProfile, opts = {}) {
   return false;
 }
 
+// [v20.9.0] Human-readable duration for objective progress bars
+function _fmtDuration(s) {
+  if (s >= 3600) return (s / 3600).toFixed(s % 3600 === 0 ? 0 : 1) + 'h';
+  if (s >= 60)   return Math.round(s / 60) + 'min';
+  return Math.round(s) + 's';
+}
+
 const ObjectiveEvaluators = {
 
   // 1. convergence — solver converged (always met after a successful solve)
@@ -19826,14 +19918,14 @@ const ObjectiveEvaluators = {
     const elapsed = runtime?._conditionTimers?.[rKey] || 0;
 
     if (dur_s > 0) {
+      const frac = Math.min(1, elapsed / dur_s);
       if (allOk) {
-        // Conditions met — timer advances (caller increments _conditionTimers)
         const durMet = elapsed >= dur_s;
-        checks.push(`${elapsed.toFixed(0)}s / ${dur_s}s ${durMet ? '✓' : ''}`);
-        return { met: durMet, progress: checks.join(', '), _conditionsOk: true, _runtimeKey: rKey };
+        checks.push(`${_fmtDuration(elapsed)} / ${_fmtDuration(dur_s)} ${durMet ? '✓' : ''}`);
+        return { met: durMet, progress: checks.join(', '), _conditionsOk: true, _runtimeKey: rKey, _progressFrac: frac };
       } else {
-        checks.push(`0s / ${dur_s}s`);
-        return { met: false, progress: checks.join(', '), _conditionsOk: false, _runtimeKey: rKey };
+        checks.push(`0 / ${_fmtDuration(dur_s)}`);
+        return { met: false, progress: checks.join(', '), _conditionsOk: false, _runtimeKey: rKey, _progressFrac: 0 };
       }
     }
 
@@ -19857,9 +19949,10 @@ const ObjectiveEvaluators = {
     const rKey = params.id || ('dg_' + params.species);
     const elapsed = runtime?._conditionTimers?.[rKey] || 0;
     const met = dur > 0 ? (ok && elapsed >= dur) : ok;
+    const frac = dur > 0 ? Math.min(1, elapsed / dur) : (met ? 1 : 0);
     const progress = `${params.species}: ${totalMoles.toFixed(1)} mol ${ok ? '✓' : `(need ≥ ${params.minMoles})`}`
-      + (dur > 0 ? ` ${elapsed.toFixed(0)}s/${dur}s` : '');
-    return { met, progress, _conditionsOk: ok, _runtimeKey: rKey };
+      + (dur > 0 ? ` ${_fmtDuration(elapsed)}/${_fmtDuration(dur)}` : '');
+    return { met, progress, _conditionsOk: ok, _runtimeKey: rKey, _progressFrac: frac };
   },
 
   // 8. inventory_trend — tank level going up or down over duration
@@ -19870,13 +19963,18 @@ const ObjectiveEvaluators = {
     const moles = u.inventory?.n?.[params.species] || 0;
     const prev = runtime?._inventorySnapshots?.[u.id + ':' + params.species] || moles;
     const trend = params.trend; // 'increasing' or 'decreasing'
-    const ok = trend === 'increasing' ? moles > prev : moles < prev;
+    // [v20.9.0] 'non_decreasing' — moles stable or rising (0.5 mol tolerance)
+    const ok = trend === 'increasing' ? moles > prev
+             : trend === 'non_decreasing' ? moles >= prev - 0.5
+             : moles < prev;
     const dur = params.duration_s || 0;
     const rKey = params.id || ('it_' + u.id + ':' + params.species);
     const elapsed = runtime?._conditionTimers?.[rKey] || 0;
     const met = dur > 0 ? (ok && elapsed >= dur) : ok;
+    const frac = dur > 0 ? Math.min(1, elapsed / dur) : (met ? 1 : 0);
     const arrow = moles > prev ? '↑' : moles < prev ? '↓' : '→';
-    return { met, progress: `${params.species} ${arrow} ${moles.toFixed(1)} mol (want ${trend}) ${met ? '✓' : ''}`, _conditionsOk: ok, _runtimeKey: rKey };
+    const durStr = dur > 0 ? ` ${_fmtDuration(elapsed)}/${_fmtDuration(dur)}` : '';
+    return { met, progress: `${params.species} ${arrow} ${moles.toFixed(1)} mol${durStr} ${met ? '✓' : ''}`, _conditionsOk: ok, _runtimeKey: rKey, _progressFrac: frac };
   },
 
   // 9. power_output — total power output ≥ threshold for duration
@@ -20251,11 +20349,16 @@ function buildMissionScene(campaignState, missionId) {
     if (allPreplacedIds.has(u.id)) u._preplaced = true;
   }
 
-  // [v20.8.0] Overlay preplaced connections (skip if ID already exists)
+  // [v20.9.0] Overlay preplaced connections (skip if ID or port match already exists)
   if (mission.preplacedConnections?.length > 0) {
     const existingConnIds = new Set((sceneData.connections || []).map(c => c.id));
     for (const pc of mission.preplacedConnections) {
       if (existingConnIds.has(pc.id)) continue;
+      // Check if a connection with matching from/to ports already exists (player-made)
+      const portMatch = (sceneData.connections || []).some(c =>
+        c.from.unitId === pc.from.unitId && c.from.portId === pc.from.portId &&
+        c.to.unitId === pc.to.unitId && c.to.portId === pc.to.portId);
+      if (portMatch) continue;  // Connection exists, lock applies at delete time
       sceneData.connections.push({ ...pc });
     }
   }
@@ -27535,6 +27638,35 @@ UnitRegistry.register('room', {
     conditions.power = { value: power_pct * 100,
       status: power_pct >= 1 ? 'OK' : 'WARNING' };  // max WARNING — consequences show through O₂/CO₂/temp
 
+    // [v20.9.0] Contaminant detection — species that shouldn't be in room atmosphere
+    const _safeSpecies = { O2:1, N2:1, CO2:1, Ar:1, H2O:1 };
+    // CO — carbon monoxide (toxic, binds hemoglobin)
+    const co_pct = ((inv.n.CO || 0) / n_total) * 100;
+    conditions.co = { value: co_pct,
+      status: co_pct < 0.005 ? 'OK' : co_pct < 0.1 ? 'WARNING'
+            : co_pct < 1 ? 'MAJOR' : 'CATASTROPHIC' };
+    // H₂ — hydrogen (flammable, asphyxiant by displacement)
+    const h2_pct = ((inv.n.H2 || 0) / n_total) * 100;
+    conditions.h2 = { value: h2_pct,
+      status: h2_pct < 2 ? 'OK' : h2_pct < 4 ? 'WARNING' : 'MAJOR' };
+    // CH₄ — methane (flammable, asphyxiant)
+    const ch4_pct = ((inv.n.CH4 || 0) / n_total) * 100;
+    conditions.ch4 = { value: ch4_pct,
+      status: ch4_pct < 1 ? 'OK' : ch4_pct < 5 ? 'WARNING' : 'MAJOR' };
+    // General contaminant — any non-safe species above threshold
+    let contam_pct = 0;
+    for (const [sp, mol] of Object.entries(inv.n)) {
+      if (!_safeSpecies[sp] && mol > 0) contam_pct += (mol / n_total) * 100;
+    }
+    if (contam_pct > 0 && !conditions.co.status.startsWith('C') && !conditions.co.status.startsWith('M')) {
+      // Only flag general contaminant if CO isn't already at MAJOR/CATASTROPHIC
+      if (contam_pct >= 5) {
+        conditions.contaminant = { value: contam_pct, status: 'MAJOR' };
+      } else if (contam_pct >= 1) {
+        conditions.contaminant = { value: contam_pct, status: 'WARNING' };
+      }
+    }
+
     // ── 9b. TTL — time-to-limit for each life-critical condition ──
     // Extrapolates current drift rate to thresholds.  Returns hours; Infinity if stable.
     // Two TTLs per condition: ttl_h = next worse status, ttl_death_h = CATASTROPHIC.
@@ -27663,6 +27795,9 @@ UnitRegistry.register('room', {
       nPeople: N,
       T_room_K: T_room, T_ext_K: T_ext,
       room_x_O2, room_x_CO2, room_x_N2, room_x_H2O,
+      room_x_CO: (inv.n.CO || 0) / n_total,
+      room_x_H2: (inv.n.H2 || 0) / n_total,
+      room_x_CH4: (inv.n.CH4 || 0) / n_total,
       room_n_total: n_total,
       conditions, services, portIndicators, crewState,
       Q_metabolic, Q_lighting: Q_lighting_actual, Q_streams, Q_hot_water,
@@ -27685,6 +27820,10 @@ UnitRegistry.register('room', {
     const _condLabel = {
       o2: 'Hypoxia — O₂ too low',
       co2: 'CO₂ poisoning',
+      co: 'CO poisoning — carbon monoxide',
+      h2: 'Hydrogen accumulation — flammable',
+      ch4: 'Methane accumulation — flammable',
+      contaminant: 'Atmosphere contaminated',
       temp: T_room < T_SETPOINT ? 'Hypothermia — too cold' : 'Hyperthermia — too hot',
       water: 'Dehydration',
       food: 'Starvation',
@@ -28032,7 +28171,7 @@ ProfileRegistry.register('hydrovent', {
   description: 'Cracked hull over a hydrothermal reservoir — fixed-rate hot mix of steam, methane and hydrogen',
   selectionGuide: 'Your lifeline. Hot fluid shoots up through a crack in the hull at a fixed rate. Cool before collecting.',
   limits: {}, boundary: true,
-  defaults: { 1: { n: { H2O: 0.18, CH4: 0.09, H2: 0.03 }, T: 450, P: 1500000, phaseConstraint: 'V' } },
+  defaults: { 1: { n: { H2O: 0.09, CH4: 0.045, H2: 0.015 }, T: 450, P: 1500000, phaseConstraint: 'V' } },
 });
 // [v16.8.0] Atmosphere profile
 ProfileRegistry.register('atmosphere', {
@@ -28324,7 +28463,7 @@ ProfileRegistry.register('reactor_electrochemical', {
   description: 'Electricity rips molecules apart',
   selectionGuide: 'The reverse of a fuel cell — pour in power and feedstock, get split products on separate outlets. Essential for making hydrogen.',
   limits: { 1: { T_LL: 263, T_L: 280, T_H: 773, T_HH: 923, P_LL: 50000, P_HH: 15000000, mass_HH: 0.08 } },
-  defaults: { reactionId: 'R_H2O_ELEC', efficiency: 0.90, conversion_max: 0.80 },
+  defaults: { reactionId: 'R_H2O_ELEC', efficiency: 0.90, conversion_max: 1.0 },
   equipmentNote: "PEM or alkaline electrolysis cell stack.",
   operatingNote: "Products exit through separate electrode ports — not mixed. Higher power = higher production rate. Produces waste heat.",
   modelNote: "Electrochemical tick with Faradaic efficiency. Electrode separation routing.",
@@ -28334,7 +28473,7 @@ ProfileRegistry.register('fuel_cell', {
   description: 'Hydrogen in, electricity out',
   selectionGuide: 'Clean power as long as you feed it H\u2082 and O\u2082. Also makes water — handy for life support. Basically a battery that never dies.',
   limits: { 1: { T_LL: 253, T_L: 283, T_H: 473, T_HH: 523, P_LL: 50000, P_HH: 5000000, mass_HH: 0.05 } },
-  defaults: { reactionId: 'R_H2_FUELCELL', efficiency: 0.60, conversion_max: 0.80, UA: 500 },
+  defaults: { reactionId: 'R_H2_FUELCELL', efficiency: 0.60, conversion_max: 1.0, UA: 500 },
   equipmentNote: "PEM or solid-oxide fuel cell stack.",
   operatingNote: "Needs H₂ and O₂ on separate electrode inlets — not a mixture. Produces water and electricity. Waste heat must be removed.",
   modelNote: "Electrochemical tick with Faradaic efficiency. Waste heat = ΔH_rxn − W_elec.",
@@ -28659,7 +28798,67 @@ const M3_GUIDANCE = [
     dialogue: { speaker: 'lena', text: 'Now water. Cooler needs power. Route well \u2192 cooler \u2192 barrel \u2192 shelter.', expression: 'happy' },
     highlight: { type: 'none' },
     completion: { type: 'objective_complete', objectiveId: 'water_flowing' },
-    onComplete: { speaker: 'lena', text: 'Water! Let\u2019s fill this up and call it done.' },
+    onComplete: { speaker: 'lena', text: 'Water! Now we need to keep everything running for a full day. No dips.' },
+    delay_ms: 500 },
+];
+
+// ═══ M4 — Make Oxygen ═══════════════════════════════════════════════════
+const M4_INTRO = [
+  { type: 'image', src: 'm4_intro_1.webp', transition: 'wipe', duration_ms: null,
+    fallbackText: 'With the water sorted,\nit was time for oxygen.\nThis bottle wouldn\u2019t hold forever.\n\nLena said \u201CGo out, look for a big red box\nwith ELECTROLYZER on it,\nand bring it back.\u201D\n\nSimple enough\u2026 so far.',
+    alt: 'K finding the electrolyzer module' },
+  { type: 'image', src: 'm4_intro_2.webp', transition: 'wipe-horizontal', duration_ms: null,
+    fallbackText: 'One flare wasn\u2019t enough anymore.\nToo many pipes, too many gases.\n\nSo I built another one.\nFaster this time \u2014 practice helps.',
+    alt: 'K building a second flare stack' },
+];
+
+const M4_BRIEFING = [
+  { type: 'dialogue', speaker: 'lena', expression: 'happy', delay_ms: 1500,
+    text: 'This cell splits water \u2014 hydrogen one side, oxygen the other. Feed the oxygen into our bottle.' },
+];
+
+const M4_VICTORY_LINES = {
+  1: { speaker: 'lena', text: 'Oxygen from water. We\u2019re going to be alright.' },
+  2: { speaker: 'lena', text: 'Clean separation, nothing loose. Nicely done.' },
+  3: { speaker: 'lena', text: 'Every stream handled. You\u2019re a natural.' },
+};
+
+const M4_GUIDANCE = [
+  { id: 'g_m4_lv_sep',
+    dialogue: { speaker: 'lena', text: 'The well isn\u2019t just water \u2014 there\u2019s gas mixed in. Put a separator between the cooler and barrel.', expression: 'happy' },
+    highlight: { type: 'palette_tile', profileId: 'flash_drum' },
+    completion: { type: 'unit_placed', profileId: 'flash_drum' },
+    onComplete: { speaker: 'lena', text: 'Gas up, liquid down. Proper.' },
+    delay_ms: 500 },
+  { id: 'g_m4_gas_to_flare',
+    dialogue: { speaker: 'lena', text: 'Send the gas side up to the new flare.', expression: 'happy' },
+    highlight: { type: 'unit', profileId: 'flash_drum' },
+    completion: { type: 'connection', fromProfile: 'flash_drum', toProfile: 'flare_stack' },
+    onComplete: { speaker: 'lena', text: 'Safe and tidy.' },
+    delay_ms: 500 },
+  { id: 'g_m4_splitter',
+    dialogue: { speaker: 'lena', text: 'Put a splitter on the liquid line. Most goes to the barrel \u2014 set about 1% for the cell.', expression: 'happy' },
+    highlight: { type: 'palette_tile', profileId: 'splitter' },
+    completion: { type: 'unit_placed', profileId: 'splitter' },
+    onComplete: { speaker: 'lena', text: 'Just a trickle \u2014 that\u2019s all it needs.' },
+    delay_ms: 500 },
+  { id: 'g_m4_feed_bottle',
+    dialogue: { speaker: 'lena', text: 'Oxygen outlet is marked \u201CAnode.\u201D Connect it to the bottle\u2019s inlet \u2014 the bottle is your buffer.', expression: 'happy' },
+    highlight: { type: 'unit', profileId: 'reactor_electrochemical' },
+    completion: { type: 'connection', fromProfile: 'reactor_electrochemical', toProfile: 'simple_gas_bottle' },
+    onComplete: { speaker: 'lena', text: 'Now the bottle fills itself.' },
+    delay_ms: 500 },
+  { id: 'g_m4_h2_to_flare',
+    dialogue: { speaker: 'lena', text: 'Hydrogen comes out the other side. Route it to the flare.', expression: 'happy' },
+    highlight: { type: 'unit', profileId: 'reactor_electrochemical' },
+    completion: { type: 'connection', fromProfile: 'reactor_electrochemical', toProfile: 'flare_stack' },
+    onComplete: { speaker: 'lena', text: 'Hydrogen handled.' },
+    delay_ms: 500 },
+  { id: 'g_m4_power_vents',
+    dialogue: { speaker: 'lena', text: 'Hook up the power. And connect the bottle\u2019s vent to the flare \u2014 safety first.', expression: 'happy' },
+    highlight: { type: 'unit', profileId: 'simple_gas_bottle' },
+    completion: { type: 'connection', fromProfile: 'simple_gas_bottle', toProfile: 'flare_stack' },
+    onComplete: { speaker: 'lena', text: 'All hooked up. Let\u2019s see.' },
     delay_ms: 500 },
 ];
 
@@ -28695,7 +28894,7 @@ ArcRegistry.register('arc_a', {
   crewCount: 2,
   intro: ARC_A_INTRO,
   conclusion: [],
-  missions: ['arc_a_m1', 'arc_a_m2', 'arc_a_m3'],
+  missions: ['arc_a_m1', 'arc_a_m2', 'arc_a_m3', 'arc_a_m4'],
 });
 
 // ── M1 — Breathe ─────────────────────────────────────────────────────────
@@ -28790,7 +28989,7 @@ MissionRegistry.register('arc_a_m2', {
 
   inheritScene: true,
   preplacedUnits: [
-    { id: 'flare', profileId: 'flare_stack', defId: 'flare_stack', tier: 1, lock: 'full',
+    { id: 'flare', profileId: 'flare_stack', defId: 'flare_stack', tier: 1, lock: 'nodelete',
       x: 14, y: -6, params: {} },
     { id: 'scrubber', profileId: 'co2_scrubber', defId: 'membrane_separator', tier: 1, lock: 'nodelete',
       x: 8, y: 1, params: { targetSpecies: 'CO2', extractionFrac: 0.99,
@@ -28873,9 +29072,6 @@ MissionRegistry.register('arc_a_m3', {
   palette: {
     power_dispatcher_5: 1,
     air_cooler: 1,
-    simple_open_barrel: 1,  // optional second barrel
-    flash_drum: 1,          // optional L/V separator
-    sink_electrical: 1,     // dump load
   },
   species: ['O2', 'N2', 'Ar', 'CO2', 'H2O', 'CH4', 'H2', 'CO'],
   reactions: [],
@@ -28883,7 +29079,7 @@ MissionRegistry.register('arc_a_m3', {
   inheritScene: true,
   preplacedUnits: [
     { id: 'hydrovent', profileId: 'hydrovent', defId: 'source', tier: 1, lock: 'nodelete',
-      x: -14, y: 1, params: { n: { H2O: 0.18, CH4: 0.09, H2: 0.03 },
+      x: -14, y: 1, params: { n: { H2O: 0.09, CH4: 0.045, H2: 0.015 },
         T: 450, P: 1500000, phaseConstraint: 'V' } },
     { id: 'water_barrel', profileId: 'simple_open_barrel', defId: 'simple_open_tank', tier: 1, lock: 'nodelete',
       name: 'Water Barrel',
@@ -28892,7 +29088,7 @@ MissionRegistry.register('arc_a_m3', {
   ],
   preplacedConnections: [
     { id: 'c_h2o_barrel', from: { unitId: 'water_barrel', portId: 'mat_out' },
-      to: { unitId: 'room', portId: 'h2o_in' } },
+      to: { unitId: 'room', portId: 'h2o_in' }, lock: true },
   ],
 
   narrator: 'lena',
@@ -28916,10 +29112,10 @@ MissionRegistry.register('arc_a_m3', {
     { id: 'barrel_half', type: 'store_component',
       targetProfile: 'simple_open_barrel', species: 'H2O', minLevel: 0.5,
       description: 'Water barrel at least half full' },
-    // Inherited health
+    // Inherited health — 24h sustain
     { id: 'health_air', type: 'maintain_conditions',
-      unit: 'shelter', conditions: { O2_pct_gte: 18, CO2_pct_lte: 1.0 }, duration_s: 3600,
-      description: '[Health] Air quality maintained for 1 hour' },
+      unit: 'shelter', conditions: { O2_pct_gte: 18, CO2_pct_lte: 1.0 }, duration_s: 86400,
+      description: 'Air quality sustained for 24 hours' },
   ],
 
   stars: {
@@ -28963,7 +29159,130 @@ MissionRegistry.register('arc_a_m3', {
   },
 });
 
+// ── M4 — Make Oxygen ─────────────────────────────────────────────────────
+MissionRegistry.register('arc_a_m4', {
+  arcId: 'arc_a',
+  index: 3,
+  contentVersion: 1,
+  title: 'Make Oxygen',
+  subtitle: 'The O\u2082 bottle is running low.',
+  emergency: 'Finite O\u2082 depleting. No renewable source.',
 
+  palette: {
+    reactor_electrochemical: 1,
+    flash_drum: 1,
+    splitter: 1,
+    bend: 99,
+    simple_mixer: 99,
+  },
+  species: ['O2', 'N2', 'Ar', 'CO2', 'H2O', 'CH4', 'H2', 'CO'],
+  reactions: ['R_H2O_ELEC'],
+
+  inheritScene: true,
+  preplacedUnits: [
+    // Second flare stack — below first (y=-6), separated by 15+ grid units
+    { id: 'gas_flare', profileId: 'flare_stack', defId: 'flare_stack', tier: 1, lock: 'nodelete',
+      x: 14, y: 9, params: {} },
+  ],
+  preplacedConnections: [
+    // Retroactive lock from M1: O₂ bottle → shelter (player-made, now locked)
+    { id: 'c_o2_to_room', from: { unitId: 'o2_bottle', portId: 'gas_out' },
+      to: { unitId: 'room', portId: 'o2_in' }, lock: true },
+    // Retroactive lock from M3: barrel → shelter (already preplaced, reinforce lock)
+    { id: 'c_h2o_barrel_lock', from: { unitId: 'water_barrel', portId: 'mat_out' },
+      to: { unitId: 'room', portId: 'h2o_in' }, lock: true },
+  ],
+
+  narrator: 'lena',
+  roomOccupants: { shelter: ['lena', 'k'] },
+
+  storyIntro: M4_INTRO,
+  storyOutro: [],   // M5 intro serves as M4 outro
+  briefing: M4_BRIEFING,
+  victoryLine: M4_VICTORY_LINES,
+
+  objectives: [
+    { id: 'electrolyzer_placed', type: 'unit_present',
+      profileId: 'reactor_electrochemical',
+      description: 'Place the electrolyzer' },
+    { id: 'lv_sep_placed', type: 'unit_present',
+      profileId: 'flash_drum',
+      description: 'Install gas-liquid separator' },
+    { id: 'anode_to_bottle', type: 'connection',
+      fromProfile: 'reactor_electrochemical', toProfile: 'simple_gas_bottle',
+      description: 'Connect O\u2082 (anode) to bottle' },
+    { id: 'electrolyzer_powered', type: 'connection',
+      fromProfile: 'power_dispatcher_5', toProfile: 'reactor_electrochemical',
+      description: 'Power the electrolyzer' },
+    { id: 'vent_connected', type: 'connection',
+      fromProfile: 'simple_gas_bottle', toProfile: 'flare_stack',
+      description: 'Bottle vent \u2192 flare' },
+    { id: 'bottle_sustaining', type: 'inventory_trend',
+      targetProfile: 'simple_gas_bottle', species: 'O2',
+      trend: 'non_decreasing', duration_s: 86400,
+      description: 'O\u2082 bottle level stable for 24 hours' },
+    { id: 'health_air', type: 'maintain_conditions',
+      unit: 'shelter',
+      conditions: { O2_pct_gte: 18, CO2_pct_lte: 1.0 },
+      duration_s: 86400,
+      description: 'Air quality sustained for 24 hours' },
+  ],
+
+  stars: {
+    1: { description: 'Electrolysis running. Bottle sustaining. Air quality OK.',
+      criteria: [{ type: 'all_objectives_complete' }] },
+    2: { description: '\u2605 + all gas streams routed to flare.',
+      criteria: [
+        { type: 'all_objectives_complete' },
+        { type: 'connection', fromProfile: 'flash_drum', toProfile: 'flare_stack' },
+      ] },
+    3: { description: '\u2605\u2605 + barrel overflow connected.',
+      criteria: [
+        { type: 'all_objectives_complete' },
+        { type: 'connection', fromProfile: 'flash_drum', toProfile: 'flare_stack' },
+        { type: 'connection', fromProfile: 'simple_open_barrel' },
+      ] },
+  },
+
+  guidanceSteps: M4_GUIDANCE,
+
+  triggers: [
+    // H₂ contamination in O₂ bottle — wrong electrode connected
+    { id: 'h2_in_o2_bottle', once: true, delay_s: 0,
+      condition: { type: 'inventory_species_fraction', profileId: 'simple_gas_bottle',
+        species: 'H2', threshold: 0.05, direction: 'above' },
+      action: { type: 'dialogue', speaker: 'lena',
+        text: 'That\u2019s hydrogen going into the oxygen bottle. Check which outlet \u2014 the cell has two.',
+        expression: 'shouting', autoPause: true } },
+    // Bottle pressure rising — positive feedback
+    { id: 'bottle_pressure_up', once: true, delay_s: 0,
+      condition: { type: 'level_above', profileId: 'simple_gas_bottle', threshold: 0.55 },
+      action: { type: 'dialogue', speaker: 'lena',
+        text: 'Pressure\u2019s climbing in the bottle. Good \u2014 oxygen building up.',
+        expression: 'happy' } },
+    // Bottle vent not connected when pressure high
+    { id: 'bottle_vent_needed', once: true, delay_s: 0,
+      condition: { type: 'level_above', profileId: 'simple_gas_bottle', threshold: 0.80 },
+      action: { type: 'dialogue', speaker: 'lena',
+        text: 'That bottle\u2019s getting tight. Vent to the flare, yeah?',
+        expression: 'disappointed' } },
+    // Electrolysis first active
+    { id: 'electrolysis_active', once: true, delay_s: 0,
+      condition: { type: 'unit_status', profileId: 'reactor_electrochemical', status: 'active' },
+      action: { type: 'dialogue', speaker: 'lena',
+        text: 'It\u2019s running. Watch the bottle gauge.',
+        expression: 'happy' } },
+  ],
+
+  hints: [],
+  completionGated: true,
+  storyUI: {
+    visibleMenuItems: ['reports', 'physicalUnits', 'clearStickers', 'home', 'saveCampaign'],
+    hidePaletteFilter: true, hidePressureSwitch: true,
+    pressureMode: 'simple', hideDevTab: true,
+    showObjectivePanel: true, showStarTracker: true, showRunway: true,
+  },
+});
 
 /* =========================
    SCENE CLASS
@@ -29101,10 +29420,10 @@ class Scene {
         break;
       // [v14.9.0 S6b] Electrochemical + Fuel Cell
       case 'reactor_electrochemical':
-        unit.params = { reactionId: 'R_H2O_ELEC', efficiency: 0.90, conversion_max: 0.80, powerPriority: 2 };
+        unit.params = { reactionId: 'R_H2O_ELEC', efficiency: 0.90, conversion_max: 1.0, powerPriority: 2 };
         break;
       case 'fuel_cell':
-        unit.params = { reactionId: 'R_H2_FUELCELL', efficiency: 0.60, conversion_max: 0.80, UA: 500 };
+        unit.params = { reactionId: 'R_H2_FUELCELL', efficiency: 0.60, conversion_max: 1.0, UA: 500 };
         break;
 
       // ── Air Cooler [v13.2.0] Fan-powered ──
@@ -44425,7 +44744,20 @@ UnitInspector.reservoir = {
 // Fixed-rate source with well icon. Flow rate editable, T/P shown via auto-ribbon.
 UnitInspector.hydrovent = {
   customParams(container, u) {
-    // Total flow rate control (scales all species proportionally)
+    // [v20.9.0] Preplaced hydrovent: read-only display (geology is fixed)
+    if (_isPreplacedUnit(u.id)) {
+      const n = u.params.n || {};
+      let html = '<div style="margin-bottom:6px;opacity:0.7;font-size:11px;">'
+        + '<div style="margin-bottom:4px;letter-spacing:0.5px;text-transform:uppercase;color:var(--rt-accent-dim);">'
+        + 'Well composition (fixed)</div>';
+      for (const [sp, rate] of Object.entries(n)) {
+        html += `<div>${sp}: ${rate.toFixed(4)} mol/s</div>`;
+      }
+      html += '</div>';
+      container.appendChild(el('div', { html }));
+      return;
+    }
+    // Sandbox: total flow rate control (scales all species proportionally)
     const us = models.getActive('units');
     const _totalN = () => {
       if (!u.params.n) return 0.3;
@@ -45646,8 +45978,8 @@ UnitInspector.reactor_electrochemical = {
       items.push(
         { type: 'slider', label: 'Efficiency [%]', get: () => (u.params.efficiency ?? 0.90) * 100,
           set: v => u.params.efficiency = Math.max(0.005, Math.min(0.99, v / 100)), min: 10, max: 99, step: 1 },
-        { type: 'slider', label: 'Max conversion [%]', get: () => (u.params.conversion_max ?? 0.80) * 100,
-          set: v => u.params.conversion_max = Math.max(0.01, Math.min(0.99, v / 100)), min: 1, max: 99, step: 1 },
+        { type: 'slider', label: 'Max conversion [%]', get: () => (u.params.conversion_max ?? 1.0) * 100,
+          set: v => u.params.conversion_max = Math.max(0.01, Math.min(1.0, v / 100)), min: 1, max: 100, step: 1 },
       );
     }
     items.push({ label: 'Power priority', get: () => u.params.powerPriority ?? 2,
@@ -45695,8 +46027,8 @@ UnitInspector.fuel_cell = {
       items.push(
         { type: 'slider', label: 'Efficiency [%]', get: () => (u.params.efficiency ?? 0.60) * 100,
           set: v => u.params.efficiency = Math.max(0.30, Math.min(0.85, v / 100)), min: 30, max: 85, step: 1 },
-        { type: 'slider', label: 'Max conversion [%]', get: () => (u.params.conversion_max ?? 0.80) * 100,
-          set: v => u.params.conversion_max = Math.max(0.01, Math.min(0.99, v / 100)), min: 1, max: 99, step: 1 },
+        { type: 'slider', label: 'Max conversion [%]', get: () => (u.params.conversion_max ?? 1.0) * 100,
+          set: v => u.params.conversion_max = Math.max(0.01, Math.min(1.0, v / 100)), min: 1, max: 100, step: 1 },
         { type: 'slider', label: 'Cooling capacity [W/K]', get: () => u.params.UA ?? 500,
           set: v => u.params.UA = Math.max(0, v), min: 0, max: 5000, step: 10 },
       );
@@ -45878,6 +46210,35 @@ UnitInspector.room = {
       { lo: 0, LL: 30, L: 70, H: 200, hi: 200, rot: 0 }, 'Power');
     container.appendChild(row2);
 
+    // [v20.9.0] Body Reserves — quantitative display of water/food deficit
+    const _deficitToTime = (deficit_pp, maxDeficit, demandRate_pp) => {
+      const remaining = maxDeficit - deficit_pp;
+      if (remaining <= 0) return { text: 'depleted', color: '#ef4444' };
+      if (demandRate_pp < 1e-15) return { text: 'stable', color: '#22c55e' };
+      const seconds = remaining / demandRate_pp;
+      const hours = seconds / 3600;
+      const days = hours / 24;
+      const color = days < 1 ? '#ef4444' : days < 3 ? '#f59e0b' : '#94a3b8';
+      const text = days >= 2 ? `${days.toFixed(1)}d` : `${hours.toFixed(0)}h`;
+      return { text, color };
+    };
+    const _h2oPP = L.h2o_deficit_per_person ?? 0;
+    const _foodPP = L.food_deficit_per_person ?? 0;
+    const _h2oRate = svc.water ? Math.max(0, svc.water.demand - svc.water.supply) : 0;
+    const _foodRate = svc.food ? Math.max(0, svc.food.demand - svc.food.supply) : 0;
+    const _N = L.nPeople || 1;
+    const h2oRes = _h2oRate > 1e-15
+      ? _deficitToTime(_h2oPP, 417, _h2oRate / _N)
+      : { text: _h2oPP < 1 ? 'full' : `deficit ${_h2oPP.toFixed(0)} mol`, color: _h2oPP < 1 ? '#22c55e' : '#f59e0b' };
+    const foodRes = _foodRate > 1e-15
+      ? _deficitToTime(_foodPP, 423, _foodRate / _N)
+      : { text: _foodPP < 1 ? 'full' : `deficit ${_foodPP.toFixed(0)} mol`, color: _foodPP < 1 ? '#22c55e' : '#f59e0b' };
+    const resBox = el('div', { style: 'display:flex;gap:12px;justify-content:center;margin:4px 0 2px;font-size:11px;' });
+    resBox.innerHTML = `<span style="color:var(--rt-text-muted);">Reserves:</span>`
+      + ` <span>Water <b style="color:${h2oRes.color}">${h2oRes.text}</b></span>`
+      + ` <span>Food <b style="color:${foodRes.color}">${foodRes.text}</b></span>`;
+    container.appendChild(resBox);
+
     // TTL — only when conditions are WARNING or worse
     const _fmtTTL = h => {
       if (!Number.isFinite(h) || h > 99999) return null;
@@ -45887,7 +46248,7 @@ UnitInspector.room = {
     };
     for (const [key, c] of Object.entries(cond)) {
       if (!c || c.status === 'OK') continue;
-      const labels = { o2: 'Hypoxia', co2: 'CO₂', temp: 'Temp', water: 'Dehydration', food: 'Starvation' };
+      const labels = { o2: 'Hypoxia', co2: 'CO₂', co: 'CO', h2: 'H₂', ch4: 'CH₄', contaminant: 'Contaminant', temp: 'Temp', water: 'Dehydration', food: 'Starvation' };
       if (!labels[key]) continue;
       const ttl = _fmtTTL(c.ttl_h);
       if (!ttl) continue;
@@ -46975,14 +47336,21 @@ function _rebuildInspectorContent() {
     const fromName = fromUnit.name || fromDef.name;
     const toName = toUnit.name || toDef.name;
     
-    // Header: "Source → Dest" + delete
+    // Header: "Source → Dest" + delete (or lock icon)
     const headerDiv = el('div', { class: 'unitHeader' });
     const titleDiv = el('div', { class: 'unitTitle', style: 'cursor:default;' });
     titleDiv.appendChild(el('span', { html: `${esc(fromName)} \u2192 ${esc(toName)}`, style: 'flex:1;' }));
-    const delBtn = el('button', { class: 'ins-delete-btn', html: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 4h12M5.3 4V2.7a1 1 0 011-1h3.4a1 1 0 011 1V4M6.5 7v4.5M9.5 7v4.5M3.5 4l.7 9a1.5 1.5 0 001.5 1.4h4.6a1.5 1.5 0 001.5-1.4l.7-9"/></svg>' });
-    delBtn.title = 'Delete connection';
-    delBtn.addEventListener('click', () => deleteSelected());
-    titleDiv.appendChild(delBtn);
+    const _connLocked = _isLockedConnection(conn);
+    if (_connLocked) {
+      const lockIcon = el('span', { html: '\uD83D\uDD12', style: 'font-size:13px; opacity:0.5; margin-right:4px;' });
+      lockIcon.title = 'Connection locked';
+      titleDiv.appendChild(lockIcon);
+    } else {
+      const delBtn = el('button', { class: 'ins-delete-btn', html: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 4h12M5.3 4V2.7a1 1 0 011-1h3.4a1 1 0 011 1V4M6.5 7v4.5M9.5 7v4.5M3.5 4l.7 9a1.5 1.5 0 001.5 1.4h4.6a1.5 1.5 0 001.5-1.4l.7-9"/></svg>' });
+      delBtn.title = 'Delete connection';
+      delBtn.addEventListener('click', () => deleteSelected());
+      titleDiv.appendChild(delBtn);
+    }
     headerDiv.appendChild(titleDiv);
     propEditor.appendChild(headerDiv);
     
@@ -47397,6 +47765,30 @@ function _getUnitLock(unitId) {
 
 // Convenience: is this unit preplaced at all?
 function _isPreplacedUnit(unitId) { return _getUnitLock(unitId) != null; }
+
+// [v20.9.0] Connection lock — checks if a connection matches a locked
+// preplacedConnection in any mission up to (and including) the active one.
+function _isLockedConnection(conn) {
+  if (_activeGameMode !== GameMode.CAMPAIGN || !_activeMissionId) return false;
+  const mission = MissionRegistry.get(_activeMissionId);
+  if (!mission) return false;
+  const arc = ArcRegistry.get(mission.arcId);
+  if (!arc) return false;
+  for (const mid of arc.missions) {
+    const m = MissionRegistry.get(mid);
+    if (m?.preplacedConnections) {
+      for (const pc of m.preplacedConnections) {
+        if (pc.lock &&
+            conn.from.unitId === pc.from.unitId && conn.from.portId === pc.from.portId &&
+            conn.to.unitId === pc.to.unitId && conn.to.portId === pc.to.portId) {
+          return true;
+        }
+      }
+    }
+    if (mid === _activeMissionId) break;
+  }
+  return false;
+}
 
 /* =========================
    [v10.3.0] AUTO-SAVE (M8)
@@ -47866,6 +48258,12 @@ function deleteSelected() {
     render();
     if (_activeGameMode === GameMode.CAMPAIGN) populatePalette();  // [v19.8.2] refresh scarcity
   } else if (ui.selectedConnId) {
+    // [v20.9.0] Connection lock — prevent deletion of locked preplacedConnections
+    const delConnCheck = scene.connections.find(c => c.id === ui.selectedConnId);
+    if (delConnCheck && _isLockedConnection(delConnCheck)) {
+      showToast('This connection is locked \u2014 part of the shelter\u2019s life support.');
+      return;
+    }
     // Delete stream — push undo before mutation
     _pushUndo('Delete connection');
     // [S-FANOUT] Clean up per-connection openings on source vessel
@@ -51762,7 +52160,7 @@ DemoScenes.register('demo_room_survival', 'Ineluctable Fate — Day 0 (Room)',
 
 // [v17.12.0] Unit Showcase — every defId×profile displayed in a grid for visual QA
 DemoScenes.register('demo_showcase', 'Unit Showcase \u2014 All Ragtag Icons',
-  '{"version":19,"processName":"Unit Showcase \\u2014 All Ragtag Icons","grid":{"w":60,"h":36,"tile":48},"settings":{"atmospherePreset":"planet_x","dt":3600},"units":[{"id":"source-pure","defId":"source","profileId":"source_pure","tier":1,"name":"Source","x":0,"y":0,"rot":0,"params":{"species":"N2","nDot":1,"T":298.15,"P":200000,"phaseConstraint":"V"}},{"id":"source-mix","defId":"source","profileId":"source_mix","tier":1,"name":"Source (Mix)","x":4,"y":0,"rot":0,"params":{"n":{"N2":0.78,"O2":0.21},"T":298.15,"P":200000,"phaseConstraint":"V"}},{"id":"source-atmosphere","defId":"source_atm","profileId":"source_atmosphere","tier":1,"name":"Atm. Intake","x":8,"y":0,"rot":0,"params":{"nDot":1}},{"id":"sink","defId":"sink","profileId":"sink","tier":1,"name":"Sink","x":12,"y":0,"rot":0,"params":{}},{"id":"reservoir","defId":"reservoir","profileId":"reservoir","tier":1,"name":"Reservoir","x":16,"y":0,"rot":0,"params":{}},{"id":"atmosphere","defId":"atmosphere","profileId":"atmosphere","tier":1,"name":"Atmosphere","x":20,"y":0,"rot":0,"params":{}},{"id":"closed-loop-source","defId":"closed_loop_source","profileId":"closed_loop_source","tier":1,"name":"Loop Source","x":24,"y":0,"rot":0,"params":{}},{"id":"restriction","defId":"restriction","profileId":"restriction","tier":1,"name":"Restriction","x":28,"y":0,"rot":0,"params":{}},{"id":"bend","defId":"bend","profileId":"bend","tier":1,"name":"Pipe Bend","x":32,"y":0,"rot":0,"params":{}},{"id":"hydrovent","defId":"source","profileId":"hydrovent","tier":1,"name":"Hydrovent","x":36,"y":0,"rot":0,"params":{"n":{"H2O":0.18,"CH4":0.09,"H2":0.03},"T":450,"P":1500000,"phaseConstraint":"V"}},{"id":"grid-supply","defId":"grid_supply","profileId":"grid_supply","tier":1,"name":"Generator","x":0,"y":4,"rot":0,"params":{"maxPower":10}},{"id":"solar-panel","defId":"solar_panel","profileId":"solar_panel","tier":1,"name":"Solar Panel","x":4,"y":4,"rot":0,"params":{"peakPower_kW":10}},{"id":"wind-turbine","defId":"wind_turbine","profileId":"wind_turbine","tier":1,"name":"Wind Turbine","x":8,"y":4,"rot":0,"params":{"peakPower_kW":20,"vDesign_ms":12}},{"id":"battery","defId":"battery","profileId":"battery","tier":1,"name":"Battery","x":12,"y":4,"rot":0,"params":{"peakPower_kW":20,"capacity_J":36000000,"initialSOC":0.8}},{"id":"sink-electrical","defId":"sink_electrical","profileId":"sink_electrical","tier":1,"name":"Elec. Dump","x":16,"y":4,"rot":0,"params":{"ratedPower_kW":50,"powerPriority":3}},{"id":"power-hub","defId":"power_hub","profileId":"power_hub","tier":1,"name":"Power Hub","x":20,"y":4,"rot":0,"params":{}},{"id":"power-dispatcher-5","defId":"power_dispatcher_5","profileId":"power_dispatcher_5","tier":1,"name":"Dispatcher","x":24,"y":4,"rot":0,"params":{}},{"id":"pump","defId":"pump","profileId":"pump","tier":1,"name":"Pump","x":28,"y":4,"rot":0,"params":{"Pout":500000,"eta":0.75}},{"id":"compressor","defId":"compressor","profileId":"compressor","tier":1,"name":"Compressor","x":32,"y":4,"rot":0,"params":{"Pout":300000,"eta":0.8}},{"id":"fan","defId":"fan","profileId":"fan","tier":1,"name":"Fan","x":36,"y":4,"rot":0,"params":{"Pout":102000,"eta":0.7}},{"id":"compressor-diaphragm","defId":"compressor_diaphragm","profileId":"compressor_diaphragm","tier":1,"name":"Diaphragm Comp","x":0,"y":8,"rot":0,"params":{"Pout":500000,"eta":0.7}},{"id":"gas-turbine","defId":"gas_turbine","profileId":"gas_turbine","tier":1,"name":"Gas Turbine","x":4,"y":8,"rot":0,"params":{"Pout":101325,"eta":0.88}},{"id":"electric-heater","defId":"electric_heater","profileId":"electric_heater","tier":1,"name":"E-Heater","x":8,"y":8,"rot":0,"params":{"T_out":333.15,"powerPriority":2}},{"id":"air-cooler","defId":"air_cooler","profileId":"air_cooler","tier":1,"name":"Air Cooler","x":12,"y":8,"rot":0,"params":{"T_out":303.15,"UA_kW_K":5,"max_fan_power_W":1200,"powerPriority":3}},{"id":"hex","defId":"hex","profileId":"hex","tier":1,"name":"HEX","x":16,"y":8,"rot":0,"params":{"T_approach":10}},{"id":"valve","defId":"valve","profileId":"valve","tier":1,"name":"Valve","x":20,"y":8,"rot":0,"params":{"Pout":200000}},{"id":"mixer","defId":"mixer","profileId":"mixer","tier":1,"name":"Mixer","x":24,"y":8,"rot":0,"params":{}},{"id":"simple-mixer","defId":"simple_mixer","profileId":"simple_mixer","tier":1,"name":"Simple Mixer","x":28,"y":8,"rot":0,"params":{}},{"id":"splitter","defId":"splitter","profileId":"splitter","tier":1,"name":"Splitter","x":32,"y":8,"rot":0,"params":{"splitPct":50}},{"id":"flash-drum","defId":"flash_drum","profileId":"flash_drum","tier":1,"name":"Flash Drum","x":36,"y":8,"rot":0,"params":{}},{"id":"distillation-column","defId":"distillation_column","profileId":"distillation_column","tier":1,"name":"Distill. Column","x":0,"y":12,"rot":0,"params":{}},{"id":"membrane-kidney","defId":"membrane_separator","profileId":"membrane_kidney","tier":1,"name":"Membrane Sep.","x":4,"y":12,"rot":0,"params":{"targetSpecies":"CO2","extractionFrac":0.9}},{"id":"reactor-adiabatic","defId":"reactor_adiabatic","profileId":"reactor_adiabatic","tier":1,"name":"Adiabatic Rx","x":8,"y":12,"rot":0,"params":{"reactionId":"R_SABATIER","useKinetics":true,"volume_m3":0.5}},{"id":"combustion-chamber","defId":"reactor_adiabatic","profileId":"combustion_chamber","tier":1,"name":"Combustor","x":12,"y":12,"rot":0,"params":{"reactionId":"R_H2_COMB","useKinetics":true,"volume_m3":0.01,"heatDemand":"none","variant":"insulated"}},{"id":"reactor-jacketed","defId":"reactor_jacketed","profileId":"reactor_jacketed","tier":1,"name":"Jacketed Rx","x":16,"y":12,"rot":0,"params":{"reactionId":"R_SMR_OVERALL","useKinetics":true,"volume_m3":1,"heatDemand":"isothermal","variant":"elec-T"}},{"id":"reactor-cooled","defId":"reactor_cooled","profileId":"reactor_cooled","tier":1,"name":"Cooled Rx","x":20,"y":12,"rot":0,"params":{"reactionId":"R_SABATIER","useKinetics":true,"volume_m3":0.5}},{"id":"reactor-electrochemical","defId":"reactor_electrochemical","profileId":"reactor_electrochemical","tier":1,"name":"E-chem Rx","x":24,"y":12,"rot":0,"params":{}},{"id":"fuel-cell","defId":"fuel_cell","profileId":"fuel_cell","tier":1,"name":"Fuel Cell","x":28,"y":12,"rot":0,"params":{}},{"id":"simple-gas-bottle","defId":"simple_tank","profileId":"simple_gas_bottle","tier":1,"name":"Gas Bottle","x":32,"y":12,"rot":0,"params":{"volume_m3":0.05,"P_init":20000000,"initialComposition":{"N2":1},"gasDrawRate":0.001,"opening_gas_pct":20,"P_relief":30000000},"inventory":{"n":{"N2":200},"T_K":300}},{"id":"cooled-gas-bottle","defId":"cooled_tank","profileId":"cooled_gas_bottle","tier":1,"name":"Cooled Bottle","x":36,"y":12,"rot":0,"params":{"volume_m3":0.05,"P_init":20000000,"initialComposition":{"N2":1},"gasDrawRate":0.001,"opening_gas_pct":20,"P_relief":30000000},"inventory":{"n":{"N2":200},"T_K":300}},{"id":"tank-dev","defId":"tank","profileId":"tank_dev","tier":1,"name":"Tank","x":0,"y":16,"rot":0,"params":{"volume_m3":10,"P_init":200000,"P_relief":500000,"overflow_level":90,"opening_gas_pct":10,"Cv_gas":10,"opening_liq_pct":0,"Cv_liq":30}},{"id":"open-tank","defId":"open_tank","profileId":"open_tank","tier":1,"name":"Open Tank","x":4,"y":16,"rot":0,"params":{"volume_m3":1,"overflow_level":90,"Cv_liq":30,"opening_liq_pct":50,"initialComposition":{"H2O":1},"level_init":50}},{"id":"simple-open-tank","defId":"simple_open_tank","profileId":"simple_open_barrel","tier":1,"name":"Barrel","x":8,"y":16,"rot":0,"params":{"volume_m3":0.1,"initialComposition":{"H2O":1},"level_init":50,"drawRate":0.01,"opening_pct":25,"overflow_level":90}},{"id":"food-crate","defId":"food_storage","profileId":"food_crate","tier":1,"name":"Food Storage","x":12,"y":16,"rot":0,"params":{"volume_m3":0.1,"gasDrawRate":0.001,"opening_gas_pct":46.6,"P_init":29000000,"initialComposition":{"CH2O":1},"P_relief":30000000,"UA_jacket":50},"inventory":{"n":{"CH2O":100},"T_K":280}}],"connections":[],"modelsActive":{"thermo_package":"ideal_raoult","reaction":null,"units":"SI_bar"},"solverOptions":{"maxIter":200},"layout":{"viewMode":"flowsheet","colorBy":"type","theme":"ragtag","paletteOpen":false,"inspectorOpen":false,"planetBgVisible":true}}'
+  '{"version":19,"processName":"Unit Showcase \\u2014 All Ragtag Icons","grid":{"w":60,"h":36,"tile":48},"settings":{"atmospherePreset":"planet_x","dt":3600},"units":[{"id":"source-pure","defId":"source","profileId":"source_pure","tier":1,"name":"Source","x":0,"y":0,"rot":0,"params":{"species":"N2","nDot":1,"T":298.15,"P":200000,"phaseConstraint":"V"}},{"id":"source-mix","defId":"source","profileId":"source_mix","tier":1,"name":"Source (Mix)","x":4,"y":0,"rot":0,"params":{"n":{"N2":0.78,"O2":0.21},"T":298.15,"P":200000,"phaseConstraint":"V"}},{"id":"source-atmosphere","defId":"source_atm","profileId":"source_atmosphere","tier":1,"name":"Atm. Intake","x":8,"y":0,"rot":0,"params":{"nDot":1}},{"id":"sink","defId":"sink","profileId":"sink","tier":1,"name":"Sink","x":12,"y":0,"rot":0,"params":{}},{"id":"reservoir","defId":"reservoir","profileId":"reservoir","tier":1,"name":"Reservoir","x":16,"y":0,"rot":0,"params":{}},{"id":"atmosphere","defId":"atmosphere","profileId":"atmosphere","tier":1,"name":"Atmosphere","x":20,"y":0,"rot":0,"params":{}},{"id":"closed-loop-source","defId":"closed_loop_source","profileId":"closed_loop_source","tier":1,"name":"Loop Source","x":24,"y":0,"rot":0,"params":{}},{"id":"restriction","defId":"restriction","profileId":"restriction","tier":1,"name":"Restriction","x":28,"y":0,"rot":0,"params":{}},{"id":"bend","defId":"bend","profileId":"bend","tier":1,"name":"Pipe Bend","x":32,"y":0,"rot":0,"params":{}},{"id":"hydrovent","defId":"source","profileId":"hydrovent","tier":1,"name":"Hydrovent","x":36,"y":0,"rot":0,"params":{"n":{"H2O":0.09,"CH4":0.045,"H2":0.015},"T":450,"P":1500000,"phaseConstraint":"V"}},{"id":"grid-supply","defId":"grid_supply","profileId":"grid_supply","tier":1,"name":"Generator","x":0,"y":4,"rot":0,"params":{"maxPower":10}},{"id":"solar-panel","defId":"solar_panel","profileId":"solar_panel","tier":1,"name":"Solar Panel","x":4,"y":4,"rot":0,"params":{"peakPower_kW":10}},{"id":"wind-turbine","defId":"wind_turbine","profileId":"wind_turbine","tier":1,"name":"Wind Turbine","x":8,"y":4,"rot":0,"params":{"peakPower_kW":20,"vDesign_ms":12}},{"id":"battery","defId":"battery","profileId":"battery","tier":1,"name":"Battery","x":12,"y":4,"rot":0,"params":{"peakPower_kW":20,"capacity_J":36000000,"initialSOC":0.8}},{"id":"sink-electrical","defId":"sink_electrical","profileId":"sink_electrical","tier":1,"name":"Elec. Dump","x":16,"y":4,"rot":0,"params":{"ratedPower_kW":50,"powerPriority":3}},{"id":"power-hub","defId":"power_hub","profileId":"power_hub","tier":1,"name":"Power Hub","x":20,"y":4,"rot":0,"params":{}},{"id":"power-dispatcher-5","defId":"power_dispatcher_5","profileId":"power_dispatcher_5","tier":1,"name":"Dispatcher","x":24,"y":4,"rot":0,"params":{}},{"id":"pump","defId":"pump","profileId":"pump","tier":1,"name":"Pump","x":28,"y":4,"rot":0,"params":{"Pout":500000,"eta":0.75}},{"id":"compressor","defId":"compressor","profileId":"compressor","tier":1,"name":"Compressor","x":32,"y":4,"rot":0,"params":{"Pout":300000,"eta":0.8}},{"id":"fan","defId":"fan","profileId":"fan","tier":1,"name":"Fan","x":36,"y":4,"rot":0,"params":{"Pout":102000,"eta":0.7}},{"id":"compressor-diaphragm","defId":"compressor_diaphragm","profileId":"compressor_diaphragm","tier":1,"name":"Diaphragm Comp","x":0,"y":8,"rot":0,"params":{"Pout":500000,"eta":0.7}},{"id":"gas-turbine","defId":"gas_turbine","profileId":"gas_turbine","tier":1,"name":"Gas Turbine","x":4,"y":8,"rot":0,"params":{"Pout":101325,"eta":0.88}},{"id":"electric-heater","defId":"electric_heater","profileId":"electric_heater","tier":1,"name":"E-Heater","x":8,"y":8,"rot":0,"params":{"T_out":333.15,"powerPriority":2}},{"id":"air-cooler","defId":"air_cooler","profileId":"air_cooler","tier":1,"name":"Air Cooler","x":12,"y":8,"rot":0,"params":{"T_out":303.15,"UA_kW_K":5,"max_fan_power_W":1200,"powerPriority":3}},{"id":"hex","defId":"hex","profileId":"hex","tier":1,"name":"HEX","x":16,"y":8,"rot":0,"params":{"T_approach":10}},{"id":"valve","defId":"valve","profileId":"valve","tier":1,"name":"Valve","x":20,"y":8,"rot":0,"params":{"Pout":200000}},{"id":"mixer","defId":"mixer","profileId":"mixer","tier":1,"name":"Mixer","x":24,"y":8,"rot":0,"params":{}},{"id":"simple-mixer","defId":"simple_mixer","profileId":"simple_mixer","tier":1,"name":"Simple Mixer","x":28,"y":8,"rot":0,"params":{}},{"id":"splitter","defId":"splitter","profileId":"splitter","tier":1,"name":"Splitter","x":32,"y":8,"rot":0,"params":{"splitPct":50}},{"id":"flash-drum","defId":"flash_drum","profileId":"flash_drum","tier":1,"name":"Flash Drum","x":36,"y":8,"rot":0,"params":{}},{"id":"distillation-column","defId":"distillation_column","profileId":"distillation_column","tier":1,"name":"Distill. Column","x":0,"y":12,"rot":0,"params":{}},{"id":"membrane-kidney","defId":"membrane_separator","profileId":"membrane_kidney","tier":1,"name":"Membrane Sep.","x":4,"y":12,"rot":0,"params":{"targetSpecies":"CO2","extractionFrac":0.9}},{"id":"reactor-adiabatic","defId":"reactor_adiabatic","profileId":"reactor_adiabatic","tier":1,"name":"Adiabatic Rx","x":8,"y":12,"rot":0,"params":{"reactionId":"R_SABATIER","useKinetics":true,"volume_m3":0.5}},{"id":"combustion-chamber","defId":"reactor_adiabatic","profileId":"combustion_chamber","tier":1,"name":"Combustor","x":12,"y":12,"rot":0,"params":{"reactionId":"R_H2_COMB","useKinetics":true,"volume_m3":0.01,"heatDemand":"none","variant":"insulated"}},{"id":"reactor-jacketed","defId":"reactor_jacketed","profileId":"reactor_jacketed","tier":1,"name":"Jacketed Rx","x":16,"y":12,"rot":0,"params":{"reactionId":"R_SMR_OVERALL","useKinetics":true,"volume_m3":1,"heatDemand":"isothermal","variant":"elec-T"}},{"id":"reactor-cooled","defId":"reactor_cooled","profileId":"reactor_cooled","tier":1,"name":"Cooled Rx","x":20,"y":12,"rot":0,"params":{"reactionId":"R_SABATIER","useKinetics":true,"volume_m3":0.5}},{"id":"reactor-electrochemical","defId":"reactor_electrochemical","profileId":"reactor_electrochemical","tier":1,"name":"E-chem Rx","x":24,"y":12,"rot":0,"params":{}},{"id":"fuel-cell","defId":"fuel_cell","profileId":"fuel_cell","tier":1,"name":"Fuel Cell","x":28,"y":12,"rot":0,"params":{}},{"id":"simple-gas-bottle","defId":"simple_tank","profileId":"simple_gas_bottle","tier":1,"name":"Gas Bottle","x":32,"y":12,"rot":0,"params":{"volume_m3":0.05,"P_init":20000000,"initialComposition":{"N2":1},"gasDrawRate":0.001,"opening_gas_pct":20,"P_relief":30000000},"inventory":{"n":{"N2":200},"T_K":300}},{"id":"cooled-gas-bottle","defId":"cooled_tank","profileId":"cooled_gas_bottle","tier":1,"name":"Cooled Bottle","x":36,"y":12,"rot":0,"params":{"volume_m3":0.05,"P_init":20000000,"initialComposition":{"N2":1},"gasDrawRate":0.001,"opening_gas_pct":20,"P_relief":30000000},"inventory":{"n":{"N2":200},"T_K":300}},{"id":"tank-dev","defId":"tank","profileId":"tank_dev","tier":1,"name":"Tank","x":0,"y":16,"rot":0,"params":{"volume_m3":10,"P_init":200000,"P_relief":500000,"overflow_level":90,"opening_gas_pct":10,"Cv_gas":10,"opening_liq_pct":0,"Cv_liq":30}},{"id":"open-tank","defId":"open_tank","profileId":"open_tank","tier":1,"name":"Open Tank","x":4,"y":16,"rot":0,"params":{"volume_m3":1,"overflow_level":90,"Cv_liq":30,"opening_liq_pct":50,"initialComposition":{"H2O":1},"level_init":50}},{"id":"simple-open-tank","defId":"simple_open_tank","profileId":"simple_open_barrel","tier":1,"name":"Barrel","x":8,"y":16,"rot":0,"params":{"volume_m3":0.1,"initialComposition":{"H2O":1},"level_init":50,"drawRate":0.01,"opening_pct":25,"overflow_level":90}},{"id":"food-crate","defId":"food_storage","profileId":"food_crate","tier":1,"name":"Food Storage","x":12,"y":16,"rot":0,"params":{"volume_m3":0.1,"gasDrawRate":0.001,"opening_gas_pct":46.6,"P_init":29000000,"initialComposition":{"CH2O":1},"P_relief":30000000,"UA_jacket":50},"inventory":{"n":{"CH2O":100},"T_K":280}}],"connections":[],"modelsActive":{"thermo_package":"ideal_raoult","reaction":null,"units":"SI_bar"},"solverOptions":{"maxIter":200},"layout":{"viewMode":"flowsheet","colorBy":"type","theme":"ragtag","paletteOpen":false,"inspectorOpen":false,"planetBgVisible":true}}'
 );
 
 buildExamplesMenu();
@@ -52575,6 +52973,35 @@ const TriggerEngine = {
         return _connectionExists(scene, cond.fromProfile, cond.toProfile, { portType: cond.portType });
       }
 
+      // [v20.9.0] Inventory species mole fraction (for contamination detection)
+      case 'inventory_species_fraction': {
+        const units = _unitsByProfile(scene, cond.profileId);
+        if (units.length === 0) return false;
+        const inv = units[0].inventory?.n || {};
+        const total = Object.values(inv).reduce((a, b) => a + b, 0);
+        if (total < 1e-12) return false;
+        const frac = (inv[cond.species] || 0) / total;
+        return cond.direction === 'above' ? frac > (cond.threshold || 0)
+                                          : frac < (cond.threshold || 0);
+      }
+
+      // [v20.9.0] Unit operational status check
+      case 'unit_status': {
+        const units = _unitsByProfile(scene, cond.profileId);
+        if (units.length === 0) return false;
+        return units[0].last?.status === cond.status;
+      }
+
+      // [v20.9.0] Port not connected (for vent/overflow warnings)
+      case 'port_not_connected': {
+        const units = _unitsByProfile(scene, cond.profileId);
+        if (units.length === 0) return false;
+        const uid = units[0].id;
+        return !scene.connections.some(c =>
+          (c.from.unitId === uid && c.from.portId === cond.portId) ||
+          (c.to.unitId === uid && c.to.portId === cond.portId));
+      }
+
       default: return false;
     }
   },
@@ -52844,6 +53271,17 @@ function _updateObjectivePanel(result) {
       prog.className = 'obj-progress';
       prog.textContent = obj.progress || '';
       item.appendChild(prog);
+      // [v20.9.0] Visual progress bar for time-based objectives
+      if (obj._progressFrac != null && obj._progressFrac < 1) {
+        const barOuter = document.createElement('div');
+        barOuter.style.cssText = 'height:4px;background:rgba(255,255,255,0.1);border-radius:2px;margin-top:3px;overflow:hidden;';
+        const barInner = document.createElement('div');
+        const pct = Math.round(obj._progressFrac * 100);
+        const barColor = obj._conditionsOk ? 'var(--rt-accent,#e0a050)' : 'rgba(255,255,255,0.15)';
+        barInner.style.cssText = `height:100%;width:${pct}%;background:${barColor};border-radius:2px;transition:width 0.3s;`;
+        barOuter.appendChild(barInner);
+        item.appendChild(barOuter);
+      }
       container.appendChild(item);
     }
   }
@@ -72125,13 +72563,14 @@ function runTests() {
     t.assertOK(c.reactionPool.includes('R_METABOLISM'), 'R_METABOLISM in pool');
   });
 
-  test('749: Arc A registered with 3 missions', t => {
+  test('749: Arc A registered with 4 missions', t => {
     t.assertOK(ArcRegistry.exists('arc_a'), 'arc_a exists');
     const a = ArcRegistry.get('arc_a');
     t.assertOK(a.title === 'Survival', 'title');
-    t.assertOK(a.missions.length === 3, '3 missions');
+    t.assertOK(a.missions.length === 4, '4 missions');
     t.assertOK(a.missions[0] === 'arc_a_m1', 'M1 first');
     t.assertOK(a.missions[2] === 'arc_a_m3', 'M3 third');
+    t.assertOK(a.missions[3] === 'arc_a_m4', 'M4 fourth');
     t.assertOK(a.intro.length === 6, 'arc intro has 6 beats');
   });
 
@@ -72167,7 +72606,7 @@ function runTests() {
     t.assertOK(m.title === 'Find Water', 'title');
     t.assertOK(m.palette.power_dispatcher_5 === 1, 'dispatcher in palette');
     t.assertOK(m.palette.air_cooler === 1, 'air cooler in palette');
-    t.assertOK(m.palette.flash_drum === 1, 'flash drum in palette');
+    t.assertOK(!m.palette.flash_drum, 'no flash drum in M3 palette (moved to M4)');
     t.assertOK(m.species.includes('H2O'), 'H2O in species');
     t.assertOK(m.species.includes('CH4'), 'CH4 in species');
     t.assertOK(m.preplacedUnits.length === 2, '2 preplaced: hydrovent + barrel');
@@ -72217,10 +72656,16 @@ function runTests() {
     t.assertOK(eff.power_dispatcher_5 === 1, 'dispatcher in M3 palette');
     t.assertOK(eff.air_cooler === 1, 'cooler in M3 palette');
 
-    // Complete M3 — should complete the arc (only 3 missions registered)
+    // Complete M3 — should advance to M4 (4 missions now)
     cs.completeMission('arc_a_m3', 3, '{"m3":"done"}');
     const next3 = cs.advanceToNext();
-    t.assertOK(next3.type === 'campaign_complete', 'campaign complete after M3');
+    t.assertOK(next3.type === 'mission', 'advance to M4');
+    t.assertOK(cs.currentMissionId === 'arc_a_m4', 'now at M4');
+
+    // Complete M4 — should complete the arc
+    cs.completeMission('arc_a_m4', 2, '{"m4":"done"}');
+    const next4 = cs.advanceToNext();
+    t.assertOK(next4.type === 'campaign_complete', 'campaign complete after M4');
     t.assertOK(cs.arcCompleted.has('arc_a'), 'arc_a completed');
   });
 
@@ -72670,7 +73115,7 @@ function runTests() {
       conditions: { O2_pct_gte: 18 }, duration_s: 7200,
     }, scene, { _conditionTimers: timers });
     t.assertOK(!r2.met, 'not met at 3600s (need 7200)');
-    t.assertOK(r2.progress.includes('3600s'), 'progress shows elapsed');
+    t.assertOK(r2.progress.includes('1h'), 'progress shows elapsed');
 
     // At threshold
     timers.test_mc = 7200;
@@ -72695,7 +73140,7 @@ function runTests() {
     }, scene, { _conditionTimers: { test_fail: 5000 } });
     t.assertOK(r._conditionsOk === false, 'impossible condition fails');
     t.assertOK(!r.met, 'not met when condition fails');
-    t.assertOK(r.progress.includes('0s / 7200s'), 'timer shows 0 on fail');
+    t.assertOK(r.progress.includes('0 / 2h'), 'timer shows 0 on fail');
   });
 
   test('778: TriggerEngine depletion_below reads consumable_remaining', t => {
@@ -72759,7 +73204,7 @@ function runTests() {
     const result = evaluateMissionCompletion('arc_a_m1', scene, runtime);
     const obj = result.objectiveResults.find(o => o.id === 'o2_sustained');
     t.assertOK(obj, 'o2_sustained objective found');
-    t.assertOK(obj.progress.includes('7200s'), 'timer value in progress');
+    t.assertOK(obj.progress.includes('2h'), 'timer value in progress');
   });
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -73086,6 +73531,207 @@ function runTests() {
     t.assertOK(lbl.includes('↑'), 'recycle-T has up arrow for 2nd inlet: ' + lbl);
     const lblB = _variantLabel('mixer', 'recycle-B');
     t.assertOK(lblB.includes('↓'), 'recycle-B has down arrow: ' + lblB);
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // [v20.9.0] M4 Make Oxygen — structure, connection lock, contaminants
+  // ═══════════════════════════════════════════════════════════════════════
+
+  test('788: M4 Make Oxygen — structure and objectives', t => {
+    const m = MissionRegistry.get('arc_a_m4');
+    t.assertOK(m, 'M4 exists');
+    t.assertOK(m.title === 'Make Oxygen', 'title');
+    t.assertOK(m.palette.reactor_electrochemical === 1, 'electrolyzer in palette');
+    t.assertOK(m.palette.flash_drum === 1, 'flash drum in palette');
+    t.assertOK(m.palette.splitter === 1, 'splitter in palette');
+    t.assertOK(m.palette.bend === 99, 'unlimited bends');
+    t.assertOK(m.objectives.length === 7, '7 objectives');
+    t.assertOK(m.guidanceSteps.length === 6, '6 guidance steps');
+    t.assertOK(m.triggers.length === 4, '4 triggers');
+    t.assertOK(m.preplacedUnits.length === 1, '1 preplaced: gas_flare');
+    t.assertOK(m.preplacedUnits[0].profileId === 'flare_stack', 'gas flare preplaced');
+    t.assertOK(m.preplacedConnections.length === 2, '2 locked connections');
+    t.assertOK(m.reactions.includes('R_H2O_ELEC'), 'R_H2O_ELEC in reactions');
+  });
+
+  test('789: M4 electrolyzer defaults — 100% conversion', t => {
+    const prof = ProfileRegistry.get('reactor_electrochemical');
+    t.assertOK(prof, 'electrolyzer profile exists');
+    t.assertClose(prof.defaults.conversion_max, 1.0, 0.001, 'profile default conversion_max = 1.0');
+  });
+
+  test('790: M4 hydrovent rates halved (50% choke)', t => {
+    const m3 = MissionRegistry.get('arc_a_m3');
+    const hv = m3.preplacedUnits.find(u => u.profileId === 'hydrovent');
+    t.assertOK(hv, 'hydrovent preplaced in M3');
+    t.assertClose(hv.params.n.H2O, 0.09, 0.001, 'H2O rate = 0.09 mol/s');
+    t.assertClose(hv.params.n.CH4, 0.045, 0.001, 'CH4 rate = 0.045 mol/s');
+    t.assertClose(hv.params.n.H2, 0.015, 0.001, 'H2 rate = 0.015 mol/s');
+  });
+
+  test('791: Connection lock — _isLockedConnection', t => {
+    // Save game mode state
+    const prevMode = _activeGameMode;
+    const prevMission = _activeMissionId;
+    _activeGameMode = GameMode.CAMPAIGN;
+    _activeMissionId = 'arc_a_m4';
+
+    // M3 locked connection: barrel → shelter
+    const lockedConn = {
+      from: { unitId: 'water_barrel', portId: 'mat_out' },
+      to: { unitId: 'room', portId: 'h2o_in' }
+    };
+    t.assertOK(_isLockedConnection(lockedConn), 'barrel→shelter is locked in M4');
+
+    // M4 locked connection: O₂ bottle → shelter
+    const lockedConn2 = {
+      from: { unitId: 'o2_bottle', portId: 'gas_out' },
+      to: { unitId: 'room', portId: 'o2_in' }
+    };
+    t.assertOK(_isLockedConnection(lockedConn2), 'o2_bottle→shelter is locked in M4');
+
+    // Unrelated connection: not locked
+    const freeConn = {
+      from: { unitId: 'battery', portId: 'elec' },
+      to: { unitId: 'power_dispatcher_5', portId: 'elec_in_1' }
+    };
+    t.assertOK(!_isLockedConnection(freeConn), 'battery→dispatcher not locked');
+
+    // Restore
+    _activeGameMode = prevMode;
+    _activeMissionId = prevMission;
+  });
+
+  test('792: inventory_trend non_decreasing evaluator', t => {
+    t.clearScene();
+    const tank = t.place('simple_tank', 0, 0, {
+      volume_m3: 0.01, P_init: 20000000, initialComposition: { O2: 1 },
+      gasDrawRate: 0.001, opening_gas_pct: 20, P_relief: 30000000
+    });
+    scene.units.get(tank).profileId = 'simple_gas_bottle';
+    t.solve();
+
+    const timers = {};
+    const moles0 = scene.units.get(tank).inventory?.n?.O2 || 0;
+    // Snapshot: moles same as current → non_decreasing should be OK
+    const r1 = ObjectiveEvaluators.inventory_trend({
+      id: 'test_nd', targetProfile: 'simple_gas_bottle', species: 'O2',
+      trend: 'non_decreasing', duration_s: 3600,
+    }, scene, { _conditionTimers: timers, _inventorySnapshots: { [tank + ':O2']: moles0 } });
+    t.assertOK(r1._conditionsOk === true, 'non_decreasing OK when stable');
+
+    // Snapshot: moles dropped slightly within tolerance
+    const r2 = ObjectiveEvaluators.inventory_trend({
+      id: 'test_nd', targetProfile: 'simple_gas_bottle', species: 'O2',
+      trend: 'non_decreasing', duration_s: 3600,
+    }, scene, { _conditionTimers: timers, _inventorySnapshots: { [tank + ':O2']: moles0 + 0.3 } });
+    t.assertOK(r2._conditionsOk === true, 'non_decreasing OK within 0.5 mol tolerance');
+
+    // Snapshot: moles dropped significantly
+    const r3 = ObjectiveEvaluators.inventory_trend({
+      id: 'test_nd', targetProfile: 'simple_gas_bottle', species: 'O2',
+      trend: 'non_decreasing', duration_s: 3600,
+    }, scene, { _conditionTimers: timers, _inventorySnapshots: { [tank + ':O2']: moles0 + 5 } });
+    t.assertOK(r3._conditionsOk === false, 'non_decreasing FAILS when dropped 5 mol');
+  });
+
+  test('793: Room contaminant detection — CO, H₂, CH₄', t => {
+    t.clearScene();
+    const room = t.place('room', 0, 0, { nPeople: 2, powerPriority: 1 });
+    const gs = t.place('grid_supply', 3, -3, { maxPower: 200 });
+    t.wire(gs, 'elec_out', room, 'elec_in');
+    t.solve();
+
+    // Inject CO into room atmosphere
+    const u = scene.units.get(room);
+    u.inventory.n.CO = 100;  // significant CO
+    t.solve();
+
+    const cond = u.last?.conditions || {};
+    t.assertOK(cond.co, 'CO condition exists');
+    t.assertOK(cond.co.status !== 'OK', 'CO triggers non-OK status');
+
+    // Inject H₂ into room atmosphere
+    u.inventory.n.H2 = 200;
+    t.solve();
+    const cond2 = u.last?.conditions || {};
+    t.assertOK(cond2.h2, 'H₂ condition exists');
+    t.assertOK(cond2.h2.status !== 'OK', 'H₂ triggers non-OK status');
+  });
+
+  test('794: Trigger condition — inventory_species_fraction', t => {
+    t.clearScene();
+    const tank = t.place('simple_tank', 0, 0, {
+      volume_m3: 0.01, P_init: 20000000, initialComposition: { O2: 1 },
+      gasDrawRate: 0.001, opening_gas_pct: 20, P_relief: 30000000
+    });
+    scene.units.get(tank).profileId = 'simple_gas_bottle';
+    // Add H₂ to inventory (10% fraction)
+    scene.units.get(tank).inventory.n.H2 = scene.units.get(tank).inventory.n.O2 * 0.111;
+    t.solve();
+
+    const cond = { type: 'inventory_species_fraction', profileId: 'simple_gas_bottle',
+      species: 'H2', threshold: 0.05, direction: 'above' };
+    const result = TriggerEngine._checkCondition(cond, scene, {});
+    t.assertOK(result, 'H₂ fraction > 5% detected');
+
+    const cond2 = { type: 'inventory_species_fraction', profileId: 'simple_gas_bottle',
+      species: 'H2', threshold: 0.20, direction: 'above' };
+    const result2 = TriggerEngine._checkCondition(cond2, scene, {});
+    t.assertOK(!result2, 'H₂ fraction < 20% correctly returns false');
+  });
+
+  test('795: Trigger condition — unit_status', t => {
+    t.clearScene();
+    const src = t.place('source', 0, 0, { species: 'H2O', nDot: 0.01, T: 350, P: 200000, phaseConstraint: 'L' });
+    const elec = t.place('reactor_electrochemical', 4, 0, {
+      reactionId: 'R_H2O_ELEC', efficiency: 0.90, conversion_max: 1.0, powerPriority: 1
+    });
+    const gs = t.place('grid_supply', 4, -3, { maxPower: 200 });
+    const snk1 = t.place('sink', 8, 0);
+    const snk2 = t.place('sink', 8, 2);
+    t.wire(src, 'mat_out', elec, 'mat_in');
+    t.wire(gs, 'elec_out', elec, 'elec_in');
+    t.wire(elec, 'mat_out_cat', snk1, 'mat_in');
+    t.wire(elec, 'mat_out_ano', snk2, 'mat_in');
+    t.solve();
+
+    const cond = { type: 'unit_status', profileId: 'reactor_electrochemical', status: 'active' };
+    const result = TriggerEngine._checkCondition(cond, scene, {});
+    t.assertOK(result, 'electrolyzer active detected');
+  });
+
+  test('796: M3 sustain duration = 24h', t => {
+    const m3 = MissionRegistry.get('arc_a_m3');
+    const healthObj = m3.objectives.find(o => o.id === 'health_air');
+    t.assertOK(healthObj, 'health_air objective exists');
+    t.assertClose(healthObj.duration_s, 86400, 1, 'duration = 86400s (24h)');
+  });
+
+  test('797: M4 sustain durations = 24h', t => {
+    const m4 = MissionRegistry.get('arc_a_m4');
+    const healthObj = m4.objectives.find(o => o.id === 'health_air');
+    t.assertOK(healthObj, 'health_air objective exists');
+    t.assertClose(healthObj.duration_s, 86400, 1, 'health duration = 86400s (24h)');
+    const bottleObj = m4.objectives.find(o => o.id === 'bottle_sustaining');
+    t.assertOK(bottleObj, 'bottle_sustaining objective exists');
+    t.assertClose(bottleObj.duration_s, 86400, 1, 'bottle duration = 86400s (24h)');
+  });
+
+  test('798: M2 flare lock = nodelete (movable)', t => {
+    const m2 = MissionRegistry.get('arc_a_m2');
+    const flare = m2.preplacedUnits.find(u => u.profileId === 'flare_stack');
+    t.assertOK(flare, 'flare in M2 preplaced');
+    t.assertOK(flare.lock === 'nodelete', 'flare lock = nodelete (movable)');
+  });
+
+  test('799: _fmtDuration helper', t => {
+    t.assertOK(_fmtDuration(3600) === '1h', '3600s → 1h');
+    t.assertOK(_fmtDuration(7200) === '2h', '7200s → 2h');
+    t.assertOK(_fmtDuration(86400) === '24h', '86400s → 24h');
+    t.assertOK(_fmtDuration(1800) === '30min', '1800s → 30min');
+    t.assertOK(_fmtDuration(45) === '45s', '45s → 45s');
+    t.assertOK(_fmtDuration(5400) === '1.5h', '5400s → 1.5h');
   });
 
   // ═══════════════════════════════════════════════════════════════════════
