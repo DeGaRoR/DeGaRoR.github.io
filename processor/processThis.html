@@ -434,6 +434,22 @@
   unconnected).  Post-pass updated to support multiple `_blockedInlet`
   errors per unit (was `.find()`, now `.filter()`).
 
+  **Species color unification.**  Inspector composition ribbon had a
+  separate hardcoded palette (`_SPECIES_COLORS`) that didn't match the
+  particle/sight-glass/planet-ribbon colors (`_SPECIES_COLOR`).  Deleted
+  the duplicate; `_renderCompRibbon` now uses `_getSpeciesColorCSS(sp)`
+  which reads from the single editable `_SPECIES_COLOR` palette.
+  All species-colored UI now consistent: particles, sight glass fills,
+  planet ribbon, and inspector composition bars.
+
+  **M3 cinematic text fix.**  Changed third person "Kael found" / "He
+  dragged" to first person "I found" / "I dragged" in M3 outro slide.
+
+  **Planet X T_swing_K: 5 → 10.**  Doubles the diurnal temperature
+  swing (now 7–30°C range vs previous 17–25°C).  Makes climate control
+  meaningful: Lena triggers COLD WARNING at hour 2, WARM WARNING by
+  hour 39.  Players must build heaters/coolers to keep shelter livable.
+
   NNGs: NNG-1 (conservation — temperature, mass), NNG-9 (tick isolation —
   inventory state), NNG-14 (changelog).
 
@@ -906,7 +922,7 @@
   `_renderModeSw(container, unit)`, `_renderPortPill(container, unit)`,
   `_renderStepper(container, label, get, set, step, unit, opts)`,
   `_renderSlider(container, label, get, set, min, max, step, unit, opts)`,
-  `_limitDotColor(value, tag, limits)`.  Species colors in `_SPECIES_COLORS`.
+  `_limitDotColor(value, tag, limits)`.  Species colors via `_getSpeciesColorCSS()`.
 
   **Variant label auto-generator.**  `_variantLabel(defId, variantKey)` reads
   port coordinates from `def.presentations` and generates directional labels
@@ -13479,7 +13495,7 @@ const SimSettings = {
         wind_gust_factor: 0.1, RH_day: 0, RH_night: 0, day_s: 10087200 } },
     planet_x: { name: 'Planet X', T_K: 288.15, P_Pa: 89660, RH: 0.50, g: 8.7,
       air: { N2: 0.70, O2: 0.21, CO2: 0.08, Ar: 0.01 },
-      diurnal: { T_mean_K: 288.15, T_swing_K: 5, T_swing_max_K: 15, T_lag_h: 2,
+      diurnal: { T_mean_K: 288.15, T_swing_K: 10, T_swing_max_K: 15, T_lag_h: 2,
         solar_peak_Wm2: 400, wind_mean_ms: 5, wind_swing_ms: 2,
         wind_gust_factor: 0.3, RH_day: 0.40, RH_night: 0.65, day_s: 86400 } },
     custom: { name: 'Custom', T_K: 288.15, P_Pa: 101325, RH: 0, g: 9.81,
@@ -28871,7 +28887,7 @@ const M3_INTRO = [
     fallbackText: 'Lena pointed out salvaged parts\nnear the shelter.\nI welded them into a wellhead.\n\nI routed everything to the flare\nand lit it on fire.\nJudging by the flames \u2014\nthere was gas in there, alright.',
     alt: 'Wellhead construction' },
   { type: 'image', src: 'm3_outro_1.webp', transition: 'fade', duration_ms: null,
-    fallbackText: 'Kael found an empty barrel\nin the wreckage.\n\nHe dragged it to the shelter\nand plugged it into the water inlet.\n\nNothing in it yet \u2014\nbut we\u2019d be ready\nwhen the water came.',
+    fallbackText: 'I found an empty barrel\nin the wreckage.\n\nI dragged it to the shelter\nand plugged it into the water inlet.\n\nNothing in it yet \u2014\nbut we\u2019d be ready\nwhen the water came.',
     alt: 'Empty barrel connected to shelter' },
 ];
 
@@ -44079,11 +44095,13 @@ function insErr(parent, severity, message) {
 // ═══════════════════════════════════════════════════════════════════════════
 
 // Species colors — shared with S-PARTICLES palette
-const _SPECIES_COLORS = {
-  O2:'#60a5fa', N2:'#94a3b8', CO2:'#f59e0b', H2O:'#06b6d4',
-  CH4:'#22c55e', H2:'#e879f9', Ar:'#a78bfa', CO:'#f87171',
-  CH2O:'#fbbf24', NH3:'#fb923c', C2H6:'#34d399', SO2:'#f472b6'
-};
+// [v20.9.3] Species colors derived from _SPECIES_COLOR (particle/visualization palette)
+// Ensures inspector composition bars, particles, sight glass fills, and planet ribbon
+// all use the same colors from a single editable source.
+function _getSpeciesColorCSS(sp) {
+  const rgb = _SPECIES_COLOR[sp] || _SPECIES_DEFAULT_RGB;
+  return `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
+}
 
 // ── Conditions ribbon: [{lbl, val, unit, dotColor?, stickerLabel?}] ──
 // dotColor: '#22c55e'=OK, '#fbbf24'=warning, '#fca5a5'=alarm, null=no dot
@@ -44124,7 +44142,7 @@ function _renderCompRibbon(container, species, label) {
   for (const [sp, v] of sorted) {
     const pct = v / total * 100;
     if (pct < 0.001) continue;
-    const color = _SPECIES_COLORS[sp] || '#94a3b8';
+    const color = _getSpeciesColorCSS(sp);
     // Bar segment: minimum 0.5% visual width so trace species are visible
     const barPct = Math.max(0.5, pct);
     bar.appendChild(el('div', { style: `width:${barPct}%;background:${color}` }));
