@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v20.9.1  (authoritative version: PTIS_VERSION const in script block 1)
+  processThis v20.9.3  (authoritative version: PTIS_VERSION const in script block 1)
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -401,6 +401,60 @@
   ═══════════════════════════════════════════════════════════════════════════
   CHANGELOG  (latest first)
   ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v20.9.3 — Tank temperature + _V_m3 sync + mixer dead-end fix ──────────
+
+  **Temperature mixing formula fix (NNG-1).**  All 5 inventory unit types
+  (tank, open_tank, simple_open_tank, cooled_tank/simple_tank, food_storage)
+  had a broken adiabatic mixing formula in updateInventory:
+    OLD: T = (T_old × (n_inv − n_in) + T_in × n_in) / n_inv
+  where n_inv is post-accumulation (after outflow subtracted).  When
+  throughflow exceeds inventory, (n_inv − n_in) goes negative → wildly
+  wrong temperatures (170°C observed in open_tank with high flow).
+    NEW: T = (T_old × n_existing + T_in × n_in) / (n_existing + n_in)
+  where n_existing = pre-accumulation inventory moles (the input parameter
+  `inventory.n`, not the mutated `inv.n`).  Physically correct: inflow
+  mixes with existing contents, then outflow draws from the mixture.
+
+  **Tank _V_m3 sync from params.**  open_tank and simple_open_tank stored
+  `_V_m3` in inventory at init time.  updateInventory used this stale
+  value for spillage checks.  If the player changed `volume_m3` in params
+  after placement, spillage used the old capacity while the level display
+  used the new one — tank appeared 75% empty while silently overflowing.
+  Fix: tick functions now sync `inv._V_m3 = par.volume_m3` every solve.
+  Also removed undefined `par` reference in open_tank updateInventory.
+
+  **Topology dead-end fix (NNG-1).**  Units with unconnected material
+  output ports silently consumed all inflow — mass vanished from the
+  system.  Fixed: simple_mixer, mixer, bend, and splitter now check
+  `ctx.portConnected()` on output ports.  Unconnected outputs zero flow
+  and signal `_blockedInlet`, triggering the solver post-pass source-
+  killing backward trace.  Splitter treats unconnected outputs as blocked
+  branches (redistributes to connected branch, or fully blocks if both
+  unconnected).  Post-pass updated to support multiple `_blockedInlet`
+  errors per unit (was `.find()`, now `.filter()`).
+
+  NNGs: NNG-1 (conservation — temperature, mass), NNG-9 (tick isolation —
+  inventory state), NNG-14 (changelog).
+
+  ─── v20.9.2 — Air cooler energy balance fix + CO₂ Water Wash example ──────
+
+  **Air cooler Q_rejected_W now includes fan power (NNG-1).**  The fan
+  converts electrical input to heat rejected to ambient.  Previously
+  Q_rejected_W only counted thermal duty (gas cooling), omitting the
+  fan's electrical→heat contribution.  This caused a persistent energy
+  balance residual equal to total fan power across all air coolers.
+  Fix: `Q_rejected_W = Q_actual_W + W_fan_actual` on the main success
+  path and NTU error fallback.  Closes the ~0.25 kW residual in the
+  M4 Make Oxygen scene.
+
+  **CO₂ Water Wash example scene.**  Menu → Examples → CO₂ Water Wash.
+  4-stage absorption at 20 bar with 40:1 L/G ratio.  Demonstrates
+  Henry's law selectivity: 99.84% CO₂ removal from 3% to 0.005%.
+  Uses Peng-Robinson.
+
+  NNGs: NNG-1 (energy conservation — fan power pathway), NNG-14
+  (changelog).
 
   ─── v20.9.1 — Inspector composition precision + L/V split ─────────────────
 
@@ -13307,7 +13361,7 @@
 "use strict";
 
 // [v20.0.1] Single version source — title tag and comment header reference this.
-const PTIS_VERSION = 'v20.9.1';
+const PTIS_VERSION = 'v20.9.3';
 document.title = 'processThis — ' + PTIS_VERSION;
 
 // [v12.9.0] NNG sentinel — machine-readable list of all Non-Negotiable rules.
@@ -21107,9 +21161,9 @@ UnitRegistry.register('tank', {
     // Adiabatic mixing: simplified mole-weighted T average
     if (resolvedPorts.mat_in?.T && resolvedPorts.mat_in.n) {
       const n_in = Object.values(inFlow).reduce((a,b) => a+b, 0) * dt;
-      const n_inv = Object.values(inv.n).reduce((a,b) => a+b, 0);
-      if (n_inv > 0 && n_in > 0) {
-        inv.T_K = (inventory.T_K * (n_inv - n_in) + resolvedPorts.mat_in.T * n_in) / n_inv;
+      const n_existing = Object.values(inventory.n).reduce((a,b) => a+b, 0);  // [v20.9.2] pre-accumulation moles
+      if (n_existing + n_in > 0 && n_in > 0) {
+        inv.T_K = (inventory.T_K * n_existing + resolvedPorts.mat_in.T * n_in) / (n_existing + n_in);
       }
     }
 
@@ -21536,7 +21590,7 @@ UnitRegistry.register('open_tank', {
     inv._vented_n = vented_n;  // store for tick diagnostics
 
     // [v20.8.0] Open-top spillage: if liquid volume exceeds capacity, excess spills to ground
-    const V = inv._V_m3 || par.volume_m3 || 0.15;
+    const V = inv._V_m3 || 0.15;  // [v20.9.2] synced from par in tick
     const spilled_n = {};
     const n_after_vent = Object.values(inv.n).reduce((a,b) => a+b, 0);
     if (n_after_vent > 1e-15) {
@@ -21565,9 +21619,9 @@ UnitRegistry.register('open_tank', {
     // Adiabatic mixing: simplified mole-weighted T average
     if (resolvedPorts.mat_in?.T && resolvedPorts.mat_in.n) {
       const n_in = Object.values(inFlow).reduce((a,b) => a+b, 0) * dt;
-      const n_inv = Object.values(inv.n).reduce((a,b) => a+b, 0);
-      if (n_inv > 0 && n_in > 0) {
-        inv.T_K = (inventory.T_K * (n_inv - n_in) + resolvedPorts.mat_in.T * n_in) / n_inv;
+      const n_existing = Object.values(inventory.n).reduce((a,b) => a+b, 0);  // [v20.9.2] pre-accumulation moles
+      if (n_existing + n_in > 0 && n_in > 0) {
+        inv.T_K = (inventory.T_K * n_existing + resolvedPorts.mat_in.T * n_in) / (n_existing + n_in);
       }
     }
 
@@ -21577,6 +21631,7 @@ UnitRegistry.register('open_tank', {
   tick(u, ports, par, ctx) {
     const V = par.volume_m3 || 0.15;
     const inv = u.inventory || { n: {}, T_K: ctx.atmosphere.T_K };
+    if (inv._V_m3 !== V) inv._V_m3 = V;  // [v20.9.2] sync to params — updateInventory reads from inventory
     const dt = ctx.dt;
     const atm = ctx.atmosphere;
     const P_atm = atm.P_Pa;
@@ -21903,9 +21958,9 @@ UnitRegistry.register('simple_open_tank', {
     // Adiabatic mixing: mole-weighted T average
     if (resolvedPorts.mat_in?.T && resolvedPorts.mat_in.n) {
       const n_in = Object.values(inFlow).reduce((a,b) => a+b, 0) * dt;
-      const n_inv = Object.values(inv.n).reduce((a,b) => a+b, 0);
-      if (n_inv > 0 && n_in > 0) {
-        inv.T_K = (inventory.T_K * (n_inv - n_in) + resolvedPorts.mat_in.T * n_in) / n_inv;
+      const n_existing = Object.values(inventory.n).reduce((a,b) => a+b, 0);  // [v20.9.2] pre-accumulation moles
+      if (n_existing + n_in > 0 && n_in > 0) {
+        inv.T_K = (inventory.T_K * n_existing + resolvedPorts.mat_in.T * n_in) / (n_existing + n_in);
       }
     }
 
@@ -21915,6 +21970,7 @@ UnitRegistry.register('simple_open_tank', {
   tick(u, ports, par, ctx) {
     const V = par.volume_m3 || 0.1;
     const inv = u.inventory || { n: {}, T_K: ctx.atmosphere.T_K };
+    if (inv._V_m3 !== V) inv._V_m3 = V;  // [v20.9.2] sync to params — updateInventory reads from inventory
     const dt = ctx.dt;
     const atm = ctx.atmosphere;
     const P_atm = atm.P_Pa;
@@ -22165,9 +22221,9 @@ UnitRegistry.register('simple_tank', {
     // Adiabatic mixing
     if (resolvedPorts.mat_in?.T && resolvedPorts.mat_in.n) {
       const n_in = Object.values(inFlow).reduce((a,b) => a+b, 0) * dt;
-      const n_inv = Object.values(inv.n).reduce((a,b) => a+b, 0);
-      if (n_inv > 0 && n_in > 0) {
-        inv.T_K = (inventory.T_K * (n_inv - n_in) + resolvedPorts.mat_in.T * n_in) / n_inv;
+      const n_existing = Object.values(inventory.n).reduce((a,b) => a+b, 0);  // [v20.9.2] pre-accumulation moles
+      if (n_existing + n_in > 0 && n_in > 0) {
+        inv.T_K = (inventory.T_K * n_existing + resolvedPorts.mat_in.T * n_in) / (n_existing + n_in);
       }
     }
 
@@ -22485,9 +22541,9 @@ UnitRegistry.register('food_storage', {
     // Adiabatic mixing from food_in
     if (resolvedPorts.food_in?.T && resolvedPorts.food_in.n) {
       const n_in = Object.values(inFlow).reduce((a,b) => a+b, 0) * dt;
-      const n_inv = Object.values(inv.n).reduce((a,b) => a+b, 0);
-      if (n_inv > 0 && n_in > 0) {
-        inv.T_K = (inventory.T_K * (n_inv - n_in) + resolvedPorts.food_in.T * n_in) / n_inv;
+      const n_existing = Object.values(inventory.n).reduce((a,b) => a+b, 0);  // [v20.9.2] pre-accumulation moles
+      if (n_existing + n_in > 0 && n_in > 0) {
+        inv.T_K = (inventory.T_K * n_existing + resolvedPorts.food_in.T * n_in) / (n_existing + n_in);
       }
     }
 
@@ -24694,7 +24750,7 @@ UnitRegistry.register('air_cooler', {
     if (ntuResult.error) {
       Q_actual_W = 0;
       u.last = { T_in_K: sIn.T, T_setpoint_K: T_setpoint, T_ambient_K: T_amb,
-        Q_rejected_W: 0, W_fan_demand, W_fan_actual, fan_limited,
+        Q_rejected_W: W_fan_actual, W_fan_demand, W_fan_actual, fan_limited,  // [v20.9.2] fan power → ambient
         airflow_needed_kgps: airflow_needed, airflow_actual_kgps: airflow_actual,
         power_curtailed, error: ntuResult.error };
       ports.mat_out = passthrough();
@@ -24729,7 +24785,7 @@ UnitRegistry.register('air_cooler', {
       T_in_K: sIn.T,
       T_setpoint_K: T_setpoint,
       T_ambient_K: T_amb,
-      Q_rejected_W: Q_actual_W,
+      Q_rejected_W: Q_actual_W + W_fan_actual,  // [v20.9.1] includes fan power (NNG-1)
       Q_demand_W,
       capacityLimited,
       W_fan_demand,
@@ -25237,6 +25293,19 @@ UnitRegistry.register('mixer', {
     // solver iteration) is treated as zero flow. This bootstraps successive
     // substitution for recycle loops — the standard "tear stream" approach.
     if (!s1 && !s2) return;
+
+    // [v20.9.3] Unconnected output → block flow (NNG-1 mass conservation)
+    if (!ctx.portConnected('mat_out')) {
+      ports.mat_out = { type: StreamType.MATERIAL, T: 298.15, P: 101325, n: {}, phaseConstraint: 'VL' };
+      const hasFlow = (s1?.n && Object.values(s1.n).some(v => v > 1e-15))
+                   || (s2?.n && Object.values(s2.n).some(v => v > 1e-15));
+      if (hasFlow) {
+        ctx.warn({ severity: ErrorSeverity.MINOR, message: 'Output not connected — flow blocked', _blockedInlet: 'mat_in_1' });
+        ctx.warn({ severity: ErrorSeverity.MINOR, message: 'Output not connected — flow blocked', _blockedInlet: 'mat_in_2' });
+      }
+      u.last = { warning: 'Output not connected' };
+      return;
+    }
     
     // Effective inlets: missing → zero-flow placeholder
     const EMPTY_STREAM = { type: StreamType.MATERIAL, T: 298.15, P: 101325, n: {} };
@@ -25367,6 +25436,19 @@ UnitRegistry.register('simple_mixer', {
 
     if (!s1 && !s2) return;
 
+    // [v20.9.3] Unconnected output → block flow (NNG-1 mass conservation)
+    if (!ctx.portConnected('mat_out')) {
+      ports.mat_out = { type: StreamType.MATERIAL, T: 298.15, P: 101325, n: {}, phaseConstraint: 'VL' };
+      const hasFlow = (s1?.n && Object.values(s1.n).some(v => v > 1e-15))
+                   || (s2?.n && Object.values(s2.n).some(v => v > 1e-15));
+      if (hasFlow) {
+        ctx.warn({ severity: ErrorSeverity.MINOR, message: 'Output not connected — flow blocked', _blockedInlet: 'mat_in_1' });
+        ctx.warn({ severity: ErrorSeverity.MINOR, message: 'Output not connected — flow blocked', _blockedInlet: 'mat_in_2' });
+      }
+      u.last = { warning: 'Output not connected' };
+      return;
+    }
+
     const EMPTY_STREAM = { type: StreamType.MATERIAL, T: 298.15, P: 101325, n: {} };
     const eff1 = s1 || EMPTY_STREAM;
     const eff2 = s2 || EMPTY_STREAM;
@@ -25463,8 +25545,9 @@ UnitRegistry.register('splitter', {
 
     // [v14.8.0 S-SPLIT] Branch deactivation — read blocked branches from post-pass
     const blocked = ctx.blockedBranches();
-    const out1Blocked = blocked ? blocked.has('mat_out_1') : false;
-    const out2Blocked = blocked ? blocked.has('mat_out_2') : false;
+    // [v20.9.3] Unconnected outputs treated as blocked (NNG-1 mass conservation)
+    const out1Blocked = (blocked ? blocked.has('mat_out_1') : false) || !ctx.portConnected('mat_out_1');
+    const out2Blocked = (blocked ? blocked.has('mat_out_2') : false) || !ctx.portConnected('mat_out_2');
 
     // All branches blocked → dead end, zero everything, signal upstream
     if (out1Blocked && out2Blocked) {
@@ -25629,9 +25712,17 @@ UnitRegistry.register('bend', {
     'box/down-right':{ w: 2, h: 2, ports: { mat_in:{x:1,y:2}, mat_out:{x:2,y:1} }, icon: 'ico-bend' },
     'box/down-left': { w: 2, h: 2, ports: { mat_in:{x:1,y:2}, mat_out:{x:0,y:1} }, icon: 'ico-bend' }
   },
-  tick(u, ports, par) {
+  tick(u, ports, par, ctx) {
     const sIn = ports.mat_in;
     if (!sIn) return;
+    // [v20.9.3] Unconnected output → block flow (NNG-1)
+    if (!ctx.portConnected('mat_out')) {
+      ports.mat_out = { type: StreamType.MATERIAL, T: sIn.T, P: sIn.P, n: {} };
+      if (Object.values(sIn.n || {}).some(v => v > 1e-15)) {
+        ctx.warn({ severity: ErrorSeverity.MINOR, message: 'Output not connected — flow blocked', _blockedInlet: 'mat_in' });
+      }
+      return;
+    }
     ports.mat_out = {
       type: StreamType.MATERIAL,
       T: sIn.T, P: sIn.P,
@@ -31847,10 +31938,13 @@ function solveScene(scene, options = {}) {
       for (const [_cvId, _cvU] of scene.units) {
         const _cvUD = scene.runtime.unitData.get(_cvId);
         // [v16.9.1] _blockedInlet now lives on ud.errors (was ud.last — NNG-9 authority fix)
-        const _blockedErr = _cvUD?.errors?.find(e => e._blockedInlet);
-        if (!_blockedErr) continue;
+        // [v20.9.3] Support multiple blocked inlets per unit (e.g. simple_mixer with 2 inputs)
+        const _blockedErrs = _cvUD?.errors?.filter(e => e._blockedInlet) || [];
+        if (_blockedErrs.length === 0) continue;
         const _cvName = _cvU.name || UnitRegistry.get(_cvU.defId)?.name || _cvId;
-        blockedInlets.push({ unitId: _cvId, portId: _blockedErr._blockedInlet, blockingName: _cvName });
+        for (const _blockedErr of _blockedErrs) {
+          blockedInlets.push({ unitId: _cvId, portId: _blockedErr._blockedInlet, blockingName: _cvName });
+        }
       }
 
       if (blockedInlets.length > 0) {
