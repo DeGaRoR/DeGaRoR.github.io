@@ -450,6 +450,14 @@
   meaningful: Lena triggers COLD WARNING at hour 2, WARM WARNING by
   hour 39.  Players must build heaters/coolers to keep shelter livable.
 
+  **Star system fix.**  M1 star 2 was impossible: `time_limit: 180s`
+  checked simulation time but sustain objective needs ≥3600s.  Replaced
+  with `maintain_conditions` (O₂ ≥ 19% for 1h).  M1 star 3 reduced
+  from 7200s to 10800s with tighter O₂ ≥ 20%.  M2 stars 2+3 had timer
+  key collision: both `maintain_conditions` criteria resolved to key
+  `'mc_shelter'`, so star 3 evaluation reset star 2's timer every tick.
+  Fix: explicit `id` fields (`star2_co2_half`, `star3_co2_trace`).
+
   NNGs: NNG-1 (conservation — temperature, mass), NNG-9 (tick isolation —
   inventory state), NNG-14 (changelog).
 
@@ -29075,12 +29083,14 @@ MissionRegistry.register('arc_a_m1', {
   stars: {
     1: { description: 'Both connections made. O\u2082 flowing for 1 hour.',
       criteria: [{ type: 'all_objectives_complete' }] },
-    2: { description: 'Completed in under 3 minutes.',
-      criteria: [{ type: 'all_objectives_complete' }, { type: 'time_limit', maxSeconds: 180 }] },
-    3: { description: 'O\u2082 stable above 19% for 2 hours.',
+    2: { description: 'O\u2082 stable above 19% for 1 hour.',
       criteria: [{ type: 'all_objectives_complete' },
-        { type: 'maintain_conditions', unit: 'shelter',
-          conditions: { O2_pct_gte: 19 }, duration_s: 7200 }] },
+        { type: 'maintain_conditions', id: 'star2_o2_tight', unit: 'shelter',
+          conditions: { O2_pct_gte: 19 }, duration_s: 3600 }] },
+    3: { description: 'O\u2082 stable above 20% for 3 hours.',
+      criteria: [{ type: 'all_objectives_complete' },
+        { type: 'maintain_conditions', id: 'star3_o2_high', unit: 'shelter',
+          conditions: { O2_pct_gte: 20 }, duration_s: 10800 }] },
   },
 
   guidanceSteps: M1_GUIDANCE,
@@ -29153,11 +29163,11 @@ MissionRegistry.register('arc_a_m2', {
       criteria: [{ type: 'all_objectives_complete' }] },
     2: { description: 'CO\u2082 < 0.5% sustained for 2 hours.',
       criteria: [{ type: 'all_objectives_complete' },
-        { type: 'maintain_conditions', unit: 'shelter',
+        { type: 'maintain_conditions', id: 'star2_co2_half', unit: 'shelter',
           conditions: { CO2_pct_lte: 0.5 }, duration_s: 7200 }] },
     3: { description: 'CO\u2082 < 0.1% sustained for 2 hours.',
       criteria: [{ type: 'all_objectives_complete' },
-        { type: 'maintain_conditions', unit: 'shelter',
+        { type: 'maintain_conditions', id: 'star3_co2_trace', unit: 'shelter',
           conditions: { CO2_pct_lte: 0.1 }, duration_s: 7200 }] },
   },
 
@@ -73017,7 +73027,7 @@ function runTests() {
     t.wire(bottle, 'gas_out', room, 'o2_in');
     t.solve();
 
-    // Star 2 requires time_limit maxSeconds: 180 — pass with elapsed 100s
+    // Star 2 requires maintain_conditions O2 >= 19% — check structure exists
     // Star 1 requires all_objectives_complete — needs maintain_conditions to pass
     // We can't easily fake duration, so just check star structure
     const result = evaluateMissionCompletion('arc_a_m1', scene, {
@@ -73026,9 +73036,9 @@ function runTests() {
     t.assertOK(result.starResults[1], 'star 1 result exists');
     t.assertOK(result.starResults[2], 'star 2 result exists');
     t.assertOK(result.starResults[3], 'star 3 result exists');
-    // Star 2 criteria includes time_limit 180s — elapsed 100 passes that criterion
-    const star2Time = result.starResults[2].criteria.find(c => c.progress && c.progress.includes('100s'));
-    t.assertOK(star2Time, 'star 2 time criterion evaluated');
+    // Star 2 criteria includes maintain_conditions with id star2_o2_tight
+    const star2MC = result.starResults[2].criteria.find(c => c.progress && c.progress.includes('O'));
+    t.assertOK(star2MC, 'star 2 maintain_conditions criterion evaluated');
   });
 
   test('763: CareerSaveManager — save, list, load, delete', t => {
