@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v20.9.5  (authoritative version: PTIS_VERSION const in script block 1)
+  processThis v20.9.6  (authoritative version: PTIS_VERSION const in script block 1)
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -400,6 +400,54 @@
 
   ═══════════════════════════════════════════════════════════════════════════
   CHANGELOG  (latest first)
+  ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v20.9.6 — Mission 5 "Generate Energy" + star ranking hidden + battery resize ─
+
+  **New mission: arc_a_m5 "Generate Energy" (index 4, 5th in Arc A).**
+  After air/CO₂/water/oxygen, the battery is running down and there is no
+  on-site generation.  The player stops flaring the hydrovent vent gas and
+  feeds it to a multi-fuel generator (small_gas_engine) instead, wiring the
+  output through the dispatcher to recharge the battery.  Inherits the M4
+  scene.  Palette: small_gas_engine, source_atmosphere (simple air intake),
+  sink_electrical (dump load), plus bend:99 / simple_mixer:99 for tidy
+  flowsheets (the bulk-plumbing convention going forward).  8 objectives:
+  place engine; fuel (flash_drum→engine); air (source_atmosphere→engine);
+  exhaust→flare; power→dispatcher; **dump load (dispatcher→sink_electrical,
+  required)**; battery charging-or-full for 24h; inherited air-quality 24h.
+  The dump-load objective interlocks with the battery objective — a full
+  battery + running generator + no dump load is the CATASTROPHIC unconnected-
+  surplus condition, so the player must wire the surplus.  Full intro/briefing/
+  guidance(6)/victory/outro text; engine-running trigger.  Intro/outro images:
+  flat img/ folder, `m5_intro_1.webp` / `m5_outro_1.webp` (fallback text plays
+  until present).
+
+  **New objective evaluator `battery_soc`.**  Reads battery `last.soc` /
+  `last.status`; met when charging OR fully charged (≥ fullThreshold, default
+  0.99), with optional duration gating via the standard _conditionTimers
+  pattern.  Added to _OBJECTIVE_TYPES (so usable as objective and star
+  criterion).
+
+  **Star ranking hidden (not removed).**  `const SHOW_STARS = false`.  The
+  1–3 star rating per mission proved unreliable (timer-based star-2/3 criteria)
+  and isn't appropriate for the tutorial, so it is no longer reported: the
+  objective-panel star tracker, the victory-screen stars, and the career-list
+  star total are suppressed.  The **objectives panel and its task list stay
+  fully visible** — only the ranking is gone.  The evaluator, completion logic
+  (passed = star 1 = all objectives complete), and every mission's stars{} data
+  are UNCHANGED; flip SHOW_STARS to true to re-enable everything.
+
+  **Battery resized 500 kWh → 30 kWh.**  M1 preplaced battery capacity_J
+  1.8e9 → 1.08e8.  500 kWh gave a ~52-day runway, so it sat at ~95% by M5 with
+  no sense of urgency.  30 kWh visibly declines through M1–M4 (lands ~56% at
+  M5) while keeping a safe ~78h runway vs the ~51h minimum playthrough.  More
+  realistic (Powerwall-class) and gives M5 its premise.
+
+  **Tests.**  871 total (4197 checks).  Added 806 (battery_soc evaluator:
+  charging/full/discharging + 24h timer), 807 (M5 structure/palette/objectives),
+  808 (SHOW_STARS off; completion logic unchanged).  Updated 749 (5 missions),
+  753 (battery 30 kWh), 754 (advance M4→M5→campaign_complete).
+
   ═══════════════════════════════════════════════════════════════════════════
 
   ─── v20.9.5 — Gas engine integral cooling + WYSIWYG electrical gating ─────
@@ -13466,7 +13514,7 @@
 "use strict";
 
 // [v20.0.1] Single version source — title tag and comment header reference this.
-const PTIS_VERSION = 'v20.9.5';
+const PTIS_VERSION = 'v20.9.6';
 document.title = 'processThis — ' + PTIS_VERSION;
 
 // [v12.9.0] NNG sentinel — machine-readable list of all Non-Negotiable rules.
@@ -19619,7 +19667,7 @@ class ProfileRegistry {
 const _OBJECTIVE_TYPES = new Set([
   'convergence', 'connection', 'connection_absent', 'store_component',
   'maintain_conditions', 'power_output', 'flow_rate', 'port_conditions',
-  'depletion_guard', 'inventory_trend', 'unit_present',
+  'depletion_guard', 'inventory_trend', 'unit_present', 'battery_soc',
 ]);
 const _STAR_CRITERIA_TYPES = new Set([
   ..._OBJECTIVE_TYPES,
@@ -19959,6 +20007,13 @@ function _fmtDuration(s) {
   return Math.round(s) + 's';
 }
 
+// [v20.9.6] Star-ranking display flag.  The 1–3 star rating per mission is hidden
+// (not reported) for the tutorial — the timer-based star-2/3 criteria proved
+// unreliable and stars aren't appropriate here.  The evaluator and completion
+// logic are UNCHANGED (passed = star 1 = all objectives complete, the reliable
+// part); only the star UI is suppressed.  Flip to true to re-enable everything.
+const SHOW_STARS = false;
+
 const ObjectiveEvaluators = {
 
   // 1. convergence — solver converged (always met after a successful solve)
@@ -20172,6 +20227,28 @@ const ObjectiveEvaluators = {
       met,
       progress: `Power: ${totalPower.toFixed(0)} W ${ok ? '✓' : `(need ≥ ${params.min_W} W)`}`
         + (dur > 0 ? ` ${elapsed.toFixed(0)}s/${dur}s` : ''),
+      _conditionsOk: ok, _runtimeKey: rKey,
+    };
+  },
+
+  // 9b. battery_soc — [v20.9.6] battery charging OR fully charged, for duration
+  battery_soc(params, scene, runtime) {
+    const units = _unitsByProfile(scene, params.profile || 'battery');
+    if (units.length === 0) return { met: false, progress: 'Battery not found' };
+    const u = units[0];
+    const soc = u.last?.soc ?? 0;
+    const status = u.last?.status ?? 'idle';
+    const full = soc >= (params.fullThreshold ?? 0.99);
+    const ok = status === 'charging' || full;   // "charging up OR fully charged"
+    const dur = params.duration_s || 0;
+    const rKey = params.id || ('batt_soc_' + u.id);
+    const elapsed = runtime?._conditionTimers?.[rKey] || 0;
+    const met = dur > 0 ? (ok && elapsed >= dur) : ok;
+    const durStr = dur > 0 ? ` ${_fmtDuration(elapsed)}/${_fmtDuration(dur)}` : '';
+    const stateStr = full ? 'full' : status;
+    return {
+      met,
+      progress: `Battery ${(soc * 100).toFixed(0)}% (${stateStr})${durStr} ${met ? '✓' : ''}`,
       _conditionsOk: ok, _runtimeKey: rKey,
     };
   },
@@ -29120,6 +29197,69 @@ const M4_GUIDANCE = [
     delay_ms: 500 },
 ];
 
+// ═══ M5 — Generate Energy ═══════════════════════════════════════════════
+const M5_INTRO = [
+  { type: 'image', src: 'm5_intro_1.webp', transition: 'wipe', duration_ms: null,
+    fallbackText: 'The battery got us this far.\nBut Lena watched the gauge drop and didn\u2019t like it.\n\n\u201CPower\u2019s the next problem,\u201D she said.\n\u201CThat pack won\u2019t hold much longer.\u201D\n\nSo I hiked back out to the debris field\nand looked for what she described:\na multi-fuel generator.\n\nFound one. Small, dented, heavy.\nBurns any combustible gas, she said.\nPlug and play. Let\u2019s see.',
+    alt: 'K hauling a battered generator back to the shelter' },
+];
+
+const M5_BRIEFING = [
+  { type: 'dialogue', speaker: 'lena', expression: 'happy', delay_ms: 1500,
+    text: 'That gas we\u2019ve been flaring off? That\u2019s fuel. Feed it to the generator, give it air, and it burns straight into watts. Wire the power to the dispatcher \u2014 the battery does the rest. Watch the surplus, though.' },
+];
+
+const M5_VICTORY_LINES = {
+  1: { speaker: 'lena', text: 'Watts from waste gas, and the battery\u2019s climbing. That\u2019s the one, K.' },
+  2: { speaker: 'lena', text: 'Surplus handled, nothing wasted. Clean work.' },
+  3: { speaker: 'lena', text: 'Every stream tied off. You could do this in your sleep now.' },
+};
+
+const M5_GUIDANCE = [
+  { id: 'g_m5_place_engine',
+    dialogue: { speaker: 'lena', text: 'Drop the generator in. It\u2019ll burn whatever gas we feed it.', expression: 'happy' },
+    highlight: { type: 'palette_tile', profileId: 'small_gas_engine' },
+    completion: { type: 'unit_placed', profileId: 'small_gas_engine' },
+    onComplete: { speaker: 'lena', text: 'Sturdy little thing.' },
+    delay_ms: 500 },
+  { id: 'g_m5_fuel',
+    dialogue: { speaker: 'lena', text: 'That vent gas going up the flare \u2014 reroute it into the generator\u2019s fuel inlet. No sense burning it for nothing.', expression: 'happy' },
+    highlight: { type: 'unit', profileId: 'flash_drum' },
+    completion: { type: 'connection', fromProfile: 'flash_drum', toProfile: 'small_gas_engine' },
+    onComplete: { speaker: 'lena', text: 'Now we\u2019re using it.' },
+    delay_ms: 500 },
+  { id: 'g_m5_air',
+    dialogue: { speaker: 'lena', text: 'It needs air to burn. Drop an intake and run it to the air inlet.', expression: 'happy' },
+    highlight: { type: 'palette_tile', profileId: 'source_atmosphere' },
+    completion: { type: 'connection', fromProfile: 'source_atmosphere', toProfile: 'small_gas_engine' },
+    onComplete: { speaker: 'lena', text: 'Breathing now.' },
+    delay_ms: 500 },
+  { id: 'g_m5_exhaust',
+    dialogue: { speaker: 'lena', text: 'Send the exhaust up to the flare.', expression: 'happy' },
+    highlight: { type: 'unit', profileId: 'small_gas_engine' },
+    completion: { type: 'connection', fromProfile: 'small_gas_engine', toProfile: 'flare_stack' },
+    onComplete: { speaker: 'lena', text: 'Clean.' },
+    delay_ms: 500 },
+  { id: 'g_m5_power',
+    dialogue: { speaker: 'lena', text: 'Run the output to the dispatcher. Let\u2019s see those watts.', expression: 'happy' },
+    highlight: { type: 'unit', profileId: 'small_gas_engine' },
+    completion: { type: 'connection', fromProfile: 'small_gas_engine', toProfile: 'power_dispatcher_5' },
+    onComplete: { speaker: 'lena', text: 'There it is.' },
+    delay_ms: 500 },
+  { id: 'g_m5_dump',
+    dialogue: { speaker: 'lena', text: 'It makes more than we use \u2014 when the battery fills, that extra has to go somewhere or it\u2019ll trip. Put a dump load on the dispatcher\u2019s surplus.', expression: 'happy' },
+    highlight: { type: 'palette_tile', profileId: 'sink_electrical' },
+    completion: { type: 'connection', fromProfile: 'power_dispatcher_5', toProfile: 'sink_electrical' },
+    onComplete: { speaker: 'lena', text: 'Safe now. Let it run.' },
+    delay_ms: 500 },
+];
+
+const M5_OUTRO = [
+  { type: 'image', src: 'm5_outro_1.webp', transition: 'fade', duration_ms: null,
+    fallbackText: 'The needle climbed back up.\nFor the first time we were making power,\nnot just spending it.\n\nLena finally leaned back.\n\u201COkay,\u201D she said. \u201CWe\u2019re alive.\nNow let\u2019s try comfortable.\u201D',
+    alt: 'The shelter at night, lights steady, battery gauge rising' },
+];
+
 // ═══════════════════════════════════════════════════════════════════════════
 // [v19.0.0] Campaign, Arc, Mission registrations
 // ═══════════════════════════════════════════════════════════════════════════
@@ -29152,7 +29292,7 @@ ArcRegistry.register('arc_a', {
   crewCount: 2,
   intro: ARC_A_INTRO,
   conclusion: [],
-  missions: ['arc_a_m1', 'arc_a_m2', 'arc_a_m3', 'arc_a_m4'],
+  missions: ['arc_a_m1', 'arc_a_m2', 'arc_a_m3', 'arc_a_m4', 'arc_a_m5'],
 });
 
 // ── M1 — Breathe ─────────────────────────────────────────────────────────
@@ -29180,7 +29320,7 @@ MissionRegistry.register('arc_a_m1', {
         initialComposition: { O2: 1 }, gasDrawRate: 0.001, opening_gas_pct: 46.6,
         P_relief: 35000000 } },
     { id: 'battery', profileId: 'battery', defId: 'battery', tier: 1, lock: 'nodelete',
-      x: 1, y: -3, params: { peakPower_kW: 100, capacity_J: 1800000000, initialSOC: 1 } },
+      x: 1, y: -3, params: { peakPower_kW: 100, capacity_J: 108000000, initialSOC: 1 } },
   ],
 
   narrator: 'lena',
@@ -29531,6 +29671,107 @@ MissionRegistry.register('arc_a_m4', {
       condition: { type: 'unit_status', profileId: 'reactor_electrochemical', status: 'active' },
       action: { type: 'dialogue', speaker: 'lena',
         text: 'It\u2019s running. Watch the bottle gauge.',
+        expression: 'happy' } },
+  ],
+
+  hints: [],
+  completionGated: true,
+  storyUI: {
+    visibleMenuItems: ['reports', 'physicalUnits', 'clearStickers', 'home', 'saveCampaign'],
+    hidePaletteFilter: true, hidePressureSwitch: true,
+    pressureMode: 'simple', hideDevTab: true,
+    showObjectivePanel: true, showStarTracker: true, showRunway: true,
+  },
+});
+
+// ── M5 — Generate Energy ─────────────────────────────────────────────────
+MissionRegistry.register('arc_a_m5', {
+  arcId: 'arc_a',
+  index: 4,
+  contentVersion: 1,
+  title: 'Generate Energy',
+  subtitle: 'The battery is running down.',
+  emergency: 'Battery depleting. No on-site generation.',
+
+  palette: {
+    small_gas_engine: 1,
+    source_atmosphere: 1,
+    sink_electrical: 1,
+    bend: 99,
+    simple_mixer: 99,
+  },
+  species: ['O2', 'N2', 'Ar', 'CO2', 'H2O', 'CH4', 'H2', 'CO'],
+  reactions: ['R_CH4_COMB', 'R_H2_COMB'],
+
+  inheritScene: true,
+  preplacedUnits: [],
+  preplacedConnections: [
+    // Re-lock the life-support lines carried in from earlier missions (defensive).
+    { id: 'c_o2_to_room_m5', from: { unitId: 'o2_bottle', portId: 'gas_out' },
+      to: { unitId: 'room', portId: 'o2_in' }, lock: true },
+    { id: 'c_h2o_barrel_m5', from: { unitId: 'water_barrel', portId: 'mat_out' },
+      to: { unitId: 'room', portId: 'h2o_in' }, lock: true },
+  ],
+
+  narrator: 'lena',
+  roomOccupants: { shelter: ['lena', 'k'] },
+
+  storyIntro: M5_INTRO,
+  storyOutro: M5_OUTRO,
+  briefing: M5_BRIEFING,
+  victoryLine: M5_VICTORY_LINES,
+
+  objectives: [
+    { id: 'engine_placed', type: 'unit_present',
+      profileId: 'small_gas_engine',
+      description: 'Place the gas generator' },
+    { id: 'fuel_connected', type: 'connection',
+      fromProfile: 'flash_drum', toProfile: 'small_gas_engine',
+      description: 'Feed the vent gas to the generator' },
+    { id: 'air_connected', type: 'connection',
+      fromProfile: 'source_atmosphere', toProfile: 'small_gas_engine',
+      description: 'Give the generator air' },
+    { id: 'exhaust_connected', type: 'connection',
+      fromProfile: 'small_gas_engine', toProfile: 'flare_stack',
+      description: 'Vent the exhaust to the flare' },
+    { id: 'power_connected', type: 'connection',
+      fromProfile: 'small_gas_engine', toProfile: 'power_dispatcher_5',
+      description: 'Wire the power into the dispatcher' },
+    { id: 'dump_connected', type: 'connection',
+      fromProfile: 'power_dispatcher_5', toProfile: 'sink_electrical',
+      description: 'Add a dump load on the surplus' },
+    { id: 'battery_recovering', type: 'battery_soc',
+      profile: 'battery', duration_s: 86400,
+      description: 'Battery charging or full for 24 hours' },
+    // Inherited health — 24h sustain
+    { id: 'health_air', type: 'maintain_conditions',
+      unit: 'shelter', conditions: { O2_pct_gte: 18, CO2_pct_lte: 1.0 }, duration_s: 86400,
+      description: 'Air quality sustained for 24 hours' },
+  ],
+
+  // [v20.9.6] Star ranking hidden (SHOW_STARS=false) — blocks kept for reactivation.
+  stars: {
+    1: { description: 'Generator running, battery recovering, air stable.',
+      criteria: [{ type: 'all_objectives_complete' }] },
+    2: { description: '\u2605 + L/V gas fully captured to the generator.',
+      criteria: [
+        { type: 'all_objectives_complete' },
+        { type: 'connection_absent', fromProfile: 'flash_drum', toProfile: 'flare_stack' },
+      ] },
+    3: { description: '\u2605\u2605 + battery held full for the full day.',
+      criteria: [
+        { type: 'all_objectives_complete' },
+        { type: 'battery_soc', profile: 'battery', fullThreshold: 0.99, id: 'star3_batt_full', duration_s: 86400 },
+      ] },
+  },
+
+  guidanceSteps: M5_GUIDANCE,
+
+  triggers: [
+    { id: 'engine_running', once: true, delay_s: 0,
+      condition: { type: 'unit_status', profileId: 'small_gas_engine', status: 'running' },
+      action: { type: 'dialogue', speaker: 'lena',
+        text: 'There it is \u2014 gas into watts. Watch that battery climb.',
         expression: 'happy' } },
   ],
 
@@ -53553,10 +53794,21 @@ function showVictoryScreen(result) {
   const mission = MissionRegistry.get(_activeMissionId);
   overlay.querySelector('.vic-title').textContent = mission?.title || 'Mission Complete';
 
-  const starStr = '★'.repeat(result.starCount) + '☆'.repeat(3 - result.starCount);
-  overlay.querySelector('.vic-stars').textContent = starStr;
+  // [v20.9.6] Star ranking hidden unless SHOW_STARS.  Objective panel/list stays.
+  const vicStars = overlay.querySelector('.vic-stars');
+  if (vicStars) {
+    if (SHOW_STARS) {
+      vicStars.style.display = '';
+      vicStars.textContent = '★'.repeat(result.starCount) + '☆'.repeat(3 - result.starCount);
+    } else {
+      vicStars.style.display = 'none';
+    }
+  }
 
-  const victoryLine = mission?.victoryLine?.[result.starCount];
+  // Victory line: keyed by star count when shown, else the base (star-1) line.
+  const victoryLine = SHOW_STARS
+    ? mission?.victoryLine?.[result.starCount]
+    : (mission?.victoryLine?.[1] || mission?.victoryLine?.[result.starCount]);
   overlay.querySelector('.vic-line').textContent = victoryLine?.text || 'Well done.';
 
   overlay.classList.add('active');
@@ -53610,10 +53862,15 @@ function _updateObjectivePanel(result) {
   if (!panel) return;
   panel.classList.add('active');
 
-  // Star tracker
+  // Star tracker — [v20.9.6] hidden unless SHOW_STARS (objective list below stays)
   const starEl = document.getElementById('objStarTracker');
   if (starEl) {
-    starEl.textContent = '\u2605'.repeat(result.starCount) + '\u2606'.repeat(3 - result.starCount);
+    if (SHOW_STARS) {
+      starEl.style.display = '';
+      starEl.textContent = '\u2605'.repeat(result.starCount) + '\u2606'.repeat(3 - result.starCount);
+    } else {
+      starEl.style.display = 'none';
+    }
   }
 
   // Objective items
@@ -53806,7 +54063,9 @@ function showCareerList() {
     const detail = document.createElement('div');
     detail.className = 'cl-slot-detail';
     const missionTitle = c.currentMissionId ? (MissionRegistry.get(c.currentMissionId)?.title || c.currentMissionId) : '?';
-    detail.textContent = `${c.missionsCompleted} missions · ${c.totalStars}\u2605 · Next: ${missionTitle}`;
+    detail.textContent = SHOW_STARS
+      ? `${c.missionsCompleted} missions · ${c.totalStars}\u2605 · Next: ${missionTitle}`
+      : `${c.missionsCompleted} missions · Next: ${missionTitle}`;
     info.appendChild(detail);
     slot.appendChild(info);
 
@@ -72924,14 +73183,15 @@ function runTests() {
     t.assertOK(c.reactionPool.includes('R_METABOLISM'), 'R_METABOLISM in pool');
   });
 
-  test('749: Arc A registered with 4 missions', t => {
+  test('749: Arc A registered with 5 missions', t => {
     t.assertOK(ArcRegistry.exists('arc_a'), 'arc_a exists');
     const a = ArcRegistry.get('arc_a');
     t.assertOK(a.title === 'Survival', 'title');
-    t.assertOK(a.missions.length === 4, '4 missions');
+    t.assertOK(a.missions.length === 5, '5 missions');
     t.assertOK(a.missions[0] === 'arc_a_m1', 'M1 first');
     t.assertOK(a.missions[2] === 'arc_a_m3', 'M3 third');
     t.assertOK(a.missions[3] === 'arc_a_m4', 'M4 fourth');
+    t.assertOK(a.missions[4] === 'arc_a_m5', 'M5 fifth');
     t.assertOK(a.intro.length === 6, 'arc intro has 6 beats');
   });
 
@@ -72986,7 +73246,7 @@ function runTests() {
 
     const bat = m1.preplacedUnits.find(u => u.profileId === 'battery');
     t.assertOK(bat, 'battery in M1 preplaced');
-    t.assertClose(bat.params.capacity_J, 1800000000, 1, 'battery capacity calibrated');
+    t.assertClose(bat.params.capacity_J, 108000000, 1, 'battery capacity = 30 kWh (v20.9.6 resize)');
     t.assertClose(bat.params.initialSOC, 1, 0.01, 'battery SOC = 1');
 
     const m2 = MissionRegistry.get('arc_a_m2');
@@ -73017,16 +73277,22 @@ function runTests() {
     t.assertOK(eff.power_dispatcher_5 === 1, 'dispatcher in M3 palette');
     t.assertOK(eff.air_cooler === 1, 'cooler in M3 palette');
 
-    // Complete M3 — should advance to M4 (4 missions now)
+    // Complete M3 — should advance to M4 (5 missions now)
     cs.completeMission('arc_a_m3', 3, '{"m3":"done"}');
     const next3 = cs.advanceToNext();
     t.assertOK(next3.type === 'mission', 'advance to M4');
     t.assertOK(cs.currentMissionId === 'arc_a_m4', 'now at M4');
 
-    // Complete M4 — should complete the arc
+    // Complete M4 — should advance to M5
     cs.completeMission('arc_a_m4', 2, '{"m4":"done"}');
     const next4 = cs.advanceToNext();
-    t.assertOK(next4.type === 'campaign_complete', 'campaign complete after M4');
+    t.assertOK(next4.type === 'mission', 'advance to M5');
+    t.assertOK(cs.currentMissionId === 'arc_a_m5', 'now at M5');
+
+    // Complete M5 — should complete the arc
+    cs.completeMission('arc_a_m5', 1, '{"m5":"done"}');
+    const next5 = cs.advanceToNext();
+    t.assertOK(next5.type === 'campaign_complete', 'campaign complete after M5');
     t.assertOK(cs.arcCompleted.has('arc_a'), 'arc_a completed');
   });
 
@@ -74225,6 +74491,58 @@ function runTests() {
     const exhaustT = t.port(eng, 'mat_out').T;
     t.assertOK(exhaustT < 800, `exhaust floats below design T (${exhaustT.toFixed(0)} K)`);
     t.assertClose(L.Q_rejected_W, 0, 1, 'no jacket rejection when below design T');
+  });
+
+  // ── [v20.9.6] battery_soc evaluator, M5 mission, star-hide flag ───────────
+
+  test('806: battery_soc evaluator — charging or full passes, discharging fails', t => {
+    t.clearScene();
+    const b = t.place('battery', 0, 0, { peakPower_kW: 50, capacity_J: 1e8, initialSOC: 0.5 });
+    const bu = t.unit(b);
+    // Charging → ok
+    bu.last = { soc: 0.6, status: 'charging' };
+    t.assertOK(ObjectiveEvaluators.battery_soc({ profile: 'battery' }, scene, {}).met, 'charging → met');
+    // Full (idle) → ok via fullThreshold
+    bu.last = { soc: 1.0, status: 'idle' };
+    t.assertOK(ObjectiveEvaluators.battery_soc({ profile: 'battery' }, scene, {}).met, 'full → met');
+    // Discharging, mid SOC → not ok
+    bu.last = { soc: 0.5, status: 'discharging' };
+    t.assertOK(!ObjectiveEvaluators.battery_soc({ profile: 'battery' }, scene, {}).met, 'discharging → not met');
+    // Duration gating: ok but timer not yet elapsed → not met; elapsed → met
+    bu.last = { soc: 0.7, status: 'charging' };
+    const rPartial = { _conditionTimers: { bs: 1000 } };
+    const rFull = { _conditionTimers: { bs: 86400 } };
+    t.assertOK(!ObjectiveEvaluators.battery_soc({ profile: 'battery', id: 'bs', duration_s: 86400 }, scene, rPartial).met, 'timer not elapsed → not met');
+    t.assertOK(ObjectiveEvaluators.battery_soc({ profile: 'battery', id: 'bs', duration_s: 86400 }, scene, rFull).met, 'timer elapsed → met');
+  });
+
+  test('807: M5 Generate Energy — structure, palette, objectives', t => {
+    const m = MissionRegistry.get('arc_a_m5');
+    t.assertOK(m, 'M5 exists');
+    t.assertOK(m.title === 'Generate Energy', 'title');
+    t.assertOK(m.index === 4, 'index 4');
+    t.assertOK(m.palette.small_gas_engine === 1, 'engine in palette');
+    t.assertOK(m.palette.source_atmosphere === 1, 'simple air intake in palette');
+    t.assertOK(m.palette.sink_electrical === 1, 'dump load in palette');
+    t.assertOK(m.palette.bend === 99 && m.palette.simple_mixer === 99, 'bends + mixers in bulk');
+    t.assertOK(m.inheritScene === true, 'inherits M4 scene');
+    // Objectives: place, fuel, air, exhaust, power, dump, battery, health
+    const ids = m.objectives.map(o => o.id);
+    t.assertOK(ids.includes('dump_connected'), 'dump-load objective present (required)');
+    t.assertOK(ids.includes('battery_recovering'), 'battery objective present');
+    const batt = m.objectives.find(o => o.id === 'battery_recovering');
+    t.assertOK(batt.type === 'battery_soc' && batt.duration_s === 86400, 'battery_soc, 24h');
+    t.assertOK(m.guidanceSteps.length === 6, '6 guidance steps');
+    t.assertOK(m.storyIntro.length === 1 && m.storyIntro[0].src === 'm5_intro_1.webp', 'intro image');
+  });
+
+  test('808: SHOW_STARS off — completion logic unchanged, ranking just not reported', t => {
+    t.assertOK(SHOW_STARS === false, 'star ranking hidden');
+    // Evaluator/completion are untouched by the flag: starResults still computed,
+    // and `passed` still derives from star 1 = all objectives complete.
+    const result = evaluateMissionCompletion('arc_a_m1', scene, { converged: true });
+    t.assertOK(result.starResults && result.starResults[1] !== undefined, 'star results still computed internally');
+    t.assertOK(typeof result.passed === 'boolean', 'passed still returned');
   });
 
   // ═══════════════════════════════════════════════════════════════════════
