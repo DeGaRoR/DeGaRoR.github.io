@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v20.9.4  (authoritative version: PTIS_VERSION const in script block 1)
+  processThis v20.9.5  (authoritative version: PTIS_VERSION const in script block 1)
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -401,6 +401,54 @@
   ═══════════════════════════════════════════════════════════════════════════
   CHANGELOG  (latest first)
   ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v20.9.5 — Gas engine integral cooling + WYSIWYG electrical gating ─────
+
+  **small_gas_engine is now plug-and-play and never silently self-destructs.**
+  Two coupled changes, both in service of NNG-1 (conservation) and NNG-3 (WYSIWYG).
+
+  Problem (playtest): fed the hydrovent's CH₄/H₂ vapor + 1 mol/s Planet-X air, the
+  engine's exhaust hit ~1130–1280 K and tripped T_HH (1100 K) → CATASTROPHIC →
+  fried, on essentially every air/fuel ratio.  Root cause: the only energy outlets
+  were exhaust + 25% electrical, so ~75% of the combustion heat rode out in the
+  exhaust (no coolant path), unlike a real genset whose jacket sheds ~30%.
+  Exhaust temperature is set by the air/fuel RATIO, not throughput — so reducing
+  flow did nothing; the minimum achievable exhaust T was still ~1130 K until
+  absurd excess air.
+
+  Fix 1 — integral cooling jacket (NNG-1).  A real small genset has a thermostat +
+  radiator holding the engine at its design operating point.  Modeled as an
+  internal heat rejection to ambient that caps the exhaust at a design outlet
+  temperature `_SGE_DESIGN_T_OUT_K = 800 K` (below T_H=900 and T_HH=1100, so a
+  well-fed engine never alarms or fries).  If combustion is too weak to reach the
+  design temp (O₂-limited / low fuel), nothing is rejected and the exhaust floats
+  below it.  The rejected heat is reported as `Q_rejected_W`, so
+  computeSystemBalance counts it as ambient outflow exactly like air_cooler.
+  Energy is exactly conserved: H_in = H_exhaust + P_elec + Q_rejected.  This is an
+  internal equipment property, deliberately NOT an operator setpoint (you can't
+  dial a genset's exhaust temperature).
+
+  Fix 2 — WYSIWYG electrical gating (NNG-3).  Previously the exhaust enthalpy was
+  reduced by P_elec whether or not elec_out was wired, so running the engine with
+  the output unplugged leaked ~η·Q_release from the system energy balance.  Now
+  P_elec is only extracted when elec_out is connected; unwired, the engine runs
+  unloaded (P_elec = 0) and that energy stays as heat — balance stays closed
+  whether or not the player has hooked up the generator yet.
+
+  Inspector: added UnitInspector.small_gas_engine (gas_turbine template — zero
+  operator params in normal play).  Power & Energy now shows electrical output,
+  combustion heat, "Heat rejected (jacket)", exhaust heat, and efficiency; Detail
+  shows fuel power, combustion extent, mixed inlet T, and design outlet T.
+
+  Verified plug-and-play at the default 1 mol/s air: exhaust held at 800 K, runs
+  (no fry), system energy balance closed (residual ~24 W, <0.1%), both with
+  elec_out unconnected and wired into the dispatcher (surplus charges the battery).
+
+  NNGs: NNG-1 (conservation — Q_rejected accounted, no electrical leak),
+  NNG-2 (heat→ambient, no reversal), NNG-3 (WYSIWYG — work only when wired;
+  internal cooling, not a phantom setpoint), NNG-13 (inspector template),
+  NNG-14 (changelog + tests 803–805, existing energy-balance test updated to the
+  new H_in = H_out + P_elec + Q_rejected law).
 
   ─── v20.9.4 — Energy balance: hub-fed consumers read true allocation ──────
 
@@ -13418,7 +13466,7 @@
 "use strict";
 
 // [v20.0.1] Single version source — title tag and comment header reference this.
-const PTIS_VERSION = 'v20.9.4';
+const PTIS_VERSION = 'v20.9.5';
 document.title = 'processThis — ' + PTIS_VERSION;
 
 // [v12.9.0] NNG sentinel — machine-readable list of all Non-Negotiable rules.
@@ -26812,8 +26860,19 @@ UnitRegistry.register('simple_burner', {
 // ═══════════════════════════════════════════════════════════════════════════════
 // Two material inlets (fuel + air), one material outlet (exhaust), one elec_out.
 // Merges inlets, runs CombustionCore, splits energy: P_elec = η × Q_release.
-// Remainder in exhaust enthalpy.  Physics-fixed elec_out (like gas_turbine).
+// Physics-fixed elec_out (like gas_turbine).
+// [v20.9.5] Integral cooling jacket: a real small genset has a thermostat +
+// radiator that holds the engine at its design operating point and sheds the
+// balance of the combustion heat to ambient, so the exhaust leaves at a roughly
+// fixed characteristic temperature regardless of load.  Modeled here as an
+// internal heat rejection to ambient that caps the exhaust at the engine's
+// design outlet temperature.  No operator setpoint — the design temperature is
+// an equipment property (you can't dial a genset's exhaust temp).  Plug-and-play.
 // ═══════════════════════════════════════════════════════════════════════════════
+// [v20.9.5] Engine design outlet temperature (K), held by the integral jacket.
+// Chosen below T_H (900) and T_HH (1100) so a well-fed engine never alarms or
+// self-destructs.  Internal equipment constant, deliberately NOT a player param.
+const _SGE_DESIGN_T_OUT_K = 800;
 UnitRegistry.register('small_gas_engine', {
   name: 'Small Gas Engine Generator',
   category: UnitCategories.POWER,
@@ -26840,7 +26899,7 @@ UnitRegistry.register('small_gas_engine', {
     // ── No feed at all → zero output ──
     if (!sFuel && !sAir) {
       ports.elec_out = { type: StreamType.ELECTRICAL, capacity: 0, actual: 0 };
-      u.last = { status: 'no_feed', P_elec_W: 0, Q_release_W: 0 };
+      u.last = { status: 'no_feed', P_elec_W: 0, Q_release_W: 0, Q_rejected_W: 0 };
       return;
     }
 
@@ -26862,17 +26921,15 @@ UnitRegistry.register('small_gas_engine', {
     const P_mix = Math.min(sFuel?.P || Infinity, sAir?.P || Infinity);
     if (!isFinite(P_mix) || P_mix <= 0) {
       ports.elec_out = { type: StreamType.ELECTRICAL, capacity: 0, actual: 0 };
-      u.last = { status: 'no_feed', P_elec_W: 0, Q_release_W: 0 };
+      u.last = { status: 'no_feed', P_elec_W: 0, Q_release_W: 0, Q_rejected_W: 0 };
       return;
     }
 
     // ── Run CombustionCore ──
     const comb = _combustionCore(n_merged);
 
-    // ── Efficiency and energy split ──
+    // ── Efficiency ──
     const eta = Math.max(0.01, Math.min(0.99, par.electricEfficiency ?? 0.25));
-    const P_elec_W = comb.Q_release_W * eta;
-    const Q_exhaust_W = comb.Q_release_W - P_elec_W;
 
     // ── Inlet enthalpy (from merged virtual stream) ──
     const mergedStream = {
@@ -26881,16 +26938,45 @@ UnitRegistry.register('small_gas_engine', {
     };
     const H_in_Jps = thermo.getHdot_Jps(mergedStream);
 
-    // ── Outlet enthalpy: H_out = H_in - P_elec ──
-    // Formation enthalpies already encode the chemical energy (same as simple_burner).
-    // Work extraction lowers the outlet enthalpy → cooler exhaust than adiabatic flame.
-    const H_out_Jps = H_in_Jps - P_elec_W;
+    // ── Electrical output (physics-fixed, like gas_turbine) ──
+    // [v20.9.5] WYSIWYG (NNG-3): electrical work is only extracted when elec_out
+    // is wired.  An unconnected generator runs unloaded — that energy stays as
+    // heat (rejected by the jacket / carried in exhaust), so the system energy
+    // balance never leaks the electrical term (NNG-1).
+    const elecConnected = ctx.portConnected('elec_out');
+    const P_elec_W = elecConnected ? comb.Q_release_W * eta : 0;
 
-    ports.mat_out = {
-      type: StreamType.MATERIAL, P: P_mix,
-      n: comb.n_out, phaseConstraint: 'V',
-      H_target_Jps: H_out_Jps
+    // ── Integral cooling jacket (NNG-1, NNG-2) ──
+    // [v20.9.5] Natural exhaust enthalpy before cooling = H_in − P_elec.  If that
+    // would carry the exhaust above the engine's design outlet temperature, the
+    // jacket rejects the surplus to ambient (Q_rejected_W) and the exhaust leaves
+    // at the design temperature.  If combustion is too weak (O₂-limited / low
+    // fuel) to reach the design temp, no heat is rejected and the exhaust floats
+    // below it.  Energy is exactly conserved: H_in = H_exhaust + P_elec + Q_rejected.
+    const H_nat_Jps = H_in_Jps - P_elec_W;
+    const exhaustAtDesign = {
+      type: StreamType.MATERIAL, T: _SGE_DESIGN_T_OUT_K, P: P_mix,
+      n: comb.n_out, phaseConstraint: 'V'
     };
+    const H_designOut_Jps = thermo.getHdot_Jps(exhaustAtDesign);
+    let Q_rejected_W = 0;
+    let H_out_Jps;
+    if (H_nat_Jps > H_designOut_Jps) {
+      Q_rejected_W = H_nat_Jps - H_designOut_Jps;
+      H_out_Jps = H_designOut_Jps;
+      ports.mat_out = {
+        type: StreamType.MATERIAL, P: P_mix,
+        n: comb.n_out, T: _SGE_DESIGN_T_OUT_K, phaseConstraint: 'V'
+      };
+    } else {
+      H_out_Jps = H_nat_Jps;
+      ports.mat_out = {
+        type: StreamType.MATERIAL, P: P_mix,
+        n: comb.n_out, phaseConstraint: 'V',
+        H_target_Jps: H_out_Jps
+      };
+    }
+    const Q_exhaust_W = comb.Q_release_W - P_elec_W - Q_rejected_W;
 
     // ── Physics-fixed electrical output (like gas_turbine) ──
     ports.elec_out = {
@@ -26909,9 +26995,13 @@ UnitRegistry.register('small_gas_engine', {
       eta_pct: (eta * 100).toFixed(1),
       P_elec_W,
       P_elec_kW: (P_elec_W / 1000).toFixed(2),
+      elecConnected,
       Q_release_W: comb.Q_release_W,
       Q_release_kW: (comb.Q_release_W / 1000).toFixed(2),
+      Q_rejected_W,
+      Q_rejected_kW: (Q_rejected_W / 1000).toFixed(2),
       Q_exhaust_W,
+      designT_K: _SGE_DESIGN_T_OUT_K,
       fuelPower_W: comb.fuelPower_W,
       f: comb.f,
       extents: comb.extents,
@@ -28595,14 +28685,14 @@ ProfileRegistry.register('simple_burner', {
 ProfileRegistry.register('small_gas_engine', {
   defId: 'small_gas_engine', name: 'Gas Engine', category: UnitCategories.POWER, tiers: [1],
   description: 'Burns fuel, makes electricity',
-  selectionGuide: 'A small generator that burns any fuel and splits the energy — part to electricity, the rest stays in the hot exhaust. Great for early/mid game power from biogas.',
+  selectionGuide: 'A small generator that burns any fuel and splits the energy — part to electricity, the rest shed by its built-in cooling and carried out in the exhaust. Plug-and-play: feed it fuel and air and it self-regulates. Great for early/mid game power from biogas.',
   limits: {
     1: { T_LL: 200, T_L: 250, T_H: 900, T_HH: 1100, P_LL: 50000, P_L: 70000, P_H: 600000, P_HH: 800000, mass_LL: 0.001, mass_HH: 0.1 }
   },
   defaults: { electricEfficiency: 0.25 },
-  equipmentNote: "Reciprocating gas engine with electric generator.",
-  operatingNote: "Feed fuel on fuel_in, air on air_in. Output is physics-fixed — what burns determines the power. Route exhaust through a HEX or air cooler to recover waste heat.",
-  modelNote: "CombustionCore + energy split: P_elec = η × Q_release. Exhaust H = H_in + Q_release − P_elec.",
+  equipmentNote: "Reciprocating gas engine with electric generator and an integral cooling jacket (thermostat + radiator).",
+  operatingNote: "Feed fuel on fuel_in, air on air_in — that's it. Output is physics-fixed: what burns determines the power. The built-in cooling holds the exhaust at the engine's design temperature, so it runs without overheating across a wide air/fuel range. Wire elec_out to use the power; left unwired the engine runs unloaded (no electrical work).",
+  modelNote: "CombustionCore + energy split. P_elec = η × Q_release when elec_out is wired (0 otherwise — NNG-3). Integral jacket rejects Q_rejected to ambient to cap the exhaust at the design outlet temperature. Energy conserved: H_in = H_exhaust + P_elec + Q_rejected (NNG-1).",
 });
 ProfileRegistry.register('reactor_jacketed', {
   defId: 'reactor_jacketed', name: 'Reactor (Heated)', category: UnitCategories.REACTOR, tiers: [1, 2],
@@ -45694,6 +45784,47 @@ UnitInspector.gas_turbine = {
   }
 };
 
+// [v20.9.5] Small gas engine generator — plug-and-play (no operator params in
+// normal play, like gas_turbine).  Power & Energy surfaces the integral cooling.
+UnitInspector.small_gas_engine = {
+  params(u) {
+    const profile = ProfileRegistry.get(u.profileId || u.defId);
+    const isDev = profile?.config?.dev || profile?.config?.template;
+    // Efficiency is an equipment spec; editable only on dev/template profiles.
+    return isDev ? [
+      { type: 'slider', label: 'Electric efficiency [%]',
+        get: () => (u.params.electricEfficiency ?? 0.25) * 100,
+        set: v => u.params.electricEfficiency = Math.max(1, Math.min(99, v)) / 100,
+        min: 1, max: 99, step: 1 },
+    ] : [];
+  },
+  power(u, ud) {
+    if (!ud?.last) return [];
+    const L = ud.last;
+    const items = [];
+    if (L.P_elec_W != null) items.push({ label: 'Electrical output', value: fmt.kW(L.P_elec_W),
+      tone: L.elecConnected === false ? 'warn' : '',
+      tooltip: L.elecConnected === false ? 'elec_out not wired — running unloaded, all heat rejected' : undefined });
+    if (L.Q_release_W != null) items.push({ label: 'Combustion heat', value: fmt.kW(L.Q_release_W) });
+    if (L.Q_rejected_W != null) items.push({ label: 'Heat rejected (jacket)', value: fmt.kW(L.Q_rejected_W), tone: 'info',
+      tooltip: 'Integral cooling jacket — shed to ambient to hold the engine at its design temperature' });
+    if (L.Q_exhaust_W != null) items.push({ label: 'Exhaust heat', value: fmt.kW(L.Q_exhaust_W) });
+    if (L.electricEfficiency != null) items.push({ label: 'Efficiency', value: fmt.pct(L.electricEfficiency) });
+    return items;
+  },
+  detail(u, ud) {
+    if (!ud?.last) return [];
+    const L = ud.last;
+    const items = [];
+    if (L.fuelPower_W != null) items.push({ label: 'Fuel power (LHV)', value: fmt.kW(L.fuelPower_W) });
+    if (L.f != null) items.push({ label: 'Combustion extent', value: fmt.pct(L.f),
+      tone: L.o2_status === 'limited' ? 'warn' : '' });
+    if (L.T_mix != null) items.push({ label: 'Mixed inlet T', value: fmt.T(L.T_mix) });
+    if (L.designT_K != null) items.push({ label: 'Design outlet T', value: fmt.T(L.designT_K) });
+    return items;
+  }
+};
+
 // ── Heat Equipment ──
 UnitInspector.electric_heater = {
   params(u) {
@@ -58964,7 +59095,7 @@ function runTests() {
     t.wire(eng, 'mat_out', snk, 'mat_in');
     t.wire(eng, 'elec_out', esnk, 'elec_in');
     t.solve();
-    // H_in(fuel) + H_in(air) ≈ H_out(exhaust) + P_elec
+    // H_in(fuel) + H_in(air) ≈ H_out(exhaust) + P_elec + Q_rejected (integral cooling)
     // With equal inlet T, mol-weighted merge is exact → tight tolerance
     const sFuel = t.port(fuel, 'mat_out');
     const sAir  = t.port(air, 'mat_out');
@@ -58973,7 +59104,8 @@ function runTests() {
     const H_air  = thermo.getHdot_Jps(sAir);
     const H_out  = thermo.getHdot_Jps(sOut);
     const P_elec = t.port(eng, 'elec_out').capacity;
-    const residual = Math.abs((H_fuel + H_air) - (H_out + P_elec));
+    const Q_rej  = t.last(eng).Q_rejected_W || 0;  // [v20.9.5] jacket rejection to ambient
+    const residual = Math.abs((H_fuel + H_air) - (H_out + P_elec + Q_rej));
     t.assertOK(residual < 100, `energy residual ${residual.toFixed(1)} W < 100 W`);
   });
 
@@ -74032,6 +74164,67 @@ function runTests() {
     t.assertClose(_consumerElecW(scene, '__no_such_unit__', { available: 567 }), 567, 1e-9, 'fallback to .available');
     t.assertClose(_consumerElecW(scene, '__no_such_unit__', {}), 0, 1e-9, 'empty stream → 0');
     t.assertClose(_consumerElecW(scene, '__no_such_unit__', null), 0, 1e-9, 'null stream → 0');
+  });
+
+  // ── [v20.9.5] small_gas_engine integral cooling + WYSIWYG electrical gating ──
+
+  test('803: small_gas_engine — integral cooling caps exhaust at design T, conserves energy (NNG-1)', t => {
+    t.clearScene();
+    const fuel = t.place('source', 0, 0, { species: 'CH4', nDot: 0.1, T: 300, P: 150000, phaseConstraint: 'V' });
+    const air  = t.place('source', 0, 4, { n: { O2: 0.3, N2: 1.13 }, T: 300, P: 150000, phaseConstraint: 'V' });
+    const eng  = t.place('small_gas_engine', 4, 0, { electricEfficiency: 0.25 });
+    const snk  = t.place('sink', 8, 0);
+    const esnk = t.place('sink_electrical', 4, 6, { ratedPower_kW: 100 });
+    t.wire(fuel, 'mat_out', eng, 'fuel_in'); t.wire(air, 'mat_out', eng, 'air_in');
+    t.wire(eng, 'mat_out', snk, 'mat_in'); t.wire(eng, 'elec_out', esnk, 'elec_in');
+    t.solve();
+    const L = t.last(eng);
+    const exhaustT = t.port(eng, 'mat_out').T;
+    t.assertOK(exhaustT <= 801, `exhaust capped at design T (${exhaustT.toFixed(0)}K ≤ 800K)`);
+    t.assertOK(exhaustT < 1100, 'exhaust below T_HH — engine does not self-destruct');
+    t.assertOK(L.Q_rejected_W > 0, `jacket rejects heat (${(L.Q_rejected_W / 1000).toFixed(1)} kW)`);
+    // Conservation: H_in = H_exhaust + P_elec + Q_rejected
+    const H_in = thermo.getHdot_Jps(t.port(fuel, 'mat_out')) + thermo.getHdot_Jps(t.port(air, 'mat_out'));
+    const H_out = thermo.getHdot_Jps(t.port(eng, 'mat_out'));
+    const resid = Math.abs(H_in - (H_out + L.P_elec_W + L.Q_rejected_W));
+    t.assertOK(resid < 100, `energy conserved, residual ${resid.toFixed(1)} W`);
+  });
+
+  test('804: small_gas_engine — unconnected elec_out extracts no work, balance still closes (NNG-3/1)', t => {
+    t.clearScene();
+    const fuel = t.place('source', 0, 0, { species: 'CH4', nDot: 0.1, T: 300, P: 150000, phaseConstraint: 'V' });
+    const air  = t.place('source', 0, 4, { n: { O2: 0.3, N2: 1.13 }, T: 300, P: 150000, phaseConstraint: 'V' });
+    const eng  = t.place('small_gas_engine', 4, 0, { electricEfficiency: 0.25 });
+    const snk  = t.place('sink', 8, 0);
+    t.wire(fuel, 'mat_out', eng, 'fuel_in'); t.wire(air, 'mat_out', eng, 'air_in');
+    t.wire(eng, 'mat_out', snk, 'mat_in');   // elec_out deliberately UNCONNECTED
+    t.solve();
+    const L = t.last(eng);
+    t.assertOK(L.elecConnected === false, 'elec_out detected unconnected');
+    t.assertClose(L.P_elec_W, 0, 1e-6, 'no electrical work extracted when unwired (WYSIWYG)');
+    t.assertClose(t.port(eng, 'elec_out').actual, 0, 1e-6, 'elec_out actual = 0');
+    // All combustion heat now splits between exhaust and jacket; conservation holds.
+    const H_in = thermo.getHdot_Jps(t.port(fuel, 'mat_out')) + thermo.getHdot_Jps(t.port(air, 'mat_out'));
+    const H_out = thermo.getHdot_Jps(t.port(eng, 'mat_out'));
+    const resid = Math.abs(H_in - (H_out + L.Q_rejected_W));
+    t.assertOK(resid < 100, `energy conserved with P_elec=0, residual ${resid.toFixed(1)} W`);
+  });
+
+  test('805: small_gas_engine — weak/very-lean combustion floats below design T, no cooling (edge)', t => {
+    t.clearScene();
+    // Tiny fuel into a large cold air stream → exhaust naturally well below 800 K.
+    const fuel = t.place('source', 0, 0, { species: 'CH4', nDot: 0.01, T: 300, P: 150000, phaseConstraint: 'V' });
+    const air  = t.place('source', 0, 4, { n: { O2: 1, N2: 3.76 }, T: 300, P: 150000, phaseConstraint: 'V' });
+    const eng  = t.place('small_gas_engine', 4, 0, { electricEfficiency: 0.25 });
+    const snk  = t.place('sink', 8, 0);
+    const esnk = t.place('sink_electrical', 4, 6, { ratedPower_kW: 100 });
+    t.wire(fuel, 'mat_out', eng, 'fuel_in'); t.wire(air, 'mat_out', eng, 'air_in');
+    t.wire(eng, 'mat_out', snk, 'mat_in'); t.wire(eng, 'elec_out', esnk, 'elec_in');
+    t.solve();
+    const L = t.last(eng);
+    const exhaustT = t.port(eng, 'mat_out').T;
+    t.assertOK(exhaustT < 800, `exhaust floats below design T (${exhaustT.toFixed(0)} K)`);
+    t.assertClose(L.Q_rejected_W, 0, 1, 'no jacket rejection when below design T');
   });
 
   // ═══════════════════════════════════════════════════════════════════════
