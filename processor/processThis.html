@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v20.9.3  (authoritative version: PTIS_VERSION const in script block 1)
+  processThis v20.9.4  (authoritative version: PTIS_VERSION const in script block 1)
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -401,6 +401,39 @@
   ═══════════════════════════════════════════════════════════════════════════
   CHANGELOG  (latest first)
   ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v20.9.4 — Energy balance: hub-fed consumers read true allocation ──────
+
+  **System energy balance no longer over-counts hub-fed consumers (NNG-1, NNG-5).**
+  A power dispatcher advertises the bus aggregate (total supply) on every output
+  port's `.actual` by design — consumers read their real share from
+  `scratch.hubAllocated_W`, written per-consumer by Step C.  Every consumer TICK
+  already did this correctly, but `computeSystemBalance` read `elec_in.actual`
+  (the bus aggregate) when accounting for:
+    • the room's electrical accumulation term, and
+    • boundary electrical consumers (e.g. sink_electrical).
+  When a dispatcher fanned out to multiple consumers, each was charged the full
+  bus value instead of its allocated slice, opening the energy balance even though
+  the physics was correct.
+
+  Symptom (playtest "Make Oxygen"): battery discharged 0.383 kW split as
+  room 0.137 / air-cooler 0.007 / electrolyzer 0.239 kW (sum = 0.383 ✓), but the
+  room was billed the full 0.383 kW — a phantom +247 W — producing a −262 W
+  residual (1.08% rel-err) that tripped the energy-balance WARNING.  With the fix
+  the residual falls to −16 W (0.06%, closed); the remainder is ordinary thermo
+  numerical noise, well under the 100 W NNG-1 flag.
+
+  Fix: new read-only helper `_consumerElecW(scene, unitId, stream)` returns
+  `hubAllocated_W` from solver scratch when present, else falls back to the port
+  (`.actual ?? .available`) for direct, non-hub connections.  This mirrors the
+  exact read every consumer tick performs.  Applied to the room accumulation block
+  and the boundary-electrical accounting loop.  No computed physical value (T, P,
+  flow, delivered power) changes — purely corrects the balance REPORT.
+
+  NNGs: NNG-1 (energy conservation — accounting now matches tick physics),
+  NNG-5 (consumers read hubAllocated_W, not the bus aggregate), NNG-14 (changelog
+  + tests: hub fan-out balance closure, single-consumer parity, direct-connection
+  fallback).
 
   ─── v20.9.3 — Tank temperature + _V_m3 sync + mixer dead-end fix ──────────
 
@@ -13385,7 +13418,7 @@
 "use strict";
 
 // [v20.0.1] Single version source — title tag and comment header reference this.
-const PTIS_VERSION = 'v20.9.3';
+const PTIS_VERSION = 'v20.9.4';
 document.title = 'processThis — ' + PTIS_VERSION;
 
 // [v12.9.0] NNG sentinel — machine-readable list of all Non-Negotiable rules.
@@ -32985,6 +33018,24 @@ const fmt = {
   dT: (K) => K == null || isNaN(K) ? '—' : `${K > 0 ? '+' : ''}${K.toFixed(1)}<span class="u">K</span>`,
 };
 
+// [v20.9.4] NNG-5 / NNG-1: hub-fed consumers carry the dispatcher's BUS AGGREGATE
+// on elec_in.actual (a dispatcher advertises totalSupply on every output port).
+// The consumer's TRUE delivered power is hubAllocated_W in solver scratch, written
+// per-consumer by Step C.  Reading .actual over-counts the system energy balance
+// when a dispatcher fans out to multiple consumers, opening the balance even though
+// every tick computed correctly.  This mirrors the exact read each consumer tick
+// uses: `s.hubAllocated_W ?? (sElec.actual || sElec.capacity || 0)`.  Read-only —
+// looks up the scratch Map directly so reporting never creates scratch entries.
+// Falls back to the port for direct (non-hub) connections, where .actual is correct.
+function _consumerElecW(scene, unitId, stream) {
+  const scr = scene.runtime?.ctx?._scratch;
+  if (scr && typeof scr.get === 'function') {
+    const cs = scr.get(unitId);
+    if (cs && cs.hubAllocated_W !== undefined) return cs.hubAllocated_W;
+  }
+  return stream?.actual ?? stream?.available ?? 0;
+}
+
 // [v10.3.0] computeSystemBalance — moved to engine for headless test access
 function computeSystemBalance(scene) {
   if (!scene.runtime?.unitData) return null;
@@ -33018,10 +33069,18 @@ function computeSystemBalance(scene) {
           if (isFinite(H)) { energyOut.material += H; energyOut.items.push({ name: uName, type: 'material', value: H }); }
         }
       } else if (p.type === StreamType.ELECTRICAL) {
-        const W = stream.actual ?? stream.available ?? 0;
-        if (W <= 0) continue;
-        if (boundaryDir === PortDir.OUT) { energyIn.electrical += W; energyIn.items.push({ name: uName, type: 'electrical', value: W }); }
-        else { energyOut.electrical += W; energyOut.items.push({ name: uName, type: 'electrical', value: W }); }
+        if (boundaryDir === PortDir.OUT) {
+          // Boundary source advertising output (e.g. grid_supply, turbine) — .actual is correct.
+          const W = stream.actual ?? stream.available ?? 0;
+          if (W <= 0) continue;
+          energyIn.electrical += W; energyIn.items.push({ name: uName, type: 'electrical', value: W });
+        } else {
+          // [v20.9.4] Boundary consumer (e.g. sink_electrical) — read true delivered
+          // power (hubAllocated_W) so a hub fan-out isn't over-counted (NNG-5).
+          const W = _consumerElecW(scene, id, stream);
+          if (W <= 0) continue;
+          energyOut.electrical += W; energyOut.items.push({ name: uName, type: 'electrical', value: W });
+        }
       }
     }
   }
@@ -33187,7 +33246,9 @@ function computeSystemBalance(scene) {
       // the formation-enthalpy-corrected Hdot of inlet vs exhaust streams.
       const H_ins = inPorts.reduce((s, pid) => s + (ud.ports?.[pid]?.Hdot_J_s ?? 0), 0);
       const H_ex = ud.ports?.air_exhaust?.Hdot_J_s ?? 0;
-      const W_elec = ud.ports?.elec_in?.actual ?? 0;
+      // [v20.9.4] True delivered power (hubAllocated_W), not the dispatcher bus
+      // aggregate on elec_in.actual — matches what the room tick consumed (NNG-5).
+      const W_elec = _consumerElecW(scene, id, ud.ports?.elec_in);
       const Q_rejected = ud.last?.Q_rejected_W ?? 0;
       const netEnergy = H_ins - H_ex + W_elec - Q_rejected;
       if (Math.abs(netEnergy) > 0.01) accumulation.energy_W += netEnergy;
@@ -73900,6 +73961,77 @@ function runTests() {
     t.assertOK(_fmtDuration(1800) === '30min', '1800s → 30min');
     t.assertOK(_fmtDuration(45) === '45s', '45s → 45s');
     t.assertOK(_fmtDuration(5400) === '1.5h', '5400s → 1.5h');
+  });
+
+  // ── [v20.9.4] Energy balance: hub-fed consumers read true allocation ──────
+  // A dispatcher advertises the bus aggregate (total supply) on every output
+  // port's .actual.  computeSystemBalance must read the consumer's TRUE share
+  // (hubAllocated_W from scratch), or it over-counts on fan-out (NNG-1/NNG-5).
+
+  test('800: Energy balance — hub fan-out to boundary consumers uses true allocation (NNG-1/5)', t => {
+    t.clearScene();
+    const gs   = t.place('grid_supply', 0, 0, { maxPower: 100 });
+    const disp = t.place('power_dispatcher_5', 4, 0, {});
+    const s1   = t.place('sink_electrical', 8, 0, { ratedPower_kW: 3, powerPriority: 2 });
+    const s2   = t.place('sink_electrical', 8, 4, { ratedPower_kW: 5, powerPriority: 2 });
+    t.wire(gs, 'elec_out', disp, 'elec_in_1');
+    t.wire(disp, 'elec_out_1', s1, 'elec_in');
+    t.wire(disp, 'elec_out_2', s2, 'elec_in');
+    t.solve();
+    const bal = computeSystemBalance(scene);
+    // Each sink's elec_in carries the BUS AGGREGATE (8 kW total), not its share —
+    // this is the contract that makes the fix necessary.
+    t.assertClose(t.port(s1, 'elec_in').actual, 8000, 1, 'sink1 elec_in.actual = bus aggregate 8 kW');
+    t.assertClose(t.scratch(s1).hubAllocated_W, 3000, 1, 's1 allocated 3 kW (true share)');
+    t.assertClose(t.scratch(s2).hubAllocated_W, 5000, 1, 's2 allocated 5 kW (true share)');
+    // Balance counts allocations (3+5), not 2×bus (16) → in == out → closed.
+    t.assertClose(bal.energy.in.electrical, 8000, 1, 'energy in = grid output 8 kW');
+    t.assertClose(bal.energy.out.electrical, 8000, 1, 'energy out = Σ allocations 8 kW (not 16)');
+    t.assertOK(bal.energy.closed, `energy balance closed (residual ${bal.energy.residual.toFixed(2)}W)`);
+  });
+
+  test('801: Energy balance — room on dispatcher reads allocation, not bus aggregate (NNG-1/5)', t => {
+    t.clearScene();
+    const gs    = t.place('grid_supply', 0, -3, { maxPower: 10 });
+    const disp  = t.place('power_dispatcher_5', 4, -3, {});
+    const srcO2 = t.place('source', 0, 0, { n: { O2: 1 }, T: 294, P: 101325, phaseConstraint: 'V' });
+    const srcFd = t.place('source', 0, 3, { n: { CH2O: 1 }, T: 294, P: 101325, phaseConstraint: 'V' });
+    const room  = t.place('room', 4, 0, { nPeople: 2, powerPriority: 2 });
+    const snk   = t.place('sink', 12, 0);
+    const eSink = t.place('sink_electrical', 8, -3, { ratedPower_kW: 3, powerPriority: 2 });
+    t.wire(srcO2, 'mat_out', room, 'o2_in');
+    t.wire(srcFd, 'mat_out', room, 'food_in');
+    t.wire(room, 'air_exhaust', snk, 'mat_in');
+    t.wire(gs, 'elec_out', disp, 'elec_in_1');
+    t.wire(disp, 'elec_out_1', room, 'elec_in');
+    t.wire(disp, 'elec_out_2', eSink, 'elec_in');
+    t.solve();
+    const bal = computeSystemBalance(scene);
+    const roomBus   = t.port(room, 'elec_in').actual;
+    const roomAlloc = t.scratch(room).hubAllocated_W;
+    // The room's life-support draw is tiny; the bus aggregate (room + 3 kW sink)
+    // is far larger — proving the choice of value materially affects the balance.
+    t.assertOK(roomBus > roomAlloc + 100, `room bus ${roomBus.toFixed(0)}W >> share ${roomAlloc.toFixed(0)}W`);
+    t.assertOK(bal.energy.closed, `energy balance closed (residual ${bal.energy.residual.toFixed(1)}W)`);
+    // Demonstrate the pre-fix behaviour: counting the bus aggregate would have
+    // inflated the room's stored energy and opened the balance.
+    const overcount  = roomBus - roomAlloc;
+    const naiveAccum = bal.energy.accumulation + overcount;
+    const naiveResid = bal.energy.balance - naiveAccum;
+    const grossOut = bal.energy.out.items.reduce((a, it) => a + Math.abs(it.value ?? it.value_W ?? 0), 0);
+    const grossIn  = bal.energy.in.items.reduce((a, it) => a + Math.abs(it.value ?? it.value_W ?? 0), 0);
+    const ref = Math.max(grossOut, grossIn, Math.abs(naiveAccum), 1);
+    t.assertOK(Math.abs(naiveResid) / ref > 0.01,
+      `pre-fix bus-aggregate read would open balance (${(Math.abs(naiveResid) / ref * 100).toFixed(2)}%)`);
+  });
+
+  test('802: _consumerElecW — falls back to port stream when no scratch allocation', t => {
+    t.clearScene();
+    // Unknown unit id → no hubAllocated_W in scratch → fall back to the port.
+    t.assertClose(_consumerElecW(scene, '__no_such_unit__', { actual: 1234 }), 1234, 1e-9, 'fallback to .actual');
+    t.assertClose(_consumerElecW(scene, '__no_such_unit__', { available: 567 }), 567, 1e-9, 'fallback to .available');
+    t.assertClose(_consumerElecW(scene, '__no_such_unit__', {}), 0, 1e-9, 'empty stream → 0');
+    t.assertClose(_consumerElecW(scene, '__no_such_unit__', null), 0, 1e-9, 'null stream → 0');
   });
 
   // ═══════════════════════════════════════════════════════════════════════
