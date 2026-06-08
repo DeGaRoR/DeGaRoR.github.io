@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ═══════════════════════════════════════════════════════════════════════════
-  processThis v20.9.6  (authoritative version: PTIS_VERSION const in script block 1)
+  processThis v20.9.8  (authoritative version: PTIS_VERSION const in script block 1)
 
   ─── Non-negotiables (NNG) ──────────────────────────────────────────────
   15 invariants. Violating any is a regression regardless of context.
@@ -401,6 +401,68 @@
   ═══════════════════════════════════════════════════════════════════════════
   CHANGELOG  (latest first)
   ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v20.9.8 — Mission 6 "Comfort" (climate + hot water + refrigerator) ───────
+
+  **New mission: arc_a_m6 "Comfort" (index 5, 6th in Arc A).**
+  After the colony is alive (air/CO₂/water/oxygen/power), it's still cold, the food
+  has no cold store, and there's no hot water. M6 makes the shelter livable.
+
+  Three subsystems the player builds (inherits the M5 end scene):
+  - Climate: scrubber.perm_out → air_cooler → electric_heater → shelter.air_return,
+    both pre-set to 294 K; cabin held in an 18–25 °C comfort band.
+  - Hot water: split the water feed → electric_heater (60 °C) → a second
+    simple_open_barrel → shelter.hot_water_in.
+  - Cold store: the new refrigerator (v20.9.7) → shelter.food_in, powered from the hub,
+    rot-gas to the flare.
+  - Power: the player retires the 5-output dispatcher for a power_hub (more sockets),
+    moving both sources and all loads across. The 24h comfort sustain enforces the swap.
+
+  Implementation notes:
+  - 11 objectives, all existing evaluator types. Hot water vs cold water (both
+    simple_open_barrel → shelter) are distinguished by toPort (hot_water_in); the air
+    return likewise via toPort (air_return). Hot-water temperature checked with
+    port_conditions (313–353 K). Comfort sustain = maintain_conditions with T_K band +
+    O₂/CO₂ over 86400 s.
+  - 13 guidance steps (Lena), two intro + two outro story beats
+    (m6_intro_1/2.webp, m6_outro_1/2.webp), briefing + 3 victory lines.
+  - fridge_cold trigger fires when the refrigerator reaches 'preserved'.
+  - Stars kept (SHOW_STARS off): ★ all objectives, ★★ + dispatcher no longer powers the
+    room (connection_absent), ★★★ + cabin held tight (292–296 K) for the day.
+  - First food unit in the campaign — room.food_in was previously unconnected (internal
+    runway), so the fridge is the first external food source (no conflict).
+
+  Tests: 749 updated (arc now 6 missions), 754 updated (career flow M5→M6→complete),
+  added 812 (M6 structure/palette/objectives/guidance). 875 tests, all green.
+
+  ─── v20.9.7 — Refrigerator unit (food crate + internal electric cooling) ─────
+
+  **New unit: refrigerator (defId + profileId 'refrigerator').**
+  A food_storage/food_crate clone — same inventory (~1200 mol CH₂O ≈ 30 days for
+  two), spoilage chemistry (2 CH₂O → CH₄ + CO₂), biogas_out, vent and food draw —
+  with ONE change: the external cool_in/cool_out jacket is replaced by an internal
+  electric heat pump on elec_in.
+
+  - Cooling: each tick computes Q to hold T_set (default 278 K), offsetting spoilage
+    heat + ambient leak and pulling toward setpoint; draws W = Q/COP (COP 2.5, capped
+    at maxCoolPower_W = 200 W) from the hub (NNG-5, reads hubAllocated_W). Underpowered
+    → warms → spoils (~8%/day at ambient) → biogas vents to the flare.
+  - Accounting (NNG-1/2): Q_rejected_W = Q_cool + W_actual + UA·(T−T_ext) — active heat
+    pump rejection + work + signed passive conduction. Steady state nets to
+    Q_spoilage + W (the only NEW heat to atmosphere). computeSystemBalance gains a
+    refrigerator branch (inPorts food_in; outPorts food_out/biogas_out/vent; electrical
+    W added to the energy-in side of the per-unit accumulation check).
+  - Cooling meta (Q_cool/Q_ambient) travels tick→(next)updateInventory on
+    biogas_out._food_meta (the fridge has no cool_out port).
+  - Icon: reuses the food-crate ragtag symbol; the blue cooling serpentine is now gated
+    on cool_in presence, so the refrigerator (no cool ports) skips it automatically.
+    _RAGTAG_SYMBOLS.refrigerator aliases food_storage.
+  - Inspector: food_storage clone; thermal section shows setpoint + power draw instead
+    of the jacket; status shows 'unpowered' when off.
+  - [DEFERRED] _Q_to_atmosphere_W set on u.last as the hook for a future air-cooler-style
+    heat-shimmer animation shared by all atmosphere-rejecting units (engine/cooler/fridge).
+
+  Mission arc_a_m6 "Comfort" (which uses this unit) follows in v20.9.8.
 
   ─── v20.9.6 — Mission 5 "Generate Energy" + star ranking hidden + battery resize ─
 
@@ -13514,7 +13576,7 @@
 "use strict";
 
 // [v20.0.1] Single version source — title tag and comment header reference this.
-const PTIS_VERSION = 'v20.9.6';
+const PTIS_VERSION = 'v20.9.8';
 document.title = 'processThis — ' + PTIS_VERSION;
 
 // [v12.9.0] NNG sentinel — machine-readable list of all Non-Negotiable rules.
@@ -22924,6 +22986,312 @@ UnitRegistry.register('food_storage', {
 
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// REFRIGERATOR — food_storage clone with INTERNAL electric cooling [v20.9.7]
+// ═══════════════════════════════════════════════════════════════════════════════
+//
+// ┌─────────────────────────────────────────────────────────────────────────────┐
+// │ Identical to food_storage (same inventory, spoilage chemistry, biogas/vent,  │
+// │ food draw) EXCEPT cooling: the external cool_in/cool_out jacket is replaced   │
+// │ by an internal electric heat pump on elec_in.                                 │
+// │                                                                               │
+// │ Each tick: compute Q to hold T_set (offset spoilage + ambient leak + pull to  │
+// │ setpoint), draw W = Q/COP from the hub (NNG-5), reject Q_cool + W to the       │
+// │ atmosphere. Underpowered → warms → spoils → biogas vents.                     │
+// │                                                                               │
+// │ Accounting (NNG-1/2): Q_rejected_W = Q_cool + W + Q_ambient (net ambient).    │
+// │ At steady state this nets to Q_spoilage + W — i.e. the only NEW heat to the   │
+// │ atmosphere is the electrical work plus the decomposition heat; the conduction │
+// │ leak is a wash. The cooling meta travels tick→(next)updateInventory via       │
+// │ biogas_out._food_meta (the fridge has no cool_out port).                      │
+// │                                                                               │
+// │ [v20.9.7 DEFERRED] Heat-dissipation animation: _Q_to_atmosphere_W is set for  │
+// │ a future air-cooler-style heat shimmer (shared by engine jacket / air_cooler  │
+// │ / fridge — all atmosphere-rejecting units) to visualise the ambient balance.  │
+// └─────────────────────────────────────────────────────────────────────────────┘
+UnitRegistry.register('refrigerator', {
+  name: 'Refrigerator',
+  category: UnitCategories.LIFE_SUPPORT,
+  w: 2, h: 4,  // [v20.9.7] same body as food crate; serpentine + cool ports removed (electric cooling)
+  optionalPorts: true,
+  ports: [
+    { portId: 'elec_in',    dir: PortDir.IN,  type: StreamType.ELECTRICAL, x: 0, y: 0, label: 'power' },
+    { portId: 'biogas_out', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 1, y: 0, label: 'rot gas' },
+    { portId: 'vent',       dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 0, label: 'surplus' },
+    { portId: 'food_in',    dir: PortDir.IN,  type: StreamType.MATERIAL, x: 0, y: 2, label: 'food in' },
+    { portId: 'food_out',   dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 2, label: 'food out' }
+  ],
+  presentations: {
+    'box/default': { w: 2, h: 4, ports: {
+      elec_in:{x:0,y:0}, biogas_out:{x:1,y:0}, vent:{x:2,y:0},
+      food_in:{x:0,y:2}, food_out:{x:2,y:2}
+    }},
+    'box/mirror': { w: 2, h: 4, ports: {
+      elec_in:{x:2,y:0}, biogas_out:{x:1,y:0}, vent:{x:0,y:0},
+      food_in:{x:2,y:2}, food_out:{x:0,y:2}
+    }}
+  },
+  limitParams: ['T_LL', 'T_HH', 'P_LL', 'P_HH'],
+  limits: { S: { T_LL: 233, T_HH: 473, P_LL: 50000, P_HH: 35000000 } },
+  inventory: true,
+
+  initInventory(par) {
+    return UnitRegistry.get('simple_tank').initInventory(par);
+  },
+
+  updateInventory(inventory, resolvedPorts, dt) {
+    const inv = { ...inventory, n: { ...inventory.n } };
+
+    // Mass balance: food_in - food_out - biogas_out - vent + spoilage products
+    const inFlow     = resolvedPorts.food_in?.n || {};
+    const outFlow    = resolvedPorts.food_out?.n || {};
+    const biogasFlow = resolvedPorts.biogas_out?.n || {};
+    const ventFlow   = resolvedPorts.vent?.n || {};
+    const allSp = new Set([...Object.keys(inv.n), ...Object.keys(inFlow),
+      ...Object.keys(outFlow), ...Object.keys(biogasFlow), ...Object.keys(ventFlow)]);
+
+    for (const sp of allSp) {
+      const cur = inv.n[sp] || 0;
+      const inN = (inFlow[sp] || 0) * dt;
+      const outN = ((outFlow[sp]||0) + (biogasFlow[sp]||0) + (ventFlow[sp]||0)) * dt;
+      inv.n[sp] = Math.max(0, cur + inN - outN);
+    }
+
+    // Spoilage reaction: 2 CH₂O → CH₄ + CO₂ (anaerobic fermentation)
+    const meta = resolvedPorts.biogas_out?._food_meta;
+    if (meta?.spoil_mol > 0) {
+      inv.n.CH2O = Math.max(0, (inv.n.CH2O || 0) - meta.spoil_mol);
+      inv.n.CH4  = (inv.n.CH4 || 0) + meta.spoil_mol * 0.5;
+      inv.n.CO2  = (inv.n.CO2 || 0) + meta.spoil_mol * 0.5;
+    }
+
+    // Thermal effect — Q_cool/Q_ambient carried on biogas_out._food_meta (no cool_out port)
+    const Q_cool = meta?.Q_cool_W ?? 0;
+    const Q_ambient = meta?.Q_ambient_W ?? 0;
+    const Q_spoilage = (meta?.Q_spoilage_W ?? 0);
+    if (Q_cool > 0 || Q_ambient !== 0 || Q_spoilage > 0) {
+      const n_total = Object.values(inv.n).reduce((a,b) => a+b, 0);
+      const C_thermal = Math.max(500, n_total * 75);  // J/K (same scaling as food_storage)
+      inv.T_K += (Q_spoilage - Q_cool - Q_ambient) * dt / C_thermal;
+      inv.T_K = Math.max(200, Math.min(500, inv.T_K));
+    }
+
+    // Adiabatic mixing from food_in
+    if (resolvedPorts.food_in?.T && resolvedPorts.food_in.n) {
+      const n_in = Object.values(inFlow).reduce((a,b) => a+b, 0) * dt;
+      const n_existing = Object.values(inventory.n).reduce((a,b) => a+b, 0);
+      if (n_existing + n_in > 0 && n_in > 0) {
+        inv.T_K = (inventory.T_K * n_existing + resolvedPorts.food_in.T * n_in) / (n_existing + n_in);
+      }
+    }
+
+    return inv;
+  },
+
+  tick(u, ports, par, ctx) {
+    const V = par.volume_m3 || 0.1;
+    const inv = u.inventory || { n: {}, T_K: ctx.atmosphere.T_K };
+    const dt = ctx.dt;
+    const T_ext = ctx.atmosphere.T_K;
+    const P_atm = ctx.atmosphere.P_Pa;
+
+    // 1. Tank state: flash, pressure
+    const state = computeTankState(inv.n, inv.T_K, V, thermo);
+    const P_tank = state.P_Pa;
+
+    // 2. Spoilage: 2 CH₂O → CH₄ + CO₂ (anaerobic fermentation, Arrhenius-inspired)
+    const T_FREEZE = 277;     // K — fridge threshold
+    const T_REF = 294;        // K — room temperature reference
+    const K_REF = 3.47e-7;    // 1/s ≈ 3%/day at room temp
+    const T_KILL = 340;       // K — microbes die above ~67°C; spoilage rate capped
+    const DH_DECOMP = 15000;  // J/mol — microbial decomposition heat (gameplay calibration)
+
+    const n_ch2o = inv.n.CH2O || 0;
+    const T_eff = Math.min(inv.T_K, T_KILL);
+    const k_spoil = T_eff > T_FREEZE
+      ? K_REF * Math.pow(2, (T_eff - T_REF) / 5) : 0;
+    const spoil_rate = k_spoil * n_ch2o;  // mol/s of CH₂O decomposed
+    const spoil_mol = spoil_rate * dt;
+    const Q_spoilage = spoil_rate * DH_DECOMP;  // W (exothermic)
+    const decompGases = {};
+    if (spoil_rate > 1e-18) {
+      decompGases.CH4 = spoil_rate * 0.5;
+      decompGases.CO2 = spoil_rate * 0.5;
+    }
+
+    // 3. Food draw (gas phase CH₂O)
+    const drawRate = par.gasDrawRate ?? 0.001;
+    const opening = par.opening_gas_pct ?? 50;
+    const outConnected = ctx.portConnected('food_out');
+    const _blocked = ctx.blockedBranches();
+    const outBlocked = _blocked ? _blocked.has('food_out') : false;
+    const n_V_total = state.n_V ? Object.values(state.n_V).reduce((a,b) => a+b, 0) : 0;
+    const n_inv_total = n_ch2o;
+    let Q_draw = 0;
+
+    if (outConnected && !outBlocked && n_inv_total > 1e-15 && opening > 0) {
+      Q_draw = Math.min(drawRate * (opening / 100), n_inv_total / dt);
+      ports.food_out = { type: StreamType.MATERIAL, T: inv.T_K, P: P_tank,
+        n: { CH2O: Q_draw }, phase: 'V', phaseConstraint: 'V' };
+    } else {
+      ports.food_out = { type: StreamType.MATERIAL, T: inv.T_K, P: P_tank,
+        n: {}, phase: 'V', phaseConstraint: 'V' };
+    }
+
+    // 4a. Biogas drain (continuous — drains all non-CH₂O species from inventory)
+    const MAX_BIOGAS = 0.01;  // mol/s
+    const biogasConnected = ctx.portConnected('biogas_out');
+    const biogasBlocked = _blocked ? _blocked.has('biogas_out') : false;
+    let Q_biogas = 0;
+
+    if (biogasConnected && !biogasBlocked) {
+      const biogas_species = {};
+      let n_biogas_total = 0;
+      for (const [sp, amt] of Object.entries(inv.n)) {
+        if (sp === 'CH2O' || amt < 1e-18) continue;
+        biogas_species[sp] = amt;
+        n_biogas_total += amt;
+      }
+      for (const [sp, rate] of Object.entries(decompGases)) {
+        const fresh = rate * dt;
+        biogas_species[sp] = (biogas_species[sp] || 0) + fresh;
+        n_biogas_total += fresh;
+      }
+      const drain_total = Math.min(n_biogas_total / dt, MAX_BIOGAS);
+      const drain_n = {};
+      if (n_biogas_total > 1e-18) {
+        for (const [sp, amt] of Object.entries(biogas_species)) {
+          drain_n[sp] = (amt / n_biogas_total) * drain_total;
+        }
+      }
+      Q_biogas = drain_total;
+      ports.biogas_out = { type: StreamType.MATERIAL, T: inv.T_K, P: P_tank,
+        n: drain_n, phase: 'V', phaseConstraint: 'V',
+        _food_meta: { spoil_mol, Q_spoilage_W: Q_spoilage } };
+    } else {
+      ports.biogas_out = { type: StreamType.MATERIAL, T: inv.T_K, P: P_tank,
+        n: {}, _food_meta: { spoil_mol, Q_spoilage_W: Q_spoilage } };
+    }
+
+    // 4b. Overpressure relief valve
+    const P_relief = par.P_relief || 30000000;
+    const ventConnected = ctx.portConnected('vent');
+    const ventBlocked = _blocked ? _blocked.has('vent') : false;
+    const _ventWasActive = ctx.scratch._prevLast?._ventActive || false;
+    const _ventActive = ventConnected && !ventBlocked &&
+      (P_tank > P_relief || (_ventWasActive && P_tank > P_relief * 0.98));
+    let Q_vent = 0;
+
+    if (!ventConnected && !biogasConnected && P_tank > P_relief) {
+      ctx.warn({ severity: ErrorSeverity.MAJOR,
+        message: `Overpressure at ${(P_tank/1e5).toFixed(1)} bar — no vent connected` });
+    }
+
+    if (_ventActive && n_V_total > 1e-15) {
+      const Q_relief = K_RELIEF_BASE * V * (P_tank - P_relief);
+      const Q_r = Math.min(Q_relief, n_V_total / dt);
+      const vent_n = {};
+      for (const [sp, amt] of Object.entries(state.n_V)) {
+        if (amt > 1e-18) vent_n[sp] = (amt / n_V_total) * Q_r;
+      }
+      Q_vent = Q_r;
+      ports.vent = { type: StreamType.MATERIAL, T: inv.T_K, P: P_tank,
+        n: vent_n, phase: 'V', phaseConstraint: 'V' };
+    } else {
+      ports.vent = { type: StreamType.MATERIAL, T: inv.T_K, P: P_tank,
+        n: {}, phase: 'V', phaseConstraint: 'V' };
+    }
+
+    // 5. Internal electric refrigeration (replaces external cooling jacket)
+    const T_set = par.T_set ?? 278;                  // K — 5°C setpoint
+    const COP = par.COP ?? 2.5;                       // coefficient of performance
+    const UA_ambient = par.UA_ambient ?? 5;           // W/K — passive heat leak through shell
+    const maxCoolPower_W = par.maxCoolPower_W ?? 200; // W electrical cap (compressor)
+
+    // Passive conduction with ambient (>0 = leaves to ambient, <0 = leaks in to cold box)
+    const Q_ambient = UA_ambient * (inv.T_K - T_ext);
+
+    // Thermal mass (same scaling as updateInventory)
+    const n_total_th = Object.values(inv.n).reduce((a,b) => a+b, 0);
+    const C_thermal = Math.max(500, n_total_th * 75);
+
+    // Cooling demand: pull toward setpoint + offset spoilage heat + offset ambient leak
+    const Q_to_setpoint = (inv.T_K - T_set) * C_thermal / dt;
+    const Q_cool_demand = Math.max(0, Q_spoilage - Q_ambient + Q_to_setpoint);
+    const W_demand = Q_cool_demand / COP;
+
+    // Power read from hub allocation (NNG-5) — fridge cannot cool without power
+    const sElec = ports.elec_in;
+    u.powerDemand = Math.min(W_demand, maxCoolPower_W);
+    let W_actual = 0;
+    if (sElec) {
+      const s = ctx ? ctx.scratch : {};
+      const W_avail = s.hubAllocated_W ?? (sElec.actual || sElec.capacity || 0);
+      W_actual = Math.max(0, Math.min(u.powerDemand, W_avail));
+    }
+    const Q_cool = W_actual * COP;            // heat actually pumped out of contents
+    const Q_reject_active = Q_cool + W_actual; // pump dumps heat + work to atmosphere
+    const capacityLimited = W_demand > maxCoolPower_W + 1e-6;
+    const powered = W_actual > 1e-3;
+
+    // Net ambient rejection (NNG-1/2): active rejection + signed conduction.
+    // Steady state ⇒ Q_cool = Q_spoilage − Q_ambient ⇒ Q_rejected_W = Q_spoilage + W.
+    const Q_rejected_W = Q_reject_active + Q_ambient;
+
+    // Carry Q_cool/Q_ambient to next-step updateInventory via biogas_out._food_meta
+    if (ports.biogas_out && ports.biogas_out._food_meta) {
+      ports.biogas_out._food_meta.Q_cool_W = Q_cool;
+      ports.biogas_out._food_meta.Q_ambient_W = Q_ambient;
+    }
+
+    // 6. Diagnostics
+    const totalMol = Object.values(inv.n).reduce((a,b) => a+b, 0);
+    const spoilPctDay = k_spoil * 86400 * 100;
+    const ch2o_remaining = inv.n.CH2O || 0;
+    const n_max_ch2o = P_relief * V / (8.314 * 294);
+    const food_fill_frac = Math.min(1, ch2o_remaining / Math.max(1, n_max_ch2o));
+
+    u.last = {
+      P_Pa: P_tank, P_bar: P_tank / 1e5,
+      T_K: inv.T_K,
+      T_set_K: T_set,
+      totalMol, n: { ...inv.n },
+      ch2o_remaining,
+      food_fill_frac,
+      spoil_rate_mol_s: spoil_rate,
+      spoil_pct_day: spoilPctDay,
+      Q_spoilage_W: Q_spoilage,
+      Q_cool_W: Q_cool,
+      W_demand, W_actual, COP,
+      powerDraw_W: W_actual,
+      capacityLimited,
+      powered,
+      Q_reject_active_W: Q_reject_active,
+      Q_rejected_W,                       // [v20.9.7] net ambient (balance sheet, NNG-1/2)
+      _Q_to_atmosphere_W: Q_rejected_W,   // [v20.9.7 DEFERRED] heat-shimmer animation hook
+      Q_draw: Q_draw,
+      Q_biogas: Q_biogas,
+      Q_vent: Q_vent,
+      V_m3: V,
+      level_pct: state.level_pct,
+      P_relief,
+      _ventActive,
+      frozen: inv.T_K <= T_FREEZE,
+      status: ch2o_remaining < 1e-12 ? 'empty'
+            : inv.T_K <= T_FREEZE ? 'frozen'
+            : spoilPctDay > 10 ? 'spoiling_fast'
+            : spoilPctDay > 1 ? 'spoiling' : 'preserved',
+      type: 'refrigerator'
+    };
+
+    if (!powered && spoilPctDay > 10) {
+      u.last.error = { severity: ErrorSeverity.MINOR,
+        message: `Food spoiling rapidly — ${spoilPctDay.toFixed(0)}%/day at ${(inv.T_K - 273.15).toFixed(0)}°C. Connect power.` };
+    }
+  }
+});
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // RESERVOIR — Inexhaustible supply vessel [v14.1.0]
 // ═══════════════════════════════════════════════════════════════════════════════
 //
@@ -28444,6 +28812,20 @@ ProfileRegistry.register('food_crate', {
   operatingNote: "Connect biogas_out to drain decomposition gas (CH₄+CO₂). Vent port is overpressure safety only. Connect coolant to keep T < 4°C and stop spoilage.",
   modelNote: "Spoilage: k = 3%/day × 2^((T−294)/5) above 277K, zero below. 2 CH₂O → CH₄ + CO₂ (anaerobic fermentation). Biogas drain capped at 0.01 mol/s. Cooling jacket UA=50 W/K.",
 });
+
+ProfileRegistry.register('refrigerator', {
+  defId: 'refrigerator', name: 'Refrigerator', pressureClass: 'simple', category: UnitCategories.LIFE_SUPPORT, tiers: [1],
+  description: 'Electric ration cooler — keeps food cold on hub power, spoils if unpowered',
+  selectionGuide: 'A 100L canister holding ~1200 mol CH₂O (≈30 days for 2 people IF kept cold). Built-in electric cooling holds 5°C on ~46 W from the hub. Lose power and it warms to ambient — food spoils at ~8%/day and vents biogas. Wire elec_in to a hub and keep it powered.',
+  limits: { 1: { T_LL:233, T_HH:473, P_LL:0, P_HH:35000000 } },
+  defaults: { 1: { volume_m3:0.1, gasDrawRate:0.001, opening_gas_pct:46.6,
+                    P_init:29331792, P_relief:30000000,
+                    T_set:278, COP:2.5, UA_ambient:5, maxCoolPower_W:200,
+                    initialComposition:{CH2O:1} } },
+  equipmentNote: "Reinforced steel canister, 100L, with an integral electric heat-pump cooler (no external coolant loop). Same pressure rating as a gas bottle.",
+  operatingNote: "Connect elec_in to a power hub and keep it powered to hold 5°C. Connect biogas_out to the flare so decomposition gas (CH₄+CO₂) can't pressure up if it ever warms. Vent port is overpressure safety only.",
+  modelNote: "Spoilage: k = 3%/day × 2^((T−294)/5) above 277K, zero below. 2 CH₂O → CH₄ + CO₂. Internal cooling: Q_cool holds T_set=278K, draws W=Q_cool/COP (COP 2.5, ≤200W). Rejects Q_cool+W to atmosphere (Q_rejected_W=Q_cool+W+UA·(T−T_ext), UA_ambient=5 W/K).",
+});
 ProfileRegistry.register('tank_low_pressure', {
   defId: 'tank', name: 'Closed Tank', pressureClass: 'network', category: UnitCategories.VESSEL, tiers: [1, 2],
   description: 'Sealed container with a safety valve',
@@ -29260,6 +29642,116 @@ const M5_OUTRO = [
     alt: 'The shelter at night, lights steady, battery gauge rising' },
 ];
 
+const M6_INTRO = [
+  { type: 'image', src: 'm6_intro_1.webp', transition: 'wipe', duration_ms: null,
+    fallbackText: 'The shelter kept us alive. It never kept us warm.\nNights, the cold crept in through the hull,\nand Lena would sit with her hands in her sleeves.\n\n\u201CWe can fix that,\u201D she said.\n\u201CA heater for the air. And hot water, while we\u2019re at it.\nI\u2019m tired of washing in meltwater.\u201D',
+    alt: 'K rigging a heater line, the cabin beginning to glow warm' },
+  { type: 'image', src: 'm6_intro_2.webp', transition: 'wipe', duration_ms: null,
+    fallbackText: 'Out in the debris I found something orange,\nhumming-quiet, dented \u2014 but the seal held.\nA refrigerator.\n\n\u201CPlug it in,\u201D Lena said,\n\u201Cand our food stops rotting.\nCold storage. A month of meals instead of a week.\u201D',
+    alt: 'K hauling an orange refrigerator across the regolith' },
+];
+
+const M6_BRIEFING = [
+  { type: 'dialogue', speaker: 'lena', expression: 'happy', delay_ms: 1500,
+    text: 'Three things make a shelter a home, K: warm air, a hot shower, and food that keeps. We\u2019ve got the gear for all of it. One catch \u2014 the old power box is out of sockets, so I scrounged a proper hub. Move everything onto it as we go, and keep that fridge powered. Cold food or spoiled food \u2014 your call.' },
+];
+
+const M6_VICTORY_LINES = {
+  1: { speaker: 'lena', text: 'Warm air, hot water, cold food. That\u2019s not survival anymore, K \u2014 that\u2019s living.' },
+  2: { speaker: 'lena', text: 'Everything humming, nothing wasted. The place finally feels like ours.' },
+  3: { speaker: 'lena', text: 'Tight as a drum. I could get used to this.' },
+};
+
+const M6_GUIDANCE = [
+  { id: 'g_m6_place_hub',
+    dialogue: { speaker: 'lena', text: 'First, power. The old box is out of sockets \u2014 I found a hub with room to grow. Drop it in.', expression: 'happy' },
+    highlight: { type: 'palette_tile', profileId: 'power_hub' },
+    completion: { type: 'unit_placed', profileId: 'power_hub' },
+    onComplete: { speaker: 'lena', text: 'Good. Plenty of sockets.' },
+    delay_ms: 500 },
+  { id: 'g_m6_sources',
+    dialogue: { speaker: 'lena', text: 'Feed it \u2014 battery and generator, both into the input side.', expression: 'happy' },
+    highlight: { type: 'unit', profileId: 'power_hub' },
+    completion: { type: 'connection', fromProfile: 'battery', toProfile: 'power_hub' },
+    onComplete: { speaker: 'lena', text: 'Powered up.' },
+    delay_ms: 500 },
+  { id: 'g_m6_surplus',
+    dialogue: { speaker: 'lena', text: 'Run the overflow to a dump load \u2014 surplus has to go somewhere or it\u2019ll trip.', expression: 'happy' },
+    highlight: { type: 'palette_tile', profileId: 'sink_electrical' },
+    completion: { type: 'connection', fromProfile: 'power_hub', toProfile: 'sink_electrical' },
+    onComplete: { speaker: 'lena', text: 'Safe.' },
+    delay_ms: 500 },
+  { id: 'g_m6_move_loads',
+    dialogue: { speaker: 'lena', text: 'Now shift the essentials onto the hub\u2019s output \u2014 the room, the electrolyzer, all of it. Once they\u2019re across, the old dispatcher\u2019s just scrap.', expression: 'happy' },
+    highlight: { type: 'unit', profileId: 'power_hub' },
+    completion: { type: 'connection', fromProfile: 'power_hub', toProfile: 'shelter' },
+    onComplete: { speaker: 'lena', text: 'Lights never flickered. Scrap the old box when you like.' },
+    delay_ms: 500 },
+  { id: 'g_m6_place_fridge',
+    dialogue: { speaker: 'lena', text: 'Here\u2019s the fridge. Drop it in.', expression: 'happy' },
+    highlight: { type: 'palette_tile', profileId: 'refrigerator' },
+    completion: { type: 'unit_placed', profileId: 'refrigerator' },
+    onComplete: { speaker: 'lena', text: 'Cold storage at last.' },
+    delay_ms: 500 },
+  { id: 'g_m6_fridge_food',
+    dialogue: { speaker: 'lena', text: 'Run its food line to the room.', expression: 'happy' },
+    highlight: { type: 'unit', profileId: 'refrigerator' },
+    completion: { type: 'connection', fromProfile: 'refrigerator', toProfile: 'shelter', toPort: 'food_in' },
+    onComplete: { speaker: 'lena', text: 'Fresh meals on tap.' },
+    delay_ms: 500 },
+  { id: 'g_m6_fridge_power',
+    dialogue: { speaker: 'lena', text: 'Power it from the hub \u2014 and keep it powered, or the food warms up and turns.', expression: 'happy' },
+    highlight: { type: 'unit', profileId: 'power_hub' },
+    completion: { type: 'connection', fromProfile: 'power_hub', toProfile: 'refrigerator' },
+    onComplete: { speaker: 'lena', text: 'Keep that one fed.' },
+    delay_ms: 500 },
+  { id: 'g_m6_fridge_vent',
+    dialogue: { speaker: 'lena', text: 'Run its rot-gas line to the flare. If it ever does warm up, the gas has somewhere to go.', expression: 'happy' },
+    highlight: { type: 'unit', profileId: 'refrigerator' },
+    completion: { type: 'connection', fromProfile: 'refrigerator', toProfile: 'flare_stack' },
+    onComplete: { speaker: 'lena', text: 'Tidy.' },
+    delay_ms: 500 },
+  { id: 'g_m6_cooler',
+    dialogue: { speaker: 'lena', text: 'Cabin\u2019s next. Splice an air cooler into the return air, right after the scrubber.', expression: 'happy' },
+    highlight: { type: 'palette_tile', profileId: 'air_cooler' },
+    completion: { type: 'connection', fromProfile: 'co2_scrubber', toProfile: 'air_cooler' },
+    onComplete: { speaker: 'lena', text: 'Good.' },
+    delay_ms: 500 },
+  { id: 'g_m6_heater',
+    dialogue: { speaker: 'lena', text: 'Then a heater after it. Set both to a comfortable twenty-one \u2014 one trims the heat, one adds it, and the cabin just holds.', expression: 'happy' },
+    highlight: { type: 'palette_tile', profileId: 'electric_heater' },
+    completion: { type: 'connection', fromProfile: 'air_cooler', toProfile: 'electric_heater' },
+    onComplete: { speaker: 'lena', text: 'Now back to the room.' },
+    delay_ms: 500 },
+  { id: 'g_m6_return',
+    dialogue: { speaker: 'lena', text: 'Send the conditioned air back into the room, and power both off the hub.', expression: 'happy' },
+    highlight: { type: 'unit', profileId: 'electric_heater' },
+    completion: { type: 'connection', fromProfile: 'electric_heater', toProfile: 'shelter', toPort: 'air_return' },
+    onComplete: { speaker: 'lena', text: 'Feel that? Warm.' },
+    delay_ms: 500 },
+  { id: 'g_m6_water_heater',
+    dialogue: { speaker: 'lena', text: 'Last thing \u2014 hot water. Split the water feed, run one branch through a heater set to sixty, into a second barrel.', expression: 'happy' },
+    highlight: { type: 'palette_tile', profileId: 'simple_open_barrel' },
+    completion: { type: 'connection', fromProfile: 'electric_heater', toProfile: 'simple_open_barrel' },
+    onComplete: { speaker: 'lena', text: 'Heating up.' },
+    delay_ms: 500 },
+  { id: 'g_m6_hot_tap',
+    dialogue: { speaker: 'lena', text: 'That hot barrel feeds the room\u2019s hot tap. Power the heater, and we\u2019re done.', expression: 'happy' },
+    highlight: { type: 'unit', profileId: 'simple_open_barrel' },
+    completion: { type: 'connection', fromProfile: 'simple_open_barrel', toProfile: 'shelter', toPort: 'hot_water_in' },
+    onComplete: { speaker: 'lena', text: 'Go run the shower, K. You\u2019ve earned it.' },
+    delay_ms: 500 },
+];
+
+const M6_OUTRO = [
+  { type: 'image', src: 'm6_outro_1.webp', transition: 'fade', duration_ms: null,
+    fallbackText: 'That night Lena ran the first hot shower\nand came out wrapped in a towel, holding tea,\nsteam fogging the porthole.\n\n\u201COkay,\u201D she said, settling in.\n\u201CThis. This is the part worth surviving for.\u201D',
+    alt: 'Lena wrapped in a towel with a mug of tea, steam on the glass, warm light' },
+  { type: 'image', src: 'm6_outro_2.webp', transition: 'fade', duration_ms: null,
+    fallbackText: 'I took mine after.\nHelmet on, suit sealed, the whole rig.\nLena nearly dropped her cup laughing.\n\n\u201CIt\u2019s pressurized, you idiot \u2014 you can take the suit off\u2014\u201D\n\nNever trust a hull you didn\u2019t weld yourself.',
+    alt: 'K showering in full suit and helmet, Lena laughing in the doorway' },
+];
+
 // ═══════════════════════════════════════════════════════════════════════════
 // [v19.0.0] Campaign, Arc, Mission registrations
 // ═══════════════════════════════════════════════════════════════════════════
@@ -29292,7 +29784,7 @@ ArcRegistry.register('arc_a', {
   crewCount: 2,
   intro: ARC_A_INTRO,
   conclusion: [],
-  missions: ['arc_a_m1', 'arc_a_m2', 'arc_a_m3', 'arc_a_m4', 'arc_a_m5'],
+  missions: ['arc_a_m1', 'arc_a_m2', 'arc_a_m3', 'arc_a_m4', 'arc_a_m5', 'arc_a_m6'],
 });
 
 // ── M1 — Breathe ─────────────────────────────────────────────────────────
@@ -29772,6 +30264,121 @@ MissionRegistry.register('arc_a_m5', {
       condition: { type: 'unit_status', profileId: 'small_gas_engine', status: 'running' },
       action: { type: 'dialogue', speaker: 'lena',
         text: 'There it is \u2014 gas into watts. Watch that battery climb.',
+        expression: 'happy' } },
+  ],
+
+  hints: [],
+  completionGated: true,
+  storyUI: {
+    visibleMenuItems: ['reports', 'physicalUnits', 'clearStickers', 'home', 'saveCampaign'],
+    hidePaletteFilter: true, hidePressureSwitch: true,
+    pressureMode: 'simple', hideDevTab: true,
+    showObjectivePanel: true, showStarTracker: true, showRunway: true,
+  },
+});
+
+MissionRegistry.register('arc_a_m6', {
+  arcId: 'arc_a',
+  index: 5,
+  contentVersion: 1,
+  title: 'Comfort',
+  subtitle: 'Alive is not the same as comfortable.',
+  emergency: 'Cabin cold. Food spoiling. No hot water.',
+
+  palette: {
+    refrigerator: 1,
+    air_cooler: 1,
+    electric_heater: 2,
+    simple_open_barrel: 1,
+    power_hub: 1,
+    splitter: 1,
+    bend: 99,
+    simple_mixer: 99,
+  },
+  species: ['O2', 'N2', 'Ar', 'CO2', 'H2O', 'CH4', 'H2', 'CO', 'CH2O'],
+  reactions: ['R_CH4_COMB', 'R_H2_COMB'],
+
+  inheritScene: true,
+  preplacedUnits: [],
+  preplacedConnections: [
+    // Re-lock the life-support lines carried in from earlier missions (defensive).
+    // Power lines are intentionally left unlocked — the player swaps the dispatcher for the hub.
+    { id: 'c_o2_to_room_m6', from: { unitId: 'o2_bottle', portId: 'gas_out' },
+      to: { unitId: 'room', portId: 'o2_in' }, lock: true },
+    { id: 'c_h2o_barrel_m6', from: { unitId: 'water_barrel', portId: 'mat_out' },
+      to: { unitId: 'room', portId: 'h2o_in' }, lock: true },
+  ],
+
+  narrator: 'lena',
+  roomOccupants: { shelter: ['lena', 'k'] },
+
+  storyIntro: M6_INTRO,
+  storyOutro: M6_OUTRO,
+  briefing: M6_BRIEFING,
+  victoryLine: M6_VICTORY_LINES,
+
+  objectives: [
+    { id: 'hub_placed', type: 'unit_present',
+      profileId: 'power_hub',
+      description: 'Place the power hub' },
+    { id: 'fridge_placed', type: 'unit_present',
+      profileId: 'refrigerator',
+      description: 'Place the refrigerator' },
+    { id: 'fridge_food', type: 'connection',
+      fromProfile: 'refrigerator', toProfile: 'shelter', toPort: 'food_in',
+      description: 'Feed the room from the refrigerator' },
+    { id: 'fridge_power', type: 'connection',
+      fromProfile: 'power_hub', toProfile: 'refrigerator',
+      description: 'Power the refrigerator from the hub' },
+    { id: 'fridge_vent', type: 'connection',
+      fromProfile: 'refrigerator', toProfile: 'flare_stack',
+      description: 'Run the fridge rot-gas line to the flare' },
+    { id: 'cooler_connected', type: 'connection',
+      fromProfile: 'co2_scrubber', toProfile: 'air_cooler',
+      description: 'Splice an air cooler into the return air' },
+    { id: 'heater_connected', type: 'connection',
+      fromProfile: 'air_cooler', toProfile: 'electric_heater',
+      description: 'Add an air heater after the cooler' },
+    { id: 'air_return_connected', type: 'connection',
+      fromProfile: 'electric_heater', toProfile: 'shelter', toPort: 'air_return',
+      description: 'Return the conditioned air to the room' },
+    { id: 'hotwater_connected', type: 'connection',
+      fromProfile: 'simple_open_barrel', toProfile: 'shelter', toPort: 'hot_water_in',
+      description: 'Feed the hot-water tap from the heated barrel' },
+    { id: 'hotwater_temp', type: 'port_conditions',
+      targetProfile: 'shelter', portId: 'hot_water_in', T_gte: 313, T_lte: 353,
+      description: 'Hot water reaches the room at 40\u201380\u00B0C' },
+    { id: 'comfort_sustain', type: 'maintain_conditions',
+      unit: 'shelter',
+      conditions: { T_K_gte: 291, T_K_lte: 298, O2_pct_gte: 18, CO2_pct_lte: 1.0 },
+      duration_s: 86400,
+      description: 'Cabin comfortable (18\u201325\u00B0C) and air stable for 24 hours' },
+  ],
+
+  // [v20.9.6] Star ranking hidden (SHOW_STARS=false) — blocks kept for reactivation.
+  stars: {
+    1: { description: 'Fridge cold, cabin comfortable, hot water flowing.',
+      criteria: [{ type: 'all_objectives_complete' }] },
+    2: { description: '\u2605 + the old dispatcher retired (room runs off the hub).',
+      criteria: [
+        { type: 'all_objectives_complete' },
+        { type: 'connection_absent', fromProfile: 'power_dispatcher_5', toProfile: 'shelter' },
+      ] },
+    3: { description: '\u2605\u2605 + cabin held in band for the full day.',
+      criteria: [
+        { type: 'all_objectives_complete' },
+        { type: 'maintain_conditions', id: 'star3_comfort_tight', unit: 'shelter',
+          conditions: { T_K_gte: 292, T_K_lte: 296 }, duration_s: 86400 },
+      ] },
+  },
+
+  guidanceSteps: M6_GUIDANCE,
+
+  triggers: [
+    { id: 'fridge_cold', once: true, delay_s: 0,
+      condition: { type: 'unit_status', profileId: 'refrigerator', status: 'preserved' },
+      action: { type: 'dialogue', speaker: 'lena',
+        text: 'Five degrees and holding. Our food just stopped rotting.',
         expression: 'happy' } },
   ],
 
@@ -33539,9 +34146,12 @@ function computeSystemBalance(scene) {
     }
     // [v17.7.4] Food Storage: inventory-bearing unit with food draw + spoilage.
     // Mass: food_in + cool_in - food_out - biogas_out - vent - cool_out = accumulation.
-    if (u.defId === 'food_storage') {
-      const inPorts = ['food_in', 'cool_in'];
-      const outPorts = ['food_out', 'biogas_out', 'vent', 'cool_out'];
+    if (u.defId === 'food_storage' || u.defId === 'refrigerator') {
+      // [v20.9.7] Refrigerator: internal electric cooling — no cool_in/cool_out ports;
+      // electrical work enters via elec_in and exits in Q_rejected_W, so add W to energy-in.
+      const isFridge = u.defId === 'refrigerator';
+      const inPorts = isFridge ? ['food_in'] : ['food_in', 'cool_in'];
+      const outPorts = isFridge ? ['food_out', 'biogas_out', 'vent'] : ['food_out', 'biogas_out', 'vent', 'cool_out'];
       let m_in = 0, m_out = 0;
       for (const pid of inPorts) { const s = ud.ports?.[pid]; if (s) m_in += streamMass_kgps(s); }
       for (const pid of outPorts) { const s = ud.ports?.[pid]; if (s) m_out += streamMass_kgps(s); }
@@ -33549,8 +34159,9 @@ function computeSystemBalance(scene) {
       if (Math.abs(netMass) > 1e-15) { accumulation.mass_kgps += netMass; accumulation.items.push({ name: uName, type: 'food_storage_mass', value_kgps: netMass, value_W: 0 }); }
       const H_in = inPorts.reduce((s, pid) => s + (ud.ports?.[pid]?.Hdot_J_s ?? 0), 0);
       const H_out = outPorts.reduce((s, pid) => s + (ud.ports?.[pid]?.Hdot_J_s ?? 0), 0);
+      const W_elec = isFridge ? (ud.last?.W_actual ?? 0) : 0;  // electrical work into the heat pump
       const Q_rej_food = ud.last?.Q_rejected_W ?? 0;
-      const netE_food = H_in - H_out - Q_rej_food;
+      const netE_food = H_in + W_elec - H_out - Q_rej_food;
       if (Math.abs(netE_food) > 0.01) accumulation.energy_W += netE_food;
     }
     // [v17.6.0 S-ROOM] Room: mixed IN/OUT ports, inventory unit.
@@ -40687,16 +41298,24 @@ _RAGTAG_SYMBOLS.food_storage = function(g, wx, wy, ww, wh, pal, def, unitId) {
   _rtBolt(g, wx + 14, wy + 170); _rtBolt(g, wx + 82, wy + 170);
 
   // ── Cooling serpentine (inline with cool ports at y=4 tiles) ──
-  const serpY = wy + _t * 4;
-  g.appendChild(svgEl('path', {
-    d: `M${wx+2},${serpY} L${wx+10},${serpY} L${wx+10},${serpY-12} L${wx+18},${serpY-12} L${wx+18},${serpY}` +
-       ` L${wx+30},${serpY} L${wx+30},${serpY-12} L${wx+42},${serpY-12} L${wx+42},${serpY}` +
-       ` L${wx+54},${serpY} L${wx+54},${serpY-12} L${wx+66},${serpY-12} L${wx+66},${serpY}` +
-       ` L${wx+78},${serpY} L${wx+78},${serpY-12} L${wx+88},${serpY-12} L${wx+88},${serpY} L${wx+94},${serpY}`,
-    fill: 'none', stroke: '#67e8f9', 'stroke-width': 2.5,
-    'stroke-linecap': 'round', 'stroke-linejoin': 'round', opacity: 0.6, 'pointer-events': 'none'
-  }));
+  // [v20.9.7] Only when the unit actually has a cooling loop (food_storage).
+  // The refrigerator aliases this symbol but has no cool ports → serpentine skipped.
+  if (pres.ports.cool_in) {
+    const serpY = wy + _t * 4;
+    g.appendChild(svgEl('path', {
+      d: `M${wx+2},${serpY} L${wx+10},${serpY} L${wx+10},${serpY-12} L${wx+18},${serpY-12} L${wx+18},${serpY}` +
+         ` L${wx+30},${serpY} L${wx+30},${serpY-12} L${wx+42},${serpY-12} L${wx+42},${serpY}` +
+         ` L${wx+54},${serpY} L${wx+54},${serpY-12} L${wx+66},${serpY-12} L${wx+66},${serpY}` +
+         ` L${wx+78},${serpY} L${wx+78},${serpY-12} L${wx+88},${serpY-12} L${wx+88},${serpY} L${wx+94},${serpY}`,
+      fill: 'none', stroke: '#67e8f9', 'stroke-width': 2.5,
+      'stroke-linecap': 'round', 'stroke-linejoin': 'round', opacity: 0.6, 'pointer-events': 'none'
+    }));
+  }
 };
+
+// [v20.9.7] Refrigerator reuses the food-crate icon (serpentine auto-skipped — no cool ports).
+_RAGTAG_SYMBOLS.refrigerator = _RAGTAG_SYMBOLS.food_storage;
+
 
 // [v17.6.3 S-ROOM] Crew shelter — thick hull, interior background, diegetic gauges, togglable lights
 // ═══ [v17.8.0] Lena full-body puppet renderer for room interior ═══
@@ -47044,6 +47663,90 @@ UnitInspector.food_storage = {
     if (L.Q_cool_W > 0) items.push({ label: 'Cooling', value: `${L.Q_cool_W.toFixed(0)}<span class="propUnit">W</span>`, tone: 'good' });
     if (L.frozen) items.push({ label: 'Frozen', value: 'Yes — no spoilage', tone: 'good' });
     // Only show pressure if it's getting dangerous (near relief)
+    if (L.P_Pa > L.P_relief * 0.5) {
+      items.push({ label: '── WARNING: Gas Buildup ──', value: '', tone: 'warn' });
+      items.push({ label: 'P', value: fmt.P(L.P_Pa || 0), tone: L.P_Pa > L.P_relief * 0.8 ? 'bad' : 'warn' });
+      items.push({ label: 'P relief', value: fmt.P(L.P_relief || 0) });
+    }
+    return items;
+  }
+};
+
+// [v20.9.7] Refrigerator inspector — food_storage clone; thermal section shows
+// electric cooling (setpoint + power draw) instead of the external jacket.
+UnitInspector.refrigerator = {
+  customParams(container, u) {
+    const profile = ProfileRegistry.get(u.profileId || u.defId);
+    const isDev = profile?.config?.dev || profile?.config?.template;
+    container.appendChild(el('div', { class: 'ins-section-label', html: 'Food Draw' }));
+    const drawBox = el('div', {});
+    if (isDev) {
+      addNumberEditor(drawBox, 'Max draw [mol/s]', () => u.params.gasDrawRate ?? 0.001, v => u.params.gasDrawRate = v, 0.0001, 4, { min: 0 });
+    }
+    addNumberEditor(drawBox, 'Draw opening [%]', () => u.params.opening_gas_pct ?? 50, v => u.params.opening_gas_pct = v, 5, 0, { min: 0, max: 100 });
+    container.appendChild(drawBox);
+    container.appendChild(el('div', { class: 'ins-section-label', html: 'Cooling' }));
+    const coolBox = el('div', {});
+    addNumberEditor(coolBox, 'Setpoint [K]', () => u.params.T_set ?? 278, v => u.params.T_set = v, 1, 0, { min: 200, max: 320 });
+    if (isDev) {
+      addNumberEditor(coolBox, 'COP', () => u.params.COP ?? 2.5, v => u.params.COP = v, 0.1, 1, { min: 0.5, max: 6 });
+      addNumberEditor(coolBox, 'Max power [W]', () => u.params.maxCoolPower_W ?? 200, v => u.params.maxCoolPower_W = v, 50, 0, { min: 0 });
+      addNumberEditor(coolBox, 'UA ambient [W/K]', () => u.params.UA_ambient ?? 5, v => u.params.UA_ambient = v, 1, 0, { min: 0, max: 100 });
+    }
+    container.appendChild(coolBox);
+  },
+  conditions(u, ud) {
+    if (!ud?.last) return [];
+    const us = models.getActive('units');
+    const L = ud.last;
+    const condText = L.frozen ? 'Frozen' : L.spoil_pct_day > 10 ? 'Spoiling!' : L.spoil_pct_day > 0.1 ? 'Spoiling' : 'OK';
+    const condDot = L.frozen ? '#93c5fd' : L.spoil_pct_day > 10 ? '#fca5a5' : L.spoil_pct_day > 0.1 ? '#fbbf24' : '#22c55e';
+    return [
+      { lbl: 'Temp', stickerLabel: 'Temperature', val: us.temperature.from(L.T_K || 294).toFixed(1), unit: us.temperature.symbol },
+      { lbl: 'Food', stickerLabel: 'Food remaining', val: (L.ch2o_remaining || 0).toFixed(0), unit: 'mol' },
+      { lbl: 'State', stickerLabel: 'Food state', val: condText, unit: '', dotColor: condDot },
+    ];
+  },
+  kpis(u, ud) {
+    if (!ud?.last) return [];
+    const L = ud.last;
+    const totalMol = L.totalMol || 1;
+    const ch2o = L.ch2o_remaining || 0;
+    const foodPct = Math.min(100, ch2o / totalMol * 100);
+    const foodColor = foodPct <= 10 ? '#ef4444' : foodPct <= 30 ? '#f59e0b' : '#22c55e';
+    const spoilPct = Math.min(100, (L.spoil_pct_day || 0) * 3);
+    const spoilColor = L.spoil_pct_day > 10 ? '#ef4444' : L.spoil_pct_day > 1 ? '#f59e0b' : '#22c55e';
+    const statusColor = L.status === 'empty' ? '#ef4444' : L.status === 'frozen' ? '#93c5fd' : L.status === 'spoiling_fast' ? '#ef4444' : !L.powered ? '#f59e0b' : '#22c55e';
+    return [
+      { label: 'Food level', value: foodPct, bar: true, barColor: foodColor },
+      { label: 'Spoilage rate', value: spoilPct, bar: true, barColor: spoilColor },
+      { label: 'Status', value: `<span style="color:${statusColor}">${L.powered ? (L.status || '—') : 'unpowered'}</span>` },
+    ];
+  },
+  detail(u, ud) {
+    if (!ud?.last) return [];
+    const L = ud.last;
+    const items = [];
+    items.push({ label: '── Food Inventory ──', value: '', tone: 'dim' });
+    items.push({ label: 'CH₂O remaining', value: `${(L.ch2o_remaining||0).toFixed(0)}<span class="propUnit">mol</span>` });
+    items.push({ label: 'Total inventory', value: `${(L.totalMol||0).toFixed(0)}<span class="propUnit">mol</span>` });
+    if (L.Q_draw > 1e-8) items.push({ label: 'Draw rate', value: fmt.molarFlow(L.Q_draw), tone: 'good' });
+    items.push({ label: '── Spoilage ──', value: '', tone: 'dim' });
+    items.push({ label: 'Rate', value: `${(L.spoil_pct_day||0).toFixed(1)}<span class="propUnit">%/day</span>` });
+    items.push({ label: 'Loss', value: fmt.molarFlow(L.spoil_rate_mol_s || 0) });
+    items.push({ label: 'Heat from decay', value: fmt.kW(L.Q_spoilage_W || 0) });
+    items.push({ label: '── Cooling ──', value: '', tone: 'dim' });
+    items.push({ label: 'T', value: fmt.T(L.T_K || 0) });
+    items.push({ label: 'Setpoint', value: fmt.T(L.T_set_K || 278) });
+    if (L.powered) {
+      items.push({ label: 'Cooling', value: `${(L.Q_cool_W||0).toFixed(0)}<span class="propUnit">W</span>`, tone: 'good' });
+      items.push({ label: 'Power draw', value: `${(L.powerDraw_W||0).toFixed(0)}<span class="propUnit">W</span>`, tone: L.capacityLimited ? 'warn' : 'good' });
+      if (L.capacityLimited) items.push({ label: 'Capacity', value: 'Max — pulling down slowly', tone: 'warn' });
+    } else {
+      items.push({ label: 'Power', value: 'None — warming', tone: 'bad' });
+    }
+    items.push({ label: 'Heat rejected', value: fmt.kW(L.Q_rejected_W || 0) });
+    if (L.frozen) items.push({ label: 'Frozen', value: 'Yes — no spoilage', tone: 'good' });
     if (L.P_Pa > L.P_relief * 0.5) {
       items.push({ label: '── WARNING: Gas Buildup ──', value: '', tone: 'warn' });
       items.push({ label: 'P', value: fmt.P(L.P_Pa || 0), tone: L.P_Pa > L.P_relief * 0.8 ? 'bad' : 'warn' });
@@ -73183,15 +73886,16 @@ function runTests() {
     t.assertOK(c.reactionPool.includes('R_METABOLISM'), 'R_METABOLISM in pool');
   });
 
-  test('749: Arc A registered with 5 missions', t => {
+  test('749: Arc A registered with 6 missions', t => {
     t.assertOK(ArcRegistry.exists('arc_a'), 'arc_a exists');
     const a = ArcRegistry.get('arc_a');
     t.assertOK(a.title === 'Survival', 'title');
-    t.assertOK(a.missions.length === 5, '5 missions');
+    t.assertOK(a.missions.length === 6, '6 missions');
     t.assertOK(a.missions[0] === 'arc_a_m1', 'M1 first');
     t.assertOK(a.missions[2] === 'arc_a_m3', 'M3 third');
     t.assertOK(a.missions[3] === 'arc_a_m4', 'M4 fourth');
     t.assertOK(a.missions[4] === 'arc_a_m5', 'M5 fifth');
+    t.assertOK(a.missions[5] === 'arc_a_m6', 'M6 sixth');
     t.assertOK(a.intro.length === 6, 'arc intro has 6 beats');
   });
 
@@ -73289,10 +73993,16 @@ function runTests() {
     t.assertOK(next4.type === 'mission', 'advance to M5');
     t.assertOK(cs.currentMissionId === 'arc_a_m5', 'now at M5');
 
-    // Complete M5 — should complete the arc
+    // Complete M5 — should advance to M6
     cs.completeMission('arc_a_m5', 1, '{"m5":"done"}');
     const next5 = cs.advanceToNext();
-    t.assertOK(next5.type === 'campaign_complete', 'campaign complete after M5');
+    t.assertOK(next5.type === 'mission', 'advance to M6');
+    t.assertOK(cs.currentMissionId === 'arc_a_m6', 'now at M6');
+
+    // Complete M6 — should complete the arc
+    cs.completeMission('arc_a_m6', 1, '{"m6":"done"}');
+    const next6 = cs.advanceToNext();
+    t.assertOK(next6.type === 'campaign_complete', 'campaign complete after M6');
     t.assertOK(cs.arcCompleted.has('arc_a'), 'arc_a completed');
   });
 
@@ -74543,6 +75253,99 @@ function runTests() {
     const result = evaluateMissionCompletion('arc_a_m1', scene, { converged: true });
     t.assertOK(result.starResults && result.starResults[1] !== undefined, 'star results still computed internally');
     t.assertOK(typeof result.passed === 'boolean', 'passed still returned');
+  });
+
+  test('809: refrigerator — registration, profile, ports, icon alias', t => {
+    const def = UnitRegistry.get('refrigerator');
+    t.assertOK(!!def, 'refrigerator unit registered');
+    const portIds = def.ports.map(p => p.portId);
+    t.assertOK(portIds.includes('elec_in'), 'has elec_in');
+    t.assertOK(portIds.includes('food_in') && portIds.includes('food_out'), 'has food_in/food_out');
+    t.assertOK(portIds.includes('biogas_out') && portIds.includes('vent'), 'has biogas_out/vent');
+    t.assertOK(!portIds.includes('cool_in') && !portIds.includes('cool_out'), 'no cooling ports');
+    const prof = ProfileRegistry.get('refrigerator');
+    t.assertOK(!!prof && prof.defId === 'refrigerator', 'refrigerator profile registered');
+    t.assertClose(prof.defaults[1].T_set, 278, 0, 'setpoint default 278 K');
+    t.assertOK(typeof _RAGTAG_SYMBOLS.refrigerator === 'function', 'ragtag symbol present');
+    t.assertOK(_RAGTAG_SYMBOLS.refrigerator === _RAGTAG_SYMBOLS.food_storage, 'aliases food crate icon');
+    // Serpentine is gated on cool_in: refrigerator presentation drops it; food_storage keeps it.
+    t.assertOK(!def.presentations['box/default'].ports.cool_in, 'refrigerator presentation has no cool_in');
+    t.assertOK(!!UnitRegistry.get('food_storage').presentations['box/default'].ports.cool_in, 'food_storage still has cool_in (serpentine intact)');
+  });
+
+  test('810: refrigerator — powered, holds setpoint + energy/mass balance closes', t => {
+    SimSettings.dt = 3600;
+    const grid = t.place('grid_supply', 0, 0, { maxPower: 5 });
+    const hub  = t.place('power_hub', 4, 0);
+    const dump = t.place('sink_electrical', 4, -3, { ratedPower_kW: 50, powerPriority: 5 });
+    const fr   = t.place('refrigerator', 8, 0, { volume_m3:0.1, P_init:29331792, P_relief:30000000,
+                  T_init:278, T_set:278, COP:2.5, UA_ambient:5, maxCoolPower_W:200,
+                  initialComposition:{CH2O:1}, gasDrawRate:0.001, opening_gas_pct:46.6 });
+    const bsnk = t.place('sink', 12, 0);
+    t.wire(grid, 'elec_out', hub, 'elec_in');
+    t.wire(hub, 'elec_out', fr, 'elec_in');
+    t.wire(hub, 'elec_surplus', dump, 'elec_in');
+    t.wire(fr, 'biogas_out', bsnk, 'mat_in');
+    t.solve();
+    for (let i = 0; i < 24; i++) TimeClock.step(scene);
+    const L = t.last(fr);
+    t.assertRange(L.T_K, 275, 283, 'holds ~278 K when powered');
+    t.assertOK(L.powered, 'reports powered');
+    t.assertOK(L.W_actual > 0, 'draws power from hub');
+    const bal = computeSystemBalance(scene);
+    t.assertOK(bal.mass.closed, 'mass balance closed');
+    t.assertClose(bal.energy.residual, 0, 5, 'energy residual < 5 W (NNG-1: ambient out = elec in + decay)');
+  });
+
+  test('811: refrigerator — unpowered warms, spoils, vents biogas (mass conserved)', t => {
+    SimSettings.dt = 3600;
+    const fr   = t.place('refrigerator', 0, 0, { volume_m3:0.1, P_init:29331792, P_relief:30000000,
+                  T_init:278, T_set:278, COP:2.5, UA_ambient:5, maxCoolPower_W:200,
+                  initialComposition:{CH2O:1}, gasDrawRate:0.001, opening_gas_pct:46.6 });
+    const bsnk = t.place('sink', 4, -2);
+    const fsnk = t.place('sink', 4, 2);
+    t.wire(fr, 'biogas_out', bsnk, 'mat_in');
+    t.wire(fr, 'food_out', fsnk, 'mat_in');
+    t.solve();
+    const T0 = t.last(fr).T_K;
+    let sawBiogas = false;
+    for (let i = 0; i < 48; i++) { TimeClock.step(scene); if ((t.last(fr).Q_biogas || 0) > 1e-9) sawBiogas = true; }
+    const L = t.last(fr);
+    t.assertOK(!L.powered, 'reports unpowered (no elec connected)');
+    t.assertOK(L.T_K > T0 + 5, 'warms toward ambient without power');
+    t.assertOK(L.spoil_pct_day > 1, 'spoilage rate climbs as it warms');
+    t.assertOK(sawBiogas, 'vents biogas as food decomposes');
+    const bal = computeSystemBalance(scene);
+    t.assertOK(bal.mass.closed, 'mass balance closed (spoilage gases accounted)');
+  });
+
+  test('812: M6 Comfort — structure, palette, objectives', t => {
+    const m = MissionRegistry.get('arc_a_m6');
+    t.assertOK(!!m, 'M6 exists');
+    t.assertOK(m.title === 'Comfort', 'title');
+    t.assertOK(m.index === 5, 'index 5 (sixth mission)');
+    t.assertOK(m.arcId === 'arc_a', 'in arc_a');
+    t.assertOK(m.inheritScene === true, 'inherits the M5 end scene');
+    // Palette has the comfort kit
+    t.assertOK(m.palette.refrigerator === 1, 'fridge in palette');
+    t.assertOK(m.palette.air_cooler === 1, 'air cooler in palette');
+    t.assertOK(m.palette.electric_heater === 2, 'two heaters (air + water)');
+    t.assertOK(m.palette.simple_open_barrel === 1, 'hot-water barrel in palette');
+    t.assertOK(m.palette.power_hub === 1, 'power hub in palette');
+    // All objective + star criteria types are valid (registration would have thrown otherwise)
+    m.objectives.forEach(o => t.assertOK(_OBJECTIVE_TYPES.has(o.type), `objective type '${o.type}' valid`));
+    // Hot-water objectives distinguish the port (cold vs hot both barrel→shelter)
+    const hot = m.objectives.find(o => o.id === 'hotwater_connected');
+    t.assertOK(hot && hot.toPort === 'hot_water_in', 'hot-water connection keyed to hot_water_in port');
+    const ret = m.objectives.find(o => o.id === 'air_return_connected');
+    t.assertOK(ret && ret.toPort === 'air_return', 'air return keyed to air_return port');
+    // Comfort sustain enforces the cabin band + air quality over 24h
+    const sustain = m.objectives.find(o => o.id === 'comfort_sustain');
+    t.assertOK(sustain && sustain.conditions.T_K_gte === 291 && sustain.conditions.T_K_lte === 298, 'cabin band 291–298 K');
+    t.assertOK(sustain.duration_s === 86400, '24h sustain');
+    // Guidance covers the build end-to-end
+    t.assertOK(m.guidanceSteps.length === 13, '13 guidance steps');
+    t.assertOK(m.storyIntro.length === 2 && m.storyOutro.length === 2, 'two intro + two outro beats');
   });
 
   // ═══════════════════════════════════════════════════════════════════════
