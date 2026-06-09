@@ -415,10 +415,13 @@
     Arc A species pool.
   - New profiles: 'pond' (Meltwater Pond, on reservoir) and 'pond_drain'
     (Drain to Pond, on sink), each with a bespoke ragtag icon.
-  - 10 objectives (build the wash loop, retire LiOH, hold cabin CO2 <0.30% / 24h);
-    stars at 0.30 / 0.27 / 0.25 % CO2. Tier-1 hardware: the compressor is capped
-    near 3.59 bar (maxRatio 4 from 0.897 bar ambient), so stars are reached by
-    pushing compression ratio and pond flow rather than raw pressure.
+  - 10 objectives (build the wash loop, retire LiOH, hold cabin CO2 <0.50% / 24h);
+    stars at 0.50 / 0.45 / 0.40 % CO2. All Tier-1 hardware at stock defaults — no
+    pressure tuning. The pond Cv is capped at 2.8 so even full-open wash flow stays
+    in the stable regime (high flow otherwise bleeds cabin N2/O2 into the once-
+    through effluent and destabilises the recycle loop at the 1 h timestep). One
+    comprehensible lever: open the pond wider for cleaner air. A correct full-open
+    build settles ~0.31 % CO2 and earns three stars; weak/partial builds degrade.
 
   ─── v20.9.8 — Mission 6 "Comfort" (climate + hot water + refrigerator) ───────
 
@@ -28966,7 +28969,7 @@ ProfileRegistry.register('pond', {
   description: 'A standing pool of meltwater, fouled by leaked coolant — not drinkable, but fine for scrubbing gas',
   selectionGuide: 'Tap it with a pump to draw wash water. It is laced with ethylene glycol from the wreck — non-potable, so keep it clear of the crew supply. Effectively infinite.',
   limits: {}, boundary: true,
-  defaults: { 1: { P_bar: 0.8966, composition: { H2O: 0.97, C2H6O2: 0.03 }, Cv: 3.5, opening_pct: 100 } },
+  defaults: { 1: { P_bar: 0.8966, composition: { H2O: 0.97, C2H6O2: 0.03 }, Cv: 2.8, opening_pct: 100 } },
   equipmentNote: "Open body of liquid water at ambient pressure and temperature; pump-fed intake.",
   operatingNote: "At atmospheric pressure it needs a pump downstream to draw flow. The glycol stays in the liquid — it never reaches the gas you clean.",
   modelNote: "Reservoir at ambient (P, T); T inherits the planet ambient. Outlet via Cv: Q ≈ Cv·√ΔP.",
@@ -29876,7 +29879,7 @@ const M7_INTRO = [
 
 const M7_BRIEFING = [
   { type: 'dialogue', speaker: 'lena', expression: 'neutral', delay_ms: 1500,
-    text: 'The scrubber\u2019s done, K. New plan: pump pond water up, squeeze the cabin air with the compressor, cool it, and wash them together in the flash drum. Clean air comes back to us; the spent water goes back to the pond. One pump only moves so much water \u2014 so lean on pressure, run the compressor near its limit. And unhook the old LiOH line once the wash is holding.' },
+    text: 'The scrubber\u2019s done, K. New plan: pump pond water up, squeeze the cabin air with the compressor, cool it, and wash them together in the flash drum. Clean air comes back to us; the spent water goes back to the pond. Open the pond wide \u2014 the more wash water we move, the cleaner the air comes back. And unhook the old LiOH line once the wash is holding.' },
 ];
 
 const M7_VICTORY_LINES = {
@@ -29898,7 +29901,7 @@ const M7_GUIDANCE = [
     completion: { type: 'connection', fromProfile: 'pond', toProfile: 'pump' },
     delay_ms: 400 },
   { id: 'g_m7_comp',
-    dialogue: { speaker: 'lena', text: 'Now the air. Take the cabin exhaust into the compressor \u2014 squeeze it so the CO\u2082 wants to dissolve. Push the pressure up near its limit.', expression: 'neutral' },
+    dialogue: { speaker: 'lena', text: 'Now the air. Take the cabin exhaust into the compressor \u2014 squeeze it so the CO\u2082 wants to dissolve into the water.', expression: 'neutral' },
     highlight: { type: 'palette_tile', profileId: 'compressor' },
     completion: { type: 'connection', fromProfile: 'shelter', fromPort: 'air_exhaust', toProfile: 'compressor' },
     delay_ms: 400 },
@@ -29949,7 +29952,7 @@ const M7_GUIDANCE = [
     onComplete: { speaker: 'lena', text: 'Done. We\u2019re breathing pond water now.' },
     delay_ms: 400 },
   { id: 'g_m7_hold',
-    dialogue: { speaker: 'lena', text: 'Run it and watch the CO\u2082. Lean on the pressure and open the pond until it settles under 0.3%. Hold it a full day and we\u2019re good.', expression: 'neutral' },
+    dialogue: { speaker: 'lena', text: 'Run it and watch the CO\u2082. Open the pond wide and let the wash run until it settles \u2014 under 0.5% keeps us breathing, under 0.4% is a clean job. Hold it a full day and we\u2019re good.', expression: 'neutral' },
     highlight: null,
     completion: { type: 'objective_complete', objectiveId: 'co2_held' },
     delay_ms: 400 },
@@ -30641,25 +30644,25 @@ MissionRegistry.register('arc_a_m7', {
     { id: 'scrubber_retired', type: 'connection_absent', fromProfile: 'shelter', toProfile: 'co2_scrubber',
       description: 'Retire the spent LiOH scrubber' },
     { id: 'co2_held', type: 'maintain_conditions', unit: 'shelter',
-      conditions: { CO2_pct_lte: 0.30, O2_pct_gte: 18 },
+      conditions: { CO2_pct_lte: 0.50, O2_pct_gte: 18 },
       duration_s: 86400,
-      description: 'Hold cabin CO\u2082 below 0.30% for 24 hours' },
+      description: 'Hold cabin CO\u2082 below 0.50% for 24 hours' },
   ],
 
   stars: {
-    1: { description: 'Wash loop running, LiOH retired, cabin CO\u2082 under 0.30%.',
+    1: { description: 'Wash loop running, LiOH retired, cabin CO\u2082 under 0.50%.',
       criteria: [{ type: 'all_objectives_complete' }] },
-    2: { description: '\u2605 + cabin CO\u2082 held under 0.27% for the full day.',
+    2: { description: '\u2605 + cabin CO\u2082 held under 0.45% for the full day.',
       criteria: [
         { type: 'all_objectives_complete' },
         { type: 'maintain_conditions', id: 'star2_co2_tight', unit: 'shelter',
-          conditions: { CO2_pct_lte: 0.27 }, duration_s: 86400 },
+          conditions: { CO2_pct_lte: 0.45 }, duration_s: 86400 },
       ] },
-    3: { description: '\u2605\u2605 + pushed under 0.25% \u2014 lean on the pressure and the pond.',
+    3: { description: '\u2605\u2605 + pushed under 0.40% \u2014 open the pond wide and keep the wash flowing clean.',
       criteria: [
         { type: 'all_objectives_complete' },
         { type: 'maintain_conditions', id: 'star3_co2_tighter', unit: 'shelter',
-          conditions: { CO2_pct_lte: 0.25 }, duration_s: 86400 },
+          conditions: { CO2_pct_lte: 0.40 }, duration_s: 86400 },
       ] },
   },
 
@@ -71041,7 +71044,7 @@ function runTests() {
     const pond = ProfileRegistry.get('pond');
     t.assertOK(!!pond && pond.defId === 'reservoir', 'pond profile registered on reservoir');
     t.assertOK(pond.defaults[1].composition.C2H6O2 > 0, 'pond default carries glycol');
-    t.assertClose(pond.defaults[1].Cv, 3.5, 0, 'pond default Cv = 3.5');
+    t.assertClose(pond.defaults[1].Cv, 2.8, 0, 'pond default Cv = 2.8');
     const drain = ProfileRegistry.get('pond_drain');
     t.assertOK(!!drain && drain.defId === 'sink', 'pond_drain profile registered on sink');
     t.assertOK(typeof _RAGTAG_SYMBOLS.pond === 'function', 'pond ragtag symbol exists');
@@ -75282,10 +75285,10 @@ function runTests() {
     t.assertOK(retire.type === 'connection_absent', 'retire is connection_absent');
     t.assertOK(retire.toProfile === 'co2_scrubber', 'retire targets co2_scrubber');
     const hold = m.objectives.find(o => o.id === 'co2_held');
-    t.assertClose(hold.conditions.CO2_pct_lte, 0.30, 1e-9, 'star1 CO2 threshold 0.30');
+    t.assertClose(hold.conditions.CO2_pct_lte, 0.50, 1e-9, 'star1 CO2 threshold 0.50');
     t.assertOK(hold.duration_s === 86400, '24h hold');
-    t.assertClose(m.stars[2].criteria[1].conditions.CO2_pct_lte, 0.27, 1e-9, 'star2 0.27');
-    t.assertClose(m.stars[3].criteria[1].conditions.CO2_pct_lte, 0.25, 1e-9, 'star3 0.25');
+    t.assertClose(m.stars[2].criteria[1].conditions.CO2_pct_lte, 0.45, 1e-9, 'star2 0.45');
+    t.assertClose(m.stars[3].criteria[1].conditions.CO2_pct_lte, 0.40, 1e-9, 'star3 0.40');
     t.assertOK(m.guidanceSteps.length === 13, '13 guidance steps');
     t.assertOK(m.preplacedConnections.length === 2, '2 locked life-support connections');
   });
