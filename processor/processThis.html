@@ -402,6 +402,158 @@
   CHANGELOG  (latest first)
   ═══════════════════════════════════════════════════════════════════════════
 
+  ─── v20.9.18 — Diegetic wall props: Lena's plan, clickable to a modal ────────
+
+  **New `roomProps` mission field + wall-plan prop + plan modal.** Missions can
+  mount diegetic clickable items on the shelter wall. Props are positioned by
+  INTERIOR FRACTION (x,y in 0..1 of the inner wall box) so they sit at the same
+  relative spot regardless of room size and are trivial to reposition. The
+  `wall_plan` prop draws a small framed-blueprint icon next to Lena that idle-
+  flashes (SVG opacity pulse) until first opened — a per-session seen-flag
+  (resets on reload, no persistence). Click opens `#modalPlan` (reusing the
+  existing .modal CSS) showing the full process flowsheet SVG. Phase 1 and
+  Phase 2 each ship their own A-landscape plan (M8_PLAN / M9_PLAN), embedded
+  inline. Wired into arc_a_m8 and arc_a_m9. `roomProps` carried through the
+  mission freeze. Test 570.
+
+  ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v20.9.17 — Mission arc_a_m9 "Make the Fuel" (Arc A finale, Phase 2) ───────
+
+  **New mission: arc_a_m9 (index 8, 9th in Arc A) — the finale.** K turns the
+  captured CO₂ into rover methane: split the vent hydrogen (generator keeps its
+  share), valve it 15→8 bar, mix 4:1 with the preplaced captured-CO₂ source,
+  preheat on the generator exhaust (cold feed won't light), Sabatier in the
+  cooled reactor, dry, and fill the rover tank. Win: ≥60% CH₄ AND ≥90%
+  combustible at the separator vapor feeding the tank (read via viaConnectionTo).
+  Two real knobs, both validated: the SPLITTER sets the 4:1 ratio (50/50 lands
+  it), and the COOLANT is a knife-edge — the reaction makes its own heat, so
+  over-cooling quenches it (T* must stay ≳400 K for ~99% CH₄). Staged triggers
+  fire Lena's confirmations off real readings (4:1 mix; reactor lit), plus a
+  stall-warning trigger if the reactor runs cold. Arc A is now complete: the
+  rover rolls out → Arc B hook. M9 strings + ArcRegistry registration; tests
+  749/754 extended. Headless-validated end-to-end (split/coolant sweeps).
+
+  ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v20.9.16 — Unit selection for objectives/triggers (multi-unit scenes) ────
+
+  **`_resolveTargetUnit(scene, params)` — objectives and triggers can now target
+  a specific unit, not just "first of profile".** Resolution order: (1)
+  `targetUnitId` — exact scene unit id (stable for preplaced/inherited units,
+  whose authored ids survive verbatim); (2) `viaConnectionTo: {toProfile, toPort?,
+  fromPort?}` — topological, "the unit whose fromPort feeds a toProfile unit",
+  the discriminator the player controls; (3) `targetProfile` + first match —
+  legacy fallback, fully backward-compatible. Applied to the stream_fraction,
+  flow_rate, and port_conditions evaluators AND their trigger forms. Fixes
+  arc_a_m8, where three flash_drum separators made a bare targetProfile read the
+  wash separator (4.7% CO₂) instead of the dry one (97.5%) — the win was
+  unreachable. M8 win/stars/triggers now pin the dry separator via its flare
+  connection. Test 569.
+
+  ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v20.9.15 — Mission arc_a_m8 "Carbon from Air" (Arc A finale, Phase 1) ─────
+
+  **New mission: arc_a_m8 (index 7, 8th in Arc A).** Phase 1 of the two-part
+  finale. The hydrogen tanks are full but the rover needs methane, so K builds
+  an atmospheric CO₂ capture rig: two-stage compression to 8 bar, wash into
+  pumped pond water, regenerate the carbon by stripping the rich water with the
+  generator's exhaust heat (rerouted from its flare through a new HEX), dry, and
+  flare the captured CO₂. Inherits the M7 plant (vent → dryer → generator). Win:
+  ≥85% CO₂ at ≥0.015 mol/s, read at the dry separator vapor; stars grade rate
+  (purity is flat ~97%). Staged commissioning: Lena reads each half-built stage
+  at the spare flare via port_conditions / stream_fraction triggers (real
+  numbers — 2.7 bar/417 K, 8 bar/300 K, washed-air <5% CO₂, stripped >90% CO₂).
+  Added M8 string block (intro/briefing/12-step guidance/triggers/victory/outro)
+  and registered in ArcRegistry('arc_a'). Validated headless stage-by-stage.
+
+  ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v20.9.14 — port_conditions trigger: staged-build P/T gates ───────────────
+
+  **`port_conditions` available as a trigger condition** (was objective-only).
+  Mirrors the objective evaluator's T_gte/T_lte/P_gte/P_lte on a named port
+  stream, boolean form. Added so the Arc A finale's staged commissioning can
+  fire Lena's confirmations off *real* readings (e.g. "2.7 bar — good") when the
+  player routes a half-built stage to the test flare, without those mid-build
+  checks becoming win objectives (objectives don't latch — see evaluateMission-
+  Completion). Guards: an absent/zero-flow port satisfies no bound. Registered
+  in _TRIGGER_CONDITION_TYPES. Test 568.
+
+  ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v20.9.13 — reactor_cooled placement default volume 0.5 → 0.7 m³ ──────────
+
+  **`reactor_cooled` profile gains a tier-1 `defaults` block: `volume_m3: 0.7`.**
+  Previously a freshly-placed cooled reactor had no profile-level volume default
+  (fell through to an implicit 0.5). Right-sized to 0.7 m³ for the Arc A finale
+  Sabatier so the coolant-flow knob stays meaningful. Placement-only change —
+  every existing test passes `volume_m3` explicitly and is unaffected. Test 567.
+
+  ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v20.9.12 — Hydrovent re-spec: H₂ glut, no CH₄ (Arc A finale setup) ───────
+
+  **Hydrovent composition `{H2O:0.09, CH4:0.045, H2:0.015}` → `{H2O:0.09, H2:0.16}`.**
+  CH₄ removed; H₂ raised to 0.16 mol/s. Rationale: the finale (M8 capture / M9
+  Sabatier) needs the vent to be a hydrogen glut with no pre-existing carbon
+  fuel — the old vent gas was 75% CH₄ once dried, i.e. already rover fuel, which
+  collapses the M9 premise. H₂O unchanged so M3's water duty is untouched; fuel
+  LHV nearly preserved (39.7 → 38.7 kW, −2.6%) so M5's gas-generator power
+  balance holds. Updated: `hydrovent` profile default, M3 preplaced instance,
+  the Unit-Showcase demo scene, and test 790 (now asserts H₂ 0.16 / no CH₄).
+  Changelog line in v20.9.x (rates-halved) left as history.
+
+  ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v20.9.11 — stream_fraction: mole-fraction objective + trigger gate ───────
+
+  **New `stream_fraction` evaluator (objective + trigger condition).** Checks the
+  mole fraction of one or more species (`speciesAny[]`, summed) at a named port
+  stream, against `minFrac` and/or `maxFrac` bounds. Added for the Arc A finale
+  rover win condition (≥60% CH₄ AND ≥90% combustible at the tank feed) and the
+  staged-build test-flare gates (e.g. washed-air CO₂ ≤ ceiling). Mirrors the
+  v20.9.0 `inventory_species_fraction` trigger but reads the live port stream
+  rather than accumulated inventory. NNG-3: an unconnected / zero-flow port has
+  fraction 0 and cannot satisfy a `maxFrac` ceiling by virtue of being empty
+  (nonzero-flow guard, total > 1e-9 mol/s). Registered in `_OBJECTIVE_TYPES` and
+  `_TRIGGER_CONDITION_TYPES`. Tests 565–566.
+
+  ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v20.9.10 — Cooled reactor: coolant acts on the reaction temperature ──────
+
+  **`reactor_cooled` reworked from "react-then-cool" to a coupled cooled CSTR.**
+  Previously the cooling circuit was a post-process HEX on the already-reacted
+  (adiabatic, hot) products — so conversion stayed adiabatic-limited and the
+  outlet over-cooled (a dewpoint enthalpy-inversion drove a non-physical ~195 K).
+  Now the jacket duty is folded INTO the temperature balance, so the reaction
+  proceeds at the cooled temperature and the coolant rate is a real conversion knob.
+
+    Balance solved:  H_out(T*) + Q_cool(T*) = H_in + Q_in
+    Jacket duty:     Q_cool = ε·C_cool·(T* − T_cool_in),  ε = 1 − e^(−UA/C_cool),
+                     C_cool = ṅ_cool·Cp   (reactor as isothermal hot side, single pass)
+
+  - No setpoint / no demand model: T* emerges from the coolant flow + nature
+    (WYSIWYG). More coolant → cooler reaction → higher conversion (exothermic),
+    bounded by equilibrium; no coolant → adiabatic + INFO alarm.
+  - New helper `jacketCool(T_rxn, sCoolIn, UA)`; `solveReactorCSTR` gains an
+    optional `coolFn` arg — null path is byte-identical, so reactor_adiabatic /
+    reactor_jacketed / reactor_electrochemical are untouched (full suite stayed
+    green through the additive phase). Only reactor_cooled's own tests changed.
+  - Coolant outlet returned by enthalpy (H_cool_out = H_cool_in + Q) → boiling is
+    rigorous, and the old 195 K inversion is gone. NNG-1 (H_in+H_cool_in =
+    H_out+H_cool_out), NNG-2 (heat leaves only on the coolant stream; Q=0 with no
+    coolant or T*≤T_cool_in), NNG-3 (duty from coolant nature + flow) all hold.
+  - Cache hash now keys on coolant flow + composition (not just T), so changing
+    the coolant rate busts the skip-when-clean cache.
+  - Sabatier validated: a single cooled bed lifts CO₂ conversion from ~55%
+    (adiabatic) to ~80%+ (cooled into the product window) — no separation train.
+  - Tests: rewrote 500/502; added 560–564 (monotonic coolant knob, near-isothermal
+    high conversion, conversion-lift vs adiabatic, NNG-1 conservation, coolant-Cp
+    dependence). Profile notes updated (the "stub" note was stale). 882 tests / 4313.
+
   ─── v20.9.9 — Mission 7 "Water Wash" (CO2 water-wash on a glycol pond) ───────
 
   **New mission: arc_a_m7 "Water Wash" (index 6, 7th in Arc A).**
@@ -13163,6 +13315,15 @@
       </div>
     </div>
 
+    <!-- Plan modal [v20.9.18] — diegetic wall-plan popup -->
+    <div class="modal" id="modalPlan">
+      <div class="modalContent" style="display:flex; flex-direction:column; max-height:90vh; max-width:96vw; width:auto; padding:16px;">
+        <button class="modalClose" onclick="document.getElementById('modalPlan').classList.remove('open')">×</button>
+        <h3 id="planModalTitle" style="margin:0 0 8px; padding-right:28px;">Lena&#8217;s Plan</h3>
+        <div id="planModalBody" style="flex:1; overflow:auto; min-height:0; display:flex; align-items:center; justify-content:center;"></div>
+      </div>
+    </div>
+
     <!-- Settings modal [v8.10.0] -->
     <div class="modal" id="modalSettings">
       <div class="modalContent" style="display:flex; flex-direction:column; max-height:80vh;">
@@ -13597,7 +13758,7 @@
 "use strict";
 
 // [v20.0.1] Single version source — title tag and comment header reference this.
-const PTIS_VERSION = 'v20.9.9';
+const PTIS_VERSION = 'v20.9.18';
 document.title = 'processThis — ' + PTIS_VERSION;
 
 // [v12.9.0] NNG sentinel — machine-readable list of all Non-Negotiable rules.
@@ -15610,7 +15771,7 @@ function applyNout(sIn_n, stoich, xi) {
   return n_out;
 }
 
-function solveReactorCSTR(reactionId, reaction, sIn, stoich, xi_max, Q_in_W, par, warmT) {
+function solveReactorCSTR(reactionId, reaction, sIn, stoich, xi_max, Q_in_W, par, warmT, coolFn) {
   const H_in_Jps = thermo.getHdot_Jps(sIn);
   const H_target = H_in_Jps + Q_in_W;
   const P = sIn.P;
@@ -15659,10 +15820,11 @@ function solveReactorCSTR(reactionId, reaction, sIn, stoich, xi_max, Q_in_W, par
     for (let iter = 0; iter < maxIter; iter++) {
       const T_mid = (lo + hi) / 2;
       const result = evalAtT(T_mid);
-      const residual = result.H_out_Jps - H_target;
+      const cool = coolFn ? coolFn(T_mid) : null;        // [v20.9.10] jacket duty at this T
+      const residual = result.H_out_Jps + (cool ? cool.Q_W : 0) - H_target;
       iters = iter + 1;
       if (Math.abs(residual) < 0.5) {   // < 0.5 W tolerance
-        return { T_out: T_mid, ...result, H_in_Jps, converged: true, iterations: iters, warmStartUsed };
+        return { T_out: T_mid, ...result, coolResult: cool, H_in_Jps, converged: true, iterations: iters, warmStartUsed };
       }
       if (residual > 0) hi = T_mid;   // too hot
       else lo = T_mid;                 // too cold
@@ -15670,8 +15832,9 @@ function solveReactorCSTR(reactionId, reaction, sIn, stoich, xi_max, Q_in_W, par
     }
     const T_final = (lo + hi) / 2;
     const finalResult = evalAtT(T_final);
-    const finalResidual = Math.abs(finalResult.H_out_Jps - H_target);
-    return { T_out: T_final, ...finalResult, H_in_Jps, converged: finalResidual < 0.5, iterations: iters, warmStartUsed };
+    const finalCool = coolFn ? coolFn(T_final) : null;   // [v20.9.10]
+    const finalResidual = Math.abs(finalResult.H_out_Jps + (finalCool ? finalCool.Q_W : 0) - H_target);
+    return { T_out: T_final, ...finalResult, coolResult: finalCool, H_in_Jps, converged: finalResidual < 0.5, iterations: iters, warmStartUsed };
   }
 
   // Try warm bracket first, fall back to full if needed
@@ -15682,6 +15845,39 @@ function solveReactorCSTR(reactionId, reaction, sIn, stoich, xi_max, Q_in_W, par
     result.warmStartUsed = false;
   }
   return result;
+}
+
+// ── [v20.9.10] Jacket cooling for reactor_cooled ──────────────────────────────
+// Reactor modelled as the isothermal hot side of a single-pass coolant jacket.
+//   Q_cool = ε·C_cool·(T_rxn − T_cool_in),  ε = 1 − e^(−UA/C_cool),  C_cool = ṅ_cool·Cp
+// Folded into the CSTR temperature balance (H_out(T) + Q_cool(T) = H_in), so the
+// reaction runs AT the cooled temperature — cooling acts on reaction T, not the outlet.
+// Coolant outlet returned by enthalpy (H_cool_out = H_cool_in + Q) so boiling is rigorous.
+// NNG-1: heat removed = coolant enthalpy gain.  NNG-2: heat leaves only on the coolant
+// stream; Q=0 with no coolant or when the reactor is not hotter than the coolant.
+function jacketCool(T_rxn, sCoolIn, UA) {
+  const T_cool_in = sCoolIn.T;
+  const phase = sCoolIn.phaseConstraint || 'VL';
+  const mk = (T) => ({ type: StreamType.MATERIAL, T, P: sCoolIn.P, n: sCoolIn.n, phaseConstraint: phase });
+  const H_cool_in = thermo.getHdot_Jps(mk(T_cool_in));
+  const nCool = Object.values(sCoolIn.n || {}).reduce((a, b) => a + b, 0);
+  if (nCool <= 0 || !(UA > 0) || T_rxn <= T_cool_in) {
+    return { Q_W: 0, H_cool_out: H_cool_in, T_cool_out: T_cool_in, C_cool: 0, NTU: 0, epsilon: 0 };
+  }
+  // Coolant capacity rate via central difference on enthalpy (phase-aware)
+  const dT = 0.5;
+  const H_hi = thermo.getHdot_Jps(mk(T_cool_in + dT));
+  const H_lo = thermo.getHdot_Jps(mk(T_cool_in - dT));
+  const C_cool = (H_hi - H_lo) / (2 * dT);   // W/K
+  if (!(C_cool > 0)) {
+    return { Q_W: 0, H_cool_out: H_cool_in, T_cool_out: T_cool_in, C_cool: 0, NTU: 0, epsilon: 0 };
+  }
+  const NTU = UA / C_cool;
+  const epsilon = 1 - Math.exp(-NTU);
+  const Q_W = epsilon * C_cool * (T_rxn - T_cool_in);
+  const H_cool_out = H_cool_in + Q_W;
+  const T_cool_out = T_cool_in + Q_W / C_cool;   // diagnostic; true T resolved downstream via H_target_Jps
+  return { Q_W, H_cool_out, T_cool_out, C_cool, NTU, epsilon };
 }
 
 /* =========================
@@ -19804,6 +20000,7 @@ const _OBJECTIVE_TYPES = new Set([
   'convergence', 'connection', 'connection_absent', 'store_component',
   'maintain_conditions', 'power_output', 'flow_rate', 'port_conditions',
   'depletion_guard', 'inventory_trend', 'unit_present', 'battery_soc',
+  'stream_fraction',
 ]);
 const _STAR_CRITERIA_TYPES = new Set([
   ..._OBJECTIVE_TYPES,
@@ -19819,6 +20016,8 @@ const _TRIGGER_CONDITION_TYPES = new Set([
   'objective_complete', 'all_objectives_complete',
   'unit_placed', 'connection_exists',
   'inventory_species_fraction', 'unit_status', 'port_not_connected',  // [v20.9.0]
+  'stream_fraction',  // [v20.9.11] port-stream mole fraction (staged-build gates)
+  'port_conditions',  // [v20.9.14] port T/P gate (staged-build pressure/temp checks)
 ]);
 const _TRIGGER_ACTION_TYPES = new Set([
   'dialogue', 'system_message', 'show_image',
@@ -20056,6 +20255,7 @@ class MissionRegistry {
 
       narrator:        spec.narrator || 'lena',
       roomOccupants:   Object.freeze(spec.roomOccupants || {}),
+      roomProps:       Object.freeze(spec.roomProps || []),
 
       storyIntro:      Object.freeze(spec.storyIntro || []),
       storyOutro:      Object.freeze(spec.storyOutro || []),
@@ -20106,6 +20306,44 @@ function _unitsByProfile(scene, profileId) {
     if (u.profileId === profileId) result.push(u);
   }
   return result;
+}
+
+// [v20.9.16] Resolve a single target unit for a condition/objective, in order:
+//   1. params.targetUnitId        — exact scene unit id (stable for preplaced/
+//                                    inherited units; authored ids survive verbatim).
+//   2. params.viaConnectionTo     — topological: the unit (optionally of
+//        { toProfile, toPort?, fromPort? } targetProfile) whose `fromPort` connects to a unit of
+//                                    `toProfile` at `toPort`. The discriminator the
+//                                    player controls — "the separator feeding the flare".
+//   3. params.targetProfile + [0] — legacy fallback (first unit of the profile).
+// Returns the unit object or null. Pure lookup; no side effects.
+function _resolveTargetUnit(scene, params) {
+  if (params.targetUnitId) {
+    return scene.units.get(params.targetUnitId) || null;
+  }
+  const via = params.viaConnectionTo;
+  if (via && via.toProfile) {
+    // candidate set: units matching targetProfile (if given), else all units
+    const candidates = params.targetProfile
+      ? _unitsByProfile(scene, params.targetProfile)
+      : [...scene.units.values()];
+    for (const u of candidates) {
+      for (const c of scene.connections) {
+        if (c.from?.unitId !== u.id) continue;
+        if (via.fromPort && c.from.portId !== via.fromPort) continue;
+        const dest = scene.units.get(c.to?.unitId);
+        if (!dest || dest.profileId !== via.toProfile) continue;
+        if (via.toPort && c.to.portId !== via.toPort) continue;
+        return u;
+      }
+    }
+    return null;
+  }
+  if (params.targetProfile) {
+    const units = _unitsByProfile(scene, params.targetProfile);
+    return units.length ? units[0] : null;
+  }
+  return null;
 }
 
 // Helper: check if a connection exists matching criteria
@@ -20391,9 +20629,8 @@ const ObjectiveEvaluators = {
 
   // 10. flow_rate — species flow rate through a port
   flow_rate(params, scene) {
-    const units = _unitsByProfile(scene, params.targetProfile);
-    if (units.length === 0) return { met: false, progress: `${params.targetProfile} not found` };
-    const u = units[0];
+    const u = _resolveTargetUnit(scene, params);
+    if (!u) return { met: false, progress: `${params.targetUnitId || params.targetProfile || 'target'} not found` };
     const ud = scene.runtime?.unitData?.get(u.id) || {};
     const portId = params.portId;
     const stream = ud.ports?.[portId];
@@ -20420,9 +20657,8 @@ const ObjectiveEvaluators = {
 
   // 11. port_conditions — T/P bounds on a port stream
   port_conditions(params, scene) {
-    const units = _unitsByProfile(scene, params.targetProfile);
-    if (units.length === 0) return { met: false, progress: `${params.targetProfile} not found` };
-    const u = units[0];
+    const u = _resolveTargetUnit(scene, params);
+    if (!u) return { met: false, progress: `${params.targetUnitId || params.targetProfile || 'target'} not found` };
     const ud = scene.runtime?.unitData?.get(u.id) || {};
     const stream = ud.ports?.[params.portId];
     const checks = [];
@@ -20454,6 +20690,43 @@ const ObjectiveEvaluators = {
     }
 
     return { met, progress: checks.join(', ') || 'no criteria' };
+  },
+
+  // 12. stream_fraction — mole-fraction of one or more species at a port. [v20.9.11]
+  //     speciesAny: string[] (summed numerator); minFrac and/or maxFrac bounds.
+  //     Unconnected/zero-flow port → fraction 0 AND nonzero-flow guard: a maxFrac
+  //     bound is only "met" if the port actually carries material (NNG-3 — an empty
+  //     port shouldn't satisfy a purity ceiling by virtue of being empty).
+  stream_fraction(params, scene) {
+    const u = _resolveTargetUnit(scene, params);
+    if (!u) return { met: false, progress: `${params.targetUnitId || params.targetProfile || 'target'} not found` };
+    const ud = scene.runtime?.unitData?.get(u.id) || {};
+    const stream = ud.ports?.[params.portId];
+    const species = params.speciesAny || (params.species ? [params.species] : []);
+    let total = 0, num = 0;
+    if (stream?.n) {
+      for (const [sp, v] of Object.entries(stream.n)) {
+        const x = (+v) || 0;
+        total += x;
+        if (species.includes(sp)) num += x;
+      }
+    }
+    const hasFlow = total > 1e-9;
+    const frac = hasFlow ? num / total : 0;
+    const label = species.join('+') || 'total';
+    const parts = [];
+    let met = true;
+    if (params.minFrac != null) {
+      const ok = hasFlow && frac >= params.minFrac;
+      if (!ok) met = false;
+      parts.push(`≥ ${(params.minFrac*100).toFixed(0)}% ${ok ? '✓' : `(${(frac*100).toFixed(1)}%)`}`);
+    }
+    if (params.maxFrac != null) {
+      const ok = hasFlow && frac <= params.maxFrac;
+      if (!ok) met = false;
+      parts.push(`≤ ${(params.maxFrac*100).toFixed(0)}% ${ok ? '✓' : (hasFlow ? `(${(frac*100).toFixed(1)}%)` : '(no flow)')}`);
+    }
+    return { met, progress: `${label}: ${(frac*100).toFixed(1)}% [${parts.join(', ')}]` };
   },
 };
 
@@ -26997,10 +27270,13 @@ function equilibriumTick(u, ports, par, ctx) {
   if (par.volume_m3)     _hash += par.volume_m3 * 6271;
   if (par.useKinetics)   _hash += 9901;
   if (par.heatDemand)    _hash += hashString(par.heatDemand) * 1e-7;
-  // [v14.9.0 S6a] reactor_cooled: include UA + coolant state in cache hash
+  // [v14.9.0 S6a / v20.9.10] reactor_cooled: include UA + coolant T, flow, and composition in cache hash
   if (par.UA != null)    _hash += par.UA * 4231;
   if (u.defId === 'reactor_cooled' && ports.cool_in?.T) {
     _hash += ports.cool_in.T * 8867;
+    const cn = ports.cool_in.n || {};
+    const ck = Object.keys(cn).sort();
+    for (let i = 0; i < ck.length; i++) _hash += (cn[ck[i]] || 0) * (i + 1) * 6133 + hashString(ck[i]) * 1e-6;
   }
   const inletHash = _hash;
   const curGen = ctx.solveGen;
@@ -27011,11 +27287,21 @@ function equilibriumTick(u, ports, par, ctx) {
     return;
   }
 
-  // ── CSTR solve: bisect T_out for H(T_out, n_eq(T_out)) = H_in + Q_in ──
+  // ── CSTR solve: bisect T* for H_out(T*) + Q_cool(T*) = H_in + Q_in ──
+  // [v20.9.10] reactor_cooled: jacket cooling folded into the temperature balance,
+  // so the reaction runs at the cooled temperature (cooling acts on reaction T).
   const warmT = u.rxCache?.last?.T_out;  // [Phase 6] warm start from previous solve
-  const cstr = solveReactorCSTR(par.reactionId, reaction, sIn, stoich, xi_max, Q_in_W, par, warmT);
+  let coolFn = null, sCoolIn = null, coolUA = null;
+  if (u.defId === 'reactor_cooled') {
+    sCoolIn = ports.cool_in;
+    if (sCoolIn && sCoolIn.T && Object.keys(sCoolIn.n || {}).length > 0) {
+      coolUA = par.UA ?? 500;
+      coolFn = (T) => jacketCool(T, sCoolIn, coolUA);
+    }
+  }
+  const cstr = solveReactorCSTR(par.reactionId, reaction, sIn, stoich, xi_max, Q_in_W, par, warmT, coolFn);
 
-  // ── Write outlet ──
+  // ── Write outlet (reaction temperature T* = cstr.T_out, already cooled) ──
   ports.mat_out = {
     type: StreamType.MATERIAL,
     T: cstr.T_out,
@@ -27024,54 +27310,34 @@ function equilibriumTick(u, ports, par, ctx) {
     phaseConstraint: resolvedPhase
   };
 
-  // ── [v14.9.0 S6a] reactor_cooled: internal HEX post-process ──
+  // ── [v20.9.10] reactor_cooled: emit warmed coolant + diagnostics ──
   let cooledDiag = null;
   if (u.defId === 'reactor_cooled') {
-    const sCoolIn = ports.cool_in;
-    if (sCoolIn && sCoolIn.T && Object.keys(sCoolIn.n || {}).length > 0) {
-      // Build virtual "hot" stream from adiabatic products
-      const hotStream = { type: StreamType.MATERIAL, T: cstr.T_out, P: sIn.P,
-        n: { ...cstr.n_out }, phaseConstraint: resolvedPhase };
-      const H_hot_in = thermo.getHdot_Jps(hotStream);
-      const H_cold_in = thermo.getHdot_Jps(sCoolIn);
-      const UA = par.UA ?? 500;
-
-      // Only cool if products are hotter than coolant (NNG-2)
-      if (cstr.T_out > sCoolIn.T && UA > 0) {
-        const cap = hxCapacityRates(hotStream, sCoolIn);
-        const hxResult = hxSolveUaNtu(hotStream, sCoolIn, H_hot_in, H_cold_in, cap, UA);
-        if (!hxResult.error) {
-          // Cooled products
-          ports.mat_out = {
-            type: StreamType.MATERIAL, P: sIn.P,
-            n: cstr.n_out, phaseConstraint: resolvedPhase,
-            H_target_Jps: hxResult.H_hot_out
-          };
-          // Warmed coolant
-          ports.cool_out = {
-            type: StreamType.MATERIAL, P: sCoolIn.P,
-            n: { ...sCoolIn.n }, phaseConstraint: sCoolIn.phaseConstraint || 'VL',
-            H_target_Jps: hxResult.H_cold_out
-          };
-          cooledDiag = {
-            Q_removed_W: hxResult.Q_W,
-            T_adiabatic: cstr.T_out,
-            T_gas_cooled_est: hxResult.T_hot_out_est,
-            coolant_dT_est: hxResult.T_cold_out_est - sCoolIn.T,
-            UA, NTU: hxResult.diag.NTU, epsilon: hxResult.diag.epsilon
-          };
-        }
-      } else {
-        // Products cooler than coolant or UA=0 — passthrough coolant
-        ports.cool_out = {
-          type: StreamType.MATERIAL, T: sCoolIn.T, P: sCoolIn.P,
-          n: { ...sCoolIn.n }, phaseConstraint: sCoolIn.phaseConstraint || 'VL'
-        };
-        cooledDiag = { Q_removed_W: 0, T_adiabatic: cstr.T_out, reason: 'T_hot ≤ T_cold' };
-      }
+    if (coolFn && cstr.coolResult && cstr.coolResult.Q_W > 0) {
+      const cr = cstr.coolResult;
+      // Warmed coolant — outlet by enthalpy so boiling is rigorous (NNG-1)
+      ports.cool_out = {
+        type: StreamType.MATERIAL, P: sCoolIn.P,
+        n: { ...sCoolIn.n }, phaseConstraint: sCoolIn.phaseConstraint || 'VL',
+        H_target_Jps: cr.H_cool_out
+      };
+      cooledDiag = {
+        Q_removed_W: cr.Q_W,
+        coolant_in_T: sCoolIn.T,
+        coolant_dT: cr.T_cool_out - sCoolIn.T,
+        UA: coolUA, NTU: cr.NTU, epsilon: cr.epsilon,
+        coolMode: 'cooled'
+      };
+    } else if (coolFn) {
+      // Coolant connected but reactor not hotter (or zero duty) — passthrough (NNG-2)
+      ports.cool_out = {
+        type: StreamType.MATERIAL, T: sCoolIn.T, P: sCoolIn.P,
+        n: { ...sCoolIn.n }, phaseConstraint: sCoolIn.phaseConstraint || 'VL'
+      };
+      cooledDiag = { Q_removed_W: 0, coolant_in_T: sCoolIn.T, coolMode: 'no_duty', reason: 'T_rxn ≤ T_cool_in' };
     } else {
-      // No coolant connected → adiabatic fallback with INFO alarm
-      cooledDiag = { Q_removed_W: 0, T_adiabatic: cstr.T_out, noCoolant: true };
+      // No coolant connected → adiabatic + INFO alarm
+      cooledDiag = { Q_removed_W: 0, coolMode: 'adiabatic_no_coolant', noCoolant: true };
     }
   }
 
@@ -27131,11 +27397,8 @@ function equilibriumTick(u, ports, par, ctx) {
     u.last.info = { severity: AlarmSeverity.INFO,
       message: 'No coolant connected — operating adiabatically.' };
   }
-  // Update T_out if cooling was applied (T_gas_cooled_est from HEX)
-  if (cooledDiag?.T_gas_cooled_est != null) {
-    u.last.T_out = cooledDiag.T_gas_cooled_est;
-    u.last.dT = cooledDiag.T_gas_cooled_est - sIn.T;
-  }
+  // [v20.9.10] T_out IS the cooled reaction temperature (cooling folded into the
+  // balance), so no post-hoc outlet override — that would corrupt the solved T*.
 
   if (!cstr.converged) {
     u.last.error = {
@@ -28980,7 +29243,7 @@ ProfileRegistry.register('hydrovent', {
   description: 'Cracked hull over a hydrothermal reservoir — fixed-rate hot mix of steam, methane and hydrogen',
   selectionGuide: 'Your lifeline. Hot fluid shoots up through a crack in the hull at a fixed rate. Cool before collecting.',
   limits: {}, boundary: true,
-  defaults: { 1: { n: { H2O: 0.09, CH4: 0.045, H2: 0.015 }, T: 450, P: 1500000, phaseConstraint: 'V' } },
+  defaults: { 1: { n: { H2O: 0.09, H2: 0.16 }, T: 450, P: 1500000, phaseConstraint: 'V' } },
 });
 // [v16.8.0] Atmosphere profile
 ProfileRegistry.register('atmosphere', {
@@ -29262,9 +29525,10 @@ ProfileRegistry.register('reactor_cooled', {
   description: 'React without overheating',
   selectionGuide: 'For reactions that get dangerously hot. Built-in cooling keeps things under control. Not fully wired up yet.',
   limits: { 1: { T_LL: 173, T_L: 273, T_H: 773, T_HH: 923, P_LL: 50000, P_L: 80000, P_H: 12000000, P_HH: 15000000, mass_LL: 0.001, mass_HH: 0.08 } },
+  defaults: { 1: { volume_m3: 0.7 } },  // [v20.9.13] right-sized for the Arc A finale Sabatier (placement default; tests pass volume explicitly)
   equipmentNote: "Catalytic reactor with integrated cooling coils.",
-  operatingNote: "Currently runs as insulated — cooling circuit not yet implemented. Future: coolant connections for active heat removal.",
-  modelNote: "Stub: adiabatic model. Future: internal HEX coupling process-side with coolant-side.",
+  operatingNote: "Coolant jacket holds the reaction temperature: raise coolant flow to run cooler (higher conversion for exothermic reactions). No coolant → runs adiabatic.",
+  modelNote: "Cooled CSTR: jacket duty Q=ε·C_cool·(T_rxn−T_cool_in) folded into the temperature balance, so the reaction proceeds at the cooled temperature. Coolant outlet by enthalpy (boiling-rigorous). NNG-1/2/3.",
 });
 // [v14.9.0 S6b] Electrochemical reactor + fuel cell profiles
 ProfileRegistry.register('reactor_electrochemical', {
@@ -29972,7 +30236,7 @@ ArcRegistry.register('arc_a', {
   crewCount: 2,
   intro: ARC_A_INTRO,
   conclusion: [],
-  missions: ['arc_a_m1', 'arc_a_m2', 'arc_a_m3', 'arc_a_m4', 'arc_a_m5', 'arc_a_m6', 'arc_a_m7'],
+  missions: ['arc_a_m1', 'arc_a_m2', 'arc_a_m3', 'arc_a_m4', 'arc_a_m5', 'arc_a_m6', 'arc_a_m7', 'arc_a_m8', 'arc_a_m9'],
 });
 
 // ── M1 — Breathe ─────────────────────────────────────────────────────────
@@ -30159,7 +30423,7 @@ MissionRegistry.register('arc_a_m3', {
   inheritScene: true,
   preplacedUnits: [
     { id: 'hydrovent', profileId: 'hydrovent', defId: 'source', tier: 1, lock: 'nodelete',
-      x: -14, y: 1, params: { n: { H2O: 0.09, CH4: 0.045, H2: 0.015 },
+      x: -14, y: 1, params: { n: { H2O: 0.09, H2: 0.16 },
         T: 450, P: 1500000, phaseConstraint: 'V' } },
     { id: 'water_barrel', profileId: 'simple_open_barrel', defId: 'simple_open_tank', tier: 1, lock: 'nodelete',
       name: 'Water Barrel',
@@ -30668,6 +30932,458 @@ MissionRegistry.register('arc_a_m7', {
 
   guidanceSteps: M7_GUIDANCE,
   triggers: [],
+
+  hints: [],
+  completionGated: true,
+  storyUI: {
+    visibleMenuItems: ['reports', 'physicalUnits', 'clearStickers', 'home', 'saveCampaign'],
+    hidePaletteFilter: true, hidePressureSwitch: true,
+    pressureMode: 'simple', hideDevTab: true,
+    showObjectivePanel: true, showStarTracker: true, showRunway: true,
+  },
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// [v20.9.x S-MISSION] M8 "Carbon from Air" — Arc A finale Phase 1 strings
+// Lena's gate confirmations carry the real headless-validated readings:
+//   A compress×1 → 2.70 bar / 417 K   B 8-bar cold → 8.00 bar / 300 K
+//   C wash → washed-air CO₂ 4.7%, captured 0.035 mol/s
+//   D strip → CO₂ 0.028 @ 92%, 352 K  E flare → CO₂ 0.028 @ 97.5%
+// ═══════════════════════════════════════════════════════════════════════════
+
+const M8_INTRO = [
+  { type: 'image', src: 'm8_tanks.webp', transition: 'fade', duration_ms: 7000,
+    fallbackText: 'The hydrogen tanks read full. Every one of them.',
+    alt: 'Rows of pressurised hydrogen tanks, gauges pinned at full, in the dim shelter bay.' },
+  { type: 'image', src: 'm8_rover_dark.webp', transition: 'fade', duration_ms: 8000,
+    fallbackText: 'And the rover sat dark. \\u201cIt\\u2019s simple, really,\\u201d Lena said. \\u201cThe rover runs on methane. Methane is just carbon and hydrogen stuck together. We\\u2019re drowning in hydrogen \\u2014 so all we\\u2019re short of is carbon. And the air is full of it.\\u201d',
+    alt: 'The parked rover, unlit, a methane fuel gauge reading empty; Lena gesturing at the hazy sky outside.' },
+  { type: 'image', src: 'm8_plan_wall.webp', transition: 'fade', duration_ms: 8000,
+    fallbackText: 'She unrolled a sheet of graph paper, lines drawn in highlighter. \\u201cTwo days\\u2019 work. Today we pull the carbon out of the air \\u2014 eight parts in a hundred, ours for the taking. Tomorrow we marry it to the hydrogen and make the fuel.\\u201d',
+    alt: 'A hand-drawn process flowsheet in highlighter on cream graph paper, pinned to the shelter wall.' },
+  { type: 'text', transition: 'fade', duration_ms: 6000,
+    fallbackText: '\\u201cToday: catch the carbon. We build it one piece at a time, and we test every piece before we trust it.\\u201d',
+    alt: '' },
+];
+
+const M8_BRIEFING = [
+  { speaker: 'lena', text: 'Here\\u2019s the whole job, K: the rover needs methane, methane is carbon plus hydrogen, and the only thing we\\u2019re missing is carbon. So today we pull carbon out of the air. Same idea as the pond wash \\u2014 but flipped: we keep the carbon and let the air go.', expression: 'neutral' },
+  { speaker: 'lena', text: 'Squeeze the air to eight bar in two stages, cooling between, or it runs too hot to hold anything. Wash it into pumped pond water \\u2014 the carbon dissolves, the air walks away clean.', expression: 'neutral' },
+  { speaker: 'lena', text: 'Then the clever part. The generator\\u2019s exhaust has been blowing eight hundred Kelvin straight out the flare since the day we lit it. We borrow that heat to drive the carbon back out of the water. Dry it, flare it, stack it.', expression: 'neutral' },
+  { speaker: 'lena', text: 'Build it one piece at a time. Run each piece to the spare flare and I\\u2019ll read the numbers before we go on. Plan\\u2019s on the wall.', expression: 'neutral' },
+];
+
+// Guidance: build steps complete on connection/unit_placed (cursor advances & stays).
+// The test-flare READINGS are triggers (port_conditions / stream_fraction) — see M8_TRIGGERS.
+const M8_GUIDANCE = [
+  { id: 'g_m8_method',
+    dialogue: { speaker: 'lena', text: 'Piece by piece. Build a stage, run its outlet to the spare flare, I read it, then we move on. Start with the air intake into the first compressor.', expression: 'neutral' },
+    highlight: { type: 'palette_tile', profileId: 'compressor' },
+    completion: { type: 'connection', fromProfile: 'source_atmosphere', toProfile: 'compressor' },
+    delay_ms: 500 },
+  { id: 'g_m8_flare_a',
+    dialogue: { speaker: 'lena', text: 'Now run that compressor to the spare flare so I can read the pressure and heat coming off it.', expression: 'neutral' },
+    highlight: { type: 'palette_tile', profileId: 'flare_stack' },
+    completion: { type: 'connection', fromProfile: 'compressor', toProfile: 'flare_stack' },
+    delay_ms: 400 },
+  // → trigger tg_m8_a fires here: "2.7 bar, and hot — 417 K. Good. Cool it before the next squeeze."
+  { id: 'g_m8_cool1',
+    dialogue: { speaker: 'lena', text: 'Take the compressor into a cooler, then a second compressor up to eight bar, then cool again. Two gentle squeezes, not one that cooks the seals.', expression: 'neutral' },
+    highlight: { type: 'palette_tile', profileId: 'air_cooler' },
+    completion: { type: 'connection', fromProfile: 'compressor', toProfile: 'air_cooler' },
+    delay_ms: 400 },
+  { id: 'g_m8_flare_b',
+    dialogue: { speaker: 'lena', text: 'Run the last cooler to the spare flare. I want to see eight bar and cold before we wash.', expression: 'neutral' },
+    highlight: { type: 'unit', profileId: 'flare_stack' },
+    completion: { type: 'connection', fromProfile: 'air_cooler', toProfile: 'flare_stack' },
+    delay_ms: 400 },
+  // → trigger tg_m8_b fires: "Eight bar, three hundred Kelvin. Now the water will take the carbon."
+  { id: 'g_m8_pump',
+    dialogue: { speaker: 'lena', text: 'Pump pond water up to eight bar to meet the air \\u2014 same pressure or it won\\u2019t mix right.', expression: 'neutral' },
+    highlight: { type: 'palette_tile', profileId: 'pump' },
+    completion: { type: 'connection', fromProfile: 'pond', toProfile: 'pump' },
+    delay_ms: 400 },
+  { id: 'g_m8_mix',
+    dialogue: { speaker: 'lena', text: 'Cooled air and pumped water together in the mixer, then into the separator. The water grabs the carbon; the air comes off the top.', expression: 'neutral' },
+    highlight: { type: 'palette_tile', profileId: 'simple_mixer' },
+    completion: { type: 'connection', fromProfile: 'simple_mixer', toProfile: 'flash_drum' },
+    delay_ms: 400 },
+  { id: 'g_m8_flare_c',
+    dialogue: { speaker: 'lena', text: 'Send the washed air \\u2014 the top of the separator \\u2014 to the spare flare. If it comes off clean, the carbon\\u2019s in the water.', expression: 'neutral' },
+    highlight: { type: 'unit', profileId: 'flare_stack' },
+    completion: { type: 'connection', fromProfile: 'flash_drum', fromPort: 'vap_out', toProfile: 'flare_stack' },
+    delay_ms: 400 },
+  // → trigger tg_m8_c fires: "Under five percent carbon in that air. It went into the water. Good."
+  { id: 'g_m8_exhaust',
+    dialogue: { speaker: 'lena', text: 'Now the heat. Cut the generator\\u2019s exhaust off its flare and run it through a heat exchanger \\u2014 hot side. Free heat, already paid for.', expression: 'neutral' },
+    highlight: { type: 'palette_tile', profileId: 'hex' },
+    completion: { type: 'connection', fromProfile: 'small_gas_engine', toProfile: 'hex' },
+    delay_ms: 400 },
+  { id: 'g_m8_strip',
+    dialogue: { speaker: 'lena', text: 'Run the carbon-rich water through the cold side, into a second separator. Hot water lets the carbon go.', expression: 'neutral' },
+    highlight: { type: 'palette_tile', profileId: 'flash_drum' },
+    completion: { type: 'connection', fromProfile: 'hex', fromPort: 'cold_out', toProfile: 'flash_drum' },
+    delay_ms: 400 },
+  { id: 'g_m8_flare_d',
+    dialogue: { speaker: 'lena', text: 'The top of that separator is your carbon, coming back out. Run it to the spare flare \\u2014 let me see how rich it is.', expression: 'neutral' },
+    highlight: { type: 'unit', profileId: 'flare_stack' },
+    completion: { type: 'connection', fromProfile: 'flash_drum', fromPort: 'vap_out', toProfile: 'flare_stack' },
+    delay_ms: 400 },
+  // → trigger tg_m8_d fires: "There it is — ninety-plus percent carbon. Wet, but ours. Dry it and it's done."
+  { id: 'g_m8_dry',
+    dialogue: { speaker: 'lena', text: 'Cool it and drop the last of the water in a final separator, then send the dry carbon to the product flare. Stack it for tomorrow.', expression: 'positive' },
+    highlight: { type: 'palette_tile', profileId: 'air_cooler' },
+    completion: { type: 'connection', fromProfile: 'flash_drum', fromPort: 'vap_out', toProfile: 'air_cooler' },
+    delay_ms: 400 },
+];
+
+const M8_VICTORY_LINES = {
+  1: { speaker: 'lena', text: 'That\\u2019s carbon out of thin air, K. Concentrated, clean enough to work with. The stack\\u2019s filling.' },
+  2: { speaker: 'lena', text: 'Tight little stream \\u2014 barely any water riding along. Ninety-seven percent. Nicely run.' },
+  3: { speaker: 'lena', text: 'You opened the wash right up and it held \\u2014 that\\u2019s a fat stream of carbon. We robbed the sky blind.' },
+};
+
+const M8_OUTRO = [
+  { type: 'image', src: 'm8_flare_blue.webp', transition: 'fade', duration_ms: 7000,
+    fallbackText: 'The product flare burned a thin blue thread \\u2014 carbon we\\u2019d stolen back out of the air.',
+    alt: 'A small clean blue flare burning at the top of a stack against the dark planet sky.' },
+  { type: 'image', src: 'm8_plan_half.webp', transition: 'fade', duration_ms: 8000,
+    fallbackText: '\\u201cStack\\u2019s filling,\\u201d Lena said, tapping the second half of the plan. \\u201cTomorrow we feed it the hydrogen and make something that burns. Something that\\u2019ll move the rover.\\u201d',
+    alt: 'Lena\\u2019s hand on the wall plan, pointing to the unbuilt Phase 2 half of the flowsheet.' },
+];
+
+MissionRegistry.register('arc_a_m8', {
+  arcId: 'arc_a',
+  index: 7,
+  contentVersion: 1,
+  title: 'Carbon from Air',
+  subtitle: 'The tanks are full of hydrogen and nothing to burn.',
+  emergency: 'Rover dry. No carbon for fuel \\u2014 pull it from the air.',
+
+  palette: {
+    compressor: 2,
+    air_cooler: 3,
+    pump: 1,
+    simple_mixer: 1,
+    flash_drum: 3,
+    hex: 1,
+    pond_drain: 2,
+    bend: 99,
+  },
+  species: ['O2', 'N2', 'Ar', 'CO2', 'H2O', 'CH4', 'H2', 'CO'],
+  reactions: ['R_H2_COMB', 'R_CH4_COMB'],
+
+  inheritScene: true,
+  preplacedUnits: [],
+  preplacedConnections: [
+    // Re-lock the life-support boundaries carried from M3/M5/M7.
+    { id: 'c_o2_to_room_m8', from: { unitId: 'o2_bottle', portId: 'gas_out' },
+      to: { unitId: 'room', portId: 'o2_in' }, lock: true },
+    { id: 'c_h2o_barrel_m8', from: { unitId: 'water_barrel', portId: 'mat_out' },
+      to: { unitId: 'room', portId: 'h2o_in' }, lock: true },
+  ],
+
+  narrator: 'lena',
+  roomOccupants: { shelter: ['lena', 'k'] },
+  roomProps: [
+    { id: 'plan', type: 'wall_plan', x: 0.82, y: 0.20, w: 92, h: 70, flash: true, label: 'PLAN',
+      onClick: { plan: 'm8', title: 'Phase 1 \u2014 Carbon from Air' } },
+  ],
+
+  storyIntro: M8_INTRO,
+  storyOutro: M8_OUTRO,
+  briefing: M8_BRIEFING,
+  victoryLine: M8_VICTORY_LINES,
+
+  // Objectives = FINAL topology only (objectives do not latch; star 1 needs all
+  // true simultaneously). Staged test-flare readings live in triggers below.
+  objectives: [
+    { id: 'compress_1', type: 'connection', fromProfile: 'source_atmosphere', toProfile: 'compressor',
+      description: 'Take in atmosphere and compress it' },
+    { id: 'intercool', type: 'connection', fromProfile: 'compressor', toProfile: 'air_cooler',
+      description: 'Cool between compression stages' },
+    { id: 'pump_pond', type: 'connection', fromProfile: 'pond', toProfile: 'pump',
+      description: 'Pump pond water up to pressure' },
+    { id: 'wash_air', type: 'connection', fromProfile: 'air_cooler', toProfile: 'simple_mixer',
+      description: 'Bring cooled air into the wash mixer' },
+    { id: 'wash_water', type: 'connection', fromProfile: 'pump', toProfile: 'simple_mixer',
+      description: 'Bring pumped water into the wash mixer' },
+    { id: 'wash_sep', type: 'connection', fromProfile: 'simple_mixer', toProfile: 'flash_drum',
+      description: 'Separate washed air from carbon-rich water' },
+    { id: 'exhaust_to_hex', type: 'connection', fromProfile: 'small_gas_engine', toProfile: 'hex',
+      description: 'Route the generator exhaust through the heat exchanger' },
+    { id: 'strip_heat', type: 'connection', fromProfile: 'hex', fromPort: 'cold_out', toProfile: 'flash_drum',
+      description: 'Heat the rich water to strip the carbon back out' },
+    { id: 'dry_to_flare', type: 'connection', fromProfile: 'flash_drum', fromPort: 'vap_out', toProfile: 'flare_stack',
+      description: 'Dry the stripped carbon and flare it' },
+    // Win: the captured-CO2 stream at the DRY separator vapor (the one whose
+    // vapor feeds the flare — disambiguated from the wash/strip separators).
+    { id: 'carbon_captured', type: 'stream_fraction',
+      targetProfile: 'flash_drum', viaConnectionTo: { toProfile: 'flare_stack', fromPort: 'vap_out' }, portId: 'vap_out',
+      speciesAny: ['CO2'], minFrac: 0.85,
+      description: 'Deliver a carbon stream at least 85% CO\\u2082' },
+    { id: 'carbon_rate', type: 'flow_rate',
+      targetProfile: 'flash_drum', viaConnectionTo: { toProfile: 'flare_stack', fromPort: 'vap_out' }, portId: 'vap_out',
+      species: 'CO2', min_molPerS: 0.015,
+      description: 'Capture at least 0.015 mol/s of CO\\u2082' },
+  ],
+
+  stars: {
+    1: { description: 'Capture rig running, carbon stream \\u2265 85% CO\\u2082 at \\u2265 0.015 mol/s.',
+      criteria: [{ type: 'all_objectives_complete' }] },
+    2: { description: '\\u2605 + a fatter stream \\u2014 \\u2265 0.022 mol/s of CO\\u2082.',
+      criteria: [
+        { type: 'all_objectives_complete' },
+        { type: 'flow_rate', id: 'star2_rate', targetProfile: 'flash_drum',
+          viaConnectionTo: { toProfile: 'flare_stack', fromPort: 'vap_out' }, portId: 'vap_out',
+          species: 'CO2', min_molPerS: 0.022 },
+      ] },
+    3: { description: '\\u2605\\u2605 + open the wash wide \\u2014 \\u2265 0.028 mol/s of CO\\u2082.',
+      criteria: [
+        { type: 'all_objectives_complete' },
+        { type: 'flow_rate', id: 'star3_rate', targetProfile: 'flash_drum',
+          viaConnectionTo: { toProfile: 'flare_stack', fromPort: 'vap_out' }, portId: 'vap_out',
+          species: 'CO2', min_molPerS: 0.028 },
+      ] },
+  },
+
+  guidanceSteps: M8_GUIDANCE,
+
+  // Staged test-flare confirmations — fire ONCE off real readings. Encouraged,
+  // not required (the mission completes on the final topology + win objectives).
+  triggers: [
+    { id: 'tg_m8_a', once: true,
+      condition: { type: 'port_conditions', targetProfile: 'compressor', portId: 'mat_out', P_gte: 250000, T_gte: 400 },
+      action: { type: 'dialogue', speaker: 'lena', text: 'Two-point-seven bar, and hot \\u2014 four hundred seventeen Kelvin. Good squeeze. Cool it before the next one.' } },
+    { id: 'tg_m8_b', once: true,
+      condition: { type: 'port_conditions', targetProfile: 'air_cooler', portId: 'mat_out', P_gte: 750000, T_lte: 320 },
+      action: { type: 'dialogue', speaker: 'lena', text: 'Eight bar, three hundred Kelvin. Cold and tight. Now the water will take the carbon.' } },
+    { id: 'tg_m8_c', once: true,
+      condition: { type: 'stream_fraction', targetProfile: 'flash_drum', viaConnectionTo: { toProfile: 'flare_stack', fromPort: 'vap_out' }, portId: 'vap_out', speciesAny: ['CO2'], maxFrac: 0.07 },
+      action: { type: 'dialogue', speaker: 'lena', text: 'Under five percent carbon left in that air. It went into the water, just like we wanted.' } },
+    { id: 'tg_m8_d', once: true,
+      condition: { type: 'stream_fraction', targetProfile: 'flash_drum', viaConnectionTo: { toProfile: 'flare_stack', fromPort: 'vap_out' }, portId: 'vap_out', speciesAny: ['CO2'], minFrac: 0.85 },
+      action: { type: 'dialogue', speaker: 'lena', text: 'There it is \\u2014 ninety-plus percent carbon, coming back out of the water. Wet, but it\\u2019s ours. Dry it and we\\u2019re done.' } },
+  ],
+
+  hints: [],
+  completionGated: true,
+  storyUI: {
+    visibleMenuItems: ['reports', 'physicalUnits', 'clearStickers', 'home', 'saveCampaign'],
+    hidePaletteFilter: true, hidePressureSwitch: true,
+    pressureMode: 'simple', hideDevTab: true,
+    showObjectivePanel: true, showStarTracker: true, showRunway: true,
+  },
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// [v20.9.x S-MISSION] M9 "Make the Fuel" — Arc A finale Phase 2 strings
+// Validated readings (split 50 / coolant low): mix H2 79.8% @ 8 bar;
+//   reactor T* 410 K, CH4 33% wet; TANK (sep vap) CH4 99% / comb 99.6% @ 0.020.
+// The coolant is a knife-edge: over-cooling quenches the reaction.
+// ═══════════════════════════════════════════════════════════════════════════
+
+const M9_INTRO = [
+  { type: 'image', src: 'm9_two_streams.webp', transition: 'fade', duration_ms: 7000,
+    fallbackText: 'Two streams. Carbon from yesterday\\u2019s catching \\u2014 and hydrogen, all we could ever want, hissing up out of the vent.',
+    alt: 'A stack of captured CO\\u2082 on one side, the hydrothermal vent venting hydrogen on the other.' },
+  { type: 'image', src: 'm9_rover_dark.webp', transition: 'fade', duration_ms: 8000,
+    fallbackText: 'Lena tapped the rover. \\u201cIt\\u2019s simple, K. Carbon plus hydrogen makes methane. Methane is what she drinks. We\\u2019ve got both \\u2014 we just have to introduce them.\\u201d',
+    alt: 'The dark rover, methane gauge empty, Lena\\u2019s hand resting on its fuel port.' },
+  { type: 'text', transition: 'fade', duration_ms: 6000,
+    fallbackText: '\\u201cFour hydrogens to every carbon, over a warm bed. Lean, and the carbon chokes it. Rich, and the methane drowns. And cold \\u2014 cold, it just sits there and sulks. We warm it, we feed it right, it gives.\\u201d',
+    alt: '' },
+];
+
+const M9_BRIEFING = [
+  { speaker: 'lena', text: 'Last build, K. Here\\u2019s the whole of it in one breath: carbon plus hydrogen makes methane, and methane is what the rover runs on. We have carbon from yesterday and hydrogen to spare. We just marry them.', expression: 'neutral' },
+  { speaker: 'lena', text: 'The generator\\u2019s been eating all the vent hydrogen. Now it shares \\u2014 split the line, half stays for our power, half comes to the reaction.', expression: 'neutral' },
+  { speaker: 'lena', text: 'Drop your half from fifteen bar to eight, mix it four-to-one with the carbon. Warm the mix on the generator\\u2019s exhaust \\u2014 cold feed won\\u2019t light. Then into the cooled reactor.', expression: 'neutral' },
+  { speaker: 'lena', text: 'The coolant is the trick. The reaction makes its own heat \\u2014 lean on the coolant too hard and you\\u2019ll snuff it out. Keep it warm, let it run. Then cool the product, drop the water, fill her up.', expression: 'neutral' },
+];
+
+const M9_GUIDANCE = [
+  { id: 'g_m9_split',
+    dialogue: { speaker: 'lena', text: 'Tap the dry-gas line with a splitter. The generator keeps its share \\u2014 we never take it all, that\\u2019s our light and heat.', expression: 'neutral' },
+    highlight: { type: 'palette_tile', profileId: 'splitter' },
+    completion: { type: 'connection', toProfile: 'splitter' },
+    delay_ms: 500 },
+  { id: 'g_m9_valve',
+    dialogue: { speaker: 'lena', text: 'Run your share through a valve, fifteen bar down to eight, to meet the carbon at the same pressure.', expression: 'neutral' },
+    highlight: { type: 'palette_tile', profileId: 'valve' },
+    completion: { type: 'connection', fromProfile: 'splitter', toProfile: 'valve' },
+    delay_ms: 400 },
+  { id: 'g_m9_mix',
+    dialogue: { speaker: 'lena', text: 'Mix the hydrogen with the captured carbon \\u2014 four of hydrogen to one of carbon. The splitter\\u2019s your dial: half and half lands it right.', expression: 'neutral' },
+    highlight: { type: 'palette_tile', profileId: 'simple_mixer' },
+    completion: { type: 'connection', fromProfile: 'valve', toProfile: 'simple_mixer' },
+    delay_ms: 400 },
+  { id: 'g_m9_flare_a',
+    dialogue: { speaker: 'lena', text: 'Run the mix to the spare flare a moment \\u2014 let me check the ratio before we cook it.', expression: 'neutral' },
+    highlight: { type: 'unit', profileId: 'flare_stack' },
+    completion: { type: 'connection', fromProfile: 'simple_mixer', toProfile: 'flare_stack' },
+    delay_ms: 400 },
+  // → trigger tg_m9_a: "Four to one, eight bar. That's the recipe. Now we warm it."
+  { id: 'g_m9_preheat',
+    dialogue: { speaker: 'lena', text: 'Cold feed won\\u2019t light \\u2014 I\\u2019ve watched it sulk at three hundred Kelvin. Borrow the generator\\u2019s exhaust through a heat exchanger and warm the mix first.', expression: 'neutral' },
+    highlight: { type: 'palette_tile', profileId: 'hex' },
+    completion: { type: 'connection', fromProfile: 'small_gas_engine', toProfile: 'hex' },
+    delay_ms: 400 },
+  { id: 'g_m9_react',
+    dialogue: { speaker: 'lena', text: 'Warm mix into the cooled reactor. Feed pond water to its cooling jacket \\u2014 but gently. The reaction makes its own heat; drown it in coolant and it dies.', expression: 'neutral' },
+    highlight: { type: 'palette_tile', profileId: 'reactor_cooled' },
+    completion: { type: 'connection', fromProfile: 'hex', fromPort: 'cold_out', toProfile: 'reactor_cooled' },
+    delay_ms: 400 },
+  { id: 'g_m9_flare_b',
+    dialogue: { speaker: 'lena', text: 'Run the reactor\\u2019s output to the spare flare. I want to see the temperature settle and methane coming off before we keep it.', expression: 'neutral' },
+    highlight: { type: 'unit', profileId: 'flare_stack' },
+    completion: { type: 'connection', fromProfile: 'reactor_cooled', toProfile: 'flare_stack' },
+    delay_ms: 400 },
+  // → trigger tg_m9_b: "There — settled warm, and that's methane coming off. Now make it clean."
+  { id: 'g_m9_dry',
+    dialogue: { speaker: 'lena', text: 'Cool the product hard and drop the water in a separator. The methane stays in the gas.', expression: 'neutral' },
+    highlight: { type: 'palette_tile', profileId: 'air_cooler' },
+    completion: { type: 'connection', fromProfile: 'reactor_cooled', toProfile: 'air_cooler' },
+    delay_ms: 400 },
+  { id: 'g_m9_fill',
+    dialogue: { speaker: 'lena', text: 'Run the dry gas to the rover\\u2019s tank. Watch the methane climb as the rain leaves it. Sixty percent and she\\u2019ll run.', expression: 'positive' },
+    highlight: { type: 'palette_tile', profileId: 'tank_high_pressure' },
+    completion: { type: 'connection', fromProfile: 'flash_drum', fromPort: 'vap_out', toProfile: 'tank' },
+    delay_ms: 400 },
+];
+
+const M9_VICTORY_LINES = {
+  1: { speaker: 'lena', text: 'She\\u2019s got fuel in her belly, K. Made from air and vent-steam and patience. We can reach the others now.' },
+  2: { speaker: 'lena', text: 'Clean burn in that tank \\u2014 mostly methane, hardly any waste. She\\u2019ll run a long way on this.' },
+  3: { speaker: 'lena', text: 'Four to one, dead on, and warm the whole way through. Ninety-nine percent methane. That\\u2019s a masterpiece, K.' },
+};
+
+const M9_OUTRO = [
+  { type: 'image', src: 'm9_rover_idle.webp', transition: 'fade', duration_ms: 8000,
+    fallbackText: 'The rover coughed, caught, and held a low steady idle \\u2014 the first engine sound on this rock that we had made, not carried in.',
+    alt: 'The rover\\u2019s engine lit, exhaust shimmer, instrument lights on for the first time.' },
+  { type: 'image', src: 'm9_ridge.webp', transition: 'fade', duration_ms: 8000,
+    fallbackText: 'Lena listened to it like music. \\u201cAir and water and patience,\\u201d she said. Then she looked out at the ridge. \\u201cNow we go find out who else is still breathing.\\u201d',
+    alt: 'Lena and K silhouetted against a distant ridge under the alien sky, the rover idling beside them.' },
+];
+
+MissionRegistry.register('arc_a_m9', {
+  arcId: 'arc_a',
+  index: 8,
+  contentVersion: 1,
+  title: 'Make the Fuel',
+  subtitle: 'Carbon on one side, hydrogen on the other.',
+  emergency: 'Carbon captured. Turn it into something that burns.',
+
+  palette: {
+    splitter: 1,
+    valve: 1,
+    simple_mixer: 1,
+    hex: 1,
+    reactor_cooled: 1,
+    air_cooler: 1,
+    flash_drum: 1,
+    pump: 1,
+    tank_high_pressure: 1,
+    pond_drain: 1,
+    bend: 99,
+  },
+  species: ['CO2', 'H2', 'CH4', 'H2O', 'O2', 'N2'],
+  reactions: ['R_SABATIER', 'R_H2_COMB'],
+
+  inheritScene: true,
+  preplacedUnits: [
+    // The captured CO2 from Phase 1, as a fixed feed (0.020 mol/s @ 8 bar).
+    { id: 'co2_stack', profileId: 'source_mix', defId: 'source', tier: 1, lock: 'nodelete',
+      x: -14, y: -8, params: { n: { CO2: 0.020 }, T: 300, P: 800000, phaseConstraint: 'V' } },
+  ],
+  preplacedConnections: [
+    { id: 'c_o2_to_room_m9', from: { unitId: 'o2_bottle', portId: 'gas_out' },
+      to: { unitId: 'room', portId: 'o2_in' }, lock: true },
+    { id: 'c_h2o_barrel_m9', from: { unitId: 'water_barrel', portId: 'mat_out' },
+      to: { unitId: 'room', portId: 'h2o_in' }, lock: true },
+  ],
+
+  narrator: 'lena',
+  roomOccupants: { shelter: ['lena', 'k'] },
+  roomProps: [
+    { id: 'plan', type: 'wall_plan', x: 0.82, y: 0.20, w: 92, h: 70, flash: true, label: 'PLAN',
+      onClick: { plan: 'm9', title: 'Phase 2 \u2014 Make the Fuel' } },
+  ],
+
+  storyIntro: M9_INTRO,
+  storyOutro: M9_OUTRO,
+  briefing: M9_BRIEFING,
+  victoryLine: M9_VICTORY_LINES,
+
+  // Objectives = FINAL topology only (objectives don't latch). Stage readings = triggers.
+  objectives: [
+    { id: 'tap_vent', type: 'connection', fromProfile: 'flash_drum', fromPort: 'vap_out', toProfile: 'splitter',
+      description: 'Tap the dry-gas line with a splitter' },
+    { id: 'engine_share', type: 'connection', fromProfile: 'splitter', toProfile: 'small_gas_engine',
+      description: 'Leave the generator its share of hydrogen' },
+    { id: 'valve_down', type: 'connection', fromProfile: 'splitter', toProfile: 'valve',
+      description: 'Drop your hydrogen share from 15 to 8 bar' },
+    { id: 'mix_feed', type: 'connection', fromProfile: 'valve', toProfile: 'simple_mixer',
+      description: 'Mix hydrogen with the captured carbon' },
+    { id: 'mix_co2', type: 'connection', fromProfile: 'source_mix', toProfile: 'simple_mixer',
+      description: 'Bring the captured CO\\u2082 into the mixer' },
+    { id: 'preheat', type: 'connection', fromProfile: 'small_gas_engine', toProfile: 'hex',
+      description: 'Warm the feed on the generator exhaust' },
+    { id: 'react', type: 'connection', fromProfile: 'hex', fromPort: 'cold_out', toProfile: 'reactor_cooled',
+      description: 'Feed the warm mix to the cooled reactor' },
+    { id: 'coolant', type: 'connection', fromProfile: 'pump', toProfile: 'reactor_cooled', toPort: 'cool_in',
+      description: 'Cool the reactor with pumped pond water' },
+    { id: 'dry_product', type: 'connection', fromProfile: 'air_cooler', toProfile: 'flash_drum',
+      description: 'Cool the product and drop the water' },
+    { id: 'fill_tank', type: 'connection', fromProfile: 'flash_drum', fromPort: 'vap_out', toProfile: 'tank_high_pressure',
+      description: 'Fill the rover tank with the dry gas' },
+    // Win: read the separator vapor that feeds the tank (post water knockout).
+    { id: 'methane_rich', type: 'stream_fraction',
+      targetProfile: 'flash_drum', viaConnectionTo: { toProfile: 'tank_high_pressure', fromPort: 'vap_out' }, portId: 'vap_out',
+      speciesAny: ['CH4'], minFrac: 0.60,
+      description: 'Deliver at least 60% methane to the rover' },
+    { id: 'combustible', type: 'stream_fraction',
+      targetProfile: 'flash_drum', viaConnectionTo: { toProfile: 'tank_high_pressure', fromPort: 'vap_out' }, portId: 'vap_out',
+      speciesAny: ['CH4', 'H2'], minFrac: 0.90,
+      description: 'Keep the tank gas at least 90% combustible' },
+  ],
+
+  stars: {
+    1: { description: 'Rover fuelled \\u2014 \\u2265 60% methane, \\u2265 90% combustible in the tank.',
+      criteria: [{ type: 'all_objectives_complete' }] },
+    2: { description: '\\u2605 + a cleaner burn \\u2014 \\u2265 85% methane.',
+      criteria: [
+        { type: 'all_objectives_complete' },
+        { type: 'stream_fraction', id: 'star2_ch4', targetProfile: 'flash_drum',
+          viaConnectionTo: { toProfile: 'tank_high_pressure', fromPort: 'vap_out' }, portId: 'vap_out',
+          speciesAny: ['CH4'], minFrac: 0.85 },
+      ] },
+    3: { description: '\\u2605\\u2605 + dial it in \\u2014 \\u2265 95% methane (four-to-one, kept warm).',
+      criteria: [
+        { type: 'all_objectives_complete' },
+        { type: 'stream_fraction', id: 'star3_ch4', targetProfile: 'flash_drum',
+          viaConnectionTo: { toProfile: 'tank_high_pressure', fromPort: 'vap_out' }, portId: 'vap_out',
+          speciesAny: ['CH4'], minFrac: 0.95 },
+      ] },
+  },
+
+  guidanceSteps: M9_GUIDANCE,
+
+  triggers: [
+    // Stage A — the 4:1 mix at the spare flare.
+    { id: 'tg_m9_a', once: true,
+      condition: { type: 'stream_fraction', targetProfile: 'simple_mixer', portId: 'mat_out', speciesAny: ['H2'], minFrac: 0.78, maxFrac: 0.82 },
+      action: { type: 'dialogue', speaker: 'lena', text: 'Four to one, eight bar \\u2014 that\\u2019s the recipe. Lean chokes it, rich drowns it, and you\\u2019ve threaded it. Now we warm it.' } },
+    // Stage B — the reactor lit and making methane (read at the spare flare).
+    { id: 'tg_m9_b', once: true,
+      condition: { type: 'stream_fraction', targetProfile: 'reactor_cooled', portId: 'mat_out', speciesAny: ['CH4'], minFrac: 0.25 },
+      action: { type: 'dialogue', speaker: 'lena', text: 'There \\u2014 settled warm, and that\\u2019s methane coming off. Keep the coolant gentle and it\\u2019ll hold. Now make it clean and fill her up.' } },
+    // Stall warning — fires if the reactor runs cold (quenched / cold feed).
+    { id: 'tg_m9_stall', once: true,
+      condition: { type: 'port_conditions', targetProfile: 'reactor_cooled', portId: 'mat_out', T_lte: 320 },
+      action: { type: 'dialogue', speaker: 'lena', text: 'It\\u2019s sulking \\u2014 too cold to light. Warm the feed on the exhaust, and ease off the coolant. The reaction needs its own heat to catch.' } },
+  ],
 
   hints: [],
   completionGated: true,
@@ -41703,6 +42419,418 @@ function _lenaRoomExpression(u) {
   return 'happy';
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// [v20.9.18 S-ROOM] Diegetic wall props — declarative roomProps + plan modal.
+// Props are positioned by INTERIOR FRACTION (x,y in 0..1) so they sit at the
+// same relative wall spot regardless of room size — easy to reposition.
+// Flash (idle pulse) draws the eye until first opened; per-session seen-flag.
+// ═══════════════════════════════════════════════════════════════════════════
+
+const _PLAN_SVGS = {
+  m8: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1414 1000" font-family="'Arial','Helvetica','Liberation Sans',sans-serif">
+  <defs>
+    <pattern id="g1" width="34" height="34" patternUnits="userSpaceOnUse"><path d="M34 0H0V34" fill="none" stroke="#dccfac" stroke-width="0.7"/></pattern>
+    <pattern id="g1b" width="170" height="170" patternUnits="userSpaceOnUse"><path d="M170 0H0V170" fill="none" stroke="#d2c39a" stroke-width="1"/></pattern>
+    <filter id="rough1" x="-2%" y="-2%" width="104%" height="104%">
+      <feTurbulence type="turbulence" baseFrequency="0.009" numOctaves="2" seed="7" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="0.8" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+    <marker id="r1" markerWidth="10" markerHeight="10" refX="6.5" refY="3.5" orient="auto"><path d="M0 0L7 3.5L0 7" fill="none" stroke="#111" stroke-width="1.5"/></marker>
+    <marker id="t1" markerWidth="10" markerHeight="10" refX="6.5" refY="3.5" orient="auto"><path d="M0 0L7 3.5L0 7" fill="none" stroke="#0f9488" stroke-width="1.6"/></marker>
+    <marker id="y1" markerWidth="10" markerHeight="10" refX="6.5" refY="3.5" orient="auto"><path d="M0 0L7 3.5L0 7" fill="none" stroke="#a07d0c" stroke-width="1.6"/></marker>
+  </defs>
+
+  <rect width="1414" height="1000" fill="#efe6d0"/>
+  <rect width="1414" height="1000" fill="url(#g1)"/>
+  <rect width="1414" height="1000" fill="url(#g1b)"/>
+
+  <g filter="url(#rough1)">
+  <g fill="#111">
+    <text x="48" y="58" font-size="28" font-weight="700" letter-spacing="1">PHASE 1 &#183; CARBON FROM AIR</text>
+    <text x="48" y="88" font-size="15">Wash CO&#8322; out of the compressed air, then boil it back out of the water with the generator&#8217;s spare heat.</text>
+  </g>
+
+  <!-- ============ ROW A · CAPTURE (left to right) ============ -->
+  <g stroke-width="1.7">
+    <!-- Air Intake -->
+    <rect x="48" y="170" width="150" height="66" rx="7" fill="#76e02a" fill-opacity="0.45" stroke="#76e02a"/>
+    <!-- Compressor 1 -->
+    <rect x="232" y="170" width="140" height="66" rx="7" fill="#b06cff" fill-opacity="0.45" stroke="#b06cff"/>
+    <!-- Cooler 1 -->
+    <rect x="406" y="170" width="120" height="66" rx="7" fill="#2fe0d0" fill-opacity="0.45" stroke="#2fe0d0"/>
+    <!-- Compressor 2 -->
+    <rect x="560" y="170" width="140" height="66" rx="7" fill="#b06cff" fill-opacity="0.45" stroke="#b06cff"/>
+    <!-- Cooler 2 -->
+    <rect x="734" y="170" width="120" height="66" rx="7" fill="#2fe0d0" fill-opacity="0.45" stroke="#2fe0d0"/>
+    <!-- Mixer -->
+    <rect x="888" y="170" width="140" height="66" rx="7" fill="#ff6ec7" fill-opacity="0.45" stroke="#ff6ec7"/>
+    <!-- Wash separator -->
+    <rect x="1098" y="162" width="200" height="82" rx="7" fill="#ff6ec7" fill-opacity="0.45" stroke="#ff6ec7"/>
+  </g>
+  <g fill="#111" text-anchor="middle">
+    <text x="123" y="198" font-size="13" font-weight="700">AIR INTAKE</text><text x="123" y="214" font-size="8.5">1 MOL/S &#183; 0.9 BAR &#183; 288 K</text>
+    <text x="302" y="198" font-size="12" font-weight="700">COMPRESSOR &#215;1</text><text x="302" y="214" font-size="8.5">&#8594; 2.7 BAR &#183; 417 K</text>
+    <text x="466" y="198" font-size="12" font-weight="700">COOL</text><text x="466" y="214" font-size="8.5">&#8594; 300 K</text>
+    <text x="630" y="198" font-size="12" font-weight="700">COMPRESSOR &#215;2</text><text x="630" y="214" font-size="8.5">&#8594; 8 BAR &#183; 441 K</text>
+    <text x="794" y="198" font-size="12" font-weight="700">COOL</text><text x="794" y="214" font-size="8.5">&#8594; 8 BAR &#183; 300 K</text>
+    <text x="958" y="198" font-size="13" font-weight="700">MIXER</text><text x="958" y="214" font-size="8.5">AIR + WATER &#183; 8 BAR</text>
+    <text x="1198" y="190" font-size="13" font-weight="700">WASH</text>
+    <text x="1198" y="206" font-size="10.5" font-weight="700">VAPOR&#8211;LIQUID SEPARATOR</text>
+    <text x="1198" y="226" font-size="8.5">carbon into the water</text>
+  </g>
+  <!-- row A connectors -->
+  <g stroke="#111" stroke-width="2" fill="none">
+    <line x1="198" y1="203" x2="230" y2="203" marker-end="url(#r1)"/>
+    <line x1="372" y1="203" x2="404" y2="203" marker-end="url(#r1)"/>
+    <line x1="526" y1="203" x2="558" y2="203" marker-end="url(#r1)"/>
+    <line x1="700" y1="203" x2="732" y2="203" marker-end="url(#r1)"/>
+    <line x1="854" y1="203" x2="886" y2="203" marker-end="url(#r1)"/>
+    <line x1="1028" y1="203" x2="1096" y2="203" marker-end="url(#r1)"/>
+  </g>
+
+  <!-- water feed up into mixer -->
+  <g stroke-width="1.7">
+    <rect x="888" y="300" width="140" height="56" rx="7" fill="#b06cff" fill-opacity="0.45" stroke="#b06cff"/>
+    <rect x="888" y="392" width="140" height="56" rx="7" fill="#76e02a" fill-opacity="0.45" stroke="#76e02a"/>
+  </g>
+  <g fill="#111" text-anchor="middle">
+    <text x="958" y="324" font-size="12" font-weight="700">PUMP</text><text x="958" y="340" font-size="8.5">&#8594; 8 BAR</text>
+    <text x="958" y="416" font-size="11.5" font-weight="700">MELTWATER POND</text><text x="958" y="432" font-size="8.5">H&#8322;O &#183; 3 MOL/S</text>
+  </g>
+  <g stroke="#111" stroke-width="2" fill="none">
+    <line x1="958" y1="392" x2="958" y2="358" marker-end="url(#r1)"/>
+    <line x1="958" y1="300" x2="958" y2="238" marker-end="url(#r1)"/>
+  </g>
+
+  <!-- wash separator outlets -->
+  <g stroke="#111" stroke-width="1.6" fill="none">
+    <line x1="1148" y1="162" x2="1148" y2="120" marker-end="url(#r1)"/>
+  </g>
+  <text x="1158" y="128" font-size="9" fill="#111">AIR + TRACE CO&#8322; &#8594; VENT</text>
+
+  <!-- carbon-rich water: wash liq_out down to HEX cold_in -->
+  <g stroke="#111" stroke-width="2" fill="none">
+    <path d="M1252 244 V612 H1208" marker-end="url(#r1)"/>
+  </g>
+  <text x="1262" y="430" font-size="9" fill="#111">carbon-rich</text>
+  <text x="1262" y="443" font-size="9" fill="#111">water</text>
+
+  <!-- ============ ROW B · REGENERATE (right to left) ============ -->
+  <g stroke-width="1.7">
+    <!-- HEX -->
+    <rect x="1098" y="612" width="180" height="92" rx="7" fill="#2fe0d0" fill-opacity="0.45" stroke="#2fe0d0"/>
+    <!-- Strip separator -->
+    <rect x="878" y="618" width="190" height="80" rx="7" fill="#ff6ec7" fill-opacity="0.45" stroke="#ff6ec7"/>
+    <!-- Cooler 3 -->
+    <rect x="708" y="622" width="140" height="70" rx="7" fill="#2fe0d0" fill-opacity="0.45" stroke="#2fe0d0"/>
+    <!-- Dry separator -->
+    <rect x="508" y="618" width="180" height="80" rx="7" fill="#ff6ec7" fill-opacity="0.45" stroke="#ff6ec7"/>
+    <!-- Flare (product) -->
+    <rect x="300" y="620" width="178" height="76" rx="7" fill="#76e02a" fill-opacity="0.5" stroke="#76e02a" stroke-width="2.2"/>
+  </g>
+  <g fill="#111" text-anchor="middle">
+    <text x="1188" y="650" font-size="12.5" font-weight="700">HEAT EXCHANGER</text>
+    <text x="1188" y="668" font-size="8.5">generator exhaust heat</text>
+    <text x="1188" y="682" font-size="8.5">&#8594; warms the water</text>
+    <text x="973" y="646" font-size="12.5" font-weight="700">STRIP</text>
+    <text x="973" y="662" font-size="10.5" font-weight="700">VAPOR&#8211;LIQUID SEPARATOR</text>
+    <text x="973" y="682" font-size="8.5">CO&#8322; boils off (wet)</text>
+    <text x="778" y="652" font-size="12" font-weight="700">COOL</text><text x="778" y="668" font-size="8.5">&#8594; 300 K</text>
+    <text x="598" y="646" font-size="12.5" font-weight="700">DRY</text>
+    <text x="598" y="662" font-size="10.5" font-weight="700">VAPOR&#8211;LIQUID SEPARATOR</text>
+    <text x="389" y="650" font-size="15" font-weight="700">FLARE</text>
+    <text x="389" y="668" font-size="9">captured CO&#8322;</text>
+    <text x="389" y="682" font-size="9">~0.028 MOL/S &#183; ~97%</text>
+  </g>
+  <!-- row B connectors (pointing left) -->
+  <g stroke="#111" stroke-width="2" fill="none">
+    <line x1="1098" y1="658" x2="1070" y2="658" marker-end="url(#r1)"/>      <!-- HEX -> strip -->
+    <line x1="878" y1="658" x2="850" y2="658" marker-end="url(#r1)"/>        <!-- strip -> cooler -->
+    <line x1="708" y1="657" x2="690" y2="657" marker-end="url(#r1)"/>        <!-- cooler -> dry -->
+    <line x1="508" y1="658" x2="480" y2="658" marker-end="url(#r1)"/>        <!-- dry -> flare -->
+  </g>
+  <!-- strip & dry liquid drains -->
+  <g stroke="#111" stroke-width="1.6" fill="none">
+    <line x1="973" y1="698" x2="973" y2="740" marker-end="url(#r1)"/>
+    <line x1="598" y1="698" x2="598" y2="740" marker-end="url(#r1)"/>
+  </g>
+  <text x="983" y="730" font-size="9">lean water &#8594; pond</text>
+  <text x="608" y="730" font-size="9">water &#8594; pond</text>
+
+  <!-- ============ GENERATOR (existing) feeding HEX hot side ============ -->
+  <g stroke-width="1.7">
+    <rect x="1098" y="820" width="180" height="72" rx="7" fill="#ffe83d" fill-opacity="0.5" stroke="#ffe83d"/>
+    <rect x="940" y="832" width="138" height="50" rx="7" fill="#76e02a" fill-opacity="0.45" stroke="#76e02a"/>
+  </g>
+  <g fill="#111" text-anchor="middle">
+    <text x="1188" y="846" font-size="12" font-weight="700">GAS ENGINE (EXISTING)</text>
+    <text x="1188" y="862" font-size="8.5">burns vent H&#8322;</text>
+    <text x="1188" y="878" font-size="8.5">exhaust ~800 K + power</text>
+    <text x="1009" y="852" font-size="10.5" font-weight="700">AIR INTAKE</text>
+    <text x="1009" y="868" font-size="8.5">~0.5 MOL/S</text>
+  </g>
+  <g stroke="#111" stroke-width="1.7" fill="none">
+    <line x1="1078" y1="857" x2="1080" y2="857" marker-end="url(#r1)"/>
+  </g>
+  <!-- engine exhaust up into HEX hot_in (teal dashed) -->
+  <g stroke="#0f9488" stroke-width="2" stroke-dasharray="7 4" fill="none">
+    <line x1="1188" y1="820" x2="1188" y2="706" marker-end="url(#t1)"/>
+  </g>
+  <text x="1198" y="770" font-size="9" fill="#0f9488">EXHAUST 800 K</text>
+  <!-- cooled exhaust out of HEX -->
+  <g stroke="#0f9488" stroke-width="2" stroke-dasharray="7 4" fill="none">
+    <path d="M1278 658 H1330 V612" marker-end="url(#t1)"/>
+  </g>
+  <text x="1300" y="600" font-size="9" fill="#0f9488" text-anchor="middle">cooled exhaust</text>
+  <text x="1300" y="588" font-size="9" fill="#0f9488" text-anchor="middle">&#8594; vent</text>
+  <!-- power -->
+  <g stroke="#a07d0c" stroke-width="2" stroke-dasharray="7 4" fill="none">
+    <line x1="1098" y1="856" x2="940" y2="856"/>
+  </g>
+  <text x="900" y="860" font-size="9.5" fill="#a07d0c" text-anchor="end">POWER &#8594; SHELTER + COMPRESSORS</text>
+
+  <!-- ============ palette key ============ -->
+  <g font-size="10" fill="#111">
+    <rect x="48" y="946" width="18" height="12" rx="2" fill="#76e02a" fill-opacity="0.5" stroke="#76e02a" stroke-width="1.3"/><text x="72" y="956">SUPPLY &amp; DRAIN</text>
+    <rect x="200" y="946" width="18" height="12" rx="2" fill="#b06cff" fill-opacity="0.5" stroke="#b06cff" stroke-width="1.3"/><text x="224" y="956">PRESSURE</text>
+    <rect x="320" y="946" width="18" height="12" rx="2" fill="#2fe0d0" fill-opacity="0.5" stroke="#2fe0d0" stroke-width="1.3"/><text x="344" y="956">HEAT</text>
+    <rect x="410" y="946" width="18" height="12" rx="2" fill="#ff6ec7" fill-opacity="0.5" stroke="#ff6ec7" stroke-width="1.3"/><text x="434" y="956">SEPARATE &amp; MIX</text>
+    <rect x="560" y="946" width="18" height="12" rx="2" fill="#ffe83d" fill-opacity="0.55" stroke="#ffe83d" stroke-width="1.3"/><text x="584" y="956">POWER</text>
+  </g>
+  </g>
+</svg>`,
+  m9: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1414 1000" font-family="'Arial','Helvetica','Liberation Sans',sans-serif">
+  <defs>
+    <pattern id="g2" width="34" height="34" patternUnits="userSpaceOnUse"><path d="M34 0H0V34" fill="none" stroke="#dccfac" stroke-width="0.7"/></pattern>
+    <pattern id="g2b" width="170" height="170" patternUnits="userSpaceOnUse"><path d="M170 0H0V170" fill="none" stroke="#d2c39a" stroke-width="1"/></pattern>
+    <filter id="rough2" x="-2%" y="-2%" width="104%" height="104%">
+      <feTurbulence type="turbulence" baseFrequency="0.009" numOctaves="2" seed="3" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="0.8" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+    <marker id="r2" markerWidth="10" markerHeight="10" refX="6.5" refY="3.5" orient="auto"><path d="M0 0L7 3.5L0 7" fill="none" stroke="#111" stroke-width="1.5"/></marker>
+    <marker id="t2" markerWidth="10" markerHeight="10" refX="6.5" refY="3.5" orient="auto"><path d="M0 0L7 3.5L0 7" fill="none" stroke="#0f9488" stroke-width="1.6"/></marker>
+    <marker id="y2" markerWidth="10" markerHeight="10" refX="6.5" refY="3.5" orient="auto"><path d="M0 0L7 3.5L0 7" fill="none" stroke="#a07d0c" stroke-width="1.6"/></marker>
+  </defs>
+
+  <rect width="1414" height="1000" fill="#efe6d0"/>
+  <rect width="1414" height="1000" fill="url(#g2)"/>
+  <rect width="1414" height="1000" fill="url(#g2b)"/>
+
+  <g filter="url(#rough2)">
+  <g fill="#111">
+    <text x="48" y="58" font-size="28" font-weight="700" letter-spacing="1">PHASE 2 &#183; MAKE THE FUEL</text>
+    <text x="48" y="88" font-size="15">Carbon + hydrogen &#8594; methane. Four to one, kept warm. The rover runs on what comes out.</text>
+  </g>
+
+  <!-- ============ HYDROGEN SOURCE + SPLIT ============ -->
+  <g stroke-width="1.7">
+    <!-- dry gas (vent separator, existing) -->
+    <rect x="48" y="300" width="190" height="80" rx="7" fill="#76e02a" fill-opacity="0.45" stroke="#76e02a"/>
+    <!-- splitter -->
+    <rect x="300" y="312" width="120" height="56" rx="7" fill="#ff6ec7" fill-opacity="0.45" stroke="#ff6ec7"/>
+  </g>
+  <g fill="#111" text-anchor="middle">
+    <text x="143" y="328" font-size="11.5" font-weight="700">DRY GAS &#183; VENT SEPARATOR</text>
+    <text x="143" y="344" font-size="8.5">(EXISTING)</text>
+    <text x="143" y="360" font-size="8.5">H&#8322; 0.16 MOL/S &#183; 15 BAR &#183; trace H&#8322;O</text>
+    <text x="360" y="336" font-size="12" font-weight="700">SPLITTER</text>
+    <text x="360" y="352" font-size="8.5">half &amp; half</text>
+  </g>
+  <line x1="238" y1="340" x2="298" y2="340" stroke="#111" stroke-width="2" fill="none" marker-end="url(#r2)"/>
+
+  <!-- split branch 1: to engine (down) -->
+  <g stroke-width="1.7">
+    <rect x="300" y="470" width="170" height="72" rx="7" fill="#ffe83d" fill-opacity="0.5" stroke="#ffe83d"/>
+    <rect x="300" y="566" width="170" height="48" rx="7" fill="#76e02a" fill-opacity="0.45" stroke="#76e02a"/>
+  </g>
+  <g fill="#111" text-anchor="middle">
+    <text x="385" y="496" font-size="12" font-weight="700">GAS ENGINE (EXISTING)</text>
+    <text x="385" y="512" font-size="8.5">H&#8322; 0.08 MOL/S &#8594; power</text>
+    <text x="385" y="528" font-size="8.5">exhaust ~800 K</text>
+    <text x="385" y="586" font-size="10.5" font-weight="700">AIR INTAKE</text>
+  </g>
+  <line x1="360" y1="368" x2="360" y2="468" stroke="#111" stroke-width="2" fill="none" marker-end="url(#r2)"/>
+  <text x="370" y="430" font-size="9">H&#8322; 0.08</text>
+  <line x1="385" y1="566" x2="385" y2="544" stroke="#111" stroke-width="1.7" fill="none" marker-end="url(#r2)"/>
+
+  <!-- split branch 2: to valve (right) -->
+  <g stroke-width="1.7">
+    <rect x="470" y="312" width="120" height="56" rx="7" fill="#b06cff" fill-opacity="0.45" stroke="#b06cff"/>
+  </g>
+  <g fill="#111" text-anchor="middle">
+    <text x="530" y="334" font-size="12" font-weight="700">VALVE</text>
+    <text x="530" y="350" font-size="8.5">15 &#8594; 8 BAR</text>
+  </g>
+  <line x1="420" y1="340" x2="468" y2="340" stroke="#111" stroke-width="2" fill="none" marker-end="url(#r2)"/>
+  <text x="445" y="330" font-size="9" text-anchor="middle">0.08</text>
+
+  <!-- CO2 source + mixer -->
+  <g stroke-width="1.7">
+    <rect x="470" y="180" width="160" height="72" rx="7" fill="#76e02a" fill-opacity="0.45" stroke="#76e02a"/>
+    <rect x="662" y="306" width="130" height="68" rx="7" fill="#ff6ec7" fill-opacity="0.45" stroke="#ff6ec7"/>
+  </g>
+  <g fill="#111" text-anchor="middle">
+    <text x="550" y="206" font-size="12" font-weight="700">SOURCE</text>
+    <text x="550" y="222" font-size="8.5">captured CO&#8322; from Phase 1</text>
+    <text x="550" y="238" font-size="8.5">0.020 MOL/S &#183; 8 BAR</text>
+    <text x="727" y="334" font-size="12.5" font-weight="700">MIXER</text>
+    <text x="727" y="350" font-size="8.5">CO&#8322; + H&#8322;</text>
+    <text x="727" y="364" font-size="8.5">4 : 1 &#183; 8 BAR</text>
+  </g>
+  <line x1="590" y1="340" x2="660" y2="340" stroke="#111" stroke-width="2" fill="none" marker-end="url(#r2)"/>
+  <path d="M550 252 V340 H660" stroke="#111" stroke-width="2" fill="none" marker-end="url(#r2)"/>
+
+  <!-- preheat HEX -->
+  <g stroke-width="1.7">
+    <rect x="828" y="300" width="150" height="80" rx="7" fill="#2fe0d0" fill-opacity="0.45" stroke="#2fe0d0"/>
+  </g>
+  <g fill="#111" text-anchor="middle">
+    <text x="903" y="328" font-size="12" font-weight="700">HEAT EXCHANGER</text>
+    <text x="903" y="344" font-size="8.5">preheat on exhaust</text>
+    <text x="903" y="360" font-size="8.5">cold feed won&#8217;t light &#8594; &#8805; 400 K</text>
+  </g>
+  <line x1="792" y1="340" x2="826" y2="340" stroke="#111" stroke-width="2" fill="none" marker-end="url(#r2)"/>
+  <!-- engine exhaust into HEX hot side (teal dashed) -->
+  <path d="M470 506 H660 V392 H903 V382" stroke="#0f9488" stroke-width="2" stroke-dasharray="7 4" fill="none" marker-end="url(#t2)"/>
+  <text x="700" y="384" font-size="9" fill="#0f9488">exhaust 800 K</text>
+  <path d="M978 330 H1020 V300" stroke="#0f9488" stroke-width="2" stroke-dasharray="7 4" fill="none" marker-end="url(#t2)"/>
+  <text x="1010" y="290" font-size="9" fill="#0f9488" text-anchor="middle">cooled &#8594; vent</text>
+
+  <!-- reactor -->
+  <g stroke-width="1.9">
+    <rect x="828" y="470" width="200" height="86" rx="8" fill="#ff5470" fill-opacity="0.45" stroke="#ff5470"/>
+  </g>
+  <g fill="#111" text-anchor="middle">
+    <text x="928" y="498" font-size="13.5" font-weight="700">REACTOR (COOLED)</text>
+    <text x="928" y="516" font-size="8.5">0.7 M&#179; &#183; 8 BAR &#183; T* &#8776; 400 K</text>
+    <text x="928" y="532" font-size="8.5">CO&#8322; + 4 H&#8322; &#8594; CH&#8324; + 2 H&#8322;O</text>
+    <text x="928" y="548" font-size="8" font-style="italic">coolant gentle &#8212; it makes its own heat</text>
+  </g>
+  <line x1="903" y1="380" x2="903" y2="468" stroke="#111" stroke-width="2" fill="none" marker-end="url(#r2)"/>
+
+  <!-- coolant: pond -> pump -> reactor cool_in -->
+  <g stroke-width="1.7">
+    <rect x="828" y="650" width="120" height="50" rx="7" fill="#b06cff" fill-opacity="0.45" stroke="#b06cff"/>
+    <rect x="828" y="724" width="120" height="50" rx="7" fill="#76e02a" fill-opacity="0.45" stroke="#76e02a"/>
+  </g>
+  <g fill="#111" text-anchor="middle">
+    <text x="888" y="672" font-size="11.5" font-weight="700">PUMP</text><text x="888" y="688" font-size="8.5">the knob</text>
+    <text x="888" y="746" font-size="10.5" font-weight="700">MELTWATER POND</text><text x="888" y="762" font-size="8.5">H&#8322;O &#183; gentle</text>
+  </g>
+  <line x1="888" y1="724" x2="888" y2="702" stroke="#111" stroke-width="1.7" fill="none" marker-end="url(#r2)"/>
+  <line x1="888" y1="650" x2="888" y2="558" stroke="#111" stroke-width="2" fill="none" marker-end="url(#r2)"/>
+
+  <!-- cool -> separator -> tank -->
+  <g stroke-width="1.7">
+    <rect x="1078" y="476" width="120" height="74" rx="7" fill="#2fe0d0" fill-opacity="0.45" stroke="#2fe0d0"/>
+    <rect x="1078" y="600" width="120" height="74" rx="7" fill="#ff6ec7" fill-opacity="0.45" stroke="#ff6ec7"/>
+    <rect x="1230" y="470" width="150" height="86" rx="8" fill="#4db4ff" fill-opacity="0.5" stroke="#4db4ff" stroke-width="2.2"/>
+  </g>
+  <g fill="#111" text-anchor="middle">
+    <text x="1138" y="506" font-size="12" font-weight="700">COOL</text><text x="1138" y="522" font-size="8.5">&#8804; 300 K</text>
+    <text x="1138" y="630" font-size="10.5" font-weight="700">VAPOR&#8211;LIQUID</text>
+    <text x="1138" y="645" font-size="10.5" font-weight="700">SEPARATOR</text>
+    <text x="1138" y="662" font-size="8.5">drop the water</text>
+    <text x="1305" y="500" font-size="14" font-weight="700">TANK &#183; ROVER</text>
+    <text x="1305" y="518" font-size="8.5">CH&#8324; &#8805; 60% &#183; combustible &#8805; 90%</text>
+    <text x="1305" y="534" font-size="8.5">methane fuel</text>
+  </g>
+  <line x1="1028" y1="513" x2="1076" y2="513" stroke="#111" stroke-width="2" fill="none" marker-end="url(#r2)"/>
+  <path d="M1138 550 V600" stroke="#111" stroke-width="2" fill="none" marker-end="url(#r2)"/>
+  <path d="M1198 624 H1230 V556 L1230 540" stroke="#111" stroke-width="2.2" fill="none" marker-end="url(#r2)"/>
+  <!-- separator liquid drain -->
+  <line x1="1138" y1="674" x2="1138" y2="716" stroke="#111" stroke-width="1.6" fill="none" marker-end="url(#r2)"/>
+  <text x="1148" y="706" font-size="9">water &#8594; pond</text>
+
+  <!-- ============ palette key ============ -->
+  <g font-size="10" fill="#111">
+    <rect x="48" y="946" width="18" height="12" rx="2" fill="#76e02a" fill-opacity="0.5" stroke="#76e02a" stroke-width="1.3"/><text x="72" y="956">SUPPLY &amp; DRAIN</text>
+    <rect x="200" y="946" width="18" height="12" rx="2" fill="#b06cff" fill-opacity="0.5" stroke="#b06cff" stroke-width="1.3"/><text x="224" y="956">PRESSURE</text>
+    <rect x="320" y="946" width="18" height="12" rx="2" fill="#2fe0d0" fill-opacity="0.5" stroke="#2fe0d0" stroke-width="1.3"/><text x="344" y="956">HEAT</text>
+    <rect x="410" y="946" width="18" height="12" rx="2" fill="#ff5470" fill-opacity="0.5" stroke="#ff5470" stroke-width="1.3"/><text x="434" y="956">REACTOR</text>
+    <rect x="510" y="946" width="18" height="12" rx="2" fill="#ff6ec7" fill-opacity="0.5" stroke="#ff6ec7" stroke-width="1.3"/><text x="534" y="956">SEPARATE &amp; MIX</text>
+    <rect x="660" y="946" width="18" height="12" rx="2" fill="#ffe83d" fill-opacity="0.55" stroke="#ffe83d" stroke-width="1.3"/><text x="684" y="956">POWER</text>
+    <rect x="740" y="946" width="18" height="12" rx="2" fill="#4db4ff" fill-opacity="0.5" stroke="#4db4ff" stroke-width="1.3"/><text x="764" y="956">STORAGE</text>
+  </g>
+  </g>
+</svg>`,
+};
+
+// Per-session "already opened" set — resets on reload (no persistence by design).
+const _propsSeen = new Set();
+
+function openPlanModal(planId, title) {
+  const body = document.getElementById('planModalBody');
+  const titleEl = document.getElementById('planModalTitle');
+  const modal = document.getElementById('modalPlan');
+  if (!body || !modal) return;
+  body.innerHTML = _PLAN_SVGS[planId] || '<div class="small">Plan unavailable.</div>';
+  if (titleEl) titleEl.textContent = title || 'Lena\u2019s Plan';
+  // make the embedded svg scale to the modal
+  const svg = body.querySelector('svg');
+  if (svg) { svg.style.maxWidth = '100%'; svg.style.maxHeight = '84vh'; svg.style.height = 'auto'; svg.style.width = 'auto'; }
+  modal.classList.add('open');
+}
+
+// Render the mission's roomProps into the room group `g`.
+// interior: { x0, y0, w, h } in world coords. Called from the room renderer.
+function _renderRoomProps(g, props, interior, missionId) {
+  if (!Array.isArray(props) || props.length === 0) return;
+  for (const p of props) {
+    if (p.type !== 'wall_plan') continue;  // only type for now; extend here
+    const pw = p.w || 90, ph = p.h || 70;
+    const cx = interior.x0 + (p.x ?? 0.7) * interior.w;
+    const cy = interior.y0 + (p.y ?? 0.2) * interior.h;
+    const x = Math.round(cx - pw / 2), y = Math.round(cy - ph / 2);
+    const seenKey = (missionId || '') + ':' + (p.id || 'plan');
+    const flashing = p.flash !== false && !_propsSeen.has(seenKey);
+
+    const grp = svgEl('g', { cursor: 'pointer' });
+
+    // idle flash: a soft glow rect that pulses until first opened
+    if (flashing) {
+      const glow = svgEl('rect', { x: x - 5, y: y - 5, width: pw + 10, height: ph + 10, rx: 8,
+        fill: 'none', stroke: '#ffe06a', 'stroke-width': 2.5, opacity: 0 });
+      const an = svgEl('animate', { attributeName: 'opacity', values: '0;0.9;0',
+        dur: '1.8s', repeatCount: 'indefinite' });
+      glow.appendChild(an);
+      grp.appendChild(glow);
+    }
+
+    // framed blueprint icon — cream sheet, highlighter lines, a couple of boxes
+    grp.appendChild(svgEl('rect', { x, y, width: pw, height: ph, rx: 5,
+      fill: '#efe6d0', stroke: '#6b5d3a', 'stroke-width': 2 }));
+    // faux flowsheet marks
+    const _ln = (x1, y1, x2, y2, col) => grp.appendChild(svgEl('line', { x1, y1, x2, y2,
+      stroke: col || '#9a8a5e', 'stroke-width': 2, 'stroke-linecap': 'round' }));
+    const bx = x + 9, by = y + Math.round(ph * 0.32);
+    grp.appendChild(svgEl('rect', { x: bx, y: by, width: 16, height: 11, rx: 2, fill: '#ff6ec7', 'fill-opacity': 0.5, stroke: '#ff6ec7', 'stroke-width': 1.2 }));
+    grp.appendChild(svgEl('rect', { x: bx + 30, y: by, width: 16, height: 11, rx: 2, fill: '#2fe0d0', 'fill-opacity': 0.5, stroke: '#2fe0d0', 'stroke-width': 1.2 }));
+    grp.appendChild(svgEl('rect', { x: bx + 60, y: by, width: 16, height: 11, rx: 2, fill: '#76e02a', 'fill-opacity': 0.5, stroke: '#76e02a', 'stroke-width': 1.2 }));
+    _ln(bx + 16, by + 5, bx + 30, by + 5);
+    _ln(bx + 46, by + 5, bx + 60, by + 5);
+    // title strip
+    const cap = svgEl('text', { x: x + pw / 2, y: y + 15, 'text-anchor': 'middle',
+      'font-family': 'sans-serif', 'font-size': '9px', 'font-weight': '700', fill: '#5a4d2e' });
+    cap.textContent = p.label || 'PLAN';
+    grp.appendChild(cap);
+    const hint = svgEl('text', { x: x + pw / 2, y: y + ph - 8, 'text-anchor': 'middle',
+      'font-family': 'sans-serif', 'font-size': '7.5px', fill: '#8a7a4e' });
+    hint.textContent = 'tap to open';
+    grp.appendChild(hint);
+
+    grp.addEventListener('click', (e) => {
+      e.stopPropagation();
+      _propsSeen.add(seenKey);
+      const planId = (p.onClick && p.onClick.plan) || 'm8';
+      openPlanModal(planId, p.onClick && p.onClick.title);
+      if (typeof render === 'function') render();  // clear the flash
+    });
+    g.appendChild(grp);
+  }
+}
+
+
 function _renderLenaInRoom(g, wx, wy, lightsOn, expression, unitId) {
   const svgNS = 'http://www.w3.org/2000/svg';
   const dimFactor = lightsOn ? 1.0 : 0.2;
@@ -42591,6 +43719,15 @@ _RAGTAG_SYMBOLS.room = function(g, wx, wy, ww, wh, pal, def, unitId) {
       if (typeof render === 'function') render();  // refresh expression
     });
     g.appendChild(pokeRect);
+  }
+
+  // ═══ WALL PROPS (diegetic clickable items, e.g. Lena's plan) [v20.9.18] ═══
+  if (_activeMissionId) {
+    const _mp = MissionRegistry.get(_activeMissionId);
+    if (_mp && Array.isArray(_mp.roomProps) && _mp.roomProps.length) {
+      // interior wall box (matches the shelter inner bounds): wx+22..wx+260, wy+32..wy+400
+      _renderRoomProps(g, _mp.roomProps, { x0: wx + 22, y0: wy + 32, w: 238, h: 368 }, _activeMissionId);
+    }
   }
 
   // ═══ HULL DETAILS (on top of background) ═══
@@ -47455,11 +48592,12 @@ UnitInspector.reactor_adiabatic = {
     // [v14.9.0 S6a] Cooling info for reactor_cooled
     if (u.defId === 'reactor_cooled') {
       if (L.noCoolant) {
-        items.push({ label: 'Cooling', value: '⚠️ No coolant', tone: 'warn' });
+        items.push({ label: 'Cooling', value: '⚠️ No coolant — adiabatic', tone: 'warn' });
       } else if (L.Q_removed_W != null && L.Q_removed_W > 0) {
         items.push({ label: 'Q removed', value: fmt.kW(L.Q_removed_W) });
-        if (L.T_adiabatic != null) items.push({ label: 'T adiabatic', value: fmt.T(L.T_adiabatic) });
-        if (L.coolant_dT_est != null) items.push({ label: 'Coolant ΔT', value: `+${L.coolant_dT_est.toFixed(1)} K` });
+        if (L.coolant_in_T != null) items.push({ label: 'Coolant in', value: fmt.T(L.coolant_in_T) });
+        if (L.coolant_dT != null) items.push({ label: 'Coolant ΔT', value: `+${L.coolant_dT.toFixed(1)} K` });
+        if (L.T_out != null) items.push({ label: 'Reaction T', value: fmt.T(L.T_out) });
       }
     }
     return items;
@@ -53810,7 +54948,7 @@ DemoScenes.register('demo_room_survival', 'Ineluctable Fate — Day 0 (Room)',
 
 // [v17.12.0] Unit Showcase — every defId×profile displayed in a grid for visual QA
 DemoScenes.register('demo_showcase', 'Unit Showcase \u2014 All Ragtag Icons',
-  '{"version":19,"processName":"Unit Showcase \\u2014 All Ragtag Icons","grid":{"w":60,"h":36,"tile":48},"settings":{"atmospherePreset":"planet_x","dt":3600},"units":[{"id":"source-pure","defId":"source","profileId":"source_pure","tier":1,"name":"Source","x":0,"y":0,"rot":0,"params":{"species":"N2","nDot":1,"T":298.15,"P":200000,"phaseConstraint":"V"}},{"id":"source-mix","defId":"source","profileId":"source_mix","tier":1,"name":"Source (Mix)","x":4,"y":0,"rot":0,"params":{"n":{"N2":0.78,"O2":0.21},"T":298.15,"P":200000,"phaseConstraint":"V"}},{"id":"source-atmosphere","defId":"source_atm","profileId":"source_atmosphere","tier":1,"name":"Atm. Intake","x":8,"y":0,"rot":0,"params":{"nDot":1}},{"id":"sink","defId":"sink","profileId":"sink","tier":1,"name":"Sink","x":12,"y":0,"rot":0,"params":{}},{"id":"reservoir","defId":"reservoir","profileId":"reservoir","tier":1,"name":"Reservoir","x":16,"y":0,"rot":0,"params":{}},{"id":"atmosphere","defId":"atmosphere","profileId":"atmosphere","tier":1,"name":"Atmosphere","x":20,"y":0,"rot":0,"params":{}},{"id":"closed-loop-source","defId":"closed_loop_source","profileId":"closed_loop_source","tier":1,"name":"Loop Source","x":24,"y":0,"rot":0,"params":{}},{"id":"restriction","defId":"restriction","profileId":"restriction","tier":1,"name":"Restriction","x":28,"y":0,"rot":0,"params":{}},{"id":"bend","defId":"bend","profileId":"bend","tier":1,"name":"Pipe Bend","x":32,"y":0,"rot":0,"params":{}},{"id":"hydrovent","defId":"source","profileId":"hydrovent","tier":1,"name":"Hydrovent","x":36,"y":0,"rot":0,"params":{"n":{"H2O":0.09,"CH4":0.045,"H2":0.015},"T":450,"P":1500000,"phaseConstraint":"V"}},{"id":"grid-supply","defId":"grid_supply","profileId":"grid_supply","tier":1,"name":"Generator","x":0,"y":4,"rot":0,"params":{"maxPower":10}},{"id":"solar-panel","defId":"solar_panel","profileId":"solar_panel","tier":1,"name":"Solar Panel","x":4,"y":4,"rot":0,"params":{"peakPower_kW":10}},{"id":"wind-turbine","defId":"wind_turbine","profileId":"wind_turbine","tier":1,"name":"Wind Turbine","x":8,"y":4,"rot":0,"params":{"peakPower_kW":20,"vDesign_ms":12}},{"id":"battery","defId":"battery","profileId":"battery","tier":1,"name":"Battery","x":12,"y":4,"rot":0,"params":{"peakPower_kW":20,"capacity_J":36000000,"initialSOC":0.8}},{"id":"sink-electrical","defId":"sink_electrical","profileId":"sink_electrical","tier":1,"name":"Elec. Dump","x":16,"y":4,"rot":0,"params":{"ratedPower_kW":50,"powerPriority":3}},{"id":"power-hub","defId":"power_hub","profileId":"power_hub","tier":1,"name":"Power Hub","x":20,"y":4,"rot":0,"params":{}},{"id":"power-dispatcher-5","defId":"power_dispatcher_5","profileId":"power_dispatcher_5","tier":1,"name":"Dispatcher","x":24,"y":4,"rot":0,"params":{}},{"id":"pump","defId":"pump","profileId":"pump","tier":1,"name":"Pump","x":28,"y":4,"rot":0,"params":{"Pout":500000,"eta":0.75}},{"id":"compressor","defId":"compressor","profileId":"compressor","tier":1,"name":"Compressor","x":32,"y":4,"rot":0,"params":{"Pout":300000,"eta":0.8}},{"id":"fan","defId":"fan","profileId":"fan","tier":1,"name":"Fan","x":36,"y":4,"rot":0,"params":{"Pout":102000,"eta":0.7}},{"id":"compressor-diaphragm","defId":"compressor_diaphragm","profileId":"compressor_diaphragm","tier":1,"name":"Diaphragm Comp","x":0,"y":8,"rot":0,"params":{"Pout":500000,"eta":0.7}},{"id":"gas-turbine","defId":"gas_turbine","profileId":"gas_turbine","tier":1,"name":"Gas Turbine","x":4,"y":8,"rot":0,"params":{"Pout":101325,"eta":0.88}},{"id":"electric-heater","defId":"electric_heater","profileId":"electric_heater","tier":1,"name":"E-Heater","x":8,"y":8,"rot":0,"params":{"T_out":333.15,"powerPriority":2}},{"id":"air-cooler","defId":"air_cooler","profileId":"air_cooler","tier":1,"name":"Air Cooler","x":12,"y":8,"rot":0,"params":{"T_out":303.15,"UA_kW_K":5,"max_fan_power_W":1200,"powerPriority":3}},{"id":"hex","defId":"hex","profileId":"hex","tier":1,"name":"HEX","x":16,"y":8,"rot":0,"params":{"T_approach":10}},{"id":"valve","defId":"valve","profileId":"valve","tier":1,"name":"Valve","x":20,"y":8,"rot":0,"params":{"Pout":200000}},{"id":"mixer","defId":"mixer","profileId":"mixer","tier":1,"name":"Mixer","x":24,"y":8,"rot":0,"params":{}},{"id":"simple-mixer","defId":"simple_mixer","profileId":"simple_mixer","tier":1,"name":"Simple Mixer","x":28,"y":8,"rot":0,"params":{}},{"id":"splitter","defId":"splitter","profileId":"splitter","tier":1,"name":"Splitter","x":32,"y":8,"rot":0,"params":{"splitPct":50}},{"id":"flash-drum","defId":"flash_drum","profileId":"flash_drum","tier":1,"name":"Flash Drum","x":36,"y":8,"rot":0,"params":{}},{"id":"distillation-column","defId":"distillation_column","profileId":"distillation_column","tier":1,"name":"Distill. Column","x":0,"y":12,"rot":0,"params":{}},{"id":"membrane-kidney","defId":"membrane_separator","profileId":"membrane_kidney","tier":1,"name":"Membrane Sep.","x":4,"y":12,"rot":0,"params":{"targetSpecies":"CO2","extractionFrac":0.9}},{"id":"reactor-adiabatic","defId":"reactor_adiabatic","profileId":"reactor_adiabatic","tier":1,"name":"Adiabatic Rx","x":8,"y":12,"rot":0,"params":{"reactionId":"R_SABATIER","useKinetics":true,"volume_m3":0.5}},{"id":"combustion-chamber","defId":"reactor_adiabatic","profileId":"combustion_chamber","tier":1,"name":"Combustor","x":12,"y":12,"rot":0,"params":{"reactionId":"R_H2_COMB","useKinetics":true,"volume_m3":0.01,"heatDemand":"none","variant":"insulated"}},{"id":"reactor-jacketed","defId":"reactor_jacketed","profileId":"reactor_jacketed","tier":1,"name":"Jacketed Rx","x":16,"y":12,"rot":0,"params":{"reactionId":"R_SMR_OVERALL","useKinetics":true,"volume_m3":1,"heatDemand":"isothermal","variant":"elec-T"}},{"id":"reactor-cooled","defId":"reactor_cooled","profileId":"reactor_cooled","tier":1,"name":"Cooled Rx","x":20,"y":12,"rot":0,"params":{"reactionId":"R_SABATIER","useKinetics":true,"volume_m3":0.5}},{"id":"reactor-electrochemical","defId":"reactor_electrochemical","profileId":"reactor_electrochemical","tier":1,"name":"E-chem Rx","x":24,"y":12,"rot":0,"params":{}},{"id":"fuel-cell","defId":"fuel_cell","profileId":"fuel_cell","tier":1,"name":"Fuel Cell","x":28,"y":12,"rot":0,"params":{}},{"id":"simple-gas-bottle","defId":"simple_tank","profileId":"simple_gas_bottle","tier":1,"name":"Gas Bottle","x":32,"y":12,"rot":0,"params":{"volume_m3":0.05,"P_init":20000000,"initialComposition":{"N2":1},"gasDrawRate":0.001,"opening_gas_pct":20,"P_relief":30000000},"inventory":{"n":{"N2":200},"T_K":300}},{"id":"cooled-gas-bottle","defId":"cooled_tank","profileId":"cooled_gas_bottle","tier":1,"name":"Cooled Bottle","x":36,"y":12,"rot":0,"params":{"volume_m3":0.05,"P_init":20000000,"initialComposition":{"N2":1},"gasDrawRate":0.001,"opening_gas_pct":20,"P_relief":30000000},"inventory":{"n":{"N2":200},"T_K":300}},{"id":"tank-dev","defId":"tank","profileId":"tank_dev","tier":1,"name":"Tank","x":0,"y":16,"rot":0,"params":{"volume_m3":10,"P_init":200000,"P_relief":500000,"overflow_level":90,"opening_gas_pct":10,"Cv_gas":10,"opening_liq_pct":0,"Cv_liq":30}},{"id":"open-tank","defId":"open_tank","profileId":"open_tank","tier":1,"name":"Open Tank","x":4,"y":16,"rot":0,"params":{"volume_m3":1,"overflow_level":90,"Cv_liq":30,"opening_liq_pct":50,"initialComposition":{"H2O":1},"level_init":50}},{"id":"simple-open-tank","defId":"simple_open_tank","profileId":"simple_open_barrel","tier":1,"name":"Barrel","x":8,"y":16,"rot":0,"params":{"volume_m3":0.1,"initialComposition":{"H2O":1},"level_init":50,"drawRate":0.01,"opening_pct":25,"overflow_level":90}},{"id":"food-crate","defId":"food_storage","profileId":"food_crate","tier":1,"name":"Food Storage","x":12,"y":16,"rot":0,"params":{"volume_m3":0.1,"gasDrawRate":0.001,"opening_gas_pct":46.6,"P_init":29000000,"initialComposition":{"CH2O":1},"P_relief":30000000,"UA_jacket":50},"inventory":{"n":{"CH2O":100},"T_K":280}},{"id":"pond","defId":"reservoir","profileId":"pond","tier":1,"name":"Meltwater Pond","x":16,"y":16,"rot":0,"params":{}},{"id":"pond-drain","defId":"sink","profileId":"pond_drain","tier":1,"name":"Drain to Pond","x":20,"y":16,"rot":0,"params":{}}],"connections":[],"modelsActive":{"thermo_package":"ideal_raoult","reaction":null,"units":"SI_bar"},"solverOptions":{"maxIter":200},"layout":{"viewMode":"flowsheet","colorBy":"type","theme":"ragtag","paletteOpen":false,"inspectorOpen":false,"planetBgVisible":true}}'
+  '{"version":19,"processName":"Unit Showcase \\u2014 All Ragtag Icons","grid":{"w":60,"h":36,"tile":48},"settings":{"atmospherePreset":"planet_x","dt":3600},"units":[{"id":"source-pure","defId":"source","profileId":"source_pure","tier":1,"name":"Source","x":0,"y":0,"rot":0,"params":{"species":"N2","nDot":1,"T":298.15,"P":200000,"phaseConstraint":"V"}},{"id":"source-mix","defId":"source","profileId":"source_mix","tier":1,"name":"Source (Mix)","x":4,"y":0,"rot":0,"params":{"n":{"N2":0.78,"O2":0.21},"T":298.15,"P":200000,"phaseConstraint":"V"}},{"id":"source-atmosphere","defId":"source_atm","profileId":"source_atmosphere","tier":1,"name":"Atm. Intake","x":8,"y":0,"rot":0,"params":{"nDot":1}},{"id":"sink","defId":"sink","profileId":"sink","tier":1,"name":"Sink","x":12,"y":0,"rot":0,"params":{}},{"id":"reservoir","defId":"reservoir","profileId":"reservoir","tier":1,"name":"Reservoir","x":16,"y":0,"rot":0,"params":{}},{"id":"atmosphere","defId":"atmosphere","profileId":"atmosphere","tier":1,"name":"Atmosphere","x":20,"y":0,"rot":0,"params":{}},{"id":"closed-loop-source","defId":"closed_loop_source","profileId":"closed_loop_source","tier":1,"name":"Loop Source","x":24,"y":0,"rot":0,"params":{}},{"id":"restriction","defId":"restriction","profileId":"restriction","tier":1,"name":"Restriction","x":28,"y":0,"rot":0,"params":{}},{"id":"bend","defId":"bend","profileId":"bend","tier":1,"name":"Pipe Bend","x":32,"y":0,"rot":0,"params":{}},{"id":"hydrovent","defId":"source","profileId":"hydrovent","tier":1,"name":"Hydrovent","x":36,"y":0,"rot":0,"params":{"n":{"H2O":0.09,"H2":0.16},"T":450,"P":1500000,"phaseConstraint":"V"}},{"id":"grid-supply","defId":"grid_supply","profileId":"grid_supply","tier":1,"name":"Generator","x":0,"y":4,"rot":0,"params":{"maxPower":10}},{"id":"solar-panel","defId":"solar_panel","profileId":"solar_panel","tier":1,"name":"Solar Panel","x":4,"y":4,"rot":0,"params":{"peakPower_kW":10}},{"id":"wind-turbine","defId":"wind_turbine","profileId":"wind_turbine","tier":1,"name":"Wind Turbine","x":8,"y":4,"rot":0,"params":{"peakPower_kW":20,"vDesign_ms":12}},{"id":"battery","defId":"battery","profileId":"battery","tier":1,"name":"Battery","x":12,"y":4,"rot":0,"params":{"peakPower_kW":20,"capacity_J":36000000,"initialSOC":0.8}},{"id":"sink-electrical","defId":"sink_electrical","profileId":"sink_electrical","tier":1,"name":"Elec. Dump","x":16,"y":4,"rot":0,"params":{"ratedPower_kW":50,"powerPriority":3}},{"id":"power-hub","defId":"power_hub","profileId":"power_hub","tier":1,"name":"Power Hub","x":20,"y":4,"rot":0,"params":{}},{"id":"power-dispatcher-5","defId":"power_dispatcher_5","profileId":"power_dispatcher_5","tier":1,"name":"Dispatcher","x":24,"y":4,"rot":0,"params":{}},{"id":"pump","defId":"pump","profileId":"pump","tier":1,"name":"Pump","x":28,"y":4,"rot":0,"params":{"Pout":500000,"eta":0.75}},{"id":"compressor","defId":"compressor","profileId":"compressor","tier":1,"name":"Compressor","x":32,"y":4,"rot":0,"params":{"Pout":300000,"eta":0.8}},{"id":"fan","defId":"fan","profileId":"fan","tier":1,"name":"Fan","x":36,"y":4,"rot":0,"params":{"Pout":102000,"eta":0.7}},{"id":"compressor-diaphragm","defId":"compressor_diaphragm","profileId":"compressor_diaphragm","tier":1,"name":"Diaphragm Comp","x":0,"y":8,"rot":0,"params":{"Pout":500000,"eta":0.7}},{"id":"gas-turbine","defId":"gas_turbine","profileId":"gas_turbine","tier":1,"name":"Gas Turbine","x":4,"y":8,"rot":0,"params":{"Pout":101325,"eta":0.88}},{"id":"electric-heater","defId":"electric_heater","profileId":"electric_heater","tier":1,"name":"E-Heater","x":8,"y":8,"rot":0,"params":{"T_out":333.15,"powerPriority":2}},{"id":"air-cooler","defId":"air_cooler","profileId":"air_cooler","tier":1,"name":"Air Cooler","x":12,"y":8,"rot":0,"params":{"T_out":303.15,"UA_kW_K":5,"max_fan_power_W":1200,"powerPriority":3}},{"id":"hex","defId":"hex","profileId":"hex","tier":1,"name":"HEX","x":16,"y":8,"rot":0,"params":{"T_approach":10}},{"id":"valve","defId":"valve","profileId":"valve","tier":1,"name":"Valve","x":20,"y":8,"rot":0,"params":{"Pout":200000}},{"id":"mixer","defId":"mixer","profileId":"mixer","tier":1,"name":"Mixer","x":24,"y":8,"rot":0,"params":{}},{"id":"simple-mixer","defId":"simple_mixer","profileId":"simple_mixer","tier":1,"name":"Simple Mixer","x":28,"y":8,"rot":0,"params":{}},{"id":"splitter","defId":"splitter","profileId":"splitter","tier":1,"name":"Splitter","x":32,"y":8,"rot":0,"params":{"splitPct":50}},{"id":"flash-drum","defId":"flash_drum","profileId":"flash_drum","tier":1,"name":"Flash Drum","x":36,"y":8,"rot":0,"params":{}},{"id":"distillation-column","defId":"distillation_column","profileId":"distillation_column","tier":1,"name":"Distill. Column","x":0,"y":12,"rot":0,"params":{}},{"id":"membrane-kidney","defId":"membrane_separator","profileId":"membrane_kidney","tier":1,"name":"Membrane Sep.","x":4,"y":12,"rot":0,"params":{"targetSpecies":"CO2","extractionFrac":0.9}},{"id":"reactor-adiabatic","defId":"reactor_adiabatic","profileId":"reactor_adiabatic","tier":1,"name":"Adiabatic Rx","x":8,"y":12,"rot":0,"params":{"reactionId":"R_SABATIER","useKinetics":true,"volume_m3":0.5}},{"id":"combustion-chamber","defId":"reactor_adiabatic","profileId":"combustion_chamber","tier":1,"name":"Combustor","x":12,"y":12,"rot":0,"params":{"reactionId":"R_H2_COMB","useKinetics":true,"volume_m3":0.01,"heatDemand":"none","variant":"insulated"}},{"id":"reactor-jacketed","defId":"reactor_jacketed","profileId":"reactor_jacketed","tier":1,"name":"Jacketed Rx","x":16,"y":12,"rot":0,"params":{"reactionId":"R_SMR_OVERALL","useKinetics":true,"volume_m3":1,"heatDemand":"isothermal","variant":"elec-T"}},{"id":"reactor-cooled","defId":"reactor_cooled","profileId":"reactor_cooled","tier":1,"name":"Cooled Rx","x":20,"y":12,"rot":0,"params":{"reactionId":"R_SABATIER","useKinetics":true,"volume_m3":0.5}},{"id":"reactor-electrochemical","defId":"reactor_electrochemical","profileId":"reactor_electrochemical","tier":1,"name":"E-chem Rx","x":24,"y":12,"rot":0,"params":{}},{"id":"fuel-cell","defId":"fuel_cell","profileId":"fuel_cell","tier":1,"name":"Fuel Cell","x":28,"y":12,"rot":0,"params":{}},{"id":"simple-gas-bottle","defId":"simple_tank","profileId":"simple_gas_bottle","tier":1,"name":"Gas Bottle","x":32,"y":12,"rot":0,"params":{"volume_m3":0.05,"P_init":20000000,"initialComposition":{"N2":1},"gasDrawRate":0.001,"opening_gas_pct":20,"P_relief":30000000},"inventory":{"n":{"N2":200},"T_K":300}},{"id":"cooled-gas-bottle","defId":"cooled_tank","profileId":"cooled_gas_bottle","tier":1,"name":"Cooled Bottle","x":36,"y":12,"rot":0,"params":{"volume_m3":0.05,"P_init":20000000,"initialComposition":{"N2":1},"gasDrawRate":0.001,"opening_gas_pct":20,"P_relief":30000000},"inventory":{"n":{"N2":200},"T_K":300}},{"id":"tank-dev","defId":"tank","profileId":"tank_dev","tier":1,"name":"Tank","x":0,"y":16,"rot":0,"params":{"volume_m3":10,"P_init":200000,"P_relief":500000,"overflow_level":90,"opening_gas_pct":10,"Cv_gas":10,"opening_liq_pct":0,"Cv_liq":30}},{"id":"open-tank","defId":"open_tank","profileId":"open_tank","tier":1,"name":"Open Tank","x":4,"y":16,"rot":0,"params":{"volume_m3":1,"overflow_level":90,"Cv_liq":30,"opening_liq_pct":50,"initialComposition":{"H2O":1},"level_init":50}},{"id":"simple-open-tank","defId":"simple_open_tank","profileId":"simple_open_barrel","tier":1,"name":"Barrel","x":8,"y":16,"rot":0,"params":{"volume_m3":0.1,"initialComposition":{"H2O":1},"level_init":50,"drawRate":0.01,"opening_pct":25,"overflow_level":90}},{"id":"food-crate","defId":"food_storage","profileId":"food_crate","tier":1,"name":"Food Storage","x":12,"y":16,"rot":0,"params":{"volume_m3":0.1,"gasDrawRate":0.001,"opening_gas_pct":46.6,"P_init":29000000,"initialComposition":{"CH2O":1},"P_relief":30000000,"UA_jacket":50},"inventory":{"n":{"CH2O":100},"T_K":280}},{"id":"pond","defId":"reservoir","profileId":"pond","tier":1,"name":"Meltwater Pond","x":16,"y":16,"rot":0,"params":{}},{"id":"pond-drain","defId":"sink","profileId":"pond_drain","tier":1,"name":"Drain to Pond","x":20,"y":16,"rot":0,"params":{}}],"connections":[],"modelsActive":{"thermo_package":"ideal_raoult","reaction":null,"units":"SI_bar"},"solverOptions":{"maxIter":200},"layout":{"viewMode":"flowsheet","colorBy":"type","theme":"ragtag","paletteOpen":false,"inspectorOpen":false,"planetBgVisible":true}}'
 );
 
 // [v20.9.1] CO₂ Water Wash — 4-stage Henry's law absorption at 20 bar
@@ -54637,6 +55775,46 @@ const TriggerEngine = {
         const frac = (inv[cond.species] || 0) / total;
         return cond.direction === 'above' ? frac > (cond.threshold || 0)
                                           : frac < (cond.threshold || 0);
+      }
+
+      // [v20.9.14] Port T/P conditions — staged-build pressure/temperature gates.
+      // Mirrors the port_conditions objective evaluator (boolean form). Guards:
+      // an absent/zero-flow port reads T=0 / P=0 for _gte (fails) and
+      // T=∞ / P=∞ for _lte (fails) — an empty port satisfies no bound.
+      case 'port_conditions': {
+        const u = _resolveTargetUnit(scene, cond.targetProfile || cond.profileId ? { ...cond, targetProfile: cond.targetProfile || cond.profileId } : cond);
+        if (!u) return false;
+        const ud = scene.runtime?.unitData?.get(u.id) || {};
+        const stream = ud.ports?.[cond.portId];
+        if (!stream) return false;
+        if (cond.T_gte != null && !((stream.T || 0) >= cond.T_gte)) return false;
+        if (cond.T_lte != null && !((stream.T || Infinity) <= cond.T_lte)) return false;
+        if (cond.P_gte != null && !((stream.P || 0) >= cond.P_gte)) return false;
+        if (cond.P_lte != null && !((stream.P || Infinity) <= cond.P_lte)) return false;
+        return true;
+      }
+
+      // [v20.9.11] Port-stream mole fraction — staged-build test-flare gates.
+      // Reads a live port stream (not inventory). speciesAny[] summed; minFrac/maxFrac.
+      case 'stream_fraction': {
+        const u = _resolveTargetUnit(scene, cond.targetProfile || cond.profileId ? { ...cond, targetProfile: cond.targetProfile || cond.profileId } : cond);
+        if (!u) return false;
+        const ud = scene.runtime?.unitData?.get(u.id) || {};
+        const stream = ud.ports?.[cond.portId];
+        const species = cond.speciesAny || (cond.species ? [cond.species] : []);
+        let total = 0, num = 0;
+        if (stream?.n) {
+          for (const [sp, v] of Object.entries(stream.n)) {
+            const x = (+v) || 0;
+            total += x;
+            if (species.includes(sp)) num += x;
+          }
+        }
+        if (total < 1e-9) return false;
+        const frac = num / total;
+        if (cond.minFrac != null && frac < cond.minFrac) return false;
+        if (cond.maxFrac != null && frac > cond.maxFrac) return false;
+        return true;
       }
 
       // [v20.9.0] Unit operational status check
@@ -66715,11 +67893,11 @@ function runTests() {
     t.solve();
     const L = t.last(rx);
     t.assertOK(L.status === 'active', 'Reactor active');
-    // With cooling, T_out should be LOWER than adiabatic T
-    t.assertOK(L.T_adiabatic != null, 'T_adiabatic reported');
+    // [v20.9.10] Cooling folded into reaction-T balance — emerges, no setpoint
+    t.assertOK(L.coolMode === 'cooled', 'coolMode = cooled', L.coolMode);
     t.assertOK(L.Q_removed_W > 0, 'Heat removed > 0', `Q=${L.Q_removed_W?.toFixed(0)} W`);
     // Coolant should warm up
-    t.assertOK(L.coolant_dT_est > 0, 'Coolant warmed', `ΔT=${L.coolant_dT_est?.toFixed(1)} K`);
+    t.assertOK(L.coolant_dT > 0, 'Coolant warmed', `ΔT=${L.coolant_dT?.toFixed(1)} K`);
   });
 
   test('501: S6a — reactor_cooled no coolant → adiabatic fallback + INFO', t => {
@@ -66898,6 +68076,209 @@ function runTests() {
     t.wire(rx2, 'mat_out', snk2, 'mat_in');
     t.solve();
     t.assertOK(t.last(rx2).T_out < 800, 'Endo: T_out < T_in', `T=${t.last(rx2).T_out?.toFixed(0)}`);
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // [v20.9.10] COOLED REACTOR — coupled reaction + jacket cooling (acts on reaction T)
+  // Cooling is folded into the temperature balance: H_out(T*) + Q_cool(T*) = H_in.
+  // No setpoint/demand — T* emerges from the coolant rate (WYSIWYG knob).
+  // ═══════════════════════════════════════════════════════════════════════
+
+  test('560: cooled — coolant flow lowers reaction T (monotonic knob), cooled < adiabatic', t => {
+    const feed = { n: { CO2: 0.025, H2: 0.10 }, T: 450, P: 400000, phaseConstraint: 'V' };
+    const rp = { reactionId: 'R_SABATIER', useKinetics: true, volume_m3: 0.5, heatDemand: 'none', UA: 800 };
+    function Tstar(coolDot) {
+      t.clearScene();
+      const s = t.place('source', 0, 0, feed);
+      const rx = t.place('reactor_cooled', 4, 0, rp);
+      const snk = t.place('sink', 8, 0);
+      if (coolDot > 0) {
+        const cs = t.place('source', 0, 4, { n: { H2O: coolDot }, T: 290, P: 200000, phaseConstraint: 'L' });
+        const csnk = t.place('sink', 8, 4);
+        t.wire(cs, 'mat_out', rx, 'cool_in');
+        t.wire(rx, 'cool_out', csnk, 'mat_in');
+      }
+      t.wire(s, 'mat_out', rx, 'mat_in');
+      t.wire(rx, 'mat_out', snk, 'mat_in');
+      t.solve();
+      return t.last(rx).T_out;
+    }
+    const T_adi = Tstar(0);    // no coolant → adiabatic
+    const T_lo  = Tstar(1);
+    const T_mid = Tstar(4);
+    const T_hi  = Tstar(20);
+    t.assertOK(T_lo < T_adi, 'light cooling below adiabatic', `${T_lo?.toFixed(0)} < ${T_adi?.toFixed(0)}`);
+    t.assertOK(T_mid < T_lo, 'more coolant → cooler', `${T_mid?.toFixed(0)} < ${T_lo?.toFixed(0)}`);
+    t.assertOK(T_hi < T_mid, 'still more coolant → cooler still', `${T_hi?.toFixed(0)} < ${T_mid?.toFixed(0)}`);
+  });
+
+  test('561: cooled — near-isothermal at high coolant: high CO₂ conversion', t => {
+    t.clearScene();
+    const s = t.place('source', 0, 0, { n: { CO2: 0.025, H2: 0.10 }, T: 450, P: 400000, phaseConstraint: 'V' });
+    const rx = t.place('reactor_cooled', 4, 0, { reactionId: 'R_SABATIER', useKinetics: true, volume_m3: 2.0, heatDemand: 'none', UA: 3000 });
+    const cs = t.place('source', 0, 4, { n: { H2O: 40 }, T: 440, P: 400000, phaseConstraint: 'L' });
+    const snk = t.place('sink', 8, 0); const csnk = t.place('sink', 8, 4);
+    t.wire(s, 'mat_out', rx, 'mat_in'); t.wire(rx, 'mat_out', snk, 'mat_in');
+    t.wire(cs, 'mat_out', rx, 'cool_in'); t.wire(rx, 'cool_out', csnk, 'mat_in');
+    t.solve();
+    const L = t.last(rx);
+    t.assertOK(L.coolMode === 'cooled', 'cooled mode', L.coolMode);
+    t.assertOK(L.T_out < 700, 'reaction held well below adiabatic', `T=${L.T_out?.toFixed(0)}`);
+    t.assertOK(L.conversion_pct > 80, 'high CO₂ conversion in product window', `conv=${L.conversion_pct?.toFixed(0)}%`);
+  });
+
+  test('562: cooled — cooling lifts conversion vs adiabatic (the point of the unit)', t => {
+    const feed = { n: { CO2: 0.025, H2: 0.10 }, T: 450, P: 400000, phaseConstraint: 'V' };
+    // Adiabatic baseline (no coolant)
+    t.clearScene();
+    const sa = t.place('source', 0, 0, feed);
+    const ra = t.place('reactor_adiabatic', 4, 0, { reactionId: 'R_SABATIER', useKinetics: true, volume_m3: 0.5, heatDemand: 'none' });
+    const na = t.place('sink', 8, 0);
+    t.wire(sa, 'mat_out', ra, 'mat_in'); t.wire(ra, 'mat_out', na, 'mat_in');
+    t.solve();
+    const adi = t.last(ra);
+    // Cooled, same feed/volume
+    t.clearScene();
+    const s = t.place('source', 0, 0, feed);
+    const rx = t.place('reactor_cooled', 4, 0, { reactionId: 'R_SABATIER', useKinetics: true, volume_m3: 0.5, heatDemand: 'none', UA: 1500 });
+    const cs = t.place('source', 0, 4, { n: { H2O: 10 }, T: 290, P: 200000, phaseConstraint: 'L' });
+    const snk = t.place('sink', 8, 0); const csnk = t.place('sink', 8, 4);
+    t.wire(s, 'mat_out', rx, 'mat_in'); t.wire(rx, 'mat_out', snk, 'mat_in');
+    t.wire(cs, 'mat_out', rx, 'cool_in'); t.wire(rx, 'cool_out', csnk, 'mat_in');
+    t.solve();
+    const cool = t.last(rx);
+    t.assertOK(cool.T_out < adi.T_out, 'cooled reaction T below adiabatic', `${cool.T_out?.toFixed(0)} < ${adi.T_out?.toFixed(0)}`);
+    t.assertOK(cool.conversion_pct > adi.conversion_pct + 10, 'cooling lifts conversion materially',
+      `cooled ${cool.conversion_pct?.toFixed(0)}% vs adi ${adi.conversion_pct?.toFixed(0)}%`);
+  });
+
+  test('563: cooled — NNG-1 energy conservation across reaction + jacket', t => {
+    t.clearScene();
+    const s = t.place('source', 0, 0, { n: { CO2: 0.025, H2: 0.10 }, T: 450, P: 400000, phaseConstraint: 'V' });
+    const rx = t.place('reactor_cooled', 4, 0, { reactionId: 'R_SABATIER', useKinetics: true, volume_m3: 0.5, heatDemand: 'none', UA: 800 });
+    const cs = t.place('source', 0, 4, { n: { H2O: 5 }, T: 290, P: 200000, phaseConstraint: 'L' });
+    const snk = t.place('sink', 8, 0); const csnk = t.place('sink', 8, 4);
+    t.wire(s, 'mat_out', rx, 'mat_in'); t.wire(rx, 'mat_out', snk, 'mat_in');
+    t.wire(cs, 'mat_out', rx, 'cool_in'); t.wire(rx, 'cool_out', csnk, 'mat_in');
+    t.solve();
+    const ud = scene.runtime.unitData.get(rx);
+    const Hin = thermo.getHdot_Jps(ud.ports.mat_in) + thermo.getHdot_Jps(ud.ports.cool_in);
+    const Hout = thermo.getHdot_Jps(ud.ports.mat_out) + thermo.getHdot_Jps(ud.ports.cool_out);
+    t.assertClose(Math.abs(Hin - Hout), 0, 100, 'energy residual < 100W');
+  });
+
+  test('564: cooled — coolant nature (Cp) sets duty/T (NNG-3 WYSIWYG)', t => {
+    function run(species, phase) {
+      t.clearScene();
+      const s = t.place('source', 0, 0, { n: { CO2: 0.025, H2: 0.10 }, T: 450, P: 400000, phaseConstraint: 'V' });
+      const rx = t.place('reactor_cooled', 4, 0, { reactionId: 'R_SABATIER', useKinetics: true, volume_m3: 0.5, heatDemand: 'none', UA: 400 });
+      const cs = t.place('source', 0, 4, { n: { [species]: 1 }, T: 290, P: 200000, phaseConstraint: phase });
+      const snk = t.place('sink', 8, 0); const csnk = t.place('sink', 8, 4);
+      t.wire(s, 'mat_out', rx, 'mat_in'); t.wire(rx, 'mat_out', snk, 'mat_in');
+      t.wire(cs, 'mat_out', rx, 'cool_in'); t.wire(rx, 'cool_out', csnk, 'mat_in');
+      t.solve();
+      return t.last(rx);
+    }
+    const water = run('H2O', 'L');   // high-Cp coolant (flow-limited at 1 mol/s)
+    const argon = run('Ar', 'V');    // low-Cp monatomic coolant
+    t.assertOK(water.T_out < argon.T_out, 'higher-Cp coolant → lower reaction T',
+      `H2O T=${water.T_out?.toFixed(0)} vs Ar T=${argon.T_out?.toFixed(0)}`);
+  });
+
+  test('565: stream_fraction — minFrac pass/fail on a known port composition', t => {
+    t.clearScene();
+    const src = t.place('source', 0, 0, { n: { CH4: 0.6, H2: 0.3, CO2: 0.1 }, T: 300, P: 800000, phaseConstraint: 'V' });
+    const snk = t.place('sink', 6, 0);
+    t.wire(src, 'mat_out', snk, 'mat_in');
+    t.solve();
+    scene.units.get(src).profileId = 'source_mix';
+    const at = (p) => ObjectiveEvaluators.stream_fraction(
+      Object.assign({ targetProfile: 'source_mix', portId: 'mat_out' }, p), scene);
+    t.assertOK(at({ speciesAny: ['CH4'], minFrac: 0.60 }).met, 'CH4 0.60 ≥ 0.60 passes');
+    t.assertOK(!at({ speciesAny: ['CH4'], minFrac: 0.61 }).met, 'CH4 0.60 < 0.61 fails');
+    t.assertOK(at({ speciesAny: ['CH4', 'H2'], minFrac: 0.90 }).met, 'combustible 0.90 ≥ 0.90 passes');
+    t.assertOK(!at({ speciesAny: ['CH4', 'H2'], minFrac: 0.91 }).met, 'combustible 0.90 < 0.91 fails');
+  });
+
+  test('566: stream_fraction — maxFrac and the no-flow guard (NNG-3)', t => {
+    t.clearScene();
+    const src = t.place('source', 0, 0, { n: { N2: 0.94, CO2: 0.06 }, T: 300, P: 800000, phaseConstraint: 'V' });
+    const snk = t.place('sink', 6, 0);
+    t.wire(src, 'mat_out', snk, 'mat_in');
+    t.solve();
+    scene.units.get(src).profileId = 'source_mix';
+    const at = (p) => ObjectiveEvaluators.stream_fraction(
+      Object.assign({ targetProfile: 'source_mix', portId: 'mat_out' }, p), scene);
+    t.assertOK(at({ speciesAny: ['CO2'], maxFrac: 0.07 }).met, 'CO2 0.06 ≤ 0.07 passes');
+    t.assertOK(!at({ speciesAny: ['CO2'], maxFrac: 0.05 }).met, 'CO2 0.06 > 0.05 fails');
+    // unconnected / zero-flow port must NOT satisfy a maxFrac ceiling by being empty
+    const empty = ObjectiveEvaluators.stream_fraction(
+      { targetProfile: 'source_mix', portId: 'no_such_port', speciesAny: ['CO2'], maxFrac: 0.07 }, scene);
+    t.assertOK(!empty.met, 'no-flow port fails maxFrac (no phantom purity)');
+  });
+
+  test('567: reactor_cooled — placement default volume 0.7 m³ (Arc A finale sizing)', t => {
+    const prof = ProfileRegistry.get('reactor_cooled');
+    t.assertOK(prof.defaults && prof.defaults[1], 'reactor_cooled has tier-1 defaults');
+    t.assertClose(prof.defaults[1].volume_m3, 0.7, 0.0001, 'default volume_m3 = 0.7');
+  });
+
+  test('568: Trigger condition — port_conditions (staged-build P/T gate)', t => {
+    t.clearScene();
+    const src = t.place('source', 0, 0, { n: { N2: 1.0 }, T: 420, P: 270000, phaseConstraint: 'V' });
+    const snk = t.place('sink', 6, 0);
+    t.wire(src, 'mat_out', snk, 'mat_in');
+    t.solve();
+    scene.units.get(src).profileId = 'source_mix';
+    const chk = (c) => TriggerEngine._checkCondition(Object.assign({ type: 'port_conditions', targetProfile: 'source_mix', portId: 'mat_out' }, c), scene, {});
+    t.assertOK(chk({ P_gte: 250000 }), 'P 2.7 bar ≥ 2.5 bar passes');
+    t.assertOK(!chk({ P_gte: 750000 }), 'P 2.7 bar ≥ 7.5 bar fails');
+    t.assertOK(chk({ T_gte: 400 }), 'T 420 K ≥ 400 K passes');
+    t.assertOK(chk({ P_gte: 250000, T_gte: 400 }), 'combined P&T both pass');
+    t.assertOK(!chk({ P_gte: 250000, T_lte: 300 }), 'one bound failing fails the whole');
+    t.assertOK(!chk({ portId: 'no_such_port', P_gte: 1 }), 'absent port satisfies no bound');
+  });
+
+  test('569: _resolveTargetUnit — id, topology, and profile fallback', t => {
+    t.clearScene();
+    // Two same-profile separators; only one feeds a flare.
+    const src = t.place('source', 0, 0, { n: { CO2: 0.5, N2: 0.5 }, T: 300, P: 800000, phaseConstraint: 'V' });
+    const sepA = t.place('flash_drum', 8, 0);
+    const sepB = t.place('flash_drum', 16, 0);
+    const flare = t.place('flare_stack', 24, 0);
+    const sinkA = t.place('sink', 8, 8);
+    t.wire(src, 'mat_out', sepA, 'mat_in');
+    t.wire(sepA, 'vap_out', sepB, 'mat_in');
+    t.wire(sepA, 'liq_out', sinkA, 'mat_in');
+    t.wire(sepB, 'vap_out', flare, 'mat_in_1');
+    t.solve();
+    // 1. by exact id
+    const byId = _resolveTargetUnit(scene, { targetUnitId: sepB });
+    t.assertOK(byId && byId.id === sepB, 'targetUnitId resolves the exact unit');
+    // 2. by topology — the flash_drum whose vap_out feeds the flare = sepB
+    const byTopo = _resolveTargetUnit(scene, { targetProfile: 'flash_drum',
+      viaConnectionTo: { toProfile: 'flare_stack', fromPort: 'vap_out' } });
+    t.assertOK(byTopo && byTopo.id === sepB, 'viaConnectionTo picks the flare-fed separator (not the first)');
+    // 3. fallback — first flash_drum by profile = sepA
+    const byProfile = _resolveTargetUnit(scene, { targetProfile: 'flash_drum' });
+    t.assertOK(byProfile && byProfile.id === sepA, 'profile fallback returns first-placed');
+    // 4. no match
+    t.assertOK(_resolveTargetUnit(scene, { targetUnitId: 'nope' }) === null, 'unknown id → null');
+    t.assertOK(_resolveTargetUnit(scene, { targetProfile: 'flash_drum',
+      viaConnectionTo: { toProfile: 'tank', fromPort: 'vap_out' } }) === null, 'no topo match → null');
+  });
+
+  test('570: roomProps wired into M8/M9 + plan SVGs available', t => {
+    const m8 = MissionRegistry.get('arc_a_m8');
+    const m9 = MissionRegistry.get('arc_a_m9');
+    t.assertOK(Array.isArray(m8.roomProps) && m8.roomProps.length === 1, 'M8 has one wall prop');
+    t.assertOK(m8.roomProps[0].type === 'wall_plan', 'M8 prop is a wall_plan');
+    t.assertOK(m8.roomProps[0].onClick.plan === 'm8', 'M8 prop points at the m8 plan');
+    t.assertOK(m9.roomProps[0].onClick.plan === 'm9', 'M9 prop points at the m9 plan');
+    t.assertOK(typeof _PLAN_SVGS.m8 === 'string' && _PLAN_SVGS.m8.indexOf('<svg') === 0, 'm8 plan svg present');
+    t.assertOK(typeof _PLAN_SVGS.m9 === 'string' && _PLAN_SVGS.m9.indexOf('<svg') === 0, 'm9 plan svg present');
+    // position is interior-fraction (0..1) — repositionable
+    t.assertOK(m8.roomProps[0].x >= 0 && m8.roomProps[0].x <= 1, 'prop x is an interior fraction');
   });
 
   test('508: S6a — jacketed isothermal with sufficient power: T_out ≈ T_in', t => {
@@ -74248,17 +75629,19 @@ function runTests() {
     t.assertOK(c.reactionPool.includes('R_METABOLISM'), 'R_METABOLISM in pool');
   });
 
-  test('749: Arc A registered with 6 missions', t => {
+  test('749: Arc A registered with 9 missions', t => {
     t.assertOK(ArcRegistry.exists('arc_a'), 'arc_a exists');
     const a = ArcRegistry.get('arc_a');
     t.assertOK(a.title === 'Survival', 'title');
-    t.assertOK(a.missions.length === 7, '7 missions');
+    t.assertOK(a.missions.length === 9, '9 missions');
     t.assertOK(a.missions[0] === 'arc_a_m1', 'M1 first');
     t.assertOK(a.missions[2] === 'arc_a_m3', 'M3 third');
     t.assertOK(a.missions[3] === 'arc_a_m4', 'M4 fourth');
     t.assertOK(a.missions[4] === 'arc_a_m5', 'M5 fifth');
     t.assertOK(a.missions[5] === 'arc_a_m6', 'M6 sixth');
     t.assertOK(a.missions[6] === 'arc_a_m7', 'M7 seventh');
+    t.assertOK(a.missions[7] === 'arc_a_m8', 'M8 eighth');
+    t.assertOK(a.missions[8] === 'arc_a_m9', 'M9 ninth');
     t.assertOK(a.intro.length === 6, 'arc intro has 6 beats');
   });
 
@@ -74368,10 +75751,22 @@ function runTests() {
     t.assertOK(next6.type === 'mission', 'advance to M7');
     t.assertOK(cs.currentMissionId === 'arc_a_m7', 'now at M7');
 
-    // Complete M7 — should complete the arc
+    // Complete M7 — should advance to M8
     cs.completeMission('arc_a_m7', 1, '{"m7":"done"}');
     const next7 = cs.advanceToNext();
-    t.assertOK(next7.type === 'campaign_complete', 'campaign complete after M7');
+    t.assertOK(next7.type === 'mission', 'advance to M8');
+    t.assertOK(cs.currentMissionId === 'arc_a_m8', 'now at M8');
+
+    // Complete M8 — should advance to M9
+    cs.completeMission('arc_a_m8', 1, '{"m8":"done"}');
+    const next8 = cs.advanceToNext();
+    t.assertOK(next8.type === 'mission', 'advance to M9');
+    t.assertOK(cs.currentMissionId === 'arc_a_m9', 'now at M9');
+
+    // Complete M9 — should complete the arc
+    cs.completeMission('arc_a_m9', 1, '{"m9":"done"}');
+    const next9 = cs.advanceToNext();
+    t.assertOK(next9.type === 'campaign_complete', 'campaign complete after M9');
     t.assertOK(cs.arcCompleted.has('arc_a'), 'arc_a completed');
   });
 
@@ -75299,13 +76694,13 @@ function runTests() {
     t.assertClose(prof.defaults.conversion_max, 1.0, 0.001, 'profile default conversion_max = 1.0');
   });
 
-  test('790: M4 hydrovent rates halved (50% choke)', t => {
+  test('790: M4 hydrovent composition (CH₄→0, H₂ glut for finale)', t => {
     const m3 = MissionRegistry.get('arc_a_m3');
     const hv = m3.preplacedUnits.find(u => u.profileId === 'hydrovent');
     t.assertOK(hv, 'hydrovent preplaced in M3');
     t.assertClose(hv.params.n.H2O, 0.09, 0.001, 'H2O rate = 0.09 mol/s');
-    t.assertClose(hv.params.n.CH4, 0.045, 0.001, 'CH4 rate = 0.045 mol/s');
-    t.assertClose(hv.params.n.H2, 0.015, 0.001, 'H2 rate = 0.015 mol/s');
+    t.assertClose(hv.params.n.H2, 0.16, 0.001, 'H2 rate = 0.16 mol/s');
+    t.assertOK(!hv.params.n.CH4, 'no CH₄ in vent gas (would pre-make the rover fuel)');
   });
 
   test('791: Connection lock — _isLockedConnection', t => {
