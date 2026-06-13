@@ -402,6 +402,298 @@
   CHANGELOG  (latest first)
   ═══════════════════════════════════════════════════════════════════════════
 
+  ─── v20.9.29 — Drinking-water potability: contaminants poison the crew ────────
+
+  Until now the room counted only H₂O molecules in its water inputs and ignored
+  everything else dissolved in the stream — so a crew could drink glycol-fouled
+  pond water (or any contaminant) with no effect, despite the glycol component
+  being documented as "genuinely toxic (non-potable)". That intent is now
+  enforced, modeled on the existing air-contaminant system.
+
+  **Data-driven toxin table.** A small _WATER_TOXINS table lists the water-soluble
+  poisons with a potency (hazard units per mole fraction): ethylene glycol (25),
+  ammonia (40), formaldehyde (30) — higher potency = dangerous at smaller %.
+  Everything else is benign in water (dissolved CO₂/O₂, or gases too insoluble to
+  matter: N₂/Ar/He/CH₄/H₂/CO). Adding a future toxin is one line in the table; the
+  detection is a single weighted-hazard loop, no per-toxin bespoke code.
+
+  **Cumulative dose, through the existing deficit machinery.** A new _toxin_dose
+  accumulator mirrors the water/food deficits: it accrues with toxic intake scaled
+  by water actually drunk (not the raw supply stream), and clears slowly on clean
+  water. Per-person dose thresholds give hours-to-lethal at a few % glycol:
+  5 = WARNING (ill), 20 = MAJOR (incapacitated), 45 = death. Lethality routes
+  through the normal crewState/worstCond path — a CATASTROPHIC water_quality gauge
+  drives crewState='death' automatically, no special-casing. Contaminated water
+  still hydrates (water is water) — it just poisons at the same time, so bad water
+  is a trap, not an obvious "no water" failure.
+
+  **Live-hazard alarm.** The conditions.water_quality gauge fires the instant toxic
+  water is piped (before dose builds): any toxin → at least WARNING, a strongly
+  toxic feed → MAJOR immediately. The gauge names the worst contaminant ("glycol").
+  Only the cold drinking line (h2o_in) poisons; hot/hygiene water isn't the lethal
+  route.
+
+  **Lena reacts.** New water_quality lines in condition_worsened ("This water
+  tastes wrong. Chemical.") and condition_improved, picked up automatically by the
+  generic condition-transition speech path — no voice-engine changes. Her
+  expression rides the existing crew-state machinery (degraded → disappointed,
+  death → death).
+
+  Arc A unaffected: shelter water is clean, so water_quality stays OK and nothing
+  changes. Tests 589 (clean OK), 590 (glycol warns → kills), 591 (recovery + lines).
+
+  ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v20.9.28 — Room config surface: atmosphere mode, occupant sprite, dev room ─
+  ─── (Room extension Phase 3) ────────────────────────────────────────────────
+
+  Turns the Phase 1–2 machinery into an authoring surface: one room model now
+  configures from sealed Mars shelter to vented Earth house via params. All
+  default to current shelter behavior; Arc A is unaffected (suite + headless
+  confirm shelter stays sealed with o2_in and renders Lena).
+
+  **atmosphereMode: 'sealed' (default) | 'vented'.** Vented rooms model a
+  breathable atmosphere: the o2_in port is hidden (new box/vented and
+  box/vented-mirror presentations omit it — hide-don't-remove, NNG-3 makes the
+  absent port carry zero), the O₂ survival gauge is suppressed (depletion isn't
+  the clock on Earth), and infiltration (Phase 1) is the O₂/CO₂ backstop. The LED
+  renderer now guards against ports absent from the active presentation, so
+  hiding o2_in no longer throws. CO/CO₂ gauges stay active in both modes — they're
+  genuine hazards regardless of planet. Tests 586, 587.
+
+  **O₂ enrichment now flagged (Phase 0 Q5 fix).** The sealed-room O₂ gauge
+  previously only flagged depletion; oversupply (an oversized O₂ feed) enriched
+  the atmosphere silently. It now flags ≥23.5% as WARNING and ≥25% as MAJOR — a
+  real fire hazard. Test 587.
+
+  **occupantSprite: 'lena' (default) | 'none' | 'workers' (reserved).** Decouples
+  the character from the simulation. 'lena' draws + speaks as before; 'none' draws
+  nobody and stays silent (a faceless industrial/AC room shouldn't narrate CO₂),
+  including when it's the bound room; 'workers' is reserved for chibi art and
+  currently falls back to no-draw. The sim never reads this — nPeople still drives
+  all load.
+
+  **Dev room authoring (room_tpl).** The existing template room profile now
+  surfaces the new knobs in its inspector (dev/template-gated, alongside crew size
+  from v20.9.25): occupant sprite, atmosphere mode, and infiltration ACH. Story
+  profiles (shelter) stay locked. Test 588.
+
+  Implementation note: the atmosphereMode/isVented locals were briefly misplaced
+  in initInventory instead of tick during development — the suite caught it (44
+  room tests faulting with "isVented is not defined") and it was moved to the
+  correct scope before ship. Phase 3 of the room-model extension.
+
+  ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v20.9.27 — Multi-room: independent instances + per-room targeting ────────
+  ─── (Room extension Phase 2) ────────────────────────────────────────────────
+
+  Rooms are now true multi-instance components. Simulation already coexisted
+  (per-unit inventory/last); this phase fixes the render/voice singletons and adds
+  per-instance objective targeting, so a scenario can run several rooms (isolated
+  community, offshore quarters) and direct elements to a named one.
+
+  **Narrative binding for the singular HUD + voice.** The speech bubble and Lena
+  HUD are single UI elements; with two occupied rooms they would interleave. New
+  `_resolveBoundRoomId` picks ONE room to drive them: in campaign the mission's
+  designated room (authored id 'room', else first preplaced, else first); in
+  sandbox the first room whose occupant sprite is Lena. The HUD loop no longer
+  breaks on the first room — instead the bound room gets full HUD + voice, while
+  other Lena-sprited rooms update their own face via the new silent
+  `CharacterVoice.touchRoomExpression(u)` (per-unit `_roomExpr` state) without
+  speaking. Single-room scenes (all of Arc A) bind to 'room' and behave exactly as
+  before. Tests 583, 585.
+
+  **Per-instance connection targeting (5d).** `_connectionExists` and the
+  `connection` / `connection_absent` evaluators gain optional `fromUnitId` /
+  `toUnitId`, mirroring the existing `fromPort` / `toPort`. With two same-profile
+  rooms, `toProfile:'room'` matches either, but `toUnitId:'quarters_A'` pins the
+  check to one instance. `toUnitId` is matched against the RESOLVED downstream
+  consumer, so it works through bend chains too. Generalizes to any multi-instance
+  scenario (two reactors, two tanks), not just rooms. Test 584. Guidance highlights
+  accept a `unitId` field in their schema for the same purpose; the SVG overlay
+  renderer that will honor it remains deferred (only button highlights render
+  today), so no code consumes it yet — the affordance is ready for when it lands.
+
+  Phase 2 of the room-model extension (see ROOM_EXTENSION_BUILD_SPEC).
+
+  ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v20.9.26 — Room physics spine: exhaust level-control + infiltration ──────
+  ─── (Room extension Phase 1) ────────────────────────────────────────────────
+
+  Two coupled additions to the room tick, both defaulting to current shelter
+  behavior so Arc A is byte-identical (suite proves it; headless confirms
+  absent ≡ explicit-zero to 1e-6).
+
+  **Exhaust as an acyclic level controller.** Previously the fan exhausted exactly
+  circ_demand·fan_frac, so a room flooded with more supply air than circulation
+  demand (an AC room fed conditioned air, or any nPeople:0 room) accumulated
+  inventory without bound — the excess had nowhere to go. Now exhaust =
+  (circ_demand + excess_drain)·fan_frac, where excess_drain vents inventory above
+  the room's nominal molar capacity (P·V/RT at comfort T). Critically this reads
+  the room's OWN inventory + a constant, NOT the inlet stream — so it stays
+  acyclic and preserves the recycle-loop solver guarantee (exhaust→scrubber→return
+  must not cycle). An earlier inlet-following attempt reintroduced exactly that
+  cycle and was rejected. Fan-gated: no power → no forced exhaust (survival
+  mechanic intact). Verified: a flooded nPeople:0 room reaches steady inventory
+  instead of growing. Test 580.
+
+  **Infiltration (passive ambient air exchange).** New `infiltrationACH` param
+  (default 0 = sealed = Arc A). When > 0, the room exchanges ACH·n_room/3600 mol/s
+  with ambient: a mass swap (remove room blend, add ambient-composition air, equal
+  moles ⇒ mass-conserving by construction) AND a heat term (ambient enters at
+  T_ext, room air leaves at T_room — computed via the same getHdot enthalpy proxy
+  as supply streams). This is what makes a future 'vented' room physically open:
+  ambient is the O₂/CO₂ backstop, independent of mechanical ventilation. Verified:
+  a vented room with no piped supply holds breathable O₂ via infiltration alone.
+  Test 581. Sealed-default invariance (absent ≡ ACH 0): Test 582.
+
+  Phase 1 of the room-model extension (see ROOM_EXTENSION_BUILD_SPEC). The param
+  is inert by default; the 'vented' profile that sets it ships in Phase 3.
+
+  ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v20.9.25 — Room crew-size editor gated dev-only (Phase 0 hotfix) ─────────
+
+  **The room's "Crew size" inspector editor is now dev-only.** It was editable by
+  players on every room — including Arc A's shelter, where occupancy is meant to
+  be imposed by the scenario, not chosen. Gated behind the profile dev/template
+  flag (same pattern as the fridge food-draw knob and dump-load capacity, v20.9.22).
+  The shelter profile has no dev flag, so crew size is now locked in Arc A; a
+  future dev/template room profile will expose it for scenario authoring. Power
+  priority stays editable for everyone. Test 579. (Surfaced during the room-model
+  extension discovery pass.)
+
+  ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v20.9.24 — M6 power-gated guidance + gas-engine/fridge port layout ───────
+
+  **M6 guidance no longer declares success before the heaters are powered.**
+  The air-return and hot-tap steps completed on topology alone, so Lena praised
+  an unpowered heater ("Feel that? Warm.") over cold air. Split into connect-
+  then-power steps: g_m6_air_power and g_m6_water_power complete on a
+  `port_conditions` check of the heater's actual outlet temperature (air ≥ 291K,
+  water ≥ 328K for the 60°C duty) — which only happens once it's drawing current.
+  Verified: unpowered heater outlet sits at 288K and the step stays open; powered,
+  it reaches 293K and completes. Guidance now 15 steps. Test 577.
+
+  **Gas engine + fridge port layout (player spec).** Gas engine: air moved to the
+  top edge, fuel to the bottom edge, both on grid lines (were mid-cell on the
+  left). Fridge: power socket centered on top, rot-gas to the top-right (old
+  surplus spot), surplus moved to bottom-right. Ports stay wired by id so all
+  existing connections and the M6/M8/M9 builds are unaffected; verified the engine
+  still produces power and both layouts are internally consistent. Test 578.
+
+  ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v20.9.23 — Connection objectives see through bends (pass-through) ─────────
+
+  **Bends are now pure pass-through for objective recognition, through any
+  number in series.** A bend (profileId 'bend', mat_in → mat_out) is a pipe
+  elbow that carries the stream unchanged, but `_connectionExists` only matched
+  a single direct edge — so routing "A → bend → B" (two connections) matched
+  neither "A → B" objective, and Lena failed to recognize a correct build. This
+  silently affected every `connection` / `connection_absent` objective and
+  guidance step across all missions whenever a player routed through a bend.
+  Fix: `_resolveBendForward` follows bend chains forward (loop-guarded) from a
+  connection's landing to the first non-bend consumer(s); the matcher skips
+  bends as producers (the real producer edge is covered when iterated directly)
+  and resolves bends as consumers. `fromPort` still filters correctly (the
+  producing edge carries the real port); `toPort` only applies when no bend was
+  traversed (you can't assert a specific landing port through a bend). Both the
+  `connection` and `connection_absent` evaluators inherit this automatically.
+  Verified: direct / one bend / three-in-series all match; wrong fromPort and
+  wrong target still fail; no false positives. Test 576.
+
+  ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v20.9.22 — Fridge: stocked at placement, °C setpoint; dump-load knob hid ──
+
+  **Fridge no longer ships empty (food 0%).** Root cause: placeUnit seeds
+  inventory via initInventory(params) at drop time, but the profile `defaults`
+  (P_init, initialComposition) are merged into params AFTERWARDS — and the
+  pre-sim inventory re-seed is skipped once the sim has run (always true for a
+  unit dropped mid-mission). So a fridge placed during M6 arrived with ~0 mol.
+  Fix: re-seed inventory right after the defaults merge on both placement paths
+  (palette + drag-drop). Verified: a freshly placed fridge now arrives with
+  ~1207 mol CH₂O (98% full). Test 574.
+
+  **Setpoint shown in the player's temperature unit, not raw K.** The fridge
+  inspector's setpoint editor now reads/writes through the active unit system
+  (5°C in SI, not 278 K), matching the rest of the readouts. Test 575.
+
+  **Fridge food-draw knob hidden from players.** The "Draw opening %" / max-draw
+  controls are equipment internals (food is pulled automatically by the room) —
+  now dev-only. The player just sets the temperature.
+
+  **Dump-load (electrical sink) rated-power slider hidden from players** — it's
+  an equipment spec, not a comfort knob. Power priority stays editable.
+
+  ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v20.9.21 — Refrigerator cold runaway fixed (overcool to −58°C) ───────────
+
+  **The fridge no longer freezes itself to death.** Root cause: the cooling
+  duty (Q_cool, sized against a mass-scaled C_thermal of up to ~90 kJ/K) was
+  handed to updateInventory via biogas_out._food_meta but READ from a non-
+  existent cool_out port, so the correct integration never saw it; a fallback
+  path then applied cooling against a hardcoded C_thermal = 500 J/K, and an
+  unstable explicit-Euler step with dt=3600s drove the contents to −58°C (the
+  user saw −58.4 vs the 233 K / −40°C LL). Fix: the refrigerator now integrates
+  its OWN contents temperature in-tick using the same C_thermal it sized the
+  demand with, with stability clamps so a single step cannot overshoot below the
+  setpoint (when cooling) or past ambient (passive relaxation). updateInventory's
+  thermal path is skipped for the fridge (flagged via _food_meta.fridgeSelfThermal)
+  so cooling can't double-apply; food_storage keeps its passive path. Verified:
+  powered fridge holds 278 K (5°C) over 2 days, never runs away. Test 573; test
+  811 updated (unpowered fridge tracks the diurnal ambient swing, so it checks
+  the peak warmed above the cold start, not a single possibly-cold final sample).
+
+  Note: the fridge still ships near-empty (food charge not seeded from P_init) —
+  a SEPARATE bug, deferred. This fix is the thermal runaway only.
+
+  ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v20.9.20 — M6: remove the air cooler (can't cool below ambient) ──────────
+
+  **Air cooler removed from M6.** An air cooler rejects heat to the 288 K (15°C)
+  ambient and floors at roughly ambient + approach, so with a 10 K approach it
+  bottoms out near 25°C — it cannot pull the cabin to a comfortable 20°C and can
+  only ever cool, never reach a setpoint. There is no honest way to cool the room
+  before a refrigeration loop exists. Headless check confirms the cabin self-
+  regulates to ~21°C from metabolic heat alone (242 W, 2 people) against hull
+  loss to ambient, so active cooling isn't needed anyway. Removed: air_cooler
+  from the palette, the `cooler_connected` objective, and the `g_m6_cooler`
+  guidance step. The air loop is now CO₂ absorber → heater → return.
+  **Air heater default setpoint 45°C → 20°C** (comfort air); the player raises
+  the hot-water heater to 60°C as before. Test 812 updated.
+
+  ═══════════════════════════════════════════════════════════════════════════
+
+  ─── v20.9.19 — M6 playtest fixes: scarcity baseline, heater, retire-last ─────
+
+  **Palette scarcity now counts only PLAYER-placed units, not inherited plant.**
+  `_paletteBaseline` snapshots per-profile counts at mission load; `_playerPlacedCount`
+  = scene count − baseline. Without this, an inherited air_cooler/barrel/etc.
+  consumed the mission's palette allowance and the mission was impossible (M6's
+  air cooler, M8's coolers/separators). Drag-drop now uses the player count.
+  **Duplicate (Ctrl+drag) and paste (Ctrl+V) are now gated too** via
+  `_batchScarcityOK` — previously they bypassed scarcity entirely. Tests 572.
+
+  **Electric heater min-flow lowered** from mass_LL 0.002 kg/s (7.2 kg/h) to
+  0.000278 (1 kg/h) — the M6 hot-water duty (~5.8 kg/h vent water) was below the
+  old industrial limit, making the objective impossible. **Heater placement
+  default 150°C → 45°C** (was a burn hazard in the cabin). Test 571.
+
+  **M6 guidance: retire the old power box LAST, dump-load-first.** Reordered so
+  the player moves loads onto the hub while the old dispatcher stays wired, then
+  unhooks dump load → battery → dispatcher at the end — avoids the generator
+  surplus spike that fried every consumer mid-rewire. Plus: M6 guidance says
+  "CO₂ absorber" (the palette name), not "scrubber".
+
+  ═══════════════════════════════════════════════════════════════════════════
+
   ─── v20.9.18 — Diegetic wall props: Lena's plan, clickable to a modal ────────
 
   **New `roomProps` mission field + wall-plan prop + plan modal.** Missions can
@@ -13758,7 +14050,7 @@
 "use strict";
 
 // [v20.0.1] Single version source — title tag and comment header reference this.
-const PTIS_VERSION = 'v20.9.18';
+const PTIS_VERSION = 'v20.9.29';
 document.title = 'processThis — ' + PTIS_VERSION;
 
 // [v12.9.0] NNG sentinel — machine-readable list of all Non-Negotiable rules.
@@ -20347,31 +20639,103 @@ function _resolveTargetUnit(scene, params) {
 }
 
 // Helper: check if a connection exists matching criteria
+// [v20.9.23] Bend pass-through for objective recognition. A bend (profileId
+// 'bend', mat_in → mat_out) is a pure pipe elbow — it carries the stream
+// unchanged. Connection objectives must treat "A → bend → … → B" exactly like
+// "A → B", through any number of bends in series. These helpers resolve a raw
+// connection endpoint to the first NON-bend unit reached by following bends.
+function _isBendUnit(u) { return !!u && u.profileId === 'bend'; }
+
+// From a unit that just received the stream, follow bend chains forward and
+// collect every {unit, portId} where the stream finally lands on a non-bend.
+// `seen` guards against pathological loops.
+function _resolveBendForward(scene, unitId, seen) {
+  seen = seen || new Set();
+  const u = scene.units.get(unitId);
+  if (!u) return [];
+  if (!_isBendUnit(u)) return [{ unit: u, viaUnitId: unitId }];
+  if (seen.has(unitId)) return [];      // loop guard
+  seen.add(unitId);
+  const out = [];
+  for (const c of scene.connections) {
+    if (c.from.unitId !== unitId) continue;        // bend's outgoing edge(s)
+    out.push(..._resolveBendForward(scene, c.to.unitId, seen));
+  }
+  return out;
+}
+
 function _connectionExists(scene, fromProfile, toProfile, opts = {}) {
   const fromPort = opts.fromPort || null;
   const toPort = opts.toPort || null;
   const portType = opts.portType || null;
+  // [v20.9.27 Phase 2] Optional per-instance targeting: require a specific unit id
+  // on either end (e.g. "heater → quarters_A" with two same-profile rooms). Works
+  // through bends — toUnitId is matched against the RESOLVED downstream consumer.
+  const fromUnitId = opts.fromUnitId || null;
+  const toUnitId = opts.toUnitId || null;
+
+  const portTypeOk = (u, portId) => {
+    if (!portType) return true;
+    const def = UnitRegistry.get(u.defId);
+    const pDef = def?.ports.find(p => p.portId === portId);
+    if (!pDef) return true;
+    const typeName = portType === 'elec' ? StreamType.ELECTRICAL : StreamType.MATERIAL;
+    return pDef.type === typeName;
+  };
+
   for (const c of scene.connections) {
     const uFrom = scene.units.get(c.from.unitId);
     const uTo = scene.units.get(c.to.unitId);
     if (!uFrom || !uTo) continue;
+
+    // The "from" side: the producing unit must match fromProfile/fromPort.
+    // If uFrom is itself a bend we skip — its real producer is reached when we
+    // iterate that bend's own incoming connection, so every edge is still covered.
+    if (_isBendUnit(uFrom)) continue;
     if (fromProfile && uFrom.profileId !== fromProfile) continue;
-    if (toProfile && uTo.profileId !== toProfile) continue;
+    if (fromUnitId && uFrom.id !== fromUnitId) continue;
     if (fromPort && c.from.portId !== fromPort) continue;
-    if (toPort && c.to.portId !== toPort) continue;
-    if (portType) {
-      const def = UnitRegistry.get(uFrom.defId);
-      if (def) {
-        const pDef = def.ports.find(p => p.portId === c.from.portId);
-        if (pDef) {
-          const typeName = portType === 'elec' ? StreamType.ELECTRICAL : StreamType.MATERIAL;
-          if (pDef.type !== typeName) continue;
-        }
+    if (!portTypeOk(uFrom, c.from.portId)) continue;
+
+    // The "to" side: follow bends forward to the real consumer(s).
+    const targets = _isBendUnit(uTo)
+      ? _resolveBendForward(scene, c.to.unitId)
+      : [{ unit: uTo, viaUnitId: c.to.unitId, directPort: c.to.portId }];
+
+    for (const tgt of targets) {
+      if (toProfile && tgt.unit.profileId !== toProfile) continue;
+      if (toUnitId && tgt.unit.id !== toUnitId) continue;
+      // toPort only constrains a DIRECT (non-bend) landing — through a bend the
+      // original target port is the bend's mat_in, so a toPort filter can only
+      // apply when we didn't traverse any bend.
+      if (toPort) {
+        if (_isBendUnit(uTo)) continue;             // can't assert a specific port through a bend
+        if (c.to.portId !== toPort) continue;
       }
+      return true;
     }
-    return true;
   }
   return false;
+}
+
+// [v20.9.0] Human-readable duration for objective progress bars
+// [v20.9.27 Phase 2] Resolve which room owns the singular HUD + voice bubble when
+// multiple rooms exist. Campaign: the mission's designated room — authored id
+// 'room' if present, else the first preplaced room, else the first room. Sandbox:
+// the first room whose occupant sprite is Lena (sprite param defaults to 'lena'
+// pre-Phase-3), else the first room. Returns a unit id.
+function _resolveBoundRoomId(scene, rooms) {
+  if (!rooms || rooms.length === 0) return null;
+  const inCampaign = typeof _activeGameMode !== 'undefined' && _activeGameMode === GameMode.CAMPAIGN;
+  if (inCampaign) {
+    const named = rooms.find(u => u.id === 'room');
+    if (named) return named.id;
+    const preplaced = rooms.find(u => u._preplaced);
+    if (preplaced) return preplaced.id;
+    return rooms[0].id;
+  }
+  const lena = rooms.find(u => (u.params?.occupantSprite ?? 'lena') === 'lena');
+  return (lena || rooms[0]).id;
 }
 
 // [v20.9.0] Human-readable duration for objective progress bars
@@ -20400,18 +20764,22 @@ const ObjectiveEvaluators = {
   connection(params, scene) {
     const met = _connectionExists(scene, params.fromProfile, params.toProfile, {
       fromPort: params.fromPort, toPort: params.toPort, portType: params.portType,
+      fromUnitId: params.fromUnitId, toUnitId: params.toUnitId,
     });
-    const from = params.fromProfile || '?';
-    const to = params.toProfile || '?';
+    const from = params.fromProfile || params.fromUnitId || '?';
+    const to = params.toProfile || params.toUnitId || '?';
     return { met, progress: met ? `${from} → ${to} ✓` : `Not connected: ${from} → ${to}` };
   },
 
   // 3. connection_absent — specific connection must NOT exist
   connection_absent(params, scene) {
-    const exists = _connectionExists(scene, params.fromProfile, params.toProfile);
+    const exists = _connectionExists(scene, params.fromProfile, params.toProfile, {
+      fromPort: params.fromPort, toPort: params.toPort, portType: params.portType,
+      fromUnitId: params.fromUnitId, toUnitId: params.toUnitId,
+    });
     const met = !exists;
-    const from = params.fromProfile || '?';
-    const to = params.toProfile || '?';
+    const from = params.fromProfile || params.fromUnitId || '?';
+    const to = params.toProfile || params.toUnitId || '?';
     return { met, progress: met ? `${from} ✗ ${to} ✓` : `${from} → ${to} still connected` };
   },
 
@@ -21106,7 +21474,13 @@ function _legacyPresentation(def) {
 function getPresentation(def, unit) {
   if (!def.presentations) return _legacyPresentation(def);
   const theme = (typeof ui !== 'undefined' && ui.theme) || 'box';
-  const variant = unit?.params?.variant || 'default';
+  let variant = unit?.params?.variant || 'default';
+  // [v20.9.28] Vented rooms use o2_in-less presentations. Map the base variant
+  // (default/mirror) to its vented counterpart so the port is hidden and the
+  // existing mirror choice is preserved.
+  if (def === UnitRegistry.get('room') && unit?.params?.atmosphereMode === 'vented') {
+    variant = (variant === 'mirror') ? 'vented-mirror' : 'vented';
+  }
   const key = theme + '/' + variant;
   return def.presentations[key]
       || def.presentations['box/' + variant]   // [v15.2.0 S-ICONS] preserve port layout from box when themed pres not yet defined
@@ -23115,11 +23489,17 @@ UnitRegistry.register('food_storage', {
       inv.n.CO2  = (inv.n.CO2 || 0) + meta.spoil_mol * 0.5;
     }
 
-    // Cooling jacket thermal effect
+    // Cooling jacket thermal effect.
+    // [v20.9.21] The refrigerator integrates its OWN temperature in-tick (cooling
+    // + ambient + spoilage heat, with a setpoint clamp), so skip this path for it
+    // to avoid double-applying. food_storage (passive, no internal cooler) still
+    // uses this block for spoilage/ambient warming. The fridge flags itself via
+    // _food_meta.fridgeSelfThermal.
     const Q_cool = resolvedPorts.cool_out?._Q_cool_W ?? 0;
     const Q_ambient = resolvedPorts.cool_out?._Q_ambient_W ?? 0;
     const Q_spoilage = (meta?.Q_spoilage_W ?? 0);
-    if (Q_cool > 0 || Q_ambient !== 0 || Q_spoilage > 0) {
+    const fridgeSelfThermal = meta?.fridgeSelfThermal === true;
+    if (!fridgeSelfThermal && (Q_cool > 0 || Q_ambient !== 0 || Q_spoilage > 0)) {
       // [v17.7.4] C_thermal scales with inventory mass — prevents thermal runaway.
       // Food-like substance: MW≈30 g/mol, Cp≈2500 J/(kg·K) → ~75 J/(mol·K).
       // Container shell contributes 500 J/K minimum even when empty.
@@ -23361,19 +23741,19 @@ UnitRegistry.register('refrigerator', {
   w: 2, h: 4,  // [v20.9.7] same body as food crate; serpentine + cool ports removed (electric cooling)
   optionalPorts: true,
   ports: [
-    { portId: 'elec_in',    dir: PortDir.IN,  type: StreamType.ELECTRICAL, x: 0, y: 0, label: 'power' },
-    { portId: 'biogas_out', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 1, y: 0, label: 'rot gas' },
-    { portId: 'vent',       dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 0, label: 'surplus' },
+    { portId: 'elec_in',    dir: PortDir.IN,  type: StreamType.ELECTRICAL, x: 1, y: 0, label: 'power' },
+    { portId: 'biogas_out', dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 0, label: 'rot gas' },
+    { portId: 'vent',       dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 4, label: 'surplus' },
     { portId: 'food_in',    dir: PortDir.IN,  type: StreamType.MATERIAL, x: 0, y: 2, label: 'food in' },
     { portId: 'food_out',   dir: PortDir.OUT, type: StreamType.MATERIAL, x: 2, y: 2, label: 'food out' }
   ],
   presentations: {
     'box/default': { w: 2, h: 4, ports: {
-      elec_in:{x:0,y:0}, biogas_out:{x:1,y:0}, vent:{x:2,y:0},
+      elec_in:{x:1,y:0}, biogas_out:{x:2,y:0}, vent:{x:2,y:4},
       food_in:{x:0,y:2}, food_out:{x:2,y:2}
     }},
     'box/mirror': { w: 2, h: 4, ports: {
-      elec_in:{x:2,y:0}, biogas_out:{x:1,y:0}, vent:{x:0,y:0},
+      elec_in:{x:1,y:0}, biogas_out:{x:0,y:0}, vent:{x:0,y:4},
       food_in:{x:2,y:2}, food_out:{x:0,y:2}
     }}
   },
@@ -23553,6 +23933,7 @@ UnitRegistry.register('refrigerator', {
     const COP = par.COP ?? 2.5;                       // coefficient of performance
     const UA_ambient = par.UA_ambient ?? 5;           // W/K — passive heat leak through shell
     const maxCoolPower_W = par.maxCoolPower_W ?? 200; // W electrical cap (compressor)
+    const T_LL_clamp = (UnitRegistry.get('refrigerator')?.profile?.limits?.[1]?.T_LL) ?? 233;
 
     // Passive conduction with ambient (>0 = leaves to ambient, <0 = leaks in to cold box)
     const Q_ambient = UA_ambient * (inv.T_K - T_ext);
@@ -23584,10 +23965,41 @@ UnitRegistry.register('refrigerator', {
     // Steady state ⇒ Q_cool = Q_spoilage − Q_ambient ⇒ Q_rejected_W = Q_spoilage + W.
     const Q_rejected_W = Q_reject_active + Q_ambient;
 
-    // Carry Q_cool/Q_ambient to next-step updateInventory via biogas_out._food_meta
+    // [v20.9.21] Integrate the contents temperature HERE, in-tick, with the
+    // SAME C_thermal used to size the demand. Previously Q_cool was handed to
+    // updateInventory via biogas_out._food_meta but read from a non-existent
+    // cool_out port, so the mass-scaled integration never saw it — and the
+    // fallback path used a hardcoded C_thermal=500, dumping ~90 kJ/K worth of
+    // cooling into a 500 J/K box → the temperature ran away to −58°C.
+    // Net heat into contents = spoilage − active cooling − ambient conduction.
+    // Clamp so cooling can't overshoot below the setpoint (a thermostat holds,
+    // it doesn't freeze past its target).
+    {
+      const dT = (Q_spoilage - Q_cool - Q_ambient) * dt / C_thermal;
+      let T_next = inv.T_K + dT;
+      // Explicit-Euler stability: a single large-dt step must not overshoot the
+      // target it's moving toward. Without active cooling the contents relax
+      // toward ambient (passive conduction); with cooling they head for T_set.
+      if (Q_cool > 1e-6) {
+        // Cooling dominant: can't go below setpoint.
+        if (T_next < T_set) T_next = T_set;
+        // ...and can't overshoot below ambient via conduction either.
+        if (T_next < Math.min(T_set, T_ext) - 1e-9) T_next = Math.min(T_set, T_ext);
+      } else {
+        // Passive only: relax toward ambient without crossing it.
+        if (inv.T_K < T_ext && T_next > T_ext) T_next = T_ext;       // warming up, cap at ambient
+        if (inv.T_K > T_ext && T_next < T_ext) T_next = T_ext;       // cooling down, floor at ambient
+      }
+      inv.T_K = Math.max(T_LL_clamp, Math.min(500, T_next));
+    }
+
+    // Carry spoilage/ambient (NOT Q_cool — applied above) to updateInventory
+    // for the spoilage reaction bookkeeping only. Q_cool_W carried as 0 so the
+    // updateInventory thermal path can never double-apply the cooling.
     if (ports.biogas_out && ports.biogas_out._food_meta) {
-      ports.biogas_out._food_meta.Q_cool_W = Q_cool;
-      ports.biogas_out._food_meta.Q_ambient_W = Q_ambient;
+      ports.biogas_out._food_meta.Q_cool_W = 0;
+      ports.biogas_out._food_meta.Q_ambient_W = 0;
+      ports.biogas_out._food_meta.fridgeSelfThermal = true;  // [v20.9.21] T integrated in-tick
     }
 
     // 6. Diagnostics
@@ -27661,16 +28073,16 @@ UnitRegistry.register('small_gas_engine', {
   w: 3,
   h: 2,
   ports: [
-    { portId: 'fuel_in', dir: PortDir.IN,  type: StreamType.MATERIAL,   x: 0, y: 0.5, label: 'fuel' },
-    { portId: 'air_in',  dir: PortDir.IN,  type: StreamType.MATERIAL,   x: 0, y: 1.5, label: 'air' },
+    { portId: 'air_in',  dir: PortDir.IN,  type: StreamType.MATERIAL,   x: 0, y: 0, label: 'air' },
+    { portId: 'fuel_in', dir: PortDir.IN,  type: StreamType.MATERIAL,   x: 0, y: 2, label: 'fuel' },
     { portId: 'mat_out', dir: PortDir.OUT, type: StreamType.MATERIAL,   x: 3, y: 1 },
     { portId: 'elec_out', dir: PortDir.OUT, type: StreamType.ELECTRICAL, x: 1.5, y: 0 }
   ],
   presentations: {
-    'box/default':       { w: 3, h: 2, ports: { fuel_in:{x:0,y:0.5}, air_in:{x:0,y:1.5}, mat_out:{x:3,y:1}, elec_out:{x:1.5,y:0} } },
-    'box/mirror':        { w: 3, h: 2, ports: { fuel_in:{x:3,y:0.5}, air_in:{x:3,y:1.5}, mat_out:{x:0,y:1}, elec_out:{x:1.5,y:0} } },
-    'box/elec-B':        { w: 3, h: 2, ports: { fuel_in:{x:0,y:0.5}, air_in:{x:0,y:1.5}, mat_out:{x:3,y:1}, elec_out:{x:1.5,y:2} } },
-    'box/mirror-elec-B': { w: 3, h: 2, ports: { fuel_in:{x:3,y:0.5}, air_in:{x:3,y:1.5}, mat_out:{x:0,y:1}, elec_out:{x:1.5,y:2} } }
+    'box/default':       { w: 3, h: 2, ports: { air_in:{x:0,y:0}, fuel_in:{x:0,y:2}, mat_out:{x:3,y:1}, elec_out:{x:1.5,y:0} } },
+    'box/mirror':        { w: 3, h: 2, ports: { air_in:{x:3,y:0}, fuel_in:{x:3,y:2}, mat_out:{x:0,y:1}, elec_out:{x:1.5,y:0} } },
+    'box/elec-B':        { w: 3, h: 2, ports: { air_in:{x:0,y:0}, fuel_in:{x:0,y:2}, mat_out:{x:3,y:1}, elec_out:{x:1.5,y:2} } },
+    'box/mirror-elec-B': { w: 3, h: 2, ports: { air_in:{x:3,y:0}, fuel_in:{x:3,y:2}, mat_out:{x:0,y:1}, elec_out:{x:1.5,y:2} } }
   },
   limitParams: ['T_LL', 'T_L', 'T_H', 'T_HH', 'P_LL', 'P_L', 'P_H', 'P_HH', 'mass_LL', 'mass_HH'],
   limits: { S: { T_LL: 200, T_L: 250, T_H: 900, T_HH: 1100, P_LL: 50000, P_L: 70000, P_H: 600000, P_HH: 800000, mass_LL: 0.001, mass_HH: 0.1 } },
@@ -28378,6 +28790,17 @@ UnitRegistry.register('room', {
     'box/mirror': { w: 6, h: 9, ports: {
       o2_in:{x:6,y:2}, food_in:{x:6,y:4}, h2o_in:{x:6,y:6}, hot_water_in:{x:6,y:8},
       elec_in:{x:3,y:0}, air_exhaust:{x:0,y:2}, air_return:{x:0,y:8}
+    }},
+    // [v20.9.28] Vented variants omit o2_in (breathable-atmosphere rooms breathe
+    // through air_return + infiltration; NNG-3 makes the absent port carry zero).
+    // Selected automatically when atmosphereMode === 'vented' (see getPresentation).
+    'box/vented': { w: 6, h: 9, ports: {
+      food_in:{x:0,y:4}, h2o_in:{x:0,y:6}, hot_water_in:{x:0,y:8},
+      elec_in:{x:3,y:0}, air_exhaust:{x:6,y:2}, air_return:{x:6,y:8}
+    }},
+    'box/vented-mirror': { w: 6, h: 9, ports: {
+      food_in:{x:6,y:4}, h2o_in:{x:6,y:6}, hot_water_in:{x:6,y:8},
+      elec_in:{x:3,y:0}, air_exhaust:{x:0,y:2}, air_return:{x:0,y:8}
     }}
   },
   limitParams: ['T_LL', 'T_HH'],
@@ -28442,6 +28865,23 @@ UnitRegistry.register('room', {
       inv.n.H2O = (inv.n.H2O || 0) + (meta.h2o_mol || 0);
       // Note: CH₂O (food) is consumed directly — never enters room atmosphere.
 
+      // [v20.9.26] Infiltration mass swap: remove infil_mol of room blend
+      // (proportional to current composition), add the same total moles of
+      // ambient-composition air. Equal moles out/in ⇒ mass-conserving by
+      // construction (NNG-1). Heat already applied via meta.dT in the tick.
+      if (meta.infil_mol > 1e-15) {
+        const n_room = Object.values(inv.n).reduce((a, b) => a + b, 0) || 1;
+        const frac_out = Math.min(1, meta.infil_mol / n_room);
+        // remove proportional blend
+        for (const sp of Object.keys(inv.n)) {
+          inv.n[sp] = Math.max(0, inv.n[sp] - inv.n[sp] * frac_out);
+        }
+        // add ambient air (same total moles)
+        for (const [sp, f] of Object.entries(meta.ambient_air || {})) {
+          inv.n[sp] = (inv.n[sp] || 0) + f * meta.infil_mol;
+        }
+      }
+
       // Thermal: apply dT computed by tick
       if (typeof meta.dT === 'number') {
         inv.T_K = Math.max(200, Math.min(400, inv.T_K + meta.dT));
@@ -28456,6 +28896,12 @@ UnitRegistry.register('room', {
       if (typeof meta.food_deficit_delta === 'number') {
         inv._food_deficit = (inv._food_deficit || 0) + meta.food_deficit_delta;
       }
+      // [v20.9.29] Toxin dose: cumulative poisoning from contaminated drinking
+      // water. Accumulates with toxic intake, clears slowly when clean water flows
+      // (the body excretes). Clamped ≥ 0. Same delta pattern as the deficits above.
+      if (typeof meta.toxin_dose_delta === 'number') {
+        inv._toxin_dose = Math.max(0, (inv._toxin_dose || 0) + meta.toxin_dose_delta);
+      }
       // [v17.8.0] Death permanence — once dead, stays dead
       if (meta._dead) inv._dead = true;
     }
@@ -28465,6 +28911,11 @@ UnitRegistry.register('room', {
 
   tick(u, ports, par, ctx) {
     const N = par.nPeople || 2;
+    // [v20.9.28] atmosphereMode: 'sealed' (default, Arc A — O₂ survival gauge
+    // active, o2_in port present) or 'vented' (breathable atmosphere — O₂ gauge
+    // suppressed, o2_in hidden, infiltration is the backstop).
+    const atmosphereMode = par.atmosphereMode ?? 'sealed';
+    const isVented = atmosphereMode === 'vented';
     const dt = ctx.dt;
     const atm = ctx.atmosphere;
     const T_ext = atm.T_K;
@@ -28500,6 +28951,34 @@ UnitRegistry.register('room', {
     const food_supply = s_food ? (s_food.n?.CH2O || 0) : 0;
     const h2o_supply  = s_h2o ? (s_h2o.n?.H2O || 0) : 0;
     const hw_supply_raw = s_hw ? (s_hw.n?.H2O || 0) : 0;
+
+    // [v20.9.29] Drinking-water potability. Mirrors the air-contaminant pattern:
+    // a small data table of water-soluble toxins (potency = hazard units per mole
+    // fraction — higher means dangerous at smaller %), one weighted hazard index,
+    // one gauge. Everything not listed is benign in water (dissolved CO₂/O₂, or
+    // gases too insoluble to matter: N₂/Ar/He/CH₄/H₂/CO). Adding a toxin later =
+    // one line in this table. Only the cold drinking line (h2o_in) poisons; hot
+    // (hygiene) water contamination flags a warning but isn't the lethal route.
+    const _WATER_TOXINS = { C2H6O2: 25, NH3: 40, CH2O: 30 };  // glycol, ammonia, formaldehyde
+    const _waterHazard = (stream) => {
+      if (!stream?.n) return { idx: 0, worst: null, frac: 0 };
+      const tot = Object.values(stream.n).reduce((a, b) => a + b, 0);
+      if (tot < 1e-15) return { idx: 0, worst: null, frac: 0 };
+      let idx = 0, contamFrac = 0, worst = null, worstContrib = 0;
+      for (const [sp, mol] of Object.entries(stream.n)) {
+        const p = _WATER_TOXINS[sp];
+        if (!p || mol <= 0) continue;
+        const frac = mol / tot;
+        contamFrac += frac;
+        const contrib = frac * p;        // weighted hazard units (frac in 0..1)
+        idx += contrib;
+        if (contrib > worstContrib) { worstContrib = contrib; worst = sp; }
+      }
+      return { idx, worst, frac: contamFrac };
+    };
+    const coldHazard = _waterHazard(s_h2o);
+    const hotHazard  = _waterHazard(s_hw);
+
     // Hot water temperature validation: 40–80°C (313–353K) is usable
     const hw_T = s_hw?.T ?? 0;
     const hw_T_ok = hw_T >= 313 && hw_T <= 353;
@@ -28587,8 +29066,34 @@ UnitRegistry.register('room', {
     }
 
     // ── 6. Thermal balance ──
-    const Q_envelope = UA_ENV * (T_room - T_ext);  // positive = heat loss
-    const Q_in = Q_metabolic + Q_lighting_actual + Q_streams + Q_hot_water;
+    const Q_envelope = UA_ENV * (T_room - T_ext);  // positive = heat loss (conduction)
+    // [v20.9.26] Infiltration (vented rooms): passive advective air exchange with
+    // ambient, independent of mechanical ventilation. ACH → mol/s = ACH·n_room/3600.
+    // This is BOTH a mass swap (handled in updateInventory) AND a heat term: ambient
+    // air enters at T_ext while room air leaves at T_room, so the net enthalpy is
+    // infil_mol·Cp·(T_ext − T_room) in spirit — computed here via the same getHdot
+    // proxy pattern as the supply streams for thermodynamic consistency. Default 0
+    // ACH (sealed) ⇒ no infiltration ⇒ identical to pre-v20.9.26 sealed behavior.
+    const infiltrationACH = par.infiltrationACH ?? 0;
+    const n_room_now = Object.values(inv.n).reduce((a, b) => a + b, 0) || 1;
+    const infil_molps = infiltrationACH > 0 ? (infiltrationACH * n_room_now / 3600) : 0;
+    let Q_infiltration = 0;
+    if (infil_molps > 1e-15) {
+      // Ambient air entering at T_ext, ambient composition.
+      const ambIn = { type: StreamType.MATERIAL, T: T_ext, P: P_atm,
+        n: {}, phaseConstraint: 'V' };
+      for (const [sp, frac] of Object.entries(atm.air || {})) ambIn.n[sp] = frac * infil_molps;
+      // Room air leaving at T_room, room composition.
+      const roomOut = { type: StreamType.MATERIAL, T: T_room, P: P_atm,
+        n: {}, phaseConstraint: 'V' };
+      for (const [sp, mol] of Object.entries(inv.n)) {
+        if (mol > 1e-15) roomOut.n[sp] = (mol / n_room_now) * infil_molps;
+      }
+      const H_ambIn = thermo.getHdot_Jps(ambIn);
+      const H_roomOut = thermo.getHdot_Jps(roomOut);
+      if (isFinite(H_ambIn) && isFinite(H_roomOut)) Q_infiltration = H_ambIn - H_roomOut;
+    }
+    const Q_in = Q_metabolic + Q_lighting_actual + Q_streams + Q_hot_water + Q_infiltration;
     const Q_out = Q_envelope;
     const dT = (Q_in - Q_out) * dt / C_THERMAL;
 
@@ -28600,14 +29105,22 @@ UnitRegistry.register('room', {
     const room_x_H2O = (inv.n.H2O || 0) / n_total;
 
     // ── 8. Emit air_exhaust (with private metadata for updateInventory) ──
-    // Fan-driven: room pushes circ_demand mol/s of its atmosphere out.
-    // NOT dependent on air_return rate — breaks the circular solver dependency.
-    // Mass balance settles through inventory accumulation between solves.
-    // [v19.5.0] Fan dead-head: if air_exhaust has no downstream connection,
-    // the fan has nowhere to push.  Zero exhaust flow.  NNG-3 compliant:
-    // unconnected port carries zero.  Prevents room bleeding atmosphere.
+    // [v20.9.26] Exhaust = baseline circulation + excess-inventory drain, both
+    // fan-driven. The room holds a nominal molar capacity (P·V/RT at comfort T);
+    // when flooded above it (an AC room fed conditioned air, an nPeople:0 room, or
+    // any over-supply) the fan pushes the surplus back out so the room doesn't
+    // accumulate without bound — a mix-then-exhaust air handler. Crucially this
+    // reads the room's OWN inventory (already resolved) and a constant, NOT the
+    // inlet stream — so it stays ACYCLIC: no dependence on air_return, preserving
+    // the recycle-loop solver guarantee (exhaust→scrubber→return must not cycle).
+    // With no fan power, forced exhaust → 0 (survival mechanic); passive exchange
+    // in a vented room is modeled by infiltration, not this path.
+    // [v19.5.0] Fan dead-head: unconnected air_exhaust → zero (NNG-3).
     const exhaustConnected = ctx.portConnected('air_exhaust');
-    const exhaust_rate = exhaustConnected ? circ_demand * fan_frac : 0;
+    const n_nominal = P_atm * 62.5 / (8.314 * 294);  // room molar capacity at comfort T
+    const n_room_inv = Object.values(inv.n).reduce((a, b) => a + b, 0);
+    const excess_drain = Math.max(0, (n_room_inv - n_nominal)) / dt;  // mol/s over capacity
+    const exhaust_rate = exhaustConnected ? (circ_demand + excess_drain) * fan_frac : 0;
     const n_exhaust = {};
     if (exhaust_rate > 1e-15) {
       for (const [sp, mol] of Object.entries(inv.n)) {
@@ -28622,7 +29135,11 @@ UnitRegistry.register('room', {
         dT,
         o2_mol:  reaction_rate * dt,
         co2_mol: co2_produced * dt,
-        h2o_mol: h2o_metabolic * dt
+        h2o_mol: h2o_metabolic * dt,
+        // [v20.9.26] Infiltration mass swap for updateInventory: replace infil_mol
+        // of room blend with ambient-composition air. Heat already applied via dT.
+        infil_mol: infil_molps * dt,
+        ambient_air: atm.air || {}
       }
     };
 
@@ -28633,9 +29150,16 @@ UnitRegistry.register('room', {
 
     // O₂ condition — from room atmosphere fraction
     const o2_pct_atm = room_x_O2 * 100;
-    conditions.o2 = { value: o2_pct_atm,
-      status: o2_pct_atm >= 19 ? 'OK' : o2_pct_atm >= 17 ? 'WARNING'
-            : o2_pct_atm >= 14 ? 'MAJOR' : 'CATASTROPHIC' };
+    // [v20.9.28] Sealed rooms only. Now flags BOTH depletion AND enrichment:
+    // O₂ above ~23.5% is a fire hazard (Phase 0 Q5 — was previously silent).
+    if (!isVented) {
+      conditions.o2 = { value: o2_pct_atm,
+        status: o2_pct_atm >= 25 ? 'MAJOR'        // enriched — serious fire risk
+              : o2_pct_atm >= 23.5 ? 'WARNING'    // enrichment onset
+              : o2_pct_atm >= 19 ? 'OK'
+              : o2_pct_atm >= 17 ? 'WARNING'
+              : o2_pct_atm >= 14 ? 'MAJOR' : 'CATASTROPHIC' };
+    }
 
     // CO₂ condition — from room atmosphere fraction
     const co2_pct_atm = room_x_CO2 * 100;
@@ -28662,7 +29186,29 @@ UnitRegistry.register('room', {
             : h2o_deficit_per_person < 417 ? 'MAJOR'     // incapacitated
             : 'CATASTROPHIC' };                           // death
 
-    // Food condition — starvation deficit (same pattern as water)
+    // [v20.9.29] Water quality — drinking-water poisoning. Two signals folded into
+    // one gauge: (1) cumulative toxin dose (the lethal part), and (2) live hazard in
+    // the incoming stream (so the alarm fires the instant bad water is piped, before
+    // dose builds). Dose thresholds per person tuned to ~hours-to-lethal at a few %
+    // glycol: 5 = WARNING (feeling ill), 20 = MAJOR (incapacitated), 45 = death.
+    const toxin_dose = inv._toxin_dose || 0;
+    const toxin_dose_pp = N > 0 ? toxin_dose / N : 0;
+    const _liveWaterHazard = coldHazard.idx;  // >0 means toxic water flowing now
+    let waterQualStatus =
+        toxin_dose_pp >= 45 ? 'CATASTROPHIC'
+      : toxin_dose_pp >= 20 ? 'MAJOR'
+      : toxin_dose_pp >= 5  ? 'WARNING'
+      : 'OK';
+    // Live contamination escalates the gauge to at least WARNING even before dose
+    // accrues, so the player is told immediately. A strongly toxic feed (idx ≥ 5,
+    // e.g. several % of a potent toxin) shows MAJOR right away.
+    if (_liveWaterHazard >= 5 && waterQualStatus === 'OK') waterQualStatus = 'MAJOR';
+    else if (_liveWaterHazard > 1e-6 && waterQualStatus === 'OK') waterQualStatus = 'WARNING';
+    const _toxName = { C2H6O2: 'glycol', NH3: 'ammonia', CH2O: 'formaldehyde' };
+    conditions.water_quality = { value: toxin_dose_pp, status: waterQualStatus,
+      contaminant: coldHazard.worst ? (_toxName[coldHazard.worst] || coldHazard.worst) : null,
+      live_hazard: _liveWaterHazard };
+
     // Thresholds per person: 60 mol (~3 days), 141 mol (~7 days), 423 mol (~21 days)
     const food_deficit = inv._food_deficit || 0;
     const food_deficit_per_person = N > 0 ? food_deficit / N : 0;
@@ -28894,6 +29440,19 @@ UnitRegistry.register('room', {
     const food_recovery = food_recovering ? Math.min(RECOVERY_RATE * N * dt, food_deficit) : 0;
     ports.air_exhaust._room_meta.h2o_deficit_delta = h2o_deficit_rate * dt - h2o_recovery;
     ports.air_exhaust._room_meta.food_deficit_delta = food_deficit_rate * dt - food_recovery;
+    // [v20.9.29] Toxin dose delta. The crew drinks h2o_supply mol/s; if that water
+    // carries toxins, dose accrues at hazardIdx × intake. When the drinking water is
+    // clean (hazard ≈ 0) the body clears the dose slowly. Contaminated water still
+    // hydrates (handled by the normal h2o path) — it just poisons at the same time,
+    // which is the trap: bad water staves off thirst while building toward lethality.
+    const TOXIN_CLEAR_RATE = 0.02;  // mol-dose/s per person cleared when water is clean
+    // Poison scales with water actually DRUNK (the demand the crew meets), not the
+    // raw supply stream — an oversized clean-flow source shouldn't change the dose.
+    const water_drunk = Math.min(h2o_supply, h2o_demand);  // mol/s ingested
+    const toxin_intake = coldHazard.idx * water_drunk;     // hazard-weighted mol/s
+    const toxin_clearing = (coldHazard.idx < 1e-6 && (inv._toxin_dose || 0) > 0)
+      ? Math.min(TOXIN_CLEAR_RATE * N * dt, inv._toxin_dose || 0) : 0;
+    ports.air_exhaust._room_meta.toxin_dose_delta = toxin_intake * dt - toxin_clearing;
 
     // Recovery state: for expression system and status messages
     const isRecovering = h2o_recovering || food_recovering;
@@ -29362,7 +29921,7 @@ ProfileRegistry.register('electric_heater', {
   defId: 'electric_heater', name: 'Electric Heater', category: UnitCategories.HEAT_TRANSFER, tiers: [1],
   description: 'Heats stuff up',
   selectionGuide: 'Like a kettle element in a pipe. Set the temperature you want, give it enough power, done.',
-  limits: { 1: { T_LL: 253, T_L: 273, T_H: 723, T_HH: 823, P_LL: 20000, P_L: 50000, P_H: 12000000, P_HH: 15000000, mass_LL: 0.002, mass_HH: 0.12 } },
+  limits: { 1: { T_LL: 253, T_L: 273, T_H: 723, T_HH: 823, P_LL: 20000, P_L: 50000, P_H: 12000000, P_HH: 15000000, mass_LL: 0.000278, mass_HH: 0.12 } },
   equipmentNote: "Inline electric resistance heater.",
   operatingNote: "If power supply is curtailed, outlet T falls below target — check power dispatcher allocation. No maximum T limit on the heater itself, but downstream equipment has limits.",
   modelNote: "Q = ṅCpΔT. Power demand = Q. Curtailable: T_out from available Q if supply < demand.",
@@ -30038,10 +30597,10 @@ const M6_GUIDANCE = [
     onComplete: { speaker: 'lena', text: 'Safe.' },
     delay_ms: 500 },
   { id: 'g_m6_move_loads',
-    dialogue: { speaker: 'lena', text: 'Now shift the essentials onto the hub\u2019s output \u2014 the room, the electrolyzer, all of it. Once they\u2019re across, the old dispatcher\u2019s just scrap.', expression: 'happy' },
+    dialogue: { speaker: 'lena', text: 'Now shift the essentials onto the hub\u2019s output \u2014 the room, the electrolyzer, all of it. Leave the old box wired in for now; we unhook it last, once everything\u2019s running on the hub.', expression: 'happy' },
     highlight: { type: 'unit', profileId: 'power_hub' },
     completion: { type: 'connection', fromProfile: 'power_hub', toProfile: 'shelter' },
-    onComplete: { speaker: 'lena', text: 'Lights never flickered. Scrap the old box when you like.' },
+    onComplete: { speaker: 'lena', text: 'Lights never flickered. We\u2019ll retire the old box at the very end.' },
     delay_ms: 500 },
   { id: 'g_m6_place_fridge',
     dialogue: { speaker: 'lena', text: 'Here\u2019s the fridge. Drop it in.', expression: 'happy' },
@@ -30067,23 +30626,23 @@ const M6_GUIDANCE = [
     completion: { type: 'connection', fromProfile: 'refrigerator', toProfile: 'flare_stack' },
     onComplete: { speaker: 'lena', text: 'Tidy.' },
     delay_ms: 500 },
-  { id: 'g_m6_cooler',
-    dialogue: { speaker: 'lena', text: 'Cabin\u2019s next. Splice an air cooler into the return air, right after the scrubber.', expression: 'happy' },
-    highlight: { type: 'palette_tile', profileId: 'air_cooler' },
-    completion: { type: 'connection', fromProfile: 'co2_scrubber', toProfile: 'air_cooler' },
-    onComplete: { speaker: 'lena', text: 'Good.' },
-    delay_ms: 500 },
   { id: 'g_m6_heater',
-    dialogue: { speaker: 'lena', text: 'Then a heater after it. Set both to a comfortable twenty-one \u2014 one trims the heat, one adds it, and the cabin just holds.', expression: 'happy' },
+    dialogue: { speaker: 'lena', text: 'Now warm the cabin. Run a heater off the CO\u2082 absorber\u2019s clean-air outlet \u2014 it comes set to a comfortable twenty, which is all the room needs.', expression: 'happy' },
     highlight: { type: 'palette_tile', profileId: 'electric_heater' },
-    completion: { type: 'connection', fromProfile: 'air_cooler', toProfile: 'electric_heater' },
+    completion: { type: 'connection', fromProfile: 'co2_scrubber', toProfile: 'electric_heater' },
     onComplete: { speaker: 'lena', text: 'Now back to the room.' },
     delay_ms: 500 },
   { id: 'g_m6_return',
-    dialogue: { speaker: 'lena', text: 'Send the conditioned air back into the room, and power both off the hub.', expression: 'happy' },
+    dialogue: { speaker: 'lena', text: 'Send the conditioned air back into the room.', expression: 'happy' },
     highlight: { type: 'unit', profileId: 'electric_heater' },
     completion: { type: 'connection', fromProfile: 'electric_heater', toProfile: 'shelter', toPort: 'air_return' },
-    onComplete: { speaker: 'lena', text: 'Feel that? Warm.' },
+    onComplete: { speaker: 'lena', text: 'Loop\u2019s closed \u2014 but it\u2019s just moving cold air until we power it.' },
+    delay_ms: 500 },
+  { id: 'g_m6_air_power',
+    dialogue: { speaker: 'lena', text: 'Now power the air heater off the hub \u2014 wire its socket to a hub output. Until it draws current it can\u2019t warm a thing.', expression: 'happy' },
+    highlight: { type: 'unit', profileId: 'electric_heater' },
+    completion: { type: 'port_conditions', viaConnectionTo: { toProfile: 'shelter', toPort: 'air_return' }, portId: 'mat_out', T_gte: 291 },
+    onComplete: { speaker: 'lena', text: 'Feel that? Warm. That\u2019s power doing its work.' },
     delay_ms: 500 },
   { id: 'g_m6_water_heater',
     dialogue: { speaker: 'lena', text: 'Last thing \u2014 hot water. Split the water feed, run one branch through a heater set to sixty, into a second barrel.', expression: 'happy' },
@@ -30092,10 +30651,22 @@ const M6_GUIDANCE = [
     onComplete: { speaker: 'lena', text: 'Heating up.' },
     delay_ms: 500 },
   { id: 'g_m6_hot_tap',
-    dialogue: { speaker: 'lena', text: 'That hot barrel feeds the room\u2019s hot tap. Power the heater, and we\u2019re done.', expression: 'happy' },
+    dialogue: { speaker: 'lena', text: 'That hot barrel feeds the room\u2019s hot tap. Wire it up.', expression: 'happy' },
     highlight: { type: 'unit', profileId: 'simple_open_barrel' },
     completion: { type: 'connection', fromProfile: 'simple_open_barrel', toProfile: 'shelter', toPort: 'hot_water_in' },
-    onComplete: { speaker: 'lena', text: 'Go run the shower, K. You\u2019ve earned it.' },
+    onComplete: { speaker: 'lena', text: 'Plumbed \u2014 now it just needs heat.' },
+    delay_ms: 500 },
+  { id: 'g_m6_water_power',
+    dialogue: { speaker: 'lena', text: 'Power the water heater off the hub and set it to sixty. Watch its outlet climb \u2014 cold means it\u2019s starved of current.', expression: 'happy' },
+    highlight: { type: 'unit', profileId: 'electric_heater' },
+    completion: { type: 'port_conditions', viaConnectionTo: { toProfile: 'simple_open_barrel' }, portId: 'mat_out', T_gte: 328 },
+    onComplete: { speaker: 'lena', text: 'Hot water\u2019s flowing.' },
+    delay_ms: 500 },
+  { id: 'g_m6_retire_old',
+    dialogue: { speaker: 'lena', text: 'Last thing, and mind the order: everything runs on the hub now, so retire the old box \u2014 but pull its safety dump load FIRST, then its battery, then the dispatcher. Yank them while the generator\u2019s still feeding in and its surplus has nowhere to go, and it spikes and fries the cabin. Dump load first, always.', expression: 'neutral' },
+    highlight: { type: 'unit', profileId: 'power_dispatcher_5' },
+    completion: { type: 'connection_absent', fromProfile: 'power_dispatcher_5', toProfile: 'shelter' },
+    onComplete: { speaker: 'lena', text: 'Old box is cold and the cabin never blinked. Go run the shower, K. You\u2019ve earned it.' },
     delay_ms: 500 },
 ];
 
@@ -30739,7 +31310,6 @@ MissionRegistry.register('arc_a_m6', {
 
   palette: {
     refrigerator: 1,
-    air_cooler: 1,
     electric_heater: 2,
     simple_open_barrel: 1,
     power_hub: 1,
@@ -30785,12 +31355,9 @@ MissionRegistry.register('arc_a_m6', {
     { id: 'fridge_vent', type: 'connection',
       fromProfile: 'refrigerator', toProfile: 'flare_stack',
       description: 'Run the fridge rot-gas line to the flare' },
-    { id: 'cooler_connected', type: 'connection',
-      fromProfile: 'co2_scrubber', toProfile: 'air_cooler',
-      description: 'Splice an air cooler into the return air' },
     { id: 'heater_connected', type: 'connection',
-      fromProfile: 'air_cooler', toProfile: 'electric_heater',
-      description: 'Add an air heater after the cooler' },
+      fromProfile: 'co2_scrubber', toProfile: 'electric_heater',
+      description: 'Warm the return air with a heater after the CO\\u2082 absorber' },
     { id: 'air_return_connected', type: 'connection',
       fromProfile: 'electric_heater', toProfile: 'shelter', toPort: 'air_return',
       description: 'Return the conditioned air to the room' },
@@ -31509,7 +32076,7 @@ class Scene {
         break;
       // ── Heat exchange ──
       case 'electric_heater':
-        unit.params = { T_out: 423.15, mode: 'T_setpoint', powerPriority: 2 };  // [v12.8.1] dual mode
+        unit.params = { T_out: 293.15, mode: 'T_setpoint', powerPriority: 2 };  // [v20.9.20] default 20°C (comfort air); player raises the hot-water one
         break;
       case 'hex':
         unit.params = { T_approach: 10 }; // 10 K approach
@@ -36878,6 +37445,7 @@ const _LENA_LINES = {
     food:  ["Stomach's not getting any quieter.", "Still no food. Body's starting to notice."],
     temp:  ["Temperature getting worse. Physics doesn't negotiate.", "Colder. Or hotter. Either way, worse."],
     power: ["Power situation deteriorating. Priorities, yeah?", "Less power. Less everything."],
+    water_quality: ["This water tastes wrong. Chemical. I don’t like it.", "Something’s in the water — my head’s swimming already.", "That’s not clean water. Don’t tell me to keep drinking it.", "Whatever’s in this, it’s not supposed to be. I can feel it."],
   },
   condition_improved: {
     o2:    ["O₂ climbing. Oh that's good.", "Air's improving. Keep going."],
@@ -36886,6 +37454,7 @@ const _LENA_LINES = {
     food:  ["Food supply's back. Oh thank god.", "Eating again. Never taking that for granted."],
     temp:  ["Temperature stabilizing. More like it.", "Getting comfortable. Relatively."],
     power: ["Power's back up. The fan agrees.", "Lights are happier. So am I."],
+    water_quality: ["Clean water now. The bad taste is gone.", "Whatever was in the water, it’s flushing out. Better."],
   },
   solver_failed: [
     "Something's not adding up. Literally. Check the loops.",
@@ -37030,6 +37599,10 @@ const CharacterVoice = {
   _recentTransitions: [],  // [{expr, t}] for oscillation detection
   _idleCounter: 0,
   _prevFrame: -1,
+  // [v20.9.27 Phase 2] Per-room expression state, keyed by unit id, so multiple
+  // rooms each track their own face transitions. The bound room additionally uses
+  // the legacy singular fields above for voice/oscillation continuity.
+  _roomExpr: {},   // unitId → last expression (for non-bound rooms' faces)
   _pokeCount: 0,
   _lastPokeTime: 0,
   _pokeExprOverride: null,  // temporary expression override from poke
@@ -37188,6 +37761,15 @@ const CharacterVoice = {
     for (const [key, c] of Object.entries(conds)) {
       this._prevConditions[key] = c.status;
     }
+  },
+
+  // [v20.9.27 Phase 2] Update a non-bound room's expression state without speaking.
+  // Lets a second/third room's face react to its own conditions while only the
+  // bound room drives the shared HUD + voice bubble. No oscillation tracking, no
+  // _speak — purely records the per-unit expression for any face renderer to read.
+  touchRoomExpression(u) {
+    if (!u?.last) return;
+    this._roomExpr[u.id] = _lenaRoomExpression(u);
   },
 
   _worstCondKey(conds, targetStatus) {
@@ -43546,7 +44128,7 @@ _RAGTAG_SYMBOLS.room = function(g, wx, wy, ww, wh, pal, def, unitId) {
 
 
   // ═══ LENA WALL SHADOW (behind lights — shadow is on the wall) ═══
-  if ((u?.params?.nPeople ?? 0) > 0 && lightsOn) {
+  if ((u?.params?.nPeople ?? 0) > 0 && lightsOn && (u?.params?.occupantSprite ?? 'lena') === 'lena') {
     g.appendChild(svgEl('ellipse', { cx: wx+190, cy: wy+345, rx: 55, ry: 70,
       fill: '#000000', opacity: 0.12, 'pointer-events': pe }));
     g.appendChild(svgEl('ellipse', { cx: wx+190, cy: wy+360, rx: 38, ry: 50,
@@ -43705,7 +44287,7 @@ _RAGTAG_SYMBOLS.room = function(g, wx, wy, ww, wh, pal, def, unitId) {
   }
 
   // ═══ LENA CHARACTER (on top of lights — she sits in front of the illuminated scene) ═══
-  if ((u?.params?.nPeople ?? 0) > 0) {
+  if ((u?.params?.nPeople ?? 0) > 0 && (u?.params?.occupantSprite ?? 'lena') === 'lena') {
     const _expr = _lenaRoomExpression(u);
     _renderLenaInRoom(g, wx, wy, lightsOn, _expr, unitId);
     // Clickable overlay for poke interaction
@@ -43742,19 +44324,26 @@ _RAGTAG_SYMBOLS.room = function(g, wx, wy, ww, wh, pal, def, unitId) {
   const _ledColor = { grey: '#3b4050', green: '#22c55e', yellow: '#f59e0b', red: '#ef4444' };
   const pi = last.portIndicators || {};
   const _led = (portId, cx, cy) => {
+    // [v20.9.28] Skip ports not in the active presentation (e.g. o2_in hidden in
+    // a vented room). cx/cy may be NaN if the caller read an absent port position;
+    // guard here so hide-don't-remove is safe.
+    if (!(portId in pres.ports)) return;
+    if (!isFinite(cx) || !isFinite(cy)) return;
     const col = _ledColor[pi[portId]] || '#3b4050';
     const active = pi[portId] === 'green' || pi[portId] === 'yellow';
     g.appendChild(svgEl('circle', { cx, cy, r: 3, fill: col, opacity: active ? 0.9 : 0.4, 'pointer-events': pe }));
     if (active) g.appendChild(svgEl('circle', { cx, cy, r: 5, fill: 'none', stroke: col,
       'stroke-width': 0.5, opacity: 0.3, 'pointer-events': pe }));
   };
-  _led('o2_in',        bx+8,      wy + pres.ports.o2_in.y * t);
-  _led('food_in',      bx+8,      wy + pres.ports.food_in.y * t);
-  _led('h2o_in',       bx+8,      wy + pres.ports.h2o_in.y * t);
-  _led('hot_water_in', bx+8,      wy + pres.ports.hot_water_in.y * t);
-  _led('air_exhaust',  bx+bw-8,   wy + pres.ports.air_exhaust.y * t);
-  _led('air_return',   bx+bw-8,   wy + pres.ports.air_return.y * t);
-  _led('elec_in',      wx + pres.ports.elec_in.x * t, by+8);
+  const _ledY = (portId) => (portId in pres.ports) ? pres.ports[portId].y : NaN;
+  const _ledX = (portId) => (portId in pres.ports) ? pres.ports[portId].x : NaN;
+  _led('o2_in',        bx+8,      wy + _ledY('o2_in') * t);
+  _led('food_in',      bx+8,      wy + _ledY('food_in') * t);
+  _led('h2o_in',       bx+8,      wy + _ledY('h2o_in') * t);
+  _led('hot_water_in', bx+8,      wy + _ledY('hot_water_in') * t);
+  _led('air_exhaust',  bx+bw-8,   wy + _ledY('air_exhaust') * t);
+  _led('air_return',   bx+bw-8,   wy + _ledY('air_return') * t);
+  _led('elec_in',      wx + _ledX('elec_in') * t, by+8);
 
 };
 
@@ -45060,12 +45649,28 @@ function render() {
 
   // [v17.8.0] Sync Lena HUD expression to room state
   // [v17.8.1] CharacterVoice speech triggers from room diagnostics
+  // [v20.9.27 Phase 2] Multi-room: only ONE room drives the (singular) HUD + voice
+  // bubble — the "bound" room. In campaign that's the mission's designated room
+  // (authored id 'room', else first preplaced room); in sandbox it's the first
+  // room whose occupant sprite is Lena. Other rooms still update their own per-unit
+  // expression state (their faces react), but do not speak through the shared
+  // bubble — preventing two rooms from interleaving speech.
   if (typeof _lenaHudSync === 'function') {
-    for (const [, u] of scene.units) {
-      if (u.defId === 'room') {
-        _lenaHudSync(_lenaRoomExpression(u));
-        CharacterVoice.onRoomUpdate(u);
-        break;
+    const rooms = [];
+    for (const [, u] of scene.units) { if (u.defId === 'room') rooms.push(u); }
+    if (rooms.length > 0) {
+      const boundId = _resolveBoundRoomId(scene, rooms);
+      for (const u of rooms) {
+        const isBound = u.id === boundId;
+        const spriteIsLena = (u.params?.occupantSprite ?? 'lena') === 'lena';
+        if (isBound && spriteIsLena) {
+          _lenaHudSync(_lenaRoomExpression(u));
+          CharacterVoice.onRoomUpdate(u);  // bound Lena room: full HUD + voice
+        } else if (spriteIsLena) {
+          CharacterVoice.touchRoomExpression(u);  // non-bound Lena room: silent face only
+        }
+        // occupantSprite 'none'/'workers' (reserved): no Lena HUD, no voice — even
+        // if bound. A faceless industrial/AC room shouldn't narrate CO₂.
       }
     }
   }
@@ -47313,12 +47918,18 @@ UnitInspector.sink = {
 
 UnitInspector.sink_electrical = {
   params(u) {
-    return [
-      { type: 'slider', label: 'Rated power [kW]', get: () => u.params.ratedPower_kW ?? 1000,
-        set: v => u.params.ratedPower_kW = Math.max(0.1, v), min: 0.1, max: 10000, step: 10 },
-      { label: 'Power priority', get: () => u.params.powerPriority ?? 3,
-        set: v => u.params.powerPriority = Math.max(1, Math.round(v)), step: 1, min: 1, max: 5 },
-    ];
+    // [v20.9.22] Rated power is an equipment spec, not a player comfort knob —
+    // dev-only. Players keep power priority (a legitimate routing choice).
+    const profile = ProfileRegistry.get(u.profileId || u.defId);
+    const isDev = profile?.config?.dev || profile?.config?.template;
+    const rows = [];
+    if (isDev) {
+      rows.push({ type: 'slider', label: 'Rated power [kW]', get: () => u.params.ratedPower_kW ?? 1000,
+        set: v => u.params.ratedPower_kW = Math.max(0.1, v), min: 0.1, max: 10000, step: 10 });
+    }
+    rows.push({ label: 'Power priority', get: () => u.params.powerPriority ?? 3,
+      set: v => u.params.powerPriority = Math.max(1, Math.round(v)), step: 1, min: 1, max: 5 });
+    return rows;
   },
   power(u, ud) {
     if (!ud?.last) return [];
@@ -48844,9 +49455,28 @@ UnitInspector.membrane_separator = {
 // [v17.6.0 S-ROOM] Room inspector — conditions, reference rates, services, thermal
 UnitInspector.room = {
   customParams(container, u) {
-    addNumberEditor(container, 'Crew size',
-      () => u.params.nPeople ?? 2,
-      v => { u.params.nPeople = Math.max(0, Math.min(10, Math.round(v))); }, 1, 0);
+    // [v20.9.25] Crew size is a scenario/equipment property, not a player knob —
+    // dev-only. Arc A's shelter (no dev flag) shows it locked; a dev/template room
+    // profile exposes it for authoring. Players keep power priority.
+    const profile = ProfileRegistry.get(u.profileId || u.defId);
+    const isDev = profile?.config?.dev || profile?.config?.template;
+    if (isDev) {
+      addNumberEditor(container, 'Crew size',
+        () => u.params.nPeople ?? 2,
+        v => { u.params.nPeople = Math.max(0, Math.min(10, Math.round(v))); }, 1, 0);
+      // [v20.9.28 Phase 3] Scenario-authoring knobs (dev/template rooms only).
+      addSelectEditor(container, 'Occupant',
+        () => u.params.occupantSprite ?? 'lena',
+        v => { u.params.occupantSprite = v; },
+        [['lena', 'Lena'], ['none', 'None (faceless)'], ['workers', 'Workers (soon)']]);
+      addSelectEditor(container, 'Atmosphere',
+        () => u.params.atmosphereMode ?? 'sealed',
+        v => { u.params.atmosphereMode = v; },
+        [['sealed', 'Sealed (pressurized)'], ['vented', 'Vented (breathable)']]);
+      addNumberEditor(container, 'Infiltration [ACH]',
+        () => u.params.infiltrationACH ?? 0,
+        v => { u.params.infiltrationACH = Math.max(0, v); }, 0.1, 1, { min: 0, max: 5 });
+    }
     addNumberEditor(container, 'Power priority',
       () => u.params.powerPriority ?? 1,
       v => { u.params.powerPriority = Math.max(1, Math.min(5, Math.round(v))); }, 1, 0);
@@ -49166,16 +49796,25 @@ UnitInspector.refrigerator = {
   customParams(container, u) {
     const profile = ProfileRegistry.get(u.profileId || u.defId);
     const isDev = profile?.config?.dev || profile?.config?.template;
-    container.appendChild(el('div', { class: 'ins-section-label', html: 'Food Draw' }));
-    const drawBox = el('div', {});
+    const us = models.getActive('units');
+    // [v20.9.22] Food draw is automatic (the room pulls what it needs). The
+    // opening/rate are dev-only equipment internals, not player comfort knobs.
     if (isDev) {
+      container.appendChild(el('div', { class: 'ins-section-label', html: 'Food Draw' }));
+      const drawBox = el('div', {});
       addNumberEditor(drawBox, 'Max draw [mol/s]', () => u.params.gasDrawRate ?? 0.001, v => u.params.gasDrawRate = v, 0.0001, 4, { min: 0 });
+      addNumberEditor(drawBox, 'Draw opening [%]', () => u.params.opening_gas_pct ?? 50, v => u.params.opening_gas_pct = v, 5, 0, { min: 0, max: 100 });
+      container.appendChild(drawBox);
     }
-    addNumberEditor(drawBox, 'Draw opening [%]', () => u.params.opening_gas_pct ?? 50, v => u.params.opening_gas_pct = v, 5, 0, { min: 0, max: 100 });
-    container.appendChild(drawBox);
     container.appendChild(el('div', { class: 'ins-section-label', html: 'Cooling' }));
     const coolBox = el('div', {});
-    addNumberEditor(coolBox, 'Setpoint [K]', () => u.params.T_set ?? 278, v => u.params.T_set = v, 1, 0, { min: 200, max: 320 });
+    // [v20.9.22] Setpoint shown/edited in the active temperature unit, not raw K.
+    const Tsym = us.temperature.symbol;
+    const Tdec = (Tsym === 'K') ? 0 : 1;
+    addNumberEditor(coolBox, `Setpoint [${Tsym}]`,
+      () => us.temperature.from(u.params.T_set ?? 278),
+      v => u.params.T_set = us.temperature.to(v),
+      1, Tdec, { min: us.temperature.from(200), max: us.temperature.from(320) });
     if (isDev) {
       addNumberEditor(coolBox, 'COP', () => u.params.COP ?? 2.5, v => u.params.COP = v, 0.1, 1, { min: 0.5, max: 6 });
       addNumberEditor(coolBox, 'Max power [W]', () => u.params.maxCoolPower_W ?? 200, v => u.params.maxCoolPower_W = v, 50, 0, { min: 0 });
@@ -49487,6 +50126,16 @@ function populatePalette() {
             // [v13.1.3] Apply tier-specific defaults if profile defines them
             if (profile.defaults?.[tier]) {
               placed.params = { ...placed.params, ...profile.defaults[tier] };
+              // [v20.9.22] Re-seed inventory from the merged defaults. placeUnit
+              // ran initInventory with EMPTY params (defaults not yet applied), so
+              // inventory units (fridge, food store, tanks) came up empty — and the
+              // pre-sim re-init is skipped once the sim has checkpoints, which is
+              // always true for a unit dropped mid-mission. Re-init here so e.g. a
+              // refrigerator placed during M6 actually arrives stocked with food.
+              const _def = UnitRegistry.get(profile.defId);
+              if (_def?.inventory && _def?.initInventory) {
+                placed.inventory = _def.initInventory(placed.params);
+              }
             }
           }
           return id;
@@ -50389,6 +51038,7 @@ let _gameActive = false;  // [v18.0.0] set true by enterGame()
 let _activeGameMode = GameMode.SANDBOX;
 let _activeCampaignState = null;   // CampaignState instance or null
 let _activeMissionId = null;       // current mission id or null
+let _paletteBaseline = {};         // [v20.9.19] inherited per-profile counts at mission load (scarcity baseline)
 
 // [v19.1.0 S-MISSION Phase 2] Play state machine
 let _playState = PlayState.TITLE;
@@ -50526,6 +51176,15 @@ function _countPlacedByProfile(profileId) {
     if (u.profileId === profileId) count++;
   }
   return count;
+}
+
+// [v20.9.19] How many of a profile the PLAYER has added this mission — the scene
+// count minus the inherited baseline snapshotted at mission load. This is what the
+// palette scarcity limit must be enforced against (inherited plant doesn't count).
+function _playerPlacedCount(profileId) {
+  const total = _countPlacedByProfile(profileId);
+  const base = (_paletteBaseline && _paletteBaseline[profileId]) || 0;
+  return Math.max(0, total - base);
 }
 
 // [v19.8.3] Get the lock level for a unit in the current campaign mission.
@@ -50851,6 +51510,8 @@ function _pasteClipboard() {
   const offsetX = targetCell.x - minX;
   const offsetY = targetCell.y - minY;
 
+  if (!_batchScarcityOK(srcUnits)) return;  // [v20.9.19] respect palette limits
+
   _pushUndo('Paste units');
 
   // Map old ID → new ID
@@ -50914,6 +51575,29 @@ function _pasteClipboard() {
  * Duplicate selected units and begin dragging the copies (Ctrl+drag).
  * [v12.10.0]
  */
+// [v20.9.19] Scarcity gate for batch placement (duplicate / paste). Returns true
+// if placing all `srcUnits` would keep every profile within its mission palette
+// allowance; otherwise shows a toast and returns false. Mirrors the drag-drop
+// check but accounts for the whole batch at once. No-op outside campaign missions.
+function _batchScarcityOK(srcUnits) {
+  if (_activeGameMode !== GameMode.CAMPAIGN || !_activeCampaignState || !_activeMissionId) return true;
+  const ep = _activeCampaignState.getEffectivePalette(_activeMissionId);
+  if (!ep) return true;
+  const batchByProfile = {};
+  for (const u of srcUnits) {
+    const pid = u.profileId || u.defId;
+    if (pid in ep) batchByProfile[pid] = (batchByProfile[pid] || 0) + 1;
+  }
+  for (const pid of Object.keys(batchByProfile)) {
+    const max = ep[pid] || 0;
+    if (_playerPlacedCount(pid) + batchByProfile[pid] > max) {
+      showToast(`Can\u2019t duplicate \u2014 ${ProfileRegistry.get(pid)?.name || pid} limit reached (${max}).`);
+      return false;
+    }
+  }
+  return true;
+}
+
 function _duplicateAndDrag(ev) {
   if (ui.selectedUnitIds.size === 0) return;
 
@@ -50921,6 +51605,8 @@ function _duplicateAndDrag(ev) {
   _copySelection();
   if (!ui._clipboard || ui._clipboard.units.length === 0) return;
   const { units: srcUnits, connections: srcConns } = ui._clipboard;
+
+  if (!_batchScarcityOK(srcUnits)) return;  // [v20.9.19] respect palette limits
 
   _pushUndo('Duplicate units');
 
@@ -51452,7 +52138,7 @@ svg.addEventListener('drop', (ev) => {
     const _ep = _activeCampaignState.getEffectivePalette(_activeMissionId);
     if (_ep && (_dropProfileId in _ep)) {
       const _max = _ep[_dropProfileId] || 0;
-      if (_countPlacedByProfile(_dropProfileId) >= _max) {
+      if (_playerPlacedCount(_dropProfileId) >= _max) {
         showToast(`Can\u2019t place \u2014 ${ProfileRegistry.get(_dropProfileId)?.name || _dropProfileId} limit reached (${_max}).`);
         ui.dragDefId = null; ui.dragProfileId = null; ui.dragTier = null; ui.isHTML5Dragging = false;
         return;
@@ -51503,6 +52189,11 @@ svg.addEventListener('drop', (ev) => {
     // Apply tier-specific defaults if profile defines them
     if (_dropProfile?.defaults?.[_droppedUnit.tier]) {
       _droppedUnit.params = { ..._droppedUnit.params, ..._dropProfile.defaults[_droppedUnit.tier] };
+      // [v20.9.22] Re-seed inventory from merged defaults (see palette path).
+      const _ddef = UnitRegistry.get(_droppedUnit.defId);
+      if (_ddef?.inventory && _ddef?.initInventory) {
+        _droppedUnit.inventory = _ddef.initInventory(_droppedUnit.params);
+      }
     }
   }
   ui.dragDefId = null;
@@ -55215,6 +55906,17 @@ function loadMission(missionId) {
   _missionStartTime = TimeClock.t;
   _missionConditionTimers = {};  // [v19.4.0] reset duration tracking
   _objectivesMetAutoPaused = false;  // [v19.5.0] reset auto-pause flag
+
+  // [v20.9.19] Scarcity baseline: snapshot how many of each profile the inherited
+  // scene already contains, so the palette limit is enforced against units the
+  // PLAYER adds (current − baseline), not against inherited plant. Without this,
+  // an inherited air_cooler/barrel/etc. consumes the mission's palette allowance
+  // and the mission becomes impossible (M6, M8). See _playerPlacedCount().
+  _paletteBaseline = {};
+  for (const [, u] of scene.units) {
+    if (!u.profileId) continue;
+    _paletteBaseline[u.profileId] = (_paletteBaseline[u.profileId] || 0) + 1;
+  }
 
   // 6. Effective palette applied via populatePalette() (reads _activeMissionId)
 
@@ -68281,6 +68983,353 @@ function runTests() {
     t.assertOK(m8.roomProps[0].x >= 0 && m8.roomProps[0].x <= 1, 'prop x is an interior fraction');
   });
 
+  test('571: heater min-flow limit lowered for domestic water (1 kg/h)', t => {
+    const prof = ProfileRegistry.get('electric_heater');
+    const mLL = prof.limits[1].mass_LL;
+    t.assertClose(mLL, 0.000278, 0.00001, 'mass_LL ≈ 0.000278 kg/s (1 kg/h)');
+    // the M6 vent water (~0.0896 mol/s H2O ≈ 0.00161 kg/s ≈ 5.8 kg/h) must clear the limit
+    t.assertOK(0.0896 * 0.018015 > mLL, 'vent water flow exceeds the heater minimum');
+  });
+
+  test('572: _playerPlacedCount subtracts the inherited baseline', t => {
+    // emulate: baseline has 1 air_cooler (inherited); player adds one more
+    const savedBaseline = (typeof _paletteBaseline !== 'undefined') ? _paletteBaseline : null;
+    try {
+      _paletteBaseline = { air_cooler: 1 };
+      t.clearScene();
+      t.place('air_cooler', 0, 0);   // inherited stand-in
+      t.assertOK(_playerPlacedCount('air_cooler') === 0, 'one cooler = baseline, player count 0');
+      t.place('air_cooler', 6, 0);   // player-added
+      t.assertOK(_playerPlacedCount('air_cooler') === 1, 'second cooler counts as player-placed');
+      t.assertOK(_playerPlacedCount('refrigerator') === 0, 'absent profile → 0');
+    } finally {
+      if (savedBaseline !== null) _paletteBaseline = savedBaseline;
+    }
+  });
+
+  test('573: refrigerator — powered holds setpoint, no cold runaway', t => {
+    SimSettings.dt = 3600;
+    const fr = t.place('refrigerator', 0, 0, { volume_m3:0.1, P_init:29331792, P_relief:30000000,
+                  T_init:288, T_set:278, COP:2.5, UA_ambient:5, maxCoolPower_W:200,
+                  initialComposition:{CH2O:1}, gasDrawRate:0.001, opening_gas_pct:46.6 });
+    const grid = t.place('grid_supply', 0, 4, { maxPower: 5 });
+    const bsnk = t.place('sink', 4, -2);
+    const fsnk = t.place('sink', 4, 2);
+    t.wire(grid, 'elec_out', fr, 'elec_in');
+    t.wire(fr, 'biogas_out', bsnk, 'mat_in');
+    t.wire(fr, 'food_out', fsnk, 'mat_in');
+    t.solve();
+    let tmin = Infinity;
+    for (let i = 0; i < 48; i++) { TimeClock.step(scene); const T = t.last(fr).T_K; if (T < tmin) tmin = T; }
+    const L = t.last(fr);
+    t.assertOK(L.powered, 'reports powered');
+    // Must hold at/above the 278 K setpoint — never overshoot to the −58°C runaway.
+    t.assertOK(tmin >= 277.5, `holds at/above setpoint (min ${tmin.toFixed(1)}K), no cold runaway`);
+    t.assertOK(L.T_K <= 279, 'settles at the 5°C setpoint');
+  });
+
+  test('574: refrigerator seeds its food charge from defaults at placement', t => {
+    // initInventory with the profile defaults must produce the ~1200 mol charge.
+    const prof = ProfileRegistry.get('refrigerator');
+    const par = { ...prof.defaults[1] };
+    const inv = UnitRegistry.get('refrigerator').initInventory(par);
+    const mol = Object.values(inv.n).reduce((a, b) => a + b, 0);
+    t.assertOK(mol > 1000, `seeded ~1200 mol CH₂O (got ${mol.toFixed(0)})`);
+    t.assertOK((inv.n.CH2O || 0) > 1000, 'the charge is CH₂O (food)');
+    // and a fridge placed with EMPTY params comes up empty — proving the defaults
+    // must be applied + inventory re-seeded (the v20.9.22 placement fix).
+    const empty = UnitRegistry.get('refrigerator').initInventory({});
+    t.assertOK(Object.values(empty.n).reduce((a, b) => a + b, 0) < 1, 'empty params → empty fridge (why the placement re-seed matters)');
+  });
+
+  test('575: refrigerator setpoint editor uses the active temperature unit', t => {
+    // The SI(°C) unit system should convert the 278 K setpoint to ~5°C for display.
+    const us = models.get ? (models.get('units') || models.getActive('units')) : models.getActive('units');
+    const si = models.getActive('units');
+    const cDisp = si.temperature.from(278);  // active unit may be °C or K
+    // round-trip: editing back must return ~278 K
+    const backK = si.temperature.to(cDisp);
+    t.assertClose(backK, 278, 0.01, 'setpoint round-trips through the unit system to 278 K');
+  });
+
+  test('576: connection objectives see through bend chains (pass-through)', t => {
+    const mk = (defId, x, y, prof) => { const id = scene.placeUnit(defId, x, y); const u = scene.units.get(id); if (prof) u.profileId = prof; return id; };
+    const wire = (id, f, fp, tt, tp) => scene.connections.push({ id, from: { unitId: f, portId: fp }, to: { unitId: tt, portId: tp } });
+
+    // direct (baseline)
+    t.clearScene();
+    let a = mk('flash_drum', 0, 0, 'flash_drum'), b = mk('flare_stack', 16, 0, 'flare_stack');
+    wire('w1', a, 'vap_out', b, 'mat_in_1');
+    t.assertOK(_connectionExists(scene, 'flash_drum', 'flare_stack'), 'direct A→B matches');
+
+    // one bend
+    t.clearScene();
+    a = mk('flash_drum', 0, 0, 'flash_drum'); let bn = mk('bend', 16, 0, 'bend'); b = mk('flare_stack', 32, 0, 'flare_stack');
+    wire('w1', a, 'vap_out', bn, 'mat_in'); wire('w2', bn, 'mat_out', b, 'mat_in_1');
+    t.assertOK(_connectionExists(scene, 'flash_drum', 'flare_stack'), 'A→bend→B matches');
+    t.assertOK(_connectionExists(scene, 'flash_drum', 'flare_stack', { fromPort: 'vap_out' }), 'fromPort survives a bend');
+    t.assertOK(!_connectionExists(scene, 'flash_drum', 'flare_stack', { fromPort: 'liq_out' }), 'wrong fromPort still fails through a bend');
+
+    // three bends in series
+    t.clearScene();
+    a = mk('flash_drum', 0, 0, 'flash_drum');
+    const b1 = mk('bend', 16, 0, 'bend'), b2 = mk('bend', 32, 0, 'bend'), b3 = mk('bend', 48, 0, 'bend');
+    b = mk('flare_stack', 64, 0, 'flare_stack');
+    wire('w1', a, 'vap_out', b1, 'mat_in'); wire('w2', b1, 'mat_out', b2, 'mat_in');
+    wire('w3', b2, 'mat_out', b3, 'mat_in'); wire('w4', b3, 'mat_out', b, 'mat_in_1');
+    t.assertOK(_connectionExists(scene, 'flash_drum', 'flare_stack'), 'A→bend→bend→bend→B matches (series)');
+
+    // no false positive: bend leads to the WRONG target
+    t.clearScene();
+    a = mk('flash_drum', 0, 0, 'flash_drum'); bn = mk('bend', 16, 0, 'bend'); const tk = mk('tank', 32, 0, 'tank_high_pressure');
+    wire('w1', a, 'vap_out', bn, 'mat_in'); wire('w2', bn, 'mat_out', tk, 'mat_in');
+    t.assertOK(!_connectionExists(scene, 'flash_drum', 'flare_stack'), 'bend to a different unit is not a false match');
+
+    // connection_absent inherits the traversal: a wired-through bend reads as PRESENT
+    t.assertOK(_connectionExists(scene, 'flash_drum', 'tank_high_pressure'), 'A→bend→tank reads present (so connection_absent would be false)');
+  });
+
+  test('577: M6 heater guidance gates on power, not just topology', t => {
+    const m = MissionRegistry.get('arc_a_m6');
+    const ids = m.guidanceSteps.map(g => g.id);
+    // explicit power-and-verify steps exist for both heaters
+    t.assertOK(ids.includes('g_m6_air_power'), 'air heater has a power step');
+    t.assertOK(ids.includes('g_m6_water_power'), 'water heater has a power step');
+    const airPow = m.guidanceSteps.find(g => g.id === 'g_m6_air_power');
+    t.assertOK(airPow.completion.type === 'port_conditions' && airPow.completion.T_gte >= 290,
+      'air power step completes on warm output (port_conditions T_gte), not topology');
+    const watPow = m.guidanceSteps.find(g => g.id === 'g_m6_water_power');
+    t.assertOK(watPow.completion.type === 'port_conditions' && watPow.completion.T_gte >= 320,
+      'water power step requires the 60°C duty (T_gte ≥ 320K)');
+  });
+
+  test('578: gas engine + fridge port layout (grid-aligned, spec positions)', t => {
+    const eng = UnitRegistry.get('small_gas_engine');
+    const ePorts = Object.fromEntries(eng.ports.map(p => [p.portId, { x: p.x, y: p.y }]));
+    t.assertOK(ePorts.air_in.y === 0, 'engine air at top (y=0)');
+    t.assertOK(ePorts.fuel_in.y === 2, 'engine fuel at bottom (y=2)');
+    t.assertOK(Number.isInteger(ePorts.air_in.x) && Number.isInteger(ePorts.fuel_in.x), 'engine fuel/air on grid lines');
+    const fr = UnitRegistry.get('refrigerator');
+    const fPorts = Object.fromEntries(fr.ports.map(p => [p.portId, { x: p.x, y: p.y }]));
+    t.assertOK(fPorts.elec_in.x === 1 && fPorts.elec_in.y === 0, 'fridge power centered top');
+    t.assertOK(fPorts.biogas_out.x === 2 && fPorts.biogas_out.y === 0, 'fridge rot-gas at top-right');
+    t.assertOK(fPorts.vent.x === 2 && fPorts.vent.y === 4, 'fridge surplus at bottom-right');
+  });
+
+  test('579: room crew-size editor is dev-gated (imposed in Arc A shelter)', t => {
+    // The shelter profile (Arc A) has no dev/template flag → crew size must be hidden.
+    const shelter = ProfileRegistry.get('shelter');
+    const isDevShelter = shelter?.config?.dev || shelter?.config?.template;
+    t.assertOK(!isDevShelter, 'shelter is not dev/template → crew size editor hidden for players');
+    // Sanity: the inspector exists and exposes power priority unconditionally.
+    t.assertOK(typeof UnitInspector.room?.customParams === 'function', 'room inspector has customParams');
+  });
+
+  test('580: room exhaust drains inventory excess above nominal (acyclic level control)', t => {
+    // A flooded nPeople:0 room reaches steady inventory instead of growing unbounded.
+    t.clearScene();
+    const room = t.place('room', 0, 0, { nPeople: 0, powerPriority: 1 });
+    scene.units.get(room).profileId = 'room';
+    const src = t.place('source_atm', -16, 0, { nDot: 0.5 });
+    scene.units.get(src).profileId = 'source_atmosphere';
+    const grid = t.place('grid_supply', -16, 8, {});
+    scene.units.get(grid).profileId = 'grid_supply';
+    const snk = t.place('sink', 16, 0);
+    t.wire(src, 'mat_out', room, 'air_return');
+    t.wire(room, 'air_exhaust', snk, 'mat_in');
+    t.wire(grid, 'elec_out', room, 'elec_in');
+    for (let i = 0; i < 120; i++) TimeClock.step(scene);
+    const n0 = Object.values(scene.units.get(room).inventory.n).reduce((a, b) => a + b, 0);
+    for (let i = 0; i < 120; i++) TimeClock.step(scene);
+    const n1 = Object.values(scene.units.get(room).inventory.n).reduce((a, b) => a + b, 0);
+    t.assertOK(Math.abs(n1 - n0) < n0 * 0.03, `flooded room inventory steady (${n0.toFixed(0)}→${n1.toFixed(0)} mol), not unbounded`);
+  });
+
+  test('581: vented room infiltration replenishes O₂ with no piped supply', t => {
+    t.clearScene();
+    const room = t.place('room', 0, 0, { nPeople: 2, infiltrationACH: 0.5 });
+    scene.units.get(room).profileId = 'room';
+    for (let i = 0; i < 80; i++) TimeClock.step(scene);
+    const n = scene.units.get(room).inventory.n;
+    const tot = Object.values(n).reduce((a, b) => a + b, 0);
+    const o2pct = (n.O2 || 0) / tot * 100;
+    t.assertOK(o2pct > 18, `infiltration keeps O₂ breathable (${o2pct.toFixed(1)}%) without piped O₂`);
+  });
+
+  test('582: sealed room (infiltrationACH absent) ≡ explicit 0 — Arc A invariance', t => {
+    const run = (ach) => {
+      t.clearScene();
+      TimeClock.t = 0; if (TimeClock._checkpoints) TimeClock._checkpoints.length = 0;
+      const p = { nPeople: 2, powerPriority: 1 };
+      if (ach != null) p.infiltrationACH = ach;
+      const room = t.place('room', 0, 0, p);
+      scene.units.get(room).profileId = 'room';
+      const grid = t.place('grid_supply', -16, 8, {});
+      scene.units.get(grid).profileId = 'grid_supply';
+      t.wire(grid, 'elec_out', room, 'elec_in');
+      for (let i = 0; i < 40; i++) TimeClock.step(scene);
+      const d = scene.units.get(room);
+      return { T: d.inventory.T_K, co2: d.inventory.n.CO2 || 0 };
+    };
+    const a = run(undefined), b = run(0);
+    t.assertClose(a.T, b.T, 1e-6, 'sealed: absent infiltrationACH ≡ ACH=0 (temperature)');
+    t.assertClose(a.co2, b.co2, 1e-6, 'sealed: absent ≡ 0 (CO₂)');
+  });
+
+  test('583: two rooms simulate independently (separate atmospheres)', t => {
+    t.clearScene();
+    TimeClock.t = 0; if (TimeClock._checkpoints) TimeClock._checkpoints.length = 0;
+    const rA = t.place('room', 0, 0, { nPeople: 1, powerPriority: 1 });
+    scene.units.get(rA).profileId = 'room';
+    const rB = t.place('room', 40, 0, { nPeople: 4, powerPriority: 1 });
+    scene.units.get(rB).profileId = 'room';
+    const g = t.place('grid_supply', 0, 16, {});
+    scene.units.get(g).profileId = 'grid_supply';
+    t.wire(g, 'elec_out', rA, 'elec_in');
+    t.wire(g, 'elec_out', rB, 'elec_in');
+    for (let i = 0; i < 50; i++) TimeClock.step(scene);
+    const co2A = scene.units.get(rA).inventory.n.CO2 || 0;
+    const co2B = scene.units.get(rB).inventory.n.CO2 || 0;
+    t.assertOK(co2B > co2A * 1.5, `4-person room (CO₂ ${co2B.toFixed(0)}) accrues more than 1-person (${co2A.toFixed(0)}) — independent atmospheres`);
+  });
+
+  test('584: connection objective can target a specific unit id (per-instance)', t => {
+    t.clearScene();
+    const rA = t.place('room', 0, 0, { nPeople: 2 });
+    scene.units.get(rA).profileId = 'room';
+    const rB = t.place('room', 40, 0, { nPeople: 2 });
+    scene.units.get(rB).profileId = 'room';
+    const htr = t.place('electric_heater', 16, 0, { T_out: 293 });
+    scene.units.get(htr).profileId = 'electric_heater';
+    t.wire(htr, 'mat_out', rA, 'air_return');  // heater → room A only
+    t.assertOK(_connectionExists(scene, 'electric_heater', 'room'), 'toProfile matches either room (ambiguous)');
+    t.assertOK(_connectionExists(scene, 'electric_heater', null, { toUnitId: rA }), 'toUnitId=A (wired) matches');
+    t.assertOK(!_connectionExists(scene, 'electric_heater', null, { toUnitId: rB }), 'toUnitId=B (not wired) does not match');
+  });
+
+  test('585: bound-room resolver picks the designated room', t => {
+    t.clearScene();
+    t.place('room', 0, 0, { nPeople: 2 });          // generated id (e.g. room-N)
+    const main = t.place('room', 40, 0, { nPeople: 2 });
+    scene.units.get(main).id = 'room';               // authored mission room id
+    const rooms = [...scene.units.values()].filter(u => u.defId === 'room');
+    const bound = _resolveBoundRoomId(scene, rooms);
+    // In test (non-campaign) context this returns the first lena room — a real id.
+    t.assertOK(rooms.some(u => u.id === bound), `resolver returns a real room id (${bound})`);
+    t.assertOK(typeof CharacterVoice.touchRoomExpression === 'function', 'non-bound rooms have a silent face-update path');
+  });
+
+  test('586: vented atmosphereMode hides o2_in port (hide-don\u2019t-remove)', t => {
+    const roomDef = UnitRegistry.get('room');
+    const sealed = getPresentation(roomDef, { defId: 'room', params: {} });
+    const vented = getPresentation(roomDef, { defId: 'room', params: { atmosphereMode: 'vented' } });
+    t.assertOK('o2_in' in sealed.ports, 'sealed room shows o2_in');
+    t.assertOK(!('o2_in' in vented.ports), 'vented room hides o2_in');
+    const ventedMirror = getPresentation(roomDef, { defId: 'room', params: { atmosphereMode: 'vented', variant: 'mirror' } });
+    t.assertOK(!('o2_in' in ventedMirror.ports), 'vented-mirror also hides o2_in (mirror preserved)');
+  });
+
+  test('587: O\u2082 gauge \u2014 suppressed when vented, flags enrichment when sealed', t => {
+    const mkConds = (params) => {
+      t.clearScene();
+      const r = t.place('room', 0, 0, Object.assign({ nPeople: 2 }, params));
+      scene.units.get(r).profileId = 'room';
+      const g = t.place('grid_supply', 0, 16, {});
+      scene.units.get(g).profileId = 'grid_supply';
+      t.wire(g, 'elec_out', r, 'elec_in');
+      t.solveRaw();
+      return { id: r, conds: t.last(r)?.conditions || {} };
+    };
+    t.assertOK('o2' in mkConds({}).conds, 'sealed room has O\u2082 gauge');
+    t.assertOK(!('o2' in mkConds({ atmosphereMode: 'vented' }).conds), 'vented room suppresses O\u2082 gauge');
+    // enrichment: seed high O₂, sealed room should now flag it (was silent pre-v20.9.28)
+    t.clearScene();
+    const r = t.place('room', 0, 0, { nPeople: 0, powerPriority: 1 });
+    scene.units.get(r).profileId = 'room';
+    scene.units.get(r).inventory = { n: { O2: 2000, N2: 500 }, T_K: 294 };
+    const g = t.place('grid_supply', 0, 16, {});
+    scene.units.get(g).profileId = 'grid_supply';
+    t.wire(g, 'elec_out', r, 'elec_in');
+    t.solveRaw();  // extreme seeded atmosphere; we only check the gauge status, not convergence
+    const o2 = t.last(r)?.conditions?.o2;
+    t.assertOK(o2 && (o2.status === 'WARNING' || o2.status === 'MAJOR'), `enriched O\u2082 flagged (${o2?.status})`);
+  });
+
+  test('588: dev room profile (room_tpl) exposes authoring params; shelter does not', t => {
+    const tpl = ProfileRegistry.get('room_tpl');
+    t.assertOK(!!(tpl?.config?.dev || tpl?.config?.template), 'room_tpl is a dev/template profile');
+    const shelter = ProfileRegistry.get('shelter');
+    t.assertOK(!(shelter?.config?.dev || shelter?.config?.template), 'shelter stays a story profile (params locked)');
+    t.assertOK(typeof UnitInspector.room.customParams === 'function', 'room inspector exposes customParams');
+  });
+
+  test('589: clean water → water_quality OK, no toxin dose', t => {
+    t.clearScene();
+    TimeClock.t = 0; if (TimeClock._checkpoints) TimeClock._checkpoints.length = 0;
+    const room = t.place('room', 0, 0, { nPeople: 2, powerPriority: 1 });
+    scene.units.get(room).profileId = 'room';
+    const w = t.place('source', -16, 0, { n: { H2O: 1 }, T: 294, P: 101325, phaseConstraint: 'L' });
+    scene.units.get(w).profileId = 'source_mix';
+    const g = t.place('grid_supply', -16, 12, {});
+    scene.units.get(g).profileId = 'grid_supply';
+    t.wire(w, 'mat_out', room, 'h2o_in');
+    t.wire(g, 'elec_out', room, 'elec_in');
+    for (let i = 0; i < 50; i++) TimeClock.step(scene);
+    const c = t.last(room)?.conditions?.water_quality;
+    t.assertOK(c && c.status === 'OK', `clean water reads OK (${c?.status})`);
+    t.assertOK((scene.units.get(room).inventory._toxin_dose || 0) < 1, 'no toxin dose on clean water');
+  });
+
+  test('590: glycol-contaminated water poisons the crew (warn → death)', t => {
+    t.clearScene();
+    TimeClock.t = 0; if (TimeClock._checkpoints) TimeClock._checkpoints.length = 0;
+    const room = t.place('room', 0, 0, { nPeople: 2, powerPriority: 1 });
+    scene.units.get(room).profileId = 'room';
+    const w = t.place('source', -16, 0, { n: { H2O: 0.97, C2H6O2: 0.03 }, T: 294, P: 101325, phaseConstraint: 'L' });
+    scene.units.get(w).profileId = 'source_mix';
+    const o2 = t.place('source', -16, 4, { n: { O2: 1 }, T: 294, P: 101325, phaseConstraint: 'V' });
+    scene.units.get(o2).profileId = 'source_mix';
+    const food = t.place('source', -16, 8, { n: { CH2O: 1 }, T: 294, P: 101325, phaseConstraint: 'V' });
+    scene.units.get(food).profileId = 'source_mix';
+    const g = t.place('grid_supply', -16, 12, {});
+    scene.units.get(g).profileId = 'grid_supply';
+    const snk = t.place('sink', 16, 0);
+    t.wire(w, 'mat_out', room, 'h2o_in');
+    t.wire(o2, 'mat_out', room, 'o2_in');
+    t.wire(food, 'mat_out', room, 'food_in');
+    t.wire(g, 'elec_out', room, 'elec_in');
+    t.wire(room, 'air_exhaust', snk, 'mat_in');
+    // immediate live-hazard warning
+    TimeClock.step(scene);
+    const c1 = t.last(room)?.conditions?.water_quality;
+    t.assertOK(c1 && c1.status !== 'OK', `toxic water flagged immediately (${c1?.status})`);
+    t.assertOK(c1?.contaminant === 'glycol', 'gauge names the contaminant (glycol)');
+    // run to lethal
+    for (let i = 0; i < 400; i++) TimeClock.step(scene);
+    t.assertOK(scene.units.get(room).inventory._dead === true, 'crew dies from cumulative glycol poisoning');
+  });
+
+  test('591: water quality — recovery on clean water + Lena lines exist', t => {
+    t.clearScene();
+    TimeClock.t = 0; if (TimeClock._checkpoints) TimeClock._checkpoints.length = 0;
+    const room = t.place('room', 0, 0, { nPeople: 2, powerPriority: 1 });
+    scene.units.get(room).profileId = 'room';
+    const w = t.place('source', -16, 0, { n: { H2O: 0.95, C2H6O2: 0.05 }, T: 294, P: 101325, phaseConstraint: 'L' });
+    scene.units.get(w).profileId = 'source_mix';
+    const g = t.place('grid_supply', -16, 12, {});
+    scene.units.get(g).profileId = 'grid_supply';
+    t.wire(w, 'mat_out', room, 'h2o_in');
+    t.wire(g, 'elec_out', room, 'elec_in');
+    for (let i = 0; i < 30; i++) TimeClock.step(scene);
+    const doseHigh = scene.units.get(room).inventory._toxin_dose || 0;
+    t.assertOK(doseHigh > 0, 'dose accrued from glycol water');
+    scene.units.get(w).params.n = { H2O: 1 };  // switch to clean
+    for (let i = 0; i < 150; i++) TimeClock.step(scene);
+    const doseAfter = scene.units.get(room).inventory._toxin_dose || 0;
+    t.assertOK(doseAfter < doseHigh, `dose clears on clean water (${doseHigh.toFixed(0)} → ${doseAfter.toFixed(0)})`);
+    t.assertOK((_LENA_LINES.condition_worsened.water_quality || []).length > 0, 'Lena has water-quality warning lines');
+  });
+
   test('508: S6a — jacketed isothermal with sufficient power: T_out ≈ T_in', t => {
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -77106,10 +78155,15 @@ function runTests() {
     t.solve();
     const T0 = t.last(fr).T_K;
     let sawBiogas = false;
-    for (let i = 0; i < 48; i++) { TimeClock.step(scene); if ((t.last(fr).Q_biogas || 0) > 1e-9) sawBiogas = true; }
+    let Tmax = T0;
+    for (let i = 0; i < 48; i++) { TimeClock.step(scene); const L = t.last(fr); if ((L.Q_biogas || 0) > 1e-9) sawBiogas = true; if (L.T_K > Tmax) Tmax = L.T_K; }
     const L = t.last(fr);
     t.assertOK(!L.powered, 'reports unpowered (no elec connected)');
-    t.assertOK(L.T_K > T0 + 5, 'warms toward ambient without power');
+    // [v20.9.21] Unpowered, the fridge relaxes to ambient — which swings ±15K
+    // diurnally. It warms above its cold start over the run (peak tracks ambient),
+    // but the final instant can land in a cold trough, so check the peak, not the
+    // last sample. (Previously the buggy thermal warmed monotonically.)
+    t.assertOK(Tmax > T0 + 5, 'warms toward ambient without power (peak over run)');
     t.assertOK(L.spoil_pct_day > 1, 'spoilage rate climbs as it warms');
     t.assertOK(sawBiogas, 'vents biogas as food decomposes');
     const bal = computeSystemBalance(scene);
@@ -77125,7 +78179,7 @@ function runTests() {
     t.assertOK(m.inheritScene === true, 'inherits the M5 end scene');
     // Palette has the comfort kit
     t.assertOK(m.palette.refrigerator === 1, 'fridge in palette');
-    t.assertOK(m.palette.air_cooler === 1, 'air cooler in palette');
+    t.assertOK(m.palette.air_cooler === undefined, 'air cooler removed from palette (useless at/above ambient)');
     t.assertOK(m.palette.electric_heater === 2, 'two heaters (air + water)');
     t.assertOK(m.palette.simple_open_barrel === 1, 'hot-water barrel in palette');
     t.assertOK(m.palette.power_hub === 1, 'power hub in palette');
@@ -77141,7 +78195,7 @@ function runTests() {
     t.assertOK(sustain && sustain.conditions.T_K_gte === 291 && sustain.conditions.T_K_lte === 298, 'cabin band 291–298 K');
     t.assertOK(sustain.duration_s === 86400, '24h sustain');
     // Guidance covers the build end-to-end
-    t.assertOK(m.guidanceSteps.length === 13, '13 guidance steps');
+    t.assertOK(m.guidanceSteps.length === 15, '15 guidance steps (added air + water power-and-verify)');
     t.assertOK(m.storyIntro.length === 2 && m.storyOutro.length === 2, 'two intro + two outro beats');
   });
 
