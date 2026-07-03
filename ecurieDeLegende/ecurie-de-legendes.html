@@ -128,11 +128,12 @@ nav.tabs button.actif::before{content:"";position:absolute;top:0;width:34px;heig
 .cout .fer{width:15px;height:15px;}
 .tirage-aide{margin-top:16px;font-size:12.5px;color:var(--txt-doux);}
 .tirage-aide a{color:var(--or);text-decoration:none;font-weight:700;cursor:pointer;border-bottom:1px dotted var(--or);}
-.chances{margin:24px auto 0;max-width:340px;background:#ffffff0a;border:1px solid #ffffff14;border-radius:16px;padding:14px 16px;}
-.chances h3{font-size:12px;color:var(--txt-doux);text-transform:uppercase;letter-spacing:1.4px;margin-bottom:10px;text-align:center;}
-.chances .ligne{display:flex;align-items:center;gap:10px;padding:5px 0;font-size:14px;}
-.chances .pastille{width:12px;height:12px;border-radius:50%;flex-shrink:0;}
-.chances .ligne .pct{margin-left:auto;font-family:'Fredoka';font-weight:600;}
+.chances-help{margin:22px auto 0;display:block;font-family:'Fredoka';font-weight:500;font-size:14px;color:var(--txt-doux);background:#ffffff0d;border:1px solid #ffffff1a;border-radius:999px;padding:10px 20px;cursor:pointer;}
+.chances-help:active{transform:scale(.97);}
+#chances-liste .ligne{display:flex;align-items:center;gap:10px;padding:8px 0;font-size:15px;border-top:1px solid #ffffff10;}
+#chances-liste .ligne:first-child{border-top:0;}
+#chances-liste .pastille{width:13px;height:13px;border-radius:50%;flex-shrink:0;}
+#chances-liste .ligne .pct{margin-left:auto;font-family:'Fredoka';font-weight:600;}
 
 .reveal-overlay{position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center;flex-direction:column;background:radial-gradient(circle at 50% 44%,#2a2350f2,#0b0916fa);backdrop-filter:blur(6px);}
 .reveal-overlay.on{display:flex;animation:fade .2s ease;}
@@ -301,7 +302,7 @@ nav.tabs button.actif::before{content:"";position:absolute;top:0;width:34px;heig
           <span class="cout"><svg class="fer" viewBox="0 0 24 24" fill="none"><path d="M6 3.5C4 5.5 3 8.5 3 12c0 3.5 2 6 4 6.5M18 3.5C20 5.5 21 8.5 21 12c0 3.5-2 6-4 6.5" stroke="#f2c14e" stroke-width="2.4" stroke-linecap="round"/><circle cx="6.8" cy="19" r="1.4" fill="#f2c14e"/><circle cx="17.2" cy="19" r="1.4" fill="#f2c14e"/></svg><span id="cout-nb"></span></span>
         </button>
         <p class="tirage-aide">Besoin de Crins ? <a id="lien-revisions">Va réviser →</a></p>
-        <div class="chances"><h3>Chances par tirage</h3><div id="chances-liste"></div></div>
+        <button class="chances-help" id="btn-chances">❔ Voir les chances de tirage</button>
       </div>
     </section>
     <section class="ecran" id="ecran-revisions">
@@ -368,6 +369,15 @@ nav.tabs button.actif::before{content:"";position:absolute;top:0;width:34px;heig
     <div id="profils-liste"></div>
     <div id="profil-form"></div>
     <button class="feuille-fermer" id="profils-fermer">Fermer</button>
+  </div>
+</div>
+
+<div class="feuille-fond" id="aide-fond">
+  <div class="feuille">
+    <h2 class="titre" style="margin-bottom:6px;">Chances par tirage</h2>
+    <p class="d-desc" style="color:var(--txt-doux);margin-bottom:12px;">Probabilité d'obtenir chaque rareté à chaque tirage.</p>
+    <div id="chances-liste"></div>
+    <button class="feuille-fermer" id="aide-fermer">Fermer</button>
   </div>
 </div>
 
@@ -858,6 +868,9 @@ $('#filtre-possedes').onclick=()=>{filtrePossedes=!filtrePossedes;$('#filtre-pos
 $$('.eo-tri [data-champ]').forEach(b=>b.onclick=()=>{triChamp=b.dataset.champ;$$('.eo-tri [data-champ]').forEach(x=>x.classList.toggle('actif',x===b));rendreGrille();});
 $('#tri-sens').onclick=()=>{triSens=-triSens;$('#tri-sens').textContent=triSens<0?'↓':'↑';rendreGrille();};
 $('#img-max').onclick=()=>$('#img-max').classList.remove('on');
+$('#btn-chances').onclick=()=>$('#aide-fond').classList.add('on');
+$('#aide-fermer').onclick=()=>$('#aide-fond').classList.remove('on');
+$('#aide-fond').onclick=e=>{if(e.target.id==='aide-fond')$('#aide-fond').classList.remove('on');};
 $('#reveal').onclick=fermerReveal;
 $('#d-fermer').onclick=()=>$('#feuille-fond').classList.remove('on');
 $('#feuille-fond').onclick=e=>{if(e.target.id==='feuille-fond')$('#feuille-fond').classList.remove('on');};
