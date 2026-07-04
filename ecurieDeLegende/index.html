@@ -265,12 +265,12 @@ nav.tabs button.actif::before{content:"";position:absolute;top:0;width:34px;heig
 .cs-resultat .csr-t.win{color:#8fe6a3;}
 .cs-resultat .csr-t.lose{color:#ffd06a;}
 .cs-resultat .csr-d{color:var(--txt-doux);font-size:14px;margin-top:8px;line-height:1.5;}
-.cs-match{display:flex;align-items:stretch;justify-content:center;gap:10px;margin:6px 0 14px;}
-.cs-cote{flex:1;background:#ffffff08;border:1px solid #ffffff14;border-radius:14px;padding:12px 8px;text-align:center;}
-.cs-cote-nom{font-family:'Fredoka';font-weight:500;font-size:13.5px;line-height:1.15;min-height:32px;display:flex;align-items:center;justify-content:center;}
-.cs-cote-stat{font-family:'Fredoka';font-weight:600;font-size:34px;line-height:1;margin:4px 0 2px;}
-.cs-cote-sub{font-size:11px;color:var(--txt-doux);}
-.cs-vs{display:flex;align-items:center;font-family:'Fredoka';font-weight:700;font-size:15px;color:var(--txt-doux);}
+.cs-match{display:flex;align-items:flex-start;justify-content:center;gap:8px;margin:8px 0 14px;}
+.cs-cote{flex:1;min-width:0;text-align:center;}
+.cs-carte{width:100%;margin-bottom:8px;}
+.cs-cote-stat{font-family:'Fredoka';font-weight:600;font-size:32px;line-height:1;}
+.cs-cote-nom{font-size:12px;color:var(--txt-doux);font-weight:700;text-transform:uppercase;letter-spacing:.6px;margin-top:2px;}
+.cs-vs{display:flex;align-items:center;padding-top:38%;font-family:'Fredoka';font-weight:700;font-size:15px;color:var(--txt-doux);flex-shrink:0;}
 #d-stats .cap-ligne{display:flex;align-items:center;gap:9px;padding:4px 0;}
 #d-stats .cap-ico{font-size:15px;width:20px;text-align:center;}
 #d-stats .cap-nom{font-size:13px;width:74px;flex-shrink:0;color:var(--txt-doux);}
@@ -345,6 +345,29 @@ nav.tabs button.actif::before{content:"";position:absolute;top:0;width:34px;heig
 .ch-barre{width:180px;max-width:60vw;height:6px;background:#ffffff1a;border-radius:999px;overflow:hidden;margin-top:6px;}
 .ch-barre>div{width:40%;height:100%;border-radius:999px;background:linear-gradient(90deg,#7ec2ff,#a672e0,#f2c14e);animation:chGlisse 1.1s ease-in-out infinite;}
 @keyframes chGlisse{0%{transform:translateX(-120%);}100%{transform:translateX(320%);}}
+
+/* ===== ÉCRAN D'ACCUEIL (choix du joueur) ===== */
+#accueil{position:fixed;inset:0;height:100dvh;z-index:150;display:flex;flex-direction:column;align-items:center;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:calc(env(safe-area-inset-top) + 40px) 20px calc(env(safe-area-inset-bottom) + 26px);background:radial-gradient(1100px 560px at 50% -8%,#3a2f66,transparent 55%),linear-gradient(180deg,#1a1636,#120f24);transition:opacity .35s ease;}
+#accueil.parti{opacity:0;pointer-events:none;}
+.acc-inner{width:100%;max-width:440px;margin:auto 0;}
+.acc-logo{font-size:52px;text-align:center;filter:drop-shadow(0 8px 14px #0007);}
+.acc-titre{font-family:'Cinzel',serif;font-weight:700;font-size:25px;color:#f3ecdf;text-align:center;margin:8px 0 2px;letter-spacing:.5px;}
+.acc-sous{font-family:'Fredoka',sans-serif;font-weight:600;font-size:16px;color:#ada6c6;text-align:center;margin-bottom:22px;}
+#acc-liste .profil-carte{padding:14px 16px;}
+#acc-liste .profil-carte .pc-ava{width:50px;height:50px;font-size:28px;}
+.pc-go{margin-left:auto;flex-shrink:0;font-family:'Fredoka';font-weight:600;font-size:14px;color:var(--or);}
+.acc-niv{font-family:'Nunito';font-weight:800;font-size:12.5px;color:var(--or);background:#ffffff0d;border:1px solid color-mix(in srgb,var(--or) 55%,transparent);border-radius:10px;padding:9px 12px;margin-top:10px;text-align:center;line-height:1.35;}
+.pinpad{text-align:center;padding-top:8px;}
+.pin-titre{font-family:'Fredoka';font-weight:600;font-size:16px;color:var(--txt);margin-bottom:14px;}
+.pin-dots{font-size:26px;letter-spacing:12px;color:var(--or);margin-bottom:18px;height:28px;}
+.pin-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;max-width:280px;margin:0 auto;}
+.pin-grid button{font-family:'Fredoka';font-weight:600;font-size:24px;color:var(--txt);background:#ffffff10;border:1.5px solid #ffffff22;border-radius:16px;padding:16px 0;cursor:pointer;transition:.1s;}
+.pin-grid button:active{transform:scale(.94);background:#ffffff22;}
+.pin-grid .pin-x,.pin-grid .pin-ok{font-size:20px;color:var(--txt-doux);background:none;border-color:transparent;}
+#d-proprios{margin-top:16px;}
+.dpr-titre{font-size:12px;color:var(--txt-doux);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;}
+.dpr-liste{display:flex;flex-wrap:wrap;gap:7px;}
+.dpr-chip{font-family:'Fredoka';font-weight:500;font-size:13px;color:var(--txt);background:#ffffff10;border:1px solid #ffffff1e;border-radius:999px;padding:5px 11px;}
 </style>
 </head>
 <body>
@@ -353,6 +376,16 @@ nav.tabs button.actif::before{content:"";position:absolute;top:0;width:34px;heig
   <div class="ch-titre">Écurie de Légendes</div>
   <div class="ch-sous">Chargement…</div>
   <div class="ch-barre"><div></div></div>
+</div>
+
+<div id="accueil">
+  <div class="acc-inner">
+    <div class="acc-logo">🐎</div>
+    <h1 class="acc-titre">Écurie de Légendes</h1>
+    <div class="acc-sous">Qui joue&nbsp;?</div>
+    <div id="acc-liste"></div>
+    <div id="acc-form"></div>
+  </div>
 </div>
 <div id="app">
   <header>
@@ -445,6 +478,7 @@ nav.tabs button.actif::before{content:"";position:absolute;top:0;width:34px;heig
     <div id="d-echelle"></div>
     <div class="echelle-titre" style="margin-top:16px;">Capacités</div>
     <div id="d-stats"></div>
+    <div id="d-proprios"></div>
     <button class="feuille-fermer" id="d-fermer">Fermer</button>
   </div>
 </div>
@@ -615,6 +649,34 @@ const CARTES = [
 ];
 
 /* 2. RÉGLAGES */
+
+/* ================= COMPTES EN LIGNE (Supabase) =================
+   Colle ici l'URL et la clé "anon public" de ton projet Supabase.
+   Tant que ces deux champs sont vides, le jeu reste 100% local (comme avant).
+   Dès qu'ils sont remplis, l'écran d'accueil bascule en mode comptes en ligne. */
+const CLOUD={
+  url:'https://broauveyitegsqzdilwo.supabase.co',   // Project URL Supabase (base, sans /rest/v1)
+  key:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJyb2F1dmV5aXRlZ3NxemRpbHdvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMxNTg5OTAsImV4cCI6MjA5ODczNDk5MH0.7QsK43BDoGFxr8EspxiytACi3JWcrXY1t0xjD7V-6fM',   // clé anon public (faite pour être publique)
+  actif(){return !!(this.url&&this.key);},
+  async rpc(fn,args){
+    const base=this.url.replace(/\/+$/,'').replace(/\/rest\/v1$/,'');
+    const r=await fetch(base+'/rest/v1/rpc/'+fn,{method:'POST',headers:{'apikey':this.key,'Authorization':'Bearer '+this.key,'Content-Type':'application/json'},body:JSON.stringify(args||{})});
+    if(!r.ok)throw new Error('HTTP '+r.status+' '+await r.text());
+    return r.json();
+  }
+};
+async function sha256(s){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(String(s)));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');}
+async function cloudListe(){return CLOUD.rpc('comptes_liste',{});}
+async function cloudConnexion(prenom,pin){const h=await sha256(pin);const r=await CLOUD.rpc('connexion',{p_prenom:prenom,p_pin:h});return (r&&r[0])?Object.assign(r[0],{_pin:h}):null;}
+async function cloudCreer(prenom,pin,avatar,couleur,age,niveau){const h=await sha256(pin);const id=await CLOUD.rpc('creer_compte',{p_prenom:prenom,p_pin:h,p_avatar:avatar,p_couleur:couleur,p_age:age,p_niveau:niveau,p_etat:etatVide()});return {id,_pin:h};}
+async function cloudProprietaires(carte){try{return await CLOUD.rpc('proprietaires',{p_carte:carte});}catch(e){return [];}}
+let cloudTimer=null;
+async function cloudPush(){
+  if(!(profilActif&&profilActif.cloud&&profilActif.pin))return;
+  try{await CLOUD.rpc('sauver_etat',{p_id:profilActif.id,p_pin:profilActif.pin,p_etat:etat,p_avatar:profilActif.emoji,p_couleur:profilActif.couleur,p_age:profilActif.age,p_niveau:profilActif.niveau});}
+  catch(e){/* réessai au prochain enregistrement */}
+}
+function compteVersProfil(row){return {id:row.id,nom:row.prenom,age:row.age,emoji:row.avatar,couleur:row.couleur,niveau:row.niveau,etat:normaliserEtat(row.etat||etatVide()),cloud:true,pin:row._pin};}
 const RARETES={commune:{nom:'Commune',poids:60,overflow:15,couleur:'#c4cdd8'},rare:{nom:'Rare',poids:25,overflow:30,couleur:'#7ec2ff'},epique:{nom:'Épique',poids:10,overflow:60,couleur:'#c99bff'},legendaire:{nom:'Légendaire',poids:4,overflow:120,couleur:'#ffcf6b'},mythique:{nom:'Mythique',poids:0.4,overflow:250,couleur:'#ff9ac0'}};
 const SEUILS=[1,4,9,17,28];   // exemplaires cumulés pour ★ à ★★★★★ (évolution plus lente)
 const TITRES=['—','Éveil','Aguerri','Radieux','Céleste','Mythe'];
@@ -633,7 +695,6 @@ const CAPS=[
 ];
 const BASE_RAR={commune:8,rare:20,epique:34,legendaire:50,mythique:66};
 const BONUS_ADV=10;   // les adversaires sont des spécialistes de l'épreuve
-const NOMS_ADV=['Éclair','Tonnerre','Ombre','Tempête','Brasier','Zéphyr','Cendre','Titan','Mirage','Silex','Orage','Comète','Faucon','Brume','Vaillant'];
 const NIVEAUX_CONCOURS=[
   {id:'local',nom:'Local',ico:'🥉',crins:15,renommee:1,inscription:5,adv:{rarete:'commune',pmin:1,pmax:2}},
   {id:'regional',nom:'Régional',ico:'🥈',crins:25,renommee:2,inscription:10,adv:{rarete:'rare',pmin:1,pmax:2}},
@@ -661,7 +722,16 @@ function normaliserEtat(e){const d=etatVide();for(const k in d)if(e[k]===undefin
 function niveauScolaire(age){return Math.max(1,Math.min(6,(age||10)-5));}   // 8 ans → P3, 10 ans → P5
 function profilVide(id,nom,age,emoji,couleur){return {id,nom,age,emoji,couleur,niveau:niveauScolaire(age),etat:etatVide()};}
 function lireLS(k){try{const b=localStorage.getItem(k);if(b)return JSON.parse(b);}catch(e){}return null;}
-function sauver(){try{localStorage.setItem(CLE_P,JSON.stringify(SAVE));}catch(e){memoire=JSON.parse(JSON.stringify(SAVE));}}
+function sauver(){
+  try{
+    if(profilActif&&profilActif.cloud){
+      localStorage.setItem('ecurie_cloud_cache',JSON.stringify({id:profilActif.id,nom:profilActif.nom,age:profilActif.age,emoji:profilActif.emoji,couleur:profilActif.couleur,niveau:profilActif.niveau,etat}));
+      if(cloudTimer)clearTimeout(cloudTimer);cloudTimer=setTimeout(cloudPush,1500);
+    }else{
+      localStorage.setItem(CLE_P,JSON.stringify(SAVE));
+    }
+  }catch(e){memoire=JSON.parse(JSON.stringify(SAVE));}
+}
 let SAVE=lireLS(CLE_P)||memoire;
 if(!SAVE){
   SAVE={actif:'enola',profils:[profilVide('enola','Énola',10,'🦄','#ff9ac0'),profilVide('anae','Anaé',8,'🦄','#7ec2ff')]};
@@ -944,7 +1014,7 @@ const MATIERES=[
 
 /* 6. RENDU CARTE */
 function etoilesHTML(p){let s='';for(let i=1;i<=5;i++)s+=`<span class="et${i<=p?' on':''}">★</span>`;return s;}
-function carteHTML(c,n,{anim=false}={}){const p=palierApplique(c);const evo=peutEvoluer(c)?'<div class="tc-evo">✨</div>':'';return `<div class="tcarte${anim?' tc-anim':''}" data-r="${c.rarete}" data-p="${p}"><div class="tc-art">${artHTML(c)}</div><div class="tc-scrim-top"></div><div class="tc-scrim-bot"></div><div class="tc-shine"></div><div class="tc-motes"><i></i><i></i><i></i></div><div class="tc-corner tl"></div><div class="tc-corner tr"></div><div class="tc-corner bl"></div><div class="tc-corner br"></div><div class="tc-frame"></div>${evo}<div class="tc-top">${p>=2?`<div class="tc-palier">${TITRES[p]}</div>`:'<span></span>'}<div class="tc-stars">${etoilesHTML(p)}</div></div><div class="tc-bottom"><div class="tc-nom">${c.nom}</div><div class="tc-rar">${RARETES[c.rarete].nom}</div></div></div>`;}
+function carteHTML(c,n,{anim=false,palier=null}={}){const p=palier!=null?palier:palierApplique(c);const evo=(palier==null&&peutEvoluer(c))?'<div class="tc-evo">✨</div>':'';return `<div class="tcarte${anim?' tc-anim':''}" data-r="${c.rarete}" data-p="${p}"><div class="tc-art">${artHTML(c)}</div><div class="tc-scrim-top"></div><div class="tc-scrim-bot"></div><div class="tc-shine"></div><div class="tc-motes"><i></i><i></i><i></i></div><div class="tc-corner tl"></div><div class="tc-corner tr"></div><div class="tc-corner bl"></div><div class="tc-corner br"></div><div class="tc-frame"></div>${evo}<div class="tc-top">${p>=2?`<div class="tc-palier">${TITRES[p]}</div>`:'<span></span>'}<div class="tc-stars">${etoilesHTML(p)}</div></div><div class="tc-bottom"><div class="tc-nom">${c.nom}</div><div class="tc-rar">${RARETES[c.rarete].nom}</div></div></div>`;}
 function carteMystereHTML(c){return `<div class="tcarte verrou" data-r="${c.rarete}" data-p="0"><div class="tc-art">?</div><div class="tc-scrim-top"></div><div class="tc-scrim-bot"></div><div class="tc-frame"></div><div class="tc-top"><span></span><div class="tc-stars">${etoilesHTML(0)}</div></div><div class="tc-bottom"><div class="tc-nom">${c.nom}</div><div class="tc-rar">${RARETES[c.rarete].nom}</div></div></div>`;}
 
 /* 7. ÉCRANS */
@@ -1003,6 +1073,14 @@ function ouvrirDetail(c){
   $('#detail-hero').onclick=()=>maximiser(c);$('#detail-agrandir').onclick=()=>maximiser(c);
   const st=$('#d-stats');st.innerHTML='';CAPS.forEach(cap=>{const v=statDe(c,cap.id);const l=document.createElement('div');l.className='cap-ligne';l.innerHTML=`<span class="cap-ico">${cap.ico}</span><span class="cap-nom">${cap.nom}</span><div class="cap-bar"><div style="width:${v}%;background:${cap.couleur}"></div></div><span class="cap-val">${v}</span>`;st.appendChild(l);});
   const ff=$('#feuille-fond');ff.classList.add('on');const fe=ff.querySelector('.feuille');if(fe)fe.scrollTop=0;
+  const pr=$('#d-proprios');pr.innerHTML='';
+  if(CLOUD.actif()&&profilActif.cloud){
+    cloudProprietaires(c.id).then(list=>{
+      const autres=(list||[]).filter(o=>o.prenom!==profilActif.nom);
+      if(!autres.length){pr.innerHTML='<div class="dpr-titre">Personne d\'autre ne l\'a encore 🌟</div>';return;}
+      pr.innerHTML='<div class="dpr-titre">Aussi dans l\'écurie de</div><div class="dpr-liste">'+autres.map(o=>`<span class="dpr-chip">${o.prenom} ${'★'.repeat(Math.max(1,o.palier||1))}</span>`).join('')+'</div>';
+    }).catch(()=>{});
+  }
 }
 
 /* ---- CONCOURS : rendu + résolution ---- */
@@ -1030,17 +1108,27 @@ function ouvrirSelecteur(co,cap,niv){
   else owned.forEach(c=>{const v=statDe(c,cap.id);const cls=v>=ref?'gagnable':(v>=ref-8?'limite':'');const row=document.createElement('div');row.className='cs-row '+cls;row.innerHTML=`<span class="cs-dot" style="background:${RARETES[c.rarete].couleur}"></span><span class="cs-nom">${c.nom}</span><span class="cs-etoiles">${'★'.repeat(palierApplique(c))}</span><span class="cs-stat" style="color:${cap.couleur}">${v}</span>`;row.onclick=()=>resoudreConcours(c);box.appendChild(row);});
   $('#concours-fond').classList.add('on');
 }
+function pickAdversaire(cap,niv){
+  const a=niv.adv;
+  let pool=CARTES.filter(x=>x.rarete===a.rarete&&(x.aff||[]).includes(cap));   // spécialiste de la bonne rareté
+  if(!pool.length)pool=CARTES.filter(x=>x.rarete===a.rarete);                  // sinon n'importe quelle carte de cette rareté
+  if(!pool.length)pool=CARTES;
+  const carte=pool[rnd(0,pool.length-1)],palier=rnd(a.pmin,a.pmax);
+  return {carte,palier,stat:statAdversaire(a.rarete,palier)};
+}
 function resoudreConcours(c){
   const {co,cap,niv}=concoursCourant;
   if(etat.crins<niv.inscription){toast('Pas assez de Crins pour la mise');return;}
   etat.crins-=niv.inscription;
-  const a=niv.adv,advPalier=rnd(a.pmin,a.pmax),advStat=statAdversaire(a.rarete,advPalier),advNom=NOMS_ADV[rnd(0,NOMS_ADV.length-1)];
-  const moiPerf=statDe(c,cap.id)+rnd(-5,8),advPerf=advStat+rnd(-5,8),gagne=moiPerf>=advPerf;
+  const adv=pickAdversaire(cap,niv);
+  const moiPerf=statDe(c,cap.id)+rnd(-5,8),advPerf=adv.stat+rnd(-5,8),gagne=moiPerf>=advPerf;
   if(gagne){etat.crins+=niv.crins;etat.renommee+=niv.renommee;etat.renommeeTotale+=niv.renommee;etat.concours.faits[co.i]='gagne';}
   else etat.concours.faits[co.i]='perdu';
   sauver();majSolde(true);
   $('#cs-sous').textContent='';$('#cs-fermer').style.display='none';
-  $('#cs-liste').innerHTML=`<div class="cs-resultat"><div class="cs-match"><div class="cs-cote"><div class="cs-cote-nom">${c.nom}</div><div class="cs-cote-stat" style="color:${cap.couleur}">${moiPerf}</div><div class="cs-cote-sub">${'★'.repeat(palierApplique(c))} ${RARETES[c.rarete].nom}</div></div><div class="cs-vs">VS</div><div class="cs-cote"><div class="cs-cote-nom">${advNom}</div><div class="cs-cote-stat" style="color:${RARETES[a.rarete].couleur}">${advPerf}</div><div class="cs-cote-sub">${'★'.repeat(advPalier)} ${RARETES[a.rarete].nom}</div></div></div><div class="csr-t ${gagne?'win':'lose'}">${gagne?'🏆 Victoire !':'Défaite'}</div><div class="csr-d">${gagne?`+${niv.crins} Crins · +${niv.renommee} ⭐ renommée`:`mise de ${niv.inscription} Crins perdue`}</div><button class="defi-continuer" id="cs-continuer">Continuer ›</button></div>`;
+  const carteJoueur=`<div class="tc-box ratio cs-carte">${carteHTML(c,etat.collection[c.id]||0)}</div>`;
+  const carteAdv=`<div class="tc-box ratio cs-carte">${carteHTML(adv.carte,0,{palier:adv.palier})}</div>`;
+  $('#cs-liste').innerHTML=`<div class="cs-resultat"><div class="cs-match"><div class="cs-cote">${carteJoueur}<div class="cs-cote-stat" style="color:${cap.couleur}">${moiPerf}</div><div class="cs-cote-nom">Toi</div></div><div class="cs-vs">VS</div><div class="cs-cote">${carteAdv}<div class="cs-cote-stat" style="color:${RARETES[adv.carte.rarete].couleur}">${advPerf}</div><div class="cs-cote-nom">Adversaire</div></div></div><div class="csr-t ${gagne?'win':'lose'}">${gagne?'🏆 Victoire !':'Défaite'}</div><div class="csr-d">${gagne?`+${niv.crins} Crins · +${niv.renommee} ⭐ renommée`:`mise de ${niv.inscription} Crins perdue`}</div><button class="defi-continuer" id="cs-continuer">Continuer ›</button></div>`;
   $('#cs-continuer').onclick=()=>{$('#concours-fond').classList.remove('on');renderConcours();};
 }
 
@@ -1214,19 +1302,92 @@ function renderProfils(){
 }
 function formNouveauProfil(){
   let emo=EMOJIS_PROFIL[0];const f=$('#profil-form');
-  f.innerHTML=`<div class="pform"><label>Prénom</label><input id="np-nom" maxlength="14" placeholder="Prénom"><label>Âge</label><input id="np-age" type="number" min="4" max="15" inputmode="numeric" placeholder="8"><label>Avatar</label><div class="emojis" id="np-emojis">${EMOJIS_PROFIL.map((e,i)=>`<button data-e="${e}" class="${i===0?'on':''}">${e}</button>`).join('')}</div><div class="pf-actions"><button class="pf-annuler" id="np-annuler">Annuler</button><button class="pf-creer" id="np-creer">Créer</button></div></div>`;
+  f.innerHTML=`<div class="pform"><label>Prénom</label><input id="np-nom" maxlength="14" placeholder="Prénom"><label>Âge</label><input id="np-age" type="number" min="4" max="15" inputmode="numeric" placeholder="8"><div class="acc-niv" id="np-niv">Le niveau des exercices s'adapte à l'âge</div><label>Avatar</label><div class="emojis" id="np-emojis">${EMOJIS_PROFIL.map((e,i)=>`<button data-e="${e}" class="${i===0?'on':''}">${e}</button>`).join('')}</div><div class="pf-actions"><button class="pf-annuler" id="np-annuler">Annuler</button><button class="pf-creer" id="np-creer">Créer</button></div></div>`;
+  $('#np-age').addEventListener('input',()=>{const age=parseInt($('#np-age').value,10);$('#np-niv').innerHTML=age?`Niveau adapté : <b>P${niveauScolaire(age)}</b> · modifiable dans les réglages`:"Le niveau des exercices s'adapte à l'âge";});
   f.querySelectorAll('#np-emojis button').forEach(b=>b.onclick=()=>{emo=b.dataset.e;f.querySelectorAll('#np-emojis button').forEach(x=>x.classList.toggle('on',x===b));});
   $('#np-annuler').onclick=()=>f.innerHTML='';
   $('#np-creer').onclick=()=>{const nom=($('#np-nom').value||'').trim();if(!nom){toast('Choisis un prénom');return;}const age=parseInt($('#np-age').value,10)||8;const id='p'+Date.now().toString(36);const coul=COULEURS_PROFIL[SAVE.profils.length%COULEURS_PROFIL.length];const p=profilVide(id,nom,age,emo,coul);SAVE.profils.push(p);sauver();activerProfil(p);};
 }
-$('#btn-profil').onclick=ouvrirProfils;
+function cartesProfil(p){return CARTES.reduce((s,c)=>s+(((p.etat.collection||{})[c.id]||0)>0?1:0),0);}
+function renderAccueil(){
+  if(CLOUD.actif()){renderAccueilCloud();return;}
+  const box=$('#acc-liste');box.innerHTML='';$('#acc-form').innerHTML='';
+  SAVE.profils.forEach(p=>{
+    const u=cartesProfil(p);
+    const c=document.createElement('div');c.className='profil-carte';c.style.setProperty('--pc',p.couleur);
+    c.innerHTML=`<div class="pc-ava">${p.emoji}</div><div class="pc-info"><div class="pc-nom">${p.nom}</div><div class="pc-sous">${p.age} ans · P${p.niveau} · ${u} créature${u>1?'s':''}</div></div><div class="pc-go">Jouer ›</div>`;
+    c.onclick=()=>entrerJeu(p);box.appendChild(c);
+  });
+  const add=document.createElement('button');add.className='profil-ajout';add.innerHTML='<span style="font-size:20px">＋</span> Nouveau joueur';add.onclick=formAccueilCreate;box.appendChild(add);
+}
+function formAccueilCreate(){
+  let emo=EMOJIS_PROFIL[0];const f=$('#acc-form');
+  f.innerHTML=`<div class="pform"><label>Prénom</label><input id="ac-nom" maxlength="14" placeholder="Prénom"><label>Âge</label><input id="ac-age" type="number" min="4" max="15" inputmode="numeric" placeholder="8"><div class="acc-niv" id="ac-niv">Le niveau des exercices s'adapte à l'âge</div><label>Avatar</label><div class="emojis" id="ac-emojis">${EMOJIS_PROFIL.map((e,i)=>`<button data-e="${e}" class="${i===0?'on':''}">${e}</button>`).join('')}</div><div class="pf-actions"><button class="pf-annuler" id="ac-annuler">Annuler</button><button class="pf-creer" id="ac-creer">Créer &amp; jouer</button></div></div>`;
+  const majNiv=()=>{const age=parseInt($('#ac-age').value,10);$('#ac-niv').innerHTML=age?`Niveau adapté : <b>P${niveauScolaire(age)}</b> · modifiable dans les réglages`:"Le niveau des exercices s'adapte à l'âge";};
+  $('#ac-age').addEventListener('input',majNiv);
+  f.querySelectorAll('#ac-emojis button').forEach(b=>b.onclick=()=>{emo=b.dataset.e;f.querySelectorAll('#ac-emojis button').forEach(x=>x.classList.toggle('on',x===b));});
+  $('#ac-annuler').onclick=()=>{f.innerHTML='';};
+  $('#ac-creer').onclick=()=>{const nom=($('#ac-nom').value||'').trim();if(!nom){toast('Choisis un prénom');return;}const age=parseInt($('#ac-age').value,10)||8;const id='p'+Date.now().toString(36);const coul=COULEURS_PROFIL[SAVE.profils.length%COULEURS_PROFIL.length];const p=profilVide(id,nom,age,emo,coul);SAVE.profils.push(p);sauver();entrerJeu(p);};
+}
+async function renderAccueilCloud(){
+  const box=$('#acc-liste');box.innerHTML='<div class="acc-niv">Chargement des écuries…</div>';$('#acc-form').innerHTML='';
+  let liste;
+  try{liste=await cloudListe();}
+  catch(e){box.innerHTML='<div class="acc-niv">Pas de connexion. <button id="acc-retry" style="text-decoration:underline;background:none;border:none;color:var(--or);font:inherit;cursor:pointer">Réessayer</button></div>';const r=$('#acc-retry');if(r)r.onclick=renderAccueilCloud;return;}
+  box.innerHTML='';
+  if(!liste.length)box.innerHTML='<div class="acc-niv">Aucune écurie encore. Crée la première !</div>';
+  liste.forEach(a=>{
+    const c=document.createElement('div');c.className='profil-carte';c.style.setProperty('--pc',a.couleur||'#7ec2ff');
+    c.innerHTML=`<div class="pc-ava">${a.avatar||'🦄'}</div><div class="pc-info"><div class="pc-nom">${a.prenom}</div><div class="pc-sous">${a.age||'?'} ans · P${a.niveau||3}</div></div><div class="pc-go">🔒 ›</div>`;
+    c.onclick=()=>demanderPin(a);box.appendChild(c);
+  });
+  const add=document.createElement('button');add.className='profil-ajout';add.innerHTML='<span style="font-size:20px">＋</span> Nouvelle écurie';add.onclick=formCloudCreate;box.appendChild(add);
+}
+function pavePin(cible,onFini){
+  let pin='';const f=$('#acc-form');
+  f.innerHTML=`<div class="pinpad"><div class="pin-titre">${cible}</div><div class="pin-dots" id="pin-dots">○○○○</div><div class="pin-grid">${[1,2,3,4,5,6,7,8,9].map(n=>`<button data-n="${n}">${n}</button>`).join('')}<button class="pin-x" data-x="1">⌫</button><button data-n="0">0</button><button class="pin-ok" data-x="2">↩</button></div></div>`;
+  const maj=()=>$('#pin-dots').textContent='●'.repeat(pin.length)+'○'.repeat(4-pin.length);
+  f.querySelectorAll('.pin-grid button').forEach(b=>b.onclick=()=>{
+    if(b.dataset.x==='1'){pin=pin.slice(0,-1);maj();return;}
+    if(b.dataset.x==='2'){renderAccueil();return;}
+    if(pin.length<4){pin+=b.dataset.n;maj();if(pin.length===4)setTimeout(()=>onFini(pin),120);}
+  });
+}
+function demanderPin(a){
+  pavePin(`${a.avatar||'🦄'} ${a.prenom} · code secret`,async(pin)=>{
+    try{const row=await cloudConnexion(a.prenom,pin);if(!row){toast('Code incorrect');return demanderPin(a);}entrerJeu(compteVersProfil(row));}
+    catch(e){toast('Pas de connexion');demanderPin(a);}
+  });
+}
+function formCloudCreate(){
+  let emo=EMOJIS_PROFIL[0];const f=$('#acc-form');
+  f.innerHTML=`<div class="pform"><label>Prénom d'écurie</label><input id="cc-nom" maxlength="14" placeholder="Prénom"><label>Âge</label><input id="cc-age" type="number" min="4" max="15" inputmode="numeric" placeholder="8"><div class="acc-niv" id="cc-niv">Le niveau s'adapte à l'âge</div><label>Avatar</label><div class="emojis" id="cc-emojis">${EMOJIS_PROFIL.map((e,i)=>`<button data-e="${e}" class="${i===0?'on':''}">${e}</button>`).join('')}</div><label>Code secret (4 chiffres)</label><input id="cc-pin" type="tel" maxlength="4" inputmode="numeric" placeholder="••••" style="letter-spacing:6px;text-align:center"><div class="pf-actions"><button class="pf-annuler" id="cc-annuler">Annuler</button><button class="pf-creer" id="cc-creer">Créer &amp; jouer</button></div></div>`;
+  $('#cc-age').addEventListener('input',()=>{const age=parseInt($('#cc-age').value,10);$('#cc-niv').innerHTML=age?`Niveau adapté : <b>P${niveauScolaire(age)}</b>`:"Le niveau s'adapte à l'âge";});
+  f.querySelectorAll('#cc-emojis button').forEach(b=>b.onclick=()=>{emo=b.dataset.e;f.querySelectorAll('#cc-emojis button').forEach(x=>x.classList.toggle('on',x===b));});
+  $('#cc-annuler').onclick=()=>{f.innerHTML='';};
+  $('#cc-creer').onclick=async()=>{
+    const nom=($('#cc-nom').value||'').trim(),pin=($('#cc-pin').value||'').trim();
+    if(!nom)return toast('Choisis un prénom');
+    if(!/^\d{4}$/.test(pin))return toast('Code à 4 chiffres');
+    const age=parseInt($('#cc-age').value,10)||8,coul=COULEURS_PROFIL[Math.floor(Math.random()*COULEURS_PROFIL.length)];
+    try{const {id,_pin}=await cloudCreer(nom,pin,emo,coul,age,niveauScolaire(age));entrerJeu({id,nom,age,emoji:emo,couleur:coul,niveau:niveauScolaire(age),etat:etatVide(),cloud:true,pin:_pin});}
+    catch(e){toast(String(e).includes('PRENOM_PRIS')?'Ce prénom existe déjà':'Création impossible (connexion ?)');}
+  };
+}
+function entrerJeu(p){
+  SAVE.actif=p.id;profilActif=p;etat=p.etat;normaliserEtat(etat);serieCourante=0;sauver();
+  majAvatar();majSolde();majProgression();rendreGrille();rendreChances();menuDefis();renderScores();
+  switchEcran('ecurie');
+  const a=$('#accueil');a.classList.add('parti');setTimeout(()=>{a.style.display='none';},400);
+}
+$('#btn-profil').onclick=()=>{if(CLOUD.actif()){const a=$('#accueil');a.style.display='';a.classList.remove('parti');renderAccueil();}else ouvrirProfils();};
 $('#profils-fermer').onclick=fermerProfils;
 $('#profils-fond').onclick=e=>{if(e.target.id==='profils-fond')fermerProfils();};
 
 /* 15. DÉMARRAGE */
 $('#cout-nb').textContent=COUT_TIRAGE;
 requestAnimationFrame(()=>requestAnimationFrame(()=>{
-  majAvatar();majSolde();majProgression();rendreGrille();rendreChances();menuDefis();
+  renderAccueil();
   const ch=document.getElementById('chargement');if(ch){ch.classList.add('parti');setTimeout(()=>ch.remove(),500);}
 }));
 
