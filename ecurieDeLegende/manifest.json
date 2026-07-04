@@ -1,0 +1,17 @@
+{
+  "name": "Écurie de Légendes",
+  "short_name": "Écurie",
+  "description": "Collectionne des chevaux légendaires, révise et remporte des concours !",
+  "lang": "fr",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#1a1636",
+  "theme_color": "#1a1636",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

@@ -1,0 +1,1237 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Écurie de Légendes</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1a1636">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Écurie">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+@property --spin{syntax:"<angle>";inherits:false;initial-value:0deg;}
+:root{
+  --nuit-0:#120f24;--nuit-1:#1a1636;--nuit-2:#282150;
+  --txt:#f3ecdf;--txt-doux:#ada6c6;--or:#f2c14e;--or-fonce:#d99b2b;--tab-h:66px;
+  --ratio-carte:54 / 85.6;   /* carte de crédit ISO ID-1, portrait */
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;}
+body{font-family:'Nunito',system-ui,-apple-system,sans-serif;color:var(--txt);
+  background:radial-gradient(1100px 560px at 18% -8%,#3a2f66 0,transparent 55%),radial-gradient(900px 480px at 105% 8%,#4a2a58 0,transparent 52%),linear-gradient(180deg,var(--nuit-1),var(--nuit-0));
+  background-attachment:fixed;overflow:hidden;-webkit-font-smoothing:antialiased;}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.7;
+  background-image:radial-gradient(1.5px 1.5px at 15% 22%,#fff8,transparent),radial-gradient(1.5px 1.5px at 78% 15%,#fff6,transparent),radial-gradient(1px 1px at 45% 8%,#fff7,transparent),radial-gradient(1px 1px at 88% 34%,#fff5,transparent),radial-gradient(1.5px 1.5px at 30% 40%,#fff4,transparent),radial-gradient(1px 1px at 62% 28%,#fff6,transparent);}
+.titre,h1,h2,h3{font-family:'Fredoka',system-ui,sans-serif;font-weight:600;}
+#app{position:relative;z-index:1;height:100vh;height:100dvh;display:flex;flex-direction:column;max-width:520px;margin:0 auto;}
+
+header{padding:14px 16px 8px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-shrink:0;}
+.solde{display:flex;align-items:center;gap:7px;background:linear-gradient(180deg,#332a1a,#221b10);border:1px solid #6b531f;padding:7px 13px;border-radius:999px;box-shadow:0 3px 12px #0006,inset 0 1px 0 #ffffff14;}
+.solde .fer{width:18px;height:18px;flex-shrink:0;}
+.solde b{font-family:'Fredoka';font-weight:600;font-size:17px;color:var(--or);line-height:1;}
+.solde.pulse{animation:soldePulse .5s ease;}
+@keyframes soldePulse{0%{transform:scale(1);}40%{transform:scale(1.18);}100%{transform:scale(1);}}
+.reglages-btn{background:none;border:none;color:var(--txt-doux);font-size:20px;cursor:pointer;padding:4px;}
+.progress-wrap{padding:0 16px 8px;flex-shrink:0;}
+.progress-bar{height:8px;background:#ffffff14;border-radius:999px;overflow:hidden;}
+.progress-fill{height:100%;width:0;border-radius:999px;background:linear-gradient(90deg,#4aa3df,#a672e0,var(--or));transition:width .5s cubic-bezier(.2,.8,.2,1);}
+.progress-txt{font-size:11.5px;color:var(--txt-doux);margin-top:5px;text-align:center;letter-spacing:.3px;}
+
+main{flex:1;overflow-y:auto;overflow-x:hidden;padding:6px 16px 22px;-webkit-overflow-scrolling:touch;}
+.ecran{display:none;animation:fade .25s ease;}
+.ecran.actif{display:block;}
+@keyframes fade{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
+.section-titre{font-size:20px;margin:6px 2px 14px;display:flex;align-items:baseline;gap:8px;}
+.section-titre span{font-size:12.5px;color:var(--txt-doux);font-family:'Nunito';font-weight:700;}
+
+nav.tabs{flex-shrink:0;height:var(--tab-h);display:flex;background:linear-gradient(180deg,#1c1735ee,#12102499);backdrop-filter:blur(10px);border-top:1px solid #ffffff12;padding-bottom:env(safe-area-inset-bottom);}
+nav.tabs button{flex:1;background:none;border:none;color:var(--txt-doux);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-family:'Nunito';font-weight:700;font-size:11px;cursor:pointer;transition:color .2s;position:relative;}
+nav.tabs button .ico{font-size:22px;transition:transform .2s;}
+nav.tabs button.actif{color:var(--or);}
+nav.tabs button.actif .ico{transform:translateY(-2px) scale(1.08);}
+nav.tabs button.actif::before{content:"";position:absolute;top:0;width:34px;height:3px;border-radius:0 0 4px 4px;background:var(--or);box-shadow:0 0 10px var(--or);}
+
+/* ===== CARTE (identique v0.2) ===== */
+.tc-box{container-type:inline-size;position:relative;}
+.tc-box.ratio{aspect-ratio:var(--ratio-carte);}
+.tcarte{position:absolute;inset:0;border-radius:5cqw;overflow:hidden;--rc:#b9c4d0;--rc-soft:#8b9db0;--fg:linear-gradient(140deg,#eef3f8,#8a95a2 42%,#c3ccd6 68%,#6f7a86);box-shadow:0 6px 18px #0008;transition:transform .15s;}
+.tc-box:active .tcarte{transform:scale(.97);}
+.tcarte[data-r="commune"]{--rc:#c4cdd8;--rc-soft:#8b9db0;--fg:linear-gradient(140deg,#eef3f8,#8a95a2 42%,#c3ccd6 68%,#6f7a86);}
+.tcarte[data-r="rare"]{--rc:#7ec2ff;--rc-soft:#4aa3df;--fg:linear-gradient(140deg,#dff1ff,#2f7fc4 42%,#bfe4ff 68%,#1f5f9c);}
+.tcarte[data-r="epique"]{--rc:#c99bff;--rc-soft:#a672e0;--fg:linear-gradient(140deg,#f2ddff,#7d3fc0 42%,#e0b4ff 68%,#5c2a94);}
+.tcarte[data-r="legendaire"]{--rc:#ffcf6b;--rc-soft:#f2b134;--fg:linear-gradient(140deg,#fff3cf,#d99b2b 42%,#ffe9a8 68%,#b57d1a);}
+.tcarte[data-r="mythique"]{--rc:#ff9ac0;--rc-soft:#ff5c8a;--fg:conic-gradient(from var(--spin),#ff5c8a,#ffb14e,#8dff8d,#4aa3df,#a672e0,#ff5c8a);}
+.tc-art{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:38cqw;line-height:1;background:radial-gradient(120% 100% at 50% 32%,color-mix(in srgb,var(--rc) 26%,#141127),#100d20 78%);}
+.tc-art img{width:100%;height:100%;object-fit:cover;display:block;}
+.tc-scrim-top{position:absolute;top:0;left:0;right:0;height:34cqw;background:linear-gradient(180deg,#0b0918d9,transparent);pointer-events:none;}
+.tc-scrim-bot{position:absolute;bottom:0;left:0;right:0;height:46cqw;background:linear-gradient(0deg,#0b0918f2 8%,#0b091899 46%,transparent);pointer-events:none;}
+.tc-frame{position:absolute;inset:0;border-radius:inherit;padding:1.9cqw;background:var(--fg);pointer-events:none;-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;box-shadow:inset 0 0 6cqw -2cqw #000;}
+.tc-corner{position:absolute;width:11cqw;height:11cqw;opacity:0;transition:opacity .4s;pointer-events:none;border:1.6cqw solid var(--rc);filter:drop-shadow(0 0 2cqw color-mix(in srgb,var(--rc) 60%,transparent));}
+.tc-corner.tl{top:3.4cqw;left:3.4cqw;border-right:0;border-bottom:0;border-radius:3cqw 0 0 0;}
+.tc-corner.tr{top:3.4cqw;right:3.4cqw;border-left:0;border-bottom:0;border-radius:0 3cqw 0 0;}
+.tc-corner.bl{bottom:3.4cqw;left:3.4cqw;border-right:0;border-top:0;border-radius:0 0 0 3cqw;}
+.tc-corner.br{bottom:3.4cqw;right:3.4cqw;border-left:0;border-top:0;border-radius:0 0 3cqw 0;}
+.tcarte:is([data-p="2"],[data-p="3"],[data-p="4"],[data-p="5"]) .tc-corner{opacity:.85;}
+.tc-shine{position:absolute;top:0;bottom:0;width:55cqw;left:-70cqw;pointer-events:none;opacity:0;background:linear-gradient(105deg,transparent,#ffffff55 45%,#ffffffcc 50%,#ffffff55 55%,transparent);transform:skewX(-12deg);}
+.tc-anim:is([data-p="3"],[data-p="4"],[data-p="5"]) .tc-shine{opacity:1;animation:shine 3.4s ease-in-out infinite;}
+@keyframes shine{0%,72%{left:-70cqw;}100%{left:130cqw;}}
+.tc-motes{position:absolute;inset:0;pointer-events:none;opacity:0;}
+.tc-motes i{position:absolute;width:2.6cqw;height:2.6cqw;border-radius:50%;background:var(--rc);box-shadow:0 0 3cqw var(--rc);bottom:14cqw;opacity:0;}
+.tc-motes i:nth-child(1){left:22%;}.tc-motes i:nth-child(2){left:52%;}.tc-motes i:nth-child(3){left:78%;}
+.tcarte:is([data-p="4"],[data-p="5"]) .tc-motes{opacity:1;}
+.tc-anim:is([data-p="4"],[data-p="5"]) .tc-motes i{animation:mote 3.2s ease-in infinite;}
+.tc-anim[data-p] .tc-motes i:nth-child(2){animation-delay:1s;}.tc-anim[data-p] .tc-motes i:nth-child(3){animation-delay:2s;}
+@keyframes mote{0%{transform:translateY(0);opacity:0;}20%{opacity:.9;}100%{transform:translateY(-60cqw);opacity:0;}}
+.tc-top{position:absolute;top:0;left:0;right:0;padding:5cqw 5.5cqw 0;display:flex;align-items:flex-start;justify-content:space-between;gap:4cqw;}
+.tc-palier{font-family:'Cinzel',serif;font-weight:600;font-size:4.4cqw;letter-spacing:.6cqw;text-transform:uppercase;color:#fff;background:color-mix(in srgb,var(--rc-soft) 55%,#0008);padding:1.4cqw 3cqw;border-radius:2.4cqw;border:.4cqw solid #ffffff44;white-space:nowrap;}
+.tc-stars{display:flex;gap:.6cqw;margin-left:auto;font-size:7cqw;line-height:1;filter:drop-shadow(0 1cqw 1.5cqw #0009);}
+.tc-stars .et{color:#ffffff33;}
+.tc-stars .et.on{color:#ffdf7a;text-shadow:0 0 2.4cqw #ffbf3f;}
+.tc-bottom{position:absolute;left:0;right:0;bottom:0;padding:0 5.5cqw 5cqw;}
+.tc-nom{font-family:'Fredoka';font-weight:600;font-size:9.4cqw;line-height:1.02;color:#fff;text-shadow:0 1.5cqw 3cqw #000c;}
+.tc-rar{font-family:'Nunito';font-weight:800;font-size:4.4cqw;letter-spacing:1cqw;text-transform:uppercase;margin-top:1.2cqw;color:var(--rc);text-shadow:0 1cqw 2cqw #000a;}
+.tcarte:is([data-p="4"],[data-p="5"]) .tc-nom{background:linear-gradient(96deg,#fff,var(--rc) 40%,#fff 62%,var(--rc));-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 1.5cqw 2.5cqw #000c);}
+.tcarte[data-p="1"]{box-shadow:0 6px 18px #0008;}
+.tcarte[data-p="2"]{box-shadow:0 6px 20px #0008,0 0 10px -3px color-mix(in srgb,var(--rc) 60%,transparent);}
+.tcarte[data-p="3"]{box-shadow:0 8px 22px #0009,0 0 16px -2px color-mix(in srgb,var(--rc) 70%,transparent);}
+.tcarte[data-p="4"]{box-shadow:0 10px 26px #0009,0 0 26px 0 color-mix(in srgb,var(--rc) 60%,transparent);}
+.tcarte[data-p="5"]{box-shadow:0 12px 30px #000a,0 0 40px 2px color-mix(in srgb,var(--rc) 70%,transparent);}
+.tc-anim[data-p="5"]{animation:breathe 3.8s ease-in-out infinite;}
+@keyframes breathe{0%,100%{transform:scale(1);}50%{transform:scale(1.018);}}
+.tc-anim[data-r="mythique"] .tc-frame{animation:spin 6s linear infinite;}
+@keyframes spin{to{--spin:360deg;}}
+.tcarte.verrou .tc-art{background:linear-gradient(180deg,#211b3c,#161230);color:#4a4270;font-size:30cqw;}
+.tcarte.verrou{box-shadow:0 6px 16px #0007;filter:saturate(.5);}
+.tcarte.verrou .tc-frame{opacity:.4;}
+.tcarte.verrou .tc-nom{color:#6a628f;}.tcarte.verrou .tc-rar{color:#5a527f;}.tcarte.verrou .tc-stars .et{color:#ffffff1f;}
+.tc-evo{position:absolute;top:3.5cqw;left:50%;z-index:4;width:15cqw;height:15cqw;border-radius:50%;background:radial-gradient(circle at 50% 40%,#fff3cf,#f2c14e);display:flex;align-items:center;justify-content:center;font-size:8.5cqw;filter:drop-shadow(0 1cqw 2cqw #0007);animation:evoPulse 1.5s ease-in-out infinite;}
+@keyframes evoPulse{0%,100%{transform:translateX(-50%) scale(1);box-shadow:0 0 0 0 #f2c14ecc;}50%{transform:translateX(-50%) scale(1.14);box-shadow:0 0 0 4cqw #f2c14e00;}}
+.d-evo-btn{width:100%;margin:12px 0 4px;font-family:'Fredoka';font-weight:600;font-size:16px;color:#2a1e05;background:linear-gradient(180deg,#ffe08a,var(--or) 55%,var(--or-fonce));border:none;border-radius:14px;padding:14px;cursor:pointer;box-shadow:0 6px 20px -6px #d99b2b;animation:evoGlow 1.8s ease-in-out infinite;}
+.d-evo-btn:active{transform:scale(.98);}
+@keyframes evoGlow{0%,100%{box-shadow:0 6px 20px -6px #d99b2b;}50%{box-shadow:0 6px 26px -2px #f2c14eaa;}}
+.grille{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;}
+.grille>.tc-box{cursor:pointer;}
+.ecurie-outils{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 2px 14px;flex-wrap:wrap;}
+.eo-tri{display:flex;align-items:center;gap:6px;}
+.eo-btn{font-family:'Nunito';font-weight:800;font-size:12.5px;color:var(--txt-doux);background:#ffffff0d;border:1px solid #ffffff1a;border-radius:999px;padding:7px 13px;cursor:pointer;transition:.15s;}
+.eo-btn.actif,.eo-btn.on{background:color-mix(in srgb,var(--or) 22%,#1a1636);border-color:var(--or);color:var(--or);}
+.eo-sens{min-width:34px;font-size:15px;padding:6px 0;text-align:center;}
+.img-max{position:fixed;inset:0;height:100dvh;z-index:70;display:none;align-items:center;justify-content:center;background:#000000ee;backdrop-filter:blur(4px);padding:16px;}
+.img-max.on{display:flex;animation:fade .2s;}
+.img-max img{max-width:100%;max-height:100%;border-radius:14px;box-shadow:0 20px 60px #000b;object-fit:contain;}
+.img-max-fermer{position:absolute;top:calc(14px + env(safe-area-inset-top));right:18px;width:38px;height:38px;border-radius:50%;background:#ffffff1a;color:#fff;display:flex;align-items:center;justify-content:center;font-size:18px;}
+
+/* ===== TIRAGE ===== */
+.tirage-scene{display:flex;flex-direction:column;align-items:center;text-align:center;padding:12px 0 6px;}
+.dos{width:156px;aspect-ratio:var(--ratio-carte);border-radius:20px;margin:4px auto 20px;position:relative;background:radial-gradient(60% 45% at 50% 34%,#6a4fb0 0,transparent 60%),linear-gradient(160deg,#2a2350,#171233);border:3px solid #6a4fb0;box-shadow:0 12px 30px #0009,inset 0 0 30px -8px #a672e0;display:flex;align-items:center;justify-content:center;font-size:52px;}
+.dos::before{content:"";position:absolute;inset:11px;border-radius:13px;border:1.5px dashed #ffffff33;}
+.dos .rune{filter:drop-shadow(0 0 12px #c9a4ff);}
+.tirage-desc{color:var(--txt-doux);font-size:14px;max-width:290px;margin:0 auto 20px;line-height:1.5;}
+.btn-tirer{font-family:'Fredoka';font-weight:600;font-size:19px;color:#2a1e05;background:linear-gradient(180deg,#ffd977,var(--or) 45%,var(--or-fonce));border:none;border-radius:999px;padding:16px 34px;cursor:pointer;box-shadow:0 8px 22px -4px #d99b2b99,inset 0 1px 0 #fff8;display:inline-flex;align-items:center;gap:10px;transition:transform .12s,filter .2s;}
+.btn-tirer:active{transform:scale(.96);}
+.btn-tirer:disabled{filter:grayscale(.7) brightness(.8);cursor:not-allowed;box-shadow:none;}
+.btn-tirer .cout{background:#00000022;padding:3px 10px;border-radius:999px;font-size:15px;display:inline-flex;align-items:center;gap:5px;}
+.cout .fer{width:15px;height:15px;}
+.tirage-aide{margin-top:16px;font-size:12.5px;color:var(--txt-doux);}
+.tirage-aide a{color:var(--or);text-decoration:none;font-weight:700;cursor:pointer;border-bottom:1px dotted var(--or);}
+.chances-help{margin:22px auto 0;display:block;font-family:'Fredoka';font-weight:500;font-size:14px;color:var(--txt-doux);background:#ffffff0d;border:1px solid #ffffff1a;border-radius:999px;padding:10px 20px;cursor:pointer;}
+.chances-help:active{transform:scale(.97);}
+#chances-liste .ligne{display:flex;align-items:center;gap:10px;padding:8px 0;font-size:15px;border-top:1px solid #ffffff10;}
+#chances-liste .ligne:first-child{border-top:0;}
+#chances-liste .pastille{width:13px;height:13px;border-radius:50%;flex-shrink:0;}
+#chances-liste .ligne .pct{margin-left:auto;font-family:'Fredoka';font-weight:600;}
+
+.reveal-overlay{position:fixed;inset:0;height:100dvh;overflow-y:auto;z-index:50;display:none;align-items:center;justify-content:center;flex-direction:column;background:radial-gradient(circle at 50% 44%,#2a2350f2,#0b0916fa);backdrop-filter:blur(6px);}
+.reveal-overlay.on{display:flex;animation:fade .2s ease;}
+.reveal-rayons{position:absolute;width:360px;height:360px;border-radius:50%;opacity:0;filter:blur(2px);background:repeating-conic-gradient(var(--rc,#fff) 0deg 8deg,transparent 8deg 22deg);}
+.reveal-overlay.on .reveal-rayons{animation:rayons 3s linear infinite,rayonsIn .5s .35s both;}
+@keyframes rayons{to{transform:rotate(360deg);}}
+@keyframes rayonsIn{to{opacity:.16;}}
+.reveal-overlay.evo .reveal-rayons{animation:rayons 2.2s linear infinite,rayonsIn .5s .35s both;}
+.reveal-flip{width:188px;aspect-ratio:var(--ratio-carte);position:relative;transform-style:preserve-3d;transform:rotateY(180deg);transition:transform .62s cubic-bezier(.4,.15,.25,1);}
+.reveal-flip.flip{transform:rotateY(0);}
+.reveal-face{position:absolute;inset:0;border-radius:16px;backface-visibility:hidden;overflow:hidden;box-shadow:0 16px 40px #000a;}
+.reveal-front{transform:rotateY(0);}
+.reveal-back{transform:rotateY(180deg);background:radial-gradient(60% 45% at 50% 34%,#6a4fb0 0,transparent 60%),linear-gradient(160deg,#2a2350,#171233);border:3px solid #6a4fb0;display:flex;align-items:center;justify-content:center;font-size:56px;}
+#reveal-front{container-type:inline-size;}
+.reveal-legende{margin-top:24px;text-align:center;opacity:0;transition:opacity .3s .5s;}
+.reveal-flip.flip ~ .reveal-legende{opacity:1;}
+.reveal-legende .r-etat{font-family:'Fredoka';font-weight:600;font-size:20px;}
+.reveal-legende .r-etat.neuf{color:var(--or);}
+.reveal-legende .r-etat.evo{color:#ffdf7a;text-shadow:0 0 16px #ffbf3f88;font-size:23px;}
+.reveal-legende .r-sous{margin-top:6px;font-size:13.5px;color:var(--txt-doux);}
+.reveal-continuer{margin-top:20px;font-size:13px;color:var(--txt-doux);opacity:0;animation:fadeLate .4s 1.1s forwards;}
+@keyframes fadeLate{to{opacity:.75;}}
+
+/* ===== RÉVISIONS ===== */
+/* ===== DÉFIS : choix de cartes-mystère ===== */
+.defi-invite{text-align:center;font-family:'Fredoka';font-weight:600;font-size:20px;margin:16px 0 18px;}
+.defi-cartes{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+.defi-carte{aspect-ratio:var(--ratio-carte);border-radius:18px;cursor:pointer;position:relative;color:#fff;font-size:42px;display:flex;align-items:center;justify-content:center;background:radial-gradient(60% 45% at 50% 34%,#6a4fb0 0,transparent 60%),linear-gradient(160deg,#2a2350,#171233);border:2px solid #6a4fb0;box-shadow:0 8px 22px -6px #0009,inset 0 0 24px -10px #a672e0;transition:transform .12s;}
+.defi-carte:active{transform:scale(.96);}
+.defi-carte::before{content:"";position:absolute;inset:8px;border-radius:12px;border:1.5px dashed #ffffff2e;}
+.defi-carte .pt{filter:drop-shadow(0 0 10px #c9a4ff);}
+.defi-sous{text-align:center;color:var(--txt-doux);font-size:13px;margin-top:18px;}
+.defi-continuer{display:block;margin:16px auto 0;font-family:'Fredoka';font-weight:600;font-size:16px;color:#2a1e05;background:linear-gradient(180deg,#ffd977,var(--or));border:none;border-radius:999px;padding:13px 30px;cursor:pointer;box-shadow:0 6px 18px -6px #d99b2b;}
+.defi-continuer:active{transform:scale(.97);}
+.quiz-meta{text-align:center;font-size:11.5px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:var(--txt-doux);margin-bottom:10px;}
+.quiz-carte{background:#faf4e8;color:#2a2440;border-radius:22px;padding:26px 20px 22px;text-align:center;box-shadow:0 10px 30px #0008;min-height:150px;display:flex;flex-direction:column;justify-content:center;}
+.quiz-question{font-family:'Fredoka';font-weight:600;font-size:25px;line-height:1.2;color:#2a2440;}
+.quiz-question.court{font-size:46px;letter-spacing:1px;}
+.quiz-reponses{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:22px;}
+.quiz-reponses button{font-family:'Fredoka';font-weight:600;font-size:19px;color:#2a2440;background:#fff;border:2px solid #e2d8c4;border-radius:16px;padding:14px 8px;min-height:58px;cursor:pointer;box-shadow:0 3px 0 #e2d8c4;transition:.1s;white-space:normal;line-height:1.15;}
+.quiz-reponses button:active{transform:translateY(2px);box-shadow:0 1px 0 #e2d8c4;}
+.quiz-reponses button.bon{background:#c8f2cf;border-color:#4cbf6a;color:#1d5c2e;box-shadow:0 3px 0 #4cbf6a;}
+.quiz-reponses button.faux{background:#f7d0d0;border-color:#df6a6a;color:#7a2020;box-shadow:0 3px 0 #df6a6a;}
+.quiz-reponses button:disabled{cursor:default;}
+.quiz-feedback{margin-top:14px;min-height:44px;text-align:center;opacity:0;transition:opacity .2s;}
+.quiz-feedback.show{opacity:1;}
+.qf-msg{font-family:'Fredoka';font-weight:600;font-size:16px;}
+.qf-msg.bon{color:#8fe6a3;}
+.qf-msg.faux{color:#ffd06a;}
+.qf-astuce{font-size:13px;color:var(--txt-doux);margin-top:5px;line-height:1.45;}
+.qf-gain{font-size:13px;color:var(--or);margin-top:6px;font-weight:800;}
+/* ===== MINI-JEU (un tour, dans le flux des défis) ===== */
+.jeu-titre{font-family:'Fredoka';font-weight:600;font-size:20px;text-align:center;margin-bottom:14px;}
+.jeu-res{background:#faf4e8;color:#2a2440;border-radius:16px;padding:16px;text-align:center;font-family:'Fredoka';font-weight:500;font-size:16px;min-height:58px;display:flex;align-items:center;justify-content:center;line-height:1.3;}
+.pfc-choix{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:16px;}
+.pfc-choix button{font-size:38px;background:#fff;border:2px solid #e2d8c4;border-radius:16px;padding:16px 0;cursor:pointer;box-shadow:0 3px 0 #e2d8c4;transition:.1s;}
+.pfc-choix button:active{transform:translateY(2px);box-shadow:0 1px 0 #e2d8c4;}
+.pref-duo{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:16px;}
+.pref-choix{background:none;border:none;padding:0;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:8px;}
+.pref-choix:active{transform:scale(.97);}
+.pref-vig{width:100%;}
+.pref-nom{font-family:'Fredoka';font-weight:500;font-size:14px;color:var(--txt);text-align:center;line-height:1.15;}
+.jeu-sous{text-align:center;color:var(--txt-doux);font-size:13px;margin-top:12px;}
+
+/* ===== SCORES ===== */
+.score-carte{background:#ffffff0b;border:1px solid #ffffff14;border-radius:16px;padding:14px 16px;margin-bottom:12px;}
+.score-tete{display:flex;align-items:center;gap:10px;margin-bottom:9px;}
+.score-tete .si{font-size:22px;}
+.score-tete .sn{font-family:'Fredoka';font-weight:600;font-size:16px;}
+.score-tete .snv{margin-left:auto;font-family:'Fredoka';font-weight:600;font-size:14px;}
+.score-bar{height:9px;background:#ffffff14;border-radius:999px;overflow:hidden;}
+.score-bar>div{height:100%;width:0;border-radius:999px;transition:width .4s;}
+.score-chiffres{display:flex;justify-content:space-between;font-size:12px;color:var(--txt-doux);margin-top:7px;}
+.score-resume{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px;}
+.score-case{background:#ffffff0b;border:1px solid #ffffff14;border-radius:14px;padding:12px 14px;text-align:center;}
+.score-case b{display:block;font-family:'Fredoka';font-weight:600;font-size:20px;color:var(--or);}
+.score-case span{font-size:11px;color:var(--txt-doux);}
+
+/* ===== CONCOURS ===== */
+.renom-bandeau{display:flex;align-items:center;justify-content:space-between;gap:10px;background:linear-gradient(180deg,#2a2350,#1c1735);border:1px solid #ffffff1a;border-radius:16px;padding:13px 16px;margin-bottom:14px;}
+.renom-bandeau .rb-g{font-family:'Fredoka';font-weight:600;font-size:15px;}
+.renom-bandeau .rb-g small{display:block;font-family:'Nunito';font-weight:700;font-size:11px;color:var(--txt-doux);letter-spacing:.3px;margin-top:2px;}
+.renom-bandeau .rb-r{font-family:'Fredoka';font-weight:600;font-size:22px;color:var(--or);display:flex;align-items:center;gap:6px;}
+.concours-carte{display:flex;align-items:center;gap:12px;background:#ffffff0b;border:1px solid #ffffff16;border-radius:16px;padding:11px 13px;margin-bottom:10px;}
+.concours-carte.fait{opacity:.6;}
+.cc-ico{width:42px;height:42px;flex-shrink:0;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;background:radial-gradient(circle at 50% 35%,color-mix(in srgb,var(--cc,#888) 55%,#2a2350),#1c1735);border:1.5px solid color-mix(in srgb,var(--cc,#fff) 45%,transparent);}
+.cc-info{flex:1;min-width:0;}
+.cc-titre{font-family:'Fredoka';font-weight:600;font-size:15px;line-height:1.1;}
+.cc-sous{font-size:11.5px;color:var(--txt-doux);margin-top:3px;line-height:1.35;}
+.cc-jouer{flex-shrink:0;font-family:'Fredoka';font-weight:600;font-size:14px;color:#2a1e05;background:linear-gradient(180deg,#ffd977,var(--or));border:none;border-radius:999px;padding:9px 16px;cursor:pointer;}
+.cc-etat{flex-shrink:0;font-family:'Fredoka';font-weight:600;font-size:13px;padding:6px 12px;border-radius:999px;}
+.cc-etat.gagne{color:#8fe6a3;background:#8fe6a322;}
+.cc-etat.perdu{color:#ff9a9a;background:#ff9a9a22;}
+.concours-note{text-align:center;color:var(--txt-doux);font-size:12.5px;margin-top:8px;}
+.marchand-btn{width:100%;font-family:'Fredoka';font-weight:600;font-size:15px;color:#241c05;background:linear-gradient(180deg,#c8f2cf,#7fdc93);border:none;border-radius:14px;padding:13px;cursor:pointer;margin-bottom:16px;box-shadow:0 6px 18px -6px #4cbf6a88;}
+.marchand-btn:active{transform:scale(.98);}
+.ma-row{display:flex;align-items:center;gap:11px;padding:11px 12px;border-radius:12px;background:#ffffff08;border:1px solid #ffffff12;margin-bottom:8px;}
+.ma-vig{width:48px;flex-shrink:0;}
+.ma-row.achete{opacity:.55;}
+.ma-info{flex:1;min-width:0;}
+.ma-nom{font-family:'Fredoka';font-weight:500;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.ma-rar{font-size:11.5px;font-weight:700;margin-top:2px;}
+.ma-acheter{flex-shrink:0;font-family:'Fredoka';font-weight:600;font-size:14px;color:#2a1e05;background:linear-gradient(180deg,#ffd977,var(--or));border:none;border-radius:999px;padding:9px 15px;cursor:pointer;}
+.ma-acheter.off{filter:grayscale(.6) brightness(.85);}
+.ma-etat{flex-shrink:0;font-family:'Fredoka';font-weight:600;font-size:13px;color:#8fe6a3;}
+.cs-row{display:flex;align-items:center;gap:11px;padding:11px 12px;border-radius:12px;background:#ffffff08;border:1px solid #ffffff12;margin-bottom:8px;cursor:pointer;transition:.12s;}
+.cs-row:active{transform:scale(.98);}
+.cs-row.gagnable{border-color:#8fe6a355;background:#8fe6a312;}
+.cs-row.limite{border-color:#ffd67755;}
+.cs-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0;}
+.cs-nom{flex:1;font-family:'Fredoka';font-weight:500;font-size:15px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.cs-etoiles{font-size:11px;color:#ffdf7a;flex-shrink:0;}
+.cs-stat{font-family:'Fredoka';font-weight:600;font-size:20px;flex-shrink:0;min-width:34px;text-align:right;}
+.cs-vide{text-align:center;color:var(--txt-doux);font-size:14px;padding:24px 0;}
+.cs-resultat{text-align:center;padding:10px 0 4px;}
+.cs-resultat .csr-t{font-family:'Fredoka';font-weight:600;font-size:22px;}
+.cs-resultat .csr-t.win{color:#8fe6a3;}
+.cs-resultat .csr-t.lose{color:#ffd06a;}
+.cs-resultat .csr-d{color:var(--txt-doux);font-size:14px;margin-top:8px;line-height:1.5;}
+.cs-match{display:flex;align-items:stretch;justify-content:center;gap:10px;margin:6px 0 14px;}
+.cs-cote{flex:1;background:#ffffff08;border:1px solid #ffffff14;border-radius:14px;padding:12px 8px;text-align:center;}
+.cs-cote-nom{font-family:'Fredoka';font-weight:500;font-size:13.5px;line-height:1.15;min-height:32px;display:flex;align-items:center;justify-content:center;}
+.cs-cote-stat{font-family:'Fredoka';font-weight:600;font-size:34px;line-height:1;margin:4px 0 2px;}
+.cs-cote-sub{font-size:11px;color:var(--txt-doux);}
+.cs-vs{display:flex;align-items:center;font-family:'Fredoka';font-weight:700;font-size:15px;color:var(--txt-doux);}
+#d-stats .cap-ligne{display:flex;align-items:center;gap:9px;padding:4px 0;}
+#d-stats .cap-ico{font-size:15px;width:20px;text-align:center;}
+#d-stats .cap-nom{font-size:13px;width:74px;flex-shrink:0;color:var(--txt-doux);}
+#d-stats .cap-bar{flex:1;height:8px;background:#ffffff14;border-radius:999px;overflow:hidden;}
+#d-stats .cap-bar>div{height:100%;border-radius:999px;}
+#d-stats .cap-val{font-family:'Fredoka';font-weight:600;font-size:13px;width:24px;text-align:right;}
+
+.feuille-fond{position:fixed;inset:0;height:100dvh;z-index:40;background:#0009;backdrop-filter:blur(3px);display:none;align-items:flex-end;justify-content:center;}
+.feuille-fond.on{display:flex;animation:fade .2s;}
+.feuille{width:100%;max-width:520px;max-height:92%;overflow-y:auto;-webkit-overflow-scrolling:touch;background:linear-gradient(180deg,#221c40,#171233);border-radius:24px 24px 0 0;border-top:1px solid #ffffff1a;padding:22px 22px calc(26px + env(safe-area-inset-bottom));animation:slideUp .28s cubic-bezier(.2,.8,.2,1);}
+@keyframes slideUp{from{transform:translateY(100%);}to{transform:none;}}
+.detail-tete{display:flex;gap:16px;align-items:flex-start;margin-bottom:16px;}
+.detail-hero{width:118px;flex-shrink:0;cursor:pointer;}
+.detail-hero-col{display:flex;flex-direction:column;align-items:center;gap:8px;flex-shrink:0;}
+.detail-agrandir{font-family:'Nunito';font-weight:800;font-size:11.5px;color:var(--txt-doux);background:#ffffff10;border:1px solid #ffffff1a;border-radius:999px;padding:5px 12px;cursor:pointer;}
+.detail-info h2{font-size:23px;line-height:1.05;}
+.detail-info .d-rar{font-weight:800;text-transform:uppercase;letter-spacing:1px;font-size:12px;margin-top:4px;}
+.detail-info .d-desc{color:var(--txt-doux);font-size:14px;line-height:1.5;margin-top:8px;}
+.echelle-titre{font-size:12px;text-transform:uppercase;letter-spacing:1.2px;color:var(--txt-doux);margin-bottom:8px;}
+.pal-ligne{display:flex;align-items:center;gap:10px;padding:7px 0;border-top:1px solid #ffffff10;font-size:14px;}
+.pal-ligne:first-child{border-top:0;}
+.pal-etoiles{color:#ffdf7a;font-size:14px;letter-spacing:1px;width:78px;flex-shrink:0;}
+.pal-etoiles .off{color:#ffffff24;}
+.pal-nom{font-family:'Fredoka';font-weight:500;}
+.pal-seuil{margin-left:auto;color:var(--txt-doux);font-size:13px;}
+.pal-ligne.atteint .pal-seuil{color:#7fdc93;}
+.pal-ligne.courant{background:#ffffff08;border-radius:10px;margin:0 -8px;padding-left:8px;padding-right:8px;}
+.feuille-fermer{width:100%;margin-top:18px;background:#ffffff12;border:none;color:var(--txt);padding:13px;border-radius:14px;font-family:'Fredoka';font-weight:500;font-size:15px;cursor:pointer;}
+
+/* ===== PROFILS ===== */
+.profil-chip{display:flex;align-items:center;gap:8px;background:linear-gradient(180deg,#2a2350,#1c1735);border:1px solid #ffffff1f;border-radius:999px;padding:5px 12px 5px 6px;color:var(--txt);cursor:pointer;box-shadow:0 3px 12px #0006;}
+.pf-ava{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;background:radial-gradient(circle at 50% 35%,#6a4fb0,#2a2350);border:1.5px solid #ffffff33;}
+.pf-nom{font-family:'Fredoka';font-weight:600;font-size:15px;line-height:1;}
+.pf-fleche{color:var(--txt-doux);font-size:11px;margin-left:-2px;}
+.profil-carte{display:flex;align-items:center;gap:13px;background:#ffffff0b;border:1px solid #ffffff16;border-radius:16px;padding:12px 14px;margin-bottom:10px;cursor:pointer;transition:.15s;}
+.profil-carte.actif{border-color:var(--pc,#f2c14e);background:color-mix(in srgb,var(--pc,#f2c14e) 16%,#1a1636);}
+.profil-carte .pc-ava{width:44px;height:44px;flex-shrink:0;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:26px;background:radial-gradient(circle at 50% 35%,color-mix(in srgb,var(--pc,#6a4fb0) 60%,#2a2350),#1c1735);border:2px solid color-mix(in srgb,var(--pc,#fff) 50%,transparent);}
+.profil-carte .pc-info{flex:1;min-width:0;}
+.profil-carte .pc-nom{font-family:'Fredoka';font-weight:600;font-size:17px;line-height:1.1;}
+.profil-carte .pc-sous{font-size:12px;color:var(--txt-doux);margin-top:2px;}
+.profil-carte .pc-badge{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:var(--pc,#f2c14e);flex-shrink:0;}
+/* niveau des exercices — réglage adulte, discret */
+.rg-niveau{display:flex;align-items:center;justify-content:space-between;gap:12px;background:#ffffff0b;border:1px solid #ffffff16;border-radius:14px;padding:12px 14px;margin:14px 0;}
+.rg-lbl{font-family:'Fredoka';font-weight:500;font-size:14px;}
+.rg-lbl span{color:var(--txt-doux);font-weight:400;}
+.rg-step{display:flex;align-items:center;gap:8px;}
+.rg-step b{font-family:'Fredoka';font-weight:600;font-size:16px;min-width:30px;text-align:center;color:var(--or);}
+.rg-step button{font-family:'Nunito';font-weight:800;font-size:17px;line-height:1;color:var(--txt);background:#ffffff10;border:1px solid #ffffff1a;border-radius:9px;width:30px;height:30px;cursor:pointer;padding:0;}
+.profil-ajout{display:flex;align-items:center;gap:10px;justify-content:center;background:none;border:1.5px dashed #ffffff2e;border-radius:16px;padding:13px;width:100%;color:var(--txt-doux);font-family:'Fredoka';font-weight:500;font-size:15px;cursor:pointer;margin-bottom:6px;}
+.pform{background:#ffffff0b;border:1px solid #ffffff16;border-radius:16px;padding:14px;margin-bottom:8px;}
+.pform label{display:block;font-size:12px;color:var(--txt-doux);margin:8px 0 4px;text-transform:uppercase;letter-spacing:.6px;}
+.pform input{width:100%;font-family:'Fredoka';font-size:16px;color:var(--txt);background:#ffffff10;border:1.5px solid #ffffff22;border-radius:12px;padding:10px 12px;}
+.pform .emojis{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;}
+.pform .emojis button{font-size:22px;background:#ffffff10;border:2px solid transparent;border-radius:12px;padding:6px 9px;cursor:pointer;}
+.pform .emojis button.on{border-color:var(--or);background:#ffffff1a;}
+.pform .pf-actions{display:flex;gap:10px;margin-top:14px;}
+.pform .pf-actions button{flex:1;border:none;border-radius:12px;padding:11px;font-family:'Fredoka';font-weight:600;font-size:15px;cursor:pointer;}
+.pf-creer{background:linear-gradient(180deg,#ffd977,var(--or));color:#2a1e05;}
+.pf-annuler{background:#ffffff12;color:var(--txt);}
+
+.toast{position:fixed;left:50%;bottom:calc(var(--tab-h) + 18px);transform:translateX(-50%) translateY(20px);background:#221c40ee;border:1px solid #ffffff1f;color:var(--txt);padding:11px 18px;border-radius:999px;font-weight:700;font-size:14px;z-index:60;opacity:0;transition:.3s;pointer-events:none;box-shadow:0 8px 24px #0008;white-space:nowrap;}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0);}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.001s !important;}.reveal-flip{transition:none;}.tc-shine,.tc-motes{display:none;}}
+
+/* ===== ÉCRAN DE CHARGEMENT ===== */
+#chargement{position:fixed;inset:0;height:100dvh;z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:radial-gradient(1100px 560px at 50% -10%,#3a2f66,transparent 55%),linear-gradient(180deg,#1a1636,#120f24);transition:opacity .4s ease;}
+#chargement.parti{opacity:0;pointer-events:none;}
+.ch-logo{font-size:64px;animation:chBond 1s ease-in-out infinite;filter:drop-shadow(0 8px 14px #0007);}
+@keyframes chBond{0%,100%{transform:translateY(0) rotate(-3deg);}50%{transform:translateY(-16px) rotate(3deg);}}
+.ch-titre{font-family:'Cinzel',serif;font-weight:700;font-size:22px;color:#f3ecdf;letter-spacing:.5px;text-align:center;padding:0 20px;}
+.ch-sous{font-family:'Nunito',sans-serif;font-weight:700;font-size:13px;color:#ada6c6;letter-spacing:2px;text-transform:uppercase;}
+.ch-barre{width:180px;max-width:60vw;height:6px;background:#ffffff1a;border-radius:999px;overflow:hidden;margin-top:6px;}
+.ch-barre>div{width:40%;height:100%;border-radius:999px;background:linear-gradient(90deg,#7ec2ff,#a672e0,#f2c14e);animation:chGlisse 1.1s ease-in-out infinite;}
+@keyframes chGlisse{0%{transform:translateX(-120%);}100%{transform:translateX(320%);}}
+</style>
+</head>
+<body>
+<div id="chargement">
+  <div class="ch-logo">🐎</div>
+  <div class="ch-titre">Écurie de Légendes</div>
+  <div class="ch-sous">Chargement…</div>
+  <div class="ch-barre"><div></div></div>
+</div>
+<div id="app">
+  <header>
+    <button class="profil-chip" id="btn-profil"><span class="pf-ava" id="pf-ava">🦄</span><span class="pf-nom" id="pf-nom">Énola</span><span class="pf-fleche">▾</span></button>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <div class="solde" id="solde">
+        <svg class="fer" viewBox="0 0 24 24" fill="none"><path d="M6 3.5C4 5.5 3 8.5 3 12c0 3.5 2 6 4 6.5M18 3.5C20 5.5 21 8.5 21 12c0 3.5-2 6-4 6.5" stroke="#f2c14e" stroke-width="2.4" stroke-linecap="round"/><circle cx="6.8" cy="19" r="1.4" fill="#f2c14e"/><circle cx="17.2" cy="19" r="1.4" fill="#f2c14e"/></svg>
+        <b id="solde-nb">0</b>
+      </div>
+      <button class="reglages-btn" id="btn-reglages" aria-label="Réglages">⚙️</button>
+    </div>
+  </header>
+  <div class="progress-wrap"><div class="progress-bar"><div class="progress-fill" id="prog-fill"></div></div><div class="progress-txt" id="prog-txt"></div></div>
+  <main>
+    <section class="ecran actif" id="ecran-ecurie">
+      <h2 class="section-titre titre">Mon écurie <span id="ecurie-compte"></span></h2>
+      <div class="ecurie-outils">
+        <button class="eo-btn" id="filtre-possedes">Possédés</button>
+        <div class="eo-tri">
+          <button class="eo-btn actif" data-champ="rarete">Rareté</button>
+          <button class="eo-btn" data-champ="niveau">Niveau</button>
+          <button class="eo-btn eo-sens" id="tri-sens">↓</button>
+        </div>
+      </div>
+      <div class="grille" id="grille"></div>
+    </section>
+    <section class="ecran" id="ecran-tirage">
+      <div class="tirage-scene">
+        <div class="dos"><span class="rune">✦</span></div>
+        <p class="tirage-desc">Tente ta chance ! Chaque tirage révèle une créature au hasard. Les doublons font <b style="color:var(--txt)">évoluer</b> tes créatures vers des formes plus légendaires.</p>
+        <button class="btn-tirer" id="btn-tirer">Tirer une carte
+          <span class="cout"><svg class="fer" viewBox="0 0 24 24" fill="none"><path d="M6 3.5C4 5.5 3 8.5 3 12c0 3.5 2 6 4 6.5M18 3.5C20 5.5 21 8.5 21 12c0 3.5-2 6-4 6.5" stroke="#f2c14e" stroke-width="2.4" stroke-linecap="round"/><circle cx="6.8" cy="19" r="1.4" fill="#f2c14e"/><circle cx="17.2" cy="19" r="1.4" fill="#f2c14e"/></svg><span id="cout-nb"></span></span>
+        </button>
+        <p class="tirage-aide">Besoin de Crins ? <a id="lien-revisions">Va réviser →</a></p>
+        <button class="chances-help" id="btn-chances">❔ Voir les chances de tirage</button>
+      </div>
+    </section>
+    <section class="ecran" id="ecran-revisions">
+      <h2 class="section-titre titre">Défis <span>exercices & jeux</span></h2>
+      <div id="defi-menu">
+        <p class="defi-invite">Choisis un défi ✨</p>
+        <div class="defi-cartes" id="defi-cartes"></div>
+        <p class="defi-sous" id="defi-sous"></p>
+      </div>
+      <div id="defi-zone"></div>
+    </section>
+    <section class="ecran" id="ecran-scores">
+      <h2 class="section-titre titre">Scores <span>par matière</span></h2>
+      <div id="scores-matieres"></div>
+      <div id="scores-resume"></div>
+    </section>
+    <section class="ecran" id="ecran-concours">
+      <h2 class="section-titre titre">Concours <span>choisis ton champion</span></h2>
+      <div class="renom-bandeau" id="renom-bandeau"></div>
+      <button class="marchand-btn" id="btn-marchand">🛒 Marchand du jour — 3 cartes contre renommée</button>
+      <div id="concours-liste"></div>
+      <p class="concours-note">De nouveaux concours chaque jour ✨ · un essai chacun</p>
+    </section>
+  </main>
+  <nav class="tabs">
+    <button class="actif" data-ecran="ecurie"><span class="ico">🎠</span>Écurie</button>
+    <button data-ecran="tirage"><span class="ico">✨</span>Tirage</button>
+    <button data-ecran="revisions"><span class="ico">🎯</span>Défis</button>
+    <button data-ecran="concours"><span class="ico">🏆</span>Concours</button>
+    <button data-ecran="scores"><span class="ico">📊</span>Scores</button>
+  </nav>
+</div>
+
+<div class="reveal-overlay" id="reveal">
+  <div class="reveal-rayons" id="reveal-rayons"></div>
+  <div class="reveal-flip" id="reveal-flip">
+    <div class="reveal-face reveal-back"><span>✦</span></div>
+    <div class="reveal-face reveal-front" id="reveal-front"></div>
+  </div>
+  <div class="reveal-legende"><div class="r-etat" id="reveal-etat"></div><div class="r-sous" id="reveal-sous"></div></div>
+  <div class="reveal-continuer">Touche l'écran pour continuer</div>
+</div>
+
+<div class="feuille-fond" id="feuille-fond">
+  <div class="feuille">
+    <div class="detail-tete">
+      <div class="detail-hero-col">
+        <div class="tc-box ratio detail-hero" id="detail-hero"></div>
+        <button class="detail-agrandir" id="detail-agrandir">⤢ Agrandir</button>
+      </div>
+      <div class="detail-info"><h2 class="titre" id="d-nom"></h2><div class="d-rar" id="d-rar"></div><p class="d-desc" id="d-desc"></p></div>
+    </div>
+    <div class="echelle-titre" id="d-progres"></div>
+    <div id="d-evo"></div>
+    <div id="d-echelle"></div>
+    <div class="echelle-titre" style="margin-top:16px;">Capacités</div>
+    <div id="d-stats"></div>
+    <button class="feuille-fermer" id="d-fermer">Fermer</button>
+  </div>
+</div>
+
+<div class="feuille-fond" id="reglages-fond">
+  <div class="feuille">
+    <h2 class="titre" style="margin-bottom:12px;">Réglages</h2>
+    <p class="d-desc" style="color:var(--txt-doux);">Tes scores détaillés par matière sont dans l'onglet 📊 Scores.</p>
+    <div id="reglage-niveau"></div>
+    <button class="feuille-fermer" style="background:#5a2a2a;color:#ffd7d7;margin-top:16px;" id="btn-reset">Effacer ce profil</button>
+    <button class="feuille-fermer" id="reglages-fermer">Fermer</button>
+  </div>
+</div>
+
+<div class="feuille-fond" id="profils-fond">
+  <div class="feuille">
+    <h2 class="titre" style="margin-bottom:14px;">Qui joue ?</h2>
+    <div id="profils-liste"></div>
+    <div id="profil-form"></div>
+    <button class="feuille-fermer" id="profils-fermer">Fermer</button>
+  </div>
+</div>
+
+<div class="feuille-fond" id="marchand-fond">
+  <div class="feuille">
+    <h2 class="titre" style="margin-bottom:4px;">🛒 Marchand du jour</h2>
+    <p class="d-desc" id="marchand-renom" style="color:var(--txt-doux);margin-bottom:12px;"></p>
+    <div id="marchand-liste"></div>
+    <p class="concours-note" style="margin-top:12px;">De nouvelles cartes chaque jour · payées avec la renommée des concours</p>
+    <button class="feuille-fermer" id="marchand-fermer">Fermer</button>
+  </div>
+</div>
+
+<div class="feuille-fond" id="concours-fond">
+  <div class="feuille">
+    <h2 class="titre" id="cs-titre" style="margin-bottom:4px;"></h2>
+    <p class="d-desc" id="cs-sous" style="color:var(--txt-doux);margin-bottom:12px;"></p>
+    <div id="cs-liste"></div>
+    <button class="feuille-fermer" id="cs-fermer">Annuler</button>
+  </div>
+</div>
+
+<div class="feuille-fond" id="aide-fond">
+  <div class="feuille">
+    <h2 class="titre" style="margin-bottom:6px;">Chances par tirage</h2>
+    <p class="d-desc" style="color:var(--txt-doux);margin-bottom:12px;">Probabilité d'obtenir chaque rareté à chaque tirage.</p>
+    <div id="chances-liste"></div>
+    <button class="feuille-fermer" id="aide-fermer">Fermer</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="img-max" id="img-max"><img id="img-max-src" alt=""><div class="img-max-fermer">✕</div></div>
+
+<script>
+/* ================================================================
+   1. CARTES — ajoute une créature = un objet ici.
+   image:null → emoji. Sinon 'cartes/x.png', une image data:, OU un
+   tableau de 5 images (une par palier d'évolution).
+   ================================================================ */
+/* Illustrations embarquées (base64) — voir IMG plus bas */
+const IMG={
+mustang_indien:"cartes/mustang_indien.jpg",
+maman_cheval:"cartes/maman_cheval.jpg",
+roi_montagnes:"cartes/roi_montagnes.jpg",
+poney_heureux:"cartes/poney_heureux.jpg",
+licorne:"cartes/licorne.jpg",
+hippocampe:"cartes/hippocampe.jpg",
+cheval_enfers:"cartes/cheval_enfers.jpg",
+cheval_tournoi:"cartes/cheval_tournoi.jpg",
+cheval_cirque:"cartes/cheval_cirque.jpg",
+cheval_charbonnier:"cartes/cheval_charbonnier.jpg",
+belle_champs:"cartes/belle_champs.jpg",
+cheval_neptune:"cartes/cheval_neptune.jpg",
+cheval_laboureur:"cartes/cheval_laboureur.jpg",
+ane_tetu:"cartes/ane_tetu.jpg",
+cheval_troie:"cartes/cheval_troie.jpg",
+cheval_romain:"cartes/cheval_romain.jpg",
+cheval_chinois:"cartes/cheval_chinois.jpg",
+centaure:"cartes/centaure.jpg",
+uchchaihshravas:"cartes/uchchaihshravas.jpg",
+sleipnir:"cartes/sleipnir.jpg",
+licorne_girly:"cartes/licorne_girly.jpg",
+cheval_diligence:"cartes/cheval_diligence.jpg",
+al_bouraq:"cartes/al_bouraq.jpg",
+poulain:"cartes/poulain.jpg",
+matsukaze:"cartes/matsukaze.jpg",
+cheval_fourrure:"cartes/cheval_fourrure.jpg",
+ane_egyptien:"cartes/ane_egyptien.jpg",
+cheval_champignon:"cartes/cheval_champignon.jpg",
+kelpie:"cartes/kelpie.jpg",
+cheval_cyberpunk:"cartes/cheval_cyberpunk.jpg",
+secretariat:"cartes/secretariat.jpg",
+bayard:"cartes/bayard.jpg",
+cheval_rose:"cartes/cheval_rose.jpg",
+bucephale:"cartes/bucephale.jpg",
+cheval_carrosse:"cartes/cheval_carrosse.jpg",
+zebre:"cartes/zebre.jpg",
+cheval_obstacle:"cartes/cheval_obstacle.jpg",
+cheval_desert:"cartes/cheval_desert.jpg",
+cheval_armure:"cartes/cheval_armure.jpg",
+cheval_eclair:"cartes/cheval_eclair.jpg",
+cheval_police:"cartes/cheval_police.jpg",
+cheval_boucle:"cartes/cheval_boucle.jpg",
+cheval_punk:"cartes/cheval_punk.jpg",
+cheval_gourmand:"cartes/cheval_gourmand.jpg",
+cheval_cowboy:"cartes/cheval_cowboy.jpg",
+cheval_fantome:"cartes/cheval_fantome.jpg",
+pegase:"cartes/pegase.jpg",
+etalon:"cartes/etalon.jpg",
+bebe_poney:"cartes/bebe_poney.jpg",
+cheval_royal:"cartes/cheval_royal.jpg",
+poney_shetland:"cartes/poney_shetland.jpg",
+};
+const CARTES = [
+  {id:"mustang_indien",nom:"Mustang indien",rarete:"rare",emoji:"🐎",image:IMG.mustang_indien,desc:"Cheval sauvage des grandes plaines, fidèle compagnon des peuples amérindiens.",aff:["vitesse","endurance"]},
+  {id:"maman_cheval",nom:"Maman cheval",rarete:"commune",emoji:"🐴",image:IMG.maman_cheval,desc:"Une maman pleine de douceur veille sur son petit poulain.",aff:["beaute","endurance"]},
+  {id:"roi_montagnes",nom:"Le roi des montagnes",rarete:"epique",emoji:"🐴",image:IMG.roi_montagnes,desc:"Fier et puissant, il règne sur les sommets balayés par le vent.",aff:["force","endurance"]},
+  {id:"poney_heureux",nom:"Le poney heureux",rarete:"commune",emoji:"🐴",image:IMG.poney_heureux,desc:"Petit, ébouriffé et toujours de bonne humeur dans les prés fleuris.",aff:["beaute"]},
+  {id:"licorne",nom:"La licorne",rarete:"legendaire",emoji:"🦄",image:IMG.licorne,desc:"Créature magique à la corne d'or, elle n'apparaît qu'aux cœurs purs.",aff:["beaute","magie"]},
+  {id:"hippocampe",nom:"L'hippocampe",rarete:"epique",emoji:"🐴",image:IMG.hippocampe,desc:"Mi-cheval, mi-poisson, il file entre les vagues et les coraux.",aff:["vitesse","magie"]},
+  {id:"cheval_enfers",nom:"Le cheval des enfers",rarete:"epique",emoji:"🐴",image:IMG.cheval_enfers,desc:"Né du feu et de la lave, son galop fait trembler la terre.",aff:["force","bataille"]},
+  {id:"cheval_tournoi",nom:"Le cheval de tournoi",rarete:"rare",emoji:"🐎",image:IMG.cheval_tournoi,desc:"Paré de fleurs de lys, il porte les couleurs de son chevalier.",aff:["bataille","beaute"]},
+  {id:"cheval_cirque",nom:"Le cheval de cirque",rarete:"rare",emoji:"🐎",image:IMG.cheval_cirque,desc:"Sous les lumières et les plumes, il danse pour émerveiller la foule.",aff:["beaute","vitesse"]},
+  {id:"cheval_charbonnier",nom:"Le cheval du charbonnier",rarete:"commune",emoji:"🐴",image:IMG.cheval_charbonnier,desc:"Vaillant cheval de trait, il tire la lourde charrette de charbon.",aff:["force","endurance"]},
+  {id:"belle_champs",nom:"La belle des champs",rarete:"commune",emoji:"🐴",image:IMG.belle_champs,desc:"Sa crinière dorée brille au soleil couchant des prairies.",aff:["beaute"]},
+  {id:"cheval_neptune",nom:"Le cheval de Neptune",rarete:"legendaire",emoji:"🦄",image:IMG.cheval_neptune,desc:"Monture du dieu des mers, il galope au fond des océans.",aff:["magie","vitesse"]},
+  {id:"cheval_laboureur",nom:"Le cheval laboureur",rarete:"commune",emoji:"🐴",image:IMG.cheval_laboureur,desc:"Robuste et patient, il retourne la terre aux côtés du fermier.",aff:["force","endurance"]},
+  {id:"ane_tetu",nom:"L'âne têtu",rarete:"commune",emoji:"🐴",image:IMG.ane_tetu,desc:"Petit mais courageux… et parfois un peu entêté !",aff:["endurance"]},
+  {id:"cheval_troie",nom:"Le cheval de Troie",rarete:"epique",emoji:"🐴",image:IMG.cheval_troie,desc:"Le célèbre cheval de bois qui cachait les guerriers grecs.",aff:["bataille","force"]},
+  {id:"cheval_romain",nom:"Le cheval romain",rarete:"rare",emoji:"🐎",image:IMG.cheval_romain,desc:"Fidèle destrier des légions, il portait les cavaliers de Rome.",aff:["bataille","endurance"]},
+  {id:"cheval_chinois",nom:"Le cheval chinois antique",rarete:"rare",emoji:"🐎",image:IMG.cheval_chinois,desc:"Paré de soie et d'or, il défilait dans les palais impériaux.",aff:["beaute","magie"]},
+  {id:"centaure",nom:"Le centaure",rarete:"legendaire",emoji:"🦄",image:IMG.centaure,desc:"Moitié homme, moitié cheval, gardien sage des forêts anciennes.",aff:["bataille","force"]},
+  {id:"uchchaihshravas",nom:"Uchchaihshravas",rarete:"mythique",emoji:"🐉",image:IMG.uchchaihshravas,desc:"Le cheval blanc à sept têtes, né du barattage de l'océan de lait.",aff:["magie","vitesse","beaute"]},
+  {id:"sleipnir",nom:"Sleipnir",rarete:"mythique",emoji:"🐉",image:IMG.sleipnir,desc:"Le destrier à huit jambes d'Odin, plus rapide que le vent.",aff:["vitesse","endurance","magie"]},
+  {id:"licorne_girly",nom:"La licorne girly",rarete:"legendaire",emoji:"🦄",image:IMG.licorne_girly,desc:"Une licorne de conte de fées, crinière arc-en-ciel et cœurs scintillants.",aff:["beaute","magie"]},
+  {id:"cheval_diligence",nom:"Le cheval de diligence",rarete:"rare",emoji:"🐎",image:IMG.cheval_diligence,desc:"Fidèle cheval de poste, il tire la diligence sur les routes de France.",aff:["endurance","vitesse"]},
+  {id:"al_bouraq",nom:"Al-Bouraq",rarete:"mythique",emoji:"🕊️",image:IMG.al_bouraq,desc:"La monture ailée au visage humain, plus rapide que l'éclair entre ciel et terre.",aff:["vitesse","magie","beaute"]},
+  {id:"poulain",nom:"Poulain",rarete:"commune",emoji:"🐴",image:IMG.poulain,desc:"Un tout jeune poulain qui gambade pour la première fois dans le pré.",aff:["beaute"]},
+  {id:"matsukaze",nom:"Matsukaze",rarete:"mythique",emoji:"🐎",image:IMG.matsukaze,desc:"« Vent dans les pins » : le destrier noir des samouraïs, rapide et fier.",aff:["bataille","force","vitesse"]},
+  {id:"cheval_fourrure",nom:"Le cheval à fourrure",rarete:"rare",emoji:"🐴",image:IMG.cheval_fourrure,desc:"Sa crinière dorée sans fin ondule comme une rivière au vent des montagnes.",aff:["beaute","endurance"]},
+  {id:"ane_egyptien",nom:"L'âne égyptien",rarete:"commune",emoji:"🫏",image:IMG.ane_egyptien,desc:"Vaillant âne des bâtisseurs, il tire les blocs des grandes pyramides.",aff:["force","endurance"]},
+  {id:"cheval_champignon",nom:"Le cheval champignon",rarete:"epique",emoji:"🍄",image:IMG.cheval_champignon,desc:"Esprit de la forêt enchantée, couvert de mousses et de champignons.",aff:["magie","endurance"]},
+  {id:"kelpie",nom:"Le Kelpie",rarete:"epique",emoji:"🌊",image:IMG.kelpie,desc:"Cheval des lochs d'Écosse, il surgit de l'eau au crépuscule.",aff:["vitesse","magie"]},
+  {id:"cheval_cyberpunk",nom:"Le cheval cyberpunk",rarete:"rare",emoji:"🤖",image:IMG.cheval_cyberpunk,desc:"Destrier de néon et d'acier, il galope dans la cité du futur.",aff:["vitesse","bataille"]},
+  {id:"secretariat",nom:"Secrétariat",rarete:"mythique",emoji:"🏇",image:IMG.secretariat,desc:"Le plus grand champion de course : ses records de vitesse tiennent encore aujourd'hui.",aff:["vitesse","endurance"]},
+  {id:"bayard",nom:"Le cheval Bayard",rarete:"mythique",emoji:"🐎",image:IMG.bayard,desc:"Le cheval-fée qui grandissait pour porter les quatre fils Aymon.",aff:["force","magie"]},
+  {id:"cheval_rose",nom:"Le cheval rose",rarete:"rare",emoji:"🌸",image:IMG.cheval_rose,desc:"Un cheval tout rose et scintillant, sorti d'un rêve de printemps.",aff:["beaute"]},
+  {id:"bucephale",nom:"Bucéphale",rarete:"mythique",emoji:"⚔️",image:IMG.bucephale,desc:"L'indomptable destrier d'Alexandre le Grand, brave au cœur de la bataille.",aff:["bataille","force"]},
+  {id:"cheval_carrosse",nom:"Cheval de carrosse",rarete:"rare",emoji:"🎠",image:IMG.cheval_carrosse,desc:"Fier cheval d'attelage, il mène le carrosse doré des grandes occasions.",aff:["force","beaute"]},
+  {id:"zebre",nom:"Zèbre",rarete:"commune",emoji:"🦓",image:IMG.zebre,desc:"Cousin sauvage du cheval, il file dans la savane, zébré de noir et de blanc.",aff:["vitesse","endurance"]},
+  {id:"cheval_obstacle",nom:"Cheval d'obstacle",rarete:"rare",emoji:"🏇",image:IMG.cheval_obstacle,desc:"Champion de saut, il franchit les plus hautes barres sous les acclamations.",aff:["vitesse","force"]},
+  {id:"cheval_desert",nom:"Cheval du désert",rarete:"epique",emoji:"🏜️",image:IMG.cheval_desert,desc:"Pur-sang arabe des sables, infatigable sous le soleil du désert.",aff:["endurance","vitesse"]},
+  {id:"cheval_armure",nom:"Cheval en armure",rarete:"epique",emoji:"🛡️",image:IMG.cheval_armure,desc:"Destrier bardé d'acier, il porte le chevalier au cœur de la mêlée.",aff:["bataille","endurance"]},
+  {id:"cheval_eclair",nom:"Cheval éclair",rarete:"legendaire",emoji:"⚡",image:IMG.cheval_eclair,desc:"Spectre d'orage, il surgit dans les éclairs et disparaît dans la nuit.",aff:["magie","vitesse"]},
+  {id:"cheval_police",nom:"Cheval de police",rarete:"rare",emoji:"🐴",image:IMG.cheval_police,desc:"Monture calme et courageuse de la police montée, rien ne l'effraie dans la foule.",aff:["bataille","endurance"]},
+  {id:"cheval_boucle",nom:"Cheval bouclé",rarete:"commune",emoji:"🐴",image:IMG.cheval_boucle,desc:"Sa robe et sa crinière tout en boucles le rendent unique parmi les chevaux.",aff:["beaute","endurance"]},
+  {id:"cheval_punk",nom:"Cheval punk",rarete:"rare",emoji:"🎸",image:IMG.cheval_punk,desc:"Crête colorée et cuir clouté : le rebelle des rues de la ville.",aff:["bataille","vitesse"]},
+  {id:"cheval_gourmand",nom:"Cheval gourmand",rarete:"commune",emoji:"🍎",image:IMG.cheval_gourmand,desc:"Toujours à croquer une pomme — le plus gourmand de toute l'écurie !",aff:["endurance","beaute"]},
+  {id:"cheval_cowboy",nom:"Cheval cow-boy",rarete:"rare",emoji:"🤠",image:IMG.cheval_cowboy,desc:"Fidèle monture du cow-boy, il connaît chaque piste du Far West.",aff:["vitesse","endurance"]},
+  {id:"cheval_fantome",nom:"Cheval fantôme",rarete:"legendaire",emoji:"👻",image:IMG.cheval_fantome,desc:"Un cheval translucide qui traverse la nuit sans bruit, entre les mondes.",aff:["magie","endurance"]},
+  {id:"pegase",nom:"Pégase",rarete:"mythique",emoji:"🕊️",image:IMG.pegase,desc:"Le cheval ailé de la mythologie grecque : il s'envole jusqu'à l'Olympe.",aff:["vitesse","magie"]},
+  {id:"etalon",nom:"Étalon",rarete:"commune",emoji:"🐎",image:IMG.etalon,desc:"Un étalon fier et robuste, roi de la prairie.",aff:["force","beaute"]},
+  {id:"bebe_poney",nom:"Bébé poney",rarete:"commune",emoji:"🐴",image:IMG.bebe_poney,desc:"Un adorable petit poney qui découvre le monde à petits pas.",aff:["beaute","vitesse"]},
+  {id:"cheval_royal",nom:"Cheval royal",rarete:"epique",emoji:"👑",image:IMG.cheval_royal,desc:"Paré des armes du roi, il porte fièrement les couleurs du royaume.",aff:["beaute","bataille"]},
+  {id:"poney_shetland",nom:"Poney Shetland",rarete:"commune",emoji:"🐴",image:IMG.poney_shetland,desc:"Petit mais costaud : le poney shetland tire plus lourd que lui, têtu et rustique.",aff:["force","endurance"]},
+];
+
+/* 2. RÉGLAGES */
+const RARETES={commune:{nom:'Commune',poids:60,overflow:15,couleur:'#c4cdd8'},rare:{nom:'Rare',poids:25,overflow:30,couleur:'#7ec2ff'},epique:{nom:'Épique',poids:10,overflow:60,couleur:'#c99bff'},legendaire:{nom:'Légendaire',poids:4,overflow:120,couleur:'#ffcf6b'},mythique:{nom:'Mythique',poids:0.4,overflow:250,couleur:'#ff9ac0'}};
+const SEUILS=[1,4,9,17,28];   // exemplaires cumulés pour ★ à ★★★★★ (évolution plus lente)
+const TITRES=['—','Éveil','Aguerri','Radieux','Céleste','Mythe'];
+const COUT_TIRAGE=70,SOLDE_DEPART=200;
+const GAIN_BONNE=10,GAIN_ESSAI=3,BONUS_SERIE=45,PALIER_SERIE=5;   // récompense l'essai même en cas d'erreur
+const XP_BONNE=10,XP_ESSAI=3,PAS_XP=120;                          // 120 XP par niveau de matière
+
+/* ---- CONCOURS ---- */
+const CAPS=[
+  {id:'beaute',nom:'Beauté',ico:'🌸',couleur:'#ff9ac0'},
+  {id:'force',nom:'Force',ico:'💪',couleur:'#e0864a'},
+  {id:'bataille',nom:'Bataille',ico:'⚔️',couleur:'#d95f5f'},
+  {id:'vitesse',nom:'Vitesse',ico:'⚡',couleur:'#f2c14e'},
+  {id:'endurance',nom:'Endurance',ico:'🕰️',couleur:'#5ec4a8'},
+  {id:'magie',nom:'Magie',ico:'✨',couleur:'#a672e0'},
+];
+const BASE_RAR={commune:8,rare:20,epique:34,legendaire:50,mythique:66};
+const BONUS_ADV=10;   // les adversaires sont des spécialistes de l'épreuve
+const NOMS_ADV=['Éclair','Tonnerre','Ombre','Tempête','Brasier','Zéphyr','Cendre','Titan','Mirage','Silex','Orage','Comète','Faucon','Brume','Vaillant'];
+const NIVEAUX_CONCOURS=[
+  {id:'local',nom:'Local',ico:'🥉',crins:15,renommee:1,inscription:5,adv:{rarete:'commune',pmin:1,pmax:2}},
+  {id:'regional',nom:'Régional',ico:'🥈',crins:25,renommee:2,inscription:10,adv:{rarete:'rare',pmin:1,pmax:2}},
+  {id:'national',nom:'National',ico:'🥇',crins:40,renommee:4,inscription:15,adv:{rarete:'epique',pmin:1,pmax:3}},
+  {id:'international',nom:'International',ico:'🏅',crins:60,renommee:7,inscription:25,adv:{rarete:'legendaire',pmin:1,pmax:3}},
+  {id:'legendaire',nom:'Légendaire',ico:'👑',crins:90,renommee:12,inscription:40,adv:{rarete:'mythique',pmin:1,pmax:2}},
+];
+const PLAN_CONCOURS=['local','local','local','regional','regional','regional','national','national','national','international','international','legendaire'];
+const RANGS=[[0,'Débutante'],[15,'Régionale'],[45,'Réputée'],[100,'Prestigieuse'],[220,'Légendaire']];
+/* Marchand : 3 cartes/jour payées en renommée. Distribution plus plate que le
+   tirage (les raretés apparaissent plus souvent) mais prix exponentiels. */
+const POIDS_MARCHAND={commune:40,rare:28,epique:19,legendaire:10,mythique:3};
+const PRIX_MARCHAND={commune:3,rare:15,epique:55,legendaire:220,mythique:1000};
+
+/* 3. PROFILS + SAUVEGARDE
+   Clé 'ecurie_profils_v1' : { actif, profils:[ {id,nom,age,emoji,couleur,
+   niveau:1..6 (année scolaire, P1..P6), etat:{...} } ] }. `etat` pointe
+   vers le profil actif → tout le code de jeu reste identique. Collection +
+   scores par profil. niveau = année scolaire : il sélectionne quels
+   exercices apparaissent (voir `niv` des activités) et cale la difficulté. */
+const CLE_P='ecurie_profils_v1',CLE_VIEUX='ecurie_legendes_v2';
+let memoire=null;
+function etatVide(){return {crins:SOLDE_DEPART,collection:{},paliers:{},tirages:0,bonnes:0,xp:{maths:0,francais:0,histoire:0,sciences:0},serieJours:0,dernierJour:null,stats:{},jeux:{joues:0,gagnes:0},renommee:0,renommeeTotale:0,concours:{date:null,faits:{}},marchand:{date:null,achetes:[]}};}
+function normaliserEtat(e){const d=etatVide();for(const k in d)if(e[k]===undefined)e[k]=d[k];e.xp=Object.assign({maths:0,francais:0,histoire:0,sciences:0},e.xp||{});e.jeux=Object.assign({joues:0,gagnes:0},e.jeux||{});e.stats=e.stats||{};e.collection=e.collection||{};e.paliers=e.paliers||{};e.renommee=e.renommee||0;if(e.renommeeTotale==null)e.renommeeTotale=e.renommee;e.concours=e.concours||{date:null,faits:{}};e.marchand=e.marchand||{date:null,achetes:[]};for(const id in e.collection){if(e.collection[id]>0&&e.paliers[id]==null)e.paliers[id]=palierDe(e.collection[id]);}return e;}
+function niveauScolaire(age){return Math.max(1,Math.min(6,(age||10)-5));}   // 8 ans → P3, 10 ans → P5
+function profilVide(id,nom,age,emoji,couleur){return {id,nom,age,emoji,couleur,niveau:niveauScolaire(age),etat:etatVide()};}
+function lireLS(k){try{const b=localStorage.getItem(k);if(b)return JSON.parse(b);}catch(e){}return null;}
+function sauver(){try{localStorage.setItem(CLE_P,JSON.stringify(SAVE));}catch(e){memoire=JSON.parse(JSON.stringify(SAVE));}}
+let SAVE=lireLS(CLE_P)||memoire;
+if(!SAVE){
+  SAVE={actif:'enola',profils:[profilVide('enola','Énola',10,'🦄','#ff9ac0'),profilVide('anae','Anaé',8,'🦄','#7ec2ff')]};
+  const vieux=lireLS(CLE_VIEUX);
+  if(vieux)SAVE.profils[0].etat=normaliserEtat(Object.assign(etatVide(),vieux));
+}
+SAVE.profils.forEach(p=>{if(!p.niveau)p.niveau=niveauScolaire(p.age);if(p.id==='anae'&&p.emoji==='🐴')p.emoji='🦄';normaliserEtat(p.etat);});
+let profilActif=SAVE.profils.find(p=>p.id===SAVE.actif)||SAVE.profils[0];
+SAVE.actif=profilActif.id;
+let etat=profilActif.etat;
+sauver();
+
+/* 4. UTILITAIRES */
+const $=s=>document.querySelector(s),$$=s=>document.querySelectorAll(s);
+const rnd=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
+function melange(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=rnd(0,i);[a[i],a[j]]=[a[j],a[i]];}return a;}
+const nbUniques=()=>CARTES.reduce((s,c)=>s+((etat.collection[c.id]||0)>0?1:0),0);
+const totalEtoiles=()=>CARTES.reduce((s,c)=>s+palierApplique(c),0);
+function palierDe(n){let p=0;for(const s of SEUILS)if(n>=s)p++;return p;}
+function prochainSeuil(n){for(const s of SEUILS)if(n<s)return s;return null;}
+function palierApplique(c){const n=etat.collection[c.id]||0;if(n<=0)return 0;const st=etat.paliers[c.id];return Math.max(1,Math.min(palierDe(n),st==null?1:st));}
+function peutEvoluer(c){const n=etat.collection[c.id]||0;const p=palierApplique(c);return n>0&&p<5&&p<palierDe(n);}
+function evoluer(c){if(!peutEvoluer(c))return false;etat.paliers[c.id]=palierApplique(c)+1;sauver();return true;}
+function niveauDe(xp){return Math.floor((xp||0)/PAS_XP)+1;}
+function artHTML(c){const im=Array.isArray(c.image)?c.image[Math.min(palierDe(etat.collection[c.id]||1),c.image.length)-1]:c.image;return im?`<img src="${im}" alt="${c.nom}" loading="lazy" decoding="async">`:c.emoji;}
+
+/* ---- CONCOURS : stats calculées (pas stockées) ---- */
+function hashStr(s){let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619);}return h>>>0;}
+function statDe(c,cap){const p=palierApplique(c);const base=BASE_RAR[c.rarete]||8;const aff=(c.aff||[]).includes(cap)?18:0;const varn=hashStr(c.id+':'+cap)%13;return Math.max(1,Math.min(99,base+6*p+aff+varn));}
+function statAdversaire(rarete,palier){return Math.max(1,Math.min(99,(BASE_RAR[rarete]||8)+6*palier+BONUS_ADV+rnd(0,12)));}
+function refAdversaire(adv){return Math.round((BASE_RAR[adv.rarete]||8)+6*((adv.pmin+adv.pmax)/2)+BONUS_ADV+6);}
+function etoilesTxt(a,b){return '★'.repeat(a)+(b>a?'–'+'★'.repeat(b):'');}
+function rangEcurie(r){let nom=RANGS[0][1];for(const[s,n]of RANGS)if(r>=s)nom=n;return nom;}
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function concoursDuJour(){const d=ymd(new Date());const rng=mulberry32(hashStr('concours-'+d));const caps=CAPS.map(c=>c.id);return{date:d,list:PLAN_CONCOURS.map((niv,i)=>({i,cap:caps[Math.floor(rng()*caps.length)],niveau:niv}))};}
+function ensureConcoursJour(){const d=ymd(new Date());if(etat.concours.date!==d){etat.concours={date:d,faits:{}};sauver();}}
+let toastTimer;function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('on'),2000);}
+
+/* ================================================================
+   5. CONTENU DES EXERCICES — programme 5e primaire (FWB, 10-11 ans)
+   Ajouter un exercice = ajouter une entrée dans une banque, ou une
+   activité { nom, gen } dans une matière. gen(diff) → {q,r,choix,exp}.
+   ================================================================ */
+function dNum(r){const e=Math.max(2,Math.round(Math.abs(r)*.15)+2);const s=new Set([r]);let g=0;
+  while(s.size<4&&g<60){let d=r+rnd(-e,e);if(d<0)d=r+rnd(1,e);s.add(d);g++;}
+  let k=1;while(s.size<4){s.add(r+k);k++;}
+  return [...s].filter(x=>x!==r).slice(0,3);}
+function qNum(q,r,exp){return {q,r:String(r),choix:melange([String(r),...dNum(r).map(String)]),exp};}
+function banque(items){return ()=>{const it=items[rnd(0,items.length-1)];return {q:it.q,r:it.r,choix:melange([it.r,...it.autres]),exp:it.exp};};}
+
+const CONV=[['m','cm',100],['km','m',1000],['kg','g',1000],['L','mL',1000],['h','min',60],['cm','mm',10]];
+const PROB=[
+  ()=>{const a=rnd(14,45),b=rnd(3,a-2);return {q:`Léa a ${a} bonbons. Elle en donne ${b}. Combien lui en reste-t-il ?`,r:a-b};},
+  ()=>{const p=rnd(3,8),n=rnd(3,9);return {q:`${p} chevaux ont chacun ${n} pommes. Combien de pommes en tout ?`,r:p*n};},
+  ()=>{const t=rnd(2,6),x=rnd(3,9);return {q:`Un ticket coûte ${x} €. Combien coûtent ${t} tickets ?`,r:t*x};},
+  ()=>{const g=rnd(4,9),j=rnd(2,6);return {q:`On partage ${g*j} carottes entre ${j} poneys. Combien chacun ?`,r:g};},
+];
+
+/* niv:[min,max] = années scolaires (P1..P6) où l'exercice apparaît.
+   Défaut [1,6] si absent. Le niveau du profil filtre le tirage.        */
+const MATIERES=[
+ {id:'maths',nom:'Maths',ico:'🔢',couleur:'#4aa3df',activites:[
+   {nom:'Compter',niv:[3,4],gen:()=>{const n=rnd(11,98);return Math.random()<.5?qNum(`Quel nombre vient juste après ${n} ?`,n+1):qNum(`Quel nombre vient juste avant ${n} ?`,n-1);}},
+   {nom:'Doubles',niv:[3,4],gen:()=>{const n=rnd(2,10);return qNum(`Le double de ${n}`,n*2,`le double, c'est ${n} + ${n}.`);}},
+   {nom:'Plus grand',niv:[3,4],gen:()=>{const s=new Set();while(s.size<3)s.add(rnd(10,99));const arr=[...s];return {q:'Quel est le plus grand ?',r:String(Math.max(...arr)),choix:melange(arr.map(String))};}},
+   {nom:'Tables ×',niv:[3,6],gen:d=>{const m=d>=3?12:d>=2?10:5;const a=rnd(2,m),b=rnd(2,m);return qNum(`${a} × ${b}`,a*b,`Pense à ${a}×${b-1} puis + ${a}.`);}},
+   {nom:'Addition',niv:[3,6],gen:d=>{const m=d>=3?999:d>=2?200:20,lo=d>=2?10:1;const a=rnd(lo,m),b=rnd(lo,m);return qNum(`${a} + ${b}`,a+b);}},
+   {nom:'Soustraction',niv:[3,6],gen:d=>{const m=d>=3?999:d>=2?200:20;let a=rnd(d>=2?20:5,m),b=rnd(1,a);return qNum(`${a} − ${b}`,a-b);}},
+   {nom:'Division',niv:[5,6],gen:d=>{const m=d>=2?11:10;const b=rnd(2,m),q=rnd(2,m);return qNum(`${b*q} ÷ ${b}`,q,`${b} × ? = ${b*q}.`);}},
+   {nom:"Fraction d'un nombre",niv:[5,6],gen:d=>{const F=[['La moitié',2],['Le tiers',3],['Le quart',4]];const[f,den]=F[rnd(0,2)];const n=rnd(2,d>=2?12:9)*den;return qNum(`${f} de ${n}`,n/den,`${f.toLowerCase()} = diviser par ${den}.`);}},
+   {nom:'Mesures',niv:[5,6],gen:d=>{const[u1,u2,f]=CONV[rnd(0,CONV.length-1)];const k=rnd(1,d>=2?9:5);return qNum(`${k} ${u1} = ? ${u2}`,k*f,`1 ${u1} = ${f} ${u2}.`);}},
+   {nom:'Périmètre & aire',niv:[5,6],gen:d=>{if(Math.random()<.5){const c=rnd(2,d>=2?15:9);return qNum(`Périmètre d'un carré de côté ${c} cm`,c*4,`Périmètre du carré = côté × 4.`);}const L=rnd(3,d>=2?12:8),l=rnd(2,L);return qNum(`Aire d'un rectangle ${L} × ${l} cm`,L*l,`Aire = longueur × largeur.`);}},
+   {nom:'Petits problèmes',niv:[4,6],gen:()=>{const f=PROB[rnd(0,PROB.length-1)]();return qNum(f.q,f.r);}},
+ ]},
+ {id:'francais',nom:'Français',ico:'📖',couleur:'#a672e0',activites:[
+   {nom:'Le ou La ?',niv:[3,4],gen:banque([
+     {q:"___ soleil (le/la)",r:"le",autres:["la"]},{q:"___ lune (le/la)",r:"la",autres:["le"]},
+     {q:"___ maison (le/la)",r:"la",autres:["le"]},{q:"___ cheval (le/la)",r:"le",autres:["la"]},
+     {q:"___ voiture (le/la)",r:"la",autres:["le"]},{q:"___ ballon (le/la)",r:"le",autres:["la"]},
+     {q:"___ fleur (le/la)",r:"la",autres:["le"]},{q:"___ livre (le/la)",r:"le",autres:["la"]},
+     {q:"___ table (le/la)",r:"la",autres:["le"]},{q:"___ chien (le/la)",r:"le",autres:["la"]},
+   ])},
+   {nom:'Un ou Une ?',niv:[3,4],gen:banque([
+     {q:"___ chat (un/une)",r:"un",autres:["une"]},{q:"___ pomme (un/une)",r:"une",autres:["un"]},
+     {q:"___ vélo (un/une)",r:"un",autres:["une"]},{q:"___ fleur (un/une)",r:"une",autres:["un"]},
+     {q:"___ ballon (un/une)",r:"un",autres:["une"]},{q:"___ maison (un/une)",r:"une",autres:["un"]},
+     {q:"___ livre (un/une)",r:"un",autres:["une"]},{q:"___ voiture (un/une)",r:"une",autres:["un"]},
+   ])},
+   {nom:'Singulier → pluriel',niv:[3,4],gen:banque([
+     {q:"Le pluriel de « chat »",r:"chats",autres:["chates","chatz","chat"],exp:"on ajoute un -s."},
+     {q:"Le pluriel de « chien »",r:"chiens",autres:["chien","chiennes","chienz"],exp:"on ajoute un -s."},
+     {q:"Le pluriel de « fleur »",r:"fleurs",autres:["fleures","fleur","fleurz"]},
+     {q:"Le pluriel de « vélo »",r:"vélos",autres:["véloes","vélo","véloz"]},
+     {q:"Le pluriel de « ami »",r:"amis",autres:["amies","ami","amiz"]},
+     {q:"Le pluriel de « poule »",r:"poules",autres:["poule","poulz","pouls"]},
+   ])},
+   {nom:"L'alphabet",niv:[3,4],gen:()=>{const L='ABCDEFGHIJKLMNOPQRSTUVWXYZ';const i=rnd(0,23),c=L[i],r=L[i+1];const autres=melange(L.replace(c,'').replace(r,'').split('')).slice(0,2);return {q:`Quelle lettre vient après « ${c} » ?`,r,choix:melange([r,...autres])};}},
+   {nom:'Les contraires',niv:[3,4],gen:banque([
+     {q:"Le contraire de « grand »",r:"petit",autres:["gros","long"]},
+     {q:"Le contraire de « chaud »",r:"froid",autres:["tiède","brûlant"]},
+     {q:"Le contraire de « jour »",r:"nuit",autres:["soir","matin"]},
+     {q:"Le contraire de « haut »",r:"bas",autres:["grand","loin"]},
+     {q:"Le contraire de « content »",r:"triste",autres:["fâché","gentil"]},
+     {q:"Le contraire de « ouvert »",r:"fermé",autres:["plein","vide"]},
+     {q:"Le contraire de « plein »",r:"vide",autres:["lourd","petit"]},
+   ])},
+   {nom:'Conjugaison',niv:[5,6],gen:banque([
+     {q:"Nous (aller) — présent",r:"allons",autres:["allez","vont","allont"],exp:"aller : nous allons."},
+     {q:"Ils (être) — présent",r:"sont",autres:["ont","son","êtes"],exp:"être : ils sont."},
+     {q:"Tu (avoir) — présent",r:"as",autres:["a","à","es"],exp:"avoir : tu as."},
+     {q:"Je (faire) — présent",r:"fais",autres:["fait","faits","fez"],exp:"faire : je fais."},
+     {q:"Vous (dire) — présent",r:"dites",autres:["disez","dis","disent"],exp:"dire : vous dites (irrégulier)."},
+     {q:"Nous (manger) — imparfait",r:"mangions",autres:["mangeons","mangeais","mangerons"],exp:"imparfait « nous » : radical + -ions."},
+     {q:"Il (finir) — imparfait",r:"finissait",autres:["finissais","finira","finissez"],exp:"finir → nous finiss-ons → il finissait."},
+     {q:"Tu (être) — futur",r:"seras",autres:["sera","serais","sedas"],exp:"futur : tu seras."},
+     {q:"Je (aller) — futur",r:"irai",autres:["irais","allerai","irez"],exp:"aller au futur : j'irai."},
+     {q:"Nous (avoir) — futur",r:"aurons",autres:["avons","auront","aurions"],exp:"avoir au futur : nous aurons."},
+     {q:"J' (manger) — passé composé",r:"ai mangé",autres:["as mangé","ai mangée","suis mangé"],exp:"avoir + participe : j'ai mangé."},
+     {q:"Elle (partir) — passé composé",r:"est partie",autres:["a parti","est parti","a partie"],exp:"partir → être, accord : elle est partie."},
+     {q:"Ils (venir) — passé composé",r:"sont venus",autres:["ont venu","sont venu","ont venus"],exp:"venir → être : ils sont venus."},
+   ])},
+   {nom:'Homophones',niv:[5,6],gen:banque([
+     {q:"Il ___ lave les mains. (ce/se)",r:"se",autres:["ce"],exp:"« se » accompagne un verbe."},
+     {q:"___ cheval est magnifique. (ce/se)",r:"Ce",autres:["Se"],exp:"« ce » accompagne un nom."},
+     {q:"Elle ___ un poney. (a/à)",r:"a",autres:["à"],exp:"« a » = verbe avoir (elle avait)."},
+     {q:"Je vais ___ l'écurie. (a/à)",r:"à",autres:["a"],exp:"« à » = préposition de lieu."},
+     {q:"Papa ___ maman sont là. (et/est)",r:"et",autres:["est"],exp:"« et » relie (= et puis)."},
+     {q:"Le ciel ___ bleu. (et/est)",r:"est",autres:["et"],exp:"« est » = verbe être (était)."},
+     {q:"Les enfants ___ faim. (on/ont)",r:"ont",autres:["on"],exp:"« ont » = avoir (ils avaient)."},
+     {q:"___ part en balade. (on/ont)",r:"On",autres:["Ont"],exp:"« on » = il/elle (on part)."},
+     {q:"Ils ___ contents. (son/sont)",r:"sont",autres:["son"],exp:"« sont » = être (ils étaient)."},
+     {q:"___ cheval est rapide. (son/sont)",r:"Son",autres:["Sont"],exp:"« son » = le sien."},
+     {q:"Tu veux du thé ___ du café ? (ou/où)",r:"ou",autres:["où"],exp:"« ou » = ou bien."},
+     {q:"___ vas-tu ? (ou/où)",r:"Où",autres:["Ou"],exp:"« où » indique le lieu."},
+     {q:"J'aime ___ chevaux-là. (ces/ses)",r:"ces",autres:["ses"],exp:"« ces » = ceux-là (on montre)."},
+     {q:"Elle brosse ___ cheveux. (ces/ses)",r:"ses",autres:["ces"],exp:"« ses » = les siens (à elle)."},
+   ])},
+   {nom:'Classes de mots',niv:[5,6],gen:banque([
+     {q:"Dans « le grand cheval », « grand » est un…",r:"adjectif",autres:["nom","verbe","adverbe"],exp:"l'adjectif décrit le nom."},
+     {q:"Dans « le cheval galope », « galope » est un…",r:"verbe",autres:["nom","adjectif","déterminant"],exp:"le verbe dit l'action."},
+     {q:"Dans « le cheval », « le » est un…",r:"déterminant",autres:["pronom","nom","adjectif"],exp:"le déterminant introduit le nom."},
+     {q:"« rapidement » est un…",r:"adverbe",autres:["adjectif","verbe","nom"],exp:"l'adverbe précise (souvent en -ment)."},
+     {q:"Dans « elle court », « elle » est un…",r:"pronom",autres:["nom","déterminant","adverbe"],exp:"le pronom remplace un nom."},
+     {q:"« courage » est un…",r:"nom",autres:["verbe","adjectif","adverbe"],exp:"le nom désigne une chose/idée."},
+     {q:"Dans « très joli », « très » est un…",r:"adverbe",autres:["adjectif","nom","verbe"],exp:"« très » précise l'adjectif."},
+   ])},
+   {nom:'Pluriels',niv:[5,6],gen:banque([
+     {q:"Le pluriel de « cheval »",r:"chevaux",autres:["chevals","chevaus","cheveaux"],exp:"-al → -aux."},
+     {q:"Le pluriel de « journal »",r:"journaux",autres:["journals","journeaux","journaus"],exp:"-al → -aux."},
+     {q:"Le pluriel de « œil »",r:"yeux",autres:["œils","oeils","yeuxs"],exp:"« œil » → « yeux » (irrégulier)."},
+     {q:"Le pluriel de « genou »",r:"genoux",autres:["genous","genouxs","geneaux"],exp:"7 mots en -ou prennent un x (genou, bijou…)."},
+     {q:"Le pluriel de « bijou »",r:"bijoux",autres:["bijous","bijouxs","bijeaux"],exp:"bijou → bijoux (avec un x)."},
+     {q:"Le pluriel de « nez »",r:"nez",autres:["nezs","nés","neze"],exp:"les mots en -z ne changent pas."},
+     {q:"Le pluriel de « bateau »",r:"bateaux",autres:["bateaus","batteaux","bateauxs"],exp:"-eau → -eaux."},
+   ])},
+   {nom:'Vocabulaire',niv:[4,6],gen:banque([
+     {q:"Le contraire de « grand »",r:"petit",autres:["gros","haut","long"]},
+     {q:"Le contraire de « rapide »",r:"lent",autres:["vite","court","facile"]},
+     {q:"Un synonyme de « content »",r:"heureux",autres:["triste","fâché","fatigué"]},
+     {q:"Un synonyme de « joli »",r:"beau",autres:["laid","grand","vieux"]},
+     {q:"Le contraire de « jour »",r:"nuit",autres:["soir","matin","midi"]},
+     {q:"Un synonyme de « débuter »",r:"commencer",autres:["finir","arrêter","continuer"]},
+     {q:"Le contraire de « ouvert »",r:"fermé",autres:["cassé","plein","vide"]},
+   ])},
+ ]},
+ {id:'histoire',nom:'Histoire',ico:'🏰',couleur:'#f2b134',activites:[
+   {nom:'Les grandes périodes',niv:[5,6],gen:banque([
+     {q:"Quelle invention marque la fin de la Préhistoire ?",r:"l'écriture",autres:["le feu","la roue","l'imprimerie"],exp:"La Préhistoire s'achève avec l'apparition de l'écriture."},
+     {q:"Quel événement marque le début du Moyen Âge ?",r:"la chute de l'Empire romain",autres:["la découverte de l'Amérique","la Révolution française","l'invention de l'écriture"],exp:"Chute de l'Empire romain d'Occident, en 476."},
+     {q:"En quelle année Christophe Colomb atteint-il l'Amérique ?",r:"1492",autres:["1789","476","1830"],exp:"1492 : début des Temps modernes."},
+     {q:"Quelle période vient juste après le Moyen Âge ?",r:"les Temps modernes",autres:["l'Antiquité","la Préhistoire","l'époque contemporaine"]},
+     {q:"Les hommes préhistoriques peignaient dans les…",r:"grottes",autres:["châteaux","églises","pyramides"],exp:"Ce sont les peintures rupestres."},
+     {q:"Quel événement ouvre l'époque contemporaine ?",r:"la Révolution française (1789)",autres:["la chute de Rome","la découverte de l'Amérique","l'écriture"]},
+     {q:"Quelle est la première période de l'Histoire ?",r:"la Préhistoire",autres:["l'Antiquité","le Moyen Âge","les Temps modernes"]},
+     {q:"À quelle période vivaient les Romains et les Grecs ?",r:"l'Antiquité",autres:["la Préhistoire","le Moyen Âge","les Temps modernes"]},
+   ])},
+   {nom:'Personnages & Belgique',niv:[5,6],gen:banque([
+     {q:"Qui met au point l'imprimerie en Europe ?",r:"Gutenberg",autres:["Jules César","Charlemagne","Christophe Colomb"],exp:"Gutenberg, vers 1450."},
+     {q:"Quel empereur du Moyen Âge est célèbre pour ses écoles ?",r:"Charlemagne",autres:["Clovis","Napoléon","Jules César"],exp:"Charlemagne, couronné en l'an 800."},
+     {q:"En quelle année la Belgique devient-elle indépendante ?",r:"1830",autres:["1492","1789","1918"]},
+     {q:"Quelle est la capitale de la Belgique ?",r:"Bruxelles",autres:["Liège","Anvers","Namur"]},
+     {q:"Qui fut le premier roi des Belges ?",r:"Léopold Ier",autres:["Philippe","Albert Ier","Baudouin"],exp:"Léopold Ier, roi en 1831."},
+     {q:"Quel général romain a conquis la Gaule ?",r:"Jules César",autres:["Charlemagne","Clovis","Napoléon"]},
+     {q:"Les châteaux forts sont surtout construits au…",r:"Moyen Âge",autres:["l'Antiquité","la Préhistoire","les Temps modernes"]},
+     {q:"Quelle héroïne a marqué la fin du Moyen Âge en France ?",r:"Jeanne d'Arc",autres:["Cléopâtre","Marie Curie","Néfertiti"]},
+   ])},
+ ]},
+ {id:'sciences',nom:'Sciences',ico:'🔬',couleur:'#4cbf6a',activites:[
+   {nom:'Mon corps',niv:[3,4],gen:banque([
+     {q:"Avec quoi vois-tu ?",r:"les yeux",autres:["les oreilles","le nez","la bouche"]},
+     {q:"Avec quoi entends-tu ?",r:"les oreilles",autres:["les yeux","le nez","les mains"]},
+     {q:"Avec quoi sens-tu les odeurs ?",r:"le nez",autres:["les yeux","la langue","les oreilles"]},
+     {q:"Avec quoi goûtes-tu ?",r:"la langue",autres:["le nez","les dents","les yeux"]},
+     {q:"Combien de doigts à une main ?",r:"5",autres:["4","6","10"]},
+     {q:"Combien as-tu de pieds ?",r:"2",autres:["1","3","4"]},
+   ])},
+   {nom:'Les animaux',niv:[3,4],gen:banque([
+     {q:"Le petit de la vache est le…",r:"veau",autres:["poulain","agneau","chiot"]},
+     {q:"Le petit du chien est le…",r:"chiot",autres:["chaton","veau","poussin"]},
+     {q:"Le petit du chat est le…",r:"chaton",autres:["chiot","poussin","agneau"]},
+     {q:"Le petit du cheval est le…",r:"poulain",autres:["veau","chiot","agneau"]},
+     {q:"Le petit de la poule est le…",r:"poussin",autres:["chaton","veau","poulain"]},
+     {q:"Où vit le poisson ?",r:"dans l'eau",autres:["dans les arbres","sous terre","dans le ciel"]},
+     {q:"Quel animal fait « meuh » ?",r:"la vache",autres:["le mouton","le cheval","le chat"]},
+   ])},
+   {nom:'Les couleurs',niv:[3,4],gen:banque([
+     {q:"Bleu + jaune = ?",r:"vert",autres:["orange","violet","brun"]},
+     {q:"Rouge + jaune = ?",r:"orange",autres:["vert","violet","gris"]},
+     {q:"Rouge + bleu = ?",r:"violet",autres:["vert","orange","brun"]},
+     {q:"De quelle couleur est le ciel (beau temps) ?",r:"bleu",autres:["vert","rouge","jaune"]},
+     {q:"De quelle couleur est l'herbe ?",r:"vert",autres:["bleu","jaune","rouge"]},
+     {q:"De quelle couleur est la neige ?",r:"blanc",autres:["noir","gris","bleu"]},
+   ])},
+   {nom:'Saisons & temps',niv:[3,4],gen:banque([
+     {q:"Combien y a-t-il de saisons ?",r:"4",autres:["2","3","5"]},
+     {q:"En quelle saison neige-t-il ?",r:"l'hiver",autres:["l'été","le printemps","l'automne"]},
+     {q:"Quel jour vient après lundi ?",r:"mardi",autres:["dimanche","mercredi","jeudi"]},
+     {q:"Combien de mois dans une année ?",r:"12",autres:["10","7","365"]},
+     {q:"Quel mois vient après janvier ?",r:"février",autres:["mars","décembre","avril"]},
+     {q:"Combien de jours dans une semaine ?",r:"7",autres:["5","10","12"]},
+     {q:"Après aujourd'hui vient…",r:"demain",autres:["hier","avant-hier","maintenant"]},
+   ])},
+   {nom:'Le vivant & le corps',niv:[4,6],gen:banque([
+     {q:"Quel organe pompe le sang ?",r:"le cœur",autres:["le foie","les poumons","l'estomac"]},
+     {q:"Combien de poumons avons-nous ?",r:"2",autres:["1","3","4"]},
+     {q:"Un animal qui allaite ses petits est un…",r:"mammifère",autres:["reptile","oiseau","poisson"],exp:"Le cheval est un mammifère."},
+     {q:"À quoi servent les poumons ?",r:"respirer",autres:["digérer","voir","pomper le sang"]},
+     {q:"Les plantes fabriquent leur nourriture grâce à…",r:"la lumière du soleil",autres:["la lune","le vent","la terre seule"],exp:"C'est la photosynthèse."},
+     {q:"Quel organe digère les aliments ?",r:"l'estomac",autres:["le cœur","le cerveau","les poumons"]},
+     {q:"Le squelette est fait d'…",r:"os",autres:["muscles","peau","sang"]},
+     {q:"Un têtard deviendra une…",r:"grenouille",autres:["tortue","couleuvre","libellule"]},
+   ])},
+   {nom:'Matière, eau & espace',niv:[5,6],gen:banque([
+     {q:"Quand l'eau gèle, elle devient…",r:"solide",autres:["liquide","gazeuse","invisible"],exp:"L'eau solide, c'est la glace."},
+     {q:"Quand l'eau bout, elle se transforme en…",r:"vapeur",autres:["glace","neige","pluie"],exp:"C'est l'évaporation (état gazeux)."},
+     {q:"Les trois états de l'eau : solide, liquide et…",r:"gazeux",autres:["mou","dur","chaud"]},
+     {q:"Sur quelle planète vivons-nous ?",r:"la Terre",autres:["Mars","la Lune","Jupiter"]},
+     {q:"Quel astre nous éclaire le jour ?",r:"le Soleil",autres:["la Lune","une comète","Mars"]},
+     {q:"La Lune tourne autour de…",r:"la Terre",autres:["le Soleil","Mars","Jupiter"]},
+     {q:"Dans le cycle de l'eau, les nuages donnent…",r:"la pluie",autres:["le vent","le soleil","la terre"]},
+     {q:"L'eau des océans qui s'évapore forme…",r:"des nuages",autres:["des vagues","du sel","des rivières"]},
+   ])},
+ ]},
+ {id:'geo',nom:'Géographie',ico:'🗺️',couleur:'#d9885f',activites:[
+   {nom:'Mon pays',niv:[3,6],gen:banque([
+     {q:"Dans quel pays habites-tu ?",r:"la Belgique",autres:["la France","les Pays-Bas","l'Espagne"]},
+     {q:"Quelle est la capitale de la Belgique ?",r:"Bruxelles",autres:["Liège","Anvers","Namur"]},
+     {q:"Quelle langue parle-t-on à l'école en Wallonie ?",r:"le français",autres:["le néerlandais","l'anglais","l'allemand"]},
+     {q:"Les couleurs du drapeau belge sont…",r:"noir, jaune, rouge",autres:["bleu, blanc, rouge","rouge, jaune, vert","noir, rouge, or"]},
+     {q:"Quelle est la plus grande ville de Belgique ?",r:"Bruxelles",autres:["Liège","Gand","Charleroi"]},
+   ])},
+   {nom:'La Belgique',niv:[4,6],gen:banque([
+     {q:"Combien y a-t-il de régions en Belgique ?",r:"3",autres:["2","4","10"],exp:"Wallonie, Flandre et Bruxelles-Capitale."},
+     {q:"Quelle langue parle-t-on en Flandre ?",r:"le néerlandais",autres:["le français","l'allemand","l'anglais"]},
+     {q:"Dans quelle région se trouve Liège ?",r:"la Wallonie",autres:["la Flandre","Bruxelles","les Ardennes"]},
+     {q:"Quel fleuve traverse Liège ?",r:"la Meuse",autres:["l'Escaut","la Seine","le Rhin"]},
+     {q:"Quel pays se trouve au sud de la Belgique ?",r:"la France",autres:["les Pays-Bas","l'Allemagne","le Luxembourg"]},
+     {q:"Quel pays se trouve au nord de la Belgique ?",r:"les Pays-Bas",autres:["la France","l'Allemagne","l'Italie"]},
+     {q:"Quelle mer borde la Belgique ?",r:"la mer du Nord",autres:["la Méditerranée","l'océan Atlantique","la mer Baltique"]},
+     {q:"Combien de provinces compte la Belgique ?",r:"10",autres:["9","12","5"]},
+   ])},
+   {nom:'Provinces & chefs-lieux',niv:[5,6],gen:banque([
+     {q:"Chef-lieu de la province de Liège ?",r:"Liège",autres:["Namur","Verviers","Huy"]},
+     {q:"Chef-lieu de la province du Hainaut ?",r:"Mons",autres:["Charleroi","Tournai","Namur"]},
+     {q:"Chef-lieu de la province de Namur ?",r:"Namur",autres:["Dinant","Wavre","Liège"]},
+     {q:"Chef-lieu du Brabant wallon ?",r:"Wavre",autres:["Nivelles","Namur","Louvain"]},
+     {q:"Chef-lieu de la province de Luxembourg ?",r:"Arlon",autres:["Bastogne","Marche","Namur"]},
+     {q:"Chef-lieu de la Flandre-Occidentale ?",r:"Bruges",autres:["Gand","Courtrai","Ostende"]},
+     {q:"Chef-lieu de la Flandre-Orientale ?",r:"Gand",autres:["Bruges","Anvers","Alost"]},
+     {q:"Chef-lieu du Brabant flamand ?",r:"Louvain",autres:["Bruxelles","Malines","Wavre"]},
+     {q:"Chef-lieu de la province d'Anvers ?",r:"Anvers",autres:["Malines","Gand","Turnhout"]},
+     {q:"Chef-lieu de la province du Limbourg ?",r:"Hasselt",autres:["Genk","Louvain","Liège"]},
+     {q:"Mons est le chef-lieu de quelle province ?",r:"le Hainaut",autres:["le Brabant wallon","Namur","Liège"]},
+     {q:"Hasselt est le chef-lieu de quelle province ?",r:"le Limbourg",autres:["Anvers","le Brabant flamand","Liège"]},
+     {q:"Arlon est le chef-lieu de quelle province ?",r:"le Luxembourg",autres:["Namur","le Hainaut","Liège"]},
+     {q:"Wavre est le chef-lieu de quelle province ?",r:"le Brabant wallon",autres:["le Brabant flamand","Namur","le Hainaut"]},
+   ])},
+ ]},
+];
+
+/* 6. RENDU CARTE */
+function etoilesHTML(p){let s='';for(let i=1;i<=5;i++)s+=`<span class="et${i<=p?' on':''}">★</span>`;return s;}
+function carteHTML(c,n,{anim=false}={}){const p=palierApplique(c);const evo=peutEvoluer(c)?'<div class="tc-evo">✨</div>':'';return `<div class="tcarte${anim?' tc-anim':''}" data-r="${c.rarete}" data-p="${p}"><div class="tc-art">${artHTML(c)}</div><div class="tc-scrim-top"></div><div class="tc-scrim-bot"></div><div class="tc-shine"></div><div class="tc-motes"><i></i><i></i><i></i></div><div class="tc-corner tl"></div><div class="tc-corner tr"></div><div class="tc-corner bl"></div><div class="tc-corner br"></div><div class="tc-frame"></div>${evo}<div class="tc-top">${p>=2?`<div class="tc-palier">${TITRES[p]}</div>`:'<span></span>'}<div class="tc-stars">${etoilesHTML(p)}</div></div><div class="tc-bottom"><div class="tc-nom">${c.nom}</div><div class="tc-rar">${RARETES[c.rarete].nom}</div></div></div>`;}
+function carteMystereHTML(c){return `<div class="tcarte verrou" data-r="${c.rarete}" data-p="0"><div class="tc-art">?</div><div class="tc-scrim-top"></div><div class="tc-scrim-bot"></div><div class="tc-frame"></div><div class="tc-top"><span></span><div class="tc-stars">${etoilesHTML(0)}</div></div><div class="tc-bottom"><div class="tc-nom">${c.nom}</div><div class="tc-rar">${RARETES[c.rarete].nom}</div></div></div>`;}
+
+/* 7. ÉCRANS */
+function majSolde(anim){$('#solde-nb').textContent=etat.crins;if(anim){const s=$('#solde');s.classList.remove('pulse');void s.offsetWidth;s.classList.add('pulse');}$('#btn-tirer').disabled=etat.crins<COUT_TIRAGE;}
+function majProgression(){const t=CARTES.length,u=nbUniques();$('#prog-fill').style.width=(t?u/t*100:0)+'%';$('#prog-txt').textContent=`${u} / ${t} créatures · ${totalEtoiles()} ★`;$('#ecurie-compte').textContent=`${u}/${t}`;}
+let filtrePossedes=false,triChamp='rarete',triSens=-1;   // -1 = décroissant (rare/évolué d'abord)
+const ORD_RAR=Object.keys(RARETES);
+function valTri(c){const n=etat.collection[c.id]||0;return triChamp==='niveau'?palierDe(n):ORD_RAR.indexOf(c.rarete);}
+function rendreGrille(){
+  const g=$('#grille');g.innerHTML='';
+  let list=CARTES.slice();
+  if(filtrePossedes)list=list.filter(c=>(etat.collection[c.id]||0)>0);
+  list.sort((a,b)=>{const d=valTri(a)-valTri(b);return d!==0?d*triSens:(ORD_RAR.indexOf(a.rarete)-ORD_RAR.indexOf(b.rarete))||a.nom.localeCompare(b.nom);});
+  if(!list.length){g.innerHTML='<p style="grid-column:1/-1;text-align:center;color:var(--txt-doux);padding:34px 0;">Aucune carte possédée pour l\'instant.</p>';return;}
+  list.forEach(c=>{const n=etat.collection[c.id]||0;const box=document.createElement('div');box.className='tc-box ratio';box.innerHTML=n?carteHTML(c,n):carteMystereHTML(c);box.onclick=n?()=>ouvrirDetail(c):()=>toast(c.nom+' — à découvrir au tirage !');g.appendChild(box);});
+}
+function maximiser(c){const im=Array.isArray(c.image)?c.image[Math.min(palierDe(etat.collection[c.id]||1),c.image.length)-1]:c.image;if(!im)return;$('#img-max-src').src=im;$('#img-max').classList.add('on');}
+function rendreChances(){const box=$('#chances-liste');box.innerHTML='';const tiers=Object.entries(RARETES).filter(([k])=>CARTES.some(c=>c.rarete===k));const tot=tiers.reduce((s,[,r])=>s+r.poids,0)||1;const fmt=n=>{const d=n>=10?0:(n>=1?1:2);return String(parseFloat(n.toFixed(d))).replace('.',',');};tiers.forEach(([k,r])=>{const pct=r.poids/tot*100;const l=document.createElement('div');l.className='ligne';l.innerHTML=`<span class="pastille" style="background:${r.couleur}"></span>${r.nom}<span class="pct" style="color:${r.couleur}">${fmt(pct)} %</span>`;box.appendChild(l);});}
+
+/* 8. TIRAGE + ÉVOLUTION */
+function tirerRarete(){const d=Object.entries(RARETES).filter(([k])=>CARTES.some(c=>c.rarete===k));const t=d.reduce((s,[,r])=>s+r.poids,0);let x=Math.random()*t;for(const[k,r]of d){if(x<r.poids)return k;x-=r.poids;}return d[0][0];}
+function tirerCarte(){const r=tirerRarete();const pool=CARTES.filter(c=>c.rarete===r);return pool[rnd(0,pool.length-1)];}
+let revealVerrou=false;
+function ajouterExemplaire(c){
+  const avant=etat.collection[c.id]||0,apres=avant+1;etat.collection[c.id]=apres;
+  if(avant===0){etat.paliers[c.id]=1;return{etatTxt:'Nouvelle créature !',sousTxt:`${c.nom} rejoint ton écurie`,cls:'neuf'};}
+  const applique=palierApplique(c),maxDeblo=palierDe(apres);
+  if(maxDeblo>applique&&applique<5)return{etatTxt:'✨ Prête à évoluer !',sousTxt:`Un doublon de plus — fais évoluer ${c.nom} dans sa fiche`,cls:'evo'};
+  if(applique>=5){const o=RARETES[c.rarete].overflow;etat.crins+=o;return{etatTxt:'Déjà au sommet',sousTxt:`Maximum atteint · +${o} Crins`,cls:''};}
+  const s=SEUILS[applique];return{etatTxt:'Doublon',sousTxt:`Plus que ${s-apres} pour débloquer ${'★'.repeat(applique+1)}`,cls:''};
+}
+function doTirage(){
+  if(etat.crins<COUT_TIRAGE){toast('Pas assez de Crins — va réviser !');return;}
+  if(revealVerrou)return;
+  etat.crins-=COUT_TIRAGE;etat.tirages++;
+  const c=tirerCarte();const r=ajouterExemplaire(c);
+  sauver();montrerReveal(c,etat.collection[c.id],r.etatTxt,r.sousTxt,r.cls);majSolde(true);majProgression();rendreGrille();
+}
+function montrerReveal(c,n,etatTxt,sousTxt,cls){revealVerrou=true;const ov=$('#reveal'),flip=$('#reveal-flip');ov.style.setProperty('--rc',RARETES[c.rarete].couleur);$('#reveal-rayons').style.setProperty('--rc',RARETES[c.rarete].couleur);$('#reveal-front').innerHTML=carteHTML(c,n,{anim:true});const e=$('#reveal-etat');e.textContent=etatTxt;e.className='r-etat'+(cls?' '+cls:'');$('#reveal-sous').textContent=sousTxt;ov.classList.toggle('evo',cls==='evo');flip.classList.remove('flip');ov.classList.add('on');requestAnimationFrame(()=>setTimeout(()=>flip.classList.add('flip'),260));}
+function fermerReveal(){if(!revealVerrou)return;$('#reveal').classList.remove('on');revealVerrou=false;}
+
+/* 9. DÉTAIL CARTE */
+function ouvrirDetail(c){
+  const n=etat.collection[c.id]||0,p=palierApplique(c);
+  $('#detail-hero').innerHTML=carteHTML(c,n,{anim:true});
+  $('#d-nom').textContent=c.nom;
+  const dr=$('#d-rar');dr.textContent=RARETES[c.rarete].nom;dr.style.color=RARETES[c.rarete].couleur;
+  $('#d-desc').textContent=c.desc;
+  if(peutEvoluer(c))$('#d-progres').textContent=`${n} exemplaires · évolution prête !`;
+  else if(p>=5)$('#d-progres').textContent=`Évolution maximale · ${n} exemplaires`;
+  else $('#d-progres').textContent=`${n} exemplaire${n>1?'s':''} · plus que ${SEUILS[p]-n} doublon${SEUILS[p]-n>1?'s':''} pour débloquer ${'★'.repeat(p+1)}`;
+  const evo=$('#d-evo');evo.innerHTML='';
+  if(peutEvoluer(c)){const b=document.createElement('button');b.className='d-evo-btn';b.innerHTML=`✨ Évoluer vers ${'★'.repeat(p+1)} — ${TITRES[p+1]}`;b.onclick=()=>{if(evoluer(c)){toast(`✨ ${c.nom} évolue : ${TITRES[palierApplique(c)]} !`);majProgression();rendreGrille();ouvrirDetail(c);}};evo.appendChild(b);}
+  const ech=$('#d-echelle');ech.innerHTML='';
+  for(let i=1;i<=5;i++){const atteint=p>=i,pret=(i===p+1&&n>=SEUILS[i-1]),courant=(i===p+1&&!pret);const et='★'.repeat(i)+`<span class="off">${'★'.repeat(5-i)}</span>`;const l=document.createElement('div');l.className='pal-ligne'+(atteint?' atteint':'')+(courant?' courant':'');l.innerHTML=`<span class="pal-etoiles">${et}</span><span class="pal-nom">${TITRES[i]}</span><span class="pal-seuil">${atteint?'atteint ✓':pret?'prêt ✨':SEUILS[i-1]+' ex.'}</span>`;ech.appendChild(l);}
+  $('#detail-hero').onclick=()=>maximiser(c);$('#detail-agrandir').onclick=()=>maximiser(c);
+  const st=$('#d-stats');st.innerHTML='';CAPS.forEach(cap=>{const v=statDe(c,cap.id);const l=document.createElement('div');l.className='cap-ligne';l.innerHTML=`<span class="cap-ico">${cap.ico}</span><span class="cap-nom">${cap.nom}</span><div class="cap-bar"><div style="width:${v}%;background:${cap.couleur}"></div></div><span class="cap-val">${v}</span>`;st.appendChild(l);});
+  const ff=$('#feuille-fond');ff.classList.add('on');const fe=ff.querySelector('.feuille');if(fe)fe.scrollTop=0;
+}
+
+/* ---- CONCOURS : rendu + résolution ---- */
+let concoursCourant=null;
+function renderConcours(){
+  ensureConcoursJour();
+  $('#renom-bandeau').innerHTML=`<div class="rb-g">Écurie ${rangEcurie(etat.renommeeTotale)}<small>renommée disponible</small></div><div class="rb-r">⭐ ${etat.renommee}</div>`;
+  const box=$('#concours-liste');box.innerHTML='';
+  concoursDuJour().list.forEach(co=>{
+    const cap=CAPS.find(c=>c.id===co.cap),niv=NIVEAUX_CONCOURS.find(n=>n.id===co.niveau),fait=etat.concours.faits[co.i],a=niv.adv;
+    const el=document.createElement('div');el.className='concours-carte'+(fait?' fait':'');
+    el.innerHTML=`<div class="cc-ico" style="--cc:${cap.couleur}">${cap.ico}</div><div class="cc-info"><div class="cc-titre">${cap.nom} · ${niv.ico} ${niv.nom}</div><div class="cc-sous">Adversaire : <b style="color:${RARETES[a.rarete].couleur}">${RARETES[a.rarete].nom} ${etoilesTxt(a.pmin,a.pmax)}</b> · +${niv.crins} Crins, +${niv.renommee} ⭐ · mise ${niv.inscription}</div></div>${fait?`<div class="cc-etat ${fait}">${fait==='gagne'?'✓ Gagné':'✗ Perdu'}</div>`:'<button class="cc-jouer">Défier</button>'}`;
+    if(!fait)el.querySelector('.cc-jouer').onclick=()=>ouvrirSelecteur(co,cap,niv);
+    box.appendChild(el);
+  });
+}
+function ouvrirSelecteur(co,cap,niv){
+  concoursCourant={co,cap,niv};const a=niv.adv,ref=refAdversaire(a);
+  $('#cs-titre').textContent=`${cap.ico} ${cap.nom} · ${niv.nom}`;
+  $('#cs-sous').innerHTML=`Adversaire attendu : <b style="color:${RARETES[a.rarete].couleur}">${RARETES[a.rarete].nom} ${etoilesTxt(a.pmin,a.pmax)}</b> · mise ${niv.inscription} Crins.<br>Choisis ton champion <b>avant</b> de le voir.`;
+  $('#cs-fermer').style.display='';
+  const box=$('#cs-liste');box.innerHTML='';
+  const owned=CARTES.filter(c=>(etat.collection[c.id]||0)>0).sort((a2,b2)=>statDe(b2,cap.id)-statDe(a2,cap.id));
+  if(!owned.length)box.innerHTML='<p class="cs-vide">Aucun cheval pour l\'instant — va au tirage !</p>';
+  else owned.forEach(c=>{const v=statDe(c,cap.id);const cls=v>=ref?'gagnable':(v>=ref-8?'limite':'');const row=document.createElement('div');row.className='cs-row '+cls;row.innerHTML=`<span class="cs-dot" style="background:${RARETES[c.rarete].couleur}"></span><span class="cs-nom">${c.nom}</span><span class="cs-etoiles">${'★'.repeat(palierApplique(c))}</span><span class="cs-stat" style="color:${cap.couleur}">${v}</span>`;row.onclick=()=>resoudreConcours(c);box.appendChild(row);});
+  $('#concours-fond').classList.add('on');
+}
+function resoudreConcours(c){
+  const {co,cap,niv}=concoursCourant;
+  if(etat.crins<niv.inscription){toast('Pas assez de Crins pour la mise');return;}
+  etat.crins-=niv.inscription;
+  const a=niv.adv,advPalier=rnd(a.pmin,a.pmax),advStat=statAdversaire(a.rarete,advPalier),advNom=NOMS_ADV[rnd(0,NOMS_ADV.length-1)];
+  const moiPerf=statDe(c,cap.id)+rnd(-5,8),advPerf=advStat+rnd(-5,8),gagne=moiPerf>=advPerf;
+  if(gagne){etat.crins+=niv.crins;etat.renommee+=niv.renommee;etat.renommeeTotale+=niv.renommee;etat.concours.faits[co.i]='gagne';}
+  else etat.concours.faits[co.i]='perdu';
+  sauver();majSolde(true);
+  $('#cs-sous').textContent='';$('#cs-fermer').style.display='none';
+  $('#cs-liste').innerHTML=`<div class="cs-resultat"><div class="cs-match"><div class="cs-cote"><div class="cs-cote-nom">${c.nom}</div><div class="cs-cote-stat" style="color:${cap.couleur}">${moiPerf}</div><div class="cs-cote-sub">${'★'.repeat(palierApplique(c))} ${RARETES[c.rarete].nom}</div></div><div class="cs-vs">VS</div><div class="cs-cote"><div class="cs-cote-nom">${advNom}</div><div class="cs-cote-stat" style="color:${RARETES[a.rarete].couleur}">${advPerf}</div><div class="cs-cote-sub">${'★'.repeat(advPalier)} ${RARETES[a.rarete].nom}</div></div></div><div class="csr-t ${gagne?'win':'lose'}">${gagne?'🏆 Victoire !':'Défaite'}</div><div class="csr-d">${gagne?`+${niv.crins} Crins · +${niv.renommee} ⭐ renommée`:`mise de ${niv.inscription} Crins perdue`}</div><button class="defi-continuer" id="cs-continuer">Continuer ›</button></div>`;
+  $('#cs-continuer').onclick=()=>{$('#concours-fond').classList.remove('on');renderConcours();};
+}
+
+/* ---- MARCHAND : 3 cartes/jour contre renommée ---- */
+function tirerRareteMarchand(rng){const d=Object.entries(POIDS_MARCHAND).filter(([k])=>CARTES.some(c=>c.rarete===k));const t=d.reduce((s,[,w])=>s+w,0);let x=rng()*t;for(const[k,w]of d){if(x<w)return k;x-=w;}return d[0][0];}
+function marchandDuJour(){const d=ymd(new Date());const rng=mulberry32(hashStr('marchand-'+profilActif.id+'-'+d));const list=[];for(let k=0;k<3;k++){const rar=tirerRareteMarchand(rng);const pool=CARTES.filter(c=>c.rarete===rar);const c=pool[Math.floor(rng()*pool.length)];list.push({slot:k,id:c.id,rarete:rar,prix:PRIX_MARCHAND[rar]});}return{date:d,list};}
+function ensureMarchandJour(){const d=ymd(new Date());if(etat.marchand.date!==d){etat.marchand={date:d,achetes:[]};sauver();}}
+function renderMarchand(){
+  ensureMarchandJour();
+  $('#marchand-renom').innerHTML=`Tu as <b style="color:var(--or)">⭐ ${etat.renommee}</b> de renommée à dépenser.`;
+  const box=$('#marchand-liste');box.innerHTML='';
+  marchandDuJour().list.forEach(o=>{
+    const c=CARTES.find(x=>x.id===o.id),achete=etat.marchand.achetes.includes(o.slot),abordable=etat.renommee>=o.prix,poss=(etat.collection[c.id]||0)>0;
+    const row=document.createElement('div');row.className='ma-row'+(achete?' achete':'');
+    row.innerHTML=`<div class="tc-box ratio ma-vig">${carteHTML(c,etat.collection[c.id]||0)}</div><div class="ma-info"><div class="ma-nom">${c.nom}</div><div class="ma-rar" style="color:${RARETES[c.rarete].couleur}">${RARETES[c.rarete].nom}${poss?' · déjà en écurie':''}</div></div>${achete?'<span class="ma-etat">✓ Acheté</span>':`<button class="ma-acheter${abordable?'':' off'}">⭐ ${o.prix}</button>`}`;
+    if(!achete)row.querySelector('.ma-acheter').onclick=()=>acheterMarchand(o.slot);
+    box.appendChild(row);
+  });
+}
+function acheterMarchand(slot){
+  const o=marchandDuJour().list[slot];
+  if(etat.marchand.achetes.includes(slot))return;
+  if(etat.renommee<o.prix){toast('Pas assez de renommée — gagne des concours !');return;}
+  const c=CARTES.find(x=>x.id===o.id);
+  etat.renommee-=o.prix;etat.marchand.achetes.push(slot);
+  const r=ajouterExemplaire(c);
+  sauver();
+  $('#marchand-fond').classList.remove('on');
+  montrerReveal(c,etat.collection[c.id],r.etatTxt,r.sousTxt,r.cls);
+  majSolde(true);majProgression();rendreGrille();renderConcours();
+}
+
+/* 10. DÉFIS  (exercices + mini-jeux tirés au hasard) */
+const BRAVOS=["Bien joué, tu as réfléchi !","Belle stratégie !","Ça, c'est de la persévérance !","Ton entraînement paie !","Super raisonnement !","Tu maîtrises de mieux en mieux !"];
+const ENCOURAGE=["Pas encore — mais chaque essai t'apprend !","L'erreur fait partie du chemin 💪","Presque ! Regarde l'astuce.","Tu progresses en essayant.","Bien tenté ! On retient et on continue."];
+const NB_CARTES_DEFI=3;   // cartes-mystère proposées (mettre 2 pour encore moins de choix)
+const CHANCE_JEU=0.22;    // part des défis qui sont un mini-jeu (le reste = exercice)
+let matSource=null,qCour=null,serieCourante=0,quizVerrou=false;
+function capDiff(){const n=profilActif.niveau||5;return n<=3?1:(n===4?2:3);}
+function diffMaths(){const lv=niveauDe(etat.xp.maths);return Math.min(3,capDiff(),Math.floor((lv-1)/2)+1);}
+function statMatiere(id){etat.stats[id]=etat.stats[id]||{ok:0,tot:0};return etat.stats[id];}
+
+function menuDefis(){
+  $('#defi-zone').innerHTML='';
+  $('#defi-menu').style.display='block';
+  const box=$('#defi-cartes');box.innerHTML='';
+  for(let i=0;i<NB_CARTES_DEFI;i++){const b=document.createElement('button');b.className='defi-carte';b.innerHTML='<span class="pt">?</span>';b.onclick=lancerDefi;box.appendChild(b);}
+  $('#defi-sous').textContent=`🔥 Jour ${etat.serieJours||0} · série de ${serieCourante}`;
+}
+function lancerDefi(){
+  $('#defi-menu').style.display='none';
+  const z=$('#defi-zone');z.innerHTML='';
+  if(Math.random()<CHANCE_JEU)JEUX[rnd(0,JEUX.length-1)].lancer(z,finDefi);
+  else defiExercice(z);
+}
+function finDefi(){menuDefis();}
+
+function dansNiveau(a){const [mn,mx]=a.niv||[1,6];const n=profilActif.niveau||5;return n>=mn&&n<=mx;}
+function activitesDispo(){
+  const l=[];for(const m of MATIERES)for(const a of m.activites)if(dansNiveau(a))l.push({m,a});
+  if(l.length)return l;
+  const n=profilActif.niveau||5;let best=Infinity;const all=[];
+  for(const m of MATIERES)for(const a of m.activites){const[mn,mx]=a.niv||[1,6];const d=n<mn?mn-n:(n>mx?n-mx:0);all.push({m,a,d});if(d<best)best=d;}
+  return all.filter(x=>x.d===best).map(({m,a})=>({m,a}));
+}
+function matieresDispo(){const s=new Set(activitesDispo().map(x=>x.m.id));return MATIERES.filter(m=>s.has(m.id));}
+function defiExercice(z){
+  const pool=activitesDispo();const {m,a:act}=pool[rnd(0,pool.length-1)];matSource=m;
+  qCour=act.gen(m.id==='maths'?diffMaths():1);
+  z.innerHTML=`<div class="quiz-meta">${m.ico} ${m.nom} · ${act.nom}</div><div class="quiz-carte"><div class="quiz-question${qCour.q.length<=9?' court':''}" id="q-question"></div><div class="quiz-reponses" id="q-reponses"></div></div><div class="quiz-feedback" id="q-feedback"></div>`;
+  $('#q-question').textContent=qCour.q;
+  const box=$('#q-reponses');qCour.choix.forEach(v=>{const b=document.createElement('button');b.textContent=v;b.onclick=()=>repondre(b,v);box.appendChild(b);});
+  quizVerrou=false;
+}
+function repondre(btn,val){
+  if(quizVerrou)return;quizVerrou=true;
+  const bon=val===qCour.r,mid=matSource.id,s=statMatiere(mid);s.tot++;
+  $$('#q-reponses button').forEach(b=>{b.disabled=true;if(b.textContent===qCour.r)b.classList.add('bon');});
+  let crinsGain,xpGain,msg,cls;
+  if(bon){serieCourante++;s.ok++;etat.bonnes++;const bonus=(serieCourante%PALIER_SERIE===0)?BONUS_SERIE:0;crinsGain=GAIN_BONNE+bonus;xpGain=XP_BONNE+(mid==='maths'?(diffMaths()-1)*2:0);msg=BRAVOS[rnd(0,BRAVOS.length-1)]+(bonus?` 🔥 Série ×${serieCourante} !`:'');cls='bon';}
+  else{btn.classList.add('faux');serieCourante=0;crinsGain=GAIN_ESSAI;xpGain=XP_ESSAI;msg=ENCOURAGE[rnd(0,ENCOURAGE.length-1)];cls='faux';}
+  etat.crins+=crinsGain;etat.xp[mid]=(etat.xp[mid]||0)+xpGain;
+  const fb=$('#q-feedback');fb.innerHTML=`<div class="qf-msg ${cls}">${msg}</div>${qCour.exp?`<div class="qf-astuce">💡 ${qCour.exp}</div>`:''}<div class="qf-gain">+${crinsGain} Crins · +${xpGain} XP</div><button class="defi-continuer">Continuer ›</button>`;fb.classList.add('show');
+  fb.querySelector('.defi-continuer').onclick=finDefi;
+  sauver();majSolde(true);
+}
+
+/* ---- MINI-JEUX : un tour puis « Continuer ». Ajouter un jeu =
+   une fonction lancer(zone, onDone) + une entrée dans JEUX. ---- */
+function gainJeu(n){etat.crins+=n;sauver();majSolde(n>0);return n;}
+function continuer(z,onDone){const c=document.createElement('button');c.className='defi-continuer';c.textContent='Continuer ›';c.onclick=onDone;z.appendChild(c);}
+const PFC_EMO={pierre:'🪨',feuille:'📄',ciseaux:'✂️'},PFC_BAT={pierre:'ciseaux',feuille:'pierre',ciseaux:'feuille'},PFC_LISTE=['pierre','feuille','ciseaux'];
+function jeuPFC(z,onDone){
+  z.innerHTML=`<div class="jeu-titre">✊ Pierre – Feuille – Ciseaux</div><div class="jeu-res" id="pfc-res">Choisis ton coup !</div><div class="pfc-choix" id="pfc-choix"><button data-c="pierre">🪨</button><button data-c="feuille">📄</button><button data-c="ciseaux">✂️</button></div>`;
+  z.querySelectorAll('#pfc-choix button').forEach(b=>b.onclick=()=>{
+    const toi=b.dataset.c,ordi=PFC_LISTE[rnd(0,2)];let issue,gain,gagne=false;
+    if(toi===ordi){issue='Égalité !';gain=2;}else if(PFC_BAT[toi]===ordi){issue='Gagné ! 🎉';gain=8;gagne=true;}else{issue='Perdu…';gain=0;}
+    etat.jeux.joues++;if(gagne)etat.jeux.gagnes++;const g=gainJeu(gain);
+    $('#pfc-res').innerHTML=`${PFC_EMO[toi]} vs ${PFC_EMO[ordi]} — <b>${issue}</b>${g?` +${g} Crins`:''}`;
+    $('#pfc-choix').remove();continuer(z,onDone);
+  });
+}
+function jeuPrefere(z,onDone){
+  let pool=CARTES.filter(c=>(etat.collection[c.id]||0)>0);if(pool.length<2)pool=CARTES;
+  const a=pool[rnd(0,pool.length-1)];let b;do{b=pool[rnd(0,pool.length-1)];}while(b.id===a.id);
+  const duo=[a,b];
+  z.innerHTML=`<div class="jeu-titre">💖 Ton cheval préféré ?</div><div class="pref-duo">${duo.map((c,i)=>`<button class="pref-choix" data-i="${i}"><div class="tc-box ratio pref-vig">${carteHTML(c,etat.collection[c.id]||0)}</div><div class="pref-nom">${c.nom}</div></button>`).join('')}</div><div class="jeu-sous">Choisis celui que tu préfères !</div>`;
+  z.querySelectorAll('.pref-choix').forEach(el=>el.onclick=()=>{
+    const c=duo[+el.dataset.i];etat.jeux.joues++;etat.jeux.gagnes++;const g=gainJeu(6);
+    z.innerHTML=`<div class="jeu-titre">💖 Joli choix !</div><div class="jeu-res">Tu préfères <b>${c.nom}</b> — excellent goût !${g?` +${g} Crins`:''}</div>`;
+    continuer(z,onDone);
+  });
+}
+const JEUX=[{id:'pfc',lancer:jeuPFC},{id:'prefere',lancer:jeuPrefere}];
+
+/* 11. SCORES */
+function renderScores(){
+  const box=$('#scores-matieres');box.innerHTML='';
+  matieresDispo().forEach(m=>{const xp=etat.xp[m.id]||0,s=statMatiere(m.id);const el=document.createElement('div');el.className='score-carte';el.innerHTML=`<div class="score-tete"><span class="si">${m.ico}</span><span class="sn">${m.nom}</span><span class="snv" style="color:${m.couleur}">Niveau ${niveauDe(xp)}</span></div><div class="score-bar"><div style="width:${(xp%PAS_XP)/PAS_XP*100}%;background:${m.couleur}"></div></div><div class="score-chiffres"><span>✅ ${s.ok} bonnes réponses</span><span>${s.tot} essais</span></div>`;box.appendChild(el);});
+  $('#scores-resume').innerHTML=`<div class="score-resume"><div class="score-case"><b>${etat.bonnes||0}</b><span>Bonnes réponses</span></div><div class="score-case"><b>${etat.serieJours||0}</b><span>🔥 Jours d'affilée</span></div><div class="score-case"><b>${etat.renommee||0}</b><span>⭐ Renommée</span></div><div class="score-case"><b>${totalEtoiles()}</b><span>⭐ Étoiles</span></div></div>`;
+}
+
+/* 12. BONUS QUOTIDIEN (habitude / longévité) */
+function ymd(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function bonusQuotidien(){const t=ymd(new Date());if(etat.dernierJour===t)return;const hier=ymd(new Date(Date.now()-864e5));etat.serieJours=(etat.dernierJour===hier)?(etat.serieJours||0)+1:1;etat.dernierJour=t;const b=Math.min(etat.serieJours*5,50);etat.crins+=b;sauver();majSolde(true);toast(`🔥 Jour ${etat.serieJours} · +${b} Crins`);}
+
+/* 13. NAVIGATION + ÉVÉNEMENTS */
+function switchEcran(nom){$$('.ecran').forEach(e=>e.classList.remove('actif'));$('#ecran-'+nom).classList.add('actif');$$('nav.tabs button').forEach(b=>b.classList.toggle('actif',b.dataset.ecran===nom));if(nom==='revisions'){bonusQuotidien();menuDefis();}if(nom==='scores')renderScores();if(nom==='concours')renderConcours();}
+$$('nav.tabs button').forEach(b=>b.onclick=()=>switchEcran(b.dataset.ecran));
+$('#lien-revisions').onclick=()=>switchEcran('revisions');
+$('#btn-tirer').onclick=doTirage;
+$('#filtre-possedes').onclick=()=>{filtrePossedes=!filtrePossedes;$('#filtre-possedes').classList.toggle('on',filtrePossedes);rendreGrille();};
+$$('.eo-tri [data-champ]').forEach(b=>b.onclick=()=>{triChamp=b.dataset.champ;$$('.eo-tri [data-champ]').forEach(x=>x.classList.toggle('actif',x===b));rendreGrille();});
+$('#tri-sens').onclick=()=>{triSens=-triSens;$('#tri-sens').textContent=triSens<0?'↓':'↑';rendreGrille();};
+$('#img-max').onclick=()=>$('#img-max').classList.remove('on');
+$('#btn-chances').onclick=()=>$('#aide-fond').classList.add('on');
+$('#aide-fermer').onclick=()=>$('#aide-fond').classList.remove('on');
+$('#aide-fond').onclick=e=>{if(e.target.id==='aide-fond')$('#aide-fond').classList.remove('on');};
+$('#cs-fermer').onclick=()=>$('#concours-fond').classList.remove('on');
+$('#concours-fond').onclick=e=>{if(e.target.id==='concours-fond')$('#concours-fond').classList.remove('on');};
+$('#btn-marchand').onclick=()=>{renderMarchand();$('#marchand-fond').classList.add('on');};
+$('#marchand-fermer').onclick=()=>$('#marchand-fond').classList.remove('on');
+$('#marchand-fond').onclick=e=>{if(e.target.id==='marchand-fond')$('#marchand-fond').classList.remove('on');};
+$('#reveal').onclick=fermerReveal;
+$('#d-fermer').onclick=()=>$('#feuille-fond').classList.remove('on');
+$('#feuille-fond').onclick=e=>{if(e.target.id==='feuille-fond')$('#feuille-fond').classList.remove('on');};
+function renderReglageNiveau(){const el=$('#reglage-niveau');el.innerHTML=`<div class="rg-niveau"><div class="rg-lbl">Niveau des exercices <span>· ${profilActif.nom}</span></div><div class="rg-step"><button data-d="-1">‹</button><b>P${profilActif.niveau}</b><button data-d="1">›</button></div></div>`;el.querySelectorAll('.rg-step button').forEach(b=>b.onclick=()=>{profilActif.niveau=Math.max(1,Math.min(6,profilActif.niveau+parseInt(b.dataset.d,10)));sauver();renderReglageNiveau();menuDefis();renderScores();});}
+$('#btn-reglages').onclick=()=>{renderReglageNiveau();$('#reglages-fond').classList.add('on');};
+$('#reglages-fermer').onclick=()=>$('#reglages-fond').classList.remove('on');
+$('#reglages-fond').onclick=e=>{if(e.target.id==='reglages-fond')$('#reglages-fond').classList.remove('on');};
+$('#btn-reset').onclick=()=>{if(confirm(`Effacer la collection et les progrès de ${profilActif.nom} ? (les autres profils ne sont pas touchés)`)){profilActif.etat=etatVide();etat=profilActif.etat;serieCourante=0;sauver();rafraichirTout();$('#reglages-fond').classList.remove('on');toast('Profil réinitialisé !');}};
+
+/* 14. PROFILS (multi-enfants, nombre extensible) */
+const EMOJIS_PROFIL=['🦄','🐴','🐎','🦓','🐉','🦅','🌟','🌈','🐬','🦋'];
+const COULEURS_PROFIL=['#ff9ac0','#7ec2ff','#c99bff','#ffcf6b','#8dff8d','#ff8fb0'];
+function majAvatar(){$('#pf-ava').textContent=profilActif.emoji;$('#pf-nom').textContent=profilActif.nom;}
+function rafraichirTout(){majAvatar();majSolde();majProgression();rendreGrille();menuDefis();renderScores();}
+function fermerProfils(){$('#profils-fond').classList.remove('on');$('#profil-form').innerHTML='';}
+function ouvrirProfils(){renderProfils();$('#profil-form').innerHTML='';$('#profils-fond').classList.add('on');}
+function activerProfil(p){SAVE.actif=p.id;profilActif=p;etat=p.etat;normaliserEtat(etat);serieCourante=0;sauver();rafraichirTout();switchEcran('ecurie');fermerProfils();}
+function renderProfils(){
+  const box=$('#profils-liste');box.innerHTML='';
+  SAVE.profils.forEach(p=>{
+    const u=CARTES.reduce((s,c)=>s+(((p.etat.collection||{})[c.id]||0)>0?1:0),0);
+    const c=document.createElement('div');c.className='profil-carte'+(p.id===profilActif.id?' actif':'');c.style.setProperty('--pc',p.couleur);
+    c.innerHTML=`<div class="pc-ava">${p.emoji}</div><div class="pc-info"><div class="pc-nom">${p.nom}</div><div class="pc-sous">${p.age} ans · ${u} créature${u>1?'s':''}</div></div>${p.id===profilActif.id?'<div class="pc-badge">actif</div>':''}`;
+    c.onclick=()=>activerProfil(p);
+    box.appendChild(c);
+  });
+  const add=document.createElement('button');add.className='profil-ajout';add.innerHTML='<span style="font-size:20px">＋</span> Nouveau profil';add.onclick=formNouveauProfil;box.appendChild(add);
+}
+function formNouveauProfil(){
+  let emo=EMOJIS_PROFIL[0];const f=$('#profil-form');
+  f.innerHTML=`<div class="pform"><label>Prénom</label><input id="np-nom" maxlength="14" placeholder="Prénom"><label>Âge</label><input id="np-age" type="number" min="4" max="15" inputmode="numeric" placeholder="8"><label>Avatar</label><div class="emojis" id="np-emojis">${EMOJIS_PROFIL.map((e,i)=>`<button data-e="${e}" class="${i===0?'on':''}">${e}</button>`).join('')}</div><div class="pf-actions"><button class="pf-annuler" id="np-annuler">Annuler</button><button class="pf-creer" id="np-creer">Créer</button></div></div>`;
+  f.querySelectorAll('#np-emojis button').forEach(b=>b.onclick=()=>{emo=b.dataset.e;f.querySelectorAll('#np-emojis button').forEach(x=>x.classList.toggle('on',x===b));});
+  $('#np-annuler').onclick=()=>f.innerHTML='';
+  $('#np-creer').onclick=()=>{const nom=($('#np-nom').value||'').trim();if(!nom){toast('Choisis un prénom');return;}const age=parseInt($('#np-age').value,10)||8;const id='p'+Date.now().toString(36);const coul=COULEURS_PROFIL[SAVE.profils.length%COULEURS_PROFIL.length];const p=profilVide(id,nom,age,emo,coul);SAVE.profils.push(p);sauver();activerProfil(p);};
+}
+$('#btn-profil').onclick=ouvrirProfils;
+$('#profils-fermer').onclick=fermerProfils;
+$('#profils-fond').onclick=e=>{if(e.target.id==='profils-fond')fermerProfils();};
+
+/* 15. DÉMARRAGE */
+$('#cout-nb').textContent=COUT_TIRAGE;
+requestAnimationFrame(()=>requestAnimationFrame(()=>{
+  majAvatar();majSolde();majProgression();rendreGrille();rendreChances();menuDefis();
+  const ch=document.getElementById('chargement');if(ch){ch.classList.add('parti');setTimeout(()=>ch.remove(),500);}
+}));
+
+/* PWA : enregistrement du service worker */
+if('serviceWorker' in navigator){window.addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{});});}
+</script>
+</body>
+</html>
