@@ -3,6 +3,105 @@
 Convention : `VERSION_APP` (index.html) = `ecurie-vNN` (sw.js), incrémentés à CHAQUE livraison
 (invalidation du cache PWA). QC : `node tools/qc.js` avant chaque livraison.
 
+## v65 — Rééquilibrage, chantier A (tirage & économie)
+- **Poids de tirage rééquilibrés** : commune 55 / rare 27 / épique 13 / légendaire 4,5 / mythique 0,5
+  (mythique ~1/200 tirages, contre ~1/670 avant).
+- **Pity** : épique+ garanti tous les 20 tirages, légendaire+ tous les 100 (compteurs `etat.pity`,
+  migration ascendante transparente). S'applique aux tirages ×1 et ×10.
+- **Super-tirage** (nouveau) : payé en **renommée** (35 ⭐), garantit un **épique ou mieux**.
+  Second débouché pour la renommée à côté du marchand. N'affecte pas le pity.
+- **Suppression du plafond journalier** de gains (`crediterDefi` rend le gain plein) — conforme
+  « pas de limite par jour ». Le sink crins viendra avec la fusion (chantier E).
+- **`cheval_boucle` reclassé** : cheval fantaisie (famille `pres`), plus une race. `curly` (v63)
+  reste la vraie race épique.
+- Reste à faire (chantiers B→F) : remap familles + matchers, faiblesses/aff, gabarit poney,
+  fusion 3→1, célestes + jalons, reclassement pyramide.
+## v64
+- **Nouvelles CARTES — 10 poneys + 5 « sombres » (15 cartes ; 165 au total).**
+- **10 poneys de race, tous RARES** (famille `race` + secondaire) : Welsh (galles), Basotho
+  (afrique), Caspian (perse), Connemara (irlande), Eriskay (ecosse), Exmoor & Fell (angleterre),
+  Highland (ecosse), Hutsul (ukraine), Mérens (france).
+- **5 chevaux « dark » — nouvelle famille `sombres` 💀** (contrepoids aux licornes) : Cheval pâle
+  de la Mort & Cheval rouge de la Guerre (mythiques, royaume `outremonde`), Helhest (mythique,
+  danemark), Dullahan (légendaire, irlande), Mari Lwyd (légendaire, galles). `sombres` → FAM_CARAC
+  `magie`. ⚠️ 3 mythiques dans `sombres` ⇒ un concours mythique `sombres` apparaît (additif, voulu).
+- **3 nouveaux royaumes** : galles 🏴, ukraine 🇺🇦, outremonde 🌑 (pour les cavaliers sans patrie).
+- **Robes** (poneys uniquement ; dark = pelages spectraux/magiques → aucune robe) : Welsh + Caspian
+  *alezan*, Connemara + Eriskay *blanc*, Fell + Mérens *noir*, Highland *isabelle*. Basotho/Exmoor
+  (bai, non assignable) et Hutsul (grullo) laissés sans robe.
+- ⚠️ Équilibrage : rare 38→48, mythique 20→23, légendaire 20→22. À intégrer au passage global.
+  QC : 0 échec. Note : id carte `connemara` distinct de la clé d'étape d'aventure homonyme.
+## v63
+- **Nouvelles CARTES — extension série `race` (12 cartes ÉPIQUES ; 150 au total).**
+- **12 chevaux de race, tous épiques** : Cheval yakoute (russie), Curly (amerique), Falabella
+  (argentine), Finnhorse (finlande), Cheval islandais (islande), Kladruber & Lipizzan (autriche),
+  Knabstrupper (danemark), Konik (pologne), Mangalarga Marchador (bresil), Nonius (hongrie),
+  Trotteur Orlov (russie).
+- **8 nouveaux royaumes** : russie 🇷🇺, argentine 🇦🇷, finlande 🇫🇮, islande 🇮🇸, danemark 🇩🇰,
+  pologne 🇵🇱, bresil 🇧🇷, hongrie 🇭🇺. Aucune nouvelle famille (tout dans `race` + secondaires
+  existantes travail/sauvages/course/historiques).
+- **Robes naturelles ajoutées** (renforce les pools faibles) : Knabstrupper *tachetée* (×1→×2),
+  Falabella + Mangalarga *pie* (×2→×4), Curly + Finnhorse *alezan*, Nonius *noir*, Kladruber +
+  Lipizzan + Orlov *blanc*.
+- ⚠️ À arbitrer : `curly` fait doublon conceptuel avec `cheval_boucle` (commune) ; `falabella`
+  est un miniature (règle poney→rare) laissé en épique par cohérence de série. Épique 28→40 :
+  à intégrer à l'équilibrage global. QC : 0 échec.
+## v62
+- **Nouvelles CARTES — 3 séries (17 cartes ; 138 au total) + reclassement.**
+- **Chevaux nommés mythologiques (famille `legende`) — 8 mythiques** : Xanthos, Balios (Grèce),
+  Enbarr (Irlande), Grani (Norvège), Gringolet (Camelot), Kanthaka (Inde), Rakhsh (Perse, nouveau
+  royaume), Veillantif (France). Groupés avec les steeds existants (Bucéphale, Bayard, Sleipnir…).
+- **Hybrides végétaux (nouvelle famille `plantes`) — 5 rares** : lierre, cactus, chêne, roses,
+  nénuphar. `cheval_champignon` rattaché à la famille `plantes`.
+- **Robots (nouvelle famille `robot`, royaume `futur`) — 4 rares** : cryo, éclaireur, prototype,
+  solaire. `cheval_cyberpunk` rattaché à la famille `robot`.
+- **Reclassement : les 6 champions de course passent de mythique à LÉGENDAIRE** (Secrétariat,
+  Frankel, Man o''' War, Phar Lap, Seabiscuit, Zenyatta).
+- Robes naturelles ajoutées aux steeds (Balios noir, Gringolet/Kanthaka blanc, Veillantif alezan).
+  Raretés et stats à revoir globalement. QC : 0 échec.
+## v61
+- **Nouvelles CARTES — 4 séries (15 cartes + 3 portraits mascottes ; 121 cartes au total).**
+- **Légendes de course XXᵉ (famille `course`+`historiques`) — 5 mythiques** (comme Secrétariat) :
+  Frankel (Angleterre), Man o''' War, Seabiscuit, Zenyatta (Amérique), Phar Lap (Australie, nouveau royaume).
+- **Gourmands (famille `gourmand`) — 5 communes** : mangeurs de pommes, carottes, citrouilles, grain,
+  trèfle. Robes naturelles attribuées (alezan ×2, isabelle, pie) → renforcent les pools de robes rares.
+- **Licornes à travers les âges (famille `licorne`) — 5 cartes** : antique orientale, apothicaire,
+  Pride contemporaine (épiques) ; bestiaire médiéval, héraldique écossaise (légendaires).
+- **3 portraits de mascottes manquants fournis** : Big Ben, Inge, Rocío (images seules — cartes déjà
+  existantes, aucune carte dupliquée). Il ne manquait plus qu''eux côté mascottes.
+- Familles `gourmand` (🍎) et `licorne` (🦄) enregistrées. Équilibrage global à venir (mythique = 18).
+  QC : 0 échec.
+## v60
+- **Nouvelles CARTES — 2 premières séries (15 cartes, 106 au total).**
+- **Série « Pop » (famille `band`, royaume Scène) — 10 cartes fictionnelles** : Pink Pop Queen,
+  Starfire Diva, Golden Ace, Moon Prince, Crystal Princess (épiques) ; Purple Rebel, Electric Shadow,
+  Steel Phantom, Midnight Lead, Pastel Dream (rares).
+- **Série « Hybrides » (famille `beasts`) — 5 créatures mythologiques, toutes mythiques** : Qilin,
+  Longma (Chine), Alicorne (Avalon), Hippogriffe, Hippalectryon (Grèce).
+- Familles `band` (🎸 Pop) et `beasts` (🐲 Hybrides) enregistrées → jouables en Concours. Nouveau
+  royaume `scene` (🎤). Équilibrage global à faire ultérieurement. QC : 0 échec.
+## v59
+- **Ibérie (Espagne & Portugal) + boss Bruxelles : 12 fonds ajoutés** (Séville, Grenade, Tolède,
+  Valence, Barcelone, Compostelle, Bilbao, Porto, Sintra, Lisbonne, Madrid + Bruxelles), dans
+  `aventure/`. **Les 5 mondes ont désormais TOUS leurs décors** : 55 fonds d'étape + le fond monde
+  `fond_belgique` = 56 images en cache offline. Plus aucun repli sombre en Aventure.
+## v58
+- **Rhin (Allemagne & Pays-Bas) : 11 fonds d'aventure ajoutés** (Cologne, Lorelei, Forêt-Noire,
+  Munich, Hambourg, Dülmen, Amsterdam, Kinderdijk, Friesland, Rotterdam + ★ Berlin), dans `aventure/`.
+  Cache `sw.js` : 44 fonds mis en cache offline. Reste l'Ibérie (11) + le boss Bruxelles.
+## v57
+- **Îles Britanniques : 11 fonds d'aventure ajoutés** (Douvres, Stonehenge, Dartmoor, Snowdonia,
+  Newmarket, York, Édimbourg, Loch Ness, Shetland, Connemara + ★ Londres), dans `aventure/`. Le monde
+  UK/Irlande a désormais tous ses décors. Cache `sw.js` : 33 fonds mis en cache offline.
+- **Icône maskable** alignée sur `icon-512.png` (suppression de la bordure noire ; `icon-maskable-512.png`
+  est maintenant une copie exacte de `icon-512.png`).
+## v56
+- **Fonds d'aventure : dossier dédié + France complète.** Les 55 fonds d'étape (tous pays) migrés de
+  `cartes/` vers un dossier séparé **`aventure/`** ; fonds d'écran (Écurie, Tirage…) inchangés dans
+  `cartes/`. **11 illustrations France ajoutées** (Lille, Rouen, Mont-Saint-Michel, Brocéliande, Dune
+  du Pilat, Pau, Camargue, Chamonix, Lyon, Strasbourg, Paris) — `fond_paris.jpg` remplacé par une
+  version haute résolution raccord au lot. Cache `sw.js` complété : les 22 fonds réellement présents
+  (10 étapes belges + monde + 11 France) sont désormais mis en cache offline. QC : 0 échec.
 ## v55
 - **Prise en main (onboarding) revue.** Écurie **filtrée sur « Possédés » par défaut** (fini l écran
   vide). **Tutoriel de bienvenue** guidé par Pieter-Jan : cadeau de 3 cartes offert (1er tirage mis

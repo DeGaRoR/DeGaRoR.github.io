@@ -699,6 +699,8 @@ main.plein{padding:0 !important;overflow:hidden !important;}
           <span class="cout"><span class="dia">💎</span><span id="cout-nb"></span></span>
         </button>
         <button class="btn-tirer btn-tirer10" id="btn-tirer10">Tirer ×10 <span class="cout"><span id="cout-nb10"></span> Diamants</span></button>
+        <button class="btn-tirer btn-tirer-super" id="btn-tirer-super">✦ Super tirage — Épique ou mieux <span class="cout"><span id="cout-super"></span> ⭐ renommée</span></button>
+        <p class="tirage-aide">⭐ <b id="tirage-renom-nb">0</b> renommée disponible</p>
         <p class="tirage-aide">Besoin de Diamants ? <a id="lien-revisions">Va réviser →</a></p>
         <button class="chances-help" id="btn-chances">❔ Voir les chances de tirage</button>
       </div>
@@ -1035,6 +1037,53 @@ main.plein{padding:0 !important;overflow:hidden !important;}
    ================================================================ */
 /* Illustrations embarquées (base64) — voir IMG plus bas */
 const IMG={
+mythique_xanthos:"cartes/mythique_xanthos.jpg",
+mythique_balios:"cartes/mythique_balios.jpg",
+mythique_enbarr:"cartes/mythique_enbarr.jpg",
+mythique_grani:"cartes/mythique_grani.jpg",
+mythique_gringolet:"cartes/mythique_gringolet.jpg",
+mythique_kanthaka:"cartes/mythique_kanthaka.jpg",
+mythique_rakhsh:"cartes/mythique_rakhsh.jpg",
+mythique_veillantif:"cartes/mythique_veillantif.jpg",
+plantes_lierre:"cartes/plantes_lierre.jpg",
+plantes_cactus:"cartes/plantes_cactus.jpg",
+plantes_chene:"cartes/plantes_chene.jpg",
+plantes_roses:"cartes/plantes_roses.jpg",
+plantes_nenuphar:"cartes/plantes_nenuphar.jpg",
+robot_cryo:"cartes/robot_cryo.jpg",
+robot_eclaireur:"cartes/robot_eclaireur.jpg",
+robot_prototype:"cartes/robot_prototype.jpg",
+robot_solaire:"cartes/robot_solaire.jpg",
+course_frankel:"cartes/course_frankel.jpg",
+course_manowar:"cartes/course_manowar.jpg",
+course_pharlap:"cartes/course_pharlap.jpg",
+course_seabiscuit:"cartes/course_seabiscuit.jpg",
+course_zenyatta:"cartes/course_zenyatta.jpg",
+gourmand_mangeur_de_pommes:"cartes/gourmand_mangeur_de_pommes.jpg",
+gourmand_mangeur_de_carottes:"cartes/gourmand_mangeur_de_carottes.jpg",
+gourmand_mangeur_de_citrouilles:"cartes/gourmand_mangeur_de_citrouilles.jpg",
+gourmand_mangeur_de_grain:"cartes/gourmand_mangeur_de_grain.jpg",
+gourmand_mangeur_de_trefle:"cartes/gourmand_mangeur_de_trefle.jpg",
+licorne_antique_orientale:"cartes/licorne_antique_orientale.jpg",
+licorne_apothicaire:"cartes/licorne_apothicaire.jpg",
+licorne_contemporaine_pride:"cartes/licorne_contemporaine_pride.jpg",
+licorne_bestiaire_medieval:"cartes/licorne_bestiaire_medieval.jpg",
+licorne_heraldique_ecossaise:"cartes/licorne_heraldique_ecossaise.jpg",
+band_pink_pop_queen:"cartes/band_pink_pop_queen.jpg",
+band_starfire_diva:"cartes/band_starfire_diva.jpg",
+band_golden_ace:"cartes/band_golden_ace.jpg",
+band_moon_prince:"cartes/band_moon_prince.jpg",
+band_crystal_princess:"cartes/band_crystal_princess.jpg",
+band_purple_rebel:"cartes/band_purple_rebel.jpg",
+band_electric_shadow:"cartes/band_electric_shadow.jpg",
+band_steel_phantom:"cartes/band_steel_phantom.jpg",
+band_midnight_lead:"cartes/band_midnight_lead.jpg",
+band_pastel_dream:"cartes/band_pastel_dream.jpg",
+beasts_qirin:"cartes/beasts_qirin.jpg",
+beasts_longma:"cartes/beasts_longma.jpg",
+beasts_alicorne:"cartes/beasts_alicorne.jpg",
+beasts_hippogriffe:"cartes/beasts_hippogriffe.jpg",
+beasts_hypalectryon:"cartes/beasts_hypalectryon.jpg",
 mustang_indien:"cartes/mustang_indien.jpg",
 maman_cheval:"cartes/maman_cheval.jpg",
 roi_montagnes:"cartes/roi_montagnes.jpg",
@@ -1126,6 +1175,33 @@ francois_camargue:"cartes/francois_camargue.jpg",
 big_ben:"cartes/big_ben.jpg",
 inge:"cartes/inge.jpg",
 rocio:"cartes/rocio.jpg",
+yakutian:"cartes/yakutian.jpg",
+curly:"cartes/curly.jpg",
+falabella:"cartes/falabella.jpg",
+finnhorse:"cartes/finnhorse.jpg",
+islandais:"cartes/islandais.jpg",
+kladruber:"cartes/kladruber.jpg",
+knabstrupper:"cartes/knabstrupper.jpg",
+konik:"cartes/konik.jpg",
+lipizzan:"cartes/lipizzan.jpg",
+mangalarga_marchador:"cartes/mangalarga_marchador.jpg",
+nonius:"cartes/nonius.jpg",
+orlov:"cartes/orlov.jpg",
+welsh_pony:"cartes/welsh_pony.jpg",
+basotho:"cartes/basotho.jpg",
+caspien:"cartes/caspien.jpg",
+connemara:"cartes/connemara.jpg",
+eriskay:"cartes/eriskay.jpg",
+exmoor:"cartes/exmoor.jpg",
+fell:"cartes/fell.jpg",
+highland:"cartes/highland.jpg",
+hutsul:"cartes/hutsul.jpg",
+merens:"cartes/merens.jpg",
+cheval_pale_mort:"cartes/cheval_pale_mort.jpg",
+cheval_rouge_guerre:"cartes/cheval_rouge_guerre.jpg",
+helhest:"cartes/helhest.jpg",
+dullahan:"cartes/dullahan.jpg",
+mari_lwyd:"cartes/mari_lwyd.jpg",
 };
 const CARTES = [
   {id:"mustang_indien",nom:"Mustang indien",rarete:"commune",emoji:"🐎",image:IMG.mustang_indien,desc:"Cheval sauvage des grandes plaines, fidèle compagnon des peuples amérindiens.",aff:["vitesse","endurance"],familles:["sauvages","historiques"],royaume:"amerique"},
@@ -1155,10 +1231,10 @@ const CARTES = [
   {id:"matsukaze",nom:"Matsukaze",rarete:"mythique",emoji:"🐎",image:IMG.matsukaze,desc:"« Vent dans les pins » : le destrier noir des samouraïs, rapide et fier.",aff:["bataille","force","vitesse"],familles:["bataille","legende"],royaume:"japon"},
   {id:"cheval_fourrure",nom:"Le cheval à fourrure",rarete:"commune",emoji:"🐴",image:IMG.cheval_fourrure,desc:"Sa crinière dorée sans fin ondule comme une rivière au vent des montagnes.",aff:["beaute","endurance"],familles:["sauvages","race"],royaume:"norvege"},
   {id:"ane_egyptien",nom:"L'âne égyptien",rarete:"commune",emoji:"🫏",image:IMG.ane_egyptien,desc:"Vaillant âne des bâtisseurs, il tire les blocs des grandes pyramides.",aff:["force","endurance"],familles:["cousins","travail"],royaume:"egypte"},
-  {id:"cheval_champignon",nom:"Le cheval champignon",rarete:"epique",emoji:"🍄",image:IMG.cheval_champignon,desc:"Esprit de la forêt enchantée, couvert de mousses et de champignons.",aff:["magie","endurance"],familles:["legende","elementaires"],royaume:"avalon"},
+  {id:"cheval_champignon",nom:"Le cheval champignon",rarete:"epique",emoji:"🍄",image:IMG.cheval_champignon,desc:"Esprit de la forêt enchantée, couvert de mousses et de champignons.",aff:["magie","endurance"],familles:["legende","elementaires","plantes"],royaume:"avalon"},
   {id:"kelpie",nom:"Le Kelpie",rarete:"epique",emoji:"🌊",image:IMG.kelpie,desc:"Cheval des lochs d'Écosse, il surgit de l'eau au crépuscule.",aff:["vitesse","magie"],familles:["eau","legende"],royaume:"ecosse"},
-  {id:"cheval_cyberpunk",nom:"Le cheval cyberpunk",rarete:"rare",emoji:"🤖",image:IMG.cheval_cyberpunk,desc:"Destrier de néon et d'acier, il galope dans la cité du futur.",aff:["vitesse","bataille"],familles:["course"],royaume:"amerique"},
-  {id:"secretariat",nom:"Secrétariat",rarete:"mythique",emoji:"🏇",image:IMG.secretariat,desc:"Le plus grand champion de course : ses records de vitesse tiennent encore aujourd'hui.",aff:["vitesse","endurance"],familles:["course","historiques"],royaume:"amerique"},
+  {id:"cheval_cyberpunk",nom:"Le cheval cyberpunk",rarete:"rare",emoji:"🤖",image:IMG.cheval_cyberpunk,desc:"Destrier de néon et d'acier, il galope dans la cité du futur.",aff:["vitesse","bataille"],familles:["course","robot"],royaume:"amerique"},
+  {id:"secretariat",nom:"Secrétariat",rarete:"legendaire",emoji:"🏇",image:IMG.secretariat,desc:"Le plus grand champion de course : ses records de vitesse tiennent encore aujourd'hui.",aff:["vitesse","endurance"],familles:["course","historiques"],royaume:"amerique"},
   {id:"bayard",nom:"Le cheval Bayard",rarete:"mythique",emoji:"🐎",image:IMG.bayard,desc:"Le cheval-fée qui grandissait pour porter les quatre fils Aymon.",aff:["force","magie"],familles:["legende","bataille"],royaume:"france"},
   {id:"cheval_rose",nom:"Le cheval rose",rarete:"commune",emoji:"🌸",image:IMG.cheval_rose,desc:"Un cheval tout rose et scintillant, sorti d'un rêve de printemps.",aff:["beaute"],familles:["pres","legende"],royaume:"avalon"},
   {id:"bucephale",nom:"Bucéphale",rarete:"mythique",emoji:"⚔️",image:IMG.bucephale,desc:"L'indomptable destrier d'Alexandre le Grand, brave au cœur de la bataille.",aff:["bataille","force"],familles:["bataille","historiques","legende"],royaume:"grece"},
@@ -1169,7 +1245,7 @@ const CARTES = [
   {id:"cheval_armure",nom:"Cheval en armure",rarete:"epique",emoji:"🛡️",image:IMG.cheval_armure,desc:"Destrier bardé d'acier, il porte le chevalier au cœur de la mêlée.",aff:["bataille","endurance"],familles:["bataille","historiques"],royaume:"camelot"},
   {id:"cheval_eclair",nom:"Cheval éclair",rarete:"legendaire",emoji:"⚡",image:IMG.cheval_eclair,desc:"Spectre d'orage, il surgit dans les éclairs et disparaît dans la nuit.",aff:["magie","vitesse"],familles:["elementaires","legende"],royaume:"avalon"},
   {id:"cheval_police",nom:"Cheval de police",rarete:"rare",emoji:"🐴",image:IMG.cheval_police,desc:"Monture calme et courageuse de la police montée, rien ne l'effraie dans la foule.",aff:["bataille","endurance"],familles:["travail","bataille"],royaume:"angleterre"},
-  {id:"cheval_boucle",nom:"Cheval bouclé",rarete:"commune",emoji:"🐴",image:IMG.cheval_boucle,desc:"Sa robe et sa crinière tout en boucles le rendent unique parmi les chevaux.",aff:["beaute","endurance"],familles:["race"],royaume:"amerique"},
+  {id:"cheval_boucle",nom:"Cheval bouclé",rarete:"commune",emoji:"🐴",image:IMG.cheval_boucle,desc:"Sa robe et sa crinière tout en boucles le rendent unique, tout droit sorti d'un rêve.",aff:["beaute","endurance"],familles:["pres"],royaume:"amerique"},
   {id:"cheval_punk",nom:"Cheval punk",rarete:"rare",emoji:"🎸",image:IMG.cheval_punk,desc:"Crête colorée et cuir clouté : le rebelle des rues de la ville.",aff:["bataille","vitesse"],familles:["course"],royaume:"amerique"},
   {id:"cheval_gourmand",nom:"Cheval gourmand",rarete:"commune",emoji:"🍎",image:IMG.cheval_gourmand,desc:"Toujours à croquer une pomme — le plus gourmand de toute l'écurie !",aff:["endurance","beaute"],familles:["pres"],royaume:"belgique"},
   {id:"cheval_cowboy",nom:"Cheval cow-boy",rarete:"rare",emoji:"🤠",image:IMG.cheval_cowboy,desc:"Fidèle monture du cow-boy, il connaît chaque piste du Far West.",aff:["vitesse","endurance"],familles:["course","sauvages"],royaume:"amerique"},
@@ -1219,6 +1295,80 @@ const CARTES = [
 {id:"big_ben",nom:"Big Ben le Shire",rarete:"legendaire",emoji:"🐴",image:IMG.big_ben,desc:"Le plus grand cheval du monde, doux géant d'Angleterre. Il descend du « grand cheval » qui portait les chevaliers en armure — et ses ancêtres venaient de Flandre, comme Pieter-Jan !",aff:["force","endurance"],familles:["mascotte","travail","legende"],royaume:"angleterre"},
 {id:"inge",nom:"Inge la Frisonne",rarete:"legendaire",emoji:"🖤",image:IMG.inge,desc:"La perle noire des Pays-Bas, mascotte du Rhin. Élégante danseuse au long crin ondulé, elle a influencé le Shire — cousine de Big Ben et de Pieter-Jan !",aff:["beaute","endurance"],familles:["mascotte","legende"],royaume:"pays_bas"},
 {id:"rocio",nom:"Rocío l'Andalouse",rarete:"legendaire",emoji:"🤍",image:IMG.rocio,desc:"Le cheval royal d'Espagne, de Pure Race Espagnole. Grise virant au blanc, au long crin ondulé, elle sait danser. Ses cousins sont partis sur les bateaux devenir les premiers chevaux d'Amérique !",aff:["beaute","vitesse"],familles:["mascotte","legende"],royaume:"espagne"},
+  {id:"band_pink_pop_queen",nom:"Pink Pop Queen",rarete:"epique",emoji:"👑",image:IMG.band_pink_pop_queen,desc:"La reine de la pop : sous les projecteurs roses, elle fait chavirer les foules.",aff:["beaute","magie"],familles:["band"],royaume:"scene"},
+  {id:"band_starfire_diva",nom:"Starfire Diva",rarete:"epique",emoji:"🌟",image:IMG.band_starfire_diva,desc:"Diva étoilée, elle enflamme la scène d'un galop scintillant.",aff:["beaute","vitesse"],familles:["band"],royaume:"scene"},
+  {id:"band_golden_ace",nom:"Golden Ace",rarete:"epique",emoji:"⭐",image:IMG.band_golden_ace,desc:"L'as doré du show : crinière de feu et pas de danse endiablés.",aff:["vitesse","beaute"],familles:["band"],royaume:"scene"},
+  {id:"band_moon_prince",nom:"Moon Prince",rarete:"epique",emoji:"🌙",image:IMG.band_moon_prince,desc:"Prince de la nuit, il brille d'un éclat argenté au clair de lune.",aff:["beaute","magie"],familles:["band"],royaume:"scene"},
+  {id:"band_crystal_princess",nom:"Crystal Princess",rarete:"epique",emoji:"💎",image:IMG.band_crystal_princess,desc:"Princesse de cristal, chaque pas fait tinter mille éclats scintillants.",aff:["beaute","magie"],familles:["band"],royaume:"scene"},
+  {id:"band_purple_rebel",nom:"Purple Rebel",rarete:"rare",emoji:"🎸",image:IMG.band_purple_rebel,desc:"Rebelle à la crinière violette, elle bouscule les codes de la scène.",aff:["bataille","beaute"],familles:["band"],royaume:"scene"},
+  {id:"band_electric_shadow",nom:"Electric Shadow",rarete:"rare",emoji:"⚡",image:IMG.band_electric_shadow,desc:"Ombre électrique, il surgit dans un éclair bleu sur le dancefloor.",aff:["vitesse","bataille"],familles:["band"],royaume:"scene"},
+  {id:"band_steel_phantom",nom:"Steel Phantom",rarete:"rare",emoji:"🖤",image:IMG.band_steel_phantom,desc:"Fantôme d'acier, silhouette froide sous les néons de la ville.",aff:["force","vitesse"],familles:["band"],royaume:"scene"},
+  {id:"band_midnight_lead",nom:"Midnight Lead",rarete:"rare",emoji:"🎤",image:IMG.band_midnight_lead,desc:"Leader de minuit, sa voix noire hypnotise la salle entière.",aff:["bataille","force"],familles:["band"],royaume:"scene"},
+  {id:"band_pastel_dream",nom:"Pastel Dream",rarete:"rare",emoji:"🎀",image:IMG.band_pastel_dream,desc:"Rêve pastel tout en douceur, rubans et cœurs à l'infini.",aff:["beaute"],familles:["band"],royaume:"scene"},
+  {id:"beasts_qirin",nom:"Le Qilin",rarete:"mythique",emoji:"🐉",image:IMG.beasts_qirin,desc:"Chimère bienveillante des légendes chinoises, il annonce les temps heureux.",aff:["magie","beaute"],familles:["beasts"],royaume:"chine"},
+  {id:"beasts_longma",nom:"Le Longma",rarete:"mythique",emoji:"🐲",image:IMG.beasts_longma,desc:"Cheval-dragon surgi du fleuve, il porte les sages sur son dos ailé.",aff:["magie","vitesse"],familles:["beasts"],royaume:"chine"},
+  {id:"beasts_alicorne",nom:"L'Alicorne",rarete:"mythique",emoji:"🦄",image:IMG.beasts_alicorne,desc:"Elle unit la corne de la licorne et les ailes du pégase, reine des cieux.",aff:["magie","beaute"],familles:["beasts"],royaume:"avalon"},
+  {id:"beasts_hippogriffe",nom:"L'Hippogriffe",rarete:"mythique",emoji:"🦅",image:IMG.beasts_hippogriffe,desc:"Moitié aigle moitié cheval, il franchit les montagnes d'un seul bond.",aff:["vitesse","bataille"],familles:["beasts"],royaume:"grece"},
+  {id:"beasts_hypalectryon",nom:"L'Hippalectryon",rarete:"mythique",emoji:"🐓",image:IMG.beasts_hypalectryon,desc:"Cheval à l'arrière de coq, il gardait les vases de la Grèce antique.",aff:["force","magie"],familles:["beasts"],royaume:"grece"},
+  {id:"course_frankel",nom:"Frankel",rarete:"legendaire",emoji:"🏇",image:IMG.course_frankel,desc:"Invaincu en quatorze courses, le plus grand galopeur anglais de l'ère moderne.",aff:["vitesse","endurance"],familles:["course","historiques"],royaume:"angleterre"},
+  {id:"course_manowar",nom:"Man o' War",rarete:"legendaire",emoji:"🏇",image:IMG.course_manowar,desc:"Champion américain des années 1920, il écrasait ses rivaux de vingt longueurs.",aff:["vitesse","force"],familles:["course","historiques"],royaume:"amerique"},
+  {id:"course_pharlap",nom:"Phar Lap",rarete:"legendaire",emoji:"🏇",image:IMG.course_pharlap,desc:"Le cheval géant qui redonna espoir à l'Australie de la Grande Dépression.",aff:["vitesse","endurance"],familles:["course","historiques"],royaume:"australie"},
+  {id:"course_seabiscuit",nom:"Seabiscuit",rarete:"legendaire",emoji:"🏇",image:IMG.course_seabiscuit,desc:"Petit cheval mal aimé devenu le héros de toute l'Amérique.",aff:["vitesse","endurance"],familles:["course","historiques"],royaume:"amerique"},
+  {id:"course_zenyatta",nom:"Zenyatta",rarete:"legendaire",emoji:"🏇",image:IMG.course_zenyatta,desc:"Reine de la piste, célèbre pour son finish foudroyant et sa danse d'avant-course.",aff:["vitesse","beaute"],familles:["course","historiques"],royaume:"amerique"},
+  {id:"gourmand_mangeur_de_pommes",nom:"Le mangeur de pommes",rarete:"commune",emoji:"🍎",image:IMG.gourmand_mangeur_de_pommes,desc:"Rien ne le rend plus heureux qu'un verger croulant de pommes bien mûres.",aff:["endurance","force"],familles:["gourmand"],royaume:"belgique"},
+  {id:"gourmand_mangeur_de_carottes",nom:"Le mangeur de carottes",rarete:"commune",emoji:"🥕",image:IMG.gourmand_mangeur_de_carottes,desc:"Il croque les carottes du potager à longueur de journée.",aff:["endurance","vitesse"],familles:["gourmand"],royaume:"belgique"},
+  {id:"gourmand_mangeur_de_citrouilles",nom:"Le mangeur de citrouilles",rarete:"commune",emoji:"🎃",image:IMG.gourmand_mangeur_de_citrouilles,desc:"À l'automne, il fait la fête parmi les citrouilles orange.",aff:["force","endurance"],familles:["gourmand"],royaume:"belgique"},
+  {id:"gourmand_mangeur_de_grain",nom:"Le mangeur de grain",rarete:"commune",emoji:"🌾",image:IMG.gourmand_mangeur_de_grain,desc:"Bien au chaud dans l'écurie, il plonge le nez dans le grain doré.",aff:["force","endurance"],familles:["gourmand"],royaume:"belgique"},
+  {id:"gourmand_mangeur_de_trefle",nom:"Le mangeur de trèfle",rarete:"commune",emoji:"🍀",image:IMG.gourmand_mangeur_de_trefle,desc:"Allongé dans le trèfle, il savoure les fleurs sucrées du pré.",aff:["beaute","endurance"],familles:["gourmand"],royaume:"belgique"},
+  {id:"licorne_antique_orientale",nom:"Licorne antique orientale",rarete:"epique",emoji:"🦄",image:IMG.licorne_antique_orientale,desc:"Monture précieuse des palais d'Orient, parée d'or et de turquoise.",aff:["beaute","magie"],familles:["licorne"],royaume:"arabie"},
+  {id:"licorne_apothicaire",nom:"Licorne d'apothicaire",rarete:"epique",emoji:"🦄",image:IMG.licorne_apothicaire,desc:"Sa corne, dit-on, purifiait les poisons dans les cabinets de curiosités.",aff:["magie","beaute"],familles:["licorne"],royaume:"france"},
+  {id:"licorne_contemporaine_pride",nom:"Licorne contemporaine Pride",rarete:"epique",emoji:"🦄",image:IMG.licorne_contemporaine_pride,desc:"Crinière arc-en-ciel, elle défile fièrement au cœur de la ville en fête.",aff:["beaute","magie"],familles:["licorne"],royaume:"amerique"},
+  {id:"licorne_bestiaire_medieval",nom:"Licorne de bestiaire médiéval",rarete:"legendaire",emoji:"🦄",image:IMG.licorne_bestiaire_medieval,desc:"Tout droit sortie des tapisseries et des bestiaires du Moyen Âge.",aff:["beaute","magie"],familles:["licorne"],royaume:"france"},
+  {id:"licorne_heraldique_ecossaise",nom:"Licorne héraldique écossaise",rarete:"legendaire",emoji:"🦄",image:IMG.licorne_heraldique_ecossaise,desc:"Emblème couronné du royaume d'Écosse, enchaînée mais indomptée.",aff:["magie","bataille"],familles:["licorne"],royaume:"ecosse"},
+  {id:"mythique_xanthos",nom:"Xanthos",rarete:"mythique",emoji:"🐎",image:IMG.mythique_xanthos,desc:"Cheval immortel d'Achille, doué de parole et de prophétie.",aff:["vitesse","magie"],familles:["legende","bataille"],royaume:"grece"},
+  {id:"mythique_balios",nom:"Balios",rarete:"mythique",emoji:"🐎",image:IMG.mythique_balios,desc:"Frère immortel de Xanthos, né du vent, monture d'Achille à Troie.",aff:["vitesse","force"],familles:["legende","bataille"],royaume:"grece"},
+  {id:"mythique_enbarr",nom:"Enbarr",rarete:"mythique",emoji:"🌊",image:IMG.mythique_enbarr,desc:"Cheval de Manannán, il galope aussi bien sur la mer que sur la terre.",aff:["vitesse","magie"],familles:["legende","eau"],royaume:"irlande"},
+  {id:"mythique_grani",nom:"Grani",rarete:"mythique",emoji:"🐎",image:IMG.mythique_grani,desc:"Descendant de Sleipnir, fidèle destrier du héros Sigurd.",aff:["force","bataille"],familles:["legende","bataille"],royaume:"norvege"},
+  {id:"mythique_gringolet",nom:"Gringolet",rarete:"mythique",emoji:"🐎",image:IMG.mythique_gringolet,desc:"Le puissant destrier de messire Gauvain, chevalier de la Table ronde.",aff:["bataille","endurance"],familles:["legende","bataille"],royaume:"camelot"},
+  {id:"mythique_kanthaka",nom:"Kanthaka",rarete:"mythique",emoji:"🤍",image:IMG.mythique_kanthaka,desc:"Le cheval blanc qui porta le prince Siddhârta vers l'éveil.",aff:["beaute","endurance"],familles:["legende"],royaume:"inde"},
+  {id:"mythique_rakhsh",nom:"Rakhsh",rarete:"mythique",emoji:"🐎",image:IMG.mythique_rakhsh,desc:"Le fougueux étalon du héros Rostam, seul à supporter son poids.",aff:["force","bataille"],familles:["legende","bataille"],royaume:"perse"},
+  {id:"mythique_veillantif",nom:"Veillantif",rarete:"mythique",emoji:"⚔️",image:IMG.mythique_veillantif,desc:"Le destrier de Roland, compagnon des batailles de Roncevaux.",aff:["bataille","vitesse"],familles:["legende","bataille"],royaume:"france"},
+  {id:"plantes_lierre",nom:"Cheval de lierre",rarete:"rare",emoji:"🌿",image:IMG.plantes_lierre,desc:"Tout de lierre vêtu, il veille sur les forêts anciennes.",aff:["magie","endurance"],familles:["plantes"],royaume:"avalon"},
+  {id:"plantes_cactus",nom:"Cheval cactus",rarete:"rare",emoji:"🌵",image:IMG.plantes_cactus,desc:"Hérissé d'épines et de fleurs, il traverse le désert sans jamais avoir soif.",aff:["force","endurance"],familles:["plantes"],royaume:"amerique"},
+  {id:"plantes_chene",nom:"Cheval de chêne",rarete:"rare",emoji:"🌳",image:IMG.plantes_chene,desc:"Fait de bois et de feuilles d'automne, robuste comme un vieux chêne.",aff:["force","endurance"],familles:["plantes"],royaume:"avalon"},
+  {id:"plantes_roses",nom:"Cheval des roses",rarete:"rare",emoji:"🌹",image:IMG.plantes_roses,desc:"Paré de roses grimpantes, il embaume les jardins enchantés.",aff:["beaute","magie"],familles:["plantes"],royaume:"avalon"},
+  {id:"plantes_nenuphar",nom:"Cheval nénuphar",rarete:"rare",emoji:"🪷",image:IMG.plantes_nenuphar,desc:"Né des étangs, il danse parmi les nénuphars au lever du soleil.",aff:["beaute","magie"],familles:["plantes"],royaume:"avalon"},
+  {id:"robot_cryo",nom:"Cheval cryo",rarete:"rare",emoji:"❄️",image:IMG.robot_cryo,desc:"Blindé de glace et de circuits, il patrouille les banquises polaires.",aff:["force","endurance"],familles:["robot"],royaume:"futur"},
+  {id:"robot_eclaireur",nom:"Éclaireur des forêts",rarete:"rare",emoji:"🛰️",image:IMG.robot_eclaireur,desc:"Robot d'exploration furtif, il cartographie les forêts sans un bruit.",aff:["vitesse","endurance"],familles:["robot"],royaume:"futur"},
+  {id:"robot_prototype",nom:"Prototype moderne",rarete:"rare",emoji:"⚙️",image:IMG.robot_prototype,desc:"Dernier prototype rutilant, tout en chrome et articulations parfaites.",aff:["vitesse","force"],familles:["robot"],royaume:"futur"},
+  {id:"robot_solaire",nom:"Cheval solaire",rarete:"rare",emoji:"☀️",image:IMG.robot_solaire,desc:"Alimenté par ses panneaux solaires, il galope à l'infini sous le soleil.",aff:["endurance","vitesse"],familles:["robot"],royaume:"futur"},
+  {id:"yakutian",nom:"Cheval yakoute",rarete:"epique",emoji:"🐴",image:IMG.yakutian,desc:"Ce petit cheval de Sibérie survit aux hivers les plus glacés grâce à son épaisse fourrure.",aff:["endurance","force"],familles:["race","sauvages"],royaume:"russie"},
+  {id:"curly",nom:"Curly",rarete:"epique",emoji:"🐴",image:IMG.curly,desc:"Sa robe et sa crinière tout en boucles le rendent doux et unique parmi les chevaux.",aff:["beaute","endurance"],familles:["race"],royaume:"amerique"},
+  {id:"falabella",nom:"Falabella",rarete:"epique",emoji:"🐴",image:IMG.falabella,desc:"Le plus petit cheval du monde, minuscule mais élégant, venu des plaines d'Argentine.",aff:["beaute","endurance"],familles:["race"],royaume:"argentine"},
+  {id:"finnhorse",nom:"Finnhorse",rarete:"epique",emoji:"🐴",image:IMG.finnhorse,desc:"Fier cheval de Finlande, à la fois travailleur robuste et coureur agile.",aff:["force","endurance"],familles:["race","travail"],royaume:"finlande"},
+  {id:"islandais",nom:"Cheval islandais",rarete:"epique",emoji:"🐴",image:IMG.islandais,desc:"Petit cheval d'Islande à la crinière abondante, célèbre pour son allure spéciale, le tölt.",aff:["endurance","vitesse"],familles:["race"],royaume:"islande"},
+  {id:"kladruber",nom:"Kladruber",rarete:"epique",emoji:"🐴",image:IMG.kladruber,desc:"Majestueux cheval blanc de la cour impériale, né pour tirer les carrosses de gala.",aff:["beaute","force"],familles:["race","historiques"],royaume:"autriche"},
+  {id:"knabstrupper",nom:"Knabstrupper",rarete:"epique",emoji:"🐴",image:IMG.knabstrupper,desc:"Cheval danois à la robe léopard, tacheté comme un manteau d'étoiles.",aff:["beaute","endurance"],familles:["race"],royaume:"danemark"},
+  {id:"konik",nom:"Konik",rarete:"epique",emoji:"🐴",image:IMG.konik,desc:"Petit cheval de Pologne, robuste descendant des chevaux sauvages des forêts.",aff:["endurance","force"],familles:["race","sauvages"],royaume:"pologne"},
+  {id:"lipizzan",nom:"Lipizzan",rarete:"epique",emoji:"🐴",image:IMG.lipizzan,desc:"L'étoile blanche de l'École espagnole de Vienne, danseur des plus belles figures.",aff:["beaute","endurance"],familles:["race","historiques"],royaume:"autriche"},
+  {id:"mangalarga_marchador",nom:"Mangalarga Marchador",rarete:"epique",emoji:"🐴",image:IMG.mangalarga_marchador,desc:"Cheval brésilien à l'allure douce et glissée, infatigable sur les longues distances.",aff:["endurance","vitesse"],familles:["race"],royaume:"bresil"},
+  {id:"nonius",nom:"Nonius",rarete:"epique",emoji:"🐴",image:IMG.nonius,desc:"Puissant cheval noir de Hongrie, élégant meneur d'attelage et fidèle au travail.",aff:["force","beaute"],familles:["race","travail"],royaume:"hongrie"},
+  {id:"orlov",nom:"Trotteur Orlov",rarete:"epique",emoji:"🐴",image:IMG.orlov,desc:"Célèbre trotteur de Russie à la robe gris pommelé, taillé pour la vitesse et l'endurance.",aff:["vitesse","endurance"],familles:["race","course"],royaume:"russie"},
+  {id:"welsh_pony",nom:"Poney Welsh",rarete:"rare",emoji:"🐴",image:IMG.welsh_pony,desc:"Petit poney des collines galloises, vif et élégant sous sa crinière dorée.",aff:["beaute","vitesse"],familles:["race","pres"],royaume:"galles"},
+  {id:"basotho",nom:"Poney Basotho",rarete:"rare",emoji:"🐴",image:IMG.basotho,desc:"Poney robuste des hauts plateaux d'Afrique australe, sûr sur les sentiers de montagne.",aff:["endurance","force"],familles:["race","sauvages"],royaume:"afrique"},
+  {id:"caspien",nom:"Caspian",rarete:"rare",emoji:"🐴",image:IMG.caspien,desc:"Minuscule cheval ancien de Perse, fin et rapide comme aux temps des rois.",aff:["vitesse","beaute"],familles:["race","course"],royaume:"perse"},
+  {id:"connemara",nom:"Poney Connemara",rarete:"rare",emoji:"🐴",image:IMG.connemara,desc:"Poney irlandais gris pommelé, sauteur né des landes battues par le vent.",aff:["vitesse","endurance"],familles:["race","course"],royaume:"irlande"},
+  {id:"eriskay",nom:"Poney d'Eriskay",rarete:"rare",emoji:"🐴",image:IMG.eriskay,desc:"Rare poney gris des îles écossaises, doux et courageux face aux tempêtes.",aff:["endurance","beaute"],familles:["race","sauvages"],royaume:"ecosse"},
+  {id:"exmoor",nom:"Poney d'Exmoor",rarete:"rare",emoji:"🐴",image:IMG.exmoor,desc:"Poney primitif des landes anglaises, au museau clair et à la fourrure épaisse.",aff:["endurance","force"],familles:["race","sauvages"],royaume:"angleterre"},
+  {id:"fell",nom:"Poney Fell",rarete:"rare",emoji:"🐴",image:IMG.fell,desc:"Poney noir des collines du Nord, aux longs fanons soyeux et au pas sûr.",aff:["force","endurance"],familles:["race","travail"],royaume:"angleterre"},
+  {id:"highland",nom:"Poney Highland",rarete:"rare",emoji:"🐴",image:IMG.highland,desc:"Solide poney des Highlands d'Écosse, tout-terrain infatigable des montagnes.",aff:["force","endurance"],familles:["race","travail"],royaume:"ecosse"},
+  {id:"hutsul",nom:"Poney Hutsul",rarete:"rare",emoji:"🐴",image:IMG.hutsul,desc:"Poney des Carpates, agile et rustique sur les sentiers forestiers escarpés.",aff:["endurance","force"],familles:["race","sauvages"],royaume:"ukraine"},
+  {id:"merens",nom:"Mérens",rarete:"rare",emoji:"🐴",image:IMG.merens,desc:"Petit cheval noir des Pyrénées, sûr et robuste sur les chemins de montagne.",aff:["endurance","beaute"],familles:["race","sauvages"],royaume:"france"},
+  {id:"cheval_pale_mort",nom:"Le cheval pâle de la Mort",rarete:"mythique",emoji:"💀",image:IMG.cheval_pale_mort,desc:"Monture spectrale du dernier des cavaliers, elle avance là où tout s'éteint.",aff:["magie","bataille"],familles:["sombres","legende"],royaume:"outremonde"},
+  {id:"cheval_rouge_guerre",nom:"Le cheval rouge de la Guerre",rarete:"mythique",emoji:"🔥",image:IMG.cheval_rouge_guerre,desc:"Étalon de flammes du cavalier de la Guerre, il enflamme les champs de bataille.",aff:["bataille","force"],familles:["sombres","bataille"],royaume:"outremonde"},
+  {id:"helhest",nom:"Helhest",rarete:"mythique",emoji:"👻",image:IMG.helhest,desc:"Le cheval à trois jambes de la déesse Hel, dont le passage annonce la mort dans les brumes du Nord.",aff:["magie","endurance"],familles:["sombres","legende"],royaume:"danemark"},
+  {id:"dullahan",nom:"Dullahan",rarete:"legendaire",emoji:"⚔️",image:IMG.dullahan,desc:"La monture noire aux yeux de feu du cavalier sans tête des légendes d'Irlande.",aff:["bataille","vitesse"],familles:["sombres","legende"],royaume:"irlande"},
+  {id:"mari_lwyd",nom:"Mari Lwyd",rarete:"legendaire",emoji:"🎭",image:IMG.mari_lwyd,desc:"Crâne de jument enrubanné du Pays de Galles, qui frappe aux portes en chantant au cœur de l'hiver.",aff:["magie","beaute"],familles:["sombres"],royaume:"galles"},
 ];
 
 /* 2. RÉGLAGES */
@@ -1253,21 +1403,24 @@ async function cloudPush(){
   catch(e){majSync('err');}
 }
 function compteVersProfil(row){return {id:row.id,nom:row.prenom,age:row.age,emoji:row.avatar,couleur:row.couleur,niveau:row.niveau,etat:normaliserEtat(row.etat||etatVide()),cloud:true,pin:row._pin};}
-const VERSION_APP='v55';
-const RARETES={commune:{nom:'Commune',poids:60,overflow:15,couleur:'#c4cdd8'},rare:{nom:'Rare',poids:25,overflow:30,couleur:'#7ec2ff'},epique:{nom:'Épique',poids:10,overflow:60,couleur:'#c99bff'},legendaire:{nom:'Légendaire',poids:2.5,overflow:120,couleur:'#ffcf6b'},mythique:{nom:'Mythique',poids:0.15,overflow:250,couleur:'#ff9ac0'}};
+const VERSION_APP='v65';
+const RARETES={commune:{nom:'Commune',poids:55,overflow:15,couleur:'#c4cdd8'},rare:{nom:'Rare',poids:27,overflow:30,couleur:'#7ec2ff'},epique:{nom:'Épique',poids:13,overflow:60,couleur:'#c99bff'},legendaire:{nom:'Légendaire',poids:4.5,overflow:120,couleur:'#ffcf6b'},mythique:{nom:'Mythique',poids:0.5,overflow:250,couleur:'#ff9ac0'}};
 const SEUILS=[1,4,9,17,28];   // exemplaires cumulés pour ★ à ★★★★★ (évolution plus lente)
 const TITRES=['—','Éveil','Aguerri','Radieux','Céleste','Mythe'];
 const COUT_TIRAGE=120,SOLDE_DEPART=200;const COUT_TIRAGE10=COUT_TIRAGE*9;
+const PITY_EPIC=20,PITY_LEGEND=100;   // pity : épique+ garanti tous les 20, légendaire+ tous les 100
+const COUT_SUPER_RENOM=35;            // super-tirage payé en renommée, épique ou mieux garanti
+function rankRar(r){return {commune:0,rare:1,epique:2,legendaire:3,mythique:4}[r]||0;}
 const GAIN_BONNE=6,GAIN_ESSAI=2,BONUS_SERIE=20,PALIER_SERIE=5;   // récompense l'essai même en cas d'erreur
 const XP_BONNE=10,XP_ESSAI=3,PAS_XP=120;
 const SOFTCAP1=600,SOFTCAP2=1400;
 function jourDefi(){const d=new Date().toISOString().slice(0,10);if(!etat.defiJour||etat.defiJour.date!==d)etat.defiJour={date:d,gagne:0};return etat.defiJour;}
-function crediterDefi(g){const j=jourDefi();let f=1;if(j.gagne>=SOFTCAP2)f=0.4;else if(j.gagne>=SOFTCAP1)f=0.65;const reel=Math.max(1,Math.round(g*f));etat.crins+=reel;j.gagne+=reel;return reel;}
+function crediterDefi(g){const j=jourDefi();const reel=Math.max(1,Math.round(g));etat.crins+=reel;j.gagne+=reel;return reel;}
                           // 120 XP par niveau de matière
 
 /* ---- CONCOURS ---- */
-const ROYAUMES={belgique:{ico:'🇧🇪',nom:'Belgique'},pays_bas:{ico:'🇳🇱',nom:'Pays-Bas'},france:{ico:'🇫🇷',nom:'France'},allemagne:{ico:'🇩🇪',nom:'Allemagne'},angleterre:{ico:'🏴',nom:'Angleterre'},irlande:{ico:'🇮🇪',nom:'Irlande'},ecosse:{ico:'🏴',nom:'Écosse'},espagne:{ico:'🇪🇸',nom:'Espagne'},rome:{ico:'🏛️',nom:'Rome'},italie:{ico:'🇮🇹',nom:'Italie'},portugal:{ico:'🇵🇹',nom:'Portugal'},autriche:{ico:'🇦🇹',nom:'Autriche'},luxembourg:{ico:'🇱🇺',nom:'Luxembourg'},suisse:{ico:'🇨🇭',nom:'Suisse'},grece:{ico:'🇬🇷',nom:'Grèce'},norvege:{ico:'🇳🇴',nom:'Norvège'},steppe:{ico:'🐎',nom:'Steppe'},chine:{ico:'🇨🇳',nom:'Chine'},japon:{ico:'🇯🇵',nom:'Japon'},inde:{ico:'🇮🇳',nom:'Inde'},arabie:{ico:'🏜️',nom:'Arabie'},egypte:{ico:'🇪🇬',nom:'Égypte'},amerique:{ico:'🇺🇸',nom:'Amérique'},afrique:{ico:'🦓',nom:'Afrique'},camelot:{ico:'🏰',nom:'Camelot'},avalon:{ico:'🦄',nom:'Avalon'}};
-const FAMILLES={travail:{ico:'🛠️',nom:'Travail'},race:{ico:'🏅',nom:'Cheval de race'},mascotte:{ico:'👑',nom:'Mascotte'},bataille:{ico:'⚔️',nom:'Bataille'},legende:{ico:'✨',nom:'Légende'},elementaires:{ico:'🔥',nom:'Élémentaires'},eau:{ico:'🌊',nom:'Eau'},sauvages:{ico:'🐎',nom:'Sauvages'},course:{ico:'🏇',nom:'Course'},historiques:{ico:'🏛️',nom:'Historiques'},pres:{ico:'🌸',nom:'Prés'},cousins:{ico:'🫏',nom:'Cousins'}};
+const ROYAUMES={belgique:{ico:'🇧🇪',nom:'Belgique'},pays_bas:{ico:'🇳🇱',nom:'Pays-Bas'},france:{ico:'🇫🇷',nom:'France'},allemagne:{ico:'🇩🇪',nom:'Allemagne'},angleterre:{ico:'🏴',nom:'Angleterre'},irlande:{ico:'🇮🇪',nom:'Irlande'},ecosse:{ico:'🏴',nom:'Écosse'},espagne:{ico:'🇪🇸',nom:'Espagne'},rome:{ico:'🏛️',nom:'Rome'},italie:{ico:'🇮🇹',nom:'Italie'},portugal:{ico:'🇵🇹',nom:'Portugal'},autriche:{ico:'🇦🇹',nom:'Autriche'},luxembourg:{ico:'🇱🇺',nom:'Luxembourg'},suisse:{ico:'🇨🇭',nom:'Suisse'},grece:{ico:'🇬🇷',nom:'Grèce'},norvege:{ico:'🇳🇴',nom:'Norvège'},steppe:{ico:'🐎',nom:'Steppe'},chine:{ico:'🇨🇳',nom:'Chine'},japon:{ico:'🇯🇵',nom:'Japon'},inde:{ico:'🇮🇳',nom:'Inde'},arabie:{ico:'🏜️',nom:'Arabie'},egypte:{ico:'🇪🇬',nom:'Égypte'},amerique:{ico:'🇺🇸',nom:'Amérique'},afrique:{ico:'🦓',nom:'Afrique'},camelot:{ico:'🏰',nom:'Camelot'},avalon:{ico:'🦄',nom:'Avalon'},scene:{ico:'🎤',nom:'Scène'},australie:{ico:'🇦🇺',nom:'Australie'},perse:{ico:'🏹',nom:'Perse'},futur:{ico:'🤖',nom:'Futur'},russie:{ico:'🇷🇺',nom:'Russie'},argentine:{ico:'🇦🇷',nom:'Argentine'},finlande:{ico:'🇫🇮',nom:'Finlande'},islande:{ico:'🇮🇸',nom:'Islande'},danemark:{ico:'🇩🇰',nom:'Danemark'},pologne:{ico:'🇵🇱',nom:'Pologne'},bresil:{ico:'🇧🇷',nom:'Brésil'},hongrie:{ico:'🇭🇺',nom:'Hongrie'},galles:{ico:'🏴',nom:'Pays de Galles'},ukraine:{ico:'🇺🇦',nom:'Ukraine'},outremonde:{ico:'🌑',nom:'Outre-monde'}};
+const FAMILLES={travail:{ico:'🛠️',nom:'Travail'},race:{ico:'🏅',nom:'Cheval de race'},mascotte:{ico:'👑',nom:'Mascotte'},bataille:{ico:'⚔️',nom:'Bataille'},legende:{ico:'✨',nom:'Légende'},elementaires:{ico:'🔥',nom:'Élémentaires'},eau:{ico:'🌊',nom:'Eau'},sauvages:{ico:'🐎',nom:'Sauvages'},course:{ico:'🏇',nom:'Course'},historiques:{ico:'🏛️',nom:'Historiques'},pres:{ico:'🌸',nom:'Prés'},cousins:{ico:'🫏',nom:'Cousins'},band:{ico:'🎸',nom:'Pop'},beasts:{ico:'🐲',nom:'Hybrides'},gourmand:{ico:'🍎',nom:'Gourmands'},licorne:{ico:'🦄',nom:'Licornes'},plantes:{ico:'🌿',nom:'Plantes'},robot:{ico:'🤖',nom:'Robots'},sombres:{ico:'💀',nom:'Sombres'}};
 const CAPS=[
   {id:'beaute',nom:'Beauté',ico:'🌸',couleur:'#ff9ac0',epreuve:'Concours de beauté'},
   {id:'force',nom:'Puissance',ico:'💪',couleur:'#e0864a',epreuve:'Concours de trait'},
@@ -1285,7 +1438,7 @@ const DIVISIONS=[
   {rarete:'legendaire',nom:'International', ico:'🏅',inscription:25,crins:[110,55,25],   renom:[12,7,3]},
   {rarete:'mythique',  nom:'Légendaire',   ico:'👑',inscription:40,crins:[180,90,40],   renom:[18,10,4]},
 ];
-const FAM_CARAC={travail:'force',race:'beaute',bataille:'bataille',legende:'magie',elementaires:'magie',eau:'magie',sauvages:'endurance',course:'vitesse',historiques:'bataille',pres:'beaute',cousins:'endurance'};
+const FAM_CARAC={travail:'force',race:'beaute',bataille:'bataille',legende:'magie',elementaires:'magie',eau:'magie',sauvages:'endurance',course:'vitesse',historiques:'bataille',pres:'beaute',cousins:'endurance',band:'beaute',beasts:'magie',gourmand:'endurance',licorne:'magie',plantes:'magie',robot:'vitesse',sombres:'magie'};
 const NB_CONCOURS=12;               // concours par jour
 const COUT_RENOUV_BASE=60;          // coût du 1er renouvellement (double à chaque fois)
 const RANGS=[[0,'Débutante'],[15,'Régionale'],[45,'Réputée'],[100,'Prestigieuse'],[220,'Légendaire']];
@@ -1302,8 +1455,8 @@ const PRIX_MARCHAND={commune:3,rare:15,epique:55,legendaire:220,mythique:1000};
    exercices apparaissent (voir `niv` des activités) et cale la difficulté. */
 const CLE_P='ecurie_profils_v1',CLE_VIEUX='ecurie_legendes_v2';
 let memoire=null;
-function etatVide(){return {crins:SOLDE_DEPART,cadeauDepart:true,tutoVu:false,collection:{ane_tetu:1,cheval_charbonnier:1,cheval_laboureur:1},paliers:{ane_tetu:1,cheval_charbonnier:1,cheval_laboureur:1},tirages:0,bonnes:0,xp:{maths:0,francais:0,histoire:0,sciences:0},serieJours:0,dernierJour:null,stats:{},jeux:{joues:0,gagnes:0},renommee:0,renommeeTotale:0,concours:{date:null,refresh:0,faits:{}},marchand:{date:null,achetes:[]},aventure:{introVu:false,belgique:{sousEtape:0,faits:{},fini:false}},chouchous:{},packprog:{},defiJour:{date:null,gagne:0}};}
-function normaliserEtat(e){const d=etatVide();for(const k in d)if(e[k]===undefined)e[k]=d[k];e.xp=Object.assign({maths:0,francais:0,histoire:0,sciences:0},e.xp||{});e.jeux=Object.assign({joues:0,gagnes:0},e.jeux||{});e.stats=e.stats||{};e.collection=e.collection||{};e.paliers=e.paliers||{};e.renommee=e.renommee||0;if(e.renommeeTotale==null)e.renommeeTotale=e.renommee;e.concours=e.concours||{date:null,refresh:0,faits:{}};if(e.concours.refresh==null)e.concours.refresh=0;e.marchand=e.marchand||{date:null,achetes:[]};for(const id in e.collection){if(e.collection[id]>0&&e.paliers[id]==null)e.paliers[id]=palierDe(e.collection[id]);}e.aventure=e.aventure||{introVu:false};e.aventure.belgique=e.aventure.belgique||{sousEtape:0,faits:{},fini:false};e.aventure.prov=e.aventure.prov||{};e.aventure.mascVue=e.aventure.mascVue||{};if(e.aventure.belgique&&!e.aventure.prov.anvers)e.aventure.prov.anvers=e.aventure.belgique;e.chouchous=e.chouchous||{};e.packprog=e.packprog||{};e.defiJour=e.defiJour||{date:null,gagne:0};if(!e.cadeauDepart){for(const id of ['ane_tetu','cheval_charbonnier','cheval_laboureur']){if(!(e.collection[id]>0)){e.collection[id]=1;e.paliers[id]=e.paliers[id]||1;}}e.cadeauDepart=true;}return e;}
+function etatVide(){return {crins:SOLDE_DEPART,cadeauDepart:true,tutoVu:false,collection:{ane_tetu:1,cheval_charbonnier:1,cheval_laboureur:1},paliers:{ane_tetu:1,cheval_charbonnier:1,cheval_laboureur:1},tirages:0,bonnes:0,xp:{maths:0,francais:0,histoire:0,sciences:0},serieJours:0,dernierJour:null,stats:{},jeux:{joues:0,gagnes:0},renommee:0,renommeeTotale:0,concours:{date:null,refresh:0,faits:{}},marchand:{date:null,achetes:[]},aventure:{introVu:false,belgique:{sousEtape:0,faits:{},fini:false}},chouchous:{},packprog:{},defiJour:{date:null,gagne:0},pity:{epic:0,legend:0}};}
+function normaliserEtat(e){const d=etatVide();for(const k in d)if(e[k]===undefined)e[k]=d[k];e.xp=Object.assign({maths:0,francais:0,histoire:0,sciences:0},e.xp||{});e.jeux=Object.assign({joues:0,gagnes:0},e.jeux||{});e.stats=e.stats||{};e.collection=e.collection||{};e.paliers=e.paliers||{};e.renommee=e.renommee||0;if(e.renommeeTotale==null)e.renommeeTotale=e.renommee;e.concours=e.concours||{date:null,refresh:0,faits:{}};if(e.concours.refresh==null)e.concours.refresh=0;e.marchand=e.marchand||{date:null,achetes:[]};for(const id in e.collection){if(e.collection[id]>0&&e.paliers[id]==null)e.paliers[id]=palierDe(e.collection[id]);}e.aventure=e.aventure||{introVu:false};e.aventure.belgique=e.aventure.belgique||{sousEtape:0,faits:{},fini:false};e.aventure.prov=e.aventure.prov||{};e.aventure.mascVue=e.aventure.mascVue||{};if(e.aventure.belgique&&!e.aventure.prov.anvers)e.aventure.prov.anvers=e.aventure.belgique;e.chouchous=e.chouchous||{};e.packprog=e.packprog||{};e.defiJour=e.defiJour||{date:null,gagne:0};e.pity=e.pity||{epic:0,legend:0};if(e.pity.epic==null)e.pity.epic=0;if(e.pity.legend==null)e.pity.legend=0;if(!e.cadeauDepart){for(const id of ['ane_tetu','cheval_charbonnier','cheval_laboureur']){if(!(e.collection[id]>0)){e.collection[id]=1;e.paliers[id]=e.paliers[id]||1;}}e.cadeauDepart=true;}return e;}
 function niveauScolaire(age){return Math.max(1,Math.min(6,(age||10)-5));}   // 8 ans → P3, 10 ans → P5
 function profilVide(id,nom,age,emoji,couleur){return {id,nom,age,emoji,couleur,niveau:niveauScolaire(age),etat:etatVide()};}
 function lireLS(k){try{const b=localStorage.getItem(k);if(b)return JSON.parse(b);}catch(e){}return null;}
@@ -1633,7 +1786,7 @@ function carteHTML(c,n,{anim=false,palier=null}={}){const p=palier!=null?palier:
 function carteMystereHTML(c){return `<div class="tcarte verrou" data-r="${c.rarete}" data-p="0"><div class="tc-art">?</div><div class="tc-scrim-top"></div><div class="tc-scrim-bot"></div><div class="tc-frame"></div><div class="tc-top"><span></span><div class="tc-stars">${etoilesHTML(0)}</div></div><div class="tc-bottom"><div class="tc-nom">${c.nom}</div><div class="tc-rar">${RARETES[c.rarete].nom}</div><div class="tc-meta">${ROYAUMES[c.royaume]?ROYAUMES[c.royaume].ico:""} ${(c.familles||[]).map(f=>FAMILLES[f]?FAMILLES[f].ico:"").join("")}</div></div></div>`;}
 
 /* 7. ÉCRANS */
-function majSolde(anim){$('#solde-nb').textContent=etat.crins;if(anim){const s=$('#solde');s.classList.remove('pulse');void s.offsetWidth;s.classList.add('pulse');}$('#btn-tirer').disabled=etat.crins<COUT_TIRAGE;const b10=$('#btn-tirer10');if(b10)b10.disabled=etat.crins<COUT_TIRAGE10;}
+function majSolde(anim){$('#solde-nb').textContent=etat.crins;if(anim){const s=$('#solde');s.classList.remove('pulse');void s.offsetWidth;s.classList.add('pulse');}$('#btn-tirer').disabled=etat.crins<COUT_TIRAGE;const b10=$('#btn-tirer10');if(b10)b10.disabled=etat.crins<COUT_TIRAGE10;const bs=$('#btn-tirer-super');if(bs)bs.disabled=(etat.renommee||0)<COUT_SUPER_RENOM;const rn=$('#tirage-renom-nb');if(rn)rn.textContent=etat.renommee||0;}
 function majProgression(){const t=CARTES.length,u=nbUniques();$('#prog-fill').style.width=(t?u/t*100:0)+'%';$('#prog-txt').textContent=`${u} / ${t} créatures · ${totalEtoiles()} ★`;$('#ecurie-compte').textContent=`${u}/${t}`;}
 let filtrePossedes=true,triChamp='rarete',triSens=-1;   // -1 = décroissant (rare/évolué d'abord)
 const ORD_RAR=Object.keys(RARETES);
@@ -1652,6 +1805,12 @@ function rendreChances(){const box=$('#chances-liste');box.innerHTML='';const ti
 /* 8. TIRAGE + ÉVOLUTION */
 function tirerRarete(){const d=Object.entries(RARETES).filter(([k])=>CARTES.some(c=>c.rarete===k));const t=d.reduce((s,[,r])=>s+r.poids,0);let x=Math.random()*t;for(const[k,r]of d){if(x<r.poids)return k;x-=r.poids;}return d[0][0];}
 function tirerCarte(){const r=tirerRarete();const pool=CARTES.filter(c=>c.rarete===r);return pool[rnd(0,pool.length-1)];}
+/* Tirage pondéré avec plancher de rareté (utilisé par le pity et le super-tirage). */
+function tirerRareteMin(floor){const d=Object.entries(RARETES).filter(([k])=>rankRar(k)>=(floor||0)&&CARTES.some(c=>c.rarete===k));if(!d.length)return tirerRarete();const t=d.reduce((s,[,r])=>s+r.poids,0);let x=Math.random()*t;for(const[k,r]of d){if(x<r.poids)return k;x-=r.poids;}return d[0][0];}
+/* Tirage normal + système de pity : garantit un épique+ tous les PITY_EPIC et un légendaire+ tous les PITY_LEGEND. */
+function tirerCartePity(){const p=etat.pity||(etat.pity={epic:0,legend:0});let floor=0;if(p.legend+1>=PITY_LEGEND)floor=3;else if(p.epic+1>=PITY_EPIC)floor=2;const r=floor?tirerRareteMin(floor):tirerRarete();const pool=CARTES.filter(c=>c.rarete===r);const c=pool[rnd(0,pool.length-1)];const rk=rankRar(r);p.epic=rk>=2?0:p.epic+1;p.legend=rk>=3?0:p.legend+1;return c;}
+/* Super-tirage : épique ou mieux garanti, payé en renommée. N'affecte pas le pity. */
+function tirerCarteSuper(){const r=tirerRareteMin(2);const pool=CARTES.filter(c=>c.rarete===r);return pool[rnd(0,pool.length-1)];}
 let revealVerrou=false;
 function ajouterExemplaire(c){
   const avant=etat.collection[c.id]||0,apres=avant+1;etat.collection[c.id]=apres;
@@ -1665,7 +1824,14 @@ function doTirage(){
   if(etat.crins<COUT_TIRAGE){toast('Pas assez de Diamants — va réviser !');return;}
   if(revealVerrou)return;
   etat.crins-=COUT_TIRAGE;etat.tirages++;
-  const c=tirerCarte();const r=ajouterExemplaire(c);
+  const c=tirerCartePity();const r=ajouterExemplaire(c);
+  sauver();montrerReveal(c,etat.collection[c.id],r.etatTxt,r.sousTxt,r.cls);majSolde(true);majProgression();rendreGrille();
+}
+function doTirageSuper(){
+  if((etat.renommee||0)<COUT_SUPER_RENOM){toast('Pas assez de renommée — gagne des concours !');return;}
+  if(revealVerrou)return;
+  etat.renommee-=COUT_SUPER_RENOM;etat.tirages++;
+  const c=tirerCarteSuper();const r=ajouterExemplaire(c);
   sauver();montrerReveal(c,etat.collection[c.id],r.etatTxt,r.sousTxt,r.cls);majSolde(true);majProgression();rendreGrille();
 }
 const RANG_RAR=c=>({commune:0,rare:1,epique:2,legendaire:3,mythique:4}[c.rarete]||0);
@@ -1674,7 +1840,7 @@ function doTirage10(){
   if(revealVerrou)return;
   etat.crins-=COUT_TIRAGE10;etat.tirages+=10;
   const res=[];
-  for(let i=0;i<10;i++){const c=tirerCarte();const r=ajouterExemplaire(c);res.push({c,cls:r.cls,etatTxt:r.etatTxt});}
+  for(let i=0;i<10;i++){const c=tirerCartePity();const r=ajouterExemplaire(c);res.push({c,cls:r.cls,etatTxt:r.etatTxt});}
   sauver();majSolde(true);majProgression();rendreGrille();
   montrerResultat10(res);
 }
@@ -1856,7 +2022,7 @@ let theorieCour='';
 function afficherTheorie(){const p=document.getElementById('pack-theo-panel');if(!p)return;p.textContent=theorieCour;p.style.display='';const b=document.getElementById('pack-theo-btn');if(b)b.style.display='none';}
 function blocTheorie(txt,niv){theorieCour=txt||'';if(!txt)return '';return '<div class="pack-niv">'+(niv||'')+'</div><button class="pack-theo" id="pack-theo-btn" onclick="afficherTheorie()">📖 Théorie</button><div class="pack-theo-panel" id="pack-theo-panel" style="display:none"></div>';}
 // robes déterminées d'après la race et la description
-const ROBES={frison:'noir',murgese:'noir',cheval_albinos:'blanc',camargue:'blanc',appaloosa:'tachetée',gypsy_cob:'pie',akhal_teke:'isabelle',fjord:'isabelle',haflinger:'alezan',francois_camargue:'blanc',inge:'noir',rocio:'blanc'};
+const ROBES={frison:'noir',murgese:'noir',cheval_albinos:'blanc',camargue:'blanc',appaloosa:'tachetée',gypsy_cob:'pie',akhal_teke:'isabelle',fjord:'isabelle',haflinger:'alezan',francois_camargue:'blanc',inge:'noir',rocio:'blanc',gourmand_mangeur_de_pommes:'alezan',gourmand_mangeur_de_carottes:'isabelle',gourmand_mangeur_de_grain:'alezan',gourmand_mangeur_de_trefle:'pie',mythique_balios:'noir',mythique_gringolet:'blanc',mythique_kanthaka:'blanc',mythique_veillantif:'alezan',curly:'alezan',finnhorse:'alezan',falabella:'pie',mangalarga_marchador:'pie',knabstrupper:'tachetée',nonius:'noir',kladruber:'blanc',lipizzan:'blanc',orlov:'blanc',welsh_pony:'alezan',caspien:'alezan',connemara:'blanc',eriskay:'blanc',fell:'noir',merens:'noir',highland:'isabelle'};
 const ROBES_DESC={noir:"Robe noire : tout le corps est noir.",gris:"Robe grise : du gris clair au presque blanc.",bai:"Robe baie : corps brun, crins et bas des pattes noirs.",alezan:"Robe alezane : rousse, du clair au foncé.",isabelle:"Robe isabelle : crème doré, très lumineuse.",pie:"Robe pie : de grandes taches blanches et colorées.",tachetée:"Robe tachetée : plein de petites taches, comme l'Appaloosa.",blanc:"Robe blanche : entièrement blanc."};
 const ROBES_TOUS=['noir','gris','bai','alezan','isabelle','pie','tachetée','blanc'];
 const MYTHES={
@@ -2421,10 +2587,10 @@ function tutoSuivant(){const e=TUTO_ETAPES[tutoStep];if(e.act==='cadeau'&&!tutoP
 function tutoFin(){if(!tutoPulled){TUTO_CADEAU.forEach(id=>{const c=CARTES.find(x=>x.id===id);if(c)ajouterExemplaire(c);});tutoPulled=true;rendreGrille();}etat.tutoVu=true;sauver();$('#tuto').style.display='none';if(typeof majOnglets==='function')majOnglets();}
 function debloqueConcours(){try{return (etat.tirages||0)>0||Object.values((etat.aventure&&etat.aventure.prov)||{}).some(p=>p&&p.fini);}catch(e){return true;}}
 function majOnglets(){const b=document.querySelector('nav.tabs button[data-ecran="concours"]');if(b)b.style.display=debloqueConcours()?'':'none';}
-function switchEcran(nom){majOnglets();$$('.ecran').forEach(e=>e.classList.remove('actif'));$('#ecran-'+nom).classList.add('actif');$$('nav.tabs button').forEach(b=>b.classList.toggle('actif',b.dataset.ecran===nom));if(nom==='revisions'){bonusQuotidien();menuDefis();}if(nom==='scores')renderScores();if(nom==='concours')renderConcours();if(nom==='aventure')ouvrirAventure();document.querySelector('main').classList.toggle('plein',nom==='aventure');}
+function switchEcran(nom){majOnglets();$$('.ecran').forEach(e=>e.classList.remove('actif'));$('#ecran-'+nom).classList.add('actif');$$('nav.tabs button').forEach(b=>b.classList.toggle('actif',b.dataset.ecran===nom));majSolde();if(nom==='revisions'){bonusQuotidien();menuDefis();}if(nom==='scores')renderScores();if(nom==='concours')renderConcours();if(nom==='aventure')ouvrirAventure();document.querySelector('main').classList.toggle('plein',nom==='aventure');}
 $$('nav.tabs button').forEach(b=>b.onclick=()=>switchEcran(b.dataset.ecran));
 $('#lien-revisions').onclick=()=>switchEcran('revisions');
-$('#btn-tirer').onclick=doTirage;$('#btn-tirer10').onclick=doTirage10;$('#ae-quit').onclick=avFermerEtape;$('#cout-nb10').textContent=COUT_TIRAGE10;$('#t10-fermer').onclick=()=>$('#t10-fond').classList.remove('on');$('#btn-resultats').onclick=()=>switchEcran('scores');$('#btn-classement').onclick=ouvrirClassement;$('#btn-chouchous').onclick=ouvrirChouchous;$('#chouchous-fermer').onclick=()=>$('#chouchous-fond').classList.remove('on');$('#classement-fermer').onclick=()=>$('#classement-fond').classList.remove('on');
+$('#btn-tirer').onclick=doTirage;$('#btn-tirer10').onclick=doTirage10;$('#btn-tirer-super').onclick=doTirageSuper;$('#ae-quit').onclick=avFermerEtape;$('#cout-nb10').textContent=COUT_TIRAGE10;$('#t10-fermer').onclick=()=>$('#t10-fond').classList.remove('on');$('#btn-resultats').onclick=()=>switchEcran('scores');$('#btn-classement').onclick=ouvrirClassement;$('#btn-chouchous').onclick=ouvrirChouchous;$('#chouchous-fermer').onclick=()=>$('#chouchous-fond').classList.remove('on');$('#classement-fermer').onclick=()=>$('#classement-fond').classList.remove('on');
 $('#filtre-possedes').onclick=()=>{filtrePossedes=!filtrePossedes;$('#filtre-possedes').classList.toggle('on',filtrePossedes);rendreGrille();};
 $$('.eo-tri [data-champ]').forEach(b=>b.onclick=()=>{triChamp=b.dataset.champ;$$('.eo-tri [data-champ]').forEach(x=>x.classList.toggle('actif',x===b));rendreGrille();});
 $('#tri-sens').onclick=()=>{triSens=-triSens;$('#tri-sens').textContent=triSens<0?'↓':'↑';rendreGrille();};
@@ -2561,7 +2727,7 @@ $('#profils-fermer').onclick=fermerProfils;
 $('#profils-fond').onclick=e=>{if(e.target.id==='profils-fond')fermerProfils();};
 
 /* 15. DÉMARRAGE */
-$('#cout-nb').textContent=COUT_TIRAGE;
+$('#cout-nb').textContent=COUT_TIRAGE;$('#cout-super').textContent=COUT_SUPER_RENOM;
 requestAnimationFrame(()=>requestAnimationFrame(()=>{
   renderAccueil();
   const ch=document.getElementById('chargement');if(ch){ch.classList.add('parti');setTimeout(()=>ch.remove(),500);}
@@ -2672,7 +2838,7 @@ function ouvrirAventure(){
    1. Nouvelle carte SVG du pays + 10 pins numérotés + drapeau boss.
    2. Nouvelle mascotte locale (équivalent Pieter-Jan) + intro.
    3. Choisir 10 villes-étapes + 1 ville boss (capitale).
-   4. 1 image de fond par étape : cartes/fond_<region>.jpg.
+   4. 1 image de fond par étape : aventure/fond_<region>.jpg.
    5. Par étape : un NARRATIF (enjeu clair : « X a besoin de toi
       pour … ») + un THÈME D'APPRENTISSAGE de prédilection.
    6. Structure : 7 sous-étapes = ouverture-histoire(lecture+
@@ -2717,7 +2883,7 @@ const M_ARABE=c=>c.royaume==='arabie';
 const estP5=()=>(((profilActif&&profilActif.niveau)||5)>=5);
 const RAPPEL_Q={annee:"Rappelle-moi : en quelle année la Belgique est-elle née ?",capitale:"Rappelle-moi : quelle est la capitale ?",langues:"Rappelle-moi : combien de langues officielles ?",fleuve:"Rappelle-moi : au bord de quel fleuve se trouve Anvers ?"};
 const RAPPEL_CHOIX={annee:['1789','1830','1914','1958'],capitale:['Anvers','Bruxelles','Namur','Liège'],langues:['1','2','3','4'],fleuve:['la Meuse',"l'Escaut",'la Sambre','le Rhin']};
-const ETAPE_ANVERS={key:"anvers",pays:"Belgique",drapeau:"🇧🇪",numero:1,region:"Anvers",fond:"cartes/fond_anvers.jpg",province:"province d'Anvers",theme:"⚓ Le grand port",enjeu:"sauver son grand port",reveal:"Pieter-Jan t'attend sur la Grand-Place d'Anvers, devant l'immense cathédrale gothique, tout près du grand port sur l'Escaut.",nom:"Anvers, le grand port",sousEtapes:[
+const ETAPE_ANVERS={key:"anvers",pays:"Belgique",drapeau:"🇧🇪",numero:1,region:"Anvers",fond:"aventure/fond_anvers.jpg",province:"province d'Anvers",theme:"⚓ Le grand port",enjeu:"sauver son grand port",reveal:"Pieter-Jan t'attend sur la Grand-Place d'Anvers, devant l'immense cathédrale gothique, tout près du grand port sur l'Escaut.",nom:"Anvers, le grand port",sousEtapes:[
  {titre:"Fonder la Belgique",narr:"Bienvenue en Belgique ! Avant de partir sauver les chevaux à travers le monde, aide-moi à bien connaître notre pays. Puis, direction le port d'Anvers !",activites:[
    {type:'decision',q:"En quelle année la Belgique est-elle née ?",choix:['1789','1830','1914','1958'],r:'1830',fait:['annee','1830']},
    {type:'decision',q:"Quelle est la capitale de la Belgique ?",choix:['Anvers','Bruxelles','Namur','Liège'],r:'Bruxelles',fait:['capitale','Bruxelles']},
@@ -2748,7 +2914,7 @@ const ETAPE_ANVERS={key:"anvers",pays:"Belgique",drapeau:"🇧🇪",numero:1,reg
  {titre:"Anvers te remercie",narr:"Bravo ! Grâce à toi, le port d'Anvers rayonne. Les Anversois t'offrent un cheval en remerciement !",activites:[{type:'bonus'}],crins:60,renom:3},
 ]};
 const M_DILIGENCE=c=>c.id==='cheval_diligence';
-const ETAPE_GAND={key:"gand",pays:"Belgique",drapeau:"🇧🇪",numero:2,region:"Gand",fond:"cartes/fond_gand.jpg",province:"Flandre orientale",theme:"🧵 La cité du drap",enjeu:"réussir la grande foire aux draps et défendre sa liberté",reveal:"Pieter-Jan pose devant le Gravensteen, le château fort des comtes de Flandre, au cœur de Gand.",nom:"Gand, la cité des drapiers",finText:"Gand a gardé sa liberté ! La prochaine province t'attend bientôt… 🐴",sousEtapes:[
+const ETAPE_GAND={key:"gand",pays:"Belgique",drapeau:"🇧🇪",numero:2,region:"Gand",fond:"aventure/fond_gand.jpg",province:"Flandre orientale",theme:"🧵 La cité du drap",enjeu:"réussir la grande foire aux draps et défendre sa liberté",reveal:"Pieter-Jan pose devant le Gravensteen, le château fort des comtes de Flandre, au cœur de Gand.",nom:"Gand, la cité des drapiers",finText:"Gand a gardé sa liberté ! La prochaine province t'attend bientôt… 🐴",sousEtapes:[
  {titre:"Arrivée à Gand",narr:"Bienvenue à Gand, la plus fière des cités drapières ! Ici, la laine devient de l'or. Mais d'abord, apprends à connaître la ville.",activites:[
    {type:'decision',q:"Gand est le chef-lieu de quelle province ?",choix:['la Flandre orientale','le Hainaut','le Limbourg','Anvers'],r:'la Flandre orientale',fait:['prov_gand','la Flandre orientale']},
    {type:'decision',q:"Gand est bâtie au confluent de l'Escaut et de… ?",choix:['la Meuse','la Lys','la Sambre','le Rhin'],r:'la Lys',fait:['riviere_gand','la Lys']},
@@ -2779,7 +2945,7 @@ const ETAPE_GAND={key:"gand",pays:"Belgique",drapeau:"🇧🇪",numero:2,region:
  {titre:"La Grande Foire aux draps",narr:"La foire est un triomphe ! Les draps de Gand partent dans toute l'Europe. La ville te remercie du fond du cœur.",activites:[{type:'bonus'}],crins:65,renom:3},
 ]};
 const M_EAU=c=>(c.familles||[]).includes('eau');
-const ETAPE_BRUGES={key:"bruges",pays:"Belgique",drapeau:"🇧🇪",numero:3,region:"Bruges",fond:"cartes/fond_bruges.jpg",province:"Flandre occidentale",theme:"⛵ Les marchands & la mer",enjeu:"garder sa route vers la mer et rester la Venise du Nord",reveal:"Pieter-Jan te fait découvrir le Beffroi de Bruges et ses canaux : on l'appelle la Venise du Nord !",nom:"Bruges, la Venise du Nord",finText:"Bruges brille de mille feux ! La prochaine province t'attend bientôt… 🐴",sousEtapes:[
+const ETAPE_BRUGES={key:"bruges",pays:"Belgique",drapeau:"🇧🇪",numero:3,region:"Bruges",fond:"aventure/fond_bruges.jpg",province:"Flandre occidentale",theme:"⛵ Les marchands & la mer",enjeu:"garder sa route vers la mer et rester la Venise du Nord",reveal:"Pieter-Jan te fait découvrir le Beffroi de Bruges et ses canaux : on l'appelle la Venise du Nord !",nom:"Bruges, la Venise du Nord",finText:"Bruges brille de mille feux ! La prochaine province t'attend bientôt… 🐴",sousEtapes:[
  {titre:"Arrivée à Bruges",narr:"Bienvenue à Bruges, la Venise du Nord ! Ici, des marchands du monde entier se croisent sur les canaux. Apprenons d'abord à connaître la ville.",activites:[
    {type:'decision',q:"Bruges est le chef-lieu de quelle province ?",choix:['la Flandre occidentale','la Flandre orientale','le Hainaut','Namur'],r:'la Flandre occidentale',fait:['prov_bruges','la Flandre occidentale']},
    {type:'decision',q:"On surnomme Bruges la « … du Nord » (pour ses canaux) ?",choix:['Venise','Rome','Paris','Athènes'],r:'Venise',fait:['venise','Venise']},
@@ -2810,7 +2976,7 @@ const ETAPE_BRUGES={key:"bruges",pays:"Belgique",drapeau:"🇧🇪",numero:3,reg
  {titre:"La Venise du Nord",narr:"Bruges brille de mille feux, et ses cygnes te saluent ! La ville te remercie du fond du cœur.",activites:[{type:'bonus'}],crins:68,renom:3},
 ]};
 const M_SAUVAGE=c=>(c.familles||[]).includes('sauvages');
-const ETAPE_LIMBOURG={key:"limbourg",pays:"Belgique",drapeau:"🇧🇪",numero:4,region:"Hasselt",fond:"cartes/fond_hasselt.jpg",province:"Limbourg",theme:"🌳 La forêt & les vergers",enjeu:"réussir sa grande récolte de fruits",reveal:"Pieter-Jan t'accueille à Hasselt, devant sa grande église, au cœur du Limbourg des vergers et des forêts.",nom:"Hasselt, au pays des vergers",finText:"Le Limbourg a réussi sa récolte ! La prochaine province t'attend bientôt… 🐴",sousEtapes:[
+const ETAPE_LIMBOURG={key:"limbourg",pays:"Belgique",drapeau:"🇧🇪",numero:4,region:"Hasselt",fond:"aventure/fond_hasselt.jpg",province:"Limbourg",theme:"🌳 La forêt & les vergers",enjeu:"réussir sa grande récolte de fruits",reveal:"Pieter-Jan t'accueille à Hasselt, devant sa grande église, au cœur du Limbourg des vergers et des forêts.",nom:"Hasselt, au pays des vergers",finText:"Le Limbourg a réussi sa récolte ! La prochaine province t'attend bientôt… 🐴",sousEtapes:[
  {titre:"Arrivée en Limbourg",narr:"Bienvenue au Limbourg, la province des vergers en fleurs et des grandes forêts ! Apprenons d'abord à connaître ce beau pays.",activites:[
    {type:'decision',q:"Hasselt est le chef-lieu de quelle province ?",choix:['le Limbourg','le Hainaut','Anvers','Namur'],r:'le Limbourg',fait:['prov_limbourg','le Limbourg']},
    {type:'decision',q:"Le Limbourg est réputé pour ses vergers et ses… ?",choix:['fruits','bateaux','montagnes','volcans'],r:'fruits',fait:['fruits','les fruits']},
@@ -2846,7 +3012,7 @@ const ETAPE_LIMBOURG={key:"limbourg",pays:"Belgique",drapeau:"🇧🇪",numero:4
 ]};
 const M_RACE=c=>(c.familles||[]).includes('race');
 const M_COUSINS=c=>(c.familles||[]).includes('cousins');
-const ETAPE_LOUVAIN={key:"louvain",pays:"Belgique",drapeau:"🇧🇪",numero:5,region:"Louvain",province:"Brabant flamand",theme:"🎓 Le savoir & la science",enjeu:"réussir la grande expérience de l'université",reveal:"Pieter-Jan t'emmène devant l'Hôtel de Ville de Louvain, un chef-d'œuvre gothique couvert de centaines de statues — de la vraie dentelle de pierre !",fond:"cartes/fond_louvain.jpg",nom:"Louvain, la ville du savoir",finText:"L'université de Louvain est fière de toi ! La province suivante t'attend… 🎓",sousEtapes:[
+const ETAPE_LOUVAIN={key:"louvain",pays:"Belgique",drapeau:"🇧🇪",numero:5,region:"Louvain",province:"Brabant flamand",theme:"🎓 Le savoir & la science",enjeu:"réussir la grande expérience de l'université",reveal:"Pieter-Jan t'emmène devant l'Hôtel de Ville de Louvain, un chef-d'œuvre gothique couvert de centaines de statues — de la vraie dentelle de pierre !",fond:"aventure/fond_louvain.jpg",nom:"Louvain, la ville du savoir",finText:"L'université de Louvain est fière de toi ! La province suivante t'attend… 🎓",sousEtapes:[
  {titre:"Arrivée à Louvain",narr:"Bienvenue à Louvain, la ville de la plus vieille université du pays ! Lis d'abord son histoire.",activites:[
    {type:'lecture',texte:"À Louvain se dresse la plus vieille université du pays : depuis presque six cents ans, des étudiants du monde entier viennent y apprendre. Son hôtel de ville est si couvert de statues qu'on dirait de la dentelle taillée dans la pierre ! Le soir, la ville s'anime de milliers d'étudiants venus de partout.",questions:[
      {q:"Depuis combien de temps existe l'université de Louvain ?",choix:['presque 600 ans','10 ans','50 ans'],r:'presque 600 ans'},
@@ -2881,7 +3047,7 @@ const ETAPE_LOUVAIN={key:"louvain",pays:"Belgique",drapeau:"🇧🇪",numero:5,r
  ],crins:58,renom:4},
  {titre:"Diplômé de Louvain",narr:"Bravo, tu as réussi l'expérience et l'examen ! L'université te remet un diplôme et une carte.",activites:[{type:'bonus'}],crins:70,renom:3},
 ]};
-const ETAPE_WAVRE={key:"wavre",pays:"Belgique",drapeau:"🇧🇪",numero:6,region:"Wavre",province:"Brabant wallon",theme:"⚔️ Waterloo & l'histoire",enjeu:"porter les messages à temps et ramener la paix",reveal:"Pieter-Jan t'accueille dans le centre ancien de Wavre, tout près du champ de bataille de Waterloo.",fond:"cartes/fond_wavre.jpg",nom:"Wavre, sur les traces de Waterloo",finText:"La paix est revenue sur la plaine ! La province suivante t'attend… 🕊️",sousEtapes:[
+const ETAPE_WAVRE={key:"wavre",pays:"Belgique",drapeau:"🇧🇪",numero:6,region:"Wavre",province:"Brabant wallon",theme:"⚔️ Waterloo & l'histoire",enjeu:"porter les messages à temps et ramener la paix",reveal:"Pieter-Jan t'accueille dans le centre ancien de Wavre, tout près du champ de bataille de Waterloo.",fond:"aventure/fond_wavre.jpg",nom:"Wavre, sur les traces de Waterloo",finText:"La paix est revenue sur la plaine ! La province suivante t'attend… 🕊️",sousEtapes:[
  {titre:"Arrivée à Wavre",narr:"Bienvenue à Wavre, tout près du champ de Waterloo. Lis d'abord son histoire.",activites:[
    {type:'lecture',texte:"Non loin de Wavre, en 1815, se joua l'une des plus célèbres batailles de l'histoire : l'empereur Napoléon y perdit son tout dernier combat, à Waterloo. Aujourd'hui, une immense colline surmontée d'un Lion de fer veille sur la grande plaine, et rappelle qu'après les batailles vient toujours le temps de la paix.",questions:[
      {q:"Qui a perdu son dernier combat à Waterloo ?",choix:['Napoléon','Jules César','le roi Arthur'],r:'Napoléon'},
@@ -2912,7 +3078,7 @@ const ETAPE_WAVRE={key:"wavre",pays:"Belgique",drapeau:"🇧🇪",numero:6,regio
  ],crins:58,renom:4},
  {titre:"Le temps de la paix",narr:"Grâce à toi, tout le monde est rentré. Wavre te remercie et t'offre une carte !",activites:[{type:'bonus'}],crins:70,renom:3},
 ]};
-const ETAPE_MONS={key:"mons",pays:"Belgique",drapeau:"🇧🇪",numero:7,region:"Mons",province:"Hainaut",theme:"🎭 Le folklore & les géants",enjeu:"réussir le grand cortège du Doudou",reveal:"Pieter-Jan t'attend sur la Grand-Place de Mons, devant le beffroi et l'hôtel de ville : bienvenue au pays du Doudou et des géants !",fond:"cartes/fond_mons.jpg",nom:"Mons, la ville des géants",finText:"Le Doudou fut un triomphe ! La province suivante t'attend… 🎭",sousEtapes:[
+const ETAPE_MONS={key:"mons",pays:"Belgique",drapeau:"🇧🇪",numero:7,region:"Mons",province:"Hainaut",theme:"🎭 Le folklore & les géants",enjeu:"réussir le grand cortège du Doudou",reveal:"Pieter-Jan t'attend sur la Grand-Place de Mons, devant le beffroi et l'hôtel de ville : bienvenue au pays du Doudou et des géants !",fond:"aventure/fond_mons.jpg",nom:"Mons, la ville des géants",finText:"Le Doudou fut un triomphe ! La province suivante t'attend… 🎭",sousEtapes:[
  {titre:"Arrivée à Mons",narr:"Bienvenue à Mons, la ville du Doudou ! Lis d'abord son histoire.",activites:[
    {type:'lecture',texte:"Une fois par an, à Mons, saint Georges combat un dragon sur la Grand-Place : c'est la fête du Doudou ! On dit qu'arracher un poil à la queue du dragon porte bonheur. Et tout près, à Binche, les célèbres Gilles au masque de cire lancent des oranges pendant le carnaval.",questions:[
      {q:"Que combat saint Georges à Mons ?",choix:['un dragon','un lion','un géant'],r:'un dragon'},
@@ -2944,7 +3110,7 @@ const ETAPE_MONS={key:"mons",pays:"Belgique",drapeau:"🇧🇪",numero:7,region:
  ],crins:58,renom:4},
  {titre:"Vive le Doudou !",narr:"Le dragon est vaincu, la ville est en fête ! Mons te remercie et t'offre une carte.",activites:[{type:'bonus'}],crins:70,renom:3},
 ]};
-const ETAPE_NAMUR={key:"namur",pays:"Belgique",drapeau:"🇧🇪",numero:8,region:"Namur",province:"province de Namur",theme:"💧 Les rivières & l'eau",enjeu:"remonter la Meuse et protéger la ville des crues",reveal:"Pieter-Jan t'attend au bord de l'eau : là-haut se dresse la Citadelle de Namur, immense forteresse sur son rocher, au confluent de la Sambre et de la Meuse.",fond:"cartes/fond_namur.jpg",nom:"Namur, où les rivières se rencontrent",finText:"La Meuse est apaisée ! La province suivante t'attend… 💧",sousEtapes:[
+const ETAPE_NAMUR={key:"namur",pays:"Belgique",drapeau:"🇧🇪",numero:8,region:"Namur",province:"province de Namur",theme:"💧 Les rivières & l'eau",enjeu:"remonter la Meuse et protéger la ville des crues",reveal:"Pieter-Jan t'attend au bord de l'eau : là-haut se dresse la Citadelle de Namur, immense forteresse sur son rocher, au confluent de la Sambre et de la Meuse.",fond:"aventure/fond_namur.jpg",nom:"Namur, où les rivières se rencontrent",finText:"La Meuse est apaisée ! La province suivante t'attend… 💧",sousEtapes:[
  {titre:"Arrivée à Namur",narr:"Bienvenue à Namur, capitale de la Wallonie, là où deux rivières se rencontrent. Lis son histoire.",activites:[
    {type:'lecture',texte:"À Namur, deux rivières se rejoignent au pied d'une puissante forteresse : la Sambre et la Meuse. Tout en haut du grand rocher veille la Citadelle. Et à Namur, on a une drôle de tradition : on se bat pour rire… sur des échasses ! Deux équipes montées sur de grands bâtons de bois essaient de se faire tomber.",questions:[
      {q:"Quelles deux rivières se rencontrent à Namur ?",choix:['la Sambre et la Meuse','le Rhin et le Nil','la Lys et l\'Escaut'],r:'la Sambre et la Meuse'},
@@ -2975,7 +3141,7 @@ const ETAPE_NAMUR={key:"namur",pays:"Belgique",drapeau:"🇧🇪",numero:8,regio
  ],crins:58,renom:4},
  {titre:"Namur te remercie",narr:"La ville est sauvée des eaux ! Namur t'offre une carte en remerciement.",activites:[{type:'bonus'}],crins:70,renom:3},
 ]};
-const ETAPE_LIEGE={key:"liege",pays:"Belgique",drapeau:"🇧🇪",numero:9,region:"Liège",province:"province de Liège",theme:"⚡ L'industrie & l'énergie",enjeu:"rallumer la Cité Ardente et garder les forges en vie",reveal:"Pieter-Jan t'accueille au pied de la Montagne de Bueren, le célèbre escalier de 374 marches qui grimpe vers la vieille ville de Liège !",fond:"cartes/fond_liege.jpg",nom:"Liège, la Cité Ardente",finText:"La Cité Ardente brille de nouveau ! La toute dernière province t'attend… ⚡",sousEtapes:[
+const ETAPE_LIEGE={key:"liege",pays:"Belgique",drapeau:"🇧🇪",numero:9,region:"Liège",province:"province de Liège",theme:"⚡ L'industrie & l'énergie",enjeu:"rallumer la Cité Ardente et garder les forges en vie",reveal:"Pieter-Jan t'accueille au pied de la Montagne de Bueren, le célèbre escalier de 374 marches qui grimpe vers la vieille ville de Liège !",fond:"aventure/fond_liege.jpg",nom:"Liège, la Cité Ardente",finText:"La Cité Ardente brille de nouveau ! La toute dernière province t'attend… ⚡",sousEtapes:[
  {titre:"Arrivée à Liège",narr:"Bienvenue à Liège, la fière Cité Ardente ! Lis d'abord sa grande histoire.",activites:[
    {type:'lecture',texte:"Voici Liège, la « Cité Ardente » ! Pendant près de 800 ans, Liège ne fut ni française ni belge : c'était une principauté indépendante, gouvernée par des princes-évêques. Brûlée et rebâtie mille fois, elle veille au bord de la Meuse. Ici est né Georges Simenon, le papa du commissaire Maigret, et vit toujours Tchantchès, la marionnette la plus têtue de Belgique. Pour grimper à la vieille ville, il faut escalader un escalier de 374 marches !",questions:[
      {q:"Pendant combien de temps Liège fut-elle indépendante ?",choix:['près de 800 ans','10 ans','50 ans'],r:'près de 800 ans'},
@@ -3009,7 +3175,7 @@ const ETAPE_LIEGE={key:"liege",pays:"Belgique",drapeau:"🇧🇪",numero:9,regio
  ],crins:66,renom:5},
  {titre:"Liège brille de mille feux",narr:"Bravo, championne ! La Cité Ardente s'illumine et fait la fête. Elle t'offre une belle carte… et une gaufre de Liège pour la route ! 🧇",activites:[{type:'bonus',rarete:['rare','epique']}],crins:130,renom:7},
 ]};
-const ETAPE_ARLON={key:"arlon",pays:"Belgique",drapeau:"🇧🇪",numero:10,region:"Arlon",province:"le Luxembourg",theme:"🏰 Les Ardennes & les chevaliers",enjeu:"traverser les forêts sauvages et défendre le château fort",reveal:"Pieter-Jan te guide dans la vieille ville d'Arlon, l'une des plus anciennes cités du pays, au cœur des Ardennes.",fond:"cartes/fond_arlon.jpg",nom:"Arlon, au cœur des Ardennes",finText:"Le château est sauvé ! Il ne reste plus que la capitale… 🏰",sousEtapes:[
+const ETAPE_ARLON={key:"arlon",pays:"Belgique",drapeau:"🇧🇪",numero:10,region:"Arlon",province:"le Luxembourg",theme:"🏰 Les Ardennes & les chevaliers",enjeu:"traverser les forêts sauvages et défendre le château fort",reveal:"Pieter-Jan te guide dans la vieille ville d'Arlon, l'une des plus anciennes cités du pays, au cœur des Ardennes.",fond:"aventure/fond_arlon.jpg",nom:"Arlon, au cœur des Ardennes",finText:"Le château est sauvé ! Il ne reste plus que la capitale… 🏰",sousEtapes:[
  {titre:"Arrivée à Arlon",narr:"Bienvenue à Arlon, l'une des plus vieilles villes du pays, au cœur des Ardennes ! Lis son histoire.",activites:[
    {type:'lecture',texte:"Arlon est l'une des plus anciennes villes de Belgique : elle existait déjà du temps des Romains ! Tout autour s'étendent les grandes forêts des Ardennes, pleines de cerfs et de sangliers. Jadis, du haut d'un château fort de Bouillon, partit un célèbre chevalier nommé Godefroid, pour un très long voyage à travers le monde.",questions:[
      {q:"De quelle époque date la ville d'Arlon ?",choix:['du temps des Romains','de la semaine dernière','du futur'],r:'du temps des Romains'},
@@ -3040,7 +3206,7 @@ const ETAPE_ARLON={key:"arlon",pays:"Belgique",drapeau:"🇧🇪",numero:10,regi
  ],crins:60,renom:4},
  {titre:"Le château est sauvé",narr:"Les Ardennes sont en paix, et le château brille au soleil ! Arlon t'offre une carte.",activites:[{type:'bonus'}],crins:72,renom:3},
 ]};
-const ETAPE_BRUXELLES={key:"bruxelles",pays:"Belgique",drapeau:"🇧🇪",numero:11,boss:true,region:"Bruxelles",province:"capitale de la Belgique",theme:"👑 La capitale & les symboles",enjeu:"réunir toute la Belgique et devenir la championne du royaume",fond:"cartes/fond_bruxelles.jpg",nom:"Bruxelles, cœur de la Belgique",finText:"Toute la Belgique est réunie ! Le monde s'ouvre à toi… 🌍",sousEtapes:[
+const ETAPE_BRUXELLES={key:"bruxelles",pays:"Belgique",drapeau:"🇧🇪",numero:11,boss:true,region:"Bruxelles",province:"capitale de la Belgique",theme:"👑 La capitale & les symboles",enjeu:"réunir toute la Belgique et devenir la championne du royaume",fond:"aventure/fond_bruxelles.jpg",nom:"Bruxelles, cœur de la Belgique",finText:"Toute la Belgique est réunie ! Le monde s'ouvre à toi… 🌍",sousEtapes:[
  {titre:"Arrivée à Bruxelles",narr:"Te voici à Bruxelles, la capitale ! Le plus grand défi t'attend. D'abord, découvre la ville.",activites:[
    {type:'lecture',texte:"Voici Bruxelles, la capitale de la Belgique ! Sa Grand-Place est l'une des plus belles du monde. Un petit garçon de bronze, le Manneken-Pis, a plus de mille costumes, et l'Atomium, un cristal de fer géant, veille sur la ville. C'est aussi la patrie de Tintin et des Schtroumpfs, et la capitale de l'Europe, où l'on entend toutes les langues.",questions:[
      {q:"Quel géant de fer veille sur Bruxelles ?",choix:["l'Atomium",'la tour Eiffel','le Colisée'],r:"l'Atomium"},
@@ -3068,7 +3234,7 @@ const ETAPE_BRUXELLES={key:"bruxelles",pays:"Belgique",drapeau:"🇧🇪",numero
  {titre:"Championne de Belgique !",narr:"BRAVO ! Tu as réuni toute la Belgique et gagné le cœur du royaume ! Reçois l'emblème national, une carte légendaire… et le monde entier s'ouvre désormais à toi ! 🌍👑",activites:[{type:'bonus',carteId:'pieter_jan'}],crins:250,renom:15},
 ]};
 const ETAPES_BE={anvers:ETAPE_ANVERS,gand:ETAPE_GAND,bruges:ETAPE_BRUGES,limbourg:ETAPE_LIMBOURG,louvain:ETAPE_LOUVAIN,wavre:ETAPE_WAVRE,mons:ETAPE_MONS,namur:ETAPE_NAMUR,liege:ETAPE_LIEGE,arlon:ETAPE_ARLON,bruxelles:ETAPE_BRUXELLES};
-const ETAPE_LILLE={key:"lille",pays:"France",drapeau:"🇫🇷",numero:1,region:"Lille",province:"Hauts-de-France",theme:"⚜️ Beffrois & braderie",enjeu:"porter mille trésors à travers la grande braderie",fond:"cartes/fond_lille.jpg",reveal:"François t'accueille sur la Grand-Place de Lille, devant le beffroi, en pleine braderie — le plus grand marché aux puces d'Europe !",nom:"Lille, la grande braderie",finText:"La braderie fut un triomphe ! La région suivante t'attend… ⚜️",sousEtapes:[
+const ETAPE_LILLE={key:"lille",pays:"France",drapeau:"🇫🇷",numero:1,region:"Lille",province:"Hauts-de-France",theme:"⚜️ Beffrois & braderie",enjeu:"porter mille trésors à travers la grande braderie",fond:"aventure/fond_lille.jpg",reveal:"François t'accueille sur la Grand-Place de Lille, devant le beffroi, en pleine braderie — le plus grand marché aux puces d'Europe !",nom:"Lille, la grande braderie",finText:"La braderie fut un triomphe ! La région suivante t'attend… ⚜️",sousEtapes:[
  {titre:"Arrivée à Lille",narr:"Bienvenue en France ! Nous voici à Lille, tout près de la Belgique. Lis d'abord son histoire.",activites:[
    {type:'lecture',texte:"Lille est la grande ville du nord de la France, juste à côté de la Belgique — on y trouve aussi un beffroi, comme chez toi ! Chaque année s'y tient la braderie de Lille, le plus grand marché aux puces d'Europe : des millions de visiteurs, et des montagnes de coquilles de moules dans les rues, car on y mange des moules-frites !",questions:[
      {q:"Qu'est-ce que la braderie de Lille ?",choix:['le plus grand marché aux puces d\'Europe','une montagne','un fleuve'],r:'le plus grand marché aux puces d\'Europe'},
@@ -3101,7 +3267,7 @@ const ETAPE_LILLE={key:"lille",pays:"France",drapeau:"🇫🇷",numero:1,region:
  ],crins:60,renom:4},
  {titre:"Vive la braderie !",narr:"Quelle réussite ! Lille te remercie et t'offre une carte.",activites:[{type:'bonus'}],crins:72,renom:3},
 ]};
-const ETAPE_PARIS={key:"paris",pays:"France",drapeau:"🇫🇷",numero:11,boss:true,region:"Paris",province:"capitale de la France",theme:"👑 La Ville Lumière",enjeu:"réunir toute la France pour le grand défilé du 14 juillet",fond:"cartes/fond_paris.jpg",reveal:"François t'emmène au pied de la tour Eiffel : bienvenue à Paris, la Ville Lumière, capitale de la France !",nom:"Paris, cœur de la France",finText:"Toute la France est réunie ! Le monde continue de s'ouvrir à toi… 🌍",sousEtapes:[
+const ETAPE_PARIS={key:"paris",pays:"France",drapeau:"🇫🇷",numero:11,boss:true,region:"Paris",province:"capitale de la France",theme:"👑 La Ville Lumière",enjeu:"réunir toute la France pour le grand défilé du 14 juillet",fond:"aventure/fond_paris.jpg",reveal:"François t'emmène au pied de la tour Eiffel : bienvenue à Paris, la Ville Lumière, capitale de la France !",nom:"Paris, cœur de la France",finText:"Toute la France est réunie ! Le monde continue de s'ouvrir à toi… 🌍",sousEtapes:[
  {titre:"Arrivée à Paris",narr:"Te voici à Paris pour l'épreuve suprême ! Découvre d'abord la Ville Lumière.",activites:[
    {type:'lecture',texte:"Paris est la capitale de la France, traversée par la Seine — le même genre de fleuve tranquille que tu as suivi à Rouen. On y trouve la tour Eiffel, haute de 324 mètres, le musée du Louvre et sa pyramide de verre, et la cathédrale Notre-Dame. Chaque 14 juillet, un grand défilé descend les Champs-Élysées.",questions:[
      {q:"Quel monument de fer mesure 324 m à Paris ?",choix:['la tour Eiffel','le Louvre','Notre-Dame'],r:'la tour Eiffel'},
@@ -3127,7 +3293,7 @@ const ETAPE_PARIS={key:"paris",pays:"France",drapeau:"🇫🇷",numero:11,boss:t
  {titre:"Championne de France !",narr:"BRAVO ! Toute la France t'acclame ! François de Camargue lui-même te rejoint, et le feu d'artifice illumine la tour Eiffel ! 🎆",activites:[{type:'bonus',carteId:'francois_camargue'}],crins:300,renom:15},
 ]};
 
-const ETAPE_ROUEN={key:"rouen",pays:"France",drapeau:"🇫🇷",numero:2,region:"Rouen",province:"Normandie",theme:"🎨 La Seine & les impressionnistes",enjeu:"réussir le grand tableau de la Seine",fond:"cartes/fond_rouen.jpg",reveal:"François longe la Seine jusqu'à Rouen, devant la cathédrale que le peintre Monet aimait tant.",nom:"Rouen, la ville de Monet",finText:"Le tableau est magnifique ! La région suivante t'attend… 🎨",sousEtapes:[
+const ETAPE_ROUEN={key:"rouen",pays:"France",drapeau:"🇫🇷",numero:2,region:"Rouen",province:"Normandie",theme:"🎨 La Seine & les impressionnistes",enjeu:"réussir le grand tableau de la Seine",fond:"aventure/fond_rouen.jpg",reveal:"François longe la Seine jusqu'à Rouen, devant la cathédrale que le peintre Monet aimait tant.",nom:"Rouen, la ville de Monet",finText:"Le tableau est magnifique ! La région suivante t'attend… 🎨",sousEtapes:[
  {titre:"Arrivée à Rouen",narr:"Nous suivons la Seine jusqu'à Rouen. Lis son histoire.",activites:[
    {type:'lecture',texte:"Rouen est la grande ville de Normandie, posée sur la Seine, le fleuve qui coule vers Paris puis vers la mer. Ici vécut le peintre Claude Monet : il peignit la cathédrale de Rouen plus de trente fois, à toutes les heures du jour, pour attraper la lumière qui change !",questions:[
      {q:"Sur quel fleuve se trouve Rouen ?",choix:['la Seine','le Rhône','le Rhin'],r:'la Seine'},
@@ -3159,7 +3325,7 @@ const ETAPE_ROUEN={key:"rouen",pays:"France",drapeau:"🇫🇷",numero:2,region:
  ],crins:60,renom:4},
  {titre:"Vernissage !",narr:"Les tableaux émerveillent tout le monde ! Rouen t'offre une carte.",activites:[{type:'bonus'}],crins:72,renom:3},
 ]};
-const ETAPE_MSM={key:"montsaintmichel",pays:"France",drapeau:"🇫🇷",numero:3,region:"Mont-Saint-Michel",province:"la Manche",theme:"🌊 Les marées de la Manche",enjeu:"traverser la baie avant que la mer ne monte",fond:"cartes/fond_montsaintmichel.jpg",reveal:"François t'emmène dans la baie du Mont-Saint-Michel : l'abbaye sur son rocher devient une île quand la mer monte !",nom:"Le Mont-Saint-Michel",finText:"Traversée réussie ! La région suivante t'attend… 🌊",sousEtapes:[
+const ETAPE_MSM={key:"montsaintmichel",pays:"France",drapeau:"🇫🇷",numero:3,region:"Mont-Saint-Michel",province:"la Manche",theme:"🌊 Les marées de la Manche",enjeu:"traverser la baie avant que la mer ne monte",fond:"aventure/fond_montsaintmichel.jpg",reveal:"François t'emmène dans la baie du Mont-Saint-Michel : l'abbaye sur son rocher devient une île quand la mer monte !",nom:"Le Mont-Saint-Michel",finText:"Traversée réussie ! La région suivante t'attend… 🌊",sousEtapes:[
  {titre:"Arrivée dans la baie",narr:"Bienvenue dans la baie du Mont-Saint-Michel ! Lis bien avant de traverser.",activites:[
    {type:'lecture',texte:"Le Mont-Saint-Michel est une abbaye bâtie sur un rocher, dans la mer de la Manche. À marée basse, on peut y aller à pied ; mais quand la mer monte, il redevient une île ! On dit que la mer y revient « à la vitesse d'un cheval au galop ». Attention aux sables mouvants !",questions:[
      {q:"Que devient le Mont-Saint-Michel à marée haute ?",choix:['une île','une montagne','un bateau'],r:'une île'},
@@ -3189,7 +3355,7 @@ const ETAPE_MSM={key:"montsaintmichel",pays:"France",drapeau:"🇫🇷",numero:3
  ],crins:60,renom:4},
  {titre:"Sains et saufs !",narr:"Tout le monde a traversé avant la marée ! Le Mont te remercie et t'offre une carte.",activites:[{type:'bonus'}],crins:72,renom:3},
 ]};
-const ETAPE_BROCELIANDE={key:"broceliande",pays:"France",drapeau:"🇫🇷",numero:4,region:"Brocéliande",province:"Bretagne",theme:"🧙 Merlin & les légendes",enjeu:"réveiller la magie de la forêt enchantée",fond:"cartes/fond_broceliande.jpg",reveal:"François s'enfonce dans la forêt de Brocéliande, en Bretagne, là où dort le magicien Merlin…",nom:"Brocéliande, la forêt de Merlin",finText:"La magie est revenue ! La région suivante t'attend… 🧙",sousEtapes:[
+const ETAPE_BROCELIANDE={key:"broceliande",pays:"France",drapeau:"🇫🇷",numero:4,region:"Brocéliande",province:"Bretagne",theme:"🧙 Merlin & les légendes",enjeu:"réveiller la magie de la forêt enchantée",fond:"aventure/fond_broceliande.jpg",reveal:"François s'enfonce dans la forêt de Brocéliande, en Bretagne, là où dort le magicien Merlin…",nom:"Brocéliande, la forêt de Merlin",finText:"La magie est revenue ! La région suivante t'attend… 🧙",sousEtapes:[
  {titre:"Entrée dans Brocéliande",narr:"Bienvenue dans la forêt enchantée de Brocéliande. Lis sa légende.",activites:[
    {type:'lecture',texte:"Au cœur de la Bretagne s'étend Brocéliande, une forêt de légende. On raconte que le magicien Merlin y dort pour toujours, ensorcelé par la fée Viviane près de la fontaine de Barenton, dont l'eau se met à bouillonner quand on y verse une goutte !",questions:[
      {q:"Quel magicien dort dans la forêt ?",choix:['Merlin','Napoléon','Tchantchès'],r:'Merlin'},
@@ -3221,7 +3387,7 @@ const ETAPE_BROCELIANDE={key:"broceliande",pays:"France",drapeau:"🇫🇷",nume
  ],crins:60,renom:4},
  {titre:"La forêt s'illumine",narr:"Brocéliande scintille de magie ! Elle t'offre une carte enchantée.",activites:[{type:'bonus'}],crins:74,renom:3},
 ]};
-const ETAPE_PILAT={key:"pilat",pays:"France",drapeau:"🇫🇷",numero:5,region:"Dune du Pilat",province:"Nouvelle-Aquitaine",theme:"🏖️ L'océan & la dune",enjeu:"comprendre la dune qui avance et sauver la forêt",fond:"cartes/fond_pilat.jpg",reveal:"François grimpe la Dune du Pilat, la plus haute d'Europe, entre l'océan et la forêt de pins.",nom:"La Dune du Pilat",finText:"Tu as percé le secret de la dune ! La région suivante t'attend… 🏖️",sousEtapes:[
+const ETAPE_PILAT={key:"pilat",pays:"France",drapeau:"🇫🇷",numero:5,region:"Dune du Pilat",province:"Nouvelle-Aquitaine",theme:"🏖️ L'océan & la dune",enjeu:"comprendre la dune qui avance et sauver la forêt",fond:"aventure/fond_pilat.jpg",reveal:"François grimpe la Dune du Pilat, la plus haute d'Europe, entre l'océan et la forêt de pins.",nom:"La Dune du Pilat",finText:"Tu as percé le secret de la dune ! La région suivante t'attend… 🏖️",sousEtapes:[
  {titre:"Au pied de la dune",narr:"Bienvenue à la Dune du Pilat ! Lis son histoire.",activites:[
    {type:'lecture',texte:"La Dune du Pilat est la plus haute dune de sable d'Europe : plus de 100 mètres, entre l'océan Atlantique et une immense forêt de pins. Et surprise : elle avance ! Poussée par le vent, elle recule de quelques mètres chaque année et recouvre peu à peu la forêt.",questions:[
      {q:"La Dune du Pilat est la plus haute de… ?",choix:['toute l\'Europe','la France seulement','ton jardin'],r:'toute l\'Europe'},
@@ -3251,7 +3417,7 @@ const ETAPE_PILAT={key:"pilat",pays:"France",drapeau:"🇫🇷",numero:5,region:
  ],crins:60,renom:4},
  {titre:"Le secret de la dune",narr:"Tu as compris comment vit la dune ! On t'offre une carte.",activites:[{type:'bonus'}],crins:72,renom:3},
 ]};
-const ETAPE_PAU={key:"pau",pays:"France",drapeau:"🇫🇷",numero:6,region:"Pau",province:"Pyrénées",theme:"⛰️ La montagne & la transhumance",enjeu:"mener le troupeau à l'alpage à travers les Pyrénées",fond:"cartes/fond_pau.jpg",reveal:"François arrive à Pau, face à la grande muraille des Pyrénées, frontière avec l'Espagne.",nom:"Pau et les Pyrénées",finText:"Le troupeau est à l'alpage ! La région suivante t'attend… ⛰️",sousEtapes:[
+const ETAPE_PAU={key:"pau",pays:"France",drapeau:"🇫🇷",numero:6,region:"Pau",province:"Pyrénées",theme:"⛰️ La montagne & la transhumance",enjeu:"mener le troupeau à l'alpage à travers les Pyrénées",fond:"aventure/fond_pau.jpg",reveal:"François arrive à Pau, face à la grande muraille des Pyrénées, frontière avec l'Espagne.",nom:"Pau et les Pyrénées",finText:"Le troupeau est à l'alpage ! La région suivante t'attend… ⛰️",sousEtapes:[
  {titre:"Arrivée à Pau",narr:"Face à Pau se dresse la muraille des Pyrénées. Lis son histoire.",activites:[
    {type:'lecture',texte:"De Pau, on voit toute la chaîne des Pyrénées, les montagnes qui séparent la France de l'Espagne. Dans ces montagnes vivent les pottoks, de petits chevaux basques à demi sauvages. Chaque été, les bergers mènent leurs troupeaux vers les hauts pâturages : c'est la transhumance.",questions:[
      {q:"Les Pyrénées séparent la France de quel pays ?",choix:['l\'Espagne','l\'Italie','l\'Allemagne'],r:'l\'Espagne'},
@@ -3281,7 +3447,7 @@ const ETAPE_PAU={key:"pau",pays:"France",drapeau:"🇫🇷",numero:6,region:"Pau
  ],crins:60,renom:4},
  {titre:"À l'alpage !",narr:"Le troupeau broute en paix sur les hauteurs ! Pau t'offre une carte.",activites:[{type:'bonus'}],crins:72,renom:3},
 ]};
-const ETAPE_CAMARGUE={key:"camargue",pays:"France",drapeau:"🇫🇷",numero:7,region:"Camargue",province:"Camargue",theme:"🦩 Chevaux blancs & flamants roses",enjeu:"réussir le grand rassemblement des manades",fond:"cartes/fond_camargue.jpg",reveal:"François te ramène CHEZ LUI, en Camargue : les étangs, les flamants roses, et les chevaux blancs comme lui !",nom:"La Camargue, chez François",finText:"Quel bonheur de rentrer à la maison ! La région suivante t'attend… 🦩",sousEtapes:[
+const ETAPE_CAMARGUE={key:"camargue",pays:"France",drapeau:"🇫🇷",numero:7,region:"Camargue",province:"Camargue",theme:"🦩 Chevaux blancs & flamants roses",enjeu:"réussir le grand rassemblement des manades",fond:"aventure/fond_camargue.jpg",reveal:"François te ramène CHEZ LUI, en Camargue : les étangs, les flamants roses, et les chevaux blancs comme lui !",nom:"La Camargue, chez François",finText:"Quel bonheur de rentrer à la maison ! La région suivante t'attend… 🦩",sousEtapes:[
  {titre:"Bienvenue chez François",narr:"François est tout ému : nous voici en Camargue, sa terre natale ! Lis son histoire.",activites:[
    {type:'lecture',texte:"La Camargue est un immense delta, là où le grand fleuve Rhône se sépare et se jette dans la mer Méditerranée : des marais, du sel, et des roseaux à perte de vue. On y élève des taureaux et les fameux chevaux blancs de Camargue — qui, comme François, naissent tout foncés et blanchissent en grandissant ! Et des milliers de flamants roses y vivent.",questions:[
      {q:"La Camargue est le delta de quel fleuve ?",choix:['le Rhône','la Seine','le Rhin'],r:'le Rhône'},
@@ -3312,7 +3478,7 @@ const ETAPE_CAMARGUE={key:"camargue",pays:"France",drapeau:"🇫🇷",numero:7,r
  ],crins:66,renom:5},
  {titre:"La fête camarguaise",narr:"La Camargue fête son grand rassemblement, et François est le plus fier des chevaux ! On t'offre une belle carte.",activites:[{type:'bonus',rarete:['rare','epique']}],crins:90,renom:5},
 ]};
-const ETAPE_CHAMONIX={key:"chamonix",pays:"France",drapeau:"🇫🇷",numero:8,region:"Chamonix",province:"Alpes",theme:"🏔️ Le Mont Blanc, toit de l'Europe",enjeu:"réussir la grande expédition du Mont Blanc",fond:"cartes/fond_chamonix.jpg",reveal:"François lève les yeux vers le Mont Blanc, 4808 m, le toit de l'Europe, à Chamonix.",nom:"Chamonix & le Mont Blanc",finText:"L'expédition est un triomphe ! La région suivante t'attend… 🏔️",sousEtapes:[
+const ETAPE_CHAMONIX={key:"chamonix",pays:"France",drapeau:"🇫🇷",numero:8,region:"Chamonix",province:"Alpes",theme:"🏔️ Le Mont Blanc, toit de l'Europe",enjeu:"réussir la grande expédition du Mont Blanc",fond:"aventure/fond_chamonix.jpg",reveal:"François lève les yeux vers le Mont Blanc, 4808 m, le toit de l'Europe, à Chamonix.",nom:"Chamonix & le Mont Blanc",finText:"L'expédition est un triomphe ! La région suivante t'attend… 🏔️",sousEtapes:[
  {titre:"Arrivée à Chamonix",narr:"Bienvenue à Chamonix, au pied du Mont Blanc ! Lis son histoire.",activites:[
    {type:'lecture',texte:"Chamonix est un village des Alpes, au pied du Mont Blanc, la plus haute montagne d'Europe occidentale : 4 808 mètres ! Ses glaciers, comme la Mer de Glace, sont d'immenses fleuves de glace. Mais attention : plus on monte, plus il fait froid, et ces glaciers reculent d'année en année.",questions:[
      {q:"Quelle est la hauteur du Mont Blanc ?",choix:['4 808 m','100 m','1 000 m'],r:'4 808 m'},
@@ -3342,7 +3508,7 @@ const ETAPE_CHAMONIX={key:"chamonix",pays:"France",drapeau:"🇫🇷",numero:8,r
  ],crins:60,renom:4},
  {titre:"Au sommet de l'Europe !",narr:"Te voilà sur le toit de l'Europe ! Chamonix t'offre une carte.",activites:[{type:'bonus'}],crins:74,renom:3},
 ]};
-const ETAPE_LYON={key:"lyon",pays:"France",drapeau:"🇫🇷",numero:9,region:"Lyon",province:"Rhône",theme:"🎭 La soie & les Lumières",enjeu:"tisser la grande soie pour la fête des Lumières",fond:"cartes/fond_lyon.jpg",reveal:"François arrive à Lyon, au confluent du Rhône et de la Saône — comme Namur avec la Sambre et la Meuse !",nom:"Lyon, la ville de la soie",finText:"La fête des Lumières illumine la ville ! La dernière région t'attend… 🎭",sousEtapes:[
+const ETAPE_LYON={key:"lyon",pays:"France",drapeau:"🇫🇷",numero:9,region:"Lyon",province:"Rhône",theme:"🎭 La soie & les Lumières",enjeu:"tisser la grande soie pour la fête des Lumières",fond:"aventure/fond_lyon.jpg",reveal:"François arrive à Lyon, au confluent du Rhône et de la Saône — comme Namur avec la Sambre et la Meuse !",nom:"Lyon, la ville de la soie",finText:"La fête des Lumières illumine la ville ! La dernière région t'attend… 🎭",sousEtapes:[
  {titre:"Arrivée à Lyon",narr:"Nous voici à Lyon, au bord de deux rivières. Lis son histoire.",activites:[
    {type:'lecture',texte:"Lyon est bâtie au confluent de deux rivières, le Rhône et la Saône — exactement comme Namur avec la Sambre et la Meuse, se souvient François ! C'est la ville des canuts, les tisseurs de soie, et de Guignol, la célèbre marionnette (un cousin de Tchantchès !). Chaque décembre, à la fête des Lumières, toutes les fenêtres s'illuminent de bougies.",questions:[
      {q:"Lyon est au confluent du Rhône et de la… ?",choix:['Saône','Meuse','Seine'],r:'Saône'},
@@ -3373,7 +3539,7 @@ const ETAPE_LYON={key:"lyon",pays:"France",drapeau:"🇫🇷",numero:9,region:"L
  ],crins:60,renom:4},
  {titre:"Lyon s'illumine",narr:"Toute la ville brille de mille bougies ! Lyon t'offre une carte.",activites:[{type:'bonus'}],crins:74,renom:3},
 ]};
-const ETAPE_STRASBOURG={key:"strasbourg",pays:"France",drapeau:"🇫🇷",numero:10,region:"Strasbourg",province:"Alsace",theme:"🇪🇺 Le Rhin & l'Europe",enjeu:"accueillir toute l'Europe à Strasbourg",fond:"cartes/fond_strasbourg.jpg",reveal:"François atteint Strasbourg, sur le Rhin : ses cigognes, ses colombages, et le Parlement de l'Europe.",nom:"Strasbourg, capitale de l'Europe",finText:"Toute la France est presque réunie… direction Paris ! 🇪🇺",sousEtapes:[
+const ETAPE_STRASBOURG={key:"strasbourg",pays:"France",drapeau:"🇫🇷",numero:10,region:"Strasbourg",province:"Alsace",theme:"🇪🇺 Le Rhin & l'Europe",enjeu:"accueillir toute l'Europe à Strasbourg",fond:"aventure/fond_strasbourg.jpg",reveal:"François atteint Strasbourg, sur le Rhin : ses cigognes, ses colombages, et le Parlement de l'Europe.",nom:"Strasbourg, capitale de l'Europe",finText:"Toute la France est presque réunie… direction Paris ! 🇪🇺",sousEtapes:[
  {titre:"Arrivée à Strasbourg",narr:"Nous voici à Strasbourg, tout à l'est, sur le Rhin. Lis son histoire.",activites:[
    {type:'lecture',texte:"Strasbourg est la grande ville d'Alsace, posée sur le Rhin, le fleuve qui sépare la France de l'Allemagne. On y voit des maisons à colombages, des cigognes sur les toits, et le plus vieux marché de Noël du pays. Strasbourg abrite aussi le Parlement européen : avec Bruxelles, c'est une capitale de l'Europe !",questions:[
      {q:"Sur quel fleuve se trouve Strasbourg ?",choix:['le Rhin','le Rhône','la Seine'],r:'le Rhin'},
@@ -3407,7 +3573,7 @@ const ETAPE_STRASBOURG={key:"strasbourg",pays:"France",drapeau:"🇫🇷",numero
  {titre:"Vive l'Europe !",narr:"Strasbourg accueille toute l'Europe en fête ! Il ne reste plus que Paris. On t'offre une carte.",activites:[{type:'bonus'}],crins:74,renom:3},
 ]};
 
-const ETAPE_DOUVRES={key:"douvres",pays:"Royaume-Uni",drapeau:"🇬🇧",numero:1,region:"Douvres",province:"Angleterre",theme:"⛴️ Les falaises blanches",enjeu:"accoster et découvrir le Royaume",fond:"cartes/fond_douvres.jpg",reveal:"Big Ben t'accueille au pied des falaises blanches de Douvres, après la traversée de la Manche !",nom:"Douvres, la porte du Royaume",finText:"Bienvenue au Royaume-Uni ! La région suivante t'attend… ⛴️",sousEtapes:[
+const ETAPE_DOUVRES={key:"douvres",pays:"Royaume-Uni",drapeau:"🇬🇧",numero:1,region:"Douvres",province:"Angleterre",theme:"⛴️ Les falaises blanches",enjeu:"accoster et découvrir le Royaume",fond:"aventure/fond_douvres.jpg",reveal:"Big Ben t'accueille au pied des falaises blanches de Douvres, après la traversée de la Manche !",nom:"Douvres, la porte du Royaume",finText:"Bienvenue au Royaume-Uni ! La région suivante t'attend… ⛴️",sousEtapes:[
  {titre:"Arrivée à Douvres",narr:"Après la traversée de la Manche, nous accostons à Douvres ! Lis son histoire.",activites:[
    {type:'lecture',texte:"Douvres est la porte d'entrée du Royaume-Uni : ses immenses falaises blanches accueillent depuis toujours les bateaux qui traversent la Manche. Elles sont blanches car faites de craie — une roche tendre venue de minuscules coquillages ! Ici, on parle anglais et, attention, on roule à gauche !",questions:[
      {q:"Pourquoi les falaises de Douvres sont-elles blanches ?",choix:['elles sont en craie (coquillages)','on les a peintes','à cause de la neige'],r:'elles sont en craie (coquillages)'},
@@ -3439,7 +3605,7 @@ const ETAPE_DOUVRES={key:"douvres",pays:"Royaume-Uni",drapeau:"🇬🇧",numero:
  ],crins:62,renom:4},
  {titre:"Welcome to Britain !",narr:"Te voilà accueillie au Royaume-Uni ! Douvres t'offre une carte.",activites:[{type:'bonus'}],crins:74,renom:3},
 ]};
-const ETAPE_LONDRES={key:"londres",pays:"Royaume-Uni",drapeau:"🇬🇧",numero:11,boss:true,region:"Londres",province:"capitale du Royaume-Uni",theme:"👑 La Garde royale",enjeu:"représenter tout le Royaume à la grande parade",fond:"cartes/fond_londres.jpg",reveal:"Big Ben t'emmène devant Tower Bridge et Big Ben (la tour !) : bienvenue à Londres, capitale du Royaume-Uni !",nom:"Londres, cœur du Royaume",finText:"Tu es la championne du Royaume ! Le monde continue de s'ouvrir… 🌍",sousEtapes:[
+const ETAPE_LONDRES={key:"londres",pays:"Royaume-Uni",drapeau:"🇬🇧",numero:11,boss:true,region:"Londres",province:"capitale du Royaume-Uni",theme:"👑 La Garde royale",enjeu:"représenter tout le Royaume à la grande parade",fond:"aventure/fond_londres.jpg",reveal:"Big Ben t'emmène devant Tower Bridge et Big Ben (la tour !) : bienvenue à Londres, capitale du Royaume-Uni !",nom:"Londres, cœur du Royaume",finText:"Tu es la championne du Royaume ! Le monde continue de s'ouvrir… 🌍",sousEtapes:[
  {titre:"Arrivée à Londres",narr:"Te voici à Londres pour l'épreuve suprême ! Découvre la capitale.",activites:[
    {type:'lecture',texte:"Londres est la capitale du Royaume-Uni, traversée par la Tamise. On y voit la grande horloge Big Ben (qui a donné son nom à ton ami Shire !), le pont-levis de Tower Bridge, le palais de Buckingham où vit le roi, et de fameux bus rouges à deux étages. La relève de la garde du roi se fait même à cheval !",questions:[
      {q:"Quel fleuve traverse Londres ?",choix:['la Tamise','la Seine','le Rhin'],r:'la Tamise'},
@@ -3465,7 +3631,7 @@ const ETAPE_LONDRES={key:"londres",pays:"Royaume-Uni",drapeau:"🇬🇧",numero:
  {titre:"Championne du Royaume !",narr:"BRAVO ! Tout le Royaume t'acclame, et Big Ben le Shire lui-même te rejoint pour la parade ! 🎆",activites:[{type:'bonus',carteId:'big_ben'}],crins:320,renom:15},
 ]};
 
-const ETAPE_STONEHENGE={key:"stonehenge",pays:"Royaume-Uni",drapeau:"🇬🇧",numero:2,region:"Stonehenge",province:"Angleterre",theme:"🗿 Le mystère des pierres",enjeu:"aider les Anciens à dresser les pierres géantes",fond:"cartes/fond_stonehenge.jpg",reveal:"Big Ben t'emmène devant Stonehenge, le cercle de pierres géantes vieux de 5000 ans !",nom:"Stonehenge, le cercle mystérieux",finText:"Les pierres sont dressées ! La région suivante t'attend… 🗿",sousEtapes:[
+const ETAPE_STONEHENGE={key:"stonehenge",pays:"Royaume-Uni",drapeau:"🇬🇧",numero:2,region:"Stonehenge",province:"Angleterre",theme:"🗿 Le mystère des pierres",enjeu:"aider les Anciens à dresser les pierres géantes",fond:"aventure/fond_stonehenge.jpg",reveal:"Big Ben t'emmène devant Stonehenge, le cercle de pierres géantes vieux de 5000 ans !",nom:"Stonehenge, le cercle mystérieux",finText:"Les pierres sont dressées ! La région suivante t'attend… 🗿",sousEtapes:[
  {titre:"Devant les pierres",narr:"Voici Stonehenge ! Lis son mystère.",activites:[
    {type:'lecture',texte:"Stonehenge est un cercle de pierres géantes dressées il y a près de 5000 ans, à l'époque de la préhistoire. Personne ne sait vraiment comment on a déplacé ces blocs de 25 tonnes — certains viennent du Pays de Galles, à 250 km ! Le cercle est aligné sur le Soleil : au premier jour de l'été, le soleil se lève pile entre deux pierres.",questions:[
      {q:"De quand date Stonehenge ?",choix:['la préhistoire (5000 ans)','l\'an dernier','le Moyen Âge'],r:'la préhistoire (5000 ans)'},
@@ -3497,7 +3663,7 @@ const ETAPE_STONEHENGE={key:"stonehenge",pays:"Royaume-Uni",drapeau:"🇬🇧",n
  ],crins:62,renom:4},
  {titre:"Le cercle est dressé !",narr:"Les pierres tiennent debout pour 5000 ans de plus ! On t'offre une carte.",activites:[{type:'bonus'}],crins:74,renom:3},
 ]};
-const ETAPE_DARTMOOR={key:"dartmoor",pays:"Royaume-Uni",drapeau:"🇬🇧",numero:3,region:"Dartmoor",province:"Angleterre",theme:"🌫️ La lande brumeuse",enjeu:"ramener les poneys perdus dans la brume",fond:"cartes/fond_dartmoor.jpg",reveal:"Big Ben t'emmène sur la lande brumeuse de Dartmoor, où vivent en liberté les poneys sauvages…",nom:"Dartmoor, la lande des poneys",finText:"Tous les poneys sont rentrés ! La région suivante t'attend… 🌫️",sousEtapes:[
+const ETAPE_DARTMOOR={key:"dartmoor",pays:"Royaume-Uni",drapeau:"🇬🇧",numero:3,region:"Dartmoor",province:"Angleterre",theme:"🌫️ La lande brumeuse",enjeu:"ramener les poneys perdus dans la brume",fond:"aventure/fond_dartmoor.jpg",reveal:"Big Ben t'emmène sur la lande brumeuse de Dartmoor, où vivent en liberté les poneys sauvages…",nom:"Dartmoor, la lande des poneys",finText:"Tous les poneys sont rentrés ! La région suivante t'attend… 🌫️",sousEtapes:[
  {titre:"Dans la lande",narr:"Bienvenue sur la lande sauvage de Dartmoor. Lis son histoire.",activites:[
    {type:'lecture',texte:"Dartmoor est une lande immense et sauvage : de l'herbe rase, des rochers, des marais et une brume qui tombe d'un coup. Des poneys de Dartmoor y vivent en liberté depuis toujours. C'est un endroit si mystérieux qu'un écrivain y a placé un terrible chien fantôme, le « chien des Baskerville » !",questions:[
      {q:"Comment vivent les poneys de Dartmoor ?",choix:['en liberté sur la lande','en ville','à la mer'],r:'en liberté sur la lande'},
@@ -3527,7 +3693,7 @@ const ETAPE_DARTMOOR={key:"dartmoor",pays:"Royaume-Uni",drapeau:"🇬🇧",numer
  ],crins:62,renom:4},
  {titre:"Tous rentrés !",narr:"Pas un poney perdu ! La lande te remercie et t'offre une carte.",activites:[{type:'bonus'}],crins:74,renom:3},
 ]};
-const ETAPE_SNOWDONIA={key:"snowdonia",pays:"Royaume-Uni",drapeau:"🏴",numero:4,region:"Snowdonia",province:"Pays de Galles",theme:"🐉 Le dragon rouge",enjeu:"réveiller le dragon rouge du Pays de Galles",fond:"cartes/fond_snowdonia.jpg",reveal:"Big Ben grimpe les montagnes du Snowdon, au Pays de Galles, terre des châteaux et du dragon rouge !",nom:"Snowdonia et le dragon",finText:"Le dragon rouge veille à nouveau ! La région suivante t'attend… 🐉",sousEtapes:[
+const ETAPE_SNOWDONIA={key:"snowdonia",pays:"Royaume-Uni",drapeau:"🏴",numero:4,region:"Snowdonia",province:"Pays de Galles",theme:"🐉 Le dragon rouge",enjeu:"réveiller le dragon rouge du Pays de Galles",fond:"aventure/fond_snowdonia.jpg",reveal:"Big Ben grimpe les montagnes du Snowdon, au Pays de Galles, terre des châteaux et du dragon rouge !",nom:"Snowdonia et le dragon",finText:"Le dragon rouge veille à nouveau ! La région suivante t'attend… 🐉",sousEtapes:[
  {titre:"Au pays du dragon",narr:"Bienvenue au Pays de Galles ! Lis sa légende.",activites:[
    {type:'lecture',texte:"Le Pays de Galles est une terre de montagnes — dont le Snowdon, le plus haut sommet — et de châteaux forts. Sur son drapeau trône un dragon rouge, le seul dragon au monde sur un drapeau de pays ! Ici, on parle une autre langue, le gallois : « bore da » veut dire bonjour.",questions:[
      {q:"Quel animal orne le drapeau gallois ?",choix:['un dragon rouge','un lion','un ours'],r:'un dragon rouge'},
@@ -3561,7 +3727,7 @@ const ETAPE_SNOWDONIA={key:"snowdonia",pays:"Royaume-Uni",drapeau:"🏴",numero:
  ],crins:62,renom:4},
  {titre:"Le dragon veille !",narr:"Le dragon rouge protège à nouveau le Pays de Galles ! On t'offre une carte.",activites:[{type:'bonus'}],crins:74,renom:3},
 ]};
-const ETAPE_NEWMARKET={key:"newmarket",pays:"Royaume-Uni",drapeau:"🇬🇧",numero:5,region:"Newmarket",province:"Angleterre",theme:"🏇 La capitale des courses",enjeu:"gagner la grande course de Newmarket",fond:"cartes/fond_newmarket.jpg",reveal:"Big Ben t'emmène à Newmarket, la capitale mondiale des courses de chevaux !",nom:"Newmarket, la ville des courses",finText:"Quelle course ! La région suivante t'attend… 🏇",sousEtapes:[
+const ETAPE_NEWMARKET={key:"newmarket",pays:"Royaume-Uni",drapeau:"🇬🇧",numero:5,region:"Newmarket",province:"Angleterre",theme:"🏇 La capitale des courses",enjeu:"gagner la grande course de Newmarket",fond:"aventure/fond_newmarket.jpg",reveal:"Big Ben t'emmène à Newmarket, la capitale mondiale des courses de chevaux !",nom:"Newmarket, la ville des courses",finText:"Quelle course ! La région suivante t'attend… 🏇",sousEtapes:[
  {titre:"À Newmarket",narr:"Bienvenue à Newmarket, la ville des courses ! Lis son histoire.",activites:[
    {type:'lecture',texte:"Newmarket est la capitale mondiale des courses de chevaux : ici galope le pur-sang anglais, le cheval le plus rapide du monde ! Chose incroyable : tous les pur-sang de la planète descendent de seulement trois étalons arrivés en Angleterre il y a environ 300 ans.",questions:[
      {q:"Quel cheval est le plus rapide du monde ?",choix:['le pur-sang anglais','le poney Shetland','l\'âne'],r:'le pur-sang anglais'},
@@ -3591,7 +3757,7 @@ const ETAPE_NEWMARKET={key:"newmarket",pays:"Royaume-Uni",drapeau:"🇬🇧",num
  ],crins:64,renom:4},
  {titre:"Photo-finish gagnante !",narr:"Tu franchis la ligne en tête ! Newmarket t'offre une carte.",activites:[{type:'bonus'}],crins:74,renom:3},
 ]};
-const ETAPE_YORK={key:"york",pays:"Royaume-Uni",drapeau:"🇬🇧",numero:6,region:"York",province:"Angleterre",theme:"⚔️ Les Vikings",enjeu:"défendre la ville et raconter son histoire",fond:"cartes/fond_york.jpg",reveal:"Big Ben t'emmène à York, la ville aux remparts, jadis envahie par les Vikings !",nom:"York, la ville viking",finText:"L'histoire de York est sauvée ! La région suivante t'attend… ⚔️",sousEtapes:[
+const ETAPE_YORK={key:"york",pays:"Royaume-Uni",drapeau:"🇬🇧",numero:6,region:"York",province:"Angleterre",theme:"⚔️ Les Vikings",enjeu:"défendre la ville et raconter son histoire",fond:"aventure/fond_york.jpg",reveal:"Big Ben t'emmène à York, la ville aux remparts, jadis envahie par les Vikings !",nom:"York, la ville viking",finText:"L'histoire de York est sauvée ! La région suivante t'attend… ⚔️",sousEtapes:[
  {titre:"Dans York",narr:"Bienvenue à York, ville d'histoire ! Lis son passé.",activites:[
    {type:'lecture',texte:"York est une vieille ville entourée de remparts, avec une immense cathédrale. Il y a plus de mille ans, elle fut envahie par les Vikings, ces navigateurs venus du Nord sur leurs drakkars ; ils l'appelaient Jorvik. Beaucoup de mots anglais nous viennent d'eux, et sous la ville on a retrouvé leurs maisons !",questions:[
      {q:"Qui a envahi York il y a mille ans ?",choix:['les Vikings','les Romains','les Égyptiens'],r:'les Vikings'},
@@ -3621,7 +3787,7 @@ const ETAPE_YORK={key:"york",pays:"Royaume-Uni",drapeau:"🇬🇧",numero:6,regi
  ],crins:64,renom:4},
  {titre:"York est sauvée !",narr:"La ville et son histoire sont préservées ! On t'offre une carte.",activites:[{type:'bonus'}],crins:74,renom:3},
 ]};
-const ETAPE_EDIMBOURG={key:"edimbourg",pays:"Royaume-Uni",drapeau:"🏴",numero:7,region:"Édimbourg",province:"Écosse",theme:"🏰 Château, kilts & cornemuses",enjeu:"mener le clan à la grande parade des Highlands",fond:"cartes/fond_edimbourg.jpg",reveal:"Big Ben t'emmène à Édimbourg, en Écosse, devant son château dressé sur un rocher !",nom:"Édimbourg, la fière Écosse",finText:"Le clan a défilé avec honneur ! La région suivante t'attend… 🏰",sousEtapes:[
+const ETAPE_EDIMBOURG={key:"edimbourg",pays:"Royaume-Uni",drapeau:"🏴",numero:7,region:"Édimbourg",province:"Écosse",theme:"🏰 Château, kilts & cornemuses",enjeu:"mener le clan à la grande parade des Highlands",fond:"aventure/fond_edimbourg.jpg",reveal:"Big Ben t'emmène à Édimbourg, en Écosse, devant son château dressé sur un rocher !",nom:"Édimbourg, la fière Écosse",finText:"Le clan a défilé avec honneur ! La région suivante t'attend… 🏰",sousEtapes:[
  {titre:"Arrivée en Écosse",narr:"Bienvenue en Écosse ! Lis son histoire.",activites:[
    {type:'lecture',texte:"Édimbourg est la capitale de l'Écosse : son château est bâti tout en haut d'un rocher, au-dessus de la ville. Les Écossais portent le kilt, une jupe aux carreaux de couleurs appelée tartan, et jouent de la cornemuse. Chaque famille, ou clan, a son propre motif de tartan !",questions:[
      {q:"Où est bâti le château d'Édimbourg ?",choix:['en haut d\'un rocher','sous la mer','dans un arbre'],r:'en haut d\'un rocher'},
@@ -3653,7 +3819,7 @@ const ETAPE_EDIMBOURG={key:"edimbourg",pays:"Royaume-Uni",drapeau:"🏴",numero:
  ],crins:64,renom:4},
  {titre:"Fière Écosse !",narr:"Le clan a défilé avec honneur ! On t'offre une carte.",activites:[{type:'bonus'}],crins:74,renom:3},
 ]};
-const ETAPE_LOCHNESS={key:"lochness",pays:"Royaume-Uni",drapeau:"🏴",numero:8,region:"Loch Ness",province:"Écosse",theme:"🌊 Le monstre du lac",enjeu:"percer le mystère du grand lac",fond:"cartes/fond_lochness.jpg",reveal:"Big Ben t'emmène au bord du Loch Ness, le lac profond et mystérieux des Highlands…",nom:"Le Loch Ness et Nessie",finText:"Le mystère du loch t'a livré ses secrets ! La région suivante t'attend… 🌊",sousEtapes:[
+const ETAPE_LOCHNESS={key:"lochness",pays:"Royaume-Uni",drapeau:"🏴",numero:8,region:"Loch Ness",province:"Écosse",theme:"🌊 Le monstre du lac",enjeu:"percer le mystère du grand lac",fond:"aventure/fond_lochness.jpg",reveal:"Big Ben t'emmène au bord du Loch Ness, le lac profond et mystérieux des Highlands…",nom:"Le Loch Ness et Nessie",finText:"Le mystère du loch t'a livré ses secrets ! La région suivante t'attend… 🌊",sousEtapes:[
  {titre:"Au bord du loch",narr:"Bienvenue au Loch Ness ! Lis son mystère.",activites:[
    {type:'lecture',texte:"Un « loch », en Écosse, c'est un grand lac. Le Loch Ness est si profond et si sombre qu'il contiendrait plus d'eau que tous les lacs d'Angleterre réunis ! On raconte qu'un monstre, Nessie, y vivrait — mais personne ne l'a jamais vraiment vu. Les savants, eux, mesurent la profondeur du lac.",questions:[
      {q:"Qu'est-ce qu'un « loch » ?",choix:['un grand lac','une montagne','un château'],r:'un grand lac'},
@@ -3683,7 +3849,7 @@ const ETAPE_LOCHNESS={key:"lochness",pays:"Royaume-Uni",drapeau:"🏴",numero:8,
  ],crins:66,renom:5},
  {titre:"Mystère éclairci !",narr:"Tu as cartographié tout le loch (sans réveiller Nessie) ! On t'offre une belle carte.",activites:[{type:'bonus',rarete:['rare','epique']}],crins:90,renom:5},
 ]};
-const ETAPE_SHETLAND={key:"shetland",pays:"Royaume-Uni",drapeau:"🏴",numero:9,region:"Îles Shetland",province:"Écosse",theme:"🐧 Les plus petits poneys",enjeu:"recenser les macareux et les petits poneys",fond:"cartes/fond_shetland.jpg",reveal:"Big Ben t'emmène tout au nord, aux îles Shetland, terre des plus petits poneys du monde et des macareux !",nom:"Les îles Shetland",finText:"Recensement terminé ! La dernière région t'attend… 🐧",sousEtapes:[
+const ETAPE_SHETLAND={key:"shetland",pays:"Royaume-Uni",drapeau:"🏴",numero:9,region:"Îles Shetland",province:"Écosse",theme:"🐧 Les plus petits poneys",enjeu:"recenser les macareux et les petits poneys",fond:"aventure/fond_shetland.jpg",reveal:"Big Ben t'emmène tout au nord, aux îles Shetland, terre des plus petits poneys du monde et des macareux !",nom:"Les îles Shetland",finText:"Recensement terminé ! La dernière région t'attend… 🐧",sousEtapes:[
  {titre:"Tout au nord",narr:"Bienvenue aux îles Shetland ! Lis leur histoire.",activites:[
    {type:'lecture',texte:"Les îles Shetland sont tout au nord du Royaume-Uni, battues par le vent et la mer. On y trouve les plus petits poneys du monde, les poneys Shetland : minuscules mais incroyablement forts — à sa taille, un poney Shetland tire plus lourd qu'un cheval de trait ! On y voit aussi des macareux, ces oiseaux au bec coloré.",questions:[
      {q:"Comment sont les poneys Shetland ?",choix:['minuscules mais très forts','énormes','fragiles'],r:'minuscules mais très forts'},
@@ -3713,7 +3879,7 @@ const ETAPE_SHETLAND={key:"shetland",pays:"Royaume-Uni",drapeau:"🏴",numero:9,
  ],crins:64,renom:4},
  {titre:"Recensement terminé !",narr:"Tous les macareux et poneys sont comptés ! On t'offre une carte.",activites:[{type:'bonus'}],crins:74,renom:3},
 ]};
-const ETAPE_CONNEMARA={key:"connemara",pays:"Irlande",drapeau:"☘️",numero:10,region:"Connemara",province:"Irlande",theme:"☘️ L'île verte & les Celtes",enjeu:"réussir la grande fête celtique d'Irlande",fond:"cartes/fond_connemara.jpg",reveal:"Big Ben traverse jusqu'en Irlande, dans le Connemara : prairies vertes, falaises et légendes celtiques !",nom:"Le Connemara irlandais",finText:"Quelle fête ! Il ne reste plus que Londres… ☘️",sousEtapes:[
+const ETAPE_CONNEMARA={key:"connemara",pays:"Irlande",drapeau:"☘️",numero:10,region:"Connemara",province:"Irlande",theme:"☘️ L'île verte & les Celtes",enjeu:"réussir la grande fête celtique d'Irlande",fond:"aventure/fond_connemara.jpg",reveal:"Big Ben traverse jusqu'en Irlande, dans le Connemara : prairies vertes, falaises et légendes celtiques !",nom:"Le Connemara irlandais",finText:"Quelle fête ! Il ne reste plus que Londres… ☘️",sousEtapes:[
  {titre:"Sur l'île verte",narr:"Bienvenue en Irlande ! Lis son histoire.",activites:[
    {type:'lecture',texte:"L'Irlande est une île à part, si verte qu'on l'appelle l'île d'Émeraude, bordée par l'océan Atlantique et ses hautes falaises. On y raconte des légendes de leprechauns, de petits lutins farceurs qui cachent un chaudron d'or au pied de l'arc-en-ciel, et de trèfles à quatre feuilles porte-bonheur. C'est la terre du poney Connemara et de l'Irish Cob, souvent noir et blanc (pie).",questions:[
      {q:"Pourquoi appelle-t-on l'Irlande l'île d'Émeraude ?",choix:['parce qu'+"'"+'elle est très verte','parce qu'+"'"+'elle brille','à cause de la neige'],r:'parce qu'+"'"+'elle est très verte'},
@@ -3746,7 +3912,7 @@ const ETAPE_CONNEMARA={key:"connemara",pays:"Irlande",drapeau:"☘️",numero:10
  {titre:"Sláinte ! (à la tienne !)",narr:"La fête celtique est un triomphe ! Il ne te reste plus que Londres. On t'offre une carte.",activites:[{type:'bonus'}],crins:90,renom:5},
 ]};
 
-const ETAPE_COLOGNE={key:"cologne",pays:"Allemagne",drapeau:"🇩🇪",numero:1,region:"Cologne",province:"Allemagne",theme:"⛪ La cathédrale & le Rhin",enjeu:"suivre le grand fleuve à travers l'Allemagne",fond:"cartes/fond_cologne.jpg",reveal:"Inge t'accueille à Cologne, en Allemagne, devant l'immense cathédrale, au bord du Rhin !",nom:"Cologne, sur le Rhin",finText:"Le voyage du Rhin commence ! La région suivante t'attend… ⛪",sousEtapes:[
+const ETAPE_COLOGNE={key:"cologne",pays:"Allemagne",drapeau:"🇩🇪",numero:1,region:"Cologne",province:"Allemagne",theme:"⛪ La cathédrale & le Rhin",enjeu:"suivre le grand fleuve à travers l'Allemagne",fond:"aventure/fond_cologne.jpg",reveal:"Inge t'accueille à Cologne, en Allemagne, devant l'immense cathédrale, au bord du Rhin !",nom:"Cologne, sur le Rhin",finText:"Le voyage du Rhin commence ! La région suivante t'attend… ⛪",sousEtapes:[
  {titre:"Arrivée à Cologne",narr:"Bienvenue en Allemagne ! Nous voici à Cologne, au bord du Rhin. Lis son histoire.",activites:[
    {type:'lecture',texte:"Cologne est une grande ville d'Allemagne, posée sur le Rhin, le grand fleuve que nous allons suivre jusqu'à la mer. Sa cathédrale, la plus haute d'Allemagne, a mis plus de 600 ans à être bâtie ! Ici on parle allemand : « guten Tag » veut dire bonjour.",questions:[
      {q:"Sur quel grand fleuve se trouve Cologne ?",choix:['le Rhin','la Seine','la Tamise'],r:'le Rhin'},
@@ -3777,7 +3943,7 @@ const ETAPE_COLOGNE={key:"cologne",pays:"Allemagne",drapeau:"🇩🇪",numero:1,
  ],crins:62,renom:4},
  {titre:"Willkommen !",narr:"Cologne t'accueille en fête ! On t'offre une carte.",activites:[{type:'bonus'}],crins:74,renom:3},
 ]};
-const ETAPE_BERLIN={key:"berlin",pays:"Allemagne",drapeau:"🇩🇪",numero:11,boss:true,region:"Berlin",province:"capitale de l'Allemagne",theme:"🏛️ La capitale & le Mur",enjeu:"réunir tout le voyage pour la grande parade",fond:"cartes/fond_berlin.jpg",reveal:"Inge t'emmène devant la porte de Brandebourg : bienvenue à Berlin, la capitale de l'Allemagne !",nom:"Berlin, cœur de l'Allemagne",finText:"Tu es la championne du Rhin ! Le monde continue de s'ouvrir… 🌍",sousEtapes:[
+const ETAPE_BERLIN={key:"berlin",pays:"Allemagne",drapeau:"🇩🇪",numero:11,boss:true,region:"Berlin",province:"capitale de l'Allemagne",theme:"🏛️ La capitale & le Mur",enjeu:"réunir tout le voyage pour la grande parade",fond:"aventure/fond_berlin.jpg",reveal:"Inge t'emmène devant la porte de Brandebourg : bienvenue à Berlin, la capitale de l'Allemagne !",nom:"Berlin, cœur de l'Allemagne",finText:"Tu es la championne du Rhin ! Le monde continue de s'ouvrir… 🌍",sousEtapes:[
  {titre:"Arrivée à Berlin",narr:"Te voici à Berlin pour l'épreuve suprême ! Découvre la capitale.",activites:[
    {type:'lecture',texte:"Berlin est la capitale de l'Allemagne. Son monument le plus célèbre est la porte de Brandebourg. Il y a moins de cent ans, un grand mur a coupé Berlin en deux, séparant les familles pendant près de trente ans. Puis, un jour de fête, le mur est tombé et la ville a été réunie !",questions:[
      {q:"Quel monument célèbre trouve-t-on à Berlin ?",choix:['la porte de Brandebourg','la tour Eiffel','Big Ben'],r:'la porte de Brandebourg'},
@@ -3806,7 +3972,7 @@ const ETAPE_BERLIN={key:"berlin",pays:"Allemagne",drapeau:"🇩🇪",numero:11,b
  {titre:"Championne du Rhin !",narr:"BRAVO ! Toute l'Allemagne et les Pays-Bas t'acclament ! Inge la Frisonne te rejoint : « Big Ben, Pieter-Jan et moi sommes cousins — bienvenue dans la famille ! » 🎆",activites:[{type:'bonus',carteId:'inge'}],crins:340,renom:15},
 ]};
 
-const ETAPE_LORELEI={key:"lorelei",pays:"Allemagne",drapeau:"🇩🇪",numero:2,region:"La Lorelei",province:"Allemagne",theme:"🧜 La sirène du Rhin",enjeu:"passer le rocher de la Lorelei sans se perdre",fond:"cartes/fond_lorelei.jpg",reveal:"Inge longe le Rhin jusqu'au rocher de la Lorelei, où chantait, dit-on, une sirène…",nom:"La Lorelei, la sirène du Rhin",finText:"Le rocher est passé ! La région suivante t'attend… 🧜",sousEtapes:[
+const ETAPE_LORELEI={key:"lorelei",pays:"Allemagne",drapeau:"🇩🇪",numero:2,region:"La Lorelei",province:"Allemagne",theme:"🧜 La sirène du Rhin",enjeu:"passer le rocher de la Lorelei sans se perdre",fond:"aventure/fond_lorelei.jpg",reveal:"Inge longe le Rhin jusqu'au rocher de la Lorelei, où chantait, dit-on, une sirène…",nom:"La Lorelei, la sirène du Rhin",finText:"Le rocher est passé ! La région suivante t'attend… 🧜",sousEtapes:[
  {titre:"Le rocher de la Lorelei",narr:"Le Rhin se resserre entre les collines. Lis la légende.",activites:[
    {type:'lecture',texte:"À cet endroit, le Rhin se faufile entre de hautes collines couvertes de vignes et de châteaux. Sur un grand rocher, la légende dit qu'une belle sirène, la Lorelei, chantait pour ensorceler les bateliers et les faire couler ! C'est l'un des plus beaux passages du fleuve.",questions:[
      {q:"Que faisait la sirène Lorelei, selon la légende ?",choix:['elle chantait pour ensorceler les bateliers','elle pêchait','elle dormait'],r:'elle chantait pour ensorceler les bateliers'},
@@ -3837,7 +4003,7 @@ const ETAPE_LORELEI={key:"lorelei",pays:"Allemagne",drapeau:"🇩🇪",numero:2,
  ],crins:62,renom:4},
  {titre:"Le rocher est passé !",narr:"Tu as résisté au chant de la Lorelei ! On t'offre une carte.",activites:[{type:'bonus'}],crins:74,renom:3},
 ]};
-const ETAPE_FORETNOIRE={key:"foretnoire",pays:"Allemagne",drapeau:"🇩🇪",numero:3,region:"Forêt-Noire",province:"Allemagne",theme:"🌲 Contes de Grimm",enjeu:"traverser la forêt des contes sans se perdre",fond:"cartes/fond_foretnoire.jpg",reveal:"Inge s'enfonce dans la Forêt-Noire, terre des coucous et des contes de Grimm.",nom:"La Forêt-Noire",finText:"La forêt t'a livré ses contes ! La région suivante t'attend… 🌲",sousEtapes:[
+const ETAPE_FORETNOIRE={key:"foretnoire",pays:"Allemagne",drapeau:"🇩🇪",numero:3,region:"Forêt-Noire",province:"Allemagne",theme:"🌲 Contes de Grimm",enjeu:"traverser la forêt des contes sans se perdre",fond:"aventure/fond_foretnoire.jpg",reveal:"Inge s'enfonce dans la Forêt-Noire, terre des coucous et des contes de Grimm.",nom:"La Forêt-Noire",finText:"La forêt t'a livré ses contes ! La région suivante t'attend… 🌲",sousEtapes:[
  {titre:"Dans la Forêt-Noire",narr:"Bienvenue dans la Forêt-Noire ! Lis son histoire.",activites:[
    {type:'lecture',texte:"La Forêt-Noire est une immense forêt de sapins si sombres qu'on la dit « noire ». C'est là que naît le Danube, un autre grand fleuve d'Europe. On y fabrique les fameuses horloges à coucou, et c'est le pays des frères Grimm, qui ont recueilli les contes du Petit Chaperon rouge et de Hansel et Gretel !",questions:[
      {q:"Quel fleuve naît dans la Forêt-Noire ?",choix:['le Danube','la Seine','la Tamise'],r:'le Danube'},
@@ -3870,7 +4036,7 @@ const ETAPE_FORETNOIRE={key:"foretnoire",pays:"Allemagne",drapeau:"🇩🇪",num
  ],crins:62,renom:4},
  {titre:"Hors de la forêt !",narr:"Tu as traversé la Forêt-Noire ! On t'offre une carte.",activites:[{type:'bonus'}],crins:74,renom:3},
 ]};
-const ETAPE_MUNICH={key:"munich",pays:"Allemagne",drapeau:"🇩🇪",numero:4,region:"Munich",province:"Allemagne",theme:"🍺 Oktoberfest & Alpes",enjeu:"tirer le grand char de la fête de Munich",fond:"cartes/fond_munich.jpg",reveal:"Inge arrive à Munich, en Bavière, pour la grande fête de l'Oktoberfest, les Alpes en fond !",nom:"Munich et l'Oktoberfest",finText:"Quelle fête ! La région suivante t'attend… 🍺",sousEtapes:[
+const ETAPE_MUNICH={key:"munich",pays:"Allemagne",drapeau:"🇩🇪",numero:4,region:"Munich",province:"Allemagne",theme:"🍺 Oktoberfest & Alpes",enjeu:"tirer le grand char de la fête de Munich",fond:"aventure/fond_munich.jpg",reveal:"Inge arrive à Munich, en Bavière, pour la grande fête de l'Oktoberfest, les Alpes en fond !",nom:"Munich et l'Oktoberfest",finText:"Quelle fête ! La région suivante t'attend… 🍺",sousEtapes:[
  {titre:"Arrivée à Munich",narr:"Bienvenue à Munich, en Bavière ! Lis son histoire.",activites:[
    {type:'lecture',texte:"Munich est la grande ville de Bavière, dans le sud de l'Allemagne, tout près des Alpes. Chaque automne s'y tient l'Oktoberfest, la plus grande fête populaire du monde : des millions de visiteurs, des fanfares, et de grands chars tirés par de puissants chevaux ! Au loin, on aperçoit les sommets enneigés des Alpes.",questions:[
      {q:"Comment s'appelle la grande fête de Munich ?",choix:['l\'Oktoberfest','le carnaval','la braderie'],r:'l\'Oktoberfest'},
@@ -3900,7 +4066,7 @@ const ETAPE_MUNICH={key:"munich",pays:"Allemagne",drapeau:"🇩🇪",numero:4,re
  ],crins:62,renom:4},
  {titre:"Prost ! (santé !)",narr:"Le char de l'Oktoberfest fait le tour de la fête ! On t'offre une carte.",activites:[{type:'bonus'}],crins:74,renom:3},
 ]};
-const ETAPE_HAMBOURG={key:"hambourg",pays:"Allemagne",drapeau:"🇩🇪",numero:5,region:"Hambourg",province:"Allemagne",theme:"⚓ Le grand port",enjeu:"faire tourner le grand port de la mer du Nord",fond:"cartes/fond_hambourg.jpg",reveal:"Inge découvre Hambourg et son immense port, ouvert sur la mer du Nord.",nom:"Hambourg, le grand port",finText:"Le port tourne à plein ! La région suivante t'attend… ⚓",sousEtapes:[
+const ETAPE_HAMBOURG={key:"hambourg",pays:"Allemagne",drapeau:"🇩🇪",numero:5,region:"Hambourg",province:"Allemagne",theme:"⚓ Le grand port",enjeu:"faire tourner le grand port de la mer du Nord",fond:"aventure/fond_hambourg.jpg",reveal:"Inge découvre Hambourg et son immense port, ouvert sur la mer du Nord.",nom:"Hambourg, le grand port",finText:"Le port tourne à plein ! La région suivante t'attend… ⚓",sousEtapes:[
  {titre:"Au port de Hambourg",narr:"Bienvenue à Hambourg, ville-port ! Lis son histoire.",activites:[
    {type:'lecture',texte:"Hambourg possède l'un des plus grands ports d'Europe, relié à la mer du Nord par un fleuve. Jour et nuit, d'immenses bateaux y déchargent des conteneurs venus du monde entier, soulevés par des grues géantes. C'est une ville d'eau, traversée de canaux et de ponts — encore plus qu'à Venise !",questions:[
      {q:"À quelle mer le port de Hambourg est-il relié ?",choix:['la mer du Nord','la Méditerranée','la mer Noire'],r:'la mer du Nord'},
@@ -3930,7 +4096,7 @@ const ETAPE_HAMBOURG={key:"hambourg",pays:"Allemagne",drapeau:"🇩🇪",numero:
  ],crins:62,renom:4},
  {titre:"Bon vent !",narr:"Le port tourne à plein régime ! On t'offre une carte.",activites:[{type:'bonus'}],crins:74,renom:3},
 ]};
-const ETAPE_DULMEN={key:"dulmen",pays:"Allemagne",drapeau:"🇩🇪",numero:6,region:"Dülmen",province:"Allemagne",theme:"🐎 Les poneys sauvages",enjeu:"veiller sur les derniers chevaux sauvages d'Allemagne",fond:"cartes/fond_dulmen.jpg",reveal:"Inge te présente Klaus, un poney sauvage de Dülmen — les seuls chevaux sauvages d'Allemagne !",nom:"Dülmen, chez Klaus",finText:"Les poneys sauvages sont en sécurité ! La région suivante t'attend… 🐎",sousEtapes:[
+const ETAPE_DULMEN={key:"dulmen",pays:"Allemagne",drapeau:"🇩🇪",numero:6,region:"Dülmen",province:"Allemagne",theme:"🐎 Les poneys sauvages",enjeu:"veiller sur les derniers chevaux sauvages d'Allemagne",fond:"aventure/fond_dulmen.jpg",reveal:"Inge te présente Klaus, un poney sauvage de Dülmen — les seuls chevaux sauvages d'Allemagne !",nom:"Dülmen, chez Klaus",finText:"Les poneys sauvages sont en sécurité ! La région suivante t'attend… 🐎",sousEtapes:[
  {titre:"Rencontre avec Klaus",narr:"Inge te présente son ami Klaus, un poney Dülmener. Lis son histoire.",activites:[
    {type:'lecture',texte:"À Dülmen vivent les seuls chevaux sauvages d'Allemagne : les poneys Dülmener, comme Klaus ! Ils galopent en liberté dans une grande réserve, cherchent seuls leur nourriture et affrontent l'hiver sans abri. Une fois par an, on rassemble les jeunes mâles lors d'une grande fête très ancienne.",questions:[
      {q:"Qu'ont de spécial les poneys de Dülmen ?",choix:['ce sont les seuls chevaux sauvages d\'Allemagne','ils volent','ils sont géants'],r:'ce sont les seuls chevaux sauvages d\'Allemagne'},
@@ -3960,7 +4126,7 @@ const ETAPE_DULMEN={key:"dulmen",pays:"Allemagne",drapeau:"🇩🇪",numero:6,re
  ],crins:62,renom:4},
  {titre:"Klaus te remercie !",narr:"Les poneys sauvages sont saufs, et Klaus a un nouvel ami : toi ! On t'offre une carte.",activites:[{type:'bonus'}],crins:74,renom:3},
 ]};
-const ETAPE_AMSTERDAM={key:"amsterdam",pays:"Pays-Bas",drapeau:"🇳🇱",numero:7,region:"Amsterdam",province:"Pays-Bas",theme:"🚲 Canaux & tulipes",enjeu:"pédaler dans la ville sous le niveau de la mer",fond:"cartes/fond_amsterdam.jpg",reveal:"Inge entre aux Pays-Bas, à Amsterdam : canaux, vélos, tulipes… et la ville est sous le niveau de la mer !",nom:"Amsterdam, la ville des canaux",finText:"Goedendag Amsterdam ! La région suivante t'attend… 🚲",sousEtapes:[
+const ETAPE_AMSTERDAM={key:"amsterdam",pays:"Pays-Bas",drapeau:"🇳🇱",numero:7,region:"Amsterdam",province:"Pays-Bas",theme:"🚲 Canaux & tulipes",enjeu:"pédaler dans la ville sous le niveau de la mer",fond:"aventure/fond_amsterdam.jpg",reveal:"Inge entre aux Pays-Bas, à Amsterdam : canaux, vélos, tulipes… et la ville est sous le niveau de la mer !",nom:"Amsterdam, la ville des canaux",finText:"Goedendag Amsterdam ! La région suivante t'attend… 🚲",sousEtapes:[
  {titre:"Bienvenue aux Pays-Bas",narr:"Nous voici aux Pays-Bas, à Amsterdam ! Lis son histoire.",activites:[
    {type:'lecture',texte:"Amsterdam est la capitale des Pays-Bas, une ville de canaux, de vélos et de maisons étroites et penchées ! Le plus étonnant : une grande partie du pays est SOUS le niveau de la mer — les Néerlandais ont construit des digues pour empêcher l'eau d'entrer. Au printemps, des champs entiers de tulipes colorent le pays. Ici on parle néerlandais : « goedendag » veut dire bonjour.",questions:[
      {q:"Qu'est-ce qui est étonnant aux Pays-Bas ?",choix:['une partie du pays est sous le niveau de la mer','il y a des volcans','c\'est un désert'],r:'une partie du pays est sous le niveau de la mer'},
@@ -3992,7 +4158,7 @@ const ETAPE_AMSTERDAM={key:"amsterdam",pays:"Pays-Bas",drapeau:"🇳🇱",numero
  ],crins:62,renom:4},
  {titre:"Tot ziens ! (à bientôt !)",narr:"Amsterdam t'a adoptée ! On t'offre une carte.",activites:[{type:'bonus'}],crins:74,renom:3},
 ]};
-const ETAPE_KINDERDIJK={key:"kinderdijk",pays:"Pays-Bas",drapeau:"🇳🇱",numero:8,region:"Kinderdijk",province:"Pays-Bas",theme:"🌬️ Moulins & polders",enjeu:"faire tourner les moulins pour assécher les polders",fond:"cartes/fond_kinderdijk.jpg",reveal:"Inge t'emmène à Kinderdijk, devant sa rangée de moulins qui assèchent les polders.",nom:"Les moulins de Kinderdijk",finText:"Les polders sont au sec ! La région suivante t'attend… 🌬️",sousEtapes:[
+const ETAPE_KINDERDIJK={key:"kinderdijk",pays:"Pays-Bas",drapeau:"🇳🇱",numero:8,region:"Kinderdijk",province:"Pays-Bas",theme:"🌬️ Moulins & polders",enjeu:"faire tourner les moulins pour assécher les polders",fond:"aventure/fond_kinderdijk.jpg",reveal:"Inge t'emmène à Kinderdijk, devant sa rangée de moulins qui assèchent les polders.",nom:"Les moulins de Kinderdijk",finText:"Les polders sont au sec ! La région suivante t'attend… 🌬️",sousEtapes:[
  {titre:"Devant les moulins",narr:"Voici la célèbre rangée de moulins de Kinderdijk. Lis leur secret.",activites:[
    {type:'lecture',texte:"À Kinderdijk s'alignent dix-neuf vieux moulins à vent. Leur travail n'était pas de moudre le grain, mais de POMPER l'eau ! Aux Pays-Bas, on gagne des terres sur la mer et les marais : on entoure une zone d'une digue, puis les moulins pompent l'eau vers l'extérieur jusqu'à ce que le sol soit sec. Cette terre asséchée s'appelle un polder.",questions:[
      {q:"À quoi servaient les moulins de Kinderdijk ?",choix:['à pomper l\'eau','à moudre le grain','à faire de l\'électricité'],r:'à pomper l\'eau'},
@@ -4022,7 +4188,7 @@ const ETAPE_KINDERDIJK={key:"kinderdijk",pays:"Pays-Bas",drapeau:"🇳🇱",nume
  ],crins:62,renom:4},
  {titre:"Les polders sont sauvés !",narr:"Grâce à toi, les moulins ont tenu bon ! On t'offre une carte.",activites:[{type:'bonus'}],crins:74,renom:3},
 ]};
-const ETAPE_FRIESLAND={key:"friesland",pays:"Pays-Bas",drapeau:"🇳🇱",numero:9,region:"Friesland",province:"Pays-Bas",theme:"🖤 Chez Inge",enjeu:"réunir la harde des frisons noirs",fond:"cartes/fond_friesland.jpg",reveal:"Inge te ramène CHEZ ELLE, en Frise : les lacs, et les frisons noirs comme elle !",nom:"La Frise, chez Inge",finText:"Quel bonheur pour Inge de rentrer ! Il ne reste plus que Rotterdam… 🖤",sousEtapes:[
+const ETAPE_FRIESLAND={key:"friesland",pays:"Pays-Bas",drapeau:"🇳🇱",numero:9,region:"Friesland",province:"Pays-Bas",theme:"🖤 Chez Inge",enjeu:"réunir la harde des frisons noirs",fond:"aventure/fond_friesland.jpg",reveal:"Inge te ramène CHEZ ELLE, en Frise : les lacs, et les frisons noirs comme elle !",nom:"La Frise, chez Inge",finText:"Quel bonheur pour Inge de rentrer ! Il ne reste plus que Rotterdam… 🖤",sousEtapes:[
  {titre:"Chez Inge, en Frise",narr:"Inge est tout émue : nous voici en Frise, sa terre natale ! Lis son histoire.",activites:[
    {type:'lecture',texte:"La Frise est une région du nord des Pays-Bas, faite de prairies, de lacs et de canaux gelés l'hiver. C'est la patrie du cheval Frison, tout noir et élégant, comme Inge ! Les Frisons ont même leur propre langue, le frison, différente du néerlandais. L'hiver, quand les canaux gèlent, on y fait de grandes courses de patin à glace.",questions:[
      {q:"De quelle couleur est le cheval Frison ?",choix:['tout noir','tout blanc','doré'],r:'tout noir'},
@@ -4052,7 +4218,7 @@ const ETAPE_FRIESLAND={key:"friesland",pays:"Pays-Bas",drapeau:"🇳🇱",numero
  ],crins:66,renom:5},
  {titre:"Chez soi !",narr:"Inge est la plus heureuse des frisonnes ! On t'offre une belle carte.",activites:[{type:'bonus',rarete:['rare','epique']}],crins:90,renom:5},
 ]};
-const ETAPE_ROTTERDAM={key:"rotterdam",pays:"Pays-Bas",drapeau:"🇳🇱",numero:10,region:"Rotterdam",province:"Pays-Bas",theme:"🌊 Le Rhin atteint la mer",enjeu:"accompagner le Rhin jusqu'à la mer",fond:"cartes/fond_rotterdam.jpg",reveal:"Inge atteint Rotterdam : ici, le Rhin finit son grand voyage et se jette dans la mer !",nom:"Rotterdam, le Rhin et la mer",finText:"Le Rhin a rejoint la mer ! Direction Berlin pour la grande finale… 🌊",sousEtapes:[
+const ETAPE_ROTTERDAM={key:"rotterdam",pays:"Pays-Bas",drapeau:"🇳🇱",numero:10,region:"Rotterdam",province:"Pays-Bas",theme:"🌊 Le Rhin atteint la mer",enjeu:"accompagner le Rhin jusqu'à la mer",fond:"aventure/fond_rotterdam.jpg",reveal:"Inge atteint Rotterdam : ici, le Rhin finit son grand voyage et se jette dans la mer !",nom:"Rotterdam, le Rhin et la mer",finText:"Le Rhin a rejoint la mer ! Direction Berlin pour la grande finale… 🌊",sousEtapes:[
  {titre:"Au bout du fleuve",narr:"Nous voici à Rotterdam, là où finit le voyage du Rhin. Lis son histoire.",activites:[
    {type:'lecture',texte:"Rotterdam abrite le plus grand port d'Europe : une forêt de grues et de porte-conteneurs longs comme des rues ! C'est ici, dans un immense delta, que le Rhin — après avoir traversé les Alpes, l'Allemagne et les Pays-Bas — se sépare en plusieurs bras et se jette enfin dans la mer du Nord. Son grand voyage se termine.",questions:[
      {q:"Qu'abrite Rotterdam ?",choix:['le plus grand port d\'Europe','le plus haut sommet','le plus grand désert'],r:'le plus grand port d\'Europe'},
@@ -4083,7 +4249,7 @@ const ETAPE_ROTTERDAM={key:"rotterdam",pays:"Pays-Bas",drapeau:"🇳🇱",numero
  {titre:"Le Rhin a rejoint la mer !",narr:"Le grand voyage du fleuve est accompli ! Il ne reste que la capitale, Berlin. On t'offre une carte.",activites:[{type:'bonus'}],crins:90,renom:5},
 ]};
 
-const ETAPE_SEVILLE={key:"seville",pays:"Espagne",drapeau:"🇪🇸",numero:1,region:"Séville",province:"Espagne",theme:"💃 Flamenco & Giralda",enjeu:"ouvrir la grande feria de Séville",fond:"cartes/fond_seville.jpg",reveal:"Rocío t'accueille chez elle, à Séville, en Andalousie, au son du flamenco et devant la Giralda !",nom:"Séville, chez Rocío",finText:"¡Olé ! La région suivante t'attend… 💃",sousEtapes:[
+const ETAPE_SEVILLE={key:"seville",pays:"Espagne",drapeau:"🇪🇸",numero:1,region:"Séville",province:"Espagne",theme:"💃 Flamenco & Giralda",enjeu:"ouvrir la grande feria de Séville",fond:"aventure/fond_seville.jpg",reveal:"Rocío t'accueille chez elle, à Séville, en Andalousie, au son du flamenco et devant la Giralda !",nom:"Séville, chez Rocío",finText:"¡Olé ! La région suivante t'attend… 💃",sousEtapes:[
  {titre:"Bienvenue chez Rocío",narr:"Nous voici en Espagne, à Séville, la ville natale de Rocío ! Lis son histoire.",activites:[
    {type:'lecture',texte:"Séville est la grande ville d'Andalousie, dans le sud ensoleillé de l'Espagne. C'est la patrie du flamenco, cette danse au son des guitares et des mains qui claquent, et des fiers chevaux andalous comme Rocío ! On y voit la Giralda, une haute tour, et la Plaza de España aux mille azulejos. Ici on parle espagnol : « hola » veut dire bonjour.",questions:[
      {q:"De quelle danse Séville est-elle la patrie ?",choix:['le flamenco','la valse','le rock'],r:'le flamenco'},
@@ -4114,7 +4280,7 @@ const ETAPE_SEVILLE={key:"seville",pays:"Espagne",drapeau:"🇪🇸",numero:1,re
  ],crins:62,renom:4},
  {titre:"¡Olé !",narr:"La feria est un triomphe, et Rocío est la plus fière des Andalouses ! On t'offre une carte.",activites:[{type:'bonus'}],crins:74,renom:3},
 ]};
-const ETAPE_MADRID={key:"madrid",pays:"Espagne",drapeau:"🇪🇸",numero:11,boss:true,region:"Madrid",province:"capitale de l'Espagne",theme:"👑 La capitale royale",enjeu:"réunir toute la péninsule pour la grande parade royale",fond:"cartes/fond_madrid.jpg",reveal:"Rocío t'emmène à la Puerta del Sol : bienvenue à Madrid, la capitale de l'Espagne !",nom:"Madrid, cœur de l'Espagne",finText:"Tu es la championne de la péninsule ! Le monde continue de s'ouvrir… 🌍",sousEtapes:[
+const ETAPE_MADRID={key:"madrid",pays:"Espagne",drapeau:"🇪🇸",numero:11,boss:true,region:"Madrid",province:"capitale de l'Espagne",theme:"👑 La capitale royale",enjeu:"réunir toute la péninsule pour la grande parade royale",fond:"aventure/fond_madrid.jpg",reveal:"Rocío t'emmène à la Puerta del Sol : bienvenue à Madrid, la capitale de l'Espagne !",nom:"Madrid, cœur de l'Espagne",finText:"Tu es la championne de la péninsule ! Le monde continue de s'ouvrir… 🌍",sousEtapes:[
  {titre:"Arrivée à Madrid",narr:"Te voici à Madrid pour l'épreuve suprême ! Découvre la capitale.",activites:[
    {type:'lecture',texte:"Madrid est la capitale de l'Espagne, au centre exact du pays. Sur sa place de la Puerta del Sol se trouve le « kilomètre 0 », le point de départ de toutes les routes d'Espagne ! On y visite le Palais royal et le musée du Prado, l'un des plus grands musées de peinture du monde.",questions:[
      {q:"Où se trouve le « kilomètre 0 » des routes d'Espagne ?",choix:['à Madrid (Puerta del Sol)','à Séville','à Lisbonne'],r:'à Madrid (Puerta del Sol)'},
@@ -4143,7 +4309,7 @@ const ETAPE_MADRID={key:"madrid",pays:"Espagne",drapeau:"🇪🇸",numero:11,bos
  {titre:"¡Campeona !",narr:"BRAVO ! Toute l'Espagne et le Portugal t'acclament ! Rocío te rejoint : « Andalou, Lusitanien et les mustangs d'Amérique sont ma famille — bienvenue ! » 🎆",activites:[{type:'bonus',carteId:'rocio'}],crins:360,renom:15},
 ]};
 
-const ETAPE_GRENADE={key:"grenade",pays:"Espagne",drapeau:"🇪🇸",numero:2,region:"Grenade",province:"Espagne",theme:"🕌 L'Alhambra & les Maures",enjeu:"protéger le palais de l'Alhambra",fond:"cartes/fond_grenade.jpg",reveal:"Rocío t'emmène à Grenade, devant l'Alhambra, le magnifique palais des rois maures.",nom:"Grenade et l'Alhambra",finText:"L'Alhambra est sauvegardée ! La région suivante t'attend… 🕌",sousEtapes:[
+const ETAPE_GRENADE={key:"grenade",pays:"Espagne",drapeau:"🇪🇸",numero:2,region:"Grenade",province:"Espagne",theme:"🕌 L'Alhambra & les Maures",enjeu:"protéger le palais de l'Alhambra",fond:"aventure/fond_grenade.jpg",reveal:"Rocío t'emmène à Grenade, devant l'Alhambra, le magnifique palais des rois maures.",nom:"Grenade et l'Alhambra",finText:"L'Alhambra est sauvegardée ! La région suivante t'attend… 🕌",sousEtapes:[
  {titre:"Devant l'Alhambra",narr:"Voici l'Alhambra, joyau de Grenade. Lis son histoire.",activites:[
    {type:'lecture',texte:"Pendant près de 800 ans, une grande partie de l'Espagne fut gouvernée par les Maures, des musulmans venus d'Afrique du Nord. On appelait ce pays Al-Andalus. À Grenade, ils bâtirent l'Alhambra, un palais aux cours fraîches où l'eau chante dans les fontaines, couvert de fins motifs de plâtre et d'azulejos. Ce fut leur dernier royaume en Espagne.",questions:[
      {q:"Combien de temps les Maures ont-ils régné sur une partie de l'Espagne ?",choix:['près de 800 ans','un an','un jour'],r:'près de 800 ans'},
@@ -4174,7 +4340,7 @@ const ETAPE_GRENADE={key:"grenade",pays:"Espagne",drapeau:"🇪🇸",numero:2,re
  ],crins:62,renom:4},
  {titre:"L'Alhambra veille !",narr:"Le palais des Maures est préservé ! On t'offre une carte.",activites:[{type:'bonus'}],crins:74,renom:3},
 ]};
-const ETAPE_TOLEDE={key:"tolede",pays:"Espagne",drapeau:"🇪🇸",numero:3,region:"Tolède",province:"Espagne",theme:"⚔️ La ville des 3 cultures",enjeu:"forger la paix entre les trois peuples",fond:"cartes/fond_tolede.jpg",reveal:"Rocío grimpe à Tolède, la vieille ville fortifiée dressée sur sa colline, au-dessus du fleuve Tage.",nom:"Tolède, ville des 3 cultures",finText:"Tolède est en paix ! La région suivante t'attend… ⚔️",sousEtapes:[
+const ETAPE_TOLEDE={key:"tolede",pays:"Espagne",drapeau:"🇪🇸",numero:3,region:"Tolède",province:"Espagne",theme:"⚔️ La ville des 3 cultures",enjeu:"forger la paix entre les trois peuples",fond:"aventure/fond_tolede.jpg",reveal:"Rocío grimpe à Tolède, la vieille ville fortifiée dressée sur sa colline, au-dessus du fleuve Tage.",nom:"Tolède, ville des 3 cultures",finText:"Tolède est en paix ! La région suivante t'attend… ⚔️",sousEtapes:[
  {titre:"Dans Tolède",narr:"Voici Tolède, perchée sur sa colline. Lis son histoire.",activites:[
    {type:'lecture',texte:"Tolède est une vieille ville fortifiée, entourée par le fleuve Tage. Longtemps, trois peuples y ont vécu côte à côte : des chrétiens, des musulmans et des juifs, chacun avec ses églises, ses mosquées et ses synagogues. On l'appelle « la ville des trois cultures ». On y forgeait aussi les meilleures épées d'Europe, l'acier de Tolède !",questions:[
      {q:"Combien de peuples vivaient à Tolède côte à côte ?",choix:['trois','un seul','dix'],r:'trois'},
@@ -4206,7 +4372,7 @@ const ETAPE_TOLEDE={key:"tolede",pays:"Espagne",drapeau:"🇪🇸",numero:3,regi
  ],crins:62,renom:4},
  {titre:"Tolède en paix !",narr:"Les trois cultures vivent en harmonie ! On t'offre une carte.",activites:[{type:'bonus'}],crins:74,renom:3},
 ]};
-const ETAPE_VALENCE={key:"valence",pays:"Espagne",drapeau:"🇪🇸",numero:4,region:"Valence",province:"Espagne",theme:"🍊 Oranges & Méditerranée",enjeu:"réussir la grande récolte d'oranges",fond:"cartes/fond_valence.jpg",reveal:"Rocío arrive à Valence, au bord de la Méditerranée, entre les orangers et la Cité des Arts et des Sciences.",nom:"Valence et ses oranges",finText:"La récolte est rentrée ! La région suivante t'attend… 🍊",sousEtapes:[
+const ETAPE_VALENCE={key:"valence",pays:"Espagne",drapeau:"🇪🇸",numero:4,region:"Valence",province:"Espagne",theme:"🍊 Oranges & Méditerranée",enjeu:"réussir la grande récolte d'oranges",fond:"aventure/fond_valence.jpg",reveal:"Rocío arrive à Valence, au bord de la Méditerranée, entre les orangers et la Cité des Arts et des Sciences.",nom:"Valence et ses oranges",finText:"La récolte est rentrée ! La région suivante t'attend… 🍊",sousEtapes:[
  {titre:"À Valence",narr:"Bienvenue à Valence, sur la côte ! Lis son histoire.",activites:[
    {type:'lecture',texte:"Valence est une ville de la côte méditerranéenne, au climat doux et ensoleillé : parfait pour les orangers, dont les champs parfument tout le pays ! On y a inventé la paella, un grand plat de riz. Chaque printemps, la ville brûle d'immenses statues de carton lors de la fête des Fallas. Et une Cité des Arts et des Sciences ultramoderne s'y dresse comme un vaisseau blanc.",questions:[
      {q:"Quel fruit pousse autour de Valence ?",choix:['l\'orange','la banane','l\'ananas'],r:'l\'orange'},
@@ -4236,7 +4402,7 @@ const ETAPE_VALENCE={key:"valence",pays:"Espagne",drapeau:"🇪🇸",numero:4,re
  ],crins:62,renom:4},
  {titre:"Récolte rentrée !",narr:"Les oranges embaument la ville ! On t'offre une carte.",activites:[{type:'bonus'}],crins:74,renom:3},
 ]};
-const ETAPE_BARCELONE={key:"barcelone",pays:"Espagne",drapeau:"🇪🇸",numero:5,region:"Barcelone",province:"Espagne",theme:"🎨 Gaudí & les mosaïques",enjeu:"achever la mosaïque de Gaudí",fond:"cartes/fond_barcelone.jpg",reveal:"Rocío t'emmène à Barcelone, devant la Sagrada Família, l'incroyable église de l'architecte Gaudí !",nom:"Barcelone et Gaudí",finText:"La mosaïque brille de mille couleurs ! La région suivante t'attend… 🎨",sousEtapes:[
+const ETAPE_BARCELONE={key:"barcelone",pays:"Espagne",drapeau:"🇪🇸",numero:5,region:"Barcelone",province:"Espagne",theme:"🎨 Gaudí & les mosaïques",enjeu:"achever la mosaïque de Gaudí",fond:"aventure/fond_barcelone.jpg",reveal:"Rocío t'emmène à Barcelone, devant la Sagrada Família, l'incroyable église de l'architecte Gaudí !",nom:"Barcelone et Gaudí",finText:"La mosaïque brille de mille couleurs ! La région suivante t'attend… 🎨",sousEtapes:[
  {titre:"À Barcelone",narr:"Bienvenue à Barcelone ! Lis son histoire.",activites:[
    {type:'lecture',texte:"Barcelone est une grande ville de Catalogne, au bord de la Méditerranée. Un architecte de génie, Antoni Gaudí, y a créé des bâtiments comme sortis d'un rêve : la Sagrada Família, une église hérissée de tours, en chantier depuis plus de 140 ans, et le parc Güell, tout en mosaïques de morceaux de faïence colorés. Rien n'y est droit : tout ondule comme dans la nature !",questions:[
      {q:"Comment s'appelle l'architecte de Barcelone ?",choix:['Gaudí','Monet','Gaudi n\'existe pas'],r:'Gaudí'},
@@ -4266,7 +4432,7 @@ const ETAPE_BARCELONE={key:"barcelone",pays:"Espagne",drapeau:"🇪🇸",numero:
  ],crins:62,renom:4},
  {titre:"Quelle œuvre d'art !",narr:"La mosaïque de Gaudí émerveille tout le monde ! On t'offre une carte.",activites:[{type:'bonus'}],crins:74,renom:3},
 ]};
-const ETAPE_COMPOSTELLE={key:"compostelle",pays:"Espagne",drapeau:"🇪🇸",numero:6,region:"Compostelle",province:"Espagne",theme:"🐚 Le grand pèlerinage",enjeu:"guider les pèlerins jusqu'à la cathédrale",fond:"cartes/fond_compostelle.jpg",reveal:"Rocío arrive à Saint-Jacques-de-Compostelle, au bout du plus grand chemin de pèlerinage d'Europe.",nom:"Saint-Jacques-de-Compostelle",finText:"Les pèlerins sont arrivés ! La région suivante t'attend… 🐚",sousEtapes:[
+const ETAPE_COMPOSTELLE={key:"compostelle",pays:"Espagne",drapeau:"🇪🇸",numero:6,region:"Compostelle",province:"Espagne",theme:"🐚 Le grand pèlerinage",enjeu:"guider les pèlerins jusqu'à la cathédrale",fond:"aventure/fond_compostelle.jpg",reveal:"Rocío arrive à Saint-Jacques-de-Compostelle, au bout du plus grand chemin de pèlerinage d'Europe.",nom:"Saint-Jacques-de-Compostelle",finText:"Les pèlerins sont arrivés ! La région suivante t'attend… 🐚",sousEtapes:[
  {titre:"Au bout du chemin",narr:"Voici Compostelle, but des pèlerins. Lis son histoire.",activites:[
    {type:'lecture',texte:"Depuis plus de mille ans, des pèlerins marchent des semaines, parfois des mois, pour rejoindre la cathédrale de Saint-Jacques-de-Compostelle, dans le nord-ouest de l'Espagne. Ils suivent un chemin balisé par une coquille, la coquille Saint-Jacques, et par des flèches jaunes. Certains disent même qu'ils suivent la Voie lactée dans le ciel !",questions:[
      {q:"Quel objet balise le chemin des pèlerins ?",choix:['la coquille Saint-Jacques','un ballon','un drapeau rouge'],r:'la coquille Saint-Jacques'},
@@ -4296,7 +4462,7 @@ const ETAPE_COMPOSTELLE={key:"compostelle",pays:"Espagne",drapeau:"🇪🇸",num
  ],crins:62,renom:4},
  {titre:"¡Arrivés !",narr:"Les pèlerins pleurent de joie devant la cathédrale ! On t'offre une carte.",activites:[{type:'bonus'}],crins:74,renom:3},
 ]};
-const ETAPE_BILBAO={key:"bilbao",pays:"Espagne",drapeau:"🇪🇸",numero:7,region:"Bilbao",province:"Espagne",theme:"🎨 Pays basque & Pottok",enjeu:"ramener les petits poneys du Pays basque",fond:"cartes/fond_bilbao.jpg",reveal:"Rocío t'emmène à Bilbao, au Pays basque, devant le musée Guggenheim tout brillant.",nom:"Bilbao et le Pays basque",finText:"Les Pottok sont rentrés ! La région suivante t'attend… 🎨",sousEtapes:[
+const ETAPE_BILBAO={key:"bilbao",pays:"Espagne",drapeau:"🇪🇸",numero:7,region:"Bilbao",province:"Espagne",theme:"🎨 Pays basque & Pottok",enjeu:"ramener les petits poneys du Pays basque",fond:"aventure/fond_bilbao.jpg",reveal:"Rocío t'emmène à Bilbao, au Pays basque, devant le musée Guggenheim tout brillant.",nom:"Bilbao et le Pays basque",finText:"Les Pottok sont rentrés ! La région suivante t'attend… 🎨",sousEtapes:[
  {titre:"Au Pays basque",narr:"Bienvenue à Bilbao, au Pays basque ! Lis son histoire.",activites:[
    {type:'lecture',texte:"Bilbao est la grande ville du Pays basque, au nord de l'Espagne, contre les Pyrénées. Les Basques parlent une langue très spéciale, le basque (euskara) : elle ne ressemble à AUCUNE autre langue au monde, et serait la plus vieille d'Europe ! Dans leurs montagnes vivent les Pottok, de tout petits poneys sauvages. À Bilbao brille le musée Guggenheim, aux murs d'argent ondulés.",questions:[
      {q:"Qu'a de spécial la langue basque ?",choix:['elle ne ressemble à aucune autre','elle est écrite en chiffres','personne ne la parle'],r:'elle ne ressemble à aucune autre'},
@@ -4327,7 +4493,7 @@ const ETAPE_BILBAO={key:"bilbao",pays:"Espagne",drapeau:"🇪🇸",numero:7,regi
  ],crins:62,renom:4},
  {titre:"Agur ! (au revoir en basque)",narr:"Les Pottok sont à l'abri ! On t'offre une carte.",activites:[{type:'bonus'}],crins:74,renom:3},
 ]};
-const ETAPE_PORTO={key:"porto",pays:"Portugal",drapeau:"🇵🇹",numero:8,region:"Porto",province:"Portugal",theme:"🌉 Le Douro & les azulejos",enjeu:"remonter le Douro avec les bateaux de porto",fond:"cartes/fond_porto.jpg",reveal:"Rocío passe la frontière et entre au Portugal, à Porto, devant le pont Dom-Luís et le fleuve Douro !",nom:"Porto, sur le Douro",finText:"Bem-vindo a Portugal ! La région suivante t'attend… 🌉",sousEtapes:[
+const ETAPE_PORTO={key:"porto",pays:"Portugal",drapeau:"🇵🇹",numero:8,region:"Porto",province:"Portugal",theme:"🌉 Le Douro & les azulejos",enjeu:"remonter le Douro avec les bateaux de porto",fond:"aventure/fond_porto.jpg",reveal:"Rocío passe la frontière et entre au Portugal, à Porto, devant le pont Dom-Luís et le fleuve Douro !",nom:"Porto, sur le Douro",finText:"Bem-vindo a Portugal ! La région suivante t'attend… 🌉",sousEtapes:[
  {titre:"Bienvenue au Portugal",narr:"Nous passons la frontière : voici le Portugal, à Porto ! Lis son histoire.",activites:[
    {type:'lecture',texte:"Porto est la deuxième ville du Portugal, posée sur le fleuve Douro, qu'enjambe le grand pont de fer Dom-Luís. Ses maisons se couvrent d'azulejos, ces carreaux bleus qui racontent des histoires. Sur le fleuve glissent de vieux bateaux de bois qui transportaient le vin de Porto. Ici on parle portugais : « olá » veut dire bonjour.",questions:[
      {q:"Sur quel fleuve se trouve Porto ?",choix:['le Douro','le Rhin','le Tage'],r:'le Douro'},
@@ -4358,7 +4524,7 @@ const ETAPE_PORTO={key:"porto",pays:"Portugal",drapeau:"🇵🇹",numero:8,regio
  ],crins:62,renom:4},
  {titre:"Obrigado, Porto !",narr:"Les bateaux ont remonté le Douro ! On t'offre une carte.",activites:[{type:'bonus'}],crins:74,renom:3},
 ]};
-const ETAPE_SINTRA={key:"sintra",pays:"Portugal",drapeau:"🇵🇹",numero:9,region:"Sintra",province:"Portugal",theme:"🏰 Le palais de conte de fées",enjeu:"réveiller la magie du palais de Pena",fond:"cartes/fond_sintra.jpg",reveal:"Rocío grimpe à Sintra, dans les collines boisées, devant le palais de Pena, tout coloré comme un jouet.",nom:"Sintra et le palais de Pena",finText:"Le palais scintille ! La dernière région t'attend… 🏰",sousEtapes:[
+const ETAPE_SINTRA={key:"sintra",pays:"Portugal",drapeau:"🇵🇹",numero:9,region:"Sintra",province:"Portugal",theme:"🏰 Le palais de conte de fées",enjeu:"réveiller la magie du palais de Pena",fond:"aventure/fond_sintra.jpg",reveal:"Rocío grimpe à Sintra, dans les collines boisées, devant le palais de Pena, tout coloré comme un jouet.",nom:"Sintra et le palais de Pena",finText:"Le palais scintille ! La dernière région t'attend… 🏰",sousEtapes:[
  {titre:"Dans les collines de Sintra",narr:"Voici Sintra, ville de palais. Lis son histoire.",activites:[
    {type:'lecture',texte:"Sintra se cache dans des collines vertes et brumeuses, près de Lisbonne. Un roi y fit peindre un palais, le palais de Pena, en rouge vif et jaune soleil, avec des tours et des tourelles comme un château de dessin animé ! Tout autour, des jardins pleins de fougères géantes, de grottes et de passages secrets. On dirait un décor de conte de fées.",questions:[
      {q:"De quelles couleurs est peint le palais de Pena ?",choix:['rouge et jaune','tout gris','noir'],r:'rouge et jaune'},
@@ -4389,7 +4555,7 @@ const ETAPE_SINTRA={key:"sintra",pays:"Portugal",drapeau:"🇵🇹",numero:9,reg
  ],crins:62,renom:4},
  {titre:"Le palais enchanté !",narr:"Le palais de Pena brille de magie ! On t'offre une carte.",activites:[{type:'bonus'}],crins:74,renom:3},
 ]};
-const ETAPE_LISBONNE={key:"lisbonne",pays:"Portugal",drapeau:"🇵🇹",numero:10,region:"Lisbonne",province:"Portugal",theme:"⛵ Les Grandes Découvertes",enjeu:"préparer le grand départ des explorateurs",fond:"cartes/fond_lisbonne.jpg",reveal:"Rocío atteint Lisbonne, la capitale du Portugal, d'où partirent les grands explorateurs sur l'océan !",nom:"Lisbonne, ville des explorateurs",finText:"Les caravelles sont prêtes ! Direction Madrid pour la grande finale… ⛵",sousEtapes:[
+const ETAPE_LISBONNE={key:"lisbonne",pays:"Portugal",drapeau:"🇵🇹",numero:10,region:"Lisbonne",province:"Portugal",theme:"⛵ Les Grandes Découvertes",enjeu:"préparer le grand départ des explorateurs",fond:"aventure/fond_lisbonne.jpg",reveal:"Rocío atteint Lisbonne, la capitale du Portugal, d'où partirent les grands explorateurs sur l'océan !",nom:"Lisbonne, ville des explorateurs",finText:"Les caravelles sont prêtes ! Direction Madrid pour la grande finale… ⛵",sousEtapes:[
  {titre:"À Lisbonne",narr:"Voici Lisbonne, ville des navigateurs. Lis son histoire.",activites:[
    {type:'lecture',texte:"Lisbonne est la capitale du Portugal, au bord de l'océan Atlantique. Il y a environ 500 ans, c'est d'ici que partirent les grands explorateurs sur leurs caravelles, de petits bateaux à voiles, pour découvrir des routes vers l'Afrique, l'Inde et l'Amérique. On visite la tour de Belém, qui gardait le port, et on grimpe la ville dans de vieux tramways jaunes.",questions:[
      {q:"Sur quels bateaux partaient les explorateurs ?",choix:['des caravelles','des sous-marins','des radeaux'],r:'des caravelles'},
