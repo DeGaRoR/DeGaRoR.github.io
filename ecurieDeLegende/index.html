@@ -140,6 +140,13 @@ nav.tabs button.actif::before{content:"";position:absolute;top:0;width:34px;heig
 .btn-tirer .cout{background:#00000022;padding:3px 10px;border-radius:999px;font-size:15px;display:inline-flex;align-items:center;gap:5px;}
 .cout .fer{width:15px;height:15px;}
 .tirage-aide{margin-top:16px;font-size:12.5px;color:var(--txt-doux);}
+.tirage-actions{display:flex;flex-direction:column;gap:12px;width:min(340px,86vw);margin:0 auto;}
+.tirage-actions .btn-tirer{width:100%;margin:0;justify-content:space-between;padding:15px 22px;}
+.bt-lbl{display:flex;flex-direction:column;align-items:flex-start;line-height:1.15;text-align:left;}
+.bt-lbl small{font-weight:600;font-size:11px;opacity:.82;margin-top:1px;}
+.btn-super{background:linear-gradient(180deg,#c6a0ff,#8a5ee0 52%,#6a3fc0);color:#fff;box-shadow:0 8px 22px -5px #7a4fd0aa,inset 0 1px 0 #fff7;}
+.btn-super .cout{background:#ffffff26;color:#ffe9a8;font-weight:700;}
+.ta-dia{color:var(--or);} .ta-ren{color:#ffcf6b;}
 .tirage-aide a{color:var(--or);text-decoration:none;font-weight:700;cursor:pointer;border-bottom:1px dotted var(--or);}
 .chances-help{margin:22px auto 0;display:block;font-family:'Fredoka';font-weight:500;font-size:14px;color:var(--txt-doux);background:#ffffff0d;border:1px solid #ffffff1a;border-radius:999px;padding:10px 20px;cursor:pointer;}
 .chances-help:active{transform:scale(.97);}
@@ -288,6 +295,11 @@ nav.tabs button.actif::before{content:"";position:absolute;top:0;width:34px;heig
 #d-stats .cap-bar{flex:1;height:8px;background:#ffffff14;border-radius:999px;overflow:hidden;}
 #d-stats .cap-bar>div{height:100%;border-radius:999px;}
 #d-stats .cap-val{font-family:'Fredoka';font-weight:600;font-size:13px;width:24px;text-align:right;}
+#d-stats .cap-mark{width:12px;text-align:center;font-size:10px;flex-shrink:0;}
+#d-stats .cap-mark.fort{color:#6fdca0;}
+#d-stats .cap-mark.faible{color:#e88a8a;}
+#d-stats .cap-ligne.est-fort .cap-nom{color:var(--txt);font-weight:600;}
+#d-stats .cap-ligne.est-faible .cap-nom{opacity:.7;}
 
 .feuille-fond{position:fixed;inset:0;height:100dvh;z-index:40;background:#0009;backdrop-filter:blur(3px);display:none;align-items:flex-end;justify-content:center;}
 .feuille-fond.on{display:flex;animation:fade .2s;}
@@ -524,6 +536,9 @@ main.plein{padding:0 !important;overflow:hidden !important;}
 .pack-carte .dc-sous{font-size:10.5px;color:var(--txt-doux);font-family:'Fredoka';font-weight:500;text-align:center;line-height:1.2;}
 .defi-retour{background:none;border:none;color:var(--txt-doux);font-family:'Fredoka';font-size:13px;cursor:pointer;margin-bottom:6px;padding:2px 0;}
 .races-art{display:flex;justify-content:center;margin:4px 0 12px;} .races-vig{width:148px;}
+.races-photo{width:150px;aspect-ratio:var(--ratio-carte);border-radius:16px;overflow:hidden;box-shadow:0 8px 22px -6px #0009;background:#0003;display:flex;align-items:center;justify-content:center;}
+.races-photo img{width:100%;height:100%;object-fit:cover;display:block;}
+.races-photo .art-emoji{font-size:64px;}
 .races-q{text-align:center;font-family:'Fredoka';font-weight:600;font-size:17px;margin-bottom:12px;}
 .races-theo{display:block;margin:12px auto 0;background:#ffffff10;border:1px solid #ffffff20;border-radius:12px;color:var(--txt-doux);font-family:'Fredoka';font-size:13px;padding:8px 14px;cursor:pointer;}
 .ortho-indice{text-align:center;font-family:'Fredoka';font-size:15px;line-height:1.5;margin:16px 0;}
@@ -643,7 +658,7 @@ main.plein{padding:0 !important;overflow:hidden !important;}
 .tuto-pj{width:88px;height:88px;border-radius:50%;margin:4px auto 14px;background:#0004 center/cover;border:3px solid #ffd36e;box-shadow:0 6px 20px #0006;}
 .tuto-txt{font-size:16px;line-height:1.5;color:#f3eeff;margin-bottom:16px;}
 .tuto-cartes{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-bottom:16px;}
-.tuto-c{width:92px;}
+.tuto-c{width:92px;aspect-ratio:var(--ratio-carte);}
 .tuto-btn{width:100%;padding:14px;font-size:16px;border-radius:14px;border:none;background:linear-gradient(90deg,#ffb020,#ff7ac0);color:#1a1030;font-weight:800;cursor:pointer;}
 
 </style>
@@ -694,14 +709,13 @@ main.plein{padding:0 !important;overflow:hidden !important;}
     <section class="ecran" id="ecran-tirage">
       <div class="tirage-scene">
         <div class="dos"><span class="rune">✦</span></div>
-        <p class="tirage-desc">Tente ta chance ! Chaque tirage révèle une créature au hasard. Les doublons font <b style="color:var(--txt)">évoluer</b> tes créatures vers des formes plus légendaires.</p>
-        <button class="btn-tirer" id="btn-tirer">Tirer une carte
-          <span class="cout"><span class="dia">💎</span><span id="cout-nb"></span></span>
-        </button>
-        <button class="btn-tirer btn-tirer10" id="btn-tirer10">Tirer ×10 <span class="cout"><span id="cout-nb10"></span> Diamants</span></button>
-        <button class="btn-tirer btn-tirer-super" id="btn-tirer-super">✦ Super tirage — Épique ou mieux <span class="cout"><span id="cout-super"></span> ⭐ renommée</span></button>
-        <p class="tirage-aide">⭐ <b id="tirage-renom-nb">0</b> renommée disponible</p>
-        <p class="tirage-aide">Besoin de Diamants ? <a id="lien-revisions">Va réviser →</a></p>
+        <p class="tirage-desc">Chaque tirage révèle une créature au hasard. Les doublons font <b style="color:var(--txt)">évoluer</b> tes chevaux.</p>
+        <div class="tirage-actions">
+          <button class="btn-tirer" id="btn-tirer"><span class="bt-lbl">Tirer une carte</span><span class="cout"><span class="dia">💎</span><span id="cout-nb"></span></span></button>
+          <button class="btn-tirer btn-tirer10" id="btn-tirer10"><span class="bt-lbl">Tirer ×10</span><span class="cout"><span class="dia">💎</span><span id="cout-nb10"></span></span></button>
+          <button class="btn-tirer btn-super" id="btn-tirer-super"><span class="bt-lbl">✦ Super tirage<small>Épique ou mieux garanti</small></span><span class="cout"><span id="cout-super"></span> ⭐</span></button>
+        </div>
+        <p class="tirage-aide">Tu as <b class="ta-dia">💎 <span id="tirage-crins-nb">0</span></b> · <b class="ta-ren">⭐ <span id="tirage-renom-nb">0</span></b> renommée — <a id="lien-revisions">Va réviser →</a></p>
         <button class="chances-help" id="btn-chances">❔ Voir les chances de tirage</button>
       </div>
     </section>
@@ -1204,45 +1218,45 @@ dullahan:"cartes/dullahan.jpg",
 mari_lwyd:"cartes/mari_lwyd.jpg",
 };
 const CARTES = [
-  {id:"mustang_indien",nom:"Mustang indien",rarete:"commune",emoji:"🐎",image:IMG.mustang_indien,desc:"Cheval sauvage des grandes plaines, fidèle compagnon des peuples amérindiens.",aff:["vitesse","endurance"],familles:["sauvages","historiques"],royaume:"amerique"},
+  {id:"mustang_indien",nom:"Mustang indien",rarete:"commune",emoji:"🐎",image:IMG.mustang_indien,desc:"Cheval sauvage des grandes plaines, fidèle compagnon des peuples amérindiens.",aff:["vitesse","endurance"],familles:["sauvages","bataille"],royaume:"amerique"},
   {id:"maman_cheval",nom:"Maman cheval",rarete:"commune",emoji:"🐴",image:IMG.maman_cheval,desc:"Une maman pleine de douceur veille sur son petit poulain.",aff:["beaute","endurance"],familles:["pres"],royaume:"belgique"},
   {id:"roi_montagnes",nom:"Le roi des montagnes",rarete:"commune",emoji:"🐴",image:IMG.roi_montagnes,desc:"Fier et puissant, il règne sur les sommets balayés par le vent.",aff:["force","endurance"],familles:["sauvages"],royaume:"norvege"},
   {id:"poney_heureux",nom:"Le poney heureux",rarete:"commune",emoji:"🐴",image:IMG.poney_heureux,desc:"Petit, ébouriffé et toujours de bonne humeur dans les prés fleuris.",aff:["beaute"],familles:["pres"],royaume:"belgique"},
   {id:"licorne",nom:"La licorne",rarete:"legendaire",emoji:"🦄",image:IMG.licorne,desc:"Créature magique à la corne d'or, elle n'apparaît qu'aux cœurs purs.",aff:["beaute","magie"],familles:["legende"],royaume:"avalon"},
-  {id:"hippocampe",nom:"L'hippocampe",rarete:"epique",emoji:"🐴",image:IMG.hippocampe,desc:"Mi-cheval, mi-poisson, il file entre les vagues et les coraux.",aff:["vitesse","magie"],familles:["eau","legende"],royaume:"grece"},
+  {id:"hippocampe",nom:"L'hippocampe",rarete:"epique",emoji:"🐴",image:IMG.hippocampe,desc:"Mi-cheval, mi-poisson, il file entre les vagues et les coraux.",aff:["vitesse","magie"],familles:["elementaires","legende"],royaume:"grece"},
   {id:"cheval_enfers",nom:"Le cheval des enfers",rarete:"epique",emoji:"🐴",image:IMG.cheval_enfers,desc:"Né du feu et de la lave, son galop fait trembler la terre.",aff:["force","bataille"],familles:["elementaires","legende"],royaume:"avalon"},
-  {id:"cheval_tournoi",nom:"Le cheval de tournoi",rarete:"rare",emoji:"🐎",image:IMG.cheval_tournoi,desc:"Paré de fleurs de lys, il porte les couleurs de son chevalier.",aff:["bataille","beaute"],familles:["bataille","historiques"],royaume:"france"},
+  {id:"cheval_tournoi",nom:"Le cheval de tournoi",rarete:"rare",emoji:"🐎",image:IMG.cheval_tournoi,desc:"Paré de fleurs de lys, il porte les couleurs de son chevalier.",aff:["bataille","beaute"],familles:["bataille"],royaume:"france"},
   {id:"cheval_cirque",nom:"Le cheval de cirque",rarete:"commune",emoji:"🐎",image:IMG.cheval_cirque,desc:"Sous les lumières et les plumes, il danse pour émerveiller la foule.",aff:["beaute","vitesse"],familles:["race"],royaume:"france"},
   {id:"cheval_charbonnier",nom:"Le cheval du charbonnier",rarete:"commune",emoji:"🐴",image:IMG.cheval_charbonnier,desc:"Vaillant cheval de trait, il tire la lourde charrette de charbon.",aff:["force","endurance"],familles:["travail"],royaume:"angleterre"},
   {id:"belle_champs",nom:"La belle des champs",rarete:"commune",emoji:"🐴",image:IMG.belle_champs,desc:"Sa crinière dorée brille au soleil couchant des prairies.",aff:["beaute"],familles:["pres"],royaume:"belgique"},
-  {id:"cheval_neptune",nom:"Le cheval de Neptune",rarete:"legendaire",emoji:"🦄",image:IMG.cheval_neptune,desc:"Monture du dieu des mers, il galope au fond des océans.",aff:["magie","vitesse"],familles:["eau","legende"],royaume:"grece"},
+  {id:"cheval_neptune",nom:"Le cheval de Neptune",rarete:"legendaire",emoji:"🦄",image:IMG.cheval_neptune,desc:"Monture du dieu des mers, il galope au fond des océans.",aff:["magie","vitesse"],familles:["elementaires","legende"],royaume:"grece"},
   {id:"cheval_laboureur",nom:"Le cheval laboureur",rarete:"commune",emoji:"🐴",image:IMG.cheval_laboureur,desc:"Robuste et patient, il retourne la terre aux côtés du fermier.",aff:["force","endurance"],familles:["travail"],royaume:"belgique"},
-  {id:"ane_tetu",nom:"L'âne têtu",rarete:"commune",emoji:"🐴",image:IMG.ane_tetu,desc:"Petit mais courageux… et parfois un peu entêté !",aff:["endurance"],familles:["cousins"],royaume:"belgique"},
-  {id:"cheval_troie",nom:"Le cheval de Troie",rarete:"legendaire",emoji:"🐴",image:IMG.cheval_troie,desc:"Le célèbre cheval de bois qui cachait les guerriers grecs.",aff:["bataille","force"],familles:["bataille","historiques","legende"],royaume:"grece"},
-  {id:"cheval_romain",nom:"Le cheval romain",rarete:"rare",emoji:"🐎",image:IMG.cheval_romain,desc:"Fidèle destrier des légions, il portait les cavaliers de Rome.",aff:["bataille","endurance"],familles:["bataille","historiques"],royaume:"rome"},
-  {id:"cheval_chinois",nom:"Le cheval chinois antique",rarete:"rare",emoji:"🐎",image:IMG.cheval_chinois,desc:"Paré de soie et d'or, il défilait dans les palais impériaux.",aff:["beaute","magie"],familles:["race","historiques"],royaume:"chine"},
+  {id:"ane_tetu",nom:"L'âne têtu",rarete:"commune",emoji:"🐴",image:IMG.ane_tetu,desc:"Petit mais courageux… et parfois un peu entêté !",aff:["endurance"],familles:["sauvages"],royaume:"belgique"},
+  {id:"cheval_troie",nom:"Le cheval de Troie",rarete:"legendaire",emoji:"🐴",image:IMG.cheval_troie,desc:"Le célèbre cheval de bois qui cachait les guerriers grecs.",aff:["bataille","force"],familles:["bataille","legende"],royaume:"grece"},
+  {id:"cheval_romain",nom:"Le cheval romain",rarete:"rare",emoji:"🐎",image:IMG.cheval_romain,desc:"Fidèle destrier des légions, il portait les cavaliers de Rome.",aff:["bataille","endurance"],familles:["bataille"],royaume:"rome"},
+  {id:"cheval_chinois",nom:"Le cheval chinois antique",rarete:"rare",emoji:"🐎",image:IMG.cheval_chinois,desc:"Paré de soie et d'or, il défilait dans les palais impériaux.",aff:["beaute","magie"],familles:["race","bataille"],royaume:"chine"},
   {id:"centaure",nom:"Le centaure",rarete:"legendaire",emoji:"🦄",image:IMG.centaure,desc:"Moitié homme, moitié cheval, gardien sage des forêts anciennes.",aff:["bataille","force"],familles:["legende","bataille"],royaume:"grece"},
   {id:"uchchaihshravas",nom:"Uchchaihshravas",rarete:"mythique",emoji:"🐉",image:IMG.uchchaihshravas,desc:"Le cheval blanc à sept têtes, né du barattage de l'océan de lait.",aff:["magie","vitesse","beaute"],familles:["legende"],royaume:"inde"},
   {id:"sleipnir",nom:"Sleipnir",rarete:"mythique",emoji:"🐉",image:IMG.sleipnir,desc:"Le destrier à huit jambes d'Odin, plus rapide que le vent.",aff:["vitesse","endurance","magie"],familles:["legende"],royaume:"norvege"},
   {id:"licorne_girly",nom:"La licorne girly",rarete:"rare",emoji:"🦄",image:IMG.licorne_girly,desc:"Une licorne de conte de fées, crinière arc-en-ciel et cœurs scintillants.",aff:["beaute","magie"],familles:["legende","pres"],royaume:"avalon"},
-  {id:"cheval_diligence",nom:"Le cheval de diligence",rarete:"commune",emoji:"🐎",image:IMG.cheval_diligence,desc:"Fidèle cheval de poste, il tire la diligence sur les routes de France.",aff:["endurance","vitesse"],familles:["travail","historiques"],royaume:"france"},
+  {id:"cheval_diligence",nom:"Le cheval de diligence",rarete:"commune",emoji:"🐎",image:IMG.cheval_diligence,desc:"Fidèle cheval de poste, il tire la diligence sur les routes de France.",aff:["endurance","vitesse"],familles:["travail","bataille"],royaume:"france"},
   {id:"al_bouraq",nom:"Al-Bouraq",rarete:"mythique",emoji:"🕊️",image:IMG.al_bouraq,desc:"La monture ailée au visage humain, plus rapide que l'éclair entre ciel et terre.",aff:["vitesse","magie","beaute"],familles:["legende"],royaume:"arabie"},
   {id:"poulain",nom:"Poulain",rarete:"commune",emoji:"🐴",image:IMG.poulain,desc:"Un tout jeune poulain qui gambade pour la première fois dans le pré.",aff:["beaute"],familles:["pres"],royaume:"belgique"},
   {id:"matsukaze",nom:"Matsukaze",rarete:"mythique",emoji:"🐎",image:IMG.matsukaze,desc:"« Vent dans les pins » : le destrier noir des samouraïs, rapide et fier.",aff:["bataille","force","vitesse"],familles:["bataille","legende"],royaume:"japon"},
   {id:"cheval_fourrure",nom:"Le cheval à fourrure",rarete:"commune",emoji:"🐴",image:IMG.cheval_fourrure,desc:"Sa crinière dorée sans fin ondule comme une rivière au vent des montagnes.",aff:["beaute","endurance"],familles:["sauvages","race"],royaume:"norvege"},
-  {id:"ane_egyptien",nom:"L'âne égyptien",rarete:"commune",emoji:"🫏",image:IMG.ane_egyptien,desc:"Vaillant âne des bâtisseurs, il tire les blocs des grandes pyramides.",aff:["force","endurance"],familles:["cousins","travail"],royaume:"egypte"},
+  {id:"ane_egyptien",nom:"L'âne égyptien",rarete:"commune",emoji:"🫏",image:IMG.ane_egyptien,desc:"Vaillant âne des bâtisseurs, il tire les blocs des grandes pyramides.",aff:["force","endurance"],familles:["sauvages","travail"],royaume:"egypte"},
   {id:"cheval_champignon",nom:"Le cheval champignon",rarete:"epique",emoji:"🍄",image:IMG.cheval_champignon,desc:"Esprit de la forêt enchantée, couvert de mousses et de champignons.",aff:["magie","endurance"],familles:["legende","elementaires","plantes"],royaume:"avalon"},
-  {id:"kelpie",nom:"Le Kelpie",rarete:"epique",emoji:"🌊",image:IMG.kelpie,desc:"Cheval des lochs d'Écosse, il surgit de l'eau au crépuscule.",aff:["vitesse","magie"],familles:["eau","legende"],royaume:"ecosse"},
+  {id:"kelpie",nom:"Le Kelpie",rarete:"epique",emoji:"🌊",image:IMG.kelpie,desc:"Cheval des lochs d'Écosse, il surgit de l'eau au crépuscule.",aff:["vitesse","magie"],familles:["elementaires","legende"],royaume:"ecosse"},
   {id:"cheval_cyberpunk",nom:"Le cheval cyberpunk",rarete:"rare",emoji:"🤖",image:IMG.cheval_cyberpunk,desc:"Destrier de néon et d'acier, il galope dans la cité du futur.",aff:["vitesse","bataille"],familles:["course","robot"],royaume:"amerique"},
-  {id:"secretariat",nom:"Secrétariat",rarete:"legendaire",emoji:"🏇",image:IMG.secretariat,desc:"Le plus grand champion de course : ses records de vitesse tiennent encore aujourd'hui.",aff:["vitesse","endurance"],familles:["course","historiques"],royaume:"amerique"},
+  {id:"secretariat",nom:"Secrétariat",rarete:"legendaire",emoji:"🏇",image:IMG.secretariat,desc:"Le plus grand champion de course : ses records de vitesse tiennent encore aujourd'hui.",aff:["vitesse","endurance"],familles:["course","bataille"],royaume:"amerique"},
   {id:"bayard",nom:"Le cheval Bayard",rarete:"mythique",emoji:"🐎",image:IMG.bayard,desc:"Le cheval-fée qui grandissait pour porter les quatre fils Aymon.",aff:["force","magie"],familles:["legende","bataille"],royaume:"france"},
   {id:"cheval_rose",nom:"Le cheval rose",rarete:"commune",emoji:"🌸",image:IMG.cheval_rose,desc:"Un cheval tout rose et scintillant, sorti d'un rêve de printemps.",aff:["beaute"],familles:["pres","legende"],royaume:"avalon"},
-  {id:"bucephale",nom:"Bucéphale",rarete:"mythique",emoji:"⚔️",image:IMG.bucephale,desc:"L'indomptable destrier d'Alexandre le Grand, brave au cœur de la bataille.",aff:["bataille","force"],familles:["bataille","historiques","legende"],royaume:"grece"},
+  {id:"bucephale",nom:"Bucéphale",rarete:"mythique",emoji:"⚔️",image:IMG.bucephale,desc:"L'indomptable destrier d'Alexandre le Grand, brave au cœur de la bataille.",aff:["bataille","force"],familles:["bataille","legende"],royaume:"grece"},
   {id:"cheval_carrosse",nom:"Cheval de carrosse",rarete:"rare",emoji:"🎠",image:IMG.cheval_carrosse,desc:"Fier cheval d'attelage, il mène le carrosse doré des grandes occasions.",aff:["force","beaute"],familles:["travail","race"],royaume:"france"},
-  {id:"zebre",nom:"Zèbre",rarete:"commune",emoji:"🦓",image:IMG.zebre,desc:"Cousin sauvage du cheval, il file dans la savane, zébré de noir et de blanc.",aff:["vitesse","endurance"],familles:["cousins","sauvages"],royaume:"afrique"},
+  {id:"zebre",nom:"Zèbre",rarete:"commune",emoji:"🦓",image:IMG.zebre,desc:"Cousin sauvage du cheval, il file dans la savane, zébré de noir et de blanc.",aff:["vitesse","endurance"],familles:["sauvages"],royaume:"afrique"},
   {id:"cheval_obstacle",nom:"Cheval d'obstacle",rarete:"rare",emoji:"🏇",image:IMG.cheval_obstacle,desc:"Champion de saut, il franchit les plus hautes barres sous les acclamations.",aff:["vitesse","force"],familles:["course","race"],royaume:"angleterre"},
   {id:"cheval_desert",nom:"Cheval du désert",rarete:"rare",emoji:"🏜️",image:IMG.cheval_desert,desc:"Pur-sang arabe des sables, infatigable sous le soleil du désert.",aff:["endurance","vitesse"],familles:["race","course"],royaume:"arabie"},
-  {id:"cheval_armure",nom:"Cheval en armure",rarete:"epique",emoji:"🛡️",image:IMG.cheval_armure,desc:"Destrier bardé d'acier, il porte le chevalier au cœur de la mêlée.",aff:["bataille","endurance"],familles:["bataille","historiques"],royaume:"camelot"},
+  {id:"cheval_armure",nom:"Cheval en armure",rarete:"epique",emoji:"🛡️",image:IMG.cheval_armure,desc:"Destrier bardé d'acier, il porte le chevalier au cœur de la mêlée.",aff:["bataille","endurance"],familles:["bataille"],royaume:"camelot"},
   {id:"cheval_eclair",nom:"Cheval éclair",rarete:"legendaire",emoji:"⚡",image:IMG.cheval_eclair,desc:"Spectre d'orage, il surgit dans les éclairs et disparaît dans la nuit.",aff:["magie","vitesse"],familles:["elementaires","legende"],royaume:"avalon"},
   {id:"cheval_police",nom:"Cheval de police",rarete:"rare",emoji:"🐴",image:IMG.cheval_police,desc:"Monture calme et courageuse de la police montée, rien ne l'effraie dans la foule.",aff:["bataille","endurance"],familles:["travail","bataille"],royaume:"angleterre"},
   {id:"cheval_boucle",nom:"Cheval bouclé",rarete:"commune",emoji:"🐴",image:IMG.cheval_boucle,desc:"Sa robe et sa crinière tout en boucles le rendent unique, tout droit sorti d'un rêve.",aff:["beaute","endurance"],familles:["pres"],royaume:"amerique"},
@@ -1253,24 +1267,24 @@ const CARTES = [
   {id:"pegase",nom:"Pégase",rarete:"mythique",emoji:"🕊️",image:IMG.pegase,desc:"Le cheval ailé de la mythologie grecque : il s'envole jusqu'à l'Olympe.",aff:["vitesse","magie"],familles:["legende"],royaume:"grece"},
   {id:"etalon",nom:"Étalon",rarete:"commune",emoji:"🐎",image:IMG.etalon,desc:"Un étalon fier et robuste, roi de la prairie.",aff:["force","beaute"],familles:["pres","race"],royaume:"belgique"},
   {id:"bebe_poney",nom:"Bébé poney",rarete:"commune",emoji:"🐴",image:IMG.bebe_poney,desc:"Un adorable petit poney qui découvre le monde à petits pas.",aff:["beaute","vitesse"],familles:["pres"],royaume:"belgique"},
-  {id:"cheval_royal",nom:"Cheval royal",rarete:"epique",emoji:"👑",image:IMG.cheval_royal,desc:"Paré des armes du roi, il porte fièrement les couleurs du royaume.",aff:["beaute","bataille"],familles:["bataille","historiques","race"],royaume:"france"},
-  {id:"poney_shetland",nom:"Poney Shetland",rarete:"commune",emoji:"🐴",image:IMG.poney_shetland,desc:"Petit mais costaud : le poney shetland tire plus lourd que lui, têtu et rustique.",aff:["force","endurance"],familles:["pres","cousins"],royaume:"ecosse"},
-  {id:"cheval_pompier",nom:"Cheval pompier",rarete:"commune",emoji:"🚒",image:IMG.cheval_pompier,desc:"Vaillant cheval des pompiers, il fonce dans la ville en flammes.",aff:["force","vitesse"],familles:["travail","historiques"],royaume:"angleterre"},
+  {id:"cheval_royal",nom:"Cheval royal",rarete:"epique",emoji:"👑",image:IMG.cheval_royal,desc:"Paré des armes du roi, il porte fièrement les couleurs du royaume.",aff:["beaute","bataille"],familles:["bataille","race"],royaume:"france"},
+  {id:"poney_shetland",nom:"Poney Shetland",rarete:"commune",emoji:"🐴",image:IMG.poney_shetland,desc:"Petit mais costaud : le poney shetland tire plus lourd que lui, têtu et rustique.",aff:["force","endurance"],familles:["pres","sauvages"],royaume:"ecosse"},
+  {id:"cheval_pompier",nom:"Cheval pompier",rarete:"commune",emoji:"🚒",image:IMG.cheval_pompier,desc:"Vaillant cheval des pompiers, il fonce dans la ville en flammes.",aff:["force","vitesse"],familles:["travail","bataille"],royaume:"angleterre"},
   {id:"cheval_constellation",nom:"Cheval constellation",rarete:"legendaire",emoji:"🌌",image:IMG.cheval_constellation,desc:"Sa robe est un ciel étoilé ; il galope parmi les constellations.",aff:["magie","vitesse"],familles:["legende","elementaires"],royaume:"avalon"},
   {id:"cheval_porcelaine",nom:"Cheval de porcelaine",rarete:"rare",emoji:"🏺",image:IMG.cheval_porcelaine,desc:"Sculpté dans la porcelaine bleue et blanche, précieux et délicat.",aff:["beaute","magie"],familles:["race","legende"],royaume:"chine"},
-  {id:"cheval_facteur",nom:"Cheval facteur",rarete:"commune",emoji:"📮",image:IMG.cheval_facteur,desc:"Il porte le courrier de village en village, par tous les temps.",aff:["vitesse","endurance"],familles:["travail","historiques"],royaume:"angleterre"},
-  {id:"cheval_teutonique",nom:"Cheval teutonique",rarete:"epique",emoji:"✝️",image:IMG.cheval_teutonique,desc:"Destrier des chevaliers teutoniques, à la croix noire, dans la neige.",aff:["bataille","force"],familles:["bataille","historiques"],royaume:"allemagne"},
+  {id:"cheval_facteur",nom:"Cheval facteur",rarete:"commune",emoji:"📮",image:IMG.cheval_facteur,desc:"Il porte le courrier de village en village, par tous les temps.",aff:["vitesse","endurance"],familles:["travail","bataille"],royaume:"angleterre"},
+  {id:"cheval_teutonique",nom:"Cheval teutonique",rarete:"epique",emoji:"✝️",image:IMG.cheval_teutonique,desc:"Destrier des chevaliers teutoniques, à la croix noire, dans la neige.",aff:["bataille","force"],familles:["bataille"],royaume:"allemagne"},
   {id:"cheval_albinos",nom:"Cheval albinos",rarete:"commune",emoji:"🤍",image:IMG.cheval_albinos,desc:"Blanc immaculé aux yeux clairs, d'une beauté rare et pure.",aff:["beaute"],familles:["race"],royaume:"amerique"},
-  {id:"cheval_viking",nom:"Cheval viking",rarete:"rare",emoji:"🛡️",image:IMG.cheval_viking,desc:"Robuste monture des Vikings, débarquée des drakkars du Nord.",aff:["force","endurance"],familles:["sauvages","historiques"],royaume:"norvege"},
-  {id:"cheval_cosaque",nom:"Cheval cosaque",rarete:"commune",emoji:"🐎",image:IMG.cheval_cosaque,desc:"Monture infatigable des cavaliers des steppes.",aff:["vitesse","bataille"],familles:["course","bataille","historiques"],royaume:"steppe"},
-  {id:"cheval_conquistador",nom:"Cheval conquistador",rarete:"epique",emoji:"⚔️",image:IMG.cheval_conquistador,desc:"Il porta les conquistadors à travers jungles et cités anciennes.",aff:["bataille","endurance"],familles:["bataille","historiques"],royaume:"espagne"},
-  {id:"cheval_halage",nom:"Cheval de halage",rarete:"commune",emoji:"⚓",image:IMG.cheval_halage,desc:"Attelé à la corde, il tire les péniches le long des canaux.",aff:["force","endurance"],familles:["travail","eau"],royaume:"belgique"},
-  {id:"cheval_samurai",nom:"Cheval samouraï",rarete:"epique",emoji:"🎌",image:IMG.cheval_samurai,desc:"Destrier bardé d'un samouraï, fidèle jusqu'au dernier combat.",aff:["bataille","vitesse"],familles:["bataille","historiques"],royaume:"japon"},
+  {id:"cheval_viking",nom:"Cheval viking",rarete:"rare",emoji:"🛡️",image:IMG.cheval_viking,desc:"Robuste monture des Vikings, débarquée des drakkars du Nord.",aff:["force","endurance"],familles:["sauvages","bataille"],royaume:"norvege"},
+  {id:"cheval_cosaque",nom:"Cheval cosaque",rarete:"commune",emoji:"🐎",image:IMG.cheval_cosaque,desc:"Monture infatigable des cavaliers des steppes.",aff:["vitesse","bataille"],familles:["course","bataille"],royaume:"steppe"},
+  {id:"cheval_conquistador",nom:"Cheval conquistador",rarete:"epique",emoji:"⚔️",image:IMG.cheval_conquistador,desc:"Il porta les conquistadors à travers jungles et cités anciennes.",aff:["bataille","endurance"],familles:["bataille"],royaume:"espagne"},
+  {id:"cheval_halage",nom:"Cheval de halage",rarete:"commune",emoji:"⚓",image:IMG.cheval_halage,desc:"Attelé à la corde, il tire les péniches le long des canaux.",aff:["force","endurance"],familles:["travail","elementaires"],royaume:"belgique"},
+  {id:"cheval_samurai",nom:"Cheval samouraï",rarete:"epique",emoji:"🎌",image:IMG.cheval_samurai,desc:"Destrier bardé d'un samouraï, fidèle jusqu'au dernier combat.",aff:["bataille","vitesse"],familles:["bataille"],royaume:"japon"},
   {id:"akhal_teke",nom:"Akhal-Téké",rarete:"epique",emoji:"🥇",image:IMG.akhal_teke,desc:"Le cheval d'or du désert, à la robe métallique, rapide et endurant.",aff:["vitesse","beaute"],familles:["race","course"],royaume:"steppe"},
   {id:"frison",nom:"Frison",rarete:"epique",emoji:"🐴",image:IMG.frison,desc:"Élégant cheval noir de Frise, crinière et fanons soyeux.",aff:["beaute","force"],familles:["race","bataille"],royaume:"pays_bas"},
   {id:"shire",nom:"Shire",rarete:"epique",emoji:"🐴",image:IMG.shire,desc:"L'un des plus grands chevaux du monde, un géant tout en douceur.",aff:["force","endurance"],familles:["race","travail"],royaume:"angleterre"},
   {id:"appaloosa",nom:"Appaloosa",rarete:"rare",emoji:"🐴",image:IMG.appaloosa,desc:"Cheval tacheté des plaines, monture des peuples amérindiens.",aff:["vitesse","endurance"],familles:["race","sauvages"],royaume:"amerique"},
-  {id:"marwari",nom:"Marwari",rarete:"epique",emoji:"🐴",image:IMG.marwari,desc:"Cheval indien aux oreilles recourbées qui se touchent, fier et vif.",aff:["bataille","vitesse"],familles:["race","bataille","historiques"],royaume:"inde"},
+  {id:"marwari",nom:"Marwari",rarete:"epique",emoji:"🐴",image:IMG.marwari,desc:"Cheval indien aux oreilles recourbées qui se touchent, fier et vif.",aff:["bataille","vitesse"],familles:["race","bataille"],royaume:"inde"},
   {id:"andalou",nom:"Andalou",rarete:"epique",emoji:"🐴",image:IMG.andalou,desc:"Noble cheval d'Espagne, danseur né des plus belles écoles.",aff:["beaute","bataille"],familles:["race","bataille"],royaume:"espagne"},
   {id:"arabe",nom:"Cheval arabe",rarete:"epique",emoji:"🐴",image:IMG.arabe,desc:"L'ancêtre de tous les chevaux rapides, né des sables d'Arabie.",aff:["vitesse","beaute"],familles:["race","course"],royaume:"arabie"},
   {id:"fjord",nom:"Fjord",rarete:"rare",emoji:"🐴",image:IMG.fjord,desc:"Petit cheval norvégien à la crinière bicolore taillée en brosse.",aff:["force","endurance"],familles:["race","travail","sauvages"],royaume:"norvege"},
@@ -1282,14 +1296,14 @@ const CARTES = [
   {id:"lusitanien",nom:"Lusitanien",rarete:"epique",emoji:"🐴",image:IMG.lusitanien,desc:"Noble cheval du Portugal, danseur et compagnon des cavaliers de cape.",aff:["beaute","bataille"],familles:["race","bataille"],royaume:"portugal"},
   {id:"boulonnais",nom:"Boulonnais",rarete:"rare",emoji:"🐴",image:IMG.boulonnais,desc:"Le « pur-sang » des chevaux de trait, blanc et racé, du nord de la France.",aff:["force","beaute"],familles:["race","travail"],royaume:"france"},
   {id:"haflinger",nom:"Haflinger",rarete:"commune",emoji:"🐴",image:IMG.haflinger,desc:"Petit cheval doré des montagnes d'Autriche, robuste et gentil.",aff:["endurance","beaute"],familles:["race","pres"],royaume:"autriche"},
-  {id:"camargue",nom:"Camargue",rarete:"epique",emoji:"🐴",image:IMG.camargue,desc:"Cheval blanc des marais de Camargue, né les pieds dans l'eau.",aff:["endurance","vitesse"],familles:["race","eau","sauvages"],royaume:"france"},
+  {id:"camargue",nom:"Camargue",rarete:"epique",emoji:"🐴",image:IMG.camargue,desc:"Cheval blanc des marais de Camargue, né les pieds dans l'eau.",aff:["endurance","vitesse"],familles:["race","elementaires","sauvages"],royaume:"france"},
   {id:"ardennais",nom:"Ardennais",rarete:"rare",emoji:"🐴",image:IMG.ardennais,desc:"Cheval de trait des Ardennes, force tranquille du Luxembourg.",aff:["force","endurance"],familles:["race","travail"],royaume:"luxembourg"},
   {id:"franches_montagnes",nom:"Franches-Montagnes",rarete:"rare",emoji:"🐴",image:IMG.franches_montagnes,desc:"La fierté de la Suisse, dernier cheval de trait léger d'Europe.",aff:["force","endurance"],familles:["race","travail"],royaume:"suisse"},
-  {id:"cheval_rivieres",nom:"Cheval des rivières",rarete:"rare",emoji:"🏞️",image:IMG.cheval_rivieres,desc:"Esprit des rivières claires, il court sur l'eau sans jamais s'enfoncer.",aff:["magie","vitesse"],familles:["eau","legende"],royaume:"avalon"},
-  {id:"cheval_abysses",nom:"Cheval des abysses",rarete:"legendaire",emoji:"🌌",image:IMG.cheval_abysses,desc:"Créature des grands fonds, illuminée de lueurs bleues dans la nuit des abysses.",aff:["magie","force"],familles:["eau","elementaires","legende"],royaume:"avalon"},
-  {id:"cheval_corail",nom:"Cheval corail",rarete:"rare",emoji:"🪸",image:IMG.cheval_corail,desc:"Né dans les récifs, sa crinière est un jardin de corail vivant.",aff:["beaute","magie"],familles:["eau","legende"],royaume:"avalon"},
-  {id:"cheval_nuages",nom:"Cheval des nuages",rarete:"epique",emoji:"☁️",image:IMG.cheval_nuages,desc:"Cheval de brume et de nuages, il galope dans le ciel entre deux averses.",aff:["magie","vitesse"],familles:["eau","elementaires","legende"],royaume:"avalon"},
-  {id:"cheval_glace",nom:"Cheval de glace",rarete:"rare",emoji:"❄️",image:IMG.cheval_glace,desc:"Sculpté dans la glace éternelle, il souffle le froid des banquises.",aff:["magie","beaute"],familles:["eau","elementaires","legende"],royaume:"avalon"},
+  {id:"cheval_rivieres",nom:"Cheval des rivières",rarete:"rare",emoji:"🏞️",image:IMG.cheval_rivieres,desc:"Esprit des rivières claires, il court sur l'eau sans jamais s'enfoncer.",aff:["magie","vitesse"],familles:["elementaires","legende"],royaume:"avalon"},
+  {id:"cheval_abysses",nom:"Cheval des abysses",rarete:"legendaire",emoji:"🌌",image:IMG.cheval_abysses,desc:"Créature des grands fonds, illuminée de lueurs bleues dans la nuit des abysses.",aff:["magie","force"],familles:["elementaires","legende"],royaume:"avalon"},
+  {id:"cheval_corail",nom:"Cheval corail",rarete:"rare",emoji:"🪸",image:IMG.cheval_corail,desc:"Né dans les récifs, sa crinière est un jardin de corail vivant.",aff:["beaute","magie"],familles:["elementaires","legende"],royaume:"avalon"},
+  {id:"cheval_nuages",nom:"Cheval des nuages",rarete:"epique",emoji:"☁️",image:IMG.cheval_nuages,desc:"Cheval de brume et de nuages, il galope dans le ciel entre deux averses.",aff:["magie","vitesse"],familles:["elementaires","legende"],royaume:"avalon"},
+  {id:"cheval_glace",nom:"Cheval de glace",rarete:"rare",emoji:"❄️",image:IMG.cheval_glace,desc:"Sculpté dans la glace éternelle, il souffle le froid des banquises.",aff:["magie","beaute"],familles:["elementaires","legende"],royaume:"avalon"},
   {id:"pieter_jan",nom:"Pieter-Jan le Cheval",rarete:"legendaire",emoji:"🏆",image:IMG.pieter_jan,desc:"Le fier étalon pommelé de Belgique, mascotte du royaume et champion de tous les chevaux de trait.",aff:["force","endurance"],familles:["mascotte","travail","legende"],royaume:"belgique"},
 {id:"francois_camargue",nom:"François de Camargue",rarete:"legendaire",emoji:"🤍",image:IMG.francois_camargue,desc:"Le fier étalon blanc de Camargue, mascotte de France. Né bai foncé, le soleil du Sud l'a blanchi année après année, jusqu'à devenir aussi clair que l'écume des étangs.",aff:["endurance","beaute"],familles:["mascotte","sauvages","legende"],royaume:"france"},
 {id:"big_ben",nom:"Big Ben le Shire",rarete:"legendaire",emoji:"🐴",image:IMG.big_ben,desc:"Le plus grand cheval du monde, doux géant d'Angleterre. Il descend du « grand cheval » qui portait les chevaliers en armure — et ses ancêtres venaient de Flandre, comme Pieter-Jan !",aff:["force","endurance"],familles:["mascotte","travail","legende"],royaume:"angleterre"},
@@ -1305,21 +1319,21 @@ const CARTES = [
   {id:"band_steel_phantom",nom:"Steel Phantom",rarete:"rare",emoji:"🖤",image:IMG.band_steel_phantom,desc:"Fantôme d'acier, silhouette froide sous les néons de la ville.",aff:["force","vitesse"],familles:["band"],royaume:"scene"},
   {id:"band_midnight_lead",nom:"Midnight Lead",rarete:"rare",emoji:"🎤",image:IMG.band_midnight_lead,desc:"Leader de minuit, sa voix noire hypnotise la salle entière.",aff:["bataille","force"],familles:["band"],royaume:"scene"},
   {id:"band_pastel_dream",nom:"Pastel Dream",rarete:"rare",emoji:"🎀",image:IMG.band_pastel_dream,desc:"Rêve pastel tout en douceur, rubans et cœurs à l'infini.",aff:["beaute"],familles:["band"],royaume:"scene"},
-  {id:"beasts_qirin",nom:"Le Qilin",rarete:"mythique",emoji:"🐉",image:IMG.beasts_qirin,desc:"Chimère bienveillante des légendes chinoises, il annonce les temps heureux.",aff:["magie","beaute"],familles:["beasts"],royaume:"chine"},
-  {id:"beasts_longma",nom:"Le Longma",rarete:"mythique",emoji:"🐲",image:IMG.beasts_longma,desc:"Cheval-dragon surgi du fleuve, il porte les sages sur son dos ailé.",aff:["magie","vitesse"],familles:["beasts"],royaume:"chine"},
-  {id:"beasts_alicorne",nom:"L'Alicorne",rarete:"mythique",emoji:"🦄",image:IMG.beasts_alicorne,desc:"Elle unit la corne de la licorne et les ailes du pégase, reine des cieux.",aff:["magie","beaute"],familles:["beasts"],royaume:"avalon"},
-  {id:"beasts_hippogriffe",nom:"L'Hippogriffe",rarete:"mythique",emoji:"🦅",image:IMG.beasts_hippogriffe,desc:"Moitié aigle moitié cheval, il franchit les montagnes d'un seul bond.",aff:["vitesse","bataille"],familles:["beasts"],royaume:"grece"},
-  {id:"beasts_hypalectryon",nom:"L'Hippalectryon",rarete:"mythique",emoji:"🐓",image:IMG.beasts_hypalectryon,desc:"Cheval à l'arrière de coq, il gardait les vases de la Grèce antique.",aff:["force","magie"],familles:["beasts"],royaume:"grece"},
-  {id:"course_frankel",nom:"Frankel",rarete:"legendaire",emoji:"🏇",image:IMG.course_frankel,desc:"Invaincu en quatorze courses, le plus grand galopeur anglais de l'ère moderne.",aff:["vitesse","endurance"],familles:["course","historiques"],royaume:"angleterre"},
-  {id:"course_manowar",nom:"Man o' War",rarete:"legendaire",emoji:"🏇",image:IMG.course_manowar,desc:"Champion américain des années 1920, il écrasait ses rivaux de vingt longueurs.",aff:["vitesse","force"],familles:["course","historiques"],royaume:"amerique"},
-  {id:"course_pharlap",nom:"Phar Lap",rarete:"legendaire",emoji:"🏇",image:IMG.course_pharlap,desc:"Le cheval géant qui redonna espoir à l'Australie de la Grande Dépression.",aff:["vitesse","endurance"],familles:["course","historiques"],royaume:"australie"},
-  {id:"course_seabiscuit",nom:"Seabiscuit",rarete:"legendaire",emoji:"🏇",image:IMG.course_seabiscuit,desc:"Petit cheval mal aimé devenu le héros de toute l'Amérique.",aff:["vitesse","endurance"],familles:["course","historiques"],royaume:"amerique"},
-  {id:"course_zenyatta",nom:"Zenyatta",rarete:"legendaire",emoji:"🏇",image:IMG.course_zenyatta,desc:"Reine de la piste, célèbre pour son finish foudroyant et sa danse d'avant-course.",aff:["vitesse","beaute"],familles:["course","historiques"],royaume:"amerique"},
-  {id:"gourmand_mangeur_de_pommes",nom:"Le mangeur de pommes",rarete:"commune",emoji:"🍎",image:IMG.gourmand_mangeur_de_pommes,desc:"Rien ne le rend plus heureux qu'un verger croulant de pommes bien mûres.",aff:["endurance","force"],familles:["gourmand"],royaume:"belgique"},
-  {id:"gourmand_mangeur_de_carottes",nom:"Le mangeur de carottes",rarete:"commune",emoji:"🥕",image:IMG.gourmand_mangeur_de_carottes,desc:"Il croque les carottes du potager à longueur de journée.",aff:["endurance","vitesse"],familles:["gourmand"],royaume:"belgique"},
-  {id:"gourmand_mangeur_de_citrouilles",nom:"Le mangeur de citrouilles",rarete:"commune",emoji:"🎃",image:IMG.gourmand_mangeur_de_citrouilles,desc:"À l'automne, il fait la fête parmi les citrouilles orange.",aff:["force","endurance"],familles:["gourmand"],royaume:"belgique"},
-  {id:"gourmand_mangeur_de_grain",nom:"Le mangeur de grain",rarete:"commune",emoji:"🌾",image:IMG.gourmand_mangeur_de_grain,desc:"Bien au chaud dans l'écurie, il plonge le nez dans le grain doré.",aff:["force","endurance"],familles:["gourmand"],royaume:"belgique"},
-  {id:"gourmand_mangeur_de_trefle",nom:"Le mangeur de trèfle",rarete:"commune",emoji:"🍀",image:IMG.gourmand_mangeur_de_trefle,desc:"Allongé dans le trèfle, il savoure les fleurs sucrées du pré.",aff:["beaute","endurance"],familles:["gourmand"],royaume:"belgique"},
+  {id:"beasts_qirin",nom:"Le Qilin",rarete:"mythique",emoji:"🐉",image:IMG.beasts_qirin,desc:"Chimère bienveillante des légendes chinoises, il annonce les temps heureux.",aff:["magie","beaute"],familles:["legende"],royaume:"chine"},
+  {id:"beasts_longma",nom:"Le Longma",rarete:"mythique",emoji:"🐲",image:IMG.beasts_longma,desc:"Cheval-dragon surgi du fleuve, il porte les sages sur son dos ailé.",aff:["magie","vitesse"],familles:["legende"],royaume:"chine"},
+  {id:"beasts_alicorne",nom:"L'Alicorne",rarete:"mythique",emoji:"🦄",image:IMG.beasts_alicorne,desc:"Elle unit la corne de la licorne et les ailes du pégase, reine des cieux.",aff:["magie","beaute"],familles:["legende"],royaume:"avalon"},
+  {id:"beasts_hippogriffe",nom:"L'Hippogriffe",rarete:"mythique",emoji:"🦅",image:IMG.beasts_hippogriffe,desc:"Moitié aigle moitié cheval, il franchit les montagnes d'un seul bond.",aff:["vitesse","bataille"],familles:["legende"],royaume:"grece"},
+  {id:"beasts_hypalectryon",nom:"L'Hippalectryon",rarete:"mythique",emoji:"🐓",image:IMG.beasts_hypalectryon,desc:"Cheval à l'arrière de coq, il gardait les vases de la Grèce antique.",aff:["force","magie"],familles:["legende"],royaume:"grece"},
+  {id:"course_frankel",nom:"Frankel",rarete:"legendaire",emoji:"🏇",image:IMG.course_frankel,desc:"Invaincu en quatorze courses, le plus grand galopeur anglais de l'ère moderne.",aff:["vitesse","endurance"],familles:["course","bataille"],royaume:"angleterre"},
+  {id:"course_manowar",nom:"Man o' War",rarete:"legendaire",emoji:"🏇",image:IMG.course_manowar,desc:"Champion américain des années 1920, il écrasait ses rivaux de vingt longueurs.",aff:["vitesse","force"],familles:["course","bataille"],royaume:"amerique"},
+  {id:"course_pharlap",nom:"Phar Lap",rarete:"legendaire",emoji:"🏇",image:IMG.course_pharlap,desc:"Le cheval géant qui redonna espoir à l'Australie de la Grande Dépression.",aff:["vitesse","endurance"],familles:["course","bataille"],royaume:"australie"},
+  {id:"course_seabiscuit",nom:"Seabiscuit",rarete:"legendaire",emoji:"🏇",image:IMG.course_seabiscuit,desc:"Petit cheval mal aimé devenu le héros de toute l'Amérique.",aff:["vitesse","endurance"],familles:["course","bataille"],royaume:"amerique"},
+  {id:"course_zenyatta",nom:"Zenyatta",rarete:"legendaire",emoji:"🏇",image:IMG.course_zenyatta,desc:"Reine de la piste, célèbre pour son finish foudroyant et sa danse d'avant-course.",aff:["vitesse","beaute"],familles:["course","bataille"],royaume:"amerique"},
+  {id:"gourmand_mangeur_de_pommes",nom:"Le mangeur de pommes",rarete:"commune",emoji:"🍎",image:IMG.gourmand_mangeur_de_pommes,desc:"Rien ne le rend plus heureux qu'un verger croulant de pommes bien mûres.",aff:["endurance","force"],familles:["pres"],royaume:"belgique"},
+  {id:"gourmand_mangeur_de_carottes",nom:"Le mangeur de carottes",rarete:"commune",emoji:"🥕",image:IMG.gourmand_mangeur_de_carottes,desc:"Il croque les carottes du potager à longueur de journée.",aff:["endurance","vitesse"],familles:["pres"],royaume:"belgique"},
+  {id:"gourmand_mangeur_de_citrouilles",nom:"Le mangeur de citrouilles",rarete:"commune",emoji:"🎃",image:IMG.gourmand_mangeur_de_citrouilles,desc:"À l'automne, il fait la fête parmi les citrouilles orange.",aff:["force","endurance"],familles:["pres"],royaume:"belgique"},
+  {id:"gourmand_mangeur_de_grain",nom:"Le mangeur de grain",rarete:"commune",emoji:"🌾",image:IMG.gourmand_mangeur_de_grain,desc:"Bien au chaud dans l'écurie, il plonge le nez dans le grain doré.",aff:["force","endurance"],familles:["pres"],royaume:"belgique"},
+  {id:"gourmand_mangeur_de_trefle",nom:"Le mangeur de trèfle",rarete:"commune",emoji:"🍀",image:IMG.gourmand_mangeur_de_trefle,desc:"Allongé dans le trèfle, il savoure les fleurs sucrées du pré.",aff:["beaute","endurance"],familles:["pres"],royaume:"belgique"},
   {id:"licorne_antique_orientale",nom:"Licorne antique orientale",rarete:"epique",emoji:"🦄",image:IMG.licorne_antique_orientale,desc:"Monture précieuse des palais d'Orient, parée d'or et de turquoise.",aff:["beaute","magie"],familles:["licorne"],royaume:"arabie"},
   {id:"licorne_apothicaire",nom:"Licorne d'apothicaire",rarete:"epique",emoji:"🦄",image:IMG.licorne_apothicaire,desc:"Sa corne, dit-on, purifiait les poisons dans les cabinets de curiosités.",aff:["magie","beaute"],familles:["licorne"],royaume:"france"},
   {id:"licorne_contemporaine_pride",nom:"Licorne contemporaine Pride",rarete:"epique",emoji:"🦄",image:IMG.licorne_contemporaine_pride,desc:"Crinière arc-en-ciel, elle défile fièrement au cœur de la ville en fête.",aff:["beaute","magie"],familles:["licorne"],royaume:"amerique"},
@@ -1327,7 +1341,7 @@ const CARTES = [
   {id:"licorne_heraldique_ecossaise",nom:"Licorne héraldique écossaise",rarete:"legendaire",emoji:"🦄",image:IMG.licorne_heraldique_ecossaise,desc:"Emblème couronné du royaume d'Écosse, enchaînée mais indomptée.",aff:["magie","bataille"],familles:["licorne"],royaume:"ecosse"},
   {id:"mythique_xanthos",nom:"Xanthos",rarete:"mythique",emoji:"🐎",image:IMG.mythique_xanthos,desc:"Cheval immortel d'Achille, doué de parole et de prophétie.",aff:["vitesse","magie"],familles:["legende","bataille"],royaume:"grece"},
   {id:"mythique_balios",nom:"Balios",rarete:"mythique",emoji:"🐎",image:IMG.mythique_balios,desc:"Frère immortel de Xanthos, né du vent, monture d'Achille à Troie.",aff:["vitesse","force"],familles:["legende","bataille"],royaume:"grece"},
-  {id:"mythique_enbarr",nom:"Enbarr",rarete:"mythique",emoji:"🌊",image:IMG.mythique_enbarr,desc:"Cheval de Manannán, il galope aussi bien sur la mer que sur la terre.",aff:["vitesse","magie"],familles:["legende","eau"],royaume:"irlande"},
+  {id:"mythique_enbarr",nom:"Enbarr",rarete:"mythique",emoji:"🌊",image:IMG.mythique_enbarr,desc:"Cheval de Manannán, il galope aussi bien sur la mer que sur la terre.",aff:["vitesse","magie"],familles:["legende","elementaires"],royaume:"irlande"},
   {id:"mythique_grani",nom:"Grani",rarete:"mythique",emoji:"🐎",image:IMG.mythique_grani,desc:"Descendant de Sleipnir, fidèle destrier du héros Sigurd.",aff:["force","bataille"],familles:["legende","bataille"],royaume:"norvege"},
   {id:"mythique_gringolet",nom:"Gringolet",rarete:"mythique",emoji:"🐎",image:IMG.mythique_gringolet,desc:"Le puissant destrier de messire Gauvain, chevalier de la Table ronde.",aff:["bataille","endurance"],familles:["legende","bataille"],royaume:"camelot"},
   {id:"mythique_kanthaka",nom:"Kanthaka",rarete:"mythique",emoji:"🤍",image:IMG.mythique_kanthaka,desc:"Le cheval blanc qui porta le prince Siddhârta vers l'éveil.",aff:["beaute","endurance"],familles:["legende"],royaume:"inde"},
@@ -1347,10 +1361,10 @@ const CARTES = [
   {id:"falabella",nom:"Falabella",rarete:"epique",emoji:"🐴",image:IMG.falabella,desc:"Le plus petit cheval du monde, minuscule mais élégant, venu des plaines d'Argentine.",aff:["beaute","endurance"],familles:["race"],royaume:"argentine"},
   {id:"finnhorse",nom:"Finnhorse",rarete:"epique",emoji:"🐴",image:IMG.finnhorse,desc:"Fier cheval de Finlande, à la fois travailleur robuste et coureur agile.",aff:["force","endurance"],familles:["race","travail"],royaume:"finlande"},
   {id:"islandais",nom:"Cheval islandais",rarete:"epique",emoji:"🐴",image:IMG.islandais,desc:"Petit cheval d'Islande à la crinière abondante, célèbre pour son allure spéciale, le tölt.",aff:["endurance","vitesse"],familles:["race"],royaume:"islande"},
-  {id:"kladruber",nom:"Kladruber",rarete:"epique",emoji:"🐴",image:IMG.kladruber,desc:"Majestueux cheval blanc de la cour impériale, né pour tirer les carrosses de gala.",aff:["beaute","force"],familles:["race","historiques"],royaume:"autriche"},
+  {id:"kladruber",nom:"Kladruber",rarete:"epique",emoji:"🐴",image:IMG.kladruber,desc:"Majestueux cheval blanc de la cour impériale, né pour tirer les carrosses de gala.",aff:["beaute","force"],familles:["race","bataille"],royaume:"autriche"},
   {id:"knabstrupper",nom:"Knabstrupper",rarete:"epique",emoji:"🐴",image:IMG.knabstrupper,desc:"Cheval danois à la robe léopard, tacheté comme un manteau d'étoiles.",aff:["beaute","endurance"],familles:["race"],royaume:"danemark"},
   {id:"konik",nom:"Konik",rarete:"epique",emoji:"🐴",image:IMG.konik,desc:"Petit cheval de Pologne, robuste descendant des chevaux sauvages des forêts.",aff:["endurance","force"],familles:["race","sauvages"],royaume:"pologne"},
-  {id:"lipizzan",nom:"Lipizzan",rarete:"epique",emoji:"🐴",image:IMG.lipizzan,desc:"L'étoile blanche de l'École espagnole de Vienne, danseur des plus belles figures.",aff:["beaute","endurance"],familles:["race","historiques"],royaume:"autriche"},
+  {id:"lipizzan",nom:"Lipizzan",rarete:"epique",emoji:"🐴",image:IMG.lipizzan,desc:"L'étoile blanche de l'École espagnole de Vienne, danseur des plus belles figures.",aff:["beaute","endurance"],familles:["race","bataille"],royaume:"autriche"},
   {id:"mangalarga_marchador",nom:"Mangalarga Marchador",rarete:"epique",emoji:"🐴",image:IMG.mangalarga_marchador,desc:"Cheval brésilien à l'allure douce et glissée, infatigable sur les longues distances.",aff:["endurance","vitesse"],familles:["race"],royaume:"bresil"},
   {id:"nonius",nom:"Nonius",rarete:"epique",emoji:"🐴",image:IMG.nonius,desc:"Puissant cheval noir de Hongrie, élégant meneur d'attelage et fidèle au travail.",aff:["force","beaute"],familles:["race","travail"],royaume:"hongrie"},
   {id:"orlov",nom:"Trotteur Orlov",rarete:"epique",emoji:"🐴",image:IMG.orlov,desc:"Célèbre trotteur de Russie à la robe gris pommelé, taillé pour la vitesse et l'endurance.",aff:["vitesse","endurance"],familles:["race","course"],royaume:"russie"},
@@ -1403,7 +1417,7 @@ async function cloudPush(){
   catch(e){majSync('err');}
 }
 function compteVersProfil(row){return {id:row.id,nom:row.prenom,age:row.age,emoji:row.avatar,couleur:row.couleur,niveau:row.niveau,etat:normaliserEtat(row.etat||etatVide()),cloud:true,pin:row._pin};}
-const VERSION_APP='v65';
+const VERSION_APP='v71';
 const RARETES={commune:{nom:'Commune',poids:55,overflow:15,couleur:'#c4cdd8'},rare:{nom:'Rare',poids:27,overflow:30,couleur:'#7ec2ff'},epique:{nom:'Épique',poids:13,overflow:60,couleur:'#c99bff'},legendaire:{nom:'Légendaire',poids:4.5,overflow:120,couleur:'#ffcf6b'},mythique:{nom:'Mythique',poids:0.5,overflow:250,couleur:'#ff9ac0'}};
 const SEUILS=[1,4,9,17,28];   // exemplaires cumulés pour ★ à ★★★★★ (évolution plus lente)
 const TITRES=['—','Éveil','Aguerri','Radieux','Céleste','Mythe'];
@@ -1420,7 +1434,7 @@ function crediterDefi(g){const j=jourDefi();const reel=Math.max(1,Math.round(g))
 
 /* ---- CONCOURS ---- */
 const ROYAUMES={belgique:{ico:'🇧🇪',nom:'Belgique'},pays_bas:{ico:'🇳🇱',nom:'Pays-Bas'},france:{ico:'🇫🇷',nom:'France'},allemagne:{ico:'🇩🇪',nom:'Allemagne'},angleterre:{ico:'🏴',nom:'Angleterre'},irlande:{ico:'🇮🇪',nom:'Irlande'},ecosse:{ico:'🏴',nom:'Écosse'},espagne:{ico:'🇪🇸',nom:'Espagne'},rome:{ico:'🏛️',nom:'Rome'},italie:{ico:'🇮🇹',nom:'Italie'},portugal:{ico:'🇵🇹',nom:'Portugal'},autriche:{ico:'🇦🇹',nom:'Autriche'},luxembourg:{ico:'🇱🇺',nom:'Luxembourg'},suisse:{ico:'🇨🇭',nom:'Suisse'},grece:{ico:'🇬🇷',nom:'Grèce'},norvege:{ico:'🇳🇴',nom:'Norvège'},steppe:{ico:'🐎',nom:'Steppe'},chine:{ico:'🇨🇳',nom:'Chine'},japon:{ico:'🇯🇵',nom:'Japon'},inde:{ico:'🇮🇳',nom:'Inde'},arabie:{ico:'🏜️',nom:'Arabie'},egypte:{ico:'🇪🇬',nom:'Égypte'},amerique:{ico:'🇺🇸',nom:'Amérique'},afrique:{ico:'🦓',nom:'Afrique'},camelot:{ico:'🏰',nom:'Camelot'},avalon:{ico:'🦄',nom:'Avalon'},scene:{ico:'🎤',nom:'Scène'},australie:{ico:'🇦🇺',nom:'Australie'},perse:{ico:'🏹',nom:'Perse'},futur:{ico:'🤖',nom:'Futur'},russie:{ico:'🇷🇺',nom:'Russie'},argentine:{ico:'🇦🇷',nom:'Argentine'},finlande:{ico:'🇫🇮',nom:'Finlande'},islande:{ico:'🇮🇸',nom:'Islande'},danemark:{ico:'🇩🇰',nom:'Danemark'},pologne:{ico:'🇵🇱',nom:'Pologne'},bresil:{ico:'🇧🇷',nom:'Brésil'},hongrie:{ico:'🇭🇺',nom:'Hongrie'},galles:{ico:'🏴',nom:'Pays de Galles'},ukraine:{ico:'🇺🇦',nom:'Ukraine'},outremonde:{ico:'🌑',nom:'Outre-monde'}};
-const FAMILLES={travail:{ico:'🛠️',nom:'Travail'},race:{ico:'🏅',nom:'Cheval de race'},mascotte:{ico:'👑',nom:'Mascotte'},bataille:{ico:'⚔️',nom:'Bataille'},legende:{ico:'✨',nom:'Légende'},elementaires:{ico:'🔥',nom:'Élémentaires'},eau:{ico:'🌊',nom:'Eau'},sauvages:{ico:'🐎',nom:'Sauvages'},course:{ico:'🏇',nom:'Course'},historiques:{ico:'🏛️',nom:'Historiques'},pres:{ico:'🌸',nom:'Prés'},cousins:{ico:'🫏',nom:'Cousins'},band:{ico:'🎸',nom:'Pop'},beasts:{ico:'🐲',nom:'Hybrides'},gourmand:{ico:'🍎',nom:'Gourmands'},licorne:{ico:'🦄',nom:'Licornes'},plantes:{ico:'🌿',nom:'Plantes'},robot:{ico:'🤖',nom:'Robots'},sombres:{ico:'💀',nom:'Sombres'}};
+const FAMILLES={travail:{ico:'🛠️',nom:'Travail'},race:{ico:'🏅',nom:'Cheval de race'},mascotte:{ico:'👑',nom:'Mascotte'},bataille:{ico:'⚔️',nom:'Bataille'},legende:{ico:'✨',nom:'Légende'},elementaires:{ico:'🔥',nom:'Élémentaires'},sauvages:{ico:'🐎',nom:'Sauvages'},course:{ico:'🏇',nom:'Course'},pres:{ico:'🌸',nom:'Prés'},band:{ico:'🎸',nom:'Pop'},licorne:{ico:'🦄',nom:'Licornes'},plantes:{ico:'🌿',nom:'Plantes'},robot:{ico:'🤖',nom:'Robots'},sombres:{ico:'💀',nom:'Sombres'}};
 const CAPS=[
   {id:'beaute',nom:'Beauté',ico:'🌸',couleur:'#ff9ac0',epreuve:'Concours de beauté'},
   {id:'force',nom:'Puissance',ico:'💪',couleur:'#e0864a',epreuve:'Concours de trait'},
@@ -1432,13 +1446,22 @@ const CAPS=[
 const BASE_RAR={commune:8,rare:20,epique:34,legendaire:50,mythique:66};
 /* Divisions = rareté des chevaux qui concourent. Prix par position (podium). */
 const DIVISIONS=[
-  {rarete:'commune',   nom:'Local',        ico:'🥉',inscription:2, crins:[20,10,5],     renom:[3,2,1]},
-  {rarete:'rare',      nom:'Régional',     ico:'🥈',inscription:5, crins:[40,20,10],    renom:[5,3,1]},
-  {rarete:'epique',    nom:'National',     ico:'🥇',inscription:15,crins:[70,35,15],    renom:[8,5,2]},
-  {rarete:'legendaire',nom:'International', ico:'🏅',inscription:25,crins:[110,55,25],   renom:[12,7,3]},
-  {rarete:'mythique',  nom:'Légendaire',   ico:'👑',inscription:40,crins:[180,90,40],   renom:[18,10,4]},
+  {rarete:'commune',   nom:'Commune',        ico:'🥉',inscription:2, crins:[20,10,5],     renom:[3,2,1]},
+  {rarete:'rare',      nom:'Rare',     ico:'🥈',inscription:5, crins:[40,20,10],    renom:[5,3,1]},
+  {rarete:'epique',    nom:'Épique',     ico:'🥇',inscription:15,crins:[70,35,15],    renom:[8,5,2]},
+  {rarete:'legendaire',nom:'Légendaire', ico:'🏅',inscription:25,crins:[110,55,25],   renom:[12,7,3]},
+  {rarete:'mythique',  nom:'Mythique',   ico:'👑',inscription:40,crins:[180,90,40],   renom:[18,10,4]},
 ];
-const FAM_CARAC={travail:'force',race:'beaute',bataille:'bataille',legende:'magie',elementaires:'magie',eau:'magie',sauvages:'endurance',course:'vitesse',historiques:'bataille',pres:'beaute',cousins:'endurance',band:'beaute',beasts:'magie',gourmand:'endurance',licorne:'magie',plantes:'magie',robot:'vitesse',sombres:'magie'};
+const FAM_CARAC={travail:'force',race:'beaute',bataille:'bataille',legende:'magie',elementaires:'magie',sauvages:'endurance',course:'vitesse',pres:'beaute',band:'beaute',licorne:'magie',plantes:'magie',robot:'vitesse',sombres:'magie'};
+/* Faiblesse par famille (−14 sur une capacité, sauf si c'est une affinité de la carte).
+   Choisie pour contraster avec l'identité de la famille : donne un profil lisible et permet
+   à un épique bien affûté de battre un mythique hors de son domaine. */
+const FAM_FAIBLESSE={travail:'vitesse',race:'magie',mascotte:'bataille',bataille:'magie',legende:'endurance',elementaires:'force',sauvages:'beaute',course:'force',pres:'bataille',band:'bataille',licorne:'bataille',plantes:'vitesse',robot:'magie',sombres:'beaute'};
+function faiblesseDe(c){return FAM_FAIBLESSE[(c.familles||[])[0]]||null;}
+/* Gabarit (orthogonal aux familles) : poney = toise < 1,48 m. Liste explicite, à étendre
+   à chaque ajout de petit cheval. Sert au badge de fiche et aux concours poneys. */
+const PONEYS=new Set(['welsh_pony','basotho','caspien','connemara','eriskay','exmoor','fell','highland','hutsul','merens','poney_shetland','poney_heureux','bebe_poney','falabella','fjord','haflinger','dulmener','islandais','konik','yakutian']);
+function gabaritDe(c){return PONEYS.has(c.id)?'poney':'cheval';}
 const NB_CONCOURS=12;               // concours par jour
 const COUT_RENOUV_BASE=60;          // coût du 1er renouvellement (double à chaque fois)
 const RANGS=[[0,'Débutante'],[15,'Régionale'],[45,'Réputée'],[100,'Prestigieuse'],[220,'Légendaire']];
@@ -1456,7 +1479,10 @@ const PRIX_MARCHAND={commune:3,rare:15,epique:55,legendaire:220,mythique:1000};
 const CLE_P='ecurie_profils_v1',CLE_VIEUX='ecurie_legendes_v2';
 let memoire=null;
 function etatVide(){return {crins:SOLDE_DEPART,cadeauDepart:true,tutoVu:false,collection:{ane_tetu:1,cheval_charbonnier:1,cheval_laboureur:1},paliers:{ane_tetu:1,cheval_charbonnier:1,cheval_laboureur:1},tirages:0,bonnes:0,xp:{maths:0,francais:0,histoire:0,sciences:0},serieJours:0,dernierJour:null,stats:{},jeux:{joues:0,gagnes:0},renommee:0,renommeeTotale:0,concours:{date:null,refresh:0,faits:{}},marchand:{date:null,achetes:[]},aventure:{introVu:false,belgique:{sousEtape:0,faits:{},fini:false}},chouchous:{},packprog:{},defiJour:{date:null,gagne:0},pity:{epic:0,legend:0}};}
-function normaliserEtat(e){const d=etatVide();for(const k in d)if(e[k]===undefined)e[k]=d[k];e.xp=Object.assign({maths:0,francais:0,histoire:0,sciences:0},e.xp||{});e.jeux=Object.assign({joues:0,gagnes:0},e.jeux||{});e.stats=e.stats||{};e.collection=e.collection||{};e.paliers=e.paliers||{};e.renommee=e.renommee||0;if(e.renommeeTotale==null)e.renommeeTotale=e.renommee;e.concours=e.concours||{date:null,refresh:0,faits:{}};if(e.concours.refresh==null)e.concours.refresh=0;e.marchand=e.marchand||{date:null,achetes:[]};for(const id in e.collection){if(e.collection[id]>0&&e.paliers[id]==null)e.paliers[id]=palierDe(e.collection[id]);}e.aventure=e.aventure||{introVu:false};e.aventure.belgique=e.aventure.belgique||{sousEtape:0,faits:{},fini:false};e.aventure.prov=e.aventure.prov||{};e.aventure.mascVue=e.aventure.mascVue||{};if(e.aventure.belgique&&!e.aventure.prov.anvers)e.aventure.prov.anvers=e.aventure.belgique;e.chouchous=e.chouchous||{};e.packprog=e.packprog||{};e.defiJour=e.defiJour||{date:null,gagne:0};e.pity=e.pity||{epic:0,legend:0};if(e.pity.epic==null)e.pity.epic=0;if(e.pity.legend==null)e.pity.legend=0;if(!e.cadeauDepart){for(const id of ['ane_tetu','cheval_charbonnier','cheval_laboureur']){if(!(e.collection[id]>0)){e.collection[id]=1;e.paliers[id]=e.paliers[id]||1;}}e.cadeauDepart=true;}return e;}
+function normaliserEtat(e){const d=etatVide();for(const k in d)if(e[k]===undefined)e[k]=d[k];e.xp=Object.assign({maths:0,francais:0,histoire:0,sciences:0},e.xp||{});e.jeux=Object.assign({joues:0,gagnes:0},e.jeux||{});e.stats=e.stats||{};e.collection=e.collection||{};e.paliers=e.paliers||{};e.renommee=e.renommee||0;if(e.renommeeTotale==null)e.renommeeTotale=e.renommee;e.concours=e.concours||{date:null,refresh:0,faits:{}};if(e.concours.refresh==null)e.concours.refresh=0;e.marchand=e.marchand||{date:null,achetes:[]};for(const id in e.collection){if(e.collection[id]>0&&e.paliers[id]==null)e.paliers[id]=palierDe(e.collection[id]);}e.aventure=e.aventure||{introVu:false};e.aventure.belgique=e.aventure.belgique||{sousEtape:0,faits:{},fini:false};e.aventure.prov=e.aventure.prov||{};e.aventure.mascVue=e.aventure.mascVue||{};if(e.aventure.belgique&&!e.aventure.prov.anvers)e.aventure.prov.anvers=e.aventure.belgique;e.chouchous=e.chouchous||{};e.packprog=e.packprog||{};e.defiJour=e.defiJour||{date:null,gagne:0};e.pity=e.pity||{epic:0,legend:0};if(e.pity.epic==null)e.pity.epic=0;if(e.pity.legend==null)e.pity.legend=0;
+  // Un joueur qui a déjà de la progression ne doit jamais revoir l'onboarding (save sans tutoVu).
+  if(!e.tutoVu&&((e.tirages||0)>0||(e.aventure&&e.aventure.introVu)||Object.keys(e.collection||{}).length>3||(e.bonnes||0)>0))e.tutoVu=true;
+  if(!e.cadeauDepart){for(const id of ['ane_tetu','cheval_charbonnier','cheval_laboureur']){if(!(e.collection[id]>0)){e.collection[id]=1;e.paliers[id]=e.paliers[id]||1;}}e.cadeauDepart=true;}return e;}
 function niveauScolaire(age){return Math.max(1,Math.min(6,(age||10)-5));}   // 8 ans → P3, 10 ans → P5
 function profilVide(id,nom,age,emoji,couleur){return {id,nom,age,emoji,couleur,niveau:niveauScolaire(age),etat:etatVide()};}
 function lireLS(k){try{const b=localStorage.getItem(k);if(b)return JSON.parse(b);}catch(e){}return null;}
@@ -1506,28 +1532,36 @@ function peutEvoluer(c){const n=etat.collection[c.id]||0;const p=palierApplique(
 function evoluer(c){if(!peutEvoluer(c))return false;etat.paliers[c.id]=palierApplique(c)+1;sauver();return true;}
 function niveauDe(xp){return Math.floor((xp||0)/PAS_XP)+1;}
 function artHTML(c){const im=Array.isArray(c.image)?c.image[Math.min(palierDe(etat.collection[c.id]||1),c.image.length)-1]:c.image;return im?`<img src="${im}" alt="${c.nom}" loading="lazy" decoding="async">`:c.emoji;}
+/* Illustration nue (sans cadre, nom, rareté ni drapeau) pour les quiz « devine le cheval ». */
+function artNu(c){const im=Array.isArray(c.image)?c.image[Math.min(palierDe(etat.collection[c.id]||1),c.image.length)-1]:c.image;return im?`<img src="${im}" alt="cheval à deviner" loading="lazy" decoding="async">`:`<span class="art-emoji">${c.emoji}</span>`;}
 
 /* ---- CONCOURS : stats calculées (pas stockées) ---- */
 function hashStr(s){let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619);}return h>>>0;}
-function statCap(c,cap,palier){const base=BASE_RAR[c.rarete]||8;const aff=(c.aff||[]).includes(cap)?18:0;const varn=hashStr(c.id+':'+cap)%13;return Math.max(1,Math.min(99,base+6*palier+aff+varn));}
+function statCap(c,cap,palier){const base=BASE_RAR[c.rarete]||8;const estAff=(c.aff||[]).includes(cap);const aff=estAff?22:0;const faib=(!estAff&&faiblesseDe(c)===cap)?-14:0;const varn=hashStr(c.id+':'+cap)%13;return Math.max(1,Math.min(99,base+6*palier+aff+faib+varn));}
 function statDe(c,cap){return statCap(c,cap,palierApplique(c));}
 function rangEcurie(r){let nom=RANGS[0][1];for(const[s,n]of RANGS)if(r>=s)nom=n;return nom;}
 function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
 function combosViables(){const out=[];for(const f of Object.keys(FAMILLES))for(const d of DIVISIONS){const pool=CARTES.filter(c=>(c.familles||[]).includes(f)&&c.rarete===d.rarete);if(pool.length>=3)out.push({fam:f,rarete:d.rarete});}return out;}
+/* Concours poneys : transversaux aux familles, une division par rareté où ≥3 poneys existent. */
+function combosPoney(){const out=[];for(const d of DIVISIONS){const pool=CARTES.filter(c=>gabaritDe(c)==='poney'&&c.rarete===d.rarete);if(pool.length>=3)out.push({gab:'poney',rarete:d.rarete});}return out;}
+/* Filtre d'éligibilité d'un concours (cartes candidates) : par gabarit si co.gab, sinon par famille. */
+function poolConcours(co){return co.gab?CARTES.filter(c=>gabaritDe(c)===co.gab&&c.rarete===co.rarete):CARTES.filter(c=>(c.familles||[]).includes(co.fam)&&c.rarete===co.rarete);}
+/* Libellé (icône + nom) d'un concours pour l'affichage. */
+function libFam(co){return co.gab==='poney'?{ico:'🐴',nom:'Poney'}:FAMILLES[co.fam];}
 function concoursDuJour(){
   const d=ymd(new Date()),refr=(etat.concours&&etat.concours.refresh)||0;
   const rng=mulberry32(hashStr('concours-'+d+'-'+refr));
-  let pool=combosViables();
+  let pool=combosViables().concat(combosPoney());
   // mélange déterministe
   for(let i=pool.length-1;i>0;i--){const j=Math.floor(rng()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]];}
   const list=[];const seen={};
   for(const combo of pool){
     if(list.length>=NB_CONCOURS)break;
     // caractéristique : thématique de la famille (parfois variée)
-    let cap=FAM_CARAC[combo.fam]||'beaute';
+    let cap=combo.gab?'endurance':(FAM_CARAC[combo.fam]||'beaute');
     if(rng()<0.35){const cs=CAPS.map(c=>c.id);cap=cs[Math.floor(rng()*cs.length)];}
-    const key=combo.fam+combo.rarete+cap;if(seen[key])continue;seen[key]=1;
-    list.push({fam:combo.fam,rarete:combo.rarete,cap});
+    const key=(combo.gab||combo.fam)+combo.rarete+cap;if(seen[key])continue;seen[key]=1;
+    list.push({fam:combo.fam,gab:combo.gab,rarete:combo.rarete,cap});
   }
   const ordreR={commune:0,rare:1,epique:2,legendaire:3,mythique:4};
   list.sort((a,b)=>ordreR[a.rarete]-ordreR[b.rarete]);
@@ -1786,7 +1820,7 @@ function carteHTML(c,n,{anim=false,palier=null}={}){const p=palier!=null?palier:
 function carteMystereHTML(c){return `<div class="tcarte verrou" data-r="${c.rarete}" data-p="0"><div class="tc-art">?</div><div class="tc-scrim-top"></div><div class="tc-scrim-bot"></div><div class="tc-frame"></div><div class="tc-top"><span></span><div class="tc-stars">${etoilesHTML(0)}</div></div><div class="tc-bottom"><div class="tc-nom">${c.nom}</div><div class="tc-rar">${RARETES[c.rarete].nom}</div><div class="tc-meta">${ROYAUMES[c.royaume]?ROYAUMES[c.royaume].ico:""} ${(c.familles||[]).map(f=>FAMILLES[f]?FAMILLES[f].ico:"").join("")}</div></div></div>`;}
 
 /* 7. ÉCRANS */
-function majSolde(anim){$('#solde-nb').textContent=etat.crins;if(anim){const s=$('#solde');s.classList.remove('pulse');void s.offsetWidth;s.classList.add('pulse');}$('#btn-tirer').disabled=etat.crins<COUT_TIRAGE;const b10=$('#btn-tirer10');if(b10)b10.disabled=etat.crins<COUT_TIRAGE10;const bs=$('#btn-tirer-super');if(bs)bs.disabled=(etat.renommee||0)<COUT_SUPER_RENOM;const rn=$('#tirage-renom-nb');if(rn)rn.textContent=etat.renommee||0;}
+function majSolde(anim){$('#solde-nb').textContent=etat.crins;if(anim){const s=$('#solde');s.classList.remove('pulse');void s.offsetWidth;s.classList.add('pulse');}$('#btn-tirer').disabled=etat.crins<COUT_TIRAGE;const b10=$('#btn-tirer10');if(b10)b10.disabled=etat.crins<COUT_TIRAGE10;const bs=$('#btn-tirer-super');if(bs)bs.disabled=(etat.renommee||0)<COUT_SUPER_RENOM;const rn=$('#tirage-renom-nb');if(rn)rn.textContent=etat.renommee||0;const cn=$('#tirage-crins-nb');if(cn)cn.textContent=etat.crins;}
 function majProgression(){const t=CARTES.length,u=nbUniques();$('#prog-fill').style.width=(t?u/t*100:0)+'%';$('#prog-txt').textContent=`${u} / ${t} créatures · ${totalEtoiles()} ★`;$('#ecurie-compte').textContent=`${u}/${t}`;}
 let filtrePossedes=true,triChamp='rarete',triSens=-1;   // -1 = décroissant (rare/évolué d'abord)
 const ORD_RAR=Object.keys(RARETES);
@@ -1867,7 +1901,7 @@ function ouvrirDetail(c){
   $('#d-nom').textContent=c.nom;
   const dr=$('#d-rar');dr.textContent=RARETES[c.rarete].nom;dr.style.color=RARETES[c.rarete].couleur;
   const roy=ROYAUMES[c.royaume],fam=(c.familles||[]).map(f=>FAMILLES[f]).filter(Boolean);
-  $('#d-classif').innerHTML=(roy?`<span class="cl-chip cl-roy">${roy.ico} ${roy.nom}</span>`:'')+fam.map(f=>`<span class="cl-chip">${f.ico} ${f.nom}</span>`).join('');
+  $('#d-classif').innerHTML=(roy?`<span class="cl-chip cl-roy">${roy.ico} ${roy.nom}</span>`:'')+`<span class="cl-chip">${gabaritDe(c)==='poney'?'🐴 Poney':'🐎 Cheval'}</span>`+fam.map(f=>`<span class="cl-chip">${f.ico} ${f.nom}</span>`).join('');
   $('#d-desc').textContent=c.desc;
   if(peutEvoluer(c))$('#d-progres').textContent=`${n} exemplaires · évolution prête !`;
   else if(p>=5)$('#d-progres').textContent=`Évolution maximale · ${n} exemplaires`;
@@ -1877,7 +1911,7 @@ function ouvrirDetail(c){
   const ech=$('#d-echelle');ech.innerHTML='';
   for(let i=1;i<=5;i++){const atteint=p>=i,pret=(i===p+1&&n>=SEUILS[i-1]),courant=(i===p+1&&!pret);const et='★'.repeat(i)+`<span class="off">${'★'.repeat(5-i)}</span>`;const l=document.createElement('div');l.className='pal-ligne'+(atteint?' atteint':'')+(courant?' courant':'');l.innerHTML=`<span class="pal-etoiles">${et}</span><span class="pal-nom">${TITRES[i]}</span><span class="pal-seuil">${atteint?'atteint ✓':pret?'prêt ✨':SEUILS[i-1]+' ex.'}</span>`;ech.appendChild(l);}
   $('#detail-hero').onclick=()=>maximiser(c);$('#detail-agrandir').onclick=()=>maximiser(c);
-  const st=$('#d-stats');st.innerHTML='';CAPS.forEach(cap=>{const v=statDe(c,cap.id);const l=document.createElement('div');l.className='cap-ligne';l.innerHTML=`<span class="cap-ico">${cap.ico}</span><span class="cap-nom">${cap.nom}</span><div class="cap-bar"><div style="width:${v}%;background:${cap.couleur}"></div></div><span class="cap-val">${v}</span>`;st.appendChild(l);});
+  const st=$('#d-stats');st.innerHTML='';const faibC=faiblesseDe(c);CAPS.forEach(cap=>{const v=statDe(c,cap.id);const fort=(c.aff||[]).includes(cap.id);const faible=(!fort&&faibC===cap.id);const marque=fort?'<span class="cap-mark fort" title="Point fort">▲</span>':(faible?'<span class="cap-mark faible" title="Point faible">▼</span>':'<span class="cap-mark"></span>');const l=document.createElement('div');l.className='cap-ligne'+(fort?' est-fort':faible?' est-faible':'');l.innerHTML=`<span class="cap-ico">${cap.ico}</span><span class="cap-nom">${cap.nom}</span><div class="cap-bar"><div style="width:${v}%;background:${cap.couleur}"></div></div>${marque}<span class="cap-val">${v}</span>`;st.appendChild(l);});
   const ff=$('#feuille-fond');ff.classList.add('on');const fe=ff.querySelector('.feuille');if(fe)fe.scrollTop=0;
   const pr=$('#d-proprios');pr.innerHTML='';
   if(CLOUD.actif()&&profilActif.cloud){
@@ -1900,7 +1934,7 @@ function renderConcours(){
   $('#btn-renouv').onclick=renouvelerConcours;
   const box=$('#concours-liste');box.innerHTML='';
   concoursDuJour().list.forEach(co=>{
-    const cap=CAPS.find(c=>c.id===co.cap),div=DIVISIONS.find(d=>d.rarete===co.rarete),fam=FAMILLES[co.fam],rc=RARETES[co.rarete];
+    const cap=CAPS.find(c=>c.id===co.cap),div=DIVISIONS.find(d=>d.rarete===co.rarete),fam=libFam(co),rc=RARETES[co.rarete];
     const fait=etat.concours.faits[co.i];
     const el=document.createElement('div');el.className='concours-carte'+(fait?' fait':'');
     el.innerHTML=`<div class="cc-ico" style="--cc:${cap.couleur}">${cap.ico}</div><div class="cc-info"><div class="cc-titre">${cap.epreuve}</div><div class="cc-sous"><div class="cc-cond"><span class="ccx">${fam.ico} ${fam.nom}</span><span class="ccx" style="border-color:${rc.couleur}66">${div.ico} ${div.nom}</span><span class="ccx" style="color:${cap.couleur}">${cap.ico} ${cap.nom}</span></div><div class="cc-prix">mise ${div.inscription} 💎 · 🥇${div.crins[0]} 🥈${div.crins[1]} 🥉${div.crins[2]} 💎</div></div></div>${fait?`<div class="cc-etat ${fait<=3?'gagne':'perdu'}">${posMedaille(fait).split(' ')[0]}</div>`:'<button class="cc-jouer">Concourir</button>'}`;
@@ -1915,27 +1949,27 @@ function renouvelerConcours(){
   sauver();majSolde(true);renderConcours();toast('Nouveaux concours !');
 }
 function ouvrirSelecteurPeloton(co){
-  concoursCourant=co;const cap=CAPS.find(c=>c.id===co.cap),div=DIVISIONS.find(d=>d.rarete===co.rarete),fam=FAMILLES[co.fam],rc=RARETES[co.rarete];
+  concoursCourant=co;const cap=CAPS.find(c=>c.id===co.cap),div=DIVISIONS.find(d=>d.rarete===co.rarete),fam=libFam(co),rc=RARETES[co.rarete];
   $('#cs-titre').textContent=`${cap.ico} ${cap.epreuve}`;
-  $('#cs-sous').innerHTML=`<b style="color:${rc.couleur}">${div.ico} ${div.nom}</b> · ${fam.ico} ${fam.nom} · mise ${div.inscription} Diamants.<br>Choisis un cheval <b>${fam.nom}</b> de division <b>${div.nom}</b>.`;
+  $('#cs-sous').innerHTML=`<b style="color:${rc.couleur}">${div.ico} ${div.nom}</b> · ${fam.ico} ${fam.nom} · mise ${div.inscription} Diamants.<br>Choisis un ${co.gab?'poney':'cheval <b>'+fam.nom+'</b>'} de division <b>${div.nom}</b>.`;
   $('#cs-fermer').style.display='';
   const box=$('#cs-liste');box.innerHTML='';
-  const owned=CARTES.filter(c=>(c.familles||[]).includes(co.fam)&&c.rarete===co.rarete&&(etat.collection[c.id]||0)>0).sort((a,b)=>statDe(b,co.cap)-statDe(a,co.cap));
-  if(!owned.length)box.innerHTML=`<p class="cs-vide">Aucun cheval <b>${fam.nom}</b> en division <b>${div.nom}</b>.<br>Collectionne-en un pour concourir !</p>`;
+  const owned=poolConcours(co).filter(c=>(etat.collection[c.id]||0)>0).sort((a,b)=>statDe(b,co.cap)-statDe(a,co.cap));
+  if(!owned.length)box.innerHTML=`<p class="cs-vide">Aucun ${co.gab?'poney':'cheval <b>'+fam.nom+'</b>'} en division <b>${div.nom}</b>.<br>Collectionne-en un pour concourir !</p>`;
   else owned.forEach(c=>{const v=statDe(c,co.cap);const row=document.createElement('div');row.className='cs-row';row.innerHTML=`<div class="tc-box ratio cs-vig">${carteHTML(c,etat.collection[c.id]||1)}</div><span class="cs-nom">${c.nom}</span><span class="cs-etoiles">${'★'.repeat(palierApplique(c))}</span><span class="cs-stat" style="color:${cap.couleur}">${v}</span>`;row.onclick=()=>lancerPeloton(co,c);box.appendChild(row);});
   $('#concours-fond').classList.add('on');
 }
 function pelotonAdversaires(co,n){
-  let pool=CARTES.filter(c=>(c.familles||[]).includes(co.fam)&&c.rarete===co.rarete);
+  let pool=poolConcours(co);
   if(!pool.length)pool=CARTES.filter(c=>c.rarete===co.rarete);if(!pool.length)pool=CARTES;
-  const out=[];for(let i=0;i<n;i++){const c=pool[rnd(0,pool.length-1)],pal=rnd(1,5);out.push({carte:c,palier:pal,perf:statCap(c,co.cap,pal)+rnd(-5,8),moi:false});}
+  const out=[];for(let i=0;i<n;i++){const c=pool[rnd(0,pool.length-1)],pal=rnd(1,5);out.push({carte:c,palier:pal,perf:statCap(c,co.cap,pal),moi:false});}
   return out;
 }
 function lancerPeloton(co,moi){
   const div=DIVISIONS.find(d=>d.rarete===co.rarete),cap=CAPS.find(c=>c.id===co.cap);
   if(etat.crins<div.inscription){toast('Pas assez de Diamants pour la mise');return;}
   etat.crins-=div.inscription;majSolde(true);
-  const comp=[{carte:moi,palier:palierApplique(moi),perf:statDe(moi,co.cap)+rnd(-5,8),moi:true},...pelotonAdversaires(co,5)];
+  const comp=[{carte:moi,palier:palierApplique(moi),perf:statDe(moi,co.cap),moi:true},...pelotonAdversaires(co,5)];
   const advs=comp.filter(x=>!x.moi);for(let i=advs.length-1;i>0;i--){const j=rnd(0,i);[advs[i],advs[j]]=[advs[j],advs[i]];}
   const ordre=[...advs,comp.find(x=>x.moi)];
   $('#cs-titre').textContent=`${cap.ico} ${cap.epreuve} — ${div.ico} ${div.nom}`;
@@ -1999,7 +2033,7 @@ function acheterMarchand(slot){
 const BRAVOS=["Bien joué, tu as réfléchi !","Belle stratégie !","Ça, c'est de la persévérance !","Ton entraînement paie !","Super raisonnement !","Tu maîtrises de mieux en mieux !"];
 const ENCOURAGE=["Pas encore — mais chaque essai t'apprend !","L'erreur fait partie du chemin 💪","Presque ! Regarde l'astuce.","Tu progresses en essayant.","Bien tenté ! On retient et on continue."];
 const NB_CARTES_DEFI=3;   // cartes-mystère proposées (mettre 2 pour encore moins de choix)
-const CHANCE_JEU=0.22;    // part des défis qui sont un mini-jeu (le reste = exercice)
+const JEU_TOUS_LES=5;     // un mini-jeu surgit tous les N exercices, en Général / Général +1 seulement
 let matSource=null,qCour=null,serieCourante=0,quizVerrou=false;
 function capDiff(){const n=profilActif.niveau||5;return n<=3?1:(n===4?2:3);}
 function diffMaths(){const off=((packActif&&packActif.nivOffset)||0);const lv=niveauDe(etat.xp.maths)+off*2;return Math.min(3,capDiff()+off,Math.floor((lv-1)/2)+1);}
@@ -2016,7 +2050,6 @@ const PACKS=[
  {id:'neerlandais',nom:'Néerlandais',ico:'🇳🇱',mult:1.5,niv:NIV1,sous:'Nederlands · débutant',theorie:"Le néerlandais est parlé en Flandre, au nord de la Belgique ! Les bases : hallo (bonjour), dank je (merci), ja (oui), nee (non). Des mots : paard (cheval), hond (chien), appel (pomme), water (eau), boom (arbre)."},
  {id:'art',nom:"Histoire de l'art",ico:'🎨',mult:1.5,niv:NIV1,sous:'Grands classiques',theorie:"Léonard de Vinci a peint la Joconde, Van Gogh « La Nuit étoilée », Monet était impressionniste, Picasso a inventé le cubisme, Michel-Ange a sculpté le David. Les couleurs primaires (rouge, jaune, bleu) se mélangent pour créer toutes les autres !"},
  {id:'ortho',nom:'Orthographe',ico:'✍️',mult:3,niv:NIV1,sous:'Écris les mots · +200%',theorie:"Pense aux accents (é, è, à, ê) et aux lettres muettes à la fin des mots. Relis-toi avant de valider !"},
- {id:'detente',nom:'Détente',ico:'🎮',mult:1,sous:'Petits jeux'},
 ];
 let theorieCour='';
 function afficherTheorie(){const p=document.getElementById('pack-theo-panel');if(!p)return;p.textContent=theorieCour;p.style.display='';const b=document.getElementById('pack-theo-btn');if(b)b.style.display='none';}
@@ -2060,7 +2093,7 @@ const HISTO={
  cheval_chinois:{qui:"la Chine impériale",fait:"il défilait dans les palais, paré de soie et d'or"},
  cheval_royal:{qui:"le roi de France",fait:"il porte fièrement les armes du roi"},
 };
-let packActif=null,recentQ=[];
+let packActif=null,recentQ=[],jeuCompteur=0;
 const SEUIL_MAITRISE=4;
 const PACK_NIVEAUX={geek:()=>[BANK_GEEK],anglais:()=>[BANK_ANGLAIS],ortho:()=>[ORTHO_ITEMS],art:()=>[BANK_ART],neerlandais:()=>[BANK_NEERLANDAIS]};
 const PACK_KEY={geek:q=>q.q,anglais:q=>q.q,ortho:it=>it.r,art:q=>q.q,neerlandais:q=>q.q};
@@ -2076,7 +2109,7 @@ function PMULT(){return packActif?packActif.mult:1;}
 function nivDefi(){return (profilActif.niveau||5)+((packActif&&packActif.nivOffset)||0);}
 function norm(s){return (s||'').trim().toLowerCase();}
 /* melange: définition unique (version copie, plus haut) */
-function lancerPack(p){packActif=p;$('#defi-menu').style.display='none';packExo();}
+function lancerPack(p){packActif=p;jeuCompteur=0;$('#defi-menu').style.display='none';packExo();}
 function retourPacks(){packActif=null;menuDefis();}
 
 const BANK_FR=[
@@ -2386,7 +2419,7 @@ function exoOrigines(z){
   const cible=pool[rnd(0,pool.length-1)],bonR=cible.royaume;
   const autres=melange([...new Set(pool.map(c=>c.royaume))].filter(r=>r!==bonR)).slice(0,3);
   const choixR=melange([bonR,...autres]);const lab=r=>ROYAUMES[r].ico+' '+ROYAUMES[r].nom;
-  z.innerHTML=`<button class="defi-retour" onclick="retourPacks()">← Packs</button><div class="quiz-meta">🌍 Origines</div>${blocTheorie(packActif.theorie,packActif.niv)}<div class="races-art"><div class="tc-box ratio races-vig">${carteHTML(cible,1)}</div></div><div class="races-q">D'où vient ce cheval&nbsp;?</div><div class="quiz-reponses" id="q-reponses"></div><div class="quiz-feedback" id="q-feedback"></div>`;
+  z.innerHTML=`<button class="defi-retour" onclick="retourPacks()">← Packs</button><div class="quiz-meta">🌍 Origines</div>${blocTheorie(packActif.theorie,packActif.niv)}<div class="races-art"><div class="races-photo">${artNu(cible)}</div></div><div class="races-q">D'où vient ce cheval&nbsp;?</div><div class="quiz-reponses" id="q-reponses"></div><div class="quiz-feedback" id="q-feedback"></div>`;
   const box=$('#q-reponses');let fini=false;
   choixR.forEach(r=>{const b=document.createElement('button');b.textContent=lab(r);b.onclick=()=>{
     if(fini)return;fini=true;const bon=r===bonR;
@@ -2443,7 +2476,7 @@ function exoRaces(z){
     cible=races[rnd(0,races.length-1)];question="Quelle est la race de ce cheval ?";bonne=cible.nom;
     const a=melange(races.filter(c=>c.id!==cible.id)).slice(0,3);choix=melange([cible.nom,a[0].nom,a[1].nom,a[2].nom]);theoWrong=cible.desc||'';
   }
-  z.innerHTML=`<button class="defi-retour" onclick="retourPacks()">← Packs</button><div class="quiz-meta">🐴 Chevaux</div>${blocTheorie(packActif.theorie,packActif.niv)}<div class="races-art"><div class="tc-box ratio races-vig">${carteHTML(cible,1)}</div></div><div class="races-q">${question}</div><div class="quiz-reponses" id="q-reponses"></div><div class="quiz-feedback" id="q-feedback"></div>`;
+  z.innerHTML=`<button class="defi-retour" onclick="retourPacks()">← Packs</button><div class="quiz-meta">🐴 Chevaux</div>${blocTheorie(packActif.theorie,packActif.niv)}<div class="races-art"><div class="races-photo">${artNu(cible)}</div></div><div class="races-q">${question}</div><div class="quiz-reponses" id="q-reponses"></div><div class="quiz-feedback" id="q-feedback"></div>`;
   const box=$('#q-reponses');let fini=false;
   choix.forEach(v=>{const b=document.createElement('button');b.textContent=v;b.onclick=()=>{
     if(fini)return;fini=true;const bon=v===bonne;
@@ -2471,9 +2504,13 @@ function exoOrtho(z){
   $('#ortho-ok').onclick=valider;inp.addEventListener('keydown',e=>{if(e.key==='Enter')valider();});
 }
 
+function lancerJeuDefi(z){z.innerHTML='';JEUX[rnd(0,JEUX.length-1)].lancer(z,packExo);const r=document.createElement('button');r.className='defi-retour';r.textContent='← Packs';r.onclick=retourPacks;z.insertBefore(r,z.firstChild);}
 function packExo(){
   const z=$('#defi-zone');z.innerHTML='';
-  if(packActif.id==='detente'){JEUX[rnd(0,JEUX.length-1)].lancer(z,packExo);const r=document.createElement('button');r.className='defi-retour';r.textContent='← Packs';r.onclick=retourPacks;z.insertBefore(r,z.firstChild);return;}
+  if(packActif.id==='general'||packActif.id==='general1'){
+    if(jeuCompteur>=JEU_TOUS_LES){jeuCompteur=0;return lancerJeuDefi(z);}
+    jeuCompteur++;return defiExercice(z);
+  }
   if(packActif.id==='races')return exoRaces(z);
   if(packActif.id==='origines')return exoOrigines(z);
   if(packActif.id==='geek')return exoBankQuiz(z,'🤖 Geek','sciences','geek');
@@ -2874,7 +2911,7 @@ const M_BLANC=c=>ROBES[c.id]==='blanc';
 const M_PRES=c=>(c.familles||[]).includes('pres');
 const M_LEGENDE=c=>(c.familles||[]).includes('legende')||(c.aff||[]).includes('magie');
 const M_ELEM=c=>(c.familles||[]).includes('elementaires')||(c.aff||[]).includes('magie');
-const M_HISTORIQUES=c=>(c.familles||[]).includes('historiques');
+const M_HISTORIQUES=c=>(c.familles||[]).includes('bataille');
 const M_PIE=c=>ROBES[c.id]==='pie';
 const M_NOIR=c=>ROBES[c.id]==='noir';
 const M_DORE=c=>ROBES[c.id]==='alezan'||ROBES[c.id]==='isabelle';
@@ -2944,7 +2981,7 @@ const ETAPE_GAND={key:"gand",pays:"Belgique",drapeau:"🇧🇪",numero:2,region:
  ],crins:55,renom:4},
  {titre:"La Grande Foire aux draps",narr:"La foire est un triomphe ! Les draps de Gand partent dans toute l'Europe. La ville te remercie du fond du cœur.",activites:[{type:'bonus'}],crins:65,renom:3},
 ]};
-const M_EAU=c=>(c.familles||[]).includes('eau');
+const M_EAU=c=>(c.familles||[]).includes('elementaires');
 const ETAPE_BRUGES={key:"bruges",pays:"Belgique",drapeau:"🇧🇪",numero:3,region:"Bruges",fond:"aventure/fond_bruges.jpg",province:"Flandre occidentale",theme:"⛵ Les marchands & la mer",enjeu:"garder sa route vers la mer et rester la Venise du Nord",reveal:"Pieter-Jan te fait découvrir le Beffroi de Bruges et ses canaux : on l'appelle la Venise du Nord !",nom:"Bruges, la Venise du Nord",finText:"Bruges brille de mille feux ! La prochaine province t'attend bientôt… 🐴",sousEtapes:[
  {titre:"Arrivée à Bruges",narr:"Bienvenue à Bruges, la Venise du Nord ! Ici, des marchands du monde entier se croisent sur les canaux. Apprenons d'abord à connaître la ville.",activites:[
    {type:'decision',q:"Bruges est le chef-lieu de quelle province ?",choix:['la Flandre occidentale','la Flandre orientale','le Hainaut','Namur'],r:'la Flandre occidentale',fait:['prov_bruges','la Flandre occidentale']},
@@ -3011,7 +3048,7 @@ const ETAPE_LIMBOURG={key:"limbourg",pays:"Belgique",drapeau:"🇧🇪",numero:4
  {titre:"La grande fête de la récolte",narr:"La récolte est sauvée ! Tout le Limbourg fête ses fruits, et l'on te remercie du fond du cœur.",activites:[{type:'bonus'}],crins:70,renom:3},
 ]};
 const M_RACE=c=>(c.familles||[]).includes('race');
-const M_COUSINS=c=>(c.familles||[]).includes('cousins');
+const M_COUSINS=c=>(c.familles||[]).includes('sauvages');
 const ETAPE_LOUVAIN={key:"louvain",pays:"Belgique",drapeau:"🇧🇪",numero:5,region:"Louvain",province:"Brabant flamand",theme:"🎓 Le savoir & la science",enjeu:"réussir la grande expérience de l'université",reveal:"Pieter-Jan t'emmène devant l'Hôtel de Ville de Louvain, un chef-d'œuvre gothique couvert de centaines de statues — de la vraie dentelle de pierre !",fond:"aventure/fond_louvain.jpg",nom:"Louvain, la ville du savoir",finText:"L'université de Louvain est fière de toi ! La province suivante t'attend… 🎓",sousEtapes:[
  {titre:"Arrivée à Louvain",narr:"Bienvenue à Louvain, la ville de la plus vieille université du pays ! Lis d'abord son histoire.",activites:[
    {type:'lecture',texte:"À Louvain se dresse la plus vieille université du pays : depuis presque six cents ans, des étudiants du monde entier viennent y apprendre. Son hôtel de ville est si couvert de statues qu'on dirait de la dentelle taillée dans la pierre ! Le soir, la ville s'anime de milliers d'étudiants venus de partout.",questions:[

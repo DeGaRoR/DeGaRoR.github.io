@@ -3,6 +3,63 @@
 Convention : `VERSION_APP` (index.html) = `ecurie-vNN` (sw.js), incrémentés à CHAQUE livraison
 (invalidation du cache PWA). QC : `node tools/qc.js` avant chaque livraison.
 
+## v71 — Stats de concours stables
+- **Suppression du bruit aléatoire `+rnd(-5,8)`** sur la performance en concours (joueur ET
+  adversaires). La stat affichée sur la fiche est désormais exactement celle avec laquelle le cheval
+  concourt : un cheval annoncé à 48 fait 48. Fini l'incohérence 48 → 52.
+- La variété du peloton reste assurée par les adversaires tirés au hasard (5 cartes de la division,
+  paliers 1-5), sans dé caché. Progression lisible : meilleure carte / palier plus haut = meilleur score.
+## v70 — Mini-jeux intégrés au flux des défis
+- **Pack « Détente » retiré** du menu des défis : plus d'accès explicite aux mini-jeux.
+- Les mini-jeux **surgissent automatiquement tous les 5 exercices**, uniquement dans **Général**
+  et **Général +1** (constante `JEU_TOUS_LES=5`, compteur `jeuCompteur` remis à zéro à l'entrée du
+  pack). Cadence : 5 exercices → 1 jeu → 5 exercices → … Les autres packs (Chevaux, Origines, langues,
+  ortho…) restent purement studieux.
+- Nettoyage : suppression de la variable morte `CHANCE_JEU` (jamais utilisée).
+## v69 — Correctifs playtest
+- **BLOQUANT corrigé** : le tutoriel se relançait pour un joueur existant (save sans `tutoVu`),
+  redistribuait des cartes déjà possédées et se figeait. `normaliserEtat` infère désormais
+  `tutoVu=true` dès qu'il y a de la progression (tirages, aventure, collection>3, bonnes réponses).
+  Plus d'onboarding parasite au rechargement.
+- **Page tirage refaite** : pile de boutons pleine largeur alignés, super-tirage avec style propre
+  (violet, sous-titre « Épique ou mieux garanti », coût ⭐), et soldes 💎/⭐ affichés lisiblement.
+- **Quiz chevaux** : les questions « devine le cheval / d'où vient-il » montrent l'illustration NUE
+  (plus de nom, rareté ni drapeau du royaume sur la carte) — via `artNu`. Fini les réponses triviales.
+- **Vocabulaire concours** aligné sur les raretés : Commune, Rare, Épique, Légendaire, Mythique
+  (la division mythique s'appelait « Légendaire » — corrigé).
+- Cartes-cadeau du tutoriel remises au bon ratio portrait (plus de format carré).
+## v68 — Rééquilibrage, chantier D (gabarit poney/cheval)
+- **Attribut `gabarit`** (orthogonal aux familles) : set `PONEYS` de 20 ids (toise < 1,48 m),
+  helper `gabaritDe`. Badge 🐴 Poney / 🐎 Cheval affiché sur la fiche.
+- **Concours poneys** : transversaux aux familles, une division par rareté où ≥3 poneys existent
+  (commune 5, rare 11, épique 4 poneys). Donnent une scène aux petits gabarits, sinon écrasés par
+  les grands en concours de famille. Champ `co.gab` + filtre centralisé `poolConcours` ; l'éligibilité
+  joueur et les adversaires passent par le gabarit. Vérifié : apparaissent ~11 jours/14 en rotation.
+- Note : les poneys existent en commune/rare/épique uniquement (aucun poney légendaire/mythique).
+- **Réponse coverage concours** : matrice famille×rareté vérifiée — les 14 familles ET les 5 raretés
+  ont chacune ≥1 concours viable (aucun trou). Points minces (1 seule rareté) : mascotte, prés,
+  licorne, plantes, robot, band, sombres — exploitables mais rares en rotation.
+## v67 — Rééquilibrage, chantier C (stats caractérielles)
+- **Affinité renforcée : +18 → +22** sur les 1-2 capacités marquées d'une carte.
+- **Faiblesses par famille (−14)** : nouvelle table `FAM_FAIBLESSE`, une capacité contrastant avec
+  l'identité de la famille (travail↓vitesse, course↓force, sombres↓beauté, prés↓combat, légende↓agilité,
+  élémentaires↓force, sauvages↓beauté, robot↓magie, plantes↓vitesse…). Basée sur la famille primaire ;
+  ne s'applique jamais à une affinité de la carte (le talent l'emporte sur la faiblesse).
+- Effet : profils lisibles, choix de carte stratégique en concours. Un épique bien monté peut battre
+  un mythique **hors de son domaine** (vérifié en simu : épique beauté 93 > mythique Guerre 59).
+- **Fiche stats** : repères ▲ point fort / ▼ point faible ajoutés sur les barres. Clamp 1..99 préservé.
+- Stats dérivées → aucune migration ; la collection d'Enola se recalcule au chargement.
+## v66 — Rééquilibrage, chantier B (remap des familles 19→14)
+- **5 familles fusionnées** (50 cartes remappées, dedupe) : historiques→bataille, eau→élémentaires,
+  cousins→sauvages, gourmand→prés, beasts→légende. Familles restantes (14) : travail, race,
+  mascotte, bataille, légende, élémentaires, sauvages, course, prés, band, licorne, plantes,
+  robot, sombres.
+- **Matchers d'aventure repointés** vers les cibles de fusion (M_HISTORIQUES→bataille,
+  M_EAU→élémentaires, M_COUSINS→sauvages) — les étapes restent complétables (assouplies).
+  QC : 5 aventures terminées au pire cas, 0 échec.
+- **Concours** : 32 combos viables (famille×rareté, pool≥3), répartis sur des familles plus denses
+  (bataille 40 membres / 5 divisions, légende 47 / 4…). Régénérés quotidiennement, aucune casse
+  de la save existante.
 ## v65 — Rééquilibrage, chantier A (tirage & économie)
 - **Poids de tirage rééquilibrés** : commune 55 / rare 27 / épique 13 / légendaire 4,5 / mythique 0,5
   (mythique ~1/200 tirages, contre ~1/670 avant).
