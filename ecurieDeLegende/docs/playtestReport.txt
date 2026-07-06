@@ -1,0 +1,38 @@
+Besoin de tuto à l'entrée. Simple, expliquer la collection, le tirage, les exercices
+L'économie des concpours est un peu trop punitive au début
+Les exercices proposent trop souvent le choix entre chevaux préférés, cela ne devrait pas être dispo plus qu'une fois sur 5
+enregistrons les réponbses de chevaux préférés, ça marche bien et on peut montrer un classement purement émotionel
+Un écran classement mondial avec tous les noms et le nombre de chevaux obtenus
+le mode histoire est très bloquant, il a fallu jouer des heures pour obtenir les 2 chevaux de halage et l'étalon, il faut faire plus simple pour le début
+Dans les constitutions d'équipe, on est parfois bloqués sans option de sortie ni explication de quoi faire. Si l'on a pas les bons chevaux, il faut redémarrer l'app. Pas terrible. Il faudrait réorienter vers les défis et expliquer qu'ilo faut de meilleures cartes ou améliorer les existantes
+A ce stade, il faut préserver toute donnée utilisateur, il y a déjà des joueurs. Il faut être robuste en migration, ne plus jamais perdre sa partie
+Il faut un aperçu des sous-étapes et de la progression à l'intérieur de l'étape, car cela peut être long
+Le choix du cheval préféré marche vraiment bien, on pourrait capitaliser là dessus. L'identité via le choixLe mode aventure pourrait dropper des modificateurs comme une couronne ou un bijou à équiper sur ses chevaux préférés
+Mode aventure, pas clair l'objectif inférieur à 250. Il faudrait un objectif réaliste dont être le plus PROCHE pour combinaison mathématique
+Mode aventure, l'indicateur montrant le core actuel VS le score demandé doit rester en haut de l'écran. La liste de chavaux devient vite longue, un split screen serait le mieux, les conditions restent visibles en permanence et on scrolle dans la liste interminable de chevaux
+Il faut montrer le nombre de copies disponibles directement dans la collection, et lors de la composition des équipes du mode aventure.
+Il faudra restructurer le mode défi. Le mode actuel devient le mode général. Il existe d'autres modes et packages. On peut choisir le général de l'année +1 pour 150% bonus, c'est le package super hard
+Ensuite, des packs thématiques. Le premier consiste à reconnaitre les races de chevaux, et les robes, sur base des illustrations existantes. Un peu de théorie accessible sur demande, et le jeu y pousse si les réponses sont fausses.
+Il faut aussi étoffer beaucoup le module général, les questions deviennent vite répétitives.
+Les maths sont sur-représentés. Il est facile d'atteindre niveau 120 en math et niveau 2 partout ailleurs. C'est déséquilibré.
+Je suggère de remplacer les crins par des diamants. C'était bien les crins, mais ça leur parle pas trop. Des bons gros diamants pour des petites filles.
+Il faut un module orthographe avec récompense 200% pour encourager. Il faut notamment écrire au clavier des mots. Module important, grosses récompenses.
+Un package geek intro à l'électronique ou la programmation, ou les drones, niveau 10 ans
+Un package histoire de l'art avec les grands classiques
+Divergence noms des compétences et noms des concours
+Les mascotes ne doivent pas faire partie du pool général
+Le mode aventure doit être plus cinématique. Image atomium et pieter-jan plein écran au début, intro de Pieter-Jan lui-même (donne-lui une personnalité) et la mission.
+Il faut une cinématique d'intro pour offrir les 3 chevaux de départ, pas juste les découvrir silencieusement. Bienveneue et voilà 3 chevaux
+Le bouton back du téléphone pose problème car il fait quitter la web app ou revenir à la page de lien. C'est un problème de gameplay assez sérieux.
+La présentation des concours n'est pas claire
+- Faire apparaitre clairement les 3 conditions, avec une sémantique similaire à celle utilisée pour les stats
+- Concours les plus faciles en haut de liste, plus durs en base
+Fonctionnalité pour comparer les collections entre utilisateurs individuels, classement mondial
+La licorne girly remporte un énorme succès, le style marche bien, c'est assez déplorable, mais à noter ;-)
+Le perso est présenté comme une fille. Rester neutre sur ce point dans l'intro du mode aventure
+L'intro est en fait générale, peut-être devrait-on la traiter comme telle. L'ordre des images 1 et 2 de l'intro est inversée. C'est d'abord l'écurie au complet, puis le vnet, puis la quête
+Les prompts pour installation de l'app sont très random. Pourrait-on pousser la notif activment?
+Plus de filtres et critères de sorting dans la collection, notamment sur les familles et les origines, mais aussi tri par stat croissante ou décroissante
+Le style de la carte est trop différent du reste du jeu. On passe de sombre et mauve à clair et bleu/vert pâle, c'est pas top. Il faut revoir cela.
+Attention aux différences de langage, confusantes. Par exemple on demande des chevaux tireurs de péniche et on doit y associer des chevaux de halage. GFarder les même mots.
+Insister sur la géographie belge, régions, provinces et chefs lieux
