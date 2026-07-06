@@ -67,6 +67,7 @@ nav.tabs button.actif::before{content:"";position:absolute;top:0;width:34px;heig
 .tcarte[data-r="epique"]{--rc:#c99bff;--rc-soft:#a672e0;--fg:linear-gradient(140deg,#f2ddff,#7d3fc0 42%,#e0b4ff 68%,#5c2a94);}
 .tcarte[data-r="legendaire"]{--rc:#ffcf6b;--rc-soft:#f2b134;--fg:linear-gradient(140deg,#fff3cf,#d99b2b 42%,#ffe9a8 68%,#b57d1a);}
 .tcarte[data-r="mythique"]{--rc:#ff9ac0;--rc-soft:#ff5c8a;--fg:conic-gradient(from var(--spin),#ff5c8a,#ffb14e,#8dff8d,#4aa3df,#a672e0,#ff5c8a);}
+.tcarte[data-r="celeste"]{--rc:#ffe9a8;--rc-soft:#ffd36b;--fg:conic-gradient(from var(--spin),#fff6d5,#ffe9a8,#fff,#ffd36b,#fff6d5,#fff,#ffe9a8);}
 .tc-art{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:38cqw;line-height:1;background:radial-gradient(120% 100% at 50% 32%,color-mix(in srgb,var(--rc) 26%,#141127),#100d20 78%);}
 .tc-art img{width:100%;height:100%;object-fit:cover;display:block;}
 .tc-scrim-top{position:absolute;top:0;left:0;right:0;height:34cqw;background:linear-gradient(180deg,#0b0918d9,transparent);pointer-events:none;}
@@ -106,6 +107,7 @@ nav.tabs button.actif::before{content:"";position:absolute;top:0;width:34px;heig
 .tc-anim[data-p="5"]{animation:breathe 3.8s ease-in-out infinite;}
 @keyframes breathe{0%,100%{transform:scale(1);}50%{transform:scale(1.018);}}
 .tc-anim[data-r="mythique"] .tc-frame{animation:spin 6s linear infinite;}
+.tc-anim[data-r="celeste"] .tc-frame{animation:spin 5s linear infinite;}
 @keyframes spin{to{--spin:360deg;}}
 .tcarte.verrou .tc-art{background:linear-gradient(180deg,#211b3c,#161230);color:#4a4270;font-size:30cqw;}
 .tcarte.verrou{box-shadow:0 6px 16px #0007;filter:saturate(.5);}
@@ -154,6 +156,16 @@ nav.tabs button.actif::before{content:"";position:absolute;top:0;width:34px;heig
 #chances-liste .ligne:first-child{border-top:0;}
 #chances-liste .pastille{width:13px;height:13px;border-radius:50%;flex-shrink:0;}
 #chances-liste .ligne .pct{margin-left:auto;font-family:'Fredoka';font-weight:600;}
+.atl-row,.atl-jrow{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid #ffffff10;}
+.atl-row:first-child,.atl-jrow:first-child{border-top:0;}
+.atl-past{width:13px;height:13px;border-radius:50%;flex-shrink:0;}
+.atl-lbl{display:flex;flex-direction:column;font-family:'Fredoka';font-weight:600;font-size:14px;line-height:1.2;}
+.atl-lbl small{font-weight:500;font-size:11.5px;color:var(--txt-doux);margin-top:1px;}
+.atl-btn{margin-left:auto;font-family:'Fredoka';font-weight:700;font-size:13px;border:none;border-radius:999px;padding:8px 15px;background:linear-gradient(180deg,#ffd977,var(--or));color:#2a1e05;cursor:pointer;white-space:nowrap;}
+.atl-btn:disabled{filter:grayscale(.7) brightness(.85);cursor:not-allowed;}
+.atl-jico{font-size:17px;width:22px;text-align:center;flex-shrink:0;}
+.atl-jetat{margin-left:auto;font-family:'Fredoka';font-weight:600;font-size:12px;color:var(--txt-doux);white-space:nowrap;}
+.atl-jrow.fait .atl-jetat{color:#6fdca0;}
 
 .reveal-overlay{position:fixed;inset:0;height:100dvh;overflow-y:auto;z-index:50;display:none;align-items:center;justify-content:center;flex-direction:column;background:radial-gradient(circle at 50% 44%,#2a2350f2,#0b0916fa);backdrop-filter:blur(6px);}
 .reveal-overlay.on{display:flex;animation:fade .2s ease;}
@@ -717,6 +729,7 @@ main.plein{padding:0 !important;overflow:hidden !important;}
         </div>
         <p class="tirage-aide">Tu as <b class="ta-dia">💎 <span id="tirage-crins-nb">0</span></b> · <b class="ta-ren">⭐ <span id="tirage-renom-nb">0</span></b> renommée — <a id="lien-revisions">Va réviser →</a></p>
         <button class="chances-help" id="btn-chances">❔ Voir les chances de tirage</button>
+        <button class="chances-help" id="btn-atelier">⚗️ Atelier de fusion & objectifs 🌟</button>
       </div>
     </section>
     <section class="ecran" id="ecran-revisions">
@@ -1036,6 +1049,15 @@ main.plein{padding:0 !important;overflow:hidden !important;}
 <div class="img-max" id="img-max"><img id="img-max-src" alt=""><div class="img-max-fermer">✕</div></div>
 
 <div class="feuille-fond" id="t10-fond"><div class="feuille"><h2 class="titre" style="text-align:center;margin-bottom:6px">Tirage ×10 ✨</h2><div id="t10-liste"></div><button class="feuille-fermer" id="t10-fermer">Continuer</button></div></div>
+<div class="feuille-fond" id="atelier-fond"><div class="feuille">
+  <h2 class="titre" style="text-align:center;margin-bottom:4px">⚗️ Atelier de fusion</h2>
+  <p class="d-desc" style="color:var(--txt-doux);margin-bottom:10px">Transforme 3 doublons en un tirage de la rareté supérieure. Tes étoiles sont préservées.</p>
+  <div id="atelier-fusion"></div>
+  <h2 class="titre" style="text-align:center;margin:18px 0 4px">🌟 Objectifs Célestes</h2>
+  <p class="d-desc" style="color:var(--txt-doux);margin-bottom:10px">Six chevaux d'exception, gagnés par tes exploits — jamais au tirage.</p>
+  <div id="atelier-jalons"></div>
+  <button class="feuille-fermer" id="atelier-fermer">Fermer</button>
+</div></div>
 <div id="av-etape" class="av-etape">
   <div class="ae-header"><button class="ae-quit" id="ae-quit">✕</button><div class="ae-guide"><img src="cartes/pieter_jan.jpg" alt="Pieter-Jan"></div><div class="ae-bulle"><div class="ae-titre" id="ae-titre"></div><div id="ae-narr"></div></div></div>
   <div class="ae-prog" id="ae-prog"></div>
@@ -1237,7 +1259,7 @@ const CARTES = [
   {id:"cheval_chinois",nom:"Le cheval chinois antique",rarete:"rare",emoji:"🐎",image:IMG.cheval_chinois,desc:"Paré de soie et d'or, il défilait dans les palais impériaux.",aff:["beaute","magie"],familles:["race","bataille"],royaume:"chine"},
   {id:"centaure",nom:"Le centaure",rarete:"legendaire",emoji:"🦄",image:IMG.centaure,desc:"Moitié homme, moitié cheval, gardien sage des forêts anciennes.",aff:["bataille","force"],familles:["legende","bataille"],royaume:"grece"},
   {id:"uchchaihshravas",nom:"Uchchaihshravas",rarete:"mythique",emoji:"🐉",image:IMG.uchchaihshravas,desc:"Le cheval blanc à sept têtes, né du barattage de l'océan de lait.",aff:["magie","vitesse","beaute"],familles:["legende"],royaume:"inde"},
-  {id:"sleipnir",nom:"Sleipnir",rarete:"mythique",emoji:"🐉",image:IMG.sleipnir,desc:"Le destrier à huit jambes d'Odin, plus rapide que le vent.",aff:["vitesse","endurance","magie"],familles:["legende"],royaume:"norvege"},
+  {id:"sleipnir",nom:"Sleipnir",rarete:"celeste",emoji:"🐉",image:IMG.sleipnir,desc:"Le destrier à huit jambes d'Odin, plus rapide que le vent.",aff:["vitesse","endurance","magie"],familles:["legende"],royaume:"norvege"},
   {id:"licorne_girly",nom:"La licorne girly",rarete:"rare",emoji:"🦄",image:IMG.licorne_girly,desc:"Une licorne de conte de fées, crinière arc-en-ciel et cœurs scintillants.",aff:["beaute","magie"],familles:["legende","pres"],royaume:"avalon"},
   {id:"cheval_diligence",nom:"Le cheval de diligence",rarete:"commune",emoji:"🐎",image:IMG.cheval_diligence,desc:"Fidèle cheval de poste, il tire la diligence sur les routes de France.",aff:["endurance","vitesse"],familles:["travail","bataille"],royaume:"france"},
   {id:"al_bouraq",nom:"Al-Bouraq",rarete:"mythique",emoji:"🕊️",image:IMG.al_bouraq,desc:"La monture ailée au visage humain, plus rapide que l'éclair entre ciel et terre.",aff:["vitesse","magie","beaute"],familles:["legende"],royaume:"arabie"},
@@ -1264,7 +1286,7 @@ const CARTES = [
   {id:"cheval_gourmand",nom:"Cheval gourmand",rarete:"commune",emoji:"🍎",image:IMG.cheval_gourmand,desc:"Toujours à croquer une pomme — le plus gourmand de toute l'écurie !",aff:["endurance","beaute"],familles:["pres"],royaume:"belgique"},
   {id:"cheval_cowboy",nom:"Cheval cow-boy",rarete:"rare",emoji:"🤠",image:IMG.cheval_cowboy,desc:"Fidèle monture du cow-boy, il connaît chaque piste du Far West.",aff:["vitesse","endurance"],familles:["course","sauvages"],royaume:"amerique"},
   {id:"cheval_fantome",nom:"Cheval fantôme",rarete:"rare",emoji:"👻",image:IMG.cheval_fantome,desc:"Un cheval translucide qui traverse la nuit sans bruit, entre les mondes.",aff:["magie","endurance"],familles:["legende"],royaume:"avalon"},
-  {id:"pegase",nom:"Pégase",rarete:"mythique",emoji:"🕊️",image:IMG.pegase,desc:"Le cheval ailé de la mythologie grecque : il s'envole jusqu'à l'Olympe.",aff:["vitesse","magie"],familles:["legende"],royaume:"grece"},
+  {id:"pegase",nom:"Pégase",rarete:"celeste",emoji:"🕊️",image:IMG.pegase,desc:"Le cheval ailé de la mythologie grecque : il s'envole jusqu'à l'Olympe.",aff:["vitesse","magie"],familles:["legende"],royaume:"grece"},
   {id:"etalon",nom:"Étalon",rarete:"commune",emoji:"🐎",image:IMG.etalon,desc:"Un étalon fier et robuste, roi de la prairie.",aff:["force","beaute"],familles:["pres","race"],royaume:"belgique"},
   {id:"bebe_poney",nom:"Bébé poney",rarete:"commune",emoji:"🐴",image:IMG.bebe_poney,desc:"Un adorable petit poney qui découvre le monde à petits pas.",aff:["beaute","vitesse"],familles:["pres"],royaume:"belgique"},
   {id:"cheval_royal",nom:"Cheval royal",rarete:"epique",emoji:"👑",image:IMG.cheval_royal,desc:"Paré des armes du roi, il porte fièrement les couleurs du royaume.",aff:["beaute","bataille"],familles:["bataille","race"],royaume:"france"},
@@ -1319,9 +1341,9 @@ const CARTES = [
   {id:"band_steel_phantom",nom:"Steel Phantom",rarete:"rare",emoji:"🖤",image:IMG.band_steel_phantom,desc:"Fantôme d'acier, silhouette froide sous les néons de la ville.",aff:["force","vitesse"],familles:["band"],royaume:"scene"},
   {id:"band_midnight_lead",nom:"Midnight Lead",rarete:"rare",emoji:"🎤",image:IMG.band_midnight_lead,desc:"Leader de minuit, sa voix noire hypnotise la salle entière.",aff:["bataille","force"],familles:["band"],royaume:"scene"},
   {id:"band_pastel_dream",nom:"Pastel Dream",rarete:"rare",emoji:"🎀",image:IMG.band_pastel_dream,desc:"Rêve pastel tout en douceur, rubans et cœurs à l'infini.",aff:["beaute"],familles:["band"],royaume:"scene"},
-  {id:"beasts_qirin",nom:"Le Qilin",rarete:"mythique",emoji:"🐉",image:IMG.beasts_qirin,desc:"Chimère bienveillante des légendes chinoises, il annonce les temps heureux.",aff:["magie","beaute"],familles:["legende"],royaume:"chine"},
+  {id:"beasts_qirin",nom:"Le Qilin",rarete:"celeste",emoji:"🐉",image:IMG.beasts_qirin,desc:"Chimère bienveillante des légendes chinoises, il annonce les temps heureux.",aff:["magie","beaute"],familles:["legende"],royaume:"chine"},
   {id:"beasts_longma",nom:"Le Longma",rarete:"mythique",emoji:"🐲",image:IMG.beasts_longma,desc:"Cheval-dragon surgi du fleuve, il porte les sages sur son dos ailé.",aff:["magie","vitesse"],familles:["legende"],royaume:"chine"},
-  {id:"beasts_alicorne",nom:"L'Alicorne",rarete:"mythique",emoji:"🦄",image:IMG.beasts_alicorne,desc:"Elle unit la corne de la licorne et les ailes du pégase, reine des cieux.",aff:["magie","beaute"],familles:["legende"],royaume:"avalon"},
+  {id:"beasts_alicorne",nom:"L'Alicorne",rarete:"celeste",emoji:"🦄",image:IMG.beasts_alicorne,desc:"Elle unit la corne de la licorne et les ailes du pégase, reine des cieux.",aff:["magie","beaute"],familles:["legende"],royaume:"avalon"},
   {id:"beasts_hippogriffe",nom:"L'Hippogriffe",rarete:"mythique",emoji:"🦅",image:IMG.beasts_hippogriffe,desc:"Moitié aigle moitié cheval, il franchit les montagnes d'un seul bond.",aff:["vitesse","bataille"],familles:["legende"],royaume:"grece"},
   {id:"beasts_hypalectryon",nom:"L'Hippalectryon",rarete:"mythique",emoji:"🐓",image:IMG.beasts_hypalectryon,desc:"Cheval à l'arrière de coq, il gardait les vases de la Grèce antique.",aff:["force","magie"],familles:["legende"],royaume:"grece"},
   {id:"course_frankel",nom:"Frankel",rarete:"legendaire",emoji:"🏇",image:IMG.course_frankel,desc:"Invaincu en quatorze courses, le plus grand galopeur anglais de l'ère moderne.",aff:["vitesse","endurance"],familles:["course","bataille"],royaume:"angleterre"},
@@ -1378,8 +1400,8 @@ const CARTES = [
   {id:"highland",nom:"Poney Highland",rarete:"rare",emoji:"🐴",image:IMG.highland,desc:"Solide poney des Highlands d'Écosse, tout-terrain infatigable des montagnes.",aff:["force","endurance"],familles:["race","travail"],royaume:"ecosse"},
   {id:"hutsul",nom:"Poney Hutsul",rarete:"rare",emoji:"🐴",image:IMG.hutsul,desc:"Poney des Carpates, agile et rustique sur les sentiers forestiers escarpés.",aff:["endurance","force"],familles:["race","sauvages"],royaume:"ukraine"},
   {id:"merens",nom:"Mérens",rarete:"rare",emoji:"🐴",image:IMG.merens,desc:"Petit cheval noir des Pyrénées, sûr et robuste sur les chemins de montagne.",aff:["endurance","beaute"],familles:["race","sauvages"],royaume:"france"},
-  {id:"cheval_pale_mort",nom:"Le cheval pâle de la Mort",rarete:"mythique",emoji:"💀",image:IMG.cheval_pale_mort,desc:"Monture spectrale du dernier des cavaliers, elle avance là où tout s'éteint.",aff:["magie","bataille"],familles:["sombres","legende"],royaume:"outremonde"},
-  {id:"cheval_rouge_guerre",nom:"Le cheval rouge de la Guerre",rarete:"mythique",emoji:"🔥",image:IMG.cheval_rouge_guerre,desc:"Étalon de flammes du cavalier de la Guerre, il enflamme les champs de bataille.",aff:["bataille","force"],familles:["sombres","bataille"],royaume:"outremonde"},
+  {id:"cheval_pale_mort",nom:"Le cheval pâle de la Mort",rarete:"celeste",emoji:"💀",image:IMG.cheval_pale_mort,desc:"Monture spectrale du dernier des cavaliers, elle avance là où tout s'éteint.",aff:["magie","bataille"],familles:["sombres","legende"],royaume:"outremonde"},
+  {id:"cheval_rouge_guerre",nom:"Le cheval rouge de la Guerre",rarete:"celeste",emoji:"🔥",image:IMG.cheval_rouge_guerre,desc:"Étalon de flammes du cavalier de la Guerre, il enflamme les champs de bataille.",aff:["bataille","force"],familles:["sombres","bataille"],royaume:"outremonde"},
   {id:"helhest",nom:"Helhest",rarete:"mythique",emoji:"👻",image:IMG.helhest,desc:"Le cheval à trois jambes de la déesse Hel, dont le passage annonce la mort dans les brumes du Nord.",aff:["magie","endurance"],familles:["sombres","legende"],royaume:"danemark"},
   {id:"dullahan",nom:"Dullahan",rarete:"legendaire",emoji:"⚔️",image:IMG.dullahan,desc:"La monture noire aux yeux de feu du cavalier sans tête des légendes d'Irlande.",aff:["bataille","vitesse"],familles:["sombres","legende"],royaume:"irlande"},
   {id:"mari_lwyd",nom:"Mari Lwyd",rarete:"legendaire",emoji:"🎭",image:IMG.mari_lwyd,desc:"Crâne de jument enrubanné du Pays de Galles, qui frappe aux portes en chantant au cœur de l'hiver.",aff:["magie","beaute"],familles:["sombres"],royaume:"galles"},
@@ -1417,19 +1439,19 @@ async function cloudPush(){
   catch(e){majSync('err');}
 }
 function compteVersProfil(row){return {id:row.id,nom:row.prenom,age:row.age,emoji:row.avatar,couleur:row.couleur,niveau:row.niveau,etat:normaliserEtat(row.etat||etatVide()),cloud:true,pin:row._pin};}
-const VERSION_APP='v71';
-const RARETES={commune:{nom:'Commune',poids:55,overflow:15,couleur:'#c4cdd8'},rare:{nom:'Rare',poids:27,overflow:30,couleur:'#7ec2ff'},epique:{nom:'Épique',poids:13,overflow:60,couleur:'#c99bff'},legendaire:{nom:'Légendaire',poids:4.5,overflow:120,couleur:'#ffcf6b'},mythique:{nom:'Mythique',poids:0.5,overflow:250,couleur:'#ff9ac0'}};
+const VERSION_APP='v72';
+const RARETES={commune:{nom:'Commune',poids:55,overflow:15,couleur:'#c4cdd8'},rare:{nom:'Rare',poids:27,overflow:30,couleur:'#7ec2ff'},epique:{nom:'Épique',poids:13,overflow:60,couleur:'#c99bff'},legendaire:{nom:'Légendaire',poids:4.5,overflow:120,couleur:'#ffcf6b'},mythique:{nom:'Mythique',poids:0.5,overflow:250,couleur:'#ff9ac0'},celeste:{nom:'Céleste',poids:0,overflow:300,couleur:'#ffe9a8'}};
 const SEUILS=[1,4,9,17,28];   // exemplaires cumulés pour ★ à ★★★★★ (évolution plus lente)
-const TITRES=['—','Éveil','Aguerri','Radieux','Céleste','Mythe'];
+const TITRES=['—','Éveil','Aguerri','Radieux','Astral','Mythe'];
 const COUT_TIRAGE=120,SOLDE_DEPART=200;const COUT_TIRAGE10=COUT_TIRAGE*9;
 const PITY_EPIC=20,PITY_LEGEND=100;   // pity : épique+ garanti tous les 20, légendaire+ tous les 100
 const COUT_SUPER_RENOM=35;            // super-tirage payé en renommée, épique ou mieux garanti
-function rankRar(r){return {commune:0,rare:1,epique:2,legendaire:3,mythique:4}[r]||0;}
+function rankRar(r){return {commune:0,rare:1,epique:2,legendaire:3,mythique:4,celeste:5}[r]||0;}
 const GAIN_BONNE=6,GAIN_ESSAI=2,BONUS_SERIE=20,PALIER_SERIE=5;   // récompense l'essai même en cas d'erreur
 const XP_BONNE=10,XP_ESSAI=3,PAS_XP=120;
 const SOFTCAP1=600,SOFTCAP2=1400;
 function jourDefi(){const d=new Date().toISOString().slice(0,10);if(!etat.defiJour||etat.defiJour.date!==d)etat.defiJour={date:d,gagne:0};return etat.defiJour;}
-function crediterDefi(g){const j=jourDefi();const reel=Math.max(1,Math.round(g));etat.crins+=reel;j.gagne+=reel;return reel;}
+function crediterDefi(g){const j=jourDefi();const reel=Math.max(1,Math.round(g));etat.crins+=reel;j.gagne+=reel;if(typeof verifierJalons==='function')verifierJalons(true);return reel;}
                           // 120 XP par niveau de matière
 
 /* ---- CONCOURS ---- */
@@ -1443,7 +1465,7 @@ const CAPS=[
   {id:'endurance',nom:'Agilité',ico:'🤸',couleur:'#5ec4a8',epreuve:"Parcours d'obstacles"},
   {id:'magie',nom:'Magie',ico:'✨',couleur:'#a672e0',epreuve:'Concours de magie'},
 ];
-const BASE_RAR={commune:8,rare:20,epique:34,legendaire:50,mythique:66};
+const BASE_RAR={commune:8,rare:20,epique:34,legendaire:50,mythique:66,celeste:80};
 /* Divisions = rareté des chevaux qui concourent. Prix par position (podium). */
 const DIVISIONS=[
   {rarete:'commune',   nom:'Commune',        ico:'🥉',inscription:2, crins:[20,10,5],     renom:[3,2,1]},
@@ -1478,8 +1500,8 @@ const PRIX_MARCHAND={commune:3,rare:15,epique:55,legendaire:220,mythique:1000};
    exercices apparaissent (voir `niv` des activités) et cale la difficulté. */
 const CLE_P='ecurie_profils_v1',CLE_VIEUX='ecurie_legendes_v2';
 let memoire=null;
-function etatVide(){return {crins:SOLDE_DEPART,cadeauDepart:true,tutoVu:false,collection:{ane_tetu:1,cheval_charbonnier:1,cheval_laboureur:1},paliers:{ane_tetu:1,cheval_charbonnier:1,cheval_laboureur:1},tirages:0,bonnes:0,xp:{maths:0,francais:0,histoire:0,sciences:0},serieJours:0,dernierJour:null,stats:{},jeux:{joues:0,gagnes:0},renommee:0,renommeeTotale:0,concours:{date:null,refresh:0,faits:{}},marchand:{date:null,achetes:[]},aventure:{introVu:false,belgique:{sousEtape:0,faits:{},fini:false}},chouchous:{},packprog:{},defiJour:{date:null,gagne:0},pity:{epic:0,legend:0}};}
-function normaliserEtat(e){const d=etatVide();for(const k in d)if(e[k]===undefined)e[k]=d[k];e.xp=Object.assign({maths:0,francais:0,histoire:0,sciences:0},e.xp||{});e.jeux=Object.assign({joues:0,gagnes:0},e.jeux||{});e.stats=e.stats||{};e.collection=e.collection||{};e.paliers=e.paliers||{};e.renommee=e.renommee||0;if(e.renommeeTotale==null)e.renommeeTotale=e.renommee;e.concours=e.concours||{date:null,refresh:0,faits:{}};if(e.concours.refresh==null)e.concours.refresh=0;e.marchand=e.marchand||{date:null,achetes:[]};for(const id in e.collection){if(e.collection[id]>0&&e.paliers[id]==null)e.paliers[id]=palierDe(e.collection[id]);}e.aventure=e.aventure||{introVu:false};e.aventure.belgique=e.aventure.belgique||{sousEtape:0,faits:{},fini:false};e.aventure.prov=e.aventure.prov||{};e.aventure.mascVue=e.aventure.mascVue||{};if(e.aventure.belgique&&!e.aventure.prov.anvers)e.aventure.prov.anvers=e.aventure.belgique;e.chouchous=e.chouchous||{};e.packprog=e.packprog||{};e.defiJour=e.defiJour||{date:null,gagne:0};e.pity=e.pity||{epic:0,legend:0};if(e.pity.epic==null)e.pity.epic=0;if(e.pity.legend==null)e.pity.legend=0;
+function etatVide(){return {crins:SOLDE_DEPART,cadeauDepart:true,tutoVu:false,collection:{ane_tetu:1,cheval_charbonnier:1,cheval_laboureur:1},paliers:{ane_tetu:1,cheval_charbonnier:1,cheval_laboureur:1},tirages:0,bonnes:0,xp:{maths:0,francais:0,histoire:0,sciences:0},serieJours:0,dernierJour:null,stats:{},jeux:{joues:0,gagnes:0},renommee:0,renommeeTotale:0,concours:{date:null,refresh:0,faits:{}},marchand:{date:null,achetes:[]},aventure:{introVu:false,belgique:{sousEtape:0,faits:{},fini:false}},chouchous:{},packprog:{},defiJour:{date:null,gagne:0},pity:{epic:0,legend:0},jalons:{}};}
+function normaliserEtat(e){const d=etatVide();for(const k in d)if(e[k]===undefined)e[k]=d[k];e.xp=Object.assign({maths:0,francais:0,histoire:0,sciences:0},e.xp||{});e.jeux=Object.assign({joues:0,gagnes:0},e.jeux||{});e.stats=e.stats||{};e.collection=e.collection||{};e.paliers=e.paliers||{};e.renommee=e.renommee||0;if(e.renommeeTotale==null)e.renommeeTotale=e.renommee;e.concours=e.concours||{date:null,refresh:0,faits:{}};if(e.concours.refresh==null)e.concours.refresh=0;e.marchand=e.marchand||{date:null,achetes:[]};for(const id in e.collection){if(e.collection[id]>0&&e.paliers[id]==null)e.paliers[id]=palierDe(e.collection[id]);}e.aventure=e.aventure||{introVu:false};e.aventure.belgique=e.aventure.belgique||{sousEtape:0,faits:{},fini:false};e.aventure.prov=e.aventure.prov||{};e.aventure.mascVue=e.aventure.mascVue||{};if(e.aventure.belgique&&!e.aventure.prov.anvers)e.aventure.prov.anvers=e.aventure.belgique;e.chouchous=e.chouchous||{};e.packprog=e.packprog||{};e.defiJour=e.defiJour||{date:null,gagne:0};e.pity=e.pity||{epic:0,legend:0};if(e.pity.epic==null)e.pity.epic=0;if(e.pity.legend==null)e.pity.legend=0;e.jalons=e.jalons||{};
   // Un joueur qui a déjà de la progression ne doit jamais revoir l'onboarding (save sans tutoVu).
   if(!e.tutoVu&&((e.tirages||0)>0||(e.aventure&&e.aventure.introVu)||Object.keys(e.collection||{}).length>3||(e.bonnes||0)>0))e.tutoVu=true;
   if(!e.cadeauDepart){for(const id of ['ane_tetu','cheval_charbonnier','cheval_laboureur']){if(!(e.collection[id]>0)){e.collection[id]=1;e.paliers[id]=e.paliers[id]||1;}}e.cadeauDepart=true;}return e;}
@@ -1834,7 +1856,7 @@ function rendreGrille(){
   list.forEach(c=>{const n=etat.collection[c.id]||0;const box=document.createElement('div');box.className='tc-box ratio';box.innerHTML=n?carteHTML(c,n):carteMystereHTML(c);box.onclick=n?()=>ouvrirDetail(c):()=>toast(c.nom+' — à découvrir au tirage !');g.appendChild(box);});
 }
 function maximiser(c){const im=Array.isArray(c.image)?c.image[Math.min(palierDe(etat.collection[c.id]||1),c.image.length)-1]:c.image;if(!im)return;$('#img-max-src').src=im;$('#img-max').classList.add('on');}
-function rendreChances(){const box=$('#chances-liste');box.innerHTML='';const tiers=Object.entries(RARETES).filter(([k])=>CARTES.some(c=>c.rarete===k));const tot=tiers.reduce((s,[,r])=>s+r.poids,0)||1;const fmt=n=>{const d=n>=10?0:(n>=1?1:2);return String(parseFloat(n.toFixed(d))).replace('.',',');};tiers.forEach(([k,r])=>{const pct=r.poids/tot*100;const l=document.createElement('div');l.className='ligne';l.innerHTML=`<span class="pastille" style="background:${r.couleur}"></span>${r.nom}<span class="pct" style="color:${r.couleur}">${fmt(pct)} %</span>`;box.appendChild(l);});}
+function rendreChances(){const box=$('#chances-liste');box.innerHTML='';const tiers=Object.entries(RARETES).filter(([k,r])=>r.poids>0&&CARTES.some(c=>c.rarete===k));const tot=tiers.reduce((s,[,r])=>s+r.poids,0)||1;const fmt=n=>{const d=n>=10?0:(n>=1?1:2);return String(parseFloat(n.toFixed(d))).replace('.',',');};tiers.forEach(([k,r])=>{const pct=r.poids/tot*100;const l=document.createElement('div');l.className='ligne';l.innerHTML=`<span class="pastille" style="background:${r.couleur}"></span>${r.nom}<span class="pct" style="color:${r.couleur}">${fmt(pct)} %</span>`;box.appendChild(l);});}
 
 /* 8. TIRAGE + ÉVOLUTION */
 function tirerRarete(){const d=Object.entries(RARETES).filter(([k])=>CARTES.some(c=>c.rarete===k));const t=d.reduce((s,[,r])=>s+r.poids,0);let x=Math.random()*t;for(const[k,r]of d){if(x<r.poids)return k;x-=r.poids;}return d[0][0];}
@@ -1845,6 +1867,59 @@ function tirerRareteMin(floor){const d=Object.entries(RARETES).filter(([k])=>ran
 function tirerCartePity(){const p=etat.pity||(etat.pity={epic:0,legend:0});let floor=0;if(p.legend+1>=PITY_LEGEND)floor=3;else if(p.epic+1>=PITY_EPIC)floor=2;const r=floor?tirerRareteMin(floor):tirerRarete();const pool=CARTES.filter(c=>c.rarete===r);const c=pool[rnd(0,pool.length-1)];const rk=rankRar(r);p.epic=rk>=2?0:p.epic+1;p.legend=rk>=3?0:p.legend+1;return c;}
 /* Super-tirage : épique ou mieux garanti, payé en renommée. N'affecte pas le pity. */
 function tirerCarteSuper(){const r=tirerRareteMin(2);const pool=CARTES.filter(c=>c.rarete===r);return pool[rnd(0,pool.length-1)];}
+/* ---- JALONS : cartes CÉLESTES débloquées par accomplissement (jamais au tirage) ---- */
+function familleComplete(fam){const l=CARTES.filter(c=>c.rarete!=='celeste'&&(c.familles||[]).includes(fam));return l.length>0&&l.every(c=>(etat.collection[c.id]||0)>0);}
+const JALONS=[
+  {carte:'sleipnir',            txt:'Posséder 50 chevaux différents',   cond:()=>nbUniques()>=50},
+  {carte:'pegase',              txt:'Atteindre 150 de renommée totale', cond:()=>(etat.renommeeTotale||0)>=150},
+  {carte:'beasts_qirin',        txt:'Terminer un pays en Aventure',     cond:()=>Object.values((etat.aventure&&etat.aventure.prov)||{}).some(p=>p&&p.fini)},
+  {carte:'beasts_alicorne',     txt:'Compléter la famille Licornes',    cond:()=>familleComplete('licorne')},
+  {carte:'cheval_pale_mort',    txt:'Compléter la famille Sombres',     cond:()=>familleComplete('sombres')},
+  {carte:'cheval_rouge_guerre', txt:'Atteindre 300 bonnes réponses',    cond:()=>(etat.bonnes||0)>=300},
+];
+function verifierJalons(silencieux){
+  etat.jalons=etat.jalons||{};const gagnes=[];
+  for(const j of JALONS){
+    if(etat.jalons[j.carte])continue;
+    let ok=false;try{ok=!!j.cond();}catch(e){ok=false;}
+    if(!ok)continue;
+    const c=CARTES.find(x=>x.id===j.carte);etat.jalons[j.carte]=true;if(!c)continue;
+    if(!(etat.collection[j.carte]>0)){etat.collection[j.carte]=1;etat.paliers[j.carte]=1;}
+    gagnes.push(c);
+  }
+  if(gagnes.length){sauver();rendreGrille();majProgression();gagnes.forEach(c=>toast('🌟 Céleste débloquée : '+c.nom+' !'));if(!silencieux&&!revealVerrou){const c=gagnes[0];montrerReveal(c,etat.collection[c.id]||1,'🌟 Carte Céleste !',c.nom+' rejoint ton écurie','neuf');}}
+  return gagnes;
+}
+/* ---- FUSION : 3 doublons « sûrs » d'une rareté → 1 tirage de la rareté supérieure.
+   « Sûr » = au-dessus du seuil du palier appliqué : ne retire jamais une étoile ni la dernière copie. ---- */
+const COUT_FUSION=3;
+const FUSION_SUP={commune:'rare',rare:'epique',epique:'legendaire',legendaire:'mythique'};
+function dupSafe(c){const n=etat.collection[c.id]||0;if(n<1)return 0;const pd=palierDe(n);const need=pd>=1?SEUILS[pd-1]:1;return Math.max(0,n-need);}
+function safeTotalRarete(r){return CARTES.filter(c=>c.rarete===r).reduce((s,c)=>s+dupSafe(c),0);}
+function fusionner(r){
+  const NR=FUSION_SUP[r];if(!NR){toast('Rareté non fusionnable');return;}
+  if(revealVerrou)return;
+  if(safeTotalRarete(r)<COUT_FUSION){toast('Pas assez de doublons '+RARETES[r].nom);return;}
+  let rest=COUT_FUSION;
+  const cards=CARTES.filter(c=>c.rarete===r&&dupSafe(c)>0).sort((a,b)=>dupSafe(b)-dupSafe(a));
+  for(const c of cards){if(rest<=0)break;const take=Math.min(rest,dupSafe(c));etat.collection[c.id]-=take;rest-=take;}
+  const pool=CARTES.filter(c=>c.rarete===NR);const c=pool[rnd(0,pool.length-1)];const res=ajouterExemplaire(c);
+  sauver();montrerReveal(c,etat.collection[c.id],res.etatTxt,res.sousTxt,res.cls);majSolde(true);majProgression();rendreGrille();verifierJalons();
+}
+function ouvrirAtelier(){renderAtelier();$('#atelier-fond').classList.add('on');}
+function renderAtelier(){
+  const fb=$('#atelier-fusion');fb.innerHTML='';
+  Object.keys(FUSION_SUP).forEach(r=>{const dispo=safeTotalRarete(r),NR=FUSION_SUP[r],ok=dispo>=COUT_FUSION;
+    const row=document.createElement('div');row.className='atl-row';
+    row.innerHTML=`<span class="atl-past" style="background:${RARETES[r].couleur}"></span><span class="atl-lbl">${RARETES[r].nom} → <b style="color:${RARETES[NR].couleur}">${RARETES[NR].nom}</b><small>${dispo} doublon${dispo>1?'s':''} disponible${dispo>1?'s':''}</small></span><button class="atl-btn" ${ok?'':'disabled'}>${COUT_FUSION} → 1</button>`;
+    if(ok)row.querySelector('.atl-btn').onclick=()=>{fusionner(r);renderAtelier();};
+    fb.appendChild(row);});
+  const jb=$('#atelier-jalons');jb.innerHTML='';
+  JALONS.forEach(j=>{const c=CARTES.find(x=>x.id===j.carte);const fait=!!etat.jalons[j.carte];let now=false;try{now=!!j.cond();}catch(e){}
+    const row=document.createElement('div');row.className='atl-jrow'+(fait?' fait':'');
+    row.innerHTML=`<span class="atl-jico">${fait?'🌟':'🔒'}</span><span class="atl-lbl">${c?c.nom:j.carte}<small>${j.txt}</small></span><span class="atl-jetat">${fait?'✓ obtenu':(now?'prêt !':'à faire')}</span>`;
+    jb.appendChild(row);});
+}
 let revealVerrou=false;
 function ajouterExemplaire(c){
   const avant=etat.collection[c.id]||0,apres=avant+1;etat.collection[c.id]=apres;
@@ -1859,23 +1934,23 @@ function doTirage(){
   if(revealVerrou)return;
   etat.crins-=COUT_TIRAGE;etat.tirages++;
   const c=tirerCartePity();const r=ajouterExemplaire(c);
-  sauver();montrerReveal(c,etat.collection[c.id],r.etatTxt,r.sousTxt,r.cls);majSolde(true);majProgression();rendreGrille();
+  sauver();montrerReveal(c,etat.collection[c.id],r.etatTxt,r.sousTxt,r.cls);majSolde(true);majProgression();rendreGrille();verifierJalons();
 }
 function doTirageSuper(){
   if((etat.renommee||0)<COUT_SUPER_RENOM){toast('Pas assez de renommée — gagne des concours !');return;}
   if(revealVerrou)return;
   etat.renommee-=COUT_SUPER_RENOM;etat.tirages++;
   const c=tirerCarteSuper();const r=ajouterExemplaire(c);
-  sauver();montrerReveal(c,etat.collection[c.id],r.etatTxt,r.sousTxt,r.cls);majSolde(true);majProgression();rendreGrille();
+  sauver();montrerReveal(c,etat.collection[c.id],r.etatTxt,r.sousTxt,r.cls);majSolde(true);majProgression();rendreGrille();verifierJalons();
 }
-const RANG_RAR=c=>({commune:0,rare:1,epique:2,legendaire:3,mythique:4}[c.rarete]||0);
+const RANG_RAR=c=>({commune:0,rare:1,epique:2,legendaire:3,mythique:4,celeste:5}[c.rarete]||0);
 function doTirage10(){
   if(etat.crins<COUT_TIRAGE10){toast('Pas assez de Diamants pour un tirage ×10');return;}
   if(revealVerrou)return;
   etat.crins-=COUT_TIRAGE10;etat.tirages+=10;
   const res=[];
   for(let i=0;i<10;i++){const c=tirerCartePity();const r=ajouterExemplaire(c);res.push({c,cls:r.cls,etatTxt:r.etatTxt});}
-  sauver();majSolde(true);majProgression();rendreGrille();
+  sauver();majSolde(true);majProgression();rendreGrille();verifierJalons(true);
   montrerResultat10(res);
 }
 function montrerResultat10(res){
@@ -1994,7 +2069,7 @@ function finPeloton(co,comp){
   const moi=comp.find(x=>x.moi),pos=classe.indexOf(moi)+1;
   let gc=0,gr=0;
   if(pos<=3){gc=div.crins[pos-1];gr=div.renom[pos-1];etat.crins+=gc;etat.renommee+=gr;etat.renommeeTotale+=gr;}
-  etat.concours.faits[co.i]=pos;sauver();majSolde(true);
+  etat.concours.faits[co.i]=pos;sauver();majSolde(true);verifierJalons();
   const pod=pos<=3;
   $('#cs-liste').insertAdjacentHTML('beforeend',`<div class="cs-resultat"><div class="csr-t ${pod?'win':'lose'}">${posMedaille(pos)}${pod?' !':''}</div><div class="csr-d">${pod?`+${gc} Diamants · +${gr} ⭐ renommée`:'Hors du podium — mise perdue'}</div><button class="defi-continuer" id="cs-continuer">Continuer ›</button></div>`);
   $('#cs-continuer').onclick=()=>{$('#concours-fond').classList.remove('on');renderConcours();};
@@ -2754,7 +2829,7 @@ function entrerJeu(p){
   SAVE.actif=p.id;profilActif=p;let e=normaliserEtat(p.etat);
   try{const bk=localStorage.getItem('ecurie_bk_'+p.id);if(bk){e=normaliserEtat(fusionEtat(e,normaliserEtat(JSON.parse(bk))));}}catch(err){}
   etat=e;p.etat=e;serieCourante=0;sauver();
-  majAvatar();majSolde();majProgression();rendreGrille();rendreChances();menuDefis();renderScores();majSync('ok');
+  majAvatar();majSolde();majProgression();rendreGrille();rendreChances();menuDefis();renderScores();verifierJalons(true);majSync('ok');
   switchEcran('ecurie');
   const a=$('#accueil');a.classList.add('parti');setTimeout(()=>{a.style.display='none';},400);
   if(!etat.tutoVu)setTimeout(lancerTuto,650);
@@ -2765,6 +2840,7 @@ $('#profils-fond').onclick=e=>{if(e.target.id==='profils-fond')fermerProfils();}
 
 /* 15. DÉMARRAGE */
 $('#cout-nb').textContent=COUT_TIRAGE;$('#cout-super').textContent=COUT_SUPER_RENOM;
+$('#btn-atelier').onclick=ouvrirAtelier;$('#atelier-fermer').onclick=()=>$('#atelier-fond').classList.remove('on');
 requestAnimationFrame(()=>requestAnimationFrame(()=>{
   renderAccueil();
   const ch=document.getElementById('chargement');if(ch){ch.classList.add('parti');setTimeout(()=>ch.remove(),500);}
@@ -4870,7 +4946,7 @@ function avFinSousEtape(){
   const b=AVS();
   if(aeSE>=(b.sousEtape||0))b.sousEtape=aeSE+1;
   if(b.sousEtape>=AE.sousEtapes.length)b.fini=true;
-  sauver();aeSE++;
+  sauver();verifierJalons();aeSE++;
   if(aeSE>=AE.sousEtapes.length){avEtapeTerminee();return;}
   avSousEtapeStart();
 }

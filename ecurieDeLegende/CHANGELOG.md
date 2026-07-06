@@ -3,6 +3,20 @@
 Convention : `VERSION_APP` (index.html) = `ecurie-vNN` (sw.js), incrémentés à CHAQUE livraison
 (invalidation du cache PWA). QC : `node tools/qc.js` avant chaque livraison.
 
+## v72 — Chantiers E & F (fusion + célestes)
+- **Rareté CÉLESTE réintroduite** (super-mythique, `BASE_RAR` 80, hors tirage : poids 0, jamais
+  obtenue au tirage/super — vérifié 0/300k). 6 cartes y passent (mythique 23→17) : Sleipnir, Pégase,
+  Qilin, Alicorne, Cheval pâle de la Mort, Cheval rouge de la Guerre. Cadre doré animé. Le palier 4
+  « Céleste » est renommé « Astral » pour libérer le mot.
+- **Jalons** : chaque céleste se gagne par un accomplissement (jamais au hasard) — 50 chevaux
+  distincts, 150 de renommée, finir un pays, compléter les Licornes, compléter les Sombres,
+  300 bonnes réponses. `verifierJalons` accroché aux tirages, concours, défis, aventure et au
+  démarrage (rattrape les jalons déjà atteints, ex. la save existante gagne Sleipnir + Qilin).
+- **Fusion 3→1** : 3 doublons « sûrs » d'une rareté → 1 tirage de la rareté supérieure. « Sûr » =
+  au-dessus du seuil du palier maximum atteignable (`palierDe`) : ne retire jamais une étoile
+  réclamable ni la dernière copie. C'est le sink crins qui rééquilibre la suppression du soft-cap.
+- **Atelier de fusion & objectifs** (bouton sur l'écran Tirage) : fusionner par rareté + voir les
+  6 objectifs Célestes et leur état (à faire / prêt / obtenu).
 ## v71 — Stats de concours stables
 - **Suppression du bruit aléatoire `+rnd(-5,8)`** sur la performance en concours (joueur ET
   adversaires). La stat affichée sur la fiche est désormais exactement celle avec laquelle le cheval
