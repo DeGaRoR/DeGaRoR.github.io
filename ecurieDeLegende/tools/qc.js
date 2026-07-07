@@ -8,7 +8,10 @@
  *  - economy: cumulative adventure earnings vs required buys
  */
 const fs=require('fs');
-const h=fs.readFileSync(__dirname+'/../index.html','utf8');
+const base=__dirname+'/../';
+const h=fs.readFileSync(base+'index.html','utf8')
+  +fs.readFileSync(base+'app.js','utf8')
+  +fs.readFileSync(base+'styles.css','utf8');
 const fail=[],warn=[],info=[];
 
 function seg(from,to,tag){const i=h.indexOf(from);if(i<0){fail.push('extract: "'+from+'" introuvable ('+tag+')');return '';}const j=h.indexOf(to,i);return h.slice(i,j);}

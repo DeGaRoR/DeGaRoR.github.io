@@ -3,6 +3,24 @@
 Convention : `VERSION_APP` (index.html) = `ecurie-vNN` (sw.js), incrémentés à CHAQUE livraison
 (invalidation du cache PWA). QC : `node tools/qc.js` avant chaque livraison.
 
+## v99 — Fix carte de tirage (vieux nav.) + rituel de départ = vrai tirage
+- **Carte de tirage étirée sur vieux navigateur** corrigée : mon repli `aspect-ratio` utilisait un
+  padding en % (relatif au parent, pas à l'élément), ce qui étirait les éléments à largeur fixe
+  (carte de tirage, révélation, vignettes). Remplacé par des hauteurs explicites ; le padding-hack
+  ne reste que pour la grille (où il est correct).
+- **Rituel de départ = tirage** : les chevaux offerts au début passent désormais par EXACTEMENT le
+  même flux visuel que le tirage (carte plein format, flip animé, tap pour continuer, une carte après
+  l'autre) au lieu d'un affichage maison. Corrige d'un coup le style différent ET le clic qui bloquait
+  (on réutilise le chemin testé). Ajout d'un enchaînement robuste `revealApres` sur la fermeture.
+## v98 — Découpage de l'app en fichiers séparés (maintenabilité)
+- L'app monofichier est désormais **découpée** : `index.html` (structure HTML seule, ~200 Ko au lieu
+  de 800 Ko), `styles.css` (tout le CSS) et `app.js` (toute la logique + données). Extraction
+  byte-identique, aucun réordonnancement de code — comportement strictement inchangé.
+- `sw.js` précache maintenant `app.js` et `styles.css` (offline préservé) ; `qc.js` lit les trois
+  fichiers. Le `<script>` passe en fin de body : tout le DOM est disponible quand il s'exécute.
+- Première étape : le CSS et le JS sont enfin navigables séparément. Étape suivante possible :
+  sortir les données (cartes, étapes, fiches) dans un fichier dédié pour ajouter du contenu sans
+  toucher au moteur.
 ## v97 — Distinction visuelle claire des niveaux sur la carte
 - Les **coins** de la carte évoluent désormais palier par palier : de plus en plus grands, épais et
   lumineux du niveau 2 au 4, puis **dorés au niveau 5 (Mythe)** avec un halo. Repère du niveau
