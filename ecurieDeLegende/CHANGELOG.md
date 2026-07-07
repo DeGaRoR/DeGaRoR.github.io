@@ -3,6 +3,107 @@
 Convention : `VERSION_APP` (index.html) = `ecurie-vNN` (sw.js), incrémentés à CHAQUE livraison
 (invalidation du cache PWA). QC : `node tools/qc.js` avant chaque livraison.
 
+## v81 — Théorie par niveau, packs différenciés, tri famille/récent
+- **Vraie théorie par niveau** : chaque pack à maîtrise (Geek, Anglais, Art, Néerlandais, Ortho) a
+  désormais une fiche théorique courte et propre (un écran max) — une pour le niveau 1, une pour le
+  niveau 2 — qui explique ce qu'il faut savoir pour réussir les questions. Le libellé de niveau suit
+  le niveau réellement en cours.
+- **Packs différenciés visuellement** : chaque carte du menu porte une catégorie colorée et étiquetée —
+  ⭐ Principal (bleu, le Général), 🔥 Difficile (orange, le Général +1), 🎯 À maîtriser (violet, les
+  packs à niveaux), ♾️ Infini (turquoise, Chevaux/Origines). Plus de confusion entre les types.
+- **Tri de la collection** enrichi : en plus de Rareté et Niveau, deux nouveaux tris **Famille** et
+  **Récent** (par date d'acquisition). Nouveau suivi `etat.acquis` de l'ordre d'obtention (les cartes
+  déjà possédées reçoivent un ordre par défaut à la migration).
+## v80 — Maîtrise à 2 réponses + niveaux 2 des packs
+- **2 bonnes réponses par question** pour la valider (`SEUIL_MAITRISE` 4 → 2). Un pack (niveau) est
+  terminé quand toutes ses questions sont validées. Divise le grind par deux.
+- **Niveaux 2 créés** pour tous les packs à maîtrise : nouvelles banques plus difficiles
+  (Geek, Anglais, Art, Néerlandais — 14 questions « année supérieure » chacune) et l'**Orthographe
+  découpée en 2 niveaux** (32 + 31 mots) au lieu d'un seul bloc. Compléter le niveau 1 débloque le 2.
+- **Anti-rébarbatif** : maîtriser l'ortho passait de **252** bonnes réponses à **64** par niveau ; les
+  autres packs ~44-56. La sélection pondérée continue de privilégier les questions non encore acquises.
+- **Le menu affiche le niveau** (« Niveau 1 / 2 ») et « 🏆 Tout maîtrisé » seulement quand le dernier
+  niveau est bouclé. Progrès d'Enola préservés (une question déjà réussie ≥2 fois est acquise).
+## v79 — Lisibilité : rappels, puissance des équipes, compteur de copies
+- **Rappels bien identifiés** : le mode « rappel éclair » a désormais un **fond ambre**, une **bulle
+  ambre** (au lieu du blanc habituel), le guide entouré d'or et un **bandeau « ⚡ RAPPEL ÉCLAIR »**.
+  Impossible de le confondre avec une question normale.
+- **Puissance affichée à la composition d'équipe** : chaque cheval du pool montre sa puissance en
+  **gros badge central 💪 X**, et chaque emplacement rempli l'affiche aussi. Fini le jeu à l'aveugle —
+  combiné au badge « Objectif » (≥ / cible), on voit exactement quoi choisir.
+- **Compteur de copies** déplacé en **bas à droite** de la carte et **agrandi (~3×)** — plus de
+  collision avec le palier (haut-gauche) ni les étoiles (haut-droite).
+## v78 — Correctif BLOQUANT : questions sans bonne réponse + position de la réponse
+- **BLOQUANT corrigé** : `avDecision` stockait comme bonne réponse la forme longue `fait[1]`
+  (« la dentelle ») au lieu du vrai choix `a.r` (« dentelle ») — présente dans les choix. En rappel,
+  aucune réponse ne correspondait → question impossible. **22 faits de décision étaient concernés**
+  (dentelle, Zwin, Bourse, charbon, Campine, université, Gilles, Bouillon, delta, Alhambra…).
+  Scan complet effectué : aucune question primaire n'était touchée, uniquement les rappels.
+- **Robustesse** : `avRappel` ne propose plus que des faits réellement répondables (la bonne réponse
+  doit figurer dans les choix). Les saves existantes avec faits cassés ne bloquent plus — ces faits
+  sont ignorés et se réparent au prochain passage de l'étape.
+- **Position de la réponse** : en mode Aventure, `avRepondre` **mélange désormais les choix** — la
+  bonne réponse n'est plus presque toujours en 1ʳᵉ position. (Les défis généraux mélangeaient déjà.)
+## v77 — Consignes d'équipe claires + bonus de performance (Aventure)
+- **Badge « Objectif » explicite** sur toutes les activités « composer une équipe », auto-généré
+  depuis les contraintes, sans ambiguïté sur les (in)égalités : « Puissance totale **au moins X (≥ X)** »,
+  « **au plus X (≤ X)** », « **la plus proche possible de X** », « Puissance **paire** », « robes
+  **toutes différentes** », « **même royaume** »… La consigne narrative reste, le badge dit la règle.
+- **Récompense selon la performance** (au lieu d'un forfait) :
+  · objectif « minimum / meilleure équipe » → bonus qui **grandit avec la puissance** (base 8 → jusqu'à +20 💎) ;
+  · objectif « cible » → bonus qui **grandit quand l'écart diminue** (pile dessus = +20 💎).
+  Gain montré par l'animation de diamants + toast (« 🎯 Pile dans le mille ! », « 💪 Équipe surpuissante ! »).
+- **Feedback live clarifié** pendant la sélection : « 💪 Puissance 96 · minimum 95 ✅ », « 🎯 Cible 85 ·
+  ton équipe 88 · écart 3 », « 🪶 Puissance 240 · maximum 250 ✅ ».
+- Correctif : le toast annonçait « +6 » en donnant 8 — il affiche désormais le vrai gain.
+## v76 — Incentive aventure + fonds-cartes des menus
+- **Récompense au premier coup (Aventure)** : chaque QCM d'aventure donne +5 💎 si la réponse est
+  juste **du premier coup**, +1 💎 au 2ᵉ essai, **0 ensuite**. Un indicateur visible affiche la
+  récompense en jeu et **fond à chaque erreur** (« 🎁 Premier coup +5 💎 » → « 2ᵉ essai +1 💎 » →
+  « réponds juste du 1er coup pour gagner des 💎 ! »). Fini le clic-jusqu'à-ce-que-ça-marche sans
+  conséquence. Gain montré par l'animation de diamants. (`avRappel` ne double plus la récompense.)
+- **Fonds des menus = cartes** (plus simple, comme demandé) : login = carte au hasard à chaque
+  ouverture ; Étable = Belle des champs ; Défis = Cheval constellation ; Aventure = Cheval
+  conquistador ; Tirage = Akhal-Téké. Concours (Newmarket) et Scores (Édimbourg) gardent leur décor.
+- **Retour arrière** : le fond de région ne change plus à chaque question en révisions (il reste
+  réservé au mode Aventure, où il change bien par région).
+## v75 — Fonds de région derrière les questions
+- **Correctif** : les écrans pointaient vers des images `cartes/fond_*.jpg` inexistantes → fond noir.
+  Ils utilisent maintenant les vrais fonds `aventure/fond_*.jpg` (déjà présents et précachés).
+- **Fond de région dynamique en révisions** : un décor différent (parmi 56 lieux d'Europe) s'affiche
+  derrière chaque question et change à chaque exercice — un vrai petit tour du continent.
+- **Voile allégé** sur tous les écrans (≈0.75 au lieu de ≈0.92) pour qu'on voie enfin les décors,
+  + ombres de texte sur les libellés posés sur le fond pour rester lisibles.
+- Fonds statiques attribués : écurie→Belgique, tirage→Brocéliande, concours→Newmarket, scores→Édimbourg.
+## v74 — Suivi des compétences, feedback de gain, cadre céleste
+- **Scores détaillés** : l'écran Scores montre désormais le **taux de réussite** (ok/total + %) pour
+  chaque matière, plus une section **« Compétences spéciales »** couvrant tous les packs supplémentaires
+  (Chevaux, Origines, Anglais, Néerlandais, Art, Geek, Orthographe) avec barre de réussite, et le
+  **cheval préféré**. Nouveau suivi `etat.statsPack` par pack, persisté en base via la sauvegarde.
+- **Feedback de gain très visible** : à chaque bonne réponse, un « +N 💎 » monte et s'estompe (ease-out)
+  au niveau du compteur, avec une pluie de diamants **dont le nombre grandit avec la somme** (et un
+  « +N » plus grand pour les gros gains). Le badge de gain dans le feedback est aussi agrandi (or).
+  Branché centralement sur `crediterDefi` + `gainJeu` → couvre tous les défis et mini-jeux.
+- **Cadre CÉLESTE plus remarquable** : dégradé blanc/or plus contrasté, rotation rapide, clignotement
+  de luminosité et aura pulsée sur toute la carte — visible en permanence (collection + reveal),
+  plus seulement à l'ouverture.
+- Packs généraux : les choix de matière et le jeu des chevaux préférés sont désormais « sous
+  surveillance » (visibles dans les scores). Voir note ci-dessous sur un éventuel sélecteur explicite.
+## v73 — Pack « Chevaux » enrichi (leçon d'histoire & de culture)
+- **Théorie réécrite et étoffée** (~480 → ~4000 caractères) : 5 sections structurées — Races
+  (trait, désert, baroques, trotteurs, poneys, tachetés, rustiques du froid), Robes (7 couleurs
+  avec exemples), Légendes par culture (Grèce, Nord, Celtes, Orient, Chine, chez nous),
+  Histoire & métiers (guerre, travail, aventure, sport) et un « Le savais-tu ? ».
+- **BREEDS 21 → 42** : ajout des vraies races v63/v64 (Curly, Falabella, Finnhorse, Islandais,
+  Kladruber, Knabstrupper, Konik, Lipizzan, Mangalarga, Nonius, Orlov, Yakoute + 10 poneys).
+  Retrait de `cheval_boucle` du quiz races (c'est un cheval fantaisie, pas une race).
+- **MYTHES 16 → 44** : toutes les histoires légendaires réelles deviennent quizzables — steeds
+  mythologiques (Xanthos, Balios, Enbarr, Grani, Gringolet, Kanthaka, Rakhsh, Veillantif),
+  créatures (Qilin, Longma, Hippogriffe, Hippocampe, Kelpie), folklore sombre (Helhest, Dullahan,
+  Mari Lwyd, cavaliers de l'Apocalypse), champions de course (Frankel, Man o' War, Phar Lap,
+  Seabiscuit, Zenyatta) et mascottes nationales (François, Big Ben, Inge, Rocío).
+- **HISTO 14 → 19** : halage, labour, mine, police, cow-boys.
+- Le quiz Chevaux devient ~55 % culturel/historique (légendes + peuples), 20 % robes, 25 % races.
 ## v72 — Chantiers E & F (fusion + célestes)
 - **Rareté CÉLESTE réintroduite** (super-mythique, `BASE_RAR` 80, hors tirage : poids 0, jamais
   obtenue au tirage/super — vérifié 0/300k). 6 cartes y passent (mythique 23→17) : Sleipnir, Pégase,

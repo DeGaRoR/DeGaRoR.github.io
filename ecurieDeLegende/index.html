@@ -67,7 +67,10 @@ nav.tabs button.actif::before{content:"";position:absolute;top:0;width:34px;heig
 .tcarte[data-r="epique"]{--rc:#c99bff;--rc-soft:#a672e0;--fg:linear-gradient(140deg,#f2ddff,#7d3fc0 42%,#e0b4ff 68%,#5c2a94);}
 .tcarte[data-r="legendaire"]{--rc:#ffcf6b;--rc-soft:#f2b134;--fg:linear-gradient(140deg,#fff3cf,#d99b2b 42%,#ffe9a8 68%,#b57d1a);}
 .tcarte[data-r="mythique"]{--rc:#ff9ac0;--rc-soft:#ff5c8a;--fg:conic-gradient(from var(--spin),#ff5c8a,#ffb14e,#8dff8d,#4aa3df,#a672e0,#ff5c8a);}
-.tcarte[data-r="celeste"]{--rc:#ffe9a8;--rc-soft:#ffd36b;--fg:conic-gradient(from var(--spin),#fff6d5,#ffe9a8,#fff,#ffd36b,#fff6d5,#fff,#ffe9a8);}
+.tcarte[data-r="celeste"]{--rc:#fff2a0;--rc-soft:#ffcf3b;--fg:conic-gradient(from var(--spin),#ffffff,#ffe9a8,#ffb63b,#ffffff,#ffe066,#ffffff,#ffcf3b,#ffffff);animation:celesteAura 1.1s ease-in-out infinite;}
+.tcarte[data-r="celeste"] .tc-frame{padding:2.6cqw;animation:spin 2.6s linear infinite,celesteBlink 1.1s ease-in-out infinite;}
+@keyframes celesteAura{0%,100%{box-shadow:0 0 10px 0 #ffe9a877;}50%{box-shadow:0 0 20px 3px #ffffffcc,0 0 40px 9px #ffd23baa;}}
+@keyframes celesteBlink{0%,100%{filter:brightness(1);}50%{filter:brightness(1.8) saturate(1.3);}}
 .tc-art{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:38cqw;line-height:1;background:radial-gradient(120% 100% at 50% 32%,color-mix(in srgb,var(--rc) 26%,#141127),#100d20 78%);}
 .tc-art img{width:100%;height:100%;object-fit:cover;display:block;}
 .tc-scrim-top{position:absolute;top:0;left:0;right:0;height:34cqw;background:linear-gradient(180deg,#0b0918d9,transparent);pointer-events:none;}
@@ -107,7 +110,6 @@ nav.tabs button.actif::before{content:"";position:absolute;top:0;width:34px;heig
 .tc-anim[data-p="5"]{animation:breathe 3.8s ease-in-out infinite;}
 @keyframes breathe{0%,100%{transform:scale(1);}50%{transform:scale(1.018);}}
 .tc-anim[data-r="mythique"] .tc-frame{animation:spin 6s linear infinite;}
-.tc-anim[data-r="celeste"] .tc-frame{animation:spin 5s linear infinite;}
 @keyframes spin{to{--spin:360deg;}}
 .tcarte.verrou .tc-art{background:linear-gradient(180deg,#211b3c,#161230);color:#4a4270;font-size:30cqw;}
 .tcarte.verrou{box-shadow:0 6px 16px #0007;filter:saturate(.5);}
@@ -121,8 +123,8 @@ nav.tabs button.actif::before{content:"";position:absolute;top:0;width:34px;heig
 .grille{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;}
 .grille>.tc-box{cursor:pointer;}
 .ecurie-outils{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 2px 14px;flex-wrap:wrap;}
-.eo-tri{display:flex;align-items:center;gap:6px;}
-.eo-btn{font-family:'Nunito';font-weight:800;font-size:12.5px;color:var(--txt-doux);background:#ffffff0d;border:1px solid #ffffff1a;border-radius:999px;padding:7px 13px;cursor:pointer;transition:.15s;}
+.eo-tri{display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end;}
+.eo-btn{font-family:'Nunito';font-weight:800;font-size:12.5px;color:var(--txt-doux);background:#ffffff0d;border:1px solid #ffffff1a;border-radius:999px;padding:7px 12px;cursor:pointer;transition:.15s;}
 .eo-btn.actif,.eo-btn.on{background:color-mix(in srgb,var(--or) 22%,#1a1636);border-color:var(--or);color:var(--or);}
 .eo-sens{min-width:34px;font-size:15px;padding:6px 0;text-align:center;}
 .img-max{position:fixed;inset:0;height:100dvh;z-index:70;display:none;align-items:center;justify-content:center;background:#000000ee;backdrop-filter:blur(4px);padding:16px;}
@@ -166,6 +168,19 @@ nav.tabs button.actif::before{content:"";position:absolute;top:0;width:34px;heig
 .atl-jico{font-size:17px;width:22px;text-align:center;flex-shrink:0;}
 .atl-jetat{margin-left:auto;font-family:'Fredoka';font-weight:600;font-size:12px;color:var(--txt-doux);white-space:nowrap;}
 .atl-jrow.fait .atl-jetat{color:#6fdca0;}
+.gain-pop{position:fixed;transform:translate(-50%,0);font-family:'Fredoka';font-weight:800;font-size:24px;color:#ffe08a;text-shadow:0 2px 8px #000a,0 0 16px #ffcf6b;pointer-events:none;z-index:99999;will-change:transform,opacity;animation:gainRise 1.15s cubic-bezier(.2,.8,.3,1) forwards;}
+.gain-pop.l{font-size:30px;} .gain-pop.xl{font-size:38px;color:#fff2b0;text-shadow:0 3px 10px #000b,0 0 22px #ffcf6b,0 0 40px #ffd23b;}
+@keyframes gainRise{0%{opacity:0;transform:translate(-50%,8px) scale(.6);}16%{opacity:1;transform:translate(-50%,-2px) scale(1.15);}38%{transform:translate(-50%,-16px) scale(1);}100%{opacity:0;transform:translate(-50%,-78px) scale(1);}}
+.gain-dia{position:fixed;transform:translate(-50%,-50%);font-size:19px;pointer-events:none;z-index:99998;will-change:transform,opacity;animation:diaFloat 1.1s ease-out forwards;filter:drop-shadow(0 2px 4px #0007);}
+@keyframes diaFloat{0%{opacity:0;transform:translate(-50%,-50%) scale(.4) rotate(0);}18%{opacity:1;}100%{opacity:0;transform:translate(calc(-50% + var(--dx)),calc(-50% + var(--dy))) scale(1.05) rotate(20deg);}}
+.qf-gain{font-family:'Fredoka';font-weight:800;font-size:19px;color:#2a1e05;background:linear-gradient(180deg,#ffe38a,var(--or));border-radius:999px;padding:6px 16px;display:inline-block;margin:6px 0 2px;box-shadow:0 4px 14px -4px #f2b13488;}
+.scores-sous{font-family:'Fredoka';font-weight:700;font-size:15px;color:var(--txt);margin:14px 2px 8px;}
+#scores-matieres .scores-sous:first-child{margin-top:0;}
+.score-pack{display:flex;align-items:center;gap:10px;padding:9px 12px;background:#ffffff0d;border:1px solid #ffffff16;border-radius:12px;margin-bottom:7px;font-family:'Fredoka';}
+.sp-ico{font-size:18px;flex-shrink:0;} .sp-nom{font-weight:600;font-size:14px;min-width:92px;}
+.sp-bar{flex:1;height:8px;background:#ffffff18;border-radius:9px;overflow:hidden;} .sp-bar i{display:block;height:100%;border-radius:9px;background:linear-gradient(90deg,#7ec2ff,#6fdca0);}
+.sp-val{font-size:12px;color:var(--txt-doux);white-space:nowrap;min-width:74px;text-align:right;}
+.score-fav{margin-top:12px;text-align:center;font-family:'Fredoka';font-size:14px;color:var(--txt-doux);}
 
 .reveal-overlay{position:fixed;inset:0;height:100dvh;overflow-y:auto;z-index:50;display:none;align-items:center;justify-content:center;flex-direction:column;background:radial-gradient(circle at 50% 44%,#2a2350f2,#0b0916fa);backdrop-filter:blur(6px);}
 .reveal-overlay.on{display:flex;animation:fade .2s ease;}
@@ -200,7 +215,7 @@ nav.tabs button.actif::before{content:"";position:absolute;top:0;width:34px;heig
 .defi-sous{text-align:center;color:var(--txt-doux);font-size:13px;margin-top:18px;}
 .defi-continuer{display:block;margin:16px auto 0;font-family:'Fredoka';font-weight:600;font-size:16px;color:#2a1e05;background:linear-gradient(180deg,#ffd977,var(--or));border:none;border-radius:999px;padding:13px 30px;cursor:pointer;box-shadow:0 6px 18px -6px #d99b2b;}
 .defi-continuer:active{transform:scale(.97);}
-.quiz-meta{text-align:center;font-size:11.5px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:var(--txt-doux);margin-bottom:10px;}
+.quiz-meta{text-align:center;font-size:11.5px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:#e8e2ff;margin-bottom:10px;text-shadow:0 1px 6px #000c;}
 .quiz-carte{background:#faf4e8;color:#2a2440;border-radius:22px;padding:26px 20px 22px;text-align:center;box-shadow:0 10px 30px #0008;min-height:150px;display:flex;flex-direction:column;justify-content:center;}
 .quiz-question{font-family:'Fredoka';font-weight:600;font-size:25px;line-height:1.2;color:#2a2440;}
 .quiz-question.court{font-size:46px;letter-spacing:1px;}
@@ -484,6 +499,10 @@ main.plein{padding:0 !important;overflow:hidden !important;}
 .ae-guide{width:84px;height:84px;flex-shrink:0;border-radius:50%;overflow:hidden;border:3px solid var(--or);box-shadow:0 4px 12px -4px #000a;}
 .ae-guide img{width:100%;height:100%;object-fit:cover;}
 .ae-bulle{flex:1;background:#fff;color:#2a2340;border-radius:16px;border-top-left-radius:4px;padding:13px 16px;box-shadow:0 4px 12px -4px #0006;}
+.av-etape.rappel{background:linear-gradient(180deg,#3a2e12,#221907);}
+.av-etape.rappel .ae-bulle{background:linear-gradient(#fff6da,#ffe6a6);border:2px solid #f2c14e;color:#3a2a08;font-weight:600;}
+.av-etape.rappel .ae-guide{border-color:#ffd873;box-shadow:0 0 0 4px #f2c14e55,0 4px 12px -4px #000a;}
+.ae-rappel-tag{display:block;text-align:center;font-family:'Fredoka';font-weight:800;font-size:14px;letter-spacing:2px;color:#3a2a08;background:linear-gradient(180deg,#ffe08a,#f2c14e);border-radius:999px;padding:7px 16px;margin:0 auto 14px;width:fit-content;box-shadow:0 4px 12px -4px #f2b13488;}
 .ae-titre{font-family:'Baloo 2';font-weight:700;font-size:16.5px;color:#8a6a1a;margin-bottom:3px;}
 #ae-narr{font-family:'Fredoka';font-size:15.5px;line-height:1.45;}
 .ae-corps{flex:1;}
@@ -495,8 +514,16 @@ main.plein{padding:0 !important;overflow:hidden !important;}
 .ae-rep{font-family:'Fredoka';font-weight:500;font-size:16px;color:var(--txt);background:#ffffff10;border:1.5px solid #ffffff20;border-radius:14px;padding:13px;cursor:pointer;}
 .ae-rep.bon{background:#2e7d5a;border-color:#4ec48a;color:#fff;}
 .ae-rep.faux{background:#7d2e3a;border-color:#c44e6a;color:#fff;}
+.ae-reward{display:flex;align-items:center;justify-content:center;gap:8px;margin:2px 0 10px;font-family:'Fredoka';font-size:14px;color:var(--txt-doux);min-height:26px;}
+.ae-reward .aer-lbl{font-weight:600;} .ae-reward .aer-lbl.dim{opacity:.75;font-weight:500;}
+.ae-reward .aer-val{font-weight:800;color:#2a1e05;background:linear-gradient(180deg,#ffe38a,#f2b134);border-radius:999px;padding:2px 12px;box-shadow:0 3px 10px -3px #f2b13488;}
+.ae-reward .aer-val.small{background:linear-gradient(180deg,#e8dcc0,#c9b98f);}
+.ae-reward .aer-val.win{animation:aerWin .5s ease;}
+@keyframes aerWin{0%{transform:scale(.7);}55%{transform:scale(1.25);}100%{transform:scale(1);}}
 .ae-fb{text-align:center;font-family:'Fredoka';font-size:13.5px;color:var(--txt-doux);margin-top:12px;min-height:18px;}
 .ae-consigne{font-family:'Fredoka';font-weight:600;font-size:15px;text-align:center;margin:4px 0 14px;line-height:1.4;}
+.ae-objectif{font-family:'Fredoka';font-weight:600;font-size:14px;text-align:center;color:#fff;background:linear-gradient(180deg,#3a2f66,#2a2350);border:1.5px solid #ffce5b66;border-radius:12px;padding:9px 12px;margin:-6px 0 14px;line-height:1.35;}
+.ae-objectif b{color:#ffdf8a;}
 .ae-slots{display:flex;gap:8px;justify-content:center;margin-bottom:16px;flex-wrap:wrap;}
 .ae-slot{width:92px;border-radius:12px;padding:6px;text-align:center;font-family:'Fredoka';font-size:11px;line-height:1.15;}
 .ae-slot.vide{border:2px dashed #ffffff30;color:var(--txt-doux);min-height:118px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;}
@@ -505,7 +532,9 @@ main.plein{padding:0 !important;overflow:hidden !important;}
 .ae-mini{width:100%;margin-bottom:4px;}
 .ae-poolt{font-family:'Fredoka';font-size:13px;color:var(--txt-doux);margin-bottom:8px;}
 .ae-pool{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
-.ae-pcard{cursor:pointer;transition:transform .1s;}
+.ae-pcard{cursor:pointer;transition:transform .1s;position:relative;}
+.ae-puiss{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:6;font-family:'Fredoka';font-weight:800;font-size:21cqw;color:#ffe89a;background:#000000b0;border:1.4cqw solid #ffd87399;border-radius:99px;padding:1cqw 4cqw;white-space:nowrap;text-shadow:0 1cqw 2cqw #000;box-shadow:0 2cqw 6cqw #000a;pointer-events:none;}
+.ae-puiss.mini{font-size:15cqw;border-width:1cqw;}
 .ae-pcard.pris{opacity:.32;pointer-events:none;}
 .ae-pcard:active{transform:scale(.94);}
 .ae-texte{font-family:'Fredoka';font-size:15px;line-height:1.55;background:#fff;color:#2a2340;border-radius:14px;padding:15px;margin:4px 0 6px;}
@@ -526,7 +555,7 @@ main.plein{padding:0 !important;overflow:hidden !important;}
 .ae-quit{position:absolute;top:-4px;right:-4px;z-index:2;background:#ffffff14;border:1px solid #ffffff26;color:var(--txt-doux);width:30px;height:30px;border-radius:50%;font-size:15px;cursor:pointer;}
 .ae-header{position:relative;} .ae-manque{background:#ffffff0d;border:1px solid #ffce5b40;border-radius:14px;padding:14px;font-family:'Fredoka';font-size:14px;line-height:1.5;text-align:center;margin:8px 0 14px;color:var(--txt);}
 .dia{font-size:15px;line-height:1;}
-.tc-nb{position:absolute;top:2.5cqw;left:2.5cqw;z-index:3;font-family:'Baloo 2';font-weight:700;font-size:5.2cqw;color:#fff;background:#000000aa;border:1px solid #ffffff40;border-radius:99px;padding:.4cqw 2cqw;}
+.tc-nb{position:absolute;bottom:3.5cqw;right:3.5cqw;top:auto;left:auto;z-index:6;font-family:'Baloo 2';font-weight:800;font-size:14cqw;line-height:1;color:#fff;background:#000000cc;border:1.5px solid #ffffff5c;border-radius:99px;padding:1cqw 4cqw;box-shadow:0 1.4cqw 3.4cqw #0009;}
 
 .ae-prog{margin-bottom:14px;}
 .aep-txt{font-family:'Fredoka';font-weight:600;font-size:12.5px;color:var(--txt-doux);margin-bottom:5px;text-align:center;}
@@ -543,6 +572,12 @@ main.plein{padding:0 !important;overflow:hidden !important;}
 
 .packs-grille{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
 .pack-carte{aspect-ratio:auto!important;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:15px 8px;min-height:96px;}
+.pk-cat-principal{border-color:#7ec2ff!important;background:radial-gradient(60% 45% at 50% 30%,#3a6ea5 0,transparent 60%),linear-gradient(160deg,#20304f,#131a2e)!important;box-shadow:0 8px 22px -6px #0009,inset 0 0 24px -10px #7ec2ff!important;}
+.pk-cat-difficile{border-color:#ff8a5c!important;background:radial-gradient(60% 45% at 50% 30%,#a5533a 0,transparent 60%),linear-gradient(160deg,#3a2320,#241514)!important;box-shadow:0 8px 22px -6px #0009,inset 0 0 24px -10px #ff8a5c!important;}
+.pk-cat-maitrise{border-color:#c99bff!important;}
+.pk-cat-infini{border-color:#5ec4a8!important;background:radial-gradient(60% 45% at 50% 30%,#2f7a63 0,transparent 60%),linear-gradient(160deg,#182f2a,#101d1a)!important;box-shadow:0 8px 22px -6px #0009,inset 0 0 24px -10px #5ec4a8!important;}
+.pk-tag{display:block;font-family:'Baloo 2';font-weight:700;font-size:9px;letter-spacing:.5px;text-transform:uppercase;line-height:1;margin-bottom:1px;}
+.pk-cat-principal .pk-tag{color:#8fd0ff;} .pk-cat-difficile .pk-tag{color:#ffab86;} .pk-cat-maitrise .pk-tag{color:#d6b4ff;} .pk-cat-infini .pk-tag{color:#7fd8bf;}
 .pack-carte .dc-ico{font-size:28px;filter:none;}
 .pack-carte .dc-nom{font-size:14px;}
 .pack-carte .dc-sous{font-size:10.5px;color:var(--txt-doux);font-family:'Fredoka';font-weight:500;text-align:center;line-height:1.2;}
@@ -551,7 +586,7 @@ main.plein{padding:0 !important;overflow:hidden !important;}
 .races-photo{width:150px;aspect-ratio:var(--ratio-carte);border-radius:16px;overflow:hidden;box-shadow:0 8px 22px -6px #0009;background:#0003;display:flex;align-items:center;justify-content:center;}
 .races-photo img{width:100%;height:100%;object-fit:cover;display:block;}
 .races-photo .art-emoji{font-size:64px;}
-.races-q{text-align:center;font-family:'Fredoka';font-weight:600;font-size:17px;margin-bottom:12px;}
+.races-q{text-align:center;font-family:'Fredoka';font-weight:600;font-size:17px;margin-bottom:12px;color:#fff;text-shadow:0 2px 8px #000d;}
 .races-theo{display:block;margin:12px auto 0;background:#ffffff10;border:1px solid #ffffff20;border-radius:12px;color:var(--txt-doux);font-family:'Fredoka';font-size:13px;padding:8px 14px;cursor:pointer;}
 .ortho-indice{text-align:center;font-family:'Fredoka';font-size:15px;line-height:1.5;margin:16px 0;}
 .ortho-input{width:100%;font-family:'Fredoka';font-size:20px;text-align:center;padding:13px;border-radius:14px;border:2px solid #ffffff26;background:#ffffff10;color:var(--txt);margin-bottom:10px;box-sizing:border-box;}
@@ -612,6 +647,7 @@ main.plein{padding:0 !important;overflow:hidden !important;}
 .pk-bar{width:80%;height:5px;background:#ffffff1a;border-radius:99px;margin-top:5px;overflow:hidden;}
 .pk-bar i{display:block;height:100%;background:linear-gradient(90deg,#a672e0,#ffce5b);border-radius:99px;}
 .pk-fini{font-family:'Baloo 2';font-weight:700;font-size:10.5px;color:#ffce5b;margin-top:4px;}
+.pk-niv{display:block;font-family:'Baloo 2';font-weight:700;font-size:10px;color:#c9a8ff;margin-top:4px;letter-spacing:.3px;}
 
 .ortho-type{text-align:center;font-family:'Baloo 2';font-weight:700;font-size:13px;color:#ffce5b;margin-bottom:6px;}
 
@@ -658,11 +694,12 @@ main.plein{padding:0 !important;overflow:hidden !important;}
 .ae-fin{position:absolute;right:4px;top:50%;transform:translateY(-50%);font-size:20px;opacity:.8;}
 .ae-galop{font-size:18px;padding:14px;width:100%;}
 
-#ecran-ecurie{background-image:linear-gradient(#14102ee8,#14102ef4),url(cartes/fond_ecurie.jpg);background-size:cover;background-position:center;}
-#ecran-tirage{background-image:linear-gradient(#14102ee8,#14102ef4),url(cartes/fond_tirage.jpg);background-size:cover;background-position:center;}
-#ecran-revisions{background-image:linear-gradient(#14102ee8,#14102ef4),url(cartes/fond_revisions.jpg);background-size:cover;background-position:center;}
-#ecran-concours{background-image:linear-gradient(#14102ee8,#14102ef4),url(cartes/fond_concours.jpg);background-size:cover;background-position:center;}
-#ecran-scores{background-image:linear-gradient(#14102ee8,#14102ef4),url(cartes/fond_scores.jpg);background-size:cover;background-position:center;}
+#ecran-ecurie{background-image:linear-gradient(#14102eaa,#14102ee6),url(cartes/belle_champs.jpg);background-size:cover;background-position:center;}
+#ecran-tirage{background-image:linear-gradient(#14102eaa,#14102ee6),url(cartes/akhal_teke.jpg);background-size:cover;background-position:center;}
+#ecran-revisions{background-image:linear-gradient(#141032aa,#141032e6),url(cartes/cheval_constellation.jpg);background-size:cover;background-position:center;}
+#ecran-aventure{background-image:linear-gradient(#14102eaa,#14102ee6),url(cartes/cheval_conquistador.jpg);background-size:cover;background-position:center;}
+#ecran-concours{background-image:linear-gradient(#14102ec0,#14102ee2),url(aventure/fond_newmarket.jpg);background-size:cover;background-position:center;}
+#ecran-scores{background-image:linear-gradient(#14102ec0,#14102ee2),url(aventure/fond_edimbourg.jpg);background-size:cover;background-position:center;}
 
 .tuto-overlay{position:fixed;inset:0;z-index:9999;background:rgba(10,8,25,.88);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:20px;}
 .tuto-box{background:linear-gradient(160deg,#241a4d,#1a1436);border:1px solid #ffffff26;border-radius:22px;max-width:440px;width:100%;padding:26px 22px 22px;text-align:center;position:relative;box-shadow:0 20px 60px #000a;}
@@ -713,6 +750,8 @@ main.plein{padding:0 !important;overflow:hidden !important;}
         <div class="eo-tri">
           <button class="eo-btn actif" data-champ="rarete">Rareté</button>
           <button class="eo-btn" data-champ="niveau">Niveau</button>
+          <button class="eo-btn" data-champ="famille">Famille</button>
+          <button class="eo-btn" data-champ="acquis">Récent</button>
           <button class="eo-btn eo-sens" id="tri-sens">↓</button>
         </div>
       </div>
@@ -745,6 +784,7 @@ main.plein{padding:0 !important;overflow:hidden !important;}
     <section class="ecran" id="ecran-scores">
       <h2 class="section-titre titre">Scores <span>par matière</span></h2>
       <div id="scores-matieres"></div>
+      <div id="scores-packs"></div>
       <div id="scores-resume"></div>
       <button class="feuille-fermer" id="btn-classement" style="margin-top:16px;">🌍 Classement mondial</button>
       <button class="feuille-fermer" id="btn-chouchous" style="margin-top:8px;">💖 Mes chouchous</button>
@@ -1439,7 +1479,7 @@ async function cloudPush(){
   catch(e){majSync('err');}
 }
 function compteVersProfil(row){return {id:row.id,nom:row.prenom,age:row.age,emoji:row.avatar,couleur:row.couleur,niveau:row.niveau,etat:normaliserEtat(row.etat||etatVide()),cloud:true,pin:row._pin};}
-const VERSION_APP='v72';
+const VERSION_APP='v81';
 const RARETES={commune:{nom:'Commune',poids:55,overflow:15,couleur:'#c4cdd8'},rare:{nom:'Rare',poids:27,overflow:30,couleur:'#7ec2ff'},epique:{nom:'Épique',poids:13,overflow:60,couleur:'#c99bff'},legendaire:{nom:'Légendaire',poids:4.5,overflow:120,couleur:'#ffcf6b'},mythique:{nom:'Mythique',poids:0.5,overflow:250,couleur:'#ff9ac0'},celeste:{nom:'Céleste',poids:0,overflow:300,couleur:'#ffe9a8'}};
 const SEUILS=[1,4,9,17,28];   // exemplaires cumulés pour ★ à ★★★★★ (évolution plus lente)
 const TITRES=['—','Éveil','Aguerri','Radieux','Astral','Mythe'];
@@ -1448,10 +1488,11 @@ const PITY_EPIC=20,PITY_LEGEND=100;   // pity : épique+ garanti tous les 20, l�
 const COUT_SUPER_RENOM=35;            // super-tirage payé en renommée, épique ou mieux garanti
 function rankRar(r){return {commune:0,rare:1,epique:2,legendaire:3,mythique:4,celeste:5}[r]||0;}
 const GAIN_BONNE=6,GAIN_ESSAI=2,BONUS_SERIE=20,PALIER_SERIE=5;   // récompense l'essai même en cas d'erreur
+const REC_AV1=5,REC_AV2=1;   // aventure : diamants au 1er coup, un peu au 2e, rien ensuite
 const XP_BONNE=10,XP_ESSAI=3,PAS_XP=120;
 const SOFTCAP1=600,SOFTCAP2=1400;
 function jourDefi(){const d=new Date().toISOString().slice(0,10);if(!etat.defiJour||etat.defiJour.date!==d)etat.defiJour={date:d,gagne:0};return etat.defiJour;}
-function crediterDefi(g){const j=jourDefi();const reel=Math.max(1,Math.round(g));etat.crins+=reel;j.gagne+=reel;if(typeof verifierJalons==='function')verifierJalons(true);return reel;}
+function crediterDefi(g){const j=jourDefi();const reel=Math.max(1,Math.round(g));etat.crins+=reel;j.gagne+=reel;if(typeof verifierJalons==='function')verifierJalons(true);if(typeof montrerGainAnim==='function')montrerGainAnim(reel);return reel;}
                           // 120 XP par niveau de matière
 
 /* ---- CONCOURS ---- */
@@ -1500,8 +1541,8 @@ const PRIX_MARCHAND={commune:3,rare:15,epique:55,legendaire:220,mythique:1000};
    exercices apparaissent (voir `niv` des activités) et cale la difficulté. */
 const CLE_P='ecurie_profils_v1',CLE_VIEUX='ecurie_legendes_v2';
 let memoire=null;
-function etatVide(){return {crins:SOLDE_DEPART,cadeauDepart:true,tutoVu:false,collection:{ane_tetu:1,cheval_charbonnier:1,cheval_laboureur:1},paliers:{ane_tetu:1,cheval_charbonnier:1,cheval_laboureur:1},tirages:0,bonnes:0,xp:{maths:0,francais:0,histoire:0,sciences:0},serieJours:0,dernierJour:null,stats:{},jeux:{joues:0,gagnes:0},renommee:0,renommeeTotale:0,concours:{date:null,refresh:0,faits:{}},marchand:{date:null,achetes:[]},aventure:{introVu:false,belgique:{sousEtape:0,faits:{},fini:false}},chouchous:{},packprog:{},defiJour:{date:null,gagne:0},pity:{epic:0,legend:0},jalons:{}};}
-function normaliserEtat(e){const d=etatVide();for(const k in d)if(e[k]===undefined)e[k]=d[k];e.xp=Object.assign({maths:0,francais:0,histoire:0,sciences:0},e.xp||{});e.jeux=Object.assign({joues:0,gagnes:0},e.jeux||{});e.stats=e.stats||{};e.collection=e.collection||{};e.paliers=e.paliers||{};e.renommee=e.renommee||0;if(e.renommeeTotale==null)e.renommeeTotale=e.renommee;e.concours=e.concours||{date:null,refresh:0,faits:{}};if(e.concours.refresh==null)e.concours.refresh=0;e.marchand=e.marchand||{date:null,achetes:[]};for(const id in e.collection){if(e.collection[id]>0&&e.paliers[id]==null)e.paliers[id]=palierDe(e.collection[id]);}e.aventure=e.aventure||{introVu:false};e.aventure.belgique=e.aventure.belgique||{sousEtape:0,faits:{},fini:false};e.aventure.prov=e.aventure.prov||{};e.aventure.mascVue=e.aventure.mascVue||{};if(e.aventure.belgique&&!e.aventure.prov.anvers)e.aventure.prov.anvers=e.aventure.belgique;e.chouchous=e.chouchous||{};e.packprog=e.packprog||{};e.defiJour=e.defiJour||{date:null,gagne:0};e.pity=e.pity||{epic:0,legend:0};if(e.pity.epic==null)e.pity.epic=0;if(e.pity.legend==null)e.pity.legend=0;e.jalons=e.jalons||{};
+function etatVide(){return {crins:SOLDE_DEPART,cadeauDepart:true,tutoVu:false,collection:{ane_tetu:1,cheval_charbonnier:1,cheval_laboureur:1},paliers:{ane_tetu:1,cheval_charbonnier:1,cheval_laboureur:1},tirages:0,bonnes:0,xp:{maths:0,francais:0,histoire:0,sciences:0},serieJours:0,dernierJour:null,stats:{},jeux:{joues:0,gagnes:0},renommee:0,renommeeTotale:0,concours:{date:null,refresh:0,faits:{}},marchand:{date:null,achetes:[]},aventure:{introVu:false,belgique:{sousEtape:0,faits:{},fini:false}},chouchous:{},packprog:{},defiJour:{date:null,gagne:0},pity:{epic:0,legend:0},jalons:{},statsPack:{},acquis:{},acquisN:0};}
+function normaliserEtat(e){const d=etatVide();for(const k in d)if(e[k]===undefined)e[k]=d[k];e.xp=Object.assign({maths:0,francais:0,histoire:0,sciences:0},e.xp||{});e.jeux=Object.assign({joues:0,gagnes:0},e.jeux||{});e.stats=e.stats||{};e.collection=e.collection||{};e.paliers=e.paliers||{};e.renommee=e.renommee||0;if(e.renommeeTotale==null)e.renommeeTotale=e.renommee;e.concours=e.concours||{date:null,refresh:0,faits:{}};if(e.concours.refresh==null)e.concours.refresh=0;e.marchand=e.marchand||{date:null,achetes:[]};for(const id in e.collection){if(e.collection[id]>0&&e.paliers[id]==null)e.paliers[id]=palierDe(e.collection[id]);}e.aventure=e.aventure||{introVu:false};e.aventure.belgique=e.aventure.belgique||{sousEtape:0,faits:{},fini:false};e.aventure.prov=e.aventure.prov||{};e.aventure.mascVue=e.aventure.mascVue||{};if(e.aventure.belgique&&!e.aventure.prov.anvers)e.aventure.prov.anvers=e.aventure.belgique;e.chouchous=e.chouchous||{};e.packprog=e.packprog||{};e.defiJour=e.defiJour||{date:null,gagne:0};e.pity=e.pity||{epic:0,legend:0};if(e.pity.epic==null)e.pity.epic=0;if(e.pity.legend==null)e.pity.legend=0;e.jalons=e.jalons||{};e.statsPack=e.statsPack||{};if(!e.acquis){e.acquis={};let n=0;for(const c of CARTES){if((e.collection[c.id]||0)>0)e.acquis[c.id]=++n;}e.acquisN=n;}else{let mx=0;for(const k in e.acquis)if(e.acquis[k]>mx)mx=e.acquis[k];e.acquisN=e.acquisN||mx;}
   // Un joueur qui a déjà de la progression ne doit jamais revoir l'onboarding (save sans tutoVu).
   if(!e.tutoVu&&((e.tirages||0)>0||(e.aventure&&e.aventure.introVu)||Object.keys(e.collection||{}).length>3||(e.bonnes||0)>0))e.tutoVu=true;
   if(!e.cadeauDepart){for(const id of ['ane_tetu','cheval_charbonnier','cheval_laboureur']){if(!(e.collection[id]>0)){e.collection[id]=1;e.paliers[id]=e.paliers[id]||1;}}e.cadeauDepart=true;}return e;}
@@ -1843,10 +1884,33 @@ function carteMystereHTML(c){return `<div class="tcarte verrou" data-r="${c.rare
 
 /* 7. ÉCRANS */
 function majSolde(anim){$('#solde-nb').textContent=etat.crins;if(anim){const s=$('#solde');s.classList.remove('pulse');void s.offsetWidth;s.classList.add('pulse');}$('#btn-tirer').disabled=etat.crins<COUT_TIRAGE;const b10=$('#btn-tirer10');if(b10)b10.disabled=etat.crins<COUT_TIRAGE10;const bs=$('#btn-tirer-super');if(bs)bs.disabled=(etat.renommee||0)<COUT_SUPER_RENOM;const rn=$('#tirage-renom-nb');if(rn)rn.textContent=etat.renommee||0;const cn=$('#tirage-crins-nb');if(cn)cn.textContent=etat.crins;}
+/* Feedback visuel du gain : « +N 💎 » qui monte et s'estompe + une pluie de diamants
+   dont le nombre grandit avec la somme, pour qu'une grosse récompense se REMARQUE. */
+function montrerGainAnim(n){
+  if(!(n>0))return;
+  const a=document.getElementById('solde');if(!a)return;
+  const r=a.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.bottom-2;
+  const grand=n>=18,moyen=n>=10;
+  const lab=document.createElement('div');lab.className='gain-pop'+(grand?' xl':moyen?' l':'');
+  lab.textContent='+'+n+' 💎';lab.style.left=cx+'px';lab.style.top=cy+'px';
+  document.body.appendChild(lab);setTimeout(()=>lab.remove(),1300);
+  const k=Math.max(3,Math.min(16,Math.round(n/2)+2));
+  for(let i=0;i<k;i++){const p=document.createElement('div');p.className='gain-dia';p.textContent='💎';
+    p.style.left=cx+'px';p.style.top=cy+'px';
+    p.style.setProperty('--dx',((Math.random()*2-1)*70).toFixed(0)+'px');
+    p.style.setProperty('--dy',(-(38+Math.random()*80)).toFixed(0)+'px');
+    p.style.animationDelay=(i*28)+'ms';
+    document.body.appendChild(p);setTimeout(()=>p.remove(),1300);}
+}
 function majProgression(){const t=CARTES.length,u=nbUniques();$('#prog-fill').style.width=(t?u/t*100:0)+'%';$('#prog-txt').textContent=`${u} / ${t} créatures · ${totalEtoiles()} ★`;$('#ecurie-compte').textContent=`${u}/${t}`;}
 let filtrePossedes=true,triChamp='rarete',triSens=-1;   // -1 = décroissant (rare/évolué d'abord)
 const ORD_RAR=Object.keys(RARETES);
-function valTri(c){const n=etat.collection[c.id]||0;return triChamp==='niveau'?palierDe(n):ORD_RAR.indexOf(c.rarete);}
+const ORD_FAM=Object.keys(FAMILLES);
+function valTri(c){const n=etat.collection[c.id]||0;
+  if(triChamp==='niveau')return palierDe(n);
+  if(triChamp==='famille'){const i=ORD_FAM.indexOf((c.familles||[])[0]);return i<0?99:i;}
+  if(triChamp==='acquis')return (etat.acquis&&etat.acquis[c.id])||0;
+  return ORD_RAR.indexOf(c.rarete);}
 function rendreGrille(){
   const g=$('#grille');g.innerHTML='';
   let list=CARTES.slice();
@@ -1923,7 +1987,7 @@ function renderAtelier(){
 let revealVerrou=false;
 function ajouterExemplaire(c){
   const avant=etat.collection[c.id]||0,apres=avant+1;etat.collection[c.id]=apres;
-  if(avant===0){etat.paliers[c.id]=1;return{etatTxt:'Nouvelle créature !',sousTxt:`${c.nom} rejoint ton écurie`,cls:'neuf'};}
+  if(avant===0){etat.paliers[c.id]=1;etat.acquis=etat.acquis||{};etat.acquis[c.id]=++etat.acquisN;return{etatTxt:'Nouvelle créature !',sousTxt:`${c.nom} rejoint ton écurie`,cls:'neuf'};}
   const applique=palierApplique(c),maxDeblo=palierDe(apres);
   if(maxDeblo>applique&&applique<5)return{etatTxt:'✨ Prête à évoluer !',sousTxt:`Un doublon de plus — fais évoluer ${c.nom} dans sa fiche`,cls:'evo'};
   if(applique>=5){const o=RARETES[c.rarete].overflow;etat.crins+=o;return{etatTxt:'Déjà au sommet',sousTxt:`Maximum atteint · +${o} Diamants`,cls:''};}
@@ -2113,12 +2177,13 @@ let matSource=null,qCour=null,serieCourante=0,quizVerrou=false;
 function capDiff(){const n=profilActif.niveau||5;return n<=3?1:(n===4?2:3);}
 function diffMaths(){const off=((packActif&&packActif.nivOffset)||0);const lv=niveauDe(etat.xp.maths)+off*2;return Math.min(3,capDiff()+off,Math.floor((lv-1)/2)+1);}
 function statMatiere(id){etat.stats[id]=etat.stats[id]||{ok:0,tot:0};return etat.stats[id];}
+function statPack(id){etat.statsPack=etat.statsPack||{};etat.statsPack[id]=etat.statsPack[id]||{ok:0,tot:0};return etat.statsPack[id];}
 
 const NIV1='Niveau 1 · ~10 ans';
 const PACKS=[
  {id:'general',nom:'Général',ico:'📚',mult:1,niv:NIV1,sous:'Toutes tes matières',theorie:"Lis bien chaque question et prends ton temps. En cas d'erreur, une petite explication apparaît pour t'aider à comprendre."},
  {id:'general1',nom:'Général +1',ico:'🔥',mult:2,nivOffset:1,niv:'Niveau 2 · année +1',sous:'Plus dur · +150%',theorie:"Ici, c'est le niveau de l'année supérieure ! Réfléchis bien : les récompenses sont plus grandes."},
- {id:'races',nom:'Chevaux',ico:'🐴',mult:0.5,niv:NIV1,sous:'Races · robes · légendes · histoire',theorie:"RACES : observe la taille, la robe et la crinière. Le Frison est noir, le Camargue est blanc, l'Arabe est fin et rapide.\n\nROBES : noir, blanc, gris, alezan (roux), isabelle (crème doré), pie (grandes taches), tachetée (l'Appaloosa).\n\nLÉGENDES : Bucéphale & Alexandre le Grand, Pégase & la Grèce, Sleipnir & Odin, Bayard & les quatre fils Aymon, Pieter-Jan & la Belgique…\n\nHISTOIRE : reconnais les chevaux des peuples et des métiers — Vikings, Cosaques, samouraïs, Romains, conquistadors, chevaliers, pompiers, facteurs…"},
+ {id:'races',nom:'Chevaux',ico:'🐴',mult:0.5,niv:NIV1,sous:'Races · robes · légendes · histoire',theorie:"🐴 LES RACES DE CHEVAUX\nUne « race », c'est une grande famille de chevaux qui se ressemblent : même allure, même taille, même caractère. On la reconnaît à sa silhouette !\n\n• LES GÉANTS DE TRAIT, tout en muscles, tiraient charrues et lourds chariots : le Brabançon et l'Ardennais (Belgique), le Boulonnais, le Shire anglais, le Nonius hongrois. Doux comme des agneaux malgré leur force.\n• LES CHEVAUX DU DÉSERT, fins et infatigables sous le soleil : l'Arabe, l'ancêtre de presque tous les chevaux rapides, et l'Akhal-Téké à la robe dorée qui brille comme du métal.\n• LES CHEVAUX BAROQUES, nobles danseurs des écoles royales : l'Andalou et le Lusitanien (Espagne, Portugal), le Lipizzan blanc de Vienne, le majestueux Kladruber des empereurs, le Frison tout noir des Pays-Bas.\n• LES TROTTEURS ET COUREURS, nés pour la vitesse : le pur-sang de course, le Trotteur Orlov de Russie, le Mangalarga du Brésil à l'allure si douce.\n• LES PONEYS, petits mais costauds (moins d'1,48 m au garrot) : le minuscule Shetland, le Welsh et le Connemara, le Fjord norvégien à la crinière taillée en brosse, le Haflinger, l'Exmoor, le Fell et le Highland des landes, et le Falabella, le plus petit cheval du monde !\n• LES TACHETÉS : l'Appaloosa des Amérindiens et le Knabstrupper danois, mouchetés comme un ciel étoilé.\n• LES RUSTIQUES DU GRAND FROID : le Konik, le Yakoute de Sibérie et l'Islandais, qui survivent aux hivers glacials sous leur épaisse fourrure.\n\n🎨 LES ROBES (les couleurs du cheval)\nLa « robe », c'est la couleur du poil. Les principales :\n• NOIR : tout le corps est noir (le Frison, le Mérens, le Fell).\n• BLANC / GRIS : du gris pommelé au blanc pur ; beaucoup naissent foncés et blanchissent en grandissant (le Camargue, le Lipizzan, l'Orlov).\n• ALEZAN : roux, du blond doré à l'acajou, souvent avec les crins clairs (le Haflinger, le Curly).\n• ISABELLE : crème doré très lumineux, crins et bas des pattes foncés (le Highland).\n• PIE : de grandes taches blanches et colorées mêlées (le Gypsy Cob, le Falabella).\n• TACHETÉE : plein de petites taches sur fond clair (l'Appaloosa, le Knabstrupper).\n• BAIE : corps brun, crins et bas des pattes noirs — la robe la plus répandue au monde.\n\n✨ LES CHEVAUX DE LÉGENDE\nDepuis toujours, les peuples ont imaginé des chevaux magiques :\n• GRÈCE : Pégase, le cheval ailé de Bellérophon ; Xanthos et Balios, les chevaux immortels d'Achille ; l'Hippocampe, mi-cheval mi-poisson, qui tire le char de Poséidon.\n• PAYS DU NORD : Sleipnir, le destrier à huit jambes du dieu Odin, et son descendant Grani, monture du héros Sigurd ; le Helhest, cheval à trois jambes de la déesse Hel.\n• MONDE CELTE : Enbarr, qui galope sur les vagues ; le Kelpie d'Écosse et le Dullahan sans tête d'Irlande, esprits des eaux et de la nuit.\n• ORIENT : Rakhsh, le coursier du héros perse Rostam ; Kanthaka, le cheval blanc qui emmena le futur Bouddha ; Uchchaihshravas, le cheval à sept têtes né de l'océan de lait.\n• CHINE : le Qilin et le Longma, chevaux-dragons porteurs de sagesse et de paix.\n• CHEZ NOUS : Bayard, le cheval-fée des quatre fils Aymon, et Veillantif, le fidèle destrier de Roland.\n\n🏛️ LES CHEVAUX DANS L'HISTOIRE\nLe cheval a accompagné les humains partout :\n• À LA GUERRE : les destriers bardés d'acier des chevaliers, les montures des Romains, des Vikings, des Cosaques des steppes et des samouraïs du Japon.\n• AU TRAVAIL : il tirait la charrue et les péniches (le halage sur les canaux), menait la diligence, descendait à la mine, portait le courrier du facteur et fonçait avec les pompiers.\n• À L'AVENTURE : les conquistadors l'emmenèrent en Amérique, où les Amérindiens en firent le Mustang sauvage des grandes plaines.\n• AU SPORT : aujourd'hui, des champions de course comme Secretariat, Frankel, Seabiscuit ou Phar Lap sont devenus de vraies vedettes.\n\n💡 LE SAVAIS-TU ?\nOn mesure un cheval au « garrot », le haut du dos entre les épaules. En dessous d'1,48 m, on parle d'un poney. Le plus grand cheval jamais mesuré, un Shire nommé Sampson, atteignait 2,19 m au garrot !"},
  {id:'origines',nom:'Origines',ico:'🌍',mult:1.2,niv:NIV1,sous:"D'où vient ce cheval ?",theorie:"Chaque cheval vient d'un pays : le Frison des Pays-Bas, le Brabançon de Belgique, l'Arabe du désert, le Fjord de Norvège… L'icône drapeau sur les cartes t'aide à retenir."},
  {id:'geek',nom:'Geek',ico:'🤖',mult:1.5,niv:NIV1,sous:'Robots · drones · code',theorie:"Programmer, c'est donner des instructions à une machine. Un robot a des capteurs (pour sentir), un moteur (pour bouger) et un processeur (son cerveau). Un drone vole grâce à ses hélices et à une batterie."},
  {id:'anglais',nom:'Anglais',ico:'🇬🇧',mult:1.5,niv:NIV1,sous:'English · débutant',theorie:"Les bases : hello (bonjour), goodbye (au revoir), yes (oui), no (non), thank you (merci), please (s'il te plaît).\nCouleurs : red (rouge), blue (bleu), green (vert), yellow (jaune).\nNombres : one, two, three, four, five (1 à 5)."},
@@ -2150,8 +2215,36 @@ const MYTHES={
  bayard:{perso:"les quatre fils Aymon",fait:"un cheval-fée qui grandissait pour porter les quatre frères"},
  bucephale:{perso:"Alexandre le Grand",fait:"l'indomptable destrier que lui seul put dompter"},
  pegase:{perso:"Bellérophon (Grèce)",fait:"le cheval ailé qui s'envole jusqu'à l'Olympe"},
+ mythique_xanthos:{perso:"Achille (Grèce)",fait:"un des chevaux immortels d'Achille, qui parla pour lui annoncer sa mort"},
+ mythique_balios:{perso:"Achille (Grèce)",fait:"cheval immortel né du vent d'ouest, attelé au char d'Achille"},
+ mythique_enbarr:{perso:"Manannán, dieu irlandais de la mer",fait:"il galope sur les vagues comme sur la terre ferme"},
+ mythique_grani:{perso:"Sigurd, héros nordique",fait:"descendant de Sleipnir, il traversa un mur de flammes"},
+ mythique_gringolet:{perso:"messire Gauvain (Table Ronde)",fait:"le fidèle destrier du neveu du roi Arthur"},
+ mythique_kanthaka:{perso:"le prince Siddhartha (futur Bouddha)",fait:"le cheval blanc qui l'emporta vers l'éveil"},
+ mythique_rakhsh:{perso:"Rostam, héros perse",fait:"il tua un lion pour protéger son maître endormi"},
+ mythique_veillantif:{perso:"Roland, chevalier de Charlemagne",fait:"le destrier du preux Roland à Roncevaux"},
+ beasts_qirin:{perso:"la Chine",fait:"le Qilin, créature de paix qui n'écrase aucun brin d'herbe"},
+ beasts_longma:{perso:"la Chine",fait:"le Longma, cheval-dragon des eaux, présage de sagesse"},
+ beasts_hippogriffe:{perso:"les légendes médiévales",fait:"mi-aigle mi-cheval, il vole plus vite que le vent"},
+ beasts_alicorne:{fait:"la licorne ailée, alliance de deux merveilles"},
+ hippocampe:{perso:"Poséidon (Grèce)",fait:"mi-cheval mi-poisson, il tire le char des dieux des mers"},
+ kelpie:{perso:"l'Écosse",fait:"un esprit des eaux qui prend la forme d'un cheval près des lochs"},
+ helhest:{perso:"Hel, déesse nordique des morts",fait:"le cheval à trois jambes dont le passage annonce un malheur"},
+ dullahan:{perso:"le folklore d'Irlande",fait:"la monture noire du cavalier sans tête"},
+ mari_lwyd:{perso:"le Pays de Galles",fait:"un crâne de jument enrubanné qui chante aux portes en hiver"},
+ cheval_pale_mort:{perso:"l'Apocalypse",fait:"le cheval blême du quatrième cavalier"},
+ cheval_rouge_guerre:{perso:"l'Apocalypse",fait:"le cheval rouge du cavalier de la Guerre"},
+ course_frankel:{perso:"la course anglaise",fait:"invaincu en 14 courses, l'un des plus grands galopeurs de l'histoire"},
+ course_manowar:{perso:"la course américaine",fait:"surnommé « Big Red », il ne perdit qu'une seule course"},
+ course_pharlap:{perso:"l'Australie",fait:"le champion adoré qui redonna le sourire à tout un pays"},
+ course_seabiscuit:{perso:"l'Amérique",fait:"le petit cheval qui redonna espoir pendant la Grande Dépression"},
+ course_zenyatta:{perso:"la course américaine",fait:"la jument qui remporta 19 de ses 20 courses"},
+ francois_camargue:{perso:"la Camargue (France)",fait:"étalon blanc né foncé, blanchi par le soleil du Sud"},
+ big_ben:{perso:"l'Angleterre",fait:"un Shire géant, descendant des chevaux des chevaliers"},
+ inge:{perso:"les Pays-Bas",fait:"une Frisonne, perle noire des Pays-Bas qui sait danser"},
+ rocio:{perso:"l'Espagne",fait:"une Andalouse de Pure Race Espagnole, danseuse née"},
 };
-const BREEDS=['akhal_teke','frison','shire','appaloosa','marwari','andalou','arabe','fjord','gypsy_cob','brabancon','murgese','kaltblut','dulmener','lusitanien','boulonnais','haflinger','camargue','ardennais','franches_montagnes','cheval_desert','cheval_boucle'];
+const BREEDS=['akhal_teke','frison','shire','appaloosa','marwari','andalou','arabe','fjord','gypsy_cob','brabancon','murgese','kaltblut','dulmener','lusitanien','boulonnais','haflinger','camargue','ardennais','franches_montagnes','cheval_desert','curly','falabella','finnhorse','islandais','kladruber','knabstrupper','konik','lipizzan','mangalarga_marchador','nonius','orlov','yakutian','welsh_pony','basotho','caspien','connemara','eriskay','exmoor','fell','highland','hutsul','merens'];
 const HISTO={
  mustang_indien:{qui:"les Amérindiens",fait:"le cheval sauvage des grandes plaines"},
  cheval_tournoi:{qui:"un chevalier (tournoi)",fait:"il porte les couleurs de son seigneur, aux fleurs de lys"},
@@ -2167,11 +2260,91 @@ const HISTO={
  cheval_samurai:{qui:"les samouraïs",fait:"le destrier d'un guerrier japonais"},
  cheval_chinois:{qui:"la Chine impériale",fait:"il défilait dans les palais, paré de soie et d'or"},
  cheval_royal:{qui:"le roi de France",fait:"il porte fièrement les armes du roi"},
+ cheval_halage:{qui:"les mariniers (halage)",fait:"il tirait les péniches le long des canaux"},
+ cheval_laboureur:{qui:"les fermiers",fait:"il tirait la charrue dans les champs"},
+ cheval_charbonnier:{qui:"les mineurs",fait:"il descendait dans la mine tirer le charbon"},
+ cheval_police:{qui:"la police",fait:"monture des agents pour surveiller les foules"},
+ cheval_cowboy:{qui:"les cow-boys",fait:"il menait les grands troupeaux dans l'Ouest américain"},
 };
 let packActif=null,recentQ=[],jeuCompteur=0;
-const SEUIL_MAITRISE=4;
-const PACK_NIVEAUX={geek:()=>[BANK_GEEK],anglais:()=>[BANK_ANGLAIS],ortho:()=>[ORTHO_ITEMS],art:()=>[BANK_ART],neerlandais:()=>[BANK_NEERLANDAIS]};
+const SEUIL_MAITRISE=2;
+/* Niveaux 2 : questions de l'année supérieure. Chaque pack a maintenant 2 niveaux à maîtriser. */
+const BANK_GEEK_N2=[
+ {q:"Que veut dire « bug » en informatique ?",r:"une erreur dans le programme",choix:["une erreur dans le programme","un vrai insecte","un jeu vidéo","un écran"],e:"Le mot vient d'un vrai insecte coincé dans une machine en 1947 !"},
+ {q:"8 bits, ça fait…",r:"1 octet",choix:["1 octet","1 pixel","8 octets","1 écran"]},
+ {q:"À quoi sert une boucle en programmation ?",r:"répéter des instructions",choix:["répéter des instructions","effacer le code","éteindre la machine","ranger les câbles"]},
+ {q:"Un « pixel », c'est…",r:"un petit point de l'image",choix:["un petit point de l'image","un virus","un bouton","un câble"]},
+ {q:"Que fait un capteur sur un robot ?",r:"il mesure son environnement",choix:["il mesure son environnement","il dessine","il chante","il dort"]},
+ {q:"Sur le graphique, quel robot est le plus rapide ?",graph:{titre:"Vitesse (km/h)",labels:["R1","R2","R3"],valeurs:[12,7,20]},r:"R3",choix:["R3","R1","R2","aucun"]},
+ {q:"Internet relie les ordinateurs du monde grâce à un…",r:"réseau",choix:["réseau","aquarium","volcan","tiroir"]},
+ {q:"« Télécharger », ça veut dire…",r:"recevoir un fichier depuis Internet",choix:["recevoir un fichier depuis Internet","jeter un fichier","imprimer","débrancher"]},
+ {q:"En binaire, on n'écrit qu'avec…",r:"des 0 et des 1",choix:["des 0 et des 1","des lettres","des couleurs","des dessins"]},
+ {q:"À quoi sert la mémoire (RAM) ?",r:"garder ce sur quoi la machine travaille",choix:["garder ce sur quoi la machine travaille","faire du café","donner l'heure","refroidir"]},
+ {q:"Un mot de passe sert à…",r:"protéger ton compte",choix:["protéger ton compte","accélérer l'écran","changer la couleur","imprimer"]},
+ {q:"Le « cloud » (nuage), c'est…",r:"des ordinateurs qui stockent tes fichiers à distance",choix:["des ordinateurs qui stockent tes fichiers à distance","un vrai nuage","une imprimante","un clavier"]},
+ {q:"Un robot suit un…",r:"programme",choix:["programme","rêve","hasard","dessin"]},
+ {q:"Quelle machine imprime en relief, couche par couche ?",r:"l'imprimante 3D",choix:["l'imprimante 3D","le scanner","la souris","le micro"]},
+];
+const BANK_ANGLAIS_N2=[
+ {q:"« un chien » se dit…",r:"a dog",choix:["a dog","a cat","a bird","a fish"]},
+ {q:"« Merci beaucoup » se dit…",r:"thank you very much",choix:["thank you very much","good night","see you","i am sorry"]},
+ {q:"« seven », c'est…",r:"7",choix:["7","5","9","6"]},
+ {q:"Look: 🐎 is a…",r:"horse",choix:["horse","cow","sheep","dog"]},
+ {q:"« Je m'appelle Léa » se dit…",r:"My name is Léa",choix:["My name is Léa","I am fine","Good morning","See you"]},
+ {q:"What colour is the sky?",r:"blue",choix:["blue","red","green","brown"]},
+ {q:"« un livre » se dit…",r:"a book",choix:["a book","a pen","a table","a door"]},
+ {q:"On the graph, which animal has the most?",graph:{titre:"Animals",labels:["Dogs","Cats","Birds"],valeurs:[4,8,5]},r:"Cats",choix:["Cats","Dogs","Birds","none"]},
+ {q:"« Quel âge as-tu ? » se dit…",r:"How old are you?",choix:["How old are you?","What is your name?","Where are you?","How are you?"]},
+ {q:"« big » veut dire…",r:"grand",choix:["grand","petit","rouge","chaud"]},
+ {q:"« a house » veut dire…",r:"une maison",choix:["une maison","un cheval","une école","un jardin"]},
+ {q:"Monday, Tuesday, … what comes next?",r:"Wednesday",choix:["Wednesday","Sunday","Friday","April"]},
+ {q:"« I like horses » veut dire…",r:"J'aime les chevaux",choix:["J'aime les chevaux","Je déteste courir","Je suis fatigué","Il fait froid"]},
+ {q:"« water » veut dire…",r:"l'eau",choix:["l'eau","le feu","le pain","le lait"]},
+];
+const BANK_ART_N2=[
+ {q:"Qui a peint « La Joconde » ?",r:"Léonard de Vinci",choix:["Léonard de Vinci","Picasso","Van Gogh","Monet"]},
+ {q:"Qui a peint « La Nuit étoilée » ?",r:"Van Gogh",choix:["Van Gogh","Monet","Michel-Ange","Dalí"]},
+ {q:"Les trois couleurs primaires sont…",r:"rouge, jaune, bleu",choix:["rouge, jaune, bleu","vert, orange, violet","noir, blanc, gris","rose, or, argent"]},
+ {q:"Que donne 🔵 bleu + 🔴 rouge ?",schema:"🔵 + 🔴 = ❓",r:"du violet",choix:["du violet","du vert","de l'orange","du brun"]},
+ {q:"Un artiste qui fait des statues est un…",r:"sculpteur",choix:["sculpteur","musicien","danseur","cuisinier"]},
+ {q:"Picasso a inventé un art aux formes en cubes : le…",r:"cubisme",choix:["cubisme","réalisme","impressionnisme","romantisme"]},
+ {q:"Monet peignait la lumière et les reflets : c'était un…",r:"impressionniste",choix:["impressionniste","cubiste","sculpteur","photographe"]},
+ {q:"Une peinture faite sur un mur s'appelle une…",r:"fresque",choix:["fresque","aquarelle","statue","mosaïque"]},
+ {q:"Michel-Ange a peint le plafond de la chapelle…",r:"Sixtine",choix:["Sixtine","Ronde","Bleue","du Nord"]},
+ {q:"Une « nature morte » représente surtout…",r:"des objets (fruits, fleurs)",choix:["des objets (fruits, fleurs)","des batailles","des dragons","des voitures"]},
+ {q:"Quel outil sert à étaler la peinture ?",r:"le pinceau",choix:["le pinceau","le marteau","la règle","la gomme"]},
+ {q:"Un « autoportrait », c'est l'artiste qui peint…",r:"lui-même",choix:["lui-même","un paysage","un cheval","le ciel"]},
+ {q:"Que donne 🔴 + 🔵 + 🟡 (toutes mélangées) ?",schema:"🔴+🔵+🟡 = ❓",r:"du brun foncé",choix:["du brun foncé","du blanc","du doré","du rose vif"]},
+ {q:"Rodin est célèbre pour ses…",r:"sculptures",choix:["sculptures","chansons","romans","photos"]},
+];
+const BANK_NEERLANDAIS_N2=[
+ {q:"« dank je wel » veut dire…",r:"merci",choix:["merci","bonjour","au revoir","oui"]},
+ {q:"Kijk : 🐶 = hond. Wat is 🐱 ?",schema:"🐶 hond · 🐱 ❓",r:"kat",choix:["kat","paard","koe","vogel"]},
+ {q:"« een huis » veut dire…",r:"une maison",choix:["une maison","un cheval","une école","un arbre"]},
+ {q:"Compte : één, twee, …",r:"drie",choix:["drie","tien","zeven","vijf"]},
+ {q:"« water » veut dire…",r:"l'eau",choix:["l'eau","le pain","le lait","le feu"]},
+ {q:"« goedemorgen » veut dire…",r:"bonjour (le matin)",choix:["bonjour (le matin)","bonne nuit","merci","au revoir"]},
+ {q:"Kijk : 🍎 = appel. Wat is 🌸 ?",schema:"🍎 appel · 🌸 ❓",r:"bloem",choix:["bloem","boom","boek","brood"]},
+ {q:"« rood », c'est quelle couleur ?",r:"rouge",choix:["rouge","bleu","vert","jaune"]},
+ {q:"« een boek » veut dire…",r:"un livre",choix:["un livre","une porte","une table","un stylo"]},
+ {q:"Le néerlandais se parle au nord de la Belgique, en…",r:"Flandre",choix:["Flandre","Wallonie","France","Suisse"]},
+ {q:"« ja » / « nee » veulent dire…",r:"oui / non",choix:["oui / non","non / oui","merci / pardon","grand / petit"]},
+ {q:"Kijk : ☀️ zon · 🌙 maan · ⭐ ❓",schema:"☀️ zon · 🌙 maan · ⭐ ❓",r:"ster",choix:["ster","zon","boom","huis"]},
+ {q:"« melk » veut dire…",r:"le lait",choix:["le lait","le pain","l'eau","le sucre"]},
+ {q:"« tot ziens » veut dire…",r:"au revoir",choix:["au revoir","bonjour","merci","bravo"]},
+];
+const PACK_NIVEAUX={geek:()=>[BANK_GEEK,BANK_GEEK_N2],anglais:()=>[BANK_ANGLAIS,BANK_ANGLAIS_N2],ortho:()=>{const h=Math.ceil(ORTHO_ITEMS.length/2);return [ORTHO_ITEMS.slice(0,h),ORTHO_ITEMS.slice(h)];},art:()=>[BANK_ART,BANK_ART_N2],neerlandais:()=>[BANK_NEERLANDAIS,BANK_NEERLANDAIS_N2]};
 const PACK_KEY={geek:q=>q.q,anglais:q=>q.q,ortho:it=>it.r,art:q=>q.q,neerlandais:q=>q.q};
+const PACK_THEO_NIV={
+ geek:["🤖 NIVEAU 1 — Les bases\nUn ORDINATEUR reçoit une info (clavier), la traite (processeur) et l'affiche (écran).\nUn ROBOT a des capteurs pour sentir, un moteur pour bouger et un programme qui lui dit quoi faire.\nUn ALGORITHME est une suite d'instructions, comme une recette de cuisine.\n👉 Pour réussir : lis bien les petits schémas et graphiques, la réponse s'y cache souvent.","🤖 NIVEAU 2 — Plus loin\nLes ordinateurs ne comptent qu'avec des 0 et des 1 : c'est le BINAIRE (8 bits = 1 octet).\nUn BUG est une erreur dans le programme ; une BOUCLE répète des instructions.\nLa MÉMOIRE (RAM) garde ce sur quoi la machine travaille ; le CLOUD stocke tes fichiers à distance.\nInternet relie les ordinateurs du monde par un RÉSEAU."],
+ anglais:["🇬🇧 NIVEAU 1 — First words\nSalutations : hello, goodbye, please, thank you, yes, no.\nCouleurs : red, blue, green, yellow. Nombres : one, two, three, four, five.\n👉 Pour réussir : appuie-toi sur les symboles et les images pour deviner le mot.","🇬🇧 NIVEAU 2 — Sentences\nSe présenter : My name is… · How old are you? · How are you?\nAnimaux : dog, cat, bird, horse, cow. Objets : a book, a house.\nLes jours : Monday, Tuesday, Wednesday…\nPetites phrases : « I like horses » = j'aime les chevaux."],
+ art:["🎨 NIVEAU 1 — Les couleurs\nLes 3 couleurs PRIMAIRES sont rouge, jaune, bleu : en les mélangeant, on fait toutes les autres.\nBleu + jaune = vert · rouge + jaune = orange · rouge + bleu = violet.\n👉 Pour réussir : regarde bien le petit schéma du mélange avant de répondre.","🎨 NIVEAU 2 — Les grands artistes\nLéonard de Vinci a peint la Joconde ; Van Gogh, la Nuit étoilée.\nMonet était impressionniste (la lumière) ; Picasso a inventé le cubisme (les formes en cubes).\nUn sculpteur fait des statues ; une fresque est peinte sur un mur.\nMichel-Ange a peint le plafond de la chapelle Sixtine."],
+ neerlandais:["🇳🇱 NIVEAU 1 — Eerste woorden\nLe néerlandais se parle en Flandre, au nord de la Belgique.\nBases : hallo (bonjour), dank je (merci), ja (oui), nee (non).\nMots : paard (cheval), hond (chien), kat (chat), water (eau), boom (arbre).\n👉 Pour réussir : sers-toi des images pour retrouver le mot.","🇳🇱 NIVEAU 2 — Verder\nSaluer : goedemorgen (bonjour le matin), tot ziens (au revoir).\nCompter : één, twee, drie, vier, vijf.\nMots : huis (maison), boek (livre), bloem (fleur), melk (lait), ster (étoile).\nCouleur : rood (rouge)."],
+ ortho:["✍️ NIVEAU 1 — Bien écrire\nÉcoute l'indice et écris le mot en entier.\nPense aux ACCENTS : é, è, à, ê, î.\nN'oublie pas les lettres MUETTES à la fin (le -e, le -s, le -t).\n👉 Pour réussir : relis-toi avant de valider !","✍️ NIVEAU 2 — Mots plus durs\nAttention aux DOUBLES lettres (pomme, cheval → chevaux au pluriel).\nLes sons difficiles : « ph » = f, « qu » = k, sans oublier « gn » et « eau ».\nCertains mots ont des lettres qu'on n'entend pas : accorde bien et relis-toi."]
+};
+function theoriePack(p){if(!p)return '';const t=PACK_THEO_NIV[p.id];if(t){const nv=packNiv(p.id);return t[Math.min(nv,t.length)-1];}return p.theorie||'';}
+function nivLabel(p){if(!p)return '';return (PACK_THEO_NIV[p.id]||PACK_NIVEAUX[p.id])?('Niveau '+packNiv(p.id)):(p.niv||'');}
+
 function packProg0(id){let pp=etat.packprog[id];if(!pp||typeof pp.niv!=='number'){pp=etat.packprog[id]={niv:1,c:{},done:{}};}pp.c=pp.c||{};pp.done=pp.done||{};return pp;}
 function packNiv(id){return packProg0(id).niv||1;}
 function packBank(id){const f=PACK_NIVEAUX[id];if(!f)return null;const banks=f();return banks[Math.min(packNiv(id),banks.length)-1];}
@@ -2475,14 +2648,14 @@ function bankGen(bank){return ()=>{const q=bank[rnd(0,bank.length-1)];return {q:
 })();
 function exoBankQuiz(z,meta,mid,packId){
   const bank=packBank(packId)||[],q=choisirQ(packId,bank),choix=melange([...q.choix]);
-  z.innerHTML=`<button class="defi-retour" onclick="retourPacks()">← Packs</button><div class="quiz-meta">${meta}</div>${blocTheorie(packActif&&packActif.theorie,packActif&&packActif.niv)}<div class="quiz-carte"><div class="quiz-question" id="q-question"></div><div class="quiz-reponses" id="q-reponses"></div></div><div class="quiz-feedback" id="q-feedback"></div>`;
+  z.innerHTML=`<button class="defi-retour" onclick="retourPacks()">← Packs</button><div class="quiz-meta">${meta}</div>${blocTheorie(theoriePack(packActif),nivLabel(packActif))}<div class="quiz-carte"><div class="quiz-question" id="q-question"></div><div class="quiz-reponses" id="q-reponses"></div></div><div class="quiz-feedback" id="q-feedback"></div>`;
   $('#q-question').textContent=q.q;if(q.graph||q.schema)$('#q-question').insertAdjacentHTML('beforebegin',visuelQ(q));
   const box=$('#q-reponses');let fini=false;
   choix.forEach(v=>{const b=document.createElement('button');b.textContent=v;b.onclick=()=>{
     if(fini)return;fini=true;const bon=v===q.r;if(bon&&packId)maitriser(packId,PACK_KEY[packId](q));
     box.querySelectorAll('button').forEach(x=>{x.disabled=true;if(x.textContent===q.r)x.classList.add('bon');});
     if(!bon)b.classList.add('faux');
-    const s=statMatiere(mid);s.tot++;let g,msg;
+    const s=statMatiere(mid);s.tot++;const sp=statPack(packId);sp.tot++;if(bon)sp.ok++;let g,msg;
     if(bon){serieCourante++;s.ok++;etat.bonnes++;g=Math.round(GAIN_BONNE*PMULT());msg=BRAVOS[rnd(0,BRAVOS.length-1)];}
     else{serieCourante=0;g=GAIN_ESSAI;msg=ENCOURAGE[rnd(0,ENCOURAGE.length-1)];}
     g=crediterDefi(g);etat.xp[mid]=(etat.xp[mid]||0)+(bon?XP_BONNE:XP_ESSAI);sauver();majSolde(true);
@@ -2494,13 +2667,13 @@ function exoOrigines(z){
   const cible=pool[rnd(0,pool.length-1)],bonR=cible.royaume;
   const autres=melange([...new Set(pool.map(c=>c.royaume))].filter(r=>r!==bonR)).slice(0,3);
   const choixR=melange([bonR,...autres]);const lab=r=>ROYAUMES[r].ico+' '+ROYAUMES[r].nom;
-  z.innerHTML=`<button class="defi-retour" onclick="retourPacks()">← Packs</button><div class="quiz-meta">🌍 Origines</div>${blocTheorie(packActif.theorie,packActif.niv)}<div class="races-art"><div class="races-photo">${artNu(cible)}</div></div><div class="races-q">D'où vient ce cheval&nbsp;?</div><div class="quiz-reponses" id="q-reponses"></div><div class="quiz-feedback" id="q-feedback"></div>`;
+  z.innerHTML=`<button class="defi-retour" onclick="retourPacks()">← Packs</button><div class="quiz-meta">🌍 Origines</div>${blocTheorie(theoriePack(packActif),nivLabel(packActif))}<div class="races-art"><div class="races-photo">${artNu(cible)}</div></div><div class="races-q">D'où vient ce cheval&nbsp;?</div><div class="quiz-reponses" id="q-reponses"></div><div class="quiz-feedback" id="q-feedback"></div>`;
   const box=$('#q-reponses');let fini=false;
   choixR.forEach(r=>{const b=document.createElement('button');b.textContent=lab(r);b.onclick=()=>{
     if(fini)return;fini=true;const bon=r===bonR;
     box.querySelectorAll('button').forEach(x=>{x.disabled=true;if(x.textContent===lab(bonR))x.classList.add('bon');});
     if(!bon)b.classList.add('faux');
-    const mid='geo';const s=statMatiere(mid);s.tot++;let g,msg;
+    const mid='geo';const s=statMatiere(mid);s.tot++;const sp=statPack('origines');sp.tot++;if(bon)sp.ok++;let g,msg;
     if(bon){serieCourante++;s.ok++;etat.bonnes++;g=Math.round(GAIN_BONNE*PMULT());msg=BRAVOS[rnd(0,BRAVOS.length-1)];}
     else{serieCourante=0;g=GAIN_ESSAI;msg=cible.nom+" vient de "+ROYAUMES[bonR].nom+".";}
     g=crediterDefi(g);etat.xp[mid]=(etat.xp[mid]||0)+(bon?XP_BONNE:XP_ESSAI);sauver();majSolde(true);
@@ -2551,13 +2724,13 @@ function exoRaces(z){
     cible=races[rnd(0,races.length-1)];question="Quelle est la race de ce cheval ?";bonne=cible.nom;
     const a=melange(races.filter(c=>c.id!==cible.id)).slice(0,3);choix=melange([cible.nom,a[0].nom,a[1].nom,a[2].nom]);theoWrong=cible.desc||'';
   }
-  z.innerHTML=`<button class="defi-retour" onclick="retourPacks()">← Packs</button><div class="quiz-meta">🐴 Chevaux</div>${blocTheorie(packActif.theorie,packActif.niv)}<div class="races-art"><div class="races-photo">${artNu(cible)}</div></div><div class="races-q">${question}</div><div class="quiz-reponses" id="q-reponses"></div><div class="quiz-feedback" id="q-feedback"></div>`;
+  z.innerHTML=`<button class="defi-retour" onclick="retourPacks()">← Packs</button><div class="quiz-meta">🐴 Chevaux</div>${blocTheorie(theoriePack(packActif),nivLabel(packActif))}<div class="races-art"><div class="races-photo">${artNu(cible)}</div></div><div class="races-q">${question}</div><div class="quiz-reponses" id="q-reponses"></div><div class="quiz-feedback" id="q-feedback"></div>`;
   const box=$('#q-reponses');let fini=false;
   choix.forEach(v=>{const b=document.createElement('button');b.textContent=v;b.onclick=()=>{
     if(fini)return;fini=true;const bon=v===bonne;
     box.querySelectorAll('button').forEach(x=>{x.disabled=true;if(x.textContent===bonne)x.classList.add('bon');});
     if(!bon)b.classList.add('faux');
-    const mid='sciences';const s=statMatiere(mid);s.tot++;let g,msg;
+    const mid='sciences';const s=statMatiere(mid);s.tot++;const sp=statPack('races');sp.tot++;if(bon)sp.ok++;let g,msg;
     if(bon){serieCourante++;s.ok++;etat.bonnes++;g=Math.round(GAIN_BONNE*PMULT());msg=BRAVOS[rnd(0,BRAVOS.length-1)];}
     else{serieCourante=0;g=GAIN_ESSAI;msg="C'était : <b>"+bonne+"</b>";}
     g=crediterDefi(g);etat.xp[mid]=(etat.xp[mid]||0)+(bon?XP_BONNE:XP_ESSAI);sauver();majSolde(true);
@@ -2566,11 +2739,11 @@ function exoRaces(z){
 }
 function exoOrtho(z){
   const bank=packBank('ortho'),it=choisirQ('ortho',bank);const T=ORTHO_T[it.t]||{i:'✏️',n:'Écris'};
-  z.innerHTML=`<button class="defi-retour" onclick="retourPacks()">← Packs</button><div class="quiz-meta">✍️ Orthographe · ${packActif.niv}</div>${blocTheorie(packActif.theorie,packActif.niv)}<div class="ortho-type">${T.i} ${T.n}</div><div class="ortho-indice">${it.q}</div><input class="ortho-input" id="ortho-in" type="text" inputmode="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="tape ici…"><button class="ae-btn" id="ortho-ok" style="display:block;width:100%">Valider</button><div class="quiz-feedback" id="q-feedback"></div>`;
+  z.innerHTML=`<button class="defi-retour" onclick="retourPacks()">← Packs</button><div class="quiz-meta">✍️ Orthographe · ${packActif.niv}</div>${blocTheorie(theoriePack(packActif),nivLabel(packActif))}<div class="ortho-type">${T.i} ${T.n}</div><div class="ortho-indice">${it.q}</div><input class="ortho-input" id="ortho-in" type="text" inputmode="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="tape ici…"><button class="ae-btn" id="ortho-ok" style="display:block;width:100%">Valider</button><div class="quiz-feedback" id="q-feedback"></div>`;
   const inp=$('#ortho-in');setTimeout(()=>{try{inp.focus();}catch(e){}},120);let fini=false;
   const valider=()=>{
     if(fini)return;const rep=(inp.value||'').trim();if(!rep)return;fini=true;inp.disabled=true;
-    const bon=norm(rep)===norm(it.r);if(bon)maitriser('ortho',it.r);const mid='francais';const s=statMatiere(mid);s.tot++;let g,msg;
+    const bon=norm(rep)===norm(it.r);if(bon)maitriser('ortho',it.r);const mid='francais';const s=statMatiere(mid);s.tot++;const sp=statPack('ortho');sp.tot++;if(bon)sp.ok++;let g,msg;
     if(bon){serieCourante++;s.ok++;etat.bonnes++;g=Math.round(GAIN_BONNE*PMULT());msg="Parfait, sans faute ! ✍️";}
     else{serieCourante=0;g=GAIN_ESSAI;msg="On écrit : <b>"+it.r+"</b>";}
     g=crediterDefi(g);etat.xp[mid]=(etat.xp[mid]||0)+(bon?XP_BONNE:XP_ESSAI);sauver();majSolde(true);
@@ -2599,7 +2772,7 @@ function menuDefis(){
   packActif=null;
   $('#defi-zone').innerHTML='';$('#defi-menu').style.display='block';
   const box=$('#defi-cartes');box.innerHTML='';box.classList.add('packs-grille');
-  PACKS.forEach(p=>{const b=document.createElement('button');b.className='defi-carte pack-carte';const pr=progPack(p.id);let prog='';if(pr){prog=pr.fini?'<span class="pk-fini">🏆 Maîtrisé</span>':'<div class="pk-bar"><i style="width:'+Math.round(pr.done/pr.total*100)+'%"></i></div>';}b.innerHTML='<span class="dc-ico">'+p.ico+'</span><span class="dc-nom">'+p.nom+'</span><span class="dc-sous">'+p.sous+'</span>'+prog;b.onclick=()=>lancerPack(p);box.appendChild(b);});
+  PACKS.forEach(p=>{const cat=p.id==='general'?'principal':p.id==='general1'?'difficile':(PACK_NIVEAUX[p.id]?'maitrise':'infini');const TAG={principal:'⭐ Principal',difficile:'🔥 Difficile',maitrise:'🎯 À maîtriser',infini:'♾️ Infini'}[cat];const b=document.createElement('button');b.className='defi-carte pack-carte pk-cat-'+cat;const pr=progPack(p.id);let prog='';if(pr){const nbNiv=(PACK_NIVEAUX[p.id]?PACK_NIVEAUX[p.id]().length:1);const nivTxt=nbNiv>1?'<span class="pk-niv">Niveau '+pr.niv+' / '+nbNiv+'</span>':'';const fini=pr.fini&&pr.niv>=nbNiv;prog=nivTxt+(fini?'<span class="pk-fini">🏆 Tout maîtrisé</span>':'<div class="pk-bar"><i style="width:'+Math.round(pr.done/pr.total*100)+'%"></i></div>');}b.innerHTML='<span class="pk-tag">'+TAG+'</span><span class="dc-ico">'+p.ico+'</span><span class="dc-nom">'+p.nom+'</span><span class="dc-sous">'+p.sous+'</span>'+prog;b.onclick=()=>lancerPack(p);box.appendChild(b);});
   $('#defi-sous').textContent=`🔥 Jour ${etat.serieJours||0} · série de ${serieCourante}`;
 }
 function lancerDefiChoix(ch){
@@ -2624,7 +2797,7 @@ function defiExercice(z){
   let m,act,tries=0;
   do{m=pond[rnd(0,pond.length-1)];const acts=m.activites.filter(dansNiveau);act=acts.length?acts[rnd(0,acts.length-1)]:m.activites[rnd(0,m.activites.length-1)];qCour=act.gen(m.id==='maths'?diffMaths():1);tries++;}while(recentQ.includes(qCour.q)&&tries<6);
   recentQ.push(qCour.q);if(recentQ.length>10)recentQ.shift();matSource=m;
-  z.innerHTML=`<button class="defi-retour" onclick="retourPacks()">← Packs</button><div class="quiz-meta">${m.ico} ${m.nom} · ${act.nom}${(packActif&&packActif.nivOffset)?' 🔥':''}</div>${blocTheorie(packActif&&packActif.theorie,packActif&&packActif.niv)}<div class="quiz-carte"><div class="quiz-question${qCour.q.length<=9?' court':''}" id="q-question"></div><div class="quiz-reponses" id="q-reponses"></div></div><div class="quiz-feedback" id="q-feedback"></div>`;
+  z.innerHTML=`<button class="defi-retour" onclick="retourPacks()">← Packs</button><div class="quiz-meta">${m.ico} ${m.nom} · ${act.nom}${(packActif&&packActif.nivOffset)?' 🔥':''}</div>${blocTheorie(theoriePack(packActif),nivLabel(packActif))}<div class="quiz-carte"><div class="quiz-question${qCour.q.length<=9?' court':''}" id="q-question"></div><div class="quiz-reponses" id="q-reponses"></div></div><div class="quiz-feedback" id="q-feedback"></div>`;
   $('#q-question').textContent=qCour.q;if(qCour.graph||qCour.schema)$('#q-question').insertAdjacentHTML('beforebegin',visuelQ(qCour));
   const box=$('#q-reponses');qCour.choix.forEach(v=>{const b=document.createElement('button');b.textContent=v;b.onclick=()=>repondre(b,v);box.appendChild(b);});
   quizVerrou=false;
@@ -2644,7 +2817,7 @@ function repondre(btn,val){
 
 /* ---- MINI-JEUX : un tour puis « Continuer ». Ajouter un jeu =
    une fonction lancer(zone, onDone) + une entrée dans JEUX. ---- */
-function gainJeu(n){etat.crins+=n;sauver();majSolde(n>0);return n;}
+function gainJeu(n){etat.crins+=n;sauver();majSolde(n>0);if(typeof montrerGainAnim==='function')montrerGainAnim(n);return n;}
 function continuer(z,onDone){const c=document.createElement('button');c.className='defi-continuer';c.textContent='Continuer ›';c.onclick=onDone;z.appendChild(c);}
 const PFC_EMO={pierre:'🪨',feuille:'📄',ciseaux:'✂️'},PFC_BAT={pierre:'ciseaux',feuille:'pierre',ciseaux:'feuille'},PFC_LISTE=['pierre','feuille','ciseaux'];
 function jeuPFC(z,onDone){
@@ -2672,9 +2845,11 @@ const JEUX=[{id:'pfc',lancer:jeuPFC},{id:'prefere',lancer:jeuPrefere}];
 
 /* 11. SCORES */
 function renderScores(){
-  const box=$('#scores-matieres');box.innerHTML='';
-  matieresDispo().forEach(m=>{const xp=etat.xp[m.id]||0,s=statMatiere(m.id);const el=document.createElement('div');el.className='score-carte';el.innerHTML=`<div class="score-tete"><span class="si">${m.ico}</span><span class="sn">${m.nom}</span><span class="snv" style="color:${m.couleur}">Niveau ${niveauDe(xp)}</span></div><div class="score-bar"><div style="width:${(xp%PAS_XP)/PAS_XP*100}%;background:${m.couleur}"></div></div><div class="score-chiffres"><span>✅ ${s.ok} bonnes réponses</span><span>${s.tot} essais</span></div>`;box.appendChild(el);});
-  $('#scores-resume').innerHTML=`<div class="score-resume"><div class="score-case"><b>${etat.bonnes||0}</b><span>Bonnes réponses</span></div><div class="score-case"><b>${etat.serieJours||0}</b><span>🔥 Jours d'affilée</span></div><div class="score-case"><b>${etat.renommee||0}</b><span>⭐ Renommée</span></div><div class="score-case"><b>${totalEtoiles()}</b><span>⭐ Étoiles</span></div></div>`;
+  const box=$('#scores-matieres');box.innerHTML='<h3 class="scores-sous">Mes matières</h3>';
+  matieresDispo().forEach(m=>{const xp=etat.xp[m.id]||0,s=statMatiere(m.id);const pct=s.tot?Math.round(s.ok/s.tot*100):0;const el=document.createElement('div');el.className='score-carte';el.innerHTML=`<div class="score-tete"><span class="si">${m.ico}</span><span class="sn">${m.nom}</span><span class="snv" style="color:${m.couleur}">Niveau ${niveauDe(xp)}</span></div><div class="score-bar"><div style="width:${(xp%PAS_XP)/PAS_XP*100}%;background:${m.couleur}"></div></div><div class="score-chiffres"><span>✅ ${s.ok}/${s.tot} réussis</span><span>${pct}%</span></div>`;box.appendChild(el);});
+  const pbox=$('#scores-packs');if(pbox){pbox.innerHTML='';const supp=PACKS.filter(p=>p.id!=='general'&&p.id!=='general1');const rows=supp.map(p=>({p,s:statPack(p.id)})).filter(x=>x.s.tot>0);if(rows.length){pbox.innerHTML='<h3 class="scores-sous">Compétences spéciales</h3>';rows.forEach(({p,s})=>{const pct=Math.round(s.ok/s.tot*100);const el=document.createElement('div');el.className='score-pack';el.innerHTML=`<span class="sp-ico">${p.ico}</span><span class="sp-nom">${p.nom}</span><span class="sp-bar"><i style="width:${pct}%"></i></span><span class="sp-val">${s.ok}/${s.tot} · ${pct}%</span>`;pbox.appendChild(el);});}}
+  const fav=Object.entries(etat.chouchous||{}).filter(([id,n])=>n>0&&CARTES.find(c=>c.id===id)).sort((a,b)=>b[1]-a[1])[0];const favC=fav?CARTES.find(c=>c.id===fav[0]):null;
+  $('#scores-resume').innerHTML=`<div class="score-resume"><div class="score-case"><b>${etat.bonnes||0}</b><span>Bonnes réponses</span></div><div class="score-case"><b>${etat.serieJours||0}</b><span>🔥 Jours d'affilée</span></div><div class="score-case"><b>${etat.renommee||0}</b><span>⭐ Renommée</span></div><div class="score-case"><b>${totalEtoiles()}</b><span>⭐ Étoiles</span></div></div>`+(favC?`<div class="score-fav">💖 Cheval préféré : <b>${favC.nom}</b></div>`:'');
 }
 
 /* 12. BONUS QUOTIDIEN (habitude / longévité) */
@@ -2752,7 +2927,9 @@ function formNouveauProfil(){
   $('#np-creer').onclick=()=>{const nom=($('#np-nom').value||'').trim();if(!nom){toast('Choisis un prénom');return;}const age=parseInt($('#np-age').value,10)||8;const id='p'+Date.now().toString(36);const coul=COULEURS_PROFIL[SAVE.profils.length%COULEURS_PROFIL.length];const p=profilVide(id,nom,age,emo,coul);SAVE.profils.push(p);sauver();activerProfil(p);};
 }
 function cartesProfil(p){return CARTES.reduce((s,c)=>s+(((p.etat.collection||{})[c.id]||0)>0?1:0),0);}
+function fondAccueil(){const el=document.getElementById('accueil');if(!el||!CARTES.length)return;const c=CARTES[rnd(0,CARTES.length-1)];el.style.backgroundImage="radial-gradient(1100px 560px at 50% -8%,#3a2f66aa,transparent 55%),linear-gradient(180deg,#1a1636cc,#120f24f2),url(cartes/"+c.id+".jpg)";el.style.backgroundSize="cover";el.style.backgroundPosition="center";}
 function renderAccueil(){
+  fondAccueil();
   if(CLOUD.actif()){renderAccueilCloud();return;}
   const box=$('#acc-liste');box.innerHTML='';$('#acc-form').innerHTML='';
   SAVE.profils.forEach(p=>{
@@ -4749,6 +4926,7 @@ function avSousEtapeStart(){
 }
 function avEcranSuivant(){
   const se=AE.sousEtapes[aeSE];
+  $('#av-etape').classList.remove('rappel');
   if(aeQi>=aeQ.length)return avFinSousEtape();
   const it=aeQ[aeQi++];
   if(it==='narr')return avNarr(se);
@@ -4761,14 +4939,22 @@ function corpsBtn(txt,label,onclick){$('#ae-corps').innerHTML='<div class="ae-bl
 function avNarr(se){bulle(se.narr);corpsBtn('','Continuer ›',avEcranSuivant);}
 function avRappel(){
   const prov=(etat.aventure.prov)||{};const faits={};for(const k in prov)Object.assign(faits,prov[k].faits||{});
-  const cles=Object.keys(faits).filter(k=>{const f=faits[k];return (f&&typeof f==='object'&&f.q)||RAPPEL_Q[k];});
+  const cles=Object.keys(faits).filter(k=>{
+    const f=faits[k];
+    const q=(f&&typeof f==='object'&&f.q)?f.q:RAPPEL_Q[k];
+    const ch=(f&&typeof f==='object'&&f.choix)?f.choix:RAPPEL_CHOIX[k];
+    const bon=(f&&typeof f==='object')?f.r:f;
+    return q&&Array.isArray(ch)&&ch.includes(bon);
+  });
   if(!cles.length)return avEcranSuivant();
   const cle=cles[rnd(0,cles.length-1)],f=faits[cle];
   const q=(f&&typeof f==='object'&&f.q)?f.q:RAPPEL_Q[cle];
   const ch=(f&&typeof f==='object'&&f.choix)?f.choix:RAPPEL_CHOIX[cle];
   const bon=(f&&typeof f==='object')?f.r:f;
-  bulle("Petit rappel éclair… ⚡ (une étape précédente)");
-  avQCM(q,ch,bon,()=>{etat.crins+=6;majSolde(true);sauver();toast('+6 Diamants · bien retenu !');avEcranSuivant();},"Hmm, souviens-toi… réessaie 🙂");
+  bulle("⚡ Rappel éclair — une étape précédente ! Tu t'en souviens ?");
+  $('#av-etape').classList.add('rappel');
+  avQCM(q,ch,bon,avEcranSuivant,"Hmm, souviens-toi… réessaie 🙂");
+  $('#ae-corps').insertAdjacentHTML('afterbegin','<div class="ae-rappel-tag">⚡ RAPPEL ÉCLAIR</div>');
 }
 function avActivite(a){
   if(a.type==='decision')return avDecision(a);
@@ -4788,9 +4974,19 @@ function avActivite(a){
 /* QCM générique : gentle re-ask, appelle onOk si bonne réponse */
 function avRepondre(choix,r,onOk,msgFaux){
   const box=$('#ae-choix');box.innerHTML='';
-  choix.forEach(v=>{const b=document.createElement('button');b.className='ae-rep';b.textContent=v;b.onclick=()=>{
-    if(v===r){box.querySelectorAll('button').forEach(x=>x.disabled=true);b.classList.add('bon');setTimeout(onOk,450);}
-    else{b.classList.add('faux');b.disabled=true;$('#ae-fb').textContent=msgFaux||"Hmm, tu es sûre ? Réfléchis encore…";}
+  const ordre=melange([...choix]);
+  const old=document.getElementById('ae-reward');if(old)old.remove();
+  box.insertAdjacentHTML('beforebegin','<div class="ae-reward" id="ae-reward"><span class="aer-lbl">🎁 Premier coup</span><b class="aer-val">+'+REC_AV1+' 💎</b></div>');
+  let essais=0;
+  const rec=()=>essais===0?REC_AV1:(essais===1?REC_AV2:0);
+  const majRec=()=>{const el=document.getElementById('ae-reward');if(!el)return;const g=rec();el.innerHTML=g>0?('<span class="aer-lbl">'+(essais===0?'🎁 Premier coup':'2ᵉ essai')+'</span><b class="aer-val'+(essais>0?' small':'')+'">+'+g+' 💎</b>'):('<span class="aer-lbl dim">Réponds juste du 1er coup pour gagner des 💎 !</span>');};
+  ordre.forEach(v=>{const b=document.createElement('button');b.className='ae-rep';b.textContent=v;b.onclick=()=>{
+    if(v===r){box.querySelectorAll('button').forEach(x=>x.disabled=true);b.classList.add('bon');
+      const g=rec();const el=document.getElementById('ae-reward');
+      if(g>0){etat.crins+=g;sauver();majSolde(true);if(typeof montrerGainAnim==='function')montrerGainAnim(g);if(el)el.innerHTML='<b class="aer-val win">'+(essais===0?'🌟 Premier coup ! ':'')+'+'+g+' 💎</b>';}
+      else if(el)el.innerHTML='<span class="aer-lbl dim">Bonne réponse (pas de bonus cette fois)</span>';
+      setTimeout(onOk,450);}
+    else{essais++;b.classList.add('faux');b.disabled=true;$('#ae-fb').textContent=msgFaux||"Hmm, tu es sûre ? Réfléchis encore…";majRec();}
   };box.appendChild(b);});
 }
 function avQCM(q,choix,r,onOk,msgFaux){
@@ -4862,7 +5058,7 @@ function avOrtho(a){
   };
   $('#ae-ok').onclick=val;inp.addEventListener('keydown',e=>{if(e.key==='Enter')val();});
 }
-function avDecision(a){bulle("Aide-moi à décider…");avQCM(a.q,a.choix,a.r,()=>{if(a.fait)AVS().faits[a.fait[0]]={r:a.fait[1],q:a.q,choix:a.choix};sauver();avEcranSuivant();});}
+function avDecision(a){bulle("Aide-moi à décider…");avQCM(a.q,a.choix,a.r,()=>{if(a.fait)AVS().faits[a.fait[0]]={r:a.r,q:a.q,choix:a.choix};sauver();avEcranSuivant();});}
 function avCalcul(a){const i=estP5()?1:0;bulle("Un petit calcul du port 🔢");avQCM(Array.isArray(a.q)?a.q[i]:a.q,Array.isArray(a.choix[0])?a.choix[i]:a.choix,Array.isArray(a.r)?a.r[i]:a.r,avEcranSuivant,"Presque… recompte 🙂");}
 function avQuizA(a){bulle("Sciences & nature 🔬");avQCM(a.q,a.choix,a.r,avEcranSuivant,"Pas tout à fait… réessaie 🙂");}
 function avLecture(a){
@@ -4880,9 +5076,28 @@ function acheterHistoire(id,a){
   etat.crins-=prix;ajouterExemplaire(c);majSolde(true);sauver();rendreGrille();toast('🛒 '+c.nom+' rejoint ton écurie !');
   avCompo(a);
 }
+const BONUS_COMPO=12;   // bonus max selon la performance (puissance élevée ou écart minime à la cible)
+/* Objectif clair et explicite (égalité / inégalité) déduit des contraintes de l'activité. */
+function objectifCompo(a,i){
+  const pMin=a.puissanceMin?a.puissanceMin[i]:null;
+  const pMax=a.puissanceMax?a.puissanceMax[i]:null;
+  const cible=a.cible?a.cible[i]:null;
+  const contr=a.contrainte?a.contrainte[i]:null;
+  if(cible!=null)return'🎯 Objectif : Puissance totale <b>la plus proche possible de '+cible+'</b>';
+  if(pMin!=null)return'💪 Objectif : Puissance totale <b>au moins '+pMin+'</b> (≥ '+pMin+') — vise le plus haut pour un plus gros bonus !';
+  if(pMax!=null)return'🪶 Objectif : Puissance totale <b>au plus '+pMax+'</b> (≤ '+pMax+')';
+  if(contr==='pair')return'🔢 Objectif : Puissance totale <b>paire</b>';
+  if(contr==='max250')return'🪶 Objectif : Puissance totale <b>au plus 250</b> (≤ 250)';
+  if(a.robesDistinctes)return'🎨 Objectif : '+a.slots.length+' robes <b>toutes différentes</b>';
+  if(a.royaumesDistincts)return'🌍 Objectif : '+a.slots.length+' origines <b>toutes différentes</b>';
+  if(a.royaumeUnique)return'🏴 Objectif : tous les chevaux du <b>même royaume</b>';
+  return null;
+}
 function avCompo(a){
   const i=estP5()?1:0;
   const consigne=Array.isArray(a.consigne)?a.consigne[i]:a.consigne;
+  const objectif=objectifCompo(a,i);
+  const consHTML='<div class="ae-consigne">'+consigne+'</div>'+(objectif?'<div class="ae-objectif">'+objectif+'</div>':'');
   const pMin=a.puissanceMin?a.puissanceMin[i]:null;
   const contr=a.contrainte?a.contrainte[i]:null;
   const cible=a.cible?a.cible[i]:null;const TOL=12;
@@ -4904,18 +5119,18 @@ function avCompo(a){
     const buyIds=[...new Set(manque.flatMap(s=>Array.isArray(s.buy)?s.buy:(s.buy?[s.buy]:[])))].slice(0,8);
     let boutique='';
     if(buyIds.length){boutique='<div class="ae-boutit">🛒 Achète les chevaux qu\'il te manque :</div>';buyIds.forEach(id=>{const c=CARTES.find(x=>x.id===id);if(!c)return;const prix=PRIX_ACHAT[c.rarete]||300;boutique+='<button class="ae-btn ae-buy" data-buy="'+id+'"><span class="tc-box ratio ae-buyvig">'+carteHTML(c,etat.collection[c.id]||0)+'</span>'+c.nom+'<br>'+prix+' 💎</button>';});}
-    corps.innerHTML='<div class="ae-consigne">'+consigne+'</div><div class="ae-manque">🔑 Il te manque des chevaux pour cette mission.'+(buyIds.length?'<br>Achète-les ici, ou gagne-les aux <b>Défis</b>.':'<br>File aux <b>Défis</b> gagner de nouvelles cartes !')+'</div>'+boutique+'<button class="ae-lien" id="ae-defis">→ Aller aux Défis</button><button class="ae-lien" id="ae-later">Retour à la carte</button>';
+    corps.innerHTML=consHTML+'<div class="ae-manque">🔑 Il te manque des chevaux pour cette mission.'+(buyIds.length?'<br>Achète-les ici, ou gagne-les aux <b>Défis</b>.':'<br>File aux <b>Défis</b> gagner de nouvelles cartes !')+'</div>'+boutique+'<button class="ae-lien" id="ae-defis">→ Aller aux Défis</button><button class="ae-lien" id="ae-later">Retour à la carte</button>';
     $$('#ae-corps .ae-buy').forEach(b=>b.onclick=()=>acheterHistoire(b.dataset.buy,a));
     $('#ae-defis').onclick=()=>{avFermerEtape();switchEcran('revisions');};$('#ae-later').onclick=avFermerEtape;return;
   }
-  corps.innerHTML='<div class="ae-cotop"><div class="ae-consigne">'+consigne+'</div><div class="ae-slots" id="ae-slots"></div><div class="ae-fb" id="ae-fb"></div><button class="ae-btn" id="ae-valider">Valider l\'équipe</button></div><div class="ae-poolt">Tes chevaux :</div><div class="ae-pool" id="ae-pool"></div>';
+  corps.innerHTML='<div class="ae-cotop">'+consHTML+'<div class="ae-slots" id="ae-slots"></div><div class="ae-fb" id="ae-fb"></div><button class="ae-btn" id="ae-valider">Valider l\'équipe</button></div><div class="ae-poolt">Tes chevaux :</div><div class="ae-pool" id="ae-pool"></div>';
   function puiss(){return aeSlots.reduce((s,x)=>s+(x.card?statDe(x.card,'force'):0),0);}
   function nbUsed(id){return aeSlots.filter(x=>x.card&&x.card.id===id).length;}
   function used(id){const c=utile.find(x=>x.id===id);const ex=c?(etat.collection[id]||0):0;return nbUsed(id)>=ex;}
-  function renderSlots(){$('#ae-slots').innerHTML=aeSlots.map((s,k)=>s.card?'<div class="ae-slot plein" data-k="'+k+'"><div class="tc-box ratio ae-mini">'+carteHTML(s.card,etat.collection[s.card.id]||1)+'</div><span>'+s.card.nom+'</span></div>':'<div class="ae-slot vide" data-k="'+k+'"><span class="ae-plus">+</span><span>'+s.label+'</span></div>').join('');
+  function renderSlots(){$('#ae-slots').innerHTML=aeSlots.map((s,k)=>s.card?'<div class="ae-slot plein" data-k="'+k+'"><div class="tc-box ratio ae-mini">'+carteHTML(s.card,etat.collection[s.card.id]||1)+'<span class="ae-puiss mini">💪 '+statDe(s.card,'force')+'</span></div><span>'+s.card.nom+'</span></div>':'<div class="ae-slot vide" data-k="'+k+'"><span class="ae-plus">+</span><span>'+s.label+'</span></div>').join('');
     $('#ae-slots').querySelectorAll('.ae-slot.plein').forEach(el=>el.onclick=()=>{aeSlots[+el.dataset.k].card=null;renderAll();});
-    const p=puiss();$('#ae-fb').innerHTML=cible!=null?('🎯 Cible : <b>'+cible+'</b> · ton équipe : <b>'+p+'</b> (écart '+Math.abs(p-cible)+')'):(pMin!=null?('Puissance : <b>'+p+'</b> / '+pMin):(contr?('Puissance : <b>'+p+'</b>'):''));}
-  function renderPool(){$('#ae-pool').innerHTML=utile.map(c=>'<div class="tc-box ratio ae-pcard'+(used(c.id)?' pris':'')+'" data-id="'+c.id+'">'+carteHTML(c,etat.collection[c.id]||1)+'</div>').join('');
+    const p=puiss();const pMax=a.puissanceMax?a.puissanceMax[i]:null;$('#ae-fb').innerHTML=cible!=null?('🎯 Cible <b>'+cible+'</b> · ton équipe <b>'+p+'</b> · écart <b>'+Math.abs(p-cible)+'</b>'):(pMin!=null?('💪 Puissance <b>'+p+'</b> · minimum '+pMin+' '+(p>=pMin?'✅':'⛔ (pas encore)')):(pMax!=null?('🪶 Puissance <b>'+p+'</b> · maximum '+pMax+' '+(p<=pMax?'✅':'⛔ (trop lourde)')):(contr?('Puissance <b>'+p+'</b>'):'')));}
+  function renderPool(){$('#ae-pool').innerHTML=utile.map(c=>'<div class="tc-box ratio ae-pcard'+(used(c.id)?' pris':'')+'" data-id="'+c.id+'">'+carteHTML(c,etat.collection[c.id]||1)+'<span class="ae-puiss">💪 '+statDe(c,'force')+'</span></div>').join('');
     $('#ae-pool').querySelectorAll('.ae-pcard').forEach(el=>el.onclick=()=>{if(el.classList.contains('pris'))return;const c=utile.find(x=>x.id===el.dataset.id);const slot=aeSlots.find(s=>!s.card&&s.m(c));if(!slot){toast('Aucune place pour ce cheval ici');return;}slot.card=c;renderAll();});}
   function renderAll(){renderSlots();renderPool();}
   renderAll();
@@ -4930,7 +5145,7 @@ function avCompo(a){
     if(a.royaumesDistincts){const rs=aeSlots.map(s=>s.card&&s.card.royaume).filter(Boolean);if(new Set(rs).size<rs.length){$('#ae-fb').textContent='Deux chevaux du même royaume ! Choisis des origines différentes 🌍';return;}}
     if(a.royaumeUnique){const rs=aeSlots.map(s=>s.card&&s.card.royaume).filter(Boolean);if(new Set(rs).size>1){$('#ae-fb').textContent='Ce ne sont pas tous du même clan (même royaume) ! 🏴';return;}}
     if(a.robesDistinctes){const rb=aeSlots.map(s=>s.card&&ROBES[s.card.id]).filter(Boolean);if(rb.length<aeSlots.length){$('#ae-fb').textContent='Chaque cheval doit avoir une robe connue (choisis des chevaux colorés).';return;}if(new Set(rb).size<rb.length){$('#ae-fb').textContent='Deux chevaux ont la même couleur ! Le cortège doit être bien coloré 🎨';return;}}
-    etat.crins+=8;majSolde(true);sauver();toast('Belle équipe ! +6 Diamants');avEcranSuivant();
+    let bonus=0,note='Belle équipe !';if(cible!=null){const gap=Math.abs(p-cible);bonus=Math.max(0,Math.round((TOL-gap)/TOL*BONUS_COMPO));note=gap===0?'🎯 Pile dans le mille !':(gap<=3?'🎯 Tout proche !':'Bien visé !');}else if(pMin!=null){bonus=Math.min(BONUS_COMPO,Math.max(0,Math.round((p-pMin)/2)));note=bonus>=BONUS_COMPO?'💪 Équipe surpuissante !':(bonus>0?'💪 Belle puissance !':'Pile ce qu\'il faut.');}const gain=8+bonus;etat.crins+=gain;majSolde(true);sauver();if(typeof montrerGainAnim==='function')montrerGainAnim(gain);toast(note+' +'+gain+' 💎');avEcranSuivant();
   };
 }
 function avRecompense(se){
