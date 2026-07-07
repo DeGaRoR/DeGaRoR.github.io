@@ -3,6 +3,108 @@
 Convention : `VERSION_APP` (index.html) = `ecurie-vNN` (sw.js), incrémentés à CHAQUE livraison
 (invalidation du cache PWA). QC : `node tools/qc.js` avant chaque livraison.
 
+## v97 — Distinction visuelle claire des niveaux sur la carte
+- Les **coins** de la carte évoluent désormais palier par palier : de plus en plus grands, épais et
+  lumineux du niveau 2 au 4, puis **dorés au niveau 5 (Mythe)** avec un halo. Repère du niveau
+  lisible d'un coup d'œil, directement sur la carte.
+- Le **badge de titre** (Éveil→Mythe) s'affine par palier et devient un **badge doré au niveau max**.
+- Trois repères en couches, sans surcharge : étoiles = compte exact · coins = niveau au coup d'œil ·
+  badge doré = palier maximum. (Aucun impact sur le gameplay ni sur le rendu des navigateurs récents.)
+## v96 — Compatibilité navigateurs anciens (vieux téléphone ~2019)
+- **JS** : suppression des syntaxes trop récentes qui empêchaient le script de tourner sur un
+  navigateur de 2019 — `??` (nullish, Chrome 80) et `.flatMap` remplacés par des équivalents
+  compatibles. `AbortController` (timeout cloud) rendu optionnel pour permettre la connexion.
+- **CSS** : les cartes s'affichent à nouveau sur vieux navigateur —
+  · `inset:0` → longhand `top/right/bottom/left` (Chrome 87) ;
+  · repli `@supports` padding-hack pour `aspect-ratio` (Chrome 88) → les cartes ont une hauteur,
+    donc les images se chargent ;
+  · repli `@supports` en pixels fixes pour les unités `cqw` / container queries (Chrome 105) →
+    rayons, badges et textes des cartes restent nets.
+- Les effets purement cosmétiques (color-mix, backdrop-filter, gap flex) se dégradent proprement
+  sans casser l'utilisation. La grille utilise `grid-gap` (supporté), donc l'espacement reste bon.
+## v95 — CORRECTIF CRITIQUE : mise en page cassée (cartes invisibles, nav qui défile)
+- Le shell de l'app n'était pas blindé : `main` (flex) pouvait déborder au lieu de scroller en
+  interne, ce qui poussait la barre du bas hors de l'écran et rendait la grille de cartes
+  inatteignable (le body est en overflow:hidden). Corrigé par le motif canonique :
+  `#app{overflow:hidden}` (reste exactement à 100dvh, barre du bas toujours épinglée) +
+  `main{min-height:0}` (scrolle en interne). Les fonds plein écran (#fond-ecran) restent en place,
+  derrière l'interface.
+## v94 — Chevaux de légende établis inclus, chevaux inventés exclus
+- **Nouvelle catégorie « légende »** : les créatures issues de la vraie mythologie et du folklore
+  (Pégase, Sleipnir, Qilin, Longma, Hippalectryon, Hippogriffe, Centaure, Licorne, Kelpie, cheval de
+  Troie, les chevaux d'Achille, de Roland, du Bouddha, de l'Apocalypse…) — 30 au total — sont
+  désormais **incluses** dans le pack Chevaux, avec des questions et des fiches explicatives.
+- **Fiches** : 10 fiches riches écrites à la main (Pégase, Sleipnir, Qilin, Hippalectryon, Longma,
+  Hippogriffe, Centaure, Licorne, Kelpie, cheval de Troie) + fiche automatique (nom + origine + fait)
+  pour les autres légendes, accessibles depuis le feedback et la galerie Théorie (2 sections).
+- **Chevaux inventés pour le jeu exclus partout** : cheval champignon, chevaux de groupes K-pop,
+  cyberpunk, licornes-variantes, robots, plantes, gourmands… hors du pack Chevaux ET du pack Origines
+  (y compris ceux qui portaient un pays réel).
+- catCheval : race / histoire / légende / inventé — extensible pour repérer les futurs ajouts.
+## v93 — Monuments des étapes alignés sur les vrais repères
+- Revue de tous les `reveal` d'aventure contre les monuments corrects. Corrections :
+  · Belgique : Anvers → cathédrale Notre-Dame (Grote Markt) ; Hasselt → cathédrale Saint-Quentin ;
+    Wavre → église Saint-Jean-Baptiste ; Arlon → église Saint-Donat. (Les 6 autres nommaient déjà
+    le bon monument : Gravensteen, beffroi de Bruges, hôtel de ville gothique de Louvain,
+    Grand-Place/beffroi de Mons, citadelle de Namur, Montagne de Bueren.)
+  · Portugal/Espagne : Compostelle → cathédrale baroque ; Lisbonne → tramways jaunes & tour de Belém.
+  · France et Allemagne/Pays-Bas : déjà cohérents avec les repères.
+## v92 — Pack Chevaux : races + histoire uniquement, fiches historiques
+- **Le pack « Connaissance des chevaux » ne porte plus que sur de vraies races et des chevaux de
+  l'Histoire** (68 cartes : 42 races + 26 historiques). Toutes les créatures fantasy/mythologiques
+  (licorne, Pégase, Sleipnir, hippocampe…) et les chevaux fantaisistes sont exclus du quiz.
+- **Catégorisation** race / histoire / fantasy (`catCheval`, set `HISTORIQUES`) — permet de repérer
+  et distinguer proprement les chevaux historiques des chevaux fantasy, et d'en ajouter facilement.
+- **Fiches historiques** : 7 chevaux réels célèbres (Bucéphale, Secretariat, Frankel, Man o' War,
+  Phar Lap, Seabiscuit, Zenyatta) ont un **écran dédié** avec leur image en entier et 2-3 courts
+  paragraphes sur leur véritable histoire.
+- **Lien vers la fiche** proposé dans le feedback d'une question (« 📖 Découvrir son histoire »), et
+  **galerie** de tous les chevaux historiques dans l'onglet Théorie du pack.
+## v91 — Bonne image pour Pieter-Jan dans l'intro d'aventure
+- L'écran d'intro de l'aventure (« moi c'est Pieter-Jan, ton cheval-guide ») affichait un Brabançon
+  brun générique (av_enfant.jpg). Il utilise maintenant la vraie carte de **Pieter-Jan (gris pommelé)**.
+  Le tuto d'accueil et l'intro Belgique utilisaient déjà la bonne image.
+## v90 — Étapes d'aventure terminées marquées (✓ vert)
+- Sur la carte d'aventure, une étape terminée s'affiche désormais avec une **pastille verte et un ✓
+  blanc** (statique), bien distincte des étapes disponibles (or, pulsantes) et verrouillées (grises).
+  Elles restent cliquables pour être rejouées.
+## v89 — Récap de séance + comptage du temps fiabilisé + création de profil protégée
+- **Récap de séance** à la fin du temps : temps joué, exercices faits, bonnes réponses, tirages,
+  nouvelles cartes (calculés par delta depuis le début de la séance). Adoucit encore la coupure.
+- **Comptage du temps rendu rigoureux** : le chrono ne compte que le temps réellement actif à
+  l'écran. Il se met en pause sur `visibilitychange`, `pagehide` et `freeze` (app minimisée, écran
+  éteint, fermeture, gel PWA), ignore les sauts anormaux (mise en veille) et ne recompte jamais le
+  temps d'arrière-plan. Vérification toutes les 10 s. Conservateur : jamais de surcomptage.
+- **Création d'une nouvelle écurie protégée par le code parent** — empêche de contourner la limite
+  en se créant un nouveau profil.
+## v88 — Fonds plein écran + message de pause chaleureux
+- **Fonds d'écran plein écran** : les décors des menus étaient encadrés (posés dans la zone de contenu
+  avec marge) et trop sombres. Ils passent sur un vrai calque fixe couvrant tout l'écran, derrière
+  l'interface, avec un voile **deux fois plus clair** (dégradé : léger au centre pour voir la carte,
+  un peu plus dense derrière le header/nav pour la lisibilité). Login aussi éclairci.
+- **Message de fin de temps adouci** : au lieu d'un simple « terminé », un écran chaleureux
+  « C'est l'heure de la pause 🌙 » qui **félicite l'enfant** pour ce qu'il a accompli aujourd'hui
+  (bonnes réponses et cartes gagnées) + un message d'encouragement varié.
+## v87 — Espace parent : contrôle du temps de jeu & suivi des progrès
+- **Compte parent obligatoire à la création d'une famille** : message clair « un adulte doit créer
+  ce compte », code parent à 4 chiffres (haché), distinct des codes enfants.
+- **Bouton « 👨‍👩‍👧 Espace parent »** sur l'écran de login familial, protégé par le code parent.
+- **Limites de temps par enfant** : minutes/jour distinctes semaine et week-end, activables par enfant.
+  À la limite atteinte → écran « Temps de jeu terminé » et retour au login. Le chrono se met en pause
+  quand l'app passe en arrière-plan (pas de comptage fantôme).
+- **Suivi des progrès par enfant** sur 3 périodes (aujourd'hui / 7 jours / 30 jours) : temps de jeu,
+  nombre de sessions, bonnes réponses gagnées, cartes gagnées, étoiles gagnées, série de jours, et
+  taux de réussite par matière (cumulé). Barre de temps du jour en direct.
+- Réglages et temps stockés localement par appareil (contrôle parental propre à la tablette).
+## v86 — Sync hors ligne fiabilisée + feedback clair
+- **Fusion d'état complétée (anti-perte)** : à la reconnexion, la fusion local ↔ cloud couvre
+  désormais TOUS les progrès — célestes/jalons, maîtrise des packs (packprog), stats par matière et
+  par pack, favoris, dates d'acquisition, pity, et l'aventure de tous les pays (pas seulement la
+  Belgique). Une session jouée hors ligne ne peut plus être écrasée par un ancien état serveur.
+- **Feedback synchro clair** : le point de synchro distingue ☁️ synchronisé · 🔄 en cours ·
+  📴 hors ligne (sauvegardé localement, synchro au retour) · ⚠️ erreur réelle. Un appui force un envoi.
+- **Envoi renforcé** : synchro déclenchée au retour du réseau (online) ET quand l'app passe en
+  arrière-plan (avant fermeture) — réduit la fenêtre non synchronisée.
 ## v85 — Correctif : badges de carte passant sous la zone fixe (composition d'équipe)
 - Les badges 💪 puissance et ×N copies du pool passaient par-dessus l'en-tête fixe (consigne,
   objectif, emplacements, bouton Valider) en défilant. L'en-tête est remonté au-dessus des badges

@@ -26,10 +26,11 @@ html,body{height:100%;}
 body{font-family:'Nunito',system-ui,-apple-system,sans-serif;color:var(--txt);
   background:radial-gradient(1100px 560px at 18% -8%,#3a2f66 0,transparent 55%),radial-gradient(900px 480px at 105% 8%,#4a2a58 0,transparent 52%),linear-gradient(180deg,var(--nuit-1),var(--nuit-0));
   background-attachment:fixed;overflow:hidden;-webkit-font-smoothing:antialiased;}
-body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.7;
+body::before{content:"";position:fixed;top:0;right:0;bottom:0;left:0;pointer-events:none;z-index:0;opacity:.7;
   background-image:radial-gradient(1.5px 1.5px at 15% 22%,#fff8,transparent),radial-gradient(1.5px 1.5px at 78% 15%,#fff6,transparent),radial-gradient(1px 1px at 45% 8%,#fff7,transparent),radial-gradient(1px 1px at 88% 34%,#fff5,transparent),radial-gradient(1.5px 1.5px at 30% 40%,#fff4,transparent),radial-gradient(1px 1px at 62% 28%,#fff6,transparent);}
 .titre,h1,h2,h3{font-family:'Fredoka',system-ui,sans-serif;font-weight:600;}
-#app{position:relative;z-index:1;height:100vh;height:100dvh;display:flex;flex-direction:column;max-width:520px;margin:0 auto;}
+#app{position:relative;z-index:1;height:100vh;height:100dvh;display:flex;flex-direction:column;max-width:520px;margin:0 auto;overflow:hidden;}
+#fond-ecran{position:fixed;top:0;right:0;bottom:0;left:0;z-index:0;background-size:cover;background-position:center;background-repeat:no-repeat;transition:opacity .35s ease;pointer-events:none;}
 
 header{padding:14px 16px 8px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-shrink:0;}
 .solde{display:flex;align-items:center;gap:7px;background:linear-gradient(180deg,#332a1a,#221b10);border:1px solid #6b531f;padding:7px 13px;border-radius:999px;box-shadow:0 3px 12px #0006,inset 0 1px 0 #ffffff14;}
@@ -43,7 +44,7 @@ header{padding:14px 16px 8px;display:flex;align-items:center;justify-content:spa
 .progress-fill{height:100%;width:0;border-radius:999px;background:linear-gradient(90deg,#4aa3df,#a672e0,var(--or));transition:width .5s cubic-bezier(.2,.8,.2,1);}
 .progress-txt{font-size:11.5px;color:var(--txt-doux);margin-top:5px;text-align:center;letter-spacing:.3px;}
 
-main{flex:1;overflow-y:auto;overflow-x:hidden;padding:6px 16px 22px;-webkit-overflow-scrolling:touch;}
+main{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;padding:6px 16px 22px;-webkit-overflow-scrolling:touch;}
 .ecran{display:none;animation:fade .25s ease;}
 .ecran.actif{display:block;}
 @keyframes fade{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
@@ -60,7 +61,28 @@ nav.tabs button.actif::before{content:"";position:absolute;top:0;width:34px;heig
 /* ===== CARTE (identique v0.2) ===== */
 .tc-box{container-type:inline-size;position:relative;}
 .tc-box.ratio{aspect-ratio:var(--ratio-carte);}
-.tcarte{position:absolute;inset:0;border-radius:5cqw;overflow:hidden;--rc:#b9c4d0;--rc-soft:#8b9db0;--fg:linear-gradient(140deg,#eef3f8,#8a95a2 42%,#c3ccd6 68%,#6f7a86);box-shadow:0 6px 18px #0008;transition:transform .15s;}
+/* Repli pour navigateurs anciens (sans aspect-ratio, Chrome <88) : hauteur via padding.
+   Le contenu des cartes est en position:absolute, donc il remplit correctement. */
+@supports not (aspect-ratio: 1 / 1){
+  .tc-box.ratio,.reveal-flip,.races-photo,.dos,.tuto-c{height:0;padding-bottom:158.5%;}
+  .ae-reveal-img{height:0;padding-bottom:133.3%;}
+  .defi-carte{min-height:150px;}
+  .tg-item img{height:auto;}
+}
+/* Repli pour navigateurs sans container queries (Chrome <105) : les unités cqw sont ignorées,
+   on donne des valeurs fixes calibrées pour la grille pour que les cartes restent nettes. */
+@supports not (container-type: inline-size){
+  .tcarte{border-radius:9px;}
+  .tc-frame{padding:2.5px;}
+  .tc-top{padding:9px 9px 0;gap:6px;}
+  .tc-bottom{padding:0 9px 9px;}
+  .tc-stars{font-size:11px;gap:1px;}
+  .tc-nom{font-size:15px;}
+  .tc-rar{font-size:8px;letter-spacing:.5px;margin-top:2px;}
+  .tc-meta{font-size:9px;margin-top:2px;letter-spacing:.4px;}
+  .tc-nb{bottom:6px;right:6px;font-size:17px;padding:2px 8px;}
+}
+.tcarte{position:absolute;top:0;right:0;bottom:0;left:0;border-radius:5cqw;overflow:hidden;--rc:#b9c4d0;--rc-soft:#8b9db0;--fg:linear-gradient(140deg,#eef3f8,#8a95a2 42%,#c3ccd6 68%,#6f7a86);box-shadow:0 6px 18px #0008;transition:transform .15s;}
 .tc-box:active .tcarte{transform:scale(.97);}
 .tcarte[data-r="commune"]{--rc:#c4cdd8;--rc-soft:#8b9db0;--fg:linear-gradient(140deg,#eef3f8,#8a95a2 42%,#c3ccd6 68%,#6f7a86);}
 .tcarte[data-r="rare"]{--rc:#7ec2ff;--rc-soft:#4aa3df;--fg:linear-gradient(140deg,#dff1ff,#2f7fc4 42%,#bfe4ff 68%,#1f5f9c);}
@@ -71,21 +93,28 @@ nav.tabs button.actif::before{content:"";position:absolute;top:0;width:34px;heig
 .tcarte[data-r="celeste"] .tc-frame{padding:2.6cqw;animation:spin 2.6s linear infinite,celesteBlink 1.1s ease-in-out infinite;}
 @keyframes celesteAura{0%,100%{box-shadow:0 0 10px 0 #ffe9a877;}50%{box-shadow:0 0 20px 3px #ffffffcc,0 0 40px 9px #ffd23baa;}}
 @keyframes celesteBlink{0%,100%{filter:brightness(1);}50%{filter:brightness(1.8) saturate(1.3);}}
-.tc-art{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:38cqw;line-height:1;background:radial-gradient(120% 100% at 50% 32%,color-mix(in srgb,var(--rc) 26%,#141127),#100d20 78%);}
+.tc-art{position:absolute;top:0;right:0;bottom:0;left:0;display:flex;align-items:center;justify-content:center;font-size:38cqw;line-height:1;background:radial-gradient(120% 100% at 50% 32%,color-mix(in srgb,var(--rc) 26%,#141127),#100d20 78%);}
 .tc-art img{width:100%;height:100%;object-fit:cover;display:block;}
 .tc-scrim-top{position:absolute;top:0;left:0;right:0;height:34cqw;background:linear-gradient(180deg,#0b0918d9,transparent);pointer-events:none;}
 .tc-scrim-bot{position:absolute;bottom:0;left:0;right:0;height:46cqw;background:linear-gradient(0deg,#0b0918f2 8%,#0b091899 46%,transparent);pointer-events:none;}
-.tc-frame{position:absolute;inset:0;border-radius:inherit;padding:1.9cqw;background:var(--fg);pointer-events:none;-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;box-shadow:inset 0 0 6cqw -2cqw #000;}
+.tc-frame{position:absolute;top:0;right:0;bottom:0;left:0;border-radius:inherit;padding:1.9cqw;background:var(--fg);pointer-events:none;-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;box-shadow:inset 0 0 6cqw -2cqw #000;}
 .tc-corner{position:absolute;width:11cqw;height:11cqw;opacity:0;transition:opacity .4s;pointer-events:none;border:1.6cqw solid var(--rc);filter:drop-shadow(0 0 2cqw color-mix(in srgb,var(--rc) 60%,transparent));}
 .tc-corner.tl{top:3.4cqw;left:3.4cqw;border-right:0;border-bottom:0;border-radius:3cqw 0 0 0;}
 .tc-corner.tr{top:3.4cqw;right:3.4cqw;border-left:0;border-bottom:0;border-radius:0 3cqw 0 0;}
 .tc-corner.bl{bottom:3.4cqw;left:3.4cqw;border-right:0;border-top:0;border-radius:0 0 0 3cqw;}
 .tc-corner.br{bottom:3.4cqw;right:3.4cqw;border-left:0;border-top:0;border-radius:0 0 3cqw 0;}
-.tcarte:is([data-p="2"],[data-p="3"],[data-p="4"],[data-p="5"]) .tc-corner{opacity:.85;}
+/* Niveaux (paliers) : les coins grandissent, s'épaississent et s'éclaircissent palier après palier,
+   jusqu'à devenir dorés au palier 5 (Mythe) — repère visuel clair du niveau, directement sur la carte. */
+.tcarte[data-p="2"] .tc-corner{opacity:.5;width:8cqw;height:8cqw;border-width:1.3cqw;}
+.tcarte[data-p="3"] .tc-corner{opacity:.78;width:11cqw;height:11cqw;border-width:1.6cqw;}
+.tcarte[data-p="4"] .tc-corner{opacity:.95;width:14cqw;height:14cqw;border-width:1.9cqw;}
+.tcarte[data-p="5"] .tc-corner{opacity:1;width:17cqw;height:17cqw;border-width:2.3cqw;border-color:#ffd873;filter:drop-shadow(0 0 3.5cqw #ffd873cc);}
+.tcarte[data-p="4"] .tc-palier{border-color:#ffd87366;}
+.tcarte[data-p="5"] .tc-palier{background:linear-gradient(180deg,#ffe7a0,#e0a838);color:#3a2705;border-color:#fff6d0;box-shadow:0 1cqw 3cqw #0007;}
 .tc-shine{position:absolute;top:0;bottom:0;width:55cqw;left:-70cqw;pointer-events:none;opacity:0;background:linear-gradient(105deg,transparent,#ffffff55 45%,#ffffffcc 50%,#ffffff55 55%,transparent);transform:skewX(-12deg);}
 .tc-anim:is([data-p="3"],[data-p="4"],[data-p="5"]) .tc-shine{opacity:1;animation:shine 3.4s ease-in-out infinite;}
 @keyframes shine{0%,72%{left:-70cqw;}100%{left:130cqw;}}
-.tc-motes{position:absolute;inset:0;pointer-events:none;opacity:0;}
+.tc-motes{position:absolute;top:0;right:0;bottom:0;left:0;pointer-events:none;opacity:0;}
 .tc-motes i{position:absolute;width:2.6cqw;height:2.6cqw;border-radius:50%;background:var(--rc);box-shadow:0 0 3cqw var(--rc);bottom:14cqw;opacity:0;}
 .tc-motes i:nth-child(1){left:22%;}.tc-motes i:nth-child(2){left:52%;}.tc-motes i:nth-child(3){left:78%;}
 .tcarte:is([data-p="4"],[data-p="5"]) .tc-motes{opacity:1;}
@@ -127,7 +156,7 @@ nav.tabs button.actif::before{content:"";position:absolute;top:0;width:34px;heig
 .eo-btn{font-family:'Nunito';font-weight:800;font-size:12.5px;color:var(--txt-doux);background:#ffffff0d;border:1px solid #ffffff1a;border-radius:999px;padding:7px 12px;cursor:pointer;transition:.15s;}
 .eo-btn.actif,.eo-btn.on{background:color-mix(in srgb,var(--or) 22%,#1a1636);border-color:var(--or);color:var(--or);}
 .eo-sens{min-width:34px;font-size:15px;padding:6px 0;text-align:center;}
-.img-max{position:fixed;inset:0;height:100dvh;z-index:70;display:none;align-items:center;justify-content:center;background:#000000ee;backdrop-filter:blur(4px);padding:16px;}
+.img-max{position:fixed;top:0;right:0;bottom:0;left:0;height:100dvh;z-index:70;display:none;align-items:center;justify-content:center;background:#000000ee;backdrop-filter:blur(4px);padding:16px;}
 .img-max.on{display:flex;animation:fade .2s;}
 .img-max img{max-width:100%;max-height:100%;border-radius:14px;box-shadow:0 20px 60px #000b;object-fit:contain;}
 .img-max-fermer{position:absolute;top:calc(14px + env(safe-area-inset-top));right:18px;width:38px;height:38px;border-radius:50%;background:#ffffff1a;color:#fff;display:flex;align-items:center;justify-content:center;font-size:18px;}
@@ -135,7 +164,7 @@ nav.tabs button.actif::before{content:"";position:absolute;top:0;width:34px;heig
 /* ===== TIRAGE ===== */
 .tirage-scene{display:flex;flex-direction:column;align-items:center;text-align:center;padding:12px 0 6px;}
 .dos{width:156px;aspect-ratio:var(--ratio-carte);border-radius:20px;margin:4px auto 20px;position:relative;background:radial-gradient(60% 45% at 50% 34%,#6a4fb0 0,transparent 60%),linear-gradient(160deg,#2a2350,#171233);border:3px solid #6a4fb0;box-shadow:0 12px 30px #0009,inset 0 0 30px -8px #a672e0;display:flex;align-items:center;justify-content:center;font-size:52px;}
-.dos::before{content:"";position:absolute;inset:11px;border-radius:13px;border:1.5px dashed #ffffff33;}
+.dos::before{content:"";position:absolute;top:11px;right:11px;bottom:11px;left:11px;border-radius:13px;border:1.5px dashed #ffffff33;}
 .dos .rune{filter:drop-shadow(0 0 12px #c9a4ff);}
 .tirage-desc{color:var(--txt-doux);font-size:14px;max-width:290px;margin:0 auto 20px;line-height:1.5;}
 .btn-tirer{font-family:'Fredoka';font-weight:600;font-size:19px;color:#2a1e05;background:linear-gradient(180deg,#ffd977,var(--or) 45%,var(--or-fonce));border:none;border-radius:999px;padding:16px 34px;cursor:pointer;box-shadow:0 8px 22px -4px #d99b2b99,inset 0 1px 0 #fff8;display:inline-flex;align-items:center;gap:10px;transition:transform .12s,filter .2s;}
@@ -181,8 +210,59 @@ nav.tabs button.actif::before{content:"";position:absolute;top:0;width:34px;heig
 .sp-bar{flex:1;height:8px;background:#ffffff18;border-radius:9px;overflow:hidden;} .sp-bar i{display:block;height:100%;border-radius:9px;background:linear-gradient(90deg,#7ec2ff,#6fdca0);}
 .sp-val{font-size:12px;color:var(--txt-doux);white-space:nowrap;min-width:74px;text-align:right;}
 .score-fav{margin-top:12px;text-align:center;font-family:'Fredoka';font-size:14px;color:var(--txt-doux);}
+.admin-badge{font-family:'Fredoka';font-weight:800;font-size:16px;text-align:center;color:#ffdf8a;background:#3a2f66;border:1.5px solid #ffce5b66;border-radius:12px;padding:8px;}
+.adm-periode{display:flex;gap:6px;margin-bottom:12px;}
+.adm-pbtn{flex:1;font-family:'Fredoka';font-weight:700;font-size:13px;color:var(--txt-doux);background:#ffffff0d;border:1px solid #ffffff1a;border-radius:10px;padding:8px;cursor:pointer;}
+.adm-pbtn.on{background:linear-gradient(180deg,#ffe38a,var(--or));color:#2a1e05;border-color:transparent;}
+.adm-enfant{border:1px solid #ffffff1a;border-left:4px solid var(--pc);border-radius:14px;padding:12px;margin-bottom:12px;background:#ffffff08;}
+.adm-tete{display:flex;align-items:center;gap:9px;}
+.adm-ava{font-size:24px;}
+.adm-nom{font-family:'Fredoka';font-weight:700;font-size:16px;}
+.adm-today{margin-left:auto;font-family:'Fredoka';font-weight:600;font-size:13px;color:var(--txt-doux);}
+.adm-bar{height:8px;background:#ffffff18;border-radius:9px;overflow:hidden;margin:8px 0;}
+.adm-bar i{display:block;height:100%;border-radius:9px;}
+.adm-lim{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;margin:8px 0;font-family:'Nunito';font-weight:700;font-size:12.5px;color:var(--txt-doux);}
+.adm-switch{display:flex;align-items:center;gap:6px;cursor:pointer;}
+.adm-lf input,.adm-switch input{accent-color:var(--or);}
+.adm-lf input[type=number]{width:52px;background:#ffffff12;border:1px solid #ffffff22;border-radius:8px;color:var(--txt);font-family:'Nunito';font-weight:800;padding:4px 6px;text-align:center;}
+.adm-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px;}
+.adm-stat{background:#ffffff0d;border-radius:10px;padding:8px 4px;text-align:center;}
+.adm-stat b{display:block;font-family:'Baloo 2';font-weight:800;font-size:18px;color:#ffe08a;}
+.adm-stat span{font-family:'Nunito';font-weight:700;font-size:10.5px;color:var(--txt-doux);}
+.adm-reussite{margin-top:10px;}
+.adm-rt{font-family:'Fredoka';font-weight:700;font-size:12px;color:var(--txt-doux);margin-bottom:5px;}
+.adm-rrow{display:flex;align-items:center;gap:8px;margin-bottom:5px;font-family:'Nunito';font-weight:700;font-size:12px;}
+.adm-rn{min-width:66px;}
+.adm-rbar{flex:1;height:7px;background:#ffffff18;border-radius:8px;overflow:hidden;}
+.adm-rbar i{display:block;height:100%;background:linear-gradient(90deg,#7ec2ff,#6fdca0);}
+.adm-rpct{min-width:78px;text-align:right;color:var(--txt-doux);}
+.adm-note{font-family:'Nunito';font-weight:600;font-size:11px;color:var(--txt-doux);text-align:center;margin-top:4px;line-height:1.4;}
+.acc-parent{margin-top:14px;width:100%;font-family:'Fredoka';font-weight:700;font-size:14px;color:var(--txt-doux);background:#ffffff0d;border:1px solid #ffffff1f;border-radius:12px;padding:11px;cursor:pointer;}
+#temps-fond{position:fixed;top:0;right:0;bottom:0;left:0;z-index:200;display:none;align-items:center;justify-content:center;background:rgba(10,8,20,.86);backdrop-filter:blur(4px);padding:24px;}
+#temps-fond.on{display:flex;}
+.temps-box{max-width:340px;text-align:center;background:linear-gradient(180deg,#241a3a,#161022);border:1.5px solid #ffffff22;border-radius:20px;padding:26px 22px;}
+.temps-emo{font-size:56px;}
+.temps-titre{font-family:'Fredoka';font-weight:800;font-size:22px;margin:6px 0;}
+.temps-msg{font-family:'Nunito';font-weight:600;color:var(--txt-doux);margin-bottom:18px;line-height:1.4;}
+.temps-recap-t{font-family:'Fredoka';font-weight:700;font-size:13px;color:#ffe08a;margin-bottom:8px;}
+.temps-recap{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:14px;}
+.tr-item{background:#ffffff10;border:1px solid #ffffff1a;border-radius:12px;padding:8px 6px;min-width:78px;flex:1 1 78px;display:flex;flex-direction:column;align-items:center;gap:1px;}
+.tr-ico{font-size:17px;}
+.tr-item b{font-family:'Baloo 2';font-weight:800;font-size:17px;color:#fff;}
+.tr-lbl{font-family:'Nunito';font-weight:700;font-size:10px;color:var(--txt-doux);text-align:center;}
+.temps-mot{font-family:'Fredoka';font-weight:600;font-size:15px;color:var(--txt);margin-top:4px;}
+.fiche-lien{display:block;width:100%;font-family:'Fredoka';font-weight:700;font-size:14px;color:#2a1e05;background:linear-gradient(180deg,#ffe7a0,#f4c04a);border:none;border-radius:12px;padding:10px;margin:8px 0 2px;cursor:pointer;box-shadow:0 3px 10px -4px #f2b13488;}
+.fiche-img{width:100%;max-height:44vh;display:flex;justify-content:center;margin-bottom:12px;}
+.fiche-img img{max-width:100%;max-height:44vh;object-fit:contain;border-radius:14px;box-shadow:0 8px 22px -8px #000a;}
+.fiche-titre{font-family:'Fredoka';font-weight:800;font-size:20px;text-align:center;margin-bottom:10px;line-height:1.25;}
+.fiche-paras p{font-family:'Nunito';font-weight:600;font-size:15px;line-height:1.5;color:var(--txt);margin-bottom:10px;}
+.theo-galerie-t{font-family:'Fredoka';font-weight:700;font-size:14px;color:#ffe08a;margin:14px 0 8px;}
+.theo-galerie{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+.tg-item{display:flex;flex-direction:column;align-items:center;gap:4px;background:#ffffff0d;border:1px solid #ffffff1a;border-radius:12px;padding:6px;cursor:pointer;}
+.tg-item img{width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:9px;}
+.tg-item span{font-family:'Nunito';font-weight:700;font-size:10.5px;text-align:center;line-height:1.15;color:var(--txt);}
 
-.reveal-overlay{position:fixed;inset:0;height:100dvh;overflow-y:auto;z-index:50;display:none;align-items:center;justify-content:center;flex-direction:column;background:radial-gradient(circle at 50% 44%,#2a2350f2,#0b0916fa);backdrop-filter:blur(6px);}
+.reveal-overlay{position:fixed;top:0;right:0;bottom:0;left:0;height:100dvh;overflow-y:auto;z-index:50;display:none;align-items:center;justify-content:center;flex-direction:column;background:radial-gradient(circle at 50% 44%,#2a2350f2,#0b0916fa);backdrop-filter:blur(6px);}
 .reveal-overlay.on{display:flex;animation:fade .2s ease;}
 .reveal-rayons{position:absolute;width:360px;height:360px;border-radius:50%;opacity:0;filter:blur(2px);background:repeating-conic-gradient(var(--rc,#fff) 0deg 8deg,transparent 8deg 22deg);}
 .reveal-overlay.on .reveal-rayons{animation:rayons 3s linear infinite,rayonsIn .5s .35s both;}
@@ -191,7 +271,7 @@ nav.tabs button.actif::before{content:"";position:absolute;top:0;width:34px;heig
 .reveal-overlay.evo .reveal-rayons{animation:rayons 2.2s linear infinite,rayonsIn .5s .35s both;}
 .reveal-flip{width:188px;aspect-ratio:var(--ratio-carte);position:relative;transform-style:preserve-3d;transform:rotateY(180deg);transition:transform .62s cubic-bezier(.4,.15,.25,1);}
 .reveal-flip.flip{transform:rotateY(0);}
-.reveal-face{position:absolute;inset:0;border-radius:16px;backface-visibility:hidden;overflow:hidden;box-shadow:0 16px 40px #000a;}
+.reveal-face{position:absolute;top:0;right:0;bottom:0;left:0;border-radius:16px;backface-visibility:hidden;overflow:hidden;box-shadow:0 16px 40px #000a;}
 .reveal-front{transform:rotateY(0);}
 .reveal-back{transform:rotateY(180deg);background:radial-gradient(60% 45% at 50% 34%,#6a4fb0 0,transparent 60%),linear-gradient(160deg,#2a2350,#171233);border:3px solid #6a4fb0;display:flex;align-items:center;justify-content:center;font-size:56px;}
 #reveal-front{container-type:inline-size;}
@@ -210,7 +290,7 @@ nav.tabs button.actif::before{content:"";position:absolute;top:0;width:34px;heig
 .defi-cartes{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
 .defi-carte{aspect-ratio:var(--ratio-carte);border-radius:18px;cursor:pointer;position:relative;color:#fff;font-size:42px;display:flex;align-items:center;justify-content:center;background:radial-gradient(60% 45% at 50% 34%,#6a4fb0 0,transparent 60%),linear-gradient(160deg,#2a2350,#171233);border:2px solid #6a4fb0;box-shadow:0 8px 22px -6px #0009,inset 0 0 24px -10px #a672e0;transition:transform .12s;}
 .defi-carte:active{transform:scale(.96);}
-.defi-carte::before{content:"";position:absolute;inset:8px;border-radius:12px;border:1.5px dashed #ffffff2e;}
+.defi-carte::before{content:"";position:absolute;top:8px;right:8px;bottom:8px;left:8px;border-radius:12px;border:1.5px dashed #ffffff2e;}
 .defi-carte .pt{filter:drop-shadow(0 0 10px #c9a4ff);}
 .defi-sous{text-align:center;color:var(--txt-doux);font-size:13px;margin-top:18px;}
 .defi-continuer{display:block;margin:16px auto 0;font-family:'Fredoka';font-weight:600;font-size:16px;color:#2a1e05;background:linear-gradient(180deg,#ffd977,var(--or));border:none;border-radius:999px;padding:13px 30px;cursor:pointer;box-shadow:0 6px 18px -6px #d99b2b;}
@@ -328,7 +408,7 @@ nav.tabs button.actif::before{content:"";position:absolute;top:0;width:34px;heig
 #d-stats .cap-ligne.est-fort .cap-nom{color:var(--txt);font-weight:600;}
 #d-stats .cap-ligne.est-faible .cap-nom{opacity:.7;}
 
-.feuille-fond{position:fixed;inset:0;height:100dvh;z-index:40;background:#0009;backdrop-filter:blur(3px);display:none;align-items:flex-end;justify-content:center;}
+.feuille-fond{position:fixed;top:0;right:0;bottom:0;left:0;height:100dvh;z-index:40;background:#0009;backdrop-filter:blur(3px);display:none;align-items:flex-end;justify-content:center;}
 .feuille-fond.on{display:flex;animation:fade .2s;}
 .feuille{width:100%;max-width:520px;max-height:92%;overflow-y:auto;-webkit-overflow-scrolling:touch;background:linear-gradient(180deg,#221c40,#171233);border-radius:24px 24px 0 0;border-top:1px solid #ffffff1a;padding:22px 22px calc(26px + env(safe-area-inset-bottom));animation:slideUp .28s cubic-bezier(.2,.8,.2,1);}
 @keyframes slideUp{from{transform:translateY(100%);}to{transform:none;}}
@@ -389,7 +469,7 @@ nav.tabs button.actif::before{content:"";position:absolute;top:0;width:34px;heig
 @media (prefers-reduced-motion:reduce){*{animation-duration:.001s !important;}.reveal-flip{transition:none;}.tc-shine,.tc-motes{display:none;}}
 
 /* ===== ÉCRAN DE CHARGEMENT ===== */
-#chargement{position:fixed;inset:0;height:100dvh;z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:radial-gradient(1100px 560px at 50% -10%,#3a2f66,transparent 55%),linear-gradient(180deg,#1a1636,#120f24);transition:opacity .4s ease;}
+#chargement{position:fixed;top:0;right:0;bottom:0;left:0;height:100dvh;z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:radial-gradient(1100px 560px at 50% -10%,#3a2f66,transparent 55%),linear-gradient(180deg,#1a1636,#120f24);transition:opacity .4s ease;}
 #chargement.parti{opacity:0;pointer-events:none;}
 .ch-logo{font-size:64px;animation:chBond 1s ease-in-out infinite;filter:drop-shadow(0 8px 14px #0007);}
 @keyframes chBond{0%,100%{transform:translateY(0) rotate(-3deg);}50%{transform:translateY(-16px) rotate(3deg);}}
@@ -400,7 +480,7 @@ nav.tabs button.actif::before{content:"";position:absolute;top:0;width:34px;heig
 @keyframes chGlisse{0%{transform:translateX(-120%);}100%{transform:translateX(320%);}}
 
 /* ===== ÉCRAN D'ACCUEIL (choix du joueur) ===== */
-#accueil{position:fixed;inset:0;height:100dvh;z-index:150;display:flex;flex-direction:column;align-items:center;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:calc(env(safe-area-inset-top) + 40px) 20px calc(env(safe-area-inset-bottom) + 26px);background:radial-gradient(1100px 560px at 50% -8%,#3a2f66,transparent 55%),linear-gradient(180deg,#1a1636,#120f24);transition:opacity .35s ease;}
+#accueil{position:fixed;top:0;right:0;bottom:0;left:0;height:100dvh;z-index:150;display:flex;flex-direction:column;align-items:center;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:calc(env(safe-area-inset-top) + 40px) 20px calc(env(safe-area-inset-bottom) + 26px);background:radial-gradient(1100px 560px at 50% -8%,#3a2f66,transparent 55%),linear-gradient(180deg,#1a1636,#120f24);transition:opacity .35s ease;}
 #accueil.parti{opacity:0;pointer-events:none;}
 .acc-inner{width:100%;max-width:440px;margin:auto 0;}
 .acc-logo{font-size:52px;text-align:center;filter:drop-shadow(0 8px 14px #0007);}
@@ -425,8 +505,8 @@ nav.tabs button.actif::before{content:"";position:absolute;top:0;width:34px;heig
 /* ===== AVENTURE ===== */
 main.plein{padding:0 !important;overflow:hidden !important;}
 #ecran-aventure{position:relative;height:100%;}
-#ecran-aventure .av-wrap{position:absolute;inset:0;overflow:hidden;background:#0c0a18;}
-#ecran-aventure .av-carte{position:absolute;inset:0;}
+#ecran-aventure .av-wrap{position:absolute;top:0;right:0;bottom:0;left:0;overflow:hidden;background:#0c0a18;}
+#ecran-aventure .av-carte{position:absolute;top:0;right:0;bottom:0;left:0;}
 #ecran-aventure svg#svg-monde,#ecran-aventure svg#svg-belgique,#ecran-aventure svg#svg-france,#ecran-aventure svg#svg-iles,#ecran-aventure svg#svg-rhin,#ecran-aventure svg#svg-iberie{width:100%;height:100%;display:block;touch-action:none;cursor:grab;}
 #svg-monde{background:linear-gradient(180deg,#a6e6f0,#79d2ea 55%,#57c1e0);}
 #svg-belgique{background:radial-gradient(130% 100% at 50% 0%,#fff7e4,#f6e6bd 60%,#eed9a6);}
@@ -460,7 +540,7 @@ main.plein{padding:0 !important;overflow:hidden !important;}
 #ecran-aventure .av-retour{position:absolute;top:10px;left:10px;z-index:5;font-family:'Fredoka';font-weight:600;font-size:14px;color:#6b4a1a;background:linear-gradient(180deg,#fff3d0,#ffe1a0);border:2px solid #fff;border-radius:12px;padding:7px 12px;cursor:pointer;box-shadow:0 3px 0 #d9a94a;}
 #ecran-aventure .av-retour:active{transform:translateY(2px);box-shadow:0 1px 0 #d9a94a;}
 #ecran-aventure .av-boussole{position:absolute;bottom:14px;right:14px;width:54px;height:54px;pointer-events:none;opacity:.92;filter:drop-shadow(0 3px 6px #0004);background:none;}
-#ecran-aventure .av-intro{position:absolute;inset:0;z-index:10;display:flex;flex-direction:column;background:#0c0a18;}
+#ecran-aventure .av-intro{position:absolute;top:0;right:0;bottom:0;left:0;z-index:10;display:flex;flex-direction:column;background:#0c0a18;}
 #ecran-aventure .av-slide{flex:1;background-size:cover;background-position:center;transition:opacity .3s;}
 #ecran-aventure .av-intro-panel{padding:18px 22px calc(env(safe-area-inset-bottom) + 20px);background:linear-gradient(0deg,#0c0a18 60%,transparent);text-align:center;}
 #ecran-aventure #av-intro-txt{font-family:'Fredoka';font-weight:500;font-size:16px;line-height:1.5;color:#f3ecdf;min-height:72px;}
@@ -493,7 +573,7 @@ main.plein{padding:0 !important;overflow:hidden !important;}
 .t10-b.max{background:#5ec4a822;color:#5ec4a8;}
 
 /* étape aventure */
-.av-etape{position:fixed;inset:0;z-index:60;display:none;flex-direction:column;background:linear-gradient(180deg,#1a1636,#0f0c1e);padding:calc(env(safe-area-inset-top) + 14px) 16px calc(env(safe-area-inset-bottom) + 16px);overflow-y:auto;}
+.av-etape{position:fixed;top:0;right:0;bottom:0;left:0;z-index:60;display:none;flex-direction:column;background:linear-gradient(180deg,#1a1636,#0f0c1e);padding:calc(env(safe-area-inset-top) + 14px) 16px calc(env(safe-area-inset-bottom) + 16px);overflow-y:auto;}
 .av-etape.on{display:flex;}
 .ae-header{display:flex;gap:12px;align-items:flex-start;margin-bottom:16px;}
 .ae-guide{width:84px;height:84px;flex-shrink:0;border-radius:50%;overflow:hidden;border:3px solid var(--or);box-shadow:0 4px 12px -4px #000a;}
@@ -629,6 +709,11 @@ main.plein{padding:0 !important;overflow:hidden !important;}
 #ecran-aventure .pt-core.lock{fill:#565078;stroke:#8a84a8;stroke-width:2;filter:none;}
 #ecran-aventure .pt-shine{fill:#fff;opacity:.85;}
 #ecran-aventure .pt-num{font-family:'Baloo 2';font-weight:700;font-size:13px;fill:#3a2e08;text-anchor:middle;}
+.pt-core.fait{fill:#3fbf6a;stroke:#fff;stroke-width:2.5;filter:drop-shadow(0 0 5px #3fbf6acc);}
+.pt-glow.fait{fill:#3fbf6a;opacity:.42;animation:none;}
+.pt-check{fill:none;stroke:#fff;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round;}
+.etape.fait{cursor:pointer;}
+.etape.fait:hover,#ecran-aventure .etape.fait.hot{filter:drop-shadow(0 0 8px #3fbf6a);}
 #ecran-aventure .etape.lock .pt-num{fill:#cbc5e2;}
 #ecran-aventure .etape.lock{opacity:.75;filter:none;}
 #ecran-aventure .etape.dispo{cursor:pointer;}
@@ -694,14 +779,9 @@ main.plein{padding:0 !important;overflow:hidden !important;}
 .ae-fin{position:absolute;right:4px;top:50%;transform:translateY(-50%);font-size:20px;opacity:.8;}
 .ae-galop{font-size:18px;padding:14px;width:100%;}
 
-#ecran-ecurie{background-image:linear-gradient(#14102eaa,#14102ee6),url(cartes/belle_champs.jpg);background-size:cover;background-position:center;}
-#ecran-tirage{background-image:linear-gradient(#14102eaa,#14102ee6),url(cartes/akhal_teke.jpg);background-size:cover;background-position:center;}
-#ecran-revisions{background-image:linear-gradient(#141032aa,#141032e6),url(cartes/cheval_constellation.jpg);background-size:cover;background-position:center;}
-#ecran-aventure{background-image:linear-gradient(#14102eaa,#14102ee6),url(cartes/cheval_conquistador.jpg);background-size:cover;background-position:center;}
-#ecran-concours{background-image:linear-gradient(#14102ec0,#14102ee2),url(aventure/fond_newmarket.jpg);background-size:cover;background-position:center;}
-#ecran-scores{background-image:linear-gradient(#14102ec0,#14102ee2),url(aventure/fond_edimbourg.jpg);background-size:cover;background-position:center;}
+/* Les fonds d'écran sont désormais rendus plein écran par #fond-ecran (voir majFondEcran). */
 
-.tuto-overlay{position:fixed;inset:0;z-index:9999;background:rgba(10,8,25,.88);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:20px;}
+.tuto-overlay{position:fixed;top:0;right:0;bottom:0;left:0;z-index:9999;background:rgba(10,8,25,.88);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:20px;}
 .tuto-box{background:linear-gradient(160deg,#241a4d,#1a1436);border:1px solid #ffffff26;border-radius:22px;max-width:440px;width:100%;padding:26px 22px 22px;text-align:center;position:relative;box-shadow:0 20px 60px #000a;}
 .tuto-skip{position:absolute;top:12px;right:14px;background:none;border:none;color:#ffffff7a;font-size:13px;cursor:pointer;}
 .tuto-pj{width:88px;height:88px;border-radius:50%;margin:4px auto 14px;background:#0004 center/cover;border:3px solid #ffd36e;box-shadow:0 6px 20px #0006;}
@@ -729,6 +809,7 @@ main.plein{padding:0 !important;overflow:hidden !important;}
     <div id="acc-form"></div>
   </div>
 </div>
+<div id="fond-ecran"></div>
 <div id="app">
   <header>
     <button class="profil-chip" id="btn-profil"><span class="pf-ava" id="pf-ava">🦄</span><span class="pf-nom" id="pf-nom">Énola</span><span class="pf-fleche">▾</span></button>
@@ -1098,6 +1179,24 @@ main.plein{padding:0 !important;overflow:hidden !important;}
   <div id="atelier-jalons"></div>
   <button class="feuille-fermer" id="atelier-fermer">Fermer</button>
 </div></div>
+<div class="feuille-fond" id="admin-fond"><div class="feuille">
+  <h2 class="titre" style="text-align:center;margin-bottom:4px">👨‍👩‍👧 Espace parent</h2>
+  <p class="d-desc" style="color:var(--txt-doux);text-align:center;margin-bottom:12px">Temps de jeu & progrès · Famille <b id="admin-fam"></b></p>
+  <div id="admin-corps"></div>
+  <button class="feuille-fermer" id="admin-fermer">Fermer</button>
+</div></div>
+<div id="temps-fond"><div class="temps-box">
+  <div class="temps-emo">⏰</div>
+  <h2 class="temps-titre">Temps de jeu terminé&nbsp;!</h2>
+  <p class="temps-msg">Tu as bien joué aujourd'hui. À demain&nbsp;! 🌙</p>
+  <button class="ae-btn" id="temps-ok" style="width:100%">D'accord</button>
+</div></div>
+<div class="feuille-fond" id="fiche-fond"><div class="feuille fiche-feuille">
+  <div class="fiche-img" id="fiche-img"></div>
+  <h2 class="fiche-titre" id="fiche-titre"></h2>
+  <div class="fiche-paras" id="fiche-paras"></div>
+  <button class="feuille-fermer" id="fiche-fermer">Fermer</button>
+</div></div>
 <div id="av-etape" class="av-etape">
   <div class="ae-header"><button class="ae-quit" id="ae-quit">✕</button><div class="ae-guide"><img src="cartes/pieter_jan.jpg" alt="Pieter-Jan"></div><div class="ae-bulle"><div class="ae-titre" id="ae-titre"></div><div id="ae-narr"></div></div></div>
   <div class="ae-prog" id="ae-prog"></div>
@@ -1459,12 +1558,14 @@ const CLOUD={
   actif(){return !!(this.url&&this.key);},
   async rpc(fn,args){
     const base=this.url.replace(/\/+$/,'').replace(/\/rest\/v1$/,'');
-    const ctrl=new AbortController();const to=setTimeout(()=>ctrl.abort(),7000);
+    const ctrl=(typeof AbortController!=='undefined')?new AbortController():null;const to=ctrl?setTimeout(()=>ctrl.abort(),7000):null;
     try{
-      const r=await fetch(base+'/rest/v1/rpc/'+fn,{method:'POST',headers:{'apikey':this.key,'Authorization':'Bearer '+this.key,'Content-Type':'application/json'},body:JSON.stringify(args||{}),signal:ctrl.signal});
+      const opts={method:'POST',headers:{'apikey':this.key,'Authorization':'Bearer '+this.key,'Content-Type':'application/json'},body:JSON.stringify(args||{})};
+      if(ctrl)opts.signal=ctrl.signal;
+      const r=await fetch(base+'/rest/v1/rpc/'+fn,opts);
       if(!r.ok)throw new Error('HTTP '+r.status+' '+await r.text());
       return r.json();
-    }finally{clearTimeout(to);}
+    }finally{if(to)clearTimeout(to);}
   }
 };
 async function sha256(s){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(String(s)));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');}
@@ -1481,18 +1582,149 @@ async function connexionOffline(a,pin){
   const bk=lireCache('ecurie_bk_'+a.id);
   return {id:a.id,nom:a.prenom||prof.prenom,age:a.age||prof.age,emoji:a.avatar||prof.avatar,couleur:a.couleur||prof.couleur,niveau:a.niveau||prof.niveau,etat:normaliserEtat(bk||etatVide()),cloud:true,pin:h,_offline:true};
 }
+/* ============ ESPACE PARENT : contrôle du temps + suivi (local, par appareil/famille) ============ */
+function famKey(pfx){return pfx+'_'+(codeFamille()||'x');}
+function adminGet(){return lireCache(famKey('ecurie_admin'));}
+function adminSet(o){ecrireCache(famKey('ecurie_admin'),o);}
+function limitesGet(){return lireCache(famKey('ecurie_limites'))||{};}
+function limitesSet(o){ecrireCache(famKey('ecurie_limites'),o);}
+function limiteEnfant(id){return limitesGet()[id]||{actif:false,semaine:30,weekend:60};}
+function jourISO(d){d=d||new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function estWeekend(d){const j=(d||new Date()).getDay();return j===0||j===6;}
+function limiteMinutes(id){const L=limiteEnfant(id);if(!L.actif)return 0;return estWeekend()?(L.weekend||0):(L.semaine||0);}
+function tempsGet(id){return lireCache('ecurie_temps_'+id)||{jours:{}};}
+function tempsSet(id,o){ecrireCache('ecurie_temps_'+id,o);}
+function tempsAujourdhui(id){const j=tempsGet(id).jours[jourISO()];return j?(j.sec||0):0;}
+function metriquesActuelles(){return {bonnes:etat.bonnes||0,cartes:nbUniques(),etoiles:totalEtoiles()};}
+function enregistrerTemps(sec){
+  if(!(profilActif&&profilActif.id))return;
+  sessionSec+=sec;
+  const id=profilActif.id,t=tempsGet(id),k=jourISO();const j=t.jours[k]||{sec:0,sessions:0};
+  j.sec=(j.sec||0)+sec;const m=metriquesActuelles();j.bonnes=m.bonnes;j.cartes=m.cartes;j.etoiles=m.etoiles;
+  t.jours[k]=j;tempsSet(id,t);
+}
+let chronoTimer=null,chronoDernier=0,enJeu=false,sessionRef=null,sessionSec=0;
+function demarrerChrono(){
+  arreterChrono();enJeu=true;chronoDernier=Date.now();
+  sessionRef={bonnes:etat.bonnes||0,tirages:etat.tirages||0,cartes:nbUniques(),exos:etat.exos||0};sessionSec=0;
+  const id=profilActif.id,t=tempsGet(id),k=jourISO();const j=t.jours[k]||{sec:0,sessions:0};j.sessions=(j.sessions||0)+1;t.jours[k]=j;tempsSet(id,t);
+  chronoTimer=setInterval(chronoTick,10000);
+}
+function arreterChrono(){enJeu=false;if(chronoTimer){clearInterval(chronoTimer);chronoTimer=null;}}
+function chronoFlush(){const now=Date.now(),dt=Math.round((now-chronoDernier)/1000);chronoDernier=now;if(dt>0&&dt<120)enregistrerTemps(dt);}
+function chronoTick(){if(document.visibilityState!=='visible'){chronoDernier=Date.now();return;}chronoFlush();verifierLimiteTemps();}
+function verifierLimiteTemps(){if(!(profilActif&&profilActif.id))return false;const lim=limiteMinutes(profilActif.id);if(lim>0&&tempsAujourdhui(profilActif.id)>=lim*60){ecranTempsEcoule();return true;}return false;}
+function ecranTempsEcoule(){
+  arreterChrono();
+  const box=document.getElementById('temps-fond');if(!box)return;
+  const MSGS=["Bravo, tu as super bien travaillé aujourd'hui ! 🌟","Quelle belle séance ! Tes chevaux sont fiers de toi 🐴","Génial ! On se retrouve demain pour de nouvelles aventures 🌙","Tu as bien mérité ta pause. À très vite ! ✨","Beau travail ! Repose-toi bien 💛"];
+  let sec,dExos=null,dBonnes=0,dTirages=null,dCartes=0,titreRecap;
+  if(sessionRef){
+    sec=sessionSec;dExos=Math.max(0,(etat.exos||0)-sessionRef.exos);dBonnes=Math.max(0,(etat.bonnes||0)-sessionRef.bonnes);dTirages=Math.max(0,(etat.tirages||0)-sessionRef.tirages);dCartes=Math.max(0,nbUniques()-sessionRef.cartes);titreRecap="Ta séance";
+  }else{
+    sec=tempsAujourdhui(profilActif.id);let p={bonnes:0,cartes:0};try{p=progresPeriode(profilActif.id,1);}catch(e){}dBonnes=p.bonnes;dCartes=p.cartes;titreRecap="Aujourd'hui";
+  }
+  const items=[['⏱️',fmtDuree(sec),'de jeu']];
+  if(dExos!=null)items.push(['✏️',dExos,'exercice'+(dExos>1?'s':'')]);
+  items.push(['✅',dBonnes,'bonne'+(dBonnes>1?'s':'')+' rép.']);
+  if(dTirages&&dTirages>0)items.push(['🎴',dTirages,'tirage'+(dTirages>1?'s':'')]);
+  if(dCartes>0)items.push(['🐴',dCartes,'nouv. carte'+(dCartes>1?'s':'')]);
+  const recapHTML='<div class="temps-recap-t">'+titreRecap+'</div><div class="temps-recap">'+items.map(r=>'<div class="tr-item"><span class="tr-ico">'+r[0]+'</span><b>'+r[1]+'</b><span class="tr-lbl">'+r[2]+'</span></div>').join('')+'</div>';
+  const t=box.querySelector('.temps-titre');if(t)t.textContent="C'est l'heure de la pause ! 🌙";
+  const m=box.querySelector('.temps-msg');if(m)m.innerHTML=recapHTML+'<div class="temps-mot">'+MSGS[Math.floor(Math.random()*MSGS.length)]+'</div>';
+  box.classList.add('on');
+}
+function retourLogin(){arreterChrono();const a=$('#accueil');if(a){a.style.display='';a.classList.remove('parti');}renderAccueil();}
+/* Agrégats pour l'espace parent */
+function tempsPeriode(id,jours){const t=tempsGet(id),now=new Date();let sec=0,sess=0;for(let i=0;i<jours;i++){const d=new Date(now);d.setDate(now.getDate()-i);const j=t.jours[jourISO(d)];if(j){sec+=j.sec||0;sess+=j.sessions||0;}}return {sec,sessions:sess};}
+function metriqueDernier(t){const ks=Object.keys(t.jours||{}).sort();for(let i=ks.length-1;i>=0;i--){const j=t.jours[ks[i]];if(j&&j.bonnes!=null)return j;}return {bonnes:0,cartes:0,etoiles:0};}
+function metriqueAvant(t,dISO){const ks=Object.keys(t.jours||{}).sort().filter(k=>k<dISO);for(let i=ks.length-1;i>=0;i--){const j=t.jours[ks[i]];if(j&&j.bonnes!=null)return j;}return {bonnes:0,cartes:0,etoiles:0};}
+function progresPeriode(id,jours){const t=tempsGet(id),now=new Date(),base=new Date(now);base.setDate(now.getDate()-(jours-1));const cur=metriqueDernier(t),b=metriqueAvant(t,jourISO(base));return {bonnes:Math.max(0,(cur.bonnes||0)-(b.bonnes||0)),cartes:Math.max(0,(cur.cartes||0)-(b.cartes||0)),etoiles:Math.max(0,(cur.etoiles||0)-(b.etoiles||0))};}
+function fmtDuree(sec){const m=Math.round(sec/60);if(m<60)return m+' min';return Math.floor(m/60)+' h '+String(m%60).padStart(2,'0');}
+function admListe(){return lireCache(famKey('ecurie_liste'))||[];}
+function formCreerAdmin(onDone){
+  const box=$('#acc-liste');$('#acc-form').innerHTML='';
+  box.innerHTML='<div class="pform"><div class="admin-badge">👨‍👩‍👧 Compte parent (adulte)</div>'
+    +'<div class="acc-niv" style="margin:8px 0 12px;line-height:1.45">Un <b>adulte</b> doit créer ce compte pour la famille. Il permet de <b>limiter le temps de jeu</b> de chaque enfant et de <b>suivre leurs progrès</b>. Choisis un code parent à 4 chiffres, différent de ceux des enfants.</div>'
+    +'<label>Code parent (4 chiffres)</label><input id="adm-pin" type="tel" maxlength="4" inputmode="numeric" placeholder="••••" style="letter-spacing:6px;text-align:center">'
+    +'<label>Confirme le code</label><input id="adm-pin2" type="tel" maxlength="4" inputmode="numeric" placeholder="••••" style="letter-spacing:6px;text-align:center">'
+    +'<div class="pf-actions"><button class="pf-creer" id="adm-creer">Créer le compte parent</button></div></div>';
+  $('#adm-creer').onclick=async()=>{
+    const p1=($('#adm-pin').value||'').trim(),p2=($('#adm-pin2').value||'').trim();
+    if(!/^\d{4}$/.test(p1))return toast('Un code à 4 chiffres');
+    if(p1!==p2)return toast('Les deux codes ne correspondent pas');
+    adminSet({pin:await sha256('ADM:'+p1),cree:Date.now()});toast('Compte parent créé ✅');onDone&&onDone();
+  };
+}
+function ouvrirEspaceParent(){
+  const adm=adminGet();
+  if(!adm)return formCreerAdmin(()=>ouvrirEspaceParent());
+  pavePin('👨‍👩‍👧 Espace parent · code',async(pin)=>{
+    if(await sha256('ADM:'+pin)!==adm.pin){toast('Code parent incorrect');return ouvrirEspaceParent();}
+    admPeriode=7;renderAdmin();$('#admin-fond').classList.add('on');renderAccueil();
+  });
+}
+function verifParent(onOk){
+  const adm=adminGet();
+  if(!adm){onOk();return;}
+  pavePin('👨‍👩‍👧 Code parent requis',async(pin)=>{
+    if(await sha256('ADM:'+pin)!==adm.pin){toast('Code parent incorrect');return renderAccueil();}
+    onOk();
+  });
+}
+let admPeriode=7;
+const PER_LABEL={1:"Aujourd'hui",7:'7 jours',30:'30 jours'};
+function admReussite(et){
+  const MAT={maths:'Maths',francais:'Français',histoire:'Histoire',sciences:'Sciences',geo:'Géo'};
+  const rows=Object.entries(et.stats||{}).filter(([k,v])=>v&&v.tot>0).map(([k,v])=>({nom:MAT[k]||k,ok:v.ok,tot:v.tot,pct:Math.round(v.ok/v.tot*100)})).sort((a,b)=>b.tot-a.tot);
+  if(!rows.length)return '';
+  return '<div class="adm-reussite"><div class="adm-rt">Réussite par matière (total cumulé)</div>'+rows.map(r=>'<div class="adm-rrow"><span class="adm-rn">'+r.nom+'</span><span class="adm-rbar"><i style="width:'+r.pct+'%"></i></span><span class="adm-rpct">'+r.ok+'/'+r.tot+' · '+r.pct+'%</span></div>').join('')+'</div>';
+}
+function renderAdmin(){
+  const box=$('#admin-corps');if(!box)return;const fe=$('#admin-fam');if(fe)fe.textContent=codeFamille();const liste=admListe();
+  let html='<div class="adm-periode">'+[1,7,30].map(p=>'<button class="adm-pbtn'+(admPeriode===p?' on':'')+'" data-p="'+p+'">'+PER_LABEL[p]+'</button>').join('')+'</div>';
+  if(!liste.length)html+='<div class="acc-niv">Aucune écurie enregistrée sur cet appareil pour cette famille. Les enfants doivent s\'être connectés ici au moins une fois.</div>';
+  liste.forEach(a=>{
+    const id=a.id,lim=limiteEnfant(id),joue=tempsAujourdhui(id),limMin=limiteMinutes(id);
+    const per=tempsPeriode(id,admPeriode),prog=progresPeriode(id,admPeriode);
+    const bk=lireCache('ecurie_bk_'+id),et=bk?normaliserEtat(bk):null;
+    const pct=limMin>0?Math.min(100,Math.round(joue/(limMin*60)*100)):0;
+    html+='<div class="adm-enfant" data-id="'+id+'" style="--pc:'+(a.couleur||'#7ec2ff')+'">'
+      +'<div class="adm-tete"><span class="adm-ava">'+(a.avatar||'🦄')+'</span><span class="adm-nom">'+a.prenom+'</span>'
+      +'<span class="adm-today">⏱️ '+fmtDuree(joue)+(limMin>0?' / '+limMin+' min':' · illimité')+'</span></div>'
+      +(limMin>0?'<div class="adm-bar"><i style="width:'+pct+'%;background:'+(pct>=100?'#df6a6a':'#6fdca0')+'"></i></div>':'')
+      +'<div class="adm-lim"><label class="adm-switch"><input type="checkbox" class="adm-actif"'+(lim.actif?' checked':'')+'> Limiter le temps</label>'
+      +'<span class="adm-lf">Semaine <input type="number" class="adm-sem" min="0" max="300" value="'+(lim.semaine||0)+'"> min</span>'
+      +'<span class="adm-lf">Week-end <input type="number" class="adm-we" min="0" max="300" value="'+(lim.weekend||0)+'"> min</span></div>'
+      +'<div class="adm-stats">'
+      +'<div class="adm-stat"><b>'+fmtDuree(per.sec)+'</b><span>temps</span></div>'
+      +'<div class="adm-stat"><b>'+per.sessions+'</b><span>sessions</span></div>'
+      +'<div class="adm-stat"><b>+'+prog.bonnes+'</b><span>bonnes rép.</span></div>'
+      +'<div class="adm-stat"><b>+'+prog.cartes+'</b><span>cartes</span></div>'
+      +'<div class="adm-stat"><b>+'+prog.etoiles+'</b><span>⭐ étoiles</span></div>'
+      +(et?'<div class="adm-stat"><b>'+(et.serieJours||0)+'</b><span>🔥 jours</span></div>':'')
+      +'</div>'+(et?admReussite(et):'')+'</div>';
+  });
+  html+='<div class="adm-note">🔒 Réglages et suivi stockés sur cet appareil. Le temps de jeu est compté par appareil.</div>';
+  box.innerHTML=html;
+  box.querySelectorAll('.adm-pbtn').forEach(b=>b.onclick=()=>{admPeriode=+b.dataset.p;renderAdmin();});
+  box.querySelectorAll('.adm-enfant').forEach(el=>{
+    const id=el.dataset.id,save=()=>{const L=limitesGet();L[id]={actif:el.querySelector('.adm-actif').checked,semaine:+el.querySelector('.adm-sem').value||0,weekend:+el.querySelector('.adm-we').value||0};limitesSet(L);renderAdmin();};
+    el.querySelector('.adm-actif').onchange=save;el.querySelector('.adm-sem').onchange=save;el.querySelector('.adm-we').onchange=save;
+  });
+}
 async function cloudCreer(prenom,pin,avatar,couleur,age,niveau){const h=await sha256(pin);const id=await CLOUD.rpc('creer_compte',{p_prenom:prenom,p_pin:h,p_avatar:avatar,p_couleur:couleur,p_age:age,p_niveau:niveau,p_etat:etatVide(),p_code:codeFamille()});return {id,_pin:h};}
 async function cloudProprietaires(carte){try{return await CLOUD.rpc('proprietaires',{p_carte:carte,p_code:codeFamille()});}catch(e){return [];}}
 let cloudTimer=null;
-function majSync(s){const d=$('#sync-dot');if(!d)return;if(!(CLOUD.actif()&&profilActif&&profilActif.cloud)){d.style.display='none';return;}d.style.display='';d.textContent=s==='sync'?'🔄':s==='err'?'⚠️':'☁️';d.title=s==='err'?'Erreur de synchro cloud (touche pour tester)':s==='sync'?'Synchronisation…':'Synchronisé ☁️';}
+function majSync(s){const d=$('#sync-dot');if(!d)return;if(!(CLOUD.actif()&&profilActif&&profilActif.cloud)){d.style.display='none';return;}d.style.display='';d.textContent=s==='sync'?'🔄':s==='off'?'📴':s==='err'?'⚠️':'☁️';d.title=s==='off'?"Hors ligne — sauvegardé sur l'appareil, synchro dès le retour du réseau":s==='err'?'Erreur de synchro (touche pour réessayer)':s==='sync'?'Synchronisation…':'Synchronisé ☁️';}
 async function cloudPush(){
   if(!(profilActif&&profilActif.cloud&&profilActif.pin))return;
   majSync('sync');
   try{await CLOUD.rpc('sauver_etat',{p_id:profilActif.id,p_pin:profilActif.pin,p_etat:etat,p_avatar:profilActif.emoji,p_couleur:profilActif.couleur,p_age:profilActif.age,p_niveau:profilActif.niveau});majSync('ok');}
-  catch(e){majSync('err');}
+  catch(e){majSync(navigator.onLine?'err':'off');}
 }
 function compteVersProfil(row){return {id:row.id,nom:row.prenom,age:row.age,emoji:row.avatar,couleur:row.couleur,niveau:row.niveau,etat:normaliserEtat(row.etat||etatVide()),cloud:true,pin:row._pin};}
-const VERSION_APP='v85';
+const VERSION_APP='v97';
 const RARETES={commune:{nom:'Commune',poids:55,overflow:15,couleur:'#c4cdd8'},rare:{nom:'Rare',poids:27,overflow:30,couleur:'#7ec2ff'},epique:{nom:'Épique',poids:13,overflow:60,couleur:'#c99bff'},legendaire:{nom:'Légendaire',poids:4.5,overflow:120,couleur:'#ffcf6b'},mythique:{nom:'Mythique',poids:0.5,overflow:250,couleur:'#ff9ac0'},celeste:{nom:'Céleste',poids:0,overflow:300,couleur:'#ffe9a8'}};
 const SEUILS=[1,4,9,17,28];   // exemplaires cumulés pour ★ à ★★★★★ (évolution plus lente)
 const TITRES=['—','Éveil','Aguerri','Radieux','Astral','Mythe'];
@@ -1505,7 +1737,7 @@ const REC_AV1=5,REC_AV2=1;   // aventure : diamants au 1er coup, un peu au 2e, r
 const XP_BONNE=10,XP_ESSAI=3,PAS_XP=120;
 const SOFTCAP1=600,SOFTCAP2=1400;
 function jourDefi(){const d=new Date().toISOString().slice(0,10);if(!etat.defiJour||etat.defiJour.date!==d)etat.defiJour={date:d,gagne:0};return etat.defiJour;}
-function crediterDefi(g){const j=jourDefi();const reel=Math.max(1,Math.round(g));etat.crins+=reel;j.gagne+=reel;if(typeof verifierJalons==='function')verifierJalons(true);if(typeof montrerGainAnim==='function')montrerGainAnim(reel);return reel;}
+function crediterDefi(g){const j=jourDefi();const reel=Math.max(1,Math.round(g));etat.crins+=reel;j.gagne+=reel;etat.exos=(etat.exos||0)+1;if(typeof verifierJalons==='function')verifierJalons(true);if(typeof montrerGainAnim==='function')montrerGainAnim(reel);return reel;}
                           // 120 XP par niveau de matière
 
 /* ---- CONCOURS ---- */
@@ -1562,13 +1794,23 @@ function normaliserEtat(e){const d=etatVide();for(const k in d)if(e[k]===undefin
 function niveauScolaire(age){return Math.max(1,Math.min(6,(age||10)-5));}   // 8 ans → P3, 10 ans → P5
 function profilVide(id,nom,age,emoji,couleur){return {id,nom,age,emoji,couleur,niveau:niveauScolaire(age),etat:etatVide()};}
 function lireLS(k){try{const b=localStorage.getItem(k);if(b)return JSON.parse(b);}catch(e){}return null;}
+function fusionStats(a,b){a=a||{};b=b||{};const r={};for(const k of new Set([...Object.keys(a),...Object.keys(b)])){const va=a[k]||{ok:0,tot:0},vb=b[k]||{ok:0,tot:0};r[k]=((vb.tot||0)>(va.tot||0))?{ok:vb.ok||0,tot:vb.tot||0}:{ok:va.ok||0,tot:va.tot||0};}return r;}
+function fusionPackprog(a,b){a=a||{};b=b||{};const r={};for(const id of new Set([...Object.keys(a),...Object.keys(b)])){const pa=a[id]||{},pb=b[id]||{};const c={},cA=pa.c||{},cB=pb.c||{};for(const nv of new Set([...Object.keys(cA),...Object.keys(cB)])){c[nv]={};const ka=cA[nv]||{},kb=cB[nv]||{};for(const key of new Set([...Object.keys(ka),...Object.keys(kb)]))c[nv][key]=Math.max(ka[key]||0,kb[key]||0);}r[id]={niv:Math.max(pa.niv||1,pb.niv||1),c,done:Object.assign({},pa.done||{},pb.done||{})};}return r;}
+function scoreAv(av){if(!av)return 0;let s=0;for(const k in av){if(k==='prov')continue;const v=av[k];if(v&&typeof v==='object')s+=(v.fini?1000:0)+(v.etape||0)*50+(v.sousEtape||0);}return s;}
 function fusionEtat(a,b){
   if(!b)return a;if(!a)return b;const r=JSON.parse(JSON.stringify(a));const mx=(x,y)=>Math.max(x||0,y||0);
-  r.crins=mx(a.crins,b.crins);r.renommee=mx(a.renommee,b.renommee);r.renommeeTotale=mx(a.renommeeTotale,b.renommeeTotale);r.tirages=mx(a.tirages,b.tirages);r.bonnes=mx(a.bonnes,b.bonnes);
+  ['crins','renommee','renommeeTotale','tirages','bonnes','serieJours','acquisN'].forEach(k=>r[k]=mx(a[k],b[k]));
   r.collection={};for(const id of new Set([...Object.keys(a.collection||{}),...Object.keys(b.collection||{})]))r.collection[id]=mx((a.collection||{})[id],(b.collection||{})[id]);
   r.paliers={};for(const id in r.collection)r.paliers[id]=Math.max(((a.paliers||{})[id]||0),((b.paliers||{})[id]||0),r.collection[id]>0?1:0);
   r.xp={};for(const m of new Set([...Object.keys(a.xp||{}),...Object.keys(b.xp||{})]))r.xp[m]=mx((a.xp||{})[m],(b.xp||{})[m]);
-  const seA=(((a.aventure||{}).belgique||{}).sousEtape)||0,seB=(((b.aventure||{}).belgique||{}).sousEtape)||0;if(seB>seA&&b.aventure)r.aventure=JSON.parse(JSON.stringify(b.aventure));
+  r.stats=fusionStats(a.stats,b.stats);
+  r.statsPack=fusionStats(a.statsPack,b.statsPack);
+  r.jalons=Object.assign({},a.jalons||{},b.jalons||{});
+  r.chouchous={};for(const id of new Set([...Object.keys(a.chouchous||{}),...Object.keys(b.chouchous||{})]))r.chouchous[id]=mx((a.chouchous||{})[id],(b.chouchous||{})[id]);
+  r.acquis={};for(const id of new Set([...Object.keys(a.acquis||{}),...Object.keys(b.acquis||{})])){const va=(a.acquis||{})[id],vb=(b.acquis||{})[id];r.acquis[id]=(va&&vb)?Math.min(va,vb):(va||vb);}
+  r.packprog=fusionPackprog(a.packprog,b.packprog);
+  r.pity={epic:mx((a.pity||{}).epic,(b.pity||{}).epic),legend:mx((a.pity||{}).legend,(b.pity||{}).legend)};
+  r.aventure=scoreAv(b.aventure)>scoreAv(a.aventure)?JSON.parse(JSON.stringify(b.aventure)):JSON.parse(JSON.stringify(a.aventure||{}));
   return r;
 }
 function sauver(){
@@ -2038,7 +2280,7 @@ function doTirage10(){
 }
 function montrerResultat10(res){
   const ordre={neuf:0,evo:1};
-  const tri=[...res].sort((a,b)=>((ordre[a.cls]??2)-(ordre[b.cls]??2))||(RANG_RAR(b.c)-RANG_RAR(a.c)));
+  const tri=[...res].sort((a,b)=>((ordre[a.cls]!=null?ordre[a.cls]:2)-(ordre[b.cls]!=null?ordre[b.cls]:2))||(RANG_RAR(b.c)-RANG_RAR(a.c)));
   $('#t10-liste').innerHTML=tri.map(r=>{
     const c=r.c;let badge;
     if(r.cls==='neuf')badge='<span class="t10-b neuf">✨ Nouveau</span>';
@@ -2211,7 +2453,9 @@ const PACKS=[
  {id:'ortho',nom:'Orthographe',ico:'✍️',mult:3,niv:NIV1,sous:'Écris les mots · +200%',theorie:"Pense aux accents (é, è, à, ê) et aux lettres muettes à la fin des mots. Relis-toi avant de valider !"},
 ];
 let theorieCour='';
-function afficherTheorie(){const p=document.getElementById('pack-theo-panel');if(!p)return;p.textContent=theorieCour;p.style.display='';const b=document.getElementById('pack-theo-btn');if(b)b.style.display='none';}
+function afficherTheorie(){const p=document.getElementById('pack-theo-panel');if(!p)return;p.textContent=theorieCour;if(packActif&&packActif.id==='races'&&typeof galerieHisto==='function')p.insertAdjacentHTML('beforeend',galerieHisto());p.style.display='';const b=document.getElementById('pack-theo-btn');if(b)b.style.display='none';}
+function galerieHisto(){const item=id=>{const c=CARTES.find(x=>x.id===id);const im=c?(Array.isArray(c.image)?c.image[0]:c.image):null;return '<button class="tg-item" onclick="ouvrirFiche(\''+id+'\')">'+(im?'<img src="'+im+'" loading="lazy" alt="">':'')+'<span>'+(c?c.nom:id)+'</span></button>';};const histo=Object.keys(FICHES_HISTO);const leg=[...LEGENDES].filter(aFiche);return '<div class="theo-galerie-t">🏛️ Les chevaux qui ont marqué l\'Histoire</div><div class="theo-galerie">'+histo.map(item).join('')+'</div><div class="theo-galerie-t">✨ Les chevaux de légende</div><div class="theo-galerie">'+leg.map(item).join('')+'</div>';}
+function ouvrirFiche(id){const f=ficheDe(id);if(!f)return;const c=CARTES.find(x=>x.id===id);const im=c?(Array.isArray(c.image)?c.image[0]:c.image):null;const fi=$('#fiche-img');if(fi)fi.innerHTML=im?'<img src="'+im+'" alt="'+(c?c.nom:'')+'">':'';const ft=$('#fiche-titre');if(ft)ft.textContent=f.titre;const fp=$('#fiche-paras');if(fp)fp.innerHTML=f.paras.map(p=>'<p>'+p+'</p>').join('');$('#fiche-fond').classList.add('on');}
 function blocTheorie(txt,niv){theorieCour=txt||'';if(!txt)return '';return '<div class="pack-niv">'+(niv||'')+'</div><button class="pack-theo" id="pack-theo-btn" onclick="afficherTheorie()">📖 Théorie</button><div class="pack-theo-panel" id="pack-theo-panel" style="display:none"></div>';}
 // robes déterminées d'après la race et la description
 const ROBES={frison:'noir',murgese:'noir',cheval_albinos:'blanc',camargue:'blanc',appaloosa:'tachetée',gypsy_cob:'pie',akhal_teke:'isabelle',fjord:'isabelle',haflinger:'alezan',francois_camargue:'blanc',inge:'noir',rocio:'blanc',gourmand_mangeur_de_pommes:'alezan',gourmand_mangeur_de_carottes:'isabelle',gourmand_mangeur_de_grain:'alezan',gourmand_mangeur_de_trefle:'pie',mythique_balios:'noir',mythique_gringolet:'blanc',mythique_kanthaka:'blanc',mythique_veillantif:'alezan',curly:'alezan',finnhorse:'alezan',falabella:'pie',mangalarga_marchador:'pie',knabstrupper:'tachetée',nonius:'noir',kladruber:'blanc',lipizzan:'blanc',orlov:'blanc',welsh_pony:'alezan',caspien:'alezan',connemara:'blanc',eriskay:'blanc',fell:'noir',merens:'noir',highland:'isabelle'};
@@ -2245,6 +2489,7 @@ const MYTHES={
  beasts_qirin:{perso:"la Chine",fait:"le Qilin, créature de paix qui n'écrase aucun brin d'herbe"},
  beasts_longma:{perso:"la Chine",fait:"le Longma, cheval-dragon des eaux, présage de sagesse"},
  beasts_hippogriffe:{perso:"les légendes médiévales",fait:"mi-aigle mi-cheval, il vole plus vite que le vent"},
+ beasts_hypalectryon:{perso:"la Grèce antique",fait:"mi-cheval mi-coq, une créature étrange peinte sur les vases grecs"},
  beasts_alicorne:{fait:"la licorne ailée, alliance de deux merveilles"},
  hippocampe:{perso:"Poséidon (Grèce)",fait:"mi-cheval mi-poisson, il tire le char des dieux des mers"},
  kelpie:{perso:"l'Écosse",fait:"un esprit des eaux qui prend la forme d'un cheval près des lochs"},
@@ -2285,6 +2530,48 @@ const HISTO={
  cheval_police:{qui:"la police",fait:"monture des agents pour surveiller les foules"},
  cheval_cowboy:{qui:"les cow-boys",fait:"il menait les grands troupeaux dans l'Ouest américain"},
 };
+/* Chevaux historiques réels (individus documentés) : fiches pour l'onglet théorie. */
+const HISTORIQUES=new Set(['bucephale','secretariat','course_frankel','course_manowar','course_pharlap','course_seabiscuit','course_zenyatta']);
+const FICHES_HISTO={
+ bucephale:{titre:"Bucéphale, le cheval d'Alexandre le Grand",paras:["Il y a plus de 2300 ans, un jeune prince nommé Alexandre dompta un grand cheval noir que personne n'arrivait à monter. Il avait compris que le cheval avait simplement peur de sa propre ombre : il le tourna face au soleil, et le calma.","Devenu Alexandre le Grand, il conquit un immense empire sur le dos de Bucéphale, de la Grèce jusqu'en Inde. Le fidèle cheval le porta dans presque toutes ses batailles.","Quand Bucéphale mourut, Alexandre fut si triste qu'il fonda une ville en son honneur : Bucéphalie. C'est l'un des chevaux les plus célèbres de toute l'Histoire."]},
+ secretariat:{titre:"Secretariat, « Big Red »",paras:["Secretariat était un cheval de course américain, immense et roux, né en 1970. On le surnommait affectueusement « Big Red ».","En 1973, il remporta les trois plus grandes courses américaines — la fameuse « Triple Couronne » — un exploit que plus personne n'avait réussi depuis 25 ans.","Lors de sa dernière victoire, il gagna avec 31 longueurs d'avance et un temps record qui n'a jamais été battu. Un véritable héros du sport."]},
+ course_frankel:{titre:"Frankel, l'invaincu",paras:["Frankel est un cheval de course anglais né en 2008, considéré comme l'un des plus grands de tous les temps.","Il disputa 14 courses… et les gagna toutes ! Il ne perdit jamais une seule fois de toute sa carrière.","Après sa retraite des pistes, il devint le père de nombreux champions. En Angleterre, on l'admire encore aujourd'hui."]},
+ course_manowar:{titre:"Man o' War, la légende américaine",paras:["Man o' War était un grand cheval roux flamboyant, star des courses américaines dans les années 1920.","Sur 21 courses, il en remporta 20 ! Sa seule défaite fut contre un cheval qui portait, ironie du sort, le nom d'« Upset » (la surprise).","On le cite souvent comme le meilleur cheval de course de toute l'histoire des États-Unis."]},
+ course_pharlap:{titre:"Phar Lap, la fierté de l'Australie",paras:["Phar Lap était un immense cheval bai, champion des courses en Australie au début des années 1930.","Pendant la Grande Dépression, alors que la vie était dure, ses victoires redonnaient le sourire et l'espoir à tout un pays.","Il est devenu une véritable légende nationale : son cœur, deux fois plus gros que la normale, est encore exposé dans un musée."]},
+ course_seabiscuit:{titre:"Seabiscuit, le petit qui devint grand",paras:["Seabiscuit était un petit cheval américain qu'on jugeait trop paresseux et pas assez élégant pour gagner.","Bien entraîné, il se mit pourtant à battre les plus grands champions. Dans l'Amérique de la Grande Dépression, il devint le héros des gens ordinaires.","En 1938, il battit en duel le grand favori War Admiral, écouté par des millions de personnes à la radio. Une belle histoire d'espoir, encore célèbre."]},
+ course_zenyatta:{titre:"Zenyatta, la reine des pistes",paras:["Zenyatta était une jument de course américaine née en 2004, connue pour sa petite « danse » avant chaque départ.","Elle gagna 19 de ses 20 courses, souvent en partant dernière puis en doublant tout le monde dans la dernière ligne droite.","Immense (plus d'1,70 m au garrot), élégante et maligne, elle reste l'une des juments les plus aimées du sport."]}
+};
+const LEGENDES=new Set(['licorne','hippocampe','cheval_neptune','cheval_troie','centaure','uchchaihshravas','sleipnir','al_bouraq','matsukaze','bayard','kelpie','pegase','beasts_qirin','beasts_longma','beasts_alicorne','beasts_hippogriffe','beasts_hypalectryon','mythique_xanthos','mythique_balios','mythique_enbarr','mythique_grani','mythique_gringolet','mythique_kanthaka','mythique_rakhsh','mythique_veillantif','cheval_pale_mort','cheval_rouge_guerre','helhest','dullahan','mari_lwyd']);
+const FICHES_LEGENDE={
+ pegase:{titre:"Pégase, le cheval ailé",paras:["Pégase est le célèbre cheval ailé de la mythologie grecque. Il naquit, dit la légende, du sang de la Gorgone Méduse.","Le héros Bellérophon réussit à l'apprivoiser et, sur son dos, combattit la Chimère, un monstre cracheur de feu.","À la fin, Pégase s'envola jusqu'au ciel et devint une constellation : on le voit encore parmi les étoiles !"]},
+ sleipnir:{titre:"Sleipnir, le cheval à huit jambes",paras:["Sleipnir est le cheval du dieu Odin, dans la mythologie des Vikings du Nord.","Il a huit jambes, ce qui en fait le plus rapide des chevaux : il galope sur la terre, sur la mer et même dans les airs.","Fils du dieu farceur Loki, il pouvait voyager jusqu'au royaume des morts et en revenir."]},
+ beasts_qirin:{titre:"Le Qilin, la licorne d'Orient",paras:["Le Qilin est une créature légendaire de Chine, souvent comparée à une licorne d'Orient.","Symbole de paix et de bonheur, il est si doux qu'il marche sans jamais écraser un brin d'herbe ni blesser un insecte.","On dit qu'il apparaît à la naissance ou à la mort d'un grand sage. C'est un porte-bonheur très respecté."]},
+ beasts_hypalectryon:{titre:"L'Hippalectryon, mi-cheval mi-coq",paras:["L'Hippalectryon est une drôle de créature de la Grèce antique : mi-cheval à l'avant, mi-coq à l'arrière, avec des ailes et une queue de plumes !","On le trouve peint sur de très vieux vases grecs, il y a plus de 2500 ans.","Personne ne sait vraiment son rôle dans les histoires : c'était peut-être simplement une créature amusante et étrange, un clin d'œil des artistes d'autrefois."]},
+ beasts_longma:{titre:"Le Longma, le cheval-dragon",paras:["Le Longma est un cheval-dragon de la mythologie chinoise, couvert d'écailles.","Il surgit des fleuves et des lacs, et son apparition annonce l'arrivée d'un sage ou d'un empereur juste.","Une légende raconte même qu'il révéla les tout premiers symboles de l'écriture chinoise."]},
+ beasts_hippogriffe:{titre:"L'Hippogriffe, mi-aigle mi-cheval",paras:["L'Hippogriffe a la tête, les ailes et les serres d'un aigle à l'avant, et le corps d'un cheval à l'arrière.","Il apparaît dans un grand poème italien de la Renaissance, où un chevalier le chevauche pour voler à travers le monde.","Comme il vole plus vite que le vent, on disait qu'il pouvait faire le tour de la Terre en un clin d'œil."]},
+ centaure:{titre:"Le Centaure, moitié homme moitié cheval",paras:["Le Centaure est une créature de la mythologie grecque : le haut du corps est humain, le bas est celui d'un cheval.","La plupart étaient sauvages et bagarreurs, mais l'un d'eux, Chiron, était très sage : il enseigna la médecine et le tir à l'arc à de grands héros.","On les imaginait vivant en troupeaux dans les montagnes et les forêts de la Grèce ancienne."]},
+ licorne:{titre:"La licorne, la corne magique",paras:["La licorne est un cheval blanc portant une corne torsadée au milieu du front. On en parle depuis l'Antiquité, en Europe comme en Asie.","La légende dit que sa corne pouvait purifier l'eau empoisonnée, et que seul un cœur pur pouvait l'approcher.","Symbole de pureté et de magie, elle est devenue l'une des créatures imaginaires les plus aimées au monde."]},
+ kelpie:{titre:"Le Kelpie, l'esprit des eaux",paras:["Le Kelpie est un esprit des eaux du folklore écossais, qui prend la forme d'un beau cheval près des lacs et des rivières.","Attention : si on monte sur son dos, il plonge au fond de l'eau ! C'est une légende pour rappeler de ne pas s'approcher des eaux profondes.","Aujourd'hui, deux immenses statues de Kelpies en acier veillent sur un canal d'Écosse."]},
+ cheval_troie:{titre:"Le cheval de Troie, la grande ruse",paras:["Le cheval de Troie n'est pas un vrai cheval, mais un gigantesque cheval de bois de la mythologie grecque.","Pour entrer dans la ville de Troie, les Grecs se cachèrent à l'intérieur et l'offrirent en faux cadeau. La nuit venue, ils en sortirent !","Depuis, on parle de « cheval de Troie » pour désigner une ruse cachée dans un cadeau."]}
+};
+function estRace(c){return BREEDS.includes(c.id);}
+function estHistorique(c){return HISTORIQUES.has(c.id)||!!HISTO[c.id];}
+function estLegende(c){return LEGENDES.has(c.id);}
+function catCheval(c){return estRace(c)?'race':estHistorique(c)?'histoire':estLegende(c)?'legende':'invente';}
+function cap(s){return s?s.charAt(0).toUpperCase()+s.slice(1):s;}
+function ficheDe(id){
+  if(FICHES_HISTO[id])return FICHES_HISTO[id];
+  if(FICHES_LEGENDE[id])return FICHES_LEGENDE[id];
+  if(LEGENDES.has(id)&&MYTHES[id]){const c=CARTES.find(x=>x.id===id),my=MYTHES[id];const paras=[];
+    if(my.perso)paras.push('Une créature légendaire liée à '+my.perso+'.');
+    if(my.fait)paras.push(cap(my.fait)+'.');
+    paras.push('Elle fait partie des grandes légendes que se racontent les peuples du monde depuis très longtemps.');
+    return {titre:(c?c.nom:id),paras};}
+  return null;
+}
+function aFiche(id){return !!ficheDe(id);}
+
+
 let packActif=null,recentQ=[],jeuCompteur=0;
 const SEUIL_MAITRISE=2;
 /* Niveaux 2 : questions de l'année supérieure. Chaque pack a maintenant 2 niveaux à maîtriser. */
@@ -2687,7 +2974,7 @@ const ROYAUMES_FICTIFS=new Set(['avalon','camelot','scene','futur','outremonde']
 function royaumeReel(c){return !!(c.royaume&&ROYAUMES[c.royaume]&&!ROYAUMES_FICTIFS.has(c.royaume));}
 function chevalEtabli(c){return BREEDS.includes(c.id)||!!MYTHES[c.id]||!!HISTO[c.id]||royaumeReel(c);}
 function exoOrigines(z){
-  const pool=CARTES.filter(c=>royaumeReel(c));
+  const pool=CARTES.filter(c=>royaumeReel(c)&&(estRace(c)||estHistorique(c)||estLegende(c)));
   const cible=pool[rnd(0,pool.length-1)],bonR=cible.royaume;
   const autres=melange([...new Set(pool.map(c=>c.royaume))].filter(r=>r!==bonR)).slice(0,3);
   const choixR=melange([bonR,...autres]);const lab=r=>ROYAUMES[r].ico+' '+ROYAUMES[r].nom;
@@ -2728,20 +3015,28 @@ const MOTS_ORTHO=[
  {m:"éléphant",i:"Gros animal gris avec une trompe"},{m:"dinosaure",i:"Animal géant disparu il y a longtemps"},
 ];
 function exoRaces(z){
-  const races=CARTES.filter(c=>BREEDS.includes(c.id));
-  const robeCards=CARTES.filter(c=>ROBES[c.id]&&chevalEtabli(c));
-  const mythe=CARTES.filter(c=>MYTHES[c.id]);const mPerso=mythe.filter(c=>MYTHES[c.id].perso);
-  const histo=CARTES.filter(c=>HISTO[c.id]);
+  const races=CARTES.filter(c=>estRace(c));
+  const perso=CARTES.filter(c=>(HISTORIQUES.has(c.id)||LEGENDES.has(c.id))&&MYTHES[c.id]&&MYTHES[c.id].perso);
+  const legende=CARTES.filter(c=>LEGENDES.has(c.id));
+  const histoRole=CARTES.filter(c=>HISTO[c.id]);
+  const robeCards=CARTES.filter(c=>ROBES[c.id]&&(estRace(c)||estHistorique(c)||estLegende(c)));
   const r=Math.random();let cible,question,bonne,choix,theoWrong;
-  if(r<0.3&&mythe.length){
-    if(Math.random()<0.5&&mPerso.length){cible=mPerso[rnd(0,mPerso.length-1)];const m=MYTHES[cible.id];question="À qui ce cheval légendaire est-il lié ?";bonne=m.perso;choix=melange([m.perso,...melange([...new Set(mPerso.map(c=>MYTHES[c.id].perso))].filter(p=>p!==m.perso)).slice(0,3)]);theoWrong=cible.nom+" — "+m.fait;}
-    else{cible=mythe[rnd(0,mythe.length-1)];const m=MYTHES[cible.id];question="Quel cheval légendaire est-ce ?";bonne=cible.nom;const a=melange(mythe.filter(c=>c.id!==cible.id)).slice(0,3);choix=melange([cible.nom,a[0].nom,a[1].nom,a[2].nom]);theoWrong=cible.nom+" — "+m.fait;}
-  }else if(r<0.55&&histo.length){
-    cible=histo[rnd(0,histo.length-1)];const m=HISTO[cible.id];
-    question="À quel peuple ou métier appartient ce cheval ?";bonne=m.qui;
-    choix=melange([m.qui,...melange([...new Set(histo.map(c=>HISTO[c.id].qui))].filter(p=>p!==m.qui)).slice(0,3)]);
+  if(r<0.24&&perso.length){
+    cible=perso[rnd(0,perso.length-1)];const m=MYTHES[cible.id];
+    question="À qui (ou à quel univers) ce cheval est-il lié ?";bonne=m.perso;
+    choix=melange([m.perso,...melange([...new Set(perso.map(c=>MYTHES[c.id].perso))].filter(p=>p!==m.perso)).slice(0,3)]);
     theoWrong=cible.nom+" — "+m.fait;
-  }else if(r<0.75&&robeCards.length){
+  }else if(r<0.42&&legende.length>=4){
+    cible=legende[rnd(0,legende.length-1)];const m=MYTHES[cible.id]||{};
+    question="Quel cheval de légende est-ce ?";bonne=cible.nom;
+    const a=melange(legende.filter(c=>c.id!==cible.id)).slice(0,3);choix=melange([cible.nom,a[0].nom,a[1].nom,a[2].nom]);
+    theoWrong=cible.nom+(m.fait?" — "+m.fait:"");
+  }else if(r<0.60&&histoRole.length){
+    cible=histoRole[rnd(0,histoRole.length-1)];const m=HISTO[cible.id];
+    question="À quel peuple ou métier appartient ce cheval ?";bonne=m.qui;
+    choix=melange([m.qui,...melange([...new Set(histoRole.map(c=>HISTO[c.id].qui))].filter(p=>p!==m.qui)).slice(0,3)]);
+    theoWrong=cible.nom+" — "+m.fait;
+  }else if(r<0.78&&robeCards.length){
     cible=robeCards[rnd(0,robeCards.length-1)];const robe=ROBES[cible.id];
     question="Quelle est sa robe (sa couleur) ?";bonne=robe;choix=melange([robe,...melange(ROBES_TOUS.filter(x=>x!==robe)).slice(0,3)]);theoWrong=ROBES_DESC[robe]||'';
   }else{
@@ -2758,7 +3053,7 @@ function exoRaces(z){
     if(bon){serieCourante++;s.ok++;etat.bonnes++;g=Math.round(GAIN_BONNE*PMULT());msg=BRAVOS[rnd(0,BRAVOS.length-1)];}
     else{serieCourante=0;g=GAIN_ESSAI;msg="C'était : <b>"+bonne+"</b>";}
     g=crediterDefi((ancreGain=b,g));etat.xp[mid]=(etat.xp[mid]||0)+(bon?XP_BONNE:XP_ESSAI);sauver();majSolde(true);
-    const fb=$('#q-feedback');fb.innerHTML=`<div class="qf-msg ${bon?'bon':'faux'}">${msg}</div>${theoWrong?`<div class="qf-astuce">💡 ${theoWrong}</div>`:''}<div class="qf-gain">+${g} Diamants</div><button class="defi-continuer">Continuer ›</button>`;fb.classList.add('show');fb.querySelector('.defi-continuer').onclick=()=>packExo();
+    const fb=$('#q-feedback');fb.innerHTML=`<div class="qf-msg ${bon?'bon':'faux'}">${msg}</div>${theoWrong?`<div class="qf-astuce">💡 ${theoWrong}</div>`:''}${aFiche(cible.id)?'<button class="fiche-lien" onclick="ouvrirFiche(\''+cible.id+'\')">📖 Découvrir son histoire</button>':''}<div class="qf-gain">+${g} Diamants</div><button class="defi-continuer">Continuer ›</button>`;fb.classList.add('show');fb.querySelector('.defi-continuer').onclick=()=>packExo();
   };box.appendChild(b);});
 }
 function exoOrtho(z){
@@ -2898,7 +3193,14 @@ function tutoSuivant(){const e=TUTO_ETAPES[tutoStep];if(e.act==='cadeau'&&!tutoP
 function tutoFin(){if(!tutoPulled){TUTO_CADEAU.forEach(id=>{const c=CARTES.find(x=>x.id===id);if(c)ajouterExemplaire(c);});tutoPulled=true;rendreGrille();}etat.tutoVu=true;sauver();$('#tuto').style.display='none';if(typeof majOnglets==='function')majOnglets();}
 function debloqueConcours(){try{return (etat.tirages||0)>0||Object.values((etat.aventure&&etat.aventure.prov)||{}).some(p=>p&&p.fini);}catch(e){return true;}}
 function majOnglets(){const b=document.querySelector('nav.tabs button[data-ecran="concours"]');if(b)b.style.display=debloqueConcours()?'':'none';}
-function switchEcran(nom){majOnglets();$$('.ecran').forEach(e=>e.classList.remove('actif'));$('#ecran-'+nom).classList.add('actif');$$('nav.tabs button').forEach(b=>b.classList.toggle('actif',b.dataset.ecran===nom));majSolde();if(nom==='revisions'){bonusQuotidien();menuDefis();}if(nom==='scores')renderScores();if(nom==='concours')renderConcours();if(nom==='aventure')ouvrirAventure();document.querySelector('main').classList.toggle('plein',nom==='aventure');}
+function majFondEcran(nom){
+  const el=document.getElementById('fond-ecran');if(!el)return;
+  const IMG={ecurie:'cartes/belle_champs.jpg',tirage:'cartes/akhal_teke.jpg',revisions:'cartes/cheval_constellation.jpg',aventure:'cartes/cheval_conquistador.jpg',concours:'aventure/fond_newmarket.jpg',scores:'aventure/fond_edimbourg.jpg'};
+  const img=IMG[nom];
+  if(!img){el.style.backgroundImage='';return;}
+  el.style.backgroundImage='linear-gradient(180deg,rgba(20,16,46,.72) 0%,rgba(20,16,46,.26) 17%,rgba(20,16,46,.30) 73%,rgba(20,16,46,.74) 100%),url('+img+')';
+}
+function switchEcran(nom){majFondEcran(nom);majOnglets();$$('.ecran').forEach(e=>e.classList.remove('actif'));$('#ecran-'+nom).classList.add('actif');$$('nav.tabs button').forEach(b=>b.classList.toggle('actif',b.dataset.ecran===nom));majSolde();if(nom==='revisions'){bonusQuotidien();menuDefis();}if(nom==='scores')renderScores();if(nom==='concours')renderConcours();if(nom==='aventure')ouvrirAventure();document.querySelector('main').classList.toggle('plein',nom==='aventure');}
 $$('nav.tabs button').forEach(b=>b.onclick=()=>switchEcran(b.dataset.ecran));
 $('#lien-revisions').onclick=()=>switchEcran('revisions');
 $('#btn-tirer').onclick=doTirage;$('#btn-tirer10').onclick=doTirage10;$('#btn-tirer-super').onclick=doTirageSuper;$('#ae-quit').onclick=avFermerEtape;$('#cout-nb10').textContent=COUT_TIRAGE10;$('#t10-fermer').onclick=()=>$('#t10-fond').classList.remove('on');$('#btn-resultats').onclick=()=>switchEcran('scores');$('#btn-classement').onclick=ouvrirClassement;$('#btn-chouchous').onclick=ouvrirChouchous;$('#chouchous-fermer').onclick=()=>$('#chouchous-fond').classList.remove('on');$('#classement-fermer').onclick=()=>$('#classement-fond').classList.remove('on');
@@ -2918,7 +3220,10 @@ $('#reveal').onclick=fermerReveal;
 $('#d-fermer').onclick=()=>$('#feuille-fond').classList.remove('on');
 $('#feuille-fond').onclick=e=>{if(e.target.id==='feuille-fond')$('#feuille-fond').classList.remove('on');};
 function renderReglageNiveau(){const el=$('#reglage-niveau');el.innerHTML=`<div class="rg-niveau"><div class="rg-lbl">Niveau des exercices <span>· ${profilActif.nom}</span></div><div class="rg-step"><button data-d="-1">‹</button><b>P${profilActif.niveau}</b><button data-d="1">›</button></div></div>`;el.querySelectorAll('.rg-step button').forEach(b=>b.onclick=()=>{profilActif.niveau=Math.max(1,Math.min(6,profilActif.niveau+parseInt(b.dataset.d,10)));sauver();renderReglageNiveau();menuDefis();renderScores();});}
-$('#btn-reglages').onclick=()=>{renderReglageNiveau();majReglageInfo();$('#reglages-fond').classList.add('on');};$('#btn-cloud-test').onclick=testerCloud;$('#btn-forcemaj').onclick=()=>{if(confirm('Vider le cache et recharger la dernière version ?'))forcerMaj();};$('#sync-dot').onclick=()=>{$('#btn-reglages').click();};
+$('#btn-reglages').onclick=()=>{renderReglageNiveau();majReglageInfo();$('#reglages-fond').classList.add('on');};$('#btn-cloud-test').onclick=testerCloud;$('#btn-forcemaj').onclick=()=>{if(confirm('Vider le cache et recharger la dernière version ?'))forcerMaj();};$('#sync-dot').onclick=()=>{if(profilActif&&profilActif.cloud&&profilActif.pin){majSync('sync');cloudPush();}else{$('#btn-reglages').click();}};
+$('#admin-fermer').onclick=()=>$('#admin-fond').classList.remove('on');
+$('#temps-ok').onclick=()=>{$('#temps-fond').classList.remove('on');retourLogin();};
+$('#fiche-fermer').onclick=()=>$('#fiche-fond').classList.remove('on');
 $('#reglages-fermer').onclick=()=>$('#reglages-fond').classList.remove('on');
 $('#reglages-fond').onclick=e=>{if(e.target.id==='reglages-fond')$('#reglages-fond').classList.remove('on');};
 $('#btn-reset').onclick=()=>{if(confirm(`Effacer la collection et les progrès de ${profilActif.nom} ? (les autres profils ne sont pas touchés)`)){profilActif.etat=etatVide();etat=profilActif.etat;serieCourante=0;sauver();rafraichirTout();$('#reglages-fond').classList.remove('on');toast('Profil réinitialisé !');}};
@@ -2951,7 +3256,7 @@ function formNouveauProfil(){
   $('#np-creer').onclick=()=>{const nom=($('#np-nom').value||'').trim();if(!nom){toast('Choisis un prénom');return;}const age=parseInt($('#np-age').value,10)||8;const id='p'+Date.now().toString(36);const coul=COULEURS_PROFIL[SAVE.profils.length%COULEURS_PROFIL.length];const p=profilVide(id,nom,age,emo,coul);SAVE.profils.push(p);sauver();activerProfil(p);};
 }
 function cartesProfil(p){return CARTES.reduce((s,c)=>s+(((p.etat.collection||{})[c.id]||0)>0?1:0),0);}
-function fondAccueil(){const el=document.getElementById('accueil');if(!el||!CARTES.length)return;const c=CARTES[rnd(0,CARTES.length-1)];el.style.backgroundImage="radial-gradient(1100px 560px at 50% -8%,#3a2f66aa,transparent 55%),linear-gradient(180deg,#1a1636cc,#120f24f2),url(cartes/"+c.id+".jpg)";el.style.backgroundSize="cover";el.style.backgroundPosition="center";}
+function fondAccueil(){const el=document.getElementById('accueil');if(!el||!CARTES.length)return;const c=CARTES[rnd(0,CARTES.length-1)];el.style.backgroundImage="radial-gradient(1100px 560px at 50% -8%,#3a2f6699,transparent 55%),linear-gradient(180deg,#1a163699,#120f24dd),url(cartes/"+c.id+".jpg)";el.style.backgroundSize="cover";el.style.backgroundPosition="center";}
 function renderAccueil(){
   fondAccueil();
   if(CLOUD.actif()){renderAccueilCloud();return;}
@@ -2976,7 +3281,7 @@ function formAccueilCreate(){
 async function demanderCodeFamille(){
   const box=$('#acc-liste');$('#acc-form').innerHTML='';
   box.innerHTML='<div class="pform"><label>Code famille</label><div class="acc-niv" style="margin:2px 0 8px">Un mot partagé par ta famille — vous ne verrez que vos écuries.</div><input id="fam-code" maxlength="16" placeholder="ex. gauder" autocapitalize="none" autocomplete="off"><div class="pf-actions"><button class="pf-creer" id="fam-ok">Continuer ›</button></div></div>';
-  const go=()=>{const v=($('#fam-code').value||'').trim().toLowerCase();if(v.length<2)return toast('Choisis un code (2 caractères min)');try{localStorage.setItem('ecurie_fam',v);}catch(e){}renderAccueilCloud();};
+  const go=()=>{const v=($('#fam-code').value||'').trim().toLowerCase();if(v.length<2)return toast('Choisis un code (2 caractères min)');try{localStorage.setItem('ecurie_fam',v);}catch(e){}if(!adminGet())formCreerAdmin(()=>renderAccueilCloud());else renderAccueilCloud();};
   $('#fam-ok').onclick=go;$('#fam-code').addEventListener('keydown',e=>{if(e.key==='Enter')go();});
 }
 function rendreListeCloud(liste,horsLigne){
@@ -2988,7 +3293,8 @@ function rendreListeCloud(liste,horsLigne){
     c.innerHTML=`<div class="pc-ava">${a.avatar||'🦄'}</div><div class="pc-info"><div class="pc-nom">${a.prenom}</div><div class="pc-sous">${a.age||'?'} ans · P${a.niveau||3}</div></div><div class="pc-go">🔒 ›</div>`;
     c.onclick=()=>demanderPin(a);box.appendChild(c);
   });
-  const add=document.createElement('button');add.className='profil-ajout';add.innerHTML='<span style="font-size:20px">＋</span> Nouvelle écurie';add.onclick=formCloudCreate;box.appendChild(add);
+  const add=document.createElement('button');add.className='profil-ajout';add.innerHTML='<span style="font-size:20px">＋</span> Nouvelle écurie 🔒';add.onclick=()=>verifParent(formCloudCreate);box.appendChild(add);
+  const par=document.createElement('button');par.className='acc-parent';par.textContent='👨‍👩‍👧 Espace parent';par.onclick=ouvrirEspaceParent;box.appendChild(par);
   const ch=$("#acc-chfam");if(ch)ch.onclick=()=>{try{localStorage.removeItem("ecurie_fam");}catch(e){}renderAccueilCloud();};
 }
 async function renderAccueilCloud(){
@@ -3041,12 +3347,15 @@ function entrerJeu(p){
   SAVE.actif=p.id;profilActif=p;let e=normaliserEtat(p.etat);
   try{const bk=localStorage.getItem('ecurie_bk_'+p.id);if(bk){e=normaliserEtat(fusionEtat(e,normaliserEtat(JSON.parse(bk))));}}catch(err){}
   etat=e;p.etat=e;serieCourante=0;sauver();
-  majAvatar();majSolde();majProgression();rendreGrille();rendreChances();menuDefis();renderScores();verifierJalons(true);majSync('ok');
+  majAvatar();majSolde();majProgression();rendreGrille();rendreChances();menuDefis();renderScores();verifierJalons(true);majSync(navigator.onLine?'ok':'off');
   switchEcran('ecurie');
   const a=$('#accueil');a.classList.add('parti');setTimeout(()=>{a.style.display='none';},400);
+  const lim=limiteMinutes(p.id);
+  if(lim>0&&tempsAujourdhui(p.id)>=lim*60){setTimeout(ecranTempsEcoule,450);return;}
+  demarrerChrono();
   if(!etat.tutoVu)setTimeout(lancerTuto,650);
 }
-$('#btn-profil').onclick=()=>{if(CLOUD.actif()){const a=$('#accueil');a.style.display='';a.classList.remove('parti');renderAccueil();}else ouvrirProfils();};
+$('#btn-profil').onclick=()=>{if(CLOUD.actif()){if(enJeu)chronoFlush();arreterChrono();const a=$('#accueil');a.style.display='';a.classList.remove('parti');renderAccueil();}else ouvrirProfils();};
 $('#profils-fermer').onclick=fermerProfils;
 $('#profils-fond').onclick=e=>{if(e.target.id==='profils-fond')fermerProfils();};
 
@@ -3061,12 +3370,19 @@ requestAnimationFrame(()=>requestAnimationFrame(()=>{
 /* PWA : enregistrement du service worker */
 if('serviceWorker' in navigator){window.addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{});});}
 window.addEventListener('online',()=>{if(profilActif&&profilActif.cloud&&profilActif.pin){majSync('sync');cloudPush();}});
+window.addEventListener('offline',()=>{if(profilActif&&profilActif.cloud)majSync('off');});
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='hidden'){if(enJeu)chronoFlush();if(profilActif&&profilActif.cloud&&profilActif.pin&&navigator.onLine)cloudPush();}
+  else if(enJeu){chronoDernier=Date.now();verifierLimiteTemps();}
+});
+window.addEventListener('pagehide',()=>{if(enJeu)chronoFlush();});
+document.addEventListener('freeze',()=>{if(enJeu)chronoFlush();});
 
 /* ===== AVENTURE : cartes pan/zoom + intro ===== */
 const AV_INTRO=[
   {img:'cartes/av_etable.jpg',txt:"Il était une fois une grande écurie qui débordait de chevaux légendaires…"},
   {img:'cartes/av_vent.jpg',txt:"Mais une nuit, un vent magique a surgi et les a tous emportés à travers le temps et l'espace !"},
-  {img:'cartes/av_enfant.jpg',txt:"Salut, moi c'est Pieter-Jan, ton cheval-guide ! Ensemble, on va les retrouver, de royaume en royaume. Pour bien démarrer, voici tes 3 premiers chevaux — en route ! 🐴✨"},
+  {img:'cartes/pieter_jan.jpg',txt:"Salut, moi c'est Pieter-Jan, ton cheval-guide ! Ensemble, on va les retrouver, de royaume en royaume. Pour bien démarrer, voici tes 3 premiers chevaux — en route ! 🐴✨"},
 ];
 let avIntroI=0,avPZM=null,avPZB=null,avPZF=null,avPZI=null,avPZR=null,avPZE=null,avInit=false,mascPays=null,mascI=0;
 function avZsc(svg){
@@ -3209,7 +3525,7 @@ const M_ARABE=c=>c.royaume==='arabie';
 const estP5=()=>(((profilActif&&profilActif.niveau)||5)>=5);
 const RAPPEL_Q={annee:"Rappelle-moi : en quelle année la Belgique est-elle née ?",capitale:"Rappelle-moi : quelle est la capitale ?",langues:"Rappelle-moi : combien de langues officielles ?",fleuve:"Rappelle-moi : au bord de quel fleuve se trouve Anvers ?"};
 const RAPPEL_CHOIX={annee:['1789','1830','1914','1958'],capitale:['Anvers','Bruxelles','Namur','Liège'],langues:['1','2','3','4'],fleuve:['la Meuse',"l'Escaut",'la Sambre','le Rhin']};
-const ETAPE_ANVERS={key:"anvers",pays:"Belgique",drapeau:"🇧🇪",numero:1,region:"Anvers",fond:"aventure/fond_anvers.jpg",province:"province d'Anvers",theme:"⚓ Le grand port",enjeu:"sauver son grand port",reveal:"Pieter-Jan t'attend sur la Grand-Place d'Anvers, devant l'immense cathédrale gothique, tout près du grand port sur l'Escaut.",nom:"Anvers, le grand port",sousEtapes:[
+const ETAPE_ANVERS={key:"anvers",pays:"Belgique",drapeau:"🇧🇪",numero:1,region:"Anvers",fond:"aventure/fond_anvers.jpg",province:"province d'Anvers",theme:"⚓ Le grand port",enjeu:"sauver son grand port",reveal:"Pieter-Jan t'attend sur la Grand-Place d'Anvers (la Grote Markt), devant l'immense cathédrale gothique Notre-Dame, tout près du grand port sur l'Escaut.",nom:"Anvers, le grand port",sousEtapes:[
  {titre:"Fonder la Belgique",narr:"Bienvenue en Belgique ! Avant de partir sauver les chevaux à travers le monde, aide-moi à bien connaître notre pays. Puis, direction le port d'Anvers !",activites:[
    {type:'decision',q:"En quelle année la Belgique est-elle née ?",choix:['1789','1830','1914','1958'],r:'1830',fait:['annee','1830']},
    {type:'decision',q:"Quelle est la capitale de la Belgique ?",choix:['Anvers','Bruxelles','Namur','Liège'],r:'Bruxelles',fait:['capitale','Bruxelles']},
@@ -3302,7 +3618,7 @@ const ETAPE_BRUGES={key:"bruges",pays:"Belgique",drapeau:"🇧🇪",numero:3,reg
  {titre:"La Venise du Nord",narr:"Bruges brille de mille feux, et ses cygnes te saluent ! La ville te remercie du fond du cœur.",activites:[{type:'bonus'}],crins:68,renom:3},
 ]};
 const M_SAUVAGE=c=>(c.familles||[]).includes('sauvages');
-const ETAPE_LIMBOURG={key:"limbourg",pays:"Belgique",drapeau:"🇧🇪",numero:4,region:"Hasselt",fond:"aventure/fond_hasselt.jpg",province:"Limbourg",theme:"🌳 La forêt & les vergers",enjeu:"réussir sa grande récolte de fruits",reveal:"Pieter-Jan t'accueille à Hasselt, devant sa grande église, au cœur du Limbourg des vergers et des forêts.",nom:"Hasselt, au pays des vergers",finText:"Le Limbourg a réussi sa récolte ! La prochaine province t'attend bientôt… 🐴",sousEtapes:[
+const ETAPE_LIMBOURG={key:"limbourg",pays:"Belgique",drapeau:"🇧🇪",numero:4,region:"Hasselt",fond:"aventure/fond_hasselt.jpg",province:"Limbourg",theme:"🌳 La forêt & les vergers",enjeu:"réussir sa grande récolte de fruits",reveal:"Pieter-Jan t'accueille à Hasselt, devant sa cathédrale Saint-Quentin, au cœur du Limbourg des vergers et des forêts.",nom:"Hasselt, au pays des vergers",finText:"Le Limbourg a réussi sa récolte ! La prochaine province t'attend bientôt… 🐴",sousEtapes:[
  {titre:"Arrivée en Limbourg",narr:"Bienvenue au Limbourg, la province des vergers en fleurs et des grandes forêts ! Apprenons d'abord à connaître ce beau pays.",activites:[
    {type:'decision',q:"Hasselt est le chef-lieu de quelle province ?",choix:['le Limbourg','le Hainaut','Anvers','Namur'],r:'le Limbourg',fait:['prov_limbourg','le Limbourg']},
    {type:'decision',q:"Le Limbourg est réputé pour ses vergers et ses… ?",choix:['fruits','bateaux','montagnes','volcans'],r:'fruits',fait:['fruits','les fruits']},
@@ -3373,7 +3689,7 @@ const ETAPE_LOUVAIN={key:"louvain",pays:"Belgique",drapeau:"🇧🇪",numero:5,r
  ],crins:58,renom:4},
  {titre:"Diplômé de Louvain",narr:"Bravo, tu as réussi l'expérience et l'examen ! L'université te remet un diplôme et une carte.",activites:[{type:'bonus'}],crins:70,renom:3},
 ]};
-const ETAPE_WAVRE={key:"wavre",pays:"Belgique",drapeau:"🇧🇪",numero:6,region:"Wavre",province:"Brabant wallon",theme:"⚔️ Waterloo & l'histoire",enjeu:"porter les messages à temps et ramener la paix",reveal:"Pieter-Jan t'accueille dans le centre ancien de Wavre, tout près du champ de bataille de Waterloo.",fond:"aventure/fond_wavre.jpg",nom:"Wavre, sur les traces de Waterloo",finText:"La paix est revenue sur la plaine ! La province suivante t'attend… 🕊️",sousEtapes:[
+const ETAPE_WAVRE={key:"wavre",pays:"Belgique",drapeau:"🇧🇪",numero:6,region:"Wavre",province:"Brabant wallon",theme:"⚔️ Waterloo & l'histoire",enjeu:"porter les messages à temps et ramener la paix",reveal:"Pieter-Jan t'accueille dans le vieux centre de Wavre, devant l'église Saint-Jean-Baptiste, tout près du champ de bataille de Waterloo.",fond:"aventure/fond_wavre.jpg",nom:"Wavre, sur les traces de Waterloo",finText:"La paix est revenue sur la plaine ! La province suivante t'attend… 🕊️",sousEtapes:[
  {titre:"Arrivée à Wavre",narr:"Bienvenue à Wavre, tout près du champ de Waterloo. Lis d'abord son histoire.",activites:[
    {type:'lecture',texte:"Non loin de Wavre, en 1815, se joua l'une des plus célèbres batailles de l'histoire : l'empereur Napoléon y perdit son tout dernier combat, à Waterloo. Aujourd'hui, une immense colline surmontée d'un Lion de fer veille sur la grande plaine, et rappelle qu'après les batailles vient toujours le temps de la paix.",questions:[
      {q:"Qui a perdu son dernier combat à Waterloo ?",choix:['Napoléon','Jules César','le roi Arthur'],r:'Napoléon'},
@@ -3501,7 +3817,7 @@ const ETAPE_LIEGE={key:"liege",pays:"Belgique",drapeau:"🇧🇪",numero:9,regio
  ],crins:66,renom:5},
  {titre:"Liège brille de mille feux",narr:"Bravo, championne ! La Cité Ardente s'illumine et fait la fête. Elle t'offre une belle carte… et une gaufre de Liège pour la route ! 🧇",activites:[{type:'bonus',rarete:['rare','epique']}],crins:130,renom:7},
 ]};
-const ETAPE_ARLON={key:"arlon",pays:"Belgique",drapeau:"🇧🇪",numero:10,region:"Arlon",province:"le Luxembourg",theme:"🏰 Les Ardennes & les chevaliers",enjeu:"traverser les forêts sauvages et défendre le château fort",reveal:"Pieter-Jan te guide dans la vieille ville d'Arlon, l'une des plus anciennes cités du pays, au cœur des Ardennes.",fond:"aventure/fond_arlon.jpg",nom:"Arlon, au cœur des Ardennes",finText:"Le château est sauvé ! Il ne reste plus que la capitale… 🏰",sousEtapes:[
+const ETAPE_ARLON={key:"arlon",pays:"Belgique",drapeau:"🇧🇪",numero:10,region:"Arlon",province:"le Luxembourg",theme:"🏰 Les Ardennes & les chevaliers",enjeu:"traverser les forêts sauvages et défendre le château fort",reveal:"Pieter-Jan te guide dans la vieille ville d'Arlon, jusqu'à l'église Saint-Donat perchée sur sa colline : l'une des plus anciennes cités du pays, au cœur des Ardennes.",fond:"aventure/fond_arlon.jpg",nom:"Arlon, au cœur des Ardennes",finText:"Le château est sauvé ! Il ne reste plus que la capitale… 🏰",sousEtapes:[
  {titre:"Arrivée à Arlon",narr:"Bienvenue à Arlon, l'une des plus vieilles villes du pays, au cœur des Ardennes ! Lis son histoire.",activites:[
    {type:'lecture',texte:"Arlon est l'une des plus anciennes villes de Belgique : elle existait déjà du temps des Romains ! Tout autour s'étendent les grandes forêts des Ardennes, pleines de cerfs et de sangliers. Jadis, du haut d'un château fort de Bouillon, partit un célèbre chevalier nommé Godefroid, pour un très long voyage à travers le monde.",questions:[
      {q:"De quelle époque date la ville d'Arlon ?",choix:['du temps des Romains','de la semaine dernière','du futur'],r:'du temps des Romains'},
@@ -4758,7 +5074,7 @@ const ETAPE_BARCELONE={key:"barcelone",pays:"Espagne",drapeau:"🇪🇸",numero:
  ],crins:62,renom:4},
  {titre:"Quelle œuvre d'art !",narr:"La mosaïque de Gaudí émerveille tout le monde ! On t'offre une carte.",activites:[{type:'bonus'}],crins:74,renom:3},
 ]};
-const ETAPE_COMPOSTELLE={key:"compostelle",pays:"Espagne",drapeau:"🇪🇸",numero:6,region:"Compostelle",province:"Espagne",theme:"🐚 Le grand pèlerinage",enjeu:"guider les pèlerins jusqu'à la cathédrale",fond:"aventure/fond_compostelle.jpg",reveal:"Rocío arrive à Saint-Jacques-de-Compostelle, au bout du plus grand chemin de pèlerinage d'Europe.",nom:"Saint-Jacques-de-Compostelle",finText:"Les pèlerins sont arrivés ! La région suivante t'attend… 🐚",sousEtapes:[
+const ETAPE_COMPOSTELLE={key:"compostelle",pays:"Espagne",drapeau:"🇪🇸",numero:6,region:"Compostelle",province:"Espagne",theme:"🐚 Le grand pèlerinage",enjeu:"guider les pèlerins jusqu'à la cathédrale",fond:"aventure/fond_compostelle.jpg",reveal:"Rocío arrive à Saint-Jacques-de-Compostelle, devant sa grande cathédrale baroque, au bout du plus grand chemin de pèlerinage d'Europe.",nom:"Saint-Jacques-de-Compostelle",finText:"Les pèlerins sont arrivés ! La région suivante t'attend… 🐚",sousEtapes:[
  {titre:"Au bout du chemin",narr:"Voici Compostelle, but des pèlerins. Lis son histoire.",activites:[
    {type:'lecture',texte:"Depuis plus de mille ans, des pèlerins marchent des semaines, parfois des mois, pour rejoindre la cathédrale de Saint-Jacques-de-Compostelle, dans le nord-ouest de l'Espagne. Ils suivent un chemin balisé par une coquille, la coquille Saint-Jacques, et par des flèches jaunes. Certains disent même qu'ils suivent la Voie lactée dans le ciel !",questions:[
      {q:"Quel objet balise le chemin des pèlerins ?",choix:['la coquille Saint-Jacques','un ballon','un drapeau rouge'],r:'la coquille Saint-Jacques'},
@@ -4881,7 +5197,7 @@ const ETAPE_SINTRA={key:"sintra",pays:"Portugal",drapeau:"🇵🇹",numero:9,reg
  ],crins:62,renom:4},
  {titre:"Le palais enchanté !",narr:"Le palais de Pena brille de magie ! On t'offre une carte.",activites:[{type:'bonus'}],crins:74,renom:3},
 ]};
-const ETAPE_LISBONNE={key:"lisbonne",pays:"Portugal",drapeau:"🇵🇹",numero:10,region:"Lisbonne",province:"Portugal",theme:"⛵ Les Grandes Découvertes",enjeu:"préparer le grand départ des explorateurs",fond:"aventure/fond_lisbonne.jpg",reveal:"Rocío atteint Lisbonne, la capitale du Portugal, d'où partirent les grands explorateurs sur l'océan !",nom:"Lisbonne, ville des explorateurs",finText:"Les caravelles sont prêtes ! Direction Madrid pour la grande finale… ⛵",sousEtapes:[
+const ETAPE_LISBONNE={key:"lisbonne",pays:"Portugal",drapeau:"🇵🇹",numero:10,region:"Lisbonne",province:"Portugal",theme:"⛵ Les Grandes Découvertes",enjeu:"préparer le grand départ des explorateurs",fond:"aventure/fond_lisbonne.jpg",reveal:"Rocío atteint Lisbonne, la capitale du Portugal : ses tramways jaunes et la tour de Belém, d'où partirent les grands explorateurs sur l'océan !",nom:"Lisbonne, ville des explorateurs",finText:"Les caravelles sont prêtes ! Direction Madrid pour la grande finale… ⛵",sousEtapes:[
  {titre:"À Lisbonne",narr:"Voici Lisbonne, ville des navigateurs. Lis son histoire.",activites:[
    {type:'lecture',texte:"Lisbonne est la capitale du Portugal, au bord de l'océan Atlantique. Il y a environ 500 ans, c'est d'ici que partirent les grands explorateurs sur leurs caravelles, de petits bateaux à voiles, pour découvrir des routes vers l'Afrique, l'Inde et l'Amérique. On visite la tour de Belém, qui gardait le port, et on grimpe la ville dans de vieux tramways jaunes.",questions:[
      {q:"Sur quels bateaux partaient les explorateurs ?",choix:['des caravelles','des sous-marins','des radeaux'],r:'des caravelles'},
@@ -5017,7 +5333,7 @@ function avRepondre(choix,r,onOk,msgFaux){
   const rec=()=>essais===0?REC_AV1:(essais===1?REC_AV2:0);
   const majRec=()=>{const el=document.getElementById('ae-reward');if(!el)return;const g=rec();el.innerHTML=g>0?('<span class="aer-lbl">'+(essais===0?'🎁 Premier coup':'2ᵉ essai')+'</span><b class="aer-val'+(essais>0?' small':'')+'">+'+g+' 💎</b>'):('<span class="aer-lbl dim">Réponds juste du 1er coup pour gagner des 💎 !</span>');};
   ordre.forEach(v=>{const b=document.createElement('button');b.className='ae-rep';b.textContent=v;b.onclick=()=>{
-    if(v===r){box.querySelectorAll('button').forEach(x=>x.disabled=true);b.classList.add('bon');
+    if(v===r){box.querySelectorAll('button').forEach(x=>x.disabled=true);b.classList.add('bon');etat.exos=(etat.exos||0)+1;
       const g=rec();const el=document.getElementById('ae-reward');
       if(g>0){etat.crins+=g;sauver();majSolde(true);if(typeof montrerGainAnim==='function'){ancreGain=b;montrerGainAnim(g);}if(el)el.innerHTML='<b class="aer-val win">'+(essais===0?'🌟 Premier coup ! ':'')+'+'+g+' 💎</b>';}
       else if(el)el.innerHTML='<span class="aer-lbl dim">Bonne réponse (pas de bonus cette fois)</span>';
@@ -5152,7 +5468,7 @@ function avCompo(a){
   })();
   const bloque=manque.length>0;
   if(bloque){
-    const buyIds=[...new Set(manque.flatMap(s=>Array.isArray(s.buy)?s.buy:(s.buy?[s.buy]:[])))].slice(0,8);
+    const buyIds=[...new Set(manque.reduce((acc,s)=>acc.concat(Array.isArray(s.buy)?s.buy:(s.buy?[s.buy]:[])),[]))].slice(0,8);
     let boutique='';
     if(buyIds.length){boutique='<div class="ae-boutit">🛒 Achète les chevaux qu\'il te manque :</div>';buyIds.forEach(id=>{const c=CARTES.find(x=>x.id===id);if(!c)return;const prix=PRIX_ACHAT[c.rarete]||300;boutique+='<button class="ae-btn ae-buy" data-buy="'+id+'"><span class="tc-box ratio ae-buyvig">'+carteHTML(c,etat.collection[c.id]||0)+'</span>'+c.nom+'<br>'+prix+' 💎</button>';});}
     corps.innerHTML=consHTML+'<div class="ae-manque">🔑 Il te manque des chevaux pour cette mission.'+(buyIds.length?'<br>Achète-les ici, ou gagne-les aux <b>Défis</b>.':'<br>File aux <b>Défis</b> gagner de nouvelles cartes !')+'</div>'+boutique+'<button class="ae-lien" id="ae-defis">→ Aller aux Défis</button><button class="ae-lien" id="ae-later">Retour à la carte</button>';
@@ -5224,9 +5540,16 @@ function avMajPins(){
     const pin=pins.find(p=>{const t=p.querySelector('.pt-num');return t&&(+t.textContent===et.numero);});
     if(!pin)return;
     pin.dataset.etape=et.key;
-    pin.setAttribute('class','zsc etape '+(ok?'dispo':'lock'));
-    pin.innerHTML=(ok?'<circle class="pt-glow" r="20"/><circle class="pt-core" r="11"/><circle class="pt-shine" cx="-3.5" cy="-3.5" r="3"/>':'<circle class="pt-core lock" r="10"/>')+'<text class="pt-num" y="4">'+et.numero+'</text>';
-    if(ok){pin.setAttribute('tabindex','0');if(!pin._wired){pin._wired=1;pin.addEventListener('click',avEtapeLancer);pin.addEventListener('pointerdown',()=>{pin.classList.add('hot');setTimeout(()=>pin.classList.remove('hot'),500);});}}
+    const fait=!!(prov[et.key]&&prov[et.key].fini);
+    pin.setAttribute('class','zsc etape '+(fait?'fait':ok?'dispo':'lock'));
+    if(fait){
+      pin.innerHTML='<circle class="pt-glow fait" r="20"/><circle class="pt-core fait" r="12"/><path class="pt-check" d="M -5 0.5 L -1.8 3.8 L 5 -4"/>';
+    }else if(ok){
+      pin.innerHTML='<circle class="pt-glow" r="20"/><circle class="pt-core" r="11"/><circle class="pt-shine" cx="-3.5" cy="-3.5" r="3"/><text class="pt-num" y="4">'+et.numero+'</text>';
+    }else{
+      pin.innerHTML='<circle class="pt-core lock" r="10"/><text class="pt-num" y="4">'+et.numero+'</text>';
+    }
+    if(ok||fait){pin.setAttribute('tabindex','0');if(!pin._wired){pin._wired=1;pin.addEventListener('click',avEtapeLancer);pin.addEventListener('pointerdown',()=>{pin.classList.add('hot');setTimeout(()=>pin.classList.remove('hot'),500);});}}
   });
   const bxl=document.querySelector(MC().bossSel);
   if(bxl){bxl.dataset.etape='bruxelles';const allFini=order.length>=10&&order.every(e=>prov[e.key]&&prov[e.key].fini);if(allFini){bxl.classList.add('boss-on');bxl.style.cursor='pointer';if(!bxl._wired){bxl._wired=1;bxl.addEventListener('click',avEtapeLancer);}}}
