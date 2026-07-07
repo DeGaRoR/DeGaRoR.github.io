@@ -3,6 +3,34 @@
 Convention : `VERSION_APP` (index.html) = `ecurie-vNN` (sw.js), incrémentés à CHAQUE livraison
 (invalidation du cache PWA). QC : `node tools/qc.js` avant chaque livraison.
 
+## v85 — Correctif : badges de carte passant sous la zone fixe (composition d'équipe)
+- Les badges 💪 puissance et ×N copies du pool passaient par-dessus l'en-tête fixe (consigne,
+  objectif, emplacements, bouton Valider) en défilant. L'en-tête est remonté au-dessus des badges
+  (z-index) et son fond rendu opaque : le pool défile maintenant proprement derrière.
+## v84 — Animation de gain centrée sur le bouton de réponse
+- L'animation « +N 💎 » et la pluie de diamants apparaissent désormais **centrées sur le bouton de
+  réponse qui a été poussé** (au lieu du compteur en haut). Vaut pour tous les quiz : défis généraux,
+  packs spéciaux, Chevaux/Origines, Orthographe (sur le bouton Valider) et mode Aventure.
+- Repli propre : si aucun bouton n'est identifié, l'animation revient au compteur de diamants.
+## v83 — Mode hors ligne (offline-first) + synchro au retour du réseau
+- **L'app fonctionne hors ligne.** Avant, la liste des écuries et la connexion (vérif du code)
+  passaient par le serveur → blocage sur « connexion » sans réseau. Désormais :
+  · la **liste des écuries** est mise en cache et affichée **instantanément**, puis rafraîchie ;
+  · la **connexion hors ligne** vérifie le code secret en local et charge la dernière sauvegarde ;
+  · un bandeau « 📴 Hors ligne » l'indique clairement.
+- **Timeout de 7 s** sur les requêtes serveur : fini de rester bloqué si le réseau traîne.
+- **Synchro automatique** dès que la connexion revient (et à chaque sauvegarde en ligne). Les
+  parties jouées hors ligne sont conservées localement et envoyées au serveur au retour du réseau.
+- Le code secret et l'état sont mis en cache à la connexion et à la création du compte.
+- Note : nécessite de s'être connecté **au moins une fois en ligne** sur l'appareil (pour mémoriser
+  le code). Les polices se replient sur celles du système hors ligne (l'app reste pleinement jouable).
+## v82 — Origines & Chevaux : uniquement de vraies races / mythes établis
+- **Origines** ne propose plus de chevaux fictifs : le pool est restreint aux **origines
+  géographiques réelles**. Les mondes imaginaires (Avalon, Camelot, la Scène, le Futur,
+  l'Outre-monde) sont exclus — on ne demande plus « d'où vient » une licorne ou un cheval robot.
+  Restent 129 chevaux répartis sur 36 lieux réels.
+- **Chevaux** : la sous-question « robe » est sécurisée pour ne porter que sur des chevaux établis
+  (vraies races, mythes ou peuples documentés). Les catégories races/mythes/peuples étaient déjà curées.
 ## v81 — Théorie par niveau, packs différenciés, tri famille/récent
 - **Vraie théorie par niveau** : chaque pack à maîtrise (Geek, Anglais, Art, Néerlandais, Ortho) a
   désormais une fiche théorique courte et propre (un écran max) — une pour le niveau 1, une pour le

@@ -562,7 +562,7 @@ main.plein{padding:0 !important;overflow:hidden !important;}
 .aep-bar{height:8px;background:#ffffff14;border-radius:99px;overflow:hidden;}
 .aep-bar i{display:block;height:100%;background:linear-gradient(90deg,#ffd977,var(--or));border-radius:99px;transition:width .4s ease;}
 
-.ae-cotop{position:sticky;top:0;z-index:2;background:linear-gradient(180deg,#1a1636 82%,#1a163600);padding-bottom:10px;}
+.ae-cotop{position:sticky;top:0;z-index:20;background:linear-gradient(180deg,#1a1636 90%,#1a163600);padding-bottom:10px;}
 .ae-cotop .ae-btn{margin-top:8px;}
 .ae-pool{padding-bottom:20px;}
 
@@ -1459,15 +1459,28 @@ const CLOUD={
   actif(){return !!(this.url&&this.key);},
   async rpc(fn,args){
     const base=this.url.replace(/\/+$/,'').replace(/\/rest\/v1$/,'');
-    const r=await fetch(base+'/rest/v1/rpc/'+fn,{method:'POST',headers:{'apikey':this.key,'Authorization':'Bearer '+this.key,'Content-Type':'application/json'},body:JSON.stringify(args||{})});
-    if(!r.ok)throw new Error('HTTP '+r.status+' '+await r.text());
-    return r.json();
+    const ctrl=new AbortController();const to=setTimeout(()=>ctrl.abort(),7000);
+    try{
+      const r=await fetch(base+'/rest/v1/rpc/'+fn,{method:'POST',headers:{'apikey':this.key,'Authorization':'Bearer '+this.key,'Content-Type':'application/json'},body:JSON.stringify(args||{}),signal:ctrl.signal});
+      if(!r.ok)throw new Error('HTTP '+r.status+' '+await r.text());
+      return r.json();
+    }finally{clearTimeout(to);}
   }
 };
 async function sha256(s){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(String(s)));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');}
 function codeFamille(){try{return (localStorage.getItem('ecurie_fam')||'').trim();}catch(e){return '';}}
 async function cloudListe(){return CLOUD.rpc('comptes_liste',{p_code:codeFamille()});}
 async function cloudConnexion(prenom,pin){const h=await sha256(pin);const r=await CLOUD.rpc('connexion',{p_prenom:prenom,p_pin:h,p_code:codeFamille()});return (r&&r[0])?Object.assign(r[0],{_pin:h}):null;}
+/* Cache local pour fonctionner hors ligne : liste des écuries, hash du code, dernier état. */
+function lireCache(k){try{const v=localStorage.getItem(k);return v?JSON.parse(v):null;}catch(e){return null;}}
+function ecrireCache(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+function cacheProfil(o){if(!o||!o.id)return;ecrireCache('ecurie_prof_'+o.id,{id:o.id,prenom:o.prenom,avatar:o.avatar,couleur:o.couleur,age:o.age,niveau:o.niveau,pin:o.pin});}
+async function connexionOffline(a,pin){
+  const h=await sha256(pin);const prof=lireCache('ecurie_prof_'+a.id);
+  if(!prof||prof.pin!==h)return null;
+  const bk=lireCache('ecurie_bk_'+a.id);
+  return {id:a.id,nom:a.prenom||prof.prenom,age:a.age||prof.age,emoji:a.avatar||prof.avatar,couleur:a.couleur||prof.couleur,niveau:a.niveau||prof.niveau,etat:normaliserEtat(bk||etatVide()),cloud:true,pin:h,_offline:true};
+}
 async function cloudCreer(prenom,pin,avatar,couleur,age,niveau){const h=await sha256(pin);const id=await CLOUD.rpc('creer_compte',{p_prenom:prenom,p_pin:h,p_avatar:avatar,p_couleur:couleur,p_age:age,p_niveau:niveau,p_etat:etatVide(),p_code:codeFamille()});return {id,_pin:h};}
 async function cloudProprietaires(carte){try{return await CLOUD.rpc('proprietaires',{p_carte:carte,p_code:codeFamille()});}catch(e){return [];}}
 let cloudTimer=null;
@@ -1479,7 +1492,7 @@ async function cloudPush(){
   catch(e){majSync('err');}
 }
 function compteVersProfil(row){return {id:row.id,nom:row.prenom,age:row.age,emoji:row.avatar,couleur:row.couleur,niveau:row.niveau,etat:normaliserEtat(row.etat||etatVide()),cloud:true,pin:row._pin};}
-const VERSION_APP='v81';
+const VERSION_APP='v85';
 const RARETES={commune:{nom:'Commune',poids:55,overflow:15,couleur:'#c4cdd8'},rare:{nom:'Rare',poids:27,overflow:30,couleur:'#7ec2ff'},epique:{nom:'Épique',poids:13,overflow:60,couleur:'#c99bff'},legendaire:{nom:'Légendaire',poids:4.5,overflow:120,couleur:'#ffcf6b'},mythique:{nom:'Mythique',poids:0.5,overflow:250,couleur:'#ff9ac0'},celeste:{nom:'Céleste',poids:0,overflow:300,couleur:'#ffe9a8'}};
 const SEUILS=[1,4,9,17,28];   // exemplaires cumulés pour ★ à ★★★★★ (évolution plus lente)
 const TITRES=['—','Éveil','Aguerri','Radieux','Astral','Mythe'];
@@ -1886,18 +1899,24 @@ function carteMystereHTML(c){return `<div class="tcarte verrou" data-r="${c.rare
 function majSolde(anim){$('#solde-nb').textContent=etat.crins;if(anim){const s=$('#solde');s.classList.remove('pulse');void s.offsetWidth;s.classList.add('pulse');}$('#btn-tirer').disabled=etat.crins<COUT_TIRAGE;const b10=$('#btn-tirer10');if(b10)b10.disabled=etat.crins<COUT_TIRAGE10;const bs=$('#btn-tirer-super');if(bs)bs.disabled=(etat.renommee||0)<COUT_SUPER_RENOM;const rn=$('#tirage-renom-nb');if(rn)rn.textContent=etat.renommee||0;const cn=$('#tirage-crins-nb');if(cn)cn.textContent=etat.crins;}
 /* Feedback visuel du gain : « +N 💎 » qui monte et s'estompe + une pluie de diamants
    dont le nombre grandit avec la somme, pour qu'une grosse récompense se REMARQUE. */
+let ancreGain=null;   // bouton de réponse cliqué, pour y centrer l'animation de gain
 function montrerGainAnim(n){
   if(!(n>0))return;
-  const a=document.getElementById('solde');if(!a)return;
-  const r=a.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.bottom-2;
+  let a=(ancreGain&&ancreGain.isConnected)?ancreGain:null;ancreGain=null;
+  if(!a)a=document.querySelector('#ae-choix .ae-rep.bon')||document.querySelector('#q-reponses button.bon');
+  const surBouton=!!a;
+  if(!a)a=document.getElementById('solde');
+  if(!a)return;
+  const r=a.getBoundingClientRect(),cx=r.left+r.width/2,cy=surBouton?(r.top+r.height/2):(r.bottom-2);
   const grand=n>=18,moyen=n>=10;
   const lab=document.createElement('div');lab.className='gain-pop'+(grand?' xl':moyen?' l':'');
   lab.textContent='+'+n+' 💎';lab.style.left=cx+'px';lab.style.top=cy+'px';
   document.body.appendChild(lab);setTimeout(()=>lab.remove(),1300);
+  const spread=surBouton?Math.min(90,r.width/2):70;
   const k=Math.max(3,Math.min(16,Math.round(n/2)+2));
   for(let i=0;i<k;i++){const p=document.createElement('div');p.className='gain-dia';p.textContent='💎';
     p.style.left=cx+'px';p.style.top=cy+'px';
-    p.style.setProperty('--dx',((Math.random()*2-1)*70).toFixed(0)+'px');
+    p.style.setProperty('--dx',((Math.random()*2-1)*spread).toFixed(0)+'px');
     p.style.setProperty('--dy',(-(38+Math.random()*80)).toFixed(0)+'px');
     p.style.animationDelay=(i*28)+'ms';
     document.body.appendChild(p);setTimeout(()=>p.remove(),1300);}
@@ -2658,12 +2677,17 @@ function exoBankQuiz(z,meta,mid,packId){
     const s=statMatiere(mid);s.tot++;const sp=statPack(packId);sp.tot++;if(bon)sp.ok++;let g,msg;
     if(bon){serieCourante++;s.ok++;etat.bonnes++;g=Math.round(GAIN_BONNE*PMULT());msg=BRAVOS[rnd(0,BRAVOS.length-1)];}
     else{serieCourante=0;g=GAIN_ESSAI;msg=ENCOURAGE[rnd(0,ENCOURAGE.length-1)];}
-    g=crediterDefi(g);etat.xp[mid]=(etat.xp[mid]||0)+(bon?XP_BONNE:XP_ESSAI);sauver();majSolde(true);
+    g=crediterDefi((ancreGain=b,g));etat.xp[mid]=(etat.xp[mid]||0)+(bon?XP_BONNE:XP_ESSAI);sauver();majSolde(true);
     const fb=$('#q-feedback');fb.innerHTML=`<div class="qf-msg ${bon?'bon':'faux'}">${msg}</div>${q.e?`<div class="qf-astuce">💡 ${q.e}</div>`:''}<div class="qf-gain">+${g} Diamants</div><button class="defi-continuer">Continuer ›</button>`;fb.classList.add('show');fb.querySelector('.defi-continuer').onclick=()=>packExo();
   };box.appendChild(b);});
 }
+/* Origines / Chevaux : n'accepter que les vraies origines géographiques et les catégories établies
+   (vraies races, mythes/peuples documentés). Les mondes fictifs n'ont pas d'origine réelle. */
+const ROYAUMES_FICTIFS=new Set(['avalon','camelot','scene','futur','outremonde']);
+function royaumeReel(c){return !!(c.royaume&&ROYAUMES[c.royaume]&&!ROYAUMES_FICTIFS.has(c.royaume));}
+function chevalEtabli(c){return BREEDS.includes(c.id)||!!MYTHES[c.id]||!!HISTO[c.id]||royaumeReel(c);}
 function exoOrigines(z){
-  const pool=CARTES.filter(c=>c.royaume&&ROYAUMES[c.royaume]);
+  const pool=CARTES.filter(c=>royaumeReel(c));
   const cible=pool[rnd(0,pool.length-1)],bonR=cible.royaume;
   const autres=melange([...new Set(pool.map(c=>c.royaume))].filter(r=>r!==bonR)).slice(0,3);
   const choixR=melange([bonR,...autres]);const lab=r=>ROYAUMES[r].ico+' '+ROYAUMES[r].nom;
@@ -2676,7 +2700,7 @@ function exoOrigines(z){
     const mid='geo';const s=statMatiere(mid);s.tot++;const sp=statPack('origines');sp.tot++;if(bon)sp.ok++;let g,msg;
     if(bon){serieCourante++;s.ok++;etat.bonnes++;g=Math.round(GAIN_BONNE*PMULT());msg=BRAVOS[rnd(0,BRAVOS.length-1)];}
     else{serieCourante=0;g=GAIN_ESSAI;msg=cible.nom+" vient de "+ROYAUMES[bonR].nom+".";}
-    g=crediterDefi(g);etat.xp[mid]=(etat.xp[mid]||0)+(bon?XP_BONNE:XP_ESSAI);sauver();majSolde(true);
+    g=crediterDefi((ancreGain=b,g));etat.xp[mid]=(etat.xp[mid]||0)+(bon?XP_BONNE:XP_ESSAI);sauver();majSolde(true);
     const fb=$('#q-feedback');fb.innerHTML=`<div class="qf-msg ${bon?'bon':'faux'}">${msg}</div><div class="qf-astuce">💡 ${cible.desc||''}</div><div class="qf-gain">+${g} Diamants</div><button class="defi-continuer">Continuer ›</button>`;fb.classList.add('show');fb.querySelector('.defi-continuer').onclick=()=>packExo();
   };box.appendChild(b);});
 }
@@ -2705,7 +2729,7 @@ const MOTS_ORTHO=[
 ];
 function exoRaces(z){
   const races=CARTES.filter(c=>BREEDS.includes(c.id));
-  const robeCards=CARTES.filter(c=>ROBES[c.id]);
+  const robeCards=CARTES.filter(c=>ROBES[c.id]&&chevalEtabli(c));
   const mythe=CARTES.filter(c=>MYTHES[c.id]);const mPerso=mythe.filter(c=>MYTHES[c.id].perso);
   const histo=CARTES.filter(c=>HISTO[c.id]);
   const r=Math.random();let cible,question,bonne,choix,theoWrong;
@@ -2733,7 +2757,7 @@ function exoRaces(z){
     const mid='sciences';const s=statMatiere(mid);s.tot++;const sp=statPack('races');sp.tot++;if(bon)sp.ok++;let g,msg;
     if(bon){serieCourante++;s.ok++;etat.bonnes++;g=Math.round(GAIN_BONNE*PMULT());msg=BRAVOS[rnd(0,BRAVOS.length-1)];}
     else{serieCourante=0;g=GAIN_ESSAI;msg="C'était : <b>"+bonne+"</b>";}
-    g=crediterDefi(g);etat.xp[mid]=(etat.xp[mid]||0)+(bon?XP_BONNE:XP_ESSAI);sauver();majSolde(true);
+    g=crediterDefi((ancreGain=b,g));etat.xp[mid]=(etat.xp[mid]||0)+(bon?XP_BONNE:XP_ESSAI);sauver();majSolde(true);
     const fb=$('#q-feedback');fb.innerHTML=`<div class="qf-msg ${bon?'bon':'faux'}">${msg}</div>${theoWrong?`<div class="qf-astuce">💡 ${theoWrong}</div>`:''}<div class="qf-gain">+${g} Diamants</div><button class="defi-continuer">Continuer ›</button>`;fb.classList.add('show');fb.querySelector('.defi-continuer').onclick=()=>packExo();
   };box.appendChild(b);});
 }
@@ -2746,7 +2770,7 @@ function exoOrtho(z){
     const bon=norm(rep)===norm(it.r);if(bon)maitriser('ortho',it.r);const mid='francais';const s=statMatiere(mid);s.tot++;const sp=statPack('ortho');sp.tot++;if(bon)sp.ok++;let g,msg;
     if(bon){serieCourante++;s.ok++;etat.bonnes++;g=Math.round(GAIN_BONNE*PMULT());msg="Parfait, sans faute ! ✍️";}
     else{serieCourante=0;g=GAIN_ESSAI;msg="On écrit : <b>"+it.r+"</b>";}
-    g=crediterDefi(g);etat.xp[mid]=(etat.xp[mid]||0)+(bon?XP_BONNE:XP_ESSAI);sauver();majSolde(true);
+    g=crediterDefi((ancreGain=$('#ortho-ok'),g));etat.xp[mid]=(etat.xp[mid]||0)+(bon?XP_BONNE:XP_ESSAI);sauver();majSolde(true);
     const fb=$('#q-feedback');fb.innerHTML=`<div class="qf-msg ${bon?'bon':'faux'}">${msg}</div>${!bon?`<div class="qf-astuce">💡 ${theorieCour}</div>`:''}<div class="qf-gain">+${g} Diamants</div><button class="defi-continuer">Continuer ›</button>`;fb.classList.add('show');fb.querySelector('.defi-continuer').onclick=()=>packExo();
   };
   $('#ortho-ok').onclick=valider;inp.addEventListener('keydown',e=>{if(e.key==='Enter')valider();});
@@ -2809,7 +2833,7 @@ function repondre(btn,val){
   let crinsGain,xpGain,msg,cls;
   if(bon){serieCourante++;s.ok++;etat.bonnes++;const bonus=(serieCourante%PALIER_SERIE===0)?BONUS_SERIE:0;crinsGain=Math.round((GAIN_BONNE+bonus+Math.max(0,niveauDe(etat.xp[mid])-1)*2)*PMULT());xpGain=XP_BONNE+(mid==='maths'?(diffMaths()-1)*2:0);msg=BRAVOS[rnd(0,BRAVOS.length-1)]+(bonus?` 🔥 Série ×${serieCourante} !`:'');cls='bon';}
   else{btn.classList.add('faux');serieCourante=0;crinsGain=GAIN_ESSAI;xpGain=XP_ESSAI;msg=ENCOURAGE[rnd(0,ENCOURAGE.length-1)];cls='faux';}
-  crinsGain=crediterDefi(crinsGain);etat.xp[mid]=(etat.xp[mid]||0)+xpGain;
+  crinsGain=crediterDefi((ancreGain=btn,crinsGain));etat.xp[mid]=(etat.xp[mid]||0)+xpGain;
   const fb=$('#q-feedback');fb.innerHTML=`<div class="qf-msg ${cls}">${msg}</div>${(qCour.exp||(cls==='faux'&&theorieCour))?`<div class="qf-astuce">💡 ${qCour.exp||theorieCour}</div>`:''}<div class="qf-gain">+${crinsGain} Diamants · +${xpGain} XP</div><button class="defi-continuer">Continuer ›</button>`;fb.classList.add('show');
   fb.querySelector('.defi-continuer').onclick=()=>packExo();
   sauver();majSolde(true);
@@ -2955,13 +2979,9 @@ async function demanderCodeFamille(){
   const go=()=>{const v=($('#fam-code').value||'').trim().toLowerCase();if(v.length<2)return toast('Choisis un code (2 caractères min)');try{localStorage.setItem('ecurie_fam',v);}catch(e){}renderAccueilCloud();};
   $('#fam-ok').onclick=go;$('#fam-code').addEventListener('keydown',e=>{if(e.key==='Enter')go();});
 }
-async function renderAccueilCloud(){
-  if(!codeFamille())return demanderCodeFamille();
-  const box=$('#acc-liste');box.innerHTML='<div class="acc-niv">Chargement des écuries…</div>';$('#acc-form').innerHTML='';
-  let liste;
-  try{liste=await cloudListe();}
-  catch(e){box.innerHTML='<div class="acc-niv">Pas de connexion. <button id="acc-retry" style="text-decoration:underline;background:none;border:none;color:var(--or);font:inherit;cursor:pointer">Réessayer</button></div>';const r=$('#acc-retry');if(r)r.onclick=renderAccueilCloud;return;}
-  box.innerHTML='<div class="acc-fam">🏠 Famille : <b>'+codeFamille()+'</b> · <button id="acc-chfam">changer</button></div>';
+function rendreListeCloud(liste,horsLigne){
+  const box=$('#acc-liste');
+  box.innerHTML='<div class="acc-fam">🏠 Famille : <b>'+codeFamille()+'</b> · <button id="acc-chfam">changer</button></div>'+(horsLigne?'<div class="acc-niv" style="color:#ffb14e">📴 Hors ligne — écuries en mémoire</div>':'');
   if(!liste.length)box.insertAdjacentHTML('beforeend','<div class="acc-niv">Aucune écurie dans cette famille. Crée la première !</div>');
   liste.forEach(a=>{
     const c=document.createElement('div');c.className='profil-carte';c.style.setProperty('--pc',a.couleur||'#7ec2ff');
@@ -2970,6 +2990,17 @@ async function renderAccueilCloud(){
   });
   const add=document.createElement('button');add.className='profil-ajout';add.innerHTML='<span style="font-size:20px">＋</span> Nouvelle écurie';add.onclick=formCloudCreate;box.appendChild(add);
   const ch=$("#acc-chfam");if(ch)ch.onclick=()=>{try{localStorage.removeItem("ecurie_fam");}catch(e){}renderAccueilCloud();};
+}
+async function renderAccueilCloud(){
+  if(!codeFamille())return demanderCodeFamille();
+  const box=$('#acc-liste');$('#acc-form').innerHTML='';
+  const cache=lireCache('ecurie_liste_'+codeFamille());
+  if(cache&&cache.length)rendreListeCloud(cache,true);   // affichage immédiat depuis le cache
+  else box.innerHTML='<div class="acc-niv">Chargement des écuries…</div>';
+  try{const liste=await cloudListe();ecrireCache('ecurie_liste_'+codeFamille(),liste);rendreListeCloud(liste,false);}
+  catch(e){
+    if(!(cache&&cache.length)){box.innerHTML='<div class="acc-niv">Pas de connexion et aucune écurie en mémoire. <button id="acc-retry" style="text-decoration:underline;background:none;border:none;color:var(--or);font:inherit;cursor:pointer">Réessayer</button></div>';const r=$('#acc-retry');if(r)r.onclick=renderAccueilCloud;}
+  }
 }
 function pavePin(cible,onFini){
   let pin='';const f=$('#acc-form');
@@ -2983,8 +3014,12 @@ function pavePin(cible,onFini){
 }
 function demanderPin(a){
   pavePin(`${a.avatar||'🦄'} ${a.prenom} · code secret`,async(pin)=>{
-    try{const row=await cloudConnexion(a.prenom,pin);if(!row){toast('Code incorrect');return demanderPin(a);}entrerJeu(compteVersProfil(row));}
-    catch(e){toast('Pas de connexion');demanderPin(a);}
+    try{const row=await cloudConnexion(a.prenom,pin);if(!row){toast('Code incorrect');return demanderPin(a);}cacheProfil({id:row.id,prenom:row.prenom,avatar:row.avatar,couleur:row.couleur,age:row.age,niveau:row.niveau,pin:row._pin});entrerJeu(compteVersProfil(row));}
+    catch(e){
+      const off=await connexionOffline(a,pin);
+      if(off){toast('📴 Hors ligne — sauvegarde locale');entrerJeu(off);}
+      else{toast('Pas de connexion (code jamais utilisé sur cet appareil ?)');demanderPin(a);}
+    }
   });
 }
 function formCloudCreate(){
@@ -2998,7 +3033,7 @@ function formCloudCreate(){
     if(!nom)return toast('Choisis un prénom');
     if(!/^\d{4}$/.test(pin))return toast('Code à 4 chiffres');
     const age=parseInt($('#cc-age').value,10)||8,coul=COULEURS_PROFIL[Math.floor(Math.random()*COULEURS_PROFIL.length)];
-    try{const {id,_pin}=await cloudCreer(nom,pin,emo,coul,age,niveauScolaire(age));entrerJeu({id,nom,age,emoji:emo,couleur:coul,niveau:niveauScolaire(age),etat:etatVide(),cloud:true,pin:_pin});}
+    try{const {id,_pin}=await cloudCreer(nom,pin,emo,coul,age,niveauScolaire(age));cacheProfil({id,prenom:nom,avatar:emo,couleur:coul,age,niveau:niveauScolaire(age),pin:_pin});entrerJeu({id,nom,age,emoji:emo,couleur:coul,niveau:niveauScolaire(age),etat:etatVide(),cloud:true,pin:_pin});}
     catch(e){toast(String(e).includes('PRENOM_PRIS')?'Ce prénom existe déjà':'Création impossible (connexion ?)');}
   };
 }
@@ -3025,6 +3060,7 @@ requestAnimationFrame(()=>requestAnimationFrame(()=>{
 
 /* PWA : enregistrement du service worker */
 if('serviceWorker' in navigator){window.addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{});});}
+window.addEventListener('online',()=>{if(profilActif&&profilActif.cloud&&profilActif.pin){majSync('sync');cloudPush();}});
 
 /* ===== AVENTURE : cartes pan/zoom + intro ===== */
 const AV_INTRO=[
@@ -4983,7 +5019,7 @@ function avRepondre(choix,r,onOk,msgFaux){
   ordre.forEach(v=>{const b=document.createElement('button');b.className='ae-rep';b.textContent=v;b.onclick=()=>{
     if(v===r){box.querySelectorAll('button').forEach(x=>x.disabled=true);b.classList.add('bon');
       const g=rec();const el=document.getElementById('ae-reward');
-      if(g>0){etat.crins+=g;sauver();majSolde(true);if(typeof montrerGainAnim==='function')montrerGainAnim(g);if(el)el.innerHTML='<b class="aer-val win">'+(essais===0?'🌟 Premier coup ! ':'')+'+'+g+' 💎</b>';}
+      if(g>0){etat.crins+=g;sauver();majSolde(true);if(typeof montrerGainAnim==='function'){ancreGain=b;montrerGainAnim(g);}if(el)el.innerHTML='<b class="aer-val win">'+(essais===0?'🌟 Premier coup ! ':'')+'+'+g+' 💎</b>';}
       else if(el)el.innerHTML='<span class="aer-lbl dim">Bonne réponse (pas de bonus cette fois)</span>';
       setTimeout(onOk,450);}
     else{essais++;b.classList.add('faux');b.disabled=true;$('#ae-fb').textContent=msgFaux||"Hmm, tu es sûre ? Réfléchis encore…";majRec();}
