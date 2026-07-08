@@ -3,6 +3,24 @@
 Convention : `VERSION_APP` (index.html) = `ecurie-vNN` (sw.js), incrémentés à CHAQUE livraison
 (invalidation du cache PWA). QC : `node tools/qc.js` avant chaque livraison.
 
+## v103 — 8 cartes de plus (vendange, dressage, 6 robots) — 193 cartes au total
+- Métier : cheval des **vendanges** (France). Sport : cheval de **dressage** (épique, Autriche) — les
+  deux quizzables (histoire).
+- Robots (famille robot, Futur, hors quiz Chevaux/Origines) : cheval **doré des cités** (légendaire),
+  de **chantier**, **réplica** (série), **fer aux yeux rouges** (légendaire sombre), **jardinier**
+  (robot+plantes, clin d'œil à Wall-E), **de nuit chromé**.
+## v102 — 20 nouvelles cartes (métiers, antiquité, routes marchandes, sports équestres, robots)
+- **Métiers** : cheval de tramway, de brasseur, débardeur (travail, Belgique/France).
+- **Antiquité** : Grèce antique, Celtes, pharaons d'Égypte (char), rois de Perse, **Empire mongol
+  (légendaire)** — tous quizzables (catégorie histoire) avec leur peuple/époque.
+- **Routes marchandes** : épices, transsaharienne, sel, **route de la soie (épique)**, ambre —
+  l'histoire du commerce à cheval, dans le quiz et les Origines.
+- **Sports équestres** : poney de polo (Argentine), cheval d'endurance, attelage sportif (Hongrie).
+- **Robots** : cheval hélicoptère (épique), amphibie, bricolé, et **Maximilian (légendaire)** — famille
+  robot, royaume Futur, correctement exclus du quiz Chevaux et des Origines (inventés).
+- 16 des 20 cartes entrent dans la catégorie **histoire** (entrées HISTO : « à quel peuple ou métier… »).
+  Total : **185 cartes**. Première livraison de contenu passée entièrement par `data.js` — zéro ligne
+  de moteur touchée, comme prévu par le split v101.
 ## v101 — Split données / moteur (data.js)
 - **Tout le contenu du jeu est extrait dans `data.js`** (148 constantes, ~360 Ko) : cartes (IMG,
   CARTES), raretés/familles/royaumes, robes, mythes, races, fiches historiques & légendes, toutes les
