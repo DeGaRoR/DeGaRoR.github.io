@@ -34,6 +34,7 @@ async function cloudConnexion(prenom,pin){const h=await sha256(pin);const r=awai
 /* Cache local pour fonctionner hors ligne : liste des écuries, hash du code, dernier état. */
 function lireCache(k){try{const v=localStorage.getItem(k);return v?JSON.parse(v):null;}catch(e){return null;}}
 function ecrireCache(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+const DEV=(function(){try{let d=localStorage.getItem('ecurie_dev');if(!d){d=Math.random().toString(36).slice(2,10)+Date.now().toString(36).slice(-3);localStorage.setItem('ecurie_dev',d);}return d;}catch(e){return 'dev0';}})();
 function cacheProfil(o){if(!o||!o.id)return;ecrireCache('ecurie_prof_'+o.id,{id:o.id,prenom:o.prenom,avatar:o.avatar,couleur:o.couleur,age:o.age,niveau:o.niveau,pin:o.pin});}
 async function connexionOffline(a,pin){
   const h=await sha256(pin);const prof=lireCache('ecurie_prof_'+a.id);
@@ -47,26 +48,36 @@ function adminGet(){return lireCache(famKey('ecurie_admin'));}
 function adminSet(o){ecrireCache(famKey('ecurie_admin'),o);}
 function limitesGet(){return lireCache(famKey('ecurie_limites'))||{};}
 function limitesSet(o){ecrireCache(famKey('ecurie_limites'),o);}
-function limiteEnfant(id){return limitesGet()[id]||{actif:false,semaine:30,weekend:60};}
+function limiteEnfant(id){const e=profilEtat(id);if(e&&e.limite&&e.limite.maj)return e.limite;return limitesGet()[id]||{actif:false,semaine:30,weekend:60};}
+function enregistrerLimite(id,lim){lim.maj=Date.now();const L=limitesGet();L[id]={actif:lim.actif,semaine:lim.semaine,weekend:lim.weekend};limitesSet(L);if(profilActif&&profilActif.id===id){etat.limite=lim;sauver();return;}syncLimiteCloud(id,lim);}
+async function syncLimiteCloud(id,lim){const pc=lireCache('ecurie_prof_'+id);let e=null;if(CLOUD.actif()&&navigator.onLine&&pc&&pc.pin){try{const r=await CLOUD.rpc('connexion',{p_prenom:pc.prenom,p_pin:pc.pin,p_code:codeFamille()});const row=Array.isArray(r)?r[0]:r;if(row&&row.etat)e=normaliserEtat(row.etat);}catch(x){}}const bk=lireCache('ecurie_bk_'+id);if(!e)e=bk?normaliserEtat(bk):etatVide();else if(bk)e=fusionEtat(normaliserEtat(bk),e);e.limite=lim;ecrireCache('ecurie_bk_'+id,e);if(CLOUD.actif()&&navigator.onLine&&pc&&pc.pin){try{await CLOUD.rpc('sauver_etat',{p_id:id,p_pin:pc.pin,p_etat:e,p_avatar:pc.avatar,p_couleur:pc.couleur,p_age:pc.age,p_niveau:pc.niveau});}catch(x){}}}
+async function rafraichirFamilleParent(){if(!(CLOUD.actif()&&navigator.onLine))return;for(const a of admListe()){if(profilActif&&profilActif.id===a.id)continue;const pc=lireCache('ecurie_prof_'+a.id);if(!pc||!pc.pin)continue;try{const r=await CLOUD.rpc('connexion',{p_prenom:a.prenom,p_pin:pc.pin,p_code:codeFamille()});const row=Array.isArray(r)?r[0]:r;if(row&&row.etat){let e=normaliserEtat(row.etat);const bk=lireCache('ecurie_bk_'+a.id);if(bk)e=fusionEtat(normaliserEtat(bk),e);ecrireCache('ecurie_bk_'+a.id,e);}}catch(x){}}}
 function jourISO(d){d=d||new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function estWeekend(d){const j=(d||new Date()).getDay();return j===0||j===6;}
 function limiteMinutes(id){const L=limiteEnfant(id);if(!L.actif)return 0;return estWeekend()?(L.weekend||0):(L.semaine||0);}
 function tempsGet(id){return lireCache('ecurie_temps_'+id)||{jours:{}};}
 function tempsSet(id,o){ecrireCache('ecurie_temps_'+id,o);}
-function tempsAujourdhui(id){const j=tempsGet(id).jours[jourISO()];return j?(j.sec||0):0;}
+function tjSec(e,k){const j=e&&e.temps&&e.temps.jours&&e.temps.jours[k];if(!j||!j.dev)return 0;let s=0;for(const d in j.dev)s+=j.dev[d]||0;return s;}
+function tjSess(e,k){const j=e&&e.temps&&e.temps.jours&&e.temps.jours[k];if(!j||!j.ses)return 0;let s=0;for(const d in j.ses)s+=j.ses[d]||0;return s;}
+function migrerTempsLegacy(id,e){if(!e)return e;e.temps=e.temps||{jours:{}};e.temps.jours=e.temps.jours||{};if(e.temps._leg)return e;let old=null;try{old=lireCache('ecurie_temps_'+id);}catch(x){}if(old&&old.jours){for(const k in old.jours){const oj=old.jours[k]||{},nj=e.temps.jours[k]||{dev:{},ses:{},snap:{}};nj.dev=nj.dev||{};nj.ses=nj.ses||{};nj.snap=nj.snap||{};if(oj.sec)nj.dev['legacy']=Math.max(nj.dev['legacy']||0,oj.sec||0);if(oj.sessions)nj.ses['legacy']=Math.max(nj.ses['legacy']||0,oj.sessions||0);if(oj.bonnes!=null)nj.snap={bonnes:Math.max(nj.snap.bonnes||0,oj.bonnes||0),cartes:Math.max(nj.snap.cartes||0,oj.cartes||0),etoiles:Math.max(nj.snap.etoiles||0,oj.etoiles||0)};e.temps.jours[k]=nj;}}e.temps._leg=1;return e;}
+function profilEtat(id){if(profilActif&&profilActif.id===id)return etat;const bk=lireCache('ecurie_bk_'+id);let e=bk?normaliserEtat(bk):null;if(!e){const li=(lireCache('ecurie_liste_'+codeFamille())||[]).find(a=>a.id===id);if(li&&li.etat)e=normaliserEtat(li.etat);}if(!e)return null;return migrerTempsLegacy(id,e);}
+function fusionTemps(a,b){const A=(a&&a.jours)||{},B=(b&&b.jours)||{},jours={};for(const k of new Set([...Object.keys(A),...Object.keys(B)])){const ja=A[k]||{},jb=B[k]||{},dev={},ses={};for(const d of new Set([...Object.keys(ja.dev||{}),...Object.keys(jb.dev||{})]))dev[d]=Math.max((ja.dev||{})[d]||0,(jb.dev||{})[d]||0);for(const d of new Set([...Object.keys(ja.ses||{}),...Object.keys(jb.ses||{})]))ses[d]=Math.max((ja.ses||{})[d]||0,(jb.ses||{})[d]||0);const sa=ja.snap||{},sb=jb.snap||{};jours[k]={dev,ses,snap:{bonnes:Math.max(sa.bonnes||0,sb.bonnes||0),cartes:Math.max(sa.cartes||0,sb.cartes||0),etoiles:Math.max(sa.etoiles||0,sb.etoiles||0)}};}return {jours,_leg:(a&&a._leg)||(b&&b._leg)||0};}
+function tempsAujourdhui(id){return tjSec(profilEtat(id),jourISO());}
 function metriquesActuelles(){return {bonnes:etat.bonnes||0,cartes:nbUniques(),etoiles:totalEtoiles()};}
 function enregistrerTemps(sec){
   if(!(profilActif&&profilActif.id))return;
   sessionSec+=sec;
-  const id=profilActif.id,t=tempsGet(id),k=jourISO();const j=t.jours[k]||{sec:0,sessions:0};
-  j.sec=(j.sec||0)+sec;const m=metriquesActuelles();j.bonnes=m.bonnes;j.cartes=m.cartes;j.etoiles=m.etoiles;
-  t.jours[k]=j;tempsSet(id,t);
+  etat.temps=etat.temps||{jours:{}};etat.temps.jours=etat.temps.jours||{};
+  const k=jourISO();const j=etat.temps.jours[k]||{dev:{},ses:{},snap:{}};
+  j.dev=j.dev||{};j.dev[DEV]=(j.dev[DEV]||0)+sec;
+  const m=metriquesActuelles();j.snap={bonnes:m.bonnes,cartes:m.cartes,etoiles:m.etoiles};
+  etat.temps.jours[k]=j;
 }
 let chronoTimer=null,chronoDernier=0,enJeu=false,sessionRef=null,sessionSec=0;
 function demarrerChrono(){
   arreterChrono();enJeu=true;chronoDernier=Date.now();
   sessionRef={bonnes:etat.bonnes||0,tirages:etat.tirages||0,cartes:nbUniques(),exos:etat.exos||0};sessionSec=0;
-  const id=profilActif.id,t=tempsGet(id),k=jourISO();const j=t.jours[k]||{sec:0,sessions:0};j.sessions=(j.sessions||0)+1;t.jours[k]=j;tempsSet(id,t);
+  etat.temps=etat.temps||{jours:{}};etat.temps.jours=etat.temps.jours||{};const k=jourISO();const j=etat.temps.jours[k]||{dev:{},ses:{},snap:{}};j.ses=j.ses||{};j.ses[DEV]=(j.ses[DEV]||0)+1;etat.temps.jours[k]=j;
   chronoTimer=setInterval(chronoTick,10000);
 }
 function arreterChrono(){enJeu=false;if(chronoTimer){clearInterval(chronoTimer);chronoTimer=null;}}
@@ -95,10 +106,10 @@ function ecranTempsEcoule(){
 }
 function retourLogin(){arreterChrono();const a=$('#accueil');if(a){a.style.display='';a.classList.remove('parti');}renderAccueil();}
 /* Agrégats pour l'espace parent */
-function tempsPeriode(id,jours){const t=tempsGet(id),now=new Date();let sec=0,sess=0;for(let i=0;i<jours;i++){const d=new Date(now);d.setDate(now.getDate()-i);const j=t.jours[jourISO(d)];if(j){sec+=j.sec||0;sess+=j.sessions||0;}}return {sec,sessions:sess};}
-function metriqueDernier(t){const ks=Object.keys(t.jours||{}).sort();for(let i=ks.length-1;i>=0;i--){const j=t.jours[ks[i]];if(j&&j.bonnes!=null)return j;}return {bonnes:0,cartes:0,etoiles:0};}
-function metriqueAvant(t,dISO){const ks=Object.keys(t.jours||{}).sort().filter(k=>k<dISO);for(let i=ks.length-1;i>=0;i--){const j=t.jours[ks[i]];if(j&&j.bonnes!=null)return j;}return {bonnes:0,cartes:0,etoiles:0};}
-function progresPeriode(id,jours){const t=tempsGet(id),now=new Date(),base=new Date(now);base.setDate(now.getDate()-(jours-1));const cur=metriqueDernier(t),b=metriqueAvant(t,jourISO(base));return {bonnes:Math.max(0,(cur.bonnes||0)-(b.bonnes||0)),cartes:Math.max(0,(cur.cartes||0)-(b.cartes||0)),etoiles:Math.max(0,(cur.etoiles||0)-(b.etoiles||0))};}
+function tempsPeriode(id,jours){const e=profilEtat(id),now=new Date();let sec=0,sess=0;for(let i=0;i<jours;i++){const d=new Date(now);d.setDate(now.getDate()-i);const k=jourISO(d);sec+=tjSec(e,k);sess+=tjSess(e,k);}return {sec,sessions:sess};}
+function metriqueDernier(tp){const J=(tp&&tp.jours)||{},ks=Object.keys(J).sort();for(let i=ks.length-1;i>=0;i--){const s=J[ks[i]]&&J[ks[i]].snap;if(s&&s.bonnes!=null)return s;}return {bonnes:0,cartes:0,etoiles:0};}
+function metriqueAvant(tp,dISO){const J=(tp&&tp.jours)||{},ks=Object.keys(J).sort().filter(k=>k<dISO);for(let i=ks.length-1;i>=0;i--){const s=J[ks[i]]&&J[ks[i]].snap;if(s&&s.bonnes!=null)return s;}return {bonnes:0,cartes:0,etoiles:0};}
+function progresPeriode(id,jours){const e=profilEtat(id),tp=e&&e.temps,now=new Date(),base=new Date(now);base.setDate(now.getDate()-(jours-1));const cur=metriqueDernier(tp),b=metriqueAvant(tp,jourISO(base));return {bonnes:Math.max(0,(cur.bonnes||0)-(b.bonnes||0)),cartes:Math.max(0,(cur.cartes||0)-(b.cartes||0)),etoiles:Math.max(0,(cur.etoiles||0)-(b.etoiles||0))};}
 function fmtDuree(sec){const m=Math.round(sec/60);if(m<60)return m+' min';return Math.floor(m/60)+' h '+String(m%60).padStart(2,'0');}
 function admListe(){return lireCache(famKey('ecurie_liste'))||[];}
 function formCreerAdmin(onDone){
@@ -123,7 +134,7 @@ function ouvrirEspaceParent(){
   if(!adm)return formCreerAdmin(()=>ouvrirEspaceParent());
   pavePin('👨‍👩‍👧 Espace parent · code',async(pin)=>{
     if(await sha256('ADM:'+pin)!==adm.pin){toast('Code parent incorrect');return ouvrirEspaceParent();}
-    admPeriode=7;renderAdmin();const acc=$('#accueil');if(acc)acc.style.display='none';$('#admin-fond').classList.add('on');
+    admPeriode=7;renderAdmin();const acc=$('#accueil');if(acc)acc.style.display='none';$('#admin-fond').classList.add('on');rafraichirFamilleParent().then(function(){if($('#admin-fond').classList.contains('on'))renderAdmin();}).catch(function(){});
   });
 }
 function verifParent(onOk){
@@ -167,11 +178,11 @@ function renderAdmin(){
       +(et?'<div class="adm-stat"><b>'+(et.serieJours||0)+'</b><span>🔥 jours</span></div>':'')
       +'</div>'+(et?admReussite(et):'')+'</div>';
   });
-  html+='<div class="adm-note">🔒 Réglages et suivi stockés sur cet appareil. Le temps de jeu est compté par appareil.</div>';
+  html+='<div class="adm-note">🔒 Temps de jeu et progrès synchronisés sur tous les appareils (somme par jour). Les limites s\'appliquent partout.</div>';
   box.innerHTML=html;
   box.querySelectorAll('.adm-pbtn').forEach(b=>b.onclick=()=>{admPeriode=+b.dataset.p;renderAdmin();});
   box.querySelectorAll('.adm-enfant').forEach(el=>{
-    const id=el.dataset.id,save=()=>{const L=limitesGet();L[id]={actif:el.querySelector('.adm-actif').checked,semaine:+el.querySelector('.adm-sem').value||0,weekend:+el.querySelector('.adm-we').value||0};limitesSet(L);renderAdmin();};
+    const id=el.dataset.id,save=()=>{enregistrerLimite(id,{actif:el.querySelector('.adm-actif').checked,semaine:+el.querySelector('.adm-sem').value||0,weekend:+el.querySelector('.adm-we').value||0});renderAdmin();};
     el.querySelector('.adm-actif').onchange=save;el.querySelector('.adm-sem').onchange=save;el.querySelector('.adm-we').onchange=save;
   });
 }
@@ -186,7 +197,7 @@ async function cloudPush(){
   catch(e){majSync(navigator.onLine?'err':'off');}
 }
 function compteVersProfil(row){return {id:row.id,nom:row.prenom,age:row.age,emoji:row.avatar,couleur:row.couleur,niveau:row.niveau,etat:normaliserEtat(row.etat||etatVide()),cloud:true,pin:row._pin};}
-const VERSION_APP='v114';
+const VERSION_APP='v118';
    // exemplaires cumulés pour ★ à ★★★★★ (évolution plus lente)
 const COUT_TIRAGE=120,SOLDE_DEPART=200;const COUT_TIRAGE10=COUT_TIRAGE*9;
 const PITY_EPIC=20,PITY_LEGEND=100;   // pity : épique+ garanti tous les 20, légendaire+ tous les 100
@@ -222,8 +233,8 @@ const COUT_RENOUV_BASE=60;          // coût du 1er renouvellement (double à ch
    exercices apparaissent (voir `niv` des activités) et cale la difficulté. */
 const CLE_P='ecurie_profils_v1',CLE_VIEUX='ecurie_legendes_v2';
 let memoire=null;
-function etatVide(){return {crins:SOLDE_DEPART,cadeauDepart:true,tutoVu:false,collection:{ane_tetu:1,cheval_charbonnier:1,cheval_laboureur:1},paliers:{ane_tetu:1,cheval_charbonnier:1,cheval_laboureur:1},tirages:0,bonnes:0,xp:{maths:0,francais:0,histoire:0,sciences:0},serieJours:0,dernierJour:null,stats:{},jeux:{joues:0,gagnes:0},renommee:0,renommeeTotale:0,concours:{date:null,refresh:0,faits:{}},marchand:{date:null,achetes:[]},aventure:{introVu:false,belgique:{sousEtape:0,faits:{},fini:false}},chouchous:{},packprog:{},defiJour:{date:null,gagne:0},pity:{epic:0,legend:0},jalons:{},statsPack:{},acquis:{},acquisN:0};}
-function normaliserEtat(e){const d=etatVide();for(const k in d)if(e[k]===undefined)e[k]=d[k];e.xp=Object.assign({maths:0,francais:0,histoire:0,sciences:0},e.xp||{});e.jeux=Object.assign({joues:0,gagnes:0},e.jeux||{});e.stats=e.stats||{};e.collection=e.collection||{};e.paliers=e.paliers||{};e.renommee=e.renommee||0;if(e.renommeeTotale==null)e.renommeeTotale=e.renommee;e.concours=e.concours||{date:null,refresh:0,faits:{}};if(e.concours.refresh==null)e.concours.refresh=0;e.marchand=e.marchand||{date:null,achetes:[]};for(const id in e.collection){if(e.collection[id]>0&&e.paliers[id]==null)e.paliers[id]=palierDe(e.collection[id]);}e.aventure=e.aventure||{introVu:false};e.aventure.belgique=e.aventure.belgique||{sousEtape:0,faits:{},fini:false};e.aventure.prov=e.aventure.prov||{};e.aventure.mascVue=e.aventure.mascVue||{};if(e.aventure.belgique&&!e.aventure.prov.anvers)e.aventure.prov.anvers=e.aventure.belgique;e.chouchous=e.chouchous||{};e.packprog=e.packprog||{};e.defiJour=e.defiJour||{date:null,gagne:0};e.pity=e.pity||{epic:0,legend:0};if(e.pity.epic==null)e.pity.epic=0;if(e.pity.legend==null)e.pity.legend=0;e.jalons=e.jalons||{};e.statsPack=e.statsPack||{};if(!e.acquis){e.acquis={};let n=0;for(const c of CARTES){if((e.collection[c.id]||0)>0)e.acquis[c.id]=++n;}e.acquisN=n;}else{let mx=0;for(const k in e.acquis)if(e.acquis[k]>mx)mx=e.acquis[k];e.acquisN=e.acquisN||mx;}
+function etatVide(){return {crins:SOLDE_DEPART,cadeauDepart:true,tutoVu:false,collection:{ane_tetu:1,cheval_charbonnier:1,cheval_laboureur:1},paliers:{ane_tetu:1,cheval_charbonnier:1,cheval_laboureur:1},tirages:0,bonnes:0,xp:{maths:0,francais:0,histoire:0,sciences:0},serieJours:0,dernierJour:null,stats:{},jeux:{joues:0,gagnes:0},renommee:0,renommeeTotale:0,concours:{date:null,refresh:0,faits:{}},marchand:{date:null,achetes:[]},aventure:{introVu:false,belgique:{sousEtape:0,faits:{},fini:false}},chouchous:{},packprog:{},defiJour:{date:null,gagne:0},pity:{epic:0,legend:0},jalons:{},statsPack:{},acquis:{},acquisN:0,temps:{jours:{}},limite:{actif:false,semaine:30,weekend:60,maj:0}};}
+function normaliserEtat(e){const d=etatVide();for(const k in d)if(e[k]===undefined)e[k]=d[k];e.temps=e.temps||{jours:{}};e.temps.jours=e.temps.jours||{};e.xp=Object.assign({maths:0,francais:0,histoire:0,sciences:0},e.xp||{});e.jeux=Object.assign({joues:0,gagnes:0},e.jeux||{});e.stats=e.stats||{};e.collection=e.collection||{};e.paliers=e.paliers||{};e.renommee=e.renommee||0;if(e.renommeeTotale==null)e.renommeeTotale=e.renommee;e.concours=e.concours||{date:null,refresh:0,faits:{}};if(e.concours.refresh==null)e.concours.refresh=0;e.marchand=e.marchand||{date:null,achetes:[]};for(const id in e.collection){if(e.collection[id]>0&&e.paliers[id]==null)e.paliers[id]=palierDe(e.collection[id]);}e.aventure=e.aventure||{introVu:false};e.aventure.belgique=e.aventure.belgique||{sousEtape:0,faits:{},fini:false};e.aventure.prov=e.aventure.prov||{};e.aventure.mascVue=e.aventure.mascVue||{};if(e.aventure.belgique&&!e.aventure.prov.anvers)e.aventure.prov.anvers=e.aventure.belgique;e.chouchous=e.chouchous||{};e.packprog=e.packprog||{};e.defiJour=e.defiJour||{date:null,gagne:0};e.pity=e.pity||{epic:0,legend:0};if(e.pity.epic==null)e.pity.epic=0;if(e.pity.legend==null)e.pity.legend=0;e.jalons=e.jalons||{};e.statsPack=e.statsPack||{};if(!e.acquis){e.acquis={};let n=0;for(const c of CARTES){if((e.collection[c.id]||0)>0)e.acquis[c.id]=++n;}e.acquisN=n;}else{let mx=0;for(const k in e.acquis)if(e.acquis[k]>mx)mx=e.acquis[k];e.acquisN=e.acquisN||mx;}
   // Un joueur qui a déjà de la progression ne doit jamais revoir l'onboarding (save sans tutoVu).
   if(!e.tutoVu&&((e.tirages||0)>0||(e.aventure&&e.aventure.introVu)||Object.keys(e.collection||{}).length>3||(e.bonnes||0)>0))e.tutoVu=true;
   if(!e.cadeauDepart){for(const id of ['ane_tetu','cheval_charbonnier','cheval_laboureur']){if(!(e.collection[id]>0)){e.collection[id]=1;e.paliers[id]=e.paliers[id]||1;}}e.cadeauDepart=true;}return e;}
@@ -241,6 +252,8 @@ function fusionEtat(a,b){
   r.xp={};for(const m of new Set([...Object.keys(a.xp||{}),...Object.keys(b.xp||{})]))r.xp[m]=mx((a.xp||{})[m],(b.xp||{})[m]);
   r.stats=fusionStats(a.stats,b.stats);
   r.statsPack=fusionStats(a.statsPack,b.statsPack);
+  r.temps=fusionTemps(a.temps,b.temps);
+  r.limite=(((a.limite&&a.limite.maj)||0)>=((b.limite&&b.limite.maj)||0))?(a.limite||{}):(b.limite||{});
   r.jalons=Object.assign({},a.jalons||{},b.jalons||{});
   r.chouchous={};for(const id of new Set([...Object.keys(a.chouchous||{}),...Object.keys(b.chouchous||{})]))r.chouchous[id]=mx((a.chouchous||{})[id],(b.chouchous||{})[id]);
   r.acquis={};for(const id of new Set([...Object.keys(a.acquis||{}),...Object.keys(b.acquis||{})])){const va=(a.acquis||{})[id],vb=(b.acquis||{})[id];r.acquis[id]=(va&&vb)?Math.min(va,vb):(va||vb);}
@@ -270,6 +283,7 @@ SAVE.profils.forEach(p=>{if(!p.niveau)p.niveau=niveauScolaire(p.age);if(p.id==='
 let profilActif=SAVE.profils.find(p=>p.id===SAVE.actif)||SAVE.profils[0];
 SAVE.actif=profilActif.id;
 let etat=profilActif.etat;
+migrerTempsLegacy(profilActif.id,etat);
 sauver();
 
 /* 4. UTILITAIRES */
@@ -759,8 +773,8 @@ function renderConcours(){
     const cap=CAPS.find(c=>c.id===co.cap),div=DIVISIONS.find(d=>d.rarete===co.rarete),fam=libFam(co),rc=RARETES[co.rarete];
     const fait=etat.concours.faits[co.i];
     const el=document.createElement('div');el.className='concours-carte'+(fait?' fait':'');
-    el.innerHTML=`<div class="cc-ico" style="--cc:${cap.couleur}">${cap.ico}</div><div class="cc-info"><div class="cc-titre">${cap.epreuve}</div><div class="cc-sous"><div class="cc-cond"><span class="ccx">${fam.ico} ${fam.nom}</span><span class="ccx" style="border-color:${rc.couleur}66">${div.ico} ${div.nom}</span><span class="ccx" style="color:${cap.couleur}">${cap.ico} ${cap.nom}</span></div><div class="cc-prix">mise ${div.inscription} 💎 · 🥇${div.crins[0]} 🥈${div.crins[1]} 🥉${div.crins[2]} 💎</div></div></div>${fait?`<div class="cc-etat ${fait<=3?'gagne':'perdu'}">${posMedaille(fait).split(' ')[0]}</div>`:'<button class="cc-jouer">Concourir</button>'}`;
-    if(!fait)el.querySelector('.cc-jouer').onclick=()=>ouvrirSelecteurPeloton(co);
+    el.innerHTML=`<div class="cc-bg" style="background-image:url(${cap.img})"></div><div class="cc-scrim"></div><div class="cc-inner"><div class="cc-titre">${cap.epreuve}</div><div class="cc-cond"><span class="ccx">${fam.ico} ${fam.nom}</span><span class="ccx" style="border-color:${rc.couleur}66">${div.ico} ${div.nom}</span><span class="ccx" style="color:${cap.couleur}">${cap.ico} ${cap.nom}</span></div><div class="cc-bas"><div class="cc-prix">mise ${div.inscription} 💎 · 🥇${div.crins[0]} 🥈${div.crins[1]} 🥉${div.crins[2]} 💎</div>${fait?`<span class="cc-etat ${fait<=3?'gagne':'perdu'}">${posMedaille(fait).split(' ')[0]}</span>`:'<span class="cc-go">Concourir ▶</span>'}</div></div>`;
+    if(!fait)el.onclick=()=>ouvrirSelecteurPeloton(co);
     box.appendChild(el);
   });
 }
@@ -1202,7 +1216,7 @@ function majAvatar(){$('#pf-ava').textContent=profilActif.emoji;$('#pf-nom').tex
 function rafraichirTout(){majAvatar();majSolde();majProgression();rendreGrille();menuDefis();renderScores();}
 function fermerProfils(){$('#profils-fond').classList.remove('on');$('#profil-form').innerHTML='';}
 function ouvrirProfils(){renderProfils();$('#profil-form').innerHTML='';$('#profils-fond').classList.add('on');}
-function activerProfil(p){SAVE.actif=p.id;profilActif=p;etat=p.etat;normaliserEtat(etat);serieCourante=0;sauver();rafraichirTout();switchEcran('ecurie');fermerProfils();}
+function activerProfil(p){SAVE.actif=p.id;profilActif=p;etat=p.etat;normaliserEtat(etat);migrerTempsLegacy(p.id,etat);serieCourante=0;sauver();rafraichirTout();switchEcran('ecurie');fermerProfils();}
 function renderProfils(){
   const box=$('#profils-liste');box.innerHTML='';
   SAVE.profils.forEach(p=>{
@@ -1315,7 +1329,7 @@ function formCloudCreate(){
 function entrerJeu(p){
   SAVE.actif=p.id;profilActif=p;let e=normaliserEtat(p.etat);
   try{const bk=localStorage.getItem('ecurie_bk_'+p.id);if(bk){e=normaliserEtat(fusionEtat(e,normaliserEtat(JSON.parse(bk))));}}catch(err){}
-  etat=e;p.etat=e;serieCourante=0;sauver();
+  etat=e;p.etat=e;migrerTempsLegacy(p.id,etat);serieCourante=0;sauver();
   majAvatar();majSolde();majProgression();rendreGrille();rendreChances();menuDefis();renderScores();verifierJalons(true);majSync(navigator.onLine?'ok':'off');
   switchEcran('ecurie');
   const a=$('#accueil');a.classList.add('parti');setTimeout(()=>{a.style.display='none';},400);

@@ -364,14 +364,22 @@ nav.tabs button.actif::before{content:"";position:absolute;top:0;width:34px;heig
 .renom-bandeau .rb-g{font-family:'Fredoka';font-weight:600;font-size:15px;}
 .renom-bandeau .rb-g small{display:block;font-family:'Nunito';font-weight:700;font-size:11px;color:var(--txt-doux);letter-spacing:.3px;margin-top:2px;}
 .renom-bandeau .rb-r{font-family:'Fredoka';font-weight:600;font-size:22px;color:var(--or);display:flex;align-items:center;gap:6px;}
-.concours-carte{display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:12px 13px;margin-bottom:10px;box-shadow:var(--ombre),var(--halo);backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);}
-.concours-carte.fait{opacity:.6;}
+.concours-carte{position:relative;width:100%;aspect-ratio:3/1;border-radius:16px;overflow:hidden;border:1px solid var(--line);box-shadow:var(--ombre);margin-bottom:12px;cursor:pointer;background:var(--surface-2);}
+@supports not (aspect-ratio:1/1){.concours-carte{height:0;padding-bottom:33.33%;}}
+.cc-bg{position:absolute;top:0;left:0;right:0;bottom:0;background-size:cover;background-position:center;}
+.cc-scrim{position:absolute;top:0;left:0;right:0;bottom:0;background:linear-gradient(90deg,#0c0a18f2 0%,#0c0a18db 36%,#0c0a186e 58%,rgba(12,10,24,0) 80%);}
+.cc-inner{position:absolute;top:0;left:0;right:0;bottom:0;padding:11px 15px;display:flex;flex-direction:column;justify-content:center;gap:6px;}
+.concours-carte.fait{cursor:default;}
+.concours-carte.fait .cc-bg{filter:grayscale(.45) brightness(.62);}
 .cc-ico{width:42px;height:42px;flex-shrink:0;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;background:radial-gradient(circle at 50% 35%,color-mix(in srgb,var(--cc,#888) 55%,#2a2350),#1c1735);border:1.5px solid color-mix(in srgb,var(--cc,#fff) 45%,transparent);}
 .cc-info{flex:1;min-width:0;}
-.cc-titre{font-family:'Fredoka';font-weight:600;font-size:15px;line-height:1.1;}
+.concours-carte .cc-titre{font-family:'Fredoka';font-weight:600;font-size:18px;line-height:1.1;color:#fff;text-shadow:0 2px 10px #000e;max-width:58%;}
+.concours-carte .cc-cond{display:flex;flex-wrap:wrap;gap:5px;max-width:60%;}
+.cc-bas{display:flex;align-items:center;gap:10px;max-width:62%;}
+.cc-go{flex-shrink:0;font-family:'Fredoka';font-weight:700;font-size:14px;color:#2a1e05;background:linear-gradient(180deg,#ffd977,var(--or));padding:8px 15px;border-radius:999px;box-shadow:0 5px 14px -4px #000b;}
 .cc-sous{font-size:11.5px;color:var(--txt-doux);margin-top:4px;line-height:1.4;}
 .cc-jouer{flex-shrink:0;font-family:'Fredoka';font-weight:600;font-size:14px;color:#2a1e05;background:linear-gradient(180deg,#ffd977,var(--or));border:none;border-radius:999px;padding:9px 16px;cursor:pointer;}
-.cc-etat{flex-shrink:0;font-family:'Fredoka';font-weight:600;font-size:13px;padding:6px 12px;border-radius:999px;}
+.cc-etat{flex-shrink:0;font-family:'Fredoka';font-weight:700;font-size:14px;padding:6px 13px;border-radius:999px;}
 .cc-etat.gagne{color:#8fe6a3;background:#8fe6a322;}
 .cc-etat.perdu{color:#ff9a9a;background:#ff9a9a22;}
 .concours-note{text-align:center;color:var(--txt-doux);font-size:12.5px;margin-top:8px;}
@@ -684,7 +692,7 @@ main.plein{padding:0 !important;overflow:hidden !important;}
 
 .cc-cond{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:5px;}
 .ccx{font-family:'Fredoka';font-weight:600;font-size:11.5px;padding:3px 9px;border-radius:99px;background:var(--surface-3);border:1px solid var(--line-fort);white-space:nowrap;color:var(--txt);}
-.cc-prix{font-family:'Fredoka';font-size:11.5px;color:var(--txt-doux);}
+.cc-prix{font-family:'Fredoka';font-size:11.5px;color:#e7dfff;text-shadow:0 1px 5px #000d;white-space:nowrap;}
 
 .packs-grille{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
 .pack-carte{aspect-ratio:auto!important;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:15px 8px;min-height:96px;}

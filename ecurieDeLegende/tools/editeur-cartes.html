@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Éditeur de cartes — Écurie de Légendes</title>
+<style>
+  :root{--bg:#14102e;--surf:#221b46;--surf2:#2f2660;--line:#ffffff20;--txt:#f6f1ff;--doux:#cabff0;--or:#f2c14e;--vert:#3fbf6a;}
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:system-ui,'Segoe UI',sans-serif;background:var(--bg);color:var(--txt);padding:0 0 90px;}
+  header{position:sticky;top:0;z-index:5;background:#120f24ee;backdrop-filter:blur(8px);border-bottom:1px solid var(--line);padding:12px 16px;}
+  h1{margin:0 0 8px;font-size:18px;}
+  .barre{display:flex;flex-wrap:wrap;gap:8px;align-items:center;}
+  input[type=text],select{background:var(--surf);color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:14px;}
+  input[type=text]{min-width:180px;}
+  .fbtn{background:var(--surf);color:var(--doux);border:1px solid var(--line);border-radius:999px;padding:5px 11px;font-size:12px;cursor:pointer;}
+  .fbtn.on{background:var(--or);color:#2a1e05;font-weight:700;border-color:var(--or);}
+  .stat{font-size:12px;color:var(--doux);margin-left:auto;}
+  main{padding:14px 16px;display:grid;gap:12px;}
+  .carte{background:var(--surf);border:1px solid var(--line);border-radius:14px;padding:12px 14px;}
+  .carte.dirty{border-color:var(--or);box-shadow:0 0 0 1px var(--or);}
+  .ct{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+  .ct img{width:40px;height:56px;object-fit:cover;border-radius:6px;background:#0004;}
+  .ct .id{font-size:11px;color:var(--doux);font-family:monospace;}
+  .ct .em{font-size:22px;}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;}
+  .champ{display:flex;flex-direction:column;gap:4px;}
+  .champ label{font-size:11px;color:var(--doux);text-transform:uppercase;letter-spacing:.5px;}
+  .chks{display:flex;flex-wrap:wrap;gap:5px;}
+  .chk{font-size:12px;background:var(--surf2);border:1px solid var(--line);border-radius:999px;padding:3px 9px;cursor:pointer;user-select:none;}
+  .chk.on{background:var(--vert);color:#06210f;font-weight:700;border-color:var(--vert);}
+  .chk.aff.on{background:#5aa8e8;color:#06182a;border-color:#5aa8e8;}
+  textarea{width:100%;background:var(--surf);color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:13px;resize:vertical;min-height:44px;}
+  .foot{position:fixed;bottom:0;left:0;right:0;background:#120f24ee;backdrop-filter:blur(8px);border-top:1px solid var(--line);padding:12px 16px;display:flex;gap:10px;align-items:center;}
+  .btn{background:linear-gradient(180deg,#ffd977,var(--or));color:#2a1e05;border:none;border-radius:10px;padding:11px 18px;font-weight:700;font-size:15px;cursor:pointer;}
+  .btn.sec{background:var(--surf2);color:var(--txt);border:1px solid var(--line);}
+  dialog{background:var(--surf);color:var(--txt);border:1px solid var(--line);border-radius:14px;max-width:760px;width:94%;padding:16px;}
+  dialog textarea{min-height:56vh;font-family:monospace;font-size:12px;}
+  .aide{font-size:12px;color:var(--doux);line-height:1.5;}
+  code{background:#0004;padding:1px 5px;border-radius:4px;}
+</style>
+</head>
+<body>
+<header>
+  <h1>🐴 Éditeur de cartes <span style="font-size:12px;color:var(--doux)">— data.js</span></h1>
+  <div class="barre">
+    <input type="text" id="rech" placeholder="Rechercher (nom ou id)…">
+    <span id="filtres"></span>
+    <span class="stat" id="stat"></span>
+  </div>
+</header>
+<main id="liste"></main>
+<div class="foot">
+  <button class="btn" id="exporter">⤓ Générer le CARTES à coller</button>
+  <button class="btn sec" id="reset">Annuler mes modifs</button>
+  <span class="aide" id="footinfo"></span>
+</div>
+
+<dialog id="dlg">
+  <div class="aide" style="margin-bottom:8px">Copie ce bloc et <b>remplace tout le tableau <code>const CARTES = [ … ];</code></b> dans <code>data.js</code>. Seul ce tableau change ; le reste du fichier est intact.</div>
+  <textarea id="sortie" readonly></textarea>
+  <div style="display:flex;gap:10px;margin-top:10px">
+    <button class="btn" id="copier">📋 Copier</button>
+    <button class="btn sec" id="fermer">Fermer</button>
+    <span class="aide" id="dlginfo"></span>
+  </div>
+</dialog>
+
+<script src="../data.js"></script>
+<script>
+const CAPS=["force","endurance","vitesse","beaute","bataille","magie"];
+// copie de travail
+const work=JSON.parse(JSON.stringify(CARTES));
+const orig=JSON.stringify(CARTES);
+// reverse map image -> clé IMG
+const imgKey={};
+try{for(const k in IMG){imgKey[IMG[k]]=k;}}catch(e){}
+const famKeys=Object.keys(FAMILLES);
+const rarKeys=Object.keys(RARETES);
+const royKeys=Object.keys(ROYAUMES);
+
+let filtreFam=null, rech="";
+
+function estDirty(i){return JSON.stringify(work[i])!==JSON.stringify(CARTES[i]);}
+function nbDirty(){let n=0;for(let i=0;i<work.length;i++)if(estDirty(i))n++;return n;}
+
+function majStat(){
+  document.getElementById('stat').textContent=work.length+" cartes · "+nbDirty()+" modifiée(s)";
+  document.getElementById('footinfo').textContent=nbDirty()+" carte(s) à exporter";
+}
+
+function rendreFiltres(){
+  const box=document.getElementById('filtres');
+  box.innerHTML='<button class="fbtn'+(filtreFam===null?' on':'')+'" data-f="">tous</button>'+
+    famKeys.map(f=>'<button class="fbtn'+(filtreFam===f?' on':'')+'" data-f="'+f+'">'+FAMILLES[f].nom+'</button>').join('');
+  box.querySelectorAll('.fbtn').forEach(b=>b.onclick=()=>{filtreFam=b.dataset.f||null;rendre();});
+}
+
+function rendre(){
+  rendreFiltres();
+  const box=document.getElementById('liste');box.innerHTML='';
+  const r=rech.toLowerCase();
+  work.forEach((c,i)=>{
+    if(filtreFam && !(c.familles||[]).includes(filtreFam))return;
+    if(r && !((c.nom||'').toLowerCase().includes(r) || (c.id||'').toLowerCase().includes(r)))return;
+    const el=document.createElement('div');el.className='carte'+(estDirty(i)?' dirty':'');
+    const img=(typeof c.image==='string')?c.image:'';
+    el.innerHTML=
+      '<div class="ct"><img src="'+(img?'../'+img:'')+'" alt=""><span class="em">'+(c.emoji||'')+'</span>'+
+      '<div><div><b class="nom">'+(c.nom||'')+'</b></div><div class="id">'+c.id+'</div></div></div>'+
+      '<div class="grid">'+
+        '<div class="champ"><label>Nom</label><input type="text" class="f-nom" value="'+attr(c.nom)+'"></div>'+
+        '<div class="champ"><label>Rareté</label><select class="f-rar">'+rarKeys.map(k=>'<option'+(c.rarete===k?' selected':'')+'>'+k+'</option>').join('')+'</select></div>'+
+        '<div class="champ"><label>Royaume</label><select class="f-roy">'+royKeys.map(k=>'<option'+(c.royaume===k?' selected':'')+'>'+k+'</option>').join('')+'</select></div>'+
+        '<div class="champ"><label>Emoji</label><input type="text" class="f-emo" value="'+attr(c.emoji)+'"></div>'+
+      '</div>'+
+      '<div class="champ" style="margin-top:8px"><label>Familles</label><div class="chks fams">'+
+        famKeys.map(f=>'<span class="chk'+((c.familles||[]).includes(f)?' on':'')+'" data-f="'+f+'">'+FAMILLES[f].nom+'</span>').join('')+'</div></div>'+
+      '<div class="champ" style="margin-top:8px"><label>Affinités (capacités)</label><div class="chks affs">'+
+        CAPS.map(a=>'<span class="chk aff'+((c.aff||[]).includes(a)?' on':'')+'" data-a="'+a+'">'+a+'</span>').join('')+'</div></div>'+
+      '<div class="champ" style="margin-top:8px"><label>Description</label><textarea class="f-desc">'+esc(c.desc||'')+'</textarea></div>';
+    // liaisons
+    el.querySelector('.f-nom').oninput=e=>{c.nom=e.target.value;el.querySelector('.nom').textContent=c.nom;flag(el,i);};
+    el.querySelector('.f-rar').onchange=e=>{c.rarete=e.target.value;flag(el,i);};
+    el.querySelector('.f-roy').onchange=e=>{c.royaume=e.target.value;flag(el,i);};
+    el.querySelector('.f-emo').oninput=e=>{c.emoji=e.target.value;flag(el,i);};
+    el.querySelector('.f-desc').oninput=e=>{c.desc=e.target.value;flag(el,i);};
+    el.querySelectorAll('.fams .chk').forEach(ch=>ch.onclick=()=>{
+      c.familles=c.familles||[];const f=ch.dataset.f;const k=c.familles.indexOf(f);
+      if(k>=0)c.familles.splice(k,1);else c.familles.push(f);
+      ch.classList.toggle('on');flag(el,i);
+    });
+    el.querySelectorAll('.affs .chk').forEach(ch=>ch.onclick=()=>{
+      c.aff=c.aff||[];const a=ch.dataset.a;const k=c.aff.indexOf(a);
+      if(k>=0)c.aff.splice(k,1);else c.aff.push(a);
+      ch.classList.toggle('on');flag(el,i);
+    });
+    box.appendChild(el);
+  });
+  majStat();
+}
+function flag(el,i){el.classList.toggle('dirty',estDirty(i));majStat();}
+function attr(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;');}
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;');}
+
+// --- Export : régénère le tableau CARTES ---
+function serialCard(c){
+  const ordre=["id","nom","rarete","emoji","image","desc","aff","familles","royaume"];
+  const parts=[];
+  const keys=ordre.concat(Object.keys(c).filter(k=>ordre.indexOf(k)<0));
+  for(const k of keys){
+    if(!(k in c))continue;
+    if(k==="image"){
+      const v=c.image;
+      if(typeof v==="string" && imgKey[v]) parts.push("image:IMG."+imgKey[v]);
+      else parts.push("image:"+JSON.stringify(v));
+    }else{
+      parts.push(k+":"+JSON.stringify(c[k]));
+    }
+  }
+  return "  {"+parts.join(",")+"}";
+}
+function genererCARTES(){
+  return "const CARTES = [\n"+work.map(serialCard).join(",\n")+"\n];";
+}
+
+document.getElementById('exporter').onclick=()=>{
+  document.getElementById('sortie').value=genererCARTES();
+  document.getElementById('dlginfo').textContent=nbDirty()+" carte(s) modifiée(s) sur "+work.length;
+  document.getElementById('dlg').showModal();
+};
+document.getElementById('copier').onclick=async()=>{
+  const t=document.getElementById('sortie');t.select();
+  try{await navigator.clipboard.writeText(t.value);document.getElementById('dlginfo').textContent="Copié ✅";}
+  catch(e){document.execCommand('copy');document.getElementById('dlginfo').textContent="Copié ✅";}
+};
+document.getElementById('fermer').onclick=()=>document.getElementById('dlg').close();
+document.getElementById('reset').onclick=()=>{
+  if(!confirm("Annuler toutes tes modifications ?"))return;
+  const fresh=JSON.parse(orig);for(let i=0;i<work.length;i++)work[i]=fresh[i];rendre();
+};
+document.getElementById('rech').oninput=e=>{rech=e.target.value;rendre();};
+
+rendre();
+</script>
+</body>
+</html>

@@ -3,6 +3,40 @@
 Convention : `VERSION_APP` (index.html) = `ecurie-vNN` (sw.js), incrémentés à CHAQUE livraison
 (invalidation du cache PWA). QC : `node tools/qc.js` avant chaque livraison.
 
+## v118 — Bannières concours : nouvelles images (chevaux à droite) + texte à gauche
+- Images mises à jour (chevaux à droite, moitié gauche dégagée) et **remappées** correctement
+  (beauté, puissance, joute, course, agilité, magie).
+- Style révisé : le **dégradé et le texte passent à gauche** (titre, critères, gains) pendant que le
+  cheval reste entièrement visible à droite. Dégradé conservé car la moitié gauche des images est claire
+  (texte blanc sinon illisible). Rendu vérifié en simulation.
+## v117 — Concours en bannières illustrées 3:1
+- Chaque épreuve de concours devient une **bannière au format 3:1** avec ta nouvelle illustration en
+  fond (Magie, Beauté, Vitesse, Agilité, Combat, Puissance).
+- **Lisibilité** : un dégradé sombre latéral (fort à gauche → transparent à droite) porte le titre, les
+  critères et les gains à gauche, pendant que le cheval reste visible à droite. Toute la carte est
+  tappable pour concourir. Les cartes déjà jouées passent en gris + badge du résultat.
+## v116 — Catégories cartes corrigées + éditeur de cartes
+- **Nouvelle famille « Équitation »** (disciplines) distincte de « Course » (chevaux de course).
+- **6 chevaux de course** (Secretariat, Frankel, Man o' War, Phar Lap, Seabiscuit, Zenyatta) → famille
+  **course uniquement** (plus de « bataille »/« race »).
+- **Sauteur d'obstacle + polo, dressage, endurance, attelage** → famille **équitation**.
+- **Outil d'édition de cartes** (`tools/editeur-cartes.html`) : ouvre-le dans un navigateur, il charge
+  data.js, permet d'éditer familles / rareté / affinités / royaume / nom / description de chaque carte
+  (recherche + filtre par famille), puis régénère le tableau `CARTES` à coller dans data.js. Round-trip
+  vérifié : seules tes modifications changent, tout le reste est préservé à l'identique.
+## v115 — Temps de jeu & limites synchronisés (fin du device-local)
+- **Cause du bug** : le temps de jeu, les sessions et l'historique quotidien étaient stockés dans une
+  clé locale (`ecurie_temps_<id>`), HORS de `etat` → jamais envoyés à la DB, comptés par appareil.
+- **Correctif** : ces données passent dans `etat.temps`, **indexées par appareil** ; elles partent
+  donc dans la base avec le reste (via `sauver_etat`). L'espace parent affiche la **somme par jour de
+  tous les appareils**. Migration automatique et non destructive des données locales existantes.
+- **Fusion sans double-compte** : chaque appareil a son compteur (monotone), fusionnés par max, puis
+  sommés pour l'affichage — vérifié en simulation (re-synchros répétées = total stable).
+- **Limites synchronisées** : une limite posée sur un appareil s'applique **sur tous** (stockée dans
+  l'état de l'enfant, poussée au cloud). L'enforcement utilise le **temps total cross-device**.
+- **Espace parent live** : à l'ouverture, les états des enfants sont rafraîchis depuis le cloud (via le
+  hash PIN en cache) → on voit le temps total, même si l'enfant joue sur un autre appareil.
+- Offline conservé : tout marche hors ligne et se synchronise au retour du réseau.
 ## v114 — Lot 4 : refonte de la map
 - **Fond qui bavait en haut corrigé** : l'écran d'aventure n'affiche plus l'image de cheval derrière
   l'en-tête (la carte est le visuel plein écran) → haut d'écran propre.
