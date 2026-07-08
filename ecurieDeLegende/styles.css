@@ -486,6 +486,10 @@ nav.tabs button.actif::before{content:"";position:absolute;top:0;width:34px;heig
 .pc-go{margin-left:auto;flex-shrink:0;font-family:'Fredoka';font-weight:600;font-size:14px;color:var(--or);}
 .acc-niv{font-family:'Nunito';font-weight:800;font-size:12.5px;color:var(--or);background:#ffffff0d;border:1px solid color-mix(in srgb,var(--or) 55%,transparent);border-radius:10px;padding:9px 12px;margin-top:10px;text-align:center;line-height:1.35;}
 .pinpad{text-align:center;padding-top:8px;}
+#pin-fond{position:fixed;top:0;right:0;bottom:0;left:0;z-index:200;display:none;align-items:center;justify-content:center;background:rgba(10,8,25,.92);backdrop-filter:blur(4px);padding:24px;overflow-y:auto;}
+#pin-fond.on{display:flex;}
+#pin-fond .pinpad,#pin-fond .pform{background:linear-gradient(160deg,#241a4d,#1a1436);border:1px solid #ffffff22;border-radius:20px;padding:22px 20px;max-width:340px;width:100%;box-shadow:0 20px 60px #000b;margin:auto;}
+#pin-fond .pin-annuler{margin-top:16px;background:none;border:none;color:var(--txt-doux);font-family:'Nunito';font-weight:800;font-size:13px;cursor:pointer;text-decoration:underline;}
 .pin-titre{font-family:'Fredoka';font-weight:600;font-size:16px;color:var(--txt);margin-bottom:14px;}
 .pin-dots{font-size:26px;letter-spacing:12px;color:var(--or);margin-bottom:18px;height:28px;}
 .pin-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;max-width:280px;margin:0 auto;}

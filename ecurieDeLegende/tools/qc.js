@@ -10,6 +10,7 @@
 const fs=require('fs');
 const base=__dirname+'/../';
 const h=fs.readFileSync(base+'index.html','utf8')
+  +fs.readFileSync(base+'data.js','utf8')
   +fs.readFileSync(base+'app.js','utf8')
   +fs.readFileSync(base+'styles.css','utf8');
 const fail=[],warn=[],info=[];
@@ -17,12 +18,12 @@ const fail=[],warn=[],info=[];
 function seg(from,to,tag){const i=h.indexOf(from);if(i<0){fail.push('extract: "'+from+'" introuvable ('+tag+')');return '';}const j=h.indexOf(to,i);return h.slice(i,j);}
 
 /* ---- extraction ---- */
-const cartesSrc=seg('const IMG=','/* 2. RÉGLAGES','cartes');
+const cartesSrc=seg('const IMG=','const RARETES','cartes');
 const robesSrc=seg('const ROBES=',';','robes')+';';
 const baseSrc=seg('const BASE_RAR=',';','base')+';';
 const hashSrc=seg('function hashStr(','\n','hash');
 const palSrc=seg('function palierDe(','\n','palier');
-const etapesSrc=seg('const M_ANE=','let AE=null','etapes');
+const etapesSrc=seg('const M_ANE=','const PRIX_ACHAT','etapes');
 
 const sandbox={console};
 function run(src,names){

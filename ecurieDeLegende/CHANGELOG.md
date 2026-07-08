@@ -3,6 +3,26 @@
 Convention : `VERSION_APP` (index.html) = `ecurie-vNN` (sw.js), incrémentés à CHAQUE livraison
 (invalidation du cache PWA). QC : `node tools/qc.js` avant chaque livraison.
 
+## v101 — Split données / moteur (data.js)
+- **Tout le contenu du jeu est extrait dans `data.js`** (148 constantes, ~360 Ko) : cartes (IMG,
+  CARTES), raretés/familles/royaumes, robes, mythes, races, fiches historiques & légendes, toutes les
+  banques de questions et packs, théories par niveau, tutoriel, mascottes, et TOUTE l'aventure
+  (étapes des 5 pays, mondes, rappels). `app.js` ne contient plus que le moteur (~166 Ko).
+- **Méthode prudente** : extraction par liste blanche avec scanner syntaxique complet, ordre d'origine
+  préservé, et triple validation — chaque fichier parse, `data.js` s'exécute SEUL sans erreur (preuve
+  qu'il ne dépend de rien du moteur à l'évaluation), et bilan 179/179 constantes (0 perdue, 0 dupliquée).
+  La validation a d'ailleurs attrapé MATIERES (générateurs de maths appelant le moteur) → resté dans
+  app.js, à raison : c'est du moteur.
+- `index.html` charge `data.js` avant `app.js` ; `sw.js` le précache ; `qc.js` le lit et ses segments
+  d'extraction sont reciblés. **Ajouter des cartes, packs, fiches ou pays ne touche plus au moteur.**
+## v100 — Espace parent accessible + pavé PIN clair (overlay dédié)
+- **Bug espace parent corrigé** : la modale parent (z-index 40, dans #app) s'ouvrait DERRIÈRE l'écran
+  de login (z-index 150) → invisible, on croyait être renvoyé au login. Désormais le login est masqué
+  quand la modale parent s'ouvre, et réaffiché à la fermeture.
+- **Pavé PIN dédié en overlay centré** (au-dessus de tout, z-index 200) au lieu d'un affichage sous la
+  liste — qui passait souvent sous la ligne de flottaison et donnait l'impression que rien ne se
+  passait. Vaut pour la connexion enfant ET parent. Bouton « Annuler » clair. Idem pour la création du
+  compte parent.
 ## v99 — Fix carte de tirage (vieux nav.) + rituel de départ = vrai tirage
 - **Carte de tirage étirée sur vieux navigateur** corrigée : mon repli `aspect-ratio` utilisait un
   padding en % (relatif au parent, pas à l'élément), ce qui étirait les éléments à largeur fixe
