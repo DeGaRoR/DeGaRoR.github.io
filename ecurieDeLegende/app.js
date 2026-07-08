@@ -186,7 +186,7 @@ async function cloudPush(){
   catch(e){majSync(navigator.onLine?'err':'off');}
 }
 function compteVersProfil(row){return {id:row.id,nom:row.prenom,age:row.age,emoji:row.avatar,couleur:row.couleur,niveau:row.niveau,etat:normaliserEtat(row.etat||etatVide()),cloud:true,pin:row._pin};}
-const VERSION_APP='v104';
+const VERSION_APP='v114';
    // exemplaires cumulés pour ★ à ★★★★★ (évolution plus lente)
 const COUT_TIRAGE=120,SOLDE_DEPART=200;const COUT_TIRAGE10=COUT_TIRAGE*9;
 const PITY_EPIC=20,PITY_LEGEND=100;   // pity : épique+ garanti tous les 20, légendaire+ tous les 100
@@ -563,8 +563,8 @@ const MATIERES=[
 
 /* 6. RENDU CARTE */
 function etoilesHTML(p){let s='';for(let i=1;i<=5;i++)s+=`<span class="et${i<=p?' on':''}">★</span>`;return s;}
-function carteHTML(c,n,{anim=false,palier=null}={}){const p=palier!=null?palier:palierApplique(c);const evo=(palier==null&&peutEvoluer(c))?'<div class="tc-evo">✨</div>':'';return `<div class="tcarte${anim?' tc-anim':''}" data-r="${c.rarete}" data-p="${p}"><div class="tc-art">${artHTML(c)}</div><div class="tc-scrim-top"></div><div class="tc-scrim-bot"></div><div class="tc-shine"></div><div class="tc-motes"><i></i><i></i><i></i></div><div class="tc-corner tl"></div><div class="tc-corner tr"></div><div class="tc-corner bl"></div><div class="tc-corner br"></div><div class="tc-frame"></div>${evo}${n&&n>1?`<div class="tc-nb">×${n}</div>`:''}<div class="tc-top">${p>=2?`<div class="tc-palier">${TITRES[p]}</div>`:'<span></span>'}<div class="tc-stars">${etoilesHTML(p)}</div></div><div class="tc-bottom"><div class="tc-nom">${c.nom}</div><div class="tc-rar">${RARETES[c.rarete].nom}</div><div class="tc-meta">${ROYAUMES[c.royaume]?ROYAUMES[c.royaume].ico:""} ${(c.familles||[]).map(f=>FAMILLES[f]?FAMILLES[f].ico:"").join("")}</div></div></div>`;}
-function carteMystereHTML(c){return `<div class="tcarte verrou" data-r="${c.rarete}" data-p="0"><div class="tc-art">?</div><div class="tc-scrim-top"></div><div class="tc-scrim-bot"></div><div class="tc-frame"></div><div class="tc-top"><span></span><div class="tc-stars">${etoilesHTML(0)}</div></div><div class="tc-bottom"><div class="tc-nom">${c.nom}</div><div class="tc-rar">${RARETES[c.rarete].nom}</div><div class="tc-meta">${ROYAUMES[c.royaume]?ROYAUMES[c.royaume].ico:""} ${(c.familles||[]).map(f=>FAMILLES[f]?FAMILLES[f].ico:"").join("")}</div></div></div>`;}
+function carteHTML(c,n,{anim=false,palier=null}={}){const p=palier!=null?palier:palierApplique(c);const evo=(palier==null&&peutEvoluer(c))?'<div class="tc-evo">✨</div>':'';return `<div class="tcarte${anim?' tc-anim':''}" data-r="${c.rarete}" data-p="${p}"><div class="tc-art">${artHTML(c)}</div><div class="tc-scrim-top"></div><div class="tc-scrim-bot"></div><div class="tc-shine"></div><div class="tc-motes"><i></i><i></i><i></i></div><div class="tc-corner tl"></div><div class="tc-corner tr"></div><div class="tc-corner bl"></div><div class="tc-corner br"></div><div class="tc-frame"></div>${evo}${n&&n>1?`<div class="tc-nb">×${n}</div>`:''}<div class="tc-top">${p>=2?`<div class="tc-palier">${TITRES[p]}</div>`:'<span></span>'}<div class="tc-stars">${etoilesHTML(p)}</div></div><div class="tc-bottom"><div class="tc-nom">${c.nom}</div><div class="tc-rar">${RARETES[c.rarete].nom}</div><div class="tc-fam">${(c.familles||[]).map(f=>FAMILLES[f]?FAMILLES[f].nom:"").filter(Boolean).join(", ")}</div><div class="tc-meta">${ROYAUMES[c.royaume]?ROYAUMES[c.royaume].ico:""}</div></div></div>`;}
+function carteMystereHTML(c){return `<div class="tcarte verrou" data-r="${c.rarete}" data-p="0"><div class="tc-art">?</div><div class="tc-scrim-top"></div><div class="tc-scrim-bot"></div><div class="tc-frame"></div><div class="tc-top"><span></span><div class="tc-stars">${etoilesHTML(0)}</div></div><div class="tc-bottom"><div class="tc-nom">${c.nom}</div><div class="tc-rar">${RARETES[c.rarete].nom}</div><div class="tc-fam">${(c.familles||[]).map(f=>FAMILLES[f]?FAMILLES[f].nom:"").filter(Boolean).join(", ")}</div><div class="tc-meta">${ROYAUMES[c.royaume]?ROYAUMES[c.royaume].ico:""}</div></div></div>`;}
 
 /* 7. ÉCRANS */
 function majSolde(anim){$('#solde-nb').textContent=etat.crins;if(anim){const s=$('#solde');s.classList.remove('pulse');void s.offsetWidth;s.classList.add('pulse');}$('#btn-tirer').disabled=etat.crins<COUT_TIRAGE;const b10=$('#btn-tirer10');if(b10)b10.disabled=etat.crins<COUT_TIRAGE10;const bs=$('#btn-tirer-super');if(bs)bs.disabled=(etat.renommee||0)<COUT_SUPER_RENOM;const rn=$('#tirage-renom-nb');if(rn)rn.textContent=etat.renommee||0;const cn=$('#tirage-crins-nb');if(cn)cn.textContent=etat.crins;}
@@ -861,7 +861,8 @@ function statMatiere(id){etat.stats[id]=etat.stats[id]||{ok:0,tot:0};return etat
 function statPack(id){etat.statsPack=etat.statsPack||{};etat.statsPack[id]=etat.statsPack[id]||{ok:0,tot:0};return etat.statsPack[id];}
 
 let theorieCour='';
-function afficherTheorie(){const p=document.getElementById('pack-theo-panel');if(!p)return;p.textContent=theorieCour;if(packActif&&packActif.id==='races'&&typeof galerieHisto==='function')p.insertAdjacentHTML('beforeend',galerieHisto());p.style.display='';const b=document.getElementById('pack-theo-btn');if(b)b.style.display='none';}
+function afficherTheorie(){const p=document.getElementById('pack-theo-panel');if(!p)return;if(p.dataset.on==='1'){p.style.display='none';p.dataset.on='';return;}p.innerHTML='<button class="theo-fermer" onclick="fermerTheorie()">✕</button><div class="theo-txt"></div>';p.querySelector('.theo-txt').textContent=theorieCour;if(packActif&&packActif.id==='races'&&typeof galerieHisto==='function')p.insertAdjacentHTML('beforeend',galerieHisto());p.style.display='';p.dataset.on='1';}
+function fermerTheorie(){const p=document.getElementById('pack-theo-panel');if(p){p.style.display='none';p.dataset.on='';}}
 function galerieHisto(){const item=id=>{const c=CARTES.find(x=>x.id===id);const im=c?(Array.isArray(c.image)?c.image[0]:c.image):null;return '<button class="tg-item" onclick="ouvrirFiche(\''+id+'\')">'+(im?'<img src="'+im+'" loading="lazy" alt="">':'')+'<span>'+(c?c.nom:id)+'</span></button>';};const histo=Object.keys(FICHES_HISTO);const leg=[...LEGENDES].filter(aFiche);return '<div class="theo-galerie-t">🏛️ Les chevaux qui ont marqué l\'Histoire</div><div class="theo-galerie">'+histo.map(item).join('')+'</div><div class="theo-galerie-t">✨ Les chevaux de légende</div><div class="theo-galerie">'+leg.map(item).join('')+'</div>';}
 function ouvrirFiche(id){const f=ficheDe(id);if(!f)return;const c=CARTES.find(x=>x.id===id);const im=c?(Array.isArray(c.image)?c.image[0]:c.image):null;const fi=$('#fiche-img');if(fi)fi.innerHTML=im?'<img src="'+im+'" alt="'+(c?c.nom:'')+'">':'';const ft=$('#fiche-titre');if(ft)ft.textContent=f.titre;const fp=$('#fiche-paras');if(fp)fp.innerHTML=f.paras.map(p=>'<p>'+p+'</p>').join('');$('#fiche-fond').classList.add('on');}
 function blocTheorie(txt,niv){theorieCour=txt||'';if(!txt)return '';return '<div class="pack-niv">'+(niv||'')+'</div><button class="pack-theo" id="pack-theo-btn" onclick="afficherTheorie()">📖 Théorie</button><div class="pack-theo-panel" id="pack-theo-panel" style="display:none"></div>';}
@@ -925,7 +926,7 @@ function bankGen(bank){return ()=>{const q=bank[rnd(0,bank.length-1)];return {q:
 })();
 function exoBankQuiz(z,meta,mid,packId){
   const bank=packBank(packId)||[],q=choisirQ(packId,bank),choix=melange([...q.choix]);
-  z.innerHTML=`<button class="defi-retour" onclick="retourPacks()">← Packs</button><div class="quiz-meta">${meta}</div>${blocTheorie(theoriePack(packActif),nivLabel(packActif))}<div class="quiz-carte"><div class="quiz-question" id="q-question"></div><div class="quiz-reponses" id="q-reponses"></div></div><div class="quiz-feedback" id="q-feedback"></div>`;
+  z.innerHTML=`<div class="quiz-tete"><button class="qt-retour" onclick="retourPacks()">←</button><div class="qt-titre">${meta}${enteteFinDefi(packActif)}<div class="quiz-carte"><div class="quiz-question" id="q-question"></div><div class="quiz-reponses" id="q-reponses"></div></div><div class="quiz-feedback" id="q-feedback"></div>`;
   $('#q-question').textContent=q.q;if(q.graph||q.schema)$('#q-question').insertAdjacentHTML('beforebegin',visuelQ(q));
   const box=$('#q-reponses');let fini=false;
   choix.forEach(v=>{const b=document.createElement('button');b.textContent=v;b.onclick=()=>{
@@ -936,7 +937,7 @@ function exoBankQuiz(z,meta,mid,packId){
     if(bon){serieCourante++;s.ok++;etat.bonnes++;g=Math.round(GAIN_BONNE*PMULT());msg=BRAVOS[rnd(0,BRAVOS.length-1)];}
     else{serieCourante=0;g=GAIN_ESSAI;msg=ENCOURAGE[rnd(0,ENCOURAGE.length-1)];}
     g=crediterDefi((ancreGain=b,g));etat.xp[mid]=(etat.xp[mid]||0)+(bon?XP_BONNE:XP_ESSAI);sauver();majSolde(true);
-    const fb=$('#q-feedback');fb.innerHTML=`<div class="qf-msg ${bon?'bon':'faux'}">${msg}</div>${q.e?`<div class="qf-astuce">💡 ${q.e}</div>`:''}<div class="qf-gain">+${g} Diamants</div><button class="defi-continuer">Continuer ›</button>`;fb.classList.add('show');fb.querySelector('.defi-continuer').onclick=()=>packExo();
+    feedbackDefi(bon,msg,`${q.e?`<div class="qf-astuce">💡 ${q.e}</div>`:''}`,`+${g} Diamants`,()=>packExo());
   };box.appendChild(b);});
 }
 /* Origines / Chevaux : n'accepter que les vraies origines géographiques et les catégories établies
@@ -948,7 +949,7 @@ function exoOrigines(z){
   const cible=pool[rnd(0,pool.length-1)],bonR=cible.royaume;
   const autres=melange([...new Set(pool.map(c=>c.royaume))].filter(r=>r!==bonR)).slice(0,3);
   const choixR=melange([bonR,...autres]);const lab=r=>ROYAUMES[r].ico+' '+ROYAUMES[r].nom;
-  z.innerHTML=`<button class="defi-retour" onclick="retourPacks()">← Packs</button><div class="quiz-meta">🌍 Origines</div>${blocTheorie(theoriePack(packActif),nivLabel(packActif))}<div class="races-art"><div class="races-photo">${artNu(cible)}</div></div><div class="races-q">D'où vient ce cheval&nbsp;?</div><div class="quiz-reponses" id="q-reponses"></div><div class="quiz-feedback" id="q-feedback"></div>`;
+  z.innerHTML=`<div class="quiz-tete"><button class="qt-retour" onclick="retourPacks()">←</button><div class="qt-titre">🌍 Origines${enteteFinDefi(packActif)}<div class="races-art"><div class="races-photo">${artNu(cible)}</div></div><div class="races-q">D'où vient ce cheval&nbsp;?</div><div class="quiz-reponses" id="q-reponses"></div><div class="quiz-feedback" id="q-feedback"></div>`;
   const box=$('#q-reponses');let fini=false;
   choixR.forEach(r=>{const b=document.createElement('button');b.textContent=lab(r);b.onclick=()=>{
     if(fini)return;fini=true;const bon=r===bonR;
@@ -958,7 +959,7 @@ function exoOrigines(z){
     if(bon){serieCourante++;s.ok++;etat.bonnes++;g=Math.round(GAIN_BONNE*PMULT());msg=BRAVOS[rnd(0,BRAVOS.length-1)];}
     else{serieCourante=0;g=GAIN_ESSAI;msg=cible.nom+" vient de "+ROYAUMES[bonR].nom+".";}
     g=crediterDefi((ancreGain=b,g));etat.xp[mid]=(etat.xp[mid]||0)+(bon?XP_BONNE:XP_ESSAI);sauver();majSolde(true);
-    const fb=$('#q-feedback');fb.innerHTML=`<div class="qf-msg ${bon?'bon':'faux'}">${msg}</div><div class="qf-astuce">💡 ${cible.desc||''}</div><div class="qf-gain">+${g} Diamants</div><button class="defi-continuer">Continuer ›</button>`;fb.classList.add('show');fb.querySelector('.defi-continuer').onclick=()=>packExo();
+    feedbackDefi(bon,msg,`<div class="qf-astuce">💡 ${cible.desc||''}</div>`,`+${g} Diamants`,()=>packExo());
   };box.appendChild(b);});
 }
 
@@ -992,7 +993,7 @@ function exoRaces(z){
     cible=races[rnd(0,races.length-1)];question="Quelle est la race de ce cheval ?";bonne=cible.nom;
     const a=melange(races.filter(c=>c.id!==cible.id)).slice(0,3);choix=melange([cible.nom,a[0].nom,a[1].nom,a[2].nom]);theoWrong=cible.desc||'';
   }
-  z.innerHTML=`<button class="defi-retour" onclick="retourPacks()">← Packs</button><div class="quiz-meta">🐴 Chevaux</div>${blocTheorie(theoriePack(packActif),nivLabel(packActif))}<div class="races-art"><div class="races-photo">${artNu(cible)}</div></div><div class="races-q">${question}</div><div class="quiz-reponses" id="q-reponses"></div><div class="quiz-feedback" id="q-feedback"></div>`;
+  z.innerHTML=`<div class="quiz-tete"><button class="qt-retour" onclick="retourPacks()">←</button><div class="qt-titre">🐴 Chevaux${enteteFinDefi(packActif)}<div class="races-art"><div class="races-photo">${artNu(cible)}</div></div><div class="races-q">${question}</div><div class="quiz-reponses" id="q-reponses"></div><div class="quiz-feedback" id="q-feedback"></div>`;
   const box=$('#q-reponses');let fini=false;
   choix.forEach(v=>{const b=document.createElement('button');b.textContent=v;b.onclick=()=>{
     if(fini)return;fini=true;const bon=v===bonne;
@@ -1002,12 +1003,12 @@ function exoRaces(z){
     if(bon){serieCourante++;s.ok++;etat.bonnes++;g=Math.round(GAIN_BONNE*PMULT());msg=BRAVOS[rnd(0,BRAVOS.length-1)];}
     else{serieCourante=0;g=GAIN_ESSAI;msg="C'était : <b>"+bonne+"</b>";}
     g=crediterDefi((ancreGain=b,g));etat.xp[mid]=(etat.xp[mid]||0)+(bon?XP_BONNE:XP_ESSAI);sauver();majSolde(true);
-    const fb=$('#q-feedback');fb.innerHTML=`<div class="qf-msg ${bon?'bon':'faux'}">${msg}</div>${theoWrong?`<div class="qf-astuce">💡 ${theoWrong}</div>`:''}${aFiche(cible.id)?'<button class="fiche-lien" onclick="ouvrirFiche(\''+cible.id+'\')">📖 Découvrir son histoire</button>':''}<div class="qf-gain">+${g} Diamants</div><button class="defi-continuer">Continuer ›</button>`;fb.classList.add('show');fb.querySelector('.defi-continuer').onclick=()=>packExo();
+    feedbackDefi(bon,msg,`${theoWrong?`<div class="qf-astuce">💡 ${theoWrong}</div>`:''}${aFiche(cible.id)?'<button class="fiche-lien" onclick="ouvrirFiche(\''+cible.id+'\')">📖 Découvrir son histoire</button>':''}`,`+${g} Diamants`,()=>packExo());
   };box.appendChild(b);});
 }
 function exoOrtho(z){
   const bank=packBank('ortho'),it=choisirQ('ortho',bank);const T=ORTHO_T[it.t]||{i:'✏️',n:'Écris'};
-  z.innerHTML=`<button class="defi-retour" onclick="retourPacks()">← Packs</button><div class="quiz-meta">✍️ Orthographe · ${packActif.niv}</div>${blocTheorie(theoriePack(packActif),nivLabel(packActif))}<div class="ortho-type">${T.i} ${T.n}</div><div class="ortho-indice">${it.q}</div><input class="ortho-input" id="ortho-in" type="text" inputmode="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="tape ici…"><button class="ae-btn" id="ortho-ok" style="display:block;width:100%">Valider</button><div class="quiz-feedback" id="q-feedback"></div>`;
+  z.innerHTML=`<div class="quiz-tete"><button class="qt-retour" onclick="retourPacks()">←</button><div class="qt-titre">✍️ Orthographe · ${packActif.niv}${enteteFinDefi(packActif)}<div class="ortho-type">${T.i} ${T.n}</div><div class="ortho-indice">${it.q}</div><input class="ortho-input" id="ortho-in" type="text" inputmode="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="tape ici…"><button class="ae-btn" id="ortho-ok" style="display:block;width:100%">Valider</button><div class="quiz-feedback" id="q-feedback"></div>`;
   const inp=$('#ortho-in');setTimeout(()=>{try{inp.focus();}catch(e){}},120);let fini=false;
   const valider=()=>{
     if(fini)return;const rep=(inp.value||'').trim();if(!rep)return;fini=true;inp.disabled=true;
@@ -1015,12 +1016,15 @@ function exoOrtho(z){
     if(bon){serieCourante++;s.ok++;etat.bonnes++;g=Math.round(GAIN_BONNE*PMULT());msg="Parfait, sans faute ! ✍️";}
     else{serieCourante=0;g=GAIN_ESSAI;msg="On écrit : <b>"+it.r+"</b>";}
     g=crediterDefi((ancreGain=$('#ortho-ok'),g));etat.xp[mid]=(etat.xp[mid]||0)+(bon?XP_BONNE:XP_ESSAI);sauver();majSolde(true);
-    const fb=$('#q-feedback');fb.innerHTML=`<div class="qf-msg ${bon?'bon':'faux'}">${msg}</div>${!bon?`<div class="qf-astuce">💡 ${theorieCour}</div>`:''}<div class="qf-gain">+${g} Diamants</div><button class="defi-continuer">Continuer ›</button>`;fb.classList.add('show');fb.querySelector('.defi-continuer').onclick=()=>packExo();
+    feedbackDefi(bon,msg,`${!bon?`<div class="qf-astuce">💡 ${theorieCour}</div>`:''}`,`+${g} Diamants`,()=>packExo());
   };
   $('#ortho-ok').onclick=valider;inp.addEventListener('keydown',e=>{if(e.key==='Enter')valider();});
 }
 
 function lancerJeuDefi(z){z.innerHTML='';JEUX[rnd(0,JEUX.length-1)].lancer(z,packExo);const r=document.createElement('button');r.className='defi-retour';r.textContent='← Packs';r.onclick=retourPacks;z.insertBefore(r,z.firstChild);}
+function nivCourt(p){const n=(p&&PACK_NIVEAUX[p.id])?packNiv(p.id):null;return n?('nv. '+n):'';}
+function enteteFinDefi(p){const nv=nivCourt(p);const theo=theoriePack(p);theorieCour=theo||'';const nvH=nv?`<span class="qt-niv">${nv}</span>`:'';const thH=theo?`<button class="qt-theo" id="pack-theo-btn" onclick="afficherTheorie()">?</button><div class="pack-theo-panel" id="pack-theo-panel" style="display:none"></div>`:'<span class="qt-sp"></span>';return `${nvH}</div>${thH}</div>`;}
+function feedbackDefi(bon,msg,astuce,gain,next){const fb=$('#q-feedback');fb.innerHTML=`<div class="qf-msg ${bon?'bon':'faux'}">${msg}</div>${bon?'':(astuce||'')}<div class="qf-gain">${gain}</div>${bon?'':'<button class="defi-continuer">Suivant ›</button>'}`;fb.classList.add('show');if(bon){if(feedbackDefi._t)clearTimeout(feedbackDefi._t);feedbackDefi._t=setTimeout(function(){fb.classList.remove('show');next();},1000);}else{const b=fb.querySelector('.defi-continuer');if(b)b.onclick=function(){fb.classList.remove('show');next();};}}
 function packExo(){
   const z=$('#defi-zone');z.innerHTML='';
   if(packActif.id==='general'||packActif.id==='general1'){
@@ -1065,7 +1069,7 @@ function defiExercice(z){
   let m,act,tries=0;
   do{m=pond[rnd(0,pond.length-1)];const acts=m.activites.filter(dansNiveau);act=acts.length?acts[rnd(0,acts.length-1)]:m.activites[rnd(0,m.activites.length-1)];qCour=act.gen(m.id==='maths'?diffMaths():1);tries++;}while(recentQ.includes(qCour.q)&&tries<6);
   recentQ.push(qCour.q);if(recentQ.length>10)recentQ.shift();matSource=m;
-  z.innerHTML=`<button class="defi-retour" onclick="retourPacks()">← Packs</button><div class="quiz-meta">${m.ico} ${m.nom} · ${act.nom}${(packActif&&packActif.nivOffset)?' 🔥':''}</div>${blocTheorie(theoriePack(packActif),nivLabel(packActif))}<div class="quiz-carte"><div class="quiz-question${qCour.q.length<=9?' court':''}" id="q-question"></div><div class="quiz-reponses" id="q-reponses"></div></div><div class="quiz-feedback" id="q-feedback"></div>`;
+  z.innerHTML=`<div class="quiz-tete"><button class="qt-retour" onclick="retourPacks()">←</button><div class="qt-titre">${m.ico} ${m.nom} · ${act.nom}${(packActif&&packActif.nivOffset)?' 🔥':''}${enteteFinDefi(packActif)}<div class="quiz-carte"><div class="quiz-question${qCour.q.length<=9?' court':''}" id="q-question"></div><div class="quiz-reponses" id="q-reponses"></div></div><div class="quiz-feedback" id="q-feedback"></div>`;
   $('#q-question').textContent=qCour.q;if(qCour.graph||qCour.schema)$('#q-question').insertAdjacentHTML('beforebegin',visuelQ(qCour));
   const box=$('#q-reponses');qCour.choix.forEach(v=>{const b=document.createElement('button');b.textContent=v;b.onclick=()=>repondre(b,v);box.appendChild(b);});
   quizVerrou=false;
@@ -1078,8 +1082,7 @@ function repondre(btn,val){
   if(bon){serieCourante++;s.ok++;etat.bonnes++;const bonus=(serieCourante%PALIER_SERIE===0)?BONUS_SERIE:0;crinsGain=Math.round((GAIN_BONNE+bonus+Math.max(0,niveauDe(etat.xp[mid])-1)*2)*PMULT());xpGain=XP_BONNE+(mid==='maths'?(diffMaths()-1)*2:0);msg=BRAVOS[rnd(0,BRAVOS.length-1)]+(bonus?` 🔥 Série ×${serieCourante} !`:'');cls='bon';}
   else{btn.classList.add('faux');serieCourante=0;crinsGain=GAIN_ESSAI;xpGain=XP_ESSAI;msg=ENCOURAGE[rnd(0,ENCOURAGE.length-1)];cls='faux';}
   crinsGain=crediterDefi((ancreGain=btn,crinsGain));etat.xp[mid]=(etat.xp[mid]||0)+xpGain;
-  const fb=$('#q-feedback');fb.innerHTML=`<div class="qf-msg ${cls}">${msg}</div>${(qCour.exp||(cls==='faux'&&theorieCour))?`<div class="qf-astuce">💡 ${qCour.exp||theorieCour}</div>`:''}<div class="qf-gain">+${crinsGain} Diamants · +${xpGain} XP</div><button class="defi-continuer">Continuer ›</button>`;fb.classList.add('show');
-  fb.querySelector('.defi-continuer').onclick=()=>packExo();
+  feedbackDefi(cls==='bon',msg,`${(qCour.exp||(cls==='faux'&&theorieCour))?`<div class="qf-astuce">💡 ${qCour.exp||theorieCour}</div>`:''}`,`+${crinsGain} Diamants · +${xpGain} XP`,()=>packExo());
   sauver();majSolde(true);
 }
 
@@ -1149,14 +1152,24 @@ function tutoSuivant(){const e=TUTO_ETAPES[tutoStep];if(e.act==='cadeau'&&!tutoP
 function tutoFin(){if(!tutoPulled){TUTO_CADEAU.forEach(id=>{const c=CARTES.find(x=>x.id===id);if(c)ajouterExemplaire(c);});tutoPulled=true;rendreGrille();}etat.tutoVu=true;sauver();$('#tuto').style.display='none';if(typeof majOnglets==='function')majOnglets();}
 function debloqueConcours(){try{return (etat.tirages||0)>0||Object.values((etat.aventure&&etat.aventure.prov)||{}).some(p=>p&&p.fini);}catch(e){return true;}}
 function majOnglets(){const b=document.querySelector('nav.tabs button[data-ecran="concours"]');if(b)b.style.display=debloqueConcours()?'':'none';}
+(function(){function reflow(){const a=document.getElementById('app');if(!a)return;a.style.height='auto';void a.offsetHeight;a.style.height='';}window.addEventListener('resize',reflow);window.addEventListener('orientationchange',reflow);window.addEventListener('pageshow',reflow);document.addEventListener('visibilitychange',function(){if(!document.hidden)reflow();});})();
+function setFondImg(el,url,grad){
+  if(!el)return;
+  el.classList.remove('img-spin');
+  if(!url){el.style.backgroundImage='';return;}
+  el.style.backgroundImage='';el.classList.add('img-spin');
+  const im=new Image();
+  const done=function(){el.style.backgroundImage=(grad?grad+', ':'')+'url('+url+')';el.classList.remove('img-spin');};
+  im.onload=done;im.onerror=done;im.src=url;
+}
 function majFondEcran(nom){
   const el=document.getElementById('fond-ecran');if(!el)return;
-  const IMG={ecurie:'cartes/belle_champs.jpg',tirage:'cartes/akhal_teke.jpg',revisions:'cartes/cheval_constellation.jpg',aventure:'cartes/cheval_conquistador.jpg',concours:'aventure/fond_newmarket.jpg',scores:'aventure/fond_edimbourg.jpg'};
+  const IMG={ecurie:'cartes/belle_champs.jpg',tirage:'cartes/beasts_hypalectryon.jpg',revisions:'cartes/cheval_constellation.jpg',concours:'aventure/fond_newmarket.jpg',scores:'aventure/fond_edimbourg.jpg'};
   const img=IMG[nom];
   if(!img){el.style.backgroundImage='';return;}
   el.style.backgroundImage='linear-gradient(180deg,rgba(20,16,46,.72) 0%,rgba(20,16,46,.26) 17%,rgba(20,16,46,.30) 73%,rgba(20,16,46,.74) 100%),url('+img+')';
 }
-function switchEcran(nom){majFondEcran(nom);majOnglets();$$('.ecran').forEach(e=>e.classList.remove('actif'));$('#ecran-'+nom).classList.add('actif');$$('nav.tabs button').forEach(b=>b.classList.toggle('actif',b.dataset.ecran===nom));majSolde();if(nom==='revisions'){bonusQuotidien();menuDefis();}if(nom==='scores')renderScores();if(nom==='concours')renderConcours();if(nom==='aventure')ouvrirAventure();document.querySelector('main').classList.toggle('plein',nom==='aventure');}
+function switchEcran(nom){majFondEcran(nom);majOnglets();$$('.ecran').forEach(e=>e.classList.remove('actif'));$('#ecran-'+nom).classList.add('actif');const mn=document.querySelector('main');mn.classList.toggle('plein',nom==='aventure');mn.scrollTop=0;$$('nav.tabs button').forEach(b=>b.classList.toggle('actif',b.dataset.ecran===nom));majSolde();if(nom==='revisions'){bonusQuotidien();menuDefis();}if(nom==='scores')renderScores();if(nom==='concours')renderConcours();if(nom==='aventure')ouvrirAventure();}
 $$('nav.tabs button').forEach(b=>b.onclick=()=>switchEcran(b.dataset.ecran));
 $('#lien-revisions').onclick=()=>switchEcran('revisions');
 $('#btn-tirer').onclick=doTirage;$('#btn-tirer10').onclick=doTirage10;$('#btn-tirer-super').onclick=doTirageSuper;$('#ae-quit').onclick=avFermerEtape;$('#cout-nb10').textContent=COUT_TIRAGE10;$('#t10-fermer').onclick=()=>$('#t10-fond').classList.remove('on');$('#btn-resultats').onclick=()=>switchEcran('scores');$('#btn-classement').onclick=ouvrirClassement;$('#btn-chouchous').onclick=ouvrirChouchous;$('#chouchous-fermer').onclick=()=>$('#chouchous-fond').classList.remove('on');$('#classement-fermer').onclick=()=>$('#classement-fond').classList.remove('on');
@@ -1384,7 +1397,7 @@ function avInitCartes(){
   $('#av-next').addEventListener('click',avIntroSuivant);
 }
 function avMascIntro(pays){mascPays=pays;mascI=0;etat.aventure.mascVue=etat.aventure.mascVue||{};$('#av-intro').style.display='';avMascAffiche();}
-function avMascAffiche(){const m=MASCOTTES[mascPays];$('#av-slide').style.backgroundImage='url('+m.img+')';$('#av-intro-txt').textContent=m.ecrans[mascI];$('#av-dots').innerHTML=m.ecrans.map((_,i)=>'<span class="'+(i===mascI?'on':'')+'"></span>').join('');$('#av-next').textContent=mascI===m.ecrans.length-1?'En route ! →':'Continuer ›';}
+function avMascAffiche(){const m=MASCOTTES[mascPays];setFondImg($('#av-slide'),m.img,'');$('#av-intro-txt').textContent=m.ecrans[mascI];$('#av-dots').innerHTML=m.ecrans.map((_,i)=>'<span class="'+(i===mascI?'on':'')+'"></span>').join('');$('#av-next').textContent=mascI===m.ecrans.length-1?'En route ! →':'Continuer ›';}
 function avMontrer(quoi){
   if(MASCOTTES[quoi]&&!((etat.aventure.mascVue||{})[quoi])){return avMascIntro(quoi);}
   avMontrerMap(quoi);
@@ -1401,7 +1414,7 @@ function avMontrerMap(quoi){
 }
 function avAfficheIntro(){
   const s=AV_INTRO[avIntroI];
-  $('#av-slide').style.backgroundImage="url("+s.img+")";
+  setFondImg($('#av-slide'),s.img,'');
   $('#av-intro-txt').textContent=s.txt;
   $('#av-dots').innerHTML=AV_INTRO.map((_,i)=>'<span class="'+(i===avIntroI?'on':'')+'"></span>').join('');
   $('#av-next').textContent=avIntroI===AV_INTRO.length-1?"Commencer l'aventure →":"Continuer ›";
@@ -1473,18 +1486,20 @@ function validerEtapes(){
   }catch(e){}
 }
 validerEtapes();
-let AE=null,aeSE=0,aeQ=[],aeQi=0,aeSlots=null,AVkey='anvers';
+let AE=null,aeSE=0,aeQ=[],aeQi=0,aeSlots=null,AVkey='anvers';let aeIntroNarr='';
 function AVS(){const a=etat.aventure;a.prov=a.prov||{};a.prov[AVkey]=a.prov[AVkey]||{sousEtape:0,faits:{},fini:false};return a.prov[AVkey];}
 function avEtapeLancer(e){
   const g=e&&e.currentTarget;const key=(g&&g.dataset&&g.dataset.etape)||'anvers';
   AVkey=key;AE=ETAP_ALL[key]||ETAPE_ANVERS;const b=AVS();
   aeSE=b.fini?0:Math.min(b.sousEtape||0,AE.sousEtapes.length-1);
-  const ov=$('#av-etape');ov.style.backgroundImage=AE.fond?"linear-gradient(#14102ee6,#14102ef2), url("+AE.fond+")":'';ov.style.backgroundSize='cover';ov.style.backgroundPosition='center';
+  const ov=$('#av-etape');setFondImg(ov,AE.fond,"linear-gradient(180deg,rgba(20,16,46,.72) 0%,rgba(20,16,46,.26) 17%,rgba(20,16,46,.30) 73%,rgba(20,16,46,.74) 100%)");ov.style.backgroundSize='cover';ov.style.backgroundPosition='center';
   ov.classList.add('on');
   if(!b.vu&&AE.reveal){b.vu=true;sauver();return avReveal(AE);}
   avSousEtapeStart();
 }
+function avGuideImg(pays){return pays==='France'?'cartes/francois_camargue.jpg':(pays==='Royaume-Uni'||pays==='Irlande')?'cartes/big_ben.jpg':(pays==='Allemagne'||pays==='Pays-Bas')?'cartes/inge.jpg':(pays==='Espagne'||pays==='Portugal')?'cartes/rocio.jpg':'cartes/pieter_jan.jpg';}
 function avReveal(et){
+  const g=document.querySelector('.ae-guide img');if(g){g.src=avGuideImg(et.pays);g.alt='Guide';}
   $('#ae-titre').textContent=et.region;
   $('#ae-prog').innerHTML='<div class="aep-txt">'+(et.drapeau||'')+' '+et.pays+' · '+(et.boss?'★ '+et.region:'Étape '+et.numero+' : '+et.region)+'</div>';
   bulle('Regarde bien où nous sommes… 👀');
@@ -1494,8 +1509,9 @@ function avReveal(et){
 function avFermerEtape(){$('#av-etape').classList.remove('on');}
 function avSousEtapeStart(){
   const se=AE.sousEtapes[aeSE];
-  aeQ=['narr'];if(se.rappel)aeQ.push('rappel');se.activites.forEach((_,i)=>aeQ.push({act:i}));aeQ.push('recompense');
-  aeQi=0;$('#ae-titre').textContent=se.titre;$('#ae-prog').innerHTML='<div class="aep-txt">'+AE.drapeau+' '+AE.pays+' · '+(AE.boss?'★ Grand Boss · '+AE.region:'Étape '+AE.numero+' : '+AE.region)+' — Sous-étape '+(aeSE+1)+'/'+AE.sousEtapes.length+'</div><div class="aep-bar"><i style="width:'+Math.round((aeSE+1)/AE.sousEtapes.length*100)+'%"></i></div>'+(AE.enjeu?'<div class="aep-enjeu">🔔 <b>'+AE.region+'</b> a besoin de toi pour <b>'+AE.enjeu+'</b> !</div>':'')+(AE.province?'<div class="aep-cid">'+(AE.theme||'')+' · <b>'+AE.region+'</b>, chef-lieu de <b>'+AE.province+'</b></div>':'');avEcranSuivant();
+  aeQ=[];if(se.rappel)aeQ.push('rappel');se.activites.forEach((_,i)=>aeQ.push({act:i}));aeQ.push('recompense');
+  aeIntroNarr=se.narr||'';
+  aeQi=0;$('#ae-titre').textContent='';$('#ae-prog').innerHTML='<div class="aep-txt">'+AE.drapeau+' '+(AE.boss?'★ '+AE.region:'Étape '+AE.numero+' · '+AE.region)+' — '+(aeSE+1)+'/'+AE.sousEtapes.length+'</div><div class="aep-bar"><i style="width:'+Math.round((aeSE+1)/AE.sousEtapes.length*100)+'%"></i></div>';avEcranSuivant();
 }
 function avEcranSuivant(){
   const se=AE.sousEtapes[aeSE];
@@ -1507,7 +1523,7 @@ function avEcranSuivant(){
   if(it==='recompense')return avRecompense(se);
   if(typeof it==='object')return avActivite(se.activites[it.act]);
 }
-function bulle(txt){$('#ae-narr').textContent=txt;}
+function bulle(txt){const el=$('#ae-narr');let t;if(aeIntroNarr){t=aeIntroNarr;aeIntroNarr='';}else t=txt||'';el.textContent=t;el.style.display=t?'':'none';const ti=$('#ae-titre'),hd=document.querySelector('.ae-header');if(hd)hd.classList.toggle('ae-mute',!t&&!(ti&&ti.textContent));}
 function corpsBtn(txt,label,onclick){$('#ae-corps').innerHTML='<div class="ae-bloc">'+(txt||'')+'<button class="ae-btn" id="ae-cont">'+(label||'Continuer ›')+'</button></div>';$('#ae-cont').onclick=onclick;}
 function avNarr(se){bulle(se.narr);corpsBtn('','Continuer ›',avEcranSuivant);}
 function avRappel(){
@@ -1524,7 +1540,7 @@ function avRappel(){
   const q=(f&&typeof f==='object'&&f.q)?f.q:RAPPEL_Q[cle];
   const ch=(f&&typeof f==='object'&&f.choix)?f.choix:RAPPEL_CHOIX[cle];
   const bon=(f&&typeof f==='object')?f.r:f;
-  bulle("⚡ Rappel éclair — une étape précédente ! Tu t'en souviens ?");
+  bulle("⚡ Rappel éclair !");
   $('#av-etape').classList.add('rappel');
   avQCM(q,ch,bon,avEcranSuivant,"Hmm, souviens-toi… réessaie 🙂");
   $('#ae-corps').insertAdjacentHTML('afterbegin','<div class="ae-rappel-tag">⚡ RAPPEL ÉCLAIR</div>');
@@ -1567,13 +1583,13 @@ function avQCM(q,choix,r,onOk,msgFaux){
   avRepondre(choix,r,onOk,msgFaux);
 }
 function avGraphique(a){
-  bulle(a.bulle||"Lis bien le graphique 📊");
+  bulle(a.bulle||"");
   const i=estP5()?1:0;const q=Array.isArray(a.q)?a.q[i]:a.q;const choix=Array.isArray(a.choix[0])?a.choix[i]:a.choix;const r=Array.isArray(a.r)?a.r[i]:a.r;
   $('#ae-corps').innerHTML=graphHTML({titre:a.titre,labels:a.labels,valeurs:a.valeurs})+'<div class="ae-q">'+q+'</div><div class="ae-choix" id="ae-choix"></div><div class="ae-fb" id="ae-fb"></div>';
   avRepondre(choix,r,avEcranSuivant,"Relis bien le graphique 🙂");
 }
 function avOrdre(a){
-  bulle(a.bulle||"Remets dans le bon ordre 🔢");
+  bulle(a.bulle||"");
   const bon=a.elements;const mel=melange(bon.map((t,i)=>({t,i})));let picked=[];
   $('#ae-corps').innerHTML='<div class="ae-q">'+a.consigne+'</div><div class="ae-ordre-pick" id="ae-pick"></div><div class="ae-ordre-src" id="ae-src"></div><div class="ae-fb" id="ae-fb"></div>';
   const src=$('#ae-src'),pick=$('#ae-pick');
@@ -1589,7 +1605,7 @@ function avOrdre(a){
   render();
 }
 function avCourse(a){
-  bulle(a.bulle||"Tape « GALOP ! » le plus vite possible pour gagner la course ! 🏇");
+  bulle(a.bulle||"");
   let me=0,adv=0;const goal=a.taps||16;let fini=false,timer=null;
   $('#ae-corps').innerHTML='<div class="ae-course"><div class="ae-track"><div class="ae-runner" id="ae-me">🐴</div><div class="ae-fin">🏁</div></div><div class="ae-track"><div class="ae-runner" id="ae-adv">🐎</div><div class="ae-fin">🏁</div></div></div><button class="ae-btn ae-galop" id="ae-galop">GALOP ! 🏇</button><div class="ae-fb" id="ae-fb"></div>';
   const pm=()=>{$('#ae-me').style.left=Math.min(92,me/goal*88)+'%';};
@@ -1606,7 +1622,7 @@ function avCourseQ(a){
 function avCarte(a){
   const pairs=melange(a.pairs.map(p=>p));let idx=0;const allProv=[...new Set(a.pairs.map(p=>p[1]))];
   function ask(){
-    if(idx>=pairs.length){bulle("Bravo, tu connais toute la Belgique ! 🗺️");corpsBtn('<div class="ae-recomp"><div class="ae-rtxt">Carte de Belgique complétée ! 🎉</div></div>','Continuer ›',avEcranSuivant);return;}
+    if(idx>=pairs.length){bulle("Bravo, carte complétée ! 🗺️");corpsBtn('<div class="ae-recomp"><div class="ae-rtxt">Carte de '+AE.pays+' complétée ! 🎉</div></div>','Continuer ›',avEcranSuivant);return;}
     const cl=pairs[idx][0],prov=pairs[idx][1];
     bulle("🗺️ Place "+cl+" sur la carte ("+(idx+1)+"/"+pairs.length+")");
     const choix=melange([prov,...melange(allProv.filter(p=>p!==prov)).slice(0,3)]);
@@ -1616,12 +1632,12 @@ function avCarte(a){
   ask();
 }
 function avCircuit(a){
-  bulle(a.bulle||"Relie le circuit pour rallumer la ville ⚡");
+  bulle(a.bulle||"");
   $('#ae-corps').innerHTML='<div class="ae-circuit" id="ae-circ">'+(a.schema||'🔋 pile — 🔌 fil — ✂️ coupé — 💡')+'</div><div class="ae-q">'+a.q+'</div><div class="ae-choix" id="ae-choix"></div><div class="ae-fb" id="ae-fb"></div>';
   avRepondre(a.choix,a.r,()=>{const c=$('#ae-circ');c.innerHTML='🔋 — 🔌 — 🎚️ — 💡 ✨';c.classList.add('on');setTimeout(avEcranSuivant,1000);},a.msgFaux||"Le circuit n'est pas fermé… le courant ne passe pas 🙂");
 }
 function avOrtho(a){
-  bulle(a.bulle||"Écris le mot ✍️");
+  bulle(a.bulle||"");
   $('#ae-corps').innerHTML='<div class="ae-q">'+a.indice+'</div><input class="ortho-input" id="ae-ortho" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="tape ici…"><button class="ae-btn" id="ae-ok">Valider</button><div class="ae-fb" id="ae-fb"></div>';
   const inp=$('#ae-ortho');setTimeout(()=>{try{inp.focus();}catch(e){}},120);let fini=false;
   const val=()=>{
@@ -1631,11 +1647,11 @@ function avOrtho(a){
   };
   $('#ae-ok').onclick=val;inp.addEventListener('keydown',e=>{if(e.key==='Enter')val();});
 }
-function avDecision(a){bulle("Aide-moi à décider…");avQCM(a.q,a.choix,a.r,()=>{if(a.fait)AVS().faits[a.fait[0]]={r:a.r,q:a.q,choix:a.choix};sauver();avEcranSuivant();});}
-function avCalcul(a){const i=estP5()?1:0;bulle("Un petit calcul du port 🔢");avQCM(Array.isArray(a.q)?a.q[i]:a.q,Array.isArray(a.choix[0])?a.choix[i]:a.choix,Array.isArray(a.r)?a.r[i]:a.r,avEcranSuivant,"Presque… recompte 🙂");}
-function avQuizA(a){bulle("Sciences & nature 🔬");avQCM(a.q,a.choix,a.r,avEcranSuivant,"Pas tout à fait… réessaie 🙂");}
+function avDecision(a){bulle("");avQCM(a.q,a.choix,a.r,()=>{if(a.fait)AVS().faits[a.fait[0]]={r:a.r,q:a.q,choix:a.choix};sauver();avEcranSuivant();});}
+function avCalcul(a){const i=estP5()?1:0;bulle("");avQCM(Array.isArray(a.q)?a.q[i]:a.q,Array.isArray(a.choix[0])?a.choix[i]:a.choix,Array.isArray(a.r)?a.r[i]:a.r,avEcranSuivant,"Presque… recompte 🙂");}
+function avQuizA(a){bulle("");avQCM(a.q,a.choix,a.r,avEcranSuivant,"Pas tout à fait… réessaie 🙂");}
 function avLecture(a){
-  bulle("Lis bien, puis réponds 📖");
+  bulle("");
   $('#ae-corps').innerHTML='<div class="ae-texte">'+a.texte+'</div><button class="ae-btn" id="ae-cont">J\'ai lu ›</button>';
   let qi=0;
   $('#ae-cont').onclick=()=>poserQ();
@@ -1674,7 +1690,7 @@ function avCompo(a){
   const contr=a.contrainte?a.contrainte[i]:null;
   const cible=a.cible?a.cible[i]:null;const TOL=12;
   aeSlots=a.slots.map(s=>({label:s.label,m:s.m,buy:s.buy,card:null}));
-  bulle("Compose ton équipe 🐴");
+  bulle("");
   const corps=$('#ae-corps');
   const owned=CARTES.filter(c=>(etat.collection[c.id]||0)>0);
   const utile=owned.filter(c=>aeSlots.some(s=>s.m(c)));
@@ -1722,12 +1738,23 @@ function avCompo(a){
 }
 function avRecompense(se){
   const premiere=aeSE>=(AVS().sousEtape||0);
-  let cad='';
-  if(premiere){etat.crins+=se.crins;etat.renommee+=se.renom;etat.renommeeTotale+=se.renom;
-    if(se.cartes){se.cartes.forEach(id=>{const c=CARTES.find(x=>x.id===id);if(c)ajouterExemplaire(c);});cad='<br>🎁 '+se.cartes.map(id=>{const c=CARTES.find(x=>x.id===id);return c?c.nom:id;}).join(' + ');rendreGrille();}
-    majSolde(true);sauver();}
-  bulle(premiere?"Bravo, sous-étape réussie ! 🎉":"Déjà accompli — mais tu peux t'entraîner !");
-  corpsBtn('<div class="ae-recomp">'+(premiere?'+'+se.crins+' Diamants · +'+se.renom+' ⭐ renommée'+cad:'')+'</div>','Continuer ›',avFinSousEtape);
+  if(premiere){
+    etat.crins+=se.crins;etat.renommee+=se.renom;etat.renommeeTotale+=se.renom;majSolde(true);
+    const items=(se.cartes||[]).map(id=>CARTES.find(c=>c.id===id)).filter(Boolean).map(c=>{const r=ajouterExemplaire(c);return {c:c,cls:r.cls,etatTxt:r.etatTxt,sousTxt:r.sousTxt};});
+    if(items.length)rendreGrille();
+    sauver();
+    bulle("Bravo, sous-étape réussie ! 🎉");
+    corpsBtn('<div class="ae-recomp">+'+se.crins+' Diamants · +'+se.renom+' ⭐ renommée'+(items.length?'<br>🎁 une carte cadeau t\'attend !':'')+'</div>','Continuer ›',function(){avRevealCadeaux(items.slice(),avFinSousEtape);});
+  }else{
+    bulle("Déjà accompli — mais tu peux t'entraîner !");
+    corpsBtn('<div class="ae-recomp"></div>','Continuer ›',avFinSousEtape);
+  }
+}
+function avRevealCadeaux(items,done){
+  if(!items||!items.length){done();return;}
+  const it=items.shift();
+  revealApres=function(){avRevealCadeaux(items,done);};
+  montrerReveal(it.c,etat.collection[it.c.id]||1,it.etatTxt,it.sousTxt,it.cls);
 }
 function avFinSousEtape(){
   const b=AVS();
@@ -1741,10 +1768,14 @@ function avFinSousEtape(){
 function avBonus(a){
   const premiere=aeSE>=(AVS().sousEtape||0);
   const filt=(a&&a.rarete)||['commune','rare'];
-  if(premiere){let c;if(a&&a.carteId){c=CARTES.find(x=>x.id===a.carteId)||tirerCarte();}else{let t=0;do{c=tirerCarte();t++;}while(!filt.includes(c.rarete)&&t<150);}ajouterExemplaire(c);sauver();rendreGrille();
-    $('#ae-corps').innerHTML='<div class="ae-recomp"><div class="tc-box ratio ae-carte">'+carteHTML(c,etat.collection[c.id]||1)+'</div><div class="ae-rtxt">Tu reçois <b>'+c.nom+'</b> !</div><button class="ae-btn" id="ae-cont">Continuer ›</button></div>';
+  if(premiere){let c;if(a&&a.carteId){c=CARTES.find(x=>x.id===a.carteId)||tirerCarte();}else{let t=0;do{c=tirerCarte();t++;}while(!filt.includes(c.rarete)&&t<150);}
+    const r=ajouterExemplaire(c);sauver();rendreGrille();
+    $('#ae-corps').innerHTML='<div class="ae-recomp"><div class="ae-rtxt">🎁 Une récompense pour toi !</div><button class="ae-btn" id="ae-cont">Continuer ›</button></div>';
+    $('#ae-cont').onclick=avEcranSuivant;
+    revealApres=avEcranSuivant;
+    montrerReveal(c,etat.collection[c.id]||1,r.etatTxt,r.sousTxt,r.cls);
   } else $('#ae-corps').innerHTML='<div class="ae-recomp"><div class="ae-rtxt">Récompense déjà reçue 🎁</div><button class="ae-btn" id="ae-cont">Continuer ›</button></div>';
-  $('#ae-cont').onclick=avEcranSuivant;
+  const bc=$('#ae-cont');if(bc)bc.onclick=avEcranSuivant;
 }
 function avEtapeTerminee(){
   bulle(AE.finText||"Étape terminée ! Cap sur la suite… 🐴");avMajPins();

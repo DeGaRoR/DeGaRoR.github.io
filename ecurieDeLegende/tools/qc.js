@@ -152,6 +152,45 @@ for(const et of order){
 }
 }
 
+/* ---- LINTER DE COMPATIBILITÉ (navigateurs anciens ~2019, cf. régression v96) ---- */
+(function lintCompat(){
+  const JS=fs.readFileSync(base+'app.js','utf8')+'\n'+fs.readFileSync(base+'data.js','utf8');
+  const CSS=fs.readFileSync(base+'styles.css','utf8');
+  // retire commentaires + chaînes (garde le code des ${} des templates) pour éviter les faux positifs
+  function stripJS(s){let o='',i=0;while(i<s.length){const c=s[i];
+    if(c==='/'&&s[i+1]==='/'){while(i<s.length&&s[i]!=='\n')i++;continue;}
+    if(c==='/'&&s[i+1]==='*'){i+=2;while(i<s.length&&!(s[i]==='*'&&s[i+1]==='/'))i++;i+=2;continue;}
+    if(c==="'"||c==='"'){const q=c;i++;while(i<s.length){if(s[i]==='\\')i+=2;else if(s[i]===q){i++;break;}else i++;}o+=' ';continue;}
+    if(c==='`'){i++;while(i<s.length){if(s[i]==='\\')i+=2;else if(s[i]==='$'&&s[i+1]==='{'){o+='${';i+=2;let d=1;while(i<s.length&&d>0){if(s[i]==='{')d++;else if(s[i]==='}')d--;if(d>0)o+=s[i];i++;}o+='}';}else if(s[i]==='`'){i++;break;}else i++;}o+=' ';continue;}
+    o+=c;i++;}return o;}
+  const J=stripJS(JS);
+  const JSK=[
+    [/\?\?[^=]/,'?? (nullish coalescing, Chrome 80) → (a!=null?a:b)'],
+    [/\?\?=/,'??= (Chrome 85)'],
+    [/\?\.(?![0-9\s])/,'?. (optional chaining, Chrome 80) → teste avec &&'],
+    [/\|\|=|&&=/,'||= / &&= (logical assignment, Chrome 85)'],
+    [/\.replaceAll\s*\(/,'.replaceAll (Chrome 85) → .split().join() ou regex /g'],
+    [/\.at\s*\(/,'.at() (Chrome 92) → [i] / [len-1]'],
+    [/\.flatMap\s*\(/,'.flatMap (Chrome 69) → .reduce((a,x)=>a.concat(x))'],
+    [/[^.\w]\.flat\s*\(/,'.flat (Chrome 69)'],
+    [/\bstructuredClone\s*\(/,'structuredClone (Chrome 98) → JSON.parse(JSON.stringify)'],
+    [/\bObject\.hasOwn\s*\(/,'Object.hasOwn (Chrome 93)'],
+    [/\.findLast(Index)?\s*\(/,'.findLast/.findLastIndex (Chrome 97)'],
+    [/\.(toSorted|toReversed|toSpliced|with)\s*\(/,'méthodes immuables de tableau (Chrome 110+)'],
+    [/\bPromise\.(allSettled|any)\s*\(/,'Promise.allSettled / Promise.any (Chrome 76/85)'],
+    [/\b\d[\d]*_\d/,'séparateur numérique 1_000 (Chrome 75)'],
+  ];
+  JSK.forEach(function(p){if(p[0].test(J))fail.push('COMPAT JS: '+p[1]);});
+  if(/aspect-ratio\s*:/.test(CSS)&&!/@supports\s+not\s*\(\s*aspect-ratio/.test(CSS))fail.push('COMPAT CSS: aspect-ratio sans repli @supports not(aspect-ratio) (Chrome 88)');
+  if((/\bcontainer-type\s*:/.test(CSS)||/\d[\d.]*cq[whib]\b/.test(CSS))&&!/@supports\s+not\s*\(\s*container-type/.test(CSS))fail.push('COMPAT CSS: cqw/container queries sans repli @supports not(container-type) (Chrome 105)');
+  if(/\bdvh\b/.test(CSS)&&!/100vh/.test(CSS))fail.push('COMPAT CSS: dvh sans repli 100vh (Chrome 108)');
+  if(/(^|[^-])\binset\s*:/m.test(CSS))fail.push('COMPAT CSS: inset: (Chrome 87) → top/right/bottom/left (a déjà cassé les cartes en v88)');
+  if(/color-mix\s*\(/.test(CSS))warn.push('COMPAT CSS cosmétique: color-mix (Chrome 111) — dégrade sans casser');
+  if(/:is\s*\(|:where\s*\(/.test(CSS))warn.push('COMPAT CSS: :is()/:where() (Chrome 88) — règle ignorée si non supporté (cosmétique ici)');
+  if(/:has\s*\(/.test(CSS))warn.push('COMPAT CSS: :has() (Chrome 105)');
+  if(/backdrop-filter\s*:/.test(CSS))warn.push('COMPAT CSS cosmétique: backdrop-filter (dégrade)');
+})();
+
 /* ---- misc greps ---- */
 const melCount=(h.match(/function melange\(/g)||[]).length;
 if(melCount>1)warn.push('melange défini '+melCount+'× (la dernière définition MUTE le tableau) — dédupliquer');

@@ -3,6 +3,102 @@
 Convention : `VERSION_APP` (index.html) = `ecurie-vNN` (sw.js), incrémentés à CHAQUE livraison
 (invalidation du cache PWA). QC : `node tools/qc.js` avant chaque livraison.
 
+## v114 — Lot 4 : refonte de la map
+- **Fond qui bavait en haut corrigé** : l'écran d'aventure n'affiche plus l'image de cheval derrière
+  l'en-tête (la carte est le visuel plein écran) → haut d'écran propre.
+- **En-tête réparé** : le bouton « ‹ Le monde » (à gauche) ne chevauche plus le titre du pays (passé à
+  droite) ; sous-titre repositionné et lisible ; scrim sombre en haut pour le contraste.
+- **Texte inutile retiré** : « ✦ La Grande Chevauchée ✦ » remplacé par un simple « Touche un royaume ».
+- **Labels de provinces** : taille réduite (tous pays) et 3 labels belges qui chevauchaient leur pin
+  (Anvers, Flandre or., Limbourg) décalés.
+- **Boutons homogènes** : le bouton retour reprend le style givré de la fondation (Lot 2).
+## v113 — Lot 3 : écran de quiz/défis compact, sans scroll
+- **Auto-avance si bonne réponse** : plus de bouton à taper quand c'est juste (petit flash « bravo »
+  puis question suivante). Le bouton « Suivant » n'apparaît QUE sur mauvaise réponse — avec l'astuce,
+  pour apprendre.
+- **En-tête compact** : une seule ligne — retour ← · nom du pack · pastille « nv. 2 » · icône « ? »
+  pour la théorie (au lieu du gros bloc théorie + méta + retour empilés).
+- **Feedback en overlay bas** (au lieu de pousser le contenu vers le bas) → plus de scroll : tout tient
+  dans un écran, même petit. Carte de question et réponses resserrées.
+- **Théorie en panneau escamotable** ouvert/fermé par le « ? ».
+## v112 — Lot 2 : fondation de style (lisible sur les fonds illustrés)
+- **Nouveaux tokens de surface** : panneaux « verre givré » indigo quasi opaques (var(--surface/-2/-3)),
+  bordures et ombres normalisées, + un liseré lumineux en haut (var(--halo)) comme signature.
+- **Textes plus contrastés** : --txt et --txt-doux remontés (fini le gris clair illisible sur photo).
+- **Fini le transparent** : tous les fonds blanc-transparents (48 sélecteurs) passent en surfaces
+  sombres opaques → boutons pleins, pastilles et conteneurs lisibles sur n'importe quel fond.
+- **Concours refait** : chaque épreuve est un panneau givré avec ombre + halo ; pastilles de critères
+  opaques ; bouton « Renouveler » plein. C'était l'écran le moins lisible.
+- **Classe utilitaire .panneau** réutilisable pour les futurs écrans.
+- **Nettoyage du style inline** commencé : titres de modale, textes d'aide, boutons et marges passent
+  par des classes CSS (index.html). Restent les valeurs dynamiques (largeurs %, images, couleurs data)
+  et les couleurs SVG de la map (Lot 4).
+## v111 — Lot 1 : bug menu, fond tirage, familles, shine célestes
+- **Bug menu caché corrigé** : la barre de navigation passe en `position:fixed` ancrée au bas du
+  viewport (découplée de la hauteur du shell), donc toujours visible même si la hauteur d'écran est
+  mal calculée. Padding bas ajouté au contenu + recalcul forcé au réveil de l'appli (resize /
+  visibilitychange / pageshow).
+- **Fond de tirage** : Akhal-Teke (tête centrée, cachée par la carte) remplacé par l'Hippalectryon
+  (sujet décalé).
+- **Familles en toutes lettres** sur les cartes : nouvelle ligne discrète, séparées par des virgules,
+  en bas à gauche juste avant la ligne du drapeau (à la place des émojis de famille).
+- **Célestes** : l'animation pulsante (trop voyante) est remplacée par un **reflet lumineux discret et
+  occasionnel** (un balayage toutes les ~7,5 s) + une lueur douce constante.
+## v110 — Aventure : moins de texte, cohérence tous pays
+- **Guide correct par pays** : l'avatar de l'écran d'étape était codé en dur sur Pieter-Jan. Il montre
+  désormais le bon guide selon le pays — François (France), Big Ben (Îles), Inge (Rhin), Rocío (Ibérie).
+- **Hardcode « Belgique » corrigé** dans le jeu de carte des provinces (« Carte de X complétée »
+  utilise le pays courant) — valable pour les 5 régions.
+- **Titre de mission retiré** des écrans-question (il restait affiché en permanence).
+- **Pieter-Jan se tait quand il n'a rien à dire** : sa bulle est masquée sur les écrans où la question
+  se suffit à elle-même (plus de bulle vide/redondante). Il ne parle que pour la narration d'intro, la
+  lecture, les rappels et les réactions (bravo/réessaie) — moins de texte, focus sur l'essentiel.
+## v109 — Aventure : écrans allégés + plus d'écran « parole seule »
+- **Moins d'infos par écran** : le bandeau d'étape ne répète plus le rappel d'objectif (« 🔔 X a
+  besoin de toi… ») ni le paragraphe ville/province sur chaque écran. Il ne reste qu'une barre de
+  progression fine avec un libellé court (drapeau · étape · sous-étape). (Le titre de mission est
+  conservé dans l'en-tête.)
+- **Chaque écran a une action** : l'écran de narration autonome (Pieter-Jan qui parle sans question)
+  est supprimé ; la narration d'intro de sous-étape est désormais **fusionnée dans la bulle du premier
+  écran-question**. Plus de cul-de-sac « juste du texte ».
+## v108 — Aventure : image d'intro plein écran + spinner de chargement
+- **Écran d'intro** : l'image (format carte, portrait) remplit désormais tout l'écran (cover), avec le
+  texte et le bouton **superposés en bas** sur un dégradé, au lieu d'une image rognée avec le texte
+  dans un panneau séparé en dessous.
+- **Spinner de chargement** : un indicateur tournant s'affiche pendant le préchargement des grandes
+  images d'aventure (intro, mascottes, fond d'étape), qui pouvaient être lentes (ex. Bruges).
+  L'image n'apparaît qu'une fois chargée, sur fond sombre, plus de « rien ne se passe ».
+## v107 — Aventure : récompenses via l'écran reveal, pins verts, fond harmonisé
+- **Cartes-cadeaux de l'aventure** : elles utilisent désormais EXACTEMENT le même écran de révélation
+  que les tirages (carte plein format, flip animé, tap pour continuer, enchaînées s'il y en a plusieurs)
+  au lieu d'un affichage statique. La révélation passe au-dessus de l'overlay d'étape (z-index 65).
+- **Étapes finies enfin vertes** : un conflit de spécificité CSS (`#ecran-aventure .pt-glow` avec un ID
+  battait `.pt-glow.fait`) laissait les pins terminés jaunes et clignotants malgré le ✓. Les règles
+  `fait` sont désormais préfixées `#ecran-aventure` → pins verts, sans pulsation.
+- **Fond d'étape harmonisé** : le voile sombre de l'écran d'aventure (très opaque) reprend le même
+  dégradé que les autres écrans à fond (clair au centre, foncé haut/bas).
+## v106 — Fix menu du bas parfois caché par le contenu
+- **Cause** : la barre de navigation (`nav.tabs`) n'avait aucun `z-index` — un élément de contenu
+  positionné pouvait donc peindre par-dessus quand la mise en page débordait un instant. De plus la
+  bascule `main.plein` (mode aventure) se faisait en dernier dans `switchEcran`, donc pouvait rester
+  coincée si un rendu échouait avant.
+- **Correctifs** (aucun risque de régression) : (1) `nav.tabs` reçoit `position:relative;z-index:30`
+  → toujours au-dessus du contenu, mais sous les fenêtres modales ; (2) `#app` plafonné à `100svh`
+  (petit viewport) pour que la barre reste toujours dans l'écran visible ; (3) dans `switchEcran`, la
+  classe de mise en page et la remise à zéro du scroll sont faites AVANT les rendus, donc jamais
+  laissées dans un mauvais état.
+## v105 — Linter de compatibilité dans le QC (verrou anti-régression vieux navigateur)
+- `tools/qc.js` inclut désormais un **linter** qui scanne app.js + data.js + styles.css et **fait
+  échouer le QC** (exit 1) si un motif incompatible avec un navigateur ~2019 réapparaît — exactement
+  la classe de bugs qui avait cassé l'affichage sur le vieux téléphone (v96).
+- **JS bloqués** : `??`, `?.`, `||=`/`&&=`/`??=`, `.replaceAll`, `.at()`, `.flat`/`.flatMap`,
+  `structuredClone`, `Object.hasOwn`, `.findLast`, méthodes immuables de tableau, `Promise.allSettled/any`,
+  séparateurs numériques. **CSS bloqués** : `aspect-ratio`, `cqw`/container queries et `dvh` s'ils
+  n'ont pas leur repli `@supports`/`100vh` ; `inset:` (→ longhand). Cosmétiques (color-mix, :is,
+  backdrop-filter) signalés en avertissement, sans bloquer.
+- Le scanner ignore commentaires et chaînes (garde le code des `${}`), donc pas de faux positifs.
+  Validé : 0 échec sur le code actuel, attrape les 10 pièges de test, bloque un `??` réintroduit.
+## v104 — Renommage de 3 robots (Terminacheval, Gallihorse, Roston Tymatics)
 ## v103 — 8 cartes de plus (vendange, dressage, 6 robots) — 193 cartes au total
 - Métier : cheval des **vendanges** (France). Sport : cheval de **dressage** (épique, Autriche) — les
   deux quizzables (histoire).
