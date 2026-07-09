@@ -196,6 +196,41 @@ cheval_rouge_guerre:"cartes/cheval_rouge_guerre.jpg",
 helhest:"cartes/helhest.jpg",
 dullahan:"cartes/dullahan.jpg",
 mari_lwyd:"cartes/mari_lwyd.jpg",
+metal_or:"cartes/metal_or.jpg",
+metal_argent:"cartes/metal_argent.jpg",
+metal_acier:"cartes/metal_acier.jpg",
+metal_fer:"cartes/metal_fer.jpg",
+metal_aluminium:"cartes/metal_aluminium.jpg",
+metal_zinc:"cartes/metal_zinc.jpg",
+metal_etain:"cartes/metal_etain.jpg",
+ET_aetheris:"cartes/ET_aetheris.jpg",
+ET_crysalune:"cartes/ET_crysalune.jpg",
+ET_octalyre:"cartes/ET_octalyre.jpg",
+ET_nerethys:"cartes/ET_nerethys.jpg",
+ET_solkaris:"cartes/ET_solkaris.jpg",
+ET_mycelion:"cartes/ET_mycelion.jpg",
+ET_phalenora:"cartes/ET_phalenora.jpg",
+ET_mantheor:"cartes/ET_mantheor.jpg",
+ET_scarabeon:"cartes/ET_scarabeon.jpg",
+ET_lumea:"cartes/ET_lumea.jpg",
+metal_bronze:"cartes/metal_bronze.jpg",
+precieux_diamant:"cartes/precieux_diamant.jpg",
+precieux_rubis:"cartes/precieux_rubis.jpg",
+precieux_emeraude:"cartes/precieux_emeraude.jpg",
+precieux_sapphire:"cartes/precieux_sapphire.jpg",
+precieux_jade:"cartes/precieux_jade.jpg",
+precieux_amethyste:"cartes/precieux_amethyste.jpg",
+precieux_obsidienne:"cartes/precieux_obsidienne.jpg",
+precieux_email:"cartes/precieux_email.jpg",
+precieux_vitrail:"cartes/precieux_vitrail.jpg",
+planet_jupiter:"cartes/planet_jupiter.jpg",
+planet_saturne:"cartes/planet_saturne.jpg",
+planet_terre:"cartes/planet_terre.jpg",
+planet_mars:"cartes/planet_mars.jpg",
+planet_neptune:"cartes/planet_neptune.jpg",
+planet_uranus:"cartes/planet_uranus.jpg",
+planet_venus:"cartes/planet_venus.jpg",
+planet_mercure:"cartes/planet_mercure.jpg",
 };
 const CARTES = [
   {id:"mustang_indien",nom:"Mustang indien",rarete:"commune",emoji:"🐎",image:IMG.mustang_indien,desc:"Cheval sauvage des grandes plaines, fidèle compagnon des peuples amérindiens.",aff:["vitesse","endurance"],familles:["sauvages","bataille"],royaume:"amerique"},
@@ -391,12 +426,47 @@ const CARTES = [
   {id:"robot_termicheval",nom:"Terminacheval",rarete:"legendaire",emoji:"🔴",image:IMG.robot_termicheval,desc:"Un crâne de métal, deux yeux écarlates : rien ne l'arrête, jamais.",aff:["bataille"],familles:["robot","sombres"],royaume:"futur"},
   {id:"robot_cheval_e",nom:"Le cheval jardinier",rarete:"rare",emoji:"🌼",image:IMG.robot_cheval_e,desc:"Un vieux robot rouillé aux grands yeux doux, qui prend soin des fleurs.",aff:["beaute","endurance"],familles:["robot","plantes"],royaume:"futur"},
   {id:"robot_galli",nom:"Gallihorse",rarete:"epique",emoji:"🌆",image:IMG.robot_galli,desc:"Chromé et racé, il cabre au-dessus de la ville qui s'endort.",aff:["vitesse","beaute"],familles:["robot"],royaume:"futur"},
+  {id:"metal_or",nom:"Cheval d'or",rarete:"mythique",emoji:"👑",image:IMG.metal_or,desc:"Entièrement forgé dans l'or le plus pur, il resplendit comme un trésor des mille et une nuits.",aff:["beaute","force","magie"],familles:["metaux","mascotte"],royaume:"arabie"},
+  {id:"metal_argent",nom:"Cheval d'argent",rarete:"legendaire",emoji:"🌙",image:IMG.metal_argent,desc:"Ciselé d'arabesques d'argent, il brille d'un éclat lunaire dans les palais de marbre.",aff:["beaute","magie"],familles:["metaux","race"],royaume:"grece"},
+  {id:"metal_acier",nom:"Cheval d'acier",rarete:"epique",emoji:"⚙️",image:IMG.metal_acier,desc:"Né des hauts-fourneaux, l'acier le rend puissant et vif à la fois : l'alliage du fer et du feu.",aff:["force","vitesse"],familles:["metaux","bataille"],royaume:"luxembourg"},
+  {id:"metal_fer",nom:"Cheval de fer",rarete:"epique",emoji:"🛡️",image:IMG.metal_fer,desc:"Bardé de plaques de fer noirci, il sort de la forge dans une pluie d'étincelles, l'œil rougeoyant.",aff:["bataille","force"],familles:["metaux","sombres"],royaume:"allemagne"},
+  {id:"metal_aluminium",nom:"Cheval d'aluminium",rarete:"rare",emoji:"🤖",image:IMG.metal_aluminium,desc:"Léger comme une plume et brillant comme un miroir, ce métal moderne file dans la cité de demain.",aff:["vitesse","beaute"],familles:["metaux","robot"],royaume:"futur"},
+  {id:"metal_zinc",nom:"Cheval de zinc",rarete:"rare",emoji:"🔩",image:IMG.metal_zinc,desc:"Couvert de zinc galvanisé aux reflets étoilés, il ne rouille jamais — fierté des toits de nos villes.",aff:["force","endurance"],familles:["metaux","travail"],royaume:"belgique"},
+  {id:"metal_etain",nom:"Cheval d'étain",rarete:"commune",emoji:"🔔",image:IMG.metal_etain,desc:"Façonné dans l'étain doux par la main du ferblantier, il veille sur l'étal du marché médiéval.",aff:["beaute"],familles:["metaux","travail"],royaume:"angleterre"},
+  {id:"ET_aetheris",nom:"Aetheris",rarete:"mythique",emoji:"🌈",image:IMG.ET_aetheris,desc:"Gardien des îles flottantes, ses ailes d'arc-en-ciel irisé le portent d'un ciel à l'autre.",aff:["beaute","magie","vitesse"],familles:["aliens","legende"],royaume:"outremonde"},
+  {id:"ET_crysalune",nom:"Crysalune",rarete:"legendaire",emoji:"💎",image:IMG.ET_crysalune,desc:"Un cheval de cristal vivant, parcouru de constellations lumineuses, né entre deux lunes lointaines.",aff:["magie","beaute"],familles:["aliens","elementaires"],royaume:"outremonde"},
+  {id:"ET_octalyre",nom:"Octalyre",rarete:"legendaire",emoji:"🐙",image:IMG.ET_octalyre,desc:"Sa crinière et sa queue de tentacules ondulent comme dans un océan d'étoiles.",aff:["magie","endurance"],familles:["aliens","elementaires"],royaume:"outremonde"},
+  {id:"ET_nerethys",nom:"Nérethys",rarete:"epique",emoji:"🌊",image:IMG.ET_nerethys,desc:"Esprit des eaux d'un monde sans soleil, il surgit des grottes lunaires dans une gerbe de lumière bleue.",aff:["magie","vitesse"],familles:["aliens","elementaires"],royaume:"outremonde"},
+  {id:"ET_solkaris",nom:"Solkaris",rarete:"epique",emoji:"☀️",image:IMG.ET_solkaris,desc:"Sous les deux soleils d'une planète rouge, ce galopeur écaillé traverse le désert sans jamais faiblir.",aff:["vitesse","endurance"],familles:["aliens","sauvages"],royaume:"outremonde"},
+  {id:"ET_mycelion",nom:"Mycélion",rarete:"epique",emoji:"🍄",image:IMG.ET_mycelion,desc:"Couvert de champignons luminescents, il fait partie de la grande forêt-réseau qui respire dans le noir.",aff:["magie","endurance"],familles:["aliens","plantes"],royaume:"outremonde"},
+  {id:"ET_phalenora",nom:"Phalénora",rarete:"epique",emoji:"🦋",image:IMG.ET_phalenora,desc:"Ses ailes de phalène, poudrées de motifs, s'ouvrent parmi les fleurs géantes d'une jungle enchantée.",aff:["beaute","magie"],familles:["aliens","pres"],royaume:"outremonde"},
+  {id:"ET_mantheor",nom:"Manthéor",rarete:"rare",emoji:"🦗",image:IMG.ET_mantheor,desc:"Mi-cheval, mi-mante religieuse, ses grands bras dentelés se replient, prêts à jaillir en un éclair.",aff:["bataille","vitesse"],familles:["aliens","bataille"],royaume:"outremonde"},
+  {id:"ET_scarabeon",nom:"Scarabéon",rarete:"rare",emoji:"🪲",image:IMG.ET_scarabeon,desc:"Sa carapace de scarabée aux reflets d'émeraude et d'améthyste est une armure aussi belle que solide.",aff:["bataille","beaute"],familles:["aliens","bataille"],royaume:"outremonde"},
+  {id:"ET_lumea",nom:"Luméa",rarete:"rare",emoji:"✨",image:IMG.ET_lumea,desc:"Douce créature de lumière verte, elle éclaire de mille reflets les marais d'un monde endormi.",aff:["magie","beaute"],familles:["aliens","elementaires"],royaume:"outremonde"},
+  {id:"metal_bronze",nom:"Cheval de bronze",rarete:"epique",emoji:"🥉",image:IMG.metal_bronze,desc:"Statue de bronze verdie par les siècles, fière et triomphale comme les chevaux de Saint-Marc.",aff:["force","beaute"],familles:["metaux","race"],royaume:"italie"},
+  {id:"precieux_diamant",nom:"Cheval de diamant",rarete:"mythique",emoji:"💎",image:IMG.precieux_diamant,desc:"Taillé dans le diamant, la pierre la plus dure et la plus pure : il scintille de mille feux irisés.",aff:["beaute","magie","force"],familles:["precieux","race"],royaume:"afrique"},
+  {id:"precieux_rubis",nom:"Cheval de rubis",rarete:"legendaire",emoji:"❤️",image:IMG.precieux_rubis,desc:"Rouge ardent comme la braise, le rubis lui donne un cœur de feu et une fougue de champion.",aff:["bataille","beaute"],familles:["precieux","bataille"],royaume:"inde"},
+  {id:"precieux_emeraude",nom:"Cheval d'émeraude",rarete:"legendaire",emoji:"💚",image:IMG.precieux_emeraude,desc:"Vert profond des forêts, l'émeraude passe pour porter sagesse et longue vie à qui la possède.",aff:["beaute","magie"],familles:["precieux","plantes"],royaume:"bresil"},
+  {id:"precieux_sapphire",nom:"Cheval de saphir",rarete:"epique",emoji:"💙",image:IMG.precieux_sapphire,desc:"Bleu nuit piqueté d'étoiles, le saphir est la pierre des rois et des ciels d'été.",aff:["beaute","magie"],familles:["precieux","race"],royaume:"inde"},
+  {id:"precieux_jade",nom:"Cheval de jade",rarete:"epique",emoji:"🟢",image:IMG.precieux_jade,desc:"Sculpté dans le jade impérial, il incarne l'harmonie et la longévité chères à la Chine ancienne.",aff:["beaute","endurance"],familles:["precieux","race"],royaume:"chine"},
+  {id:"precieux_amethyste",nom:"Cheval d'améthyste",rarete:"rare",emoji:"💜",image:IMG.precieux_amethyste,desc:"Cristal violet des grottes profondes, l'améthyste apaise l'esprit et invite à la rêverie.",aff:["magie","beaute"],familles:["precieux","elementaires"],royaume:"bresil"},
+  {id:"precieux_obsidienne",nom:"Cheval d'obsidienne",rarete:"rare",emoji:"🖤",image:IMG.precieux_obsidienne,desc:"Verre noir né des volcans, tranchant comme une lame : les anciens en faisaient leurs armes.",aff:["bataille","magie"],familles:["precieux","sombres"],royaume:"amerique"},
+  {id:"precieux_email",nom:"Cheval d'émail",rarete:"rare",emoji:"🎨",image:IMG.precieux_email,desc:"Habillé d'émaux cloisonnés aux mille couleurs, chaque motif est serti d'un fil d'or minutieux.",aff:["beaute","magie"],familles:["precieux","race"],royaume:"arabie"},
+  {id:"precieux_vitrail",nom:"Cheval de vitrail",rarete:"epique",emoji:"🪟",image:IMG.precieux_vitrail,desc:"Assemblé de verres colorés comme une rosace de cathédrale, il s'illumine dès que le soleil le traverse.",aff:["beaute","magie"],familles:["precieux","legende"],royaume:"france"},
+  {id:"planet_jupiter",nom:"Jupiter",rarete:"mythique",emoji:"🟠",image:IMG.planet_jupiter,desc:"La plus grande planète, roi du système solaire : sa Grande Tache rouge est une tempête plus vaste que la Terre.",aff:["force","magie","bataille"],familles:["planetes","bataille"],royaume:"outremonde"},
+  {id:"planet_saturne",nom:"Saturne",rarete:"legendaire",emoji:"🪐",image:IMG.planet_saturne,desc:"Ceinte de ses anneaux de glace et de roche, Saturne est la gardienne patiente du temps qui passe.",aff:["magie","endurance"],familles:["planetes","legende"],royaume:"outremonde"},
+  {id:"planet_terre",nom:"La Terre",rarete:"legendaire",emoji:"🌍",image:IMG.planet_terre,desc:"Notre planète bleue : océans, forêts et montagnes vivent sur son dos, la seule à abriter la vie.",aff:["beaute","endurance"],familles:["planetes","plantes"],royaume:"outremonde"},
+  {id:"planet_mars",nom:"Mars",rarete:"epique",emoji:"🔴",image:IMG.planet_mars,desc:"La planète rouge, nommée d'après le dieu de la guerre : un désert de fer rouillé sous un ciel orangé.",aff:["bataille","force"],familles:["planetes","bataille"],royaume:"outremonde"},
+  {id:"planet_neptune",nom:"Neptune",rarete:"epique",emoji:"🔵",image:IMG.planet_neptune,desc:"La planète des tempêtes bleues et des vents les plus violents, nommée d'après le dieu des mers.",aff:["magie","vitesse"],familles:["planetes","elementaires"],royaume:"outremonde"},
+  {id:"planet_uranus",nom:"Uranus",rarete:"rare",emoji:"🔷",image:IMG.planet_uranus,desc:"Géante de glace couchée sur le côté, d'un bleu-vert pâle et glacial aux confins du système solaire.",aff:["magie","endurance"],familles:["planetes","elementaires"],royaume:"outremonde"},
+  {id:"planet_venus",nom:"Vénus",rarete:"rare",emoji:"🟡",image:IMG.planet_venus,desc:"L'étoile du berger, la plus brillante du ciel, nommée d'après la déesse de la beauté — mais brûlante sous ses nuages.",aff:["beaute","magie"],familles:["planetes","race"],royaume:"outremonde"},
+  {id:"planet_mercure",nom:"Mercure",rarete:"rare",emoji:"☄️",image:IMG.planet_mercure,desc:"La planète la plus proche du Soleil et la plus rapide, messagère filante nommée d'après le dieu aux pieds ailés.",aff:["vitesse","magie"],familles:["planetes","course"],royaume:"outremonde"},
 ];
 const RARETES={commune:{nom:'Commune',poids:55,overflow:15,couleur:'#c4cdd8'},rare:{nom:'Rare',poids:27,overflow:30,couleur:'#7ec2ff'},epique:{nom:'Épique',poids:13,overflow:60,couleur:'#c99bff'},legendaire:{nom:'Légendaire',poids:4.5,overflow:120,couleur:'#ffcf6b'},mythique:{nom:'Mythique',poids:0.5,overflow:250,couleur:'#ff9ac0'},celeste:{nom:'Céleste',poids:0,overflow:300,couleur:'#ffe9a8'}};
 const SEUILS=[1,4,9,17,28];
 const TITRES=['—','Éveil','Aguerri','Radieux','Astral','Mythe'];
 const ROYAUMES={belgique:{ico:'🇧🇪',nom:'Belgique'},pays_bas:{ico:'🇳🇱',nom:'Pays-Bas'},france:{ico:'🇫🇷',nom:'France'},allemagne:{ico:'🇩🇪',nom:'Allemagne'},angleterre:{ico:'🏴',nom:'Angleterre'},irlande:{ico:'🇮🇪',nom:'Irlande'},ecosse:{ico:'🏴',nom:'Écosse'},espagne:{ico:'🇪🇸',nom:'Espagne'},rome:{ico:'🏛️',nom:'Rome'},italie:{ico:'🇮🇹',nom:'Italie'},portugal:{ico:'🇵🇹',nom:'Portugal'},autriche:{ico:'🇦🇹',nom:'Autriche'},luxembourg:{ico:'🇱🇺',nom:'Luxembourg'},suisse:{ico:'🇨🇭',nom:'Suisse'},grece:{ico:'🇬🇷',nom:'Grèce'},norvege:{ico:'🇳🇴',nom:'Norvège'},steppe:{ico:'🐎',nom:'Steppe'},chine:{ico:'🇨🇳',nom:'Chine'},japon:{ico:'🇯🇵',nom:'Japon'},inde:{ico:'🇮🇳',nom:'Inde'},arabie:{ico:'🏜️',nom:'Arabie'},egypte:{ico:'🇪🇬',nom:'Égypte'},amerique:{ico:'🇺🇸',nom:'Amérique'},afrique:{ico:'🦓',nom:'Afrique'},camelot:{ico:'🏰',nom:'Camelot'},avalon:{ico:'🦄',nom:'Avalon'},scene:{ico:'🎤',nom:'Scène'},australie:{ico:'🇦🇺',nom:'Australie'},perse:{ico:'🏹',nom:'Perse'},futur:{ico:'🤖',nom:'Futur'},russie:{ico:'🇷🇺',nom:'Russie'},argentine:{ico:'🇦🇷',nom:'Argentine'},finlande:{ico:'🇫🇮',nom:'Finlande'},islande:{ico:'🇮🇸',nom:'Islande'},danemark:{ico:'🇩🇰',nom:'Danemark'},pologne:{ico:'🇵🇱',nom:'Pologne'},bresil:{ico:'🇧🇷',nom:'Brésil'},hongrie:{ico:'🇭🇺',nom:'Hongrie'},galles:{ico:'🏴',nom:'Pays de Galles'},ukraine:{ico:'🇺🇦',nom:'Ukraine'},outremonde:{ico:'🌑',nom:'Outre-monde'}};
-const FAMILLES={travail:{ico:'🛠️',nom:'Travail'},race:{ico:'🏅',nom:'Cheval de race'},mascotte:{ico:'👑',nom:'Mascotte'},bataille:{ico:'⚔️',nom:'Bataille'},legende:{ico:'✨',nom:'Légende'},elementaires:{ico:'🔥',nom:'Élémentaires'},sauvages:{ico:'🐎',nom:'Sauvages'},course:{ico:'🏇',nom:'Course'},equitation:{ico:'🏇',nom:'Équitation'},pres:{ico:'🌸',nom:'Prés'},band:{ico:'🎸',nom:'Pop'},licorne:{ico:'🦄',nom:'Licornes'},plantes:{ico:'🌿',nom:'Plantes'},robot:{ico:'🤖',nom:'Robots'},sombres:{ico:'💀',nom:'Sombres'}};
+const FAMILLES={travail:{ico:'🛠️',nom:'Travail'},race:{ico:'🏅',nom:'Cheval de race'},mascotte:{ico:'👑',nom:'Mascotte'},bataille:{ico:'⚔️',nom:'Bataille'},legende:{ico:'✨',nom:'Légende'},elementaires:{ico:'🔥',nom:'Élémentaires'},sauvages:{ico:'🐎',nom:'Sauvages'},course:{ico:'🏇',nom:'Course'},equitation:{ico:'🏇',nom:'Équitation'},pres:{ico:'🌸',nom:'Prés'},band:{ico:'🎸',nom:'Pop'},licorne:{ico:'🦄',nom:'Licornes'},plantes:{ico:'🌿',nom:'Plantes'},robot:{ico:'🤖',nom:'Robots'},sombres:{ico:'💀',nom:'Sombres'},metaux:{ico:'🔩',nom:'Métaux'},aliens:{ico:'👽',nom:'Extraterrestres'},precieux:{ico:'💎',nom:'Précieux'},planetes:{ico:'🪐',nom:'Planètes'}};
 /* ===== Équilibrage aventure (Lot 5) ===== */
 const AMB_COMPO=1.2;                 /* +20% d'ambition sur les seuils de compo */
 const PAYS_MULT={belgique:1.0,france:1.05,iles:1.10,rhin:1.15,iberie:1.20};  /* +5% de difficulté par pays */
@@ -424,8 +494,8 @@ const DIVISIONS=[
   {rarete:'legendaire',nom:'Légendaire', ico:'🏅',inscription:25,crins:[110,55,25],   renom:[12,7,3]},
   {rarete:'mythique',  nom:'Mythique',   ico:'👑',inscription:40,crins:[180,90,40],   renom:[18,10,4]},
 ];
-const FAM_CARAC={travail:'force',race:'beaute',bataille:'bataille',legende:'magie',elementaires:'magie',sauvages:'endurance',course:'vitesse',pres:'beaute',band:'vitesse',licorne:'magie',plantes:'endurance',robot:'vitesse',sombres:'bataille',equitation:'endurance',mascotte:'beaute'};
-const FAM_FAIBLESSE={travail:'vitesse',race:'magie',mascotte:'bataille',bataille:'magie',legende:'endurance',elementaires:'force',sauvages:'beaute',course:'force',equitation:'bataille',pres:'bataille',band:'bataille',licorne:'bataille',plantes:'vitesse',robot:'magie',sombres:'beaute'};
+const FAM_CARAC={travail:'force',race:'beaute',bataille:'bataille',legende:'magie',elementaires:'magie',sauvages:'endurance',course:'vitesse',pres:'beaute',band:'vitesse',licorne:'magie',plantes:'endurance',robot:'vitesse',sombres:'bataille',equitation:'endurance',mascotte:'beaute',metaux:'force',aliens:'magie',precieux:'beaute',planetes:'magie'};
+const FAM_FAIBLESSE={travail:'vitesse',race:'magie',mascotte:'bataille',bataille:'magie',legende:'endurance',elementaires:'force',sauvages:'beaute',course:'force',equitation:'bataille',pres:'bataille',band:'bataille',licorne:'bataille',plantes:'vitesse',robot:'magie',sombres:'beaute',metaux:'magie',aliens:'force',precieux:'vitesse',planetes:'vitesse'};
 const PONEYS=new Set(['welsh_pony','basotho','caspien','connemara','eriskay','exmoor','fell','highland','hutsul','merens','poney_shetland','poney_heureux','bebe_poney','falabella','fjord','haflinger','dulmener','islandais','konik','yakutian']);
 const RANGS=[[0,'Débutante'],[15,'Régionale'],[45,'Réputée'],[100,'Prestigieuse'],[220,'Légendaire']];
 const POIDS_MARCHAND={commune:40,rare:28,epique:19,legendaire:10,mythique:3};

@@ -3,6 +3,42 @@
 Convention : `VERSION_APP` (index.html) = `ecurie-vNN` (sw.js), incrémentés à CHAQUE livraison
 (invalidation du cache PWA). QC : `node tools/qc.js` avant chaque livraison.
 
+## v132 — Fix z-index : les overlays de carte réapparaissent (régression v129)
+- **Bug** : depuis v129, l'image de carte avait reçu `z-index:1` (pour le fondu au-dessus du skeleton), mais son
+  conteneur `.tc-art` n'étant pas un contexte d'empilement, ce `z-index:1` remontait dans le contexte de la carte et
+  recouvrait tous les overlays sans z-index explicite (scrims, cadre, coins, nom, rareté, étoiles, palier). Seuls
+  `.tc-evo` (z:4) et `.tc-nb` (z:6) restaient visibles.
+- **Fix** : `isolation:isolate` sur `.tc-art` — le `z-index:1` de l'image et le `z-index:0` du skeleton restent
+  confinés à l'intérieur ; les overlays reprennent leur empilement d'origine (ordre DOM). Une seule ligne, aucun
+  autre changement. `isolation` est supporté depuis Chrome 41 (compatible vieux téléphones).
+- `VERSION_APP`=v132, `ecurie-v132`. QC : 0 échec.
+
+## v131 — Bronze + séries Précieux (9) & Planètes (8) → 228 cartes
+- **Famille Métaux complétée** : Cheval de bronze (épique, Italie/chevaux de Saint-Marc) rejoint `metaux`.
+- **Nouvelle famille Précieux** (💎, privilège Beauté / faiblesse Vitesse — les gemmes brillent mais ne galopent
+  pas) : Diamant (mythique), Rubis & Émeraude (légendaire), Saphir/Jade/Vitrail (épique), Améthyste/Obsidienne/
+  Émail (rare). Raretés par valeur de la pierre ; royaumes-sources (Jade→Chine, Émeraude→Brésil, Diamant→Afrique,
+  Obsidienne→Amérique, Vitrail→France).
+- **Nouvelle famille Planètes** (🪐, privilège Magie / faiblesse Vitesse ; royaume Outre-monde) : Jupiter (mythique),
+  Saturne & Terre (légendaire), Mars/Neptune (épique), Uranus/Vénus/Mercure (rare). `aff` par astronomie + mythologie
+  romaine : Mars→Combat, Mercure→Vitesse (annule la faiblesse), Saturne→Agilité/temps, Terre→Beauté/Agilité vivante,
+  Neptune→Magie/Vitesse. Les géantes lentes gardent la pénalité de Vitesse ; les rapides (Mercure, Neptune) l'annulent.
+- 18 images PNG→JPG (~235–469 Ko) ajoutées au précache. `VERSION_APP`=v131, `ecurie-v131`.
+- QC : 0 échec, 228 cartes. Pyramide : commune 38 · rare 71 · épique 59 · légendaire 33 · mythique 21 · céleste 6.
+
+## v130 — 2 nouvelles séries : Métaux (7) + Extraterrestres (10) → 210 cartes
+- **Nouvelle famille Métaux** (🔩, privilège Puissance / faiblesse Magie) : Or (mythique), Argent (légendaire),
+  Acier & Fer (épique), Aluminium & Zinc (rare), Étain (commune). Raretés attribuées par la valeur/gravité du
+  métal ; royaumes à visée pédagogique (Zinc→Belgique/Vieille-Montagne, Acier→Luxembourg, Étain→Angleterre,
+  Fer→Allemagne, Argent→Grèce, Or→Arabie, Aluminium→Futur).
+- **Nouvelle famille Extraterrestres** (👽, privilège Magie / faiblesse Puissance, royaume Outre-monde) :
+  Aetheris (mythique), Crysalune & Octalyre (légendaire), Nérethys/Solkaris/Mycélion/Phalénora (épique),
+  Manthéor/Scarabéon/Luméa (rare). `aff` variés par analyse du nom/visuel (mante→Combat/Vitesse,
+  scarabée→Combat/Beauté, solaire→Vitesse/Agilité, champignon→Magie/Agilité…).
+- 17 images converties PNG→JPG (~260–435 Ko), ajoutées au précache `sw.js`. `VERSION_APP`=v130, `ecurie-v130`.
+- Deux familles < 15 cartes → collection uniquement, pas de concours (cohérent avec Licornes/Mascotte/Équitation).
+- QC : 0 échec, 210 cartes. Pyramide : commune 38 · rare 65 · épique 53 · légendaire 29 · mythique 19 · céleste 6.
+
 ## v129 — Feedback de chargement des cartes (fini la carte vide)
 - Pendant le téléchargement de l'image d'une carte, le cadre affiche maintenant un **skeleton animé
   (effet shimmer)** au lieu d'un vide, puis l'image **apparaît en fondu** une fois prête. Feedback

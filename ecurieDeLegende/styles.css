@@ -147,7 +147,7 @@ nav.tabs button.actif::before{content:"";position:absolute;top:0;width:34px;heig
 .tcarte[data-r="celeste"] .tc-frame{padding:2.6cqw;animation:spin 3.4s linear infinite;}
 .tcarte[data-r="celeste"]::after{content:"";position:absolute;top:0;left:0;right:0;bottom:0;border-radius:inherit;pointer-events:none;z-index:4;overflow:hidden;background:linear-gradient(115deg,transparent 42%,#ffffffcc 49%,#fff7d9ee 51%,transparent 60%);background-size:250% 250%;background-position:170% -70%;animation:celesteShine 7.5s ease-in-out infinite;}
 @keyframes celesteShine{0%,86%{background-position:170% -70%;opacity:0;}89%{opacity:.9;}90%,93%{opacity:.9;}100%{background-position:-70% 170%;opacity:0;}}
-.tc-art{position:absolute;top:0;right:0;bottom:0;left:0;display:flex;align-items:center;justify-content:center;font-size:38cqw;line-height:1;background:radial-gradient(120% 100% at 50% 32%,color-mix(in srgb,var(--rc) 26%,#141127),#100d20 78%);}
+.tc-art{position:absolute;top:0;right:0;bottom:0;left:0;display:flex;align-items:center;justify-content:center;font-size:38cqw;line-height:1;isolation:isolate;background:radial-gradient(120% 100% at 50% 32%,color-mix(in srgb,var(--rc) 26%,#141127),#100d20 78%);}
 .tc-art img{width:100%;height:100%;object-fit:cover;display:block;}
 .tc-scrim-top{position:absolute;top:0;left:0;right:0;height:34cqw;background:linear-gradient(180deg,#0b0918d9,transparent);pointer-events:none;}
 .tc-scrim-bot{position:absolute;bottom:0;left:0;right:0;height:46cqw;background:linear-gradient(0deg,#0b0918f2 8%,#0b091899 46%,transparent);pointer-events:none;}
