@@ -204,7 +204,7 @@ async function cloudPush(){
   catch(e){majSync(navigator.onLine?'err':'off');}
 }
 function compteVersProfil(row){return {id:row.id,nom:row.prenom,age:row.age,emoji:row.avatar,couleur:row.couleur,niveau:row.niveau,etat:normaliserEtat(row.etat||etatVide()),cloud:true,pin:row._pin,code:row._code||codeFamille()};}
-const VERSION_APP='v137';
+const VERSION_APP='v138';
    // exemplaires cumulés pour ★ à ★★★★★ (évolution plus lente)
 const COUT_TIRAGE=120,SOLDE_DEPART=200;const COUT_TIRAGE10=COUT_TIRAGE*9;
 const PITY_EPIC=20,PITY_LEGEND=100;   // pity : épique+ garanti tous les 20, légendaire+ tous les 100
@@ -1480,7 +1480,7 @@ function avPanzoom(svg,opt){
 }
 function avInitCartes(){
   if(avInit)return;avInit=true;
-  $('#av-next').addEventListener('click',avIntroSuivant);   // intro toujours avançable, même si l'init des cartes échoue
+  $('#av-intro').addEventListener('click',avIntroSuivant);   // toucher n'importe où sur l'image fait avancer (bien plus robuste qu'un bouton)
   try{
   avPZM=avPanzoom($('#svg-monde'),{minW:120,maxW:3600,bounds:{x:0,y:0,w:3600,h:1800}});
   avPZB=avPanzoom($('#svg-belgique'),{minW:250,maxW:1000,bounds:{x:0,y:0,w:1000,h:863}});

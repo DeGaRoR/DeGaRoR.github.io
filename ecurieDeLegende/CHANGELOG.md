@@ -3,6 +3,16 @@
 Convention : `VERSION_APP` (index.html) = `ecurie-vNN` (sw.js), incrémentés à CHAQUE livraison
 (invalidation du cache PWA). QC : `node tools/qc.js` avant chaque livraison.
 
+## v138 — Intro aventure : toucher l'image (plus de bouton)
+- Le bouton « Continuer › » se rendait **sous la barre d'onglets** (nav en z-index 30 > intro en 10),
+  donc injoignable au toucher sur certains écrans — c'était la vraie cause du blocage d'origine.
+- Désormais **un toucher n'importe où sur l'image** fait passer à la slide suivante (handler sur tout
+  `#av-intro`). Beaucoup plus robuste : ne dépend plus d'un bouton précis ni de sa position.
+- Le bouton devient un simple **indice** passif (« Continuer › » / « Commencer l'aventure → ») avec une
+  légère pulsation ; le panneau (texte + points + indice) est remonté **au-dessus de la barre d'onglets**
+  et passé en `pointer-events:none` pour que tout le tap aille à l'overlay.
+- `VERSION_APP`=v138, `ecurie-v138`. QC : 0 échec.
+
 ## v137 — Erreur à 0 + bonus de fin de chaîne
 - **Mauvaise réponse = 0 diamant** (au lieu de 1) : le plancher qui rendait le spam rentable disparaît.
   La bonne réponse et l'explication restent toujours affichées — on apprend, on ne punit pas, on ne gagne
