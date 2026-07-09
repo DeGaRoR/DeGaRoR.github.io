@@ -397,13 +397,24 @@ const SEUILS=[1,4,9,17,28];
 const TITRES=['—','Éveil','Aguerri','Radieux','Astral','Mythe'];
 const ROYAUMES={belgique:{ico:'🇧🇪',nom:'Belgique'},pays_bas:{ico:'🇳🇱',nom:'Pays-Bas'},france:{ico:'🇫🇷',nom:'France'},allemagne:{ico:'🇩🇪',nom:'Allemagne'},angleterre:{ico:'🏴',nom:'Angleterre'},irlande:{ico:'🇮🇪',nom:'Irlande'},ecosse:{ico:'🏴',nom:'Écosse'},espagne:{ico:'🇪🇸',nom:'Espagne'},rome:{ico:'🏛️',nom:'Rome'},italie:{ico:'🇮🇹',nom:'Italie'},portugal:{ico:'🇵🇹',nom:'Portugal'},autriche:{ico:'🇦🇹',nom:'Autriche'},luxembourg:{ico:'🇱🇺',nom:'Luxembourg'},suisse:{ico:'🇨🇭',nom:'Suisse'},grece:{ico:'🇬🇷',nom:'Grèce'},norvege:{ico:'🇳🇴',nom:'Norvège'},steppe:{ico:'🐎',nom:'Steppe'},chine:{ico:'🇨🇳',nom:'Chine'},japon:{ico:'🇯🇵',nom:'Japon'},inde:{ico:'🇮🇳',nom:'Inde'},arabie:{ico:'🏜️',nom:'Arabie'},egypte:{ico:'🇪🇬',nom:'Égypte'},amerique:{ico:'🇺🇸',nom:'Amérique'},afrique:{ico:'🦓',nom:'Afrique'},camelot:{ico:'🏰',nom:'Camelot'},avalon:{ico:'🦄',nom:'Avalon'},scene:{ico:'🎤',nom:'Scène'},australie:{ico:'🇦🇺',nom:'Australie'},perse:{ico:'🏹',nom:'Perse'},futur:{ico:'🤖',nom:'Futur'},russie:{ico:'🇷🇺',nom:'Russie'},argentine:{ico:'🇦🇷',nom:'Argentine'},finlande:{ico:'🇫🇮',nom:'Finlande'},islande:{ico:'🇮🇸',nom:'Islande'},danemark:{ico:'🇩🇰',nom:'Danemark'},pologne:{ico:'🇵🇱',nom:'Pologne'},bresil:{ico:'🇧🇷',nom:'Brésil'},hongrie:{ico:'🇭🇺',nom:'Hongrie'},galles:{ico:'🏴',nom:'Pays de Galles'},ukraine:{ico:'🇺🇦',nom:'Ukraine'},outremonde:{ico:'🌑',nom:'Outre-monde'}};
 const FAMILLES={travail:{ico:'🛠️',nom:'Travail'},race:{ico:'🏅',nom:'Cheval de race'},mascotte:{ico:'👑',nom:'Mascotte'},bataille:{ico:'⚔️',nom:'Bataille'},legende:{ico:'✨',nom:'Légende'},elementaires:{ico:'🔥',nom:'Élémentaires'},sauvages:{ico:'🐎',nom:'Sauvages'},course:{ico:'🏇',nom:'Course'},equitation:{ico:'🏇',nom:'Équitation'},pres:{ico:'🌸',nom:'Prés'},band:{ico:'🎸',nom:'Pop'},licorne:{ico:'🦄',nom:'Licornes'},plantes:{ico:'🌿',nom:'Plantes'},robot:{ico:'🤖',nom:'Robots'},sombres:{ico:'💀',nom:'Sombres'}};
+/* ===== Équilibrage aventure (Lot 5) ===== */
+const AMB_COMPO=1.2;                 /* +20% d'ambition sur les seuils de compo */
+const PAYS_MULT={belgique:1.0,france:1.05,iles:1.10,rhin:1.15,iberie:1.20};  /* +5% de difficulté par pays */
+/* Capacité exigée par étape (au lieu de toujours Puissance). Étape absente = force par défaut. */
+const AV_CAP={
+  /* Belgique */ anvers:'endurance',gand:'beaute',bruges:'magie',limbourg:'force',louvain:'vitesse',wavre:'beaute',mons:'bataille',namur:'bataille',liege:'force',arlon:'endurance',bruxelles:'force',
+  /* France */ lille:'force',rouen:'beaute',montsaintmichel:'magie',broceliande:'endurance',pilat:'endurance',pau:'bataille',camargue:'vitesse',chamonix:'force',lyon:'beaute',strasbourg:'magie',paris:'force',
+  /* Îles Britanniques */ douvres:'endurance',stonehenge:'magie',dartmoor:'vitesse',snowdonia:'force',newmarket:'vitesse',york:'bataille',edimbourg:'bataille',lochness:'magie',shetland:'force',connemara:'endurance',londres:'beaute',
+  /* Rhin & Pays-Bas */ cologne:'beaute',lorelei:'magie',foretnoire:'magie',munich:'force',hambourg:'endurance',dulmen:'vitesse',amsterdam:'endurance',kinderdijk:'force',friesland:'beaute',rotterdam:'vitesse',berlin:'bataille',
+  /* Ibérie */ seville:'beaute',grenade:'magie',tolede:'bataille',valence:'vitesse',barcelone:'magie',compostelle:'endurance',bilbao:'force',porto:'endurance',sintra:'beaute',lisbonne:'vitesse',madrid:'force'
+};
 const CAPS=[
   {id:'beaute',nom:'Beauté',ico:'🌸',couleur:'#ff9ac0',epreuve:'Concours de beauté',img:'concours/beaute.jpg'},
   {id:'force',nom:'Puissance',ico:'💪',couleur:'#e0864a',epreuve:'Concours de trait',img:'concours/force.jpg'},
   {id:'bataille',nom:'Combat',ico:'⚔️',couleur:'#d95f5f',epreuve:'Joute',img:'concours/bataille.jpg'},
   {id:'vitesse',nom:'Vitesse',ico:'⚡',couleur:'#f2c14e',epreuve:'Course',img:'concours/vitesse.jpg'},
-  {id:'endurance',nom:'Agilité',ico:'🤸',couleur:'#5ec4a8',epreuve:"Parcours d'obstacles"},
-  {id:'magie',nom:'Magie',ico:'✨',couleur:'#a672e0',epreuve:'Concours de magie',img:'concours/endurance.jpg',img:'concours/magie.jpg'},
+  {id:'endurance',nom:'Agilité',ico:'🤸',couleur:'#5ec4a8',epreuve:"Parcours d'obstacles",img:'concours/endurance.jpg'},
+  {id:'magie',nom:'Magie',ico:'✨',couleur:'#a672e0',epreuve:'Concours de magie',img:'concours/magie.jpg'},
 ];
 const BASE_RAR={commune:8,rare:20,epique:34,legendaire:50,mythique:66,celeste:80};
 const DIVISIONS=[
@@ -413,7 +424,7 @@ const DIVISIONS=[
   {rarete:'legendaire',nom:'Légendaire', ico:'🏅',inscription:25,crins:[110,55,25],   renom:[12,7,3]},
   {rarete:'mythique',  nom:'Mythique',   ico:'👑',inscription:40,crins:[180,90,40],   renom:[18,10,4]},
 ];
-const FAM_CARAC={travail:'force',race:'beaute',bataille:'bataille',legende:'magie',elementaires:'magie',sauvages:'endurance',course:'vitesse',pres:'beaute',band:'beaute',licorne:'magie',plantes:'magie',robot:'vitesse',sombres:'magie'};
+const FAM_CARAC={travail:'force',race:'beaute',bataille:'bataille',legende:'magie',elementaires:'magie',sauvages:'endurance',course:'vitesse',pres:'beaute',band:'vitesse',licorne:'magie',plantes:'endurance',robot:'vitesse',sombres:'bataille',equitation:'endurance',mascotte:'beaute'};
 const FAM_FAIBLESSE={travail:'vitesse',race:'magie',mascotte:'bataille',bataille:'magie',legende:'endurance',elementaires:'force',sauvages:'beaute',course:'force',equitation:'bataille',pres:'bataille',band:'bataille',licorne:'bataille',plantes:'vitesse',robot:'magie',sombres:'beaute'};
 const PONEYS=new Set(['welsh_pony','basotho','caspien','connemara','eriskay','exmoor','fell','highland','hutsul','merens','poney_shetland','poney_heureux','bebe_poney','falabella','fjord','haflinger','dulmener','islandais','konik','yakutian']);
 const RANGS=[[0,'Débutante'],[15,'Régionale'],[45,'Réputée'],[100,'Prestigieuse'],[220,'Légendaire']];
@@ -576,6 +587,26 @@ const BANK_GEEK_N2=[
  {q:"Le « cloud » (nuage), c'est…",r:"des ordinateurs qui stockent tes fichiers à distance",choix:["des ordinateurs qui stockent tes fichiers à distance","un vrai nuage","une imprimante","un clavier"]},
  {q:"Un robot suit un…",r:"programme",choix:["programme","rêve","hasard","dessin"]},
  {q:"Quelle machine imprime en relief, couche par couche ?",r:"l'imprimante 3D",choix:["l'imprimante 3D","le scanner","la souris","le micro"]},
+  {q:"Avec quels chiffres compte un ordinateur ?",r:"0 et 1",choix:["0 et 1","1 à 10","Les lettres","Les couleurs"]},
+  {q:"Comment s'appelle une erreur dans un programme ?",r:"Un bug",choix:["Un bug","Un chat","Une fleur","Un son"]},
+  {q:"Internet relie…",r:"Des ordinateurs du monde entier",choix:["Des ordinateurs du monde entier","Deux crayons","Des voitures","Des étoiles"]},
+  {q:"8 bits font…",r:"1 octet",choix:["1 octet","1 mètre","1 litre","1 kilo"]},
+  {q:"Un dossier, sur l'ordinateur, sert à…",r:"Ranger des fichiers",choix:["Ranger des fichiers","Manger","Chauffer","Rouler"]},
+  {q:"Le wifi sert à se connecter…",r:"Sans fil",choix:["Sans fil","Avec une corde","Avec de l'eau","Avec du feu"]},
+  {q:"Un fichier peut être…",r:"Une photo ou un texte",choix:["Une photo ou un texte","Un vrai chien","Une chaise","Un nuage"]},
+  {q:"Que fait un antivirus ?",r:"Il protège l'ordinateur",choix:["Il protège l'ordinateur","Il fait du bruit","Il dessine","Il cuisine"]},
+  {q:"Une image est faite de plein de…",r:"Pixels",choix:["Pixels","Bonbons","Cailloux","Notes"]},
+  {q:"Sauvegarder, ça veut dire…",r:"Garder son travail",choix:["Garder son travail","Tout effacer","Éteindre","Crier"]},
+  {q:"Un lien sur internet, on peut…",r:"Cliquer dessus",choix:["Cliquer dessus","Le manger","Le planter","Le plier"]},
+  {q:"Le code binaire n'utilise que…",r:"Deux chiffres",choix:["Deux chiffres","Dix chiffres","Des lettres","Des dessins"]},
+  {q:"Un robot intelligent peut…",r:"Apprendre",choix:["Apprendre","Pleurer","Rêver","Dormir"]},
+  {q:"Que fait un moteur de recherche ?",r:"Il trouve des infos",choix:["Il trouve des infos","Il roule","Il chante","Il cuit"]},
+  {q:"Un email, c'est…",r:"Une lettre par ordinateur",choix:["Une lettre par ordinateur","Un gâteau","Un jouet","Un animal"]},
+  {q:"La mémoire de l'ordinateur sert à…",r:"Retenir des choses",choix:["Retenir des choses","Chauffer","Éclairer","Rouler"]},
+  {q:"Télécharger, c'est…",r:"Recevoir un fichier",choix:["Recevoir un fichier","Jeter","Casser","Peindre"]},
+  {q:"Un écran fait les couleurs avec…",r:"Rouge, vert, bleu",choix:["Rouge, vert, bleu","Noir et blanc seulement","Une seule couleur","Des odeurs"]},
+  {q:"Pour aller sur internet, il faut…",r:"Une connexion",choix:["Une connexion","Une échelle","Une clé","Un ballon"]},
+  {q:"Un pixel, c'est…",r:"Un petit point de l'image",choix:["Un petit point de l'image","Un animal","Un son","Un légume"]},
 ];
 const BANK_ANGLAIS_N2=[
  {q:"« un chien » se dit…",r:"a dog",choix:["a dog","a cat","a bird","a fish"]},
@@ -632,6 +663,71 @@ const PACK_THEO_NIV={
  neerlandais:["🇳🇱 NIVEAU 1 — Eerste woorden\nLe néerlandais se parle en Flandre, au nord de la Belgique.\nBases : hallo (bonjour), dank je (merci), ja (oui), nee (non).\nMots : paard (cheval), hond (chien), kat (chat), water (eau), boom (arbre).\n👉 Pour réussir : sers-toi des images pour retrouver le mot.","🇳🇱 NIVEAU 2 — Verder\nSaluer : goedemorgen (bonjour le matin), tot ziens (au revoir).\nCompter : één, twee, drie, vier, vijf.\nMots : huis (maison), boek (livre), bloem (fleur), melk (lait), ster (étoile).\nCouleur : rood (rouge)."],
  ortho:["✍️ NIVEAU 1 — Bien écrire\nÉcoute l'indice et écris le mot en entier.\nPense aux ACCENTS : é, è, à, ê, î.\nN'oublie pas les lettres MUETTES à la fin (le -e, le -s, le -t).\n👉 Pour réussir : relis-toi avant de valider !","✍️ NIVEAU 2 — Mots plus durs\nAttention aux DOUBLES lettres (pomme, cheval → chevaux au pluriel).\nLes sons difficiles : « ph » = f, « qu » = k, sans oublier « gn » et « eau ».\nCertains mots ont des lettres qu'on n'entend pas : accorde bien et relis-toi."]
 };
+
+/* ===== MINI-LEÇONS (Lot 6) : leçons dédiées, courtes et animées. Une par pack et par niveau. ===== */
+const LECONS={
+  geek:[
+    {titre:'Les bases',slides:[
+      {ico:'💻',t:"Un ordinateur reçoit une info, la traite, puis l'affiche à l'écran."},
+      {ico:'🤖',t:"Un robot a des capteurs pour sentir et un moteur pour bouger."},
+      {ico:'📝',t:"Un algorithme, c'est une suite d'étapes, comme une recette de cuisine."},
+    ]},
+    {titre:'Plus loin',slides:[
+      {ico:'🔢',t:"Les ordinateurs ne comptent qu'avec des 0 et des 1 : c'est le binaire."},
+      {ico:'🐛',t:"Un bug, c'est une petite erreur cachée dans un programme."},
+      {ico:'🌐',t:"Internet relie des millions d'ordinateurs partout dans le monde."},
+    ]},
+  ],
+  anglais:[
+    {titre:'First words',slides:[
+      {ico:'👋',t:"Hello = bonjour.  Goodbye = au revoir.  Thank you = merci."},
+      {ico:'🎨',t:"Red = rouge.  Blue = bleu.  Green = vert.  Yellow = jaune."},
+      {ico:'🔢',t:"One, two, three… c'est un, deux, trois en anglais !"},
+    ]},
+    {titre:'Sentences',slides:[
+      {ico:'🙋',t:"« My name is… » veut dire « Je m'appelle… »."},
+      {ico:'🐴',t:"Dog = chien.  Cat = chat.  Horse = cheval."},
+      {ico:'❓',t:"« How are you? » veut dire « Comment vas-tu ? »."},
+    ]},
+  ],
+  art:[
+    {titre:'Les couleurs',slides:[
+      {ico:'🔴',t:"Les 3 couleurs primaires sont le rouge, le jaune et le bleu."},
+      {ico:'🟢',t:"Bleu + jaune = vert.  On mélange pour créer de nouvelles couleurs !"},
+      {ico:'🟣',t:"Rouge + jaune = orange.  Rouge + bleu = violet."},
+    ]},
+    {titre:'Les grands artistes',slides:[
+      {ico:'🖼️',t:"Léonard de Vinci a peint la Joconde, un tableau très célèbre."},
+      {ico:'🌌',t:"Van Gogh a peint la Nuit étoilée, pleine de tourbillons."},
+      {ico:'🌸',t:"Monet peignait la lumière et la nature : c'est l'impressionnisme."},
+    ]},
+  ],
+  neerlandais:[
+    {titre:'Eerste woorden',slides:[
+      {ico:'🇳🇱',t:"Le néerlandais se parle en Flandre, au nord de la Belgique."},
+      {ico:'👋',t:"Hallo = bonjour.  Dank je = merci.  Ja = oui, nee = non."},
+      {ico:'🐴',t:"Paard = cheval.  Hond = chien.  Kat = chat."},
+    ]},
+    {titre:'Verder',slides:[
+      {ico:'🌅',t:"Goedemorgen = bonjour le matin.  Tot ziens = au revoir."},
+      {ico:'🔢',t:"Één, twee, drie = un, deux, trois."},
+      {ico:'🏠',t:"Huis = maison.  School = école."},
+    ]},
+  ],
+  ortho:[
+    {titre:'Bien écrire',slides:[
+      {ico:'👂',t:"Écoute bien l'indice, puis écris le mot en entier."},
+      {ico:'✏️',t:"Pense aux accents : é, è, à, ê, î."},
+      {ico:'🤫',t:"N'oublie pas les lettres muettes, comme le -d de « grand »."},
+    ]},
+    {titre:'Mots plus durs',slides:[
+      {ico:'🔁',t:"Attention aux lettres doubles : pomme, cheval."},
+      {ico:'🔤',t:"« ph » se lit « f » (photo).  « qu » se lit « k » (quatre)."},
+      {ico:'📚',t:"Au pluriel, un cheval devient des chevaux !"},
+    ]},
+  ],
+};
+
 const BANK_FR=[
  {q:"D'après le sondage de la classe, quel livre est préféré ?",graph:{titre:"Livre préféré (votes)",labels:["BD","Roman","Docu"],valeurs:[8,5,3]},r:"la BD",choix:["la BD","le roman","le documentaire","aucun"]},
  {q:"Dans le schéma, quel mot est le contraire de « grand » ?",schema:"grand ↔️ ❓",r:"petit",choix:["petit","gros","haut","large"]},
@@ -738,6 +834,26 @@ const BANK_GEEK=[
  {q:"Un « pixel », c'est… ?",r:"un petit point de l'image",choix:["un petit point de l'image","un robot","un son","un fil"],e:"Une image = des milliers de pixels."},
  {q:"Le Wi-Fi sert à… ?",r:"se connecter sans fil",choix:["se connecter sans fil","faire du café","voler","dessiner"]},
  {q:"Pour ne pas se cogner aux murs, un robot utilise un capteur de… ?",r:"distance",choix:["distance","couleur","goût","odeur"]},
+  {q:"À quoi sert un clavier ?",r:"À écrire",choix:["À écrire","À imprimer","À dessiner","À chanter"]},
+  {q:"À quoi sert la souris d'ordinateur ?",r:"À déplacer le curseur",choix:["À déplacer le curseur","À manger","À écouter la musique","À imprimer"]},
+  {q:"Où voit-on les images de l'ordinateur ?",r:"Sur l'écran",choix:["Sur l'écran","Dans le clavier","Dans la souris","Sous la table"]},
+  {q:"Qu'est-ce qu'un robot sait faire ?",r:"Bouger tout seul",choix:["Bouger tout seul","Manger une pomme","Faire des rêves","Grandir"]},
+  {q:"Comment s'appelle le cerveau de l'ordinateur ?",r:"Le processeur",choix:["Le processeur","L'écran","La souris","Le câble"]},
+  {q:"Un algorithme, c'est comme…",r:"Une recette",choix:["Une recette","Une chanson","Un dessin","Un ballon"]},
+  {q:"Que font les capteurs d'un robot ?",r:"Ils sentent le monde",choix:["Ils sentent le monde","Ils dorment","Ils mangent","Ils volent"]},
+  {q:"Qu'est-ce qui donne l'électricité à l'ordinateur ?",r:"Le câble d'alimentation",choix:["Le câble d'alimentation","La souris","Le clavier","Le haut-parleur"]},
+  {q:"Un ordinateur portable, on peut le…",r:"Emporter partout",choix:["Emporter partout","Manger","Planter dans le jardin","Faire voler"]},
+  {q:"Que fait la touche « espace » ?",r:"Elle met un espace",choix:["Elle met un espace","Elle éteint","Elle imprime","Elle chante"]},
+  {q:"Comment appelle-t-on un petit programme sur un téléphone ?",r:"Une application",choix:["Une application","Une pomme","Une chanson","Une photo"]},
+  {q:"Que fait une imprimante ?",r:"Elle met sur du papier",choix:["Elle met sur du papier","Elle chante","Elle joue","Elle vole"]},
+  {q:"Un écran tactile, on l'utilise avec…",r:"Le doigt",choix:["Le doigt","Un marteau","Une fourchette","Un crayon"]},
+  {q:"Que veut dire « cliquer » ?",r:"Appuyer sur la souris",choix:["Appuyer sur la souris","Sauter","Crier","Manger"]},
+  {q:"Un casque audio sert à…",r:"Écouter le son",choix:["Écouter le son","Voir mieux","Écrire","Imprimer"]},
+  {q:"Comment éteint-on bien un ordinateur ?",r:"On l'arrête proprement",choix:["On l'arrête proprement","On le jette","On le mouille","On crie dessus"]},
+  {q:"Une webcam sert à…",r:"Filmer",choix:["Filmer","Chauffer","Écrire","Rouler"]},
+  {q:"Un robot suit…",r:"Un programme",choix:["Un programme","Ses rêves","La lune","Le vent"]},
+  {q:"Qui écrit les programmes ?",r:"Les programmeurs",choix:["Les programmeurs","Les boulangers","Les facteurs","Les jardiniers"]},
+  {q:"Sur quoi tape-t-on pour écrire un mot ?",r:"Le clavier",choix:["Le clavier","L'écran","La souris","La prise"]},
 ];
 const BANK_ANGLAIS=[
  {q:"On the graph, which fruit is the favourite?",graph:{titre:"Favourite fruit (votes)",labels:["Apple","Banana","Cherry"],valeurs:[6,9,4]},r:"Banana",choix:["Banana","Apple","Cherry","none"]},

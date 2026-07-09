@@ -29,13 +29,27 @@ const CLOUD={
 };
 async function sha256(s){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(String(s)));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');}
 function codeFamille(){try{return (localStorage.getItem('ecurie_fam')||'').trim();}catch(e){return '';}}
+function profCode(p){return (p&&p.code)||codeFamille();}
+function genCode(){return 'e'+Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(-4);}
+function genPin(){return String(1000+Math.floor(Math.random()*9000));}
+function locauxGet(){return lireCache('ecurie_locaux')||[];}
+function locauxSet(a){ecrireCache('ecurie_locaux',a);}
+function locauxAdd(s){if(!s||!s.id)return;const L=locauxGet();const i=L.findIndex(x=>x.id===s.id);if(i>=0)L[i]=Object.assign(L[i],s);else L.push(s);locauxSet(L);}
+function locauxDel(id){locauxSet(locauxGet().filter(x=>x.id!==id));}
+function migrerLocaux(){
+  if(lireCache('ecurie_locaux'))return;
+  const L=[];const seen={};
+  try{for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.indexOf('ecurie_prof_')===0){const pc=lireCache(k);if(pc&&pc.id&&!seen[pc.id]){seen[pc.id]=1;L.push({id:pc.id,prenom:pc.prenom,avatar:pc.avatar,couleur:pc.couleur,age:pc.age,niveau:pc.niveau,code:pc.code||codeFamille(),pin:pc.pin});}}}}catch(e){}
+  try{const li=lireCache('ecurie_liste_'+codeFamille())||[];li.forEach(function(a){if(a&&a.id&&!seen[a.id]){seen[a.id]=1;const pc=lireCache('ecurie_prof_'+a.id);L.push({id:a.id,prenom:a.prenom,avatar:a.avatar,couleur:a.couleur,age:a.age,niveau:a.niveau,code:(pc&&pc.code)||codeFamille(),pin:pc&&pc.pin});}});}catch(e){}
+  locauxSet(L);
+}
 async function cloudListe(){return CLOUD.rpc('comptes_liste',{p_code:codeFamille()});}
-async function cloudConnexion(prenom,pin){const h=await sha256(pin);const r=await CLOUD.rpc('connexion',{p_prenom:prenom,p_pin:h,p_code:codeFamille()});return (r&&r[0])?Object.assign(r[0],{_pin:h}):null;}
+async function cloudConnexion(prenom,pin,code){const h=await sha256(pin);const r=await CLOUD.rpc('connexion',{p_prenom:prenom,p_pin:h,p_code:code||codeFamille()});return (r&&r[0])?Object.assign(r[0],{_pin:h}):null;}
 /* Cache local pour fonctionner hors ligne : liste des écuries, hash du code, dernier état. */
 function lireCache(k){try{const v=localStorage.getItem(k);return v?JSON.parse(v):null;}catch(e){return null;}}
 function ecrireCache(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
 const DEV=(function(){try{let d=localStorage.getItem('ecurie_dev');if(!d){d=Math.random().toString(36).slice(2,10)+Date.now().toString(36).slice(-3);localStorage.setItem('ecurie_dev',d);}return d;}catch(e){return 'dev0';}})();
-function cacheProfil(o){if(!o||!o.id)return;ecrireCache('ecurie_prof_'+o.id,{id:o.id,prenom:o.prenom,avatar:o.avatar,couleur:o.couleur,age:o.age,niveau:o.niveau,pin:o.pin});}
+function cacheProfil(o){if(!o||!o.id)return;ecrireCache('ecurie_prof_'+o.id,{id:o.id,prenom:o.prenom,avatar:o.avatar,couleur:o.couleur,age:o.age,niveau:o.niveau,pin:o.pin,code:o.code||codeFamille()});}
 async function connexionOffline(a,pin){
   const h=await sha256(pin);const prof=lireCache('ecurie_prof_'+a.id);
   if(!prof||prof.pin!==h)return null;
@@ -48,13 +62,13 @@ function adminGet(){return lireCache(famKey('ecurie_admin'));}
 function adminSet(o){ecrireCache(famKey('ecurie_admin'),o);}
 function limitesGet(){return lireCache(famKey('ecurie_limites'))||{};}
 function limitesSet(o){ecrireCache(famKey('ecurie_limites'),o);}
-function limiteEnfant(id){const e=profilEtat(id);if(e&&e.limite&&e.limite.maj)return e.limite;return limitesGet()[id]||{actif:false,semaine:30,weekend:60};}
+function limiteEnfant(id){const e=profilEtat(id);if(e&&e.limite&&e.limite.maj)return e.limite;return limitesGet()[id]||{actif:true,minutes:60};}
 function enregistrerLimite(id,lim){lim.maj=Date.now();const L=limitesGet();L[id]={actif:lim.actif,semaine:lim.semaine,weekend:lim.weekend};limitesSet(L);if(profilActif&&profilActif.id===id){etat.limite=lim;sauver();return;}syncLimiteCloud(id,lim);}
-async function syncLimiteCloud(id,lim){const pc=lireCache('ecurie_prof_'+id);let e=null;if(CLOUD.actif()&&navigator.onLine&&pc&&pc.pin){try{const r=await CLOUD.rpc('connexion',{p_prenom:pc.prenom,p_pin:pc.pin,p_code:codeFamille()});const row=Array.isArray(r)?r[0]:r;if(row&&row.etat)e=normaliserEtat(row.etat);}catch(x){}}const bk=lireCache('ecurie_bk_'+id);if(!e)e=bk?normaliserEtat(bk):etatVide();else if(bk)e=fusionEtat(normaliserEtat(bk),e);e.limite=lim;ecrireCache('ecurie_bk_'+id,e);if(CLOUD.actif()&&navigator.onLine&&pc&&pc.pin){try{await CLOUD.rpc('sauver_etat',{p_id:id,p_pin:pc.pin,p_etat:e,p_avatar:pc.avatar,p_couleur:pc.couleur,p_age:pc.age,p_niveau:pc.niveau});}catch(x){}}}
-async function rafraichirFamilleParent(){if(!(CLOUD.actif()&&navigator.onLine))return;for(const a of admListe()){if(profilActif&&profilActif.id===a.id)continue;const pc=lireCache('ecurie_prof_'+a.id);if(!pc||!pc.pin)continue;try{const r=await CLOUD.rpc('connexion',{p_prenom:a.prenom,p_pin:pc.pin,p_code:codeFamille()});const row=Array.isArray(r)?r[0]:r;if(row&&row.etat){let e=normaliserEtat(row.etat);const bk=lireCache('ecurie_bk_'+a.id);if(bk)e=fusionEtat(normaliserEtat(bk),e);ecrireCache('ecurie_bk_'+a.id,e);}}catch(x){}}}
+async function syncLimiteCloud(id,lim){const pc=lireCache('ecurie_prof_'+id);let e=null;if(CLOUD.actif()&&navigator.onLine&&pc&&pc.pin){try{const r=await CLOUD.rpc('connexion',{p_prenom:pc.prenom,p_pin:pc.pin,p_code:(pc.code||codeFamille())});const row=Array.isArray(r)?r[0]:r;if(row&&row.etat)e=normaliserEtat(row.etat);}catch(x){}}const bk=lireCache('ecurie_bk_'+id);if(!e)e=bk?normaliserEtat(bk):etatVide();else if(bk)e=fusionEtat(normaliserEtat(bk),e);e.limite=lim;ecrireCache('ecurie_bk_'+id,e);if(CLOUD.actif()&&navigator.onLine&&pc&&pc.pin){try{await CLOUD.rpc('sauver_etat',{p_id:id,p_pin:pc.pin,p_etat:e,p_avatar:pc.avatar,p_couleur:pc.couleur,p_age:pc.age,p_niveau:pc.niveau});}catch(x){}}}
+async function rafraichirFamilleParent(){if(!(CLOUD.actif()&&navigator.onLine))return;for(const a of admListe()){if(profilActif&&profilActif.id===a.id)continue;const pc=lireCache('ecurie_prof_'+a.id);if(!pc||!pc.pin)continue;try{const r=await CLOUD.rpc('connexion',{p_prenom:a.prenom,p_pin:pc.pin,p_code:(pc.code||codeFamille())});const row=Array.isArray(r)?r[0]:r;if(row&&row.etat){let e=normaliserEtat(row.etat);const bk=lireCache('ecurie_bk_'+a.id);if(bk)e=fusionEtat(normaliserEtat(bk),e);ecrireCache('ecurie_bk_'+a.id,e);}}catch(x){}}}
 function jourISO(d){d=d||new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function estWeekend(d){const j=(d||new Date()).getDay();return j===0||j===6;}
-function limiteMinutes(id){const L=limiteEnfant(id);if(!L.actif)return 0;return estWeekend()?(L.weekend||0):(L.semaine||0);}
+function limiteMinutes(id){const L=limiteEnfant(id);if(!L.actif)return 0;return L.minutes!=null?L.minutes:(L.semaine||60);}
 function tempsGet(id){return lireCache('ecurie_temps_'+id)||{jours:{}};}
 function tempsSet(id,o){ecrireCache('ecurie_temps_'+id,o);}
 function tjSec(e,k){const j=e&&e.temps&&e.temps.jours&&e.temps.jours[k];if(!j||!j.dev)return 0;let s=0;for(const d in j.dev)s+=j.dev[d]||0;return s;}
@@ -111,7 +125,7 @@ function metriqueDernier(tp){const J=(tp&&tp.jours)||{},ks=Object.keys(J).sort()
 function metriqueAvant(tp,dISO){const J=(tp&&tp.jours)||{},ks=Object.keys(J).sort().filter(k=>k<dISO);for(let i=ks.length-1;i>=0;i--){const s=J[ks[i]]&&J[ks[i]].snap;if(s&&s.bonnes!=null)return s;}return {bonnes:0,cartes:0,etoiles:0};}
 function progresPeriode(id,jours){const e=profilEtat(id),tp=e&&e.temps,now=new Date(),base=new Date(now);base.setDate(now.getDate()-(jours-1));const cur=metriqueDernier(tp),b=metriqueAvant(tp,jourISO(base));return {bonnes:Math.max(0,(cur.bonnes||0)-(b.bonnes||0)),cartes:Math.max(0,(cur.cartes||0)-(b.cartes||0)),etoiles:Math.max(0,(cur.etoiles||0)-(b.etoiles||0))};}
 function fmtDuree(sec){const m=Math.round(sec/60);if(m<60)return m+' min';return Math.floor(m/60)+' h '+String(m%60).padStart(2,'0');}
-function admListe(){return lireCache(famKey('ecurie_liste'))||[];}
+function admListe(){migrerLocaux();return locauxGet();}
 function formCreerAdmin(onDone){
   const ov=$('#pin-fond');
   ov.innerHTML='<div class="pform"><div class="admin-badge">👨‍👩‍👧 Compte parent (adulte)</div>'
@@ -130,13 +144,9 @@ function formCreerAdmin(onDone){
   };
 }
 function ouvrirEspaceParent(){
-  const adm=adminGet();
-  if(!adm)return formCreerAdmin(()=>ouvrirEspaceParent());
-  pavePin('👨‍👩‍👧 Espace parent · code',async(pin)=>{
-    if(await sha256('ADM:'+pin)!==adm.pin){toast('Code parent incorrect');return ouvrirEspaceParent();}
-    admPeriode=7;renderAdmin();const acc=$('#accueil');if(acc)acc.style.display='none';$('#admin-fond').classList.add('on');rafraichirFamilleParent().then(function(){if($('#admin-fond').classList.contains('on'))renderAdmin();}).catch(function(){});
-  });
+  admPeriode=7;renderAdmin();const acc=$('#accueil');if(acc)acc.style.display='none';$('#admin-fond').classList.add('on');rafraichirFamilleParent().then(function(){if($('#admin-fond').classList.contains('on'))renderAdmin();}).catch(function(){});
 }
+function protegerReglage(done){const adm=adminGet();if(!adm){pavePin('🔒 Choisis un code parent (protège les réglages)',async function(pin){adminSet({pin:await sha256('ADM:'+pin)});toast('Réglages protégés 🔒');done();});}else{pavePin('🔒 Code parent',async function(pin){if(await sha256('ADM:'+pin)!==adm.pin){toast('Code incorrect');return;}done();});}}
 function verifParent(onOk){
   const adm=adminGet();
   if(!adm){onOk();return;}
@@ -167,8 +177,7 @@ function renderAdmin(){
       +'<span class="adm-today">⏱️ '+fmtDuree(joue)+(limMin>0?' / '+limMin+' min':' · illimité')+'</span></div>'
       +(limMin>0?'<div class="adm-bar"><i style="width:'+pct+'%;background:'+(pct>=100?'#df6a6a':'#6fdca0')+'"></i></div>':'')
       +'<div class="adm-lim"><label class="adm-switch"><input type="checkbox" class="adm-actif"'+(lim.actif?' checked':'')+'> Limiter le temps</label>'
-      +'<span class="adm-lf">Semaine <input type="number" class="adm-sem" min="0" max="300" value="'+(lim.semaine||0)+'"> min</span>'
-      +'<span class="adm-lf">Week-end <input type="number" class="adm-we" min="0" max="300" value="'+(lim.weekend||0)+'"> min</span></div>'
+      +'<span class="adm-lf"><input type="number" class="adm-min" min="0" max="300" value="'+(lim.minutes!=null?lim.minutes:(lim.semaine||60))+'"> min / jour</span></div>'
       +'<div class="adm-stats">'
       +'<div class="adm-stat"><b>'+fmtDuree(per.sec)+'</b><span>temps</span></div>'
       +'<div class="adm-stat"><b>'+per.sessions+'</b><span>sessions</span></div>'
@@ -182,11 +191,11 @@ function renderAdmin(){
   box.innerHTML=html;
   box.querySelectorAll('.adm-pbtn').forEach(b=>b.onclick=()=>{admPeriode=+b.dataset.p;renderAdmin();});
   box.querySelectorAll('.adm-enfant').forEach(el=>{
-    const id=el.dataset.id,save=()=>{enregistrerLimite(id,{actif:el.querySelector('.adm-actif').checked,semaine:+el.querySelector('.adm-sem').value||0,weekend:+el.querySelector('.adm-we').value||0});renderAdmin();};
-    el.querySelector('.adm-actif').onchange=save;el.querySelector('.adm-sem').onchange=save;el.querySelector('.adm-we').onchange=save;
+    const id=el.dataset.id,save=()=>{protegerReglage(function(){enregistrerLimite(id,{actif:el.querySelector('.adm-actif').checked,minutes:+el.querySelector('.adm-min').value||0});renderAdmin();});};
+    el.querySelector('.adm-actif').onchange=save;el.querySelector('.adm-min').onchange=save;
   });
 }
-async function cloudCreer(prenom,pin,avatar,couleur,age,niveau){const h=await sha256(pin);const id=await CLOUD.rpc('creer_compte',{p_prenom:prenom,p_pin:h,p_avatar:avatar,p_couleur:couleur,p_age:age,p_niveau:niveau,p_etat:etatVide(),p_code:codeFamille()});return {id,_pin:h};}
+async function cloudCreer(prenom,pin,avatar,couleur,age,niveau,code){const h=await sha256(pin);const id=await CLOUD.rpc('creer_compte',{p_prenom:prenom,p_pin:h,p_avatar:avatar,p_couleur:couleur,p_age:age,p_niveau:niveau,p_etat:etatVide(),p_code:code||codeFamille()});return {id,_pin:h};}
 async function cloudProprietaires(carte){try{return await CLOUD.rpc('proprietaires',{p_carte:carte,p_code:codeFamille()});}catch(e){return [];}}
 let cloudTimer=null;
 function majSync(s){const d=$('#sync-dot');if(!d)return;if(!(CLOUD.actif()&&profilActif&&profilActif.cloud)){d.style.display='none';return;}d.style.display='';d.textContent=s==='sync'?'🔄':s==='off'?'📴':s==='err'?'⚠️':'☁️';d.title=s==='off'?"Hors ligne — sauvegardé sur l'appareil, synchro dès le retour du réseau":s==='err'?'Erreur de synchro (touche pour réessayer)':s==='sync'?'Synchronisation…':'Synchronisé ☁️';}
@@ -196,8 +205,8 @@ async function cloudPush(){
   try{await CLOUD.rpc('sauver_etat',{p_id:profilActif.id,p_pin:profilActif.pin,p_etat:etat,p_avatar:profilActif.emoji,p_couleur:profilActif.couleur,p_age:profilActif.age,p_niveau:profilActif.niveau});majSync('ok');}
   catch(e){majSync(navigator.onLine?'err':'off');}
 }
-function compteVersProfil(row){return {id:row.id,nom:row.prenom,age:row.age,emoji:row.avatar,couleur:row.couleur,niveau:row.niveau,etat:normaliserEtat(row.etat||etatVide()),cloud:true,pin:row._pin};}
-const VERSION_APP='v118';
+function compteVersProfil(row){return {id:row.id,nom:row.prenom,age:row.age,emoji:row.avatar,couleur:row.couleur,niveau:row.niveau,etat:normaliserEtat(row.etat||etatVide()),cloud:true,pin:row._pin,code:row._code||codeFamille()};}
+const VERSION_APP='v129';
    // exemplaires cumulés pour ★ à ★★★★★ (évolution plus lente)
 const COUT_TIRAGE=120,SOLDE_DEPART=200;const COUT_TIRAGE10=COUT_TIRAGE*9;
 const PITY_EPIC=20,PITY_LEGEND=100;   // pity : épique+ garanti tous les 20, légendaire+ tous les 100
@@ -233,8 +242,8 @@ const COUT_RENOUV_BASE=60;          // coût du 1er renouvellement (double à ch
    exercices apparaissent (voir `niv` des activités) et cale la difficulté. */
 const CLE_P='ecurie_profils_v1',CLE_VIEUX='ecurie_legendes_v2';
 let memoire=null;
-function etatVide(){return {crins:SOLDE_DEPART,cadeauDepart:true,tutoVu:false,collection:{ane_tetu:1,cheval_charbonnier:1,cheval_laboureur:1},paliers:{ane_tetu:1,cheval_charbonnier:1,cheval_laboureur:1},tirages:0,bonnes:0,xp:{maths:0,francais:0,histoire:0,sciences:0},serieJours:0,dernierJour:null,stats:{},jeux:{joues:0,gagnes:0},renommee:0,renommeeTotale:0,concours:{date:null,refresh:0,faits:{}},marchand:{date:null,achetes:[]},aventure:{introVu:false,belgique:{sousEtape:0,faits:{},fini:false}},chouchous:{},packprog:{},defiJour:{date:null,gagne:0},pity:{epic:0,legend:0},jalons:{},statsPack:{},acquis:{},acquisN:0,temps:{jours:{}},limite:{actif:false,semaine:30,weekend:60,maj:0}};}
-function normaliserEtat(e){const d=etatVide();for(const k in d)if(e[k]===undefined)e[k]=d[k];e.temps=e.temps||{jours:{}};e.temps.jours=e.temps.jours||{};e.xp=Object.assign({maths:0,francais:0,histoire:0,sciences:0},e.xp||{});e.jeux=Object.assign({joues:0,gagnes:0},e.jeux||{});e.stats=e.stats||{};e.collection=e.collection||{};e.paliers=e.paliers||{};e.renommee=e.renommee||0;if(e.renommeeTotale==null)e.renommeeTotale=e.renommee;e.concours=e.concours||{date:null,refresh:0,faits:{}};if(e.concours.refresh==null)e.concours.refresh=0;e.marchand=e.marchand||{date:null,achetes:[]};for(const id in e.collection){if(e.collection[id]>0&&e.paliers[id]==null)e.paliers[id]=palierDe(e.collection[id]);}e.aventure=e.aventure||{introVu:false};e.aventure.belgique=e.aventure.belgique||{sousEtape:0,faits:{},fini:false};e.aventure.prov=e.aventure.prov||{};e.aventure.mascVue=e.aventure.mascVue||{};if(e.aventure.belgique&&!e.aventure.prov.anvers)e.aventure.prov.anvers=e.aventure.belgique;e.chouchous=e.chouchous||{};e.packprog=e.packprog||{};e.defiJour=e.defiJour||{date:null,gagne:0};e.pity=e.pity||{epic:0,legend:0};if(e.pity.epic==null)e.pity.epic=0;if(e.pity.legend==null)e.pity.legend=0;e.jalons=e.jalons||{};e.statsPack=e.statsPack||{};if(!e.acquis){e.acquis={};let n=0;for(const c of CARTES){if((e.collection[c.id]||0)>0)e.acquis[c.id]=++n;}e.acquisN=n;}else{let mx=0;for(const k in e.acquis)if(e.acquis[k]>mx)mx=e.acquis[k];e.acquisN=e.acquisN||mx;}
+function etatVide(){return {crins:SOLDE_DEPART,cadeauDepart:true,tutoVu:false,collection:{ane_tetu:1,cheval_charbonnier:1,cheval_laboureur:1},paliers:{ane_tetu:1,cheval_charbonnier:1,cheval_laboureur:1},tirages:0,bonnes:0,xp:{maths:0,francais:0,histoire:0,sciences:0},serieJours:0,dernierJour:null,stats:{},jeux:{joues:0,gagnes:0},renommee:0,renommeeTotale:0,concours:{date:null,refresh:0,faits:{}},marchand:{date:null,achetes:[]},aventure:{introVu:false,belgique:{sousEtape:0,faits:{},fini:false}},chouchous:{},packprog:{},defiJour:{date:null,gagne:0},pity:{epic:0,legend:0},jalons:{},statsPack:{},acquis:{},acquisN:0,temps:{jours:{}},limite:{actif:true,minutes:60,maj:0},leconVue:{}};}
+function normaliserEtat(e){const d=etatVide();for(const k in d)if(e[k]===undefined)e[k]=d[k];e.temps=e.temps||{jours:{}};e.temps.jours=e.temps.jours||{};e.leconVue=e.leconVue||{};e.xp=Object.assign({maths:0,francais:0,histoire:0,sciences:0},e.xp||{});e.jeux=Object.assign({joues:0,gagnes:0},e.jeux||{});e.stats=e.stats||{};e.collection=e.collection||{};e.paliers=e.paliers||{};e.renommee=e.renommee||0;if(e.renommeeTotale==null)e.renommeeTotale=e.renommee;e.concours=e.concours||{date:null,refresh:0,faits:{}};if(e.concours.refresh==null)e.concours.refresh=0;e.marchand=e.marchand||{date:null,achetes:[]};for(const id in e.collection){if(e.collection[id]>0&&e.paliers[id]==null)e.paliers[id]=palierDe(e.collection[id]);}e.aventure=e.aventure||{introVu:false};e.aventure.belgique=e.aventure.belgique||{sousEtape:0,faits:{},fini:false};e.aventure.prov=e.aventure.prov||{};e.aventure.mascVue=e.aventure.mascVue||{};if(e.aventure.belgique&&!e.aventure.prov.anvers)e.aventure.prov.anvers=e.aventure.belgique;e.chouchous=e.chouchous||{};e.packprog=e.packprog||{};e.defiJour=e.defiJour||{date:null,gagne:0};e.pity=e.pity||{epic:0,legend:0};if(e.pity.epic==null)e.pity.epic=0;if(e.pity.legend==null)e.pity.legend=0;e.jalons=e.jalons||{};e.statsPack=e.statsPack||{};if(!e.acquis){e.acquis={};let n=0;for(const c of CARTES){if((e.collection[c.id]||0)>0)e.acquis[c.id]=++n;}e.acquisN=n;}else{let mx=0;for(const k in e.acquis)if(e.acquis[k]>mx)mx=e.acquis[k];e.acquisN=e.acquisN||mx;}
   // Un joueur qui a déjà de la progression ne doit jamais revoir l'onboarding (save sans tutoVu).
   if(!e.tutoVu&&((e.tirages||0)>0||(e.aventure&&e.aventure.introVu)||Object.keys(e.collection||{}).length>3||(e.bonnes||0)>0))e.tutoVu=true;
   if(!e.cadeauDepart){for(const id of ['ane_tetu','cheval_charbonnier','cheval_laboureur']){if(!(e.collection[id]>0)){e.collection[id]=1;e.paliers[id]=e.paliers[id]||1;}}e.cadeauDepart=true;}return e;}
@@ -254,6 +263,7 @@ function fusionEtat(a,b){
   r.statsPack=fusionStats(a.statsPack,b.statsPack);
   r.temps=fusionTemps(a.temps,b.temps);
   r.limite=(((a.limite&&a.limite.maj)||0)>=((b.limite&&b.limite.maj)||0))?(a.limite||{}):(b.limite||{});
+  r.leconVue=fusionLeconVue(a.leconVue,b.leconVue);
   r.jalons=Object.assign({},a.jalons||{},b.jalons||{});
   r.chouchous={};for(const id of new Set([...Object.keys(a.chouchous||{}),...Object.keys(b.chouchous||{})]))r.chouchous[id]=mx((a.chouchous||{})[id],(b.chouchous||{})[id]);
   r.acquis={};for(const id of new Set([...Object.keys(a.acquis||{}),...Object.keys(b.acquis||{})])){const va=(a.acquis||{})[id],vb=(b.acquis||{})[id];r.acquis[id]=(va&&vb)?Math.min(va,vb):(va||vb);}
@@ -299,9 +309,9 @@ function palierApplique(c){const n=etat.collection[c.id]||0;if(n<=0)return 0;con
 function peutEvoluer(c){const n=etat.collection[c.id]||0;const p=palierApplique(c);return n>0&&p<5&&p<palierDe(n);}
 function evoluer(c){if(!peutEvoluer(c))return false;etat.paliers[c.id]=palierApplique(c)+1;sauver();return true;}
 function niveauDe(xp){return Math.floor((xp||0)/PAS_XP)+1;}
-function artHTML(c){const im=Array.isArray(c.image)?c.image[Math.min(palierDe(etat.collection[c.id]||1),c.image.length)-1]:c.image;return im?`<img src="${im}" alt="${c.nom}" loading="lazy" decoding="async">`:c.emoji;}
+function artHTML(c){const im=Array.isArray(c.image)?c.image[Math.min(palierDe(etat.collection[c.id]||1),c.image.length)-1]:c.image;return im?`<img src="${im}" alt="${c.nom}" loading="lazy" decoding="async" class="tc-img" onload="this.classList.add('img-ok');var a=this.closest('.tc-art');if(a)a.classList.add('art-ok')" onerror="this.classList.add('img-ok')">`:c.emoji;}
 /* Illustration nue (sans cadre, nom, rareté ni drapeau) pour les quiz « devine le cheval ». */
-function artNu(c){const im=Array.isArray(c.image)?c.image[Math.min(palierDe(etat.collection[c.id]||1),c.image.length)-1]:c.image;return im?`<img src="${im}" alt="cheval à deviner" loading="lazy" decoding="async">`:`<span class="art-emoji">${c.emoji}</span>`;}
+function artNu(c){const im=Array.isArray(c.image)?c.image[Math.min(palierDe(etat.collection[c.id]||1),c.image.length)-1]:c.image;return im?`<img src="${im}" alt="cheval à deviner" loading="lazy" decoding="async" class="tc-img" onload="this.classList.add('img-ok');var a=this.closest('.tc-art');if(a)a.classList.add('art-ok')" onerror="this.classList.add('img-ok')">`:`<span class="art-emoji">${c.emoji}</span>`;}
 
 /* ---- CONCOURS : stats calculées (pas stockées) ---- */
 function hashStr(s){let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619);}return h>>>0;}
@@ -309,7 +319,9 @@ function statCap(c,cap,palier){const base=BASE_RAR[c.rarete]||8;const estAff=(c.
 function statDe(c,cap){return statCap(c,cap,palierApplique(c));}
 function rangEcurie(r){let nom=RANGS[0][1];for(const[s,n]of RANGS)if(r>=s)nom=n;return nom;}
 function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
-function combosViables(){const out=[];for(const f of Object.keys(FAMILLES))for(const d of DIVISIONS){const pool=CARTES.filter(c=>(c.familles||[]).includes(f)&&c.rarete===d.rarete);if(pool.length>=3)out.push({fam:f,rarete:d.rarete});}return out;}
+const CONCOURS_MIN_FAM=15;
+function famTotal(f){return CARTES.filter(c=>(c.familles||[]).includes(f)).length;}
+function combosViables(){const out=[];for(const f of Object.keys(FAMILLES)){if(famTotal(f)<CONCOURS_MIN_FAM)continue;for(const d of DIVISIONS){const pool=CARTES.filter(c=>(c.familles||[]).includes(f)&&c.rarete===d.rarete);if(pool.length>=3)out.push({fam:f,rarete:d.rarete});}}return out;}
 /* Concours poneys : transversaux aux familles, une division par rareté où ≥3 poneys existent. */
 function combosPoney(){const out=[];for(const d of DIVISIONS){const pool=CARTES.filter(c=>gabaritDe(c)==='poney'&&c.rarete===d.rarete);if(pool.length>=3)out.push({gab:'poney',rarete:d.rarete});}return out;}
 /* Filtre d'éligibilité d'un concours (cartes candidates) : par gabarit si co.gab, sinon par famille. */
@@ -327,7 +339,6 @@ function concoursDuJour(){
     if(list.length>=NB_CONCOURS)break;
     // caractéristique : thématique de la famille (parfois variée)
     let cap=combo.gab?'endurance':(FAM_CARAC[combo.fam]||'beaute');
-    if(rng()<0.35){const cs=CAPS.map(c=>c.id);cap=cs[Math.floor(rng()*cs.length)];}
     const key=(combo.gab||combo.fam)+combo.rarete+cap;if(seen[key])continue;seen[key]=1;
     list.push({fam:combo.fam,gab:combo.gab,rarete:combo.rarete,cap});
   }
@@ -577,7 +588,7 @@ const MATIERES=[
 
 /* 6. RENDU CARTE */
 function etoilesHTML(p){let s='';for(let i=1;i<=5;i++)s+=`<span class="et${i<=p?' on':''}">★</span>`;return s;}
-function carteHTML(c,n,{anim=false,palier=null}={}){const p=palier!=null?palier:palierApplique(c);const evo=(palier==null&&peutEvoluer(c))?'<div class="tc-evo">✨</div>':'';return `<div class="tcarte${anim?' tc-anim':''}" data-r="${c.rarete}" data-p="${p}"><div class="tc-art">${artHTML(c)}</div><div class="tc-scrim-top"></div><div class="tc-scrim-bot"></div><div class="tc-shine"></div><div class="tc-motes"><i></i><i></i><i></i></div><div class="tc-corner tl"></div><div class="tc-corner tr"></div><div class="tc-corner bl"></div><div class="tc-corner br"></div><div class="tc-frame"></div>${evo}${n&&n>1?`<div class="tc-nb">×${n}</div>`:''}<div class="tc-top">${p>=2?`<div class="tc-palier">${TITRES[p]}</div>`:'<span></span>'}<div class="tc-stars">${etoilesHTML(p)}</div></div><div class="tc-bottom"><div class="tc-nom">${c.nom}</div><div class="tc-rar">${RARETES[c.rarete].nom}</div><div class="tc-fam">${(c.familles||[]).map(f=>FAMILLES[f]?FAMILLES[f].nom:"").filter(Boolean).join(", ")}</div><div class="tc-meta">${ROYAUMES[c.royaume]?ROYAUMES[c.royaume].ico:""}</div></div></div>`;}
+function carteHTML(c,n,{anim=false,palier=null}={}){const p=palier!=null?palier:palierApplique(c);const evo=(palier==null&&peutEvoluer(c))?'<div class="tc-evo">✨</div>':'';return `<div class="tcarte${anim?' tc-anim':''}" data-r="${c.rarete}" data-p="${p}"><div class="tc-art${c.image?' art-load':''}">${artHTML(c)}</div><div class="tc-scrim-top"></div><div class="tc-scrim-bot"></div><div class="tc-shine"></div><div class="tc-motes"><i></i><i></i><i></i></div><div class="tc-corner tl"></div><div class="tc-corner tr"></div><div class="tc-corner bl"></div><div class="tc-corner br"></div><div class="tc-frame"></div>${evo}${n&&n>1?`<div class="tc-nb">×${n}</div>`:''}<div class="tc-top">${p>=2?`<div class="tc-palier">${TITRES[p]}</div>`:'<span></span>'}<div class="tc-stars">${etoilesHTML(p)}</div></div><div class="tc-bottom"><div class="tc-nom">${c.nom}</div><div class="tc-rar">${RARETES[c.rarete].nom}</div><div class="tc-fam">${(c.familles||[]).map(f=>FAMILLES[f]?FAMILLES[f].nom:"").filter(Boolean).join(", ")}</div><div class="tc-meta">${ROYAUMES[c.royaume]?ROYAUMES[c.royaume].ico:""}</div></div></div>`;}
 function carteMystereHTML(c){return `<div class="tcarte verrou" data-r="${c.rarete}" data-p="0"><div class="tc-art">?</div><div class="tc-scrim-top"></div><div class="tc-scrim-bot"></div><div class="tc-frame"></div><div class="tc-top"><span></span><div class="tc-stars">${etoilesHTML(0)}</div></div><div class="tc-bottom"><div class="tc-nom">${c.nom}</div><div class="tc-rar">${RARETES[c.rarete].nom}</div><div class="tc-fam">${(c.familles||[]).map(f=>FAMILLES[f]?FAMILLES[f].nom:"").filter(Boolean).join(", ")}</div><div class="tc-meta">${ROYAUMES[c.royaume]?ROYAUMES[c.royaume].ico:""}</div></div></div>`;}
 
 /* 7. ÉCRANS */
@@ -913,7 +924,8 @@ function packNiv(id){return packProg0(id).niv||1;}
 function packBank(id){const f=PACK_NIVEAUX[id];if(!f)return null;const banks=f();return banks[Math.min(packNiv(id),banks.length)-1];}
 function packCounts(id){const pp=packProg0(id),nv=packNiv(id);pp.c[nv]=pp.c[nv]||{};return pp.c[nv];}
 function progPack(id){const bank=packBank(id);if(!bank)return null;const kf=PACK_KEY[id],c=packCounts(id);let done=0,mast=0;bank.forEach(q=>{const cc=Math.min(c[kf(q)]||0,SEUIL_MAITRISE);done+=cc;if(cc>=SEUIL_MAITRISE)mast++;});return {done,total:bank.length*SEUIL_MAITRISE,mast,nb:bank.length,fini:mast>=bank.length,niv:packNiv(id)};}
-function choisirQ(id,bank){const kf=PACK_KEY[id],c=packCounts(id);const pond=[];bank.forEach(q=>{const cc=Math.min(c[kf(q)]||0,SEUIL_MAITRISE);const w=SEUIL_MAITRISE-cc+1;for(let i=0;i<w;i++)pond.push(q);});return pond.length?pond[rnd(0,pond.length-1)]:bank[rnd(0,bank.length-1)];}
+function choisirQ(id,bank){const kf=PACK_KEY[id],c=packCounts(id);const pond=[];bank.forEach(q=>{const cc=c[kf(q)]||0;if(cc>=SEUIL_MAITRISE)return;const w=SEUIL_MAITRISE-cc;for(let i=0;i<w;i++)pond.push(q);});return pond.length?pond[rnd(0,pond.length-1)]:null;}
+function packTermine(z,meta){z.innerHTML='<div class="lecon"><div class="quiz-tete"><button class="qt-retour" onclick="retourPacks()">←</button><div class="qt-titre">'+(meta||'')+'</div><span class="qt-sp"></span></div><div class="lecon-corps"><div class="lecon-ico">🏆</div><div class="lecon-txt">Bravo ! Tu as maîtrisé toutes les questions de ce pack.</div></div><button class="lecon-btn" id="pt-rejouer">🔁 Réviser encore</button><button class="pin-annuler" onclick="retourPacks()">Retour aux défis</button></div>';const r=$('#pt-rejouer');if(r)r.onclick=function(){const pp=packProg0(packActif.id);pp.c={};sauver();packExo();};}
 function maitriser(id,key){if(!PACK_NIVEAUX[id])return;const pp=packProg0(id),c=packCounts(id);c[key]=(c[key]||0)+1;const p=progPack(id);if(p&&p.fini&&!pp.done[p.niv]){pp.done[p.niv]=1;const dia=180+p.niv*30,ren=15+p.niv*5;etat.crins+=dia;etat.renommee=(etat.renommee||0)+ren;etat.renommeeTotale=(etat.renommeeTotale||0)+ren;majSolde(true);toast('🏆 Niveau '+p.niv+' maîtrisé ! +'+dia+' 💎 +'+ren+' ⭐');const banks=PACK_NIVEAUX[id]();if(p.niv<banks.length)pp.niv=p.niv+1;}sauver();}
 
 function PMULT(){return packActif?packActif.mult:1;}
@@ -939,7 +951,7 @@ function bankGen(bank){return ()=>{const q=bank[rnd(0,bank.length-1)];return {q:
   add('maths','Calcul rapide',BANK_MATHS);
 })();
 function exoBankQuiz(z,meta,mid,packId){
-  const bank=packBank(packId)||[],q=choisirQ(packId,bank),choix=melange([...q.choix]);
+  const bank=packBank(packId)||[],q=choisirQ(packId,bank);if(!q)return packTermine(z,meta);const choix=melange([...q.choix]);
   z.innerHTML=`<div class="quiz-tete"><button class="qt-retour" onclick="retourPacks()">←</button><div class="qt-titre">${meta}${enteteFinDefi(packActif)}<div class="quiz-carte"><div class="quiz-question" id="q-question"></div><div class="quiz-reponses" id="q-reponses"></div></div><div class="quiz-feedback" id="q-feedback"></div>`;
   $('#q-question').textContent=q.q;if(q.graph||q.schema)$('#q-question').insertAdjacentHTML('beforebegin',visuelQ(q));
   const box=$('#q-reponses');let fini=false;
@@ -1021,7 +1033,7 @@ function exoRaces(z){
   };box.appendChild(b);});
 }
 function exoOrtho(z){
-  const bank=packBank('ortho'),it=choisirQ('ortho',bank);const T=ORTHO_T[it.t]||{i:'✏️',n:'Écris'};
+  const bank=packBank('ortho'),it=choisirQ('ortho',bank);if(!it)return packTermine(z,'✍️ Orthographe');const T=ORTHO_T[it.t]||{i:'✏️',n:'Écris'};
   z.innerHTML=`<div class="quiz-tete"><button class="qt-retour" onclick="retourPacks()">←</button><div class="qt-titre">✍️ Orthographe · ${packActif.niv}${enteteFinDefi(packActif)}<div class="ortho-type">${T.i} ${T.n}</div><div class="ortho-indice">${it.q}</div><input class="ortho-input" id="ortho-in" type="text" inputmode="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="tape ici…"><button class="ae-btn" id="ortho-ok" style="display:block;width:100%">Valider</button><div class="quiz-feedback" id="q-feedback"></div>`;
   const inp=$('#ortho-in');setTimeout(()=>{try{inp.focus();}catch(e){}},120);let fini=false;
   const valider=()=>{
@@ -1037,9 +1049,17 @@ function exoOrtho(z){
 
 function lancerJeuDefi(z){z.innerHTML='';JEUX[rnd(0,JEUX.length-1)].lancer(z,packExo);const r=document.createElement('button');r.className='defi-retour';r.textContent='← Packs';r.onclick=retourPacks;z.insertBefore(r,z.firstChild);}
 function nivCourt(p){const n=(p&&PACK_NIVEAUX[p.id])?packNiv(p.id):null;return n?('nv. '+n):'';}
-function enteteFinDefi(p){const nv=nivCourt(p);const theo=theoriePack(p);theorieCour=theo||'';const nvH=nv?`<span class="qt-niv">${nv}</span>`:'';const thH=theo?`<button class="qt-theo" id="pack-theo-btn" onclick="afficherTheorie()">?</button><div class="pack-theo-panel" id="pack-theo-panel" style="display:none"></div>`:'<span class="qt-sp"></span>';return `${nvH}</div>${thH}</div>`;}
+function enteteFinDefi(p){const nv=nivCourt(p);const theo=theoriePack(p);theorieCour=theo||'';const nvH=nv?`<span class="qt-niv">${nv}</span>`:'';const aLecon=!!leconPour(p.id,packNiv(p.id));const thH=(aLecon||theo)?`<button class="qt-theo" id="pack-theo-btn" onclick="${aLecon?'revoirLecon()':'afficherTheorie()'}">?</button>${theo?'<div class="pack-theo-panel" id="pack-theo-panel" style="display:none"></div>':''}`:'<span class="qt-sp"></span>';return `${nvH}</div>${thH}</div>`;}
 function feedbackDefi(bon,msg,astuce,gain,next){const fb=$('#q-feedback');fb.innerHTML=`<div class="qf-msg ${bon?'bon':'faux'}">${msg}</div>${bon?'':(astuce||'')}<div class="qf-gain">${gain}</div>${bon?'':'<button class="defi-continuer">Suivant ›</button>'}`;fb.classList.add('show');if(bon){if(feedbackDefi._t)clearTimeout(feedbackDefi._t);feedbackDefi._t=setTimeout(function(){fb.classList.remove('show');next();},1000);}else{const b=fb.querySelector('.defi-continuer');if(b)b.onclick=function(){fb.classList.remove('show');next();};}}
+let leconSlides=[],leconI=0,leconDone=null,leconTitre='';
+function fusionLeconVue(a,b){const r={};for(const p of new Set([...Object.keys(a||{}),...Object.keys(b||{})])){r[p]={};const na=(a||{})[p]||{},nb=(b||{})[p]||{};for(const n of new Set([...Object.keys(na),...Object.keys(nb)]))r[p][n]=na[n]||nb[n];}return r;}
+function leconPour(id,niv){const L=(typeof LECONS!=='undefined')&&LECONS[id];if(!L)return null;return L[Math.min(niv,L.length)-1]||null;}
+function montrerLecon(id,niv,done){const lec=leconPour(id,niv);if(!lec){if(done)done();return;}leconSlides=lec.slides;leconI=0;leconDone=done;leconTitre=lec.titre||'';afficheLecon();}
+function afficheLecon(){const z=$('#defi-zone');const s=leconSlides[leconI];const dernier=leconI>=leconSlides.length-1;const intro=leconI===0?'<div class="lecon-intro">📖 Petite leçon — tu pourras la revoir avec le <b>?</b></div>':'';z.innerHTML='<div class="lecon"><div class="quiz-tete"><button class="qt-retour" onclick="retourPacks()">←</button><div class="qt-titre">'+leconTitre+'<span class="qt-niv">leçon</span></div><span class="qt-sp"></span></div>'+intro+'<div class="lecon-corps"><div class="lecon-ico">'+s.ico+'</div><div class="lecon-txt">'+s.t+'</div></div><div class="lecon-dots">'+leconSlides.map(function(_,i){return '<span class="'+(i===leconI?'on':'')+'"></span>';}).join('')+'</div><button class="lecon-btn" id="lecon-next">'+(dernier?"C'est parti ! ▶":'Suivant ›')+'</button></div>';$('#lecon-next').onclick=function(){if(dernier){const d=leconDone;leconDone=null;if(d)d();}else{leconI++;afficheLecon();}};}
+function revoirLecon(){if(!packActif)return;montrerLecon(packActif.id,packNiv(packActif.id),function(){packExo();});}
 function packExo(){
+  const _niv=packNiv(packActif.id);
+  if(leconPour(packActif.id,_niv)&&!((etat.leconVue[packActif.id]||{})[_niv])){etat.leconVue[packActif.id]=etat.leconVue[packActif.id]||{};etat.leconVue[packActif.id][_niv]=true;sauver();return montrerLecon(packActif.id,_niv,function(){packExo();});}
   const z=$('#defi-zone');z.innerHTML='';
   if(packActif.id==='general'||packActif.id==='general1'){
     if(jeuCompteur>=JEU_TOUS_LES){jeuCompteur=0;return lancerJeuDefi(z);}
@@ -1186,7 +1206,7 @@ function majFondEcran(nom){
 function switchEcran(nom){majFondEcran(nom);majOnglets();$$('.ecran').forEach(e=>e.classList.remove('actif'));$('#ecran-'+nom).classList.add('actif');const mn=document.querySelector('main');mn.classList.toggle('plein',nom==='aventure');mn.scrollTop=0;$$('nav.tabs button').forEach(b=>b.classList.toggle('actif',b.dataset.ecran===nom));majSolde();if(nom==='revisions'){bonusQuotidien();menuDefis();}if(nom==='scores')renderScores();if(nom==='concours')renderConcours();if(nom==='aventure')ouvrirAventure();}
 $$('nav.tabs button').forEach(b=>b.onclick=()=>switchEcran(b.dataset.ecran));
 $('#lien-revisions').onclick=()=>switchEcran('revisions');
-$('#btn-tirer').onclick=doTirage;$('#btn-tirer10').onclick=doTirage10;$('#btn-tirer-super').onclick=doTirageSuper;$('#ae-quit').onclick=avFermerEtape;$('#cout-nb10').textContent=COUT_TIRAGE10;$('#t10-fermer').onclick=()=>$('#t10-fond').classList.remove('on');$('#btn-resultats').onclick=()=>switchEcran('scores');$('#btn-classement').onclick=ouvrirClassement;$('#btn-chouchous').onclick=ouvrirChouchous;$('#chouchous-fermer').onclick=()=>$('#chouchous-fond').classList.remove('on');$('#classement-fermer').onclick=()=>$('#classement-fond').classList.remove('on');
+$('#btn-tirer').onclick=doTirage;$('#btn-tirer10').onclick=doTirage10;$('#btn-tirer-super').onclick=doTirageSuper;$('#ae-quit').onclick=avFermerEtape;$('#cout-nb10').textContent=COUT_TIRAGE10;$('#t10-fermer').onclick=()=>$('#t10-fond').classList.remove('on');$('#btn-resultats').onclick=()=>switchEcran('scores');const _bh=$('#btn-hub');if(_bh)_bh.onclick=()=>switchEcran('scores');$('#btn-classement').onclick=ouvrirClassement;$('#btn-chouchous').onclick=ouvrirChouchous;$('#chouchous-fermer').onclick=()=>$('#chouchous-fond').classList.remove('on');$('#classement-fermer').onclick=()=>$('#classement-fond').classList.remove('on');
 $('#filtre-possedes').onclick=()=>{filtrePossedes=!filtrePossedes;$('#filtre-possedes').classList.toggle('on',filtrePossedes);rendreGrille();};
 $$('.eo-tri [data-champ]').forEach(b=>b.onclick=()=>{triChamp=b.dataset.champ;$$('.eo-tri [data-champ]').forEach(x=>x.classList.toggle('actif',x===b));rendreGrille();});
 $('#tri-sens').onclick=()=>{triSens=-triSens;$('#tri-sens').textContent=triSens<0?'↓':'↑';rendreGrille();};
@@ -1203,7 +1223,7 @@ $('#reveal').onclick=fermerReveal;
 $('#d-fermer').onclick=()=>$('#feuille-fond').classList.remove('on');
 $('#feuille-fond').onclick=e=>{if(e.target.id==='feuille-fond')$('#feuille-fond').classList.remove('on');};
 function renderReglageNiveau(){const el=$('#reglage-niveau');el.innerHTML=`<div class="rg-niveau"><div class="rg-lbl">Niveau des exercices <span>· ${profilActif.nom}</span></div><div class="rg-step"><button data-d="-1">‹</button><b>P${profilActif.niveau}</b><button data-d="1">›</button></div></div>`;el.querySelectorAll('.rg-step button').forEach(b=>b.onclick=()=>{profilActif.niveau=Math.max(1,Math.min(6,profilActif.niveau+parseInt(b.dataset.d,10)));sauver();renderReglageNiveau();menuDefis();renderScores();});}
-$('#btn-reglages').onclick=()=>{renderReglageNiveau();majReglageInfo();$('#reglages-fond').classList.add('on');};$('#btn-cloud-test').onclick=testerCloud;$('#btn-forcemaj').onclick=()=>{if(confirm('Vider le cache et recharger la dernière version ?'))forcerMaj();};$('#sync-dot').onclick=()=>{if(profilActif&&profilActif.cloud&&profilActif.pin){majSync('sync');cloudPush();}else{$('#btn-reglages').click();}};
+$('#btn-reglages').onclick=()=>{renderReglageNiveau();majReglageInfo();$('#reglages-fond').classList.add('on');};const _bp=$('#btn-partager');if(_bp)_bp.onclick=partagerProfil;$('#btn-cloud-test').onclick=testerCloud;$('#btn-forcemaj').onclick=()=>{if(confirm('Vider le cache et recharger la dernière version ?'))forcerMaj();};$('#sync-dot').onclick=()=>{if(profilActif&&profilActif.cloud&&profilActif.pin){majSync('sync');cloudPush();}else{$('#btn-reglages').click();}};
 $('#admin-fermer').onclick=()=>{$('#admin-fond').classList.remove('on');const acc=$('#accueil');if(acc){acc.style.display='';acc.classList.remove('parti');}renderAccueil();};
 $('#temps-ok').onclick=()=>{$('#temps-fond').classList.remove('on');retourLogin();};
 $('#fiche-fermer').onclick=()=>$('#fiche-fond').classList.remove('on');
@@ -1262,32 +1282,61 @@ function formAccueilCreate(){
 async function demanderCodeFamille(){
   const box=$('#acc-liste');$('#acc-form').innerHTML='';
   box.innerHTML='<div class="pform"><label>Code famille</label><div class="acc-niv" style="margin:2px 0 8px">Un mot partagé par ta famille — vous ne verrez que vos écuries.</div><input id="fam-code" maxlength="16" placeholder="ex. gauder" autocapitalize="none" autocomplete="off"><div class="pf-actions"><button class="pf-creer" id="fam-ok">Continuer ›</button></div></div>';
-  const go=()=>{const v=($('#fam-code').value||'').trim().toLowerCase();if(v.length<2)return toast('Choisis un code (2 caractères min)');try{localStorage.setItem('ecurie_fam',v);}catch(e){}if(!adminGet())formCreerAdmin(()=>renderAccueilCloud());else renderAccueilCloud();};
+  const go=()=>{const v=($('#fam-code').value||'').trim().toLowerCase();if(v.length<2)return toast('Choisis un code (2 caractères min)');try{localStorage.setItem('ecurie_fam',v);}catch(e){}renderAccueilCloud();};
   $('#fam-ok').onclick=go;$('#fam-code').addEventListener('keydown',e=>{if(e.key==='Enter')go();});
 }
 function rendreListeCloud(liste,horsLigne){
   const box=$('#acc-liste');
-  box.innerHTML='<div class="acc-fam">🏠 Famille : <b>'+codeFamille()+'</b> · <button id="acc-chfam">changer</button></div>'+(horsLigne?'<div class="acc-niv" style="color:#ffb14e">📴 Hors ligne — écuries en mémoire</div>':'');
-  if(!liste.length)box.insertAdjacentHTML('beforeend','<div class="acc-niv">Aucune écurie dans cette famille. Crée la première !</div>');
-  liste.forEach(a=>{
+  box.innerHTML=(horsLigne?'<div class="acc-niv" style="color:#ffb14e">📴 Hors ligne — joueurs en mémoire</div>':'');
+  if(!liste||!liste.length)box.insertAdjacentHTML('beforeend','<div class="acc-niv">Aucun joueur ici. Crée le premier ! 🐴</div>');
+  (liste||[]).forEach(a=>{
     const c=document.createElement('div');c.className='profil-carte';c.style.setProperty('--pc',a.couleur||'#7ec2ff');
-    c.innerHTML=`<div class="pc-ava">${a.avatar||'🦄'}</div><div class="pc-info"><div class="pc-nom">${a.prenom}</div><div class="pc-sous">${a.age||'?'} ans · P${a.niveau||3}</div></div><div class="pc-go">🔒 ›</div>`;
-    c.onclick=()=>demanderPin(a);box.appendChild(c);
+    c.innerHTML='<div class="pc-ava">'+(a.avatar||'🦄')+'</div><div class="pc-info"><div class="pc-nom">'+a.prenom+'</div><div class="pc-sous">'+(a.age||'?')+' ans · P'+(a.niveau||3)+'</div></div><div class="pc-go">▶</div>';
+    c.onclick=()=>autoLogin(a);box.appendChild(c);
   });
-  const add=document.createElement('button');add.className='profil-ajout';add.innerHTML='<span style="font-size:20px">＋</span> Nouvelle écurie 🔒';add.onclick=()=>verifParent(formCloudCreate);box.appendChild(add);
+  const add=document.createElement('button');add.className='profil-ajout';add.innerHTML='<span style="font-size:20px">＋</span> Nouveau joueur';add.onclick=formNouveauJoueur;box.appendChild(add);
   const par=document.createElement('button');par.className='acc-parent';par.textContent='👨‍👩‍👧 Espace parent';par.onclick=ouvrirEspaceParent;box.appendChild(par);
-  const ch=$("#acc-chfam");if(ch)ch.onclick=()=>{try{localStorage.removeItem("ecurie_fam");}catch(e){}renderAccueilCloud();};
+}
+function formNouveauJoueur(){
+  let emo=EMOJIS_PROFIL[0];const f=$('#acc-form');
+  f.innerHTML='<div class="pform"><label>Prénom du joueur</label><input id="nj-nom" maxlength="14" placeholder="Prénom"><label>Âge</label><input id="nj-age" type="number" min="3" max="15" placeholder="âge"><div class="acc-niv" id="nj-niv" style="margin:6px 0"></div><label>Avatar</label><div class="emojis" id="nj-emojis">'+EMOJIS_PROFIL.map(e=>'<button data-e="'+e+'"'+(e===emo?' class="on"':'')+'>'+e+'</button>').join('')+'</div><div class="pf-actions"><button class="pf-creer" id="nj-creer">C\'est parti ! 🐴</button></div><button class="pin-annuler" id="nj-annuler">Annuler</button></div>';
+  $('#nj-age').addEventListener('input',()=>{const age=parseInt($('#nj-age').value,10);$('#nj-niv').textContent=age?('Niveau adapté : P'+niveauScolaire(age)):'';});
+  f.querySelectorAll('#nj-emojis button').forEach(b=>b.onclick=()=>{emo=b.dataset.e;f.querySelectorAll('#nj-emojis button').forEach(x=>x.classList.remove('on'));b.classList.add('on');});
+  $('#nj-annuler').onclick=()=>{f.innerHTML='';};
+  $('#nj-creer').onclick=async()=>{
+    const nom=($('#nj-nom').value||'').trim();if(!nom)return toast('Choisis un prénom');
+    const age=parseInt($('#nj-age').value,10)||8,coul=COULEURS_PROFIL[Math.floor(Math.random()*COULEURS_PROFIL.length)],niv=niveauScolaire(age);
+    if(!(CLOUD.actif()&&navigator.onLine))return toast('Connexion requise pour créer un joueur');
+    const code=genCode(),pin=genPin();
+    try{
+      const {id,_pin}=await cloudCreer(nom,pin,emo,coul,age,niv,code);
+      const stub={id,prenom:nom,avatar:emo,couleur:coul,age,niveau:niv,code,pin:_pin};
+      cacheProfil(stub);locauxAdd(stub);ecrireCache('ecurie_bk_'+id,etatVide());
+      entrerJeu({id,nom,age,emoji:emo,couleur:coul,niveau:niv,etat:etatVide(),cloud:true,pin:_pin,code});
+    }catch(e){toast('Création impossible (connexion ?)');}
+  };
+}
+async function partagerProfil(){
+  if(!profilActif)return;
+  const s={i:profilActif.id,n:profilActif.nom,a:profilActif.emoji,c:profilActif.couleur,g:profilActif.age,v:profilActif.niveau,k:profCode(profilActif),p:profilActif.pin};
+  const enc=btoa(unescape(encodeURIComponent(JSON.stringify(s)))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+  const lien=location.origin+location.pathname+'?ajouter='+enc;
+  try{if(navigator.share){await navigator.share({title:'Écurie de Légendes',text:'Ajoute '+profilActif.nom+' sur ton appareil :',url:lien});return;}}catch(e){}
+  try{await navigator.clipboard.writeText(lien);toast('Lien copié 🔗 — envoie-le sur l\'autre appareil');return;}catch(e){}
+  try{prompt('Copie ce lien et envoie-le :',lien);}catch(e){}
+}
+function ajouterDepuisLien(){
+  try{
+    const u=new URL(location.href);const enc=u.searchParams.get('ajouter');if(!enc)return;
+    const j=JSON.parse(decodeURIComponent(escape(atob(enc.replace(/-/g,'+').replace(/_/g,'/')))));
+    if(j&&j.i){const stub={id:j.i,prenom:j.n,avatar:j.a,couleur:j.c,age:j.g,niveau:j.v,code:j.k,pin:j.p};migrerLocaux();cacheProfil(stub);locauxAdd(stub);setTimeout(()=>toast('👋 '+j.n+' a été ajouté(e) !'),500);}
+    u.searchParams.delete('ajouter');history.replaceState(null,'',u.pathname+(u.search||'')+u.hash);
+  }catch(e){}
 }
 async function renderAccueilCloud(){
-  if(!codeFamille())return demanderCodeFamille();
-  const box=$('#acc-liste');$('#acc-form').innerHTML='';
-  const cache=lireCache('ecurie_liste_'+codeFamille());
-  if(cache&&cache.length)rendreListeCloud(cache,true);   // affichage immédiat depuis le cache
-  else box.innerHTML='<div class="acc-niv">Chargement des écuries…</div>';
-  try{const liste=await cloudListe();ecrireCache('ecurie_liste_'+codeFamille(),liste);rendreListeCloud(liste,false);}
-  catch(e){
-    if(!(cache&&cache.length)){box.innerHTML='<div class="acc-niv">Pas de connexion et aucune écurie en mémoire. <button id="acc-retry" style="text-decoration:underline;background:none;border:none;color:var(--or);font:inherit;cursor:pointer">Réessayer</button></div>';const r=$('#acc-retry');if(r)r.onclick=renderAccueilCloud;}
-  }
+  migrerLocaux();
+  $('#acc-form').innerHTML='';
+  rendreListeCloud(locauxGet(), !navigator.onLine);
 }
 function pavePin(cible,onFini){
   let pin='';const ov=$('#pin-fond');
@@ -1300,6 +1349,16 @@ function pavePin(cible,onFini){
     if(b.dataset.x==='2'||b.dataset.x==='3'){fermer();return;}
     if(pin.length<4){pin+=b.dataset.n;maj();if(pin.length===4)setTimeout(()=>{fermer();onFini(pin);},140);}
   });
+}
+async function autoLogin(a){
+  const pc=lireCache('ecurie_prof_'+a.id);
+  if(!pc||!pc.pin)return demanderPin(a);
+  if(CLOUD.actif()&&navigator.onLine){
+    try{const r=await CLOUD.rpc('connexion',{p_prenom:a.prenom,p_pin:pc.pin,p_code:(pc.code||codeFamille())});const row=Array.isArray(r)?r[0]:r;
+      if(row){cacheProfil({id:row.id,prenom:row.prenom,avatar:row.avatar,couleur:row.couleur,age:row.age,niveau:row.niveau,pin:pc.pin});return entrerJeu(compteVersProfil(Object.assign(row,{_pin:pc.pin})));}}catch(e){}
+  }
+  const bk=lireCache('ecurie_bk_'+a.id);
+  entrerJeu({id:a.id,nom:a.prenom||pc.prenom,age:a.age||pc.age,emoji:a.avatar||pc.avatar,couleur:a.couleur||pc.couleur,niveau:a.niveau||pc.niveau,etat:normaliserEtat(bk||etatVide()),cloud:true,pin:pc.pin,code:(a.code||pc.code||codeFamille()),_offline:true});
 }
 function demanderPin(a){
   pavePin(`${a.avatar||'🦄'} ${a.prenom} · code secret`,async(pin)=>{
@@ -1346,6 +1405,7 @@ $('#profils-fond').onclick=e=>{if(e.target.id==='profils-fond')fermerProfils();}
 $('#cout-nb').textContent=COUT_TIRAGE;$('#cout-super').textContent=COUT_SUPER_RENOM;
 $('#btn-atelier').onclick=ouvrirAtelier;$('#atelier-fermer').onclick=()=>$('#atelier-fond').classList.remove('on');
 requestAnimationFrame(()=>requestAnimationFrame(()=>{
+  ajouterDepuisLien();
   renderAccueil();
   const ch=document.getElementById('chargement');if(ch){ch.classList.add('parti');setTimeout(()=>ch.remove(),500);}
 }));
@@ -1681,28 +1741,46 @@ function acheterHistoire(id,a){
 const BONUS_COMPO=12;   // bonus max selon la performance (puissance élevée ou écart minime à la cible)
 /* Objectif clair et explicite (égalité / inégalité) déduit des contraintes de l'activité. */
 function objectifCompo(a,i){
-  const pMin=a.puissanceMin?a.puissanceMin[i]:null;
-  const pMax=a.puissanceMax?a.puissanceMax[i]:null;
-  const cible=a.cible?a.cible[i]:null;
+  const CAP=a.cap||((typeof AV_CAP!=='undefined'&&AV_CAP[AVkey])||'force');
+  const CN=(CAPS.find(c=>c.id===CAP)||{}).nom||''+CN+'';
+  const MUL=((typeof PAYS_MULT!=='undefined'&&AE&&PAYS_MULT[AE.pays])||1)*((typeof AMB_COMPO!=='undefined')?AMB_COMPO:1);
+  const pMin=a.puissanceMin?Math.round(a.puissanceMin[i]*MUL):null;
+  const pMax=a.puissanceMax?Math.round(a.puissanceMax[i]*MUL):null;
+  const cible=a.cible?Math.round(a.cible[i]*MUL):null;
   const contr=a.contrainte?a.contrainte[i]:null;
-  if(cible!=null)return'🎯 Objectif : Puissance totale <b>la plus proche possible de '+cible+'</b>';
-  if(pMin!=null)return'💪 Objectif : Puissance totale <b>au moins '+pMin+'</b> (≥ '+pMin+') — vise le plus haut pour un plus gros bonus !';
-  if(pMax!=null)return'🪶 Objectif : Puissance totale <b>au plus '+pMax+'</b> (≤ '+pMax+')';
-  if(contr==='pair')return'🔢 Objectif : Puissance totale <b>paire</b>';
-  if(contr==='max250')return'🪶 Objectif : Puissance totale <b>au plus 250</b> (≤ 250)';
+  if(cible!=null)return'🎯 Objectif : '+CN+' totale <b>la plus proche possible de '+cible+'</b>';
+  if(pMin!=null)return'💪 Objectif : '+CN+' totale <b>au moins '+pMin+'</b> (≥ '+pMin+') — vise le plus haut pour un plus gros bonus !';
+  if(pMax!=null)return'🪶 Objectif : '+CN+' totale <b>au plus '+pMax+'</b> (≤ '+pMax+')';
+  if(contr==='pair')return'🔢 Objectif : '+CN+' totale <b>paire</b>';
+  if(contr==='max250')return'🪶 Objectif : '+CN+' totale <b>au plus 250</b> (≤ 250)';
   if(a.robesDistinctes)return'🎨 Objectif : '+a.slots.length+' robes <b>toutes différentes</b>';
   if(a.royaumesDistincts)return'🌍 Objectif : '+a.slots.length+' origines <b>toutes différentes</b>';
   if(a.royaumeUnique)return'🏴 Objectif : tous les chevaux du <b>même royaume</b>';
   return null;
 }
+function celebrerCompo(cards,note,gain){
+  const z=$('#ae-corps');if(!z)return avEcranSuivant();
+  const conf=Array.from({length:14}).map((_,i)=>'<span class="ae-conf" style="left:'+Math.round(4+i*6.6)+'%;animation-delay:'+(i%5*0.12)+'s;font-size:'+(14+i%4*4)+'px">'+['✨','🎉','⭐','💫','🏆'][i%5]+'</span>').join('');
+  const cartes=cards.map((c,k)=>c?'<div class="ae-celcard" style="animation-delay:'+(0.15+k*0.18)+'s"><div class="tc-box ratio">'+carteHTML(c,etat.collection[c.id]||1)+'</div><div class="ae-celnom">'+c.nom+'</div></div>':'').join('');
+  z.innerHTML='<div class="ae-celebre"><div class="ae-conflayer">'+conf+'</div>'
+    +'<div class="ae-celtitre">'+(note||'Bravo !')+'</div>'
+    +'<div class="ae-celsub">Ton équipe gagnante</div>'
+    +'<div class="ae-celcards">'+cartes+'</div>'
+    +'<div class="ae-celgain">+'+gain+' 💎</div>'
+    +'<button class="ae-btn ae-celbtn" id="ae-celok">Continuer ›</button></div>';
+  const b=$('#ae-celok');if(b)b.onclick=avEcranSuivant;
+}
 function avCompo(a){
+  const CAP=a.cap||((typeof AV_CAP!=='undefined'&&AV_CAP[AVkey])||'force');
+  const CN=(CAPS.find(c=>c.id===CAP)||{}).nom||''+CN+'';
+  const MUL=((typeof PAYS_MULT!=='undefined'&&AE&&PAYS_MULT[AE.pays])||1)*((typeof AMB_COMPO!=='undefined')?AMB_COMPO:1);
   const i=estP5()?1:0;
   const consigne=Array.isArray(a.consigne)?a.consigne[i]:a.consigne;
   const objectif=objectifCompo(a,i);
   const consHTML='<div class="ae-consigne">'+consigne+'</div>'+(objectif?'<div class="ae-objectif">'+objectif+'</div>':'');
-  const pMin=a.puissanceMin?a.puissanceMin[i]:null;
+  const pMin=a.puissanceMin?Math.round(a.puissanceMin[i]*MUL):null;
   const contr=a.contrainte?a.contrainte[i]:null;
-  const cible=a.cible?a.cible[i]:null;const TOL=12;
+  const cible=a.cible?Math.round(a.cible[i]*MUL):null;const TOL=Math.max(12,Math.round(12*MUL));
   aeSlots=a.slots.map(s=>({label:s.label,m:s.m,buy:s.buy,card:null}));
   bulle("");
   const corps=$('#ae-corps');
@@ -1726,13 +1804,13 @@ function avCompo(a){
     $('#ae-defis').onclick=()=>{avFermerEtape();switchEcran('revisions');};$('#ae-later').onclick=avFermerEtape;return;
   }
   corps.innerHTML='<div class="ae-cotop">'+consHTML+'<div class="ae-slots" id="ae-slots"></div><div class="ae-fb" id="ae-fb"></div><button class="ae-btn" id="ae-valider">Valider l\'équipe</button></div><div class="ae-poolt">Tes chevaux :</div><div class="ae-pool" id="ae-pool"></div>';
-  function puiss(){return aeSlots.reduce((s,x)=>s+(x.card?statDe(x.card,'force'):0),0);}
+  function puiss(){return aeSlots.reduce((s,x)=>s+(x.card?statDe(x.card,CAP):0),0);}
   function nbUsed(id){return aeSlots.filter(x=>x.card&&x.card.id===id).length;}
   function used(id){const c=utile.find(x=>x.id===id);const ex=c?(etat.collection[id]||0):0;return nbUsed(id)>=ex;}
-  function renderSlots(){$('#ae-slots').innerHTML=aeSlots.map((s,k)=>s.card?'<div class="ae-slot plein" data-k="'+k+'"><div class="tc-box ratio ae-mini">'+carteHTML(s.card,etat.collection[s.card.id]||1)+'<span class="ae-puiss mini">💪 '+statDe(s.card,'force')+'</span></div><span>'+s.card.nom+'</span></div>':'<div class="ae-slot vide" data-k="'+k+'"><span class="ae-plus">+</span><span>'+s.label+'</span></div>').join('');
+  function renderSlots(){$('#ae-slots').innerHTML=aeSlots.map((s,k)=>s.card?'<div class="ae-slot plein" data-k="'+k+'"><div class="tc-box ratio ae-mini">'+carteHTML(s.card,etat.collection[s.card.id]||1)+'<span class="ae-puiss mini">💪 '+statDe(s.card,CAP)+'</span></div><span>'+s.card.nom+'</span></div>':'<div class="ae-slot vide" data-k="'+k+'"><span class="ae-plus">+</span><span>'+s.label+'</span></div>').join('');
     $('#ae-slots').querySelectorAll('.ae-slot.plein').forEach(el=>el.onclick=()=>{aeSlots[+el.dataset.k].card=null;renderAll();});
-    const p=puiss();const pMax=a.puissanceMax?a.puissanceMax[i]:null;$('#ae-fb').innerHTML=cible!=null?('🎯 Cible <b>'+cible+'</b> · ton équipe <b>'+p+'</b> · écart <b>'+Math.abs(p-cible)+'</b>'):(pMin!=null?('💪 Puissance <b>'+p+'</b> · minimum '+pMin+' '+(p>=pMin?'✅':'⛔ (pas encore)')):(pMax!=null?('🪶 Puissance <b>'+p+'</b> · maximum '+pMax+' '+(p<=pMax?'✅':'⛔ (trop lourde)')):(contr?('Puissance <b>'+p+'</b>'):'')));}
-  function renderPool(){$('#ae-pool').innerHTML=utile.map(c=>'<div class="tc-box ratio ae-pcard'+(used(c.id)?' pris':'')+'" data-id="'+c.id+'">'+carteHTML(c,etat.collection[c.id]||1)+'<span class="ae-puiss">💪 '+statDe(c,'force')+'</span></div>').join('');
+    const p=puiss();const pMax=a.puissanceMax?Math.round(a.puissanceMax[i]*MUL):null;$('#ae-fb').innerHTML=cible!=null?('🎯 Cible <b>'+cible+'</b> · ton équipe <b>'+p+'</b> · écart <b>'+Math.abs(p-cible)+'</b>'):(pMin!=null?('💪 '+CN+' <b>'+p+'</b> · minimum '+pMin+' '+(p>=pMin?'✅':'⛔ (pas encore)')):(pMax!=null?('🪶 '+CN+' <b>'+p+'</b> · maximum '+pMax+' '+(p<=pMax?'✅':'⛔ (trop lourde)')):(contr?(''+CN+' <b>'+p+'</b>'):'')));}
+  function renderPool(){$('#ae-pool').innerHTML=utile.slice().sort((x,y)=>statDe(y,CAP)-statDe(x,CAP)).map(c=>'<div class="tc-box ratio ae-pcard'+(used(c.id)?' pris':'')+'" data-id="'+c.id+'">'+carteHTML(c,etat.collection[c.id]||1)+'<span class="ae-puiss">💪 '+statDe(c,CAP)+'</span></div>').join('');
     $('#ae-pool').querySelectorAll('.ae-pcard').forEach(el=>el.onclick=()=>{if(el.classList.contains('pris'))return;const c=utile.find(x=>x.id===el.dataset.id);const slot=aeSlots.find(s=>!s.card&&s.m(c));if(!slot){toast('Aucune place pour ce cheval ici');return;}slot.card=c;renderAll();});}
   function renderAll(){renderSlots();renderPool();}
   renderAll();
@@ -1741,13 +1819,13 @@ function avCompo(a){
     const p=puiss();
     if(pMin&&p<pMin){$('#ae-fb').textContent='Pas assez puissante ('+p+' / '+pMin+'). Choisis de plus costauds !';return;}
     if(cible!=null&&Math.abs(p-cible)>TOL){$('#ae-fb').textContent='Approche-toi encore de '+cible+' — tu es à '+p+' (écart '+Math.abs(p-cible)+').';return;}
-    if(contr==='pair'&&p%2!==0){$('#ae-fb').textContent='La Puissance totale ('+p+') doit être PAIRE.';return;}
+    if(contr==='pair'&&p%2!==0){$('#ae-fb').textContent='La '+CN+' totale ('+p+') doit être PAIRE.';return;}
     if(contr==='max250'&&p>250){$('#ae-fb').textContent='Trop puissante ('+p+' > 250).';return;}
-    if(a.puissanceMax){const mx=a.puissanceMax[estP5()?1:0];if(p>mx){$('#ae-fb').textContent='Trop lourde ! ('+p+' > '+mx+') — les plus légers passent. Prends des chevaux plus petits 🪶';return;}}
+    if(a.puissanceMax){const mx=Math.round(a.puissanceMax[estP5()?1:0]*MUL);if(p>mx){$('#ae-fb').textContent='Trop lourde ! ('+p+' > '+mx+') — les plus légers passent. Prends des chevaux plus petits 🪶';return;}}
     if(a.royaumesDistincts){const rs=aeSlots.map(s=>s.card&&s.card.royaume).filter(Boolean);if(new Set(rs).size<rs.length){$('#ae-fb').textContent='Deux chevaux du même royaume ! Choisis des origines différentes 🌍';return;}}
     if(a.royaumeUnique){const rs=aeSlots.map(s=>s.card&&s.card.royaume).filter(Boolean);if(new Set(rs).size>1){$('#ae-fb').textContent='Ce ne sont pas tous du même clan (même royaume) ! 🏴';return;}}
     if(a.robesDistinctes){const rb=aeSlots.map(s=>s.card&&ROBES[s.card.id]).filter(Boolean);if(rb.length<aeSlots.length){$('#ae-fb').textContent='Chaque cheval doit avoir une robe connue (choisis des chevaux colorés).';return;}if(new Set(rb).size<rb.length){$('#ae-fb').textContent='Deux chevaux ont la même couleur ! Le cortège doit être bien coloré 🎨';return;}}
-    let bonus=0,note='Belle équipe !';if(cible!=null){const gap=Math.abs(p-cible);bonus=Math.max(0,Math.round((TOL-gap)/TOL*BONUS_COMPO));note=gap===0?'🎯 Pile dans le mille !':(gap<=3?'🎯 Tout proche !':'Bien visé !');}else if(pMin!=null){bonus=Math.min(BONUS_COMPO,Math.max(0,Math.round((p-pMin)/2)));note=bonus>=BONUS_COMPO?'💪 Équipe surpuissante !':(bonus>0?'💪 Belle puissance !':'Pile ce qu\'il faut.');}const gain=8+bonus;etat.crins+=gain;majSolde(true);sauver();if(typeof montrerGainAnim==='function')montrerGainAnim(gain);toast(note+' +'+gain+' 💎');avEcranSuivant();
+    let bonus=0,note='Belle équipe !';if(cible!=null){const gap=Math.abs(p-cible);bonus=Math.max(0,Math.round((TOL-gap)/TOL*BONUS_COMPO));note=gap===0?'🎯 Pile dans le mille !':(gap<=3?'🎯 Tout proche !':'Bien visé !');}else if(pMin!=null){bonus=Math.min(BONUS_COMPO,Math.max(0,Math.round((p-pMin)/2)));note=bonus>=BONUS_COMPO?'💪 Équipe surpuissante !':(bonus>0?'💪 Belle puissance !':'Pile ce qu\'il faut.');}const gain=8+bonus;etat.crins+=gain;majSolde(true);sauver();celebrerCompo(aeSlots.map(s=>s.card),note,gain);
   };
 }
 function avRecompense(se){

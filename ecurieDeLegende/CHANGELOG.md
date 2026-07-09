@@ -3,6 +3,96 @@
 Convention : `VERSION_APP` (index.html) = `ecurie-vNN` (sw.js), incrémentés à CHAQUE livraison
 (invalidation du cache PWA). QC : `node tools/qc.js` avant chaque livraison.
 
+## v129 — Feedback de chargement des cartes (fini la carte vide)
+- Pendant le téléchargement de l'image d'une carte, le cadre affiche maintenant un **skeleton animé
+  (effet shimmer)** au lieu d'un vide, puis l'image **apparaît en fondu** une fois prête. Feedback
+  immédiat partout (tirage, collection, aventure, célébration).
+- Compatible vieux navigateurs (pas de `inset`/`:has`).
+## v128 — Capacités variées étendues à tous les pays d'aventure
+- La logique de composition (capacité exigée selon l'étape, au lieu de la Puissance systématique) est
+  maintenant **appliquée aux 5 pays** (55 étapes). Chaque pays couvre **les 6 disciplines** avec un
+  thème cohérent (Newmarket → Vitesse, Tolède → Combat, Friesland → Beauté, Lorelei → Magie…).
+- Combiné au +5 %/pays et à l'ambition +20 %, l'aventure demande désormais des équipes **variées et
+  adaptées** du début à la fin — et le pool reste trié par la capacité demandée.
+## v127 — Écran de célébration en composition d'équipe (aventure)
+- Gagner un défi de composition d'équipe déclenche maintenant un **écran de célébration** : les
+  **3 chevaux choisis** s'affichent en grand (art complet), avec halo doré, animation de montée et
+  **confettis** ✨, le message de victoire et le gain en 💎, puis « Continuer ». Fini le simple toast.
+## v126 — Équilibrage aventure (pilote Belgique) : capacités variées + difficulté progressive
+- **Fini le tout-Puissance** : les défis de composition « meilleure équipe » exigent maintenant une
+  **capacité variée selon l'étape** (Agilité, Vitesse, Beauté, Combat, Magie, Puissance). Table par
+  étape pour la Belgique (pilote) ; les autres pays restent en Puissance en attendant l'extension.
+  → On ne peut plus recycler une seule équipe : il faut des chevaux adaptés à chaque discipline.
+- **+5 % de difficulté par pays** (Belgique ×1.0 → Ibérie ×1.20) + **ambition +20 %** sur les seuils,
+  appliqués au runtime (une valeur à ajuster, pas 100 chiffres codés en dur).
+- **Chevaux mieux mis en avant** : dans l'écran de composition, le pool est **trié par la capacité
+  demandée** — l'enfant voit d'abord ses meilleurs chevaux de la bonne discipline, avec la valeur de
+  cette capacité affichée.
+## v125 — Concours : capacités rééquilibrées, familles fournies, titre non tronqué
+- **Rééquilibrage des capacités** : le mapping famille→épreuve était très « Magie » (5 familles). Réparti
+  plus équitablement — Pop → Vitesse, Plantes → Agilité, Sombres → Combat. Les 6 disciplines sont
+  maintenant bien représentées.
+- **Concours limités aux familles fournies** (≥ 15 cartes) : plus de concours quasi injouables sur une
+  famille de 5 cartes. Les familles fines (Licornes, Mascotte, Équitation…) restent pour la collection.
+  Chaque discipline garde au moins une famille bien fournie.
+- **Titre des bannières non tronqué** : contenu resserré et titre en une ligne (avec « … » si trop long)
+  → plus de texte coupé en haut des cartes.
+## v124 — Concours : image agilité corrigée, combos cohérents, bouton discret
+- **Bug image corrigé** : l'épreuve « Parcours d'obstacles » (Agilité) n'avait pas d'image (le champ
+  avait été inséré au mauvais endroit, dans Magie) → affichage vide. Les 6 épreuves ont maintenant la
+  bonne illustration.
+- **Fini les combos incohérents** (ex. « Concours de trait pour chevaux de course ») : l'épreuve suit
+  désormais toujours la **capacité naturelle de la famille** (`FAM_CARAC`). La randomisation à 35 % qui
+  créait les incohérences est retirée. Mapping complété (équitation → agilité, mascotte → beauté).
+- **Bouton « Concourir » discret** + **léger halo doré pulsé** sur les bannières pour signaler qu'elles
+  sont cliquables (toute la carte l'est).
+## v123 — Packs moins répétitifs : questions maîtrisées retirées + banque geek élargie
+- **Nouvelle logique (tous les packs)** : une question répondue correctement **2 fois** est **retirée du
+  deck** ; elle ne revient plus tant qu'il reste d'autres questions. Fini de retomber 10× sur « qu'est-ce
+  qu'un pixel ». Le suivi est déjà synchronisé par niveau.
+- Quand **toutes** les questions d'un pack sont maîtrisées → écran **« 🏆 Bravo, tout maîtrisé ! »** avec
+  un bouton **« 🔁 Réviser encore »** qui remet le compteur à zéro pour rejouer.
+- **Pack Geek : +20 questions par niveau** (niveau 1 : 22 → 42 · niveau 2 : 14 → 34), sans doublon,
+  adaptées aux enfants.
+## v122 — Comptes locaux + « Nouveau joueur » simple + lien de partage
+- **Fini le concept de famille à l'entrée.** L'accueil affiche la **liste locale** des joueurs de
+  l'appareil. « Nouveau joueur » = prénom + âge → chevaux (aucun code, aucun PIN). Idéal pour un copain
+  qui essaie en 15 s.
+- **Chaque nouveau profil a son propre code unique caché** (aléatoire) : deux enfants du même prénom ne
+  se marchent jamais dessus, même appareil, même base.
+- **Lien de partage par enfant** (dans les Réglages : « 🔗 Partager ce joueur ») : envoie le lien à un
+  autre appareil (tel de papa), il ajoute l'enfant et **synchronise dans les deux sens** — parfait en
+  garde alternée. Le lien porte la clé du profil, pas de PIN à taper.
+- **Données préservées** : les profils existants (Énola, Anaé) sont migrés automatiquement dans la liste
+  locale avec leur code d'origine — rien n'est perdu, tout continue de se synchroniser comme avant.
+- L'espace parent liste désormais tous les joueurs locaux (y compris les nouveaux).
+## v121 — Entrée sans PIN + espace parent débloqué
+- **Auto-login** : quand le code d'un enfant est déjà connu sur l'appareil (dès la 2ᵉ fois), on tape
+  l'avatar → **directement aux chevaux, sans PIN**. Le code n'est demandé qu'au tout premier accès sur
+  un appareil neuf. Fini le double-PIN et les codes oubliés.
+- **Plus de PIN parent obligatoire à la création** de l'écurie.
+- **Espace parent toujours accessible sans code** (stats, temps, réglages visibles directement).
+- **PIN seulement au changement de réglage** : la première fois qu'on modifie une restriction, on pose
+  un code parent (pour la protéger) ; ensuite il est demandé à chaque modification. Voir ne demande rien.
+- **Réglage par défaut simplifié** : **1 h/jour, tous les jours, activé par défaut** (plus de
+  distinction semaine/week-end). Un seul champe « min / jour ».
+- Aucune donnée touchée : les profils et progrès existants restent intacts.
+## v120 — Hub « Mes résultats » (🏆) : résultats + classement + chouchous centralisés
+- Nouvelle **icône 🏆 dans la barre du haut** (à côté de l'engrenage), visible partout → ouvre le hub.
+  Plus besoin de fouiller : résultats, classement mondial et chouchous sont à un tap, sans 6ᵉ onglet.
+- L'écran est **restructuré en hub** : deux grandes cartes d'action (🌍 Classement mondial · 💖 Mes
+  chouchous) mises en avant, puis les stats de réussite par matière en dessous.
+- **Restylé** avec la fondation (panneaux givrés, texte contrasté) — l'ancien style non mis à jour est
+  corrigé.
+## v119 — Lot 6 : mini-leçons animées avant les défis
+- Les packs **enseignent** maintenant, ils ne font plus que tester : au début de chaque niveau, une
+  **mini-leçon courte et animée** (3 diapos, une idée + un emoji chacune, très peu de texte) s'affiche
+  avant les questions, puis on enchaîne (« C'est parti ! »).
+- **Une seule fois par niveau**, puis **rejouable à tout moment via l'icône « ? »** (annoncé dans
+  l'intro de la leçon). Mémorisé et **synchronisé** entre appareils.
+- **10 leçons dédiées** écrites (Geek, Anglais, Art, Néerlandais, Orthographe — niveaux 1 et 2), avec
+  emoji qui « pop » et texte qui apparaît en douceur. Les packs sans leçon vont directement aux
+  questions, comme avant.
 ## v118 — Bannières concours : nouvelles images (chevaux à droite) + texte à gauche
 - Images mises à jour (chevaux à droite, moitié gauche dégagée) et **remappées** correctement
   (beauté, puissance, joute, course, agilité, magie).

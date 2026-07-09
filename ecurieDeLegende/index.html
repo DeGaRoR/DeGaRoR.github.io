@@ -43,6 +43,7 @@
         <span class="dia">💎</span>
         <b id="solde-nb">0</b>
       </div>
+      <button class="reglages-btn" id="btn-hub" aria-label="Mes résultats">🏆</button>
       <button class="reglages-btn" id="btn-reglages" aria-label="Réglages">⚙️</button>
     </div>
   </header>
@@ -87,12 +88,15 @@
       <div id="defi-zone"></div>
     </section>
     <section class="ecran" id="ecran-scores">
-      <h2 class="section-titre titre">Scores <span>par matière</span></h2>
+      <h2 class="section-titre titre">🏆 Mes résultats</h2>
+      <div class="hub-actions">
+        <button class="hub-btn" id="btn-classement"><span class="hb-ico">🌍</span><span class="hb-lib">Classement<br>mondial</span></button>
+        <button class="hub-btn" id="btn-chouchous"><span class="hb-ico">💖</span><span class="hb-lib">Mes<br>chouchous</span></button>
+      </div>
+      <h3 class="hub-sub">📊 Réussite par matière</h3>
       <div id="scores-matieres"></div>
       <div id="scores-packs"></div>
       <div id="scores-resume"></div>
-      <button class="feuille-fermer" id="btn-classement" style="margin-top:16px;">🌍 Classement mondial</button>
-      <button class="feuille-fermer mt-1" id="btn-chouchous">💖 Mes chouchous</button>
     </section>
     <section class="ecran" id="ecran-concours">
       <h2 class="section-titre titre">Concours <span>choisis ton champion</span></h2>
@@ -344,6 +348,7 @@
     <h2 class="titre" style="margin-bottom:12px;">Réglages</h2>
     <p class="d-desc" style="color:var(--txt-doux);">Tes scores détaillés par matière sont dans l'onglet 📊 Scores.</p>
     <div id="reglage-niveau"></div>
+    <button class="feuille-fermer mt-1" id="btn-partager">🔗 Partager ce joueur (autre appareil)</button>
     <div id="reglage-version" class="reg-ver"></div>
     <button class="feuille-fermer mt-1" id="btn-forcemaj">🔄 Forcer la mise à jour (vider le cache)</button>
     <button class="feuille-fermer mt-1" id="btn-cloud-test">☁️ Tester la connexion au cloud</button>
