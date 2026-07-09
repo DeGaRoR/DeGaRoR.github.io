@@ -86,6 +86,7 @@ function enregistrerTemps(sec){
   j.dev=j.dev||{};j.dev[DEV]=(j.dev[DEV]||0)+sec;
   const m=metriquesActuelles();j.snap={bonnes:m.bonnes,cartes:m.cartes,etoiles:m.etoiles};
   etat.temps.jours[k]=j;
+  sauver();   // persister le temps immédiatement : sinon un re-login relit un temps périmé (contournement de la limite)
 }
 let chronoTimer=null,chronoDernier=0,enJeu=false,sessionRef=null,sessionSec=0;
 function demarrerChrono(){
@@ -102,23 +103,20 @@ function ecranTempsEcoule(){
   arreterChrono();
   const box=document.getElementById('temps-fond');if(!box)return;
   const MSGS=["Bravo, tu as super bien travaillé aujourd'hui ! 🌟","Quelle belle séance ! Tes chevaux sont fiers de toi 🐴","Génial ! On se retrouve demain pour de nouvelles aventures 🌙","Tu as bien mérité ta pause. À très vite ! ✨","Beau travail ! Repose-toi bien 💛"];
-  let sec,dExos=null,dBonnes=0,dTirages=null,dCartes=0,titreRecap;
-  if(sessionRef){
-    sec=sessionSec;dExos=Math.max(0,(etat.exos||0)-sessionRef.exos);dBonnes=Math.max(0,(etat.bonnes||0)-sessionRef.bonnes);dTirages=Math.max(0,(etat.tirages||0)-sessionRef.tirages);dCartes=Math.max(0,nbUniques()-sessionRef.cartes);titreRecap="Ta séance";
-  }else{
-    sec=tempsAujourdhui(profilActif.id);let p={bonnes:0,cartes:0};try{p=progresPeriode(profilActif.id,1);}catch(e){}dBonnes=p.bonnes;dCartes=p.cartes;titreRecap="Aujourd'hui";
-  }
+  // Écran "heure de la pause" = récap du JOUR (la session courante peut être vide si la limite
+  // était déjà atteinte à la connexion). On lit les totaux persistés du jour, toujours parlants.
+  const sec=tempsAujourdhui(profilActif.id);
+  let p={bonnes:0,cartes:0};try{p=progresPeriode(profilActif.id,1);}catch(e){}
+  const dBonnes=p.bonnes||0,dCartes=p.cartes||0,titreRecap="Aujourd'hui";
   const items=[['⏱️',fmtDuree(sec),'de jeu']];
-  if(dExos!=null)items.push(['✏️',dExos,'exercice'+(dExos>1?'s':'')]);
   items.push(['✅',dBonnes,'bonne'+(dBonnes>1?'s':'')+' rép.']);
-  if(dTirages&&dTirages>0)items.push(['🎴',dTirages,'tirage'+(dTirages>1?'s':'')]);
   if(dCartes>0)items.push(['🐴',dCartes,'nouv. carte'+(dCartes>1?'s':'')]);
   const recapHTML='<div class="temps-recap-t">'+titreRecap+'</div><div class="temps-recap">'+items.map(r=>'<div class="tr-item"><span class="tr-ico">'+r[0]+'</span><b>'+r[1]+'</b><span class="tr-lbl">'+r[2]+'</span></div>').join('')+'</div>';
   const t=box.querySelector('.temps-titre');if(t)t.textContent="C'est l'heure de la pause ! 🌙";
   const m=box.querySelector('.temps-msg');if(m)m.innerHTML=recapHTML+'<div class="temps-mot">'+MSGS[Math.floor(Math.random()*MSGS.length)]+'</div>';
   box.classList.add('on');
 }
-function retourLogin(){arreterChrono();const a=$('#accueil');if(a){a.style.display='';a.classList.remove('parti');}renderAccueil();}
+function retourLogin(){if(enJeu)chronoFlush();arreterChrono();const a=$('#accueil');if(a){a.style.display='';a.classList.remove('parti');}renderAccueil();}
 /* Agrégats pour l'espace parent */
 function tempsPeriode(id,jours){const e=profilEtat(id),now=new Date();let sec=0,sess=0;for(let i=0;i<jours;i++){const d=new Date(now);d.setDate(now.getDate()-i);const k=jourISO(d);sec+=tjSec(e,k);sess+=tjSess(e,k);}return {sec,sessions:sess};}
 function metriqueDernier(tp){const J=(tp&&tp.jours)||{},ks=Object.keys(J).sort();for(let i=ks.length-1;i>=0;i--){const s=J[ks[i]]&&J[ks[i]].snap;if(s&&s.bonnes!=null)return s;}return {bonnes:0,cartes:0,etoiles:0};}
@@ -206,7 +204,7 @@ async function cloudPush(){
   catch(e){majSync(navigator.onLine?'err':'off');}
 }
 function compteVersProfil(row){return {id:row.id,nom:row.prenom,age:row.age,emoji:row.avatar,couleur:row.couleur,niveau:row.niveau,etat:normaliserEtat(row.etat||etatVide()),cloud:true,pin:row._pin,code:row._code||codeFamille()};}
-const VERSION_APP='v132';
+const VERSION_APP='v137';
    // exemplaires cumulés pour ★ à ★★★★★ (évolution plus lente)
 const COUT_TIRAGE=120,SOLDE_DEPART=200;const COUT_TIRAGE10=COUT_TIRAGE*9;
 const PITY_EPIC=20,PITY_LEGEND=100;   // pity : épique+ garanti tous les 20, légendaire+ tous les 100
@@ -216,8 +214,8 @@ const GAIN_BONNE=6,GAIN_ESSAI=2,BONUS_SERIE=20,PALIER_SERIE=5;   // récompense 
 const REC_AV1=5,REC_AV2=1;   // aventure : diamants au 1er coup, un peu au 2e, rien ensuite
 const XP_BONNE=10,XP_ESSAI=3,PAS_XP=120;
 const SOFTCAP1=600,SOFTCAP2=1400;
-function jourDefi(){const d=new Date().toISOString().slice(0,10);if(!etat.defiJour||etat.defiJour.date!==d)etat.defiJour={date:d,gagne:0};return etat.defiJour;}
-function crediterDefi(g){const j=jourDefi();const reel=Math.max(1,Math.round(g));etat.crins+=reel;j.gagne+=reel;etat.exos=(etat.exos||0)+1;if(typeof verifierJalons==='function')verifierJalons(true);if(typeof montrerGainAnim==='function')montrerGainAnim(reel);return reel;}
+function jourDefi(){const d=ymd(new Date());if(!etat.defiJour||etat.defiJour.date!==d)etat.defiJour={date:d,gagne:0};return etat.defiJour;}
+function crediterDefi(g){const j=jourDefi();const reel=Math.max(0,Math.round(g));etat.crins+=reel;j.gagne+=reel;etat.exos=(etat.exos||0)+1;if(typeof verifierJalons==='function')verifierJalons(true);if(reel>0&&typeof montrerGainAnim==='function')montrerGainAnim(reel);return reel;}
                           // 120 XP par niveau de matière
 
 /* ---- CONCOURS ---- */
@@ -349,6 +347,19 @@ function concoursDuJour(){
 }
 function ensureConcoursJour(){const d=ymd(new Date());if(etat.concours.date!==d){etat.concours={date:d,refresh:0,faits:{}};sauver();}}
 function coutRenouv(){return COUT_RENOUV_BASE*Math.pow(2,(etat.concours.refresh||0));}
+/* Compte à rebours jusqu'au prochain renouvellement journalier (minuit local) :
+   concours, marchand, défi du jour et compteur de temps se réinitialisent tous à ce moment. */
+function msAvantMinuit(){const n=new Date();return new Date(n.getFullYear(),n.getMonth(),n.getDate()+1,0,0,0,0)-n;}
+function fmtReset(ms){if(ms<60000)return "moins d'une minute";const tot=Math.floor(ms/60000),h=Math.floor(tot/60),m=tot%60;return h>0?(h+'h'+String(m).padStart(2,'0')+'min'):(m+'min');}
+var _jourCompteur=ymd(new Date());
+function majCompteurReset(){
+  var txt='🕐 Nouveaux concours et marchand dans <b>'+fmtReset(msAvantMinuit())+'</b>';
+  [$('#reset-compteur'),$('#reset-compteur-m')].forEach(function(e){if(e)e.innerHTML=txt;});
+  var d=ymd(new Date());
+  if(d!==_jourCompteur){_jourCompteur=d;ensureConcoursJour();ensureMarchandJour();
+    if($('#ecran-concours')&&$('#ecran-concours').classList.contains('actif'))renderConcours();
+    if($('#marchand-fond')&&$('#marchand-fond').classList.contains('on'))renderMarchand();}
+}
 let toastTimer;function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('on'),2000);}
 
 /* ================================================================
@@ -592,7 +603,7 @@ function carteHTML(c,n,{anim=false,palier=null}={}){const p=palier!=null?palier:
 function carteMystereHTML(c){return `<div class="tcarte verrou" data-r="${c.rarete}" data-p="0"><div class="tc-art">?</div><div class="tc-scrim-top"></div><div class="tc-scrim-bot"></div><div class="tc-frame"></div><div class="tc-top"><span></span><div class="tc-stars">${etoilesHTML(0)}</div></div><div class="tc-bottom"><div class="tc-nom">${c.nom}</div><div class="tc-rar">${RARETES[c.rarete].nom}</div><div class="tc-fam">${(c.familles||[]).map(f=>FAMILLES[f]?FAMILLES[f].nom:"").filter(Boolean).join(", ")}</div><div class="tc-meta">${ROYAUMES[c.royaume]?ROYAUMES[c.royaume].ico:""}</div></div></div>`;}
 
 /* 7. ÉCRANS */
-function majSolde(anim){$('#solde-nb').textContent=etat.crins;if(anim){const s=$('#solde');s.classList.remove('pulse');void s.offsetWidth;s.classList.add('pulse');}$('#btn-tirer').disabled=etat.crins<COUT_TIRAGE;const b10=$('#btn-tirer10');if(b10)b10.disabled=etat.crins<COUT_TIRAGE10;const bs=$('#btn-tirer-super');if(bs)bs.disabled=(etat.renommee||0)<COUT_SUPER_RENOM;const rn=$('#tirage-renom-nb');if(rn)rn.textContent=etat.renommee||0;const cn=$('#tirage-crins-nb');if(cn)cn.textContent=etat.crins;}
+function majSolde(anim){$('#solde-nb').textContent=etat.crins;const _ah=$('#av-hud');if(_ah)_ah.innerHTML='<span>💎 '+etat.crins+'</span><span>⭐ '+(etat.renommee||0)+'</span>';if(anim){const s=$('#solde');s.classList.remove('pulse');void s.offsetWidth;s.classList.add('pulse');}$('#btn-tirer').disabled=etat.crins<COUT_TIRAGE;const b10=$('#btn-tirer10');if(b10)b10.disabled=etat.crins<COUT_TIRAGE10;const bs=$('#btn-tirer-super');if(bs)bs.disabled=(etat.renommee||0)<COUT_SUPER_RENOM;const rn=$('#tirage-renom-nb');if(rn)rn.textContent=etat.renommee||0;const cn=$('#tirage-crins-nb');if(cn)cn.textContent=etat.crins;}
 /* Feedback visuel du gain : « +N 💎 » qui monte et s'estompe + une pluie de diamants
    dont le nombre grandit avec la somme, pour qu'une grosse récompense se REMARQUE. */
 let ancreGain=null;   // bouton de réponse cliqué, pour y centrer l'animation de gain
@@ -788,6 +799,7 @@ function renderConcours(){
     if(!fait)el.onclick=()=>ouvrirSelecteurPeloton(co);
     box.appendChild(el);
   });
+  majCompteurReset();
 }
 function renouvelerConcours(){
   const cout=coutRenouv();
@@ -862,6 +874,7 @@ function renderMarchand(){
     if(!achete)row.querySelector('.ma-acheter').onclick=()=>acheterMarchand(o.slot);
     box.appendChild(row);
   });
+  majCompteurReset();
 }
 function acheterMarchand(slot){
   const o=marchandDuJour().list[slot];
@@ -914,8 +927,8 @@ function aFiche(id){return !!ficheDe(id);}
 let packActif=null,recentQ=[],jeuCompteur=0;
 const SEUIL_MAITRISE=2;
 /* Niveaux 2 : questions de l'année supérieure. Chaque pack a maintenant 2 niveaux à maîtriser. */
-const PACK_NIVEAUX={geek:()=>[BANK_GEEK,BANK_GEEK_N2],anglais:()=>[BANK_ANGLAIS,BANK_ANGLAIS_N2],ortho:()=>{const h=Math.ceil(ORTHO_ITEMS.length/2);return [ORTHO_ITEMS.slice(0,h),ORTHO_ITEMS.slice(h)];},art:()=>[BANK_ART,BANK_ART_N2],neerlandais:()=>[BANK_NEERLANDAIS,BANK_NEERLANDAIS_N2]};
-const PACK_KEY={geek:q=>q.q,anglais:q=>q.q,ortho:it=>it.r,art:q=>q.q,neerlandais:q=>q.q};
+const PACK_NIVEAUX={geek:()=>[BANK_GEEK,BANK_GEEK_N2],anglais:()=>[BANK_ANGLAIS,BANK_ANGLAIS_N2],ortho:()=>{const h=Math.ceil(ORTHO_ITEMS.length/2);return [ORTHO_ITEMS.slice(0,h),ORTHO_ITEMS.slice(h)];},art:()=>[BANK_ART,BANK_ART_N2],neerlandais:()=>[BANK_NEERLANDAIS,BANK_NEERLANDAIS_N2],trivia:()=>[BANK_TRIVIA,BANK_TRIVIA_N2]};
+const PACK_KEY={geek:q=>q.q,anglais:q=>q.q,ortho:it=>it.r,art:q=>q.q,neerlandais:q=>q.q,trivia:q=>q.q};
 function theoriePack(p){if(!p)return '';const t=PACK_THEO_NIV[p.id];if(t){const nv=packNiv(p.id);return t[Math.min(nv,t.length)-1];}return p.theorie||'';}
 function nivLabel(p){if(!p)return '';return (PACK_THEO_NIV[p.id]||PACK_NIVEAUX[p.id])?('Niveau '+packNiv(p.id)):(p.niv||'');}
 
@@ -929,6 +942,19 @@ function packTermine(z,meta){z.innerHTML='<div class="lecon"><div class="quiz-te
 function maitriser(id,key){if(!PACK_NIVEAUX[id])return;const pp=packProg0(id),c=packCounts(id);c[key]=(c[key]||0)+1;const p=progPack(id);if(p&&p.fini&&!pp.done[p.niv]){pp.done[p.niv]=1;const dia=180+p.niv*30,ren=15+p.niv*5;etat.crins+=dia;etat.renommee=(etat.renommee||0)+ren;etat.renommeeTotale=(etat.renommeeTotale||0)+ren;majSolde(true);toast('🏆 Niveau '+p.niv+' maîtrisé ! +'+dia+' 💎 +'+ren+' ⭐');const banks=PACK_NIVEAUX[id]();if(p.niv<banks.length)pp.niv=p.niv+1;}sauver();}
 
 function PMULT(){return packActif?packActif.mult:1;}
+/* Multiplicateur de SÉRIE (chaîne de bonnes réponses) : la valeur vit dans la chaîne, pas dans la
+   réponse isolée. Décourage le spam (une erreur casse tout) et récompense la concentration.
+   Base à ×1 = identique à avant → pas de régression ni de découragement pour qui débute. */
+function multSerie(){const s=serieCourante;return s>=10?5:s>=7?4:s>=5?3:s>=3?2:1;}
+var _serieCasse=0,_bonusChaine=0;
+/* Bonus de FIN de chaîne : encaissé quand une série de ≥3 bonnes réponses se casse. Récompense la
+   longueur (impossible à spammer) et fait gagner la concentration au débit/minute. Facteur 0.35 +
+   plafond (L-2 capé à 10) pour ne pas gonfler la distribution globale de diamants. */
+function chaineBonus(L){return L>=3?Math.round(GAIN_BONNE*PMULT()*Math.min(L-2,10)*0.35):0;}
+function gainRep(bon,base){base=base||GAIN_BONNE;if(bon){serieCourante++;_serieCasse=0;_bonusChaine=0;return Math.round(base*PMULT()*multSerie());}_serieCasse=serieCourante;_bonusChaine=chaineBonus(serieCourante);serieCourante=0;return _bonusChaine;}
+function comboBadge(){const m=multSerie();return m>1?(' · <b class="qf-combo">🔥 Série ×'+m+'</b>'):'';}
+/* Ligne de gain : bonne réponse = base + combo ; mauvaise = rien (0), sauf encaissement de série. */
+function gainSlot(bon,g){if(bon)return '+'+g+' Diamants'+comboBadge();if(_bonusChaine>0)return '<b class="qf-combo">🔗 Série de '+_serieCasse+' encaissée : +'+g+' 💎</b>';return '';}
 function nivDefi(){return (profilActif.niveau||5)+((packActif&&packActif.nivOffset)||0);}
 function norm(s){return (s||'').trim().toLowerCase();}
 /* melange: définition unique (version copie, plus haut) */
@@ -960,10 +986,10 @@ function exoBankQuiz(z,meta,mid,packId){
     box.querySelectorAll('button').forEach(x=>{x.disabled=true;if(x.textContent===q.r)x.classList.add('bon');});
     if(!bon)b.classList.add('faux');
     const s=statMatiere(mid);s.tot++;const sp=statPack(packId);sp.tot++;if(bon)sp.ok++;let g,msg;
-    if(bon){serieCourante++;s.ok++;etat.bonnes++;g=Math.round(GAIN_BONNE*PMULT());msg=BRAVOS[rnd(0,BRAVOS.length-1)];}
-    else{serieCourante=0;g=GAIN_ESSAI;msg=ENCOURAGE[rnd(0,ENCOURAGE.length-1)];}
+    if(bon){s.ok++;etat.bonnes++;g=gainRep(true);msg=BRAVOS[rnd(0,BRAVOS.length-1)];}
+    else{g=gainRep(false);msg=ENCOURAGE[rnd(0,ENCOURAGE.length-1)];}
     g=crediterDefi((ancreGain=b,g));etat.xp[mid]=(etat.xp[mid]||0)+(bon?XP_BONNE:XP_ESSAI);sauver();majSolde(true);
-    feedbackDefi(bon,msg,`${q.e?`<div class="qf-astuce">💡 ${q.e}</div>`:''}`,`+${g} Diamants`,()=>packExo());
+    feedbackDefi(bon,msg,`${q.e?`<div class="qf-astuce">💡 ${q.e}</div>`:''}`,gainSlot(bon,g),()=>packExo());
   };box.appendChild(b);});
 }
 /* Origines / Chevaux : n'accepter que les vraies origines géographiques et les catégories établies
@@ -982,10 +1008,10 @@ function exoOrigines(z){
     box.querySelectorAll('button').forEach(x=>{x.disabled=true;if(x.textContent===lab(bonR))x.classList.add('bon');});
     if(!bon)b.classList.add('faux');
     const mid='geo';const s=statMatiere(mid);s.tot++;const sp=statPack('origines');sp.tot++;if(bon)sp.ok++;let g,msg;
-    if(bon){serieCourante++;s.ok++;etat.bonnes++;g=Math.round(GAIN_BONNE*PMULT());msg=BRAVOS[rnd(0,BRAVOS.length-1)];}
-    else{serieCourante=0;g=GAIN_ESSAI;msg=cible.nom+" vient de "+ROYAUMES[bonR].nom+".";}
+    if(bon){s.ok++;etat.bonnes++;g=gainRep(true);msg=BRAVOS[rnd(0,BRAVOS.length-1)];}
+    else{g=gainRep(false);msg=cible.nom+" vient de "+ROYAUMES[bonR].nom+".";}
     g=crediterDefi((ancreGain=b,g));etat.xp[mid]=(etat.xp[mid]||0)+(bon?XP_BONNE:XP_ESSAI);sauver();majSolde(true);
-    feedbackDefi(bon,msg,`<div class="qf-astuce">💡 ${cible.desc||''}</div>`,`+${g} Diamants`,()=>packExo());
+    feedbackDefi(bon,msg,`<div class="qf-astuce">💡 ${cible.desc||''}</div>`,gainSlot(bon,g),()=>packExo());
   };box.appendChild(b);});
 }
 
@@ -1026,10 +1052,10 @@ function exoRaces(z){
     box.querySelectorAll('button').forEach(x=>{x.disabled=true;if(x.textContent===bonne)x.classList.add('bon');});
     if(!bon)b.classList.add('faux');
     const mid='sciences';const s=statMatiere(mid);s.tot++;const sp=statPack('races');sp.tot++;if(bon)sp.ok++;let g,msg;
-    if(bon){serieCourante++;s.ok++;etat.bonnes++;g=Math.round(GAIN_BONNE*PMULT());msg=BRAVOS[rnd(0,BRAVOS.length-1)];}
-    else{serieCourante=0;g=GAIN_ESSAI;msg="C'était : <b>"+bonne+"</b>";}
+    if(bon){s.ok++;etat.bonnes++;g=gainRep(true);msg=BRAVOS[rnd(0,BRAVOS.length-1)];}
+    else{g=gainRep(false);msg="C'était : <b>"+bonne+"</b>";}
     g=crediterDefi((ancreGain=b,g));etat.xp[mid]=(etat.xp[mid]||0)+(bon?XP_BONNE:XP_ESSAI);sauver();majSolde(true);
-    feedbackDefi(bon,msg,`${theoWrong?`<div class="qf-astuce">💡 ${theoWrong}</div>`:''}${aFiche(cible.id)?'<button class="fiche-lien" onclick="ouvrirFiche(\''+cible.id+'\')">📖 Découvrir son histoire</button>':''}`,`+${g} Diamants`,()=>packExo());
+    feedbackDefi(bon,msg,`${theoWrong?`<div class="qf-astuce">💡 ${theoWrong}</div>`:''}${aFiche(cible.id)?'<button class="fiche-lien" onclick="ouvrirFiche(\''+cible.id+'\')">📖 Découvrir son histoire</button>':''}`,gainSlot(bon,g),()=>packExo());
   };box.appendChild(b);});
 }
 function exoOrtho(z){
@@ -1039,10 +1065,10 @@ function exoOrtho(z){
   const valider=()=>{
     if(fini)return;const rep=(inp.value||'').trim();if(!rep)return;fini=true;inp.disabled=true;
     const bon=norm(rep)===norm(it.r);if(bon)maitriser('ortho',it.r);const mid='francais';const s=statMatiere(mid);s.tot++;const sp=statPack('ortho');sp.tot++;if(bon)sp.ok++;let g,msg;
-    if(bon){serieCourante++;s.ok++;etat.bonnes++;g=Math.round(GAIN_BONNE*PMULT());msg="Parfait, sans faute ! ✍️";}
-    else{serieCourante=0;g=GAIN_ESSAI;msg="On écrit : <b>"+it.r+"</b>";}
+    if(bon){s.ok++;etat.bonnes++;g=gainRep(true);msg="Parfait, sans faute ! ✍️";}
+    else{g=gainRep(false);msg="On écrit : <b>"+it.r+"</b>";}
     g=crediterDefi((ancreGain=$('#ortho-ok'),g));etat.xp[mid]=(etat.xp[mid]||0)+(bon?XP_BONNE:XP_ESSAI);sauver();majSolde(true);
-    feedbackDefi(bon,msg,`${!bon?`<div class="qf-astuce">💡 ${theorieCour}</div>`:''}`,`+${g} Diamants`,()=>packExo());
+    feedbackDefi(bon,msg,`${!bon?`<div class="qf-astuce">💡 ${theorieCour}</div>`:''}`,gainSlot(bon,g),()=>packExo());
   };
   $('#ortho-ok').onclick=valider;inp.addEventListener('keydown',e=>{if(e.key==='Enter')valider();});
 }
@@ -1050,7 +1076,7 @@ function exoOrtho(z){
 function lancerJeuDefi(z){z.innerHTML='';JEUX[rnd(0,JEUX.length-1)].lancer(z,packExo);const r=document.createElement('button');r.className='defi-retour';r.textContent='← Packs';r.onclick=retourPacks;z.insertBefore(r,z.firstChild);}
 function nivCourt(p){const n=(p&&PACK_NIVEAUX[p.id])?packNiv(p.id):null;return n?('nv. '+n):'';}
 function enteteFinDefi(p){const nv=nivCourt(p);const theo=theoriePack(p);theorieCour=theo||'';const nvH=nv?`<span class="qt-niv">${nv}</span>`:'';const aLecon=!!leconPour(p.id,packNiv(p.id));const thH=(aLecon||theo)?`<button class="qt-theo" id="pack-theo-btn" onclick="${aLecon?'revoirLecon()':'afficherTheorie()'}">?</button>${theo?'<div class="pack-theo-panel" id="pack-theo-panel" style="display:none"></div>':''}`:'<span class="qt-sp"></span>';return `${nvH}</div>${thH}</div>`;}
-function feedbackDefi(bon,msg,astuce,gain,next){const fb=$('#q-feedback');fb.innerHTML=`<div class="qf-msg ${bon?'bon':'faux'}">${msg}</div>${bon?'':(astuce||'')}<div class="qf-gain">${gain}</div>${bon?'':'<button class="defi-continuer">Suivant ›</button>'}`;fb.classList.add('show');if(bon){if(feedbackDefi._t)clearTimeout(feedbackDefi._t);feedbackDefi._t=setTimeout(function(){fb.classList.remove('show');next();},1000);}else{const b=fb.querySelector('.defi-continuer');if(b)b.onclick=function(){fb.classList.remove('show');next();};}}
+function feedbackDefi(bon,msg,astuce,gain,next){const fb=$('#q-feedback');fb.innerHTML=`<div class="qf-msg ${bon?'bon':'faux'}">${msg}</div>${bon?'':(astuce||'')}${gain?`<div class="qf-gain">${gain}</div>`:''}${bon?'':'<button class="defi-continuer">Suivant ›</button>'}`;fb.classList.add('show');if(bon){if(feedbackDefi._t)clearTimeout(feedbackDefi._t);feedbackDefi._t=setTimeout(function(){fb.classList.remove('show');next();},1000);}else{const b=fb.querySelector('.defi-continuer');if(b)b.onclick=function(){fb.classList.remove('show');next();};}}
 let leconSlides=[],leconI=0,leconDone=null,leconTitre='';
 function fusionLeconVue(a,b){const r={};for(const p of new Set([...Object.keys(a||{}),...Object.keys(b||{})])){r[p]={};const na=(a||{})[p]||{},nb=(b||{})[p]||{};for(const n of new Set([...Object.keys(na),...Object.keys(nb)]))r[p][n]=na[n]||nb[n];}return r;}
 function leconPour(id,niv){const L=(typeof LECONS!=='undefined')&&LECONS[id];if(!L)return null;return L[Math.min(niv,L.length)-1]||null;}
@@ -1070,6 +1096,7 @@ function packExo(){
   if(packActif.id==='geek')return exoBankQuiz(z,'🤖 Geek','sciences','geek');
   if(packActif.id==='anglais')return exoBankQuiz(z,'🇬🇧 Anglais · débutant','francais','anglais');
   if(packActif.id==='neerlandais')return exoBankQuiz(z,'🇳🇱 Néerlandais · débutant','francais','neerlandais');
+  if(packActif.id==='trivia')return exoBankQuiz(z,'🧠 Trivial','histoire','trivia');
   if(packActif.id==='art')return exoBankQuiz(z,"🎨 Histoire de l'art",'histoire','art');
   if(packActif.id==='ortho')return exoOrtho(z);
   defiExercice(z);
@@ -1113,10 +1140,11 @@ function repondre(btn,val){
   const bon=val===qCour.r,mid=matSource.id,s=statMatiere(mid);s.tot++;
   $$('#q-reponses button').forEach(b=>{b.disabled=true;if(b.textContent===qCour.r)b.classList.add('bon');});
   let crinsGain,xpGain,msg,cls;
-  if(bon){serieCourante++;s.ok++;etat.bonnes++;const bonus=(serieCourante%PALIER_SERIE===0)?BONUS_SERIE:0;crinsGain=Math.round((GAIN_BONNE+bonus+Math.max(0,niveauDe(etat.xp[mid])-1)*2)*PMULT());xpGain=XP_BONNE+(mid==='maths'?(diffMaths()-1)*2:0);msg=BRAVOS[rnd(0,BRAVOS.length-1)]+(bonus?` 🔥 Série ×${serieCourante} !`:'');cls='bon';}
-  else{btn.classList.add('faux');serieCourante=0;crinsGain=GAIN_ESSAI;xpGain=XP_ESSAI;msg=ENCOURAGE[rnd(0,ENCOURAGE.length-1)];cls='faux';}
+  if(bon){s.ok++;etat.bonnes++;crinsGain=gainRep(true,GAIN_BONNE+Math.max(0,niveauDe(etat.xp[mid])-1)*2);xpGain=XP_BONNE+(mid==='maths'?(diffMaths()-1)*2:0);const _m=multSerie();msg=BRAVOS[rnd(0,BRAVOS.length-1)]+(_m>1?` 🔥 Série ×${_m} !`:'');cls='bon';}
+  else{btn.classList.add('faux');crinsGain=gainRep(false);xpGain=XP_ESSAI;msg=ENCOURAGE[rnd(0,ENCOURAGE.length-1)];cls='faux';}
   crinsGain=crediterDefi((ancreGain=btn,crinsGain));etat.xp[mid]=(etat.xp[mid]||0)+xpGain;
-  feedbackDefi(cls==='bon',msg,`${(qCour.exp||(cls==='faux'&&theorieCour))?`<div class="qf-astuce">💡 ${qCour.exp||theorieCour}</div>`:''}`,`+${crinsGain} Diamants · +${xpGain} XP`,()=>packExo());
+  const _gs=gainSlot(cls==='bon',crinsGain);
+  feedbackDefi(cls==='bon',msg,`${(qCour.exp||(cls==='faux'&&theorieCour))?`<div class="qf-astuce">💡 ${qCour.exp||theorieCour}</div>`:''}`,`${_gs}${_gs?' · ':''}+${xpGain} XP`,()=>packExo());
   sauver();majSolde(true);
 }
 
@@ -1219,6 +1247,7 @@ $('#concours-fond').onclick=e=>{if(e.target.id==='concours-fond')$('#concours-fo
 $('#btn-marchand').onclick=()=>{renderMarchand();$('#marchand-fond').classList.add('on');};
 $('#marchand-fermer').onclick=()=>$('#marchand-fond').classList.remove('on');
 $('#marchand-fond').onclick=e=>{if(e.target.id==='marchand-fond')$('#marchand-fond').classList.remove('on');};
+majCompteurReset();setInterval(majCompteurReset,30000);
 $('#reveal').onclick=fermerReveal;
 $('#d-fermer').onclick=()=>$('#feuille-fond').classList.remove('on');
 $('#feuille-fond').onclick=e=>{if(e.target.id==='feuille-fond')$('#feuille-fond').classList.remove('on');};
@@ -1451,6 +1480,8 @@ function avPanzoom(svg,opt){
 }
 function avInitCartes(){
   if(avInit)return;avInit=true;
+  $('#av-next').addEventListener('click',avIntroSuivant);   // intro toujours avançable, même si l'init des cartes échoue
+  try{
   avPZM=avPanzoom($('#svg-monde'),{minW:120,maxW:3600,bounds:{x:0,y:0,w:3600,h:1800}});
   avPZB=avPanzoom($('#svg-belgique'),{minW:250,maxW:1000,bounds:{x:0,y:0,w:1000,h:863}});
   avPZF=avPanzoom($('#svg-france'),{minW:250,maxW:1000,bounds:{x:0,y:0,w:1000,h:863}});
@@ -1468,7 +1499,7 @@ function avInitCartes(){
   $('#mk-es').addEventListener('click',e=>{e.stopPropagation();if(paysFini(ETAPES_DE)){avMontrer('iberie');}else{toast('Termine d\'abord l\'Allemagne & les Pays-Bas ! 🇩🇪');}});
   $('#mk-fr').addEventListener('click',e=>{e.stopPropagation();if(paysFini(ETAPES_BE)){avMontrer('france');}else{toast('Termine d\'abord la Belgique ! 🇧🇪');}});
   avMajPins();
-  $('#av-next').addEventListener('click',avIntroSuivant);
+  }catch(e){}   // une carte/panzoom qui échoue ne doit jamais bloquer l'intro ni le reste
 }
 function avMascIntro(pays){mascPays=pays;mascI=0;etat.aventure.mascVue=etat.aventure.mascVue||{};$('#av-intro').style.display='';avMascAffiche();}
 function avMascAffiche(){const m=MASCOTTES[mascPays];setFondImg($('#av-slide'),m.img,'');$('#av-intro-txt').textContent=m.ecrans[mascI];$('#av-dots').innerHTML=m.ecrans.map((_,i)=>'<span class="'+(i===mascI?'on':'')+'"></span>').join('');$('#av-next').textContent=mascI===m.ecrans.length-1?'En route ! →':'Continuer ›';}
@@ -1500,7 +1531,7 @@ function avIntroSuivant(){
   avAfficheIntro();
 }
 function ouvrirAventure(){
-  avInitCartes();avMajPins();
+  avInitCartes();try{avMajPins();}catch(e){}
   if(!etat.aventure.introVu){avIntroI=0;$('#av-intro').style.display='';avAfficheIntro();}
   else{$('#av-intro').style.display='none';avMontrer('monde');}
 }
@@ -1775,9 +1806,12 @@ function avCompo(a){
   const CN=(CAPS.find(c=>c.id===CAP)||{}).nom||''+CN+'';
   const MUL=((typeof PAYS_MULT!=='undefined'&&AE&&PAYS_MULT[AE.pays])||1)*((typeof AMB_COMPO!=='undefined')?AMB_COMPO:1);
   const i=estP5()?1:0;
-  const consigne=Array.isArray(a.consigne)?a.consigne[i]:a.consigne;
+  // Pour les épreuves "cible", la consigne codait le nombre de base en dur (ex. 104) alors que
+  // la vraie condition est cible×MUL (ex. 125). On masque cette consigne redondante : l'Objectif
+  // ci-dessous affiche la valeur réelle calculée. Le narratif (bulle) garde le contexte.
+  const consigne=a.cible?'':(Array.isArray(a.consigne)?a.consigne[i]:a.consigne);
   const objectif=objectifCompo(a,i);
-  const consHTML='<div class="ae-consigne">'+consigne+'</div>'+(objectif?'<div class="ae-objectif">'+objectif+'</div>':'');
+  const consHTML=(consigne?'<div class="ae-consigne">'+consigne+'</div>':'')+(objectif?'<div class="ae-objectif">'+objectif+'</div>':'');
   const pMin=a.puissanceMin?Math.round(a.puissanceMin[i]*MUL):null;
   const contr=a.contrainte?a.contrainte[i]:null;
   const cible=a.cible?Math.round(a.cible[i]*MUL):null;const TOL=Math.max(12,Math.round(12*MUL));

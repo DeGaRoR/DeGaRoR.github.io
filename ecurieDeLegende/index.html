@@ -102,6 +102,7 @@
       <h2 class="section-titre titre">Concours <span>choisis ton champion</span></h2>
       <div class="renom-bandeau" id="renom-bandeau"></div>
       <button class="marchand-btn" id="btn-marchand">🛒 Marchand du jour — 3 cartes contre renommée</button>
+      <p class="reset-compteur" id="reset-compteur"></p>
       <div id="renouv-zone"></div>
       <div id="concours-liste"></div>
       <p class="concours-note">De nouveaux concours chaque jour ✨ · un essai chacun</p>
@@ -110,6 +111,7 @@
     <div id="av-intro" class="av-intro"><div class="av-slide" id="av-slide"></div>
       <div class="av-intro-panel"><p id="av-intro-txt"></p><div class="av-dots" id="av-dots"></div><button class="av-btn" id="av-next">Continuer ›</button></div>
     </div>
+    <div class="av-hud" id="av-hud"></div>
     <div class="av-carte" id="av-monde">
       <svg id="svg-monde" viewBox="1690 300 410 250" preserveAspectRatio="xMidYMid slice"><g><path class="pays des" d="M2412.1,543.5L2422.3,547.3L2429.8,546.0L2431.9,541.4L2439.8,539.9L2445.5,536.9L2447.5,528.9L2455.9,526.9L2457.5,523.4L2462.2,526.1L2465.2,526.4L2470.8,526.4L2478.3,528.6L2481.4,529.8L2488.6,526.6L2492.0,528.5L2495.2,523.9L2501.2,524.1L2502.7,522.6L2503.8,518.6L2508.1,515.1L2513.5,517.4L2512.4,520.5L2515.4,520.9L2514.5,529.3L2518.4,532.6L2521.9,530.5L2526.4,529.5L2532.6,525.0L2539.5,525.8L2549.8,525.8L2551.6,528.7L2545.8,529.8L2540.7,531.6L2529.2,532.8L2518.5,534.9L2512.6,539.3L2515.0,543.5L2516.1,548.5L2511.2,552.7L2511.6,556.5L2508.8,560.1L2499.3,559.8L2503.2,566.4L2496.9,568.9L2492.6,575.0L2493.2,581.0L2489.3,583.8L2485.6,582.9L2477.9,584.2L2476.8,587.0L2469.4,587.0L2463.8,592.6L2463.5,601.1L2450.5,605.3L2443.5,604.4L2441.5,606.6L2435.5,605.3L2425.5,606.8L2408.7,601.7L2417.8,592.6L2417.0,586.2L2409.4,584.5L2408.6,578.2L2405.4,570.2L2409.6,564.7L2405.3,563.2L2408.0,556.0L2412.1,543.5Z"/>
 <path class="pays tem" d="M1963.3,958.8L1965.7,966.2L1968.6,972.2L1970.9,975.5L1974.7,980.7L1981.3,979.9L1984.6,978.5L1990.2,979.9L1991.7,977.4L1994.2,971.6L2000.4,971.2L2000.9,969.4L2006.0,969.4L2005.1,973.0L2017.3,972.9L2017.5,979.2L2019.5,983.1L2018.0,989.1L2018.8,995.2L2022.1,998.9L2021.6,1010.8L2024.0,1009.9L2028.4,1010.2L2034.6,1008.7L2039.1,1009.3L2040.2,1012.4L2039.0,1017.2L2040.8,1021.9L2039.3,1025.7L2040.2,1029.1L2019.3,1029.0L2018.9,1060.8L2025.6,1069.0L2032.2,1075.2L2013.8,1079.3L1989.6,1077.9L1982.6,1073.1L1942.1,1073.5L1940.6,1074.2L1934.6,1069.7L1928.1,1069.4L1922.2,1071.1L1917.3,1073.0L1916.4,1066.7L1917.8,1057.9L1921.2,1048.8L1921.8,1044.5L1925.0,1035.5L1927.4,1031.4L1933.1,1024.8L1936.3,1020.4L1937.4,1013.0L1936.9,1007.3L1933.9,1003.7L1931.2,997.7L1928.8,991.7L1929.3,989.6L1932.4,985.6L1929.3,976.0L1927.3,969.3L1922.3,962.9L1923.2,961.0L1927.4,959.7L1930.2,959.8L1933.8,958.6L1963.3,958.8ZM1924.4,956.8L1921.8,957.9L1919.1,950.4L1923.2,946.1L1926.2,944.4L1930.0,947.8L1926.3,949.9L1924.7,952.5L1924.4,956.8Z"/>
@@ -370,6 +372,7 @@
   <div class="feuille">
     <h2 class="titre" style="margin-bottom:4px;">🛒 Marchand du jour</h2>
     <p class="d-desc aide" id="marchand-renom"></p>
+    <p class="reset-compteur" id="reset-compteur-m"></p>
     <div id="marchand-liste"></div>
     <p class="concours-note" style="margin-top:12px;">De nouvelles cartes chaque jour · payées avec la renommée des concours</p>
     <button class="feuille-fermer" id="marchand-fermer">Fermer</button>

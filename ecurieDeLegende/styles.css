@@ -264,6 +264,8 @@ nav.tabs button.actif::before{content:"";position:absolute;top:0;width:34px;heig
 .gain-dia{position:fixed;transform:translate(-50%,-50%);font-size:19px;pointer-events:none;z-index:99998;will-change:transform,opacity;animation:diaFloat 1.1s ease-out forwards;filter:drop-shadow(0 2px 4px #0007);}
 @keyframes diaFloat{0%{opacity:0;transform:translate(-50%,-50%) scale(.4) rotate(0);}18%{opacity:1;}100%{opacity:0;transform:translate(calc(-50% + var(--dx)),calc(-50% + var(--dy))) scale(1.05) rotate(20deg);}}
 .qf-gain{font-family:'Fredoka';font-weight:800;font-size:19px;color:#2a1e05;background:linear-gradient(180deg,#ffe38a,var(--or));border-radius:999px;padding:6px 16px;display:inline-block;margin:6px 0 2px;box-shadow:0 4px 14px -4px #f2b13488;}
+.qf-combo{color:#b3521a;font-weight:900;}
+.qf-casse{color:#7a6a4a;font-weight:600;font-size:.9em;}
 .scores-sous{font-family:'Fredoka';font-weight:700;font-size:15px;color:var(--txt);margin:14px 2px 8px;}
 #scores-matieres .scores-sous:first-child{margin-top:0;}
 .score-pack{display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--surface-2);border:1px solid #ffffff16;border-radius:12px;margin-bottom:7px;font-family:'Fredoka';}
@@ -428,6 +430,8 @@ nav.tabs button.actif::before{content:"";position:absolute;top:0;width:34px;heig
 .cc-etat.gagne{color:#8fe6a3;background:#8fe6a322;}
 .cc-etat.perdu{color:#ff9a9a;background:#ff9a9a22;}
 .concours-note{text-align:center;color:var(--txt-doux);font-size:12.5px;margin-top:8px;}
+.reset-compteur{display:block;text-align:center;margin:10px auto 6px;font-family:'Fredoka';font-weight:600;font-size:13px;color:var(--txt-doux);background:var(--surface-2);border:1px solid var(--line);border-radius:999px;padding:7px 14px;}
+.reset-compteur b{color:var(--or);font-weight:800;font-variant-numeric:tabular-nums;}
 .marchand-btn{width:100%;font-family:'Fredoka';font-weight:600;font-size:15px;color:#241c05;background:linear-gradient(180deg,#c8f2cf,#7fdc93);border:none;border-radius:14px;padding:13px;cursor:pointer;margin-bottom:16px;box-shadow:0 6px 18px -6px #4cbf6a88;}
 .renouv-btn{width:100%;font-family:'Fredoka';font-weight:600;font-size:14px;color:var(--txt);background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:12px;cursor:pointer;margin-bottom:14px;box-shadow:var(--halo);}
 .renouv-btn:active{transform:scale(.98);}
@@ -618,6 +622,8 @@ main.plein{padding:0 !important;overflow:hidden !important;}
 #ecran-aventure .av-sous-monde{top:14px;}
 #ecran-aventure #av-belgique .av-sous{color:#5a4632;}
 #ecran-aventure .av-retour{position:absolute;top:11px;left:10px;z-index:6;font-family:'Fredoka';font-weight:600;font-size:14px;color:var(--txt);background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:8px 13px;cursor:pointer;box-shadow:var(--ombre),var(--halo);}
+#ecran-aventure .av-hud{position:absolute;top:11px;right:10px;z-index:6;display:flex;gap:8px;font-family:'Fredoka';font-weight:700;font-size:14px;color:var(--txt);pointer-events:none;}
+#ecran-aventure .av-hud span{background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:8px 11px;box-shadow:var(--ombre),var(--halo);white-space:nowrap;}
 #ecran-aventure .av-retour:active{transform:translateY(1px);filter:brightness(1.1);}
 #ecran-aventure .av-boussole{position:absolute;bottom:14px;right:14px;width:54px;height:54px;pointer-events:none;opacity:.92;filter:drop-shadow(0 3px 6px #0004);background:none;}
 #ecran-aventure .av-intro{position:absolute;top:0;right:0;bottom:0;left:0;z-index:10;background:#0c0a18;}
@@ -875,7 +881,7 @@ main.plein{padding:0 !important;overflow:hidden !important;}
 .tuto-overlay{position:fixed;top:0;right:0;bottom:0;left:0;z-index:9999;background:rgba(10,8,25,.88);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:20px;}
 .tuto-box{background:linear-gradient(160deg,#241a4d,#1a1436);border:1px solid #ffffff26;border-radius:22px;max-width:440px;width:100%;padding:26px 22px 22px;text-align:center;position:relative;box-shadow:0 20px 60px #000a;}
 .tuto-skip{position:absolute;top:12px;right:14px;background:none;border:none;color:#ffffff7a;font-size:13px;cursor:pointer;}
-.tuto-pj{width:88px;height:88px;border-radius:50%;margin:4px auto 14px;background:#0004 center/cover;border:3px solid #ffd36e;box-shadow:0 6px 20px #0006;}
+.tuto-pj{width:88px;height:88px;border-radius:50%;margin:4px auto 14px;background-color:#0004;background-size:cover;background-position:center;border:3px solid #ffd36e;box-shadow:0 6px 20px #0006;}
 .tuto-txt{font-size:16px;line-height:1.5;color:#f3eeff;margin-bottom:16px;}
 .tuto-cartes{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-bottom:16px;}
 .tuto-c{width:92px;aspect-ratio:var(--ratio-carte);}

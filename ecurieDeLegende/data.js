@@ -518,6 +518,47 @@ const JALONS=[
 const BRAVOS=["Bien joué, tu as réfléchi !","Belle stratégie !","Ça, c'est de la persévérance !","Ton entraînement paie !","Super raisonnement !","Tu maîtrises de mieux en mieux !"];
 const ENCOURAGE=["Pas encore — mais chaque essai t'apprend !","L'erreur fait partie du chemin 💪","Presque ! Regarde l'astuce.","Tu progresses en essayant.","Bien tenté ! On retient et on continue."];
 const NIV1='Niveau 1 · ~10 ans';
+/* Pack "Trivial" — culture générale niveau début du secondaire (+200%) */
+const BANK_TRIVIA=[
+ {q:"Quelle est la capitale de l'Australie ?",r:"Canberra",choix:["Canberra","Sydney","Melbourne","Perth"],e:"Beaucoup pensent à Sydney, mais la capitale est Canberra."},
+ {q:"Quel est le plus grand océan du monde ?",r:"l'océan Pacifique",choix:["l'océan Pacifique","l'océan Atlantique","l'océan Indien","l'océan Arctique"]},
+ {q:"Sur quel continent se trouve l'Égypte ?",r:"l'Afrique",choix:["l'Afrique","l'Asie","l'Europe","l'Océanie"]},
+ {q:"Quelle chaîne de montagnes sépare l'Europe de l'Asie ?",r:"l'Oural",choix:["l'Oural","les Alpes","l'Himalaya","les Andes"]},
+ {q:"Quel pays a la forme d'une botte ?",r:"l'Italie",choix:["l'Italie","la Grèce","l'Espagne","le Portugal"]},
+ {q:"Quel est le plus grand désert chaud du monde ?",r:"le Sahara",choix:["le Sahara","le Gobi","le Kalahari","l'Atacama"]},
+ {q:"Qui fut le premier empereur des Français ?",r:"Napoléon Bonaparte",choix:["Napoléon Bonaparte","Louis XIV","Charlemagne","Jules César"]},
+ {q:"Quel peuple a construit les grandes pyramides de Gizeh ?",r:"les Égyptiens",choix:["les Égyptiens","les Romains","les Grecs","les Mayas"]},
+ {q:"En quelle année a commencé la Révolution française ?",r:"1789",choix:["1789","1515","1914","1492"],e:"1789 : la prise de la Bastille le 14 juillet."},
+ {q:"Qui atteignit l'Amérique en 1492 pour les Européens ?",r:"Christophe Colomb",choix:["Christophe Colomb","Fernand de Magellan","Marco Polo","Vasco de Gama"]},
+ {q:"Quel peuple de l'Antiquité a créé les premiers Jeux olympiques ?",r:"les Grecs",choix:["les Grecs","les Romains","les Égyptiens","les Perses"]},
+ {q:"Quelle planète est la plus proche du Soleil ?",r:"Mercure",choix:["Mercure","Vénus","Mars","la Terre"]},
+ {q:"Quel gaz les plantes absorbent-elles pour fabriquer leur énergie ?",r:"le dioxyde de carbone",choix:["le dioxyde de carbone","l'oxygène","l'hélium","l'hydrogène"],e:"Elles rejettent l'oxygène : c'est la photosynthèse."},
+ {q:"Combien d'os possède le corps humain adulte ?",r:"206",choix:["206","106","306","512"]},
+ {q:"Quel est l'animal terrestre le plus rapide ?",r:"le guépard",choix:["le guépard","le lion","le cheval","l'autruche"],e:"Il atteint près de 110 km/h en pointe."},
+ {q:"Quel organe pompe le sang dans tout le corps ?",r:"le cœur",choix:["le cœur","le foie","le poumon","le cerveau"]},
+ {q:"À quelle température l'eau bout-elle au niveau de la mer ?",r:"100 °C",choix:["100 °C","50 °C","200 °C","0 °C"],e:"À 0 °C elle gèle, à 100 °C elle bout."},
+ {q:"Qui a peint la Joconde ?",r:"Léonard de Vinci",choix:["Léonard de Vinci","Pablo Picasso","Vincent van Gogh","Pierre Paul Rubens"]},
+];
+const BANK_TRIVIA_N2=[
+ {q:"Quelle est la capitale du Canada ?",r:"Ottawa",choix:["Ottawa","Toronto","Montréal","Vancouver"]},
+ {q:"Quel est le plus long fleuve d'Europe ?",r:"la Volga",choix:["la Volga","le Danube","le Rhin","la Loire"]},
+ {q:"Dans quel pays se trouve le Machu Picchu ?",r:"le Pérou",choix:["le Pérou","le Mexique","le Chili","la Bolivie"]},
+ {q:"Quel détroit sépare l'Europe de l'Afrique ?",r:"le détroit de Gibraltar",choix:["le détroit de Gibraltar","le Bosphore","la Manche","le détroit de Béring"]},
+ {q:"Quelle est la plus haute montagne d'Afrique ?",r:"le Kilimandjaro",choix:["le Kilimandjaro","le mont Kenya","l'Atlas","la montagne de la Table"]},
+ {q:"Quel savant a formulé la théorie de la relativité ?",r:"Albert Einstein",choix:["Albert Einstein","Isaac Newton","Charles Darwin","Galilée"]},
+ {q:"Quelle guerre s'est déroulée de 1914 à 1918 ?",r:"la Première Guerre mondiale",choix:["la Première Guerre mondiale","la Seconde Guerre mondiale","la guerre de Cent Ans","la guerre froide"]},
+ {q:"Qui a écrit la pièce « Roméo et Juliette » ?",r:"William Shakespeare",choix:["William Shakespeare","Molière","Victor Hugo","Jean Racine"]},
+ {q:"Quelle cité romaine fut détruite par le Vésuve en l'an 79 ?",r:"Pompéi",choix:["Pompéi","Troie","Carthage","Athènes"]},
+ {q:"Qui fut la première femme à recevoir un prix Nobel ?",r:"Marie Curie",choix:["Marie Curie","Rosa Parks","Jeanne d'Arc","Ada Lovelace"],e:"Elle en a même reçu deux : physique puis chimie."},
+ {q:"Quel est le symbole chimique de l'or ?",r:"Au",choix:["Au","Or","Go","Ag"],e:"Du latin aurum. Ag, c'est l'argent."},
+ {q:"Combien de cœurs possède une pieuvre ?",r:"trois",choix:["trois","un","deux","huit"]},
+ {q:"Quelle est la vitesse approximative de la lumière ?",r:"environ 300 000 km/s",choix:["environ 300 000 km/s","environ 3 000 km/s","environ 300 km/s","environ 30 000 km/s"]},
+ {q:"Quel scientifique a énoncé la loi de la gravitation universelle ?",r:"Isaac Newton",choix:["Isaac Newton","Albert Einstein","Nicolas Copernic","Louis Pasteur"]},
+ {q:"Quel est le plus grand organe du corps humain ?",r:"la peau",choix:["la peau","le foie","l'intestin","le cerveau"]},
+ {q:"Quel métal est liquide à température ambiante ?",r:"le mercure",choix:["le mercure","le fer","le plomb","le cuivre"]},
+ {q:"De quelle langue vient le mot « algèbre » ?",r:"l'arabe",choix:["l'arabe","le latin","le grec","l'espagnol"]},
+ {q:"Qui a composé l'opéra « La Flûte enchantée » ?",r:"Mozart",choix:["Mozart","Beethoven","Jean-Sébastien Bach","Frédéric Chopin"]},
+];
 const PACKS=[
  {id:'general',nom:'Général',ico:'📚',mult:1,niv:NIV1,sous:'Toutes tes matières',theorie:"Lis bien chaque question et prends ton temps. En cas d'erreur, une petite explication apparaît pour t'aider à comprendre."},
  {id:'general1',nom:'Général +1',ico:'🔥',mult:2,nivOffset:1,niv:'Niveau 2 · année +1',sous:'Plus dur · +150%',theorie:"Ici, c'est le niveau de l'année supérieure ! Réfléchis bien : les récompenses sont plus grandes."},
@@ -528,6 +569,7 @@ const PACKS=[
  {id:'neerlandais',nom:'Néerlandais',ico:'🇳🇱',mult:1.5,niv:NIV1,sous:'Nederlands · débutant',theorie:"Le néerlandais est parlé en Flandre, au nord de la Belgique ! Les bases : hallo (bonjour), dank je (merci), ja (oui), nee (non). Des mots : paard (cheval), hond (chien), appel (pomme), water (eau), boom (arbre)."},
  {id:'art',nom:"Histoire de l'art",ico:'🎨',mult:1.5,niv:NIV1,sous:'Grands classiques',theorie:"Léonard de Vinci a peint la Joconde, Van Gogh « La Nuit étoilée », Monet était impressionniste, Picasso a inventé le cubisme, Michel-Ange a sculpté le David. Les couleurs primaires (rouge, jaune, bleu) se mélangent pour créer toutes les autres !"},
  {id:'ortho',nom:'Orthographe',ico:'✍️',mult:3,niv:NIV1,sous:'Écris les mots · +200%',theorie:"Pense aux accents (é, è, à, ê) et aux lettres muettes à la fin des mots. Relis-toi avant de valider !"},
+ {id:'trivia',nom:'Trivial',ico:'🧠',mult:3,niv:'Début du secondaire',sous:'Culture générale ados · +200%',theorie:"Le grand défi de culture générale, niveau début du secondaire : géographie, histoire, sciences, arts… Réfléchis bien — chaque bonne réponse rapporte TRIPLE (+200 %) !"},
 ];
 const ROBES={frison:'noir',murgese:'noir',cheval_albinos:'blanc',camargue:'blanc',appaloosa:'tachetée',gypsy_cob:'pie',akhal_teke:'isabelle',fjord:'isabelle',haflinger:'alezan',francois_camargue:'blanc',inge:'noir',rocio:'blanc',gourmand_mangeur_de_pommes:'alezan',gourmand_mangeur_de_carottes:'isabelle',gourmand_mangeur_de_grain:'alezan',gourmand_mangeur_de_trefle:'pie',mythique_balios:'noir',mythique_gringolet:'blanc',mythique_kanthaka:'blanc',mythique_veillantif:'alezan',curly:'alezan',finnhorse:'alezan',falabella:'pie',mangalarga_marchador:'pie',knabstrupper:'tachetée',nonius:'noir',kladruber:'blanc',lipizzan:'blanc',orlov:'blanc',welsh_pony:'alezan',caspien:'alezan',connemara:'blanc',eriskay:'blanc',fell:'noir',merens:'noir',highland:'isabelle'};
 const ROBES_DESC={noir:"Robe noire : tout le corps est noir.",gris:"Robe grise : du gris clair au presque blanc.",bai:"Robe baie : corps brun, crins et bas des pattes noirs.",alezan:"Robe alezane : rousse, du clair au foncé.",isabelle:"Robe isabelle : crème doré, très lumineuse.",pie:"Robe pie : de grandes taches blanches et colorées.",tachetée:"Robe tachetée : plein de petites taches, comme l'Appaloosa.",blanc:"Robe blanche : entièrement blanc."};

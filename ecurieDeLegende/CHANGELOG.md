@@ -3,6 +3,74 @@
 Convention : `VERSION_APP` (index.html) = `ecurie-vNN` (sw.js), incrémentés à CHAQUE livraison
 (invalidation du cache PWA). QC : `node tools/qc.js` avant chaque livraison.
 
+## v137 — Erreur à 0 + bonus de fin de chaîne
+- **Mauvaise réponse = 0 diamant** (au lieu de 1) : le plancher qui rendait le spam rentable disparaît.
+  La bonne réponse et l'explication restent toujours affichées — on apprend, on ne punit pas, on ne gagne
+  simplement rien pour une erreur isolée.
+- **Bonus de fin de chaîne** : quand une série de ≥3 bonnes réponses se casse, elle est « encaissée »
+  (« 🔗 Série de N encaissée : +X 💎 »). Récompense la longueur — impossible à spammer.
+  Formule bridée (facteur 0.35, plafond L-2≤10) pour ne pas gonfler la distribution globale.
+- Effet mesuré (Trivial ×3) : concentré 72 % = 3,38 💎/s **>** spam 25 % = 2,98 💎/s → la concentration
+  gagne enfin **au débit/minute**, pas seulement par effort. Distribution globale ≈ v136 (spam en recul).
+- `crediterDefi` autorise désormais 0 (pas d'animation de gain sur 0). Base par bonne réponse inchangée.
+- `VERSION_APP`=v137, `ecurie-v137`. QC : 0 échec.
+
+## v136 — Multiplicateur de série (anti-spam, pro-concentration)
+- Problème visé : répondre vite au hasard rapportait presque autant (voire plus par minute) que se
+  concentrer — plancher rémunéré sur les erreurs + vitesse jamais pénalisée.
+- **Multiplicateur de SÉRIE ×1→×5** sur toutes les épreuves (packs + défi principal) : 3 bonnes
+  d'affilée = ×2 🔥, 5 = ×3, 7 = ×4, 10+ = ×5. Une erreur casse la chaîne (retour ×1). Ostensible :
+  le combo « 🔥 Série ×N » s'affiche à chaque bonne réponse ; une casse ≥3 montre « série de N perdue 🌱 ».
+- **Plancher des erreurs supprimé** : mauvaise réponse = 1 💎 symbolique (au lieu de 2), mais la bonne
+  réponse et l'explication restent toujours affichées (on apprend, on ne punit pas).
+- **Base par bonne réponse conservée** (×1 = comme avant) : aucune régression pour qui débute — la série
+  est un bonus par-dessus, jamais un malus.
+- Effet mesuré (Trivial ×3, 20 réponses) : spam 25 % ≈ 109 💎 · concentré 72 % ≈ 474 💎 (~4× par effort).
+- `VERSION_APP`=v136, `ecurie-v136`. QC : 0 échec.
+
+## v135 — Pack « Trivial » (culture générale ados, +200%)
+- Nouveau pack `trivia` 🧠 « Trivial » : culture générale niveau **début du secondaire** (géographie,
+  histoire, sciences, arts), façon Trivial Pursuit pour jeunes ados. Multiplicateur **×3 (+200%)**.
+- Deux niveaux à maîtriser : `BANK_TRIVIA` (18 questions) puis `BANK_TRIVIA_N2` (18, plus corsé).
+- Branché comme les packs à banque (geek/anglais) : `PACK_NIVEAUX`, `PACK_KEY`, dispatch `packExo`
+  via `exoBankQuiz`. Apparaît automatiquement dans la grille des défis (tag 🎯 À maîtriser).
+- `VERSION_APP`=v135, `ecurie-v135`. QC : 0 échec.
+
+## v134 — Correctifs aventure + parental + récap
+- **Intro d'aventure bloquée (bloquant)** : le bouton « Continuer › » restait mort sur une nouvelle
+  partie. Cause : `#av-intro` est visible par défaut, et le handler du bouton était attaché à la toute
+  fin de `avInitCartes()` — si l'init d'une carte/panzoom échouait avant, le handler n'était jamais posé
+  et l'intro figeait. Fix : handler attaché en **premier**, init des cartes isolée dans un `try/catch`
+  (+ `avMajPins` protégé dans `ouvrirAventure`). L'intro ne dépend plus de l'init des cartes.
+- **Icône de Pieter-Jan manquante** : deux règles `.tuto-pj` ; la 2ᵉ (`background:#0004 center/cover`,
+  raccourci) effaçait le `background-image` de la 1ʳᵉ. Passé en longhands → l'image réapparaît.
+- **Écart intitulé/condition des épreuves** (ex. Mons 104 vs 125) : la `consigne` codait le nombre de
+  **base** en dur tandis que la ligne Objectif affiche la vraie cible `cible×MUL`. La consigne redondante
+  des épreuves « cible » est supprimée ; l'Objectif (valeur réelle) fait foi. Corrige toutes ces épreuves.
+- **Contournement de la limite de temps (re-login)** : atteindre la limite avec le profil A, se
+  déconnecter puis se reconnecter avec A permettait de rejouer. Cause : `enregistrerTemps` mettait à jour
+  le temps en mémoire mais ne le **persistait pas** ; le backup local n'était écrit que par une action de
+  jeu, donc `entrerJeu` relisait un temps périmé (sous la limite). Fix : le temps est sauvegardé à chaque
+  enregistrement (et flush à la déconnexion). Le re-login relit le vrai total et re-bloque. Le check de
+  limite existant dans `entrerJeu` fait le reste.
+- **Stats de fin de session vides** : l'écran « heure de la pause » affichait la session courante (souvent
+  vide si la limite était déjà atteinte). Il montre maintenant les totaux **du jour** (temps réel joué,
+  bonnes réponses, nouvelles cartes).
+- **HUD aventure** : pastilles 💎 diamants et ⭐ renommée affichées en permanence en haut à droite.
+- `VERSION_APP`=v134, `ecurie-v134`. QC : 0 échec.
+
+## v133 — Compte à rebours de renouvellement journalier
+- Nouveau bandeau « 🕐 Nouveaux concours et marchand dans <b>14h23min</b> » affiché en haut de l'écran Concours
+  et dans la fiche Marchand. Se met à jour toutes les 30 s.
+- Cible : **minuit local** — l'instant réel où concours (`ensureConcoursJour`), marchand (`ensureMarchandJour`),
+  défi du jour et compteur de temps se réinitialisent tous.
+- Passage de minuit géré app ouverte : au changement de jour, le compteur relance `ensureConcoursJour`/
+  `ensureMarchandJour` et re-render l'écran concerné s'il est visible (plus de compteur négatif ni de listes périmées).
+- **Cohérence** : `jourDefi()` passait par la date **UTC** (désynchronisé du reste) ; aligné sur `ymd()` (date locale)
+  pour que le renouvellement soit simultané et que le compte à rebours soit honnête pour toutes les activités.
+- Format : `14h23min` (minutes sur 2 chiffres avec heures), `23min` (<1 h), `moins d'une minute` (<1 min).
+- `VERSION_APP`=v133, `ecurie-v133`. QC : 0 échec.
+
 ## v132 — Fix z-index : les overlays de carte réapparaissent (régression v129)
 - **Bug** : depuis v129, l'image de carte avait reçu `z-index:1` (pour le fondu au-dessus du skeleton), mais son
   conteneur `.tc-art` n'étant pas un contexte d'empilement, ce `z-index:1` remontait dans le contexte de la carte et
