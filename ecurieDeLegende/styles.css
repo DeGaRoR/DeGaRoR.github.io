@@ -145,8 +145,8 @@ nav.tabs button.actif::before{content:"";position:absolute;top:0;width:34px;heig
 .tcarte[data-r="mythique"]{--rc:#ff9ac0;--rc-soft:#ff5c8a;--fg:conic-gradient(from var(--spin),#ff5c8a,#ffb14e,#8dff8d,#4aa3df,#a672e0,#ff5c8a);}
 .tcarte[data-r="celeste"]{--rc:#fff2a0;--rc-soft:#ffcf3b;--fg:conic-gradient(from var(--spin),#ffffff,#ffe9a8,#ffb63b,#ffffff,#ffe066,#ffffff,#ffcf3b,#ffffff);box-shadow:0 0 12px 1px #ffe9a85c;}
 .tcarte[data-r="celeste"] .tc-frame{padding:2.6cqw;animation:spin 3.4s linear infinite;}
-.tcarte[data-r="celeste"]::after{content:"";position:absolute;top:0;left:0;right:0;bottom:0;border-radius:inherit;pointer-events:none;z-index:4;overflow:hidden;background:linear-gradient(115deg,transparent 42%,#ffffffcc 49%,#fff7d9ee 51%,transparent 60%);background-size:250% 250%;background-position:170% -70%;animation:celesteShine 7.5s ease-in-out infinite;}
-@keyframes celesteShine{0%,86%{background-position:170% -70%;opacity:0;}89%{opacity:.9;}90%,93%{opacity:.9;}100%{background-position:-70% 170%;opacity:0;}}
+.tcarte[data-r="celeste"]::after{content:"";position:absolute;top:0;left:0;right:0;bottom:0;border-radius:inherit;pointer-events:none;z-index:4;overflow:hidden;background:linear-gradient(115deg,transparent 42%,#ffffffcc 49%,#fff7d9ee 51%,transparent 60%);background-size:250% 250%;background-position:155% -55%;animation:celesteShine 6.5s linear infinite;}
+@keyframes celesteShine{0%,78%{background-position:155% -55%;opacity:0;}83%{opacity:.85;}94%{opacity:.85;}100%{background-position:-55% 155%;opacity:0;}}
 .tc-art{position:absolute;top:0;right:0;bottom:0;left:0;display:flex;align-items:center;justify-content:center;font-size:38cqw;line-height:1;isolation:isolate;background:radial-gradient(120% 100% at 50% 32%,color-mix(in srgb,var(--rc) 26%,#141127),#100d20 78%);}
 .tc-art img{width:100%;height:100%;object-fit:cover;display:block;}
 .tc-scrim-top{position:absolute;top:0;left:0;right:0;height:34cqw;background:linear-gradient(180deg,#0b0918d9,transparent);pointer-events:none;}
@@ -165,9 +165,9 @@ nav.tabs button.actif::before{content:"";position:absolute;top:0;width:34px;heig
 .tcarte[data-p="5"] .tc-corner{opacity:1;width:17cqw;height:17cqw;border-width:2.3cqw;border-color:#ffd873;filter:drop-shadow(0 0 3.5cqw #ffd873cc);}
 .tcarte[data-p="4"] .tc-palier{border-color:#ffd87366;}
 .tcarte[data-p="5"] .tc-palier{background:linear-gradient(180deg,#ffe7a0,#e0a838);color:#3a2705;border-color:#fff6d0;box-shadow:0 1cqw 3cqw #0007;}
-.tc-shine{position:absolute;top:0;bottom:0;width:55cqw;left:-70cqw;pointer-events:none;opacity:0;background:linear-gradient(105deg,transparent,#ffffff55 45%,#ffffffcc 50%,#ffffff55 55%,transparent);transform:skewX(-12deg);}
-.tc-anim:is([data-p="3"],[data-p="4"],[data-p="5"]) .tc-shine{opacity:1;animation:shine 3.4s ease-in-out infinite;}
-@keyframes shine{0%,72%{left:-70cqw;}100%{left:130cqw;}}
+.tc-shine{position:absolute;top:0;bottom:0;width:55cqw;left:0;pointer-events:none;opacity:0;background:linear-gradient(105deg,transparent,#ffffff55 45%,#ffffffcc 50%,#ffffff55 55%,transparent);transform:translate3d(-170cqw,0,0) skewX(-12deg);will-change:transform;}
+.tc-anim:is([data-p="3"],[data-p="4"],[data-p="5"]) .tc-shine{opacity:1;animation:shine 3.6s linear infinite;}
+@keyframes shine{0%,64%{transform:translate3d(-170cqw,0,0) skewX(-12deg);}100%{transform:translate3d(170cqw,0,0) skewX(-12deg);}}
 .tc-motes{position:absolute;top:0;right:0;bottom:0;left:0;pointer-events:none;opacity:0;}
 .tc-motes i{position:absolute;width:2.6cqw;height:2.6cqw;border-radius:50%;background:var(--rc);box-shadow:0 0 3cqw var(--rc);bottom:14cqw;opacity:0;}
 .tc-motes i:nth-child(1){left:22%;}.tc-motes i:nth-child(2){left:52%;}.tc-motes i:nth-child(3){left:78%;}
@@ -197,11 +197,12 @@ nav.tabs button.actif::before{content:"";position:absolute;top:0;width:34px;heig
 @keyframes spin{to{--spin:360deg;}}
 .tcarte.verrou .tc-art{background:linear-gradient(180deg,#211b3c,#161230);color:#4a4270;font-size:30cqw;}
 /* Skeleton de chargement des cartes (feedback pendant le téléchargement de l'image) */
-.tc-art.art-load::before{content:"";position:absolute;top:0;left:0;right:0;bottom:0;z-index:0;background:linear-gradient(110deg,#241f48 25%,#3a3168 50%,#241f48 75%);background-size:220% 100%;animation:tcShimmer 1.3s linear infinite;}
+.tc-art.art-load{overflow:hidden;}
+.tc-art.art-load::before{content:"";position:absolute;top:0;bottom:0;left:0;width:72%;z-index:0;background:linear-gradient(100deg,transparent,#ffffff14 45%,#ffffff26 50%,#ffffff14 55%,transparent);transform:translate3d(-155%,0,0);animation:tcShimmer 1.4s linear infinite;will-change:transform;}
 .tc-art.art-load.art-ok::before{display:none;}
 .tc-art .tc-img{position:relative;z-index:1;opacity:0;transition:opacity .3s ease;}
 .tc-art .tc-img.img-ok{opacity:1;}
-@keyframes tcShimmer{0%{background-position:220% 0;}100%{background-position:-220% 0;}}
+@keyframes tcShimmer{to{transform:translate3d(155%,0,0);}}
 .tcarte.verrou{box-shadow:0 6px 16px #0007;filter:saturate(.5);}
 .tcarte.verrou .tc-frame{opacity:.4;}
 .tcarte.verrou .tc-nom{color:#6a628f;}.tcarte.verrou .tc-rar{color:#5a527f;}.tcarte.verrou .tc-stars .et{color:#ffffff1f;}
@@ -553,8 +554,8 @@ nav.tabs button.actif::before{content:"";position:absolute;top:0;width:34px;heig
 .ch-titre{font-family:'Cinzel',serif;font-weight:700;font-size:22px;color:#f3ecdf;letter-spacing:.5px;text-align:center;padding:0 20px;}
 .ch-sous{font-family:'Nunito',sans-serif;font-weight:700;font-size:13px;color:#ada6c6;letter-spacing:2px;text-transform:uppercase;}
 .ch-barre{width:180px;max-width:60vw;height:6px;background:#ffffff1a;border-radius:999px;overflow:hidden;margin-top:6px;}
-.ch-barre>div{width:40%;height:100%;border-radius:999px;background:linear-gradient(90deg,#7ec2ff,#a672e0,#f2c14e);animation:chGlisse 1.1s ease-in-out infinite;}
-@keyframes chGlisse{0%{transform:translateX(-120%);}100%{transform:translateX(320%);}}
+.ch-barre>div{width:40%;height:100%;border-radius:999px;background:linear-gradient(90deg,#7ec2ff,#a672e0,#f2c14e);animation:chGlisse 1.25s linear infinite;will-change:transform;}
+@keyframes chGlisse{0%{transform:translateX(-110%);}100%{transform:translateX(260%);}}
 
 /* ===== ÉCRAN D'ACCUEIL (choix du joueur) ===== */
 #accueil{position:fixed;top:0;right:0;bottom:0;left:0;height:100dvh;z-index:150;display:flex;flex-direction:column;align-items:center;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:calc(env(safe-area-inset-top) + 40px) 20px calc(env(safe-area-inset-bottom) + 26px);background:radial-gradient(1100px 560px at 50% -8%,#3a2f66,transparent 55%),linear-gradient(180deg,#1a1636,#120f24);transition:opacity .35s ease;}

@@ -231,6 +231,46 @@ planet_neptune:"cartes/planet_neptune.jpg",
 planet_uranus:"cartes/planet_uranus.jpg",
 planet_venus:"cartes/planet_venus.jpg",
 planet_mercure:"cartes/planet_mercure.jpg",
+  mythe_tulpar:"cartes/mythe_tulpar.jpg",
+  mythe_morvarch:"cartes/mythe_morvarch.jpg",
+  mythe_lou_drape:"cartes/mythe_lou_drape.jpg",
+  mythe_caballo_marino:"cartes/mythe_caballo_marino.jpg",
+  mythe_each_uisge:"cartes/mythe_each_uisge.jpg",
+  mythe_cabbyl_ushtey:"cartes/mythe_cabbyl_ushtey.jpg",
+  mythe_puca:"cartes/mythe_puca.jpg",
+  mythe_ceffyl_dwr:"cartes/mythe_ceffyl_dwr.jpg",
+  mythe_ak_kula:"cartes/mythe_ak_kula.jpg",
+  mythe_shabdiz:"cartes/mythe_shabdiz.jpg",
+  mythe_ama_no_fuchigoma:"cartes/mythe_ama_no_fuchigoma.jpg",
+  mythe_liath_macha:"cartes/mythe_liath_macha.jpg",
+  mythe_hrimfaxi:"cartes/mythe_hrimfaxi.jpg",
+  mythe_svadilfari:"cartes/mythe_svadilfari.jpg",
+  mythe_gullfaxi:"cartes/mythe_gullfaxi.jpg",
+  mythe_areion:"cartes/mythe_areion.jpg",
+  mythe_akbuzat:"cartes/mythe_akbuzat.jpg",
+  mythe_chollima:"cartes/mythe_chollima.jpg",
+  mythe_skinfaxi:"cartes/mythe_skinfaxi.jpg",
+  mythe_sleipnir_rainbow:"cartes/mythe_sleipnir_rainbow.jpg",
+  idol_blue_laser:"cartes/idol_blue_laser.jpg",
+  idol_max_maximum:"cartes/idol_max_maximum.jpg",
+  idol_candy_crushy:"cartes/idol_candy_crushy.jpg",
+  idol_princess_glitter:"cartes/idol_princess_glitter.jpg",
+  ecurie_timide:"cartes/ecurie_timide.jpg",
+  ecurie_peureux:"cartes/ecurie_peureux.jpg",
+  ecurie_simplet:"cartes/ecurie_simplet.jpg",
+  ecurie_jeune_fou:"cartes/ecurie_jeune_fou.jpg",
+  ecurie_original:"cartes/ecurie_original.jpg",
+  ecurie_rigide:"cartes/ecurie_rigide.jpg",
+  ecurie_costaud:"cartes/ecurie_costaud.jpg",
+  ecurie_marginal:"cartes/ecurie_marginal.jpg",
+  ecurie_jument_appliquee:"cartes/ecurie_jument_appliquee.jpg",
+  ecurie_vieux_ronchon:"cartes/ecurie_vieux_ronchon.jpg",
+  ecurie_artiste:"cartes/ecurie_artiste.jpg",
+  ecurie_intello:"cartes/ecurie_intello.jpg",
+  ecurie_play_boy:"cartes/ecurie_play_boy.jpg",
+  ecurie_bad_boy:"cartes/ecurie_bad_boy.jpg",
+  ecurie_prom_queen:"cartes/ecurie_prom_queen.jpg",
+  ecurie_vieux_sage:"cartes/ecurie_vieux_sage.jpg",
 };
 const CARTES = [
   {id:"mustang_indien",nom:"Mustang indien",rarete:"commune",emoji:"🐎",image:IMG.mustang_indien,desc:"Cheval sauvage des grandes plaines, fidèle compagnon des peuples amérindiens.",aff:["vitesse","endurance"],familles:["sauvages","bataille"],royaume:"amerique"},
@@ -461,12 +501,52 @@ const CARTES = [
   {id:"planet_uranus",nom:"Uranus",rarete:"rare",emoji:"🔷",image:IMG.planet_uranus,desc:"Géante de glace couchée sur le côté, d'un bleu-vert pâle et glacial aux confins du système solaire.",aff:["magie","endurance"],familles:["planetes","elementaires"],royaume:"outremonde"},
   {id:"planet_venus",nom:"Vénus",rarete:"rare",emoji:"🟡",image:IMG.planet_venus,desc:"L'étoile du berger, la plus brillante du ciel, nommée d'après la déesse de la beauté — mais brûlante sous ses nuages.",aff:["beaute","magie"],familles:["planetes","race"],royaume:"outremonde"},
   {id:"planet_mercure",nom:"Mercure",rarete:"rare",emoji:"☄️",image:IMG.planet_mercure,desc:"La planète la plus proche du Soleil et la plus rapide, messagère filante nommée d'après le dieu aux pieds ailés.",aff:["vitesse","magie"],familles:["planetes","course"],royaume:"outremonde"},
+  {id:"mythe_tulpar",nom:"Tulpar",rarete:"epique",emoji:"🕊️",image:IMG.mythe_tulpar,desc:"Le cheval ailé des steppes turques, qui bondit d'un sommet à l'autre.",aff:["magie","vitesse"],familles:["legende"],royaume:"steppe"},
+  {id:"mythe_morvarch",nom:"Morvarc'h",rarete:"epique",emoji:"🌊",image:IMG.mythe_morvarch,desc:"Le cheval-marin noir du roi breton Gradlon, qui galope sur les vagues.",aff:["magie","vitesse"],familles:["legende"],royaume:"france"},
+  {id:"mythe_lou_drape",nom:"Lou Drapé",rarete:"epique",emoji:"🌙",image:IMG.mythe_lou_drape,desc:"Cheval fantôme de Provence qui apparaît près de l'eau au clair de lune.",aff:["magie","beaute"],familles:["legende"],royaume:"france"},
+  {id:"mythe_caballo_marino",nom:"Caballo Marino",rarete:"epique",emoji:"🐟",image:IMG.mythe_caballo_marino,desc:"Cheval des mers de l'île de Chiloé, au Chili, à la nageoire dorée.",aff:["magie","endurance"],familles:["legende"],royaume:"chili"},
+  {id:"mythe_each_uisge",nom:"Each-Uisge",rarete:"epique",emoji:"💀",image:IMG.mythe_each_uisge,desc:"Le redoutable cheval des lochs d'Écosse, qui entraîne les imprudents sous l'eau.",aff:["magie","bataille"],familles:["legende"],royaume:"ecosse"},
+  {id:"mythe_cabbyl_ushtey",nom:"Cabyll-Ushtey",rarete:"epique",emoji:"🌊",image:IMG.mythe_cabbyl_ushtey,desc:"Le cheval d'eau de l'île de Man, surgi de la mer les soirs de tempête.",aff:["magie","bataille"],familles:["legende"],royaume:"angleterre"},
+  {id:"mythe_puca",nom:"Púca",rarete:"epique",emoji:"🍂",image:IMG.mythe_puca,desc:"Esprit farceur d'Irlande en forme de cheval noir aux yeux d'or.",aff:["magie","vitesse"],familles:["legende"],royaume:"irlande"},
+  {id:"mythe_ceffyl_dwr",nom:"Ceffyl Dŵr",rarete:"epique",emoji:"💧",image:IMG.mythe_ceffyl_dwr,desc:"Le cheval d'eau du pays de Galles, né de la brume des cascades.",aff:["magie","endurance"],familles:["legende"],royaume:"galles"},
+  {id:"mythe_ak_kula",nom:"Ak-Kula",rarete:"legendaire",emoji:"⚔️",image:IMG.mythe_ak_kula,desc:"Le fidèle cheval de guerre du héros Manas, dans l'épopée kirghize.",aff:["magie","bataille"],familles:["legende"],royaume:"steppe"},
+  {id:"mythe_shabdiz",nom:"Shabdiz",rarete:"legendaire",emoji:"🌙",image:IMG.mythe_shabdiz,desc:"« Minuit », le cheval noir du roi perse Khosro, le plus rapide qui fut.",aff:["magie","vitesse"],familles:["legende"],royaume:"perse"},
+  {id:"mythe_ama_no_fuchigoma",nom:"Ame-no-Fuchikoma",rarete:"legendaire",emoji:"⛩️",image:IMG.mythe_ama_no_fuchigoma,desc:"Le cheval céleste à la robe pie du dieu japonais Susanoo.",aff:["magie","bataille"],familles:["legende"],royaume:"japon"},
+  {id:"mythe_liath_macha",nom:"Liath Macha",rarete:"legendaire",emoji:"⚔️",image:IMG.mythe_liath_macha,desc:"« Le Gris de Macha », le grand cheval de guerre du héros Cúchulainn.",aff:["magie","bataille"],familles:["legende"],royaume:"irlande"},
+  {id:"mythe_hrimfaxi",nom:"Hrímfaxi",rarete:"legendaire",emoji:"❄️",image:IMG.mythe_hrimfaxi,desc:"« Crinière de givre », le cheval de la Nuit dont la bave forme la rosée.",aff:["magie","endurance"],familles:["legende"],royaume:"norvege"},
+  {id:"mythe_svadilfari",nom:"Svaðilfari",rarete:"legendaire",emoji:"⛓️",image:IMG.mythe_svadilfari,desc:"L'étalon prodigieux qui bâtit les murs d'Asgard, père de Sleipnir.",aff:["magie","force"],familles:["legende"],royaume:"norvege"},
+  {id:"mythe_gullfaxi",nom:"Gullfaxi",rarete:"legendaire",emoji:"🔥",image:IMG.mythe_gullfaxi,desc:"« Crinière d'or », le puissant cheval d'un géant de la mythologie nordique.",aff:["magie","force"],familles:["legende"],royaume:"norvege"},
+  {id:"mythe_areion",nom:"Areion",rarete:"mythique",emoji:"🌊",image:IMG.mythe_areion,desc:"Cheval noir immortel né de Poséidon, si rapide qu'aucun mortel ne peut l'attraper.",aff:["magie","vitesse","endurance"],familles:["legende"],royaume:"grece"},
+  {id:"mythe_akbuzat",nom:"Akbuzat",rarete:"mythique",emoji:"☁️",image:IMG.mythe_akbuzat,desc:"Destrier céleste de la mythologie bachkire, descendu du ciel pour un grand héros.",aff:["magie","vitesse","bataille"],familles:["legende"],royaume:"steppe"},
+  {id:"mythe_chollima",nom:"Chollima",rarete:"mythique",emoji:"🌥️",image:IMG.mythe_chollima,desc:"Le cheval ailé qui parcourt mille lis en un jour, dans les légendes d'Extrême-Orient.",aff:["magie","vitesse","endurance"],familles:["legende"],royaume:"chine"},
+  {id:"mythe_skinfaxi",nom:"Skinfaxi",rarete:"mythique",emoji:"☀️",image:IMG.mythe_skinfaxi,desc:"« Crinière brillante », le cheval du Jour dont la crinière éclaire le monde.",aff:["magie","beaute","vitesse"],familles:["legende"],royaume:"norvege"},
+  {id:"mythe_sleipnir_rainbow",nom:"Sleipnir Arc-en-ciel",rarete:"celeste",emoji:"🌈",image:IMG.mythe_sleipnir_rainbow,desc:"Sleipnir galopant sur le Bifröst, le pont arc-en-ciel des dieux nordiques.",aff:["magie","vitesse","endurance"],familles:["legende"],royaume:"norvege"},
+  {id:"idol_blue_laser",nom:"Blue Laser",rarete:"epique",emoji:"🌟",image:IMG.idol_blue_laser,desc:"Sous les lasers bleus, cette idole électrise la scène à chaque concert.",aff:["beaute","magie"],familles:["band"],royaume:"scene"},
+  {id:"idol_max_maximum",nom:"Max Maximum",rarete:"epique",emoji:"🤘",image:IMG.idol_max_maximum,desc:"Le roi du rock à crinière arc-en-ciel : toujours à fond, toujours à 100 !",aff:["vitesse","bataille"],familles:["band"],royaume:"scene"},
+  {id:"idol_candy_crushy",nom:"Candy Crushy",rarete:"rare",emoji:"🍬",image:IMG.idol_candy_crushy,desc:"Une pop-star toute sucrée qui fait fondre le public de bonbons roses.",aff:["beaute","magie"],familles:["band"],royaume:"scene"},
+  {id:"idol_princess_glitter",nom:"Princess Glitter",rarete:"rare",emoji:"💖",image:IMG.idol_princess_glitter,desc:"La princesse des paillettes, entourée de papillons et d'étoiles.",aff:["beaute","magie"],familles:["band"],royaume:"scene"},
+  {id:"ecurie_timide",nom:"Le Timide",rarete:"commune",emoji:"🙈",image:IMG.ecurie_timide,desc:"Il se cache derrière la porte dès qu'un visiteur arrive.",aff:["endurance"],familles:["caractere"],royaume:"belgique"},
+  {id:"ecurie_peureux",nom:"Le Peureux",rarete:"commune",emoji:"😱",image:IMG.ecurie_peureux,desc:"Un pigeon ? Une feuille ? Tout le fait sursauter !",aff:["vitesse"],familles:["caractere"],royaume:"belgique"},
+  {id:"ecurie_simplet",nom:"Le Simplet",rarete:"commune",emoji:"😅",image:IMG.ecurie_simplet,desc:"Pas le plus malin, mais sûrement le plus gentil de la bande.",aff:["endurance"],familles:["caractere"],royaume:"belgique"},
+  {id:"ecurie_jeune_fou",nom:"Le Jeune Fou",rarete:"commune",emoji:"🤠",image:IMG.ecurie_jeune_fou,desc:"Plein d'énergie, il ne tient pas en place et adore faire des bêtises.",aff:["vitesse","force"],familles:["caractere"],royaume:"belgique"},
+  {id:"ecurie_original",nom:"L'Original",rarete:"commune",emoji:"🤪",image:IMG.ecurie_original,desc:"Il fait tout à l'envers, et c'est ça qu'on adore chez lui.",aff:["magie"],familles:["caractere"],royaume:"belgique"},
+  {id:"ecurie_rigide",nom:"Le Rigide",rarete:"commune",emoji:"📏",image:IMG.ecurie_rigide,desc:"Droit dans ses sabots, il aime que tout soit à sa place.",aff:["endurance"],familles:["caractere"],royaume:"belgique"},
+  {id:"ecurie_costaud",nom:"Le Costaud",rarete:"commune",emoji:"💪",image:IMG.ecurie_costaud,desc:"Grand cœur et gros muscles, il porte les autres sur son dos.",aff:["force","endurance"],familles:["caractere"],royaume:"belgique"},
+  {id:"ecurie_marginal",nom:"Le Marginal",rarete:"commune",emoji:"🧢",image:IMG.ecurie_marginal,desc:"Un peu à l'écart, il observe le troupeau à sa façon.",aff:["bataille"],familles:["caractere"],royaume:"belgique"},
+  {id:"ecurie_jument_appliquee",nom:"La Jument Appliquée",rarete:"commune",emoji:"📝",image:IMG.ecurie_jument_appliquee,desc:"Sérieuse et travailleuse, elle fait toujours de son mieux.",aff:["endurance","beaute"],familles:["caractere"],royaume:"belgique"},
+  {id:"ecurie_vieux_ronchon",nom:"Le Vieux Ronchon",rarete:"commune",emoji:"😤",image:IMG.ecurie_vieux_ronchon,desc:"Il ronchonne pour la forme, mais au fond c'est un tendre.",aff:["endurance"],familles:["caractere"],royaume:"belgique"},
+  {id:"ecurie_artiste",nom:"L'Artiste",rarete:"commune",emoji:"🎨",image:IMG.ecurie_artiste,desc:"Rêveuse et créative, elle voit de la poésie partout dans l'écurie.",aff:["beaute","magie"],familles:["caractere"],royaume:"belgique"},
+  {id:"ecurie_intello",nom:"L'Intello",rarete:"rare",emoji:"🤓",image:IMG.ecurie_intello,desc:"Toujours le nez dans un livre, il connaît la réponse à tout... ou presque.",aff:["magie","endurance"],familles:["caractere"],royaume:"belgique"},
+  {id:"ecurie_play_boy",nom:"Le Play-boy",rarete:"rare",emoji:"😎",image:IMG.ecurie_play_boy,desc:"Charmeur né, il fait tourner les têtes d'un coup de crinière.",aff:["beaute","vitesse"],familles:["caractere"],royaume:"belgique"},
+  {id:"ecurie_bad_boy",nom:"Le Bad Boy",rarete:"rare",emoji:"🖤",image:IMG.ecurie_bad_boy,desc:"Ténébreux et rebelle, il joue les durs... mais fond pour une pomme.",aff:["bataille","force"],familles:["caractere"],royaume:"belgique"},
+  {id:"ecurie_prom_queen",nom:"La Prom Queen",rarete:"rare",emoji:"👑",image:IMG.ecurie_prom_queen,desc:"La star de l'écurie, toujours pomponnée et adorée de tous.",aff:["beaute","magie"],familles:["caractere"],royaume:"belgique"},
+  {id:"ecurie_vieux_sage",nom:"Le Vieux Sage",rarete:"rare",emoji:"🧙",image:IMG.ecurie_vieux_sage,desc:"Il a tout vu, tout vécu, et donne les meilleurs conseils de l'écurie.",aff:["magie","endurance"],familles:["caractere"],royaume:"belgique"},
 ];
 const RARETES={commune:{nom:'Commune',poids:55,overflow:15,couleur:'#c4cdd8'},rare:{nom:'Rare',poids:27,overflow:30,couleur:'#7ec2ff'},epique:{nom:'Épique',poids:13,overflow:60,couleur:'#c99bff'},legendaire:{nom:'Légendaire',poids:4.5,overflow:120,couleur:'#ffcf6b'},mythique:{nom:'Mythique',poids:0.5,overflow:250,couleur:'#ff9ac0'},celeste:{nom:'Céleste',poids:0,overflow:300,couleur:'#ffe9a8'}};
 const SEUILS=[1,4,9,17,28];
 const TITRES=['—','Éveil','Aguerri','Radieux','Astral','Mythe'];
-const ROYAUMES={belgique:{ico:'🇧🇪',nom:'Belgique'},pays_bas:{ico:'🇳🇱',nom:'Pays-Bas'},france:{ico:'🇫🇷',nom:'France'},allemagne:{ico:'🇩🇪',nom:'Allemagne'},angleterre:{ico:'🏴',nom:'Angleterre'},irlande:{ico:'🇮🇪',nom:'Irlande'},ecosse:{ico:'🏴',nom:'Écosse'},espagne:{ico:'🇪🇸',nom:'Espagne'},rome:{ico:'🏛️',nom:'Rome'},italie:{ico:'🇮🇹',nom:'Italie'},portugal:{ico:'🇵🇹',nom:'Portugal'},autriche:{ico:'🇦🇹',nom:'Autriche'},luxembourg:{ico:'🇱🇺',nom:'Luxembourg'},suisse:{ico:'🇨🇭',nom:'Suisse'},grece:{ico:'🇬🇷',nom:'Grèce'},norvege:{ico:'🇳🇴',nom:'Norvège'},steppe:{ico:'🐎',nom:'Steppe'},chine:{ico:'🇨🇳',nom:'Chine'},japon:{ico:'🇯🇵',nom:'Japon'},inde:{ico:'🇮🇳',nom:'Inde'},arabie:{ico:'🏜️',nom:'Arabie'},egypte:{ico:'🇪🇬',nom:'Égypte'},amerique:{ico:'🇺🇸',nom:'Amérique'},afrique:{ico:'🦓',nom:'Afrique'},camelot:{ico:'🏰',nom:'Camelot'},avalon:{ico:'🦄',nom:'Avalon'},scene:{ico:'🎤',nom:'Scène'},australie:{ico:'🇦🇺',nom:'Australie'},perse:{ico:'🏹',nom:'Perse'},futur:{ico:'🤖',nom:'Futur'},russie:{ico:'🇷🇺',nom:'Russie'},argentine:{ico:'🇦🇷',nom:'Argentine'},finlande:{ico:'🇫🇮',nom:'Finlande'},islande:{ico:'🇮🇸',nom:'Islande'},danemark:{ico:'🇩🇰',nom:'Danemark'},pologne:{ico:'🇵🇱',nom:'Pologne'},bresil:{ico:'🇧🇷',nom:'Brésil'},hongrie:{ico:'🇭🇺',nom:'Hongrie'},galles:{ico:'🏴',nom:'Pays de Galles'},ukraine:{ico:'🇺🇦',nom:'Ukraine'},outremonde:{ico:'🌑',nom:'Outre-monde'}};
-const FAMILLES={travail:{ico:'🛠️',nom:'Travail'},race:{ico:'🏅',nom:'Cheval de race'},mascotte:{ico:'👑',nom:'Mascotte'},bataille:{ico:'⚔️',nom:'Bataille'},legende:{ico:'✨',nom:'Légende'},elementaires:{ico:'🔥',nom:'Élémentaires'},sauvages:{ico:'🐎',nom:'Sauvages'},course:{ico:'🏇',nom:'Course'},equitation:{ico:'🏇',nom:'Équitation'},pres:{ico:'🌸',nom:'Prés'},band:{ico:'🎸',nom:'Pop'},licorne:{ico:'🦄',nom:'Licornes'},plantes:{ico:'🌿',nom:'Plantes'},robot:{ico:'🤖',nom:'Robots'},sombres:{ico:'💀',nom:'Sombres'},metaux:{ico:'🔩',nom:'Métaux'},aliens:{ico:'👽',nom:'Extraterrestres'},precieux:{ico:'💎',nom:'Précieux'},planetes:{ico:'🪐',nom:'Planètes'}};
+const ROYAUMES={belgique:{ico:'🇧🇪',nom:'Belgique'},pays_bas:{ico:'🇳🇱',nom:'Pays-Bas'},france:{ico:'🇫🇷',nom:'France'},allemagne:{ico:'🇩🇪',nom:'Allemagne'},angleterre:{ico:'🏴',nom:'Angleterre'},irlande:{ico:'🇮🇪',nom:'Irlande'},ecosse:{ico:'🏴',nom:'Écosse'},espagne:{ico:'🇪🇸',nom:'Espagne'},rome:{ico:'🏛️',nom:'Rome'},italie:{ico:'🇮🇹',nom:'Italie'},portugal:{ico:'🇵🇹',nom:'Portugal'},autriche:{ico:'🇦🇹',nom:'Autriche'},luxembourg:{ico:'🇱🇺',nom:'Luxembourg'},suisse:{ico:'🇨🇭',nom:'Suisse'},grece:{ico:'🇬🇷',nom:'Grèce'},norvege:{ico:'🇳🇴',nom:'Norvège'},steppe:{ico:'🐎',nom:'Steppe'},chine:{ico:'🇨🇳',nom:'Chine'},japon:{ico:'🇯🇵',nom:'Japon'},inde:{ico:'🇮🇳',nom:'Inde'},arabie:{ico:'🏜️',nom:'Arabie'},egypte:{ico:'🇪🇬',nom:'Égypte'},amerique:{ico:'🇺🇸',nom:'Amérique'},afrique:{ico:'🦓',nom:'Afrique'},camelot:{ico:'🏰',nom:'Camelot'},avalon:{ico:'🦄',nom:'Avalon'},scene:{ico:'🎤',nom:'Scène'},australie:{ico:'🇦🇺',nom:'Australie'},perse:{ico:'🏹',nom:'Perse'},futur:{ico:'🤖',nom:'Futur'},russie:{ico:'🇷🇺',nom:'Russie'},argentine:{ico:'🇦🇷',nom:'Argentine'},finlande:{ico:'🇫🇮',nom:'Finlande'},islande:{ico:'🇮🇸',nom:'Islande'},danemark:{ico:'🇩🇰',nom:'Danemark'},pologne:{ico:'🇵🇱',nom:'Pologne'},bresil:{ico:'🇧🇷',nom:'Brésil'},hongrie:{ico:'🇭🇺',nom:'Hongrie'},galles:{ico:'🏴',nom:'Pays de Galles'},ukraine:{ico:'🇺🇦',nom:'Ukraine'},chili:{ico:'🇨🇱',nom:'Chili'},outremonde:{ico:'🌑',nom:'Outre-monde'}};
+const FAMILLES={travail:{ico:'🛠️',nom:'Travail'},race:{ico:'🏅',nom:'Cheval de race'},mascotte:{ico:'👑',nom:'Mascotte'},bataille:{ico:'⚔️',nom:'Bataille'},legende:{ico:'✨',nom:'Légende'},elementaires:{ico:'🔥',nom:'Élémentaires'},sauvages:{ico:'🐎',nom:'Sauvages'},course:{ico:'🏇',nom:'Course'},equitation:{ico:'🏇',nom:'Équitation'},pres:{ico:'🌸',nom:'Prés'},band:{ico:'🎸',nom:'Pop'},licorne:{ico:'🦄',nom:'Licornes'},plantes:{ico:'🌿',nom:'Plantes'},robot:{ico:'🤖',nom:'Robots'},sombres:{ico:'💀',nom:'Sombres'},metaux:{ico:'🔩',nom:'Métaux'},aliens:{ico:'👽',nom:'Extraterrestres'},precieux:{ico:'💎',nom:'Précieux'},planetes:{ico:'🪐',nom:'Planètes'},caractere:{ico:'🎭',nom:'Caractères'}};
 /* ===== Équilibrage aventure (Lot 5) ===== */
 const AMB_COMPO=1.2;                 /* +20% d'ambition sur les seuils de compo */
 const PAYS_MULT={belgique:1.0,france:1.05,iles:1.10,rhin:1.15,iberie:1.20};  /* +5% de difficulté par pays */
@@ -494,8 +574,8 @@ const DIVISIONS=[
   {rarete:'legendaire',nom:'Légendaire', ico:'🏅',inscription:25,crins:[110,55,25],   renom:[12,7,3]},
   {rarete:'mythique',  nom:'Mythique',   ico:'👑',inscription:40,crins:[180,90,40],   renom:[18,10,4]},
 ];
-const FAM_CARAC={travail:'force',race:'beaute',bataille:'bataille',legende:'magie',elementaires:'magie',sauvages:'endurance',course:'vitesse',pres:'beaute',band:'vitesse',licorne:'magie',plantes:'endurance',robot:'vitesse',sombres:'bataille',equitation:'endurance',mascotte:'beaute',metaux:'force',aliens:'magie',precieux:'beaute',planetes:'magie'};
-const FAM_FAIBLESSE={travail:'vitesse',race:'magie',mascotte:'bataille',bataille:'magie',legende:'endurance',elementaires:'force',sauvages:'beaute',course:'force',equitation:'bataille',pres:'bataille',band:'bataille',licorne:'bataille',plantes:'vitesse',robot:'magie',sombres:'beaute',metaux:'magie',aliens:'force',precieux:'vitesse',planetes:'vitesse'};
+const FAM_CARAC={travail:'force',race:'beaute',bataille:'bataille',legende:'magie',elementaires:'magie',sauvages:'endurance',course:'vitesse',pres:'beaute',band:'vitesse',licorne:'magie',plantes:'endurance',robot:'vitesse',sombres:'bataille',equitation:'endurance',mascotte:'beaute',metaux:'force',aliens:'magie',precieux:'beaute',planetes:'magie',caractere:'endurance'};
+const FAM_FAIBLESSE={travail:'vitesse',race:'magie',mascotte:'bataille',bataille:'magie',legende:'endurance',elementaires:'force',sauvages:'beaute',course:'force',equitation:'bataille',pres:'bataille',band:'bataille',licorne:'bataille',plantes:'vitesse',robot:'magie',sombres:'beaute',metaux:'magie',aliens:'force',precieux:'vitesse',planetes:'vitesse',caractere:'magie'};
 const PONEYS=new Set(['welsh_pony','basotho','caspien','connemara','eriskay','exmoor','fell','highland','hutsul','merens','poney_shetland','poney_heureux','bebe_poney','falabella','fjord','haflinger','dulmener','islandais','konik','yakutian']);
 const RANGS=[[0,'Débutante'],[15,'Régionale'],[45,'Réputée'],[100,'Prestigieuse'],[220,'Légendaire']];
 const POIDS_MARCHAND={commune:40,rare:28,epique:19,legendaire:10,mythique:3};
@@ -514,6 +594,7 @@ const JALONS=[
   {carte:'beasts_alicorne',     txt:'Compléter la famille Licornes',    cond:()=>familleComplete('licorne')},
   {carte:'cheval_pale_mort',    txt:'Compléter la famille Sombres',     cond:()=>familleComplete('sombres')},
   {carte:'cheval_rouge_guerre', txt:'Atteindre 300 bonnes réponses',    cond:()=>(etat.bonnes||0)>=300},
+  {carte:'mythe_sleipnir_rainbow',txt:'Posséder 100 chevaux différents',  cond:()=>nbUniques()>=100},
 ];
 const BRAVOS=["Bien joué, tu as réfléchi !","Belle stratégie !","Ça, c'est de la persévérance !","Ton entraînement paie !","Super raisonnement !","Tu maîtrises de mieux en mieux !"];
 const ENCOURAGE=["Pas encore — mais chaque essai t'apprend !","L'erreur fait partie du chemin 💪","Presque ! Regarde l'astuce.","Tu progresses en essayant.","Bien tenté ! On retient et on continue."];
@@ -620,6 +701,26 @@ const MYTHES={
  big_ben:{perso:"l'Angleterre",fait:"un Shire géant, descendant des chevaux des chevaliers"},
  inge:{perso:"les Pays-Bas",fait:"une Frisonne, perle noire des Pays-Bas qui sait danser"},
  rocio:{perso:"l'Espagne",fait:"une Andalouse de Pure Race Espagnole, danseuse née"},
+ mythe_tulpar:{perso:"les peuples turcs des steppes",fait:"un cheval ailé qui bondit d'un sommet à l'autre"},
+ mythe_morvarch:{perso:"la Bretagne",fait:"le cheval-marin du roi Gradlon, qui galope sur les vagues"},
+ mythe_lou_drape:{perso:"les légendes de Provence",fait:"un cheval fantôme qui apparaît près de l'eau au clair de lune"},
+ mythe_caballo_marino:{perso:"l'île de Chiloé au Chili",fait:"un cheval des mers à la nageoire dorée"},
+ mythe_each_uisge:{perso:"les Highlands d'Écosse",fait:"le cheval des lochs qui entraîne les imprudents sous l'eau"},
+ mythe_cabbyl_ushtey:{perso:"l'île de Man",fait:"un cheval d'eau surgi de la mer les soirs de tempête"},
+ mythe_puca:{perso:"le folklore d'Irlande",fait:"un esprit farceur en forme de cheval noir aux yeux d'or"},
+ mythe_ceffyl_dwr:{perso:"le pays de Galles",fait:"un cheval d'eau né de la brume des cascades"},
+ mythe_ak_kula:{perso:"l'épopée kirghize de Manas",fait:"le fidèle cheval de guerre du héros Manas"},
+ mythe_shabdiz:{perso:"la Perse ancienne",fait:"« Minuit », le cheval noir du roi Khosro, le plus rapide qui fut"},
+ mythe_ama_no_fuchigoma:{perso:"le dieu japonais Susanoo",fait:"son cheval céleste à la robe pie"},
+ mythe_liath_macha:{perso:"le héros irlandais Cúchulainn",fait:"« le Gris de Macha », son grand cheval de guerre"},
+ mythe_hrimfaxi:{perso:"la mythologie nordique",fait:"« Crinière de givre », le cheval de la Nuit dont la bave forme la rosée"},
+ mythe_svadilfari:{perso:"la mythologie nordique",fait:"l'étalon qui bâtit les murs d'Asgard, père de Sleipnir"},
+ mythe_gullfaxi:{perso:"la mythologie nordique",fait:"« Crinière d'or », le puissant cheval d'un géant"},
+ mythe_areion:{perso:"la mythologie grecque",fait:"le cheval noir immortel né de Poséidon, plus rapide que le vent"},
+ mythe_akbuzat:{perso:"la mythologie bachkire",fait:"un destrier céleste descendu du ciel pour un grand héros"},
+ mythe_chollima:{perso:"les légendes d'Extrême-Orient",fait:"un cheval ailé parcourant mille lis en un jour"},
+ mythe_skinfaxi:{perso:"la mythologie nordique",fait:"« Crinière brillante », le cheval du Jour qui éclaire le monde"},
+ mythe_sleipnir_rainbow:{perso:"Odin et le pont Bifröst",fait:"Sleipnir galopant sur l'arc-en-ciel des dieux du Nord"},
 };
 const BREEDS=['akhal_teke','frison','shire','appaloosa','marwari','andalou','arabe','fjord','gypsy_cob','brabancon','murgese','kaltblut','dulmener','lusitanien','boulonnais','haflinger','camargue','ardennais','franches_montagnes','cheval_desert','curly','falabella','finnhorse','islandais','kladruber','knabstrupper','konik','lipizzan','mangalarga_marchador','nonius','orlov','yakutian','welsh_pony','basotho','caspien','connemara','eriskay','exmoor','fell','highland','hutsul','merens'];
 const HISTO={
@@ -671,7 +772,7 @@ const FICHES_HISTO={
  course_seabiscuit:{titre:"Seabiscuit, le petit qui devint grand",paras:["Seabiscuit était un petit cheval américain qu'on jugeait trop paresseux et pas assez élégant pour gagner.","Bien entraîné, il se mit pourtant à battre les plus grands champions. Dans l'Amérique de la Grande Dépression, il devint le héros des gens ordinaires.","En 1938, il battit en duel le grand favori War Admiral, écouté par des millions de personnes à la radio. Une belle histoire d'espoir, encore célèbre."]},
  course_zenyatta:{titre:"Zenyatta, la reine des pistes",paras:["Zenyatta était une jument de course américaine née en 2004, connue pour sa petite « danse » avant chaque départ.","Elle gagna 19 de ses 20 courses, souvent en partant dernière puis en doublant tout le monde dans la dernière ligne droite.","Immense (plus d'1,70 m au garrot), élégante et maligne, elle reste l'une des juments les plus aimées du sport."]}
 };
-const LEGENDES=new Set(['licorne','hippocampe','cheval_neptune','cheval_troie','centaure','uchchaihshravas','sleipnir','al_bouraq','matsukaze','bayard','kelpie','pegase','beasts_qirin','beasts_longma','beasts_alicorne','beasts_hippogriffe','beasts_hypalectryon','mythique_xanthos','mythique_balios','mythique_enbarr','mythique_grani','mythique_gringolet','mythique_kanthaka','mythique_rakhsh','mythique_veillantif','cheval_pale_mort','cheval_rouge_guerre','helhest','dullahan','mari_lwyd']);
+const LEGENDES=new Set(['licorne','hippocampe','cheval_neptune','cheval_troie','centaure','uchchaihshravas','sleipnir','al_bouraq','matsukaze','bayard','kelpie','pegase','beasts_qirin','beasts_longma','beasts_alicorne','beasts_hippogriffe','beasts_hypalectryon','mythique_xanthos','mythique_balios','mythique_enbarr','mythique_grani','mythique_gringolet','mythique_kanthaka','mythique_rakhsh','mythique_veillantif','cheval_pale_mort','cheval_rouge_guerre','helhest','dullahan','mari_lwyd','mythe_tulpar','mythe_morvarch','mythe_lou_drape','mythe_caballo_marino','mythe_each_uisge','mythe_cabbyl_ushtey','mythe_puca','mythe_ceffyl_dwr','mythe_ak_kula','mythe_shabdiz','mythe_ama_no_fuchigoma','mythe_liath_macha','mythe_hrimfaxi','mythe_svadilfari','mythe_gullfaxi','mythe_areion','mythe_akbuzat','mythe_chollima','mythe_skinfaxi','mythe_sleipnir_rainbow']);
 const FICHES_LEGENDE={
  pegase:{titre:"Pégase, le cheval ailé",paras:["Pégase est le célèbre cheval ailé de la mythologie grecque. Il naquit, dit la légende, du sang de la Gorgone Méduse.","Le héros Bellérophon réussit à l'apprivoiser et, sur son dos, combattit la Chimère, un monstre cracheur de feu.","À la fin, Pégase s'envola jusqu'au ciel et devint une constellation : on le voit encore parmi les étoiles !"]},
  sleipnir:{titre:"Sleipnir, le cheval à huit jambes",paras:["Sleipnir est le cheval du dieu Odin, dans la mythologie des Vikings du Nord.","Il a huit jambes, ce qui en fait le plus rapide des chevaux : il galope sur la terre, sur la mer et même dans les airs.","Fils du dieu farceur Loki, il pouvait voyager jusqu'au royaume des morts et en revenir."]},

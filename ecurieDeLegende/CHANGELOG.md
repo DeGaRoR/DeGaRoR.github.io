@@ -3,6 +3,48 @@
 Convention : `VERSION_APP` (index.html) = `ecurie-vNN` (sw.js), incrémentés à CHAQUE livraison
 (invalidation du cache PWA). QC : `node tools/qc.js` avant chaque livraison.
 
+## v146 — Animations plus propres (shine & chargement, qualité pro)
+- Objectif : supprimer les fortes discontinuités des animations de shine et de chargement. **Aucun
+  z-index modifié** (tc-shine sans z-index, skeleton z:0, céleste z:4 — tous préservés).
+- **Shine des cartes** (`.tc-shine`) : passait par `left` (propriété non-composited → repaints/saccades).
+  Réécrit en **`transform:translate3d` (GPU)** + timing **`linear`** (balayage uniforme) + `will-change`.
+  Boucle hors-écran aux deux bouts → aucun saut visible.
+- **Skeleton de chargement** (`tcShimmer`) : passait par `background-position` (repaints CPU sur toute la
+  grille en chargement). Réécrit en bande **`transform:translate3d`** continue et fluide, `overflow:hidden`
+  pour le clip (n'affecte pas l'empilement).
+- **Shine céleste** (`celesteShine`) : flash d'opacité abrupt → fondu symétrique + balayage uniforme (`linear`).
+- **Barre de chargement** (`chGlisse`) : `ease-in-out` (rapide au milieu, saccadé) → **`linear`** uniforme.
+- `prefers-reduced-motion` continue de désactiver le shine. `VERSION_APP`=v146, `ecurie-v146`. QC : 0 échec.
+
+## v145 — Idols (Pop) + série confort « Caractères » (248 → 268)
+- **4 Idols** 🎤 rejoignent la famille **Pop** (`band`, royaume Scène) : Blue Laser & Max Maximum (épique),
+  Candy Crushy & Princess Glitter (rare). Band passe à 14 cartes.
+- **Nouvelle famille « Caractères » 🎭** (`caractere`, carac=endurance, faib=magie) : un sitcom de l'écurie,
+  16 chevaux définis par leur **personnalité** plutôt que leur race — Le Timide, Le Peureux, Le Costaud,
+  L'Intello, Le Play-boy, Le Bad Boy, La Prom Queen, Le Vieux Sage, Le Jeune Fou, L'Artiste, L'Original,
+  Le Rigide, Le Marginal, Le Simplet, Le Vieux Ronchon, La Jument Appliquée. Affinités sur-mesure selon
+  le caractère (Le Costaud → force, Le Peureux → vitesse, L'Intello → magie…).
+- **Basse rareté (série confort)** : 11 communes + 5 rares → **rééquilibrage de la pyramide** (le bas se
+  remplit) : commune 38→49, rare 71→78. Total 268 : commune 49 · rare 78 · épique 69 · légendaire 40 ·
+  mythique 25 · céleste 7.
+- La famille Caractères (16 ≥ 15) devient éligible aux concours. `VERSION_APP`=v145, `ecurie-v145`
+  (+20 images précache). QC : 0 échec.
+
+## v144 — 20 chevaux mythologiques du monde (228 → 248)
+- Nouveau lot de 20 légendes équestres de différentes cultures, tous famille **legende**, ids ASCII sûrs
+  (préfixe `mythe_`, accents/apostrophes/ð/ŵ retirés des noms de fichiers).
+- Répartition équilibrée (ajouts surtout en épique) : **épique 8** (Tulpar, Morvarc'h, Lou Drapé, Caballo
+  Marino, Each-Uisge, Cabyll-Ushtey, Púca, Ceffyl Dŵr), **légendaire 7** (Ak-Kula, Shabdiz, Ame-no-Fuchikoma,
+  Liath Macha, Hrímfaxi, Svaðilfari, Gullfaxi), **mythique 4** (Areion, Akbuzat, Chollima, Skinfaxi),
+  **céleste 1** (Sleipnir Arc-en-ciel).
+- Pyramide 248 : commune 38 · rare 71 · épique 67 · légendaire 40 · mythique 25 · céleste 7.
+- **Céleste + jalon complet** : le Sleipnir Arc-en-ciel s'obtient au jalon « Posséder 100 chevaux
+  différents » (le Sleipnir de base est à 50) — non tirable (poids 0), débloqué par accomplissement.
+- Complétude : chaque carte a sa **fiche auto-générée** (`MYTHES` perso/fait) + appartenance au Set
+  `LEGENDES`. Nouveau royaume **Chili 🇨🇱** (pour le Caballo Marino Chilote) + drapeau concours.
+- 1er aff = magie (carac de `legende`) pour tous ; disciplines secondaires thématiques.
+- `VERSION_APP`=v144, `ecurie-v144` (+20 images au précache PWA). QC : 0 échec.
+
 ## v143 — Concours par robe + passe d'identification des robes
 - **Passe robes (certitude, fantasy exclu)** : 5 vraies races à couleur définitoire ajoutées à ROBES —
   boulonnais→blanc (gris « cheval de marbre »), konik→isabelle (dun sauvage, comme le Fjord),

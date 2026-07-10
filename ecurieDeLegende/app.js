@@ -205,7 +205,7 @@ async function cloudPush(){
   catch(e){majSync(navigator.onLine?'err':'off');}
 }
 function compteVersProfil(row){return {id:row.id,nom:row.prenom,age:row.age,emoji:row.avatar,couleur:row.couleur,niveau:row.niveau,etat:normaliserEtat(row.etat||etatVide()),cloud:true,pin:row._pin,code:row._code||codeFamille()};}
-const VERSION_APP='v143';
+const VERSION_APP='v146';
    // exemplaires cumulés pour ★ à ★★★★★ (évolution plus lente)
 const COUT_TIRAGE=120,SOLDE_DEPART=200;const COUT_TIRAGE10=COUT_TIRAGE*9;
 const PITY_EPIC=20,PITY_LEGEND=100;   // pity : épique+ garanti tous les 20, légendaire+ tous les 100
@@ -325,7 +325,7 @@ function combosViables(){const out=[];for(const f of Object.keys(FAMILLES)){if(f
 function combosPoney(){const out=[];for(const d of DIVISIONS){const pool=CARTES.filter(c=>gabaritDe(c)==='poney'&&c.rarete===d.rarete);if(pool.length>=3)out.push({gab:'poney',rarete:d.rarete});}return out;}
 /* Concours NATIONAUX : par royaume × rareté (réutilise l'éco existante). Seuls les vrais pays
    (présents dans ROYAUME_DRAPEAU) participent ; les royaumes fantastiques n'ont pas de drapeau. */
-const ROYAUME_DRAPEAU={amerique:'🇺🇸',belgique:'🇧🇪',france:'🇫🇷',angleterre:'🏴󠁧󠁢󠁥󠁮󠁧󠁿',grece:'🇬🇷',arabie:'🇸🇦',irlande:'🇮🇪',autriche:'🇦🇹',norvege:'🇳🇴',chine:'🇨🇳',inde:'🇮🇳',ecosse:'🏴󠁧󠁢󠁳󠁣󠁴󠁿',allemagne:'🇩🇪',espagne:'🇪🇸',perse:'🇮🇷',bresil:'🇧🇷',japon:'🇯🇵',egypte:'🇪🇬',italie:'🇮🇹',russie:'🇷🇺',portugal:'🇵🇹',australie:'🇦🇺',finlande:'🇫🇮',islande:'🇮🇸',ukraine:'🇺🇦',danemark:'🇩🇰',pologne:'🇵🇱',hongrie:'🇭🇺',argentine:'🇦🇷',suisse:'🇨🇭',luxembourg:'🇱🇺',afrique:'🌍'};
+const ROYAUME_DRAPEAU={amerique:'🇺🇸',belgique:'🇧🇪',france:'🇫🇷',angleterre:'🏴󠁧󠁢󠁥󠁮󠁧󠁿',grece:'🇬🇷',arabie:'🇸🇦',irlande:'🇮🇪',autriche:'🇦🇹',norvege:'🇳🇴',chine:'🇨🇳',inde:'🇮🇳',ecosse:'🏴󠁧󠁢󠁳󠁣󠁴󠁿',allemagne:'🇩🇪',espagne:'🇪🇸',perse:'🇮🇷',bresil:'🇧🇷',japon:'🇯🇵',egypte:'🇪🇬',italie:'🇮🇹',russie:'🇷🇺',portugal:'🇵🇹',australie:'🇦🇺',finlande:'🇫🇮',islande:'🇮🇸',ukraine:'🇺🇦',danemark:'🇩🇰',pologne:'🇵🇱',hongrie:'🇭🇺',argentine:'🇦🇷',suisse:'🇨🇭',luxembourg:'🇱🇺',chili:'🇨🇱',afrique:'🌍'};
 function combosRoyaume(){const out=[];const roys=[...new Set(CARTES.map(c=>c.royaume).filter(Boolean))];for(const r of roys){if(!ROYAUME_DRAPEAU[r])continue;for(const d of DIVISIONS){const pool=CARTES.filter(c=>c.royaume===r&&c.rarete===d.rarete);if(pool.length>=3)out.push({royaume:r,rarete:d.rarete});}}return out;}
 /* Discipline d'un concours national : l'affinité dominante des chevaux du pays (naturel, déterministe). */
 function capDominant(royaume,rarete){const pool=CARTES.filter(c=>c.royaume===royaume&&c.rarete===rarete);const cnt={};pool.forEach(c=>(c.aff||[]).forEach(a=>cnt[a]=(cnt[a]||0)+1));let best='beaute',bn=-1;for(const a in cnt)if(cnt[a]>bn){bn=cnt[a];best=a;}return CAPS.some(c=>c.id===best)?best:'beaute';}
