@@ -3,6 +3,69 @@
 Convention : `VERSION_APP` (index.html) = `ecurie-vNN` (sw.js), incrémentés à CHAQUE livraison
 (invalidation du cache PWA). QC : `node tools/qc.js` avant chaque livraison.
 
+## v143 — Concours par robe + passe d'identification des robes
+- **Passe robes (certitude, fantasy exclu)** : 5 vraies races à couleur définitoire ajoutées à ROBES —
+  boulonnais→blanc (gris « cheval de marbre »), konik→isabelle (dun sauvage, comme le Fjord),
+  dülmener→isabelle (poneys sauvages dun), exmoor→bai (standard bai/brun), andalou→blanc (~80% gris,
+  archétype baroque). Écartées volontairement : races à robe variée (arabe, marwari, islandais, shire,
+  ardennais, brabançon…) faute de certitude.
+- **Concours par robe (défilé)** : robe × rareté, jugé sur la **Beauté** — même machinerie que les
+  familles/nationaux, zéro changement à l'économie. 4 concours viables : ⚪ blanches (rare/épique),
+  ⚫ noires (épique), 🟤 alezanes (communes).
+- Ajouts : `poolConcours` gère `co.robe`, `combosRobe()`, `ROBE_LIB` (puce ⚫/⚪/🟤/🟡 + nom).
+  `VERSION_APP`=v143, `ecurie-v143`. QC : 0 échec.
+- Note : exmoor→bai est correct mais isolé (1 carte) → pas de concours « baies » ; isabelle passe à 6
+  cartes mais reste <3 par rareté (pas encore de concours isabelle).
+
+## v142 — Concours nationaux (royaume × rareté) avec drapeaux
+- Nouvelle dimension de restriction : **concours par pays d'origine** (royaume × rareté), qui réutilise
+  exactement la machinerie existante — zéro changement à l'économie (la rareté reste le pilier des
+  mises/gains). Approche la plus simple et la moins risquée.
+- **Drapeaux emoji** par pays (rendu natif, aucun asset). Seuls les vrais pays participent
+  (`ROYAUME_DRAPEAU`) ; les royaumes fantastiques (Avalon, Futur, Outre-monde, Scène) sont exclus.
+- **Discipline auto-dérivée** : l'affinité dominante des chevaux du pays (déterministe, naturel, pas de
+  mapping à maintenir). Ex. 🇺🇸 Amérique → Vitesse, 🇸🇦 Arabie → Agilité, 🇬🇷 Grèce (lég.) → Magie,
+  🇫🇷 France → Beauté, 🏴 Angleterre → Puissance.
+- 14 concours nationaux viables (≥3 chevaux du pays dans la rareté) rejoignent la rotation quotidienne.
+- Ajouts : `poolConcours` gère `co.royaume`, `combosRoyaume()`, `capDominant()`, `libFam()` affiche
+  drapeau + nom du pays. `VERSION_APP`=v142, `ecurie-v142`. QC : 0 échec.
+
+## v141 — Fix pastilles vertes fantômes entre profils (cache d'affichage)
+- Vrai coupable (côté client, pas le cloud) : `avMajPins` retrouvait chaque pastille par son numéro via
+  `.pt-num`. Or une pastille passée au **vert (`fait`)** voit son `innerHTML` réécrit **sans `.pt-num`**.
+  Aux rendus suivants (changement de profil), ces pastilles devenaient introuvables → `if(!pin)return` les
+  sautait → elles **restaient vertes** du profil précédent, et la pastille « dispo » jaune n'était jamais
+  recalculée (d'où « aucune jaune flashante »).
+- Fix : matching par attribut **stable `data-num`** (posé au 1ᵉʳ passage, survit à la perte du `.pt-num`).
+  Chaque pastille reste donc retrouvable et se réinitialise correctement à chaque changement de profil.
+- Vérifié par simulation : profil A (3 finies) → profil B vide donne bien `dispo lock lock lock lock`
+  (1 jaune, 0 verte fantôme).
+- `VERSION_APP`=v141, `ecurie-v141`. QC : 0 échec.
+
+## v140 — Suppression de profil dans l'espace parental + libellés honnêtes
+- Correction de diagnostic : le bouton ⚙️ « Effacer ce profil » (#btn-reset) ne faisait qu'un
+  `etat=etatVide()` — il **réinitialisait** la progression sans retirer le profil (d'où le compte qui
+  reste au login et le tuto re-servi, `tutoVu` repassant à false). Renommé **« 🔄 Réinitialiser la
+  progression »** (ce qu'il fait réellement).
+- **Suppression déplacée dans l'espace parental** (comme demandé) : chaque joueur y a un bouton
+  **« 🗑 Retirer ce joueur de l'appareil »** — retrait LOCAL sûr (locaux + `ecurie_prof_`/`ecurie_bk_`),
+  le cloud n'est pas touché. Le ✕ ajouté par erreur sur l'écran login (v139) est retiré.
+- Provinces vertes sur un profil neuf : **prouvé empiriquement** que l'init client d'un profil neuf
+  donne 0 province finie. La contamination vient donc de la couche cloud (état renvoyé par
+  `connexion`/`creer_compte`), pas du client — à investiguer côté backend.
+- `VERSION_APP`=v140, `ecurie-v140`. QC : 0 échec.
+
+## v139 — Retirer un compte de l'écran login
+- Constat : aucun bouton ni RPC de suppression n'existait côté client. Les « 3 provinces vertes sur un
+  nouveau profil » n'étaient pas un leak — c'était l'ANCIEN compte, rouvert : la suppression ne le retirait
+  pas de l'écran login, donc on recliquait dessus (autoLogin recharge son état réel).
+- **Bouton ✕ « Retirer de cet appareil »** sur chaque carte de l'écran login (cloud). Retrait LOCAL et sûr :
+  supprime le raccourci + les caches locaux (`ecurie_prof_`, `ecurie_bk_`) ; ne touche PAS le cloud.
+  Confirmation explicite. Résout le compte fantôme qui restait affiché.
+- `VERSION_APP`=v139, `ecurie-v139`. QC : 0 échec.
+- ⚠️ Limite connue : la suppression *réelle* d'un compte dans le cloud nécessite un RPC backend
+  (`supprimer_compte`) qui n'existe pas encore. `connexion` matche par (prénom, PIN, code), pas par id.
+
 ## v138 — Intro aventure : toucher l'image (plus de bouton)
 - Le bouton « Continuer › » se rendait **sous la barre d'onglets** (nav en z-index 30 > intro en 10),
   donc injoignable au toucher sur certains écrans — c'était la vraie cause du blocage d'origine.

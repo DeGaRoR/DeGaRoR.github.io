@@ -183,7 +183,7 @@ function renderAdmin(){
       +'<div class="adm-stat"><b>+'+prog.cartes+'</b><span>cartes</span></div>'
       +'<div class="adm-stat"><b>+'+prog.etoiles+'</b><span>⭐ étoiles</span></div>'
       +(et?'<div class="adm-stat"><b>'+(et.serieJours||0)+'</b><span>🔥 jours</span></div>':'')
-      +'</div>'+(et?admReussite(et):'')+'</div>';
+      +'</div>'+(et?admReussite(et):'')+'<button class="adm-suppr" data-id="'+id+'" data-nom="'+(a.prenom||'').replace(/"/g,'')+'">🗑 Retirer ce joueur de l\'appareil</button></div>';
   });
   html+='<div class="adm-note">🔒 Temps de jeu et progrès synchronisés sur tous les appareils (somme par jour). Les limites s\'appliquent partout.</div>';
   box.innerHTML=html;
@@ -191,6 +191,7 @@ function renderAdmin(){
   box.querySelectorAll('.adm-enfant').forEach(el=>{
     const id=el.dataset.id,save=()=>{protegerReglage(function(){enregistrerLimite(id,{actif:el.querySelector('.adm-actif').checked,minutes:+el.querySelector('.adm-min').value||0});renderAdmin();});};
     el.querySelector('.adm-actif').onchange=save;el.querySelector('.adm-min').onchange=save;
+    const sb=el.querySelector('.adm-suppr');if(sb)sb.onclick=()=>retirerJoueurAppareil(sb.dataset.id,sb.dataset.nom,renderAdmin);
   });
 }
 async function cloudCreer(prenom,pin,avatar,couleur,age,niveau,code){const h=await sha256(pin);const id=await CLOUD.rpc('creer_compte',{p_prenom:prenom,p_pin:h,p_avatar:avatar,p_couleur:couleur,p_age:age,p_niveau:niveau,p_etat:etatVide(),p_code:code||codeFamille()});return {id,_pin:h};}
@@ -204,7 +205,7 @@ async function cloudPush(){
   catch(e){majSync(navigator.onLine?'err':'off');}
 }
 function compteVersProfil(row){return {id:row.id,nom:row.prenom,age:row.age,emoji:row.avatar,couleur:row.couleur,niveau:row.niveau,etat:normaliserEtat(row.etat||etatVide()),cloud:true,pin:row._pin,code:row._code||codeFamille()};}
-const VERSION_APP='v138';
+const VERSION_APP='v143';
    // exemplaires cumulés pour ★ à ★★★★★ (évolution plus lente)
 const COUT_TIRAGE=120,SOLDE_DEPART=200;const COUT_TIRAGE10=COUT_TIRAGE*9;
 const PITY_EPIC=20,PITY_LEGEND=100;   // pity : épique+ garanti tous les 20, légendaire+ tous les 100
@@ -322,23 +323,36 @@ function famTotal(f){return CARTES.filter(c=>(c.familles||[]).includes(f)).lengt
 function combosViables(){const out=[];for(const f of Object.keys(FAMILLES)){if(famTotal(f)<CONCOURS_MIN_FAM)continue;for(const d of DIVISIONS){const pool=CARTES.filter(c=>(c.familles||[]).includes(f)&&c.rarete===d.rarete);if(pool.length>=3)out.push({fam:f,rarete:d.rarete});}}return out;}
 /* Concours poneys : transversaux aux familles, une division par rareté où ≥3 poneys existent. */
 function combosPoney(){const out=[];for(const d of DIVISIONS){const pool=CARTES.filter(c=>gabaritDe(c)==='poney'&&c.rarete===d.rarete);if(pool.length>=3)out.push({gab:'poney',rarete:d.rarete});}return out;}
-/* Filtre d'éligibilité d'un concours (cartes candidates) : par gabarit si co.gab, sinon par famille. */
-function poolConcours(co){return co.gab?CARTES.filter(c=>gabaritDe(c)===co.gab&&c.rarete===co.rarete):CARTES.filter(c=>(c.familles||[]).includes(co.fam)&&c.rarete===co.rarete);}
+/* Concours NATIONAUX : par royaume × rareté (réutilise l'éco existante). Seuls les vrais pays
+   (présents dans ROYAUME_DRAPEAU) participent ; les royaumes fantastiques n'ont pas de drapeau. */
+const ROYAUME_DRAPEAU={amerique:'🇺🇸',belgique:'🇧🇪',france:'🇫🇷',angleterre:'🏴󠁧󠁢󠁥󠁮󠁧󠁿',grece:'🇬🇷',arabie:'🇸🇦',irlande:'🇮🇪',autriche:'🇦🇹',norvege:'🇳🇴',chine:'🇨🇳',inde:'🇮🇳',ecosse:'🏴󠁧󠁢󠁳󠁣󠁴󠁿',allemagne:'🇩🇪',espagne:'🇪🇸',perse:'🇮🇷',bresil:'🇧🇷',japon:'🇯🇵',egypte:'🇪🇬',italie:'🇮🇹',russie:'🇷🇺',portugal:'🇵🇹',australie:'🇦🇺',finlande:'🇫🇮',islande:'🇮🇸',ukraine:'🇺🇦',danemark:'🇩🇰',pologne:'🇵🇱',hongrie:'🇭🇺',argentine:'🇦🇷',suisse:'🇨🇭',luxembourg:'🇱🇺',afrique:'🌍'};
+function combosRoyaume(){const out=[];const roys=[...new Set(CARTES.map(c=>c.royaume).filter(Boolean))];for(const r of roys){if(!ROYAUME_DRAPEAU[r])continue;for(const d of DIVISIONS){const pool=CARTES.filter(c=>c.royaume===r&&c.rarete===d.rarete);if(pool.length>=3)out.push({royaume:r,rarete:d.rarete});}}return out;}
+/* Discipline d'un concours national : l'affinité dominante des chevaux du pays (naturel, déterministe). */
+function capDominant(royaume,rarete){const pool=CARTES.filter(c=>c.royaume===royaume&&c.rarete===rarete);const cnt={};pool.forEach(c=>(c.aff||[]).forEach(a=>cnt[a]=(cnt[a]||0)+1));let best='beaute',bn=-1;for(const a in cnt)if(cnt[a]>bn){bn=cnt[a];best=a;}return CAPS.some(c=>c.id===best)?best:'beaute';}
+/* Concours par ROBE (défilé) : robe × rareté, jugé sur la Beauté. Même machinerie que les familles. */
+const ROBE_LIB={noir:{ico:'⚫',nom:'Robe noire'},blanc:{ico:'⚪',nom:'Robe blanche'},alezan:{ico:'🟤',nom:'Robe alezane'},isabelle:{ico:'🟡',nom:'Robe isabelle'},pie:{ico:'🎨',nom:'Robe pie'},'tachetée':{ico:'⬜',nom:'Robe tachetée'},bai:{ico:'🟫',nom:'Robe baie'}};
+function combosRobe(){const out=[];const robes=[...new Set(CARTES.map(c=>ROBES[c.id]).filter(Boolean))];for(const rb of robes){for(const d of DIVISIONS){const pool=CARTES.filter(c=>ROBES[c.id]===rb&&c.rarete===d.rarete);if(pool.length>=3)out.push({robe:rb,rarete:d.rarete});}}return out;}
+/* Filtre d'éligibilité d'un concours (cartes candidates) : par royaume, par gabarit, sinon par famille. */
+function poolConcours(co){
+  if(co.royaume)return CARTES.filter(c=>c.royaume===co.royaume&&c.rarete===co.rarete);
+  if(co.robe)return CARTES.filter(c=>ROBES[c.id]===co.robe&&c.rarete===co.rarete);
+  return co.gab?CARTES.filter(c=>gabaritDe(c)===co.gab&&c.rarete===co.rarete):CARTES.filter(c=>(c.familles||[]).includes(co.fam)&&c.rarete===co.rarete);
+}
 /* Libellé (icône + nom) d'un concours pour l'affichage. */
-function libFam(co){return co.gab==='poney'?{ico:'🐴',nom:'Poney'}:FAMILLES[co.fam];}
+function libFam(co){if(co.royaume)return {ico:ROYAUME_DRAPEAU[co.royaume]||'🌍',nom:(ROYAUMES[co.royaume]&&ROYAUMES[co.royaume].nom)||co.royaume};if(co.robe)return ROBE_LIB[co.robe]||{ico:'🎨',nom:'Robe'};return co.gab==='poney'?{ico:'🐴',nom:'Poney'}:FAMILLES[co.fam];}
 function concoursDuJour(){
   const d=ymd(new Date()),refr=(etat.concours&&etat.concours.refresh)||0;
   const rng=mulberry32(hashStr('concours-'+d+'-'+refr));
-  let pool=combosViables().concat(combosPoney());
+  let pool=combosViables().concat(combosPoney()).concat(combosRoyaume()).concat(combosRobe());
   // mélange déterministe
   for(let i=pool.length-1;i>0;i--){const j=Math.floor(rng()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]];}
   const list=[];const seen={};
   for(const combo of pool){
     if(list.length>=NB_CONCOURS)break;
-    // caractéristique : thématique de la famille (parfois variée)
-    let cap=combo.gab?'endurance':(FAM_CARAC[combo.fam]||'beaute');
-    const key=(combo.gab||combo.fam)+combo.rarete+cap;if(seen[key])continue;seen[key]=1;
-    list.push({fam:combo.fam,gab:combo.gab,rarete:combo.rarete,cap});
+    // caractéristique : robe = Beauté (défilé) ; nationale = affinité dominante ; sinon thématique famille
+    let cap=combo.robe?'beaute':(combo.royaume?capDominant(combo.royaume,combo.rarete):(combo.gab?'endurance':(FAM_CARAC[combo.fam]||'beaute')));
+    const key=(combo.gab||combo.fam||combo.royaume||('robe_'+combo.robe))+combo.rarete+cap;if(seen[key])continue;seen[key]=1;
+    list.push({fam:combo.fam,gab:combo.gab,royaume:combo.royaume,robe:combo.robe,rarete:combo.rarete,cap});
   }
   const ordreR={commune:0,rare:1,epique:2,legendaire:3,mythique:4};
   list.sort((a,b)=>ordreR[a.rarete]-ordreR[b.rarete]);
@@ -1314,6 +1328,14 @@ async function demanderCodeFamille(){
   const go=()=>{const v=($('#fam-code').value||'').trim().toLowerCase();if(v.length<2)return toast('Choisis un code (2 caractères min)');try{localStorage.setItem('ecurie_fam',v);}catch(e){}renderAccueilCloud();};
   $('#fam-ok').onclick=go;$('#fam-code').addEventListener('keydown',e=>{if(e.key==='Enter')go();});
 }
+function retirerJoueurAppareil(id,nom,apres){
+  if(!id)return;
+  if(!confirm('Retirer '+(nom||'ce joueur')+' de CET appareil ?\n\nSes données restent dans le cloud (rien n\'est supprimé côté serveur) — le raccourci et le cache local sont simplement effacés de cet appareil.'))return;
+  locauxDel(id);
+  try{localStorage.removeItem('ecurie_prof_'+id);localStorage.removeItem('ecurie_bk_'+id);}catch(e){}
+  toast('Retiré de cet appareil');
+  if(typeof apres==='function')apres();
+}
 function rendreListeCloud(liste,horsLigne){
   const box=$('#acc-liste');
   box.innerHTML=(horsLigne?'<div class="acc-niv" style="color:#ffb14e">📴 Hors ligne — joueurs en mémoire</div>':'');
@@ -1914,8 +1936,15 @@ function avMajPins(){
   order.forEach((et,i)=>{
     const prev=order[i-1];
     const ok=i===0||!!(prev&&prov[prev.key]&&prov[prev.key].fini);
-    const pin=pins.find(p=>{const t=p.querySelector('.pt-num');return t&&(+t.textContent===et.numero);});
+    // Identifiant STABLE : une pastille verte (fait) perd son .pt-num, donc on la retrouve via data-num
+    // (posé au premier passage). Sans ça, les vertes deviennent introuvables et ne se réinitialisent
+    // jamais → elles « fuitent » d'un profil à l'autre.
+    const pin=pins.find(p=>{
+      if(p.dataset.num)return +p.dataset.num===et.numero;
+      const t=p.querySelector('.pt-num');return t&&(+t.textContent===et.numero);
+    });
     if(!pin)return;
+    pin.dataset.num=et.numero;
     pin.dataset.etape=et.key;
     const fait=!!(prov[et.key]&&prov[et.key].fini);
     pin.setAttribute('class','zsc etape '+(fait?'fait':ok?'dispo':'lock'));
