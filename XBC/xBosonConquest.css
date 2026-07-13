@@ -713,13 +713,57 @@ progress:before {
 	color: #ebc100ff;
 }
 /* --- Bot Arena --- */
-.arenaWrap { max-width: 720px; margin: auto; }
-.arenaRow { margin: 4px 0 !important; }
-.arenaSelect {
-	background: rgba(255,255,255,0.08);
-	color: #fff; border: 1px solid rgba(255,255,255,0.25);
-	border-radius: 6px; padding: 4px 6px; width: 100%;
+.arenaWrap { max-width: 760px; margin: auto; }
+.arenaSubtitle {
+	color: white; opacity: .8;
+	font-family: 'Gamer'; font-size: 22px; line-height: 22px;
+	margin: 8px 0 18px 0;
 }
-.arenaSelect option { color: #000; }
-.arenaMapBtn { text-align: left; }
-.arenaBet { transition: background .15s, color .15s; cursor: pointer; }
+.arenaSectionTitle {
+	color: white; opacity: .6;
+	font-family: 'Gamer'; font-size: 26px;
+	margin: 14px 0 8px 0;
+}
+/* uniform map tiles: fixed height, two lines, no wrap surprises */
+.arenaMapBtn {
+	display: inline-block; width: 47%; margin: 1.5% 1.5% 8px 1.5%;
+	height: 78px; overflow: hidden; vertical-align: top;
+	text-align: left; padding: 8px 12px; line-height: 30px;
+}
+@media only screen and (max-width: 600px) {
+	.arenaMapBtn { width: 97%; height: 70px; }
+}
+.arenaMapName {
+	font-size: 24px; line-height: 30px;
+	white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.arenaMapMeta { font-size: 18px; line-height: 24px; opacity: .6; }
+/* faction assignment rows */
+.arenaRow { margin: 6px 0 !important; }
+.arenaDot { display: inline-block; width: 20px; height: 20px; border-radius: 50%; box-shadow: rgba(0,0,0,0.6) 2px 2px 1px 0px; }
+.arenaFactionName { font-family: 'Gamer'; font-size: 22px; }
+.arenaSelect {
+	background: rgba(255,255,255,0.15);
+	color: #fff; border: 0; border-radius: 3px;
+	box-shadow: rgba(0,0,0,0.6) 3px 3px 1px 0px;
+	font-family: 'Gamer'; font-size: 18px;
+	padding: 6px; width: 100%; cursor: pointer;
+}
+.arenaSelect option { color: #000; font-family: Arial, sans-serif; }
+/* bet chips: uniform size */
+.arenaBet {
+	display: inline-block; width: 170px; margin: 5px; padding: 8px 0;
+	border: 2px solid; border-radius: 3px; text-align: center;
+	font-family: 'Gamer'; font-size: 22px;
+	box-shadow: rgba(0,0,0,0.6) 3px 3px 1px 0px;
+	transition: background .15s, color .15s; cursor: pointer;
+}
+/* result overlay: same-size buttons, Gamer text scale */
+.arenaResultBtn { width: 280px; margin: 8px; padding: 12px 0; font-size: 24px; color: white; border: 0; cursor: pointer; box-shadow: rgba(0,0,0,0.6) 4px 4px 1px 0px; }
+.arenaResultLine { color: white; font-family: 'Gamer'; font-size: 30px; margin-bottom: 14px; }
+.arenaResultVerdict { font-family: 'Gamer'; font-size: 36px; margin: 10px 0; }
+.arenaResultBet { color: white; opacity: .65; font-family: 'Gamer'; font-size: 22px; }
+@media only screen and (max-width: 600px) {
+	.arenaResultBtn { width: 85%; }
+}
+.arenaChangeMap { color: #A0F500; font-size: 18px; text-decoration: underline; }

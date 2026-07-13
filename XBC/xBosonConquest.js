@@ -172,8 +172,14 @@ function arenaFactionsOf(lvl) {
 function showArena() {
 	playMusic('musicMenu');
 	showOnly('arena');
-	document.getElementById('arenaConfig').hidden = true;
+	arenaChangeMap();
 	buildArenaMaps();
+}
+function arenaChangeMap() {
+	document.getElementById('arenaConfig').hidden = true;
+	document.getElementById('arenaSelectedMap').hidden = true;
+	document.getElementById('arenaMaps').hidden = false;
+	document.getElementById('arenaMapsTitle').hidden = false;
 }
 function buildArenaMaps() {
 	var levels = getLevels(), wrap = document.getElementById('arenaMaps');
@@ -182,14 +188,22 @@ function buildArenaMaps() {
 		(function(lvl) {
 			var lv = levels[lvl - 1], facs = arenaFactionsOf(lvl);
 			var a = document.createElement('a');
-			a.href = '#'; a.className = 'buttonSecond col s12 m6 arenaMapBtn';
-			a.innerHTML = '<b>' + (lv ? lv.name : ('Level ' + lvl)) + '</b> &nbsp;<span style="opacity:.65">' + facs.length + ' factions</span>';
+			a.href = '#'; a.className = 'buttonSecond arenaMapBtn';
+			a.innerHTML = '<div class="arenaMapName">' + (lv ? lv.name : ('Level ' + lvl)) + '</div><div class="arenaMapMeta">' + facs.length + ' factions</div>';
 			a.onclick = function() { selectArenaMap(lvl); return false; };
 			wrap.appendChild(a);
 		})(arenaCuratedMaps[k]);
 	}
 }
 function selectArenaMap(lvl) {
+	// collapse the map grid into a compact header so the config is visible without scrolling
+	document.getElementById('arenaMaps').hidden = true;
+	document.getElementById('arenaMapsTitle').hidden = true;
+	var lv = getLevels()[lvl - 1];
+	var sel = document.getElementById('arenaSelectedMap');
+	sel.innerHTML = '<span class="arenaMapName">' + (lv ? lv.name : ('Level ' + lvl)) + '</span>' +
+		'&nbsp;&nbsp;<a href="#" class="arenaChangeMap" onclick="arenaChangeMap();return false;">change map</a>';
+	sel.hidden = false;
 	arenaState.level = lvl;
 	arenaState.factions = arenaFactionsOf(lvl);
 	arenaState.ai = {};
@@ -208,8 +222,8 @@ function arenaFactionRow(idx, m) {
 	var row = document.createElement('div');
 	row.className = 'row valign-wrapper arenaRow';
 	row.innerHTML =
-		'<div class="col s2 m1"><span style="display:inline-block;width:18px;height:18px;border-radius:50%;background:' + m.colour + '"></span></div>' +
-		'<div class="col s4 m3" style="color:' + m.colour + '"><b>' + m.name + '</b></div>';
+		'<div class="col s2 m1"><span class="arenaDot" style="background:' + m.colour + '"></span></div>' +
+		'<div class="col s4 m3 arenaFactionName" style="color:' + m.colour + '">' + m.name + '</div>';
 	var mc = document.createElement('div'); mc.className = 'col s3 m4';
 	var ms = document.createElement('select'); ms.className = 'browser-default arenaSelect';
 	[['2', 'Utility AI'], ['1', 'Legacy AI'], ['0', 'Random']].forEach(function(o) {
@@ -236,7 +250,7 @@ function buildArenaBets() {
 		(function(idx) {
 			var m = meta[idx], b = document.createElement('a');
 			b.href = '#'; b.className = 'arenaBet'; b.setAttribute('data-idx', idx);
-			b.style.cssText = 'display:inline-block;margin:4px;padding:6px 14px;border:2px solid ' + m.colour + ';border-radius:20px;color:' + m.colour;
+			b.style.borderColor = m.colour; b.style.color = m.colour;
 			b.innerHTML = m.name;
 			b.onclick = function() { arenaState.bet = idx; highlightArenaBets(); return false; };
 			w.appendChild(b);
@@ -287,9 +301,9 @@ function showArenaResult() {
 	var wm = (winner && meta[winIdx]) ? meta[winIdx].name : (winner ? winner.playerName : 'Nobody');
 	var wc = meta[winIdx] ? meta[winIdx].colour : '#ffffff';
 	document.getElementById('arenaResultInner').innerHTML =
-		'<div style="font-size:1.3em">Winner: <span style="color:' + wc + '">' + wm + '</span></div>' +
-		'<div style="margin-top:12px;font-size:1.5em;color:' + (won ? '#A0F500' : '#FF7F00') + '">' + (won ? 'You won your bet!' : 'You lost your bet.') + '</div>' +
-		'<div style="opacity:.7;margin-top:6px">Your bet: ' + (meta[betIdx] ? meta[betIdx].name : '-') + '</div>';
+		'<div class="arenaResultLine">Winner: <span style="color:' + wc + '">' + wm + '</span></div>' +
+		'<div class="arenaResultVerdict" style="color:' + (won ? '#A0F500' : '#FF7F00') + '">' + (won ? 'You won your bet!' : 'You lost your bet.') + '</div>' +
+		'<div class="arenaResultBet">Your bet: ' + (meta[betIdx] ? meta[betIdx].name : '-') + '</div>';
 	document.getElementById('arenaResult').hidden = false;
 }
 function arenaRematch() { document.getElementById('arenaResult').hidden = true; startArena(); }

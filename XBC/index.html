@@ -227,12 +227,18 @@
 						</div>
 					</div>
 				</span>
-				<span id="arenaResult" class="inGameMenu center white-text" hidden>
-					<div class="winMessage" style="margin-bottom:10px">MATCH OVER</div>
-					<div id="arenaResultInner"></div>
-					<div class="row center" style="margin-top:24px">
-						<button class="buttonMain col s10 offset-s1 xl3 offset-xl2" style="margin:6px 0" onclick="arenaRematch();">REMATCH</button>
-						<button class="buttonMain col s10 offset-s1 xl3" style="margin:6px 0" onclick="document.getElementById('arenaResult').hidden=true; showArena();">BACK TO ARENA</button>
+				<span id="arenaResult" class="inGameMenu confirmBox" hidden>
+					<div class="buttonsContainer">
+						<div class="buttonsContainer2">
+							<div class="buttonsContainer3">
+								<div class="winMessage" style="margin-bottom:25px">MATCH OVER</div>
+								<div id="arenaResultInner"></div>
+								<div style="margin-top:30px">
+									<button class="button menuCenter buttonConfirm arenaResultBtn" onclick="arenaRematch();">REMATCH</button>
+									<button class="button menuCenter buttonConfirm arenaResultBtn" onclick="document.getElementById('arenaResult').hidden=true; showArena();">BACK TO ARENA</button>
+								</div>
+							</div>
+						</div>
 					</div>
 				</span>
 				<span id="confirmBoxReturnHome" class="inGameMenu confirmBox" hidden>
@@ -299,17 +305,18 @@
 			<div id="arena" class="menuCenter buttonsMenu scaleOnSmallLandscape" hidden>
 				<a id="arenaBackButton" href="#" onclick="showMasterMenu();" class="buttonBack alphaBtn colorTextCell"><i class="fas fa-home"></i></a>
 				<div class="container arenaWrap">
-					<h4 class="colorTextCell center" style="margin-top:10px">BOT ARENA</h4>
-					<div class="center white-text" style="opacity:.75;margin-bottom:10px">Pick a map, assign an AI to each colour, bet on a winner, then watch it unfold.</div>
-					<div class="white-text" style="opacity:.6;margin:6px 0">Choose a map</div>
-					<div id="arenaMaps" class="row"></div>
+					<div class="winMessage center" style="margin-top:15px">BOT ARENA</div>
+					<div class="arenaSubtitle center">Pick a map, assign an AI to each colour, bet on a winner, then watch it unfold.</div>
+					<div id="arenaMapsTitle" class="arenaSectionTitle">Choose a map</div>
+					<div id="arenaMaps" class="row" style="margin-bottom:0"></div>
+					<div id="arenaSelectedMap" class="arenaSectionTitle" hidden></div>
 					<div id="arenaConfig" hidden>
-						<div class="white-text" style="opacity:.6;margin:6px 0">Assign the AIs</div>
+						<div class="arenaSectionTitle">Assign the AIs</div>
 						<div id="arenaFactions"></div>
-						<div class="white-text center" style="opacity:.6;margin:14px 0 4px">Place your bet</div>
+						<div class="arenaSectionTitle center" style="margin-top:20px">Place your bet</div>
 						<div id="arenaBets" class="center"></div>
-						<div class="center" style="margin:18px 0">
-							<a href="#" id="arenaGoBtn" onclick="startArena();return false;" class="buttonMain col s8 offset-s2 xl4 offset-xl4">GO &mdash; WATCH</a>
+						<div class="center" style="margin:25px 0">
+							<a href="#" id="arenaGoBtn" onclick="startArena();return false;" class="buttonMain" style="min-width:60%">GO &mdash; WATCH</a>
 						</div>
 					</div>
 				</div>
