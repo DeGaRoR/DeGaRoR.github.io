@@ -3,6 +3,29 @@
 Convention : `VERSION_APP` (index.html) = `ecurie-vNN` (sw.js), incrémentés à CHAQUE livraison
 (invalidation du cache PWA). QC : `node tools/qc.js` avant chaque livraison.
 
+## v152 — Filtres collection en dropdown + Trivia Ado
+- Bug « Possédés » : le bouton avait la classe `actif` en dur (toujours doré) alors que le clic togglait
+  `.on` → aucun changement visible. Corrigé en passant à un **menu déroulant** clair.
+- **Filtre à 3 modes** (dropdown, gain de place) : **Possédés** (défaut) · **✨ Évoluables** (chevaux avec
+  une évolution disponible, via `peutEvoluer`) · **Tous**. L'état sélectionné est toujours lisible, et un
+  message adapté s'affiche si aucun cheval n'est évoluable.
+- Les boutons de tri (Rareté / Niveau / Famille / Récent / sens) restent inchangés.
+- Pack **« Trivial » renommé « Trivia Ado »** (nom + libellé d'en-tête ; l'id `trivia` est conservé pour
+  ne pas casser la progression existante).
+- `VERSION_APP`=v152, `ecurie-v152`. QC : 0 échec.
+
+## v151 — Fix écran noir à l'entrée d'un pays (mascotte)
+- Cause : l'intro d'un pays affiche sa mascotte en fond ; or **`francois_camargue.jpg` (mascotte France)
+  était la SEULE image de carte absente du précache** du service worker. En PWA (cache-first), l'image de
+  François ne se chargeait pas → fond de l'intro tout noir, écran figé. (Belgique fonctionnait car
+  `pieter_jan.jpg` est précaché.)
+- Fix : françois_camargue ajouté au précache. La logique d'entrée de pays était saine (vérifiée en
+  reproduction) — c'était bien un souci d'asset.
+- Robustesse ajoutée : `setFondImg` pose une **base sombre teintée** (jamais un noir pur) pendant le
+  chargement / en cas d'échec d'image ; et `avMontrer` bascule sur la carte si l'intro mascotte échoue,
+  pour ne jamais rester bloqué.
+- `VERSION_APP`=v151, `ecurie-v151`. QC : 0 échec.
+
 ## v150 — Pack « Mythologie » : épreuve de maîtrise (run parfait)
 - Nouveau pack 🏛️ **Mythologie** — 3 niveaux de 10 questions sur les chevaux des vrais mythes.
 - Chaque niveau : une **intro théorique** (le background des 10 chevaux : Grèce & Nord ; chevaux d'eau

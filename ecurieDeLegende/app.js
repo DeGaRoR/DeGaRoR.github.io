@@ -205,7 +205,7 @@ async function cloudPush(){
   catch(e){majSync(navigator.onLine?'err':'off');}
 }
 function compteVersProfil(row){return {id:row.id,nom:row.prenom,age:row.age,emoji:row.avatar,couleur:row.couleur,niveau:row.niveau,etat:normaliserEtat(row.etat||etatVide()),cloud:true,pin:row._pin,code:row._code||codeFamille()};}
-const VERSION_APP='v150';
+const VERSION_APP='v152';
    // exemplaires cumulés pour ★ à ★★★★★ (évolution plus lente)
 const COUT_TIRAGE=120,SOLDE_DEPART=200;const COUT_TIRAGE10=COUT_TIRAGE*9;
 const PITY_EPIC=20,PITY_LEGEND=100;   // pity : épique+ garanti tous les 20, légendaire+ tous les 100
@@ -643,7 +643,7 @@ function montrerGainAnim(n){
     document.body.appendChild(p);setTimeout(()=>p.remove(),1300);}
 }
 function majProgression(){const t=CARTES.length,u=nbUniques();$('#prog-fill').style.width=(t?u/t*100:0)+'%';$('#prog-txt').textContent=`${u} / ${t} créatures · ${totalEtoiles()} ★`;$('#ecurie-compte').textContent=`${u}/${t}`;}
-let filtrePossedes=true,triChamp='rarete',triSens=-1;   // -1 = décroissant (rare/évolué d'abord)
+let filtreMode='possedes',triChamp='rarete',triSens=-1;   // possedes | evoluable | tous   // -1 = décroissant (rare/évolué d'abord)
 const ORD_RAR=Object.keys(RARETES);
 const ORD_FAM=Object.keys(FAMILLES);
 function valTri(c){const n=etat.collection[c.id]||0;
@@ -654,9 +654,10 @@ function valTri(c){const n=etat.collection[c.id]||0;
 function rendreGrille(){
   const g=$('#grille');g.innerHTML='';
   let list=CARTES.slice();
-  if(filtrePossedes)list=list.filter(c=>(etat.collection[c.id]||0)>0);
+  if(filtreMode==='possedes')list=list.filter(c=>(etat.collection[c.id]||0)>0);
+  else if(filtreMode==='evoluable')list=list.filter(c=>(etat.collection[c.id]||0)>0&&peutEvoluer(c));
   list.sort((a,b)=>{const d=valTri(a)-valTri(b);return d!==0?d*triSens:(ORD_RAR.indexOf(a.rarete)-ORD_RAR.indexOf(b.rarete))||a.nom.localeCompare(b.nom);});
-  if(!list.length){g.innerHTML='<p style="grid-column:1/-1;text-align:center;color:var(--txt-doux);padding:34px 0;">Aucune carte possédée pour l\'instant.</p>';return;}
+  if(!list.length){g.innerHTML='<p style="grid-column:1/-1;text-align:center;color:var(--txt-doux);padding:34px 0;">'+(filtreMode==='evoluable'?'Aucun cheval prêt à évoluer pour l\'instant.':'Aucune carte possédée pour l\'instant.')+'</p>';return;}
   list.forEach(c=>{const n=etat.collection[c.id]||0;const box=document.createElement('div');box.className='tc-box ratio';box.innerHTML=n?carteHTML(c,n):carteMystereHTML(c);box.onclick=n?()=>ouvrirDetail(c):()=>toast(c.nom+' — à découvrir au tirage !');g.appendChild(box);});
 }
 function maximiser(c){const im=Array.isArray(c.image)?c.image[Math.min(palierDe(etat.collection[c.id]||1),c.image.length)-1]:c.image;if(!im)return;$('#img-max-src').src=im;$('#img-max').classList.add('on');}
@@ -1168,7 +1169,7 @@ function packExo(){
   if(packActif.id==='geek')return exoBankQuiz(z,'🤖 Geek','sciences','geek');
   if(packActif.id==='anglais')return exoBankQuiz(z,'🇬🇧 Anglais · débutant','francais','anglais');
   if(packActif.id==='neerlandais')return exoBankQuiz(z,'🇳🇱 Néerlandais · débutant','francais','neerlandais');
-  if(packActif.id==='trivia')return exoBankQuiz(z,'🧠 Trivial','histoire','trivia');
+  if(packActif.id==='trivia')return exoBankQuiz(z,'🧠 Trivia Ado','histoire','trivia');
   if(packActif.id==='mythologie')return exoMythoQuiz(z);
   if(packActif.id==='art')return exoBankQuiz(z,"🎨 Histoire de l'art",'histoire','art');
   if(packActif.id==='ortho')return exoOrtho(z);
@@ -1291,6 +1292,7 @@ function majOnglets(){const b=document.querySelector('nav.tabs button[data-ecran
 function setFondImg(el,url,grad){
   if(!el)return;
   el.classList.remove('img-spin');
+  el.style.backgroundColor='#1b1540';   // base sombre teintée : jamais un écran noir pur si l'image tarde/échoue
   if(!url){el.style.backgroundImage='';return;}
   el.style.backgroundImage='';el.classList.add('img-spin');
   const im=new Image();
@@ -1308,7 +1310,7 @@ function switchEcran(nom){majFondEcran(nom);majOnglets();$$('.ecran').forEach(e=
 $$('nav.tabs button').forEach(b=>b.onclick=()=>switchEcran(b.dataset.ecran));
 $('#lien-revisions').onclick=()=>switchEcran('revisions');
 $('#btn-tirer').onclick=doTirage;$('#btn-tirer10').onclick=doTirage10;$('#btn-tirer-super').onclick=doTirageSuper;$('#ae-quit').onclick=avFermerEtape;$('#cout-nb10').textContent=COUT_TIRAGE10;$('#t10-fermer').onclick=()=>$('#t10-fond').classList.remove('on');$('#btn-resultats').onclick=()=>switchEcran('scores');const _bh=$('#btn-hub');if(_bh)_bh.onclick=()=>switchEcran('scores');$('#btn-classement').onclick=ouvrirClassement;$('#btn-chouchous').onclick=ouvrirChouchous;$('#chouchous-fermer').onclick=()=>$('#chouchous-fond').classList.remove('on');$('#classement-fermer').onclick=()=>$('#classement-fond').classList.remove('on');
-$('#filtre-possedes').onclick=()=>{filtrePossedes=!filtrePossedes;$('#filtre-possedes').classList.toggle('on',filtrePossedes);rendreGrille();};
+$('#filtre-mode').onchange=()=>{filtreMode=$('#filtre-mode').value;rendreGrille();};
 $$('.eo-tri [data-champ]').forEach(b=>b.onclick=()=>{triChamp=b.dataset.champ;$$('.eo-tri [data-champ]').forEach(x=>x.classList.toggle('actif',x===b));rendreGrille();});
 $('#tri-sens').onclick=()=>{triSens=-triSens;$('#tri-sens').textContent=triSens<0?'↓':'↑';rendreGrille();};
 $('#img-max').onclick=()=>$('#img-max').classList.remove('on');
@@ -1585,7 +1587,7 @@ function avInitCartes(){
 function avMascIntro(pays){mascPays=pays;mascI=0;etat.aventure.mascVue=etat.aventure.mascVue||{};$('#av-intro').style.display='';avMascAffiche();}
 function avMascAffiche(){const m=MASCOTTES[mascPays];setFondImg($('#av-slide'),m.img,'');$('#av-intro-txt').textContent=m.ecrans[mascI];$('#av-dots').innerHTML=m.ecrans.map((_,i)=>'<span class="'+(i===mascI?'on':'')+'"></span>').join('');$('#av-next').textContent=mascI===m.ecrans.length-1?'En route ! →':'Continuer ›';}
 function avMontrer(quoi){
-  if(MASCOTTES[quoi]&&!((etat.aventure.mascVue||{})[quoi])){return avMascIntro(quoi);}
+  if(MASCOTTES[quoi]&&!((etat.aventure.mascVue||{})[quoi])){try{return avMascIntro(quoi);}catch(e){try{etat.aventure.mascVue=etat.aventure.mascVue||{};etat.aventure.mascVue[quoi]=true;sauver();}catch(_){}}}
   avMontrerMap(quoi);
 }
 function avMontrerMap(quoi){

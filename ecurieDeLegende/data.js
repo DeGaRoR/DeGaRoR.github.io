@@ -600,7 +600,7 @@ const JALONS=[
 const BRAVOS=["Bien joué, tu as réfléchi !","Belle stratégie !","Ça, c'est de la persévérance !","Ton entraînement paie !","Super raisonnement !","Tu maîtrises de mieux en mieux !"];
 const ENCOURAGE=["Pas encore — mais chaque essai t'apprend !","L'erreur fait partie du chemin 💪","Presque ! Regarde l'astuce.","Tu progresses en essayant.","Bien tenté ! On retient et on continue."];
 const NIV1='Niveau 1 · ~10 ans';
-/* Pack "Trivial" — culture générale niveau début du secondaire (+200%) */
+/* Pack "Trivia Ado" — culture générale niveau début du secondaire (+200%) */
 const BANK_TRIVIA=[
  {q:"Quelle est la capitale de l'Australie ?",r:"Canberra",choix:["Canberra","Sydney","Melbourne","Perth"],e:"Beaucoup pensent à Sydney, mais la capitale est Canberra."},
  {q:"Quel est le plus grand océan du monde ?",r:"l'océan Pacifique",choix:["l'océan Pacifique","l'océan Atlantique","l'océan Indien","l'océan Arctique"]},
@@ -689,7 +689,7 @@ const PACKS=[
  {id:'neerlandais',nom:'Néerlandais',ico:'🇳🇱',mult:1.5,niv:NIV1,sous:'Nederlands · débutant',theorie:"Le néerlandais est parlé en Flandre, au nord de la Belgique ! Les bases : hallo (bonjour), dank je (merci), ja (oui), nee (non). Des mots : paard (cheval), hond (chien), appel (pomme), water (eau), boom (arbre)."},
  {id:'art',nom:"Histoire de l'art",ico:'🎨',mult:1.5,niv:NIV1,sous:'Grands classiques',theorie:"Léonard de Vinci a peint la Joconde, Van Gogh « La Nuit étoilée », Monet était impressionniste, Picasso a inventé le cubisme, Michel-Ange a sculpté le David. Les couleurs primaires (rouge, jaune, bleu) se mélangent pour créer toutes les autres !"},
  {id:'ortho',nom:'Orthographe',ico:'✍️',mult:3,niv:NIV1,sous:'Écris les mots · +200%',theorie:"Pense aux accents (é, è, à, ê) et aux lettres muettes à la fin des mots. Relis-toi avant de valider !"},
- {id:'trivia',nom:'Trivial',ico:'🧠',mult:3,niv:'Début du secondaire',sous:'Culture générale ados · +200%',theorie:"Le grand défi de culture générale, niveau début du secondaire : géographie, histoire, sciences, arts… Réfléchis bien — chaque bonne réponse rapporte TRIPLE (+200 %) !"},
+ {id:'trivia',nom:'Trivia Ado',ico:'🧠',mult:3,niv:'Début du secondaire',sous:'Culture générale ados · +200%',theorie:"Le grand défi de culture générale, niveau début du secondaire : géographie, histoire, sciences, arts… Réfléchis bien — chaque bonne réponse rapporte TRIPLE (+200 %) !"},
  {id:'mythologie',nom:'Mythologie',ico:'🏛️',mult:2,niv:'Épreuve de maîtrise',sous:"10 d'affilée · 3 niveaux · légendaire à la clé",theorie:"Les chevaux des grands mythes du monde : Grèce, Nord, légendes celtiques et d'ailleurs. Maîtrise les 3 niveaux (10 questions parfaites chacun) pour gagner un légendaire !"},
 ];
 const ROBES={frison:'noir',murgese:'noir',cheval_albinos:'blanc',camargue:'blanc',appaloosa:'tachetée',gypsy_cob:'pie',akhal_teke:'isabelle',fjord:'isabelle',haflinger:'alezan',francois_camargue:'blanc',inge:'noir',rocio:'blanc',gourmand_mangeur_de_pommes:'alezan',gourmand_mangeur_de_carottes:'isabelle',gourmand_mangeur_de_grain:'alezan',gourmand_mangeur_de_trefle:'pie',mythique_balios:'noir',mythique_gringolet:'blanc',mythique_kanthaka:'blanc',mythique_veillantif:'alezan',curly:'alezan',finnhorse:'alezan',falabella:'pie',mangalarga_marchador:'pie',knabstrupper:'tachetée',nonius:'noir',kladruber:'blanc',lipizzan:'blanc',orlov:'blanc',welsh_pony:'alezan',caspien:'alezan',connemara:'blanc',eriskay:'blanc',fell:'noir',merens:'noir',highland:'isabelle',boulonnais:'blanc',konik:'isabelle',dulmener:'isabelle',exmoor:'bai',andalou:'blanc'};

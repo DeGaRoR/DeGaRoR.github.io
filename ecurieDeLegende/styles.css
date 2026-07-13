@@ -218,6 +218,8 @@ nav.tabs button.actif::before{content:"";position:absolute;top:0;width:34px;heig
 .eo-btn{font-family:'Nunito';font-weight:800;font-size:12.5px;color:var(--txt-doux);background:var(--surface-2);border:1px solid #ffffff1a;border-radius:999px;padding:7px 12px;cursor:pointer;transition:.15s;}
 .eo-btn.actif,.eo-btn.on{background:color-mix(in srgb,var(--or) 22%,#1a1636);border-color:var(--or);color:var(--or);}
 .eo-sens{min-width:34px;font-size:15px;padding:6px 0;text-align:center;}
+.eo-select{font-family:'Nunito';font-weight:800;font-size:12.5px;color:var(--or);background-color:color-mix(in srgb,var(--or) 22%,#1a1636);border:1px solid var(--or);border-radius:999px;padding:7px 28px 7px 13px;cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' fill='none' stroke='%23f2c14e' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>");background-repeat:no-repeat;background-position:right 11px center;}
+.eo-select option{background:#1a1636;color:var(--txt);font-weight:700;}
 .img-max{position:fixed;top:0;right:0;bottom:0;left:0;height:100dvh;z-index:70;display:none;align-items:center;justify-content:center;background:#000000ee;backdrop-filter:blur(4px);padding:16px;}
 .img-max.on{display:flex;animation:fade .2s;}
 .img-max img{max-width:100%;max-height:100%;border-radius:14px;box-shadow:0 20px 60px #000b;object-fit:contain;}
