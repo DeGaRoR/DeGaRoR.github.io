@@ -205,7 +205,7 @@ async function cloudPush(){
   catch(e){majSync(navigator.onLine?'err':'off');}
 }
 function compteVersProfil(row){return {id:row.id,nom:row.prenom,age:row.age,emoji:row.avatar,couleur:row.couleur,niveau:row.niveau,etat:normaliserEtat(row.etat||etatVide()),cloud:true,pin:row._pin,code:row._code||codeFamille()};}
-const VERSION_APP='v146';
+const VERSION_APP='v150';
    // exemplaires cumulés pour ★ à ★★★★★ (évolution plus lente)
 const COUT_TIRAGE=120,SOLDE_DEPART=200;const COUT_TIRAGE10=COUT_TIRAGE*9;
 const PITY_EPIC=20,PITY_LEGEND=100;   // pity : épique+ garanti tous les 20, légendaire+ tous les 100
@@ -679,7 +679,7 @@ function verifierJalons(silencieux){
     if(etat.jalons[j.carte])continue;
     let ok=false;try{ok=!!j.cond();}catch(e){ok=false;}
     if(!ok)continue;
-    const c=CARTES.find(x=>x.id===j.carte);etat.jalons[j.carte]=true;if(!c)continue;
+    const c=CARTES.find(x=>x.id===j.carte);if(!c)continue;etat.jalons[j.carte]=true;
     if(!(etat.collection[j.carte]>0)){etat.collection[j.carte]=1;etat.paliers[j.carte]=1;}
     gagnes.push(c);
   }
@@ -941,8 +941,8 @@ function aFiche(id){return !!ficheDe(id);}
 let packActif=null,recentQ=[],jeuCompteur=0;
 const SEUIL_MAITRISE=2;
 /* Niveaux 2 : questions de l'année supérieure. Chaque pack a maintenant 2 niveaux à maîtriser. */
-const PACK_NIVEAUX={geek:()=>[BANK_GEEK,BANK_GEEK_N2],anglais:()=>[BANK_ANGLAIS,BANK_ANGLAIS_N2],ortho:()=>{const h=Math.ceil(ORTHO_ITEMS.length/2);return [ORTHO_ITEMS.slice(0,h),ORTHO_ITEMS.slice(h)];},art:()=>[BANK_ART,BANK_ART_N2],neerlandais:()=>[BANK_NEERLANDAIS,BANK_NEERLANDAIS_N2],trivia:()=>[BANK_TRIVIA,BANK_TRIVIA_N2]};
-const PACK_KEY={geek:q=>q.q,anglais:q=>q.q,ortho:it=>it.r,art:q=>q.q,neerlandais:q=>q.q,trivia:q=>q.q};
+const PACK_NIVEAUX={geek:()=>[BANK_GEEK,BANK_GEEK_N2],anglais:()=>[BANK_ANGLAIS,BANK_ANGLAIS_N2],ortho:()=>{const h=Math.ceil(ORTHO_ITEMS.length/2);return [ORTHO_ITEMS.slice(0,h),ORTHO_ITEMS.slice(h)];},art:()=>[BANK_ART,BANK_ART_N2],neerlandais:()=>[BANK_NEERLANDAIS,BANK_NEERLANDAIS_N2],trivia:()=>[BANK_TRIVIA,BANK_TRIVIA_N2],mythologie:()=>[BANK_MYTHO_1,BANK_MYTHO_2,BANK_MYTHO_3]};
+const PACK_KEY={geek:q=>q.q,anglais:q=>q.q,ortho:it=>it.r,art:q=>q.q,neerlandais:q=>q.q,trivia:q=>q.q,mythologie:q=>q.q};
 function theoriePack(p){if(!p)return '';const t=PACK_THEO_NIV[p.id];if(t){const nv=packNiv(p.id);return t[Math.min(nv,t.length)-1];}return p.theorie||'';}
 function nivLabel(p){if(!p)return '';return (PACK_THEO_NIV[p.id]||PACK_NIVEAUX[p.id])?('Niveau '+packNiv(p.id)):(p.niv||'');}
 
@@ -990,6 +990,64 @@ function bankGen(bank){return ()=>{const q=bank[rnd(0,bank.length-1)];return {q:
   add('geo','La Belgique & le monde',BANK_GEO);
   add('maths','Calcul rapide',BANK_MATHS);
 })();
+/* ---- Pack Mythologie : épreuve de MAÎTRISE (10 bonnes réponses d'affilée par niveau) ---- */
+let mythoRun=null;
+function mythoMaitrise(){const pp=etat&&etat.packprog&&etat.packprog.mythologie;return !!(pp&&pp.done&&pp.done[1]&&pp.done[2]&&pp.done[3]);}
+function exoMythoQuiz(z){
+  const banks=PACK_NIVEAUX.mythologie();const pp=packProg0('mythologie');
+  const niv=Math.min(pp.niv||1,banks.length);
+  if(!mythoRun||mythoRun.niv!==niv)return mythoIntro(z,niv,banks.length);
+  mythoQuestion(z,niv);
+}
+function mythoIntro(z,niv,nb){
+  const theo=(typeof MYTHO_THEO!=='undefined'?MYTHO_THEO:[])[niv-1]||'';
+  const deja=packProg0('mythologie').done[niv];
+  z.innerHTML='<div class="quiz-tete"><button class="qt-retour" onclick="mythoRun=null;retourPacks()">←</button><div class="qt-titre">🏛️ Mythologie · Niveau '+niv+'/'+nb+(deja?' ✓':'')+'</div><span class="qt-sp"></span></div>'
+    +'<div class="mytho-intro"><div class="mytho-theo">'+theo.replace(/\n/g,'<br>')+'</div>'
+    +'<div class="mytho-consigne">🎯 <b>Épreuve de maîtrise</b> : réponds correctement aux <b>10 questions d\'affilée</b>. Une seule erreur et l\'épreuve recommence !</div>'
+    +'<button class="lecon-btn" id="mytho-go">Commencer l\'épreuve ›</button></div>';
+  const g=$('#mytho-go');if(g)g.onclick=function(){const bank=PACK_NIVEAUX.mythologie()[niv-1];mythoRun={niv:niv,qs:melange(bank.slice()),i:0};packExo();};
+}
+function mythoQuestion(z,niv){
+  const q=mythoRun.qs[mythoRun.i],choix=melange(q.choix.slice());
+  z.innerHTML='<div class="quiz-tete"><button class="qt-retour" onclick="mythoRun=null;retourPacks()">←</button><div class="qt-titre">🏛️ Niveau '+niv+' · '+(mythoRun.i+1)+'/10</div><span class="qt-sp"></span></div>'
+    +'<div class="mytho-jauge"><span style="width:'+(mythoRun.i*10)+'%"></span></div>'
+    +'<div class="quiz-carte"><div class="quiz-question" id="q-question"></div><div class="quiz-reponses" id="q-reponses"></div></div>'
+    +'<div class="quiz-feedback" id="q-feedback"></div>';
+  $('#q-question').textContent=q.q;
+  const box=$('#q-reponses');let fini=false;
+  choix.forEach(function(v){const b=document.createElement('button');b.textContent=v;b.onclick=function(){
+    if(fini)return;fini=true;const bon=v===q.r;
+    box.querySelectorAll('button').forEach(function(x){x.disabled=true;if(x.textContent===q.r)x.classList.add('bon');});
+    if(!bon)b.classList.add('faux');
+    const s=statMatiere('histoire');s.tot++;const sp=statPack('mythologie');sp.tot++;if(bon)sp.ok++;
+    let g;if(bon){s.ok++;etat.bonnes++;g=gainRep(true);}else{g=gainRep(false);}
+    g=crediterDefi((ancreGain=b,g));etat.xp.histoire=(etat.xp.histoire||0)+(bon?XP_BONNE:XP_ESSAI);sauver();majSolde(true);
+    if(bon){
+      feedbackDefi(true,BRAVOS[rnd(0,BRAVOS.length-1)],'',gainSlot(true,g),function(){mythoRun.i++;if(mythoRun.i>=mythoRun.qs.length)mythoReussi();else packExo();});
+    }else{
+      const fb=$('#q-feedback');
+      fb.innerHTML='<div class="qf-msg faux">Raté ! La réponse était : <b>'+q.r+'</b></div>'+(q.e?'<div class="qf-astuce">💡 '+q.e+'</div>':'')+'<div class="mytho-fail">😅 Il faut les 10 d\'affilée — l\'épreuve recommence.</div><button class="defi-continuer" id="mytho-retry">🔁 Recommencer</button>';
+      fb.classList.add('show');
+      const r=$('#mytho-retry');if(r)r.onclick=function(){fb.classList.remove('show');mythoRun=null;packExo();};
+    }
+  };box.appendChild(b);});
+}
+function mythoReussi(){
+  const banks=PACK_NIVEAUX.mythologie(),pp=packProg0('mythologie'),niv=mythoRun.niv;mythoRun=null;
+  const nouveau=!pp.done[niv];pp.done[niv]=1;
+  if(nouveau){const dia=200+niv*50,ren=20+niv*10;etat.crins+=dia;etat.renommee=(etat.renommee||0)+ren;etat.renommeeTotale=(etat.renommeeTotale||0)+ren;}
+  const finPack=niv>=banks.length;if(!finPack)pp.niv=Math.max(pp.niv||1,niv+1);
+  sauver();majSolde(true);verifierJalons();   // déclenche le légendaire quand les 3 niveaux sont maîtrisés
+  const z=$('#defi-zone');if(!z)return;
+  const conf=Array.from({length:14}).map(function(_,i){return '<span class="ae-conf" style="left:'+Math.round(4+i*7)+'%;animation-delay:'+(i%6*0.12)+'s;font-size:'+(15+i%4*4)+'px">'+['🏛️','⭐','✨','🎉','🏆','💫'][i%6]+'</span>';}).join('');
+  z.innerHTML='<div class="ae-celebre"><div class="ae-conflayer">'+conf+'</div>'
+    +'<div class="ae-celtitre">'+(finPack?'🏛️ Mythologie maîtrisée !':'✓ Niveau '+niv+' réussi !')+'</div>'
+    +'<div class="ae-celsub">'+(finPack?'Tu connais tous les grands chevaux des mythes ! 🎁':'10 sur 10, parfait ! Prêt pour le niveau '+(niv+1)+' ?')+'</div>'
+    +(nouveau?'<div class="ae-celgain">+'+(200+niv*50)+' 💎 · +'+(20+niv*10)+' ⭐</div>':'')
+    +'<button class="ae-btn ae-celbtn" id="mytho-suite">'+(finPack?'Retour aux défis':'Niveau suivant ›')+'</button></div>';
+  const su=$('#mytho-suite');if(su)su.onclick=function(){if(finPack)retourPacks();else packExo();};
+}
 function exoBankQuiz(z,meta,mid,packId){
   const bank=packBank(packId)||[],q=choisirQ(packId,bank);if(!q)return packTermine(z,meta);const choix=melange([...q.choix]);
   z.innerHTML=`<div class="quiz-tete"><button class="qt-retour" onclick="retourPacks()">←</button><div class="qt-titre">${meta}${enteteFinDefi(packActif)}<div class="quiz-carte"><div class="quiz-question" id="q-question"></div><div class="quiz-reponses" id="q-reponses"></div></div><div class="quiz-feedback" id="q-feedback"></div>`;
@@ -1111,6 +1169,7 @@ function packExo(){
   if(packActif.id==='anglais')return exoBankQuiz(z,'🇬🇧 Anglais · débutant','francais','anglais');
   if(packActif.id==='neerlandais')return exoBankQuiz(z,'🇳🇱 Néerlandais · débutant','francais','neerlandais');
   if(packActif.id==='trivia')return exoBankQuiz(z,'🧠 Trivial','histoire','trivia');
+  if(packActif.id==='mythologie')return exoMythoQuiz(z);
   if(packActif.id==='art')return exoBankQuiz(z,"🎨 Histoire de l'art",'histoire','art');
   if(packActif.id==='ortho')return exoOrtho(z);
   defiExercice(z);
@@ -1536,6 +1595,7 @@ function avMontrerMap(quoi){
   $('#av-iles').style.display=quoi==='iles'?'':'none';
   $('#av-rhin').style.display=quoi==='rhin'?'':'none';
   $('#av-iberie').style.display=quoi==='iberie'?'':'none';
+  if(quoi==='monde')avMajRoyaumes();
   if(quoi==='belgique'||quoi==='france'||quoi==='iles'||quoi==='rhin'||quoi==='iberie'){avMonde=quoi;avMajPins();}
   const pz=quoi==='monde'?avPZM:(quoi==='france'?avPZF:(quoi==='iles'?avPZI:(quoi==='rhin'?avPZR:(quoi==='iberie'?avPZE:avPZB))));if(pz)requestAnimationFrame(()=>requestAnimationFrame(()=>pz.refit()));
 }
@@ -1926,8 +1986,47 @@ function avBonus(a){
   const bc=$('#ae-cont');if(bc)bc.onclick=avEcranSuivant;
 }
 function avEtapeTerminee(){
-  bulle(AE.finText||"Étape terminée ! Cap sur la suite… 🐴");avMajPins();
+  avMajPins();
+  // Fin du BOSS = royaume terminé : fête + cadeau de la mascotte du pays (une seule fois par pays).
+  if(AE&&AE.boss){
+    const pays=avMonde;
+    etat.aventure.paysRecomp=etat.aventure.paysRecomp||{};
+    if(!etat.aventure.paysRecomp[pays]){etat.aventure.paysRecomp[pays]=true;avPaysTermine(pays);return;}
+  }
+  bulle(AE.finText||"Étape terminée ! Cap sur la suite… 🐴");
+  // Le boss vient-il de se débloquer (dernière province conquise) ? On l'annonce clairement.
+  const _bossEt=Object.values(MC().etapes).find(e=>e.boss);
+  const _prov=(etat.aventure.prov)||{};
+  const _order=Object.values(MC().etapes).filter(e=>e.numero>=1&&e.numero<=10);
+  const _allFini=_order.length>=10&&_order.every(e=>_prov[e.key]&&_prov[e.key].fini);
+  const _bossFait=!!(_bossEt&&_prov[_bossEt.key]&&_prov[_bossEt.key].fini);
+  if(_allFini&&_bossEt&&!_bossFait){
+    corpsBtn('<div class="ae-recomp"><div class="ae-rtxt">🎉 Toutes les provinces sont conquises !<br>🏆 Le <b>champion de '+_bossEt.region+'</b> 👑 est apparu sur la carte — bats-le pour terminer le royaume et gagner ta mascotte 🎁</div></div>','Voir le champion ›',()=>{avFermerEtape();avMajPins();});
+    return;
+  }
   corpsBtn('<div class="ae-recomp"><div class="ae-rtxt">Étape '+AE.numero+' · <b>'+AE.region+'</b> terminée ! 🎉</div></div>','Retour à la carte',()=>{avFermerEtape();avMajPins();});
+}
+/* Célébration de fin de royaume : confettis + carte de la mascotte offerte + récompense. */
+function avPaysTermine(pays){
+  const masc=MASCOTTES[pays];
+  const cid=masc&&masc.img?masc.img.slice(7,-4):null;   // 'cartes/pieter_jan.jpg' -> 'pieter_jan'
+  const carte=cid?CARTES.find(c=>c.id===cid):null;
+  const bonusDia=250,bonusRen=60;
+  etat.crins+=bonusDia;etat.renommee=(etat.renommee||0)+bonusRen;etat.renommeeTotale=(etat.renommeeTotale||0)+bonusRen;
+  let neuf=false;
+  if(carte){neuf=!(etat.collection[carte.id]>0);ajouterExemplaire(carte);}
+  sauver();majSolde(true);if(typeof rendreGrille==='function')rendreGrille();
+  const z=$('#ae-corps');if(!z){avFermerEtape();avMajPins();return;}
+  const conf=Array.from({length:16}).map((_,i)=>'<span class="ae-conf" style="left:'+Math.round(3+i*6)+'%;animation-delay:'+(i%6*0.12)+'s;font-size:'+(15+i%4*4)+'px">'+['✨','🎉','⭐','💫','🏆','🎊'][i%6]+'</span>').join('');
+  const carteHtml=carte?'<div class="ae-celcard" style="animation-delay:.2s"><div class="tc-box ratio">'+carteHTML(carte,etat.collection[carte.id]||1)+'</div><div class="ae-celnom">'+carte.nom+'</div></div>':'';
+  const sous=carte?('Ta mascotte'+(neuf?'':' (nouvel exemplaire)')+' rejoint ton écurie ! 🎁'):'Champion vaincu, bravo !';
+  z.innerHTML='<div class="ae-celebre"><div class="ae-conflayer">'+conf+'</div>'
+    +'<div class="ae-celtitre">🎉 '+(AE&&AE.pays?AE.pays:pays)+' terminé !</div>'
+    +'<div class="ae-celsub">'+sous+'</div>'
+    +'<div class="ae-celcards">'+carteHtml+'</div>'
+    +'<div class="ae-celgain">+'+bonusDia+' 💎 · +'+bonusRen+' ⭐ renommée</div>'
+    +'<button class="ae-btn ae-celbtn" id="ae-celok">Retour à la carte</button></div>';
+  const b=$('#ae-celok');if(b)b.onclick=()=>{avFermerEtape();avMajPins();};
 }
 function avMajPins(){
   const prov=(etat.aventure.prov)||{};
@@ -1957,8 +2056,29 @@ function avMajPins(){
     }
     if(ok||fait){pin.setAttribute('tabindex','0');if(!pin._wired){pin._wired=1;pin.addEventListener('click',avEtapeLancer);pin.addEventListener('pointerdown',()=>{pin.classList.add('hot');setTimeout(()=>pin.classList.remove('hot'),500);});}}
   });
+  const bossEt=Object.values(MC().etapes).find(e=>e.boss);
   const bxl=document.querySelector(MC().bossSel);
-  if(bxl){bxl.dataset.etape='bruxelles';const allFini=order.length>=10&&order.every(e=>prov[e.key]&&prov[e.key].fini);if(allFini){bxl.classList.add('boss-on');bxl.style.cursor='pointer';if(!bxl._wired){bxl._wired=1;bxl.addEventListener('click',avEtapeLancer);}}}
+  if(bxl){
+    bxl.dataset.etape=bossEt?bossEt.key:'';   // clé du boss PROPRE au pays (plus de 'bruxelles' codé en dur)
+    const allFini=order.length>=10&&order.every(e=>prov[e.key]&&prov[e.key].fini);
+    const bossFait=!!(bossEt&&prov[bossEt.key]&&prov[bossEt.key].fini);
+    bxl.classList.toggle('boss-on',allFini&&!bossFait);
+    bxl.classList.toggle('boss-fait',bossFait);
+    bxl.classList.toggle('boss-lock',!allFini);
+    if(allFini&&!bossFait&&!bxl.querySelector('.boss-crown')){const t=document.createElementNS('http://www.w3.org/2000/svg','text');t.setAttribute('class','boss-crown');t.setAttribute('y','-42');t.setAttribute('text-anchor','middle');t.textContent='👑';bxl.appendChild(t);}
+    if(allFini){bxl.style.cursor='pointer';if(!bxl._wired){bxl._wired=1;bxl.addEventListener('click',avEtapeLancer);}}
+  }
+}
+/* États des pays sur la carte du monde : bloqué / débloqué / terminé (clarté de progression). */
+function avMajRoyaumes(){
+  if(typeof MONDES==='undefined')return;const M=MONDES;
+  const be=paysFini(M.belgique.etapes),fr=paysFini(M.france.etapes),gb=paysFini(M.iles.etapes),de=paysFini(M.rhin.etapes),es=paysFini(M.iberie.etapes);
+  const st={'#mk-be':be?'fait':'dispo','#mk-fr':fr?'fait':(be?'dispo':'lock'),'#mk-gb':gb?'fait':(fr?'dispo':'lock'),'#mk-de':de?'fait':(gb?'dispo':'lock'),'#mk-es':es?'fait':(de?'dispo':'lock')};
+  for(const id in st){const g=document.querySelector(id);if(!g)continue;g.classList.remove('pays-lock','pays-dispo','pays-fait');g.classList.add('pays-'+st[id]);
+    let b=g.querySelector('.pays-badge');const ico=st[id]==='fait'?'✓':(st[id]==='lock'?'🔒':'');
+    if(ico){if(!b){b=document.createElementNS('http://www.w3.org/2000/svg','text');b.setAttribute('class','pays-badge');b.setAttribute('y','-34');b.setAttribute('text-anchor','middle');g.appendChild(b);}b.textContent=ico;b.style.display='';}
+    else if(b){b.style.display='none';}
+  }
 }
 
 

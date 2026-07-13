@@ -3,6 +3,55 @@
 Convention : `VERSION_APP` (index.html) = `ecurie-vNN` (sw.js), incrémentés à CHAQUE livraison
 (invalidation du cache PWA). QC : `node tools/qc.js` avant chaque livraison.
 
+## v150 — Pack « Mythologie » : épreuve de maîtrise (run parfait)
+- Nouveau pack 🏛️ **Mythologie** — 3 niveaux de 10 questions sur les chevaux des vrais mythes.
+- Chaque niveau : une **intro théorique** (le background des 10 chevaux : Grèce & Nord ; chevaux d'eau
+  celtiques ; mythes du monde) PUIS l'épreuve. **Run parfait** : il faut les **10 bonnes réponses d'affilée**
+  — une erreur et l'épreuve recommence (fonction dédiée `exoMythoQuiz`, indépendante de la maîtrise habituelle).
+- Récompenses : diamants + renommée à chaque niveau réussi ; et **un légendaire** à la maîtrise des 3 niveaux,
+  via le jalon `mythe_grand_maitre`.
+- Robustesse jalons : `verifierJalons` ne marque plus un jalon « fait » si la carte-récompense n'existe pas
+  encore → **le légendaire sera offert automatiquement dès que tu créeras la carte**.
+- `VERSION_APP`=v150, `ecurie-v150`. QC : 0 échec.
+
+## v149 — Familles à compléter : plus de dépendance circulaire (Sombres)
+- Constat : `familleComplete()` **excluait déjà** les célestes (`rarete!=='celeste'`), donc la complétion
+  était fonctionnellement possible. MAIS les 2 chevaux célestes de l'Apocalypse étaient membres de la
+  famille **Sombres** (`cheval_pale_mort` = la récompense elle-même + `cheval_rouge_guerre`) → dans la vue
+  collection, Sombres montrait 9 membres dont 2 célestes verrouillés, d'où l'impression « impossible ».
+- Fix : **retrait des 2 célestes de la famille Sombres**. Le Cheval pâle de la Mort passe en Légende, le
+  Cheval rouge de la Guerre en Combat (leurs affinités 1ʳᵉ correspondent aux carac de ces familles).
+  Sombres = **7 cartes, toutes obtenables** → complétable proprement, comme la famille Licornes (5, déjà OK).
+- Aucune régression : la récompense n'appartient plus à la famille qu'elle récompense ; Légende/Combat n'ont
+  pas de jalon de complétion. Licorne était déjà correcte (`beasts_alicorne` est en Légende, pas Licorne).
+- `VERSION_APP`=v149, `ecurie-v149`. QC : 0 échec.
+
+## v148 — Boss clair + progression lisible, vérifié sur les 5 royaumes
+- **Bug critique** : la clé du boss était codée en dur (`'bruxelles'`) → cliquer le boss de France/Îles/Rhin/
+  Ibérie aurait lancé le boss belge. Désormais **clé dynamique par pays** (bruxelles/paris/londres/berlin/
+  madrid), vérifiée présente dans `ETAP_ALL`.
+- **Le boss est enfin clair** : quand les 10 provinces sont finies, la capitale reçoit une **couronne 👑**
+  animée + un glow doré (état `boss-on`). Avant, verrouillé et grisé (`boss-lock`) ; après victoire, vert
+  (`boss-fait`). Et à la fin de la 10ᵉ province, un écran l'annonce : « Le champion de X 👑 est apparu — bats-le ».
+- **Carte du monde lisible** : chaque royaume affiche son état — 🔒 **bloqué** (grisé), doré **disponible**,
+  ✓ **terminé** (vert) — via `avMajRoyaumes()` appelé à l'ouverture de la carte du monde.
+- **Complétude 5/5** : ajout de la mascotte **ibérique Rocío** (Andalouse) — l'Ibérie n'en avait pas.
+  Fête de fin + cadeau mascotte désormais garantis pour Belgique, France, Îles, Rhin **et** Ibérie.
+- `VERSION_APP`=v148, `ecurie-v148`. QC : 0 échec.
+
+## v147 — Fin de royaume : fête + cadeau mascotte, et carte du monde corrigée
+- **Écran de fête de fin de royaume** (manquant jusqu'ici) : battre le **boss** d'un pays (ex. Bruxelles pour
+  la Belgique) déclenche une célébration — confettis, « 🎉 Belgique terminé ! », récompense (+250 💎, +60 ⭐).
+- **Cadeau de la mascotte** : la mascotte du pays est désormais **offerte** à la fin — Pieter-Jan (Belgique),
+  François (France), Big Ben (Îles), Inge (Rhin) rejoignent l'écurie. Une seule fois par pays
+  (`etat.aventure.paysRecomp`). Avant, rien n'était offert ni fêté.
+- Rappel de structure : un pays = 10 provinces (n1-10, la 10ᵉ belge étant Arlon en province de Luxembourg)
+  **+ 1 boss** (n11, la capitale). La France se débloque après les 10 provinces ; le boss donne la mascotte.
+- **Carte du monde repositionnée** (pays empilés/faux) : Royaume-Uni au **nord-ouest**, France au **sud**,
+  Allemagne & Pays-Bas à l'**est**, Espagne & Portugal au **sud-ouest** ; Belgique inchangée (référence).
+  Corrige « Allemagne au-dessus des Îles au-dessus de la France ».
+- `VERSION_APP`=v147, `ecurie-v147`. QC : 0 échec.
+
 ## v146 — Animations plus propres (shine & chargement, qualité pro)
 - Objectif : supprimer les fortes discontinuités des animations de shine et de chargement. **Aucun
   z-index modifié** (tc-shine sans z-index, skeleton z:0, céleste z:4 — tous préservés).

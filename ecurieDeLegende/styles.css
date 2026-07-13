@@ -267,6 +267,12 @@ nav.tabs button.actif::before{content:"";position:absolute;top:0;width:34px;heig
 .qf-gain{font-family:'Fredoka';font-weight:800;font-size:19px;color:#2a1e05;background:linear-gradient(180deg,#ffe38a,var(--or));border-radius:999px;padding:6px 16px;display:inline-block;margin:6px 0 2px;box-shadow:0 4px 14px -4px #f2b13488;}
 .qf-combo{color:#b3521a;font-weight:900;}
 .qf-casse{color:#7a6a4a;font-weight:600;font-size:.9em;}
+.mytho-intro{padding:14px 16px;text-align:center;}
+.mytho-theo{text-align:left;background:var(--surface-2);border:1px solid var(--line);border-radius:14px;padding:14px 16px;font-size:14px;line-height:1.55;color:var(--txt);max-height:50vh;overflow-y:auto;margin-bottom:12px;}
+.mytho-consigne{background:#ffce5b1a;border:1px solid #ffce5b55;border-radius:12px;padding:10px 12px;font-size:13.5px;color:var(--txt);margin-bottom:14px;}
+.mytho-jauge{height:8px;border-radius:999px;background:var(--surface-2);overflow:hidden;margin:0 16px 12px;}
+.mytho-jauge>span{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#7ec2ff,#a672e0,#f2c14e);transition:width .3s ease;}
+.mytho-fail{margin-top:6px;font-size:13px;color:var(--txt-doux);}
 .scores-sous{font-family:'Fredoka';font-weight:700;font-size:15px;color:var(--txt);margin:14px 2px 8px;}
 #scores-matieres .scores-sous:first-child{margin-top:0;}
 .score-pack{display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--surface-2);border:1px solid #ffffff16;border-radius:12px;margin-bottom:7px;font-family:'Fredoka';}
@@ -869,6 +875,21 @@ main.plein{padding:0 !important;overflow:hidden !important;}
 .ae-circuit.on{background:#ffce5b22;border-color:#ffce5b;box-shadow:0 0 24px -4px #ffce5b;}
 .drapeau.boss.boss-on .dr-glow{opacity:.75;fill:#ffce5b;}
 .drapeau.boss.boss-on .dr-nom{fill:#ffe9a8;}
+/* Boss (capitale) : couronne animée + états lisibles (verrouillé / disponible / vaincu) */
+#ecran-aventure .boss-crown{font-size:22px;transform-box:fill-box;transform-origin:center;animation:avHintPulse 1.5s ease-in-out infinite;}
+#ecran-aventure .drapeau.boss.boss-on .dr-nom{font-weight:800;}
+#ecran-aventure .drapeau.boss.boss-on{filter:drop-shadow(0 0 7px #ffce5bcc);}
+#ecran-aventure .drapeau.boss.boss-lock{opacity:.42;filter:grayscale(.75);}
+#ecran-aventure .drapeau.boss.boss-lock .dr-glow{opacity:.1;animation:none;}
+#ecran-aventure .drapeau.boss.boss-fait .dr-glow{fill:#3fbf6a;opacity:.5;}
+#ecran-aventure .drapeau.boss.boss-fait .dr-nom{fill:#8fe6a3;}
+/* Carte du monde : état de chaque royaume (bloqué / débloqué / terminé) */
+#ecran-aventure .royaume.pays-lock{opacity:.42;filter:grayscale(.85);}
+#ecran-aventure .royaume.pays-lock .dr-glow{opacity:.08;animation:none;}
+#ecran-aventure .royaume.pays-dispo .dr-glow{fill:#ffce5b;opacity:.6;}
+#ecran-aventure .royaume.pays-fait .dr-glow{fill:#3fbf6a;opacity:.5;}
+#ecran-aventure .royaume.pays-fait .dr-nom{fill:#8fe6a3;}
+#ecran-aventure .pays-badge{font-size:15px;text-anchor:middle;}
 
 .ae-reveal{text-align:center;}
 .ae-reveal-img{width:100%;max-width:330px;margin:2px auto 12px;aspect-ratio:3/4;border-radius:16px;background-size:cover;background-position:center;box-shadow:0 10px 34px -8px #000b;border:2px solid #ffffff26;}
