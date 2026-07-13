@@ -515,10 +515,10 @@ const QC_SUITES={
     return (G.deliveredTot-d0)/(G.t-t0);};
   t.ok(Math.abs(feed(["wasteminster"])-5)<0.5,"one bunker on a contract feeds ~5 t/h");
   t.ok(Math.abs(feed(["wasteminster","wasteminster"])-5)<0.5,"two bunkers SHARING a contract still total ~5 t/h (split, not duplicated)");
-  t.ok(Math.abs(feed(["wasteminster","binfinity"])-10)<0.7,"two bunkers on DIFFERENT contracts feed ~5 each (10 total)");
+  t.ok(Math.abs(feed(["wasteminster","binfinity"])-10)<0.7,"two bunkers on DIFFERENT contracts stack (5+5=10 total)");
   t.ok(Math.abs(feed(["wasteminster","wasteminster","wasteminster"])-5)<0.6,"three bunkers sharing a contract still total ~5 t/h");
-  // both suppliers are calibrated to 5 t/h
-  t.ok(supplierStream("wasteminster").feedTph===5&&supplierStream("binfinity").feedTph===5,"suppliers are calibrated to 5 t/h");
+  // throughput pass (2026-07-13): wasteminster 10 t/h, binfinity 8 t/h — a single feeder line can now run at 10
+  t.ok(supplierStream("wasteminster").feedTph===5&&supplierStream("binfinity").feedTph===5,"suppliers are calibrated to 5 t/h each (sign more to scale inbound)");
 },
 "site-flow-and-util":function(t){ // per-zone flow counters + vehicle utilization accumulate correctly
   newGame("career","site_ref",0x61);G.running=true;
@@ -685,6 +685,27 @@ const QC_SUITES={
   t.ok(r.sMass>0.80*filmFed,"captures the bulk of the film ("+(r.sMass/filmFed*100).toFixed(0)+"% of feed film)");
   const r2=run(0x71F);
   t.ok(Math.abs(r.sMass-r2.sMass)<1e-9,"deterministic per seed");
+},
+
+"site-throughput-10":function(t){ // throughput pass (2026-07-13): belts+units carry 10 t/h — supply it from TWO 5 t/h contracts
+  newGame("career","site_free",0xE1);
+  const put=(st,k,x,y,r)=>{const q=sitePlaceUnit(st,k,x,y,r||0,{free:true});if(!q.ok)throw new Error(st+":"+q.reason);return q.node;};
+  const wr=(a,pa,b,pb)=>{const q=siteConnect(a,pa,b,pb);if(!q.ok)throw new Error("wire:"+q.reason);};
+  const b1=put("input",null,8,4),b2=put("input",null,10,4);b1.supplier="wasteminster";b2.supplier="binfinity"; // 5+5 = 10 t/h inbound
+  const f1=put("feeder",null,9,10),f2=put("feeder",null,13,10);f1.rate=5;f2.rate=5;
+  const mx=put("mixer",null,11,12);wr(f1,"b",mx,"t");wr(f2,"b",mx,"t"); // merge both contracts onto ONE 10 t/h line
+  const op=put("process","opener",11,14),mg=put("process","magnet",11,16);
+  const baler=put("baler",null,15,16,180),bulk=put("bulk",null,13,29);
+  const ex=put("output",null,3,35);ex.spec="ferrous";const lf=put("landfill",null,10,38);
+  wr(mx,"b",op,"t");wr(op,"b",mg,"t");wr(mg,"r",baler,"l");wr(mg,"b",bulk,"t");wr(baler,"b",ex,"t");wr(bulk,"b",lf,"t");
+  G.fleet={loader:4,forklift:2,ctruck:3};G.running=true;
+  for(let i=0;i<12/0.004;i++)tick(0.004);
+  const d0=G.delivered,t0=G.t;for(let i=0;i<4/0.004;i++)tick(0.004);
+  const tph=(G.delivered-d0)/(G.t-t0);
+  t.ok(tph>9.2,"a single line carries ~10 t/h (fed by two 5 t/h contracts): "+tph.toFixed(1));
+  t.ok(op.state!=="jammed"&&mg.state!=="jammed","no false JAMMED at nominal 10 t/h (op="+op.state+", mg="+mg.state+")");
+  const belt=G.edges.find(e=>e.kind==="conveyor");
+  t.ok(belt&&Math.abs(belt.max*belt.speed*PMASS-10)<2.5,"belt capacity is throughput-derived (~10 t/h regardless of length: "+(belt.max*belt.speed*PMASS).toFixed(1)+")");
 },
 
 "site-named-states":function(t){ // consolidated from the retired d1/d2/d3 harnesses (2026-07-12): the failure states that qc did not yet assert

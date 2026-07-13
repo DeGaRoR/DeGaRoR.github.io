@@ -37,6 +37,7 @@ function coachComplete(st){_coachBusy=true;const wasRunning=G.running;if(st.paus
   setTimeout(()=>{_coachBusy=false;_coachIdx=-1;if(st.pause&&wasRunning)G.running=true;renderCoach();},1600);}
 document.getElementById("coachNext").addEventListener("click",()=>{if(!G||!G.tut||G.tutStep>=G.tut.length)return;
   const st=G.tut[G.tutStep];if(st&&st.info){G.tutStep++;_coachIdx=-1;saveGame();renderCoach();}});
+let _sheetHold=false; // true while a pointer is down inside the inspector sheet (so the live refresh does not rebuild a slider mid-drag)
 function loop(ts){if(!last)last=ts;let dr=(ts-last)/1000;last=ts;if(dr>0.1)dr=0.1;
   if(G&&G.running&&!G.finished){let sim=dr*0.04*G.speed;const STEP=0.004;let guard=0;
     while(sim>0&&guard++<500){const s=Math.min(STEP,sim);tick(s);sim-=s;} G._st=(G._st||0)+dr; if(G._st>3){G._st=0;saveGame();}}
@@ -44,7 +45,7 @@ function loop(ts){if(!last)last=ts;let dr=(ts-last)/1000;last=ts;if(dr>0.1)dr=0.
     _inspectT+=dr;
     if(_inspectT>=0.33){_inspectT=0;
       const typing=document.activeElement&&document.activeElement.id==="iNameIn";
-      if(!typing&&_inspectNode===selNode){
+      if(!typing&&!_sheetHold&&_inspectNode===selNode){
         const bs=sheet.querySelector("#baleScroll");
         if(bs&&isExport(_inspectNode)){ // export bay: update the list in place ONLY when bale count changes (no flicker)
           const shown=+bs.dataset.n||0,now=_inspectNode.bales.length;
@@ -1306,6 +1307,8 @@ function showHint(t){const h=document.getElementById("chint");h.textContent=t;h.
 function finishConnect(target){const c=G.connecting;G.edges=G.edges.filter(e=>!(e.from===c.node.id&&e.fromPort===c.port));
   if(target.id!==c.node.id)G.edges.push({from:c.node.id,fromPort:c.port,to:target.id,sprites:[],speed:EDGE_SPEED});G.connecting=null;toast("Connected");saveGame();}
 const scrim=document.getElementById("scrim"),sheet=document.getElementById("sheet");
+sheet.addEventListener("pointerdown",()=>{_sheetHold=true;},true);
+window.addEventListener("pointerup",()=>{_sheetHold=false;},true);window.addEventListener("pointercancel",()=>{_sheetHold=false;},true);
 let _sheetAt=0;
 function closeSheet(){sheet.classList.remove("show");scrim.classList.remove("show");sheet.classList.remove("overMenu");scrim.classList.remove("overMenu");_inspectNode=null;}
 let _sdrag=null;
@@ -1487,7 +1490,7 @@ function inspectNode(n){selNode=n;_inspectNode=n;const t=TYPES[n.type];
       if(isFeeder(n))b+=row(tr("Feeder"),(cnt(n.inBuf)*PMASS).toFixed(2)+' / '+(capOf(n)*PMASS).toFixed(0)+' t')+compBar(n.inBuf);
       b+=(G.mode!=="sandbox"?row(tr("Input rate"),'<b>'+(G.contract&&G.contract.feedTph||5)+'</b> t/h \u00B7 '+tr("contract")):'')+
         row(tr("Feed rate"),'<b id="rrv">'+n.rate+'</b> t/h')+
-        '<input type="range" min="1" max="15" value="'+n.rate+'" id="frate">';
+        '<input type="range" min="1" max="10" value="'+n.rate+'" id="frate">';
       if(n.role==="input"&&G.continuous){const _us=COMPANIES.suppliers.filter(sz=>supplierUnlocked(sz.id)),_cur=(n.supplier==="__none")?"__none":(n.supplier||(G.contract&&G.contract.supplier));b+='<div class="slbl">'+tr("Supplier")+'</div><div class="seg wrap">'+_us.map(sz=>'<div class="o '+(_cur===sz.id?"on":"")+'" data-supplier="'+sz.id+'">'+coName(sz)+(sz.stream?' \u00b7 \u20AC'+sz.stream.gate+'/t':'')+'</div>').join("")+'<div class="o '+(_cur==="__none"?"on":"")+'" data-supplier="__none">'+tr("None (idle)")+'</div></div>';}
       {const ri=nodeRate(n,"_inMass");b+=row(tr("Inbound"),ri.toFixed(1)+' t/h')+row(tr("Line rate"),(n.rate||0).toFixed(1)+' t/h');}
       dsc+='<p>'+tr("Loaders keep this feeder topped up from the bunker; the feed rate sets how fast material enters the line.")+'</p>';}

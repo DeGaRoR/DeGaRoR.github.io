@@ -1,5 +1,16 @@
 # RECYCLE — Changelog
 
+## v1.6.0 — Throughput pass: 10 t/h lines (2026-07-13)
+- **The real ceiling was the supply contract**, not the belts: each supplier stream feeds 5 t/h (split across its bunkers), so no line could exceed 5 regardless of unit caps. Contracts stay at **5 t/h each** — inbound scales by **signing more suppliers** (2 contracts = 10 t/h, verified), not by inflating one. Belts + units are now sized so a single line carries that 10 t/h.
+- **Belts carry a nominal 10 t/h regardless of length**: capacity is now throughput-derived (max×speed ≈ 10 t/h; long belts hold proportionally more in flight) instead of a fixed 14-sprite cap that silently throttled long runs to <1 t/h. Belt animation speed doubled. Conveyor speed/capacity are **re-derived on save load** (old saves are retuned automatically — behaviour changes, accepted).
+- **Unit caps**: bag opener 5→10 t/h, magnet 8→10 (transport-grade stages follow the feeder; sorters stay low — parallelise them). **Feeder slider capped at 10 t/h.** Two merged feeders (e.g. 10+8) now genuinely overload a single 10 t/h belt — the intended failure mode.
+- Verified end-to-end: a line fed by two 5 t/h contracts carries **10.0 t/h** (a single contract feeds 5). Reference plant re-measured: **12,285 €/day** (was 11,188 — faster baler belts). The Fable benchmark (16,669) predates this pass and needs re-establishing. New qc guard `site-throughput-10` locks the 10 t/h behaviour (45 suites).
+
+## v1.5.0 — Throughput bug + mobile UI fixes (2026-07-13)
+- **Fixed the throughput collapse**: restored saves ran the landfill truck on a stale `lfCadence:15` (from two scenario presets) instead of the intended `0.3`, throttling reject evacuation ~50×. A simple opener→magnet line at 5 t/h choked to ~0.7 t/h and jammed the whole chain. The bulk→landfill drain now keeps up; the same line runs at its 5 t/h.
+- **Fixed false JAMMED**: unit state was set from a per-tick flag, so a belt saturated-but-flowing flickered JAMMED. State now needs sustained choke (material waiting, nothing moved for >1.2 s). A line at full belt capacity reads OVERLOAD (buffer full), not JAMMED.
+- **Mobile UI**: (1) the tutorial coach’s “Step” placeholder no longer leaks at the page bottom (the active `#coachTut` had no hide rule); (2) inspector sliders now respond during play — the live refresh no longer rebuilds the sheet mid-drag; (3) the top HUD clears the phone status bar when the safe-area inset reports 0 (Android).
+
 ## v1.4.0 — R&D tree, prices & bonuses pass (2026-07-12)
 - **R&D tree finalised.** Unit unlocks are no longer free — each is a small licence fee, distinct from the per-build capex. Branched topology (metals route = eddy; plastics route = air → NIR/film) so you choose your path. Licences: air 8k, splitter 5k, pick 10k, eddy 20k, vacuum-film 25k, NIR 45k (cheap toward low-grade products, dearer toward premium PET). Whole set 113k — real but meaningful when cash is tight.
 - **Upgrades repriced down** (they were dear vs their swing): high-strength magnet 120k→60k, wide belts 120k→80k, VFD 90k→30k, trained sorters 40k→30k, new supplier/buyer 60k/50k→40k each. **Yards** (the scaling wall): 150/500/1000k → 120/350/800k — yard1 is effectively mandatory for a 27-unit plant (base is 20 slots).
