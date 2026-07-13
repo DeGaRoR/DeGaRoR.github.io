@@ -393,5 +393,60 @@ console.error('TEST 9: default game path is untouched (legacy only)');
   check('legacy AI still issues orders in a default game', dispatched>0, 'dispatched-frames='+dispatched);
 }
 
+// -------------------------------------------------------------------------
+// TEST 10: Bot Arena — faction detection, watch-mode match, bet result, guards
+// -------------------------------------------------------------------------
+console.error('TEST 10: Bot Arena watch-mode flow');
+try {
+  // faction detection matches the generic helper
+  const af = sandbox.arenaFactionsOf(20);
+  check('arenaFactionsOf returns owning player indices', Array.isArray(af) && af.length>=2, 'got '+JSON.stringify(af));
+  check('curated maps list has 10 entries', sandbox.arenaCuratedMaps.length===10);
+
+  // set up a watch match by hand (mirrors startArena assignment, DOM-free)
+  sandbox.config = sandbox.getConfig(20);
+  sandbox.state = sandbox.getInitialState();
+  sandbox.state.timePace = 15;
+  const facs = af;
+  facs.forEach((idx,i)=>{ const pl=sandbox.config.players[idx]; pl.controlType=1; pl.aiModel=(i%2===0?2:1); pl.aiDifficulty='hard'; });
+  sandbox.state.watchMode = true;
+  sandbox.state.betPlayerIndex = facs[0];
+  sandbox.state.aiSeed = 12345; sandbox.state._aiSeeded=false;
+  sandbox.spawnInitialUnits();
+  let tt=1000;
+  for (let f=0; f<600; f++){ tt+=33; sandbox.animate(tt); if (sandbox.state.gameWon) break; }
+  check('watch-mode match ran 600 frames without throwing', true);
+
+  // force a decisive result to exercise the win hook + bet evaluation deterministically
+  sandbox.document.getElementById('arenaResult').hidden = true;   // reset
+  const betIdx = facs[0];
+  sandbox.state.betPlayerIndex = betIdx;
+  sandbox.state.playerAlive = sandbox.config.players[betIdx];      // bet winner wins
+  sandbox.state.gameWon = true;
+  sandbox.animate(tt+33);                                          // triggers showArenaResult() via the hook
+  const overlay = sandbox.document.getElementById('arenaResult');
+  const txt = sandbox.document.getElementById('arenaResultInner').innerHTML || '';
+  check('win hook revealed the arena overlay', overlay.hidden===false);
+  check('arena result names the winner', txt.indexOf('Winner')>=0);
+  check('bet evaluated as WON when bet==winner', txt.indexOf('won your bet')>=0);
+
+  // and a losing bet
+  sandbox.document.getElementById('arenaResult').hidden = true;
+  const loseIdx = facs[facs.length-1];
+  sandbox.state.betPlayerIndex = (loseIdx===betIdx ? facs[1] : loseIdx);
+  sandbox.state.playerAlive = sandbox.config.players[betIdx];      // someone else wins the bet's target
+  sandbox.state.gameWon = true;
+  sandbox.animate(tt+66);
+  const txt2 = sandbox.document.getElementById('arenaResultInner').innerHTML || '';
+  check('bet evaluated as LOST when bet!=winner', txt2.indexOf('lost your bet')>=0);
+
+  // input guards: during watch mode, human handlers must no-op without throwing
+  sandbox.state.watchMode = true;
+  sandbox.ondown(10,10); sandbox.onmove(20,20); sandbox.onup(30,30);
+  check('human input handlers are inert during watch mode', true);
+} catch(e){
+  check('arena flow ran without throwing', false, e && e.stack ? e.stack.split('\n').slice(0,3).join(' | ') : e);
+}
+
 console.error('\nRESULTS: '+pass+' passed, '+fail+' failed');
 process.exit(fail? 1 : 0);

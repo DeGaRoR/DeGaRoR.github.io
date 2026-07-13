@@ -712,3 +712,14 @@ progress:before {
 .gold-text {
 	color: #ebc100ff;
 }
+/* --- Bot Arena --- */
+.arenaWrap { max-width: 720px; margin: auto; }
+.arenaRow { margin: 4px 0 !important; }
+.arenaSelect {
+	background: rgba(255,255,255,0.08);
+	color: #fff; border: 1px solid rgba(255,255,255,0.25);
+	border-radius: 6px; padding: 4px 6px; width: 100%;
+}
+.arenaSelect option { color: #000; }
+.arenaMapBtn { text-align: left; }
+.arenaBet { transition: background .15s, color .15s; cursor: pointer; }

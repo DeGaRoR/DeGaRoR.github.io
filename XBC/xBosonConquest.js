@@ -52,7 +52,7 @@ var persistData = {
 	mutedOverall : false
 }
 // Shared game-wide state, declared explicitly so first assignment does not leak onto window.
-var config, state, bgConfig, configMenu, reqID, bgReqID;
+var config, state, bgConfig, configMenu, reqID, bgReqID, customLevel;
 // AI selection (default = legacy). model 2 = UtilityAI. Set via menu (later) or ?ai=/?diff= URL params.
 var aiSelection = { model: 1, difficulty: "medium", explicit: false };
 try {
@@ -146,6 +146,154 @@ function setVolumeButtonIcon(mutedStatus) {
 //==============================================
 //
 
+// ==============================================
+// BOT ARENA — spectator/betting mode.
+// Pick a curated map, assign an AI (model + difficulty) to each colour,
+// bet on a winner, then watch the match run with no human control.
+// Built entirely on the existing per-opponent AI; no engine changes.
+// ==============================================
+var arenaCuratedMaps = [4, 5, 15, 20, 25, 40, 50, 60, 80, 99];
+var arenaState = { level: null, factions: [], ai: {}, bet: null };
+var _arenaMeta = null;
+
+function arenaPlayerMeta() {
+	if (!_arenaMeta) {
+		var pl = initializePlayers(1);
+		_arenaMeta = {};
+		for (var i = 1; i < pl.length; i++) { _arenaMeta[i] = { name: pl[i].playerName, colour: pl[i].playerColour }; }
+	}
+	return _arenaMeta;
+}
+function arenaFactionsOf(lvl) {
+	var lv = getLevels()[lvl - 1], set = [];
+	for (var i = 0; i < lv.bases.length; i++) { var o = lv.bases[i].ownership; if (o != 0 && set.indexOf(o) < 0) { set.push(o); } }
+	return set;
+}
+function showArena() {
+	playMusic('musicMenu');
+	showOnly('arena');
+	document.getElementById('arenaConfig').hidden = true;
+	buildArenaMaps();
+}
+function buildArenaMaps() {
+	var levels = getLevels(), wrap = document.getElementById('arenaMaps');
+	wrap.innerHTML = '';
+	for (var k = 0; k < arenaCuratedMaps.length; k++) {
+		(function(lvl) {
+			var lv = levels[lvl - 1], facs = arenaFactionsOf(lvl);
+			var a = document.createElement('a');
+			a.href = '#'; a.className = 'buttonSecond col s12 m6 arenaMapBtn';
+			a.innerHTML = '<b>' + (lv ? lv.name : ('Level ' + lvl)) + '</b> &nbsp;<span style="opacity:.65">' + facs.length + ' factions</span>';
+			a.onclick = function() { selectArenaMap(lvl); return false; };
+			wrap.appendChild(a);
+		})(arenaCuratedMaps[k]);
+	}
+}
+function selectArenaMap(lvl) {
+	arenaState.level = lvl;
+	arenaState.factions = arenaFactionsOf(lvl);
+	arenaState.ai = {};
+	arenaState.bet = arenaState.factions[0];
+	var meta = arenaPlayerMeta();
+	var facWrap = document.getElementById('arenaFactions'); facWrap.innerHTML = '';
+	for (var i = 0; i < arenaState.factions.length; i++) {
+		var idx = arenaState.factions[i];
+		arenaState.ai[idx] = { model: (i % 2 === 0 ? 2 : 1), diff: 'medium' };  // alternate utility/legacy by default
+		facWrap.appendChild(arenaFactionRow(idx, meta[idx]));
+	}
+	buildArenaBets();
+	document.getElementById('arenaConfig').hidden = false;
+}
+function arenaFactionRow(idx, m) {
+	var row = document.createElement('div');
+	row.className = 'row valign-wrapper arenaRow';
+	row.innerHTML =
+		'<div class="col s2 m1"><span style="display:inline-block;width:18px;height:18px;border-radius:50%;background:' + m.colour + '"></span></div>' +
+		'<div class="col s4 m3" style="color:' + m.colour + '"><b>' + m.name + '</b></div>';
+	var mc = document.createElement('div'); mc.className = 'col s3 m4';
+	var ms = document.createElement('select'); ms.className = 'browser-default arenaSelect';
+	[['2', 'Utility AI'], ['1', 'Legacy AI'], ['0', 'Random']].forEach(function(o) {
+		var op = document.createElement('option'); op.value = o[0]; op.text = o[1];
+		if (parseInt(o[0], 10) === arenaState.ai[idx].model) { op.selected = true; }
+		ms.appendChild(op);
+	});
+	ms.onchange = function() { arenaState.ai[idx].model = parseInt(ms.value, 10); };
+	mc.appendChild(ms); row.appendChild(mc);
+	var dc = document.createElement('div'); dc.className = 'col s3 m4';
+	var ds = document.createElement('select'); ds.className = 'browser-default arenaSelect';
+	['easy', 'medium', 'hard', 'brutal'].forEach(function(d) {
+		var op = document.createElement('option'); op.value = d; op.text = d;
+		if (d === arenaState.ai[idx].diff) { op.selected = true; }
+		ds.appendChild(op);
+	});
+	ds.onchange = function() { arenaState.ai[idx].diff = ds.value; };
+	dc.appendChild(ds); row.appendChild(dc);
+	return row;
+}
+function buildArenaBets() {
+	var meta = arenaPlayerMeta(), w = document.getElementById('arenaBets'); w.innerHTML = '';
+	for (var i = 0; i < arenaState.factions.length; i++) {
+		(function(idx) {
+			var m = meta[idx], b = document.createElement('a');
+			b.href = '#'; b.className = 'arenaBet'; b.setAttribute('data-idx', idx);
+			b.style.cssText = 'display:inline-block;margin:4px;padding:6px 14px;border:2px solid ' + m.colour + ';border-radius:20px;color:' + m.colour;
+			b.innerHTML = m.name;
+			b.onclick = function() { arenaState.bet = idx; highlightArenaBets(); return false; };
+			w.appendChild(b);
+		})(arenaState.factions[i]);
+	}
+	highlightArenaBets();
+}
+function highlightArenaBets() {
+	var meta = arenaPlayerMeta(), els = document.getElementById('arenaBets').children;
+	for (var i = 0; i < els.length; i++) {
+		var idx = parseInt(els[i].getAttribute('data-idx'), 10), m = meta[idx];
+		if (idx === arenaState.bet) { els[i].style.background = m.colour; els[i].style.color = '#000'; }
+		else { els[i].style.background = 'transparent'; els[i].style.color = m.colour; }
+	}
+}
+function startArena() {
+	if (arenaState.level == null) { return; }
+	var level = arenaState.level;
+	playMusic('musicGame');
+	cancelAnimationFrame(bgReqID); setBackground(Math.ceil(level / 9));
+	showOnly('gameUI');
+	document.getElementById('arenaResult').hidden = true;
+	sizeMainCanvas(drawSpace); placeCanvas(drawSpace);
+	sizeMainCanvas(canvasBases); placeCanvas(canvasBases);
+	config = getConfig(level);
+	state = getInitialState();
+	state.timePace = persistData.timePace;
+	setSpeedIndicator();
+	for (var i = 1; i < config.players.length; i++) {
+		var pl = config.players[i];
+		if (arenaState.ai[i]) { pl.controlType = 1; pl.aiModel = arenaState.ai[i].model; pl.aiDifficulty = arenaState.ai[i].diff; }
+	}
+	state.watchMode = true;
+	state.betPlayerIndex = arenaState.bet;
+	state.aiSeed = (Math.random() * 4294967296) >>> 0;
+	state._aiSeeded = false;
+	spawnInitialUnits();
+	state.levelStartTime = Date.now();
+	state.currentLevel = level;
+	animate();
+}
+function showArenaResult() {
+	M.Toast.dismissAll();
+	config.ctx.clearRect(0, 0, config.canvas.width, config.canvas.height);
+	var meta = arenaPlayerMeta(), winner = state.playerAlive, winIdx = -1;
+	for (var i = 1; i < config.players.length; i++) { if (config.players[i] === winner) { winIdx = i; break; } }
+	var betIdx = state.betPlayerIndex, won = (winIdx === betIdx);
+	var wm = (winner && meta[winIdx]) ? meta[winIdx].name : (winner ? winner.playerName : 'Nobody');
+	var wc = meta[winIdx] ? meta[winIdx].colour : '#ffffff';
+	document.getElementById('arenaResultInner').innerHTML =
+		'<div style="font-size:1.3em">Winner: <span style="color:' + wc + '">' + wm + '</span></div>' +
+		'<div style="margin-top:12px;font-size:1.5em;color:' + (won ? '#A0F500' : '#FF7F00') + '">' + (won ? 'You won your bet!' : 'You lost your bet.') + '</div>' +
+		'<div style="opacity:.7;margin-top:6px">Your bet: ' + (meta[betIdx] ? meta[betIdx].name : '-') + '</div>';
+	document.getElementById('arenaResult').hidden = false;
+}
+function arenaRematch() { document.getElementById('arenaResult').hidden = true; startArena(); }
+
 function showMasterMenu() {
 	updateIndicatorsMasterMenu();
 	playMusic('musicMenu');
@@ -175,7 +323,8 @@ function showOnly(DOMelemID) {
 		"LevelChooser",
 		"gameUI",
 		"levelEditor",
-		"credits"
+		"credits",
+		"arena"
 	];
 	for (var i=0;i<sectionList.length;i++) {
 		if (DOMelemID == sectionList[i]) {document.getElementById(sectionList[i]).hidden=false;}
@@ -212,7 +361,7 @@ function updateIndicatorsMasterMenu() {
 	var sumStars = 0;
 	var statusLevelLock = getStatusLevelLock();
 	var sumLocks = 0;
-	for (i=1; i< nLevels+1; i++) {
+	for (var i=1; i< nLevels+1; i++) {
 		var level = "level" + i;
 		// initialize localStorage for all levels
 		if(localStorage[level]) {sumStars = sumStars + parseInt(localStorage[level])};
@@ -253,6 +402,7 @@ function reCalc() {
     selectionBox.style.height = y4 - y3 + 'px';
 }
 function ondown(x,y) {
+	if (typeof state !== "undefined" && state && state.watchMode == true) { return; }
     selectionBox.hidden = 0;
     x_init = x;
     y_init = y;
@@ -261,11 +411,13 @@ function ondown(x,y) {
     reCalc();
 };
 function onmove(x,y) {
+	if (typeof state !== "undefined" && state && state.watchMode == true) { return; }
     x2 = x;
     y2 = y;
     reCalc();
 };
 function onup(x,y) {
+	if (typeof state !== "undefined" && state && state.watchMode == true) { return; }
     selectionBox.hidden = 1;
     x_final = x;
     y_final = y;
@@ -531,7 +683,7 @@ function initializeLocalStorage(storageVersionNumber) {
 		localStorage.firstTime = 'false';
 		// record the storage version number, so we can version control later and remove invalid scores
 		localStorage.storageVersionNumber=storageVersionNumber;
-		for (i=1; i< nLevels+1; i++) {
+		for (var i=1; i< nLevels+1; i++) {
 			var level = "level" + i;
 			// initialize localStorage for all levels
 			localStorage[level] = 0;
@@ -540,7 +692,7 @@ function initializeLocalStorage(storageVersionNumber) {
 function unlockAll() {
 		var levels = getLevels();
 		var nLevels = levels.length;
-		for (i=1; i< nLevels+1; i++) {
+		for (var i=1; i< nLevels+1; i++) {
 			var level = "level" + i;
 			// initialize localStorage for all levels
 			localStorage[level] = 3;
@@ -787,7 +939,7 @@ function buildLevelsMenu(sectionToShow) { //This function builds the levels menu
 				var starFull=[];
 				var starEmpty=[];
 				var divStar=[];
-				for (l=1;l<4;l++) {
+				for (var l=1;l<4;l++) {
 					starFull[l] = document.createElement("I");
 					starFull[l].classList.add(configMenu.starFullClass1);
 					starFull[l].classList.add(configMenu.starFullClass2);
@@ -982,6 +1134,7 @@ function loadCustomLevel() {
 
 function getBases(players, canvas, selectedLevel, maxHealth, minConquership) {
 	var newBases = [];
+	var bases;
 	var w = canvas.width;
 	var h = canvas.height;
 	var levels = getLevels();
@@ -991,12 +1144,12 @@ function getBases(players, canvas, selectedLevel, maxHealth, minConquership) {
 		customLevel=loadCustomLevel();
 		bases = customLevel.bases;
 	}
-	else { var bases = levels[selectedLevel-1].bases;}
+	else { bases = levels[selectedLevel-1].bases;}
 	
 	
 	
 	// push the bases from the selected level into the bases vector
-	for (i=0; i<bases.length; i++) {
+	for (var i=0; i<bases.length; i++) {
 		newBases[i]=bases[i];
 		// transform some parameters to make them aware of the context, such as the canavas and the lisqt of players
 		var newBase = newBases[i];
@@ -1223,7 +1376,7 @@ function spawnInitialUnits() {
 		// if base is owned
 		if (base.ownership != config.players[0]) {
 			// spawn initial units
-			for (j=0; j < base.initUnits/base.levelCurrent; j++) {
+			for (var j=0; j < base.initUnits/base.levelCurrent; j++) {
 				spawnUnit(base);
 			}
 		}
@@ -1510,8 +1663,8 @@ var UtilityAI = {
 	DIFF: {
 		easy:   { think:1500, react:0,   temp:0.90, anticipate:false, attrition:0.00, focusFire:false, attackEdge:1.60, colonizeBias:1.0,  upgradeBias:1.2, garrisonThreat:0.0, garrisonFloor:0, brutal:false },
 		medium: { think:900,  react:500, temp:0.45, anticipate:true,  attrition:0.40, focusFire:false, attackEdge:1.20, colonizeBias:1.0,  upgradeBias:1.0, garrisonThreat:1.0, garrisonFloor:2, brutal:false },
-		hard:   { think:400,  react:150, temp:0.18, anticipate:true,  attrition:0.70, focusFire:true,  attackEdge:1.05, colonizeBias:1.1,  upgradeBias:0.9, garrisonThreat:1.2, garrisonFloor:3, brutal:false },
-		brutal: { think:200,  react:80,  temp:0.10, anticipate:true,  attrition:0.30, focusFire:true,  attackEdge:0.92, colonizeBias:1.5,  upgradeBias:0.7, garrisonThreat:0.5, garrisonFloor:1, brutal:true }
+		hard:   { think:400,  react:150, temp:0.18, anticipate:true,  attrition:0.70, focusFire:true,  attackEdge:1.05, colonizeBias:1.1,  upgradeBias:0.9, garrisonThreat:0.0, garrisonFloor:0, commit:2000, brutal:false },
+		brutal: { think:200,  react:80,  temp:0.10, anticipate:true,  attrition:0.30, focusFire:true,  attackEdge:0.92, colonizeBias:1.5,  upgradeBias:0.7, garrisonThreat:0.0, garrisonFloor:0, commit:2000, brutal:true }
 	},
 	P: function(diff) { return this.DIFF[diff] || this.DIFF.medium; },
 
@@ -1607,6 +1760,8 @@ var UtilityAI = {
 			if (enemy) {
 				var arrive = Math.max(0, sendable * (1 - P.attrition * d));
 				var Tstr = A[i].def + T.conquership + T.health + (P.anticipate ? A[i].inF : 0);
+				// crush gate (legacy-proven rule): never attack without local superiority
+				if (arrive <= Tstr * P.attackEdge) { continue; }
 				var pSucc = arrive / (arrive + Tstr * P.attackEdge + 1);
 				var focus = (P.focusFire && primary === T) ? 1.4 : 1;
 				var U = this.baseValue(T) * pSucc * this.decay(d) * focus - costPenalty;
@@ -1699,7 +1854,9 @@ var UtilityAI = {
 				if (due || reactDue) {
 					var action = this.choose(player, base, i, A, primary, P);
 					this.exec(base, action);
-					base._ai.next = time + P.think;
+					// commitment lock: after committing a wave, hold this base longer so the wave resolves
+					var hold = (action.type === "attack" || action.type === "colonize") ? (P.commit || P.think * 4) : P.think;
+					base._ai.next = time + hold;
 					base._ai.nextReact = time + (P.react > 0 ? P.react : P.think);
 				}
 			}
@@ -2665,6 +2822,7 @@ function sendTuto(level,msgNum,elapsedTime,timeToTrigger,duration,tutoContent, v
 function animate(time) {
 	// Behaviour at the end of the game
 	if (state.gameWon == true) {
+		if (state.watchMode == true) { showArenaResult(); return; }
 		//Dismiss all tuto toasts
 		M.Toast.dismissAll();
 		// compute game time

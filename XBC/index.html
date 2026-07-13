@@ -1,4 +1,3 @@
-"use strict"
 <!DOCcolour html>
 <!DOCTYPE html>
 <html lang="en">
@@ -109,6 +108,7 @@
 							<!-- Game controls -->
 							<div class="row" style="margin-top:10px"><a id="playButton" href="#" onclick="showLevelChooser();" class="buttonTitle col s8 offset-s2 xl4 offset-xl4">PLAY</a></div> <!-- apply pulse class maybe -->
 							<div class="row" ><a id="LEButton" href="#" onclick="showLevelEditor();" class="buttonSecond col s6 offset-s3 xl2 offset-xl5">LEVEL EDITOR</a></div>
+							<div class="row" ><a id="arenaButton" href="#" onclick="showArena();" class="buttonSecond col s6 offset-s3 xl2 offset-xl5">BOT ARENA</a></div>
 							<DIV class="row">&nbsp;</div>
 							<!-- Call to action -->
 							<div class="row"><div class=" col s12 l6 offset-l3 "><a id="coffeeButton" href="#" onclick="donateAction();" class="buttonSecond col s12"><i class="fas fa-mug-hot"></i>&nbsp;&nbsp;BUY US A COFFEE</a></div></div>
@@ -227,6 +227,14 @@
 						</div>
 					</div>
 				</span>
+				<span id="arenaResult" class="inGameMenu center white-text" hidden>
+					<div class="winMessage" style="margin-bottom:10px">MATCH OVER</div>
+					<div id="arenaResultInner"></div>
+					<div class="row center" style="margin-top:24px">
+						<button class="buttonMain col s10 offset-s1 xl3 offset-xl2" style="margin:6px 0" onclick="arenaRematch();">REMATCH</button>
+						<button class="buttonMain col s10 offset-s1 xl3" style="margin:6px 0" onclick="document.getElementById('arenaResult').hidden=true; showArena();">BACK TO ARENA</button>
+					</div>
+				</span>
 				<span id="confirmBoxReturnHome" class="inGameMenu confirmBox" hidden>
 					<div id="buttonsContainer" class="buttonsContainer">
 						<div id="buttonsContainer2" class="buttonsContainer2">
@@ -287,6 +295,24 @@
 				<a id="backToMasterMenuButton" href="#" onclick="showMasterMenu();" class="buttonBack alphaBtn colorTextCell">
 					<i class="fas fa-home"></i>
 				</a>
+			</div>
+			<div id="arena" class="menuCenter buttonsMenu scaleOnSmallLandscape" hidden>
+				<a id="arenaBackButton" href="#" onclick="showMasterMenu();" class="buttonBack alphaBtn colorTextCell"><i class="fas fa-home"></i></a>
+				<div class="container arenaWrap">
+					<h4 class="colorTextCell center" style="margin-top:10px">BOT ARENA</h4>
+					<div class="center white-text" style="opacity:.75;margin-bottom:10px">Pick a map, assign an AI to each colour, bet on a winner, then watch it unfold.</div>
+					<div class="white-text" style="opacity:.6;margin:6px 0">Choose a map</div>
+					<div id="arenaMaps" class="row"></div>
+					<div id="arenaConfig" hidden>
+						<div class="white-text" style="opacity:.6;margin:6px 0">Assign the AIs</div>
+						<div id="arenaFactions"></div>
+						<div class="white-text center" style="opacity:.6;margin:14px 0 4px">Place your bet</div>
+						<div id="arenaBets" class="center"></div>
+						<div class="center" style="margin:18px 0">
+							<a href="#" id="arenaGoBtn" onclick="startArena();return false;" class="buttonMain col s8 offset-s2 xl4 offset-xl4">GO &mdash; WATCH</a>
+						</div>
+					</div>
+				</div>
 			</div>
 			<div ID="credits" class="buttonsMenu">
 				<!-- <a id="buttonVolumeMenu" href="#" onclick="muteUnMute('musicMenu');" class="btn-floating btn-large waves-effect waves-light colorCell buttonVolumeMenu"><i class="material-icons">volume_off</i></a>
