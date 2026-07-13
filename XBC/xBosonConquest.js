@@ -51,6 +51,38 @@ var persistData = {
 	initialScale: 1,
 	mutedOverall : false
 }
+// Shared game-wide state, declared explicitly so first assignment does not leak onto window.
+var config, state, bgConfig, configMenu, reqID, bgReqID;
+// AI selection (default = legacy). model 2 = UtilityAI. Set via menu (later) or ?ai=/?diff= URL params.
+var aiSelection = { model: 1, difficulty: "medium", explicit: false };
+try {
+	var _q = new URLSearchParams(window.location.search);
+	var _ai = _q.get("ai");
+	if (_ai === "utility" || _ai === "2") { aiSelection.model = 2; aiSelection.explicit = true; }
+	if (_ai === "legacy" || _ai === "1") { aiSelection.model = 1; aiSelection.explicit = true; }
+	if (_ai === "random" || _ai === "0") { aiSelection.model = 0; aiSelection.explicit = true; }
+	var _d = _q.get("diff"); if (_d === "easy" || _d === "medium" || _d === "hard" || _d === "brutal") { aiSelection.difficulty = _d; }
+} catch (e) {}
+// Apply the global AI selection + any per-level baked opponent defs onto the player objects.
+function applyAISelection(players, selectedLevel) {
+	if (aiSelection.explicit) {
+		for (var i = 1; i < players.length; i++) {
+			if (players[i].controlType == 1) { players[i].aiModel = aiSelection.model; players[i].aiDifficulty = aiSelection.difficulty; }
+		}
+	}
+	try {
+		var lv = (selectedLevel > 0) ? getLevels()[selectedLevel - 1] : null;
+		if (lv && lv.players) {
+			for (var key in lv.players) {
+				var idx = parseInt(key, 10);
+				if (players[idx]) {
+					if (lv.players[key].model != undefined) { players[idx].aiModel = lv.players[key].model; }
+					if (lv.players[key].diff != undefined) { players[idx].aiDifficulty = lv.players[key].diff; }
+				}
+			}
+		}
+	} catch (e) {}
+}
 //
 //==============================================
 // Music and sounds
@@ -376,6 +408,8 @@ function setBackground(section) {
 			img: imgL,
 			theta: theta,
 			speed: speed,
+			vx: speed * Math.cos(theta), // theta/speed never change, so bake the per-frame drift once
+			vy: speed * Math.sin(theta),
 		}
 		bgConfig.bgObjects.push(largeObject);
 	}
@@ -392,6 +426,8 @@ function setBackground(section) {
 			img: imgS,
 			theta: theta,
 			speed: speed,
+			vx: speed * Math.cos(theta),
+			vy: speed * Math.sin(theta),
 		}
 		bgConfig.bgObjects.push(smallObject);
 	}
@@ -416,8 +452,8 @@ function animateBackground() {
 		else if (object.x > x_max) {object.x = x_min}
 		else if (object.y > y_max) {object.y = y_min}
 		// refresh position of objects
-		object.y += bgConfig.globalSpeed*object.speed*Math.sin(object.theta);
-		object.x += bgConfig.globalSpeed*object.speed*Math.cos(object.theta);
+		object.y += bgConfig.globalSpeed*object.vy;
+		object.x += bgConfig.globalSpeed*object.vx;
 		// Draw the objects
 		var y_center = object.y;
 		var x_center = object.x;
@@ -892,7 +928,9 @@ function initializePlayers(sizeFactor) {
 		playerName: "Plasma Cells",
 		playerColour: "#7b1fa2", //"#00BCC5" original colour
 		controlType: 0, // 0 for human, 1 for CPU, 2 for none
-		AIType: 1, // 0 for random AI, 1 for released AI
+		AIType: 1, // legacy dispatch type (kept for reference)
+		aiModel: 1, // per-opponent AI: 0 random(legacy) / 1 released(legacy) / 2 utility
+		aiDifficulty: "medium", // used when aiModel==2: easy | medium | hard | brutal
 		imgBase: [cell3D_S,cell3D_M,cell3D_L],
 		baseSize: [150 * sizeFactor,200 * sizeFactor,256 * sizeFactor],
 	}
@@ -901,7 +939,9 @@ function initializePlayers(sizeFactor) {
 		playerName: "Fungus",
 		playerColour: "#A0F500",
 		controlType: 1,
-		AIType: 1, // 0 for random AI, 1 for released AI
+		AIType: 1, // legacy dispatch type (kept for reference)
+		aiModel: 1, // per-opponent AI: 0 random(legacy) / 1 released(legacy) / 2 utility
+		aiDifficulty: "medium", // used when aiModel==2: easy | medium | hard | brutal
 		imgBase: [fungus3D_S,fungus3D_M,fungus3D_L],
 		baseSize: [256 * sizeFactor,300 * sizeFactor,350 * sizeFactor],
 	}
@@ -910,7 +950,9 @@ function initializePlayers(sizeFactor) {
 		playerName: "Virus",
 		playerColour: "#FF0700",//"#FF0700",
 		controlType: 1,
-		AIType: 1, // 0 for random AI, 1 for released AI
+		AIType: 1, // legacy dispatch type (kept for reference)
+		aiModel: 1, // per-opponent AI: 0 random(legacy) / 1 released(legacy) / 2 utility
+		aiDifficulty: "medium", // used when aiModel==2: easy | medium | hard | brutal
 		imgBase: [virus3D_S,virus3D_M,virus3D_L],
 		baseSize: [150 * sizeFactor,200 * sizeFactor,256 * sizeFactor],
 	}
@@ -919,7 +961,9 @@ function initializePlayers(sizeFactor) {
 		playerName: "Phage",
 		playerColour: "#FF7F00",//"#FF0700",
 		controlType: 1,
-		AIType: 1, // 0 for random AI, 1 for released AI
+		AIType: 1, // legacy dispatch type (kept for reference)
+		aiModel: 1, // per-opponent AI: 0 random(legacy) / 1 released(legacy) / 2 utility
+		aiDifficulty: "medium", // used when aiModel==2: easy | medium | hard | brutal
 		imgBase: [phage3D_S,phage3D_M,phage3D_L],
 		baseSize: [300 * sizeFactor,350 * sizeFactor,400 * sizeFactor],
 	}
@@ -993,6 +1037,7 @@ function getConfig(selectedLevel) {
 	else {sizeFactor=sizeFactorBigScreens;};
 	
 	var players = initializePlayers(sizeFactor);
+	applyAISelection(players, selectedLevel);
 	var defaultBaseSize = 32 * sizeFactor;
 	var levelSizeIncrease = 12 * sizeFactor;
 	var defaultUnitSize = 3 * sizeFactor;
@@ -1026,7 +1071,8 @@ function getConfig(selectedLevel) {
 		imgBaseSize: 256,
 		// tolerances
 		collisionTol: 6, // tolerance for declaring collision
-		maxUnits: 100000,
+		collisionCellSize: 12, // spatial-grid cell size for O(n) collision (must be >= collisionTol)
+		maxUnits: 5000, // hard cap on live units (was 100000 = no real cap); tune to taste
 		clickTol: 20, // for declaring a click rather than a rectangle selection
 		baseClickTol: 3 * defaultBaseSize,
 		// base values
@@ -1048,6 +1094,10 @@ function getInitialState() {
 		speedUnit: function() { return 0.03 * this.timePace; },
 		targetTol: function() { return 6 + Math.round(this.timePace/10)*6; }, // tolerance for declaring a unit on base - increase this if state.timePace increase, to allow the software to catch positions on time
 		lastTurn: 0,
+		// AI selection for this game (0 random / 1 released = legacy dispatch, 2 = UtilityAI)
+		aiModel: aiSelection.model,
+		aiDifficulty: aiSelection.difficulty,
+		aiSeed: (Math.random() * 4294967296) >>> 0,
 		// Game states
 		gameWon: false,
 		playerAlive: null,
@@ -1184,57 +1234,6 @@ function spawnInitialUnits() {
 // Draw
 //==============================================
 //
-function drawUnit(object) {
-	if (object.hasBeenHit == false) {
-		if (object.isSelected == false) {
-			if (object.isHidden == true) {
-					// draw the unit in green if has been hit for debugging purposes
-			config.ctx.beginPath();
-			config.ctx.arc(object.x, object.y, 3, 0, Math.PI * 2);
-			config.ctx.closePath();
-			//config.ctx.stroke();
-			config.ctx.fillStyle = "green";
-			//config.ctx.fill();
-			}
-			else {
-			// draw the unit in the player color
-			config.ctx.beginPath();
-			config.ctx.arc(object.x, object.y, config.defaultUnitSize, 0, Math.PI * 2);
-			config.ctx.closePath();
-			config.ctx.strokeStyle = "black";
-			config.ctx.lineWidth = 1;
-			//config.ctx.shadowColor = 'black';
-			//config.ctx.shadowBlur = 4;
-			config.ctx.shadowOffsetX = 2;
-			config.ctx.shadowOffsetY = 2;
-			//config.ctx.stroke();
-			config.ctx.fillStyle = object.colour;
-			//config.ctx.fill();
-			}
-		}
-		else {
-			// draw the unit in yellow if selected
-			config.ctx.beginPath();
-			config.ctx.arc(object.x, object.y, config.defaultUnitSize, 0, Math.PI * 2);
-			config.ctx.closePath();
-			config.ctx.strokeStyle = "black";
-			config.ctx.lineWidth = 1;
-			//config.ctx.stroke();
-			config.ctx.fillStyle = "yellow";
-			//config.ctx.fill();
-		}
-	}
-	else
-	{
-		// draw the unit in green if has been hit for debugging purposes
-        config.ctx.beginPath();
-        config.ctx.arc(object.x, object.y, 3, 0, Math.PI * 2);
-        config.ctx.closePath();
-        //config.ctx.stroke();
-        config.ctx.fillStyle = "green";
-        //config.ctx.fill();
-	}
-}
 function drawTarget(object) {
 			// draw the target when still moving
 			config.ctx.beginPath();
@@ -1322,13 +1321,14 @@ function drawBaseIndicator(base) {
 	// size the bases according to their current level
 	baseSize = baseSize + (base.levelCurrent - 1) * config.levelSizeIncrease;
 
-	// UPGRADE status: show current upgrade status
-	config.ctx.beginPath();
-	config.ctx.arc(base.x, base.y, config.defaultBaseSize + base.levelCurrent * config.levelSizeIncrease, 0, Math.PI * 2 * base.upgradePoints/config.maxUpgradePoints);
-	//config.ctx.closePath();
-	config.ctx.strokeStyle = base.ownership.playerColour;
-	config.ctx.lineWidth = 3;
-	config.ctx.stroke();
+	// UPGRADE status: show current upgrade progress (skip when 0 - the arc would draw nothing)
+	if (base.upgradePoints > 0) {
+		config.ctx.beginPath();
+		config.ctx.arc(base.x, base.y, config.defaultBaseSize + base.levelCurrent * config.levelSizeIncrease, 0, Math.PI * 2 * base.upgradePoints/config.maxUpgradePoints);
+		config.ctx.strokeStyle = base.ownership.playerColour;
+		config.ctx.lineWidth = 3;
+		config.ctx.stroke();
+	}
 
 	// CONQUERSHIP: draw a circle around the base representing the conquership
 	if (base.conquership < config.minConquership) {
@@ -1496,6 +1496,217 @@ function releasedAI(player) {
 		}
 	}
 }
+// ==============================================
+// UtilityAI (aiModel 2) — self-contained, per-opponent AI.
+//   * normalised [0,1]^2 reasoning (orientation-independent)
+//   * continuous per-frame evaluation with threat-triggered reactions
+//   * utility-scored actions; per-player difficulty; seeded RNG
+//   * garrison rule: keep a home reserve instead of committing every unit
+//   * 'brutal' tier bakes in strategy: concentrate force, prey on weakened
+//     bases, expand outward, avoid diving the contested centre early.
+// Reuses only the existing mechanic actuators (attack / upgrade); the legacy
+// AI code is untouched. Both AIs can now coexist in the same match.
+var UtilityAI = {
+	DIFF: {
+		easy:   { think:1500, react:0,   temp:0.90, anticipate:false, attrition:0.00, focusFire:false, attackEdge:1.60, colonizeBias:1.0,  upgradeBias:1.2, garrisonThreat:0.0, garrisonFloor:0, brutal:false },
+		medium: { think:900,  react:500, temp:0.45, anticipate:true,  attrition:0.40, focusFire:false, attackEdge:1.20, colonizeBias:1.0,  upgradeBias:1.0, garrisonThreat:1.0, garrisonFloor:2, brutal:false },
+		hard:   { think:400,  react:150, temp:0.18, anticipate:true,  attrition:0.70, focusFire:true,  attackEdge:1.05, colonizeBias:1.1,  upgradeBias:0.9, garrisonThreat:1.2, garrisonFloor:3, brutal:false },
+		brutal: { think:200,  react:80,  temp:0.10, anticipate:true,  attrition:0.30, focusFire:true,  attackEdge:0.92, colonizeBias:1.5,  upgradeBias:0.7, garrisonThreat:0.5, garrisonFloor:1, brutal:true }
+	},
+	P: function(diff) { return this.DIFF[diff] || this.DIFF.medium; },
+
+	_rngState: 0,
+	seedRng: function(seed) { this._rngState = (seed >>> 0) || 1; },
+	rng: function() {
+		var t = (this._rngState += 0x6D2B79F5);
+		t = Math.imul(t ^ (t >>> 15), t | 1);
+		t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+		return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+	},
+
+	nd: function(a, b) {
+		var w = config.canvas.width, h = config.canvas.height;
+		var dx = (a.x - b.x) / w, dy = (a.y - b.y) / h;
+		return Math.sqrt(dx*dx + dy*dy);
+	},
+	decay: function(d) { return 1 / (1 + 2*d); },
+
+	assess: function() {
+		var bases = config.bases, n = bases.length;
+		var A = new Array(n);
+		var byObj = new Map(), byCoord = new Map();
+		for (var i = 0; i < n; i++) {
+			A[i] = { def:0, inF:0, inE:0 };
+			byObj.set(bases[i], i);
+			byCoord.set(bases[i].x + "," + bases[i].y, i);
+		}
+		var objs = state.objects;
+		for (var k = 0; k < objs.length; k++) {
+			var o = objs[k];
+			if (o.hasBeenHit == true) { continue; }
+			if (o.defensiveMode == true && o.motherBase != undefined) {
+				var mi = byObj.get(o.motherBase);
+				if (mi != undefined) { A[mi].def += 1; }
+			} else {
+				var ti = byCoord.get(o.targetX + "," + o.targetY);
+				if (ti != undefined) {
+					if (o.colour === bases[ti].colour) { A[ti].inF += 1; }
+					else { A[ti].inE += 1; }
+				}
+			}
+		}
+		return A;
+	},
+
+	baseValue: function(b) { return 1 + b.levelCurrent; },
+
+	minNdToEnemy: function(p, b) {
+		var bases = config.bases, best = 99;
+		for (var i = 0; i < bases.length; i++) {
+			var ob = bases[i];
+			if (ob.ownership != p && ob.ownership != config.players[0]) {
+				var d = this.nd(b, ob);
+				if (d < best) { best = d; }
+			}
+		}
+		return best === 99 ? 1 : best;
+	},
+
+	primaryTarget: function(p, A) {
+		var bases = config.bases, best = null, bestScore = -1;
+		for (var i = 0; i < bases.length; i++) {
+			var b = bases[i];
+			if (b.ownership != p && b.ownership != config.players[0]) {
+				var str = A[i].def + b.conquership + b.health + 1;
+				var score = this.baseValue(b) / str;
+				if (score > bestScore) { bestScore = score; best = b; }
+			}
+		}
+		return best;
+	},
+
+	choose: function(p, base, iB, A, primary, P) {
+		var bases = config.bases, W = config.canvas.width, H = config.canvas.height;
+		var force = A[iB].def;
+		// garrison: keep a home reserve sized to the incoming threat (+ floor); only send the rest
+		var reserve = Math.ceil(A[iB].inE * P.garrisonThreat) + P.garrisonFloor;
+		var sendable = Math.max(0, force - reserve);
+		var homeThreat = Math.max(0, A[iB].inE - A[iB].inF);
+		var costPenalty = 0.6 * homeThreat;
+		var cands = [];
+
+		cands.push({ U: (A[iB].inE > 0 ? 0.4 * Math.min(A[iB].inE, force) : 0.05), type:'hold' });
+
+		for (var i = 0; i < bases.length; i++) {
+			var T = bases[i];
+			if (T === base) { continue; }
+			var d = this.nd(base, T);
+			var enemy = (T.ownership != p && T.ownership != config.players[0]);
+			var empty = (T.ownership == config.players[0] || (T.ownership == p && T.conquership < config.minConquership));
+
+			if (enemy) {
+				var arrive = Math.max(0, sendable * (1 - P.attrition * d));
+				var Tstr = A[i].def + T.conquership + T.health + (P.anticipate ? A[i].inF : 0);
+				var pSucc = arrive / (arrive + Tstr * P.attackEdge + 1);
+				var focus = (P.focusFire && primary === T) ? 1.4 : 1;
+				var U = this.baseValue(T) * pSucc * this.decay(d) * focus - costPenalty;
+				if (P.brutal) {
+					// prey on already-weakened / contested bases (let others soften them first)
+					var weakened = (T.health < config.maxHealth) || (T.conquership < config.minConquership) || (A[i].inE > 0);
+					if (weakened) { U *= 1.5; }
+					// avoid the contested centre early: back off central bases others are fighting over
+					var centralness = 1 - Math.min(1, (Math.abs(T.x/W - 0.5) + Math.abs(T.y/H - 0.5)) * 2);
+					if (A[i].inE > 0 && centralness > 0.5) { U *= 0.7; }
+				}
+				cands.push({ U:U, type:'attack', target:T, nUnits:sendable });
+			} else if (empty && sendable > config.minConquership) {
+				var safe = 0.3 * this.minNdToEnemy(p, T);
+				var U2 = (1.5 + safe) * this.decay(d) * P.colonizeBias - costPenalty;
+				var need = T.levelMax * config.minConquership;
+				cands.push({ U:U2, type:'colonize', target:T, nUnits:Math.min(sendable, need) });
+			} else if (T.ownership == p) {
+				var deficit = A[i].inE - (A[i].def + A[i].inF);
+				if (deficit > 0) {
+					var relief = Math.min(sendable, deficit);
+					if (relief > 0) {
+						var U3 = 1.5 * (relief / (deficit + 1)) * this.decay(d) * (P.anticipate ? 1 : 0.4);
+						cands.push({ U:U3, type:'reinforce', target:T, nUnits:relief });
+					}
+				}
+			}
+		}
+
+		// UPGRADE — but not while unsafe (losing the base forfeits the upgrade investment)
+		if (base.levelCurrent < base.levelMax && force >= (config.maxUpgradePoints - base.upgradePoints)) {
+			var margin = A[iB].def - A[iB].inE;
+			var safeToUpgrade = P.brutal ? (margin > P.garrisonFloor) : (A[iB].inE <= A[iB].def);
+			if (safeToUpgrade) {
+				var threatened = A[iB].inE > A[iB].def;
+				var Uup = 2.0 * P.upgradeBias * (threatened ? 0.2 : 1) * (1 - base.levelCurrent/base.levelMax + 0.3);
+				cands.push({ U:Uup, type:'upgrade' });
+			}
+		}
+
+		return this.pick(cands, P);
+	},
+
+	pick: function(cands, P) {
+		var pos = [], i;
+		for (i = 0; i < cands.length; i++) { if (cands[i].U > 0) { pos.push(cands[i]); } }
+		if (pos.length === 0) { return { type:'hold' }; }
+		if (P.temp <= 0.2) {
+			var best = pos[0];
+			for (i = 1; i < pos.length; i++) { if (pos[i].U > best.U) { best = pos[i]; } }
+			return best;
+		}
+		var maxU = pos[0].U, sum = 0, w = [];
+		for (i = 1; i < pos.length; i++) { if (pos[i].U > maxU) { maxU = pos[i].U; } }
+		for (i = 0; i < pos.length; i++) { var e = Math.exp((pos[i].U - maxU) / P.temp); w.push(e); sum += e; }
+		var r = this.rng() * sum, acc = 0;
+		for (i = 0; i < pos.length; i++) { acc += w[i]; if (r <= acc) { return pos[i]; } }
+		return pos[pos.length - 1];
+	},
+
+	exec: function(base, action) {
+		if (action.type === 'attack' || action.type === 'colonize' || action.type === 'reinforce') {
+			if (action.nUnits > 0) { attack(base, action.target, action.nUnits); }
+		} else if (action.type === 'upgrade') {
+			upgrade(base);
+		}
+		// 'hold' -> do nothing
+	},
+
+	tick: function(time) {
+		var bases = config.bases, players = config.players;
+		var any = false;
+		for (var pi = 1; pi < players.length; pi++) {
+			if (players[pi].controlType == 1 && players[pi].aiModel == 2) { any = true; break; }
+		}
+		if (!any) { return; }
+		var A = this.assess();
+		for (var q = 1; q < players.length; q++) {
+			var player = players[q];
+			if (player.controlType != 1 || player.aiModel != 2) { continue; }
+			var P = this.P(player.aiDifficulty);
+			var primary = P.focusFire ? this.primaryTarget(player, A) : null;
+			for (var i = 0; i < bases.length; i++) {
+				var base = bases[i];
+				if (base.ownership != player) { continue; }
+				if (base._ai == undefined) { base._ai = { next:0, nextReact:0 }; }
+				var threatened = A[i].inE > A[i].def;
+				var due = time >= base._ai.next;
+				var reactDue = (P.react > 0) && threatened && (time >= base._ai.nextReact);
+				if (due || reactDue) {
+					var action = this.choose(player, base, i, A, primary, P);
+					this.exec(base, action);
+					base._ai.next = time + P.think;
+					base._ai.nextReact = time + (P.react > 0 ? P.react : P.think);
+				}
+			}
+		}
+	}
+};
+
 function getEnnemyNeighbours(neighbours, base) {
 	var ennemyNeighbours = [];
 	for (var j=0; j<neighbours.length; j++) {
@@ -1819,15 +2030,41 @@ function goToCoordinates(object, timeDiff) {
 			//drawTarget(object);
 		}
 }
-function checkCollision (object) {
-	var nObjects = state.objects.length;
-	for (var j = 0; j < nObjects; j++) {
-		var collider = state.objects[j];
-		if (collider.colour !== object.colour && collider.hasBeenHit == false && object.hasBeenHit == false) {
-			var dist = distanceNY(object.x, object.y, collider.x, collider.y);
-			if (dist < config.collisionTol) {
-				killUnit(object);
-				killUnit(collider);
+// Build a spatial hash grid of live units once per frame.
+// Bucketing by cell lets each unit test only its 3x3 neighbourhood instead of
+// every other unit, turning collision from O(n^2) into roughly O(n).
+function buildCollisionGrid() {
+	var cell = config.collisionCellSize;
+	var grid = new Map(); // packed-integer keys: much cheaper than string keys in the hot path
+	var objs = state.objects;
+	for (var i = 0; i < objs.length; i++) {
+		var o = objs[i];
+		if (o.hasBeenHit == true) { continue; }
+		var key = (Math.floor(o.x / cell) + 32768) * 65536 + (Math.floor(o.y / cell) + 32768);
+		var bucket = grid.get(key);
+		if (bucket == undefined) { bucket = []; grid.set(key, bucket); }
+		bucket.push(o);
+	}
+	return grid;
+}
+function checkCollision (object, grid) {
+	if (object.hasBeenHit == true) { return; }
+	var cell = config.collisionCellSize;
+	var cx = Math.floor(object.x / cell);
+	var cy = Math.floor(object.y / cell);
+	for (var gx = cx - 1; gx <= cx + 1; gx++) {
+		for (var gy = cy - 1; gy <= cy + 1; gy++) {
+			var bucket = grid.get((gx + 32768) * 65536 + (gy + 32768));
+			if (bucket == undefined) { continue; }
+			for (var k = 0; k < bucket.length; k++) {
+				var collider = bucket[k];
+				if (collider.colour !== object.colour && collider.hasBeenHit == false && object.hasBeenHit == false) {
+					var dist = distanceNY(object.x, object.y, collider.x, collider.y);
+					if (dist < config.collisionTol) {
+						killUnit(object);
+						killUnit(collider);
+					}
+				}
 			}
 		}
 	}
@@ -2535,38 +2772,47 @@ function animate(time) {
 	// Initialize new objects vector
 	var newObjects = [];
 
-	// Call the AI when it is time
+	// Legacy AIs (per-opponent aiModel 0/1) run on the fixed turn cadence.
 	if (time > state.lastTurn + config.turnLength * state.spawnRate()) {
-		//console.log("New AI round ////////////////////////////////////////////");
 		for (var p = 1; p < config.players.length; p++) {
 			player = config.players[p];
 			if (player.controlType == 1) {
-				//console.log("call AI move for player " + player.playerName + "===============================");
-				if (player.AIType == 0) {randomAI(player); console.log("random AI");}
-				else if (player.AIType == 1) {releasedAI(player); 
-				//console.log("released AI");
-				}
-				else {releasedAI(player);}
+				if (player.aiModel == 0) { randomAI(player); }
+				else if (player.aiModel == 1) { releasedAI(player); }
+				// aiModel 2 (utility) is driven continuously below
 			}
 		}
 		state.lastTurn = time;
 	}
+	// UtilityAI (per-opponent aiModel 2): continuous, per-frame evaluation.
+	if (!state._aiSeeded) { UtilityAI.seedRng(state.aiSeed); state._aiSeeded = true; }
+	UtilityAI.tick(time);
 
     // clear the canvas so all objects can be 
     // redrawn in new positions
     config.ctx.clearRect(0, 0, config.canvas.width, config.canvas.height);
 	
+	// Pre-pass: tally, per exact target point, how many units of each colour aim there.
+	// Units attacking a base have their target set to the base centre, so this one
+	// pass replaces the per-base rescan of every unit that used to run each frame.
+	var targetTally = {};
+	for (var t = 0; t < state.objects.length; t++) {
+		var ob = state.objects[t];
+		if (ob.hasBeenHit == true) { continue; }
+		var tkey = ob.targetX + "," + ob.targetY;
+		if (targetTally[tkey] == undefined) { targetTally[tkey] = {}; }
+		targetTally[tkey][ob.colour] = (targetTally[tkey][ob.colour] || 0) + 1;
+	}
 	// logic loop through bases
 	for (var i = 0; i < config.bases.length; i++) {
         var attackersNum = 0;
 		var base = config.bases[i];
 		base.hasJustSpawned = false;
-		// check if the base is under attack
-		for (var j = 0; j < state.objects.length; j++) {
-			object = state.objects[j];
-			// if ennemy with coordinates set to this base
-			if (object.colour != base.colour && object.targetX == base.x && object.targetY == base.y) {
-				attackersNum += 1;
+		// check if the base is under attack (units targeting this exact point, of another colour)
+		var baseTally = targetTally[base.x + "," + base.y];
+		if (baseTally != undefined) {
+			for (var tcol in baseTally) {
+				if (tcol != base.colour) { attackersNum += baseTally[tcol]; }
 			}
 		}
 		if (attackersNum > 0) { base.isUnderAttack = true; }
@@ -2622,9 +2868,11 @@ function animate(time) {
 
     // loop through units
 	// main loop containing logics
+	// Build the collision grid once, then each unit checks only nearby cells.
+	var collisionGrid = buildCollisionGrid();
     for (var i = 0; i < state.objects.length; i++) {
         var object = state.objects[i];
-		checkCollision(object);
+		checkCollision(object, collisionGrid);
 		// do not compute anything for objects which are already "dead"
 		if (object.hasBeenHit == false) {
 			var distFromCoord = distance(object.x, object.y, object.targetX, object.targetY);
@@ -2729,17 +2977,40 @@ function animate(time) {
 	
 	state.objects = newObjects;
 	
-	// third loop for drawing the remaining objects in the right position
+	// third loop: draw remaining units, batched by fill colour.
+	// Every live unit is a same-radius circle, so grouping by colour lets us issue
+	// one beginPath()/fill() per colour instead of one per unit.
+	var drawBuckets = {};
 	for (var i = 0; i < state.objects.length; i++) {
         var object = state.objects[i];
-		drawUnit(object);
-		//config.ctx.stroke();
-		config.ctx.fill();
+		var fillCol = (object.isSelected == true) ? "yellow" : object.colour;
+		if (drawBuckets[fillCol] == undefined) { drawBuckets[fillCol] = []; }
+		drawBuckets[fillCol].push(object);
     }
-	// update the indicator bars
-	document.getElementById('indicatorBarCell').style.width		=(countUnits(config.players[1])*config.indicatorBarSizeFactor)+'px';
-	document.getElementById('indicatorBarFungus').style.width	=(countUnits(config.players[2])*config.indicatorBarSizeFactor)+'px';
-	document.getElementById('indicatorBarVirus').style.width	=(countUnits(config.players[3])*config.indicatorBarSizeFactor)+'px';
+	var unitR = config.defaultUnitSize;
+	for (var col in drawBuckets) {
+		var bucket = drawBuckets[col];
+		config.ctx.beginPath();
+		for (var bi = 0; bi < bucket.length; bi++) {
+			var u = bucket[bi];
+			config.ctx.moveTo(u.x + unitR, u.y); // move first so arcs are not joined by lines
+			config.ctx.arc(u.x, u.y, unitR, 0, Math.PI * 2);
+		}
+		config.ctx.fillStyle = col;
+		config.ctx.fill();
+	}
+	// update the indicator bars (one pass instead of three countUnits() scans)
+	var cntP1 = 0, cntP2 = 0, cntP3 = 0;
+	var p1 = config.players[1], p2 = config.players[2], p3 = config.players[3];
+	for (var ci = 0; ci < state.objects.length; ci++) {
+		var co = state.objects[ci];
+		if (co.ownership == p1) { cntP1++; }
+		else if (co.ownership == p2) { cntP2++; }
+		else if (co.ownership == p3) { cntP3++; }
+	}
+	document.getElementById('indicatorBarCell').style.width		=(cntP1*config.indicatorBarSizeFactor)+'px';
+	document.getElementById('indicatorBarFungus').style.width	=(cntP2*config.indicatorBarSizeFactor)+'px';
+	document.getElementById('indicatorBarVirus').style.width	=(cntP3*config.indicatorBarSizeFactor)+'px';
 	
 	
 	// victory condition
@@ -2747,10 +3018,10 @@ function animate(time) {
 	var nBases = 0;
 
 	//document.getElementById("infoField").innerHTML = ""
-	for (p=1;p<config.players.length;p++) {
-		player = config.players[p];
+	for (var p=1;p<config.players.length;p++) {
+		var player = config.players[p];
 		//console.log(player.playerName);
-		for (b=0;b<config.bases.length;b++) {
+		for (var b=0;b<config.bases.length;b++) {
 			var base = config.bases[b];
 			if (base.ownership == player && base.conquership == config.minConquership) {
 				nBases = nBases + 1;
