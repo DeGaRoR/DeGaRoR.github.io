@@ -112,7 +112,7 @@ if(typeof document!=="undefined"&&document.addEventListener)
   document.addEventListener("visibilitychange",()=>{if(!document.hidden){siteBaseCv=null;}});
 const BALE_IMG={PET:"bale_0",steel:"bale_1",film:"bale_2",paper:"bale_3",alu:"bale_4",PVC:"bale_pvc"};
 const ZONE_IMG={PET:"zone_0",ferrous:"zone_1",alu:"zone_2",carton:"zone_4",paper:"zone_4",film:"zone_3",pvc:"zone_pvc",dispose:"zone_5"}; // dedicated PVC bay art
-const UNIT_IMG={opener:"unit_0",magnet:"unit_1",eddy:"unit_2",pick:"unit_3",nir:"unit_4",air:"unit_5",splitter:"unit_6"};
+const UNIT_IMG={opener:"unit_0",magnet:"unit_1",eddy:"unit_2",pick:"unit_3",nir:"unit_4",air:"unit_5",splitter:"unit_6",vfilm:"unit_7"};
 function bagKey(){ // nearest of the three bunker liveries to the contract's bag colour
   const h=(bagCol()||"#3F6FB5").replace("#","");
   const r=parseInt(h.slice(0,2),16),g=parseInt(h.slice(2,4),16),b=parseInt(h.slice(4,6),16);
@@ -431,7 +431,7 @@ const BUILD={mode:null,sel:null,gx:0,gy:0,rot:0,from:null,fromSide:null,undo:[]}
 const SITE_CATALOG=[ // [siteType, kind, display name]
   ["input",null,"Bunker"],["feeder",null,"Feeder"],
   ["process","opener","Bag opener"],["process","magnet","Magnet"],["process","eddy","Eddy current"],
-  ["process","air","Air classifier"],["process","nir","NIR sorter"],["process","pick","Picking station"],["process","splitter","Splitter"],["mixer",null,"Mixer"],
+  ["process","air","Air classifier"],["process","vfilm","Vacuum film extractor"],["process","nir","NIR sorter"],["process","pick","Picking station"],["process","splitter","Splitter"],["mixer",null,"Mixer"],
   ["baler",null,"Baler"],["bulk",null,"Container zone"],["output",null,"Export bay"],["landfill",null,"Landfill"]];
 const SITE_REASON={offgrid:"Outside the map",offproperty:"Not your land",needshell:"Must be INSIDE the warehouse",
   needyard:"Must be OUTSIDE the warehouse",overlap:"Overlaps a unit",cash:"Not enough cash",
@@ -439,6 +439,7 @@ const SITE_REASON={offgrid:"Outside the map",offproperty:"Not your land",needshe
   zone_baler:"Balers go on the orange side strips",zone_process:"Sorting machines go in the white corridor",
   zone_bulk:"Container zones go on the lime strip",zone_output:"Export bays go on the orange output apron",
   zone_landfill:"Landfills go in the lower yard",
+  locked:"Unlock this unit in R&D first",
   wall_baler:"Turn the baler so its bale store faces a hall wall",
   wall_feeder:"Turn the feeder so its output faces the hall wall",
   nooutport:"That side has no output",noinport:"That unit has no matching inlet",
@@ -492,12 +493,15 @@ function buildUndo(){const u=BUILD.undo.pop();if(!u)return;
   saveGame();updateBuildBar();}
 function openSitePalette(){
   let b='<h3>'+tr("Build")+'</h3><div class="real">'+tr("Tap a unit, place it on the grid, then wire it from its inspector.")+'</div><div class="palgrid">';
+  const _sbx=(G&&G.mode==="sandbox");
   for(const[st,kind,name]of SITE_CATALOG){const cost=siteUnitCost(st,kind);
-    b+='<div class="palcard" data-bsel="'+st+':'+(kind||"")+'" style="border-color:'+(SITE_UCOL[st]||"#666")+'">'+
-       '<div class="pt">'+tr(name)+'</div><div class="pd">'+Math.round(cost/1000)+' k\u20AC \u00B7 '+
-       tr(SITE_SHELL_RULE[st]==="in"?"inside the warehouse":"in the yard")+'</div></div>';}
+    const locked=st==="process"&&kind&&!_sbx&&BASE_UNITS.indexOf(kind)<0&&!unitUnlocked(kind);
+    b+='<div class="palcard'+(locked?' locked':'')+'" '+(locked?'data-locked="1"':'data-bsel="'+st+':'+(kind||"")+'"')+' style="border-color:'+(locked?"#5a5348":(SITE_UCOL[st]||"#666"))+(locked?';opacity:.55':'')+'">'+
+       '<div class="pt">'+tr(name)+'</div><div class="pd">'+(locked?"\uD83D\uDD12 "+tr("Unlock in R&D"):(Math.round(cost/1000)+' k\u20AC \u00B7 '+
+       tr(SITE_SHELL_RULE[st]==="in"?"inside the warehouse":"in the yard")))+'</div></div>';}
   b+='</div>';
   showSheet(b);
+  sheet.querySelectorAll("[data-locked]").forEach(el=>el.addEventListener("click",()=>toast(tr("Unlock this unit in R&D first"),"warn")));
   sheet.querySelectorAll("[data-bsel]").forEach(el=>el.addEventListener("click",()=>{
     const[st,kind]=el.dataset.bsel.split(":");
     const item=SITE_CATALOG.find(c=>c[0]===st&&(c[1]||"")===kind);
@@ -905,7 +909,7 @@ const LANG={fr:{
   "Build your plant":"Construis ton usine","Empty site, your budget \u2014 place the units, wire the line, run the yard.":"Site vide, ton budget \u2014 place les unités, câble la ligne, dirige la cour.",
   "A full plant already running \u2014 study it, tweak it, break it.":"Une usine complète déjà en marche \u2014 étudie-la, modifie-la, casse-la.",
   "Build":"Construire","Tap a unit, place it on the grid, then wire it from its inspector.":"Touche une unité, place-la sur la grille, puis câble-la depuis son inspecteur.",
-  "Bag opener":"Ouvre-sacs","Magnet":"Aimant","Eddy current":"Courants de Foucault","Air classifier":"Classificateur \u00E0 air","NIR sorter":"Trieur NIR","Splitter":"R\u00E9partiteur","Baler":"Presse \u00E0 ballots","Container zone":"Zone conteneurs","Export bay":"Baie d\u2019export","Landfill":"D\u00E9charge",
+  "Bag opener":"Ouvre-sacs","Magnet":"Aimant","Eddy current":"Courants de Foucault","Air classifier":"Classificateur \u00E0 air","NIR sorter":"Trieur NIR","Vacuum film extractor":"Extracteur de film","Unlock in R&D":"\u00c0 d\u00e9bloquer en R&D","Unlock this unit in R&D first":"D\u00e9bloque cette unit\u00e9 en R&D d\u2019abord","Splitter":"R\u00E9partiteur","Baler":"Presse \u00E0 ballots","Container zone":"Zone conteneurs","Export bay":"Baie d\u2019export","Landfill":"D\u00E9charge",
   "inside the warehouse":"dans le hangar","in the yard":"dans la cour",
   "Tap the grid to position, \u2713 to build":"Touche la grille pour positionner, \u2713 pour construire",
   "Connect output":"Connecter la sortie","Demolish":"D\u00E9molir","Demolished":"D\u00E9moli","Removed":"Retir\u00E9","Connected":"Connect\u00E9",
@@ -1008,8 +1012,8 @@ const LANG={fr:{
   "Earn a corporate sponsor (250 t on-spec)":"Décroche un sponsor (250 t conformes)",
   "Complete the tutorial":"Terminer le tutoriel","Run an eddy-current separator":"Faire tourner un séparateur à courants de Foucault","Run an air classifier":"Faire tourner un classificateur à air","Run a NIR sorter":"Faire tourner un trieur NIR","Export 100 t on-spec":"Exporter 100 t conformes","Build a 10-unit flowsheet":"Construire une ligne de 10 unités",
   "Trained sorters":"Trieurs formés","Recycling subsidy":"Subvention au recyclage","Binfinity contract":"Contrat Binfinity","Iron Maiden offtake":"Débouché Iron Maiden",
-  "Non-ferrous line":"Ligne non-ferreuse","Density separation":"Séparation par densité","Optical sorting":"Tri optique","High-strength magnet":"Aimant haute puissance","VFD retrofit":"Variateur de fréquence","Wide belts":"Tapis larges","Flow splitting":"Division du flux","Manual sort cabin":"Cabine de tri manuel","Yard extension I":"Extension de cour I","Yard extension II":"Extension de cour II","Yard extension III":"Extension de cour III",
-  "Trained sorters":"Trieurs formés","Recycling subsidy":"Subvention au recyclage","Binfinity contract":"Contrat Binfinity","Iron Maiden offtake":"Accord Iron Maiden","Unlock the eddy-current separator":"Débloque le séparateur à courants de Foucault","Unlock the air classifier":"Débloque le classificateur à air","Unlock the NIR sorter":"Débloque le trieur NIR","Steel capture 95% \u2192 98%":"Capture acier 95 % \u2192 98 %","\u221210% power, plant-wide":"\u221210 % d\u2019énergie, toute l\u2019usine","+15% throughput":"+15 % de débit","Unlock the splitter":"Débloque le répartiteur","Unlock the picking station":"Débloque la station de tri","+15 slots \u00b7 bigger bunkers":"+15 emplacements \u00b7 bacs agrandis","+20 slots \u00b7 bigger bunkers":"+20 emplacements \u00b7 bacs agrandis","+25 slots \u00b7 bigger bunkers":"+25 emplacements \u00b7 bacs agrandis","+5% picking efficiency":"+5 % d\u2019efficacité de tri","+10% on all sales":"+10 % sur toutes les ventes","Unlock Binfinity (supplier)":"Débloque Binfinity (fournisseur)","Unlock Iron Maiden Metals (buyer)":"Débloque Iron Maiden Metals (acheteur)","New equipment":"Nouvel équipement","Sorting efficiency":"Efficacité de tri","Cost reduction":"Réduction des coûts","Logistics":"Logistique","Real estate":"Immobilier","HR":"RH","Sales & marketing":"Ventes & marketing","Effect":"Effet","Cost":"Coût","free":"gratuit","Refund":"Rembourser","Owned":"Possédé","Locked":"Verrouillé","Not enough in the bank":"Fonds insuffisants","Research":"Rechercher","Unlock (free)":"Débloquer (gratuit)","Researched ":"Recherché ","Unlocked ":"Débloqué ","Refunded ":"Remboursé ","Product":"Produit","Price":"Prix","On-spec / bale":"Conforme / ballot","Off-spec / bale":"Hors spec / ballot","On-spec rule":"Règle de conformité","Sold on-spec":"Vendus conformes","liberated":"libéré","Gate":"Redevance","Each bale is graded on its liberated target purity. Below the threshold \u2014 or over a contaminant cap \u2014 it sells at the off-spec price (a loss). Cleaner bales pay more, up to +20% over base.":"Chaque ballot est noté sur la pureté de sa cible libérée. Sous le seuil \u2014 ou au-dessus d\u2019un plafond de contaminant \u2014 il part au prix hors spec (une perte). Les ballots plus propres paient plus, jusqu\u2019à +20 % du prix de base.",
+  "Non-ferrous line":"Ligne non-ferreuse","Density separation":"Séparation par densité","Optical sorting":"Tri optique","Film extraction":"Extraction du film","High-strength magnet":"Aimant haute puissance","VFD retrofit":"Variateur de fréquence","Wide belts":"Tapis larges","Flow splitting":"Division du flux","Manual sort cabin":"Cabine de tri manuel","Yard extension I":"Extension de cour I","Yard extension II":"Extension de cour II","Yard extension III":"Extension de cour III",
+  "Trained sorters":"Trieurs formés","Recycling subsidy":"Subvention au recyclage","Binfinity contract":"Contrat Binfinity","Iron Maiden offtake":"Accord Iron Maiden","Unlock the eddy-current separator":"Débloque le séparateur à courants de Foucault","Unlock the air classifier":"Débloque le classificateur à air","Unlock the NIR sorter":"Débloque le trieur NIR","Steel capture 95% \u2192 98%":"Capture acier 95 % \u2192 98 %","\u221210% power, plant-wide":"\u221210 % d\u2019énergie, toute l\u2019usine","+15% throughput":"+15 % de débit","Unlock the splitter":"Débloque le répartiteur","Unlock the picking station":"Débloque la station de tri","+15 slots \u00b7 bigger bunkers":"+15 emplacements \u00b7 bacs agrandis","+20 slots \u00b7 bigger bunkers":"+20 emplacements \u00b7 bacs agrandis","+25 slots \u00b7 bigger bunkers":"+25 emplacements \u00b7 bacs agrandis","+5% picking efficiency":"+5 % d\u2019efficacité de tri","+10% on all sales":"+10 % sur toutes les ventes","+8% on all sales":"+8 % sur toutes les ventes","Unlock Binfinity (supplier)":"Débloque Binfinity (fournisseur)","Unlock Iron Maiden Metals (buyer)":"Débloque Iron Maiden Metals (acheteur)","New equipment":"Nouvel équipement","Sorting efficiency":"Efficacité de tri","Cost reduction":"Réduction des coûts","Logistics":"Logistique","Real estate":"Immobilier","HR":"RH","Sales & marketing":"Ventes & marketing","Effect":"Effet","Cost":"Coût","free":"gratuit","Refund":"Rembourser","Owned":"Possédé","Locked":"Verrouillé","Not enough in the bank":"Fonds insuffisants","Research":"Rechercher","Unlock (free)":"Débloquer (gratuit)","Researched ":"Recherché ","Unlocked ":"Débloqué ","Refunded ":"Remboursé ","Product":"Produit","Price":"Prix","On-spec / bale":"Conforme / ballot","Off-spec / bale":"Hors spec / ballot","On-spec rule":"Règle de conformité","Sold on-spec":"Vendus conformes","liberated":"libéré","Gate":"Redevance","Each bale is graded on its liberated target purity. Below the threshold \u2014 or over a contaminant cap \u2014 it sells at the off-spec price (a loss). Cleaner bales pay more, up to +20% over base.":"Chaque ballot est noté sur la pureté de sa cible libérée. Sous le seuil \u2014 ou au-dessus d\u2019un plafond de contaminant \u2014 il part au prix hors spec (une perte). Les ballots plus propres paient plus, jusqu\u2019à +20 % du prix de base.",
 }};
 function tr(s){if(LANG_CUR==="en"||!s)return s;const d=LANG[LANG_CUR];return (d&&d[s])||s;}
 function setLang(l){LANG_CUR=l;try{localStorage.setItem("recycle.lang",l);}catch(e){}document.documentElement.lang=l;applyLang();}
@@ -1034,6 +1038,7 @@ const TECH_META={
   r_eddyU:{name:"Non-ferrous line",cl:"equipment",g:"eddy",fx:"Unlock the eddy-current separator"},
   r_airU :{name:"Density separation",cl:"equipment",g:"air",fx:"Unlock the air classifier"},
   r_nirU :{name:"Optical sorting",cl:"equipment",g:"nir",fx:"Unlock the NIR sorter"},
+  r_vfilm:{name:"Film extraction",cl:"equipment",g:"air",fx:"Unlock the vacuum film extractor"},
   r_mag  :{name:"High-strength magnet",cl:"sorting",g:"magnet",fx:"Steel capture 95% \u2192 98%"},
   t_vfd  :{name:"VFD retrofit",cl:"cost",g:"bolt",fx:"\u221210% power, plant-wide"},
   t_belt :{name:"Wide belts",cl:"logistics",g:"belt",fx:"+15% throughput"},
@@ -1043,7 +1048,7 @@ const TECH_META={
   a_yard2:{name:"Yard extension II",cl:"realestate",g:"slots",fx:"+20 slots \u00b7 bigger bunkers"},
   a_yard3:{name:"Yard extension III",cl:"realestate",g:"slots",fx:"+25 slots \u00b7 bigger bunkers"},
   h_sorters:{name:"Trained sorters",cl:"hr",g:"pick",fx:"+5% picking efficiency"},
-  s_subsidy:{name:"Recycling subsidy",cl:"subsidies",g:"coin",fx:"+10% on all sales"},
+  s_subsidy:{name:"Recycling subsidy",cl:"subsidies",g:"coin",fx:"+8% on all sales"},
   sl_binf  :{name:"Binfinity contract",cl:"sales",g:"flag",fx:"Unlock Binfinity (supplier)"},
   sl_iron  :{name:"Iron Maiden offtake",cl:"sales",g:"flag",fx:"Unlock Iron Maiden Metals (buyer)"},
 };

@@ -1,8 +1,22 @@
 # RECYCLE — Changelog
 
-## v1.1.0 — Environment decor (2026-07-12)
-- **Surround tiles**: the plant now sits in a 3×3 world — landfill above, incinerator below (road corridor continuous down all three), lush forest on the sides and corners. Drawn behind the plant with off-screen culling; 6 tiles added to `assets/` and the SW precache (v1.1.0).
-- **Camera clamp**: zoom-out stops once the whole tiled extent fits; panning stays inside the tiles. `clampCam()` runs on wheel, pinch, drag and each frame.
+## v1.4.0 — R&D tree, prices & bonuses pass (2026-07-12)
+- **R&D tree finalised.** Unit unlocks are no longer free — each is a small licence fee, distinct from the per-build capex. Branched topology (metals route = eddy; plastics route = air → NIR/film) so you choose your path. Licences: air 8k, splitter 5k, pick 10k, eddy 20k, vacuum-film 25k, NIR 45k (cheap toward low-grade products, dearer toward premium PET). Whole set 113k — real but meaningful when cash is tight.
+- **Upgrades repriced down** (they were dear vs their swing): high-strength magnet 120k→60k, wide belts 120k→80k, VFD 90k→30k, trained sorters 40k→30k, new supplier/buyer 60k/50k→40k each. **Yards** (the scaling wall): 150/500/1000k → 120/350/800k — yard1 is effectively mandatory for a 27-unit plant (base is 20 slots).
+- **Green subsidy trimmed** +10% → +8% to keep the full bonus + R&D stack under ×2 (measured ×1.76 on the reference plant).
+- **Prices nudged**: OCC carton €95→100/t, PE film €120→130/t. All other prices unchanged (already real-anchored).
+- **Achievements trimmed** on the late milestones (€10k/day 400→300k, €20k/day 600→400k) — total one-shot grants 1.95M → 1.65M; the crucial early grants (first bale, €5k/day, 80% diversion) are kept to cushion the deficit-heavy start.
+- **Verified**: bootstrap (steel+PET line + air/NIR licences ≈ 1.0M of the 2.5M budget) stays well inside budget and returns ~+160 €/t; the full plant (≈ 2.76M incl. licences + yard1) is reached progressively via profit + early grants.
+
+## v1.3.0 — R&D-gated build palette (2026-07-12)
+- **Progression is now R&D-driven**: in a budgeted career the build palette only offers what you've researched. Base units (bunker, feeder, opener, magnet, baler, exports, bulk, landfill) are always available; pick, eddy, air, NIR, vacuum film extractor and splitter are greyed with an “Unlock in R&D” hint until their (free) unlock node is researched. Sandbox / free-play and scenario setup are exempt.
+- **Placement safety-net** in `sitePlaceUnit` refuses a not-yet-researched unit (reason `locked`), so the gate holds even outside the palette.
+- **Verified buildable within budget**: unit unlocks are free, so gating only sequences the tech walk — affordability is unchanged. A profitable bootstrap (steel + PET line ≈ 950k of the 2.5M Atelier budget) returns ~+160 €/t and funds expansion; the full reference plant (≈2.53M from the starter) is reached progressively via running profit + milestone grants.
+
+## v1.2.0 — Vacuum film extractor (2026-07-12)
+- **New unit — Vacuum film extractor** (`vfilm`): a vacuum hood + cyclone that lifts loose 2D film off the belt. Reuses the probability-sort branch verbatim (deterministic, mass-conserving — no new tick logic). Real-anchored: cap 3 t/h, 18 kW, site 160k / capex 130k, R&D unlock `r_vfilm` (free, gated behind the air line). Differentiated false-positives by liftability (film 0.88, paper 0.012, rigids ~0.003) so it clears film's three contaminant caps at once.
+- **Fixes film/carton on-spec**: measured on a reference mix, the pulled stream is 97% film / 1.1% paper / 0.8% PET / 0.3% PVC — all caps cleared, ~87% of feed film captured. Additive: existing plants unchanged, no recalibration.
+- Sprite cut from the uploaded machine art (border flood-fill + colour defringe → no white halo), mapped to `unit_7`.
 
 ## v1.0.0 — PWA (2026-07-12)
 First served build. Split from the single-file standalone (archived as `recycle_standalone_final.html`) into a full PWA: `index.html` shell, `css/app.css`, `js/engine.js` (sentinels kept), `js/app.js`, 79 assets extracted from base64 to `assets/*.webp`, `manifest.webmanifest`, precache-everything `sw.js` (full offline), icons rendered from the wheel-loader sprite. Test harnesses rewired through a shared `tools/_load.js` resolver (accept the folder, `index.html`, or a legacy single-file build). Gameplay work shipped in the same window:

@@ -277,7 +277,7 @@ const QC_SUITES={
 },
 "site-contracts":function(t){ // carton & film buy contracts — real-anchored prices + on-spec conditions
   t.ok(SPECS.carton&&SPECS.film,"cardboard & film specs exist");
-  t.ok(SPECS.carton.basePrice===95&&SPECS.film.basePrice===120,"real-anchored bale prices (OCC \u20AC95/t, PE film \u20AC120/t)");
+  t.ok(SPECS.carton.basePrice===100&&SPECS.film.basePrice===130,"real-anchored bale prices (OCC \u20AC100/t, PE film \u20AC130/t)");
   // a clean OCC bale grades on-spec; the same bale with 4% film contamination fails the cap
   const clean=blankBuf();for(let i=0;i<97;i++)clean.paper[1]++; clean.film[1]++; clean.PET[1]++; // 97% fibre, within out-throw caps
   const gC=grade(clean,"carton");t.ok(gC.ok&&gC.price>0,"clean OCC bale sells on-spec ("+Math.round(gC.price)+" \u20AC/t base)");
@@ -398,6 +398,7 @@ const QC_SUITES={
 "site-per-game-bank":function(t){ // each game owns its bank + tech + objectives; nothing is shared
   newGame("career","site_ref",0x51);
   G.cash=1800000;G.career.bank=1800000;researchTech("r_eddyU");
+  const bankA=G.career.bank; // r_eddyU now charges a licence fee, so the bank is 1.8M − its cost
   const A=JSON.parse(JSON.stringify(serializeGame()));
   t.ok(G.career.tech.indexOf("r_eddyU")>=0,"career A owns its researched tech");
   // a second career starts fresh — no leak from A
@@ -407,7 +408,7 @@ const QC_SUITES={
   // loading A restores A\u2019s progression, independent of B
   restoreGame(A);
   t.ok(CAREER===G.career,"CAREER points into the loaded game\u2019s progression");
-  t.ok(G.career.bank===1800000&&G.career.tech.indexOf("r_eddyU")>=0,"loading A restores A\u2019s bank + tech intact");
+  t.ok(G.career.bank===bankA&&G.career.tech.indexOf("r_eddyU")>=0,"loading A restores A\u2019s bank + tech intact");
   // the tutorial never inherits a depleted bank (nothing is shared)
   newGame("career","site_ref",0x53);G.career.bank=-500000;G.cash=-500000;
   newGame("career","site_career",0x54);
@@ -659,6 +660,33 @@ const QC_SUITES={
   const expect=(2*R.loader+2*R.forklift+1*R.ctruck)*(G.t-t0);
   t.ok(Math.abs((G.ledger.logistics-l0)-expect)<1e-3,"logistics booked exactly = \u03a3(vehicles\u00d7\u20ac/h)\u00d7hours ("+expect.toFixed(0)+" \u20ac)");
 },
+"site-vfilm":function(t){ // Vacuum film extractor: pulls film to S at high purity, mass-conserving & deterministic (additive unit)
+  const run=(seed)=>{newGame("sandbox","standard",seed);
+    G.contract.supplier=null;G.contract.comp={PET:0.32,steel:0.15,alu:0.06,film:0.14,paper:0.26,PVC:0.07};
+    const vf=addNode("vfilm",100,0);
+    const sBuf=addNode("buffer",160,-30),mBuf=addNode("buffer",160,30); // unwired outputs → they pile up the stream so we can read its composition
+    G.edges.push({from:vf.id,fromPort:"S",to:sBuf.id,sprites:[],speed:EDGE_SPEED}); // film pulled off
+    G.edges.push({from:vf.id,fromPort:"M",to:mBuf.id,sprites:[],speed:EDGE_SPEED}); // the rest
+    const N=3000,mix={PET:0.32,steel:0.15,alu:0.06,film:0.14,paper:0.26,PVC:0.07};
+    for(const m in mix){const k=Math.round(N*mix[m]);for(let i=0;i<k;i++)vf.inBuf[m][1]++;} // LIBERATED items (st=1); a bag opener sits upstream in play
+    const fed=cnt(vf.inBuf);
+    for(let i=0;i<8000;i++)tick(0.004);
+    return {vf,fed,sMass:vf._sortMass||0,mMass:vf._restMass||0,left:cnt(vf.inBuf),sc:comp(sBuf.inBuf)};};
+  const r=run(0x71F);
+  t.ok(r.left===0,"vfilm drained its input buffer");
+  t.ok(Math.abs((r.sMass+r.mMass)-r.fed*PMASS)<1e-9,"conservation: film-pull + rest = fed ("+(r.sMass+r.mMass).toFixed(2)+" t)");
+  const c=r.sc,tot=c.film+c.paper+c.PET+c.PVC+c.steel+c.alu;
+  const filmPur=tot>0?c.film/tot:0,paperFr=tot>0?c.paper/tot:0,petFr=tot>0?c.PET/tot:0,pvcFr=tot>0?c.PVC/tot:0;
+  t.ok(filmPur>=0.90,"the S stream makes film spec (\u226590% film): "+(filmPur*100).toFixed(1)+"%");
+  t.ok(paperFr<=0.03,"paper cap holds (\u22643%): "+(paperFr*100).toFixed(1)+"%");
+  t.ok(petFr<=0.02,"PET cap holds (\u22642%): "+(petFr*100).toFixed(1)+"%");
+  t.ok(pvcFr<=0.005,"PVC cap holds (\u22640.5%): "+(pvcFr*100).toFixed(2)+"%");
+  const filmFed=Math.round(3000*0.14)*PMASS;
+  t.ok(r.sMass>0.80*filmFed,"captures the bulk of the film ("+(r.sMass/filmFed*100).toFixed(0)+"% of feed film)");
+  const r2=run(0x71F);
+  t.ok(Math.abs(r.sMass-r2.sMass)<1e-9,"deterministic per seed");
+},
+
 "site-named-states":function(t){ // consolidated from the retired d1/d2/d3 harnesses (2026-07-12): the failure states that qc did not yet assert
   const cx=(f,p,to)=>G.edges.push({from:f,fromPort:p,to:to,sprites:[],speed:EDGE_SPEED});
   // BUNKER FULL — flood inbound with no loader to drain: the bunker fills to cap and turns trucks away
@@ -910,8 +938,11 @@ const QC_SUITES={
   newGame("career","site_career",0x9202);
   t.ok(G.scenario.unlimitedBudget===false,"career scenario keeps a hard budget");
   G.cash=1000;
+  CAREER.tech.push("r_eddyU");recomputeTechMod(); // unlock eddy so the refusal we test is the BUDGET, not the R&D gate
   const r2=sitePlaceUnit("process","eddy",8,20,0);
-  t.ok(!r2.ok&&r2.reason==="cash","career: an unaffordable unit is REFUSED");
+  t.ok(!r2.ok&&r2.reason==="cash","career: an unaffordable (unlocked) unit is REFUSED on budget");
+  const rl=sitePlaceUnit("process","nir",8,20,0);
+  t.ok(!rl.ok&&rl.reason==="locked","career: a NOT-YET-RESEARCHED unit is refused by the R&D gate");
   // picking station exists and places with a crew (catalogue entry verified in the UI smoke)
   const pk=sitePlaceUnit("process","pick",8,22,0,{free:true});
   t.ok(pk.ok&&TYPES[pk.node.type].isPick&&pk.node.workers>0,"picking station places with a crew ("+pk.node.workers+" workers)");

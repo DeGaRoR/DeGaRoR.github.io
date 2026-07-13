@@ -83,12 +83,12 @@ const ECON={
     ferrous:{base:200,  offSpec:-50},
     // FUTURE (v0.5+), real-anchored — see economics doc:
     alu:    {base:1200, offSpec:-50},
-    carton: {base:95,   offSpec:-35},  // OCC (old corrugated cardboard) bales, ~€95/t (2025-26 EU)
-    film:   {base:120,  offSpec:-45},  // sorted PE film 90/10, ~€120/t; mixed/contaminated film collapses to near-zero
+    carton: {base:100,  offSpec:-35},  // OCC (old corrugated cardboard) bales, ~€95/t (2025-26 EU)
+    film:   {base:130,  offSpec:-45},  // sorted PE film 90/10, ~€120/t; mixed/contaminated film collapses to near-zero
     PVC:    {base:90,   offSpec:-40},  // rigid-PVC regrind (pipe/profile), niche low-value market (~€70-150/t); the alternative is paying −€110/t to landfill it
   },
   // Capex (€) per unit — paid up front on placement, 50% refunded on removal.
-  capex:{pick:50000, opener:80000, magnet:35000, eddy:90000, air:120000, nir:300000, splitter:20000, baler:120000, storage:40000, intake:40000, output:40000, buffer:25000, export:0, landfill:0},
+  capex:{pick:50000, opener:80000, magnet:35000, eddy:90000, air:120000, nir:300000, vfilm:130000, splitter:20000, baler:120000, storage:40000, intake:40000, output:40000, buffer:25000, export:0, landfill:0},
   // Land / space (FUTURE v0.5): warehouse tile buy / rent per cycle / cheap yard tile.
   land:{tileBuy:300, tileRent:8, yardTile:50},
   // Vehicle OPEX (Lot D, 2026-07-12): a grouped €/h-per-OWNED-vehicle cost (operator wage + machine
@@ -101,7 +101,7 @@ const ECON={
   // Site (MRF) placement capex (€) — the career/site economy. Single source (A3, 2026-07-12);
   // siteUnitCost() reads this. Distinct from the legacy flowsheet `capex` table above.
   siteCost:{input:60000,feeder:45000,baler:140000,bulk:60000,output:45000,landfill:120000,
-    process:{opener:90000,pick:40000,magnet:130000,eddy:190000,air:150000,nir:280000,splitter:70000,buffer:50000}},
+    process:{opener:90000,pick:40000,magnet:130000,eddy:190000,air:150000,nir:280000,vfilm:160000,splitter:70000,buffer:50000}},
 };
 const WAGE=ECON.wage;     // alias — economic value lives in ECON
 const CAPEX=ECON.capex;   // alias — economic value lives in ECON
@@ -256,6 +256,9 @@ const TYPES={
   nir:{name:"NIR sorter",real:"near-infrared optical sorter",cap:3,kW:15,out:["M","S"],accept:"M",other:"S",main:"M",needsItem:true,
     prob:{PET:0.96,PVC:0.002,film:0.05,paper:0.05,steel:0.10,default:0.05}, ports:{M:"PET kept",S:"ejected"},
     desc:"Reads each fragment spectrum: keeps 96% of PET, ejects 99.8% of PVC by its chlorine signature. Cannot read coarse pieces \u2014 it ejects them, so unliberated feed becomes lost yield, not product."},
+  vfilm:{name:"Vacuum film extractor",real:"film vacuum / air-knife hood",cap:3,kW:18,out:["S","M"],accept:"S",other:"M",main:"M",needsItem:true,
+    prob:{film:0.88,paper:0.012,PET:0.004,PVC:0.004,alu:0.003,steel:0.002,default:0.003}, ports:{S:"film pulled off",M:"the rest"},
+    desc:"A vacuum hood + cyclone lifts light 2D film off the belt \u2014 keeps ~88%, with little else (rigid bottles and metals are too heavy to lift). Sealed bags ride through: put it after the bag opener. Turns film + carton into two sellable products when paired with the air classifier."},
   splitter:{name:"Splitter",real:"flow divider",cap:12,kW:2,out:["A","B"],isSplit:true,
     ports:{A:"fraction to A",B:"fraction to B"},
     desc:"Bleeds a set fraction to A, the rest to B, regardless of material (~3% crosses over \u2014 nothing is perfect). Purge a recycle loop here so it cannot snowball."},
@@ -524,7 +527,7 @@ const TUT={pmc:[
  ],
  [ // Phase 2 — Aluminium
   {info:1,t:"ALUMINIUM \u2014 the jackpot (\u20AC1200/t). Keep your steel line. Aluminium needs the EDDY, and only works AFTER the magnet takes the steel.",f:"ALUMINIUM \u2014 le jackpot (1200 \u20AC/t). Garde ta ligne acier. L\u2019alu passe par le FOUCAULT, et seulement APR\u00c8S que l\u2019aimant a pris l\u2019acier."},
-  {t:"Open the R&D tab (bottom bar) and unlock the NON-FERROUS LINE \u2014 it\u2019s free. That adds the eddy-current separator to your kit.",f:"Ouvre l\u2019onglet R&D (barre du bas) et d\u00e9bloque la LIGNE NON-FERREUSE \u2014 gratuit. \u00c7a ajoute le s\u00e9parateur \u00e0 courants de Foucault.",c:()=>careerTechOwned("r_eddyU"),node:"r_eddyU",ok:"Unlocked \u2014 back to Process to place it.",okf:"D\u00e9bloqu\u00e9 \u2014 retour \u00e0 Process pour le poser."},
+  {t:"Open the R&D tab (bottom bar) and unlock the NON-FERROUS LINE (a small licence fee). That adds the eddy-current separator to your kit.",f:"Ouvre l\u2019onglet R&D (barre du bas) et d\u00e9bloque la LIGNE NON-FERREUSE (petite licence). \u00c7a ajoute le s\u00e9parateur \u00e0 courants de Foucault.",c:()=>careerTechOwned("r_eddyU"),node:"r_eddyU",ok:"Unlocked \u2014 back to Process to place it.",okf:"D\u00e9bloqu\u00e9 \u2014 retour \u00e0 Process pour le poser."},
    {t:"Add an EDDY-CURRENT separator.",f:"Ajoute un s\u00e9parateur \u00e0 COURANTS DE FOUCAULT.",c:()=>!!nodeType("eddy"),ok:"The aluminium kicker.",okf:"L\u2019\u00e9jecteur d\u2019alu."},
   {t:"Reroute the magnet\u2019s REST outlet \u2192 EDDY.",f:"Redirige la sortie RESTE de l\u2019aimant \u2192 FOUCAULT.",c:()=>edgeMatch(_isT("magnet"),_isT("eddy")),ok:"Steel first, then aluminium.",okf:"L\u2019acier d\u2019abord, puis l\u2019alu."},
   {info:1,t:"Give aluminium its OWN baler and its own SELL POINT set to aluminium (tap it \u2192 pick the alu buyer; don\u2019t mix with steel). Eddy\u2019s leftover \u2192 landfill, then run.",f:"Donne \u00e0 l\u2019alu sa PROPRE presse et son PROPRE point de vente r\u00e9gl\u00e9 sur aluminium (touche-le \u2192 choisis l\u2019acheteur alu ; pas avec l\u2019acier). Reste du Foucault \u2192 d\u00e9charge, puis lance."},
@@ -532,8 +535,8 @@ const TUT={pmc:[
  ],
  [ // Phase 3 — PET & capacity
   {info:1,t:"PET must be CLEAN to make \u226595%. Steel, film and paper all contaminate it \u2014 strip them out before the NIRs or your ballots go off-spec.",f:"Le PET doit \u00eatre PROPRE pour atteindre \u226595%. L\u2019acier, le film et le papier le contaminent \u2014 retire-les avant les NIR ou tes ballots seront hors spec."},
-  {t:"Open R&D and unlock DENSITY SEPARATION \u2014 free. That\u2019s the air classifier.",f:"Ouvre R&D et d\u00e9bloque la S\u00c9PARATION DENSIM\u00c9TRIQUE \u2014 gratuit. C\u2019est le classificateur \u00e0 air.",c:()=>careerTechOwned("r_airU"),node:"r_airU",ok:"Air unlocked.",okf:"Air d\u00e9bloqu\u00e9."},
-   {t:"Now unlock OPTICAL SORTING \u2014 free. That\u2019s the NIR sorter.",f:"D\u00e9bloque le TRI OPTIQUE \u2014 gratuit. C\u2019est le trieur NIR.",c:()=>careerTechOwned("r_nirU"),node:"r_nirU",ok:"NIR unlocked \u2014 back to Process.",okf:"NIR d\u00e9bloqu\u00e9 \u2014 retour \u00e0 Process."},
+  {t:"Open R&D and unlock DENSITY SEPARATION (a small licence fee). That\u2019s the air classifier.",f:"Ouvre R&D et d\u00e9bloque la S\u00c9PARATION DENSIM\u00c9TRIQUE (petite licence). C\u2019est le classificateur \u00e0 air.",c:()=>careerTechOwned("r_airU"),node:"r_airU",ok:"Air unlocked.",okf:"Air d\u00e9bloqu\u00e9."},
+   {t:"Now unlock OPTICAL SORTING (a small licence fee). That\u2019s the NIR sorter.",f:"D\u00e9bloque le TRI OPTIQUE (petite licence). C\u2019est le trieur NIR.",c:()=>careerTechOwned("r_nirU"),node:"r_nirU",ok:"NIR unlocked \u2014 back to Process.",okf:"NIR d\u00e9bloqu\u00e9 \u2014 retour \u00e0 Process."},
    {t:"Add a NIR SORTER \u2014 it keeps PET and ejects the rest.",f:"Ajoute un TRIEUR NIR \u2014 il garde le PET et \u00e9jecte le reste.",c:()=>!!nodeType("nir"),ok:"The plastics reader.",okf:"Le lecteur de plastiques."},
   {t:"Add an AIR CLASSIFIER \u2014 it blows film + paper out as the light fraction.",f:"Ajoute un CLASSIFICATEUR \u00c0 AIR \u2014 il souffle le film + le papier (la fraction l\u00e9g\u00e8re).",c:()=>!!nodeType("air"),ok:"Paper & film remover.",okf:"\u00d4te le papier et le film."},
   {t:"Add a SPLITTER \u2014 one NIR can\u2019t keep up with the volume.",f:"Ajoute un R\u00c9PARTITEUR \u2014 un seul NIR ne suit pas le volume.",c:()=>!!nodeType("splitter"),ok:"Now you can feed two NIRs.",okf:"Tu peux alimenter deux NIR."},
@@ -754,21 +757,26 @@ function settleCareer(win){ if(!G||G.mode==="sandbox")return; // settle a finish
 // ── Tech effects (data-driven) ── each node lists declarative effects; the engine never branches on a tech id.
 // effect kinds: unlock(unit) · cap(unit|all,mult) · kw(unit|all,mult) · prob(unit,mat,mult|add) · openEff(add) · pickEff(add) · elec(mult) · slots(add)
 const TECH={
-  r_eddyU:{cost:0,   req:[],          fx:[{t:"unlock",unit:"eddy"}]},
-  r_airU :{cost:0,   req:["r_eddyU"], fx:[{t:"unlock",unit:"air"}]},
-  r_nirU :{cost:0,   req:["r_airU"],  fx:[{t:"unlock",unit:"nir"}]},
-  r_mag  :{cost:120000, req:["r_eddyU"], fx:[{t:"prob",unit:"magnet",mat:"steel",add:0.03}]},  // fairly-priced now: the alu jackpot
-  t_vfd  :{cost:90000,req:["r_eddyU"], fx:[{t:"kw",unit:"all",mult:0.90}]},                   // run it cheaper (off eddy)
-  t_belt :{cost:120000,req:["r_eddyU"], fx:[{t:"cap",unit:"all",mult:1.15}]},                  // push more through (off eddy)
-  a_yard1:{cost:150000,req:[],          fx:[{t:"slots",add:15},{t:"storeCap",mult:1.5}]},                               // real estate: +3 unit slots
-  a_yard2:{cost:500000,req:["a_yard1"], fx:[{t:"slots",add:20},{t:"storeCap",mult:1.5}]},
-  a_yard3:{cost:1000000,req:["a_yard2"], fx:[{t:"slots",add:25},{t:"storeCap",mult:1.5}]},
-  a_split:{cost:0, req:[],          fx:[{t:"unlock",unit:"splitter"}]},
-  a_pickU:{cost:0, req:[],          fx:[{t:"unlock",unit:"pick"}]},
-  h_sorters:{cost:40000, req:["a_pickU"], fx:[{t:"pickEff",add:0.05}]},        // HR: trained sorters (needs the cabin)
-  s_subsidy:{cost:80000,req:[],          fx:[{t:"price",mult:1.10}]},          // subsidies: +10% on sales
-  sl_binf  :{cost:60000,req:[],          fx:[{t:"supplier",id:"binfinity"}]},  // sales: new supplier
-  sl_iron  :{cost:50000, req:[],          fx:[{t:"buyer",id:"iron_maiden"}]},   // sales: premium ferrous buyer
+  // ── UNLOCK LICENCES (small fee to add a machine to your kit; capex is paid again per build). Branched:
+  //    metals route = eddy; plastics route = air → nir/vfilm. Cheap entry to low-grade products, dearer to premium. ──
+  r_airU :{cost:8000,  req:[],          fx:[{t:"unlock",unit:"air"}]},     // density: film + carton
+  a_split:{cost:5000,  req:[],          fx:[{t:"unlock",unit:"splitter"}]},
+  a_pickU:{cost:10000, req:[],          fx:[{t:"unlock",unit:"pick"}]},
+  r_eddyU:{cost:20000, req:[],          fx:[{t:"unlock",unit:"eddy"}]},    // non-ferrous: the alu jackpot
+  r_vfilm:{cost:25000, req:["r_airU"],  fx:[{t:"unlock",unit:"vfilm"}]},   // dedicated film extraction
+  r_nirU :{cost:45000, req:["r_airU"],  fx:[{t:"unlock",unit:"nir"}]},     // optical: the PET premium (dearest entry)
+  // ── UPGRADES (repriced down; they were too dear vs their swing) ──
+  r_mag  :{cost:60000, req:["r_eddyU"], fx:[{t:"prob",unit:"magnet",mat:"steel",add:0.03}]},
+  t_belt :{cost:80000, req:["r_eddyU"], fx:[{t:"cap",unit:"all",mult:1.15}]},
+  t_vfd  :{cost:30000, req:["r_eddyU"], fx:[{t:"kw",unit:"all",mult:0.90}]},  // minor: power is a small cost in this economy
+  h_sorters:{cost:30000, req:["a_pickU"], fx:[{t:"pickEff",add:0.05}]},
+  s_subsidy:{cost:80000, req:[],         fx:[{t:"price",mult:1.08}]},          // green subsidy: +8% on sales (trimmed to keep the stack under ×2)
+  sl_binf  :{cost:40000, req:[],         fx:[{t:"supplier",id:"binfinity"}]},
+  sl_iron  :{cost:40000, req:[],         fx:[{t:"buyer",id:"iron_maiden"}]},
+  // ── REAL ESTATE (the scaling wall: base is 20 slots; the reference plant is 27 units → yard1 is effectively mandatory) ──
+  a_yard1:{cost:120000, req:[],          fx:[{t:"slots",add:15},{t:"storeCap",mult:1.5}]},
+  a_yard2:{cost:350000, req:["a_yard1"], fx:[{t:"slots",add:20},{t:"storeCap",mult:1.5}]},
+  a_yard3:{cost:800000, req:["a_yard2"], fx:[{t:"slots",add:25},{t:"storeCap",mult:1.5}]}
 };
 function ownedTech(){return (G&&G.mode==="sandbox")?Object.keys(TECH):CAREER.tech;} // sandbox owns the whole tree
 function _blankMod(){return{cap:{},kw:{},prob:{},open:0,pick:0,elec:1,slots:0,price:1,storeCap:1,unlock:new Set(),suppliers:new Set(),buyers:new Set()};}
@@ -822,8 +830,8 @@ const OBJ={
   a_first:{cat:"grow",  name:"Sell your first on-spec bale",         cond:{metric:"exportedOnSpec",gte:0.1}, reward:200000},
   a_net5 :{cat:"grow",  name:"Reach €5k/day operating profit",        cond:{metric:"dailyNet",gte:5000},      reward:250000},
   a_size :{cat:"grow",  name:"Build a 15-unit plant",                cond:{metric:"unitsOnLine",gte:15},     reward:200000},
-  a_net10:{cat:"grow",  name:"Reach €10k/day operating profit",       cond:{metric:"dailyNet",gte:10000},     reward:400000, req:["a_net5"]},
-  a_net20:{cat:"grow",  name:"Reach €20k/day operating profit",       cond:{metric:"dailyNet",gte:20000},     reward:600000, req:["a_net10"]},
+  a_net10:{cat:"grow",  name:"Reach €10k/day operating profit",       cond:{metric:"dailyNet",gte:10000},     reward:300000, req:["a_net5"]},
+  a_net20:{cat:"grow",  name:"Reach €20k/day operating profit",       cond:{metric:"dailyNet",gte:20000},     reward:400000, req:["a_net10"]},
   a_100t :{cat:"impact",name:"Recover 100 t on-spec",               cond:{metric:"exportedOnSpec",gte:100},  reward:150000, req:["a_first"]},
   a_div  :{cat:"impact",name:"Hit 80% landfill diversion",          cond:{metric:"diversion",gte:0.8},      reward:150000},
   a_rep  :{cat:"impact",name:"Earn a corporate sponsor (250 t on-spec)",cond:{metric:"exportedOnSpec",gte:250},reward:0, sponsor:true},
@@ -899,7 +907,7 @@ function restoreGame(s){validateSave(s);_id=s.nextId||1;P=[];selNode=null;
 /* ── Palette discovery ──────────────────────────────────────────────────────
  * Career restricts the palette to the contract's necessary units (progressive
  * discovery); sandbox shows the full toolbox. */
-const ALL_UNITS=["intake","output","buffer","pick","opener","magnet","eddy","air","nir","splitter","baler"];
+const ALL_UNITS=["intake","output","buffer","pick","opener","magnet","eddy","air","nir","vfilm","splitter","baler"];
 const BASE_UNITS=["intake","output","buffer","opener","magnet","baler"]; // always available; eddy/air/nir/splitter/pick are tech-gated
 const BASE_SLOTS=20; // machines placeable before yard tech (dev30: small-plant base)
 function paletteUnits(){if(!G||G.mode==="sandbox")return ALL_UNITS.slice();
@@ -1343,6 +1351,7 @@ function siteCanPlace(siteType,gx,gy,rot,ignoreId){const S=siteSets(),cells=site
   return{ok:true};}
 function sitePlaceUnit(siteType,kind,gx,gy,rot,opts){opts=opts||{};
   const chk=siteCanPlace(siteType,gx,gy,rot);if(!chk.ok)return chk;
+  if(siteType==="process"&&kind&&!opts.free&&!(G&&(G.mode==="sandbox"||(G.scenario&&G.scenario.unlimitedBudget)))&&BASE_UNITS.indexOf(kind)<0&&!unitUnlocked(kind))return{ok:false,reason:"locked"}; // R&D gate: unlock before placing (sandbox / free-play / scenario setup exempt)
   const cost=siteUnitCost(siteType,kind);
   if(!opts.free&&budgetBlocks(cost))return{ok:false,reason:"cash"};
   const n=_siteMakeUnit({type:siteType,x:gx,y:gy,rot:rot||0},{kind,spec:opts.spec});

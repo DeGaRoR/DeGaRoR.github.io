@@ -1,0 +1,22 @@
+const fs=require("fs");const html=fs.readFileSync("js/engine.js","utf8");
+const s=html.indexOf("@ENGINE-START@"),cs=html.indexOf("*/",s)+2,e=html.indexOf("/*@ENGINE-END@");
+const engine=html.slice(cs,e);
+const store={};const localStorage={getItem:k=>k in store?store[k]:null,setItem:(k,v)=>{store[k]=""+v},removeItem:k=>{delete store[k]}};
+const noop=()=>{};const document=new Proxy({},{get:()=>noop});const window=new Proxy({localStorage},{get(t,p){return p in t?t[p]:noop}});
+const api=new Function("localStorage","document","window",engine+"\n;return {newGame,tick,addNode,cnt,comp,getG:()=>G,EDGE_SPEED,PMASS};")(localStorage,document,window);
+const {newGame,tick,addNode,cnt,comp,PMASS,EDGE_SPEED}=api;
+newGame("sandbox","standard",0x71F);const G=api.getG();
+G.contract.supplier=null;G.contract.comp={PET:0.32,steel:0.15,alu:0.06,film:0.14,paper:0.26,PVC:0.07};
+const vf=addNode("vfilm",100,0);
+const sB=addNode("buffer",160,-30),mB=addNode("buffer",160,30);
+G.edges.push({from:vf.id,fromPort:"S",to:sB.id,sprites:[],speed:EDGE_SPEED});
+G.edges.push({from:vf.id,fromPort:"M",to:mB.id,sprites:[],speed:EDGE_SPEED});
+const N=3000,mix={PET:0.32,steel:0.15,alu:0.06,film:0.14,paper:0.26,PVC:0.07};
+for(const m in mix){const k=Math.round(N*mix[m]);for(let i=0;i<k;i++)vf.inBuf[m][1]++;}
+const filmFed=Math.round(N*0.14)*PMASS;
+for(let i=0;i<8000;i++)tick(0.004);
+const c=comp(sB.inBuf),tot=c.film+c.paper+c.PET+c.PVC+c.steel+c.alu;
+console.log("S-stream (film product) composition:");
+for(const m of ["film","paper","PET","PVC","steel","alu"])console.log("  "+m+": "+(c[m]/tot*100).toFixed(2)+"%");
+console.log("film capture:",((vf._sortMass||0)/filmFed*100).toFixed(1)+"% of feed film");
+console.log("film yield/day @3t/h feed:",((vf._sortMass||0)/(8000*0.004/24)).toFixed(1),"t/day-equiv (test scale)");
