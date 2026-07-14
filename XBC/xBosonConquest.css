@@ -724,20 +724,21 @@ progress:before {
 	font-family: 'Gamer'; font-size: 26px;
 	margin: 14px 0 8px 0;
 }
-/* uniform map tiles: fixed height, two lines, no wrap surprises */
+/* uniform map tiles: ALWAYS 2 columns so all 10 maps fit on one screen, no scrolling.
+   On small screens the tiles compact (single line, smaller font) instead of stacking. */
 .arenaMapBtn {
 	display: inline-block; width: 47%; margin: 1.5% 1.5% 8px 1.5%;
 	height: 78px; overflow: hidden; vertical-align: top;
 	text-align: left; padding: 8px 12px; line-height: 30px;
-}
-@media only screen and (max-width: 600px) {
-	.arenaMapBtn { width: 97%; height: 70px; }
 }
 .arenaMapName {
 	font-size: 24px; line-height: 30px;
 	white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .arenaMapMeta { font-size: 18px; line-height: 24px; opacity: .6; }
+
+/* short screens (landscape phones): compact everything further */
+
 /* faction assignment rows */
 .arenaRow { margin: 6px 0 !important; }
 .arenaDot { display: inline-block; width: 20px; height: 20px; border-radius: 50%; box-shadow: rgba(0,0,0,0.6) 2px 2px 1px 0px; }
@@ -767,3 +768,41 @@ progress:before {
 	.arenaResultBtn { width: 85%; }
 }
 .arenaChangeMap { color: #A0F500; font-size: 18px; text-decoration: underline; }
+
+/* arena mobile overrides — must come AFTER the base arena rules to win the cascade */
+@media only screen and (max-width: 600px) {
+	.arenaMapBtn { height: 44px; margin-bottom: 5px; padding: 5px 8px; }
+	.arenaMapName { font-size: 17px; line-height: 18px; }
+	.arenaMapMeta { font-size: 12px; line-height: 15px; }
+	.arenaSubtitle { font-size: 16px; line-height: 16px; margin: 4px 0 8px 0; }
+	.arenaSectionTitle { font-size: 20px; margin: 8px 0 5px 0; }
+	.arenaWrap .winMessage { margin-top: 6px !important; }
+	/* compact the config so 4-faction maps fit portrait without scrolling */
+	.arenaRow { margin: 2px 0 !important; }
+	.arenaFactionName { font-size: 16px; }
+	.arenaDot { width: 14px; height: 14px; }
+	.arenaSelect { font-size: 14px; padding: 4px; }
+	.arenaBet { width: 130px; padding: 5px 0; margin: 3px; font-size: 17px; }
+	a#arenaGoBtn.buttonMain { font-size: 26px; padding: 6px; }
+	#arenaConfig .center { margin: 10px 0 !important; }
+	.arenaWrap .winMessage { font-size: 30px !important; line-height: 22px !important; }
+	#arenaSelectedMap { margin: 4px 0 !important; }
+	#arenaSelectedMap .arenaMapName { font-size: 18px; }
+}
+@media only screen and (max-height: 450px) {
+	.arenaMapBtn { height: 36px; margin-bottom: 3px; padding: 3px 8px; }
+	.arenaMapName { font-size: 15px; line-height: 15px; }
+	.arenaMapMeta { display: none; }
+	.arenaSubtitle { display: none; }
+	.arenaSectionTitle { font-size: 16px; margin: 4px 0 3px 0; }
+	.arenaWrap .winMessage { font-size: 28px !important; line-height: 20px !important; margin-top: 4px !important; }
+	/* config compaction for short screens */
+	.arenaRow { margin: 0 !important; }
+	.arenaFactionName { font-size: 14px; }
+	.arenaDot { width: 12px; height: 12px; }
+	.arenaSelect { font-size: 12px; padding: 2px; }
+	.arenaBet { width: 110px; padding: 3px 0; margin: 2px; font-size: 14px; }
+	a#arenaGoBtn.buttonMain { font-size: 20px; padding: 4px; }
+	#arenaConfig .center { margin: 6px 0 !important; }
+	#arenaSelectedMap { margin: 2px 0 !important; }
+}
