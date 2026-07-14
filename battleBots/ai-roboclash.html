@@ -1,0 +1,2423 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>AI Roboclash</title>
+<style>
+  :root{
+    --bg:#14161c; --panel:#1e222b; --panel2:#262b36; --ink:#e8eaf0; --muted:#8a92a6;
+    --red:#ff5252; --blue:#4da3ff; --accent:#ffd166; --good:#6ee7a0;
+    --radius:12px;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  body{margin:0; background:var(--bg); color:var(--ink);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; font-size:15px;}
+  #app{max-width:520px; margin:0 auto; padding:10px 12px 40px;}
+  h1{font-size:19px; margin:4px 0 0; letter-spacing:.5px;}
+  .topbar{display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;}
+  .progress{font-size:12px; color:var(--muted); display:flex; gap:8px; align-items:center;}
+  .dots{letter-spacing:2px; color:var(--accent);}
+  .lang{font-size:12px; background:var(--panel2); border:0; border-radius:8px;
+    padding:6px 10px; cursor:pointer; color:var(--ink);}
+
+  .card{background:var(--panel); border-radius:var(--radius); padding:12px; margin:10px 0;}
+  .card h2{font-size:13px; margin:0 0 8px; color:var(--muted); font-weight:600;
+    letter-spacing:.8px; text-transform:uppercase;}
+
+  /* scouting */
+  .scout{display:flex; gap:12px; align-items:center; border-top:3px solid var(--red);}
+  .scout canvas{width:72px; height:72px; background:var(--panel2); border-radius:10px; flex:0 0 72px;}
+  .scout .info{flex:1;}
+  .scout .name{font-size:18px; font-weight:800; letter-spacing:.5px;}
+  .chips{display:flex; gap:6px; margin-top:5px; flex-wrap:wrap;}
+  .chip{font-size:11px; background:var(--panel2); border-radius:6px; padding:3px 8px; color:var(--muted);}
+  .chip.tend{color:var(--accent);}
+
+  /* my bot */
+  .mybot{border-top:3px solid var(--blue);}
+  .row{display:flex; align-items:center; gap:8px; margin:8px 0;}
+  .row label{flex:0 0 118px; font-size:13px; color:var(--muted);}
+  .selwrap{flex:1; position:relative;}
+  .selwrap::after{content:"▾"; position:absolute; right:12px; top:50%; transform:translateY(-50%);
+    color:var(--accent); font-size:12px; pointer-events:none;}
+  select.param{width:100%; -webkit-appearance:none; appearance:none;
+    background:var(--panel2); color:var(--ink); border:0; border-radius:8px;
+    padding:11px 30px 11px 12px; font-size:14px; font-weight:600; cursor:pointer;
+    font-family:inherit;}
+  select.param:focus{outline:2px solid #3a4152;}
+  .locked{font-size:12px; color:var(--muted); opacity:.6; margin:8px 0;
+    display:flex; gap:8px; align-items:center;}
+  .locked label{flex:0 0 118px;}
+  .stats{display:grid; grid-template-columns:repeat(3,1fr); gap:6px 12px; margin-top:8px;}
+  .stat{font-size:10px; color:var(--muted);}
+  .stat .bar{height:6px; background:var(--panel2); border-radius:3px; margin-top:3px; overflow:hidden;}
+  .stat .bar i{display:block; height:100%; border-radius:3px; background:var(--accent); transition:width .25s;}
+  .style-line{font-size:12px; color:var(--accent); margin-top:8px;}
+  .pbtn{flex:0 0 40px; background:var(--panel2); border:0; border-radius:8px; color:var(--muted);
+    padding:8px 0; font-size:12px; font-weight:700; cursor:pointer;}
+  .pbtn.used{color:var(--ink);}
+  .pbtn.save{flex:0 0 auto; padding:8px 12px; font-weight:500;}
+
+  .actions{display:flex; gap:10px; margin:14px 0;}
+  .btn{border:0; border-radius:10px; padding:14px 16px; font-size:15px; font-weight:800;
+    cursor:pointer; color:#1a1c22; background:var(--accent);}
+  .btn.big{flex:1;}
+  .btn.ghost{background:var(--panel2); color:var(--ink); font-weight:500;}
+
+  /* match */
+  #matchScreen{display:none;}
+  #cv{width:100%; border-radius:var(--radius); background:#0d0f14; display:block; touch-action:none;}
+  .hud{display:flex; gap:10px; align-items:center; margin:8px 0;}
+  .gauge{flex:1; height:10px; background:var(--panel2); border-radius:5px; overflow:hidden;}
+  .gauge i{display:block; height:100%; border-radius:5px;}
+  #gA i{background:var(--blue);} #gB i{background:var(--red);}
+  #clock{font-variant-numeric:tabular-nums; font-weight:700; min-width:52px; text-align:center;}
+
+  /* overlays */
+  #overlay,#toast{position:fixed; inset:0; display:none; align-items:center; justify-content:center;
+    background:rgba(10,12,16,.82); z-index:20;}
+  #overlay .ocard{background:var(--panel); border-radius:16px; padding:22px 24px; text-align:center;
+    max-width:360px; width:88%;}
+  #overlay h2{margin:0 0 4px; font-size:26px;}
+  #ovCause{color:var(--ink); font-size:14px; margin:10px 0 4px; line-height:1.45;}
+  #ovDuels{font-size:12px; color:var(--muted); margin-bottom:14px;}
+  #ovUnlock{font-size:13px; color:var(--good); margin:6px 0; display:none;}
+  #toast .tcard{background:var(--panel); border-radius:14px; padding:18px 22px; text-align:center;
+    font-size:14px; max-width:320px;}
+
+  /* slice 2 */
+  .bolts{color:var(--accent); font-weight:700; margin-left:6px;}
+  .tbanner{background:linear-gradient(135deg,#2b2410,#1e222b); border:1px solid #4a3d15;
+    border-radius:var(--radius); padding:10px 14px; margin:10px 0 0;}
+  .tbanner .ttitle{font-size:15px; font-weight:800; color:var(--accent); letter-spacing:.5px;}
+  .tbanner .tprize{font-size:12px; color:var(--muted); margin-top:2px;}
+  .grow{display:flex; align-items:center; gap:8px; margin:8px 0; font-size:13px;}
+  .grow .gname{flex:0 0 96px; color:var(--ink);}
+  .grow .gfx{flex:1; color:var(--muted); font-size:11.5px;}
+  .gbuy{border:0; border-radius:8px; padding:8px 10px; font-size:12px; font-weight:700;
+    background:var(--accent); color:#1a1c22; cursor:pointer; min-width:74px;}
+  .gbuy:disabled{background:var(--panel2); color:var(--muted); cursor:default;}
+  .gbuy.maxed{background:var(--panel2); color:var(--good);}
+  .tabs{display:flex; gap:6px; margin:10px 0 2px;}
+  .tab{flex:1; border:0; border-radius:10px; padding:9px 0; font-size:13px; font-weight:700;
+    background:var(--panel); color:var(--muted); cursor:pointer;}
+  .tab.active{background:var(--accent); color:#1a1c22;}
+  .botrow{display:flex; align-items:center; gap:10px; margin-bottom:8px;}
+  .botrow canvas{width:84px; height:84px; flex:0 0 84px;}
+  .botrow.big canvas{width:120px; height:120px; flex:0 0 120px;}
+  .editorhead{display:flex; align-items:center; gap:6px; margin-bottom:8px; flex-wrap:wrap;}
+  .layertabs{display:flex; gap:5px; flex-wrap:wrap; flex:1;}
+  .ltab{border:0; border-radius:8px; padding:6px 9px; font-size:11px; font-weight:600;
+    background:var(--panel2); color:var(--muted); cursor:pointer;}
+  .ltab.on{background:var(--accent); color:#1a1c22;}
+  .ghosthint.on{background:var(--accent); color:#1a1c22;}
+  .editorwrap{display:flex; align-items:center; gap:12px;}
+  .versus{display:flex; gap:8px; align-items:stretch; margin:10px 0;}
+  .botcard{flex:1; background:var(--panel); border-radius:var(--radius); padding:10px;
+    display:flex; flex-direction:column; align-items:center; gap:5px; text-align:center;}
+  .botcard canvas{width:112px; height:112px; background:#0d0f14; border-radius:10px;}
+  .botcard.mine{outline:2px solid rgba(77,163,255,.5);}
+  .botcard.foe{outline:2px solid rgba(255,82,82,.4);}
+  .botcard .name{font-weight:700; font-size:14px;}
+  .botcard .chips{justify-content:center; flex-wrap:wrap;}
+  .botcard .numdash{justify-content:center;}
+  .vs{align-self:center; font-weight:800; font-size:13px; color:var(--muted); flex:0 0 auto;}
+  #editorCv{width:200px; height:200px; flex:0 0 200px; background:#0d0f14; border-radius:12px;
+    touch-action:none; cursor:grab;}
+  #editorCv:active{cursor:grabbing;}
+  .slotrow{display:flex; align-items:center; gap:8px; margin:9px 0; font-size:13px;}
+  .slotrow .sname{flex:0 0 96px; color:var(--muted); font-size:11.5px; text-transform:uppercase;
+    letter-spacing:.5px;}
+  .slotrow .scur{flex:1;}
+  .slotrow .scur .pfx{display:block; font-size:10.5px; color:var(--muted);}
+  .slotrow select{background:var(--panel2); color:var(--ink); border:0; border-radius:8px;
+    padding:7px 8px; font-size:12.5px; max-width:150px;}
+  .slotrow .ghosthint{border:0; border-radius:8px; padding:7px 10px; font-size:11.5px;
+    background:var(--panel2); color:var(--muted); cursor:pointer;}
+  .floatlabel{font-weight:800;}
+  .numdash{display:grid; grid-template-columns:1fr 1fr; gap:2px 10px; font-size:11.5px;
+    color:var(--muted); margin-top:6px;}
+  .numdash b{color:var(--ink); font-weight:700; font-variant-numeric:tabular-nums;}
+  .gsec{font-size:11px; letter-spacing:1px; text-transform:uppercase; color:var(--muted);
+    margin:10px 0 2px; border-bottom:1px solid var(--panel2); padding-bottom:3px;}
+  .grow .gname .pfx{display:block; font-size:10.5px; color:var(--muted); font-weight:400;}
+  .gcarousel{display:flex; gap:8px; overflow-x:auto; padding:6px 2px 10px; scroll-snap-type:x proximity;}
+  .gcard{flex:0 0 96px; scroll-snap-align:start; background:var(--panel2); border-radius:10px;
+    padding:8px; display:flex; flex-direction:column; align-items:center; gap:5px;}
+  .gtile{width:48px; height:48px; flex:0 0 48px;}
+  .gcname{font-size:11.5px; font-weight:600; text-align:center; line-height:1.1;}
+  .gcfx{font-size:10px; color:var(--muted); text-align:center; line-height:1.15; min-height:24px; flex:1;}
+  .gcard .gbuy{width:100%; padding:6px 4px; font-size:11px;}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="topbar">
+    <div>
+      <h1>AI ROBOCLASH</h1>
+      <div class="progress"><span id="lvlLabel"></span><span class="dots" id="dots"></span>
+        <span class="bolts" id="boltsLabel"></span><span id="badgesLabel"></span></div>
+    </div>
+    <button class="lang" id="langBtn">FR</button>
+  </div>
+
+  <div id="homeScreen">
+    <div class="tabs">
+      <button class="tab active" id="tabFight" data-i18n="tabFight"></button>
+      <button class="tab" id="tabWorkshop" data-i18n="tabWorkshop"></button>
+      <button class="tab" id="tabShop" data-i18n="tabShop"></button>
+    </div>
+
+    <div id="fightTab">
+      <div class="tbanner" id="tourneyBanner" style="display:none">
+        <div class="ttitle" id="tourneyTitle"></div>
+        <div class="tprize" id="tourneyPrize"></div>
+      </div>
+      <div class="versus">
+        <div class="botcard mine">
+          <canvas id="playerCv" width="132" height="132"></canvas>
+          <div class="name" id="playerName">RUSTY</div>
+          <div class="chips"><span class="chip" id="playerClass"></span></div>
+          <div class="numdash" id="playerNums"></div>
+        </div>
+        <div class="vs">VS</div>
+        <div class="botcard foe">
+          <canvas id="scoutCv" width="132" height="132"></canvas>
+          <div class="name" id="oppName"></div>
+          <div class="chips">
+            <span class="chip" id="oppClass"></span>
+            <span class="chip" id="oppWeight"></span>
+            <span class="chip tend" id="oppTend"></span>
+          </div>
+          <div class="numdash" id="oppNums"></div>
+        </div>
+      </div>
+      <div class="card params">
+        <h2 data-i18n="yourBot"></h2>
+        <div id="paramRows"></div>
+        <div class="style-line" id="styleLine"></div>
+        <h2 style="margin-top:12px" data-i18n="machine"></h2>
+        <div id="powerRow"></div>
+      </div>
+      <div class="actions">
+        <button class="btn big" id="fightBtn" data-i18n="fight"></button>
+        <button class="btn ghost" id="friendlyBtn" style="display:none" data-i18n="friendly"></button>
+      </div>
+    </div>
+
+    <div id="workshopTab" style="display:none">
+      <div class="card mybot">
+        <div class="editorhead">
+          <div class="layertabs" id="layerTabs"></div>
+          <button class="ghosthint" id="cgToggle" data-i18n="cgShow"></button>
+          <button class="ghosthint" id="hbToggle" data-i18n="hbShow"></button>
+          <button class="ghosthint" id="resetLayout" data-i18n="editReset"></button>
+        </div>
+        <div class="editorwrap">
+          <canvas id="editorCv" width="260" height="260"></canvas>
+          <div class="numdash" id="myNums"></div>
+        </div>
+        <div class="stats" id="statBars"></div>
+      </div>
+      <div class="card">
+        <div id="slotRows"></div>
+      </div>
+    </div>
+
+    <div id="shopTab" style="display:none">
+      <div class="card garage">
+        <div id="garageRows"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="matchScreen">
+    <canvas id="cv"></canvas>
+    <div class="hud">
+      <div class="gauge" id="gA"><i style="width:100%"></i></div>
+      <div id="clock">0.0</div>
+      <div class="gauge" id="gB"><i style="width:100%"></i></div>
+    </div>
+    <div class="actions">
+      <button class="btn ghost" id="speedBtn">×1</button>
+      <button class="btn ghost" id="forfeitBtn" data-i18n="forfeit"></button>
+    </div>
+  </div>
+</div>
+
+<div id="overlay"><div class="ocard">
+  <h2 id="ovTitle"></h2>
+  <div id="ovCause"></div>
+  <div id="ovDuels"></div>
+  <div id="ovUnlock"></div>
+  <div class="actions" style="justify-content:center">
+    <button class="btn" id="ovMain"></button>
+    <button class="btn ghost" id="ovBack" data-i18n="settings"></button>
+  </div>
+</div></div>
+<div id="toast"><div class="tcard" id="toastText"></div></div>
+
+<script>
+/* ============================================================
+   ENGINE (pure, deterministic, no DOM) — extractable for tests
+   ============================================================ */
+// ENGINE-START
+const ENGINE = (() => {
+  function makeRng(seed){
+    let a = seed >>> 0;
+    return function(){
+      a |= 0; a = (a + 0x6D2B79F5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  const V = {
+    add:(a,b)=>({x:a.x+b.x, y:a.y+b.y}),
+    sub:(a,b)=>({x:a.x-b.x, y:a.y-b.y}),
+    scl:(a,s)=>({x:a.x*s, y:a.y*s}),
+    dot:(a,b)=>a.x*b.x+a.y*b.y,
+    len:(a)=>Math.hypot(a.x,a.y),
+    norm:(a)=>{const l=Math.hypot(a.x,a.y)||1; return {x:a.x/l, y:a.y/l};},
+    fromAngle:(t)=>({x:Math.cos(t), y:Math.sin(t)}),
+    perp:(a)=>({x:-a.y, y:a.x}),
+  };
+  // RENDER CONTRACT (3D-ready): the engine only produces geometric state
+  // (pos, angle, radius, flippedT, dominatedT, throttles, part ids) and a
+  // timestamped event stream. It never touches pixels, colors, or meshes.
+  // A renderer (canvas 2D today, three.js tomorrow) maps part ids -> visuals
+  // and reads state each frame. Adding z later = extending V and pos, nothing else.
+  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  const angNorm=(t)=>{ while(t>Math.PI)t-=2*Math.PI; while(t<-Math.PI)t+=2*Math.PI; return t; };
+
+  const CHASSIS = {
+    wedge: { mass:1.1, radius:17, leverage:2.4, tractionBase:1.0, speedBase:105, pushBase:130, battery:100, selfRight:1.6 },
+    boxy:  { mass:1.5, radius:20, leverage:0.9, tractionBase:1.25, speedBase:88,  pushBase:165, battery:130, selfRight:3.5 },
+    dart:  { mass:0.8, radius:14, leverage:1.3, tractionBase:0.85, speedBase:135, pushBase:95,  battery:80,  selfRight:2.2 },
+  };
+  const OPTS = {
+    aggression: ["cautious","balanced","fierce"],
+    edgeGuard:  ["daredevil","normal","fearful"],
+    approach:   ["frontal","flank","opportunist"],
+    power:      ["speed","mixed","torque"],
+    chargeDist: ["short","medium","long"],
+    handling:   ["stable","nervous","drift"],
+  };
+  const DEFAULT_BUILD = { chassis:"boxy", aggression:"balanced", edgeGuard:"normal",
+    approach:"frontal", power:"mixed", chargeDist:"medium", handling:"stable" };
+
+  const POWER = { speed:{spd:1.25,push:0.75}, mixed:{spd:1.0,push:1.0}, torque:{spd:0.78,push:1.35} };
+  const GUARD = { daredevil:20, normal:38, fearful:58 };
+  const CHARGE = { short:60, medium:110, long:200 };
+  const HANDLING = {
+    stable:  {turnMax:2.6, latDamp:0.78, jitter:0.02},
+    nervous: {turnMax:4.6, latDamp:0.80, jitter:0.10},
+    drift:   {turnMax:3.6, latDamp:0.92, jitter:0.05},
+  };
+
+  // parts catalog v4 — Denis's invariant taxonomy. FROZEN ids (extend, never renumber).
+  // Every part carries its own attributes incl. MASS; bot stats aggregate from parts.
+  // Slots with no purchasable entries yet (weapons) are reserved by design.
+  const PARTS = {
+    propulsion: [ // drive architecture: wheels/treads/layout -> traction & style
+      {id:"pr0", cost:0,   traction:1.00, mass:0,    style:"worn"},
+      {id:"pr1", cost:90,  traction:1.12, mass:0.06, style:"lug"},
+      {id:"pr2", cost:140, traction:1.18, mass:0.04, style:"slick"},
+      {id:"pr3", cost:200, traction:1.30, mass:0.16, style:"tread"},
+    ],
+    motor: [
+      {id:"m0", cost:0,   push:1.00, speed:1.00, mass:0},
+      {id:"m1", cost:60,  push:1.15, speed:1.07, mass:0.04},
+      {id:"m2", cost:150, push:1.30, speed:1.14, mass:0.08},
+      {id:"m3", cost:230, push:1.45, speed:1.05, mass:0.14},  // KV90: torque monster
+      {id:"m4", cost:230, push:1.10, speed:1.40, mass:0.06},  // KV600: sprint
+    ],
+    cpu: [ // decision latency (re-plan cadence) + servo gain (alignment speed)
+      {id:"c0", cost:0,   interval:18, gain:0.85, mass:0},
+      {id:"c1", cost:120, interval:8,  gain:1.05, mass:0.01},
+      {id:"c2", cost:240, interval:3,  gain:1.30, mass:0.02},
+    ],
+    battery: [
+      {id:"b0", cost:0,   energy:1.00, mass:0},
+      {id:"b1", cost:50,  energy:1.20, mass:0.03},
+      {id:"b2", cost:120, energy:1.40, mass:0.06},
+      {id:"b3", cost:190, energy:1.65, mass:0.12},
+    ],
+    armor: [ // blindage & prise
+      {id:"a0", cost:0,   leverage:0,    mass:0},
+      {id:"a1", cost:180, leverage:0.30, mass:0.08},
+      {id:"a2", cost:260, leverage:0.45, mass:0.15},
+    ],
+    weapon1: [ {id:"w0", cost:0, mass:0} ],   // reserved: sumo rules, no weapons yet
+    weapon2: [ {id:"x0", cost:0, mass:0} ],   // reserved
+    software: [ // behavior packs (interacts with sensors)
+      {id:"s0", cost:0,   mass:0},
+      {id:"s1", cost:150, mass:0, edgePush:true}, // v2: steer dominated foes toward the edge
+    ],
+    ballast: [ // lest: mass + friction (weight -> normal force -> grip)
+      {id:"l0", cost:0,  mass:0,    grip:0},
+      {id:"l1", cost:40, mass:0.07, grip:0.02},
+      {id:"l2", cost:90, mass:0.16, grip:0.045},
+    ],
+    sensors: [ // perception quality -> steering noise
+      {id:"n0", cost:0,   noise:1.00, mass:0},
+      {id:"n1", cost:110, noise:0.45, mass:0.02},
+      {id:"n2", cost:230, noise:0.15, mass:0.03},
+    ],
+    srimech: [ // self-righting mechanism: multiplies chassis selfRight time
+      {id:"r0", cost:0,   srMul:1.00, mass:0},
+      {id:"r1", cost:130, srMul:0.60, mass:0.06},
+      {id:"r2", cost:240, srMul:0.35, mass:0.09},
+    ],
+    cooling: [ // consumption efficiency (battery = capacity, cooling = drain)
+      {id:"k0", cost:0,   drain:1.00, mass:0},
+      {id:"k1", cost:70,  drain:0.95, mass:0.03},
+      {id:"k2", cost:160, drain:0.89, mass:0.08},
+    ],
+  };
+  const partOf = (type, id) => PARTS[type].find(p=>p.id===id) || PARTS[type][0];
+
+  // ============================================================
+  // PHYSICAL REFERENCE BANK — robot-sumo class (dohyo 154 cm, ≤20×20 cm, ≤3 kg).
+  // Real component masses (kg) and electromechanical specs. This is the source
+  // of truth for the DISPLAYED figures (kg / Nm / kW / Wh), all bottom-up.
+  // STAGE 1: display only — the sim dynamics (force/speed/drain) still use the
+  // tuned fields above and get re-derived from these specs in the physics session.
+  const G_ACCEL = 9.81, DRIVE_EFF = 0.85;
+  // friction model: the dohyo has its own surface factor, and static grip peaks
+  // above kinetic. DOHYO_MU=1 is the reference surface (a slick arena would be <1).
+  const DOHYO_MU = 1.0, KINETIC_RATIO = 0.8; // μ_kinetic / μ_static
+  const VFREE_K = 1.15; // free-speed headroom above the tuned top speed (torque-speed curve)
+  const PHYS = {
+    chassis: {
+      dart:  { kg:0.45, r:0.090 }, wedge: { kg:0.60, r:0.100 }, boxy: { kg:0.90, r:0.110 },
+    },
+    propulsion: { // mu = grip coefficient, rWheel in metres
+      pr0:{ kg:0.12, mu:0.70, rWheel:0.025 }, pr1:{ kg:0.30, mu:0.95, rWheel:0.030 },
+      pr2:{ kg:0.18, mu:1.05, rWheel:0.028 }, pr3:{ kg:0.55, mu:1.15, rWheel:0.022 },
+    },
+    motor: { // tau = stall torque per motor (Nm), rpm = free output rpm, P = pair nominal (W)
+      m0:{ kg:0.22, tau:0.20, rpm:600,  P:40  }, m1:{ kg:0.28, tau:0.28, rpm:650,  P:60  },
+      m2:{ kg:0.34, tau:0.42, rpm:750,  P:120 }, m3:{ kg:0.46, tau:0.75, rpm:500,  P:150 },
+      m4:{ kg:0.30, tau:0.30, rpm:1400, P:150 },
+    },
+    battery: { // real LiPo packs: S cells, mAh -> V, Wh
+      b0:{ kg:0.11, S:3, mAh:1300 }, b1:{ kg:0.17, S:4, mAh:1500 },
+      b2:{ kg:0.24, S:4, mAh:2200 }, b3:{ kg:0.33, S:6, mAh:2200 },
+    },
+    armor:   { a0:{kg:0.00}, a1:{kg:0.35}, a2:{kg:0.55} },
+    cpu:     { c0:{kg:0.02}, c1:{kg:0.03}, c2:{kg:0.04} },
+    sensors: { n0:{kg:0.01}, n1:{kg:0.03}, n2:{kg:0.05} },
+    software:{ s0:{kg:0.00}, s1:{kg:0.00} },
+    ballast: { l0:{kg:0.00,cog:0}, l1:{kg:0.30,cog:0.30}, l2:{kg:0.60,cog:0.60} }, // slugs sit low → lower CoG, resist flips
+    srimech: { r0:{kg:0.00}, r1:{kg:0.15}, r2:{kg:0.25} },
+    cooling: { k0:{kg:0.00}, k1:{kg:0.05}, k2:{kg:0.12} },
+    weapon1: { w0:{kg:0} }, weapon2:{ x0:{kg:0} },
+  };
+  const PHYS_SLOTS = ["propulsion","motor","battery","armor","cpu","sensors",
+    "software","ballast","srimech","cooling","weapon1","weapon2"];
+  const physOf = (slot, id) => (PHYS[slot] && PHYS[slot][id]) || {kg:0};
+  const STOCK_ID = {}; for (const s of Object.keys(PARTS)) STOCK_ID[s] = PARTS[s][0].id;
+  const partMassKg = (slot, id) => physOf(slot, id).kg || 0;
+
+  // Bottom-up physical figures. Display reads the motor nameplate (torqueNm/
+  // powerKW), the sim reads the geared drive (pushN/vmax). The Power lever is a
+  // real gear-ratio choice: Couple trades rpm for torque, Vitesse the reverse.
+  function physStats(build){
+    const pr = build.parts || {};
+    const chassis = build.chassis || "boxy";
+    const gear = POWER[build.power] || POWER.mixed;
+    const rid = (slot)=> pr[slot] || STOCK_ID[slot];
+    let massKg = PHYS.chassis[chassis].kg;
+    for (const slot of PHYS_SLOTS) massKg += partMassKg(slot, rid(slot));
+    const mo = physOf("motor", rid("motor")),
+          ba = physOf("battery", rid("battery")),
+          pp = physOf("propulsion", rid("propulsion"));
+    const packWh = (ba.S ? ba.S*3.7 * ba.mAh/1000 : 0);
+    // Battery↔motor coupling. A DC motor's free speed ∝ V (Kv) and its stall
+    // torque ∝ V (Kt·V/R), so more cells make it spin faster AND push harder.
+    // Nameplate rpm/τ are quoted at the stock 3S pack, so stock is unchanged.
+    const V_REF = 3*3.7;                       // 3S nominal (stock reference)
+    const packV = (ba.S||3) * 3.7;             // pack nominal voltage
+    // A real motor has a usable voltage band — you don't run a 3S motor on 6S for
+    // free double performance. So the coupling is real but with diminishing returns.
+    const V_COUPLE = 0.5;
+    const vScale = 1 + V_COUPLE * (packV/V_REF - 1); // 3S→1.0, 4S→1.17, 6S→1.5
+    const fMotor = 2*mo.tau*gear.push*DRIVE_EFF / pp.rWheel * vScale; // geared wheel force (N)
+    // Coulomb friction with a static/kinetic split on a surface of its own μ.
+    // The tyre value is the KINETIC coeff (what a spinning wheel delivers);
+    // static peak sits above it. Effective grip = tyre × arena. N = m·g.
+    const N = massKg * G_ACCEL;
+    const muK = pp.mu * DOHYO_MU;              // kinetic (spinning) — the old single μ
+    const muS = pp.mu * DOHYO_MU / KINETIC_RATIO; // static peak (headroom)
+    const gripKN = muK * N, gripSN = muS * N;
+    const pushN  = Math.min(fMotor, gripKN);  // full-throttle operating force (display)
+    const bal = physOf("ballast", rid("ballast"));
+    return {
+      massKg, torqueNm: mo.tau, powerKW: mo.P/1000, packWh, mu: pp.mu, packV, vScale,
+      pushN, gripKN, gripSN, fMotor, muK, muS, tractionLimited: fMotor > gripSN,
+      vmax: mo.rpm*gear.spd/60 * 2*Math.PI * pp.rWheel * vScale,  // free speed ∝ V (Kv)
+      cogFactor: 1 + (bal.cog || 0),                          // low CoG resists flipping
+    };
+  }
+
+  function derivedStats(build){
+    const c = CHASSIS[build.chassis], p = POWER[build.power];
+    const pr = build.parts || {};
+    const g = (type)=>partOf(type, pr[type]);
+    const mo=g("motor"), ba=g("battery"), pp=g("propulsion"), ar=g("armor"),
+          cp=g("cpu"), sw=g("software"), ls=g("ballast"), sn=g("sensors"),
+          sr=g("srimech"), ko=g("cooling"), w1=g("weapon1"), w2=g("weapon2");
+    // STAGE 2a: mass is now the real bottom-up assembled mass (kg) from the
+    // physical bank — it feeds inertia, the anchor, and collisions. The old
+    // per-part sim masses are retired. Drive force/top-speed stay tuned until 2a-bis.
+    const weight = physStats(build).massKg;
+    // STAGE 2a-bis: drive force, top speed and the anchor are now derived from
+    // the physical bank. push = min(motor force, μ·m·g) — grip-limited torque is
+    // wasted, exactly as in reality. Constants pinned so stock RUSTY is unchanged.
+    const ph = physStats(build);
+    const K_FORCE = 17.42, K_SPEED = 56.0;
+    return {
+      speed: ph.vmax * K_SPEED, push: ph.pushN * K_FORCE,
+      gripAnchor: ph.gripKN * K_FORCE,                 // anchor = kinetic (sustained slide)
+      fMotorForce: ph.fMotor * K_FORCE,                // what the motor wants (pre-grip)
+      gripS: ph.gripSN * K_FORCE, gripK: ph.gripKN * K_FORCE, // static / kinetic caps
+      leverage: c.leverage + ar.leverage,
+      traction: ph.mu, // display/grip proxy only; the physics use the grip caps
+      energy: ph.packWh * 9.0 * (c.battery/130), weight, // real Wh, scaled by hull discharge capacity
+      cpuInterval: cp.interval, turnGain: cp.gain, aimNoise: sn.noise,
+      selfRight: c.selfRight * sr.srMul, drainMul: ko.drain,
+      edgePush: !!sw.edgePush, cogFactor: ph.cogFactor,
+    };
+  }
+  function statBars(build){
+    const s = derivedStats(build);
+    return {
+      speed: clamp((s.speed-60)/110,0,1), push: clamp((s.push-70)/155,0,1),
+      leverage: clamp((s.leverage-0.6)/2.0,0,1), traction: clamp((s.traction-0.7)/0.7,0,1),
+      energy: clamp((s.energy-60)/80,0,1),
+    };
+  }
+
+  const ARENA_R = 150, TICK = 1/60, SUDDEN_DEATH_T = 20, SHRINK_RATE = 0.09, MIN_R = 20;
+  // deterministic flip model (2b): lift accumulates from leverage × shove,
+  // resisted by stability (mass × low CoG). No RNG.
+  const LIFT_FLOOR = 2.3, LIFT_GAIN = 0.5, LIFT_DECAY = 8.0, FLIP_K = 17.0, LEVER_CAP = 1.5, BEACH_KO = 5.0;
+
+  function makeBot(id, build, pos, angle){
+    const c = CHASSIS[build.chassis], st = derivedStats(build);
+    return {
+      id, build, chassis:c,
+      pos:{...pos}, angle, vel:{x:0,y:0}, angVel:0,
+      maxSpeed:st.speed, push:st.push, mass:st.weight, gripAnchor:st.gripAnchor,
+      fMotorForce:st.fMotorForce, gripS:st.gripS, gripK:st.gripK, slipping:false, slipAmt:0,
+      radius:c.radius, leverage:st.leverage, traction:st.traction,
+      colliders:(build.colliders&&build.colliders.list)||null,
+      colliderBound:(build.colliders&&build.colliders.bound)||c.radius, gone:null,
+      battery:st.energy, batteryMax:st.energy,
+      decideEvery:st.cpuInterval, turnGain:st.turnGain, aimNoise:st.aimNoise,
+      selfRight:st.selfRight, drainMul:st.drainMul, edgePush:st.edgePush,
+      cogFactor:(typeof build.stability==="number"?build.stability:st.cogFactor), lift:0, beachedT:0,
+      mode:"stalk", modeChanged:false, dominatedT:0, contactT:0,
+      flippedT:0, throttleL:0, throttleR:0, edgeTime:0,
+    };
+  }
+
+  function makeMatch(seed, buildA, buildB){
+    const rng = makeRng(seed);
+    const yA = (rng()-0.5)*44, yB = (rng()-0.5)*44;
+    const aA = (rng()-0.5)*0.7, aB = (rng()-0.5)*0.7;
+    return {
+      seed, rng, t:0, arenaR:ARENA_R, over:false, winner:null, reason:null,
+      bots:[
+        makeBot(0, buildA, {x:-70,y:yA}, 0 + aA),
+        makeBot(1, buildB, {x: 70,y:yB}, Math.PI + aB),
+      ],
+      events:[],
+      duels:[0,0],
+      n:0, // tick counter (CPU decision cadence)
+    };
+  }
+
+  function control(bot, foe, m){
+    const toFoe = V.sub(foe.pos, bot.pos);
+    const distF = V.len(toFoe);
+    const distEdge = m.arenaR - V.len(bot.pos);
+    const facing = V.fromAngle(bot.angle);
+    const h = HANDLING[bot.build.handling];
+
+    // CPU latency: the planner only re-evaluates every decideEvery ticks
+    // (steering below still runs every tick — servo vs planner). Edge guard
+    // stays reflexive: falling off between two thoughts would feel unfair.
+    const guard = GUARD[bot.build.edgeGuard];
+    const think = ((m.n + bot.id*3) % bot.decideEvery) === 0;
+    let mode = bot.mode;
+    if (distEdge < guard) mode = "recenter";
+    else if (think || bot.mode === "recenter"){
+      mode = "stalk";
+      const chargeD = CHARGE[bot.build.chargeDist];
+      let want = distF < chargeD;
+      if (want){
+        const ag = bot.build.aggression;
+        if (ag === "fierce") { /* always */ }
+        else if (ag === "balanced"){
+          const align = V.dot(facing, V.norm(toFoe));
+          want = align > 0.4;
+        } else {
+          const foeEdge = m.arenaR - V.len(foe.pos);
+          const foeFacesMe = V.dot(V.fromAngle(foe.angle), V.norm(V.sub(bot.pos,foe.pos)));
+          want = (foeEdge < distEdge*0.75) || (foeFacesMe < 0.1);
+        }
+      }
+      if (want) mode = "charge";
+    }
+    if (mode !== bot.mode){ bot.mode = mode; bot.modeChanged = true; }
+
+    let target;
+    if (mode === "recenter"){
+      const away = V.scl(V.norm(V.sub(bot.pos, foe.pos)), 18);
+      target = away;
+    } else if (mode === "charge"){
+      const ap = bot.build.approach;
+      let useFlank = ap === "flank";
+      if (ap === "opportunist"){
+        const foeFacesMe = V.dot(V.fromAngle(foe.angle), V.norm(V.sub(bot.pos,foe.pos)));
+        useFlank = foeFacesMe > 0.5;
+      }
+      if (useFlank && distF > (bot.radius + foe.radius) * 1.9){
+        const side = V.perp(V.fromAngle(foe.angle));
+        const s = V.dot(side, V.sub(bot.pos, foe.pos)) >= 0 ? 1 : -1;
+        target = V.add(foe.pos, V.scl(side, s * (foe.radius*2.4)));
+      } else if (bot.edgePush && foe.dominatedT > 0 && V.len(foe.pos) > 5
+          && V.dot(V.norm(toFoe), V.norm(foe.pos)) > 0.25){
+        // software v2: when the shove axis is already roughly outward,
+        // steer the dominated foe toward their NEAREST edge (outward radial).
+        target = V.add(foe.pos, V.scl(V.norm(foe.pos), 48));
+      } else target = foe.pos;
+    } else {
+      const standoff = CHARGE[bot.build.chargeDist] * 1.1;
+      const dir = V.norm(toFoe);
+      const ring = V.sub(foe.pos, V.scl(dir, standoff));
+      const orbit = V.scl(V.perp(dir), 25);
+      target = V.add(ring, orbit);
+    }
+
+    const j = h.jitter;
+    target = V.add(target, {x:(m.rng()-0.5)*2*j*180, y:(m.rng()-0.5)*2*j*180});
+
+    const want = V.sub(target, bot.pos);
+    let wantAng = Math.atan2(want.y, want.x);
+    // sensor quality: cheap sensors = wandering aim (deterministic wobble).
+    // Damped at close range: in contact you FEEL the foe, sensors matter at distance.
+    const rangeF = clamp(distF/110, 0.35, 1);
+    wantAng += bot.aimNoise * 0.12 * rangeF * Math.sin(m.t*5.3 + bot.id*2.7);
+    const err = angNorm(wantAng - bot.angle);
+    const turn = clamp(err * 3.0 * bot.turnGain, -1, 1);
+    let fwd = clamp(Math.cos(err) * 1.4, -0.25, 1);
+    if (mode === "charge") fwd = Math.max(fwd, 0.85);
+    bot.throttleL = clamp(fwd - turn, -1, 1);
+    bot.throttleR = clamp(fwd + turn, -1, 1);
+  }
+
+  function leverageDuel(a, b, m){
+    const nAB = V.norm(V.sub(b.pos, a.pos));
+    function score(me, other, nToOther){
+      const facing = V.fromAngle(me.angle);
+      const align = Math.max(0.3, V.dot(facing, nToOther));
+      const otherFacing = V.fromAngle(other.angle);
+      const flank = V.dot(otherFacing, V.scl(nToOther,-1)) < 0.2 ? 1.5 : 1.0;
+      return me.leverage * align * flank;
+    }
+    let sA = score(a,b,nAB), sB = score(b,a,V.scl(nAB,-1));
+    if (b.dominatedT > 0 && b.wasDominatedBy === a.id) sA *= 1.45;
+    if (a.dominatedT > 0 && a.wasDominatedBy === b.id) sB *= 1.45;
+    let winner=null, loser=null, ratio=1;
+    if (sA > sB*1.15){ winner=a; loser=b; ratio=sA/sB; }
+    else if (sB > sA*1.15){ winner=b; loser=a; ratio=sB/sA; }
+    if (winner){
+      loser.dominatedT = 0.35;
+      if (loser.wasDominatedBy !== winner.id){
+        loser.wasDominatedBy = winner.id;
+        winner.wasDominatedBy = -1;
+        m.duels[winner.id]++;
+        m.events.push({t:m.t, type:"duel", winner:winner.id});
+      }
+      // deterministic flip: lift builds from leverage advantage × the winner's
+      // shove, every tick the clinch holds. It's resisted by the loser's stability
+      // (mass × low centre of gravity — ballast helps). Past threshold, it goes over.
+      const shove = Math.max(0, (winner.throttleL + winner.throttleR) * 0.5);
+      const lever = Math.min(LEVER_CAP, Math.max(0, ratio - LIFT_FLOOR));
+      // low CoG (ballast) resists BOTH ways: slower lift build AND higher threshold.
+      loser.lift = (loser.lift || 0) + lever * (0.35 + shove) * LIFT_GAIN / loser.cogFactor;
+      const threshold = FLIP_K * loser.mass * loser.cogFactor;
+      if (loser.lift >= threshold && loser.flippedT <= 0){
+        loser.flippedT = loser.selfRight;
+        loser.lift = 0;
+        m.events.push({t:m.t, type:"flip", bot:loser.id});
+      }
+    }
+  }
+
+  function tick(m){
+    m.n++;
+    if (m.over) return;
+    const dt = TICK;
+    const [a,b] = m.bots;
+
+    if (m.t > SUDDEN_DEATH_T && m.arenaR > MIN_R)
+      m.arenaR = Math.max(MIN_R, m.arenaR * (1 - SHRINK_RATE*dt));
+
+    for (const bot of m.bots){
+      const foe = m.bots[1-bot.id];
+      bot.modeChanged = false;
+      if (bot.flippedT > 0){
+        bot.flippedT -= dt;
+        bot.beachedT = (bot.beachedT || 0) + dt; // cumulative time on your back (attrition)
+        bot.throttleL = bot.throttleR = 0;
+        if (bot.flippedT <= 0 && m.t > 0) m.events.push({t:m.t, type:"righted", bot:bot.id});
+      } else {
+        control(bot, foe, m);
+      }
+
+      const use = (Math.abs(bot.throttleL)+Math.abs(bot.throttleR)) * 0.5;
+      bot.battery = Math.max(0, bot.battery - use * 3.2 * bot.drainMul * dt);
+      const frac = bot.battery / bot.batteryMax;
+      // voltage sag: a LiPo droops under load and as it depletes, so the motor
+      // loses rpm and torque late in the fight (physical power fade).
+      const powerScale = Math.min(1, 0.45 + frac*1.1);
+
+      const dom = bot.dominatedT > 0 ? 0.6 : 1.0;
+      bot.dominatedT = Math.max(0, bot.dominatedT - dt);
+      bot.lift = Math.max(0, (bot.lift || 0) - LIFT_DECAY * dt); // recover when not out-levered
+
+      const facing = V.fromAngle(bot.angle);
+      const drive = (bot.throttleL + bot.throttleR) * 0.5;
+      const turnCmd = (bot.throttleR - bot.throttleL) * 0.5;
+      const h = HANDLING[bot.build.handling];
+
+      // Motor torque–speed curve: a DC motor's torque falls linearly from stall
+      // (at rest) to zero at free speed. So drive force tapers as the bot nears
+      // its top speed — top speed now EMERGES from the physics, not a hard cap.
+      const vDrive = V.dot(bot.vel, facing) * Math.sign(drive||1);      // speed in the drive direction
+      const speedFrac = Math.max(0, 1 - Math.max(0, vDrive) / (bot.maxSpeed * VFREE_K));
+      // Coulomb traction: the motor demands F = fMotor·throttle·(torque-speed), but
+      // the floor only transmits up to μ·N. Past the STATIC peak the wheels break
+      // loose and spin (kinetic, lower) — real wheelspin, with hysteresis.
+      const demanded = bot.fMotorForce * speedFrac * Math.abs(drive);
+      if (!bot.slipping && demanded > bot.gripS) bot.slipping = true;
+      else if (bot.slipping && demanded < bot.gripK) bot.slipping = false;
+      const effGrip = bot.slipping ? bot.gripK : bot.gripS;
+      const forceMag = Math.min(demanded, effGrip);
+      bot.slipAmt = bot.slipping ? Math.min(1, (demanded - bot.gripK) / bot.gripK) : 0;
+
+      const accel = (forceMag / bot.mass) * 2.0 * powerScale * dom;
+      bot.vel = V.add(bot.vel, V.scl(facing, Math.sign(drive) * accel * dt));
+
+      const fwdSpd = V.dot(bot.vel, facing);
+      const latV = V.sub(bot.vel, V.scl(facing, fwdSpd));
+      const damp = Math.pow(h.latDamp, dt*60);
+      bot.vel = V.add(V.scl(facing, fwdSpd), V.scl(latV, damp));
+
+      // drag instead of hard cap: self-drive tops out at maxSpeed, but external
+      // shoves CAN exceed it — heavy torque bots are planted, light speed bots fly.
+      // traction is part of the anchor: soft tires = harder to shove around.
+      // a DOMINATED bot loses its anchor: that's what winning the leverage duel buys you.
+      // a FLIPPED bot is dead weight on the floor — hard to shove out while it recovers,
+      // so a flip is a tempo loss (can't drive), not a free ring-out.
+      const anchor = bot.flippedT > 0 ? 2.0 : (bot.dominatedT > 0 ? 0.45 : 1);
+      const kDrag = (bot.gripAnchor * anchor / bot.mass * 2.415) / bot.maxSpeed;
+      bot.vel = V.scl(bot.vel, 1/(1 + kDrag*dt));
+
+      bot.angVel = turnCmd * h.turnMax * dom * (bot.flippedT>0 ? 0 : 1);
+      bot.angle += bot.angVel * dt;
+
+      if (bot.flippedT > 0) bot.vel = V.scl(bot.vel, Math.pow(0.9, dt*60));
+
+      bot.pos = V.add(bot.pos, V.scl(bot.vel, dt));
+
+      // analytics for the debrief
+      if (m.arenaR - V.len(bot.pos) < 32) bot.edgeTime += dt;
+    }
+
+    const d = V.sub(b.pos, a.pos);
+    const dist = V.len(d);
+    // Per-component collision: the deepest overlapping pair of tagged circles.
+    // Colliders hug what's drawn (hull + protruding wheels/weapons). Torn-off
+    // parts (bot.gone) drop out live. Falls back to a single circle if unset.
+    let hit=null;
+    if (a.colliders && b.colliders){
+      if (dist < a.colliderBound + b.colliderBound){
+        const wc=(bot)=>{ const c=Math.cos(bot.angle), s=Math.sin(bot.angle);
+          return bot.colliders.filter(k=>!(bot.gone&&bot.gone[k.slot]))
+            .map(k=>({x:bot.pos.x+k.x*c-k.y*s, y:bot.pos.y+k.x*s+k.y*c, r:k.r, slot:k.slot})); };
+        const WA=wc(a), WB=wc(b); let best=null;
+        for(const ca of WA) for(const cb of WB){
+          const dx=cb.x-ca.x, dy=cb.y-ca.y, dl=Math.hypot(dx,dy), minD=ca.r+cb.r;
+          if(dl<minD && dl>0.001){ const ov=minD-dl;
+            if(!best||ov>best.ov) best={ov, n:{x:dx/dl,y:dy/dl}, aPart:ca.slot, bPart:cb.slot}; } }
+        if(best) hit={n:best.n, overlap:best.ov, aPart:best.aPart, bPart:best.bPart};
+      }
+    } else if (dist < a.radius + b.radius && dist > 0.001){
+      hit={n:V.scl(d,1/dist), overlap:(a.radius+b.radius)-dist, aPart:null, bPart:null};
+    }
+    if (hit){
+      const n = hit.n, overlap = hit.overlap;
+      const tot = a.mass + b.mass;
+      a.pos = V.add(a.pos, V.scl(n, -overlap * (b.mass/tot)));
+      b.pos = V.add(b.pos, V.scl(n,  overlap * (a.mass/tot)));
+      a.lastHitPart = hit.bPart; b.lastHitPart = hit.aPart; // which of MY parts struck / was struck
+      a.hitOnFoe = hit.bPart; b.hitOnFoe = hit.aPart;        // foe part I contacted (for future damage)
+      const relVn = V.dot(V.sub(b.vel,a.vel), n);
+      if (relVn < 0){
+        const e = 0.05;
+        const jimp = -(1+e)*relVn / (1/a.mass + 1/b.mass);
+        a.vel = V.add(a.vel, V.scl(n, -jimp/a.mass));
+        b.vel = V.add(b.vel, V.scl(n,  jimp/b.mass));
+        if (Math.abs(jimp) > 28) m.events.push({t:m.t, type:"impact", impulse:Math.abs(jimp),
+          x:(a.pos.x+b.pos.x)/2, y:(a.pos.y+b.pos.y)/2});
+        if (Math.abs(relVn) > 55){ a.lastHardHitT = m.t; b.lastHardHitT = m.t; }
+      }
+      a.contactT += dt; b.contactT += dt;
+      if (a.contactT > 0.1) leverageDuel(a, b, m);
+      for (const bot of m.bots){
+        const foe = m.bots[1-bot.id];
+        const nTo = V.norm(V.sub(foe.pos, bot.pos));
+        const facing = V.fromAngle(bot.angle);
+        const into = Math.max(0, V.dot(facing, nTo));
+        const dom = bot.dominatedT > 0 ? 0.5 : 1.0;
+        const drive = Math.max(0,(bot.throttleL+bot.throttleR)*0.5);
+        const f = bot.push * into * drive * dom * 1.7;
+        foe.vel = V.add(foe.vel, V.scl(nTo, f/foe.mass * dt));
+      }
+    } else {
+      a.contactT = Math.max(0, a.contactT - dt*4);
+      b.contactT = Math.max(0, b.contactT - dt*4);
+      if (a.contactT===0 && b.contactT===0){ a.wasDominatedBy = b.wasDominatedBy = -1; }
+    }
+
+    if (!m.over && m.t > SUDDEN_DEATH_T && m.arenaR <= MIN_R + 0.5){
+      m.over = true;
+      m.winner = (V.len(a.pos) < V.len(b.pos)) ? 0 : 1;
+      m.reason = "shrinkOut";
+      m.events.push({t:m.t, type:"end", winner:m.winner, reason:m.reason});
+    }
+
+    for (const bot of m.bots){
+      if (!m.over && V.len(bot.pos) > m.arenaR){
+        m.over = true; m.winner = 1-bot.id;
+        m.reason = m.t > SUDDEN_DEATH_T ? "shrinkOut" : "ringOut";
+        m.events.push({t:m.t, type:"end", winner:m.winner, reason:m.reason});
+      }
+      if (!m.over && (bot.beachedT || 0) > BEACH_KO){
+        // KO by attrition: flipped too long overall (one flip is a survivable
+        // setback; repeated flips, or a slow self-right, end you).
+        m.over = true; m.winner = 1-bot.id; m.reason = "koFlip";
+        m.events.push({t:m.t, type:"end", winner:m.winner, reason:m.reason});
+      }
+    }
+    m.t += dt;
+    if (m.t > 90 && !m.over){
+      m.over = true;
+      m.winner = (V.len(a.pos) < V.len(b.pos)) ? 0 : 1;
+      m.reason = "timeout";
+    }
+  }
+
+  function runHeadless(seed, buildA, buildB){
+    const m = makeMatch(seed, buildA, buildB);
+    while(!m.over) tick(m);
+    return { winner:m.winner, reason:m.reason, t:m.t, duels:m.duels, events:m.events,
+             edgeTime:[m.bots[0].edgeTime, m.bots[1].edgeTime] };
+  }
+
+  /* ---------- SLICE 1: player bot, teaching, opponent generator ---------- */
+  const SLICE1 = {
+    // the used clunker: fixed chassis, "functional but not optimal" defaults
+    playerBuild: { chassis:"boxy", aggression:"balanced", edgeGuard:"daredevil",
+      approach:"frontal", power:"mixed", chargeDist:"medium", handling:"stable" },
+    // teaching opponents recalibrated for the deterministic flip (2b). Both are
+    // BOXY — same leverage class as RUSTY, so no uncounterable flip mismatch early;
+    // the lessons are piloting. Wedge/fork flippers are a MID-game threat (buy srimech).
+    // T1 GRIZZLI: defaults lose (~13%) — lesson: Aggression -> Fierce (commit, ~100%).
+    // T2 PIKPIK: your fierce config over-commits at the rim (~18%) — lesson:
+    //            Edge guard -> Normal (guard the edge while you brawl, ~100%).
+    teaching: [
+      { nameIdx:0, archetype:"bulldozer", build:{ chassis:"dart", aggression:"fierce",
+        edgeGuard:"daredevil", approach:"frontal", power:"mixed", chargeDist:"short", handling:"nervous" }},
+      { nameIdx:3, archetype:"bulldozer", build:{ chassis:"dart", aggression:"balanced",
+        edgeGuard:"daredevil", approach:"frontal", power:"speed", chargeDist:"long", handling:"stable" }},
+    ],
+  };
+
+  const ARCHETYPES = {
+    bulldozer:{ chassis:["boxy"], aggression:["fierce"], approach:["frontal"],
+      power:["torque"], edgeGuard:["normal","daredevil"], chargeDist:["medium","long"], handling:["stable"] },
+    mosquito:{ chassis:["dart"], aggression:["balanced","fierce"], approach:["flank"],
+      power:["speed"], edgeGuard:["normal","fearful"], chargeDist:["short","medium"], handling:["nervous","drift"] },
+    camper:{ chassis:["boxy","wedge"], aggression:["cautious"], approach:["opportunist"],
+      power:["mixed","torque"], edgeGuard:["fearful"], chargeDist:["short"], handling:["stable"] },
+    wedgelord:{ chassis:["wedge"], aggression:["fierce","balanced"], approach:["frontal"],
+      power:["mixed","torque"], edgeGuard:["normal"], chargeDist:["medium","long"], handling:["stable","nervous"] },
+    chaotic:null, // full random
+  };
+
+  function genOpponent(seed, level){
+    const rng = makeRng(seed);
+    const pool = level <= 1 ? ["bulldozer","mosquito","wedgelord"]
+               : level === 2 ? ["bulldozer","mosquito","wedgelord","camper"]
+               : ["bulldozer","mosquito","wedgelord","camper","chaotic"];
+    const arch = pool[Math.floor(rng()*pool.length)];
+    const pick = (arr)=>arr[Math.floor(rng()*arr.length)];
+    const build = {};
+    const spec = ARCHETYPES[arch];
+    build.chassis = spec ? pick(spec.chassis) : pick(Object.keys(CHASSIS));
+    for (const key of Object.keys(OPTS))
+      build[key] = spec && spec[key] ? pick(spec[key]) : pick(OPTS[key]);
+    // low levels carry an exploitable flaw; high levels are clean
+    if (level <= 2 && rng() < 0.6) build.edgeGuard = "daredevil";
+    // "long" charge is a first-strike auto-win in near-mirrors: locked until the
+    // player has unlocked chargeDist too (balance flag, revisit later)
+    if (level < 3 && build.chargeDist === "long") build.chargeDist = "medium";
+    // high-level opponents come upgraded, keeping pace with the player's shop
+    const tier = level >= 5 ? 3 : level >= 4 ? 2 : level >= 3 ? 1 : 0;
+    let motor = ["m0","m1","m2"][Math.min(2,tier)];
+    if (tier >= 3) motor = (arch==="mosquito"||arch==="chaotic") ? "m4" : "m3";
+    build.parts = {
+      motor,
+      battery: ["b0","b1","b2","b3"][tier],
+      propulsion: tier>=3 ? "pr3" : ["pr0","pr1","pr2"][tier],
+      armor: (build.chassis !== "wedge" && level >= 4 && rng() < (level>=5 ? 0.5 : 0.35))
+        ? (level>=5 && rng()<0.4 ? "a2" : "a1") : "a0",
+      cpu:      ["c0","c0","c1","c1","c2"][level-1] || "c0",
+      sensors:  level>=5 ? "n2" : level>=3 ? "n1" : "n0",
+      software: (level>=4 && rng() < (level>=5 ? 0.7 : 0.3)) ? "s1" : "s0",
+      ballast:  (arch==="bulldozer" && level>=3 && rng()<0.5) ? "l1" : "l0",
+      srimech:  (level>=5 && rng()<0.3) ? "r1" : "r0",
+      cooling:  (level>=4 && rng()<0.35) ? "k1" : "k0",
+      weapon1:"w0", weapon2:"x0",
+    };
+    return { build, archetype:arch };
+  }
+
+  // a level's tournament: 3 fixed opponents; the final carries no flaw
+  function genTournament(seed, level){
+    const opps = [
+      genOpponent(seed*3+1, level),
+      genOpponent(seed*3+2, level),
+      genOpponent(seed*3+3, level),
+    ];
+    if (opps[2].build.edgeGuard === "daredevil") opps[2].build.edgeGuard = "normal";
+    return opps;
+  }
+
+  // honest one-word tendency, derived from the ACTUAL generated settings
+  function tendencyKey(build){
+    if (build.aggression === "fierce") return "tend_charger";
+    if (build.approach === "flank") return "tend_circler";
+    if (build.edgeGuard === "fearful") return "tend_camper";
+    if (build.power === "torque") return "tend_pusher";
+    if (build.aggression === "cautious") return "tend_waiter";
+    return "tend_wild";
+  }
+
+  return { makeMatch, tick, runHeadless, derivedStats, statBars, genOpponent, genTournament, tendencyKey,
+           CHASSIS, OPTS, DEFAULT_BUILD, SLICE1, PARTS, partOf, ARENA_R, TICK, SUDDEN_DEATH_T,
+           PHYS, physStats, partMassKg };
+})();
+// ENGINE-END
+
+/* ============================================================
+   I18N
+   ============================================================ */
+const STRINGS = {
+  fr: {
+    yourBot:"Ton bot — RUSTY", machine:"Machine", fight:"COMBAT !",
+    forfeit:"Forfait", settings:"Réglages", nextOpp:"Adversaire suivant", retry:"Revanche",
+    level:"Niveau", champion:"CHAMPION",
+    aggression:"Agressivité", edgeGuard:"Garde au bord",
+    approach:"Approche", power:"Puissance", chargeDist:"Dist. de charge", handling:"Conduite",
+    cautious:"Prudent", balanced:"Équilibré", fierce:"Féroce",
+    daredevil:"Casse-cou", normal:"Normale", fearful:"Peureuse",
+    frontal:"Frontal", flank:"Flanc", opportunist:"Opportun.",
+    speed:"Vitesse", mixed:"Mixte", torque:"Couple",
+    short:"Courte", medium:"Moyenne", long:"Longue",
+    stable:"Stable", nervous:"Nerveuse", drift:"Dérive",
+    stSpeed:"Vitesse", stPush:"Poussée", stLeverage:"Prise", stTraction:"Traction", stEnergy:"Énergie",
+    lockWin1:"🔒 Approche — débloquée à la 1ʳᵉ victoire",
+    lockWin3:"🔒 Dist. de charge — débloquée après 3 victoires",
+    lockWin5:"🔒 Conduite — débloquée après 5 victoires",
+    unlockApproach:"Contrôleur recalibré : APPROCHE débloquée !",
+    unlockCharge:"Contrôleur recalibré : DISTANCE DE CHARGE débloquée !",
+    unlockHandling:"Contrôleur recalibré : CONDUITE débloquée !",
+    win:"VICTOIRE !", lose:"DÉFAITE",
+    duelsWon:"Duels de prise : Toi {a} — {b} Lui",
+    forfeited:"Forfait — fin simulée.",
+    tabFight:"Combat", tabWorkshop:"Atelier", tabShop:"Boutique",
+    editReset:"Auto-arranger", layAll:"Tout", cgShow:"CG", cgHide:"CG ✓", hbShow:"Hitbox", hbHide:"Hitbox ✓",
+    lay_chassis:"Châssis", lay_internal:"Interne", lay_armor:"Blindage", lay_external:"Externe",
+    equip:"Équiper", equipped:"Équipé ✓", stock:"d'origine", buyGo:"Acheter",
+    notOwned:"Boutique", weldedChassis:"Châssis soudé — RUSTY (boxy). Remplaçable un jour…",
+    noneAvail:"aucune disponible (règles sumo)",
+    slot_chassis:"Châssis", slot_propulsion:"Propulsion", slot_motor:"Moteur",
+    slot_cpu:"CPU", slot_battery:"Batterie", slot_armor:"Blindage & prise",
+    slot_weapon1:"Arme principale", slot_weapon2:"Arme secondaire",
+    slot_software:"Software", slot_ballast:"Lest", slot_sensors:"Capteurs",
+    slot_srimech:"Srimech", slot_cooling:"Refroidissement",
+    ndWeight:"Poids", ndPower:"Puissance", ndTorque:"Couple", ndBattery:"Batterie",
+    mode_stalk:"rôde", mode_charge:"CHARGE !", mode_recenter:"au centre !",
+    fx_interval:"réflexion", fx_gain:"servo", fx_noise:"visée", fx_sr:"redressement",
+    fx_drain:"conso", fx_edgePush:"pousse vers le bord",
+    pn_m0:"Bobinage fatigué", pn_m1:"Twin 540", pn_m2:"Vector Brushless",
+    pn_m3:"KV90 Couple-Monstre", pn_m4:"KV600 Sprint",
+    pn_b0:"Pack gonflé", pn_b1:"LiPo 4S", pn_b2:"LiPo 6S", pn_b3:"Brique graphène",
+    pn_pr0:"Deux roues + patins", pn_pr1:"4×4 crampons", pn_pr2:"Triporteur sport", pn_pr3:"Chenilles acier",
+    pn_a0:"(tôle nue)", pn_a1:"Lame acier", pn_a2:"Fourche",
+    pn_c0:"8-bit récupéré", pn_c1:"Cortex M7", pn_c2:"Pod neuronal",
+    pn_n0:"Pare-chocs", pn_n1:"IR 360°", pn_n2:"LIDAR",
+    pn_s0:"Firmware v1", pn_s1:"Firmware v2 VectorPush",
+    pn_l0:"(aucun)", pn_l1:"Gueuse 300 g", pn_l2:"Gueuse 600 g",
+    pn_r0:"(aucun)", pn_r1:"Bras basculeur", pn_r2:"Piston CO₂",
+    pn_k0:"Passif", pn_k1:"Ailettes alu", pn_k2:"Watercooling",
+    pn_w0:"(aucune)", pn_x0:"(aucune)",
+    styleLabel:"Ton style :",
+    tend_charger:"Fonceur", tend_circler:"Contourneur", tend_camper:"Campeur",
+    tend_pusher:"Bulldozer", tend_waiter:"Attentiste", tend_wild:"Imprévisible",
+    classLight:"Léger", classMid:"Moyen", classHeavy:"Lourd",
+    // causal debrief lines
+    cause_edge:"Tu as passé trop de temps près du bord — il n'a eu qu'à finir le travail. Monte ta Garde au bord.",
+    cause_dominated:"Il t'a dominé dans les corps-à-corps. Passe ta Conduite en Nerveuse pour mieux le contrer, monte l'Agressivité, ou change d'Approche.",
+    cause_flip:"Retourné par un adversaire à forte prise. Un Srimech te relève vite (survie au flip), une Gueuse abaisse ton centre de gravité (plus dur à retourner).",
+    cause_shrink:"Mort subite perdue : tu étais plus loin du centre quand l'arène s'est refermée. Garde le centre en fin de match.",
+    cause_generic:"Poussé dehors. Regarde d'où venait la pression et ajuste un réglage à la fois.",
+    win_flip:"Il s'est renversé sur ton impact — spectaculaire.",
+    win_shrink:"Mort subite gagnée : tu tenais le centre au bon moment.",
+    win_duels:"Tu as gagné les corps-à-corps — il patinait à chaque contact.",
+    win_push:"Sorti proprement du cercle. Réglages payants.",
+    championMsg:"RUSTY a tout gagné avec son vieux châssis. Le garage complet ouvre bientôt (slice 3) : nouveaux châssis, bots custom.",
+    // slice 2
+    garage:"Garage", buy:"Acheter", maxed:"MAX",
+    upMotor:"Moteurs", upBattery:"Batterie", upTires:"Pneus", upPlow:"Lame avant",
+    fxMotor:"+15 % Poussée, +7 % Vitesse", fxBattery:"+20 % Énergie",
+    fxTires:"+10 % Traction & ancrage", fxPlow:"+0,3 Prise",
+    bought:"{name} installé·e !",
+    friendly:"Match amical",
+    tourneyTitle:"TOURNOI NIVEAU {l} — Match {i}/3",
+    tourneyPrize:"Prix : {p} 🔩 + badge + niveau {n}",
+    tourneyChampPrize:"Prix : {p} 🔩 + badge + titre de CHAMPION",
+    tourneyNext:"Match {i}/3 →", tourneyWon:"TOURNOI GAGNÉ !",
+    tourneyLost:"Tournoi échoué — on repart au match 1. Le bracket ne change pas : tu le connais mieux maintenant.",
+    tourneyReroll:"Tournoi échoué — nouveaux inscrits ! Un bracket tout frais t'attend.",
+    oppRetired:"Il s'est retiré du circuit. Un nouvel adversaire arrive.",
+    boltsEarned:"+{b} 🔩",
+    qualif:"Qualifications : {n}/2",
+  },
+  en: {
+    yourBot:"Your bot — RUSTY", machine:"Machine", fight:"FIGHT!",
+    forfeit:"Forfeit", settings:"Settings", nextOpp:"Next opponent", retry:"Rematch",
+    level:"Level", champion:"CHAMPION",
+    aggression:"Aggression", edgeGuard:"Edge guard",
+    approach:"Approach", power:"Power", chargeDist:"Charge dist.", handling:"Handling",
+    cautious:"Cautious", balanced:"Balanced", fierce:"Fierce",
+    daredevil:"Daredevil", normal:"Normal", fearful:"Fearful",
+    frontal:"Frontal", flank:"Flank", opportunist:"Opportun.",
+    speed:"Speed", mixed:"Mixed", torque:"Torque",
+    short:"Short", medium:"Medium", long:"Long",
+    stable:"Stable", nervous:"Nervous", drift:"Drift",
+    stSpeed:"Speed", stPush:"Push", stLeverage:"Leverage", stTraction:"Traction", stEnergy:"Energy",
+    lockWin1:"🔒 Approach — unlocks at 1st win",
+    lockWin3:"🔒 Charge dist. — unlocks after 3 wins",
+    lockWin5:"🔒 Handling — unlocks after 5 wins",
+    unlockApproach:"Controller recalibrated: APPROACH unlocked!",
+    unlockCharge:"Controller recalibrated: CHARGE DISTANCE unlocked!",
+    unlockHandling:"Controller recalibrated: HANDLING unlocked!",
+    win:"VICTORY!", lose:"DEFEAT",
+    duelsWon:"Leverage duels: You {a} — {b} Them",
+    forfeited:"Forfeit — outcome simulated.",
+    tabFight:"Fight", tabWorkshop:"Workshop", tabShop:"Shop",
+    editReset:"Auto-arrange", layAll:"All", cgShow:"CoG", cgHide:"CoG ✓", hbShow:"Hitbox", hbHide:"Hitbox ✓",
+    lay_chassis:"Chassis", lay_internal:"Internal", lay_armor:"Armor", lay_external:"External",
+    equip:"Equip", equipped:"Equipped ✓", stock:"stock", buyGo:"Buy",
+    notOwned:"Shop", weldedChassis:"Welded chassis — RUSTY (boxy). Replaceable someday…",
+    noneAvail:"none available (sumo rules)",
+    slot_chassis:"Chassis", slot_propulsion:"Propulsion", slot_motor:"Motor",
+    slot_cpu:"CPU", slot_battery:"Battery", slot_armor:"Armor & leverage",
+    slot_weapon1:"Main weapon", slot_weapon2:"Secondary weapon",
+    slot_software:"Software", slot_ballast:"Ballast", slot_sensors:"Sensors",
+    slot_srimech:"Srimech", slot_cooling:"Cooling",
+    ndWeight:"Weight", ndPower:"Power", ndTorque:"Torque", ndBattery:"Battery",
+    mode_stalk:"stalking", mode_charge:"CHARGE!", mode_recenter:"recenter!",
+    fx_interval:"planning", fx_gain:"servo", fx_noise:"aim", fx_sr:"self-right",
+    fx_drain:"drain", fx_edgePush:"edge-push vectoring",
+    pn_m0:"Tired windings", pn_m1:"Twin 540", pn_m2:"Vector Brushless",
+    pn_m3:"KV90 Torque Monster", pn_m4:"KV600 Sprint",
+    pn_b0:"Puffy pack", pn_b1:"LiPo 4S", pn_b2:"LiPo 6S", pn_b3:"Graphene brick",
+    pn_pr0:"Two wheels + skids", pn_pr1:"4×4 lugs", pn_pr2:"Sport trike", pn_pr3:"Steel treads",
+    pn_a0:"(bare plate)", pn_a1:"Steel blade", pn_a2:"Fork",
+    pn_c0:"Salvaged 8-bit", pn_c1:"Cortex M7", pn_c2:"Neural pod",
+    pn_n0:"Bumpers", pn_n1:"IR 360°", pn_n2:"LIDAR",
+    pn_s0:"Firmware v1", pn_s1:"Firmware v2 VectorPush",
+    pn_l0:"(none)", pn_l1:"300 g slug", pn_l2:"600 g slug",
+    pn_r0:"(none)", pn_r1:"Flipper arm", pn_r2:"CO₂ piston",
+    pn_k0:"Passive", pn_k1:"Alu fins", pn_k2:"Watercooling",
+    pn_w0:"(none)", pn_x0:"(none)",
+    styleLabel:"Your style:",
+    tend_charger:"Charger", tend_circler:"Circler", tend_camper:"Camper",
+    tend_pusher:"Bulldozer", tend_waiter:"Waiter", tend_wild:"Wildcard",
+    classLight:"Light", classMid:"Middle", classHeavy:"Heavy",
+    cause_edge:"You spent too long near the edge — he only had to finish the job. Raise your Edge guard.",
+    cause_dominated:"He dominated the clinches. Switch Handling to Nervous to counter, raise Aggression, or change your Approach.",
+    cause_flip:"Flipped by a high-leverage foe. A Srimech self-rights you fast (survive the flip); a slug lowers your centre of gravity (harder to flip).",
+    cause_shrink:"Lost sudden death: you were further from center when the arena closed. Hold the center late.",
+    cause_generic:"Pushed out. Watch where the pressure came from and change one setting at a time.",
+    win_flip:"He flipped on your impact — spectacular.",
+    win_shrink:"Sudden death won: you held the center when it mattered.",
+    win_duels:"You won the grapples — he was skidding on every contact.",
+    win_push:"Clean ring out. Settings paid off.",
+    championMsg:"RUSTY won it all with his old chassis. The full garage opens soon (slice 3): new chassis, custom bots.",
+    // slice 2
+    garage:"Garage", buy:"Buy", maxed:"MAX",
+    upMotor:"Motors", upBattery:"Battery", upTires:"Tires", upPlow:"Front plow",
+    fxMotor:"+15% Push, +7% Speed", fxBattery:"+20% Energy",
+    fxTires:"+10% Traction & anchor", fxPlow:"+0.3 Leverage",
+    bought:"{name} installed!",
+    friendly:"Friendly match",
+    tourneyTitle:"LEVEL {l} TOURNAMENT — Match {i}/3",
+    tourneyPrize:"Prize: {p} 🔩 + badge + level {n}",
+    tourneyChampPrize:"Prize: {p} 🔩 + badge + CHAMPION title",
+    tourneyNext:"Match {i}/3 →", tourneyWon:"TOURNAMENT WON!",
+    tourneyLost:"Tournament failed — back to match 1. Same bracket: you know it better now.",
+    tourneyReroll:"Tournament failed — new entrants! A fresh bracket awaits.",
+    oppRetired:"He retired from the circuit. A new opponent steps in.",
+    boltsEarned:"+{b} 🔩",
+    qualif:"Qualifiers: {n}/2",
+  }
+};
+let LANG = "fr";
+const t = (k, vars) => {
+  let s = (STRINGS[LANG][k] ?? STRINGS.en[k] ?? k);
+  if (vars) for (const [kk,vv] of Object.entries(vars)) s = s.replace("{"+kk+"}", vv);
+  return s;
+};
+
+const OPP_NAMES = ["GRIZZLI","TRANCHE","RIVET","PIKPIK","MAMMOUTH","VORTEX","CAFARD",
+  "TAUPE","FURIE","CROC","PATATE","BOULON"];
+
+/* ============================================================
+   STATE (localStorage, guarded)
+   ============================================================ */
+const SKEY = "roboclash_s4";
+function defaultState(){
+  return {
+    lang:"fr", beaten:0, speed:1,           // beaten = qualifier+friendly wins (param unlocks)
+    level:1, beatenAtLevel:0,               // 2 qualifier wins open the tournament
+    bolts:0,
+    parts:{
+      owned:{ propulsion:["pr0"], motor:["m0"], cpu:["c0"], battery:["b0"],
+        armor:["a0"], weapon1:["w0"], weapon2:["x0"], software:["s0"],
+        ballast:["l0"], sensors:["n0"], srimech:["r0"], cooling:["k0"] },
+      equipped:{ propulsion:"pr0", motor:"m0", cpu:"c0", battery:"b0",
+        armor:"a0", weapon1:"w0", weapon2:"x0", software:"s0",
+        ballast:"l0", sensors:"n0", srimech:"r0", cooling:"k0" },
+    },
+    badges:[], champion:false,
+    layout:null,                            // per-slot editor positions (null = defaults)
+    tourney:null,                           // {idx, opponents:[{name,archetype,build,level}x3]}
+    settings:{...ENGINE.SLICE1.playerBuild},
+    opponent:null,                          // current qualifier {name, archetype, build, level}
+  };
+}
+// tier-based mods (slice 2 saves) -> parts chain
+function modsToParts(mods){
+  const m = mods || {};
+  const chain = (list, n) => list.slice(0, Math.max(1, (n||0)+1));
+  const owned = {
+    motor:   chain(["m0","m1","m2"], m.motor),
+    battery: chain(["b0","b1","b2"], m.battery),
+    tires:   chain(["t0","t1","t2"], m.tires),
+    plow:    (m.plow ? ["p0","p1"] : ["p0"]),
+  };
+  return { owned, equipped:{ motor:owned.motor[owned.motor.length-1],
+    battery:owned.battery[owned.battery.length-1],
+    tires:owned.tires[owned.tires.length-1],
+    plow:owned.plow[owned.plow.length-1] } };
+}
+// s3 saves: tires -> propulsion (t*->pr*), plow -> armor (p*->a*), new slots stock
+function s3PartsToS4(p3){
+  const d = defaultState().parts;
+  if (!p3 || !p3.owned) return d;
+  const mapIds = (arr, from, to) => (arr||[]).map(id=>id.replace(from,to));
+  d.owned.motor = p3.owned.motor || ["m0"];
+  d.owned.battery = p3.owned.battery || ["b0"];
+  d.owned.propulsion = mapIds(p3.owned.tires, "t", "pr");
+  d.owned.armor = mapIds(p3.owned.plow, "p", "a");
+  const e = p3.equipped || {};
+  d.equipped.motor = e.motor || "m0";
+  d.equipped.battery = e.battery || "b0";
+  d.equipped.propulsion = (e.tires||"t0").replace("t","pr");
+  d.equipped.armor = (e.plow||"p0").replace("p","a");
+  return d;
+}
+let S = defaultState();
+try {
+  const raw = localStorage.getItem(SKEY);
+  if (raw) S = {...defaultState(), ...JSON.parse(raw)};
+  else if (localStorage.getItem("roboclash_s3")){
+    const o = JSON.parse(localStorage.getItem("roboclash_s3"));
+    S = {...defaultState(), lang:o.lang??"fr", speed:o.speed??1,
+      settings:{...S.settings, ...(o.settings||{})},
+      beaten:o.beaten||0, level:o.level||1, beatenAtLevel:o.beatenAtLevel||0,
+      bolts:o.bolts||0, badges:o.badges||[], champion:!!o.champion,
+      parts:s3PartsToS4(o.parts), tourney:null, opponent:null};
+  }
+  else {
+    const s2 = localStorage.getItem("roboclash_s2");
+    const s1 = localStorage.getItem("roboclash_s1");
+    if (s2){ // migrate slice-2: mods -> parts; opponents regenerate (their builds carried mods)
+      const o = JSON.parse(s2);
+      S = {...defaultState(), lang:o.lang??"fr", speed:o.speed??1,
+        settings:{...S.settings, ...(o.settings||{})},
+        beaten:o.beaten||0, level:o.level||1, beatenAtLevel:o.beatenAtLevel||0,
+        bolts:o.bolts||0, badges:o.badges||[], champion:!!o.champion,
+        parts:s3PartsToS4(modsToParts(o.mods)), tourney:null, opponent:null};
+    } else if (s1){ // migrate slice-1
+      const o = JSON.parse(s1);
+      S = {...defaultState(), lang:o.lang??"fr", speed:o.speed??1,
+        settings:{...S.settings, ...(o.settings||{})},
+        beaten:o.beaten||0, opponent:null};
+      S.level = Math.min(5, 1 + Math.floor(S.beaten/2));
+      S.beatenAtLevel = Math.min(2, S.beaten % 2);
+      S.bolts = S.beaten * 20; // grandfather earnings
+    }
+  }
+} catch(e){}
+if (!S.parts || !S.parts.owned || !S.parts.owned.propulsion) S.parts = defaultState().parts;
+function saveState(){ try{ localStorage.setItem(SKEY, JSON.stringify(S)); }catch(e){} }
+LANG = S.lang;
+
+const WIN_BOLTS = [0, 20, 35, 60, 100, 170]; // by level
+// v4: all behavior parameters unlocked from the start (Denis's call).
+const isUnlocked = ()=> true;
+const tournamentOpen = ()=> S.beatenAtLevel >= 2;
+const pickName = ()=> OPP_NAMES[2 + Math.floor(Math.random()*(OPP_NAMES.length-2))];
+
+function ensureOpponent(){
+  if (S.opponent) return;
+  const T = ENGINE.SLICE1.teaching;
+  if (S.level === 1 && S.beatenAtLevel < T.length){
+    const te = T[S.beatenAtLevel];
+    S.opponent = { name:OPP_NAMES[te.nameIdx], archetype:te.archetype,
+      build:{...te.build}, level:1 };
+  } else {
+    const g = ENGINE.genOpponent(Math.floor(Math.random()*1e9), S.level);
+    S.opponent = { name:pickName(), archetype:g.archetype, build:g.build, level:S.level,
+      gen:true, losses:0 };
+  }
+  saveState();
+}
+
+function ensureTourney(){
+  if (S.tourney) return;
+  const seed = Math.floor(Math.random()*1e9);
+  const opps = ENGINE.genTournament(seed, S.level);
+  S.tourney = { idx:0, opponents: opps.map(g=>({ name:pickName(),
+    archetype:g.archetype, build:g.build, level:S.level })) };
+  saveState();
+}
+
+/* ============================================================
+   HOME SCREEN
+   ============================================================ */
+const $ = (id)=>document.getElementById(id);
+const PLAYER_COLOR = "#4da3ff", ENEMY_COLOR = "#ff5252";
+
+// Displayed figures come bottom-up from the physical reference bank — one
+// coherent source. kg = Σ real component masses; Nm/kW = motor nameplate;
+// Wh = real LiPo pack. Robot-sumo class (dohyo 154 cm, ≤20×20 cm, ≤3 kg).
+function renderNums(el, build){
+  const p = ENGINE.physStats(build);
+  el.innerHTML =
+    `<span>${t("ndWeight")} <b>${p.massKg.toFixed(2)} kg</b></span>`+
+    `<span>${t("ndPower")} <b>${p.powerKW.toFixed(2)} kW</b></span>`+
+    `<span>${t("ndTorque")} <b>${p.torqueNm.toFixed(2)} Nm</b></span>`+
+    `<span>${t("ndBattery")} <b>${p.packWh.toFixed(1)} Wh</b></span>`;
+}
+function weightClass(build){
+  const w = ENGINE.physStats(build).massKg; // real assembled mass (kg)
+  return w < 1.2 ? "classLight" : w < 2.0 ? "classMid" : "classHeavy";
+}
+
+function renderHome(){
+  const inTourney = tournamentOpen();
+  if (inTourney) ensureTourney(); else ensureOpponent();
+
+  // header
+  $("lvlLabel").textContent = t("level")+" "+S.level + (S.champion ? " · "+t("champion")+" 🏆" : "");
+  $("dots").textContent = inTourney ? "🏟" :
+    "●".repeat(S.beatenAtLevel) + "○".repeat(Math.max(0, 2-S.beatenAtLevel));
+  $("boltsLabel").textContent = S.bolts + " 🔩";
+  $("badgesLabel").textContent = S.badges.length ? " " + "🏅".repeat(S.badges.length) : "";
+  $("langBtn").textContent = LANG.toUpperCase();
+
+  // tournament banner + friendly button
+  const banner = $("tourneyBanner");
+  if (inTourney){
+    banner.style.display = "block";
+    $("tourneyTitle").textContent = t("tourneyTitle", {l:S.level, i:S.tourney.idx+1});
+    const prize = WIN_BOLTS[S.level]*5;
+    $("tourneyPrize").textContent = S.level >= 5
+      ? t("tourneyChampPrize", {p:prize})
+      : t("tourneyPrize", {p:prize, n:S.level+1});
+    $("friendlyBtn").style.display = "block";
+  } else {
+    banner.style.display = "none";
+    $("friendlyBtn").style.display = "none";
+  }
+
+  // scouting: tournament bracket opponent, or current qualifier
+  const o = inTourney ? S.tourney.opponents[S.tourney.idx] : S.opponent;
+  $("oppName").textContent = o.name;
+  $("oppClass").textContent = t(weightClass(o.build)) + " · " +
+    ENGINE.physStats(o.build).massKg.toFixed(2) + " kg";
+  $("oppWeight").textContent = t("level")+" "+o.level;
+  $("oppTend").textContent = t(ENGINE.tendencyKey(o.build));
+  renderNums($("oppNums"), {...o.build, power:"mixed"});
+  $("scoutCv")._oppBuild = o.build;
+  drawEditor($("scoutCv"), o.build, autoArrange(o.build), editSpin, -1);
+
+  // player settings: behavior params (pilot), then power (machine)
+  const rows = $("paramRows"); rows.innerHTML = "";
+  const behaviorKeys = ["aggression","edgeGuard","approach","chargeDist","handling"];
+  for (const key of behaviorKeys) rows.appendChild(makeSeg(key));
+  $("styleLine").textContent = t("styleLabel")+" "+t(ENGINE.tendencyKey(S.settings));
+
+  const pr = $("powerRow"); pr.innerHTML = ""; pr.appendChild(makeSeg("power"));
+
+  // player machine: live numbers + robot editor with equipped parts
+  const myBuild = {...S.settings, chassis:"boxy", parts:{...S.parts.equipped}};
+  renderNums($("myNums"), myBuild);
+  bindEditor();
+  renderLayerTabs();
+  drawEditor($("editorCv"), myBuild, getLayout(), editSpin, editFocus, showCG, showHB);
+
+  // fight-tab player card (same visual as the editor → WYSIWYG)
+  $("playerClass").textContent = t(weightClass(myBuild)) + " · " + ENGINE.physStats(myBuild).massKg.toFixed(2) + " kg";
+  renderNums($("playerNums"), myBuild);
+  $("playerCv")._build = myBuild;
+  drawEditor($("playerCv"), myBuild, getLayout(), editSpin, -1);
+
+  // stat bars (react to Power AND equipped parts)
+  const bars = ENGINE.statBars(myBuild);
+  const names = {speed:"stSpeed", push:"stPush", leverage:"stLeverage",
+                 traction:"stTraction", energy:"stEnergy"};
+  const sb = $("statBars"); sb.innerHTML = "";
+  for (const [k,frac] of Object.entries(bars)){
+    const s = document.createElement("div"); s.className="stat";
+    s.innerHTML = `${t(names[k])}<div class="bar"><i style="width:${Math.round(frac*100)}%"></i></div>`;
+    sb.appendChild(s);
+  }
+
+  renderGarage();
+  renderWorkshop();
+
+  document.querySelectorAll("[data-i18n]").forEach(el=>el.textContent = t(el.dataset.i18n));
+}
+
+function makeSeg(key){
+  const row = document.createElement("div"); row.className="row";
+  const lab = document.createElement("label"); lab.textContent = t(key);
+  const wrap = document.createElement("div"); wrap.className="selwrap";
+  const sel = document.createElement("select"); sel.className="param";
+  ENGINE.OPTS[key].forEach(opt=>{
+    const o = document.createElement("option");
+    o.value = opt; o.textContent = t(opt);
+    if (S.settings[key]===opt) o.selected = true;
+    sel.appendChild(o);
+  });
+  sel.onchange = ()=>{ S.settings[key]=sel.value; saveState(); renderHome(); };
+  wrap.appendChild(sel);
+  row.appendChild(lab); row.appendChild(wrap);
+  return row;
+}
+
+// part effect summary, generated from the catalog (always accurate)
+function partFx(slot, part){
+  const pc = (x)=> (x>1?"+":"")+Math.round((x-1)*100)+" %";
+  const bits = [];
+  if (part.push && part.push!==1)       bits.push(pc(part.push)+" "+t("stPush"));
+  if (part.speed && part.speed!==1)     bits.push(pc(part.speed)+" "+t("stSpeed"));
+  if (part.energy && part.energy!==1)   bits.push(pc(part.energy)+" "+t("stEnergy"));
+  if (part.traction && part.traction!==1) bits.push(pc(part.traction)+" "+t("stTraction"));
+  if (part.leverage)                    bits.push("+"+part.leverage.toFixed(2)+" "+t("stLeverage"));
+  if (part.grip)                        bits.push("+"+part.grip.toFixed(2)+" "+t("stTraction"));
+  if (part.interval)                    bits.push(t("fx_interval")+" ×"+(18/part.interval).toFixed(1));
+  if (part.gain && part.gain!==1)       bits.push(t("fx_gain")+" "+pc(part.gain));
+  if (part.noise!==undefined && part.noise<1) bits.push(t("fx_noise")+" +"+Math.round((1-part.noise)*100)+" %");
+  if (part.srMul!==undefined && part.srMul<1) bits.push(t("fx_sr")+" −"+Math.round((1-part.srMul)*100)+" %");
+  if (part.drain!==undefined && part.drain<1) bits.push(t("fx_drain")+" −"+Math.round((1-part.drain)*100)+" %");
+  if (part.edgePush)                    bits.push(t("fx_edgePush"));
+  const kg = ENGINE.partMassKg(slot, part.id);
+  if (kg)                               bits.push("+"+(kg*1000).toFixed(0)+" g");
+  return bits.length ? bits.join(" · ") : t("stock");
+}
+
+const SLOT_ORDER = ["chassis","propulsion","motor","cpu","battery","armor",
+  "weapon1","weapon2","software","ballast","sensors","srimech","cooling"];
+
+/* ============================================================
+   ROBOT EDITOR — placeable part tiles on a fixed chassis.
+   Simple placeholder visuals: one primitive per part, colour = tier.
+   Parts are grouped in layers (fixed Z); no overlap WITHIN a layer.
+   Layout is data on the robot, so it travels to shop/scout/combat and
+   to other robots later. Real assets replace the tiles down the line.
+   ============================================================ */
+const TIER_COLORS = ["#5b6472","#28c39a","#3b82f6","#f0a020","#a78bfa"]; // stock → top tier
+const PART_GLYPH = { propulsion:"", motor:"M", battery:"B", cpu:"C", cooling:"K",
+  ballast:"L", srimech:"R", sensors:"N", software:"S", weapon1:"W", weapon2:"X" };
+
+/* ============================================================
+   ROBOT EDITOR — Pass 1: 4-level spatial model on a shared grid.
+   The grid is larger than the starter chassis (room to grow; the view
+   zooms to the active chassis). Levels: CHASSIS (propulsion, symmetric,
+   mounted on the hull), INTERNAL (contained in the hull), ARMOR (a shell
+   that traces the outline), EXTERNAL (may overhang if anchored on the hull).
+   Footprints vary by tier — a bigger battery/motor/drivetrain forces a
+   re-pack. Auto-arrange keeps a legal layout so you never get stuck.
+   ============================================================ */
+const GRID_W = 10, GRID_H = 10, CELL_GAP = 4, CX = GRID_W/2;
+// chassis outline: half-width per row over a centred sub-region (room to spare)
+const CHASSIS_SPEC = {
+  boxy: { front:2, rear:7, hFront:3.0, hRear:3.0 },
+  wedge:{ front:2, rear:8, hFront:0.9, hRear:2.0 },
+  dart: { front:2, rear:8, hFront:0.6, hRear:1.8 },
+};
+// Pass 2: internal FLOORS per chassis. A wide hull (boxy) uses one low floor;
+// narrow hulls (wedge/dart) get a 2nd floor — more room, but a higher stack
+// (→ higher CG, easier to flip: the trade-off the CG pass will read).
+const INTERNAL_FLOORS = { boxy:1, wedge:2, dart:2 };
+const FLOOR_H = 3; // cm of elevation added per internal floor (feeds CG in Pass 3)
+function floorsOf(chassis){ return INTERNAL_FLOORS[chassis] || 1; }
+function chassisHalf(chassis,row){ const s=CHASSIS_SPEC[chassis]||CHASSIS_SPEC.boxy;
+  if(row<s.front||row>s.rear) return -1;
+  const tt=(row-s.front)/Math.max(1,(s.rear-s.front));
+  return s.hFront + (s.hRear-s.hFront)*tt; }
+function cellInChassis(chassis,col,row){ if(col<0||row<0||col>=GRID_W||row>=GRID_H) return false;
+  const h=chassisHalf(chassis,row); return h>=0 && Math.abs((col+0.5)-CX) <= h; }
+function chassisBounds(chassis){ let minC=GRID_W,maxC=-1,minR=GRID_H,maxR=-1;
+  for(let r=0;r<GRID_H;r++)for(let c=0;c<GRID_W;c++)if(cellInChassis(chassis,c,r)){
+    minC=Math.min(minC,c);maxC=Math.max(maxC,c);minR=Math.min(minR,r);maxR=Math.max(maxR,r);}
+  return {minC,maxC,minR,maxR}; }
+
+// ---- footprint bank: base (w×d cells, height cm) + per-tier overrides ----
+const FOOT_BASE = {
+  // propulsion is ONE SIDE (a wheel or track); it is mirrored L/R at placement.
+  propulsion:{w:1,d:2,h:6}, motor:{w:1,d:1,h:4}, battery:{w:2,d:1,h:3}, cpu:{w:1,d:1,h:1.5},
+  cooling:{w:1,d:1,h:4}, ballast:{w:1,d:1,h:3}, software:{w:1,d:1,h:0.5}, srimech:{w:1,d:1,h:4},
+  sensors:{w:1,d:1,h:6}, weapon1:{w:2,d:2,h:6}, weapon2:{w:2,d:2,h:6},
+};
+const FOOT_TIER = {
+  propulsion:{ pr1:{w:1,d:3}, pr2:{w:1,d:3}, pr3:{w:2,d:4} },  // per side: more wheels / a track
+  battery:{ b2:{w:3,d:1}, b3:{w:3,d:2} },
+  motor:{ m1:{w:2,d:1}, m2:{w:2,d:1}, m3:{w:2,d:1}, m4:{w:2,d:2} },
+  cooling:{ k1:{w:2,d:1}, k2:{w:2,d:2} },
+  srimech:{ r1:{w:2,d:1}, r2:{w:2,d:2} },
+};
+function footprintOf(slot,id){ const b=FOOT_BASE[slot]||{w:1,d:1,h:1};
+  const o=(FOOT_TIER[slot]&&FOOT_TIER[slot][id])||{}; return {w:o.w||b.w, d:o.d||b.d, h:b.h}; }
+function mirrorCol(col,w){ return 2*CX - col - w; } // reflect a footprint about the axis
+
+// ---- 4 levels. armor is a shell (traces the outline), not a placed footprint ----
+const EDIT_LAYERS = [
+  { id:"chassis",  elev:1, slots:["propulsion"] },
+  { id:"internal", elev:4, slots:["motor","battery","cpu","cooling","ballast","software","srimech"] },
+  { id:"armor",    elev:7, slots:[] },
+  { id:"external", elev:9, slots:["sensors","weapon1","weapon2"] },
+];
+const PLACED_SLOTS = EDIT_LAYERS.flatMap(L=>L.slots);
+const SLOT_LAYER = {}; EDIT_LAYERS.forEach((L,i)=>L.slots.forEach(s=>SLOT_LAYER[s]=i));
+function tierColor(slot,id){ const i=ENGINE.PARTS[slot].findIndex(p=>p.id===id);
+  return TIER_COLORS[Math.max(0,Math.min(TIER_COLORS.length-1,i))]; }
+function mixHex(a,b,t){
+  const pa=[parseInt(a.slice(1,3),16),parseInt(a.slice(3,5),16),parseInt(a.slice(5,7),16)];
+  const pb=[parseInt(b.slice(1,3),16),parseInt(b.slice(3,5),16),parseInt(b.slice(5,7),16)];
+  return "#"+pa.map((v,i)=>Math.round(v+(pb[i]-v)*t).toString(16).padStart(2,"0")).join(""); }
+
+// ---- placement rules & auto-arrange ----
+function rectsOverlap(a,fa,b,fb){
+  return a.col < b.col+fb.w && a.col+fa.w > b.col && a.row < b.row+fb.d && a.row+fa.d > b.row; }
+function cellsOfFoot(pos,f){ const out=[]; for(let dc=0;dc<f.w;dc++)for(let dr=0;dr<f.d;dr++) out.push([pos.col+dc,pos.row+dr]); return out; }
+function fullyContained(chassis,pos,f){ return cellsOfFoot(pos,f).every(([c,r])=>cellInChassis(chassis,c,r)); }
+function anchoredOnChassis(chassis,pos,f){
+  const cells=cellsOfFoot(pos,f);
+  if(!cells.every(([c,r])=>c>=0&&r>=0&&c<GRID_W&&r<GRID_H)) return false;   // in the grid
+  return cells.some(([c,r])=>cellInChassis(chassis,c,r)); }                  // ≥1 cell on the hull
+function noOverlap(pos,f,others){ return others.every(o=>!rectsOverlap(pos,f,o,o.f)); }
+function placementOK(chassis, slot, pos, others){
+  const f=footprintOf(slot, curId(slot));
+  if(SLOT_LAYER[slot]===0){ // propulsion (left side); right side is its mirror
+    if(pos.col + f.w > CX) return false;                       // left side stays left of the axis
+    const mc=mirrorCol(pos.col,f.w);
+    return anchoredOnChassis(chassis,pos,f) && anchoredOnChassis(chassis,{col:mc,row:pos.row},f);
+  }
+  if(SLOT_LAYER[slot]===1) return fullyContained(chassis,pos,f) && noOverlap(pos,f,others); // internal
+  return anchoredOnChassis(chassis,pos,f) && noOverlap(pos,f,others);                        // external
+}
+function curId(slot){ return (S.parts&&S.parts.equipped&&S.parts.equipped[slot]) || ENGINE.PARTS[slot][0].id; }
+function firstFit(chassis, f, others, mode){ // mode: "contain" | "anchor"
+  for(let row=0; row<GRID_H; row++) for(let col=0; col<GRID_W; col++){
+    const pos={col,row};
+    const geomOK = mode==="contain" ? fullyContained(chassis,pos,f) : anchoredOnChassis(chassis,pos,f);
+    if(geomOK && noOverlap(pos,f,others)) return pos;
+  }
+  return null;
+}
+function autoArrange(build){
+  const chassis=build.chassis||"boxy", eq=build.parts||{}, L={};
+  const idOf=(slot)=> eq[slot] || ENGINE.PARTS[slot][0].id;
+  // propulsion (one side): outer-left position where both mirrored sides mount
+  { const f=footprintOf("propulsion",idOf("propulsion"));
+    const row=Math.max(0, CHASSIS_SPEC[chassis].rear - f.d + 1);
+    let col=Math.max(0, Math.round(CX-f.w-2));
+    for(let cc=0; cc+f.w<=CX; cc++){ const mc=mirrorCol(cc,f.w);
+      if(anchoredOnChassis(chassis,{col:cc,row},f) && anchoredOnChassis(chassis,{col:mc,row},f)){ col=cc; break; } }
+    L.propulsion={col,row}; }
+  // internals: greedy pack, fully contained, spilling onto higher floors when full
+  const floors=floorsOf(chassis); const byFloor=Array.from({length:floors},()=>[]);
+  for(const slot of EDIT_LAYERS[1].slots){ const f=footprintOf(slot,idOf(slot));
+    let done=false;
+    for(let fl=0; fl<floors && !done; fl++){
+      const pos=firstFit(chassis, f, byFloor[fl], "contain");
+      if(pos){ L[slot]={...pos,floor:fl}; byFloor[fl].push({...pos,f}); done=true; }
+    }
+    if(!done) L[slot]={col:0,row:0,floor:0}; }
+  // externals: anchored on the hull, may overhang
+  const packedX=[];
+  for(const slot of EDIT_LAYERS[3].slots){ const f=footprintOf(slot,idOf(slot));
+    const pos=firstFit(chassis, f, packedX, "anchor");
+    if(pos){ L[slot]=pos; packedX.push({...pos,f}); } else L[slot]={col:0,row:0}; }
+  return L;
+}
+function layoutValid(build, layout){ // every placed slot legal for THIS build/chassis
+  if(!layout) return false;
+  const byLayer={};
+  for(const slot of PLACED_SLOTS){ if(!layout[slot]) return false;
+    (byLayer[SLOT_LAYER[slot]] = byLayer[SLOT_LAYER[slot]]||[]); }
+  for(const slot of PLACED_SLOTS){
+    const p=layout[slot];
+    const others=PLACED_SLOTS.filter(o=>o!==slot && SLOT_LAYER[o]===SLOT_LAYER[slot]
+        && (layout[o].floor||0)===(p.floor||0))
+      .map(o=>({...layout[o], f:footprintOf(o,build.parts&&build.parts[o]||ENGINE.PARTS[o][0].id)}));
+    // temporarily evaluate with the equipped id of THIS slot
+    const f=footprintOf(slot, build.parts&&build.parts[slot]||ENGINE.PARTS[slot][0].id);
+    const li=SLOT_LAYER[slot];
+    const flOK = li!==1 || (p.floor||0) < floorsOf(build.chassis); // floor within range
+    let geomOK, symOK=true;
+    if(li===0){ // propulsion: left side left of axis, both mirrored sides mount
+      symOK = p.col + f.w <= CX;
+      geomOK = anchoredOnChassis(build.chassis,p,f) && anchoredOnChassis(build.chassis,{col:mirrorCol(p.col,f.w),row:p.row},f);
+    } else if(li===1){ geomOK = fullyContained(build.chassis,p,f); }
+    else { geomOK = anchoredOnChassis(build.chassis,p,f); }
+    if(!(geomOK && symOK && flOK && noOverlap(p,f,others))) return false;
+  }
+  return true;
+}
+function getLayout(){ // player layout, auto-repaired if stale/illegal
+  const build={chassis:"boxy", parts:{...S.parts.equipped}};
+  if(S.layout && layoutValid(build, S.layout)) return S.layout;
+  const L=autoArrange(build); S.layout=L; return L;
+}
+
+// ---- per-component hitbox (Pass: WYSIWYG collision) ----
+// Colliders live in the SAME frame the combat renderer uses (board units × vis),
+// so the hitbox hugs exactly what's drawn — hull shape + protruding wheels/weapons.
+// Local coords are (forward, lateral) relative to the bot's facing. Each circle is
+// tagged with its slot, paving the way for per-part damage and live tear-off.
+function colliderVis(chassis){ return (ENGINE.CHASSIS[chassis].radius * 1.55) / BOARD_HALF; }
+function buildColliders(build, layout){
+  const chassis=build.chassis||"boxy", eq=build.parts||{};
+  const v=viewParams(chassis), vis=colliderVis(chassis), list=[];
+  const push=(bx,by,rb,slot)=> list.push({slot, x:-vis*by, y:vis*bx, r:vis*rb}); // board→(fwd,lat)
+  // hull: a circle per row at the centreline, radius = local half-width (tapered on wedge/dart)
+  for(let r=0;r<GRID_H;r++){ const half=chassisHalf(chassis,r); if(half<0) continue;
+    push((CX-v.ccol)*v.cell, (r+0.5-v.crow)*v.cell, half*v.cell, "chassis"); }
+  // propulsion: two mirrored side circles — they can protrude past the hull
+  { const id=eq.propulsion||ENGINE.PARTS.propulsion[0].id, f=footprintOf("propulsion",id);
+    const p=layout.propulsion||{col:0,row:0};
+    for(const col of [p.col, mirrorCol(p.col,f.w)]){ const b=slotBox(chassis,"propulsion",id,{col,row:p.row});
+      push(b.cx, b.cy, Math.max(b.wpx,b.hpx)/2, "propulsion"); } }
+  // externals (weapons/sensors) overhang the hull; internals are interior → not on the surface
+  for(const slot of EDIT_LAYERS[3].slots){ const id=eq[slot]||ENGINE.PARTS[slot][0].id;
+    if((slot==="weapon1"||slot==="weapon2") && ENGINE.PARTS[slot].findIndex(x=>x.id===id)===0) continue;
+    const p=layout[slot]||{col:0,row:0}, b=slotBox(chassis,slot,id,p);
+    push(b.cx, b.cy, Math.max(b.wpx,b.hpx)/2, slot); }
+  let bound=0; for(const c of list) bound=Math.max(bound, Math.hypot(c.x,c.y)+c.r);
+  return { list, bound };
+}
+const CELL_CM = 3;
+const LAYER_ELEV_CM = { chassis:1, internal:4, armor:7, external:9 };
+const CG_REF = 2.36; // stabilityRaw of stock RUSTY (auto-arranged) → normalises stock to 1.0
+function slotHeight(slot){ return (FOOT_BASE[slot]||{h:2}).h; }
+function computeCG(build, layout){
+  const chassis=build.chassis||"boxy", eq=build.parts||{};
+  const b=chassisBounds(chassis); const centerRow=(b.minR+b.maxR+1)/2;
+  let M=0,sx=0,sy=0,sz=0; const add=(m,x,y,z)=>{ M+=m; sx+=m*x; sy+=m*y; sz+=m*z; };
+  add(ENGINE.PHYS.chassis[chassis].kg, 0, 0, LAYER_ELEV_CM.chassis*0.5);      // hull, low & centred
+  { const id=eq.propulsion||ENGINE.PARTS.propulsion[0].id, f=footprintOf("propulsion",id);
+    const p=layout.propulsion||{col:0,row:0}, m=ENGINE.partMassKg("propulsion",id);
+    add(m, 0, (p.row+f.d/2-centerRow)*CELL_CM, LAYER_ELEV_CM.chassis + slotHeight("propulsion")/2); } // 2 sides → x=0
+  for(const slot of ["motor","battery","cpu","cooling","ballast","software","srimech","sensors","weapon1","weapon2"]){
+    const id=eq[slot]||ENGINE.PARTS[slot][0].id;
+    if((slot==="weapon1"||slot==="weapon2") && ENGINE.PARTS[slot].findIndex(x=>x.id===id)===0) continue;
+    const f=footprintOf(slot,id), p=layout[slot]||{col:0,row:0}, m=ENGINE.partMassKg(slot,id);
+    const li=SLOT_LAYER[slot], elev = li===1?LAYER_ELEV_CM.internal:LAYER_ELEV_CM.external;
+    // ballast is a dense slug mounted at the very bottom of the hull — that's its
+    // whole job: sit low and pull the CG down. It doesn't ride at mid-height.
+    const z = slot==="ballast"
+      ? LAYER_ELEV_CM.chassis * 0.5   // bolted to the baseplate — the very bottom
+      : elev + (li===1?(p.floor||0)*FLOOR_H:0) + slotHeight(slot)/2;
+    add(m, (p.col+f.w/2-CX)*CELL_CM, (p.row+f.d/2-centerRow)*CELL_CM, z);
+  }
+  { const id=eq.armor||"a0", m=ENGINE.partMassKg("armor",id); if(m>0) add(m,0,0,LAYER_ELEV_CM.armor); }
+  const cgX=sx/M, cgY=sy/M, cgZ=sz/M;
+  const pid=eq.propulsion||ENGINE.PARTS.propulsion[0].id, pf=footprintOf("propulsion",pid);
+  const pp=layout.propulsion||{col:0,row:0};
+  const trackHalf=(CX-(pp.col+pf.w/2))*CELL_CM;       // lateral half-separation of the wheels
+  const wheelbaseHalf=(pf.d*CELL_CM)/2;               // longitudinal contact half-length (tracks are long)
+  const supportHalf=(trackHalf+wheelbaseHalf)/2;
+  const stabilityRaw = supportHalf / Math.max(1,cgZ);
+  // compress around 1.0: CG is a real lever, but loading a bot shouldn't tank it
+  // so hard that the shop investment is negated. Spread 0.5 → range ~0.8–1.15.
+  const CG_SPREAD = 0.5;
+  const stability = 1 + (stabilityRaw/CG_REF - 1) * CG_SPREAD;
+  return { cgX, cgY, cgZ, trackHalf, supportHalf, stabilityRaw, mass:M, stability };
+}
+
+// ---- rendering (zoom to the active chassis) ----
+const BOARD_HALF = 100;
+function viewParams(chassis){ const b=chassisBounds(chassis); const M=2; // cells of margin for overhang
+  const cols=(b.maxC-b.minC+1)+2*M, rows=(b.maxR-b.minR+1)+2*M;
+  const cell=(2*BOARD_HALF)/Math.max(cols,rows);
+  return { cell, ccol:(b.minC+b.maxC+1)/2, crow:(b.minR+b.maxR+1)/2 }; }
+function slotBox(chassis, slot, id, pos){ const v=viewParams(chassis); const f=footprintOf(slot,id);
+  return { cx:(pos.col+f.w/2 - v.ccol)*v.cell, cy:(pos.row+f.d/2 - v.crow)*v.cell,
+           wpx:f.w*v.cell-CELL_GAP, hpx:f.d*v.cell-CELL_GAP }; }
+function chassisOutlinePath(c, chassis){ const v=viewParams(chassis);
+  const pts=[]; for(let r=0;r<GRID_H;r++){ const h=chassisHalf(chassis,r); if(h<0) continue;
+    const lo=CX-h, hi=CX+h, y0=(r-v.crow)*v.cell, y1=(r+1-v.crow)*v.cell;
+    pts.push([ (lo-v.ccol)*v.cell, y0, (hi-v.ccol)*v.cell, y1 ]); }
+  c.beginPath();
+  for(let i=0;i<pts.length;i++){ const [lx,y0,rx,y1]=pts[i]; if(i===0)c.moveTo(lx,y0); c.lineTo(rx,y0); c.lineTo(rx,y1); }
+  for(let i=pts.length-1;i>=0;i--){ const [lx,y0,rx,y1]=pts[i]; c.lineTo(lx,y1); c.lineTo(lx,y0); }
+  c.closePath(); }
+function drawChassisBoard(c, chassis){ c.save(); c.fillStyle="#262a33"; c.strokeStyle="#3f4654"; c.lineWidth=2;
+  chassisOutlinePath(c, chassis); c.fill(); c.stroke(); c.restore(); }
+function drawArmorShell(c, chassis, id){ const idx=ENGINE.PARTS.armor.findIndex(p=>p.id===id);
+  if(idx<=0) return; // a0 / none → internals exposed
+  c.save(); c.globalAlpha=0.28; c.fillStyle=tierColor("armor",id);
+  chassisOutlinePath(c, chassis); c.fill();
+  c.globalAlpha=0.9; c.lineWidth=3; c.strokeStyle=tierColor("armor",id); c.stroke(); c.restore(); }
+function drawPartTile(c, slot, id, cx, cy, wpx, hpx, spin=0, alpha=1, slip=0){
+  c.save(); c.globalAlpha=alpha;
+  let fill=tierColor(slot,id);
+  if(slot==="propulsion"&&slip>0.12){ const k=Math.min(1,(slip-0.12)/0.5); fill=mixHex(fill,"#e24b4a",k*0.7); }
+  c.fillStyle=fill; c.strokeStyle="rgba(0,0,0,.35)"; c.lineWidth=1.5;
+  rr(c, cx-wpx/2, cy-hpx/2, wpx, hpx, 5); c.fill(); c.stroke();
+  const r=Math.min(wpx,hpx)/2;
+  if(slot==="propulsion"){ c.strokeStyle=slip>0.3?"#ffe0e0":"rgba(255,255,255,.9)"; c.lineWidth=2; c.lineCap="round";
+    for(let k=0;k<4;k++){ const a=spin+k*Math.PI/2;
+      c.beginPath(); c.moveTo(cx,cy); c.lineTo(cx+Math.cos(a)*r*0.7, cy+Math.sin(a)*r*0.7); c.stroke(); } }
+  else { c.fillStyle="rgba(255,255,255,.95)"; c.font=`700 ${Math.round(r*0.95)}px system-ui,sans-serif`;
+    c.textAlign="center"; c.textBaseline="middle"; c.fillText(PART_GLYPH[slot]||"?", cx, cy+1); }
+  c.restore();
+}
+function drawBotTiles(c, build, layout, spin, opts={}){
+  const chassis=build.chassis, eq=build.parts||{};
+  if(opts.shadow){ c.save(); c.globalAlpha=0.35; c.translate(6,9); c.fillStyle="#000";
+    drawChassisBoard(c, chassis); c.restore(); }
+  drawChassisBoard(c, chassis);
+  const drawSlot=(slot)=>{
+    const li=SLOT_LAYER[slot];
+    const id=eq[slot]||ENGINE.PARTS[slot][0].id;
+    if((slot==="weapon1"||slot==="weapon2") && ENGINE.PARTS[slot].findIndex(p=>p.id===id)===0) return;
+    const pos=layout[slot]||{col:0,row:0}; const floor=(li===1?(pos.floor||0):0);
+    const b=slotBox(chassis,slot,id,pos);
+    const lift=floor*4; // higher internal floors are drawn raised (up-left)
+    let alpha=(opts.focus==null||opts.focus<0||opts.focus===li)?1:0.3;
+    if(li===1 && opts.focusFloor!=null && floor!==opts.focusFloor) alpha*=0.35;
+    if(slot==="propulsion"){
+      const f=footprintOf(slot,id);
+      const bl=slotBox(chassis,slot,id,pos);
+      const br=slotBox(chassis,slot,id,{col:mirrorCol(pos.col,f.w),row:pos.row});
+      drawPartTile(c, slot, id, bl.cx, bl.cy, bl.wpx, bl.hpx, spin, alpha, opts.slip||0);
+      drawPartTile(c, slot, id, br.cx, br.cy, br.wpx, br.hpx, spin, alpha, opts.slip||0);
+      return;
+    }
+    drawPartTile(c, slot, id, b.cx-lift, b.cy-lift, b.wpx, b.hpx, spin, alpha, 0);
+    if(floor>0){ c.save(); c.globalAlpha=alpha; c.fillStyle="rgba(255,255,255,.9)"; c.font="bold 9px system-ui";
+      c.textAlign="right"; c.textBaseline="top"; c.fillText(String(floor+1), b.cx-lift+b.wpx/2-2, b.cy-lift-b.hpx/2+1); c.restore(); }
+  };
+  drawSlot("propulsion");                                                   // chassis level
+  EDIT_LAYERS[1].slots.slice()                                             // internals, low floor first
+    .sort((a,b)=>(((layout[a]||{}).floor||0)-((layout[b]||{}).floor||0)))
+    .forEach(drawSlot);
+  drawArmorShell(c, chassis, eq.armor||"a0");                              // shell over internals
+  EDIT_LAYERS[3].slots.forEach(drawSlot);                                  // externals on top
+}
+function drawEditor(canvas, build, layout, spin, focusLayer=-1, cgOn=false, hbOn=false){
+  const c=canvas.getContext("2d"); const w=canvas.width,h=canvas.height;
+  c.clearRect(0,0,w,h); c.save(); c.translate(w/2,h/2);
+  const sc=(Math.min(w,h)*0.47)/BOARD_HALF; c.scale(sc,sc);
+  if(focusLayer>=0){ const v=viewParams(build.chassis); c.strokeStyle="rgba(120,130,150,.16)"; c.lineWidth=1;
+    for(let gc=0;gc<=GRID_W;gc++){ const x=(gc-v.ccol)*v.cell;
+      c.beginPath(); c.moveTo(x,(0-v.crow)*v.cell); c.lineTo(x,(GRID_H-v.crow)*v.cell); c.stroke(); }
+    for(let gr=0;gr<=GRID_H;gr++){ const y=(gr-v.crow)*v.cell;
+      c.beginPath(); c.moveTo((0-v.ccol)*v.cell,y); c.lineTo((GRID_W-v.ccol)*v.cell,y); c.stroke(); } }
+  drawBotTiles(c, build, layout, spin, {focus:focusLayer});
+  if(hbOn){ const col=buildColliders(build, layout), vis=colliderVis(build.chassis);
+    c.save(); c.lineWidth=2.5;
+    for(const k of col.list){ const bx=k.y/vis, by=-k.x/vis, rb=k.r/vis;
+      c.strokeStyle = k.slot==="chassis" ? "rgba(90,205,255,.85)"
+        : (k.slot==="propulsion" ? "rgba(255,170,50,.95)" : "rgba(255,80,80,.95)");
+      c.beginPath(); c.arc(bx,by,rb,0,7); c.stroke(); }
+    c.restore();
+  }
+  if(cgOn){
+    const cg=computeCG(build, layout); const v=viewParams(build.chassis);
+    const px=cg.cgX/CELL_CM*v.cell, py=cg.cgY/CELL_CM*v.cell;
+    const tt=Math.max(0,Math.min(1,(cg.cgZ-1.6)/3)); // low CG = stable (green), high = tippy (red)
+    const col=mixHex("#3ad17a","#e24b4a",tt);
+    c.save(); c.strokeStyle=col; c.fillStyle=col; c.lineWidth=2.5;
+    c.beginPath(); c.arc(px,py,8,0,7); c.stroke();
+    c.beginPath(); c.moveTo(px-13,py); c.lineTo(px+13,py); c.moveTo(px,py-13); c.lineTo(px,py+13); c.stroke();
+    c.beginPath(); c.arc(px,py,2.5,0,7); c.fill();
+    c.fillStyle="#e8eaee"; c.font="bold 11px system-ui"; c.textAlign="center"; c.textBaseline="bottom";
+    c.fillText("CG "+cg.cgZ.toFixed(1)+"cm", px, py-11);
+    c.restore();
+  }
+  c.restore();
+}
+
+// ---- interaction (grid-snap; per-level constraints) ----
+let editFocus=-1, editSpin=0, editDrag=null, showCG=false, showHB=false;
+function editorBoardPoint(canvas, ev){ const rect=canvas.getBoundingClientRect();
+  const sc=(Math.min(canvas.width,canvas.height)*0.47)/BOARD_HALF;
+  const sx=canvas.width/rect.width, sy=canvas.height/rect.height;
+  return { x:((ev.clientX-rect.left)*sx-canvas.width/2)/sc, y:((ev.clientY-rect.top)*sy-canvas.height/2)/sc }; }
+function pxToCell(chassis,x,y){ const v=viewParams(chassis);
+  return { col:Math.floor(x/v.cell+v.ccol), row:Math.floor(y/v.cell+v.crow) }; }
+function editorHit(layout, cell){
+  for(let li=EDIT_LAYERS.length-1; li>=0; li--){ if(editFocus>=0&&editFocus!==li) continue;
+    for(const slot of EDIT_LAYERS[li].slots){ const p=layout[slot]; if(!p) continue;
+      const f=footprintOf(slot, curId(slot));
+      const inRect=(col)=>cell.col>=col&&cell.col<col+f.w&&cell.row>=p.row&&cell.row<p.row+f.d;
+      if(inRect(p.col)) return slot;
+      if(li===0 && inRect(mirrorCol(p.col,f.w))) return slot; // right wheel selects the pair
+    } }
+  return null; }
+function bindEditor(){ const cv=$("editorCv"); if(!cv||cv._bound) return; cv._bound=true;
+  cv.addEventListener("pointerdown",(ev)=>{ const L=getLayout(); const pt=editorBoardPoint(cv,ev);
+    const cell=pxToCell("boxy",pt.x,pt.y); const slot=editorHit(L,cell); if(!slot) return;
+    editDrag={slot, dCol:cell.col-L[slot].col, dRow:cell.row-L[slot].row}; cv.setPointerCapture(ev.pointerId); });
+  cv.addEventListener("pointermove",(ev)=>{ if(!editDrag) return; const L=getLayout();
+    const pt=editorBoardPoint(cv,ev); const cell=pxToCell("boxy",pt.x,pt.y);
+    let col=cell.col-editDrag.dCol, row=cell.row-editDrag.dRow;
+    const slot=editDrag.slot, li=SLOT_LAYER[slot];
+    const f=footprintOf(slot, curId(slot));
+    const floor = li===1 ? (L[slot].floor||0) : 0;              // keep the part's floor
+    const others=EDIT_LAYERS[li].slots.filter(o=>o!==slot && (li!==1 || (L[o].floor||0)===floor))
+      .map(o=>({...L[o], f:footprintOf(o,curId(o))}));
+    const np = li===1 ? {col,row,floor} : {col,row};
+    if(placementOK("boxy", slot, np, others)){ S.layout={...L,[slot]:np}; } });
+  const end=()=>{ if(editDrag){ editDrag=null; saveState(); } };
+  cv.addEventListener("pointerup",end); cv.addEventListener("pointercancel",end);
+}
+function autoArrangeCurrent(){ S.layout=autoArrange({chassis:"boxy", parts:{...S.parts.equipped}}); saveState(); }
+function renderLayerTabs(){ const el=$("layerTabs"); if(!el) return; el.innerHTML="";
+  const mk=(label,idx)=>{ const b=document.createElement("button"); b.className="ltab"+(editFocus===idx?" on":"");
+    b.textContent=label; b.onclick=()=>{ editFocus=(editFocus===idx?-1:idx); renderLayerTabs(); }; el.appendChild(b); };
+  mk(t("layAll"),-1); EDIT_LAYERS.forEach((L,i)=>mk(t("lay_"+L.id),i)); }
+function previewLoop(ts){ editSpin=(ts||0)/1000*3;
+  if(typeof activeTab!=="undefined"){
+    if(activeTab==="workshop"&&$("editorCv"))
+      drawEditor($("editorCv"), {chassis:"boxy", parts:{...S.parts.equipped}}, getLayout(), editSpin, editFocus, showCG, showHB);
+    if(activeTab==="fight"&&$("scoutCv")&&$("scoutCv")._oppBuild){
+      const ob=$("scoutCv")._oppBuild; drawEditor($("scoutCv"), ob, autoArrange(ob), editSpin, -1);
+      if($("playerCv")&&$("playerCv")._build) drawEditor($("playerCv"), $("playerCv")._build, getLayout(), editSpin, -1);
+    }
+  }
+  requestAnimationFrame(previewLoop);
+}
+requestAnimationFrame(previewLoop);
+
+function renderWorkshop(){
+  const rows = $("slotRows"); rows.innerHTML = "";
+  for (const slot of SLOT_ORDER){
+    const row = document.createElement("div"); row.className = "slotrow";
+    const nm = document.createElement("div"); nm.className = "sname";
+    nm.textContent = t("slot_"+slot);
+    row.appendChild(nm);
+    const cur = document.createElement("div"); cur.className = "scur";
+    if (slot === "chassis"){
+      cur.innerHTML = `RUSTY<span class="pfx">${t("weldedChassis")}</span>`;
+      row.appendChild(cur);
+    } else if (slot === "weapon1" || slot === "weapon2"){
+      cur.innerHTML = `${t("pn_"+(slot==="weapon1"?"w0":"x0"))}<span class="pfx">${t("noneAvail")}</span>`;
+      row.appendChild(cur);
+    } else {
+      const eqId = S.parts.equipped[slot];
+      const part = ENGINE.partOf(slot, eqId);
+      cur.innerHTML = `${t("pn_"+eqId)}<span class="pfx">${partFx(slot, part)}</span>`;
+      row.appendChild(cur);
+      const owned = S.parts.owned[slot];
+      if (owned.length > 1){
+        const sel = document.createElement("select");
+        for (const id of owned){
+          const o = document.createElement("option");
+          o.value = id; o.textContent = t("pn_"+id);
+          if (id === eqId) o.selected = true;
+          sel.appendChild(o);
+        }
+        sel.onchange = ()=>{ S.parts.equipped[slot] = sel.value; saveState(); renderHome(); };
+        row.appendChild(sel);
+      } else {
+        const hint = document.createElement("button"); hint.className = "ghosthint";
+        hint.textContent = t("notOwned");
+        hint.onclick = ()=> showTab("shop");
+        row.appendChild(hint);
+      }
+    }
+    rows.appendChild(row);
+  }
+}
+
+function mkPartCard(type, part, reserved){
+  const card = document.createElement("div"); card.className = "gcard";
+  const cv = document.createElement("canvas"); cv.width = cv.height = 54; cv.className = "gtile";
+  drawPartTile(cv.getContext("2d"), type, part.id, 27, 27, 40, 30, 0, 1);
+  card.appendChild(cv);
+  const nm = document.createElement("div"); nm.className = "gcname"; nm.textContent = t("pn_"+part.id);
+  card.appendChild(nm);
+  const fx = document.createElement("div"); fx.className = "gcfx";
+  fx.textContent = reserved
+    ? ((type==="weapon1"||type==="weapon2") ? t("noneAvail") : t("stock"))
+    : partFx(type, part);
+  card.appendChild(fx);
+  if (reserved) return card;
+  const owned = S.parts.owned[type].includes(part.id);
+  const equipped = S.parts.equipped[type] === part.id;
+  const btn = document.createElement("button"); btn.className = "gbuy";
+  if (equipped){ btn.textContent = t("equipped"); btn.disabled = true; btn.classList.add("maxed"); }
+  else if (owned){ btn.textContent = t("equip");
+    btn.onclick = ()=>{ S.parts.equipped[type] = part.id; saveState(); renderHome(); }; }
+  else { btn.textContent = part.cost + " \uD83D\uDD29"; btn.disabled = S.bolts < part.cost;
+    btn.onclick = ()=>{ if (S.bolts < part.cost) return; S.bolts -= part.cost;
+      S.parts.owned[type].push(part.id); S.parts.equipped[type] = part.id; saveState();
+      showToast(t("bought", {name:t("pn_"+part.id)})); renderHome(); }; }
+  card.appendChild(btn);
+  return card;
+}
+function renderGarage(){
+  const g = $("garageRows"); g.innerHTML = "";
+  const TYPES = SLOT_ORDER.filter(x=>x!=="chassis").map(x=>[x,"slot_"+x]);
+  for (const [type, header] of TYPES){
+    const h = document.createElement("div"); h.className = "gsec";
+    h.textContent = t(header);
+    g.appendChild(h);
+    const strip = document.createElement("div"); strip.className = "gcarousel";
+    g.appendChild(strip);
+    if (ENGINE.PARTS[type].length === 1){
+      strip.appendChild(mkPartCard(type, ENGINE.PARTS[type][0], true));
+      continue;
+    }
+    for (const part of ENGINE.PARTS[type]) strip.appendChild(mkPartCard(type, part, false));
+  }
+}
+// static assembled preview of a build (player card + scouting)
+function drawBotPreview(canvas, build, color, isPlayer){
+  const c = canvas.getContext("2d");
+  const w = canvas.width, h = canvas.height;
+  c.clearRect(0,0,w,h);
+  const ch = ENGINE.CHASSIS[build.chassis];
+  const fake = { radius:ch.radius, build, flippedT:0, dominatedT:0 };
+  c.save();
+  c.translate(w/2, h/2); c.rotate(-Math.PI/2);
+  const sc = Math.min(w,h) / (ch.radius*3.3);
+  c.scale(sc, sc);
+  drawBot(c, fake, color, isPlayer, {t:0, odo:0, vib:0});
+  c.restore();
+}
+
+function showToast(msg, ms=1600){
+  $("toastText").textContent = msg;
+  $("toast").style.display = "flex";
+  setTimeout(()=>{ $("toast").style.display="none"; }, ms);
+}
+
+/* ============================================================
+   MATCH (rendering + loop)
+   ============================================================ */
+let match=null, raf=null, slowmoT=0, shake=0, lastTs=0, acc=0;
+let particles=[], trails=[[],[]], flashes=[0,0], wasForfeit=false, odom=[0,0], floaties=[]; let wheelPhase=[0,0], slipR=[0,0];
+const cv = $("cv"), ctx = cv.getContext("2d");
+
+function setupCanvas(){
+  const dpr = window.devicePixelRatio || 1;
+  const w = Math.min(cv.parentElement.clientWidth || 420, 520);
+  cv.width = w*dpr; cv.height = w*dpr;
+  cv.style.height = w+"px";
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+}
+
+let curMode = "qual"; // "qual" | "tour" | "exhib"
+let exhibOpp = null;
+
+function startMatch(mode){
+  curMode = mode || (tournamentOpen() ? "tour" : "qual");
+  let enemy;
+  if (curMode === "tour"){ ensureTourney(); enemy = S.tourney.opponents[S.tourney.idx]; }
+  else if (curMode === "exhib"){
+    const g = ENGINE.genOpponent(Math.floor(Math.random()*1e9), S.level);
+    exhibOpp = { name:pickName(), archetype:g.archetype, build:g.build, level:S.level };
+    enemy = exhibOpp;
+  }
+  else { ensureOpponent(); enemy = S.opponent; }
+
+  const seed = Math.floor(Math.random()*1e9);
+  const playerBuild = {...ENGINE.SLICE1.playerBuild, ...S.settings, chassis:"boxy",
+    parts:{...S.parts.equipped}};
+  // Pass 3: CG stability from the actual placement feeds the flip model.
+  playerBuild.stability = computeCG(playerBuild, getLayout()).stability;
+  enemy.build.stability = computeCG(enemy.build, autoArrange(enemy.build)).stability;
+  // WYSIWYG per-component hitbox from the same placement.
+  playerBuild.colliders = buildColliders(playerBuild, getLayout());
+  enemy.build.colliders = buildColliders(enemy.build, autoArrange(enemy.build));
+  match = ENGINE.makeMatch(seed, playerBuild, enemy.build);
+  particles=[]; trails=[[],[]]; flashes=[0,0]; slowmoT=0; shake=0; acc=0; lastTs=0; wasForfeit=false; odom=[0,0]; floaties=[]; wheelPhase=[0,0]; slipR=[0,0];
+  $("homeScreen").style.display="none";
+  $("matchScreen").style.display="block";
+  $("overlay").style.display="none";
+  $("speedBtn").textContent = "×"+S.speed;
+  setupCanvas();
+  raf = requestAnimationFrame(frame);
+}
+
+function frame(ts){
+  if (!lastTs) lastTs = ts;
+  let dt = Math.min(0.05, (ts-lastTs)/1000); lastTs = ts;
+  let scale = S.speed;
+  if (slowmoT > 0){ scale = 0.18; slowmoT -= dt; }
+  acc += dt*scale;
+  const T = ENGINE.TICK;
+  while (acc >= T && !match.over){
+    const evBefore = match.events.length;
+    ENGINE.tick(match);
+    for (let i=evBefore;i<match.events.length;i++){
+      const ev = match.events[i];
+      if (ev.type==="impact"){
+        spawnSparks(ev.x, ev.y, Math.min(18, 4+ev.impulse*0.15));
+        shake = Math.min(8, ev.impulse*0.06);
+      }
+      if (ev.type==="end") slowmoT = 0.8;
+      if (ev.type==="flip") shake = 8;
+    }
+    for (const bot of match.bots){
+      odom[bot.id] += Math.hypot(bot.vel.x, bot.vel.y) * ENGINE.TICK;
+      // wheels spin at the commanded speed; the SLIP tint now reads the engine's
+      // real static→kinetic state (bot.slipAmt), not a display heuristic.
+      {
+        const drive = (bot.throttleL + bot.throttleR) * 0.5;
+        wheelPhase[bot.id] += drive * bot.maxSpeed * ENGINE.TICK * 0.06;
+        slipR[bot.id] = bot.slipAmt || 0;
+      }
+      if (bot.modeChanged){
+        flashes[bot.id] = 0.25;
+        // the ring now says WHAT the bot decided
+        floaties.push({ x:bot.pos.x, y:bot.pos.y - bot.radius - 10,
+          txt:t("mode_"+bot.mode), a:1, color:[PLAYER_COLOR,ENEMY_COLOR][bot.id] });
+      }
+      const facing = {x:Math.cos(bot.angle), y:Math.sin(bot.angle)};
+      const fwd = bot.vel.x*facing.x + bot.vel.y*facing.y;
+      const lat = Math.hypot(bot.vel.x - facing.x*fwd, bot.vel.y - facing.y*fwd);
+      if (lat > 25 || bot.dominatedT > 0)
+        trails[bot.id].push({x:bot.pos.x, y:bot.pos.y, a:0.5});
+    }
+    acc -= T;
+  }
+  for (const tr of trails){ for (const p of tr) p.a -= dt*0.6;
+    while(tr.length && tr[0].a<=0) tr.shift(); if (tr.length>240) tr.splice(0,tr.length-240); }
+  particles = particles.filter(p=>{ p.x+=p.vx*dt; p.y+=p.vy*dt; p.a-=dt*2.2; return p.a>0; });
+  flashes = flashes.map(f=>Math.max(0,f-dt));
+  for (const f of floaties){ f.y -= dt*14; f.a -= dt*0.8; }
+  floaties = floaties.filter(f=>f.a>0);
+  shake = Math.max(0, shake - dt*22);
+
+  draw();
+  $("clock").textContent = match.t.toFixed(1);
+  $("gA").firstElementChild.style.width = (match.bots[0].battery/match.bots[0].batteryMax*100)+"%";
+  $("gB").firstElementChild.style.width = (match.bots[1].battery/match.bots[1].batteryMax*100)+"%";
+
+  if (match.over && slowmoT<=0){ endToDebrief(); return; }
+  raf = requestAnimationFrame(frame);
+}
+
+function spawnSparks(x,y,n){
+  for (let i=0;i<n;i++){
+    const a = Math.random()*Math.PI*2, s = 40+Math.random()*120;
+    particles.push({x,y,vx:Math.cos(a)*s, vy:Math.sin(a)*s, a:0.9,
+      c: Math.random()<0.5 ? "#ffd166" : "#ffffff"});
+  }
+}
+
+function draw(){
+  const w = cv.clientWidth || 420;
+  const scale = w / (ENGINE.ARENA_R*2 + 40);
+  ctx.clearRect(0,0,w,w);
+  ctx.save();
+  const sx = (Math.random()-0.5)*shake, sy = (Math.random()-0.5)*shake;
+  ctx.translate(w/2+sx, w/2+sy); ctx.scale(scale, scale);
+
+  ctx.beginPath(); ctx.arc(0,0,ENGINE.ARENA_R+8,0,7); ctx.fillStyle="#171a22"; ctx.fill();
+  ctx.beginPath(); ctx.arc(0,0,match.arenaR,0,7); ctx.fillStyle="#20242f"; ctx.fill();
+  ctx.lineWidth=3; ctx.strokeStyle = match.t>ENGINE.SUDDEN_DEATH_T ? "#ff5252" : "#3a4152"; ctx.stroke();
+  ctx.beginPath(); ctx.arc(0,0,4,0,7); ctx.fillStyle="#3a4152"; ctx.fill();
+
+  const COLORS = [PLAYER_COLOR, ENEMY_COLOR];
+  for (let bi=0;bi<2;bi++){
+    ctx.fillStyle = COLORS[bi];
+    for (const p of trails[bi]){ ctx.globalAlpha = p.a*0.35;
+      ctx.beginPath(); ctx.arc(p.x,p.y,3,0,7); ctx.fill(); }
+  }
+  ctx.globalAlpha = 1;
+
+  for (const bot of match.bots){
+    ctx.save();
+    ctx.translate(bot.pos.x, bot.pos.y); ctx.rotate(bot.angle);
+    const r = bot.radius;
+    // WYSIWYG: the live bot is the SAME editor visual — chassis + placed tiles.
+    // editor "front" is up (−y); the bot faces +x, so add π/2 to align.
+    ctx.save();
+    ctx.rotate(Math.PI/2);
+    const vis = (r * 1.55) / BOARD_HALF;
+    ctx.scale(vis, vis);
+    const layout = bot.id===0 ? getLayout() : autoArrange(bot.build);
+    drawBotTiles(ctx, bot.build, layout, wheelPhase[bot.id], {shadow:true, slip:slipR[bot.id]});
+    ctx.restore();
+    // dominated: skid ring
+    if (bot.dominatedT>0){ ctx.strokeStyle="rgba(255,255,255,.6)"; ctx.lineWidth=2;
+      ctx.setLineDash([4,4]); ctx.beginPath(); ctx.arc(0,0,r+5,0,7); ctx.stroke(); ctx.setLineDash([]); }
+    ctx.restore();
+    if (flashes[bot.id]>0){
+      ctx.strokeStyle = COLORS[bot.id]; ctx.globalAlpha = flashes[bot.id]*3;
+      ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.arc(bot.pos.x,bot.pos.y,bot.radius+9,0,7); ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  for (const p of particles){ ctx.globalAlpha=p.a; ctx.fillStyle=p.c;
+    ctx.fillRect(p.x-1.5,p.y-1.5,3,3); }
+  // mode labels: rise & fade above the bot
+  ctx.font = "700 11px system-ui, sans-serif"; ctx.textAlign = "center";
+  for (const f of floaties){
+    ctx.globalAlpha = Math.min(1, f.a) * 0.95;
+    ctx.fillStyle = f.color;
+    ctx.fillText(f.txt, f.x, f.y);
+  }
+  ctx.globalAlpha=1;
+  ctx.restore();
+}
+
+function drawChassisPath(c, kind, r){
+  c.beginPath();
+  if (kind==="wedge"){
+    c.moveTo(r*1.15,0); c.lineTo(-r*0.8,-r*0.85); c.lineTo(-r*0.8,r*0.85); c.closePath();
+  } else if (kind==="dart"){
+    c.moveTo(r*1.1,0); c.lineTo(-r*0.6,-r*0.6);
+    c.lineTo(-r*0.9,0); c.lineTo(-r*0.6,r*0.6); c.closePath();
+  } else {
+    const w=r*0.95;
+    c.rect(-w,-w,w*2,w*2);
+  }
+}
+
+/* ============================================================
+   COMPONENT RENDERING — one primitive per part, assembled.
+   All motion is sim-driven (match.t, odometer, throttle): deterministic,
+   no CSS keyframes. anim = {t, odo, vib}.
+   ============================================================ */
+function shade(hex, f){
+  const n = parseInt(hex.slice(1),16);
+  let R=(n>>16)&255, G=(n>>8)&255, B=n&255;
+  R=Math.min(255,R*f)|0; G=Math.min(255,G*f)|0; B=Math.min(255,B*f)|0;
+  return `rgb(${R},${G},${B})`;
+}
+function rr(c,x,y,w,h,rad){
+  c.beginPath();
+  if (c.roundRect) c.roundRect(x,y,w,h,rad);
+  else { c.rect(x,y,w,h); }
+  c.closePath();
+}
+// wheel geometry comes from the chassis, STYLE from the tires part
+function wheelGeom(kind, r){
+  if (kind==="dart")  return {x:-r*0.5, len:r*1.1, w:r*0.32, y:r*0.63};
+  if (kind==="wedge") return {x:-r*0.7, len:r*0.9, w:r*0.40, y:r*0.58};
+  return {x:-r*0.85, len:r*1.7, w:r*0.42, y:r*0.70}; // boxy
+}
+function drawTires(c, r, kind, style, anim){
+  const tid = {worn:"t0", lug:"t1", slick:"t2", tread:"t3"}[style] || "t0";
+  const g = wheelGeom(kind, r);
+  const roll = anim.odo*0.14; // lug travel, sim-driven
+  for (const side of [-1,1]){
+    const y = side<0 ? -g.y-g.w : g.y;
+    c.fillStyle = "#15171d";
+    rr(c, g.x, y, g.len, g.w, 3); c.fill();
+    if (tid==="t1"){                         // lug tires: chunky notches
+      c.fillStyle = "#0c0d11";
+      const sp = g.len/3.2;
+      for (let i=-1;i<4;i++){
+        const x = g.x + ((i*sp + roll) % (g.len+sp) + (g.len+sp)) % (g.len+sp) - sp*0.5;
+        if (x>g.x-2 && x<g.x+g.len-2) c.fillRect(x, y, r*0.10, g.w);
+      }
+    } else if (tid==="t2"){                  // soft slicks: wider + sheen band
+      c.fillStyle = "#22252e";
+      rr(c, g.x, y - side*g.w*0.12, g.len, g.w*1.12, 3); c.fill();
+      c.fillStyle = "rgba(255,255,255,.10)";
+      c.fillRect(g.x, y+g.w*0.32, g.len, g.w*0.18);
+    } else if (tid==="t3"){                  // steel treads: plates + moving lugs
+      c.fillStyle = "#1b1e26";
+      rr(c, g.x-r*0.06, y-side*g.w*0.10, g.len+r*0.12, g.w*1.10, 4); c.fill();
+      c.fillStyle = "#3a3f4d";
+      const sp = g.len/4;
+      for (let i=-1;i<5;i++){
+        const x = g.x + ((i*sp + roll) % (g.len+sp) + (g.len+sp)) % (g.len+sp) - sp*0.5;
+        if (x>g.x-2 && x<g.x+g.len-4) c.fillRect(x, y, r*0.09, g.w);
+      }
+    } else {                                  // t0 worn rubber: plain, a faint roll line
+      c.fillStyle = "rgba(255,255,255,.06)";
+      const x = g.x + ((roll) % g.len + g.len) % g.len;
+      c.fillRect(x, y, 2, g.w);
+    }
+  }
+}
+function drawShell(c, r, kind, base, dark, light){
+  c.fillStyle = base;
+  drawChassisPath(c, kind, r); c.fill();
+  c.save(); drawChassisPath(c, kind, r); c.clip();
+  c.fillStyle = light; c.globalAlpha = 0.18;
+  c.fillRect(-r*1.2, -r*1.2, r*2.4, r*1.1);
+  c.globalAlpha = 1; c.restore();
+  c.lineJoin = "round";
+  if (kind==="boxy"){
+    c.strokeStyle = dark; c.lineWidth = 1.4;
+    c.strokeRect(-r*0.5, -r*0.5, r*1.0, r*1.0);      // top hatch
+    c.fillStyle = dark;
+    for (const sx of [-1,1]) for (const sy of [-1,1]){
+      c.beginPath(); c.arc(sx*r*0.72, sy*r*0.72, r*0.1, 0,7); c.fill(); }
+  } else if (kind==="wedge"){
+    c.strokeStyle = light; c.lineWidth = 2;           // scoop lip
+    c.beginPath(); c.moveTo(r*1.1,-r*0.06); c.lineTo(-r*0.75,-r*0.8);
+    c.moveTo(r*1.1,r*0.06); c.lineTo(-r*0.75,r*0.8); c.stroke();
+    c.strokeStyle = dark; c.lineWidth = 1.4;          // rear vents
+    for (let i=0;i<3;i++){ const x=-r*0.75+i*r*0.16;
+      c.beginPath(); c.moveTo(x,-r*0.5); c.lineTo(x,r*0.5); c.stroke(); }
+  } else {                                            // dart spine
+    c.strokeStyle = light; c.lineWidth = 2;
+    c.beginPath(); c.moveTo(r*1.05,0); c.lineTo(-r*0.7,0); c.stroke();
+    c.strokeStyle = dark; c.lineWidth = 1.2;
+    c.beginPath(); c.moveTo(r*0.2,-r*0.28); c.lineTo(-r*0.5,-r*0.4);
+    c.moveTo(r*0.2,r*0.28); c.lineTo(-r*0.5,r*0.4); c.stroke();
+  }
+}
+const MOTOR_STYLE = {
+  m0:{col:"#6e5238", fins:1, w:0.55}, m1:{col:"#7d8494", fins:2, w:0.60},
+  m2:{col:"#5a7d9e", fins:3, w:0.66}, m3:{col:"#3a3f4c", fins:4, w:0.80, band:"#e8862e"},
+  m4:{col:"#a8352f", fins:2, w:0.58, intake:true},
+};
+function drawMotor(c, r, mid, anim){
+  const st = MOTOR_STYLE[mid] || MOTOR_STYLE.m0;
+  const bw = r*st.w, bh = r*0.42;
+  c.save();
+  // vibration: sim-time jitter scaled by throttle
+  const j = anim.vib * 0.9;
+  c.translate(-r*0.42 + Math.sin(anim.t*55)*j*0.6, Math.cos(anim.t*47)*j*0.5);
+  c.fillStyle = st.col;
+  rr(c, -bw/2, -bh/2, bw, bh, 2); c.fill();
+  c.fillStyle = "rgba(0,0,0,.35)";
+  for (let i=1;i<=st.fins;i++){
+    const x = -bw/2 + i*bw/(st.fins+1);
+    c.fillRect(x, -bh/2, 1.4, bh);
+  }
+  if (st.band){ c.fillStyle = st.band; c.fillRect(-bw/2, bh*0.14, bw, bh*0.2); }
+  if (st.intake){ c.fillStyle = "#1a1c22";
+    c.beginPath(); c.arc(bw*0.32, 0, bh*0.24, 0, 7); c.fill(); }
+  c.restore();
+}
+const BATT_STYLE = {
+  b0:{col:"#5b5f6a", n:1, w:0.34}, b1:{col:"#3f8f5a", n:1, w:0.38},
+  b2:{col:"#3f8f5a", n:2, w:0.46}, b3:{col:"#2c3038", n:0, w:0.52, hex:true},
+};
+function drawBattery(c, r, bid){
+  const st = BATT_STYLE[bid] || BATT_STYLE.b0;
+  const bw = r*st.w, bh = r*0.30;
+  c.save(); c.translate(r*0.10, r*0.44);
+  c.fillStyle = st.col;
+  rr(c, -bw/2, -bh/2, bw, bh, 2); c.fill();
+  c.fillStyle = "rgba(255,255,255,.25)";
+  for (let i=0;i<st.n;i++) c.fillRect(-bw/2 + 2 + i*(bw/2), -bh/2+2, 1.6, bh-4);
+  if (st.hex){ c.fillStyle = "#57d98f";
+    for (let i=0;i<3;i++){ c.beginPath();
+      c.arc(-bw/2 + bw*(0.25+0.25*i), 0, 1.4, 0, 7); c.fill(); } }
+  c.restore();
+}
+function noseX(kind){ return kind==="wedge" ? 1.15 : kind==="dart" ? 1.1 : 0.95; }
+function drawPlow(c, r, pid, kind){
+  if (!pid || pid==="a0" || pid==="p0") return;
+  const nx = noseX(kind)*r;
+  c.fillStyle = "#8a9099";
+  if (pid==="a1" || pid==="p1"){                      // steel blade
+    rr(c, nx-r*0.04, -r*0.72, r*0.2, r*1.44, 2); c.fill();
+    c.fillStyle = "rgba(0,0,0,.3)";
+    c.fillRect(nx-r*0.04, -r*0.72, r*0.05, r*1.44);
+  } else {                                            // p2 fork: two prongs
+    rr(c, nx-r*0.06, -r*0.62, r*0.42, r*0.17, 2); c.fill();
+    rr(c, nx-r*0.06,  r*0.45, r*0.42, r*0.17, 2); c.fill();
+    c.fillStyle = "#6d737d";
+    rr(c, nx-r*0.10, -r*0.66, r*0.10, r*1.32, 2); c.fill();
+  }
+}
+function drawExtras(c, r, parts, anim){
+  // sensors: mast dot up front (n1), + sweep ring (n2, sim-time rotation)
+  const sn = parts.sensors;
+  if (sn==="n1" || sn==="n2"){
+    c.fillStyle = "#8fd0ff";
+    c.beginPath(); c.arc(r*0.28, 0, r*0.09, 0, 7); c.fill();
+    if (sn==="n2"){
+      c.strokeStyle = "rgba(143,208,255,.7)"; c.lineWidth = 1.2;
+      const a = anim.t*2.4;
+      c.beginPath(); c.arc(r*0.28, 0, r*0.2, a, a+1.6); c.stroke();
+    }
+  }
+  // ballast: dark slabs amidships
+  const ls = parts.ballast;
+  if (ls==="l1" || ls==="l2"){
+    c.fillStyle = "#2a2d35";
+    rr(c, -r*0.16, -r*0.5, r*0.42, r*0.2, 2); c.fill();
+    if (ls==="l2"){ rr(c, -r*0.16, -r*0.26, r*0.42, r*0.2, 2); c.fill(); }
+  }
+  // srimech: arm across the rear deck
+  const sr = parts.srimech;
+  if (sr==="r1" || sr==="r2"){
+    c.fillStyle = sr==="r2" ? "#c8cdd6" : "#9aa0ab";
+    rr(c, -r*0.62, -r*0.55, r*0.16, r*1.1, 3); c.fill();
+    c.fillStyle = "#3a3f4c";
+    c.beginPath(); c.arc(-r*0.54, 0, r*0.08, 0, 7); c.fill();
+  }
+  // cooling: vent slits on the flank opposite the battery
+  const ko = parts.cooling;
+  if (ko==="k1" || ko==="k2"){
+    c.strokeStyle = ko==="k2" ? "#7fd4e8" : "rgba(0,0,0,.4)"; c.lineWidth = 1.3;
+    for (let i=0;i<3;i++){
+      c.beginPath(); c.moveTo(r*0.02+i*r*0.14, -r*0.58);
+      c.lineTo(r*0.10+i*r*0.14, -r*0.36); c.stroke();
+    }
+  }
+}
+function drawHeadlight(c, r, isPlayer, anim, id){
+  const pulse = 0.65 + 0.35*(0.5+0.5*Math.sin(anim.t*3.1 + id*1.7));
+  if (isPlayer){
+    c.fillStyle = `rgba(255,209,102,${pulse})`;       // Rusty: yellow, off-center
+    c.beginPath(); c.arc(r*0.6, -r*0.22, r*0.13, 0,7); c.fill();
+  } else {
+    c.fillStyle = `rgba(255,255,255,${0.6*pulse+0.15})`;
+    c.beginPath(); c.arc(r*0.55, 0, r*0.12, 0,7); c.fill();
+  }
+}
+function drawWear(c, kind, r){                        // Rusty's story
+  c.save(); drawChassisPath(c, kind, r); c.clip();
+  c.fillStyle = "#6b7079";                            // mismatched riveted panel
+  rr(c, -r*0.82, -r*0.12, r*0.5, r*0.55, 2); c.fill();
+  c.fillStyle = "#4c515b";
+  c.beginPath(); c.arc(-r*0.72,-r*0.02,r*0.05,0,7); c.fill();
+  c.beginPath(); c.arc(-r*0.72, r*0.33,r*0.05,0,7); c.fill();
+  c.fillStyle = "rgba(168,92,44,.4)";                 // rust streaks
+  c.beginPath(); c.arc(-r*0.15, r*0.5, r*0.18, 0,7); c.fill();
+  c.beginPath(); c.arc(r*0.42, -r*0.5, r*0.12, 0,7); c.fill();
+  c.strokeStyle = "rgba(0,0,0,.28)"; c.lineWidth = 1; // a single scratch
+  c.beginPath(); c.moveTo(-r*0.05,-r*0.55); c.lineTo(r*0.35,-r*0.18); c.stroke();
+  c.restore();
+}
+function drawBot(c, bot, color, isPlayer, anim){
+  const r = bot.radius, kind = bot.build.chassis;
+  const parts = bot.build.parts || {};
+  const flipped = bot.flippedT > 0;
+  const base = flipped ? "#777f92" : (isPlayer ? shade(color,0.82) : color);
+  const dark = shade(base,0.62), light = shade(base,1.28);
+
+  const propStyle = (ENGINE.partOf("propulsion", parts.propulsion)||{}).style || "worn";
+  drawTires(c, r, kind, propStyle, anim);
+  drawShell(c, r, kind, base, dark, light);
+  if (flipped){                                       // belly-up: pale underside
+    c.fillStyle = shade(base,1.15); c.globalAlpha=0.5;
+    drawChassisPath(c, kind, r*0.7); c.fill(); c.globalAlpha=1;
+    return;
+  }
+  drawBattery(c, r, parts.battery||"b0");
+  drawMotor(c, r, parts.motor||"m0", anim);
+  drawPlow(c, r, parts.armor, kind);
+  drawExtras(c, r, parts, anim);
+  drawHeadlight(c, r, isPlayer, anim, bot.id||0);
+  if (isPlayer) drawWear(c, kind, r);
+}
+
+/* ============================================================
+   DEBRIEF
+   ============================================================ */
+function causeKey(m){
+  const won = m.winner === 0;
+  const player = m.bots[0];
+  const duelDiff = m.duels[1] - m.duels[0];
+  if (won){
+    if (m.reason === "koFlip") return "win_flip";
+    if (m.reason === "shrinkOut") return "win_shrink";
+    if (m.duels[0] - m.duels[1] >= 2) return "win_duels";
+    return "win_push";
+  }
+  if (m.reason === "koFlip") return "cause_flip";
+  if (m.reason === "shrinkOut") return "cause_shrink";
+  if (player.edgeTime > 0.35 * m.t) return "cause_edge";
+  if (duelDiff >= 2) return "cause_dominated";
+  return "cause_generic";
+}
+
+function endToDebrief(){
+  cancelAnimationFrame(raf); raf=null;
+  const m = match;
+  const won = m.winner === 0;
+  $("ovTitle").textContent = t(won ? "win" : "lose");
+  $("ovTitle").style.color = won ? "var(--good)" : "var(--red)";
+  let cause = t(causeKey(m));
+  if (wasForfeit) cause = t("forfeited")+" "+cause;
+  $("ovCause").textContent = cause;
+
+  // --- bolts ---
+  const w = WIN_BOLTS[S.level];
+  let earned;
+  if (wasForfeit) earned = Math.max(1, Math.ceil(w*0.1));
+  else if (won) earned = curMode==="tour" ? Math.ceil(w*0.5) : w;
+  else earned = Math.ceil(w*0.25); // tournament losses pay too: the penalty is the restart, not poverty
+  S.bolts += earned;
+  $("ovDuels").textContent = t("duelsWon",{a:m.duels[0], b:m.duels[1]})
+    + (earned ? "   " + t("boltsEarned",{b:earned}) : "");
+
+  // --- progression ---
+  const unlockEl = $("ovUnlock"); unlockEl.style.display = "none";
+  const realWin = won && !wasForfeit;
+
+  if (curMode === "tour"){
+    if (realWin){
+      if (S.tourney.idx < 2){
+        S.tourney.idx++;
+        $("ovMain").textContent = t("tourneyNext", {i:S.tourney.idx+1});
+      } else {
+        // tournament won!
+        const prize = w*5;
+        S.bolts += prize;
+        if (!S.badges.includes(S.level)) S.badges.push(S.level);
+        $("ovTitle").textContent = t("tourneyWon")+" 🏅";
+        $("ovTitle").style.color = "var(--accent)";
+        unlockEl.textContent = t("boltsEarned",{b:prize});
+        unlockEl.style.display = "block";
+        if (S.level >= 5){
+          S.champion = true;
+          $("ovCause").textContent = t("championMsg");
+        } else {
+          S.level++;
+        }
+        S.tourney = null; S.beatenAtLevel = 0; S.opponent = null;
+        $("ovMain").textContent = t("nextOpp");
+      }
+    } else {
+      S.tourney.fails = (S.tourney.fails||0) + 1;
+      if (S.tourney.fails >= 4){
+        S.tourney = null; // pity: fresh bracket ("new entrants")
+        $("ovCause").textContent = t("tourneyReroll") + " " + cause;
+      } else {
+        S.tourney.idx = 0; // same bracket, from the top
+        $("ovCause").textContent = t("tourneyLost") + " " + cause;
+      }
+      $("ovMain").textContent = t("retry");
+    }
+  } else { // qual or exhib
+    if (realWin){
+      S.beaten++;
+      if (curMode === "qual"){ S.beatenAtLevel++; S.opponent = null; }
+      $("ovMain").textContent = t("nextOpp");
+    } else {
+      if (curMode === "qual" && S.opponent && S.opponent.gen){
+        S.opponent.losses = (S.opponent.losses||0) + 1;
+        if (S.opponent.losses >= 6){
+          S.opponent = null; // pity: he retired from the circuit
+          $("ovCause").textContent = t("oppRetired") + " " + cause;
+        }
+      }
+      $("ovMain").textContent = t("retry");
+    }
+  }
+  saveState();
+  $("overlay").style.display = "flex";
+}
+
+/* ============================================================
+   WIRE UP
+   ============================================================ */
+const TABS = {fight:"fightTab", workshop:"workshopTab", shop:"shopTab"};
+let activeTab = "fight";
+function showTab(name){
+  activeTab = name;
+  for (const [k,id] of Object.entries(TABS))
+    $(id).style.display = (k===name) ? "block" : "none";
+  $("tabFight").classList.toggle("active", name==="fight");
+  $("tabWorkshop").classList.toggle("active", name==="workshop");
+  $("tabShop").classList.toggle("active", name==="shop");
+}
+$("tabFight").onclick = ()=> showTab("fight");
+$("tabWorkshop").onclick = ()=> showTab("workshop");
+$("tabShop").onclick = ()=> showTab("shop");
+$("resetLayout").onclick = ()=>{ autoArrangeCurrent(); renderLayerTabs(); };
+$("cgToggle").onclick = ()=>{ showCG=!showCG; $("cgToggle").classList.toggle("on",showCG); $("cgToggle").textContent=t(showCG?"cgHide":"cgShow"); };
+$("hbToggle").onclick = ()=>{ showHB=!showHB; $("hbToggle").classList.toggle("on",showHB); $("hbToggle").textContent=t(showHB?"hbHide":"hbShow"); };
+
+$("fightBtn").onclick = ()=> startMatch(tournamentOpen() ? "tour" : "qual");
+$("friendlyBtn").onclick = ()=> startMatch("exhib");
+$("speedBtn").onclick = ()=>{ S.speed = S.speed===1?2:1; saveState();
+  $("speedBtn").textContent = "×"+S.speed; };
+$("forfeitBtn").onclick = ()=>{
+  if (!match || match.over) return;
+  wasForfeit = true;
+  while(!match.over) ENGINE.tick(match);
+  cancelAnimationFrame(raf);
+  endToDebrief();
+};
+$("ovMain").onclick = ()=>{
+  $("overlay").style.display="none";
+  const realWin = match.winner === 0 && !wasForfeit;
+  const goHome = ()=>{
+    $("matchScreen").style.display="none"; $("homeScreen").style.display="block";
+    renderHome();
+  };
+  if (realWin) goHome();                    // scout the next opponent / bracket match
+  else if (curMode === "exhib") goHome();   // lost friendly: no forced rematch loop
+  else startMatch(curMode);                 // retry (tournament restarts at match 1)
+};
+$("ovBack").onclick = ()=>{
+  $("overlay").style.display="none";
+  $("matchScreen").style.display="none"; $("homeScreen").style.display="block";
+  renderHome();
+};
+$("langBtn").onclick = ()=>{ LANG = LANG==="fr"?"en":"fr"; S.lang = LANG; saveState(); renderHome(); };
+window.addEventListener("resize", ()=>{ if (match && !match.over) setupCanvas(); });
+
+renderHome();
+</script>
+</body>
+</html>
