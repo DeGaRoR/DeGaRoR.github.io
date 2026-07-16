@@ -15,7 +15,8 @@
     font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; font-size:15px;}
   #app{max-width:520px; margin:0 auto; padding:10px 12px 40px;}
   h1{font-size:19px; margin:4px 0 0; letter-spacing:.5px;}
-  .topbar{display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;}
+  .topbar{display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;
+    position:sticky; top:0; z-index:40; background:var(--bg); padding:8px 0 6px;}
   .progress{font-size:12px; color:var(--muted); display:flex; gap:8px; align-items:center;}
   .dots{letter-spacing:2px; color:var(--accent);}
   .lang{font-size:12px; background:var(--panel2); border:0; border-radius:8px;
@@ -107,12 +108,17 @@
   .botrow canvas{width:84px; height:84px; flex:0 0 84px;}
   .botrow.big canvas{width:120px; height:120px; flex:0 0 120px;}
   .editorhead{display:flex; align-items:center; gap:6px; margin-bottom:8px; flex-wrap:wrap;}
+  .toolbtn{border:1.5px solid #3f4654; border-radius:999px; padding:6px 12px; font-size:11.5px;
+    font-weight:700; background:#20242c; color:var(--muted); cursor:pointer; letter-spacing:.02em;
+    transition:background .12s, color .12s, border-color .12s;}
+  .toolbtn.on{background:var(--accent); border-color:var(--accent); color:#14161c;}
+  .toolbtn.action{border-style:dashed;}
+  .toolbtn:active{transform:translateY(1px);}
   .layertabs{display:flex; gap:5px; flex-wrap:wrap; flex:1;}
   .ltab{border:0; border-radius:8px; padding:6px 9px; font-size:11px; font-weight:600;
     background:var(--panel2); color:var(--muted); cursor:pointer;}
   .ltab.on{background:var(--accent); color:#1a1c22;}
-  .ghosthint.on{background:var(--accent); color:#1a1c22;}
-  .editorwrap{display:flex; align-items:center; gap:12px;}
+  .editorwrap{display:flex; flex-direction:column; align-items:stretch; gap:10px;}
   .versus{display:flex; gap:8px; align-items:stretch; margin:10px 0;}
   .botcard{flex:1; background:var(--panel); border-radius:var(--radius); padding:10px;
     display:flex; flex-direction:column; align-items:center; gap:5px; text-align:center;}
@@ -123,8 +129,8 @@
   .botcard .chips{justify-content:center; flex-wrap:wrap;}
   .botcard .numdash{justify-content:center;}
   .vs{align-self:center; font-weight:800; font-size:13px; color:var(--muted); flex:0 0 auto;}
-  #editorCv{width:200px; height:200px; flex:0 0 200px; background:#0d0f14; border-radius:12px;
-    touch-action:none; cursor:grab;}
+  #editorCv{width:100%; max-width:640px; height:auto; aspect-ratio:1/1; margin:0 auto;
+    background:#0d0f14; border-radius:12px; touch-action:none; display:block;}
   #editorCv:active{cursor:grabbing;}
   .slotrow{display:flex; align-items:center; gap:8px; margin:9px 0; font-size:13px;}
   .slotrow .sname{flex:0 0 96px; color:var(--muted); font-size:11.5px; text-transform:uppercase;
@@ -136,13 +142,25 @@
   .slotrow .ghosthint{border:0; border-radius:8px; padding:7px 10px; font-size:11.5px;
     background:var(--panel2); color:var(--muted); cursor:pointer;}
   .floatlabel{font-weight:800;}
-  .numdash{display:grid; grid-template-columns:1fr 1fr; gap:2px 10px; font-size:11.5px;
-    color:var(--muted); margin-top:6px;}
+  .numdash{display:flex; flex-wrap:wrap; gap:6px 14px; justify-content:center;}
   .numdash b{color:var(--ink); font-weight:700; font-variant-numeric:tabular-nums;}
   .gsec{font-size:11px; letter-spacing:1px; text-transform:uppercase; color:var(--muted);
     margin:10px 0 2px; border-bottom:1px solid var(--panel2); padding-bottom:3px;}
   .grow .gname .pfx{display:block; font-size:10.5px; color:var(--muted); font-weight:400;}
-  .gcarousel{display:flex; gap:8px; overflow-x:auto; padding:6px 2px 10px; scroll-snap-type:x proximity;}
+  .gcarousel{display:flex; gap:8px; overflow-x:auto; padding:6px 2px 10px; scroll-snap-type:x proximity;
+    scrollbar-width:none; -ms-overflow-style:none;}
+  .gcarousel::-webkit-scrollbar{display:none;}
+  .persohead{font-size:12px; color:var(--muted); margin:8px 2px 4px; text-transform:uppercase; letter-spacing:.04em;}
+  .swatchrow{display:flex; gap:8px; flex-wrap:wrap;}
+  .swatch{width:34px; height:34px; border-radius:8px; border:2px solid #3f4654; cursor:pointer; position:relative;
+    display:flex; align-items:center; justify-content:center; font-size:19px; background:#20242c;}
+  .swatch.on{border-color:var(--accent); box-shadow:0 0 0 2px var(--accent);}
+  .swatch .px{position:absolute; bottom:-14px; left:0; right:0; text-align:center; font-size:9px; color:var(--muted);}
+  .swatch.locked{opacity:.55;}
+  .stickercard{flex:0 0 84px; scroll-snap-align:start; align-items:center; text-align:center;}
+  .semoji{font-size:30px; padding:6px 0 2px;}
+  .sprice{font-size:11px; color:var(--muted); margin-bottom:4px;}
+  .stickerhint{font-size:12px; color:var(--muted); padding:6px 2px;}
   .gcard{flex:0 0 96px; scroll-snap-align:start; background:var(--panel2); border-radius:10px;
     padding:8px; display:flex; flex-direction:column; align-items:center; gap:5px;}
   .gtile{width:48px; height:48px; flex:0 0 48px;}
@@ -193,6 +211,10 @@
           <div class="numdash" id="oppNums"></div>
         </div>
       </div>
+      <div class="actions">
+        <button class="btn big" id="fightBtn" data-i18n="fight"></button>
+        <button class="btn ghost" id="friendlyBtn" style="display:none" data-i18n="friendly"></button>
+      </div>
       <div class="card params">
         <h2 data-i18n="yourBot"></h2>
         <div id="paramRows"></div>
@@ -200,28 +222,30 @@
         <h2 style="margin-top:12px" data-i18n="machine"></h2>
         <div id="powerRow"></div>
       </div>
-      <div class="actions">
-        <button class="btn big" id="fightBtn" data-i18n="fight"></button>
-        <button class="btn ghost" id="friendlyBtn" style="display:none" data-i18n="friendly"></button>
-      </div>
     </div>
 
     <div id="workshopTab" style="display:none">
       <div class="card mybot">
         <div class="editorhead">
           <div class="layertabs" id="layerTabs"></div>
-          <button class="ghosthint" id="cgToggle" data-i18n="cgShow"></button>
-          <button class="ghosthint" id="hbToggle" data-i18n="hbShow"></button>
-          <button class="ghosthint" id="resetLayout" data-i18n="editReset"></button>
+          <button class="toolbtn" id="cgToggle" data-i18n="cgShow"></button>
+          <button class="toolbtn" id="hbToggle" data-i18n="hbShow"></button>
+          <button class="toolbtn action" id="resetLayout" data-i18n="editReset"></button>
         </div>
         <div class="editorwrap">
-          <canvas id="editorCv" width="260" height="260"></canvas>
+          <canvas id="editorCv" width="640" height="640"></canvas>
           <div class="numdash" id="myNums"></div>
         </div>
         <div class="stats" id="statBars"></div>
       </div>
       <div class="card">
         <div id="slotRows"></div>
+      </div>
+      <div class="card">
+        <div class="persohead" data-i18n="persoColor"></div>
+        <div id="colorRow" class="swatchrow"></div>
+        <div class="persohead" data-i18n="persoSticker"></div>
+        <div id="stickerRow" class="swatchrow"></div>
       </div>
     </div>
 
@@ -297,6 +321,7 @@ const ENGINE = (() => {
     dart:  { mass:0.8, radius:14, leverage:1.3, tractionBase:0.85, speedBase:135, pushBase:95,  battery:80,  selfRight:2.2 },
   };
   const OPTS = {
+    strategy:   ["adaptive","pressure","counter","ambush"],
     aggression: ["cautious","balanced","fierce"],
     edgeGuard:  ["daredevil","normal","fearful"],
     approach:   ["frontal","flank","opportunist"],
@@ -304,7 +329,7 @@ const ENGINE = (() => {
     chargeDist: ["short","medium","long"],
     handling:   ["stable","nervous","drift"],
   };
-  const DEFAULT_BUILD = { chassis:"boxy", aggression:"balanced", edgeGuard:"normal",
+  const DEFAULT_BUILD = { chassis:"boxy", strategy:"adaptive", aggression:"balanced", edgeGuard:"normal",
     approach:"frontal", power:"mixed", chargeDist:"medium", handling:"stable" };
 
   const POWER = { speed:{spd:1.25,push:0.75}, mixed:{spd:1.0,push:1.0}, torque:{spd:0.78,push:1.35} };
@@ -354,6 +379,7 @@ const ENGINE = (() => {
     software: [ // behavior packs (interacts with sensors)
       {id:"s0", cost:0,   mass:0},
       {id:"s1", cost:150, mass:0, edgePush:true}, // v2: steer dominated foes toward the edge
+      {id:"s2", cost:240, mass:0, edgePush:true, escape:true}, // v3: break contact when overpowered
     ],
     ballast: [ // lest: mass + friction (weight -> normal force -> grip)
       {id:"l0", cost:0,  mass:0,    grip:0},
@@ -488,7 +514,7 @@ const ENGINE = (() => {
       energy: ph.packWh * 9.0 * (c.battery/130), weight, // real Wh, scaled by hull discharge capacity
       cpuInterval: cp.interval, turnGain: cp.gain, aimNoise: sn.noise,
       selfRight: c.selfRight * sr.srMul, drainMul: ko.drain,
-      edgePush: !!sw.edgePush, cogFactor: ph.cogFactor,
+      edgePush: !!sw.edgePush, escape: !!sw.escape, cogFactor: ph.cogFactor,
     };
   }
   function statBars(build){
@@ -517,7 +543,7 @@ const ENGINE = (() => {
       colliderBound:(build.colliders&&build.colliders.bound)||c.radius, gone:null,
       battery:st.energy, batteryMax:st.energy,
       decideEvery:st.cpuInterval, turnGain:st.turnGain, aimNoise:st.aimNoise,
-      selfRight:st.selfRight, drainMul:st.drainMul, edgePush:st.edgePush,
+      selfRight:st.selfRight, drainMul:st.drainMul, edgePush:st.edgePush, escape:st.escape,
       cogFactor:(typeof build.stability==="number"?build.stability:st.cogFactor), lift:0, beachedT:0,
       mode:"stalk", modeChanged:false, dominatedT:0, contactT:0,
       flippedT:0, throttleL:0, throttleR:0, edgeTime:0,
@@ -553,11 +579,43 @@ const ENGINE = (() => {
     const guard = GUARD[bot.build.edgeGuard];
     const think = ((m.n + bot.id*3) % bot.decideEvery) === 0;
     let mode = bot.mode;
-    if (distEdge < guard) mode = "recenter";
+    // finishing move: while shoving a dominated foe who is closer to the edge
+    // than we are, do NOT bail out to recenter — finish the push.
+    const foeEdgeD = m.arenaR - V.len(foe.pos);
+    const finishing = distF < (bot.radius + foe.radius) * 1.25
+      && foe.dominatedT > 0.12 && foeEdgeD < distEdge;
+    if (distEdge < guard && !finishing) mode = "recenter";
+    // software v3: when overpowered in a shove, don't just take it — break
+    // contact (reverse out) instead of pushing back into a losing duel.
+    else if (bot.escape && bot.dominatedT > 0.3 && distF < (bot.radius+foe.radius)*1.35)
+      mode = "escape";
     else if (think || bot.mode === "recenter"){
       mode = "stalk";
+      const strat = bot.build.strategy || "adaptive";
       const chargeD = CHARGE[bot.build.chargeDist];
       let want = distF < chargeD;
+      // GRAND STRATEGY — the meta layer the tactical params fit into:
+      //  pressure: relentless forward pressure (always willing to charge)
+      //  counter:  refuse the first engagement; strike only when the foe is
+      //            committed to a charge (fast and closing) or exposed side-on
+      //  ambush:   sit STILL (statue) until the foe is close, then burst
+      if (strat === "pressure") want = true;
+      else if (strat === "counter"){
+        const foeV = Math.hypot(foe.vel.x, foe.vel.y);
+        const vlen = foeV || 1;
+        const foeClosing = ((foe.vel.x*(bot.pos.x-foe.pos.x))+(foe.vel.y*(bot.pos.y-foe.pos.y)))/vlen/Math.max(1,distF) > 0.5;
+        const foeSideOn = Math.abs(V.dot(V.fromAngle(foe.angle), V.norm(toFoe))) < 0.45;
+        const foeSpent  = foeV < 25 && distF < chargeD;      // punish the whiff
+        const sd = m.arenaR < ARENA_R - 1;                   // sudden death: waiting stopped paying
+        const stale = (bot.orbitT||0) > 5;                   // …or the foe refuses to commit
+        if (!(sd || stale)) {
+          want = want && (foeSideOn || foeSpent || foe.dominatedT > 0.1);
+          if (!want) mode = "orbit";                          // matador: keep circling
+        }
+      } else if (strat === "ambush"){
+        if (distF > chargeD * 0.55){ mode = "hold"; want = false; }
+        else want = true;
+      }
       if (want){
         const ag = bot.build.aggression;
         if (ag === "fierce") { /* always */ }
@@ -573,8 +631,38 @@ const ENGINE = (() => {
       if (want) mode = "charge";
     }
     if (mode !== bot.mode){ bot.mode = mode; bot.modeChanged = true; }
+    bot.orbitT = (mode==="orbit") ? (bot.orbitT||0) + TICK : (bot.orbitT||0);
 
     let target;
+    if (mode === "escape"){
+      // break contact: if reverse points to safety, floor it backward; if not,
+      // PIVOT first (full differential) — backing straight into the shove only
+      // keeps you pinned under the bulldozer.
+      const away = V.norm(V.sub(bot.pos, foe.pos));
+      const tail = V.scl(V.fromAngle(bot.angle), -1);
+      const align = V.dot(tail, away);                 // is reverse pointing to safety?
+      const steer = V.dot({x:-tail.y,y:tail.x}, away);
+      if (align > 0.3){ bot.throttleL = -1 - steer*0.3; bot.throttleR = -1 + steer*0.3; }
+      else { const sgn = steer>=0?1:-1; bot.throttleL = -sgn; bot.throttleR = sgn; } // pivot
+      return;
+    }
+    if (mode === "orbit"){
+      // matador: keep moving tangentially around the foe — a committed charge
+      // whiffs past a moving target, and the whiff is the opening.
+      const rad = V.sub(bot.pos, foe.pos), rl = Math.max(1, V.len(rad));
+      const tangent = {x:-rad.y/rl, y:rad.x/rl};
+      const ring = CHARGE[bot.build.chargeDist]*0.75;
+      const inout = V.scl(V.norm(rad), (ring - rl) * 0.5);     // hold the orbit radius
+      target = V.add(V.add(bot.pos, V.scl(tangent, 42)), inout);
+      if (V.len(target) > m.arenaR-24) target = V.scl(V.norm(target), m.arenaR-24); // stay on the dohyo
+    } else if (mode === "hold"){
+      // statue: keep the nose on the foe, wheels stopped (bait + save battery)
+      const aim = Math.atan2(toFoe.y, toFoe.x);
+      let dA = aim - bot.angle; while(dA>Math.PI)dA-=2*Math.PI; while(dA<-Math.PI)dA+=2*Math.PI;
+      const turn = Math.abs(dA) > 0.15 ? Math.sign(dA)*0.35 : 0;
+      bot.throttleL = -turn; bot.throttleR = turn;
+      return;
+    }
     if (mode === "recenter"){
       const away = V.scl(V.norm(V.sub(bot.pos, foe.pos)), 18);
       target = away;
@@ -834,7 +922,7 @@ const ENGINE = (() => {
   /* ---------- SLICE 1: player bot, teaching, opponent generator ---------- */
   const SLICE1 = {
     // the used clunker: fixed chassis, "functional but not optimal" defaults
-    playerBuild: { chassis:"boxy", aggression:"balanced", edgeGuard:"daredevil",
+    playerBuild: { chassis:"boxy", strategy:"adaptive", aggression:"balanced", edgeGuard:"daredevil",
       approach:"frontal", power:"mixed", chargeDist:"medium", handling:"stable" },
     // teaching opponents recalibrated for the deterministic flip (2b). Both are
     // BOXY — same leverage class as RUSTY, so no uncounterable flip mismatch early;
@@ -843,10 +931,10 @@ const ENGINE = (() => {
     // T2 PIKPIK: your fierce config over-commits at the rim (~18%) — lesson:
     //            Edge guard -> Normal (guard the edge while you brawl, ~100%).
     teaching: [
-      { nameIdx:0, archetype:"bulldozer", build:{ chassis:"dart", aggression:"fierce",
-        edgeGuard:"daredevil", approach:"frontal", power:"mixed", chargeDist:"short", handling:"nervous" }},
-      { nameIdx:3, archetype:"bulldozer", build:{ chassis:"dart", aggression:"balanced",
-        edgeGuard:"daredevil", approach:"frontal", power:"speed", chargeDist:"long", handling:"stable" }},
+      { nameIdx:0, archetype:"bulldozer", build:{ chassis:"wedge", aggression:"balanced",
+        edgeGuard:"fearful", approach:"frontal", power:"mixed", chargeDist:"medium", handling:"stable" }},
+      { nameIdx:3, archetype:"bulldozer", build:{ chassis:"boxy", aggression:"fierce",
+        edgeGuard:"normal", approach:"frontal", power:"mixed", chargeDist:"short", handling:"stable" }},
     ],
   };
 
@@ -876,6 +964,7 @@ const ENGINE = (() => {
       build[key] = spec && spec[key] ? pick(spec[key]) : pick(OPTS[key]);
     // low levels carry an exploitable flaw; high levels are clean
     if (level <= 2 && rng() < 0.6) build.edgeGuard = "daredevil";
+    if (level <= 2) build.strategy = pick(["adaptive","pressure"]); // metas unlock with level
     // "long" charge is a first-strike auto-win in near-mirrors: locked until the
     // player has unlocked chargeDist too (balance flag, revisit later)
     if (level < 3 && build.chargeDist === "long") build.chargeDist = "medium";
@@ -883,9 +972,10 @@ const ENGINE = (() => {
     const tier = level >= 5 ? 3 : level >= 4 ? 2 : level >= 3 ? 1 : 0;
     let motor = ["m0","m1","m2"][Math.min(2,tier)];
     if (tier >= 3) motor = (arch==="mosquito"||arch==="chaotic") ? "m4" : "m3";
+    if (build.chassis === "dart" && motor === "m4") motor = "m3"; // 3×3 beast won't fit the narrow hull
     build.parts = {
       motor,
-      battery: ["b0","b1","b2","b3"][tier],
+      battery: ["b0","b1"][Math.min(1,tier)], // capped at 4S: the big bricks do not fit starter hulls
       propulsion: tier>=3 ? "pr3" : ["pr0","pr1","pr2"][tier],
       armor: (build.chassis !== "wedge" && level >= 4 && rng() < (level>=5 ? 0.5 : 0.35))
         ? (level>=5 && rng()<0.4 ? "a2" : "a1") : "a0",
@@ -935,6 +1025,7 @@ const STRINGS = {
     yourBot:"Ton bot — RUSTY", machine:"Machine", fight:"COMBAT !",
     forfeit:"Forfait", settings:"Réglages", nextOpp:"Adversaire suivant", retry:"Revanche",
     level:"Niveau", champion:"CHAMPION",
+    strategy:"Stratégie", adaptive:"Adaptatif", pressure:"Pression", counter:"Contre", ambush:"Embuscade",
     aggression:"Agressivité", edgeGuard:"Garde au bord",
     approach:"Approche", power:"Puissance", chargeDist:"Dist. de charge", handling:"Conduite",
     cautious:"Prudent", balanced:"Équilibré", fierce:"Féroce",
@@ -954,7 +1045,12 @@ const STRINGS = {
     duelsWon:"Duels de prise : Toi {a} — {b} Lui",
     forfeited:"Forfait — fin simulée.",
     tabFight:"Combat", tabWorkshop:"Atelier", tabShop:"Boutique",
-    editReset:"Auto-arranger", layAll:"Tout", cgShow:"CG", cgHide:"CG ✓", hbShow:"Hitbox", hbHide:"Hitbox ✓",
+    editReset:"Auto-arranger", layAll:"Tout", cgShow:"CG", cgHide:"CG ✓",
+    persoColor:"Couleur du châssis", persoSticker:"Stickers", stickerNone:"Aucun",
+    noRoom:"Pas de place dans le châssis ! Libérez de l'espace ou attendez un châssis plus grand.",
+    stickerShopHint:"Achetez des stickers dans la boutique !", stickerOwned:"Acheté ✓",
+    stickerPlace:"Poser (tape = +1)", stickerRemove:"Retirer du robot", layStickers:"Stickers",
+    stickerDragHint:"Glisse un sticker hors du châssis pour le retirer.", hbShow:"Hitbox", hbHide:"Hitbox ✓",
     lay_chassis:"Châssis", lay_internal:"Interne", lay_armor:"Blindage", lay_external:"Externe",
     equip:"Équiper", equipped:"Équipé ✓", stock:"d'origine", buyGo:"Acheter",
     notOwned:"Boutique", weldedChassis:"Châssis soudé — RUSTY (boxy). Remplaçable un jour…",
@@ -966,6 +1062,7 @@ const STRINGS = {
     slot_srimech:"Srimech", slot_cooling:"Refroidissement",
     ndWeight:"Poids", ndPower:"Puissance", ndTorque:"Couple", ndBattery:"Batterie",
     mode_stalk:"rôde", mode_charge:"CHARGE !", mode_recenter:"au centre !",
+    mode_orbit:"orbite", mode_hold:"à l'affût", mode_escape:"FUITE !", domLabel:"Dominé !",
     fx_interval:"réflexion", fx_gain:"servo", fx_noise:"visée", fx_sr:"redressement",
     fx_drain:"conso", fx_edgePush:"pousse vers le bord",
     pn_m0:"Bobinage fatigué", pn_m1:"Twin 540", pn_m2:"Vector Brushless",
@@ -975,7 +1072,7 @@ const STRINGS = {
     pn_a0:"(tôle nue)", pn_a1:"Lame acier", pn_a2:"Fourche",
     pn_c0:"8-bit récupéré", pn_c1:"Cortex M7", pn_c2:"Pod neuronal",
     pn_n0:"Pare-chocs", pn_n1:"IR 360°", pn_n2:"LIDAR",
-    pn_s0:"Firmware v1", pn_s1:"Firmware v2 VectorPush",
+    pn_s0:"Firmware v1", pn_s1:"Firmware v2 VectorPush", pn_s2:"Firmware v3 Escape",
     pn_l0:"(aucun)", pn_l1:"Gueuse 300 g", pn_l2:"Gueuse 600 g",
     pn_r0:"(aucun)", pn_r1:"Bras basculeur", pn_r2:"Piston CO₂",
     pn_k0:"Passif", pn_k1:"Ailettes alu", pn_k2:"Watercooling",
@@ -1016,6 +1113,7 @@ const STRINGS = {
     yourBot:"Your bot — RUSTY", machine:"Machine", fight:"FIGHT!",
     forfeit:"Forfeit", settings:"Settings", nextOpp:"Next opponent", retry:"Rematch",
     level:"Level", champion:"CHAMPION",
+    strategy:"Strategy", adaptive:"Adaptive", pressure:"Pressure", counter:"Counter", ambush:"Ambush",
     aggression:"Aggression", edgeGuard:"Edge guard",
     approach:"Approach", power:"Power", chargeDist:"Charge dist.", handling:"Handling",
     cautious:"Cautious", balanced:"Balanced", fierce:"Fierce",
@@ -1035,7 +1133,12 @@ const STRINGS = {
     duelsWon:"Leverage duels: You {a} — {b} Them",
     forfeited:"Forfeit — outcome simulated.",
     tabFight:"Fight", tabWorkshop:"Workshop", tabShop:"Shop",
-    editReset:"Auto-arrange", layAll:"All", cgShow:"CoG", cgHide:"CoG ✓", hbShow:"Hitbox", hbHide:"Hitbox ✓",
+    editReset:"Auto-arrange", layAll:"All", cgShow:"CoG", cgHide:"CoG ✓",
+    persoColor:"Chassis colour", persoSticker:"Stickers", stickerNone:"None",
+    noRoom:"No room in the chassis! Free up space or wait for a bigger hull.",
+    stickerShopHint:"Buy stickers in the shop!", stickerOwned:"Owned ✓",
+    stickerPlace:"Place (tap = +1)", stickerRemove:"Remove from the bot", layStickers:"Stickers",
+    stickerDragHint:"Drag a sticker off the hull to remove it.", hbShow:"Hitbox", hbHide:"Hitbox ✓",
     lay_chassis:"Chassis", lay_internal:"Internal", lay_armor:"Armor", lay_external:"External",
     equip:"Equip", equipped:"Equipped ✓", stock:"stock", buyGo:"Buy",
     notOwned:"Shop", weldedChassis:"Welded chassis — RUSTY (boxy). Replaceable someday…",
@@ -1047,6 +1150,7 @@ const STRINGS = {
     slot_srimech:"Srimech", slot_cooling:"Cooling",
     ndWeight:"Weight", ndPower:"Power", ndTorque:"Torque", ndBattery:"Battery",
     mode_stalk:"stalking", mode_charge:"CHARGE!", mode_recenter:"recenter!",
+    mode_orbit:"orbiting", mode_hold:"lying in wait", mode_escape:"ESCAPE!", domLabel:"Dominated!",
     fx_interval:"planning", fx_gain:"servo", fx_noise:"aim", fx_sr:"self-right",
     fx_drain:"drain", fx_edgePush:"edge-push vectoring",
     pn_m0:"Tired windings", pn_m1:"Twin 540", pn_m2:"Vector Brushless",
@@ -1056,7 +1160,7 @@ const STRINGS = {
     pn_a0:"(bare plate)", pn_a1:"Steel blade", pn_a2:"Fork",
     pn_c0:"Salvaged 8-bit", pn_c1:"Cortex M7", pn_c2:"Neural pod",
     pn_n0:"Bumpers", pn_n1:"IR 360°", pn_n2:"LIDAR",
-    pn_s0:"Firmware v1", pn_s1:"Firmware v2 VectorPush",
+    pn_s0:"Firmware v1", pn_s1:"Firmware v2 VectorPush", pn_s2:"Firmware v3 Escape",
     pn_l0:"(none)", pn_l1:"300 g slug", pn_l2:"600 g slug",
     pn_r0:"(none)", pn_r1:"Flipper arm", pn_r2:"CO₂ piston",
     pn_k0:"Passive", pn_k1:"Alu fins", pn_k2:"Watercooling",
@@ -1121,6 +1225,7 @@ function defaultState(){
         ballast:"l0", sensors:"n0", srimech:"r0", cooling:"k0" },
     },
     badges:[], champion:false,
+    customize:{ color:"#2b2f3a", stickers:[], placed:[] },
     layout:null,                            // per-slot editor positions (null = defaults)
     tourney:null,                           // {idx, opponents:[{name,archetype,build,level}x3]}
     settings:{...ENGINE.SLICE1.playerBuild},
@@ -1192,6 +1297,9 @@ try {
   }
 } catch(e){}
 if (!S.parts || !S.parts.owned || !S.parts.owned.propulsion) S.parts = defaultState().parts;
+if (!S.customize) S.customize = { color:"#2b2f3a", stickers:[], placed:[] };
+if (!S.customize.placed){ S.customize.placed = []; 
+  if (S.customize.sticker) S.customize.placed.push({id:S.customize.sticker, col:4, row:4}); delete S.customize.sticker; }
 function saveState(){ try{ localStorage.setItem(SKEY, JSON.stringify(S)); }catch(e){} }
 LANG = S.lang;
 
@@ -1282,19 +1390,20 @@ function renderHome(){
   $("oppWeight").textContent = t("level")+" "+o.level;
   $("oppTend").textContent = t(ENGINE.tendencyKey(o.build));
   renderNums($("oppNums"), {...o.build, power:"mixed"});
+  ensureOppColor(o);
   $("scoutCv")._oppBuild = o.build;
   drawEditor($("scoutCv"), o.build, autoArrange(o.build), editSpin, -1);
 
   // player settings: behavior params (pilot), then power (machine)
   const rows = $("paramRows"); rows.innerHTML = "";
-  const behaviorKeys = ["aggression","edgeGuard","approach","chargeDist","handling"];
+  const behaviorKeys = ["strategy","aggression","edgeGuard","approach","chargeDist","handling"];
   for (const key of behaviorKeys) rows.appendChild(makeSeg(key));
   $("styleLine").textContent = t("styleLabel")+" "+t(ENGINE.tendencyKey(S.settings));
 
   const pr = $("powerRow"); pr.innerHTML = ""; pr.appendChild(makeSeg("power"));
 
   // player machine: live numbers + robot editor with equipped parts
-  const myBuild = {...S.settings, chassis:"boxy", parts:{...S.parts.equipped}};
+  const myBuild = {...S.settings, chassis:"boxy", parts:{...S.parts.equipped}, color:S.customize.color, stickers0:S.customize.placed};
   renderNums($("myNums"), myBuild);
   bindEditor();
   renderLayerTabs();
@@ -1319,8 +1428,37 @@ function renderHome(){
 
   renderGarage();
   renderWorkshop();
+  renderCustomize();
 
   document.querySelectorAll("[data-i18n]").forEach(el=>el.textContent = t(el.dataset.i18n));
+}
+
+function renderCustomize(){
+  const cr=$("colorRow");
+  if(cr){ cr.innerHTML="";
+    for(const col of CHASSIS_COLORS){ const sw=document.createElement("div");
+      sw.className="swatch"+(S.customize.color===col?" on":""); sw.style.background=col;
+      sw.onclick=()=>{ S.customize.color=col; saveState(); renderCustomize(); };
+      cr.appendChild(sw); } }
+  const sr=$("stickerRow");
+  if(sr){ sr.innerHTML="";
+    if(!S.customize.stickers.length){ const hint=document.createElement("div");
+      hint.className="stickerhint"; hint.textContent=t("stickerShopHint"); sr.appendChild(hint); }
+    for(const id of S.customize.stickers){ const st=stickerOf(id); if(!st) continue;
+      const count=S.customize.placed.filter(p=>p.id===id).length;
+      const sw=document.createElement("div");
+      sw.className="swatch"+(count?" on":""); sw.textContent=st.emoji;
+      sw.title=t("stickerPlace");
+      if(count>1){ const badge=document.createElement("div"); badge.className="px"; badge.textContent="×"+count; sw.appendChild(badge); }
+      sw.onclick=()=>{ // each tap adds ONE MORE copy; drag it off the hull to remove
+        const cell=freeChassisCell({chassis:"boxy",parts:{...S.parts.equipped}}, getLayout())||{col:4.5,row:4};
+        S.customize.placed.push({id, col:cell.col, row:cell.row});
+        saveState(); renderCustomize();
+      };
+      sr.appendChild(sw); }
+    if(S.customize.placed.length){ const hint=document.createElement("div");
+      hint.className="stickerhint"; hint.textContent=t("stickerDragHint"); sr.appendChild(hint); }
+  }
 }
 
 function makeSeg(key){
@@ -1372,6 +1510,20 @@ const SLOT_ORDER = ["chassis","propulsion","motor","cpu","battery","armor",
    to other robots later. Real assets replace the tiles down the line.
    ============================================================ */
 const TIER_COLORS = ["#5b6472","#28c39a","#3b82f6","#f0a020","#a78bfa"]; // stock → top tier
+// --- visual customisation ---
+const CHASSIS_COLORS = ["#2b2f3a","#3a6ea5","#b0413e","#3e8e5a","#c8783c",
+  "#7a5aa8","#2f8f8f","#b0863c","#c04a7a","#4a5568","#d9c04a","#2c3e6b"];
+const DEFAULT_CHASSIS_COLOR = "#2b2f3a";
+const STICKERS = [
+  {id:"flame",emoji:"🔥",cost:6},{id:"bolt",emoji:"⚡",cost:6},{id:"skull",emoji:"💀",cost:8},
+  {id:"star",emoji:"⭐",cost:5},{id:"crown",emoji:"👑",cost:10},{id:"robot",emoji:"🤖",cost:8},
+  {id:"target",emoji:"🎯",cost:6},{id:"heart",emoji:"❤️",cost:5},{id:"fist",emoji:"👊",cost:6},
+  {id:"gear",emoji:"⚙️",cost:5},{id:"alien",emoji:"👾",cost:8},{id:"trophy",emoji:"🏆",cost:10}];
+function stickerOf(id){ return STICKERS.find(s=>s.id===id) || null; }
+function opponentColor(seed){ // deterministic hull colour for opponents
+  let h=(seed>>>0)||1; h=(h*2654435761)>>>0; return CHASSIS_COLORS[h % CHASSIS_COLORS.length]; }
+function nameSeed(s){ let h=0; s=s||""; for(let i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))>>>0; return h||1; }
+function ensureOppColor(o){ if(o&&o.build&&!o.build.color) o.build.color=opponentColor(nameSeed(o.name)); return o; }
 const PART_GLYPH = { propulsion:"", motor:"M", battery:"B", cpu:"C", cooling:"K",
   ballast:"L", srimech:"R", sensors:"N", software:"S", weapon1:"W", weapon2:"X" };
 
@@ -1411,16 +1563,21 @@ function chassisBounds(chassis){ let minC=GRID_W,maxC=-1,minR=GRID_H,maxR=-1;
 // ---- footprint bank: base (w×d cells, height cm) + per-tier overrides ----
 const FOOT_BASE = {
   // propulsion is ONE SIDE (a wheel or track); it is mirrored L/R at placement.
+  // Sizes are deliberately CHUNKY: packing is a real puzzle, and the biggest
+  // parts do NOT all fit a starter hull — bigger chassis (weight classes) will.
   propulsion:{w:1,d:2,h:6}, motor:{w:1,d:1,h:4}, battery:{w:2,d:1,h:3}, cpu:{w:1,d:1,h:1.5},
   cooling:{w:1,d:1,h:4}, ballast:{w:1,d:1,h:3}, software:{w:1,d:1,h:0.5}, srimech:{w:1,d:1,h:4},
-  sensors:{w:1,d:1,h:6}, weapon1:{w:2,d:2,h:6}, weapon2:{w:2,d:2,h:6},
+  sensors:{w:1,d:1,h:6}, weapon1:{w:3,d:3,h:6}, weapon2:{w:3,d:3,h:6},
 };
 const FOOT_TIER = {
-  propulsion:{ pr1:{w:1,d:3}, pr2:{w:1,d:3}, pr3:{w:2,d:4} },  // per side: more wheels / a track
-  battery:{ b2:{w:3,d:1}, b3:{w:3,d:2} },
-  motor:{ m1:{w:2,d:1}, m2:{w:2,d:1}, m3:{w:2,d:1}, m4:{w:2,d:2} },
-  cooling:{ k1:{w:2,d:1}, k2:{w:2,d:2} },
-  srimech:{ r1:{w:2,d:1}, r2:{w:2,d:2} },
+  propulsion:{ pr1:{w:1,d:4}, pr2:{w:2,d:3}, pr3:{w:2,d:5} },  // per side: more wheels / a track
+  battery:{ b1:{w:2,d:2}, b2:{w:4,d:2}, b3:{w:5,d:3} },
+  motor:{ m1:{w:2,d:2}, m2:{w:2,d:2}, m3:{w:3,d:2}, m4:{w:3,d:3} },
+  cpu:{ c2:{w:2,d:1} },
+  cooling:{ k1:{w:2,d:2}, k2:{w:3,d:3} },
+  ballast:{ l2:{w:2,d:1} },
+  sensors:{ n2:{w:2,d:1} },
+  srimech:{ r1:{w:2,d:2}, r2:{w:3,d:2} },
 };
 function footprintOf(slot,id){ const b=FOOT_BASE[slot]||{w:1,d:1,h:1};
   const o=(FOOT_TIER[slot]&&FOOT_TIER[slot][id])||{}; return {w:o.w||b.w, d:o.d||b.d, h:b.h}; }
@@ -1433,6 +1590,10 @@ const EDIT_LAYERS = [
   { id:"armor",    elev:7, slots:[] },
   { id:"external", elev:9, slots:["sensors","weapon1","weapon2"] },
 ];
+const STICKER_LAYER = 4; // pseudo-layer: cosmetic decals, movable like parts
+function isMounted(slot, id){ // unmounted weapon slots occupy NO space
+  if(slot!=="weapon1" && slot!=="weapon2") return true;
+  return ENGINE.PARTS[slot].findIndex(p=>p.id===id) > 0; }
 const PLACED_SLOTS = EDIT_LAYERS.flatMap(L=>L.slots);
 const SLOT_LAYER = {}; EDIT_LAYERS.forEach((L,i)=>L.slots.forEach(s=>SLOT_LAYER[s]=i));
 function tierColor(slot,id){ const i=ENGINE.PARTS[slot].findIndex(p=>p.id===id);
@@ -1483,7 +1644,10 @@ function autoArrange(build){
     L.propulsion={col,row}; }
   // internals: greedy pack, fully contained, spilling onto higher floors when full
   const floors=floorsOf(chassis); const byFloor=Array.from({length:floors},()=>[]);
-  for(const slot of EDIT_LAYERS[1].slots){ const f=footprintOf(slot,idOf(slot));
+  const bigFirst=EDIT_LAYERS[1].slots.slice().sort((a,b)=>{
+    const fa=footprintOf(a,idOf(a)), fb=footprintOf(b,idOf(b));
+    return fb.w*fb.d - fa.w*fa.d; });
+  for(const slot of bigFirst){ const f=footprintOf(slot,idOf(slot));
     let done=false;
     for(let fl=0; fl<floors && !done; fl++){
       const pos=firstFit(chassis, f, byFloor[fl], "contain");
@@ -1492,7 +1656,9 @@ function autoArrange(build){
     if(!done) L[slot]={col:0,row:0,floor:0}; }
   // externals: anchored on the hull, may overhang
   const packedX=[];
-  for(const slot of EDIT_LAYERS[3].slots){ const f=footprintOf(slot,idOf(slot));
+  for(const slot of EDIT_LAYERS[3].slots){
+    if(!isMounted(slot, idOf(slot))){ L[slot]={col:0,row:0}; continue; } // reserved = ghost, no space
+    const f=footprintOf(slot,idOf(slot));
     const pos=firstFit(chassis, f, packedX, "anchor");
     if(pos){ L[slot]=pos; packedX.push({...pos,f}); } else L[slot]={col:0,row:0}; }
   return L;
@@ -1502,9 +1668,12 @@ function layoutValid(build, layout){ // every placed slot legal for THIS build/c
   const byLayer={};
   for(const slot of PLACED_SLOTS){ if(!layout[slot]) return false;
     (byLayer[SLOT_LAYER[slot]] = byLayer[SLOT_LAYER[slot]]||[]); }
+  const idFor=(o)=> (build.parts&&build.parts[o])||ENGINE.PARTS[o][0].id;
   for(const slot of PLACED_SLOTS){
+    if(!isMounted(slot, idFor(slot))) continue;                 // ghosts don't need a legal spot
     const p=layout[slot];
     const others=PLACED_SLOTS.filter(o=>o!==slot && SLOT_LAYER[o]===SLOT_LAYER[slot]
+        && isMounted(o, idFor(o))
         && (layout[o].floor||0)===(p.floor||0))
       .map(o=>({...layout[o], f:footprintOf(o,build.parts&&build.parts[o]||ENGINE.PARTS[o][0].id)}));
     // temporarily evaluate with the equipped id of THIS slot
@@ -1527,29 +1696,34 @@ function getLayout(){ // player layout, auto-repaired if stale/illegal
   const L=autoArrange(build); S.layout=L; return L;
 }
 
-// ---- per-component hitbox (Pass: WYSIWYG collision) ----
-// Colliders live in the SAME frame the combat renderer uses (board units × vis),
-// so the hitbox hugs exactly what's drawn — hull shape + protruding wheels/weapons.
-// Local coords are (forward, lateral) relative to the bot's facing. Each circle is
-// tagged with its slot, paving the way for per-part damage and live tear-off.
-function colliderVis(chassis){ return (ENGINE.CHASSIS[chassis].radius * 1.55) / BOARD_HALF; }
+// ---- per-component hitbox (WYSIWYG collision) ----
+// The hull is PAVED with one small circle per occupied cell, so the union hugs
+// exactly the drawn footprint (chassis + wheels + overhangs) instead of ballooning.
+// Local coords are (forward, lateral) vs the bot's facing; each circle is tagged
+// with its slot, paving the way for per-part damage and live tear-off.
+const CELL_PX = 6.2; // board units per grid cell (3 cm) — SAME for every chassis (cell-true)
+function colliderVis(chassis){ return CELL_PX / viewParams(chassis).cell; }
 function buildColliders(build, layout){
   const chassis=build.chassis||"boxy", eq=build.parts||{};
   const v=viewParams(chassis), vis=colliderVis(chassis), list=[];
-  const push=(bx,by,rb,slot)=> list.push({slot, x:-vis*by, y:vis*bx, r:vis*rb}); // board→(fwd,lat)
-  // hull: a circle per row at the centreline, radius = local half-width (tapered on wedge/dart)
-  for(let r=0;r<GRID_H;r++){ const half=chassisHalf(chassis,r); if(half<0) continue;
-    push((CX-v.ccol)*v.cell, (r+0.5-v.crow)*v.cell, half*v.cell, "chassis"); }
-  // propulsion: two mirrored side circles — they can protrude past the hull
+  const cr=0.6*v.cell; // small per-cell circle: mild overlap, tight union
+  const cell=(cc,r,slot)=> list.push({slot, x:-vis*(r+0.5-v.crow)*v.cell, y:vis*(cc+0.5-v.ccol)*v.cell, r:vis*cr});
+  const paveFoot=(col,row,f,slot)=>{ for(let dc=0;dc<f.w;dc++) for(let dr=0;dr<f.d;dr++) cell(col+dc,row+dr,slot); };
+  // hull: pave the chassis cells (tapers naturally on wedge/dart — fewer cells up front)
+  for(let r=0;r<GRID_H;r++) for(let cc=0;cc<GRID_W;cc++) if(cellInChassis(chassis,cc,r)) cell(cc,r,"chassis");
+  // armor blade/fork: one row of reach in FRONT of the hull (the leverage weapon is physical)
+  { const aid=eq.armor||"a0", aidx=ENGINE.PARTS.armor.findIndex(p=>p.id===aid);
+    if(aidx>0){ const spec=CHASSIS_SPEC[chassis], fr=spec.front-1;
+      for(let cc=0;cc<GRID_W;cc++) if(cellInChassis(chassis,cc,spec.front)) cell(cc,fr,"armor"); } }
+  // propulsion: pave both mirrored side footprints (wheels/tracks — may protrude)
   { const id=eq.propulsion||ENGINE.PARTS.propulsion[0].id, f=footprintOf("propulsion",id);
     const p=layout.propulsion||{col:0,row:0};
-    for(const col of [p.col, mirrorCol(p.col,f.w)]){ const b=slotBox(chassis,"propulsion",id,{col,row:p.row});
-      push(b.cx, b.cy, Math.max(b.wpx,b.hpx)/2, "propulsion"); } }
+    paveFoot(p.col, p.row, f, "propulsion"); paveFoot(mirrorCol(p.col,f.w), p.row, f, "propulsion"); }
   // externals (weapons/sensors) overhang the hull; internals are interior → not on the surface
   for(const slot of EDIT_LAYERS[3].slots){ const id=eq[slot]||ENGINE.PARTS[slot][0].id;
     if((slot==="weapon1"||slot==="weapon2") && ENGINE.PARTS[slot].findIndex(x=>x.id===id)===0) continue;
-    const p=layout[slot]||{col:0,row:0}, b=slotBox(chassis,slot,id,p);
-    push(b.cx, b.cy, Math.max(b.wpx,b.hpx)/2, slot); }
+    const p=layout[slot]||{col:0,row:0}, f=footprintOf(slot,id);
+    paveFoot(p.col, p.row, f, slot); }
   let bound=0; for(const c of list) bound=Math.max(bound, Math.hypot(c.x,c.y)+c.r);
   return { list, bound };
 }
@@ -1609,13 +1783,32 @@ function chassisOutlinePath(c, chassis){ const v=viewParams(chassis);
   for(let i=0;i<pts.length;i++){ const [lx,y0,rx,y1]=pts[i]; if(i===0)c.moveTo(lx,y0); c.lineTo(rx,y0); c.lineTo(rx,y1); }
   for(let i=pts.length-1;i>=0;i--){ const [lx,y0,rx,y1]=pts[i]; c.lineTo(lx,y1); c.lineTo(lx,y0); }
   c.closePath(); }
-function drawChassisBoard(c, chassis){ c.save(); c.fillStyle="#262a33"; c.strokeStyle="#3f4654"; c.lineWidth=2;
+function drawChassisBoard(c, chassis, color){ c.save(); c.fillStyle=color||DEFAULT_CHASSIS_COLOR; c.strokeStyle="#3f4654"; c.lineWidth=2;
   chassisOutlinePath(c, chassis); c.fill(); c.stroke(); c.restore(); }
 function drawArmorShell(c, chassis, id){ const idx=ENGINE.PARTS.armor.findIndex(p=>p.id===id);
   if(idx<=0) return; // a0 / none → internals exposed
   c.save(); c.globalAlpha=0.28; c.fillStyle=tierColor("armor",id);
   chassisOutlinePath(c, chassis); c.fill();
-  c.globalAlpha=0.9; c.lineWidth=3; c.strokeStyle=tierColor("armor",id); c.stroke(); c.restore(); }
+  c.globalAlpha=0.9; c.lineWidth=3; c.strokeStyle=tierColor("armor",id); c.stroke(); c.restore();
+  drawArmorFront(c, chassis, id, idx); }
+function drawArmorFront(c, chassis, id, idx){
+  // the buy is VISIBLE: a1 = steel blade bar, a2 = three-prong fork, jutting
+  // out past the hull front (and it has colliders — reach is physical).
+  const v=viewParams(chassis), spec=CHASSIS_SPEC[chassis];
+  const half=chassisHalf(chassis, spec.front)*v.cell;
+  const yF=(spec.front - v.crow)*v.cell;              // hull front edge (top)
+  const col=tierColor("armor", id);
+  c.save(); c.fillStyle=col; c.strokeStyle="rgba(0,0,0,.4)"; c.lineWidth=1.5;
+  if(idx===1){ // blade: one wide bar
+    rr(c, -half, yF - v.cell*0.7, half*2, v.cell*0.75, 2); c.fill(); c.stroke();
+  } else {     // fork: three prongs
+    const pw=v.cell*0.5, plen=v.cell*1.4;
+    for(const fx of [-half+pw*0.5, -pw/2, half-pw*1.5]){
+      c.beginPath();
+      c.moveTo(fx, yF+1); c.lineTo(fx+pw, yF+1); c.lineTo(fx+pw*0.5, yF-plen); c.closePath();
+      c.fill(); c.stroke(); }
+  }
+  c.restore(); }
 function drawPartTile(c, slot, id, cx, cy, wpx, hpx, spin=0, alpha=1, slip=0){
   c.save(); c.globalAlpha=alpha;
   let fill=tierColor(slot,id);
@@ -1630,11 +1823,34 @@ function drawPartTile(c, slot, id, cx, cy, wpx, hpx, spin=0, alpha=1, slip=0){
     c.textAlign="center"; c.textBaseline="middle"; c.fillText(PART_GLYPH[slot]||"?", cx, cy+1); }
   c.restore();
 }
+function freeChassisCell(build, layout){ // a surface cell not under wheels/weapons/sensors
+  const chassis=build.chassis, eq=build.parts||{}, covered=new Set();
+  const cover=(col,row,f)=>{ for(let dc=0;dc<f.w;dc++)for(let dr=0;dr<f.d;dr++) covered.add((col+dc)+","+(row+dr)); };
+  { const id=eq.propulsion||ENGINE.PARTS.propulsion[0].id, f=footprintOf("propulsion",id), p=layout.propulsion||{col:0,row:0};
+    cover(p.col,p.row,f); cover(mirrorCol(p.col,f.w),p.row,f); }
+  for(const slot of EDIT_LAYERS[3].slots){ const id=eq[slot]||ENGINE.PARTS[slot][0].id;
+    if((slot==="weapon1"||slot==="weapon2") && ENGINE.PARTS[slot].findIndex(x=>x.id===id)===0) continue;
+    cover((layout[slot]||{col:0,row:0}).col,(layout[slot]||{col:0,row:0}).row,footprintOf(slot,id)); }
+  const b=chassisBounds(chassis), midR=Math.round((b.minR+b.maxR)/2);
+  let best=null,bestD=1e9;
+  for(let r=b.minR;r<=b.maxR;r++)for(let cc=b.minC;cc<=b.maxC;cc++){
+    if(!cellInChassis(chassis,cc,r) || covered.has(cc+","+r)) continue;
+    const d=Math.abs(cc+0.5-CX)+Math.abs(r-midR)*0.6; if(d<bestD){bestD=d;best={col:cc,row:r};} }
+  return best;
+}
 function drawBotTiles(c, build, layout, spin, opts={}){
   const chassis=build.chassis, eq=build.parts||{};
   if(opts.shadow){ c.save(); c.globalAlpha=0.35; c.translate(6,9); c.fillStyle="#000";
     drawChassisBoard(c, chassis); c.restore(); }
-  drawChassisBoard(c, chassis);
+  if(opts.bellyUp){ // on its back: dark underside, wheels sticking up — unmistakable
+    drawChassisBoard(c, chassis, mixHex(build.color||DEFAULT_CHASSIS_COLOR, "#14161c", 0.55));
+    const id=eq.propulsion||ENGINE.PARTS.propulsion[0].id, f=footprintOf("propulsion",id);
+    const p=layout.propulsion||{col:0,row:0};
+    for(const col of [p.col, mirrorCol(p.col,f.w)]){ const b=slotBox(chassis,"propulsion",id,{col,row:p.row});
+      drawPartTile(c, "propulsion", id, b.cx, b.cy, b.wpx, b.hpx, spin*0.3, 1, 0); }
+    return;
+  }
+  drawChassisBoard(c, chassis, build.color);
   const drawSlot=(slot)=>{
     const li=SLOT_LAYER[slot];
     const id=eq[slot]||ENGINE.PARTS[slot][0].id;
@@ -1662,6 +1878,14 @@ function drawBotTiles(c, build, layout, spin, opts={}){
     .forEach(drawSlot);
   drawArmorShell(c, chassis, eq.armor||"a0");                              // shell over internals
   EDIT_LAYERS[3].slots.forEach(drawSlot);                                  // externals on top
+  const decals = build.stickers0 || [];                                    // placed decals (movable layer)
+  if(decals.length){ const v=viewParams(chassis);
+    c.save(); c.font=`${Math.round(v.cell*1.5)}px system-ui`; c.textAlign="center"; c.textBaseline="middle";
+    const dim = (opts.focus!=null && opts.focus>=0 && opts.focus!==STICKER_LAYER);
+    c.globalAlpha = dim ? 0.3 : 1;
+    for(const d of decals){ const st=stickerOf(d.id); if(!st) continue;
+      c.fillText(st.emoji, (d.col+0.5-v.ccol)*v.cell, (d.row+0.5-v.crow)*v.cell); }
+    c.restore(); }
 }
 function drawEditor(canvas, build, layout, spin, focusLayer=-1, cgOn=false, hbOn=false){
   const c=canvas.getContext("2d"); const w=canvas.width,h=canvas.height;
@@ -1706,8 +1930,13 @@ function editorBoardPoint(canvas, ev){ const rect=canvas.getBoundingClientRect()
 function pxToCell(chassis,x,y){ const v=viewParams(chassis);
   return { col:Math.floor(x/v.cell+v.ccol), row:Math.floor(y/v.cell+v.crow) }; }
 function editorHit(layout, cell){
+  if(editFocus<0 || editFocus===STICKER_LAYER){
+    for(let i=S.customize.placed.length-1; i>=0; i--){ const d=S.customize.placed[i];
+      if(Math.abs(d.col-cell.col)<=0.5 && Math.abs(d.row-cell.row)<=0.5) return {sticker:i}; } }
+  if(editFocus===STICKER_LAYER) return null;
   for(let li=EDIT_LAYERS.length-1; li>=0; li--){ if(editFocus>=0&&editFocus!==li) continue;
     for(const slot of EDIT_LAYERS[li].slots){ const p=layout[slot]; if(!p) continue;
+      if(!isMounted(slot, curId(slot))) continue;
       const f=footprintOf(slot, curId(slot));
       const inRect=(col)=>cell.col>=col&&cell.col<col+f.w&&cell.row>=p.row&&cell.row<p.row+f.d;
       if(inRect(p.col)) return slot;
@@ -1716,32 +1945,45 @@ function editorHit(layout, cell){
   return null; }
 function bindEditor(){ const cv=$("editorCv"); if(!cv||cv._bound) return; cv._bound=true;
   cv.addEventListener("pointerdown",(ev)=>{ const L=getLayout(); const pt=editorBoardPoint(cv,ev);
-    const cell=pxToCell("boxy",pt.x,pt.y); const slot=editorHit(L,cell); if(!slot) return;
+    const cell=pxToCell("boxy",pt.x,pt.y); const hit=editorHit(L,cell); if(!hit) return;
+    if(typeof hit==="object" && hit.sticker!=null){ editDrag={sticker:hit.sticker}; cv.setPointerCapture(ev.pointerId); return; }
+    const slot=hit;
     editDrag={slot, dCol:cell.col-L[slot].col, dRow:cell.row-L[slot].row}; cv.setPointerCapture(ev.pointerId); });
   cv.addEventListener("pointermove",(ev)=>{ if(!editDrag) return; const L=getLayout();
     const pt=editorBoardPoint(cv,ev); const cell=pxToCell("boxy",pt.x,pt.y);
+    if(editDrag.sticker!=null){
+      // stickers snap to HALF cells (so they can sit dead-centre on the axis);
+      // dragging one off the hull removes it (pointerup handles the delete)
+      const v=viewParams("boxy");
+      const colF=Math.round((pt.x/v.cell+v.ccol-0.5)*2)/2, rowF=Math.round((pt.y/v.cell+v.crow-0.5)*2)/2;
+      const inside=cellInChassis("boxy",Math.round(colF),Math.round(rowF));
+      const d=S.customize.placed[editDrag.sticker];
+      d.col=colF; d.row=rowF; editDrag.off=!inside;
+      return; }
     let col=cell.col-editDrag.dCol, row=cell.row-editDrag.dRow;
     const slot=editDrag.slot, li=SLOT_LAYER[slot];
     const f=footprintOf(slot, curId(slot));
     const floor = li===1 ? (L[slot].floor||0) : 0;              // keep the part's floor
-    const others=EDIT_LAYERS[li].slots.filter(o=>o!==slot && (li!==1 || (L[o].floor||0)===floor))
+    const others=EDIT_LAYERS[li].slots.filter(o=>o!==slot && isMounted(o,curId(o)) && (li!==1 || (L[o].floor||0)===floor))
       .map(o=>({...L[o], f:footprintOf(o,curId(o))}));
     const np = li===1 ? {col,row,floor} : {col,row};
     if(placementOK("boxy", slot, np, others)){ S.layout={...L,[slot]:np}; } });
-  const end=()=>{ if(editDrag){ editDrag=null; saveState(); } };
+  const end=()=>{ if(editDrag){
+    if(editDrag.sticker!=null && editDrag.off){ S.customize.placed.splice(editDrag.sticker,1); renderCustomize(); }
+    editDrag=null; saveState(); } };
   cv.addEventListener("pointerup",end); cv.addEventListener("pointercancel",end);
 }
 function autoArrangeCurrent(){ S.layout=autoArrange({chassis:"boxy", parts:{...S.parts.equipped}}); saveState(); }
 function renderLayerTabs(){ const el=$("layerTabs"); if(!el) return; el.innerHTML="";
   const mk=(label,idx)=>{ const b=document.createElement("button"); b.className="ltab"+(editFocus===idx?" on":"");
     b.textContent=label; b.onclick=()=>{ editFocus=(editFocus===idx?-1:idx); renderLayerTabs(); }; el.appendChild(b); };
-  mk(t("layAll"),-1); EDIT_LAYERS.forEach((L,i)=>mk(t("lay_"+L.id),i)); }
+  mk(t("layAll"),-1); EDIT_LAYERS.forEach((L,i)=>mk(t("lay_"+L.id),i)); mk(t("layStickers"),STICKER_LAYER); }
 function previewLoop(ts){ editSpin=(ts||0)/1000*3;
   if(typeof activeTab!=="undefined"){
     if(activeTab==="workshop"&&$("editorCv"))
-      drawEditor($("editorCv"), {chassis:"boxy", parts:{...S.parts.equipped}}, getLayout(), editSpin, editFocus, showCG, showHB);
+      drawEditor($("editorCv"), {chassis:"boxy", parts:{...S.parts.equipped}, color:S.customize.color, stickers0:S.customize.placed}, getLayout(), editSpin, editFocus, showCG, showHB);
     if(activeTab==="fight"&&$("scoutCv")&&$("scoutCv")._oppBuild){
-      const ob=$("scoutCv")._oppBuild; drawEditor($("scoutCv"), ob, autoArrange(ob), editSpin, -1);
+      const ob=$("scoutCv")._oppBuild; if(!ob.color)ob.color=opponentColor(nameSeed(ob.name||"")); drawEditor($("scoutCv"), ob, autoArrange(ob), editSpin, -1);
       if($("playerCv")&&$("playerCv")._build) drawEditor($("playerCv"), $("playerCv")._build, getLayout(), editSpin, -1);
     }
   }
@@ -1777,7 +2019,19 @@ function renderWorkshop(){
           if (id === eqId) o.selected = true;
           sel.appendChild(o);
         }
-        sel.onchange = ()=>{ S.parts.equipped[slot] = sel.value; saveState(); renderHome(); };
+        sel.onchange = ()=>{
+          const prev = S.parts.equipped[slot];
+          S.parts.equipped[slot] = sel.value;
+          // packing guard: the new part must actually FIT the hull (with everything
+          // else re-arranged). If not, revert — free up space or wait for a bigger chassis.
+          const build = {chassis:"boxy", parts:{...S.parts.equipped}};
+          const L = autoArrange(build);
+          if (!layoutValid(build, L)){
+            S.parts.equipped[slot] = prev; sel.value = prev;
+            showToast(t("noRoom"));
+            return;
+          }
+          S.layout = L; saveState(); renderHome(); };
         row.appendChild(sel);
       } else {
         const hint = document.createElement("button"); hint.className = "ghosthint";
@@ -1831,6 +2085,27 @@ function renderGarage(){
     }
     for (const part of ENGINE.PARTS[type]) strip.appendChild(mkPartCard(type, part, false));
   }
+  // stickers: cheap cosmetics, bought here, placed in the workshop
+  const h = document.createElement("div"); h.className = "gsec"; h.textContent = t("persoSticker");
+  g.appendChild(h);
+  const strip = document.createElement("div"); strip.className = "gcarousel";
+  g.appendChild(strip);
+  for (const st of STICKERS){
+    const owned = S.customize.stickers.includes(st.id);
+    const card = document.createElement("div"); card.className = "gcard stickercard"+(owned?" owned":"");
+    card.innerHTML = `<div class="semoji">${st.emoji}</div>`+
+      (owned ? `<div class="sprice">${t("stickerOwned")}</div>` : "");
+    if (!owned){
+      const btn = document.createElement("button"); btn.className="gbuy";
+      btn.textContent = `${st.cost} 🔩`;                     // same style as part cards
+      btn.disabled = S.bolts < st.cost;
+      btn.onclick = ()=>{ if (S.bolts < st.cost) return; S.bolts -= st.cost;
+        S.customize.stickers.push(st.id); saveState();
+        showToast(t("bought", {name:st.emoji})); renderHome(); };
+      card.appendChild(btn);
+    }
+    strip.appendChild(card);
+  }
 }
 // static assembled preview of a build (player card + scouting)
 function drawBotPreview(canvas, build, color, isPlayer){
@@ -1856,7 +2131,7 @@ function showToast(msg, ms=1600){
 /* ============================================================
    MATCH (rendering + loop)
    ============================================================ */
-let match=null, raf=null, slowmoT=0, shake=0, lastTs=0, acc=0;
+let match=null, raf=null, slowmoT=0, shake=0, lastTs=0, acc=0, flipAnim=[0,0], domShown=[false,false];
 let particles=[], trails=[[],[]], flashes=[0,0], wasForfeit=false, odom=[0,0], floaties=[]; let wheelPhase=[0,0], slipR=[0,0];
 const cv = $("cv"), ctx = cv.getContext("2d");
 
@@ -1884,7 +2159,8 @@ function startMatch(mode){
 
   const seed = Math.floor(Math.random()*1e9);
   const playerBuild = {...ENGINE.SLICE1.playerBuild, ...S.settings, chassis:"boxy",
-    parts:{...S.parts.equipped}};
+    parts:{...S.parts.equipped}, color:S.customize.color, stickers0:S.customize.placed};
+  ensureOppColor(enemy);
   // Pass 3: CG stability from the actual placement feeds the flip model.
   playerBuild.stability = computeCG(playerBuild, getLayout()).stability;
   enemy.build.stability = computeCG(enemy.build, autoArrange(enemy.build)).stability;
@@ -1892,7 +2168,7 @@ function startMatch(mode){
   playerBuild.colliders = buildColliders(playerBuild, getLayout());
   enemy.build.colliders = buildColliders(enemy.build, autoArrange(enemy.build));
   match = ENGINE.makeMatch(seed, playerBuild, enemy.build);
-  particles=[]; trails=[[],[]]; flashes=[0,0]; slowmoT=0; shake=0; acc=0; lastTs=0; wasForfeit=false; odom=[0,0]; floaties=[]; wheelPhase=[0,0]; slipR=[0,0];
+  particles=[]; trails=[[],[]]; flashes=[0,0]; slowmoT=0; shake=0; acc=0; lastTs=0; wasForfeit=false; odom=[0,0]; floaties=[]; wheelPhase=[0,0]; slipR=[0,0]; flipAnim=[0,0]; domShown=[false,false];
   $("homeScreen").style.display="none";
   $("matchScreen").style.display="block";
   $("overlay").style.display="none";
@@ -1918,7 +2194,11 @@ function frame(ts){
         shake = Math.min(8, ev.impulse*0.06);
       }
       if (ev.type==="end") slowmoT = 0.8;
-      if (ev.type==="flip") shake = 8;
+      if (ev.type==="flip"){ shake = 8; slowmoT = Math.max(slowmoT, 0.7); flipAnim[ev.bot] = 1;
+        const b = match.bots[ev.bot];
+        for(let k=0;k<14;k++) particles.push({x:b.pos.x,y:b.pos.y,vx:(Math.random()-0.5)*120,vy:(Math.random()-0.5)*120,
+          a:0.95, c:"#ffd166"}); }
+      if (ev.type==="righted") flipAnim[ev.bot] = 1;
     }
     for (const bot of match.bots){
       odom[bot.id] += Math.hypot(bot.vel.x, bot.vel.y) * ENGINE.TICK;
@@ -1935,6 +2215,13 @@ function frame(ts){
         floaties.push({ x:bot.pos.x, y:bot.pos.y - bot.radius - 10,
           txt:t("mode_"+bot.mode), a:1, color:[PLAYER_COLOR,ENEMY_COLOR][bot.id] });
       }
+      // the dashed ring = DOMINATED (losing the leverage duel): label it once per bout
+      if (bot.dominatedT > 0 && !domShown[bot.id]){
+        domShown[bot.id] = true;
+        floaties.push({ x:bot.pos.x, y:bot.pos.y - bot.radius - 22,
+          txt:t("domLabel"), a:1.2, color:"#ff5252" });
+      } else if (bot.dominatedT <= 0){ domShown[bot.id] = false;
+      }
       const facing = {x:Math.cos(bot.angle), y:Math.sin(bot.angle)};
       const fwd = bot.vel.x*facing.x + bot.vel.y*facing.y;
       const lat = Math.hypot(bot.vel.x - facing.x*fwd, bot.vel.y - facing.y*fwd);
@@ -1950,6 +2237,7 @@ function frame(ts){
   for (const f of floaties){ f.y -= dt*14; f.a -= dt*0.8; }
   floaties = floaties.filter(f=>f.a>0);
   shake = Math.max(0, shake - dt*22);
+  flipAnim[0]=Math.max(0,(flipAnim[0]||0)-dt*2.2); flipAnim[1]=Math.max(0,(flipAnim[1]||0)-dt*2.2);
 
   draw();
   $("clock").textContent = match.t.toFixed(1);
@@ -1970,7 +2258,7 @@ function spawnSparks(x,y,n){
 
 function draw(){
   const w = cv.clientWidth || 420;
-  const scale = w / (ENGINE.ARENA_R*2 + 40);
+  const scale = w / (ENGINE.ARENA_R*2 + 6); // tight crop: max bot size on screen
   ctx.clearRect(0,0,w,w);
   ctx.save();
   const sx = (Math.random()-0.5)*shake, sy = (Math.random()-0.5)*shake;
@@ -1989,6 +2277,11 @@ function draw(){
   }
   ctx.globalAlpha = 1;
 
+  // live customisation: the player's colour/decals always reflect the CURRENT
+  // choices (changing a colour then rematching shows instantly).
+  match.bots[0].build.color = S.customize.color;
+  match.bots[0].build.stickers0 = S.customize.placed;
+  if (!match.bots[1].build.color) ensureOppColor({name:(S.opponent&&S.opponent.name)||"", build:match.bots[1].build});
   for (const bot of match.bots){
     ctx.save();
     ctx.translate(bot.pos.x, bot.pos.y); ctx.rotate(bot.angle);
@@ -1997,10 +2290,17 @@ function draw(){
     // editor "front" is up (−y); the bot faces +x, so add π/2 to align.
     ctx.save();
     ctx.rotate(Math.PI/2);
-    const vis = (r * 1.55) / BOARD_HALF;
+    const vis = colliderVis(bot.build.chassis);   // cell-true: same px per cell for every hull
     ctx.scale(vis, vis);
+    // FLIP is a visible event: a fast tumble (squash through the axis) at the
+    // moment it happens, then a belly-up pose (darkened, wheels showing, wobble)
+    // for as long as the bot is on its back.
+    const fa = flipAnim[bot.id]||0;
+    if (fa > 0){ const k = Math.cos((1-fa)*Math.PI); ctx.scale(1, Math.max(0.08, Math.abs(k))); }
+    const flipped = bot.flippedT > 0;
+    if (flipped){ ctx.rotate(Math.sin(match.t*9 + bot.id)*0.06); ctx.scale(1,-1); }
     const layout = bot.id===0 ? getLayout() : autoArrange(bot.build);
-    drawBotTiles(ctx, bot.build, layout, wheelPhase[bot.id], {shadow:true, slip:slipR[bot.id]});
+    drawBotTiles(ctx, bot.build, layout, wheelPhase[bot.id], {shadow:true, slip:slipR[bot.id], bellyUp:flipped});
     ctx.restore();
     // dominated: skid ring
     if (bot.dominatedT>0){ ctx.strokeStyle="rgba(255,255,255,.6)"; ctx.lineWidth=2;
