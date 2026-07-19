@@ -1,39 +1,55 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
-tools/telecharger_art.py — rapatrier les images des packs d'histoire de l'art.
+tools/telecharger_art.py — rapatrier les six images des packs d'histoire de l'art.
 
-SOURCE : National Gallery of Art, jeu de données ouvert
-         https://github.com/NationalGalleryOfArt/opendata
+CE QU'IL TE FAUT
+----------------
+Rien de plus que ce que tu utilises déjà. Ce script n'emploie que la bibliothèque
+standard de Python : aucun `pip install`, aucune dépendance à installer. Si la
+commande `python3 -m http.server 8080` fonctionne chez toi, celle-ci aussi.
 
-Les images marquées `openaccess` y sont versées au domaine public (CC0) et
-servies par un point IIIF stable : api.nga.gov/iiif/{uuid}. C'est nettement plus
-sûr que de puiser sur Wikimedia, où le statut de la photographie d'une œuvre
-varie d'un fichier à l'autre.
+OÙ LE LANCER
+------------
+Depuis le dossier `atlas/`, celui qui contient index.html et data.js :
 
-POURQUOI CE SCRIPT N'A PAS ÉTÉ EXÉCUTÉ ICI
-------------------------------------------
-L'environnement de développement n'autorise les sorties réseau que vers quelques
-domaines. github.com est autorisé — c'est ainsi que le catalogue a été lu — mais
-api.nga.gov ne l'est pas. Le téléchargement se fait donc sur une machine
-ordinaire, où le script fonctionnera normalement.
+    cd /chemin/vers/atlas
+    python3 tools/telecharger_art.py --verifier   # n'écrit rien, montre la liste
+    python3 tools/telecharger_art.py              # télécharge pour de bon
 
-    python3 tools/telecharger_art.py --verifier   # liste sans télécharger
-    python3 tools/telecharger_art.py              # écrit atlas/art/ + CREDITS.md
+Sous Windows, écris `python` si `python3` est inconnu. Le script vérifie lui-même
+qu'il est au bon endroit et te l'explique sinon.
 
-CE QUE LA COLLECTION NE COUVRE PAS
-----------------------------------
-63 305 images en accès libre, et essentiellement rien pour Ifé, le Bénin, les
-Chola, les Moche ou la peinture Song. La National Gallery est un musée
-occidental : sa collection ouverte illustre superbement le premier pack et reste
-muette sur le second. Cette asymétrie est exactement le sujet du pack « hors
-d'Europe » — elle est ici mesurée plutôt qu'affirmée.
+OÙ ÇA ÉCRIT
+-----------
+Dans `atlas/art/` : six fichiers .jpg et un CREDITS.md. Le dossier est créé s'il
+n'existe pas. Rien d'autre n'est touché — ni data.js, ni les images existantes.
+Relancer est sans danger : ce qui est déjà là est laissé tel quel.
+
+SI ÇA ÉCHOUE
+------------
+Ce n'est pas bloquant. L'application affiche les questions sans image quand le
+fichier manque (`onerror="this.remove()"` dans app.js) : rien ne casse, il manque
+seulement six illustrations sur les vingt questions du pack Europe.
+
+SOURCE
+------
+National Gallery of Art, jeu de données ouvert :
+https://github.com/NationalGalleryOfArt/opendata
+Les images `openaccess` y sont versées au domaine public (CC0) et servies par un
+point IIIF stable. C'est plus sûr que Wikimedia, où le statut de la photographie
+d'une œuvre varie d'un fichier à l'autre.
+
+Ce script n'a pas pu être exécuté dans l'environnement où il a été écrit, dont les
+sorties réseau sont restreintes à quelques domaines dont api.nga.gov ne fait pas
+partie. Sur une machine ordinaire, il fonctionne normalement.
 """
-import argparse, json, os, sys, urllib.request
+import argparse, os, sys, urllib.request, urllib.error
 
 IIIF = "https://api.nga.gov/iiif/{uuid}/full/!1000,1000/0/default.jpg"
-DEST = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "art")
+RACINE = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+DEST = os.path.join(RACINE, "art")
 
-# nom local -> métadonnées, relevées dans data/published_images.csv et objects.csv
 MANIFESTE = {
     "ginevra.jpg": {
         "uuid": "8f29e3c9-a289-4d53-abf0-31a66e9e98fa", "objectid": "50724",
@@ -55,37 +71,122 @@ MANIFESTE = {
         "titre": "Macaw on a Pine Branch", "auteur": "Andō Hiroshige", "date": "1840-1844"},
 }
 
-if __name__ == "__main__":
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--verifier", action="store_true")
+
+def verifier_emplacement():
+    """Refuser de travailler ailleurs que dans un dossier atlas reconnaissable."""
+    attendu = os.path.join(RACINE, "data.js")
+    if os.path.exists(attendu):
+        return True
+    print("  Je ne trouve pas data.js à l'endroit attendu :")
+    print("     " + attendu)
+    print()
+    print("  Ce script doit rester dans le dossier tools/ de l'atlas.")
+    print("  Place-toi dans le dossier qui contient index.html, puis lance :")
+    print("     python3 tools/telecharger_art.py")
+    return False
+
+
+def explique(e):
+    """Traduire les erreurs réseau habituelles en français utile."""
+    if isinstance(e, urllib.error.HTTPError):
+        if e.code == 404:
+            return ("le serveur répond « introuvable » (404). L'identifiant de "
+                    "l'image a probablement changé côté musée.")
+        if e.code == 403:
+            return ("accès refusé (403). C'est le plus souvent un proxy ou un "
+                    "réseau d'entreprise qui filtre. Réessaie depuis une "
+                    "connexion domestique.")
+        return "le serveur a répondu par une erreur %s." % e.code
+    if isinstance(e, urllib.error.URLError):
+        return ("impossible de joindre api.nga.gov. Vérifie ta connexion, ou un "
+                "pare-feu / proxy qui bloquerait la sortie.")
+    if isinstance(e, TimeoutError):
+        return "le serveur n'a pas répondu dans les 90 secondes."
+    return "%s — %s" % (type(e).__name__, e)
+
+
+def main():
+    ap = argparse.ArgumentParser(
+        description="Rapatrie six images du domaine public pour les packs d'histoire de l'art.")
+    ap.add_argument("--verifier", action="store_true",
+                    help="affiche la liste sans rien telecharger ni ecrire")
+    ap.add_argument("--refaire", action="store_true",
+                    help="retelecharge meme les fichiers deja presents")
     a = ap.parse_args()
+
+    print()
+    print("  Images d'art — National Gallery of Art (domaine public, CC0)")
+    print("  " + "-" * 58)
+    if not verifier_emplacement():
+        return 1
+    print("  Destination : " + DEST)
+    print()
+
+    if a.verifier:
+        for local, m in MANIFESTE.items():
+            etat = "déjà là" if os.path.exists(os.path.join(DEST, local)) else "à prendre"
+            print("  [%-9s] %-24s %-22s « %s »" % (etat, local, m["auteur"][:22], m["titre"][:32]))
+        print()
+        print("  Essai à blanc : rien n'a été téléchargé ni écrit.")
+        print("  Relance sans --verifier pour télécharger.")
+        return 0
+
     os.makedirs(DEST, exist_ok=True)
-    credits, echecs = [], []
+    credits, echecs, pris, sautes = [], [], 0, 0
 
     for local, m in MANIFESTE.items():
         url = IIIF.format(uuid=m["uuid"])
-        print(f"  {local:<24} {m['auteur'][:24]:<24} « {m['titre'][:34]} »")
         credits.append(
-            f"- **{local}** — {m['titre']}, {m['auteur']}, {m['date']}\n"
-            f"  - domaine public (open access NGA, CC0)\n"
-            f"  - fiche : https://www.nga.gov/artworks/{m['objectid']}\n"
-            f"  - image : {url}\n")
-        if a.verifier:
+            "- **%s** — %s, %s, %s\n"
+            "  - domaine public (open access NGA, CC0)\n"
+            "  - fiche : https://www.nga.gov/artworks/%s\n"
+            "  - image : %s\n" % (local, m["titre"], m["auteur"], m["date"], m["objectid"], url))
+        chemin = os.path.join(DEST, local)
+
+        if os.path.exists(chemin) and not a.refaire:
+            print("  ✓ %-24s déjà présent, laissé tel quel" % local)
+            sautes += 1
             continue
+
+        print("  … %-24s téléchargement" % local, end="", flush=True)
         try:
             req = urllib.request.Request(url, headers={"User-Agent": "AtlasTempsProfond/1.0"})
-            open(os.path.join(DEST, local), "wb").write(
-                urllib.request.urlopen(req, timeout=90).read())
+            donnees = urllib.request.urlopen(req, timeout=90).read()
+            # Un JPEG commence par FF D8. Sinon on a reçu une page d'erreur HTML,
+            # et mieux vaut le dire que d'écrire un fichier illisible.
+            if not donnees.startswith(b"\xff\xd8"):
+                raise ValueError("la réponse n'est pas une image JPEG")
+            open(chemin, "wb").write(donnees)
+            print("\r  ✓ %-24s %6.0f Ko          " % (local, len(donnees) / 1024))
+            pris += 1
         except Exception as e:
-            echecs.append(f"{local} : {type(e).__name__} — {e}")
+            print("\r  ✗ %-24s échec                    " % local)
+            echecs.append((local, explique(e)))
 
-    if not a.verifier:
-        entete = ("# Crédits des images\n\n"
-                  "Source : National Gallery of Art, jeu de données ouvert (CC0).\n"
-                  "Rapatriées par `tools/telecharger_art.py`.\n\n")
-        open(os.path.join(DEST, "CREDITS.md"), "w", encoding="utf-8").write(
-            entete + "\n".join(credits))
-        print(f"\n  {len(MANIFESTE)} image(s) → {os.path.normpath(DEST)}, crédits dans art/CREDITS.md")
-    for e in echecs:
-        print("  ÉCHEC :", e, file=sys.stderr)
-    sys.exit(1 if echecs else 0)
+    entete = ("# Crédits des images\n\n"
+              "Source : National Gallery of Art, jeu de données ouvert (CC0).\n"
+              "Rapatriées par `tools/telecharger_art.py`.\n\n")
+    open(os.path.join(DEST, "CREDITS.md"), "w", encoding="utf-8").write(
+        entete + "\n".join(credits))
+
+    print()
+    print("  %d téléchargée(s), %d déjà présente(s), %d en échec." % (pris, sautes, len(echecs)))
+    print("  Crédits écrits dans " + os.path.join(DEST, "CREDITS.md"))
+
+    if echecs:
+        print()
+        print("  Détail des échecs :")
+        for local, raison in echecs:
+            print("    %s : %s" % (local, raison))
+        print()
+        print("  Ce n'est pas bloquant : l'application affiche les questions sans")
+        print("  image quand le fichier manque, rien ne casse.")
+    else:
+        print()
+        print("  Terminé. Recharge l'application : les images apparaissent après")
+        print("  une bonne réponse dans le pack « Histoire de l'art — Europe ».")
+    return 1 if echecs else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

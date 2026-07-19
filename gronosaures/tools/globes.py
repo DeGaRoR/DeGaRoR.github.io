@@ -55,14 +55,14 @@ if __name__ == "__main__":
         sid = os.path.basename(f)[:-4]
         if Image.open(f).size[0] != 800:
             print("  largeur inattendue, ignoré :", sid); continue
-        pastille(f).save(os.path.join(R, "globes", sid + ".png"))
+        pastille(f).save(os.path.join(R, "globes", sid + ".webp"))
         faits.append(sid)
     print(f"  {len(faits)} pastille(s) de {TAILLE} px dans globes/")
     if a.planche:
         n = len(faits); cols = 7
         pl = Image.new("RGB", (90*cols, 90*((n+cols-1)//cols)), (12, 17, 26))
         for i, sid in enumerate(faits):
-            im = Image.open(os.path.join(R, "globes", sid + ".png")).resize((86, 86))
+            im = Image.open(os.path.join(R, "globes", sid + ".webp")).resize((86, 86))
             pl.paste(im, ((i % cols)*90+2, (i//cols)*90+2), im)
         pl.save(os.path.join(R, "globes", "_planche.png"))
         print("  planche de contrôle : globes/_planche.png")

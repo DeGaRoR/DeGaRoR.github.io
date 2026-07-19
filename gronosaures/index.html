@@ -25,6 +25,7 @@
   <div id="solde" title="Crédits de recherche">
     <span class="sol-ico">◈</span><span id="solde-nb">0</span>
   </div>
+  <button id="btn-reglages" onclick="ouvrirReglages()" aria-label="Réglages">⚙</button>
 </header>
 
 <main id="app">
@@ -36,10 +37,9 @@
     <div id="vue-carte">
       <svg id="svg-monde" viewBox="0 0 1535 1024" preserveAspectRatio="xMidYMid slice"
            xmlns="http://www.w3.org/2000/svg" role="application" aria-label="Carte des sites de fouille">
-        <image href="monde.jpg" xlink:href="monde.jpg" x="0" y="0" width="1535" height="1024"/>
+        <image id="img-monde" href="monde-min.webp" xlink:href="monde-min.webp" x="0" y="0" width="1535" height="1024"/>
         <g id="pins"></g>
       </svg>
-      <div class="carte-aide">Touche un site pour l'ouvrir · fais glisser pour te déplacer · pince pour zoomer</div>
     </div>
 
     <!-- 2. Chantier : plein écran, fond illustré, un seul bouton -->
@@ -98,11 +98,13 @@
 
 </main>
 
+<div id="reglages"><div class="md-panneau" id="reglages-corps"></div></div>
+
 <nav class="tabs">
+  <button data-ecran="bourse"><span>🎓</span>Bourse</button>
   <button data-ecran="fouille" class="on"><span>⛏️</span>Fouille</button>
   <button data-ecran="collection"><span>🧬</span>Collection</button>
   <button data-ecran="frise"><span>⏳</span>Frise</button>
-  <button data-ecran="bourse"><span>🎓</span>Bourse</button>
 </nav>
 
 <!-- ============ SUPERPOSITIONS ============ -->

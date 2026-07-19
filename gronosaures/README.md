@@ -45,7 +45,7 @@ Aucune livraison sans `ÉCHECS (0)` sur les trois commandes :
 
 ```bash
 node --check data.js && node --check app.js && node --check sw.js
-node tools/qc.js      # ~7100 assertions : contenu, cohérence, conjugueur, économie, carte
+node tools/qc.js      # ~7890 assertions : contenu, cohérence, conjugueur, économie, carte
 node tools/smoke.js   # exécution réelle du jeu, DOM bouché
 ```
 
@@ -74,7 +74,7 @@ styles.css      registre « carnet de terrain » (ardoise + ocre, serif pour les
 data.js         bloc 1 généré par tools/ingest.py + blocs 2/3/4 écrits à la main
 app.js          7 sections : utilitaires, état, navigation, fouille, collection, bourse, init
                 la section 4 explique pourquoi le tap sur les épingles est géré à la main
-sw.js           cache-first versionné (atlas-v15), 185 entrées (globes inclus) ; liste dérivée de data.js
+sw.js           cache-first versionné (atlas-v18), 206 entrées (globes inclus) ; liste dérivée de data.js
 monde.jpg       carte du monde, 1535 × 1024 ; repère des coordonnées d'épingles
 cartes/         110 illustrations, nommées d'après creature_id
 sites/          18 vues de site
@@ -341,6 +341,154 @@ contient leurs dix-huit fiches au format exact de l'index, prêtes à coller :
 
 Le Quaternaire a été ajouté à `PERIODES` avec le pack SAM. **Le Silurien est
 désormais la seule période vide** de l'Édiacarien à aujourd'hui.
+
+## Trois packs — v18
+
+**23 chantiers, 151 créatures, 500 questions.** L'Ordovicien passe de 2 à 8
+créatures, et les plantes de 3 à 13 — elles deviennent la quatrième famille de
+l'atlas alors qu'elles en étaient l'angle mort.
+
+### Fezouata (ORD) — panorama ordovicien
+
+Ancré sur les schistes de Fezouata, à dix pixels du chantier à trilobites de
+l'Anti-Atlas : les deux gisements sont réellement voisins et distants d'une
+trentaine de millions d'années. Le zoom profond de la v17 permet à leur grappe de
+s'ouvrir. Les six créatures viennent de six pays ; l'intro le dit.
+
+Le fil est la **grande biodiversification ordovicienne**, et son illustration la plus
+nette est *Aegirocassis* : un radiodonte de deux mètres qui a converti les appendices
+de chasse d'*Anomalocaris* en peignes filtreurs. Même plan corporel, métier opposé.
+Second fil : les conodontes, connus pendant plus d'un siècle par leurs seules dents,
+qui servaient à dater des roches entières sans qu'on sache à quel animal les
+rattacher.
+
+### Gilboa (GIL) — les premières forêts
+
+Premier chantier entièrement végétal. Les souches de Gilboa sont connues depuis 1869
+et sont restées **orphelines cent quarante ans** : ce n'est qu'en 2007 qu'une
+couronne encore reliée à un tronc a permis de savoir que *Wattieza* poussait dessus.
+
+Le fil dépasse la botanique : les racines profondes d'*Archaeopteris* fendent la
+roche, fabriquent du sol, accélèrent l'altération des silicates — donc consomment du
+CO₂ — et transforment les rivières en tresses divagantes en méandres stables. Et la
+leçon transversale rejoint celle de *Thylacosmilus* : quatre lignées sans parenté
+proche atteignent séparément la taille d'un arbre. « Arbre » est une architecture,
+pas une famille.
+
+### Yixian étendu (PLA) — les premières fleurs
+
+Les cinq plantes livrées viennent toutes de la formation de Yixian, déjà présente
+dans l'atlas. Elles l'étendent donc plutôt que d'ouvrir un chantier : **un chantier
+correspond à un gisement, pas à un thème**, comme pour les échinodermes du Hunsrück.
+Yixian passe à 13 créatures et 40 questions ; le champ `pack` les regroupe à part
+dans la collection.
+
+**Deux corrections sur le lot livré**, l'une et l'autre vérifiées :
+
+- *Sinocarpus decussatus* et *Hyrcantha decussata* sont **la même espèce** — décrite
+  sous le premier nom en 2003, recombinée sous le second en 2007 après rapprochement
+  avec un fossile du Kazakhstan. Une seule fiche est retenue, sous le nom valide, et
+  la synonymie devient une question. L'illustration en double n'est pas utilisée.
+- *« Chaoyangia beishanensis »* n'existe pas : c'est un croisement entre le genre de
+  la plante et l'épithète d'un **oiseau** du même bassin. La plante est *Chaoyangia
+  liangii*. Et elle n'est pas une fleur : publiée en 1998 comme le plus ancien fruit
+  d'angiosperme, elle a été reclassée parmi les gnétales — des gymnospermes. Elle
+  reste dans le pack pour cette raison même, comme *Darwinius* à Messel.
+
+### Vues satellites provisoires
+
+`sites/ORD.webp` et `sites/GIL.webp` sont des copies de TRI et DEV en attendant les
+images définitives, avec les globes du Maroc et de l'Amérique du Nord — donc les bons
+continents. Les sites portent `fondProvisoire:true` ; `qc.js` les signale à chaque
+passage et refuse d'en compter plus de trois.
+
+## Retours de playtest — v17
+
+**Poids et lenteur.** Tout est passé en WebP : 36 Mo → 18 Mo. Les cartes de créature
+sont ramenées à 680 px de large en q74 — le double d'un affichage plein écran de
+340 px, donc net sur écran à haute densité, pour 31 % de poids en moins. `qc.js`
+vérifie désormais que le total reste sous 20 Mo et que tout est bien en WebP.
+
+**Le bouton sur lequel on appuie deux fois.** C'était un défaut de retour, pas de
+vitesse. Trois corrections : `touch-action:manipulation` supprime le délai de 300 ms
+que les navigateurs mobiles gardent pour le double-tap ; tous les boutons ont un état
+`:active` visible immédiatement ; et la vue satellite d'un site est préchargée dès
+l'ouverture de la fenêtre de déblocage, pendant qu'on lit le texte — au moment
+d'appuyer, l'image est déjà là.
+
+**Carte à deux vitesses.** `monde-min.webp` (1 535 px, 175 Ko) s'affiche
+immédiatement ; `monde.webp` (6 140 px, 1,3 Mo) part en tâche de fond via
+`requestIdleCallback` et remplace le fichier léger sans que rien ne bouge à l'écran,
+le viewBox étant identique. Seule la version légère est dans le cache initial.
+
+**Onglets** réordonnés en Bourse → Fouille → Collection → Frise. L'onglet courant se
+signale par quatre marques et non par une seule teinte : couleur, graisse, fond
+éclairci, et un trait plein en haut.
+
+**Contraste.** `--txt3` passe de `#6c7789` à `#93a0b4`. Le voile des vues satellites
+ne descendant qu'à 86 %, l'ancien gris passait sous le seuil de lisibilité. `qc.js`
+mesure la luminance et exige au moins 0,42.
+
+**Réglages** (bouton ⚙ dans l'en-tête) : version, avancement, et un bouton qui vide
+les caches et désinscrit le service worker avant de recharger. La progression vit
+dans `localStorage` et n'est pas touchée.
+
+**Icône.** Générée depuis une illustration de l'atlas par `tools/icone.py` :
+
+    python3 tools/icone.py              # liste les créatures
+    python3 tools/icone.py MOR-02       # Stegosaurus, choix actuel
+    python3 tools/icone.py MOR-01 --apercu --haut 30
+
+`--apercu` écrit une planche montrant le rendu normal, le rendu maskable et le rendu
+à 64 px, sans rien écraser. `--haut` déplace la découpe si la tête est coupée.
+
+**Ordre des packs** : philosophie, art, histoire, biologie, puis conjugaison,
+orthographe, mathématiques. `qc.js` vérifie que les six packs d'accompagnement
+précèdent les trois packs de remise à niveau.
+
+## Télécharger les images d'art — mode d'emploi
+
+`tools/telecharger_art.py` n'utilise **que la bibliothèque standard de Python** :
+aucun `pip install`, aucune dépendance. Si `python3 -m http.server 8080` marche chez
+toi, celui-ci marche aussi. Il se repère tout seul par rapport à sa propre position,
+donc il peut être lancé depuis n'importe quel dossier.
+
+    python3 tools/telecharger_art.py --verifier   # liste, n'écrit rien
+    python3 tools/telecharger_art.py              # télécharge
+
+Il écrit dans `atlas/art/` : six .jpg et un CREDITS.md. Rien d'autre n'est touché.
+Relancer est sans danger — ce qui est déjà là est laissé tel quel, `--refaire` force.
+
+Le script vérifie que la réponse commence bien par la signature d'un JPEG, pour ne
+pas écrire une page d'erreur HTML sous un nom d'image. Les échecs réseau sont
+traduits en français : 403 renvoie vers un proxy, 404 vers un identifiant périmé
+côté musée, l'absence de réponse vers la connexion.
+
+**Si ça échoue, ce n'est pas bloquant.** `app.js` pose `onerror="this.remove()"` sur
+ces images : la question s'affiche sans illustration et rien ne casse.
+
+## Neuvième pack — Philosophie hors d'Europe
+
+Pendant du pack d'histoire de l'art hors d'Europe, même méthode : on ne dresse pas
+un inventaire d'exotisme, on regarde comment le canon s'est constitué et qui en a
+été tenu dehors. Vingt questions, toutes sourcées.
+
+Trois fils s'y répondent. Des **antériorités** qui dérangent le récit reçu :
+l'homme volant d'Avicenne précède le cogito de six siècles, la critique de la
+causalité par al-Ghazali précède Hume de six cent cinquante ans, le rêve du papillon
+de Zhuangzi précède les Méditations de dix-neuf siècles. Une **exclusion écrite** :
+Kant et Hegel n'ont pas ignoré l'Afrique et l'Asie, ils les ont écartées avec des
+arguments — la frontière du canon est un acte, pas un constat. Et le **même réflexe
+que dans l'art** : Frobenius attribuait Ifé à l'Atlantide parce que c'était trop beau
+pour être africain ; Conti Rossini a déclaré le Hatata éthiopien apocryphe en partie
+parce que de telles idées ne lui semblaient pas attendues en Éthiopie.
+
+Le pack ne tranche pas ce qui n'est pas tranché. L'authenticité du Hatata reste
+ouverte — un volume collectif de De Gruyter lui est consacré en 2024, et le
+désaccord traverse les chercheurs éthiopiens comme les occidentaux. Deux questions
+le disent explicitement. Une dernière question retourne l'outil contre lui-même :
+la catégorie « philosophie non européenne » range ensemble Nagarjuna, Ibn Khaldoun
+et les tlamatinime, qui n'ont en commun que de ne pas être grecs.
 
 ## La carte du monde
 

@@ -120,6 +120,23 @@ function montrer(ecran){
 }
 
 /* ---------------- 4. Fouille ---------------- */
+/* Carte à deux vitesses. La version fine fait 6 140 px de large et 1,3 Mo : la
+   charger d'emblée retarde l'affichage de plusieurs secondes sur un réseau lent,
+   et l'on croit que rien ne se passe. On affiche donc une version 1 535 px de
+   175 Ko, immédiate, puis on substitue la fine une fois qu'elle est arrivée —
+   sans que rien ne bouge à l'écran, puisque le viewBox est le même. */
+function chargerCarteFine(){
+  const el=document.getElementById('img-monde');
+  if(!el || el.dataset.fine) return;
+  const im=new Image();
+  im.onload=()=>{
+    el.setAttribute('href','monde.webp');
+    el.setAttribute('xlink:href','monde.webp');
+    el.dataset.fine='1';
+  };
+  im.src='monde.webp';
+}
+
 /* 4a. Carte du monde : pan/zoom sur le viewBox SVG.
    Le clic ne peut PAS être écouté sur l'épingle elle-même :
    setPointerCapture() sur le <svg> redirige aussi l'événement « click »
@@ -314,6 +331,10 @@ function panneauDeblocage(s){
       ${assez?'':'<p class="md-aide">Les missions de la Bourse rapportent des crédits de recherche.</p>'}
     </div>`;
   setFondImg($('#md-vue'), s.fond, 'linear-gradient(180deg,rgba(10,15,26,.2),rgba(17,24,38,.96))');
+  /* La même vue sert de fond à l'introduction, juste après. La demander ici la
+     met en cache pendant que la personne lit la fenêtre : au moment d'appuyer,
+     elle est déjà là, et le bouton ne paraît plus inerte. */
+  new Image().src=s.fond;
   $('#modal').classList.add('on');
 }
 function fermerModal(){ $('#modal').classList.remove('on'); }
@@ -340,7 +361,7 @@ function introSite(id,relecture){
      disparaissait. Il est donc extrait en pastille (tools/globes.py) et posé
      au-dessus de tout, en haut à droite, là où rien ne le masque. */
   const g=$('#intro-globe-img');
-  if(g){ g.src='globes/'+s.id+'.png'; g.alt='Position de '+s.court+' sur le globe actuel'; }
+  if(g){ g.src='globes/'+s.id+'.webp'; g.alt='Position de '+s.court+' sur le globe actuel'; }
   $('#intro-accroche').textContent=s.accroche;
   $('#intro-titre').textContent=s.nom;
   afficheIntro();
@@ -426,6 +447,15 @@ function choisirQuestionSite(site){
   const candidats=b.filter(q=>(c[q.id]||0)===min);
   return candidats[rnd(0,candidats.length-1)];
 }
+/* Marquer un bouton comme occupé le temps que l'action se déclenche. Sans ce
+   retour, une action qui attend une image donne l'impression de n'avoir pas pris. */
+function occupe(btn,txt){
+  if(!btn)return ()=>{};
+  const av=btn.textContent, dis=btn.disabled;
+  btn.disabled=true; if(txt) btn.textContent=txt;
+  return ()=>{ btn.disabled=dis; btn.textContent=av; };
+}
+
 function poserQuestionSite(){
   const q=choisirQuestionSite(siteActif);
   const c=etat.qSite[siteActif];
@@ -667,7 +697,7 @@ function rendreFrise(){
     const ouvert=friseOuvert===s.id;
     return `<div class="fri-site${ouvert?' ouvert':''}" style="top:${y}px;margin-left:${col*14}px">
       <button class="fri-tete" onclick="friseBascule('${s.id}')">
-        <img class="fri-globe" src="globes/${s.id}.png" alt="" loading="lazy">
+        <img class="fri-globe" src="globes/${s.id}.webp" alt="" loading="lazy">
         <span class="fri-nom">${esc(s.court)}</span>
         <span class="fri-cpt">${n} / ${cs.length}</span>
       </button>
@@ -694,6 +724,44 @@ function friseBascule(id){
   const av=$('#ecran-frise').scrollTop;
   rendreFrise();
   $('#ecran-frise').scrollTop=av;
+}
+
+/* ---- Réglages ----
+   Deux besoins seulement : forcer une mise à jour quand une nouvelle version a
+   été livrée mais que le service worker sert encore l'ancienne, et savoir où
+   l'on en est. Rien d'autre : un écran d'options est un endroit où l'on se perd. */
+function ouvrirReglages(){
+  const t=trouvees().length;
+  $('#reglages-corps').innerHTML=`
+    <p class="md-sur">Réglages</p>
+    <h3>Gronosaures et Trilobytes</h3>
+    <p class="rg-ligne"><span>Version</span><b>${esc(VERSION_APP)}</b></p>
+    <p class="rg-ligne"><span>Créatures trouvées</span><b>${t} / ${CREATURES.length}</b></p>
+    <p class="rg-ligne"><span>Chantiers ouverts</span><b>${SITES.filter(s=>etat.sites[s.id]).length} / ${SITES.length}</b></p>
+    <p class="rg-note">Si une nouvelle version a été installée mais que l’application
+      affiche encore l’ancienne, force la mise à jour. Ta progression n’est pas
+      touchée : elle est enregistrée séparément.</p>
+    <button class="btn-primaire" onclick="forcerMaj(this)">Forcer la mise à jour</button>
+    <button class="btn-fant" onclick="fermerReglages()">Fermer</button>`;
+  $('#reglages').classList.add('on');
+}
+function fermerReglages(){ $('#reglages').classList.remove('on'); }
+
+/* Vider les caches du service worker puis recharger. La progression vit dans
+   localStorage, que l'on ne touche pas. */
+async function forcerMaj(btn){
+  if(btn){ btn.disabled=true; btn.textContent='Mise à jour…'; }
+  try{
+    if('caches' in window){
+      const noms=await caches.keys();
+      await Promise.all(noms.map(n=>caches.delete(n)));
+    }
+    if('serviceWorker' in navigator){
+      const rs=await navigator.serviceWorker.getRegistrations();
+      await Promise.all(rs.map(r=>r.unregister()));
+    }
+  }catch(e){ /* on recharge quand même : au pire rien n'a été vidé */ }
+  location.reload(true);
 }
 
 function ouvrirFiche(id){
@@ -998,6 +1066,11 @@ function init(){
   majFondGlobal();
   majSolde();
   montrer('fouille');
+  $('#reglages').addEventListener('click',e=>{ if(e.target.id==='reglages') fermerReglages(); });
+  /* La carte fine part une fois l'interface en place, pour ne pas concurrencer
+     le premier affichage. */
+  if('requestIdleCallback' in window) requestIdleCallback(chargerCarteFine,{timeout:4000});
+  else setTimeout(chargerCarteFine,1500);
   if('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
 }
 document.addEventListener('DOMContentLoaded',init);

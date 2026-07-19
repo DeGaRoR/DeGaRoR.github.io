@@ -11,7 +11,9 @@
   --bord:#26303f;
   --txt:#e6e9ef;
   --txt2:#98a3b3;
-  --txt3:#6c7789;
+  /* Les deux gris secondaires ont été relevés après relecture sur téléphone :
+     ils passaient sous le seuil de lisibilité dès qu'une photo servait de fond. */
+  --txt3:#93a0b4;
   --ocre:#c8964f;
   --ocre-clair:#e0b878;
   --patine:#6fa8a0;
@@ -23,6 +25,12 @@
   --safe-b:env(safe-area-inset-bottom,0px);
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+/* Retour tactile immédiat. Sans lui, un bouton dont l'action attend une image
+   paraît inerte, et l'on appuie une seconde fois. `manipulation` supprime en
+   plus le délai de 300 ms que les navigateurs mobiles gardent pour le double-tap. */
+button{touch-action:manipulation}
+button:active{transform:scale(.975); filter:brightness(1.15)}
+button:disabled:active{transform:none; filter:none}
 html,body{margin:0;padding:0;height:100%;overscroll-behavior:none}
 body{
   background:var(--fond); color:var(--txt); font-family:var(--sans);
@@ -89,23 +97,45 @@ nav.tabs{
   padding-bottom:var(--safe-b); z-index:20;
 }
 nav.tabs button{
-  flex:1; background:none; border:0; padding:9px 4px 8px; color:var(--txt3);
-  display:flex; flex-direction:column; align-items:center; gap:3px;
-  font-size:.7rem; letter-spacing:.3px; transition:color .15s;
+  position:relative; flex:1; background:none; border:0; padding:11px 4px 9px;
+  color:var(--txt3); display:flex; flex-direction:column; align-items:center; gap:3px;
+  font-size:.7rem; letter-spacing:.3px; transition:color .15s, background .15s;
+  touch-action:manipulation;
 }
-nav.tabs button span{font-size:1.22rem; line-height:1}
-nav.tabs button.on{color:var(--ocre-clair)}
+nav.tabs button span{font-size:1.22rem; line-height:1; transition:transform .15s}
+/* L'onglet courant se signale par quatre marques et non par une seule teinte :
+   couleur, graisse, fond légèrement éclairci, et un trait plein en haut. */
+nav.tabs button.on{color:var(--ocre-clair); font-weight:600; background:rgba(200,150,79,.09)}
+nav.tabs button.on span{transform:scale(1.12)}
+nav.tabs button.on::before{
+  content:''; position:absolute; top:-1px; left:14%; right:14%; height:3px;
+  background:var(--ocre); border-radius:0 0 3px 3px;
+}
+nav.tabs button:active{background:rgba(255,255,255,.07)}
+
+.rg-ligne{
+  display:flex; justify-content:space-between; align-items:baseline; gap:14px;
+  margin:0 0 7px; font-size:.86rem; color:var(--txt2);
+  border-bottom:1px dotted var(--bord); padding-bottom:6px;
+}
+.rg-ligne b{color:var(--txt); font-weight:600; font-variant-numeric:tabular-nums}
+.rg-note{font-size:.79rem; color:var(--txt3); line-height:1.55; margin:14px 0 16px}
+#btn-reglages{
+  flex:0 0 auto; margin-left:8px; width:34px; height:34px; border-radius:50%;
+  background:rgba(255,255,255,.05); border:1px solid var(--bord);
+  color:var(--txt2); font-size:1.02rem; line-height:1; cursor:pointer;
+}
+#btn-reglages:active{background:rgba(255,255,255,.12)}
+#reglages{
+  position:fixed; inset:0; z-index:80; display:none; place-items:center;
+  background:rgba(6,10,18,.82); padding:20px;
+}
+#reglages.on{display:grid}
 
 /* ---------- Carte du monde ---------- */
 .carte-wrap{position:absolute; inset:0; background:#060a12}
 #svg-monde{width:100%; height:100%; display:block; touch-action:none; cursor:grab}
 #svg-monde:active{cursor:grabbing}
-.carte-aide{
-  position:absolute; left:50%; transform:translateX(-50%); bottom:14px;
-  font-size:.72rem; color:var(--txt2); background:rgba(10,15,26,.78);
-  border:1px solid var(--bord); border-radius:999px; padding:5px 14px;
-  pointer-events:none; backdrop-filter:blur(6px);
-}
 .pin{cursor:pointer}
 .pin-halo{fill:var(--ocre); opacity:.18; animation:halo 2.8s ease-in-out infinite}
 @keyframes halo{0%,100%{r:22;opacity:.16}50%{r:30;opacity:.05}}

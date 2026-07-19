@@ -29,11 +29,11 @@ const {CREATURES,QUIZ_PALEO,SITES,PACKS,ORTHO,HISTOIRE,GEN_MATHS,TEMPS,conjuguer
        PERIODES,GRANDS_GROUPES,grandGroupe,periodeDe}=sandbox;
 
 /* ---------- 1. Fichiers attendus ---------- */
-['index.html','styles.css','data.js','app.js','sw.js','manifest.json','monde.jpg']
+['index.html','styles.css','data.js','app.js','sw.js','manifest.json','monde-min.webp']
   .forEach(f=>T('fichier '+f, existe(f)));
 
 /* ---------- 2. Créatures ---------- */
-T('134 créatures', CREATURES.length===134, CREATURES.length+' trouvées');
+T('151 créatures', CREATURES.length===151, CREATURES.length+' trouvées');
 const ids=new Set();
 CREATURES.forEach(c=>{
   T('id unique '+c.id, !ids.has(c.id)); ids.add(c.id);
@@ -47,7 +47,7 @@ CREATURES.forEach(c=>{
 });
 
 /* ---------- 3. Sites ---------- */
-T('vingt-et-un sites', SITES.length===21, SITES.length+'');
+T('vingt-trois sites', SITES.length===23, SITES.length+'');
 SITES.forEach(s=>{
   T('fond satellite '+s.id, existe(s.fond), s.fond);
   T('au moins six créatures pour '+s.id, CREATURES.filter(c=>c.site===s.id).length>=6,
@@ -158,7 +158,9 @@ T('générateurs maths : QCM valides', mauvais===0, mauvais+' tirages invalides'
 T('générateurs maths : explication systématique', sansExp===0, sansExp+' sans explication');
 
 /* ---------- 8. Packs ---------- */
-T('huit packs dans la Bourse', PACKS.length===8, PACKS.length+'');
+T('icônes de pack distinctes', new Set(PACKS.map(p=>p.ico)).size===PACKS.length,
+  PACKS.map(p=>p.ico).join(' '));
+T('neuf packs dans la Bourse', PACKS.length===9, PACKS.length+'');
 /* Les images d'art sont facultatives : le pack a été écrit dans un environnement
    sans accès réseau à Wikimedia. Ce qu'on vérifie, c'est qu'aucun chemin déclaré
    ne pointe hors du dossier prévu, et que le manifeste du script les couvre. */
@@ -207,7 +209,7 @@ PACKS.forEach(p=>{
    La carte est une image générée : impossible de vérifier une position au
    degré près. Ce qui EST vérifiable, et ce qui a déjà été raté une fois :
    qu'aucune épingle ne flotte en pleine mer, et qu'aucune n'en recouvre une
-   autre. Le masque est produit par tools/pins.py depuis monde.jpg. */
+   autre. Le masque est produit par tools/pins.py depuis monde-min.webp. */
 const CARTE={w:1535,h:1024};
 SITES.forEach(s=>{
   T('épingle '+s.id+' dans le cadre',
@@ -274,7 +276,7 @@ T('aucune famille ne rassemble plus de la moitié de la collection',
    Extraites des vues satellites par tools/globes.py. Un site sans pastille
    afficherait une image cassée dans l'introduction. */
 SITES.forEach(s=>T('pastille de globe pour '+s.id,
-  fs.existsSync(path.join(R,'globes',s.id+'.png'))));
+  fs.existsSync(path.join(R,'globes',s.id+'.webp'))));
 
 /* ---------- 8 quinquies. Frise verticale ----------
    L'échelle est linéaire : deux chantiers proches dans le temps DOIVENT rester
@@ -297,6 +299,56 @@ T('hauteur de frise raisonnable', yFri(0)>2000 && yFri(0)<9000, Math.round(yFri(
   T('les chantiers tiennent en peu de colonnes', colMax<=2, (colMax+1)+' colonnes');
 }
 SITES.forEach(s=>T('âge de chantier calculable '+s.id, isFinite(ageSite(s.id))));
+
+/* ---------- 8 sexies. Ordre des onglets et des packs ----------
+   L'ordre n'est pas décoratif : il dit ce que l'application est censée être.
+   Les matières d'accompagnement passent devant les exercices de remise à niveau. */
+{
+  const html=fs.readFileSync(path.join(R,'index.html'),'utf8');
+  const ordre=[...html.matchAll(/data-ecran="([a-z]+)"/g)].map(m=>m[1]);
+  T('onglets dans l’ordre voulu',
+    ordre.join(' ')==='bourse fouille collection frise', ordre.join(' '));
+  T('un seul onglet marqué actif',
+    (html.match(/data-ecran="[a-z]+" class="on"/g)||[]).length===1);
+  T('la pastille d’aide de la carte a été retirée', !html.includes('carte-aide'));
+  T('accès aux réglages présent', html.includes('id="btn-reglages"'));
+}
+T('packs : les matières d’accompagnement en tête',
+  PACKS.slice(0,6).every(p=>p.cat==='histoire') && PACKS.slice(6).every(p=>p.cat==='base'),
+  PACKS.map(p=>p.cat[0]).join(''));
+/* Contraste : le gris secondaire le plus clair doit rester lisible sur les fonds
+   photo, où le voile ne descend qu'à 86 %. Seuil retenu : luminance ≥ 0,42. */
+{
+  const css=fs.readFileSync(path.join(R,'styles.css'),'utf8');
+  const m=css.match(/--txt3:#([0-9a-f]{6})/i);
+  T('gris secondaire lisible', !!m && (()=>{
+    const v=m[1], f=i=>parseInt(v.substr(i,2),16)/255;
+    return (0.2126*f(0)+0.7152*f(2)+0.0722*f(4))>=0.42;
+  })(), m?('#'+m[1]):'introuvable');
+}
+/* Poids : une application qu'on abandonne au chargement n'apprend rien. */
+{
+  const poids=d=>fs.readdirSync(path.join(R,d)).reduce((a,f)=>a+fs.statSync(path.join(R,d,f)).size,0);
+  const tot=poids('cartes')+poids('sites')+poids('globes')+fs.statSync(path.join(R,'monde-min.webp')).size;
+  T('images sous 20 Mo au total', tot<20e6, (tot/1e6).toFixed(1)+' Mo');
+  T('carte légère servie en premier',
+    fs.statSync(path.join(R,'monde-min.webp')).size<300e3,
+    (fs.statSync(path.join(R,'monde-min.webp')).size/1024).toFixed(0)+' Ko');
+  T('toutes les cartes en WebP',
+    fs.readdirSync(path.join(R,'cartes')).every(f=>f.endsWith('.webp')));
+}
+
+/* Vues satellites provisoires : un site marqué `fondProvisoire` réutilise
+   l'image d'un voisin en attendant la sienne. On ne l'interdit pas — on refuse
+   simplement de l'oublier, et on vérifie qu'aucun site définitif ne partage son
+   fond avec un autre. */
+{
+  const prov=SITES.filter(s=>s.fondProvisoire);
+  if(prov.length) console.log('   ⚠ vues satellites provisoires : '+prov.map(s=>s.id).join(', '));
+  const def=SITES.filter(s=>!s.fondProvisoire).map(s=>s.fond);
+  T('chaque site définitif a sa propre vue', new Set(def).size===def.length);
+  T('les sites provisoires sont peu nombreux', prov.length<=3, prov.length+'');
+}
 
 /* ---------- 9. Économie ---------- */
 /* Règle éditoriale : l'entraînement doit toujours payer mieux que l'histoire,
@@ -384,7 +436,7 @@ T('data.js chargé avant app.js',
   html.indexOf('data.js')>0 && html.indexOf('data.js')<html.indexOf('app.js'));
 T('aucun localStorage dans data.js', !src.includes('localStorage'));
 T('sw enregistré', app.includes("serviceWorker") && app.includes('sw.js'));
-T('sw met la carte du monde en cache', sw.includes('monde.jpg'));
+T('sw met la carte du monde en cache', sw.includes('monde-min.webp'));
 CREATURES.forEach(c=>T('sw met en cache '+c.id, sw.includes(c.img)));
 T('manifest référencé', html.includes('manifest.json'));
 const man=JSON.parse(lire('manifest.json'));
